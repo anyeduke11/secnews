@@ -1,0 +1,1 @@
+{"ts": "2026-07-05T10:00:31", "uptime_s": 0, "rss_mb": 31.56, "cpu_pct": 0.0, "db_size_mb": 0.0, "cache_hit_rate": 0.0, "health_error": "HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /api/health (Caused "}

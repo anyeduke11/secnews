@@ -1,0 +1,38 @@
+{
+  "started_at": "2026-07-05T11:55:49",
+  "config": {
+    "base_url": "http://127.0.0.1:8000"
+  },
+  "backend_pid": 20536,
+  "backend_ready": true,
+  "initial_health_status": "ok",
+  "initial_health_ok": true,
+  "corrupt_method": "drop_column_url+truncate_hotspots",
+  "post_corrupt_health": {
+    "status": "down",
+    "db": {
+      "ok": false,
+      "latency_ms": 0.02,
+      "size_mb": 28.16,
+      "wal": {
+        "enabled": true,
+        "mode": "wal"
+      },
+      "integrity": {
+        "ok": true,
+        "result": "ok"
+      },
+      "hotspots_count": 0,
+      "error": "hotspots table is empty (count=0)"
+    },
+    "scheduler_ok": true
+  },
+  "db_ok": false,
+  "db_integrity_ok": true,
+  "db_integrity_result": "ok",
+  "db_hotspots_count": 0,
+  "status": "down",
+  "pass": true,
+  "finished_at": "2026-07-05T11:55:55",
+  "log_path": "C:\\Users\\Noped\\Documents\\lingxi-claw\\20260704-15-04-55-413\\hotspot-map\\scripts\\logs\\chaos_4_backend_20260705_115548.log"
+}

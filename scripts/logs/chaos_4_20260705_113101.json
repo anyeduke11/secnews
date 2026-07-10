@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-07-05T11:31:01",
+  "config": {
+    "base_url": "http://127.0.0.1:8000"
+  },
+  "backend_pid": 14716,
+  "backend_ready": true,
+  "initial_health_status": "ok",
+  "initial_health_ok": true,
+  "post_corrupt_health": {
+    "status": "ok",
+    "db": {
+      "ok": true,
+      "latency_ms": 0.02,
+      "size_mb": 28.06,
+      "wal": {
+        "enabled": true,
+        "mode": "wal"
+      },
+      "integrity": {
+        "ok": true,
+        "result": "ok"
+      }
+    },
+    "scheduler_ok": true
+  },
+  "db_ok": true,
+  "db_integrity": true,
+  "pass": false,
+  "finished_at": "2026-07-05T11:31:08",
+  "log_path": "C:\\Users\\Noped\\Documents\\lingxi-claw\\20260704-15-04-55-413\\hotspot-map\\scripts\\logs\\chaos_4_backend_20260705_113101.log"
+}

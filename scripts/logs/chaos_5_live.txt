@@ -1,0 +1,31 @@
+﻿python : C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\chaostest\sigterm.py:59: Deprec
+ationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-awar
+e objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+At line:15 char:5930
++ ... 55-413\hotspot-map"; python scripts/chaostest/sigterm.py 2>&1 | Tee-O ...
++                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\Noped\...(datetime.UTC).:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  "started_at": datetime.utcnow().isoformat() + "Z",
+[chaos_5] backend pid=72172 up
+[chaos_5] sending SIGTERM to pid=72172
+C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\chaostest\sigterm.py:105: DeprecationWar
+ning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware object
+s to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  report["sigterm_at"] = datetime.utcnow().isoformat() + "Z"
+C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\chaostest\sigterm.py:125: DeprecationWar
+ning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware object
+s to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  report["finished_at"] = datetime.utcnow().isoformat() + "Z"
+[chaos_5] pass=False report=C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\logs\chaos_5_20260705_091250.json
+{
+  "scenario": "chaos_5_sigterm",
+  "started_at": "2026-07-05T01:12:50.650384Z",
+  "pid": 72172,
+  "sigterm_at": "2026-07-05T01:12:56.831987Z",
+  "exit_dur_ms": 16.77,
+  "returncode": 1,
+  "pass": false,
+  "finished_at": "2026-07-05T01:12:56.832017Z"
+}

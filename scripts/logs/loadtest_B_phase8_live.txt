@@ -1,0 +1,81 @@
+﻿[loadtest_B] base=http://127.0.0.1:8000 duration=30s workers=2 target_qps=5
+python : C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\loadtest\mixed_load.py:166: Dep
+recationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-a
+ware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+At line:15 char:6888
++ ... //127.0.0.1:8000'; python scripts\loadtest\mixed_load.py 2>&1 | Tee-O ...
++                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\Noped\...(datetime.UTC).:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  "ts": datetime.utcnow().isoformat() + "Z",
+{
+  "scenario": "B_mixed_load",
+  "duration_s": 30.05,
+  "total": 151,
+  "success": 88,
+  "error_5xx": 63,
+  "error_rate": 0.4172,
+  "qps_actual": 5.02,
+  "qps_target": 5,
+  "endpoint_mix_actual": {
+    "hotspots": 63,
+    "trends": 46,
+    "categories": 27,
+    "health": 15
+  },
+  "latency_ms": {
+    "avg": 9.94,
+    "p50": 4.42,
+    "p95": 27.25,
+    "p99": 29.32,
+    "max": 29.96
+  },
+  "endpoint_stats": {
+    "categories": {
+      "count": 27,
+      "success_rate": 1.0,
+      "latency_ms": {
+        "avg": 12.33,
+        "p50": 4.38,
+        "p95": 27.25,
+        "p99": 28.05,
+        "max": 28.05
+      }
+    },
+    "hotspots": {
+      "count": 63,
+      "success_rate": 0.0,
+      "latency_ms": {
+        "avg": 9.4,
+        "p50": 4.34,
+        "p95": 27.85,
+        "p99": 29.96,
+        "max": 29.96
+      }
+    },
+    "trends": {
+      "count": 46,
+      "success_rate": 1.0,
+      "latency_ms": {
+        "avg": 9.27,
+        "p50": 4.47,
+        "p95": 24.98,
+        "p99": 27.88,
+        "max": 27.88
+      }
+    },
+    "health": {
+      "count": 15,
+      "success_rate": 1.0,
+      "latency_ms": {
+        "avg": 9.93,
+        "p50": 4.52,
+        "p95": 28.94,
+        "p99": 28.94,
+        "max": 28.94
+      }
+    }
+  }
+}
+[loadtest_B] raw=C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\logs\loadtest_B_20260705_121014.jsonl summary=C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\logs\loadtest_B_20260705_121014.summary.json

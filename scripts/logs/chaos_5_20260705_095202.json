@@ -1,0 +1,7 @@
+{
+  "scenario": "chaos_5_sigterm",
+  "started_at": "2026-07-05T01:52:02.223914Z",
+  "pid": 23984,
+  "error": "backend failed to start",
+  "finished_at": "2026-07-05T01:52:33.824554Z"
+}

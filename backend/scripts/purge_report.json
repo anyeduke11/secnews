@@ -1,0 +1,28 @@
+{
+  "ts": "2026-07-05T11:50:56.614895+00:00",
+  "db_path": "hotspot.db",
+  "applied": true,
+  "fallback_total": 16,
+  "forbidden_url_matches": 8,
+  "by_category": {
+    "bid": 8,
+    "github": 8
+  },
+  "deleted_hotspot_count": 16,
+  "deleted_favorite_count": 0,
+  "phase13_strict_mode": true,
+  "forbidden_patterns": [
+    "example.com",
+    "example.org",
+    "example.net",
+    "placeholder.com",
+    "test.com",
+    "localhost",
+    "google.com/search",
+    "bing.com/search",
+    "baidu.com/s?",
+    "duckduckgo.com/?",
+    "yandex.com/search"
+  ],
+  "note": "Phase 13 严格模式: 删除所有 is_fallback=1 的 hotspot,不仅是命中禁止 pattern 的"
+}

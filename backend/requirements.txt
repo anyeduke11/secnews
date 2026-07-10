@@ -1,0 +1,24 @@
+fastapi>=0.100
+uvicorn[standard]>=0.23
+aiohttp>=3.8
+pydantic>=2.0
+pydantic-settings>=2.0
+loguru>=0.7
+cachetools>=5.3
+APScheduler>=3.10
+python-dateutil>=2.8
+openpyxl>=3.1
+lxml>=5.0
+feedparser>=6.0
+keyring>=24.0
+pytest>=7.4
+pytest-asyncio>=0.21
+
+# Optional — Phase 11 crawl4ai refactor.
+# When installed AND env USE_CRAWL4AI=1, BaseCollector.fetch_source routes
+# through AsyncWebCrawler (Playwright + Chromium) for JS-rendered / anti-bot
+# pages. If not installed or disabled, falls back to aiohttp automatically.
+# Install:  pip install crawl4ai>=0.8.9
+#           crawl4ai-setup
+#           python -m playwright install --with-deps chromium
+crawl4ai>=0.8.9; python_version >= "3.10"

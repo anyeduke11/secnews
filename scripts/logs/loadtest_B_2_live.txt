@@ -1,0 +1,10 @@
+﻿[warmup] 3 rounds of all endpoints
+[measure] starting test
+Total: 200, Duration: 3.68s, QPS: 54.3
+Status codes: {200: 200}
+Errors: 0 (0.00%)
+Latency avg: 347.13ms
+Latency p50: 468.69ms
+Latency p95: 504.31ms
+Latency p99: 548.84ms
+Latency max: 549.07ms

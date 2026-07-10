@@ -1,0 +1,19 @@
+{
+  "scenario": "A_single_endpoint",
+  "url": "http://127.0.0.1:8000/api/hotspots?category=ai",
+  "duration_s": 30.07,
+  "total": 598,
+  "success": 0,
+  "error_5xx": 598,
+  "error_other_http": 598,
+  "error_network": 0,
+  "error_count": 598,
+  "qps_actual": 19.89,
+  "latency_ms": {
+    "avg": 9.53,
+    "p50": 4.96,
+    "p95": 27.93,
+    "p99": 82.36,
+    "max": 130.57
+  }
+}

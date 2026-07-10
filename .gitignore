@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+*.egg
+.venv/
+venv/
+env/
+ENV/
+
+# Logs
+backend/logs/
+*.log
+server.log
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Hidden tool / cache folders (2026-07-10)
+# 通配符过滤 IDE/agent 工具产生的 . 开头缓存与配置目录
+.*/
+.arts/
+.claude/
+.cursor/
+.gemini/
+.history/
+.pi/
+.trae/
+.web_builder/
+
+# Hidden single-file configs (2026-07-10)
+.mcp.json
+.merkle-snapshot.json
+
+# Env
+.env
+.env.local
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Build
+backend/dist/
+build/
+frontend/dist/
+
+# Database (Phase 2)
+backend/hotspot.db
+backend/hotspot.db-wal
+backend/hotspot.db-shm
+backend/data/*.db
+backend/data/*.db-*
+hotspot.db
+hotspot.db-wal
+hotspot.db-shm
+
+# Backup / runtime cache
+backend/cache_data.json
+backend/cache_data.bak.*.json
+backend/proxy_config.json

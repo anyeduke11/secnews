@@ -1,0 +1,55 @@
+{
+  "scenario": "chaos_3_kill_restart",
+  "started_at": "2026-07-05T04:05:42.475791Z",
+  "first_pid": 40584,
+  "warmup_hits": [
+    {
+      "i": 0,
+      "status": 500,
+      "duration_ms": 4.9,
+      "error": "HTTP 500"
+    },
+    {
+      "i": 1,
+      "status": 500,
+      "duration_ms": 2.69,
+      "error": "HTTP 500"
+    },
+    {
+      "i": 2,
+      "status": 500,
+      "duration_ms": 2.46,
+      "error": "HTTP 500"
+    },
+    {
+      "i": 3,
+      "status": 500,
+      "duration_ms": 20.89,
+      "error": "HTTP 500"
+    },
+    {
+      "i": 4,
+      "status": 500,
+      "duration_ms": 2.55,
+      "error": "HTTP 500"
+    }
+  ],
+  "warmup_hit_rate": 0.0,
+  "first_returncode": 1,
+  "second_pid": 28720,
+  "first_request_after_restart": {
+    "status": 500,
+    "duration_ms": 4.15,
+    "error": "HTTP 500"
+  },
+  "post_warmup_hit_rate": 0.0,
+  "after_30s_sustained_hits_count": 301,
+  "after_30s_sustained_hit_rate": 0.0,
+  "after_30s_sustained_avg_ms": 7.81,
+  "pass": false,
+  "assertions": {
+    "first_request_delay_under_2s": true,
+    "hit_rate_after_30s_sustained_over_50pct": false
+  },
+  "finished_at": "2026-07-05T04:06:44.521511Z"
+}

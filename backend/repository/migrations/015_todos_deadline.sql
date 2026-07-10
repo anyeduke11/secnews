@@ -1,0 +1,25 @@
+-- ============================================================================
+-- 015_todos_deadline.sql — Phase 46 待办截止日期 + 自动紧急判断
+--
+-- 背景
+-- ----
+-- 旧设计: 4 象限 (urgent × important) 中紧急由用户手动选择。
+-- 问题: 紧急与否应与「截止日期」绑定, 不应让用户自评。
+--       「截止日期 ≤ 1 业务日」= 紧急, 否则不紧急 (过滤周六日)。
+--
+-- 设计要点
+-- --------
+-- - 新增 ``deadline`` 列: ISO 日期 'YYYY-MM-DD' (无时区, 业务日粒度)。
+-- - ``deadline`` 与 ``urgent`` 列解耦: ``urgent`` 列保留作 legacy fallback
+--   (旧数据无 deadline 时仍用原值); 新写入数据 ``effective_urgent`` 永远
+--   由 deadline 派生, 见 backend/utils/business_days.py:_compute_effective_urgent。
+-- - 不改 ``urgent`` 列定义, 不删数据, 兼容旧 API 客户端。
+-- - ``idx_todos_priority`` 索引基于 ``(urgent, important, created_at)``,
+--   但 effective_urgent 来自 deadline, 所以排序/筛选在 SQL 层加
+--   ``CASE WHEN deadline IS NOT NULL THEN <derived> ELSE urgent END`` 表达式。
+--   派生表达式涉及业务日计算 (Python), 不适合在 SQLite 里算, 故索引
+--   仅覆盖「无 deadline 的旧数据」; effective_urgent 的过滤走全表
+--   WHERE + Python recalc (行数小, 性能可接受)。
+-- ============================================================================
+
+ALTER TABLE todos ADD COLUMN deadline TEXT;  -- 'YYYY-MM-DD' ISO date, nullable

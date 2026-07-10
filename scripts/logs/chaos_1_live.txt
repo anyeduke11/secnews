@@ -1,0 +1,142 @@
+﻿python : C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\chaostest\mock_503.py:70: Depre
+cationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-awa
+re objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+At line:15 char:5955
++ ... -Sleep -Seconds 15; python scripts/chaostest/mock_503.py 2>&1 | Tee-O ...
++                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\Noped\...(datetime.UTC).:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  "started_at": datetime.utcnow().isoformat() + "Z",
+[chaos_1] GitHubCollector.fetch_source patched to raise 503
+[32m2026-07-05 09:11:40.228[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m:[36mrun_once[0m:[
+36m62[0m - [1mcollection started[0m
+[32m2026-07-05 09:11:40.228[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_start[0m
+[32m2026-07-05 09:11:40.228[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_start[0m
+[32m2026-07-05 09:11:40.228[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_start[0m
+[32m2026-07-05 09:11:40.228[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_start[0m
+[32m2026-07-05 09:11:40.228[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_start[0m
+[32m2026-07-05 09:11:40.228[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_start[0m
+C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\chaostest\mock_503.py:42: DeprecationWar
+ning: code argument is deprecated, use status instead
+  raise aiohttp.ClientResponseError(
+[32m2026-07-05 09:11:40.246[0m | [31m[1mERROR   [0m | [36mbackend.collectors.base[0m:[36mcollect[0m:[36m331[
+0m - [31m[1mtask crashed: 503, message='Service Unavailable (chaos-injected)', url='https://github.com/trending'[0m
+[32m2026-07-05 09:11:40.246[0m | [31m[1mERROR   [0m | [36mbackend.collectors.base[0m:[36mcollect[0m:[36m331[
+0m - [31m[1mtask crashed: 503, message='Service Unavailable (chaos-injected)', url='https://github.com/star-history/s
+tar-history'[0m
+[32m2026-07-05 09:11:40.246[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mcollect[0m:[36m343[
+0m - [33m[1minsufficient items (0) or all sources failed, using fallback[0m
+[32m2026-07-05 09:11:40.275[0m | [1mINFO    [0m | [36mbackend.repository.db[0m:[36mget_connection[0m:[36m82[0
+m - [1mdb connection opened[0m
+[32m2026-07-05 09:11:40.281[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_end[0m
+[32m2026-07-05 09:11:40.428[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mfetch_source[0m:[36m
+269[0m - [33m[1msource 中央政府采购网 failed: ClientError: HTTP 404[0m
+[32m2026-07-05 09:11:40.463[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mfetch_source[0m:[36m
+269[0m - [33m[1msource 全国公共资源交易平台 failed: ClientError: HTTP 404[0m
+[32m2026-07-05 09:11:40.466[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mfetch_source[0m:[36m
+269[0m - [33m[1msource IT桔子 failed: ClientError: HTTP 412[0m
+[32m2026-07-05 09:11:40.588[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_end[0m
+[32m2026-07-05 09:11:40.744[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_end[0m
+[32m2026-07-05 09:11:40.749[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mfetch_source[0m:[36m
+269[0m - [33m[1msource 中国采购与招标网 failed: ClientError: HTTP 405[0m
+[32m2026-07-05 09:11:41.893[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_end[0m
+[32m2026-07-05 09:11:43.530[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mfetch_source[0m:[36m
+269[0m - [33m[1msource 招标投标公共服务平台 failed: ClientError: HTTP 502[0m
+[32m2026-07-05 09:12:00.301[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mfetch_source[0m:[36m
+269[0m - [33m[1msource HackerNews failed: TimeoutError: [0m
+[32m2026-07-05 09:12:00.374[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_end[0m
+[32m2026-07-05 09:12:01.311[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mfetch_source[0m:[36m
+269[0m - [33m[1msource 金融采购网 failed: ClientConnectorError: Cannot connect to host www.cfcpn.com:443 ssl:False[0m
+[32m2026-07-05 09:12:01.383[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_end[0m
+[32m2026-07-05 09:12:01.403[0m | [1mINFO    [0m | [36mbackend.repository.hotspot_repo[0m:[36mupsert_many[0m:[3
+6m197[0m - [1mupsert_many ok[0m
+[32m2026-07-05 09:12:01.404[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m:[36mrun_once[0m:[
+36m79[0m - [1mupserted 217 items[0m
+[32m2026-07-05 09:12:01.412[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m:[36mrebuild[0m:[36m183
+[0m - [1mtrend snapshots rebuilt[0m
+[32m2026-07-05 09:12:01.412[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m:[36mrun_once[0m:[
+36m87[0m - [1mtrend rebuilt: 144 points[0m
+[32m2026-07-05 09:12:01.415[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m:[36mrun_once[0m:[
+36m132[0m - [1mcollection finished: total=217, success=6, failed=0, duration=21186ms[0m
+C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\chaostest\mock_503.py:149: DeprecationWa
+rning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objec
+ts to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  report["finished_at"] = datetime.utcnow().isoformat() + "Z"
+[chaos_1] pass=True report=C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\logs\chaos_1_20260705_091139.json
+{
+  "scenario": "chaos_1_github_503",
+  "started_at": "2026-07-05T01:11:39.524722Z",
+  "duration_ms": 21195.0,
+  "total_items": 217,
+  "success_count": 6,
+  "failed_count": 0,
+  "fallback_count": 8,
+  "per_category": [
+    {
+      "category": "ai",
+      "ok": true,
+      "item_count": 29,
+      "fallback_count": 0,
+      "error": null,
+      "duration_ms": 20146
+    },
+    {
+      "category": "security",
+      "ok": true,
+      "item_count": 60,
+      "fallback_count": 0,
+      "error": null,
+      "duration_ms": 1664
+    },
+    {
+      "category": "finance",
+      "ok": true,
+      "item_count": 40,
+      "fallback_count": 0,
+      "error": null,
+      "duration_ms": 516
+    },
+    {
+      "category": "startup",
+      "ok": true,
+      "item_count": 40,
+      "fallback_count": 0,
+      "error": null,
+      "duration_ms": 359
+    },
+    {
+      "category": "bid",
+      "ok": true,
+      "item_count": 40,
+      "fallback_count": 0,
+      "error": null,
+      "duration_ms": 21154
+    },
+    {
+      "category": "github",
+      "ok": true,
+      "item_count": 8,
+      "fallback_count": 8,
+      "error": null,
+      "duration_ms": 52
+    }
+  ],
+  "all_6_categories_succeeded": true,
+  "github_fallback_count": 8,
+  "github_has_fallback_items": true,
+  "pass": true,
+  "finished_at": "2026-07-05T01:12:01.422669Z"
+}

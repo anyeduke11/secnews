@@ -1,0 +1,54 @@
+{
+  "scenario": "chaos_3_kill_restart",
+  "started_at": "2026-07-05T03:18:27.671769Z",
+  "first_pid": 71612,
+  "warmup_hits": [
+    {
+      "i": 0,
+      "status": 200,
+      "duration_ms": 17.77,
+      "error": ""
+    },
+    {
+      "i": 1,
+      "status": 200,
+      "duration_ms": 13.4,
+      "error": ""
+    },
+    {
+      "i": 2,
+      "status": 200,
+      "duration_ms": 15.19,
+      "error": ""
+    },
+    {
+      "i": 3,
+      "status": 200,
+      "duration_ms": 17.19,
+      "error": ""
+    },
+    {
+      "i": 4,
+      "status": 200,
+      "duration_ms": 3.2,
+      "error": ""
+    }
+  ],
+  "warmup_hit_rate": 0.1905,
+  "first_returncode": 1,
+  "second_pid": 37268,
+  "first_request_after_restart": {
+    "status": 200,
+    "duration_ms": 30.05,
+    "error": ""
+  },
+  "after_30s_sustained_hits_count": 301,
+  "after_30s_sustained_hit_rate": 0.3295,
+  "after_30s_sustained_avg_ms": 18.67,
+  "pass": false,
+  "assertions": {
+    "first_request_delay_under_2s": true,
+    "hit_rate_after_30s_sustained_over_50pct": false
+  },
+  "finished_at": "2026-07-05T03:19:02.255565Z"
+}

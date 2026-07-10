@@ -1,0 +1,151 @@
+{"ts": "2026-07-05T04:10:14.249650Z", "endpoint": "categories", "status": 200, "duration_ms": 3.6, "error": ""}
+{"ts": "2026-07-05T04:10:14.252249Z", "endpoint": "categories", "status": 200, "duration_ms": 3.42, "error": ""}
+{"ts": "2026-07-05T04:10:14.649379Z", "endpoint": "categories", "status": 200, "duration_ms": 18.38, "error": ""}
+{"ts": "2026-07-05T04:10:14.653046Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.41, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:15.049879Z", "endpoint": "trends", "status": 200, "duration_ms": 5.11, "error": ""}
+{"ts": "2026-07-05T04:10:15.070040Z", "endpoint": "trends", "status": 200, "duration_ms": 20.05, "error": ""}
+{"ts": "2026-07-05T04:10:15.450609Z", "endpoint": "categories", "status": 200, "duration_ms": 4.08, "error": ""}
+{"ts": "2026-07-05T04:10:15.455135Z", "endpoint": "trends", "status": 200, "duration_ms": 4.42, "error": ""}
+{"ts": "2026-07-05T04:10:15.851013Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.69, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:15.855332Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.97, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:16.251764Z", "endpoint": "trends", "status": 200, "duration_ms": 3.15, "error": ""}
+{"ts": "2026-07-05T04:10:16.279795Z", "endpoint": "trends", "status": 200, "duration_ms": 27.88, "error": ""}
+{"ts": "2026-07-05T04:10:16.652526Z", "endpoint": "hotspots", "status": 500, "duration_ms": 27.85, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:16.682207Z", "endpoint": "hotspots", "status": 500, "duration_ms": 29.32, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:17.053393Z", "endpoint": "trends", "status": 200, "duration_ms": 4.65, "error": ""}
+{"ts": "2026-07-05T04:10:17.070771Z", "endpoint": "trends", "status": 200, "duration_ms": 17.26, "error": ""}
+{"ts": "2026-07-05T04:10:17.453730Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.66, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:17.473260Z", "endpoint": "trends", "status": 200, "duration_ms": 19.38, "error": ""}
+{"ts": "2026-07-05T04:10:17.854490Z", "endpoint": "trends", "status": 200, "duration_ms": 3.8, "error": ""}
+{"ts": "2026-07-05T04:10:17.872399Z", "endpoint": "hotspots", "status": 500, "duration_ms": 17.66, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:18.254959Z", "endpoint": "trends", "status": 200, "duration_ms": 4.13, "error": ""}
+{"ts": "2026-07-05T04:10:18.278528Z", "endpoint": "categories", "status": 200, "duration_ms": 23.45, "error": ""}
+{"ts": "2026-07-05T04:10:18.655956Z", "endpoint": "categories", "status": 200, "duration_ms": 23.67, "error": ""}
+{"ts": "2026-07-05T04:10:18.660174Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.98, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:19.056460Z", "endpoint": "hotspots", "status": 500, "duration_ms": 13.61, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:19.060891Z", "endpoint": "trends", "status": 200, "duration_ms": 4.3, "error": ""}
+{"ts": "2026-07-05T04:10:19.457167Z", "endpoint": "categories", "status": 200, "duration_ms": 4.14, "error": ""}
+{"ts": "2026-07-05T04:10:19.461824Z", "endpoint": "trends", "status": 200, "duration_ms": 4.52, "error": ""}
+{"ts": "2026-07-05T04:10:19.857944Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.1, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:19.862786Z", "endpoint": "health", "status": 200, "duration_ms": 4.72, "error": ""}
+{"ts": "2026-07-05T04:10:20.258418Z", "endpoint": "trends", "status": 200, "duration_ms": 3.95, "error": ""}
+{"ts": "2026-07-05T04:10:20.262999Z", "endpoint": "categories", "status": 200, "duration_ms": 4.43, "error": ""}
+{"ts": "2026-07-05T04:10:20.658652Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.91, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:20.663146Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.23, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:21.059612Z", "endpoint": "trends", "status": 200, "duration_ms": 4.13, "error": ""}
+{"ts": "2026-07-05T04:10:21.081699Z", "endpoint": "hotspots", "status": 500, "duration_ms": 21.85, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:21.461233Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.42, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:21.480550Z", "endpoint": "hotspots", "status": 500, "duration_ms": 19.08, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:21.862049Z", "endpoint": "health", "status": 200, "duration_ms": 24.2, "error": ""}
+{"ts": "2026-07-05T04:10:21.866430Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.14, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:22.262881Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.58, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:22.267590Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.41, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:22.663484Z", "endpoint": "trends", "status": 200, "duration_ms": 3.96, "error": ""}
+{"ts": "2026-07-05T04:10:22.679566Z", "endpoint": "trends", "status": 200, "duration_ms": 15.95, "error": ""}
+{"ts": "2026-07-05T04:10:23.063832Z", "endpoint": "hotspots", "status": 500, "duration_ms": 18.48, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:23.067739Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.68, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:23.464322Z", "endpoint": "trends", "status": 200, "duration_ms": 4.62, "error": ""}
+{"ts": "2026-07-05T04:10:23.488742Z", "endpoint": "hotspots", "status": 500, "duration_ms": 24.07, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:23.864726Z", "endpoint": "categories", "status": 200, "duration_ms": 4.33, "error": ""}
+{"ts": "2026-07-05T04:10:23.868689Z", "endpoint": "trends", "status": 200, "duration_ms": 3.84, "error": ""}
+{"ts": "2026-07-05T04:10:24.265314Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.08, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:24.269811Z", "endpoint": "health", "status": 200, "duration_ms": 4.4, "error": ""}
+{"ts": "2026-07-05T04:10:24.665755Z", "endpoint": "hotspots", "status": 500, "duration_ms": 5.29, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:24.669420Z", "endpoint": "trends", "status": 200, "duration_ms": 3.54, "error": ""}
+{"ts": "2026-07-05T04:10:25.066216Z", "endpoint": "categories", "status": 200, "duration_ms": 4.38, "error": ""}
+{"ts": "2026-07-05T04:10:25.091083Z", "endpoint": "hotspots", "status": 500, "duration_ms": 24.64, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:25.467219Z", "endpoint": "hotspots", "status": 500, "duration_ms": 28.24, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:25.482456Z", "endpoint": "hotspots", "status": 500, "duration_ms": 14.99, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:25.867663Z", "endpoint": "hotspots", "status": 500, "duration_ms": 15.28, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:25.871689Z", "endpoint": "trends", "status": 200, "duration_ms": 3.92, "error": ""}
+{"ts": "2026-07-05T04:10:26.268519Z", "endpoint": "categories", "status": 200, "duration_ms": 3.84, "error": ""}
+{"ts": "2026-07-05T04:10:26.273755Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.94, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:26.669333Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.97, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:26.673457Z", "endpoint": "categories", "status": 200, "duration_ms": 4.0, "error": ""}
+{"ts": "2026-07-05T04:10:27.069999Z", "endpoint": "trends", "status": 200, "duration_ms": 26.07, "error": ""}
+{"ts": "2026-07-05T04:10:27.074045Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.84, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:27.470603Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.97, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:27.474130Z", "endpoint": "categories", "status": 200, "duration_ms": 3.39, "error": ""}
+{"ts": "2026-07-05T04:10:27.870767Z", "endpoint": "categories", "status": 200, "duration_ms": 18.35, "error": ""}
+{"ts": "2026-07-05T04:10:27.875455Z", "endpoint": "health", "status": 200, "duration_ms": 4.55, "error": ""}
+{"ts": "2026-07-05T04:10:28.271869Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.91, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:28.275450Z", "endpoint": "trends", "status": 200, "duration_ms": 3.44, "error": ""}
+{"ts": "2026-07-05T04:10:28.672233Z", "endpoint": "categories", "status": 200, "duration_ms": 25.51, "error": ""}
+{"ts": "2026-07-05T04:10:28.675544Z", "endpoint": "categories", "status": 200, "duration_ms": 3.21, "error": ""}
+{"ts": "2026-07-05T04:10:29.073248Z", "endpoint": "categories", "status": 200, "duration_ms": 2.94, "error": ""}
+{"ts": "2026-07-05T04:10:29.100586Z", "endpoint": "hotspots", "status": 500, "duration_ms": 27.12, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:29.473671Z", "endpoint": "categories", "status": 200, "duration_ms": 28.05, "error": ""}
+{"ts": "2026-07-05T04:10:29.477864Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.92, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:29.873874Z", "endpoint": "trends", "status": 200, "duration_ms": 3.87, "error": ""}
+{"ts": "2026-07-05T04:10:29.892553Z", "endpoint": "hotspots", "status": 500, "duration_ms": 18.37, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:30.274776Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.19, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:30.279433Z", "endpoint": "trends", "status": 200, "duration_ms": 4.35, "error": ""}
+{"ts": "2026-07-05T04:10:30.675331Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.09, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:30.679729Z", "endpoint": "categories", "status": 200, "duration_ms": 4.27, "error": ""}
+{"ts": "2026-07-05T04:10:31.075631Z", "endpoint": "health", "status": 200, "duration_ms": 4.52, "error": ""}
+{"ts": "2026-07-05T04:10:31.102270Z", "endpoint": "categories", "status": 200, "duration_ms": 26.48, "error": ""}
+{"ts": "2026-07-05T04:10:31.476467Z", "endpoint": "health", "status": 200, "duration_ms": 4.22, "error": ""}
+{"ts": "2026-07-05T04:10:31.481274Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.57, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:31.876765Z", "endpoint": "health", "status": 200, "duration_ms": 28.94, "error": ""}
+{"ts": "2026-07-05T04:10:31.881673Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.27, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:32.277571Z", "endpoint": "categories", "status": 200, "duration_ms": 16.41, "error": ""}
+{"ts": "2026-07-05T04:10:32.281712Z", "endpoint": "trends", "status": 200, "duration_ms": 4.04, "error": ""}
+{"ts": "2026-07-05T04:10:32.678026Z", "endpoint": "hotspots", "status": 500, "duration_ms": 18.71, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:32.682877Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.61, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:33.079119Z", "endpoint": "trends", "status": 200, "duration_ms": 4.82, "error": ""}
+{"ts": "2026-07-05T04:10:33.083492Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.14, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:33.479374Z", "endpoint": "health", "status": 200, "duration_ms": 4.9, "error": ""}
+{"ts": "2026-07-05T04:10:33.483413Z", "endpoint": "categories", "status": 200, "duration_ms": 3.92, "error": ""}
+{"ts": "2026-07-05T04:10:33.880023Z", "endpoint": "health", "status": 200, "duration_ms": 4.44, "error": ""}
+{"ts": "2026-07-05T04:10:33.894814Z", "endpoint": "trends", "status": 200, "duration_ms": 14.65, "error": ""}
+{"ts": "2026-07-05T04:10:34.280678Z", "endpoint": "categories", "status": 200, "duration_ms": 20.67, "error": ""}
+{"ts": "2026-07-05T04:10:34.284959Z", "endpoint": "trends", "status": 200, "duration_ms": 3.95, "error": ""}
+{"ts": "2026-07-05T04:10:34.681011Z", "endpoint": "health", "status": 200, "duration_ms": 3.39, "error": ""}
+{"ts": "2026-07-05T04:10:34.685636Z", "endpoint": "trends", "status": 200, "duration_ms": 4.48, "error": ""}
+{"ts": "2026-07-05T04:10:35.081464Z", "endpoint": "hotspots", "status": 500, "duration_ms": 5.22, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:35.085610Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.88, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:35.482031Z", "endpoint": "trends", "status": 200, "duration_ms": 4.47, "error": ""}
+{"ts": "2026-07-05T04:10:35.486619Z", "endpoint": "health", "status": 200, "duration_ms": 4.48, "error": ""}
+{"ts": "2026-07-05T04:10:35.882779Z", "endpoint": "health", "status": 200, "duration_ms": 4.43, "error": ""}
+{"ts": "2026-07-05T04:10:35.902381Z", "endpoint": "trends", "status": 200, "duration_ms": 19.47, "error": ""}
+{"ts": "2026-07-05T04:10:36.283430Z", "endpoint": "trends", "status": 200, "duration_ms": 21.65, "error": ""}
+{"ts": "2026-07-05T04:10:36.287341Z", "endpoint": "categories", "status": 200, "duration_ms": 3.76, "error": ""}
+{"ts": "2026-07-05T04:10:36.684211Z", "endpoint": "categories", "status": 200, "duration_ms": 25.2, "error": ""}
+{"ts": "2026-07-05T04:10:36.688351Z", "endpoint": "trends", "status": 200, "duration_ms": 4.04, "error": ""}
+{"ts": "2026-07-05T04:10:37.084981Z", "endpoint": "hotspots", "status": 500, "duration_ms": 15.31, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:37.088956Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.77, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:37.485538Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.34, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:37.508682Z", "endpoint": "health", "status": 200, "duration_ms": 23.01, "error": ""}
+{"ts": "2026-07-05T04:10:37.886452Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.07, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:37.911067Z", "endpoint": "trends", "status": 200, "duration_ms": 24.46, "error": ""}
+{"ts": "2026-07-05T04:10:38.286793Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.9, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:38.291082Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.05, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:38.687845Z", "endpoint": "hotspots", "status": 500, "duration_ms": 20.06, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:38.709731Z", "endpoint": "categories", "status": 200, "duration_ms": 21.76, "error": ""}
+{"ts": "2026-07-05T04:10:39.088776Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.51, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:39.093368Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.37, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:39.489099Z", "endpoint": "hotspots", "status": 500, "duration_ms": 23.42, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:39.514183Z", "endpoint": "trends", "status": 200, "duration_ms": 24.98, "error": ""}
+{"ts": "2026-07-05T04:10:39.889443Z", "endpoint": "trends", "status": 200, "duration_ms": 4.38, "error": ""}
+{"ts": "2026-07-05T04:10:39.894131Z", "endpoint": "trends", "status": 200, "duration_ms": 4.58, "error": ""}
+{"ts": "2026-07-05T04:10:40.289728Z", "endpoint": "categories", "status": 200, "duration_ms": 27.25, "error": ""}
+{"ts": "2026-07-05T04:10:40.304604Z", "endpoint": "trends", "status": 200, "duration_ms": 14.73, "error": ""}
+{"ts": "2026-07-05T04:10:40.690424Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.86, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:40.695023Z", "endpoint": "trends", "status": 200, "duration_ms": 4.48, "error": ""}
+{"ts": "2026-07-05T04:10:41.091127Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.59, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:41.113558Z", "endpoint": "trends", "status": 200, "duration_ms": 22.32, "error": ""}
+{"ts": "2026-07-05T04:10:41.491691Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.22, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:41.516274Z", "endpoint": "health", "status": 200, "duration_ms": 24.46, "error": ""}
+{"ts": "2026-07-05T04:10:41.892432Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.23, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:41.896870Z", "endpoint": "health", "status": 200, "duration_ms": 4.31, "error": ""}
+{"ts": "2026-07-05T04:10:42.292695Z", "endpoint": "trends", "status": 200, "duration_ms": 4.08, "error": ""}
+{"ts": "2026-07-05T04:10:42.296991Z", "endpoint": "trends", "status": 200, "duration_ms": 4.16, "error": ""}
+{"ts": "2026-07-05T04:10:42.693120Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.08, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:42.697591Z", "endpoint": "trends", "status": 200, "duration_ms": 4.37, "error": ""}
+{"ts": "2026-07-05T04:10:43.093717Z", "endpoint": "trends", "status": 200, "duration_ms": 23.63, "error": ""}
+{"ts": "2026-07-05T04:10:43.098148Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.19, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:43.494414Z", "endpoint": "trends", "status": 200, "duration_ms": 3.96, "error": ""}
+{"ts": "2026-07-05T04:10:43.524695Z", "endpoint": "hotspots", "status": 500, "duration_ms": 29.96, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:43.895031Z", "endpoint": "hotspots", "status": 500, "duration_ms": 3.93, "error": "HTTP 500"}
+{"ts": "2026-07-05T04:10:43.899575Z", "endpoint": "trends", "status": 200, "duration_ms": 4.41, "error": ""}
+{"ts": "2026-07-05T04:10:44.099697Z", "endpoint": "hotspots", "status": 500, "duration_ms": 4.01, "error": "HTTP 500"}

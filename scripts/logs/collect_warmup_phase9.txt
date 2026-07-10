@@ -1,0 +1,65 @@
+﻿python : [32m2026-07-05 12:47:16.105[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m:[36mrun_on
+ce[0m:[36m63[0m - [1mcollection started[0m
+At line:15 char:5949
++ ... w\20260704-15-04-55-413\hotspot-map; $env:PYTHONPATH='.'; python -c "
++                                                               ~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([32m2026-07-05...ion started[0m:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[32m2026-07-05 12:47:16.107[0m | [1mINFO    [0m | [36mbackend.repository.db[0m:[36mget_connection[0m:[36m82[0
+m - [1mdb connection opened[0m
+[32m2026-07-05 12:47:16.108[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_start[0m
+[32m2026-07-05 12:47:16.108[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_start[0m
+[32m2026-07-05 12:47:16.108[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_start[0m
+[32m2026-07-05 12:47:16.108[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_start[0m
+[32m2026-07-05 12:47:16.108[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_start[0m
+[32m2026-07-05 12:47:16.108[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_start[0m
+[32m2026-07-05 12:47:16.336[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mfetch_source[0m:[36m
+269[0m - [33m[1msource 全国公共资源交易平台 failed: ClientError: HTTP 404[0m
+[32m2026-07-05 12:47:16.342[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mfetch_source[0m:[36m
+269[0m - [33m[1msource IT桔子 failed: ClientError: HTTP 412[0m
+[32m2026-07-05 12:47:17.014[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_end[0m
+[32m2026-07-05 12:47:17.034[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mfetch_source[0m:[36m
+269[0m - [33m[1msource 中国采购与招标网 failed: ClientError: HTTP 405[0m
+[32m2026-07-05 12:47:17.034[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mfetch_source[0m:[36m
+269[0m - [33m[1msource 中央政府采购网 failed: ClientError: HTTP 404[0m
+[32m2026-07-05 12:47:17.657[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_end[0m
+[32m2026-07-05 12:47:18.086[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_end[0m
+[32m2026-07-05 12:47:19.390[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mfetch_source[0m:[36m
+269[0m - [33m[1msource 招标投标公共服务平台 failed: ClientError: HTTP 502[0m
+[32m2026-07-05 12:47:20.925[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_end[0m
+[32m2026-07-05 12:47:36.305[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mfetch_source[0m:[36m
+269[0m - [33m[1msource HackerNews failed: TimeoutError: [0m
+[32m2026-07-05 12:47:36.365[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_end[0m
+[32m2026-07-05 12:47:37.176[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m:[36mfetch_source[0m:[36m
+269[0m - [33m[1msource 金融采购网 failed: ClientConnectorError: Cannot connect to host www.cfcpn.com:443 ssl:False[0m
+[32m2026-07-05 12:47:37.241[0m | [1mINFO    [0m | [36mbackend.observability[0m:[36mlog_event[0m:[36m57[0m - 
+[1mcollect_end[0m
+[32m2026-07-05 12:47:37.250[0m | [1mINFO    [0m | [36mbackend.repository.hotspot_repo[0m:[36mupsert_many[0m:[3
+6m197[0m - [1mupsert_many ok[0m
+[32m2026-07-05 12:47:37.250[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m:[36mrun_once[0m:[
+36m98[0m - [1mupserted 250 items[0m
+[32m2026-07-05 12:47:37.258[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m:[36mrebuild[0m:[36m183
+[0m - [1mtrend snapshots rebuilt[0m
+[32m2026-07-05 12:47:37.258[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m:[36mrun_once[0m:[
+36m106[0m - [1mtrend rebuilt: 144 points[0m
+[32m2026-07-05 12:47:37.260[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m:[36mrun_once[0m:[
+36m151[0m - [1mcollection finished: total=250, success=6, failed=0, duration=21154ms[0m
+collected: total=250 success=6 failed=0 duration=21154ms
+  ai: 40 items (fallback=0)
+  security: 60 items (fallback=0)
+  finance: 40 items (fallback=0)
+  startup: 40 items (fallback=0)
+  bid: 40 items (fallback=0)
+  github: 30 items (fallback=0)

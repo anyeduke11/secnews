@@ -1,0 +1,31 @@
+﻿[loadtest_A] url=http://127.0.0.1:8000/api/hotspots?category=ai duration=30s workers=5 target_qps=15
+python : C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\loadtest\single_endpoint.py:138
+: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timez
+one-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+At line:15 char:6814
++ ... EST_QPS='15'; python scripts\loadtest\single_endpoint.py 2>&1 | Tee-O ...
++                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\Noped\...(datetime.UTC).:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  "ts": datetime.utcnow().isoformat() + "Z",
+{
+  "scenario": "A_single_endpoint",
+  "url": "http://127.0.0.1:8000/api/hotspots?category=ai",
+  "duration_s": 30.03,
+  "total": 449,
+  "success": 449,
+  "error_5xx": 0,
+  "error_other_http": 0,
+  "error_network": 0,
+  "error_count": 0,
+  "qps_actual": 14.95,
+  "latency_ms": {
+    "avg": 14.55,
+    "p50": 15.7,
+    "p95": 28.1,
+    "p99": 29.06,
+    "max": 46.57
+  }
+}
+[loadtest_A] raw=C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\logs\loadtest_A_20260705_123641.jsonl summary=C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\logs\loadtest_A_20260705_123641.summary.json

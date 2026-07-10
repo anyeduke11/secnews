@@ -1,0 +1,10 @@
+{
+  "scenario": "chaos_5_sigterm",
+  "started_at": "2026-07-05T01:12:50.650384Z",
+  "pid": 72172,
+  "sigterm_at": "2026-07-05T01:12:56.831987Z",
+  "exit_dur_ms": 16.77,
+  "returncode": 1,
+  "pass": false,
+  "finished_at": "2026-07-05T01:12:56.832017Z"
+}

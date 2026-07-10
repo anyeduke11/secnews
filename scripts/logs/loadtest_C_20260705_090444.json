@@ -1,0 +1,230 @@
+{
+  "scenario": "C_cache_breakdown",
+  "url": "http://127.0.0.1:8000/api/hotspots?category=ai",
+  "concurrent": 1000,
+  "duration_s": 5.0,
+  "phases": {
+    "warmup": {
+      "samples": 10,
+      "success": 10,
+      "avg_ms": 5.29,
+      "hit_rate_after": {
+        "list": 0.75,
+        "detail": 0.0,
+        "static": 0.0
+      }
+    },
+    "breakdown": {
+      "action": "list_cache.clear() + detail_cache.clear() + static_cache.clear()",
+      "hit_rate_after": {
+        "list": 0.0,
+        "detail": 0.0,
+        "static": 0.0
+      }
+    },
+    "measurement": {
+      "samples": 1950,
+      "success": 1900,
+      "success_rate": 0.9744,
+      "first_request_delay_ms": 426.9,
+      "latency_ms": {
+        "avg": 790.82,
+        "p50": 208.67,
+        "p95": 2583.49,
+        "p99": 2660.38,
+        "max": 2689.7
+      },
+      "hit_rate_timeline": [
+        {
+          "t_s": 0.0,
+          "hit_rate": {
+            "list": 0.9994734070563455,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1000
+        },
+        {
+          "t_s": 0.27,
+          "hit_rate": {
+            "list": 0.9994997498749375,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1050
+        },
+        {
+          "t_s": 0.53,
+          "hit_rate": {
+            "list": 0.9995235826584088,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1100
+        },
+        {
+          "t_s": 0.79,
+          "hit_rate": {
+            "list": 0.9995452478399273,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1150
+        },
+        {
+          "t_s": 1.05,
+          "hit_rate": {
+            "list": 0.9995650282731623,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1200
+        },
+        {
+          "t_s": 1.31,
+          "hit_rate": {
+            "list": 0.9995831596498541,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1250
+        },
+        {
+          "t_s": 1.62,
+          "hit_rate": {
+            "list": 0.9995998399359743,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1300
+        },
+        {
+          "t_s": 2.1,
+          "hit_rate": {
+            "list": 0.9996152366294728,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1350
+        },
+        {
+          "t_s": 2.36,
+          "hit_rate": {
+            "list": 0.9996294924045943,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1400
+        },
+        {
+          "t_s": 2.62,
+          "hit_rate": {
+            "list": 0.9996427295462665,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1450
+        },
+        {
+          "t_s": 2.87,
+          "hit_rate": {
+            "list": 0.9996550534667127,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1500
+        },
+        {
+          "t_s": 3.13,
+          "hit_rate": {
+            "list": 0.9996665555185061,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1550
+        },
+        {
+          "t_s": 3.39,
+          "hit_rate": {
+            "list": 0.9996773152629881,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1600
+        },
+        {
+          "t_s": 3.65,
+          "hit_rate": {
+            "list": 0.9996874023132228,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1650
+        },
+        {
+          "t_s": 3.91,
+          "hit_rate": {
+            "list": 0.9996968778417702,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1700
+        },
+        {
+          "t_s": 4.17,
+          "hit_rate": {
+            "list": 0.9997057958223007,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1750
+        },
+        {
+          "t_s": 4.42,
+          "hit_rate": {
+            "list": 0.9997142040583024,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1800
+        },
+        {
+          "t_s": 4.68,
+          "hit_rate": {
+            "list": 0.999722145040289,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1850
+        },
+        {
+          "t_s": 4.99,
+          "hit_rate": {
+            "list": 0.9997296566639632,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1900
+        },
+        {
+          "t_s": 5.25,
+          "hit_rate": {
+            "list": 0.9997367728349565,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1950
+        },
+        {
+          "t_s": 5.25,
+          "hit_rate": {
+            "list": 0.9997367728349565,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1950
+        }
+      ]
+    }
+  }
+}

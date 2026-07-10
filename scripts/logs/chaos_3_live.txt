@@ -1,0 +1,71 @@
+﻿python : C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\chaostest\kill_restart.py:85: D
+eprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone
+-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+At line:15 char:5930
++ ... 3\hotspot-map"; python scripts/chaostest/kill_restart.py 2>&1 | Tee-O ...
++                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\Noped\...(datetime.UTC).:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  "started_at": datetime.utcnow().isoformat() + "Z",
+[chaos_3] backend pid=11628 up
+[chaos_3] killing backend pid=11628
+[chaos_3] restarted pid=27856
+[chaos_3] first request 28.12ms status=200
+C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\chaostest\kill_restart.py:179: Deprecati
+onWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware o
+bjects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  report["finished_at"] = datetime.utcnow().isoformat() + "Z"
+[chaos_3] pass=False report=C:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map\scripts\logs\chaos_3_20260705_091232.json
+{
+  "scenario": "chaos_3_kill_restart",
+  "started_at": "2026-07-05T01:12:32.091437Z",
+  "first_pid": 11628,
+  "warmup_hits": [
+    {
+      "i": 0,
+      "status": 200,
+      "duration_ms": 32.93,
+      "error": ""
+    },
+    {
+      "i": 1,
+      "status": 200,
+      "duration_ms": 23.34,
+      "error": ""
+    },
+    {
+      "i": 2,
+      "status": 200,
+      "duration_ms": 2.88,
+      "error": ""
+    },
+    {
+      "i": 3,
+      "status": 200,
+      "duration_ms": 2.5,
+      "error": ""
+    },
+    {
+      "i": 4,
+      "status": 200,
+      "duration_ms": 25.24,
+      "error": ""
+    }
+  ],
+  "warmup_hit_rate": 0.1905,
+  "first_returncode": 1,
+  "second_pid": 27856,
+  "first_request_after_restart": {
+    "status": 200,
+    "duration_ms": 28.12,
+    "error": ""
+  },
+  "after_5s_hit_rate": 0.2564,
+  "pass": false,
+  "assertions": {
+    "first_request_delay_under_2s": true,
+    "hit_rate_after_5s_over_50pct": false
+  },
+  "finished_at": "2026-07-05T01:12:41.458285Z"
+}

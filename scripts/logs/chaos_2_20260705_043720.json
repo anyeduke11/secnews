@@ -1,0 +1,724 @@
+{
+  "scenario": "chaos_2_db_lock",
+  "started_at": "2026-07-05T04:37:20.419894Z",
+  "finished_at": "2026-07-05T04:37:25.517246Z",
+  "duration_s": 5.0,
+  "db_path": "C:\\Users\\Noped\\Documents\\lingxi-claw\\20260704-15-04-55-413\\hotspot-map\\backend\\hotspot.db",
+  "insert_log": [
+    {
+      "thread": "B",
+      "i": 1,
+      "ok": true,
+      "duration_ms": 2.11,
+      "ts": "2026-07-05T04:37:20.512223Z"
+    },
+    {
+      "thread": "A",
+      "i": 1,
+      "ok": true,
+      "duration_ms": 7.55,
+      "ts": "2026-07-05T04:37:20.517620Z"
+    },
+    {
+      "thread": "B",
+      "i": 2,
+      "ok": true,
+      "duration_ms": 0.68,
+      "ts": "2026-07-05T04:37:20.523049Z"
+    },
+    {
+      "thread": "A",
+      "i": 2,
+      "ok": true,
+      "duration_ms": 0.64,
+      "ts": "2026-07-05T04:37:20.528311Z"
+    },
+    {
+      "thread": "B",
+      "i": 3,
+      "ok": true,
+      "duration_ms": 0.61,
+      "ts": "2026-07-05T04:37:20.533821Z"
+    },
+    {
+      "thread": "A",
+      "i": 3,
+      "ok": true,
+      "duration_ms": 1.02,
+      "ts": "2026-07-05T04:37:20.539448Z"
+    },
+    {
+      "thread": "B",
+      "i": 4,
+      "ok": true,
+      "duration_ms": 5.5,
+      "ts": "2026-07-05T04:37:20.549581Z"
+    },
+    {
+      "thread": "A",
+      "i": 4,
+      "ok": true,
+      "duration_ms": 1.09,
+      "ts": "2026-07-05T04:37:20.550698Z"
+    },
+    {
+      "thread": "B",
+      "i": 5,
+      "ok": true,
+      "duration_ms": 0.74,
+      "ts": "2026-07-05T04:37:20.560507Z"
+    },
+    {
+      "thread": "A",
+      "i": 5,
+      "ok": true,
+      "duration_ms": 1.11,
+      "ts": "2026-07-05T04:37:20.562291Z"
+    },
+    {
+      "thread": "B",
+      "i": 6,
+      "ok": true,
+      "duration_ms": 1.31,
+      "ts": "2026-07-05T04:37:20.572269Z"
+    },
+    {
+      "thread": "A",
+      "i": 6,
+      "ok": true,
+      "duration_ms": 0.71,
+      "ts": "2026-07-05T04:37:20.573272Z"
+    },
+    {
+      "thread": "B",
+      "i": 7,
+      "ok": true,
+      "duration_ms": 0.76,
+      "ts": "2026-07-05T04:37:20.583446Z"
+    },
+    {
+      "thread": "A",
+      "i": 7,
+      "ok": true,
+      "duration_ms": 0.76,
+      "ts": "2026-07-05T04:37:20.584478Z"
+    },
+    {
+      "thread": "B",
+      "i": 8,
+      "ok": true,
+      "duration_ms": 0.6,
+      "ts": "2026-07-05T04:37:20.594450Z"
+    },
+    {
+      "thread": "A",
+      "i": 8,
+      "ok": true,
+      "duration_ms": 1.14,
+      "ts": "2026-07-05T04:37:20.596222Z"
+    },
+    {
+      "thread": "B",
+      "i": 9,
+      "ok": true,
+      "duration_ms": 0.83,
+      "ts": "2026-07-05T04:37:20.605756Z"
+    },
+    {
+      "thread": "A",
+      "i": 9,
+      "ok": true,
+      "duration_ms": 0.78,
+      "ts": "2026-07-05T04:37:20.607229Z"
+    },
+    {
+      "thread": "B",
+      "i": 10,
+      "ok": true,
+      "duration_ms": 0.81,
+      "ts": "2026-07-05T04:37:20.617034Z"
+    },
+    {
+      "thread": "A",
+      "i": 10,
+      "ok": true,
+      "duration_ms": 0.81,
+      "ts": "2026-07-05T04:37:20.618198Z"
+    },
+    {
+      "thread": "B",
+      "i": 11,
+      "ok": true,
+      "duration_ms": 0.78,
+      "ts": "2026-07-05T04:37:20.628068Z"
+    },
+    {
+      "thread": "A",
+      "i": 11,
+      "ok": true,
+      "duration_ms": 0.69,
+      "ts": "2026-07-05T04:37:20.628984Z"
+    },
+    {
+      "thread": "B",
+      "i": 12,
+      "ok": true,
+      "duration_ms": 0.79,
+      "ts": "2026-07-05T04:37:20.639062Z"
+    },
+    {
+      "thread": "A",
+      "i": 12,
+      "ok": true,
+      "duration_ms": 0.61,
+      "ts": "2026-07-05T04:37:20.639888Z"
+    },
+    {
+      "thread": "B",
+      "i": 13,
+      "ok": true,
+      "duration_ms": 0.73,
+      "ts": "2026-07-05T04:37:20.650082Z"
+    },
+    {
+      "thread": "A",
+      "i": 13,
+      "ok": true,
+      "duration_ms": 1.03,
+      "ts": "2026-07-05T04:37:20.651428Z"
+    },
+    {
+      "thread": "B",
+      "i": 14,
+      "ok": true,
+      "duration_ms": 0.7,
+      "ts": "2026-07-05T04:37:20.661169Z"
+    },
+    {
+      "thread": "A",
+      "i": 14,
+      "ok": true,
+      "duration_ms": 0.63,
+      "ts": "2026-07-05T04:37:20.662112Z"
+    },
+    {
+      "thread": "B",
+      "i": 15,
+      "ok": true,
+      "duration_ms": 0.71,
+      "ts": "2026-07-05T04:37:20.672204Z"
+    },
+    {
+      "thread": "A",
+      "i": 15,
+      "ok": true,
+      "duration_ms": 0.69,
+      "ts": "2026-07-05T04:37:20.673191Z"
+    },
+    {
+      "thread": "B",
+      "i": 16,
+      "ok": true,
+      "duration_ms": 0.69,
+      "ts": "2026-07-05T04:37:20.683112Z"
+    },
+    {
+      "thread": "A",
+      "i": 16,
+      "ok": true,
+      "duration_ms": 1.04,
+      "ts": "2026-07-05T04:37:20.684532Z"
+    },
+    {
+      "thread": "B",
+      "i": 17,
+      "ok": true,
+      "duration_ms": 0.74,
+      "ts": "2026-07-05T04:37:20.694265Z"
+    },
+    {
+      "thread": "A",
+      "i": 17,
+      "ok": true,
+      "duration_ms": 0.73,
+      "ts": "2026-07-05T04:37:20.695777Z"
+    },
+    {
+      "thread": "B",
+      "i": 18,
+      "ok": true,
+      "duration_ms": 1.01,
+      "ts": "2026-07-05T04:37:20.705876Z"
+    },
+    {
+      "thread": "A",
+      "i": 18,
+      "ok": true,
+      "duration_ms": 1.09,
+      "ts": "2026-07-05T04:37:20.707318Z"
+    },
+    {
+      "thread": "B",
+      "i": 19,
+      "ok": true,
+      "duration_ms": 0.72,
+      "ts": "2026-07-05T04:37:20.717030Z"
+    },
+    {
+      "thread": "A",
+      "i": 19,
+      "ok": true,
+      "duration_ms": 0.66,
+      "ts": "2026-07-05T04:37:20.718482Z"
+    },
+    {
+      "thread": "B",
+      "i": 20,
+      "ok": true,
+      "duration_ms": 0.74,
+      "ts": "2026-07-05T04:37:20.728220Z"
+    },
+    {
+      "thread": "A",
+      "i": 20,
+      "ok": true,
+      "duration_ms": 0.74,
+      "ts": "2026-07-05T04:37:20.729733Z"
+    },
+    {
+      "thread": "B",
+      "i": 21,
+      "ok": true,
+      "duration_ms": 0.69,
+      "ts": "2026-07-05T04:37:20.739291Z"
+    },
+    {
+      "thread": "A",
+      "i": 21,
+      "ok": true,
+      "duration_ms": 0.77,
+      "ts": "2026-07-05T04:37:20.740883Z"
+    },
+    {
+      "thread": "B",
+      "i": 22,
+      "ok": true,
+      "duration_ms": 0.96,
+      "ts": "2026-07-05T04:37:20.750736Z"
+    },
+    {
+      "thread": "A",
+      "i": 22,
+      "ok": true,
+      "duration_ms": 0.7,
+      "ts": "2026-07-05T04:37:20.752186Z"
+    },
+    {
+      "thread": "B",
+      "i": 23,
+      "ok": true,
+      "duration_ms": 0.65,
+      "ts": "2026-07-05T04:37:20.761447Z"
+    },
+    {
+      "thread": "A",
+      "i": 23,
+      "ok": true,
+      "duration_ms": 0.79,
+      "ts": "2026-07-05T04:37:20.763159Z"
+    },
+    {
+      "thread": "B",
+      "i": 24,
+      "ok": true,
+      "duration_ms": 0.86,
+      "ts": "2026-07-05T04:37:20.772758Z"
+    },
+    {
+      "thread": "A",
+      "i": 24,
+      "ok": true,
+      "duration_ms": 0.78,
+      "ts": "2026-07-05T04:37:20.774209Z"
+    },
+    {
+      "thread": "B",
+      "i": 25,
+      "ok": true,
+      "duration_ms": 0.96,
+      "ts": "2026-07-05T04:37:20.783950Z"
+    },
+    {
+      "thread": "A",
+      "i": 25,
+      "ok": true,
+      "duration_ms": 0.7,
+      "ts": "2026-07-05T04:37:20.785176Z"
+    },
+    {
+      "thread": "B",
+      "i": 26,
+      "ok": true,
+      "duration_ms": 0.62,
+      "ts": "2026-07-05T04:37:20.794640Z"
+    },
+    {
+      "thread": "A",
+      "i": 26,
+      "ok": true,
+      "duration_ms": 0.7,
+      "ts": "2026-07-05T04:37:20.796222Z"
+    },
+    {
+      "thread": "B",
+      "i": 27,
+      "ok": true,
+      "duration_ms": 1.04,
+      "ts": "2026-07-05T04:37:20.806384Z"
+    },
+    {
+      "thread": "A",
+      "i": 27,
+      "ok": true,
+      "duration_ms": 0.69,
+      "ts": "2026-07-05T04:37:20.807321Z"
+    },
+    {
+      "thread": "B",
+      "i": 28,
+      "ok": true,
+      "duration_ms": 0.95,
+      "ts": "2026-07-05T04:37:20.817878Z"
+    },
+    {
+      "thread": "B",
+      "i": 29,
+      "ok": true,
+      "duration_ms": 0.74,
+      "ts": "2026-07-05T04:37:20.828760Z"
+    },
+    {
+      "thread": "B",
+      "i": 30,
+      "ok": true,
+      "duration_ms": 0.8,
+      "ts": "2026-07-05T04:37:20.839750Z"
+    },
+    {
+      "thread": "A",
+      "i": 28,
+      "ok": true,
+      "duration_ms": 28.25,
+      "ts": "2026-07-05T04:37:20.846055Z"
+    },
+    {
+      "thread": "B",
+      "i": 31,
+      "ok": true,
+      "duration_ms": 1.12,
+      "ts": "2026-07-05T04:37:20.851003Z"
+    },
+    {
+      "thread": "A",
+      "i": 29,
+      "ok": true,
+      "duration_ms": 1.4,
+      "ts": "2026-07-05T04:37:20.857831Z"
+    },
+    {
+      "thread": "B",
+      "i": 32,
+      "ok": true,
+      "duration_ms": 0.74,
+      "ts": "2026-07-05T04:37:20.862099Z"
+    },
+    {
+      "thread": "A",
+      "i": 30,
+      "ok": true,
+      "duration_ms": 1.0,
+      "ts": "2026-07-05T04:37:20.869372Z"
+    },
+    {
+      "thread": "B",
+      "i": 33,
+      "ok": true,
+      "duration_ms": 0.74,
+      "ts": "2026-07-05T04:37:20.873105Z"
+    },
+    {
+      "thread": "A",
+      "i": 31,
+      "ok": true,
+      "duration_ms": 1.77,
+      "ts": "2026-07-05T04:37:20.881658Z"
+    },
+    {
+      "thread": "B",
+      "i": 34,
+      "ok": true,
+      "duration_ms": 1.31,
+      "ts": "2026-07-05T04:37:20.884872Z"
+    },
+    {
+      "thread": "A",
+      "i": 32,
+      "ok": true,
+      "duration_ms": 0.9,
+      "ts": "2026-07-05T04:37:20.893038Z"
+    },
+    {
+      "thread": "B",
+      "i": 35,
+      "ok": true,
+      "duration_ms": 0.63,
+      "ts": "2026-07-05T04:37:20.895803Z"
+    },
+    {
+      "thread": "A",
+      "i": 33,
+      "ok": true,
+      "duration_ms": 0.83,
+      "ts": "2026-07-05T04:37:20.904058Z"
+    },
+    {
+      "thread": "B",
+      "i": 36,
+      "ok": true,
+      "duration_ms": 0.77,
+      "ts": "2026-07-05T04:37:20.907129Z"
+    },
+    {
+      "thread": "A",
+      "i": 34,
+      "ok": true,
+      "duration_ms": 0.66,
+      "ts": "2026-07-05T04:37:20.915226Z"
+    },
+    {
+      "thread": "B",
+      "i": 37,
+      "ok": true,
+      "duration_ms": 0.7,
+      "ts": "2026-07-05T04:37:20.918305Z"
+    },
+    {
+      "thread": "A",
+      "i": 35,
+      "ok": true,
+      "duration_ms": 1.06,
+      "ts": "2026-07-05T04:37:20.926615Z"
+    },
+    {
+      "thread": "B",
+      "i": 38,
+      "ok": true,
+      "duration_ms": 1.16,
+      "ts": "2026-07-05T04:37:20.929702Z"
+    },
+    {
+      "thread": "A",
+      "i": 36,
+      "ok": true,
+      "duration_ms": 0.73,
+      "ts": "2026-07-05T04:37:20.937860Z"
+    },
+    {
+      "thread": "B",
+      "i": 39,
+      "ok": true,
+      "duration_ms": 0.66,
+      "ts": "2026-07-05T04:37:20.940866Z"
+    },
+    {
+      "thread": "A",
+      "i": 37,
+      "ok": true,
+      "duration_ms": 1.1,
+      "ts": "2026-07-05T04:37:20.949083Z"
+    },
+    {
+      "thread": "B",
+      "i": 40,
+      "ok": true,
+      "duration_ms": 0.83,
+      "ts": "2026-07-05T04:37:20.951838Z"
+    },
+    {
+      "thread": "A",
+      "i": 38,
+      "ok": true,
+      "duration_ms": 3.81,
+      "ts": "2026-07-05T04:37:20.963286Z"
+    },
+    {
+      "thread": "B",
+      "i": 41,
+      "ok": true,
+      "duration_ms": 8.96,
+      "ts": "2026-07-05T04:37:20.971058Z"
+    },
+    {
+      "thread": "A",
+      "i": 39,
+      "ok": true,
+      "duration_ms": 2.78,
+      "ts": "2026-07-05T04:37:20.976546Z"
+    },
+    {
+      "thread": "B",
+      "i": 42,
+      "ok": true,
+      "duration_ms": 0.97,
+      "ts": "2026-07-05T04:37:20.982207Z"
+    },
+    {
+      "thread": "A",
+      "i": 40,
+      "ok": true,
+      "duration_ms": 1.16,
+      "ts": "2026-07-05T04:37:20.987929Z"
+    },
+    {
+      "thread": "B",
+      "i": 43,
+      "ok": true,
+      "duration_ms": 0.8,
+      "ts": "2026-07-05T04:37:20.993432Z"
+    },
+    {
+      "thread": "A",
+      "i": 41,
+      "ok": true,
+      "duration_ms": 1.12,
+      "ts": "2026-07-05T04:37:20.999114Z"
+    },
+    {
+      "thread": "B",
+      "i": 44,
+      "ok": true,
+      "duration_ms": 0.97,
+      "ts": "2026-07-05T04:37:21.004600Z"
+    },
+    {
+      "thread": "A",
+      "i": 42,
+      "ok": true,
+      "duration_ms": 0.77,
+      "ts": "2026-07-05T04:37:21.009939Z"
+    },
+    {
+      "thread": "B",
+      "i": 45,
+      "ok": true,
+      "duration_ms": 0.64,
+      "ts": "2026-07-05T04:37:21.015412Z"
+    },
+    {
+      "thread": "A",
+      "i": 43,
+      "ok": true,
+      "duration_ms": 0.68,
+      "ts": "2026-07-05T04:37:21.020671Z"
+    },
+    {
+      "thread": "B",
+      "i": 46,
+      "ok": true,
+      "duration_ms": 0.8,
+      "ts": "2026-07-05T04:37:21.026422Z"
+    },
+    {
+      "thread": "A",
+      "i": 44,
+      "ok": true,
+      "duration_ms": 0.97,
+      "ts": "2026-07-05T04:37:21.031720Z"
+    },
+    {
+      "thread": "B",
+      "i": 47,
+      "ok": true,
+      "duration_ms": 0.91,
+      "ts": "2026-07-05T04:37:21.037389Z"
+    },
+    {
+      "thread": "A",
+      "i": 45,
+      "ok": true,
+      "duration_ms": 0.9,
+      "ts": "2026-07-05T04:37:21.042970Z"
+    },
+    {
+      "thread": "B",
+      "i": 48,
+      "ok": true,
+      "duration_ms": 0.81,
+      "ts": "2026-07-05T04:37:21.048680Z"
+    },
+    {
+      "thread": "A",
+      "i": 46,
+      "ok": true,
+      "duration_ms": 0.74,
+      "ts": "2026-07-05T04:37:21.054051Z"
+    },
+    {
+      "thread": "B",
+      "i": 49,
+      "ok": true,
+      "duration_ms": 0.7,
+      "ts": "2026-07-05T04:37:21.059540Z"
+    },
+    {
+      "thread": "A",
+      "i": 47,
+      "ok": true,
+      "duration_ms": 1.06,
+      "ts": "2026-07-05T04:37:21.065541Z"
+    },
+    {
+      "thread": "B",
+      "i": 50,
+      "ok": true,
+      "duration_ms": 0.85,
+      "ts": "2026-07-05T04:37:21.070505Z"
+    },
+    {
+      "thread": "A",
+      "i": 48,
+      "ok": true,
+      "duration_ms": 0.83,
+      "ts": "2026-07-05T04:37:21.076839Z"
+    },
+    {
+      "thread": "A",
+      "i": 49,
+      "ok": true,
+      "duration_ms": 0.76,
+      "ts": "2026-07-05T04:37:21.087926Z"
+    },
+    {
+      "thread": "A",
+      "i": 50,
+      "ok": true,
+      "duration_ms": 0.98,
+      "ts": "2026-07-05T04:37:21.099341Z"
+    }
+  ],
+  "insert_count": 100,
+  "insert_success": 100,
+  "insert_fail": 0,
+  "max_insert_duration_ms": 28.25,
+  "api_count": 45,
+  "api_ok": 45,
+  "api_500": 0,
+  "api_latency_ms": {
+    "avg": 11.31,
+    "p50": 4.74,
+    "p95": 27.29,
+    "p99": 28.27,
+    "max": 28.27
+  },
+  "pass": true
+}

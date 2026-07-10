@@ -1,0 +1,724 @@
+{
+  "scenario": "chaos_2_db_lock",
+  "started_at": "2026-07-05T03:14:32.325359Z",
+  "finished_at": "2026-07-05T03:14:41.145053Z",
+  "duration_s": 5.0,
+  "db_path": "C:\\Users\\Noped\\Documents\\lingxi-claw\\20260704-15-04-55-413\\hotspot-map\\backend\\hotspot.db",
+  "insert_log": [
+    {
+      "thread": "B",
+      "i": 1,
+      "ok": true,
+      "duration_ms": 5.72,
+      "ts": "2026-07-05T03:14:36.067189Z"
+    },
+    {
+      "thread": "A",
+      "i": 1,
+      "ok": true,
+      "duration_ms": 9.99,
+      "ts": "2026-07-05T03:14:36.071422Z"
+    },
+    {
+      "thread": "B",
+      "i": 2,
+      "ok": true,
+      "duration_ms": 1.58,
+      "ts": "2026-07-05T03:14:36.078945Z"
+    },
+    {
+      "thread": "A",
+      "i": 2,
+      "ok": true,
+      "duration_ms": 1.31,
+      "ts": "2026-07-05T03:14:36.083201Z"
+    },
+    {
+      "thread": "B",
+      "i": 3,
+      "ok": true,
+      "duration_ms": 2.64,
+      "ts": "2026-07-05T03:14:36.091847Z"
+    },
+    {
+      "thread": "A",
+      "i": 3,
+      "ok": true,
+      "duration_ms": 4.72,
+      "ts": "2026-07-05T03:14:36.098467Z"
+    },
+    {
+      "thread": "B",
+      "i": 4,
+      "ok": true,
+      "duration_ms": 2.34,
+      "ts": "2026-07-05T03:14:36.104647Z"
+    },
+    {
+      "thread": "A",
+      "i": 4,
+      "ok": true,
+      "duration_ms": 1.62,
+      "ts": "2026-07-05T03:14:36.110528Z"
+    },
+    {
+      "thread": "B",
+      "i": 5,
+      "ok": true,
+      "duration_ms": 2.6,
+      "ts": "2026-07-05T03:14:36.117530Z"
+    },
+    {
+      "thread": "A",
+      "i": 5,
+      "ok": true,
+      "duration_ms": 3.86,
+      "ts": "2026-07-05T03:14:36.124489Z"
+    },
+    {
+      "thread": "B",
+      "i": 6,
+      "ok": true,
+      "duration_ms": 3.48,
+      "ts": "2026-07-05T03:14:36.131172Z"
+    },
+    {
+      "thread": "A",
+      "i": 6,
+      "ok": true,
+      "duration_ms": 2.14,
+      "ts": "2026-07-05T03:14:36.136877Z"
+    },
+    {
+      "thread": "B",
+      "i": 7,
+      "ok": true,
+      "duration_ms": 0.77,
+      "ts": "2026-07-05T03:14:36.142040Z"
+    },
+    {
+      "thread": "A",
+      "i": 7,
+      "ok": true,
+      "duration_ms": 1.67,
+      "ts": "2026-07-05T03:14:36.149237Z"
+    },
+    {
+      "thread": "B",
+      "i": 8,
+      "ok": true,
+      "duration_ms": 2.33,
+      "ts": "2026-07-05T03:14:36.154967Z"
+    },
+    {
+      "thread": "A",
+      "i": 8,
+      "ok": true,
+      "duration_ms": 4.15,
+      "ts": "2026-07-05T03:14:36.163894Z"
+    },
+    {
+      "thread": "B",
+      "i": 9,
+      "ok": true,
+      "duration_ms": 3.27,
+      "ts": "2026-07-05T03:14:36.168337Z"
+    },
+    {
+      "thread": "A",
+      "i": 9,
+      "ok": true,
+      "duration_ms": 2.09,
+      "ts": "2026-07-05T03:14:36.176064Z"
+    },
+    {
+      "thread": "B",
+      "i": 10,
+      "ok": true,
+      "duration_ms": 1.57,
+      "ts": "2026-07-05T03:14:36.180256Z"
+    },
+    {
+      "thread": "A",
+      "i": 10,
+      "ok": true,
+      "duration_ms": 1.64,
+      "ts": "2026-07-05T03:14:36.187879Z"
+    },
+    {
+      "thread": "B",
+      "i": 11,
+      "ok": true,
+      "duration_ms": 2.01,
+      "ts": "2026-07-05T03:14:36.192372Z"
+    },
+    {
+      "thread": "A",
+      "i": 11,
+      "ok": true,
+      "duration_ms": 2.36,
+      "ts": "2026-07-05T03:14:36.200777Z"
+    },
+    {
+      "thread": "B",
+      "i": 12,
+      "ok": true,
+      "duration_ms": 4.21,
+      "ts": "2026-07-05T03:14:36.206804Z"
+    },
+    {
+      "thread": "A",
+      "i": 12,
+      "ok": true,
+      "duration_ms": 2.07,
+      "ts": "2026-07-05T03:14:36.212958Z"
+    },
+    {
+      "thread": "B",
+      "i": 13,
+      "ok": true,
+      "duration_ms": 1.06,
+      "ts": "2026-07-05T03:14:36.218236Z"
+    },
+    {
+      "thread": "A",
+      "i": 13,
+      "ok": true,
+      "duration_ms": 1.61,
+      "ts": "2026-07-05T03:14:36.224832Z"
+    },
+    {
+      "thread": "B",
+      "i": 14,
+      "ok": true,
+      "duration_ms": 2.1,
+      "ts": "2026-07-05T03:14:36.230561Z"
+    },
+    {
+      "thread": "A",
+      "i": 14,
+      "ok": true,
+      "duration_ms": 2.1,
+      "ts": "2026-07-05T03:14:36.237373Z"
+    },
+    {
+      "thread": "B",
+      "i": 15,
+      "ok": true,
+      "duration_ms": 3.62,
+      "ts": "2026-07-05T03:14:36.244412Z"
+    },
+    {
+      "thread": "A",
+      "i": 15,
+      "ok": true,
+      "duration_ms": 3.68,
+      "ts": "2026-07-05T03:14:36.251424Z"
+    },
+    {
+      "thread": "B",
+      "i": 16,
+      "ok": true,
+      "duration_ms": 2.74,
+      "ts": "2026-07-05T03:14:36.257887Z"
+    },
+    {
+      "thread": "A",
+      "i": 16,
+      "ok": true,
+      "duration_ms": 1.12,
+      "ts": "2026-07-05T03:14:36.262718Z"
+    },
+    {
+      "thread": "B",
+      "i": 17,
+      "ok": true,
+      "duration_ms": 1.25,
+      "ts": "2026-07-05T03:14:36.269407Z"
+    },
+    {
+      "thread": "A",
+      "i": 17,
+      "ok": true,
+      "duration_ms": 1.47,
+      "ts": "2026-07-05T03:14:36.274392Z"
+    },
+    {
+      "thread": "B",
+      "i": 18,
+      "ok": true,
+      "duration_ms": 1.66,
+      "ts": "2026-07-05T03:14:36.281235Z"
+    },
+    {
+      "thread": "A",
+      "i": 18,
+      "ok": true,
+      "duration_ms": 3.52,
+      "ts": "2026-07-05T03:14:36.288317Z"
+    },
+    {
+      "thread": "B",
+      "i": 19,
+      "ok": true,
+      "duration_ms": 1.31,
+      "ts": "2026-07-05T03:14:36.292923Z"
+    },
+    {
+      "thread": "A",
+      "i": 19,
+      "ok": true,
+      "duration_ms": 1.72,
+      "ts": "2026-07-05T03:14:36.300119Z"
+    },
+    {
+      "thread": "B",
+      "i": 20,
+      "ok": true,
+      "duration_ms": 3.4,
+      "ts": "2026-07-05T03:14:36.306765Z"
+    },
+    {
+      "thread": "A",
+      "i": 20,
+      "ok": true,
+      "duration_ms": 2.99,
+      "ts": "2026-07-05T03:14:36.313196Z"
+    },
+    {
+      "thread": "B",
+      "i": 21,
+      "ok": true,
+      "duration_ms": 3.1,
+      "ts": "2026-07-05T03:14:36.320167Z"
+    },
+    {
+      "thread": "A",
+      "i": 21,
+      "ok": true,
+      "duration_ms": 0.93,
+      "ts": "2026-07-05T03:14:36.324287Z"
+    },
+    {
+      "thread": "B",
+      "i": 22,
+      "ok": true,
+      "duration_ms": 1.32,
+      "ts": "2026-07-05T03:14:36.331807Z"
+    },
+    {
+      "thread": "A",
+      "i": 22,
+      "ok": true,
+      "duration_ms": 1.16,
+      "ts": "2026-07-05T03:14:36.335924Z"
+    },
+    {
+      "thread": "B",
+      "i": 23,
+      "ok": true,
+      "duration_ms": 2.35,
+      "ts": "2026-07-05T03:14:36.344425Z"
+    },
+    {
+      "thread": "A",
+      "i": 23,
+      "ok": true,
+      "duration_ms": 2.62,
+      "ts": "2026-07-05T03:14:36.348717Z"
+    },
+    {
+      "thread": "B",
+      "i": 24,
+      "ok": true,
+      "duration_ms": 1.79,
+      "ts": "2026-07-05T03:14:36.356713Z"
+    },
+    {
+      "thread": "A",
+      "i": 24,
+      "ok": true,
+      "duration_ms": 2.34,
+      "ts": "2026-07-05T03:14:36.361576Z"
+    },
+    {
+      "thread": "B",
+      "i": 25,
+      "ok": true,
+      "duration_ms": 3.33,
+      "ts": "2026-07-05T03:14:36.370150Z"
+    },
+    {
+      "thread": "A",
+      "i": 25,
+      "ok": true,
+      "duration_ms": 2.16,
+      "ts": "2026-07-05T03:14:36.374060Z"
+    },
+    {
+      "thread": "B",
+      "i": 26,
+      "ok": true,
+      "duration_ms": 2.06,
+      "ts": "2026-07-05T03:14:36.382388Z"
+    },
+    {
+      "thread": "A",
+      "i": 26,
+      "ok": true,
+      "duration_ms": 0.9,
+      "ts": "2026-07-05T03:14:36.385180Z"
+    },
+    {
+      "thread": "B",
+      "i": 27,
+      "ok": true,
+      "duration_ms": 1.03,
+      "ts": "2026-07-05T03:14:36.393933Z"
+    },
+    {
+      "thread": "A",
+      "i": 27,
+      "ok": true,
+      "duration_ms": 0.98,
+      "ts": "2026-07-05T03:14:36.396426Z"
+    },
+    {
+      "thread": "B",
+      "i": 28,
+      "ok": true,
+      "duration_ms": 1.63,
+      "ts": "2026-07-05T03:14:36.405773Z"
+    },
+    {
+      "thread": "A",
+      "i": 28,
+      "ok": true,
+      "duration_ms": 2.23,
+      "ts": "2026-07-05T03:14:36.408927Z"
+    },
+    {
+      "thread": "B",
+      "i": 29,
+      "ok": true,
+      "duration_ms": 4.91,
+      "ts": "2026-07-05T03:14:36.421229Z"
+    },
+    {
+      "thread": "A",
+      "i": 29,
+      "ok": true,
+      "duration_ms": 11.82,
+      "ts": "2026-07-05T03:14:36.431169Z"
+    },
+    {
+      "thread": "B",
+      "i": 30,
+      "ok": true,
+      "duration_ms": 6.63,
+      "ts": "2026-07-05T03:14:36.438061Z"
+    },
+    {
+      "thread": "A",
+      "i": 30,
+      "ok": true,
+      "duration_ms": 4.96,
+      "ts": "2026-07-05T03:14:36.446475Z"
+    },
+    {
+      "thread": "B",
+      "i": 31,
+      "ok": true,
+      "duration_ms": 2.65,
+      "ts": "2026-07-05T03:14:36.451341Z"
+    },
+    {
+      "thread": "A",
+      "i": 31,
+      "ok": true,
+      "duration_ms": 2.02,
+      "ts": "2026-07-05T03:14:36.458934Z"
+    },
+    {
+      "thread": "B",
+      "i": 32,
+      "ok": true,
+      "duration_ms": 1.35,
+      "ts": "2026-07-05T03:14:36.463638Z"
+    },
+    {
+      "thread": "A",
+      "i": 32,
+      "ok": true,
+      "duration_ms": 1.43,
+      "ts": "2026-07-05T03:14:36.470635Z"
+    },
+    {
+      "thread": "B",
+      "i": 33,
+      "ok": true,
+      "duration_ms": 1.46,
+      "ts": "2026-07-05T03:14:36.475264Z"
+    },
+    {
+      "thread": "A",
+      "i": 33,
+      "ok": true,
+      "duration_ms": 1.96,
+      "ts": "2026-07-05T03:14:36.482645Z"
+    },
+    {
+      "thread": "B",
+      "i": 34,
+      "ok": true,
+      "duration_ms": 3.25,
+      "ts": "2026-07-05T03:14:36.489090Z"
+    },
+    {
+      "thread": "A",
+      "i": 34,
+      "ok": true,
+      "duration_ms": 3.19,
+      "ts": "2026-07-05T03:14:36.496364Z"
+    },
+    {
+      "thread": "B",
+      "i": 35,
+      "ok": true,
+      "duration_ms": 2.38,
+      "ts": "2026-07-05T03:14:36.501990Z"
+    },
+    {
+      "thread": "A",
+      "i": 35,
+      "ok": true,
+      "duration_ms": 0.97,
+      "ts": "2026-07-05T03:14:36.507805Z"
+    },
+    {
+      "thread": "B",
+      "i": 36,
+      "ok": true,
+      "duration_ms": 1.47,
+      "ts": "2026-07-05T03:14:36.513716Z"
+    },
+    {
+      "thread": "A",
+      "i": 36,
+      "ok": true,
+      "duration_ms": 1.78,
+      "ts": "2026-07-05T03:14:36.519654Z"
+    },
+    {
+      "thread": "B",
+      "i": 37,
+      "ok": true,
+      "duration_ms": 2.35,
+      "ts": "2026-07-05T03:14:36.526646Z"
+    },
+    {
+      "thread": "A",
+      "i": 37,
+      "ok": true,
+      "duration_ms": 3.63,
+      "ts": "2026-07-05T03:14:36.533536Z"
+    },
+    {
+      "thread": "B",
+      "i": 38,
+      "ok": true,
+      "duration_ms": 2.82,
+      "ts": "2026-07-05T03:14:36.540143Z"
+    },
+    {
+      "thread": "A",
+      "i": 38,
+      "ok": true,
+      "duration_ms": 2.29,
+      "ts": "2026-07-05T03:14:36.546031Z"
+    },
+    {
+      "thread": "B",
+      "i": 39,
+      "ok": true,
+      "duration_ms": 1.27,
+      "ts": "2026-07-05T03:14:36.551625Z"
+    },
+    {
+      "thread": "A",
+      "i": 39,
+      "ok": true,
+      "duration_ms": 3.02,
+      "ts": "2026-07-05T03:14:36.559493Z"
+    },
+    {
+      "thread": "B",
+      "i": 40,
+      "ok": true,
+      "duration_ms": 2.08,
+      "ts": "2026-07-05T03:14:36.564133Z"
+    },
+    {
+      "thread": "A",
+      "i": 40,
+      "ok": true,
+      "duration_ms": 2.65,
+      "ts": "2026-07-05T03:14:36.572395Z"
+    },
+    {
+      "thread": "B",
+      "i": 41,
+      "ok": true,
+      "duration_ms": 4.05,
+      "ts": "2026-07-05T03:14:36.578342Z"
+    },
+    {
+      "thread": "A",
+      "i": 41,
+      "ok": true,
+      "duration_ms": 2.2,
+      "ts": "2026-07-05T03:14:36.584918Z"
+    },
+    {
+      "thread": "B",
+      "i": 42,
+      "ok": true,
+      "duration_ms": 1.43,
+      "ts": "2026-07-05T03:14:36.590234Z"
+    },
+    {
+      "thread": "A",
+      "i": 42,
+      "ok": true,
+      "duration_ms": 1.41,
+      "ts": "2026-07-05T03:14:36.596760Z"
+    },
+    {
+      "thread": "B",
+      "i": 43,
+      "ok": true,
+      "duration_ms": 1.95,
+      "ts": "2026-07-05T03:14:36.602468Z"
+    },
+    {
+      "thread": "A",
+      "i": 43,
+      "ok": true,
+      "duration_ms": 2.15,
+      "ts": "2026-07-05T03:14:36.609729Z"
+    },
+    {
+      "thread": "B",
+      "i": 44,
+      "ok": true,
+      "duration_ms": 2.91,
+      "ts": "2026-07-05T03:14:36.615507Z"
+    },
+    {
+      "thread": "A",
+      "i": 44,
+      "ok": true,
+      "duration_ms": 3.82,
+      "ts": "2026-07-05T03:14:36.623961Z"
+    },
+    {
+      "thread": "B",
+      "i": 45,
+      "ok": true,
+      "duration_ms": 2.72,
+      "ts": "2026-07-05T03:14:36.628533Z"
+    },
+    {
+      "thread": "A",
+      "i": 45,
+      "ok": true,
+      "duration_ms": 2.24,
+      "ts": "2026-07-05T03:14:36.636363Z"
+    },
+    {
+      "thread": "B",
+      "i": 46,
+      "ok": true,
+      "duration_ms": 1.32,
+      "ts": "2026-07-05T03:14:36.640007Z"
+    },
+    {
+      "thread": "A",
+      "i": 46,
+      "ok": true,
+      "duration_ms": 1.29,
+      "ts": "2026-07-05T03:14:36.648192Z"
+    },
+    {
+      "thread": "B",
+      "i": 47,
+      "ok": true,
+      "duration_ms": 1.69,
+      "ts": "2026-07-05T03:14:36.652134Z"
+    },
+    {
+      "thread": "A",
+      "i": 47,
+      "ok": true,
+      "duration_ms": 1.82,
+      "ts": "2026-07-05T03:14:36.660243Z"
+    },
+    {
+      "thread": "B",
+      "i": 48,
+      "ok": true,
+      "duration_ms": 2.68,
+      "ts": "2026-07-05T03:14:36.665351Z"
+    },
+    {
+      "thread": "A",
+      "i": 48,
+      "ok": true,
+      "duration_ms": 3.78,
+      "ts": "2026-07-05T03:14:36.674536Z"
+    },
+    {
+      "thread": "B",
+      "i": 49,
+      "ok": true,
+      "duration_ms": 2.18,
+      "ts": "2026-07-05T03:14:36.677768Z"
+    },
+    {
+      "thread": "A",
+      "i": 49,
+      "ok": true,
+      "duration_ms": 9.78,
+      "ts": "2026-07-05T03:14:36.694788Z"
+    },
+    {
+      "thread": "A",
+      "i": 50,
+      "ok": true,
+      "duration_ms": 1.36,
+      "ts": "2026-07-05T03:14:36.706366Z"
+    },
+    {
+      "thread": "B",
+      "i": 50,
+      "ok": true,
+      "duration_ms": 35.23,
+      "ts": "2026-07-05T03:14:36.723288Z"
+    }
+  ],
+  "insert_count": 100,
+  "insert_success": 100,
+  "insert_fail": 0,
+  "max_insert_duration_ms": 35.23,
+  "api_count": 44,
+  "api_ok": 44,
+  "api_500": 0,
+  "api_latency_ms": {
+    "avg": 14.78,
+    "p50": 16.16,
+    "p95": 28.66,
+    "p99": 59.62,
+    "max": 59.62
+  },
+  "pass": true
+}

@@ -1,0 +1,113 @@
+{
+  "scenario": "C_cache_breakdown",
+  "url": "http://127.0.0.1:8000/api/hotspots?category=ai",
+  "concurrent": 500,
+  "duration_s": 5.0,
+  "phases": {
+    "warmup": {
+      "samples": 10,
+      "success": 10,
+      "avg_ms": 17.15,
+      "hit_rate_after": {
+        "list": 0.75,
+        "detail": 0.0,
+        "static": 0.0
+      }
+    },
+    "breakdown": {
+      "action": "list_cache.clear()  (Phase 8: 仅清 list_cache，保留 detail/static)",
+      "hit_rate_after": {
+        "list": 0.0,
+        "detail": 0.0,
+        "static": 0.0
+      }
+    },
+    "measurement": {
+      "samples": 800,
+      "success": 700,
+      "success_rate": 0.875,
+      "first_request_delay_ms": 784.59,
+      "latency_ms": {
+        "avg": 2177.74,
+        "p50": 831.52,
+        "p95": 6247.82,
+        "p99": 6953.62,
+        "max": 7055.73
+      },
+      "hit_rate_timeline": [
+        {
+          "t_s": 0.0,
+          "hit_rate": {
+            "list": 0.9987484355444305,
+            "detail": 0.0,
+            "static": 0.2857142857142857
+          },
+          "cum_samples": 500
+        },
+        {
+          "t_s": 0.97,
+          "hit_rate": {
+            "list": 0.9988876529477196,
+            "detail": 0.0,
+            "static": 0.2857142857142857
+          },
+          "cum_samples": 550
+        },
+        {
+          "t_s": 1.93,
+          "hit_rate": {
+            "list": 0.998998998998999,
+            "detail": 0.0,
+            "static": 0.2857142857142857
+          },
+          "cum_samples": 600
+        },
+        {
+          "t_s": 2.9,
+          "hit_rate": {
+            "list": 0.9990900818926297,
+            "detail": 0.0,
+            "static": 0.2857142857142857
+          },
+          "cum_samples": 650
+        },
+        {
+          "t_s": 3.82,
+          "hit_rate": {
+            "list": 0.9991659716430359,
+            "detail": 0.0,
+            "static": 0.2857142857142857
+          },
+          "cum_samples": 700
+        },
+        {
+          "t_s": 4.74,
+          "hit_rate": {
+            "list": 0.9992301770592764,
+            "detail": 0.0,
+            "static": 0.2857142857142857
+          },
+          "cum_samples": 750
+        },
+        {
+          "t_s": 5.73,
+          "hit_rate": {
+            "list": 0.9992852037169406,
+            "detail": 0.0,
+            "static": 0.2857142857142857
+          },
+          "cum_samples": 800
+        },
+        {
+          "t_s": 5.73,
+          "hit_rate": {
+            "list": 0.9992852037169406,
+            "detail": 0.0,
+            "static": 0.2857142857142857
+          },
+          "cum_samples": 800
+        }
+      ]
+    }
+  }
+}

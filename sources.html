@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>Hotspot 资讯信源与标讯信源清单</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #334155;
+    --line: #475569;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --green: #34d399;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --purple: #a78bfa;
+    --code-bg: #0b1220;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0; padding: 0;
+    line-height: 1.6;
+  }
+  header {
+    background: linear-gradient(135deg, #0c4a6e 0%, #1e3a8a 100%);
+    padding: 32px 48px;
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { margin: 0 0 8px; font-size: 28px; }
+  header p { margin: 0; color: var(--muted); }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  main { max-width: 1480px; margin: 0 auto; padding: 32px 48px; }
+  section { margin-bottom: 40px; }
+  h2 {
+    border-left: 4px solid var(--accent);
+    padding-left: 12px;
+    font-size: 22px;
+    margin-bottom: 16px;
+  }
+  h3 { color: var(--accent); margin-top: 28px; font-size: 18px; }
+  h4 { color: var(--green); margin-top: 18px; font-size: 15px; }
+  p, li { color: var(--text); }
+  code {
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    background: var(--code-bg);
+    color: #e0f2fe;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  /* Summary cards */
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .stat .num { font-size: 28px; font-weight: 700; color: var(--accent); }
+  .stat .label { color: var(--muted); font-size: 12px; }
+  .stat.green .num { color: var(--green); }
+  .stat.yellow .num { color: var(--yellow); }
+  .stat.red .num { color: var(--red); }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  th, td {
+    text-align: left;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  th {
+    background: var(--panel-2);
+    color: var(--accent);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 11px;
+    position: sticky;
+    top: 0;
+  }
+  tr:hover { background: rgba(56,189,248,0.04); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Pills */
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .pill-active  { background: #14532d; color: #bbf7d0; }
+  .pill-dead    { background: #7f1d1d; color: #fecaca; }
+  .pill-stale   { background: #78350f; color: #fde68a; }
+  .pill-disabled{ background: #374151; color: #9ca3af; }
+  .pill-ai      { background: #1e3a8a; color: #93c5fd; }
+  .pill-security{ background: #7f1d1d; color: #fecaca; }
+  .pill-finance { background: #14532d; color: #bbf7d0; }
+  .pill-startup { background: #581c87; color: #e9d5ff; }
+  .pill-bid     { background: #78350f; color: #fde68a; }
+  .pill-tech    { background: #134e4a; color: #99f6e4; }
+  .pill-github  { background: #1e293b; color: #94a3b8; }
+  .pill-rss     { background: #155e75; color: #a5f3fc; }
+  .pill-json    { background: #4c1d95; color: #ddd6fe; }
+  .pill-crawl   { background: #831843; color: #fbcfe8; }
+  .pill-aiohttp { background: #1f2937; color: #d1d5db; }
+
+  .footer {
+    color: var(--muted);
+    text-align: center;
+    padding: 24px;
+    font-size: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .err { color: var(--red); font-size: 11px; }
+  .muted { color: var(--muted); }
+  .narrow { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; color: var(--accent); font-size: 13px; padding: 4px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Hotspot 资讯信源与标讯信源清单</h1>
+  <p>103 个信源 · 7 个分类 · 10 种 renderer · 实时运行状态</p>
+  <div class="meta">最后更新: 2026-07-07 15:40 (北京时间) · 详见 <a href="architecture.html" style="color:var(--accent)">架构文档</a> · <a href="quality_gates.md" style="color:var(--accent)">质量门禁</a></div>
+</header>
+
+<main>
+
+<!-- 1. 总览 -->
+<section>
+  <h2>1. 总览</h2>
+  <div class="summary">
+    <div class="stat"><div class="num">103</div><div class="label">信源总数</div></div>
+    <div class="stat green"><div class="num">24</div><div class="label">活跃 (active)</div></div>
+    <div class="stat yellow"><div class="num">3</div><div class="label">陈旧 (stale)</div></div>
+    <div class="stat red"><div class="num">76</div><div class="label">失联 (dead)</div></div>
+    <div class="stat"><div class="num">773</div><div class="label">总热点数</div></div>
+    <div class="stat"><div class="num">7</div><div class="label">分类数</div></div>
+    <div class="stat"><div class="num">5min</div><div class="label">采集周期</div></div>
+  </div>
+
+  <h3>分类覆盖</h3>
+  <table>
+    <tr>
+      <th>分类</th>
+      <th>源数</th>
+      <th>活跃</th>
+      <th>陈旧</th>
+      <th>失联</th>
+      <th>当前条数</th>
+      <th>上次采集</th>
+      <th>本次</th>
+    </tr>
+    <tr>
+      <td><span class="pill pill-ai">AI</span></td>
+      <td class="num">6</td>
+      <td class="num">4</td>
+      <td class="num">0</td>
+      <td class="num">2</td>
+      <td class="num">118</td>
+      <td>2026-07-07 15:27</td>
+      <td class="num">50 条</td>
+    </tr>
+    <tr>
+      <td><span class="pill pill-security">SECURITY</span></td>
+      <td class="num">19</td>
+      <td class="num">11</td>
+      <td class="num">0</td>
+      <td class="num">8</td>
+      <td class="num">417</td>
+      <td>2026-07-07 15:27</td>
+      <td class="num">313 条</td>
+    </tr>
+    <tr>
+      <td><span class="pill pill-finance">FINANCE</span></td>
+      <td class="num">7</td>
+      <td class="num">4</td>
+      <td class="num">0</td>
+      <td class="num">3</td>
+      <td class="num">138</td>
+      <td>2026-07-07 15:27</td>
+      <td class="num">60 条</td>
+    </tr>
+    <tr>
+      <td><span class="pill pill-startup">STARTUP</span></td>
+      <td class="num">4</td>
+      <td class="num">1</td>
+      <td class="num">0</td>
+      <td class="num">3</td>
+      <td class="num">40</td>
+      <td>2026-07-07 15:27</td>
+      <td class="num">16 条</td>
+    </tr>
+    <tr>
+      <td><span class="pill pill-bid">BID</span></td>
+      <td class="num">49</td>
+      <td class="num">1</td>
+      <td class="num">3</td>
+      <td class="num">45</td>
+      <td class="num">18</td>
+      <td>2026-07-07 15:27</td>
+      <td class="num">5 条</td>
+    </tr>
+    <tr>
+      <td><span class="pill pill-tech">TECH</span></td>
+      <td class="num">1</td>
+      <td class="num">1</td>
+      <td class="num">0</td>
+      <td class="num">0</td>
+      <td class="num">42</td>
+      <td>2026-07-07 15:27</td>
+      <td class="num">24 条</td>
+    </tr>
+    <tr>
+      <td><span class="pill pill-github">GITHUB</span></td>
+      <td class="num">17</td>
+      <td class="num">2</td>
+      <td class="num">0</td>
+      <td class="num">15</td>
+      <td class="num">0</td>
+      <td>2026-07-07 15:27</td>
+      <td class="num">0 条</td>
+    </tr>
+  </table>
+
+  <h3>Renderer 分布</h3>
+  <table>
+    <tr>
+      <th>renderer</th>
+      <th>说明</th>
+      <th>典型场景</th>
+      <th>源数</th>
+    </tr>
+    <tr><td><code>aiohttp</code></td><td>直连 + BeautifulSoup</td><td>静态 HTML / RSS</td><td class="num">~50</td></tr>
+    <tr><td><code>crawl4ai</code></td><td>Playwright 渲染</td><td>反爬 / JS SPA / 标讯</td><td class="num">~45</td></tr>
+    <tr><td><code>rss</code></td><td>feedparser (Phase 22)</td><td>FreeBuf / SecWiki / 小互AI</td><td class="num">~3</td></tr>
+    <tr><td><code>json</code></td><td>JSON API 直连 (Phase 25)</td><td>AIhot / 金十数据</td><td class="num">2</td></tr>
+    <tr><td><code>search</code></td><td>搜索引擎 (Phase 19)</td><td>标讯扩展渠道</td><td class="num">~3</td></tr>
+    <tr><td><code>disabled</code></td><td>短路 (Phase 25 P1)</td><td>财联社 (签名 API 不可用)</td><td class="num">1</td></tr>
+  </table>
+</section>
+
+<!-- 2. AI 资讯源 -->
+<section>
+  <h2>2. AI 资讯源 (6 个 · 4 活跃 / 2 失联)</h2>
+  <table>
+    <tr>
+      <th>源名</th>
+      <th>renderer</th>
+      <th>URL</th>
+      <th>状态</th>
+      <th>累计</th>
+      <th>本次</th>
+      <th>最近错误</th>
+    </tr>
+    <tr>
+      <td><strong>量子位</strong></td>
+      <td><span class="pill pill-crawl">crawl4ai</span></td>
+      <td class="narrow">qbitai.com</td>
+      <td><span class="pill pill-active">active</span></td>
+      <td class="num">795 / 43 runs</td>
+      <td class="num">23</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><strong>36氪AI</strong></td>
+      <td><span class="pill pill-crawl">crawl4ai</span></td>
+      <td class="narrow">36kr.com/information/AI</td>
+      <td><span class="pill pill-active">active</span></td>
+      <td class="num">893 / 43 runs</td>
+      <td class="num">—</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><strong>机器之心</strong></td>
+      <td><span class="pill pill-crawl">crawl4ai</span></td>
+      <td class="narrow">jiqizhixin.com</td>
+      <td><span class="pill pill-active">active</span></td>
+      <td class="num">134 / 43 runs</td>
+      <td class="num">3</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><strong>AIhot</strong> <span class="muted">Phase 25 P1</span></td>
+      <td><span class="pill pill-json">json</span></td>
+      <td class="narrow">aihot.virxact.com (UA 限定)</td>
+      <td><span class="pill pill-active">active</span></td>
+      <td class="num">205 / 10 runs</td>
+      <td class="num">30</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><strong>小互AI</strong> <span class="muted">Phase 26</span></td>
+      <td><span class="pill pill-rss">rss</span></td>
+      <td class="narrow">best.xiaohu.ai/rss.xml</td>
+      <td><span class="pill pill-active">active</span></td>
+      <td class="num">155 / 5 runs</td>
+      <td class="num">15</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><strong>HackerNews</strong></td>
+      <td><span class="pill pill-aiohttp">aiohttp</span></td>
+      <td class="narrow">news.ycombinator.com</td>
+      <td><span class="pill pill-dead">dead</span></td>
+      <td class="num">0 / 43</td>
+      <td class="num">0</td>
+      <td class="err">TimeoutError</td>
+    </tr>
+  </table>
+</section>
+
+<!-- 3. Security 资讯源 -->
+<section>
+  <h2>3. Security 资讯源 (19 个 · 11 活跃 / 8 失联)</h2>
+  <table>
+    <tr>
+      <th>源名</th>
+      <th>renderer</th>
+      <th>URL</th>
+      <th>状态</th>
+      <th>累计条数</th>
+      <th>最近错误</th>
+    </tr>
+    <tr><td><strong>嘶吼</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>4hou.com</td><td><span class="pill pill-active">active</span></td><td class="num">1880 / 47</td><td>—</td></tr>
+    <tr><td><strong>安全客</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>anquanke.com</td><td><span class="pill pill-active">active</span></td><td class="num">1735 / 47</td><td>—</td></tr>
+    <tr><td><strong>FreeBuf</strong> <span class="muted">Phase 22 RSS</span></td><td><span class="pill pill-rss">rss</span></td><td>freebuf.com/feed</td><td><span class="pill pill-active">active</span></td><td class="num">674 / 47</td><td>—</td></tr>
+    <tr><td><strong>SecWiki</strong> <span class="muted">Phase 22 RSS</span></td><td><span class="pill pill-rss">rss</span></td><td>sec-wiki.com/news/rss</td><td><span class="pill pill-active">active</span></td><td class="num">320 / 33</td><td>—</td></tr>
+    <tr><td><strong>Schneier on Security</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>schneier.com</td><td><span class="pill pill-active">active</span></td><td class="num">1768 / 34</td><td>—</td></tr>
+    <tr><td><strong>HackRead</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>hackread.com</td><td><span class="pill pill-active">active</span></td><td class="num">1515 / 40</td><td>—</td></tr>
+    <tr><td><strong>E安全</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>easyaq.com</td><td><span class="pill pill-active">active</span></td><td class="num">442 / 13</td><td>—</td></tr>
+    <tr><td><strong>安全内参</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>secrss.com</td><td><span class="pill pill-active">active</span></td><td class="num">1200 / 40</td><td>—</td></tr>
+    <tr><td><strong>TC260 信安标委</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>tc260.org.cn</td><td><span class="pill pill-active">active</span></td><td class="num">440 / 40</td><td>—</td></tr>
+    <tr><td><strong>深信服科技</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>sangfor.com.cn</td><td><span class="pill pill-active">active</span></td><td class="num">1000 / 40</td><td>—</td></tr>
+    <tr><td><strong>中国证监会</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>csrc.gov.cn</td><td><span class="pill pill-active">active</span></td><td class="num">5623 / 40</td><td>—</td></tr>
+    <tr><td><strong>中国人民银行</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>pbc.gov.cn</td><td><span class="pill pill-active">active</span></td><td class="num">3616 / 40</td><td>—</td></tr>
+    <tr><td><strong>TheHackerNews</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>thehackernews.com</td><td><span class="pill pill-dead">dead</span></td><td class="num">0 / 47</td><td class="err">持续抓取失败</td></tr>
+    <tr><td><strong>CNNVD 国家漏洞库</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>cnnvd.org.cn</td><td><span class="pill pill-dead">dead</span></td><td class="num">0 / 40</td><td class="err">持续抓取失败</td></tr>
+    <tr><td><strong>国家金融监督管理总局</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>nfra.gov.cn</td><td><span class="pill pill-dead">dead</span></td><td class="num">0 / 40</td><td class="err">持续抓取失败</td></tr>
+    <tr><td><strong>奇安信威胁情报</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>ti.qianxin.com</td><td><span class="pill pill-dead">dead</span></td><td class="num">0 / 40</td><td class="err">持续抓取失败</td></tr>
+    <tr><td><strong>启明星辰</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>gm7.org/feed</td><td><span class="pill pill-dead">dead</span></td><td class="num">600 / 40</td><td class="err">曾活跃,现失联</td></tr>
+    <tr><td><strong>知道创宇</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>knownsec.com</td><td><span class="pill pill-dead">dead</span></td><td class="num">0 / 40</td><td class="err">持续抓取失败</td></tr>
+    <tr><td><strong>等级保护网</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>djbh.net</td><td><span class="pill pill-dead">dead</span></td><td class="num">0 / 40</td><td class="err">持续抓取失败</td></tr>
+    <tr><td><strong>绿盟科技</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>nsfocus.com</td><td><span class="pill pill-dead">dead</span></td><td class="num">0 / 40</td><td class="err">持续抓取失败</td></tr>
+  </table>
+</section>
+
+<!-- 4. Finance 资讯源 -->
+<section>
+  <h2>4. Finance 资讯源 (7 个 · 4 活跃 / 3 失联)</h2>
+  <table>
+    <tr>
+      <th>源名</th>
+      <th>renderer</th>
+      <th>URL</th>
+      <th>状态</th>
+      <th>累计</th>
+      <th>最近错误</th>
+    </tr>
+    <tr><td><strong>东方财富</strong></td><td><span class="pill pill-crawl">crawl4ai</span></td><td>eastmoney.com</td><td><span class="pill pill-active">active</span></td><td class="num">1350 / 43</td><td>—</td></tr>
+    <tr><td><strong>新浪财经</strong></td><td><span class="pill pill-crawl">crawl4ai</span></td><td>finance.sina.com.cn</td><td><span class="pill pill-active">active</span></td><td class="num">1331 / 43</td><td>—</td></tr>
+    <tr><td><strong>财新网</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>caixin.com</td><td><span class="pill pill-active">active</span></td><td class="num">1233 / 43</td><td>—</td></tr>
+    <tr><td><strong>金十数据</strong> <span class="muted">Phase 25 P1</span></td><td><span class="pill pill-json">json</span></td><td>jin10.com/flash_newest.js</td><td><span class="pill pill-active">active</span></td><td class="num">112 / 10</td><td>—</td></tr>
+    <tr><td><strong>雪球</strong></td><td><span class="pill pill-crawl">crawl4ai</span></td><td>xueqiu.com</td><td><span class="pill pill-dead">dead</span></td><td class="num">164 / 43</td><td class="err">曾活跃,现失联</td></tr>
+    <tr><td><strong>华尔街见闻</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>wallstreetcn.com</td><td><span class="pill pill-dead">dead</span></td><td class="num">0 / 43</td><td class="err">持续抓取失败</td></tr>
+    <tr><td><strong>财联社</strong> <span class="muted">Phase 25 P1</span></td><td><span class="pill pill-disabled">disabled</span></td><td>cls.cn/telegraph</td><td><span class="pill pill-disabled">disabled</span></td><td class="num">0 / 10</td><td class="err">Next.js SPA + 签名 API</td></tr>
+  </table>
+</section>
+
+<!-- 5. Startup 资讯源 -->
+<section>
+  <h2>5. Startup 资讯源 (4 个 · 1 活跃 / 3 失联)</h2>
+  <table>
+    <tr>
+      <th>源名</th>
+      <th>renderer</th>
+      <th>URL</th>
+      <th>状态</th>
+      <th>累计</th>
+      <th>最近错误</th>
+    </tr>
+    <tr><td><strong>投资界</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>pedaily.cn</td><td><span class="pill pill-active">active</span></td><td class="num">1354 / 43</td><td>—</td></tr>
+    <tr><td><strong>36氪</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>36kr.com</td><td><span class="pill pill-dead">dead</span></td><td class="num">0 / 43</td><td class="err">持续抓取失败</td></tr>
+    <tr><td><strong>虎嗅</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>huxiu.com</td><td><span class="pill pill-dead">dead</span></td><td class="num">0 / 43</td><td class="err">持续抓取失败</td></tr>
+    <tr><td><strong>IT桔子</strong></td><td><span class="pill pill-aiohttp">aiohttp</span></td><td>itjuzi.com</td><td><span class="pill pill-dead">dead</span></td><td class="num">0 / 43</td><td class="err">HTTP 412</td></tr>
+  </table>
+</section>
+
+<!-- 6. Tech 资讯源 -->
+<section>
+  <h2>6. Tech 资讯源 (1 个 · Phase 25 P1 新分类)</h2>
+  <table>
+    <tr>
+      <th>源名</th>
+      <th>renderer</th>
+      <th>URL</th>
+      <th>状态</th>
+      <th>累计</th>
+      <th>本次</th>
+    </tr>
+    <tr>
+      <td><strong>IT之家</strong> <span class="muted">Phase 25 P1</span></td>
+      <td><span class="pill pill-aiohttp">aiohttp</span></td>
+      <td class="narrow">ithome.com/list/</td>
+      <td><span class="pill pill-active">active</span></td>
+      <td class="num">227 / 10</td>
+      <td class="num">24</td>
+    </tr>
+  </table>
+  <p class="muted">待接入: Solidot / 稀土掘金 / 酷安 / 法布财经 / 格隆汇 (Phase 25 P2/P3)</p>
+</section>
+
+<!-- 7. GitHub 源 -->
+<section>
+  <h2>7. GitHub Trending (17 个 · 2 活跃 / 15 失联)</h2>
+  <p class="muted">Phase 14 启用 crawl4ai, 抓取语言趋势列表, 大部分语言分类由于 GitHub Trending 改版 (Anubis 反爬) 失联</p>
+  <details>
+    <summary>展开所有 GitHub 源</summary>
+    <table>
+      <tr><th>源名</th><th>状态</th><th>说明</th></tr>
+      <tr><td>GitHub Trending</td><td><span class="pill pill-active">active</span></td><td>根 trending 页 (本周)</td></tr>
+      <tr><td>GitHub Trending (中文)</td><td><span class="pill pill-active">active</span></td><td>spoken-language:zh</td></tr>
+      <tr><td>Python Trending</td><td><span class="pill pill-dead">dead</span></td><td>GitHub 反爬</td></tr>
+      <tr><td>Go Trending</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+      <tr><td>Rust Trending</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+      <tr><td>TypeScript Trending</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+      <tr><td>JavaScript Trending</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+      <tr><td>C++ Trending</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+      <tr><td>Java Trending</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+      <tr><td>Swift Trending</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+      <tr><td>Kotlin Trending</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+      <tr><td>Ruby Trending</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+      <tr><td>C# Trending</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+      <tr><td>Shell Trending</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+      <tr><td>Scala Trending</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+      <tr><td>C Trending</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+      <tr><td>Dart Trending</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    </table>
+  </details>
+</section>
+
+<!-- 8. 标讯源 -->
+<section>
+  <h2>8. 标讯信源 (49 个 · 1 活跃 / 3 陈旧 / 45 失联)</h2>
+  <p class="muted">
+    <strong>业务说明:</strong> 标讯从 P0-P3 批次接入,总计 49 个源,涵盖国家级官方平台、金融行业、能源/电力、医疗教育、交通运输。
+    当前 <strong>1 活跃</strong> (晨歌招标网), <strong>3 陈旧</strong> (中国政府采购网 / 电力能源招标网 / 采招网), 其余 45 个源因 WAF / DNS / 防火墙拦截失联。
+  </p>
+
+  <h3>8.1 国家级官方平台 (P0)</h3>
+  <table>
+    <tr><th>源名</th><th>URL</th><th>状态</th><th>最近错误</th></tr>
+    <tr><td>中国政府采购网</td><td>ccgp.gov.cn</td><td><span class="pill pill-stale">stale</span></td><td>—</td></tr>
+    <tr><td>招标投标公共服务平台</td><td>cebpubservice.com</td><td><span class="pill pill-dead">dead</span></td><td class="err">HTTP 502</td></tr>
+    <tr><td>全国公共资源交易平台</td><td>ggzy.gov.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>中央政府采购网</td><td>zycg.gov.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>中国采购与招标网</td><td>chinabidding.com.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>深交所采购信息</td><td>szse.cn</td><td><span class="pill pill-dead">dead</span></td><td class="err">HTTP 404</td></tr>
+    <tr><td>上交所采购信息</td><td>sse.com.cn</td><td><span class="pill pill-dead">dead</span></td><td class="err">HTTP 404</td></tr>
+    <tr><td>中金所采购公告</td><td>cffex.com.cn</td><td><span class="pill pill-dead">dead</span></td><td class="err">TimeoutError</td></tr>
+  </table>
+
+  <h3>8.2 金融行业 (P1)</h3>
+  <table>
+    <tr><th>源名</th><th>URL</th><th>状态</th><th>最近错误</th></tr>
+    <tr><td>国家开发银行采购</td><td>cdb.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>成方金融采购网</td><td>cfid.org.cn</td><td><span class="pill pill-dead">dead</span></td><td class="err">DNS</td></tr>
+    <tr><td>金融采购网</td><td>cfcpn.com</td><td><span class="pill pill-dead">dead</span></td><td class="err">TimeoutError</td></tr>
+    <tr><td>中国人民银行集中采购中心</td><td>jzcg.pbc.gov.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>中国采购与招标网-金融</td><td>chinabidding.com.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>采招网-金融</td><td>bidcenter.com.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>招标网-金融</td><td>zhaobiao.cn</td><td><span class="pill pill-dead">dead</span></td><td class="err">HTTP 521</td></tr>
+    <tr><td>采联网-金融</td><td>zgzbw.com</td><td><span class="pill pill-dead">dead</span></td><td class="err">ServerDisconnected</td></tr>
+    <tr><td>中国农业发展银行采购</td><td>adbc.com.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>中国银联</td><td>chinaunionpay.com</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>中国外汇交易中心</td><td>chinamoney.com.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+  </table>
+
+  <h3>8.3 能源/电力/电信 (P1/P2)</h3>
+  <table>
+    <tr><th>源名</th><th>URL</th><th>状态</th><th>最近错误</th></tr>
+    <tr><td>国家电网电子商务平台</td><td>ecp.sgcc.com.cn</td><td><span class="pill pill-dead">dead</span></td><td class="err">HTTP 404</td></tr>
+    <tr><td>南方电网采购</td><td>bidding.csg.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>国家能源采购</td><td>chnenergybidding.com.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>中石化采购</td><td>sinopec-ec.com</td><td><span class="pill pill-dead">dead</span></td><td class="err">DNS</td></tr>
+    <tr><td>电力招标网</td><td>dlzb.com</td><td><span class="pill pill-dead">dead</span></td><td>25/27 zero</td></tr>
+    <tr><td>电力能源招标网</td><td>dlnyzb.com</td><td><span class="pill pill-stale">stale</span></td><td>14/27 累计</td></tr>
+    <tr><td>中国移动 B2B 采购</td><td>b2b.10086.cn</td><td><span class="pill pill-dead">dead</span></td><td class="err">SSL</td></tr>
+    <tr><td>中国电信采购</td><td>caigou.chinatelecom.com.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>中国联通采购</td><td>chinaunicombidding.com</td><td><span class="pill pill-dead">dead</span></td><td class="err">DNS</td></tr>
+    <tr><td>中国广电采购</td><td>zgdsy.com.cn</td><td><span class="pill pill-dead">dead</span></td><td class="err">DNS</td></tr>
+    <tr><td>华能电子商务平台</td><td>chng.com.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>华电电子商务平台</td><td>chdtp.com</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>大唐电子商务平台</td><td>cdt-ec.com</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>中化商务电子招投标</td><td>sinochemitc.com</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+  </table>
+
+  <h3>8.4 医疗/教育/交通 (P2/P3)</h3>
+  <table>
+    <tr><th>源名</th><th>URL</th><th>状态</th><th>最近错误</th></tr>
+    <tr><td>卫健委采购平台</td><td>nhc.gov.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>教育部政府采购</td><td>moe.gov.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>采招网-医疗</td><td>bidcenter.com.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>采招网-教育</td><td>bidcenter.com.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>交通运输部采购</td><td>mot.gov.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>国铁集团采购平台</td><td>crgc.cc</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>中车集团采购</td><td>crsc.com.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+    <tr><td>中船集团采购</td><td>cssc.com.cn</td><td><span class="pill pill-dead">dead</span></td><td>—</td></tr>
+  </table>
+
+  <h3>8.5 综合/补充</h3>
+  <table>
+    <tr><th>源名</th><th>URL</th><th>状态</th><th>累计</th><th>最近错误</th></tr>
+    <tr><td>采招网</td><td>bidcenter.com.cn</td><td><span class="pill pill-stale">stale</span></td><td class="num">23/27</td><td>—</td></tr>
+    <tr><td>晨歌招标网</td><td>chengezhao.com</td><td><span class="pill pill-active">active</span></td><td class="num">87/27</td><td>—</td></tr>
+    <tr><td>千里马招标网</td><td>qianlima.com</td><td><span class="pill pill-dead">dead</span></td><td>0/27</td><td>—</td></tr>
+    <tr><td>乙方宝</td><td>yifangbao.com</td><td><span class="pill pill-dead">dead</span></td><td>0/27</td><td class="err">DNS</td></tr>
+    <tr><td>政采云</td><td>zcygov.cn</td><td><span class="pill pill-dead">dead</span></td><td>0/27</td><td>—</td></tr>
+    <tr><td>军队采购网</td><td>plap.cn</td><td><span class="pill pill-dead">dead</span></td><td>0/27</td><td class="err">拒绝连接</td></tr>
+    <tr><td>中招联合招标采购</td><td>zbj.com</td><td><span class="pill pill-dead">dead</span></td><td>0/27</td><td>—</td></tr>
+    <tr><td>招标网</td><td>zhaobiao.cn</td><td><span class="pill pill-dead">dead</span></td><td>0/27</td><td class="err">HTTP 521</td></tr>
+    <tr><td>比比招标</td><td>chengezhao.com/zfcg</td><td><span class="pill pill-dead">dead</span></td><td>0/27</td><td class="err">HTTP 404</td></tr>
+    <tr><td>采联网</td><td>zgzbw.com</td><td><span class="pill pill-dead">dead</span></td><td>0/27</td><td>—</td></tr>
+    <tr><td>招标信息港</td><td>bidnews.cn</td><td><span class="pill pill-dead">dead</span></td><td>0/27</td><td>—</td></tr>
+    <tr><td>易招标</td><td>ebnew.com</td><td><span class="pill pill-dead">dead</span></td><td>0/27</td><td>—</td></tr>
+    <tr><td>深圳公共资源交易</td><td>szexgrp.com</td><td><span class="pill pill-dead">dead</span></td><td>0/27</td><td>—</td></tr>
+    <tr><td>深圳阳光采购平台</td><td>szexgrp.com</td><td><span class="pill pill-dead">dead</span></td><td>0/25</td><td>—</td></tr>
+    <tr><td>知了标讯</td><td>zhiliaobiaoxun.com</td><td><span class="pill pill-dead">dead</span></td><td>0/25</td><td>—</td></tr>
+    <tr><td>蚂蚁投标</td><td>mayibx.com</td><td><span class="pill pill-dead">dead</span></td><td>0/27</td><td>—</td></tr>
+    <tr><td>证保信</td><td>zgzx-pa.com.cn</td><td><span class="pill pill-dead">dead</span></td><td>0/25</td><td>—</td></tr>
+    <tr><td>银保信</td><td>cfxcredit.com</td><td><span class="pill pill-dead">dead</span></td><td>0/25</td><td>—</td></tr>
+    <tr><td>比地招标网</td><td>bidizhaobiao.com</td><td><span class="pill pill-dead">dead</span></td><td>0/25</td><td>—</td></tr>
+    <tr><td>元博招标网</td><td>bidchance.com</td><td><span class="pill pill-dead">dead</span></td><td>0/25</td><td>—</td></tr>
+    <tr><td>中国国际招标网</td><td>mofcom.gov.cn</td><td><span class="pill pill-dead">dead</span></td><td>0/25</td><td>—</td></tr>
+    <tr><td>中国政府采购招标网</td><td>chinabidding.org.cn</td><td><span class="pill pill-dead">dead</span></td><td>0/25</td><td>—</td></tr>
+    <tr><td>招标采购导航网</td><td>okcis.cn</td><td><span class="pill pill-dead">dead</span></td><td>0/25</td><td>—</td></tr>
+  </table>
+
+  <p class="muted">
+    <strong>说明:</strong> 大部分标讯源需要登录 / 复杂反爬 / WAF 拦截,导致抓取 0 条。
+    Phase 19/21 引入 <code>renderer="search"</code> 路径,利用搜索引擎 (WebSearch) 绕开反爬。
+    但当前 <code>cn.bing.com</code> 不遵守 <code>site:</code> 操作符,自动化搜索产出=0,需 AI 辅助 (待 P3)。
+  </p>
+</section>
+
+<!-- 9. 自定义源 -->
+<section>
+  <h2>9. 自定义信源 (custom_sources)</h2>
+  <p>用户可在 Settings 面板中添加自定义源,具体见 <code>backend/api/sources.py</code> + <code>backend/repository/custom_source_repo.py</code>。</p>
+  <p class="muted">当前未配置自定义源,所有源为内置。</p>
+</section>
+
+<!-- 10. 黑名单 -->
+<section>
+  <h2>10. 已移除信源 (黑名单)</h2>
+  <table>
+    <tr><th>源</th><th>移除原因</th></tr>
+    <tr><td>www.easyaq.com (旧版)</td><td>Phase 25 移除非网络安全 / 信息安全内容, 分类不匹配</td></tr>
+    <tr><td>venustech.com.cn (旧版)</td><td>Phase 23: 报 403, 改用 RSS 源 (gm7.org)</td></tr>
+    <tr><td>Schneier 安全博客</td><td>Phase 21: 修正为 canonical "Schneier on Security", 旧条目回填</td></tr>
+  </table>
+</section>
+
+<!-- 11. 失联原因汇总 -->
+<section>
+  <h2>11. 失联原因汇总</h2>
+  <table>
+    <tr><th>错误类型</th><th>源数</th><th>典型代表</th></tr>
+    <tr><td>持续抓取失败 (零条)</td><td>~25</td><td>CNNVD / 国家金融监督管理总局 / 36氪 / 知道创宇</td></tr>
+    <tr><td>TimeoutError</td><td>~5</td><td>HackerNews / 金融采购网 / 中金所</td></tr>
+    <tr><td>DNS 解析失败</td><td>~5</td><td>中国联通采购 / 中国广电采购 / 成方金融采购网</td></tr>
+    <tr><td>HTTP 404 / 502 / 521</td><td>~8</td><td>国家电网 / 招标网 / 招标投标公共服务平台</td></tr>
+    <tr><td>SSL 错误</td><td>~1</td><td>中国移动 B2B 采购</td></tr>
+    <tr><td>HTTP 412 (反爬)</td><td>~1</td><td>IT桔子</td></tr>
+    <tr><td>ServerDisconnectedError</td><td>~1</td><td>采联网-金融频道</td></tr>
+    <tr><td>Next.js SPA 不可渲染</td><td>1</td><td>财联社 (renderer=disabled)</td></tr>
+  </table>
+</section>
+
+<!-- 12. Phase 演进 -->
+<section>
+  <h2>12. Phase 演进</h2>
+  <table>
+    <tr><th>Phase</th><th>关键源变更</th></tr>
+    <tr><td>9</td><td>+ source_stats 表 + AuthorVerification (35+ 域名注册)</td></tr>
+    <tr><td>14</td><td>+ crawl4ai 渲染 (量子位 / 36氪 / 标讯 P0 国家级)</td></tr>
+    <tr><td>19/21</td><td>+ 50+ 标讯源 (P1 金融 / P2 医疗教育 / P3 交通 / 政采)</td></tr>
+    <tr><td>22</td><td>+ RSS 路径 (FreeBuf / SecWiki) + venustech → gm7.org</td></tr>
+    <tr><td>25 P1</td><td>+ tech 分类 (IT之家) + AIhot (json) + 金十数据 (json) + 财联社 (disabled)</td></tr>
+    <tr><td>26</td><td>+ 小互AI (RSS, best.xiaohu.ai/rss.xml)</td></tr>
+  </table>
+</section>
+
+</main>
+
+<div class="footer">
+  Generated at 2026-07-07 15:40 · 数据来源: <code>source_stats</code> + <code>collection_runs</code> + <code>hotspots</code>
+</div>
+
+</body>
+</html>

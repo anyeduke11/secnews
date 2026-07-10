@@ -1,0 +1,8 @@
+﻿Total: 200, Duration: 3.96s, QPS: 50.5
+Status codes: {200: 200}
+Errors (5xx): 0
+Latency avg: 19.79ms
+Latency p50: 15.31ms
+Latency p95: 92.82ms
+Latency p99: 170.73ms
+Latency max: 174.70ms

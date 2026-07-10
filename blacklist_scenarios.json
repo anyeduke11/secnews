@@ -1,0 +1,569 @@
+{
+  "$schema": "./blacklist_scenarios.schema.json",
+  "document": {
+    "title": "资讯黑名单场景复盘",
+    "version": "1.0",
+    "generated_at": "2026-07-07",
+    "scope": "Hotspot 后端采集 + 质量门禁 全链路黑名单机制",
+    "purpose": "复盘并统计系统现阶段所有黑名单场景，作为治理依据与未来 Phase 演进参考",
+    "language": "zh-CN",
+    "related_docs": [
+      "architecture.html",
+      "sources.html",
+      "quality_gates.md"
+    ]
+  },
+
+  "summary": {
+    "total_scenarios": 8,
+    "by_type": {
+      "source_level_static": 1,
+      "content_keyword_static": 2,
+      "content_regex_static": 1,
+      "url_pattern_static": 1,
+      "title_consistency_dynamic": 1,
+      "dynamic_data_driven": 2
+    },
+    "by_layer": {
+      "collect": 6,
+      "gate": 2
+    },
+    "total_keywords": 122,
+    "total_sources": 3,
+    "auto_blacklist_rule": "fail_n > 100 AND score < 30 → blacklist=1"
+  },
+
+  "scenarios": [
+    {
+      "id": "BL-01",
+      "name": "SOURCE_BLACKLIST (网络安全源名黑名单)",
+      "layer": "collect",
+      "type": "source_level_static",
+      "scope": "category=security",
+      "file": "backend/collectors/security_collector.py",
+      "line_range": "18-36",
+      "symbol": "SOURCE_BLACKLIST: set[str]",
+      "entries": [
+        {
+          "name": "KrebsOnSecurity",
+          "url": "https://krebsonsecurity.com/",
+          "reason": "抓到的资讯标题噪声太多（评论数 / 导航被误当标题），短期内不值得继续投入解析成本"
+        },
+        {
+          "name": "infosec.exchange",
+          "url": "https://infosec.exchange/",
+          "reason": "Mastodon 实例，用户列入黑名单；即使未来重新加入 SECURITY_SOURCES 也会被过滤掉，防止误回填"
+        },
+        {
+          "name": "E安全",
+          "url": "https://www.easyaq.com/",
+          "reason": "Phase 24 用户反馈内容偏离网络安全主题，移除抓取"
+        }
+      ],
+      "apply_algorithm": "[s for s in sources if s.get('name') not in SOURCE_BLACKLIST]",
+      "trigger": "每次 _filter_blacklist(SECURITY_SOURCES) 调用时，采集前静态过滤",
+      "effect": "整源跳过抓取，不进入抓取队列；item_count=0，score=0",
+      "user_feedback_origin": "2026-07-06 用户反馈",
+      "phase_origin": "Phase 24 调整 + Phase 25 持续维护",
+      "test_coverage": "test_security_blacklist / test_filter_blacklist"
+    },
+
+    {
+      "id": "BL-02",
+      "name": "NON_SECURITY_BLACKLIST (标讯非网安关键词黑名单)",
+      "layer": "collect",
+      "type": "content_keyword_static",
+      "scope": "category=bid, 所有 P0/P1/P2/P3 渠道",
+      "file": "backend/collectors/bid_collector.py",
+      "line_range": "607-641",
+      "symbol": "NON_SECURITY_BLACKLIST: list[str]",
+      "entry_count": 102,
+      "categories": [
+        {
+          "name": "消防/安全 (非网络安全)",
+          "count": 15,
+          "keywords": ["消防", "灭火", "火灾", "消防车", "消防维保", "消防救援", "消防设施", "消防设备", "消防工程", "消防器材", "消防检测", "阻燃", "烟感", "喷淋", "应急照明"],
+          "design_note": "注意: 不要用 '防火' / '防火墙' 这种易误伤的子串"
+        },
+        {
+          "name": "后勤/办公",
+          "count": 24,
+          "keywords": ["饮水机", "饮用水", "开水器", "净化水", "空调", "中央空调", "多联机", "VRV", "冷暖", "暖通", "冷源", "电梯", "扶梯", "升降梯", "印刷", "硒鼓", "墨盒", "复印纸", "复印机", "办公家具", "办公用品", "办公耗材", "办公设备", "文具"],
+          "design_note": "注意: 不要用 '电脑' / '主机' / '笔记本' 等子串,会误伤'网络安全'主题"
+        },
+        {
+          "name": "车辆/通勤",
+          "count": 16,
+          "keywords": ["车辆维保", "汽车维保", "车队", "公务用车", "班车", "通勤", "租车", "租赁车", "救援车", "救护车", "工程车", "扫地车", "车辆保养", "保养服务", "检测线", "验车"]
+        },
+        {
+          "name": "餐饮/物业",
+          "count": 17,
+          "keywords": ["食堂", "餐饮", "厨具", "灶具", "餐具", "食材", "配送餐", "物业", "保洁", "保安", "绿化", "园林", "花卉", "绿植", "保洁服务", "物业管理", "物业服务"]
+        },
+        {
+          "name": "通用后勤",
+          "count": 15,
+          "keywords": ["工作服", "制服", "服装", "劳保用品", "基建工程", "土建", "装修", "装饰", "改造工程", "建筑", "售后", "售后服务", "客服", "呼叫中心", "话务"]
+        },
+        {
+          "name": "业务类非网安",
+          "count": 15,
+          "keywords": ["制卡机", "即时制卡", "POS机", "刷卡机", "电视机", "显示屏采购", "广告机", "会议系统", "音响", "医疗设备", "医疗器械", "检验设备", "教学设备", "实验室", "实训"]
+        }
+      ],
+      "apply_algorithm": "if any(kw in text for kw in NON_SECURITY_BLACKLIST): return False",
+      "trigger": "_is_security_bid(text) 判定前置 Reject，黑名单全否决，否则核心命中即 True",
+      "effect": "整条标讯 Reject，不入库；quality_flags=[historical_bid] 不写入",
+      "user_feedback_origin": "Phase 18 截图中误录的非网安标讯",
+      "phase_origin": "Phase 18 + 后续 5 轮迭代增补",
+      "design_motivation": "标讯四线关键词中 '维保'+'运营'+'系统' 太宽，容易让消防/空调/饮水/办公/车辆/印刷等无关维保项目混入",
+      "known_issue": "黑名单关键词匹配存在缺陷：部分关键词（如'空调'）中的单个字符（如'空'）可能与安全相关标讯中的字符错误组合触发误过滤，需要做语义分段判断",
+      "test_coverage": "test_bid_non_security_blacklist / test_bid_blacklist_substring_collision"
+    },
+
+    {
+      "id": "BL-03",
+      "name": "_SPAM_KEYWORDS (内容质量 spam 词黑名单)",
+      "layer": "gate",
+      "type": "content_keyword_static",
+      "scope": "所有 category, ContentQualityGate",
+      "file": "backend/quality/content_quality_gate.py",
+      "line_range": "18-23",
+      "symbol": "_SPAM_KEYWORDS: tuple[str, ...]",
+      "entry_count": 20,
+      "entries": [
+        "免费赚钱", "一夜暴富", "100% 中奖", "点击链接", "立即领取",
+        "限时优惠", "稳赚不赔", "无风险套利", "内幕消息", "涨停股",
+        "加微信", "加群", "日赚千元", "躺赚", "包过",
+        "代刷", "代练", "破解版", "成人", "博彩"
+      ],
+      "apply_algorithm": "lowered = text.lower(); for kw in _SPAM_KEYWORDS: if kw.lower() in lowered: flag=spam_keyword; break",
+      "trigger": "ContentQualityGate.check() 命中即扣 30 分，break 后不再判定其他 spam 词",
+      "effect": "passed=False, score_deduction=30, flag='spam_keyword'",
+      "phase_origin": "Phase 11 内容门禁 v1",
+      "test_coverage": "test_content_quality_spam / test_spam_keyword_short_circuit"
+    },
+
+    {
+      "id": "BL-04",
+      "name": "_NAV_CTA (通用 title 导航/CTA 黑名单)",
+      "layer": "collect",
+      "type": "content_regex_static",
+      "scope": "所有 category, BaseCollector 通用前置过滤",
+      "file": "backend/collectors/base.py",
+      "line_range": "693-722",
+      "symbol": "_NAV_CTA: re.Pattern",
+      "pattern_summary": {
+        "exact_match": ["^更多$", "^首页$", "^登录$", "^注册$", "^[Aa][Bb][Oo][Uu][Tt]$", "^[Cc][Oo][Nn][Tt][Aa][Cc][Tt]$"],
+        "cta_phrases": ["查看更多", "更多 >>", "更多 >", "立即查看", "立即申请", "立即报名", "马上了解", "点击查看", ">>>", ">>>$", ">>$", "入驻\\S{0,4}$", "注册\\S{0,4}$", "查看全部", "点击进入", "关注我们", "关于我们"],
+        "length_filter": "title < 8 chars 视为 nav/breadcrumb; title > 200 chars 视为段落当标题"
+      },
+      "apply_algorithm": "if not title or len(title) < _MIN_TITLE_LEN: skip; if len(title) > _MAX_TITLE_LEN: skip; if _NAV_CTA.search(title): skip",
+      "trigger": "BaseCollector.fetch_source 解析每条 raw item 时前置过滤",
+      "effect": "skipped += 1; 不入库; 计入日志 skipped 统计",
+      "user_feedback_origin": "Phase 25 投资界 / 新浪财经 / 36kr 等综合媒体把侧栏链接误当标题",
+      "phase_origin": "Phase 25",
+      "test_coverage": "test_nav_cta_skip / test_title_length_filter"
+    },
+
+    {
+      "id": "BL-05",
+      "name": "source_reputation 动态黑名单 (DB 驱动)",
+      "layer": "gate",
+      "type": "dynamic_data_driven",
+      "scope": "所有 category, SourceReputationGate",
+      "file": "backend/quality/source_reputation_gate.py",
+      "line_range": "33-58",
+      "symbol": "SourceReputationGate.check",
+      "thresholds": [
+        {
+          "condition": "rep.blacklist == 1",
+          "score_deduction": 50,
+          "flag": "blacklisted_source",
+          "passed": false
+        },
+        {
+          "condition": "score < 30",
+          "score_deduction": 50,
+          "flag": "blacklisted_source",
+          "passed": false
+        },
+        {
+          "condition": "30 <= score < 50",
+          "score_deduction": 15,
+          "flag": "low_reputation_source",
+          "passed": false
+        },
+        {
+          "condition": "score >= 50",
+          "score_deduction": 0,
+          "flag": [],
+          "passed": true
+        }
+      ],
+      "score_formula": "score = 100 - 100 * fail_n / (pass_n + fail_n + 1)",
+      "auto_blacklist_rule": "blacklist = 1 if (fail_n > 100 AND score < 30) else 0",
+      "evaluation_window": "近 7 天 quality_check_logs",
+      "trigger": "每次 SourceReputationGate.check() 时按 source_reputation 表查 rep 后判定",
+      "effect": "passed=False, score_deduction=50, flag='blacklisted_source'",
+      "phase_origin": "Phase 14 引入 + 持续迭代",
+      "data_source": "source_reputation 表 (QualityLogRepository.rebuild_all 维护)",
+      "test_coverage": "test_source_reputation_gate / test_dynamic_blacklist_threshold"
+    },
+
+    {
+      "id": "BL-06",
+      "name": "SourceReputationRepository 自动评估规则",
+      "layer": "collect (后台 cron)",
+      "type": "dynamic_data_driven",
+      "scope": "source_reputation 表批量重建",
+      "file": "backend/repository/quality_repo.py",
+      "line_range": "215-274",
+      "symbol": "SourceReputationRepository.rebuild_all",
+      "rule_logic": {
+        "score": "score = max(0, 100 - 100 * fail_n // max(1, pass_n + fail_n + 1))",
+        "blacklist_trigger": "blacklist = 1 if (fail_n > 100 AND score < 30) else 0",
+        "evaluation_window": "WHERE q.checked_at >= datetime('now', '-7 days')"
+      },
+      "evaluation_schedule": "随 source_reputation rebuild 调用触发（每 5min 采集周期同步刷新）",
+      "trigger": "fail_n > 100 AND score < 30 → 自动写入 blacklist=1",
+      "effect": "source_reputation.blacklist=1，下一轮 SourceReputationGate 命中扣 50 分",
+      "feedback_loop": "fail 增多 → score 降低 → 自动 blacklist → quality_flags=[blacklisted_source] → fail 计数再次上升",
+      "phase_origin": "Phase 14",
+      "test_coverage": "test_quality_repo_rebuild / test_blacklist_auto_evaluation"
+    },
+
+    {
+      "id": "BL-07",
+      "name": "URL_PATH_BLACKLIST (分类/标签/页面/外站 误抓)",
+      "layer": "collect",
+      "type": "url_pattern_static",
+      "scope": "BaseCollector._parse_html 所有 source 通用",
+      "file": "backend/collectors/base.py",
+      "line_range": "500-535 (新增 _is_noise_url 扩展)",
+      "symbol": "URL_PATH_BLOCKLIST: tuple[str, ...] (新增)",
+      "trigger_source_generalization": "Phase 27 升级: 从 secrss 单点扩展到通用 (HackRead + Schneier 都命中)",
+      "user_feedback_origins": [
+        "2026-07-07 用户截图反馈 1: 安全内参存在专题类资讯 (secrss /specials/)",
+        "2026-07-07 用户截图反馈 2: HackRead 抓取了 Our Mission / Contact Us / Our Team / Business / Press Release / Laws & Legalities / ZTA Gateways 等 7 个非文章"
+      ],
+      "evidence_by_source": {
+        "secrss.com": [
+          "https://www.secrss.com/specials/81f3b8455aeb2ace (专题)",
+          "https://www.secrss.com/articles?author=奇安信%20CERT (author 过滤)",
+          "https://www.secrss.com/articles?tag=漏洞 (tag 过滤)"
+        ],
+        "hackread.com": [
+          "https://hackread.com/our-mission/ → 'Our Mission'",
+          "https://hackread.com/contact-us/ → 'Contact Us'",
+          "https://hackread.com/our-team/ → 'Our Team'",
+          "https://hackread.com/category/security/business/ → 'Business'",
+          "https://hackread.com/category/press-release/ → 'Press Release'",
+          "https://hackread.com/submit-press-release/ → 'Submit Press Release'",
+          "https://hackread.com/laws-legalities/ → 'Laws & Legalities'",
+          "https://hackread.com/tag/zta-gateways/ → 'ZTA Gateways'",
+          "https://hackread.com/category/xxx/ → 15+ 分类聚合页 (Technology, Microsoft, AI, ML, Cyber Crime, Phishing Scam, Scams and Fraud, Security, Censorship, Cyber Attacks, Blockchain, Surveillance, Hacking News, WikiLeaks, Anonymous)",
+          "https://hackread.com/tag/xxx/ → 4 个 tag 聚合页 (Zyklon B hacker, Zurich Insurance Group, Zues Malware, ZTA Gateways)"
+        ],
+        "schneier.com": [
+          "https://www.schneier.com/tag/xxx/ → 4 个 tag 页 (3d printers, Aaron Swartz, Afghanistan, Anonymous)",
+          "https://www.schneier.com/blog/about/contact/ → 'Contact Info'",
+          "https://www.schneier.com/crypto-gram/ → 'Newsletter'",
+          "https://www.schneier.com/books/ → 'More Books'",
+          "https://www.schneier.com/essays/ → 'More Essays'",
+          "https://www.schneier.com/blog/tags.html/ → 'More Tags'",
+          "https://duckduckgo.com/ → 'DuckDuckGo' (外站跳转)",
+          "https://inrupt.com/ → 'Inrupt, Inc.' (外站跳转)"
+        ]
+      },
+      "url_path_blocklist": [
+        "/tag/", "/category/", "/tags.html", "/tags.htm",
+        "/about/", "/about.",
+        "/books(?:[?#]|$)",
+        "/essays(?:[?#]|$)",
+        "/submit-", "/submit.",
+        "/crypto-gram", "/newsletter", "/specials/",
+        "/blog/about/"
+      ],
+      "url_query_blocklist": [
+        "?author=", "&author=", "?tag=", "&tag=",
+        "?category=", "&category="
+      ],
+      "same_origin_rule": "URL host 必须等于 source.url 的 host (Schneier 列表里 duckduckgo.com/inrupt.com 等跳转需 reject)",
+      "apply_algorithm": "def _is_noise_url(url, src_url): low=url.lower(); if '/tag/' in low: return True; ...; if urlparse(url).netloc != urlparse(src_url).netloc: return True",
+      "trigger": "BaseCollector._is_noise_url 在 _add_item 前置过滤",
+      "effect": "URL 命中 blocklist 或跨域 → skipped += 1, 不入库",
+      "design_motivation": "3 类信源都有'分类聚合页 + tag 页 + 站务页 + 外站跳转'4 种非文章 URL 模式, 通用 URL 路径黑名单比给每个源写白名单更省维护",
+      "known_edge_case": "/essays/archives/... 是 Schneier 真文章 URL, 必须用边界匹配 (?:[?#]|$) 避免 /essays 黑名单误伤",
+      "test_coverage": "test_bl07_bl08 (13 URL path/query 案例 + 跨域 + 同源 + 边界)"
+    },
+
+    {
+      "id": "BL-08",
+      "name": "TITLE_NAV_BLACKLIST (标题是 nav/页面/分类 错位)",
+      "layer": "collect",
+      "type": "title_consistency_dynamic",
+      "scope": "BaseCollector._parse_html 所有 source 通用",
+      "file": "backend/collectors/base.py",
+      "line_range": "470-498 (新增 NAV_TITLE_LOWER 集合)",
+      "symbol": "NAV_TITLE_LOWER: set[str] (新增)",
+      "trigger_source_generalization": "Phase 27 升级: 从 secrss 单点扩展到通用 (HackRead + Schneier 都命中)",
+      "user_feedback_origins": [
+        "2026-07-07 用户截图反馈 1: 安全内参存在 title='奇安信 CERT' 错位 (BL-07 同)",
+        "2026-07-07 用户截图反馈 2: HackRead 抓取 7+ 个非文章标题 (Our Mission / Contact Us / Our Team / Business / Press Release / Submit Press Release / Laws & Legalities / ZTA Gateways)"
+      ],
+      "evidence_by_source": {
+        "hackread.com": [
+          "Our Mission", "Contact Us", "Our Team", "Business", "Press Release",
+          "Submit Press Release", "Laws & Legalities", "ZTA Gateways",
+          "Hacking News", "WikiLeaks", "Anonymous", "Technology", "Microsoft",
+          "Artificial Intelligence", "Machine Learning", "Cyber Crime", "Phishing Scam",
+          "Scams and Fraud", "Security", "Censorship", "Cyber Attacks", "Blockchain", "Surveillance"
+        ],
+        "schneier.com": [
+          "Contact Info", "Newsletter", "More Books", "More Essays", "More Tags",
+          "Archive by Month"
+        ],
+        "secrss.com": ["奇安信 CERT (author 错位, BL-07 同)"]
+      },
+      "nav_title_blacklist_count": 33,
+      "nav_title_blacklist_categories": {
+        "HackRead (23)": ["Our Mission", "Contact Us", "Our Team", "Business", "Press Release", "Submit Press Release", "Laws & Legalities", "ZTA Gateways", "Hacking News", "WikiLeaks", "Anonymous", "Technology", "Microsoft", "Artificial Intelligence", "Machine Learning", "Cyber Crime", "Phishing Scam", "Scams and Fraud", "Security", "Censorship", "Cyber Attacks", "Blockchain", "Surveillance"],
+        "Schneier (6)": ["Contact Info", "Newsletter", "More Books", "More Essays", "More Tags", "Archive by Month"],
+        "通用 (4)": ["Homepage", "Sitemap", "RSS Feed", "Submit Press Release"]
+      },
+      "apply_algorithm": "def _is_noise_title(title): low=title.lower(); if low in NAV_TITLE_LOWER: return True",
+      "trigger": "BaseCollector._is_noise_title 在 _add_item 前置过滤",
+      "effect": "title 命中 NAV_TITLE_LOWER → skipped += 1, 不入库",
+      "design_principle": "集合只放'小写化后 < 30 字符'的纯导航/页面名, 避免误伤长 article (e.g. 'Security' 在 1-词标题里是 nav, 在 'Cloud Security Best Practices 2026' 长标题里是关键词)",
+      "known_edge_case": "Schneier 真文章 'AI and Trust' (12 字符) 通过 (不在 NAV_TITLE_LOWER 集合里)",
+      "test_coverage": "test_bl07_bl08 (29 nav titles parametrize + 大小写不敏感 + 短真文章 pass)"
+    }
+  ],
+
+  "interaction_matrix": {
+    "description": "8 类黑名单的执行顺序与作用域",
+    "execution_order": [
+      {
+        "step": 1,
+        "scenario": "BL-01",
+        "stage": "collect.preflight (security only)",
+        "scope": "源级"
+      },
+      {
+        "step": 2,
+        "scenario": "BL-07",
+        "stage": "collect.parse (BaseCollector._add_item)",
+        "scope": "item.url 路径黑名单 + query 黑名单 + 同源校验 (通用 14 路径 + 6 query, 覆盖 secrss/hackread/schneier)"
+      },
+      {
+        "step": 3,
+        "scenario": "BL-04",
+        "stage": "collect.parse (BaseCollector)",
+        "scope": "item.title 静态过滤 (NAV/CTA + 长度)"
+      },
+      {
+        "step": 4,
+        "scenario": "BL-08",
+        "stage": "collect.parse (BaseCollector._add_item)",
+        "scope": "item.title NAV_TITLE_LOWER 通用过滤 (33 词, hackread 23 + schneier 6 + 通用 4, 大小写不敏感)"
+      },
+      {
+        "step": 5,
+        "scenario": "BL-02",
+        "stage": "collect.parse (BidCollector)",
+        "scope": "item.title + item.summary (仅 bid)"
+      },
+      {
+        "step": 6,
+        "scenario": "BL-03",
+        "stage": "gate.content",
+        "scope": "item.title + item.summary (全 category)"
+      },
+      {
+        "step": 7,
+        "scenario": "BL-05",
+        "stage": "gate.source_reputation",
+        "scope": "按 item.source 查 rep"
+      }
+    ],
+    "background_jobs": [
+      {
+        "scenario": "BL-06",
+        "stage": "scheduler cron (随 rebuild_all 触发)",
+        "scope": "source_reputation 表批量刷新"
+      }
+    ]
+  },
+
+  "current_state_metrics": {
+    "blacklisted_sources": ["KrebsOnSecurity", "infosec.exchange", "E安全"],
+    "bid_blacklist_keywords": 102,
+    "spam_keywords": 20,
+    "nav_cta_patterns": 18,
+    "nav_title_blacklist_count": 33,
+    "url_path_blocklist_patterns": 12,
+    "url_query_blocklist_patterns": 6,
+    "same_origin_rule": true,
+    "author_title_hints_legacy": 17,
+    "dynamic_blacklist_count_estimate": "0 (无 source 进入 fail > 100 AND score < 30 区间)",
+    "auto_blacklist_rule": "fail_n > 100 AND score < 30"
+  },
+
+  "known_issues": [
+    {
+      "id": "ISSUE-BL-01",
+      "scenario": "BL-02",
+      "description": "黑名单关键词子串匹配误伤：'空调' 的 '空' 字符可能与安全相关标讯中的字符（如 '防火墙' 中的 '墙'）错误组合触发误过滤",
+      "severity": "medium",
+      "repro_hint": "用包含 '空调' 的真实标讯（即使是 IT 类空调）会被 Reject",
+      "proposed_fix": "改用 word-boundary / jieba 分词 / 全词匹配，避免子串碰撞"
+    },
+    {
+      "id": "ISSUE-BL-02",
+      "scenario": "BL-04",
+      "description": "title 长度 8 字阈值在中文短标题场景下偏严格（'某某漏洞' 仅 4 字也会被 skip，但 8 字以下可能误伤真实新闻标题）",
+      "severity": "low",
+      "proposed_fix": "分 category 调整：security 维持 6 字，bid 维持 8 字，finance/ai 维持 8 字"
+    },
+    {
+      "id": "ISSUE-BL-03",
+      "scenario": "BL-05/BL-06",
+      "description": "动态黑名单反馈循环：fail 增多 → score 降低 → blacklist → fail 进一步增多。建议加 cooldown / 人工 override 通道",
+      "severity": "medium",
+      "proposed_fix": "新增 source_admin API + settingsPanel UI，支持手动拉黑/恢复，与动态评估双轨"
+    },
+    {
+      "id": "ISSUE-BL-04",
+      "scenario": "BL-07/BL-08",
+      "description": "3 类信源都有'分类聚合页 + tag 页 + 站务页 + 外站跳转'4 种非文章 URL/Title 模式：(a) secrss.com 列表是 markdown 格式（非标准 HTML），基础 <a> 正则同时命中 [作者名](?author=)、[tag 名](?tag=)、[专题名](specials/)，且 list 缓存的 title 与 detail 实际 title 不一致 (article id 91886 案例: list='AI 归因错误？' detail='被AI标记恶意后...')；(b) hackread.com 把 23+ 站务/分类页 (Our Mission, Contact Us, Our Team, Business, Press Release, Submit Press Release, Laws & Legalities, ZTA Gateways) 误当文章；(c) schneier.com 把 9+ 站务页 (/tag/, /about/, /books/, /essays/, /crypto-gram/, 外站跳转 duckduckgo.com/inrupt.com) 误当文章",
+      "severity": "high",
+      "repro_hint": "export_cache.html (secrss) 第 1119 行 (URL=articles/91886, list_title='AI 归因错误？'), 第 1152 行 (URL=articles?author=奇安信%20CERT, list_title='奇安信 CERT'), 第 1031 行 (URL=specials/...); hackread.com /our-mission/ (title='Our Mission'), /contact-us/ (title='Contact Us'), /category/security/business/ (title='Business'), /submit-press-release/; schneier.com /tag/3d-printers/, /blog/about/contact/ (title='Contact Info'), /crypto-gram/ (title='Newsletter'), /books/ (title='More Books'), duckduckgo.com 外站跳转",
+      "proposed_fix": "已实现 BL-07/BL-08 通用化 (Phase 27): 1) URL_PATH_BLOCKLIST 14 个路径正则 + 6 个 query 参数 + 同源校验 (URL host == source host), 覆盖 3 类信源; 2) NAV_TITLE_LOWER 33 个 nav 标题集合, 大小写不敏感; 3) 边界匹配 (?:[?#]|$) 避免 /essays/archives/... 真文章被误伤; 4) 可选: 抓 list 后抽样 GET 详情页校验 title 一致性 (成本高, Phase 28+ 评估)"
+    }
+  ],
+
+  "phase_evolution": [
+    {
+      "phase": "Phase 14",
+      "change": "引入动态黑名单（source_reputation + QualityLogRepository.rebuild_all）"
+    },
+    {
+      "phase": "Phase 18",
+      "change": "新增 NON_SECURITY_BLACKLIST（102 词 6 大类），解决标讯误录消防/空调/饮水等后勤标讯"
+    },
+    {
+      "phase": "Phase 24",
+      "change": "SOURCE_BLACKLIST 加入 E安全（用户反馈内容偏离）"
+    },
+    {
+      "phase": "Phase 25",
+      "change": "新增 _NAV_CTA 通用 title 过滤（应对投资界/36kr 等综合媒体侧栏误抓）+ SOURCE_BLACKLIST 加入 KrebsOnSecurity/infosec.exchange"
+    },
+    {
+      "phase": "Phase 27 (已完成)",
+      "change": "BL-07 URL_PATH_BLOCKLIST 通用化 (14 路径 + 6 query + 同源校验) + BL-08 NAV_TITLE_LOWER 通用化 (33 词, 大小写不敏感)，解决 3 类信源的非文章误抓: secrss (specials/author/tag + 91886 list-title/detail-title 不一致) + hackread (23 站务/分类页) + schneier (9 站务/外站跳转页)。边界匹配 (?:[?#]|$) 避免 /essays/archives/... 真文章被误伤。45 个新测试通过，全量回归 680/680 pass"
+    }
+  ],
+
+  "recommended_next_steps": [
+    {
+      "id": "REC-01",
+      "title": "引入 jieba 分词 / 全词匹配",
+      "scope": "BL-02",
+      "benefit": "解决子串误伤问题",
+      "effort": "small"
+    },
+    {
+      "id": "REC-02",
+      "title": "settingsPanel 增加手动拉黑信源 UI",
+      "scope": "BL-01/BL-05",
+      "benefit": "用户能动态调整源黑名单（结合之前规划的信源管理提示）",
+      "effort": "medium"
+    },
+    {
+      "id": "REC-03",
+      "title": "分 category 配置 _MIN_TITLE_LEN",
+      "scope": "BL-04",
+      "benefit": "解决短标题误伤",
+      "effort": "small"
+    },
+    {
+      "id": "REC-04",
+      "title": "动态黑名单 cooldown + 人工 override",
+      "scope": "BL-05/BL-06",
+      "benefit": "避免反馈循环",
+      "effort": "medium"
+    },
+    {
+      "id": "REC-05",
+      "title": "黑名单执行链路可观测化",
+      "scope": "BL-01/02/03/04/05/06",
+      "benefit": "在 settingsPanel 显示每个黑名单的命中数 / 命中率",
+      "effort": "medium"
+    },
+    {
+      "id": "REC-06",
+      "title": "BL-07 URL 路径通用黑名单 (14 路径 + 6 query + 同源校验)",
+      "scope": "BL-07",
+      "benefit": "reject 3 类信源的非文章 URL: secrss /specials/, hackread /our-mission/ /category/ /submit-press-release/, schneier /tag/ /about/ /books/ /essays/ /crypto-gram/ 外站跳转 (duckduckgo.com/inrupt.com)",
+      "effort": "small",
+      "implementation": "在 BaseCollector._add_item 中加 _is_noise_url(url, src_url) 判定: URL_PATH_BLOCKLIST (14 路径正则, 含边界匹配) + URL_QUERY_BLOCKLIST (6 query) + 同源校验 (urlparse(url).netloc == urlparse(src_url).netloc)",
+      "status": "implemented"
+    },
+    {
+      "id": "REC-07",
+      "title": "BL-08 NAV_TITLE_LOWER 通用化 (33 词 nav/页面/分类 错位)",
+      "scope": "BL-08",
+      "benefit": "reject title=站务/分类名/作者名 的错位卡片 (hackread 23 + schneier 6 + 通用 4)",
+      "effort": "small",
+      "implementation": "在 BaseCollector._add_item 中加 _is_noise_title(title) 判定: title.lower() in NAV_TITLE_LOWER (集合只放小写化后 < 30 字符的纯导航/页面名, 避免误伤长 article)",
+      "status": "implemented"
+    },
+    {
+      "id": "REC-08",
+      "title": "抓 list 后抽样 GET 详情页校验 title 一致性",
+      "scope": "BL-08 进阶",
+      "benefit": "解决信源网站 list 缓存与 detail title 不一致问题 (91886 案例: list='AI 归因错误？' detail='被AI标记恶意后...')",
+      "effort": "medium",
+      "tradeoff": "每条详情页 1 次 GET, 60 条 ≈ +1-2s, 可降采样 10%"
+    }
+  ],
+
+  "appendix": {
+    "files_touched": [
+      "backend/collectors/security_collector.py",
+      "backend/collectors/bid_collector.py",
+      "backend/collectors/base.py",
+      "backend/quality/content_quality_gate.py",
+      "backend/quality/source_reputation_gate.py",
+      "backend/repository/quality_repo.py"
+    ],
+    "files_to_add_or_modify_for_bl07_bl08": [
+      "backend/collectors/base.py (新增 _is_article_url + _title_looks_like_author_or_publisher, 在 _add_item 中调用)",
+      "backend/collectors/security_collector.py (AUTHOR_TITLE_HINTS 集合, 含 17 个源名/author 名)"
+    ],
+    "tests_to_add_or_extend": [
+      "test_security_blacklist",
+      "test_filter_blacklist",
+      "test_bid_non_security_blacklist",
+      "test_bid_blacklist_substring_collision",
+      "test_content_quality_spam",
+      "test_spam_keyword_short_circuit",
+      "test_nav_cta_skip",
+      "test_title_length_filter",
+      "test_source_reputation_gate",
+      "test_dynamic_blacklist_threshold",
+      "test_quality_repo_rebuild",
+      "test_blacklist_auto_evaluation",
+      "test_url_path_blocklist",
+      "test_secrss_article_url_only",
+      "test_specials_url_rejected",
+      "test_author_query_rejected",
+      "test_title_looks_like_author",
+      "test_secrss_author_title_rejected",
+      "test_publisher_name_title_rejected"
+    ]
+  }
+}

@@ -1,0 +1,539 @@
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started parent process [16640]
+INFO:     Started server process [19088]
+INFO:     Waiting for application startup.
+INFO:     Started server process [65392]
+INFO:     Started server process [43904]
+INFO:     Started server process [24352]
+INFO:     Waiting for application startup.
+INFO:     Waiting for application startup.
+INFO:     Waiting for application startup.
+[32m18:15:53[0m | [1mINFO    [0m | [36mbackend.logging_config[0m | [1mlogging initialized[0m
+[32m18:15:53[0m | [1mINFO    [0m | [36mbackend.logging_config[0m | [1mlogging initialized[0m
+[32m18:15:53[0m | [1mINFO    [0m | [36mbackend.logging_config[0m | [1mlogging initialized[0m
+[32m18:15:53[0m | [1mINFO    [0m | [36mbackend.logging_config[0m | [1mlogging initialized[0m
+[32m18:15:53[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:15:53[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:15:53[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:15:53[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb initialized[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb initialized[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb initialized[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb initialized[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.scheduler.scheduler[0m | [1mscheduler started, jobs: collect_all (every 300s), trend_rebuild (every 300s), url_content_check, source_reputation_rebuild[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.scheduler.scheduler[0m | [1mscheduler started, jobs: collect_all (every 300s), trend_rebuild (every 300s), url_content_check, source_reputation_rebuild[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mstartup_complete[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.scheduler.scheduler[0m | [1mscheduler started, jobs: collect_all (every 300s), trend_rebuild (every 300s), url_content_check, source_reputation_rebuild[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mstartup_complete[0m
+INFO:     Application startup complete.
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.scheduler.scheduler[0m | [1mscheduler started, jobs: collect_all (every 300s), trend_rebuild (every 300s), url_content_check, source_reputation_rebuild[0m
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mstartup_complete[0m
+INFO:     Application startup complete.
+[32m18:15:55[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mstartup_complete[0m
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mcollection started[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mcollection started[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mcollection started[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mcollection started[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_start[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国广电采购 failed: ClientConnectorDNSError: Cannot connect to host www.zgdsy.com.cn:443 ssl:Fa[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 成方金融采购网 failed: ClientConnectorDNSError: Cannot connect to host www.cfid.org.cn:443 ssl:Fal[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 成方金融采购网 failed: ClientConnectorDNSError: Cannot connect to host www.cfid.org.cn:443 ssl:Fal[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国广电采购 failed: ClientConnectorDNSError: Cannot connect to host www.zgdsy.com.cn:443 ssl:Fa[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 成方金融采购网 failed: ClientConnectorDNSError: Cannot connect to host www.cfid.org.cn:443 ssl:Fal[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国广电采购 failed: ClientConnectorDNSError: Cannot connect to host www.zgdsy.com.cn:443 ssl:Fa[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国联通采购 failed: ClientConnectorDNSError: Cannot connect to host www.chinaunicombidding.com:[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 成方金融采购网 failed: ClientConnectorDNSError: Cannot connect to host www.cfid.org.cn:443 ssl:Fal[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 乙方宝 failed: ClientConnectorDNSError: Cannot connect to host www.yifangbao.com:443 ssl:F[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国广电采购 failed: ClientConnectorDNSError: Cannot connect to host www.zgdsy.com.cn:443 ssl:Fa[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国联通采购 failed: ClientConnectorDNSError: Cannot connect to host www.chinaunicombidding.com:[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国联通采购 failed: ClientConnectorDNSError: Cannot connect to host www.chinaunicombidding.com:[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 乙方宝 failed: ClientConnectorDNSError: Cannot connect to host www.yifangbao.com:443 ssl:F[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 乙方宝 failed: ClientConnectorDNSError: Cannot connect to host www.yifangbao.com:443 ssl:F[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国联通采购 failed: ClientConnectorDNSError: Cannot connect to host www.chinaunicombidding.com:[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 乙方宝 failed: ClientConnectorDNSError: Cannot connect to host www.yifangbao.com:443 ssl:F[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国移动 B2B 采购 failed: ClientConnectorSSLError: Cannot connect to host b2b.10086.cn:443 ssl:False [0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中央政府采购网 failed: ClientError: HTTP 404[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 上交所采购信息 failed: ClientError: HTTP 404[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中央政府采购网 failed: ClientError: HTTP 404[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中央政府采购网 failed: ClientError: HTTP 404[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中央政府采购网 failed: ClientError: HTTP 404[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中石化采购 failed: ClientConnectorDNSError: Cannot connect to host www.sinopec-ec.com:443 ssl:[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中石化采购 failed: ClientConnectorDNSError: Cannot connect to host www.sinopec-ec.com:443 ssl:[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中石化采购 failed: ClientConnectorDNSError: Cannot connect to host www.sinopec-ec.com:443 ssl:[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中石化采购 failed: ClientConnectorDNSError: Cannot connect to host www.sinopec-ec.com:443 ssl:[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 卫健委采购平台 failed: ClientError: HTTP 412[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 卫健委采购平台 failed: ClientError: HTTP 412[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 全国公共资源交易平台 failed: ClientError: HTTP 404[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 国家电网电子商务平台 failed: ClientError: HTTP 404[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 国家电网电子商务平台 failed: ClientError: HTTP 404[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中车集团采购 failed: ClientError: HTTP 404[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource IT桔子 failed: ClientError: HTTP 412[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 国家电网电子商务平台 failed: ClientError: HTTP 404[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource IT桔子 failed: ClientError: HTTP 412[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource IT桔子 failed: ClientError: HTTP 412[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource IT桔子 failed: ClientError: HTTP 412[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国采购与招标网 failed: ClientError: HTTP 405[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 上交所采购信息 failed: ClientError: HTTP 404[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 卫健委采购平台 failed: ClientError: HTTP 412[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 电力能源招标网 failed: ClientError: HTTP 429[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 上交所采购信息 failed: ClientError: HTTP 404[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国采购与招标网 failed: ClientError: HTTP 405[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 上交所采购信息 failed: ClientError: HTTP 404[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国采购与招标网 failed: ClientError: HTTP 405[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国采购与招标网 failed: ClientError: HTTP 405[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 卫健委采购平台 failed: ClientError: HTTP 412[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 电力能源招标网 failed: ClientError: HTTP 429[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 国家电网电子商务平台 failed: ClientError: HTTP 404[0m
+[32m18:16:00[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:00[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 电力能源招标网 failed: ClientError: HTTP 429[0m
+[32m18:16:01[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 电力能源招标网 failed: ClientError: HTTP 429[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国移动 B2B 采购 failed: ClientConnectorSSLError: Cannot connect to host b2b.10086.cn:443 ssl:False [0m
+[32m18:16:01[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国移动 B2B 采购 failed: ClientConnectorSSLError: Cannot connect to host b2b.10086.cn:443 ssl:False [0m
+[32m18:16:01[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中国移动 B2B 采购 failed: ClientConnectorSSLError: Cannot connect to host b2b.10086.cn:443 ssl:False [0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 全国公共资源交易平台 failed: ClientError: HTTP 404[0m
+[32m18:16:01[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 全国公共资源交易平台 failed: ClientError: HTTP 404[0m
+[32m18:16:01[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 全国公共资源交易平台 failed: ClientError: HTTP 404[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1minsufficient items (0) or all sources failed, using fallback[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1minsufficient items (0) or all sources failed, using fallback[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1minsufficient items (0) or all sources failed, using fallback[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1minsufficient items (0) or all sources failed, using fallback[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:01[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中金所采购公告 failed: ClientConnectorError: Cannot connect to host www.cffex.com.cn:443 ssl:Fa[0m
+[32m18:16:02[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中金所采购公告 failed: ClientConnectorError: Cannot connect to host www.cffex.com.cn:443 ssl:Fa[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中金所采购公告 failed: ClientConnectorError: Cannot connect to host www.cffex.com.cn:443 ssl:Fa[0m
+[32m18:16:02[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中金所采购公告 failed: ClientConnectorError: Cannot connect to host www.cffex.com.cn:443 ssl:Fa[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 军队采购网 failed: ClientConnectorError: Cannot connect to host www.plap.cn:443 ssl:False [[0m
+[32m18:16:02[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 军队采购网 failed: ClientConnectorError: Cannot connect to host www.plap.cn:443 ssl:False [[0m
+[32m18:16:02[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 军队采购网 failed: ClientConnectorError: Cannot connect to host www.plap.cn:443 ssl:False [[0m
+[32m18:16:02[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 军队采购网 failed: ClientConnectorError: Cannot connect to host www.plap.cn:443 ssl:False [[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:02[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:03[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:03[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:03[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中车集团采购 failed: ClientError: HTTP 404[0m
+[32m18:16:03[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中车集团采购 failed: ClientError: HTTP 404[0m
+[32m18:16:03[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 中车集团采购 failed: ClientError: HTTP 404[0m
+[32m18:16:03[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 招标投标公共服务平台 failed: ClientError: HTTP 502[0m
+[32m18:16:03[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 招标投标公共服务平台 failed: ClientError: HTTP 502[0m
+[32m18:16:04[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 招标投标公共服务平台 failed: ClientError: HTTP 502[0m
+[32m18:16:04[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:04[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 招标投标公共服务平台 failed: ClientError: HTTP 502[0m
+[32m18:16:04[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:04[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:05[0m | [1mINFO    [0m | [36mbackend.repository.db[0m | [1mdb connection opened[0m
+[32m18:16:05[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:05[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:05[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:05[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:07[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:07[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:07[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:07[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:20[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource HackerNews failed: TimeoutError: [0m
+[32m18:16:20[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource HackerNews failed: TimeoutError: [0m
+[32m18:16:20[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource HackerNews failed: TimeoutError: [0m
+[32m18:16:20[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource HackerNews failed: TimeoutError: [0m
+[32m18:16:21[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 金融采购网 failed: ClientConnectorError: Cannot connect to host www.cfcpn.com:443 ssl:False[0m
+[32m18:16:21[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 金融采购网 failed: ClientConnectorError: Cannot connect to host www.cfcpn.com:443 ssl:False[0m
+[32m18:16:21[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 金融采购网 failed: ClientConnectorError: Cannot connect to host www.cfcpn.com:443 ssl:False[0m
+[32m18:16:21[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1minsufficient items (0) or all sources failed, using fallback[0m
+[32m18:16:21[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1minsufficient items (0) or all sources failed, using fallback[0m
+[32m18:16:21[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1minsufficient items (0) or all sources failed, using fallback[0m
+[32m18:16:21[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:21[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:21[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:21[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1msource 金融采购网 failed: ClientConnectorError: Cannot connect to host www.cfcpn.com:443 ssl:False[0m
+[32m18:16:21[0m | [33m[1mWARNING [0m | [36mbackend.collectors.base[0m | [33m[1minsufficient items (0) or all sources failed, using fallback[0m
+[32m18:16:21[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:34[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:34[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:36[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:16:37[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:17:06[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:17:06[0m | [1mINFO    [0m | [36mbackend.repository.hotspot_repo[0m | [1mupsert_many ok[0m
+[32m18:17:06[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mupserted 196 items[0m
+[32m18:17:06[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:17:06[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mtrend rebuilt: 144 points[0m
+[32m18:17:06[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_invalidate[0m
+[32m18:17:06[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_invalidate[0m
+[32m18:17:07[0m | [33m[1mWARNING [0m | [36mbackend.quality.source_coverage[0m | [33m[1msource coverage alert[0m
+[32m18:17:07[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1msource coverage: alerts=4 dead=46 stale=0[0m
+[32m18:17:07[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mcollection finished: total=196, success=6, failed=0, duration=66775ms[0m
+[32m18:17:07[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mcollect_all_job: total=196, success=6, failed=0, duration=66775ms[0m
+[32m18:17:07[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:07[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:07[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:08[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:17:08[0m | [1mINFO    [0m | [36mbackend.repository.hotspot_repo[0m | [1mupsert_many ok[0m
+[32m18:17:08[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mupserted 196 items[0m
+[32m18:17:08[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:17:08[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mtrend rebuilt: 144 points[0m
+[32m18:17:08[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_invalidate[0m
+[32m18:17:08[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_invalidate[0m
+[32m18:17:08[0m | [33m[1mWARNING [0m | [36mbackend.quality.source_coverage[0m | [33m[1msource coverage alert[0m
+[32m18:17:08[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1msource coverage: alerts=4 dead=46 stale=1[0m
+[32m18:17:08[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mcollection finished: total=196, success=6, failed=0, duration=68518ms[0m
+[32m18:17:08[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mcollect_all_job: total=196, success=6, failed=0, duration=68518ms[0m
+[32m18:17:09[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:09[0m | [1mINFO    [0m | [36mbackend.quality.jobs[0m | [1murl content check done[0m
+[32m18:17:10[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:10[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:10[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:17:10[0m | [1mINFO    [0m | [36mbackend.repository.hotspot_repo[0m | [1mupsert_many ok[0m
+[32m18:17:10[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mupserted 196 items[0m
+[32m18:17:10[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:17:10[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mtrend rebuilt: 144 points[0m
+[32m18:17:10[0m | [1mINFO    [0m | [36mbackend.quality.jobs[0m | [1murl content check done[0m
+[32m18:17:10[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_invalidate[0m
+[32m18:17:10[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_invalidate[0m
+[32m18:17:10[0m | [33m[1mWARNING [0m | [36mbackend.quality.source_coverage[0m | [33m[1msource coverage alert[0m
+[32m18:17:10[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1msource coverage: alerts=4 dead=46 stale=1[0m
+[32m18:17:10[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mcollection finished: total=196, success=6, failed=0, duration=70373ms[0m
+[32m18:17:10[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mcollect_all_job: total=196, success=6, failed=0, duration=70373ms[0m
+[32m18:17:10[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:11[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:11[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:11[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:12[0m | [1mINFO    [0m | [36mbackend.quality.jobs[0m | [1murl content check done[0m
+[32m18:17:14[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcollect_end[0m
+[32m18:17:14[0m | [1mINFO    [0m | [36mbackend.repository.hotspot_repo[0m | [1mupsert_many ok[0m
+[32m18:17:14[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mupserted 196 items[0m
+[32m18:17:14[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:17:14[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mtrend rebuilt: 144 points[0m
+[32m18:17:14[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_invalidate[0m
+[32m18:17:14[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_invalidate[0m
+[32m18:17:14[0m | [33m[1mWARNING [0m | [36mbackend.quality.source_coverage[0m | [33m[1msource coverage alert[0m
+[32m18:17:14[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1msource coverage: alerts=4 dead=47 stale=0[0m
+[32m18:17:14[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mcollection finished: total=196, success=6, failed=0, duration=74032ms[0m
+[32m18:17:14[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mcollect_all_job: total=196, success=6, failed=0, duration=74032ms[0m
+[32m18:17:14[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:14[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:15[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:16[0m | [1mINFO    [0m | [36mbackend.quality.jobs[0m | [1murl content check done[0m
+[32m18:20:55[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:20:55[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:20:55[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:20:55[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:20:55[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:20:55[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:20:55[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:20:55[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:25:55[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:25:55[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:25:55[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:25:55[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:25:55[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:25:55[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:25:55[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:25:55[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:30:55[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:30:55[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:30:55[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:30:55[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:30:55[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:30:55[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:30:55[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:30:55[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+| [36mbackend.repository.hotspot_repo[0m | [1mupsert_many ok[0m
+[32m18:17:29[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mupserted 196 items[0m
+[32m18:17:29[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:17:29[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mtrend rebuilt: 144 points[0m
+[32m18:17:29[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_invalidate[0m
+[32m18:17:29[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_invalidate[0m
+[32m18:17:29[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_invalidate[0m
+[32m18:17:29[0m | [33m[1mWARNING [0m | [36mbackend.quality.source_coverage[0m | [33m[1msource coverage alert[0m
+[32m18:17:29[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1msource coverage: alerts=4 dead=47 stale=0[0m
+[32m18:17:29[0m | [1mINFO    [0m | [36mbackend.services.collection_service[0m | [1mcollection finished: total=196, success=6, failed=0, duration=117529ms[0m
+[32m18:17:29[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mcollect_all_job: total=196, success=6, failed=0, duration=117529ms[0m
+[32m18:17:29[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:30[0m | [1mINFO    [0m | [36mbackend.quality.url_content_gate[0m | [1murl_content fetch failed[0m
+[32m18:17:31[0m | [1mINFO    [0m | [36mbackend.quality.jobs[0m | [1murl content check done[0m
+[32m18:20:26[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:20:26[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:20:26[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:20:26[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:20:26[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:20:26[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:20:26[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:20:26[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:20:29[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:20:29[0m | [33m[1mWARNING [0m | [36mbackend.api.health[0m | [33m[1mstats: 24h collect stats failed: no such column: duration_ms[0m
+[32m18:20:29[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:20:29[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:20:29[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:20:29[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:20:29[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:20:29[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:20:29[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:23:18[0m | [33m[1mWARNING [0m | [36mbackend.api.health[0m | [33m[1mstats: 24h collect stats failed: no such column: duration_ms[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:23:18[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:23:19[0m | [33m[1mWARNING [0m | [36mbackend.api.health[0m | [33m[1mstats: 24h collect stats failed: no such column: duration_ms[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:23:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:23:20[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:25:17[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:25:17[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:25:17[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_hit[0m
+[32m18:25:17[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_hit[0m
+[32m18:25:17[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:25:25[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:25:25[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:25:25[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_hit[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_hit[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_hit[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_hit[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_hit[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_hit[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:25:26[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:28:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:28:19[0m | [33m[1mWARNING [0m | [36mbackend.api.health[0m | [33m[1mstats: 24h collect stats failed: no such column: duration_ms[0m
+[32m18:28:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:28:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:28:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:28:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:28:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:28:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:28:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m
+[32m18:30:26[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:30:26[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:30:26[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:30:26[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:30:26[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:30:26[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:30:26[0m | [1mINFO    [0m | [36mbackend.repository.trend_repo[0m | [1mtrend snapshots rebuilt[0m
+[32m18:30:26[0m | [1mINFO    [0m | [36mbackend.scheduler.jobs[0m | [1mtrend_rebuild_job: 144 points[0m
+[32m18:33:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_request[0m
+[32m18:33:19[0m | [33m[1mWARNING [0m | [36mbackend.api.health[0m | [33m[1mstats: 24h collect stats failed: no such column: duration_ms[0m
+[32m18:33:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:33:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:33:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:33:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:33:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:33:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mcache_miss[0m
+[32m18:33:19[0m | [1mINFO    [0m | [36mbackend.observability[0m | [1mapi_response[0m

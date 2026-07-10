@@ -1,0 +1,1 @@
+﻿AttributeError: 'CollectionReport' object has no attribute 'total_items'

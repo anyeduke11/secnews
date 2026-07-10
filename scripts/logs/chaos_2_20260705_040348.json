@@ -1,0 +1,824 @@
+{
+  "scenario": "chaos_2_db_lock",
+  "started_at": "2026-07-05T04:03:48.174548Z",
+  "finished_at": "2026-07-05T04:03:54.053705Z",
+  "duration_s": 5.0,
+  "db_path": "C:\\Users\\Noped\\Documents\\lingxi-claw\\20260704-15-04-55-413\\hotspot-map\\backend\\hotspot.db",
+  "insert_log": [
+    {
+      "thread": "B",
+      "i": 1,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.16,
+      "ts": "2026-07-05T04:03:48.242265Z"
+    },
+    {
+      "thread": "A",
+      "i": 1,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.09,
+      "ts": "2026-07-05T04:03:48.242393Z"
+    },
+    {
+      "thread": "B",
+      "i": 2,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.15,
+      "ts": "2026-07-05T04:03:48.252888Z"
+    },
+    {
+      "thread": "B",
+      "i": 3,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.15,
+      "ts": "2026-07-05T04:03:48.263299Z"
+    },
+    {
+      "thread": "A",
+      "i": 2,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 11.14,
+      "ts": "2026-07-05T04:03:48.263925Z"
+    },
+    {
+      "thread": "B",
+      "i": 4,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.16,
+      "ts": "2026-07-05T04:03:48.273618Z"
+    },
+    {
+      "thread": "A",
+      "i": 3,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.1,
+      "ts": "2026-07-05T04:03:48.274550Z"
+    },
+    {
+      "thread": "B",
+      "i": 5,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.19,
+      "ts": "2026-07-05T04:03:48.283898Z"
+    },
+    {
+      "thread": "A",
+      "i": 4,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.1,
+      "ts": "2026-07-05T04:03:48.284815Z"
+    },
+    {
+      "thread": "B",
+      "i": 6,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.18,
+      "ts": "2026-07-05T04:03:48.294509Z"
+    },
+    {
+      "thread": "A",
+      "i": 5,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.14,
+      "ts": "2026-07-05T04:03:48.295731Z"
+    },
+    {
+      "thread": "B",
+      "i": 7,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.15,
+      "ts": "2026-07-05T04:03:48.305097Z"
+    },
+    {
+      "thread": "A",
+      "i": 6,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.1,
+      "ts": "2026-07-05T04:03:48.306051Z"
+    },
+    {
+      "thread": "B",
+      "i": 8,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.15,
+      "ts": "2026-07-05T04:03:48.315679Z"
+    },
+    {
+      "thread": "A",
+      "i": 7,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.07,
+      "ts": "2026-07-05T04:03:48.316631Z"
+    },
+    {
+      "thread": "B",
+      "i": 9,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.14,
+      "ts": "2026-07-05T04:03:48.326450Z"
+    },
+    {
+      "thread": "A",
+      "i": 8,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.07,
+      "ts": "2026-07-05T04:03:48.326896Z"
+    },
+    {
+      "thread": "B",
+      "i": 10,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.14,
+      "ts": "2026-07-05T04:03:48.337046Z"
+    },
+    {
+      "thread": "A",
+      "i": 9,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.1,
+      "ts": "2026-07-05T04:03:48.337518Z"
+    },
+    {
+      "thread": "B",
+      "i": 11,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.11,
+      "ts": "2026-07-05T04:03:48.347406Z"
+    },
+    {
+      "thread": "A",
+      "i": 10,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.11,
+      "ts": "2026-07-05T04:03:48.347926Z"
+    },
+    {
+      "thread": "B",
+      "i": 12,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.15,
+      "ts": "2026-07-05T04:03:48.358119Z"
+    },
+    {
+      "thread": "A",
+      "i": 11,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.12,
+      "ts": "2026-07-05T04:03:48.358596Z"
+    },
+    {
+      "thread": "B",
+      "i": 13,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.15,
+      "ts": "2026-07-05T04:03:48.368749Z"
+    },
+    {
+      "thread": "A",
+      "i": 12,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.08,
+      "ts": "2026-07-05T04:03:48.369167Z"
+    },
+    {
+      "thread": "B",
+      "i": 14,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.16,
+      "ts": "2026-07-05T04:03:48.379121Z"
+    },
+    {
+      "thread": "A",
+      "i": 13,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.06,
+      "ts": "2026-07-05T04:03:48.379517Z"
+    },
+    {
+      "thread": "B",
+      "i": 15,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.2,
+      "ts": "2026-07-05T04:03:48.389811Z"
+    },
+    {
+      "thread": "B",
+      "i": 16,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.16,
+      "ts": "2026-07-05T04:03:48.400427Z"
+    },
+    {
+      "thread": "A",
+      "i": 14,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 14.39,
+      "ts": "2026-07-05T04:03:48.404033Z"
+    },
+    {
+      "thread": "B",
+      "i": 17,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.18,
+      "ts": "2026-07-05T04:03:48.410691Z"
+    },
+    {
+      "thread": "A",
+      "i": 15,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.12,
+      "ts": "2026-07-05T04:03:48.414230Z"
+    },
+    {
+      "thread": "B",
+      "i": 18,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.16,
+      "ts": "2026-07-05T04:03:48.421050Z"
+    },
+    {
+      "thread": "A",
+      "i": 16,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.1,
+      "ts": "2026-07-05T04:03:48.424472Z"
+    },
+    {
+      "thread": "B",
+      "i": 19,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.15,
+      "ts": "2026-07-05T04:03:48.431626Z"
+    },
+    {
+      "thread": "A",
+      "i": 17,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.14,
+      "ts": "2026-07-05T04:03:48.435116Z"
+    },
+    {
+      "thread": "B",
+      "i": 20,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.14,
+      "ts": "2026-07-05T04:03:48.442284Z"
+    },
+    {
+      "thread": "A",
+      "i": 18,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.15,
+      "ts": "2026-07-05T04:03:48.445385Z"
+    },
+    {
+      "thread": "B",
+      "i": 21,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.1,
+      "ts": "2026-07-05T04:03:48.452672Z"
+    },
+    {
+      "thread": "A",
+      "i": 19,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.1,
+      "ts": "2026-07-05T04:03:48.456017Z"
+    },
+    {
+      "thread": "B",
+      "i": 22,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.08,
+      "ts": "2026-07-05T04:03:48.462960Z"
+    },
+    {
+      "thread": "A",
+      "i": 20,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.13,
+      "ts": "2026-07-05T04:03:48.466597Z"
+    },
+    {
+      "thread": "B",
+      "i": 23,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.07,
+      "ts": "2026-07-05T04:03:48.473277Z"
+    },
+    {
+      "thread": "A",
+      "i": 21,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.51,
+      "ts": "2026-07-05T04:03:48.477264Z"
+    },
+    {
+      "thread": "B",
+      "i": 24,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.12,
+      "ts": "2026-07-05T04:03:48.483941Z"
+    },
+    {
+      "thread": "A",
+      "i": 22,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.14,
+      "ts": "2026-07-05T04:03:48.487522Z"
+    },
+    {
+      "thread": "B",
+      "i": 25,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.16,
+      "ts": "2026-07-05T04:03:48.494222Z"
+    },
+    {
+      "thread": "A",
+      "i": 23,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.12,
+      "ts": "2026-07-05T04:03:48.497728Z"
+    },
+    {
+      "thread": "B",
+      "i": 26,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.13,
+      "ts": "2026-07-05T04:03:48.504721Z"
+    },
+    {
+      "thread": "A",
+      "i": 24,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.11,
+      "ts": "2026-07-05T04:03:48.508349Z"
+    },
+    {
+      "thread": "B",
+      "i": 27,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.12,
+      "ts": "2026-07-05T04:03:48.515030Z"
+    },
+    {
+      "thread": "A",
+      "i": 25,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.13,
+      "ts": "2026-07-05T04:03:48.518658Z"
+    },
+    {
+      "thread": "B",
+      "i": 28,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.1,
+      "ts": "2026-07-05T04:03:48.525252Z"
+    },
+    {
+      "thread": "A",
+      "i": 26,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.13,
+      "ts": "2026-07-05T04:03:48.529497Z"
+    },
+    {
+      "thread": "B",
+      "i": 29,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.2,
+      "ts": "2026-07-05T04:03:48.535586Z"
+    },
+    {
+      "thread": "A",
+      "i": 27,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.11,
+      "ts": "2026-07-05T04:03:48.540062Z"
+    },
+    {
+      "thread": "B",
+      "i": 30,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.1,
+      "ts": "2026-07-05T04:03:48.545927Z"
+    },
+    {
+      "thread": "A",
+      "i": 28,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.09,
+      "ts": "2026-07-05T04:03:48.550563Z"
+    },
+    {
+      "thread": "B",
+      "i": 31,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.09,
+      "ts": "2026-07-05T04:03:48.556107Z"
+    },
+    {
+      "thread": "A",
+      "i": 29,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.07,
+      "ts": "2026-07-05T04:03:48.560866Z"
+    },
+    {
+      "thread": "B",
+      "i": 32,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.16,
+      "ts": "2026-07-05T04:03:48.566767Z"
+    },
+    {
+      "thread": "A",
+      "i": 30,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.09,
+      "ts": "2026-07-05T04:03:48.571268Z"
+    },
+    {
+      "thread": "B",
+      "i": 33,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.12,
+      "ts": "2026-07-05T04:03:48.577214Z"
+    },
+    {
+      "thread": "A",
+      "i": 31,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.3,
+      "ts": "2026-07-05T04:03:48.582018Z"
+    },
+    {
+      "thread": "B",
+      "i": 34,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.12,
+      "ts": "2026-07-05T04:03:48.587888Z"
+    },
+    {
+      "thread": "A",
+      "i": 32,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.15,
+      "ts": "2026-07-05T04:03:48.592692Z"
+    },
+    {
+      "thread": "B",
+      "i": 35,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.1,
+      "ts": "2026-07-05T04:03:48.598159Z"
+    },
+    {
+      "thread": "A",
+      "i": 33,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.09,
+      "ts": "2026-07-05T04:03:48.603470Z"
+    },
+    {
+      "thread": "B",
+      "i": 36,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.12,
+      "ts": "2026-07-05T04:03:48.608650Z"
+    },
+    {
+      "thread": "A",
+      "i": 34,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.13,
+      "ts": "2026-07-05T04:03:48.613723Z"
+    },
+    {
+      "thread": "B",
+      "i": 37,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.12,
+      "ts": "2026-07-05T04:03:48.618869Z"
+    },
+    {
+      "thread": "A",
+      "i": 35,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.12,
+      "ts": "2026-07-05T04:03:48.623969Z"
+    },
+    {
+      "thread": "B",
+      "i": 38,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.1,
+      "ts": "2026-07-05T04:03:48.629495Z"
+    },
+    {
+      "thread": "A",
+      "i": 36,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.13,
+      "ts": "2026-07-05T04:03:48.634587Z"
+    },
+    {
+      "thread": "B",
+      "i": 39,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.2,
+      "ts": "2026-07-05T04:03:48.640124Z"
+    },
+    {
+      "thread": "A",
+      "i": 37,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.07,
+      "ts": "2026-07-05T04:03:48.645093Z"
+    },
+    {
+      "thread": "B",
+      "i": 40,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.11,
+      "ts": "2026-07-05T04:03:48.650686Z"
+    },
+    {
+      "thread": "A",
+      "i": 38,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.09,
+      "ts": "2026-07-05T04:03:48.655394Z"
+    },
+    {
+      "thread": "B",
+      "i": 41,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.16,
+      "ts": "2026-07-05T04:03:48.661043Z"
+    },
+    {
+      "thread": "A",
+      "i": 39,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.07,
+      "ts": "2026-07-05T04:03:48.665999Z"
+    },
+    {
+      "thread": "B",
+      "i": 42,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.18,
+      "ts": "2026-07-05T04:03:48.671373Z"
+    },
+    {
+      "thread": "A",
+      "i": 40,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.12,
+      "ts": "2026-07-05T04:03:48.676403Z"
+    },
+    {
+      "thread": "B",
+      "i": 43,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.07,
+      "ts": "2026-07-05T04:03:48.681940Z"
+    },
+    {
+      "thread": "A",
+      "i": 41,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.11,
+      "ts": "2026-07-05T04:03:48.686655Z"
+    },
+    {
+      "thread": "B",
+      "i": 44,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.11,
+      "ts": "2026-07-05T04:03:48.692214Z"
+    },
+    {
+      "thread": "A",
+      "i": 42,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.14,
+      "ts": "2026-07-05T04:03:48.697320Z"
+    },
+    {
+      "thread": "B",
+      "i": 45,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.15,
+      "ts": "2026-07-05T04:03:48.702952Z"
+    },
+    {
+      "thread": "A",
+      "i": 43,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.17,
+      "ts": "2026-07-05T04:03:48.708037Z"
+    },
+    {
+      "thread": "B",
+      "i": 46,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.07,
+      "ts": "2026-07-05T04:03:48.713479Z"
+    },
+    {
+      "thread": "A",
+      "i": 44,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.1,
+      "ts": "2026-07-05T04:03:48.718357Z"
+    },
+    {
+      "thread": "B",
+      "i": 47,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.07,
+      "ts": "2026-07-05T04:03:48.723852Z"
+    },
+    {
+      "thread": "A",
+      "i": 45,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.06,
+      "ts": "2026-07-05T04:03:48.728877Z"
+    },
+    {
+      "thread": "B",
+      "i": 48,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.1,
+      "ts": "2026-07-05T04:03:48.734030Z"
+    },
+    {
+      "thread": "A",
+      "i": 46,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.15,
+      "ts": "2026-07-05T04:03:48.739440Z"
+    },
+    {
+      "thread": "B",
+      "i": 49,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.13,
+      "ts": "2026-07-05T04:03:48.744546Z"
+    },
+    {
+      "thread": "A",
+      "i": 47,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.1,
+      "ts": "2026-07-05T04:03:48.750061Z"
+    },
+    {
+      "thread": "B",
+      "i": 50,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.09,
+      "ts": "2026-07-05T04:03:48.755101Z"
+    },
+    {
+      "thread": "A",
+      "i": 48,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.2,
+      "ts": "2026-07-05T04:03:48.760757Z"
+    },
+    {
+      "thread": "A",
+      "i": 49,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.12,
+      "ts": "2026-07-05T04:03:48.771049Z"
+    },
+    {
+      "thread": "A",
+      "i": 50,
+      "ok": false,
+      "error": "table hotspots has no column named url",
+      "duration_ms": 0.14,
+      "ts": "2026-07-05T04:03:48.781252Z"
+    }
+  ],
+  "insert_count": 100,
+  "insert_success": 0,
+  "insert_fail": 100,
+  "max_insert_duration_ms": 14.39,
+  "api_count": 46,
+  "api_ok": 0,
+  "api_500": 46,
+  "api_latency_ms": {
+    "avg": 26.03,
+    "p50": 5.44,
+    "p95": 23.96,
+    "p99": 743.8,
+    "max": 743.8
+  },
+  "pass": false
+}

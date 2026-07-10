@@ -1,0 +1,4 @@
+﻿GET status: 200 rules: 13
+PUT status: 200 updated: ['quality.min_score', 'quality.strict_mode']
+GET after PUT — min_score: 35 strict_mode: True
+reset OK

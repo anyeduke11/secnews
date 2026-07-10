@@ -1,0 +1,64 @@
+{
+  "scenario": "chaos_1_github_503",
+  "started_at": "2026-07-05T04:01:35.056355Z",
+  "duration_ms": 21177.2,
+  "total_items": 228,
+  "success_count": 6,
+  "failed_count": 0,
+  "fallback_count": 8,
+  "per_category": [
+    {
+      "category": "ai",
+      "ok": true,
+      "item_count": 40,
+      "fallback_count": 0,
+      "error": null,
+      "duration_ms": 20615
+    },
+    {
+      "category": "security",
+      "ok": true,
+      "item_count": 60,
+      "fallback_count": 0,
+      "error": null,
+      "duration_ms": 3345
+    },
+    {
+      "category": "finance",
+      "ok": true,
+      "item_count": 40,
+      "fallback_count": 0,
+      "error": null,
+      "duration_ms": 655
+    },
+    {
+      "category": "startup",
+      "ok": true,
+      "item_count": 40,
+      "fallback_count": 0,
+      "error": null,
+      "duration_ms": 399
+    },
+    {
+      "category": "bid",
+      "ok": true,
+      "item_count": 40,
+      "fallback_count": 0,
+      "error": null,
+      "duration_ms": 21166
+    },
+    {
+      "category": "github",
+      "ok": true,
+      "item_count": 8,
+      "fallback_count": 8,
+      "error": null,
+      "duration_ms": 49
+    }
+  ],
+  "all_6_categories_succeeded": true,
+  "github_fallback_count": 8,
+  "github_has_fallback_items": true,
+  "pass": true,
+  "finished_at": "2026-07-05T04:01:56.934759Z"
+}

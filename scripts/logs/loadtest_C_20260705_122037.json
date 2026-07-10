@@ -1,0 +1,59 @@
+{
+  "scenario": "C_cache_breakdown",
+  "url": "http://127.0.0.1:8001/api/hotspots?category=ai",
+  "concurrent": 500,
+  "duration_s": 5.0,
+  "phases": {
+    "warmup": {
+      "samples": 10,
+      "success": 0,
+      "avg_ms": 4.25,
+      "hit_rate_after": {
+        "list": 0.0,
+        "detail": 0.0,
+        "static": 0.0
+      }
+    },
+    "breakdown": {
+      "action": "list_cache.clear()  (Phase 8: 仅清 list_cache，保留 detail/static)",
+      "hit_rate_after": {
+        "list": 0.0,
+        "detail": 0.0,
+        "static": 0.0
+      }
+    },
+    "measurement": {
+      "samples": 1650,
+      "success": 0,
+      "success_rate": 0.0,
+      "first_request_delay_ms": 149.16,
+      "latency_ms": {
+        "avg": 214.56,
+        "p50": 87.87,
+        "p95": 827.64,
+        "p99": 1043.6,
+        "max": 1073.02
+      },
+      "hit_rate_timeline": [
+        {
+          "t_s": 0.0,
+          "hit_rate": {
+            "list": 0.0,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 500
+        },
+        {
+          "t_s": 5.05,
+          "hit_rate": {
+            "list": 0.0,
+            "detail": 0.0,
+            "static": 0.0
+          },
+          "cum_samples": 1650
+        }
+      ]
+    }
+  }
+}

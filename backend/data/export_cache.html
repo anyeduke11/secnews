@@ -1,0 +1,2294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>热点地图 - 静态导出</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'JetBrains Mono','Fira Code',monospace; background:#0a0a0f; color:#e0e0e0; min-height:100vh; }
+.bg-grid { background-image:linear-gradient(rgba(0,188,212,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,188,212,0.03) 1px,transparent 1px); background-size:60px 60px; }
+.container { max-width:1280px; margin:0 auto; padding:24px 16px; }
+.header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e1e30; padding-bottom:16px; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
+.header-left { display:flex; align-items:center; gap:12px; }
+.logo { width:40px; height:40px; border-radius:8px; background:linear-gradient(135deg,#00bcd4,#7c6aff); display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:20px; }
+.header-info { color:#888899; font-size:12px; }
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:24px; }
+.stat-card { background:#12121a; border:1px solid #1e1e30; border-radius:12px; padding:16px; }
+.stat-title { font-size:11px; color:#888899; text-transform:uppercase; margin-bottom:8px; }
+.stat-value { font-size:24px; font-weight:bold; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
+.card { display:block; background:#12121a; border:1px solid #1e1e30; border-radius:12px; padding:20px; text-decoration:none; color:inherit; transition:all 0.3s; }
+.card:hover { transform:translateY(-2px); border-color:rgba(255,255,255,0.15); }
+.card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.tag { font-size:10px; font-weight:600; padding:2px 8px; border-radius:999px; }
+.card h3 { font-size:14px; line-height:1.5; margin-bottom:8px; color:#fff; }
+.card p { font-size:12px; color:#888899; line-height:1.5; margin-bottom:12px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.card-footer { display:flex; justify-content:space-between; font-size:11px; color:#555; }
+.footer { text-align:center; padding:24px 0; border-top:1px solid #1e1e30; margin-top:32px; font-size:11px; color:#555; }
+@media (max-width:640px) { .grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body class="bg-grid">
+<div class="container">
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">H</div>
+            <div>
+                <h1 style="font-size:20px;">热点地图 <span style="font-size:12px;color:#888899;font-weight:normal;">HOTSPOT MAP</span></h1>
+                <p style="font-size:12px;color:#888899;margin-top:2px;">2026-07-10 09:56:12 UTC 导出</p>
+            </div>
+        </div>
+        <div class="header-info">共 200 条热点</div>
+    </div>
+
+    <div class="stats">
+        <div class="stat-card"><div class="stat-title">总计</div><div class="stat-value" style="color:#00c96a">200</div></div>
+        <div class="stat-card"><div class="stat-title">科技/AI</div><div class="stat-value" style="color:#00bcd4">86</div></div>
+        <div class="stat-card"><div class="stat-title">网络安全</div><div class="stat-value" style="color:#e85d5d">34</div></div>
+        <div class="stat-card"><div class="stat-title">金融/投资</div><div class="stat-value" style="color:#f0c929">17</div></div>
+        <div class="stat-card"><div class="stat-title">独立开发/创业</div><div class="stat-value" style="color:#7c6aff">7</div></div>
+        <div class="stat-card"><div class="stat-title">招标资讯</div><div class="stat-value" style="color:#e8891a">0</div></div>
+    </div>
+
+    <div class="grid">
+        <a href="https://36kr.com/p/3889270647634694" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>从 0 到高手10 大技巧，将 ChatGPT Work用到极致，普通人也能掌握</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3888544793934465" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>美国AI情感产品用户洞察报告：当AI开始懂你，情感陪伴市场正在经历一场静默爆发</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3877790392302208" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>AI时代，人类如何守住思考的烟火气</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889252455398018" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>看懂Momenta，就明白物理AI的利润将如何流动</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889304775441028" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>同一天，Claude推出今年最实用功能</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889351414069896" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>国内巨头AI应用生成路线分化，赛道仍处探索阶段</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889282134670209" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>俄Sber发布开源GigaChat 3.5 Ultra，谈AI研发思考</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889270647634694" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>学会这10项技能，你就是AI大拿</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3888554227546757" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Grok 4.5删了Claude的作业，然后跟它道了个歉。</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3888554227546757" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Grok 4.5和Claude 4.8，在我电脑里“打”起来了</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3888416265255432" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Agent 下半场的隐秘战争发生在 Harness 调度层</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889413591939593" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>她主导了OpenAI“超级应用”计划的早期工作。</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889226689706632" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>让人“成瘾”的AI伴侣，一场史无前例的人类情感试验</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889226689706632" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>AI伴侣，总有套路让你“爱上TA”</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889351414069896" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>阿里、字节收缩，腾讯进击，AI应用生成赛道走向分化</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889413591939593" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>突发：OpenAI“二号人物”离职</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889310215617408" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>美国AI情感产品用户洞察：需求分层，赛道机会显现</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889310215617408" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>当AI开始懂你，情感陪伴市场正在经历一场静默爆发：《美国AI情感产品用户洞察报告》</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889531105295106" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>AI从回答变交付，Codex推进真实工作</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889376163576451" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Anthropic把大模型的生意跑通了</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889376163576451" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Anthropic季度利润破10亿美元，大模型真的能赚钱了</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889422975187720" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>一场关于AI时代入口定义权的争夺战，正在操作系统层面悄然打响。</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889422975187720" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>AI操作系统密集登场，终端厂商竞逐下一代入口</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889496080612098" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>啊？这是机器人的手？</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889369559202565" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>阿里成为 AI 公司的最后一公里</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889531573680902" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>MiniMax解禁后股价走低，CEO称实现AGI前不再领取薪酬</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889511204928261" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>大模型能写出工业级优化算法吗？MIT提出FrontierOR给AI设下考场</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889553810504194" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>小扎“消失”三年后发帖，只为它：Meta最强Agent模型进军编程</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889554054773508" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>国产 AI 需重构商业闭环</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889554054773508" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>大模型进入Agent时代，国产AI究竟差哪了？</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889567095323400" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>智能体下架，掀起一场“数字保卫战”。</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889567095323400" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>豆包、千问，挥刀砍向数字生命</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/cloudflare-monetization-gateway/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Cloudflare 发布自动收费网关：AI 想爬取你的网页、API，能自动给你付钱</h3>
+            <p>从只对 AI 爬虫收费扩展到向任意调用者收费，现处早期候补阶段</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/deeptutor-open-source-tutor/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>港大 HKUDS 开源 AI 家教 DeepTutor，111 天破 2 万星</h3>
+            <p>论文实测个性化提升10.8%、推理能力提升29.4%，Apache 2.0 完全开源</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/alloydb-proxy-models/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Google Cloud 为 AlloyDB 装上代理模型：数据库本地跑 AI 判断，最快提速 2.3 万倍</h3>
+            <p>用本地小模型替代云端 AI 调用，数据来自谷歌内部测试，代理模型目前仅 ai.if 函数可用且处于预览阶段</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/liquid-ai-antidoom/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Liquid AI 发布 Antidoom：修复推理模型的「死循环」问题，只改一个 token 即可，已开源</h3>
+            <p>只微调死循环起点的单个token，两款模型死循环率都压到1%左右</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/fable5-advisor-executor/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Anthropic 官方支招：Claude Fable 5 当“顾问”，Claude Sonnet 5 干活能扛下账单大头</h3>
+            <p>顾问模式里 Fable 5 只出主意，编排模式里 Fable 5 分派任务，两种搭法都靠费率更低的 Sonnet 5 干掉大部分活</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/openai-gpt-live-launch/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>OpenAI 发布 GPT-Live：和 AI 说话不用轮流开口，难问题自动找 GPT-5.5</h3>
+            <p>真正边听边回的语音模型今天上线，复杂任务还能实时甩给 GPT-5.5。</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/grok-4-5-release/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>xAI 发布 Grok 4.5：性能直逼 Opus 4.8，吐字快约 2 倍、输出价约四分之一</h3>
+            <p>DeepSWE 排第三、综合榜第 4；比 Opus 4.8 更快，也明显更便宜。</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/harness-engineering-rsi/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>AI 自我进化，先改模型外面的外壳：Lilian Weng 讲透 harness 工程</h3>
+            <p>前 OpenAI 安全负责人梳理近 30 篇研究：从改提示词到自己改代码，DGM 把编程能力从 20% 推到 50%。</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/gemma-4-tech-report/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Gemma 4 技术报告：开源模型怎么用「小参数 + 会思考 + 省内存」硬碰大模型</h3>
+            <p>核心不是功能清单，是三套工程同时拧：思考抬智能、效率栈压成本、原生多模态扩输入</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/muse-spark-1-1-api/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Meta 发布 Muse Spark 1.1 模型，在多个代理评估中，媲美 GPT-5.5 和 Opus 4.8</h3>
+            <p>功能：主/子智能体编排、百万上下文、桌面浏览器手机操作、写码与多模态；API 输入 $1.25 / 输出 $4.25 每百万 token</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/claude-code-model-effort/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Claude Code 团队教你如何用好这两个旋钮：一个管它「会不会」，一个管它「愿不愿做够」</h3>
+            <p>ClaudeDevs 长文拆开两个都像「让答案更好」的旋钮：换模型是换哪一套冻结权重，调 effort 是改它愿不愿多读文件、多跑测试、多验证再交卷</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/claude-reflect/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Anthropic 给 Claude 加了 Reflect：像屏幕使用时间一样，看清你的 AI 习惯</h3>
+            <p>设置里一键出报告。聊了什么、什么时候聊得多、常让它干什么，摊开给你看。要先打开 Memory。</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/chatgpt-work-launch/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>OpenAI 发布 ChatGPT Work，GPT-5.6 驱动，可跨工具自动产出文档表格幻灯片</h3>
+            <p>今天起桌面端全档位可用，网页端和手机端未来几天内向其余套餐陆续开放。</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/openai-gpt-5-6/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>OpenAI 正式发布 GPT-5.6：综合智能跑分逼近 Claude Fable 5，成本减半，ChatGPT、Codex 合并</h3>
+            <p>三档模型 Sol、Terra、Luna 与 4 智能体并行 ultra 上线；同日 ChatGPT Work 上线、Codex 并进 ChatGPT。附中英双语发布会全片</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/gpt-5-6-sol/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Every 团队 9 人实测一个月：GPT-5.6 Sol 到底咋样？</h3>
+            <p>编程、写作、知识工作、Agent 四大场景的第一手上手反馈</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/google-sensorfm-wearable/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Google Research 发布 SensorFM：训练自一万亿分钟穿戴数据，35 项健康任务赢 33 项</h3>
+            <p>500 万人、20 亿小时可穿戴数据预训练，冻结编码器接一个线性头就在 34/35 个健康任务上超过监督学习基线。</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://wpconverters.com/playground/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Show HN: Drag boxes around and watch a layout engine infer the Flexbox (no AI)</h3>
+            <p>&lt;p&gt;Article URL: &lt;a href=&quot;https://wpconverters.com/playground/&quot;&gt;https://wpconverters.com/playground/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Comments URL: &lt;a href=&quot;https://news.ycombinator.com/item?id=48857637&quot;&gt;https://news.ycombinator.com/item?id=48857637&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Points: 1&lt;/p&gt;
+&lt;p&gt;# Comments: 0&lt;/p&gt;</p>
+            <div class="card-footer">
+                <span>HackerNews</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://corvin-labs.com/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>CorvinOS – self-hosted OS for AI agents, compliance built into the runtime</h3>
+            <p>&lt;p&gt;Article URL: &lt;a href=&quot;https://corvin-labs.com/&quot;&gt;https://corvin-labs.com/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Comments URL: &lt;a href=&quot;https://news.ycombinator.com/item?id=48857754&quot;&gt;https://news.ycombinator.com/item?id=48857754&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Points: 1&lt;/p&gt;
+&lt;p&gt;# Comments: 0&lt;/p&gt;</p>
+            <div class="card-footer">
+                <span>HackerNews</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.anquanke.com/post/id/315688" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>不给钱就社死，勒索软件又有新套路</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>安全客</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.anquanke.com/post/id/315724" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>首个AI全流程勒索攻击来了：JADEPUFFER证明，勒索不再需要人类操盘手</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>安全客</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.anquanke.com/post/id/315732" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>T3MP3ST 安全框架：集成 35 款工具，将 AI 代码智能体转化为零日漏洞挖掘器</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>安全客</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.anquanke.com/post/id/315737" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>恶意Skills利用扫描规避技术攻击Claude Code和Codex</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>安全客</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.anquanke.com/post/id/315743" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>SecSuite—— 搭载人工智能的开源情报、Web 与 API 安全综合测试工具</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>安全客</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.anquanke.com/post/id/315747" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>RedAmon：串联侦察、漏洞利用与后渗透的 AI 安全工具</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>安全客</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.anquanke.com/post/id/315682" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>【FDE前沿部署工程师】全国百城上岗计划二期来啦！</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>安全客</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.anquanke.com/post/id/315760" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>630GB机密挂上暗网：苹果二十年供应链铁幕一夜崩塌</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>安全客</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.anquanke.com/post/id/315763" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>伊朗黑客组织亮出&quot;秘密武器&quot;：Cavern C2框架如何绕过所有安全检测</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>安全客</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.anquanke.com/post/id/315767" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>紧急！医疗巨头美敦力遭黑客入侵，患者隐私数据大规模外泄，这些坑普通人千万别踩</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>安全客</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/newsflashes/3889575611628296?f=rss" target="_blank" rel="noopener" class="card" style="border-left:3px solid #7c6aff">
+            <div class="card-header">
+                <span class="tag" style="background:#7c6aff20;color:#7c6aff">独立开发 / 创业</span>
+            </div>
+            <h3>三六零：预计上半年净利润1.8亿元-2.6亿元，同比扭亏为盈</h3>
+            <p>36氪获悉，三六零公告，预计2026年半年度归属于母公司所有者的净利润为1.8亿元-2.6亿元，上年同期亏损2.82亿元，同比扭亏为盈。报告期内，公司业绩预盈的主要原因如下：一是公司持续迭代全线互联网产品，通过功能升级与精细化运营，不断提升用户体验，驱动互联网产品业务营收增长，毛利水平同步提升；二是公司主动调整产品推广策略，优化资源配置，市场推广费用同比下降。</p>
+            <div class="card-footer">
+                <span>36氪</span>
+                <span style="color:#7c6aff">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/newsflashes/3889585234213639?f=rss" target="_blank" rel="noopener" class="card" style="border-left:3px solid #7c6aff">
+            <div class="card-header">
+                <span class="tag" style="background:#7c6aff20;color:#7c6aff">独立开发 / 创业</span>
+            </div>
+            <h3>“绒音科技”完成近千万元天使轮融资</h3>
+            <p>36氪获悉，近日，上海绒音科技宣布完成近千万元天使轮融资，领投方为得彼投资，浦东创投、上海天使会跟投。本轮资金将重点投入内容生态搭建与市场推广，全面推进首款产品百问兔兔AI放大镜的市场化进程。</p>
+            <div class="card-footer">
+                <span>36氪</span>
+                <span style="color:#7c6aff">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/newsflashes/3889640217065988?f=rss" target="_blank" rel="noopener" class="card" style="border-left:3px solid #7c6aff">
+            <div class="card-header">
+                <span class="tag" style="background:#7c6aff20;color:#7c6aff">独立开发 / 创业</span>
+            </div>
+            <h3>上纬新材CEO田华：将在WAIC全球首秀可变形机器人启元T1</h3>
+            <p>36氪获悉，上纬新材将携全新可变形消费级机器人启元T1亮相本届世界人工智能大会（WAIC），完成产品全球首次公开亮相。CEO田华表示，启元T1跳出传统人形机器人固有框架，以可变形态设计锚定家用消费场景，为大众市场重新定义个人机器人全新产品形态。据了解，上纬启元位于上海、深圳、西安、厦门、广州等地的线下体验门店近期已陆续落地，渠道体系建设同步推进。</p>
+            <div class="card-footer">
+                <span>36氪</span>
+                <span style="color:#7c6aff">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3886969297893892?f=rss" target="_blank" rel="noopener" class="card" style="border-left:3px solid #7c6aff">
+            <div class="card-header">
+                <span class="tag" style="background:#7c6aff20;color:#7c6aff">独立开发 / 创业</span>
+            </div>
+            <h3>创始人回归，一家高增长公司进入新阶段</h3>
+            <p>&lt;p&gt;六月末的苏黎世，利马特河从 On Labs 楼后流过。昂跑（On）三位创始人之一 Olivier Bernhard 站在一群跑步与商业记者面前，先说了一句略带歉意的开场白：“这里不是那种光鲜亮丽的展示空间。”&lt;/p&gt;
+  &lt;p&gt;他提醒来客，接下来会看到戴着护目镜的工程师、指尖沾着蓝色染料的设计师，以及在跑步机上大汗淋漓、把自己逼到极限的运动员。这是昂跑第一次向外部媒体掀开其创新引擎的帷幕——On Labs 平日紧闭的那道门。&lt;/p&gt;
+  &lt;p&gt;选择此刻开门，并非偶然。这家 2010 年诞生于瑞士、由前铁人三项运动员 Olivier Bernhard 与 David Allemann、Caspar Coppetti 共同创立的公司，正站在一个微妙的节点上。&lt;/p&gt;
+  &lt;p&gt;就在一个多月前，公司刚刚完成一次重要的人事调整。联合创始人 David Allemann 与Caspar Coppetti 接替担任五年 CEO 的Martin Hoffmann，重新出任联席 CEO，创始团队重新回到经营一线。&lt;/p&gt;
+  &lt;p&gt;与此同时，公司也交出了上市以来最好的一份成绩单。2025 财年，</p>
+            <div class="card-footer">
+                <span>36氪</span>
+                <span style="color:#7c6aff">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889141540370949?f=rss" target="_blank" rel="noopener" class="card" style="border-left:3px solid #7c6aff">
+            <div class="card-header">
+                <span class="tag" style="background:#7c6aff20;color:#7c6aff">独立开发 / 创业</span>
+            </div>
+            <h3>36氪首发 | 英伟达全球首家触觉仿真合作伙伴再获数亿融资，上半年订单超去年四倍</h3>
+            <p>&lt;p class=&quot;image-wrapper&quot;&gt;&lt;img src=&quot;https://img.36krcdn.com/hsossms/20260710/v2_27f38c78baa0435ebc1c560de3f3bb69@6221844_oswg1150800oswg1268oswg714_img_png?x-oss-process=image/quality,q_90/format,jpg/interlace,1&quot; /&gt;&lt;/p&gt;
+  &lt;p class=&quot;img-desc&quot;&gt;图源/企业&lt;/p&gt;
+  &lt;blockquote&gt;
+   &lt;p&gt;本文约&lt;strong&gt;3100&lt;/strong&gt;字，建议阅读&lt;strong&gt;7&lt;/strong&gt;分钟&lt;/p&gt;
+  &lt;/blockquote&gt;
+  &lt;p&gt;作者丨欧雪&lt;/p&gt;
+  &lt;p&gt;编辑丨袁斯来&lt;/p&gt;
+  &lt;p&gt;硬氪获悉，北京他山科技有限公司（以下简称“他山科技”）已于近期完成B轮融资，金额为数亿元。本轮投资方包括均胜电子、太平创新、奥克斯、鹏翎股份、Lavender Hill Capital Partners（LHCP）、洪山资本等产业方，老股东道</p>
+            <div class="card-footer">
+                <span>36氪</span>
+                <span style="color:#7c6aff">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/489482.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>香港人工智能网络安全挑战赛Writeup（初赛）-Reverse全解</h3>
+            <p>香港AI x Cybersecurity Challenge逆向赛题解析，解密自定义加密通信流程获取flag。</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/489386.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>通过Telegram租用的RedWing恶意软件：任何人都能获取Android间谍工具</h3>
+            <p>Telegram出租RedWing间谍软件，月费低于咖啡即可监控Android设备。</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/vuls/489419.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>【GhostLock】一个潜伏在Linux发行版长达15年的栈-UAF漏洞</h3>
+            <p>GhostLock (CVE-2026-43499) 是一个存在15年的Linux内核漏洞，允许本地提权与容器逃逸，影响所有主流发行版。</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/vuls/489298.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>大模型 2025–2026 新CVE 漏洞全景/技术详情</h3>
+            <p>截至2026年7月，大模型相关CVE已进入大规模爆发期，AI工程栈全面沦陷，CVSS评分普遍9.0+。</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/489388.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>首个一键式 Android 17 漏洞利用链可使攻击者完全控制手机</h3>
+            <p>&amp;quot;Android 17曝一键Root漏洞链，15年内核0Day可致设备完全沦陷！&amp;quot;</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/489394.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>SharePoint远程代码执行漏洞PoC及技术细节公开</h3>
+            <p>高危SharePoint RCE漏洞PoC公开，未打补丁系统面临远程代码执行攻击！</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/ai-security/489403.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>AI双Agent攻击：利用Claude桌面版在目标机器上执行远程代码</h3>
+            <p>Claude桌面版遭利用，攻击者通过邮箱入侵实现远程代码执行！</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/vuls/489333.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>CentOS 7.9解决pip路径遍历漏洞（CVE-2026-8643）思路</h3>
+            <p>CentOS 7.9关于pip 路径遍历漏洞（CVE-2026-8643）漏洞修复建议</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/vuls/489342.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>Varnish 还是 Nginx？VCL 编译链视角下的反向代理安全之争</h3>
+            <p>当所有反向代理都在配置层防御攻击时，Varnish 把整个配置语言编译成了机器码。 这意味着攻击者多了一条从未被正视的入侵路径：编译器。</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/web/489441.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>AdaptixC2：大规模指纹识别开源 C2 框架</h3>
+            <p>AdaptixC2 开源 C2 框架因默认配置暴露品牌标识，导致服务器易被识别，全球已发现 412 个相关资产。</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/news/489372.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>从 Prompt Injection 到 Trust Manipulation：一次关于 AI Agent 信任机制的思考与实验</h3>
+            <p>从 Prompt Injection 到 Trust Manipulation：一次关于 AI Agent 信任机制的思考与实验作者：伤竭鸽时间：2026 年 7 月实验代码：github.com/S</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/news/489379.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>FreeBuf早报 | 潜伏16年的KVM漏洞可突破虚拟机隔离；OpenAI获准即将发布GPT-5.6模型</h3>
+            <p>16年KVM漏洞可致虚拟机逃逸，攻击者接管Linux服务器！</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/vuls/489389.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>NSD 权威 DNS 服务器的三重危机：从 SVCB 堆溢出到区域传输认证绕过</h3>
+            <p>权威 DNS 服务器是整个互联网域名解析体系的&amp;amp;quot;最后一公里&amp;amp;quot;。无论是用户访问网站、发送邮件还是调用 API，最终都需要经过权威 DNS 的解析。</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/489446.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>APT-C-20黑客组织利用PNG图片隐藏Shellcode部署无文件C#后门</h3>
+            <p>APT-C-20利用PNG隐写Shellcode部署无文件后门，针对政府机构发起攻击。</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/es/489447.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>GitHub 公共 API 正成为企业级侦查工具</h3>
+            <p>GitHub API遭滥用，企业代码库面临隐秘侦查威胁！</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/ai-security/489465.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>当Claude、Cursor 和 Codex 触发了终端安全检测报警</h3>
+            <p>AI编程工具触发安全警报，凭据访问行为与黑客攻击高度相似！</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/vuls/489495.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>【已复现】Linux FUSE page cache 本地权限提升漏洞(CVE-2026-31694)</h3>
+            <p>攻击者在获得本地低权限后，可利用该漏洞触发 Linux 内核 FUSE page cache 越界写，篡改内核缓存中的敏感文件内容，从而提升至 root 权限。</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/endpoint/489523.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>银狐编年史：2020-2026</h3>
+            <p>约 2020–2026 年中，银狐系工具链与运营技术的阶段演进。</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/news/489524.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>FreeBuf早报 | 首个一键式Android 17漏洞利用链可使攻击者完全控制手机；当Claude等AI编程工具触发安全警报</h3>
+            <p>Android 17曝一键Root漏洞链，15年内核0Day可致设备完全沦陷。</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.freebuf.com/articles/es/489533.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>AI时代下对安全攻防演进的思考（下篇）</h3>
+            <p>AI赋能安全攻防，企业流程重写成关键，安全人员角色转向“指挥者”，行业竞争聚焦工具生态。</p>
+            <div class="card-footer">
+                <span>FreeBuf</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/035.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>全球首张 AI 原生信用卡，消息称 Kimi 信用卡合作方敲定美国运通、农业银行</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，每日经济新闻 10 日（今天）发布消息称，全球首张 AI 原生信用卡“Kimi 信用卡”合作方已经敲定&lt;strong&gt;美国运通、农业银行&lt;/strong&gt;，即将正式对外发行。&lt;/p&gt;&lt;p&gt;相关知情人士评价称，这次合作“一拍即合”。该项目从今年 4 月开始酝酿，短短几个月，农业银行和运通内部&lt;strong&gt;一路绿灯加急&lt;/strong&gt;。&lt;/p&gt;&lt;p&gt;上述知情人士透露，目前已达成的意向是，持卡人的&lt;strong&gt;日常消费积分可八折兑换 Kimi 会员权益&lt;/strong&gt;。积分商城的积分兑换比例是 1000∶1，最高支持 50% 用积分兑换。未来，三方还将探索&lt;strong&gt;智能体支付、Token 额度和信用额度挂钩、积分和算力双向打通&lt;/strong&gt;等更多可能性。&lt;/p&gt;&lt;p&gt;报道提到，运通持卡人群以白领、跨境从业者、商务精英为主，这类人群是 Kimi 智能体等生产力 AI 服务的核心付费目标群体。借助运通，Kimi 或可以降低海外市场获客成本，加速全球化用户扩张。&lt;/p&gt;&lt;p&gt;据IT之家此前报道，该卡已经于 6 月 12 日开启预约。Kimi </p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/048.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>消息称华为 MateBook Fold 折叠 PC 新品下半年登场，麒麟 X9 系芯片</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，博主 @数码闲聊站 今日爆料，华为下半年重量级新品很多，旗舰新机 / 新平板 / 新电脑等等，MateBook Fold 也要更新。&lt;/p&gt;&lt;p&gt;据其爆料，华为 MateBook Fold 新品目前配色有流光金 / 天际白 / 幻影黑，内存有 &lt;span class=&quot;link-text-start-with-http&quot;&gt;24GB+512GB/24GB+1TB/32GB+2TB&lt;/span&gt;，&lt;strong&gt;估计有降本策略&lt;/strong&gt;，搭载 OLED 可折叠超大屏，麒麟 X9 系芯片，也是目前没有竞品的折叠 PC。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/3a7ea3c7-e5ca-4180-860c-92b1d943fd88.png&quot; /&gt;&lt;/p&gt;&lt;p&gt;IT之家注意到，华为 ‏‏MateBook Fold 非凡大师发布于 2025 年 5 月，&lt;strong&gt;是全球</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/052.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>苹果首款折叠手机：白色版 iPhone Ultra 机模曝光</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，消息源 @theapplehub 今天（7 月 10 日）在 X 平台发布推文，&lt;strong&gt;分享了一段视频，展示了白色苹果首款折叠手机（上市后预估名为 iPhone Ultra）机模。&lt;/strong&gt;&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;a class=&quot;ithome_super_player&quot; contenteditable=&quot;false&quot; href=&quot;https://weibo.com/tv/show/1034:5319143159693352?mid=5319143362662246&quot; target=&quot;_blank&quot;&gt;&lt;img src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/64e32319-011b-47a0-ad35-ba8064cbc4cf.jpg&quot; /&gt;&lt;/a&gt;&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;a class=&quot;ithome_super_player&quot; contenteditable=&quot;false&quot; hr</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/054.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>2026 款联想小新 Air 14 柔光版笔记本发布：英特尔 Lunar Lake 处理器，6299 元起</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，在今天举行的 BW2026 上，联想发布了 2026 款联想小新 Air 14 柔光版笔记本，现已开始预约，将于 7 月 15 日开售，&lt;strong&gt;售价 6299 元起&lt;/strong&gt;：&lt;/p&gt;&lt;ul class=&quot; list-paddingleft-2&quot;&gt;&lt;li&gt;&lt;p&gt;Ultra 5 226V + 16GB RAM + 512GB SSD：6299 元，国补到手价 5354.15 元&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;Ultra 7 256V + 16GB RAM + 1TB SSD：7999 元，国补到手价 6799.15 元&lt;/p&gt;&lt;/li&gt;&lt;/ul&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/550bb49a-59e7-4b3c-b80c-2f27fb6a240a.jpg&quot; /&gt;&lt;/p&gt;&lt;p&gt;这款笔记本电脑重约 1.14kg，厚约 12.9mm；搭载了一块 2560×160</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/036.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>OPPO 法务部：一网民恶意造谣并散布一加 Ace 3 产品质量相关不实信息，被警方行政处罚</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，OPPO 法务部今日发布关于高某恶意造谣一加 Ace 3 被警方行政处罚的信息通报。&lt;/p&gt;&lt;blockquote&gt;&lt;p style=&quot;text-align: center;&quot;&gt;关于高某恶意造谣一加 Ace 3 被警方行政处罚的信息通报&lt;/p&gt;&lt;p&gt;近期，开封一网民高某多次在抖音、快手、微博等平台&lt;strong&gt;恶意造谣并散布我司一加 Ace 3 产品质量相关的不实信息，误导公众并严重损害我司品牌声誉&lt;/strong&gt;。&lt;/p&gt;&lt;p&gt;我司第一时间向公安机关报案，经警方调查，高某行为违反治安管理处罚法第二十九条第（一）项之规定 —— 故意散布谣言扰乱公共秩序，&lt;strong&gt;已被依法作出行政拘留和罚款&lt;/strong&gt;。&lt;/p&gt;&lt;p&gt;网络空间绝非法外之地，相关言论也不能逾越法律红线，我们将继续依法保护自身合法权益。&lt;/p&gt;&lt;p&gt;感谢公安机关的秉公执法，感谢大家一直以来对一加品牌和产品的关注和支持。&lt;/p&gt;&lt;/blockquote&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.c</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/068.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>英伟达 BW2026 展示《异环》《鸣潮》《明日方舟：终末地》限定款 RTX 5080 联名显卡</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，BilibiliWorld 2026（BW2026）今日在上海国家会展中心正式开幕，将持续至 7 月 12 日。&lt;/p&gt;&lt;p&gt;英伟达在此次 BW 展会中设立了 GeForce RTX 超级玩家体验站，现场展示了多款 GeForce 限定联名显卡。IT之家从官方获悉，英伟达此次展出的联名显卡覆盖了四款热门二次元游戏，具体包括：&lt;/p&gt;&lt;ul class=&quot; list-paddingleft-2&quot;&gt;&lt;li&gt;&lt;p&gt;《异环》角色“真红”与“伊洛伊”的两款联名显卡（分别由华硕与微星制作）；&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;《鸣潮》角色“爱弥斯”的两款联名显卡（分别由技嘉与七彩虹制作）；&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;《白银之城》角色“侦探”与“阿芙”的两款联名显卡（分别由万丽与映众制作）；&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;《明日方舟：终末地》角色“管理员”与“佩丽卡”的两款联名显卡（分别由影驰与耕升制作）。&lt;/p&gt;&lt;/li&gt;&lt;/ul&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.com/n</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/075.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>惠普海外推 ZBook 8 G2i 16 笔记本：至高酷睿 Ultra X9 388H 处理器、RTX Pro 500 Blackwell 显卡</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，惠普现已在海外市场推出 ZBook 8 G2i 16 笔记本，新品搭载英特尔 Panther Lake 平台，&lt;strong&gt;可选配英伟达 RTX Pro 500 Blackwell 显卡&lt;/strong&gt;、&lt;strong&gt;64GB 内存&lt;/strong&gt;。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/5761e8b2-7596-4ecb-8824-d10ed843ba8d.jpg?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p&gt;据介绍，这款笔记本可以选配英特尔酷睿 Ultra 5 325、Ultra 7 355、Ultra 7 356H、Ultra 9 386H vPro 和 Ultra X9 388H vPro 等处理器，显卡则是可以在核显 / 独显之间选择，前者涵盖 Arc B370、Arc B390 等型号。&lt;/p&gt;&lt;p styl</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/092.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>《蓝色星原：旅谣》开启「旅迹测试」招募：支持 PC、华为鸿蒙、安卓、苹果 iOS 平台</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，蛮啾《蓝色星原：旅谣》今日正式开启「旅迹测试」公开招募, 支持 PC、华为鸿蒙、安卓、苹果 iOS 平台。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt; &lt;/p&gt;&lt;p&gt;本次测试为限量计费删档测试，玩家需填写公开招募问卷以获取测试资格。招募时间从今日 9:00 持续至 8 月 20 日 23:59。招募结束后，官方将通过站内信等方式通知获得资格的玩家。&lt;/p&gt;&lt;p&gt;以鸿蒙版为例，华为用户在应用商店中找到《蓝色星原：旅谣》的预约界面，按官方提示参与报名即可。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/c4981089-34ec-4420-9938-6718ab1773ea.jpg&quot; /&gt;&lt;/p&gt;&lt;p&gt;此次测试已开通实名认证，未成年玩家无法参与。官方提醒，测试招募信息一经提交无法修改，玩家需确保问卷填写内容准确无误。&lt;/p&gt;&lt;p&gt;通过 TapTap 获得资格</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/119.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>2026 年 APEC 数字和人工智能部长会议 7 月 23 日成都举行，我国时隔 12 年第三次担任 APEC 东道主</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，今日，工业和信息化部举行“亚太经合组织（APEC）2026 年数字和人工智能部长会议及数字周相关活动新闻通气会”。&lt;/p&gt;&lt;p&gt;据介绍，今年是中国继 2001、2014 年之后，&lt;strong&gt;时隔 12 年第三次担任 APEC 东道主&lt;/strong&gt;，全年将举行 11 场专业领域部长级会议及系列活动。&lt;span class=&quot;wx_text_underline&quot;&gt;工业和信息化部在外交部的指导下，将于 7 月 16 日至 24 日在四川成都举办数字和人工智能部长会议及数字周相关活动，这是促进亚太地区数字和人工智能领域交流合作的重要平台。&lt;/span&gt;&lt;/p&gt;&lt;p&gt;IT之家注意到，本次数字和人工智能部长会议是&lt;strong&gt;中国继 2002 年时隔 24 年之后再次主办电信部长会议&lt;/strong&gt;。电信部长会议是 APEC 框架下统筹亚太区域电信、信息通信技术和数字领域的政策协同与务实合作的最高级别部长对话机制。近年来，从电信技术到信息通信技术，再到数字技术，新技术发展日新月异，各经济体积极拥抱包括人工智能在内的数字技术，自去年起电信部长会议聚焦</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/083.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>微信鸿蒙版 App 获 8.0.19.37 正式版更新、8.0.19.38 邀测更新</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，微信鸿蒙版 App 今日推送 8.0.19.37 正式版更新，以及 8.0.19.38 (8393510) 邀请测试更新，官方公告均为“修复了一些已知问题”。&lt;/p&gt;&lt;p&gt;截至IT之家发稿，微信鸿蒙版 App 安装次数接近 6500 万次。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/b644f335-eb5a-4376-a639-6da8a995f727.jpg&quot; /&gt;&lt;/p&gt;&lt;p style=&quot;text-align: justify;&quot;&gt;大家在&lt;a href=&quot;https://wxaurl.cn/tIhrCxgH5Kb&quot; target=&quot;_blank&quot; title=&quot;IT之家微信号&quot;&gt;IT之家微信号&lt;/a&gt;回复“&lt;span class=&quot;font-color-red&quot;&gt;微信&lt;/span&gt;”两字，即可获取当前最新官方内部版微信下载。&lt;/p&gt;&lt;p style=&quot;text-ali</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/089.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>苹果 iPhone Ultra 阔折叠？消息称苹果供应商入网备案 4883mAh 电池</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，博主 @数码闲聊站 今日爆料，苹果电池供应商最近入网备案了两款新电池：&lt;br /&gt;1921mAh+2962mAh＝4883mAh (min)，至于是否为苹果 iPhone Ultra 阔折叠，还有待进一步确认。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/1c193389-9e20-4404-99a1-72160f1a48d6.png&quot; /&gt;&lt;/p&gt;&lt;p&gt;此前有消息称苹果首款折叠屏 iPhone 将于 7 月底启动量产。在近期因铰链问题一度传出延期消息的背景下，&lt;a href=&quot;https://www.ithome.com/0/968/020.htm&quot; target=&quot;_blank&quot;&gt;苹果仍准备按原计划于 9 月发布新机&lt;/a&gt;。同时，供应链消息称，苹果已经敲定折叠屏 iPhone 的显示屏、外壳和结构件等主要规格，&lt;strong&gt;产品也已进入量产准备阶段&lt;/strong&gt;。&lt;</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/091.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>三星 Galaxy Tab S12+ 平板现身韩国认证，实拍图曝光</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，据科技媒体 Sammyguru 昨天报道，三星 Galaxy Tab S12+ 系列平板现已出现在韩国 Safety Korea 认证数据库，&lt;strong&gt;预计将在今年晚些时候发布&lt;/strong&gt;。&lt;/p&gt;&lt;p&gt;IT之家在此援引 Sammyguru，这款平板已在此前通过印度 BIS 认证，拥有 SM-X840 和 SM-X846B 两个型号，分别对应 Wi-Fi 版和 5G 蜂窝版。&lt;/p&gt;&lt;p&gt;与此同时，SM-X840 和 SM-X846N 两款型号的三星新机也出现在 Safety Korea 数据库中，前者是上文提到的 Wi-Fi 版 Galaxy Tab S12+，后者则是韩国市场的 5G 版本。&lt;/p&gt;&lt;p&gt;值得注意的是，&lt;strong&gt;韩国数据库中还附带了一张真机实拍照片&lt;/strong&gt;，显示该机将采用四边等宽的屏幕面板，前置摄像头位于横边边框中央，延续了三星近几年来一脉相承的设计。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/166.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>小米音箱升级：9 款已内置超级小爱，支持跨端多指令语控</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，小爱同学今日宣布小米音箱大升级，9 款已内置超级小爱。&lt;/p&gt;&lt;p&gt;&lt;strong&gt;已内置超级小爱的音箱产品：&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Xiaomi 智能音箱 Pro、Xiaomi 智能音箱、Xiaomi Sound Pro、Xiaomi Sound 2 Max、Xiaomi Sound 2 Pro、Xiaomi 智能家庭屏 Max 27、Xiaomi 智能家庭屏 11、Xiaomi 智能家庭屏 10、Xiaomi 智能家庭屏 8 云台版。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/fd0b1103-8d98-42c6-baec-5f289ca08abf.jpg?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p&gt;据介绍，小米音箱超级小爱支持 AI 大模型问答，海量问题随意问；多轮连续对话与拟人语气，交流连贯又自然；跨端多指令语控，&lt;</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/212.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>带宽直逼 DDR6：MRDIMM 让 DDR5 服务器内存速率冲向 17600 MT/s</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，据 Wccftech 今日报道，JEDEC（固态技术协会）早于 2020 年代初引入的 MRDIMM 架构，正在成为解决当前及下一代数据中心内存带宽瓶颈的关键方案。&lt;/p&gt;&lt;p&gt;该技术由英特尔率先在其至强 6 产品线（代号 Granite Rapids）上采用，如今已获得 AMD 等主流厂商的跟进。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/1ac99c81-20cb-4f45-877c-68d23e890e43.jpg?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p&gt;MRDIMM 的核心思路是在不改变 DDR5 物理插槽的前提下，通过内置于模组的多路复用器（multiplexer）和数据缓冲器，将多个内存列（rank）的数据合并传输。简单来说，它让单个内存通道能同时访问更多数据，从而成倍提升有效带宽。第一代 MRDIMM 的传输速率已</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/216.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>小米澎程首款 SUV 车型 SkyNomad N90/N70 通过工信部申报，含露营版 / 三排七座版</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，工信部发布第 409 批《道路机动车辆生产企业及产品公告》新产品公示，小米汽车四款澎程系列插电式增程混合动力车型完成申报。&lt;/p&gt;&lt;p&gt;本次申报包含四款车型，分别为小米澎程 N90 Max 露营版（插电式增程混合动力文化生活服务车）、小米澎程 N70（插电式增程混合动力多用途乘用车）、小米澎程 N70 Max（插电式增程混合动力多用途乘用车）、小米澎程 N90 Max（插电式增程混合动力多用途乘用车），均为汽油 / 电混合动力，最高车速 190 km/h，发动机搭载哈尔滨东安汽车动力股份有限公司的 M15DRE 型号发动机，排量 1499 ml，最大净功率 112 kW，均配备博世 ESP10 防抱死制动系统，可选装 ETC 车载装置，自带汽车事件数据记录系统 (EDR)。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img alt=&quot;小米澎程 N90 Max 露营版左前部&quot; class=&quot;not-source&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/3ae9</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/237.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>岚图梦想家 9 新车申报：提供纯电 / 插混版本，定位 50 万级旗舰 MPV</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，工信部发布第 409 批《道路机动车辆生产企业及产品公告》新产品公示，岚图梦想家 9 完成申报。&lt;/p&gt;&lt;p&gt;岚图汽车 CEO 卢放此前表示，&lt;a href=&quot;https://www.ithome.com/0/973/855.htm&quot; target=&quot;_blank&quot;&gt;岚图梦想家 9 定位“50 万级智尊旗舰 MPV”&lt;/a&gt;，要打破 50 万级豪华新能源市场的“SUV 惯性”，让 MPV 也有一席之地。&lt;/p&gt;&lt;p&gt;岚图梦想家 9 定位中大型 MPV，车身尺寸方面，车身长 5325 mm，宽 1998 mm，高 1823 / 1805 mm，轴距为 3200 mm，额定载客（含驾驶员）座位数为 7 座，采用承载式车身设计，最高车速 200 km/h。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img alt=&quot;岚图梦想家9插混版左前部&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/b05ced01-0a2c-4a40-885d-95bbda3b19b6.jpg&quot; </p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/112.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>胡峥楠谈小米澎程 N90 开发经历：第一次从内饰设计需求出发，再反过来确定外观设计硬点</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，小米汽车今日公布了&lt;a href=&quot;https://www.ithome.com/0/975/030.htm&quot; target=&quot;_blank&quot;&gt;小米澎程 N90 的座舱布局&lt;/a&gt;。小米集团副总裁、汽车部 CTO 胡峥楠随后转发该消息，并表示这台车可能是其职业生涯中很特殊的一次开发经历。&lt;/p&gt;&lt;blockquote&gt;&lt;p&gt;这是&lt;strong&gt;第一次&lt;/strong&gt;从内饰设计需求出发，再反过来确定外观设计硬点。&lt;/p&gt;&lt;p&gt;这是&lt;strong&gt;第一次&lt;/strong&gt;完全从场景和功能作为起始点，再来平衡设计师的想象力。&lt;/p&gt;&lt;p&gt;这是&lt;strong&gt;第一次&lt;/strong&gt;在一台车上，考虑这么多的机构设计、功能安全、预期功能安全的设计。&lt;/p&gt;&lt;/blockquote&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/61183c36-b9d7-4576-8cd0-843acd01609b.jpg?x-bce-proces</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/197.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>铭匠 AF 17mm F1.8 Air APS-C 镜头尼康 Z 卡口版本开售，829 元</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，铭匠 AF 17mm F1.8 Air APS-C 镜头尼康 Z 卡口版本将于今天 17:00 开售，&lt;strong&gt;售价 829 元&lt;/strong&gt;。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/820e885d-34f4-48f1-b744-ce93872adeca.jpg?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p style=&quot;text-align: left;&quot;&gt;这款镜头等效全画幅 25.5mm，拥有约 81° 视角范围；采用 10 组 14 片光学结构，包含 2 片超低色散 ED 镜片和 3 片高折射镜片，最近对焦距离 0.18m；采用 STM + 导螺杆型步进马达，支持自动对焦。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.com/newsuploadfiles/2026/7</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/210.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>消息称 SK 海力士计划重启大连二厂扩建工程，将生产 238 层 NAND 闪存芯片</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，据韩媒 newstomato 消息，业界消息透露，SK 海力士近期将以向中国大连第二工厂引进设备为契机，正式推进全新生产线的投资与建设。&lt;/p&gt;&lt;p&gt;SK 海力士计划从今年下半年起搬入生产设备，并于明年上半年分阶段完成设施建设。目前，大连第一工厂已完成向 192 层 NAND 闪存产线的升级投资以及老化设备的更换工作。&lt;/p&gt;&lt;p&gt;报道称，在 SK 海力士所有的 NAND 闪存生产基地中，&lt;strong&gt;大连第二工厂被视为能最快实现产能扩充的地点&lt;/strong&gt;。该公司曾于 2022 年在大连举行开工仪式并正式宣布投资计划，但随后因 NAND 闪存行业遇冷，该投资计划实质上已被暂缓。&lt;/p&gt;&lt;p&gt;据悉，部分韩国本土供应商已着手将闲置的 NAND 闪存设备搬迁至大连，而海外设备制造商也已收到用于设备供应的初步采购订单。&lt;/p&gt;&lt;p&gt;SK 海力士方面向该媒体表示：“随着 AI 数据中心的普及，如同 DRAM 一样，&lt;strong&gt;NAND 闪存的需求也在迅速增长&lt;/strong&gt;。受此影响，&lt;strong&gt;大连第二工厂重启的可能性随之升高&lt;/stro</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/222.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>鸿蒙智行享界 V8 新车申报：提供纯电 / 增程版本，搭载华为电机</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，工信部发布第 409 批《道路机动车辆生产企业及产品公告》新产品公示，享界 V8 完成申报。&lt;/p&gt;&lt;p&gt;享界 V8 定位纯电动多用途乘用车 / 插电式增程混合动力多用途乘用车，提供&lt;strong&gt; 5 &lt;/strong&gt;种版本可选，均为&lt;strong&gt; 7 &lt;/strong&gt;座布局，车身轴距均为 3250 mm，长宽高根据版本区别在 5335 * 2005 * (1805 / 1825) mm 之间。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img alt=&quot;享界V8 左前视图&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/7fc5a016-eac7-4c5f-8bc3-9c491e8fccf0.jpg&quot; /&gt;&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img alt=&quot;享界V8 车尾&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/e5f799f7-c13f-4677-aa0</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/231.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>鸿蒙智行问界 M8、问界 M6 新车申报：升级 M9 同款辅助驾驶硬件配置</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，工信部发布第 409 批《道路机动车辆生产企业及产品公告》新产品公示，AITO 问界 M6 、 M8 系列新车完成申报。&lt;/p&gt;&lt;p&gt;问界旗下本次申报共有四款车型，包括&lt;strong&gt;问界 M6 增程版&lt;/strong&gt;、&lt;strong&gt;问界 M8 增程磷酸铁锂版&lt;/strong&gt;、&lt;strong&gt;问界 M8 增程三元锂版&lt;/strong&gt;和&lt;strong&gt;问界 M8 纯电版&lt;/strong&gt;。&lt;/p&gt;&lt;p&gt;从申报图可以看到，这一次申报的问界 M8 用上了最新的辅助驾驶硬件布局，也就是把侧面摄像头放在了 D 柱位置。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img alt=&quot;问界M6增程版左前视图&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/e2cca511-7546-450f-a3df-e32342db053f.jpg&quot; /&gt;&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img alt=&quot;问界M6增程版尾部&quot; src=&quot;https:</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/256.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>比亚迪腾势 Z9S 纯电轿车申报：轴距 3025mm，两款功率版本</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，工信部发布第 409 批《道路机动车辆生产企业及产品公告》新产品公示，&lt;strong&gt;腾势 Z9S&lt;/strong&gt; 纯电动轿车完成申报。&lt;/p&gt;&lt;p&gt;腾势 Z9S 定位为&lt;strong&gt;纯电动轿车&lt;/strong&gt;，提供两种动力版本，车身轴距为 &lt;strong&gt;3025 mm&lt;/strong&gt;，额定载客 5 人，两款版本车身长宽一致，高度略有差异。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img alt=&quot;腾势Z9S 前部实拍&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/771130aa-c461-4f13-bf49-437c51692524.jpg&quot; /&gt;&lt;/p&gt;&lt;p&gt;IT之家注意到，低功率版本车身尺寸为长 &lt;strong&gt;5090 mm&lt;/strong&gt; × 宽 &lt;strong&gt;1980 mm&lt;/strong&gt; × 高 &lt;strong&gt;1510 mm&lt;/strong&gt;，整备质量 &lt;strong&gt;2250 kg&lt;/strong&gt;，总质量 &lt;strong&gt;2</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="http://www.sec-wiki.com/?2026-07-06" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>SecWiki News 2026-07-06 Review</h3>
+            <p>今日暂未更新资讯~&lt;br /&gt;更多最新文章，请访问&lt;a href=&quot;http://www.sec-wiki.com/&quot;&gt;SecWiki&lt;/a&gt;</p>
+            <div class="card-footer">
+                <span>SecWiki</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="http://www.sec-wiki.com/?2026-07-07" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>SecWiki News 2026-07-07 Review</h3>
+            <p>今日暂未更新资讯~&lt;br /&gt;更多最新文章，请访问&lt;a href=&quot;http://www.sec-wiki.com/&quot;&gt;SecWiki&lt;/a&gt;</p>
+            <div class="card-footer">
+                <span>SecWiki</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="http://www.sec-wiki.com/?2026-07-08" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>SecWiki News 2026-07-08 Review</h3>
+            <p>&lt;a href=&quot;https://www.sec-wiki.com/weekly/644&quot; target=&quot;_blank&quot;&gt;SecWiki周刊（第644期)&lt;/a&gt;  by ourren&lt;br /&gt;&lt;br /&gt;&lt;a href=&quot;https://mp.weixin.qq.com/s/3_a5t_P6YiyEp_WDopo0Vw&quot; target=&quot;_blank&quot;&gt;AI驱动下&quot;0day武器平民化&quot;对网络安全防御的不可逆影响分析&lt;/a&gt;  by ourren&lt;br /&gt;&lt;br /&gt;&lt;a href=&quot;https://drive.google.com/file/d/1zfngTKU3_dr10QqXKsQNe1kMhHtfQ7J0/view&quot; target=&quot;_blank&quot;&gt;2026 上半年区块链安全与反洗钱报告&lt;/a&gt;  by ourren&lt;br /&gt;&lt;br /&gt;更多最新文章，请访问&lt;a href=&quot;http://www.sec-wiki.com/&quot;&gt;SecWiki&lt;/a&gt;</p>
+            <div class="card-footer">
+                <span>SecWiki</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="http://www.sec-wiki.com/?2026-07-09" target="_blank" rel="noopener" class="card" style="border-left:3px solid #e85d5d">
+            <div class="card-header">
+                <span class="tag" style="background:#e85d5d20;color:#e85d5d">网络安全</span>
+            </div>
+            <h3>SecWiki News 2026-07-09 Review</h3>
+            <p>&lt;a href=&quot;https://mp.weixin.qq.com/s/gyqJ0JsG8OUyXV_oeMv1Jw&quot; target=&quot;_blank&quot;&gt;Mythos 对企业安全架构影响的思考&lt;/a&gt;  by ourren&lt;br /&gt;&lt;br /&gt;更多最新文章，请访问&lt;a href=&quot;http://www.sec-wiki.com/&quot;&gt;SecWiki&lt;/a&gt;</p>
+            <div class="card-footer">
+                <span>SecWiki</span>
+                <span style="color:#e85d5d">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/personalized-aac-app/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>一位AI工程师给不会说话的自闭症儿子做了款沟通App，儿子开口涨5倍，还意外做成一门小生意</h3>
+            <p>没有融资没有团队，纯粹为解决自己孩子的问题，却被诊所和学校主动找上门要用</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/fable-field-guide-unknowns/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Claude Fable 5 实战指南：8 个「找未知」提示模式，从盲点扫描到读后小测验</h3>
+            <p>Claude Code 团队 Thariq Shihipar 大会演讲实录：新模型的瓶颈不再是模型本身，而是你能不能讲清自己的未知</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/ai-schools-wealth-gap/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>美国富裕家庭弃普通学校，砸7.5万美元一年送孩子上 AI 私校</h3>
+            <p>传统学校还没想清楚怎么用 AI，硅谷和华尔街家庭已经用真金白银投票了</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/aiewf-loops-debate/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>AI 工程师大会闭幕激辩:自动编码 loop,炒作有没有跑赢工程纪律</h3>
+            <p>现场投票因灯光太亮没数出结果;同期调研显示 95% 团队已用 agent,59% 担心技术债在积累</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/phosphor-dartmouth-quiz-study/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>达特茅斯实测AI判作业：学生嫌它死板，用的人反而考得更好</h3>
+            <p>151人实测:简答题比选择题更能拉动分数,AI答疑侧栏却几乎没人用</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/claude-global-workspace/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Anthropic 在 Claude 身上发现一个类似人脑「内部思考空间」的区域：它是自己进化出来的，并非最初设计</h3>
+            <p>占比不到一成，删掉后 Claude 仍会说话但推理归零，已用来抓模型编数据、识破测试</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/making-of-claude-code/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Anthropic首次公开Claude Code内幕：Boris Cherny两天写的Demo，如今为他写下100%代码</h3>
+            <p>16位亲历者口述：从死磕diff到两周冲刺发布，到工程师不再手写一行代码</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/alberta-claude-cybersecurity/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>加拿大阿尔伯塔省使用 Claude Code 做安全审查，20 小时扫描 4.66 亿行代码，原本需 6.5 年</h3>
+            <p>50 个智能体自主并行工作，覆盖该省 27 个部门、3,400 个代码仓库，还能自动修复漏洞、重写老旧系统。</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/gpt-realtime-2-1/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>OpenAI 发布 GPT-Realtime-2.1 和 GPT-Realtime-2.1-mini 实时语音模型：mini 模型具备推理能力，延迟下降 25%</h3>
+            <p>调用工具时模型会先说&quot;我这就去查&quot;，通话不再因等待而冷场</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/030.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>雷军再曝小米澎程 N90 座舱：车里就有咖啡馆、会客厅、工作室、全家福</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，这几天，小米汽车对全新“澎程”系列的首款车型 —— 澎程 N90 展开了密集预热，而在今天（10 日）下午，小米创办人、董事长兼 CEO 雷军在微博上公布了 N90 的座舱布局。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/efdd7a4f-2442-4b31-b4a3-4e056c7e46b7.jpg?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p&gt;相比于&lt;a href=&quot;https://www.ithome.com/0/974/465.htm&quot; target=&quot;_blank&quot;&gt;上次的“户型图”&lt;/a&gt;，这次则是展现了更具体的部分用车场景和内饰设计。出镜车辆采用了浅棕色内饰，第二排的独立座椅配有扶手和腿托，前排座椅支持 360° 旋转。&lt;/p&gt;&lt;p&gt;新车座舱采用七座布局，配有一块悬浮式中控屏，中央扶手上则是提供了 4 个杯架，结合&lt;a </p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/052.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>苹果首款折叠手机：白色版 iPhone Ultra 机模曝光</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，消息源 @theapplehub 今天（7 月 10 日）在 X 平台发布推文，&lt;strong&gt;分享了一段视频，展示了白色苹果首款折叠手机（上市后预估名为 iPhone Ultra）机模。&lt;/strong&gt;&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;a class=&quot;ithome_super_player&quot; contenteditable=&quot;false&quot; href=&quot;https://weibo.com/tv/show/1034:5319143159693352?mid=5319143362662246&quot; target=&quot;_blank&quot;&gt;&lt;img src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/64e32319-011b-47a0-ad35-ba8064cbc4cf.jpg&quot; /&gt;&lt;/a&gt;&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;a class=&quot;ithome_super_player&quot; contenteditable=&quot;false&quot; hr</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/048.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>消息称华为 MateBook Fold 折叠 PC 新品下半年登场，麒麟 X9 系芯片</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，博主 @数码闲聊站 今日爆料，华为下半年重量级新品很多，旗舰新机 / 新平板 / 新电脑等等，MateBook Fold 也要更新。&lt;/p&gt;&lt;p&gt;据其爆料，华为 MateBook Fold 新品目前配色有流光金 / 天际白 / 幻影黑，内存有 &lt;span class=&quot;link-text-start-with-http&quot;&gt;24GB+512GB/24GB+1TB/32GB+2TB&lt;/span&gt;，&lt;strong&gt;估计有降本策略&lt;/strong&gt;，搭载 OLED 可折叠超大屏，麒麟 X9 系芯片，也是目前没有竞品的折叠 PC。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/3a7ea3c7-e5ca-4180-860c-92b1d943fd88.png&quot; /&gt;&lt;/p&gt;&lt;p&gt;IT之家注意到，华为 ‏‏MateBook Fold 非凡大师发布于 2025 年 5 月，&lt;strong&gt;是全球</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/054.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>2026 款联想小新 Air 14 柔光版笔记本发布：英特尔 Lunar Lake 处理器，6299 元起</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，在今天举行的 BW2026 上，联想发布了 2026 款联想小新 Air 14 柔光版笔记本，现已开始预约，将于 7 月 15 日开售，&lt;strong&gt;售价 6299 元起&lt;/strong&gt;：&lt;/p&gt;&lt;ul class=&quot; list-paddingleft-2&quot;&gt;&lt;li&gt;&lt;p&gt;Ultra 5 226V + 16GB RAM + 512GB SSD：6299 元，国补到手价 5354.15 元&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;Ultra 7 256V + 16GB RAM + 1TB SSD：7999 元，国补到手价 6799.15 元&lt;/p&gt;&lt;/li&gt;&lt;/ul&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/550bb49a-59e7-4b3c-b80c-2f27fb6a240a.jpg&quot; /&gt;&lt;/p&gt;&lt;p&gt;这款笔记本电脑重约 1.14kg，厚约 12.9mm；搭载了一块 2560×160</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/068.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>英伟达 BW2026 展示《异环》《鸣潮》《明日方舟：终末地》限定款 RTX 5080 联名显卡</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，BilibiliWorld 2026（BW2026）今日在上海国家会展中心正式开幕，将持续至 7 月 12 日。&lt;/p&gt;&lt;p&gt;英伟达在此次 BW 展会中设立了 GeForce RTX 超级玩家体验站，现场展示了多款 GeForce 限定联名显卡。IT之家从官方获悉，英伟达此次展出的联名显卡覆盖了四款热门二次元游戏，具体包括：&lt;/p&gt;&lt;ul class=&quot; list-paddingleft-2&quot;&gt;&lt;li&gt;&lt;p&gt;《异环》角色“真红”与“伊洛伊”的两款联名显卡（分别由华硕与微星制作）；&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;《鸣潮》角色“爱弥斯”的两款联名显卡（分别由技嘉与七彩虹制作）；&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;《白银之城》角色“侦探”与“阿芙”的两款联名显卡（分别由万丽与映众制作）；&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;《明日方舟：终末地》角色“管理员”与“佩丽卡”的两款联名显卡（分别由影驰与耕升制作）。&lt;/p&gt;&lt;/li&gt;&lt;/ul&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.com/n</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/166.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>小米音箱升级：9 款已内置超级小爱，支持跨端多指令语控</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，小爱同学今日宣布小米音箱大升级，9 款已内置超级小爱。&lt;/p&gt;&lt;p&gt;&lt;strong&gt;已内置超级小爱的音箱产品：&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Xiaomi 智能音箱 Pro、Xiaomi 智能音箱、Xiaomi Sound Pro、Xiaomi Sound 2 Max、Xiaomi Sound 2 Pro、Xiaomi 智能家庭屏 Max 27、Xiaomi 智能家庭屏 11、Xiaomi 智能家庭屏 10、Xiaomi 智能家庭屏 8 云台版。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/fd0b1103-8d98-42c6-baec-5f289ca08abf.jpg?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p&gt;据介绍，小米音箱超级小爱支持 AI 大模型问答，海量问题随意问；多轮连续对话与拟人语气，交流连贯又自然；跨端多指令语控，&lt;</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/075.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>惠普海外推 ZBook 8 G2i 16 笔记本：至高酷睿 Ultra X9 388H 处理器、RTX Pro 500 Blackwell 显卡</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，惠普现已在海外市场推出 ZBook 8 G2i 16 笔记本，新品搭载英特尔 Panther Lake 平台，&lt;strong&gt;可选配英伟达 RTX Pro 500 Blackwell 显卡&lt;/strong&gt;、&lt;strong&gt;64GB 内存&lt;/strong&gt;。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/5761e8b2-7596-4ecb-8824-d10ed843ba8d.jpg?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p&gt;据介绍，这款笔记本可以选配英特尔酷睿 Ultra 5 325、Ultra 7 355、Ultra 7 356H、Ultra 9 386H vPro 和 Ultra X9 388H vPro 等处理器，显卡则是可以在核显 / 独显之间选择，前者涵盖 Arc B370、Arc B390 等型号。&lt;/p&gt;&lt;p styl</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/112.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>胡峥楠谈小米澎程 N90 开发经历：第一次从内饰设计需求出发，再反过来确定外观设计硬点</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，小米汽车今日公布了&lt;a href=&quot;https://www.ithome.com/0/975/030.htm&quot; target=&quot;_blank&quot;&gt;小米澎程 N90 的座舱布局&lt;/a&gt;。小米集团副总裁、汽车部 CTO 胡峥楠随后转发该消息，并表示这台车可能是其职业生涯中很特殊的一次开发经历。&lt;/p&gt;&lt;blockquote&gt;&lt;p&gt;这是&lt;strong&gt;第一次&lt;/strong&gt;从内饰设计需求出发，再反过来确定外观设计硬点。&lt;/p&gt;&lt;p&gt;这是&lt;strong&gt;第一次&lt;/strong&gt;完全从场景和功能作为起始点，再来平衡设计师的想象力。&lt;/p&gt;&lt;p&gt;这是&lt;strong&gt;第一次&lt;/strong&gt;在一台车上，考虑这么多的机构设计、功能安全、预期功能安全的设计。&lt;/p&gt;&lt;/blockquote&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/61183c36-b9d7-4576-8cd0-843acd01609b.jpg?x-bce-proces</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/091.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>三星 Galaxy Tab S12+ 平板现身韩国认证，实拍图曝光</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，据科技媒体 Sammyguru 昨天报道，三星 Galaxy Tab S12+ 系列平板现已出现在韩国 Safety Korea 认证数据库，&lt;strong&gt;预计将在今年晚些时候发布&lt;/strong&gt;。&lt;/p&gt;&lt;p&gt;IT之家在此援引 Sammyguru，这款平板已在此前通过印度 BIS 认证，拥有 SM-X840 和 SM-X846B 两个型号，分别对应 Wi-Fi 版和 5G 蜂窝版。&lt;/p&gt;&lt;p&gt;与此同时，SM-X840 和 SM-X846N 两款型号的三星新机也出现在 Safety Korea 数据库中，前者是上文提到的 Wi-Fi 版 Galaxy Tab S12+，后者则是韩国市场的 5G 版本。&lt;/p&gt;&lt;p&gt;值得注意的是，&lt;strong&gt;韩国数据库中还附带了一张真机实拍照片&lt;/strong&gt;，显示该机将采用四边等宽的屏幕面板，前置摄像头位于横边边框中央，延续了三星近几年来一脉相承的设计。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/231.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>鸿蒙智行问界 M8、问界 M6 新车申报：升级 M9 同款辅助驾驶硬件配置</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，工信部发布第 409 批《道路机动车辆生产企业及产品公告》新产品公示，AITO 问界 M6 、 M8 系列新车完成申报。&lt;/p&gt;&lt;p&gt;问界旗下本次申报共有四款车型，包括&lt;strong&gt;问界 M6 增程版&lt;/strong&gt;、&lt;strong&gt;问界 M8 增程磷酸铁锂版&lt;/strong&gt;、&lt;strong&gt;问界 M8 增程三元锂版&lt;/strong&gt;和&lt;strong&gt;问界 M8 纯电版&lt;/strong&gt;。&lt;/p&gt;&lt;p&gt;从申报图可以看到，这一次申报的问界 M8 用上了最新的辅助驾驶硬件布局，也就是把侧面摄像头放在了 D 柱位置。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img alt=&quot;问界M6增程版左前视图&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/e2cca511-7546-450f-a3df-e32342db053f.jpg&quot; /&gt;&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img alt=&quot;问界M6增程版尾部&quot; src=&quot;https:</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/089.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>苹果 iPhone Ultra 阔折叠？消息称苹果供应商入网备案 4883mAh 电池</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，博主 @数码闲聊站 今日爆料，苹果电池供应商最近入网备案了两款新电池：&lt;br /&gt;1921mAh+2962mAh＝4883mAh (min)，至于是否为苹果 iPhone Ultra 阔折叠，还有待进一步确认。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/1c193389-9e20-4404-99a1-72160f1a48d6.png&quot; /&gt;&lt;/p&gt;&lt;p&gt;此前有消息称苹果首款折叠屏 iPhone 将于 7 月底启动量产。在近期因铰链问题一度传出延期消息的背景下，&lt;a href=&quot;https://www.ithome.com/0/968/020.htm&quot; target=&quot;_blank&quot;&gt;苹果仍准备按原计划于 9 月发布新机&lt;/a&gt;。同时，供应链消息称，苹果已经敲定折叠屏 iPhone 的显示屏、外壳和结构件等主要规格，&lt;strong&gt;产品也已进入量产准备阶段&lt;/strong&gt;。&lt;</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/197.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>铭匠 AF 17mm F1.8 Air APS-C 镜头尼康 Z 卡口版本开售，829 元</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，铭匠 AF 17mm F1.8 Air APS-C 镜头尼康 Z 卡口版本将于今天 17:00 开售，&lt;strong&gt;售价 829 元&lt;/strong&gt;。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/820e885d-34f4-48f1-b744-ce93872adeca.jpg?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p style=&quot;text-align: left;&quot;&gt;这款镜头等效全画幅 25.5mm，拥有约 81° 视角范围；采用 10 组 14 片光学结构，包含 2 片超低色散 ED 镜片和 3 片高折射镜片，最近对焦距离 0.18m；采用 STM + 导螺杆型步进马达，支持自动对焦。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.com/newsuploadfiles/2026/7</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/210.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>消息称 SK 海力士计划重启大连二厂扩建工程，将生产 238 层 NAND 闪存芯片</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，据韩媒 newstomato 消息，业界消息透露，SK 海力士近期将以向中国大连第二工厂引进设备为契机，正式推进全新生产线的投资与建设。&lt;/p&gt;&lt;p&gt;SK 海力士计划从今年下半年起搬入生产设备，并于明年上半年分阶段完成设施建设。目前，大连第一工厂已完成向 192 层 NAND 闪存产线的升级投资以及老化设备的更换工作。&lt;/p&gt;&lt;p&gt;报道称，在 SK 海力士所有的 NAND 闪存生产基地中，&lt;strong&gt;大连第二工厂被视为能最快实现产能扩充的地点&lt;/strong&gt;。该公司曾于 2022 年在大连举行开工仪式并正式宣布投资计划，但随后因 NAND 闪存行业遇冷，该投资计划实质上已被暂缓。&lt;/p&gt;&lt;p&gt;据悉，部分韩国本土供应商已着手将闲置的 NAND 闪存设备搬迁至大连，而海外设备制造商也已收到用于设备供应的初步采购订单。&lt;/p&gt;&lt;p&gt;SK 海力士方面向该媒体表示：“随着 AI 数据中心的普及，如同 DRAM 一样，&lt;strong&gt;NAND 闪存的需求也在迅速增长&lt;/strong&gt;。受此影响，&lt;strong&gt;大连第二工厂重启的可能性随之升高&lt;/stro</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/222.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>鸿蒙智行享界 V8 新车申报：提供纯电 / 增程版本，搭载华为电机</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，工信部发布第 409 批《道路机动车辆生产企业及产品公告》新产品公示，享界 V8 完成申报。&lt;/p&gt;&lt;p&gt;享界 V8 定位纯电动多用途乘用车 / 插电式增程混合动力多用途乘用车，提供&lt;strong&gt; 5 &lt;/strong&gt;种版本可选，均为&lt;strong&gt; 7 &lt;/strong&gt;座布局，车身轴距均为 3250 mm，长宽高根据版本区别在 5335 * 2005 * (1805 / 1825) mm 之间。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img alt=&quot;享界V8 左前视图&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/7fc5a016-eac7-4c5f-8bc3-9c491e8fccf0.jpg&quot; /&gt;&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img alt=&quot;享界V8 车尾&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/e5f799f7-c13f-4677-aa0</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/237.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>岚图梦想家 9 新车申报：提供纯电 / 插混版本，定位 50 万级旗舰 MPV</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，工信部发布第 409 批《道路机动车辆生产企业及产品公告》新产品公示，岚图梦想家 9 完成申报。&lt;/p&gt;&lt;p&gt;岚图汽车 CEO 卢放此前表示，&lt;a href=&quot;https://www.ithome.com/0/973/855.htm&quot; target=&quot;_blank&quot;&gt;岚图梦想家 9 定位“50 万级智尊旗舰 MPV”&lt;/a&gt;，要打破 50 万级豪华新能源市场的“SUV 惯性”，让 MPV 也有一席之地。&lt;/p&gt;&lt;p&gt;岚图梦想家 9 定位中大型 MPV，车身尺寸方面，车身长 5325 mm，宽 1998 mm，高 1823 / 1805 mm，轴距为 3200 mm，额定载客（含驾驶员）座位数为 7 座，采用承载式车身设计，最高车速 200 km/h。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img alt=&quot;岚图梦想家9插混版左前部&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/b05ced01-0a2c-4a40-885d-95bbda3b19b6.jpg&quot; </p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://wpconverters.com/playground/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Show HN: Drag boxes around and watch a layout engine infer the Flexbox (no AI)</h3>
+            <p>&lt;p&gt;Article URL: &lt;a href=&quot;https://wpconverters.com/playground/&quot;&gt;https://wpconverters.com/playground/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Comments URL: &lt;a href=&quot;https://news.ycombinator.com/item?id=48857637&quot;&gt;https://news.ycombinator.com/item?id=48857637&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Points: 1&lt;/p&gt;
+&lt;p&gt;# Comments: 0&lt;/p&gt;</p>
+            <div class="card-footer">
+                <span>HackerNews</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://asteroidbelt.ai/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Managed Claude, but for Any Harness</h3>
+            <p>&lt;p&gt;Article URL: &lt;a href=&quot;https://asteroidbelt.ai/&quot;&gt;https://asteroidbelt.ai/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Comments URL: &lt;a href=&quot;https://news.ycombinator.com/item?id=48857491&quot;&gt;https://news.ycombinator.com/item?id=48857491&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Points: 1&lt;/p&gt;
+&lt;p&gt;# Comments: 0&lt;/p&gt;</p>
+            <div class="card-footer">
+                <span>HackerNews</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/052.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>苹果首款折叠手机：白色版 iPhone Ultra 机模曝光</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，消息源 @theapplehub 今天（7 月 10 日）在 X 平台发布推文，&lt;strong&gt;分享了一段视频，展示了白色苹果首款折叠手机（上市后预估名为 iPhone Ultra）机模。&lt;/strong&gt;&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;a class=&quot;ithome_super_player&quot; contenteditable=&quot;false&quot; href=&quot;https://weibo.com/tv/show/1034:5319143159693352?mid=5319143362662246&quot; target=&quot;_blank&quot;&gt;&lt;img src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/64e32319-011b-47a0-ad35-ba8064cbc4cf.jpg&quot; /&gt;&lt;/a&gt;&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;a class=&quot;ithome_super_player&quot; contenteditable=&quot;false&quot; hr</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/068.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>英伟达 BW2026 展示《异环》《鸣潮》《明日方舟：终末地》限定款 RTX 5080 联名显卡</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，BilibiliWorld 2026（BW2026）今日在上海国家会展中心正式开幕，将持续至 7 月 12 日。&lt;/p&gt;&lt;p&gt;英伟达在此次 BW 展会中设立了 GeForce RTX 超级玩家体验站，现场展示了多款 GeForce 限定联名显卡。IT之家从官方获悉，英伟达此次展出的联名显卡覆盖了四款热门二次元游戏，具体包括：&lt;/p&gt;&lt;ul class=&quot; list-paddingleft-2&quot;&gt;&lt;li&gt;&lt;p&gt;《异环》角色“真红”与“伊洛伊”的两款联名显卡（分别由华硕与微星制作）；&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;《鸣潮》角色“爱弥斯”的两款联名显卡（分别由技嘉与七彩虹制作）；&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;《白银之城》角色“侦探”与“阿芙”的两款联名显卡（分别由万丽与映众制作）；&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;《明日方舟：终末地》角色“管理员”与“佩丽卡”的两款联名显卡（分别由影驰与耕升制作）。&lt;/p&gt;&lt;/li&gt;&lt;/ul&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.com/n</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/083.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>微信鸿蒙版 App 获 8.0.19.37 正式版更新、8.0.19.38 邀测更新</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，微信鸿蒙版 App 今日推送 8.0.19.37 正式版更新，以及 8.0.19.38 (8393510) 邀请测试更新，官方公告均为“修复了一些已知问题”。&lt;/p&gt;&lt;p&gt;截至IT之家发稿，微信鸿蒙版 App 安装次数接近 6500 万次。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/b644f335-eb5a-4376-a639-6da8a995f727.jpg&quot; /&gt;&lt;/p&gt;&lt;p style=&quot;text-align: justify;&quot;&gt;大家在&lt;a href=&quot;https://wxaurl.cn/tIhrCxgH5Kb&quot; target=&quot;_blank&quot; title=&quot;IT之家微信号&quot;&gt;IT之家微信号&lt;/a&gt;回复“&lt;span class=&quot;font-color-red&quot;&gt;微信&lt;/span&gt;”两字，即可获取当前最新官方内部版微信下载。&lt;/p&gt;&lt;p style=&quot;text-ali</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/212.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>带宽直逼 DDR6：MRDIMM 让 DDR5 服务器内存速率冲向 17600 MT/s</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，据 Wccftech 今日报道，JEDEC（固态技术协会）早于 2020 年代初引入的 MRDIMM 架构，正在成为解决当前及下一代数据中心内存带宽瓶颈的关键方案。&lt;/p&gt;&lt;p&gt;该技术由英特尔率先在其至强 6 产品线（代号 Granite Rapids）上采用，如今已获得 AMD 等主流厂商的跟进。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/1ac99c81-20cb-4f45-877c-68d23e890e43.jpg?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p&gt;MRDIMM 的核心思路是在不改变 DDR5 物理插槽的前提下，通过内置于模组的多路复用器（multiplexer）和数据缓冲器，将多个内存列（rank）的数据合并传输。简单来说，它让单个内存通道能同时访问更多数据，从而成倍提升有效带宽。第一代 MRDIMM 的传输速率已</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/075.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>惠普海外推 ZBook 8 G2i 16 笔记本：至高酷睿 Ultra X9 388H 处理器、RTX Pro 500 Blackwell 显卡</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，惠普现已在海外市场推出 ZBook 8 G2i 16 笔记本，新品搭载英特尔 Panther Lake 平台，&lt;strong&gt;可选配英伟达 RTX Pro 500 Blackwell 显卡&lt;/strong&gt;、&lt;strong&gt;64GB 内存&lt;/strong&gt;。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/5761e8b2-7596-4ecb-8824-d10ed843ba8d.jpg?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p&gt;据介绍，这款笔记本可以选配英特尔酷睿 Ultra 5 325、Ultra 7 355、Ultra 7 356H、Ultra 9 386H vPro 和 Ultra X9 388H vPro 等处理器，显卡则是可以在核显 / 独显之间选择，前者涵盖 Arc B370、Arc B390 等型号。&lt;/p&gt;&lt;p styl</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/210.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>消息称 SK 海力士计划重启大连二厂扩建工程，将生产 238 层 NAND 闪存芯片</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，据韩媒 newstomato 消息，业界消息透露，SK 海力士近期将以向中国大连第二工厂引进设备为契机，正式推进全新生产线的投资与建设。&lt;/p&gt;&lt;p&gt;SK 海力士计划从今年下半年起搬入生产设备，并于明年上半年分阶段完成设施建设。目前，大连第一工厂已完成向 192 层 NAND 闪存产线的升级投资以及老化设备的更换工作。&lt;/p&gt;&lt;p&gt;报道称，在 SK 海力士所有的 NAND 闪存生产基地中，&lt;strong&gt;大连第二工厂被视为能最快实现产能扩充的地点&lt;/strong&gt;。该公司曾于 2022 年在大连举行开工仪式并正式宣布投资计划，但随后因 NAND 闪存行业遇冷，该投资计划实质上已被暂缓。&lt;/p&gt;&lt;p&gt;据悉，部分韩国本土供应商已着手将闲置的 NAND 闪存设备搬迁至大连，而海外设备制造商也已收到用于设备供应的初步采购订单。&lt;/p&gt;&lt;p&gt;SK 海力士方面向该媒体表示：“随着 AI 数据中心的普及，如同 DRAM 一样，&lt;strong&gt;NAND 闪存的需求也在迅速增长&lt;/strong&gt;。受此影响，&lt;strong&gt;大连第二工厂重启的可能性随之升高&lt;/stro</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/091.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>三星 Galaxy Tab S12+ 平板现身韩国认证，实拍图曝光</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，据科技媒体 Sammyguru 昨天报道，三星 Galaxy Tab S12+ 系列平板现已出现在韩国 Safety Korea 认证数据库，&lt;strong&gt;预计将在今年晚些时候发布&lt;/strong&gt;。&lt;/p&gt;&lt;p&gt;IT之家在此援引 Sammyguru，这款平板已在此前通过印度 BIS 认证，拥有 SM-X840 和 SM-X846B 两个型号，分别对应 Wi-Fi 版和 5G 蜂窝版。&lt;/p&gt;&lt;p&gt;与此同时，SM-X840 和 SM-X846N 两款型号的三星新机也出现在 Safety Korea 数据库中，前者是上文提到的 Wi-Fi 版 Galaxy Tab S12+，后者则是韩国市场的 5G 版本。&lt;/p&gt;&lt;p&gt;值得注意的是，&lt;strong&gt;韩国数据库中还附带了一张真机实拍照片&lt;/strong&gt;，显示该机将采用四边等宽的屏幕面板，前置摄像头位于横边边框中央，延续了三星近几年来一脉相承的设计。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/092.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>《蓝色星原：旅谣》开启「旅迹测试」招募：支持 PC、华为鸿蒙、安卓、苹果 iOS 平台</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，蛮啾《蓝色星原：旅谣》今日正式开启「旅迹测试」公开招募, 支持 PC、华为鸿蒙、安卓、苹果 iOS 平台。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt; &lt;/p&gt;&lt;p&gt;本次测试为限量计费删档测试，玩家需填写公开招募问卷以获取测试资格。招募时间从今日 9:00 持续至 8 月 20 日 23:59。招募结束后，官方将通过站内信等方式通知获得资格的玩家。&lt;/p&gt;&lt;p&gt;以鸿蒙版为例，华为用户在应用商店中找到《蓝色星原：旅谣》的预约界面，按官方提示参与报名即可。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/c4981089-34ec-4420-9938-6718ab1773ea.jpg&quot; /&gt;&lt;/p&gt;&lt;p&gt;此次测试已开通实名认证，未成年玩家无法参与。官方提醒，测试招募信息一经提交无法修改，玩家需确保问卷填写内容准确无误。&lt;/p&gt;&lt;p&gt;通过 TapTap 获得资格</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/197.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>铭匠 AF 17mm F1.8 Air APS-C 镜头尼康 Z 卡口版本开售，829 元</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，铭匠 AF 17mm F1.8 Air APS-C 镜头尼康 Z 卡口版本将于今天 17:00 开售，&lt;strong&gt;售价 829 元&lt;/strong&gt;。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/820e885d-34f4-48f1-b744-ce93872adeca.jpg?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p style=&quot;text-align: left;&quot;&gt;这款镜头等效全画幅 25.5mm，拥有约 81° 视角范围；采用 10 组 14 片光学结构，包含 2 片超低色散 ED 镜片和 3 片高折射镜片，最近对焦距离 0.18m；采用 STM + 导螺杆型步进马达，支持自动对焦。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.com/newsuploadfiles/2026/7</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/237.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>岚图梦想家 9 新车申报：提供纯电 / 插混版本，定位 50 万级旗舰 MPV</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，工信部发布第 409 批《道路机动车辆生产企业及产品公告》新产品公示，岚图梦想家 9 完成申报。&lt;/p&gt;&lt;p&gt;岚图汽车 CEO 卢放此前表示，&lt;a href=&quot;https://www.ithome.com/0/973/855.htm&quot; target=&quot;_blank&quot;&gt;岚图梦想家 9 定位“50 万级智尊旗舰 MPV”&lt;/a&gt;，要打破 50 万级豪华新能源市场的“SUV 惯性”，让 MPV 也有一席之地。&lt;/p&gt;&lt;p&gt;岚图梦想家 9 定位中大型 MPV，车身尺寸方面，车身长 5325 mm，宽 1998 mm，高 1823 / 1805 mm，轴距为 3200 mm，额定载客（含驾驶员）座位数为 7 座，采用承载式车身设计，最高车速 200 km/h。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img alt=&quot;岚图梦想家9插混版左前部&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/b05ced01-0a2c-4a40-885d-95bbda3b19b6.jpg&quot; </p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://news.ycombinator.com/item?id=48857085" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Ask HN: Do we need a support group for developers alienated by LLMs?</h3>
+            <p>&lt;p&gt;Surely I must not be the only one developer that doesn't recognize this field any more, and would rather do anything else than become a glorified code reviewer for machine generated code.&lt;p&gt;Seeing my career crumble in front of my eyes, seeing my identity as software engineer questioned in the span of a few years has been, to me, traumatic, and utterly alienating because non-tech people are not unaware of how world-shattering this technology is to our niche, and many of our fellow peers either</p>
+            <div class="card-footer">
+                <span>HackerNews</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://github.com/video-db/open-record-replay" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Record and Replay, teach AI agents desktop workflows by showing them once</h3>
+            <p>&lt;p&gt;Article URL: &lt;a href=&quot;https://github.com/video-db/open-record-replay&quot;&gt;https://github.com/video-db/open-record-replay&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Comments URL: &lt;a href=&quot;https://news.ycombinator.com/item?id=48857109&quot;&gt;https://news.ycombinator.com/item?id=48857109&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Points: 1&lt;/p&gt;
+&lt;p&gt;# Comments: 0&lt;/p&gt;</p>
+            <div class="card-footer">
+                <span>GitHub</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://blog.knravish.me/thoughts-ai-reality-brain/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Ramblings on technological pursuits of AI systems</h3>
+            <p>&lt;p&gt;Article URL: &lt;a href=&quot;https://blog.knravish.me/thoughts-ai-reality-brain/&quot;&gt;https://blog.knravish.me/thoughts-ai-reality-brain/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Comments URL: &lt;a href=&quot;https://news.ycombinator.com/item?id=48857325&quot;&gt;https://news.ycombinator.com/item?id=48857325&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Points: 1&lt;/p&gt;
+&lt;p&gt;# Comments: 0&lt;/p&gt;</p>
+            <div class="card-footer">
+                <span>HackerNews</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://deepswe.datacurve.ai/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>DeepSWE Benchmark Results for GPT 5.6</h3>
+            <p>&lt;p&gt;Article URL: &lt;a href=&quot;https://deepswe.datacurve.ai/&quot;&gt;https://deepswe.datacurve.ai/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Comments URL: &lt;a href=&quot;https://news.ycombinator.com/item?id=48857375&quot;&gt;https://news.ycombinator.com/item?id=48857375&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Points: 1&lt;/p&gt;
+&lt;p&gt;# Comments: 0&lt;/p&gt;</p>
+            <div class="card-footer">
+                <span>HackerNews</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/974/993.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>《部落冲突》开发商 Supercell 推出开发者资助计划，为非洲工作室提供至高 20 万美元无股权支持</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，《部落冲突》开发商 Supercell 本周（7 月 6 日）宣布推出开发者资助计划，&lt;strong&gt;将向非洲游戏开发工作室提供 2 万美元-20 万美元（IT之家注：现汇率约合 13.6 万元- 136 万元人民币）的无股权资助&lt;/strong&gt;，帮助他们打造出优秀的本土游戏。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/88925b26-89dc-47d8-9c47-dc966de9ea31.png?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p&gt;Supercell 表示，本次计划将面向依法注册的非洲本土工作室，&lt;strong&gt;所有资助均为非稀释性融资&lt;/strong&gt;，&lt;strong&gt;意味着 Supercell 不会获得工作室或游戏的任何股权或所有权&lt;/strong&gt;。&lt;/p&gt;&lt;p&gt;同时，本次计划的评估标准将围绕团队、愿景、社群、影</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/030.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>雷军再曝小米澎程 N90 座舱：车里就有咖啡馆、会客厅、工作室、全家福</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，这几天，小米汽车对全新“澎程”系列的首款车型 —— 澎程 N90 展开了密集预热，而在今天（10 日）下午，小米创办人、董事长兼 CEO 雷军在微博上公布了 N90 的座舱布局。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/efdd7a4f-2442-4b31-b4a3-4e056c7e46b7.jpg?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p&gt;相比于&lt;a href=&quot;https://www.ithome.com/0/974/465.htm&quot; target=&quot;_blank&quot;&gt;上次的“户型图”&lt;/a&gt;，这次则是展现了更具体的部分用车场景和内饰设计。出镜车辆采用了浅棕色内饰，第二排的独立座椅配有扶手和腿托，前排座椅支持 360° 旋转。&lt;/p&gt;&lt;p&gt;新车座舱采用七座布局，配有一块悬浮式中控屏，中央扶手上则是提供了 4 个杯架，结合&lt;a </p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/029.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>苹果 App Store Connect 年龄分级问卷更新社交媒体问题，开发者 9 月起必须填写</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，苹果公司昨天宣布，为配合 iOS 27/iPadOS 27 和 macOS 27 系统全新家长控制功能上线，App Store Connect 的年龄分级问卷现已新增社交媒体功能问题。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/43e5a145-e14d-42d5-b7a7-678ef6bd4b0a.png&quot; /&gt;&lt;/p&gt;&lt;p&gt;苹果表示，此处的“社交媒体功能”，指的是 App 能够通过“社交动态”或类似形式发现新内容，或者是可以对 UGC（IT之家注：用户生成内容）进行重新分享、传播或互动。&lt;/p&gt;&lt;p&gt;据悉，iOS 27 系统的全新家长控制功能包含“时间限额”，允许家长根据娱乐、游戏和社交媒体等类别，管控儿童的应用使用时间。&lt;/p&gt;&lt;p&gt;如果开发者在问卷中注明应用具备社交媒体功能，但默认对 13 岁以下用户关闭，那么这款应用将不会被归类到“时间限额”的社交媒体类别。&lt;/p&gt;&lt;p&gt;反之，所有具备社交媒体功能、且没</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/197.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>铭匠 AF 17mm F1.8 Air APS-C 镜头尼康 Z 卡口版本开售，829 元</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，铭匠 AF 17mm F1.8 Air APS-C 镜头尼康 Z 卡口版本将于今天 17:00 开售，&lt;strong&gt;售价 829 元&lt;/strong&gt;。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/820e885d-34f4-48f1-b744-ce93872adeca.jpg?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p style=&quot;text-align: left;&quot;&gt;这款镜头等效全画幅 25.5mm，拥有约 81° 视角范围；采用 10 组 14 片光学结构，包含 2 片超低色散 ED 镜片和 3 片高折射镜片，最近对焦距离 0.18m；采用 STM + 导螺杆型步进马达，支持自动对焦。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.com/newsuploadfiles/2026/7</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/092.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>《蓝色星原：旅谣》开启「旅迹测试」招募：支持 PC、华为鸿蒙、安卓、苹果 iOS 平台</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，蛮啾《蓝色星原：旅谣》今日正式开启「旅迹测试」公开招募, 支持 PC、华为鸿蒙、安卓、苹果 iOS 平台。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt; &lt;/p&gt;&lt;p&gt;本次测试为限量计费删档测试，玩家需填写公开招募问卷以获取测试资格。招募时间从今日 9:00 持续至 8 月 20 日 23:59。招募结束后，官方将通过站内信等方式通知获得资格的玩家。&lt;/p&gt;&lt;p&gt;以鸿蒙版为例，华为用户在应用商店中找到《蓝色星原：旅谣》的预约界面，按官方提示参与报名即可。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/c4981089-34ec-4420-9938-6718ab1773ea.jpg&quot; /&gt;&lt;/p&gt;&lt;p&gt;此次测试已开通实名认证，未成年玩家无法参与。官方提醒，测试招募信息一经提交无法修改，玩家需确保问卷填写内容准确无误。&lt;/p&gt;&lt;p&gt;通过 TapTap 获得资格</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/032.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>HMD Arc 2 手机发布：6.52 寸 720P LCD 水滴屏、紫光展锐 T603 芯片，2290 泰铢</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，HMD Global 昨天在泰国推出 Arc 2 智能手机。新机定位入门，提供符合欧洲标准的安全保障，定价 2290 泰铢（现汇率约合 466.3 元人民币）起。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/62888286-6706-4e48-9784-457bb9694389.png?x-bce-process=image/format,f_auto&quot; /&gt;&lt;/p&gt;&lt;p&gt;据介绍，&lt;strong&gt;这款手机配备一块 6.52 英寸的 LCD 水滴屏&lt;/strong&gt;，分辨率为 720P（HD+），刷新率 60Hz。搭载紫光展锐 T603 处理器，采用 12nm 制程工艺，包含 2 颗 1.8GHz A75 核心及 6 颗 1.6GHz A55 核心，支持 4G LTE 网络。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-al</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/036.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>OPPO 法务部：一网民恶意造谣并散布一加 Ace 3 产品质量相关不实信息，被警方行政处罚</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，OPPO 法务部今日发布关于高某恶意造谣一加 Ace 3 被警方行政处罚的信息通报。&lt;/p&gt;&lt;blockquote&gt;&lt;p style=&quot;text-align: center;&quot;&gt;关于高某恶意造谣一加 Ace 3 被警方行政处罚的信息通报&lt;/p&gt;&lt;p&gt;近期，开封一网民高某多次在抖音、快手、微博等平台&lt;strong&gt;恶意造谣并散布我司一加 Ace 3 产品质量相关的不实信息，误导公众并严重损害我司品牌声誉&lt;/strong&gt;。&lt;/p&gt;&lt;p&gt;我司第一时间向公安机关报案，经警方调查，高某行为违反治安管理处罚法第二十九条第（一）项之规定 —— 故意散布谣言扰乱公共秩序，&lt;strong&gt;已被依法作出行政拘留和罚款&lt;/strong&gt;。&lt;/p&gt;&lt;p&gt;网络空间绝非法外之地，相关言论也不能逾越法律红线，我们将继续依法保护自身合法权益。&lt;/p&gt;&lt;p&gt;感谢公安机关的秉公执法，感谢大家一直以来对一加品牌和产品的关注和支持。&lt;/p&gt;&lt;/blockquote&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img src=&quot;https://img.ithome.c</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/048.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>消息称华为 MateBook Fold 折叠 PC 新品下半年登场，麒麟 X9 系芯片</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，博主 @数码闲聊站 今日爆料，华为下半年重量级新品很多，旗舰新机 / 新平板 / 新电脑等等，MateBook Fold 也要更新。&lt;/p&gt;&lt;p&gt;据其爆料，华为 MateBook Fold 新品目前配色有流光金 / 天际白 / 幻影黑，内存有 &lt;span class=&quot;link-text-start-with-http&quot;&gt;24GB+512GB/24GB+1TB/32GB+2TB&lt;/span&gt;，&lt;strong&gt;估计有降本策略&lt;/strong&gt;，搭载 OLED 可折叠超大屏，麒麟 X9 系芯片，也是目前没有竞品的折叠 PC。&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;&lt;img class=&quot;no-alt-img&quot; src=&quot;https://img.ithome.com/newsuploadfiles/2026/7/3a7ea3c7-e5ca-4180-860c-92b1d943fd88.png&quot; /&gt;&lt;/p&gt;&lt;p&gt;IT之家注意到，华为 ‏‏MateBook Fold 非凡大师发布于 2025 年 5 月，&lt;strong&gt;是全球</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.ithome.com/0/975/119.htm" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / IT</span>
+            </div>
+            <h3>2026 年 APEC 数字和人工智能部长会议 7 月 23 日成都举行，我国时隔 12 年第三次担任 APEC 东道主</h3>
+            <p>&lt;p&gt;IT之家 7 月 10 日消息，今日，工业和信息化部举行“亚太经合组织（APEC）2026 年数字和人工智能部长会议及数字周相关活动新闻通气会”。&lt;/p&gt;&lt;p&gt;据介绍，今年是中国继 2001、2014 年之后，&lt;strong&gt;时隔 12 年第三次担任 APEC 东道主&lt;/strong&gt;，全年将举行 11 场专业领域部长级会议及系列活动。&lt;span class=&quot;wx_text_underline&quot;&gt;工业和信息化部在外交部的指导下，将于 7 月 16 日至 24 日在四川成都举办数字和人工智能部长会议及数字周相关活动，这是促进亚太地区数字和人工智能领域交流合作的重要平台。&lt;/span&gt;&lt;/p&gt;&lt;p&gt;IT之家注意到，本次数字和人工智能部长会议是&lt;strong&gt;中国继 2002 年时隔 24 年之后再次主办电信部长会议&lt;/strong&gt;。电信部长会议是 APEC 框架下统筹亚太区域电信、信息通信技术和数字领域的政策协同与务实合作的最高级别部长对话机制。近年来，从电信技术到信息通信技术，再到数字技术，新技术发展日新月异，各经济体积极拥抱包括人工智能在内的数字技术，自去年起电信部长会议聚焦</p>
+            <div class="card-footer">
+                <span>IT之家</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/newsflashes/3889575611628296?f=rss" target="_blank" rel="noopener" class="card" style="border-left:3px solid #7c6aff">
+            <div class="card-header">
+                <span class="tag" style="background:#7c6aff20;color:#7c6aff">独立开发 / 创业</span>
+            </div>
+            <h3>三六零：预计上半年净利润1.8亿元-2.6亿元，同比扭亏为盈</h3>
+            <p>36氪获悉，三六零公告，预计2026年半年度归属于母公司所有者的净利润为1.8亿元-2.6亿元，上年同期亏损2.82亿元，同比扭亏为盈。报告期内，公司业绩预盈的主要原因如下：一是公司持续迭代全线互联网产品，通过功能升级与精细化运营，不断提升用户体验，驱动互联网产品业务营收增长，毛利水平同步提升；二是公司主动调整产品推广策略，优化资源配置，市场推广费用同比下降。</p>
+            <div class="card-footer">
+                <span>36氪</span>
+                <span style="color:#7c6aff">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/newsflashes/3889585234213639?f=rss" target="_blank" rel="noopener" class="card" style="border-left:3px solid #7c6aff">
+            <div class="card-header">
+                <span class="tag" style="background:#7c6aff20;color:#7c6aff">独立开发 / 创业</span>
+            </div>
+            <h3>“绒音科技”完成近千万元天使轮融资</h3>
+            <p>36氪获悉，近日，上海绒音科技宣布完成近千万元天使轮融资，领投方为得彼投资，浦东创投、上海天使会跟投。本轮资金将重点投入内容生态搭建与市场推广，全面推进首款产品百问兔兔AI放大镜的市场化进程。</p>
+            <div class="card-footer">
+                <span>36氪</span>
+                <span style="color:#7c6aff">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889282134670209" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>俄Sber发布开源GigaChat 3.5 Ultra，谈AI研发思考</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889270647634694" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>从 0 到高手10 大技巧，将 ChatGPT Work用到极致，普通人也能掌握</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3888554227546757" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Grok 4.5删了Claude的作业，然后跟它道了个歉。</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3888554227546757" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Grok 4.5和Claude 4.8，在我电脑里“打”起来了</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889226689706632" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>让人“成瘾”的AI伴侣，一场史无前例的人类情感试验</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889351414069896" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>阿里、字节收缩，腾讯进击，AI应用生成赛道走向分化</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889531105295106" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>AI从回答变交付，Codex推进真实工作</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889376163576451" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Anthropic把大模型的生意跑通了</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889422975187720" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>一场关于AI时代入口定义权的争夺战，正在操作系统层面悄然打响。</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889422975187720" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>AI操作系统密集登场，终端厂商竞逐下一代入口</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889369559202565" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>阿里成为 AI 公司的最后一公里</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889553810504194" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>小扎“消失”三年后发帖，只为它：Meta最强Agent模型进军编程</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://www.caixin.com/2026-07-09/102462503.html" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>证监会同意燧原科技科创板IPO注册申请 半导体板块表现强劲</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>财新网</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/stock/usstock/c/2026-07-10/doc-inihhzry7144353.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>美联储主席沃什敲定央行改革顾问团队人选 前英国央行行长等知名人士在列</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/jjxw/2026-07-10/doc-inihhkup5150431.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>未冠名FOF 实则FOF策略 藏在银行理财中的“基金买手”</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/jjxw/2026-07-09/doc-inihcvfk8277782.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>分红险演示利率上限调整落地 险企投资能力成“胜负手”</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/money/bank/bank_hydt/2026-07-10/doc-inihfyeq4139584.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>从“市场参与者”向“基础设施提供者”升级 商业银行扩大离岸人民币债券基准“版图”</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/money/bank/bank_hydt/2026-07-10/doc-inihhkup5181497.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>多家银行美元定存年化利率突破3%</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/jjxw/2026-07-10/doc-inihhzsf5197984.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>民营银行也分红，微众等已连续两年派现，留存利润补充资本仍是主流</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/money/fund/jjzl/2026-07-09/doc-inihefvk4547494.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>6月基金月报| 科技板块领跑股市，公募基金多数收涨</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/stock/observe/2026-07-09/doc-inihench4479712.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>从研究员到副总经理，清华博士张丹华升任嘉实基金副总经理</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/jjxw/2026-07-10/doc-inihfyen7337220.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>首批基金二季报登场 重仓“芯光”业绩亮眼</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/jjxw/2026-07-10/doc-inihhkup5219876.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>冠军LOF基金周五再次全天停牌：6月来39次停牌，场内溢价仍超31%</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/roll/2026-07-10/doc-inihhvki5257625.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>狂赚143%后大调仓！上半年普通股票型基金季军二季报出炉，最新持仓曝光</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/wm/2026-07-10/doc-inihhkup5135785.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>港股科技主题ETF，迎资金回流</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/stock/usstock/c/2026-07-10/doc-inihhrae7238045.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>摩根大通和花旗银行家据悉将加入香港交易所上市委员会</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/stock/usstock/c/2026-07-10/doc-inihhzsc8355876.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>贝索斯前妻斯科特再捐2000万美元，助力支持美国青少年心理健康</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/jjxw/2026-07-10/doc-inihhkuk3979292.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>投资培育上市公司达300家 深创投：推动资本和产业深度融合</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/making-of-claude-code/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Anthropic首次公开Claude Code内幕：Boris Cherny两天写的Demo，如今为他写下100%代码</h3>
+            <p>16位亲历者口述：从死磕diff到两周冲刺发布，到工程师不再手写一行代码</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/cloudflare-monetization-gateway/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Cloudflare 发布自动收费网关：AI 想爬取你的网页、API，能自动给你付钱</h3>
+            <p>从只对 AI 爬虫收费扩展到向任意调用者收费，现处早期候补阶段</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/harness-engineering-rsi/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>AI 自我进化，先改模型外面的外壳：Lilian Weng 讲透 harness 工程</h3>
+            <p>前 OpenAI 安全负责人梳理近 30 篇研究：从改提示词到自己改代码，DGM 把编程能力从 20% 推到 50%。</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/deeptutor-open-source-tutor/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>港大 HKUDS 开源 AI 家教 DeepTutor，111 天破 2 万星</h3>
+            <p>论文实测个性化提升10.8%、推理能力提升29.4%，Apache 2.0 完全开源</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/claude-code-model-effort/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Claude Code 团队教你如何用好这两个旋钮：一个管它「会不会」，一个管它「愿不愿做够」</h3>
+            <p>ClaudeDevs 长文拆开两个都像「让答案更好」的旋钮：换模型是换哪一套冻结权重，调 effort 是改它愿不愿多读文件、多跑测试、多验证再交卷</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://best.xiaohu.ai/article/google-sensorfm-wearable/" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Google Research 发布 SensorFM：训练自一万亿分钟穿戴数据，35 项健康任务赢 33 项</h3>
+            <p>500 万人、20 亿小时可穿戴数据预训练，冻结编码器接一个线性头就在 34/35 个健康任务上超过监督学习基线。</p>
+            <div class="card-footer">
+                <span>小互AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889198226995971" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>Meta AI 变得有些陌生了</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889151857736581" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>顶级开源作者终于把社区信任卖出了价格，但 AI 编程工具正在把开发者入口从框架层搬到更上游。</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://36kr.com/p/3889304775441028" target="_blank" rel="noopener" class="card" style="border-left:3px solid #00bcd4">
+            <div class="card-header">
+                <span class="tag" style="background:#00bcd420;color:#00bcd4">科技 / AI</span>
+            </div>
+            <h3>同一天，Claude推出今年最实用功能</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>36氪AI</span>
+                <span style="color:#00bcd4">查看原文 &rarr;</span>
+            </div>
+        </a>
+        <a href="https://finance.sina.com.cn/money/forex/hbfx/2026-07-10/doc-inihhzsc8366568.shtml" target="_blank" rel="noopener" class="card" style="border-left:3px solid #f0c929">
+            <div class="card-header">
+                <span class="tag" style="background:#f0c92920;color:#f0c929">金融 / 投资</span>
+            </div>
+            <h3>美伊缓和迹象削弱避险需求，美元指数冲高回落</h3>
+            <p></p>
+            <div class="card-footer">
+                <span>新浪财经</span>
+                <span style="color:#f0c929">查看原文 &rarr;</span>
+            </div>
+        </a></div>
+
+    <div class="footer">
+        热点地图 &middot; 数据来源: aihot.virxact.com / AVD / THN / 新浪财经 / Hacker News<br>
+        导出时间: 2026-07-10 09:56:12 UTC
+    </div>
+</div>
+</body>
+</html>

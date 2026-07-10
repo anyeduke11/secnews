@@ -1,0 +1,24 @@
+{
+  "started_at": "2026-07-05T02:02:15.510355+00:00",
+  "finished_at": "2026-07-05T02:22:15.260403+00:00",
+  "duration_hours": 0.3333,
+  "config": {
+    "soak_hours": 0.333,
+    "interval_min": 1.0,
+    "base_url": "http://127.0.0.1:8088"
+  },
+  "frontend_samples": 160,
+  "frontend_success": 160,
+  "frontend_success_rate": 1.0,
+  "frontend_latency_ms": {
+    "avg": 22.0,
+    "p95": 40.7,
+    "p99": 47.7,
+    "max": 47.9
+  },
+  "memory_growth_mb": 3.67,
+  "db_growth_mb": 0.0,
+  "final_cache_hit_rate": 0.0,
+  "final_db_size_mb": 0.0,
+  "backend_returncode": 1
+}

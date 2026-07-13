@@ -6,6 +6,9 @@ interface SyncPageProps {
   onBack: () => void;
 }
 
+// Phase 49: master_key 客户端缓存 (sessionStorage, 关页即清, 不持久化到 disk)
+const MASTER_KEY_CACHE_KEY = 'hotspot.sync.master_key';
+
 function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
   return (
     <svg
@@ -84,6 +87,15 @@ export function SyncPage({ onBack }: SyncPageProps) {
       status?.status.webdav_username, status?.status.remote_path,
       status?.status.auto_sync_enabled]);
 
+  // Phase 49: 启动时从 sessionStorage 恢复 master_key, 配置就绪时自动填入同步框
+  useEffect(() => {
+    if (!status?.status.configured) return;
+    const cached = window.sessionStorage.getItem(MASTER_KEY_CACHE_KEY);
+    if (cached && cached.length >= 8 && !masterKeyForSync) {
+      setMasterKeyForSync(cached);
+    }
+  }, [status?.status.configured]); // 仅在配置就绪时尝试一次
+
   const configured = status?.status.configured === true;
 
   const fetchConflicts = async () => {
@@ -149,6 +161,10 @@ export function SyncPage({ onBack }: SyncPageProps) {
         payload.webdav_password = form.webdav_password;
       }
       await upsertConfig(payload as Parameters<typeof upsertConfig>[0]);
+      // Phase 49: 保存后写 master_key 到 sessionStorage, 后续同步免重复输入
+      if (form.master_key && form.master_key.length >= 8) {
+        window.sessionStorage.setItem(MASTER_KEY_CACHE_KEY, form.master_key);
+      }
       setForm(f => ({ ...f, webdav_password: '', master_key: '' }));
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
@@ -175,10 +191,13 @@ export function SyncPage({ onBack }: SyncPageProps) {
     }
     setSyncing(direction);
     setActionError(null);
+    // Phase 49: 同步成功后再回写 (避免错误密码污染缓存)
     try {
       if (direction === 'push') await push(masterKeyForSync);
       else if (direction === 'pull') await pull(masterKeyForSync);
       else await bidirectional(masterKeyForSync);
+      // 同步成功后写 sessionStorage, 下次无需重输
+      window.sessionStorage.setItem(MASTER_KEY_CACHE_KEY, masterKeyForSync);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -378,11 +397,12 @@ export function SyncPage({ onBack }: SyncPageProps) {
             </div>
           </label>
           <label className="flex flex-col gap-1">
-            <span style={{ color: 'var(--text-muted)' }}>远端路径</span>
+            <span style={{ color: 'var(--text-muted)' }}>远端目录 (配置文件-YYYY-MM-DD.zip)</span>
             <input
               type="text"
               value={form.remote_path}
               onChange={e => setForm(f => ({ ...f, remote_path: e.target.value }))}
+              placeholder="/hotspot/config.json"
               className="px-2 py-1.5 rounded"
               style={{
                 background: 'var(--surface-2)',
@@ -390,6 +410,15 @@ export function SyncPage({ onBack }: SyncPageProps) {
                 border: '1px solid var(--border-subtle)',
               }}
             />
+            {status?.status?.effective_remote_path && (
+              <span
+                className="text-[10px] mt-0.5 font-mono break-all"
+                style={{ color: 'var(--text-muted)' }}
+                title="每次同步将覆盖写入此 zip 路径"
+              >
+                实际: {status.status.effective_remote_path}
+              </span>
+            )}
           </label>
           <label className="flex items-center gap-2 mt-5">
             <input

@@ -279,7 +279,8 @@ class WebDAVClient:
     async def upload(self, path: str, data: bytes,
                      *, content_type: str = "application/octet-stream",
                      ensure_parents: bool = True,
-                     retry_on_ancestors_not_found: bool = True) -> int:
+                     retry_on_ancestors_not_found: bool = True,
+                     max_attempts: int = 4) -> int:
         """上传数据 (PUT)。返回 HTTP status_code。
 
         ``ensure_parents=True`` 时先递归 MKCOL 所有父目录 (推荐)。
@@ -287,21 +288,27 @@ class WebDAVClient:
 
         ``retry_on_ancestors_not_found=True`` 时, 若 PUT 返回 409 且 body 含
         ``AncestorsNotFound`` (坚果云 quirk: MKCOL 异步落库导致 PUT 撞祖先不存在),
-        自动 sleep + 再 ensure_parents + 再 PUT 一次。
+        自动指数退避 sleep + 再 ensure_parents(force_mkcol) + 再 PUT。
+
+        ``max_attempts`` (默认 4): 最大尝试次数。坚果云 quirk 严重时可能需要
+        3-5 次才能成功, 2 次不够 (Phase 49 改进)。
         """
         if not isinstance(data, (bytes, bytearray)):
             raise WebDAVError("data 必须为 bytes")
+        if max_attempts < 1:
+            raise WebDAVError("max_attempts 必须 >= 1")
 
         path_for_log = self._log_path(path)
         last_err: Optional[httpx.Response] = None
-        # 第一次 + (可选) 一次重试
-        for attempt in (1, 2):
-            # 注意: ensure_parent_dirs 必须用原始 path 计算父目录链, 不能先
-            # _log_path (会加 base_url 前缀, 父目录链就错位了)
+        for attempt in range(1, max_attempts + 1):
+            # ensure_parents 必须用原始 path 计算父目录链, 不能先 _log_path
             if ensure_parents:
                 # retry 时 force_mkcol=True: 强制重做 MKCOL (HEAD 409 不可信)
-                await self.ensure_parent_dirs(path, force_mkcol=(attempt == 2))
-            logger.info("WebDAV upload: %s (%d bytes, attempt %d)", path_for_log, len(data), attempt)
+                await self.ensure_parent_dirs(path, force_mkcol=(attempt > 1))
+            logger.info(
+                "WebDAV upload: %s (%d bytes, attempt %d/%d)",
+                path_for_log, len(data), attempt, max_attempts,
+            )
             resp = await self._request(
                 "PUT", path,
                 content=bytes(data),
@@ -312,36 +319,31 @@ class WebDAVClient:
             if resp.status_code in (401, 403):
                 raise WebDAVAuthError(f"认证失败 ({resp.status_code})",
                                       status_code=resp.status_code)
-            # 409 + AncestorsNotFound → 坚果云 quirk, 自动重试
+            # 409 + AncestorsNotFound → 坚果云 quirk, 指数退避后重试
             is_ancestors_not_found = (
                 resp.status_code == 409
                 and b"AncestorsNotFound" in (resp.content or b"")
             )
-            if is_ancestors_not_found and retry_on_ancestors_not_found and attempt == 1:
+            if is_ancestors_not_found and retry_on_ancestors_not_found and attempt < max_attempts:
+                # 指数退避: 0.5s, 1.0s, 1.5s, 2.0s ...
+                sleep_s = 0.5 * attempt
                 logger.warning(
-                    "PUT 409 AncestorsNotFound, sleep + 重试: %s", path_for_log,
+                    "PUT 409 AncestorsNotFound, sleep %.1fs + 重试: %s (attempt %d/%d)",
+                    sleep_s, path_for_log, attempt, max_attempts,
                 )
                 last_err = resp
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(sleep_s)
                 continue
-            # 第二次仍 AncestorsNotFound: 标 last_err 后直接抛, 错误信息加 "重试后"
-            if is_ancestors_not_found and retry_on_ancestors_not_found and attempt == 2:
-                last_err = resp
-                raise WebDAVError(
-                    f"PUT 失败 (重试后): {resp.status_code} "
-                    f"{resp.reason_phrase}: {_body_hint(resp)}",
-                    status_code=resp.status_code, reason=resp.reason_phrase,
-                )
-            # 其他错误直接抛 (含 body 摘要)
+            # 最后一次仍失败, 抛错
+            suffix = " (重试后)" if (is_ancestors_not_found and attempt > 1) else ""
             raise WebDAVError(
-                f"PUT 失败: {resp.status_code} {resp.reason_phrase}: {_body_hint(resp)}",
+                f"PUT 失败{suffix}: {resp.status_code} "
+                f"{resp.reason_phrase}: {_body_hint(resp)}",
                 status_code=resp.status_code, reason=resp.reason_phrase,
             )
-        # 重试后仍 409
+        # 防御性 fallthrough (理论不会到)
         raise WebDAVError(
-            f"PUT 失败 (重试后): {last_err.status_code} "
-            f"{last_err.reason_phrase if last_err else ''}: "
-            f"{_body_hint(last_err) if last_err else '<no resp>'}",
+            f"PUT 失败 (重试后): {last_err.status_code if last_err else '?'}",
             status_code=last_err.status_code if last_err else None,
             reason=last_err.reason_phrase if last_err else None,
         )

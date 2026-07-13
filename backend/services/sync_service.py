@@ -69,6 +69,11 @@ from backend.repository.sync_history_repo import SyncHistoryRepository
 from backend.repository.sync_states_repo import SyncStateRepository
 from backend.repository.todo_repo import TodoRepository
 from backend.services.webdav_client import WebDAVAuthError, WebDAVClient, WebDAVError
+from backend.services.sync_zip import (
+    build_sync_zip,
+    extract_sync_zip,
+    make_zip_remote_path,
+)
 
 # ---------------------------------------------------------------------------
 # 常量
@@ -693,7 +698,11 @@ class SyncService:
     # 同步入口
     # ------------------------------------------------------------------
     async def push(self, *, master_key: str) -> dict:
-        """build → encrypt → WebDAV PUT → 写 history → update last_sync。"""
+        """build → encrypt → WebDAV PUT (zip 容器) → 写 history → update last_sync。
+
+        Phase 49: 每次同步打成 ``配置文件-YYYY-MM-DD.zip``(覆盖式),
+        内含 envelope.json (Fernet 密文) + manifest.json (同步元数据)。
+        """
         cfg_repo = SyncConfigRepository()
         cfg = cfg_repo.get_default()
         if cfg is None or not cfg.webdav_url or not cfg.webdav_username:
@@ -714,19 +723,37 @@ class SyncService:
         client = WebDAVClient(
             cfg.webdav_url, cfg.webdav_username, webdav_pwd
         )
-        # 先建父目录
-        parent = "/".join(cfg.remote_path.rsplit("/", 1)[:-1]) or "/"
-        try:
-            await client.mkdir(parent)
-        except WebDAVError:
-            # 父目录已存在时部分 server 会返回 405; 不抛
-            pass
 
         bundle = self.build_bundle(device_id=cfg.device_id)
-        encrypted = self.encrypt_bundle(bundle, master_key)
+        envelope_bytes = self.encrypt_bundle(bundle, master_key)
+        records_count = sum(
+            len(bundle["records"].get(t, []))
+            for t in ("favorites", "todos", "skills", "custom_sources", "secrets")
+        )
+        # Phase 49: 打包成 zip 容器 (同覆盖: 配置文件-YYYY-MM-DD.zip)
+        # 复用 envelope.encryption 字段描述算法 (供 manifest 明文展示)
+        # 解析 envelope 抽取 encryption 段
+        try:
+            envelope_obj = json.loads(envelope_bytes.decode("utf-8"))
+            encryption = envelope_obj.get("encryption", {})
+        except Exception:
+            encryption = {}
+        zip_bytes = build_sync_zip(
+            envelope_bytes=envelope_bytes,
+            device_id=bundle.get("device_id", ""),
+            merged_at=bundle.get("merged_at", ""),
+            direction="push",
+            records_count=records_count,
+            conflict_count=0,
+            encryption=encryption,
+        )
+        # 远程路径: 自动生成覆盖式 zip 名 (不依赖 cfg.remote_path 后缀)
+        # 兼容旧 cfg: 保留目录部分, 替换文件名为 zip
+        base_dir = "/".join(cfg.remote_path.rsplit("/", 1)[:-1]) or "/hotspot"
+        remote_path = make_zip_remote_path(base_dir)
         try:
             status = await client.upload(
-                cfg.remote_path, encrypted, content_type="application/json"
+                remote_path, zip_bytes, content_type="application/zip",
             )
         except WebDAVAuthError as e:
             history.write(
@@ -754,10 +781,6 @@ class SyncService:
         # 写 sync_states (用作下次 3-way merge 的 base)
         SyncStateRepository().upsert(cfg.id, json.dumps(bundle, ensure_ascii=False))
 
-        records_count = sum(
-            len(bundle["records"].get(t, []))
-            for t in ("favorites", "todos", "skills", "custom_sources", "secrets")
-        )
         finished_at = _now_iso()
         history.write(
             config_id=cfg.id, direction="push", status="success",
@@ -772,13 +795,17 @@ class SyncService:
             "status": "success",
             "status_code": status,
             "records_count": records_count,
-            "remote_path": cfg.remote_path,
+            "remote_path": remote_path,
             "device_id": cfg.device_id,
             "merged_at": bundle["merged_at"],
         }
 
     async def pull(self, *, master_key: str) -> dict:
-        """GET → decrypt → 3-way merge → apply → 写 history → update last_sync。"""
+        """GET zip → 解包 → decrypt → 3-way merge → apply → 写 history。
+
+        Phase 49: 远端下载的是 ``配置文件-YYYY-MM-DD.zip``, 先 extract
+        拿 envelope.json, 再走 Fernet decrypt + 3-way merge。
+        """
         cfg_repo = SyncConfigRepository()
         cfg = cfg_repo.get_default()
         if cfg is None or not cfg.webdav_url or not cfg.webdav_username:
@@ -797,8 +824,11 @@ class SyncService:
         started_at = _now_iso()
         history = SyncHistoryRepository()
         client = WebDAVClient(cfg.webdav_url, cfg.webdav_username, webdav_pwd)
+        # 远程路径: 与 push 同步, 自动生成今日 zip
+        base_dir = "/".join(cfg.remote_path.rsplit("/", 1)[:-1]) or "/hotspot"
+        remote_path = make_zip_remote_path(base_dir)
         try:
-            raw = await client.download(cfg.remote_path)
+            raw = await client.download(remote_path)
         except WebDAVAuthError as e:
             history.write(
                 config_id=cfg.id, direction="pull", status="error",
@@ -836,14 +866,29 @@ class SyncService:
             return {
                 "direction": "pull",
                 "status": "success",
-                "remote_path": cfg.remote_path,
+                "remote_path": remote_path,
                 "records_count": 0,
                 "merged_at": _now_iso(),
                 "message": "远端无文件, 未做合并",
             }
 
+        # Phase 49: 解 zip 容器拿 envelope.json (兼容老格式: 纯 json 直接当 envelope)
         try:
-            remote_bundle = self.decrypt_bundle(raw, master_key)
+            envelope_bytes, manifest = self._decode_remote_payload(raw)
+        except Exception as e:
+            history.write(
+                config_id=cfg.id, direction="pull", status="error",
+                error_message=f"unzip: {e}", started_at=started_at,
+                finished_at=_now_iso(),
+            )
+            cfg_repo.update_last_sync(
+                cfg.id, at=_now_iso(), status="error",
+                error=f"unzip: {e}", direction="pull",
+            )
+            raise InternalException(f"远端包格式错: {e}") from e
+
+        try:
+            remote_bundle = self.decrypt_bundle(envelope_bytes, master_key)
         except Exception as e:
             history.write(
                 config_id=cfg.id, direction="pull", status="error",
@@ -886,13 +931,33 @@ class SyncService:
         return {
             "direction": "pull",
             "status": "success",
-            "remote_path": cfg.remote_path,
+            "remote_path": remote_path,
+            "remote_manifest": manifest,  # Phase 49: 远端包 manifest (debug 用)
             "records_count": records_count,
             "conflict_count": merge_result.conflict_count,
             "table_conflicts": merge_result.table_conflicts,
             "merged_at": merge_result.merged_bundle["merged_at"],
             "remote_device_id": remote_bundle.get("device_id"),
         }
+
+    @staticmethod
+    def _decode_remote_payload(raw: bytes) -> tuple[bytes, Optional[dict]]:
+        """解包远端 raw bytes → (envelope_bytes, manifest)。
+
+        支持:
+        - zip 容器 (Phase 49 新格式): 内含 envelope.json + manifest.json
+        - 纯 json envelope (Phase 42 旧格式): 兼容读取
+        """
+        # 先尝试 zip
+        if raw.startswith(b"PK"):  # ZIP 文件魔数
+            envelope_bytes, manifest = extract_sync_zip(raw)
+            return envelope_bytes, manifest
+        # 否则当 json envelope 直接返回
+        try:
+            json.loads(raw.decode("utf-8"))
+        except Exception as e:
+            raise ValueError(f"既不是 zip 也不是合法 json: {e}") from e
+        return raw, None
 
     async def bidirectional(self, *, master_key: str) -> dict:
         """拉远端 → 对比 → 拉或推。
@@ -902,6 +967,8 @@ class SyncService:
         - 远端 ``merged_at`` 较新 → pull (3-way merge)
         - 本地 ``merged_at`` 较新 → push
         - 时间相同 → 默认 push
+
+        Phase 49: 远端走 zip 路径(与 push/pull 一致), 下载后用 ``_decode_remote_payload`` 兼容。
         """
         cfg_repo = SyncConfigRepository()
         cfg = cfg_repo.get_default()
@@ -914,11 +981,14 @@ class SyncService:
             cfg.webdav_password_encrypted,
         )
         client = WebDAVClient(cfg.webdav_url, cfg.webdav_username, webdav_pwd)
-        raw = await client.download(cfg.remote_path)
+        base_dir = "/".join(cfg.remote_path.rsplit("/", 1)[:-1]) or "/hotspot"
+        remote_path = make_zip_remote_path(base_dir)
+        raw = await client.download(remote_path)
         if raw is None:
             return await self.push(master_key=master_key)
         try:
-            remote_bundle = self.decrypt_bundle(raw, master_key)
+            envelope_bytes, _ = self._decode_remote_payload(raw)
+            remote_bundle = self.decrypt_bundle(envelope_bytes, master_key)
         except Exception as e:
             raise InternalException(f"远端 bundle 解密失败: {e}") from e
 
@@ -949,13 +1019,18 @@ class SyncService:
         client = WebDAVClient(cfg.webdav_url, cfg.webdav_username, webdav_pwd)
         history = SyncHistoryRepository()
         started_at = _now_iso()
+        # Phase 49: 远端走 zip 路径 (与 push/pull 一致), base_dir 取自 cfg.remote_path
+        base_dir = "/".join(cfg.remote_path.rsplit("/", 1)[:-1]) or "/hotspot"
+        remote_path = make_zip_remote_path(base_dir)
         try:
-            raw = await client.download(cfg.remote_path)
+            raw = await client.download(remote_path)
             if raw is None:
                 # 远端无文件 → push
                 result = await self._push_with_fernet_key(fernet_key, cfg, client, history, started_at)
                 return result
-            remote_bundle = self.decrypt_bundle_with_fernet_key(raw, fernet_key)
+            # Phase 49: 解 zip 容器拿 envelope.json (兼容老格式纯 json)
+            envelope_bytes, _ = self._decode_remote_payload(raw)
+            remote_bundle = self.decrypt_bundle_with_fernet_key(envelope_bytes, fernet_key)
             local = self.build_bundle(device_id=cfg.device_id)
             local_ts = local.get("merged_at") or ""
             remote_ts = remote_bundle.get("merged_at") or ""
@@ -1005,16 +1080,14 @@ class SyncService:
         self, fernet_key: bytes, cfg, client: WebDAVClient,
         history: SyncHistoryRepository, started_at: str,
     ) -> dict:
-        """push 的 fernet_key 内部版本。"""
+        """push 的 fernet_key 内部版本。
+
+        Phase 49 改进: 每次同步打成 ``配置文件-YYYY-MM-DD.zip``(覆盖式),
+        内含 envelope.json (Fernet 密文) + manifest.json (同步元数据)。
+        """
         from cryptography.fernet import Fernet as _F
-        from backend.crypto import decrypt_api_key
         # 解锁时把 fernet_key 视为 master_key 的派生 key;
         # bundle 的 envelope 用同一 key 加密/解密
-        parent = "/".join(cfg.remote_path.rsplit("/", 1)[:-1]) or "/"
-        try:
-            await client.mkdir(parent)
-        except WebDAVError:
-            pass
         bundle = self.build_bundle(device_id=cfg.device_id)
         plaintext = json.dumps(bundle, ensure_ascii=False, sort_keys=True).encode("utf-8")
         ct = _F(fernet_key).encrypt(plaintext)
@@ -1033,13 +1106,29 @@ class SyncService:
             "device_id": bundle.get("device_id"),
             "ciphertext_b64": ct.hex(),
         }
-        encrypted = json.dumps(envelope, ensure_ascii=False).encode("utf-8")
-        status = await client.upload(cfg.remote_path, encrypted)
-        SyncStateRepository().upsert(cfg.id, json.dumps(bundle, ensure_ascii=False))
+        envelope_bytes = json.dumps(envelope, ensure_ascii=False).encode("utf-8")
         records_count = sum(
             len(bundle["records"].get(t, []))
             for t in ("favorites", "todos", "skills", "custom_sources", "secrets")
         )
+        # Phase 49: 打包成 zip 容器 (同覆盖: 配置文件-YYYY-MM-DD.zip)
+        zip_bytes = build_sync_zip(
+            envelope_bytes=envelope_bytes,
+            device_id=bundle.get("device_id", ""),
+            merged_at=bundle.get("merged_at", ""),
+            direction="push",
+            records_count=records_count,
+            conflict_count=0,
+            encryption=envelope["encryption"],
+        )
+        # 远程路径: 自动生成覆盖式 zip 名 (不依赖 cfg.remote_path 后缀)
+        # 兼容旧 cfg: 保留目录部分, 替换文件名为 zip
+        base_dir = "/".join(cfg.remote_path.rsplit("/", 1)[:-1]) or "/hotspot"
+        remote_path = make_zip_remote_path(base_dir)
+        status = await client.upload(
+            remote_path, zip_bytes, content_type="application/zip",
+        )
+        SyncStateRepository().upsert(cfg.id, json.dumps(bundle, ensure_ascii=False))
         finished_at = _now_iso()
         history.write(
             config_id=cfg.id, direction="push", status="success",
@@ -1054,7 +1143,7 @@ class SyncService:
             "status": "success",
             "status_code": status,
             "records_count": records_count,
-            "remote_path": cfg.remote_path,
+            "remote_path": remote_path,
             "device_id": cfg.device_id,
             "merged_at": bundle["merged_at"],
         }
@@ -1140,11 +1229,14 @@ class SyncService:
         cfg = cfg_repo.get_default()
         if cfg is None:
             return {"configured": False}
+        # Phase 49: 暴露实际同步用 zip 路径供前端展示 (无需用户输入)
+        base_dir = "/".join(cfg.remote_path.rsplit("/", 1)[:-1]) or "/hotspot"
         return {
             "configured": True,
             "webdav_url": cfg.webdav_url,
             "webdav_username": cfg.webdav_username,
-            "remote_path": cfg.remote_path,
+            "remote_path": cfg.remote_path,  # 用户配置的 base_dir
+            "effective_remote_path": make_zip_remote_path(base_dir),  # 实际 zip 路径
             "auto_sync_enabled": bool(cfg.auto_sync_enabled),
             "auto_sync_interval_minutes": cfg.auto_sync_interval_minutes,
             "last_sync_at": cfg.last_sync_at,

@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 8898 --strictPort --host 0.0.0.0",
+    "dev:8898": "vite --port 8898 --strictPort --host 0.0.0.0",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest",

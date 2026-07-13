@@ -931,6 +931,12 @@ class BaseCollector(ABC):
                 duration_ms=0,
             )
 
+        # ---- Phase 51: sogou 搜索渲染 (走 sogou.com/web HTML 搜索 + site: 限定) ----
+        # 用于 security_collector 的厂商漏洞/威胁情报公众号抓取,
+        # 不直抓源站(可能被反爬), 用 sogou 索引抓真链接
+        if renderer == "sogou":
+            return await self._fetch_sogou_source(source, start=start)
+
         # ---- Phase 14: 按 renderer 字段决定是否走 crawl4ai ----------
         if renderer == "crawl4ai" and crawl4ai_available():
             try:
@@ -1093,6 +1099,78 @@ class BaseCollector(ABC):
     ) -> list[dict[str, Any]]:
         """Phase 25 P1: JSON 解析。子类重写, 默认返回空 (renderer=json 源必须实现)。"""
         return []
+
+    async def _fetch_sogou_source(
+        self, source: dict, start: datetime
+    ) -> tuple[list[HotspotItem], SourceResult]:
+        """Phase 51: sogou 搜索渲染路径, 用于 ``renderer="sogou"`` 的源。
+
+        工作流程:
+        1. 取 source['query'] 作为 sogou 搜索关键词 (含 ``site:`` 限定)
+        2. 取 source['target_domain'] 作为 URL host 二次过滤 (可选)
+        3. 走 ``sogou_search.search_sogou`` 一次性 fetch+parse
+        4. ``_build_items`` 走通用的 title/url/published_at 字段约定
+        5. 缺失 published_at 的 item 由 _build_items 兜底 (Phase 50 模式)
+
+        子类无需重写 — sogou_search 解析已完成, 子类只配置 SECURITY_SOURCES
+        时指定 ``renderer="sogou"`` + ``query`` + ``target_domain`` 即可。
+        """
+        from backend.collectors.sogou_search import search_sogou
+
+        query = source.get("query") or source.get("url", "")
+        target_domain = source.get("target_domain")
+        max_items = source.get("max_items", 20) or 20
+
+        try:
+            raw_items = await search_sogou(
+                query=query,
+                target_domain=target_domain,
+                max_items=max_items,
+                timeout=self.timeout,
+            )
+        except Exception as e:
+            duration = int(
+                (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            )
+            self.logger.warning(
+                f"sogou fetch failed for {source['name']}: "
+                f"{type(e).__name__}: {str(e)[:50]}"
+            )
+            return [], SourceResult(
+                source_name=source["name"],
+                source_url=source["url"],
+                item_count=0,
+                error_msg=f"{type(e).__name__}: {str(e)[:100]}",
+                duration_ms=duration,
+            )
+
+        try:
+            items = self._build_items(raw_items, source)
+        except Exception as e:
+            duration = int(
+                (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            )
+            self.logger.warning(
+                f"sogou build_items failed for {source['name']}: "
+                f"{type(e).__name__}: {str(e)[:50]}"
+            )
+            return [], SourceResult(
+                source_name=source["name"],
+                source_url=source["url"],
+                item_count=0,
+                error_msg=f"build_error: {type(e).__name__}: {str(e)[:100]}",
+                duration_ms=duration,
+            )
+
+        duration = int(
+            (datetime.now(timezone.utc) - start).total_seconds() * 1000
+        )
+        return items, SourceResult(
+            source_name=source["name"],
+            source_url=source["url"],
+            item_count=len(items),
+            duration_ms=duration,
+        )
 
     # ------------------------------------------------------------------
     # 编排

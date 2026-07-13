@@ -405,6 +405,7 @@ export interface SecretStatusResponse {
   unlocked: boolean;
   expires_at: string | null;
   remaining_seconds: number;
+  keychain_persisted?: boolean;
 }
 
 export interface SecretUnlockResponse {
@@ -466,6 +467,7 @@ export interface SyncStatusPayload {
   webdav_url?: string;
   webdav_username?: string;
   remote_path?: string;
+  effective_remote_path?: string;  // Phase 49: 后端自动生成的 zip 路径
   auto_sync_enabled?: boolean;
   auto_sync_interval_minutes?: number;
   last_sync_at?: string | null;

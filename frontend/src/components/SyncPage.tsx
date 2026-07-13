@@ -66,9 +66,11 @@ export function SyncPage({ onBack }: SyncPageProps) {
   const [testMsg, setTestMsg] = useState<{ ok: boolean; message: string } | null>(null);
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveOk, setSaveOk] = useState<string | null>(null);  // Phase 49: 保存成功提示
   const [syncing, setSyncing] = useState<'push' | 'pull' | 'bidirectional' | null>(null);
   const [showMasterKey, setShowMasterKey] = useState(false);
   const [masterKeyForSync, setMasterKeyForSync] = useState('');
+  const [masterKeyFromCache, setMasterKeyFromCache] = useState(false);  // Phase 49: 标记 master_key 是否从 sessionStorage 自动填
   const [actionError, setActionError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<{conflicts: Record<string, number>; total: number} | null>(null);
 
@@ -93,6 +95,7 @@ export function SyncPage({ onBack }: SyncPageProps) {
     const cached = window.sessionStorage.getItem(MASTER_KEY_CACHE_KEY);
     if (cached && cached.length >= 8 && !masterKeyForSync) {
       setMasterKeyForSync(cached);
+      setMasterKeyFromCache(true);
     }
   }, [status?.status.configured]); // 仅在配置就绪时尝试一次
 
@@ -137,7 +140,7 @@ export function SyncPage({ onBack }: SyncPageProps) {
       return;
     }
     if (form.master_key.length < 8) {
-      setActionError('主密钥至少 8 位');
+      setActionError('主密钥至少 8 位 (≥ 8)');
       return;
     }
     // 已配置时 webdav_password 可留空 (后端保留原密文)
@@ -147,6 +150,7 @@ export function SyncPage({ onBack }: SyncPageProps) {
     }
     setSaving(true);
     setActionError(null);
+    setSaveOk(null);
     try {
       // 已配置 + password 留空 → 后端走"保留原密文"路径, 不传 password 字段
       const payload: Record<string, unknown> = {
@@ -160,14 +164,21 @@ export function SyncPage({ onBack }: SyncPageProps) {
       if (form.webdav_password) {
         payload.webdav_password = form.webdav_password;
       }
-      await upsertConfig(payload as Parameters<typeof upsertConfig>[0]);
+      await upsertConfig(payload as unknown as Parameters<typeof upsertConfig>[0]);
       // Phase 49: 保存后写 master_key 到 sessionStorage, 后续同步免重复输入
       if (form.master_key && form.master_key.length >= 8) {
         window.sessionStorage.setItem(MASTER_KEY_CACHE_KEY, form.master_key);
       }
       setForm(f => ({ ...f, webdav_password: '', master_key: '' }));
+      setSaveOk('✓ WebDAV 配置已保存 (master_key 已缓存到 sessionStorage)');
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : String(e));
+      const raw = e instanceof Error ? e.message : String(e);
+      // 401 主密钥错误 → 友好提示
+      if (raw === '主密钥错误' || raw.includes('主密钥错误')) {
+        setActionError('主密钥错误: 跟首次 setup 时输入的一致, 或 sessionStorage 已清空, 需重新输入');
+      } else {
+        setActionError(raw);
+      }
     } finally {
       setSaving(false);
     }
@@ -372,13 +383,23 @@ export function SyncPage({ onBack }: SyncPageProps) {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span style={{ color: 'var(--text-muted)' }}>主密钥 (用于加密 webdav password)</span>
+            <span style={{ color: 'var(--text-muted)' }}>
+              主密钥 (用于加密 webdav password)
+              {masterKeyFromCache && (
+                <span className="ml-1" style={{ color: '#06b6d4' }}>
+                  · ✓ 从 sessionStorage 自动填入
+                </span>
+              )}
+            </span>
             <div className="flex gap-1">
               <input
                 type={showMasterKey ? 'text' : 'password'}
                 value={form.master_key}
-                onChange={e => setForm(f => ({ ...f, master_key: e.target.value }))}
-                placeholder="≥ 8 位"
+                onChange={e => {
+                  setForm(f => ({ ...f, master_key: e.target.value }));
+                  if (masterKeyFromCache) setMasterKeyFromCache(false);
+                }}
+                placeholder="≥ 8 位 (跟首次 setup 一致)"
                 className="flex-1 px-2 py-1.5 rounded"
                 style={{
                   background: 'var(--surface-2)',
@@ -448,6 +469,19 @@ export function SyncPage({ onBack }: SyncPageProps) {
           </label>
         </div>
 
+        {saveOk && (
+          <div
+            className="mt-3 px-3 py-2 rounded text-[11px]"
+            style={{
+              background: 'rgba(0, 201, 106, 0.1)',
+              color: '#00c96a',
+              border: '1px solid rgba(0, 201, 106, 0.3)',
+            }}
+          >
+            {saveOk}
+          </div>
+        )}
+
         {actionError && (
           <div
             className="mt-3 px-3 py-2 rounded text-[11px]"
@@ -457,7 +491,7 @@ export function SyncPage({ onBack }: SyncPageProps) {
               border: '1px solid rgba(232, 93, 93, 0.3)',
             }}
           >
-            {actionError}
+            ✗ {actionError}
           </div>
         )}
 

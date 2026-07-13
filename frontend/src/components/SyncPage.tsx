@@ -74,20 +74,26 @@ export function SyncPage({ onBack }: SyncPageProps) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<{conflicts: Record<string, number>; total: number} | null>(null);
 
-  // 初始化表单 (从 status 读)
+  // 初始化表单 (从 status 读) —— 启动时立刻填回已保存配置
   useEffect(() => {
-    if (status?.status.configured) {
+    if (status) {
+      console.log('[SyncPage] useEffect 触发, status:', status.status);
+    }
+    if (!status) return;  // 加载中
+    if (status.status.configured) {
       setForm(f => ({
         ...f,
         webdav_url: status.status.webdav_url || f.webdav_url,
         webdav_username: status.status.webdav_username || f.webdav_username,
         remote_path: status.status.remote_path || f.remote_path,
         auto_sync_enabled: status.status.auto_sync_enabled ?? true,
+        sync_frequency: status.status.auto_sync_interval_minutes === 1440
+          ? 'daily' : 'weekly',
       }));
     }
   }, [status?.status.configured, status?.status.webdav_url,
       status?.status.webdav_username, status?.status.remote_path,
-      status?.status.auto_sync_enabled]);
+      status?.status.auto_sync_enabled, status?.status.auto_sync_interval_minutes]);
 
   // Phase 49: 启动时从 sessionStorage 恢复 master_key, 配置就绪时自动填入同步框
   useEffect(() => {

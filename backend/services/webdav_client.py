@@ -172,24 +172,33 @@ class WebDAVClient:
         """检查远端文件 / 目录是否存在 (HEAD)。
 
         返回: True = 存在, False = 不存在。
-        抛: 认证失败 / 其他未知错误 (含 body 摘要)。
+        抛: 真认证失败 (其他未知错误含 body 摘要)。
 
-        **坚果云 quirk**:
-        - 对存在的目录 HEAD 可能返回 **409 Conflict** (而非标准 200/207/404)
-          — 视为已存在 (True), 避免 ensure_parents 误判后重复 MKCOL。
-        - 对存在但不允许 HEAD 的目录可能返回 **405** 或 **301** — 同视为已存在。
+        **坚果云 quirk 综合防护** (Phase 49 修复):
+        坚果云对目录的 HEAD 行为与文件不同, 见下表:
+        - ``HEAD /hotspot`` (存在的目录) → **403 Forbidden** (坚果云 quirk, 不是认证失败)
+        - ``HEAD /hotspot/x.txt`` (不存在的文件) → 404
+        - ``HEAD /hotspot/x.txt`` (存在的文件) → 200
+        - ``PROPFIND /hotspot`` → 207 (正常)
+
+        决策表:
+        - 200/207 → 存在
+        - 301/405/409/403 → 视为存在 (坚果云 quirk, 目录 HEAD 受限)
+        - 404 → 不存在
+        - 401 → 真认证失败 (抛 WebDAVAuthError)
         """
-        path = self._log_path(path)
-        logger.debug("WebDAV exists: %s", path)
+        log_path = self._log_path(path)
+        logger.debug("WebDAV exists: %s", log_path)
         resp = await self._request("HEAD", path)
-        if resp.status_code in (200, 207, 301, 405, 409):
+        if resp.status_code in (200, 207, 301, 405, 409, 403):
             # 200/207 = exists, 301 = redirect (重定向到存在的资源),
-            # 405 = exists but HEAD not allowed, 409 = 坚果云 quirk (exists)
+            # 405 = exists but HEAD not allowed, 409 = 坚果云 quirk (exists),
+            # 403 = 坚果云 quirk (目录 HEAD 受限), 不当认证失败
             return True
         if resp.status_code == 404:
             return False
-        if resp.status_code in (401, 403):
-            raise WebDAVAuthError(f"认证失败 ({resp.status_code})", status_code=resp.status_code)
+        if resp.status_code == 401:
+            raise WebDAVAuthError(f"认证失败 (401)", status_code=401)
         raise WebDAVError(
             f"HEAD 失败: {resp.status_code} {resp.reason_phrase}: {_body_hint(resp)}",
             status_code=resp.status_code, reason=resp.reason_phrase,
@@ -203,8 +212,8 @@ class WebDAVClient:
         **坚果云 quirk**: 对已存在的目录 MKCOL 会返回 409 (其他 server 通常
         返回 405)。这里把 409 视为"目录已存在"成功, 避免误报。
         """
-        path = self._log_path(path)
-        logger.info("WebDAV mkdir: %s", path)
+        log_path = self._log_path(path)
+        logger.info("WebDAV mkdir: %s", log_path)
         resp = await self._request("MKCOL", path)
         if resp.status_code in (201, 200, 405, 301, 409):
             # 201/200 = created, 405 = already exists (RFC 4918),
@@ -354,8 +363,8 @@ class WebDAVClient:
         404 → 返回 ``None`` (语义: 远端尚无此文件, 首次 push 前正常)。
         其他非 2xx → 抛 ``WebDAVError``。
         """
-        path = self._log_path(path)
-        logger.info("WebDAV download: %s", path)
+        log_path = self._log_path(path)
+        logger.info("WebDAV download: %s", log_path)
         resp = await self._request("GET", path, headers={"Accept": "*/*"})
         if resp.status_code == 404:
             logger.info("WebDAV download: %s 不存在", path)

@@ -107,16 +107,16 @@ def _persist_master_key(master_key: str) -> bool:
     if row is None:
         return False
 
-    try:
-        from cryptography.fernet import Fernet as _F
-        encrypted = _F(row.verify_blob).encrypt(master_key.encode("utf-8")).decode("ascii")
-        from backend.repository.settings_repo import SettingsRepository
-        SettingsRepository().set(_SETTINGS_KEY_ENCRYPTED, encrypted)
-        logger.info("master_key persisted to settings table (keyring unavailable)")
-        return True
-    except Exception as e:
-        logger.warning(f"master_key persist failed: {e}")
+    # Phase 49: settings 表的 master_key 持久化设计上不可行 (master_key 派生 key
+    # 加密自身, 没有 master_key 无法恢复). keyring 是唯一可靠路径. 不可用时
+    # 直接返回 False, 不再尝试 settings fallback (会写永久无法解密的死数据).
+    if not _check_keyring():
+        logger.info("keyring 不可用且 settings 持久化不可恢复, master_key 不持久化")
         return False
+
+    # keyring 可用, 但前面 line 96-103 set_password 已失败 (降级时打印 warning)
+    # 不会再走 settings fallback, 直接返回 False
+    return False
 
 
 def _load_persisted_master_key() -> str | None:
@@ -151,14 +151,15 @@ def _load_persisted_master_key() -> str | None:
         if not encrypted:
             return None
         from cryptography.fernet import Fernet as _F
-        plaintext = _F(row.verify_blob).decrypt(encrypted.encode("ascii"))
-        master_key = plaintext.decode("utf-8")
-        if verify_master_key(master_key, row.salt, row.iterations, row.verify_blob):
-            logger.info("master_key restored from settings table")
-            return master_key
-        else:
-            logger.warning("settings master_key verification failed, clearing stale entry")
-            SettingsRepository().delete(_SETTINGS_KEY_ENCRYPTED)
+        from backend.crypto import _derive_key
+        # Phase 49 bug fix: 持久化的 master_key 是用 master_key 自己派生的
+        # fernet_key 加密的 ciphertext, 没有 master_key 根本无法派生 key 来解密.
+        # 之前用 verify_blob (Fernet 密文) 当 key 总是报 "Fernet key must be 32 url-safe
+        # base64-encoded bytes" 错误. 这里正确做法: settings 表里存的密文已经带
+        # 旧错误 keyring 持久化路径写入, 永远无法恢复, 直接清空即可.
+        logger.warning("settings master_key ciphertext exists but cannot be recovered "
+                       "without the user-provided master_key (self-encrypted); clearing")
+        SettingsRepository().delete(_SETTINGS_KEY_ENCRYPTED)
     except Exception as e:
         logger.warning(f"master_key restore from settings failed: {e}")
 
@@ -250,12 +251,14 @@ class SecretsService:
     def unlock_status(self) -> dict:
         ek = EncryptionKeyRepository()
         row = ek.get_default()
+        keychain_persisted = _load_persisted_master_key() is not None if row else False
         if row is None:
             return {
                 "setup": False,
                 "unlocked": False,
                 "expires_at": None,
                 "remaining_seconds": 0,
+                "keychain_persisted": False,
             }
         _purge_expired()
         state = _unlock_state.get(row.id)
@@ -265,6 +268,7 @@ class SecretsService:
                 "unlocked": False,
                 "expires_at": None,
                 "remaining_seconds": 0,
+                "keychain_persisted": keychain_persisted,
             }
         remaining = max(0, int(state["expires_at"] - _now_ts()))
         return {
@@ -272,6 +276,7 @@ class SecretsService:
             "unlocked": True,
             "expires_at": datetime.fromtimestamp(state["expires_at"], tz=timezone.utc).isoformat(),
             "remaining_seconds": remaining,
+            "keychain_persisted": keychain_persisted,
         }
 
     def lock(self) -> dict:

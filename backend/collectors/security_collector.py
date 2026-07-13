@@ -161,6 +161,103 @@ SECURITY_SOURCES: list[dict] = [
         "url": "https://www.knownsec.com/",
         "score": 76,
     },
+    # ===== Phase 51 新增 — 搜狗 (sogou) 抓厂商漏洞 + 威胁情报微信公众号 =====
+    # 设计: 微信公众号搜索 (weixin.sogou.com) 拿"微步在线"/"奇安信威胁情
+    # 报中心"等公众号文章; 厂商漏洞走 sogou.com/web 的 site: 限定查询
+    # (anti-bot 限流时降级, IP 解封时回正常)。
+    # 安全关键词组合用于公众号搜索: 公众号名 + 主题词, 提高相关性。
+    {
+        "name": "微步在线(搜狗)",  # 威胁情报公众号
+        "url": "https://weixin.sogou.com/weixin?type=2&query=微步在线",
+        "query": "微步在线 威胁情报",
+        "renderer": "sogou",
+        "score": 88,
+        "max_items": 15,
+    },
+    {
+        "name": "奇安信威胁情报中心(搜狗)",  # 威胁情报公众号
+        "url": "https://weixin.sogou.com/weixin?type=2&query=奇安信威胁情报中心",
+        "query": "奇安信威胁情报中心 漏洞",
+        "renderer": "sogou",
+        "score": 87,
+        "max_items": 15,
+    },
+    {
+        "name": "360威胁情报中心(搜狗)",  # 威胁情报公众号
+        "url": "https://weixin.sogou.com/weixin?type=2&query=360威胁情报中心",
+        "query": "360威胁情报中心 漏洞",
+        "renderer": "sogou",
+        "score": 85,
+        "max_items": 12,
+    },
+    {
+        "name": "FreeBuf(搜狗)",  # 安全媒体公众号
+        "url": "https://weixin.sogou.com/weixin?type=2&query=FreeBuf",
+        "query": "FreeBuf 漏洞",
+        "renderer": "sogou",
+        "score": 78,
+        "max_items": 10,
+    },
+    {
+        "name": "安全客(搜狗)",  # 安全媒体公众号
+        "url": "https://weixin.sogou.com/weixin?type=2&query=安全客",
+        "query": "安全客 漏洞",
+        "renderer": "sogou",
+        "score": 76,
+        "max_items": 10,
+    },
+    {
+        "name": "看雪论坛(搜狗)",  # 二进制安全/漏洞研究公众号
+        "url": "https://weixin.sogou.com/weixin?type=2&query=看雪论坛",
+        "query": "看雪论坛 漏洞分析",
+        "renderer": "sogou",
+        "score": 74,
+        "max_items": 10,
+    },
+    {
+        "name": "安全内参(搜狗)",  # 行业洞察公众号
+        "url": "https://weixin.sogou.com/weixin?type=2&query=安全内参",
+        "query": "安全内参 漏洞",
+        "renderer": "sogou",
+        "score": 76,
+        "max_items": 10,
+    },
+    {
+        "name": "奇安信厂商漏洞(搜狗)",  # 厂商漏洞 — site:qihoo.com 限定
+        "url": "https://www.sogou.com/web?query=site:qihoo.com+漏洞",
+        "query": "site:qihoo.com 漏洞",
+        "target_domain": "qihoo.com",
+        "renderer": "sogou",
+        "score": 84,
+        "max_items": 12,
+    },
+    {
+        "name": "深信服厂商漏洞(搜狗)",  # 厂商漏洞 — site:sangfor.com.cn
+        "url": "https://www.sogou.com/web?query=site:sangfor.com.cn+漏洞",
+        "query": "site:sangfor.com.cn 漏洞",
+        "target_domain": "sangfor.com.cn",
+        "renderer": "sogou",
+        "score": 78,
+        "max_items": 10,
+    },
+    {
+        "name": "绿盟科技漏洞(搜狗)",  # 厂商漏洞 — site:nsfocus.com.cn
+        "url": "https://www.sogou.com/web?query=site:nsfocus.com.cn+漏洞",
+        "query": "site:nsfocus.com.cn 漏洞",
+        "target_domain": "nsfocus.com.cn",
+        "renderer": "sogou",
+        "score": 76,
+        "max_items": 10,
+    },
+    {
+        "name": "CNNVD漏洞(搜狗)",  # 漏洞库 — site:cnnvd.org.cn
+        "url": "https://www.sogou.com/web?query=site:cnnvd.org.cn+漏洞",
+        "query": "site:cnnvd.org.cn 漏洞",
+        "target_domain": "cnnvd.org.cn",
+        "renderer": "sogou",
+        "score": 80,
+        "max_items": 10,
+    },
 ]
 
 

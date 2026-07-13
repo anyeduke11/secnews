@@ -58,6 +58,26 @@ npm run dev
 
 打开浏览器访问 http://localhost:8898
 
+### ⚠️ 代理配置（必读）
+
+`backend/proxy_config.json` 在 `.gitignore` 中,不会随仓库分发。**首次安装后必须自行配置**,否则 `security_collector` (搜狗/sogou.com/web) 和 `github_collector` (GitHub) 会拿不到数据,出现"24h security/github 数据为空"。
+
+**最小配置**(编辑 `backend/proxy_config.json`):
+
+```json
+{
+  "mode": "manual",
+  "http_proxy": "http://127.0.0.1:7897",
+  "https_proxy": "http://127.0.0.1:7897",
+  "socks_proxy": "http://127.0.0.1:7897",
+  "no_proxy": "localhost,127.0.0.1,::1"
+}
+```
+
+把 `7897` 改成你的代理端口(Clash 默认 7890、V2RayN 默认 10809、Surge 默认 6152)。如果你没装代理客户端,改为 `"mode": "off"`(此时 sogou.com/web 厂商漏洞源会被 anti-bot 限流,但 weixin.sogou.com 微信公众号源仍可用)。
+
+也可通过前端 `/api/proxy/settings` 端点运行时修改,无需重启。
+
 ## 数据源
 
 | 领域 | 数据源 |

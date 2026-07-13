@@ -73,18 +73,29 @@ export function useSync() {
   }, []);
 
   // ---- 读 ----
+  // 读 —— 出错也写空 status, 避免 SyncPage configured 永远 false
   const fetchStatus = useCallback(async () => {
-    const r = await apiFetch<SyncStatusResponse>('/api/sync/status');
-    setStatus(r);
-    return r;
+    try {
+      const r = await apiFetch<SyncStatusResponse>('/api/sync/status');
+      setStatus(r);
+      return r;
+    } catch (e) {
+      setStatus({ version: '1.0', status: { configured: false }, recent_history: [] });
+      throw e;
+    }
   }, [apiFetch]);
 
   const fetchHistory = useCallback(async (limit = 50) => {
-    const r = await apiFetch<{ version: string; history: SyncHistoryItem[] }>(
-      `/api/sync/history?limit=${limit}`,
-    );
-    setHistory(r.history);
-    return r.history;
+    try {
+      const r = await apiFetch<{ version: string; history: SyncHistoryItem[] }>(
+        `/api/sync/history?limit=${limit}`,
+      );
+      setHistory(r.history);
+      return r.history;
+    } catch (e) {
+      setHistory([]);
+      throw e;
+    }
   }, [apiFetch]);
 
   const fetchPreview = useCallback(async () => {

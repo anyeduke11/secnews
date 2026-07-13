@@ -75,25 +75,45 @@ export function SyncPage({ onBack }: SyncPageProps) {
   const [conflicts, setConflicts] = useState<{conflicts: Record<string, number>; total: number} | null>(null);
 
   // 初始化表单 (从 status 读) —— 启动时立刻填回已保存配置
+  // Phase 49 修复: 之前用 [status?.status.configured, ...] 依赖, useEffect 在 status
+  // 第一次变化时触发, 但可能因 setForm 时序问题, 表单字段没及时更新.
+  // 新方案: useRef 跟踪是否已 init, 只在第一次 status 准备好时同步一次.
+  const formInitRef = useRef(false);
   useEffect(() => {
-    if (status) {
-      console.log('[SyncPage] useEffect 触发, status:', status.status);
-    }
-    if (!status) return;  // 加载中
-    if (status.status.configured) {
-      setForm(f => ({
-        ...f,
-        webdav_url: status.status.webdav_url || f.webdav_url,
-        webdav_username: status.status.webdav_username || f.webdav_username,
-        remote_path: status.status.remote_path || f.remote_path,
-        auto_sync_enabled: status.status.auto_sync_enabled ?? true,
-        sync_frequency: status.status.auto_sync_interval_minutes === 1440
-          ? 'daily' : 'weekly',
-      }));
-    }
+    if (formInitRef.current) return;
+    if (!status?.status.configured) return;
+    formInitRef.current = true;
+    setForm(f => ({
+      ...f,
+      webdav_url: status.status.webdav_url || f.webdav_url,
+      webdav_username: status.status.webdav_username || f.webdav_username,
+      remote_path: status.status.remote_path || f.remote_path,
+      auto_sync_enabled: status.status.auto_sync_enabled ?? true,
+      sync_frequency: status.status.auto_sync_interval_minutes === 1440
+        ? 'daily' as const : 'weekly' as const,
+    }));
   }, [status?.status.configured, status?.status.webdav_url,
       status?.status.webdav_username, status?.status.remote_path,
       status?.status.auto_sync_enabled, status?.status.auto_sync_interval_minutes]);
+
+  // 兜底: 如果 status 还没回来 (loading) 但 form 字段都是空,
+  // 200ms 后强制从 useSync 的 status 读一次. 这是 v18 useEffect 依赖比较深
+  // 时的额外保险.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (formInitRef.current) return;
+      if (status?.status.configured) {
+        formInitRef.current = true;
+        setForm(f => ({
+          ...f,
+          webdav_url: status.status.webdav_url || f.webdav_url,
+          webdav_username: status.status.webdav_username || f.webdav_username,
+          remote_path: status.status.remote_path || f.remote_path,
+        }));
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [status]);
 
   // Phase 49: 启动时从 sessionStorage 恢复 master_key, 配置就绪时自动填入同步框
   useEffect(() => {

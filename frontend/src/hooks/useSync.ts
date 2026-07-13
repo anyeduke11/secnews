@@ -85,6 +85,19 @@ export function useSync() {
     }
   }, [apiFetch]);
 
+  // 启动期重试: status 第一次没回来 + history 显示以前配过, 强制再 fetch
+  const fetchStatusRetryRef = useRef(0);
+  useEffect(() => {
+    if (status?.status.configured) return;  // 已 OK
+    if (history.length === 0) return;  // 从没配过
+    if (fetchStatusRetryRef.current >= 5) return;  // 上限 5 次
+    const t = setTimeout(() => {
+      fetchStatusRetryRef.current += 1;
+      fetchStatus().catch(() => undefined);
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [status, history.length, fetchStatus]);
+
   const fetchHistory = useCallback(async (limit = 50) => {
     try {
       const r = await apiFetch<{ version: string; history: SyncHistoryItem[] }>(

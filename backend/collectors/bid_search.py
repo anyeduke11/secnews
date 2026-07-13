@@ -201,24 +201,56 @@ async def fetch_bing_html(
     query: str,
     timeout: int = DEFAULT_TIMEOUT,
 ) -> str | None:
-    """对 cn.bing.com 发 GET,返回 HTML 文本。失败返回 None。"""
+    """对 cn.bing.com 发 GET,返回 HTML 文本。失败返回 None。
+
+    Phase 50: 改用 ProxySession — cn.bing.com 直连被 302 拒,需要走
+    ``http://127.0.0.1:7897`` 代理。ProxySession.should_use_proxy(url)
+    自动判断 no_proxy 列表 (localhost,127.0.0.1,::1) 不走代理,
+    其它外部 URL 默认走 proxy_config.json 中配置的代理。
+    """
+    # 优先用项目内代理感知 session, 不可用时 fallback 裸 aiohttp
+    _ProxySession = None
+    try:
+        from backend.proxy_session import ProxySession  # type: ignore
+        _ProxySession = ProxySession
+    except Exception:
+        try:
+            from proxy_session import ProxySession  # type: ignore
+            _ProxySession = ProxySession
+        except Exception:
+            _ProxySession = None
+
     try:
         timeout_obj = aiohttp.ClientTimeout(total=timeout)
-        async with aiohttp.ClientSession(timeout=timeout_obj) as session:
-            async with session.get(
-                BING_URL,
-                params={"q": query, "FORM": "QBLH"},
-                headers={
-                    "User-Agent": _UA,
-                    "Accept-Language": "zh-CN,zh;q=0.9",
-                },
-            ) as resp:
-                if resp.status != 200:
-                    logger.warning(
-                        f"bing_search non-200: status={resp.status} query={query[:60]}"
-                    )
-                    return None
-                return await resp.text()
+        headers = {
+            "User-Agent": _UA,
+            "Accept-Language": "zh-CN,zh;q=0.9",
+        }
+        if _ProxySession is not None:
+            async with _ProxySession(headers=headers, timeout=timeout_obj) as session:
+                async with session.get(
+                    BING_URL,
+                    params={"q": query, "FORM": "QBLH"},
+                ) as resp:
+                    if resp.status != 200:
+                        logger.warning(
+                            f"bing_search non-200: status={resp.status} query={query[:60]}"
+                        )
+                        return None
+                    return await resp.text()
+        else:
+            async with aiohttp.ClientSession(timeout=timeout_obj) as session:
+                async with session.get(
+                    BING_URL,
+                    params={"q": query, "FORM": "QBLH"},
+                    headers=headers,
+                ) as resp:
+                    if resp.status != 200:
+                        logger.warning(
+                            f"bing_search non-200: status={resp.status} query={query[:60]}"
+                        )
+                        return None
+                    return await resp.text()
     except Exception as e:
         logger.warning(
             f"bing_search failed: {type(e).__name__}: {str(e)[:80]} query={query[:60]}"

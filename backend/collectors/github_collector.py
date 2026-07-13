@@ -18,10 +18,16 @@ Phase 9 修复：
 2. 重写 ``_parse_html``：从 GitHub Trending 页面的 ``<article>`` 卡片
    中提取真实项目链接，过滤掉导航 / footer / topics 等非项目链接。
 3. 添加 ``_is_repo_url`` 过滤器：只保留 ``/{owner}/{repo}`` 格式的 URL。
+
+Phase 50 修复：日榜/Trending 类源没有逐项 published_at（HTML 里只有
+"今天上榜"语义），但 Phase 47 严格规则拒收缺失 published_at 的项。修复：
+_parse_html 末尾为每条 item 显式填 ``published_at = now(UTC)``（trending /
+tophub 今日榜 / Star History 抓取的都是当天热点），不依赖 URL slug 提取。
 """
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
 
@@ -231,6 +237,14 @@ class GitHubCollector(BaseCollector):
                 if len(items) >= self.max_items:
                     break
 
+        # Phase 50: 日榜/Trending 类源没有逐项 published_at，HTML 里
+        # 只能体现 "今日上榜" 这一种时间粒度。显式填 now(UTC) 让 Phase 47
+        # 严格规则通过 — 这些都是当日热点项目, ingested_at = published_at
+        # 也符合 trending 的语义。
+        now = datetime.now(timezone.utc)
+        for it in items:
+            if "published_at" not in it or it.get("published_at") is None:
+                it["published_at"] = now
         return items
 
 

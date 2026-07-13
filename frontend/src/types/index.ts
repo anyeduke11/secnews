@@ -467,7 +467,8 @@ export interface SyncStatusPayload {
   webdav_url?: string;
   webdav_username?: string;
   remote_path?: string;
-  effective_remote_path?: string;  // Phase 49: 后端自动生成的 zip 路径
+  effective_remote_path?: string;  // Phase 49: 后端自动生成的 zip 路径 (ASCII)
+  effective_display_name?: string;  // Phase 49: manifest 内的中文展示名
   auto_sync_enabled?: boolean;
   auto_sync_interval_minutes?: number;
   last_sync_at?: string | null;

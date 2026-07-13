@@ -73,6 +73,7 @@ from backend.services.sync_zip import (
     build_sync_zip,
     extract_sync_zip,
     make_zip_remote_path,
+    display_name,
 )
 
 # ---------------------------------------------------------------------------
@@ -1229,14 +1230,15 @@ class SyncService:
         cfg = cfg_repo.get_default()
         if cfg is None:
             return {"configured": False}
-        # Phase 49: 暴露实际同步用 zip 路径供前端展示 (无需用户输入)
+        # Phase 49: 暴露实际同步用 zip 路径 + manifest display_name (中文) 供前端展示
         base_dir = "/".join(cfg.remote_path.rsplit("/", 1)[:-1]) or "/hotspot"
         return {
             "configured": True,
             "webdav_url": cfg.webdav_url,
             "webdav_username": cfg.webdav_username,
             "remote_path": cfg.remote_path,  # 用户配置的 base_dir
-            "effective_remote_path": make_zip_remote_path(base_dir),  # 实际 zip 路径
+            "effective_remote_path": make_zip_remote_path(base_dir),  # 实际 zip 路径 (ASCII)
+            "effective_display_name": display_name(),  # manifest display_name (中文)
             "auto_sync_enabled": bool(cfg.auto_sync_enabled),
             "auto_sync_interval_minutes": cfg.auto_sync_interval_minutes,
             "last_sync_at": cfg.last_sync_at,

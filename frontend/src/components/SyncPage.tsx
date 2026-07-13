@@ -418,7 +418,7 @@ export function SyncPage({ onBack }: SyncPageProps) {
             </div>
           </label>
           <label className="flex flex-col gap-1">
-            <span style={{ color: 'var(--text-muted)' }}>远端目录 (配置文件-YYYY-MM-DD.zip)</span>
+            <span style={{ color: 'var(--text-muted)' }}>远端目录 (config-YYYY-MM-DD.zip)</span>
             <input
               type="text"
               value={form.remote_path}
@@ -432,13 +432,24 @@ export function SyncPage({ onBack }: SyncPageProps) {
               }}
             />
             {status?.status?.effective_remote_path && (
-              <span
-                className="text-[10px] mt-0.5 font-mono break-all"
-                style={{ color: 'var(--text-muted)' }}
-                title="每次同步将覆盖写入此 zip 路径"
-              >
-                实际: {status.status.effective_remote_path}
-              </span>
+              <div className="mt-1 flex flex-col gap-0.5">
+                <span
+                  className="text-[10px] font-mono break-all"
+                  style={{ color: 'var(--text-muted)' }}
+                  title="每次同步将覆盖写入此 zip 路径"
+                >
+                  实际: {status.status.effective_remote_path}
+                </span>
+                {status.status.effective_display_name && (
+                  <span
+                    className="text-[10px]"
+                    style={{ color: 'var(--text-muted)' }}
+                    title="manifest 内的中文展示名,坚果云 web 端以 ASCII 路径显示"
+                  >
+                    (内部标识: {status.status.effective_display_name})
+                  </span>
+                )}
+              </div>
             )}
           </label>
           <label className="flex items-center gap-2 mt-5">

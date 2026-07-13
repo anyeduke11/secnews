@@ -5,15 +5,18 @@
 
 - **格式**: 单一 zip 容器,内含 2 个文件:
   - ``envelope.json`` — 加密的 sync bundle envelope (Fernet 密文), 与原 json 内容兼容
-  - ``manifest.json`` — 同步元数据 (时间/device/conflict/records/algorithm),明文,
+  - ``manifest.json`` — 同步元数据 (时间/device/conflict/records/algorithm/display_name),明文,
     用户在远端文件管理器 / 离线审计时也能看到同步概况
 
-- **命名**: ``配置文件-YYYY-MM-DD.zip``(中文名 + 日期), 覆盖式(同一天多次同步只
-  保留最新一份;跨天会生成新 zip,远程可保留多份历史)。
+- **命名**: ``config-YYYY-MM-DD.zip`` (ASCII 名称, **覆盖式**)。
+  - 原因: 坚果云 WebDAV 对含中文文件名的 PUT 有 quirk,即使父目录存在,server
+    端仍会报 ``AncestorsNotFound`` (即便 max_attempts=8 也无法解决)。
+  - 跨天会生成新 zip,远程可保留多份历史;同一天多次同步只保留最新一份。
+  - zip 内 ``manifest.display_name = "配置文件 (YYYY-MM-DD)"`` 保留中文描述。
 
 - **安全**: ``envelope.json`` 仍走 Fernet 加密, master_key 不出现在 manifest 中。
 
-- **zip 编码**: ZIP_DEFLATED, level=6(平衡压缩率与时间)。小文件(< 1MB)
+- **zip 编码**: ZIP_DEFLATED, level=6 (平衡压缩率与时间)。小文件 (< 1MB)
   几乎不压缩, 主要为结构清晰。
 """
 from __future__ import annotations
@@ -28,6 +31,9 @@ from typing import Any, Optional
 ENVELOPE_FILENAME = "envelope.json"
 MANIFEST_FILENAME = "manifest.json"
 
+# 同步包远程文件名 (ASCII, 规避坚果云中文 PUT quirk)
+REMOTE_ZIP_BASENAME = "config"
+
 
 def _today_str() -> str:
     """返回 YYYY-MM-DD (UTC)。同步包命名固定 UTC,避免跨时区歧义。"""
@@ -35,16 +41,21 @@ def _today_str() -> str:
 
 
 def make_zip_remote_path(base_dir: str) -> str:
-    """根据基础目录生成今日同步包路径: ``base_dir/配置文件-YYYY-MM-DD.zip``。
+    """根据基础目录生成今日同步包路径: ``base_dir/config-YYYY-MM-DD.zip``。
 
-    例: ``/hotspot`` → ``/hotspot/配置文件-2026-07-10.zip``
+    例: ``/hotspot`` → ``/hotspot/config-2026-07-10.zip``
 
     重复调用同一天返回相同路径(覆盖式)。
     """
     base = (base_dir or "").rstrip("/")
     if not base or base == "/":
-        return f"/配置文件-{_today_str()}.zip"
-    return f"{base}/配置文件-{_today_str()}.zip"
+        return f"/{REMOTE_ZIP_BASENAME}-{_today_str()}.zip"
+    return f"{base}/{REMOTE_ZIP_BASENAME}-{_today_str()}.zip"
+
+
+def display_name(today: Optional[str] = None) -> str:
+    """manifest.display_name 字段(中文展示名)。"""
+    return f"配置文件 ({today or _today_str()})"
 
 
 def build_sync_zip(
@@ -62,6 +73,7 @@ def build_sync_zip(
     ``conflict_count``: 3-way merge 冲突数 (push=0)
     ``encryption``: 算法描述 (algorithm / kdf / iterations / salt_b64)
     """
+    today = _today_str()
     manifest = {
         "version": version,
         "device_id": device_id,
@@ -71,6 +83,7 @@ def build_sync_zip(
         "records_count": records_count,
         "conflict_count": conflict_count,
         "encryption": encryption,
+        "display_name": display_name(today),  # Phase 49: 中文展示名(坚果云 quirk 修复后)
         "contents": [ENVELOPE_FILENAME, MANIFEST_FILENAME],
     }
     manifest_bytes = json.dumps(
@@ -117,7 +130,9 @@ def extract_sync_zip(zip_bytes: bytes) -> tuple[bytes, dict]:
 __all__ = [
     "ENVELOPE_FILENAME",
     "MANIFEST_FILENAME",
+    "REMOTE_ZIP_BASENAME",
     "make_zip_remote_path",
+    "display_name",
     "build_sync_zip",
     "extract_sync_zip",
 ]

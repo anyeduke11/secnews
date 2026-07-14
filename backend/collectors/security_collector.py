@@ -161,103 +161,25 @@ SECURITY_SOURCES: list[dict] = [
         "url": "https://www.knownsec.com/",
         "score": 76,
     },
-    # ===== Phase 51 新增 — 搜狗 (sogou) 抓厂商漏洞 + 威胁情报微信公众号 =====
-    # 设计: 微信公众号搜索 (weixin.sogou.com) 拿"微步在线"/"奇安信威胁情
-    # 报中心"等公众号文章; 厂商漏洞走 sogou.com/web 的 site: 限定查询
-    # (anti-bot 限流时降级, IP 解封时回正常)。
-    # 安全关键词组合用于公众号搜索: 公众号名 + 主题词, 提高相关性。
-    {
-        "name": "微步在线(搜狗)",  # 威胁情报公众号
-        "url": "https://weixin.sogou.com/weixin?type=2&query=微步在线",
-        "query": "微步在线 威胁情报",
-        "renderer": "sogou",
-        "score": 88,
-        "max_items": 15,
-    },
-    {
-        "name": "奇安信威胁情报中心(搜狗)",  # 威胁情报公众号
-        "url": "https://weixin.sogou.com/weixin?type=2&query=奇安信威胁情报中心",
-        "query": "奇安信威胁情报中心 漏洞",
-        "renderer": "sogou",
-        "score": 87,
-        "max_items": 15,
-    },
-    {
-        "name": "360威胁情报中心(搜狗)",  # 威胁情报公众号
-        "url": "https://weixin.sogou.com/weixin?type=2&query=360威胁情报中心",
-        "query": "360威胁情报中心 漏洞",
-        "renderer": "sogou",
-        "score": 85,
-        "max_items": 12,
-    },
-    {
-        "name": "FreeBuf(搜狗)",  # 安全媒体公众号
-        "url": "https://weixin.sogou.com/weixin?type=2&query=FreeBuf",
-        "query": "FreeBuf 漏洞",
-        "renderer": "sogou",
-        "score": 78,
-        "max_items": 10,
-    },
-    {
-        "name": "安全客(搜狗)",  # 安全媒体公众号
-        "url": "https://weixin.sogou.com/weixin?type=2&query=安全客",
-        "query": "安全客 漏洞",
-        "renderer": "sogou",
-        "score": 76,
-        "max_items": 10,
-    },
-    {
-        "name": "看雪论坛(搜狗)",  # 二进制安全/漏洞研究公众号
-        "url": "https://weixin.sogou.com/weixin?type=2&query=看雪论坛",
-        "query": "看雪论坛 漏洞分析",
-        "renderer": "sogou",
-        "score": 74,
-        "max_items": 10,
-    },
-    {
-        "name": "安全内参(搜狗)",  # 行业洞察公众号
-        "url": "https://weixin.sogou.com/weixin?type=2&query=安全内参",
-        "query": "安全内参 漏洞",
-        "renderer": "sogou",
-        "score": 76,
-        "max_items": 10,
-    },
-    {
-        "name": "奇安信厂商漏洞(搜狗)",  # 厂商漏洞 — site:qihoo.com 限定
-        "url": "https://www.sogou.com/web?query=site:qihoo.com+漏洞",
-        "query": "site:qihoo.com 漏洞",
-        "target_domain": "qihoo.com",
-        "renderer": "sogou",
-        "score": 84,
-        "max_items": 12,
-    },
-    {
-        "name": "深信服厂商漏洞(搜狗)",  # 厂商漏洞 — site:sangfor.com.cn
-        "url": "https://www.sogou.com/web?query=site:sangfor.com.cn+漏洞",
-        "query": "site:sangfor.com.cn 漏洞",
-        "target_domain": "sangfor.com.cn",
-        "renderer": "sogou",
-        "score": 78,
-        "max_items": 10,
-    },
-    {
-        "name": "绿盟科技漏洞(搜狗)",  # 厂商漏洞 — site:nsfocus.com.cn
-        "url": "https://www.sogou.com/web?query=site:nsfocus.com.cn+漏洞",
-        "query": "site:nsfocus.com.cn 漏洞",
-        "target_domain": "nsfocus.com.cn",
-        "renderer": "sogou",
-        "score": 76,
-        "max_items": 10,
-    },
-    {
-        "name": "CNNVD漏洞(搜狗)",  # 漏洞库 — site:cnnvd.org.cn
-        "url": "https://www.sogou.com/web?query=site:cnnvd.org.cn+漏洞",
-        "query": "site:cnnvd.org.cn 漏洞",
-        "target_domain": "cnnvd.org.cn",
-        "renderer": "sogou",
-        "score": 80,
-        "max_items": 10,
-    },
+    # ===== Phase 51 sogou 源 (sogou.com/web site: 限定 + weixin.sogou.com 公众号) =====
+    # Phase 53 (2026-07-14) 整体剔除: 用户反馈 sogou 抓取微信公众号资讯质量差 +
+    # 过期,分析后根因:
+    #   1) weixin.sogou.com 微信公众号搜索结果是该公众号全量历史文章,无
+    #      时间过滤;published_at 兜底 now(UTC) 蒙混 RecencyGate,但实际内
+    #      容是 2016-2026Q1 老文章 (RSA 2017 / WitAwards 2016 / A 轮融资
+    #      等历史软文)
+    #   2) sogou.com/web PC 搜索当前 IP `120.231.210.132` 被 anti-bot 限
+    #      流 (返回 ~5K 验证码页, 走代理也限流)
+    #   3) 4 个厂商源 (奇安信/深信服/绿盟/CNNVD) query 写的是 `site:xxx 漏
+    #      洞`, 但 search_sogou() 实现总是先走 weixin 主路径, 抓到的 URL
+    #      全部是 weixin.sogou.com/link?url=... (公众号全量历史, 与厂商
+    #      漏洞无关)
+    # 综上三种路径均"无法解决", 按用户指示 "如无法解决则剔除搜狗抓取"
+    # 整体剔除 Phase 51 的 11 个 sogou 源。security 24h 走原有 17 个安全
+    # 源 (THN/安全客/FreeBuf/嘶吼/SecWiki/Schneier/HackRead/安全内参/深
+    # 信服/绿盟/奇安信威胁情报/启明星辰/知道创宇/CNNVD/TC260/等保网/央行
+    # /银保监)。
+    # collector 模块 (sogou_search.py) 保留代码但不引用, 便于回滚。
 ]
 
 

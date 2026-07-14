@@ -61,7 +61,7 @@ VALUES
 INSERT OR IGNORE INTO settings (key, value, updated_at)
 VALUES
     ('quality.strict_mode', 'false', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-    ('quality.min_score', '30', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    ('quality.min_score', '50', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     ('quality.url_check_sample_rate', '0.1', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     ('quality.url_check_concurrency', '5', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     ('quality.url_check_timeout', '8', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),

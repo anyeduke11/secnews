@@ -430,8 +430,8 @@ class TestPipelineIntegration:
         assert AuthorVerificationGate in gclasses
 
     def test_gate_count_is_9(self):
-        """Phase 9.2: 7 → 8 → 9 (FinalUrl) → Phase 20: 10 (BidRecency) → Phase 47: 11 (Recency)"""
-        assert len(QualityGatePipeline.DEFAULT_GATES) == 11
+        """Phase 9.2: 7 → 8 → 9 (FinalUrl) → Phase 20: 10 (BidRecency) → Phase 47: 11 (Recency) → fix-bug-github-category-dedup Task 3: 12 (NoiseContent)"""
+        assert len(QualityGatePipeline.DEFAULT_GATES) == 12
 
     def test_gate_order_after_source_reputation(self):
         """AuthorVerificationGate 应在 SourceReputationGate 之后、DuplicateGate 之前"""

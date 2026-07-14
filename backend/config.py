@@ -48,7 +48,7 @@ class Settings(BaseSettings):
 
     # Quality
     quality_strict_mode: bool = False
-    quality_min_score: int = 30
+    quality_min_score: int = 50
     quality_url_check_enabled: bool = True
     quality_url_check_sample_rate: float = 0.1
     quality_url_check_timeout: int = 8

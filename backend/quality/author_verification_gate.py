@@ -29,6 +29,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from backend.domain.collection import GateResult
+from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
 from backend.quality.base import BaseGate, GateContext
 from backend.quality.publisher_registry import resolve_publisher
@@ -38,6 +39,13 @@ from backend.quality.publisher_registry import resolve_publisher
 REWARD_MATCH = 2       # 完美匹配奖励
 PENALTY_MISMATCH = 10  # 域名已知但 author 不一致
 PENALTY_UNKNOWN = 3    # 域名不在注册表
+
+# canonical publisher name → 当出现这些 canonical 时,除了改 source,还要
+# 把 item.category 强制纠正到对应 Category。避免 "Show HN: Wrapper" 这类
+# GitHub 项目被抓到 AI 类别后,前端显示 category=AI / source=GitHub 的错乱。
+# 其它 canonical (MSRC / Wikipedia / ...) 不属于"项目仓库"语义,category
+# 应当保留 collector 原判断,不在此处改写。
+_GITHUB_CANONICAL_NAME = "GitHub"
 
 
 def _now_utc() -> datetime:
@@ -73,6 +81,15 @@ class AuthorVerificationGate(BaseGate):
             # 直接修改 item（model_copy 只覆盖 quality 字段，保留 source）
             item.source = canonical
             item.url_check_status = "mismatch"
+
+            # 特殊：GitHub 项目被误归到 AI/SECURITY 等类别时,强制纠正 category
+            # (见 _GITHUB_CANONICAL_NAME 注释)。其它 canonical 保持原 category。
+            if canonical == _GITHUB_CANONICAL_NAME:
+                if item.category != Category.GITHUB:
+                    flags.append(
+                        f"category_corrected_to={Category.GITHUB.value}"
+                    )
+                    item.category = Category.GITHUB
         else:
             # unknown：仅记录 + 轻扣分
             score_deduction = PENALTY_UNKNOWN

@@ -25,6 +25,7 @@ from backend.quality.config import QualityConfig, QualityMode
 from backend.quality.content_quality_gate import ContentQualityGate
 from backend.quality.duplicate_gate import DuplicateGate
 from backend.quality.final_url_gate import FinalUrlGate
+from backend.quality.noise_content_gate import NoiseContentGate
 from backend.quality.recency_gate import RecencyGate  # Phase 47
 from backend.quality.schema_gate import SchemaGate
 from backend.quality.scorer import compute_final_score, is_acceptable, merge_flags
@@ -92,6 +93,7 @@ class QualityGatePipeline:
         SchemaGate,
         RecencyGate,  # Phase 47 新增 - 资讯/标讯时效硬门禁 (本周一 00:00+08:00)
         ContentQualityGate,
+        NoiseContentGate,  # fix-bug-github-category-dedup Task 3 - 备案/版权/活动等噪音
         CategoryMatchGate,
         TitleSummaryGate,
         URLValidityGate,

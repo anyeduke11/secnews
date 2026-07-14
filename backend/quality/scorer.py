@@ -45,7 +45,7 @@ def merge_flags(*flags_lists: Iterable[str]) -> list[str]:
     return out
 
 
-def is_acceptable(score: int, threshold: int = 30) -> bool:
+def is_acceptable(score: int, threshold: int = 50) -> bool:
     """``score >= threshold`` 表示可接受。"""
     return score >= threshold
 

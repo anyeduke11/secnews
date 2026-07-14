@@ -62,8 +62,8 @@ def test_merge_flags_skips_none_entries():
 # is_acceptable
 # ---------------------------------------------------------------------------
 def test_is_acceptable_default_threshold():
-    assert is_acceptable(30) is True
-    assert is_acceptable(29) is False
+    assert is_acceptable(50) is True
+    assert is_acceptable(49) is False
     assert is_acceptable(100) is True
     assert is_acceptable(0) is False
 

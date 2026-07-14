@@ -574,13 +574,13 @@ def test_full_9_gate_pipeline_bid_item():
 
 
 def test_full_9_gate_pipeline_count_is_9():
-    """完整 pipeline 注册了 11 个门禁(Phase 20 BidRecency + Phase 47 Recency)。"""
+    """完整 pipeline 注册了 12 个门禁(Phase 20 BidRecency + Phase 47 Recency + fix-bug-github-category-dedup Task 3 NoiseContent)。"""
     cfg = QualityConfig()
     pipe = QualityGatePipeline(cfg, log_repo=_NoopLogRepo())
-    assert len(pipe.gates) == 11
+    assert len(pipe.gates) == 12
     names = {g.name for g in pipe.gates}
     assert names == {
-        "schema", "recency", "content", "category_match", "title_summary",
+        "schema", "recency", "content", "noise", "category_match", "title_summary",
         "url_validity", "source_reputation", "AuthorVerification", "FinalUrl", "duplicate", "bid_recency",
     }
 

@@ -35,6 +35,7 @@ from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
 from backend.logging_config import logger
 from backend.observability import log_event
+from backend.quality.config import NOISE_URL_REGEX
 
 # Phase 11: crawl4ai 适配层 (Playwright-based 抓取)。
 #   - 可选依赖: 没装 crawl4ai 时 ``is_available()`` 返回 False
@@ -552,6 +553,8 @@ class BaseCollector(ABC):
                     href = el.get("href", "").strip()
                     text = el.text_content().strip()
                     if href and text:
+                        if NOISE_URL_REGEX.match(href):
+                            continue
                         _add_item(text, href)
                     if len(items) >= self.max_items:
                         return items
@@ -569,6 +572,8 @@ class BaseCollector(ABC):
             )
             for m in entry_title_pat.finditer(html):
                 href, title = m.group(1), m.group(2)
+                if NOISE_URL_REGEX.match(href):
+                    continue
                 _add_item(title, href)
                 if len(items) >= self.max_items:
                     return items
@@ -584,6 +589,8 @@ class BaseCollector(ABC):
                     else:
                         href, text = m
                         title = text
+                    if NOISE_URL_REGEX.match(href):
+                        continue
                     _add_item(title or text, href)
                     if len(items) >= self.max_items:
                         return items

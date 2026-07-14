@@ -426,7 +426,7 @@ PRAGMA busy_timeout=5000        # 5s 等待避免 SQLITE_BUSY
 | `collect_interval_seconds` | `300` | 采集间隔 |
 | `collect_timeout_seconds` | `60` | 单次采集超时 |
 | `quality_strict_mode` | `False` | 严格模式开关 |
-| `quality_min_score` | `30` | 最低接受评分 |
+| `quality_min_score` | `50` | 最低接受评分 |
 | `quality_url_check_sample_rate` | `0.1` | URL 验证抽样率 |
 | `quality_url_check_timeout` | `8` | URL 验证超时 |
 

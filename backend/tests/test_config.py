@@ -33,7 +33,7 @@ def test_env_override(monkeypatch):
 def test_quality_defaults():
     s = Settings()
     assert s.quality_strict_mode is False
-    assert s.quality_min_score == 30
+    assert s.quality_min_score == 50
     assert s.quality_url_check_enabled is True
     assert s.quality_url_check_sample_rate == 0.1
     assert s.quality_url_check_timeout == 8

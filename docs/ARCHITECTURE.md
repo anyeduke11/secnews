@@ -445,7 +445,7 @@ CREATE TABLE source_reputation (
 | key | 类型 | 默认 | 说明 |
 |---|---|---|---|
 | `quality.strict_mode` | bool | `false` | true=拒绝 / false=warn+flag |
-| `quality.min_score` | int | 30 | 低于此分拒绝（严格模式生效时） |
+| `quality.min_score` | int | 50 | 低于此分拒绝（严格模式生效时） |
 | `quality.url_check_enabled` | bool | `true` | 异步 URL 内容验证总开关 |
 | `quality.url_check_sample_rate` | float | 0.1 | 异步抽样率（0-1） |
 | `quality.url_check_timeout` | int | 8 | 单 URL 超时（秒） |

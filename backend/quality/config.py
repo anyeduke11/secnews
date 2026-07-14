@@ -7,12 +7,34 @@
 """
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Any
 
 from backend.domain.enums import Category
 from backend.logging_config import logger
 from backend.repository.settings_repo import SettingsRepository
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 噪音 URL 黑名单 (collector 抓取源头过滤)
+# ---------------------------------------------------------------------------
+# 用于在 _parse_html 提取 <a href="..."> 后立即校验, 命中即跳过该锚点。
+# 这些 URL 模式在中文站点首页非常常见, 不应作为资讯入库:
+#   - beian.miit.gov.cn: 工信部 ICP 备案号链接
+#   - javascript:/void(0)/#: 死链/锚点
+#   - tel:/mailto:: 联系入口
+#   - /: 裸根路径(通常不是有效文章 URL)
+NOISE_URL_PATTERNS: list[str] = [
+    r"^https?://beian\.miit\.gov\.cn",   # 工信部备案号
+    r"^javascript:",
+    r"^void\(0\)",
+    r"^tel:",
+    r"^mailto:",
+    r"^#",
+    r"^/",
+]
+NOISE_URL_REGEX: re.Pattern = re.compile("|".join(NOISE_URL_PATTERNS), re.IGNORECASE)
 
 
 class QualityMode(str, Enum):
@@ -106,6 +128,38 @@ def get_category_keywords(category: Category) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Phase 47 噪音内容门禁关键词（fix-bug-github-category-dedup Task 3）
+# ---------------------------------------------------------------------------
+# 命中即视为噪音（备案号 / 版权 / 隐私协议 / 活动公告 / 招聘 / 证券举报 / 广告等）
+NOISE_TITLE_PATTERNS: list[str] = [
+    # 备案号
+    r"ICP备",
+    # 版权
+    r"©\d{4}",
+    r"版权所有",
+    r"Copyright \d{4}",
+    # 隐私/协议
+    r"隐私政策",
+    r"用户协议",
+    r"服务条款",
+    r"免责声明",
+    # 活动公告
+    r"沙龙",
+    r"技术沙龙",
+    r"喊你集结",
+    r"活动报名",
+    r"线上直播",
+    # 招聘
+    r"招人|招聘|校招|社招|实习",
+    # 证券举报
+    r"证券投资咨询",
+    r"举报专区",
+    # 广告
+    r"广告合作|赞助",
+]
+
+
+# ---------------------------------------------------------------------------
 # QualityConfig
 # ---------------------------------------------------------------------------
 class QualityConfig:
@@ -195,4 +249,7 @@ __all__ = [
     "DEFAULT_CATEGORY_KEYWORDS",
     "default_category_keywords",
     "get_category_keywords",
+    "NOISE_TITLE_PATTERNS",
+    "NOISE_URL_PATTERNS",
+    "NOISE_URL_REGEX",
 ]

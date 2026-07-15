@@ -20,11 +20,12 @@ log = logging.getLogger("hotspot.graph_builder")
 CACHE_TTL_MINUTES = 5
 
 
-def build_graph(domain: Optional[str] = None) -> dict:
+def build_graph(domain: Optional[str] = None, include_local: bool = True) -> dict:
     """Build knowledge graph {nodes, edges}.
 
     Args:
         domain: optional domain filter
+        include_local: if True and local wiki is available, merge local nodes
 
     Returns: {"nodes": [...], "edges": [...]}
     """
@@ -34,6 +35,8 @@ def build_graph(domain: Optional[str] = None) -> dict:
         graph = json.loads(cached["graph_data"])
         if domain:
             graph = _filter_by_domain(graph, domain)
+        if include_local:
+            graph = _merge_local(graph, domain)
         return graph
 
     # Build nodes from concepts
@@ -54,7 +57,15 @@ def build_graph(domain: Optional[str] = None) -> dict:
 
     graph = {"nodes": nodes, "edges": edges}
     _save_graph_cache(graph)
+    if include_local:
+        graph = _merge_local(graph, domain)
     return graph
+
+
+def _merge_local(graph: dict, domain: Optional[str]) -> dict:
+    """Merge local wiki nodes + federated edges into graph (no-op if unavailable)."""
+    from backend.services.federation_service import merge_graph
+    return merge_graph(graph, domain=domain)
 
 
 def _build_edges(domain: Optional[str] = None) -> list[dict]:

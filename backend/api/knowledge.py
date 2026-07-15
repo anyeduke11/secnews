@@ -108,6 +108,15 @@ async def list_concepts(domain: Optional[str] = Query(None)):
     return {"concepts": [c.to_dict() for c in concepts]}
 
 
+# ── Graph ───────────────────────────────────────────────────────
+
+@router.get("/graph")
+async def get_graph(domain: Optional[str] = Query(None)):
+    """Get knowledge graph data (nodes + edges)."""
+    from backend.services.graph_builder import build_graph
+    return build_graph(domain=domain)
+
+
 # ── Sync ────────────────────────────────────────────────────────
 
 @router.post("/sync")

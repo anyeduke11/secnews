@@ -208,3 +208,13 @@ async def regenerate_soul():
     """Trigger SOUL.md regeneration (creates task for Agent)."""
     from backend.services.soul_service import create_soul_task
     return create_soul_task()
+
+
+# ── Compile ─────────────────────────────────────────────────────
+
+@router.post("/compile")
+async def compile_items(data: dict):
+    """Trigger knowledge compilation (creates task for Agent)."""
+    from backend.services.compiler import create_compile_task
+    item_ids = data.get("item_ids")
+    return create_compile_task(item_ids)

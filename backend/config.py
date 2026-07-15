@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     quality_url_check_interval_seconds: int = 300
     quality_reputation_interval_seconds: int = 21600
 
+    # v1.4 Knowledge
+    local_wiki_enabled: bool = False
+    local_wiki_path: str = ""
+    local_wiki_readonly: bool = True
+
 
 # 全局单例
 config = Settings()

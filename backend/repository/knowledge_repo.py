@@ -292,6 +292,343 @@ class KnowledgeRepo:
             (status, result_path, error_message, now_iso(), task_id),
         )
 
+    # ── Content Calendar ─────────────────────────────────────────
+
+    def upsert_calendar_entry(self, entry: dict) -> None:
+        conn = get_connection()
+        conn.execute(
+            """
+            INSERT INTO content_calendar (id, date, topic, type, status,
+                source_items, draft_path, platform, published_url, stats,
+                created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                date=excluded.date,
+                topic=excluded.topic,
+                type=excluded.type,
+                status=excluded.status,
+                source_items=excluded.source_items,
+                draft_path=excluded.draft_path,
+                platform=excluded.platform,
+                published_url=excluded.published_url,
+                stats=excluded.stats,
+                updated_at=excluded.updated_at
+            """,
+            (
+                entry.get("id"),
+                entry["date"],
+                entry["topic"],
+                entry.get("type"),
+                entry.get("status", "planned"),
+                json.dumps(entry["source_items"]) if entry.get("source_items") else None,
+                entry.get("draft_path"),
+                entry.get("platform"),
+                entry.get("published_url"),
+                json.dumps(entry["stats"]) if entry.get("stats") else None,
+                entry.get("created_at") or now_iso(),
+                entry.get("updated_at") or now_iso(),
+            ),
+        )
+
+    def get_calendar_entry(self, id: int) -> Optional[dict]:
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT * FROM content_calendar WHERE id = ?", (id,)
+        ).fetchone()
+        return dict(row) if row else None
+
+    def list_calendar_entries(self, year_month: Optional[str]) -> list[dict]:
+        conn = get_connection()
+        if year_month:
+            rows = conn.execute(
+                "SELECT * FROM content_calendar WHERE strftime('%Y-%m', date) = ? "
+                "ORDER BY date ASC",
+                (year_month,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM content_calendar ORDER BY date ASC"
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def update_calendar_entry(self, id: int, fields: dict) -> None:
+        conn = get_connection()
+        allowed = {
+            "date", "topic", "type", "status", "source_items",
+            "draft_path", "platform", "published_url", "stats",
+        }
+        sets: list[str] = []
+        params: list = []
+        for key in allowed:
+            if key in fields:
+                val = fields[key]
+                if key in ("source_items", "stats") and val is not None:
+                    val = json.dumps(val)
+                sets.append(f"{key} = ?")
+                params.append(val)
+        if not sets:
+            return
+        sets.append("updated_at = ?")
+        params.append(now_iso())
+        params.append(id)
+        conn.execute(
+            f"UPDATE content_calendar SET {', '.join(sets)} WHERE id = ?",
+            params,
+        )
+
+    def delete_calendar_entry(self, id: int) -> None:
+        conn = get_connection()
+        conn.execute("DELETE FROM content_calendar WHERE id = ?", (id,))
+
+    # ── Content Drafts ───────────────────────────────────────────
+
+    def upsert_draft(self, draft: dict) -> None:
+        conn = get_connection()
+        conn.execute(
+            """
+            INSERT INTO content_drafts (id, file_path, title, status,
+                calendar_id, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                file_path=excluded.file_path,
+                title=excluded.title,
+                status=excluded.status,
+                calendar_id=excluded.calendar_id,
+                updated_at=excluded.updated_at
+            """,
+            (
+                draft.get("id"),
+                draft["file_path"],
+                draft["title"],
+                draft.get("status", "draft"),
+                draft.get("calendar_id"),
+                draft.get("created_at") or now_iso(),
+                draft.get("updated_at") or now_iso(),
+            ),
+        )
+
+    def get_draft(self, id: int) -> Optional[dict]:
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT * FROM content_drafts WHERE id = ?", (id,)
+        ).fetchone()
+        return dict(row) if row else None
+
+    def list_drafts(
+        self,
+        status: Optional[str] = None,
+        calendar_id: Optional[int] = None,
+    ) -> list[dict]:
+        conn = get_connection()
+        where = ["1=1"]
+        params: list = []
+        if status:
+            where.append("status = ?")
+            params.append(status)
+        if calendar_id is not None:
+            where.append("calendar_id = ?")
+            params.append(calendar_id)
+        sql = (
+            "SELECT * FROM content_drafts WHERE "
+            + " AND ".join(where)
+            + " ORDER BY updated_at DESC"
+        )
+        rows = conn.execute(sql, params).fetchall()
+        return [dict(r) for r in rows]
+
+    def update_draft(self, id: int, fields: dict) -> None:
+        conn = get_connection()
+        allowed = {"file_path", "title", "status", "calendar_id"}
+        sets: list[str] = []
+        params: list = []
+        for key in allowed:
+            if key in fields:
+                sets.append(f"{key} = ?")
+                params.append(fields[key])
+        if not sets:
+            return
+        sets.append("updated_at = ?")
+        params.append(now_iso())
+        params.append(id)
+        conn.execute(
+            f"UPDATE content_drafts SET {', '.join(sets)} WHERE id = ?",
+            params,
+        )
+
+    def delete_draft(self, id: int) -> None:
+        conn = get_connection()
+        conn.execute("DELETE FROM content_drafts WHERE id = ?", (id,))
+
+    # ── Knowledge Plans ──────────────────────────────────────────
+
+    def upsert_plan(self, plan_data: dict) -> None:
+        """Insert or update a weekly learning plan.
+
+        plan_data dict shape:
+            {week, status?, plan_data: {goals, tasks}, created_at?}
+        """
+        conn = get_connection()
+        existing = conn.execute(
+            "SELECT id FROM knowledge_plans WHERE week = ?",
+            (plan_data["week"],),
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE knowledge_plans SET status = ?, plan_data = ? WHERE week = ?",
+                (
+                    plan_data.get("status", "active"),
+                    json.dumps(plan_data["plan_data"]),
+                    plan_data["week"],
+                ),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO knowledge_plans (week, status, plan_data, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    plan_data["week"],
+                    plan_data.get("status", "active"),
+                    json.dumps(plan_data["plan_data"]),
+                    plan_data.get("created_at", now_iso()),
+                ),
+            )
+
+    def get_plan(self, week: str) -> Optional[dict]:
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT * FROM knowledge_plans WHERE week = ?", (week,)
+        ).fetchone()
+        if not row:
+            return None
+        r = dict(row)
+        r["plan_data"] = json.loads(r["plan_data"])
+        return r
+
+    def list_plans(self, status: Optional[str] = None) -> list[dict]:
+        conn = get_connection()
+        if status:
+            rows = conn.execute(
+                "SELECT * FROM knowledge_plans WHERE status = ? ORDER BY created_at DESC",
+                (status,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM knowledge_plans ORDER BY created_at DESC"
+            ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["plan_data"] = json.loads(d["plan_data"])
+            result.append(d)
+        return result
+
+    def update_plan_status(self, week: str, status: str) -> None:
+        conn = get_connection()
+        conn.execute(
+            "UPDATE knowledge_plans SET status = ? WHERE week = ?",
+            (status, week),
+        )
+
+    # ── Skill Config ─────────────────────────────────────────────
+
+    def upsert_skill(self, skill: dict) -> None:
+        """INSERT OR IGNORE a skill config (idempotent on skill_name)."""
+        conn = get_connection()
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO knowledge_skill_config
+                (skill_name, secret_id, model_override, prompt_template,
+                 enabled, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                skill["skill_name"],
+                skill.get("secret_id"),
+                skill.get("model_override"),
+                skill.get("prompt_template"),
+                int(skill.get("enabled", 1)),
+                skill["created_at"],
+                skill["updated_at"],
+            ),
+        )
+
+    def get_skill(self, id: int) -> Optional[dict]:
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT * FROM knowledge_skill_config WHERE id = ?", (id,)
+        ).fetchone()
+        return _skill_row_to_dict(row) if row else None
+
+    def get_skill_by_name(self, skill_name: str) -> Optional[dict]:
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT * FROM knowledge_skill_config WHERE skill_name = ?",
+            (skill_name,),
+        ).fetchone()
+        return _skill_row_to_dict(row) if row else None
+
+    def list_skills(self, enabled: Optional[bool] = None) -> list[dict]:
+        conn = get_connection()
+        if enabled is not None:
+            rows = conn.execute(
+                "SELECT * FROM knowledge_skill_config WHERE enabled = ? ORDER BY id",
+                (int(enabled),),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM knowledge_skill_config ORDER BY id"
+            ).fetchall()
+        return [_skill_row_to_dict(r) for r in rows]
+
+    def update_skill(self, id: int, fields: dict) -> None:
+        conn = get_connection()
+        allowed = {
+            "skill_name", "secret_id", "model_override",
+            "prompt_template", "enabled",
+        }
+        sets: list[str] = []
+        params: list = []
+        for key in allowed:
+            if key in fields:
+                val = fields[key]
+                if key == "enabled":
+                    val = int(val)
+                sets.append(f"{key} = ?")
+                params.append(val)
+        if not sets:
+            return
+        sets.append("updated_at = ?")
+        params.append(now_iso())
+        params.append(id)
+        conn.execute(
+            f"UPDATE knowledge_skill_config SET {', '.join(sets)} WHERE id = ?",
+            params,
+        )
+
+    def delete_skill(self, id: int) -> None:
+        conn = get_connection()
+        conn.execute(
+            "DELETE FROM knowledge_skill_config WHERE id = ?", (id,)
+        )
+
+    def count_skills(self) -> int:
+        """Total skill_config rows — used to decide whether to seed."""
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT COUNT(*) FROM knowledge_skill_config"
+        ).fetchone()
+        return row[0] if row else 0
+
+
+def _skill_row_to_dict(row) -> dict:
+    """Convert a skill_config row to dict, normalising enabled (0/1 → bool)."""
+    d = dict(row)
+    if "enabled" in d:
+        d["enabled"] = bool(d["enabled"])
+    return d
+
 
 # Singleton
 knowledge_repo = KnowledgeRepo()

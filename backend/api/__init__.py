@@ -11,9 +11,10 @@ from fastapi import FastAPI
 
 
 def register_routers(app: FastAPI) -> None:
-    """注册全部 14 个 APIRouter。"""
+    """注册全部 15 个 APIRouter。"""
     from backend.api import (
         categories,
+        content,  # v1.4: 内容创作 (calendar/drafts/templates)
         export,
         favorites,
         health,
@@ -49,6 +50,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(sync.router, tags=["sync"])
     app.include_router(weekly_report.router, tags=["weekly-report"])
     app.include_router(knowledge.router, tags=["knowledge"])
+    app.include_router(content.router, tags=["content"])
 
 
 __all__ = ["register_routers"]

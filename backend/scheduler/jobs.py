@@ -119,6 +119,29 @@ async def weekly_report_job() -> None:
         _logger.error(f"weekly_report_job crashed: {e}")
 
 
+async def scheduled_compile_job() -> None:
+    """Phase 1d: 定时编译任务 — 检测 stale items 并创建编译任务。
+
+    每日 02:00 (Asia/Shanghai) + 每周日 03:00 (Asia/Shanghai) 触发。
+    失败只 log.error，不抛异常。
+    """
+    try:
+        from backend.services.compiler import detect_stale_items, create_compile_task
+
+        result = await asyncio.to_thread(detect_stale_items)
+        stale_items = result.get("stale_items", [])
+        if stale_items:
+            compile_result = await asyncio.to_thread(create_compile_task, stale_items)
+            _logger.info(
+                f"scheduled_compile_job: created task {compile_result.get('task_id')} "
+                f"for {len(stale_items)} stale items"
+            )
+        else:
+            _logger.info("scheduled_compile_job: no stale items")
+    except Exception as e:
+        _logger.error(f"scheduled_compile_job crashed: {e}")
+
+
 # ---------------------------------------------------------------------------
 # Phase 42: 跨端配置同步 (Q2 决策: 每周一 10:30 + 启动 catch-up)
 # ---------------------------------------------------------------------------
@@ -231,4 +254,5 @@ __all__ = [
     "should_run_catchup",
     "daily_snapshot_job",
     "weekly_report_job",
+    "scheduled_compile_job",
 ]

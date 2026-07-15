@@ -408,3 +408,47 @@ async def update_plan(week: str, data: dict):
         return knowledge_repo.get_plan(week)
 
     return plan
+
+
+# ── Learning Progress ──────────────────────────────────────────
+
+@router.get("/progress")
+async def list_progress(domain: Optional[str] = Query(None)):
+    """List mastery progress for concepts, optionally filtered by domain."""
+    from backend.services.progress_service import list_progress as svc_list_progress
+    return {"progress": svc_list_progress(domain=domain)}
+
+
+@router.post("/progress/sync")
+async def sync_progress():
+    """Manually trigger .json ↔ SQLite sync for progress data."""
+    from backend.services.progress_service import sync_progress_from_md, write_progress_to_md
+    synced = sync_progress_from_md()
+    written = write_progress_to_md()
+    return {"synced_from_json": synced["synced"], "written_to_json": written["written"]}
+
+
+@router.get("/progress/{concept_slug}")
+async def get_progress(concept_slug: str):
+    """Get mastery progress for a single concept."""
+    from backend.services.progress_service import get_progress as svc_get_progress
+    progress = svc_get_progress(concept_slug)
+    if progress is None:
+        raise HTTPException(status_code=404, detail="Progress not found")
+    return progress
+
+
+@router.patch("/progress/{concept_slug}")
+async def update_progress(concept_slug: str, data: dict):
+    """Update mastery progress.
+
+    Body: {mastery?: int, tested?: bool}
+    """
+    from backend.services.progress_service import upsert_progress as svc_upsert_progress
+    if "mastery" in data:
+        mastery = data["mastery"]
+    else:
+        existing = knowledge_repo.get_progress(concept_slug)
+        mastery = existing["mastery"] if existing else 0
+    tested = data.get("tested", False)
+    return svc_upsert_progress(concept_slug=concept_slug, mastery=mastery, tested=tested)

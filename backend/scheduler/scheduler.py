@@ -158,6 +158,22 @@ class HotspotScheduler:
             name="weekly report generation (Mon 02:00 UTC)",
             replace_existing=True,
         )
+        # Phase 1d: job 9 — 定时编译 (每日 02:00 Asia/Shanghai)
+        self.scheduler.add_job(
+            jobs.scheduled_compile_job,
+            trigger=CronTrigger(hour=2, timezone=SHANGHAI_TZ),
+            id="compile_daily",
+            name="knowledge compile (daily 02:00)",
+            replace_existing=True,
+        )
+        # Phase 1d: job 10 — 定时编译 (每周日 03:00 Asia/Shanghai)
+        self.scheduler.add_job(
+            jobs.scheduled_compile_job,
+            trigger=CronTrigger(day_of_week="sun", hour=3, timezone=SHANGHAI_TZ),
+            id="compile_weekly",
+            name="knowledge compile (Sun 03:00)",
+            replace_existing=True,
+        )
         self.scheduler.start()
         self.logger.info(
             f"scheduler started, jobs: collect_all (every {self._interval}s), "

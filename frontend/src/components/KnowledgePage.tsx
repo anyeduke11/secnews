@@ -10,6 +10,10 @@ import { ContentCalendar } from './ContentCalendar';
 import { ContentDraftList } from './ContentDraftList';
 import { SkillEntryGrid } from './SkillEntryGrid';
 import { FederationStatus } from './FederationStatus';
+import { ItemDetailDialog } from './ItemDetailDialog';
+import { ConceptDetailDialog } from './ConceptDetailDialog';
+import { CompileTrigger } from './CompileTrigger';
+import { TaskMonitor } from './TaskMonitor';
 
 interface KnowledgePageProps {
   onBack: () => void;
@@ -41,6 +45,9 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
   const [filters, setFilters] = useState<FilterState>({
     domain: '', topic: '', type: '', difficulty: '', timeRange: 'all',
   });
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [taskRefreshKey, setTaskRefreshKey] = useState(0);
 
   const loadItems = useCallback(() => {
     setLoading(true);
@@ -124,6 +131,7 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
           >
             {syncing ? '同步中…' : '同步 Cubox'}
           </button>
+          <CompileTrigger onTaskCreated={() => setTaskRefreshKey(k => k + 1)} />
         </div>
       </div>
 
@@ -152,7 +160,7 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
             <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
               知识图谱
             </h3>
-            <KnowledgeGraph domain={filters.domain || undefined} />
+            <KnowledgeGraph domain={filters.domain || undefined} onSelectConcept={setSelectedSlug} />
           </div>
           <div>
             <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
@@ -224,6 +232,9 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
         <KnowledgeFilters onFilterChange={setFilters} />
       </div>
 
+      {/* 任务监控 */}
+      <TaskMonitor refreshKey={taskRefreshKey} />
+
       {/* 底部: 知识条目列表 */}
       <div>
         <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
@@ -242,8 +253,13 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
             {items.map(item => (
               <div
                 key={item.id}
+                onClick={() => setSelectedItemId(item.id)}
                 className="flex items-center gap-3 p-3 rounded-[var(--radius-md)] text-xs"
-                style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
+                style={{
+                  backgroundColor: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-color)',
+                  cursor: 'pointer',
+                }}
               >
                 <span
                   className="px-2 py-0.5 rounded-[var(--radius-sm)] text-[10px] font-medium shrink-0"
@@ -264,6 +280,14 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
           </div>
         )}
       </div>
+
+      {/* 弹窗 */}
+      <ItemDetailDialog item_id={selectedItemId} onClose={() => setSelectedItemId(null)} />
+      <ConceptDetailDialog
+        slug={selectedSlug}
+        onClose={() => setSelectedSlug(null)}
+        onSelectItem={setSelectedItemId}
+      />
     </div>
   );
 }

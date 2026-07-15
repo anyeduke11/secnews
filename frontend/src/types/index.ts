@@ -22,6 +22,8 @@ export interface HotspotItem {
   quality_flags?: string[];
   quality_checked_at?: string;
   is_fallback?: boolean;
+  // Phase 45: URL 验证状态
+  url_check_status?: string;
   // Phase 20+: 标讯状态(仅 category=bid 有效)
   // 可选值: 招标中 / 中标 / 变更 / 终止 / 成交 / 询价 / 比选 / 其他
   bid_status?: string;
@@ -726,4 +728,32 @@ export interface FederationStatus {
   local_items_count: number;
   federated_edges: number;
   readonly: boolean;
+}
+
+// ----- Phase 1d: 知识详情 + 编译 + 任务监控 -----
+export interface TaskItem {
+  id: number;
+  task_type: string;
+  status: 'pending' | 'processing' | 'done' | 'failed';
+  params?: Record<string, unknown>;
+  result_path?: string | null;
+  error_message?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompilePreview {
+  stale_items: string[];
+  count: number;
+  reasons: Record<string, string>;
+}
+
+export interface ConceptDetail {
+  slug: string;
+  title: string;
+  domain: string | null;
+  source_items: string[];
+  local_wiki_ref: string | null;
+  updated_at: string;
+  items: { id: string; title: string; domain: string | null }[];
 }

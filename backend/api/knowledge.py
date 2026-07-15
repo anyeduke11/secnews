@@ -177,3 +177,18 @@ async def import_from_history(data: dict):
     from backend.services.history_import import import_from_history as do_import
     item_ids = data.get("item_ids", [])
     return do_import(item_ids)
+
+
+# ── SOUL.md ─────────────────────────────────────────────────────
+
+@router.get("/soul")
+async def get_soul():
+    """Get SOUL.md role profile content."""
+    from backend.services.soul_service import get_soul
+    return get_soul()
+
+@router.post("/soul/regenerate")
+async def regenerate_soul():
+    """Trigger SOUL.md regeneration (creates task for Agent)."""
+    from backend.services.soul_service import create_soul_task
+    return create_soul_task()

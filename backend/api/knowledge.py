@@ -27,13 +27,29 @@ async def list_items(
     domain: Optional[str] = Query(None),
     source: Optional[str] = Query(None),
     compiled: Optional[bool] = Query(None),
+    topic: Optional[str] = Query(None),
+    type: Optional[str] = Query(None),
+    difficulty: Optional[str] = Query(None),
+    since: Optional[str] = Query(None),
+    until: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
     """List knowledge items with optional filters."""
-    items = knowledge_repo.list_items(domain=domain, source=source, compiled=compiled, limit=limit, offset=offset)
+    items = knowledge_repo.list_items(
+        domain=domain, source=source, compiled=compiled,
+        topic=topic, item_type=type, difficulty=difficulty,
+        since=since, until=until,
+        limit=limit, offset=offset,
+    )
     total = knowledge_repo.count_items(domain=domain)
     return {"items": [i.to_dict() for i in items], "total": total}
+
+
+@router.get("/topics")
+async def list_topics(domain: Optional[str] = Query(None)):
+    """List distinct topics for filter dropdown."""
+    return {"topics": knowledge_repo.list_topics(domain=domain)}
 
 
 @router.get("/items/{item_id}")

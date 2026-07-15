@@ -4,6 +4,12 @@ import { KnowledgeGraph } from './KnowledgeGraph';
 import { KnowledgeFilters, FilterState } from './KnowledgeFilters';
 import { HealthDashboard } from './HealthDashboard';
 import { SoulViewer } from './SoulViewer';
+import { LearningPanel } from './LearningPanel';
+import { MasteryGauge } from './MasteryGauge';
+import { ContentCalendar } from './ContentCalendar';
+import { ContentDraftList } from './ContentDraftList';
+import { SkillEntryGrid } from './SkillEntryGrid';
+import { FederationStatus } from './FederationStatus';
 
 interface KnowledgePageProps {
   onBack: () => void;
@@ -160,37 +166,55 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
             </h3>
             <SoulViewer />
           </div>
+          <div>
+            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+              联邦状态
+            </h3>
+            <FederationStatus />
+          </div>
         </div>
 
         {/* 中: 学习路径 */}
         <div
-          className="rounded-[var(--radius-md)] p-4"
+          className="rounded-[var(--radius-md)] p-4 space-y-4"
           style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
         >
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-            学习路径
-          </h3>
-          <div
-            className="flex items-center justify-center rounded-[var(--radius-sm)]"
-            style={{ height: '300px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)' }}
-          >
-            <p className="text-xs">Phase 1c: 学习计划 + 掌握度</p>
+          <div>
+            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+              学习路径
+            </h3>
+            <LearningPanel />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+              掌握度
+            </h3>
+            <MasteryGauge />
           </div>
         </div>
 
         {/* 右: 内容创作 */}
         <div
-          className="rounded-[var(--radius-md)] p-4"
+          className="rounded-[var(--radius-md)] p-4 space-y-4"
           style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
         >
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-            内容创作
-          </h3>
-          <div
-            className="flex items-center justify-center rounded-[var(--radius-sm)]"
-            style={{ height: '300px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)' }}
-          >
-            <p className="text-xs">Phase 1c: 创作日历 + 13 技能入口</p>
+          <div>
+            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+              创作日历
+            </h3>
+            <ContentCalendar />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+              草稿箱
+            </h3>
+            <ContentDraftList />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+              技能入口
+            </h3>
+            <SkillEntryGrid />
           </div>
         </div>
       </div>

@@ -140,3 +140,15 @@ async def knowledge_health():
         "orphan_items": 0,
         "stale_concepts": 0,
     }
+
+
+# ── Bookmarks Import ────────────────────────────────────────────
+
+@router.post("/bookmarks/import")
+async def import_bookmarks(data: dict, validate: bool = Query(False)):
+    """Import Chrome/Edge bookmarks JSON into knowledge base."""
+    from backend.services.bookmark_sync import parse_chrome_bookmarks, import_bookmarks as do_import
+    bookmarks = data.get("bookmarks", data)
+    items = parse_chrome_bookmarks(bookmarks)
+    result = do_import(items, validate=validate)
+    return result

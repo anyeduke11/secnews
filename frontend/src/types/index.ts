@@ -661,3 +661,69 @@ export interface SoulData {
   content: string;
   exists: boolean;
 }
+
+// ----- v1.4 Phase 1c: 学习计划 + 内容创作 + Skill 配置 + 联邦 -----
+export interface LearningPlan {
+  id: number;
+  week: string;
+  status: 'active' | 'completed' | 'archived';
+  plan_data: {
+    goals: string[];
+    tasks: { item_id: string; title: string; completed: boolean }[];
+  };
+  created_at: string;
+}
+
+export interface ConceptProgress {
+  concept_slug: string;
+  title: string;
+  domain: string;
+  mastery: number;
+  last_tested: string | null;
+  test_count: number;
+  updated_at: string;
+}
+
+export interface ContentCalendarEntry {
+  id: number;
+  date: string;
+  topic: string;
+  type: string;
+  status: 'planned' | 'drafting' | 'published';
+  source_items: string[];
+  draft_path: string | null;
+  platform: string;
+  published_url: string | null;
+  stats: { views?: number; likes?: number } | null;
+}
+
+export interface ContentDraft {
+  id: number;
+  file_path: string;
+  title: string;
+  status: 'draft' | 'final' | 'archived';
+  calendar_id: number | null;
+  created_at: string;
+  updated_at: string;
+  content?: string;
+}
+
+export interface SkillConfig {
+  id: number;
+  skill_name: string;
+  secret_id: number | null;
+  model_override: string | null;
+  prompt_template: string | null;
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface FederationStatus {
+  local_wiki_enabled: boolean;
+  local_wiki_path: string;
+  local_wiki_exists: boolean;
+  local_concepts_count: number;
+  local_items_count: number;
+  federated_edges: number;
+  readonly: boolean;
+}

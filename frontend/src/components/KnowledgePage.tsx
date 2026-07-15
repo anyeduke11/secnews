@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { KnowledgeItem } from '../types';
+import { KnowledgeGraph } from './KnowledgeGraph';
+import { KnowledgeFilters, FilterState } from './KnowledgeFilters';
+import { HealthDashboard } from './HealthDashboard';
+import { SoulViewer } from './SoulViewer';
 
 interface KnowledgePageProps {
   onBack: () => void;
@@ -28,11 +32,27 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<FilterState>({
+    domain: '', topic: '', type: '', difficulty: '', timeRange: 'all',
+  });
 
   const loadItems = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetch('/api/knowledge/items?limit=50')
+    // Build query string from filters
+    const params = new URLSearchParams({ limit: '50' });
+    if (filters.domain) params.set('domain', filters.domain);
+    if (filters.topic) params.set('topic', filters.topic);
+    if (filters.type) params.set('type', filters.type);
+    if (filters.difficulty) params.set('difficulty', filters.difficulty);
+    if (filters.timeRange === 'week' || filters.timeRange === 'month') {
+      const now = new Date();
+      const start = new Date();
+      if (filters.timeRange === 'week') start.setDate(now.getDate() - 7);
+      else start.setMonth(now.getMonth() - 1);
+      params.set('since', start.toISOString().split('T')[0]);
+    }
+    fetch(`/api/knowledge/items?${params}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -45,7 +65,7 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
         setError(e?.message || String(e));
         setLoading(false);
       });
-  }, []);
+  }, [filters]);
 
   useEffect(() => {
     loadItems();
@@ -117,19 +137,28 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
 
       {/* 三栏布局 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {/* 左: 知识图谱 */}
+        {/* 左: 知识图谱 + 健康度 + SOUL */}
         <div
-          className="rounded-[var(--radius-md)] p-4"
+          className="rounded-[var(--radius-md)] p-4 space-y-4"
           style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
         >
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-            知识图谱
-          </h3>
-          <div
-            className="flex items-center justify-center rounded-[var(--radius-sm)]"
-            style={{ height: '300px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)' }}
-          >
-            <p className="text-xs">Phase 1b: ECharts 力导向图</p>
+          <div>
+            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+              知识图谱
+            </h3>
+            <KnowledgeGraph domain={filters.domain || undefined} />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+              健康度
+            </h3>
+            <HealthDashboard />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+              角色画像
+            </h3>
+            <SoulViewer />
           </div>
         </div>
 
@@ -164,6 +193,11 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
             <p className="text-xs">Phase 1c: 创作日历 + 13 技能入口</p>
           </div>
         </div>
+      </div>
+
+      {/* 筛选器 */}
+      <div className="mb-3">
+        <KnowledgeFilters onFilterChange={setFilters} />
       </div>
 
       {/* 底部: 知识条目列表 */}

@@ -629,4 +629,35 @@ export interface KnowledgeHealth {
   compiled_count: number;
   orphan_items: number;
   stale_concepts: number;
+  gap_analysis?: DomainCoverage[];
+}
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  domain: string | null;
+  count: number;
+  wiki: 'hotspot' | 'local';
+}
+
+export interface GraphEdge {
+  source: string;
+  target: string;
+  weight: number;
+}
+
+export interface GraphData {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export interface DomainCoverage {
+  domain: string;
+  coverage: number;
+  suggestion: string;
+}
+
+export interface SoulData {
+  content: string;
+  exists: boolean;
 }

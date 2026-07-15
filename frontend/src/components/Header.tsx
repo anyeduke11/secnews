@@ -54,7 +54,7 @@ function Icon({ children, size = 14 }: { children: React.ReactNode; size?: numbe
   );
 }
 
-type ViewRoute = '/' | '/todos' | '/history' | '/skills' | '/secrets' | '/sync' | '/weekly-report';
+type ViewRoute = '/' | '/todos' | '/history' | '/skills' | '/secrets' | '/sync' | '/weekly-report' | '/knowledge';
 
 function isActive(locationPath: string, route: ViewRoute): boolean {
   if (route === '/') return locationPath === '/' || locationPath.startsWith('/category/');
@@ -80,6 +80,7 @@ export function Header({
   const navigate = useNavigate();
   const [apiVersion, setApiVersion] = useState<string | null>(null);
   const [now, setNow] = useState<number>(Date.now());
+  const [secretTTL, setSecretTTL] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,6 +96,26 @@ export function Header({
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const r = await fetch('/api/secrets/status');
+        if (!cancelled && r.ok) {
+          const data = await r.json();
+          if (data.setup && data.unlocked) {
+            setSecretTTL(data.remaining_seconds);
+          } else {
+            setSecretTTL(null);
+          }
+        }
+      } catch {}
+    };
+    poll();
+    const t = window.setInterval(poll, 15000);
+    return () => { cancelled = true; window.clearInterval(t); };
   }, []);
 
   const intervalMinutes = refreshIntervalMinutes ?? 30;
@@ -267,6 +288,17 @@ export function Header({
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </Icon>
+            {secretTTL != null && secretTTL > 0 && (
+              <span
+                className="ml-0.5 font-mono text-[10px] tabular-nums"
+                style={{
+                  color: secretTTL < 300 ? '#e85d5d' : secretTTL < 600 ? '#f0c929' : '#00c96a',
+                  animation: secretTTL < 60 ? 'pulse 1s ease-in-out infinite' : undefined,
+                }}
+              >
+                {Math.floor(secretTTL / 60)}:{(secretTTL % 60).toString().padStart(2, '0')}
+              </span>
+            )}
           </button>
 
           <button
@@ -298,6 +330,20 @@ export function Header({
               <line x1="16" y1="13" x2="8" y2="13" />
               <line x1="16" y1="17" x2="8" y2="17" />
               <polyline points="10 9 9 9 8 9" />
+            </Icon>
+          </button>
+
+          <button
+            onClick={() => navigateTo('/knowledge')}
+            className="btn-ghost px-2.5 py-1.5 text-xs"
+            title={isActive(location.pathname, '/knowledge') ? '返回首页' : '知识管理'}
+            aria-label={isActive(location.pathname, '/knowledge') ? '首页' : '知识管理'}
+            aria-pressed={isActive(location.pathname, '/knowledge')}
+            style={isActive(location.pathname, '/knowledge') ? activeStyle : undefined}
+          >
+            <Icon>
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
             </Icon>
           </button>
 

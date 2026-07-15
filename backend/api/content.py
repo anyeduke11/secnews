@@ -120,3 +120,35 @@ async def delete_draft(draft_id: int):
 async def list_templates():
     """List the 7 preset content templates."""
     return {"templates": content_service.list_templates()}
+
+
+# ── Publish ─────────────────────────────────────────────────────
+
+@router.post("/drafts/{draft_id}/publish")
+async def publish_draft(draft_id: int, data: dict):
+    """Create a publish task for a draft.
+
+    Body: {platform, skill_name, options?}
+    """
+    platform = data.get("platform")
+    skill_name = data.get("skill_name")
+    if not platform or not skill_name:
+        raise HTTPException(
+            status_code=400, detail="platform and skill_name are required"
+        )
+    try:
+        return content_service.create_publish_task(
+            draft_id=draft_id,
+            platform=platform,
+            skill_name=skill_name,
+            options=data.get("options"),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/drafts/{draft_id}/publish-history")
+async def get_publish_history(draft_id: int):
+    """Get publish task history for a draft."""
+    history = content_service.get_publish_history(draft_id)
+    return {"draft_id": draft_id, "history": history}

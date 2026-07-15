@@ -32,6 +32,10 @@ TEMPLATES = [
     {"id": "xhs-cards", "name": "小红书图文", "type": "cards", "platform": "xhs"},
 ]
 
+# Task queue directories (mirrors compiler.py PENDING_DIR pattern).
+PENDING_DIR = PROJECT_ROOT / "knowledge" / "learning" / "tasks" / "pending"
+DONE_DIR = PROJECT_ROOT / "knowledge" / "learning" / "tasks" / "done"
+
 
 # ── Helpers ────────────────────────────────────────────────────
 
@@ -208,3 +212,186 @@ def delete_draft(id: int) -> dict:
 
 def list_templates() -> list[dict]:
     return list(TEMPLATES)
+
+
+# ── Publish ────────────────────────────────────────────────────
+
+def create_publish_task(
+    draft_id: int,
+    platform: str,
+    skill_name: str,
+    options: Optional[dict] = None,
+) -> dict:
+    """Create a publish task for a draft.
+
+    Validates draft + skill (exists, enabled, secret_id bound), then
+    creates a knowledge_task row + pending task .md file, and flips the
+    draft status to "publishing".
+    """
+    # 1. Validate draft exists (get_draft reads .md content into row["content"])
+    draft = get_draft(draft_id)
+    if draft is None:
+        raise ValueError("draft not found")
+
+    # 2. Validate skill exists
+    skill = knowledge_repo.get_skill_by_name(skill_name)
+    if skill is None:
+        raise ValueError("skill not found")
+
+    # 3. Validate skill enabled (note: _skill_row_to_dict converts to bool)
+    if not skill["enabled"]:
+        raise ValueError("skill disabled")
+
+    # 4. Validate skill has secret_id bound
+    if skill.get("secret_id") is None:
+        raise ValueError("skill has no secret_id")
+
+    # 5. Read draft .md content
+    draft_content = draft.get("content", "")
+
+    # 6. Create knowledge_task record
+    now = now_iso()
+    params = {
+        "draft_id": draft_id,
+        "platform": platform,
+        "skill_name": skill_name,
+        "options": options or {},
+    }
+    task = knowledge_repo.create_task("publish", params)
+
+    # 7. Write pending task .md file (mirrors compiler.py pattern)
+    PENDING_DIR.mkdir(parents=True, exist_ok=True)
+    task_path = PENDING_DIR / f"task-{task.id}.md"
+    options_yaml = "\n".join(
+        f"  {k}: {v!r}" for k, v in (options or {}).items()
+    ) or "  {}"
+    task_path.write_text(
+        f"""---
+task_type: "publish"
+status: "pending"
+created_at: "{now}"
+params:
+  draft_id: {draft_id}
+  platform: "{platform}"
+  skill_name: "{skill_name}"
+  options:
+{options_yaml}
+---
+
+# 发布任务
+
+## 草稿内容
+
+{draft_content}
+
+## 发布参数
+
+- **平台**: {platform}
+- **Skill**: {skill_name}
+- **Draft ID**: {draft_id}
+- **Options**: {options or {{}}}
+
+## 执行步骤
+
+1. 读取草稿内容（上方 Markdown 正文）
+2. 调用 skill `{skill_name}` 执行发布
+3. 发布成功后，将 `published_url` 写入本文件 frontmatter 的 `result.published_url`
+4. 移动本文件到 `done/` 目录
+5. 如失败，移动到 `failed/` 并记录 error.md
+""",
+        encoding="utf-8",
+    )
+
+    # 8. Update draft status to "publishing"
+    knowledge_repo.update_draft(draft_id, {"status": "publishing"})
+
+    log.info(f"created publish task {task.id} for draft {draft_id} via {skill_name}")
+    return {
+        "task_id": task.id,
+        "status": "pending",
+        "draft_id": draft_id,
+        "platform": platform,
+        "skill_name": skill_name,
+    }
+
+
+def get_publish_history(draft_id: int) -> list[dict]:
+    """Return publish task history for a draft.
+
+    For each publish task, parses params JSON to extract platform/skill_name.
+    For done tasks, attempts to read the done/ task .md frontmatter for
+    ``result.published_url``.
+    """
+    import re
+
+    tasks = knowledge_repo.list_tasks_by_type("publish", {"draft_id": draft_id})
+    history: list[dict] = []
+    for t in tasks:
+        # Parse params JSON (raw row stores it as a JSON string)
+        params_raw = t.get("params")
+        try:
+            params = json.loads(params_raw) if params_raw else {}
+        except (TypeError, ValueError):
+            params = {}
+
+        published_url: Optional[str] = None
+        if t.get("status") == "done":
+            done_path = DONE_DIR / f"task-{t['id']}.md"
+            if done_path.exists():
+                text = done_path.read_text(encoding="utf-8")
+                if text.startswith("---"):
+                    parts = text.split("---", 2)
+                    frontmatter = parts[1] if len(parts) >= 3 else ""
+                    # Simple line-based search for published_url
+                    match = re.search(
+                        r'published_url:\s*"?([^\n"]+)"?', frontmatter
+                    )
+                    if match:
+                        published_url = match.group(1).strip()
+
+        history.append({
+            "task_id": t["id"],
+            "platform": params.get("platform"),
+            "skill_name": params.get("skill_name"),
+            "status": t.get("status"),
+            "published_url": published_url,
+            "created_at": t.get("created_at"),
+            "updated_at": t.get("updated_at"),
+        })
+    return history
+
+
+def update_publish_status(
+    task_id: int,
+    status: str,
+    published_url: Optional[str] = None,
+    error: Optional[str] = None,
+) -> dict:
+    """Update a publish task's status and reflect it on the draft.
+
+    - status="done" + published_url → flip draft status to "published"
+    - status="failed" → roll draft status back to "draft"
+    """
+    task = knowledge_repo.get_task(task_id)
+    if task is None:
+        raise ValueError(f"task {task_id} not found")
+
+    knowledge_repo.update_task_status(
+        task_id, status, error_message=error
+    )
+
+    # Parse params to get draft_id
+    params_raw = task.get("params")
+    try:
+        params = json.loads(params_raw) if params_raw else {}
+    except (TypeError, ValueError):
+        params = {}
+    draft_id = params.get("draft_id")
+
+    if draft_id is not None:
+        if status == "done" and published_url:
+            knowledge_repo.update_draft(draft_id, {"status": "published"})
+        elif status == "failed":
+            knowledge_repo.update_draft(draft_id, {"status": "draft"})
+
+    return {"task_id": task_id, "status": status}

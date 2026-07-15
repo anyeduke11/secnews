@@ -288,6 +288,13 @@ async def compile_items(data: dict):
 
 # ── Skills ──────────────────────────────────────────────────────
 
+@router.get("/skills/{skill_name}/validate")
+async def validate_skill(skill_name: str):
+    """Validate that a skill is ready for publishing (exists, enabled, secret bound)."""
+    from backend.services.skill_config_service import validate_skill_for_publish
+    return validate_skill_for_publish(skill_name)
+
+
 @router.get("/skills")
 async def list_skills(enabled: Optional[bool] = Query(None)):
     """List skill configs (auto-seeds 13 presets on first call)."""

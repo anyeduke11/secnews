@@ -282,6 +282,42 @@ class KnowledgeRepo:
             ).fetchall()
         return [KnowledgeTask.from_row(dict(r)) for r in rows]
 
+    def list_tasks_by_type(
+        self,
+        task_type: str,
+        params_filter: Optional[dict] = None,
+    ) -> list[dict]:
+        """List tasks by task_type, optionally filtered by params JSON keys.
+
+        ``params_filter`` performs a LIKE match on the JSON ``params`` column.
+        For ``{"draft_id": 5}`` it matches both ``"draft_id": 5`` and
+        ``"draft_id":5`` to be tolerant of serialisation whitespace.
+        """
+        conn = get_connection()
+        where = ["task_type = ?"]
+        params: list = [task_type]
+        if params_filter:
+            for key, val in params_filter.items():
+                where.append(
+                    f"(params LIKE ? OR params LIKE ?)"
+                )
+                params.append(f'%"{key}": {val}%')
+                params.append(f'%"{key}":{val}%')
+        sql = (
+            "SELECT * FROM knowledge_tasks WHERE "
+            + " AND ".join(where)
+            + " ORDER BY created_at DESC"
+        )
+        rows = conn.execute(sql, params).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_task(self, id: int) -> Optional[dict]:
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT * FROM knowledge_tasks WHERE id = ?", (id,)
+        ).fetchone()
+        return dict(row) if row else None
+
     def update_task_status(
         self,
         task_id: int,

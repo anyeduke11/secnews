@@ -621,6 +621,55 @@ class KnowledgeRepo:
         ).fetchone()
         return row[0] if row else 0
 
+    # ── Knowledge Progress ───────────────────────────────────────
+
+    def upsert_progress(
+        self,
+        concept_slug: str,
+        mastery: int,
+        last_tested: Optional[str],
+        test_count: int,
+    ) -> None:
+        """Insert or update mastery progress for a concept."""
+        conn = get_connection()
+        conn.execute(
+            """
+            INSERT INTO knowledge_progress
+                (concept_slug, mastery, last_tested, test_count, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(concept_slug) DO UPDATE SET
+                mastery=excluded.mastery,
+                last_tested=excluded.last_tested,
+                test_count=excluded.test_count,
+                updated_at=excluded.updated_at
+            """,
+            (concept_slug, mastery, last_tested, test_count, now_iso()),
+        )
+
+    def get_progress(self, concept_slug: str) -> Optional[dict]:
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT * FROM knowledge_progress WHERE concept_slug = ?",
+            (concept_slug,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def list_progress(self, domain: Optional[str] = None) -> list[dict]:
+        """List progress rows, LEFT JOIN knowledge_concepts for title/domain."""
+        conn = get_connection()
+        sql = (
+            "SELECT kp.concept_slug, kp.mastery, kp.last_tested, "
+            "kp.test_count, kp.updated_at, kc.title, kc.domain "
+            "FROM knowledge_progress kp "
+            "LEFT JOIN knowledge_concepts kc ON kp.concept_slug = kc.slug"
+        )
+        if domain:
+            sql += " WHERE kc.domain = ?"
+            rows = conn.execute(sql, (domain,)).fetchall()
+        else:
+            rows = conn.execute(sql).fetchall()
+        return [dict(r) for r in rows]
+
 
 def _skill_row_to_dict(row) -> dict:
     """Convert a skill_config row to dict, normalising enabled (0/1 → bool)."""

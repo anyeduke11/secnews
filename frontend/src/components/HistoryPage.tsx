@@ -42,6 +42,30 @@ export function HistoryPage({ favoritedIds, onToggleFavorite, onBack }: HistoryP
   const cursorRef = useRef<string | null>(null);
   const hasMoreRef = useRef<boolean>(false);
   const loadingMoreRef = useRef<boolean>(false);
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
+  const [archivingIds, setArchivingIds] = useState<Set<string>>(new Set());
+
+  const handleArchive = useCallback(async (item: HotspotItem) => {
+    setArchivingIds(prev => { const n = new Set(prev); n.add(item.id); return n; });
+    try {
+      const r = await fetch('/api/knowledge/import-from-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_ids: [item.id] }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      if (data.errors?.length > 0) {
+        alert(`归档失败: ${data.errors[0].error}`);
+      } else {
+        setArchivedIds(prev => { const n = new Set(prev); n.add(item.id); return n; });
+      }
+    } catch (e: any) {
+      alert(`归档失败: ${e.message || '未知错误'}`);
+    } finally {
+      setArchivingIds(prev => { const n = new Set(prev); n.delete(item.id); return n; });
+    }
+  }, []);
 
   // 1) 加载批次列表
   useEffect(() => {
@@ -302,15 +326,36 @@ export function HistoryPage({ favoritedIds, onToggleFavorite, onBack }: HistoryP
             className="grid gap-3"
             style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}
           >
-            {items.map((item, i) => (
-              <HotspotCard
-                key={item.id}
-                item={item}
-                index={i}
-                isFavorited={favoritedIds.has(item.id)}
-                onToggleFavorite={onToggleFavorite}
-              />
-            ))}
+            {items.map((item, i) => {
+              const isArchived = archivedIds.has(item.id);
+              const isArchiving = archivingIds.has(item.id);
+              return (
+                <div key={item.id} className="relative">
+                  <HotspotCard
+                    item={item}
+                    index={i}
+                    isFavorited={favoritedIds.has(item.id)}
+                    onToggleFavorite={onToggleFavorite}
+                  />
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleArchive(item); }}
+                    disabled={isArchived || isArchiving}
+                    className="btn-ghost absolute bottom-2 left-2 px-1.5 py-0.5 text-[10px] z-10"
+                    style={{
+                      backgroundColor: isArchived ? 'var(--bg-hover)' : 'var(--bg-elevated)',
+                      color: isArchived ? 'var(--text-muted)' : 'var(--text-secondary)',
+                      border: '1px solid var(--border-color)',
+                      opacity: isArchiving ? 0.6 : 1,
+                      cursor: (isArchived || isArchiving) ? 'default' : 'pointer',
+                    }}
+                    title={isArchived ? '已归档到知识库' : '归档到知识库'}
+                  >
+                    {isArchiving ? '📚 归档中…' : isArchived ? '✓ 已归档' : '📚 归档'}
+                  </button>
+                </div>
+              );
+            })}
           </div>
 
           {/* 加载更多 sentinel */}

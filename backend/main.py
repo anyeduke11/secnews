@@ -56,6 +56,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Phase 8: scheduler 注册到 app.state（替代模块级 singleton）
     app.state.scheduler = sched
 
+    # v1.3.0 Phase 5: 尝试从 OS keychain 自动恢复 unlock 状态
+    try:
+        from backend.services.secrets_service import try_auto_unlock
+        try_auto_unlock()
+    except Exception as e:
+        log.warning(f"auto-unlock failed (ignored): {e}")
+
+    # v1.4 Phase 1c Group N: 启动 knowledge watchdog（失败不阻断主服务）
+    try:
+        from backend.config import config
+        if config.knowledge_watchdog_enabled:
+            from backend.services.knowledge_watcher import start_watcher
+            if start_watcher():
+                log.info("knowledge watchdog auto-started")
+            else:
+                log.warning("knowledge watchdog auto-start returned False (already running?)")
+    except Exception as e:
+        log.warning(f"knowledge watchdog auto-start failed (ignored): {e}")
+
     startup_duration_ms = round((time.time() - boot_start) * 1000, 2)
     log_event(
         "startup_complete",
@@ -73,6 +92,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Phase 8: 清理 app.state.scheduler
     try:
         app.state.scheduler = None
+    except Exception:
+        pass
+    # v1.4 Phase 1c Group N: 停止 knowledge watchdog
+    try:
+        from backend.services.knowledge_watcher import stop_watcher
+        stop_watcher()
     except Exception:
         pass
     cache_invalidate("*")

@@ -22,3 +22,6 @@ pytest-asyncio>=0.21
 #           crawl4ai-setup
 #           python -m playwright install --with-deps chromium
 crawl4ai>=0.8.9; python_version >= "3.10"
+
+# v1.4 Phase 1c Group N: Obsidian watchdog — knowledge/ .md file watcher
+watchdog>=3.0.0

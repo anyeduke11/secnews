@@ -59,6 +59,8 @@ class Settings(BaseSettings):
     local_wiki_enabled: bool = False
     local_wiki_path: str = ""
     local_wiki_readonly: bool = True
+    # v1.4 Phase 1c Group N: Obsidian watchdog (knowledge/ .md file watcher)
+    knowledge_watchdog_enabled: bool = True
 
 
 # 全局单例

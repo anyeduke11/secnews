@@ -81,6 +81,11 @@ class KnowledgeRepo:
         domain: Optional[str] = None,
         source: Optional[str] = None,
         compiled: Optional[bool] = None,
+        topic: Optional[str] = None,
+        item_type: Optional[str] = None,
+        difficulty: Optional[str] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[KnowledgeItem]:
@@ -96,6 +101,22 @@ class KnowledgeRepo:
         if compiled is not None:
             where.append("compiled = ?")
             params.append(int(compiled))
+        if topic:
+            where.append("topic = ?")
+            params.append(topic)
+        if item_type:
+            where.append("type = ?")
+            params.append(item_type)
+        if difficulty:
+            where.append("difficulty = ?")
+            params.append(difficulty)
+        if since:
+            where.append("ingested_at >= ?")
+            params.append(since)
+        if until:
+            # until 是日期，需要包含当天，所以用 < next day
+            where.append("ingested_at < date(?, '+1 day')")
+            params.append(until)
         sql = (
             "SELECT * FROM knowledge_items WHERE "
             + " AND ".join(where)
@@ -104,6 +125,20 @@ class KnowledgeRepo:
         params.extend([limit, offset])
         rows = conn.execute(sql, params).fetchall()
         return [KnowledgeItem.from_row(dict(r)) for r in rows]
+
+    def list_topics(self, domain: Optional[str] = None) -> list[str]:
+        """Return distinct topics, optionally filtered by domain."""
+        conn = get_connection()
+        if domain:
+            rows = conn.execute(
+                "SELECT DISTINCT topic FROM knowledge_items WHERE domain = ? AND topic IS NOT NULL",
+                (domain,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT DISTINCT topic FROM knowledge_items WHERE topic IS NOT NULL"
+            ).fetchall()
+        return [r[0] for r in rows]
 
     def count_items(
         self,

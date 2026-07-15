@@ -244,3 +244,167 @@ async def compile_items(data: dict):
     from backend.services.compiler import create_compile_task
     item_ids = data.get("item_ids")
     return create_compile_task(item_ids)
+
+
+# ── Skills ──────────────────────────────────────────────────────
+
+@router.get("/skills")
+async def list_skills(enabled: Optional[bool] = Query(None)):
+    """List skill configs (auto-seeds 13 presets on first call)."""
+    from backend.services.skill_config_service import list_skills as _list_skills
+    return {"skills": _list_skills(enabled)}
+
+
+@router.post("/skills")
+async def create_skill(data: dict):
+    """Create a new skill config."""
+    from backend.services.skill_config_service import create_skill as _create_skill
+    skill_name = data.get("skill_name")
+    if not skill_name:
+        raise HTTPException(status_code=400, detail="skill_name is required")
+    return _create_skill(
+        skill_name=skill_name,
+        secret_id=data.get("secret_id"),
+        model_override=data.get("model_override"),
+        prompt_template=data.get("prompt_template"),
+    )
+
+
+@router.patch("/skills/{skill_id}")
+async def update_skill(skill_id: int, data: dict):
+    """Update skill config (bind secret_id / model_override / etc.)."""
+    from backend.services.skill_config_service import (
+        get_skill as _get_skill,
+        update_skill as _update_skill,
+    )
+    if _get_skill(skill_id) is None:
+        raise HTTPException(status_code=404, detail="Skill not found")
+    return _update_skill(skill_id, **data)
+
+
+@router.delete("/skills/{skill_id}")
+async def delete_skill(skill_id: int):
+    """Delete a skill config."""
+    from backend.services.skill_config_service import (
+        get_skill as _get_skill,
+        delete_skill as _delete_skill,
+    )
+    if _get_skill(skill_id) is None:
+        raise HTTPException(status_code=404, detail="Skill not found")
+    return _delete_skill(skill_id)
+
+
+@router.post("/skills/seed")
+async def seed_skills():
+    """Manually trigger preset skill seeding. Returns newly inserted count."""
+    from backend.services.skill_config_service import seed_default_skills
+    return {"seeded": seed_default_skills()}
+
+
+# ── Obsidian ───────────────────────────────────────────────────
+
+@router.post("/obsidian/open")
+async def obsidian_open():
+    """Return an obsidian://open URL for the knowledge vault."""
+    from backend.services.obsidian_service import open_vault
+    return open_vault()
+
+
+@router.get("/obsidian/conflicts")
+async def obsidian_conflicts():
+    """List .md conflict snapshots recorded by the watchdog."""
+    from backend.services.obsidian_service import get_conflicts
+    return {"conflicts": get_conflicts()}
+
+
+@router.post("/obsidian/watchdog/start")
+async def obsidian_watchdog_start():
+    """Start the knowledge watchdog."""
+    from backend.services.knowledge_watcher import start_watcher, is_running
+    start_watcher()
+    return {"running": is_running()}
+
+
+@router.post("/obsidian/watchdog/stop")
+async def obsidian_watchdog_stop():
+    """Stop the knowledge watchdog."""
+    from backend.services.knowledge_watcher import stop_watcher, is_running
+    stop_watcher()
+    return {"running": is_running()}
+
+
+@router.get("/obsidian/watchdog/status")
+async def obsidian_watchdog_status():
+    """Return the current watchdog running state."""
+    from backend.services.knowledge_watcher import is_running
+    return {"running": is_running()}
+
+
+# ── Learning Plans ─────────────────────────────────────────────
+
+@router.get("/plans")
+async def list_plans(status: Optional[str] = Query(None)):
+    """List weekly learning plans, optionally filtered by status."""
+    from backend.services.learning_service import list_plans as svc_list_plans
+    return {"plans": svc_list_plans(status=status)}
+
+
+@router.post("/plans")
+async def create_plan(data: dict):
+    """Manually create a weekly learning plan."""
+    from backend.services.learning_service import create_plan as svc_create_plan
+    week = data.get("week")
+    if not week:
+        raise HTTPException(status_code=400, detail="week is required")
+    goals = data.get("goals", [])
+    task_item_ids = data.get("task_item_ids", [])
+    return svc_create_plan(week=week, goals=goals, task_item_ids=task_item_ids)
+
+
+@router.post("/plans/generate")
+async def generate_plan(data: dict):
+    """Trigger Agent to generate a learning plan via knowledge-master skill."""
+    from backend.services.learning_service import generate_plan_task
+    domains = data.get("domains")
+    return generate_plan_task(domains=domains)
+
+
+@router.get("/plans/{week}")
+async def get_plan(week: str):
+    """Get a single learning plan by week (e.g. '2026-W29')."""
+    from backend.services.learning_service import get_plan as svc_get_plan
+    plan = svc_get_plan(week)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    return plan
+
+
+@router.patch("/plans/{week}")
+async def update_plan(week: str, data: dict):
+    """Update plan status or task completions.
+
+    Body: {status?: str, task_completions?: {item_id: bool}}
+    """
+    from backend.services.learning_service import update_plan_status
+    plan = knowledge_repo.get_plan(week)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Plan not found")
+
+    if "status" in data:
+        return update_plan_status(week=week, status=data["status"])
+
+    if "task_completions" in data:
+        completions = data["task_completions"]
+        plan_data = plan["plan_data"]
+        for task in plan_data.get("tasks", []):
+            if task["item_id"] in completions:
+                task["completed"] = completions[task["item_id"]]
+        knowledge_repo.upsert_plan({
+            "week": week,
+            "status": plan["status"],
+            "plan_data": plan_data,
+            "created_at": plan["created_at"],
+        })
+        return knowledge_repo.get_plan(week)
+
+    return plan

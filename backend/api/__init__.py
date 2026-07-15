@@ -19,6 +19,7 @@ def register_routers(app: FastAPI) -> None:
         health,
         history,
         hotspots,
+        knowledge,  # v1.4: 知识库
         proxy,
         quality,
         refresh,  # Phase 32: POST /api/refresh 手动触发采集
@@ -47,6 +48,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(secrets.router, tags=["secrets"])
     app.include_router(sync.router, tags=["sync"])
     app.include_router(weekly_report.router, tags=["weekly-report"])
+    app.include_router(knowledge.router, tags=["knowledge"])
 
 
 __all__ = ["register_routers"]

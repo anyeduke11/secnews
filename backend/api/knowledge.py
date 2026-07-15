@@ -131,14 +131,26 @@ async def knowledge_health():
     """Get knowledge wiki health metrics."""
     total = knowledge_repo.count_items()
     compiled_count = knowledge_repo.count_items(compiled=True)
-    compiled_ratio = (compiled_count / total) if total > 0 else 0
+    coverage = knowledge_repo.domain_coverage()
+    gap_analysis = [
+        {
+            "domain": c["domain"],
+            "coverage": round(c["coverage"], 2),
+            "suggestion": (
+                "覆盖良好" if c["coverage"] >= 0.5
+                else f"建议补充 {c['domain']} 相关条目"
+            ),
+        }
+        for c in coverage
+    ]
     return {
         "total_items": total,
         "total_concepts": len(knowledge_repo.list_concepts()),
-        "compiled_ratio": compiled_ratio,
         "compiled_count": compiled_count,
-        "orphan_items": 0,
-        "stale_concepts": 0,
+        "compiled_ratio": (compiled_count / total) if total > 0 else 0,
+        "orphan_items": knowledge_repo.count_orphan_items(),
+        "stale_concepts": knowledge_repo.count_stale_concepts(),
+        "gap_analysis": gap_analysis,
     }
 
 

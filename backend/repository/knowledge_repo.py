@@ -123,6 +123,46 @@ class KnowledgeRepo:
         row = conn.execute(sql, params).fetchone()
         return row[0] if row else 0
 
+    def count_orphan_items(self) -> int:
+        """无 concepts 关联的 items 数量。"""
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT COUNT(*) FROM knowledge_items WHERE concepts IS NULL OR concepts = '[]'"
+        ).fetchone()
+        return row[0] if row else 0
+
+    def count_stale_concepts(self, days: int = 30) -> int:
+        """超过 N 天未更新的 concepts 数量。
+
+        用 datetime() 转换以兼容 ISO 8601 带时区格式（如
+        ``2026-07-15T10:00:00+00:00``）与 SQLite 内置 ``datetime('now')``
+        的 ``YYYY-MM-DD HH:MM:SS`` 格式。
+        """
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT COUNT(*) FROM knowledge_concepts "
+            "WHERE datetime(updated_at) < datetime('now', ?)",
+            (f'-{days} days',),
+        ).fetchone()
+        return row[0] if row else 0
+
+    def domain_coverage(self) -> list[dict]:
+        """按 domain 分组统计覆盖度。"""
+        conn = get_connection()
+        rows = conn.execute("""
+            SELECT
+                COALESCE(domain, 'unknown') as domain,
+                COUNT(*) as total,
+                SUM(CASE WHEN compiled = 1 THEN 1 ELSE 0 END) as compiled
+            FROM knowledge_items
+            GROUP BY COALESCE(domain, 'unknown')
+        """).fetchall()
+        return [
+            {"domain": r[0], "total": r[1], "compiled": r[2],
+             "coverage": r[2]/r[1] if r[1] > 0 else 0}
+            for r in rows
+        ]
+
     def delete_item(self, item_id: str) -> None:
         conn = get_connection()
         conn.execute("DELETE FROM knowledge_items WHERE id = ?", (item_id,))

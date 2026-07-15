@@ -111,10 +111,27 @@ async def list_concepts(domain: Optional[str] = Query(None)):
 # ── Graph ───────────────────────────────────────────────────────
 
 @router.get("/graph")
-async def get_graph(domain: Optional[str] = Query(None)):
-    """Get knowledge graph data (nodes + edges)."""
+async def get_graph(
+    domain: Optional[str] = Query(None),
+    include_local: bool = Query(True),
+):
+    """Get knowledge graph data (nodes + edges).
+
+    Args:
+        domain: optional domain filter
+        include_local: merge local wiki nodes (default True)
+    """
     from backend.services.graph_builder import build_graph
-    return build_graph(domain=domain)
+    return build_graph(domain=domain, include_local=include_local)
+
+
+# ── Federation ──────────────────────────────────────────────────
+
+@router.get("/federation")
+async def get_federation():
+    """Get local wiki federation status."""
+    from backend.services.federation_service import get_federation_status
+    return get_federation_status()
 
 
 # ── Sync ────────────────────────────────────────────────────────

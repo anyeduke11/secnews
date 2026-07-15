@@ -603,3 +603,30 @@ export function getBidStatusColor(status?: string | null): string {
     default:       return '#888899';   // 灰
   }
 }
+
+// ----- v1.4: 知识管理 (Knowledge Dashboard) -----
+export interface KnowledgeItem {
+  id: string;
+  title: string;
+  source: 'cubox' | 'bookmark' | 'secnews' | 'secnews_archive';
+  source_url: string;
+  domain: string | null;
+  topic: string | null;
+  type: string | null;
+  difficulty: string | null;
+  tags: string[];
+  concepts: string[];
+  mastered: number;
+  compiled: boolean;
+  ingested_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeHealth {
+  total_items: number;
+  total_concepts: number;
+  compiled_ratio: number;
+  compiled_count: number;
+  orphan_items: number;
+  stale_concepts: number;
+}

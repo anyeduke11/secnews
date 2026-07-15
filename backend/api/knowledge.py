@@ -152,3 +152,16 @@ async def import_bookmarks(data: dict, validate: bool = Query(False)):
     items = parse_chrome_bookmarks(bookmarks)
     result = do_import(items, validate=validate)
     return result
+
+
+# ── History Import ──────────────────────────────────────────────
+
+@router.post("/import-from-history")
+async def import_from_history(data: dict):
+    """Import archived hotspot items into knowledge base.
+
+    item_ids 是 hotspots 表的 TEXT 主键 (如 "ai_量子位_0").
+    """
+    from backend.services.history_import import import_from_history as do_import
+    item_ids = data.get("item_ids", [])
+    return do_import(item_ids)

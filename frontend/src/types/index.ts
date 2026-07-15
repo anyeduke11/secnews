@@ -757,3 +757,28 @@ export interface ConceptDetail {
   updated_at: string;
   items: { id: string; title: string; domain: string | null }[];
 }
+
+// ----- Phase 1e: 内容发布 -----
+export interface PublishTask {
+  task_id: number;
+  status: string;
+  draft_id: number;
+  platform: string;
+  skill_name: string;
+}
+
+export interface PublishHistoryItem {
+  task_id: number;
+  platform: string | null;
+  skill_name: string | null;
+  status: string;
+  published_url: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface SkillValidation {
+  valid: boolean;
+  reason?: 'skill_not_found' | 'skill_disabled' | 'no_secret_bound';
+  secret_id?: number;
+}

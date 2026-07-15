@@ -138,6 +138,34 @@ async def add_favorite(req: AddFavoriteRequest):
     except Exception as e:
         logger.error(f"add favorite failed: {e}")
         raise HTTPException(status_code=500, detail={"message": f"添加失败: {e}"})
+
+    # v1.4: sync to knowledge items (non-critical, must not break favorites flow)
+    try:
+        from backend.repository.knowledge_repo import knowledge_repo
+        from backend.domain.knowledge_models import KnowledgeItem, now_iso
+        from backend.services.data_cleaning import item_id_from_url
+        import logging
+        _klog = logging.getLogger("hotspot.favorites.webhook")
+        fav_url = req.url.strip()
+        fav_title = req.title.strip()
+        if fav_url:
+            item_id = item_id_from_url(fav_url)
+            existing = knowledge_repo.get_item(item_id)
+            if not existing:
+                kitem = KnowledgeItem(
+                    id=item_id,
+                    title=fav_title or "Untitled",
+                    source="secnews",
+                    source_url=fav_url,
+                    ingested_at=now_iso(),
+                    updated_at=now_iso(),
+                )
+                knowledge_repo.upsert_item(kitem)
+                _klog.info(f"favorite synced to knowledge: {item_id}")
+    except Exception as e:
+        _klog = logging.getLogger("hotspot.favorites.webhook")
+        _klog.warning(f"favorite -> knowledge sync failed (non-critical): {e}")
+
     return {
         "status": "ok",
         "created": created,

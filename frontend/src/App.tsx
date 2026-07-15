@@ -15,6 +15,7 @@ import { SkillsPage } from './components/SkillsPage';
 import { SecretsPage } from './components/SecretsPage';
 import { SyncPage } from './components/SyncPage';
 import { WeeklyReportPage } from './components/WeeklyReportPage';
+import { KnowledgePage } from './components/KnowledgePage';
 import { useHotspotData } from './hooks/useHotspotData';
 import { useRefreshInterval } from './hooks/useRefreshInterval';
 import { useTodos } from './hooks/useTodos';
@@ -292,6 +293,7 @@ export default function App() {
             <Route path="/secrets" element={<SecretsPage onBack={goHome} />} />
             <Route path="/sync" element={<SyncPage onBack={goHome} />} />
             <Route path="/weekly-report" element={<WeeklyReportPage onBack={goHome} />} />
+            <Route path="/knowledge" element={<KnowledgePage onBack={goHome} />} />
           </Routes>
         </div>
       </div>

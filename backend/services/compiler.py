@@ -7,6 +7,8 @@ The actual LLM compilation is done by Agent via knowledge-base-manager skill.
 from __future__ import annotations
 
 import logging
+import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -23,20 +25,76 @@ PENDING_DIR = (
     / "pending"
 )
 
+ITEMS_DIR = (
+    Path(__file__).resolve().parent.parent.parent
+    / "knowledge"
+    / "items"
+)
+
+
+def detect_stale_items() -> dict:
+    """Detect items that need recompilation.
+
+    Conditions:
+      1. compiled=false → reason="compiled=false"
+      2. .md file mtime > SQLite updated_at → reason="file_modified"
+
+    Returns: {"stale_items": [id1, id2], "reasons": {id1: "compiled=false", ...}}
+    """
+    stale_items: list[str] = []
+    reasons: dict[str, str] = {}
+
+    items = knowledge_repo.list_items(limit=10000)
+    for item in items:
+        # Condition 1: compiled=false
+        if not item.compiled:
+            stale_items.append(item.id)
+            reasons[item.id] = "compiled=false"
+            continue
+
+        # Condition 2: file mtime > SQLite updated_at
+        md_path = ITEMS_DIR / f"{item.id}.md"
+        if not md_path.exists():
+            continue
+        try:
+            file_mtime = os.path.getmtime(md_path)
+            file_mtime_dt = datetime.fromtimestamp(file_mtime, tz=timezone.utc)
+        except OSError:
+            continue
+
+        updated_at_str = item.updated_at
+        if not updated_at_str:
+            continue
+        # Handle ISO 8601 with Z suffix
+        if updated_at_str.endswith("Z"):
+            updated_at_str = updated_at_str[:-1] + "+00:00"
+        try:
+            updated_at_dt = datetime.fromisoformat(updated_at_str)
+        except ValueError:
+            continue
+        if updated_at_dt.tzinfo is None:
+            updated_at_dt = updated_at_dt.replace(tzinfo=timezone.utc)
+
+        if file_mtime_dt > updated_at_dt:
+            stale_items.append(item.id)
+            reasons[item.id] = "file_modified"
+
+    return {"stale_items": stale_items, "reasons": reasons}
+
 
 def create_compile_task(item_ids: Optional[list[str]] = None) -> dict:
     """Create a compile task.
 
     Args:
-        item_ids: specific item IDs to compile. If None, compile all
-                  compiled=false items. If empty list, return no_items.
+        item_ids: specific item IDs to compile. If None, detect stale items
+                  (compiled=false or file modified). If empty list, return no_items.
 
     Returns: {task_id, status, items_to_compile}
     """
     if item_ids is None:
-        # Query all compiled=false items
-        items = knowledge_repo.list_items(compiled=False, limit=1000)
-        item_ids = [i.id for i in items]
+        # Detect stale items (compiled=false OR file modified)
+        stale = detect_stale_items()
+        item_ids = stale["stale_items"]
     elif not item_ids:
         return {"task_id": None, "status": "no_items", "items_to_compile": 0}
 

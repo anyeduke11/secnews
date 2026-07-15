@@ -241,6 +241,13 @@ class KnowledgeRepo:
             ).fetchall()
         return [KnowledgeConcept.from_row(dict(r)) for r in rows]
 
+    def get_concept(self, slug: str) -> Optional[KnowledgeConcept]:
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT * FROM knowledge_concepts WHERE slug = ?", (slug,)
+        ).fetchone()
+        return KnowledgeConcept.from_row(dict(row)) if row else None
+
     # ── Knowledge Tasks ──────────────────────────────────────────
 
     def create_task(self, task_type: str, params: Optional[dict] = None) -> KnowledgeTask:

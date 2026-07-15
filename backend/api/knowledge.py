@@ -54,11 +54,23 @@ async def list_topics(domain: Optional[str] = Query(None)):
 
 @router.get("/items/{item_id}")
 async def get_item(item_id: str):
-    """Get a single knowledge item by ID."""
+    """Get a single knowledge item by ID, with markdown content."""
     item = knowledge_repo.get_item(item_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
-    return item.to_dict()
+    from pathlib import Path
+    md_path = Path(__file__).resolve().parent.parent.parent / "knowledge" / "items" / f"{item_id}.md"
+    content = ""
+    if md_path.exists():
+        text = md_path.read_text(encoding="utf-8")
+        if text.startswith("---"):
+            parts = text.split("---", 2)
+            content = parts[2].strip() if len(parts) >= 3 else text
+        else:
+            content = text
+    result = item.to_dict()
+    result["content"] = content
+    return result
 
 
 @router.patch("/items/{item_id}")
@@ -106,6 +118,22 @@ async def list_concepts(domain: Optional[str] = Query(None)):
     """List knowledge concepts."""
     concepts = knowledge_repo.list_concepts(domain=domain)
     return {"concepts": [c.to_dict() for c in concepts]}
+
+
+@router.get("/concepts/{slug}")
+async def get_concept(slug: str):
+    """Get concept detail with related items."""
+    concept = knowledge_repo.get_concept(slug)
+    if concept is None:
+        raise HTTPException(status_code=404, detail="Concept not found")
+    items = []
+    for item_id in concept.source_items:
+        item = knowledge_repo.get_item(item_id)
+        if item is not None:
+            items.append({"id": item.id, "title": item.title, "domain": item.domain})
+    result = concept.to_dict()
+    result["items"] = items
+    return result
 
 
 # ── Graph ───────────────────────────────────────────────────────
@@ -237,6 +265,18 @@ async def regenerate_soul():
 
 
 # ── Compile ─────────────────────────────────────────────────────
+
+@router.get("/compile/preview")
+async def compile_preview():
+    """Preview items that need recompilation (stale items)."""
+    from backend.services.compiler import detect_stale_items
+    result = detect_stale_items()
+    return {
+        "stale_items": result["stale_items"],
+        "count": len(result["stale_items"]),
+        "reasons": result["reasons"],
+    }
+
 
 @router.post("/compile")
 async def compile_items(data: dict):

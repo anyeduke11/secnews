@@ -102,6 +102,22 @@ def delete_skill(id: int) -> dict:
     return {"deleted": id}
 
 
+def validate_skill_for_publish(skill_name: str) -> dict:
+    """Validate that a skill is ready for publishing.
+
+    Checks: skill exists, enabled, and has a secret_id bound.
+    Returns ``{"valid": bool, ...}`` with a ``reason`` on failure.
+    """
+    skill = knowledge_repo.get_skill_by_name(skill_name)
+    if skill is None:
+        return {"valid": False, "reason": "skill_not_found"}
+    if not skill["enabled"]:
+        return {"valid": False, "reason": "skill_disabled"}
+    if skill.get("secret_id") is None:
+        return {"valid": False, "reason": "no_secret_bound"}
+    return {"valid": True, "secret_id": skill["secret_id"]}
+
+
 __all__ = [
     "DEFAULT_SKILLS",
     "seed_default_skills",
@@ -110,4 +126,5 @@ __all__ = [
     "create_skill",
     "update_skill",
     "delete_skill",
+    "validate_skill_for_publish",
 ]

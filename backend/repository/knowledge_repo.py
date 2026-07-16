@@ -248,6 +248,14 @@ class KnowledgeRepo:
         ).fetchone()
         return KnowledgeConcept.from_row(dict(row)) if row else None
 
+    def update_concept_local_wiki_ref(self, slug: str, ref: str) -> None:
+        """Phase 1f Task 6.11: 回填 concept 的 local_wiki_ref 字段。"""
+        conn = get_connection()
+        conn.execute(
+            "UPDATE knowledge_concepts SET local_wiki_ref = ?, updated_at = ? WHERE slug = ?",
+            (ref, now_iso(), slug),
+        )
+
     # ── Knowledge Tasks ──────────────────────────────────────────
 
     def create_task(self, task_type: str, params: Optional[dict] = None) -> KnowledgeTask:

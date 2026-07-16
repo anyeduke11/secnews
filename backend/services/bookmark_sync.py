@@ -22,19 +22,44 @@ log = logging.getLogger("hotspot.bookmark_sync")
 ITEMS_DIR = Path(__file__).resolve().parent.parent.parent / "knowledge" / "items"
 
 
-def parse_chrome_bookmarks(node: dict, folder_tags: Optional[list[str]] = None) -> list[dict]:
+def parse_chrome_bookmarks(node: dict | list, folder_tags: Optional[list[str]] = None) -> list[dict]:
     """Recursively parse Chrome/Edge bookmarks JSON.
-    
+
     Returns list of {url, title, tags} dicts.
     folder_tags: accumulated ancestor folder names (used as tags).
+
+    Accepts:
+    - Chrome root JSON: ``{"roots": {"bookmark_bar": {...}, "other": {...}}}``
+    - A single folder/url node: ``{"type": "folder", "children": [...]}``
+    - A list of nodes: ``[{...}, {...}]``
     """
     if folder_tags is None:
         folder_tags = []
-    
+
     results: list[dict] = []
+
+    # Chrome root format: {"roots": {...}, "version": "1"} — iterate root folders
+    if isinstance(node, dict) and "roots" in node and "type" not in node:
+        roots = node.get("roots") or {}
+        if isinstance(roots, dict):
+            for child in roots.values():
+                if isinstance(child, dict):
+                    results.extend(parse_chrome_bookmarks(child, folder_tags))
+        return results
+
+    # List of nodes — iterate and merge
+    if isinstance(node, list):
+        for child in node:
+            if isinstance(child, dict):
+                results.extend(parse_chrome_bookmarks(child, folder_tags))
+        return results
+
+    if not isinstance(node, dict):
+        return results
+
     node_type = node.get("type", "")
     node_name = node.get("name", "")
-    
+
     if node_type == "url":
         url = node.get("url", "")
         if url:
@@ -48,11 +73,7 @@ def parse_chrome_bookmarks(node: dict, folder_tags: Optional[list[str]] = None) 
         new_tags = folder_tags + ([node_name] if node_name else [])
         for child in node.get("children", []):
             results.extend(parse_chrome_bookmarks(child, new_tags))
-    elif "children" in node:
-        # Root node or unnamed folder
-        for child in node.get("children", []):
-            results.extend(parse_chrome_bookmarks(child, folder_tags))
-    
+
     return results
 
 

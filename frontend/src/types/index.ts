@@ -622,6 +622,23 @@ export interface KnowledgeItem {
   compiled: boolean;
   ingested_at: string;
   updated_at: string;
+  // Phase 1f Task 6.12: 三源元数据合并 + 掌握度迁移
+  sources?: string[];
+  migrated_to_local?: boolean;
+}
+
+// Phase 1f Task 6.12: 书签导入结果
+export interface BookmarkImportResult {
+  imported: number;
+  skipped_duplicates: number;
+  skipped_invalid: number;
+  dead_links: number;
+}
+
+// Phase 1f Task 6.12: 任务提交参数
+export interface TaskSubmitParams {
+  task_type: string;
+  params: Record<string, unknown>;
 }
 
 export interface KnowledgeHealth {

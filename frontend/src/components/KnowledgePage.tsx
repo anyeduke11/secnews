@@ -14,6 +14,8 @@ import { ItemDetailDialog } from './ItemDetailDialog';
 import { ConceptDetailDialog } from './ConceptDetailDialog';
 import { CompileTrigger } from './CompileTrigger';
 import { TaskMonitor } from './TaskMonitor';
+import { BookmarkImport } from './BookmarkImport';
+import { TaskSubmitDialog } from './TaskSubmitDialog';
 
 interface KnowledgePageProps {
   onBack: () => void;
@@ -48,6 +50,7 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [taskRefreshKey, setTaskRefreshKey] = useState(0);
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [syncToast, setSyncToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
   const loadItems = useCallback(() => {
@@ -152,7 +155,17 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
           >
             {syncing ? '同步中…' : '同步 Cubox'}
           </button>
+          <BookmarkImport onImported={loadItems} />
           <CompileTrigger onTaskCreated={() => setTaskRefreshKey(k => k + 1)} />
+          <button
+            onClick={() => setTaskDialogOpen(true)}
+            className="btn-ghost px-3 py-1.5 text-xs"
+            style={{ color: 'var(--color-ai)' }}
+            title="手动提交知识任务"
+            aria-label="提交任务"
+          >
+            提交任务
+          </button>
         </div>
       </div>
 
@@ -322,6 +335,11 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
         slug={selectedSlug}
         onClose={() => setSelectedSlug(null)}
         onSelectItem={setSelectedItemId}
+      />
+      <TaskSubmitDialog
+        open={taskDialogOpen}
+        onClose={() => setTaskDialogOpen(false)}
+        onSubmitted={() => setTaskRefreshKey(k => k + 1)}
       />
     </div>
   );

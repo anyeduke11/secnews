@@ -14,6 +14,7 @@ from typing import Optional
 
 from backend.domain.knowledge_models import now_iso
 from backend.repository.knowledge_repo import knowledge_repo
+from backend.services.knowledge_sync import KNOWLEDGE_DIR
 
 log = logging.getLogger("hotspot.learning")
 
@@ -24,6 +25,9 @@ PENDING_DIR = (
     / "tasks"
     / "pending"
 )
+
+# Plans .md dual-write directory (Markdown is the truth source per design §3.5).
+PLANS_DIR = KNOWLEDGE_DIR / "learning"
 
 
 def _current_iso_week() -> str:
@@ -40,6 +44,61 @@ def list_plans(status: Optional[str] = None) -> list[dict]:
 def get_plan(week: str) -> Optional[dict]:
     """Get a single learning plan by week (e.g. '2026-W29')."""
     return knowledge_repo.get_plan(week)
+
+
+def _write_plan_md(week: str, plan_data: dict) -> None:
+    """Write a learning plan to knowledge/learning/plan-{week}.md.
+
+    Dual-write: SQLite is the queryable store, the .md file is the
+    human-readable truth source (design §3.5). Called after
+    ``upsert_plan`` / ``update_plan_status``.
+
+    ``plan_data`` is the full plan record (as returned by
+    ``knowledge_repo.get_plan``): ``{week, status, plan_data: {goals,
+    tasks}, created_at, ...}``. Field-name tolerant: tasks may use either
+    ``description``/``done`` (spec §3.5 shape) or ``title``/``completed``
+    (current ``create_plan`` shape).
+    """
+    inner = plan_data.get("plan_data") or {}
+    if not isinstance(inner, dict):
+        inner = {}
+    goals = inner.get("goals") or plan_data.get("goals") or []
+    tasks = inner.get("tasks") or plan_data.get("tasks") or []
+    status = plan_data.get("status", "active")
+    created_at = plan_data.get("created_at", "")
+    updated_at = plan_data.get("updated_at") or created_at
+
+    goals_lines = "\n".join(f"- {g}" for g in goals) or "- (无目标)"
+    task_lines: list[str] = []
+    for t in tasks:
+        desc = (
+            t.get("description")
+            or t.get("title")
+            or t.get("item_id")
+            or "未命名任务"
+        )
+        done = t.get("done", t.get("completed", False))
+        mark = "x" if done else " "
+        task_lines.append(f"- [{mark}] {desc}")
+    tasks_md = "\n".join(task_lines) or "- (无任务)"
+
+    content = (
+        "---\n"
+        f'week: "{week}"\n'
+        f'status: "{status}"\n'
+        f'created_at: "{created_at}"\n'
+        f'updated_at: "{updated_at}"\n'
+        "---\n\n"
+        f"# 学习计划 {week}\n\n"
+        "## 目标\n"
+        f"{goals_lines}\n\n"
+        "## 任务清单\n"
+        f"{tasks_md}\n"
+    )
+    PLANS_DIR.mkdir(parents=True, exist_ok=True)
+    path = PLANS_DIR / f"plan-{week}.md"
+    path.write_text(content, encoding="utf-8")
+    log.info(f"wrote plan md: {path}")
 
 
 def create_plan(
@@ -68,15 +127,22 @@ def create_plan(
         "created_at": now_iso(),
     }
     knowledge_repo.upsert_plan(record)
+    saved = knowledge_repo.get_plan(week)
+    _write_plan_md(week, saved or record)
     log.info(f"upserted learning plan for {week}: {len(tasks)} tasks")
-    return knowledge_repo.get_plan(week)
+    return saved
 
 
 def update_plan_status(week: str, status: str) -> dict:
     """Update the status of a learning plan (active/completed/archived)."""
     knowledge_repo.update_plan_status(week, status)
+    saved = knowledge_repo.get_plan(week)
+    if saved:
+        saved["status"] = status
+        saved["updated_at"] = now_iso()
+        _write_plan_md(week, saved)
     log.info(f"updated plan {week} status -> {status}")
-    return knowledge_repo.get_plan(week)
+    return saved
 
 
 def generate_plan_task(domains: Optional[list[str]] = None) -> dict:

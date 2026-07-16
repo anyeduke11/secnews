@@ -48,6 +48,7 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [taskRefreshKey, setTaskRefreshKey] = useState(0);
+  const [syncToast, setSyncToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
   const loadItems = useCallback(() => {
     setLoading(true);
@@ -87,9 +88,29 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
   const handleSync = () => {
     setSyncing(true);
     fetch('/api/knowledge/sync?source=cubox', { method: 'POST' })
-      .then(() => loadItems())
-      .catch(() => {})
-      .finally(() => setSyncing(false));
+      .then(async r => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data?.detail || `HTTP ${r.status}`);
+        return data;
+      })
+      .then(data => {
+        const synced = data?.items_synced ?? 0;
+        const concepts = data?.concepts_synced ?? 0;
+        setSyncToast({
+          kind: 'ok',
+          msg: synced === 0 && concepts === 0
+            ? '✓ 同步完成，无新条目'
+            : `✓ 同步完成：${synced} 条目 / ${concepts} 概念`,
+        });
+        loadItems();
+      })
+      .catch(e => {
+        setSyncToast({ kind: 'err', msg: `✗ 同步失败: ${e?.message || String(e)}` });
+      })
+      .finally(() => {
+        setSyncing(false);
+        setTimeout(() => setSyncToast(null), 3000);
+      });
   };
 
   return (
@@ -146,6 +167,20 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
           }}
         >
           加载失败: {error}
+        </div>
+      )}
+
+      {/* 同步 toast */}
+      {syncToast && (
+        <div
+          className="rounded-[var(--radius-md)] p-2.5 mb-3 text-xs"
+          style={{
+            backgroundColor: syncToast.kind === 'ok' ? 'rgba(92, 184, 92, 0.12)' : 'rgba(232, 93, 93, 0.12)',
+            border: `1px solid ${syncToast.kind === 'ok' ? '#5cb85c' : '#e85d5d'}`,
+            color: syncToast.kind === 'ok' ? '#5cb85c' : '#e85d5d',
+          }}
+        >
+          {syncToast.msg}
         </div>
       )}
 

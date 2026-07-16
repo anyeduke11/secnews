@@ -21,23 +21,7 @@ interface KnowledgePageProps {
   onBack: () => void;
 }
 
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
+import { Icon } from './Icon';
 
 export function KnowledgePage({ onBack }: KnowledgePageProps) {
   const [items, setItems] = useState<KnowledgeItem[]>([]);
@@ -52,6 +36,7 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
   const [taskRefreshKey, setTaskRefreshKey] = useState(0);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [syncToast, setSyncToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [conflicts, setConflicts] = useState<Array<{ filename: string; size: number; mtime: number }> | null>(null);
 
   const loadItems = useCallback(() => {
     setLoading(true);
@@ -116,6 +101,41 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
       });
   };
 
+  // Phase 1i Task 9.11: Obsidian vault 协议跳转
+  const handleOpenObsidian = () => {
+    fetch('/api/knowledge/obsidian/open', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (data?.url) {
+          window.location.href = data.url;
+        } else {
+          setSyncToast({ kind: 'err', msg: '✗ Obsidian URL 缺失' });
+          setTimeout(() => setSyncToast(null), 3000);
+        }
+      })
+      .catch(e => {
+        setSyncToast({ kind: 'err', msg: `✗ 打开 Obsidian 失败: ${e?.message || String(e)}` });
+        setTimeout(() => setSyncToast(null), 3000);
+      });
+  };
+
+  // Phase 1i Task 9.11: 查看冲突列表
+  const handleViewConflicts = () => {
+    if (conflicts !== null) {
+      setConflicts(null);
+      return;
+    }
+    fetch('/api/knowledge/obsidian/conflicts')
+      .then(r => r.json())
+      .then(data => {
+        setConflicts(Array.isArray(data?.conflicts) ? data.conflicts : []);
+      })
+      .catch(e => {
+        setSyncToast({ kind: 'err', msg: `✗ 加载冲突失败: ${e?.message || String(e)}` });
+        setTimeout(() => setSyncToast(null), 3000);
+      });
+  };
+
   return (
     <div className="knowledge-page">
       {/* 顶部标题区 */}
@@ -156,6 +176,24 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
             {syncing ? '同步中…' : '同步 Cubox'}
           </button>
           <BookmarkImport onImported={loadItems} />
+          <button
+            onClick={handleOpenObsidian}
+            className="btn-ghost px-3 py-1.5 text-xs"
+            style={{ color: 'var(--color-ai)' }}
+            title="用 Obsidian 打开知识库"
+            aria-label="打开 Obsidian"
+          >
+            Obsidian
+          </button>
+          <button
+            onClick={handleViewConflicts}
+            className="btn-ghost px-3 py-1.5 text-xs"
+            style={{ color: conflicts !== null ? '#e85d5d' : 'var(--text-muted)' }}
+            title="查看 watchdog 记录的冲突快照"
+            aria-label="查看冲突"
+          >
+            {conflicts !== null ? '隐藏冲突' : '查看冲突'}
+          </button>
           <CompileTrigger onTaskCreated={() => setTaskRefreshKey(k => k + 1)} />
           <button
             onClick={() => setTaskDialogOpen(true)}
@@ -194,6 +232,33 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
           }}
         >
           {syncToast.msg}
+        </div>
+      )}
+
+      {/* Phase 1i Task 9.11: 冲突快照列表 */}
+      {conflicts !== null && (
+        <div
+          className="rounded-[var(--radius-md)] p-2.5 mb-3 text-xs"
+          style={{
+            backgroundColor: 'var(--bg-elevated)',
+            border: '1px solid var(--border-color)',
+            color: 'var(--text-primary)',
+          }}
+        >
+          <div className="font-semibold mb-1.5">冲突快照 ({conflicts.length})</div>
+          {conflicts.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)' }}>无冲突记录</p>
+          ) : (
+            <ul className="space-y-1">
+              {conflicts.map(c => (
+                <li key={c.filename} className="flex items-center gap-2">
+                  <span style={{ color: '#e85d5d' }}>⚠</span>
+                  <span className="flex-1 truncate" title={c.filename}>{c.filename}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>{(c.size / 1024).toFixed(1)} KB</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

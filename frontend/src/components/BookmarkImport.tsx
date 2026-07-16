@@ -27,16 +27,27 @@ export function BookmarkImport({ onImported }: BookmarkImportProps) {
     e.target.value = '';
     if (!file) return;
 
+    // Phase 1i Task 9.12: 按文件类型分流（JSON 现有 / HTML 新分支）
+    const isHtml =
+      file.type === 'text/html' ||
+      file.name.toLowerCase().endsWith('.html') ||
+      file.name.toLowerCase().endsWith('.htm');
+
     const reader = new FileReader();
     reader.onload = () => {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(String(reader.result || ''));
-      } catch (err) {
-        flashToast(`✗ JSON 解析失败: ${err instanceof Error ? err.message : String(err)}`, false);
-        return;
+      const text = String(reader.result || '');
+      if (isHtml) {
+        submitImport({ html: text });
+      } else {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(text);
+        } catch (err) {
+          flashToast(`✗ JSON 解析失败: ${err instanceof Error ? err.message : String(err)}`, false);
+          return;
+        }
+        submitImport({ bookmarks: parsed });
       }
-      submitImport(parsed);
     };
     reader.onerror = () => {
       flashToast('✗ 文件读取失败', false);
@@ -44,14 +55,14 @@ export function BookmarkImport({ onImported }: BookmarkImportProps) {
     reader.readAsText(file);
   };
 
-  const submitImport = (bookmarks: unknown) => {
+  const submitImport = (payload: { bookmarks?: unknown } | { html?: string }) => {
     setBusy(true);
     const url = new URL('/api/knowledge/bookmarks/import', window.location.origin);
     url.searchParams.set('validate', validate ? 'true' : 'false');
     fetch(url.toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bookmarks }),
+      body: JSON.stringify(payload),
     })
       .then(async r => {
         const data = await r.json().catch(() => ({}));
@@ -83,7 +94,7 @@ export function BookmarkImport({ onImported }: BookmarkImportProps) {
           opacity: busy ? 0.6 : 1,
           cursor: busy ? 'wait' : undefined,
         }}
-        title="导入浏览器书签 JSON 文件"
+        title="导入浏览器书签（支持 Chrome JSON 或 HTML 导出文件）"
         aria-label="导入书签"
       >
         {busy ? '导入中…' : '导入书签'}
@@ -106,7 +117,7 @@ export function BookmarkImport({ onImported }: BookmarkImportProps) {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".json,application/json"
+        accept=".json,application/json,.html,text/html,.htm"
         style={{ display: 'none' }}
         onChange={handleFileChange}
       />

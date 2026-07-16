@@ -160,8 +160,10 @@ class _KnowledgeEventHandler(FileSystemEventHandler):
         sync_func = _SYNC_FUNCS.get(self._subdir)
         if sync_func is None:
             # learning/ subdir: check for publish task status files (spec 6.4)
+            # and compile done files for _MAP.md update (spec 6.3)
             if self._subdir == "learning":
                 _maybe_sync_publish_status(path)
+                _maybe_update_map(path)
             else:
                 log.debug("watchdog: change in %s/ (no DB sync): %s", self._subdir, path)
             return
@@ -322,6 +324,39 @@ def _maybe_sync_publish_status(path: str) -> None:
             "watchdog: failed to sync publish status for task %d: %s",
             task_id, e,
         )
+
+
+def _maybe_update_map(path: str) -> None:
+    """Check if *path* is a compile-done task file and update _MAP.md.
+
+    Triggered when files under ``learning/tasks/done/`` are created.
+    Detects ``task-{id}.md`` pattern and calls ``map_updater.update_map()``.
+    """
+    match = _TASK_FILE_RE.search(path)
+    if match is None:
+        return
+
+    normalized = path.replace("\\", "/")
+    if "/tasks/done/" not in normalized:
+        return
+
+    # Check task_type is "compile" by reading frontmatter
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except Exception as e:
+        log.warning("watchdog: failed to read task file %s: %s", path, e)
+        return
+
+    if text.startswith("---"):
+        parts = text.split("---", 2)
+        frontmatter = parts[1] if len(parts) >= 3 else ""
+        if re.search(r'task_type:\s*"?compile"?', frontmatter):
+            try:
+                from backend.services.map_updater import update_map
+                update_map()
+                log.info("watchdog updated _MAP.md after compile task done: %s", path)
+            except Exception as e:
+                log.error("watchdog: failed to update _MAP.md: %s", e)
 
 
 def start_watcher() -> bool:

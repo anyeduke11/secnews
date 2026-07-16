@@ -39,8 +39,10 @@ def _fetch_hotspots(item_ids: list[str]) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def _write_history_md(item: KnowledgeItem, summary: str = "") -> Path:
+def _write_history_md(item: KnowledgeItem, summary: str = "", sources: list[str] | None = None) -> Path:
     """Write a history-imported item to knowledge/items/{id}.md."""
+    if sources is None:
+        sources = ["secnews_archive"]
     ITEMS_DIR.mkdir(parents=True, exist_ok=True)
     path = ITEMS_DIR / f"{item.id}.md"
 
@@ -61,6 +63,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
+sources: {json.dumps(sources)}
 ---
 
 # {item.title}
@@ -81,6 +84,8 @@ def import_from_history(item_ids: list[str]) -> dict:
     """
     if not item_ids:
         return {"imported": 0, "skipped_duplicates": 0, "errors": []}
+
+    from backend.services.knowledge_sync import parse_frontmatter
 
     hotspots = _fetch_hotspots(item_ids)
     found_ids = {h["id"] for h in hotspots}
@@ -106,6 +111,18 @@ def import_from_history(item_ids: list[str]) -> dict:
         # Check if already exists
         existing = knowledge_repo.get_item(item_id)
         if existing:
+            # Append secnews_archive to sources (don't overwrite content)
+            md_path = ITEMS_DIR / f"{item_id}.md"
+            if md_path.exists():
+                existing_fm = parse_frontmatter(md_path) or {}
+                existing_sources = (
+                    existing_fm.get("sources", [])
+                    if isinstance(existing_fm.get("sources"), list)
+                    else []
+                )
+                if "secnews_archive" not in existing_sources:
+                    merged_sources = existing_sources + ["secnews_archive"]
+                    _update_history_md_sources(md_path, merged_sources)
             skipped_duplicates += 1
             continue
 
@@ -119,7 +136,7 @@ def import_from_history(item_ids: list[str]) -> dict:
             updated_at=now,
         )
 
-        _write_history_md(ki, summary)
+        _write_history_md(ki, summary, sources=["secnews_archive"])
         knowledge_repo.upsert_item(ki)
         imported += 1
         log.debug(f"imported from history: {item_id} ({title})")
@@ -130,3 +147,29 @@ def import_from_history(item_ids: list[str]) -> dict:
         "skipped_duplicates": skipped_duplicates,
         "errors": errors,
     }
+
+
+def _update_history_md_sources(path: Path, sources: list[str]) -> None:
+    """Update sources line in .md frontmatter, preserving everything else."""
+    import re
+
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---"):
+        return
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return
+    frontmatter = parts[1]
+    body = parts[2]
+
+    if re.search(r"^sources:", frontmatter, re.MULTILINE):
+        frontmatter = re.sub(
+            r"^sources:.*$",
+            f"sources: {json.dumps(sources)}",
+            frontmatter,
+            flags=re.MULTILINE,
+        )
+    else:
+        frontmatter = frontmatter.rstrip() + f"\nsources: {json.dumps(sources)}\n"
+
+    path.write_text(f"---{frontmatter}---{body}", encoding="utf-8")

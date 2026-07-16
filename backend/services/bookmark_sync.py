@@ -11,6 +11,7 @@ from backend.domain.knowledge_models import KnowledgeItem, now_iso
 from backend.repository.knowledge_repo import knowledge_repo
 from backend.services.data_cleaning import (
     clean_and_dedupe,
+    find_similar_items,
     item_id_from_url,
     url_fingerprint,
     validate_url,
@@ -55,11 +56,13 @@ def parse_chrome_bookmarks(node: dict, folder_tags: Optional[list[str]] = None) 
     return results
 
 
-def _write_bookmark_md(item: KnowledgeItem, tags: list[str], content: str = "") -> Path:
+def _write_bookmark_md(item: KnowledgeItem, tags: list[str], content: str = "", sources: list[str] | None = None) -> Path:
     """Write a bookmark item to knowledge/items/{id}.md."""
+    if sources is None:
+        sources = ["bookmark"]
     ITEMS_DIR.mkdir(parents=True, exist_ok=True)
     path = ITEMS_DIR / f"{item.id}.md"
-    
+
     frontmatter = f"""---
 id: "{item.id}"
 title: "{item.title}"
@@ -77,6 +80,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
+sources: {json.dumps(sources)}
 ---
 
 # {item.title}
@@ -96,6 +100,8 @@ def import_bookmarks(items: list[dict], validate: bool = False) -> dict:
     
     Returns: {imported, skipped_duplicates, skipped_invalid, dead_links}
     """
+    from backend.services.knowledge_sync import parse_frontmatter
+
     # Internal dedup first (same URL multiple times, merge tags)
     seen: dict[str, dict] = {}
     for item in items:
@@ -127,6 +133,28 @@ def import_bookmarks(items: list[dict], validate: bool = False) -> dict:
         # Check if already exists in DB
         existing = knowledge_repo.get_item(item_id)
         if existing:
+            # Merge sources + tags (don't overwrite content)
+            md_path = ITEMS_DIR / f"{item_id}.md"
+            if md_path.exists():
+                existing_fm = parse_frontmatter(md_path) or {}
+                existing_sources = (
+                    existing_fm.get("sources", [])
+                    if isinstance(existing_fm.get("sources"), list)
+                    else ["bookmark"]
+                )
+                existing_tags = (
+                    existing_fm.get("tags", [])
+                    if isinstance(existing_fm.get("tags"), list)
+                    else []
+                )
+                merged_sources = list(dict.fromkeys(existing_sources + ["bookmark"]))
+                merged_tags = list(dict.fromkeys(existing_tags + tags))
+
+                _update_bookmark_md_frontmatter(md_path, merged_sources, merged_tags)
+
+                existing.tags = merged_tags
+                existing.updated_at = now_iso()
+                knowledge_repo.upsert_item(existing)
             skipped_duplicates += 1
             continue
         
@@ -138,6 +166,13 @@ def import_bookmarks(items: list[dict], validate: bool = False) -> dict:
                 dead_links += 1
                 tags = tags + ["dead_link"]
         
+        # Check for similar URLs (new item)
+        similar = find_similar_items(url)
+        if similar:
+            for sid in similar:
+                tags.append(f"similar:{sid}")
+            log.info("similar URLs found for %s: %s", item_id, similar)
+
         # Create KnowledgeItem
         now = now_iso()
         ki = KnowledgeItem(
@@ -151,7 +186,7 @@ def import_bookmarks(items: list[dict], validate: bool = False) -> dict:
         )
         
         # Write .md file
-        _write_bookmark_md(ki, tags)
+        _write_bookmark_md(ki, tags, sources=["bookmark"])
         
         # Sync to SQLite
         knowledge_repo.upsert_item(ki)
@@ -165,3 +200,39 @@ def import_bookmarks(items: list[dict], validate: bool = False) -> dict:
         "skipped_invalid": skipped_invalid,
         "dead_links": dead_links,
     }
+
+
+def _update_bookmark_md_frontmatter(
+    path: Path, sources: list[str], tags: list[str]
+) -> None:
+    """Update sources + tags lines in .md frontmatter, preserving body."""
+    import re
+
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---"):
+        return
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return
+    frontmatter = parts[1]
+    body = parts[2]
+
+    if re.search(r"^sources:", frontmatter, re.MULTILINE):
+        frontmatter = re.sub(
+            r"^sources:.*$",
+            f"sources: {json.dumps(sources)}",
+            frontmatter,
+            flags=re.MULTILINE,
+        )
+    else:
+        frontmatter = frontmatter.rstrip() + f"\nsources: {json.dumps(sources)}\n"
+
+    if re.search(r"^tags:", frontmatter, re.MULTILINE):
+        frontmatter = re.sub(
+            r"^tags:.*$",
+            f"tags: {json.dumps(tags)}",
+            frontmatter,
+            flags=re.MULTILINE,
+        )
+
+    path.write_text(f"---{frontmatter}---{body}", encoding="utf-8")

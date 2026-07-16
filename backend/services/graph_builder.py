@@ -48,6 +48,7 @@ def build_graph(domain: Optional[str] = None, include_local: bool = True) -> dic
             "domain": c.domain,
             "count": len(c.source_items),
             "wiki": "hotspot",
+            "type": "concept",
         }
         for c in concepts
     ]
@@ -96,7 +97,7 @@ def _build_edges(domain: Optional[str] = None) -> list[dict]:
                 edge_map[key] = edge_map.get(key, 0) + 1
 
     return [
-        {"source": k[0], "target": k[1], "weight": v}
+        {"source": k[0], "target": k[1], "weight": v, "type": "related"}
         for k, v in edge_map.items()
     ]
 

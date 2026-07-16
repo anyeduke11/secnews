@@ -207,6 +207,7 @@ def merge_graph(hotspot_graph: dict, domain: Optional[str] = None) -> dict:
             "domain": c.get("domain"),
             "count": 0,
             "wiki": "local",
+            "type": "concept",
         })
 
     # Build federated edges: hotspot.slug == local.slug

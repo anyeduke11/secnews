@@ -28,8 +28,10 @@ ITEMS_DIR = KNOWLEDGE_DIR / "items"
 def _check_cubox_cli() -> bool:
     """Check if cubox-cli is installed."""
     try:
-        subprocess.run(["cubox-cli", "--version"], capture_output=True, timeout=5)
-        return True
+        result = subprocess.run(
+            ["cubox-cli", "version"], capture_output=True, timeout=5
+        )
+        return result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
 
@@ -37,7 +39,7 @@ def _check_cubox_cli() -> bool:
 def fetch_cubox_cards(limit: int = 100) -> list[dict]:
     """Fetch cards from cubox-cli.
 
-    Returns list of dicts with keys: title, url, content, tags, created_at
+    Returns list of dicts with keys: title, url, description, tags, create_time
     """
     if not _check_cubox_cli():
         log.warning("cubox-cli not installed, skipping cubox sync")
@@ -45,17 +47,20 @@ def fetch_cubox_cards(limit: int = 100) -> list[dict]:
 
     try:
         result = subprocess.run(
-            ["cubox-cli", "card", "list", "--format", "json", "--limit", str(limit)],
+            ["cubox-cli", "card", "list", "-o", "json", "--all", "--limit", str(limit)],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=60,
         )
         if result.returncode != 0:
             log.error(f"cubox-cli failed: {result.stderr}")
             return []
         cards = json.loads(result.stdout)
         if not isinstance(cards, list):
-            cards = []
+            log.error(
+                f"cubox-cli returned non-list JSON: {type(cards).__name__}"
+            )
+            return []
         log.info(f"cubox-cli returned {len(cards)} cards")
         return cards
     except subprocess.TimeoutExpired:
@@ -75,15 +80,26 @@ def _card_to_item(card: dict) -> Optional[KnowledgeItem]:
     if not url:
         return None
     item_id = item_id_from_url(url)
-    now = now_iso()
+    # Prefer article_title (full title) over title (may be truncated).
+    title = card.get("article_title") or card.get("title") or "Untitled"
+    # Normalize tags: cubox returns list of tag objects or strings.
+    raw_tags = card.get("tags", [])
+    if isinstance(raw_tags, list):
+        tags = [
+            t.get("name", "") if isinstance(t, dict) else str(t)
+            for t in raw_tags
+        ]
+        tags = [t for t in tags if t]
+    else:
+        tags = []
     return KnowledgeItem(
         id=item_id,
-        title=card.get("title", "Untitled"),
+        title=title,
         source="cubox",
         source_url=url,
-        tags=card.get("tags", []),
-        ingested_at=now,
-        updated_at=now,
+        tags=tags,
+        ingested_at=card.get("create_time", now_iso()),
+        updated_at=card.get("update_time", now_iso()),
     )
 
 
@@ -137,7 +153,10 @@ def sync_cubox_to_knowledge(limit: int = 100) -> int:
         item = _card_to_item(card)
         if item is None or item.id in existing:
             continue
-        content = card.get("content", "") or card.get("summary", "") or ""
+        # Cubox card fields: description (summary), article_title (full title).
+        # Full article content is not returned by card list; description is
+        # the card's note/summary.
+        content = card.get("description", "") or ""
         _write_item_md(item, content)
         existing.add(item.id)
         count += 1

@@ -174,6 +174,30 @@ class HotspotScheduler:
             name="knowledge compile (Sun 03:00)",
             replace_existing=True,
         )
+        # Phase 1f Task 6.8: job 11 — SOUL.md 周期更新 (每周日 04:00 Asia/Shanghai)
+        self.scheduler.add_job(
+            jobs.scheduled_soul_job,
+            trigger=CronTrigger(day_of_week="sun", hour=4, timezone=SHANGHAI_TZ),
+            id="soul_weekly",
+            name="soul regenerate (Sun 04:00)",
+            replace_existing=True,
+        )
+        # Phase 1f Task 6.9: job 12 — 发布后数据回收 (每日 06:00 Asia/Shanghai)
+        self.scheduler.add_job(
+            jobs.scheduled_stats_job,
+            trigger=CronTrigger(hour=6, timezone=SHANGHAI_TZ),
+            id="stats_daily",
+            name="stats recycle (daily 06:00)",
+            replace_existing=True,
+        )
+        # Phase 1f Task 6.10: job 13 — 掌握度迁移 (每周日 05:00 Asia/Shanghai)
+        self.scheduler.add_job(
+            jobs.scheduled_migrate_job,
+            trigger=CronTrigger(day_of_week="sun", hour=5, timezone=SHANGHAI_TZ),
+            id="migrate_weekly",
+            name="mastery migration (Sun 05:00)",
+            replace_existing=True,
+        )
         self.scheduler.start()
         self.logger.info(
             f"scheduler started, jobs: collect_all (every {self._interval}s), "

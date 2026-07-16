@@ -23,6 +23,9 @@ DEFAULT_LOCAL_WIKI_PATH = "~/knowledge-base"
 LOCAL_CONCEPTS_DIR = "02-知识库"
 LOCAL_ITEMS_DIR = "01-资料库"
 
+# Hotspot knowledge 目录（项目根 /knowledge）
+KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent.parent / "knowledge"
+
 
 def _local_wiki_root() -> Path:
     """Resolve local wiki root path, expanding ~."""
@@ -41,6 +44,9 @@ def list_local_concepts() -> list[dict]:
     """Scan local wiki concepts dir (02-知识库/*.md), parse frontmatter.
 
     Returns list of dicts with slug/title/domain. Empty list if unavailable.
+
+    Phase 1f Task 6.11: 同时回填 hotspot concept 的 local_wiki_ref。
+    当 local.slug == hotspot.slug 且 local_wiki_ref 为空时写入。
     """
     if not _is_available():
         return []
@@ -57,6 +63,22 @@ def list_local_concepts() -> list[dict]:
             "title": fm.get("title", md_path.stem),
             "domain": fm.get("domain"),
         })
+
+    # Task 6.11: 回填 hotspot concept 的 local_wiki_ref
+    if results:
+        try:
+            from backend.repository.knowledge_repo import knowledge_repo
+            local_slugs = {c["slug"] for c in results if c.get("slug")}
+            if local_slugs:
+                hotspot_concepts = knowledge_repo.list_concepts()
+                for c in hotspot_concepts:
+                    if c.slug in local_slugs and not c.local_wiki_ref:
+                        ref = f"wiki:local:concepts/{c.slug}"
+                        knowledge_repo.update_concept_local_wiki_ref(c.slug, ref)
+                        log.info(f"backfilled local_wiki_ref for concept: {c.slug}")
+        except Exception as e:
+            log.warning(f"local_wiki_ref backfill failed (ignored): {e}")
+
     return results
 
 
@@ -205,3 +227,68 @@ def merge_graph(hotspot_graph: dict, domain: Optional[str] = None) -> dict:
         "nodes": existing_nodes + new_nodes,
         "edges": existing_edges + new_edges,
     }
+
+
+def migrate_high_mastery_items() -> dict:
+    """Phase 1f Task 6.10: 迁移高掌握度条目（mastery > 80）到本地 wiki 02-知识库。
+
+    - 查询 knowledge_items WHERE mastery > 80
+    - 复制 .md 到 {local_wiki_path}/02-知识库/{id}.md
+    - 在原条目 frontmatter 追加 migrated_to_local: true
+    - local_wiki_path 不存在时降级跳过
+    - knowledge_items 表无 migrated_to_local 列，故只更新 .md
+    """
+    import shutil
+    from backend.repository.db import get_connection
+
+    raw_path = config.local_wiki_path or ""
+    if not raw_path:
+        log.info("migrate_high_mastery_items: local_wiki_path empty, skipping")
+        return {"migrated": 0, "skipped": 0}
+
+    local_root = Path(raw_path).expanduser()
+    if not local_root.exists():
+        log.info(
+            f"migrate_high_mastery_items: local_wiki_path {local_root} does not exist, skipping"
+        )
+        return {"migrated": 0, "skipped": 0}
+
+    target_dir = local_root / LOCAL_CONCEPTS_DIR
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    hotspot_items_dir = KNOWLEDGE_DIR / "items"
+
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id FROM knowledge_items WHERE mastery > 80"
+    ).fetchall()
+
+    migrated = 0
+    skipped = 0
+    for row in rows:
+        item_id = row["id"]
+        src_path = hotspot_items_dir / f"{item_id}.md"
+        if not src_path.exists():
+            log.warning(f"migrate: source .md not found for item {item_id}, skipping")
+            skipped += 1
+            continue
+        try:
+            dst_path = target_dir / f"{item_id}.md"
+            shutil.copy2(src_path, dst_path)
+
+            # 在原条目 frontmatter 追加 migrated_to_local: true
+            content = src_path.read_text(encoding="utf-8")
+            if "migrated_to_local:" not in content:
+                new_content = content.replace(
+                    "\n---\n", "\nmigrated_to_local: true\n---\n", 1
+                )
+                src_path.write_text(new_content, encoding="utf-8")
+
+            migrated += 1
+            log.info(f"migrated item {item_id} to {dst_path}")
+        except Exception as e:
+            log.warning(f"migrate item {item_id} failed (ignored): {e}")
+            skipped += 1
+
+    log.info(f"migrate_high_mastery_items: {migrated} migrated, {skipped} skipped")
+    return {"migrated": migrated, "skipped": skipped}

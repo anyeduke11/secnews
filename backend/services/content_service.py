@@ -15,12 +15,14 @@ from typing import Optional
 
 from backend.domain.knowledge_models import now_iso
 from backend.repository.knowledge_repo import knowledge_repo
+from backend.services.knowledge_sync import KNOWLEDGE_DIR
 
 log = logging.getLogger("hotspot.content")
 
 # Project root — resolve once at import time (matches SOUL_PATH pattern).
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DRAFTS_DIR = PROJECT_ROOT / "knowledge" / "content" / "drafts"
+CALENDAR_PATH = KNOWLEDGE_DIR / "content" / "calendar.json"
 
 TEMPLATES = [
     {"id": "deep-analysis", "name": "深度分析", "type": "analysis", "platform": "wechat"},
@@ -70,6 +72,33 @@ def _decorate_calendar_row(row: dict) -> dict:
     return row
 
 
+def _write_calendar_json() -> None:
+    """Full-rewrite of knowledge/content/calendar.json from SQLite.
+
+    Design §3.7: the calendar is persisted both in SQLite (queryable)
+    and as a JSON file (human-readable, "Markdown as source of truth").
+    Each mutation (create/update/delete) triggers a full rewrite so the
+    file always reflects the current DB state.
+    """
+    rows = knowledge_repo.list_calendar_entries(None)
+    dates: dict[str, list[dict]] = {}
+    for r in rows:
+        entry = {
+            "id": r.get("id"),
+            "topic": r.get("topic"),
+            "type": r.get("type"),
+            "status": r.get("status"),
+            "source_items": _parse_json_field(r, "source_items") or [],
+            "platform": r.get("platform"),
+        }
+        dates.setdefault(r["date"], []).append(entry)
+    CALENDAR_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CALENDAR_PATH.write_text(
+        json.dumps({"dates": dates}, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
 # ── Calendar CRUD ──────────────────────────────────────────────
 
 def list_calendar(year_month: Optional[str] = None) -> list[dict]:
@@ -96,6 +125,7 @@ def create_calendar_entry(
         "updated_at": now,
     }
     knowledge_repo.upsert_calendar_entry(entry)
+    _write_calendar_json()
     # Retrieve the inserted row to get its autoincrement id.
     rows = knowledge_repo.list_calendar_entries(None)
     # The just-inserted row is the most recently created one matching date+topic.
@@ -113,6 +143,7 @@ def update_calendar_entry(id: int, **fields) -> dict:
     if existing is None:
         raise ValueError(f"calendar entry {id} not found")
     knowledge_repo.update_calendar_entry(id, fields)
+    _write_calendar_json()
     return _decorate_calendar_row(knowledge_repo.get_calendar_entry(id))
 
 
@@ -121,6 +152,7 @@ def delete_calendar_entry(id: int) -> dict:
     if existing is None:
         raise ValueError(f"calendar entry {id} not found")
     knowledge_repo.delete_calendar_entry(id)
+    _write_calendar_json()
     return {"deleted": id}
 
 

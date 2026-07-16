@@ -3,7 +3,7 @@ id: "2bcc67a1ae5b"
 title: "Verify"
 source: "bookmark"
 source_url: "https://verify.example.com/p1b"
-ingested_at: "2026-07-15T12:54:23.541481+00:00"
+ingested_at: "2026-07-15T12:54:23Z"
 compiled: true
 domain: "other"
 topic: "test"

@@ -3,7 +3,7 @@ id: "a4ff8cbd3c74"
 title: "Announcing the Monetization Gateway: charge for any resource behind Cloudflare via x402"
 source: "cubox"
 source_url: "https://blog.cloudflare.com/monetization-gateway/"
-ingested_at: "2026-07-10T16:22:36.350+0800"
+ingested_at: "2026-07-10T08:22:36Z"
 compiled: true
 domain: security
 topic: api-monetization

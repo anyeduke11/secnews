@@ -3,7 +3,7 @@ id: "a8ea6cb5ebc9"
 title: "元提示浅析"
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/RrvDXpjDniqNDM8fv96ntQ"
-ingested_at: "2026-07-06T09:56:07.082+0800"
+ingested_at: "2026-07-06T01:56:07Z"
 compiled: true
 domain: security
 topic: prompt-engineering

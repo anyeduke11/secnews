@@ -343,6 +343,7 @@ def _maybe_update_map(path: str) -> None:
 
     Triggered when files under ``learning/tasks/done/`` are created.
     Detects ``task-{id}.md`` pattern and calls ``map_updater.update_map()``.
+    Also triggers SOUL.md regeneration (Phase 1j Task 10.3: design §7.2 Step 5).
     """
     match = _TASK_FILE_RE.search(path)
     if match is None:
@@ -368,6 +369,35 @@ def _maybe_update_map(path: str) -> None:
                 log.info("watchdog updated _MAP.md after compile task done: %s", path)
             except Exception as e:
                 log.error("watchdog: failed to update _MAP.md: %s", e)
+            # Phase 1j Task 10.3: trigger SOUL.md regeneration after compile
+            _maybe_regenerate_soul()
+
+
+# ── SOUL.md regeneration (Phase 1j Task 10.3) ──────────────────
+
+_SOUL_DEBOUNCE_SECONDS = 5.0
+_last_soul_trigger: float = 0.0
+
+
+def _maybe_regenerate_soul() -> None:
+    """Regenerate SOUL.md after compile task completion (design §7.2 Step 5).
+
+    Debounced by ``_SOUL_DEBOUNCE_SECONDS`` (5s) to avoid repeated
+    triggers when multiple compile tasks finish in quick succession.
+    """
+    global _last_soul_trigger
+    now = time.time()
+    if (now - _last_soul_trigger) < _SOUL_DEBOUNCE_SECONDS:
+        log.debug("watchdog: SOUL regeneration debounced (last trigger %.1fs ago)", now - _last_soul_trigger)
+        return
+    _last_soul_trigger = now
+
+    try:
+        from backend.services.soul_service import regenerate_soul
+        regenerate_soul()
+        log.info("watchdog regenerated SOUL.md after compile task done")
+    except Exception as e:
+        log.error("watchdog: failed to regenerate SOUL.md: %s", e)
 
 
 def start_watcher() -> bool:

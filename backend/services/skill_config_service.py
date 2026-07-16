@@ -1,8 +1,9 @@
-"""Skill config service — CRUD + 13 preset skills seeding.
+"""Skill config service — CRUD + 14 preset skills seeding.
 
-Layered on top of ``knowledge_repo`` (skill_config CRUD). The 13 preset
-skill names mirror the baoyu-* skills available in the host environment.
-``seed_default_skills`` uses ``INSERT OR IGNORE`` so re-running is safe.
+Layered on top of ``knowledge_repo`` (skill_config CRUD). The 14 preset
+skill names mirror the baoyu-* skills + knowledge-master available in the
+host environment. ``seed_default_skills`` uses ``INSERT OR IGNORE`` so
+re-running is safe.
 """
 from __future__ import annotations
 
@@ -26,11 +27,12 @@ DEFAULT_SKILLS = [
     "baoyu-url-to-markdown",
     "baoyu-image-gen",
     "baoyu-compress-image",
+    "knowledge-master",
 ]
 
 
 def seed_default_skills() -> int:
-    """INSERT OR IGNORE the 13 preset skills. Returns newly inserted count.
+    """INSERT OR IGNORE the 14 preset skills. Returns newly inserted count.
 
     Skips skills that already exist to avoid wasting AUTOINCREMENT ids
     (INSERT OR IGNORE with AUTOINCREMENT still bumps sqlite_sequence even

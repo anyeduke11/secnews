@@ -39,23 +39,29 @@ from watchdog.observers import Observer
 from backend.services.knowledge_sync import (
     KNOWLEDGE_DIR,
     full_sync_concepts_to_db,
+    full_sync_drafts_to_db,
     full_sync_items_to_db,
 )
+from backend.services import content_service as _content_service
+from backend.services.map_updater import update_map as _update_map
 
 log = logging.getLogger("hotspot.knowledge_watcher")
 
 # Subdirectories of KNOWLEDGE_DIR to watch.
-_WATCH_DIRS = ("items", "concepts", "learning")
+_WATCH_DIRS = ("items", "concepts", "learning", "content/drafts")
 # Subdirectories that have a DB full-sync function. ``learning/`` is watched
 # for conflict detection only (task .md files are not mirrored to SQLite).
 _SYNC_FUNCS = {
     "items": full_sync_items_to_db,
     "concepts": full_sync_concepts_to_db,
+    "content/drafts": full_sync_drafts_to_db,
 }
 
 CONFLICTS_DIR = KNOWLEDGE_DIR / ".conflicts"
-_CONFLICT_WINDOW_SECONDS = 2.0
+_CONFLICT_WINDOW_SECONDS = 5.0  # 从 2s 延长到 5s，减少批量写入误报
 _DEBOUNCE_SECONDS = 1.0
+# 冷却期: 同一文件连续冲突后，N秒内不再重复报
+_COOLDOWN_SECONDS = 180.0  # 3 分钟冷却
 
 
 class _KnowledgeEventHandler(FileSystemEventHandler):
@@ -71,6 +77,8 @@ class _KnowledgeEventHandler(FileSystemEventHandler):
         self._timers: dict[str, threading.Timer] = {}
         # path -> (last_event_ts, last_content_snapshot)
         self._last_mod: dict[str, tuple[float, str]] = {}
+        # path -> cooldown_until_ts (冷却期内不再记录冲突)
+        self._cooldown: dict[str, float] = {}
         self._lock = threading.Lock()
 
     # watchdog callbacks -------------------------------------------------
@@ -110,10 +118,15 @@ class _KnowledgeEventHandler(FileSystemEventHandler):
         old_ts, old_content = prev
         if (now - old_ts) >= _CONFLICT_WINDOW_SECONDS:
             return
+        # 冷却期内不重复报同一文件
+        if path in self._cooldown and now < self._cooldown[path]:
+            return
         # Duplicate watchdog event with identical content — not a real conflict.
         if old_content == current_content:
             return
         self._record_conflict(path, old_ts, old_content, now)
+        # 进入冷却期
+        self._cooldown[path] = now + _COOLDOWN_SECONDS
 
     def _record_conflict(
         self,
@@ -306,10 +319,9 @@ def _maybe_sync_publish_status(path: str) -> None:
             if err_match:
                 error = err_match.group(1).strip().strip('"').strip("'")
 
-    # Lazy import to avoid circular dependency at module load time.
+    # Update publish status
     try:
-        from backend.services import content_service
-        content_service.update_publish_status(
+        _content_service.update_publish_status(
             task_id=task_id,
             status=status,
             published_url=published_url,
@@ -352,8 +364,7 @@ def _maybe_update_map(path: str) -> None:
         frontmatter = parts[1] if len(parts) >= 3 else ""
         if re.search(r'task_type:\s*"?compile"?', frontmatter):
             try:
-                from backend.services.map_updater import update_map
-                update_map()
+                _update_map()
                 log.info("watchdog updated _MAP.md after compile task done: %s", path)
             except Exception as e:
                 log.error("watchdog: failed to update _MAP.md: %s", e)

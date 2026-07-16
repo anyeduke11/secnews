@@ -23,16 +23,22 @@ VALID_DIFFICULTY = ["beginner", "intermediate", "advanced", "expert"]
 
 
 def _render_items_index(items: list) -> str:
-    """Group items by domain, render as markdown list."""
+    """Group items by domain, render as markdown list.
+
+    Includes ALL domains (even those outside VALID_DOMAINS) so no items
+    are silently dropped from the index.
+    """
     by_domain: dict[str, list] = {}
     for item in items:
         domain = item.domain or "uncategorized"
         by_domain.setdefault(domain, []).append(item)
 
     lines: list[str] = []
-    for domain in VALID_DOMAINS + (["uncategorized"] if "uncategorized" in by_domain else []):
-        if domain not in by_domain:
-            continue
+    # Sort: valid domains first (in canonical order), then extras alphabetically
+    valid_seen = [d for d in VALID_DOMAINS if d in by_domain]
+    extras = sorted(d for d in by_domain if d not in VALID_DOMAINS and d != "uncategorized")
+    uncategorized = ["uncategorized"] if "uncategorized" in by_domain else []
+    for domain in valid_seen + extras + uncategorized:
         domain_items = by_domain[domain]
         lines.append(f"\n### {domain} ({len(domain_items)})\n")
         for item in sorted(domain_items, key=lambda i: i.id):
@@ -43,16 +49,21 @@ def _render_items_index(items: list) -> str:
 
 
 def _render_concepts_index(concepts: list) -> str:
-    """Group concepts by domain, render as markdown list."""
+    """Group concepts by domain, render as markdown list.
+
+    Includes ALL domains (even those outside VALID_DOMAINS) so no concepts
+    are silently dropped from the index.
+    """
     by_domain: dict[str, list] = {}
     for concept in concepts:
         domain = concept.domain or "uncategorized"
         by_domain.setdefault(domain, []).append(concept)
 
     lines: list[str] = []
-    for domain in VALID_DOMAINS + (["uncategorized"] if "uncategorized" in by_domain else []):
-        if domain not in by_domain:
-            continue
+    valid_seen = [d for d in VALID_DOMAINS if d in by_domain]
+    extras = sorted(d for d in by_domain if d not in VALID_DOMAINS and d != "uncategorized")
+    uncategorized = ["uncategorized"] if "uncategorized" in by_domain else []
+    for domain in valid_seen + extras + uncategorized:
         domain_concepts = by_domain[domain]
         lines.append(f"\n### {domain} ({len(domain_concepts)})\n")
         for concept in sorted(domain_concepts, key=lambda c: c.slug):

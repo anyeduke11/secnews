@@ -142,6 +142,90 @@ async def scheduled_compile_job() -> None:
         _logger.error(f"scheduled_compile_job crashed: {e}")
 
 
+async def scheduled_soul_job() -> None:
+    """Phase 1f Task 6.8: 定时检查 SOUL.md 周期（>7天未更新则触发重新生成）。
+
+    每周日 04:00 (Asia/Shanghai) 触发。
+    失败只 log.error，不抛异常。
+    """
+    try:
+        from datetime import datetime, timezone, timedelta
+
+        def _read_soul_updated_at():
+            from backend.services.knowledge_sync import parse_frontmatter
+            from backend.services.soul_service import SOUL_PATH
+
+            if not SOUL_PATH.exists():
+                return None
+            fm = parse_frontmatter(SOUL_PATH)
+            if fm is None:
+                return None
+            updated_at_str = fm.get("updated_at")
+            if not updated_at_str:
+                return None
+            try:
+                updated_at = datetime.fromisoformat(str(updated_at_str))
+            except (ValueError, TypeError):
+                return None
+            if updated_at.tzinfo is None:
+                updated_at = updated_at.replace(tzinfo=timezone.utc)
+            return updated_at
+
+        updated_at = await asyncio.to_thread(_read_soul_updated_at)
+        now = datetime.now(timezone.utc)
+
+        if updated_at is None or (now - updated_at) > timedelta(days=7):
+            from backend.services.soul_service import create_soul_task
+
+            result = await asyncio.to_thread(create_soul_task)
+            _logger.info(
+                f"scheduled_soul_job: created soul task {result.get('task_id')}"
+            )
+        else:
+            age_days = (now - updated_at).days
+            _logger.info(
+                f"scheduled_soul_job: SOUL.md fresh ({age_days} days), skipping"
+            )
+    except Exception as e:
+        _logger.error(f"scheduled_soul_job crashed: {e}")
+
+
+async def scheduled_stats_job() -> None:
+    """Phase 1f Task 6.9: 定时回收已发布文章统计数据。
+
+    每日 06:00 (Asia/Shanghai) 触发。
+    失败只 log.error，不抛异常。
+    """
+    try:
+        from backend.services.stats_recycle_service import recycle_stats
+
+        result = await asyncio.to_thread(recycle_stats)
+        _logger.info(
+            f"scheduled_stats_job: recycled={result.get('recycled')}, "
+            f"skipped={result.get('skipped')}"
+        )
+    except Exception as e:
+        _logger.error(f"scheduled_stats_job crashed: {e}")
+
+
+async def scheduled_migrate_job() -> None:
+    """Phase 1f Task 6.10: 定时迁移高掌握度条目到本地 wiki。
+
+    每周日 05:00 (Asia/Shanghai) 触发。
+    失败只 log.error，不抛异常。
+    """
+    try:
+        from backend.services.federation_service import migrate_high_mastery_items
+
+        result = await asyncio.to_thread(migrate_high_mastery_items)
+        _logger.info(
+            f"scheduled_migrate_job: migrated={result.get('migrated')}, "
+            f"skipped={result.get('skipped')}"
+        )
+    except Exception as e:
+        _logger.error(f"scheduled_migrate_job crashed: {e}")
+
+
 # ---------------------------------------------------------------------------
 # Phase 42: 跨端配置同步 (Q2 决策: 每周一 10:30 + 启动 catch-up)
 # ---------------------------------------------------------------------------
@@ -255,4 +339,7 @@ __all__ = [
     "daily_snapshot_job",
     "weekly_report_job",
     "scheduled_compile_job",
+    "scheduled_soul_job",
+    "scheduled_stats_job",
+    "scheduled_migrate_job",
 ]

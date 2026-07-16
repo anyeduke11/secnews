@@ -3,7 +3,7 @@ slug: "security-mindset"
 title: "安全思维"
 domain: "security"
 aliases: []
-source_items:
+source_items: ["a9d3487a95f5", "6154f9ea945f"]
   - "a9d3487a95f5"
 local_wiki_ref: null
 updated_at: "2026-07-16T06:33:46.391948+00:00"

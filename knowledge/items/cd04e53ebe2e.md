@@ -4,13 +4,13 @@ title: "Ornith-1.0 发布： 新一代 Agentic Coding 之王，MIT 开源"
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/6KXCEr19CdjOaJSl7Ja0xg"
 ingested_at: "2026-07-04T12:08:49Z"
-compiled: false
+compiled: true
 domain: ai
-topic: ai
-type: news
-difficulty: null
-tags: ["\u6a21\u578b", "Agent", "\u884c\u4e1a\u8d44\u8baf"]
-concepts: ["ai-agent"]
+topic: agentic-coding
+type: product-announcement
+difficulty: intermediate
+tags: ["Ornith", "Agentic Coding", "开源", "模型发布", "MIT"]
+concepts: ["agentic-coding", "ai-coding"]
 mastery: 0
 last_reviewed: null
 review_count: 0

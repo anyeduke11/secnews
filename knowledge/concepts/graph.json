@@ -1,17 +1,153 @@
 {
   "nodes": [
     {
+      "id": "developer-tools",
+      "label": "开发者工具",
+      "domain": "startup",
+      "count": 8,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "frontend-skills",
+      "label": "前端技能",
+      "domain": "startup",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "agent-skills",
+      "label": "Agent Skills",
+      "domain": "startup",
+      "count": 3,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "data-skill",
+      "label": "数据技能",
+      "domain": "startup",
+      "count": 2,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "penetration-testing",
+      "label": "渗透测试",
+      "domain": "security",
+      "count": 4,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "sensitive-info-detection",
+      "label": "敏感信息检测",
+      "domain": "security",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
       "id": "industry-news",
       "label": "行业资讯",
+      "domain": "security",
+      "count": 4,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "security-industry-report",
+      "label": "安全产业报告",
+      "domain": "security",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-driven-security",
+      "label": "AI 驱动安全",
+      "domain": "security",
+      "count": 4,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-security-operations",
+      "label": "AI 安全运营",
       "domain": "security",
       "count": 2,
       "wiki": "hotspot",
       "type": "concept"
     },
     {
-      "id": "security-periodical",
-      "label": "安全期刊",
+      "id": "ai-coding",
+      "label": "AI 编程",
       "domain": "security",
+      "count": 6,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-app-development",
+      "label": "AI 应用开发",
+      "domain": "security",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "self-media-platform",
+      "label": "自媒体平台",
+      "domain": "security",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "llm-cost",
+      "label": "大模型成本",
+      "domain": "security",
+      "count": 6,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "llm-api",
+      "label": "LLM API",
+      "domain": "security",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "knowledge-management",
+      "label": "知识管理",
+      "domain": "dev",
+      "count": 2,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "knowledge-architecture",
+      "label": "知识架构",
+      "domain": "dev",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "markdown-tools",
+      "label": "Markdown 工具",
+      "domain": "dev",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-creation-tools",
+      "label": "AI 创作工具",
+      "domain": "dev",
       "count": 1,
       "wiki": "hotspot",
       "type": "concept"
@@ -19,47 +155,295 @@
     {
       "id": "compliance-regulation",
       "label": "合规与监管",
-      "domain": "security",
+      "domain": "ai",
+      "count": 4,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "agent-security-governance",
+      "label": "Agent 安全治理",
+      "domain": "ai",
       "count": 2,
       "wiki": "hotspot",
       "type": "concept"
     },
     {
-      "id": "internet-governance",
-      "label": "互联网治理",
-      "domain": "security",
+      "id": "llm-model-evaluation",
+      "label": "LLM 模型评测",
+      "domain": "ai",
       "count": 1,
       "wiki": "hotspot",
       "type": "concept"
     },
     {
-      "id": "security-mindset",
-      "label": "安全思维",
-      "domain": "security",
+      "id": "ai-agent",
+      "label": "AI Agent",
+      "domain": "ai",
+      "count": 12,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "agent-loop-design",
+      "label": "Agent 循环设计",
+      "domain": "ai",
+      "count": 3,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-vulnerability-mining",
+      "label": "AI 漏洞挖掘",
+      "domain": "ai",
+      "count": 3,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-cloud-platform",
+      "label": "AI 云平台",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-tools-overview",
+      "label": "AI 工具概览",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "llm-api-comparison",
+      "label": "LLM API 对比",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-governance",
+      "label": "AI 治理",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "multi-agent-systems",
+      "label": "多智能体系统",
+      "domain": "ai",
       "count": 2,
       "wiki": "hotspot",
       "type": "concept"
     },
     {
-      "id": "security-sales",
-      "label": "安全售前与销售",
-      "domain": "security",
+      "id": "subagent-architecture",
+      "label": "Subagent 架构",
+      "domain": "ai",
       "count": 1,
       "wiki": "hotspot",
       "type": "concept"
     },
     {
-      "id": "meta-prompting",
-      "label": "元提示",
-      "domain": "security",
+      "id": "agentic-coding",
+      "label": "Agentic Coding",
+      "domain": "ai",
       "count": 1,
       "wiki": "hotspot",
       "type": "concept"
     },
     {
-      "id": "prompt-engineering",
-      "label": "提示词工程",
-      "domain": "security",
+      "id": "learning-methods",
+      "label": "学习方法",
+      "domain": "ai",
+      "count": 2,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "product-thinking",
+      "label": "产品思维",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "llm-gateway",
+      "label": "LLM 网关",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "agent-infrastructure",
+      "label": "Agent 基础设施",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-supply-chain-security",
+      "label": "AI 供应链安全",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-security",
+      "label": "AI 安全",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-driven-attack",
+      "label": "AI 驱动攻击",
+      "domain": "ai",
+      "count": 2,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "browser-automation",
+      "label": "浏览器自动化",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "llm-efficiency",
+      "label": "大模型效率",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "self-hosted-agent",
+      "label": "自托管 Agent",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "agent-guide",
+      "label": "Agent 实战指南",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-entrepreneurship",
+      "label": "AI 创业",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-news-digest",
+      "label": "AI 资讯摘要",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-video-generation",
+      "label": "AI 视频生成",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-productivity",
+      "label": "AI 生产力工具",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-applications",
+      "label": "AI 应用场景",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "llm-basics",
+      "label": "大模型基础",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-fundamentals",
+      "label": "AI 基础概念",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "bug-bounty",
+      "label": "漏洞赏金",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "learning-notes",
+      "label": "学习笔记",
+      "domain": "general",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "personal-knowledge",
+      "label": "个人知识管理",
+      "domain": "general",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "ai-finance",
+      "label": "AI 金融应用",
+      "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "investment",
+      "label": "投资",
+      "domain": "finance",
+      "count": 2,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "private-equity",
+      "label": "私募股权",
+      "domain": "finance",
       "count": 1,
       "wiki": "hotspot",
       "type": "concept"
@@ -68,70 +452,30 @@
       "id": "security-fundamentals",
       "label": "安全基础",
       "domain": "security",
-      "count": 2,
-      "wiki": "hotspot",
-      "type": "concept"
-    },
-    {
-      "id": "devsecops",
-      "label": "DevSecOps",
-      "domain": "security",
-      "count": 1,
-      "wiki": "hotspot",
-      "type": "concept"
-    },
-    {
-      "id": "observability",
-      "label": "可观测性",
-      "domain": "security",
-      "count": 1,
-      "wiki": "hotspot",
-      "type": "concept"
-    },
-    {
-      "id": "log-management",
-      "label": "日志管理",
-      "domain": "security",
-      "count": 1,
-      "wiki": "hotspot",
-      "type": "concept"
-    },
-    {
-      "id": "ai-agent",
-      "label": "AI Agent",
-      "domain": "security",
-      "count": 2,
-      "wiki": "hotspot",
-      "type": "concept"
-    },
-    {
-      "id": "multi-agent-systems",
-      "label": "多智能体系统",
-      "domain": "security",
-      "count": 1,
-      "wiki": "hotspot",
-      "type": "concept"
-    },
-    {
-      "id": "financial-regulation",
-      "label": "金融监管",
-      "domain": "security",
       "count": 3,
       "wiki": "hotspot",
       "type": "concept"
     },
     {
-      "id": "banking",
-      "label": "银行业务",
+      "id": "vulnerability-database",
+      "label": "漏洞数据库",
       "domain": "security",
-      "count": 2,
+      "count": 1,
       "wiki": "hotspot",
       "type": "concept"
     },
     {
-      "id": "app-security-compliance",
-      "label": "App 安全合规",
-      "domain": "security",
+      "id": "open-source-learning",
+      "label": "开源学习资源",
+      "domain": "dev",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "cs-curriculum",
+      "label": "计算机科学课程",
+      "domain": "dev",
       "count": 1,
       "wiki": "hotspot",
       "type": "concept"
@@ -153,14 +497,6 @@
       "type": "concept"
     },
     {
-      "id": "national-standards",
-      "label": "国家标准",
-      "domain": "security",
-      "count": 2,
-      "wiki": "hotspot",
-      "type": "concept"
-    },
-    {
       "id": "claude",
       "label": "Claude",
       "domain": "ai",
@@ -169,10 +505,10 @@
       "type": "concept"
     },
     {
-      "id": "knowledge-management",
-      "label": "知识管理",
-      "domain": "startup",
-      "count": 1,
+      "id": "financial-regulation",
+      "label": "金融监管",
+      "domain": "finance",
+      "count": 3,
       "wiki": "hotspot",
       "type": "concept"
     },
@@ -185,10 +521,10 @@
       "type": "concept"
     },
     {
-      "id": "ai-driven-security",
-      "label": "AI 驱动安全",
-      "domain": "security",
-      "count": 1,
+      "id": "banking",
+      "label": "银行业",
+      "domain": "finance",
+      "count": 2,
       "wiki": "hotspot",
       "type": "concept"
     },
@@ -209,9 +545,9 @@
       "type": "concept"
     },
     {
-      "id": "investment",
-      "label": "投资",
-      "domain": "finance",
+      "id": "app-security-compliance",
+      "label": "App 安全合规",
+      "domain": "security",
       "count": 1,
       "wiki": "hotspot",
       "type": "concept"
@@ -219,6 +555,14 @@
     {
       "id": "standards",
       "label": "标准规范",
+      "domain": "security",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "observability",
+      "label": "可观测性",
       "domain": "security",
       "count": 1,
       "wiki": "hotspot",
@@ -265,8 +609,8 @@
       "type": "concept"
     },
     {
-      "id": "penetration-testing",
-      "label": "渗透测试",
+      "id": "prompt-engineering",
+      "label": "提示词工程",
       "domain": "security",
       "count": 1,
       "wiki": "hotspot",
@@ -289,18 +633,18 @@
       "type": "concept"
     },
     {
-      "id": "learning-methods",
-      "label": "学习方法",
-      "domain": "startup",
-      "count": 1,
+      "id": "security-mindset",
+      "label": "安全思维",
+      "domain": "security",
+      "count": 2,
       "wiki": "hotspot",
       "type": "concept"
     },
     {
-      "id": "developer-tools",
-      "label": "开发者工具",
-      "domain": "ai",
-      "count": 1,
+      "id": "national-standards",
+      "label": "国标",
+      "domain": "security",
+      "count": 2,
       "wiki": "hotspot",
       "type": "concept"
     },
@@ -321,6 +665,30 @@
       "type": "concept"
     },
     {
+      "id": "internet-governance",
+      "label": "互联网治理",
+      "domain": "security",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "meta-prompting",
+      "label": "元提示",
+      "domain": "security",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "log-management",
+      "label": "日志管理",
+      "domain": "security",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
       "id": "zero-trust-architecture",
       "label": "零信任架构",
       "domain": "security",
@@ -329,8 +697,8 @@
       "type": "concept"
     },
     {
-      "id": "ai-driven-attack",
-      "label": "AI 驱动攻击",
+      "id": "devsecops",
+      "label": "DevSecOps",
       "domain": "security",
       "count": 1,
       "wiki": "hotspot",
@@ -340,6 +708,14 @@
       "id": "openai",
       "label": "OpenAI",
       "domain": "ai",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "security-periodical",
+      "label": "安全期刊",
+      "domain": "security",
       "count": 1,
       "wiki": "hotspot",
       "type": "concept"
@@ -364,6 +740,14 @@
       "id": "securities",
       "label": "证券业",
       "domain": "finance",
+      "count": 1,
+      "wiki": "hotspot",
+      "type": "concept"
+    },
+    {
+      "id": "security-sales",
+      "label": "安全售前与销售",
+      "domain": "security",
       "count": 1,
       "wiki": "hotspot",
       "type": "concept"
@@ -411,33 +795,39 @@
       "type": "related"
     },
     {
+      "source": "ai-agent",
+      "target": "ai-entrepreneurship",
+      "weight": 1,
+      "type": "related"
+    },
+    {
       "source": "defense-modernization",
       "target": "penetration-testing",
-      "weight": 2,
+      "weight": 1,
       "type": "related"
     },
     {
       "source": "ai-agent",
       "target": "developer-tools",
-      "weight": 22,
+      "weight": 17,
       "type": "related"
     },
     {
       "source": "ai-agent",
       "target": "ai-driven-attack",
-      "weight": 7,
+      "weight": 5,
       "type": "related"
     },
     {
       "source": "ai-agent",
       "target": "penetration-testing",
-      "weight": 7,
+      "weight": 6,
       "type": "related"
     },
     {
       "source": "ai-driven-attack",
       "target": "developer-tools",
-      "weight": 2,
+      "weight": 1,
       "type": "related"
     },
     {
@@ -453,9 +843,15 @@
       "type": "related"
     },
     {
+      "source": "penetration-testing",
+      "target": "sensitive-info-detection",
+      "weight": 1,
+      "type": "related"
+    },
+    {
       "source": "ai-agent",
       "target": "ai-development",
-      "weight": 28,
+      "weight": 20,
       "type": "related"
     },
     {
@@ -467,73 +863,61 @@
     {
       "source": "ai-agent",
       "target": "security-fundamentals",
+      "weight": 2,
+      "type": "related"
+    },
+    {
+      "source": "ai-driven-attack",
+      "target": "security-fundamentals",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "llm-security",
+      "target": "security-fundamentals",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-agent",
+      "target": "llm-security",
       "weight": 3,
       "type": "related"
     },
     {
       "source": "ai-driven-attack",
-      "target": "security-fundamentals",
+      "target": "llm-security",
+      "weight": 4,
+      "type": "related"
+    },
+    {
+      "source": "agent-security-governance",
+      "target": "compliance-regulation",
       "weight": 2,
       "type": "related"
     },
     {
-      "source": "llm-security",
-      "target": "security-fundamentals",
-      "weight": 2,
-      "type": "related"
-    },
-    {
-      "source": "ai-agent",
-      "target": "llm-security",
-      "weight": 5,
-      "type": "related"
-    },
-    {
-      "source": "ai-driven-attack",
-      "target": "llm-security",
-      "weight": 6,
-      "type": "related"
-    },
-    {
-      "source": "ai-agent",
-      "target": "technical-principles",
-      "weight": 1,
-      "type": "related"
-    },
-    {
-      "source": "developer-tools",
-      "target": "llm-security",
-      "weight": 1,
-      "type": "related"
-    },
-    {
-      "source": "developer-tools",
-      "target": "technical-principles",
-      "weight": 1,
-      "type": "related"
-    },
-    {
-      "source": "ai-driven-attack",
-      "target": "technical-principles",
-      "weight": 1,
-      "type": "related"
-    },
-    {
-      "source": "llm-security",
-      "target": "technical-principles",
-      "weight": 1,
-      "type": "related"
-    },
-    {
-      "source": "ai-agent",
-      "target": "claude",
-      "weight": 1,
+      "source": "agent-loop-design",
+      "target": "ai-agent",
+      "weight": 3,
       "type": "related"
     },
     {
       "source": "ai-development",
       "target": "developer-tools",
-      "weight": 8,
+      "weight": 5,
+      "type": "related"
+    },
+    {
+      "source": "llm-api-comparison",
+      "target": "llm-cost",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-driven-security",
+      "target": "ai-security-operations",
+      "weight": 2,
       "type": "related"
     },
     {
@@ -551,6 +935,12 @@
     {
       "source": "leadership-anti-patterns",
       "target": "team-management",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "industry-news",
+      "target": "security-industry-report",
       "weight": 1,
       "type": "related"
     },
@@ -579,6 +969,12 @@
       "type": "related"
     },
     {
+      "source": "developer-tools",
+      "target": "frontend-skills",
+      "weight": 1,
+      "type": "related"
+    },
+    {
       "source": "compliance-regulation",
       "target": "financial-regulation",
       "weight": 1,
@@ -597,8 +993,32 @@
       "type": "related"
     },
     {
-      "source": "ai-agent",
-      "target": "deepseek",
+      "source": "ai-coding",
+      "target": "developer-tools",
+      "weight": 2,
+      "type": "related"
+    },
+    {
+      "source": "llm-cost",
+      "target": "llm-gateway",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-tools-overview",
+      "target": "developer-tools",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "agent-guide",
+      "target": "ai-agent",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-app-development",
+      "target": "ai-coding",
       "weight": 1,
       "type": "related"
     },
@@ -624,6 +1044,12 @@
       "source": "defense-modernization",
       "target": "security-fundamentals",
       "weight": 5,
+      "type": "related"
+    },
+    {
+      "source": "ai-cloud-platform",
+      "target": "llm-cost",
+      "weight": 1,
       "type": "related"
     },
     {
@@ -693,6 +1119,12 @@
       "type": "related"
     },
     {
+      "source": "ai-driven-security",
+      "target": "ai-supply-chain-security",
+      "weight": 1,
+      "type": "related"
+    },
+    {
       "source": "ai-driven-attack",
       "target": "threat-intelligence",
       "weight": 1,
@@ -707,6 +1139,18 @@
     {
       "source": "ai-driven-attack",
       "target": "defense-modernization",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-coding",
+      "target": "llm-model-evaluation",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "developer-tools",
+      "target": "markdown-tools",
       "weight": 1,
       "type": "related"
     },
@@ -741,8 +1185,56 @@
       "type": "related"
     },
     {
+      "source": "ai-creation-tools",
+      "target": "developer-tools",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "agent-skills",
+      "target": "data-skill",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-vulnerability-mining",
+      "target": "penetration-testing",
+      "weight": 2,
+      "type": "related"
+    },
+    {
+      "source": "agent-infrastructure",
+      "target": "ai-agent",
+      "weight": 1,
+      "type": "related"
+    },
+    {
       "source": "ai-agent",
-      "target": "industry-news",
+      "target": "ai-coding",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "agentic-coding",
+      "target": "ai-coding",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-agent",
+      "target": "ai-video-generation",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "knowledge-architecture",
+      "target": "knowledge-management",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-agent",
+      "target": "llm-efficiency",
       "weight": 1,
       "type": "related"
     },
@@ -807,8 +1299,26 @@
       "type": "related"
     },
     {
+      "source": "data-skill",
+      "target": "self-media-platform",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "agent-skills",
+      "target": "browser-automation",
+      "weight": 1,
+      "type": "related"
+    },
+    {
       "source": "compliance-regulation",
       "target": "internet-governance",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "learning-notes",
+      "target": "personal-knowledge",
       "weight": 1,
       "type": "related"
     },
@@ -819,8 +1329,50 @@
       "type": "related"
     },
     {
+      "source": "llm-api",
+      "target": "llm-cost",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-applications",
+      "target": "ai-productivity",
+      "weight": 1,
+      "type": "related"
+    },
+    {
       "source": "penetration-testing",
       "target": "zero-trust-architecture",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "learning-methods",
+      "target": "product-thinking",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "multi-agent-systems",
+      "target": "subagent-architecture",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-news-digest",
+      "target": "industry-news",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-governance",
+      "target": "llm-cost",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-driven-attack",
+      "target": "ai-security",
       "weight": 1,
       "type": "related"
     },
@@ -843,32 +1395,8 @@
       "type": "related"
     },
     {
-      "source": "ai-agent",
-      "target": "tutorials",
-      "weight": 1,
-      "type": "related"
-    },
-    {
-      "source": "ai-agent",
-      "target": "ai-design",
-      "weight": 1,
-      "type": "related"
-    },
-    {
-      "source": "penetration-testing",
-      "target": "tutorials",
-      "weight": 1,
-      "type": "related"
-    },
-    {
-      "source": "ai-design",
-      "target": "penetration-testing",
-      "weight": 1,
-      "type": "related"
-    },
-    {
-      "source": "ai-design",
-      "target": "tutorials",
+      "source": "ai-vulnerability-mining",
+      "target": "bug-bounty",
       "weight": 1,
       "type": "related"
     },
@@ -887,6 +1415,48 @@
     {
       "source": "ai-agent",
       "target": "threat-intelligence",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "agent-skills",
+      "target": "developer-tools",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-fundamentals",
+      "target": "llm-basics",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-agent",
+      "target": "self-hosted-agent",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "ai-finance",
+      "target": "llm-cost",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "cs-curriculum",
+      "target": "open-source-learning",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "security-fundamentals",
+      "target": "vulnerability-database",
+      "weight": 1,
+      "type": "related"
+    },
+    {
+      "source": "investment",
+      "target": "private-equity",
       "weight": 1,
       "type": "related"
     }

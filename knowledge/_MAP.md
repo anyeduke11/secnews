@@ -13,15 +13,15 @@ beginner, intermediate, advanced, expert
 
 ## Statistics
 - Total items: 409
-- Total concepts: 48
-- Compiled: 4.9%
-- Last compiled: 2026-07-16T11:52:38.808340+00:00
+- Total concepts: 96
+- Compiled: 17.1%
+- Last compiled: 2026-07-16T12:32:43.300622+00:00
 
 ## Items Index
 > `[x]` = compiled, `[ ]` = pending. Grouped by domain.
 
 
-### security (154)
+### security (155)
 
 - [ ] `016f66bee5b2` (security) — 如何使用moniorg监控新颁发域名的活动和安全性
 - [ ] `04f74dfacdf1` (security) — 两个月没花一分Token钱，4个白嫖渠道全摊开
@@ -52,19 +52,20 @@ beginner, intermediate, advanced, expert
 - [x] `262220bf10d8` (internet-governance) — 国家网信办就《互联网信息服务管理办法（修订草案征求意见稿）》再次公开征求意见
 - [ ] `2ece839fcac1` (security) — 基于风险导向的信息安全审计方法运用
 - [ ] `332803c594cc` (security) — 6月1日正式实施《网络安全等级保护数据安全基本要求》
-- [ ] `3381eeaee1a5` (security) — Cloudflare 免费模型调用
+- [x] `3381eeaee1a5` (llm-api) — Cloudflare 免费模型调用
 - [ ] `343cab705427` (security) — 2022年数字安全大事记
 - [ ] `353020803632` (security) — 国家法律法规
 - [x] `358bb8334d53` (periodical-index) — 《网络安全和信息化》杂志2026年第7期 目录
-- [ ] `398e3ab6a596` (security) — 敏感信息自动化挖掘检测工具-DigDeep
+- [x] `398e3ab6a596` (sensitive-info-detection) — 敏感信息自动化挖掘检测工具-DigDeep
 - [ ] `39905d1e7deb` (security) — 欢迎新Buddy：DataBuddy
 - [ ] `39ac28cdda04` (security) — 2022年工业控制网络安全态势白皮书
 - [ ] `3b8d6d1f1032` (security) — 数据安全意识培训课件（PPTX）
 - [ ] `3d5e18dace8f` (security) — Nuclei进阶指南：安全研究者的扫描与模板技巧
 - [ ] `3f74b7b06bf5` (security) — 央企在网络安全新形势下的动态防御体系研究与应用 - 安全内参 | 决策者的网络安全知识库
-- [ ] `3fca0b6f0cdd` (security) — 第22篇 全栈AI · AI 安全运营平台，真正难的不是agent
+- [x] `3fca0b6f0cdd` (ai-security-operations) — 第22篇 全栈AI · AI 安全运营平台，真正难的不是agent
 - [ ] `41bca509e92b` (security) — 《工业互联网专项工作组2023年工作计划》印发
-- [ ] `4434b053e162` (security) — 用对话写出一个微信小程序，再一键部署上线——秒悟进阶课全攻略
+- [x] `4201940cd083` (vulnerability-database) — 国家信息安全漏洞库
+- [x] `4434b053e162` (ai-app-development) — 用对话写出一个微信小程序，再一键部署上线——秒悟进阶课全攻略
 - [ ] `46321ebc942a` (security) — 产品经理和项目经理，有啥不一样？
 - [ ] `472a3f214a41` (security) — 提示词注入攻击的检测和数据集介绍
 - [ ] `4786bd974287` (security) — 我的个人AI知识库-Karpathy llm-wiki
@@ -159,13 +160,13 @@ beginner, intermediate, advanced, expert
 - [ ] `e6904f096401` (security) — 安全运营中心的六大陷阱
 - [ ] `e69706d9183a` (security) — 怎样关注运用？“标准中国”新媒体
 - [ ] `e6d6f4fb3cdd` (security) — Gartner 2022安全与风险趋势
-- [ ] `eadc2bf70243` (security) — 中国数字安全产业年度报告2026公开版
+- [x] `eadc2bf70243` (security-industry-report) — 中国数字安全产业年度报告2026公开版
 - [ ] `eba736614562` (security) — 炼石白小勇：实战合规辩证统一，双轮驱动数据安全（附下载）
 - [ ] `ec2001ee6138` (security) — 玩AI 安全，竟然能拿这么多钱？
 - [ ] `eed7944d318c` (security) — GitHub黑板报的文字分享
 - [ ] `ef82bf33bf22` (security) — 什么是安全BP？安全BP如何深入业务？安全意识培训如何做好外包人员培训？ | 总第184周
 - [ ] `ef89edbd81d2` (security) — 请在微信客户端打开链接
-- [ ] `f155176922e6` (security) — 一键获取全网自媒体数据源，开源我的全平台自媒体管理平台
+- [x] `f155176922e6` (self-media-platform) — 一键获取全网自媒体数据源，开源我的全平台自媒体管理平台
 - [ ] `f25ab1a0fd29` (security) — 威胁情报：重要的与不重要的
 - [ ] `f359c1269a77` (security) — 演进与整合 创新与重塑 │ 奇安信发布2024网络安全十大技术趋势
 - [ ] `f36c138bb715` (security) — 如何免费下载国家标准、专利（2022年版本）？
@@ -178,38 +179,39 @@ beginner, intermediate, advanced, expert
 - [ ] `ffaad4116f8c` (security) — 江西农信网络安全策略优化梳理实践
 - [ ] `ffe01d685921` (security) — 赛迪研究院发布《2022年企业合规体系建设白皮书》
 
-### ai (109)
+### ai (111)
 
 - [ ] `037301e8617b` (ai) — 知识库分层编排：从 RAG 到 Agent-native Knowledge Context Layer
-- [ ] `04de48060135` (ai) — Octop 重磅开源：更智能的自托管Agent助手
+- [x] `04de48060135` (self-hosted-agent) — Octop 重磅开源：更智能的自托管Agent助手
+- [ ] `0684a8ff48da` (prompt-engineering) — 想玩Loop Engineering，可以先从这6个Hook玩法开始。
 - [ ] `0ae5275a4c07` (ai) — 中国第一，直逼OpenAI！神秘「扫地僧」冲到全球前七
-- [ ] `0f19d127b1c7` (ai) — 20 个 AI 底层核心概念｜看懂大模型只需要这一篇！
+- [x] `0f19d127b1c7` (ai-fundamentals) — 20 个 AI 底层核心概念｜看懂大模型只需要这一篇！
 - [ ] `1051fb7e288c` (ai) — 谷歌 DiffusionGemma 开源：文本生成提速 4 倍
 - [ ] `1174f6786fdd` (ai) — 《审慎部署智能体AI服务》指南
 - [ ] `123685c64937` (ai) — 我用了一个月百度搭子DuMate，发现Agent真正好用的关键
 - [ ] `129ef6ba30ef` (ai) — 观猹共学营来了！7 天，带你走进 AI 产品经理的世界！
 - [ ] `136dbda08c8b` (ai) — Agent-Native 开发框架设计
-- [ ] `16dc482aa286` (ai) — 演讲实录 | 从 Token 数量到 Token 密度：万亿参数规模下的高效智能体智能
+- [x] `16dc482aa286` (llm-efficiency) — 演讲实录 | 从 Token 数量到 Token 密度：万亿参数规模下的高效智能体智能
 - [ ] `1dfe25de28f9` (ai) — 用WinUtil，轻松优化Windows系统？
-- [ ] `23076240ea4a` (ai) — Src捡钱12，AI一键自动挖掘小程序漏洞
-- [ ] `298f718fa9b4` (ai) — DeepSeek 官方也推荐的 Deep Code 是什么
-- [ ] `2abc11638b79` (ai) — 周一上线｜AI Slop 图鉴来了，TypeScript 7 快了 10 倍，MiniMax 市值蒸发近 3/4
-- [ ] `2b525c5eec59` (ai) — 面向客户端漏洞挖掘 Agent 的设计与实践之路
+- [x] `23076240ea4a` (ai-vulnerability-mining) — Src捡钱12，AI一键自动挖掘小程序漏洞
+- [x] `298f718fa9b4` (ai-coding) — DeepSeek 官方也推荐的 Deep Code 是什么
+- [x] `2abc11638b79` (ai-news-digest) — 周一上线｜AI Slop 图鉴来了，TypeScript 7 快了 10 倍，MiniMax 市值蒸发近 3/4
+- [x] `2b525c5eec59` (vulnerability-mining-agent) — 面向客户端漏洞挖掘 Agent 的设计与实践之路
 - [ ] `30db0a5a89ed` (ai) — How Claude Code works in large codebases: Best practices and where to start
 - [ ] `32b2251b0d6b` (ai) — Hermes Agent正式变身Codex，Hermes Desktop发布！
 - [ ] `340acbd79960` (ai) — 推荐您下载腾讯文档PC客户端，体验更流畅。
 - [ ] `35fb773c2988` (ai) — 我折腾了好久的Skills团队共享，终于有产品替我做出来了。
-- [ ] `37b69931ba07` (ai) — 一个人也能用AI：销售、行政、财务三个岗位的"单兵AI武装"最低配置指南
+- [x] `37b69931ba07` (ai-applications) — 一个人也能用AI：销售、行政、财务三个岗位的"单兵AI武装"最低配置指南
 - [ ] `3a71c4f4cbcd` (ai) — Skill 正在重构 Agent 生态，但更危险的是认知负债
 - [ ] `3cfcb01f5788` (ai) — 人工智能治理：现状、挑战与策略研究
 - [ ] `3d2fed98f163` (ai) — 首个面向 AI Infra 的运维智能体评测基准，开源了！
-- [ ] `3d82bb1020f4` (ai) — How I hunt for vulnerabilities with AI
-- [ ] `3ea8f384fe60` (ai) — Claude Code 入门：智能体循环
+- [x] `3d82bb1020f4` (ai-vulnerability-hunting) — How I hunt for vulnerabilities with AI
+- [x] `3ea8f384fe60` (agent-loop) — Claude Code 入门：智能体循环
 - [ ] `412f9825c9ed` (ai) — Skill is NOT All You Need
 - [ ] `42447909cec7` (ai) — Skills，把方法变能力
 - [ ] `49ccb349958a` (ai) — 0 基础入门 AI 养龙虾，我靠阶跃 AI 踩对了第一步
 - [ ] `49dc2c75f88a` (ai) — 职场人的福利来了！OpenAI推出3门免费AI课程（附课程链接）
-- [ ] `4a62e2696ce4` (ai) — 每月白嫖 16 亿 Token！本地 AI 网关，231 家大模型聚合，彻底干掉你的 GPT/Claude API 账单
+- [x] `4a62e2696ce4` (llm-gateway) — 每月白嫖 16 亿 Token！本地 AI 网关，231 家大模型聚合，彻底干掉你的 GPT/Claude API 账单
 - [ ] `4a7fb667ed63` (ai) — DeepSeek V4还能更省！新工具缓存命中率高达99.82%，2折稳定到手
 - [ ] `4d28832314ed` (ai) — 阳光保险集团王卓：阳光保险在AI编程和算力运营的实践分享
 - [ ] `4d381575d296` (ai) — 我把搭建wiki知识库的方法做成了skill｜已免费开源
@@ -220,18 +222,18 @@ beginner, intermediate, advanced, expert
 - [ ] `62eef8361cc4` (ai) — How Anthropic's cybersecurity team built a threat detection platform with Claude Code
 - [ ] `634c1fcff58b` (ai) — OWASP Agentic Skills Top 10 红队实战解析：从Skill注入到系统级失控
 - [ ] `6498e96092cd` (ai) — GLM-4.7-Flash 永久免费！智谱 AI 这张"长期饭票"，我愿意吹一辈子
-- [ ] `658ae34ec9ee` (ai) — Agentic AI Governance: Your API Key Is a Guardrail
-- [ ] `6a10e0d75479` (ai) — Claude Code 一周年：Anthropic 内部的变革
+- [x] `658ae34ec9ee` (ai-governance) — Agentic AI Governance: Your API Key Is a Guardrail
+- [x] `6a10e0d75479` (ai-coding-tool) — Claude Code 一周年：Anthropic 内部的变革
 - [ ] `6b9633b32931` (ai) — Switch branches/tags
-- [ ] `6da3013b2c36` (ai) — Anthropic发布循环设计指南：权威拆解当下最火的AI新范式loop
-- [ ] `71dc479bfddb` (ai) — 2026 AI工具大洗牌：你可能用错了！
-- [ ] `7315232bd3d4` (ai) — 整合42个顶级产品经理的思维模型，封装成Skill
+- [x] `6da3013b2c36` (agent-loop-design) — Anthropic发布循环设计指南：权威拆解当下最火的AI新范式loop
+- [x] `71dc479bfddb` (ai-tools-overview) — 2026 AI工具大洗牌：你可能用错了！
+- [x] `7315232bd3d4` (product-thinking) — 整合42个顶级产品经理的思维模型，封装成Skill
 - [ ] `737a0841b21b` (ai) — 硅谷CEO深夜站台！MiniMax M3冲上开源第一，中文社区却吵翻了？
 - [ ] `7798b446cf9c` (ai) — 基于大模型的下一代杀毒引擎
 - [ ] `77de1f49cdfc` (ai) — 双 Agent 架构：渗透 Agent + Judge Agent
 - [ ] `7d026f1fc593` (ai) — AI Agent吃掉万亿服务市场，这家中国公司已经开始了
 - [ ] `7d76d5b9f646` (ai) — 35页PPT，读懂AI如何重塑网络安全 ｜精华版
-- [ ] `7dbe5a95957b` (ai) — Getting started with loops
+- [x] `7dbe5a95957b` (agent-loop) — Getting started with loops
 - [ ] `7e070ff9d107` (ai) — 整理微信读书笔记，试试WorkBuddy+金山文档Skill
 - [x] `83f460c20a7e` (ai-agent) — You don't have any lists yet.
 - [ ] `85085f364a64` (ai) — 一款完全离线的自主渗透测试智能体AIRecon
@@ -239,58 +241,59 @@ beginner, intermediate, advanced, expert
 - [ ] `86117b572d0a` (ai) — 把Token、Agent当作信用卡权益！招行工程师卡“第一个吃螃蟹”
 - [ ] `8903812033da` (ai) — Palantir引爆的本体论热潮，是企业AI“开窍”的关键吗？
 - [ ] `8af5082fc467` (ai) — 技术Leader：“你根本不会用 Claude Code!”,我：“用你教我？”
+- [x] `8c40203b708e` (llm-cost) — 多家银行披露日均Token消耗量！AI大模型应用成本如何控制？
 - [ ] `8d708f405970` (ai) — Vulnerabilidades/proxynotshell_checker.nse
 - [ ] `8f252bc91356` (ai) — 万字长文，讲透人工智能全产业链发展
 - [ ] `936b45bee467` (ai) — 长程验证：AI Agent 从持续执行到工程化的收敛
 - [ ] `939f177f0b87` (ai) — How agents are transforming work
-- [ ] `939fe1835768` (ai) — 实战 WorkBuddy+反爬+爬虫固化 Skill，6大能力搞定浏览器自动化
+- [x] `939fe1835768` (browser-automation) — 实战 WorkBuddy+反爬+爬虫固化 Skill，6大能力搞定浏览器自动化
 - [ ] `95e239086eaf` (ai) — DeepSeek：14天从入门到放弃-开启人工智能高效应用之旅
 - [ ] `9d6ba1aa3ca2` (ai) — 炸了，agent开源
 - [ ] `a0368b07747d` (ai) — FDE：AI时代的“新物种”岗位，正在重塑技术落地法则
 - [ ] `a05cd674bb0e` (ai) — 5.6万 Star！GitHub 爆火的 AI 求职神器，已适配 Boss 直聘
 - [ ] `a46dc57b5f8c` (ai) — 25K Star，每天跑1300次渗透测试，这个AI安全工具值得试
-- [ ] `a6a9b647ef1e` (ai) — 刚刚，一个免费AI Coding选手杀入全球第一梯队
+- [x] `a6a9b647ef1e` (ai-coding) — 刚刚，一个免费AI Coding选手杀入全球第一梯队
 - [ ] `a73e57be26e5` (ai) — 从“会用AI”到“会造AI”：360 智能体工程师（ADEA）认证
 - [ ] `a789a4a14d88` (ai) — 4.1K Star 开源免费，DeepSeek 终于有了好用的桌面客户端
-- [ ] `ab0fe0d7608c` (ai) — 开源腾讯WorkBuddy蓝皮书！从0到100最系统Agent实战指南～【建议收藏】
-- [ ] `ab32b5c4e649` (ai) — MiniMax M3 实测：第一流的模型，已经对执行层动手了
-- [ ] `af4479bdf78b` (ai) — Agent 专属的免费域名福利，这个大厂给 AI Agent 发用不完的公网域名..
+- [x] `ab0fe0d7608c` (agent-guide) — 开源腾讯WorkBuddy蓝皮书！从0到100最系统Agent实战指南～【建议收藏】
+- [x] `ab32b5c4e649` (llm-model-evaluation) — MiniMax M3 实测：第一流的模型，已经对执行层动手了
+- [x] `af4479bdf78b` (agent-infrastructure) — Agent 专属的免费域名福利，这个大厂给 AI Agent 发用不完的公网域名..
 - [ ] `b227caecb555` (ai) — Claude 桌面端App 10分钟接入DeepSeek v4，全程无需魔法（保姆级教程）
 - [ ] `b2cc1b533545` (ai) — Qwen 3.6 27B 是本地开发的理想选择
-- [ ] `b3c0a491e490` (ai) — 腾讯云放大招了，白薅 Tokens + 免费部署 AI 应用，给我爽到了！
+- [x] `b3c0a491e490` (ai-cloud-platform) — 腾讯云放大招了，白薅 Tokens + 免费部署 AI 应用，给我爽到了！
 - [ ] `b6f6775c9ade` (ai) — 360发布《AI Agent攻防演练指南》 提出AI时代防守新方法
-- [ ] `b97d060930ee` (ai) — 用 AI 挖 AI：多 Agent 协同时代的链式逃逸
-- [ ] `baebc69b3faf` (ai) — 智能体五阶段生命周期框架：TC260 首份 Agent 部署使用安全指引解读（2026.7）
+- [x] `b97d060930ee` (ai-security-attack) — 用 AI 挖 AI：多 Agent 协同时代的链式逃逸
+- [x] `baebc69b3faf` (agent-security-governance) — 智能体五阶段生命周期框架：TC260 首份 Agent 部署使用安全指引解读（2026.7）
 - [ ] `bce53e828aa5` (ai) — Qwen 3.6 27B is the sweet spot for local development
 - [ ] `bd9da35d6e7d` (ai) — 这个封装了我3年自媒体经验的AI热点网站，今天向所有人免费开放。
 - [ ] `bda8046ed058` (ai) — 用了龙虾一个月，感觉它还是没成长？queen.skill专治这三个病
-- [ ] `c665a613aad4` (ai) — Free LLM APIs Compared: Rate Limits, Models, and Real Costs (2026)
+- [x] `c665a613aad4` (llm-api-comparison) — Free LLM APIs Compared: Rate Limits, Models, and Real Costs (2026)
 - [ ] `c6ce89d6606a` (ai) — 3.2万 Star！Anthropic 亲自下场，开源了一整套金融圈的生产力工具Skill
-- [ ] `c720a169ed09` (ai) — 网安人看完沉默了！Qwen3.7-Max被丢进一台正在被攻击的真实服务器，零人工干预，自己查出了暴力破解
+- [x] `c720a169ed09` (ai-security-operations) — 网安人看完沉默了！Qwen3.7-Max被丢进一台正在被攻击的真实服务器，零人工干预，自己查出了暴力破解
 - [ ] `cc66207d9194` (ai) — Qwen3.7-Plus：想得深，看得懂，做得到
-- [ ] `cd04e53ebe2e` (ai) — Ornith-1.0 发布： 新一代 Agentic Coding 之王，MIT 开源
-- [ ] `cefb71389b03` (ai) — [Agentic Skills 投毒]：免杀技术、语义混淆与三层防御框架
-- [ ] `d18de2ee42bf` (ai) — 一人公司OPC如何用公众号＋智能体，低成本跑通AI产品第一步？
+- [x] `cd04e53ebe2e` (agentic-coding) — Ornith-1.0 发布： 新一代 Agentic Coding 之王，MIT 开源
+- [x] `cefb71389b03` (ai-supply-chain-security) — [Agentic Skills 投毒]：免杀技术、语义混淆与三层防御框架
+- [x] `d18de2ee42bf` (ai-entrepreneurship) — 一人公司OPC如何用公众号＋智能体，低成本跑通AI产品第一步？
 - [ ] `d1c0769c9c60` (ai) — 一小时入门 Python 3 网络爬虫
 - [ ] `d31daef94400` (ai) — 6月底截止，免费白嫖Qwen3.6/3.5
 - [ ] `d75b43280611` (ai) — 国务院印发《教育发展"十五五"规划》，推进人工智能全学段教育
 - [ ] `d84a1993d0f2` (ai) — Microsoft Urges Customers to Secure On-Premises Exchange Servers
-- [ ] `d9cb75436a9d` (ai) — LibTV Agent 正式上线｜全球最大的专业视频 Skill Hub，AI 长视频实现成品级直出
+- [x] `d9cb75436a9d` (ai-video-generation) — LibTV Agent 正式上线｜全球最大的专业视频 Skill Hub，AI 长视频实现成品级直出
 - [ ] `db1f4178a821` (ai) — 如何快速蒸馏漏洞挖掘skills？
 - [ ] `dba11e4dee59` (ai) — 出海 | 携程《全球化技术架构与实战》一书火爆上市，看 DRC 如何支撑全球旅游业务无缝切换
 - [ ] `dbcf2b461ede` (ai) — OpenClaw、MaxClaw、KimiClaw 技术架构实现与选型指南
-- [ ] `df1d3f61d0a8` (ai) — Subagent: Let Your Model Delegate the Busywork
+- [x] `df1d3f61d0a8` (subagent-architecture) — Subagent: Let Your Model Delegate the Busywork
 - [ ] `e47d1252425e` (ai) — Buddy AI 国内个人版订阅升级公告
 - [ ] `e69eae2ebf2c` (ai) — 2026十大AI大模型Token购买渠道：高性价比规避溢价踩坑技巧
 - [ ] `e8a7ea88dc9e` (ai) — 孙中东：AI Coding 时代的银行 SDLC 智能化转型报告
 - [ ] `eb83bf584818` (ai) — 3个月20000+ Star，这个视频Agent项目疯了
-- [ ] `f1de94d918e2` (ai) — 关于发布《网络安全标准实践指南——智能体部署使用安全指引》的通知
+- [x] `f1de94d918e2` (agent-security-standard) — 关于发布《网络安全标准实践指南——智能体部署使用安全指引》的通知
 - [ ] `f476b9598641` (ai) — EverOS：开源Markdown优先智能体记忆运行时，支持混合检索与自进化技能 · AI HOT
 - [ ] `f6dae591bbd4` (ai) — 研发金融风控智能体，提升风险识别能力——《智能体规范应用与创新发展实施意见》发布
 - [ ] `fb82b677273d` (ai) — 14款国外AI安全态势管理工具核心能力解析
 - [ ] `ff3e00ccef1a` (ai) — OpenAI内部报告：智能体Codex如何改变工作
 
-### finance (37)
+### finance (38)
 
 - [ ] `032a6305bb56` (finance) — 金融领域数据安全运营体系建设探究与思考
 - [ ] `06b41092e13c` (finance) — 专题 | 西安银行开源软件治理体系的建设实践
@@ -321,6 +324,7 @@ beginner, intermediate, advanced, expert
 - [ ] `8362c19bbb09` (finance) — 金融行业满足《数据安全法》监管要求的建议与应对机制
 - [ ] `859c7ee784c6` (finance) — 十五五战略规划编写总卡壳？体系拆解 + 报告模板，直接抄！
 - [ ] `87c9bc3f555c` (finance) — 国家金融监督管理总局办公厅关于加强银行业保险业移动互联网应用程序管理的通知
+- [x] `898dd96c073c` (private-equity) — 年内8家私募自购超1.6亿元
 - [ ] `a82f2313e05a` (finance) — 从需求到运维：证券领域LLM增强型DevOps平台建设实践
 - [ ] `b357d5f513e6` (finance) — 《金融科技发展规划（2022-2025 年）》实施效果总结与十五五规划展望
 - [ ] `bcc52fc79708` (finance) — 标书质疑分析技能简介，让你更加公平的去投标！
@@ -339,19 +343,24 @@ beginner, intermediate, advanced, expert
 - [x] `2bcc67a1ae5b` (test) — Verify
 - [x] `357d5032ce99` (test) — Test Bookmark
 
-### dev (11)
+### dev (12)
 
 - [ ] `203e6a53f4d4` (dev) — 一个 Skill，快速上手开源项目！
-- [ ] `2664f9c30629` (dev) — 这个开源项目不简单，可能会掀起AI创作革命...
+- [x] `2664f9c30629` (ai-creation-tools) — 这个开源项目不简单，可能会掀起AI创作革命...
 - [ ] `2c91d10a9c8b` (dev) — 15 分钟搭建你的 AI 日报系统：Horizon 完整安装教程 + 配置详解
+- [x] `4f3c7d046339` (cs-curriculum) — ossu / computer-science
 - [ ] `6e1dac6052e4` (dev) — 花叔不公开的写作 Skill，我逆向出来了
 - [ ] `7a225283bb5a` (dev) — 又一个 Codex 神器爆火！
-- [ ] `89b8fcf76698` (dev) — Harness不是目的，知识才是护城河 —— 一个AI工程交付团队的知识沉淀实践
+- [x] `89b8fcf76698` (knowledge-architecture) — Harness不是目的，知识才是护城河 —— 一个AI工程交付团队的知识沉淀实践
 - [ ] `8a515d12e510` (dev) — 对手情报分析技能简介，知己知彼，百战不殆——手把手教你用AI如何做竞争对手情报分析？
-- [ ] `a2ad2bb1f182` (dev) — OPC Skills：面向"一人公司"的开源 Skills
+- [x] `a2ad2bb1f182` (agent-skills) — OPC Skills：面向"一人公司"的开源 Skills
 - [ ] `a7f8446f5def` (dev) — 那些出圈的AI短片，都靠这个公式做出来的
-- [ ] `c71f419768a1` (dev) — 仅几MB！Rust 开源 Markdown 神器，专为 AI 设计
+- [x] `c71f419768a1` (markdown-tools) — 仅几MB！Rust 开源 Markdown 神器，专为 AI 设计
 - [ ] `cf1a73bdda23` (dev) — 2026 企业级AI编程实践手册
+
+### general (1)
+
+- [x] `c7500134ab49` (personal-website) — 我的个人站点开通了
 
 ### startup (89)
 
@@ -361,7 +370,7 @@ beginner, intermediate, advanced, expert
 - [ ] `1228444a4511` (startup) — 从甲方到乙方第一年的7000字总结
 - [ ] `171edf03abdf` (startup) — Docker 快速入门
 - [ ] `1a89beaac445` (startup) — 开源项目信息泄露笔记
-- [ ] `220153a0211f` (startup) — 又一个神级数据 skill，终于省事了。
+- [x] `220153a0211f` (data-skill) — 又一个神级数据 skill，终于省事了。
 - [ ] `22816ea5f411` (startup) — Kindle电子书资源推送
 - [ ] `22db0d598793` (startup) — 深入了解了100位卓越项目管理专家的背景后我才明白：什么样的企业环境，能培养出这么优秀的项目经理
 - [ ] `2ba295584758` (startup) — 沟通能力强的项目经理，说话时有这几个方法
@@ -406,7 +415,7 @@ beginner, intermediate, advanced, expert
 - [ ] `92ea381836fe` (startup) — 咨询参悟 I 一本被低估的介绍华为DSTE体系的好书系列拆解（1）
 - [ ] `95b334acc637` (startup) — 述职报告被领导猛夸，靠的就是这套模板框架（全是干货）
 - [ ] `9c4cf8c66414` (startup) — 如何深入理解计算机系统？
-- [ ] `9e957f11f627` (startup) — GitHub黑板报的文字分享
+- [x] `9e957f11f627` (frontend-skills) — GitHub黑板报的文字分享
 - [ ] `9f2864036bad` (startup) — 沟通能力强的人，说话顺序都是这样的
 - [ ] `9fe7001d2b1e` (startup) — 个人信息获取与知识管理系统（Heptabase + Logseq + Readwise） · Pse...
 - [ ] `a08ccd54b509` (startup) — Part of Z-Library project. The world's largest ebook library
@@ -445,67 +454,96 @@ beginner, intermediate, advanced, expert
 - [ ] `f9058e8480f3` (startup) — Get笔记 + 腾讯iMa，玩转个人知识库
 - [ ] `fa24f7ea438f` (startup) — [PPT]企业级项目管理体系构建的方法
 
-### uncategorized (6)
-
-- [ ] `0684a8ff48da` (-) — 想玩Loop Engineering，可以先从这6个Hook玩法开始。
-- [ ] `4201940cd083` (-) — 国家信息安全漏洞库
-- [ ] `4f3c7d046339` (-) — ossu / computer-science
-- [ ] `898dd96c073c` (-) — 年内8家私募自购超1.6亿元
-- [ ] `8c40203b708e` (-) — 多家银行披露日均Token消耗量！AI大模型应用成本如何控制？
-- [ ] `c7500134ab49` (-) — 我的个人站点开通了
-
 ## Concepts Index
 > Grouped by domain. Count = source_items count.
 
 
-### security (31)
+### security (34)
 
-- `ai-agent` (2 items) — AI Agent
-- `ai-driven-attack` (1 items) — AI 驱动攻击
-- `ai-driven-security` (1 items) — AI 驱动安全
+- `ai-app-development` (1 items) — AI 应用开发
+- `ai-coding` (6 items) — AI 编程
+- `ai-driven-security` (4 items) — AI 驱动安全
+- `ai-security-operations` (2 items) — AI 安全运营
 - `api-monetization` (1 items) — API 货币化
 - `app-security-compliance` (1 items) — App 安全合规
-- `banking` (2 items) — 银行业务
 - `ciso` (1 items) — CISO
-- `compliance-regulation` (2 items) — 合规与监管
 - `defense-modernization` (1 items) — 防守现代化
 - `devsecops` (1 items) — DevSecOps
-- `financial-regulation` (3 items) — 金融监管
-- `industry-news` (2 items) — 行业资讯
+- `industry-news` (4 items) — 行业资讯
 - `internet-governance` (1 items) — 互联网治理
+- `llm-api` (1 items) — LLM API
+- `llm-cost` (6 items) — 大模型成本
 - `llm-security` (1 items) — 大模型安全
 - `log-management` (1 items) — 日志管理
 - `meta-prompting` (1 items) — 元提示
-- `multi-agent-systems` (1 items) — 多智能体系统
-- `national-standards` (2 items) — 国家标准
+- `national-standards` (2 items) — 国标
 - `network-security-equipment` (1 items) — 网络安全设备
 - `observability` (1 items) — 可观测性
 - `payment-gateway` (1 items) — 支付网关
-- `penetration-testing` (1 items) — 渗透测试
+- `penetration-testing` (4 items) — 渗透测试
 - `procurement` (1 items) — 采购
 - `prompt-engineering` (1 items) — 提示词工程
-- `security-fundamentals` (2 items) — 安全基础
+- `security-fundamentals` (3 items) — 安全基础
+- `security-industry-report` (1 items) — 安全产业报告
 - `security-mindset` (2 items) — 安全思维
 - `security-periodical` (1 items) — 安全期刊
 - `security-sales` (1 items) — 安全售前与销售
+- `self-media-platform` (1 items) — 自媒体平台
+- `sensitive-info-detection` (1 items) — 敏感信息检测
 - `standards` (1 items) — 标准规范
 - `threat-intelligence` (1 items) — 威胁情报
+- `vulnerability-database` (1 items) — 漏洞数据库
 - `zero-trust-architecture` (1 items) — 零信任架构
 
-### ai (7)
+### ai (39)
 
+- `agent-guide` (1 items) — Agent 实战指南
+- `agent-infrastructure` (1 items) — Agent 基础设施
+- `agent-loop-design` (3 items) — Agent 循环设计
+- `agent-security-governance` (2 items) — Agent 安全治理
+- `agentic-coding` (1 items) — Agentic Coding
+- `ai-agent` (12 items) — AI Agent
+- `ai-applications` (1 items) — AI 应用场景
+- `ai-cloud-platform` (1 items) — AI 云平台
 - `ai-design` (1 items) — AI设计
 - `ai-development` (1 items) — AI 开发
+- `ai-driven-attack` (2 items) — AI 驱动攻击
+- `ai-entrepreneurship` (1 items) — AI 创业
+- `ai-finance` (1 items) — AI 金融应用
+- `ai-fundamentals` (1 items) — AI 基础概念
+- `ai-governance` (1 items) — AI 治理
+- `ai-news-digest` (1 items) — AI 资讯摘要
+- `ai-productivity` (1 items) — AI 生产力工具
+- `ai-security` (1 items) — AI 安全
+- `ai-supply-chain-security` (1 items) — AI 供应链安全
+- `ai-tools-overview` (1 items) — AI 工具概览
+- `ai-video-generation` (1 items) — AI 视频生成
+- `ai-vulnerability-mining` (3 items) — AI 漏洞挖掘
 - `automated-research` (1 items) — 自动化研究
+- `browser-automation` (1 items) — 浏览器自动化
+- `bug-bounty` (1 items) — 漏洞赏金
 - `claude` (1 items) — Claude
+- `compliance-regulation` (4 items) — 合规与监管
 - `deepseek` (1 items) — DeepSeek
-- `developer-tools` (1 items) — 开发者工具
+- `learning-methods` (2 items) — 学习方法
+- `llm-api-comparison` (1 items) — LLM API 对比
+- `llm-basics` (1 items) — 大模型基础
+- `llm-efficiency` (1 items) — 大模型效率
+- `llm-gateway` (1 items) — LLM 网关
+- `llm-model-evaluation` (1 items) — LLM 模型评测
+- `multi-agent-systems` (2 items) — 多智能体系统
 - `openai` (1 items) — OpenAI
+- `product-thinking` (1 items) — 产品思维
+- `self-hosted-agent` (1 items) — 自托管 Agent
+- `subagent-architecture` (1 items) — Subagent 架构
 
-### finance (3)
+### finance (6)
 
+- `banking` (2 items) — 银行业
+- `financial-regulation` (3 items) — 金融监管
 - `fintech` (1 items) — 金融科技
-- `investment` (1 items) — 投资
+- `investment` (2 items) — 投资
+- `private-equity` (1 items) — 私募股权
 - `securities` (1 items) — 证券业
 
 ### business (2)
@@ -513,16 +551,26 @@ beginner, intermediate, advanced, expert
 - `leadership-anti-patterns` (1 items) — 领导力反模式
 - `team-management` (1 items) — 团队管理
 
-### dev (1)
+### dev (7)
 
+- `ai-creation-tools` (1 items) — AI 创作工具
+- `cs-curriculum` (1 items) — 计算机科学课程
+- `knowledge-architecture` (1 items) — 知识架构
+- `knowledge-management` (2 items) — 知识管理
+- `markdown-tools` (1 items) — Markdown 工具
+- `open-source-learning` (1 items) — 开源学习资源
 - `technical-principles` (1 items) — 技术原理
 
-### general (1)
+### general (3)
 
+- `learning-notes` (1 items) — 学习笔记
+- `personal-knowledge` (1 items) — 个人知识管理
 - `tutorials` (1 items) — 教程实操
 
-### startup (3)
+### startup (5)
 
-- `knowledge-management` (1 items) — 知识管理
-- `learning-methods` (1 items) — 学习方法
+- `agent-skills` (3 items) — Agent Skills
+- `data-skill` (2 items) — 数据技能
+- `developer-tools` (8 items) — 开发者工具
+- `frontend-skills` (1 items) — 前端技能
 - `work-report` (1 items) — 工作汇报

@@ -3,7 +3,7 @@ slug: "ai-driven-attack"
 title: "AI 驱动攻击"
 domain: "security"
 aliases: []
-source_items:
+source_items: ["1e869f307ecc", "b97d060930ee"]
   - "1e869f307ecc"
 local_wiki_ref: null
 updated_at: "2026-07-16T06:33:46.391948+00:00"

@@ -4,13 +4,13 @@ title: "第22篇 全栈AI · AI 安全运营平台，真正难的不是agent"
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/BzbMQoQUhwzSQ5sz-mtxSQ"
 ingested_at: "2026-07-01T11:46:59Z"
-compiled: false
+compiled: true
 domain: security
-topic: security
-type: null
-difficulty: null
-tags: ["\u5b89\u5168\u8fd0\u8425", "Agent", "AI\u5b89\u5168", "\u5927\u6a21\u578b\u5b89\u5168"]
-concepts: ["security-fundamentals", "ai-agent", "ai-driven-attack", "llm-security"]
+topic: ai-security-operations
+type: analysis
+difficulty: advanced
+tags: ["AI安全", "安全运营", "平台", "全栈AI", "Agent"]
+concepts: ["ai-security-operations", "ai-driven-security"]
 mastery: 0
 last_reviewed: null
 review_count: 0

@@ -239,10 +239,23 @@ async def knowledge_health():
 
 @router.post("/bookmarks/import")
 async def import_bookmarks(data: dict, validate: bool = Query(False)):
-    """Import Chrome/Edge bookmarks JSON into knowledge base."""
-    from backend.services.bookmark_sync import parse_chrome_bookmarks, import_bookmarks as do_import
-    bookmarks = data.get("bookmarks", data)
-    items = parse_chrome_bookmarks(bookmarks)
+    """Import Chrome/Edge bookmarks into knowledge base.
+
+    Supports two payload formats (Phase 1i Task 9.12):
+    - JSON: ``{"bookmarks": <chrome roots dict>}`` → parse_chrome_bookmarks
+    - HTML: ``{"html": "<Chrome export string>"}`` → parse_chrome_html
+    """
+    from backend.services.bookmark_sync import (
+        parse_chrome_bookmarks,
+        parse_chrome_html,
+        import_bookmarks as do_import,
+    )
+    html = data.get("html")
+    if isinstance(html, str) and html.strip():
+        items = parse_chrome_html(html)
+    else:
+        bookmarks = data.get("bookmarks", data)
+        items = parse_chrome_bookmarks(bookmarks)
     result = do_import(items, validate=validate)
     return result
 

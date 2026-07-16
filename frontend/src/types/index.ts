@@ -663,6 +663,8 @@ export interface GraphEdge {
   source: string;
   target: string;
   weight: number;
+  /** Phase 1i Task 9.10: edge type — 'related' (Hotspot 内部) | 'federated' (跨 wiki) */
+  type?: 'related' | 'federated';
 }
 
 export interface GraphData {

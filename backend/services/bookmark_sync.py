@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -75,6 +76,74 @@ def parse_chrome_bookmarks(node: dict | list, folder_tags: Optional[list[str]] =
             results.extend(parse_chrome_bookmarks(child, new_tags))
 
     return results
+
+
+# Phase 1i Task 9.12: Chrome HTML export parser
+# Chrome/Edge bookmarks export format:
+#   <DT><A HREF="..." ADD_DATE="..." ICON="...">title</A>
+#   <DT><H3 ADD_DATE="..." LAST_MODIFIED="...">folder</H3>
+#   <DL><p> ... </DL><p>
+# H3 folder names become tags for nested urls.
+_HREF_RE = re.compile(
+    r'<A\s+[^>]*HREF="([^"]+)"[^>]*>(.*?)</A>',
+    re.IGNORECASE | re.DOTALL,
+)
+_H3_RE = re.compile(r'<H3[^>]*>(.*?)</H3>', re.IGNORECASE | re.DOTALL)
+
+
+def parse_chrome_html(content: str) -> list[dict]:
+    """Parse a Chrome/Edge bookmarks HTML export file.
+
+    Returns list of {url, title, tags} dicts. Folder names (H3) enclosing
+    a link become tags. The parser is intentionally regex-based (no
+    html.parser dependency) — Chrome's export format is stable and
+    well-formed.
+
+    Strategy: walk the file line-by-line, maintain a folder stack. Push
+    on ``<H3>`` (after closing any prior sibling folder via ``</DL>``),
+    pop on ``</DL>``. Each ``<DT><A HREF>`` emits a bookmark with the
+    current folder stack as tags.
+    """
+    results: list[dict] = []
+    folder_stack: list[str] = []
+
+    # Tokenize: emit (type, payload) events for H3 open, DL close, A link.
+    # Use finditer to walk the file in order.
+    token_re = re.compile(
+        r'(<H3[^>]*>.*?</H3>)'        # H3 folder open
+        r'|(</DL>)'                    # DL close → pop folder
+        r'|(<DT>\s*<A\s[^>]*HREF="[^"]+"[^>]*>.*?</A>)',  # bookmark
+        re.IGNORECASE | re.DOTALL,
+    )
+
+    for m in token_re.finditer(content):
+        if m.group(1):  # H3
+            h3_match = _H3_RE.search(m.group(1))
+            if h3_match:
+                folder_name = _strip_tags(h3_match.group(1)).strip()
+                if folder_name:
+                    folder_stack.append(folder_name)
+        elif m.group(2):  # </DL>
+            if folder_stack:
+                folder_stack.pop()
+        elif m.group(3):  # <DT><A>
+            a_match = _HREF_RE.search(m.group(3))
+            if a_match:
+                url = a_match.group(1).strip()
+                title = _strip_tags(a_match.group(2)).strip() or url
+                if url:
+                    results.append({
+                        "url": url,
+                        "title": title,
+                        "tags": list(folder_stack),
+                    })
+
+    return results
+
+
+def _strip_tags(text: str) -> str:
+    """Remove HTML tags from a string."""
+    return re.sub(r'<[^>]+>', '', text)
 
 
 def _write_bookmark_md(item: KnowledgeItem, tags: list[str], content: str = "", sources: list[str] | None = None) -> Path:

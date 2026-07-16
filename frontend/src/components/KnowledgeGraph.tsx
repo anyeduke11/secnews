@@ -48,20 +48,35 @@ export function KnowledgeGraph({ domain, onSelectConcept }: KnowledgeGraphProps)
         fontSize: 10,
         color: 'var(--text-primary)',
       },
-      data: data.nodes.map(n => ({
-        id: n.id,
-        name: n.label,
-        value: n.count,
-        symbolSize: Math.log(n.count + 1) * 10 + 15,
-        category: n.domain || 'unknown',
-        itemStyle: { color: _domainColor(n.domain) },
-      })),
-      edges: data.edges.map(e => ({
-        source: e.source,
-        target: e.target,
-        value: e.weight,
-        lineStyle: { width: Math.min(e.weight, 5) },
-      })),
+      data: data.nodes.map(n => {
+        const isLocal = n.wiki === 'local';
+        const domainColor = _domainColor(n.domain);
+        // Phase 1i Task 9.10 §8.3: Hotspot=实心 / Local=空心（borderColor + transparent bg）
+        const itemStyle = isLocal
+          ? { borderColor: domainColor, borderWidth: 2, color: 'transparent' }
+          : { color: domainColor };
+        return {
+          id: n.id,
+          name: n.label,
+          value: n.count,
+          symbolSize: Math.log(n.count + 1) * 10 + 15,
+          category: n.domain || 'unknown',
+          itemStyle,
+        };
+      }),
+      edges: data.edges.map(e => {
+        // Phase 1i Task 9.10 §8.3: federated=虚线 / related=实线（默认）
+        const isFederated = e.type === 'federated';
+        return {
+          source: e.source,
+          target: e.target,
+          value: e.weight,
+          lineStyle: {
+            width: Math.min(e.weight, 5),
+            ...(isFederated ? { type: 'dashed' as const } : {}),
+          },
+        };
+      }),
       emphasis: {
         focus: 'adjacency',
         lineStyle: { width: 4 },

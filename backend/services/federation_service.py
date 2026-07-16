@@ -293,3 +293,71 @@ def migrate_high_mastery_items() -> dict:
 
     log.info(f"migrate_high_mastery_items: {migrated} migrated, {skipped} skipped")
     return {"migrated": migrated, "skipped": skipped}
+
+
+# Phase 1i Task 9.13: Federated search
+
+def search(query: str, limit: int = 20) -> dict:
+    """Federated substring search across hotspot + local wiki.
+
+    - Hotspot source: knowledge/items/*.md — title substring + tag match
+    - Local source: ~/knowledge-base/01-资料库/*.md — title substring
+
+    Simple substring matching (no full-text index) per spec token budget.
+    Returns {results: [{id, title, source, url, score}], total}.
+    """
+    q = (query or "").strip().lower()
+    if not q:
+        return {"results": [], "total": 0}
+
+    results: list[dict] = []
+
+    # ── Hotspot items ──────────────────────────────────────
+    hotspot_items_dir = KNOWLEDGE_DIR / "items"
+    if hotspot_items_dir.exists():
+        for md_path in hotspot_items_dir.glob("*.md"):
+            fm = parse_frontmatter(md_path)
+            if fm is None:
+                continue
+            title = fm.get("title", "") or ""
+            tags = fm.get("tags", []) if isinstance(fm.get("tags"), list) else []
+            title_low = title.lower()
+            tags_low = [str(t).lower() for t in tags]
+            score = 0
+            if q in title_low:
+                score += 2
+            if any(q in t for t in tags_low):
+                score += 1
+            if score > 0:
+                results.append({
+                    "id": fm.get("id", md_path.stem),
+                    "title": title,
+                    "source": "hotspot",
+                    "url": fm.get("source_url", ""),
+                    "score": score,
+                })
+
+    # ── Local wiki items ───────────────────────────────────
+    if _is_available():
+        local_items_dir = _local_wiki_root() / LOCAL_ITEMS_DIR
+        if local_items_dir.exists():
+            for md_path in local_items_dir.glob("*.md"):
+                fm = parse_frontmatter(md_path)
+                if fm is None:
+                    continue
+                title = fm.get("title", "") or ""
+                if q in title.lower():
+                    results.append({
+                        "id": fm.get("id", md_path.stem),
+                        "title": title,
+                        "source": "local",
+                        "url": "",
+                        "score": 2,
+                    })
+
+    # Sort by score DESC, then title ASC
+    results.sort(key=lambda r: (-r["score"], r["title"]))
+    total = len(results)
+    if limit > 0:
+        results = results[:limit]
+    return {"results": results, "total": total}

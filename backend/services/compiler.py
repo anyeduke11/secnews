@@ -89,7 +89,9 @@ def create_compile_task(item_ids: Optional[list[str]] = None) -> dict:
         item_ids: specific item IDs to compile. If None, detect stale items
                   (compiled=false or file modified). If empty list, return no_items.
 
-    Returns: {task_id, status, items_to_compile}
+    Returns:
+        ≤10 items: {task_id, status, items_to_compile} (backward compatible)
+        >10 items: {tasks: [{task_id, items_count}], total_tasks, items_to_compile}
     """
     if item_ids is None:
         # Detect stale items (compiled=false OR file modified)
@@ -101,10 +103,39 @@ def create_compile_task(item_ids: Optional[list[str]] = None) -> dict:
     if not item_ids:
         return {"task_id": None, "status": "no_items", "items_to_compile": 0}
 
-    # Create task record in DB
+    # Batch processing: 10 items per task
+    BATCH_SIZE = 10
+    if len(item_ids) <= BATCH_SIZE:
+        task_id = _create_single_compile_task(item_ids)
+        _trigger_map_update()
+        return {
+            "task_id": task_id,
+            "status": "pending",
+            "items_to_compile": len(item_ids),
+        }
+
+    # Multiple batches
+    batches = [
+        item_ids[i:i + BATCH_SIZE]
+        for i in range(0, len(item_ids), BATCH_SIZE)
+    ]
+    tasks_created: list[dict] = []
+    for batch in batches:
+        task_id = _create_single_compile_task(batch)
+        tasks_created.append({"task_id": task_id, "items_count": len(batch)})
+
+    _trigger_map_update()
+    return {
+        "tasks": tasks_created,
+        "total_tasks": len(tasks_created),
+        "items_to_compile": len(item_ids),
+    }
+
+
+def _create_single_compile_task(item_ids: list[str]) -> int:
+    """Create a single compile task record + pending task file. Returns task_id."""
     task = knowledge_repo.create_task("compile", {"item_ids": item_ids})
 
-    # Write task file to pending/ for Agent to pick up
     PENDING_DIR.mkdir(parents=True, exist_ok=True)
     task_path = PENDING_DIR / f"task-{task.id}.md"
     id_list = "\n".join(f"- [[{iid}]]" for iid in item_ids)
@@ -134,8 +165,13 @@ params:
     )
 
     log.info(f"created compile task {task.id}: {len(item_ids)} items")
-    return {
-        "task_id": task.id,
-        "status": "pending",
-        "items_to_compile": len(item_ids),
-    }
+    return task.id
+
+
+def _trigger_map_update() -> None:
+    """Proactively update _MAP.md after creating compile tasks."""
+    try:
+        from backend.services.map_updater import update_map
+        update_map()
+    except Exception as e:
+        log.warning(f"failed to update _MAP.md after compile task: {e}")

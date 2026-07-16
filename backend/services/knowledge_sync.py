@@ -85,6 +85,12 @@ def parse_frontmatter(md_path: Path) -> Optional[dict]:
                 value = True
             elif value == "false":
                 value = False
+            elif value.startswith("[") and value.endswith("]"):
+                # Inline JSON array (e.g. sources: ["cubox"], tags: ["a","b"])
+                try:
+                    value = json.loads(value)
+                except json.JSONDecodeError:
+                    value = _coerce_scalar(value)
             else:
                 # Try to coerce numeric scalars so downstream isinstance
                 # checks (int/float) work — e.g. mastery: 50 → int 50.

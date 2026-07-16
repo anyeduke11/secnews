@@ -149,6 +149,31 @@ def import_from_history(item_ids: list[str]) -> dict:
     }
 
 
+def import_all_recent_history(limit: int = 100) -> dict:
+    """Import all recent hotspot items into knowledge base.
+
+    Queries the hotspots table for the most recent ``limit`` items by rowid
+    DESC and imports them via :func:`import_from_history`. Used by the
+    ``/api/knowledge/sync?source=all`` endpoint to sync secnews archive
+    without requiring explicit item_ids.
+
+    Returns: {imported, skipped_duplicates, errors, total_candidates}
+    """
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT id FROM hotspots ORDER BY rowid DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    conn.close()
+    item_ids = [r["id"] for r in rows]
+    if not item_ids:
+        return {"imported": 0, "skipped_duplicates": 0, "errors": [], "total_candidates": 0}
+    result = import_from_history(item_ids)
+    result["total_candidates"] = len(item_ids)
+    return result
+
+
 def _update_history_md_sources(path: Path, sources: list[str]) -> None:
     """Update sources line in .md frontmatter, preserving everything else."""
     import re

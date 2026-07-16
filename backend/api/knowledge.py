@@ -166,10 +166,21 @@ async def get_federation():
 
 @router.post("/sync")
 async def trigger_sync(source: str = Query("cubox")):
-    """Trigger knowledge sync from data sources."""
+    """Trigger knowledge sync from data sources.
+
+    source="cubox" (default): sync Cubox only.
+    source="all": sync Cubox + SecNews archive (bookmark requires file upload,
+                  so it is skipped here — use /api/knowledge/bookmarks/import).
+    """
     results = {"cubox": 0}
     if source in ("cubox", "all"):
         results["cubox"] = sync_cubox_to_knowledge(limit=100)
+    if source == "all":
+        # SecNews archive: import recent 100 hotspots
+        from backend.services.history_import import import_all_recent_history
+        results["secnews"] = import_all_recent_history(limit=100)
+        # Bookmark sync requires file upload — skip with a flag
+        results["bookmark_skipped"] = True
     # Full sync .md -> SQLite
     results["items_synced"] = full_sync_items_to_db()
     results["concepts_synced"] = full_sync_concepts_to_db()
@@ -284,6 +295,137 @@ async def compile_items(data: dict):
     from backend.services.compiler import create_compile_task
     item_ids = data.get("item_ids")
     return create_compile_task(item_ids)
+
+
+# ── Auto Classification (Phase 0) ─────────────────────────────
+
+@router.post("/classify/batch")
+async def classify_items_batch():
+    """Run auto-classification on all items without domain assigned.
+
+    Classifies domain/type/difficulty from tags, title, and source URL.
+    Updates both .md files and SQLite.
+    Returns count of items classified.
+    """
+    from backend.services.auto_classifier import batch_classify
+    from backend.repository.knowledge_repo import knowledge_repo
+    from backend.services.knowledge_sync import write_item_to_md
+    from backend.domain.knowledge_models import now_iso
+
+    # Get all items without domain
+    items = knowledge_repo.list_items(limit=10000)
+    to_classify = [i.to_dict() for i in items if not i.domain]
+    # write_item_to_md expects 'mastery' not 'mastered'
+    for item_dict in to_classify:
+        item_dict["mastery"] = item_dict.pop("mastered", 0)
+
+    if not to_classify:
+        return {"classified": 0, "message": "No items need classification"}
+
+    classified = batch_classify(to_classify)
+    count = 0
+    for item_dict in classified:
+        if item_dict.get("domain"):
+            # Update SQLite
+            item = knowledge_repo.get_item(item_dict["id"])
+            if item:
+                item.domain = item_dict["domain"]
+                item.type = item_dict.get("type")
+                item.difficulty = item_dict.get("difficulty")
+                item.topic = item_dict.get("topic")
+                item.updated_at = now_iso()
+                knowledge_repo.upsert_item(item)
+                # Update .md
+                item_dict["mastery"] = item_dict.pop("mastery", 0)
+                write_item_to_md(item_dict)
+                count += 1
+
+    return {
+        "classified": count,
+        "total_unclassified": len(to_classify),
+        "message": f"Classified {count} items",
+    }
+
+
+@router.get("/classify/stats")
+async def classify_stats():
+    """Show classification summary statistics."""
+    from backend.repository.knowledge_repo import knowledge_repo
+    items = knowledge_repo.list_items(limit=10000)
+    domain_counts: dict[str, int] = {}
+    compiled_count = 0
+    for item in items:
+        d = item.domain or "unclassified"
+        domain_counts[d] = domain_counts.get(d, 0) + 1
+        if item.compiled:
+            compiled_count += 1
+    return {
+        "total": len(items),
+        "classified": len(items) - domain_counts.get("unclassified", 0),
+        "unclassified": domain_counts.get("unclassified", 0),
+        "compiled": compiled_count,
+        "by_domain": {k: v for k, v in sorted(domain_counts.items(), key=lambda x: -x[1])},
+    }
+
+
+# ── Concept Linking (Phase 0) ─────────────────────────────────
+
+@router.post("/concepts/link/batch")
+async def link_concepts_batch():
+    """Auto-link tags to concepts for all items without concepts.
+
+    Phase 1: Map existing tags to existing concept slugs.
+    Phase 2: Auto-create new concept drafts for high-frequency tags.
+    Updates both .md files and SQLite.
+    Returns count of items linked and new concepts created.
+    """
+    from backend.services.concept_linker import batch_link_items
+    from backend.repository.knowledge_repo import knowledge_repo
+    from backend.services.knowledge_sync import write_item_to_md, sync_concept_to_db
+    from backend.domain.knowledge_models import now_iso
+
+    # Get all items that need linking
+    items = knowledge_repo.list_items(limit=10000)
+    to_link = [i.to_dict() for i in items if not i.concepts]
+    # write_item_to_md expects 'mastery'
+    for item_dict in to_link:
+        item_dict["mastery"] = item_dict.pop("mastered", 0)
+
+    if not to_link:
+        return {"linked": 0, "new_concepts": 0, "message": "All items already have concepts"}
+
+    # Count existing concepts before linking
+    concepts_before = len(knowledge_repo.list_concepts())
+
+    # Batch link
+    linked = batch_link_items(to_link)
+    count = 0
+    for item_dict in linked:
+        concepts = item_dict.get("concepts", [])
+        if concepts:
+            item = knowledge_repo.get_item(item_dict["id"])
+            if item:
+                item.concepts = concepts
+                item.updated_at = now_iso()
+                knowledge_repo.upsert_item(item)
+                write_item_to_md(item_dict)
+                count += 1
+
+    # Sync newly created concept .md files to SQLite
+    for f in Path(__file__).resolve().parent.parent.parent.glob("knowledge/concepts/*.md"):
+        if f.stem == "graph":
+            continue
+        sync_concept_to_db(f)
+
+    concepts_after = len(knowledge_repo.list_concepts())
+    new_concepts = concepts_after - concepts_before
+
+    return {
+        "linked": count,
+        "new_concepts": new_concepts,
+        "total_linked": count,
+        "message": f"Linked {count} items to concepts, created {new_concepts} new concepts",
+    }
 
 
 # ── Skills ──────────────────────────────────────────────────────

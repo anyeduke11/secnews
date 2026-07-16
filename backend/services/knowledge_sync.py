@@ -28,6 +28,7 @@ log = logging.getLogger("hotspot.knowledge_sync")
 KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent.parent / "knowledge"
 ITEMS_DIR = KNOWLEDGE_DIR / "items"
 CONCEPTS_DIR = KNOWLEDGE_DIR / "concepts"
+DRAFTS_DIR = KNOWLEDGE_DIR / "content" / "drafts"
 
 # YAML frontmatter pattern: starts with ---, ends with ---
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
@@ -215,4 +216,71 @@ def full_sync_concepts_to_db() -> int:
         sync_concept_to_db(f)
         count += 1
     log.info(f"full sync: {count} concepts")
+    return count
+
+
+def sync_draft_to_db(md_path: Path) -> None:
+    """Sync a single knowledge/content/drafts/*.md to SQLite.
+
+    Drafts .md files do NOT have frontmatter — the SQLite row is the
+    metadata source of truth (id/title/status/calendar_id). This function
+    reconciles the filesystem with SQLite:
+    - If the .md file exists but has no SQLite row, create one (title from
+      the first ``# heading`` line, or the filename stem).
+    - If the .md file was deleted but a SQLite row points to it, log a
+      warning (the row is left untouched — deletion is handled by the
+      content_service API, not by the watcher).
+    """
+    from backend.repository.knowledge_repo import knowledge_repo
+    from backend.domain.knowledge_models import now_iso
+
+    # file_path convention matches content_service._draft_rel_path:
+    # "knowledge/content/drafts/{name}.md" (relative to project root)
+    rel_path = f"knowledge/content/drafts/{md_path.name}"
+    rows = knowledge_repo.list_drafts()
+    match = next((r for r in rows if r["file_path"] == rel_path), None)
+    if match is not None:
+        # SQLite already tracks this draft — nothing to sync (drafts .md
+        # has no frontmatter, so the filesystem holds only the body).
+        return
+
+    # No SQLite row — create one. Extract title from first # heading.
+    title = md_path.stem  # fallback: filename
+    try:
+        text = md_path.read_text(encoding="utf-8")
+        for line in text.splitlines():
+            line = line.strip()
+            if line.startswith("# "):
+                title = line[2:].strip()
+                break
+    except Exception:
+        pass
+
+    now = now_iso()
+    draft = {
+        "file_path": rel_path,
+        "title": title,
+        "status": "draft",
+        "calendar_id": None,
+        "created_at": now,
+        "updated_at": now,
+    }
+    knowledge_repo.upsert_draft(draft)
+    log.info(f"synced draft from filesystem: {rel_path} (title={title!r})")
+
+
+def full_sync_drafts_to_db() -> int:
+    """Sync all knowledge/content/drafts/*.md to SQLite. Returns count.
+
+    For each .md file in drafts/, ensure a SQLite row exists. Drafts .md
+    files have no frontmatter — the body is the article content and the
+    title is derived from the first ``# heading`` line.
+    """
+    if not DRAFTS_DIR.exists():
+        return 0
+    count = 0
+    for f in DRAFTS_DIR.glob("*.md"):
+        sync_draft_to_db(f)
+        count += 1
+    log.info(f"full sync: {count} drafts")
     return count

@@ -162,6 +162,13 @@ async def get_federation():
     return get_federation_status()
 
 
+@router.get("/search")
+async def search(q: str = Query(..., min_length=1), limit: int = Query(20, ge=1, le=100)):
+    """Phase 1i Task 9.13: Federated search across hotspot + local wiki."""
+    from backend.services.federation_service import search as do_search
+    return do_search(query=q, limit=limit)
+
+
 # ── Sync ────────────────────────────────────────────────────────
 
 @router.post("/sync")

@@ -326,6 +326,24 @@ def should_run_catchup(last_sync_at: str | None, now: datetime) -> bool:
         return True
 
 
+async def scheduled_summary_job() -> None:
+    """Phase 1j Task 10.8: 每周日 06:00 (Asia/Shanghai) 生成本周知识回顾。
+
+    链式触发于 SOUL cron (Sun 04:00) + migrate cron (Sun 05:00) 之后。
+    失败只 log.error，不抛异常。
+    """
+    try:
+        from backend.services.summary_service import generate_weekly_summary
+
+        result = await asyncio.to_thread(generate_weekly_summary, None)
+        _logger.info(
+            f"scheduled_summary_job: generated {result.get('year_week')} "
+            f"(items={result.get('items_count')}, concepts={result.get('concepts_count')})"
+        )
+    except Exception as e:
+        _logger.error(f"scheduled_summary_job crashed: {e}")
+
+
 __all__ = [
     "set_service",
     "reset_service",
@@ -342,4 +360,5 @@ __all__ = [
     "scheduled_soul_job",
     "scheduled_stats_job",
     "scheduled_migrate_job",
+    "scheduled_summary_job",
 ]

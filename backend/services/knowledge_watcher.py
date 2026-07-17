@@ -393,11 +393,14 @@ def _maybe_regenerate_soul() -> None:
     _last_soul_trigger = now
 
     try:
-        from backend.services.soul_service import regenerate_soul
-        regenerate_soul()
-        log.info("watchdog regenerated SOUL.md after compile task done")
+        # Phase 1j Task 10.3: create_soul_task() drops a task .md into
+        # tasks/pending/ for the agent loop to pick up (soul_service has
+        # no direct regenerate function; create_soul_task is the entry).
+        from backend.services.soul_service import create_soul_task
+        create_soul_task()
+        log.info("watchdog triggered SOUL.md regeneration task after compile task done")
     except Exception as e:
-        log.error("watchdog: failed to regenerate SOUL.md: %s", e)
+        log.error("watchdog: failed to trigger SOUL.md regeneration: %s", e)
 
 
 def start_watcher() -> bool:

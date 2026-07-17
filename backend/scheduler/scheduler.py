@@ -198,6 +198,15 @@ class HotspotScheduler:
             name="mastery migration (Sun 05:00)",
             replace_existing=True,
         )
+        # Phase 1j Task 10.8: job 14 — 周回顾生成 (每周日 06:00 Asia/Shanghai)
+        # 链式触发：SOUL(04:00) → migrate(05:00) → summary(06:00)
+        self.scheduler.add_job(
+            jobs.scheduled_summary_job,
+            trigger=CronTrigger(day_of_week="sun", hour=6, timezone=SHANGHAI_TZ),
+            id="summary_weekly",
+            name="weekly summary (Sun 06:00)",
+            replace_existing=True,
+        )
         self.scheduler.start()
         self.logger.info(
             f"scheduler started, jobs: collect_all (every {self._interval}s), "

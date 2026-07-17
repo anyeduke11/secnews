@@ -661,3 +661,26 @@ async def update_progress(concept_slug: str, data: dict):
         mastery = existing["mastery"] if existing else 0
     tested = data.get("tested", False)
     return svc_upsert_progress(concept_slug=concept_slug, mastery=mastery, tested=tested)
+
+
+# ── Phase 1j Task 10.8: Weekly summaries ────────────────────────
+
+@router.get("/summaries")
+async def list_summaries():
+    """List all weekly summary files (year_week DESC)."""
+    from backend.services.summary_service import list_summaries as svc_list_summaries
+    return {"summaries": svc_list_summaries()}
+
+
+@router.post("/summaries/weekly")
+async def generate_weekly_summary(data: dict | None = None):
+    """Generate the weekly summary markdown for a given ISO week.
+
+    Body: {year_week?: "YYYY-Www"} — defaults to current ISO week.
+    """
+    from backend.services.summary_service import generate_weekly_summary as svc_gen
+    year_week = (data or {}).get("year_week")
+    try:
+        return svc_gen(year_week)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

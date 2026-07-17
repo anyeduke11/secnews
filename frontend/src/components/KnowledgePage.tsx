@@ -16,6 +16,7 @@ import { CompileTrigger } from './CompileTrigger';
 import { TaskMonitor } from './TaskMonitor';
 import { BookmarkImport } from './BookmarkImport';
 import { TaskSubmitDialog } from './TaskSubmitDialog';
+import KnowledgeSearchBar from './KnowledgeSearchBar';
 
 interface KnowledgePageProps {
   onBack: () => void;
@@ -161,6 +162,7 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <KnowledgeSearchBar />
           <button
             onClick={handleSync}
             disabled={syncing}

@@ -36,25 +36,9 @@ function formatCountdown(ms: number, intervalMinutes: number): string {
   return `${pad2(Math.floor(total / 60))}:${pad2(s)}`;
 }
 
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
+import { Icon } from './Icon';
 
-type ViewRoute = '/' | '/todos' | '/history' | '/skills' | '/secrets' | '/sync' | '/weekly-report' | '/knowledge';
+type ViewRoute = '/' | '/todos' | '/history' | '/skills' | '/secrets' | '/sync' | '/weekly-report' | '/knowledge' | '/codegarden';
 
 function isActive(locationPath: string, route: ViewRoute): boolean {
   if (route === '/') return locationPath === '/' || locationPath.startsWith('/category/');
@@ -344,6 +328,20 @@ export function Header({
             <Icon>
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            </Icon>
+          </button>
+
+          <button
+            onClick={() => navigateTo('/codegarden')}
+            className="btn-ghost px-2.5 py-1.5 text-xs"
+            title={isActive(location.pathname, '/codegarden') ? '返回首页' : 'CodeGarden 项目管理'}
+            aria-label={isActive(location.pathname, '/codegarden') ? '首页' : 'CodeGarden'}
+            aria-pressed={isActive(location.pathname, '/codegarden')}
+            style={isActive(location.pathname, '/codegarden') ? activeStyle : undefined}
+          >
+            <Icon>
+              <path d="M12 2C8 2 5 5 5 9c0 3 2 5 4 6 0 2-2 3-2 5h10c0-2-2-3-2-5 2-1 4-3 4-6 0-4-3-7-7-7z" />
+              <path d="M9 22h6" />
             </Icon>
           </button>
 

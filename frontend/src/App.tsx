@@ -16,6 +16,7 @@ import { SecretsPage } from './components/SecretsPage';
 import { SyncPage } from './components/SyncPage';
 import { WeeklyReportPage } from './components/WeeklyReportPage';
 import { KnowledgePage } from './components/KnowledgePage';
+import { CodegardenPage } from './components/CodegardenPage';
 import { useHotspotData } from './hooks/useHotspotData';
 import { useRefreshInterval } from './hooks/useRefreshInterval';
 import { useTodos } from './hooks/useTodos';
@@ -278,8 +279,6 @@ export default function App() {
 
   const goHome = useCallback(() => navigate('/'), [navigate]);
 
-  const themeValue = useCallback(() => ({ theme, toggleTheme }), [theme, toggleTheme]);
-
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       <div className="min-h-[100dvh]" style={{ backgroundColor: 'var(--bg-primary)' }}>
@@ -294,6 +293,7 @@ export default function App() {
             <Route path="/sync" element={<SyncPage onBack={goHome} />} />
             <Route path="/weekly-report" element={<WeeklyReportPage onBack={goHome} />} />
             <Route path="/knowledge" element={<KnowledgePage onBack={goHome} />} />
+            <Route path="/codegarden" element={<CodegardenPage onBack={goHome} />} />
           </Routes>
         </div>
       </div>

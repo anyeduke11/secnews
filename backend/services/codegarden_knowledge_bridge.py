@@ -104,10 +104,10 @@ class CodegardenKnowledgeBridge:
                 f"source_type 必须为 fork / reference; got {source_type!r}"
             )
 
-        # 1. 读 knowledge_item
+        # 1. 读 knowledge_item (注: knowledge_items 表无 description 列, 用 title 兜底)
         conn = get_connection()
         row = conn.execute(
-            "SELECT id, title, source_url, domain, description FROM knowledge_items WHERE id = ?",
+            "SELECT id, title, source_url, domain FROM knowledge_items WHERE id = ?",
             (item_id,),
         ).fetchone()
         if row is None:
@@ -138,7 +138,7 @@ class CodegardenKnowledgeBridge:
         project = self.repo.create(
             name=name,
             display_name=title.split(":")[0].strip(),
-            description=row["description"] or title,
+            description=title,
             type="library",                    # 默认 library, 用户后续可改
             source_type=source_type,
             lifecycle_stage="ideation",

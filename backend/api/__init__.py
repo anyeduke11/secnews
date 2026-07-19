@@ -11,9 +11,10 @@ from fastapi import FastAPI
 
 
 def register_routers(app: FastAPI) -> None:
-    """注册全部 15 个 APIRouter。"""
+    """注册全部 17 个 APIRouter (v1.5+: 含 codegarden)。"""
     from backend.api import (
         categories,
+        codegarden,  # v1.5+: CodeGarden 代码花园
         content,  # v1.4: 内容创作 (calendar/drafts/templates)
         export,
         favorites,
@@ -21,6 +22,7 @@ def register_routers(app: FastAPI) -> None:
         history,
         hotspots,
         knowledge,  # v1.4: 知识库
+        maintenance,  # v1.4: DB 维护 (vacuum/cleanup)
         proxy,
         quality,
         refresh,  # Phase 32: POST /api/refresh 手动触发采集
@@ -51,6 +53,8 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(weekly_report.router, tags=["weekly-report"])
     app.include_router(knowledge.router, tags=["knowledge"])
     app.include_router(content.router, tags=["content"])
+    app.include_router(maintenance.router, tags=["maintenance"])
+    app.include_router(codegarden.router, tags=["codegarden"])
 
 
 __all__ = ["register_routers"]

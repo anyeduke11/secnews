@@ -344,6 +344,41 @@ async def scheduled_summary_job() -> None:
         _logger.error(f"scheduled_summary_job crashed: {e}")
 
 
+async def cg_upstream_sync_job() -> None:
+    """Phase 2a CodeGarden: 每日 09:00 (Asia/Shanghai) 触发 fork 类型项目的上游同步。
+
+    遍历所有 source_type=fork 且有 upstream_url 的 cg_projects,
+    为每个项目创建一个 project_sync 任务到 knowledge_tasks 队列。
+    实际同步由 watchdog 或 TaskExecutor 执行, 这里只负责调度。
+
+    失败只 log.error, 不抛异常 (与既有 job 模式一致)。
+    """
+    try:
+        from backend.repository.codegarden_repo import CodegardenProjectRepository
+        from backend.services.codegarden_project_service import CodegardenProjectService
+
+        repo = CodegardenProjectRepository()
+        svc = CodegardenProjectService()
+        # 列出所有 fork 项目 (不含 archived/deprecated)
+        projects, total = await asyncio.to_thread(
+            repo.list, source_type="fork", limit=500
+        )
+        created = 0
+        for p in projects:
+            if not p.get("upstream_url"):
+                continue
+            try:
+                await asyncio.to_thread(svc.request_upstream_sync, p["id"])
+                created += 1
+            except Exception as e:
+                _logger.warning(
+                    f"cg_upstream_sync_job: project {p['id']} sync request failed: {e}"
+                )
+        _logger.info(f"cg_upstream_sync_job: scanned {total} fork projects, created {created} sync tasks")
+    except Exception as e:
+        _logger.error(f"cg_upstream_sync_job crashed: {e}")
+
+
 __all__ = [
     "set_service",
     "reset_service",
@@ -361,4 +396,5 @@ __all__ = [
     "scheduled_stats_job",
     "scheduled_migrate_job",
     "scheduled_summary_job",
+    "cg_upstream_sync_job",
 ]

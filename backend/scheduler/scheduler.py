@@ -207,6 +207,14 @@ class HotspotScheduler:
             name="weekly summary (Sun 06:00)",
             replace_existing=True,
         )
+        # Phase 2a CodeGarden: job 15 — 上游同步 (每日 09:00 Asia/Shanghai)
+        self.scheduler.add_job(
+            jobs.cg_upstream_sync_job,
+            trigger=CronTrigger(hour=9, timezone=SHANGHAI_TZ),
+            id="cg_upstream_sync",
+            name="codegarden upstream sync (daily 09:00)",
+            replace_existing=True,
+        )
         self.scheduler.start()
         self.logger.info(
             f"scheduler started, jobs: collect_all (every {self._interval}s), "

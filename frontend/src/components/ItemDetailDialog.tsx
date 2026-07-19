@@ -137,6 +137,34 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
       .finally(() => setDeleting(false));
   };
 
+  // G10.2: 仅 type=github 的条目显示「加入 CodeGarden」CTA
+  // 调用 /api/codegarden/from-knowledge 幂等端点 (201=首次, 200=已存在)
+  const handleAddToCodegarden = async () => {
+    if (!item?.id) return;
+    try {
+      const r = await fetch('/api/codegarden/from-knowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          item_id: item.id,
+          source_type: 'reference',
+        }),
+      });
+      if (!r.ok) {
+        const body = await r.text().catch(() => '');
+        throw new Error(`HTTP ${r.status}${body ? `: ${body}` : ''}`);
+      }
+      if (r.status === 201) {
+        window.alert('✓ 已加入 CodeGarden');
+      } else {
+        window.alert('ℹ 该项目已在 CodeGarden 中');
+      }
+      onClose();
+    } catch (e: any) {
+      window.alert(`加入失败: ${e?.message || e}`);
+    }
+  };
+
   return (
     <div
       onClick={onClose}
@@ -303,6 +331,16 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
               >
                 {saving ? '保存中…' : '保存修改'}
               </button>
+              {item.type === 'github' && (
+                <button
+                  onClick={handleAddToCodegarden}
+                  className="btn-ghost px-3 py-1.5 text-xs"
+                  style={{ color: '#8b5cf6' }}
+                  title="转化为 CodeGarden 项目 (source_type=reference)"
+                >
+                  🌱 加入 CodeGarden
+                </button>
+              )}
               <button
                 onClick={() => setConfirmDelete(true)}
                 disabled={deleting}

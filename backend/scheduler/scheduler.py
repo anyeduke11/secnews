@@ -215,6 +215,22 @@ class HotspotScheduler:
             name="codegarden upstream sync (daily 09:00)",
             replace_existing=True,
         )
+        # Phase 2b CodeGarden: job 16 — 服务网格自动发现 (每 5 分钟)
+        self.scheduler.add_job(
+            jobs.cg_service_scan_job,
+            trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
+            id="cg_service_scan",
+            name="codegarden service scan (every 5min)",
+            replace_existing=True,
+        )
+        # Phase 2b CodeGarden: job 17 — 事件总线处理 (每 60 秒)
+        self.scheduler.add_job(
+            jobs.cg_event_process_job,
+            trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
+            id="cg_event_process",
+            name="codegarden event process (every 60s)",
+            replace_existing=True,
+        )
         self.scheduler.start()
         self.logger.info(
             f"scheduler started, jobs: collect_all (every {self._interval}s), "

@@ -187,12 +187,12 @@ def test_delete_resource(client):
 
 
 def test_allocate_port_returns_201(client):
-    """分配端口 (preferred_port=8080, 不在 lsof 占用中)."""
+    """分配端口 (preferred_port=8765, 通常不在 lsof 占用中)."""
     r = client.post("/api/codegarden/resources/allocate-port", json={
-        "preferred_port": 8080,
+        "preferred_port": 8765,
     })
     assert r.status_code == 201
-    assert r.json()["value"] == "8080"
+    assert r.json()["value"] == "8765"
     assert r.json()["status"] == "allocated"
 
 
@@ -205,8 +205,8 @@ def test_allocate_protected_port_8898_returns_403(client):
 
 
 def test_release_port_returns_record(client):
-    client.post("/api/codegarden/resources/allocate-port", json={"preferred_port": 8080})
-    r = client.post("/api/codegarden/resources/release-port", json={"port": 8080})
+    client.post("/api/codegarden/resources/allocate-port", json={"preferred_port": 8766})
+    r = client.post("/api/codegarden/resources/release-port", json={"port": 8766})
     assert r.status_code == 200
     assert r.json()["status"] == "free"
 
@@ -318,10 +318,15 @@ def test_publish_event_invalid_type_returns_400(client):
 # ===========================================================================
 # M4 Playbooks (3 测试)
 # ===========================================================================
-def test_list_playbooks_empty(client):
+def test_list_playbooks_returns_existing(client):
+    """playbooks 列表至少包含 example.yml (Phase 2b I2 已初始化)."""
     r = client.get("/api/codegarden/playbooks")
     assert r.status_code == 200
-    assert r.json()["count"] == 0
+    data = r.json()
+    assert data["count"] >= 1
+    # 至少有一个 .yml 文件
+    names = [pb.get("name") for pb in data.get("items", [])]
+    assert "example" in names or any(n for n in names), f"应包含 example.yml: {names}"
 
 
 def test_run_playbook_not_exist_returns_404(client):

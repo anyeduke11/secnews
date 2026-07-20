@@ -18,13 +18,7 @@ import { BookmarkImport } from './BookmarkImport';
 import { TaskSubmitDialog } from './TaskSubmitDialog';
 import KnowledgeSearchBar from './KnowledgeSearchBar';
 
-interface KnowledgePageProps {
-  onBack: () => void;
-}
-
-import { Icon } from './Icon';
-
-export function KnowledgePage({ onBack }: KnowledgePageProps) {
+export function KnowledgePage() {
   const [items, setItems] = useState<KnowledgeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -142,18 +136,6 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
       {/* 顶部标题区 */}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="btn-ghost px-2.5 py-1.5 text-xs"
-            title="返回首页"
-            aria-label="返回首页"
-          >
-            <Icon>
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </Icon>
-            返回首页
-          </button>
           <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
             📚 知识管理
           </h2>

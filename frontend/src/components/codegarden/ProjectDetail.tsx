@@ -15,13 +15,14 @@ interface ProjectDetailProps {
   onClose: () => void;
   onTransition: (id: string, to: LifecycleStage) => Promise<CgProject>;
   onSync: (id: string) => Promise<{ task_id: number }>;
+  onDelete?: (id: string) => Promise<void>;
 }
 
 const ALL_STAGES: LifecycleStage[] = [
   'ideation', 'prototype', 'development', 'testing', 'running', 'maintenance', 'archived', 'deprecated',
 ];
 
-export function ProjectDetail({ project, onClose, onTransition, onSync }: ProjectDetailProps) {
+export function ProjectDetail({ project, onClose, onTransition, onSync, onDelete }: ProjectDetailProps) {
   const [activities, setActivities] = useState<CgProjectActivity[]>([]);
   const [stages, setStages] = useState<CgProjectStage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +69,21 @@ export function ProjectDetail({ project, onClose, onTransition, onSync }: Projec
     }
   };
 
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    const ok = window.confirm(
+      `确定删除项目「${project.display_name || project.name}」？\n\n该操作不可撤销，相关的 stages / activities / links 记录会一并删除。`,
+    );
+    if (!ok) return;
+    try {
+      await onDelete(project.id);
+      flash('ok', '已删除');
+      onClose();
+    } catch (e: any) {
+      flash('err', e?.message || String(e));
+    }
+  };
+
   const accent = LIFECYCLE_COLORS[project.lifecycle_stage];
 
   return (
@@ -91,7 +107,19 @@ export function ProjectDetail({ project, onClose, onTransition, onSync }: Projec
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{project.description}</p>
             )}
           </div>
-          <button onClick={onClose} className="btn-ghost px-2 py-1 text-xs">✕</button>
+          <div className="flex items-center gap-1.5">
+            {onDelete && (
+              <button
+                onClick={handleDelete}
+                className="text-xs px-2 py-1 rounded"
+                style={{ color: '#e85d5d', border: '1px solid #e85d5d40' }}
+                title="删除此项目（不可撤销）"
+              >
+                删除
+              </button>
+            )}
+            <button onClick={onClose} className="btn-ghost px-2 py-1 text-xs">✕</button>
+          </div>
         </div>
 
         {/* 元数据网格 */}

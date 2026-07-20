@@ -4,6 +4,7 @@ import {
   getCategoryColor,
   getCategoryLabel,
 } from '../types';
+import { Icon } from './Icon';
 
 interface TodoItemProps {
   item: TodoItemModel;
@@ -31,24 +32,6 @@ function getQuadrant(urgent: boolean, important: boolean): Quadrant {
   return 'P3';
 }
 
-// 复用项目 14×14 stroke=2 strokeLinecap=round 风格
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
 
 // Phase 46: 截止日期展示
 // - 过期 (deadline < today) → 红色

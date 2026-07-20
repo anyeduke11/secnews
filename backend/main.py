@@ -28,7 +28,8 @@ from backend.services.collection_service import CollectionService
 from backend.services.export_service import rebuild_export_cache
 
 log = logging.getLogger("hotspot.main")
-APP_VERSION = "1.2.0"
+# v1.5.0: Phase 1j 完成 (45 commits, compiled 17.1%, 96 concepts) + Phase 2a CodeGarden MVP spec 已批准
+APP_VERSION = "1.5.0"
 
 
 @asynccontextmanager

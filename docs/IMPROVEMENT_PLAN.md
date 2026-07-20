@@ -1,11 +1,90 @@
-# 热点地图 · 改进计划 v1.3.0
+# 热点地图 · 改进计划 v1.3.0 + v1.5+ CodeGarden 路线图
 
 > 文档类型：版本改进计划
-> 关联：[ARCHITECTURE.md](../ARCHITECTURE.md) · [SPEC.md](./SPEC.md) · [TASKS.md](./TASKS.md)
-> 版本：2026-07-10
-> 基线版本：v1.2.0
-> 目标版本：v1.3.0
-> 定位：IT人员专属工作站 — 多领域热点聚合 + 待办管理 + 周报洞察 + 跨端同步
+> 关联：[ARCHITECTURE.md](./ARCHITECTURE.md) · [SPEC.md](./SPEC.md) · [TASKS.md](./TASKS.md) · [CodeGarden_PRD_v2.0.md](./CodeGarden_PRD_v2.0.md)
+> 版本：2026-07-10 (v1.3.0), 2026-07-19 增补 v1.5+ Phase 2a-2d 路线图
+> 基线版本：v1.2.0 → v1.4 (Phase 1i/1j 已完成)
+> 目标版本：v1.5+ (Phase 2a-2d CodeGarden 子系统)
+> 定位：IT人员专属工作站 — 资讯聚合 + 知识管理 + 代码项目管理 三位一体
+
+---
+
+## 〇、v1.5+ CodeGarden 路线图（2026-07-19 增补）
+
+### 0.1 已完成基线（v1.4）
+
+| Phase | 名称 | 状态 | 关键交付 |
+|-------|------|------|----------|
+| Phase 1a-1h | 资讯聚合 + 质量门禁 + 收藏/待办/同步 | ✅ v1.4 stable | 7 领域采集 + 10 层质量门禁 + WebDAV 同步 |
+| Phase 1i | P1 偏差闭环 + 联邦搜索 + 批量编译 | ✅ 2026-07-16 | 41 commits, 20 compiled, 48 concepts, 联邦搜索 51ms |
+| Phase 1j | 数据质量 + 功能增强 + 设计对齐 | ✅ 2026-07-17 | 45 commits, 70 compiled (17.1%), 96 concepts, summary_service |
+
+### 0.2 v1.5+ CodeGarden 4 阶段计划
+
+| Phase | 名称 | 范围 | 状态 | 关键交付 |
+|-------|------|------|------|----------|
+| **Phase 2a** | CodeGarden MVP | M1 项目看板 + M6 Skill 扩展 + 资讯→项目转化通道 | 🚧 spec 已批准,待执行 | 5 cg_ 表 + skills 扩展 9 字段 + 16 API + 11 前端组件 + job 15 |
+| Phase 2b | 服务网格 + 资源中枢 | M2 服务网格 + M3 资源中枢 + M4 联动引擎 | ⬜ 规划中 | 项目依赖图 + 端口管理 + 服务状态联动 |
+| Phase 2c | AI 协作层 | M6-M12 Skill/Memory/Constraint/Prompt/SDD/Agent | ⬜ 规划中 | Skill 全字段 + Memory 持久化 + Constraint 引擎 + SDD 模板 |
+| Phase 2d | 生命周期健康度 + 反向沉淀 | M5 健康度评分 + 项目→知识反向沉淀 + SOUL 项目状态节 | ⬜ 规划中 | health_score 计算 + 项目自动生成 knowledge_items + SOUL.md 项目状态 |
+
+### 0.3 Phase 2a 详细任务分组
+
+```
+Group A (DB + 基础设施) → Group B (Repo) → Group C (Service) → Group D (API)
+                                                                              ↓
+                                                       Group E (Scheduler) ← (并行)
+                                                       Group F (Sync bundle) ← (并行)
+                                                                              ↓
+                                                       Group G (前端) → Group H (测试)
+```
+
+| Group | Task | 描述 | 优先级 |
+|-------|------|------|--------|
+| A | A1-A3 | 迁移 019_codegarden.sql + codegarden/ 目录 + _SCHEMA.md 扩展 | P0 |
+| B | B1-B2 | CodegardenProjectRepository + 单测 | P0 |
+| C | C1-C3 | ProjectService + GithubService + KnowledgeBridge | P0 |
+| D | D1-D3 | 16 API 端点 + router 注册 + 单测 | P0 |
+| E | E1-E2 | cg_upstream_sync_job (job 15, 每日 09:00) | P1 |
+| F | F1 | sync_bundle 加入 cg_projects 主表 | P1 |
+| G | G1-G11 | 11 个前端组件 (Types/Hook/Board/Card/Detail/2 Dialog/Upstream/Page/CTA/Header) | P0 |
+| H | H1-H3 | API 单测 + 组件测试 + e2e | P0/P1 |
+
+### 0.4 Phase 2a 成功标准
+
+1. ✅ DB schema 5 张 cg_ 表 + skills 表 9 个新字段创建成功
+2. ✅ API 16 个端点全部可用
+3. ✅ 项目接入时间 < 5 分钟（从输入 GitHub URL 到完成注册）
+4. ✅ 资讯→项目转化路径可用（知识详情页 CTA + CodeGarden 候选列表双入口）
+5. ✅ 上游同步定时任务每日 09:00 自动触发（job 15 注册成功）
+6. ✅ cg_projects 数据纳入跨端同步包（build/apply 双向）
+7. ✅ 前端 build 0 错误
+8. ✅ 后端单测全部通过
+9. ✅ e2e 测试通过：资讯→from-knowledge→cg_projects→source_item_id 反向溯源可查
+10. ✅ PRD 11.3 成功指标 8 项中 7 项满足（"资讯→项目转化率 > 5%" 推迟到 Phase 2b 数据积累后验证）
+
+### 0.5 Phase 2a 关键决策（10 项）
+
+1. 表名 `skills` 而非 PRD 假设的 `knowledge_skills`
+2. `cg_projects.id` 用 TEXT UUID（与 `knowledge_items.id` 一致）
+3. `knowledge_tasks.task_type` 扩展无需 schema 变更
+4. GitHub REST API + httpx（token 鉴权，从 secrets_service 获取）
+5. 上游同步走任务队列（避免 HTTP 阻塞）
+6. 同步包只含 cg_projects 主表
+7. 不引入 React Flow / Cytoscape.js
+8. `knowledge_items.frontmatter.project_id` 不强制（既有 409 items 不回填）
+9. `source_item_id` 无外键约束
+10. GitHub token 缺失返回 424 Failed Dependency
+
+详见 [Phase 2a spec](../.trae/specs/phase2a-codegarden-mvp/spec.md)。
+
+### 0.6 v1.5+ 不在范围内
+
+- ❌ 远程服务器管理（纯本地单机）
+- ❌ 内置 CI/CD（专注管理，不替代 GitHub Actions）
+- ❌ 容器编排 K8s（仅本机 Docker / PM2 / 进程）
+- ❌ 多用户/团队（单用户无登录）
+- ❌ 移动端原生 App
 
 ---
 

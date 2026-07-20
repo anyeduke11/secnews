@@ -1,7 +1,13 @@
-# SecNews Knowledge Dashboard
+# Hotspot — IT 工作站 (v1.5+)
 
 ## Overview
-This project contains a knowledge management dashboard (v1.4+).
+
+This project is a single-user IT workstation with three subsystems:
+
+1. **SecNews 资讯聚合** — 7 领域热点采集 + 10 层质量门禁 + 趋势分析 (v1.4 stable)
+2. **Knowledge LLM-Wiki** — filesystem knowledge base (`knowledge/`) (v1.4 stable)
+3. **CodeGarden 代码花园** — vibecoding + GitHub fork 项目管理 (Phase 2a planning)
+
 The `knowledge/` directory is an LLM-Wiki — a filesystem-based
 knowledge base readable and writable by both humans and AI agents.
 
@@ -52,3 +58,67 @@ Cross-reference syntax:
 
 ### Schema
 See `knowledge/_SCHEMA.md` for the complete data model.
+
+---
+
+## CodeGarden 代码花园 (Phase 2a 规划中)
+
+CodeGarden 是 hotspot v1.5+ 的代码项目管理子系统，与 `knowledge/` 平级、解耦共存。
+
+### 定位
+解决个人 vibecoding 的两个核心痛点：
+1. **交付成果状态不清晰** — 自己产出的代码项目没有统一看板
+2. **二次开发 GitHub 项目管理缺失** — fork 上游后无法跟踪更新、commit 差异
+
+### 与既有子系统的关系
+- **资讯→项目转化通道**：`knowledge_items` (type=github) → `cg_projects` (source_type=fork/reference)
+  - `cg_projects.source_item_id` 反向溯源到 `knowledge_items.id`（无外键约束，应用层负责一致性）
+  - github_collector 继续负责抓取（不新建抓取器），CodeGarden 只做项目管理
+- **Skill 管理**：扩展 `skills` 表（不新建表），加 9 个新字段（capabilities / constraints / system_prompt 等）
+- **任务队列**：复用 `knowledge_tasks` 表，扩展 `task_type=project_sync`（约定层面，无需 schema 变更）
+- **Secrets 管理**：GitHub token 从 `secrets_service` 获取（key name: `github_token`）
+- **同步包**：`sync_bundle` 加入 `cg_projects` 主表（子表 stages/links/activities 不跨端同步）
+
+### 数据目录
+```
+codegarden/                   ← Phase 2a 待建, .gitkeep
+backend/repository/migrations/
+└── 019_codegarden.sql        ← Phase 2a Task A1: 5 张 cg_ 表 + skills 扩展
+```
+
+### 5 张 cg_ 表（Phase 2a Task A1）
+- `cg_projects` — 项目主表 (TEXT UUID id, 25 列含 source_item_id / upstream_url / commits_behind 等)
+- `cg_project_stages` — 阶段时间线 (auto-increment stage_order)
+- `cg_project_links` — 项目关联 (依赖关系)
+- `cg_project_activities` — 活动日志
+- `skills` 扩展字段 — 9 个新列 (skill_type / capabilities / constraints_json / output_format / system_prompt / few_shot_examples / success_metrics / usage_count / avg_rating)
+
+### 16 个 API 端点（Phase 2a Task D1）
+所有端点前缀 `/api/codegarden`，详见 [Phase 2a spec](./.trae/specs/phase2a-codegarden-mvp/spec.md) §2.4。
+
+### 8 阶段生命周期状态机
+```
+ideation → prototype → mvp → beta → running → maintenance
+                ↓         ↓        ↓          ↓
+              deprecated  deprecated deprecated deprecated
+                                                  ↓
+                                              archived
+```
+
+### 关键决策
+1. 表名 `skills` 而非 PRD 假设的 `knowledge_skills`
+2. `cg_projects.id` 用 TEXT UUID（与 `knowledge_items.id` 一致）
+3. `knowledge_tasks.task_type` 扩展无需 schema 变更
+4. GitHub REST API + httpx（token 鉴权，从 secrets_service 获取）
+5. 上游同步走任务队列（避免 HTTP 阻塞）
+6. 同步包只含 cg_projects 主表
+7. 不引入 React Flow / Cytoscape.js
+8. `knowledge_items.frontmatter.project_id` 不强制（既有 409 items 不回填）
+9. `source_item_id` 无外键约束
+10. GitHub token 缺失返回 424 Failed Dependency
+
+### 相关文档
+- [docs/CodeGarden_PRD_v2.0.md](./docs/CodeGarden_PRD_v2.0.md) — PRD v2.0 (1685 行)
+- [.trae/specs/phase2a-codegarden-mvp/spec.md](./.trae/specs/phase2a-codegarden-mvp/spec.md) — Phase 2a spec
+- [.trae/specs/phase2a-codegarden-mvp/tasks.md](./.trae/specs/phase2a-codegarden-mvp/tasks.md) — Phase 2a 任务分解
+- [.trae/specs/phase2a-codegarden-mvp/checklist.md](./.trae/specs/phase2a-codegarden-mvp/checklist.md) — Phase 2a 验证清单

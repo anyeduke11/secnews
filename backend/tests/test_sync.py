@@ -25,11 +25,18 @@ import pytest
 
 from backend.repository.db import get_connection
 from backend.scheduler.jobs import should_run_catchup
-from backend.services.sync_service import (
+from backend.services.sync_service import SyncService
+from backend.services.sync_merge import (
     BUNDLE_VERSION,
     SETTINGS_BLOCKLIST,
     MergeResult,
-    SyncService,
+    three_way_merge as standalone_three_way_merge,
+)
+from backend.services.sync_bundle import (
+    build_bundle as standalone_build_bundle,
+    encrypt_bundle as standalone_encrypt_bundle,
+    decrypt_bundle as standalone_decrypt_bundle,
+    decode_remote_payload,
 )
 
 
@@ -317,8 +324,77 @@ def test_should_run_catchup_monday_after_cutoff_last_sync_last_week():
 
 
 # ---------------------------------------------------------------------------
-# repos 基本 CRUD
+# standalone three_way_merge (direct, no SyncService wrapper)
 # ---------------------------------------------------------------------------
+
+def test_standalone_merge_remote_only_change():
+    """Standalone merge: base==local, remote changed → accept remote."""
+    base = {
+        "version": BUNDLE_VERSION, "device_id": "a", "merged_at": "t0",
+        "records": {"favorites": [{"hotspot_id": "h1", "title": "old"}],
+                    "todos": [], "skills": [], "custom_sources": [], "secrets": [],
+                    "settings": {}},
+    }
+    local = {**base}
+    remote = {
+        "version": BUNDLE_VERSION, "device_id": "b", "merged_at": "t1",
+        "records": {"favorites": [{"hotspot_id": "h1", "title": "new-from-remote"}],
+                    "todos": [], "skills": [], "custom_sources": [], "secrets": [],
+                    "settings": {}},
+    }
+    result = standalone_three_way_merge(base, local, remote)
+    assert result.conflict_count == 0
+    titles = [f["title"] for f in result.merged_bundle["records"]["favorites"]]
+    assert "new-from-remote" in titles
+
+
+# ---------------------------------------------------------------------------
+# standalone build_bundle / encrypt/decrypt (no SyncService wrapper)
+# ---------------------------------------------------------------------------
+
+def test_standalone_build_bundle_structure(db):
+    """Standalone build_bundle at least contains version + records."""
+    _setup_master_key()
+    bundle = standalone_build_bundle()
+    assert bundle["version"] == BUNDLE_VERSION
+    assert "records" in bundle
+    for key in ("favorites", "todos", "skills", "custom_sources", "settings", "secrets"):
+        assert key in bundle["records"]
+
+
+def test_standalone_encrypt_decrypt_roundtrip(db):
+    """Standalone encrypt → decrypt round-trip preserves bundle."""
+    _setup_master_key()
+    bundle = standalone_build_bundle()
+    payload = standalone_encrypt_bundle(bundle, "test-master-key-strong-1234")
+    assert isinstance(payload, bytes)
+    out = standalone_decrypt_bundle(payload, "test-master-key-strong-1234")
+    assert out["version"] == bundle["version"]
+    assert out["device_id"] == bundle["device_id"]
+
+
+def test_standalone_decrypt_wrong_key(db):
+    """Standalone decrypt with wrong master key → exception."""
+    _setup_master_key()
+    bundle = standalone_build_bundle()
+    payload = standalone_encrypt_bundle(bundle, "test-master-key-strong-1234")
+    with pytest.raises(Exception) as ei:
+        standalone_decrypt_bundle(payload, "wrong-key")
+    assert "主密钥" in str(ei.value) or "decrypt" in str(ei.value).lower()
+
+
+def test_decode_remote_payload_raw_json():
+    """Raw JSON envelope → decoded + manifest=None."""
+    payload = json.dumps({"version": BUNDLE_VERSION, "records": {}, "device_id": "d"}).encode("utf-8")
+    env, manifest = decode_remote_payload(payload)
+    assert manifest is None
+    assert isinstance(env, bytes)
+
+
+def test_decode_remote_payload_zip_magic():
+    """Bytes starting with PK (zip magic) try extraction → may fail gracefully."""
+    with pytest.raises(Exception):
+        decode_remote_payload(b"PK\x03\x04fake-zip-content")
 def test_sync_config_upsert_get(db):
     from backend.repository.sync_configs_repo import SyncConfigRepository
     repo = SyncConfigRepository()

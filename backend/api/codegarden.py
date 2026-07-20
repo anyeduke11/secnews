@@ -22,6 +22,17 @@ GitHub 导入与上游跟踪:
 - POST   /api/codegarden/projects/{id}/sync       触发上游同步 (写 knowledge_tasks)
 - GET    /api/codegarden/projects/{id}/upstream   上游状态详情
 
+批量扫描导入 (Phase 1 骨架):
+- POST   /api/codegarden/scan/local               body: {path}  → 返回检测到的项目列表
+- POST   /api/codegarden/scan/git                 body: {url}   → git clone 到临时目录, 扫描
+- POST   /api/codegarden/scan/upload              multipart 压缩包 (.zip/.tar/.tar.gz/.tgz) → 解压临时目录, 扫描
+- POST   /api/codegarden/scan/cleanup             body: {temp_id} → 删除临时目录
+- POST   /api/codegarden/batch-import             body: {projects:[{...}], temp_id?: str} → 批量写 cg_projects
+
+批量删除 (Phase 2):
+- POST   /api/codegarden/projects/batch-delete    body: {ids: [str]} → 批量 DELETE cg_projects
+                                                 全部成功 200 / 部分失败 207 / 全部失败 400
+
 设计原则
 --------
 - 同步 DB 操作通过 asyncio.to_thread 包装, 避免阻塞 event loop
@@ -31,9 +42,11 @@ GitHub 导入与上游跟踪:
 from __future__ import annotations
 
 import asyncio
+import os
+import tempfile
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel, Field
 
 from backend.exceptions import InternalException
@@ -115,6 +128,48 @@ class FromKnowledgeRequest(BaseModel):
     source_type: str = Field("reference", description="fork / reference / imported")
     local_path: Optional[str] = None
     source_type_detail: Optional[str] = None
+
+
+# 批量扫描导入 (Phase 1)
+class ScanLocalRequest(BaseModel):
+    path: str = Field(..., description="本地目录绝对路径")
+
+
+class ScanGitRequest(BaseModel):
+    url: str = Field(..., description="Git 仓库 URL (https://github.com/owner/repo[.git])")
+
+
+class ScanCleanupRequest(BaseModel):
+    temp_id: str = Field(..., description="临时扫描目录 ID")
+
+
+class BatchImportItem(BaseModel):
+    """单条待导入项目 (来自 scan 结果 + 可选覆盖)."""
+    name: str
+    absolute_path: str
+    relative_path: str = ""
+    marker_file: str = ""
+    language: str = ""
+    inferred_type: str = Field("library", description="默认 library, 可被用户覆盖")
+    description: str = ""
+    tech_stack: list[str] = Field(default_factory=list)
+    # 用户可选覆盖
+    override_name: Optional[str] = None
+    override_type: Optional[str] = None
+    override_lifecycle: Optional[str] = None
+    override_tags: Optional[list[str]] = None
+    override_description: Optional[str] = None
+
+
+class BatchImportRequest(BaseModel):
+    projects: list[BatchImportItem] = Field(..., min_length=1, max_length=200)
+    temp_id: Optional[str] = Field(None, description="扫描时的 temp_id, 导入成功后清理临时目录")
+    source_type: str = Field("imported", description="默认 imported, 也可 vibe/fork/reference")
+    default_lifecycle: str = Field("ideation", description="默认 ideation")
+
+
+class BatchDeleteRequest(BaseModel):
+    ids: list[str] = Field(..., min_length=1, max_length=200, description="要删除的项目 id 列表")
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +270,51 @@ async def delete_project(project_id: str):
     if not ok:
         raise HTTPException(status_code=404, detail={"message": f"项目 {project_id} 不存在"})
     return {"deleted": True, "id": project_id}
+
+
+@router.post("/projects/batch-delete")
+async def batch_delete(req: BatchDeleteRequest, response: Response):
+    """批量删除项目 (前端多选 + 批量操作).
+
+    - 每条走 svc.delete_project, 单条失败不阻塞其他
+    - 全部成功 → 200, 部分失败 → 207, 全部失败 → 400
+    - ids 重复自动去重 (保序)
+    """
+    svc = CodegardenProjectService()
+    deleted: list[str] = []
+    failed: list[dict] = []
+
+    # 去重保序, 避免对同一 id 重复 DELETE
+    seen: set[str] = set()
+    unique_ids = [i for i in req.ids if not (i in seen or seen.add(i))]
+
+    for project_id in unique_ids:
+        try:
+            ok = await asyncio.to_thread(svc.delete_project, project_id)
+            if ok:
+                deleted.append(project_id)
+            else:
+                failed.append({"id": project_id, "error": "项目不存在"})
+        except InternalException as e:
+            failed.append({"id": project_id, "error": str(e)})
+        except Exception as e:
+            logger.error(f"batch_delete {project_id} failed: {e}")
+            failed.append({"id": project_id, "error": f"删除失败: {e}"})
+
+    # 状态码
+    if not deleted and failed:
+        response.status_code = 400
+    elif failed:
+        response.status_code = 207
+    else:
+        response.status_code = 200
+
+    return {
+        "deleted": deleted,
+        "failed": failed,
+        "deleted_count": len(deleted),
+        "failed_count": len(failed),
+    }
 
 
 @router.post("/projects/{project_id}/archive")
@@ -460,4 +560,190 @@ async def get_upstream_status(project_id: str):
         "commits_ahead": project.get("commits_ahead", 0),
         "last_synced_at": project.get("last_synced_at"),
         "recent_releases": releases,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 批量扫描导入 (Phase 1 骨架)
+# ---------------------------------------------------------------------------
+@router.post("/scan/local")
+async def scan_local(req: ScanLocalRequest):
+    """扫描本地目录, 返回检测到的项目列表.
+
+    不写库 — 只读. 失败抛 400.
+    """
+    from backend.services.codegarden_scanner_service import scan_local_dir
+
+    try:
+        result = await asyncio.to_thread(scan_local_dir, req.path)
+    except (FileNotFoundError, NotADirectoryError) as e:
+        raise HTTPException(status_code=400, detail={"message": str(e)})
+    except Exception as e:
+        logger.error(f"scan_local failed: {e}")
+        raise HTTPException(status_code=500, detail={"message": f"扫描失败: {e}"})
+    return result.to_dict()
+
+
+@router.post("/scan/git")
+async def scan_git(req: ScanGitRequest):
+    """Clone git 仓库到临时目录, 扫描后返回.
+
+    返回结果的 is_temporary=True 表示临时目录需要后续 cleanup.
+    GitHub 私有仓库或 rate limit 用尽时会自动从 secrets_service 拉 github_token 注入.
+    """
+    from backend.services.codegarden_scanner_service import scan_git_url
+
+    # 尝试从 secrets_service 拉 github_token (可选)
+    token: Optional[str] = None
+    try:
+        from backend.services.codegarden_github_service import _get_github_token
+        token = await asyncio.to_thread(_get_github_token)
+    except Exception:
+        token = None  # token 缺失不影响公开仓库
+
+    try:
+        result = await asyncio.to_thread(scan_git_url, req.url, token)
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail={"message": str(e)})
+    except Exception as e:
+        logger.error(f"scan_git failed: {e}")
+        raise HTTPException(status_code=500, detail={"message": f"扫描失败: {e}"})
+    return result.to_dict()
+
+
+@router.post("/scan/upload")
+async def scan_upload(file: UploadFile = File(...)):
+    """上传压缩包 (.zip / .tar / .tar.gz / .tgz) 解压到临时目录, 扫描后返回.
+
+    文件先写入 /tmp, 再调 scanner. 失败抛 400.
+    """
+    from backend.services.codegarden_scanner_service import scan_archive
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail={"message": "未提供文件名"})
+
+    lower = file.filename.lower()
+    if not (lower.endswith(".zip") or lower.endswith(".tar")
+            or lower.endswith(".tar.gz") or lower.endswith(".tgz")):
+        raise HTTPException(
+            status_code=400,
+            detail={"message": f"不支持的格式: {file.filename} (.zip / .tar / .tar.gz / .tgz)"},
+        )
+
+    # 保存到临时文件, scanner 自己会再解压
+    fd, tmp_path = tempfile.mkstemp(suffix=os.path.splitext(file.filename)[1])
+    os.close(fd)
+    try:
+        # 流式写入, 避免大文件爆内存 (单 chunk 1MB)
+        with open(tmp_path, "wb") as out:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                out.write(chunk)
+        # 检查大小 (50MB 上限)
+        size_mb = os.path.getsize(tmp_path) / 1024 / 1024
+        if size_mb > 50:
+            os.unlink(tmp_path)
+            raise HTTPException(
+                status_code=400,
+                detail={"message": f"文件过大 ({size_mb:.1f}MB), 上限 50MB"},
+            )
+        result = await asyncio.to_thread(scan_archive, tmp_path)
+    except HTTPException:
+        raise
+    except RuntimeError as e:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise HTTPException(status_code=400, detail={"message": str(e)})
+    except Exception as e:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        logger.error(f"scan_upload failed: {e}")
+        raise HTTPException(status_code=500, detail={"message": f"扫描失败: {e}"})
+    finally:
+        # 原始压缩包在扫描后即可删除 (scanner 已复制到自己的 temp_id 目录)
+        if os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+    return result.to_dict()
+
+
+@router.post("/scan/cleanup")
+async def scan_cleanup(req: ScanCleanupRequest):
+    """清理 git clone / archive extract 的临时目录."""
+    from backend.services.codegarden_scanner_service import cleanup_temp
+    ok = await asyncio.to_thread(cleanup_temp, req.temp_id)
+    return {"cleaned": ok, "temp_id": req.temp_id}
+
+
+@router.post("/batch-import")
+async def batch_import(req: BatchImportRequest, response: Response):
+    """批量导入 scan 结果到 cg_projects.
+
+    - 每条记录走 svc.create_project
+    - 单条失败不阻塞其他 (collected 到 failed 列表)
+    - 全部成功后清理 temp_id 临时目录
+    - 状态码: 全部成功 201, 部分失败 207
+    """
+    from backend.services.codegarden_scanner_service import cleanup_temp
+
+    svc = CodegardenProjectService()
+    imported: list[dict] = []
+    failed: list[dict] = []
+
+    for idx, item in enumerate(req.projects):
+        try:
+            name = item.override_name or item.name
+            ptype = item.override_type or item.inferred_type
+            lifecycle = item.override_lifecycle or req.default_lifecycle
+            tags = item.override_tags if item.override_tags is not None else (
+                ["scanned"] + ([item.language] if item.language else [])
+            )
+            description = item.override_description or item.description
+
+            project = await asyncio.to_thread(
+                svc.create_project,
+                name=name[:200],
+                type=ptype,
+                source_type=req.source_type,
+                lifecycle_stage=lifecycle,
+                display_name=name,
+                description=description or None,
+                local_path=item.absolute_path,
+                tags=tags,
+                tech_stack=item.tech_stack,
+            )
+            imported.append({
+                "index": idx,
+                "id": project["id"],
+                "name": project["name"],
+                "absolute_path": item.absolute_path,
+            })
+        except Exception as e:
+            logger.error(f"batch_import item {idx} failed: {e}")
+            failed.append({
+                "index": idx,
+                "name": item.name,
+                "absolute_path": item.absolute_path,
+                "error": str(e),
+            })
+
+    # 导入完成后清理 temp_id
+    if req.temp_id:
+        try:
+            await asyncio.to_thread(cleanup_temp, req.temp_id)
+        except Exception as e:
+            logger.warning(f"cleanup_temp {req.temp_id} failed: {e}")
+
+    # 状态码: 全部成功 201, 部分失败 207
+    response.status_code = 207 if failed and imported else (201 if imported else 400)
+    return {
+        "imported": imported,
+        "failed": failed,
+        "imported_count": len(imported),
+        "failed_count": len(failed),
     }

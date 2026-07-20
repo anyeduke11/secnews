@@ -11,6 +11,9 @@ interface ProjectCardProps {
   project: CgProject;
   onClick?: () => void;
   onTransition?: (id: string, to: LifecycleStage) => void;
+  selected?: boolean;
+  selectable?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 const NEXT_STAGE: Partial<Record<LifecycleStage, LifecycleStage>> = {
@@ -21,7 +24,10 @@ const NEXT_STAGE: Partial<Record<LifecycleStage, LifecycleStage>> = {
   running: 'maintenance',
 };
 
-export function ProjectCard({ project, onClick, onTransition }: ProjectCardProps) {
+export function ProjectCard({
+  project, onClick, onTransition,
+  selected, selectable, onToggleSelect,
+}: ProjectCardProps) {
   const accent = LIFECYCLE_COLORS[project.lifecycle_stage];
   const next = NEXT_STAGE[project.lifecycle_stage];
   const behind = project.commits_behind;
@@ -29,13 +35,24 @@ export function ProjectCard({ project, onClick, onTransition }: ProjectCardProps
   return (
     <div
       onClick={onClick}
-      className="rounded-[var(--radius-sm)] p-2.5 cursor-pointer transition-colors"
+      className="rounded-[var(--radius-sm)] p-2.5 cursor-pointer transition-colors relative"
       style={{
-        backgroundColor: 'var(--bg-elevated)',
-        border: '1px solid var(--border-color)',
+        backgroundColor: selected ? 'var(--bg-hover)' : 'var(--bg-elevated)',
+        border: `1px solid ${selected ? accent : 'var(--border-color)'}`,
         borderLeft: `3px solid ${accent}`,
       }}
     >
+      {selectable && (
+        <input
+          type="checkbox"
+          checked={!!selected}
+          onChange={(e) => { e.stopPropagation(); onToggleSelect?.(project.id); }}
+          onClick={(e) => e.stopPropagation()}
+          className="absolute top-1.5 right-1.5 cursor-pointer"
+          aria-label={`选择 ${project.name}`}
+          style={{ accentColor: accent }}
+        />
+      )}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }} title={project.name}>

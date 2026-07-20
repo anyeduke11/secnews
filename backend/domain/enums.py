@@ -12,8 +12,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from zoneinfo import ZoneInfo
 
 from backend.exceptions import InvalidParamException
+
+# Phase 48: D7 / H24 / D3 改用 Shanghai TZ, 与 current_week_start() / RecencyGate
+# 的"本周一 00:00 Asia/Shanghai" 语义一致, 修复"上海 0 点未自动归档" 8h 错位。
+SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
 
 
 class Category(str, Enum):
@@ -84,21 +89,25 @@ class TimeRange(str, Enum):
         始终返回 **tz-aware UTC** datetime (与 ingested_at 列存储的
         ``datetime.now(timezone.utc).isoformat()`` 格式可直接比较)。
 
-        Phase 39 调整: H24 / D3 改为「基于日历日」语义, 与用户的「资讯每周归档」对齐。
-        - H24: 今日 00:00 UTC (calendar day, 不再是滚动 24h)
-        - D3 : 今日 - 2 天 00:00 UTC (3 个日历日: 前 2 日 + 今日)
-        - D7 : 本周周一 00:00 UTC (calendar week, 符合「资讯 7 天一个循环」)
+        Phase 48: H24 / D3 / D7 改为基于 Shanghai TZ 的「日历日/周」语义
+        (与用户的「资讯每周归档从上海周一开始」对齐, 与 current_week_start()
+        / RecencyGate 一致 — 之前用 UTC 与 RecencyGate 差 8h, 跨周末时差 1 天)。
+
+        - H24: Shanghai 今日 00:00 转 UTC
+        - D3 : Shanghai 今日 - 2 天 00:00 转 UTC (3 个日历日: 前 2 日 + 今日)
+        - D7 : Shanghai 本周一 00:00 转 UTC (calendar week, 符合「资讯 7 天一个循环」)
         - D30: now_utc - 30d (滚动 30 天, 暂未改为日历月)
         """
         now_utc = datetime.now(timezone.utc)
-        today_midnight = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        now_sh = now_utc.astimezone(SHANGHAI_TZ)
+        today_sh_midnight = now_sh.replace(hour=0, minute=0, second=0, microsecond=0)
         if self == TimeRange.H24:
-            return today_midnight
+            return today_sh_midnight.astimezone(timezone.utc)
         if self == TimeRange.D3:
-            return today_midnight - timedelta(days=2)
+            return (today_sh_midnight - timedelta(days=2)).astimezone(timezone.utc)
         if self == TimeRange.D7:
-            monday = today_midnight - timedelta(days=today_midnight.weekday())
-            return monday
+            monday_sh = today_sh_midnight - timedelta(days=today_sh_midnight.weekday())
+            return monday_sh.astimezone(timezone.utc)
         if self == TimeRange.D30:
             return now_utc - timedelta(days=30)
         raise ValueError(f"unknown time range: {self}")

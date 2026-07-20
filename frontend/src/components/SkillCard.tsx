@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SkillItem } from '../types';
+import { Icon } from './Icon';
 
 interface SkillCardProps {
   item: SkillItem;
@@ -7,23 +8,6 @@ interface SkillCardProps {
   onDelete?: (id: number) => void;
 }
 
-function Icon({ children, size = 12 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
 
 const SOURCE_COLOR: Record<string, string> = {
   npx: '#7c6aff',

@@ -1,18 +1,8 @@
 import React, { useMemo } from 'react';
 import { useWeeklyReport } from '../hooks/useWeeklyReport';
 import { WeeklyReport, CATEGORIES, getCategoryColor, getCategoryLabel } from '../types';
+import { Icon } from './Icon';
 
-interface WeeklyReportPageProps {
-  onBack: () => void;
-}
-
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {children}
-    </svg>
-  );
-}
 
 function formatDate(iso: string): string {
   try {
@@ -99,7 +89,7 @@ function ReportCard({ report, active, onClick }: { report: WeeklyReport; active:
   );
 }
 
-export function WeeklyReportPage({ onBack }: WeeklyReportPageProps) {
+export function WeeklyReportPage() {
   const { reports, latest, loading, error, generate } = useWeeklyReport();
   const [selectedWeek, setSelectedWeek] = React.useState<string | null>(null);
 
@@ -131,9 +121,6 @@ export function WeeklyReportPage({ onBack }: WeeklyReportPageProps) {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="btn-ghost px-2 py-1.5 text-xs" aria-label="返回首页">
-            <Icon><polyline points="15 18 9 12 15 6" /></Icon>
-          </button>
           <div>
             <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>周报</h2>
             <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>每周热点回顾与趋势分析</p>

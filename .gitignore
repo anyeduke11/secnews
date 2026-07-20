@@ -29,8 +29,7 @@ htmlcov/
 .DS_Store
 
 # Hidden tool / cache folders (2026-07-10)
-# 通配符过滤 IDE/agent 工具产生的 . 开头缓存与配置目录
-.*/
+# 逐个列出, 不用 .*/ 通配符 (避免误吞 .github/ .git/)
 .arts/
 .claude/
 .cursor/
@@ -71,3 +70,4 @@ hotspot.db-shm
 backend/cache_data.json
 backend/cache_data.bak.*.json
 backend/proxy_config.json
+backend/data/export_cache.*

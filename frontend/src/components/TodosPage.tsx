@@ -4,10 +4,6 @@ import { TodoItem } from '../components/TodoItem';
 import { AddTodoForm } from '../components/AddTodoForm';
 import { TodoStatus, TodoUpdateRequest, TodoCreateRequest } from '../types';
 
-interface TodosPageProps {
-  onBack: () => void;
-}
-
 const STATUS_TABS: { value: TodoStatus | 'all'; label: string }[] = [
   { value: 'all', label: '全部' },
   { value: 'open', label: '未完成' },
@@ -15,25 +11,8 @@ const STATUS_TABS: { value: TodoStatus | 'all'; label: string }[] = [
   { value: 'archived', label: '已归档' },
 ];
 
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
 
-export function TodosPage({ onBack }: TodosPageProps) {
+export function TodosPage() {
   const {
     items,
     total,
@@ -132,18 +111,6 @@ export function TodosPage({ onBack }: TodosPageProps) {
       {/* 顶部标题区 */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="btn-ghost px-2.5 py-1.5 text-xs"
-            title="返回首页"
-            aria-label="返回首页"
-          >
-            <Icon>
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </Icon>
-            返回首页
-          </button>
           <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
             📝 待办 · 本周复盘
           </h2>

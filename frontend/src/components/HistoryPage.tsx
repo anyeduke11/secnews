@@ -14,7 +14,6 @@ import { HotspotCard } from './HotspotCard';
 interface HistoryPageProps {
   favoritedIds: Set<string>;
   onToggleFavorite: (item: HotspotItem) => void;
-  onBack: () => void;
 }
 
 function formatBatchDate(isoString: string): string {
@@ -27,7 +26,7 @@ function formatBatchRange(start: string, end: string): string {
   return `${formatBatchDate(start)} - ${formatBatchDate(end)}`;
 }
 
-export function HistoryPage({ favoritedIds, onToggleFavorite, onBack }: HistoryPageProps) {
+export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps) {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [batchesLoading, setBatchesLoading] = useState(true);
   const [batchesError, setBatchesError] = useState<string | null>(null);
@@ -159,17 +158,6 @@ export function HistoryPage({ favoritedIds, onToggleFavorite, onBack }: HistoryP
     <div className="history-page">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="btn-ghost px-2.5 py-1.5 text-xs"
-            title="返回首页"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
-            返回首页
-          </button>
           <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
             📚 历史资讯
           </h2>

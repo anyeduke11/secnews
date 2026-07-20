@@ -2,9 +2,10 @@
 
 > 文档类型：功能与接口规范
 > 关联：[ARCHITECTURE.md](../ARCHITECTURE.md) · [CHECKLIST.md](./CHECKLIST.md) · [TASKS.md](./TASKS.md) · [RCA.md](./RCA.md)
-> 版本：2026-07-05
+> 版本：2026-07-05 (v3.1), 2026-07-19 增补 §11 CodeGarden 子系统规范
 > 范围：基于架构优化方案 v3.0 的功能/接口/性能/可靠性 规范
 > 重大变更: **v3.1 (2026-07-05) Phase 13 — 撤销所有 fallback 合成数据,确立"原文链接硬约束"**
+> 子系统规范: **v3.2 (2026-07-19) Phase 2a — CodeGarden MVP 16 个 API + 5 张 cg_ 表 + 8 阶段生命周期**
 
 ---
 
@@ -613,7 +614,119 @@ IT人员专属工作站 — 单人本地使用的多领域热点聚合看板，�
 | [CHECKLIST.md](./CHECKLIST.md) | 实施检查清单 |
 | [TASKS.md](./TASKS.md) | 任务分解 |
 | [RCA.md](./RCA.md) | **5why + RCA 根因分析 (v3.1 新增)** |
+| [CodeGarden_PRD_v2.0.md](./CodeGarden_PRD_v2.0.md) | **CodeGarden PRD v2.0 (v3.2 新增)** |
+| [.trae/specs/phase2a-codegarden-mvp/](../.trae/specs/phase2a-codegarden-mvp/) | **Phase 2a 实施计划三件套 (v3.2 新增)** |
 | `.web_builder/plan.md` | 旧版项目计划（历史归档） |
+
+---
+
+## 十三、CodeGarden 子系统规范（v3.2 / 2026-07-19 新增）
+
+> **范围**: Phase 2a MVP — 项目看板 (M1) + Skill 扩展 (M6) + 资讯→项目转化通道
+> **不在范围**: 服务网格 (M2) / 资源中枢 (M3) / 联动引擎 (M4) / AI 协作层 (M6-M12) — 推迟到 Phase 2b-2d
+> **关联**: [CodeGarden_PRD_v2.0.md](./CodeGarden_PRD_v2.0.md) · [Phase 2a spec](../.trae/specs/phase2a-codegarden-mvp/spec.md)
+
+### 13.1 数据模型
+
+#### 13.1.1 cg_projects 主表（25 列）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | TEXT (UUID) PRIMARY KEY | 与 knowledge_items.id 一致模式 |
+| name | TEXT NOT NULL | 项目显示名 |
+| description | TEXT | 项目描述 |
+| type | TEXT NOT NULL | library / app / service / agent / skill / docs / other |
+| source_type | TEXT NOT NULL | original (原创) / fork (二开) / reference (参考) |
+| source_item_id | TEXT | 反向溯源到 knowledge_items.id (无 FK 约束) |
+| repo_url | TEXT | GitHub 仓库 URL |
+| upstream_url | TEXT | fork 上游 URL |
+| local_path | TEXT | 本地代码路径 |
+| domain | TEXT | 业务领域 (security / ai / finance / ...) |
+| topic | TEXT | 主题 (free-form) |
+| tags | TEXT (JSON array) | 标签数组 |
+| tech_stack | TEXT (JSON array) | 技术栈数组 |
+| lifecycle | TEXT NOT NULL DEFAULT 'ideation' | 8 阶段状态机 |
+| health_score | INTEGER DEFAULT 0 | 0-100 健康度评分 (Phase 2d) |
+| commits_behind | INTEGER DEFAULT 0 | 落后上游 commit 数 |
+| commits_ahead | INTEGER DEFAULT 0 | 领先上游 commit 数 |
+| last_synced_at | TEXT (ISO 8601) | 上次上游同步时间 |
+| forked_at | TEXT (ISO 8601) | fork 时间 |
+| archived_at | TEXT (ISO 8601) | 归档时间 |
+| created_at | TEXT NOT NULL | 创建时间 |
+| updated_at | TEXT NOT NULL | 更新时间 |
+| ... | ... | (完整 25 列详见迁移文件 019_codegarden.sql) |
+
+#### 13.1.2 其他表
+
+- `cg_project_stages` — 阶段时间线 (auto-increment stage_order)
+- `cg_project_links` — 项目关联 (依赖关系)
+- `cg_project_activities` — 活动日志 (lifecycle 切换 / sync 触发等)
+
+#### 13.1.3 skills 表扩展字段（9 个新列）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| skill_type | TEXT | skill 类型分类 |
+| capabilities | TEXT (JSON) | 能力声明 |
+| constraints_json | TEXT (JSON) | 约束配置 |
+| output_format | TEXT | 输出格式 |
+| system_prompt | TEXT | 系统提示词 |
+| few_shot_examples | TEXT (JSON) | few-shot 示例 |
+| success_metrics | TEXT (JSON) | 成功度量 |
+| usage_count | INTEGER DEFAULT 0 | 使用次数 |
+| avg_rating | REAL DEFAULT 0 | 平均评分 |
+
+### 13.2 8 阶段生命周期状态机
+
+```
+ideation → prototype → mvp → beta → running → maintenance
+                ↓         ↓        ↓          ↓
+              deprecated  deprecated deprecated deprecated
+                                                  ↓
+                                              archived
+```
+
+合法跳转表（`_LEGAL_TRANSITIONS`）详见 Phase 2a tasks.md Task C1.2。
+
+### 13.3 API 端点（16 个，前缀 `/api/codegarden`）
+
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/projects` | 项目列表 + 多维筛选 |
+| POST | `/projects` | 创建项目 |
+| GET | `/projects/{id}` | 项目详情 |
+| PATCH | `/projects/{id}` | 更新项目 |
+| DELETE | `/projects/{id}` | 删除项目 |
+| POST | `/projects/{id}/lifecycle` | 状态切换 (body: `{to, note}`) |
+| POST | `/projects/{id}/archive` | 归档 |
+| POST | `/projects/{id}/restore` | 恢复 |
+| GET | `/projects/{id}/timeline` | 阶段时间线 |
+| GET | `/projects/{id}/activities` | 活动日志 |
+| GET | `/github/metadata?url=...` | GitHub 元数据预览 (不写库) |
+| POST | `/github/import` | GitHub 导入 (body: `{repo_url, ...}`) |
+| GET | `/candidates` | 候选列表 (type=github 未转化) |
+| POST | `/from-knowledge` | 资讯→项目转化 (幂等: 首次 201, 重复 200) |
+| POST | `/projects/{id}/sync` | 触发上游同步 (创建 task) |
+| GET | `/projects/{id}/upstream` | 上游状态详情 |
+
+### 13.4 错误码
+
+| HTTP | 场景 | 响应 |
+|------|------|------|
+| 424 | GitHub token 缺失 | `{"detail": {"message": "...", "missing": "github_token"}}` |
+| 400 | lifecycle 跳转非法 | `{"detail": {"message": "illegal transition: X → Y"}}` |
+| 400 | from-knowledge item.type ≠ github | `{"detail": {"message": "item.type must be github"}}` |
+| 404 | project id 不存在 | `{"detail": {"message": "project not found"}}` |
+
+### 13.5 调度任务
+
+| Job # | 函数 | 频率 | 说明 |
+|-------|------|------|------|
+| 15 | `cg_upstream_sync_job` | 每日 09:00 Asia/Shanghai | 遍历 source_type=fork 项目，创建 project_sync 任务 |
+
+### 13.6 跨端同步
+
+`sync_bundle.build_bundle()` 包含 `codegarden_projects` key，仅同步主表（不含 stages/links/activities）。`apply_bundle()` 通过 `_apply_cg_projects(items)` upsert by id (ON CONFLICT DO UPDATE)。
 
 ---
 
@@ -623,3 +736,4 @@ IT人员专属工作站 — 单人本地使用的多领域热点聚合看板，�
 |---|---|---|
 | 2026-07-04 | v3.0 | 基于架构优化方案 v3.0 重写；引入 Pydantic 强类型、SQLite FTS5、cursor 分页、is_fallback 标记 |
 | 2026-07-05 | v3.1 | **Phase 13 重大变更**: 撤销所有 fallback 合成 URL;新增 §3 原文链接硬约束(写死);6 个 collector 不再实现 `_fallback()`;`collect()` 全源失败时返回 `[]`;新增 FinalUrlGate (#10);`asyncio.to_thread` 隔离 sync DB;UI 空分类显示"暂无可用资讯" |
+| 2026-07-19 | v3.2 | **Phase 2a 新增**: §13 CodeGarden 子系统规范 — 5 张 cg_ 表 + skills 扩展 9 字段 + 16 个 API 端点 + 8 阶段生命周期状态机 + 资讯→项目转化通道 (幂等) + job 15 + 跨端同步主表 |

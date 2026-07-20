@@ -20,24 +20,7 @@ interface HotspotGridProps {
   onSetPageSize: (size: number) => void;
 }
 
-// 复用项目 14×14 stroke=2 strokeLinecap=round 风格
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
+import { Icon } from './Icon';
 
 export function HotspotGrid({
   items,
@@ -102,7 +85,7 @@ export function HotspotGrid({
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
         {items.map((item, index) => (
           <HotspotCard
             key={item.id}

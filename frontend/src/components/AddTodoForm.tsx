@@ -1,27 +1,11 @@
 import React, { useState } from 'react';
 import { TodoCreateRequest } from '../types';
+import { Icon } from './Icon';
 
 interface AddTodoFormProps {
   onAdd: (req: TodoCreateRequest) => Promise<void>;
 }
 
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
 
 /**
  * Phase 46: 添加手动待办。

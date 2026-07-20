@@ -6,7 +6,9 @@ Design notes
   file: services/ → backend/ → project root).
 - Falls back gracefully when ``cubox-cli`` is not installed (returns 0).
 - Item IDs are derived from URL fingerprints via ``item_id_from_url``,
-  so re-syncing the same card is idempotent (existing files are skipped).
+  so re-syncing the same card is idempotent (existing files are merged).
+- Cubox folders are preserved as ``folder`` frontmatter and also injected
+  into ``tags`` so they participate in domain/topic classification.
 """
 from __future__ import annotations
 
@@ -24,6 +26,9 @@ log = logging.getLogger("hotspot.cubox_sync")
 KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent.parent / "knowledge"
 ITEMS_DIR = KNOWLEDGE_DIR / "items"
 
+# Folders that carry no classification value and should not become tags.
+_IGNORED_FOLDERS = {"Uncategorized", "uncategorized", "", None}
+
 
 def _check_cubox_cli() -> bool:
     """Check if cubox-cli is installed."""
@@ -36,10 +41,48 @@ def _check_cubox_cli() -> bool:
         return False
 
 
-def fetch_cubox_cards(limit: int = 100) -> list[dict]:
+def _fetch_folder_nested_names() -> dict[str, str]:
+    """Return a mapping of folder id → nested_name (full path).
+
+    ``cubox-cli card list`` sometimes returns an empty ``nested_name`` even
+    when the folder is nested. The ``folder list`` command reliably returns
+    the full path, so we use it to backfill missing hierarchy information.
+    """
+    try:
+        result = subprocess.run(
+            ["cubox-cli", "folder", "list", "-o", "json"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if result.returncode != 0:
+            log.warning(f"cubox-cli folder list failed: {result.stderr}")
+            return {}
+        folders = json.loads(result.stdout)
+        if not isinstance(folders, list):
+            log.warning(
+                f"cubox-cli folder list returned non-list: {type(folders).__name__}"
+            )
+            return {}
+        return {
+            str(f.get("id")): f.get("nested_name", "")
+            for f in folders
+            if f.get("id") and f.get("nested_name")
+        }
+    except Exception as e:
+        log.warning(f"could not fetch folder list: {e}")
+        return {}
+
+
+def fetch_cubox_cards(page_size: int = 100) -> list[dict]:
     """Fetch cards from cubox-cli.
 
-    Returns list of dicts with keys: title, url, description, tags, create_time
+    Uses ``--all`` so the full card library is returned regardless of the
+    total count. ``page_size`` is passed to cubox-cli as ``--limit`` (its
+    page size for pagination).
+
+    Returns list of dicts with keys including: title, url, description,
+    tags, folder, create_time, update_time.
     """
     if not _check_cubox_cli():
         log.warning("cubox-cli not installed, skipping cubox sync")
@@ -47,10 +90,19 @@ def fetch_cubox_cards(limit: int = 100) -> list[dict]:
 
     try:
         result = subprocess.run(
-            ["cubox-cli", "card", "list", "-o", "json", "--all", "--limit", str(limit)],
+            [
+                "cubox-cli",
+                "card",
+                "list",
+                "-o",
+                "json",
+                "--all",
+                "--limit",
+                str(page_size),
+            ],
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=300,
         )
         if result.returncode != 0:
             log.error(f"cubox-cli failed: {result.stderr}")
@@ -61,6 +113,18 @@ def fetch_cubox_cards(limit: int = 100) -> list[dict]:
                 f"cubox-cli returned non-list JSON: {type(cards).__name__}"
             )
             return []
+
+        # Backfill nested folder paths so folder tags preserve hierarchy.
+        nested_names = _fetch_folder_nested_names()
+        if nested_names:
+            for card in cards:
+                folder = card.get("folder")
+                if not isinstance(folder, dict):
+                    continue
+                folder_id = folder.get("id")
+                if folder_id and not folder.get("nested_name"):
+                    folder["nested_name"] = nested_names.get(str(folder_id), "")
+
         log.info(f"cubox-cli returned {len(cards)} cards")
         return cards
     except subprocess.TimeoutExpired:
@@ -74,6 +138,30 @@ def fetch_cubox_cards(limit: int = 100) -> list[dict]:
         return []
 
 
+def _extract_folder_tag(folder: dict | None) -> Optional[str]:
+    """Return a single folder tag representing Cubox folder hierarchy."""
+    if not folder or not isinstance(folder, dict):
+        return None
+    # Prefer nested path (e.g. "AI/大模型") because it preserves hierarchy.
+    name = folder.get("nested_name") or folder.get("name") or ""
+    name = name.strip()
+    if name in _IGNORED_FOLDERS:
+        return None
+    return name
+
+
+def _extract_tags(card: dict) -> list[str]:
+    """Normalize Cubox tags (strings or {name: ...} objects)."""
+    raw_tags = card.get("tags", [])
+    if isinstance(raw_tags, list):
+        tags = [
+            t.get("name", "") if isinstance(t, dict) else str(t)
+            for t in raw_tags
+        ]
+        return [t for t in tags if t]
+    return []
+
+
 def _card_to_item(card: dict) -> Optional[KnowledgeItem]:
     """Convert a cubox card to a KnowledgeItem."""
     url = card.get("url", "")
@@ -82,22 +170,21 @@ def _card_to_item(card: dict) -> Optional[KnowledgeItem]:
     item_id = item_id_from_url(url)
     # Prefer article_title (full title) over title (may be truncated).
     title = card.get("article_title") or card.get("title") or "Untitled"
-    # Normalize tags: cubox returns list of tag objects or strings.
-    raw_tags = card.get("tags", [])
-    if isinstance(raw_tags, list):
-        tags = [
-            t.get("name", "") if isinstance(t, dict) else str(t)
-            for t in raw_tags
-        ]
-        tags = [t for t in tags if t]
-    else:
-        tags = []
+
+    tags = _extract_tags(card)
+    folder = card.get("folder")
+    folder_tag = _extract_folder_tag(folder)
+    if folder_tag and folder_tag not in tags:
+        # Folder first so it has the highest classification priority.
+        tags.insert(0, folder_tag)
+
     return KnowledgeItem(
         id=item_id,
         title=title,
         source="cubox",
         source_url=url,
         tags=tags,
+        folder=folder if isinstance(folder, dict) else None,
         ingested_at=card.get("create_time", now_iso()),
         updated_at=card.get("update_time", now_iso()),
     )
@@ -110,6 +197,8 @@ def _write_item_md(item: KnowledgeItem, content: str = "", sources: list[str] | 
     ITEMS_DIR.mkdir(parents=True, exist_ok=True)
     path = ITEMS_DIR / f"{item.id}.md"
 
+    folder_json = json.dumps(item.folder, ensure_ascii=False) if item.folder else "null"
+
     frontmatter = f"""---
 id: "{item.id}"
 title: "{item.title}"
@@ -121,13 +210,14 @@ domain: null
 topic: null
 type: null
 difficulty: null
-tags: {json.dumps(item.tags)}
+tags: {json.dumps(item.tags, ensure_ascii=False)}
 concepts: []
 mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
-sources: {json.dumps(sources)}
+sources: {json.dumps(sources, ensure_ascii=False)}
+folder: {folder_json}
 ---
 
 # {item.title}
@@ -138,15 +228,19 @@ sources: {json.dumps(sources)}
     return path
 
 
-def sync_cubox_to_knowledge(limit: int = 100) -> int:
+def sync_cubox_to_knowledge(page_size: int = 100, limit: int | None = None) -> int:
     """Sync cubox cards to knowledge/items/*.md.
+
+    ``limit`` is accepted as a backwards-compatible alias for ``page_size``
+    (the value is passed to cubox-cli as its pagination page size).
 
     Returns number of items written or merged.
     """
     from backend.repository.knowledge_repo import knowledge_repo
     from backend.services.knowledge_sync import parse_frontmatter
 
-    cards = fetch_cubox_cards(limit)
+    page_size = limit if limit is not None else page_size
+    cards = fetch_cubox_cards(page_size)
     if not cards:
         return 0
 
@@ -160,7 +254,7 @@ def sync_cubox_to_knowledge(limit: int = 100) -> int:
         md_path = ITEMS_DIR / f"{item.id}.md"
 
         if md_path.exists():
-            # Item exists — merge sources + tags (don't reset classification)
+            # Item exists — merge sources + tags + folder (don't reset classification)
             existing_fm = parse_frontmatter(md_path) or {}
             existing_sources = (
                 existing_fm.get("sources", [])
@@ -172,16 +266,28 @@ def sync_cubox_to_knowledge(limit: int = 100) -> int:
                 if isinstance(existing_fm.get("tags"), list)
                 else []
             )
+            existing_folder = (
+                existing_fm.get("folder")
+                if isinstance(existing_fm.get("folder"), dict)
+                else None
+            )
             merged_sources = list(dict.fromkeys(existing_sources + ["cubox"]))
             merged_tags = list(dict.fromkeys(existing_tags + item.tags))
+            merged_folder = item.folder or existing_folder
 
-            # Update .md frontmatter (sources + tags) preserving body
-            _update_md_frontmatter(md_path, merged_sources, merged_tags)
+            # Update .md frontmatter (sources + tags + folder) preserving body
+            _update_md_frontmatter(
+                md_path,
+                merged_sources,
+                merged_tags,
+                merged_folder,
+            )
 
-            # Update SQLite tags only (sources not in DB schema)
+            # Update SQLite tags + folder (sources not in DB schema)
             existing_item = knowledge_repo.get_item(item.id)
             if existing_item:
                 existing_item.tags = merged_tags
+                existing_item.folder = merged_folder
                 existing_item.updated_at = now_iso()
                 knowledge_repo.upsert_item(existing_item)
             count += 1
@@ -204,9 +310,12 @@ def sync_cubox_to_knowledge(limit: int = 100) -> int:
 
 
 def _update_md_frontmatter(
-    path: Path, sources: list[str], tags: list[str]
+    path: Path,
+    sources: list[str],
+    tags: list[str],
+    folder: dict | None,
 ) -> None:
-    """Update sources + tags lines in .md frontmatter, preserving body."""
+    """Update sources + tags + folder lines in .md frontmatter, preserving body."""
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---"):
         return
@@ -222,20 +331,32 @@ def _update_md_frontmatter(
     if re.search(r"^sources:", frontmatter, re.MULTILINE):
         frontmatter = re.sub(
             r"^sources:.*$",
-            f"sources: {json.dumps(sources)}",
+            f"sources: {json.dumps(sources, ensure_ascii=False)}",
             frontmatter,
             flags=re.MULTILINE,
         )
     else:
-        frontmatter = frontmatter.rstrip() + f"\nsources: {json.dumps(sources)}\n"
+        frontmatter = frontmatter.rstrip() + f"\nsources: {json.dumps(sources, ensure_ascii=False)}\n"
 
     # Replace tags line
     if re.search(r"^tags:", frontmatter, re.MULTILINE):
         frontmatter = re.sub(
             r"^tags:.*$",
-            f"tags: {json.dumps(tags)}",
+            f"tags: {json.dumps(tags, ensure_ascii=False)}",
             frontmatter,
             flags=re.MULTILINE,
         )
+
+    # Replace or add folder line
+    folder_json = json.dumps(folder, ensure_ascii=False) if folder else "null"
+    if re.search(r"^folder:", frontmatter, re.MULTILINE):
+        frontmatter = re.sub(
+            r"^folder:.*$",
+            f"folder: {folder_json}",
+            frontmatter,
+            flags=re.MULTILINE,
+        )
+    else:
+        frontmatter = frontmatter.rstrip() + f"\nfolder: {folder_json}\n"
 
     path.write_text(f"---{frontmatter}---{body}", encoding="utf-8")

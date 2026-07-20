@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
-import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
+import { TopBar } from './components/TopBar';
 import { CategoryNav } from './components/CategoryNav';
 import { SearchBar } from './components/SearchBar';
 import { StatsPanel } from './components/StatsPanel';
@@ -79,8 +80,6 @@ function HomePage() {
     hasMore, page, pageSize, totalPages, setPage, setPageSize, refresh,
     latestIngestionCount, latestIngestionAt,
   } = useHotspotData(category, timeRange, keyword);
-
-  const todos = useTodos();
 
   useEffect(() => {
     let cancelled = false;
@@ -173,35 +172,41 @@ function HomePage() {
     else navigate(`/category/${cat}`);
   }, [navigate]);
 
+  const handleOpenSidebar = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('hotspot:open-sidebar'));
+  }, []);
+
+  // 当前分类的人类可读标题
+  const currentCatLabel = (() => {
+    if (category === 'all') return '全部热点';
+    const map: Record<string, string> = {
+      ai: '科技 / AI',
+      security: '网络安全',
+      finance: '金融 / 投资',
+      startup: '独立开发 / 创业',
+      bid: '招标资讯',
+      github: 'GitHub 项目',
+    };
+    return map[category] || '全部热点';
+  })();
+
   return (
-    <>
-      <Header
+    <div className="home-main">
+      <TopBar
+        pageTitle={currentCatLabel}
+        pageSubtitle="七大领域热点实时聚合"
         latestIngestionCount={latestIngestionCount}
-        latestIngestionAt={latestIngestionAt}
         lastUpdated={lastUpdated}
+        refreshIntervalMinutes={refreshInterval}
+        lastAutoRefreshAtRef={lastAutoRefreshAtRef}
+        onOpenSidebar={handleOpenSidebar}
         onRefresh={handleManualRefresh}
+        refreshing={manualRefreshing}
         theme={theme}
         onThemeToggle={toggleTheme}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenFavorites={() => setFavoritesOpen(true)}
         favoritesCount={favoritesCount}
-        refreshIntervalMinutes={refreshInterval}
-        lastAutoRefreshAtRef={lastAutoRefreshAtRef}
-        todosOpenCount={todos.count?.by_status.open ?? 0}
-        refreshing={manualRefreshing}
-      />
-
-      <SettingsPanel
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        onRefreshIntervalChange={setRefreshInterval}
-      />
-
-      <FavoritesPanel
-        open={favoritesOpen}
-        onClose={() => setFavoritesOpen(false)}
-        onCountChange={setFavoritesCount}
-        onFavoritesChange={handleFavoritesChange}
       />
 
       <CategoryNav
@@ -247,54 +252,114 @@ function HomePage() {
         />
       )}
 
-      <footer className="mt-10 pt-5 text-center" style={{ borderTop: '1px solid var(--border-color)' }}>
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          热点地图 | 数据来源: 安全客 / Krebs on Security / PortSwigger / SANS ISC / FreeBuf / 奇安信 / AVD / CNNVD / CNVD / 新浪财经 / 东方财富 / Hacker News / aihot.virxact.com / GitHub Trending / 中国政府采购网
-        </p>
-        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-          点击卡片查看原文 | {formatRefreshLabel(refreshInterval)}
-        </p>
-        <p className="text-xs mt-1">
-          <a href="/api/export" target="_blank" className="hover:underline" style={{ color: 'var(--color-general)' }} rel="noreferrer">
-            导出静态 HTML
-          </a>
-        </p>
+      <footer className="mt-8 pt-4 text-center" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+        {category === 'all' ? (
+          <div className="datasource-block">
+            <div className="source-section-label">数据源 · 7 大类聚合</div>
+            <ul className="source-list">
+              <li>aihot.virxact.com</li>
+              <li>安全客 · Krebs · PortSwigger</li>
+              <li>FreeBuf · SANS ISC</li>
+              <li>奇安信 · AVD · CNNVD</li>
+              <li>新浪财经 · 东方财富</li>
+              <li>Hacker News · GitHub</li>
+              <li>中国政府采购网</li>
+            </ul>
+          </div>
+        ) : (
+          <p className="text-[11px] font-mono" style={{ color: 'var(--text-muted)' }}>
+            热点地图 · 16 数据源聚合 · v1.4
+          </p>
+        )}
       </footer>
-    </>
+
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onRefreshIntervalChange={setRefreshInterval}
+      />
+
+      <FavoritesPanel
+        open={favoritesOpen}
+        onClose={() => setFavoritesOpen(false)}
+        onCountChange={setFavoritesCount}
+        onFavoritesChange={handleFavoritesChange}
+      />
+    </div>
   );
 }
 
 export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(getInitialTheme);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
+  const todos = useTodos();
+  const [secretTTL, setSecretTTL] = useState<number | null>(null);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     try { localStorage.setItem('hotspot-theme', theme); } catch {}
   }, [theme]);
 
+  useEffect(() => {
+    const handler = () => setSidebarOpen(true);
+    window.addEventListener('hotspot:open-sidebar', handler);
+    return () => window.removeEventListener('hotspot:open-sidebar', handler);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const r = await fetch('/api/secrets/status');
+        if (!cancelled && r.ok) {
+          const data = await r.json();
+          if (data.setup && data.unlocked) {
+            setSecretTTL(data.remaining_seconds);
+          } else {
+            setSecretTTL(null);
+          }
+        }
+      } catch {}
+    };
+    poll();
+    const t = window.setInterval(poll, 15000);
+    return () => { cancelled = true; window.clearInterval(t); };
+  }, []);
+
   const toggleTheme = useCallback(() => {
     setTheme(t => (t === 'dark' ? 'light' : 'dark'));
   }, []);
 
   const goHome = useCallback(() => navigate('/'), [navigate]);
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <div className="min-h-[100dvh]" style={{ backgroundColor: 'var(--bg-primary)' }}>
-        <div className="max-w-7xl mx-auto px-4 py-5 relative z-10">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/category/:cat" element={<HomePage />} />
-            <Route path="/todos" element={<TodosPage onBack={goHome} />} />
-            <Route path="/history" element={<HistoryPage favoritedIds={new Set()} onToggleFavorite={() => {}} onBack={goHome} />} />
-            <Route path="/skills" element={<SkillsPage onBack={goHome} />} />
-            <Route path="/secrets" element={<SecretsPage onBack={goHome} />} />
-            <Route path="/sync" element={<SyncPage onBack={goHome} />} />
-            <Route path="/weekly-report" element={<WeeklyReportPage onBack={goHome} />} />
-            <Route path="/knowledge" element={<KnowledgePage onBack={goHome} />} />
-            <Route path="/codegarden" element={<CodegardenPage onBack={goHome} />} />
-          </Routes>
+      <div className="app-shell">
+        <div className="app-grid">
+          <Sidebar
+            open={sidebarOpen}
+            onClose={closeSidebar}
+            todosOpenCount={todos.count?.by_status.open ?? 0}
+            secretTTL={secretTTL}
+          />
+          <div className="app-main-col">
+            <div className="app-container">
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/category/:cat" element={<HomePage />} />
+                <Route path="/todos" element={<TodosPage />} />
+                <Route path="/history" element={<HistoryPage favoritedIds={new Set()} onToggleFavorite={() => {}} />} />
+                <Route path="/skills" element={<SkillsPage />} />
+                <Route path="/secrets" element={<SecretsPage />} />
+                <Route path="/sync" element={<SyncPage />} />
+                <Route path="/weekly-report" element={<WeeklyReportPage />} />
+                <Route path="/knowledge" element={<KnowledgePage />} />
+                <Route path="/codegarden" element={<CodegardenPage />} />
+              </Routes>
+            </div>
+          </div>
         </div>
       </div>
     </ThemeContext.Provider>

@@ -86,8 +86,10 @@ def parse_frontmatter(md_path: Path) -> Optional[dict]:
                 value = True
             elif value == "false":
                 value = False
-            elif value.startswith("[") and value.endswith("]"):
-                # Inline JSON array (e.g. sources: ["cubox"], tags: ["a","b"])
+            elif (value.startswith("[") and value.endswith("]")) or (
+                value.startswith("{") and value.endswith("}")
+            ):
+                # Inline JSON array/object (e.g. sources: ["cubox"], folder: {"id": "1"})
                 try:
                     value = json.loads(value)
                 except json.JSONDecodeError:
@@ -129,6 +131,7 @@ def sync_item_to_db(md_path: Path) -> None:
         difficulty=fm.get("difficulty"),
         tags=fm.get("tags", []) if isinstance(fm.get("tags"), list) else [],
         concepts=fm.get("concepts", []) if isinstance(fm.get("concepts"), list) else [],
+        folder=fm.get("folder") if isinstance(fm.get("folder"), dict) else None,
         mastered=fm.get("mastery", 0) if isinstance(fm.get("mastery"), (int, float)) else 0,
         compiled=fm.get("compiled", False) if isinstance(fm.get("compiled"), bool) else False,
         ingested_at=fm.get("ingested_at", now_iso()),
@@ -170,6 +173,8 @@ def write_item_to_md(item: dict) -> None:
         if m:
             content = existing[m.end():]
 
+    folder = item.get('folder')
+    folder_json = json.dumps(folder, ensure_ascii=False) if isinstance(folder, dict) else "null"
     frontmatter = f"""---
 id: "{item.get('id', item_id)}"
 title: "{item.get('title', 'Untitled')}"
@@ -181,12 +186,13 @@ domain: {item.get('domain') or 'null'}
 topic: {item.get('topic') or 'null'}
 type: {item.get('type') or 'null'}
 difficulty: {item.get('difficulty') or 'null'}
-tags: {json.dumps(item.get('tags', []))}
-concepts: {json.dumps(item.get('concepts', []))}
+tags: {json.dumps(item.get('tags', []), ensure_ascii=False)}
+concepts: {json.dumps(item.get('concepts', []), ensure_ascii=False)}
 mastery: {item.get('mastery', 0)}
 last_reviewed: {item.get('last_reviewed') or 'null'}
 review_count: {item.get('review_count', 0)}
-related_items: {json.dumps(item.get('related_items', []))}
+related_items: {json.dumps(item.get('related_items', []), ensure_ascii=False)}
+folder: {folder_json}
 ---
 
 {content}

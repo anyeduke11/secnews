@@ -38,6 +38,7 @@ class GateContext(BaseModel):
     existing_titles: list[str] = Field(default_factory=list)
     known_ids: Optional[Any] = None  # callable returning set of known ids
     http_session_factory: Optional[Any] = None  # callable returning aiohttp session
+    url_title_pairs: list[dict] = Field(default_factory=list, description="本批次所有 item 的 url/title/source 三元组, DuplicateGate 用于检测同 URL 不同 title 歧义")
 
 
 class BaseGate(ABC):

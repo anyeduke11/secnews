@@ -2,8 +2,65 @@
 
 > 目标：单人使用、轻量级、高性能、稳健可靠、后续扩展性强
 > 范围：后端采集 / 存储 / API / 缓存 / 可观测性 全栈重构
-> 文档版本：2026-07-04
-> 改进计划：[IMPROVEMENT_PLAN.md](./docs/IMPROVEMENT_PLAN.md) (v1.3.0)
+> 文档版本：2026-07-04 (v3.0), 2026-07-19 增补 v1.5+ CodeGarden 子系统
+> 改进计划：[IMPROVEMENT_PLAN.md](./IMPROVEMENT_PLAN.md) (v1.3.0 + v1.5+ Phase 2a-2d)
+> 子系统设计：[CodeGarden_PRD_v2.0.md](./CodeGarden_PRD_v2.0.md) | [Phase 2a spec](../.trae/specs/phase2a-codegarden-mvp/spec.md)
+
+---
+
+## 〇、v1.5+ 子系统拓扑（2026-07-19 增补）
+
+hotspot v1.5+ 演进为**三大子系统平级共存**的拓扑：
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                     hotspot v1.5+ 平台 (端口 8898)                  │
+├─────────────────────┬─────────────────────┬────────────────────────┤
+│  SecNews 资讯聚合   │  Knowledge LLM-Wiki │  CodeGarden 代码花园    │
+│  (v1.4 stable)      │  (v1.4 stable)      │  (Phase 2a 规划中)      │
+│                     │                     │                        │
+│  • 7 领域采集       │  • items (L1, 409)  │  • cg_projects 主表    │
+│  • 10 层质量门禁    │  • concepts (L2, 96)│  • 8 阶段生命周期      │
+│  • 趋势分析         │  • learning (L3)    │  • GitHub 上游同步     │
+│  • 收藏 / 待办      │  • content (L4)     │  • 资讯→项目转化通道   │
+│                     │  • SOUL 角色画像    │  • Skill 扩展 9 字段   │
+├─────────────────────┴─────────────────────┴────────────────────────┤
+│                       共享基础设施                                  │
+│  • FastAPI 后端 + SQLite (WAL)                                     │
+│  • React 18 + Vite 5 + Tailwind                                   │
+│  • APScheduler (14 jobs + cg_upstream_sync_job 待加)               │
+│  • knowledge_tasks 任务队列 (task_type 扩展 project_sync)          │
+│  • secrets_service (github_token)                                  │
+│  • sync_bundle (cg_projects 主表待纳入)                            │
+│  • skills 表 (Phase 41 + Phase 2a 扩展 9 字段)                     │
+└────────────────────────────────────────────────────────────────────┘
+                             │
+                             ▼
+                   资讯→项目转化通道
+   knowledge_items (type=github) ──→ cg_projects (source_type=fork/reference)
+                  ↑                              ↓
+            github_collector           source_item_id 反向溯源
+                  ↑                     (无外键约束)
+            GitHub Trending
+```
+
+### 0.1 子系统边界
+
+| 子系统 | 路径 | 数据库表 | 前端路由 | API 前缀 |
+|--------|------|----------|----------|----------|
+| SecNews | `backend/collectors/` | `hotspots` / `favorites` / `todos` / `trends` | `/` `/history` | `/api/hotspots` `/api/favorites` |
+| Knowledge | `knowledge/` | `knowledge_items` / `knowledge_concepts` / `knowledge_tasks` / `skills` | `/knowledge` | `/api/knowledge` `/api/skills` |
+| CodeGarden | `codegarden/` (待建) | `cg_projects` / `cg_project_stages` / `cg_project_links` / `cg_project_activities` | `/codegarden` (待加) | `/api/codegarden` (待加) |
+
+### 0.2 v1.5+ 关键设计决策
+
+1. **解耦共存**：CodeGarden 与 `knowledge/` 平级，独立目录/路由/表前缀 (`cg_`)
+2. **复用而非重复**：github_collector 继续抓取，CodeGarden 只做项目管理；Skill 扩展 `skills` 表不新建
+3. **资讯→项目转化通道**：`knowledge_items` (type=github) 是唯一"源"入口，通过 `cg_projects.source_item_id` 反向溯源（无 FK 约束，应用层负责一致性）
+4. **GitHub token 走 secrets_service**：key name `github_token`，缺失时 API 返回 424 Failed Dependency
+5. **跨端同步只含主表**：`sync_bundle` 加入 `cg_projects`，子表 stages/links/activities 不跨端同步
+
+详见 [Phase 2a spec](../.trae/specs/phase2a-codegarden-mvp/spec.md) §关键决策 1-10。
 
 ---
 

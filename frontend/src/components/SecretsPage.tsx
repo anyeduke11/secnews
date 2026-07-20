@@ -1,28 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSecrets } from '../hooks/useSecrets';
 import { SecretItem } from '../types';
-
-interface SecretsPageProps {
-  onBack: () => void;
-}
-
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
+import { Icon } from './Icon';
 
 function formatRemaining(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -30,7 +9,7 @@ function formatRemaining(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export function SecretsPage({ onBack }: SecretsPageProps) {
+export function SecretsPage() {
   const {
     status, items, total, loading, error,
     refreshStatus, refreshList,
@@ -61,18 +40,6 @@ export function SecretsPage({ onBack }: SecretsPageProps) {
       {/* 顶部标题区 */}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="btn-ghost px-2.5 py-1.5 text-xs"
-            title="返回首页"
-            aria-label="返回首页"
-          >
-            <Icon>
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </Icon>
-            返回首页
-          </button>
           <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
             🔐 密钥管理
           </h2>
@@ -336,6 +303,9 @@ function StatusBar({
           <p style={{ color: 'var(--text-primary)' }}>🔒 已锁定</p>
           <p style={{ color: 'var(--text-muted)', marginTop: 2 }}>
             输入主密钥可解锁 30 分钟, 期间可一键复制明文 API key。
+            {status.keychain_persisted && (
+              <span style={{ color: '#00c96a' }}> · 密钥已持久化, 重启后自动恢复</span>
+            )}
           </p>
         </div>
         <button

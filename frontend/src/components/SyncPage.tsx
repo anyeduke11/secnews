@@ -1,52 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSync } from '../hooks/useSync';
 import { formatRelativeTime } from '../types';
-
-interface SyncPageProps {
-  onBack: () => void;
-}
+import { Icon } from './Icon';
+import { StatusBadge } from './SyncStatusBadge';
 
 // Phase 49: master_key 客户端缓存 (sessionStorage, 关页即清, 不持久化到 disk)
 const MASTER_KEY_CACHE_KEY = 'hotspot.sync.master_key';
 
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
-
-function StatusBadge({ status }: { status?: string | null }) {
-  const s = status || 'unknown';
-  const colorMap: Record<string, { bg: string; fg: string; label: string }> = {
-    success: { bg: 'rgba(0, 201, 106, 0.15)', fg: '#00c96a', label: '成功' },
-    error: { bg: 'rgba(232, 93, 93, 0.15)', fg: '#e85d5d', label: '失败' },
-    skipped: { bg: 'rgba(240, 201, 41, 0.15)', fg: '#f0c929', label: '跳过' },
-    unknown: { bg: 'rgba(136, 136, 153, 0.15)', fg: '#888899', label: '未知' },
-  };
-  const c = colorMap[s] || colorMap.unknown;
-  return (
-    <span
-      className="text-[10px] px-1.5 py-0.5 rounded"
-      style={{ background: c.bg, color: c.fg }}
-    >
-      {c.label}
-    </span>
-  );
-}
-
-export function SyncPage({ onBack }: SyncPageProps) {
+export function SyncPage() {
   const {
     status, history, preview, lastResult, loading, error,
     fetchStatus, fetchHistory, fetchPreview,
@@ -256,18 +217,6 @@ export function SyncPage({ onBack }: SyncPageProps) {
       {/* 顶部 */}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="btn-ghost px-2.5 py-1.5 text-xs"
-            title="返回首页"
-            aria-label="返回首页"
-          >
-            <Icon>
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </Icon>
-            返回首页
-          </button>
           <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
             ☁️ 跨端配置同步
           </h2>

@@ -18,6 +18,7 @@ class KnowledgeItem:
     difficulty: Optional[str] = None  # beginner | intermediate | advanced | expert
     tags: list[str] = field(default_factory=list)
     concepts: list[str] = field(default_factory=list)
+    folder: Optional[dict] = None
     mastered: int = 0
     compiled: bool = False
     ingested_at: str = ""
@@ -37,6 +38,7 @@ class KnowledgeItem:
             difficulty=row.get("difficulty"),
             tags=json.loads(row["tags"]) if row.get("tags") else [],
             concepts=json.loads(row["concepts"]) if row.get("concepts") else [],
+            folder=json.loads(row["folder"]) if row.get("folder") else None,
             mastered=row.get("mastery", 0),
             compiled=bool(row.get("compiled", 0)),
             ingested_at=row["ingested_at"],
@@ -55,6 +57,7 @@ class KnowledgeItem:
             "difficulty": self.difficulty,
             "tags": self.tags,
             "concepts": self.concepts,
+            "folder": self.folder,
             "mastered": self.mastered,
             "compiled": self.compiled,
             "ingested_at": self.ingested_at,

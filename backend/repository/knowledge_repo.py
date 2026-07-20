@@ -34,9 +34,9 @@ class KnowledgeRepo:
         conn.execute(
             """
             INSERT INTO knowledge_items (id, title, source, source_url, domain,
-                topic, type, difficulty, tags, concepts, mastery, compiled,
+                topic, type, difficulty, tags, concepts, folder, mastery, compiled,
                 ingested_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 title=excluded.title,
                 source=excluded.source,
@@ -47,6 +47,7 @@ class KnowledgeRepo:
                 difficulty=excluded.difficulty,
                 tags=excluded.tags,
                 concepts=excluded.concepts,
+                folder=excluded.folder,
                 mastery=excluded.mastery,
                 compiled=excluded.compiled,
                 updated_at=excluded.updated_at
@@ -62,6 +63,7 @@ class KnowledgeRepo:
                 item.difficulty,
                 json.dumps(item.tags),
                 json.dumps(item.concepts),
+                json.dumps(item.folder) if item.folder else None,
                 item.mastered,
                 int(item.compiled),
                 item.ingested_at,

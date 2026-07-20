@@ -210,3 +210,75 @@ export const SOURCE_TYPE_LABELS: Record<ProjectSourceType, string> = {
   imported: '导入',
   reference: '参考',
 };
+
+// ============================================================================
+// 批量扫描导入 (Phase 1)
+// ============================================================================
+export type ScanSourceType = 'local' | 'git' | 'archive';
+export type BatchInferredType = ProjectType;  // 复用 ProjectType, 值域相同
+
+// /api/codegarden/scan/* 返回的 detected 项 (与后端 DetectedProject.to_dict 对齐)
+export interface DetectedProject {
+  name: string;
+  absolute_path: string;
+  relative_path: string;
+  marker_file: string;
+  language: string;
+  inferred_type: BatchInferredType;
+  description: string;
+  tech_stack: string[];
+}
+
+// /api/codegarden/scan/* 顶层返回
+export interface BatchScanResult {
+  scan_root: string;
+  source_type: ScanSourceType;
+  source_path: string;
+  is_temporary: boolean;
+  temp_id: string | null;
+  message: string;
+  detected: DetectedProject[];
+}
+
+// /api/codegarden/batch-import 请求 (与后端 BatchImportRequest / BatchImportItem 对齐)
+export interface BatchImportItemRequest {
+  name: string;
+  absolute_path: string;
+  relative_path?: string;
+  marker_file?: string;
+  language?: string;
+  inferred_type?: BatchInferredType;
+  description?: string;
+  tech_stack?: string[];
+  override_name?: string;
+  override_type?: ProjectType;
+  override_lifecycle?: LifecycleStage;
+  override_tags?: string[];
+  override_description?: string;
+}
+
+export interface BatchImportRequest {
+  projects: BatchImportItemRequest[];
+  temp_id?: string;
+  source_type?: ProjectSourceType;
+  default_lifecycle?: LifecycleStage;
+}
+
+// /api/codegarden/batch-import 返回
+export interface BatchImportResult {
+  imported: Array<{ index: number; id: string; name: string; absolute_path: string }>;
+  failed: Array<{ index: number; name: string; absolute_path: string; error: string }>;
+  imported_count: number;
+  failed_count: number;
+}
+
+// /api/codegarden/projects/batch-delete 请求/返回
+export interface BatchDeleteRequest {
+  ids: string[];
+}
+export interface BatchDeleteResult {
+  deleted: string[];
+  failed: Array<{ id: string; error: string }>;
+  deleted_count: number;
+  failed_count: number;
+}

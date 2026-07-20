@@ -12,6 +12,11 @@ import {
   LifecycleStage,
   ProjectSourceType,
   ProjectType,
+  BatchScanResult,
+  BatchImportRequest,
+  BatchImportResult,
+  BatchDeleteRequest,
+  BatchDeleteResult,
 } from '../types/codegarden';
 
 export interface UseCodegardenProjectsReturn {
@@ -35,6 +40,7 @@ export interface UseCodegardenProjectsReturn {
   create: (req: CgProjectCreateRequest) => Promise<CgProject>;
   update: (id: string, req: CgProjectUpdateRequest) => Promise<CgProject>;
   remove: (id: string) => Promise<void>;
+  batchRemove: (ids: string[]) => Promise<BatchDeleteResult>;
   archive: (id: string) => Promise<CgProject>;
   restore: (id: string) => Promise<CgProject>;
   transition: (id: string, to: LifecycleStage) => Promise<CgProject>;
@@ -42,6 +48,13 @@ export interface UseCodegardenProjectsReturn {
   importFromGithub: (req: GithubImportRequest) => Promise<CgProject>;
   importFromKnowledge: (req: FromKnowledgeRequest) => Promise<CgProject>;
   listCandidates: () => Promise<CandidateItem[]>;
+
+  // 批量扫描导入 (Phase 1)
+  scanLocal: (path: string) => Promise<BatchScanResult>;
+  scanGit: (url: string) => Promise<BatchScanResult>;
+  scanUpload: (file: File) => Promise<BatchScanResult>;
+  scanCleanup: (tempId: string) => Promise<{ cleaned: boolean }>;
+  batchImport: (req: BatchImportRequest) => Promise<BatchImportResult>;
 }
 
 export function useCodegardenProjects(): UseCodegardenProjectsReturn {
@@ -140,6 +153,27 @@ export function useCodegardenProjects(): UseCodegardenProjectsReturn {
     setTotal(prev => Math.max(0, prev - 1));
   }, []);
 
+  const batchRemove = useCallback(async (ids: string[]): Promise<BatchDeleteResult> => {
+    const body: BatchDeleteRequest = { ids };
+    const r = await fetch('/api/codegarden/projects/batch-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok && r.status !== 207) {
+      const detail = await r.json().catch(() => ({}));
+      throw new Error(detail?.detail?.message || `批量删除失败 (${r.status})`);
+    }
+    const data: BatchDeleteResult = await r.json();
+    // 局部状态: 移除 deleted 列表中的 id
+    if (data.deleted.length > 0) {
+      const deletedSet = new Set(data.deleted);
+      setItems(prev => prev.filter(p => !deletedSet.has(p.id)));
+      setTotal(prev => Math.max(0, prev - data.deleted.length));
+    }
+    return data;
+  }, []);
+
   const archive = useCallback(async (id: string): Promise<CgProject> => {
     const r = await fetch(`/api/codegarden/projects/${id}/archive`, { method: 'POST' });
     if (!r.ok) throw new Error(`归档失败 (${r.status})`);
@@ -227,12 +261,82 @@ export function useCodegardenProjects(): UseCodegardenProjectsReturn {
     return data.items || [];
   }, []);
 
+  // ---- 批量扫描导入 (Phase 1) ----
+  const scanLocal = useCallback(async (path: string): Promise<BatchScanResult> => {
+    const r = await fetch('/api/codegarden/scan/local', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw new Error(body?.detail?.message || `扫描失败 (${r.status})`);
+    }
+    return r.json();
+  }, []);
+
+  const scanGit = useCallback(async (url: string): Promise<BatchScanResult> => {
+    const r = await fetch('/api/codegarden/scan/git', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw new Error(body?.detail?.message || `扫描失败 (${r.status})`);
+    }
+    return r.json();
+  }, []);
+
+  const scanUpload = useCallback(async (file: File): Promise<BatchScanResult> => {
+    const form = new FormData();
+    form.append('file', file);
+    const r = await fetch('/api/codegarden/scan/upload', {
+      method: 'POST',
+      body: form,
+    });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw new Error(body?.detail?.message || `扫描失败 (${r.status})`);
+    }
+    return r.json();
+  }, []);
+
+  const scanCleanup = useCallback(async (tempId: string): Promise<{ cleaned: boolean }> => {
+    const r = await fetch('/api/codegarden/scan/cleanup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ temp_id: tempId }),
+    });
+    if (!r.ok) throw new Error(`清理失败 (${r.status})`);
+    return r.json();
+  }, []);
+
+  const batchImport = useCallback(async (req: BatchImportRequest): Promise<BatchImportResult> => {
+    const r = await fetch('/api/codegarden/batch-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw new Error(body?.detail?.message || `批量导入失败 (${r.status})`);
+    }
+    const result: BatchImportResult = await r.json();
+    // 导入成功后, 局部刷新 — 但避免重复添加已存在项目
+    if (result.imported_count > 0) {
+      await fetchList();
+    }
+    return result;
+  }, [fetchList]);
+
   return {
     items, total, loading, error,
     lifecycle, sourceType, projectType, keyword,
     setLifecycle, setSourceType, setProjectType, setKeyword,
-    refresh, create, update, remove,
+    refresh, create, update, remove, batchRemove,
     archive, restore, transition, syncUpstream,
     importFromGithub, importFromKnowledge, listCandidates,
+    scanLocal, scanGit, scanUpload, scanCleanup, batchImport,
   };
 }

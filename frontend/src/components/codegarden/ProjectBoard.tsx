@@ -11,9 +11,15 @@ interface ProjectBoardProps {
   items: CgProject[];
   onSelect?: (p: CgProject) => void;
   onTransition?: (id: string, to: LifecycleStage) => void;
+  selectedIds?: Set<string>;
+  selectable?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
-export function ProjectBoard({ items, onSelect, onTransition }: ProjectBoardProps) {
+export function ProjectBoard({
+  items, onSelect, onTransition,
+  selectedIds, selectable, onToggleSelect,
+}: ProjectBoardProps) {
   const grouped = useMemo(() => {
     const map: Record<LifecycleStage, CgProject[]> = {
       ideation: [], prototype: [], development: [], testing: [],
@@ -47,6 +53,9 @@ export function ProjectBoard({ items, onSelect, onTransition }: ProjectBoardProp
                 project={p}
                 onClick={() => onSelect?.(p)}
                 onTransition={onTransition}
+                selected={selectedIds?.has(p.id)}
+                selectable={selectable}
+                onToggleSelect={onToggleSelect}
               />
             ))}
             {grouped[stage].length === 0 && (

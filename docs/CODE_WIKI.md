@@ -1,14 +1,20 @@
 # Hotspot — Code Wiki
 
 > 仓库: `/Users/duke/Documents/hotspot`
-> 文档版本: 1.2.0(对齐 `backend.main.APP_VERSION`)
-> 最后更新: 2026-07-06
+> 文档版本: 1.5.0 (v1.4 Phase 1j 完成 + Phase 2a CodeGarden MVP 规划中)
+> 最后更新: 2026-07-19
 
 ---
 
 ## 1. 项目概述
 
-Hotspot 是一个**热点资讯聚合与质量管控平台**。它从多个公开数据源(RSS、API、HTML 站点)自动采集热点资讯,经过 9 道质量门禁(Quality Gate)筛选打分后入库 SQLite,并通过 React 前端展示给用户。定位是**单人本地使用**的轻量级数据看板。
+Hotspot 是一个**单人本地 IT 工作站**,包含三大子系统：
+
+1. **SecNews 资讯聚合** — 7 领域热点采集 + 10 层质量门禁 + 趋势分析 (v1.4 stable)
+2. **Knowledge LLM-Wiki** — 文件系统知识库 (409 items / 96 concepts / 17.1% compiled) + 联邦搜索 + SOUL 画像 (v1.4 stable)
+3. **CodeGarden 代码花园** — vibecoding + GitHub fork 项目管理 (Phase 2a 规划中)
+
+三大子系统平级共存，共享 FastAPI / SQLite / React / scheduler / secrets / sync_bundle / skills 基础设施。
 
 ### 1.1 核心能力
 
@@ -1118,6 +1124,96 @@ sqlite3 backend/hotspot.db "PRAGMA wal_checkpoint(TRUNCATE); VACUUM;"
 - [docs/RCA.md](file:///Users/duke/Documents/hotspot/docs/RCA.md) — 根因分析记录
 - [docs/CHAOS_REPORT.md](file:///Users/duke/Documents/hotspot/docs/CHAOS_REPORT.md) — 混沌测试报告
 - [docs/PERF_REPORT.md](file:///Users/duke/Documents/hotspot/docs/PERF_REPORT.md) — 性能报告
+- [docs/CodeGarden_PRD_v2.0.md](file:///Users/duke/Documents/hotspot/docs/CodeGarden_PRD_v2.0.md) — **CodeGarden PRD v2.0 (v1.5+ 新增)**
+- [.trae/specs/phase2a-codegarden-mvp/](file:///Users/duke/Documents/hotspot/.trae/specs/phase2a-codegarden-mvp/) — **Phase 2a 实施计划三件套 (v1.5+ 新增)**
+
+---
+
+## 12. CodeGarden 子系统模块（v1.5+ / Phase 2a 规划中）
+
+### 12.1 子系统定位
+
+CodeGarden 是 hotspot v1.5+ 的代码项目管理子系统，与 `knowledge/` 平级、解耦共存。解决个人 vibecoding 中"开发快、管理乱、维护难、AI 失忆"的核心痛点。
+
+### 12.2 数据库表（5 张 cg_ 表 + skills 扩展）
+
+| 表名 | 用途 | 状态 |
+|------|------|------|
+| `cg_projects` | 项目主表 (TEXT UUID, 25 列) | Phase 2a Task A1 待建 |
+| `cg_project_stages` | 阶段时间线 | Phase 2a Task A1 待建 |
+| `cg_project_links` | 项目关联 (依赖关系) | Phase 2a Task A1 待建 |
+| `cg_project_activities` | 活动日志 | Phase 2a Task A1 待建 |
+| `skills` (扩展) | 复用既有表，加 9 个新字段 | Phase 2a Task A1 待建 |
+
+迁移文件：`backend/repository/migrations/019_codegarden.sql`
+
+### 12.3 后端模块（Phase 2a 待建）
+
+| 模块 | 路径 | 职责 |
+|------|------|------|
+| Repository | `backend/repository/codegarden_repo.py` | CRUD + 多维筛选 + lifecycle 切换 |
+| ProjectService | `backend/services/codegarden_project_service.py` | 业务逻辑 + `_LEGAL_TRANSITIONS` 跳转表 |
+| GithubService | `backend/services/codegarden_github_service.py` | GitHub REST API 客户端 (httpx + token) |
+| KnowledgeBridge | `backend/services/codegarden_knowledge_bridge.py` | 资讯→项目转化 + candidates 列表 |
+| API Router | `backend/api/codegarden.py` | 16 个端点 (前缀 `/api/codegarden`) |
+| Scheduler Job | `backend/scheduler/jobs.py` (新增函数) | `cg_upstream_sync_job` (job 15, 每日 09:00) |
+| Sync Bundle | `backend/services/sync_bundle.py` (扩展) | 加入 `codegarden_projects` key |
+
+### 12.4 前端模块（Phase 2a 待建）
+
+| 模块 | 路径 | 职责 |
+|------|------|------|
+| Types | `frontend/src/types/codegarden.ts` | CgProject + 5 个 Request/Response 接口 |
+| Hook | `frontend/src/hooks/useCodegardenProjects.ts` | 数据 hook (AbortController + debounce) |
+| ProjectBoard | `frontend/src/components/codegarden/ProjectBoard.tsx` | 6 列看板 (ideation→maintenance) |
+| ProjectCard | `frontend/src/components/codegarden/ProjectCard.tsx` | 项目卡片 + commits_behind 徽章 |
+| ProjectDetail | `frontend/src/components/codegarden/ProjectDetail.tsx` | 详情弹窗 + timeline + activities |
+| GithubImportDialog | `frontend/src/components/codegarden/GithubImportDialog.tsx` | GitHub 导入表单 + metadata 预览 |
+| FromKnowledgeDialog | `frontend/src/components/codegarden/FromKnowledgeDialog.tsx` | 从知识库候选列表导入 |
+| UpstreamStatus | `frontend/src/components/codegarden/UpstreamStatus.tsx` | 上游状态显示 + 立即同步按钮 |
+| CodegardenPage | `frontend/src/pages/CodegardenPage.tsx` | 页面集成 + App.tsx 路由 |
+| KnowledgePage CTA | `frontend/src/components/KnowledgePage.tsx` (扩展) | type=github 时显示「🌱 加入 CodeGarden」 |
+| Header Nav | `frontend/src/components/Header.tsx` (扩展) | CodeGarden 入口按钮 |
+
+### 12.5 资讯→项目转化通道
+
+```
+github_collector (抓取)
+    ↓
+knowledge_items (type=github) ← 唯一"源"入口
+    ↓
+GET /api/codegarden/candidates (列出未转化的)
+    ↓
+POST /api/codegarden/from-knowledge (body: {item_id, source_type, ...})
+    ↓ (幂等: 首次 201, 重复 200)
+cg_projects (source_item_id 反向溯源, 无 FK 约束)
+```
+
+### 12.6 8 阶段生命周期状态机
+
+```
+ideation → prototype → mvp → beta → running → maintenance
+                ↓         ↓        ↓          ↓
+              deprecated  deprecated deprecated deprecated
+                                                  ↓
+                                              archived
+```
+
+合法跳转由 `CodegardenProjectService._LEGAL_TRANSITIONS` 字典定义，非法跳转抛 `InternalException`，API 返回 400。
+
+### 12.7 GitHub 集成
+
+- **REST API 客户端**: httpx + token 鉴权
+- **Token 来源**: `secrets_service.get_secret_value("github_token")`
+- **缺失时**: 返回 424 Failed Dependency (不是 500)
+- **速率限制**: 强制 token (5000/h) + 24h 同步间隔 + 缓存 commits 信息
+- **主要 API**:
+  - `GET /repos/{owner}/{repo}` — fetch_repo_metadata
+  - `GET /repos/{owner}/{repo}/compare/{base}...{head}` — compare_commits
+
+### 12.8 跨端同步
+
+`sync_bundle.build_bundle()` 输出新增 `codegarden_projects` key，仅含主表数据（不含 stages/links/activities）。`apply_bundle()` 通过 `_apply_cg_projects(items)` upsert by id (ON CONFLICT DO UPDATE)。
 
 ---
 
@@ -1134,6 +1230,11 @@ sqlite3 backend/hotspot.db "PRAGMA wal_checkpoint(TRUNCATE); VACUUM;"
 | **trace_id** | 分布式追踪 ID,通过 `X-Trace-Id` 头透传,写入每条日志便于 grep |
 | **source coverage** | Phase 9 引入的源覆盖度评估,识别长期无产出的"死源"(active/stale/dead) |
 | **FinalUrlGate** | Phase 9.2 引入的 URL 下钻门禁,把 RSS tag/landing 页解析到真实文章 URL |
+| **CodeGarden** | v1.5+ 代码项目管理子系统,与 knowledge/ 平级,管理 vibecoding 产物 + GitHub fork 项目 |
+| **cg_projects** | CodeGarden 主表,TEXT UUID id,25 列,含 source_item_id 反向溯源字段 |
+| **source_item_id** | cg_projects 字段,逻辑指向 knowledge_items.id,无 FK 约束,应用层负责一致性 |
+| **lifecycle 状态机** | CodeGarden 8 阶段: ideation → prototype → mvp → beta → running → maintenance → deprecated → archived |
+| **project_sync** | knowledge_tasks.task_type 扩展值,触发 GitHub 上游同步 |
 
 ## 附录 B:外部参考
 
@@ -1143,3 +1244,4 @@ sqlite3 backend/hotspot.db "PRAGMA wal_checkpoint(TRUNCATE); VACUUM;"
 - [APScheduler 文档](https://apscheduler.readthedocs.io/)
 - [FastAPI 文档](https://fastapi.tiangolo.com/)
 - [crawl4ai](https://github.com/unclecode/crawl4ai)
+- [GitHub REST API](https://docs.github.com/en/rest) — CodeGarden 集成

@@ -209,6 +209,100 @@ def test_delete_project(client):
     assert client.get(f"/api/codegarden/projects/{create['id']}").status_code == 404
 
 
+def test_batch_delete_all_success(client):
+    """批量删除: 全部成功 → 200."""
+    ids = []
+    for i in range(3):
+        r = client.post("/api/codegarden/projects", json={
+            "name": f"bd-{i}", "type": "cli", "source_type": "vibe",
+        }).json()
+        ids.append(r["id"])
+    r = client.post("/api/codegarden/projects/batch-delete", json={"ids": ids})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["deleted_count"] == 3
+    assert data["failed_count"] == 0
+    assert set(data["deleted"]) == set(ids)
+    # 全部 404
+    for pid in ids:
+        assert client.get(f"/api/codegarden/projects/{pid}").status_code == 404
+
+
+def test_batch_delete_partial_failure_returns_207(client):
+    """批量删除: 部分失败 → 207, failed 包含错误信息."""
+    a = client.post("/api/codegarden/projects", json={
+        "name": "alive", "type": "cli", "source_type": "vibe",
+    }).json()
+    # fake-id 不存在
+    r = client.post("/api/codegarden/projects/batch-delete",
+                    json={"ids": [a["id"], "00000000-0000-0000-0000-000000000000"]})
+    assert r.status_code == 207
+    data = r.json()
+    assert data["deleted_count"] == 1
+    assert data["failed_count"] == 1
+    assert data["deleted"] == [a["id"]]
+    assert data["failed"][0]["id"] == "00000000-0000-0000-0000-000000000000"
+    assert "不存在" in data["failed"][0]["error"]
+
+
+def test_batch_delete_all_failed_returns_400(client):
+    """批量删除: 全部失败 → 400."""
+    r = client.post("/api/codegarden/projects/batch-delete",
+                    json={"ids": ["nope-1", "nope-2"]})
+    assert r.status_code == 400
+    data = r.json()
+    assert data["deleted_count"] == 0
+    assert data["failed_count"] == 2
+
+
+def test_batch_delete_dedupes_ids(client):
+    """重复 id 应自动去重 (后端只 DELETE 一次, 重复的不会触发 failed)."""
+    a = client.post("/api/codegarden/projects", json={
+        "name": "dup", "type": "cli", "source_type": "vibe",
+    }).json()
+    r = client.post("/api/codegarden/projects/batch-delete",
+                    json={"ids": [a["id"], a["id"], a["id"]]})
+    assert r.status_code == 200
+    data = r.json()
+    # 去重后只 1 次, 重复的 id 不会出现在 deleted 或 failed 中
+    assert data["deleted"] == [a["id"]]
+    assert data["failed_count"] == 0
+    assert data["failed"] == []
+
+
+def test_batch_delete_empty_list_rejected(client):
+    """空 ids 列表应被 Pydantic 拒绝 (422)."""
+    r = client.post("/api/codegarden/projects/batch-delete", json={"ids": []})
+    assert r.status_code == 422
+
+
+def test_batch_delete_too_many_rejected(client):
+    """超过 200 个应被 Pydantic 拒绝 (422)."""
+    r = client.post("/api/codegarden/projects/batch-delete",
+                    json={"ids": [f"x-{i}" for i in range(201)]})
+    assert r.status_code == 422
+
+
+def test_batch_delete_cascades_stages_activities(client):
+    """批量删除应级联删除关联的 stages / activities."""
+    pid = client.post("/api/codegarden/projects", json={
+        "name": "cascade", "type": "cli", "source_type": "vibe",
+    }).json()["id"]
+    # 创建 stage
+    client.post(f"/api/codegarden/projects/{pid}/lifecycle",
+                json={"to": "prototype", "note": "test"})
+    # 验证 activities 存在
+    acts_before = client.get(f"/api/codegarden/projects/{pid}/activities").json()["activities"]
+    assert len(acts_before) > 0
+    # 删除
+    r = client.post("/api/codegarden/projects/batch-delete", json={"ids": [pid]})
+    assert r.status_code == 200
+    # 关联数据已被 CASCADE 清掉
+    assert client.get(f"/api/codegarden/projects/{pid}/activities").status_code == 404
+    # timeline 调用会因 project 404 而失败
+    assert client.get(f"/api/codegarden/projects/{pid}/timeline").status_code == 404
+
+
 def test_get_timeline_returns_stages(client):
     create = client.post("/api/codegarden/projects", json={
         "name": "tl", "type": "cli", "source_type": "vibe",

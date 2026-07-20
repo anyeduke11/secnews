@@ -4,10 +4,6 @@ import { SkillCard } from '../components/SkillCard';
 import { AddSkillForm } from '../components/AddSkillForm';
 import { SkillItem, SkillSource, SkillUpdateRequest } from '../types';
 
-interface SkillsPageProps {
-  onBack: () => void;
-}
-
 const SOURCE_TABS: { value: SkillSource | 'all'; label: string }[] = [
   { value: 'all', label: '全部' },
   { value: 'npx', label: 'npx' },
@@ -17,25 +13,8 @@ const SOURCE_TABS: { value: SkillSource | 'all'; label: string }[] = [
   { value: 'manual', label: 'manual' },
 ];
 
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
 
-export function SkillsPage({ onBack }: SkillsPageProps) {
+export function SkillsPage() {
   const {
     items, total, countsBySource, loading, error,
     source, tag, keyword,
@@ -78,18 +57,6 @@ export function SkillsPage({ onBack }: SkillsPageProps) {
       {/* 顶部标题区 */}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="btn-ghost px-2.5 py-1.5 text-xs"
-            title="返回首页"
-            aria-label="返回首页"
-          >
-            <Icon>
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </Icon>
-            返回首页
-          </button>
           <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
             🧩 Skill 管理
           </h2>

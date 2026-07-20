@@ -79,10 +79,8 @@ def build_context(
         source_reputation=rep or {},
         existing_urls=set(existing_urls or []),
         existing_titles=list(existing_titles or []),
+        url_title_pairs=list(url_title_pairs or []),
     )
-    # Phase 8: 注入 url_title_pairs 到 __dict__ 绕过 Pydantic v2 严格 setattr
-    # 不修改 GateContext schema，保持向后兼容
-    ctx.__dict__["url_title_pairs"] = list(url_title_pairs or [])
     return ctx
 
 

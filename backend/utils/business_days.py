@@ -163,10 +163,8 @@ def current_week_start(today: Optional[datetime | date] = None) -> datetime:
 
     Notes
     -----
-    与 :meth:`TimeRange.D7.start_datetime()` (UTC 周一) 的区别:
-    D7 用 UTC (跟 ingested_at 存储一致); current_week_start 用 Shanghai
-    (跟用户「本周一 0:00:00」语义一致)。两者相差约 8h, 但跨周末时
-    会有 1 天错位 (Shanghai 周一 00:00 = UTC 周日 16:00, 落进 UTC 上周)。
+    Phase 48 之后: 与 :meth:`TimeRange.D7.start_datetime()` 语义一致
+    (都是 Shanghai 本周一 00:00), 不再差 8h, 跨周末时不再错位 1 天。
     """
     if today is None:
         today = datetime.now(SHANGHAI_TZ)

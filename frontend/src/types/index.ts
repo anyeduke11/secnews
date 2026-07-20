@@ -625,6 +625,8 @@ export interface KnowledgeItem {
   // Phase 1f Task 6.12: 三源元数据合并 + 掌握度迁移
   sources?: string[];
   migrated_to_local?: boolean;
+  // Cubox folder metadata preserved for classification
+  folder?: { id?: string; name?: string; nested_name?: string; parent_id?: string } | null;
 }
 
 // Phase 1f Task 6.12: 书签导入结果

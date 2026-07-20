@@ -217,3 +217,81 @@ Per-date fields:
 - `platform` (`wechat` | `x` | `weibo` | `xhs`)
 - `published_url` (string, nullable)
 - `stats` (object with `views`/`likes` integers, nullable)
+
+## CodeGarden 数据模型 (v1.5+ / Phase 2a + Phase 2b)
+
+CodeGarden 共 9 张 SQLite 表，迁移文件 `backend/repository/migrations/019_codegarden.sql` (Phase 2a 5 张) + `021_codegarden_phase2b.sql` (Phase 2b 4 张)。
+
+### Phase 2a 表 (5 张)
+
+#### `cg_projects` — 项目主表 (019)
+- `id` TEXT PK (UUID)
+- `name` / `display_name` / `description` / `type` / `source_type` / `lifecycle_stage`
+- `source_item_id` TEXT — 反向溯源 `knowledge_items.id`（无外键约束）
+- `repo_url` / `upstream_url` / `upstream_default_branch` / `commits_behind` / `commits_ahead` / `last_synced_at`
+- `tags` / `tech_stack` / `active_skill_ids` — JSON TEXT
+- `health_score` / `priority` / `domain` / `local_path` / `source_type_detail`
+- `created_at` / `last_activity_at` / `archived_at`
+
+#### `cg_project_stages` — 阶段时间线 (019)
+- `id` / `project_id` (FK cascade) / `stage_name` / `stage_order`
+- `deliverable_type` / `deliverable_url` / `deliverable_path` / `commit_sha`
+- `status` (planned/wip/done/skipped) / `notes` / `created_at` / `completed_at`
+
+#### `cg_project_links` — 关联 repo (019)
+- `id` / `project_id` (FK cascade) / `link_type` / `url` / `label`
+- `commits_behind` / `commits_ahead` / `last_synced_at` / `notes` / `created_at`
+
+#### `cg_project_activities` — 活动日志 (019)
+- `id` / `project_id` (FK cascade) / `activity_type` / `content` / `metadata` (JSON) / `created_at`
+
+#### `skills` 扩展字段 (019)
+- `skill_type` / `capabilities` (JSON) / `constraints_json` (JSON) / `output_format` (JSON)
+- `system_prompt` / `few_shot_examples` (JSON) / `success_metrics` (JSON)
+- `usage_count` / `avg_rating`
+
+### Phase 2b 表 (4 张, 021_codegarden_phase2b.sql)
+
+#### `cg_services` — 服务注册表 (M2 服务网格)
+- `id` TEXT PK (UUID)
+- `project_id` TEXT FK → `cg_projects(id)` ON DELETE CASCADE
+- `name` / `namespace` (如 `ai-assistant.web`)
+- `type` (http/websocket/grpc/static/database) / `runtime` (docker/pm2/system/bare)
+- `status` (running/stopped/error/unknown)
+- `endpoint_host` / `endpoint_port` / `endpoint_domain`
+- `health_check_type` (http/tcp/script) / `health_check_path` / `health_check_interval` (default 30)
+- `cpu_limit` / `memory_limit`
+- `dependencies` (JSON array of service ids，冗余; 主存 `cg_dependencies`)
+- `env_vars` (JSON)
+- `created_at` / `last_checked_at`
+- 索引: project / status / namespace
+
+#### `cg_resources` — 资源池 (M3 资源中枢)
+- `id` TEXT PK (UUID)
+- `type` (port/domain/env_template/volume)
+- `value` (端口号 / 域名 / 模板名 / 卷名)
+- `status` (allocated/free/reserved)
+- `owner_service_id` TEXT FK → `cg_services(id)` ON DELETE SET NULL
+- `owner_project_id` TEXT FK → `cg_projects(id)` ON DELETE SET NULL
+- `metadata` (JSON) / `reserved_until` / `created_at`
+- 索引: type / owner / status
+- **保护约束**: hotspot 端口 8898 禁止释放（API 返回 403）
+
+#### `cg_dependencies` — 依赖图谱 (M4 联动引擎)
+- `id` TEXT PK (UUID)
+- `source_type` (project/service) / `source_id`
+- `target_type` (project/service) / `target_id`
+- `dep_type` (code/service/data)
+- `metadata` (JSON) / `created_at`
+- UNIQUE(source_type, source_id, target_type, target_id, dep_type)
+- 索引: source / target / dep_type
+
+#### `cg_events` — 事件总线 (M4 联动引擎)
+- `id` TEXT PK (UUID)
+- `event_type` (code_push/service_error/port_conflict/dep_update/project_archive)
+- `source_type` (project/service/resource/scheduler) / `source_id`
+- `payload` (JSON)
+- `status` (pending/processed/failed, default pending)
+- `created_at` / `processed_at` / `error_message`
+- 索引: type / status / created / source
+- **异步处理**: `cg_event_process` job (60s) 处理 pending 事件

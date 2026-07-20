@@ -17,6 +17,7 @@ import { SyncPage } from './components/SyncPage';
 import { WeeklyReportPage } from './components/WeeklyReportPage';
 import { KnowledgePage } from './components/KnowledgePage';
 import { CodegardenPage } from './components/CodegardenPage';
+import { CodegardenPhase2bPage } from './components/CodegardenPhase2bPage';
 import { useHotspotData } from './hooks/useHotspotData';
 import { useRefreshInterval } from './hooks/useRefreshInterval';
 import { useTodos } from './hooks/useTodos';
@@ -294,6 +295,7 @@ export default function App() {
             <Route path="/weekly-report" element={<WeeklyReportPage onBack={goHome} />} />
             <Route path="/knowledge" element={<KnowledgePage onBack={goHome} />} />
             <Route path="/codegarden" element={<CodegardenPage onBack={goHome} />} />
+            <Route path="/codegarden/phase2b" element={<CodegardenPhase2bPage onBack={goHome} />} />
           </Routes>
         </div>
       </div>

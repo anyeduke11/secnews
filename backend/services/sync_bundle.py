@@ -119,6 +119,83 @@ def _apply_cg_projects(items: list[dict]) -> int:
     return n
 
 
+def _read_cg_services_for_sync() -> list[dict]:
+    """读取 cg_services 主表数据用于跨端同步.
+
+    Phase 2b 决策: 仅 cg_services 跨端同步 (含 env_vars 加密字段).
+    cg_resources / cg_dependencies / cg_events 不跨端 (设备本地状态).
+    """
+    try:
+        from backend.repository.codegarden_service_repo import CodegardenServiceRepository
+        items, _ = CodegardenServiceRepository().list(limit=1000)
+        return items
+    except Exception as e:
+        logger.warning(f"_read_cg_services_for_sync failed (skipped): {e}")
+        return []
+
+
+def _apply_cg_services(items: list[dict]) -> int:
+    """将 bundle 中的 codegarden_services 写回 SQLite (upsert by id).
+
+    Phase 2b: env_vars 字段已用 Fernet 加密, 跨端时密文直接同步 (需同 master_key).
+    """
+    if not items:
+        return 0
+    from backend.repository.db import get_connection
+    conn = get_connection()
+    n = 0
+    for it in items:
+        try:
+            # dependencies / env_vars 在源端是 list/dict, 落库前转 JSON 字符串
+            deps = it.get("dependencies")
+            deps_json = (
+                deps if isinstance(deps, str) else json.dumps(deps or [], ensure_ascii=False)
+            )
+            env = it.get("env_vars")
+            env_json = (
+                env if isinstance(env, str) else json.dumps(env or {}, ensure_ascii=False)
+            )
+            conn.execute(
+                """
+                INSERT INTO cg_services (
+                    id, project_id, name, namespace, type, runtime, status,
+                    endpoint_host, endpoint_port, endpoint_domain,
+                    health_check_type, health_check_path, health_check_interval,
+                    cpu_limit, memory_limit, dependencies, env_vars,
+                    created_at, last_checked_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    project_id=excluded.project_id, name=excluded.name,
+                    namespace=excluded.namespace, type=excluded.type,
+                    runtime=excluded.runtime, status=excluded.status,
+                    endpoint_host=excluded.endpoint_host,
+                    endpoint_port=excluded.endpoint_port,
+                    endpoint_domain=excluded.endpoint_domain,
+                    health_check_type=excluded.health_check_type,
+                    health_check_path=excluded.health_check_path,
+                    health_check_interval=excluded.health_check_interval,
+                    cpu_limit=excluded.cpu_limit, memory_limit=excluded.memory_limit,
+                    dependencies=excluded.dependencies, env_vars=excluded.env_vars,
+                    last_checked_at=excluded.last_checked_at
+                """,
+                (
+                    it["id"], it.get("project_id"), it["name"], it.get("namespace"),
+                    it["type"], it["runtime"], it["status"],
+                    it.get("endpoint_host"), it.get("endpoint_port"),
+                    it.get("endpoint_domain"),
+                    it.get("health_check_type"), it.get("health_check_path"),
+                    int(it.get("health_check_interval") or 30),
+                    it.get("cpu_limit"), it.get("memory_limit"),
+                    deps_json, env_json,
+                    it["created_at"], it.get("last_checked_at"),
+                ),
+            )
+            n += 1
+        except Exception as e:
+            logger.warning(f"_apply_cg_services upsert {it.get('id')} failed: {e}")
+    return n
+
+
 # ---------------------------------------------------------------------------
 # Bundle building
 # ---------------------------------------------------------------------------
@@ -151,6 +228,7 @@ def build_bundle(*, device_id: Optional[str] = None) -> dict:
             it.to_dict() for it in SkillRepository().list(limit=1000)[0]
         ],
         "codegarden_projects": _read_cg_projects_for_sync(),
+        "codegarden_services": _read_cg_services_for_sync(),  # Phase 2b
         "custom_sources": [
             src.to_dict() for src in CustomSourceRepository().list()
         ],
@@ -340,6 +418,9 @@ def apply_bundle(bundle: dict, *, master_key: Optional[str] = None) -> dict:
     # --- codegarden_projects (Phase 2a) ---
     cg_stats = {"upserted": _apply_cg_projects(records.get("codegarden_projects", []))}
 
+    # --- codegarden_services (Phase 2b) ---
+    cg_svc_stats = {"upserted": _apply_cg_services(records.get("codegarden_services", []))}
+
     # --- settings ---
     sr_repo = SettingsRepository()
     settings_stats = {"written": 0, "skipped": 0}
@@ -357,6 +438,7 @@ def apply_bundle(bundle: dict, *, master_key: Optional[str] = None) -> dict:
         "favorites": fav_stats, "todos": todo_stats, "skills": skill_stats,
         "custom_sources": cs_stats, "settings": settings_stats, "secrets": secret_stats,
         "codegarden_projects": cg_stats,
+        "codegarden_services": cg_svc_stats,  # Phase 2b
     }
 
 

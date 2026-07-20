@@ -1,0 +1,101 @@
+# codegarden/playbooks/example.yml
+# Phase 2b Task I2 — 示例 Playbook
+# 完整 9 步工作流: 从 GitHub clone 到服务注册的全流程
+#
+# 字段说明:
+#   name:        Playbook 显示名 (唯一)
+#   description: 用途说明
+#   params:      执行时传入的参数 (JSON), 用户可在 UI 中编辑
+#   steps:       步骤列表, 每步包含 name + action + args
+#     - action: shell    — 在项目 local_path 下执行 shell 命令
+#     - action: allocate_port — 调用 M3 资源中枢分配端口
+#     - action: register_service — 调用 M2 服务网格注册服务
+#     - action: notify   — 发送通知 (写入 cg_events)
+#
+# 执行: 后端解析 YAML, 创建 knowledge_tasks (task_type=playbook_run, params={playbook_name, steps})
+# 实际执行由 Agent (后续 Phase) 或人工触发, 不在本 Phase 范围内
+
+name: example
+description: |
+  示例 Playbook — 完整 vibecoding 项目上线流程:
+  clone → install → test → build → 分配端口 → pm2 启动 → nginx 配置 → 注册服务网格 → 通知
+
+params:
+  repo_url:
+    description: GitHub 仓库 URL
+    required: true
+    example: "https://github.com/owner/repo"
+  project_name:
+    description: 项目名 (用于服务注册)
+    required: true
+    example: "my-app"
+  port:
+    description: 首选端口 (8000-9999, 留空自动分配)
+    required: false
+    example: 8080
+
+steps:
+  - name: clone_repo
+    action: shell
+    args:
+      command: "git clone {{ repo_url }} /tmp/{{ project_name }}"
+      description: "Clone 仓库到本地临时目录"
+
+  - name: npm_install
+    action: shell
+    args:
+      command: "cd /tmp/{{ project_name }} && npm install"
+      description: "安装 npm 依赖"
+
+  - name: run_tests
+    action: shell
+    args:
+      command: "cd /tmp/{{ project_name }} && npm test"
+      description: "运行测试套件"
+      continue_on_error: false
+
+  - name: build_project
+    action: shell
+    args:
+      command: "cd /tmp/{{ project_name }} && npm run build"
+      description: "生产构建"
+
+  - name: allocate_port
+    action: allocate_port
+    args:
+      preferred_port: "{{ port }}"
+      description: "向 M3 资源中枢申请端口 (8898 已保护)"
+
+  - name: pm2_start
+    action: shell
+    args:
+      command: "cd /tmp/{{ project_name }} && pm2 start npm --name {{ project_name }} -- start"
+      description: "用 pm2 启动服务"
+
+  - name: nginx_config
+    action: shell
+    args:
+      command: "echo 'server { listen 80; server_name {{ project_name }}.local; proxy_pass http://127.0.0.1:{{ allocated_port }}; }' | sudo tee /etc/nginx/sites-enabled/{{ project_name }}.conf && sudo nginx -s reload"
+      description: "配置 nginx 反向代理"
+
+  - name: register_service
+    action: register_service
+    args:
+      name: "{{ project_name }}"
+      type: http
+      runtime: pm2
+      endpoint_port: "{{ allocated_port }}"
+      endpoint_domain: "{{ project_name }}.local"
+      description: "向 M2 服务网格注册新服务"
+
+  - name: notify_completion
+    action: notify
+    args:
+      event_type: code_push
+      source_type: service
+      source_id: "{{ service_id }}"
+      payload:
+        message: "Playbook example 完成: {{ project_name }} 已上线"
+        port: "{{ allocated_port }}"
+        domain: "{{ project_name }}.local"
+      description: "发布事件通知"

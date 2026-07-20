@@ -52,3 +52,62 @@ Cross-reference syntax:
 
 ### Schema
 See `knowledge/_SCHEMA.md` for the complete data model.
+
+## CodeGarden Phase 2b — Service Mesh / Resource Hub / Orchestration Engine
+
+> **状态**: ✅ 已实现 (v1.6, 2026-07-20)
+> **spec**: `.trae/specs/phase2b-service-mesh/spec.md`
+
+### 范围
+
+- **M2 服务网格**：`cg_services` 表 + 自动发现 (lsof/docker/pm2 三源) + 拓扑图 + 日志/指标/重启
+- **M3 资源中枢**：`cg_resources` 表 (4 类: port/domain/env_template/volume) + 8898 端口保护 + env_template Fernet 加密
+- **M4 联动引擎**：`cg_dependencies` 表 + `cg_events` 表 + Playbook YAML 执行 + 影响分析 (BFS 反向追溯)
+
+### 关键决策 (10 条)
+
+1. **范围**：全量 M2+M3+M4 (PRD 原计划)
+2. **拓扑图渲染**：用 SVG 实现而非 React Flow，避免重依赖 (节点数 <20 时足够) — 推翻 Phase 2a 决策 7 与 spec G1 要求
+3. **M4 事件存储**：新增 cg_events 表 (PRD §5.4.2 原计划)
+4. **M4 Playbook 执行**：复用 knowledge_tasks (task_type=playbook_run)，不新建 cg_playbook_runs 表
+5. **M2 服务发现**：定时扫描 (lsof/docker ps/pm2 list)，每 5 分钟
+6. **M3 端口保护**：hotspot 自身端口 8898 禁止释放，API 返回 403
+7. **M3 敏感字段**：env_template 的敏感值复用 secrets_service Fernet 加密，不新建加密体系
+8. **依赖关系冗余**：cg_services.dependencies (JSON) 与 cg_dependencies 表并存，前者冗余便于快速渲染，后者是 source of truth
+9. **事件处理异步**：cg_events.status=pending → cg_event_process job 异步处理 (60s)，避免事件发布阻塞
+10. **Playbook YAML 不入库**：文件存 `codegarden/playbooks/*.yml`，与 PRD §9.2 数据目录结构一致
+
+### sync_bundle 跨端同步
+
+- ✅ `cg_services` 跨端同步 (含 env_vars 加密字段)
+- ❌ `cg_resources` / `cg_dependencies` / `cg_events` 不跨端 (设备本地状态)
+
+### 调度器 (新增 2 个 job)
+
+- job 16: `cg_service_scan` — IntervalTrigger(seconds=300) — 扫描本机服务
+- job 17: `cg_event_process` — IntervalTrigger(seconds=60) — 处理 pending 事件
+
+### API 端点 (新增 26 个, prefix `/api/codegarden`)
+
+- M2 服务网格 (10): `/services` CRUD + `/scan` + `/topology` + `/{id}/restart` + `/{id}/logs` + `/{id}/metrics`
+- M3 资源中枢 (8): `/resources` CRUD + `/allocate-port` + `/release-port` + `/env-templates` POST/GET
+- M4 联动引擎 (8): `/dependencies` CRUD + `/impact` + `/events` GET/POST + `/playbooks` GET + `/playbooks/{name}/run`
+
+### 前端
+
+- 路由: `/codegarden/phase2b`
+- 入口: CodegardenPage 顶部 🌐 Phase 2b 按钮
+- 组件: ServiceMesh + ServiceTopology + ResourceHub + DependencyGraph + EventBus + PlaybookList + CodegardenPhase2bPage
+
+### 明确不做 (推迟到 Phase 2c/2d)
+
+- ❌ AI 协作功能 (M7-M12) → Phase 2c
+- ❌ 项目归档 30 天自动停止服务 (依赖 M5 生命周期) → Phase 2d
+- ❌ 跨机服务网格 (本 Phase 仅本机)
+
+### 测试覆盖
+
+- API 单测: 29/29 PASS (`test_codegarden_phase2b_api.py`)
+- e2e: 4/4 PASS (`test_codegarden_phase2b_e2e.py` — 全流程 + 8898 保护 + 拓扑图 + Playbook 404)
+- 前端组件: 22/22 PASS (ServiceMesh 8 + ResourceHub 6 + DependencyGraph 8)
+

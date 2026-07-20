@@ -1,5 +1,6 @@
 // frontend/src/components/CodegardenPage.tsx
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCodegardenProjects } from '../hooks/useCodegardenProjects';
 import { ProjectBoard } from './codegarden/ProjectBoard';
 import { ProjectDetail } from './codegarden/ProjectDetail';
@@ -13,6 +14,7 @@ interface CodegardenPageProps {
 }
 
 export function CodegardenPage({ onBack }: CodegardenPageProps) {
+  const navigate = useNavigate();
   const {
     items, total, loading, error,
     lifecycle, sourceType, projectType, keyword,
@@ -51,6 +53,14 @@ export function CodegardenPage({ onBack }: CodegardenPageProps) {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>共 {total} 项</span>
+          <button
+            onClick={() => navigate('/codegarden/phase2b')}
+            className="btn-ghost px-3 py-1.5 text-xs"
+            title="Service Mesh / Resource Hub / Orchestration Engine"
+            style={{ color: 'var(--color-ai)', border: '1px solid var(--color-ai)' }}
+          >
+            🌐 Phase 2b
+          </button>
           <button
             onClick={() => setKnowledgeOpen(true)}
             className="btn-ghost px-3 py-1.5 text-xs"

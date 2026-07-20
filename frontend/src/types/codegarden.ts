@@ -210,3 +210,242 @@ export const SOURCE_TYPE_LABELS: Record<ProjectSourceType, string> = {
   imported: '导入',
   reference: '参考',
 };
+
+// ===========================================================================
+// Phase 2b: 服务网格 + 资源中枢 + 联动引擎
+// ===========================================================================
+
+// M2 服务网格
+export type ServiceType = 'http' | 'websocket' | 'grpc' | 'static' | 'database';
+export type ServiceRuntime = 'docker' | 'pm2' | 'system' | 'bare';
+export type ServiceStatus = 'running' | 'stopped' | 'error' | 'unknown';
+
+export interface CgService {
+  id: string;
+  project_id: string | null;
+  name: string;
+  namespace: string | null;
+  type: ServiceType;
+  runtime: ServiceRuntime;
+  status: ServiceStatus;
+  endpoint_host: string | null;
+  endpoint_port: number | null;
+  endpoint_domain: string | null;
+  health_check_type: string | null;
+  health_check_path: string | null;
+  health_check_interval: number;
+  cpu_limit: string | null;
+  memory_limit: string | null;
+  dependencies: string[];
+  env_vars: Record<string, unknown>;
+  created_at: string;
+  last_checked_at: string | null;
+}
+
+export interface CgServiceListResponse {
+  items: CgService[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface CgServiceTopology {
+  nodes: Array<{
+    id: string;
+    type: string;
+    position: { x: number; y: number };
+    data: {
+      label: string;
+      service_id: string;
+      runtime: ServiceRuntime;
+      status: ServiceStatus;
+      endpoint_port: number | null;
+      runtime_color: string;
+      status_color: string;
+    };
+  }>;
+  edges: Array<{
+    id: string;
+    source: string;
+    target: string;
+    label: string;
+    data: { dep_type: string };
+  }>;
+}
+
+export interface ServiceScanResponse {
+  scanned: number;
+  created: number;
+  updated: number;
+}
+
+// M3 资源中枢
+export type ResourceType = 'port' | 'domain' | 'env_template' | 'volume';
+export type ResourceStatus = 'allocated' | 'free' | 'reserved';
+
+export interface CgResource {
+  id: string;
+  type: ResourceType;
+  value: string;
+  status: ResourceStatus;
+  owner_service_id: string | null;
+  owner_project_id: string | null;
+  metadata: Record<string, unknown>;
+  reserved_until: string | null;
+  created_at: string;
+}
+
+export interface CgResourceListResponse {
+  items: CgResource[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AllocatePortRequest {
+  preferred_port?: number;
+  owner_service_id?: string;
+  owner_project_id?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SaveEnvTemplateRequest {
+  name: string;
+  env_vars: Record<string, unknown>;
+  owner_project_id?: string;
+}
+
+// M4 联动引擎
+export type DepType = 'code' | 'service' | 'data';
+export type DepEntityType = 'project' | 'service';
+
+export interface CgDependency {
+  id: string;
+  source_type: DepEntityType;
+  source_id: string;
+  target_type: DepEntityType;
+  target_id: string;
+  dep_type: DepType;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  _depth?: number;  // impact_analysis 返回时附带
+}
+
+export type EventType = 'code_push' | 'service_error' | 'port_conflict' | 'dep_update' | 'project_archive';
+export type EventSourceType = 'project' | 'service' | 'resource' | 'scheduler';
+export type EventStatus = 'pending' | 'processed' | 'failed';
+
+export interface CgEvent {
+  id: string;
+  event_type: EventType;
+  source_type: EventSourceType;
+  source_id: string;
+  payload: Record<string, unknown>;
+  status: EventStatus;
+  created_at: string;
+  processed_at: string | null;
+  error_message: string | null;
+}
+
+export interface Playbook {
+  name: string;
+  path: string;
+  content: string;
+  size: number;
+}
+
+export interface RunPlaybookResponse {
+  task_id: number;
+  playbook_name: string;
+  status: string;
+  steps_count: number;
+}
+
+// Phase 2b 色值映射
+export const SERVICE_RUNTIME_COLORS: Record<ServiceRuntime, string> = {
+  docker: '#2496ed',
+  pm2: '#61dafb',
+  system: '#94a3b8',
+  bare: '#6b7280',
+};
+
+export const SERVICE_STATUS_COLORS: Record<ServiceStatus, string> = {
+  running: '#10b981',
+  stopped: '#9ca3af',
+  error: '#ef4444',
+  unknown: '#fbbf24',
+};
+
+export const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
+  port: '端口',
+  domain: '域名',
+  env_template: '环境模板',
+  volume: '存储卷',
+};
+
+export const EVENT_TYPE_LABELS: Record<EventType, string> = {
+  code_push: '代码推送',
+  service_error: '服务异常',
+  port_conflict: '端口冲突',
+  dep_update: '依赖更新',
+  project_archive: '项目归档',
+};
+
+export const EVENT_STATUS_COLORS: Record<EventStatus, string> = {
+  pending: '#fbbf24',
+  processed: '#10b981',
+  failed: '#ef4444',
+};
+
+// ===========================================================================
+// Phase 2a 补遗 — BatchImportDialog 类型（原本缺失，补回以修复 tsc 错误）
+// ===========================================================================
+export interface DetectedProject {
+  name: string;
+  absolute_path: string;
+  relative_path: string;
+  marker_file: string;
+  language: string;
+  inferred_type: ProjectType;
+  description: string;
+  tech_stack: string[];
+}
+
+export interface BatchScanResult {
+  detected: DetectedProject[];
+  message?: string;
+  is_temporary?: boolean;
+  temp_id?: string;
+  source_type?: string;
+  scan_root?: string;
+}
+
+export interface BatchImportItemRequest {
+  name: string;
+  absolute_path: string;
+  relative_path: string;
+  marker_file: string;
+  language: string;
+  inferred_type: ProjectType;
+  description: string;
+  tech_stack: string[];
+  override_name?: string;
+  override_type?: ProjectType;
+  override_lifecycle?: LifecycleStage;
+  override_description?: string;
+  override_tags?: string[];
+}
+
+export interface BatchImportRequest {
+  projects: BatchImportItemRequest[];
+  temp_id?: string;
+  source_type: ProjectSourceType;
+  default_lifecycle: LifecycleStage;
+}
+
+export interface BatchImportResult {
+  imported_count: number;
+  failed_count: number;
+  errors?: Array<{ name: string; error: string }>;
+  failed?: Array<{ name: string; error: string }>;
+}

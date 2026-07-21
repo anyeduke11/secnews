@@ -129,7 +129,7 @@ html {
 }
 
 body {
-  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100dvh;
@@ -137,6 +137,25 @@ body {
   transition: background-color 0.25s ease, color 0.25s ease;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Phase 7: 默认字号 14px (Inter 优秀的中文环境可读尺寸) */
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ─── Type scale utilities (Phase 7 typography) ─────────────── */
+.text-xs-tech   { font-size: 12px; line-height: 1.5; }    /* 标签/辅助 */
+.text-sm-tech   { font-size: 14px; line-height: 1.5; }    /* body default */
+.text-base-tech { font-size: 16px; line-height: 1.5; }    /* 强调 body */
+.text-lg-tech   { font-size: 20px; line-height: 1.4; }    /* h3 / 卡片标题 */
+.text-xl-tech   { font-size: 24px; line-height: 1.3; }    /* h2 / 区块标题 */
+
+/* ─── Code / data uses mono (Phase 7 typography) ───────────── */
+.font-mono,
+code,
+kbd,
+pre {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-feature-settings: 'liga' 0, 'calt' 0; /* disable ligatures for code */
 }
 
 /* ─── Selection ─── */

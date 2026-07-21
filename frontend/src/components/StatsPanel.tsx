@@ -12,11 +12,11 @@ export function StatsPanel({ categoryCounts, total }: StatsPanelProps) {
   return (
     <div className="card-base p-4 mb-5">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-secondary)' }}>
+        <h3 className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-secondary)' }}>
           数据统计
         </h3>
-        <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-          总计 <span style={{ color: 'var(--color-ai)', fontWeight: 600 }}>{total}</span> 条
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          总计 <span className="font-mono tabular-nums" style={{ color: 'var(--color-ai)', fontWeight: 600 }}>{total}</span> 条
         </span>
       </div>
 
@@ -29,18 +29,18 @@ export function StatsPanel({ categoryCounts, total }: StatsPanelProps) {
 
           return (
             <div key={cat.id}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="flex items-center gap-1.5 text-[12px]">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="flex items-center gap-1.5 text-sm">
                   <span
                     className="dot-indicator"
                     style={{ backgroundColor: color }}
                   />
                   <span style={{ color: 'var(--text-secondary)' }} className="truncate">{cat.label}</span>
                 </span>
-                <span className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{count}</span>
+                <span className="text-sm font-mono font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{count}</span>
               </div>
               <div
-                className="w-full h-1 rounded-full overflow-hidden"
+                className="w-full h-1.5 rounded-full overflow-hidden"
                 style={{ backgroundColor: 'var(--bg-hover)' }}
               >
                 <div

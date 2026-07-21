@@ -130,7 +130,7 @@ export function Header({
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div
-            className="w-9 h-9 rounded-[var(--radius-sm)] flex items-center justify-center text-sm font-bold shrink-0"
+            className="w-9 h-9 rounded-[var(--radius-sm)] flex items-center justify-center text-base font-bold shrink-0"
             style={{
               backgroundColor: 'var(--bg-elevated)',
               border: '1px solid var(--border-color)',
@@ -140,16 +140,17 @@ export function Header({
             H
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            <h1 className="text-xl font-bold tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>
               SecNews热点地图
               {apiVersion && (
                 <sub
-                  className="ml-1 font-mono font-normal"
+                  className="ml-1.5 font-mono font-normal"
                   style={{
                     color: 'var(--text-muted)',
-                    fontSize: '10px',
+                    fontSize: '11px',
                     fontWeight: 500,
                     letterSpacing: '0.02em',
+                    verticalAlign: 'baseline',
                   }}
                   title={`API version ${apiVersion}`}
                 >
@@ -157,7 +158,7 @@ export function Header({
                 </sub>
               )}
             </h1>
-            <p className="text-[11px] mt-px" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
               七大领域热点实时聚合
             </p>
           </div>

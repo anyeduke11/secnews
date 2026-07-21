@@ -25,7 +25,8 @@ export function PageLayout() {
         className="min-h-[100dvh]"
         style={{ backgroundColor: 'var(--bg-primary)' }}
       >
-        <div className="max-w-7xl mx-auto px-4 py-5 relative z-10">
+        {/* Phase 7: 响应式 padding — mobile 16px, tablet 24px, desktop 32px */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 relative z-10">
           <Outlet />
         </div>
       </div>

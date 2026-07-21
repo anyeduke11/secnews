@@ -29,7 +29,7 @@ export function CategoryNav({ active, onChange, counts, consistencyDrift = [] }:
             onClick={() => onChange(cat.id)}
             className="focus-ring"
             style={{
-              padding: '6px 14px',
+              padding: '7px 14px',
               borderRadius: 'var(--radius-sm)',
               fontSize: '13px',
               fontWeight: isActive ? 600 : 500,
@@ -60,7 +60,7 @@ export function CategoryNav({ active, onChange, counts, consistencyDrift = [] }:
               {cat.label}
               {count > 0 && (
                 <span
-                  className="text-[10px] px-1.5 py-px rounded-full"
+                  className="text-[11px] font-mono font-medium px-1.5 py-px rounded-full tabular-nums"
                   style={{
                     backgroundColor: isActive ? `${color}20` : 'var(--bg-hover)',
                     color: isActive ? color : 'var(--text-muted)',
@@ -72,7 +72,7 @@ export function CategoryNav({ active, onChange, counts, consistencyDrift = [] }:
               {/* Phase 6: 一致性警告角标 */}
               {drift && (
                 <span
-                  className="text-[10px] px-1 py-px rounded-full"
+                  className="text-[11px] px-1 py-px rounded-full"
                   title={`数据不一致：缓存显示 ${drift.cached} 条，DB 实际 ${drift.db} 条${drift.note ? `（${drift.note}）` : ''}`}
                   style={{
                     backgroundColor: 'color-mix(in srgb, var(--color-error) 15%, transparent)',

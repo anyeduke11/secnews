@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { KnowledgeItem } from '../types';
 import { KnowledgeGraph } from './KnowledgeGraph';
+import { SecurityGraph } from './security/SecurityGraph';
+import { SecurityTimeline } from './security/SecurityTimeline';
+import { ComplianceMatrix } from './security/ComplianceMatrix';
+import { TermStandardizer } from './security/TermStandardizer';
 import { KnowledgeFilters, FilterState } from './KnowledgeFilters';
 import { HealthDashboard } from './HealthDashboard';
 import { SoulViewer } from './SoulViewer';
@@ -38,6 +42,7 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [syncToast, setSyncToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [conflicts, setConflicts] = useState<Array<{ filename: string; size: number; mtime: number }> | null>(null);
+  const [graphView, setGraphView] = useState<'concepts' | 'attack' | 'cve' | 'compliance'>('concepts');
 
   const loadItems = useCallback(() => {
     setLoading(true);
@@ -190,7 +195,7 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
           <button
             onClick={handleViewConflicts}
             className="btn-ghost px-3 py-1.5 text-xs"
-            style={{ color: conflicts !== null ? '#e85d5d' : 'var(--text-muted)' }}
+            style={{ color: conflicts !== null ? 'var(--color-error)' : 'var(--text-muted)' }}
             title="查看 watchdog 记录的冲突快照"
             aria-label="查看冲突"
           >
@@ -214,9 +219,9 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
         <div
           className="rounded-[var(--radius-md)] p-2.5 mb-3 text-xs"
           style={{
-            backgroundColor: 'rgba(232, 93, 93, 0.12)',
-            border: '1px solid #e85d5d',
-            color: '#e85d5d',
+            backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+            border: '1px solid var(--color-error)',
+            color: 'var(--color-error)',
           }}
         >
           加载失败: {error}
@@ -228,9 +233,11 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
         <div
           className="rounded-[var(--radius-md)] p-2.5 mb-3 text-xs"
           style={{
-            backgroundColor: syncToast.kind === 'ok' ? 'rgba(92, 184, 92, 0.12)' : 'rgba(232, 93, 93, 0.12)',
-            border: `1px solid ${syncToast.kind === 'ok' ? '#5cb85c' : '#e85d5d'}`,
-            color: syncToast.kind === 'ok' ? '#5cb85c' : '#e85d5d',
+            backgroundColor: syncToast.kind === 'ok'
+              ? 'color-mix(in srgb, var(--color-success) 12%, transparent)'
+              : 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+            border: `1px solid ${syncToast.kind === 'ok' ? 'var(--color-success)' : 'var(--color-error)'}`,
+            color: syncToast.kind === 'ok' ? 'var(--color-success)' : 'var(--color-error)',
           }}
         >
           {syncToast.msg}
@@ -254,7 +261,7 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
             <ul className="space-y-1">
               {conflicts.map(c => (
                 <li key={c.filename} className="flex items-center gap-2">
-                  <span style={{ color: '#e85d5d' }}>⚠</span>
+                  <span style={{ color: 'var(--color-error)' }}>⚠</span>
                   <span className="flex-1 truncate" title={c.filename}>{c.filename}</span>
                   <span style={{ color: 'var(--text-muted)' }}>{(c.size / 1024).toFixed(1)} KB</span>
                 </li>
@@ -275,7 +282,29 @@ export function KnowledgePage({ onBack }: KnowledgePageProps) {
             <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
               知识图谱
             </h3>
-            <KnowledgeGraph domain={filters.domain || undefined} onSelectConcept={setSelectedSlug} />
+            {/* Phase 5: Security Graph view switcher */}
+            <div className="flex gap-1 mb-2 flex-wrap">
+              {(['concepts', 'attack', 'cve', 'compliance'] as const).map(v => (
+                <button
+                  key={v}
+                  onClick={() => setGraphView(v)}
+                  className="text-[10px] px-2 py-0.5 rounded"
+                  style={{
+                    backgroundColor: graphView === v ? 'var(--bg-hover)' : 'transparent',
+                    color: graphView === v ? 'var(--text-primary)' : 'var(--text-muted)',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
+                  {v === 'concepts' ? '概念' : v === 'attack' ? 'ATT&CK' : v === 'cve' ? 'CVE' : '合规'}
+                </button>
+              ))}
+            </div>
+            {graphView === 'concepts' && (
+              <KnowledgeGraph domain={filters.domain || undefined} onSelectConcept={setSelectedSlug} />
+            )}
+            {graphView === 'attack' && <SecurityGraph view="attack" />}
+            {graphView === 'cve' && <SecurityGraph view="cve" />}
+            {graphView === 'compliance' && <ComplianceMatrix />}
           </div>
           <div>
             <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>

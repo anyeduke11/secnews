@@ -1,5 +1,11 @@
+/**
+ * LearningPanel — 学习计划面板（周计划 + 任务勾选 + 重新生成）。
+ *
+ * Phase 3: 错误态用 --color-error, 空态/加载态/任务样式 token 化。
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 import type { LearningPlan } from '../types';
+import { EmptyState } from './EmptyState';
 
 export function LearningPanel() {
   const [plans, setPlans] = useState<LearningPlan[]>([]);
@@ -53,31 +59,34 @@ export function LearningPanel() {
   };
 
   if (loading) {
-    return <p className="text-xs" style={{ color: 'var(--text-muted)' }}>加载中…</p>;
+    return (
+      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+        加载中…
+      </p>
+    );
   }
 
   if (error) {
     return (
-      <p className="text-xs" style={{ color: '#e85d5d' }}>
-        加载失败: {error}
-      </p>
+      <EmptyState
+        compact
+        title={`加载失败: ${error}`}
+        description="点击重新生成可重试"
+        actionLabel="重新生成"
+        onAction={handleGenerate}
+      />
     );
   }
 
   if (plans.length === 0) {
     return (
       <div>
-        <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-          暂无学习计划。点击生成按钮创建。
-        </p>
-        <button
-          onClick={handleGenerate}
-          disabled={generating}
-          className="btn-ghost px-3 py-1.5 text-xs"
-          style={{ color: 'var(--color-ai)', opacity: generating ? 0.6 : 1 }}
-        >
-          {generating ? '生成中…' : '生成学习计划'}
-        </button>
+        <EmptyState
+          title="暂无学习计划"
+          description="点击生成按钮创建"
+          actionLabel={generating ? '生成中…' : '生成学习计划'}
+          onAction={generating ? undefined : handleGenerate}
+        />
       </div>
     );
   }
@@ -102,7 +111,9 @@ export function LearningPanel() {
 
       {plan.plan_data.goals && plan.plan_data.goals.length > 0 && (
         <div className="mb-3">
-          <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>学习目标</p>
+          <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>
+            学习目标
+          </p>
           <ul className="text-xs space-y-1" style={{ color: 'var(--text-primary)' }}>
             {plan.plan_data.goals.map((g, i) => (
               <li key={i} className="flex gap-1.5">
@@ -143,7 +154,9 @@ export function LearningPanel() {
             })}
           </div>
         ) : (
-          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>暂无任务</p>
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            暂无任务
+          </p>
         )}
       </div>
     </div>

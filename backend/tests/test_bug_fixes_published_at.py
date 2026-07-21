@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from backend.collectors.base import (
+from backend.collectors.parsing import (
     _extract_published_at,
     _parse_iso_datetime,
 )
@@ -267,7 +267,7 @@ class TestEndToEndPublishedAt:
         src_host = source["url"].split("//", 1)[-1].split("/", 1)[0]
         html = f"""
         <html><head>
-        <meta property="article:published_time" content="2026-06-15T08:00:00Z">
+        <meta property="article:published_time" content="2026-07-21T08:00:00Z">
         </head><body>
         <h2 class="entry-title">
           <a href="https://{src_host}/article-1" rel="bookmark">New GPT Model Release Article One</a>
@@ -281,7 +281,7 @@ class TestEndToEndPublishedAt:
         assert len(raw_items) == 2
         for raw in raw_items:
             assert raw["published_at"] == datetime(
-                2026, 6, 15, 8, 0, tzinfo=timezone.utc
+                2026, 7, 21, 8, 0, tzinfo=timezone.utc
             )
 
         # 进一步验证 _build_items 把它传到 HotspotItem
@@ -289,14 +289,17 @@ class TestEndToEndPublishedAt:
         assert len(items) == 2
         for it in items:
             assert it.published_at == datetime(
-                2026, 6, 15, 8, 0, tzinfo=timezone.utc
+                2026, 7, 21, 8, 0, tzinfo=timezone.utc
             )
             # fetched_at 仍然是 now
             assert it.fetched_at is not None
 
-    def test_parsed_items_fallback_to_fetch_time(self):
-        """无 meta/无 URL slug → published_at 字段为 None(由 _build_items
-        fallback 到 fetch time)。"""
+    def test_parsed_items_dropped_when_no_published_at(self):
+        """无 meta/无 URL slug → published_at=None → Phase 47 设计拒收。
+
+        Phase 47 之前 fallback 到 now (fetch time) 会污染首页(让历史
+        资讯被当作"当周新资讯"入库)。当前设计: 缺发布时间 = 无法
+        验证时效性 = 拒收 (宁缺毋滥)。"""
         from backend.collectors.ai_collector import AICollector
         c = AICollector()
         source = c.sources[0]
@@ -313,12 +316,9 @@ class TestEndToEndPublishedAt:
         assert len(raw_items) == 1
         assert raw_items[0]["published_at"] is None
 
+        # Phase 47: 缺 published_at → drop, 不 fallback
         items = c._build_items(raw_items, source)
-        assert items[0].published_at is not None  # fallback 到 now
-        # 应该在 now 附近 (±5s)
-        now = datetime.now(timezone.utc)
-        delta = abs((now - items[0].published_at).total_seconds())
-        assert delta < 5
+        assert items == []
 
     def test_url_slug_published_at_per_item(self):
         """每个 item 的 URL slug 时间戳独立提取(优先级高于页面级)。"""

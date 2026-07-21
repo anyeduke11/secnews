@@ -270,16 +270,42 @@ function HomePage() {
         />
       )}
 
-      <footer className="mt-10 pt-5 text-center" style={{ borderTop: '1px solid var(--border-color)' }}>
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          热点地图 | 数据来源: 安全客 / Krebs on Security / PortSwigger / SANS ISC / FreeBuf / 奇安信 / AVD / CNNVD / CNVD / 新浪财经 / 东方财富 / Hacker News / aihot.virxact.com / GitHub Trending / 中国政府采购网
+      <footer
+        className="mt-10 pt-5 text-center"
+        style={{
+          borderTop: '1px solid var(--border-color)',
+          position: 'relative',
+        }}
+      >
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: -1,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 60,
+            height: 1,
+            background: 'var(--color-ai)',
+            opacity: 0.6,
+          }}
+        />
+        <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
+          <span style={{ color: 'var(--color-ai)', marginRight: 4 }}>{'>'}</span>
+          热点地图 | 数据源: 安全客 / Krebs / PortSwigger / SANS / FreeBuf / 奇安信 / AVD / CNNVD / CNVD / 新浪财经 / 东方财富 / Hacker News / aihot / GitHub Trending / 中国政府采购网
         </p>
-        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-          点击卡片查看原文 | {formatRefreshLabel(refreshInterval)}
+        <p className="text-xs mt-1.5 font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
+          [i] 点击卡片查看原文 · {formatRefreshLabel(refreshInterval)}
         </p>
-        <p className="text-xs mt-1">
-          <a href="/api/export" target="_blank" className="hover:underline" style={{ color: 'var(--color-general)' }} rel="noreferrer">
-            导出静态 HTML
+        <p className="text-xs mt-1.5 font-mono">
+          <a
+            href="/api/export"
+            target="_blank"
+            className="hover:underline"
+            style={{ color: 'var(--color-ai)' }}
+            rel="noreferrer"
+          >
+            {'[ export ]'} 静态 HTML
           </a>
         </p>
       </footer>

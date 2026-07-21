@@ -23,7 +23,14 @@ export function SearchBar({ keyword, timeRange, onKeywordChange, onTimeRangeChan
 
   return (
     <div className="mb-4">
-      <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+      <label
+        className="text-xs font-medium mb-1.5 block font-mono"
+        style={{
+          color: 'var(--text-secondary)',
+          letterSpacing: '0.04em',
+        }}
+      >
+        <span style={{ color: 'var(--color-ai)', marginRight: 4 }}>//</span>
         搜索与筛选
       </label>
       <div className="flex items-center gap-2 flex-wrap">
@@ -48,8 +55,8 @@ export function SearchBar({ keyword, timeRange, onKeywordChange, onTimeRangeChan
               type="text"
               value={localKeyword}
               onChange={(e) => setLocalKeyword(e.target.value)}
-              placeholder="搜索热点关键词"
-              className="w-full pl-9 pr-8 py-2 text-xs focus-ring"
+              placeholder="搜索热点关键词..."
+              className="w-full pl-9 pr-8 py-2 text-xs font-mono focus-ring"
               style={{
                 backgroundColor: 'var(--bg-card)',
                 border: '1px solid var(--border-color)',
@@ -73,7 +80,14 @@ export function SearchBar({ keyword, timeRange, onKeywordChange, onTimeRangeChan
           </div>
         </form>
 
-        <div className="flex gap-px p-0.5" style={{ backgroundColor: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)' }}>
+        <div
+          className="flex gap-px p-0.5 font-mono"
+          style={{
+            backgroundColor: 'var(--bg-hover)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--border-color)',
+          }}
+        >
           {TIME_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -82,13 +96,14 @@ export function SearchBar({ keyword, timeRange, onKeywordChange, onTimeRangeChan
               style={{
                 padding: '5px 12px',
                 fontSize: '11px',
-                fontWeight: timeRange === opt.value ? 600 : 400,
+                fontWeight: timeRange === opt.value ? 600 : 500,
                 borderRadius: 'calc(var(--radius-sm) - 1px)',
                 backgroundColor: timeRange === opt.value ? 'var(--bg-card)' : 'transparent',
                 border: timeRange === opt.value ? '1px solid var(--border-color)' : '1px solid transparent',
-                color: timeRange === opt.value ? 'var(--text-primary)' : 'var(--text-muted)',
+                color: timeRange === opt.value ? 'var(--color-ai)' : 'var(--text-muted)',
                 cursor: 'pointer',
                 transition: 'all 0.12s ease',
+                letterSpacing: '0.04em',
               }}
             >
               {opt.label}

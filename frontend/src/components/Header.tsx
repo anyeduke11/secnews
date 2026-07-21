@@ -129,36 +129,67 @@ export function Header({
     <header className="pb-4 mb-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div
-            className="w-9 h-9 rounded-[var(--radius-sm)] flex items-center justify-center text-base font-bold shrink-0"
-            style={{
-              backgroundColor: 'var(--bg-elevated)',
-              border: '1px solid var(--border-color)',
-              color: 'var(--color-ai)',
-            }}
-          >
-            H
+          {/* Phase 8: tech-style 角标 logo — 像终端 prompt 框 */}
+          <div className="relative shrink-0">
+            <div
+              className="w-9 h-9 rounded-[var(--radius-sm)] flex items-center justify-center text-base font-bold font-mono"
+              style={{
+                backgroundColor: 'var(--bg-elevated)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--color-ai)',
+                position: 'relative',
+              }}
+            >
+              {/* 终端式 :: 提示符 */}
+              <span
+                aria-hidden="true"
+                className="absolute"
+                style={{
+                  left: 3,
+                  top: 1,
+                  fontSize: '8px',
+                  color: 'var(--text-muted)',
+                  fontWeight: 400,
+                  lineHeight: 1,
+                }}
+              >
+                ::
+              </span>
+              H
+              {/* 四角小 L 形角标 — 极简 terminal 风 */}
+              <span aria-hidden="true" style={{ position: 'absolute', top: 1, left: 1, width: 3, height: 3, borderTop: '1px solid var(--color-ai)', borderLeft: '1px solid var(--color-ai)', opacity: 0.5 }} />
+              <span aria-hidden="true" style={{ position: 'absolute', top: 1, right: 1, width: 3, height: 3, borderTop: '1px solid var(--color-ai)', borderRight: '1px solid var(--color-ai)', opacity: 0.5 }} />
+              <span aria-hidden="true" style={{ position: 'absolute', bottom: 1, left: 1, width: 3, height: 3, borderBottom: '1px solid var(--color-ai)', borderLeft: '1px solid var(--color-ai)', opacity: 0.5 }} />
+              <span aria-hidden="true" style={{ position: 'absolute', bottom: 1, right: 1, width: 3, height: 3, borderBottom: '1px solid var(--color-ai)', borderRight: '1px solid var(--color-ai)', opacity: 0.5 }} />
+            </div>
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>
               SecNews热点地图
               {apiVersion && (
-                <sub
-                  className="ml-1.5 font-mono font-normal"
+                <span
+                  className="ml-2 font-mono align-middle"
                   style={{
                     color: 'var(--text-muted)',
-                    fontSize: '11px',
+                    fontSize: '10px',
                     fontWeight: 500,
-                    letterSpacing: '0.02em',
-                    verticalAlign: 'baseline',
+                    letterSpacing: '0.04em',
+                    padding: '1px 5px',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '4px',
+                    backgroundColor: 'var(--bg-elevated)',
+                    display: 'inline-block',
+                    lineHeight: 1.4,
+                    verticalAlign: '2px',
                   }}
                   title={`API version ${apiVersion}`}
                 >
                   v{apiVersion}
-                </sub>
+                </span>
               )}
             </h1>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-xs mt-0.5 font-mono tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+              <span style={{ color: 'var(--color-ai)', marginRight: 4 }}>$</span>
               七大领域热点实时聚合
             </p>
           </div>

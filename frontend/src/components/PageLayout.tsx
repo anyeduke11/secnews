@@ -22,9 +22,23 @@ export function PageLayout() {
   return (
     <ToastProvider>
       <div
-        className="min-h-[100dvh]"
+        className="min-h-[100dvh] relative"
         style={{ backgroundColor: 'var(--bg-primary)' }}
       >
+        {/* Phase 8: tech-style 背景网格 + 顶部细线 — 极淡不抢戏, 暗/亮两套透明度 */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-tech-grid"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+          style={{
+            background:
+              'linear-gradient(to right, transparent, var(--color-ai) 20%, var(--color-ai) 80%, transparent)',
+            opacity: 0.4,
+          }}
+        />
         {/* Phase 7: 响应式 padding — mobile 16px, tablet 24px, desktop 32px */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 relative z-10">
           <Outlet />

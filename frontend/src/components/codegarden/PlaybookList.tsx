@@ -1,9 +1,11 @@
 // frontend/src/components/codegarden/PlaybookList.tsx
 // M4 Playbook 列表 — 浏览 codegarden/playbooks/*.yml + 查看 YAML + 执行
+// Phase 4: toast 走 --color-success/--color-error, 加载/空态走 EmptyState
 import { useState } from 'react';
 import { Playbook } from '../../types/codegarden';
 import { useCodegardenOrchestration } from '../../hooks/useCodegardenOrchestration';
 import { Icon } from '../Icon';
+import { EmptyState } from '../EmptyState';
 
 export function PlaybookList() {
   const { playbooks, loadingPlaybooks, error, runPlaybook, refreshPlaybooks } = useCodegardenOrchestration();
@@ -46,13 +48,23 @@ export function PlaybookList() {
       </div>
 
       {loadingPlaybooks ? (
-        <div className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>加载中…</div>
+        <p className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>加载中…</p>
       ) : error ? (
-        <div className="text-xs text-center py-6" style={{ color: '#e85d5d' }}>{error}</div>
-      ) : playbooks.length === 0 ? (
-        <div className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>
-          暂无 Playbook，请在 codegarden/playbooks/ 目录创建 .yml 文件
+        <div
+          className="rounded-[var(--radius-md)] p-2.5 text-xs"
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+            border: '1px solid var(--color-error)',
+            color: 'var(--color-error)',
+          }}
+        >
+          加载失败: {error}
         </div>
+      ) : playbooks.length === 0 ? (
+        <EmptyState
+          title="暂无 Playbook"
+          description="在 codegarden/playbooks/ 目录创建 .yml 文件"
+        />
       ) : (
         <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
           {playbooks.map(pb => (
@@ -112,7 +124,10 @@ export function PlaybookList() {
       {toast && (
         <div
           className="fixed bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded text-xs z-50"
-          style={{ backgroundColor: toast.kind === 'ok' ? '#00c96a' : '#e85d5d', color: '#fff' }}
+          style={{
+            backgroundColor: toast.kind === 'ok' ? 'var(--color-success)' : 'var(--color-error)',
+            color: '#fff',
+          }}
         >
           {toast.msg}
         </div>

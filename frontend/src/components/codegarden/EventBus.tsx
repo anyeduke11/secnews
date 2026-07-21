@@ -1,5 +1,6 @@
 // frontend/src/components/codegarden/EventBus.tsx
 // M4 事件总线 — 事件实时列表 + 按 type/status 筛选 + 手动发布
+// Phase 4: 错误/成功 toast 走 --color-error/--color-success, 状态色映射到 token
 import { useState } from 'react';
 import {
   CgEvent,
@@ -7,10 +8,11 @@ import {
   EventStatus,
   EventSourceType,
   EVENT_TYPE_LABELS,
-  EVENT_STATUS_COLORS,
 } from '../../types/codegarden';
 import { useCodegardenOrchestration } from '../../hooks/useCodegardenOrchestration';
 import { Icon } from '../Icon';
+import { useThemeColors, ThemeColorKey } from '../../hooks/useThemeColors';
+import { EmptyState } from '../EmptyState';
 
 const EVENT_TYPE_OPTIONS: Array<EventType | 'all'> = [
   'all', 'code_push', 'service_error', 'port_conflict', 'dep_update', 'project_archive',
@@ -22,6 +24,13 @@ const SOURCE_LABELS: Record<EventSourceType, string> = {
   project: '项目', service: '服务', resource: '资源', scheduler: '调度器',
 };
 
+// 事件状态 → token key (border-left 需要字面色)
+const STATUS_TOKEN: Record<EventStatus, ThemeColorKey> = {
+  pending: 'color-warning',
+  processed: 'color-success',
+  failed: 'color-error',
+};
+
 export function EventBus() {
   const {
     events, loadingEvents, error,
@@ -30,6 +39,8 @@ export function EventBus() {
   } = useCodegardenOrchestration();
   const [showPublish, setShowPublish] = useState(false);
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+
+  const colors = useThemeColors(['color-warning', 'color-success', 'color-error']);
 
   const flash = (kind: 'ok' | 'err', msg: string) => {
     setToast({ kind, msg });
@@ -74,17 +85,24 @@ export function EventBus() {
       </div>
 
       {loadingEvents ? (
-        <div className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>加载中…</div>
+        <p className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>加载中…</p>
       ) : error ? (
-        <div className="text-xs text-center py-6" style={{ color: '#e85d5d' }}>{error}</div>
-      ) : events.length === 0 ? (
-        <div className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>
-          暂无事件
+        <div
+          className="rounded-[var(--radius-md)] p-2.5 text-xs"
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+            border: '1px solid var(--color-error)',
+            color: 'var(--color-error)',
+          }}
+        >
+          加载失败: {error}
         </div>
+      ) : events.length === 0 ? (
+        <EmptyState title="暂无事件" description="点击右上角发布事件或等待服务自动触发" />
       ) : (
         <div className="space-y-1.5 max-h-[600px] overflow-y-auto">
           {events.map(ev => (
-            <EventRow key={ev.id} event={ev} />
+            <EventRow key={ev.id} event={ev} statusColor={colors[STATUS_TOKEN[ev.status]] || 'var(--text-muted)'} />
           ))}
         </div>
       )}
@@ -107,7 +125,10 @@ export function EventBus() {
       {toast && (
         <div
           className="fixed bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded text-xs z-50"
-          style={{ backgroundColor: toast.kind === 'ok' ? '#00c96a' : '#e85d5d', color: '#fff' }}
+          style={{
+            backgroundColor: toast.kind === 'ok' ? 'var(--color-success)' : 'var(--color-error)',
+            color: '#fff',
+          }}
         >
           {toast.msg}
         </div>
@@ -116,8 +137,7 @@ export function EventBus() {
   );
 }
 
-function EventRow({ event }: { event: CgEvent }) {
-  const statusColor = EVENT_STATUS_COLORS[event.status];
+function EventRow({ event, statusColor }: { event: CgEvent; statusColor: string }) {
   return (
     <div
       className="rounded p-2 text-[10px]"
@@ -151,7 +171,13 @@ function EventRow({ event }: { event: CgEvent }) {
         {event.processed_at && <span>处理于 {event.processed_at.slice(0, 19)}</span>}
       </div>
       {event.error_message && (
-        <div className="text-[9px] mt-1 p-1 rounded" style={{ backgroundColor: '#e85d5d20', color: '#e85d5d' }}>
+        <div
+          className="text-[9px] mt-1 p-1 rounded"
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+            color: 'var(--color-error)',
+          }}
+        >
           {event.error_message}
         </div>
       )}
@@ -232,7 +258,14 @@ function PublishEventDialog({ onClose, onPublish }: PublishEventDialogProps) {
               className="w-full text-[10px] px-2 py-1 rounded font-mono"
               style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }} />
           </div>
-          {err && <div className="text-[10px]" style={{ color: '#e85d5d' }}>{err}</div>}
+          {err && (
+            <div
+              className="text-[10px]"
+              style={{ color: 'var(--color-error)' }}
+            >
+              {err}
+            </div>
+          )}
           <button onClick={submit} className="btn-ghost w-full py-1.5 text-[11px]" style={{ color: 'var(--color-ai)' }}>发布</button>
         </div>
       </div>

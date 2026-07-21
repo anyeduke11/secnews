@@ -1,4 +1,5 @@
 // frontend/src/components/CodegardenPage.tsx
+// Phase 4: 错误态用 --color-error, Loading/Empty/Error 走 EmptyState 原子组件。
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCodegardenProjects } from '../hooks/useCodegardenProjects';
@@ -8,6 +9,7 @@ import { GithubImportDialog } from './codegarden/GithubImportDialog';
 import { FromKnowledgeDialog } from './codegarden/FromKnowledgeDialog';
 import { CgProject, LifecycleStage, ProjectSourceType, ProjectType } from '../types/codegarden';
 import { Icon } from './Icon';
+import { EmptyState } from './EmptyState';
 
 interface CodegardenPageProps {
   onBack: () => void;
@@ -143,13 +145,25 @@ export function CodegardenPage({ onBack }: CodegardenPageProps) {
 
       {/* 看板 */}
       {loading ? (
-        <div className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>加载中…</div>
+        <p className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>
+          加载中…
+        </p>
       ) : error ? (
-        <div className="text-xs text-center py-6" style={{ color: '#e85d5d' }}>{error}</div>
-      ) : items.length === 0 ? (
-        <div className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>
-          暂无项目，点击右上角 + 添加
+        <div
+          className="rounded-[var(--radius-md)] p-2.5 text-xs"
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+            border: '1px solid var(--color-error)',
+            color: 'var(--color-error)',
+          }}
+        >
+          加载失败: {error}
         </div>
+      ) : items.length === 0 ? (
+        <EmptyState
+          title="暂无项目"
+          description="点击右上角 + 添加，或从 GitHub / 知识库导入"
+        />
       ) : (
         <ProjectBoard
           items={items}

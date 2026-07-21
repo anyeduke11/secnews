@@ -127,7 +127,7 @@ export function BookmarkImport({ onImported }: BookmarkImportProps) {
           className="text-[10px] px-2 py-0.5 rounded-[var(--radius-sm)]"
           style={{
             backgroundColor: 'var(--bg-hover)',
-            color: toast.ok ? 'var(--color-ai)' : '#e85d5d',
+            color: toast.ok ? 'var(--color-ai)' : 'var(--color-error)',
           }}
         >
           {toast.msg}

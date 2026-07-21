@@ -132,7 +132,7 @@ export function SkillConfigDialog({ skill_id, onClose, onSaved }: SkillConfigDia
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 50,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'var(--bg-overlay)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
     >
@@ -167,7 +167,7 @@ export function SkillConfigDialog({ skill_id, onClose, onSaved }: SkillConfigDia
         {error && (
           <div
             className="rounded-[var(--radius-sm)] p-2.5 mb-3 text-xs"
-            style={{ backgroundColor: 'rgba(232, 93, 93, 0.12)', border: '1px solid #e85d5d', color: '#e85d5d' }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)', border: '1px solid var(--color-error)', color: 'var(--color-error)' }}
           >
             {error}
           </div>
@@ -202,7 +202,7 @@ export function SkillConfigDialog({ skill_id, onClose, onSaved }: SkillConfigDia
                 ))}
               </select>
               {secrets.length === 0 && (
-                <div className="text-[10px] mt-1" style={{ color: '#f0ad4e' }}>
+                <div className="text-[10px] mt-1" style={{ color: 'var(--color-warning)' }}>
                   暂无可用密钥，请先在密钥管理中添加
                 </div>
               )}
@@ -252,7 +252,7 @@ export function SkillConfigDialog({ skill_id, onClose, onSaved }: SkillConfigDia
               </button>
               {toast && (
                 <span className="text-[10px] ml-auto" style={{
-                  color: toast.kind === 'ok' ? 'var(--color-ai)' : '#e85d5d',
+                  color: toast.kind === 'ok' ? 'var(--color-ai)' : 'var(--color-error)',
                 }}>
                   {toast.kind === 'ok' ? '✓ ' : '✗ '}{toast.msg}
                 </span>

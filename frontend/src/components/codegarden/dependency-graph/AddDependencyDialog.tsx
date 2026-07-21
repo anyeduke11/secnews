@@ -37,7 +37,7 @@ export function AddDependencyDialog({ onClose, onAdd }: AddDependencyDialogProps
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+      style={{ backgroundColor: 'var(--bg-overlay)' }}
       onClick={onClose}
     >
       <div
@@ -147,7 +147,7 @@ export function AddDependencyDialog({ onClose, onAdd }: AddDependencyDialogProps
             </select>
           </div>
           {err && (
-            <div className="text-[10px]" style={{ color: '#e85d5d' }}>
+            <div className="text-[10px]" style={{ color: 'var(--color-error)' }}>
               {err}
             </div>
           )}

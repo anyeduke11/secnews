@@ -61,7 +61,7 @@ export function SkillEntryGrid() {
   }
 
   if (error) {
-    return <p className="text-xs" style={{ color: '#e85d5d' }}>加载失败: {error}</p>;
+    return <p className="text-xs" style={{ color: 'var(--color-error)' }}>加载失败: {error}</p>;
   }
 
   return (
@@ -71,7 +71,7 @@ export function SkillEntryGrid() {
           const label = SKILL_NAMES[s.skill_name] || s.skill_name;
           const icon = SKILL_ICONS[s.skill_name] || '🔧';
           // 状态指示器：disabled 优先级最高
-          const dotColor = !s.enabled ? '#e85d5d' : s.secret_id != null ? '#5cb85c' : '#888899';
+          const dotColor = !s.enabled ? 'var(--color-error)' : s.secret_id != null ? 'var(--color-success)' : 'var(--text-muted)';
           const dotLabel = !s.enabled ? '已禁用' : s.secret_id != null ? '已绑定' : '未绑定';
           return (
             <button

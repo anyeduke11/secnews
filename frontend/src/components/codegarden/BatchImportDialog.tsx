@@ -40,7 +40,7 @@ const tabStyle = (active: boolean): CSSProperties => ({
   borderRadius: 'var(--radius-sm)',
   cursor: 'pointer',
   backgroundColor: active ? 'var(--color-ai)' : 'transparent',
-  color: active ? '#0a0a0f' : 'var(--text-secondary)',
+  color: active ? 'var(--text-on-light)' : 'var(--text-secondary)',
   border: '1px solid',
   borderColor: active ? 'var(--color-ai)' : 'var(--border-color)',
   fontWeight: active ? 600 : 400,
@@ -267,7 +267,7 @@ export function BatchImportDialog({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+      style={{ backgroundColor: 'var(--bg-overlay)' }}
       onClick={handleClose}
     >
       <div
@@ -459,7 +459,7 @@ export function BatchImportDialog({
               <span className="text-[11px]" style={{ color: 'var(--color-general)' }}>
                 ✓ 已导入 {importResult.imported_count} 个
                 {importResult.failed_count > 0 && (
-                  <span style={{ color: '#e85d5d' }}>, 失败 {importResult.failed_count}</span>
+                  <span style={{ color: 'var(--color-error)' }}>, 失败 {importResult.failed_count}</span>
                 )}
               </span>
             )}
@@ -495,15 +495,15 @@ export function BatchImportDialog({
         {importResult && (importResult.failed || []).length > 0 && (
           <div
             className="mt-2 p-2 rounded text-[10px]"
-            style={{ backgroundColor: 'rgba(232,93,93,0.08)', border: '1px solid rgba(232,93,93,0.3)' }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-error) 30%, transparent)' }}
           >
-            <div className="font-semibold mb-1" style={{ color: '#e85d5d' }}>
+            <div className="font-semibold mb-1" style={{ color: 'var(--color-error)' }}>
               失败明细 ({(importResult.failed || []).length})
             </div>
             <ul className="space-y-0.5" style={{ color: 'var(--text-secondary)' }}>
               {(importResult.failed || []).map((f, i) => (
                 <li key={i}>
-                  · {f.name}: <span style={{ color: '#e85d5d' }}>{f.error}</span>
+                  · {f.name}: <span style={{ color: 'var(--color-error)' }}>{f.error}</span>
                 </li>
               ))}
             </ul>
@@ -516,11 +516,11 @@ export function BatchImportDialog({
             className="mt-2 text-xs px-2 py-1 rounded"
             style={{
               backgroundColor:
-                toast.kind === 'ok' ? '#00c96a20' :
-                toast.kind === 'err' ? '#e85d5d20' : 'rgba(0,188,212,0.12)',
+                toast.kind === 'ok' ? 'color-mix(in srgb, var(--color-success) 13%, transparent)' :
+                toast.kind === 'err' ? 'var(--color-error)20' : 'color-mix(in srgb, var(--color-info) 12%, transparent)',
               color:
-                toast.kind === 'ok' ? '#00c96a' :
-                toast.kind === 'err' ? '#e85d5d' : 'var(--color-ai)',
+                toast.kind === 'ok' ? 'var(--color-success)' :
+                toast.kind === 'err' ? 'var(--color-error)' : 'var(--color-ai)',
             }}
           >
             {toast.msg}

@@ -127,7 +127,7 @@ export function EventBus() {
           className="fixed bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded text-xs z-50"
           style={{
             backgroundColor: toast.kind === 'ok' ? 'var(--color-success)' : 'var(--color-error)',
-            color: '#fff',
+            color: 'var(--text-on-color)',
           }}
         >
           {toast.msg}
@@ -217,7 +217,7 @@ function PublishEventDialog({ onClose, onPublish }: PublishEventDialogProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-overlay)' }} onClick={onClose}>
       <div className="w-full max-w-md rounded-[var(--radius-md)] p-3" style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>发布事件</span>

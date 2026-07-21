@@ -123,7 +123,7 @@ export function ProxySettings({ open }: ProxySettingsProps) {
               className="flex-1 px-3 py-2 text-xs font-medium rounded-[var(--radius-sm)] transition-colors"
               style={{
                 backgroundColor: mode === opt.value ? 'var(--color-ai)' : 'var(--bg-hover)',
-                color: mode === opt.value ? '#fff' : 'var(--text-secondary)',
+                color: mode === opt.value ? 'var(--text-on-color)' : 'var(--text-secondary)',
                 border: `1px solid ${mode === opt.value ? 'var(--color-ai)' : 'var(--border-color)'}`,
               }}
             >
@@ -177,7 +177,7 @@ export function ProxySettings({ open }: ProxySettingsProps) {
             return (
               <div key={site.url} className="flex items-center justify-between text-xs">
                 <span style={{ color: 'var(--text-primary)' }}>{site.name}</span>
-                <span style={{ color: r.ok ? 'var(--color-general)' : '#e85d5d', fontSize: 10 }}>
+                <span style={{ color: r.ok ? 'var(--color-general)' : 'var(--color-error)', fontSize: 10 }}>
                   {r.ok ? `✓ ${r.status}` : `✗ ${r.error || r.status}`}
                 </span>
               </div>
@@ -189,9 +189,9 @@ export function ProxySettings({ open }: ProxySettingsProps) {
       {/* Message */}
       {message && (
         <div className="p-2.5 rounded-[var(--radius-sm)] text-xs" style={{
-          backgroundColor: message.type === 'ok' ? 'rgba(0,201,106,0.08)' : 'rgba(232,93,93,0.08)',
-          border: `1px solid ${message.type === 'ok' ? 'rgba(0,201,106,0.2)' : 'rgba(232,93,93,0.2)'}`,
-          color: message.type === 'ok' ? 'var(--color-general)' : '#e85d5d',
+          backgroundColor: message.type === 'ok' ? 'color-mix(in srgb, var(--color-success) 8%, transparent)' : 'color-mix(in srgb, var(--color-error) 8%, transparent)',
+          border: `1px solid ${message.type === 'ok' ? 'color-mix(in srgb, var(--color-success) 20%, transparent)' : 'color-mix(in srgb, var(--color-error) 20%, transparent)'}`,
+          color: message.type === 'ok' ? 'var(--color-general)' : 'var(--color-error)',
         }}>
           {message.text}
         </div>
@@ -218,7 +218,7 @@ export function ProxySettings({ open }: ProxySettingsProps) {
           className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-sm)]"
           style={{
             backgroundColor: 'var(--color-ai)',
-            color: '#fff',
+            color: 'var(--text-on-color)',
             border: 'none',
             cursor: 'pointer',
             opacity: saving ? 0.6 : 1,

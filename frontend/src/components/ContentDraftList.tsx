@@ -105,7 +105,7 @@ export function ContentDraftList() {
       </div>
 
       {error && (
-        <p className="text-[10px] mb-1" style={{ color: '#e85d5d' }}>{error}</p>
+        <p className="text-[10px] mb-1" style={{ color: 'var(--color-error)' }}>{error}</p>
       )}
 
       {showForm && (
@@ -152,8 +152,8 @@ export function ContentDraftList() {
                 <span
                   className="px-1 py-0.5 rounded text-[8px] shrink-0"
                   style={{
-                    backgroundColor: d.status === 'final' ? '#00c96a' : d.status === 'archived' ? '#888899' : 'var(--color-ai)',
-                    color: '#fff',
+                    backgroundColor: d.status === 'final' ? 'var(--color-success)' : d.status === 'archived' ? 'var(--text-muted)' : 'var(--color-ai)',
+                    color: 'var(--text-on-color)',
                   }}
                 >
                   {d.status}
@@ -183,7 +183,7 @@ export function ContentDraftList() {
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDelete(d.id); }}
                   className="text-[10px] px-1 shrink-0"
-                  style={{ color: '#e85d5d' }}
+                  style={{ color: 'var(--color-error)' }}
                   title="删除"
                 >
                   ×

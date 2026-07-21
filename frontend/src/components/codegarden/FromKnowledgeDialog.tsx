@@ -71,7 +71,7 @@ export function FromKnowledgeDialog({ open, onClose, onImported, listCandidates,
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+      style={{ backgroundColor: 'var(--bg-overlay)' }}
       onClick={onClose}
     >
       <div
@@ -161,8 +161,8 @@ export function FromKnowledgeDialog({ open, onClose, onImported, listCandidates,
           <div
             className="mt-2 text-xs px-2 py-1 rounded"
             style={{
-              backgroundColor: toast.kind === 'ok' ? '#00c96a20' : '#e85d5d20',
-              color: toast.kind === 'ok' ? '#00c96a' : '#e85d5d',
+              backgroundColor: toast.kind === 'ok' ? 'color-mix(in srgb, var(--color-success) 13%, transparent)' : 'var(--color-error)20',
+              color: toast.kind === 'ok' ? 'var(--color-success)' : 'var(--color-error)',
             }}
           >
             {toast.msg}

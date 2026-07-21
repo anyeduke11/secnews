@@ -114,7 +114,7 @@ export function PublishDialog({ draft_id, draft_title, onClose, onPublished }: P
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 50,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'var(--bg-overlay)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
     >
@@ -222,7 +222,7 @@ export function PublishDialog({ draft_id, draft_title, onClose, onPublished }: P
           </button>
           {toast && (
             <span className="text-[10px] ml-auto" style={{
-              color: toast.kind === 'ok' ? 'var(--color-ai)' : '#e85d5d',
+              color: toast.kind === 'ok' ? 'var(--color-ai)' : 'var(--color-error)',
             }}>
               {toast.kind === 'ok' ? '✓ ' : '✗ '}{toast.msg}
             </span>

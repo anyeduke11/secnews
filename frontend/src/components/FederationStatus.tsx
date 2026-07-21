@@ -27,7 +27,7 @@ export function FederationStatus() {
   }
 
   if (error) {
-    return <p className="text-xs" style={{ color: '#e85d5d' }}>加载失败: {error}</p>;
+    return <p className="text-xs" style={{ color: 'var(--color-error)' }}>加载失败: {error}</p>;
   }
 
   if (!status) {
@@ -48,14 +48,14 @@ export function FederationStatus() {
         <span style={{ color: 'var(--text-muted)' }}>路径:</span>
         <span
           className="truncate flex-1"
-          style={{ color: status.local_wiki_exists ? 'var(--text-primary)' : '#e85d5d' }}
+          style={{ color: status.local_wiki_exists ? 'var(--text-primary)' : 'var(--color-error)' }}
           title={status.local_wiki_path}
         >
           {status.local_wiki_path || '(空)'}
         </span>
       </div>
       {!status.local_wiki_exists && (
-        <p className="text-[10px]" style={{ color: '#e85d5d' }}>路径不存在</p>
+        <p className="text-[10px]" style={{ color: 'var(--color-error)' }}>路径不存在</p>
       )}
       <div className="grid grid-cols-3 gap-1 mt-1">
         <div className="text-center p-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'var(--bg-hover)' }}>

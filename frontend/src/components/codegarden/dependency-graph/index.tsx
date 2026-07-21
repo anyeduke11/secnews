@@ -109,7 +109,7 @@ export function DependencyGraph() {
           加载中…
         </div>
       ) : error ? (
-        <div className="text-xs text-center py-6" style={{ color: '#e85d5d' }}>
+        <div className="text-xs text-center py-6" style={{ color: 'var(--color-error)' }}>
           {error}
         </div>
       ) : dependencies.length === 0 ? (

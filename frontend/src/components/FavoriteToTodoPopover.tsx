@@ -97,7 +97,7 @@ export function FavoriteToTodoPopover({ favorite, onConfirm, onCancel }: Favorit
             />
             <span
               className="dot-indicator"
-              style={{ backgroundColor: important ? '#3b82f6' : 'transparent', border: '1px solid #3b82f6' }}
+              style={{ backgroundColor: important ? 'var(--color-info)' : 'transparent', border: '1px solid var(--color-info)' }}
               aria-hidden="true"
             />
             重要
@@ -130,7 +130,7 @@ export function FavoriteToTodoPopover({ favorite, onConfirm, onCancel }: Favorit
         />
 
         {error && (
-          <p className="text-[11px]" style={{ color: '#e85d5d' }}>
+          <p className="text-[11px]" style={{ color: 'var(--color-error)' }}>
             {error}
           </p>
         )}
@@ -150,7 +150,7 @@ export function FavoriteToTodoPopover({ favorite, onConfirm, onCancel }: Favorit
             className="px-2.5 py-1 text-[11px] rounded-[var(--radius-sm)] font-medium transition-colors duration-150"
             style={{
               backgroundColor: submitting ? 'var(--text-muted)' : 'var(--color-ai)',
-              color: '#0a1f15',
+              color: 'var(--text-on-light)',
               opacity: submitting ? 0.7 : 1,
               cursor: submitting ? 'not-allowed' : 'pointer',
               border: 'none',

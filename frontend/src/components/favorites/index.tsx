@@ -152,7 +152,7 @@ export function FavoritesPanel({
       {/* 背景遮罩 */}
       <div
         className="fixed inset-0 z-40"
-        style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+        style={{ backgroundColor: 'var(--bg-overlay)' }}
         onClick={onClose}
       />
 
@@ -167,7 +167,7 @@ export function FavoritesPanel({
           style={{ borderBottom: '1px solid var(--border-color)' }}
         >
           <div className="flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="#f0c929" stroke="#f0c929" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--color-warning)" stroke="var(--color-warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
             </svg>
             <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
@@ -207,8 +207,8 @@ export function FavoritesPanel({
           <div
             className="px-4 py-2 text-[11px] shrink-0"
             style={{
-              backgroundColor: '#e85d5d14',
-              color: '#e85d5d',
+              backgroundColor: 'color-mix(in srgb, var(--color-error) 8%, transparent)',
+              color: 'var(--color-error)',
               borderBottom: '1px solid var(--border-color)',
             }}
             onClick={() => setAddError(null)}
@@ -222,8 +222,8 @@ export function FavoritesPanel({
           <div
             className="px-4 py-2 text-[11px] shrink-0"
             style={{
-              backgroundColor: message.type === 'ok' ? '#00c96a14' : '#e85d5d14',
-              color: message.type === 'ok' ? '#00c96a' : '#e85d5d',
+              backgroundColor: message.type === 'ok' ? 'color-mix(in srgb, var(--color-success) 8%, transparent)' : 'color-mix(in srgb, var(--color-error) 8%, transparent)',
+              color: message.type === 'ok' ? 'var(--color-success)' : 'var(--color-error)',
               borderBottom: '1px solid var(--border-color)',
             }}
             onClick={() => setMessage(null)}

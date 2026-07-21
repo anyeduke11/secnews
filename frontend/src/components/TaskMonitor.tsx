@@ -6,10 +6,10 @@ interface TaskMonitorProps {
 }
 
 const STATUS_COLORS: Record<TaskItem['status'], string> = {
-  pending: '#f0c929',
-  processing: '#00bcd4',
-  done: '#00c96a',
-  failed: '#e85d5d',
+  pending: 'var(--color-warning)',
+  processing: 'var(--color-info)',
+  done: 'var(--color-success)',
+  failed: 'var(--color-error)',
 };
 
 export function TaskMonitor({ refreshKey }: TaskMonitorProps) {
@@ -109,7 +109,7 @@ export function TaskMonitor({ refreshKey }: TaskMonitorProps) {
           {error && (
             <div
               className="rounded-[var(--radius-sm)] p-2 mb-2 text-[11px]"
-              style={{ backgroundColor: 'rgba(232, 93, 93, 0.12)', border: '1px solid #e85d5d', color: '#e85d5d' }}
+              style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)', border: '1px solid var(--color-error)', color: 'var(--color-error)' }}
             >
               加载失败: {error}
             </div>
@@ -129,8 +129,8 @@ export function TaskMonitor({ refreshKey }: TaskMonitorProps) {
                   <span
                     className="shrink-0 px-1.5 py-0.5 rounded-[var(--radius-sm)] text-[10px] font-medium"
                     style={{
-                      backgroundColor: STATUS_COLORS[t.status] || '#888899',
-                      color: '#000',
+                      backgroundColor: STATUS_COLORS[t.status] || 'var(--text-muted)',
+                      color: 'var(--text-on-light)',
                       opacity: 0.9,
                     }}
                   >
@@ -146,7 +146,7 @@ export function TaskMonitor({ refreshKey }: TaskMonitorProps) {
                     {t.updated_at}
                   </span>
                   {t.error_message && (
-                    <span className="shrink-0 text-[10px]" style={{ color: '#e85d5d' }} title={t.error_message}>
+                    <span className="shrink-0 text-[10px]" style={{ color: 'var(--color-error)' }} title={t.error_message}>
                       ⚠
                     </span>
                   )}

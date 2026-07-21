@@ -11,7 +11,7 @@ import { HotspotGrid } from './components/HotspotGrid';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
 import { RegionFilter } from './components/RegionFilter';
 import { SettingsPanel } from './components/settings';
-import { FavoritesPanel } from './components/FavoritesPanel';
+import { FavoritesPanel } from './components/favorites';
 import { HistoryPage } from './components/HistoryPage';
 import { TodosPage } from './components/TodosPage';
 import { SkillsPage } from './components/SkillsPage';

@@ -1,12 +1,13 @@
+// TodosPage — 待办 + 本周复盘
+// Phase 5A: 移除 onBack prop (用 useGoHome), 错误色走 --color-error, 四象限色映射到 token
 import React, { useMemo, useCallback } from 'react';
 import { useTodos } from '../hooks/useTodos';
 import { TodoItem } from '../components/TodoItem';
 import { AddTodoForm } from '../components/AddTodoForm';
 import { TodoStatus, TodoUpdateRequest, TodoCreateRequest } from '../types';
-
-interface TodosPageProps {
-  onBack: () => void;
-}
+import { useGoHome } from '../hooks/useGoHome';
+import { Icon } from './Icon';
+import { EmptyState } from './EmptyState';
 
 const STATUS_TABS: { value: TodoStatus | 'all'; label: string }[] = [
   { value: 'all', label: '全部' },
@@ -15,25 +16,8 @@ const STATUS_TABS: { value: TodoStatus | 'all'; label: string }[] = [
   { value: 'archived', label: '已归档' },
 ];
 
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
-
-export function TodosPage({ onBack }: TodosPageProps) {
+export function TodosPage() {
+  const goHome = useGoHome();
   const {
     items,
     total,
@@ -133,7 +117,7 @@ export function TodosPage({ onBack }: TodosPageProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={onBack}
+            onClick={goHome}
             className="btn-ghost px-2.5 py-1.5 text-xs"
             title="返回首页"
             aria-label="返回首页"
@@ -167,13 +151,13 @@ export function TodosPage({ onBack }: TodosPageProps) {
         <div
           className="rounded-[var(--radius-md)] p-2.5 mb-3 flex items-center justify-between text-xs"
           style={{
-            backgroundColor: 'rgba(232, 93, 93, 0.12)',
-            border: '1px solid #e85d5d',
-            color: '#e85d5d',
+            backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+            border: '1px solid var(--color-error)',
+            color: 'var(--color-error)',
           }}
         >
           <span>加载失败: {error}</span>
-          <button onClick={refresh} className="btn-ghost px-2 py-0.5 text-xs" style={{ color: '#e85d5d', borderColor: '#e85d5d' }}>
+          <button onClick={refresh} className="btn-ghost px-2 py-0.5 text-xs" style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }}>
             重试
           </button>
         </div>
@@ -234,13 +218,13 @@ export function TodosPage({ onBack }: TodosPageProps) {
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      backgroundColor: '#e85d5d',
+                      backgroundColor: 'var(--color-error)',
                       display: 'inline-block',
                     }}
                   />
                   <span style={{ color: 'var(--text-secondary)' }}>紧急+重要</span>
                 </span>
-                <span className="font-mono tabular-nums" style={{ color: '#e85d5d' }}>
+                <span className="font-mono tabular-nums" style={{ color: 'var(--color-error)' }}>
                   {priorityCounts.urgent_important}
                 </span>
               </li>
@@ -251,13 +235,13 @@ export function TodosPage({ onBack }: TodosPageProps) {
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      backgroundColor: '#e8891a',
+                      backgroundColor: 'var(--color-bid)',
                       display: 'inline-block',
                     }}
                   />
                   <span style={{ color: 'var(--text-secondary)' }}>紧急+不重要</span>
                 </span>
-                <span className="font-mono tabular-nums" style={{ color: '#e8891a' }}>
+                <span className="font-mono tabular-nums" style={{ color: 'var(--color-bid)' }}>
                   {priorityCounts.urgent_only}
                 </span>
               </li>
@@ -268,13 +252,13 @@ export function TodosPage({ onBack }: TodosPageProps) {
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      backgroundColor: '#3b82f6',
+                      backgroundColor: 'var(--color-ai)',
                       display: 'inline-block',
                     }}
                   />
                   <span style={{ color: 'var(--text-secondary)' }}>不紧急+重要</span>
                 </span>
-                <span className="font-mono tabular-nums" style={{ color: '#3b82f6' }}>
+                <span className="font-mono tabular-nums" style={{ color: 'var(--color-ai)' }}>
                   {priorityCounts.important_only}
                 </span>
               </li>
@@ -381,9 +365,10 @@ export function TodosPage({ onBack }: TodosPageProps) {
               加载中…
             </p>
           ) : visible.length === 0 ? (
-            <p className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>
-              {items.length === 0 ? '暂无待办' : '无匹配项'}
-            </p>
+            <EmptyState
+              title={items.length === 0 ? '暂无待办' : '无匹配项'}
+              description={items.length === 0 ? '点击下方输入框添加' : '调整筛选条件试试'}
+            />
           ) : (
             <div className="flex flex-col gap-2">
               {visible.map(item => (

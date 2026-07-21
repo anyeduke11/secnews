@@ -1,3 +1,5 @@
+// HistoryPage — 历史资讯 (按自然周边界 7 天分批)
+// Phase 5A: 移除 onBack prop (用 useGoHome), 错误色走 --color-error, 收藏数用 --color-finance, 空态走 EmptyState
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Batch,
@@ -5,16 +7,16 @@ import {
   BatchItemsResponse,
   BatchSummaryResponse,
   HotspotItem,
-  getCategoryColor,
-  getCategoryLabel,
   CATEGORIES,
 } from '../types';
 import { HotspotCard } from './HotspotCard';
+import { useGoHome } from '../hooks/useGoHome';
+import { Icon } from './Icon';
+import { EmptyState } from './EmptyState';
 
 interface HistoryPageProps {
   favoritedIds: Set<string>;
   onToggleFavorite: (item: HotspotItem) => void;
-  onBack: () => void;
 }
 
 function formatBatchDate(isoString: string): string {
@@ -27,7 +29,8 @@ function formatBatchRange(start: string, end: string): string {
   return `${formatBatchDate(start)} - ${formatBatchDate(end)}`;
 }
 
-export function HistoryPage({ favoritedIds, onToggleFavorite, onBack }: HistoryPageProps) {
+export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps) {
+  const goHome = useGoHome();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [batchesLoading, setBatchesLoading] = useState(true);
   const [batchesError, setBatchesError] = useState<string | null>(null);
@@ -160,14 +163,15 @@ export function HistoryPage({ favoritedIds, onToggleFavorite, onBack }: HistoryP
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={onBack}
+            onClick={goHome}
             className="btn-ghost px-2.5 py-1.5 text-xs"
             title="返回首页"
+            aria-label="返回首页"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Icon>
               <line x1="19" y1="12" x2="5" y2="12" />
               <polyline points="12 19 5 12 12 5" />
-            </svg>
+            </Icon>
             返回首页
           </button>
           <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
@@ -203,12 +207,23 @@ export function HistoryPage({ favoritedIds, onToggleFavorite, onBack }: HistoryP
               <p className="text-xs py-4 text-center" style={{ color: 'var(--text-muted)' }}>加载中…</p>
             )}
             {batchesError && (
-              <p className="text-xs py-4 text-center" style={{ color: 'var(--color-bid)' }}>加载失败: {batchesError}</p>
+              <div
+                className="text-xs py-2.5 px-2 rounded-[var(--radius-sm)]"
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+                  border: '1px solid var(--color-error)',
+                  color: 'var(--color-error)',
+                }}
+              >
+                加载失败: {batchesError}
+              </div>
             )}
             {!batchesLoading && !batchesError && batches.length === 0 && (
-              <p className="text-xs py-4 text-center" style={{ color: 'var(--text-muted)' }}>
-                暂无历史批次<br />(项目刚启动, 第 1 批还未结束)
-              </p>
+              <EmptyState
+                compact
+                title="暂无历史批次"
+                description="项目刚启动, 第 1 批还未结束"
+              />
             )}
             <ul className="space-y-1">
               {batches.map(b => {
@@ -234,7 +249,7 @@ export function HistoryPage({ favoritedIds, onToggleFavorite, onBack }: HistoryP
                         {formatBatchRange(b.start, b.end)}
                       </div>
                       {b.favorite_count > 0 && (
-                        <div className="text-[10px] mt-0.5" style={{ color: '#f0c929' }}>
+                        <div className="text-[10px] mt-0.5" style={{ color: 'var(--color-finance)' }}>
                           ⭐ {b.favorite_count} 收藏
                         </div>
                       )}
@@ -315,12 +330,22 @@ export function HistoryPage({ favoritedIds, onToggleFavorite, onBack }: HistoryP
             <p className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>加载中…</p>
           )}
           {itemsError && (
-            <p className="text-sm py-8 text-center" style={{ color: 'var(--color-bid)' }}>加载失败: {itemsError}</p>
+            <div
+              className="rounded-[var(--radius-md)] p-2.5 text-sm"
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+                border: '1px solid var(--color-error)',
+                color: 'var(--color-error)',
+              }}
+            >
+              加载失败: {itemsError}
+            </div>
           )}
           {!itemsLoading && !itemsError && items.length === 0 && selectedBatchNo != null && (
-            <p className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>
-              本批次暂无数据
-            </p>
+            <EmptyState
+              title="本批次暂无数据"
+              description="切换到其他批次或等待新批次"
+            />
           )}
           <div
             className="grid gap-3"

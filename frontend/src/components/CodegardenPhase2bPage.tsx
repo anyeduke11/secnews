@@ -2,10 +2,10 @@
 // Phase 2b 主页 — Service Mesh + Resource Hub + Orchestration Engine
 // 三个 tab：M2 服务网格 / M3 资源中枢 / M4 联动引擎（含子 tab：依赖图谱/事件流/Playbook）
 import { useState } from 'react';
-import { ServiceMesh } from './codegarden/ServiceMesh';
+import { ServiceMesh } from './codegarden/service-mesh';
 import { ServiceTopology } from './codegarden/ServiceTopology';
-import { ResourceHub } from './codegarden/ResourceHub';
-import { DependencyGraph } from './codegarden/DependencyGraph';
+import { ResourceHub } from './codegarden/resource-hub';
+import { DependencyGraph } from './codegarden/dependency-graph';
 import { EventBus } from './codegarden/EventBus';
 import { PlaybookList } from './codegarden/PlaybookList';
 import { useCodegardenServices } from '../hooks/useCodegardenServices';

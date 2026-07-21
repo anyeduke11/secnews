@@ -31,7 +31,7 @@ export function FavoriteToolbar({
       {CATEGORY_CHIPS.map(c => {
         const cCount = c.id === 'all' ? total : (counts[c.id] || 0);
         const isActive = activeCat === c.id;
-        const catColor = c.id === 'all' ? '#f0c929' : getCategoryColor(c.id);
+        const catColor = c.id === 'all' ? 'var(--color-warning)' : getCategoryColor(c.id);
         return (
           <button
             key={c.id}
@@ -58,7 +58,7 @@ export function FavoriteToolbar({
         onClick={onExport}
         disabled={total === 0}
         className="ml-auto text-[11px] px-2.5 py-1 rounded-full font-medium transition-colors duration-150 disabled:opacity-50"
-        style={{ backgroundColor: '#00c96a', color: '#0a1f15' }}
+        style={{ backgroundColor: 'var(--color-success)', color: 'var(--text-on-light)' }}
         title="导出当前筛选为 .xlsx"
       >
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="inline-block mr-1" style={{ verticalAlign: '-1px' }}>

@@ -136,8 +136,8 @@ export default function KnowledgeSearchBar({ onSelect }: KnowledgeSearchBarProps
                   <span
                     className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium flex-shrink-0"
                     style={{
-                      backgroundColor: r.source === 'local' ? 'rgba(149, 117, 205, 0.15)' : 'rgba(92, 159, 224, 0.15)',
-                      color: r.source === 'local' ? '#9575cd' : '#5c9fe0',
+                      backgroundColor: r.source === 'local' ? 'color-mix(in srgb, var(--color-startup) 15%, transparent)' : 'color-mix(in srgb, var(--color-info) 15%, transparent)',
+                      color: r.source === 'local' ? 'var(--color-startup)' : 'var(--color-info)',
                     }}
                   >
                     {r.source === 'local' ? 'LOCAL' : 'HOTSPOT'}

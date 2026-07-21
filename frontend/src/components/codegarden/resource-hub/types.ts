@@ -11,12 +11,12 @@ export const PORT_RANGE_START = 8000;
 export const PORT_RANGE_END = 9999;
 
 export const PORT_STATUS_COLORS: Record<ResourceStatus, string> = {
-  allocated: '#e85d5d',
-  free: '#10b981',
-  reserved: '#f0c929',
+  allocated: 'var(--color-error)',
+  free: 'var(--color-success)',
+  reserved: 'var(--color-warning)',
 };
 
-export const PROTECTED_COLOR = '#3b82f6';
+export const PROTECTED_COLOR = 'var(--color-info)';
 
 export type FlashKind = 'ok' | 'err';
 

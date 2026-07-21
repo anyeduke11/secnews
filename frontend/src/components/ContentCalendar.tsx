@@ -108,7 +108,7 @@ export function ContentCalendar() {
       </div>
 
       {error && (
-        <p className="text-[10px] mb-1" style={{ color: '#e85d5d' }}>{error}</p>
+        <p className="text-[10px] mb-1" style={{ color: 'var(--color-error)' }}>{error}</p>
       )}
 
       <div className="grid grid-cols-7 gap-0.5 mb-1">
@@ -131,7 +131,7 @@ export function ContentCalendar() {
               className="cursor-pointer p-0.5 rounded-[var(--radius-sm)]"
               style={{
                 minHeight: '32px',
-                backgroundColor: selectedDate === dateStr ? 'rgba(0, 188, 212, 0.15)' : 'var(--bg-hover)',
+                backgroundColor: selectedDate === dateStr ? 'color-mix(in srgb, var(--color-info) 15%, transparent)' : 'var(--bg-hover)',
                 border: selectedDate === dateStr ? '1px solid var(--color-ai)' : '1px solid transparent',
               }}
             >
@@ -141,7 +141,7 @@ export function ContentCalendar() {
                   key={e.id}
                   onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }}
                   className="text-[8px] truncate rounded px-0.5 mt-0.5"
-                  style={{ backgroundColor: 'var(--color-ai)', color: '#fff' }}
+                  style={{ backgroundColor: 'var(--color-ai)', color: 'var(--text-on-color)' }}
                   title={`${e.topic} (点击删除)`}
                 >
                   {e.topic}

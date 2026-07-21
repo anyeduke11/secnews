@@ -42,7 +42,7 @@ export function SourceItem({ source: s, onToggle, onProbe, onDelete }: SourceIte
         </span>
         <span
           className="px-1 py-0.5 rounded text-[9px]"
-          style={{ backgroundColor: 'var(--color-ai)', color: '#fff' }}
+          style={{ backgroundColor: 'var(--color-ai)', color: 'var(--text-on-color)' }}
         >
           {s.category}
         </span>
@@ -56,7 +56,7 @@ export function SourceItem({ source: s, onToggle, onProbe, onDelete }: SourceIte
           className="px-1.5 py-0.5 text-[9px] rounded"
           style={{
             backgroundColor: s.enabled ? 'var(--color-ai)' : 'var(--bg-primary)',
-            color: s.enabled ? '#fff' : 'var(--text-muted)',
+            color: s.enabled ? 'var(--text-on-color)' : 'var(--text-muted)',
           }}
         >
           {s.enabled ? '启用' : '禁用'}
@@ -74,7 +74,7 @@ export function SourceItem({ source: s, onToggle, onProbe, onDelete }: SourceIte
         <button
           onClick={() => onDelete(s.id)}
           className="px-1.5 py-0.5 text-[9px] rounded"
-          style={{ backgroundColor: 'var(--bg-primary)', color: '#e85d5d' }}
+          style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--color-error)' }}
         >
           删除
         </button>

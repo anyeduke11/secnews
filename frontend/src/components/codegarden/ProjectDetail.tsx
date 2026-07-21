@@ -73,7 +73,7 @@ export function ProjectDetail({ project, onClose, onTransition, onSync }: Projec
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+      style={{ backgroundColor: 'var(--bg-overlay)' }}
       onClick={onClose}
     >
       <div
@@ -126,7 +126,7 @@ export function ProjectDetail({ project, onClose, onTransition, onSync }: Projec
               <span key={t} className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>#{t}</span>
             ))}
             {project.tech_stack.map(t => (
-              <span key={t} className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: '#3b82f620', color: '#3b82f6' }}>{t}</span>
+              <span key={t} className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'color-mix(in srgb, var(--color-info) 13%, transparent)', color: 'var(--color-info)' }}>{t}</span>
             ))}
           </div>
         )}
@@ -151,7 +151,7 @@ export function ProjectDetail({ project, onClose, onTransition, onSync }: Projec
                 className="text-[10px] px-2 py-0.5 rounded"
                 style={{
                   backgroundColor: s === project.lifecycle_stage ? LIFECYCLE_COLORS[s] : 'var(--bg-hover)',
-                  color: s === project.lifecycle_stage ? '#fff' : 'var(--text-secondary)',
+                  color: s === project.lifecycle_stage ? 'var(--text-on-color)' : 'var(--text-secondary)',
                   cursor: s === project.lifecycle_stage ? 'default' : 'pointer',
                 }}
               >
@@ -207,8 +207,8 @@ export function ProjectDetail({ project, onClose, onTransition, onSync }: Projec
           <div
             className="fixed bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-[var(--radius-sm)] text-xs"
             style={{
-              backgroundColor: toast.kind === 'ok' ? '#00c96a' : '#e85d5d',
-              color: '#fff',
+              backgroundColor: toast.kind === 'ok' ? 'var(--color-success)' : 'var(--color-error)',
+              color: 'var(--text-on-color)',
             }}
           >
             {toast.msg}

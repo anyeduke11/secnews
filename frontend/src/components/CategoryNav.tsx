@@ -75,9 +75,9 @@ export function CategoryNav({ active, onChange, counts, consistencyDrift = [] }:
                   className="text-[10px] px-1 py-px rounded-full"
                   title={`数据不一致：缓存显示 ${drift.cached} 条，DB 实际 ${drift.db} 条${drift.note ? `（${drift.note}）` : ''}`}
                   style={{
-                    backgroundColor: 'rgba(232,93,93,0.15)',
-                    color: '#e85d5d',
-                    border: '1px solid rgba(232,93,93,0.3)',
+                    backgroundColor: 'color-mix(in srgb, var(--color-error) 15%, transparent)',
+                    color: 'var(--color-error)',
+                    border: '1px solid color-mix(in srgb, var(--color-error) 30%, transparent)',
                     marginLeft: 2,
                   }}
                 >

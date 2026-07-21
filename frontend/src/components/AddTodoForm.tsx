@@ -198,7 +198,7 @@ export function AddTodoForm({ onAdd }: AddTodoFormProps) {
         />
 
         {error && (
-          <p className="text-[11px]" style={{ color: '#e85d5d' }}>
+          <p className="text-[11px]" style={{ color: 'var(--color-error)' }}>
             {error}
           </p>
         )}

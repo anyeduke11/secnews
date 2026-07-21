@@ -7,10 +7,10 @@ interface PublishHistoryProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: '#f0ad4e',
-  processing: '#5bc0de',
-  done: '#5cb85c',
-  failed: '#e85d5d',
+  pending: 'var(--color-warning)',
+  processing: 'var(--color-info)',
+  done: 'var(--color-success)',
+  failed: 'var(--color-error)',
 };
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -61,7 +61,7 @@ export function PublishHistory({ draft_id, onClose }: PublishHistoryProps) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 50,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'var(--bg-overlay)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
     >
@@ -101,7 +101,7 @@ export function PublishHistory({ draft_id, onClose }: PublishHistoryProps) {
         {error && (
           <div
             className="rounded-[var(--radius-sm)] p-2.5 mb-3 text-xs"
-            style={{ backgroundColor: 'rgba(232, 93, 93, 0.12)', border: '1px solid #e85d5d', color: '#e85d5d' }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)', border: '1px solid var(--color-error)', color: 'var(--color-error)' }}
           >
             加载失败: {error}
           </div>
@@ -116,7 +116,7 @@ export function PublishHistory({ draft_id, onClose }: PublishHistoryProps) {
         {history.length > 0 && (
           <div className="space-y-2">
             {history.map(item => {
-              const statusColor = STATUS_COLORS[item.status] || '#888899';
+              const statusColor = STATUS_COLORS[item.status] || 'var(--text-muted)';
               const platformLabel = item.platform ? (PLATFORM_LABELS[item.platform] || item.platform) : '-';
               return (
                 <div
@@ -127,7 +127,7 @@ export function PublishHistory({ draft_id, onClose }: PublishHistoryProps) {
                   <div className="flex items-center gap-2 mb-1">
                     <span
                       className="px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0"
-                      style={{ backgroundColor: statusColor, color: '#fff' }}
+                      style={{ backgroundColor: statusColor, color: 'var(--text-on-color)' }}
                     >
                       {item.status}
                     </span>

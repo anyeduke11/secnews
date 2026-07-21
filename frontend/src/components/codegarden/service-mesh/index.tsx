@@ -158,7 +158,7 @@ export function ServiceMesh({ onShowTopology }: ServiceMeshProps) {
           加载中…
         </div>
       ) : error ? (
-        <div className="text-xs text-center py-6" style={{ color: '#e85d5d' }}>
+        <div className="text-xs text-center py-6" style={{ color: 'var(--color-error)' }}>
           {error}
         </div>
       ) : items.length === 0 ? (
@@ -194,8 +194,8 @@ export function ServiceMesh({ onShowTopology }: ServiceMeshProps) {
         <div
           className="fixed bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded text-xs z-50"
           style={{
-            backgroundColor: toast.kind === 'ok' ? '#00c96a' : '#e85d5d',
-            color: '#fff',
+            backgroundColor: toast.kind === 'ok' ? 'var(--color-success)' : 'var(--color-error)',
+            color: 'var(--text-on-color)',
           }}
         >
           {toast.msg}

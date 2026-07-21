@@ -64,7 +64,7 @@ export function ResourceCard({ resource, onRemove }: ResourceCardProps) {
             }
           }}
           className="mt-2 text-[9px] w-full py-0.5 rounded"
-          style={{ border: '1px solid var(--border-color)', color: '#e85d5d' }}
+          style={{ border: '1px solid var(--border-color)', color: 'var(--color-error)' }}
         >
           删除
         </button>

@@ -28,7 +28,7 @@ export function MasteryGauge() {
   }
 
   if (error) {
-    return <p className="text-xs" style={{ color: '#e85d5d' }}>加载失败: {error}</p>;
+    return <p className="text-xs" style={{ color: 'var(--color-error)' }}>加载失败: {error}</p>;
   }
 
   if (progress.length === 0) {
@@ -96,7 +96,7 @@ export function MasteryGauge() {
                 style={{
                   width: `${Math.min(p.mastery, 100)}%`,
                   height: '4px',
-                  backgroundColor: p.mastery >= 80 ? '#00c96a' : p.mastery >= 50 ? '#f0c929' : '#e85d5d',
+                  backgroundColor: p.mastery >= 80 ? 'var(--color-success)' : p.mastery >= 50 ? 'var(--color-warning)' : 'var(--color-error)',
                 }}
               />
             </div>

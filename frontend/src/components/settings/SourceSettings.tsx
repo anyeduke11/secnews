@@ -26,7 +26,7 @@ const inputStyle = {
 } as const;
 const btnStyle = {
   backgroundColor: 'var(--color-ai)',
-  color: '#fff',
+  color: 'var(--text-on-color)',
   border: 'none',
 } as const;
 
@@ -179,7 +179,7 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
               </button>
             </div>
             {sourceMessage && (
-              <p className="text-[10px]" style={{ color: sourceMessage.type === 'ok' ? 'var(--color-general)' : '#e85d5d' }}>
+              <p className="text-[10px]" style={{ color: sourceMessage.type === 'ok' ? 'var(--color-general)' : 'var(--color-error)' }}>
                 {sourceMessage.text}
               </p>
             )}
@@ -228,7 +228,7 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
                     className="px-2 py-1.5 text-[11px] font-medium rounded-[var(--radius-sm)] transition-colors"
                     style={{
                       backgroundColor: active ? 'var(--color-ai)' : 'var(--bg-hover)',
-                      color: active ? '#fff' : 'var(--text-secondary)',
+                      color: active ? 'var(--text-on-color)' : 'var(--text-secondary)',
                       border: `1px solid ${active ? 'var(--color-ai)' : 'var(--border-color)'}`,
                     }}
                   >
@@ -238,7 +238,7 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
               })}
             </div>
             {refreshMessage && (
-              <p className="text-[10px]" style={{ color: refreshMessage.type === 'ok' ? 'var(--color-general)' : '#e85d5d' }}>
+              <p className="text-[10px]" style={{ color: refreshMessage.type === 'ok' ? 'var(--color-general)' : 'var(--color-error)' }}>
                 {refreshMessage.text}
               </p>
             )}

@@ -65,7 +65,7 @@ export function ProjectCard({ project, onClick, onTransition }: ProjectCardProps
         {project.source_type === 'fork' && behind > 0 && (
           <span
             className="text-[9px] px-1.5 py-0.5 rounded font-mono"
-            style={{ backgroundColor: '#e85d5d20', color: '#e85d5d' }}
+            style={{ backgroundColor: 'var(--color-error)20', color: 'var(--color-error)' }}
             title={`落后上游 ${behind} commits`}
           >
             ↓{behind}

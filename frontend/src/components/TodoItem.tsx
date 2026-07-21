@@ -18,10 +18,10 @@ interface TodoItemProps {
 // 4 象限视觉配置 (Eisenhower Matrix)
 type Quadrant = 'P0' | 'P1' | 'P2' | 'P3';
 const QUADRANT_INFO: Record<Quadrant, { color: string; bg: string; label: string; symbol: string }> = {
-  P0: { color: '#e85d5d', bg: '#e85d5d', label: '紧急+重要', symbol: '🔴' },
-  P1: { color: '#e8891a', bg: '#e8891a', label: '紧急+不重要', symbol: '🟠' },
-  P2: { color: '#3b82f6', bg: '#3b82f6', label: '不紧急+重要', symbol: '🔵' },
-  P3: { color: '#888899', bg: 'transparent', label: '不紧急+不重要', symbol: '⚪' },
+  P0: { color: 'var(--color-error)', bg: 'var(--color-error)', label: '紧急+重要', symbol: '🔴' },
+  P1: { color: 'var(--color-bid)', bg: 'var(--color-bid)', label: '紧急+不重要', symbol: '🟠' },
+  P2: { color: 'var(--color-info)', bg: 'var(--color-info)', label: '不紧急+重要', symbol: '🔵' },
+  P3: { color: 'var(--text-muted)', bg: 'transparent', label: '不紧急+不重要', symbol: '⚪' },
 };
 
 function getQuadrant(urgent: boolean, important: boolean): Quadrant {
@@ -95,7 +95,7 @@ function formatDeadline(
     return {
       text: `⚡ ${label}`,
       title: `${deadline} (自动判断为紧急: ≤1 业务日, 过滤周末)${isWeekend ? ' — 截止落在周末, 顺延到下周一' : ''}`,
-      color: '#e85d5d',
+      color: 'var(--color-error)',
       weight: 'bold',
     };
   }
@@ -118,7 +118,7 @@ export function TodoItem({
   const isArchived = item.status === 'archived';
   const quadrant = getQuadrant(item.urgent, item.important);
   const qInfo = QUADRANT_INFO[quadrant];
-  const catColor = item.category ? getCategoryColor(item.category) : '#888899';
+  const catColor = item.category ? getCategoryColor(item.category) : 'var(--text-muted)';
   const deadlineInfo = formatDeadline(item.deadline, item.urgent);
 
   const handleToggleClick = () => {
@@ -171,7 +171,7 @@ export function TodoItem({
           height: 20,
           border: `2px solid ${isDone ? 'var(--color-general)' : 'var(--border-color)'}`,
           backgroundColor: isDone ? 'var(--color-general)' : 'transparent',
-          color: isDone ? '#0a0a0f' : 'transparent',
+          color: isDone ? 'var(--text-on-light)' : 'transparent',
           cursor: isArchived ? 'not-allowed' : 'pointer',
           display: 'inline-flex',
           alignItems: 'center',
@@ -252,9 +252,9 @@ export function TodoItem({
           disabled={isArchived}
           className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-[10px] focus-ring"
           style={{
-            border: `1px solid ${item.important ? '#3b82f6' : 'var(--border-color)'}`,
-            backgroundColor: item.important ? '#3b82f614' : 'transparent',
-            color: item.important ? '#3b82f6' : 'var(--text-muted)',
+            border: `1px solid ${item.important ? 'var(--color-info)' : 'var(--border-color)'}`,
+            backgroundColor: item.important ? 'color-mix(in srgb, var(--color-info) 8%, transparent)' : 'transparent',
+            color: item.important ? 'var(--color-info)' : 'var(--text-muted)',
             cursor: isArchived ? 'not-allowed' : 'pointer',
           }}
           title={item.important ? '取消重要' : '标记为重要'}
@@ -356,8 +356,8 @@ export function TodoItem({
           title="删除"
           aria-label="删除"
           onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.color = '#e85d5d';
-            (e.currentTarget as HTMLElement).style.borderColor = '#e85d5d';
+            (e.currentTarget as HTMLElement).style.color = 'var(--color-error)';
+            (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-error)';
           }}
           onMouseLeave={e => {
             (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';

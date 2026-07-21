@@ -203,6 +203,7 @@ export interface StatsResponse {
 export const CATEGORIES: CategoryInfo[] = [
   { id: 'all', label: '全部热点', color: '#00c96a' },
   { id: 'ai', label: '科技 / AI', color: '#00bcd4' },
+  { id: 'ai_security', label: 'AI 安全', color: '#ff6b9d' },
   { id: 'security', label: '网络安全', color: '#e85d5d' },
   { id: 'finance', label: '金融 / 投资', color: '#f0c929' },
   { id: 'startup', label: '独立开发 / 创业', color: '#7c6aff' },

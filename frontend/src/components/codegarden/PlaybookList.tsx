@@ -126,7 +126,7 @@ export function PlaybookList() {
           className="fixed bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded text-xs z-50"
           style={{
             backgroundColor: toast.kind === 'ok' ? 'var(--color-success)' : 'var(--color-error)',
-            color: '#fff',
+            color: 'var(--text-on-color)',
           }}
         >
           {toast.msg}

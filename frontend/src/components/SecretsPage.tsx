@@ -176,9 +176,9 @@ export function SecretsPage({ onBack }: SecretsPageProps) {
         <div
           className="rounded-[var(--radius-md)] p-2.5 mb-3 text-xs"
           style={{
-            backgroundColor: 'rgba(232, 93, 93, 0.12)',
-            border: '1px solid #e85d5d',
-            color: '#e85d5d',
+            backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+            border: '1px solid var(--color-error)',
+            color: 'var(--color-error)',
           }}
         >
           {error}
@@ -307,7 +307,7 @@ function StatusBar({
     return (
       <div
         className="rounded-[var(--radius-md)] p-3 mb-3 text-xs flex items-center justify-between gap-2"
-        style={{ backgroundColor: 'rgba(232, 93, 93, 0.08)', border: '1px solid rgba(232, 93, 93, 0.4)' }}
+        style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-error) 40%, transparent)' }}
       >
         <div>
           <p style={{ color: 'var(--text-primary)' }}>🔒 主密钥未初始化</p>
@@ -318,7 +318,7 @@ function StatusBar({
         <button
           onClick={onSetupClick}
           className="btn-ghost px-3 py-1.5 text-xs shrink-0"
-          style={{ backgroundColor: 'var(--color-ai)', color: '#0a0d12', borderColor: 'var(--color-ai)' }}
+          style={{ backgroundColor: 'var(--color-ai)', color: 'var(--text-on-light)', borderColor: 'var(--color-ai)' }}
         >
           首次设置主密钥
         </button>
@@ -330,7 +330,7 @@ function StatusBar({
     return (
       <div
         className="rounded-[var(--radius-md)] p-3 mb-3 text-xs flex items-center justify-between gap-2"
-        style={{ backgroundColor: 'rgba(240, 201, 41, 0.08)', border: '1px solid rgba(240, 201, 41, 0.4)' }}
+        style={{ backgroundColor: 'color-mix(in srgb, var(--color-warning) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-warning) 40%, transparent)' }}
       >
         <div>
           <p style={{ color: 'var(--text-primary)' }}>🔒 已锁定</p>
@@ -352,7 +352,7 @@ function StatusBar({
   return (
     <div
       className="rounded-[var(--radius-md)] p-3 mb-3 text-xs flex items-center justify-between gap-2"
-      style={{ backgroundColor: 'rgba(0, 201, 106, 0.08)', border: '1px solid rgba(0, 201, 106, 0.4)' }}
+      style={{ backgroundColor: 'color-mix(in srgb, var(--color-success) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-success) 40%, transparent)' }}
     >
       <div>
         <p style={{ color: 'var(--text-primary)' }}>
@@ -366,7 +366,7 @@ function StatusBar({
       <button
         onClick={onLockClick}
         className="btn-ghost px-3 py-1.5 text-xs shrink-0"
-        style={{ color: '#e85d5d', borderColor: '#e85d5d' }}
+        style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }}
       >
         立即锁定
       </button>
@@ -408,7 +408,7 @@ function SecretCardView({
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </Icon>
           </button>
-          <button onClick={onDelete} className="btn-ghost px-1.5 py-0.5 text-[10px]" title="删除" aria-label="删除" style={{ color: '#e85d5d' }}>
+          <button onClick={onDelete} className="btn-ghost px-1.5 py-0.5 text-[10px]" title="删除" aria-label="删除" style={{ color: 'var(--color-error)' }}>
             <Icon>
               <polyline points="3 6 5 6 21 6" />
               <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
@@ -539,7 +539,7 @@ function AddOrEditForm({
       </h3>
 
       {error && (
-        <p className="text-xs px-2 py-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'rgba(232, 93, 93, 0.15)', color: '#e85d5d' }}>
+        <p className="text-xs px-2 py-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 15%, transparent)', color: 'var(--color-error)' }}>
           {error}
         </p>
       )}
@@ -596,7 +596,7 @@ function AddOrEditForm({
           className="btn-ghost px-3 py-1.5 text-xs"
           style={{
             backgroundColor: 'var(--color-ai)',
-            color: '#0a0d12',
+            color: 'var(--text-on-light)',
             borderColor: 'var(--color-ai)',
             opacity: submitting ? 0.6 : 1,
             cursor: submitting ? 'wait' : 'pointer',
@@ -652,7 +652,7 @@ function UnlockModal({
           输入主密钥, 解锁 30 分钟。期间可一键复制明文 API key, 过期自动锁定。
         </p>
         {err && (
-          <p className="text-xs px-2 py-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'rgba(232, 93, 93, 0.15)', color: '#e85d5d' }}>
+          <p className="text-xs px-2 py-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 15%, transparent)', color: 'var(--color-error)' }}>
             {err}
           </p>
         )}
@@ -673,7 +673,7 @@ function UnlockModal({
             className="btn-ghost px-3 py-1.5 text-xs"
             style={{
               backgroundColor: 'var(--color-ai)',
-              color: '#0a0d12',
+              color: 'var(--text-on-light)',
               borderColor: 'var(--color-ai)',
               opacity: busy ? 0.6 : 1,
               cursor: busy ? 'wait' : 'pointer',
@@ -726,12 +726,12 @@ function SetupModal({
     <Modal onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-2">
         <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>🔒 首次设置主密钥</h3>
-        <p className="text-xs" style={{ color: '#e85d5d' }}>
+        <p className="text-xs" style={{ color: 'var(--color-error)' }}>
           ⚠️ <b>主密钥不存数据库, 一旦丢失, 该主密钥下所有 secret 永久不可解密, 且禁止重置</b>。
           请使用密码管理器保存或选一段你能记住的强密码。
         </p>
         {err && (
-          <p className="text-xs px-2 py-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'rgba(232, 93, 93, 0.15)', color: '#e85d5d' }}>
+          <p className="text-xs px-2 py-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 15%, transparent)', color: 'var(--color-error)' }}>
             {err}
           </p>
         )}
@@ -761,7 +761,7 @@ function SetupModal({
             className="btn-ghost px-3 py-1.5 text-xs"
             style={{
               backgroundColor: 'var(--color-ai)',
-              color: '#0a0d12',
+              color: 'var(--text-on-light)',
               borderColor: 'var(--color-ai)',
               opacity: busy ? 0.6 : 1,
               cursor: busy ? 'wait' : 'pointer',
@@ -784,7 +784,7 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 50,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'var(--bg-overlay)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
     >

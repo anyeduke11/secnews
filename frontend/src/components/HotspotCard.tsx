@@ -1,3 +1,8 @@
+/**
+ * HotspotCard — 单条热点卡片。
+ *
+ * Phase 2: 全部走 token 系统, 状态色用 --color-* 而非硬编码 #xxx。
+ */
 import React from 'react';
 import {
   HotspotItem,
@@ -44,15 +49,15 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
           : undefined
       }
     >
-      {/* Phase 10 收藏按钮 — 卡片右上角,absolute 定位避免占布局空间 */}
+      {/* 收藏按钮 — 卡片右上角,absolute 定位避免占布局空间 */}
       <button
         type="button"
         onClick={handleStarClick}
         className="absolute top-2 right-2 p-1 rounded transition-all duration-150 hover:scale-110 z-10"
         style={{
-          backgroundColor: isFavorited ? '#f0c929' : 'transparent',
-          color: isFavorited ? '#1a1d24' : 'var(--text-muted)',
-          border: `1px solid ${isFavorited ? '#f0c929' : 'var(--border-color)'}`,
+          backgroundColor: isFavorited ? 'var(--color-finance)' : 'transparent',
+          color: isFavorited ? 'var(--bg-primary)' : 'var(--text-muted)',
+          border: `1px solid ${isFavorited ? 'var(--color-finance)' : 'var(--border-color)'}`,
         }}
         title={isFavorited ? '取消收藏' : '收藏'}
         aria-label={isFavorited ? '取消收藏' : '收藏'}
@@ -74,7 +79,7 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
           >
             {getCategoryLabel(item.category)}
           </span>
-          {/* Phase 20+: 标讯状态标签(仅 category=bid 显示) */}
+          {/* 标讯状态标签 (仅 category=bid 显示) */}
           {item.category === 'bid' && item.bid_status && item.bid_status !== '其他' && (
             <span
               className="badge"
@@ -94,29 +99,28 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
               aria-label={`quality ${item.quality_score}`}
             />
           )}
-          {/* Phase 45: 标题被替换 (title_replaced) 角标 — 同 URL 多条入库,
-              该条非 winner, 提示用户标题已选另一条为准 */}
+          {/* 标题被替换 (title_replaced) 角标 */}
           {item.quality_flags?.includes('title_replaced') && (
             <span
               className="badge"
               style={{
-                backgroundColor: '#f59e0b1A',
-                color: '#f59e0b',
-                border: '1px solid #f59e0b40',
+                backgroundColor: 'color-mix(in srgb, var(--color-warning) 10%, transparent)',
+                color: 'var(--color-warning)',
+                border: '1px solid color-mix(in srgb, var(--color-warning) 25%, transparent)',
               }}
               title="同 URL 存在多条记录, 详情页 <title> 验证后以另一条标题为准; 本条 title 为旧/抓取摘要"
             >
               ⚠ 标题已替换
             </span>
           )}
-          {/* Phase 45: 详情页 <title> 验证 (url_check_status=verified) — 标记真 title */}
+          {/* 详情页 <title> 验证 (url_check_status=verified) */}
           {item.url_check_status === 'verified' && !item.quality_flags?.includes('title_replaced') && (
             <span
               className="badge"
               style={{
-                backgroundColor: '#10b9811A',
-                color: '#10b981',
-                border: '1px solid #10b98140',
+                backgroundColor: 'color-mix(in srgb, var(--color-success) 10%, transparent)',
+                color: 'var(--color-success)',
+                border: '1px solid color-mix(in srgb, var(--color-success) 25%, transparent)',
               }}
               title="已与详情页 <title> 验证一致"
             >
@@ -153,7 +157,7 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
         </p>
       )}
 
-      {/* Bottom: source + action — 整行也是 a 包裹,作为「查看原文」主入口 */}
+      {/* Bottom: source + action — 整行也是 a 包裹 */}
       <a
         href={item.url}
         target="_blank"

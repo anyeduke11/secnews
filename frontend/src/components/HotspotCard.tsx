@@ -33,7 +33,7 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
   return (
     <article
       className={`
-        block p-4 card-base animate-fade-in opacity-0 relative
+        block p-4 card-base card-glow-hover animate-fade-in opacity-0 relative
         delay-${Math.min(index + 1, 10)}
         corner-brackets
       `}
@@ -41,6 +41,15 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
         animationFillMode: 'forwards',
         borderTop: `2px solid ${color}80`,
         ['--brackets-color' as any]: color,
+        ['--card-accent' as any]: color,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = `${color}80`;
+        e.currentTarget.style.boxShadow = `0 8px 24px ${color}20, 0 0 0 1px ${color}30`;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = '';
+        e.currentTarget.style.boxShadow = '';
       }}
       title={
         item.quality_score != null

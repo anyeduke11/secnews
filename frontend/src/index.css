@@ -12,10 +12,10 @@
   --color-bid: #e8891a;
   --color-general: #00c96a;
 
-  /* Shape tokens */
+  /* ─── Shape tokens ─── */
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
   --radius-full: 9999px;
 
   /* Constant tokens (theme-independent) */
@@ -316,6 +316,7 @@ pre {
 .card-base:hover {
   border-color: rgba(255, 255, 255, 0.12);
   box-shadow: var(--shadow-elevated);
+  transform: translateY(-2px);
 }
 
 [data-theme="light"] .card-base:hover {
@@ -324,6 +325,73 @@ pre {
 
 .card-base:active {
   transform: scale(0.99);
+}
+
+/* ─── Phase 9: Glow utilities (text-shadow per skill recommendation) ─── */
+.glow-ai {
+  text-shadow: 0 0 10px rgba(0, 188, 212, 0.5);
+}
+.glow-sm {
+  text-shadow: 0 0 6px currentColor;
+}
+.glow-md {
+  text-shadow: 0 0 12px currentColor;
+}
+
+/* Box-shadow glow for status dots / live indicators */
+.glow-dot-ai {
+  box-shadow: 0 0 8px var(--color-ai), 0 0 16px rgba(0, 188, 212, 0.4);
+}
+.glow-dot-success {
+  box-shadow: 0 0 8px var(--color-success), 0 0 16px rgba(0, 201, 106, 0.4);
+}
+
+/* ─── Phase 9: Sticky header with backdrop blur ─── */
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  background-color: color-mix(in srgb, var(--bg-primary) 80%, transparent);
+  border-bottom: 1px solid var(--border-color);
+  padding-top: 12px;
+  margin-bottom: 24px;
+}
+
+[data-theme="light"] .sticky-header {
+  background-color: color-mix(in srgb, var(--bg-primary) 85%, transparent);
+}
+
+/* Fallback for browsers without backdrop-filter */
+@supports not (backdrop-filter: blur(12px)) {
+  .sticky-header {
+    background-color: var(--bg-primary);
+  }
+}
+
+/* ─── Phase 9: Enhanced card hover with category glow ─── */
+.card-glow-hover {
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card-glow-hover:hover {
+  transform: translateY(-3px) scale(1.01);
+}
+
+/* ─── Phase 9: Stronger live pulse (real-time monitoring feel) ─── */
+@keyframes pulse-live {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 8px var(--color-success), 0 0 16px rgba(0, 201, 106, 0.4);
+  }
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 4px var(--color-success), 0 0 8px rgba(0, 201, 106, 0.2);
+  }
+}
+
+.pulse-live {
+  animation: pulse-live 1.8s ease-in-out infinite;
 }
 
 /* ─── Focus ring ─── */

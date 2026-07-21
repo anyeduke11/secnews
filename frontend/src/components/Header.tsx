@@ -126,8 +126,8 @@ export function Header({
   };
 
   return (
-    <header className="pb-4 mb-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <header className="sticky-header">
+      <div className="flex items-center justify-between flex-wrap gap-3 pb-3">
         <div className="flex items-center gap-3">
           {/* Phase 8: tech-style 角标 logo — 像终端 prompt 框 */}
           <div className="relative shrink-0">
@@ -170,17 +170,18 @@ export function Header({
                 <span
                   className="ml-2 font-mono align-middle"
                   style={{
-                    color: 'var(--text-muted)',
+                    color: 'var(--color-ai)',
                     fontSize: '10px',
-                    fontWeight: 500,
+                    fontWeight: 600,
                     letterSpacing: '0.04em',
                     padding: '1px 5px',
-                    border: '1px solid var(--border-color)',
+                    border: '1px solid var(--color-ai)',
                     borderRadius: '4px',
-                    backgroundColor: 'var(--bg-elevated)',
+                    backgroundColor: 'color-mix(in srgb, var(--color-ai) 8%, transparent)',
                     display: 'inline-block',
                     lineHeight: 1.4,
                     verticalAlign: '2px',
+                    textShadow: '0 0 8px rgba(0, 188, 212, 0.4)',
                   }}
                   title={`API version ${apiVersion}`}
                 >
@@ -206,12 +207,18 @@ export function Header({
                   : '后端尚未完成第一轮采集'
               }
             >
-              <span className="pulse-dot" style={{ backgroundColor: 'var(--color-general)' }} />
-              <span>实时</span>
-              <span className="font-mono tabular-nums" style={{ color: 'var(--color-ai)' }}>
+              <span
+                className="pulse-live inline-block w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: 'var(--color-general)' }}
+              />
+              <span className="font-mono">LIVE</span>
+              <span
+                className="font-mono tabular-nums font-semibold glow-sm"
+                style={{ color: 'var(--color-ai)' }}
+              >
                 {latestIngestionCount}
               </span>
-              <span>条</span>
+              <span className="font-mono text-[10px]">items</span>
             </div>
             {lastUpdated && (
               <>

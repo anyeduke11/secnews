@@ -2,7 +2,7 @@
 // Phase 2b Task H2 — ServiceMesh 组件测试
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { ServiceMesh } from './ServiceMesh';
+import { ServiceMesh } from './service-mesh';
 import { CgService } from '../../types/codegarden';
 
 // 服务样本

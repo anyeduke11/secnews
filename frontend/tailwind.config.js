@@ -38,11 +38,55 @@ export default {
         'text-muted':      'var(--text-muted)',
       },
       fontFamily: {
-        // 项目固有 mono 风格 (Phase 1A grill 确认: 保持)
-        'mono':   ['JetBrains Mono', 'Fira Code', 'Cascadia Code', 'monospace'],
-        'sans':   ['JetBrains Mono', 'Fira Code', 'Cascadia Code', 'monospace'],
-        // Knowledge 阅读模式用衬线 (未来 Phase 3 启用)
-        'serif':  ['Newsreader', 'Iowan Old Style', 'Apple Garamond', 'serif'],
+        // Phase 7: 区分 sans (UI body) 与 mono (data/code)
+        // 不再混用 — 解决「全部 mono 看起来像 terminal」问题
+        'sans': [
+          'Inter',
+          'system-ui',
+          '-apple-system',
+          'Segoe UI',
+          'PingFang SC',
+          'Hiragino Sans GB',
+          'Microsoft YaHei',
+          'sans-serif',
+        ],
+        'mono': [
+          'JetBrains Mono',
+          'Fira Code',
+          'Cascadia Code',
+          'monospace',
+        ],
+        // Knowledge 阅读模式保留衬线 (未来 Phase 3 启用)
+        'serif': ['Newsreader', 'Iowan Old Style', 'Apple Garamond', 'serif'],
+      },
+      // Phase 7: 标准字重 + 字距
+      fontWeight: {
+        normal:  '400',
+        medium:  '500',
+        semibold:'600',
+        bold:    '700',
+      },
+      letterSpacing: {
+        tightest: '-0.02em',
+        tight:    '-0.01em',
+        normal:   '0',
+        wide:     '0.04em',
+        wider:    '0.08em',
+      },
+      // Phase 7: 5 级行高
+      lineHeight: {
+        tight:   '1.3',
+        snug:    '1.4',
+        normal:  '1.5',
+        relaxed: '1.6',
+      },
+      // Phase 7: 5 级字号 (与 .text-*-tech 对齐)
+      fontSize: {
+        'xs':   ['12px', { lineHeight: '1.5' }],
+        'sm':   ['14px', { lineHeight: '1.5' }],
+        'base': ['16px', { lineHeight: '1.5' }],
+        'lg':   ['20px', { lineHeight: '1.4' }],
+        'xl':   ['24px', { lineHeight: '1.3' }],
       },
       borderRadius: {
         'sm':   'var(--radius-sm)',

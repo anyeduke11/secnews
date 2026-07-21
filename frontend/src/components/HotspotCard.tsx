@@ -136,7 +136,7 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
 
       {/* Title — 用 a 包裹标题,点击跳转原文 */}
       <h3
-        className="text-[13px] font-medium leading-relaxed mb-2 line-clamp-2"
+        className="text-sm font-semibold leading-snug mb-2 line-clamp-2"
         style={{ color: 'var(--text-primary)' }}
       >
         <a
@@ -152,7 +152,7 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
 
       {/* Summary */}
       {item.summary && (
-        <p className="text-[11px] leading-relaxed line-clamp-2 mb-2.5" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-xs leading-normal line-clamp-2 mb-2.5" style={{ color: 'var(--text-secondary)' }}>
           {item.summary}
         </p>
       )}
@@ -162,15 +162,15 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
         href={item.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-between text-[11px] pt-2 no-underline"
+        className="flex items-center justify-between text-xs pt-2 no-underline"
         style={{ borderTop: '1px solid var(--border-subtle)', color: 'inherit' }}
         onClick={e => e.stopPropagation()}
       >
-        <span className="truncate max-w-[60%]" style={{ color: 'var(--text-muted)' }}>
+        <span className="truncate max-w-[60%] text-xs" style={{ color: 'var(--text-muted)' }}>
           {item.source}
         </span>
         <span
-          className="shrink-0 ml-2 font-medium transition-colors duration-150"
+          className="shrink-0 ml-2 text-xs font-semibold transition-colors duration-150"
           style={{ color: color }}
         >
           查看原文

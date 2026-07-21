@@ -23,7 +23,7 @@ export function SearchBar({ keyword, timeRange, onKeywordChange, onTimeRangeChan
 
   return (
     <div className="mb-4">
-      <label className="text-[11px] font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+      <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
         搜索与筛选
       </label>
       <div className="flex items-center gap-2 flex-wrap">

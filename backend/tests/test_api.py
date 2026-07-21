@@ -188,10 +188,11 @@ def test_categories_returns_6(client, seeded_db):
     assert r.status_code == 200
     data = r.json()
     cats = data["categories"]
-    # Phase 35: tech 合并到 ai, API 返回 6 个分类 (ai/security/finance/startup/bid/github)
-    assert len(cats) == 6
+    # Phase 35: tech 合并到 ai, 主分类 6 个
+    # Phase X:  新增 ai_security (AI 安全交叉) → 总数 7
+    assert len(cats) == 7
     ids = {c["id"] for c in cats}
-    assert ids == {"ai", "security", "finance", "startup", "bid", "github"}
+    assert ids == {"ai", "ai_security", "security", "finance", "startup", "bid", "github"}
     assert "tech" not in ids
     for c in cats:
         assert "label" in c

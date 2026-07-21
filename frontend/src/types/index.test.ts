@@ -9,13 +9,12 @@ import {
 
 describe('getCategoryColor', () => {
   it('returns correct color for known categories', () => {
-    expect(getCategoryColor('ai')).toBe('#00e676');
+    expect(getCategoryColor('ai')).toBe('#00bcd4');
     expect(getCategoryColor('security')).toBe('#e85d5d');
     expect(getCategoryColor('finance')).toBe('#f0c929');
-    expect(getCategoryColor('startup')).toBe('#a78bfa');
-    expect(getCategoryColor('bid')).toBe('#06b6d4');
-    expect(getCategoryColor('github')).toBe('#f97316');
-    expect(getCategoryColor('tech')).toBe('#22d3ee');
+    expect(getCategoryColor('startup')).toBe('#7c6aff');
+    expect(getCategoryColor('bid')).toBe('#e8891a');
+    expect(getCategoryColor('github')).toBe('#8b5cf6');
   });
 
   it('returns fallback color for unknown category', () => {
@@ -26,13 +25,12 @@ describe('getCategoryColor', () => {
 
 describe('getCategoryLabel', () => {
   it('returns Chinese label for known categories', () => {
-    expect(getCategoryLabel('ai')).toBe('科技/AI');
+    expect(getCategoryLabel('ai')).toBe('科技 / AI');
     expect(getCategoryLabel('security')).toBe('网络安全');
-    expect(getCategoryLabel('finance')).toBe('金融/投资');
-    expect(getCategoryLabel('startup')).toBe('独立开发');
+    expect(getCategoryLabel('finance')).toBe('金融 / 投资');
+    expect(getCategoryLabel('startup')).toBe('独立开发 / 创业');
     expect(getCategoryLabel('bid')).toBe('招标资讯');
-    expect(getCategoryLabel('github')).toBe('GitHub');
-    expect(getCategoryLabel('tech')).toBe('IT/科技');
+    expect(getCategoryLabel('github')).toBe('GitHub 项目');
   });
 
   it('returns raw string for unknown category', () => {

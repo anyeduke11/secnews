@@ -1,13 +1,32 @@
 // frontend/src/components/codegarden/ServiceTopology.tsx
 // M2 服务拓扑图 — 用 SVG 渲染 nodes + edges（不引入 React Flow，避免重依赖）
+// Phase 4: SVG 颜色经 useThemeColors 解析, 暗/亮主题自动切换; 错误态用 --color-error
 import { useEffect, useState } from 'react';
-import { CgServiceTopology, SERVICE_RUNTIME_COLORS, SERVICE_STATUS_COLORS } from '../../types/codegarden';
+import { CgServiceTopology, ServiceRuntime, ServiceStatus } from '../../types/codegarden';
 import { Icon } from '../Icon';
+import { useThemeColors, ThemeColorKey } from '../../hooks/useThemeColors';
+import { EmptyState } from '../EmptyState';
 
 interface ServiceTopologyProps {
   fetchTopology: () => Promise<CgServiceTopology>;
   onClose?: () => void;
 }
+
+// 运行时 → token key 映射 (SVG stroke 需要字面色值)
+const RUNTIME_TOKEN: Record<ServiceRuntime, ThemeColorKey> = {
+  docker: 'color-info',
+  pm2: 'color-ai',
+  system: 'text-muted',
+  bare: 'text-secondary',
+};
+
+// 状态 → token key 映射 (SVG fill 需要字面色值)
+const STATUS_TOKEN: Record<ServiceStatus, ThemeColorKey> = {
+  running: 'color-success',
+  stopped: 'text-muted',
+  error: 'color-error',
+  unknown: 'color-warning',
+};
 
 // 圆形布局：把 nodes 均匀分布在圆周上
 function computeLayout(nodeCount: number, radius: number, centerX: number, centerY: number) {
@@ -53,6 +72,21 @@ export function ServiceTopology({ fetchTopology, onClose }: ServiceTopologyProps
   const positions = computeLayout(topology?.nodes?.length || 0, radius, W / 2, H / 2);
   const nodeById = new Map((topology?.nodes || []).map((n, i) => [n.id, { node: n, pos: positions[i] }]));
 
+  // 读取 SVG 需要字面色的 token
+  const colors = useThemeColors([
+    'text-primary', 'text-secondary', 'text-muted', 'border-color',
+    'bg-elevated',
+    'color-info', 'color-ai', 'color-success', 'color-warning', 'color-error',
+  ]);
+  const runtimeColor = (r: ServiceRuntime) => colors[RUNTIME_TOKEN[r]] || 'var(--text-muted)';
+  const statusColor = (s: ServiceStatus) => colors[STATUS_TOKEN[s]] || 'var(--text-muted)';
+  const runtimeLabel: Record<ServiceRuntime, string> = {
+    docker: 'docker', pm2: 'pm2', system: 'system', bare: 'bare',
+  };
+  const statusLabel: Record<ServiceStatus, string> = {
+    running: 'running', stopped: 'stopped', error: 'error', unknown: 'unknown',
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
@@ -70,13 +104,23 @@ export function ServiceTopology({ fetchTopology, onClose }: ServiceTopologyProps
       </div>
 
       {loading ? (
-        <div className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>加载中…</div>
+        <p className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>加载中…</p>
       ) : error ? (
-        <div className="text-xs text-center py-6" style={{ color: '#e85d5d' }}>{error}</div>
-      ) : !topology || topology.nodes.length === 0 ? (
-        <div className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>
-          暂无服务，请先扫描本地服务
+        <div
+          className="rounded-[var(--radius-md)] p-2.5 text-xs"
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+            border: '1px solid var(--color-error)',
+            color: 'var(--color-error)',
+          }}
+        >
+          加载失败: {error}
         </div>
+      ) : !topology || topology.nodes.length === 0 ? (
+        <EmptyState
+          title="暂无服务"
+          description="请先扫描本地服务"
+        />
       ) : (
         <>
           <div className="overflow-auto" style={{ backgroundColor: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)' }}>
@@ -95,7 +139,7 @@ export function ServiceTopology({ fetchTopology, onClose }: ServiceTopologyProps
                       y1={src.pos.y}
                       x2={tgt.pos.x}
                       y2={tgt.pos.y}
-                      stroke="var(--border-color)"
+                      stroke={colors['border-color'] || 'var(--border-color)'}
                       strokeWidth={1.5}
                       markerEnd="url(#arrow)"
                     />
@@ -104,7 +148,7 @@ export function ServiceTopology({ fetchTopology, onClose }: ServiceTopologyProps
                       y={midY - 4}
                       textAnchor="middle"
                       fontSize={9}
-                      fill="var(--text-muted)"
+                      fill={colors['text-muted'] || 'var(--text-muted)'}
                     >
                       {edge.data?.dep_type || ''}
                     </text>
@@ -114,22 +158,22 @@ export function ServiceTopology({ fetchTopology, onClose }: ServiceTopologyProps
               {/* nodes */}
               {topology.nodes.map((node, i) => {
                 const pos = positions[i];
-                const runtimeColor = SERVICE_RUNTIME_COLORS[node.data.runtime];
-                const statusColor = SERVICE_STATUS_COLORS[node.data.status];
+                const rColor = runtimeColor(node.data.runtime);
+                const sColor = statusColor(node.data.status);
                 return (
                   <g key={node.id} transform={`translate(${pos.x},${pos.y})`}>
                     <circle
                       r={28}
-                      fill="var(--bg-elevated)"
-                      stroke={runtimeColor}
+                      fill={colors['bg-elevated'] || 'var(--bg-elevated)'}
+                      stroke={rColor}
                       strokeWidth={2.5}
                     />
-                    <circle r={4} cx={20} cy={-20} fill={statusColor} stroke="var(--bg-elevated)" strokeWidth={1.5} />
+                    <circle r={4} cx={20} cy={-20} fill={sColor} stroke={colors['bg-elevated'] || 'var(--bg-elevated)'} strokeWidth={1.5} />
                     <text
                       y={4}
                       textAnchor="middle"
                       fontSize={10}
-                      fill="var(--text-primary)"
+                      fill={colors['text-primary'] || 'var(--text-primary)'}
                       fontWeight="bold"
                     >
                       {node.data.label.length > 10 ? node.data.label.slice(0, 9) + '…' : node.data.label}
@@ -138,7 +182,7 @@ export function ServiceTopology({ fetchTopology, onClose }: ServiceTopologyProps
                       y={18}
                       textAnchor="middle"
                       fontSize={8}
-                      fill="var(--text-muted)"
+                      fill={colors['text-muted'] || 'var(--text-muted)'}
                     >
                       {node.data.runtime}
                     </text>
@@ -155,24 +199,24 @@ export function ServiceTopology({ fetchTopology, onClose }: ServiceTopologyProps
                   markerHeight="6"
                   orient="auto-start-reverse"
                 >
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--border-color)" />
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill={colors['border-color'] || 'var(--border-color)'} />
                 </marker>
               </defs>
             </svg>
           </div>
           <div className="flex items-center gap-3 mt-2 flex-wrap text-[10px]">
             <span style={{ color: 'var(--text-muted)' }}>运行时:</span>
-            {Object.entries(SERVICE_RUNTIME_COLORS).map(([k, c]) => (
+            {(Object.keys(RUNTIME_TOKEN) as ServiceRuntime[]).map((k) => (
               <span key={k} className="flex items-center gap-1">
-                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', backgroundColor: c }} />
-                <span style={{ color: 'var(--text-secondary)' }}>{k}</span>
+                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', backgroundColor: runtimeColor(k) }} />
+                <span style={{ color: 'var(--text-secondary)' }}>{runtimeLabel[k]}</span>
               </span>
             ))}
             <span className="ml-3" style={{ color: 'var(--text-muted)' }}>状态:</span>
-            {Object.entries(SERVICE_STATUS_COLORS).map(([k, c]) => (
+            {(Object.keys(STATUS_TOKEN) as ServiceStatus[]).map((k) => (
               <span key={k} className="flex items-center gap-1">
-                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', backgroundColor: c }} />
-                <span style={{ color: 'var(--text-secondary)' }}>{k}</span>
+                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', backgroundColor: statusColor(k) }} />
+                <span style={{ color: 'var(--text-secondary)' }}>{statusLabel[k]}</span>
               </span>
             ))}
           </div>

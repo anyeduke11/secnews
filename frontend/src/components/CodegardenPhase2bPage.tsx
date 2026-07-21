@@ -1,6 +1,7 @@
 // frontend/src/components/CodegardenPhase2bPage.tsx
 // Phase 2b 主页 — Service Mesh + Resource Hub + Orchestration Engine
 // 三个 tab：M2 服务网格 / M3 资源中枢 / M4 联动引擎（含子 tab：依赖图谱/事件流/Playbook）
+// Phase 4: Tab 切换动效 token 化 (transition + duration)
 import { useState } from 'react';
 import { ServiceMesh } from './codegarden/service-mesh';
 import { ServiceTopology } from './codegarden/ServiceTopology';
@@ -109,6 +110,7 @@ function MainTabButton({ active, onClick, children }: { active: boolean; onClick
         color: active ? 'var(--color-ai)' : 'var(--text-secondary)',
         borderBottom: active ? '2px solid var(--color-ai)' : '2px solid transparent',
         fontWeight: active ? 600 : 400,
+        transition: 'color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out)',
       }}
     >
       {children}
@@ -125,6 +127,7 @@ function SubTabButton({ active, onClick, children }: { active: boolean; onClick:
         color: active ? 'var(--color-ai)' : 'var(--text-secondary)',
         backgroundColor: active ? 'var(--bg-hover)' : 'transparent',
         border: `1px solid ${active ? 'var(--color-ai)' : 'var(--border-color)'}`,
+        transition: 'color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out)',
       }}
     >
       {children}

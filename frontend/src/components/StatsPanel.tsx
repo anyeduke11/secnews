@@ -12,11 +12,22 @@ export function StatsPanel({ categoryCounts, total }: StatsPanelProps) {
   return (
     <div className="card-base p-4 mb-5">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-secondary)' }}>
+        <h3
+          className="text-xs font-semibold uppercase tracking-[0.08em] font-mono"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          <span style={{ color: 'var(--color-ai)', marginRight: 6 }}>▮</span>
           数据统计
         </h3>
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          总计 <span className="font-mono tabular-nums" style={{ color: 'var(--color-ai)', fontWeight: 600 }}>{total}</span> 条
+        <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
+          total:{' '}
+          <span
+            className="font-mono tabular-nums"
+            style={{ color: 'var(--color-ai)', fontWeight: 600 }}
+          >
+            {total}
+          </span>{' '}
+          条
         </span>
       </div>
 

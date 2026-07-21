@@ -2,7 +2,7 @@
 // Phase 2b Task H2 — ResourceHub 组件测试（含 PortPool）
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { ResourceHub } from './ResourceHub';
+import { ResourceHub } from './resource-hub';
 import { CgResource } from '../../types/codegarden';
 
 const allocatedPort: CgResource = {

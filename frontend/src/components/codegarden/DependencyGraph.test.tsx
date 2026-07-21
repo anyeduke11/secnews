@@ -2,7 +2,7 @@
 // Phase 2b Task H2 — DependencyGraph 组件测试
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { DependencyGraph } from './DependencyGraph';
+import { DependencyGraph } from './dependency-graph';
 import { CgDependency, CgEvent, Playbook } from '../../types/codegarden';
 
 const dep1: CgDependency = {

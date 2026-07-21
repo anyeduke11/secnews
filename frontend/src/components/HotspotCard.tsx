@@ -35,12 +35,12 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
       className={`
         block p-4 card-base animate-fade-in opacity-0 relative
         delay-${Math.min(index + 1, 10)}
-        corner-brackets-fade
+        corner-brackets
       `}
       style={{
         animationFillMode: 'forwards',
-        borderTop: `2px solid ${color}60`,
-        color: 'var(--text-muted)',
+        borderTop: `2px solid ${color}80`,
+        ['--brackets-color' as any]: color,
       }}
       title={
         item.quality_score != null

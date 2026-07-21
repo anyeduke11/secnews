@@ -33,6 +33,9 @@
   --accent-highlight: rgba(0, 188, 212, 0.08);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-modal:   0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-toast:   0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* ─── Light theme ─── */
@@ -49,9 +52,12 @@
   --accent-highlight: rgba(0, 188, 212, 0.06);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
   --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-modal:   0 16px 48px rgba(0, 0, 0, 0.12);
+  --shadow-toast:   0 12px 32px rgba(0, 0, 0, 0.10);
 }
 
-/* Default to dark */
+/* ─── Default to dark ──────────────────────────────────────────── */
 :root:not([data-theme]) {
   --bg-primary: #0a0a0f;
   --bg-card: #111118;
@@ -65,6 +71,45 @@
   --accent-highlight: rgba(0, 188, 212, 0.08);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.4);
+
+  /* Semantic state colors (Phase 1A 补强) */
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  --color-error:   #ef4444;
+  --color-info:    #00bcd4;
+
+  /* Elevation (Phase 1A 补强) */
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-modal:   0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-toast:   0 12px 32px rgba(0, 0, 0, 0.45);
+
+  /* Motion (Phase 1A 补强) */
+  --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast:   120ms;
+  --duration-normal: 200ms;
+  --duration-slow:   320ms;
+
+  /* Space scale (Phase 1A 补强, 4px base) */
+  --space-0:  0;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  24px;
+  --space-6:  32px;
+  --space-7:  48px;
+  --space-8:  64px;
+
+  /* Z-index scale (Phase 1A 补强) */
+  --z-base:      0;
+  --z-dropdown:  100;
+  --z-sticky:    200;
+  --z-overlay:   300;
+  --z-modal:     400;
+  --z-popover:   500;
+  --z-toast:     600;
+  --z-tooltip:   700;
 }
 
 /* ─── Base ─── */

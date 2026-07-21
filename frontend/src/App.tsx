@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import { PageLayout } from './components/PageLayout';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Header } from './components/Header';
 import { CategoryNav } from './components/CategoryNav';
 import { SearchBar } from './components/SearchBar';
@@ -7,6 +9,7 @@ import { StatsPanel } from './components/StatsPanel';
 import { TrendChart } from './components/TrendChart';
 import { HotspotGrid } from './components/HotspotGrid';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
+import { RegionFilter } from './components/RegionFilter';
 import { SettingsPanel } from './components/SettingsPanel';
 import { FavoritesPanel } from './components/FavoritesPanel';
 import { HistoryPage } from './components/HistoryPage';
@@ -21,6 +24,7 @@ import { CodegardenPhase2bPage } from './components/CodegardenPhase2bPage';
 import { useHotspotData } from './hooks/useHotspotData';
 import { useRefreshInterval } from './hooks/useRefreshInterval';
 import { useTodos } from './hooks/useTodos';
+import { useSSE } from './hooks/useSSE';
 import { ConsistencyDrift, StatsResponse, HotspotItem } from './types';
 
 interface ThemeContextValue {
@@ -66,6 +70,7 @@ function HomePage() {
 
   const [timeRange, setTimeRange] = useState('7d');
   const [keyword, setKeyword] = useState('');
+  const [region, setRegion] = useState('');  // Phase 8: 标讯地区筛选
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [favoritesCount, setFavoritesCount] = useState(0);
@@ -79,9 +84,18 @@ function HomePage() {
     items, total, categoryCounts, loading, loadingPage, error, lastUpdated,
     hasMore, page, pageSize, totalPages, setPage, setPageSize, refresh,
     latestIngestionCount, latestIngestionAt,
-  } = useHotspotData(category, timeRange, keyword);
+  } = useHotspotData(category, timeRange, keyword, region);
 
   const todos = useTodos();
+
+  // Phase 6: SSE 实时推送 — 连接后禁用轮询，断开时恢复
+  const { connected: sseConnected } = useSSE({
+    onEvent: (type, data) => {
+      if (type === 'collect_done') {
+        refresh();
+      }
+    },
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -119,6 +133,7 @@ function HomePage() {
   }, []);
 
   useEffect(() => {
+    if (sseConnected) return; // SSE 推送已连接，无需轮询
     const ms = Math.max(refreshInterval, 1) * 60 * 1000;
     lastAutoRefreshAtRef.current = Date.now();
     const timer = window.setInterval(() => {
@@ -126,7 +141,7 @@ function HomePage() {
       refresh();
     }, ms);
     return () => window.clearInterval(timer);
-  }, [refreshInterval, refresh]);
+  }, [refreshInterval, refresh, sseConnected]);
 
   const handleManualRefresh = useCallback(() => {
     lastAutoRefreshAtRef.current = Date.now();
@@ -219,6 +234,13 @@ function HomePage() {
         onTimeRangeChange={setTimeRange}
       />
 
+      {/* Phase 8: 标讯地区筛选 — 仅 category=bid 时显示 */}
+      {category === 'bid' && (
+        <div className="mb-3">
+          <RegionFilter value={region} onChange={setRegion} />
+        </div>
+      )}
+
       {!loading && items.length > 0 && (
         <StatsPanel
           categoryCounts={categoryCounts}
@@ -282,23 +304,32 @@ export default function App() {
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <div className="min-h-[100dvh]" style={{ backgroundColor: 'var(--bg-primary)' }}>
-        <div className="max-w-7xl mx-auto px-4 py-5 relative z-10">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/category/:cat" element={<HomePage />} />
-            <Route path="/todos" element={<TodosPage onBack={goHome} />} />
-            <Route path="/history" element={<HistoryPage favoritedIds={new Set()} onToggleFavorite={() => {}} onBack={goHome} />} />
-            <Route path="/skills" element={<SkillsPage onBack={goHome} />} />
-            <Route path="/secrets" element={<SecretsPage onBack={goHome} />} />
-            <Route path="/sync" element={<SyncPage onBack={goHome} />} />
-            <Route path="/weekly-report" element={<WeeklyReportPage onBack={goHome} />} />
-            <Route path="/knowledge" element={<KnowledgePage onBack={goHome} />} />
-            <Route path="/codegarden" element={<CodegardenPage onBack={goHome} />} />
-            <Route path="/codegarden/phase2b" element={<CodegardenPhase2bPage onBack={goHome} />} />
-          </Routes>
-        </div>
-      </div>
+      <Routes>
+        {/* Phase 1A: 嵌套 Layout (PageLayout 含 ToastProvider + 外层容器) */}
+        <Route element={<PageLayout />}>
+          <Route path="/" element={
+            <ErrorBoundary onReset={goHome}>
+              <HomePage />
+            </ErrorBoundary>
+          } />
+          <Route path="/category/:cat" element={
+            <ErrorBoundary onReset={goHome}>
+              <HomePage />
+            </ErrorBoundary>
+          } />
+          {/* Phase 1A: 12 page 仍接收 onBack={goHome} (向后兼容);
+              PageLayout 接入 + useGoHome hook 已就绪, 后续 phase 渐进移除 */}
+          <Route path="/todos" element={<TodosPage onBack={goHome} />} />
+          <Route path="/history" element={<HistoryPage favoritedIds={new Set()} onToggleFavorite={() => {}} onBack={goHome} />} />
+          <Route path="/skills" element={<SkillsPage onBack={goHome} />} />
+          <Route path="/secrets" element={<SecretsPage onBack={goHome} />} />
+          <Route path="/sync" element={<SyncPage onBack={goHome} />} />
+          <Route path="/weekly-report" element={<WeeklyReportPage onBack={goHome} />} />
+          <Route path="/knowledge" element={<KnowledgePage onBack={goHome} />} />
+          <Route path="/codegarden" element={<CodegardenPage onBack={goHome} />} />
+          <Route path="/codegarden/phase2b" element={<CodegardenPhase2bPage onBack={goHome} />} />
+        </Route>
+      </Routes>
     </ThemeContext.Provider>
   );
 }

@@ -40,7 +40,7 @@ export function DepList({ dependencies, onRemove, onImpact }: DepListProps) {
                   }
                 }}
                 className="text-[9px]"
-                style={{ color: '#e85d5d' }}
+                style={{ color: 'var(--color-error)' }}
               >
                 删除
               </button>

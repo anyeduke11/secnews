@@ -224,7 +224,7 @@ export function Header({
             {todosOpenCount > 0 && (
               <span
                 className="absolute flex items-center justify-center rounded-full text-[10px] font-bold"
-                style={{ top: 2, right: 2, minWidth: 16, height: 16, padding: '0 4px', backgroundColor: '#e85d5d', color: '#fff' }}
+                style={{ top: 2, right: 2, minWidth: 16, height: 16, padding: '0 4px', backgroundColor: 'var(--color-error)', color: 'var(--text-on-color)' }}
               >
                 {todosOpenCount > 99 ? '99+' : todosOpenCount}
               </span>
@@ -276,7 +276,7 @@ export function Header({
               <span
                 className="ml-0.5 font-mono text-[10px] tabular-nums"
                 style={{
-                  color: secretTTL < 300 ? '#e85d5d' : secretTTL < 600 ? '#f0c929' : '#00c96a',
+                  color: secretTTL < 300 ? 'var(--color-error)' : secretTTL < 600 ? 'var(--color-warning)' : 'var(--color-success)',
                   animation: secretTTL < 60 ? 'pulse 1s ease-in-out infinite' : undefined,
                 }}
               >
@@ -350,7 +350,7 @@ export function Header({
             className="btn-ghost px-2.5 py-1.5 text-xs relative"
             title={`收藏${favoritesCount > 0 ? ` (${favoritesCount})` : ''}`}
             aria-label={`收藏 (${favoritesCount})`}
-            style={{ color: favoritesCount > 0 ? '#f0c929' : undefined }}
+            style={{ color: favoritesCount > 0 ? 'var(--color-warning)' : undefined }}
           >
             <Icon>
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -358,7 +358,7 @@ export function Header({
             {favoritesCount > 0 && (
               <span
                 className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center"
-                style={{ backgroundColor: '#f0c929', color: '#1a1d24' }}
+                style={{ backgroundColor: 'var(--color-warning)', color: 'var(--text-on-light)' }}
               >
                 {favoritesCount > 99 ? '99+' : favoritesCount}
               </span>

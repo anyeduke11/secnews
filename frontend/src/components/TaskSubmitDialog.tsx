@@ -116,7 +116,7 @@ export function TaskSubmitDialog({ open, onClose, onSubmitted }: TaskSubmitDialo
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 50,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'var(--bg-overlay)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
     >
@@ -245,7 +245,7 @@ export function TaskSubmitDialog({ open, onClose, onSubmitted }: TaskSubmitDialo
           {toast && (
             <span
               className="text-[10px] ml-auto"
-              style={{ color: toast.startsWith('✓') ? 'var(--color-ai)' : '#e85d5d' }}
+              style={{ color: toast.startsWith('✓') ? 'var(--color-ai)' : 'var(--color-error)' }}
             >
               {toast}
             </span>

@@ -26,11 +26,11 @@ function Icon({ children, size = 12 }: { children: React.ReactNode; size?: numbe
 }
 
 const SOURCE_COLOR: Record<string, string> = {
-  npx: '#7c6aff',
-  uvx: '#00bcd4',
-  curl: '#e8891a',
-  git: '#e85d5d',
-  manual: '#888899',
+  npx: 'var(--color-startup)',
+  uvx: 'var(--color-info)',
+  curl: 'var(--color-bid)',
+  git: 'var(--color-error)',
+  manual: 'var(--text-muted)',
 };
 
 export function SkillCard({ item, onEdit, onDelete }: SkillCardProps) {
@@ -112,7 +112,7 @@ export function SkillCard({ item, onEdit, onDelete }: SkillCardProps) {
               className="btn-ghost px-1.5 py-0.5 text-[10px]"
               title="删除"
               aria-label="删除"
-              style={{ color: '#e85d5d' }}
+              style={{ color: 'var(--color-error)' }}
             >
               <Icon>
                 <polyline points="3 6 5 6 21 6" />
@@ -161,8 +161,8 @@ export function SkillCard({ item, onEdit, onDelete }: SkillCardProps) {
           onClick={handleCopy}
           className="px-2 shrink-0 text-[10px] font-bold transition-colors"
           style={{
-            backgroundColor: copied ? '#00c96a' : 'var(--bg-hover)',
-            color: copied ? '#fff' : 'var(--text-primary)',
+            backgroundColor: copied ? 'var(--color-success)' : 'var(--bg-hover)',
+            color: copied ? 'var(--text-on-color)' : 'var(--text-primary)',
             borderLeft: '1px solid var(--border-color)',
             minWidth: 56,
           }}

@@ -151,7 +151,7 @@ export function WeeklyReportPage({ onBack }: WeeklyReportPageProps) {
       </div>
 
       {error && (
-        <div className="px-3 py-2 rounded text-xs" style={{ backgroundColor: '#e85d5d22', color: '#e85d5d' }}>
+        <div className="px-3 py-2 rounded text-xs" style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 13%, transparent)', color: 'var(--color-error)' }}>
           {error}
         </div>
       )}
@@ -215,7 +215,7 @@ export function WeeklyReportPage({ onBack }: WeeklyReportPageProps) {
                       <div key={i} className="flex items-center gap-2 text-xs">
                         <span className="truncate flex-1" style={{ color: 'var(--text-secondary)' }}>{s.source}</span>
                         <span className="font-mono shrink-0" style={{ color: 'var(--text-muted)' }}>{s.total} 条</span>
-                        <span className="font-mono shrink-0" style={{ color: s.pass / Math.max(s.total, 1) >= 0.8 ? '#00c96a' : '#f0c929' }}>
+                        <span className="font-mono shrink-0" style={{ color: s.pass / Math.max(s.total, 1) >= 0.8 ? 'var(--color-success)' : 'var(--color-warning)' }}>
                           {Math.round((s.pass / Math.max(s.total, 1)) * 100)}%
                         </span>
                       </div>

@@ -14,10 +14,10 @@ export function UpstreamStatus({ project, onSync }: UpstreamStatusProps) {
     : '从未同步';
 
   const status = behind === 0
-    ? { label: '已同步', color: '#00c96a' }
+    ? { label: '已同步', color: 'var(--color-success)' }
     : behind <= 10
-    ? { label: `${behind} commits 落后`, color: '#f0c929' }
-    : { label: `${behind} commits 严重落后`, color: '#e85d5d' };
+    ? { label: `${behind} commits 落后`, color: 'var(--color-warning)' }
+    : { label: `${behind} commits 严重落后`, color: 'var(--color-error)' };
 
   return (
     <div
@@ -49,11 +49,11 @@ export function UpstreamStatus({ project, onSync }: UpstreamStatusProps) {
         </div>
         <div>
           <span style={{ color: 'var(--text-muted)' }}>落后: </span>
-          <span className="font-mono" style={{ color: behind > 0 ? '#e85d5d' : 'var(--text-primary)' }}>{behind}</span>
+          <span className="font-mono" style={{ color: behind > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{behind}</span>
         </div>
         <div>
           <span style={{ color: 'var(--text-muted)' }}>领先: </span>
-          <span className="font-mono" style={{ color: ahead > 0 ? '#00c96a' : 'var(--text-primary)' }}>{ahead}</span>
+          <span className="font-mono" style={{ color: ahead > 0 ? 'var(--color-success)' : 'var(--text-primary)' }}>{ahead}</span>
         </div>
         <div className="col-span-2">
           <span style={{ color: 'var(--text-muted)' }}>最后同步: </span>

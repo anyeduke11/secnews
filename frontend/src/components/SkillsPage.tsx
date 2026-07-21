@@ -123,9 +123,9 @@ export function SkillsPage({ onBack }: SkillsPageProps) {
         <div
           className="rounded-[var(--radius-md)] p-2.5 mb-3 text-xs"
           style={{
-            backgroundColor: 'rgba(232, 93, 93, 0.12)',
-            border: '1px solid #e85d5d',
-            color: '#e85d5d',
+            backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+            border: '1px solid var(--color-error)',
+            color: 'var(--color-error)',
           }}
         >
           加载失败: {error}
@@ -187,7 +187,7 @@ export function SkillsPage({ onBack }: SkillsPageProps) {
                   className="px-2 py-0.5 text-[10px] font-mono rounded-[var(--radius-sm)]"
                   style={{
                     backgroundColor: active ? 'var(--color-ai)' : 'var(--bg-hover)',
-                    color: active ? '#0a0d12' : 'var(--text-muted)',
+                    color: active ? 'var(--text-on-light)' : 'var(--text-muted)',
                     border: '1px solid var(--border-color)',
                   }}
                 >

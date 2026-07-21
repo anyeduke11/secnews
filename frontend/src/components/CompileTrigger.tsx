@@ -80,7 +80,7 @@ export function CompileTrigger({ onTaskCreated }: CompileTriggerProps) {
           className="text-[10px] px-2 py-0.5 rounded-[var(--radius-sm)]"
           style={{
             backgroundColor: 'var(--bg-hover)',
-            color: toast.ok ? 'var(--color-ai)' : '#e85d5d',
+            color: toast.ok ? 'var(--color-ai)' : 'var(--color-error)',
           }}
         >
           {toast.msg}
@@ -93,7 +93,7 @@ export function CompileTrigger({ onTaskCreated }: CompileTriggerProps) {
           onClick={handleCancel}
           style={{
             position: 'fixed', inset: 0, zIndex: 60,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: 'var(--bg-overlay)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >

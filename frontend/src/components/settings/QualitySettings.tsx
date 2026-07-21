@@ -92,7 +92,7 @@ export function QualitySettings({ open }: QualitySettingsProps) {
           className="px-2 py-0.5 text-xs rounded-[var(--radius-sm)]"
           style={{
             backgroundColor: v ? 'var(--color-ai)' : 'var(--bg-hover)',
-            color: v ? '#fff' : 'var(--text-secondary)',
+            color: v ? 'var(--text-on-color)' : 'var(--text-secondary)',
             border: `1px solid ${v ? 'var(--color-ai)' : 'var(--border-color)'}`,
             minWidth: 44,
           }}
@@ -154,7 +154,7 @@ export function QualitySettings({ open }: QualitySettingsProps) {
             </div>
           ))}
           {qualityMessage && (
-            <p className="text-[10px]" style={{ color: qualityMessage.type === 'ok' ? 'var(--color-general)' : '#e85d5d' }}>
+            <p className="text-[10px]" style={{ color: qualityMessage.type === 'ok' ? 'var(--color-general)' : 'var(--color-error)' }}>
               {qualityMessage.text}
             </p>
           )}
@@ -163,7 +163,7 @@ export function QualitySettings({ open }: QualitySettingsProps) {
             disabled={savingQuality}
             className="w-full px-2 py-1 text-[11px] font-medium rounded-[var(--radius-sm)]"
             style={{
-              backgroundColor: 'var(--color-ai)', color: '#fff', border: 'none',
+              backgroundColor: 'var(--color-ai)', color: 'var(--text-on-color)', border: 'none',
               opacity: savingQuality ? 0.6 : 1, marginTop: 4,
             }}
           >

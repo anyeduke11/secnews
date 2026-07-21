@@ -170,7 +170,7 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 50,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'var(--bg-overlay)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
     >
@@ -209,7 +209,7 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
         {error && (
           <div
             className="rounded-[var(--radius-sm)] p-2.5 mb-3 text-xs"
-            style={{ backgroundColor: 'rgba(232, 93, 93, 0.12)', border: '1px solid #e85d5d', color: '#e85d5d' }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)', border: '1px solid var(--color-error)', color: 'var(--color-error)' }}
           >
             加载失败: {error}
           </div>
@@ -335,7 +335,7 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
                 <button
                   onClick={handleAddToCodegarden}
                   className="btn-ghost px-3 py-1.5 text-xs"
-                  style={{ color: '#8b5cf6' }}
+                  style={{ color: 'var(--color-startup)' }}
                   title="转化为 CodeGarden 项目 (source_type=reference)"
                 >
                   🌱 加入 CodeGarden
@@ -345,13 +345,13 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
                 onClick={() => setConfirmDelete(true)}
                 disabled={deleting}
                 className="btn-ghost px-3 py-1.5 text-xs"
-                style={{ color: '#e85d5d', opacity: deleting ? 0.6 : 1 }}
+                style={{ color: 'var(--color-error)', opacity: deleting ? 0.6 : 1 }}
               >
                 删除
               </button>
               {toast && (
                 <span className="text-[10px] ml-auto" style={{
-                  color: toast.startsWith('✓') ? 'var(--color-ai)' : '#e85d5d',
+                  color: toast.startsWith('✓') ? 'var(--color-ai)' : 'var(--color-error)',
                 }}>
                   {toast}
                 </span>
@@ -362,7 +362,7 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
             {confirmDelete && (
               <div
                 className="rounded-[var(--radius-sm)] p-3"
-                style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid #e85d5d' }}
+                style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--color-error)' }}
               >
                 <p className="text-xs mb-2" style={{ color: 'var(--text-primary)' }}>
                   确认删除此条目? 此操作不可撤销。
@@ -372,7 +372,7 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
                     onClick={handleDelete}
                     disabled={deleting}
                     className="btn-ghost px-3 py-1 text-xs"
-                    style={{ color: '#e85d5d', opacity: deleting ? 0.6 : 1 }}
+                    style={{ color: 'var(--color-error)', opacity: deleting ? 0.6 : 1 }}
                   >
                     {deleting ? '删除中…' : '确认删除'}
                   </button>

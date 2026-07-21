@@ -7,14 +7,14 @@
 import type { CgDependency, DepEntityType, DepType } from '../../../types/codegarden';
 
 export const DEP_TYPE_COLORS: Record<DepType, string> = {
-  code: '#3b82f6',
-  service: '#10b981',
-  data: '#e8891a',
+  code: 'var(--color-info)',
+  service: 'var(--color-success)',
+  data: 'var(--color-bid)',
 };
 
 export const ENTITY_TYPE_COLORS: Record<DepEntityType, string> = {
-  project: '#7c6aff',
-  service: '#06b6d4',
+  project: 'var(--color-startup)',
+  service: 'var(--color-info)',
 };
 
 export const DEP_TYPE_LABELS: Record<DepType, string> = {

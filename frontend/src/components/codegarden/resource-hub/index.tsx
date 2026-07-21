@@ -123,7 +123,7 @@ function ResourceListSection({
   }
   if (error) {
     return (
-      <div className="text-xs text-center py-6" style={{ color: '#e85d5d' }}>
+      <div className="text-xs text-center py-6" style={{ color: 'var(--color-error)' }}>
         {error}
       </div>
     );

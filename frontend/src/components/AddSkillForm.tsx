@@ -67,7 +67,7 @@ export function AddSkillForm({ editing, onSubmit, onCancel }: AddSkillFormProps)
       </h3>
 
       {error && (
-        <p className="text-xs px-2 py-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'rgba(232, 93, 93, 0.15)', color: '#e85d5d' }}>
+        <p className="text-xs px-2 py-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 15%, transparent)', color: 'var(--color-error)' }}>
           {error}
         </p>
       )}
@@ -137,7 +137,7 @@ export function AddSkillForm({ editing, onSubmit, onCancel }: AddSkillFormProps)
           className="btn-ghost px-3 py-1.5 text-xs"
           style={{
             backgroundColor: 'var(--color-ai)',
-            color: '#0a0d12',
+            color: 'var(--text-on-light)',
             borderColor: 'var(--color-ai)',
             opacity: submitting ? 0.6 : 1,
             cursor: submitting ? 'wait' : 'pointer',

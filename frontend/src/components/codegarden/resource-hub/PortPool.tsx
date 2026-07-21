@@ -207,7 +207,7 @@ export function PortPool({ items, onAllocate, onRelease }: PortPoolProps) {
       {selectedPort !== null && (
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          style={{ backgroundColor: 'var(--bg-overlay)' }}
           onClick={() => setSelectedPort(null)}
         >
           <div
@@ -246,7 +246,7 @@ export function PortPool({ items, onAllocate, onRelease }: PortPoolProps) {
               <button
                 onClick={() => handleRelease(selectedPort)}
                 className="btn-ghost w-full py-1.5 text-[11px]"
-                style={{ color: '#e85d5d' }}
+                style={{ color: 'var(--color-error)' }}
               >
                 释放此端口
               </button>
@@ -254,7 +254,7 @@ export function PortPool({ items, onAllocate, onRelease }: PortPoolProps) {
             {PROTECTED_PORTS.has(selectedPort) && (
               <div
                 className="text-[11px] text-center py-2"
-                style={{ color: '#e85d5d' }}
+                style={{ color: 'var(--color-error)' }}
               >
                 受保护端口，禁止分配/释放
               </div>
@@ -267,8 +267,8 @@ export function PortPool({ items, onAllocate, onRelease }: PortPoolProps) {
         <div
           className="fixed bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded text-xs z-50"
           style={{
-            backgroundColor: toast.kind === 'ok' ? '#00c96a' : '#e85d5d',
-            color: '#fff',
+            backgroundColor: toast.kind === 'ok' ? 'var(--color-success)' : 'var(--color-error)',
+            color: 'var(--text-on-color)',
           }}
         >
           {toast.msg}

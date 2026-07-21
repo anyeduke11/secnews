@@ -59,10 +59,10 @@ export function FavoriteItem({
           disabled={inTodo}
           className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors duration-150"
           style={{
-            color: inTodo ? '#00c96a' : 'var(--text-muted)',
+            color: inTodo ? 'var(--color-success)' : 'var(--text-muted)',
             opacity: inTodo ? 0.6 : 1,
             cursor: inTodo ? 'not-allowed' : 'pointer',
-            border: `1px solid ${inTodo ? '#00c96a66' : 'var(--border-color)'}`,
+            border: `1px solid ${inTodo ? 'var(--color-success)66' : 'var(--border-color)'}`,
           }}
           title={inTodo ? '已加入待办' : '添加为待办'}
           aria-label={inTodo ? '已加入待办' : '添加为待办'}
@@ -73,7 +73,7 @@ export function FavoriteItem({
         <button
           onClick={onRemove}
           className="shrink-0 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{ color: '#e85d5d' }}
+          style={{ color: 'var(--color-error)' }}
           title="取消收藏"
           aria-label="取消收藏"
         >

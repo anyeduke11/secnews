@@ -22,54 +22,23 @@ export function SearchBar({ keyword, timeRange, onKeywordChange, onTimeRangeChan
   }, [onKeywordChange]);
 
   return (
-    <div className="mb-4">
-      <label
-        className="text-xs font-medium mb-1.5 block font-mono"
-        style={{
-          color: 'var(--text-secondary)',
-          letterSpacing: '0.04em',
-        }}
-      >
-        <span style={{ color: 'var(--color-ai)', marginRight: 4 }}>//</span>
-        搜索与筛选
-      </label>
-      <div className="flex items-center gap-2 flex-wrap">
-        <form onSubmit={handleSubmit} className="flex-1 min-w-[200px]">
-          <div className="relative">
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="absolute left-3 top-1/2 -translate-y-1/2"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
+    <div className="mb-3">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <form onSubmit={handleSubmit} className="w-full sm:flex-1 min-w-0">
+          <div className="search-box">
+            <span className="search-icon text-tech">//</span>
             <input
               type="text"
               value={localKeyword}
               onChange={(e) => setLocalKeyword(e.target.value)}
               placeholder="搜索热点关键词..."
-              className="w-full pl-9 pr-8 py-2 text-xs font-mono focus-ring"
-              style={{
-                backgroundColor: 'var(--bg-card)',
-                border: '1px solid var(--border-color)',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--text-primary)',
-              }}
+              className="focus-ring font-mono"
             />
             {localKeyword && (
               <button
                 type="button"
                 onClick={handleClear}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px]"
-                style={{ color: 'var(--text-muted)' }}
+                className="search-clear focus-ring"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -80,31 +49,12 @@ export function SearchBar({ keyword, timeRange, onKeywordChange, onTimeRangeChan
           </div>
         </form>
 
-        <div
-          className="flex gap-px p-0.5 font-mono"
-          style={{
-            backgroundColor: 'var(--bg-hover)',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-color)',
-          }}
-        >
+        <div className="time-toggle self-start sm:self-auto shrink-0">
           {TIME_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               onClick={() => onTimeRangeChange(opt.value)}
-              className="focus-ring"
-              style={{
-                padding: '5px 12px',
-                fontSize: '11px',
-                fontWeight: timeRange === opt.value ? 600 : 500,
-                borderRadius: 'calc(var(--radius-sm) - 1px)',
-                backgroundColor: timeRange === opt.value ? 'var(--bg-card)' : 'transparent',
-                border: timeRange === opt.value ? '1px solid var(--border-color)' : '1px solid transparent',
-                color: timeRange === opt.value ? 'var(--color-ai)' : 'var(--text-muted)',
-                cursor: 'pointer',
-                transition: 'all 0.12s ease',
-                letterSpacing: '0.04em',
-              }}
+              className={`focus-ring ${timeRange === opt.value ? 'active' : ''}`}
             >
               {opt.label}
             </button>

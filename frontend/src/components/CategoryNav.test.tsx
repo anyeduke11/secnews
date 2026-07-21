@@ -80,7 +80,7 @@ describe('CategoryNav', () => {
         ]}
       />
     );
-    expect(screen.getByText('⚠️')).toBeInTheDocument();
+    expect(screen.getByTitle(/数据不一致/)).toBeInTheDocument();
   });
 
   it('does not show drift warning for non-drift categories', () => {
@@ -92,6 +92,6 @@ describe('CategoryNav', () => {
         consistencyDrift={[]}
       />
     );
-    expect(screen.queryByText('⚠️')).not.toBeInTheDocument();
+    expect(screen.queryByTitle(/数据不一致/)).not.toBeInTheDocument();
   });
 });

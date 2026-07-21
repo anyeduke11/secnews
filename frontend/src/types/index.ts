@@ -22,8 +22,8 @@ export interface HotspotItem {
   quality_flags?: string[];
   quality_checked_at?: string;
   is_fallback?: boolean;
-  // Phase 45: URL 验证状态
-  url_check_status?: string;
+  // URL 标题验证状态
+  url_check_status?: 'verified' | 'mismatch' | 'pending' | string;
   // Phase 20+: 标讯状态(仅 category=bid 有效)
   // 可选值: 招标中 / 中标 / 变更 / 终止 / 成交 / 询价 / 比选 / 其他
   bid_status?: string;
@@ -203,7 +203,6 @@ export interface StatsResponse {
 export const CATEGORIES: CategoryInfo[] = [
   { id: 'all', label: '全部热点', color: '#00c96a' },
   { id: 'ai', label: '科技 / AI', color: '#00bcd4' },
-  { id: 'ai_security', label: 'AI 安全', color: '#ff6b9d' },
   { id: 'security', label: '网络安全', color: '#e85d5d' },
   { id: 'finance', label: '金融 / 投资', color: '#f0c929' },
   { id: 'startup', label: '独立开发 / 创业', color: '#7c6aff' },

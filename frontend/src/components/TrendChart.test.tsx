@@ -37,7 +37,7 @@ describe('TrendChart', () => {
     globalThis.fetch = vi.fn(() => new Promise(() => {})) as any;
     render(<TrendChart />);
     // 加载中显示占位: h-3.5 w-28 + h-36 两个 div
-    const card = document.querySelector('.card-base');
+    const card = document.querySelector('.stat-card.corner-brackets');
     expect(card).toBeInTheDocument();
   });
 
@@ -78,8 +78,8 @@ describe('TrendChart', () => {
     const { container } = render(<TrendChart />);
     await waitFor(() => {
       // 加载完成后空数据 → 返回 null
-      // 验证 card-base 不在文档里
-      expect(container.querySelector('.card-base')).not.toBeInTheDocument();
+      // 验证 stat-card 不在文档里
+      expect(container.querySelector('.stat-card.corner-brackets')).not.toBeInTheDocument();
     });
   });
 
@@ -89,7 +89,7 @@ describe('TrendChart', () => {
     // 等 useEffect 中的 catch 跑完
     await waitFor(() => {
       // catch 后 setLoading(false), 但 data 仍为空 → 返回 null
-      expect(container.querySelector('.card-base')).not.toBeInTheDocument();
+      expect(container.querySelector('.stat-card.corner-brackets')).not.toBeInTheDocument();
     });
   });
 

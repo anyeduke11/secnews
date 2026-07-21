@@ -1,11 +1,12 @@
 /**
- * SyncConfigForm — WebDAV 配置表单 (输入字段 + 测试/保存/删除按钮 + 提示消息)。
+ * SyncConfigForm — WebDAV 配置表单 (输入字段)。
  *
  * Phase 1B: 拆自原 SyncBundleConfig.tsx 的上半段 (form section)。
+ * Phase 6: 进一步把 actions/testMsg 拆到 SyncConfigActions, 本文件仅留表单字段。
  * 仅渲染, props-only; 状态与回调由 index.tsx 注入。
  */
 import React from 'react';
-import { Icon } from '../Icon';
+import { SyncConfigActions } from './SyncConfigActions';
 import type { BundleConfigForm, EffectiveRemoteInfo, SyncFrequency } from './types';
 
 const FREQUENCY_LABEL: Record<SyncFrequency, string> = {
@@ -40,6 +41,8 @@ export function SyncConfigForm({
   showMasterKey, setShowMasterKey, masterKeyFromCache, setMasterKeyFromCache,
   onTest, onSave, onDelete,
 }: SyncConfigFormProps) {
+  const canTest = Boolean(form.webdav_url && form.webdav_username && form.webdav_password);
+
   return (
     <div
       className="rounded-lg p-4 mb-3"
@@ -206,85 +209,18 @@ export function SyncConfigForm({
         </label>
       </div>
 
-      {saveOk && (
-        <div
-          className="mt-3 px-3 py-2 rounded text-[11px]"
-          style={{
-            background: 'color-mix(in srgb, var(--color-success) 10%, transparent)',
-            color: 'var(--color-success)',
-            border: '1px solid color-mix(in srgb, var(--color-success) 30%, transparent)',
-          }}
-        >
-          {saveOk}
-        </div>
-      )}
-
-      {actionError && (
-        <div
-          className="mt-3 px-3 py-2 rounded text-[11px]"
-          style={{
-            background: 'color-mix(in srgb, var(--color-error) 10%, transparent)',
-            color: 'var(--color-error)',
-            border: '1px solid color-mix(in srgb, var(--color-error) 30%, transparent)',
-          }}
-        >
-          ✗ {actionError}
-        </div>
-      )}
-
-      <div className="flex gap-2 mt-3 flex-wrap">
-        <button
-          onClick={onTest}
-          disabled={testing || !form.webdav_url || !form.webdav_username || !form.webdav_password}
-          className="btn-ghost px-3 py-1.5 text-xs"
-          style={{ opacity: testing ? 0.6 : 1 }}
-        >
-          <Icon size={12}>
-            <polyline points="9 11 12 14 22 4" />
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-          </Icon>
-          {testing ? '测试中…' : '测试连接'}
-        </button>
-        <button
-          onClick={onSave}
-          disabled={saving}
-          className="btn-ghost px-3 py-1.5 text-xs"
-          style={{ opacity: saving ? 0.6 : 1 }}
-        >
-          <Icon size={12}>
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-            <polyline points="17 21 17 13 7 13 7 21" />
-            <polyline points="7 3 7 8 15 8" />
-          </Icon>
-          {saving ? '保存中…' : '保存配置'}
-        </button>
-        {configured && (
-          <button
-            onClick={onDelete}
-            className="btn-ghost px-3 py-1.5 text-xs"
-            style={{ color: 'var(--color-error)' }}
-          >
-            <Icon size={12}>
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            </Icon>
-            删除配置
-          </button>
-        )}
-      </div>
-
-      {testMsg && (
-        <div
-          className="mt-3 px-3 py-2 rounded text-[11px]"
-          style={{
-            background: testMsg.ok ? 'color-mix(in srgb, var(--color-success) 10%, transparent)' : 'color-mix(in srgb, var(--color-error) 10%, transparent)',
-            color: testMsg.ok ? 'var(--color-success)' : 'var(--color-error)',
-            border: `1px solid ${testMsg.ok ? 'color-mix(in srgb, var(--color-success) 30%, transparent)' : 'color-mix(in srgb, var(--color-error) 30%, transparent)'}`,
-          }}
-        >
-          {testMsg.ok ? '✓' : '✗'} {testMsg.message}
-        </div>
-      )}
+      <SyncConfigActions
+        testing={testing}
+        saving={saving}
+        configured={configured}
+        canTest={canTest}
+        onTest={onTest}
+        onSave={onSave}
+        onDelete={onDelete}
+        saveOk={saveOk}
+        actionError={actionError}
+        testMsg={testMsg}
+      />
     </div>
   );
 }

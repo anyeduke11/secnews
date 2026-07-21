@@ -1,3 +1,5 @@
+// HealthDashboard — 知识库健康度卡片
+// Phase 5A: coverage <50% 改用 --color-error token (替换硬编码 #e85d5d)
 import React, { useState, useEffect } from 'react';
 import type { KnowledgeHealth } from '../types';
 
@@ -43,7 +45,7 @@ export function HealthDashboard() {
                 <div className="rounded-full"
                      style={{ width: `${g.coverage * 100}%`, height: '4px', backgroundColor: 'var(--color-ai)' }} />
               </div>
-              <span style={{ color: g.coverage >= 0.5 ? 'var(--text-muted)' : '#e85d5d' }}>
+              <span style={{ color: g.coverage >= 0.5 ? 'var(--text-muted)' : 'var(--color-error)' }}>
                 {Math.round(g.coverage * 100)}%
               </span>
             </div>

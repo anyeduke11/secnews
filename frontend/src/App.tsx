@@ -317,10 +317,9 @@ export default function App() {
               <HomePage />
             </ErrorBoundary>
           } />
-          {/* Phase 1A: 12 page 仍接收 onBack={goHome} (向后兼容);
-              PageLayout 接入 + useGoHome hook 已就绪, 后续 phase 渐进移除 */}
-          <Route path="/todos" element={<TodosPage onBack={goHome} />} />
-          <Route path="/history" element={<HistoryPage favoritedIds={new Set()} onToggleFavorite={() => {}} onBack={goHome} />} />
+          {/* Phase 5A: HealthDashboard/HistoryPage/TodosPage 已迁移到 useGoHome (移除 onBack prop) */}
+          <Route path="/todos" element={<TodosPage />} />
+          <Route path="/history" element={<HistoryPage favoritedIds={new Set()} onToggleFavorite={() => {}} />} />
           <Route path="/skills" element={<SkillsPage onBack={goHome} />} />
           <Route path="/secrets" element={<SecretsPage onBack={goHome} />} />
           <Route path="/sync" element={<SyncPage onBack={goHome} />} />

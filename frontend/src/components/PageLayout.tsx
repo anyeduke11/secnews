@@ -25,18 +25,29 @@ export function PageLayout() {
         className="min-h-[100dvh] relative"
         style={{ backgroundColor: 'var(--bg-primary)' }}
       >
-        {/* Phase 8: tech-style 背景网格 + 顶部细线 — 极淡不抢戏, 暗/亮两套透明度 */}
+        {/* Phase 8: tech-style 背景点阵 + 顶部细线 — 极淡不抢戏, 暗/亮两套透明度 */}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 bg-tech-grid"
         />
+        {/* 顶部细线渐变 — 强化 "system bar" 感 */}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 top-0 h-px"
           style={{
             background:
               'linear-gradient(to right, transparent, var(--color-ai) 20%, var(--color-ai) 80%, transparent)',
-            opacity: 0.4,
+            opacity: 0.6,
+          }}
+        />
+        {/* 底部细线 — 双线对称 */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-px"
+          style={{
+            background:
+              'linear-gradient(to right, transparent, var(--color-ai) 30%, var(--color-ai) 70%, transparent)',
+            opacity: 0.3,
           }}
         />
         {/* Phase 7: 响应式 padding — mobile 16px, tablet 24px, desktop 32px */}

@@ -22,8 +22,8 @@ export function StatsPanel({ categoryCounts, total }: StatsPanelProps) {
         <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
           total:{' '}
           <span
-            className="font-mono tabular-nums"
-            style={{ color: 'var(--color-ai)', fontWeight: 600 }}
+            className="font-mono tabular-nums font-semibold glow-sm"
+            style={{ color: 'var(--color-ai)', fontWeight: 700 }}
           >
             {total}
           </span>{' '}

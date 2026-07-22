@@ -1,0 +1,16 @@
+{
+  "rules": [
+    { "pattern": "CVE-\\d{4}-\\d{4,7}", "tag_id": "cve", "confidence": 1.0 },
+    { "pattern": "CNVD-\\d{4}-\\d{4,7}", "tag_id": "cnvd", "confidence": 1.0 },
+    { "pattern": "CNNVD-\\d{6}", "tag_id": "cnvd", "confidence": 1.0 },
+    { "keywords": ["langchain", "LangChain"], "tag_id": "langchain", "confidence": 0.8 },
+    { "keywords": ["fastapi", "FastAPI"], "tag_id": "fastapi", "confidence": 0.8 },
+    { "keywords": ["prompt injection", "prompt-injection", "提示注入"], "tag_id": "prompt-injection", "confidence": 0.7 },
+    { "keywords": ["llm", "大模型", "大语言模型"], "tag_id": "llm", "confidence": 0.6 },
+    { "keywords": ["ransomware", "勒索软件", "勒索病毒"], "tag_id": "vulnerability", "confidence": 0.7 },
+    { "keywords": ["zero-day", "0day", "零日"], "tag_id": "vulnerability", "confidence": 0.8 },
+    { "keywords": ["sql injection", "sqli", "SQL注入"], "tag_id": "vulnerability", "confidence": 0.7 },
+    { "keywords": ["xss", "cross-site scripting", "跨站脚本"], "tag_id": "vulnerability", "confidence": 0.7 },
+    { "keywords": ["owasp", "OWASP"], "tag_id": "ai-security", "confidence": 0.6 }
+  ]
+}

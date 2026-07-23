@@ -188,6 +188,12 @@ class _KnowledgeEventHandler(FileSystemEventHandler):
                 path,
                 count,
             )
+            # v1.7 Phase 5: 同步成功后失效 KV 缓存 (items:* / item:*)
+            try:
+                from backend.services.kv_cache_service import kv_cache
+                kv_cache.invalidate_knowledge_items()
+            except Exception as cache_err:
+                log.debug("kv_cache invalidate skipped: %s", cache_err)
         except Exception as e:
             log.error(
                 "watchdog sync failed for %s (triggered by %s): %s",

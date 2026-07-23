@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
+import React, { Suspense, useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { PageLayout } from './components/PageLayout';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -10,22 +10,67 @@ import { TrendChart } from './components/TrendChart';
 import { HotspotGrid } from './components/HotspotGrid';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
 import { RegionFilter } from './components/RegionFilter';
-import { SettingsPanel } from './components/settings';
-import { FavoritesPanel } from './components/favorites';
-import { HistoryPage } from './components/HistoryPage';
-import { TodosPage } from './components/TodosPage';
-import { SkillsPage } from './components/SkillsPage';
-import { SecretsPage } from './components/SecretsPage';
-import { SyncPage } from './components/sync';
-import { WeeklyReportPage } from './components/WeeklyReportPage';
-import { KnowledgePage } from './components/KnowledgePage';
-import { CodegardenPage } from './components/CodegardenPage';
-import { CodegardenPhase2bPage } from './components/CodegardenPhase2bPage';
+// Lazy-loaded page components — split into separate chunks to reduce initial bundle size.
+const SettingsPanel = React.lazy(() =>
+  import('./components/settings').then(m => ({ default: m.SettingsPanel }))
+);
+const FavoritesPanel = React.lazy(() =>
+  import('./components/favorites').then(m => ({ default: m.FavoritesPanel }))
+);
+const HistoryPage = React.lazy(() =>
+  import('./components/HistoryPage').then(m => ({ default: m.HistoryPage }))
+);
+const TodosPage = React.lazy(() =>
+  import('./components/TodosPage').then(m => ({ default: m.TodosPage }))
+);
+const SkillsPage = React.lazy(() =>
+  import('./components/SkillsPage').then(m => ({ default: m.SkillsPage }))
+);
+const SecretsPage = React.lazy(() =>
+  import('./components/SecretsPage').then(m => ({ default: m.SecretsPage }))
+);
+const SyncPage = React.lazy(() =>
+  import('./components/sync').then(m => ({ default: m.SyncPage }))
+);
+const WeeklyReportPage = React.lazy(() =>
+  import('./components/WeeklyReportPage').then(m => ({ default: m.WeeklyReportPage }))
+);
+const KnowledgePage = React.lazy(() =>
+  import('./components/KnowledgePage').then(m => ({ default: m.KnowledgePage }))
+);
+const CodegardenPage = React.lazy(() =>
+  import('./components/CodegardenPage').then(m => ({ default: m.CodegardenPage }))
+);
+const CodegardenPhase2bPage = React.lazy(() =>
+  import('./components/CodegardenPhase2bPage').then(m => ({ default: m.CodegardenPhase2bPage }))
+);
+const ReviewPage = React.lazy(() =>
+  import('./components/ReviewPage').then(m => ({ default: m.ReviewPage }))
+);
+const DeepReadView = React.lazy(() =>
+  import('./components/DeepReadView').then(m => ({ default: m.DeepReadView }))
+);
+const BriefModeView = React.lazy(() =>
+  import('./components/BriefModeView').then(m => ({ default: m.BriefModeView }))
+);
 import { useHotspotData } from './hooks/useHotspotData';
 import { useRefreshInterval } from './hooks/useRefreshInterval';
 import { useTodos } from './hooks/useTodos';
 import { useSSE } from './hooks/useSSE';
 import { ConsistencyDrift, StatsResponse, HotspotItem } from './types';
+
+/** Minimal loading fallback for Suspense-wrapped routes. */
+function PageFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[40vh]">
+      <div className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>
+        <span style={{ color: 'var(--color-ai)', marginRight: 8 }}>&gt;</span>
+        加载中 ...
+      </div>
+    </div>
+  );
+}
+
 
 interface ThemeContextValue {
   theme: 'dark' | 'light';
@@ -270,42 +315,27 @@ function HomePage() {
         />
       )}
 
-      <footer
-        className="mt-10 pt-5 text-center"
-        style={{
-          borderTop: '1px solid var(--border-color)',
-          position: 'relative',
-        }}
-      >
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: -1,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 60,
-            height: 1,
-            background: 'var(--color-ai)',
-            opacity: 0.6,
-          }}
-        />
+      <div className="tech-divider mt-6" />
+      <footer className="text-center pb-3">
         <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
           <span style={{ color: 'var(--color-ai)', marginRight: 4 }}>{'>'}</span>
-          热点地图 | 数据源: 安全客 / Krebs / PortSwigger / SANS / FreeBuf / 奇安信 / AVD / CNNVD / CNVD / 新浪财经 / 东方财富 / Hacker News / aihot / GitHub Trending / 中国政府采购网
+          SecNews 热点地图 | 数据源: 安全客 / Krebs / PortSwigger / SANS / FreeBuf / 奇安信 / AVD / CNNVD / CNVD / 新浪财经 / 东方财富 / Hacker News / aihot / GitHub Trending / 中国政府采购网
         </p>
         <p className="text-xs mt-1.5 font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
           [i] 点击卡片查看原文 · {formatRefreshLabel(refreshInterval)}
         </p>
-        <p className="text-xs mt-1.5 font-mono">
+        <p className="text-xs mt-2 font-mono">
           <a
             href="/api/export"
             target="_blank"
-            className="hover:underline"
-            style={{ color: 'var(--color-ai)' }}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border transition-colors hover:bg-[var(--bg-hover)]"
+            style={{ color: 'var(--color-ai)', borderColor: 'color-mix(in srgb, var(--color-ai) 30%, transparent)' }}
             rel="noreferrer"
           >
-            {'[ export ]'} 静态 HTML
+            <span>[</span>
+            <span>export</span>
+            <span>]</span>
+            <span>静态 HTML</span>
           </a>
         </p>
       </footer>
@@ -343,16 +373,19 @@ export default function App() {
               <HomePage />
             </ErrorBoundary>
           } />
-          {/* Phase 5A: HealthDashboard/HistoryPage/TodosPage 已迁移到 useGoHome (移除 onBack prop) */}
-          <Route path="/todos" element={<TodosPage />} />
-          <Route path="/history" element={<HistoryPage favoritedIds={new Set()} onToggleFavorite={() => {}} />} />
-          <Route path="/skills" element={<SkillsPage onBack={goHome} />} />
-          <Route path="/secrets" element={<SecretsPage onBack={goHome} />} />
-          <Route path="/sync" element={<SyncPage onBack={goHome} />} />
-          <Route path="/weekly-report" element={<WeeklyReportPage onBack={goHome} />} />
-          <Route path="/knowledge" element={<KnowledgePage onBack={goHome} />} />
-          <Route path="/codegarden" element={<CodegardenPage onBack={goHome} />} />
-          <Route path="/codegarden/phase2b" element={<CodegardenPhase2bPage onBack={goHome} />} />
+          {/* Phase 5A: Lazy-loaded with Suspense boundary */}
+          <Route path="/todos" element={<Suspense fallback={<PageFallback />}><TodosPage /></Suspense>} />
+          <Route path="/history" element={<Suspense fallback={<PageFallback />}><HistoryPage favoritedIds={new Set()} onToggleFavorite={() => {}} /></Suspense>} />
+          <Route path="/skills" element={<Suspense fallback={<PageFallback />}><SkillsPage onBack={goHome} /></Suspense>} />
+          <Route path="/secrets" element={<Suspense fallback={<PageFallback />}><SecretsPage onBack={goHome} /></Suspense>} />
+          <Route path="/sync" element={<Suspense fallback={<PageFallback />}><SyncPage onBack={goHome} /></Suspense>} />
+          <Route path="/weekly-report" element={<Suspense fallback={<PageFallback />}><WeeklyReportPage onBack={goHome} /></Suspense>} />
+          <Route path="/knowledge" element={<Suspense fallback={<PageFallback />}><KnowledgePage onBack={goHome} /></Suspense>} />
+          <Route path="/codegarden" element={<Suspense fallback={<PageFallback />}><CodegardenPage onBack={goHome} /></Suspense>} />
+          <Route path="/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><CodegardenPhase2bPage onBack={goHome} /></Suspense>} />
+          <Route path="/reviews" element={<Suspense fallback={<PageFallback />}><ReviewPage /></Suspense>} />
+          <Route path="/deep/:type/:id" element={<Suspense fallback={<PageFallback />}><DeepReadView /></Suspense>} />
+          <Route path="/brief" element={<Suspense fallback={<PageFallback />}><BriefModeView /></Suspense>} />
         </Route>
       </Routes>
     </ThemeContext.Provider>

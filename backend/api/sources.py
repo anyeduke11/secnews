@@ -347,4 +347,44 @@ async def mark_dead_source(category: str, source_name: str):
     return {"status": "ok", "category": category, "source_name": source_name}
 
 
+# ===========================================================================
+# Phase 4 v1.7 数据源健康趋势 API (green/yellow/red)
+# ===========================================================================
+def _build_trend_payload(source: Optional[str]) -> dict:
+    """同步构建 Phase 4 健康趋势报告 (在 thread pool 中执行)。"""
+    from backend.services.source_health_service import (
+        check_all_health,
+        check_health,
+        health_summary,
+    )
+
+    if source:
+        result = check_health(source)
+        return {"version": "1.7.0", "item": result}
+    items = check_all_health()
+    summary = health_summary()
+    return {
+        "version": "1.7.0",
+        "summary": summary,
+        "items": items,
+    }
+
+
+@router.get("/health/trend")
+async def list_source_health_trend():
+    """Phase 4: 所有数据源的产出趋势健康度 (green/yellow/red).
+
+    与 Phase 9 ``GET /health`` 的区别:
+    - Phase 9 基于 ``zero_yield_runs`` (liveness: active/stale/dead)
+    - Phase 4 基于 24h 产出 vs 7d 日均 (trend: green/yellow/red)
+    """
+    return await asyncio.to_thread(_build_trend_payload, None)
+
+
+@router.get("/health/trend/{source}")
+async def get_source_health_trend(source: str):
+    """Phase 4: 单个数据源的产出趋势健康度."""
+    return await asyncio.to_thread(_build_trend_payload, source)
+
+
 __all__ = ["router"]

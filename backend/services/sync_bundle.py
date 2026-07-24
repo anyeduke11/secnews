@@ -197,6 +197,274 @@ def _apply_cg_services(items: list[dict]) -> int:
 
 
 # ---------------------------------------------------------------------------
+# v1.7 New table readers (Phase 6 Task 6.1)
+# ---------------------------------------------------------------------------
+def _read_tags_for_sync() -> list[dict]:
+    """读取 tags 标签层级表 (cascade — 跨端时整表覆盖+清空关联)。"""
+    try:
+        from backend.repository.tags_repo import TagRepository
+        return [t.to_dict() for t in TagRepository().list(limit=1000)]
+    except Exception as e:
+        logger.warning(f"_read_tags_for_sync failed (skipped): {e}")
+        return []
+
+
+def _apply_tags(items: list[dict]) -> int:
+    """将 bundle 中的 tags 写回 SQLite (cascade upsert)。
+
+    v1.7 决策: tags 是静态分类目录, 跨端时整表 upsert; 关联表 hotspot_tags
+    也一并同步, 避免孤儿 tag。
+    """
+    if not items:
+        return 0
+    from backend.repository.db import get_connection
+    conn = get_connection()
+    n = 0
+    for it in items:
+        try:
+            conn.execute(
+                """
+                INSERT INTO tags (id, label, type, parent_id, weight, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    label=excluded.label, type=excluded.type,
+                    parent_id=excluded.parent_id, weight=excluded.weight
+                """,
+                (
+                    it["id"], it["label"], it["type"],
+                    it.get("parent_id"), float(it.get("weight", 1.0) or 1.0),
+                    it.get("created_at") or _now_iso(),
+                ),
+            )
+            n += 1
+        except Exception as e:
+            logger.warning(f"_apply_tags upsert {it.get('id')} failed: {e}")
+    return n
+
+
+def _read_hotspot_tags_for_sync() -> list[dict]:
+    """读取 hotspot_tags 关联表 (cascade — 与 tags 一起同步)."""
+    try:
+        from backend.repository.db import get_connection
+        rows = get_connection().execute(
+            "SELECT hotspot_id, tag_id, confidence, created_at "
+            "FROM hotspot_tags ORDER BY hotspot_id, tag_id"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        logger.warning(f"_read_hotspot_tags_for_sync failed (skipped): {e}")
+        return []
+
+
+def _apply_hotspot_tags(items: list[dict]) -> int:
+    """cascade upsert hotspot_tags 关联."""
+    if not items:
+        return 0
+    from backend.repository.db import get_connection
+    conn = get_connection()
+    n = 0
+    for it in items:
+        try:
+            conn.execute(
+                """
+                INSERT INTO hotspot_tags (hotspot_id, tag_id, confidence, created_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(hotspot_id, tag_id) DO UPDATE SET
+                    confidence=excluded.confidence
+                """,
+                (it["hotspot_id"], it["tag_id"],
+                 float(it.get("confidence", 1.0) or 1.0),
+                 it.get("created_at") or _now_iso()),
+            )
+            n += 1
+        except Exception as e:
+            logger.warning(f"_apply_hotspot_tags upsert {it.get('hotspot_id')}/{it.get('tag_id')} failed: {e}")
+    return n
+
+
+def _read_reading_states_for_sync() -> list[dict]:
+    """reading_states — last_writer_wins (按 updated_at 选最新)."""
+    try:
+        from backend.repository.reading_states_repo import ReadingStateRepository
+        # list_recent 用 last_read_at 排序, 此处不适用 — 改用 list_all
+        from backend.repository.db import get_connection
+        rows = get_connection().execute(
+            "SELECT * FROM reading_states ORDER BY updated_at DESC LIMIT 1000"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        logger.warning(f"_read_reading_states_for_sync failed (skipped): {e}")
+        return []
+
+
+def _apply_reading_states(items: list[dict]) -> int:
+    """last_writer_wins: 按 (entity_type, entity_id) upsert, 远端 updated_at 更新则覆盖."""
+    if not items:
+        return 0
+    from backend.repository.db import get_connection
+    conn = get_connection()
+    n = 0
+    for it in items:
+        try:
+            conn.execute(
+                """
+                INSERT INTO reading_states
+                    (entity_type, entity_id, opened_count, dwell_ms,
+                     last_read_at, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(entity_type, entity_id) DO UPDATE SET
+                    opened_count = CASE
+                        WHEN excluded.updated_at >= reading_states.updated_at
+                        THEN excluded.opened_count ELSE reading_states.opened_count END,
+                    dwell_ms = CASE
+                        WHEN excluded.updated_at >= reading_states.updated_at
+                        THEN excluded.dwell_ms ELSE reading_states.dwell_ms END,
+                    last_read_at = CASE
+                        WHEN excluded.updated_at >= reading_states.updated_at
+                        THEN excluded.last_read_at ELSE reading_states.last_read_at END,
+                    updated_at = MAX(excluded.updated_at, reading_states.updated_at)
+                """,
+                (
+                    it["entity_type"], it["entity_id"],
+                    int(it.get("opened_count", 0) or 0),
+                    int(it.get("dwell_ms", 0) or 0),
+                    it.get("last_read_at"),
+                    it.get("created_at") or _now_iso(),
+                    it.get("updated_at") or _now_iso(),
+                ),
+            )
+            n += 1
+        except Exception as e:
+            logger.warning(
+                f"_apply_reading_states upsert {it.get('entity_type')}/{it.get('entity_id')} failed: {e}"
+            )
+    return n
+
+
+def _read_annotations_for_sync() -> list[dict]:
+    """annotations — last_writer_wins (按 updated_at 选最新)."""
+    try:
+        from backend.repository.db import get_connection
+        rows = get_connection().execute(
+            "SELECT * FROM annotations ORDER BY updated_at DESC LIMIT 1000"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        logger.warning(f"_read_annotations_for_sync failed (skipped): {e}")
+        return []
+
+
+def _apply_annotations(items: list[dict]) -> int:
+    """last_writer_wins by updated_at, 远端更新则覆盖, 否则保留本地."""
+    if not items:
+        return 0
+    from backend.repository.db import get_connection
+    conn = get_connection()
+    n = 0
+    for it in items:
+        try:
+            conn.execute(
+                """
+                INSERT INTO annotations
+                    (id, entity_type, entity_id, content,
+                     range_start, range_end, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    content = CASE
+                        WHEN excluded.updated_at >= annotations.updated_at
+                        THEN excluded.content ELSE annotations.content END,
+                    range_start = CASE
+                        WHEN excluded.updated_at >= annotations.updated_at
+                        THEN excluded.range_start ELSE annotations.range_start END,
+                    range_end = CASE
+                        WHEN excluded.updated_at >= annotations.updated_at
+                        THEN excluded.range_end ELSE annotations.range_end END,
+                    updated_at = MAX(excluded.updated_at, annotations.updated_at)
+                """,
+                (
+                    it["id"], it["entity_type"], it["entity_id"], it["content"],
+                    it.get("range_start"), it.get("range_end"),
+                    it.get("created_at") or _now_iso(),
+                    it.get("updated_at") or _now_iso(),
+                ),
+            )
+            n += 1
+        except Exception as e:
+            logger.warning(f"_apply_annotations upsert {it.get('id')} failed: {e}")
+    return n
+
+
+def _read_sm2_reviews_for_sync() -> list[dict]:
+    """sm2_reviews — 合并模式 (Phase 6 决策: due_at 较早的胜出, 防覆盖未到期复习)."""
+    try:
+        from backend.repository.db import get_connection
+        rows = get_connection().execute(
+            "SELECT * FROM sm2_reviews ORDER BY due_at LIMIT 1000"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        logger.warning(f"_read_sm2_reviews_for_sync failed (skipped): {e}")
+        return []
+
+
+def _apply_sm2_reviews(items: list[dict]) -> int:
+    """sm2_reviews merge: ``due_at`` 较早的胜出 (防覆盖未到期复习).
+
+    实际: keep local if local.due_at <= remote.due_at, else take remote.
+    包装为 last_writer_wins 的形式 (单条 UPSERT, compare due_at in SQL).
+    """
+    if not items:
+        return 0
+    from backend.repository.db import get_connection
+    conn = get_connection()
+    n = 0
+    for it in items:
+        try:
+            conn.execute(
+                """
+                INSERT INTO sm2_reviews
+                    (id, entity_type, entity_id, easiness, interval, repetitions,
+                     due_at, last_grade, last_reviewed_at, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    easiness = CASE
+                        WHEN excluded.due_at <= sm2_reviews.due_at
+                        THEN excluded.easiness ELSE sm2_reviews.easiness END,
+                    interval = CASE
+                        WHEN excluded.due_at <= sm2_reviews.due_at
+                        THEN excluded.interval ELSE sm2_reviews.interval END,
+                    repetitions = CASE
+                        WHEN excluded.due_at <= sm2_reviews.due_at
+                        THEN excluded.repetitions ELSE sm2_reviews.repetitions END,
+                    due_at = CASE
+                        WHEN excluded.due_at <= sm2_reviews.due_at
+                        THEN excluded.due_at ELSE sm2_reviews.due_at END,
+                    last_grade = CASE
+                        WHEN excluded.due_at <= sm2_reviews.due_at
+                        THEN excluded.last_grade ELSE sm2_reviews.last_grade END,
+                    last_reviewed_at = CASE
+                        WHEN excluded.due_at <= sm2_reviews.due_at
+                        THEN excluded.last_reviewed_at ELSE sm2_reviews.last_reviewed_at END,
+                    updated_at = MAX(excluded.updated_at, sm2_reviews.updated_at)
+                """,
+                (
+                    it["id"], it["entity_type"], it["entity_id"],
+                    float(it.get("easiness", 2.5) or 2.5),
+                    int(it.get("interval", 0) or 0),
+                    int(it.get("repetitions", 0) or 0),
+                    it["due_at"], it.get("last_grade"),
+                    it.get("last_reviewed_at"),
+                    it.get("created_at") or _now_iso(),
+                    it.get("updated_at") or _now_iso(),
+                ),
+            )
+            n += 1
+        except Exception as e:
+            logger.warning(f"_apply_sm2_reviews upsert {it.get('id')} failed: {e}")
+    return n
+
+
+# ---------------------------------------------------------------------------
 # Bundle building
 # ---------------------------------------------------------------------------
 def build_bundle(*, device_id: Optional[str] = None) -> dict:
@@ -232,6 +500,12 @@ def build_bundle(*, device_id: Optional[str] = None) -> dict:
         "custom_sources": [
             src.to_dict() for src in CustomSourceRepository().list()
         ],
+        # v1.7 Phase 6 Task 6.1
+        "tags": _read_tags_for_sync(),
+        "hotspot_tags": _read_hotspot_tags_for_sync(),
+        "reading_states": _read_reading_states_for_sync(),
+        "annotations": _read_annotations_for_sync(),
+        "sm2_reviews": _read_sm2_reviews_for_sync(),
         "settings": {
             k: v for k, v in SettingsRepository().list_all().items()
             if k not in SETTINGS_BLOCKLIST
@@ -421,6 +695,15 @@ def apply_bundle(bundle: dict, *, master_key: Optional[str] = None) -> dict:
     # --- codegarden_services (Phase 2b) ---
     cg_svc_stats = {"upserted": _apply_cg_services(records.get("codegarden_services", []))}
 
+    # --- v1.7 Phase 6 Task 6.1: tags / reading_states / annotations / sm2_reviews ---
+    tags_stats = {
+        "tags_upserted": _apply_tags(records.get("tags", [])),
+        "hotspot_tags_upserted": _apply_hotspot_tags(records.get("hotspot_tags", [])),
+    }
+    reading_stats = {"upserted": _apply_reading_states(records.get("reading_states", []))}
+    annotations_stats = {"upserted": _apply_annotations(records.get("annotations", []))}
+    sm2_stats = {"upserted": _apply_sm2_reviews(records.get("sm2_reviews", []))}
+
     # --- settings ---
     sr_repo = SettingsRepository()
     settings_stats = {"written": 0, "skipped": 0}
@@ -439,6 +722,10 @@ def apply_bundle(bundle: dict, *, master_key: Optional[str] = None) -> dict:
         "custom_sources": cs_stats, "settings": settings_stats, "secrets": secret_stats,
         "codegarden_projects": cg_stats,
         "codegarden_services": cg_svc_stats,  # Phase 2b
+        "tags": tags_stats,                      # Phase 6 Task 6.1
+        "reading_states": reading_stats,
+        "annotations": annotations_stats,
+        "sm2_reviews": sm2_stats,
     }
 
 

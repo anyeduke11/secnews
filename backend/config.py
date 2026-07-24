@@ -62,6 +62,23 @@ class Settings(BaseSettings):
     # v1.4 Phase 1c Group N: Obsidian watchdog (knowledge/ .md file watcher)
     knowledge_watchdog_enabled: bool = True
 
+    # v1.7 Phase 6 Task 6.2: Feature Flags
+    # 控制 v1.7 新功能的启用状态; 默认开启已稳定功能, 未稳定功能默认关闭
+    feature_tags: bool = True              # 标签系统 (Phase 1)
+    feature_auto_extract: bool = True      # 三层自动提取 (Phase 1)
+    feature_annotations: bool = True      # 笔记/标注 (Phase 2)
+    feature_unified_search: bool = True   # 统一跨层搜索 (Phase 3)
+    feature_tech_stack: bool = True       # 技术栈管理 (Phase 2)
+    # 待观察功能 (默认关闭, 验证后再开启)
+    feature_reviews: bool = False          # SM-2 间隔复习 (Phase 2)
+    feature_alerts: bool = False           # 告警规则 + SSE (Phase 3)
+    feature_recommendations: bool = False # 个性化推荐 (Phase 4)
+    feature_personalization: bool = False # 个人画像 EMA (Phase 4)
+    feature_source_health: bool = True    # 数据源健康指示 (Phase 4)
+    feature_digests: bool = True          # 每日简报 (Phase 4)
+    feature_agent: bool = False           # Agent 双向环 (Phase 5)
+    feature_kv_cache: bool = True         # KV 缓存层 (Phase 5)
+
 
 # 全局单例
 config = Settings()

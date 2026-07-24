@@ -34,9 +34,10 @@ class KnowledgeRepo:
         conn.execute(
             """
             INSERT INTO knowledge_items (id, title, source, source_url, domain,
-                topic, type, difficulty, tags, concepts, mastery, compiled,
+                topic, type, difficulty, tags, concepts, mastery,
+                lifecycle, news_type, tech_stack,
                 ingested_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 title=excluded.title,
                 source=excluded.source,
@@ -48,7 +49,9 @@ class KnowledgeRepo:
                 tags=excluded.tags,
                 concepts=excluded.concepts,
                 mastery=excluded.mastery,
-                compiled=excluded.compiled,
+                lifecycle=excluded.lifecycle,
+                news_type=excluded.news_type,
+                tech_stack=excluded.tech_stack,
                 updated_at=excluded.updated_at
             """,
             (
@@ -63,7 +66,9 @@ class KnowledgeRepo:
                 json.dumps(item.tags),
                 json.dumps(item.concepts),
                 item.mastered,
-                int(item.compiled),
+                item.lifecycle,
+                item.news_type or "",
+                json.dumps(item.tech_stack),
                 item.ingested_at,
                 item.updated_at,
             ),
@@ -81,6 +86,7 @@ class KnowledgeRepo:
         domain: Optional[str] = None,
         source: Optional[str] = None,
         compiled: Optional[bool] = None,
+        lifecycle: Optional[str] = None,
         topic: Optional[str] = None,
         item_type: Optional[str] = None,
         difficulty: Optional[str] = None,
@@ -98,9 +104,13 @@ class KnowledgeRepo:
         if source:
             where.append("source = ?")
             params.append(source)
-        if compiled is not None:
-            where.append("compiled = ?")
-            params.append(int(compiled))
+        # v1.7: lifecycle 优先; compiled 参数向后兼容 (映射到 lifecycle)
+        if lifecycle:
+            where.append("lifecycle = ?")
+            params.append(lifecycle)
+        elif compiled is not None:
+            where.append("lifecycle = ?")
+            params.append("generate" if compiled else "signal")
         if topic:
             where.append("topic = ?")
             params.append(topic)
@@ -144,6 +154,7 @@ class KnowledgeRepo:
         self,
         domain: Optional[str] = None,
         compiled: Optional[bool] = None,
+        lifecycle: Optional[str] = None,
     ) -> int:
         conn = get_connection()
         where = ["1=1"]
@@ -151,9 +162,13 @@ class KnowledgeRepo:
         if domain:
             where.append("domain = ?")
             params.append(domain)
-        if compiled is not None:
-            where.append("compiled = ?")
-            params.append(int(compiled))
+        # v1.7: lifecycle 优先; compiled 参数向后兼容
+        if lifecycle:
+            where.append("lifecycle = ?")
+            params.append(lifecycle)
+        elif compiled is not None:
+            where.append("lifecycle = ?")
+            params.append("generate" if compiled else "signal")
         sql = f"SELECT COUNT(*) FROM knowledge_items WHERE {' AND '.join(where)}"
         row = conn.execute(sql, params).fetchone()
         return row[0] if row else 0
@@ -182,18 +197,25 @@ class KnowledgeRepo:
         return row[0] if row else 0
 
     def domain_coverage(self) -> list[dict]:
-        """按 domain 分组统计覆盖度。"""
+        """按 domain 分组统计覆盖度。
+
+        v1.7: ``compiled`` 列已被 ``lifecycle`` 替换; lifecycle='generate'
+        等价于旧的 compiled=1. 为保持返回结构兼容 (前端仍读 compiled 字段),
+        返回的 dict 同时输出 compiled (派生) 和 generate (新) 两个键.
+        """
         conn = get_connection()
         rows = conn.execute("""
             SELECT
                 COALESCE(domain, 'unknown') as domain,
                 COUNT(*) as total,
-                SUM(CASE WHEN compiled = 1 THEN 1 ELSE 0 END) as compiled
+                SUM(CASE WHEN lifecycle = 'generate' THEN 1 ELSE 0 END) as compiled,
+                SUM(CASE WHEN lifecycle = 'generate' THEN 1 ELSE 0 END) as generate
             FROM knowledge_items
             GROUP BY COALESCE(domain, 'unknown')
         """).fetchall()
         return [
             {"domain": r[0], "total": r[1], "compiled": r[2],
+             "generate": r[3],
              "coverage": r[2]/r[1] if r[1] > 0 else 0}
             for r in rows
         ]
@@ -298,19 +320,33 @@ class KnowledgeRepo:
         """List tasks by task_type, optionally filtered by params JSON keys.
 
         ``params_filter`` performs a LIKE match on the JSON ``params`` column.
-        For ``{"draft_id": 5}`` it matches both ``"draft_id": 5`` and
-        ``"draft_id":5`` to be tolerant of serialisation whitespace.
+        For ``{"draft_id": 5}`` (number) it matches both ``"draft_id": 5`` and
+        ``"draft_id":5``. For ``{"target_id": "h-1"}`` (string) it matches
+        both ``"target_id": "h-1"`` and ``"target_id":"h-1"``.
         """
         conn = get_connection()
         where = ["task_type = ?"]
         params: list = [task_type]
         if params_filter:
             for key, val in params_filter.items():
-                where.append(
-                    f"(params LIKE ? OR params LIKE ?)"
-                )
-                params.append(f'%"{key}": {val}%')
-                params.append(f'%"{key}":{val}%')
+                # 支持数字 / 布尔 / 字符串 / None 的 JSON 序列化形式
+                if isinstance(val, str):
+                    # JSON 字符串值带双引号: "key": "val"
+                    v = val.replace('"', '\\"')
+                    pattern_quoted_a = f'%"{key}": "{v}"%'
+                    pattern_quoted_b = f'%"{key}":"{v}"%'
+                    where.append(
+                        f"(params LIKE ? OR params LIKE ?)"
+                    )
+                    params.append(pattern_quoted_a)
+                    params.append(pattern_quoted_b)
+                else:
+                    # 数字 / 布尔 / None: 不带引号
+                    where.append(
+                        f"(params LIKE ? OR params LIKE ?)"
+                    )
+                    params.append(f'%"{key}": {val}%')
+                    params.append(f'%"{key}":{val}%')
         sql = (
             "SELECT * FROM knowledge_tasks WHERE "
             + " AND ".join(where)
@@ -341,6 +377,18 @@ class KnowledgeRepo:
             WHERE id = ?
             """,
             (status, result_path, error_message, now_iso(), task_id),
+        )
+
+    def update_task_params(
+        self,
+        task_id: int,
+        params: dict,
+    ) -> None:
+        """Update task params JSON (for progress tracking)."""
+        conn = get_connection()
+        conn.execute(
+            "UPDATE knowledge_tasks SET params = ?, updated_at = ? WHERE id = ?",
+            (json.dumps(params), now_iso(), task_id),
         )
 
     # ── Content Calendar ─────────────────────────────────────────

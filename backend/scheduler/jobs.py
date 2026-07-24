@@ -461,4 +461,316 @@ __all__ = [
     "cg_upstream_sync_job",
     "cg_service_scan_job",
     "cg_event_process_job",
+    "mitre_sync_job",
+    "security_enrichment_job",
 ]
+
+
+# ============================================================================
+# Phase 2 Security Graph: job 18 — MITRE ATT&CK 同步 (每周日 04:00 Asia/Shanghai)
+# ============================================================================
+async def mitre_sync_job() -> None:
+    """Phase 2: 每周同步 MITRE ATT&CK STIX 数据到 security_entities + security_edges。
+
+    触发条件
+    --------
+    - scheduler 每周日 04:00 Asia/Shanghai 触发
+    - 失败只 log.error，不抛异常（与既有 job 模式一致）
+
+    注意
+    ----
+    - 首次同步建议手动触发 /api/security/mitre/sync (clear=True)
+    - 后续增量同步由 clear=False 控制
+    """
+    try:
+        from backend.security.mitre_attack import MitreAttackClient
+
+        client = MitreAttackClient()
+        count = await asyncio.to_thread(client.sync_to_db, clear=False)
+        _logger.info(f"mitre_sync_job: synced {count} entities")
+    except Exception as e:
+        _logger.error(f"mitre_sync_job crashed: {e}")
+
+
+# ============================================================================
+# Phase 3 Security Graph: job 19 — security enrichment (每 300 秒)
+# ============================================================================
+async def security_enrichment_job() -> None:
+    """Phase 3: 每 300s 扫描近 24h 未 enrichment 的 hotspot items，异步 enrichment.
+
+    不阻塞采集主路径，独立 job 运行。
+    """
+    try:
+        from backend.security.enricher import enrich_batch
+        from backend.repository.db import get_connection
+        from backend.domain.security_models import _now_iso
+
+        conn = get_connection()
+        # 查询近 24h 且尚未 enrichment 的 hotspot items
+        rows = conn.execute(
+            "SELECT id, title, summary FROM hotspots "
+            "WHERE datetime(published_at) >= datetime('now', '-24 hours') "
+            "AND (cve_ids IS NULL AND attack_techniques IS NULL AND compliance_refs IS NULL)"
+            "LIMIT 200"
+        ).fetchall()
+        if not rows:
+            return
+
+        items = [dict(r) for r in rows]
+        enriched = enrich_batch(items)
+        if not enriched:
+            return
+
+        now = _now_iso()
+        count = 0
+        for e in enriched:
+            eid = e.get("id")
+            if not eid:
+                continue
+            sets = []
+            params = []
+            for field in ("cve_ids", "attack_techniques", "compliance_refs"):
+                val = e.get(field)
+                if val:
+                    sets.append(f"{field} = COALESCE({field}, '[]') || ',' || ?")
+                    params.append(val)
+            if sets:
+                sets.append("updated_at = ?")
+                params.append(now)
+                params.append(eid)
+                conn.execute(
+                    f"UPDATE knowledge_items SET {', '.join(sets)} WHERE id = ?",
+                    params,
+                )
+                count += 1
+
+        _logger.info(f"security_enrichment_job: processed {len(rows)} items, enriched {count}")
+    except Exception as e:
+        _logger.error(f"security_enrichment_job crashed: {e}")
+
+
+# ============================================================================
+# v1.7 Phase 5: Agent 集成与双向环 — 10 个新 job
+# ============================================================================
+
+async def agent_task_consumer_job() -> None:
+    """v1.7 Phase 5: 消费信号 — 把 lifecycle=signal 的 hotspots 创建为 extract 任务.
+
+    60s 间隔: signal 文章进入待提取队列, 供外部 Agent 处理.
+    """
+    try:
+        from backend.services.agent_task_service import create_task
+
+        def _scan():
+            from backend.repository.db import get_connection
+            conn = get_connection()
+            rows = conn.execute(
+                "SELECT id FROM hotspots "
+                "WHERE lifecycle = 'signal' OR lifecycle IS NULL "
+                "ORDER BY ingested_at DESC LIMIT 10"
+            ).fetchall()
+            return [r["id"] for r in rows]
+
+        ids = await asyncio.to_thread(_scan)
+        created = 0
+        for hid in ids:
+            # 避免重复: 查是否已有 pending
+            def _has_pending(hid: str) -> bool:
+                from backend.repository.knowledge_repo import knowledge_repo
+                tasks = knowledge_repo.list_tasks_by_type(
+                    "extract", params_filter={"target_id": hid}
+                )
+                return any(t["status"] == "pending" for t in tasks)
+
+            if await asyncio.to_thread(_has_pending, hid):
+                continue
+            await asyncio.to_thread(
+                create_task, "extract", "hotspot", hid, 1
+            )
+            created += 1
+
+        if created:
+            _logger.info(f"agent_task_consumer_job: created {created} extract tasks")
+    except Exception as e:
+        _logger.error(f"agent_task_consumer_job crashed: {e}")
+
+
+async def auto_extract_job() -> None:
+    """v1.7 Phase 5: 同步执行 (无 Agent 时) 的简单标签提取.
+
+    60s 间隔: 对未提取的 hotspot 调 extract_tags, 写入 tags + hotspot_tags.
+    作为 agent_task_consumer_job 的同步回退路径.
+    """
+    try:
+        from backend.services.extract_service import extract_tags
+        from backend.repository.tags_repo import TagRepository
+        from backend.repository.db import get_connection
+
+        def _scan_and_extract():
+            conn = get_connection()
+            # 找未提取的 hotspot (无关联 tags)
+            rows = conn.execute(
+                "SELECT h.id, h.title, h.summary, h.category "
+                "FROM hotspots h "
+                "WHERE NOT EXISTS (SELECT 1 FROM hotspot_tags ht WHERE ht.hotspot_id = h.id) "
+                "AND h.summary IS NOT NULL "
+                "ORDER BY h.ingested_at DESC LIMIT 20"
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+        items = await asyncio.to_thread(_scan_and_extract)
+        tag_repo = TagRepository()
+        extracted = 0
+        for item in items:
+            tags = extract_tags(item.get("summary") or "", item.get("title") or "", item.get("category") or "")
+            for t in tags:
+                tag_id = t.get("tag_id") or t.get("id")
+                if not tag_id:
+                    continue
+                confidence = float(t.get("confidence", 0.5))
+                try:
+                    # ensure tag
+                    existing = tag_repo.get(tag_id)
+                    if existing is None:
+                        tag_repo.add(
+                            tag_id, tag_id, "technique",
+                            weight=confidence, description=tag_id,
+                        )
+                    tag_repo.attach(item["id"], tag_id, confidence=confidence)
+                except Exception as e:
+                    _logger.warning(f"auto_extract: tag {tag_id} failed: {e}")
+            extracted += 1
+
+        if extracted:
+            _logger.info(f"auto_extract_job: extracted {extracted} hotspots")
+    except Exception as e:
+        _logger.error(f"auto_extract_job crashed: {e}")
+
+
+async def alert_evaluator_job() -> None:
+    """v1.7 Phase 5: 对新 hotspot 跑告警评估.
+
+    60s 间隔: 复用 evaluate_hotspot 对近期未评估 hotspot 跑规则匹配.
+    """
+    try:
+        from backend.services.alert_service import evaluate_hotspot
+        from backend.repository.db import get_connection
+
+        def _scan():
+            conn = get_connection()
+            rows = conn.execute(
+                "SELECT id FROM hotspots "
+                "WHERE ingested_at >= datetime('now', '-1 day') "
+                "ORDER BY ingested_at DESC LIMIT 50"
+            ).fetchall()
+            return [r["id"] for r in rows]
+
+        ids = await asyncio.to_thread(_scan)
+        evaluated = 0
+        for hid in ids:
+            try:
+                await asyncio.to_thread(evaluate_hotspot, hid)
+                evaluated += 1
+            except Exception as e:
+                _logger.warning(f"alert_evaluator: hotspot {hid} failed: {e}")
+
+        if evaluated:
+            _logger.info(f"alert_evaluator_job: evaluated {evaluated} hotspots")
+    except Exception as e:
+        _logger.error(f"alert_evaluator_job crashed: {e}")
+
+
+async def review_scheduler_job() -> None:
+    """v1.7 Phase 5: SM-2 复习预检 (NoOp, 前端 /api/reviews/due 驱动)."""
+    # 实际复习由前端 /api/reviews/due 实时驱动, 此 job 仅占位
+    # Phase 6 可添加: 每日 09:00 检查到期 review, 通过 SSE 推送提醒
+    return None
+
+
+async def profile_updater_job() -> None:
+    """v1.7 Phase 5: 个性化画像实时更新 (NoOp, 阅读事件已实时写入).
+
+    profile 信号 (read/favorite/skip) 由事件触发 apply_signal, 本 job 不重复.
+    """
+    return None
+
+
+async def digest_generator_job() -> None:
+    """v1.7 Phase 5: 每日 08:00 Shanghai 生成昨日简报."""
+    try:
+        from backend.services.digest_service import generate_daily_digest
+        result = await asyncio.to_thread(generate_daily_digest, 3)
+        _logger.info(
+            f"digest_generator_job: digest_id={result.get('id')} count={result.get('count')}"
+        )
+    except Exception as e:
+        _logger.error(f"digest_generator_job crashed: {e}")
+
+
+async def source_health_check_job() -> None:
+    """v1.7 Phase 5: 数据源健康检查 (15min)."""
+    try:
+        from backend.services.source_health_service import check_all_health
+        results = await asyncio.to_thread(check_all_health)
+        red = sum(1 for r in results if r.get("status") == "red")
+        yellow = sum(1 for r in results if r.get("status") == "yellow")
+        if red or yellow:
+            _logger.warning(
+                f"source_health_check_job: red={red} yellow={yellow}"
+            )
+    except Exception as e:
+        _logger.error(f"source_health_check_job crashed: {e}")
+
+
+async def fts_rebuild_job() -> None:
+    """v1.7 Phase 5: FTS5 索引重建 (5min).
+
+    unified_fts 是迁移 033 创建的虚拟表, 此 job 触发其 REBUILD 优化查询性能.
+    """
+    try:
+        from backend.repository.db import get_connection
+
+        def _rebuild():
+            conn = get_connection()
+            conn.execute("INSERT INTO unified_fts(unified_fts) VALUES('rebuild')")
+
+        await asyncio.to_thread(_rebuild)
+    except Exception as e:
+        # 表可能不存在 (旧 DB), 不报严重错
+        _logger.debug(f"fts_rebuild_job: {e}")
+
+
+async def profile_decay_job() -> None:
+    """v1.7 Phase 5: 每日 03:00 Shanghai 衰减所有 profile 权重."""
+    try:
+        from backend.services.profile_service import decay_all
+        n = await asyncio.to_thread(decay_all)
+        _logger.info(f"profile_decay_job: decayed {n} entries")
+    except Exception as e:
+        _logger.error(f"profile_decay_job crashed: {e}")
+
+
+async def kv_cache_cleanup_job() -> None:
+    """v1.7 Phase 5: 清理过期 KV 缓存 (30min)."""
+    try:
+        from backend.services.kv_cache_service import kv_cache
+        cleaned = await asyncio.to_thread(kv_cache.cleanup_expired)
+        if cleaned:
+            _logger.info(f"kv_cache_cleanup_job: cleaned {cleaned} entries")
+    except Exception as e:
+        _logger.error(f"kv_cache_cleanup_job crashed: {e}")
+
+
+# 更新 __all__
+__all__.extend([
+    "agent_task_consumer_job",
+    "auto_extract_job",
+    "alert_evaluator_job",
+    "review_scheduler_job",
+    "profile_updater_job",
+    "digest_generator_job",
+    "source_health_check_job",
+    "fts_rebuild_job",
+    "profile_decay_job",
+    "kv_cache_cleanup_job",
+])

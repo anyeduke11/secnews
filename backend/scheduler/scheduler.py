@@ -231,6 +231,105 @@ class HotspotScheduler:
             name="codegarden event process (every 60s)",
             replace_existing=True,
         )
+        # Phase 2 Security Graph: job 18 — MITRE ATT&CK 同步 (每周日 04:00 Asia/Shanghai)
+        self.scheduler.add_job(
+            jobs.mitre_sync_job,
+            trigger=CronTrigger(day_of_week="sun", hour=4, minute=0, timezone="Asia/Shanghai"),
+            id="mitre_sync",
+            name="mitre attack sync (Sun 04:00)",
+            replace_existing=True,
+        )
+        # Phase 3 Security Graph: job 19 — security enrichment (每 300 秒)
+        self.scheduler.add_job(
+            jobs.security_enrichment_job,
+            trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
+            id="security_enrichment",
+            name="security entity enrichment (every 5min)",
+            replace_existing=True,
+        )
+
+        # v1.7 Phase 5 — Agent 集成与双向环 (10 个新 job)
+        # job 20: Agent 任务消费 (每 60s) — signal hotspot → extract task
+        self.scheduler.add_job(
+            jobs.agent_task_consumer_job,
+            trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
+            id="agent_task_consumer",
+            name="agent task consumer (every 60s)",
+            replace_existing=True,
+        )
+        # job 21: 同步标签提取 (每 60s) — agent 回退路径
+        self.scheduler.add_job(
+            jobs.auto_extract_job,
+            trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
+            id="auto_extract",
+            name="auto extract tags (every 60s)",
+            replace_existing=True,
+        )
+        # job 22: 告警评估 (每 60s)
+        self.scheduler.add_job(
+            jobs.alert_evaluator_job,
+            trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
+            id="alert_evaluator",
+            name="alert evaluator (every 60s)",
+            replace_existing=True,
+        )
+        # job 23: SM-2 复习预检 (NoOp, 占位)
+        self.scheduler.add_job(
+            jobs.review_scheduler_job,
+            trigger=IntervalTrigger(seconds=3600, start_date=_now_utc),
+            id="review_scheduler",
+            name="sm-2 review scheduler (every 1h, noop)",
+            replace_existing=True,
+        )
+        # job 24: Profile 实时更新 (NoOp, 占位)
+        self.scheduler.add_job(
+            jobs.profile_updater_job,
+            trigger=IntervalTrigger(seconds=3600, start_date=_now_utc),
+            id="profile_updater",
+            name="profile updater (every 1h, noop)",
+            replace_existing=True,
+        )
+        # job 25: 每日简报生成 (08:00 Shanghai)
+        self.scheduler.add_job(
+            jobs.digest_generator_job,
+            trigger=CronTrigger(hour=8, minute=0, timezone=SHANGHAI_TZ),
+            id="digest_generator",
+            name="daily digest generator (08:00 Shanghai)",
+            replace_existing=True,
+        )
+        # job 26: 数据源健康检查 (15min)
+        self.scheduler.add_job(
+            jobs.source_health_check_job,
+            trigger=IntervalTrigger(seconds=900, start_date=_now_utc),
+            id="source_health_check",
+            name="source health check (every 15min)",
+            replace_existing=True,
+        )
+        # job 27: FTS5 索引重建 (5min)
+        self.scheduler.add_job(
+            jobs.fts_rebuild_job,
+            trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
+            id="fts_rebuild",
+            name="FTS5 unified_fts rebuild (every 5min)",
+            replace_existing=True,
+        )
+        # job 28: Profile 衰减 (03:00 Shanghai)
+        self.scheduler.add_job(
+            jobs.profile_decay_job,
+            trigger=CronTrigger(hour=3, minute=0, timezone=SHANGHAI_TZ),
+            id="profile_decay",
+            name="profile weight decay (03:00 Shanghai)",
+            replace_existing=True,
+        )
+        # job 29: KV 缓存清理 (30min)
+        self.scheduler.add_job(
+            jobs.kv_cache_cleanup_job,
+            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
+            id="kv_cache_cleanup",
+            name="kv cache cleanup (every 30min)",
+            replace_existing=True,
+        )
+
         self.scheduler.start()
         self.logger.info(
             f"scheduler started, jobs: collect_all (every {self._interval}s), "

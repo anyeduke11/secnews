@@ -247,6 +247,22 @@ class HotspotScheduler:
             name="security entity enrichment (every 5min)",
             replace_existing=True,
         )
+        # v1.8 Phase 8: job 28 — 追抓 watchdog (每 60 秒)
+        self.scheduler.add_job(
+            jobs.catchup_watchdog_job,
+            trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
+            id="catchup_watchdog",
+            name="catchup watchdog (every 60s)",
+            replace_existing=True,
+        )
+        # v1.8 Phase 8: job 29 — 死源复活 (每日 03:00 Asia/Shanghai)
+        self.scheduler.add_job(
+            jobs.source_revival_check_job,
+            trigger=CronTrigger(hour=3, minute=0, timezone=SHANGHAI_TZ),
+            id="source_revival_check",
+            name="source revival check (daily 03:00 Shanghai)",
+            replace_existing=True,
+        )
 
         # v1.7 Phase 5 — Agent 集成与双向环 (10 个新 job)
         # Phase 7 Option A 简化: 移除 agent_task_consumer / kv_cache_cleanup 两个 job

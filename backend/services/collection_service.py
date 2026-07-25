@@ -23,6 +23,7 @@ import time
 from datetime import datetime, timezone
 
 from backend.collectors.ai_collector import AICollector
+from backend.collectors.ai_security_collector import AISecurityCollector
 from backend.collectors.base import BaseCollector
 from backend.collectors.bid_collector import BidCollector
 from backend.collectors.finance_collector import FinanceCollector
@@ -53,6 +54,7 @@ class CollectionService:
     def __init__(self):
         self.collectors: dict[Category, BaseCollector] = {
             Category.AI: AICollector(),
+            Category.AI_SECURITY: AISecurityCollector(),
             Category.SECURITY: SecurityCollector(),
             Category.FINANCE: FinanceCollector(),
             Category.STARTUP: StartupCollector(),
@@ -145,6 +147,21 @@ class CollectionService:
                 loop.create_task(run_url_content_check())
         except Exception as e:
             self.logger.warning(f"schedule url_content_check failed: {e}")
+
+        # Phase 6: SSE 推送采集完成事件
+        try:
+            from backend.api.events import publish_event
+            categories_done = [r.category.value for r in results]
+            asyncio.ensure_future(
+                publish_event("collect_done", {
+                    "categories": categories_done,
+                    "total": total,
+                    "duration_ms": duration_ms,
+                    "failures": [r.category.value for r in results if r.error],
+                })
+            )
+        except Exception as e:
+            self.logger.warning(f"sse publish failed: {e}")
 
         # 统计
         finished_at = datetime.now(timezone.utc)
@@ -258,9 +275,15 @@ class CollectionService:
 
         Phase 9 招标源质量门禁：从 ``collector.last_source_results``
         读每源产出，填到 ``CollectionResult.source_results``。
+
+        Phase 8: 起始时 INSERT 一行 collection_runs status='running',
+        供 catchup_watchdog 检测孤儿. 结束时由 _write_collection_run
+        UPDATE 同一行. INSERT 失败 → run_id=None (走老路径).
         """
         start_ms = time.time()
         started_at = datetime.now(timezone.utc)
+        # Phase 8: 起始插 'running' 行
+        run_id = self._insert_running_row(category, started_at)
         try:
             items: list[HotspotItem] = await collector.collect()
             duration_ms = int((time.time() - start_ms) * 1000)
@@ -278,6 +301,7 @@ class CollectionService:
                 duration_ms=duration_ms,
                 started_at=started_at,
                 finished_at=datetime.now(timezone.utc),
+                run_id=run_id,
             )
         except Exception as e:
             self.logger.error(f"{category.value} collector crashed: {e}")
@@ -289,30 +313,80 @@ class CollectionService:
                 duration_ms=int((time.time() - start_ms) * 1000),
                 started_at=started_at,
                 finished_at=datetime.now(timezone.utc),
+                run_id=run_id,
                 error=f"{type(e).__name__}: {str(e)[:200]}",
             )
 
+    def _insert_running_row(self, category: Category, started_at) -> Optional[int]:
+        """Phase 8: 在 collection_runs 插一行 status='running', 供 watchdog 检测孤儿.
+
+        Returns: 新行 id, 或 None (INSERT 失败时).
+        """
+        try:
+            conn = get_connection()
+            cur = conn.execute(
+                """
+                INSERT INTO collection_runs
+                    (category, started_at, status, item_count, fallback_count)
+                VALUES (?, ?, 'running', 0, 0)
+                """,
+                (category.value, started_at.isoformat()),
+            )
+            return int(cur.lastrowid)
+        except Exception as e:
+            # 迁移未跑 / DB lock / 其它错误 — 不阻塞采集
+            self.logger.warning(
+                f"insert running row for {category.value} failed: {e}"
+            )
+            return None
+
     def _write_collection_run(self, result: CollectionResult) -> None:
-        """写入 collection_runs 表"""
+        """写入 collection_runs 表 (Phase 8: UPDATE 起始行, 老路径 fallback INSERT)"""
         try:
             conn = get_connection()
             status = CollectorStatus.FAILED if result.error else (
                 CollectorStatus.PARTIAL if result.fallback_count > 0 else CollectorStatus.SUCCESS
             )
-            conn.execute(
-                """INSERT INTO collection_runs
-                (category, started_at, finished_at, status, item_count, fallback_count, error_msg)
-                VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    result.category.value,
-                    result.started_at.isoformat(),
-                    result.finished_at.isoformat() if result.finished_at else None,
-                    status.value,
-                    result.item_count,
-                    result.fallback_count,
-                    result.error,
-                ),
+            finished_at_iso = (
+                result.finished_at.isoformat() if result.finished_at else None
             )
+            if result.run_id is not None:
+                # Phase 8: UPDATE 起始 'running' 行
+                conn.execute(
+                    """
+                    UPDATE collection_runs SET
+                        finished_at = ?,
+                        status = ?,
+                        item_count = ?,
+                        fallback_count = ?,
+                        error_msg = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        finished_at_iso,
+                        status.value,
+                        result.item_count,
+                        result.fallback_count,
+                        result.error,
+                        int(result.run_id),
+                    ),
+                )
+            else:
+                # 老路径: 直接 INSERT (起始行 INSERT 失败时)
+                conn.execute(
+                    """INSERT INTO collection_runs
+                    (category, started_at, finished_at, status, item_count, fallback_count, error_msg)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        result.category.value,
+                        result.started_at.isoformat(),
+                        finished_at_iso,
+                        status.value,
+                        result.item_count,
+                        result.fallback_count,
+                        result.error,
+                    ),
+                )
         except Exception as e:
             self.logger.error(f"write collection_run failed: {e}")
 

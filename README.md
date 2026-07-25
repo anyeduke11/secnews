@@ -1,6 +1,6 @@
 # SecNews · AI + 安全 知识工作站
 
-> **v1.7.6** · 单人本地部署 · 三大子系统协同 · **标准 MCP 协议对外开放**
+> **v1.8** · 单人本地部署 · 三大子系统协同 · **标准 MCP 协议 + 追抓资讯容错**
 >
 > 「热点聚合 → 知识闭环 → 项目管理 → AI 协作」的一体化个人工作站，面向 AI 与安全从业者。
 
@@ -322,6 +322,7 @@ secnews/
 │   ├── SECURITY_KNOWLEDGE_GRAPH.md
 │   ├── mcp_integration.md         # MCP 集成指南
 │   ├── phase7_changelog.md        # v1.7.6 变更日志
+│   ├── phase8_changelog.md        # v1.8 变更日志
 │   └── ...
 ├── run.py                         # 启动脚本
 ├── AGENTS.md                      # 项目级 agent 规则
@@ -428,7 +429,8 @@ npm run build             # 生产构建 (tsc + vite)
 | v1.6 | ✅ | CodeGarden Phase 2b (服务网格/资源中枢/联动引擎) |
 | v1.7.1–v1.7.5 | ✅ | Phase 1–6: 知识生命周期 + SM-2 复习 + 告警 + 个人画像 + KV 缓存 + FTS |
 | **v1.7.6 Phase 7** | ✅ | **MCP Server (13 tools, stdio + SSE)** |
-| v1.8 (规划) | 🚧 | Phase 8+：更多 MCP tool（Cubox 全文检索 / 多端同步协调） |
+| **v1.8 Phase 8** | ✅ | **追抓资讯 (catchup_watchdog + manual API + 死源复活)** |
+| v1.9+ (规划) | 🚧 | Phase 9+: MCP 暴露追抓 tool / 多端同步协调 / 根除 asyncio.Lock bug |
 
 ---
 

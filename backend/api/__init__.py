@@ -20,6 +20,7 @@ def register_routers(app: FastAPI) -> None:
         agent,  # v1.7 Phase 5: Agent 双向环 (CLI/Poller) — Phase 7 降级为 deprecated
         alerts,  # v1.7 Phase 3: 告警规则与告警
         categories,
+        catchup,  # v1.8 Phase 8: 追抓资讯 (manual + watchdog auto)
         digests,  # v1.7 Phase 4: 简报
         mode,  # v1.7 Phase 3: 模式切换 (brief/scan/deep/...)
         recommend,  # v1.7 Phase 4: 上下文推荐
@@ -88,6 +89,8 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(mode.router, tags=["mode"])
     app.include_router(recommend.router, tags=["recommend"])
     app.include_router(digests.router, tags=["digests"])
+    # v1.8 Phase 8: 追抓资讯
+    app.include_router(catchup.router, tags=["catchup"])
     # v1.7 Phase 7: MCP server routers
     app.include_router(mcp.router, tags=["mcp"])
     app.include_router(mcp_adapters.router, tags=["mcp-adapters"])

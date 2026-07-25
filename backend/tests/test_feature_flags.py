@@ -142,4 +142,5 @@ def test_config_default_for_experimental_features():
     assert config.feature_alerts is False
     assert config.feature_recommendations is False
     assert config.feature_personalization is False
-    assert config.feature_agent is False
+    # Phase 7: feature_agent 已移除, 替换为 feature_mcp_server (Option A 默认开)
+    assert config.feature_mcp_server is True

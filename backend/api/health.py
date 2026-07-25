@@ -164,12 +164,24 @@ def _collectors_health() -> dict[str, Any]:
             "SELECT started_at, item_count FROM collection_runs "
             "ORDER BY started_at DESC LIMIT 1"
         ).fetchone()
+        # Phase 8: 暴露 watchdog 最近恢复时间戳
+        try:
+            from backend.services.catchup_service import get_last_orphan_recovery_at
+            last_orphan_recovery_at = get_last_orphan_recovery_at()
+        except Exception:
+            last_orphan_recovery_at = None
         if row is None:
-            return {"ok": True, "last_run": None, "items_last": 0}
+            return {
+                "ok": True,
+                "last_run": None,
+                "items_last": 0,
+                "last_orphan_recovery_at": last_orphan_recovery_at,
+            }
         return {
             "ok": True,
             "last_run": row["started_at"],
             "items_last": row["item_count"],
+            "last_orphan_recovery_at": last_orphan_recovery_at,
         }
     except Exception as e:
         return {"ok": False, "error": str(e)[:200]}

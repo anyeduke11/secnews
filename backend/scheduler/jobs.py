@@ -714,6 +714,36 @@ async def kv_cache_cleanup_job() -> None:
     return None
 
 
+async def source_revival_check_job() -> None:
+    """v1.8 Phase 8: 死源复活检查 (每日 03:00 Asia/Shanghai).
+
+    流程
+    ----
+    1. 读 settings ``quality.revival_dead_for_days`` (默认 7)
+    2. 列死源: status='dead' AND last_checked_at < now - N days
+    3. 对每条源 HEAD 请求, 2xx/3xx 视为可达 → 标 active + zero_yield_runs=0
+    4. 失败/异常: 保留 dead, 记 last_error + 更新 last_checked_at
+    5. 写日志: revived=N, still_dead=M, error=K
+
+    注: 此 job 不主动跑全量 collect. 复活后, 下一个 collect_all
+    (job 1, 每 5min) 会自然带这些源跑.
+    """
+    try:
+        from backend.services.source_revival_service import revive_all_dead
+
+        results = await asyncio.to_thread(revive_all_dead)
+        if results:
+            revived = sum(1 for r in results if r.status == "revived")
+            still = sum(1 for r in results if r.status == "still_dead")
+            error = sum(1 for r in results if r.status == "error")
+            _logger.info(
+                f"source_revival_check_job: total={len(results)} "
+                f"revived={revived} still_dead={still} error={error}"
+            )
+    except Exception as e:
+        _logger.error(f"source_revival_check_job crashed: {e}")
+
+
 # 更新 __all__
 __all__.extend([
     "auto_extract_job",
@@ -725,4 +755,108 @@ __all__.extend([
     "fts_rebuild_job",
     "profile_decay_job",
     "kv_cache_cleanup_job",
+    "source_revival_check_job",  # v1.8 Phase 8: 死源复活
+])
+
+
+# ============================================================================
+# v1.8 Phase 8: Watchdog — 检测孤儿 collection_runs + 自动追抓
+# ============================================================================
+async def catchup_watchdog_job() -> None:
+    """Phase 8: 每 60s 扫 collection_runs, 检测 started_at > 10min 未 finished 的孤儿.
+
+    流程
+    ----
+    1. 查 ``finished_at IS NULL AND started_at < now-600s`` 的行
+    2. 标 ``status='failed', error_msg='watchdog: timeout after 600s'``
+    3. 若有孤儿, 防抖 (5min 内不重复) → enqueue 一次 auto catchup
+       since=最早孤儿时刻, until=now, categories=all, max_per_source=30
+    4. 更新 ``last_orphan_recovery_at`` 时间戳 (供 /api/health 暴露)
+
+    失败只 log.error, 不抛异常 (与既有 job 模式一致).
+    """
+    from datetime import datetime, timezone, timedelta
+    from backend.repository.db import get_connection
+    from backend.services.catchup_service import (
+        enqueue_catchup,
+        set_last_orphan_recovery_at,
+        should_enqueue_auto,
+        mark_auto_enqueued,
+    )
+
+    try:
+        conn = get_connection()
+        # 1. 查孤儿 (started_at < now-600s, finished_at IS NULL)
+        cutoff_iso = (
+            datetime.now(timezone.utc) - timedelta(seconds=600)
+        ).isoformat()
+        stuck_rows = conn.execute(
+            """
+            SELECT id, started_at FROM collection_runs
+            WHERE finished_at IS NULL AND started_at < ?
+            ORDER BY started_at ASC
+            """,
+            (cutoff_iso,),
+        ).fetchall()
+
+        if not stuck_rows:
+            # 无孤儿: 重置 recovery timestamp 不必要 (保留最近值)
+            return
+
+        # 2. 标记所有孤儿为 failed
+        now_iso = datetime.now(timezone.utc).isoformat()
+        stuck_ids = [int(r["id"]) for r in stuck_rows]
+        for sid in stuck_ids:
+            conn.execute(
+                """
+                UPDATE collection_runs
+                SET finished_at = ?,
+                    status = 'failed',
+                    error_msg = 'watchdog: timeout after 600s'
+                WHERE id = ? AND finished_at IS NULL
+                """,
+                (now_iso, sid),
+            )
+        logger.info(
+            f"catchup_watchdog_job: marked {len(stuck_ids)} orphan runs as failed"
+        )
+
+        # 3. 防抖 + enqueue auto catchup
+        earliest = min(r["started_at"] for r in stuck_rows)
+        if should_enqueue_auto():
+            try:
+                run_id = await enqueue_catchup(
+                    mode="auto",
+                    since=earliest,
+                    until=now_iso,
+                    categories=None,  # all
+                    max_per_source=30,
+                )
+                mark_auto_enqueued()
+                set_last_orphan_recovery_at(now_iso)
+                logger.info(
+                    f"catchup_watchdog_job: enqueued auto catchup run_id={run_id} "
+                    f"since={earliest} until={now_iso}"
+                )
+            except Exception as e:
+                # enqueue 失败不阻塞 watchdog 主流程, 仅 log
+                logger.error(
+                    f"catchup_watchdog_job: enqueue auto catchup failed: {e}"
+                )
+                # 仍然记录恢复时间 (孤儿已标 failed)
+                set_last_orphan_recovery_at(now_iso)
+        else:
+            # 在防抖窗口内, 仅标孤儿失败 + 更新 recovery timestamp
+            set_last_orphan_recovery_at(now_iso)
+            logger.info(
+                f"catchup_watchdog_job: orphans={len(stuck_ids)} marked, "
+                f"skip enqueue (within {300}s debounce window)"
+            )
+    except Exception as e:
+        logger.error(f"catchup_watchdog_job crashed: {e}")
+
+
+# 更新 __all__ (Phase 8)
+__all__.extend([
+    "catchup_watchdog_job",
 ])

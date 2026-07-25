@@ -17,6 +17,7 @@ def register_routers(app: FastAPI) -> None:
     # 绑定为 _Feature 实例, 导致 `from backend.api import annotations` 拿到 _Feature 而非子模块.
     import backend.api.annotations as annotations_api  # v1.7 Phase 2: 笔记空间
     from backend.api import (
+        agent,  # v1.7 Phase 5: Agent 双向环 (CLI/Poller) — Phase 7 降级为 deprecated
         alerts,  # v1.7 Phase 3: 告警规则与告警
         categories,
         digests,  # v1.7 Phase 4: 简报
@@ -35,6 +36,8 @@ def register_routers(app: FastAPI) -> None:
         hotspots,
         knowledge,  # v1.4: 知识库
         maintenance,  # v1.4: DB 维护 (vacuum/cleanup)
+        mcp,  # v1.7 Phase 7: MCP 调试端点 (/api/mcp/* + /api/settings/mcp/*)
+        mcp_adapters,  # v1.7 Phase 7: MCP 适配端点 (/api/profile, /api/cubox/sync, /api/extract/auto)
         proxy,
         quality,
         refresh,  # Phase 32: POST /api/refresh 手动触发采集
@@ -77,6 +80,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(tags.router, tags=["tags"])
     app.include_router(extract.router, tags=["extract"])
     app.include_router(reviews.router, tags=["reviews"])
+    app.include_router(agent.router, tags=["agent"])
     app.include_router(annotations_api.router, tags=["annotations"])
     app.include_router(tech_stack.router, tags=["tech-stack"])
     app.include_router(alerts.router, tags=["alerts"])
@@ -84,6 +88,9 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(mode.router, tags=["mode"])
     app.include_router(recommend.router, tags=["recommend"])
     app.include_router(digests.router, tags=["digests"])
+    # v1.7 Phase 7: MCP server routers
+    app.include_router(mcp.router, tags=["mcp"])
+    app.include_router(mcp_adapters.router, tags=["mcp-adapters"])
 
 
 __all__ = ["register_routers"]

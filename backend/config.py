@@ -76,8 +76,9 @@ class Settings(BaseSettings):
     feature_personalization: bool = False # 个人画像 EMA (Phase 4)
     feature_source_health: bool = True    # 数据源健康指示 (Phase 4)
     feature_digests: bool = True          # 每日简报 (Phase 4)
-    feature_agent: bool = False           # Agent 双向环 (Phase 5)
     feature_kv_cache: bool = True         # KV 缓存层 (Phase 5)
+    # v1.7 Phase 7 Option A: MCP server 替代 Phase 5 内部 hotspot-agent
+    feature_mcp_server: bool = True       # MCP Server (Phase 7, 替代 feature_agent)
 
 
 # 全局单例

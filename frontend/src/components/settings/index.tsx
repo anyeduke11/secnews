@@ -12,6 +12,8 @@ import React, { useEffect } from 'react';
 import { QualitySettings } from './QualitySettings';
 import { SourceSettings } from './SourceSettings';
 import { ProxySettings } from './ProxySettings';
+import { MCPSettingsCard } from './MCPSettingsCard';
+import { Icon } from '../Icon';
 
 interface SettingsPanelProps {
   open: boolean;
@@ -35,24 +37,22 @@ export function SettingsPanel({ open, onClose, onRefreshIntervalChange }: Settin
     <>
       <div className="fixed inset-0 z-40" style={{ backgroundColor: 'var(--bg-overlay)' }} onClick={onClose} />
       <div
-        className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm overflow-y-auto"
-        style={{
-          backgroundColor: 'var(--bg-primary)',
-          borderLeft: '1px solid var(--border-color)',
-          boxShadow: '-4px 0 24px rgba(0,0,0,0.3)',
-          animation: 'slide-in-right 0.25s ease',
-        }}
+        className="tech-drawer fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm overflow-y-auto"
       >
-        <style>{`@keyframes slide-in-right{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
-
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <h2 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>代理设置</h2>
-          <button onClick={onClose} className="btn-ghost px-2 py-1">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <h2 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </Icon>
+            设置
+          </h2>
+          <button onClick={onClose} className="btn-ghost px-2 py-1" aria-label="关闭">
+            <Icon size={14}>
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            </Icon>
           </button>
         </div>
 
@@ -61,6 +61,7 @@ export function SettingsPanel({ open, onClose, onRefreshIntervalChange }: Settin
           <QualitySettings open={open} />
           <SourceSettings open={open} onRefreshIntervalChange={onRefreshIntervalChange} />
           <ProxySettings open={open} />
+          <MCPSettingsCard open={open} />
         </div>
       </div>
     </>

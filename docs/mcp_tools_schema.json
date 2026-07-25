@@ -1,0 +1,402 @@
+{
+  "spec_version": "2025-06-18",
+  "server": {
+    "name": "hotspot",
+    "version": "1.7.6",
+    "description": "Hotspot Knowledge MCP Server — 让 AI Agent 通过标准 MCP 协议读写本地知识库",
+    "transports": ["stdio", "sse"]
+  },
+  "tools": [
+    {
+      "name": "search_hotspots",
+      "category": "read",
+      "description": "搜索 hotspot (多维筛选: 关键词 + 标签 + 时间范围)",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "q": {"type": "string", "default": "", "description": "关键词 (空=全部)"},
+          "tags": {"type": "array", "items": {"type": "string"}, "description": "标签过滤"},
+          "tag_mode": {"type": "string", "enum": ["and", "or"], "default": "or"},
+          "time_range": {"type": "string", "enum": ["H24", "D3", "D7", "D30", "W1", "ALL"], "default": "D7"},
+          "limit": {"type": "integer", "default": 20, "minimum": 1, "maximum": 100}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "title": {"type": "string"},
+                "summary": {"type": "string"},
+                "url": {"type": "string"},
+                "source": {"type": "string"},
+                "category": {"type": "string"},
+                "score": {"type": "number"},
+                "published_at": {"type": "string"},
+                "tags": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          }
+        }
+      },
+      "permission": "read",
+      "feature_flag": null,
+      "route": "GET /api/hotspots"
+    },
+    {
+      "name": "get_hotspot",
+      "category": "read",
+      "description": "获取单条 hotspot 详情",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "hotspot_id": {"type": "string", "minLength": 1, "description": "hotspot ID"}
+        },
+        "required": ["hotspot_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "title": {"type": "string"},
+          "summary": {"type": "string"},
+          "content": {"type": "string"},
+          "url": {"type": "string"},
+          "source": {"type": "string"},
+          "category": {"type": "string"},
+          "tags": {"type": "array", "items": {"type": "string"}},
+          "annotations": {"type": "array"},
+          "published_at": {"type": "string"},
+          "ingested_at": {"type": "string"}
+        }
+      },
+      "permission": "read",
+      "feature_flag": null,
+      "route": "GET /api/hotspots/{hotspot_id}"
+    },
+    {
+      "name": "list_favorites",
+      "category": "read",
+      "description": "列出收藏 (按时间倒序, 支持分页)",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {"type": "integer", "default": 50, "minimum": 1, "maximum": 500},
+          "cursor": {"type": "string", "description": "分页游标 (favorited_at)"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "hotspot_id": {"type": "string"},
+                "title": {"type": "string"},
+                "url": {"type": "string"},
+                "category": {"type": "string"},
+                "favorited_at": {"type": "string"},
+                "created_via": {"type": "string", "enum": ["ui", "mcp", "agent"]}
+              }
+            }
+          },
+          "next_cursor": {"type": "string"}
+        }
+      },
+      "permission": "read",
+      "feature_flag": null,
+      "route": "GET /api/favorites"
+    },
+    {
+      "name": "search_knowledge",
+      "category": "read",
+      "description": "搜索 knowledge_items 表 (按关键词 + lifecycle)",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "q": {"type": "string", "minLength": 1, "description": "查询关键词"},
+          "lifecycle": {"type": "string", "enum": ["signal", "generate", "refine", "compose"], "description": "lifecycle 过滤"},
+          "limit": {"type": "integer", "default": 20, "minimum": 1, "maximum": 100}
+        },
+        "required": ["q"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "title": {"type": "string"},
+                "summary": {"type": "string"},
+                "tags": {"type": "array", "items": {"type": "string"}},
+                "lifecycle": {"type": "string"},
+                "updated_at": {"type": "string"}
+              }
+            }
+          }
+        }
+      },
+      "permission": "read",
+      "feature_flag": null,
+      "route": "GET /api/knowledge/items"
+    },
+    {
+      "name": "get_personal_profile",
+      "category": "read",
+      "description": "获取个人画像 (EMA 权重 + 兴趣分布)",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {"type": "string"},
+                "weight": {"type": "number"},
+                "signals": {"type": "integer"},
+                "updated_at": {"type": "string"}
+              }
+            }
+          }
+        }
+      },
+      "permission": "read",
+      "feature_flag": null,
+      "route": "GET /api/profile"
+    },
+    {
+      "name": "add_favorite",
+      "category": "write",
+      "description": "添加收藏 (created_via 自动设为 'mcp')",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "hotspot_id": {"type": "string", "minLength": 1},
+          "note": {"type": "string", "default": "", "description": "可选备注 (将来用于 annotation)"}
+        },
+        "required": ["hotspot_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "item_id": {"type": "integer"},
+          "hotspot_id": {"type": "string"},
+          "created_via": {"type": "string", "enum": ["mcp"]}
+        }
+      },
+      "permission": "write",
+      "feature_flag": "mcp_server",
+      "route": "POST /api/favorites"
+    },
+    {
+      "name": "remove_favorite",
+      "category": "write",
+      "description": "取消收藏",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "hotspot_id": {"type": "string", "minLength": 1}
+        },
+        "required": ["hotspot_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "removed": {"type": "integer"}
+        }
+      },
+      "permission": "write",
+      "feature_flag": "mcp_server",
+      "route": "DELETE /api/favorites/{hotspot_id}"
+    },
+    {
+      "name": "add_annotation",
+      "category": "write",
+      "description": "为 hotspot 或 knowledge_item 添加笔记/标注",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "entity_type": {"type": "string", "enum": ["hotspot", "knowledge_item"], "description": "实体类型"},
+          "entity_id": {"type": "string", "minLength": 1},
+          "content": {"type": "string", "minLength": 1}
+        },
+        "required": ["entity_type", "entity_id", "content"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "annotation_id": {"type": "integer"},
+          "created_at": {"type": "string"}
+        }
+      },
+      "permission": "write",
+      "feature_flag": "mcp_server",
+      "route": "POST /api/annotations"
+    },
+    {
+      "name": "update_knowledge_item",
+      "category": "write",
+      "description": "更新 knowledge_item 字段 (lifecycle/tags/concepts/...)",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "item_id": {"type": "string", "minLength": 1},
+          "fields": {
+            "type": "object",
+            "description": "待更新字段 (title/lifecycle/tags/concepts/...)"
+          }
+        },
+        "required": ["item_id", "fields"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "updated_at": {"type": "string"}
+        }
+      },
+      "permission": "write",
+      "feature_flag": "mcp_server",
+      "route": "PATCH /api/knowledge/items/{item_id}"
+    },
+    {
+      "name": "trigger_extract_tags",
+      "category": "write",
+      "description": "触发本地规则提取标签 (无 LLM, 同步直返)",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "hotspot_id": {"type": "string", "minLength": 1}
+        },
+        "required": ["hotspot_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "extracted_count": {"type": "integer"},
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "label": {"type": "string"},
+                "type": {"type": "string"},
+                "confidence": {"type": "number"}
+              }
+            }
+          }
+        }
+      },
+      "permission": "write",
+      "feature_flag": "mcp_server",
+      "route": "POST /api/extract/auto"
+    },
+    {
+      "name": "trigger_cubox_sync",
+      "category": "write",
+      "description": "触发 cubox-cli 本地同步 (无 LLM)",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_path": {"type": "string", "default": "", "description": "目标目录; 空=默认 knowledge/items/"},
+          "format": {"type": "string", "enum": ["md", "json"], "default": "md"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "count": {"type": "integer"},
+          "result": {"type": "object"}
+        }
+      },
+      "permission": "write",
+      "feature_flag": "mcp_server",
+      "route": "POST /api/cubox/sync"
+    },
+    {
+      "name": "create_alert_rule",
+      "category": "write",
+      "description": "创建告警规则 (rule name + match + action)",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "rule": {
+            "type": "object",
+            "description": "rule 定义 (name, match, action)"
+          }
+        },
+        "required": ["rule"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "rule_id": {"type": "integer"},
+          "created_at": {"type": "string"}
+        }
+      },
+      "permission": "write",
+      "feature_flag": "alerts",
+      "route": "POST /api/alerts/rules"
+    },
+    {
+      "name": "mark_digest_read",
+      "category": "write",
+      "description": "标记 digest 已读",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "digest_id": {"type": "string", "minLength": 1}
+        },
+        "required": ["digest_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "read_at": {"type": "string"}
+        }
+      },
+      "permission": "write",
+      "feature_flag": "digests",
+      "route": "POST /api/digests/{digest_id}/read"
+    }
+  ],
+  "permission_legend": {
+    "read": "只读操作，不修改任何数据",
+    "write": "写操作，会修改数据库或文件系统",
+    "feature_flag": "对应功能开关，关闭时工具不可用"
+  },
+  "transport": {
+    "stdio": {
+      "command": "python",
+      "args": ["-m", "backend.mcp_stdio_main"],
+      "cwd": "/Users/duke/Documents/hotspot",
+      "note": "推荐, 本地单进程, 启动后等待 stdin"
+    },
+    "sse": {
+      "url": "http://127.0.0.1:8000/mcp/sse",
+      "note": "HTTP 调试用, 默认绑定 127.0.0.1, 改 0.0.0.0 需 warning log"
+    }
+  }
+}

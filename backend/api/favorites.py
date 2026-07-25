@@ -52,6 +52,8 @@ class AddFavoriteRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=500, description="卡片标题")
     source: str = Field(..., min_length=1, max_length=200, description="信源名")
     url: str = Field(..., min_length=1, max_length=2000, description="原文链接")
+    # v1.7 Phase 7: 收藏来源 (ui/mcp/agent). 默认 ui; MCP tool 写入 mcp
+    created_via: str = Field("ui", description="收藏来源: ui | mcp | agent")
 
 
 # ---------------------------------------------------------------------------
@@ -125,6 +127,11 @@ async def count_favorites():
 async def add_favorite(req: AddFavoriteRequest):
     """添加收藏。已存在则返回 200 + created=False。"""
     cat_value = _validate_category(req.category)
+    # 兜底: created_via 非法值降级为 ui
+    if req.created_via not in ("ui", "mcp", "agent"):
+        req_created_via = "ui"
+    else:
+        req_created_via = req.created_via
     repo = FavoriteRepository()
     try:
         created, item = await asyncio.to_thread(
@@ -134,37 +141,29 @@ async def add_favorite(req: AddFavoriteRequest):
             title=req.title.strip(),
             source=req.source.strip(),
             url=req.url.strip(),
+            created_via=req_created_via,
         )
     except Exception as e:
         logger.error(f"add favorite failed: {e}")
         raise HTTPException(status_code=500, detail={"message": f"添加失败: {e}"})
 
-    # v1.4: sync to knowledge items (non-critical, must not break favorites flow)
+    # v1.7 Phase 1: 收藏 → 知识提升 (SAG lifecycle='signal')
+    # 非关键, 失败不阻塞收藏流程 (与 v1.4 既有约定一致)。
+    # 通过 sag_service 统一管理 lifecycle, 同时写 SQLite + knowledge/items/{id}.md
+    # (验收 3: 收藏后在 knowledge/items/ 生成 .md 且 lifecycle=signal)。
     try:
-        from backend.repository.knowledge_repo import knowledge_repo
-        from backend.domain.knowledge_models import KnowledgeItem, now_iso
-        from backend.services.data_cleaning import item_id_from_url
+        from backend.services.sag_service import promote_favorite_to_knowledge
         import logging
         _klog = logging.getLogger("hotspot.favorites.webhook")
         fav_url = req.url.strip()
         fav_title = req.title.strip()
         if fav_url:
-            item_id = item_id_from_url(fav_url)
-            existing = knowledge_repo.get_item(item_id)
-            if not existing:
-                kitem = KnowledgeItem(
-                    id=item_id,
-                    title=fav_title or "Untitled",
-                    source="secnews",
-                    source_url=fav_url,
-                    ingested_at=now_iso(),
-                    updated_at=now_iso(),
-                )
-                knowledge_repo.upsert_item(kitem)
-                _klog.info(f"favorite synced to knowledge: {item_id}")
+            k_id = promote_favorite_to_knowledge(fav_title, fav_url)
+            _klog.info(f"favorite promoted to knowledge: {k_id}")
     except Exception as e:
+        import logging
         _klog = logging.getLogger("hotspot.favorites.webhook")
-        _klog.warning(f"favorite -> knowledge sync failed (non-critical): {e}")
+        _klog.warning(f"favorite -> knowledge promotion failed (non-critical): {e}")
 
     return {
         "status": "ok",

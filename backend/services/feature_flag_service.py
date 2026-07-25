@@ -11,13 +11,15 @@
 ```python
 from backend.services.feature_flag_service import is_enabled
 
-if is_enabled("agent"):
-    # 启动 Agent 双向环
+if is_enabled("mcp_server"):
+    # 启动 MCP Server (Phase 7)
     ...
 ```
 
 注意: feature flag 控制是「全有/全无」开关, 复杂的灰度发布请使用 ``feature_*.ratio``
 (本版本不实现, 留待 Phase 2c AI 协作功能).
+
+Phase 7 历史: 原 ``agent`` flag 已废弃, 由 ``mcp_server`` 取代 (Option A 简化).
 """
 
 from __future__ import annotations
@@ -32,7 +34,7 @@ def is_enabled(name: str) -> bool:
     """读取 feature flag.
 
     Args:
-        name: 不含 ``feature_`` 前缀, 例如 ``"agent"`` 映射到 ``config.feature_agent``.
+        name: 不含 ``feature_`` 前缀, 例如 ``"mcp_server"`` 映射到 ``config.feature_mcp_server``.
 
     Returns:
         bool: flag 状态, 未知 flag 返回 ``False``.

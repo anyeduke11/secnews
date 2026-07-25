@@ -249,14 +249,7 @@ class HotspotScheduler:
         )
 
         # v1.7 Phase 5 — Agent 集成与双向环 (10 个新 job)
-        # job 20: Agent 任务消费 (每 60s) — signal hotspot → extract task
-        self.scheduler.add_job(
-            jobs.agent_task_consumer_job,
-            trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
-            id="agent_task_consumer",
-            name="agent task consumer (every 60s)",
-            replace_existing=True,
-        )
+        # Phase 7 Option A 简化: 移除 agent_task_consumer / kv_cache_cleanup 两个 job
         # job 21: 同步标签提取 (每 60s) — agent 回退路径
         self.scheduler.add_job(
             jobs.auto_extract_job,
@@ -321,14 +314,8 @@ class HotspotScheduler:
             name="profile weight decay (03:00 Shanghai)",
             replace_existing=True,
         )
-        # job 29: KV 缓存清理 (30min)
-        self.scheduler.add_job(
-            jobs.kv_cache_cleanup_job,
-            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
-            id="kv_cache_cleanup",
-            name="kv cache cleanup (every 30min)",
-            replace_existing=True,
-        )
+        # Phase 7: kv_cache_cleanup_job 已从 scheduler 中移除 (kv_cache_service 删除)
+        # Phase 7: agent_task_consumer_job 已从 scheduler 中移除 (内部 agent 删除)
 
         self.scheduler.start()
         self.logger.info(

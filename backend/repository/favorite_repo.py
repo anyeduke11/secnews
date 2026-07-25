@@ -34,6 +34,7 @@ class FavoriteItem:
         "source",
         "url",
         "favorited_at",
+        "created_via",
     )
 
     def __init__(
@@ -46,6 +47,7 @@ class FavoriteItem:
         source: str,
         url: str,
         favorited_at: str,
+        created_via: str = "ui",
     ):
         self.id = id
         self.hotspot_id = hotspot_id
@@ -54,6 +56,7 @@ class FavoriteItem:
         self.source = source
         self.url = url
         self.favorited_at = favorited_at
+        self.created_via = created_via
 
     def to_dict(self) -> dict:
         return {
@@ -64,6 +67,7 @@ class FavoriteItem:
             "source": self.source,
             "url": self.url,
             "favorited_at": self.favorited_at,
+            "created_via": self.created_via,
         }
 
 
@@ -83,6 +87,8 @@ def _row_to_favorite(row: sqlite3.Row) -> FavoriteItem:
         source=str(row["source"]),
         url=str(row["url"]),
         favorited_at=str(row["favorited_at"]),
+        # Phase 7: created_via 列后增, 老行可能无此列, 用 COALESCE + 默认 'ui'
+        created_via=str(row["created_via"]) if "created_via" in row.keys() else "ui",
     )
 
 
@@ -100,6 +106,7 @@ class FavoriteRepository:
         title: str,
         source: str,
         url: str,
+        created_via: str = "ui",
     ) -> tuple[bool, FavoriteItem]:
         """收藏一条资讯/标讯。
 
@@ -107,9 +114,16 @@ class FavoriteRepository:
         -------
         (created, item)
             ``created=True`` 表示新增成功；``False`` 表示已存在（不抛异常）
+
+        Parameters
+        ----------
+        created_via : str
+            收藏来源 ("ui" | "mcp" | "agent"), v1.7 Phase 7 引入, 默认 "ui"
         """
         if not hotspot_id or not hotspot_id.strip():
             raise InternalException("hotspot_id is required")
+        if created_via not in ("ui", "mcp", "agent"):
+            created_via = "ui"  # 安全降级
         conn = get_connection()
         now = _now_iso()
         try:
@@ -117,10 +131,10 @@ class FavoriteRepository:
             cur = conn.execute(
                 """
                 INSERT OR IGNORE INTO favorites
-                    (hotspot_id, category, title, source, url, favorited_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                    (hotspot_id, category, title, source, url, favorited_at, created_via)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (hotspot_id, category, title, source, url, now),
+                (hotspot_id, category, title, source, url, now, created_via),
             )
             if cur.rowcount == 0:
                 # 已存在 → 查出来返回
@@ -149,6 +163,7 @@ class FavoriteRepository:
             source=source,
             url=url,
             favorited_at=now,
+            created_via=created_via,
         )
         return True, item
 

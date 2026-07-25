@@ -553,48 +553,6 @@ async def security_enrichment_job() -> None:
 # v1.7 Phase 5: Agent 集成与双向环 — 10 个新 job
 # ============================================================================
 
-async def agent_task_consumer_job() -> None:
-    """v1.7 Phase 5: 消费信号 — 把 lifecycle=signal 的 hotspots 创建为 extract 任务.
-
-    60s 间隔: signal 文章进入待提取队列, 供外部 Agent 处理.
-    """
-    try:
-        from backend.services.agent_task_service import create_task
-
-        def _scan():
-            from backend.repository.db import get_connection
-            conn = get_connection()
-            rows = conn.execute(
-                "SELECT id FROM hotspots "
-                "WHERE lifecycle = 'signal' OR lifecycle IS NULL "
-                "ORDER BY ingested_at DESC LIMIT 10"
-            ).fetchall()
-            return [r["id"] for r in rows]
-
-        ids = await asyncio.to_thread(_scan)
-        created = 0
-        for hid in ids:
-            # 避免重复: 查是否已有 pending
-            def _has_pending(hid: str) -> bool:
-                from backend.repository.knowledge_repo import knowledge_repo
-                tasks = knowledge_repo.list_tasks_by_type(
-                    "extract", params_filter={"target_id": hid}
-                )
-                return any(t["status"] == "pending" for t in tasks)
-
-            if await asyncio.to_thread(_has_pending, hid):
-                continue
-            await asyncio.to_thread(
-                create_task, "extract", "hotspot", hid, 1
-            )
-            created += 1
-
-        if created:
-            _logger.info(f"agent_task_consumer_job: created {created} extract tasks")
-    except Exception as e:
-        _logger.error(f"agent_task_consumer_job crashed: {e}")
-
-
 async def auto_extract_job() -> None:
     """v1.7 Phase 5: 同步执行 (无 Agent 时) 的简单标签提取.
 
@@ -752,18 +710,12 @@ async def profile_decay_job() -> None:
 
 async def kv_cache_cleanup_job() -> None:
     """v1.7 Phase 5: 清理过期 KV 缓存 (30min)."""
-    try:
-        from backend.services.kv_cache_service import kv_cache
-        cleaned = await asyncio.to_thread(kv_cache.cleanup_expired)
-        if cleaned:
-            _logger.info(f"kv_cache_cleanup_job: cleaned {cleaned} entries")
-    except Exception as e:
-        _logger.error(f"kv_cache_cleanup_job crashed: {e}")
+    # Phase 7: kv_cache_service 已删除, 保留函数为 NoOp 占位以保证不破坏调度器
+    return None
 
 
 # 更新 __all__
 __all__.extend([
-    "agent_task_consumer_job",
     "auto_extract_job",
     "alert_evaluator_job",
     "review_scheduler_job",

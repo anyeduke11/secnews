@@ -9,34 +9,37 @@
   的源不进入本轮抓取
 - **执行模型**: 复用 collection_service 的并发模型 (asyncio.gather per
   category), 但每分类下又分源级并发, 互不阻塞 collect_all
+- **v1.9 Phase 9 — 标准化**: 每次 run 记录 per-source checkpoint
+  (断点续传), 写结构化事件日志, 跑 4 类数据完整性验证
 
 任务边界
 --------
 - B (Watchdog): 仅调用本模块的 ``enqueue_catchup`` 接口
 - C (Service): 本文件实现主流程 ``run()`` + 选源 + 抓取 + 写库
 - D (API): 通过 ``enqueue_catchup`` / ``abort_current`` 间接调用
-
-Phase 8 初始版本 (B stub)
---------------------------
-本版本是 B 任务的最小可用版本, 用于:
-1. 让 watchdog 可触发追抓
-2. 让 /api/catchup/* 接口可返回 202
-3. C 任务会替换 ``_execute_catchup_run`` 的具体实现
 """
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+import time as _time
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from backend.logging_config import logger as _root_logger
+from backend.repository.catchup_checkpoint_repo import CatchupCheckpointRepository
 from backend.repository.catchup_repo import CatchupRepository, CatchupStatus
+from backend.services import collection_logger as _clog
+from backend.services.collect_validator import validate_and_persist
 
 # Module-level state (Phase 8 watchdog 需要)
 logger = _root_logger.bind(component="catchup_service")
 _repo = CatchupRepository()
+_ckpt_repo = CatchupCheckpointRepository()
+
+# 续传窗口: 24h 内同一 source 已 done → 本 run 跳过
+_RESUMPTION_WINDOW_HOURS = 24
 
 # Watchdog 写入, /api/health 读取
 _last_orphan_recovery_at: Optional[str] = None
@@ -208,10 +211,15 @@ async def _execute_catchup_run(run_id: int, *, mode: str) -> None:
     1. 读 run 配置 (categories / max_per_source)
     2. 选源: 跳过 ``source_stats.status='dead' AND last_checked_at < now-24h``
     3. 临时修改每个 collector.sources (过滤 dead) + max_items (cap)
-    4. 复用 CollectionService.run_once() 跑并发抓取
-    5. write progress (持续更新 ingested / succeeded)
-    6. 触发 trend_rebuild_job (后台)
-    7. finish: success (有 item) / partial (部分源失败) / failed (整轮炸)
+    4. v1.9 续传: 同一 (cat, source) 在最近 24h 已 done → pre-mark skipped
+    5. 复用 CollectionService.run_once() 跑并发抓取
+    6. v1.9 per-source checkpoint: 写 catchup_checkpoints (done/failed)
+    7. v1.9 结构化日志: source_done / source_failed / collect_done
+    8. write progress (持续更新 ingested / succeeded)
+    9. 触发 trend_rebuild_job (后台)
+    10. v1.9 跑 4 类数据完整性验证 (source_regression / time_gap /
+        category_anomaly / cross_source) — 写 collect_validations
+    11. finish: success (有 item) / partial (部分源失败) / failed (整轮炸)
 
     异常隔离: 单 collector crash 不影响其他;整体 catchup 崩了会标 failed.
     """
@@ -229,10 +237,20 @@ async def _execute_catchup_run(run_id: int, *, mode: str) -> None:
     items_ingested = 0
     sources_attempted = 0
     sources_succeeded = 0
+    sources_skipped = 0
+    sources_failed = 0
     original_sources: dict = {}
     original_max_items: dict = {}
     target_cats: list = []
     svc = None
+
+    # v1.9: 时间窗口 (run.since_window 一定存在; until 可能为 None)
+    since_iso = str(run.since_window) if run.since_window else ""
+    until_iso = (
+        str(run.until_window)
+        if run.until_window
+        else datetime.now(timezone.utc).isoformat()
+    )
 
     try:
         # 1. 选源: 跳过 dead >= 24h
@@ -278,48 +296,209 @@ async def _execute_catchup_run(run_id: int, *, mode: str) -> None:
         sources_attempted = sum(
             len(svc.collectors[c].sources) for c in target_cats if c in svc.collectors
         )
-        _repo.update_progress(run_id, sources_attempted=sources_attempted)
+
+        # 4. v1.9 续传: 同一 (cat, source) 最近 24h 已 done → 跳过
+        try:
+            cutoff_iso = (
+                datetime.now(timezone.utc)
+                - timedelta(hours=_RESUMPTION_WINDOW_HOURS)
+            ).isoformat()
+            for cat in target_cats:
+                if cat not in svc.collectors:
+                    continue
+                for src in svc.collectors[cat].sources:
+                    name = src.get("name", "")
+                    if not name:
+                        continue
+                    recent = _ckpt_repo.list_recent_done(
+                        cat.value, name, since_iso=cutoff_iso, limit=1
+                    )
+                    if recent:
+                        try:
+                            _ckpt_repo.mark_skipped(
+                                run_id, cat.value, name,
+                                reason="resumed from prior run",
+                            )
+                            _clog.log_collect_event(
+                                "source_skipped",
+                                run_id=run_id,
+                                category=cat.value,
+                                source=name,
+                                checkpoint_status="skipped",
+                                previous_finished_at=recent[0].finished_at,
+                            )
+                            sources_skipped += 1
+                        except Exception as e:
+                            logger.warning(
+                                f"checkpoint mark_skipped failed: {cat.value}/{name}: {e}"
+                            )
+        except Exception as e:
+            logger.warning(f"resumption check failed: {e}")
+
+        # 真正需要执行的 source 数 (= attempted - skipped)
+        effective_attempted = max(0, sources_attempted - sources_skipped)
+        _repo.update_progress(
+            run_id,
+            sources_attempted=sources_attempted,
+            items_skipped=sources_skipped,
+        )
         logger.info(
             f"_execute_catchup_run: run_id={run_id} mode={mode} "
             f"categories={[c.value for c in target_cats]} "
-            f"sources={sources_attempted} (skipped {total_dead_skipped} dead) "
+            f"sources={sources_attempted} (skipped {sources_skipped} resumed, "
+            f"{total_dead_skipped} dead) effective={effective_attempted} "
             f"max_per_source={run.max_per_source}"
         )
 
-        # 4. 跑 (用 single-category run_one 路径)
+        # v1.9: collect_start 事件
+        _clog.log_collect_event(
+            "collect_start",
+            run_id=run_id,
+            mode=mode,
+            since=since_iso,
+            until=until_iso,
+            max_per_source=int(run.max_per_source),
+            sources_attempted=sources_attempted,
+            sources_skipped=sources_skipped,
+        )
+
+        # 5. 跑 (用 single-category run_one 路径)
         for cat in target_cats:
             if cat not in svc.collectors:
                 continue
+            cat_start = _time.time()
+            _clog.log_collect_event(
+                "category_start",
+                run_id=run_id,
+                category=cat.value,
+                n_sources=len(svc.collectors[cat].sources),
+            )
             try:
                 report = await svc.run_one(cat)
+                cat_duration_ms = int((_time.time() - cat_start) * 1000)
                 if report.results:
-                    cat_result = report.results[0]
                     items_ingested += int(report.total)
-                    if not cat_result.error:
-                        sources_succeeded += len(svc.collectors[cat].sources)
+
+                # v1.9: per-source checkpoint + 结构化日志
+                try:
+                    source_results = list(
+                        getattr(svc.collectors[cat], "last_source_results", []) or []
+                    )
+                    cat_succeeded = 0
+                    cat_failed = 0
+                    for sr in source_results:
+                        name = sr.source_name
+                        if not name:
+                            continue
+                        # 续传 pre-mark 跳过的源: 不要再覆盖
+                        existing = _ckpt_repo.get(run_id, cat.value, name)
+                        if existing and existing.status == "skipped":
+                            continue
+                        count = int(sr.item_count or 0)
+                        err = sr.error_msg
+                        if err:
+                            cat_failed += 1
+                            try:
+                                err_str = str(err) if not isinstance(err, BaseException) else f"{type(err).__name__}: {err}"
+                                _ckpt_repo.mark_failed(
+                                    run_id, cat.value, name, err_str,
+                                )
+                            except Exception as e:
+                                logger.warning(
+                                    f"checkpoint mark_failed failed: {e}"
+                                )
+                            _clog.log_collect_event(
+                                "source_failed",
+                                run_id=run_id,
+                                category=cat.value,
+                                source=name,
+                                error=str(err)[:200],
+                                duration_ms=int(sr.duration_ms or 0),
+                            )
+                        else:
+                            cat_succeeded += 1
+                            try:
+                                _ckpt_repo.mark_done(
+                                    run_id, cat.value, name, count
+                                )
+                            except Exception as e:
+                                logger.warning(
+                                    f"checkpoint mark_done failed: {e}"
+                                )
+                            _clog.log_collect_event(
+                                "source_done",
+                                run_id=run_id,
+                                category=cat.value,
+                                source=name,
+                                items=count,
+                                duration_ms=int(sr.duration_ms or 0),
+                            )
+                    sources_succeeded += cat_succeeded
+                    sources_failed += cat_failed
+                    _clog.log_collect_event(
+                        "category_done",
+                        run_id=run_id,
+                        category=cat.value,
+                        items=int(report.total),
+                        duration_ms=cat_duration_ms,
+                        sources_succeeded=cat_succeeded,
+                        sources_failed=cat_failed,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"checkpoint write failed for cat={cat.value}: {e}"
+                    )
             except Exception as e:
+                cat_duration_ms = int((_time.time() - cat_start) * 1000)
                 logger.error(
                     f"_execute_catchup_run: cat={cat.value} crashed: {e}"
                 )
-        # 5. 增量写 progress
+                _clog.log_collect_event(
+                    "category_failed",
+                    run_id=run_id,
+                    category=cat.value,
+                    error=str(e)[:200],
+                    duration_ms=cat_duration_ms,
+                )
+
+        # 6. 增量写 progress
         _repo.update_progress(
             run_id,
             items_ingested=items_ingested,
             sources_succeeded=sources_succeeded,
         )
 
-        # 6. 触发 trend_rebuild (后台, 不阻塞)
+        # 7. 触发 trend_rebuild (后台, 不阻塞)
         try:
             from backend.scheduler.jobs import trend_rebuild_job
             asyncio.create_task(trend_rebuild_job())
         except Exception as e:
             logger.warning(f"schedule trend_rebuild_job failed: {e}")
 
-        # 7. 终态
-        if sources_attempted > 0 and sources_succeeded == 0:
+        # 8. v1.9: 跑 4 类数据完整性验证 (不阻塞终态)
+        validation_errors = 0
+        validation_warnings = 0
+        try:
+            vreport = validate_and_persist(run_id, since_iso, until_iso)
+            validation_errors = sum(
+                1 for i in vreport.issues if i.severity == "error"
+            )
+            validation_warnings = sum(
+                1 for i in vreport.issues if i.severity == "warn"
+            )
+            logger.info(
+                f"_execute_catchup_run: validation run_id={run_id} "
+                f"total={len(vreport.issues)} errors={validation_errors} "
+                f"warnings={validation_warnings}"
+            )
+        except Exception as e:
+            logger.warning(f"validation crashed (ignored): {e}")
+
+        # 9. 终态
+        if sources_attempted > 0 and sources_succeeded == 0 and sources_skipped == 0:
             status = "failed"
             err = "all sources failed"
-        elif sources_attempted > 0 and sources_succeeded < sources_attempted:
+        elif sources_attempted > 0 and sources_succeeded < sources_attempted - sources_skipped:
             status = "partial"
             err = None
         else:
@@ -329,14 +508,29 @@ async def _execute_catchup_run(run_id: int, *, mode: str) -> None:
             run_id,
             status=status,
             items_ingested=items_ingested,
-            items_skipped=0,
+            items_skipped=sources_skipped,
             sources_attempted=sources_attempted,
             sources_succeeded=sources_succeeded,
             error_msg=err,
         )
+        # v1.9: collect_done 事件
+        _clog.log_collect_event(
+            "collect_done",
+            run_id=run_id,
+            mode=mode,
+            status=status,
+            items_ingested=items_ingested,
+            sources_attempted=sources_attempted,
+            sources_succeeded=sources_succeeded,
+            sources_failed=sources_failed,
+            sources_skipped=sources_skipped,
+            validation_errors=validation_errors,
+            validation_warnings=validation_warnings,
+        )
         logger.info(
             f"_execute_catchup_run: run_id={run_id} finished status={status} "
-            f"items_ingested={items_ingested} sources_succeeded={sources_succeeded}"
+            f"items_ingested={items_ingested} sources_succeeded={sources_succeeded} "
+            f"sources_skipped={sources_skipped} val_errors={validation_errors}"
         )
     except Exception as e:
         logger.error(f"_execute_catchup_run: run_id={run_id} crashed: {e}")
@@ -345,10 +539,22 @@ async def _execute_catchup_run(run_id: int, *, mode: str) -> None:
                 run_id,
                 status="failed",
                 items_ingested=items_ingested,
-                items_skipped=0,
+                items_skipped=sources_skipped,
                 sources_attempted=sources_attempted,
                 sources_succeeded=sources_succeeded,
                 error_msg=f"{type(e).__name__}: {str(e)[:200]}",
+            )
+        except Exception:
+            pass
+        # v1.9: 失败也写事件
+        try:
+            _clog.log_collect_event(
+                "collect_done",
+                run_id=run_id,
+                mode=mode,
+                status="failed",
+                error=f"{type(e).__name__}: {str(e)[:200]}",
+                items_ingested=items_ingested,
             )
         except Exception:
             pass

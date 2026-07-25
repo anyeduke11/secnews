@@ -3,6 +3,8 @@
 业务逻辑全部下沉到 :mod:`backend.api` 和 :mod:`backend.services`。
 
 Phase 5: 启动耗时打 ``startup_complete`` 事件。
+Phase 7: 集成 MCP server (Option A) — 启动时 seeding 13 tool 元数据,
+         挂载 /mcp/sse SSE 端点, stdio 由 backend.mcp_stdio_main 启动。
 """
 from __future__ import annotations
 
@@ -10,12 +12,14 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api import register_routers
+from backend.api.mcp_config import build_mcp_server, is_mcp_enabled, mount_sse_endpoint
 from backend.api.middleware import TraceIDMiddleware
 from backend.cache import invalidate as cache_invalidate, warmup
 from backend.exceptions import register_exception_handlers
@@ -63,17 +67,33 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         log.warning(f"auto-unlock failed (ignored): {e}")
 
-    # v1.4 Phase 1c Group N: 启动 knowledge watchdog（失败不阻断主服务）
+    # v1.9 Phase 9: 启动后自动追抓「本周一 00:00 (Asia/Shanghai) → 现在」
+    # 抓取流程已标准化 (per-source checkpoint + 结构化日志 + 数据完整性验证)
+    # 用 background task 不阻塞 startup, 防 watchdog 5 分钟内重复 enqueue
     try:
-        from backend.config import config
-        if config.knowledge_watchdog_enabled:
-            from backend.services.knowledge_watcher import start_watcher
-            if start_watcher():
-                log.info("knowledge watchdog auto-started")
-            else:
-                log.warning("knowledge watchdog auto-start returned False (already running?)")
+        from backend.services.catchup_service import (
+            enqueue_catchup,
+            mark_auto_enqueued,
+            should_enqueue_auto,
+        )
+        from backend.utils.business_days import current_week_start
+        if should_enqueue_auto():
+            since_iso = current_week_start().astimezone(timezone.utc).isoformat()
+            run_id = await enqueue_catchup(
+                mode="auto",
+                since=since_iso,
+                until=None,
+                categories=None,
+                max_per_source=30,
+            )
+            mark_auto_enqueued()
+            log.info(
+                f"startup auto-catchup enqueued: run_id={run_id} since={since_iso}"
+            )
+        else:
+            log.info("startup auto-catchup skipped (within 5min debounce)")
     except Exception as e:
-        log.warning(f"knowledge watchdog auto-start failed (ignored): {e}")
+        log.warning(f"startup auto-catchup failed (ignored): {e}")
 
     startup_duration_ms = round((time.time() - boot_start) * 1000, 2)
     log_event(
@@ -92,12 +112,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Phase 8: 清理 app.state.scheduler
     try:
         app.state.scheduler = None
-    except Exception:
-        pass
-    # v1.4 Phase 1c Group N: 停止 knowledge watchdog
-    try:
-        from backend.services.knowledge_watcher import stop_watcher
-        stop_watcher()
     except Exception:
         pass
     cache_invalidate("*")

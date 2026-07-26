@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="280" viewBox="0 0 1200 280"
+     role="img" aria-labelledby="rm-title rm-desc">
+  <title id="rm-title">SecNews 版本路线图</title>
+  <desc id="rm-desc">从 v1.0 到 v1.9+ 的 7 个 Phase 横向时间线，已完成用实心圆 + cyan，当前版本高亮，规划用虚线圆。</desc>
+
+  <defs>
+    <linearGradient id="railGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1c1c2e"/>
+      <stop offset="0.85" stop-color="#00d4e0"/>
+      <stop offset="1" stop-color="#5b5b72"/>
+    </linearGradient>
+  </defs>
+
+  <!-- canvas -->
+  <rect width="1200" height="280" rx="20" fill="#050508"/>
+  <rect x="0.5" y="0.5" width="1199" height="279" rx="20" fill="none" stroke="#1c1c2e" stroke-width="1"/>
+
+  <!-- header -->
+  <text x="56" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+        font-size="12" fill="#5b5b72" letter-spacing="2.5">ROADMAP  /  v1.0 → v1.9+  /  7 PHASES</text>
+  <rect x="56" y="56" width="32" height="2" fill="#00d4e0"/>
+
+  <!-- timeline rail (y=130) -->
+  <line x1="100" y1="130" x2="1100" y2="130" stroke="url(#railGrad)" stroke-width="2"/>
+  <!-- dashed continuation into future -->
+  <line x1="1100" y1="130" x2="1144" y2="130" stroke="#5b5b72" stroke-width="2" stroke-dasharray="4 4"/>
+
+  <!-- 7 milestones: x at 100, 263, 426, 589, 752, 915, 1078 (163 spacing) -->
+  <!-- Each: dot + version label above + summary below -->
+
+  <!-- Milestone 1: v1.0-v1.4 热点聚合 -->
+  <g transform="translate(100 130)">
+    <circle r="6" fill="#00d4e0" stroke="#050508" stroke-width="2"/>
+    <text x="0" y="-22" text-anchor="middle"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="12" font-weight="600" fill="#f0f0f7">v1.0 – v1.4</text>
+    <text x="0" y="32" text-anchor="middle"
+          font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="13" font-weight="600" fill="#f0f0f7">热点聚合</text>
+    <text x="0" y="50" text-anchor="middle"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="10" fill="#9a9ab2">5 分类 · 13 门禁 · 同步</text>
+  </g>
+
+  <!-- Milestone 2: v1.5 Security KG -->
+  <g transform="translate(263 130)">
+    <circle r="6" fill="#00d4e0" stroke="#050508" stroke-width="2"/>
+    <text x="0" y="-22" text-anchor="middle"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="12" font-weight="600" fill="#f0f0f7">v1.5</text>
+    <text x="0" y="32" text-anchor="middle"
+          font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="13" font-weight="600" fill="#f0f0f7">安全图谱</text>
+    <text x="0" y="50" text-anchor="middle"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="10" fill="#9a9ab2">MITRE · CVE · 合规</text>
+  </g>
+
+  <!-- Milestone 3: v1.6 CodeGarden 2b -->
+  <g transform="translate(426 130)">
+    <circle r="6" fill="#00d4e0" stroke="#050508" stroke-width="2"/>
+    <text x="0" y="-22" text-anchor="middle"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="12" font-weight="600" fill="#f0f0f7">v1.6</text>
+    <text x="0" y="32" text-anchor="middle"
+          font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="13" font-weight="600" fill="#f0f0f7">CodeGarden 2b</text>
+    <text x="0" y="50" text-anchor="middle"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="10" fill="#9a9ab2">服务网格 · 资源中枢 · 联动</text>
+  </g>
+
+  <!-- Milestone 4: v1.7.1-7.5 知识生命周期 -->
+  <g transform="translate(589 130)">
+    <circle r="6" fill="#00d4e0" stroke="#050508" stroke-width="2"/>
+    <text x="0" y="-22" text-anchor="middle"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="12" font-weight="600" fill="#f0f0f7">v1.7.1 – 7.5</text>
+    <text x="0" y="32" text-anchor="middle"
+          font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="13" font-weight="600" fill="#f0f0f7">知识生命周期</text>
+    <text x="0" y="50" text-anchor="middle"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="10" fill="#9a9ab2">SM-2 复习 · 告警 · 画像</text>
+  </g>
+
+  <!-- Milestone 5: v1.7.6 MCP Server (highlighted) -->
+  <g transform="translate(752 130)">
+    <circle r="9" fill="#00d4e0" stroke="#050508" stroke-width="2"/>
+    <circle r="14" fill="none" stroke="#00d4e0" stroke-width="1" opacity="0.4"/>
+    <text x="0" y="-22" text-anchor="middle"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="12" font-weight="600" fill="#00d4e0">v1.7.6  ·  Phase 7</text>
+    <text x="0" y="32" text-anchor="middle"
+          font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="13" font-weight="600" fill="#f0f0f7">MCP Server</text>
+    <text x="0" y="50" text-anchor="middle"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="10" fill="#9a9ab2">13 tools · stdio / SSE</text>
+  </g>
+
+  <!-- Milestone 6: v1.8 追抓 (current, most prominent) -->
+  <g transform="translate(915 130)">
+    <circle r="11" fill="#00d4e0" stroke="#050508" stroke-width="2"/>
+    <circle r="18" fill="none" stroke="#00d4e0" stroke-width="1.2" opacity="0.6"/>
+    <circle r="25" fill="none" stroke="#00d4e0" stroke-width="0.8" opacity="0.3"/>
+    <text x="0" y="-26" text-anchor="middle"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="13" font-weight="700" fill="#00d4e0">v1.8  ·  Phase 8  ·  CURRENT</text>
+    <text x="0" y="34" text-anchor="middle"
+          font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="14" font-weight="700" fill="#f0f0f7">追抓资讯</text>
+    <text x="0" y="52" text-anchor="middle"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="10" fill="#9a9ab2">watchdog · manual API · 死源复活</text>
+  </g>
+
+  <!-- Milestone 7: v1.9+ planned (dashed) -->
+  <g transform="translate(1078 130)">
+    <circle r="6" fill="#050508" stroke="#5b5b72" stroke-width="1.5" stroke-dasharray="2 2"/>
+    <text x="0" y="-22" text-anchor="middle"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="12" font-weight="600" fill="#5b5b72">v1.9+  ·  planned</text>
+    <text x="0" y="32" text-anchor="middle"
+          font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="13" font-weight="600" fill="#9a9ab2">MCP 暴露追抓</text>
+    <text x="0" y="50" text-anchor="middle"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="10" fill="#5b5b72">多端同步 · 根除 Lock bug</text>
+  </g>
+
+  <!-- footer note -->
+  <text x="56" y="240" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+        font-size="11" fill="#5b5b72" letter-spacing="1">
+    7 Phases shipped  ·  39 migrations  ·  67 pytest files  ·  240+ frontend tests
+  </text>
+  <text x="1144" y="240" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+        font-size="11" fill="#5b5b72" letter-spacing="1">
+    1 user  ·  1 machine  ·  0 external services
+  </text>
+</svg>

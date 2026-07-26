@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="340" viewBox="0 0 1200 340"
+     role="img" aria-labelledby="hero-title hero-desc">
+  <title id="hero-title">SecNews — 单人本地 AI 与安全工作站</title>
+  <desc id="hero-desc">左侧项目标识与价值主张，右侧 4 个核心子系统汇入 MCP Server 并经 stdio / SSE 暴露给外部 AI Agent。</desc>
+
+  <defs>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#00d4e0"/>
+      <stop offset="1" stop-color="#00a3ad"/>
+    </linearGradient>
+    <linearGradient id="securityAccent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff6b6b"/>
+      <stop offset="1" stop-color="#cc4f4f"/>
+    </linearGradient>
+  </defs>
+
+  <!-- canvas -->
+  <rect width="1200" height="340" rx="20" fill="#050508"/>
+  <rect x="0.5" y="0.5" width="1199" height="339" rx="20" fill="none" stroke="#1c1c2e" stroke-width="1"/>
+
+  <!-- subtle grid background -->
+  <g stroke="#1c1c2e" stroke-width="0.5" opacity="0.35">
+    <line x1="640" y1="32" x2="640" y2="308"/>
+  </g>
+
+  <!-- ───── LEFT BLOCK (0..640) ───── -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif">
+    <!-- top metadata -->
+    <text x="56" y="56" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="13" fill="#5b5b72" letter-spacing="2.5">
+      v1.8  ·  SINGLE-USER LOCAL  ·  7 DOMAINS  ·  30+ SOURCES
+    </text>
+
+    <!-- eyebrow accent line -->
+    <rect x="56" y="74" width="32" height="2" fill="url(#accent)"/>
+
+    <!-- main wordmark -->
+    <text x="56" y="160" font-size="84" font-weight="700"
+          fill="#f0f0f7" letter-spacing="-2">SecNews</text>
+
+    <!-- codename -->
+    <text x="56" y="194" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="14" fill="#5b5b72" letter-spacing="1">
+      codename: hotspot
+    </text>
+
+    <!-- tagline -->
+    <text x="56" y="236" font-size="26" font-weight="500" fill="#f0f0f7" letter-spacing="-0.5">
+      AI + 安全  知识工作站
+    </text>
+
+    <!-- flow -->
+    <text x="56" y="270" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="15" fill="#9a9ab2" letter-spacing="0.5">
+      热点聚合  →  知识沉淀  →  项目管理  →  AI 协作
+    </text>
+
+    <!-- bottom meta -->
+    <text x="56" y="306" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="12" fill="#5b5b72" letter-spacing="1">
+      39 migrations  ·  67 pytest files  ·  240+ frontend tests  ·  13 MCP tools
+    </text>
+  </g>
+
+  <!-- ───── RIGHT BLOCK (640..1200) ───── -->
+  <g transform="translate(680 56)">
+    <!-- right header -->
+    <text x="0" y="0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="12" fill="#5b5b72" letter-spacing="2.5">
+      5 SUBSYSTEMS  /  1 EXTERNAL INTERFACE
+    </text>
+
+    <!-- ─── 4 core data subsystems row ─── -->
+    <g transform="translate(0 24)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif">
+      <!-- cell 1: SecNews -->
+      <g transform="translate(0 0)">
+        <rect width="118" height="86" rx="10" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1"/>
+        <rect x="0" y="0" width="3" height="86" fill="url(#accent)"/>
+        <text x="14" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+              font-size="10" fill="#00d4e0" letter-spacing="1.5">01 · 热点</text>
+        <text x="14" y="44" font-size="15" font-weight="600" fill="#f0f0f7">SecNews</text>
+        <text x="14" y="62" font-size="10" fill="#9a9ab2">7 域 · 30+ 源</text>
+        <text x="14" y="76" font-size="10" fill="#9a9ab2">13 质量门禁</text>
+      </g>
+      <!-- cell 2: Knowledge -->
+      <g transform="translate(125 0)">
+        <rect width="118" height="86" rx="10" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1"/>
+        <rect x="0" y="0" width="3" height="86" fill="url(#accent)"/>
+        <text x="14" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+              font-size="10" fill="#00d4e0" letter-spacing="1.5">02 · 知识</text>
+        <text x="14" y="44" font-size="15" font-weight="600" fill="#f0f0f7">Knowledge</text>
+        <text x="14" y="62" font-size="10" fill="#9a9ab2">LLM-Wiki 2.0</text>
+        <text x="14" y="76" font-size="10" fill="#9a9ab2">4 层金字塔</text>
+      </g>
+      <!-- cell 3: CodeGarden -->
+      <g transform="translate(250 0)">
+        <rect width="118" height="86" rx="10" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1"/>
+        <rect x="0" y="0" width="3" height="86" fill="url(#accent)"/>
+        <text x="14" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+              font-size="10" fill="#00d4e0" letter-spacing="1.5">03 · 项目</text>
+        <text x="14" y="44" font-size="15" font-weight="600" fill="#f0f0f7">CodeGarden</text>
+        <text x="14" y="62" font-size="10" fill="#9a9ab2">全生命周期</text>
+        <text x="14" y="76" font-size="10" fill="#9a9ab2">服务网格</text>
+      </g>
+      <!-- cell 4: Security KG -->
+      <g transform="translate(375 0)">
+        <rect width="118" height="86" rx="10" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1"/>
+        <rect x="0" y="0" width="3" height="86" fill="url(#securityAccent)"/>
+        <text x="14" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+              font-size="10" fill="#ff6b6b" letter-spacing="1.5">04 · 安全</text>
+        <text x="14" y="44" font-size="15" font-weight="600" fill="#f0f0f7">Sec Graph</text>
+        <text x="14" y="62" font-size="10" fill="#9a9ab2">MITRE · CVE</text>
+        <text x="14" y="76" font-size="10" fill="#9a9ab2">合规本体</text>
+      </g>
+    </g>
+
+    <!-- vertical connector lines from 4 cells down to MCP -->
+    <g stroke="#1c1c2e" stroke-width="1" fill="none">
+      <path d="M 59 110 L 59 130 L 246 130 L 246 158"/>
+      <path d="M 184 110 L 184 130 L 246 130 L 246 158"/>
+      <path d="M 309 110 L 309 130 L 246 130 L 246 158"/>
+      <path d="M 434 110 L 434 130 L 246 130 L 246 158"/>
+    </g>
+
+    <!-- ─── MCP Server hub ─── -->
+    <g transform="translate(0 158)">
+      <rect width="493" height="60" rx="10" fill="#0d0d14" stroke="#00d4e0" stroke-width="1.2"/>
+      <text x="16" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="10" fill="#00d4e0" letter-spacing="2">05 · MCP SERVER</text>
+      <text x="16" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+            font-size="16" font-weight="600" fill="#f0f0f7">13 tools  ·  5 read + 8 write</text>
+      <text x="280" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="12" fill="#9a9ab2">stdio  /  SSE</text>
+    </g>
+
+    <!-- arrow MCP → external AI -->
+    <g stroke="#00d4e0" stroke-width="1.2" fill="none">
+      <line x1="246" y1="222" x2="246" y2="246"/>
+      <polyline points="240,240 246,248 252,240" stroke-linejoin="round" stroke-linecap="round"/>
+    </g>
+
+    <!-- external AI agent -->
+    <g transform="translate(0 252)">
+      <rect width="493" height="32" rx="8" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1" stroke-dasharray="3 3"/>
+      <text x="16" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#9a9ab2" letter-spacing="1">EXTERNAL AI AGENT</text>
+      <text x="180" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="12" fill="#f0f0f7" letter-spacing="0.5">Cursor  ·  Claude Desktop  ·  Trae  ·  Workbuddy</text>
+    </g>
+  </g>
+</svg>

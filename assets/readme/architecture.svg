@@ -1,0 +1,194 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="420" viewBox="0 0 1200 420"
+     role="img" aria-labelledby="arch-title arch-desc">
+  <title id="arch-title">SecNews 架构总览</title>
+  <desc id="arch-desc">三层架构：浏览器 / AI Agent 在最上，FastAPI 单进程在中间，SQLite 与 .md 文件系统在最下；右侧经 MCP stdio / SSE 暴露给外部 AI Agent。</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5b5b72"/>
+    </marker>
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#00d4e0"/>
+    </marker>
+  </defs>
+
+  <!-- canvas -->
+  <rect width="1200" height="420" rx="20" fill="#050508"/>
+  <rect x="0.5" y="0.5" width="1199" height="419" rx="20" fill="none" stroke="#1c1c2e" stroke-width="1"/>
+
+  <!-- header -->
+  <text x="56" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+        font-size="12" fill="#5b5b72" letter-spacing="2.5">ARCHITECTURE  /  3 LAYERS  /  1 PROCESS</text>
+  <rect x="56" y="56" width="32" height="2" fill="#00d4e0"/>
+
+  <!-- ═══════ LAYER 1: CLIENTS ═══════ -->
+  <g transform="translate(56 80)">
+    <text x="0" y="0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="11" fill="#5b5b72" letter-spacing="2">LAYER 1  /  CLIENTS</text>
+
+    <!-- Browser -->
+    <g transform="translate(0 16)">
+      <rect width="280" height="70" rx="10" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1"/>
+      <rect x="0" y="0" width="3" height="70" fill="#00d4e0"/>
+      <text x="16" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="10" fill="#00d4e0" letter-spacing="1.5">BROWSER  ·  React 18 SPA</text>
+      <text x="16" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+            font-size="14" font-weight="600" fill="#f0f0f7">SecNews  /  Knowledge  /  CodeGarden</text>
+      <text x="16" y="60" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#9a9ab2">60+ 组件  ·  Vite 5  ·  TypeScript</text>
+    </g>
+
+    <!-- Arrow HTTP/JSON -->
+    <g stroke="#5b5b72" stroke-width="1.2" fill="none" marker-end="url(#arrow)">
+      <line x1="300" y1="51" x2="356" y2="51"/>
+    </g>
+    <text x="328" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="9" fill="#5b5b72" text-anchor="middle">HTTP / JSON</text>
+
+    <!-- FastAPI box (this is LAYER 2 base, but anchor here) -->
+
+    <!-- AI Agent on right -->
+    <g transform="translate(820 16)">
+      <rect width="280" height="70" rx="10" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1" stroke-dasharray="3 3"/>
+      <text x="16" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="10" fill="#9a9ab2" letter-spacing="1.5">EXTERNAL AI AGENT</text>
+      <text x="16" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+            font-size="14" font-weight="600" fill="#f0f0f7">Cursor  ·  Claude  ·  Trae</text>
+      <text x="16" y="60" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#9a9ab2">推理由外部 Agent 完成</text>
+    </g>
+  </g>
+
+  <!-- ═══════ LAYER 2: FASTAPI PROCESS ═══════ -->
+  <g transform="translate(56 192)">
+    <text x="0" y="0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="11" fill="#5b5b72" letter-spacing="2">LAYER 2  /  FastAPI PROCESS  ·  port 8000  ·  WORKERS=1</text>
+
+    <g transform="translate(0 16)">
+      <rect width="1088" height="148" rx="12" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1"/>
+      <rect x="0" y="0" width="3" height="148" fill="#00d4e0"/>
+
+      <!-- internal modules 2x4 grid (4 cards × 252w + 16 gaps) -->
+      <!-- row 1 -->
+      <g transform="translate(16 16)">
+        <!-- API routers -->
+        <g>
+          <rect width="252" height="48" rx="8" fill="#050508" stroke="#1c1c2e" stroke-width="1"/>
+          <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">23 ROUTERS</text>
+          <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
+                font-size="12" fill="#f0f0f7">/hotspots  ·  /knowledge  ·  /codegarden</text>
+        </g>
+        <g transform="translate(268 0)">
+          <rect width="252" height="48" rx="8" fill="#050508" stroke="#1c1c2e" stroke-width="1"/>
+          <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">41 SERVICES  ·  business logic</text>
+          <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
+                font-size="12" fill="#f0f0f7">Hotspot  ·  Knowledge  ·  CodeGarden</text>
+        </g>
+        <g transform="translate(536 0)">
+          <rect width="252" height="48" rx="8" fill="#050508" stroke="#1c1c2e" stroke-width="1"/>
+          <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">20 REPOS  ·  DAO layer</text>
+          <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
+                font-size="12" fill="#f0f0f7">SQLite WAL  ·  39 migrations</text>
+        </g>
+        <g transform="translate(804 0)">
+          <rect width="252" height="48" rx="8" fill="#050508" stroke="#00d4e0" stroke-width="1.2"/>
+          <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">MCP SERVER  ·  13 tools</text>
+          <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
+                font-size="12" fill="#f0f0f7">5 read + 8 write  ·  stdio / SSE</text>
+        </g>
+      </g>
+
+      <!-- row 2 -->
+      <g transform="translate(16 80)">
+        <g>
+          <rect width="252" height="48" rx="8" fill="#050508" stroke="#1c1c2e" stroke-width="1"/>
+          <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">8 COLLECTORS</text>
+          <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
+                font-size="12" fill="#f0f0f7">ai  ·  security  ·  finance  ·  github</text>
+        </g>
+        <g transform="translate(268 0)">
+          <rect width="252" height="48" rx="8" fill="#050508" stroke="#1c1c2e" stroke-width="1"/>
+          <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">13 QUALITY GATES</text>
+          <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
+                font-size="12" fill="#f0f0f7">URL  ·  recency  ·  noise  ·  schema</text>
+        </g>
+        <g transform="translate(536 0)">
+          <rect width="252" height="48" rx="8" fill="#050508" stroke="#1c1c2e" stroke-width="1"/>
+          <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">APScheduler  ·  17 jobs</text>
+          <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
+                font-size="12" fill="#f0f0f7">collect  ·  sync  ·  catchup  ·  revival</text>
+        </g>
+        <g transform="translate(804 0)">
+          <rect width="252" height="48" rx="8" fill="#050508" stroke="#1c1c2e" stroke-width="1"/>
+          <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">SECURITY  ·  knowledge graph</text>
+          <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
+                font-size="12" fill="#f0f0f7">MITRE  ·  CVE  ·  compliance</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- arrow browser → FastAPI (canvas coords: x=196, y=166→206) -->
+    <g stroke="#00d4e0" stroke-width="1.2" fill="none" marker-end="url(#arrowCyan)">
+      <line x1="196" y1="166" x2="196" y2="206"/>
+    </g>
+  </g>
+
+  <!-- ═══════ LAYER 3: DATA ═══════ -->
+  <g transform="translate(56 360)">
+    <text x="0" y="0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="11" fill="#5b5b72" letter-spacing="2">LAYER 3  /  PERSISTENCE</text>
+
+    <g transform="translate(0 12)">
+      <!-- SQLite -->
+      <g>
+        <rect width="220" height="40" rx="8" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1"/>
+        <text x="14" y="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+              font-size="10" fill="#00d4e0" letter-spacing="1.5">SQLite  ·  WAL</text>
+        <text x="14" y="32" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+              font-size="11" fill="#f0f0f7">hotspot.db  ·  24h 备份</text>
+      </g>
+      <!-- .md -->
+      <g transform="translate(240 0)">
+        <rect width="260" height="40" rx="8" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1"/>
+        <text x="14" y="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+              font-size="10" fill="#00d4e0" letter-spacing="1.5">.md FILESYSTEM  ·  LLM-Wiki</text>
+        <text x="14" y="32" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+              font-size="11" fill="#f0f0f7">knowledge/items/*.md  ·  git 友好</text>
+      </g>
+      <!-- CodeGarden -->
+      <g transform="translate(520 0)">
+        <rect width="240" height="40" rx="8" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1"/>
+        <text x="14" y="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+              font-size="10" fill="#00d4e0" letter-spacing="1.5">codegarden/  ·  project store</text>
+        <text x="14" y="32" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+              font-size="11" fill="#f0f0f7">specs  ·  playbooks  ·  sdds  ·  exports</text>
+      </g>
+      <!-- WebDAV -->
+      <g transform="translate(780 0)">
+        <rect width="280" height="40" rx="8" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1" stroke-dasharray="3 3"/>
+        <text x="14" y="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+              font-size="10" fill="#9a9ab2" letter-spacing="1.5">WebDAV SYNC  ·  optional</text>
+        <text x="14" y="32" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+              font-size="11" fill="#f0f0f7">zip 容器  ·  Fernet 加密  ·  坚果云</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ───── arrow from FastAPI MCP to external AI ───── -->
+  <g stroke="#00d4e0" stroke-width="1.2" fill="none" marker-end="url(#arrowCyan)">
+    <path d="M 960 256 L 960 134"/>
+  </g>
+  <text x="970" y="200" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+        font-size="10" fill="#00d4e0" letter-spacing="1">MCP / stdio · SSE</text>
+</svg>

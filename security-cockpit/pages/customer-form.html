@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客户管理</title>
+    <style id="theme-vars">
+/* Brand CSS — Security Service Cockpit */
+:root {
+  /* === Core Palette === */
+  --brand-primary: #0A1628;
+  --brand-primary-light: #0F2140;
+  --brand-secondary: #0D1F3C;
+  --brand-accent: #00E5A0;
+  --brand-accent-dim: rgba(0, 229, 160, 0.15);
+  --brand-accent-glow: rgba(0, 229, 160, 0.35);
+  --brand-warning: #FF8C42;
+  --brand-danger: #FF4757;
+  --brand-info: #4DA6FF;
+  --brand-gold: #FFD93D;
+
+  /* === Semantic Aliases === */
+  /* Semantic aliases required by fill-html-head */
+  --brand-background: var(--brand-primary);
+  --brand-foreground: #F0F4F8;
+  --brand-card: #0F2140;
+  --brand-muted: #556677;
+  --brand-radius-sm: 6px;
+  --brand-radius-md: 10px;
+  --brand-radius-lg: 16px;
+  --brand-accent: var(--color-accent);
+  --brand-border: rgba(255, 255, 255, 0.08);
+
+  --color-bg-primary: var(--brand-primary);
+  --color-bg-secondary: var(--brand-secondary);
+  --color-bg-tertiary: #132B50;
+  --color-bg-card: #0F2140;
+  --color-bg-card-hover: #162D56;
+  --color-bg-input: rgba(255, 255, 255, 0.04);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(255, 255, 255, 0.16);
+
+  --color-text-primary: #F0F4F8;
+  --color-text-secondary: #8899AA;
+  --color-text-muted: #556677;
+  --color-text-inverse: #0A1628;
+
+  --color-accent: #00E5A0;
+  --color-accent-dim: rgba(0, 229, 160, 0.15);
+  --color-warning: var(--brand-warning);
+  --color-danger: var(--brand-danger);
+  --color-info: var(--brand-info);
+  --color-success: #00E5A0;
+
+  /* === Typography === */
+  --font-display: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-body: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.5rem;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+
+  /* === Spacing === */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  /* === Layout === */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* === Shadows === */
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-glow-accent: 0 0 20px rgba(0, 229, 160, 0.12);
+  --shadow-glow-info: 0 0 20px rgba(77, 166, 255, 0.12);
+
+  /* === Grid === */
+  --grid-columns: 12;
+  --gutter: var(--space-lg);
+  --max-width: 1440px;
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--brand-background);
+    --color-foreground: var(--brand-foreground);
+    --color-card: var(--brand-card);
+    --color-primary: var(--brand-primary);
+    --color-secondary: var(--brand-secondary);
+    --color-muted: var(--brand-muted);
+    --color-accent: var(--brand-accent);
+    --color-border: var(--brand-border);
+    --radius-sm: var(--brand-radius-sm);
+    --radius-md: var(--brand-radius-md);
+    --radius-lg: var(--brand-radius-lg);
+  }
+  @layer base {
+    body { background: var(--brand-background); color: var(--brand-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--brand-background); }
+      .text-background { color: var(--brand-background); }
+      .border-background { border-color: var(--brand-background); }
+      .ring-background { --tw-ring-color: var(--brand-background); }
+      .bg-foreground { background-color: var(--brand-foreground); }
+      .text-foreground { color: var(--brand-foreground); }
+      .border-foreground { border-color: var(--brand-foreground); }
+      .ring-foreground { --tw-ring-color: var(--brand-foreground); }
+      .bg-card { background-color: var(--brand-card); }
+      .text-card { color: var(--brand-card); }
+      .border-card { border-color: var(--brand-card); }
+      .ring-card { --tw-ring-color: var(--brand-card); }
+      .bg-primary { background-color: var(--brand-primary); }
+      .text-primary { color: var(--brand-primary); }
+      .border-primary { border-color: var(--brand-primary); }
+      .ring-primary { --tw-ring-color: var(--brand-primary); }
+      .bg-secondary { background-color: var(--brand-secondary); }
+      .text-secondary { color: var(--brand-secondary); }
+      .border-secondary { border-color: var(--brand-secondary); }
+      .ring-secondary { --tw-ring-color: var(--brand-secondary); }
+      .bg-muted { background-color: var(--brand-muted); }
+      .text-muted { color: var(--brand-muted); }
+      .border-muted { border-color: var(--brand-muted); }
+      .ring-muted { --tw-ring-color: var(--brand-muted); }
+      .bg-accent { background-color: var(--brand-accent); }
+      .text-accent { color: var(--brand-accent); }
+      .border-accent { border-color: var(--brand-accent); }
+      .ring-accent { --tw-ring-color: var(--brand-accent); }
+      .bg-border { background-color: var(--brand-border); }
+      .text-border { color: var(--brand-border); }
+      .border-border { border-color: var(--brand-border); }
+      .ring-border { --tw-ring-color: var(--brand-border); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main class="max-w-[1440px] mx-auto px-4 py-4 lg:px-6 lg:py-5">
+
+        <!-- ===== TOP HEADER BAR WITH NAV TABS ===== -->
+        <header class="flex items-center justify-between pb-4 mb-5" style="border-bottom: 2px solid var(--color-accent);">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-9 h-9 rounded-lg" style="background: var(--color-accent-dim);">
+                    <i data-lucide="shield-check" class="w-5 h-5" style="color: var(--color-accent);"></i>
+                </div>
+                <h1 class="text-xl font-semibold tracking-tight" style="color: var(--color-text-primary);">安全服务业绩分析座舱</h1>
+            </div>
+            <nav class="flex items-center gap-1" style="background: rgba(255,255,255,0.04); border-radius: var(--radius-md); padding: 3px;">
+                <a href="#" class="nav-tab" data-dom-id="nav-tab-cockpit" style="color: var(--color-text-secondary);">业绩总览</a>
+                <a href="#" class="nav-tab nav-tab-active" style="color: var(--color-text-inverse); background: var(--color-accent);" data-dom-id="nav-tab-customer">客户管理</a>
+                <a href="#" class="nav-tab" style="color: var(--color-text-secondary);" data-dom-id="nav-tab-opportunity">商机管理</a>
+            </nav>
+            <div class="flex items-center gap-4">
+                <span class="text-sm font-medium whitespace-nowrap" style="color: var(--color-text-secondary);">2026年H2</span>
+                <div class="flex items-center gap-2">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span class="absolute inline-flex h-full w-full rounded-full opacity-75" style="background: var(--color-accent); animation: ping 1.5s cubic-bezier(0,0,0.2,1) infinite;"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5" style="background: var(--color-accent);"></span>
+                    </span>
+                    <span class="text-xs font-medium whitespace-nowrap" style="color: var(--color-accent);">实时数据</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ===== TWO-PANEL LAYOUT ===== -->
+        <div class="flex flex-col lg:flex-row gap-4 mb-5">
+
+            <!-- ===== LEFT PANEL: Customer List (55%) ===== -->
+            <div class="w-full lg:w-[55%] flex flex-col gap-4">
+
+                <!-- Search & Filter Bar -->
+                <div class="cockpit-card">
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <div class="relative flex-1 min-w-0">
+                            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style="color: var(--color-text-muted);"></i>
+                            <input type="text" placeholder="搜索客户名称..." class="form-input-search w-full" />
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <select class="form-select">
+                                <option value="">全部行业</option>
+                                <option>银行</option>
+                                <option>证券</option>
+                                <option>保险</option>
+                                <option>基金</option>
+                                <option>信托</option>
+                                <option>消金</option>
+                            </select>
+                            <select class="form-select">
+                                <option value="">全部状态</option>
+                                <option>活跃</option>
+                                <option>续约中</option>
+                                <option>流失</option>
+                                <option>潜在</option>
+                            </select>
+                            <select class="form-select">
+                                <option value="">全部等级</option>
+                                <option>S</option>
+                                <option>A</option>
+                                <option>B</option>
+                                <option>C</option>
+                            </select>
+                            <button class="btn-primary flex items-center gap-1.5 whitespace-nowrap">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                新增客户
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Customer Table Card -->
+                <div class="cockpit-card" style="padding: 0; overflow: hidden;">
+                    <div class="overflow-x-auto">
+                        <table class="w-full" style="min-width: 780px;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--color-border);">
+                                    <th class="text-left text-xs font-medium px-4 py-3 whitespace-nowrap" style="color: var(--color-text-muted);">客户名称</th>
+                                    <th class="text-left text-xs font-medium px-4 py-3 whitespace-nowrap" style="color: var(--color-text-muted);">行业</th>
+                                    <th class="text-left text-xs font-medium px-4 py-3 whitespace-nowrap" style="color: var(--color-text-muted);">等级</th>
+                                    <th class="text-right text-xs font-medium px-4 py-3 whitespace-nowrap" style="color: var(--color-text-muted);">合同额</th>
+                                    <th class="text-left text-xs font-medium px-4 py-3 whitespace-nowrap" style="color: var(--color-text-muted);">状态</th>
+                                    <th class="text-left text-xs font-medium px-4 py-3 whitespace-nowrap" style="color: var(--color-text-muted);">负责人</th>
+                                    <th class="text-left text-xs font-medium px-4 py-3 whitespace-nowrap" style="color: var(--color-text-muted);">到期日</th>
+                                    <th class="text-center text-xs font-medium px-4 py-3 whitespace-nowrap" style="color: var(--color-text-muted);">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Row 1 -->
+                                <tr class="customer-row">
+                                    <td class="px-4 py-3 text-sm font-medium truncate" style="color: var(--color-text-primary); max-width: 180px;">工商银行金融科技部</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">银行</td>
+                                    <td class="px-4 py-3"><span class="badge-grade badge-s">S级</span></td>
+                                    <td class="px-4 py-3 text-sm text-right font-medium whitespace-nowrap" style="color: var(--color-text-primary);">¥380万</td>
+                                    <td class="px-4 py-3"><span class="badge-status badge-active">活跃</span></td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">张伟</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">2026-12-31</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button class="btn-link">查看</button>
+                                        <button class="btn-link">编辑</button>
+                                    </td>
+                                </tr>
+                                <!-- Row 2 -->
+                                <tr class="customer-row customer-row-alt">
+                                    <td class="px-4 py-3 text-sm font-medium truncate" style="color: var(--color-text-primary); max-width: 180px;">中信证券</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">证券</td>
+                                    <td class="px-4 py-3"><span class="badge-grade badge-s">S级</span></td>
+                                    <td class="px-4 py-3 text-sm text-right font-medium whitespace-nowrap" style="color: var(--color-text-primary);">¥260万</td>
+                                    <td class="px-4 py-3"><span class="badge-status badge-active">活跃</span></td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">李明</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">2027-03-15</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button class="btn-link">查看</button>
+                                        <button class="btn-link">编辑</button>
+                                    </td>
+                                </tr>
+                                <!-- Row 3 -->
+                                <tr class="customer-row">
+                                    <td class="px-4 py-3 text-sm font-medium truncate" style="color: var(--color-text-primary); max-width: 180px;">平安产险</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">保险</td>
+                                    <td class="px-4 py-3"><span class="badge-grade badge-a">A级</span></td>
+                                    <td class="px-4 py-3 text-sm text-right font-medium whitespace-nowrap" style="color: var(--color-text-primary);">¥180万</td>
+                                    <td class="px-4 py-3"><span class="badge-status badge-renewing">续约中</span></td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">王芳</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">2026-09-30</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button class="btn-link">查看</button>
+                                        <button class="btn-link">编辑</button>
+                                    </td>
+                                </tr>
+                                <!-- Row 4 -->
+                                <tr class="customer-row customer-row-alt">
+                                    <td class="px-4 py-3 text-sm font-medium truncate" style="color: var(--color-text-primary); max-width: 180px;">华夏基金</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">基金</td>
+                                    <td class="px-4 py-3"><span class="badge-grade badge-a">A级</span></td>
+                                    <td class="px-4 py-3 text-sm text-right font-medium whitespace-nowrap" style="color: var(--color-text-primary);">¥150万</td>
+                                    <td class="px-4 py-3"><span class="badge-status badge-active">活跃</span></td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">刘洋</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">2027-06-30</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button class="btn-link">查看</button>
+                                        <button class="btn-link">编辑</button>
+                                    </td>
+                                </tr>
+                                <!-- Row 5 -->
+                                <tr class="customer-row">
+                                    <td class="px-4 py-3 text-sm font-medium truncate" style="color: var(--color-text-primary); max-width: 180px;">中融信托</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">信托</td>
+                                    <td class="px-4 py-3"><span class="badge-grade badge-b">B级</span></td>
+                                    <td class="px-4 py-3 text-sm text-right font-medium whitespace-nowrap" style="color: var(--color-text-primary);">¥120万</td>
+                                    <td class="px-4 py-3"><span class="badge-status badge-lost">流失</span></td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">赵磊</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">2026-03-31</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button class="btn-link">查看</button>
+                                        <button class="btn-link">编辑</button>
+                                    </td>
+                                </tr>
+                                <!-- Row 6 -->
+                                <tr class="customer-row customer-row-alt">
+                                    <td class="px-4 py-3 text-sm font-medium truncate" style="color: var(--color-text-primary); max-width: 180px;">招联消金</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">消金</td>
+                                    <td class="px-4 py-3"><span class="badge-grade badge-a">A级</span></td>
+                                    <td class="px-4 py-3 text-sm text-right font-medium whitespace-nowrap" style="color: var(--color-text-primary);">¥95万</td>
+                                    <td class="px-4 py-3"><span class="badge-status badge-active">活跃</span></td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">陈静</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">2027-01-15</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button class="btn-link">查看</button>
+                                        <button class="btn-link">编辑</button>
+                                    </td>
+                                </tr>
+                                <!-- Row 7 -->
+                                <tr class="customer-row">
+                                    <td class="px-4 py-3 text-sm font-medium truncate" style="color: var(--color-text-primary); max-width: 180px;">浦发银行</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">银行</td>
+                                    <td class="px-4 py-3"><span class="badge-grade badge-s">S级</span></td>
+                                    <td class="px-4 py-3 text-sm text-right font-medium whitespace-nowrap" style="color: var(--color-text-primary);">¥420万</td>
+                                    <td class="px-4 py-3"><span class="badge-status badge-active">活跃</span></td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">张伟</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">2027-08-31</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button class="btn-link">查看</button>
+                                        <button class="btn-link">编辑</button>
+                                    </td>
+                                </tr>
+                                <!-- Row 8 -->
+                                <tr class="customer-row customer-row-alt">
+                                    <td class="px-4 py-3 text-sm font-medium truncate" style="color: var(--color-text-primary); max-width: 180px;">国泰君安证券</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">证券</td>
+                                    <td class="px-4 py-3"><span class="badge-grade badge-a">A级</span></td>
+                                    <td class="px-4 py-3 text-sm text-right font-medium whitespace-nowrap" style="color: var(--color-text-primary);">¥200万</td>
+                                    <td class="px-4 py-3"><span class="badge-status badge-renewing">续约中</span></td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">李明</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">2026-11-30</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button class="btn-link">查看</button>
+                                        <button class="btn-link">编辑</button>
+                                    </td>
+                                </tr>
+                                <!-- Row 9 -->
+                                <tr class="customer-row">
+                                    <td class="px-4 py-3 text-sm font-medium truncate" style="color: var(--color-text-primary); max-width: 180px;">中国人寿</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">保险</td>
+                                    <td class="px-4 py-3"><span class="badge-grade badge-s">S级</span></td>
+                                    <td class="px-4 py-3 text-sm text-right font-medium whitespace-nowrap" style="color: var(--color-text-primary);">¥310万</td>
+                                    <td class="px-4 py-3"><span class="badge-status badge-active">活跃</span></td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">王芳</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">2027-04-30</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button class="btn-link">查看</button>
+                                        <button class="btn-link">编辑</button>
+                                    </td>
+                                </tr>
+                                <!-- Row 10 -->
+                                <tr class="customer-row customer-row-alt">
+                                    <td class="px-4 py-3 text-sm font-medium truncate" style="color: var(--color-text-primary); max-width: 180px;">广发基金</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">基金</td>
+                                    <td class="px-4 py-3"><span class="badge-grade badge-b">B级</span></td>
+                                    <td class="px-4 py-3 text-sm text-right font-medium whitespace-nowrap" style="color: var(--color-text-primary);">¥88万</td>
+                                    <td class="px-4 py-3"><span class="badge-status badge-potential">潜在</span></td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">刘洋</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-muted);">-</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button class="btn-link">查看</button>
+                                        <button class="btn-link">编辑</button>
+                                    </td>
+                                </tr>
+                                <!-- Row 11 -->
+                                <tr class="customer-row">
+                                    <td class="px-4 py-3 text-sm font-medium truncate" style="color: var(--color-text-primary); max-width: 180px;">渤海信托</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">信托</td>
+                                    <td class="px-4 py-3"><span class="badge-grade badge-c">C级</span></td>
+                                    <td class="px-4 py-3 text-sm text-right font-medium whitespace-nowrap" style="color: var(--color-text-primary);">¥65万</td>
+                                    <td class="px-4 py-3"><span class="badge-status badge-lost">流失</span></td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">赵磊</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">2025-12-31</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button class="btn-link">查看</button>
+                                        <button class="btn-link">编辑</button>
+                                    </td>
+                                </tr>
+                                <!-- Row 12 -->
+                                <tr class="customer-row customer-row-alt">
+                                    <td class="px-4 py-3 text-sm font-medium truncate" style="color: var(--color-text-primary); max-width: 180px;">马上消金</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">消金</td>
+                                    <td class="px-4 py-3"><span class="badge-grade badge-b">B级</span></td>
+                                    <td class="px-4 py-3 text-sm text-right font-medium whitespace-nowrap" style="color: var(--color-text-primary);">¥72万</td>
+                                    <td class="px-4 py-3"><span class="badge-status badge-potential">潜在</span></td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-secondary);">陈静</td>
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap" style="color: var(--color-text-muted);">-</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button class="btn-link">查看</button>
+                                        <button class="btn-link">编辑</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="flex items-center justify-between px-2">
+                    <span class="text-sm whitespace-nowrap" style="color: var(--color-text-muted);">共 67 条记录</span>
+                    <div class="flex items-center gap-1">
+                        <button class="page-btn page-btn-disabled">
+                            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                        </button>
+                        <button class="page-btn page-btn-active">1</button>
+                        <button class="page-btn">2</button>
+                        <button class="page-btn">3</button>
+                        <span class="px-1 text-sm" style="color: var(--color-text-muted);">...</span>
+                        <button class="page-btn">7</button>
+                        <button class="page-btn">
+                            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== RIGHT PANEL: Customer Detail / Form (45%) ===== -->
+            <div class="w-full lg:w-[45%]">
+                <div class="cockpit-card">
+                    <!-- Tab Toggle -->
+                    <div class="flex items-center gap-1 mb-6" style="background: rgba(255,255,255,0.04); border-radius: var(--radius-sm); padding: 3px;">
+                        <button class="form-tab" style="color: var(--color-text-secondary);">客户详情</button>
+                        <button class="form-tab form-tab-active" style="color: var(--color-text-inverse); background: var(--color-accent);">新增客户</button>
+                        <button class="form-tab" style="color: var(--color-text-secondary);">编辑客户</button>
+                    </div>
+
+                    <!-- Form -->
+                    <form>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
+                            <!-- 客户名称 -->
+                            <div class="form-field">
+                                <label class="form-label">客户名称 <span class="form-required">*</span></label>
+                                <input type="text" class="form-input" placeholder="请输入客户名称" required />
+                            </div>
+                            <!-- 所属行业 -->
+                            <div class="form-field">
+                                <label class="form-label">所属行业</label>
+                                <select class="form-input">
+                                    <option value="">请选择行业</option>
+                                    <option>银行</option>
+                                    <option>证券</option>
+                                    <option>保险</option>
+                                    <option>基金</option>
+                                    <option>信托</option>
+                                    <option>消金</option>
+                                </select>
+                            </div>
+                            <!-- 客户等级 -->
+                            <div class="form-field">
+                                <label class="form-label">客户等级</label>
+                                <select class="form-input">
+                                    <option value="">请选择等级</option>
+                                    <option>S</option>
+                                    <option>A</option>
+                                    <option>B</option>
+                                    <option>C</option>
+                                </select>
+                            </div>
+                            <!-- 联系人 -->
+                            <div class="form-field">
+                                <label class="form-label">联系人</label>
+                                <input type="text" class="form-input" placeholder="请输入联系人姓名" />
+                            </div>
+                            <!-- 联系电话 -->
+                            <div class="form-field">
+                                <label class="form-label">联系电话</label>
+                                <input type="text" class="form-input" placeholder="请输入联系电话" />
+                            </div>
+                            <!-- 邮箱 -->
+                            <div class="form-field">
+                                <label class="form-label">邮箱</label>
+                                <input type="email" class="form-input" placeholder="请输入邮箱地址" />
+                            </div>
+                            <!-- 合同金额 -->
+                            <div class="form-field">
+                                <label class="form-label">合同金额</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm pointer-events-none" style="color: var(--color-text-muted);">¥</span>
+                                    <input type="number" class="form-input" style="padding-left: 28px;" placeholder="0" />
+                                </div>
+                            </div>
+                            <!-- 合同起止日期 -->
+                            <div class="form-field">
+                                <label class="form-label">合同起止日期</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="date" class="form-input flex-1 min-w-0" />
+                                    <span class="text-sm shrink-0" style="color: var(--color-text-muted);">至</span>
+                                    <input type="date" class="form-input flex-1 min-w-0" />
+                                </div>
+                            </div>
+                            <!-- 负责人 -->
+                            <div class="form-field">
+                                <label class="form-label">负责人</label>
+                                <select class="form-input">
+                                    <option value="">请选择负责人</option>
+                                    <option>张伟</option>
+                                    <option>李明</option>
+                                    <option>王芳</option>
+                                    <option>刘洋</option>
+                                    <option>赵磊</option>
+                                    <option>陈静</option>
+                                </select>
+                            </div>
+                            <!-- 客户状态 -->
+                            <div class="form-field">
+                                <label class="form-label">客户状态</label>
+                                <select class="form-input">
+                                    <option value="">请选择状态</option>
+                                    <option>活跃</option>
+                                    <option>续约中</option>
+                                    <option>流失</option>
+                                    <option>潜在</option>
+                                </select>
+                            </div>
+                            <!-- 备注 (full width) -->
+                            <div class="form-field sm:col-span-2">
+                                <label class="form-label">备注</label>
+                                <textarea class="form-input" rows="3" placeholder="请输入备注信息..." style="resize: vertical; min-height: 72px;"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="flex items-center justify-between mt-6 pt-5" style="border-top: 1px solid var(--color-border);">
+                            <button type="button" class="btn-tertiary text-sm">保存并新建</button>
+                            <div class="flex items-center gap-3">
+                                <button type="button" class="btn-secondary">取消</button>
+                                <button type="submit" class="btn-primary">保存</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== FOOTER ===== -->
+        <footer class="pt-3 pb-2" style="border-top: 1px solid var(--color-border);">
+            <p class="text-xs text-center" style="color: var(--color-text-muted);">数据更新时间: 2026-07-23 | 数据来源: 内部CRM系统</p>
+        </footer>
+
+    </main>
+
+    <style>
+        /* === Pulse animation for live indicator === */
+        @keyframes ping {
+            75%, 100% { transform: scale(2); opacity: 0; }
+        }
+
+        /* === Page-level fade in === */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        main > * {
+            animation: fadeInUp 0.4s ease-out both;
+        }
+        main > *:nth-child(2) { animation-delay: 0.05s; }
+        main > *:nth-child(3) { animation-delay: 0.1s; }
+
+        /* === Cockpit Card (reuse from cockpit) === */
+        .cockpit-card {
+            background: rgba(15, 33, 64, 0.8);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--space-lg);
+            box-shadow: var(--shadow-card);
+            transition: box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .cockpit-card:hover {
+            box-shadow: var(--shadow-card-hover);
+            border-color: var(--color-border-hover);
+        }
+
+        /* === Navigation Tabs === */
+        .nav-tab {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 16px;
+            font-size: var(--text-sm);
+            font-weight: 500;
+            border-radius: calc(var(--radius-sm) - 1px);
+            white-space: nowrap;
+            transition: all 0.15s ease;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .nav-tab:hover {
+            color: var(--color-text-primary) !important;
+        }
+        .nav-tab-active {
+            font-weight: 600;
+        }
+
+        /* === Form Tab Toggle === */
+        .form-tab {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px;
+            font-size: var(--text-sm);
+            font-weight: 500;
+            border-radius: calc(var(--radius-sm) - 1px);
+            white-space: nowrap;
+            transition: all 0.15s ease;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+        }
+        .form-tab:hover {
+            color: var(--color-text-primary) !important;
+        }
+        .form-tab-active {
+            font-weight: 600;
+        }
+
+        /* === Search Input === */
+        .form-input-search {
+            display: block;
+            width: 100%;
+            padding: 8px 12px 8px 36px;
+            font-size: var(--text-sm);
+            color: var(--color-text-primary);
+            background: var(--color-bg-input);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .form-input-search::placeholder {
+            color: var(--color-text-muted);
+        }
+        .form-input-search:focus {
+            border-color: var(--color-accent);
+            box-shadow: 0 0 0 2px var(--color-accent-dim);
+        }
+
+        /* === Filter Select === */
+        .form-select {
+            display: block;
+            padding: 8px 28px 8px 10px;
+            font-size: var(--text-sm);
+            color: var(--color-text-primary);
+            background: var(--color-bg-input);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23556677' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .form-select:focus {
+            border-color: var(--color-accent);
+            box-shadow: 0 0 0 2px var(--color-accent-dim);
+        }
+
+        /* === Primary Button === */
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 18px;
+            font-size: var(--text-sm);
+            font-weight: 600;
+            color: var(--color-text-inverse);
+            background: var(--color-accent);
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+        .btn-primary:hover {
+            filter: brightness(1.1);
+            box-shadow: 0 0 16px var(--brand-accent-glow);
+        }
+
+        /* === Secondary Button === */
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 18px;
+            font-size: var(--text-sm);
+            font-weight: 500;
+            color: var(--color-text-secondary);
+            background: transparent;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+        .btn-secondary:hover {
+            color: var(--color-text-primary);
+            border-color: var(--color-border-hover);
+            background: rgba(255,255,255,0.04);
+        }
+
+        /* === Tertiary Button === */
+        .btn-tertiary {
+            display: inline-flex;
+            align-items: center;
+            background: none;
+            border: none;
+            color: var(--color-accent);
+            font-weight: 500;
+            cursor: pointer;
+            padding: 4px 0;
+            transition: opacity 0.15s ease;
+        }
+        .btn-tertiary:hover {
+            opacity: 0.8;
+        }
+
+        /* === Link Button (table operations) === */
+        .btn-link {
+            background: none;
+            border: none;
+            color: var(--color-info);
+            font-size: var(--text-sm);
+            cursor: pointer;
+            padding: 2px 6px;
+            transition: opacity 0.15s ease;
+        }
+        .btn-link:hover {
+            opacity: 0.7;
+            text-decoration: underline;
+        }
+
+        /* === Status Badges === */
+        .badge-status, .badge-grade {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            font-size: var(--text-xs);
+            font-weight: 600;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+        .badge-active {
+            background: rgba(0,229,160,0.12);
+            color: var(--color-accent);
+        }
+        .badge-renewing {
+            background: rgba(255,140,66,0.12);
+            color: var(--color-warning);
+        }
+        .badge-lost {
+            background: rgba(255,71,87,0.12);
+            color: var(--color-danger);
+        }
+        .badge-potential {
+            background: rgba(77,166,255,0.12);
+            color: var(--color-info);
+        }
+        .badge-s {
+            background: rgba(255,217,61,0.15);
+            color: var(--brand-gold);
+        }
+        .badge-a {
+            background: rgba(0,229,160,0.12);
+            color: var(--color-accent);
+        }
+        .badge-b {
+            background: rgba(77,166,255,0.12);
+            color: var(--color-info);
+        }
+        .badge-c {
+            background: rgba(255,255,255,0.06);
+            color: var(--color-text-muted);
+        }
+
+        /* === Table Row Styles === */
+        .customer-row {
+            border-bottom: 1px solid var(--color-border);
+            transition: background-color 0.15s ease;
+        }
+        .customer-row:hover {
+            background: rgba(255,255,255,0.03);
+        }
+        .customer-row-alt {
+            background: rgba(255,255,255,0.015);
+        }
+        .customer-row-alt:hover {
+            background: rgba(255,255,255,0.04);
+        }
+
+        /* === Pagination Buttons === */
+        .page-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            padding: 0 8px;
+            font-size: var(--text-sm);
+            color: var(--color-text-secondary);
+            background: transparent;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .page-btn:hover {
+            color: var(--color-text-primary);
+            border-color: var(--color-border-hover);
+            background: rgba(255,255,255,0.04);
+        }
+        .page-btn-active {
+            color: var(--color-text-inverse);
+            background: var(--color-accent);
+            border-color: var(--color-accent);
+            font-weight: 600;
+        }
+        .page-btn-active:hover {
+            filter: brightness(1.1);
+        }
+        .page-btn-disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+        .page-btn-disabled:hover {
+            color: var(--color-text-secondary);
+            border-color: var(--color-border);
+            background: transparent;
+        }
+
+        /* === Form Fields === */
+        .form-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .form-label {
+            font-size: var(--text-sm);
+            color: var(--color-text-secondary);
+            font-weight: 500;
+        }
+        .form-required {
+            color: var(--color-danger);
+            font-weight: 600;
+        }
+        .form-input {
+            display: block;
+            width: 100%;
+            padding: 8px 12px;
+            font-size: var(--text-sm);
+            color: var(--color-text-primary);
+            background: var(--color-bg-input);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+            font-family: inherit;
+        }
+        .form-input::placeholder {
+            color: var(--color-text-muted);
+        }
+        .form-input:focus {
+            border-color: var(--color-accent);
+            box-shadow: 0 0 0 2px var(--color-accent-dim);
+        }
+        textarea.form-input {
+            min-height: 72px;
+            resize: vertical;
+        }
+        select.form-input {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23556677' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 30px;
+        }
+
+        /* === Responsive === */
+        @media (max-width: 1023px) {
+            .nav-tab { padding: 5px 10px; font-size: var(--text-xs); }
+        }
+        @media (max-width: 639px) {
+            .cockpit-card { padding: var(--space-md); }
+        }
+    </style>
+
+    <script>lucide.createIcons();</script>
+</body>
+</html>

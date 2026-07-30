@@ -1,0 +1,25 @@
+{
+  "data": [
+    {
+      "id": "page-dashboard",
+      "title": "资讯仪表板",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1753190400000,
+      "canvasData": {
+        "x": 0,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/dashboard.html",
+        "interactions": []
+      }
+    }
+  ],
+  "config": {
+    "autoLayout": true,
+    "deviceType": "desktop",
+    "projectName": "IT 热点资讯仪表板"
+  }
+}

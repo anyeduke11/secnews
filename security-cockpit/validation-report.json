@@ -1,0 +1,42 @@
+{
+  "success": true,
+  "skillProvenance": {
+    "name": "solo-design",
+    "version": null,
+    "version_source": "unknown",
+    "runtime_skill_dir": null,
+    "recorded_at": null,
+    "read_status": "missing",
+    "reason": "orchestration-summary.json missing skillProvenance"
+  },
+  "operatingMode": "free-explore",
+  "renderBlockingErrorCount": 0,
+  "softWarningCount": 7,
+  "renderBlockingErrors": [],
+  "softWarnings": [
+    "[orchestration-summary] orchestration-summary.json is missing. Canvas validation can still pass, but quality-context checks (operatingMode, visualNorthStar, compositionPattern, continuityAnchors, miniProgramStyle) are degraded.",
+    "[html-quality] colors_and_type.css: free-explore brand CSS must use one primary hue only; forbidden secondary/accent brand variables found (--brand-secondary, --brand-accent, --brand-accent-dim, --brand-accent-glow, --color-accent, --color-accent-dim). Use --state-success/warning/error/info only for semantic states.",
+    "[html-quality] colors_and_type.css: free-explore radius tokens must stay within the restrained 2/4/8/12/16px scale; oversized or forbidden radius tokens found (--radius-xl: 20px). Do not use 20px+ radii unless the user explicitly requested large rounded shapes.",
+    "[html-quality] colors_and_type.css: ordinary/static shadow tokens must keep every shadow alpha <= 0.05; deeper shadows are allowed only for floating-layer tokens such as modal/popover/dropdown/drawer/overlay (--shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3), --shadow-card-hover: 0 4px 24px rgba(0, 0, 0, 0.4), --shadow-glow-accent: 0 0 20px rgba(0, 229, 160, 0.12), --shadow-glow-info: 0 0 20px rgba(77, 166, 255, 0.12)).",
+    "[html-quality] cockpit.html: free-explore pages must not use secondary/accent brand variables. Use the single primary hue, neutral tints, or --state-success/warning/error/info for real semantic states.",
+    "[html-quality] customer-form.html: free-explore pages must not use secondary/accent brand variables. Use the single primary hue, neutral tints, or --state-success/warning/error/info for real semantic states.",
+    "[html-quality] opportunity-form.html: free-explore pages must not use secondary/accent brand variables. Use the single primary hue, neutral tints, or --state-success/warning/error/info for real semantic states."
+  ],
+  "repairPlanHints": [],
+  "errorCount": 0,
+  "warningCount": 7,
+  "errors": [],
+  "warnings": [
+    "[orchestration-summary] orchestration-summary.json is missing. Canvas validation can still pass, but quality-context checks (operatingMode, visualNorthStar, compositionPattern, continuityAnchors, miniProgramStyle) are degraded.",
+    "[html-quality] colors_and_type.css: free-explore brand CSS must use one primary hue only; forbidden secondary/accent brand variables found (--brand-secondary, --brand-accent, --brand-accent-dim, --brand-accent-glow, --color-accent, --color-accent-dim). Use --state-success/warning/error/info only for semantic states.",
+    "[html-quality] colors_and_type.css: free-explore radius tokens must stay within the restrained 2/4/8/12/16px scale; oversized or forbidden radius tokens found (--radius-xl: 20px). Do not use 20px+ radii unless the user explicitly requested large rounded shapes.",
+    "[html-quality] colors_and_type.css: ordinary/static shadow tokens must keep every shadow alpha <= 0.05; deeper shadows are allowed only for floating-layer tokens such as modal/popover/dropdown/drawer/overlay (--shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3), --shadow-card-hover: 0 4px 24px rgba(0, 0, 0, 0.4), --shadow-glow-accent: 0 0 20px rgba(0, 229, 160, 0.12), --shadow-glow-info: 0 0 20px rgba(77, 166, 255, 0.12)).",
+    "[html-quality] cockpit.html: free-explore pages must not use secondary/accent brand variables. Use the single primary hue, neutral tints, or --state-success/warning/error/info for real semantic states.",
+    "[html-quality] customer-form.html: free-explore pages must not use secondary/accent brand variables. Use the single primary hue, neutral tints, or --state-success/warning/error/info for real semantic states.",
+    "[html-quality] opportunity-form.html: free-explore pages must not use secondary/accent brand variables. Use the single primary hue, neutral tints, or --state-success/warning/error/info for real semantic states."
+  ],
+  "designDir": "/Users/duke/Documents/hotspot/security-cockpit",
+  "expectedPages": 3,
+  "requireInteractions": "nav-tab-customer:pages/cockpit.html,nav-tab-opportunity:pages/cockpit.html,nav-tab-cockpit:pages/customer-form.html,nav-tab-opportunity:pages/customer-form.html,nav-tab-cockpit:pages/opportunity-form.html,nav-tab-customer:pages/opportunity-form.html",
+  "checkedAt": "2026-07-23T15:05:10.073Z"
+}

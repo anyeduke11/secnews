@@ -32,7 +32,7 @@ export function CodegardenPage({ onBack }: CodegardenPageProps) {
   return (
     <div className="codegarden-page">
       {/* 顶部标题区 */}
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -46,22 +46,32 @@ export function CodegardenPage({ onBack }: CodegardenPageProps) {
             </Icon>
             返回首页
           </button>
-          <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
-            🌱 CodeGarden
+          <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <path d="M12 22v-5" />
+              <path d="M9 8c0 3 1.5 5 3 7 1.5-2 3-4 3-7a3 3 0 0 0-6 0z" />
+              <path d="M12 17c-3 0-5-2-5-5 0-3 2-5 5-5" />
+            </Icon>
+            CodeGarden
           </h2>
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <span className="hidden sm:inline text-xs" style={{ color: 'var(--text-muted)' }}>
             vibecoding 工作台 + 二开项目管理
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>共 {total} 项</span>
           <button
             onClick={() => navigate('/codegarden/phase2b')}
-            className="btn-ghost px-3 py-1.5 text-xs"
+            className="btn-ghost px-3 py-1.5 text-xs flex items-center gap-1"
             title="Service Mesh / Resource Hub / Orchestration Engine"
             style={{ color: 'var(--color-ai)', border: '1px solid var(--color-ai)' }}
           >
-            🌐 Phase 2b
+            <Icon size={12}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="2" y1="12" x2="22" y2="12" />
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            </Icon>
+            Phase 2b
           </button>
           <button
             onClick={() => setKnowledgeOpen(true)}

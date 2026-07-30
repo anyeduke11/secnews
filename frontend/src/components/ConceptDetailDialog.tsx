@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { ConceptDetail } from '../types';
+import { Icon } from './Icon';
 
 interface ConceptDetailDialogProps {
   slug: string | null;
@@ -51,10 +52,8 @@ export function ConceptDetailDialog({ slug, onClose, onSelectItem }: ConceptDeta
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="rounded-[var(--radius-md)] p-4"
+        className="tech-modal p-4"
         style={{
-          backgroundColor: 'var(--bg-elevated)',
-          border: '1px solid var(--border-color)',
           width: '640px',
           maxWidth: '90vw',
           maxHeight: '80vh',
@@ -63,15 +62,22 @@ export function ConceptDetailDialog({ slug, onClose, onSelectItem }: ConceptDeta
       >
         {/* 顶部标题 */}
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-            💡 概念详情
+          <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+            </Icon>
+            概念详情
           </h3>
           <button
             onClick={onClose}
             className="btn-ghost px-2 py-0.5 text-xs"
             aria-label="关闭"
           >
-            ✕
+            <Icon size={14}>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </Icon>
           </button>
         </div>
 

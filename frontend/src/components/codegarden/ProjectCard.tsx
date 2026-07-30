@@ -64,7 +64,7 @@ export function ProjectCard({ project, onClick, onTransition }: ProjectCardProps
         </span>
         {project.source_type === 'fork' && behind > 0 && (
           <span
-            className="text-[9px] px-1.5 py-0.5 rounded font-mono"
+            className="text-[9px] px-1.5 py-0.5 rounded font-mono tabular-nums"
             style={{ backgroundColor: 'var(--color-error)20', color: 'var(--color-error)' }}
             title={`落后上游 ${behind} commits`}
           >
@@ -72,7 +72,7 @@ export function ProjectCard({ project, onClick, onTransition }: ProjectCardProps
           </span>
         )}
         {project.health_score > 0 && (
-          <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>
+          <span className="text-[9px] font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
             ❤ {project.health_score}
           </span>
         )}

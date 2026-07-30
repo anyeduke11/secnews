@@ -5,6 +5,7 @@
  * props-only: 接收 result 列表 + onClose 回调, 渲染每条依赖 + depth 标记。
  */
 import { CgDependency } from '../../../types/codegarden';
+import { Icon } from '../../Icon';
 import { ImpactResultDialogProps, DEP_TYPE_COLORS, DEP_TYPE_LABELS } from './types';
 
 export function ImpactResultDialog({ result, onClose }: ImpactResultDialogProps) {
@@ -15,19 +16,25 @@ export function ImpactResultDialog({ result, onClose }: ImpactResultDialogProps)
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md max-h-[80vh] overflow-y-auto rounded-[var(--radius-md)] p-3"
-        style={{
-          backgroundColor: 'var(--bg-elevated)',
-          border: '1px solid var(--border-color)',
-        }}
+        className="tech-modal w-full max-w-md max-h-[80vh] overflow-y-auto p-3"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+          <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="22" y1="12" x2="18" y2="12" />
+              <line x1="6" y1="12" x2="2" y2="12" />
+              <line x1="12" y1="6" x2="12" y2="2" />
+              <line x1="12" y1="22" x2="12" y2="18" />
+            </Icon>
             影响分析结果 ({result.length})
-          </span>
-          <button onClick={onClose} className="btn-ghost px-2 py-1 text-[11px]">
-            ✕
+          </h3>
+          <button onClick={onClose} className="btn-ghost px-2 py-1 text-[11px]" aria-label="关闭">
+            <Icon size={14}>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </Icon>
           </button>
         </div>
         {result.length === 0 ? (

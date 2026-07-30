@@ -1,7 +1,7 @@
 // frontend/src/components/codegarden/ResourceHub.test.tsx
 // Phase 2b Task H2 — ResourceHub 组件测试（含 PortPool）
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { ResourceHub } from './resource-hub';
 import { CgResource } from '../../types/codegarden';
 
@@ -61,6 +61,13 @@ describe('ResourceHub', () => {
   it('renders 4 tabs (端口/域名/环境模板/卷)', async () => {
     vi.stubGlobal('fetch', mockFetchFor([]));
     render(<ResourceHub />);
+    // 等待初始 mount 的异步 fetch 完成,避免 act 警告
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/codegarden/resources'),
+        expect.anything()
+      );
+    });
     expect(screen.getByText('端口')).toBeInTheDocument();
     expect(screen.getByText('域名')).toBeInTheDocument();
     expect(screen.getByText('环境模板')).toBeInTheDocument();
@@ -99,12 +106,17 @@ describe('ResourceHub', () => {
   it('renders domain cards when switched to domain tab', async () => {
     vi.stubGlobal('fetch', mockFetchFor([domain]));
     const { container } = render(<ResourceHub />);
+    // 等待初始 mount 的 fetch 完成（以总数徽章判断）
     await waitFor(() => {
-      expect(screen.getByText('8000-8019')).toBeInTheDocument();
+      expect(screen.getByText(/共 1/)).toBeInTheDocument();
     });
-    // 切到 domain tab
+    expect(screen.getByText('8000-8019')).toBeInTheDocument();
+    // 切到 domain tab (触发 250ms 防抖 fetch)
     const domainTab = screen.getByText('域名');
-    (domainTab as HTMLElement).click();
+    await act(async () => {
+      (domainTab as HTMLElement).click();
+      await vi.runAllTimersAsync();
+    });
     await waitFor(() => {
       expect(screen.getByText('api.test.local')).toBeInTheDocument();
     });

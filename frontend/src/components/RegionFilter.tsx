@@ -46,12 +46,7 @@ export function RegionFilter({ value, onChange }: RegionFilterProps) {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="text-xs px-2 py-1 rounded"
-        style={{
-          backgroundColor: 'var(--surface-2)',
-          color: 'var(--text-primary)',
-          border: '1px solid var(--border-color)',
-        }}
+        className="tech-select text-xs px-2 py-1"
       >
         <option value="">全部地区</option>
         {regions.map((r) => (

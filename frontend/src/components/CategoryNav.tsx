@@ -9,7 +9,6 @@ interface CategoryNavProps {
 }
 
 export function CategoryNav({ active, onChange, counts, consistencyDrift = [] }: CategoryNavProps) {
-  // Build a map for O(1) lookup
   const driftMap: Record<string, ConsistencyDrift> = {};
   for (const d of consistencyDrift) driftMap[d.category] = d;
 
@@ -27,61 +26,35 @@ export function CategoryNav({ active, onChange, counts, consistencyDrift = [] }:
           <button
             key={cat.id}
             onClick={() => onChange(cat.id)}
-            className="focus-ring"
+            className={`cat-pill focus-ring ${isActive ? 'active' : ''}`}
             style={{
-              padding: '7px 14px',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '13px',
-              fontWeight: isActive ? 600 : 500,
-              backgroundColor: isActive ? `${color}14` : 'transparent',
-              border: `1px solid ${isActive ? `${color}50` : 'var(--border-color)'}`,
-              color: isActive ? color : 'var(--text-secondary)',
-              transition: 'all 0.15s ease',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive) {
-                e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
-                e.currentTarget.style.color = 'var(--text-primary)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive) {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = 'var(--text-secondary)';
-              }
+              color: isActive ? color : undefined,
+              borderColor: isActive ? `${color}50` : undefined,
             }}
           >
             <span className="flex items-center gap-1.5">
               <span
                 className="dot-indicator"
-                style={{ backgroundColor: color }}
+                style={{ backgroundColor: color, width: 6, height: 6 }}
               />
               {cat.label}
               {count > 0 && (
                 <span
-                  className="text-[11px] font-mono font-medium px-1.5 py-px rounded-full tabular-nums"
+                  className="text-[10px] font-mono font-medium px-1.5 py-px rounded-full tabular-nums"
                   style={{
-                    backgroundColor: isActive ? `${color}20` : 'var(--bg-hover)',
+                    backgroundColor: isActive ? `${color}18` : 'var(--bg-hover)',
                     color: isActive ? color : 'var(--text-muted)',
                   }}
                 >
                   {count}
                 </span>
               )}
-              {/* Phase 6: 一致性警告角标 */}
               {drift && (
                 <span
-                  className="text-[11px] px-1 py-px rounded-full"
-                  title={`数据不一致：缓存显示 ${drift.cached} 条，DB 实际 ${drift.db} 条${drift.note ? `（${drift.note}）` : ''}`}
-                  style={{
-                    backgroundColor: 'color-mix(in srgb, var(--color-error) 15%, transparent)',
-                    color: 'var(--color-error)',
-                    border: '1px solid color-mix(in srgb, var(--color-error) 30%, transparent)',
-                    marginLeft: 2,
-                  }}
+                  className="status-icon error"
+                  title={`数据不一致：缓存 ${drift.cached} 条，DB ${drift.db} 条${drift.note ? `（${drift.note}）` : ''}`}
                 >
-                  ⚠️
+                  !
                 </span>
               )}
             </span>

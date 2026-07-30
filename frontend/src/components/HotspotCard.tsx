@@ -1,8 +1,3 @@
-/**
- * HotspotCard — 单条热点卡片。
- *
- * Phase 2: 全部走 token 系统, 状态色用 --color-* 而非硬编码 #xxx。
- */
 import React from 'react';
 import {
   HotspotItem,
@@ -22,7 +17,7 @@ interface HotspotCardProps {
 
 export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite }: HotspotCardProps) {
   const color = getCategoryColor(item.category);
-  const qColor = getQualityColor(item.quality_score);
+  const delayClass = `delay-${Math.min(index + 1, 10)}`;
 
   const handleStarClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -30,167 +25,91 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
     onToggleFavorite?.(item);
   };
 
+  const hasQualityNote = item.quality_flags?.includes('title_replaced');
+  const isVerified = item.url_check_status === 'verified' && !hasQualityNote;
+
   return (
     <article
-      className={`
-        block p-4 card-base card-glow-hover animate-fade-in opacity-0 relative
-        delay-${Math.min(index + 1, 10)}
-        corner-brackets
-      `}
-      style={{
-        animationFillMode: 'forwards',
-        borderTop: `2px solid ${color}80`,
-        ['--brackets-color' as any]: color,
-        ['--card-accent' as any]: color,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = `${color}80`;
-        e.currentTarget.style.boxShadow = `0 8px 24px ${color}20, 0 0 0 1px ${color}30`;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = '';
-        e.currentTarget.style.boxShadow = '';
-      }}
-      title={
-        item.quality_score != null
-          ? `quality_score: ${item.quality_score}` +
-            (item.quality_flags?.length
-              ? `, flags: ${item.quality_flags.join(', ')}`
-              : '')
-          : undefined
-      }
+      className={`editorial-card animate-fade-in-up ${delayClass} flex flex-col h-full`}
     >
-      {/* 收藏按钮 — 卡片右上角,absolute 定位避免占布局空间 */}
-      <button
-        type="button"
-        onClick={handleStarClick}
-        className="absolute top-2 right-2 p-1 rounded transition-all duration-150 hover:scale-110 z-10"
-        style={{
-          backgroundColor: isFavorited ? 'var(--color-finance)' : 'transparent',
-          color: isFavorited ? 'var(--bg-primary)' : 'var(--text-muted)',
-          border: `1px solid ${isFavorited ? 'var(--color-finance)' : 'var(--border-color)'}`,
-        }}
-        title={isFavorited ? '取消收藏' : '收藏'}
-        aria-label={isFavorited ? '取消收藏' : '收藏'}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill={isFavorited ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-        </svg>
-      </button>
+      <div className="flex items-start justify-between gap-2 px-3.5 pt-3 pb-2">
+        <span
+          className="editorial-badge"
+          style={{ backgroundColor: `${color}15`, color }}
+        >
+          {getCategoryLabel(item.category)}
+        </span>
+        <span className="text-[11px] shrink-0 font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
+          {formatRelativeTime(item.published_at)}
+        </span>
+      </div>
 
-      {/* Top: badge + quality dot + bid_status + time */}
-      <div className="flex items-center justify-between gap-2 mb-2.5 pr-8">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span
-            className="badge"
-            style={{
-              backgroundColor: `${color}14`,
-              color: color,
-            }}
+      <div className="px-3.5 pb-2 flex-1">
+        <h3 className="text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline decoration-from-font"
+            style={{ textDecorationColor: `${color}50`, textUnderlineOffset: '2px' }}
           >
-            {getCategoryLabel(item.category)}
-          </span>
-          {/* 标讯状态标签 (仅 category=bid 显示) */}
+            {item.title}
+          </a>
+        </h3>
+        {item.summary && (
+          <p className="text-xs leading-relaxed mt-1.5 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
+            {item.summary}
+          </p>
+        )}
+      </div>
+
+      <div className="px-3.5 pb-3 flex items-center justify-between gap-2" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 8 }}>
+        <div className="flex flex-wrap items-center gap-1.5">
           {item.category === 'bid' && item.bid_status && item.bid_status !== '其他' && (
             <span
-              className="badge"
+              className="editorial-badge"
               style={{
-                backgroundColor: `${getBidStatusColor(item.bid_status)}1A`,
+                backgroundColor: `${getBidStatusColor(item.bid_status)}15`,
                 color: getBidStatusColor(item.bid_status),
-                border: `1px solid ${getBidStatusColor(item.bid_status)}40`,
               }}
             >
               {item.bid_status}
             </span>
           )}
-          {item.quality_score != null && (
-            <span
-              className="inline-block w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: qColor }}
-              aria-label={`quality ${item.quality_score}`}
-            />
-          )}
-          {/* 标题被替换 (title_replaced) 角标 */}
-          {item.quality_flags?.includes('title_replaced') && (
-            <span
-              className="badge"
-              style={{
-                backgroundColor: 'color-mix(in srgb, var(--color-warning) 10%, transparent)',
-                color: 'var(--color-warning)',
-                border: '1px solid color-mix(in srgb, var(--color-warning) 25%, transparent)',
-              }}
-              title="同 URL 存在多条记录, 详情页 <title> 验证后以另一条标题为准; 本条 title 为旧/抓取摘要"
-            >
-              ⚠ 标题已替换
+
+          {hasQualityNote && (
+            <span className="status-icon warning" title="同 URL 存在多条记录, 详情页 <title> 验证后以另一条标题为准">
+              !
             </span>
           )}
-          {/* 详情页 <title> 验证 (url_check_status=verified) */}
-          {item.url_check_status === 'verified' && !item.quality_flags?.includes('title_replaced') && (
-            <span
-              className="badge"
-              style={{
-                backgroundColor: 'color-mix(in srgb, var(--color-success) 10%, transparent)',
-                color: 'var(--color-success)',
-                border: '1px solid color-mix(in srgb, var(--color-success) 25%, transparent)',
-              }}
-              title="已与详情页 <title> 验证一致"
-            >
-              ✓ 标题已验证
+
+          {isVerified && (
+            <span className="status-icon success" title="URL 已验证">
+              <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </span>
+          )}
+
+          {item.source && (
+            <span className="text-[10px] font-mono truncate max-w-[100px]" style={{ color: 'var(--text-muted)' }}>
+              {item.source}
             </span>
           )}
         </div>
 
-        <span className="text-[10px] shrink-0" style={{ color: 'var(--text-muted)' }}>
-          {formatRelativeTime(item.published_at)}
-        </span>
-      </div>
-
-      {/* Title — 用 a 包裹标题,点击跳转原文 */}
-      <h3
-        className="text-sm font-semibold leading-snug mb-2 line-clamp-2"
-        style={{ color: 'var(--text-primary)' }}
-      >
-        <a
-          href={item.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:underline"
-          onClick={e => e.stopPropagation()}
+        <button
+          onClick={handleStarClick}
+          className="shrink-0 p-0.5 rounded-sm transition-colors focus-ring"
+          style={{ color: isFavorited ? 'var(--color-finance)' : 'var(--text-disabled)' }}
+          title={isFavorited ? '取消收藏' : '收藏'}
+          aria-label={isFavorited ? '取消收藏' : '收藏'}
         >
-          {item.title}
-        </a>
-      </h3>
-
-      {/* Summary */}
-      {item.summary && (
-        <p className="text-xs leading-normal line-clamp-2 mb-2.5" style={{ color: 'var(--text-secondary)' }}>
-          {item.summary}
-        </p>
-      )}
-
-      {/* Bottom: source + action — 整行也是 a 包裹 */}
-      <a
-        href={item.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center justify-between text-xs pt-2 no-underline"
-        style={{ borderTop: '1px solid var(--border-subtle)', color: 'inherit' }}
-        onClick={e => e.stopPropagation()}
-      >
-        <span className="truncate max-w-[60%] text-xs" style={{ color: 'var(--text-muted)' }}>
-          {item.source}
-        </span>
-        <span
-          className="shrink-0 ml-2 text-xs font-semibold transition-colors duration-150"
-          style={{ color: color }}
-        >
-          查看原文
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block ml-0.5" style={{ verticalAlign: '-2px' }}>
-            <line x1="5" y1="12" x2="19" y2="12" />
-            <polyline points="12 5 19 12 12 19" />
+          <svg width="13" height="13" viewBox="0 0 24 24" fill={isFavorited ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
-        </span>
-      </a>
+        </button>
+      </div>
     </article>
   );
 }

@@ -17,16 +17,6 @@ import { Icon } from '../Icon';
 // ---------------------------------------------------------------------------
 // 样式 (与现有 dialog 对齐: GitHubImportDialog / FromKnowledgeDialog)
 // ---------------------------------------------------------------------------
-const inputStyle: CSSProperties = {
-  backgroundColor: 'var(--bg-hover)',
-  border: '1px solid var(--border-color)',
-  color: 'var(--text-primary)',
-  borderRadius: 'var(--radius-sm)',
-  padding: '4px 8px',
-  fontSize: '12px',
-  width: '100%',
-};
-
 const labelStyle: CSSProperties = {
   color: 'var(--text-muted)',
   fontSize: '10px',
@@ -271,16 +261,25 @@ export function BatchImportDialog({
       onClick={handleClose}
     >
       <div
-        className="w-full max-w-4xl rounded-[var(--radius-md)] p-4 max-h-[90vh] flex flex-col"
-        style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
+        className="tech-modal w-full max-w-4xl p-4 max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 标题 */}
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+          <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </Icon>
             批量导入项目
           </h3>
-          <button onClick={handleClose} className="btn-ghost px-2 py-1 text-xs">✕</button>
+          <button onClick={handleClose} className="btn-ghost px-2 py-1 text-xs" aria-label="关闭">
+            <Icon size={14}>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </Icon>
+          </button>
         </div>
 
         {/* 路径源选择 — 3 tabs */}
@@ -303,7 +302,7 @@ export function BatchImportDialog({
             <div>
               <label style={labelStyle}>本地绝对路径 *</label>
               <input
-                style={inputStyle}
+                className="tech-input px-2 py-1 text-xs w-full"
                 placeholder="/Users/you/code 或 /Users/you/projects/repo-root"
                 value={localPath}
                 onChange={(e) => setLocalPath(e.target.value)}
@@ -318,7 +317,7 @@ export function BatchImportDialog({
             <div>
               <label style={labelStyle}>Git 仓库 URL *</label>
               <input
-                style={inputStyle}
+                className="tech-input px-2 py-1 text-xs w-full"
                 placeholder="https://github.com/owner/repo[.git]"
                 value={gitUrl}
                 onChange={(e) => setGitUrl(e.target.value)}
@@ -352,7 +351,7 @@ export function BatchImportDialog({
         <div className="grid grid-cols-3 gap-2 mb-3">
           <div>
             <label style={labelStyle}>Source Type</label>
-            <select style={inputStyle} value={sourceType} onChange={(e) => setSourceType(e.target.value as ProjectSourceType)}>
+            <select className="tech-select px-2 py-1 text-xs w-full" value={sourceType} onChange={(e) => setSourceType(e.target.value as ProjectSourceType)}>
               <option value="vibe">vibe</option>
               <option value="fork">fork</option>
               <option value="imported">imported</option>
@@ -361,7 +360,7 @@ export function BatchImportDialog({
           </div>
           <div>
             <label style={labelStyle}>Default Lifecycle</label>
-            <select style={inputStyle} value={defaultLifecycle} onChange={(e) => setDefaultLifecycle(e.target.value as LifecycleStage)}>
+            <select className="tech-select px-2 py-1 text-xs w-full" value={defaultLifecycle} onChange={(e) => setDefaultLifecycle(e.target.value as LifecycleStage)}>
               <option value="ideation">ideation</option>
               <option value="prototype">prototype</option>
               <option value="development">development</option>
@@ -583,13 +582,15 @@ function BatchImportRow({ detected, state, onChange }: BatchImportRowProps) {
         <td style={{ padding: '6px 4px' }}>
           <div className="flex gap-1 items-center">
             <input
-              style={{ ...inputStyle, width: 100 }}
+              className="tech-input px-2 py-1 text-xs"
+              style={{ width: 100 }}
               placeholder="name"
               value={state.override_name}
               onChange={(e) => onChange({ override_name: e.target.value })}
             />
             <select
-              style={{ ...inputStyle, width: 110 }}
+              className="tech-select px-2 py-1 text-xs"
+              style={{ width: 110 }}
               value={state.override_type}
               onChange={(e) => onChange({ override_type: e.target.value as ProjectType })}
             >
@@ -613,7 +614,8 @@ function BatchImportRow({ detected, state, onChange }: BatchImportRowProps) {
               <div className="flex gap-1 items-center">
                 <label style={{ ...labelStyle, marginBottom: 0, minWidth: 60 }}>lifecycle</label>
                 <select
-                  style={{ ...inputStyle, width: 130 }}
+                  className="tech-select px-2 py-1 text-xs"
+                  style={{ width: 130 }}
                   value={state.override_lifecycle}
                   onChange={(e) => onChange({ override_lifecycle: e.target.value as LifecycleStage })}
                 >
@@ -626,13 +628,13 @@ function BatchImportRow({ detected, state, onChange }: BatchImportRowProps) {
                 </select>
               </div>
               <input
-                style={{ ...inputStyle, fontSize: '10px' }}
+                className="tech-input px-2 py-1 text-xs w-full"
                 placeholder="tags (逗号分隔, 覆盖默认)"
                 value={state.override_tags}
                 onChange={(e) => onChange({ override_tags: e.target.value })}
               />
               <input
-                style={{ ...inputStyle, fontSize: '10px' }}
+                className="tech-input px-2 py-1 text-xs w-full"
                 placeholder="description 覆盖"
                 value={state.override_description}
                 onChange={(e) => onChange({ override_description: e.target.value })}

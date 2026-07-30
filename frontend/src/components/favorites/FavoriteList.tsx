@@ -7,6 +7,7 @@
 import React from 'react';
 import { FavoriteItem as FavoriteItemType } from '../../types';
 import { FavoriteItem } from './FavoriteItem';
+import { Icon } from '../Icon';
 
 interface TodoPayload {
   important: boolean;
@@ -42,10 +43,10 @@ export function FavoriteList({
     return (
       <div className="flex-1 overflow-y-auto">
         <div className="px-4 py-12 text-center">
-          <div className="mb-2 flex justify-center">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.4 }}>
+          <div className="mb-2 flex justify-center" style={{ opacity: 0.4 }}>
+            <Icon size={32}>
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
+            </Icon>
           </div>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>暂无收藏</p>
           <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>

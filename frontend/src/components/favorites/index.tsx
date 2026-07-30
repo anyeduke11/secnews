@@ -14,6 +14,7 @@ import {
 import { useTodos } from '../../hooks/useTodos';
 import { FavoriteToolbar } from './FavoriteToolbar';
 import { FavoriteList } from './FavoriteList';
+import { Icon } from '../Icon';
 
 interface FavoritesPanelProps {
   open: boolean;
@@ -158,8 +159,7 @@ export function FavoritesPanel({
 
       {/* 右侧抽屉 */}
       <div
-        className="fixed top-0 right-0 h-full w-full max-w-md z-50 flex flex-col shadow-2xl"
-        style={{ backgroundColor: 'var(--bg-primary)', borderLeft: '1px solid var(--border-color)' }}
+        className="tech-drawer fixed top-0 right-0 h-full w-full max-w-md z-50 flex flex-col"
       >
         {/* 标题栏 */}
         <div
@@ -167,10 +167,12 @@ export function FavoritesPanel({
           style={{ borderBottom: '1px solid var(--border-color)' }}
         >
           <div className="flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--color-warning)" stroke="var(--color-warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-            <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <span style={{ color: 'var(--color-warning)', display: 'inline-flex' }}>
+              <Icon size={18}>
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </Icon>
+            </span>
+            <h2 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
               收藏
             </h2>
             <span
@@ -186,10 +188,10 @@ export function FavoritesPanel({
             title="关闭"
             aria-label="关闭"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Icon size={14}>
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            </Icon>
           </button>
         </div>
 

@@ -45,10 +45,11 @@ export function SyncConfigForm({
 
   return (
     <div
-      className="rounded-lg p-4 mb-3"
+      className="rounded-[var(--radius-md)] p-4 mb-3"
       style={{
-        background: 'var(--surface-1)',
-        border: '1px solid var(--border-subtle)',
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-color)',
+        boxShadow: 'var(--shadow-card)',
       }}
     >
       <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>

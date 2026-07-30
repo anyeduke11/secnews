@@ -22,7 +22,7 @@ export function ResourceCard({ resource, onRemove }: ResourceCardProps) {
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div
-            className="text-xs font-semibold truncate font-mono"
+            className="text-xs font-semibold truncate font-mono tabular-nums"
             style={{ color: 'var(--text-primary)' }}
             title={resource.value}
           >
@@ -50,7 +50,7 @@ export function ResourceCard({ resource, onRemove }: ResourceCardProps) {
         </div>
       )}
       {resource.reserved_until && (
-        <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-[10px] font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
           预留至: {resource.reserved_until.slice(0, 19)}
         </div>
       )}

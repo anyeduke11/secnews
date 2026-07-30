@@ -1,0 +1,89 @@
+/* Brand CSS — Security Service Cockpit */
+:root {
+  /* === Core Palette === */
+  --brand-primary: #0A1628;
+  --brand-primary-light: #0F2140;
+  --brand-secondary: #0D1F3C;
+  --brand-accent: #00E5A0;
+  --brand-accent-dim: rgba(0, 229, 160, 0.15);
+  --brand-accent-glow: rgba(0, 229, 160, 0.35);
+  --brand-warning: #FF8C42;
+  --brand-danger: #FF4757;
+  --brand-info: #4DA6FF;
+  --brand-gold: #FFD93D;
+
+  /* === Semantic Aliases === */
+  /* Semantic aliases required by fill-html-head */
+  --brand-background: var(--brand-primary);
+  --brand-foreground: #F0F4F8;
+  --brand-card: #0F2140;
+  --brand-muted: #556677;
+  --brand-radius-sm: 6px;
+  --brand-radius-md: 10px;
+  --brand-radius-lg: 16px;
+  --brand-accent: var(--color-accent);
+  --brand-border: rgba(255, 255, 255, 0.08);
+
+  --color-bg-primary: var(--brand-primary);
+  --color-bg-secondary: var(--brand-secondary);
+  --color-bg-tertiary: #132B50;
+  --color-bg-card: #0F2140;
+  --color-bg-card-hover: #162D56;
+  --color-bg-input: rgba(255, 255, 255, 0.04);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(255, 255, 255, 0.16);
+
+  --color-text-primary: #F0F4F8;
+  --color-text-secondary: #8899AA;
+  --color-text-muted: #556677;
+  --color-text-inverse: #0A1628;
+
+  --color-accent: #00E5A0;
+  --color-accent-dim: rgba(0, 229, 160, 0.15);
+  --color-warning: var(--brand-warning);
+  --color-danger: var(--brand-danger);
+  --color-info: var(--brand-info);
+  --color-success: #00E5A0;
+
+  /* === Typography === */
+  --font-display: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-body: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.5rem;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+
+  /* === Spacing === */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  /* === Layout === */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* === Shadows === */
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-glow-accent: 0 0 20px rgba(0, 229, 160, 0.12);
+  --shadow-glow-info: 0 0 20px rgba(77, 166, 255, 0.12);
+
+  /* === Grid === */
+  --grid-columns: 12;
+  --gutter: var(--space-lg);
+  --max-width: 1440px;
+}

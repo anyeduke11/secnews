@@ -18,8 +18,10 @@ interface CatchupRun {
   started_at: string;
   finished_at: string | null;
   items_ingested: number;
+  items_skipped: number;
   sources_attempted: number;
   sources_succeeded: number;
+  sources_skipped: number;  // P0-3: 24h 续传跳过的源数
   error_msg: string | null;
   duration_s: number;
   categories: string[];
@@ -111,15 +113,25 @@ export function CatchupButton() {
     };
   }, [status?.current_running, fetchStatus, flashToast]);
 
-  // Mount: fetch status once
+  // Mount: fetch status once + re-fetch when tab becomes visible
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const refresh = async () => {
       const s = await fetchStatus();
       if (!cancelled) setStatus(s);
-    })();
+    };
+    refresh();
+    // tab 切回前台时重新拉 — 防止 long-lived tab 因 polling 偶发失败
+    // 导致 local state 卡在旧的 current_running={...}
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', refresh);
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', refresh);
       if (pollTimerRef.current != null) {
         window.clearInterval(pollTimerRef.current);
         pollTimerRef.current = null;
@@ -205,7 +217,7 @@ export function CatchupButton() {
         onClick={handleTrigger}
         disabled={busy || running != null}
         data-testid="catchup-trigger"
-        className="btn-ghost px-3 py-1.5 text-xs"
+        className="btn-ghost px-3 py-1.5 text-xs whitespace-nowrap"
         style={{
           color: 'var(--color-ai)',
           opacity: busy || running != null ? 0.5 : 1,
@@ -223,7 +235,7 @@ export function CatchupButton() {
           onClick={handleAbort}
           disabled={busy}
           data-testid="catchup-abort"
-          className="btn-ghost px-2 py-1 text-[10px]"
+          className="btn-ghost px-2 py-1 text-[10px] whitespace-nowrap"
           style={{
             color: 'var(--color-error)',
             opacity: busy ? 0.5 : 1,
@@ -253,11 +265,44 @@ export function CatchupButton() {
       {running && (
         <span
           data-testid="catchup-progress"
-          className="text-[10px]"
-          style={{ color: 'var(--text-muted)' }}
+          className="text-[11px] whitespace-nowrap"
+          style={{
+            color: 'var(--text-muted)',
+            fontFamily:
+              '-apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "Source Han Sans SC", "Noto Sans CJK SC", sans-serif',
+          }}
         >
-          run #{running.id}: {running.sources_succeeded}/{running.sources_attempted} 源
-          {running.items_ingested > 0 && `, ${running.items_ingested} 条`}
+          <span
+            aria-hidden
+            className="inline-block animate-pulse mr-0.5"
+            style={{ color: 'var(--color-ai)' }}
+          >
+            ⏳
+          </span>
+          run #{running.id}:
+          <span
+            style={{
+              color:
+                running.sources_succeeded > 0
+                  ? 'var(--color-ai)'
+                  : 'var(--text-muted)',
+              fontVariantNumeric: 'tabular-nums',
+              fontWeight: running.sources_succeeded > 0 ? 600 : 400,
+              marginLeft: 2,
+            }}
+          >
+            {running.sources_succeeded}/{running.sources_attempted} 源
+          </span>
+          {running.sources_skipped > 0 && (
+            <span style={{ opacity: 0.55, marginLeft: 4 }}>
+              · 跳{running.sources_skipped}
+            </span>
+          )}
+          {running.items_ingested > 0 && (
+            <span style={{ opacity: 0.55, marginLeft: 4 }}>
+              · {running.items_ingested} 条
+            </span>
+          )}
         </span>
       )}
     </div>

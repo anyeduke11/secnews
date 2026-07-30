@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { TaskSubmitParams } from '../types';
+import { Icon } from './Icon';
 
 interface TaskSubmitDialogProps {
   open: boolean;
@@ -10,16 +11,6 @@ interface TaskSubmitDialogProps {
 type TaskType = 'compile' | 'learn' | 'soul' | 'publish';
 
 const TASK_TYPES: TaskType[] = ['compile', 'learn', 'soul', 'publish'];
-
-const inputStyle: React.CSSProperties = {
-  backgroundColor: 'var(--bg-hover)',
-  border: '1px solid var(--border-color)',
-  color: 'var(--text-primary)',
-  borderRadius: 'var(--radius-sm)',
-  padding: '4px 8px',
-  fontSize: '12px',
-  width: '100%',
-};
 
 const labelStyle: React.CSSProperties = {
   color: 'var(--text-muted)',
@@ -122,25 +113,33 @@ export function TaskSubmitDialog({ open, onClose, onSubmitted }: TaskSubmitDialo
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="rounded-[var(--radius-md)] p-4"
+        className="tech-modal p-4"
         style={{
-          backgroundColor: 'var(--bg-elevated)',
-          border: '1px solid var(--border-color)',
           width: '420px',
           maxWidth: '90vw',
+          maxHeight: '80vh',
+          overflowY: 'auto',
         }}
       >
         {/* 顶部 */}
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-            📝 提交任务
+          <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+              <path d="M9 14l2 2 4-4" />
+            </Icon>
+            提交任务
           </h3>
           <button
             onClick={onClose}
             className="btn-ghost px-2 py-0.5 text-xs"
             aria-label="关闭"
           >
-            ✕
+            <Icon size={14}>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </Icon>
           </button>
         </div>
 
@@ -148,7 +147,7 @@ export function TaskSubmitDialog({ open, onClose, onSubmitted }: TaskSubmitDialo
         <div className="mb-3">
           <label style={labelStyle}>task_type</label>
           <select
-            style={inputStyle}
+            className="tech-select px-2 py-1 text-xs w-full"
             value={taskType}
             onChange={e => setTaskType(e.target.value as TaskType)}
           >
@@ -162,7 +161,7 @@ export function TaskSubmitDialog({ open, onClose, onSubmitted }: TaskSubmitDialo
             <label style={labelStyle}>item_ids (逗号分隔，可选)</label>
             <input
               type="text"
-              style={inputStyle}
+              className="tech-input px-2 py-1 text-xs w-full"
               value={compileItemIds}
               onChange={e => setCompileItemIds(e.target.value)}
               placeholder="id1, id2, ..."
@@ -175,7 +174,7 @@ export function TaskSubmitDialog({ open, onClose, onSubmitted }: TaskSubmitDialo
             <label style={labelStyle}>week (如 2026-W29)</label>
             <input
               type="text"
-              style={inputStyle}
+              className="tech-input px-2 py-1 text-xs w-full"
               value={learnWeek}
               onChange={e => setLearnWeek(e.target.value)}
               placeholder="2026-W29"
@@ -195,7 +194,7 @@ export function TaskSubmitDialog({ open, onClose, onSubmitted }: TaskSubmitDialo
               <label style={labelStyle}>draft_id</label>
               <input
                 type="text"
-                style={inputStyle}
+                className="tech-input px-2 py-1 text-xs w-full"
                 value={publishDraftId}
                 onChange={e => setPublishDraftId(e.target.value)}
                 placeholder="123"
@@ -205,7 +204,7 @@ export function TaskSubmitDialog({ open, onClose, onSubmitted }: TaskSubmitDialo
               <label style={labelStyle}>platform</label>
               <input
                 type="text"
-                style={inputStyle}
+                className="tech-input px-2 py-1 text-xs w-full"
                 value={publishPlatform}
                 onChange={e => setPublishPlatform(e.target.value)}
                 placeholder="wechat / x / weibo"
@@ -215,7 +214,7 @@ export function TaskSubmitDialog({ open, onClose, onSubmitted }: TaskSubmitDialo
               <label style={labelStyle}>skill_name</label>
               <input
                 type="text"
-                style={inputStyle}
+                className="tech-input px-2 py-1 text-xs w-full"
                 value={publishSkillName}
                 onChange={e => setPublishSkillName(e.target.value)}
                 placeholder="baoyu-post-to-wechat"

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { SkillValidation, PublishTask } from '../types';
+import { Icon } from './Icon';
 
 interface PublishDialogProps {
   draft_id: number | null;
@@ -24,16 +25,6 @@ const REASON_MESSAGES: Record<string, string> = {
   no_secret_bound: '该 skill 未绑定 LLM 密钥，请先在 Skills 配置中绑定',
   skill_disabled: 'skill 已禁用',
   skill_not_found: 'skill 不存在',
-};
-
-const inputStyle: React.CSSProperties = {
-  backgroundColor: 'var(--bg-hover)',
-  border: '1px solid var(--border-color)',
-  color: 'var(--text-primary)',
-  borderRadius: 'var(--radius-sm)',
-  padding: '4px 8px',
-  fontSize: '12px',
-  width: '100%',
 };
 
 const labelStyle: React.CSSProperties = {
@@ -120,10 +111,8 @@ export function PublishDialog({ draft_id, draft_title, onClose, onPublished }: P
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="rounded-[var(--radius-md)] p-4"
+        className="tech-modal p-4"
         style={{
-          backgroundColor: 'var(--bg-elevated)',
-          border: '1px solid var(--border-color)',
           width: '480px',
           maxWidth: '90vw',
           maxHeight: '80vh',
@@ -132,11 +121,18 @@ export function PublishDialog({ draft_id, draft_title, onClose, onPublished }: P
       >
         {/* 顶部标题 */}
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-            🚀 发布草稿
+          <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </Icon>
+            发布草稿
           </h3>
           <button onClick={onClose} className="btn-ghost px-2 py-0.5 text-xs" aria-label="关闭">
-            ✕
+            <Icon size={14}>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </Icon>
           </button>
         </div>
 
@@ -196,7 +192,7 @@ export function PublishDialog({ draft_id, draft_title, onClose, onPublished }: P
           <label style={labelStyle}>标签（逗号分隔，可选）</label>
           <input
             type="text"
-            style={inputStyle}
+            className="tech-input px-2 py-1 text-xs w-full"
             value={tagsText}
             onChange={e => setTagsText(e.target.value)}
             placeholder="tag1, tag2, ..."

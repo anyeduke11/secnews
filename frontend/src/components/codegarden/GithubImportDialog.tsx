@@ -7,6 +7,7 @@ import {
   ProjectType,
   SourceTypeDetail,
 } from '../../types/codegarden';
+import { Icon } from '../Icon';
 
 interface GithubImportDialogProps {
   open: boolean;
@@ -14,16 +15,6 @@ interface GithubImportDialogProps {
   onImported: () => void;
   importFn: (req: GithubImportRequest) => Promise<unknown>;
 }
-
-const inputStyle: CSSProperties = {
-  backgroundColor: 'var(--bg-hover)',
-  border: '1px solid var(--border-color)',
-  color: 'var(--text-primary)',
-  borderRadius: 'var(--radius-sm)',
-  padding: '4px 8px',
-  fontSize: '12px',
-  width: '100%',
-};
 
 const labelStyle: CSSProperties = {
   color: 'var(--text-muted)',
@@ -107,13 +98,22 @@ export function GithubImportDialog({ open, onClose, onImported, importFn }: Gith
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-[var(--radius-md)] p-4"
-        style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
+        className="tech-modal w-full max-w-lg p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>GitHub 导入</h3>
-          <button onClick={onClose} className="btn-ghost px-2 py-1 text-xs">✕</button>
+          <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+            </Icon>
+            GitHub 导入
+          </h3>
+          <button onClick={onClose} className="btn-ghost px-2 py-1 text-xs" aria-label="关闭">
+            <Icon size={14}>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </Icon>
+          </button>
         </div>
 
         <div className="grid grid-cols-2 gap-2 mb-3">
@@ -121,7 +121,7 @@ export function GithubImportDialog({ open, onClose, onImported, importFn }: Gith
             <label style={labelStyle}>Repo URL *</label>
             <div className="flex gap-1">
               <input
-                style={inputStyle}
+                className="tech-input px-2 py-1 text-xs w-full"
                 placeholder="https://github.com/owner/repo"
                 value={repoUrl}
                 onChange={(e) => setRepoUrl(e.target.value)}
@@ -131,11 +131,11 @@ export function GithubImportDialog({ open, onClose, onImported, importFn }: Gith
           </div>
           <div className="col-span-2">
             <label style={labelStyle}>Local Path (可选)</label>
-            <input style={inputStyle} placeholder="~/code/repo" value={localPath} onChange={(e) => setLocalPath(e.target.value)} />
+            <input className="tech-input px-2 py-1 text-xs w-full" placeholder="~/code/repo" value={localPath} onChange={(e) => setLocalPath(e.target.value)} />
           </div>
           <div>
             <label style={labelStyle}>Source Type</label>
-            <select style={inputStyle} value={sourceType} onChange={(e) => setSourceType(e.target.value as ProjectSourceType)}>
+            <select className="tech-select px-2 py-1 text-xs w-full" value={sourceType} onChange={(e) => setSourceType(e.target.value as ProjectSourceType)}>
               <option value="fork">fork</option>
               <option value="imported">imported</option>
               <option value="reference">reference</option>
@@ -143,7 +143,7 @@ export function GithubImportDialog({ open, onClose, onImported, importFn }: Gith
           </div>
           <div>
             <label style={labelStyle}>Source Detail</label>
-            <select style={inputStyle} value={sourceTypeDetail} onChange={(e) => setSourceTypeDetail(e.target.value as SourceTypeDetail)}>
+            <select className="tech-select px-2 py-1 text-xs w-full" value={sourceTypeDetail} onChange={(e) => setSourceTypeDetail(e.target.value as SourceTypeDetail)}>
               <option value="trending">trending</option>
               <option value="github_search">github_search</option>
               <option value="manual">manual</option>
@@ -151,7 +151,7 @@ export function GithubImportDialog({ open, onClose, onImported, importFn }: Gith
           </div>
           <div>
             <label style={labelStyle}>Type</label>
-            <select style={inputStyle} value={projectType} onChange={(e) => setProjectType(e.target.value as ProjectType)}>
+            <select className="tech-select px-2 py-1 text-xs w-full" value={projectType} onChange={(e) => setProjectType(e.target.value as ProjectType)}>
               <option value="web_application">web_application</option>
               <option value="api_service">api_service</option>
               <option value="cli">cli</option>
@@ -162,15 +162,15 @@ export function GithubImportDialog({ open, onClose, onImported, importFn }: Gith
           </div>
           <div>
             <label style={labelStyle}>Domain</label>
-            <input style={inputStyle} placeholder="security / ai / web" value={domain} onChange={(e) => setDomain(e.target.value)} />
+            <input className="tech-input px-2 py-1 text-xs w-full" placeholder="security / ai / web" value={domain} onChange={(e) => setDomain(e.target.value)} />
           </div>
           <div className="col-span-2">
             <label style={labelStyle}>Tags (逗号分隔)</label>
-            <input style={inputStyle} placeholder="tool, automation" value={tags} onChange={(e) => setTags(e.target.value)} />
+            <input className="tech-input px-2 py-1 text-xs w-full" placeholder="tool, automation" value={tags} onChange={(e) => setTags(e.target.value)} />
           </div>
           <div className="col-span-2">
             <label style={labelStyle}>Tech Stack (逗号分隔)</label>
-            <input style={inputStyle} placeholder="Python, FastAPI" value={techStack} onChange={(e) => setTechStack(e.target.value)} />
+            <input className="tech-input px-2 py-1 text-xs w-full" placeholder="Python, FastAPI" value={techStack} onChange={(e) => setTechStack(e.target.value)} />
           </div>
         </div>
 

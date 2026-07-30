@@ -54,7 +54,7 @@ export function CodegardenPhase2bPage({ onBack }: CodegardenPhase2bPageProps) {
       </div>
 
       {/* 主 tab */}
-      <div className="flex items-center gap-1 mb-3 border-b" style={{ borderColor: 'var(--border-color)' }}>
+      <div className="flex items-center gap-1 mb-3 border-b flex-wrap" style={{ borderColor: 'var(--border-color)' }}>
         <MainTabButton active={mainTab === 'services'} onClick={() => setMainTab('services')}>
           M2 服务网格
         </MainTabButton>

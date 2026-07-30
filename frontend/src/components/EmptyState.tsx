@@ -42,9 +42,17 @@ export function EmptyState({
       className={
         compact
           ? 'flex flex-col items-center justify-center gap-2 py-6 text-center'
-          : 'flex flex-col items-center justify-center gap-3 py-12 px-4 text-center animate-fade-in'
+          : 'flex flex-col items-center justify-center gap-3 py-12 px-4 text-center animate-fade-in rounded-[var(--radius-md)]'
       }
-      style={{ color: 'var(--text-muted)' }}
+      style={
+        compact
+          ? { color: 'var(--text-muted)' }
+          : {
+              color: 'var(--text-muted)',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px dashed var(--border-color)',
+            }
+      }
       role="status"
       aria-live="polite"
     >

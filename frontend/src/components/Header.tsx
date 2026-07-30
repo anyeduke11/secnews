@@ -90,24 +90,24 @@ export function Header({
   };
 
   return (
-    <header className="pb-3 mb-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
+    <header className="pb-4 mb-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
+      {/* Masthead row */}
       <div className="flex items-center justify-between gap-3">
-        {/* ---- Left: Logo + Title ---- */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           <div
-            className="w-8 h-8 rounded-md flex items-center justify-center text-sm font-bold shrink-0"
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0"
             style={{
-              background: 'linear-gradient(135deg, var(--color-ai), color-mix(in srgb, var(--color-ai) 65%, var(--color-startup)))',
+              background: 'linear-gradient(135deg, var(--color-ai), color-mix(in srgb, var(--color-ai) 60%, var(--color-startup)))',
               color: '#fff',
-              boxShadow: '0 0 16px color-mix(in srgb, var(--color-ai) 45%, transparent)',
+              boxShadow: '0 0 12px color-mix(in srgb, var(--color-ai) 35%, transparent)',
             }}
           >
-            H
+            S
           </div>
           <div className="leading-tight">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <h1 className="text-base font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                SecNews 热点地图
+                SecNews
               </h1>
               <span
                 className="px-1.5 py-px rounded text-[10px] font-mono tabular-nums font-medium border"
@@ -121,15 +121,15 @@ export function Header({
               </span>
             </div>
             <p className="text-[11px] hidden sm:block" style={{ color: 'var(--text-muted)' }}>
-              七大领域热点实时聚合
+              热点地图 · 每日情报简报
             </p>
           </div>
         </div>
 
-        {/* ---- Center: Status pill ---- */}
+        {/* Center: status bar */}
         <div className="hidden lg:flex items-center gap-2">
           <div
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md"
+            className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-md"
             style={{
               backgroundColor: 'var(--bg-hover)',
               border: '1px solid var(--border-color)',
@@ -152,9 +152,8 @@ export function Header({
           </div>
         </div>
 
-        {/* ---- Right: Actions ---- */}
+        {/* Right: actions */}
         <div className="flex items-center gap-1.5">
-          {/* Navigation */}
           <div className="nav-group hidden sm:flex">
             <button onClick={() => navigateTo('/todos')} className={`nav-btn ${isActive(location.pathname, '/todos') ? 'active' : ''}`} title="待办">
               <Icon size={13}><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="M9 12h6M9 16h4" /></Icon>
@@ -192,7 +191,6 @@ export function Header({
             </button>
           </div>
 
-          {/* Actions */}
           <button onClick={onOpenFavorites} className="nav-btn relative" title={`收藏${favoritesCount > 0 ? ` (${favoritesCount})` : ''}`} style={{ padding: '5px 8px' }}>
             <Icon size={14}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></Icon>
             {favoritesCount > 0 && (
@@ -211,7 +209,6 @@ export function Header({
               <Icon size={14}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></Icon>
             )}
           </button>
-          {/* v1.8 Phase 8: 追抓资讯按钮 (位于主题切换和刷新按钮之间) */}
           <CatchupButton />
           <button
             onClick={onRefresh} disabled={refreshing}
@@ -222,7 +219,7 @@ export function Header({
               cursor: refreshing ? 'wait' : 'pointer',
               border: refreshing ? '1px solid var(--border-color)' : '1px solid color-mix(in srgb, var(--color-ai) 30%, transparent)',
             }}
-            title={refreshing ? '正在刷新…' : '刷新数据'}
+            title={refreshing ? '正在刷新...' : '刷新数据'}
             aria-label={refreshing ? '刷新中' : '刷新'}
           >
             {refreshing ? (
@@ -237,7 +234,7 @@ export function Header({
       </div>
 
       {/* Mobile status strip */}
-      <div className="flex lg:hidden items-center justify-between mt-2 pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+      <div className="flex lg:hidden items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
         <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
           <span className="pulse-dot" style={{ backgroundColor: 'var(--color-general)', width: 4, height: 4, borderRadius: '50%' }} />
           <span style={{ color: 'var(--text-secondary)' }}>更新</span>

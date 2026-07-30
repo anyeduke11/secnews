@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { SkillConfig, SecretItem } from '../types';
+import { Icon } from './Icon';
 
 interface SkillConfigDialogProps {
   skill_id: number | null;
@@ -138,10 +139,8 @@ export function SkillConfigDialog({ skill_id, onClose, onSaved }: SkillConfigDia
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="rounded-[var(--radius-md)] p-4"
+        className="tech-modal p-4"
         style={{
-          backgroundColor: 'var(--bg-elevated)',
-          border: '1px solid var(--border-color)',
           width: '480px',
           maxWidth: '90vw',
           maxHeight: '80vh',
@@ -150,11 +149,18 @@ export function SkillConfigDialog({ skill_id, onClose, onSaved }: SkillConfigDia
       >
         {/* 顶部标题 */}
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-            ⚙ Skill 配置
+          <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </Icon>
+            Skill 配置
           </h3>
           <button onClick={onClose} className="btn-ghost px-2 py-0.5 text-xs" aria-label="关闭">
-            ✕
+            <Icon size={14}>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </Icon>
           </button>
         </div>
 

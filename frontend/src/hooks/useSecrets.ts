@@ -27,7 +27,7 @@ export interface UseSecretsReturn {
   add: (req: SecretCreateRequest) => Promise<SecretItem>;
   update: (id: number, req: SecretUpdateRequest) => Promise<SecretItem>;
   remove: (id: number) => Promise<void>;
-  reveal: (id: number) => Promise<SecretRevealResponse>;
+  reveal: (id: number, masterKey: string) => Promise<SecretRevealResponse>;
   testConnection: (id: number) => Promise<SecretTestResponse>;
   exportSecrets: (masterKey: string) => Promise<Blob>;
   importSecrets: (file: File, masterKey: string) => Promise<SecretImportResponse>;
@@ -217,8 +217,12 @@ export function useSecrets(): UseSecretsReturn {
   );
 
   const reveal = useCallback(
-    async (id: number): Promise<SecretRevealResponse> => {
-      const r = await fetch(`/api/secrets/${id}/reveal`, { method: 'POST' });
+    async (id: number, masterKey: string): Promise<SecretRevealResponse> => {
+      const r = await fetch(`/api/secrets/${id}/reveal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ master_key: masterKey }),
+      });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
         const msg = (j as any)?.detail?.message || `获取明文失败 (${r.status})`;

@@ -6,6 +6,7 @@
  */
 import { useState } from 'react';
 import { DepEntityType, DepType } from '../../../types/codegarden';
+import { Icon } from '../../Icon';
 import { AddDependencyDialogProps } from './types';
 
 export function AddDependencyDialog({ onClose, onAdd }: AddDependencyDialogProps) {
@@ -41,19 +42,23 @@ export function AddDependencyDialog({ onClose, onAdd }: AddDependencyDialogProps
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-[var(--radius-md)] p-3"
-        style={{
-          backgroundColor: 'var(--bg-elevated)',
-          border: '1px solid var(--border-color)',
-        }}
+        className="tech-modal w-full max-w-md p-3"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+          <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </Icon>
             添加依赖关系
-          </span>
-          <button onClick={onClose} className="btn-ghost px-2 py-1 text-[11px]">
-            ✕
+          </h3>
+          <button onClick={onClose} className="btn-ghost px-2 py-1 text-[11px]" aria-label="关闭">
+            <Icon size={14}>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </Icon>
           </button>
         </div>
         <div className="space-y-2 text-[11px]">
@@ -65,12 +70,7 @@ export function AddDependencyDialog({ onClose, onAdd }: AddDependencyDialogProps
               <select
                 value={sourceType}
                 onChange={(e) => setSourceType(e.target.value as DepEntityType)}
-                className="w-full text-[11px] px-2 py-1 rounded"
-                style={{
-                  backgroundColor: 'var(--bg-hover)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-color)',
-                }}
+                className="tech-select w-full text-[11px] px-2 py-1"
               >
                 <option value="project">project</option>
                 <option value="service">service</option>
@@ -83,12 +83,7 @@ export function AddDependencyDialog({ onClose, onAdd }: AddDependencyDialogProps
               <input
                 value={sourceId}
                 onChange={(e) => setSourceId(e.target.value)}
-                className="w-full text-[11px] px-2 py-1 rounded font-mono"
-                style={{
-                  backgroundColor: 'var(--bg-hover)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-color)',
-                }}
+                className="tech-input w-full text-[11px] px-2 py-1 font-mono"
               />
             </div>
           </div>
@@ -100,12 +95,7 @@ export function AddDependencyDialog({ onClose, onAdd }: AddDependencyDialogProps
               <select
                 value={targetType}
                 onChange={(e) => setTargetType(e.target.value as DepEntityType)}
-                className="w-full text-[11px] px-2 py-1 rounded"
-                style={{
-                  backgroundColor: 'var(--bg-hover)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-color)',
-                }}
+                className="tech-select w-full text-[11px] px-2 py-1"
               >
                 <option value="project">project</option>
                 <option value="service">service</option>
@@ -118,12 +108,7 @@ export function AddDependencyDialog({ onClose, onAdd }: AddDependencyDialogProps
               <input
                 value={targetId}
                 onChange={(e) => setTargetId(e.target.value)}
-                className="w-full text-[11px] px-2 py-1 rounded font-mono"
-                style={{
-                  backgroundColor: 'var(--bg-hover)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-color)',
-                }}
+                className="tech-input w-full text-[11px] px-2 py-1 font-mono"
               />
             </div>
           </div>
@@ -134,12 +119,7 @@ export function AddDependencyDialog({ onClose, onAdd }: AddDependencyDialogProps
             <select
               value={depType}
               onChange={(e) => setDepType(e.target.value as DepType)}
-              className="w-full text-[11px] px-2 py-1 rounded"
-              style={{
-                backgroundColor: 'var(--bg-hover)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-color)',
-              }}
+              className="tech-select w-full text-[11px] px-2 py-1"
             >
               <option value="code">code (代码)</option>
               <option value="service">service (服务)</option>

@@ -40,7 +40,7 @@ export function PlaybookList() {
     <div>
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-          Playbook <span className="text-[10px] font-normal" style={{ color: 'var(--text-muted)' }}>({playbooks.length})</span>
+          Playbook <span className="text-[10px] font-normal font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>({playbooks.length})</span>
         </h3>
         <button onClick={refreshPlaybooks} className="btn-ghost px-2 py-1.5 text-xs" title="刷新">
           <Icon><polyline points="23 4 23 10 17 10" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></Icon>
@@ -81,7 +81,7 @@ export function PlaybookList() {
               <div className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }} title={pb.name}>
                 {pb.name}
               </div>
-              <div className="text-[10px] mt-0.5 font-mono" style={{ color: 'var(--text-muted)' }}>
+              <div className="text-[10px] mt-0.5 font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
                 {pb.size} bytes · {pb.path.split('/').pop()}
               </div>
             </div>

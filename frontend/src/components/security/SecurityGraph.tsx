@@ -30,7 +30,7 @@ export function SecurityGraph({ view }: SecurityGraphProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center" style={{ height: '300px', color: 'var(--text-muted)' }}>
+      <div className="tech-card flex items-center justify-center" style={{ height: '300px', color: 'var(--text-muted)' }}>
         <p className="text-xs">加载中…</p>
       </div>
     );
@@ -38,8 +38,8 @@ export function SecurityGraph({ view }: SecurityGraphProps) {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center rounded-[var(--radius-sm)]"
-           style={{ height: '300px', backgroundColor: 'var(--bg-hover)', color: 'var(--color-error)' }}>
+      <div className="tech-card flex items-center justify-center"
+           style={{ height: '300px', color: 'var(--color-error)' }}>
         <p className="text-xs">加载失败: {error}</p>
       </div>
     );
@@ -47,8 +47,8 @@ export function SecurityGraph({ view }: SecurityGraphProps) {
 
   if (!data || data.nodes.length === 0) {
     return (
-      <div className="flex items-center justify-center rounded-[var(--radius-sm)]"
-           style={{ height: '300px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
+      <div className="tech-card flex items-center justify-center"
+           style={{ height: '300px', color: 'var(--text-muted)' }}>
         <p className="text-xs">暂无安全数据。请先同步 MITRE ATT&CK 数据。</p>
       </div>
     );
@@ -67,8 +67,7 @@ export function SecurityGraph({ view }: SecurityGraphProps) {
           };
           return (
             <div key={key}
-              className="rounded-[var(--radius-sm)] p-2 text-center"
-              style={{ backgroundColor: 'var(--bg-hover)' }}
+              className="tech-card p-2 text-center"
             >
               <div className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</div>
               <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{labelMap[key] || key}</div>
@@ -82,14 +81,11 @@ export function SecurityGraph({ view }: SecurityGraphProps) {
         {data.nodes.map((node: any) => (
           <div
             key={node.id}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-[var(--radius-sm)] cursor-pointer text-xs"
+            className="tech-card flex items-center gap-2 px-2.5 py-1.5 cursor-pointer text-xs"
             style={{
-              backgroundColor: 'var(--bg-hover)',
               borderLeft: `3px solid ${ENTITY_COLORS[node.entity_type] || 'var(--text-muted)'}`,
             }}
             onClick={() => setSelectedEntity(node)}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '0.8'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
           >
             <span className="font-medium truncate flex-1" style={{ color: 'var(--text-primary)' }}>
               {node.name}

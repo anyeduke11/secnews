@@ -1,27 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useSecrets } from '../hooks/useSecrets';
 import { SecretItem } from '../types';
+import { Icon } from './Icon';
 
 interface SecretsPageProps {
   onBack: () => void;
-}
-
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
 }
 
 function formatRemaining(seconds: number): string {
@@ -59,7 +42,7 @@ export function SecretsPage({ onBack }: SecretsPageProps) {
   return (
     <div className="secrets-page">
       {/* 顶部标题区 */}
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -73,14 +56,18 @@ export function SecretsPage({ onBack }: SecretsPageProps) {
             </Icon>
             返回首页
           </button>
-          <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
-            🔐 密钥管理
+          <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </Icon>
+            密钥管理
           </h2>
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <span className="hidden sm:inline text-xs" style={{ color: 'var(--text-muted)' }}>
             LLM API Key · 30 分钟解锁
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
             共 {total} 条
           </span>
@@ -176,9 +163,9 @@ export function SecretsPage({ onBack }: SecretsPageProps) {
         <div
           className="rounded-[var(--radius-md)] p-2.5 mb-3 text-xs"
           style={{
-            backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
-            border: '1px solid var(--color-error)',
-            color: 'var(--color-error)',
+            backgroundColor: 'rgba(232, 93, 93, 0.12)',
+            border: '1px solid #e85d5d',
+            color: '#e85d5d',
           }}
         >
           {error}
@@ -231,10 +218,12 @@ export function SecretsPage({ onBack }: SecretsPageProps) {
                 }
               }}
               onCopy={async () => {
+                const mk = window.prompt('复制明文需验证主密钥, 请输入:');
+                if (!mk) return;
                 try {
-                  const r = await reveal(item.id);
+                  const r = await reveal(item.id, mk);
                   await navigator.clipboard.writeText(r.api_key);
-                  window.alert(`已复制 (明文仅在内存, 30 分钟后过期)`);
+                  window.alert(`已复制到剪贴板`);
                 } catch (e: any) {
                   window.alert(`复制失败: ${e?.message || e}`);
                 }
@@ -307,7 +296,7 @@ function StatusBar({
     return (
       <div
         className="rounded-[var(--radius-md)] p-3 mb-3 text-xs flex items-center justify-between gap-2"
-        style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-error) 40%, transparent)' }}
+        style={{ backgroundColor: 'rgba(232, 93, 93, 0.08)', border: '1px solid rgba(232, 93, 93, 0.4)' }}
       >
         <div>
           <p style={{ color: 'var(--text-primary)' }}>🔒 主密钥未初始化</p>
@@ -318,7 +307,7 @@ function StatusBar({
         <button
           onClick={onSetupClick}
           className="btn-ghost px-3 py-1.5 text-xs shrink-0"
-          style={{ backgroundColor: 'var(--color-ai)', color: 'var(--text-on-light)', borderColor: 'var(--color-ai)' }}
+          style={{ backgroundColor: 'var(--color-ai)', color: '#0a0d12', borderColor: 'var(--color-ai)' }}
         >
           首次设置主密钥
         </button>
@@ -330,12 +319,15 @@ function StatusBar({
     return (
       <div
         className="rounded-[var(--radius-md)] p-3 mb-3 text-xs flex items-center justify-between gap-2"
-        style={{ backgroundColor: 'color-mix(in srgb, var(--color-warning) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-warning) 40%, transparent)' }}
+        style={{ backgroundColor: 'rgba(240, 201, 41, 0.08)', border: '1px solid rgba(240, 201, 41, 0.4)' }}
       >
         <div>
           <p style={{ color: 'var(--text-primary)' }}>🔒 已锁定</p>
           <p style={{ color: 'var(--text-muted)', marginTop: 2 }}>
             输入主密钥可解锁 30 分钟, 期间可一键复制明文 API key。
+            {status.keychain_persisted && (
+              <span style={{ color: '#00c96a' }}> · 密钥已持久化, 重启后自动恢复</span>
+            )}
           </p>
         </div>
         <button
@@ -352,7 +344,7 @@ function StatusBar({
   return (
     <div
       className="rounded-[var(--radius-md)] p-3 mb-3 text-xs flex items-center justify-between gap-2"
-      style={{ backgroundColor: 'color-mix(in srgb, var(--color-success) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-success) 40%, transparent)' }}
+      style={{ backgroundColor: 'rgba(0, 201, 106, 0.08)', border: '1px solid rgba(0, 201, 106, 0.4)' }}
     >
       <div>
         <p style={{ color: 'var(--text-primary)' }}>
@@ -366,7 +358,7 @@ function StatusBar({
       <button
         onClick={onLockClick}
         className="btn-ghost px-3 py-1.5 text-xs shrink-0"
-        style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }}
+        style={{ color: '#e85d5d', borderColor: '#e85d5d' }}
       >
         立即锁定
       </button>
@@ -408,7 +400,7 @@ function SecretCardView({
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </Icon>
           </button>
-          <button onClick={onDelete} className="btn-ghost px-1.5 py-0.5 text-[10px]" title="删除" aria-label="删除" style={{ color: 'var(--color-error)' }}>
+          <button onClick={onDelete} className="btn-ghost px-1.5 py-0.5 text-[10px]" title="删除" aria-label="删除" style={{ color: '#e85d5d' }}>
             <Icon>
               <polyline points="3 6 5 6 21 6" />
               <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
@@ -539,7 +531,7 @@ function AddOrEditForm({
       </h3>
 
       {error && (
-        <p className="text-xs px-2 py-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 15%, transparent)', color: 'var(--color-error)' }}>
+        <p className="text-xs px-2 py-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'rgba(232, 93, 93, 0.15)', color: '#e85d5d' }}>
           {error}
         </p>
       )}
@@ -550,16 +542,14 @@ function AddOrEditForm({
           value={name}
           onChange={e => setName(e.target.value)}
           placeholder="名称 (e.g. 我的 DeepSeek)"
-          className="px-2 py-1.5 text-xs rounded-[var(--radius-sm)] focus-ring"
-          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+          className="tech-input px-2 py-1.5 text-xs w-full"
         />
         <input
           type="text"
           value={model}
           onChange={e => setModel(e.target.value)}
           placeholder="模型 (e.g. deepseek-chat, gpt-4o)"
-          className="px-2 py-1.5 text-xs rounded-[var(--radius-sm)] focus-ring"
-          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+          className="tech-input px-2 py-1.5 text-xs w-full"
         />
       </div>
       <input
@@ -567,16 +557,14 @@ function AddOrEditForm({
         value={baseUrl}
         onChange={e => setBaseUrl(e.target.value)}
         placeholder="base_url (e.g. https://api.deepseek.com/v1)"
-        className="px-2 py-1.5 text-xs font-mono rounded-[var(--radius-sm)] focus-ring"
-        style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+        className="tech-input px-2 py-1.5 text-xs font-mono w-full"
       />
       <input
         type="password"
         value={apiKey}
         onChange={e => setApiKey(e.target.value)}
         placeholder={editing ? '新 api_key (留空则不修改)' : 'api_key 明文 (一次性, 提交后加密存储)'}
-        className="px-2 py-1.5 text-xs font-mono rounded-[var(--radius-sm)] focus-ring"
-        style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+        className="tech-input px-2 py-1.5 text-xs font-mono w-full"
         autoComplete="new-password"
       />
       <input
@@ -584,8 +572,7 @@ function AddOrEditForm({
         value={masterKey}
         onChange={e => setMasterKey(e.target.value)}
         placeholder={editing ? '主密钥 (仅修改 api_key 时必填, >= 8 字符)' : '主密钥 (>= 8 字符)'}
-        className="px-2 py-1.5 text-xs font-mono rounded-[var(--radius-sm)] focus-ring"
-        style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+        className="tech-input px-2 py-1.5 text-xs font-mono w-full"
         autoComplete="new-password"
       />
 
@@ -596,7 +583,7 @@ function AddOrEditForm({
           className="btn-ghost px-3 py-1.5 text-xs"
           style={{
             backgroundColor: 'var(--color-ai)',
-            color: 'var(--text-on-light)',
+            color: '#0a0d12',
             borderColor: 'var(--color-ai)',
             opacity: submitting ? 0.6 : 1,
             cursor: submitting ? 'wait' : 'pointer',
@@ -647,12 +634,17 @@ function UnlockModal({
   return (
     <Modal onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-        <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>🔑 解锁密钥</h3>
+        <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+          <Icon size={14}>
+            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+          </Icon>
+          解锁密钥
+        </h3>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
           输入主密钥, 解锁 30 分钟。期间可一键复制明文 API key, 过期自动锁定。
         </p>
         {err && (
-          <p className="text-xs px-2 py-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 15%, transparent)', color: 'var(--color-error)' }}>
+          <p className="text-xs px-2 py-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'rgba(232, 93, 93, 0.15)', color: '#e85d5d' }}>
             {err}
           </p>
         )}
@@ -663,8 +655,7 @@ function UnlockModal({
           autoFocus
           autoComplete="new-password"
           placeholder="主密钥"
-          className="px-2 py-1.5 text-xs font-mono rounded-[var(--radius-sm)] focus-ring"
-          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+          className="tech-input px-2 py-1.5 text-xs font-mono w-full"
         />
         <div className="flex items-center gap-2">
           <button
@@ -673,7 +664,7 @@ function UnlockModal({
             className="btn-ghost px-3 py-1.5 text-xs"
             style={{
               backgroundColor: 'var(--color-ai)',
-              color: 'var(--text-on-light)',
+              color: '#0a0d12',
               borderColor: 'var(--color-ai)',
               opacity: busy ? 0.6 : 1,
               cursor: busy ? 'wait' : 'pointer',
@@ -725,13 +716,19 @@ function SetupModal({
   return (
     <Modal onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-        <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>🔒 首次设置主密钥</h3>
-        <p className="text-xs" style={{ color: 'var(--color-error)' }}>
+        <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+          <Icon size={14}>
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </Icon>
+          首次设置主密钥
+        </h3>
+        <p className="text-xs" style={{ color: '#e85d5d' }}>
           ⚠️ <b>主密钥不存数据库, 一旦丢失, 该主密钥下所有 secret 永久不可解密, 且禁止重置</b>。
           请使用密码管理器保存或选一段你能记住的强密码。
         </p>
         {err && (
-          <p className="text-xs px-2 py-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 15%, transparent)', color: 'var(--color-error)' }}>
+          <p className="text-xs px-2 py-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'rgba(232, 93, 93, 0.15)', color: '#e85d5d' }}>
             {err}
           </p>
         )}
@@ -742,8 +739,7 @@ function SetupModal({
           autoFocus
           autoComplete="new-password"
           placeholder="主密钥 (>= 8 字符)"
-          className="px-2 py-1.5 text-xs font-mono rounded-[var(--radius-sm)] focus-ring"
-          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+          className="tech-input px-2 py-1.5 text-xs font-mono w-full"
         />
         <input
           type="password"
@@ -751,8 +747,7 @@ function SetupModal({
           onChange={e => setMk2(e.target.value)}
           autoComplete="new-password"
           placeholder="再次输入主密钥"
-          className="px-2 py-1.5 text-xs font-mono rounded-[var(--radius-sm)] focus-ring"
-          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+          className="tech-input px-2 py-1.5 text-xs font-mono w-full"
         />
         <div className="flex items-center gap-2">
           <button
@@ -761,7 +756,7 @@ function SetupModal({
             className="btn-ghost px-3 py-1.5 text-xs"
             style={{
               backgroundColor: 'var(--color-ai)',
-              color: 'var(--text-on-light)',
+              color: '#0a0d12',
               borderColor: 'var(--color-ai)',
               opacity: busy ? 0.6 : 1,
               cursor: busy ? 'wait' : 'pointer',
@@ -790,8 +785,7 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="rounded-[var(--radius-md)] p-4 w-[420px] max-w-[90vw]"
-        style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
+        className="tech-modal p-4 w-[420px] max-w-[90vw]"
       >
         {children}
       </div>

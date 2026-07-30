@@ -8,6 +8,7 @@ import {
   LIFECYCLE_COLORS,
   LIFECYCLE_LABELS,
 } from '../../types/codegarden';
+import { Icon } from '../Icon';
 import { UpstreamStatus } from './UpstreamStatus';
 
 interface ProjectDetailProps {
@@ -77,21 +78,29 @@ export function ProjectDetail({ project, onClose, onTransition, onSync }: Projec
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[var(--radius-md)] p-4"
-        style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
+        className="tech-modal w-full max-w-2xl max-h-[90vh] overflow-y-auto p-4"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 标题区 */}
         <div className="flex items-start justify-between mb-3">
-          <div>
-            <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
-              {project.display_name || project.name}
-            </h3>
-            {project.description && (
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{project.description}</p>
-            )}
-          </div>
-          <button onClick={onClose} className="btn-ghost px-2 py-1 text-xs">✕</button>
+          <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <path d="M12 2C8 2 5 5 5 9c0 3 2 5 4 6 0 2-2 3-2 5h10c0-2-2-3-2-5 2-1 4-3 4-6 0-4-3-7-7-7z" />
+              <path d="M9 22h6" />
+            </Icon>
+            <div>
+              <div>{project.display_name || project.name}</div>
+              {project.description && (
+                <p className="text-xs font-normal mt-0.5" style={{ color: 'var(--text-muted)' }}>{project.description}</p>
+              )}
+            </div>
+          </h3>
+          <button onClick={onClose} className="btn-ghost px-2 py-1 text-xs" aria-label="关闭">
+            <Icon size={14}>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </Icon>
+          </button>
         </div>
 
         {/* 元数据网格 */}

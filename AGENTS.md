@@ -107,7 +107,7 @@ See `knowledge/_SCHEMA.md` for the complete data model.
 
 ### 测试覆盖
 
-- API 单测: 29/29 PASS (`test_codegarden_phase2b_api.py`)
-- e2e: 4/4 PASS (`test_codegarden_phase2b_e2e.py` — 全流程 + 8898 保护 + 拓扑图 + Playbook 404)
+- API 单测: 29/29 PASS (`test_codegarden_ops_api.py`, 原 test_codegarden_phase2b_api.py)
+- e2e: 4/4 PASS (`test_codegarden_ops_e2e.py` — 全流程 + 8898 保护 + 拓扑图 + Playbook 404)
 - 前端组件: 22/22 PASS (ServiceMesh 8 + ResourceHub 6 + DependencyGraph 8)
 

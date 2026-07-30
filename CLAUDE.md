@@ -50,7 +50,7 @@ cd frontend && npx tsc --noEmit           # 类型检查
 backend/
 ├── api/            # REST routers (23 routers, ~50 lines each)
 │   ├── __init__.py # register_routers() aggregates all (lazy imports)
-│   ├── codegarden.py, codegarden_phase2b.py  # Phase 1 + Phase 2b endpoints
+│   ├── codegarden.py, codegarden_ops.py  # 项目管理 + 运维层 (服务/资源/事件) endpoints
 │   ├── events.py        # SSE 实时推送 (Phase 6)
 │   ├── knowledge.py, maintenance.py, security.py  # Security Knowledge Graph
 │   └── ...
@@ -164,7 +164,7 @@ codegarden/
 └── specs/     # Project specs (scaffolded)
 ```
 
-Backed by `backend/api/codegarden.py` (Phase 1) and `backend/api/codegarden_phase2b.py` (Phase 2b: services, resources, dependencies, events, playbooks). Business logic in `backend/services/codegarden_*.py`. DB tables come from migrations `019_codegarden.sql` and `021_codegarden_phase2b.sql`. See `docs/CodeGarden_PRD_v2.0.md` for the Phase 2b spec.
+Backed by `backend/api/codegarden.py` (项目管理) and `backend/api/codegarden_ops.py` (运维层: services, resources, dependencies, events, playbooks; 原 codegarden_phase2b.py). Business logic in `backend/services/codegarden_*.py`. DB tables come from migrations `019_codegarden.sql` and `021_codegarden_phase2b.sql`. See `docs/CodeGarden_PRD_v2.0.md` for the Phase 2b spec.
 
 ### Sync System (cross-device config)
 

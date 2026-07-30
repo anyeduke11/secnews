@@ -1,7 +1,7 @@
 # SecNews · AI + 安全 知识工作站
 
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="SecNews — 单人本地 AI 与安全工作站: 4 个数据子系统汇入 MCP Server, 经 stdio / SSE 暴露给外部 AI Agent">
+  <img src="./assets/readme/hero.svg" width="100%" alt="SecNews — 单人本地 AI 与安全工作站: 5 个子系统 (4 个数据子系统 + MCP Server), 经 stdio / SSE 暴露给外部 AI Agent">
 </p>
 
 <p align="center">
@@ -27,7 +27,7 @@
 | 01 | **SecNews 热点聚合**  | 7 大领域 · 30+ 数据源 · 13 质量门禁              | `/`                                           |
 | 02 | **Knowledge LLM-Wiki** | 4 层金字塔 (items → concepts → learning → content) | `/knowledge`                                   |
 | 03 | **CodeGarden**        | 项目全生命周期 + 服务网格 + 资源中枢 + 联动引擎  | `/codegarden`                                  |
-| 04 | **Security Graph**    | MITRE ATT&CK · NVD CVE · 等保 2.0 / 关基 / 数安法 | `/security`                                    |
+| 04 | **Security Graph**    | MITRE ATT&CK · NVD CVE · 等保 2.0 / 关基 / 数安法 | `/knowledge/process` (内嵌图谱)                |
 | 05 | **MCP Server**        | 13 个标准工具 · stdio / SSE · 零状态              | `python -m backend.mcp_stdio_main`            |
 
 ### 架构
@@ -92,7 +92,7 @@ stdio 配置（粘到你的 AI Agent 配置文件）：
 | ----------- | --------------------------------- | ----------------------------------------------------- |
 | Web 框架    | FastAPI                           | async + OpenAPI 生态成熟                              |
 | 主存储      | **SQLite WAL** + `.md` 文件       | 零部署 · FTS5 · git 友好 · LLM 可直读                |
-| 调度        | APScheduler · 17 jobs             | 单进程内调度，无外部 MQ                                |
+| 调度        | APScheduler · 31 jobs             | 单进程内调度，无外部 MQ                                |
 | MCP         | fastapi-mcp                       | OpenAPI → MCP 自动转换                                |
 | 前端        | React 18 + Vite 5 + TypeScript    | 60+ 组件 · 类型安全 · 热重载                           |
 | 图表        | echarts + recharts                | 看板风格                                              |

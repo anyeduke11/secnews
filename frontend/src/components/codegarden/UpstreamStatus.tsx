@@ -49,15 +49,15 @@ export function UpstreamStatus({ project, onSync }: UpstreamStatusProps) {
         </div>
         <div>
           <span style={{ color: 'var(--text-muted)' }}>落后: </span>
-          <span className="font-mono" style={{ color: behind > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{behind}</span>
+          <span className="font-mono tabular-nums" style={{ color: behind > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{behind}</span>
         </div>
         <div>
           <span style={{ color: 'var(--text-muted)' }}>领先: </span>
-          <span className="font-mono" style={{ color: ahead > 0 ? 'var(--color-success)' : 'var(--text-primary)' }}>{ahead}</span>
+          <span className="font-mono tabular-nums" style={{ color: ahead > 0 ? 'var(--color-success)' : 'var(--text-primary)' }}>{ahead}</span>
         </div>
         <div className="col-span-2">
           <span style={{ color: 'var(--text-muted)' }}>最后同步: </span>
-          <span style={{ color: 'var(--text-secondary)' }}>{lastSync}</span>
+          <span className="font-mono tabular-nums" style={{ color: 'var(--text-secondary)' }}>{lastSync}</span>
         </div>
         <div className="col-span-2">
           <span style={{ color: 'var(--text-muted)' }}>upstream: </span>

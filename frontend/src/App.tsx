@@ -1,5 +1,5 @@
 import React, { Suspense, useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
-import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { PageLayout } from './components/PageLayout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Header } from './components/Header';
@@ -37,6 +37,21 @@ const WeeklyReportPage = React.lazy(() =>
 );
 const KnowledgePage = React.lazy(() =>
   import('./components/KnowledgePage').then(m => ({ default: m.KnowledgePage }))
+);
+const KnowledgeImport = React.lazy(() =>
+  import('./components/knowledge/KnowledgeImport').then(m => ({ default: m.KnowledgeImport }))
+);
+const KnowledgeProcess = React.lazy(() =>
+  import('./components/knowledge/KnowledgeProcess').then(m => ({ default: m.KnowledgeProcess }))
+);
+const KnowledgeCompile = React.lazy(() =>
+  import('./components/knowledge/KnowledgeCompile').then(m => ({ default: m.KnowledgeCompile }))
+);
+const KnowledgeCompound = React.lazy(() =>
+  import('./components/knowledge/KnowledgeCompound').then(m => ({ default: m.KnowledgeCompound }))
+);
+const KnowledgeFavoritesView = React.lazy(() =>
+  import('./components/knowledge/KnowledgeFavoritesView')
 );
 const CodegardenPage = React.lazy(() =>
   import('./components/CodegardenPage').then(m => ({ default: m.CodegardenPage }))
@@ -343,6 +358,57 @@ function HomePage() {
   );
 }
 
+// v1.8: /history 独立路由的收藏状态壳 —— 之前传入空 Set + 空函数导致
+// 历史页收藏状态恒为 false 且点击无效, 现改为真实加载 + 乐观更新
+function HistoryPageRoute() {
+  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const r = await fetch('/api/favorites?limit=1000');
+        if (!r.ok) return;
+        const data = await r.json();
+        if (cancelled) return;
+        setFavoritedIds(new Set((data.items || []).map((it: any) => it.hotspot_id)));
+      } catch {}
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleToggleFavorite = useCallback(async (item: HotspotItem) => {
+    const wasFavorited = favoritedIds.has(item.id);
+    setFavoritedIds(prev => {
+      const next = new Set(prev);
+      if (wasFavorited) next.delete(item.id); else next.add(item.id);
+      return next;
+    });
+    try {
+      if (wasFavorited) {
+        const r = await fetch(`/api/favorites/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      } else {
+        const r = await fetch('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hotspot_id: item.id, category: item.category, title: item.title, source: item.source, url: item.url }),
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      }
+    } catch {
+      setFavoritedIds(prev => {
+        const next = new Set(prev);
+        if (wasFavorited) next.add(item.id); else next.delete(item.id);
+        return next;
+      });
+    }
+  }, [favoritedIds]);
+
+  return <HistoryPage favoritedIds={favoritedIds} onToggleFavorite={handleToggleFavorite} />;
+}
+
 export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(getInitialTheme);
   const navigate = useNavigate();
@@ -375,12 +441,20 @@ export default function App() {
           } />
           {/* Phase 5A: Lazy-loaded with Suspense boundary */}
           <Route path="/todos" element={<Suspense fallback={<PageFallback />}><TodosPage /></Suspense>} />
-          <Route path="/history" element={<Suspense fallback={<PageFallback />}><HistoryPage favoritedIds={new Set()} onToggleFavorite={() => {}} /></Suspense>} />
+          <Route path="/history" element={<Suspense fallback={<PageFallback />}><HistoryPageRoute /></Suspense>} />
           <Route path="/skills" element={<Suspense fallback={<PageFallback />}><SkillsPage onBack={goHome} /></Suspense>} />
           <Route path="/secrets" element={<Suspense fallback={<PageFallback />}><SecretsPage onBack={goHome} /></Suspense>} />
           <Route path="/sync" element={<Suspense fallback={<PageFallback />}><SyncPage onBack={goHome} /></Suspense>} />
           <Route path="/weekly-report" element={<Suspense fallback={<PageFallback />}><WeeklyReportPage onBack={goHome} /></Suspense>} />
-          <Route path="/knowledge" element={<Suspense fallback={<PageFallback />}><KnowledgePage onBack={goHome} /></Suspense>} />
+          {/* 知识管理: 4 大领域 (信息导入 / 处理数据 / 知识库编译 / 知识复利) */}
+          <Route path="/knowledge" element={<Suspense fallback={<PageFallback />}><KnowledgePage onBack={goHome} /></Suspense>}>
+            <Route index element={<Navigate to="import" replace />} />
+            <Route path="import" element={<Suspense fallback={<PageFallback />}><KnowledgeImport /></Suspense>} />
+            <Route path="process" element={<Suspense fallback={<PageFallback />}><KnowledgeProcess /></Suspense>} />
+            <Route path="compile" element={<Suspense fallback={<PageFallback />}><KnowledgeCompile /></Suspense>} />
+            <Route path="compound" element={<Suspense fallback={<PageFallback />}><KnowledgeCompound /></Suspense>} />
+            <Route path="imported" element={<Suspense fallback={<PageFallback />}><KnowledgeFavoritesView /></Suspense>} />
+          </Route>
           <Route path="/codegarden" element={<Suspense fallback={<PageFallback />}><CodegardenPage onBack={goHome} /></Suspense>} />
           <Route path="/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><CodegardenPhase2bPage onBack={goHome} /></Suspense>} />
           <Route path="/reviews" element={<Suspense fallback={<PageFallback />}><ReviewPage /></Suspense>} />

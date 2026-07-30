@@ -114,7 +114,7 @@ export function TodosPage() {
   return (
     <div className="todos-page">
       {/* 顶部标题区 */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
         <div className="flex items-center gap-3">
           <button
             onClick={goHome}
@@ -128,22 +128,28 @@ export function TodosPage() {
             </Icon>
             返回首页
           </button>
-          <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
-            📝 待办 · 本周复盘
+          <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <polyline points="9 11 12 14 22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </Icon>
+            待办 · 本周复盘
           </h2>
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <span className="hidden sm:inline text-xs" style={{ color: 'var(--text-muted)' }}>
             紧急由截止日期自动判断 (≤1 业务日, 过滤周末)
           </span>
         </div>
-        <button
-          onClick={refresh}
-          disabled={loading}
-          className="btn-ghost px-2.5 py-1.5 text-xs"
-          title="刷新数据"
-          aria-label="刷新"
-        >
-          {loading ? '刷新中…' : '刷新'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={refresh}
+            disabled={loading}
+            className="btn-ghost px-2.5 py-1.5 text-xs"
+            title="刷新数据"
+            aria-label="刷新"
+          >
+            {loading ? '刷新中…' : '刷新'}
+          </button>
+        </div>
       </div>
 
       {/* 顶部错误条 */}
@@ -163,10 +169,10 @@ export function TodosPage() {
         </div>
       )}
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 flex-col md:flex-row">
         {/* 左侧 sticky: 状态分布 */}
         <aside
-          className="shrink-0"
+          className="shrink-0 hidden md:block"
           style={{
             width: 200,
             position: 'sticky',
@@ -349,13 +355,7 @@ export function TodosPage() {
               value={filter.keyword}
               onChange={e => setFilter({ keyword: e.target.value })}
               placeholder="关键词 (标题 / 备注)"
-              className="ml-auto px-2 py-1 text-xs rounded-[var(--radius-sm)] focus-ring"
-              style={{
-                backgroundColor: 'var(--bg-card)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-primary)',
-                width: 220,
-              }}
+              className="tech-input px-2 py-1 text-xs ml-auto w-full sm:w-[220px]"
             />
           </div>
 

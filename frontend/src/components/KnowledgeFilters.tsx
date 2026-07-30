@@ -22,10 +22,13 @@ export function KnowledgeFilters({ onFilterChange }: KnowledgeFiltersProps) {
   });
   const [topics, setTopics] = useState<string[]>([]);
 
-  // Fetch topics when domain changes
+  // Fetch topics when domain changes (skip when empty to avoid needless async updates)
   useEffect(() => {
-    const params = filters.domain ? `?domain=${encodeURIComponent(filters.domain)}` : '';
-    fetch(`/api/knowledge/topics${params}`)
+    if (!filters.domain) {
+      setTopics([]);
+      return;
+    }
+    fetch(`/api/knowledge/topics?domain=${encodeURIComponent(filters.domain)}`)
       .then(r => r.json())
       .then(d => setTopics(d.topics || []))
       .catch(() => setTopics([]));
@@ -36,19 +39,10 @@ export function KnowledgeFilters({ onFilterChange }: KnowledgeFiltersProps) {
     onFilterChange(filters);
   }, [filters, onFilterChange]);
 
-  const selectStyle = {
-    backgroundColor: 'var(--bg-elevated)',
-    border: '1px solid var(--border-color)',
-    color: 'var(--text-primary)',
-    borderRadius: 'var(--radius-sm)',
-    padding: '4px 8px',
-    fontSize: '11px',
-  };
-
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <select
-        style={selectStyle}
+        className="tech-select px-2 py-1 text-[11px]"
         value={filters.domain}
         onChange={e => setFilters({ ...filters, domain: e.target.value, topic: '' })}
       >
@@ -57,7 +51,7 @@ export function KnowledgeFilters({ onFilterChange }: KnowledgeFiltersProps) {
       </select>
 
       <select
-        style={selectStyle}
+        className="tech-select px-2 py-1 text-[11px]"
         value={filters.topic}
         onChange={e => setFilters({ ...filters, topic: e.target.value })}
         disabled={topics.length === 0}
@@ -67,7 +61,7 @@ export function KnowledgeFilters({ onFilterChange }: KnowledgeFiltersProps) {
       </select>
 
       <select
-        style={selectStyle}
+        className="tech-select px-2 py-1 text-[11px]"
         value={filters.type}
         onChange={e => setFilters({ ...filters, type: e.target.value })}
       >
@@ -76,7 +70,7 @@ export function KnowledgeFilters({ onFilterChange }: KnowledgeFiltersProps) {
       </select>
 
       <select
-        style={selectStyle}
+        className="tech-select px-2 py-1 text-[11px]"
         value={filters.difficulty}
         onChange={e => setFilters({ ...filters, difficulty: e.target.value })}
       >
@@ -85,7 +79,7 @@ export function KnowledgeFilters({ onFilterChange }: KnowledgeFiltersProps) {
       </select>
 
       <select
-        style={selectStyle}
+        className="tech-select px-2 py-1 text-[11px]"
         value={filters.timeRange}
         onChange={e => setFilters({ ...filters, timeRange: e.target.value as FilterState['timeRange'] })}
       >

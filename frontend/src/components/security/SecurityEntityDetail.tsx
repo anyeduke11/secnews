@@ -34,11 +34,7 @@ export function SecurityEntityDetail({ entity, onClose }: DetailProps) {
 
   return (
     <div
-      className="rounded-[var(--radius-md)] p-3 text-xs"
-      style={{
-        backgroundColor: 'var(--bg-elevated)',
-        border: '1px solid var(--border-color)',
-      }}
+      className="tech-card p-3 text-xs"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-2">

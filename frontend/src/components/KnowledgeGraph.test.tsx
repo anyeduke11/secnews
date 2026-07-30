@@ -2,8 +2,17 @@
 // Phase 6 — KnowledgeGraph 节点+边 render + Empty/Loading 测试
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { KnowledgeGraph } from './KnowledgeGraph';
 import type { GraphData } from '../types';
+
+// ECharts force layout 在 jsdom 中触发未捕获的异步矩阵错误;
+// 仅验证容器与数据流,故 mock 图表渲染。
+vi.mock('echarts-for-react', () => ({
+  default: function ReactEChartsMock({ style }: { style?: React.CSSProperties }) {
+    return <div style={style} data-testid="echarts-mock" />;
+  },
+}));
+
+import { KnowledgeGraph } from './KnowledgeGraph';
 
 describe('KnowledgeGraph', () => {
   beforeEach(() => {

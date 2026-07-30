@@ -98,12 +98,7 @@ export default function KnowledgeSearchBar({ onSelect }: KnowledgeSearchBarProps
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder="搜索知识库（hotspot + local）..."
-          className="w-full rounded-[var(--radius-md)] px-3 py-1.5 pl-8 text-xs"
-          style={{
-            backgroundColor: 'var(--bg-elevated)',
-            border: '1px solid var(--border-color)',
-            color: 'var(--text-primary)',
-          }}
+          className="tech-input w-full rounded-[var(--radius-md)] px-3 py-1.5 pl-8 text-xs"
           aria-label="联邦搜索"
         />
         <span

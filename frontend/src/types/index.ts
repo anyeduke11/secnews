@@ -801,3 +801,21 @@ export interface SkillValidation {
   reason?: 'skill_not_found' | 'skill_disabled' | 'no_secret_bound';
   secret_id?: number;
 }
+
+// ----- Phase 8: 资讯收藏聚合视图 (ImportedItem) -----
+export interface ImportedItem {
+  id: string;
+  title: string;
+  url: string;
+  source_type: 'favorites' | 'cubox' | 'bookmark' | 'secnews_archive' | 'secnews';
+  source_name: string;
+  ingested_at: string;
+  origin: string;
+}
+
+export interface ImportedResponse {
+  items: ImportedItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}

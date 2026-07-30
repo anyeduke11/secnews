@@ -10,21 +10,17 @@ export function StatsPanel({ categoryCounts, total }: StatsPanelProps) {
   const filteredCats = CATEGORIES.filter(c => c.id !== 'all');
 
   return (
-    <div className="card-base p-4 mb-5">
+    <div className="stat-card mb-4 corner-brackets" style={{ ['--card-accent' as string]: 'var(--color-ai)' }}>
       <div className="flex items-center justify-between mb-3">
-        <h3
-          className="text-xs font-semibold uppercase tracking-[0.08em] font-mono"
-          style={{ color: 'var(--text-secondary)' }}
-        >
-          <span style={{ color: 'var(--color-ai)', marginRight: 6 }}>▮</span>
-          数据统计
-        </h3>
-        <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-          total:{' '}
-          <span
-            className="font-mono tabular-nums font-semibold glow-sm"
-            style={{ color: 'var(--color-ai)', fontWeight: 700 }}
-          >
+        <div className="flex items-center gap-2">
+          <span className="w-1 h-4 rounded-full" style={{ backgroundColor: 'var(--color-ai)' }} />
+          <h3 className="text-xs font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+            数据统计
+          </h3>
+        </div>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          共{' '}
+          <span className="font-mono tabular-nums font-semibold" style={{ color: 'var(--color-ai)' }}>
             {total}
           </span>{' '}
           条
@@ -41,25 +37,16 @@ export function StatsPanel({ categoryCounts, total }: StatsPanelProps) {
           return (
             <div key={cat.id}>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="flex items-center gap-1.5 text-sm">
-                  <span
-                    className="dot-indicator"
-                    style={{ backgroundColor: color }}
-                  />
+                <span className="flex items-center gap-1.5 text-xs">
+                  <span className="dot-indicator" style={{ backgroundColor: color }} />
                   <span style={{ color: 'var(--text-secondary)' }} className="truncate">{cat.label}</span>
                 </span>
-                <span className="text-sm font-mono font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{count}</span>
+                <span className="text-xs font-mono font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{count}</span>
               </div>
-              <div
-                className="w-full h-1.5 rounded-full overflow-hidden"
-                style={{ backgroundColor: 'var(--bg-hover)' }}
-              >
+              <div className="w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-hover)' }}>
                 <div
                   className="h-full rounded-full transition-all duration-500 ease-out"
-                  style={{
-                    width: `${barWidth}%`,
-                    backgroundColor: color,
-                  }}
+                  style={{ width: `${barWidth}%`, backgroundColor: color }}
                 />
               </div>
             </div>

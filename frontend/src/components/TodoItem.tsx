@@ -4,6 +4,7 @@ import {
   getCategoryColor,
   getCategoryLabel,
 } from '../types';
+import { Icon } from './Icon';
 
 interface TodoItemProps {
   item: TodoItemModel;
@@ -17,11 +18,11 @@ interface TodoItemProps {
 
 // 4 象限视觉配置 (Eisenhower Matrix)
 type Quadrant = 'P0' | 'P1' | 'P2' | 'P3';
-const QUADRANT_INFO: Record<Quadrant, { color: string; bg: string; label: string; symbol: string }> = {
-  P0: { color: 'var(--color-error)', bg: 'var(--color-error)', label: '紧急+重要', symbol: '🔴' },
-  P1: { color: 'var(--color-bid)', bg: 'var(--color-bid)', label: '紧急+不重要', symbol: '🟠' },
-  P2: { color: 'var(--color-info)', bg: 'var(--color-info)', label: '不紧急+重要', symbol: '🔵' },
-  P3: { color: 'var(--text-muted)', bg: 'transparent', label: '不紧急+不重要', symbol: '⚪' },
+const QUADRANT_INFO: Record<Quadrant, { color: string; bg: string; label: string }> = {
+  P0: { color: 'var(--color-error)', bg: 'var(--color-error)', label: '紧急+重要' },
+  P1: { color: 'var(--color-bid)', bg: 'var(--color-bid)', label: '紧急+不重要' },
+  P2: { color: 'var(--color-info)', bg: 'var(--color-info)', label: '不紧急+重要' },
+  P3: { color: 'var(--text-muted)', bg: 'transparent', label: '不紧急+不重要' },
 };
 
 function getQuadrant(urgent: boolean, important: boolean): Quadrant {
@@ -29,25 +30,6 @@ function getQuadrant(urgent: boolean, important: boolean): Quadrant {
   if (urgent && !important) return 'P1';
   if (!urgent && important) return 'P2';
   return 'P3';
-}
-
-// 复用项目 14×14 stroke=2 strokeLinecap=round 风格
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
 }
 
 // Phase 46: 截止日期展示
@@ -93,14 +75,14 @@ function formatDeadline(
 
   if (urgent) {
     return {
-      text: `⚡ ${label}`,
+      text: label,
       title: `${deadline} (自动判断为紧急: ≤1 业务日, 过滤周末)${isWeekend ? ' — 截止落在周末, 顺延到下周一' : ''}`,
       color: 'var(--color-error)',
       weight: 'bold',
     };
   }
   return {
-    text: `📅 ${label}`,
+    text: label,
     title: `${deadline} (非紧急: >1 业务日)${isWeekend ? ' — 截止落在周末, 顺延到下周一' : ''}`,
     color: 'var(--text-secondary)',
     weight: 'normal',
@@ -225,9 +207,22 @@ export function TodoItem({
           {/* Phase 46: 截止日期 badge — 紧急时变红加粗, 否则普通色 */}
           {item.deadline && (
             <span
+              className="flex items-center gap-1"
               style={{ color: deadlineInfo.color, fontWeight: deadlineInfo.weight }}
               title={deadlineInfo.title}
             >
+              <Icon size={10}>
+                {item.urgent ? (
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                ) : (
+                  <>
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </>
+                )}
+              </Icon>
               {deadlineInfo.text}
             </span>
           )}
@@ -250,7 +245,7 @@ export function TodoItem({
           type="button"
           onClick={handleImportantClick}
           disabled={isArchived}
-          className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-[10px] focus-ring"
+          className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-[10px] focus-ring flex items-center gap-1"
           style={{
             border: `1px solid ${item.important ? 'var(--color-info)' : 'var(--border-color)'}`,
             backgroundColor: item.important ? 'color-mix(in srgb, var(--color-info) 8%, transparent)' : 'transparent',
@@ -260,7 +255,10 @@ export function TodoItem({
           title={item.important ? '取消重要' : '标记为重要'}
           aria-label={item.important ? '取消重要' : '标记为重要'}
         >
-          {item.important ? '★ 重要' : '☆ 标为重要'}
+          <Icon size={10}>
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </Icon>
+          <span>{item.important ? '重要' : '标为重要'}</span>
         </button>
 
         {/* Phase 46: 截止日期快速编辑 (input type=date, 仅图标) */}

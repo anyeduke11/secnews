@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { KnowledgeItem } from '../types';
+import { Icon } from './Icon';
 
 interface ItemDetailDialogProps {
   item_id: string | null;
@@ -9,16 +10,6 @@ interface ItemDetailDialogProps {
 const DOMAINS = ['security', 'ai', 'finance', 'startup', 'engineering', 'product'];
 const TYPES = ['news', 'analysis', 'paper', 'tutorial', 'tool', 'opinion'];
 const DIFFICULTIES = ['beginner', 'intermediate', 'advanced', 'expert'];
-
-const inputStyle: React.CSSProperties = {
-  backgroundColor: 'var(--bg-hover)',
-  border: '1px solid var(--border-color)',
-  color: 'var(--text-primary)',
-  borderRadius: 'var(--radius-sm)',
-  padding: '4px 8px',
-  fontSize: '12px',
-  width: '100%',
-};
 
 const labelStyle: React.CSSProperties = {
   color: 'var(--text-muted)',
@@ -176,10 +167,8 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="rounded-[var(--radius-md)] p-4"
+        className="tech-modal p-4"
         style={{
-          backgroundColor: 'var(--bg-elevated)',
-          border: '1px solid var(--border-color)',
           width: '800px',
           maxWidth: '90vw',
           maxHeight: '80vh',
@@ -188,15 +177,25 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
       >
         {/* 顶部标题 */}
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-            📄 条目详情
+          <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </Icon>
+            条目详情
           </h3>
           <button
             onClick={onClose}
             className="btn-ghost px-2 py-0.5 text-xs"
             aria-label="关闭"
           >
-            ✕
+            <Icon size={14}>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </Icon>
           </button>
         </div>
 
@@ -237,25 +236,25 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label style={labelStyle}>domain</label>
-                  <select style={inputStyle} value={domain} onChange={e => setDomain(e.target.value)}>
+                  <select className="tech-select px-2 py-1 text-xs w-full" value={domain} onChange={e => setDomain(e.target.value)}>
                     <option value="">(未设置)</option>
                     {DOMAINS.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={labelStyle}>topic</label>
-                  <input type="text" style={inputStyle} value={topic} onChange={e => setTopic(e.target.value)} placeholder="主题" />
+                  <input type="text" className="tech-input px-2 py-1 text-xs w-full" value={topic} onChange={e => setTopic(e.target.value)} placeholder="主题" />
                 </div>
                 <div>
                   <label style={labelStyle}>type</label>
-                  <select style={inputStyle} value={type} onChange={e => setType(e.target.value)}>
+                  <select className="tech-select px-2 py-1 text-xs w-full" value={type} onChange={e => setType(e.target.value)}>
                     <option value="">(未设置)</option>
                     {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={labelStyle}>difficulty</label>
-                  <select style={inputStyle} value={difficulty} onChange={e => setDifficulty(e.target.value)}>
+                  <select className="tech-select px-2 py-1 text-xs w-full" value={difficulty} onChange={e => setDifficulty(e.target.value)}>
                     <option value="">(未设置)</option>
                     {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
@@ -266,7 +265,7 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
             {/* 3. 标签 */}
             <div>
               <label style={labelStyle}>tags (逗号分隔)</label>
-              <input type="text" style={inputStyle} value={tagsText} onChange={e => setTagsText(e.target.value)} placeholder="tag1, tag2, ..." />
+              <input type="text" className="tech-input px-2 py-1 text-xs w-full" value={tagsText} onChange={e => setTagsText(e.target.value)} placeholder="tag1, tag2, ..." />
             </div>
 
             {/* 4. 概念列表（只读） */}

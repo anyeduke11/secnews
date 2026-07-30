@@ -160,7 +160,7 @@ export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps
 
   return (
     <div className="history-page">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
         <div className="flex items-center gap-3">
           <button
             onClick={goHome}
@@ -174,19 +174,23 @@ export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps
             </Icon>
             返回首页
           </button>
-          <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
-            📚 历史资讯
+          <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+            </Icon>
+            历史资讯
           </h2>
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <span className="hidden sm:inline text-xs" style={{ color: 'var(--text-muted)' }}>
             按自然周边界 7 天分批, 永久保留
           </span>
         </div>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 flex-col md:flex-row">
         {/* 左侧批次列表 (sticky) */}
         <aside
-          className="shrink-0"
+          className="shrink-0 hidden md:block"
           style={{
             width: 240,
             position: 'sticky',

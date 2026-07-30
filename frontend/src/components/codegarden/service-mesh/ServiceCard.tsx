@@ -59,7 +59,7 @@ export function ServiceCard({ service, onClick }: ServiceCardProps) {
         </span>
         {service.endpoint_port && (
           <span
-            className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+            className="text-[9px] font-mono tabular-nums px-1.5 py-0.5 rounded"
             style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}
           >
             :{service.endpoint_port}

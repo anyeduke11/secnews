@@ -45,3 +45,8 @@ export function useImported(): UseImportedReturn {
       setError(err.message || '加载失败');
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  return { data, loading, error, fetchItems };
+}

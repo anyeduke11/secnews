@@ -6,6 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { SERVICE_RUNTIME_COLORS, SERVICE_STATUS_COLORS } from '../../../types/codegarden';
+import { Icon } from '../../Icon';
 import {
   ServiceDetailDialogProps,
   MetaRowProps,
@@ -71,31 +72,45 @@ export function ServiceDetailDialog({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[var(--radius-md)] p-4"
-        style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
+        className="tech-modal w-full max-w-2xl max-h-[90vh] overflow-y-auto p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-3">
-          <div>
-            <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-              {service.name}
-            </h3>
-            {service.namespace && (
-              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                {service.namespace}
-              </p>
-            )}
+          <div className="flex items-center gap-2">
+            <Icon size={16}>
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+              <line x1="6" y1="6" x2="6.01" y2="6" />
+              <line x1="6" y1="18" x2="6.01" y2="18" />
+            </Icon>
+            <div>
+              <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                {service.name}
+              </h3>
+              {service.namespace && (
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  {service.namespace}
+                </p>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleRestart}
-              className="btn-ghost px-2.5 py-1 text-[11px]"
+              className="btn-ghost px-2.5 py-1 text-[11px] flex items-center gap-1"
               title="重启服务"
             >
-              ↻ 重启
+              <Icon size={12}>
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </Icon>
+              重启
             </button>
-            <button onClick={onClose} className="btn-ghost px-2 py-1 text-[11px]">
-              ✕
+            <button onClick={onClose} className="btn-ghost px-2 py-1 text-[11px]" aria-label="关闭">
+              <Icon size={14}>
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </Icon>
             </button>
           </div>
         </div>

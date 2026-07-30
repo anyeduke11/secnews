@@ -2,11 +2,11 @@ import React from 'react';
 
 export function LoadingSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       {Array.from({ length: 12 }).map((_, i) => (
         <div
           key={i}
-          className="rounded-[var(--radius-md)] p-4 animate-shimmer"
+          className="rounded-[var(--radius-md)] p-3 animate-shimmer"
           style={{
             backgroundColor: 'var(--bg-card)',
             border: '1px solid var(--border-color)',

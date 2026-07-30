@@ -1,26 +1,9 @@
 import React, { useState } from 'react';
 import { TodoCreateRequest } from '../types';
+import { Icon } from './Icon';
 
 interface AddTodoFormProps {
   onAdd: (req: TodoCreateRequest) => Promise<void>;
-}
-
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
 }
 
 /**
@@ -120,12 +103,7 @@ export function AddTodoForm({ onAdd }: AddTodoFormProps) {
           placeholder="待办标题 (必填)"
           maxLength={500}
           autoFocus
-          className="px-2 py-1.5 text-xs rounded-[var(--radius-sm)] focus-ring"
-          style={{
-            backgroundColor: 'var(--bg-card)',
-            border: '1px solid var(--border-color)',
-            color: 'var(--text-primary)',
-          }}
+          className="tech-input px-2 py-1.5 text-xs w-full"
         />
 
         <div className="flex items-center gap-3 flex-wrap text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -142,13 +120,7 @@ export function AddTodoForm({ onAdd }: AddTodoFormProps) {
               type="date"
               value={deadline}
               onChange={e => setDeadline(e.target.value)}
-              className="px-1.5 py-0.5 text-xs rounded-[var(--radius-sm)] focus-ring"
-              style={{
-                backgroundColor: 'var(--bg-card)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-primary)',
-                colorScheme: 'light dark',
-              }}
+              className="tech-input px-1.5 py-0.5 text-xs"
             />
             {deadline && (
               <button
@@ -188,13 +160,8 @@ export function AddTodoForm({ onAdd }: AddTodoFormProps) {
           onChange={e => setNote(e.target.value)}
           placeholder="备注 (可选)"
           rows={1}
-          className="px-2 py-1.5 text-xs rounded-[var(--radius-sm)] focus-ring resize-none"
-          style={{
-            backgroundColor: 'var(--bg-card)',
-            border: '1px solid var(--border-color)',
-            color: 'var(--text-primary)',
-            fontFamily: 'inherit',
-          }}
+          className="tech-input px-2 py-1.5 text-xs w-full resize-none"
+          style={{ fontFamily: 'inherit' }}
         />
 
         {error && (

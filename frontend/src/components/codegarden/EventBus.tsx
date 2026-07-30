@@ -167,8 +167,8 @@ function EventRow({ event, statusColor }: { event: CgEvent; statusColor: string 
         </pre>
       )}
       <div className="flex items-center justify-between mt-1 text-[9px]" style={{ color: 'var(--text-muted)' }}>
-        <span>{event.created_at?.slice(0, 19)}</span>
-        {event.processed_at && <span>处理于 {event.processed_at.slice(0, 19)}</span>}
+        <span className="font-mono tabular-nums">{event.created_at?.slice(0, 19)}</span>
+        {event.processed_at && <span className="font-mono tabular-nums">处理于 {event.processed_at.slice(0, 19)}</span>}
       </div>
       {event.error_message && (
         <div
@@ -218,7 +218,7 @@ function PublishEventDialog({ onClose, onPublish }: PublishEventDialogProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-overlay)' }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-[var(--radius-md)] p-3" style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }} onClick={(e) => e.stopPropagation()}>
+      <div className="tech-modal w-full max-w-md p-3" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>发布事件</span>
           <button onClick={onClose} className="btn-ghost px-2 py-1 text-[11px]">✕</button>

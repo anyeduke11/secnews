@@ -45,11 +45,11 @@ export function DepList({ dependencies, onRemove, onImpact }: DepListProps) {
                 删除
               </button>
             </div>
-            <div className="font-mono" style={{ color: 'var(--text-primary)' }}>
+            <div className="font-mono tabular-nums" style={{ color: 'var(--text-primary)' }}>
               {d.source_type}:{d.source_id}
             </div>
             <div style={{ color: 'var(--text-muted)' }}>↓</div>
-            <div className="font-mono" style={{ color: 'var(--text-primary)' }}>
+            <div className="font-mono tabular-nums" style={{ color: 'var(--text-primary)' }}>
               {d.target_type}:{d.target_id}
             </div>
             <button

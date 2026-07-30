@@ -78,16 +78,14 @@ export function AddSkillForm({ editing, onSubmit, onCancel }: AddSkillFormProps)
           value={name}
           onChange={e => setName(e.target.value)}
           placeholder="名称 (e.g. aihot)"
-          className="px-2 py-1.5 text-xs rounded-[var(--radius-sm)] focus-ring"
-          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+          className="tech-input px-2 py-1.5 text-xs w-full"
         />
         <input
           type="text"
           value={url}
           onChange={e => setUrl(e.target.value)}
           placeholder="链接 (e.g. https://github.com/...)"
-          className="px-2 py-1.5 text-xs rounded-[var(--radius-sm)] focus-ring"
-          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+          className="tech-input px-2 py-1.5 text-xs w-full"
         />
       </div>
 
@@ -96,8 +94,7 @@ export function AddSkillForm({ editing, onSubmit, onCancel }: AddSkillFormProps)
         value={installCommand}
         onChange={e => setInstallCommand(e.target.value)}
         placeholder="安装指令 (e.g. npx -y aihot@latest)"
-        className="px-2 py-1.5 text-xs font-mono rounded-[var(--radius-sm)] focus-ring"
-        style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+        className="tech-input px-2 py-1.5 text-xs font-mono w-full"
       />
 
       <input
@@ -105,16 +102,14 @@ export function AddSkillForm({ editing, onSubmit, onCancel }: AddSkillFormProps)
         value={description}
         onChange={e => setDescription(e.target.value)}
         placeholder="简介 (可选)"
-        className="px-2 py-1.5 text-xs rounded-[var(--radius-sm)] focus-ring"
-        style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+        className="tech-input px-2 py-1.5 text-xs w-full"
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         <select
           value={source}
           onChange={e => setSource(e.target.value as SkillSource)}
-          className="px-2 py-1.5 text-xs rounded-[var(--radius-sm)] focus-ring"
-          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+          className="tech-select px-2 py-1.5 text-xs w-full"
         >
           {SOURCES.map(s => (
             <option key={s} value={s}>{s}</option>
@@ -125,8 +120,7 @@ export function AddSkillForm({ editing, onSubmit, onCancel }: AddSkillFormProps)
           value={tagsText}
           onChange={e => setTagsText(e.target.value)}
           placeholder="标签 (逗号分隔, e.g. ai, image)"
-          className="px-2 py-1.5 text-xs rounded-[var(--radius-sm)] focus-ring"
-          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+          className="tech-input px-2 py-1.5 text-xs w-full"
         />
       </div>
 

@@ -3,6 +3,7 @@ import { useSkills } from '../hooks/useSkills';
 import { SkillCard } from '../components/SkillCard';
 import { AddSkillForm } from '../components/AddSkillForm';
 import { SkillItem, SkillSource, SkillUpdateRequest } from '../types';
+import { Icon } from './Icon';
 
 interface SkillsPageProps {
   onBack: () => void;
@@ -16,24 +17,6 @@ const SOURCE_TABS: { value: SkillSource | 'all'; label: string }[] = [
   { value: 'git', label: 'git' },
   { value: 'manual', label: 'manual' },
 ];
-
-function Icon({ children, size = 14 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
 
 export function SkillsPage({ onBack }: SkillsPageProps) {
   const {
@@ -76,7 +59,7 @@ export function SkillsPage({ onBack }: SkillsPageProps) {
   return (
     <div className="skills-page">
       {/* 顶部标题区 */}
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -90,14 +73,17 @@ export function SkillsPage({ onBack }: SkillsPageProps) {
             </Icon>
             返回首页
           </button>
-          <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
-            🧩 Skill 管理
+          <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon size={16}>
+              <path d="M19.5 7.5A2.5 2.5 0 0 0 17 10v.5H14a1 1 0 0 1-1-1V6.5a2.5 2.5 0 1 0-2 0v3a1 1 0 0 1-1 1H6.5A2.5 2.5 0 0 0 4 13a2.5 2.5 0 0 0 2.5 2.5H9a1 1 0 0 1 1 1v3a2.5 2.5 0 1 0 2 0v-3a1 1 0 0 1 1-1h2.5v.5a2.5 2.5 0 0 0 5 0V10a2.5 2.5 0 0 0-2.5-2.5z" />
+            </Icon>
+            Skill 管理
           </h2>
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <span className="hidden sm:inline text-xs" style={{ color: 'var(--text-muted)' }}>
             一键复制安装指令到 Agent
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
             共 {total} 条
           </span>
@@ -204,13 +190,7 @@ export function SkillsPage({ onBack }: SkillsPageProps) {
           value={keyword}
           onChange={e => setKeyword(e.target.value)}
           placeholder="搜索 名称 / 简介"
-          className="ml-auto px-2 py-1 text-xs rounded-[var(--radius-sm)] focus-ring"
-          style={{
-            backgroundColor: 'var(--bg-card)',
-            border: '1px solid var(--border-color)',
-            color: 'var(--text-primary)',
-            width: 200,
-          }}
+          className="tech-input px-2 py-1 text-xs ml-auto w-full sm:w-[200px]"
         />
       </div>
 

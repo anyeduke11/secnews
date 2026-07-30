@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { TIME_OPTIONS } from '../types';
+import { Icon } from './Icon';
 
 interface SearchBarProps {
   keyword: string;
@@ -39,11 +40,12 @@ export function SearchBar({ keyword, timeRange, onKeywordChange, onTimeRangeChan
                 type="button"
                 onClick={handleClear}
                 className="search-clear focus-ring"
+                aria-label="清空搜索"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <Icon size={12}>
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                </Icon>
               </button>
             )}
           </div>

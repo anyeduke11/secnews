@@ -68,18 +68,25 @@ describe('HotspotCard', () => {
     expect(() => fireEvent.click(screen.getByLabelText('收藏'))).not.toThrow();
   });
 
-  it('shows quality flags in title attribute', () => {
-    const item = { ...baseItem, quality_flags: ['noise', 'duplicate'] };
+  it('shows quality flags as status icon (title_replaced)', () => {
+    const item = { ...baseItem, quality_flags: ['title_replaced'] };
     render(<HotspotCard item={item} index={0} />);
-    const article = screen.getByText('某安全漏洞披露').closest('article')!;
-    expect(article.getAttribute('title')).toContain('flags: noise, duplicate');
+    expect(screen.getByTitle(/同 URL 存在多条记录/)).toBeInTheDocument();
   });
 
-  it('omits title attribute when no quality_score', () => {
-    const item = { ...baseItem, quality_score: undefined };
+  it('shows verified status icon when url_check_status is verified', () => {
+    const item = {
+      ...baseItem,
+      url_check_status: 'verified',
+      quality_flags: [],
+    };
     render(<HotspotCard item={item} index={0} />);
-    const article = screen.getByText('某安全漏洞披露').closest('article')!;
-    expect(article.getAttribute('title')).toBeNull();
+    expect(screen.getByTitle(/已与详情页/)).toBeInTheDocument();
+  });
+
+  it('renders quality score dot with aria-label', () => {
+    render(<HotspotCard item={baseItem} index={0} />);
+    expect(screen.getByLabelText('quality 85')).toBeInTheDocument();
   });
 
   it('renders bid_status badge for bid category', () => {

@@ -101,7 +101,7 @@ export function PortPool({ items, onAllocate, onRelease }: PortPoolProps) {
           value={customPort}
           onChange={(e) => setCustomPort(e.target.value)}
           placeholder={`${PORT_RANGE_START}-${PORT_RANGE_END}`}
-          className="text-[11px] px-2 py-1 rounded font-mono w-32"
+          className="text-[11px] px-2 py-1 rounded font-mono tabular-nums w-32"
           style={{
             backgroundColor: 'var(--bg-hover)',
             color: 'var(--text-primary)',
@@ -166,10 +166,10 @@ export function PortPool({ items, onAllocate, onRelease }: PortPoolProps) {
               }}
             >
               <div className="flex items-center justify-between text-[9px] mb-1">
-                <span className="font-mono" style={{ color: 'var(--text-muted)' }}>
+                <span className="font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
                   {block.start}-{block.end}
                 </span>
-                <span style={{ color: 'var(--text-muted)' }}>
+                <span className="font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
                   {free}/{ports.length}
                 </span>
               </div>
@@ -193,7 +193,7 @@ export function PortPool({ items, onAllocate, onRelease }: PortPoolProps) {
               </div>
               {allocated > 0 && (
                 <div
-                  className="text-[8px] mt-1 text-center"
+                  className="text-[8px] mt-1 text-center font-mono tabular-nums"
                   style={{ color: 'var(--text-muted)' }}
                 >
                   已分配 {allocated}
@@ -211,11 +211,7 @@ export function PortPool({ items, onAllocate, onRelease }: PortPoolProps) {
           onClick={() => setSelectedPort(null)}
         >
           <div
-            className="w-full max-w-sm rounded-[var(--radius-md)] p-3"
-            style={{
-              backgroundColor: 'var(--bg-elevated)',
-              border: '1px solid var(--border-color)',
-            }}
+            className="tech-modal w-full max-w-sm p-3"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-2">

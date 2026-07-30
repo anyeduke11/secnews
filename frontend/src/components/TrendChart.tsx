@@ -1,8 +1,5 @@
 /**
  * TrendChart — 24h 热度趋势堆叠柱状图。
- *
- * Phase 2: 分类色全部走 CSS 变量 (通过 useThemeColors 读取),
- *          暗/亮主题自动切换, 主题色无硬编码 hex。
  */
 import { useEffect, useState } from 'react';
 import {
@@ -12,14 +9,13 @@ import {
 import { TrendPoint, TrendResponse } from '../types';
 import { useThemeColors, ThemeColorKey } from '../hooks/useThemeColors';
 
-// chart 用的分类色 token key + 中文 label
 const CATEGORY_CONFIG: Array<{ key: string; token: ThemeColorKey; label: string }> = [
   { key: 'ai', token: 'color-ai', label: '科技/AI' },
   { key: 'security', token: 'color-security', label: '安全' },
   { key: 'finance', token: 'color-finance', label: '金融' },
   { key: 'startup', token: 'color-startup', label: '创业' },
   { key: 'bid', token: 'color-bid', label: '招标' },
-  { key: 'github', token: 'color-ai', label: 'GitHub 项目' }, // github 借用 --color-ai 蓝
+  { key: 'github', token: 'color-ai', label: 'GitHub 项目' },
 ];
 
 export function TrendChart() {
@@ -43,13 +39,17 @@ export function TrendChart() {
     'text-secondary',
     'text-muted',
     'color-ai',
+    'color-security',
+    'color-finance',
+    'color-startup',
+    'color-bid',
   ]);
 
   if (loading) {
     return (
-      <div className="card-base p-4 mb-5">
-        <div className="h-3.5 w-28 rounded mb-4" style={{ backgroundColor: 'var(--bg-hover)' }} />
-        <div className="h-36 rounded" style={{ backgroundColor: 'var(--bg-hover)' }} />
+      <div className="stat-card p-3 mb-4 corner-brackets" style={{ ['--card-accent' as string]: 'var(--color-ai)' }}>
+        <div className="h-3.5 w-28 rounded mb-4 animate-shimmer" />
+        <div className="h-36 rounded animate-shimmer" />
       </div>
     );
   }
@@ -69,12 +69,12 @@ export function TrendChart() {
             borderRadius: 'var(--radius-sm)',
           }}
         >
-          <p style={{ color: colors['text-secondary'] || 'var(--text-secondary)' }} className="mb-1.5">{label}</p>
+          <p style={{ color: colors['text-secondary'] || 'var(--text-secondary)' }} className="mb-1.5 font-mono">{label}</p>
           {payload.map((entry: any) => (
             <div key={entry.name} className="flex items-center gap-2 mb-0.5">
               <span className="dot-indicator" style={{ backgroundColor: entry.color }} />
               <span style={{ color: colors['text-primary'] || 'var(--text-primary)' }}>{entry.name}: </span>
-              <span className="font-semibold" style={{ color: colors['text-primary'] || 'var(--text-primary)' }}>{entry.value}</span>
+              <span className="font-semibold font-mono" style={{ color: colors['text-primary'] || 'var(--text-primary)' }}>{entry.value}</span>
             </div>
           ))}
         </div>
@@ -88,12 +88,15 @@ export function TrendChart() {
   const border = colors['border-color'] || 'var(--border-color)';
 
   return (
-    <div className="card-base p-4 mb-5">
-      <div className="flex items-center justify-between mb-3.5">
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: textSec }}>
-          24小时热度趋势
-        </h3>
-        <span className="text-[11px]" style={{ color: textMuted }}>
+    <div className="stat-card p-3 mb-4 corner-brackets" style={{ ['--card-accent' as string]: 'var(--color-ai)' }}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="w-1 h-4 rounded-full" style={{ backgroundColor: 'var(--color-ai)' }} />
+          <h3 className="text-xs font-semibold tracking-wide" style={{ color: textSec }}>
+            24小时热度趋势
+          </h3>
+        </div>
+        <span className="text-[11px] font-mono" style={{ color: textMuted }}>
           每小时热点分布
         </span>
       </div>

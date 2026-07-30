@@ -3,7 +3,7 @@
  *
  * Phase 3: 错误态用 --color-error, 空态/加载态/任务样式 token 化。
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { LearningPlan } from '../types';
 import { EmptyState } from './EmptyState';
 
@@ -12,6 +12,10 @@ export function LearningPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [genProgress, setGenProgress] = useState('');
+  const [genElapsed, setGenElapsed] = useState(0);
+  const genTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const genPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [taskState, setTaskState] = useState<Record<string, boolean>>({});
 
   const loadPlans = useCallback(() => {
@@ -36,8 +40,22 @@ export function LearningPanel() {
     loadPlans();
   }, [loadPlans]);
 
+  const stopGen = () => {
+    if (genTimerRef.current) { clearInterval(genTimerRef.current); genTimerRef.current = null; }
+    if (genPollRef.current) { clearInterval(genPollRef.current); genPollRef.current = null; }
+  };
+
   const handleGenerate = () => {
     setGenerating(true);
+    setGenProgress('创建任务...');
+    setGenElapsed(0);
+    const startTime = Date.now();
+
+    // 计时器
+    genTimerRef.current = setInterval(() => {
+      setGenElapsed(Math.round((Date.now() - startTime) / 1000));
+    }, 1000);
+
     fetch('/api/knowledge/plans/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -47,11 +65,69 @@ export function LearningPanel() {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then(() => {
-        setTimeout(loadPlans, 500);
+      .then(data => {
+        const taskId = data?.task_id ?? data?.task?.id;
+        if (!taskId) {
+          stopGen();
+          // No task_id but status=done means plan was generated directly
+          if (data?.status === 'done') {
+            setGenerating(false);
+            setGenProgress('');
+            loadPlans();
+            return;
+          }
+          setError('未返回 task_id');
+          setGenerating(false);
+          return;
+        }
+
+        // If status is already done, plan was generated directly
+        if (data?.status === 'done') {
+          stopGen();
+          setGenerating(false);
+          setGenProgress('');
+          loadPlans();
+          return;
+        }
+
+        setGenProgress('等待 Agent 处理...');
+
+        // 轮询任务状态，每 2s 一次，最多 60s
+        let polls = 0;
+        genPollRef.current = setInterval(() => {
+          polls++;
+          fetch(`/api/knowledge/tasks/${taskId}`)
+            .then(r => r.json())
+            .then(task => {
+              const status = task?.status;
+              if (status === 'done') {
+                stopGen();
+                setGenerating(false);
+                setGenProgress('');
+                loadPlans();
+              } else if (status === 'failed') {
+                stopGen();
+                setError(task?.error_message || '任务执行失败');
+                setGenerating(false);
+              } else if (polls >= 30) {
+                // 30 次轮询(~60s)仍未完成，提示 Agent 可能未运行
+                stopGen();
+                setError('任务已创建但超时未完成，请确认 Agent 是否在运行');
+                setGenerating(false);
+              } else if (status === 'processing') {
+                setGenProgress('Agent 正在生成...');
+              } else {
+                setGenProgress('等待 Agent 处理...');
+              }
+            })
+            .catch(() => { /* ignore poll errors */ });
+        }, 2000);
       })
-      .catch(e => setError(e?.message || String(e)))
-      .finally(() => setGenerating(false));
+      .catch(e => {
+        stopGen();
+        setError(e?.message || String(e));
+        setGenerating(false);
+      });
   };
 
   const toggleTask = (key: string) => {
@@ -82,8 +158,10 @@ export function LearningPanel() {
     return (
       <div>
         <EmptyState
-          title="暂无学习计划"
-          description="点击生成按钮创建"
+          title={generating ? genProgress : '暂无学习计划'}
+          description={generating
+            ? `${genElapsed}s — 等待 AI Agent 执行 knowledge-master skill`
+            : '点击生成按钮创建'}
           actionLabel={generating ? '生成中…' : '生成学习计划'}
           onAction={generating ? undefined : handleGenerate}
         />

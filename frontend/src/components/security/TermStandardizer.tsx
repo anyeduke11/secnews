@@ -52,7 +52,7 @@ export function TermStandardizer() {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="tech-card p-3 space-y-2">
       <div className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
         安全术语标准化
       </div>
@@ -61,13 +61,7 @@ export function TermStandardizer() {
         value={input}
         onChange={(e) => handleChange(e.target.value)}
         placeholder="输入需要标准化的术语..."
-        className="w-full px-2.5 py-1.5 text-xs rounded-[var(--radius-sm)]"
-        style={{
-          backgroundColor: 'var(--bg-hover)',
-          border: '1px solid var(--border-color)',
-          color: 'var(--text-primary)',
-          outline: 'none',
-        }}
+        className="tech-input w-full px-2.5 py-1.5 text-xs"
       />
       {loading && (
         <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>查询中…</div>
@@ -76,8 +70,7 @@ export function TermStandardizer() {
         <div className="text-[10px]" style={{ color: 'var(--color-error)' }}>{error}</div>
       )}
       {result && !loading && (
-        <div className="rounded-[var(--radius-sm)] p-2 text-xs space-y-1"
-             style={{ backgroundColor: 'var(--bg-hover)' }}>
+        <div className="tech-card p-2 text-xs space-y-1">
           <div className="flex items-center gap-2">
             <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
               {result.canonical}

@@ -7,39 +7,32 @@ export default {
   theme: {
     extend: {
       colors: {
-        // 6 classification (Phase 1A: 引用 CSS 变量而非硬编码)
         'cat-ai':       'var(--color-ai)',
         'cat-security': 'var(--color-security)',
         'cat-finance':  'var(--color-finance)',
         'cat-startup':  'var(--color-startup)',
         'cat-bid':      'var(--color-bid)',
         'cat-general':  'var(--color-general)',
-        // Semantic state (Phase 1A 补强)
         'success': 'var(--color-success)',
         'warning': 'var(--color-warning)',
         'error':   'var(--color-error)',
         'info':    'var(--color-info)',
-        // Surfaces (Phase 1A: 保留 dark- 前缀兼容现有组件)
         'dark-bg':      'var(--bg-primary)',
         'dark-card':    'var(--bg-card)',
         'dark-hover':   'var(--bg-hover)',
         'dark-elevated':'var(--bg-elevated)',
         'dark-border':  'var(--border-color)',
-        // Accents (兼容旧 dark-xxx 别名, Phase 1B 后逐步移除)
         'accent-cyan':   'var(--color-ai)',
         'accent-red':    'var(--color-security)',
         'accent-gold':   'var(--color-finance)',
         'accent-purple': 'var(--color-startup)',
         'accent-orange': 'var(--color-bid)',
         'accent-green':  'var(--color-general)',
-        // Text
         'text-main':       'var(--text-primary)',
         'text-secondary':  'var(--text-secondary)',
         'text-muted':      'var(--text-muted)',
       },
       fontFamily: {
-        // Phase 7: 区分 sans (UI body) 与 mono (data/code)
-        // 不再混用 — 解决「全部 mono 看起来像 terminal」问题
         'sans': [
           'Inter',
           'system-ui',
@@ -48,6 +41,8 @@ export default {
           'PingFang SC',
           'Hiragino Sans GB',
           'Microsoft YaHei',
+          'Noto Sans SC',
+          'WenQuanYi Micro Hei',
           'sans-serif',
         ],
         'mono': [
@@ -56,10 +51,8 @@ export default {
           'Cascadia Code',
           'monospace',
         ],
-        // Knowledge 阅读模式保留衬线 (未来 Phase 3 启用)
         'serif': ['Newsreader', 'Iowan Old Style', 'Apple Garamond', 'serif'],
       },
-      // Phase 7: 标准字重 + 字距
       fontWeight: {
         normal:  '400',
         medium:  '500',
@@ -73,25 +66,24 @@ export default {
         wide:     '0.04em',
         wider:    '0.08em',
       },
-      // Phase 7: 5 级行高
       lineHeight: {
-        tight:   '1.3',
+        tight:   '1.2',
         snug:    '1.4',
         normal:  '1.5',
         relaxed: '1.6',
       },
-      // Phase 7: 5 级字号 (与 .text-*-tech 对齐)
       fontSize: {
-        'xs':   ['12px', { lineHeight: '1.5' }],
-        'sm':   ['14px', { lineHeight: '1.5' }],
-        'base': ['16px', { lineHeight: '1.5' }],
-        'lg':   ['20px', { lineHeight: '1.4' }],
-        'xl':   ['24px', { lineHeight: '1.3' }],
+        'xs':   ['11px', { lineHeight: '1.5' }],
+        'sm':   ['13px', { lineHeight: '1.5' }],
+        'base': ['14px', { lineHeight: '1.6' }],
+        'lg':   ['16px', { lineHeight: '1.4' }],
+        'xl':   ['20px', { lineHeight: '1.3' }],
       },
       borderRadius: {
         'sm':   'var(--radius-sm)',
         'md':   'var(--radius-md)',
         'lg':   'var(--radius-lg)',
+        'xl':   'var(--radius-xl)',
         'full': 'var(--radius-full)',
       },
       boxShadow: {
@@ -100,6 +92,7 @@ export default {
         'popover':  'var(--shadow-popover)',
         'modal':    'var(--shadow-modal)',
         'toast':    'var(--shadow-toast)',
+        'glow':     'var(--shadow-glow)',
       },
       spacing: {
         '0':  'var(--space-0)',
@@ -130,6 +123,7 @@ export default {
       transitionTimingFunction: {
         'out':    'var(--ease-out)',
         'in-out': 'var(--ease-in-out)',
+        'spring': 'var(--ease-spring)',
       },
     },
   },

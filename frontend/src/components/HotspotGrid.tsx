@@ -1,8 +1,5 @@
 /**
  * HotspotGrid — 热点列表 + 分页 + 三态（Loading/Empty/Error）。
- *
- * Phase 2: Error/Empty 接入 EmptyState, 硬编码颜色全部 token 化,
- *          分页按钮状态色用 --color-* token。
  */
 import React from 'react';
 import { HotspotItem } from '../types';
@@ -17,7 +14,6 @@ interface HotspotGridProps {
   error: string | null;
   favoritedIds?: Set<string>;
   onToggleFavorite?: (item: HotspotItem) => void;
-  // Phase 38: 分页
   page: number;
   pageSize: number;
   totalPages: number;
@@ -77,7 +73,7 @@ export function HotspotGrid({
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {items.map((item, index) => (
           <HotspotCard
             key={item.id}
@@ -89,12 +85,10 @@ export function HotspotGrid({
         ))}
       </div>
 
-      {/* 分页控件 - 居中显示在网格尾部 */}
+      {/* 分页控件 */}
       {!loading && total > 0 && (
-        <div className="mt-8 flex flex-col items-center gap-3.5">
-          {/* 页大小选择器 (4 选项, 居中) */}
-          <div className="flex items-center gap-2">
-            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>每页</span>
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="flex items-center gap-1.5 order-2 sm:order-1">
             {PAGE_SIZE_OPTIONS.map(size => {
               const active = size === pageSize;
               return (
@@ -104,40 +98,27 @@ export function HotspotGrid({
                   onClick={() => onSetPageSize(size)}
                   aria-label={`每页 ${size} 条`}
                   aria-pressed={active}
-                  className="focus-ring transition-colors"
+                  className="pagination-btn focus-ring"
                   style={{
-                    minWidth: 38,
-                    height: 26,
-                    padding: '0 10px',
-                    borderRadius: 6,
-                    fontSize: 12,
-                    fontWeight: active ? 600 : 500,
-                    background: active ? 'var(--color-ai)' : 'var(--bg-card)',
+                    background: active ? 'var(--color-info)' : 'var(--bg-card)',
                     color: active ? 'var(--bg-primary)' : 'var(--text-secondary)',
-                    border: `1px solid ${active ? 'var(--color-ai)' : 'var(--border-color)'}`,
-                    cursor: 'pointer',
+                    borderColor: active ? 'var(--color-info)' : 'var(--border-color)',
+                    fontWeight: active ? 600 : 500,
+                    padding: '4px 10px',
                   }}
                 >
                   {size}
                 </button>
               );
             })}
-            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>条</span>
           </div>
 
-          {/* 翻页 + 页码指示 */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 order-1 sm:order-2">
             <button
               type="button"
               onClick={() => onSetPage(page - 1)}
               disabled={page <= 1 || loadingPage}
-              className="btn-ghost flex items-center gap-1 transition-colors"
-              style={{
-                padding: '5px 12px',
-                fontSize: 12,
-                opacity: page <= 1 || loadingPage ? 0.5 : 1,
-                cursor: page <= 1 || loadingPage ? 'not-allowed' : 'pointer',
-              }}
+              className="pagination-btn focus-ring"
               aria-label="上一页"
             >
               <Icon size={12}>
@@ -146,25 +127,15 @@ export function HotspotGrid({
               <span>上一页</span>
             </button>
 
-            <span
-              className="text-[12px] px-3 tabular-nums"
-              style={{ color: 'var(--text-secondary)', minWidth: 80, textAlign: 'center' }}
-              aria-live="polite"
-            >
-              第 <b style={{ color: 'var(--text-primary)' }}>{page}</b> / {totalPages} 页
+            <span className="page-indicator" aria-live="polite">
+              第 <strong>{page}</strong> / {totalPages} 页
             </span>
 
             <button
               type="button"
               onClick={() => onSetPage(page + 1)}
               disabled={!hasMore || loadingPage}
-              className="btn-ghost flex items-center gap-1 transition-colors"
-              style={{
-                padding: '5px 12px',
-                fontSize: 12,
-                opacity: !hasMore || loadingPage ? 0.5 : 1,
-                cursor: !hasMore || loadingPage ? 'not-allowed' : 'pointer',
-              }}
+              className="pagination-btn focus-ring"
               aria-label="下一页"
             >
               <span>下一页</span>
@@ -174,8 +145,7 @@ export function HotspotGrid({
             </button>
           </div>
 
-          {/* 计数 (显示已加载/总数) */}
-          <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-[11px] order-3 font-mono" style={{ color: 'var(--text-muted)' }}>
             {loadingPage ? (
               <span className="flex items-center gap-1.5">
                 <Icon size={10}>

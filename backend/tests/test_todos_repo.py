@@ -5,12 +5,20 @@
     * add_or_get 新建 / 重复 favorite-source 幂等 / manual
     * list 多维筛选 (status/urgent/important) + 排序
     * count by_status / by_priority 4 象限
-    * update priority (urgent/important)
+    * update priority (important / deadline)
     * update status 状态迁移 (open→done→archived→open)
     * delete
     * list_available_favorites 排除已入 todo
+
+Phase 46 起: ``urgent`` 不再是可写列, 紧急由 ``deadline`` 派生
+(见 backend.utils.business_days.compute_effective_urgent)。本测试因此:
+  - 需要「紧急」的条目 → 传 ``deadline=_today_iso()`` (今天截止 → diff=0 → urgent)
+  - 需要「不紧急」的条目 → 不传 deadline (无截止 → 非紧急)
+  - 断言 effective urgency 用 ``item.to_dict()["urgent"]`` 而非 raw 属性
 """
 from __future__ import annotations
+
+from datetime import datetime
 
 import pytest
 from fastapi import FastAPI
@@ -23,6 +31,12 @@ from backend.exceptions import register_exception_handlers
 from backend.repository import db
 from backend.repository.favorite_repo import FavoriteRepository
 from backend.repository.todo_repo import TodoRepository
+from backend.utils.business_days import SHANGHAI_TZ
+
+
+def _today_iso() -> str:
+    """今天 (上海时区) 的 ISO 日期 — 作为 deadline 时恒为「紧急」(diff=0)。"""
+    return datetime.now(SHANGHAI_TZ).date().isoformat()
 
 
 # ---------------------------------------------------------------------------
@@ -69,7 +83,6 @@ class TestTodoRepoAddOrGet:
             url=None,
             source=None,
             category=None,
-            urgent=0,
             important=0,
             note="周一上午",
         )
@@ -78,7 +91,8 @@ class TestTodoRepoAddOrGet:
         assert item.source_type == "manual"
         assert item.source_id is None
         assert item.title == "开周会"
-        assert item.urgent == 0
+        # 无 deadline → effective urgent 0
+        assert item.to_dict()["urgent"] == 0
         assert item.important == 0
         assert item.status == "open"
         assert item.completed_at is None
@@ -93,12 +107,13 @@ class TestTodoRepoAddOrGet:
             url=None,
             source=None,
             category=None,
-            urgent=1,
             important=1,
+            deadline=_today_iso(),
             note=None,
         )
         assert created is True
-        assert item.urgent == 1
+        # deadline=今天 → 派生紧急
+        assert item.to_dict()["urgent"] == 1
         assert item.important == 1
 
     def test_add_favorite_new(self, todo_repo, fav_repo):
@@ -117,8 +132,8 @@ class TestTodoRepoAddOrGet:
             url="ignored",
             source="ignored",
             category="ignored",
-            urgent=1,
             important=0,
+            deadline=_today_iso(),
             note="n",
         )
         assert created is True
@@ -142,13 +157,13 @@ class TestTodoRepoAddOrGet:
             source_type="favorite",
             source_id="h-dup",
             title="x", url=None, source=None, category=None,
-            urgent=0, important=0, note=None,
+            important=0, note=None,
         )
         second, c2 = todo_repo.add_or_get(
             source_type="favorite",
             source_id="h-dup",
             title="x", url=None, source=None, category=None,
-            urgent=0, important=0, note=None,
+            important=0, note=None,
         )
         assert c1 is True
         assert c2 is False
@@ -161,7 +176,7 @@ class TestTodoRepoAddOrGet:
             source_type="manual",
             source_id="should-be-dropped",
             title="t", url=None, source=None, category=None,
-            urgent=0, important=0, note=None,
+            important=0, note=None,
         )
         assert item.source_id is None
 
@@ -171,7 +186,7 @@ class TestTodoRepoAddOrGet:
                 source_type="favorite",
                 source_id="",
                 title="t", url=None, source=None, category=None,
-                urgent=0, important=0, note=None,
+                important=0, note=None,
             )
 
     def test_add_invalid_source_type_raises(self, todo_repo):
@@ -180,7 +195,7 @@ class TestTodoRepoAddOrGet:
                 source_type="nonsense",
                 source_id="x",
                 title="t", url=None, source=None, category=None,
-                urgent=0, important=0, note=None,
+                important=0, note=None,
             )
 
     def test_add_empty_title_raises(self, todo_repo):
@@ -189,7 +204,7 @@ class TestTodoRepoAddOrGet:
                 source_type="manual",
                 source_id=None,
                 title="", url=None, source=None, category=None,
-                urgent=0, important=0, note=None,
+                important=0, note=None,
             )
 
 
@@ -198,7 +213,11 @@ class TestTodoRepoAddOrGet:
 # ===========================================================================
 class TestTodoRepoList:
     def _seed(self, todo_repo, fav_repo):
-        """3 个 todo: 1 紧急+重要, 1 仅紧急, 1 仅重要; 第二个标 done。"""
+        """3 个 todo: 1 紧急+重要, 1 仅紧急, 1 仅重要; 第二个标 done。
+
+        Phase 46: 「紧急」= deadline 设为今天; 「不紧急」= 无 deadline。
+        """
+        today = _today_iso()
         fav_repo.add(
             hotspot_id="h-1", category="ai", title="T1",
             source="s", url="https://e.com/1",
@@ -206,17 +225,17 @@ class TestTodoRepoList:
         a, _ = todo_repo.add_or_get(
             source_type="favorite", source_id="h-1",
             title="ignored", url=None, source=None, category=None,
-            urgent=1, important=1, note=None,
+            important=1, deadline=today, note=None,
         )
         b, _ = todo_repo.add_or_get(
             source_type="manual", source_id=None,
             title="M2", url=None, source=None, category=None,
-            urgent=1, important=0, note=None,
+            important=0, deadline=today, note=None,
         )
         c, _ = todo_repo.add_or_get(
             source_type="manual", source_id=None,
             title="M3", url=None, source=None, category=None,
-            urgent=0, important=1, note=None,
+            important=1, note=None,
         )
         # 第二个标 done
         todo_repo.update(b.id, status="done")
@@ -256,9 +275,7 @@ class TestTodoRepoList:
         items, total = todo_repo.list(status="open", urgent=1)
         # open + urgent=1: 只有 a
         assert total == 1
-        assert items[0].id == next(
-            x.id for x in [self._seed(todo_repo, fav_repo)[0]] if x.urgent == 1
-        ) if False else items[0].urgent == 1
+        assert items[0].to_dict()["urgent"] == 1
 
     def test_list_sort_priority_desc(self, todo_repo, fav_repo):
         a, _, _ = self._seed(todo_repo, fav_repo)
@@ -289,41 +306,42 @@ class TestTodoRepoCount:
         }
 
     def test_count_after_mixed_inserts(self, todo_repo, fav_repo):
+        today = _today_iso()
         # P0: 紧急+重要 (open)
         todo_repo.add_or_get(
             source_type="manual", source_id=None, title="p0",
             url=None, source=None, category=None,
-            urgent=1, important=1, note=None,
+            important=1, deadline=today, note=None,
         )
         # P1: 仅紧急 (open)
         todo_repo.add_or_get(
             source_type="manual", source_id=None, title="p1",
             url=None, source=None, category=None,
-            urgent=1, important=0, note=None,
+            important=0, deadline=today, note=None,
         )
         # P2: 仅重要 (open)
         todo_repo.add_or_get(
             source_type="manual", source_id=None, title="p2",
             url=None, source=None, category=None,
-            urgent=0, important=1, note=None,
+            important=1, note=None,
         )
         # P3: 都不 (open)
         _, p3 = todo_repo.add_or_get(
             source_type="manual", source_id=None, title="p3",
             url=None, source=None, category=None,
-            urgent=0, important=0, note=None,
+            important=0, note=None,
         )
         # 标 done 一个 P0
         p0, _ = todo_repo.add_or_get(
             source_type="manual", source_id=None, title="p0-2",
             url=None, source=None, category=None,
-            urgent=1, important=1, note=None,
+            important=1, deadline=today, note=None,
         )
         # archived 一个 P3 (不计入 priority)
         todo_repo.add_or_get(
             source_type="manual", source_id=None, title="archived-p3",
             url=None, source=None, category=None,
-            urgent=0, important=0, note=None,
+            important=0, note=None,
         )
         # 把 p0 标 done
         todo_repo.update(p0.id, status="done")
@@ -355,17 +373,20 @@ class TestTodoRepoUpdate:
         item, _ = todo_repo.add_or_get(
             source_type="manual", source_id=None, title="t",
             url=None, source=None, category=None,
-            urgent=0, important=1, note=None,
+            important=1, note=None,
         )
-        updated = todo_repo.update(item.id, urgent=1, important=0)
-        assert updated.urgent == 1
+        # Phase 46: urgent 不可直接写, 用 deadline 派生; important 仍可改
+        updated = todo_repo.update(
+            item.id, important=0, deadline=_today_iso(), deadline_set=True,
+        )
+        assert updated.to_dict()["urgent"] == 1
         assert updated.important == 0
 
     def test_update_status_open_to_done_fills_completed_at(self, todo_repo):
         item, _ = todo_repo.add_or_get(
             source_type="manual", source_id=None, title="t",
             url=None, source=None, category=None,
-            urgent=0, important=0, note=None,
+            important=0, note=None,
         )
         assert item.completed_at is None
         updated = todo_repo.update(item.id, status="done")
@@ -377,7 +398,7 @@ class TestTodoRepoUpdate:
         item, _ = todo_repo.add_or_get(
             source_type="manual", source_id=None, title="t",
             url=None, source=None, category=None,
-            urgent=0, important=0, note=None,
+            important=0, note=None,
         )
         todo_repo.update(item.id, status="done")
         updated = todo_repo.update(item.id, status="archived")
@@ -390,7 +411,7 @@ class TestTodoRepoUpdate:
         item, _ = todo_repo.add_or_get(
             source_type="manual", source_id=None, title="t",
             url=None, source=None, category=None,
-            urgent=0, important=0, note=None,
+            important=0, note=None,
         )
         todo_repo.update(item.id, status="done")
         todo_repo.update(item.id, status="archived")
@@ -403,7 +424,7 @@ class TestTodoRepoUpdate:
         item, _ = todo_repo.add_or_get(
             source_type="manual", source_id=None, title="t",
             url=None, source=None, category=None,
-            urgent=0, important=0, note=None,
+            important=0, note=None,
         )
         updated = todo_repo.update(item.id, status="archived")
         assert updated.status == "archived"
@@ -415,7 +436,7 @@ class TestTodoRepoUpdate:
         item, _ = todo_repo.add_or_get(
             source_type="manual", source_id=None, title="t",
             url=None, source=None, category=None,
-            urgent=0, important=0, note="original",
+            important=0, note="original",
         )
         updated = todo_repo.update(item.id, note="new note")
         assert updated.note == "new note"
@@ -433,7 +454,7 @@ class TestTodoRepoDelete:
         item, _ = todo_repo.add_or_get(
             source_type="manual", source_id=None, title="t",
             url=None, source=None, category=None,
-            urgent=0, important=0, note=None,
+            important=0, note=None,
         )
         assert todo_repo.delete(item.id) is True
         assert todo_repo.get(item.id) is None
@@ -458,7 +479,7 @@ class TestTodoRepoListAvailableFavorites:
         todo_repo.add_or_get(
             source_type="favorite", source_id="h-2",
             title="ignored", url=None, source=None, category=None,
-            urgent=0, important=0, note=None,
+            important=0, note=None,
         )
         items = todo_repo.list_available_favorites()
         # 应返回 2 个 (h-1, h-3)
@@ -474,7 +495,7 @@ class TestTodoRepoListAvailableFavorites:
             todo_repo.add_or_get(
                 source_type="favorite", source_id=f"h-{i}",
                 title="ignored", url=None, source=None, category=None,
-                urgent=0, important=0, note=None,
+                important=0, note=None,
             )
         items = todo_repo.list_available_favorites()
         assert items == []

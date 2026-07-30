@@ -143,28 +143,30 @@ def test_time_range_to_hours():
 
 
 def test_time_range_start_datetime_calendar_based():
-    """Phase 39: H24 / D3 改为「基于日历日」语义 (不再滚动 24h / 3d)。
+    """Phase 48: H24 / D3 / D7 改为「基于上海时区日历日/周」语义。
 
-    - H24: 今日 00:00 UTC
-    - D3 : 今日 - 2 天 00:00 UTC (3 个日历日)
-    - D7 : 本周周一 00:00 UTC (calendar week, 不变)
+    - H24: 上海今日 00:00 (转 UTC)
+    - D3 : 上海今日 - 2 天 00:00 (3 个日历日)
+    - D7 : 上海本周周一 00:00 (calendar week)
     """
-    from datetime import datetime, timezone
-    now_utc = datetime(2026, 7, 8, 14, 30, 0, tzinfo=timezone.utc)  # 周三下午
+    from datetime import timezone
+    from backend.domain.enums import SHANGHAI_TZ
+
     h24 = TimeRange.H24.start_datetime()
     d3 = TimeRange.D3.start_datetime()
     d7 = TimeRange.D7.start_datetime()
-    # H24 起点 = 今日 00:00 UTC
-    assert h24.hour == 0 and h24.minute == 0 and h24.second == 0
-    assert (now_utc - h24).total_seconds() < 24 * 3600  # 不超过 24h 之前
-    # D3 起点 = 今日 - 2 天 00:00 UTC
-    assert d3.hour == 0 and d3.minute == 0 and d3.second == 0
-    assert (h24 - d3).days == 2  # 恰好 2 天
-    # D7 起点 = 本周周一 00:00 UTC (周三 → 周一 = 2 天前)
-    assert d7.weekday() == 0  # 周一
-    assert d7.hour == 0 and d7.minute == 0
-    assert (h24 - d7).days == 2  # 周三 → 周一 = 2 天前
-    # 全部是 tz-aware UTC
+    # 语义基于上海时区: 转回上海后应为当日 00:00
+    h24_sh = h24.astimezone(SHANGHAI_TZ)
+    d3_sh = d3.astimezone(SHANGHAI_TZ)
+    d7_sh = d7.astimezone(SHANGHAI_TZ)
+    assert h24_sh.hour == 0 and h24_sh.minute == 0 and h24_sh.second == 0
+    # D3 起点 = 上海今日 - 2 天 00:00
+    assert d3_sh.hour == 0 and d3_sh.minute == 0 and d3_sh.second == 0
+    assert (h24_sh.date() - d3_sh.date()).days == 2  # 恰好 2 天
+    # D7 起点 = 上海本周周一 00:00
+    assert d7_sh.weekday() == 0  # 周一
+    assert d7_sh.hour == 0 and d7_sh.minute == 0
+    # 全部是 tz-aware
     assert h24.tzinfo is not None
     assert d3.tzinfo is not None
     assert d7.tzinfo is not None

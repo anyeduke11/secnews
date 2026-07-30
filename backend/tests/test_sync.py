@@ -52,6 +52,7 @@ def db(tmp_path, monkeypatch) -> Iterator[None]:
         "007_ingested_at.sql", "008_bid_status.sql", "009_tech_category.sql",
         "010_history_batches.sql", "011_todos.sql", "012_skills.sql",
         "013_secrets.sql", "014_sync.sql",
+"015_todos_deadline.sql", "016_sync_frequency.sql",
     ):
         with open(f"{schema_dir}/{sql_file}", "r", encoding="utf-8") as f:
             setup_conn.executescript(f.read())

@@ -100,11 +100,23 @@ DEFAULT_CATEGORY_KEYWORDS: dict[str, list[str]] = {
         "苹果", "Apple", "华为", "小米", "三星", "OPPO", "vivo",
         "发布会", "亮相", "推出", "上线", "开源", "社区",
     ],
+    Category.AI_SECURITY.value: [
+        "AI安全", "人工智能安全", "大模型安全", "LLM安全",
+        "prompt injection", "jailbreak", "AI safety",
+        "adversarial", "model poisoning", "AI red team",
+        "AI incident", "OWASP LLM", "AI alignment",
+        "AI 漏洞", "LLM vulnerability", "AI attack",
+        "AI malware", "AI worm", "对抗攻击",
+        "AI 监管", "AI 治理", "AI 风险",
+        "AI security", "AI threat", "恶意AI",
+        "AI 投毒", "数据投毒", "模型投毒",
+        "AI 安全", "AI 防御", "AI 攻防",
+    ],
 }
 
 
 def default_category_keywords() -> dict[str, list[str]]:
-    """返回 7 个分类的默认关键词（深拷贝，避免外部修改污染默认）。"""
+    """返回 8 个分类的默认关键词（深拷贝，避免外部修改污染默认）。"""
     return {k: list(v) for k, v in DEFAULT_CATEGORY_KEYWORDS.items()}
 
 

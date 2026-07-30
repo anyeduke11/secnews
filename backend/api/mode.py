@@ -21,6 +21,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.services.digest_service import has_unread_digest, mark_digest_read
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/mode", tags=["mode"])
 
@@ -39,10 +40,10 @@ async def current_mode():
     Returns
     -------
     dict
-        ``{"version": "1.7.0", "mode": "brief" | "scan"}``
+        ``{"version": API_VERSION, "mode": "brief" | "scan"}``
     """
     mode = "brief" if has_unread_digest() else "scan"
-    return {"version": "1.7.0", "mode": mode}
+    return {"version": API_VERSION, "mode": mode}
 
 
 @router.put("/switch")
@@ -59,7 +60,7 @@ async def switch_mode(mode: str = Query(..., description="目标模式")):
     Returns
     -------
     dict
-        ``{"version": "1.7.0", "mode": "<mode>"}``
+        ``{"version": API_VERSION, "mode": "<mode>"}``
     """
     if mode not in _MODES:
         raise HTTPException(
@@ -73,10 +74,10 @@ async def switch_mode(mode: str = Query(..., description="目标模式")):
     # 切换模式时标记简报已读, 避免 /current 持续返回 brief
     mark_digest_read()
 
-    return {"version": "1.7.0", "mode": mode}
+    return {"version": API_VERSION, "mode": mode}
 
 
 @router.get("/modes")
 async def list_modes():
     """返回所有可用模式列表 (供前端渲染模式选择器)。"""
-    return {"version": "1.7.0", "modes": sorted(_MODES)}
+    return {"version": API_VERSION, "modes": sorted(_MODES)}

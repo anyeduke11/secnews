@@ -92,6 +92,10 @@ class KnowledgeRepo:
         difficulty: Optional[str] = None,
         since: Optional[str] = None,
         until: Optional[str] = None,
+        # Phase 8 新增参数
+        sources: Optional[list[str]] = None,
+        keyword: Optional[str] = None,
+        exclude_urls: Optional[list[str]] = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[KnowledgeItem]:
@@ -127,6 +131,17 @@ class KnowledgeRepo:
             # until 是日期，需要包含当天，所以用 < next day
             where.append("ingested_at < date(?, '+1 day')")
             params.append(until)
+        if sources:
+            placeholders = ",".join("?" * len(sources))
+            where.append(f"source IN ({placeholders})")
+            params.extend(sources)
+        if keyword:
+            where.append("title LIKE ?")
+            params.append(f"%{keyword}%")
+        if exclude_urls:
+            placeholders = ",".join("?" * len(exclude_urls))
+            where.append(f"source_url NOT IN ({placeholders})")
+            params.extend(exclude_urls)
         sql = (
             "SELECT * FROM knowledge_items WHERE "
             + " AND ".join(where)
@@ -224,6 +239,12 @@ class KnowledgeRepo:
         conn = get_connection()
         conn.execute("DELETE FROM knowledge_items WHERE id = ?", (item_id,))
 
+    def list_item_ids(self) -> list[str]:
+        """全部 item id (供 full_sync 孤儿行对账)."""
+        conn = get_connection()
+        rows = conn.execute("SELECT id FROM knowledge_items").fetchall()
+        return [r[0] for r in rows]
+
     # ── Knowledge Concepts ───────────────────────────────────────
 
     def upsert_concept(self, concept: KnowledgeConcept) -> None:
@@ -277,6 +298,16 @@ class KnowledgeRepo:
             "UPDATE knowledge_concepts SET local_wiki_ref = ?, updated_at = ? WHERE slug = ?",
             (ref, now_iso(), slug),
         )
+
+    def list_concept_slugs(self) -> list[str]:
+        """全部 concept slug (供 full_sync 孤儿行对账)."""
+        conn = get_connection()
+        rows = conn.execute("SELECT slug FROM knowledge_concepts").fetchall()
+        return [r[0] for r in rows]
+
+    def delete_concept(self, slug: str) -> None:
+        conn = get_connection()
+        conn.execute("DELETE FROM knowledge_concepts WHERE slug = ?", (slug,))
 
     # ── Knowledge Tasks ──────────────────────────────────────────
 

@@ -32,7 +32,13 @@ def reset_service() -> None:
 
 
 async def collect_all_job() -> None:
-    """周期性执行完整采集 + trend rebuild"""
+    """周期性执行完整采集 + post-ingest 链。
+
+    v1.8 R3: trend_rebuild / fts_rebuild / security_enrichment /
+    url_content_check / export_rebuild 从 5 个独立定时 job 收敛为采集
+    尾部链式执行 — 这些都是「数据变更后才有意义」的重建/检查, 独立
+    定时在无新数据时纯属空转。采集失败时跳过链 (数据未变)。
+    """
     if _service is None:
         _logger.error("service not initialized, skipping collect_all_job")
         return
@@ -45,6 +51,13 @@ async def collect_all_job() -> None:
         )
     except Exception as e:
         _logger.error(f"collect_all_job crashed: {e}")
+        return
+    # ---- post-ingest 链 (各 job 内部自带异常隔离, 不会中断彼此) ----
+    await trend_rebuild_job()
+    await fts_rebuild_job()
+    await security_enrichment_job()
+    await url_content_check_job()
+    await export_rebuild_job()
 
 
 async def trend_rebuild_job() -> None:
@@ -344,6 +357,18 @@ async def scheduled_summary_job() -> None:
         _logger.error(f"scheduled_summary_job crashed: {e}")
 
 
+async def weekly_maintenance_job() -> None:
+    """v1.8 R3: 周日维护链 — SOUL 重生成 → 掌握度迁移 → 周回顾。
+
+    原 soul_weekly (Sun 04:00) / migrate_weekly (Sun 05:00) /
+    summary_weekly (Sun 06:00) 三个 cron job 合并为单 job 顺序执行,
+    保持原链式语义 (每个子 job 自带异常隔离, 不会中断后续)。
+    """
+    await scheduled_soul_job()
+    await scheduled_migrate_job()
+    await scheduled_summary_job()
+
+
 async def cg_upstream_sync_job() -> None:
     """Phase 2a CodeGarden: 每日 09:00 (Asia/Shanghai) 触发 fork 类型项目的上游同步。
 
@@ -638,19 +663,18 @@ async def alert_evaluator_job() -> None:
         _logger.error(f"alert_evaluator_job crashed: {e}")
 
 
-async def review_scheduler_job() -> None:
-    """v1.7 Phase 5: SM-2 复习预检 (NoOp, 前端 /api/reviews/due 驱动)."""
-    # 实际复习由前端 /api/reviews/due 实时驱动, 此 job 仅占位
-    # Phase 6 可添加: 每日 09:00 检查到期 review, 通过 SSE 推送提醒
-    return None
+async def auto_extract_alert_job() -> None:
+    """v1.8 R3: auto_extract + alert_evaluator 合并为单个 60s job。
 
-
-async def profile_updater_job() -> None:
-    """v1.7 Phase 5: 个性化画像实时更新 (NoOp, 阅读事件已实时写入).
-
-    profile 信号 (read/favorite/skip) 由事件触发 apply_signal, 本 job 不重复.
+    两者节奏相同 (60s)、都扫近期 hotspots, 合并后顺序执行减少
+    调度器唤醒次数 (各自内部自带异常隔离)。
     """
-    return None
+    await auto_extract_job()
+    await alert_evaluator_job()
+
+
+# v1.8: review_scheduler_job / profile_updater_job (NoOp 占位) 已删除
+# 复习由前端 /api/reviews/due 实时驱动, profile 信号由事件触发 apply_signal
 
 
 async def digest_generator_job() -> None:
@@ -708,10 +732,8 @@ async def profile_decay_job() -> None:
         _logger.error(f"profile_decay_job crashed: {e}")
 
 
-async def kv_cache_cleanup_job() -> None:
-    """v1.7 Phase 5: 清理过期 KV 缓存 (30min)."""
-    # Phase 7: kv_cache_service 已删除, 保留函数为 NoOp 占位以保证不破坏调度器
-    return None
+# v1.8: kv_cache_cleanup_job (NoOp 占位) 已删除 —— kv_cache_service 于
+# Phase 7 移除, 调度器早已不再注册该 job
 
 
 async def source_revival_check_job() -> None:
@@ -724,38 +746,96 @@ async def source_revival_check_job() -> None:
     3. 对每条源 HEAD 请求, 2xx/3xx 视为可达 → 标 active + zero_yield_runs=0
     4. 失败/异常: 保留 dead, 记 last_error + 更新 last_checked_at
     5. 写日志: revived=N, still_dead=M, error=K
+    6. P1-2: 复活 ≥ 1 个 → 立即触发 1 次 auto catchup (since=now-24h),
+       让复活源在下一个 collect_all 周期前就被实测
 
     注: 此 job 不主动跑全量 collect. 复活后, 下一个 collect_all
-    (job 1, 每 5min) 会自然带这些源跑.
+    (job 1, 每 5min) 会自然带这些源跑; P1-2 仅作为"立刻验证"加速.
     """
     try:
         from backend.services.source_revival_service import revive_all_dead
 
         results = await asyncio.to_thread(revive_all_dead)
+        revived_count = 0
         if results:
-            revived = sum(1 for r in results if r.status == "revived")
+            revived_count = sum(1 for r in results if r.status == "revived")
             still = sum(1 for r in results if r.status == "still_dead")
             error = sum(1 for r in results if r.status == "error")
             _logger.info(
                 f"source_revival_check_job: total={len(results)} "
-                f"revived={revived} still_dead={still} error={error}"
+                f"revived={revived_count} still_dead={still} error={error}"
             )
+
+        # P1-2: 复活了源, 立刻 enqueue 1 次 auto catchup 验证
+        if revived_count >= 1:
+            try:
+                from datetime import datetime, timezone, timedelta
+                from backend.services.catchup_service import (
+                    should_enqueue_auto,
+                    mark_auto_enqueued,
+                )
+                if should_enqueue_auto():
+                    from backend.services.catchup_service import enqueue_catchup
+                    since = (
+                        datetime.now(timezone.utc) - timedelta(hours=24)
+                    ).isoformat()
+                    until = datetime.now(timezone.utc).isoformat()
+                    run_id = await enqueue_catchup(
+                        mode="auto",
+                        since=since,
+                        until=until,
+                        categories=None,
+                        max_per_source=20,
+                    )
+                    mark_auto_enqueued()
+                    _logger.info(
+                        f"source_revival_check_job: triggered auto catchup "
+                        f"run_id={run_id} (revived={revived_count})"
+                    )
+                else:
+                    _logger.info(
+                        f"source_revival_check_job: revived={revived_count} "
+                        f"but auto enqueue in debounce window, skip"
+                    )
+            except Exception as e:
+                _logger.warning(
+                    f"source_revival_check_job: post-revival catchup failed: {e}"
+                )
     except Exception as e:
         _logger.error(f"source_revival_check_job crashed: {e}")
+
+
+async def collect_validations_cleanup_job() -> None:
+    """P1-1: 每日 04:00 Asia/Shanghai 归档旧 validation issues.
+
+    7d 前的 unresolved issues 标 resolved_at=now, 防止表无限累积.
+    不物理删除 — 保留历史, 供未来趋势分析.
+    """
+    try:
+        from backend.services.collect_validator import auto_resolve_old_validations
+
+        n = await asyncio.to_thread(auto_resolve_old_validations, older_than_days=7)
+        if n > 0:
+            _logger.info(
+                f"collect_validations_cleanup_job: archived {n} stale issues "
+                f"(older than 7 days)"
+            )
+        else:
+            _logger.debug("collect_validations_cleanup_job: no stale issues")
+    except Exception as e:
+        _logger.error(f"collect_validations_cleanup_job crashed: {e}")
 
 
 # 更新 __all__
 __all__.extend([
     "auto_extract_job",
     "alert_evaluator_job",
-    "review_scheduler_job",
-    "profile_updater_job",
     "digest_generator_job",
     "source_health_check_job",
     "fts_rebuild_job",
     "profile_decay_job",
-    "kv_cache_cleanup_job",
     "source_revival_check_job",  # v1.8 Phase 8: 死源复活
+    "collect_validations_cleanup_job",  # P1-1: validation 自动归档
 ])
 
 
@@ -856,7 +936,81 @@ async def catchup_watchdog_job() -> None:
         logger.error(f"catchup_watchdog_job crashed: {e}")
 
 
-# 更新 __all__ (Phase 8)
+# ============================================================================
+# v1.8 Phase 10: KL 状态机触发器 (T1 + T2 + 死信监控)
+# ============================================================================
+async def kl_trigger_t1_job() -> None:
+    """Phase 10: 每 60s 跑一次 T1 (kl:raw → kl:refine).
+
+    失败只 log.error, 不抛异常 (与既有 job 模式一致).
+    """
+    from backend.services.triggers.t1_raw_to_refine import T1Trigger
+    try:
+        t1 = T1Trigger()
+        report = await asyncio.to_thread(t1.run_once)
+        logger.info(
+            f"kl_trigger_t1_job: candidates={report['candidates']} "
+            f"advanced={report['advanced']} "
+            f"skipped_duplicate={report['skipped_duplicate']} "
+            f"failed={report['failed']}"
+        )
+    except Exception as e:
+        logger.error(f"kl_trigger_t1_job crashed: {e}")
+
+
+async def kl_trigger_t2_job() -> None:
+    """Phase 10: 每 120s 跑一次 T2 (kl:refine → kl:link).
+
+    失败只 log.error, 不抛异常.
+    """
+    from backend.services.triggers.t2_refine_to_link import T2Trigger
+    try:
+        t2 = T2Trigger()
+        report = await asyncio.to_thread(t2.run_once)
+        logger.info(
+            f"kl_trigger_t2_job: candidates={report['candidates']} "
+            f"advanced={report['advanced']} "
+            f"low_link={report['low_link']} "
+            f"failed={report['failed']}"
+        )
+    except Exception as e:
+        logger.error(f"kl_trigger_t2_job crashed: {e}")
+
+
+async def kl_dead_letter_retry_job() -> None:
+    """Phase 10: 每 10min 监控死信队列.
+
+    当前阶段仅做阈值告警: 活跃死信 > 50 条时记 warn (供运维巡检).
+    真正的重试/重跑逻辑在 Phase 12 引入 (与 T3-T5 一起设计).
+    """
+    from backend.repository.kl_dead_letter_repo import KLDeadLetterRepository
+    try:
+        repo = KLDeadLetterRepository()
+        # 同步 DB 操作放 thread pool
+        counts = await asyncio.to_thread(
+            lambda: {
+                t: repo.list_active_count(trigger_name=t)
+                for t in ("t1", "t2")
+            }
+        )
+        total = sum(counts.values())
+        if total > 50:
+            logger.warning(
+                f"kl_dead_letter_retry_job: {total} active dead letters "
+                f"(per-trigger: {counts}) — manual review recommended"
+            )
+        else:
+            logger.debug(
+                f"kl_dead_letter_retry_job: {total} active dead letters"
+            )
+    except Exception as e:
+        logger.error(f"kl_dead_letter_retry_job crashed: {e}")
+
+
+# 更新 __all__ (Phase 10)
 __all__.extend([
     "catchup_watchdog_job",
+    "kl_trigger_t1_job",
+    "kl_trigger_t2_job",
+    "kl_dead_letter_retry_job",
 ])

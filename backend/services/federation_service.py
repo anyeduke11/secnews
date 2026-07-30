@@ -65,17 +65,32 @@ def list_local_concepts() -> list[dict]:
         })
 
     # Task 6.11: 回填 hotspot concept 的 local_wiki_ref
+    # md 是真相源: 先回写 concept md 的 frontmatter, 成功后再更新 DB 索引
+    # (否则下次 full_sync 会用旧 frontmatter 回滚 DB 直改)。
     if results:
         try:
             from backend.repository.knowledge_repo import knowledge_repo
+            from backend.services.knowledge_sync import (
+                CONCEPTS_DIR,
+                update_md_frontmatter_field,
+            )
             local_slugs = {c["slug"] for c in results if c.get("slug")}
             if local_slugs:
                 hotspot_concepts = knowledge_repo.list_concepts()
                 for c in hotspot_concepts:
                     if c.slug in local_slugs and not c.local_wiki_ref:
                         ref = f"wiki:local:concepts/{c.slug}"
-                        knowledge_repo.update_concept_local_wiki_ref(c.slug, ref)
-                        log.info(f"backfilled local_wiki_ref for concept: {c.slug}")
+                        md_ok = update_md_frontmatter_field(
+                            CONCEPTS_DIR / f"{c.slug}.md", "local_wiki_ref", ref
+                        )
+                        if md_ok:
+                            knowledge_repo.update_concept_local_wiki_ref(c.slug, ref)
+                            log.info(f"backfilled local_wiki_ref for concept: {c.slug}")
+                        else:
+                            log.warning(
+                                f"local_wiki_ref backfill skipped for {c.slug}: "
+                                "md frontmatter update failed (md is source of truth)"
+                            )
         except Exception as e:
             log.warning(f"local_wiki_ref backfill failed (ignored): {e}")
 

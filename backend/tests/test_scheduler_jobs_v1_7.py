@@ -4,7 +4,7 @@
   - 函数存在且可调用
   - 在临时 DB 下跑通基本流程 (mock 外部依赖)
   - 异常不抛出 (内部 try/except)
-  - NoOp job (review_scheduler, profile_updater) 正常返回 None
+  - NoOp job (review_scheduler, profile_updater, kv_cache_cleanup) v1.8 已删除
 """
 from __future__ import annotations
 
@@ -124,16 +124,8 @@ class TestAlertEvaluatorJob:
 
 
 # ---------------------------------------------------------------------------
-# review_scheduler_job / profile_updater_job (NoOp)
+# NoOp jobs (review_scheduler / profile_updater) — v1.8 已删除, 测试同步移除
 # ---------------------------------------------------------------------------
-class TestNoOpJobs:
-    def test_review_scheduler_returns_none(self, temp_db):
-        result = _run(jobs.review_scheduler_job())
-        assert result is None
-
-    def test_profile_updater_returns_none(self, temp_db):
-        result = _run(jobs.profile_updater_job())
-        assert result is None
 
 
 # ---------------------------------------------------------------------------
@@ -208,29 +200,17 @@ class TestProfileDecayJob:
 
 
 # ---------------------------------------------------------------------------
-# kv_cache_cleanup_job (Phase 7: NoOp stub)
-# ---------------------------------------------------------------------------
-class TestKvCacheCleanupJob:
-    def test_runs_as_noop(self, temp_db):
-        """Phase 7: kv_cache_service 已删除, 函数为 NoOp 占位."""
-        result = _run(jobs.kv_cache_cleanup_job())
-        assert result is None
-
-
-# ---------------------------------------------------------------------------
 # 注册验证
 # ---------------------------------------------------------------------------
 class TestJobRegistration:
-    """验证 scheduler.py 引用了所有 8 个保留的 v1.7 job (Phase 7 后)."""
+    """验证 scheduler.py 引用了所有保留的 v1.7 job (v1.8 清理 NoOp 后)."""
 
     def test_all_jobs_callable(self):
         # Phase 7: 移除 agent_task_consumer (内部 agent 删)
-        # Phase 7: kv_cache_cleanup 保留为 NoOp
+        # v1.8: 移除 review_scheduler / profile_updater / kv_cache_cleanup (NoOp)
         new_jobs = [
-            "auto_extract_job", "alert_evaluator_job",
-            "review_scheduler_job", "profile_updater_job", "digest_generator_job",
+            "auto_extract_job", "alert_evaluator_job", "digest_generator_job",
             "source_health_check_job", "fts_rebuild_job", "profile_decay_job",
-            "kv_cache_cleanup_job",
         ]
         for name in new_jobs:
             assert hasattr(jobs, name), f"job {name} missing"
@@ -238,10 +218,14 @@ class TestJobRegistration:
 
     def test_all_jobs_in_all(self):
         new_jobs = {
-            "auto_extract_job", "alert_evaluator_job",
-            "review_scheduler_job", "profile_updater_job", "digest_generator_job",
+            "auto_extract_job", "alert_evaluator_job", "digest_generator_job",
             "source_health_check_job", "fts_rebuild_job", "profile_decay_job",
-            "kv_cache_cleanup_job",
         }
         assert new_jobs.issubset(set(jobs.__all__)), \
             f"missing in __all__: {new_jobs - set(jobs.__all__)}"
+
+    def test_noop_jobs_removed(self):
+        """v1.8: NoOp 占位 job 已彻底删除."""
+        for name in ("review_scheduler_job", "profile_updater_job", "kv_cache_cleanup_job"):
+            assert not hasattr(jobs, name), f"NoOp job {name} 应已删除"
+            assert name not in jobs.__all__

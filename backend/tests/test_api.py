@@ -61,6 +61,7 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
     """临时 DB + schema 初始化。"""
     test_db = tmp_path / "test.db"
     monkeypatch.setattr(config, "db_path", test_db)
+    db.close_db()  # 清掉前序测试的 thread-local 连接 (指向旧 DB)
     db.init_db()
     yield test_db
     db.close_db()
@@ -313,11 +314,11 @@ def test_cursor_decode_invalid_raises():
 
 
 def test_hotspots_cursor_pagination(client, seeded_db):
-    """limit=2 + balanced 模式 → 返回 2 条 + 无 next_cursor。
+    """limit=2 + balanced 模式 → 首页 2 条 + next_cursor(仍有第 3 条), 翻页取回剩余。
 
-    Phase 25: 列表接口默认 balanced 模式 (cursor=None + category=all 触发),
-    单一 ingest 时返回 limit 条并截断,不返回 next_cursor。
-    翻页需要在第二次请求带 cursor 触发非 balanced 模式。
+    Phase 25: 列表接口默认 balanced 模式 (cursor=None + category=all 触发)。
+    Phase 42: balanced 模式 ``has_more = len(候选) >= limit`` — 候选(seed 3 条)
+    多于 limit(2) 时返回 next_cursor, 翻页请求带 cursor 走非 balanced 模式取剩余。
 
     Phase 39: ``total`` 字段语义改为「time_range 内真实总数」 (供分页 X/Y),
     仍可与 ``len(items)`` 共存 — page size = 2 截断 vs total = seed 全量 3。
@@ -325,9 +326,9 @@ def test_hotspots_cursor_pagination(client, seeded_db):
     r1 = client.get("/api/hotspots", params={"limit": 2})
     assert r1.status_code == 200
     data1 = r1.json()
-    # balanced 模式: 返回 limit 条 (seed 仅 3 条,截断为 2) + 无 next_cursor
+    # balanced 模式: 返回 limit 条 (seed 3 条截断为 2), 仍有第 3 条 → 有 next_cursor
     assert len(data1["items"]) == 2
-    assert data1["next_cursor"] is None
+    assert data1["next_cursor"] is not None
     # 字段完整性: total = seed 真实总数 (3), 不是页面截断数
     assert data1["total"] == 3
     assert data1["category"] == "all"
@@ -335,6 +336,19 @@ def test_hotspots_cursor_pagination(client, seeded_db):
     # Phase 39: 新增字段
     assert "latest_ingestion_count" in data1
     assert "latest_ingestion_at" in data1
+
+    # 翻页: 带 cursor 走非 balanced 模式, 取回剩余第 3 条
+    r2 = client.get(
+        "/api/hotspots", params={"limit": 2, "cursor": data1["next_cursor"]}
+    )
+    assert r2.status_code == 200
+    data2 = r2.json()
+    assert len(data2["items"]) == 1
+    # 两页 item 不重叠 (共 3 条 = 2 + 1)
+    ids1 = {it["id"] for it in data1["items"]}
+    ids2 = {it["id"] for it in data2["items"]}
+    assert ids1.isdisjoint(ids2)
+    assert len(ids1 | ids2) == 3
 
 
 # ---------------------------------------------------------------------------
@@ -358,8 +372,8 @@ def test_trends_by_category(client, temp_db):
     data = r.json()
     assert "data" in data  # category -> points
     assert isinstance(data["data"], dict)
-    # Phase 25 P1: 7 个分类
-    assert len(data["data"]) == 7
+    # v1.9: 8 个分类 (加 ai_security)
+    assert len(data["data"]) == 8
 
 
 def test_trends_invalid_hours(client):
@@ -393,13 +407,13 @@ def test_quality_rules_get_array_format(client, temp_db):
     data = r.json()
     rules = data["rules"]
     assert isinstance(rules, list), f"rules must be array, got {type(rules)}"
-    assert len(rules) >= 14  # 7 scalar + 7 category_keywords
+    assert len(rules) >= 15  # 7 scalar + 8 category_keywords
     # 第一条必须是标量规则
     r0 = rules[0]
     assert {"key", "value", "default", "type", "description"}.issubset(r0.keys())
-    # category_keywords.* 至少 6 条 (Phase 25 P1 加 tech → 7)
+    # category_keywords.* 8 条 (v1.9 加 ai_security)
     kw_rules = [x for x in rules if x["key"].startswith("quality.category_keywords.")]
-    assert len(kw_rules) == 7
+    assert len(kw_rules) == 8
     for kw in kw_rules:
         assert kw["type"] == "list"
         assert isinstance(kw["value"], list) and isinstance(kw["default"], list)

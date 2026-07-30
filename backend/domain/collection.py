@@ -67,6 +67,12 @@ class CollectionResult(BaseModel):
     JSON (e.g. for log records or API responses), Pydantic's nested
     model support will convert each ``HotspotItem`` to a dict via
     ``model_dump(mode="json")`` automatically.
+
+    ``run_id`` (Phase 8): row id of the ``collection_runs`` row inserted
+    at the start of the collection (status='running'). ``_write_collection_run``
+    UPDATEs this row at the end. If the INSERT failed (transient DB
+    error), ``run_id`` is None and the function falls back to INSERTing
+    a new terminal row (legacy behavior).
     """
 
     category: Category
@@ -78,6 +84,7 @@ class CollectionResult(BaseModel):
     duration_ms: int = 0
     started_at: datetime
     finished_at: Optional[datetime] = None
+    run_id: Optional[int] = None  # Phase 8: collection_runs row id
 
 
 class CollectionReport(BaseModel):

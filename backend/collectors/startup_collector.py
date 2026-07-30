@@ -67,7 +67,7 @@ class StartupCollector(BaseCollector):
         - 标题正则 (投资界TOP100 / S50 / F40 / 独角兽)
         仅对源 url 含 ``pedaily.cn`` 的条目生效,其他源走默认实现。
         """
-        from backend.collectors.base import _is_title_relevant_to_category
+        from backend.collectors.keywords import _is_title_relevant_to_category
 
         if not _is_title_relevant_to_category(title, self.category.value):
             return False

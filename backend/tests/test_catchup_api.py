@@ -174,6 +174,8 @@ def test_get_status_returns_current_and_recent(client):
     assert "recent" in body
     assert "current_manual_run_id" in body
     assert "last_orphan_recovery_at" in body
+    # 预期 2 条：1 manual + 1 auto (v1.8: 测试中启动钩子自动追抓已被
+    # conftest._disable_startup_catchup 关闭, 不再产生额外 run)
     assert body["total_recent"] == 2
     assert len(body["recent"]) == 2
     # current_running 应是最近一条

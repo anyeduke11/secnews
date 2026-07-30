@@ -23,6 +23,7 @@ from backend.repository.quality_repo import (
     SourceReputationRepository,
 )
 from backend.repository.settings_repo import SettingsRepository
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/quality", tags=["quality"])
 _log_repo = QualityLogRepository()
@@ -36,7 +37,7 @@ def _build_summary() -> dict:
     """同步构建 summary payload（在 thread pool 中执行）。"""
     summary = _log_repo.summary_24h()
     result = {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "summary": summary,
         "fetched_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -133,7 +134,7 @@ def _build_rules() -> dict:
         })
 
     result = {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "rules": out,
         "defaults": {
             "category_keywords": defaults_map,
@@ -179,7 +180,7 @@ async def update_quality_rules(body: RulesUpdate):
     # 失效 static_cache
     cache_invalidate("quality:*")
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "status": "ok",
         "updated": updated,
     }
@@ -192,7 +193,7 @@ def _build_logs(item_id: str, limit: int) -> dict:
     """同步构建 logs payload（在 thread pool 中执行）。"""
     logs = _log_repo.list_for_item(item_id, limit=limit)
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "item_id": item_id,
         "logs": logs,
         "count": len(logs),
@@ -237,7 +238,7 @@ def _build_source_reputation() -> dict:
         for r in rows
     ]
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "sources": sources,
         "fetched_at": datetime.now(timezone.utc).isoformat(),
     }

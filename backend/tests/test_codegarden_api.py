@@ -69,9 +69,12 @@ def client(tmp_path, monkeypatch) -> Iterator[TestClient]:
             except (AttributeError, TypeError):
                 pass
 
-    # 也 patch 服务层 import 的 get_connection
+    # 也 patch 服务层 import 的 get_connection (from ... import get_connection 名字绑定,
+    # 走 asyncio.to_thread 的 request_upstream_sync 会命中真实 db 并缓存 worker 线程连接)
     import backend.services.codegarden_knowledge_bridge as bridge_mod
+    import backend.services.codegarden_project_service as proj_svc_mod
     monkeypatch.setattr(bridge_mod, "get_connection", _get_conn)
+    monkeypatch.setattr(proj_svc_mod, "get_connection", _get_conn)
 
     # 用全新 FastAPI app (不复用 backend.main.app, 避免 lifespan 启动 scheduler)
     from backend.api.codegarden import router

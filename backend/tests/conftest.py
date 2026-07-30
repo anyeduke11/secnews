@@ -51,6 +51,18 @@ from fastapi.testclient import TestClient
 # Fixtures
 # ===========================================================================
 
+@pytest.fixture(autouse=True)
+def _disable_startup_catchup(monkeypatch: pytest.MonkeyPatch) -> None:
+    """v1.8: 全局禁用 lifespan 的启动自动追抓 (真实全网抓取).
+
+    main.py lifespan 在 TestClient(app) 启动时会 enqueue 一次「本周一 → 现在」
+    的真实网络抓取, 导致测试挂起/极慢。所有测试一律关闭, 单测 catchup 逻辑请
+    直接调用 catchup_service 的函数。
+    """
+    from backend.config import config
+    monkeypatch.setattr(config, "catchup_on_startup", False)
+
+
 @pytest.fixture
 def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     """Redirect config.db_path to a temporary SQLite file with full schema.

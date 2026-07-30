@@ -12,11 +12,13 @@ from fastapi import APIRouter, Query
 from backend.cache import static_cache
 from backend.domain.enums import Category, TimeRange
 from backend.services.hotspot_service import HotspotService
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 
 _LABELS: dict[str, str] = {
     "ai": "科技 / AI",
+    "ai_security": "AI 安全",
     "security": "网络安全",
     "finance": "金融 / 投资",
     "startup": "独立开发 / 创业",
@@ -25,6 +27,7 @@ _LABELS: dict[str, str] = {
 }
 _COLORS: dict[str, str] = {
     "ai": "#00bcd4",
+    "ai_security": "#ff6b9d",
     "security": "#e85d5d",
     "finance": "#f0c929",
     "startup": "#7c6aff",
@@ -57,7 +60,7 @@ async def list_categories(time_range: str = Query(default="7d")):
     # Phase 35: 排除已合并的 tech (输出中不再出现)
     visible_cats = [c for c in Category if c.value != "tech"]
     result = {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "time_range": tr.value,
         "categories": [
             {

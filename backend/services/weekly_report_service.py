@@ -1,6 +1,7 @@
 """v1.3.0 Phase 4: WeeklyReportService — 周报生成 + 日级快照。"""
 from __future__ import annotations
 
+from backend.version import APP_VERSION as API_VERSION
 import json
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -118,7 +119,7 @@ class WeeklyReportService:
             "favorites_insight": json.dumps(favorites, ensure_ascii=False),
             "ai_insight": None,
             "generated_at": _now_iso(),
-            "version": "1.3.0",
+            "version": API_VERSION,
         }
 
         repo = WeeklyReportRepository()

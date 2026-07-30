@@ -33,6 +33,27 @@ from backend.collectors.startup_collector import StartupCollector
 from backend.collectors.tech_collector import TechCollector  # Phase 25 P1
 from backend.cache import invalidate as cache_invalidate
 from backend.domain.collection import CollectionReport, CollectionResult
+from backend.services.simhash import (
+    canonicalize_url,
+    hamming_distance,
+    normalize_title,
+    simhash,
+)
+
+# SQLite BIGINT is signed 64-bit; simhash returns unsigned 64-bit.
+_SIGNED_64_MASK = 0xFFFFFFFFFFFFFFFF
+_SIGNED_64_OFFSET = 1 << 64
+
+
+def _to_signed_64(val: int) -> int:
+    """Convert unsigned 64-bit integer to signed 64-bit for SQLite storage."""
+    return val - _SIGNED_64_OFFSET if val >= (1 << 63) else val
+
+
+def _from_signed_64(val: int) -> int:
+    """Convert signed 64-bit integer back to unsigned 64-bit."""
+    return val + _SIGNED_64_OFFSET if val < 0 else val
+
 from backend.domain.enums import Category, CollectorStatus
 from backend.domain.models import HotspotItem
 from backend.logging_config import logger
@@ -132,6 +153,16 @@ class CollectionService:
         for r in results:
             await asyncio.to_thread(self._write_collection_run, r)
 
+        # 统计 (须在 SSE 推送之前算好 total/duration_ms, 否则引用未赋值局部变量)
+        finished_at = datetime.now(timezone.utc)
+        duration_ms = int((time.time() - start_ms) * 1000)
+        total = sum(r.item_count for r in results)
+        fallback = sum(r.fallback_count for r in results)
+        failures = [
+            {"category": r.category.value, "error": r.error}
+            for r in results if r.error
+        ]
+
         # Phase 4: 采集完成后失效 hotspots/trends 缓存
         try:
             cache_invalidate("hotspots:*")
@@ -162,16 +193,6 @@ class CollectionService:
             )
         except Exception as e:
             self.logger.warning(f"sse publish failed: {e}")
-
-        # 统计
-        finished_at = datetime.now(timezone.utc)
-        duration_ms = int((time.time() - start_ms) * 1000)
-        total = sum(r.item_count for r in results)
-        fallback = sum(r.fallback_count for r in results)
-        failures = [
-            {"category": r.category.value, "error": r.error}
-            for r in results if r.error
-        ]
 
         report = CollectionReport(
             total=total,
@@ -286,6 +307,8 @@ class CollectionService:
         run_id = self._insert_running_row(category, started_at)
         try:
             items: list[HotspotItem] = await collector.collect()
+            # Phase 8: dedup using simhash fingerprints
+            items = await asyncio.to_thread(self._dedup_items, items)
             duration_ms = int((time.time() - start_ms) * 1000)
             fallback_count = sum(1 for it in items if it.is_fallback)
             # Phase 9 招标源质量门禁：取 collector 的 per-source 结果
@@ -339,6 +362,112 @@ class CollectionService:
                 f"insert running row for {category.value} failed: {e}"
             )
             return None
+
+    def _dedup_items(self, items: list[HotspotItem]) -> list[HotspotItem]:
+        """Deduplicate items using simhash fingerprints.
+
+        For each item, compute a 64-bit simhash from ``title + summary``
+        and compare against all existing fingerprints in the
+        ``content_fingerprints`` table.  Items whose Hamming distance to
+        an existing fingerprint is < 5 are considered duplicates and
+        skipped.
+
+        Non-duplicate items are written into ``content_fingerprints``
+        immediately so that later items in the same batch see the
+        updated fingerprint set (within-batch dedup).
+
+        Parameters
+        ----------
+        items:
+            Raw items returned by a collector, before DB upsert.
+
+        Returns
+        -------
+        Filtered list with duplicates removed.
+        """
+        if not items:
+            return items
+
+        conn = get_connection()
+
+        # Load existing fingerprints
+        existing_rows = conn.execute(
+            "SELECT hotspot_id, simhash FROM content_fingerprints"
+        ).fetchall()
+        # Convert from signed 64-bit (SQLite) to unsigned 64-bit (Python)
+        existing = [
+            (row[0], _from_signed_64(row[1]))
+            for row in existing_rows
+        ]
+
+        # Load existing canonical URLs for fast exact-match check
+        existing_urls = {
+            row[0]
+            for row in conn.execute(
+                "SELECT url_canonical FROM content_fingerprints"
+            ).fetchall()
+        }
+
+        result: list[HotspotItem] = []
+        for item in items:
+            url_str = str(item.url)
+            url_canonical = canonicalize_url(url_str)
+            title_norm = normalize_title(item.title)
+            text = item.title
+            if item.summary:
+                text += " " + item.summary
+            fp = simhash(text)
+
+            # Fast path: exact URL match
+            if url_canonical and url_canonical in existing_urls:
+                self.logger.info(
+                    f"Dedup skipped {item.id}: URL match {url_canonical}"
+                )
+                continue
+
+            # Simhash Hamming distance check
+            duplicate = False
+            for existing_id, existing_fp in existing:
+                if hamming_distance(fp, existing_fp) < 5:
+                    self.logger.info(
+                        f"Dedup skipped {item.id}: duplicate of {existing_id}"
+                    )
+                    duplicate = True
+                    break
+
+            if duplicate:
+                continue
+
+            # Not duplicate — insert fingerprint (signed 64-bit for SQLite)
+            # Gracefully handle FOREIGN KEY / other transient errors since
+            # the hotspot row may not yet exist at this point.
+            fp_signed = _to_signed_64(fp)
+            try:
+                conn.execute(
+                    """INSERT OR IGNORE INTO content_fingerprints
+                       (hotspot_id, simhash, url_canonical, title_norm)
+                       VALUES (?, ?, ?, ?)""",
+                    (
+                        item.id,
+                        fp_signed,
+                        url_canonical or "",
+                        title_norm or "",
+                    ),
+                )
+            except Exception:
+                self.logger.warning(
+                    f"Failed to insert fingerprint for {item.id}, "
+                    "dedup still passes item through"
+                )
+
+            # Update in-memory sets for within-batch dedup
+            existing.append((item.id, fp))
+            if url_canonical:
+                existing_urls.add(url_canonical)
+
+            result.append(item)
+
+        return result
 
     def _write_collection_run(self, result: CollectionResult) -> None:
         """写入 collection_runs 表 (Phase 8: UPDATE 起始行, 老路径 fallback INSERT)"""

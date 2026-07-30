@@ -337,6 +337,70 @@ def test_phase26_xiaohu_in_publisher_registry():
 
 
 # ---------------------------------------------------------------------------
+# Phase 27 (2026-07-28): AGI Hunt RSS 源 sanity (rss_url 路由 + domain 注册)
+# ---------------------------------------------------------------------------
+def test_phase27_agihunt_rss_source_in_ai():
+    """Phase 27: AGI Hunt 走 RSS 路由 (rss_url 字段),自动触发 _fetch_rss。
+
+    站点首页是 SPA 壳, HTML 抓取只能拿到 SSR 副本; RSS /feed.xml
+    提供完整 <item> 列表, 走 Phase 22 RSS 路径避开 React 渲染依赖。
+    """
+    src = next(
+        (s for s in AI_SOURCES if s.get("name") == "AGI Hunt"),
+        None,
+    )
+    assert src is not None, "AGI Hunt 不在 AI_SOURCES"
+    assert src.get("url") == "https://agihunt.info/"
+    assert src.get("rss_url") == "https://agihunt.info/feed.xml"
+    # 不应使用 json / crawl4ai renderer (走 RSS 路径)
+    assert src.get("renderer") in (None, "aiohttp")
+    # score 字段
+    assert isinstance(src.get("score"), int)
+    assert 70 <= src["score"] <= 90
+
+
+def test_phase27_agihunt_in_publisher_registry():
+    """Phase 27: agihunt.info 域名必须在 PUBLISHER_REGISTRY,避免 author_unknown。"""
+    from backend.quality.publisher_registry import (
+        ALIASES,
+        PUBLISHER_REGISTRY,
+        resolve_publisher,
+    )
+    registry_map = {s: n for s, n in PUBLISHER_REGISTRY}
+    assert "agihunt.info" in registry_map
+    assert registry_map["agihunt.info"] == "AGI Hunt"
+
+    # resolve_publisher 应能识别 agihunt.info 的 URL
+    canonical, is_match, _ = resolve_publisher(
+        "https://agihunt.info/p/19fa858b200748e65e39b5c1273",
+        "AGI Hunt",
+    )
+    assert is_match is True
+    assert canonical == "AGI Hunt"
+
+    # 别名 (agihunt / agi hunt / agi_hunt) 也应能匹配
+    for alias in ("agihunt", "agi hunt", "agi_hunt", "AGI Hunt"):
+        canonical2, is_match2, _ = resolve_publisher(
+            "https://agihunt.info/p/some-id",
+            alias,
+        )
+        assert is_match2 is True, f"alias={alias!r} should match"
+        assert canonical2 == "AGI Hunt"
+
+    # 也应在 ALIASES 中有映射
+    assert ALIASES.get("agihunt") == "AGI Hunt"
+    assert ALIASES.get("agi hunt") == "AGI Hunt"
+
+
+def test_phase27_agihunt_ai_sources_count():
+    """Phase 27: AI_SOURCES 现应为 7 个 (含 AGI Hunt)。"""
+    assert len(AI_SOURCES) == 7
+    assert len(AICollector().sources) == 7
+    names = {s["name"] for s in AI_SOURCES}
+    assert "AGI Hunt" in names
+
+
+# ---------------------------------------------------------------------------
 # 所有 6 个 collector 都继承自 BaseCollector
 # ---------------------------------------------------------------------------
 def test_all_collectors_inherit_base():

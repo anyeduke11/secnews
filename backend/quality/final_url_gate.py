@@ -99,13 +99,13 @@ class FinalUrlGate(BaseGate):
                 flags=["url_drilldown_error", f"url_drilldown_error_kind={type(exc).__name__}"],
                 reason=f"url_drilldown_error: {type(exc).__name__}: {exc}",
             )
-        # 4. 抓取/解析失败
+        # 4. 抓取/解析失败：确认是 landing 页但无法下钻到真实文章 URL，查询层应过滤
         if resolved is None:
             return GateResult(
                 gate_name=self.name,
                 passed=False,
                 score_deduction=PENALTY_FAILED,
-                flags=["url_drilldown_failed"],
+                flags=["url_drilldown_failed", "landing_page_unresolvable"],
                 reason=f"url_drilldown_failed: no article URL found in landing page {original_url[:60]}",
             )
         # 5. 抓到原 URL 自己（域名没在 registry，无可下钻模式）

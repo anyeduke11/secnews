@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+from backend.version import APP_VERSION as API_VERSION
 from datetime import datetime, timezone
 
 import pytest
@@ -78,7 +79,7 @@ class TestBasicSearch:
         r = client.get("/api/search", params={"q": "test"})
         assert r.status_code == 200
         body = r.json()
-        assert body["version"] == "1.7.0"
+        assert body["version"] == API_VERSION
         assert "result" in body
 
     def test_hotspot_match(self, client):

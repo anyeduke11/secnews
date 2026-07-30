@@ -187,9 +187,10 @@ def test_ensure_parent_dirs_no_parent():
 def test_upload_auto_ensures_parents():
     """upload 默认 ensure_parents=True, 应先 MKCOL 父目录再 PUT。
 
-    mkdir 内部走 ``_log_path`` (在 mock 看到带 /dav 的 path);
-    upload 调 ``_request`` 时传入原始 path (mock 直接看到, 未经 _log_path)。
-    所以 MKCOL mock path 带 /dav 前缀, PUT mock path 是原始路径。
+    Phase 49 RCA 修复后: mkdir 传给 ``_request`` 的是**原始 path** (不再误用
+    ``_log_path`` — 那会导致 base_url 已含 /dav 时拼出 /dav/dav/...)。
+    ``_request`` 内部再由 ``_join`` 拼接 base_url。故 mock 直接看到的 MKCOL/PUT
+    path 都是原始路径, 不带 /dav 前缀。
     """
     c = WebDAVClient("https://dav.jianguoyun.com/dav", "u", "p")
     calls: list[tuple[str, str]] = []
@@ -207,10 +208,10 @@ def test_upload_auto_ensures_parents():
     assert status == 201
     methods = [m for m, _ in calls]
     assert methods == ["MKCOL", "MKCOL", "PUT"]
-    # 父目录顺序: /dav/hotspot, /dav/hotspot/sub (MKCOL 内部 _log_path 加前缀)
-    assert calls[0][1] == "/dav/hotspot"
-    assert calls[1][1] == "/dav/hotspot/sub"
-    # PUT 传入原始 path, _request mock 看到的 path 不带 /dav 前缀
+    # 父目录顺序 (原始 path, 无 /dav 前缀; _join 在 _request 内部拼 base_url)
+    assert calls[0][1] == "/hotspot"
+    assert calls[1][1] == "/hotspot/sub"
+    # PUT 传入原始 path
     assert calls[2][1] == "/hotspot/sub/config.json"
 
 

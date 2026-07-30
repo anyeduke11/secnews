@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from backend.version import APP_VERSION as API_VERSION
 import logging
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.domain.knowledge_models import KnowledgeItem, KnowledgeConcept, KnowledgeTask, now_iso
+from backend.exceptions import InvalidParamException
 from backend.repository.knowledge_repo import knowledge_repo
 from backend.services.cubox_sync import sync_cubox_to_knowledge
 from backend.services.knowledge_sync import (
@@ -173,25 +175,50 @@ async def search(q: str = Query(..., min_length=1), limit: int = Query(20, ge=1,
 
 @router.post("/sync")
 async def trigger_sync(source: str = Query("cubox")):
-    """Trigger knowledge sync from data sources.
+    """Trigger cubox sync as an async task. Returns task_id for polling."""
 
-    source="cubox" (default): sync Cubox only.
-    source="all": sync Cubox + SecNews archive (bookmark requires file upload,
-                  so it is skipped here — use /api/knowledge/bookmarks/import).
-    """
-    results = {"cubox": 0}
-    if source in ("cubox", "all"):
-        results["cubox"] = sync_cubox_to_knowledge(limit=100)
-    if source == "all":
-        # SecNews archive: import recent 100 hotspots
-        from backend.services.history_import import import_all_recent_history
-        results["secnews"] = import_all_recent_history(limit=100)
-        # Bookmark sync requires file upload — skip with a flag
-        results["bookmark_skipped"] = True
-    # Full sync .md -> SQLite
-    results["items_synced"] = full_sync_items_to_db()
-    results["concepts_synced"] = full_sync_concepts_to_db()
-    return results
+    import threading
+    import json as _json
+    from backend.repository.knowledge_repo import knowledge_repo
+    from backend.services.cubox_sync import sync_cubox_with_progress
+
+    if source not in ("cubox", "all"):
+        raise InvalidParamException("only source=cubox or source=all is supported")
+
+    # Create task record
+    task = knowledge_repo.create_task(
+        task_type="cubox_sync",
+        params={"source": source, "limit": 100, "phase": "pending", "current": 0, "total": 0},
+    )
+    task_id = task.id
+
+    def _run_sync():
+        repo = knowledge_repo
+        try:
+            repo.update_task_status(task_id, "processing")
+            repo.update_task_params(task_id, {"source": source, "phase": "connecting", "current": 0, "total": 0})
+
+            def on_progress(phase: str, current: int, total: int):
+                try:
+                    repo.update_task_params(task_id, {
+                        "source": source, "phase": phase, "current": current, "total": total,
+                    })
+                except Exception:
+                    pass
+
+            result = sync_cubox_with_progress(limit=100, on_progress=on_progress)
+            repo.update_task_status(task_id, "done", result_path=_json.dumps(result))
+            repo.update_task_params(task_id, {
+                "source": source, "phase": "done",
+                "current": result["total"], "total": result["total"],
+                "result": result,
+            })
+        except Exception as e:
+            repo.update_task_status(task_id, "failed", error_message=str(e))
+
+    threading.Thread(target=_run_sync, daemon=True).start()
+
+    return {"task_id": task_id, "status": "pending"}
 
 
 # ── Tasks ───────────────────────────────────────────────────────
@@ -210,6 +237,22 @@ async def list_tasks(status: Optional[str] = Query(None)):
     """List knowledge tasks."""
     tasks = knowledge_repo.list_tasks(status=status)
     return {"tasks": [t.to_dict() for t in tasks]}
+
+
+@router.get("/tasks/{task_id}")
+async def get_task(task_id: int):
+    """Get a single knowledge task by id (for polling progress)."""
+    import json
+    task = knowledge_repo.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="task not found")
+    # params is stored as JSON string in DB, parse it for frontend
+    if isinstance(task.get("params"), str):
+        try:
+            task["params"] = json.loads(task["params"])
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return task
 
 
 # ── Health ──────────────────────────────────────────────────────
@@ -449,65 +492,61 @@ async def link_concepts_batch():
 
 
 # ── Skills ──────────────────────────────────────────────────────
+# Phase 7: skill_config_service 已删除 (Phase 5 内部 hotspot-agent 依赖)
+# skills 端点降级为 deprecated, 永远返回 410 Gone
 
 @router.get("/skills/{skill_name}/validate")
 async def validate_skill(skill_name: str):
-    """Validate that a skill is ready for publishing (exists, enabled, secret bound)."""
-    from backend.services.skill_config_service import validate_skill_for_publish
-    return validate_skill_for_publish(skill_name)
+    """[DEPRECATED] Phase 7 后 skills 不可用, 永远返回 410 Gone。"""
+    raise HTTPException(
+        status_code=410,
+        detail={
+            "message": "skill_config table dropped in v1.7.6 (Phase 7)",
+            "migration": "migration 038",
+        },
+    )
 
 
 @router.get("/skills")
 async def list_skills(enabled: Optional[bool] = Query(None)):
-    """List skill configs (auto-seeds 13 presets on first call)."""
-    from backend.services.skill_config_service import list_skills as _list_skills
-    return {"skills": _list_skills(enabled)}
+    """[DEPRECATED] Phase 7 后 skills 不可用, 永远返回空列表。"""
+    return {"version": API_VERSION, "deprecated": True, "skills": []}
 
 
 @router.post("/skills")
 async def create_skill(data: dict):
-    """Create a new skill config."""
-    from backend.services.skill_config_service import create_skill as _create_skill
-    skill_name = data.get("skill_name")
-    if not skill_name:
-        raise HTTPException(status_code=400, detail="skill_name is required")
-    return _create_skill(
-        skill_name=skill_name,
-        secret_id=data.get("secret_id"),
-        model_override=data.get("model_override"),
-        prompt_template=data.get("prompt_template"),
+    """[DEPRECATED] Phase 7 后 skills 不可用, 永远返回 410 Gone。"""
+    raise HTTPException(
+        status_code=410,
+        detail={"message": "skill_config dropped in v1.7.6 (Phase 7)"},
     )
 
 
 @router.patch("/skills/{skill_id}")
 async def update_skill(skill_id: int, data: dict):
-    """Update skill config (bind secret_id / model_override / etc.)."""
-    from backend.services.skill_config_service import (
-        get_skill as _get_skill,
-        update_skill as _update_skill,
+    """[DEPRECATED] Phase 7 后 skills 不可用, 永远返回 410 Gone。"""
+    raise HTTPException(
+        status_code=410,
+        detail={"message": "skill_config dropped in v1.7.6 (Phase 7)"},
     )
-    if _get_skill(skill_id) is None:
-        raise HTTPException(status_code=404, detail="Skill not found")
-    return _update_skill(skill_id, **data)
 
 
 @router.delete("/skills/{skill_id}")
 async def delete_skill(skill_id: int):
-    """Delete a skill config."""
-    from backend.services.skill_config_service import (
-        get_skill as _get_skill,
-        delete_skill as _delete_skill,
+    """[DEPRECATED] Phase 7 后 skills 不可用, 永远返回 410 Gone。"""
+    raise HTTPException(
+        status_code=410,
+        detail={"message": "skill_config dropped in v1.7.6 (Phase 7)"},
     )
-    if _get_skill(skill_id) is None:
-        raise HTTPException(status_code=404, detail="Skill not found")
-    return _delete_skill(skill_id)
 
 
 @router.post("/skills/seed")
 async def seed_skills():
-    """Manually trigger preset skill seeding. Returns newly inserted count."""
-    from backend.services.skill_config_service import seed_default_skills
-    return {"seeded": seed_default_skills()}
+    """[DEPRECATED] Phase 7 后 skills 不可用, 永远返回 410 Gone。"""
+    raise HTTPException(
+        status_code=410,
+        detail={"message": "skill_config dropped in v1.7.6 (Phase 7)"},
+    )
 
 
 # ── Obsidian ───────────────────────────────────────────────────
@@ -572,10 +611,10 @@ async def create_plan(data: dict):
 
 @router.post("/plans/generate")
 async def generate_plan(data: dict):
-    """Trigger Agent to generate a learning plan via knowledge-master skill."""
-    from backend.services.learning_service import generate_plan_task
+    """Generate a learning plan directly by scanning knowledge items."""
+    from backend.services.learning_service import generate_plan_direct
     domains = data.get("domains")
-    return generate_plan_task(domains=domains)
+    return generate_plan_direct(domains=domains)
 
 
 @router.get("/plans/{week}")

@@ -690,6 +690,77 @@ def is_security_bid(text: str) -> bool:
     return False
 
 
+# ---------------------------------------------------------------------------
+# Phase 8: 标讯地区提取 — 从标题中解析省级行政区
+# ---------------------------------------------------------------------------
+# 覆盖 34 个省级行政区（23 省 + 4 直辖市 + 5 自治区 + 2 特别行政区）
+_PROVINCE_PATTERNS: list[tuple[str, str]] = [
+    # 省
+    ("黑龙江", r"黑龙江(?:省)?"),
+    ("吉林", r"吉林(?:省)?"),
+    ("辽宁", r"辽宁(?:省)?"),
+    ("河北", r"河北(?:省)?"),
+    ("山西", r"山西(?:省)?"),
+    ("江苏", r"江苏(?:省)?"),
+    ("浙江", r"浙江(?:省)?"),
+    ("安徽", r"安徽(?:省)?"),
+    ("福建", r"福建(?:省)?"),
+    ("江西", r"江西(?:省)?"),
+    ("山东", r"山东(?:省)?"),
+    ("河南", r"河南(?:省)?"),
+    ("湖北", r"湖北(?:省)?"),
+    ("湖南", r"湖南(?:省)?"),
+    ("广东", r"广东(?:省)?"),
+    ("海南", r"海南(?:省)?"),
+    ("四川", r"四川(?:省)?"),
+    ("贵州", r"贵州(?:省)?"),
+    ("云南", r"云南(?:省)?"),
+    ("陕西", r"陕西(?:省)?"),
+    ("甘肃", r"甘肃(?:省)?"),
+    ("青海", r"青海(?:省)?"),
+    ("台湾", r"台湾(?:省)?"),
+    # 直辖市
+    ("北京", r"北京(?:市)?"),
+    ("天津", r"天津(?:市)?"),
+    ("上海", r"上海(?:市)?"),
+    ("重庆", r"重庆(?:市)?"),
+    # 自治区
+    ("内蒙古", r"内蒙古(?:自治区)?"),
+    ("广西", r"广西(?:壮族自治区|自治区)?"),
+    ("西藏", r"西藏(?:自治区)?"),
+    ("宁夏", r"宁夏(?:回族自治区|自治区)?"),
+    ("新疆", r"新疆(?:维吾尔自治区|自治区)?"),
+    # 特别行政区
+    ("香港", r"香港(?:特别行政区)?"),
+    ("澳门", r"澳门(?:特别行政区)?"),
+]
+
+# 编译好的正则（在 _extract_region 中使用 _PROVINCE_PATTERNS 逐一匹配）
+
+
+def _extract_region(text: str) -> str | None:
+    """从标题/内容中提取省级行政区名称。
+
+    Args:
+        text: 标讯标题或摘要
+
+    Returns:
+        省级行政区名（如 "北京"、"广东"），或 None
+
+    Example:
+        >>> _extract_region("广东省某单位网络安全升级改造项目招标公告")
+        '广东'
+        >>> _extract_region("北京市公安局视频监控系统采购")
+        '北京'
+    """
+    if not text:
+        return None
+    for name, pattern in _PROVINCE_PATTERNS:
+        if re.search(pattern, text):
+            return name
+    return None
+
+
 class BidCollector(BaseCollector):
     """采集招标资讯热点数据。Phase 9 改造：聚焦网络安全/AI安全。
 
@@ -748,6 +819,12 @@ class BidCollector(BaseCollector):
 
         # 复用基类 _build_items
         items = self._build_items(raw_items, source)
+        # Phase 8: 从标题提取地区
+        for it in items:
+            if isinstance(it, dict):
+                region = _extract_region(it.get("title", ""))
+                if region:
+                    it["region"] = region
         duration = int(
             (datetime.now(_tz.utc) - start).total_seconds() * 1000
         )

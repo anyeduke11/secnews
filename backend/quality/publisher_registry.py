@@ -167,6 +167,9 @@ PUBLISHER_REGISTRY: list[tuple[str, str]] = [
     ("aihot.virxact.com", "AIhot"),
     ("best.xiaohu.ai", "小互AI"),
     ("xiaohu.ai", "小互AI"),
+    # Phase 27 (2026-07-28): AGI Hunt AI 快讯聚合站 (RSS 接入)
+    # 多信源采集 (X/公众号/Reddit/GitHub/HF/YouTube) + AI 汇总整理
+    ("agihunt.info", "AGI Hunt"),
     # Phase 29: tophub.today 聚合站 (GitHub 热榜分类页)
     ("tophub.today", "TopHub GitHub 热榜"),
 ]
@@ -214,6 +217,10 @@ ALIASES: dict[str, str] = {
     "投资界": "投资界",
     "hackernews": "HackerNews",
     "hacker news": "HackerNews",
+    # Phase 27 (2026-07-28): AGI Hunt 别名
+    "agihunt": "AGI Hunt",
+    "agi hunt": "AGI Hunt",
+    "agi_hunt": "AGI Hunt",
     # Phase 19 扩充: v1.6.3 新增 16 标讯信源别名
     "中国农业发展银行": "中国农业发展银行集中采购",
     "农发行": "中国农业发展银行集中采购",

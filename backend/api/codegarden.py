@@ -45,6 +45,7 @@ from backend.repository.codegarden_repo import (
 )
 from backend.services.codegarden_knowledge_bridge import CodegardenKnowledgeBridge
 from backend.services.codegarden_project_service import CodegardenProjectService
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/codegarden", tags=["codegarden"])
 
@@ -150,7 +151,7 @@ async def list_projects(
     except Exception as e:
         logger.error(f"list projects failed: {e}")
         raise HTTPException(status_code=500, detail={"message": f"列表失败: {e}"})
-    return {"version": "1.5.0", "total": total, "items": items}
+    return {"version": API_VERSION, "total": total, "items": items}
 
 
 @router.post("/projects", status_code=201)
@@ -367,7 +368,7 @@ async def list_candidates(limit: int = Query(100, ge=1, le=500)):
     """列出 type=github 且未转化的 knowledge_items（候选二开源）。"""
     bridge = CodegardenKnowledgeBridge()
     items = await asyncio.to_thread(bridge.list_candidates, limit)
-    return {"version": "1.5.0", "total": len(items), "items": items}
+    return {"version": API_VERSION, "total": len(items), "items": items}
 
 
 @router.post("/from-knowledge")

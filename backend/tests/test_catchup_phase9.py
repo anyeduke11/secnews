@@ -417,6 +417,134 @@ def test_whole_run_crash_marks_failed_and_logs(
 
 
 # ---------------------------------------------------------------------------
+# P0-1 — 每 cat 完成后立即 update_progress (real-time progress)
+# ---------------------------------------------------------------------------
+def test_per_category_progress_update(temp_db, catchup_repo):
+    """P0-1: 跑 2 个 category, 中间 mock update_progress 应被调用 ≥ 2 次.
+
+    关键: 不是只 run 终态写一次, 而是每 cat 完成后立即写, 让前端轮询
+    能看到 sources_succeeded / items_ingested 增量.
+    """
+    target = [Category.AI, Category.TECH]
+    srs = {
+        Category.AI: [_make_source_result("hn", 5)],
+        Category.TECH: [_make_source_result("techcrunch", 3)],
+    }
+    svc = _make_mock_svc(target, srs)
+    update_calls = []
+
+    real_update = catchup_service._repo.update_progress
+    def spy_update(run_id, **kwargs):
+        update_calls.append((run_id, kwargs))
+        return real_update(run_id, **kwargs)
+
+    with patch.object(catchup_service, "_get_dead_source_names", return_value={}), \
+         patch("backend.services.collection_service.CollectionService", return_value=svc), \
+         patch("backend.scheduler.jobs.trend_rebuild_job", new=AsyncMock()), \
+         patch("backend.services.catchup_service.validate_and_persist",
+               return_value=MagicMock(issues=[])), \
+         patch.object(catchup_service._repo, "update_progress", side_effect=spy_update):
+        run = catchup_repo.create(
+            mode="manual",
+            since_window=(datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
+            until_window=datetime.now(timezone.utc).isoformat(),
+            categories=["ai", "tech"],
+            max_per_source=50,
+        )
+        _run(catchup_service._execute_catchup_run(run.id, mode="manual"))
+
+    # 至少被调 ≥ 2 次 (per-cat), 加上前置 sources_attempted/items_skipped 一次
+    # P0-1: 至少 2 次 sources_succeeded=1, items_ingested=5 / 8
+    cat_progress_calls = [
+        c for c in update_calls
+        if c[1].get("sources_succeeded") is not None
+    ]
+    assert len(cat_progress_calls) >= 2, (
+        f"P0-1: 期望 ≥2 次 per-cat update_progress, 实际 {len(cat_progress_calls)} 次: "
+        f"{update_calls}"
+    )
+
+    # 第一次: items_ingested=5, sources_succeeded=1 (AI 完成)
+    first = cat_progress_calls[0][1]
+    assert first["items_ingested"] == 5
+    assert first["sources_succeeded"] == 1
+
+    # 第二次: items_ingested=8, sources_succeeded=2 (TECH 也完成)
+    second = cat_progress_calls[1][1]
+    assert second["items_ingested"] == 8
+    assert second["sources_succeeded"] == 2
+
+
+# ---------------------------------------------------------------------------
+# P0-3 — force=True 跳过 24h 续传检查, 强制重抓
+# ---------------------------------------------------------------------------
+def test_force_true_skips_resumption(temp_db, checkpoint_repo, catchup_repo):
+    """P0-3: 上一 run (id=99) hn 已 done → 本 run force=True → hn 也 done, 不被 skipped."""
+    # 上一 run done
+    checkpoint_repo.mark_done(run_id=99, category="ai", source_name="hn", items_count=10)
+    target = [Category.AI]
+    srs = {
+        Category.AI: [
+            _make_source_result("hn", 7),  # 本 run 真跑, 因为 force=True
+        ],
+    }
+    svc = _make_mock_svc(target, srs)
+    with patch.object(catchup_service, "_get_dead_source_names", return_value={}), \
+         patch("backend.services.collection_service.CollectionService", return_value=svc), \
+         patch("backend.scheduler.jobs.trend_rebuild_job", new=AsyncMock()), \
+         patch("backend.services.catchup_service.validate_and_persist",
+               return_value=MagicMock(issues=[])):
+        run = catchup_repo.create(
+            mode="manual",
+            since_window=(datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
+            until_window=datetime.now(timezone.utc).isoformat(),
+            categories=["ai"],
+            max_per_source=50,
+        )
+        # force=True: 应该跳过 24h 续传, hn 应被实际抓取
+        _run(catchup_service._execute_catchup_run(run.id, mode="manual", force=True))
+
+    hn = checkpoint_repo.get(run.id, "ai", "hn")
+    assert hn is not None
+    assert hn.status == "done", (
+        f"P0-3: force=True 时 hn 应是 done (被实际抓取), 实际 {hn.status}"
+    )
+    assert hn.items_count == 7
+
+
+def test_force_false_resumes_normally(temp_db, checkpoint_repo, catchup_repo):
+    """P0-3 反向用例: force=False (默认) 仍走 24h 续传, hn 仍 skipped."""
+    checkpoint_repo.mark_done(run_id=99, category="ai", source_name="hn", items_count=10)
+    target = [Category.AI]
+    srs = {
+        Category.AI: [
+            _make_source_result("hn", 0),  # 本 run 不真跑 (被 skip)
+            _make_source_result("ph", 5),
+        ],
+    }
+    svc = _make_mock_svc(target, srs)
+    with patch.object(catchup_service, "_get_dead_source_names", return_value={}), \
+         patch("backend.services.collection_service.CollectionService", return_value=svc), \
+         patch("backend.scheduler.jobs.trend_rebuild_job", new=AsyncMock()), \
+         patch("backend.services.catchup_service.validate_and_persist",
+               return_value=MagicMock(issues=[])):
+        run = catchup_repo.create(
+            mode="auto",
+            since_window=(datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
+            until_window=datetime.now(timezone.utc).isoformat(),
+            categories=["ai"],
+            max_per_source=50,
+        )
+        _run(catchup_service._execute_catchup_run(run.id, mode="auto"))  # force 默认 False
+
+    hn = checkpoint_repo.get(run.id, "ai", "hn")
+    assert hn is not None
+    assert hn.status == "skipped", (
+        f"P0-3 反向: force=False 时 hn 仍应 skipped, 实际 {hn.status}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # helper: timedelta hours
 # ---------------------------------------------------------------------------
 def timedelta_hours(h):

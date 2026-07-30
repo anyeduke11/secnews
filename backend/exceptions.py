@@ -15,8 +15,8 @@ from fastapi.responses import JSONResponse
 # 使用 stdlib logging 作为底层接收器（loguru 在 logging_config.setup() 中接管）
 logger = logging.getLogger(__name__)
 
-# API 版本号（与 main.py FastAPI(... version=...) 保持一致）
-API_VERSION = "1.2.0"
+# API 版本号: 单一来源 backend/version.py (main.py FastAPI(version=...) 同源)
+from backend.version import APP_VERSION as API_VERSION
 
 
 class HotspotException(Exception):
@@ -37,6 +37,13 @@ class InvalidParamException(HotspotException):
 class NotFoundException(HotspotException):
     def __init__(self, message: str = "Resource not found"):
         super().__init__("NOT_FOUND", message, 404)
+
+
+class ConflictException(HotspotException):
+    """状态冲突（未初始化 / 未解锁 / 禁止重复操作等）→ 409。"""
+
+    def __init__(self, message: str = "Conflict"):
+        super().__init__("CONFLICT", message, 409)
 
 
 class RateLimitedException(HotspotException):
@@ -136,6 +143,7 @@ __all__ = [
     "HotspotException",
     "InvalidParamException",
     "NotFoundException",
+    "ConflictException",
     "RateLimitedException",
     "InternalException",
     "SourceUnavailableException",

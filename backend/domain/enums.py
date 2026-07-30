@@ -25,6 +25,7 @@ class Category(str, Enum):
     """Top-level hotspot domain categories."""
 
     AI = "ai"
+    AI_SECURITY = "ai_security"
     SECURITY = "security"
     FINANCE = "finance"
     STARTUP = "startup"

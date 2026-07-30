@@ -1,6 +1,7 @@
 """Phase 4 /api/export router — 预生成 HTML + ETag 304。"""
 from __future__ import annotations
 
+from backend.version import APP_VERSION as API_VERSION
 import asyncio
 
 from fastapi import APIRouter, Header, Response
@@ -46,7 +47,7 @@ async def export_rebuild():
 
     try:
         etag = await asyncio.to_thread(rebuild_export_cache)
-        return {"version": "1.2.0", "etag": etag, "status": "ok"}
+        return {"version": API_VERSION, "etag": etag, "status": "ok"}
     except Exception as e:
         logger.error(f"export rebuild failed: {e}")
         return Response(

@@ -33,6 +33,7 @@ from backend.domain.enums import Category
 from backend.logging_config import logger
 from backend.repository.custom_source_repo import CustomSourceRepository
 from backend.repository.source_stats_repo import SourceStatsRepository
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/sources", tags=["sources"])
 
@@ -254,7 +255,7 @@ def _build_health_payload(category: Optional[str]) -> dict:
         rows = repo.list_all()
     summary = repo.summary_by_category()
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "category": category or "all",
         "summary": summary,
         "sources": [
@@ -303,7 +304,7 @@ async def get_source_health(category: str, source_name: str):
             detail={"message": f"source {source_name} not found in {category}"},
         )
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         **{
             "category": row["category"],
             "source_name": row["source_name"],
@@ -360,11 +361,11 @@ def _build_trend_payload(source: Optional[str]) -> dict:
 
     if source:
         result = check_health(source)
-        return {"version": "1.7.0", "item": result}
+        return {"version": API_VERSION, "item": result}
     items = check_all_health()
     summary = health_summary()
     return {
-        "version": "1.7.0",
+        "version": API_VERSION,
         "summary": summary,
         "items": items,
     }

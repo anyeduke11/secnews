@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 
 from backend.logging_config import logger
 from backend.repository.skills_repo import VALID_SOURCES, SkillRepository
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/skills", tags=["skills"])
 
@@ -75,7 +76,7 @@ async def list_skills(
         raise HTTPException(status_code=500, detail={"message": f"列表失败: {e}"})
 
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "total": total,
         "items": [it.to_dict() for it in items],
     }
@@ -91,7 +92,7 @@ async def count_by_source():
         logger.error(f"count_by_source failed: {e}")
         raise HTTPException(status_code=500, detail={"message": f"统计失败: {e}"})
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "counts": counts,
     }
 
@@ -122,7 +123,7 @@ async def add_skill(req: AddSkillRequest):
         logger.error(f"add skill failed: {e}")
         raise HTTPException(status_code=500, detail={"message": f"添加失败: {e}"})
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "item": item.to_dict(),
     }
 
@@ -156,7 +157,7 @@ async def patch_skill(skill_id: int, req: PatchSkillRequest):
         logger.error(f"update skill failed: {e}")
         raise HTTPException(status_code=500, detail={"message": f"更新失败: {e}"})
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "item": item.to_dict(),
     }
 

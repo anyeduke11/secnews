@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.services import tech_stack_service as svc
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/tech-stack", tags=["tech-stack"])
 
@@ -44,19 +45,19 @@ class TechUpdate(BaseModel):
 @router.get("")
 async def list_tech_stack(category: Optional[str] = Query(None)):
     items = svc.list_tech(category)
-    return {"version": "1.7.0", "count": len(items), "items": items}
+    return {"version": API_VERSION, "count": len(items), "items": items}
 
 
 @router.post("", status_code=201)
 async def create_tech_stack(req: TechCreate):
     item = svc.create_tech(req.id, req.name, req.category, req.proficiency, req.notes)
-    return {"version": "1.7.0", "item": item}
+    return {"version": API_VERSION, "item": item}
 
 
 @router.get("/impact")
 async def impact(article_id: str = Query(..., min_length=1)):
     result = svc.analyze_impact(article_id)
-    return {"version": "1.7.0", **result}
+    return {"version": API_VERSION, **result}
 
 
 @router.get("/{tech_id}")
@@ -64,7 +65,7 @@ async def get_tech_stack(tech_id: str):
     item = svc.get_tech(tech_id)
     if not item:
         raise HTTPException(status_code=404, detail="tech_stack 不存在")
-    return {"version": "1.7.0", "item": item}
+    return {"version": API_VERSION, "item": item}
 
 
 @router.put("/{tech_id}")
@@ -78,7 +79,7 @@ async def update_tech_stack(tech_id: str, req: TechUpdate):
     )
     if not item:
         raise HTTPException(status_code=404, detail="tech_stack 不存在")
-    return {"version": "1.7.0", "item": item}
+    return {"version": API_VERSION, "item": item}
 
 
 @router.delete("/{tech_id}")
@@ -86,4 +87,4 @@ async def delete_tech_stack(tech_id: str):
     deleted = svc.delete_tech(tech_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="tech_stack 不存在")
-    return {"version": "1.7.0", "deleted": deleted}
+    return {"version": API_VERSION, "deleted": deleted}

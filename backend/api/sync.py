@@ -378,4 +378,44 @@ async def resolve_conflict(req: ConflictResolveRequest):
     return {"version": "1.0", "resolved": True, "record_type": req.record_type, "record_key": req.record_key, "choice": req.choice}
 
 
+class AutoResolveRequest(BaseModel):
+    record_type: str = Field(..., description="表名")
+    choice: str = Field(..., pattern="^(local|remote)$", description="保留哪一方")
+
+
+@router.post("/conflicts/auto-resolve", status_code=200)
+async def auto_resolve_conflicts(req: AutoResolveRequest):
+    """批量裁决某表所有冲突（简化版，不逐条指定 record_key）。"""
+    cfg_repo = SyncConfigRepository()
+    cfg = cfg_repo.get_default()
+    if cfg is None:
+        raise HTTPException(status_code=404, detail={"message": "sync config 不存在"})
+    state_repo = SyncStateRepository()
+    state = state_repo.get_by_config(cfg.id)
+    if state is None:
+        raise HTTPException(status_code=404, detail={"message": "无同步状态记录"})
+    try:
+        merged = json.loads(state.merged_bundle) if isinstance(state.merged_bundle, str) else state.merged_bundle
+    except Exception:
+        raise HTTPException(status_code=500, detail={"message": "无法解析 merged bundle"})
+    records = merged.get("records", {})
+    table_data = records.get(req.record_type)
+    if table_data is None:
+        raise HTTPException(status_code=404, detail={"message": f"表 {req.record_type} 不存在"})
+    pk_map = {
+        "favorites": "hotspot_id",
+        "todos": "source_id",
+        "skills": "name",
+        "custom_sources": "url",
+        "secrets": "name",
+    }
+    count = 0
+    if isinstance(table_data, list):
+        for item in table_data:
+            item["_conflict_resolved"] = req.choice
+            count += 1
+    state_repo.update_merged_bundle(cfg.id, json.dumps(merged, ensure_ascii=False))
+    return {"version": "1.0", "resolved": True, "record_type": req.record_type, "choice": req.choice, "count": count}
+
+
 __all__ = ["router"]

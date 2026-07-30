@@ -78,6 +78,7 @@ async def enqueue_catchup(
     until: Optional[str],
     categories: Optional[list[str]] = None,
     max_per_source: int = 20,
+    force: bool = False,
 ) -> int:
     """Enqueue a new catchup run.
 
@@ -96,6 +97,9 @@ async def enqueue_catchup(
         要追抓的分类. None = all.
     max_per_source : int
         单源最大抓取数 (节流).
+    force : bool, default False
+        P0-3: 跳过 24h 续传窗口检查, 即使该源在最近 24h 已 done
+        也会重新跑. 用于源失效后强制重抓.
 
     Returns
     -------
@@ -142,11 +146,11 @@ async def enqueue_catchup(
     logger.info(
         f"enqueue_catchup: run_id={run.id} mode={mode} "
         f"since={since} until={until} categories={categories} "
-        f"max_per_source={max_per_source}"
+        f"max_per_source={max_per_source} force={force}"
     )
 
     # Fire-and-forget 后台执行
-    asyncio.create_task(_execute_catchup_run(run.id, mode=mode))
+    asyncio.create_task(_execute_catchup_run(run.id, mode=mode, force=force))
     return run.id
 
 
@@ -203,7 +207,7 @@ def _get_dead_source_names(cutoff_hours: int = 24) -> dict[str, set[str]]:
         return {}
 
 
-async def _execute_catchup_run(run_id: int, *, mode: str) -> None:
+async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -> None:
     """C 任务: 实际追抓主流程.
 
     流程
@@ -212,6 +216,7 @@ async def _execute_catchup_run(run_id: int, *, mode: str) -> None:
     2. 选源: 跳过 ``source_stats.status='dead' AND last_checked_at < now-24h``
     3. 临时修改每个 collector.sources (过滤 dead) + max_items (cap)
     4. v1.9 续传: 同一 (cat, source) 在最近 24h 已 done → pre-mark skipped
+       (P0-3: force=True 时跳过此检查)
     5. 复用 CollectionService.run_once() 跑并发抓取
     6. v1.9 per-source checkpoint: 写 catchup_checkpoints (done/failed)
     7. v1.9 结构化日志: source_done / source_failed / collect_done
@@ -298,6 +303,12 @@ async def _execute_catchup_run(run_id: int, *, mode: str) -> None:
         )
 
         # 4. v1.9 续传: 同一 (cat, source) 最近 24h 已 done → 跳过
+        # P0-3: force=True 时跳过续传检查, 强制重抓
+        if force:
+            logger.info(
+                f"_execute_catchup_run: run_id={run_id} force=True, "
+                f"skipping 24h resumption check"
+            )
         try:
             cutoff_iso = (
                 datetime.now(timezone.utc)
@@ -309,6 +320,9 @@ async def _execute_catchup_run(run_id: int, *, mode: str) -> None:
                 for src in svc.collectors[cat].sources:
                     name = src.get("name", "")
                     if not name:
+                        continue
+                    # P0-3: force=True 时直接跳过续传查询
+                    if force:
                         continue
                     recent = _ckpt_repo.list_recent_done(
                         cat.value, name, since_iso=cutoff_iso, limit=1
@@ -444,6 +458,18 @@ async def _execute_catchup_run(run_id: int, *, mode: str) -> None:
                         sources_succeeded=cat_succeeded,
                         sources_failed=cat_failed,
                     )
+                    # P0-1: 每 cat 完成立即推送 progress, 让前端轮询能
+                    # 看到 sources_succeeded / items_ingested 增量
+                    try:
+                        _repo.update_progress(
+                            run_id,
+                            items_ingested=items_ingested,
+                            sources_succeeded=sources_succeeded,
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"update_progress (per-cat) failed: {e}"
+                        )
                 except Exception as e:
                     logger.warning(
                         f"checkpoint write failed for cat={cat.value}: {e}"

@@ -471,6 +471,108 @@ def validate_run(run_id: int, since_iso: str, until_iso: str) -> ValidationRepor
     return report
 
 
+def auto_resolve_old_validations(*, older_than_days: int = 7) -> int:
+    """P1-1: 自动归档旧的 unresolved validation issues.
+
+    7d 前 (detected_at < now - 7d) 且未 resolved 的 issues
+    标 resolved_at=now, 避免表无限累积 + 污染前端展示.
+
+    保留策略
+    --------
+    - 7d 前 unresolved → resolved (软删除, 保留历史)
+    - 不物理删除 — 30d 后可由专门清理 job 物理删 (本期不做)
+    - 删除条件: resolved_at IS NULL AND detected_at < cutoff
+
+    Returns
+    -------
+    int
+        被归档的 issue 数
+    """
+    from datetime import datetime, timezone, timedelta
+    from backend.repository.db import get_connection
+    try:
+        cutoff = (
+            datetime.now(timezone.utc) - timedelta(days=older_than_days)
+        ).isoformat()
+        now = datetime.now(timezone.utc).isoformat()
+        conn = get_connection()
+        cur = conn.execute(
+            """
+            UPDATE collect_validations
+            SET resolved_at = ?
+            WHERE resolved_at IS NULL
+              AND detected_at < ?
+            """,
+            (now, cutoff),
+        )
+        return int(cur.rowcount or 0)
+    except Exception as e:
+        # 单条失败不抛, 让 job 续跑
+        import logging
+        logging.getLogger(__name__).warning(
+            f"auto_resolve_old_validations failed: {e}"
+        )
+        return 0
+
+
+def list_recent_validations(
+    run_id: Optional[int] = None,
+    *,
+    include_resolved: bool = False,
+    limit: int = 50,
+) -> list[ValidationIssue]:
+    """P1-3: 列出最近的 validation issues (供 /api/catchup/status).
+
+    Parameters
+    ----------
+    run_id : int, optional
+        指定 run_id; None = 跨 run 取最近 N 条
+    include_resolved : bool
+        是否包含已 resolved 的 (默认 False)
+    limit : int
+        最多返回 N 条
+    """
+    from backend.repository.db import get_connection
+    try:
+        conn = get_connection()
+        if run_id is not None:
+            sql = """
+                SELECT * FROM collect_validations
+                WHERE run_id = ?
+            """
+            params: list = [int(run_id)]
+            if not include_resolved:
+                sql += " AND resolved_at IS NULL"
+            sql += " ORDER BY detected_at DESC LIMIT ?"
+            params.append(int(limit))
+            rows = conn.execute(sql, tuple(params)).fetchall()
+        else:
+            sql = """
+                SELECT * FROM collect_validations
+                WHERE 1=1
+            """
+            params = []
+            if not include_resolved:
+                sql += " AND resolved_at IS NULL"
+            sql += " ORDER BY detected_at DESC LIMIT ?"
+            params.append(int(limit))
+            rows = conn.execute(sql, tuple(params)).fetchall()
+        out: list[ValidationIssue] = []
+        for r in rows:
+            try:
+                payload = json.loads(r["payload"]) if r["payload"] else {}
+            except Exception:
+                payload = {"raw": r["payload"]}
+            out.append(ValidationIssue(
+                validation_type=str(r["validation_type"]),
+                severity=str(r["severity"]),
+                payload=payload,
+            ))
+        return out
+    except Exception:
+        return []
+
+
 def validate_and_persist(
     run_id: int, since_iso: str, until_iso: str
 ) -> ValidationReport:

@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+from backend.version import APP_VERSION as API_VERSION
 import asyncio
 from typing import Optional
 
@@ -50,7 +51,7 @@ class AnnotationUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 def _list(entity_type: str, entity_id: str) -> dict:
     items = list_annotations(entity_type, entity_id)
-    return {"version": "1.7.0", "count": len(items), "items": items}
+    return {"version": API_VERSION, "count": len(items), "items": items}
 
 
 def _create(req: AnnotationCreate) -> dict:
@@ -61,14 +62,14 @@ def _create(req: AnnotationCreate) -> dict:
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail={"message": str(e)})
-    return {"version": "1.7.0", "item": item}
+    return {"version": API_VERSION, "item": item}
 
 
 def _get(annotation_id: str) -> dict:
     item = get_annotation(annotation_id)
     if item is None:
         raise HTTPException(status_code=404, detail={"message": f"笔记 {annotation_id!r} 不存在"})
-    return {"version": "1.7.0", "item": item}
+    return {"version": API_VERSION, "item": item}
 
 
 def _update(annotation_id: str, req: AnnotationUpdate) -> dict:
@@ -80,14 +81,14 @@ def _update(annotation_id: str, req: AnnotationUpdate) -> dict:
         raise HTTPException(status_code=400, detail={"message": str(e)})
     if item is None:
         raise HTTPException(status_code=404, detail={"message": f"笔记 {annotation_id!r} 不存在"})
-    return {"version": "1.7.0", "item": item}
+    return {"version": API_VERSION, "item": item}
 
 
 def _delete(annotation_id: str) -> dict:
     n = delete_annotation(annotation_id)
     if n == 0:
         raise HTTPException(status_code=404, detail={"message": f"笔记 {annotation_id!r} 不存在"})
-    return {"version": "1.7.0", "deleted": annotation_id}
+    return {"version": API_VERSION, "deleted": annotation_id}
 
 
 # ---------------------------------------------------------------------------

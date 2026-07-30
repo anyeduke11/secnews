@@ -7,14 +7,17 @@ from typing import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.api import codegarden_phase2b
+from backend.api import codegarden_ops
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch) -> Iterator[TestClient]:
     """独立临时 DB, 仅挂 Phase 2b router (避免 lifespan 启动 scheduler)."""
-    db_file = tmp_path / "test_codegarden_phase2b_api.db"
+    db_file = tmp_path / "test_codegarden_ops_api.db"
     conn = sqlite3.connect(str(db_file))
+    # 018: knowledge_tasks (restart/playbook/event 复用 knowledge_tasks 建任务)
+    with open("backend/repository/migrations/018_knowledge.sql", "r", encoding="utf-8") as f:
+        conn.executescript(f.read())
     # 019: cg_projects + skills ALTER (跳过 skills ALTER)
     with open("backend/repository/migrations/019_codegarden.sql", "r", encoding="utf-8") as f:
         sql_text = f.read()
@@ -46,10 +49,16 @@ def client(tmp_path, monkeypatch) -> Iterator[TestClient]:
     monkeypatch.setattr(svc_repo_mod, "get_connection", _get_conn)
     monkeypatch.setattr(rsc_repo_mod, "get_connection", _get_conn)
     monkeypatch.setattr(orch_repo_mod, "get_connection", _get_conn)
+    # service 层也直接 import get_connection (restart/playbook 走 asyncio.to_thread,
+    # 未 patch 会命中真实 db 且在 worker 线程缓存 _tls.conn 泄漏到后续测试)
+    import backend.services.codegarden_service_service as svc_svc_mod
+    import backend.services.codegarden_orchestration_service as orch_svc_mod
+    monkeypatch.setattr(svc_svc_mod, "get_connection", _get_conn)
+    monkeypatch.setattr(orch_svc_mod, "get_connection", _get_conn)
 
     from fastapi import FastAPI
     app = FastAPI()
-    app.include_router(codegarden_phase2b.router)
+    app.include_router(codegarden_ops.router)
     yield TestClient(app)
 
 
@@ -264,6 +273,32 @@ def test_delete_dependency(client):
     assert r.status_code == 200
 
 
+def test_dependency_crud_syncs_service_json(client):
+    """service→service 依赖 CRUD 后, cg_services.dependencies 冗余列随真相源同步."""
+    svc_a = client.post("/api/codegarden/services", json={
+        "name": "dep-svc-a", "type": "http", "runtime": "docker",
+    }).json()
+    svc_b = client.post("/api/codegarden/services", json={
+        "name": "dep-svc-b", "type": "http", "runtime": "docker",
+    }).json()
+
+    # 创建依赖 a→b 后, service a 的 dependencies 包含 b
+    create = client.post("/api/codegarden/dependencies", json={
+        "source_type": "service", "source_id": svc_a["id"],
+        "target_type": "service", "target_id": svc_b["id"],
+        "dep_type": "service",
+    })
+    assert create.status_code == 201
+    got = client.get(f"/api/codegarden/services/{svc_a['id']}").json()
+    assert got["dependencies"] == [svc_b["id"]]
+
+    # 删除依赖后, dependencies 回空
+    did = create.json()["id"]
+    assert client.delete(f"/api/codegarden/dependencies/{did}").status_code == 200
+    got = client.get(f"/api/codegarden/services/{svc_a['id']}").json()
+    assert got["dependencies"] == []
+
+
 def test_impact_analysis(client):
     """a→b, c→b, 修改 b 影响哪些 source? → a 和 c."""
     for src in ["a", "c"]:
@@ -347,6 +382,9 @@ def test_run_playbook_returns_202(tmp_path, monkeypatch):
     # 重新初始化 DB + client
     db_file = tmp_path / "test_pb.db"
     conn = sqlite3.connect(str(db_file))
+    # 018: knowledge_tasks (playbook_run 复用 knowledge_tasks 建任务)
+    with open("backend/repository/migrations/018_knowledge.sql", "r", encoding="utf-8") as f:
+        conn.executescript(f.read())
     with open("backend/repository/migrations/019_codegarden.sql", "r", encoding="utf-8") as f:
         sql_text = f.read()
     cg_sql = "\n".join(
@@ -379,10 +417,15 @@ def test_run_playbook_returns_202(tmp_path, monkeypatch):
     # patch PLAYBOOKS_DIR
     import backend.services.codegarden_orchestration_service as orch_svc_mod
     monkeypatch.setattr(orch_svc_mod, "PLAYBOOKS_DIR", pb_dir)
+    # service 层直接 import get_connection: playbook_run 走 asyncio.to_thread,
+    # 未 patch 会命中真实 db (缺 knowledge_tasks) 并泄漏 _tls.conn
+    import backend.services.codegarden_service_service as svc_svc_mod
+    monkeypatch.setattr(svc_svc_mod, "get_connection", _get_conn)
+    monkeypatch.setattr(orch_svc_mod, "get_connection", _get_conn)
 
     from fastapi import FastAPI
     app = FastAPI()
-    app.include_router(codegarden_phase2b.router)
+    app.include_router(codegarden_ops.router)
     c = TestClient(app)
 
     r = c.post("/api/codegarden/playbooks/test-pb/run", json={"params": {}})

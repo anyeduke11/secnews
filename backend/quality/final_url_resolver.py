@@ -35,7 +35,7 @@ from urllib.parse import urlparse
 # ---------------------------------------------------------------------------
 # Landing page 模式识别
 # ---------------------------------------------------------------------------
-# 通用 path 模式（域名无关）：tag/tags/author/category/topic/search/label
+# 通用 path 模式（域名无关）：tag/tags/author/category/topic/search/label/blog/column
 LANDING_PATH_PATTERNS: tuple[str, ...] = (
     r"^/tag/[^/]+/?$",
     r"^/tags/[^/]+/?$",
@@ -47,6 +47,10 @@ LANDING_PATH_PATTERNS: tuple[str, ...] = (
     r"^/categories/[^/]+/?$",
     r"^/label/[^/]+/?$",
     r"^/labels/[^/]+/?$",
+    r"^/blog/?$",
+    r"^/blogs/?$",
+    r"^/column/[^/]+/?$",
+    r"^/columns/[^/]+/?$",
     r"^/search/?$",
     r"^/\?s=.+$",  # ?s=xxx WordPress 搜索
     r"^/search/\?q=.+$",
@@ -55,6 +59,12 @@ LANDING_PATH_PATTERNS: tuple[str, ...] = (
 # 已知域名 → 文章 path 模式（用于从 tag 页面 HTML 抽取第一个真实文章 URL）
 # 顺序：列表中前者优先匹配
 DOMAIN_ARTICLE_PATTERNS: dict[str, tuple[str, ...]] = {
+    # 新浪财经：/stock/2026-07-22/doc-iniirshi2060403.shtml
+    #          /roll/2026-07-22/doc-xxx.shtml /jjxw/.../doc-xxx.shtml
+    "sina.com.cn": (
+        r"href=[\"'](https?://finance\.sina\.com\.cn/[^\"']*/\d{4}-\d{2}-\d{2}/(?:doc|zl)-[^\"']+\.shtml)[\"']",
+        r"href=[\"'](/[^\"']*/\d{4}-\d{2}-\d{2}/(?:doc|zl)-[^\"']+\.shtml)[\"']",
+    ),
     # 量子位：/2026/07/442447.html
     "qbitai.com": (
         r"href=[\"'](/\d{4}/\d{2}/\d+\.html)[\"']",

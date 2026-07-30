@@ -152,13 +152,18 @@ def test_create_list_reveal(client):
     assert items[0]["name"] == "我的 DeepSeek"
     assert items[0]["api_key"] is None  # 列表不返回明文
 
-    # reveal 必须 unlock
+    # reveal 必须携带 master_key (无 body → 422)
     rev = client.post(f"/api/secrets/{sid}/reveal")
-    assert rev.status_code == 409  # 未解锁
+    assert rev.status_code == 422
 
-    # 解锁后 reveal
-    client.post("/api/secrets/unlock", json={"master_key": MASTER_KEY})
-    rev2 = client.post(f"/api/secrets/{sid}/reveal")
+    # 错误 master_key → 401
+    rev_bad = client.post(
+        f"/api/secrets/{sid}/reveal", json={"master_key": "wrong-key-1234"}
+    )
+    assert rev_bad.status_code == 401
+
+    # 正确 master_key → 200 (无需 unlock)
+    rev2 = client.post(f"/api/secrets/{sid}/reveal", json={"master_key": MASTER_KEY})
     assert rev2.status_code == 200
     assert rev2.json()["api_key"] == "sk-test-1234567890"
 

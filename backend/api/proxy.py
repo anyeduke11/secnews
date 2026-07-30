@@ -1,6 +1,7 @@
 """Phase 4 /api/proxy router."""
 from __future__ import annotations
 
+from backend.version import APP_VERSION as API_VERSION
 from typing import Any
 
 from fastapi import APIRouter
@@ -33,7 +34,7 @@ async def get_settings():
     out["http_proxy"] = _redact(out.get("http_proxy", ""))
     out["https_proxy"] = _redact(out.get("https_proxy", ""))
     out["socks_proxy"] = _redact(out.get("socks_proxy", ""))
-    return {"version": "1.2.0", "settings": out}
+    return {"version": API_VERSION, "settings": out}
 
 
 @router.put("/settings")
@@ -56,13 +57,13 @@ async def update_settings(body: ProxySettingsBody):
         except Exception:
             pass
         return {
-            "version": "1.2.0",
+            "version": API_VERSION,
             "status": "ok",
             "settings": body.model_dump(),
         }
     except Exception as e:
         logger.error(f"proxy settings update failed: {e}")
-        return {"version": "1.2.0", "status": "error", "message": str(e)[:200]}
+        return {"version": API_VERSION, "status": "error", "message": str(e)[:200]}
 
 
 @router.get("/test")
@@ -106,7 +107,7 @@ async def test_proxy():
                 }
             )
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "mode": settings.mode,
         "system_proxy": sys_proxy,
         "results": results,

@@ -265,9 +265,12 @@ class TestEndToEndPublishedAt:
         source = c.sources[0]
         # Phase 27 BL-07 同源校验: mock URL 必须与 source.url 同 host
         src_host = source["url"].split("//", 1)[-1].split("/", 1)[0]
+        # Phase 47: _build_items 拒收早于本周一的条目;用「当前时间」而非
+        # 硬编码日期, 让测试与系统时间无关 (不再随周次过期)。
+        pub = datetime.now(timezone.utc).replace(microsecond=0)
         html = f"""
         <html><head>
-        <meta property="article:published_time" content="2026-07-21T08:00:00Z">
+        <meta property="article:published_time" content="{pub.isoformat()}">
         </head><body>
         <h2 class="entry-title">
           <a href="https://{src_host}/article-1" rel="bookmark">New GPT Model Release Article One</a>
@@ -280,17 +283,13 @@ class TestEndToEndPublishedAt:
         raw_items = c._parse_html(html, source)
         assert len(raw_items) == 2
         for raw in raw_items:
-            assert raw["published_at"] == datetime(
-                2026, 7, 21, 8, 0, tzinfo=timezone.utc
-            )
+            assert raw["published_at"] == pub
 
         # 进一步验证 _build_items 把它传到 HotspotItem
         items = c._build_items(raw_items, source)
         assert len(items) == 2
         for it in items:
-            assert it.published_at == datetime(
-                2026, 7, 21, 8, 0, tzinfo=timezone.utc
-            )
+            assert it.published_at == pub
             # fetched_at 仍然是 now
             assert it.fetched_at is not None
 

@@ -53,6 +53,7 @@ class CatchupRunRequest(BaseModel):
     - until: 可选, 默认 now
     - categories: 可选, 空 = all 7 分类
     - max_per_source: 可选, 默认 20, 范围 1-200
+    - force: 可选, 默认 False. P0-3: 跳过 24h 续传窗口, 强制重抓
     """
 
     since: str = Field(..., description="追抓窗口起点 (ISO 8601 UTC)")
@@ -66,6 +67,10 @@ class CatchupRunRequest(BaseModel):
         ge=1,
         le=200,
         description="单源最大抓取数 (节流)",
+    )
+    force: bool = Field(
+        default=False,
+        description="P0-3: 跳过 24h 续传窗口, 强制重抓 (源失效后使用)",
     )
 
     @field_validator("since")
@@ -134,6 +139,7 @@ async def post_catchup_run(req: CatchupRunRequest) -> CatchupRunResponse:
             until=req.until,
             categories=list(req.categories),
             max_per_source=int(req.max_per_source),
+            force=bool(req.force),
         )
     except ValueError as e:
         raise HTTPException(
@@ -177,15 +183,39 @@ async def get_catchup_status(
     - current_manual_run_id: 当前 manual run id (用于 abort)
     - recent: 最近 N 条 (按 started_at DESC)
     - last_orphan_recovery_at: watchdog 最近恢复时间戳
+    - last_run_validations: P1-3 上一次终态 run 的 validation issues
+      (跨多个 run_id 取, 取最近 10 条 unresolved)
+    - validation_summary: P1-3 按 severity 计数 (error/warn/info)
     """
     current_running = _repo.get_current_running()
     recent = _repo.list_recent(limit=limit)
+
+    # P1-3: 拉最近未 resolved 的 validation issues (跨所有 run)
+    last_run_validations: list[dict[str, Any]] = []
+    validation_summary: dict[str, int] = {"error": 0, "warn": 0, "info": 0}
+    try:
+        from backend.services.collect_validator import list_recent_validations
+        issues = list_recent_validations(run_id=None, include_resolved=False, limit=10)
+        for iss in issues:
+            last_run_validations.append({
+                "validation_type": iss.validation_type,
+                "severity": iss.severity,
+                "payload": iss.payload,
+            })
+            sev = str(iss.severity).lower()
+            if sev in validation_summary:
+                validation_summary[sev] += 1
+    except Exception as e:
+        _logger.warning(f"get_catchup_status: load validations failed: {e}")
+
     return {
         "current_running": _run_to_dict(current_running) if current_running else None,
         "current_manual_run_id": catchup_service.get_current_manual_run_id(),
         "recent": [_run_to_dict(r) for r in recent],
         "last_orphan_recovery_at": catchup_service.get_last_orphan_recovery_at(),
         "total_recent": len(recent),
+        "last_run_validations": last_run_validations,  # P1-3
+        "validation_summary": validation_summary,  # P1-3
     }
 
 
@@ -261,6 +291,10 @@ class AutoRequest(BaseModel):
     until: Optional[str] = None
     categories: list[str] = Field(default_factory=list)
     max_per_source: int = Field(default=20, ge=1, le=200)
+    force: bool = Field(
+        default=False,
+        description="P0-3: 跳过 24h 续传窗口, 强制重抓 (源失效后使用)",
+    )
 
 
 @router.post("/auto", response_model=CatchupRunResponse, status_code=202)
@@ -277,6 +311,7 @@ async def post_catchup_auto(req: AutoRequest) -> CatchupRunResponse:
             until=req.until,
             categories=list(req.categories),
             max_per_source=int(req.max_per_source),
+            force=bool(req.force),
         )
     except ValueError as e:
         raise HTTPException(

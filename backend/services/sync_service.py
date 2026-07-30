@@ -160,280 +160,17 @@ class SyncService:
     # bundle 构建
     # ------------------------------------------------------------------
     def build_bundle(self, *, device_id: Optional[str] = None) -> dict:
-        """读本机所有可同步配置 → bundle dict。
-
-        ``device_id`` 不传则用 sync_configs.device_id (首次会生成)。
-        """
-        cfg = SyncConfigRepository().get_default()
-        if device_id is None:
-            if cfg is not None and cfg.device_id:
-                device_id = cfg.device_id
-            else:
-                device_id = _new_device_id()
-                if cfg is not None:
-                    SyncConfigRepository().update_device_id(cfg.id, device_id)
-
-        records: dict[str, Any] = {
-            "favorites": [
-                it.to_dict() for it in FavoriteRepository().list(limit=1000)
-            ],
-            "todos": [
-                it.to_dict() for it in TodoRepository().list(limit=1000)[0]
-            ],
-            "skills": [
-                it.to_dict() for it in SkillRepository().list(limit=1000)[0]
-            ],
-            "custom_sources": [
-                src.to_dict() for src in CustomSourceRepository().list()
-            ],
-            "settings": {
-                k: v for k, v in SettingsRepository().list_all().items()
-                if k not in SETTINGS_BLOCKLIST
-            },
-            "secrets": [],  # 单独处理, 需要 master_key 派生 fernet_key
-        }
-
-        # secrets 导出密文 (跨端时远端用同一 master_key 即可解密)
-        ek = EncryptionKeyRepository()
-        ek_row = ek.get_default()
-        if ek_row is not None:
-            from backend.services.secrets_service import _is_unlocked
-            # 用 unlock state 里现成的 fernet_key 优先 (30 分钟内免重新输密码)
-            if _is_unlocked(ek_row.id):
-                from backend.services.secrets_service import _unlock_state
-                fernet_key = _unlock_state[ek_row.id]["fernet_key"]
-                unlocked = True
-            else:
-                # 未 unlock 时, 只导出元数据, api_key 字段填空
-                fernet_key = None
-                unlocked = False
-
-            sr = SecretRepository()
-            for s in sr.list()[0]:
-                rec = {
-                    "name": s.name,
-                    "model": s.model,
-                    "base_url": s.base_url,
-                    "encryption_key_id": s.encryption_key_id,
-                    "created_at": s.created_at,
-                    "updated_at": s.updated_at,
-                }
-                if unlocked and fernet_key is not None:
-                    # 二次加密: 先用本机 fernet_key 解, 再用 master_key 重新加密导出
-                    # 但实际上 export **密文** 即可 (远端用 master_key 解不开 master_key
-                    # 自己加密的明文, 但能解同一 salt 派生的 key 下的密文 — 因为
-                    # ``api_key_encrypted`` 本身就是 Fernet 密文, 用同一 Fernet key 即可解密)
-                    # 简化: 直接 export 密文 bytes
-                    rec["api_key_ciphertext_b64"] = base64.b64encode(
-                        s.api_key_encrypted
-                    ).decode("ascii")
-                else:
-                    rec["api_key_ciphertext_b64"] = None
-                records["secrets"].append(rec)
-
-        bundle = {
-            "version": BUNDLE_VERSION,
-            "device_id": device_id,
-            "merged_at": _now_iso(),
-            "records": records,
-        }
-        return bundle
+        """委托给 sync_bundle.build_bundle"""
+        from backend.services.sync_bundle import build_bundle as _build_bundle
+        return _build_bundle(device_id=device_id)
 
     # ------------------------------------------------------------------
     # bundle 写回
     # ------------------------------------------------------------------
     def apply_bundle(self, bundle: dict, *, master_key: Optional[str] = None) -> dict:
-        """将 bundle 写回各表 (单边覆盖, 慎用; 推荐走 :meth:`three_way_merge`)。
-
-        ``master_key`` 用于解密 secrets (Q5 决策)。
-        返回每张表的处理数: ``{favorites: {...}, todos: {...}, ...}``。
-        """
-        _validate_bundle(bundle)
-        records = bundle["records"]
-
-        # --- secrets: 派生 fernet_key 后落库 ---
-        sr = SecretRepository()
-        ek_repo = EncryptionKeyRepository()
-        ek_row = ek_repo.get_default()
-        fernet_key: Optional[bytes] = None
-        if ek_row is not None and master_key:
-            if not verify_master_key(
-                master_key, ek_row.salt, ek_row.iterations, ek_row.verify_blob
-            ):
-                raise InternalException("主密钥错误, 无法落库 secrets")
-            fernet_key = derive_fernet_key(
-                master_key, ek_row.salt, ek_row.iterations
-            )
-
-        secret_stats = {"inserted": 0, "updated": 0, "skipped": 0}
-        if ek_row is not None and fernet_key is not None:
-            existing_by_name = {s.name: s for s in sr.list()[0]}
-            for s in records.get("secrets", []):
-                name = s.get("name")
-                if not name:
-                    secret_stats["skipped"] += 1
-                    continue
-                cipher_b64 = s.get("api_key_ciphertext_b64")
-                if not cipher_b64:
-                    secret_stats["skipped"] += 1
-                    continue
-                try:
-                    cipher_bytes = base64.b64decode(cipher_b64)
-                except Exception:
-                    secret_stats["skipped"] += 1
-                    continue
-                # 远端密文是用同一 fernet_key 加密的, 直接落库即可
-                api_key_cipher = cipher_bytes
-                if name in existing_by_name:
-                    existing = existing_by_name[name]
-                    # 若现有密文不同则更新
-                    if existing.api_key_encrypted != api_key_cipher:
-                        sr.update(
-                            existing.id,
-                            name=name,
-                            model=s.get("model") or existing.model,
-                            base_url=s.get("base_url") or existing.base_url,
-                            api_key=None,  # 跳过 (要重新写密文)
-                            fernet_key=None,
-                        )
-                        # 直接写密文 (update 不支持密文替换, 走 raw SQL)
-                        from backend.repository.db import get_connection
-                        conn = get_connection()
-                        conn.execute(
-                            "UPDATE llm_secrets SET api_key_encrypted=?, updated_at=? WHERE id=?",
-                            (api_key_cipher, _now_iso(), existing.id),
-                        )
-                        conn.commit()
-                        secret_stats["updated"] += 1
-                    else:
-                        secret_stats["skipped"] += 1
-                else:
-                    # 新增 (绕过 sr.create 的二次加密, 直接 INSERT 密文)
-                    from backend.repository.db import get_connection
-                    conn = get_connection()
-                    conn.execute(
-                        """INSERT INTO llm_secrets
-                        (name, model, base_url, api_key_encrypted, encryption_key_id,
-                         created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                        (
-                            name,
-                            s.get("model", ""),
-                            s.get("base_url", ""),
-                            api_key_cipher,
-                            ek_row.id,
-                            s.get("created_at") or _now_iso(),
-                            s.get("updated_at") or _now_iso(),
-                        ),
-                    )
-                    conn.commit()
-                    secret_stats["inserted"] += 1
-
-        # --- favorites ---
-        fr = FavoriteRepository()
-        fav_stats = {"inserted": 0, "skipped": 0}
-        existing_fav_ids = fr.list_favorited_ids()
-        for f in records.get("favorites", []):
-            hid = f.get("hotspot_id")
-            if not hid or hid in existing_fav_ids:
-                fav_stats["skipped"] += 1
-                continue
-            fr.add(
-                hotspot_id=hid,
-                category=f.get("category", ""),
-                title=f.get("title", ""),
-                source=f.get("source", ""),
-                url=f.get("url", ""),
-            )
-            fav_stats["inserted"] += 1
-
-        # --- todos (按 source_type + source_id 幂等) ---
-        tr = TodoRepository()
-        todo_stats = {"inserted": 0, "skipped": 0}
-        for t in records.get("todos", []):
-            try:
-                tr.add_or_get(
-                    source_type=t.get("source_type", "manual"),
-                    source_id=t.get("source_id"),
-                    title=t.get("title", ""),
-                    url=t.get("url"),
-                    source=t.get("source"),
-                    category=t.get("category"),
-                    urgent=int(t.get("urgent", 0) or 0),
-                    important=int(t.get("important", 0) or 0),
-                    note=t.get("note"),
-                )
-                todo_stats["inserted"] += 1
-            except Exception:
-                todo_stats["skipped"] += 1
-
-        # --- skills (按 name 幂等) ---
-        skr = SkillRepository()
-        existing_skills = {s.name: s for s in skr.list()[0]}
-        skill_stats = {"inserted": 0, "skipped": 0, "updated": 0}
-        for s in records.get("skills", []):
-            name = s.get("name")
-            if not name:
-                skill_stats["skipped"] += 1
-                continue
-            if name in existing_skills:
-                skill_stats["skipped"] += 1
-                continue
-            try:
-                skr.add(
-                    name=name,
-                    url=s.get("url", ""),
-                    install_command=s.get("install_command", ""),
-                    description=s.get("description"),
-                    source=s.get("source", "manual"),
-                    tags=s.get("tags") or [],
-                )
-                skill_stats["inserted"] += 1
-            except Exception:
-                skill_stats["skipped"] += 1
-
-        # --- custom_sources (按 url 幂等, 简单 INSERT OR IGNORE) ---
-        csr = CustomSourceRepository()
-        cs_stats = {"inserted": 0, "skipped": 0}
-        for c in records.get("custom_sources", []):
-            url = c.get("url")
-            if not url:
-                cs_stats["skipped"] += 1
-                continue
-            try:
-                csr.add(
-                    url=url,
-                    name=c.get("name", ""),
-                    category=c.get("category", ""),
-                    last_check_status=c.get("last_check_status") or "ok",
-                    last_check_latency_ms=float(c.get("last_check_latency_ms") or 0.0),
-                    last_check_title=c.get("last_check_title"),
-                )
-                cs_stats["inserted"] += 1
-            except Exception:
-                cs_stats["skipped"] += 1
-
-        # --- settings (单 key 直接 set) ---
-        sr_repo = SettingsRepository()
-        settings_stats = {"written": 0, "skipped": 0}
-        for k, v in records.get("settings", {}).items():
-            if k in SETTINGS_BLOCKLIST:
-                settings_stats["skipped"] += 1
-                continue
-            try:
-                sr_repo.set(k, v)
-                settings_stats["written"] += 1
-            except Exception:
-                settings_stats["skipped"] += 1
-
-        return {
-            "favorites": fav_stats,
-            "todos": todo_stats,
-            "skills": skill_stats,
-            "custom_sources": cs_stats,
-            "settings": settings_stats,
-            "secrets": secret_stats,
-        }
+        """委托给 sync_bundle.apply_bundle"""
+        from backend.services.sync_bundle import apply_bundle as _apply_bundle
+        return _apply_bundle(bundle, master_key=master_key)
 
     # ------------------------------------------------------------------
     # 3-way merge
@@ -618,82 +355,14 @@ class SyncService:
     # 加密 / 解密 bundle
     # ------------------------------------------------------------------
     def encrypt_bundle(self, bundle: dict, master_key: str) -> bytes:
-        """用 master_key 派生 Fernet key 加密整个 bundle.json。
-
-        返回 envelope dict 的 JSON bytes, 格式与 secrets.export 兼容::
-
-            {
-                "version": "1.0",
-                "encryption": {algorithm, kdf, iterations, salt_b64},
-                "encryption_kind": "sync-bundle",   # 标识用途
-                "merged_at": "...",
-                "device_id": "...",
-                "ciphertext_b64": "...",
-            }
-        """
-        ek_repo = EncryptionKeyRepository()
-        ek_row = ek_repo.get_default()
-        if ek_row is None:
-            raise InternalException("主密钥未初始化, 无法加密 sync bundle")
-        if not verify_master_key(
-            master_key, ek_row.salt, ek_row.iterations, ek_row.verify_blob
-        ):
-            raise InternalException("主密钥错误")
-
-        fernet_key = derive_fernet_key(master_key, ek_row.salt, ek_row.iterations)
-        plaintext = json.dumps(bundle, ensure_ascii=False, sort_keys=True).encode("utf-8")
-        from cryptography.fernet import Fernet as _F
-        ct = _F(fernet_key).encrypt(plaintext)
-        envelope = {
-            "version": BUNDLE_VERSION,
-            "encryption": {
-                "algorithm": "Fernet",
-                "kdf": "PBKDF2-HMAC-SHA256",
-                "iterations": ek_row.iterations,
-                "salt_b64": ek_row.salt.hex(),
-            },
-            "encryption_kind": "sync-bundle",
-            "merged_at": bundle.get("merged_at"),
-            "device_id": bundle.get("device_id"),
-            "ciphertext_b64": ct.hex(),
-        }
-        return json.dumps(envelope, ensure_ascii=False).encode("utf-8")
+        """委托给 sync_bundle.encrypt_bundle"""
+        from backend.services.sync_bundle import encrypt_bundle as _encrypt_bundle
+        return _encrypt_bundle(bundle, master_key)
 
     def decrypt_bundle(self, payload: bytes, master_key: str) -> dict:
-        """解密 envelope → bundle dict。"""
-        ek_repo = EncryptionKeyRepository()
-        ek_row = ek_repo.get_default()
-        if ek_row is None:
-            raise InternalException("主密钥未初始化, 无法解密 sync bundle")
-
-        try:
-            envelope = json.loads(payload.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as e:
-            raise InternalException(f"sync bundle JSON 解析失败: {e}") from e
-
-        enc = envelope.get("encryption", {})
-        if enc.get("algorithm") != "Fernet":
-            raise InternalException(f"不支持的加密算法: {enc.get('algorithm')}")
-        if int(enc.get("iterations", -1)) != ek_row.iterations:
-            raise InternalException(
-                f"iterations 不一致: 文件 {enc.get('iterations')} vs 当前 {ek_row.iterations}"
-            )
-        if not verify_master_key(
-            master_key, ek_row.salt, ek_row.iterations, ek_row.verify_blob
-        ):
-            raise InternalException("主密钥错误")
-
-        fernet_key = derive_fernet_key(master_key, ek_row.salt, ek_row.iterations)
-        from cryptography.fernet import Fernet as _F, InvalidToken
-        try:
-            ct = bytes.fromhex(envelope["ciphertext_b64"])
-            plaintext = _F(fernet_key).decrypt(ct)
-            bundle = json.loads(plaintext.decode("utf-8"))
-        except (KeyError, ValueError, InvalidToken) as e:
-            raise InternalException(f"sync bundle 解密失败: {e}") from e
-
-        _validate_bundle(bundle)
-        return bundle
+        """委托给 sync_bundle.decrypt_bundle"""
+        from backend.services.sync_bundle import decrypt_bundle as _decrypt_bundle
+        return _decrypt_bundle(payload, master_key)
 
     # ------------------------------------------------------------------
     # 同步入口
@@ -1204,23 +873,9 @@ class SyncService:
         }
 
     def decrypt_bundle_with_fernet_key(self, payload: bytes, fernet_key: bytes) -> dict:
-        """fernet_key 版解密 (scheduler 自动同步用)。"""
-        try:
-            envelope = json.loads(payload.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as e:
-            raise InternalException(f"sync bundle JSON 解析失败: {e}") from e
-        enc = envelope.get("encryption", {})
-        if enc.get("algorithm") != "Fernet":
-            raise InternalException(f"不支持的加密算法: {enc.get('algorithm')}")
-        from cryptography.fernet import Fernet as _F, InvalidToken
-        try:
-            ct = bytes.fromhex(envelope["ciphertext_b64"])
-            plaintext = _F(fernet_key).decrypt(ct)
-            bundle = json.loads(plaintext.decode("utf-8"))
-        except (KeyError, ValueError, InvalidToken) as e:
-            raise InternalException(f"sync bundle 解密失败: {e}") from e
-        _validate_bundle(bundle)
-        return bundle
+        """委托给 sync_bundle.decrypt_bundle_with_fernet_key"""
+        from backend.services.sync_bundle import decrypt_bundle_with_fernet_key as _decrypt
+        return _decrypt(payload, fernet_key)
 
     # ------------------------------------------------------------------
     # 状态查询

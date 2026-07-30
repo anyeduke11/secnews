@@ -22,6 +22,22 @@ def _make_feedparser_mock(entries: list[dict[str, Any]], status: int = 200, bozo
     return d
 
 
+def _recent_parsed(hour: int = 12) -> tuple:
+    """本周内 (今天 UTC) 的 ``published_parsed`` 元组。
+
+    Phase 47 起 ``_build_items`` 拒收早于本周一 00:00 (Shanghai) 的条目;
+    用「今天」而非硬编码日期,让测试与系统时间无关 (不再随周次过期)。
+    """
+    now = datetime.now(timezone.utc)
+    return (now.year, now.month, now.day, hour, 0, 0, 0, 0, 0)
+
+
+def _recent_dt(hour: int = 12) -> datetime:
+    """与 :func:`_recent_parsed` 对应的 tz-aware UTC datetime。"""
+    now = datetime.now(timezone.utc)
+    return datetime(now.year, now.month, now.day, hour, 0, 0, tzinfo=timezone.utc)
+
+
 def test_rss_path_in_security_collector_sources():
     """SecWiki 必须以 rss_url 形式出现在 security 源清单里。"""
     src_names = {s["name"]: s for s in SecurityCollector.sources}
@@ -74,13 +90,13 @@ def test_rss_path_happy_path():
             "title": "First Article",
             "link": "https://example.com/a/1",
             "summary": "first summary",
-            "published_parsed": (2026, 7, 6, 12, 0, 0, 0, 0, 0),
+            "published_parsed": _recent_parsed(12),
         },
         {
             "title": "Second Article",
             "link": "https://example.com/a/2",
             "summary": "second summary",
-            "published_parsed": (2026, 7, 6, 11, 0, 0, 0, 0, 0),
+            "published_parsed": _recent_parsed(11),
         },
         # 缺 title → 跳过
         {"title": "", "link": "https://example.com/a/3", "summary": "x"},
@@ -94,7 +110,7 @@ def test_rss_path_happy_path():
     assert items[0].title == "First Article"
     assert str(items[0].url) == "https://example.com/a/1"
     assert items[0].source == "MockGood"
-    assert items[0].published_at == datetime(2026, 7, 6, 12, 0, 0, tzinfo=timezone.utc)
+    assert items[0].published_at == _recent_dt(12)
     assert sr.item_count == 2
 
 
@@ -111,7 +127,7 @@ def test_rss_path_routes_before_html():
             "title": "SecWiki News 2026-07-06",
             "link": "http://www.sec-wiki.com/?2026-07-06",
             "summary": "",
-            "published_parsed": (2026, 7, 6, 0, 0, 0, 0, 0, 0),
+            "published_parsed": _recent_parsed(0),
         }
     ]
     with patch("feedparser.parse", return_value=_make_feedparser_mock(entries)):

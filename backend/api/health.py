@@ -29,8 +29,8 @@ _START_TIME = time.time()
 # 同时写入 observability 模块，让其它模块统一读取
 set_start_time(_START_TIME)
 
-# 项目版本
-VERSION = "1.2.0"
+# 项目版本 (单一来源 backend/version.py)
+from backend.version import APP_VERSION as VERSION
 
 
 def _now_iso() -> str:

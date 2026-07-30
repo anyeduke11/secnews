@@ -47,7 +47,7 @@ def fetch_cubox_cards(limit: int = 100) -> list[dict]:
 
     try:
         result = subprocess.run(
-            ["cubox-cli", "card", "list", "-o", "json", "--all", "--limit", str(limit)],
+            ["cubox-cli", "card", "list", "-o", "json", "--limit", str(limit)],
             capture_output=True,
             text=True,
             timeout=60,
@@ -201,6 +201,94 @@ def sync_cubox_to_knowledge(limit: int = 100) -> int:
 
     log.info(f"cubox sync: {count} items written/merged")
     return count
+
+
+def sync_cubox_with_progress(
+    limit: int = 100,
+    on_progress=None,
+) -> dict:
+    """Sync cubox cards with progress callbacks.
+
+    ``on_progress(phase: str, current: int, total: int)`` is called
+    at each stage. Returns ``{"new": int, "merged": int, "total": int}``.
+    """
+    from backend.repository.knowledge_repo import knowledge_repo
+    from backend.services.knowledge_sync import parse_frontmatter
+
+    def _report(phase: str, current: int, total: int):
+        if on_progress:
+            on_progress(phase, current, total)
+
+    _report("fetching", 0, 0)
+    cards = fetch_cubox_cards(limit)
+    if not cards:
+        _report("done", 0, 0)
+        return {"new": 0, "merged": 0, "total": 0}
+
+    total_cards = len(cards)
+    _report("processing", 0, total_cards)
+
+    new_count = 0
+    merged_count = 0
+    for i, card in enumerate(cards):
+        item = _card_to_item(card)
+        if item is None:
+            _report("processing", i + 1, total_cards)
+            continue
+
+        content = card.get("description", "") or ""
+        md_path = ITEMS_DIR / f"{item.id}.md"
+
+        if md_path.exists():
+            existing_fm = parse_frontmatter(md_path) or {}
+            existing_sources = (
+                existing_fm.get("sources", [])
+                if isinstance(existing_fm.get("sources"), list)
+                else ["cubox"]
+            )
+            existing_tags = (
+                existing_fm.get("tags", [])
+                if isinstance(existing_fm.get("tags"), list)
+                else []
+            )
+            merged_sources = list(dict.fromkeys(existing_sources + ["cubox"]))
+            merged_tags = list(dict.fromkeys(existing_tags + item.tags))
+            _update_md_frontmatter(md_path, merged_sources, merged_tags)
+            existing_item = knowledge_repo.get_item(item.id)
+            if existing_item:
+                existing_item.tags = merged_tags
+                existing_item.updated_at = now_iso()
+                knowledge_repo.upsert_item(existing_item)
+            merged_count += 1
+        else:
+            if item.source_url:
+                similar = find_similar_items(item.source_url)
+                if similar:
+                    for sid in similar:
+                        item.tags.append(f"similar:{sid}")
+            _write_item_md(item, content, sources=["cubox"])
+            knowledge_repo.upsert_item(item)
+            new_count += 1
+
+        _report("processing", i + 1, total_cards)
+
+    _report("syncing_db", total_cards, total_cards)
+    from backend.services.knowledge_sync import full_sync_items_to_db, full_sync_concepts_to_db
+    items_synced = full_sync_items_to_db()
+    concepts_synced = full_sync_concepts_to_db()
+
+    _report("done", total_cards, total_cards)
+    log.info(
+        f"cubox sync with progress: new={new_count}, merged={merged_count}, "
+        f"db_items={items_synced}, db_concepts={concepts_synced}"
+    )
+    return {
+        "new": new_count,
+        "merged": merged_count,
+        "total": new_count + merged_count,
+        "items_synced": items_synced,
+        "concepts_synced": concepts_synced,
+    }
 
 
 def _update_md_frontmatter(

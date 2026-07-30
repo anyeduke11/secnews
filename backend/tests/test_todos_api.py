@@ -16,6 +16,9 @@
 """
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
+from backend.version import APP_VERSION as API_VERSION
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -27,6 +30,17 @@ from backend.exceptions import register_exception_handlers
 from backend.repository import db
 from backend.repository.favorite_repo import FavoriteRepository
 from backend.repository.todo_repo import TodoRepository
+from backend.utils.business_days import SHANGHAI_TZ
+
+
+def _urgent_deadline() -> str:
+    """今天 (上海时区) — deadline=今天 恒为紧急 (diff=0)。"""
+    return datetime.now(SHANGHAI_TZ).date().isoformat()
+
+
+def _non_urgent_deadline() -> str:
+    """今天 + 10 天 — 远超 1 个业务日, 恒为不紧急。"""
+    return (datetime.now(SHANGHAI_TZ).date() + timedelta(days=10)).isoformat()
 
 
 # ---------------------------------------------------------------------------
@@ -260,19 +274,19 @@ class TestTodosAPIList:
         client.post(
             "/api/todos",
             json={"source_type": "favorite", "source_id": "h-1", "title": "P0",
-                  "deadline": "2026-07-10", "important": 1},  # 明天 = 紧急
+                  "deadline": _urgent_deadline(), "important": 1},  # 今天 = 紧急
         )
         # 1 个 P1 (仅紧急)
         client.post(
             "/api/todos",
             json={"source_type": "manual", "title": "P1",
-                  "deadline": "2026-07-10"},  # 明天 = 紧急
+                  "deadline": _urgent_deadline()},  # 今天 = 紧急
         )
-        # 1 个 P2 (仅重要) — deadline 在 3 天后, 不紧急
+        # 1 个 P2 (仅重要) — deadline 在 10 天后, 不紧急
         client.post(
             "/api/todos",
             json={"source_type": "manual", "title": "P2",
-                  "deadline": "2026-07-15", "important": 1},  # 3 天后 = 不紧急
+                  "deadline": _non_urgent_deadline(), "important": 1},  # 10 天后 = 不紧急
         )
         # 1 个 P3 (都不) → 标 done
         r = client.post(
@@ -286,7 +300,7 @@ class TestTodosAPIList:
         resp = client.get("/api/todos")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["version"] == "1.2.0"
+        assert data["version"] == API_VERSION
         assert data["total"] == 4
         assert len(data["items"]) == 4
 

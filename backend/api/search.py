@@ -13,6 +13,7 @@ from typing import Optional
 from fastapi import APIRouter, Query
 
 from backend.services.search_service import unified_search
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/search", tags=["search"])
 
@@ -30,7 +31,7 @@ async def search(
     返回结构::
 
         {
-          "version": "1.7.0",
+          "version": API_VERSION,
           "result": {
             "query": "...",
             "items": [...],
@@ -44,4 +45,4 @@ async def search(
         else None
     )
     result = unified_search(q, sources=source_list, limit=limit)
-    return {"version": "1.7.0", "result": result}
+    return {"version": API_VERSION, "result": result}

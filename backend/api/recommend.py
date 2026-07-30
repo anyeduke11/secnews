@@ -11,6 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Query
 
 from backend.services.recommend_service import recommend
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/recommend", tags=["recommend"])
 
@@ -35,11 +36,11 @@ async def get_recommendations(
     Returns
     -------
     dict
-        ``{"version": "1.7.0", "entity_type", "entity_id", "items": [...]}``
+        ``{"version": API_VERSION, "entity_type", "entity_id", "items": [...]}``
     """
     items = recommend(entity_type, entity_id, limit=limit)
     return {
-        "version": "1.7.0",
+        "version": API_VERSION,
         "entity_type": entity_type,
         "entity_id": entity_id,
         "items": items,

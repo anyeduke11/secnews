@@ -310,6 +310,7 @@ def test_count_by_category(repo):
     counts = repo.count_by_category()
     assert counts == {
         "ai": 7,  # 5 ai + 2 tech
+        "ai_security": 0,
         "security": 3,
         "finance": 0,
         "startup": 0,

@@ -11,8 +11,9 @@ SAG 生命周期状态机 (PRD §3.3):
 
 设计
 ----
-- .md 文件是 source of truth; SQLite 是读缓存。两处都写, .md 写失败仅告警
-  不阻塞 (与 ``knowledge_sync`` 既有约定一致)。
+- .md 文件是 source of truth; SQLite 是可重建的读索引。**先写 .md 且必须
+  成功** (失败则整个操作失败, 不产生 DB 领先于 md 的分歧); DB 写入紧随
+  其后, DB 写入失败由下次 full_sync 从 md 自动补齐。
 - 状态推进允许跳跃 (如 signal → generate 直接归档合法), 但不允许回退到
   更早的状态 (避免数据倒流)。
 """
@@ -65,15 +66,17 @@ def transition(item_id: str, to_state: str) -> bool:
 
     item.lifecycle = to_state
     item.updated_at = now_iso()
-    knowledge_repo.upsert_item(item)
 
-    # 回写 .md (非关键, 失败仅告警)
+    # md 是真相源: 先写 .md, 失败则整个 transition 失败 (DB 不动),
+    # 避免 DB 领先于 md 后被下次 full_sync 回滚。
     try:
         from backend.services.knowledge_sync import write_item_to_md
         write_item_to_md(item.to_dict())
     except Exception as e:
-        log.warning(f"write_item_to_md failed for {item_id} (non-critical): {e}")
+        log.error(f"write_item_to_md failed for {item_id}, transition aborted: {e}")
+        return False
 
+    knowledge_repo.upsert_item(item)
     return True
 
 
@@ -82,7 +85,8 @@ def promote_favorite_to_knowledge(title: str, url: str) -> str:
 
     - id 由 url 派生 (``item_id_from_url``), 保证同 url 幂等。
     - 已存在则直接返回 id (不覆盖已有 lifecycle/tags)。
-    - 同时写 SQLite + ``knowledge/items/{id}.md``。
+    - md 是真相源: 先写 ``knowledge/items/{id}.md`` (失败则抛错, 由调用方
+      兜底), 再写 SQLite 索引。
     返回 item_id。
     """
     from backend.services.data_cleaning import item_id_from_url
@@ -101,13 +105,13 @@ def promote_favorite_to_knowledge(title: str, url: str) -> str:
         ingested_at=now_iso(),
         updated_at=now_iso(),
     )
-    knowledge_repo.upsert_item(item)
 
-    try:
-        from backend.services.knowledge_sync import write_item_to_md
-        write_item_to_md(item.to_dict())
-    except Exception as e:
-        log.warning(f"write_item_to_md failed for {item_id} (non-critical): {e}")
+    # md 先写且必须成功 (真相源); 失败直接抛出, 调用方 (favorites API)
+    # 已有 try/except 非关键兜底。
+    from backend.services.knowledge_sync import write_item_to_md
+    write_item_to_md(item.to_dict())
+
+    knowledge_repo.upsert_item(item)
 
     log.info(f"promote: created knowledge item {item_id} from favorite")
     return item_id

@@ -186,3 +186,131 @@ params:
     )
     log.info(f"created generate_learning_plan task {task.id} for {week}")
     return {"task_id": task.id, "status": "pending", "week": week}
+
+
+def generate_plan_direct(domains: Optional[list[str]] = None) -> dict:
+    """Generate a learning plan directly (no external Agent needed).
+
+    Scans knowledge items, groups by domain, selects unmastered items
+    as tasks, and creates goals based on domain coverage gaps.
+    """
+    week = _current_iso_week()
+
+    # Fetch all items (limit 500 to keep it fast)
+    all_items = knowledge_repo.list_items(limit=500)
+    if not all_items:
+        return {"task_id": None, "status": "empty", "week": week}
+
+    # Filter by domain if specified
+    if domains:
+        domain_set = set(domains)
+        items = [i for i in all_items if i.domain in domain_set]
+    else:
+        items = all_items
+
+    if not items:
+        return {"task_id": None, "status": "empty", "week": week}
+
+    # Count by domain for goal generation
+    domain_counts: dict[str, int] = {}
+    domain_unmastered: dict[str, list] = {}
+    for item in items:
+        d = item.domain or "其他"
+        domain_counts[d] = domain_counts.get(d, 0) + 1
+        if item.mastered == 0:
+            domain_unmastered.setdefault(d, []).append(item)
+
+    # Sort domains by count (desc)
+    sorted_domains = sorted(domain_counts.items(), key=lambda x: -x[1])
+
+    # Generate goals: 3-5 goals based on top domains
+    goals: list[str] = []
+    domain_labels = {
+        "ai": "AI / 人工智能",
+        "security": "安全",
+        "dev": "开发",
+        "startup": "创业",
+        "finance": "金融",
+        "business": "商业",
+        "general": "综合",
+        "other": "其他",
+        "其他": "其他",
+    }
+    for d, count in sorted_domains[:5]:
+        label = domain_labels.get(d, d)
+        unmastered_count = len(domain_unmastered.get(d, []))
+        if unmastered_count > 0:
+            goals.append(f"掌握 {label} 领域 {unmastered_count} 个未学习条目")
+        else:
+            goals.append(f"回顾 {label} 领域知识")
+
+    if not goals:
+        goals = ["扩展知识广度，覆盖更多领域"]
+
+    # Select tasks: 5-10 unmastered items, prioritize by domain diversity
+    tasks: list[dict] = []
+    seen_domains: set = set()
+    # First pass: pick one item per domain for diversity
+    for d, _ in sorted_domains:
+        unmastered = domain_unmastered.get(d, [])
+        if unmastered and d not in seen_domains:
+            tasks.append({
+                "item_id": unmastered[0].id,
+                "title": unmastered[0].title,
+                "completed": False,
+            })
+            seen_domains.add(d)
+            if len(tasks) >= 10:
+                break
+
+    # Second pass: fill remaining slots
+    if len(tasks) < 10:
+        for d, _ in sorted_domains:
+            unmastered = domain_unmastered.get(d, [])
+            for item in unmastered:
+                if not any(t["item_id"] == item.id for t in tasks):
+                    tasks.append({
+                        "item_id": item.id,
+                        "title": item.title,
+                        "completed": False,
+                    })
+                    if len(tasks) >= 10:
+                        break
+            if len(tasks) >= 10:
+                break
+
+    # Fallback: if still no tasks, use any items
+    if not tasks:
+        for item in items[:10]:
+            tasks.append({
+                "item_id": item.id,
+                "title": item.title,
+                "completed": False,
+            })
+
+    # Create the plan
+    plan_data = {"goals": goals, "tasks": tasks}
+    record = {
+        "week": week,
+        "status": "active",
+        "plan_data": plan_data,
+        "created_at": now_iso(),
+    }
+    knowledge_repo.upsert_plan(record)
+    saved = knowledge_repo.get_plan(week)
+    _write_plan_md(week, saved or record)
+
+    # Create a completed task record for tracking
+    task = knowledge_repo.create_task("generate_learning_plan", {
+        "domains": domains or [],
+        "week": week,
+        "goal_count": len(goals),
+        "task_count": len(tasks),
+    })
+    knowledge_repo.update_task_status(task.id, "done")
+
+    log.info(
+        f"generated learning plan for {week}: "
+        f"{len(goals)} goals, {len(tasks)} tasks"
+    )
+    return {"task_id": task.id, "status": "done", "week": week}

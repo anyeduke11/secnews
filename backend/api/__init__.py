@@ -11,14 +11,20 @@ from fastapi import FastAPI
 
 
 def register_routers(app: FastAPI) -> None:
-    """注册全部 APIRouter (v1.7+: 含 tags + extract)。"""
+    """注册全部 APIRouter (v1.7+: 含 tags + extract)。
+
+    v1.8 加固: config.feature_* flag 在此接线 —— flag=False 的功能
+    router 不注册, 对外不可达 (此前 flag 与注册脱钩, 形同虚设)。
+    """
+    from backend.config import config
+
     # 注意: annotations 必须用 `import ... as` 显式导入子模块,
     # 因为模块顶部的 `from __future__ import annotations` 会把 `annotations`
     # 绑定为 _Feature 实例, 导致 `from backend.api import annotations` 拿到 _Feature 而非子模块.
     import backend.api.annotations as annotations_api  # v1.7 Phase 2: 笔记空间
     from backend.api import (
-        agent,  # v1.7 Phase 5: Agent 双向环 (CLI/Poller) — Phase 7 降级为 deprecated
         alerts,  # v1.7 Phase 3: 告警规则与告警
+        knowledge_imported,  # v1.8 Phase 8: 资讯收藏聚合视图
         categories,
         catchup,  # v1.8 Phase 8: 追抓资讯 (manual + watchdog auto)
         digests,  # v1.7 Phase 4: 简报
@@ -26,7 +32,7 @@ def register_routers(app: FastAPI) -> None:
         recommend,  # v1.7 Phase 4: 上下文推荐
         search,  # v1.7 Phase 3: 统一跨层搜索
         codegarden,  # v1.5+: CodeGarden 代码花园 (Phase 2a)
-        codegarden_phase2b,  # v1.5+: CodeGarden Phase 2b (services/resources/events)
+        codegarden_ops,  # v1.5+: CodeGarden 运维层 — 服务网格/资源中枢/联动引擎 (原 phase2b)
         content,  # v1.4: 内容创作 (calendar/drafts/templates)
         events,  # v1.3.0 Phase 6: SSE 实时推送
         export,
@@ -39,6 +45,8 @@ def register_routers(app: FastAPI) -> None:
         maintenance,  # v1.4: DB 维护 (vacuum/cleanup)
         mcp,  # v1.7 Phase 7: MCP 调试端点 (/api/mcp/* + /api/settings/mcp/*)
         mcp_adapters,  # v1.7 Phase 7: MCP 适配端点 (/api/profile, /api/cubox/sync, /api/extract/auto)
+        mcp_agent_tools,  # v1.8: 4 个 Agent 侧写 tool (score_item/enrich_concept/link_items/trigger_codegarden_drift)
+        kl_metrics_api,  # v2.0 Phase 10: KL 触发器指标 (/api/kl/metrics)
         proxy,
         quality,
         refresh,  # Phase 32: POST /api/refresh 手动触发采集
@@ -77,23 +85,38 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(maintenance.router, tags=["maintenance"])
     app.include_router(events.router, tags=["events"])
     app.include_router(codegarden.router, tags=["codegarden"])
-    app.include_router(codegarden_phase2b.router, tags=["codegarden-phase2b"])
-    app.include_router(tags.router, tags=["tags"])
-    app.include_router(extract.router, tags=["extract"])
-    app.include_router(reviews.router, tags=["reviews"])
-    app.include_router(agent.router, tags=["agent"])
-    app.include_router(annotations_api.router, tags=["annotations"])
-    app.include_router(tech_stack.router, tags=["tech-stack"])
-    app.include_router(alerts.router, tags=["alerts"])
-    app.include_router(search.router, tags=["search"])
+    app.include_router(codegarden_ops.router, tags=["codegarden-ops"])
+    # ---- feature flag 接线区: flag=False 时对应 API 不注册 ----
+    if config.feature_tags:
+        app.include_router(tags.router, tags=["tags"])
+    if config.feature_auto_extract:
+        app.include_router(extract.router, tags=["extract"])
+    if config.feature_reviews:
+        app.include_router(reviews.router, tags=["reviews"])
+    if config.feature_annotations:
+        app.include_router(annotations_api.router, tags=["annotations"])
+    if config.feature_tech_stack:
+        app.include_router(tech_stack.router, tags=["tech-stack"])
+    if config.feature_alerts:
+        app.include_router(alerts.router, tags=["alerts"])
+    if config.feature_unified_search:
+        app.include_router(search.router, tags=["search"])
     app.include_router(mode.router, tags=["mode"])
-    app.include_router(recommend.router, tags=["recommend"])
-    app.include_router(digests.router, tags=["digests"])
+    if config.feature_recommendations:
+        app.include_router(recommend.router, tags=["recommend"])
+    if config.feature_digests:
+        app.include_router(digests.router, tags=["digests"])
     # v1.8 Phase 8: 追抓资讯
     app.include_router(catchup.router, tags=["catchup"])
+    # v1.8 Phase 8: 资讯收藏聚合视图
+    app.include_router(knowledge_imported.router, tags=["knowledge-imported"])
     # v1.7 Phase 7: MCP server routers
     app.include_router(mcp.router, tags=["mcp"])
     app.include_router(mcp_adapters.router, tags=["mcp-adapters"])
+    # v1.8 Phase 8: 4 个新 MCP tool (副作用模式)
+    app.include_router(mcp_agent_tools.router, tags=["mcp-agent-tools"])
+    # v2.0 Phase 10: KL 触发器指标
+    app.include_router(kl_metrics_api.router, tags=["kl-metrics"])
 
 
 __all__ = ["register_routers"]

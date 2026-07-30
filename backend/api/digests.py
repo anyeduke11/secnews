@@ -17,6 +17,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from backend.repository.digest_repo import DigestRepository
 from backend.services.digest_service import generate_daily_digest, mark_digest_read
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/digests", tags=["digests"])
 
@@ -29,7 +30,7 @@ async def list_digests(
     """列出简报, 按 created_at DESC."""
     repo = DigestRepository()
     items = repo.list_by_period(period=period, limit=limit)
-    return {"version": "1.7.0", "items": items, "total": len(items)}
+    return {"version": API_VERSION, "items": items, "total": len(items)}
 
 
 @router.get("/latest")
@@ -42,7 +43,7 @@ async def get_latest_digest(period: Optional[str] = Query(None)):
             status_code=404,
             detail={"message": "暂无简报"},
         )
-    return {"version": "1.7.0", "item": item}
+    return {"version": API_VERSION, "item": item}
 
 
 @router.get("/{digest_id}")
@@ -55,7 +56,7 @@ async def get_digest(digest_id: str):
             status_code=404,
             detail={"message": f"简报 {digest_id} 不存在"},
         )
-    return {"version": "1.7.0", "item": item}
+    return {"version": API_VERSION, "item": item}
 
 
 @router.post("/generate")
@@ -65,14 +66,14 @@ async def generate_digest(top_n: int = Query(3, ge=1, le=10)):
     正常由 scheduler 每 08:00 Shanghai 自动触发; 此端点供手动补生成.
     """
     item = generate_daily_digest(top_n=top_n)
-    return {"version": "1.7.0", "item": item}
+    return {"version": API_VERSION, "item": item}
 
 
 @router.put("/read")
 async def mark_read():
     """标记当前最新简报已读 (写 kv_cache)."""
     mark_digest_read()
-    return {"version": "1.7.0", "status": "ok"}
+    return {"version": API_VERSION, "status": "ok"}
 
 
 @router.delete("/{digest_id}")
@@ -85,7 +86,7 @@ async def delete_digest(digest_id: str):
             status_code=404,
             detail={"message": f"简报 {digest_id} 不存在"},
         )
-    return {"version": "1.7.0", "status": "ok", "deleted": digest_id}
+    return {"version": API_VERSION, "status": "ok", "deleted": digest_id}
 
 
 __all__ = ["router"]

@@ -13,7 +13,7 @@
 - 读/写均通过 ``TagRepository`` (thread-local SQLite 连接, autocommit)。
 - 所有同步 DB 操作放 ``asyncio.to_thread`` 避免阻塞 event loop, 与其他
   router (favorites/hotspots) 保持一致。
-- 返回结构统一 ``{"version": "1.7.0", ...}``, 与项目其他 API 口径一致。
+- 返回结构统一 ``{"version": API_VERSION, ...}``, 与项目其他 API 口径一致。
 """
 from __future__ import annotations
 
@@ -24,6 +24,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.repository.tags_repo import Tag, TagRepository
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/tags", tags=["tags"])
 
@@ -62,19 +63,19 @@ def _tag_to_dict(t: Tag) -> dict:
 def _list_tags(type_: Optional[str], parent_id: Optional[str], limit: int) -> dict:
     repo = TagRepository()
     items = repo.list(type=type_, parent_id=parent_id, limit=limit)
-    return {"version": "1.7.0", "count": len(items), "items": [_tag_to_dict(i) for i in items]}
+    return {"version": API_VERSION, "count": len(items), "items": [_tag_to_dict(i) for i in items]}
 
 
 def _suggest_tags(q: str, limit: int) -> dict:
     repo = TagRepository()
     items = repo.suggest(q, limit=limit)
-    return {"version": "1.7.0", "count": len(items), "items": [_tag_to_dict(i) for i in items]}
+    return {"version": API_VERSION, "count": len(items), "items": [_tag_to_dict(i) for i in items]}
 
 
 def _create_tag(req: TagCreate) -> dict:
     repo = TagRepository()
     item = repo.add(req.id, req.label, req.type, req.parent_id, req.weight)
-    return {"version": "1.7.0", "item": _tag_to_dict(item)}
+    return {"version": API_VERSION, "item": _tag_to_dict(item)}
 
 
 def _delete_tag(tag_id: str) -> dict:
@@ -82,14 +83,14 @@ def _delete_tag(tag_id: str) -> dict:
     ok = repo.delete(tag_id)
     if not ok:
         raise HTTPException(status_code=404, detail={"message": f"标签 {tag_id!r} 不存在"})
-    return {"version": "1.7.0", "deleted": tag_id}
+    return {"version": API_VERSION, "deleted": tag_id}
 
 
 def _list_by_hotspot(hotspot_id: str) -> dict:
     repo = TagRepository()
     items = repo.list_by_hotspot(hotspot_id)
     return {
-        "version": "1.7.0",
+        "version": API_VERSION,
         "hotspot_id": hotspot_id,
         "count": len(items),
         "items": [_tag_to_dict(i) for i in items],

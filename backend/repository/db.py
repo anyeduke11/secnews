@@ -131,7 +131,8 @@ def apply_migrations(conn: sqlite3.Connection) -> int:
     executed = {row[0] for row in conn.execute("SELECT version FROM schema_version").fetchall()}
 
     # 3. Discover migration files in lexicographic order.
-    files = sorted(MIGRATIONS_DIR.glob("*.sql"))
+    #    ``*_down.sql`` 是手工回滚脚本, 绝不自动执行 (否则 up 刚跑完就被回滚)。
+    files = sorted(f for f in MIGRATIONS_DIR.glob("*.sql") if not f.stem.endswith("_down"))
     latest_version = 0
 
     def _numeric(stem: str) -> int:

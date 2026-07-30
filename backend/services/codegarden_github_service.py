@@ -93,8 +93,8 @@ def _get_github_token() -> str:
         raise GithubTokenMissingException(
             "secrets 未解锁; 请先在 Secrets 页面输入主密钥 unlock"
         )
-    revealed = svc.reveal(int(github_secret["id"]))
-    token = revealed.get("api_key") or ""
+    revealed = svc.decrypt_for_internal_use(int(github_secret["id"]))
+    token = revealed or ""
     if not token:
         raise GithubTokenMissingException("github_token 解密后为空")
     return token

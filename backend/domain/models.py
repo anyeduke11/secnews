@@ -62,6 +62,9 @@ class HotspotItem(BaseModel):
     # 可选值: 招标中 / 中标 / 变更 / 终止 / 成交 / 询价 / 比选 / 其他
     # 由 :func:`backend.collectors.bid_status.extract_bid_status` 标题正则提取
     bid_status: Optional[str] = Field(None, max_length=20)
+    # Phase 8 (v1.3.0): 标讯地区(仅 category=bid 有效)
+    # 由 :func:`_extract_region` 从标题/内容解析
+    region: Optional[str] = Field(None, max_length=30)
 
     @field_validator("published_at", "fetched_at", "ingested_at")
     @classmethod

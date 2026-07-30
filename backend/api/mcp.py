@@ -24,6 +24,7 @@ from backend.api.mcp_config import (
 )
 from backend.services.feature_flag_service import enable, disable, is_enabled
 from backend.logging_config import logger
+from backend.version import APP_VERSION as API_VERSION
 
 log = logging.getLogger("hotspot.api.mcp")
 
@@ -48,7 +49,7 @@ async def mcp_status():
     enabled = is_mcp_enabled()
     tools = list_mcp_tools_from_db(enabled_only=False) if enabled else []
     return {
-        "version": "1.7.0",
+        "version": API_VERSION,
         "enabled": enabled,
         "transport": "stdio+sse",
         "sse_endpoint": "/mcp/sse" if enabled else None,
@@ -71,7 +72,7 @@ async def mcp_tools():
         )
     tools = list_mcp_tools_from_db(enabled_only=False)
     return {
-        "version": "1.7.0",
+        "version": API_VERSION,
         "count": len(tools),
         "tools": tools,
     }
@@ -118,7 +119,7 @@ async def get_mcp_config():
     write_tools = [t["name"] for t in tools if t["category"] == "write"]
 
     return {
-        "version": "1.7.0",
+        "version": API_VERSION,
         "enabled": is_mcp_enabled(),
         "stdio": _build_stdio_config(),
         "sse": _build_sse_config(),
@@ -141,7 +142,7 @@ async def toggle_mcp_enabled(req: ToggleEnabledRequest):
     else:
         ok = disable("mcp_server")
     return {
-        "version": "1.7.0",
+        "version": API_VERSION,
         "enabled": req.enabled,
         "applied": ok,
         "note": "重启 hotspot 后生效",

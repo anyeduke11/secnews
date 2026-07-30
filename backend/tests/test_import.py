@@ -25,15 +25,13 @@ from backend.tools.import_cache import import_from_cache_json
 REAL_CACHE = Path(__file__).resolve().parents[1] / "cache_data.json"
 
 
-def pytest_collection_modifyitems(config, items):
-    """如果真实 cache_data.json 不存在，跳过 test_import 全部测试。"""
-    if not REAL_CACHE.exists():
-        skip_marker = pytest.mark.skip(
-            reason=f"legacy cache_data.json not present at {REAL_CACHE}"
-        )
-        for item in items:
-            if "test_import" in str(item.fspath):
-                item.add_marker(skip_marker)
+# legacy cache_data.json 是一次性迁移工具的输入, 仓库中通常不再保留。
+# 缺失时整个模块跳过 (module-level skipif — 放在 test 模块内的
+# pytest_collection_modifyitems 不会被 pytest 当作插件 hook 调用)。
+pytestmark = pytest.mark.skipif(
+    not REAL_CACHE.exists(),
+    reason=f"legacy cache_data.json not present at {REAL_CACHE}",
+)
 
 
 # ---------------------------------------------------------------------------

@@ -28,6 +28,7 @@ from backend.repository.hotspot_repo import HotspotRepository
 from backend.repository.knowledge_repo import knowledge_repo
 from backend.repository.tags_repo import TagRepository
 from backend.services.extract_service import extract_and_attach, extract_tags
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/extract", tags=["extract"])
 
@@ -48,7 +49,7 @@ class ExtractPreviewRequest(BaseModel):
 # ---------------------------------------------------------------------------
 def _preview(req: ExtractPreviewRequest) -> dict:
     tags = extract_tags(req.text, title=req.title, category=req.category)
-    return {"version": "1.7.0", "count": len(tags), "items": tags}
+    return {"version": API_VERSION, "count": len(tags), "items": tags}
 
 
 def _extract_hotspot(hotspot_id: str) -> dict:
@@ -67,7 +68,7 @@ def _extract_hotspot(hotspot_id: str) -> dict:
     )
     attached = TagRepository().list_by_hotspot(hotspot_id)
     return {
-        "version": "1.7.0",
+        "version": API_VERSION,
         "hotspot_id": hotspot_id,
         "extracted": extracted,
         "attached": [
@@ -103,7 +104,7 @@ def _extract_knowledge(item_id: str) -> dict:
     except Exception:
         pass
     return {
-        "version": "1.7.0",
+        "version": API_VERSION,
         "item_id": item_id,
         "extracted": extracted,
         "tags": item.tags,

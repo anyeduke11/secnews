@@ -1,5 +1,13 @@
 """Knowledge sync service — bidirectional sync between knowledge/ .md files and SQLite.
 
+Truth model (P3 重构后统一约定)
+---------------------------------
+- ``items/`` 与 ``concepts/``: **md 文件是唯一真相源**, SQLite 是可随时从 md
+  全量重建的只读索引。``full_sync_*`` 除 upsert 外还会清理 md 已删除的孤儿行;
+  DB→md 回写 (``write_item_to_md``) 保留 md-only frontmatter 字段不丢失。
+- ``content/drafts/``: SQLite 行是元数据真相源 (title/status/calendar_id),
+  md 只存正文 (无 frontmatter) — 运行时状态不适合落盘 md。
+
 Design notes
 ------------
 - ``knowledge/`` lives at the project root (parent.parent.parent of this
@@ -109,11 +117,11 @@ def parse_frontmatter(md_path: Path) -> Optional[dict]:
     return fm
 
 
-def sync_item_to_db(md_path: Path) -> None:
-    """Sync a single knowledge/items/{id}.md to SQLite."""
+def sync_item_to_db(md_path: Path) -> Optional[str]:
+    """Sync a single knowledge/items/{id}.md to SQLite. Returns item id (or None if skipped)."""
     fm = parse_frontmatter(md_path)
     if fm is None:
-        return
+        return None
 
     from backend.domain.knowledge_models import KnowledgeItem, now_iso
     from backend.repository.knowledge_repo import knowledge_repo
@@ -130,19 +138,25 @@ def sync_item_to_db(md_path: Path) -> None:
         tags=fm.get("tags", []) if isinstance(fm.get("tags"), list) else [],
         concepts=fm.get("concepts", []) if isinstance(fm.get("concepts"), list) else [],
         mastered=fm.get("mastery", 0) if isinstance(fm.get("mastery"), (int, float)) else 0,
-        compiled=fm.get("compiled", False) if isinstance(fm.get("compiled"), bool) else False,
+        # v1.7: lifecycle 替换 compiled. 优先读 lifecycle, 回退 compiled (兼容旧 md)
+        lifecycle=fm.get("lifecycle") or (
+            "generate" if fm.get("compiled") is True else "signal"
+        ),
+        news_type=fm.get("news_type") if isinstance(fm.get("news_type"), str) else None,
+        tech_stack=fm.get("tech_stack", []) if isinstance(fm.get("tech_stack"), list) else [],
         ingested_at=fm.get("ingested_at", now_iso()),
         updated_at=now_iso(),
     )
     knowledge_repo.upsert_item(item)
     log.debug(f"synced item to db: {item.id}")
+    return item.id
 
 
-def sync_concept_to_db(md_path: Path) -> None:
-    """Sync a single knowledge/concepts/{slug}.md to SQLite."""
+def sync_concept_to_db(md_path: Path) -> Optional[str]:
+    """Sync a single knowledge/concepts/{slug}.md to SQLite. Returns slug (or None if skipped)."""
     fm = parse_frontmatter(md_path)
     if fm is None:
-        return
+        return None
 
     from backend.domain.knowledge_models import KnowledgeConcept, now_iso
     from backend.repository.knowledge_repo import knowledge_repo
@@ -157,18 +171,42 @@ def sync_concept_to_db(md_path: Path) -> None:
     )
     knowledge_repo.upsert_concept(concept)
     log.debug(f"synced concept to db: {concept.slug}")
+    return concept.slug
 
 
-def write_item_to_md(item: dict) -> None:
-    """Write a knowledge item from SQLite back to knowledge/items/{id}.md."""
+def write_item_to_md(item: dict, content: Optional[str] = None) -> None:
+    """Write a knowledge item from SQLite back to knowledge/items/{id}.md.
+
+    md 是真相源: 除保留正文外, 还保留 DB 中不存在的 md-only frontmatter
+    字段 (sources/last_reviewed/review_count/related_items), 避免回写时
+    静默重置为默认值。
+
+    Args:
+        item: knowledge_items dict
+        content: Markdown 正文 (默认保留文件已有正文, 传 '' 表示清空)
+    """
     item_id = item["id"]
     path = ITEMS_DIR / f"{item_id}.md"
-    content = ""
+    body = ""
+    existing_fm: dict = {}
     if path.exists():
+        existing_fm = parse_frontmatter(path) or {}
+    if content is not None:
+        # 调用方显式指定正文 (新建或覆盖)
+        body = content
+    elif path.exists():
+        # 默认保留已有正文
         existing = path.read_text(encoding="utf-8")
         m = _FRONTMATTER_RE.match(existing)
         if m:
-            content = existing[m.end():]
+            body = existing[m.end():]
+
+    # md-only 字段: DB 无对应列, 从现有 frontmatter 继承 (item dict 优先)
+    last_reviewed = item.get("last_reviewed") or existing_fm.get("last_reviewed")
+    review_count = item.get("review_count", existing_fm.get("review_count", 0))
+    related_items = item.get("related_items") or existing_fm.get("related_items") or []
+    sources = item.get("sources") or existing_fm.get("sources")
+    sources_line = f"sources: {json.dumps(sources)}\n" if sources else ""
 
     frontmatter = f"""---
 id: "{item.get('id', item_id)}"
@@ -176,7 +214,9 @@ title: "{item.get('title', 'Untitled')}"
 source: "{item.get('source', 'unknown')}"
 source_url: "{item.get('source_url', '')}"
 ingested_at: "{item.get('ingested_at', '')}"
-compiled: {str(item.get('compiled', False)).lower()}
+lifecycle: "{item.get('lifecycle', 'signal')}"
+news_type: "{item.get('news_type', '')}"
+tech_stack: {json.dumps(item.get('tech_stack', []))}
 domain: {item.get('domain') or 'null'}
 topic: {item.get('topic') or 'null'}
 type: {item.get('type') or 'null'}
@@ -184,37 +224,95 @@ difficulty: {item.get('difficulty') or 'null'}
 tags: {json.dumps(item.get('tags', []))}
 concepts: {json.dumps(item.get('concepts', []))}
 mastery: {item.get('mastery', 0)}
-last_reviewed: {item.get('last_reviewed') or 'null'}
-review_count: {item.get('review_count', 0)}
-related_items: {json.dumps(item.get('related_items', []))}
----
+last_reviewed: {last_reviewed or 'null'}
+review_count: {review_count}
+related_items: {json.dumps(related_items)}
+{sources_line}---
 
-{content}
 """
     ITEMS_DIR.mkdir(parents=True, exist_ok=True)
-    path.write_text(frontmatter, encoding="utf-8")
+    path.write_text(frontmatter + body, encoding="utf-8")
+
+
+def update_md_frontmatter_field(md_path: Path, key: str, value: str) -> bool:
+    """就地更新单个 frontmatter 字段 (保留其余内容不变)。
+
+    md 是真相源: DB 直改字段 (如 concept.local_wiki_ref) 必须同步回写 md,
+    否则下次 full_sync 会用旧 frontmatter 值回滚 DB。
+
+    Returns True on success, False if file missing / no frontmatter / write failed.
+    """
+    try:
+        text = md_path.read_text(encoding="utf-8")
+    except Exception:
+        return False
+    m = _FRONTMATTER_RE.match(text)
+    if not m:
+        return False
+    fm_block = m.group(1)
+    new_line = f'{key}: "{value}"'
+    key_re = re.compile(rf"^{re.escape(key)}:.*$", re.MULTILINE)
+    if key_re.search(fm_block):
+        new_block = key_re.sub(lambda _m: new_line, fm_block, count=1)
+    else:
+        new_block = fm_block + "\n" + new_line
+    new_text = f"---\n{new_block}\n---\n" + text[m.end():]
+    try:
+        md_path.write_text(new_text, encoding="utf-8")
+        return True
+    except Exception as e:
+        log.error(f"update_md_frontmatter_field failed for {md_path}: {e}")
+        return False
 
 
 def full_sync_items_to_db() -> int:
-    """Sync all knowledge/items/*.md to SQLite. Returns count."""
+    """Sync all knowledge/items/*.md to SQLite. Returns count.
+
+    md 是真相源: 同步后清理 DB 中 md 已不存在的孤儿行 (仅当目录非空,
+    避免目录意外为空时清空索引)。
+    """
     if not ITEMS_DIR.exists():
         return 0
+    from backend.repository.knowledge_repo import knowledge_repo
+
     count = 0
+    seen: set[str] = set()
     for f in ITEMS_DIR.glob("*.md"):
-        sync_item_to_db(f)
+        item_id = sync_item_to_db(f)
+        # 无 frontmatter 的文件不入库, 但 stem 仍计入保留集 (不误删)
+        seen.add(item_id or f.stem)
         count += 1
+    if count > 0:
+        orphans = [i for i in knowledge_repo.list_item_ids() if i not in seen]
+        for orphan_id in orphans:
+            knowledge_repo.delete_item(orphan_id)
+        if orphans:
+            log.info(f"full sync: removed {len(orphans)} orphan item rows")
     log.info(f"full sync: {count} items")
     return count
 
 
 def full_sync_concepts_to_db() -> int:
-    """Sync all knowledge/concepts/*.md to SQLite. Returns count."""
+    """Sync all knowledge/concepts/*.md to SQLite. Returns count.
+
+    md 是真相源: 同步后清理孤儿行 (同 full_sync_items_to_db)。
+    """
     if not CONCEPTS_DIR.exists():
         return 0
+    from backend.repository.knowledge_repo import knowledge_repo
+
     count = 0
+    seen: set[str] = set()
     for f in CONCEPTS_DIR.glob("*.md"):
-        sync_concept_to_db(f)
+        slug = sync_concept_to_db(f)
+        seen.add(slug or f.stem)
         count += 1
+    if count > 0:
+        orphans = [s for s in knowledge_repo.list_concept_slugs() if s not in seen]
+        for orphan_slug in orphans:
+            knowledge_repo.delete_concept(orphan_slug)
+        if orphans:
+            log.info(f"full sync: removed {len(orphans)} orphan concept rows")
     log.info(f"full sync: {count} concepts")
     return count
 

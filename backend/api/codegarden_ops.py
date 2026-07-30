@@ -1,4 +1,4 @@
-"""Phase 2b CodeGarden API 端点 — 服务网格 + 资源中枢 + 联动引擎.
+"""CodeGarden 运维层 API 端点 — 服务网格 + 资源中枢 + 联动引擎 (原 Phase 2b).
 
 路由清单 (spec §4)
 -----------------
@@ -74,7 +74,7 @@ from backend.services.codegarden_orchestration_service import (
 from backend.services.codegarden_resource_service import CodegardenResourceService
 from backend.services.codegarden_service_service import CodegardenServiceService
 
-router = APIRouter(prefix="/api/codegarden", tags=["codegarden-phase2b"])
+router = APIRouter(prefix="/api/codegarden", tags=["codegarden-ops"])
 
 
 # ===========================================================================

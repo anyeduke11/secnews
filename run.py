@@ -2,11 +2,11 @@
 
 等价于
 ------
-    $ python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+    $ python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 
 环境变量
 --------
-- ``HOTSPOT_HOST``   默认 ``0.0.0.0``（pydantic settings 前缀）
+- ``HOTSPOT_HOST``   默认 ``127.0.0.1``（无认证，局域网访问需显式设 0.0.0.0）
 - ``HOTSPOT_PORT``   默认 ``8000``
 - ``WORKERS``        默认 ``1``（SQLite WAL 模式下多 worker 会有锁竞争）
 
@@ -14,7 +14,7 @@
 
 用法
 ----
-    $ python run.py                       # 默认 0.0.0.0:8000
+    $ python run.py                       # 默认 127.0.0.1:8000
     $ HOTSPOT_PORT=8999 python run.py     # 自定义端口
 """
 from __future__ import annotations

@@ -210,7 +210,7 @@ class SecurityCollector(BaseCollector):
         - 岗位名结尾 (工程师 / 分析师 / 实习生 等)
         仅对源 url 含 ``anquanke.com`` 的条目生效,其他源走默认实现。
         """
-        from backend.collectors.base import _is_title_relevant_to_category
+        from backend.collectors.keywords import _is_title_relevant_to_category
 
         if not _is_title_relevant_to_category(title, self.category.value):
             return False

@@ -29,6 +29,7 @@ Phase 46: 紧急自动判断
 """
 from __future__ import annotations
 
+from backend.version import APP_VERSION as API_VERSION
 import asyncio
 import json
 from typing import Optional
@@ -146,7 +147,7 @@ def _build_list_payload(
         limit=limit,
     )
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "total": total,
         "items": [it.to_dict() for it in items],
     }
@@ -156,7 +157,7 @@ def _build_count_payload() -> dict:
     repo = TodoRepository()
     counts = repo.count()
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "total": counts["total"],
         "by_status": counts["by_status"],
         "by_priority": counts["by_priority"],
@@ -167,7 +168,7 @@ def _build_available_favorites_payload(limit: int) -> dict:
     repo = TodoRepository()
     items = repo.list_available_favorites(limit=limit)
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "total": len(items),
         "items": items,
     }
@@ -258,7 +259,7 @@ async def add_todo(req: AddTodoRequest):
         raise HTTPException(status_code=500, detail={"message": f"添加失败: {e}"})
 
     payload = {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "created": created,
         "item": item.to_dict(),
     }
@@ -308,7 +309,7 @@ async def patch_todo(todo_id: int, req: PatchTodoRequest):
         raise HTTPException(status_code=500, detail={"message": f"更新失败: {e}"})
 
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "item": item.to_dict(),
     }
 

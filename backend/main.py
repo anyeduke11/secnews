@@ -22,6 +22,7 @@ from backend.api import register_routers
 from backend.api.mcp_config import build_mcp_server, is_mcp_enabled, mount_sse_endpoint
 from backend.api.middleware import TraceIDMiddleware
 from backend.cache import invalidate as cache_invalidate, warmup
+from backend.config import config
 from backend.exceptions import register_exception_handlers
 from backend.logging_config import setup as setup_logging
 from backend.observability import log_event, set_start_time
@@ -30,9 +31,9 @@ from backend.scheduler.scheduler import HotspotScheduler, get_scheduler
 from backend.scheduler.jobs import set_service
 from backend.services.collection_service import CollectionService
 from backend.services.export_service import rebuild_export_cache
+from backend.version import APP_VERSION
 
 log = logging.getLogger("hotspot.main")
-APP_VERSION = "1.2.0"
 
 
 @asynccontextmanager
@@ -70,6 +71,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # v1.9 Phase 9: 启动后自动追抓「本周一 00:00 (Asia/Shanghai) → 现在」
     # 抓取流程已标准化 (per-source checkpoint + 结构化日志 + 数据完整性验证)
     # 用 background task 不阻塞 startup, 防 watchdog 5 分钟内重复 enqueue
+    # v1.8: config.catchup_on_startup=False 可整体关闭 (测试环境必须关闭)
     try:
         from backend.services.catchup_service import (
             enqueue_catchup,
@@ -77,7 +79,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             should_enqueue_auto,
         )
         from backend.utils.business_days import current_week_start
-        if should_enqueue_auto():
+        if not config.catchup_on_startup:
+            log.info("startup auto-catchup disabled by config.catchup_on_startup")
+        elif should_enqueue_auto():
             since_iso = current_week_start().astimezone(timezone.utc).isoformat()
             run_id = await enqueue_catchup(
                 mode="auto",

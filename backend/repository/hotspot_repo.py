@@ -228,8 +228,9 @@ class HotspotRepository:
         keyword: str = "",
         cursor: Optional[str] = None,
         limit: int = _DEFAULT_LIMIT,
+        region: Optional[str] = None,  # Phase 8: 标讯地区筛选
     ) -> tuple[list[HotspotItem], Optional[str]]:
-        """List hotspots with category / time / keyword / cursor filters.
+        """List hotspots with category / time / keyword / cursor / region filters.
 
         Returns ``(items, next_cursor)``. ``next_cursor`` is ``None`` when
         the result is fully exhausted within the requested ``limit``.
@@ -255,8 +256,10 @@ class HotspotRepository:
             "(quality_flags IS NULL OR ("
             "  quality_flags NOT LIKE '%historical_bid%' AND"
             "  quality_flags NOT LIKE '%historical_published%' AND"
-            "  quality_flags NOT LIKE '%no_published_at%'"
+            "  quality_flags NOT LIKE '%no_published_at%' AND"
+            "  quality_flags NOT LIKE '%landing_page_unresolvable%'"
             "))",
+            "(url_check_status IS NULL OR url_check_status NOT IN ('mismatch', 'unreachable'))",
         ]
         params: list = [start_dt.isoformat()]
 
@@ -268,6 +271,10 @@ class HotspotRepository:
             else:
                 where_clauses.append("category = ?")
                 params.append(category.value)
+
+        if region:
+            where_clauses.append("region = ?")
+            params.append(region)
 
         if keyword:
             # Use FTS5 to pre-resolve the matching rowid set, then JOIN
@@ -600,6 +607,10 @@ class HotspotRepository:
         time_range 无关, 独立计算)。
         """
         conn = get_connection()
+        base_where = (
+            "(url_check_status IS NULL OR url_check_status NOT IN ('mismatch', 'unreachable')) "
+            "AND (quality_flags IS NULL OR quality_flags NOT LIKE '%landing_page_unresolvable%')"
+        )
         sql = (
             "SELECT CASE WHEN category = 'tech' THEN 'ai' ELSE category END AS cat, "
             "COUNT(*) AS n FROM hotspots"
@@ -609,8 +620,10 @@ class HotspotRepository:
             # 始终用 ingested_at (而非 published_at) 做窗口过滤, 与
             # ``query()`` 内部一致 (HomeGrid 是按 ingested_at 排序的)
             start_iso = time_range.start_datetime().isoformat()
-            sql += " WHERE ingested_at >= ?"
+            sql += f" WHERE ingested_at >= ? AND {base_where}"
             params = (start_iso,)
+        else:
+            sql += f" WHERE {base_where}"
         sql += " GROUP BY cat"
         try:
             rows = conn.execute(sql, params).fetchall() if params else conn.execute(sql).fetchall()
@@ -669,6 +682,56 @@ class HotspotRepository:
             extra={"trace_id": "", "days": days, "deleted": deleted},
         )
         return deleted
+
+    def list_regions(self) -> list[str]:
+        """列出所有标讯地区（仅 category=bid 且 region 非空）。"""
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT DISTINCT region FROM hotspots WHERE category = 'bid' AND region IS NOT NULL AND region != '' ORDER BY region ASC"
+        ).fetchall()
+        return [str(r["region"]) for r in rows]
+
+    def list_by_tags(
+        self,
+        tag_ids: list[str],
+        mode: str = "or",
+        limit: int = 50,
+    ) -> list[HotspotItem]:
+        """v1.7 Phase 1: 按 tag_id 列表筛选热点 (AND/OR)。
+
+        - ``mode='and'``: 热点须拥有 ``tag_ids`` 中的**全部**标签
+          (HAVING COUNT(DISTINCT tag_id) = len(tag_ids))。
+        - ``mode='or'``: 热点拥有 ``tag_ids`` 中**任一**标签即可。
+        - 空tag_ids → 返回空列表 (不报错)。
+        - 结果按 ingested_at DESC 排序, 与列表页口径一致。
+        """
+        if not tag_ids:
+            return []
+        limit = min(max(1, limit), _MAX_LIMIT)
+        placeholders = ",".join("?" * len(tag_ids))
+        conn = get_connection()
+        if mode == "and":
+            sql = f"""
+                SELECT h.* FROM hotspots h
+                JOIN hotspot_tags ht ON h.id = ht.hotspot_id
+                WHERE ht.tag_id IN ({placeholders})
+                GROUP BY h.id
+                HAVING COUNT(DISTINCT ht.tag_id) = ?
+                ORDER BY h.ingested_at DESC
+                LIMIT ?
+            """
+            params = tag_ids + [len(tag_ids), limit]
+        else:
+            sql = f"""
+                SELECT DISTINCT h.* FROM hotspots h
+                JOIN hotspot_tags ht ON h.id = ht.hotspot_id
+                WHERE ht.tag_id IN ({placeholders})
+                ORDER BY h.ingested_at DESC
+                LIMIT ?
+            """
+            params = tag_ids + [limit]
+        rows = conn.execute(sql, params).fetchall()
+        return [self._row_to_item(r) for r in rows]
 
 
 __all__ = ["HotspotRepository"]

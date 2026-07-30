@@ -8,6 +8,7 @@ from typing import Optional
 from backend.cache import list_cache
 from backend.domain.enums import Category
 from backend.repository.trend_repo import TrendRepository
+from backend.version import APP_VERSION as API_VERSION
 
 _trepo = TrendRepository()
 
@@ -62,7 +63,7 @@ class TrendService:
             trends.append(row)
 
         result = {
-            "version": "1.2.0",
+            "version": API_VERSION,
             "hours": hours,
             "trends": trends,
             "fetched_at": _now_iso(),
@@ -83,7 +84,7 @@ class TrendService:
             by_cat[p.category][p.hours_ago] = p.count
 
         result: dict = {
-            "version": "1.2.0",
+            "version": API_VERSION,
             "hours": hours,
             "data": {
                 cat.value: [

@@ -53,6 +53,7 @@ class CatchupRun:
     items_skipped: int = 0
     sources_attempted: int = 0
     sources_succeeded: int = 0
+    sources_skipped: int = 0  # P0-3: 24h 续传跳过的源数 (alias of items_skipped)
     error_msg: Optional[str] = None
     duration_ms: int = 0
 
@@ -71,6 +72,7 @@ class CatchupRun:
             "items_skipped": self.items_skipped,
             "sources_attempted": self.sources_attempted,
             "sources_succeeded": self.sources_succeeded,
+            "sources_skipped": self.sources_skipped,  # P0-3: 24h 续传跳过的源数
             "error_msg": self.error_msg,
             "duration_ms": self.duration_ms,
             "duration_s": round(self.duration_ms / 1000, 1) if self.duration_ms else 0,
@@ -85,6 +87,9 @@ def _now_iso() -> str:
 
 
 def _row_to_run(row: sqlite3.Row) -> CatchupRun:
+    # P0-3: items_skipped 列存的是「被续传跳过的源数」(不是 item 数)
+    # → 同时填到 items_skipped 和 sources_skipped 两个字段
+    items_skipped_val = int(row["items_skipped"])
     return CatchupRun(
         id=int(row["id"]),
         mode=str(row["mode"]),
@@ -96,9 +101,10 @@ def _row_to_run(row: sqlite3.Row) -> CatchupRun:
         finished_at=str(row["finished_at"]) if row["finished_at"] else None,
         status=str(row["status"]),
         items_ingested=int(row["items_ingested"]),
-        items_skipped=int(row["items_skipped"]),
+        items_skipped=items_skipped_val,
         sources_attempted=int(row["sources_attempted"]),
         sources_succeeded=int(row["sources_succeeded"]),
+        sources_skipped=items_skipped_val,  # alias: 同一列, 不同语义
         error_msg=str(row["error_msg"]) if row["error_msg"] else None,
         duration_ms=int(row["duration_ms"]),
     )

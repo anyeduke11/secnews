@@ -38,13 +38,56 @@ class CodegardenOrchestrationService:
     # Dependencies CRUD
     # ------------------------------------------------------------------
     def create_dependency(self, **kwargs) -> dict:
-        return self.dep_repo.create(**kwargs)
+        dep = self.dep_repo.create(**kwargs)
+        if dep.get("source_type") == "service":
+            self._sync_service_dependencies_json(dep["source_id"])
+        return dep
 
     def list_dependencies(self, **filters) -> tuple[list[dict], int]:
         return self.dep_repo.list(**filters)
 
     def delete_dependency(self, dep_id: str) -> bool:
-        return self.dep_repo.delete(dep_id)
+        dep = self.dep_repo.get(dep_id)
+        deleted = self.dep_repo.delete(dep_id)
+        if deleted and dep and dep.get("source_type") == "service":
+            self._sync_service_dependencies_json(dep["source_id"])
+        return deleted
+
+    def _sync_service_dependencies_json(self, service_id: str) -> None:
+        """按真相源 cg_dependencies 回写 cg_services.dependencies 冗余 JSON 列.
+
+        AGENTS.md 决策 #8: cg_dependencies 是 source of truth,
+        cg_services.dependencies 仅为前端快速渲染的冗余. 同步失败不阻断
+        依赖 CRUD 本身 (只记 warning).
+        """
+        conn = None
+        try:
+            conn = get_connection()
+            rows = conn.execute(
+                """
+                SELECT target_id FROM cg_dependencies
+                WHERE source_type = 'service' AND source_id = ?
+                  AND target_type = 'service'
+                ORDER BY created_at
+                """,
+                (service_id,),
+            ).fetchall()
+            deps_json = json.dumps([r["target_id"] for r in rows], ensure_ascii=False)
+            conn.execute("BEGIN")
+            conn.execute(
+                "UPDATE cg_services SET dependencies = ? WHERE id = ?",
+                (deps_json, service_id),
+            )
+            conn.execute("COMMIT")
+        except Exception as e:
+            try:
+                if conn is not None:
+                    conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            logger.warning(
+                f"_sync_service_dependencies_json: sync failed for service {service_id}: {e}"
+            )
 
     def impact_analysis(
         self, *, target_type: str, target_id: str, max_depth: int = 10

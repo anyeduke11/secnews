@@ -20,6 +20,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.repository.profile_repo import ProfileRepository
+from backend.version import APP_VERSION as API_VERSION
 
 log = logging.getLogger("hotspot.api.mcp_adapters")
 
@@ -48,7 +49,7 @@ async def get_personal_profile(
             reverse=True,
         )[:limit]
         return {
-            "version": "1.7.0",
+            "version": API_VERSION,
             "total": len(all_rows),
             "profile": [
                 {
@@ -95,9 +96,9 @@ async def trigger_cubox_sync(req: CuboxSyncRequest):
                 format=req.format,
                 limit=req.limit,
             )
-            return {"version": "1.7.0", "success": True, "result": result}
+            return {"version": API_VERSION, "success": True, "result": result}
         except Exception as e:
-            return {"version": "1.7.0", "success": False, "error": str(e)}
+            return {"version": API_VERSION, "success": False, "error": str(e)}
 
     try:
         return await asyncio.to_thread(_run)
@@ -142,7 +143,7 @@ async def trigger_extract_tags(req: ExtractAutoRequest):
         )
         attached = TagRepository().list_by_hotspot(req.hotspot_id)
         return {
-            "version": "1.7.0",
+            "version": API_VERSION,
             "success": True,
             "hotspot_id": req.hotspot_id,
             "extracted_count": len(extracted) if isinstance(extracted, list) else 0,
@@ -200,7 +201,7 @@ async def add_favorite_by_hotspot(req: AddFavoriteByHotspotRequest):
             created_via="mcp",
         )
         result = {
-            "version": "1.7.0",
+            "version": API_VERSION,
             "success": True,
             "created": created,
             "item_id": fav.id,

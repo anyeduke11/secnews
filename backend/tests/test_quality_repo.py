@@ -288,10 +288,11 @@ def test_quality_config_strict_when_set(temp_db):
 
 
 def test_default_category_keywords_contains_all_7():
-    """Phase 25 P1: 'tech' 加入 → 7 个分类关键词。"""
+    """v1.9: 'ai_security' 加入 → 8 个分类关键词。"""
     kws = default_category_keywords()
     assert set(kws.keys()) == {
         "ai",
+        "ai_security",
         "security",
         "finance",
         "startup",

@@ -170,7 +170,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
-sources: {json.dumps(sources)}
+sources: {json.dumps(sources, ensure_ascii=False)}
 ---
 
 # {item.title}
@@ -310,17 +310,17 @@ def _update_bookmark_md_frontmatter(
     if re.search(r"^sources:", frontmatter, re.MULTILINE):
         frontmatter = re.sub(
             r"^sources:.*$",
-            f"sources: {json.dumps(sources)}",
+            f"sources: {json.dumps(sources, ensure_ascii=False)}",
             frontmatter,
             flags=re.MULTILINE,
         )
     else:
-        frontmatter = frontmatter.rstrip() + f"\nsources: {json.dumps(sources)}\n"
+        frontmatter = frontmatter.rstrip() + f"\nsources: {json.dumps(sources, ensure_ascii=False)}\n"
 
     if re.search(r"^tags:", frontmatter, re.MULTILINE):
         frontmatter = re.sub(
             r"^tags:.*$",
-            f"tags: {json.dumps(tags)}",
+            f"tags: {json.dumps(tags, ensure_ascii=False)}",
             frontmatter,
             flags=re.MULTILINE,
         )

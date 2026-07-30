@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+from backend.version import APP_VERSION as API_VERSION
 from datetime import datetime, timezone
 
 import pytest
@@ -38,7 +39,11 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
 
 
 @pytest.fixture
-def client(temp_db) -> TestClient:
+def client(temp_db, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    # v1.8: feature flag 已接线到 router 注册, 测试需显式开启实验功能
+    monkeypatch.setattr(config, "feature_reviews", True)
+    monkeypatch.setattr(config, "feature_alerts", True)
+    monkeypatch.setattr(config, "feature_recommendations", True)
     app = FastAPI()
     app.add_middleware(TraceIDMiddleware)
     register_exception_handlers(app)
@@ -253,7 +258,7 @@ class TestRecommendAPI:
         r = client.get("/api/recommend/knowledge/seed")
         assert r.status_code == 200
         body = r.json()
-        assert body["version"] == "1.7.0"
+        assert body["version"] == API_VERSION
         assert body["entity_type"] == "knowledge"
         assert body["entity_id"] == "seed"
         assert "items" in body

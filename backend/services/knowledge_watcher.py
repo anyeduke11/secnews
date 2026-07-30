@@ -118,11 +118,13 @@ class _KnowledgeEventHandler(FileSystemEventHandler):
         old_ts, old_content = prev
         if (now - old_ts) >= _CONFLICT_WINDOW_SECONDS:
             return
-        # 冷却期内不重复报同一文件
-        if path in self._cooldown and now < self._cooldown[path]:
-            return
         # Duplicate watchdog event with identical content — not a real conflict.
         if old_content == current_content:
+            return
+        # 冷却期内不新建独立冲突文件 (避免文件爆炸),
+        # 但被覆盖内容仍追加到 per-file rollup — 不再静默丢弃真实冲突
+        if path in self._cooldown and now < self._cooldown[path]:
+            self._append_conflict_rollup(path, old_ts, old_content, now)
             return
         self._record_conflict(path, old_ts, old_content, now)
         # 进入冷却期
@@ -158,6 +160,43 @@ class _KnowledgeEventHandler(FileSystemEventHandler):
         except Exception as e:
             log.error("failed to record conflict for %s: %s", path, e)
 
+    def _append_conflict_rollup(
+        self,
+        path: str,
+        old_ts: float,
+        old_content: str,
+        new_ts: float,
+    ) -> None:
+        """冷却期内的冲突: 追加到单一 rollup 文件 (每文件一个).
+
+        与 ``_record_conflict`` 的区别: 不新建独立快照文件,
+        而是把被覆盖的旧内容逐段追加, 避免高频冲突刷爆 .conflicts/
+        同时保证冷却期内的真实冲突不丢数据。
+        """
+        CONFLICTS_DIR.mkdir(parents=True, exist_ok=True)
+        stem = Path(path).stem
+        rollup_path = CONFLICTS_DIR / f"{stem}.conflict-rollup.md"
+        meta = (
+            "\n---\n"
+            f'source_file: "{path}"\n'
+            "conflict: true\n"
+            "rollup: true\n"
+            f'old_mtime: "{time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(old_ts))}"\n'
+            f'new_mtime: "{time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(new_ts))}"\n'
+            f"window_seconds: {_CONFLICT_WINDOW_SECONDS}\n"
+            "---\n\n"
+        )
+        try:
+            with open(rollup_path, "a", encoding="utf-8") as f:
+                f.write(meta + old_content)
+            log.warning(
+                "conflict during cooldown for %s: previous version appended to %s",
+                path,
+                rollup_path,
+            )
+        except Exception as e:
+            log.error("failed to append conflict rollup for %s: %s", path, e)
+
     def _schedule_sync(self, path: str) -> None:
         old_timer = self._timers.pop(path, None)
         if old_timer is not None:
@@ -188,12 +227,7 @@ class _KnowledgeEventHandler(FileSystemEventHandler):
                 path,
                 count,
             )
-            # v1.7 Phase 5: 同步成功后失效 KV 缓存 (items:* / item:*)
-            try:
-                from backend.services.kv_cache_service import kv_cache
-                kv_cache.invalidate_knowledge_items()
-            except Exception as cache_err:
-                log.debug("kv_cache invalidate skipped: %s", cache_err)
+            # Phase 7: kv_cache_service 已删除, 跳过缓存失效步骤
         except Exception as e:
             log.error(
                 "watchdog sync failed for %s (triggered by %s): %s",

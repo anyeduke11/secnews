@@ -40,6 +40,7 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
     """重定向 config.db_path 到 tmp_path 下的临时文件，初始化 schema。"""
     test_db = tmp_path / "test.db"
     monkeypatch.setattr(config, "db_path", test_db)
+    db.close_db()  # 清掉前序测试的 thread-local 连接 (指向旧 DB)
     db.init_db()
     yield test_db
     db.close_db()
@@ -94,9 +95,9 @@ def _patch_all_collectors(
 # 1. service 包含 6 个 collector
 # ---------------------------------------------------------------------------
 def test_service_has_6_collectors(temp_db):
-    """service.collectors 应包含全部 7 个 Category (Phase 25 P1 加 tech)。"""
+    """service.collectors 应包含全部 8 个 Category (v1.9 加 ai_security)。"""
     svc = CollectionService()
-    assert len(svc.collectors) == 7
+    assert len(svc.collectors) == 8
     for cat in Category:
         assert cat in svc.collectors
 
@@ -114,12 +115,12 @@ async def test_run_once_returns_collection_report(temp_db):
 
     assert isinstance(report, CollectionReport)
     assert report.total >= 0
-    assert report.success_count + report.failed_count == 7
+    assert report.success_count + report.failed_count == 8
     assert report.duration_ms >= 0
     assert report.started_at is not None
     assert report.finished_at is not None
-    assert len(report.results) == 7
-    # 7 个结果都应能映射回 7 个 category
+    assert len(report.results) == 8
+    # 8 个结果都应能映射回 8 个 category
     cats = {r.category for r in report.results}
     assert cats == set(Category)
 
@@ -177,7 +178,7 @@ async def test_run_once_upsert_isolated_by_failure(temp_db, monkeypatch):
 
     report = await svc.run_once()
     assert report.failed_count == 1
-    assert report.success_count == 6
+    assert report.success_count == 7
     # upsert 仍被调用
     assert captured.get("called") is True
 
@@ -187,14 +188,14 @@ async def test_run_once_upsert_isolated_by_failure(temp_db, monkeypatch):
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_run_once_writes_collection_runs(temp_db):
-    """run_once 完成后 collection_runs 表应有 7 行（每分类一行）。"""
+    """run_once 完成后 collection_runs 表应有 8 行（每分类一行）。"""
     svc = CollectionService()
     _patch_all_collectors(svc)
     await svc.run_once()
 
     conn = get_connection()
     rows = conn.execute("SELECT COUNT(*) FROM collection_runs").fetchall()
-    assert int(rows[0][0]) == 7
+    assert int(rows[0][0]) == 8
 
     cat_rows = conn.execute(
         "SELECT DISTINCT category FROM collection_runs"
@@ -202,6 +203,7 @@ async def test_run_once_writes_collection_runs(temp_db):
     cats = {r[0] for r in cat_rows}
     assert cats == {
         "ai",
+        "ai_security",
         "security",
         "finance",
         "startup",
@@ -216,14 +218,14 @@ async def test_run_once_writes_collection_runs(temp_db):
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_run_once_calls_trend_rebuild(temp_db):
-    """run_once 完成后 trend_snapshots 应有 24 × 7 = 168 行。"""
+    """run_once 完成后 trend_snapshots 应有 24 × 8 = 192 行。"""
     svc = CollectionService()
     _patch_all_collectors(svc)
     await svc.run_once()
 
     conn = get_connection()
     rows = conn.execute("SELECT COUNT(*) FROM trend_snapshots").fetchall()
-    assert int(rows[0][0]) == 168
+    assert int(rows[0][0]) == 192
 
 
 # ---------------------------------------------------------------------------
@@ -274,14 +276,14 @@ async def test_collector_exception_isolated(temp_db):
 
     report = await svc.run_once()
 
-    # 1 个 failed + 6 个 success (Phase 25 P1: 7 categories)
+    # 1 个 failed + 7 个 success (v1.9: 8 categories)
     assert report.failed_count == 1
-    assert report.success_count == 6
+    assert report.success_count == 7
 
-    # collection_runs 应有 7 行
+    # collection_runs 应有 8 行
     conn = get_connection()
     rows = conn.execute("SELECT COUNT(*) FROM collection_runs").fetchall()
-    assert int(rows[0][0]) == 7
+    assert int(rows[0][0]) == 8
 
     # 失败的那一行应有 error_msg，状态为 'failed'
     failed_row = conn.execute(
@@ -293,8 +295,8 @@ async def test_collector_exception_isolated(temp_db):
     assert failed_row[2] is not None
     assert "simulated crash" in failed_row[2]
 
-    # 其他 6 个分类应各自有 1 行 collection_runs (Phase 25 P1: 加 tech → 6)
+    # 其他 7 个分类应各自有 1 行 collection_runs (v1.9: 8 - 1 = 7)
     other_count = conn.execute(
         "SELECT COUNT(*) FROM collection_runs WHERE category != 'ai'"
     ).fetchall()
-    assert int(other_count[0][0]) == 6
+    assert int(other_count[0][0]) == 7

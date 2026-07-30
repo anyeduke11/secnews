@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+from backend.version import APP_VERSION as API_VERSION
 import asyncio
 
 from fastapi import APIRouter, HTTPException, Query
@@ -37,7 +38,7 @@ class GradeRequest(BaseModel):
 # ---------------------------------------------------------------------------
 def _list_due(limit: int) -> dict:
     items = list_due(limit=limit)
-    return {"version": "1.7.0", "count": len(items), "items": items}
+    return {"version": API_VERSION, "count": len(items), "items": items}
 
 
 def _grade(entity_type: str, entity_id: str, grade: int) -> dict:
@@ -45,12 +46,12 @@ def _grade(entity_type: str, entity_id: str, grade: int) -> dict:
         row = submit_grade(entity_type, entity_id, grade)
     except ValueError as e:
         raise HTTPException(status_code=400, detail={"message": str(e)})
-    return {"version": "1.7.0", "status": "ok", "item": row}
+    return {"version": API_VERSION, "status": "ok", "item": row}
 
 
 def _create(entity_type: str, entity_id: str, interval_days: int) -> dict:
     row = create_review(entity_type, entity_id, initial_interval_days=interval_days)
-    return {"version": "1.7.0", "item": row}
+    return {"version": API_VERSION, "item": row}
 
 
 def _get(entity_type: str, entity_id: str) -> dict:
@@ -60,11 +61,11 @@ def _get(entity_type: str, entity_id: str) -> dict:
             status_code=404,
             detail={"message": f"无复习记录: {entity_type}/{entity_id}"},
         )
-    return {"version": "1.7.0", "item": row}
+    return {"version": API_VERSION, "item": row}
 
 
 def _stats() -> dict:
-    return {"version": "1.7.0", "stats": stats()}
+    return {"version": API_VERSION, "stats": stats()}
 
 
 # ---------------------------------------------------------------------------

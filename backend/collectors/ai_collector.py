@@ -1,9 +1,9 @@
-"""AI 资讯热点数据采集器（Phase 3 重构, Phase 25 P1 扩容, Phase 26 加 RSS）。
+"""AI 资讯热点数据采集器（Phase 3 重构, Phase 25 P1 扩容, Phase 26 加 RSS, 2026-07-28 加 AGI Hunt）。
 
 继承 :class:`BaseCollector`：
 
 - ``category``  : ``Category.AI``
-- ``sources``   : HackerNews / 量子位 / 36氪AI / 机器之心 / AIhot / 小互AI
+- ``sources``   : HackerNews / 量子位 / 36氪AI / 机器之心 / AIhot / 小互AI / AGI Hunt
 - ``timeout``   : 20s（AI 站点大多有 WAF，不宜过长）
 - ``max_items`` : 50 (Phase 25 P1: 40 → 50 接住 AIhot)
 
@@ -19,6 +19,12 @@ Phase 25 P1:
 Phase 26: 新增 小互AI RSS 源 (https://best.xiaohu.ai/rss.xml)
   走 Phase 22 RSS 路由 (源含 ``rss_url`` 字段 → ``_fetch_rss`` → feedparser)。
   RSS 路径自动避开首页导航/备案链接干扰,直接拿 article 列表。
+
+Phase 27 (2026-07-28): 新增 AGI Hunt RSS 源 (https://agihunt.info/feed.xml)
+  AI 快讯聚合站, X/公众号/Reddit/GitHub/HF/YouTube 多信源采集 + AI 汇总整理。
+  走 Phase 22 RSS 路由,结构稳定 (<item> 含 title/link/pubDate/dc:creator/description)。
+  站点首页是 SPA 壳子, 抓 HTML 只能拿到导航/今日焦点 SSR 副本;
+  RSS 路径直接拿完整文章列表,避开 React 渲染依赖。
 """
 from __future__ import annotations
 
@@ -84,6 +90,19 @@ AI_SOURCES: list[dict] = [
         "rss_url": "https://best.xiaohu.ai/rss.xml",
         "score": 80,
         "keywords": ["AI", "解读"],
+    },
+    # Phase 27 (2026-07-28): AGI Hunt AI 快讯聚合站 (agihunt.info)
+    # 描述: 全天候 AI 快讯, X/公众号/Reddit/GitHub/HF/YouTube 多信源 + AI 汇总
+    # 路由: Phase 22 RSS 路径 (源首页是 SPA 壳, HTML 抓取只能拿到 SSR 副本;
+    #       RSS /feed.xml 提供完整 <item> 列表, 含 title/link/pubDate/dc:creator)
+    # 与 小互AI 区别: 小互AI 偏长文解读, AGI Hunt 偏实时快讯 + 事件聚簇,
+    #               标题更短、信息密度更高, 与 AIhot 形成"快讯"+"深度"互补。
+    {
+        "name": "AGI Hunt",
+        "url": "https://agihunt.info/",
+        "rss_url": "https://agihunt.info/feed.xml",
+        "score": 78,
+        "keywords": ["AI", "AGI", "快讯", "事件聚簇"],
     },
 ]
 

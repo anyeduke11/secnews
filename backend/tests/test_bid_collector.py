@@ -275,15 +275,21 @@ def test_parse_html_filters_unrelated_items():
         "name": "测试",
         "url": "https://example.com",
     }
-    html = """
-    <html><body>
-    <a href="/bid/1">国家医疗保障局网络安全运维服务项目</a>
-    <a href="/bid/2">防火墙设备采购公告</a>
-    <a href="/bid/3">员工食堂餐饮服务</a>
-    <a href="/bid/4">办公电脑打印机采购</a>
-    <a href="/bid/5">等保 2.0 测评服务</a>
-    <a href="/bid/6">空调维修项目</a>
-    <a href="/bid/7">零信任安全架构改造</a>
+    # Phase 47: _parse_html 会拒收无 published_at 的条目;注入当前时间的
+    # 页面级 meta 让 stub 条目通过时效门禁 (与日期无关, 不随周次过期)。
+    from datetime import datetime, timezone
+    _now_iso = datetime.now(timezone.utc).isoformat()
+    # NOISE_URL_REGEX 拒收裸根路径 (^/), 真实招标页锚点为绝对 URL;
+    # 用与 source 同 host 的绝对 URL (与 test_bug_fixes_published_at 一致)。
+    html = f"""
+    <html><head><meta property="article:published_time" content="{_now_iso}"></head><body>
+    <a href="https://example.com/bid/1">国家医疗保障局网络安全运维服务项目</a>
+    <a href="https://example.com/bid/2">防火墙设备采购公告</a>
+    <a href="https://example.com/bid/3">员工食堂餐饮服务</a>
+    <a href="https://example.com/bid/4">办公电脑打印机采购</a>
+    <a href="https://example.com/bid/5">等保 2.0 测评服务</a>
+    <a href="https://example.com/bid/6">空调维修项目</a>
+    <a href="https://example.com/bid/7">零信任安全架构改造</a>
     </body></html>
     """
     items = c._parse_html(html, source)

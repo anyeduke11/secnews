@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -28,6 +29,17 @@ from backend.utils.crawl4ai_client import (
     fetch_html,
     is_available,
 )
+
+
+def _published_meta() -> str:
+    """页面级 article:published_time meta (当前 UTC 时间)。
+
+    Phase 47 起 ``_build_items`` 拒收无 published_at / 早于本周一的条目;
+    测试注入「当前时间」的 meta 让 stub 条目稳定通过时效门禁,
+    保持这些 crawl4ai 路由测试与日期无关 (不再随系统时间过期)。
+    """
+    now_iso = datetime.now(timezone.utc).isoformat()
+    return f'<meta property="article:published_time" content="{now_iso}">'
 
 
 # ---------------------------------------------------------------------------
@@ -282,8 +294,8 @@ async def test_base_collector_falls_back_to_aiohttp_when_crawl4ai_unavailable(
 
     # mock aiohttp 响应,返回含 entry-title 的 HTML
     # Phase 25: 标题需命中 AI 关键词白名单 (避免 _title_relevant 拒绝)
-    sample_html = """
-    <html><body>
+    sample_html = f"""
+    <html><head>{_published_meta()}</head><body>
       <h2 class="entry-title">
         <a href="https://example.com/article-1" rel="bookmark">New GPT Model Release</a>
       </h2>
@@ -347,8 +359,8 @@ async def test_base_collector_falls_back_to_aiohttp_when_crawl4ai_returns_none(
         def _fallback(self) -> list[HotspotItem]:
             return []
 
-    sample_html = """
-    <html><body>
+    sample_html = f"""
+    <html><head>{_published_meta()}</head><body>
       <h2 class="entry-title">
         <a href="https://example.com/a1" rel="bookmark">GPT-5 Article A1</a>
       </h2>
@@ -413,8 +425,8 @@ async def test_base_collector_uses_crawl4ai_html_when_available(monkeypatch):
         def _fallback(self) -> list[HotspotItem]:
             return []
 
-    js_rendered_html = """
-    <html><body>
+    js_rendered_html = f"""
+    <html><head>{_published_meta()}</head><body>
       <h2 class="entry-title">
         <a href="https://example.com/js1" rel="bookmark">JS Rendered GPT Article</a>
       </h2>

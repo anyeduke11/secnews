@@ -132,7 +132,6 @@ def test_config_default_for_stable_features():
     assert config.feature_tech_stack is True
     assert config.feature_source_health is True
     assert config.feature_digests is True
-    assert config.feature_kv_cache is True
 
 
 def test_config_default_for_experimental_features():

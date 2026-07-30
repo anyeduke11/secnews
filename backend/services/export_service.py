@@ -24,6 +24,7 @@ from backend.domain.enums import Category, TimeRange
 from backend.exceptions import InvalidParamException
 from backend.logging_config import logger
 from backend.repository.hotspot_repo import HotspotRepository
+from backend.version import APP_VERSION
 
 _hrepo = HotspotRepository()
 
@@ -478,7 +479,7 @@ def build_export_html(
         <div class="header-subtitle">数据导出 · {now}</div>
       </div>
     </div>
-    <div class="header-meta">v1.2.0</div>
+    <div class="header-meta">v{APP_VERSION}</div>
   </div>
 
   <!-- Filter form (GET to /api/export = refresh preview) -->

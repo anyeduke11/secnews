@@ -220,6 +220,7 @@ def temp_db_client(monkeypatch, tmp_path):
     from backend.repository import db
 
     monkeypatch.setattr(config, "db_path", tmp_path / "test.db")
+    db.close_db()  # 清掉前序测试的 thread-local 连接 (指向旧 DB)
     db.init_db()
     invalidate("*")
 
@@ -247,6 +248,7 @@ def test_health_db_truncate_detected(monkeypatch, tmp_path):
     from backend.repository.hotspot_repo import HotspotRepository
 
     monkeypatch.setattr(config, "db_path", tmp_path / "test_truncate.db")
+    db.close_db()  # 清掉前序测试的 thread-local 连接 (指向旧 DB)
     db.init_db()
 
     # seed 1 个 hotspot

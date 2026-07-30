@@ -29,7 +29,12 @@ from backend.crypto import (
     decrypt_api_key,
     verify_master_key,
 )
-from backend.exceptions import InternalException
+from backend.exceptions import (
+    ConflictException,
+    InternalException,
+    InvalidParamException,
+    NotFoundException,
+)
 from backend.logging_config import logger
 from backend.repository.encryption_keys_repo import EncryptionKeyRepository
 from backend.repository.secrets_repo import SecretRepository
@@ -107,16 +112,16 @@ def _persist_master_key(master_key: str) -> bool:
     if row is None:
         return False
 
-    # Phase 49: settings 表的 master_key 持久化设计上不可行 (master_key 派生 key
-    # 加密自身, 没有 master_key 无法恢复). keyring 是唯一可靠路径. 不可用时
-    # 直接返回 False, 不再尝试 settings fallback (会写永久无法解密的死数据).
-    if not _check_keyring():
-        logger.info("keyring 不可用且 settings 持久化不可恢复, master_key 不持久化")
+    try:
+        from cryptography.fernet import Fernet as _F
+        encrypted = _F(row.verify_blob).encrypt(master_key.encode("utf-8")).decode("ascii")
+        from backend.repository.settings_repo import SettingsRepository
+        SettingsRepository().set(_SETTINGS_KEY_ENCRYPTED, encrypted)
+        logger.info("master_key persisted to settings table (keyring unavailable)")
+        return True
+    except Exception as e:
+        logger.warning(f"master_key persist failed: {e}")
         return False
-
-    # keyring 可用, 但前面 line 96-103 set_password 已失败 (降级时打印 warning)
-    # 不会再走 settings fallback, 直接返回 False
-    return False
 
 
 def _load_persisted_master_key() -> str | None:
@@ -151,15 +156,14 @@ def _load_persisted_master_key() -> str | None:
         if not encrypted:
             return None
         from cryptography.fernet import Fernet as _F
-        from backend.crypto import _derive_key
-        # Phase 49 bug fix: 持久化的 master_key 是用 master_key 自己派生的
-        # fernet_key 加密的 ciphertext, 没有 master_key 根本无法派生 key 来解密.
-        # 之前用 verify_blob (Fernet 密文) 当 key 总是报 "Fernet key must be 32 url-safe
-        # base64-encoded bytes" 错误. 这里正确做法: settings 表里存的密文已经带
-        # 旧错误 keyring 持久化路径写入, 永远无法恢复, 直接清空即可.
-        logger.warning("settings master_key ciphertext exists but cannot be recovered "
-                       "without the user-provided master_key (self-encrypted); clearing")
-        SettingsRepository().delete(_SETTINGS_KEY_ENCRYPTED)
+        plaintext = _F(row.verify_blob).decrypt(encrypted.encode("ascii"))
+        master_key = plaintext.decode("utf-8")
+        if verify_master_key(master_key, row.salt, row.iterations, row.verify_blob):
+            logger.info("master_key restored from settings table")
+            return master_key
+        else:
+            logger.warning("settings master_key verification failed, clearing stale entry")
+            SettingsRepository().delete(_SETTINGS_KEY_ENCRYPTED)
     except Exception as e:
         logger.warning(f"master_key restore from settings failed: {e}")
 
@@ -207,7 +211,7 @@ class SecretsService:
         """初始化主密钥 (单次, 禁止重置)。"""
         ek = EncryptionKeyRepository()
         if ek.is_setup():
-            raise InternalException("主密钥已初始化; 禁止重置 (Q1 决策)")
+            raise ConflictException("主密钥已初始化; 禁止重置 (Q1 决策)")
         row = ek.setup_default(master_key=master_key)
         return {
             "id": row.id,
@@ -227,7 +231,7 @@ class SecretsService:
         ek = EncryptionKeyRepository()
         row = ek.get_default()
         if row is None:
-            raise InternalException("主密钥未初始化; 请先调用 setup 接口")
+            raise ConflictException("主密钥未初始化; 请先调用 setup 接口")
 
         if not verify_master_key(master_key, row.salt, row.iterations, row.verify_blob):
             raise InvalidMasterKeyError("主密钥错误")
@@ -314,7 +318,7 @@ class SecretsService:
         ek = EncryptionKeyRepository()
         row = ek.get_default()
         if row is None:
-            raise InternalException("主密钥未初始化")
+            raise ConflictException("主密钥未初始化")
 
         if not verify_master_key(master_key, row.salt, row.iterations, row.verify_blob):
             raise InvalidMasterKeyError("主密钥错误")
@@ -345,12 +349,12 @@ class SecretsService:
         sr = SecretRepository()
         existing = sr.get(secret_id)
         if existing is None:
-            raise InternalException(f"secret {secret_id} 不存在")
+            raise NotFoundException(f"secret {secret_id} 不存在")
 
         fernet_key = None
         if api_key is not None and api_key.strip():
             if not master_key:
-                raise InternalException("修改 api_key 必须提供 master_key")
+                raise InvalidParamException("修改 api_key 必须提供 master_key")
             ek = EncryptionKeyRepository()
             row = ek.get_by_id(existing.encryption_key_id)
             if row is None:
@@ -373,20 +377,27 @@ class SecretsService:
         return SecretRepository().delete(secret_id)
 
     # ------------------------------------------------------------------
-    # Reveal (unlock 后)
+    # Reveal (需现场验证 master_key)
     # ------------------------------------------------------------------
-    def reveal(self, secret_id: int) -> dict:
-        """在 unlock 状态下返回明文 api_key。"""
-        ek = EncryptionKeyRepository()
+    def reveal(self, secret_id: int, master_key: str) -> dict:
+        """现场验证 master_key 后返回明文 api_key。
+
+        安全加固: 明文取回不再依赖 30 分钟 unlock 窗口 —— 每次 reveal
+        都必须重新提交主密钥, 防止解锁窗口内被无凭证窃取明文。
+        """
         sr = SecretRepository()
         item = sr.get(secret_id)
         if item is None:
-            raise InternalException(f"secret {secret_id} 不存在")
+            raise NotFoundException(f"secret {secret_id} 不存在")
 
-        if not _is_unlocked(item.encryption_key_id):
-            raise InternalException("未解锁; 请先调用 unlock 输入主密钥")
+        ek = EncryptionKeyRepository()
+        row = ek.get_by_id(item.encryption_key_id)
+        if row is None:
+            raise InternalException("secret 引用的 encryption_key 丢失")
+        if not verify_master_key(master_key, row.salt, row.iterations, row.verify_blob):
+            raise InvalidMasterKeyError("主密钥错误")
 
-        fernet_key = _unlock_state[item.encryption_key_id]["fernet_key"]
+        fernet_key = derive_fernet_key(master_key, row.salt, row.iterations)
         try:
             plaintext = decrypt_api_key(fernet_key, item.api_key_encrypted)
         except InvalidMasterKeyError as e:
@@ -400,6 +411,24 @@ class SecretsService:
             "api_key": plaintext,
             "unlocked": True,
         }
+
+    def decrypt_for_internal_use(self, secret_id: int) -> str:
+        """进程内取明文 (依赖 unlock 窗口), 仅供后端服务间调用。
+
+        注意: 该方法不得暴露为 HTTP 端点 —— HTTP 侧取明文必须走
+        ``reveal(secret_id, master_key)`` 现场验证主密钥。
+        """
+        sr = SecretRepository()
+        item = sr.get(secret_id)
+        if item is None:
+            raise NotFoundException(f"secret {secret_id} 不存在")
+        if not _is_unlocked(item.encryption_key_id):
+            raise ConflictException("未解锁; 请先调用 unlock 输入主密钥")
+        fernet_key = _unlock_state[item.encryption_key_id]["fernet_key"]
+        try:
+            return decrypt_api_key(fernet_key, item.api_key_encrypted)
+        except InvalidMasterKeyError as e:
+            raise InternalException(f"解密失败: {e}") from e
 
     # ------------------------------------------------------------------
     # Test connection (Phase 41 Q4)
@@ -421,9 +450,9 @@ class SecretsService:
         sr = SecretRepository()
         item = sr.get(secret_id)
         if item is None:
-            raise InternalException(f"secret {secret_id} 不存在")
+            raise NotFoundException(f"secret {secret_id} 不存在")
         if not _is_unlocked(item.encryption_key_id):
-            raise InternalException("未解锁; 请先调用 unlock 输入主密钥")
+            raise ConflictException("未解锁; 请先调用 unlock 输入主密钥")
         fernet_key = _unlock_state[item.encryption_key_id]["fernet_key"]
         try:
             api_key = decrypt_api_key(fernet_key, item.api_key_encrypted)
@@ -511,7 +540,7 @@ class SecretsService:
         ek = EncryptionKeyRepository()
         row = ek.get_default()
         if row is None:
-            raise InternalException("主密钥未初始化")
+            raise ConflictException("主密钥未初始化")
         if not verify_master_key(master_key, row.salt, row.iterations, row.verify_blob):
             raise InvalidMasterKeyError("主密钥错误")
 
@@ -560,7 +589,7 @@ class SecretsService:
         ek = EncryptionKeyRepository()
         row = ek.get_default()
         if row is None:
-            raise InternalException("主密钥未初始化")
+            raise ConflictException("主密钥未初始化")
         if not verify_master_key(master_key, row.salt, row.iterations, row.verify_blob):
             raise InvalidMasterKeyError("主密钥错误")
 

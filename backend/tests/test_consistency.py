@@ -32,6 +32,7 @@ from backend.repository.hotspot_repo import HotspotRepository
 def temp_db_client(monkeypatch, tmp_path):
     """本地测试 client + 临时 DB fixture。"""
     monkeypatch.setattr(config, "db_path", tmp_path / "test.db")
+    db.close_db()  # 清掉前序测试的 thread-local 连接 (指向旧 DB)
     db.init_db()
     invalidate("*")
 

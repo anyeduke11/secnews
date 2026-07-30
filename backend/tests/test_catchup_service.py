@@ -241,10 +241,19 @@ async def test_max_per_source_caps_collector_max_items(temp_db):
 @pytest.mark.asyncio
 async def test_happy_path_completes_with_success(temp_db):
     """单 category 跑通, 标 success, items_ingested > 0."""
+    from backend.domain.collection import SourceResult
+
     fake_svc = MagicMock()
     fake_collector = MagicMock()
     fake_collector.sources = [{"name": "src1", "url": "https://x"}]
     fake_collector.max_items = 50
+    # v1.9: per-source 成败统计读 collector.last_source_results
+    fake_collector.last_source_results = [
+        SourceResult(
+            source_name="src1", source_url="https://x",
+            item_count=3, error_msg=None, duration_ms=100,
+        ),
+    ]
     fake_svc.collectors = {Category.AI: fake_collector}
     # mock run_one 返回 3 items
     fake_result = MagicMock()

@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 
 from backend.repository.alerts_repo import AlertRepository, AlertRuleRepository
 from backend.services.alert_service import evaluate_hotspot
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
@@ -53,7 +54,7 @@ class RuleUpdate(BaseModel):
 @router.get("/rules")
 async def list_rules(enabled_only: bool = Query(False)):
     items = await asyncio.to_thread(AlertRuleRepository().list, enabled_only)
-    return {"version": "1.7.0", "count": len(items), "items": items}
+    return {"version": API_VERSION, "count": len(items), "items": items}
 
 
 @router.post("/rules", status_code=201)
@@ -63,7 +64,7 @@ async def create_rule(req: RuleCreate):
         AlertRuleRepository().add,
         rid, req.name, req.condition, req.action, req.cooldown_sec, req.enabled,
     )
-    return {"version": "1.7.0", "item": item}
+    return {"version": API_VERSION, "item": item}
 
 
 @router.get("/rules/{rule_id}")
@@ -71,7 +72,7 @@ async def get_rule(rule_id: str):
     item = await asyncio.to_thread(AlertRuleRepository().get, rule_id)
     if not item:
         raise HTTPException(status_code=404, detail={"message": f"规则不存在: {rule_id}"})
-    return {"version": "1.7.0", "item": item}
+    return {"version": API_VERSION, "item": item}
 
 
 @router.put("/rules/{rule_id}")
@@ -82,7 +83,7 @@ async def update_rule(rule_id: str, req: RuleUpdate):
     )
     if not item:
         raise HTTPException(status_code=404, detail={"message": f"规则不存在: {rule_id}"})
-    return {"version": "1.7.0", "item": item}
+    return {"version": API_VERSION, "item": item}
 
 
 @router.delete("/rules/{rule_id}")
@@ -90,7 +91,7 @@ async def delete_rule(rule_id: str):
     n = await asyncio.to_thread(AlertRuleRepository().delete, rule_id)
     if not n:
         raise HTTPException(status_code=404, detail={"message": f"规则不存在: {rule_id}"})
-    return {"version": "1.7.0", "deleted": n}
+    return {"version": API_VERSION, "deleted": n}
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +106,7 @@ async def list_alerts(
     items = await asyncio.to_thread(
         AlertRepository().list, status, rule_id, limit
     )
-    return {"version": "1.7.0", "count": len(items), "items": items}
+    return {"version": API_VERSION, "count": len(items), "items": items}
 
 
 @router.get("/{alert_id}")
@@ -113,7 +114,7 @@ async def get_alert(alert_id: str):
     item = await asyncio.to_thread(AlertRepository().get, alert_id)
     if not item:
         raise HTTPException(status_code=404, detail={"message": f"告警不存在: {alert_id}"})
-    return {"version": "1.7.0", "item": item}
+    return {"version": API_VERSION, "item": item}
 
 
 @router.put("/{alert_id}/read")
@@ -121,7 +122,7 @@ async def mark_read(alert_id: str):
     item = await asyncio.to_thread(AlertRepository().mark_read, alert_id)
     if not item:
         raise HTTPException(status_code=404, detail={"message": f"告警不存在: {alert_id}"})
-    return {"version": "1.7.0", "item": item, "status": "ok"}
+    return {"version": API_VERSION, "item": item, "status": "ok"}
 
 
 @router.put("/{alert_id}/dismiss")
@@ -131,7 +132,7 @@ async def dismiss_alert(alert_id: str):
     )
     if not item:
         raise HTTPException(status_code=404, detail={"message": f"告警不存在: {alert_id}"})
-    return {"version": "1.7.0", "item": item, "status": "ok"}
+    return {"version": API_VERSION, "item": item, "status": "ok"}
 
 
 @router.delete("/{alert_id}")
@@ -139,7 +140,7 @@ async def delete_alert(alert_id: str):
     n = await asyncio.to_thread(AlertRepository().delete, alert_id)
     if not n:
         raise HTTPException(status_code=404, detail={"message": f"告警不存在: {alert_id}"})
-    return {"version": "1.7.0", "deleted": n}
+    return {"version": API_VERSION, "deleted": n}
 
 
 # ---------------------------------------------------------------------------
@@ -149,7 +150,7 @@ async def delete_alert(alert_id: str):
 async def evaluate(hotspot_id: str):
     """手动触发对某热点的规则评估 (验收 1: 60s 内匹配触发)."""
     fired = await asyncio.to_thread(evaluate_hotspot, hotspot_id)
-    return {"version": "1.7.0", "hotspot_id": hotspot_id, "fired_rules": fired}
+    return {"version": API_VERSION, "hotspot_id": hotspot_id, "fired_rules": fired}
 
 
 __all__ = ["router"]

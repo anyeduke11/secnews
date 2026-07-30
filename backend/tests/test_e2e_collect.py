@@ -1,9 +1,9 @@
 """采集层端到端测试
 
 端到端跑一次 ``CollectionService.run_once()``，验证：
-  - DB 7 个分类都有数据
-  - collection_runs 表 7 行（每分类一行）
-  - trend_snapshots 表 168 行（24h × 7 分类）
+  - DB 8 个分类都有数据
+  - collection_runs 表 8 行（每分类一行）
+  - trend_snapshots 表 192 行（24h × 8 分类）
 
 实现说明
 --------
@@ -98,7 +98,7 @@ async def test_e2e_full_run_6_collectors_to_db(temp_db):
     report = await svc.run_once()
     assert report.total >= 0
 
-    # hotspots 表中应有 7 个分类 (Phase 25 P1 加 tech)
+    # hotspots 表中应有 8 个分类 (v1.9 加 ai_security)
     conn = get_connection()
     cat_rows = conn.execute(
         "SELECT DISTINCT category FROM hotspots"
@@ -106,6 +106,7 @@ async def test_e2e_full_run_6_collectors_to_db(temp_db):
     cats = {r[0] for r in cat_rows}
     assert cats == {
         "ai",
+        "ai_security",
         "security",
         "finance",
         "startup",
@@ -114,8 +115,8 @@ async def test_e2e_full_run_6_collectors_to_db(temp_db):
         "tech",
     }
 
-    # 每分类应至少有 1 条数据 (Phase 25 P1 加 tech)
-    for cat_value in ("ai", "security", "finance", "startup", "bid", "github", "tech"):
+    # 每分类应至少有 1 条数据 (v1.9 加 ai_security)
+    for cat_value in ("ai", "ai_security", "security", "finance", "startup", "bid", "github", "tech"):
         count_row = conn.execute(
             "SELECT COUNT(*) FROM hotspots WHERE category = ?",
             (cat_value,),
@@ -128,7 +129,7 @@ async def test_e2e_full_run_6_collectors_to_db(temp_db):
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_e2e_collection_runs_records_each_category(temp_db):
-    """端到端跑一次 run_once 后，collection_runs 应有 7 行。"""
+    """端到端跑一次 run_once 后，collection_runs 应有 8 行。"""
     svc = CollectionService()
     _patch_collectors_keep_hotspot_items(svc)
 
@@ -136,15 +137,16 @@ async def test_e2e_collection_runs_records_each_category(temp_db):
 
     conn = get_connection()
     rows = conn.execute("SELECT COUNT(*) FROM collection_runs").fetchall()
-    assert int(rows[0][0]) == 7
+    assert int(rows[0][0]) == 8
 
-    # 7 个分类都应有记录
+    # 8 个分类都应有记录
     cat_rows = conn.execute(
         "SELECT category, status FROM collection_runs ORDER BY id"
     ).fetchall()
     cats_in_runs = {r[0] for r in cat_rows}
     assert cats_in_runs == {
         "ai",
+        "ai_security",
         "security",
         "finance",
         "startup",
@@ -158,11 +160,11 @@ async def test_e2e_collection_runs_records_each_category(temp_db):
 
 
 # ---------------------------------------------------------------------------
-# 3. 端到端：trend_rebuild 后 trend_snapshots 有 168 行 (Phase 25 P1)
+# 3. 端到端：trend_rebuild 后 trend_snapshots 有 192 行 (v1.9)
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_e2e_trend_rebuild_after_collect(temp_db):
-    """端到端跑一次 run_once 后，trend_snapshots 应有 24 × 7 = 168 行。"""
+    """端到端跑一次 run_once 后，trend_snapshots 应有 24 × 8 = 192 行。"""
     svc = CollectionService()
     _patch_collectors_keep_hotspot_items(svc)
 
@@ -170,15 +172,16 @@ async def test_e2e_trend_rebuild_after_collect(temp_db):
 
     conn = get_connection()
     rows = conn.execute("SELECT COUNT(*) FROM trend_snapshots").fetchall()
-    assert int(rows[0][0]) == 168
+    assert int(rows[0][0]) == 192
 
-    # 7 个分类都应在 trend grid 中
+    # 8 个分类都应在 trend grid 中
     cat_rows = conn.execute(
         "SELECT DISTINCT category FROM trend_snapshots"
     ).fetchall()
     cats = {r[0] for r in cat_rows}
     assert cats == {
         "ai",
+        "ai_security",
         "security",
         "finance",
         "startup",

@@ -21,6 +21,7 @@ from backend.domain.enums import Category, TimeRange
 from backend.domain.models import HotspotItem
 from backend.exceptions import InvalidParamException, NotFoundException
 from backend.repository.hotspot_repo import HotspotRepository
+from backend.version import APP_VERSION as API_VERSION
 
 _hrepo = HotspotRepository()
 
@@ -102,6 +103,7 @@ class HotspotService:
         cursor: Optional[str] = None,
         limit: int = DEFAULT_LIMIT,
         keyword: str = "",
+        region: Optional[str] = None,  # Phase 8: 标讯地区筛选
     ) -> dict:
         """列表查询。
 
@@ -152,6 +154,7 @@ class HotspotService:
                 keyword=keyword,
                 cursor=repo_cursor,
                 limit=limit,
+                region=region,
             )
 
         # Phase 9 修复:同 url 多条 → 保留 winner
@@ -177,7 +180,7 @@ class HotspotService:
         latest_iso = latest["at"].isoformat() if latest["at"] is not None else None
 
         result = {
-            "version": "1.2.0",
+            "version": API_VERSION,
             "items": [item.model_dump(mode="json") for item in items],
             "next_cursor": next_cursor,
             "total": true_total,  # 真实总数 (用于分页 "X / Y")
@@ -216,6 +219,7 @@ class HotspotService:
         _log = logger.bind(component="hotspot_service")
         for cat in (
             Category.AI,
+            Category.AI_SECURITY,
             Category.SECURITY,
             Category.FINANCE,
             Category.STARTUP,
@@ -317,13 +321,52 @@ class HotspotService:
         if item is None:
             raise NotFoundException(f"hotspot {id_!r} not found")
 
+        # v1.7 Phase 1 验收 1: 详情页显示自动提取的标签
+        from backend.repository.tags_repo import TagRepository
+        try:
+            tags = TagRepository().list_by_hotspot(id_)
+            tag_payload = [
+                {"id": t.id, "label": t.label, "type": t.type, "weight": t.weight}
+                for t in tags
+            ]
+        except Exception as e:
+            logger.warning(f"get_hotspot: load tags failed for {id_}: {e}")
+            tag_payload = []
+
         result = {
-            "version": "1.2.0",
+            "version": API_VERSION,
             "item": item.model_dump(mode="json"),
+            "tags": tag_payload,
             "fetched_at": datetime.utcnow().isoformat() + "Z",
         }
         detail_cache[cache_key] = result
         return result
+
+    # ------------------------------------------------------------------
+    def list_by_tags(
+        self,
+        tag_ids: list[str],
+        mode: str = "or",
+        limit: int = DEFAULT_LIMIT,
+    ) -> dict:
+        """v1.7 Phase 1: 按标签 AND/OR 筛选热点。
+
+        与 ``list_hotspots`` 不同, 本方法不走 balanced/缓存流程 (标签筛选是
+        强过滤条件, 命中量小, 缓存收益低且 key 复杂)。仍走 ``_dedupe_by_url``
+        保证与列表页去重口径一致。
+        """
+        limit = min(max(1, limit), self.MAX_LIMIT)
+        items = _hrepo.list_by_tags(tag_ids, mode=mode, limit=limit)
+        items = self._dedupe_by_url(items)
+        return {
+            "version": API_VERSION,
+            "items": [item.model_dump(mode="json") for item in items],
+            "next_cursor": None,
+            "total": len(items),
+            "tag_mode": mode,
+            "tag_ids": tag_ids,
+            "fetched_at": datetime.utcnow().isoformat() + "Z",
+        }
 
     # ------------------------------------------------------------------
     def count_by_category(self, time_range: TimeRange = TimeRange.D7) -> dict[str, int]:

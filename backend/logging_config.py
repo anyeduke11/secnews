@@ -6,17 +6,11 @@
     from loguru import logger
     logger.info("hello", extra={"trace_id": "abc"})
 """
-import os
 import sys
 from pathlib import Path
 from typing import Optional
 
 from loguru import logger as _default_logger
-
-# 默认日志目录
-BASE_DIR = Path(__file__).resolve().parent
-DEFAULT_LOG_DIR = BASE_DIR / "logs"
-DEFAULT_LOG_FILE = DEFAULT_LOG_DIR / "app.log"
 
 
 # JSON Lines 格式模板：ts / level / module / msg / trace_id
@@ -45,25 +39,36 @@ def _ensure_trace_id_default(record) -> None:
 
 def setup(
     log_file: Optional[str] = None,
-    level: str = "INFO",
-    max_bytes: int = 50 * 1024 * 1024,
-    backup_count: int = 5,
+    level: Optional[str] = None,
+    max_bytes: Optional[int] = None,
+    backup_count: Optional[int] = None,
     serialize: bool = True,
     also_stderr: bool = True,
 ) -> None:
     """初始化全局日志配置。
 
     Args:
-        log_file: 日志文件路径，None 则使用 backend/logs/app.log
-        level: 日志级别（DEBUG/INFO/WARNING/ERROR）
-        max_bytes: 单个日志文件最大字节数（默认 50MB）
-        backup_count: 保留的历史日志文件数
+        log_file: 日志文件路径，None 则使用 config.log_dir/app.log
+        level: 日志级别（DEBUG/INFO/WARNING/ERROR），None 则使用 config.log_level
+        max_bytes: 单个日志文件最大字节数，None 则使用 config.log_max_bytes
+        backup_count: 保留的历史日志文件数，None 则使用 config.log_backup_count
         serialize: 是否输出 JSON Lines 格式（默认 True）
         also_stderr: 是否同时输出到 stderr（开发体验）
     """
+    # v1.8: 未显式传参时消费 config 的 log_* 配置（env 可覆盖）
+    # 延迟导入避免 config ↔ logging_config 潜在循环依赖
+    from backend.config import config as _cfg
+
+    if level is None:
+        level = _cfg.log_level
+    if max_bytes is None:
+        max_bytes = _cfg.log_max_bytes
+    if backup_count is None:
+        backup_count = _cfg.log_backup_count
+
     # 解析日志文件路径
     if log_file is None:
-        log_path = DEFAULT_LOG_FILE
+        log_path = Path(_cfg.log_dir) / "app.log"
     else:
         log_path = Path(log_file)
 

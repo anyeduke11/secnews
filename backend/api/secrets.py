@@ -11,7 +11,7 @@
 - ``POST   /api/secrets``                           新增 (body 含 master_key)
 - ``PATCH  /api/secrets/{id}``                      更新 (改 api_key 需 master_key)
 - ``DELETE /api/secrets/{id}``                      删除
-- ``POST   /api/secrets/{id}/reveal``               取得明文 (unlock 后)
+- ``POST   /api/secrets/{id}/reveal``               取得明文 (需提交 master_key 现场验证)
 - ``POST   /api/secrets/{id}/test``                 测试连通性
 - ``GET    /api/secrets/export``                    导出加密 JSON 文件
 - ``POST   /api/secrets/import``                    导入加密 JSON 文件
@@ -32,6 +32,7 @@ from fastapi.responses import Response as FastResponse
 from pydantic import BaseModel, Field
 
 from backend.crypto import InvalidMasterKeyError, WeakMasterKeyError
+from backend.exceptions import HotspotException
 from backend.logging_config import logger
 from backend.services.secrets_service import SecretsService, _unlock_state
 
@@ -71,6 +72,11 @@ class ImportRequest(BaseModel):
     master_key: str = Field(..., description="主密钥")
 
 
+class RevealRequest(BaseModel):
+    """reveal — 每次取明文都必须现场提交主密钥（不依赖 unlock 窗口）。"""
+    master_key: str = Field(..., description="主密钥")
+
+
 # Phase 42: admin reset 二次确认字符串 (在 setup 之外的紧急清空入口)
 RESET_CONFIRM_STRING = "YES_RESET_ALL_SECRETS"
 
@@ -84,17 +90,14 @@ class ResetRequest(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 def _err_to_http(e: Exception) -> HTTPException:
-    """统一错误 → HTTP 状态码。"""
+    """统一错误 → HTTP 状态码（结构化映射, 不做消息文本匹配）。"""
     if isinstance(e, InvalidMasterKeyError):
         return HTTPException(status_code=401, detail={"message": "主密钥错误"})
     if isinstance(e, WeakMasterKeyError):
         return HTTPException(status_code=400, detail={"message": str(e)})
-    msg = str(e)
-    if "不存在" in msg:
-        return HTTPException(status_code=404, detail={"message": msg})
-    if "未初始化" in msg or "未解锁" in msg or "禁止重置" in msg:
-        return HTTPException(status_code=409, detail={"message": msg})
-    return HTTPException(status_code=400, detail={"message": msg})
+    if isinstance(e, HotspotException):
+        return HTTPException(status_code=e.http_status, detail={"message": e.message})
+    return HTTPException(status_code=400, detail={"message": str(e)})
 
 
 # ---------------------------------------------------------------------------
@@ -141,6 +144,10 @@ async def reset_all_secrets(req: ResetRequest):
 
     二次确认: ``confirm`` 字段必须等于 ``"YES_RESET_ALL_SECRETS"``。
     二次确认不通过 → 409 Conflict, 不做任何操作。
+
+    **定位**: 这是「忘记主密码」时的逃生舱, 因此无法要求 master_key 作为
+    凭证; 防滥用依赖两点 —— 服务默认仅监听 127.0.0.1 (见 config.host),
+    以及本确认串。若显式绑定 0.0.0.0, 局域网内任何人都能触发此接口。
 
     **警告**: 调用后所有加密数据永久丢失, 需重新 setup + 重新录入 LLM 密钥。
     """
@@ -288,11 +295,11 @@ async def delete_secret(secret_id: int):
 
 
 @router.post("/{secret_id}/reveal")
-async def reveal(secret_id: int):
-    """返回明文 api_key (要求 unlock 状态)。"""
+async def reveal(secret_id: int, req: RevealRequest):
+    """返回明文 api_key (每次都必须现场提交并验证 master_key)。"""
     svc = SecretsService()
     try:
-        result = await asyncio.to_thread(svc.reveal, int(secret_id))
+        result = await asyncio.to_thread(svc.reveal, int(secret_id), req.master_key)
     except Exception as e:
         raise _err_to_http(e)
     return {

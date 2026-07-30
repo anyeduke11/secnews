@@ -36,11 +36,12 @@ def main() -> None:
     from backend.api.mcp_config import is_mcp_enabled, build_mcp_server
     from backend.repository.db import init_db
     from backend.api.mcp_config import mcp_tool_registry_seed
+    from backend.version import APP_VERSION
 
     # Banner
     print("=" * 60, file=sys.stderr)
     print("Hotspot MCP Server (stdio transport)", file=sys.stderr)
-    print("Phase 7 / v1.7.6 Option A", file=sys.stderr)
+    print(f"v{APP_VERSION}", file=sys.stderr)
     print("MCP spec version: 2025-06-18", file=sys.stderr)
     print("=" * 60, file=sys.stderr)
 
@@ -65,6 +66,22 @@ def main() -> None:
         log.error(f"mcp_stdio_main: db init failed: {e}")
         print(f"ERROR: db init failed: {e}", file=sys.stderr)
         sys.exit(2)
+
+    # v1.8: 与 main.py lifespan 对齐 —— 尝试从 OS keychain 自动恢复 unlock
+    # 状态, 否则 stdio 模式下依赖 secrets 的工具 (如 codegarden GitHub 同步)
+    # 会因未解锁而不可用。失败仅告警, 不阻断启动。
+    try:
+        from backend.services.secrets_service import try_auto_unlock
+        if try_auto_unlock():
+            print("Secrets auto-unlock: OK (restored from keychain)", file=sys.stderr)
+        else:
+            print(
+                "Secrets auto-unlock: skipped (no persisted master key)",
+                file=sys.stderr,
+            )
+    except Exception as e:
+        log.warning(f"mcp_stdio_main: auto-unlock failed (ignored): {e}")
+        print(f"WARNING: secrets auto-unlock failed (ignored): {e}", file=sys.stderr)
 
     # 构造 FastAPI app + FastApiMCP
     from backend.main import app  # 复用 main.py 完整 app

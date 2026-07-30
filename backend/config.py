@@ -21,7 +21,9 @@ class Settings(BaseSettings):
     )
 
     # Server
-    host: str = "0.0.0.0"
+    # 默认仅监听回环地址：全 API 无认证，绑 0.0.0.0 会把写接口暴露给整个局域网。
+    # 确需局域网访问时显式设置 HOTSPOT_HOST=0.0.0.0。
+    host: str = "127.0.0.1"
     port: int = 8000
 
     # Paths
@@ -37,6 +39,9 @@ class Settings(BaseSettings):
     collect_interval_seconds: int = 300
     collect_timeout_seconds: int = 60
     collect_single_source_timeout: int = 30
+    # v1.8: 启动时自动追抓「本周一 → 现在」(真实全网抓取);
+    # 测试环境必须关闭 (conftest autouse fixture), env HOTSPOT_CATCHUP_ON_STARTUP 可覆盖
+    catchup_on_startup: bool = True
 
     # Logging
     log_level: str = "INFO"
@@ -76,7 +81,7 @@ class Settings(BaseSettings):
     feature_personalization: bool = False # 个人画像 EMA (Phase 4)
     feature_source_health: bool = True    # 数据源健康指示 (Phase 4)
     feature_digests: bool = True          # 每日简报 (Phase 4)
-    feature_kv_cache: bool = True         # KV 缓存层 (Phase 5)
+    # v1.8: feature_kv_cache 已删除 (kv_cache_service 于 Phase 7 移除)
     # v1.7 Phase 7 Option A: MCP server 替代 Phase 5 内部 hotspot-agent
     feature_mcp_server: bool = True       # MCP Server (Phase 7, 替代 feature_agent)
 

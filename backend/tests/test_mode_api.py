@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+from backend.version import APP_VERSION as API_VERSION
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -51,7 +52,7 @@ class TestCurrentMode:
     def test_no_digest_returns_scan(self, client):
         r = client.get("/api/mode/current")
         assert r.status_code == 200
-        assert r.json() == {"version": "1.7.0", "mode": "scan"}
+        assert r.json() == {"version": API_VERSION, "mode": "scan"}
 
     def test_unread_digest_returns_brief(self, client):
         create_digest("d1", period="daily", summary="今日简报")
@@ -67,7 +68,7 @@ class TestCurrentMode:
 
     def test_version_envelope(self, client):
         r = client.get("/api/mode/current")
-        assert r.json()["version"] == "1.7.0"
+        assert r.json()["version"] == API_VERSION
 
 
 class TestSwitchMode:
@@ -75,7 +76,7 @@ class TestSwitchMode:
     def test_valid_modes_accepted(self, client, mode):
         r = client.put("/api/mode/switch", params={"mode": mode})
         assert r.status_code == 200
-        assert r.json() == {"version": "1.7.0", "mode": mode}
+        assert r.json() == {"version": API_VERSION, "mode": mode}
 
     def test_invalid_mode_rejected_400(self, client):
         r = client.put("/api/mode/switch", params={"mode": "invalid"})

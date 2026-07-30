@@ -10,7 +10,7 @@
 7. GET /dependencies/impact → 反向追溯依赖链
 8. POST /resources/release-port → 释放端口 (8898 必须返回 403)
 
-fixture 模式参考 test_codegarden_phase2b_api.py (避免触发 backend.main.app lifespan).
+fixture 模式参考 test_codegarden_ops_api.py (避免触发 backend.main.app lifespan).
 """
 from __future__ import annotations
 
@@ -21,13 +21,13 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.api import codegarden, codegarden_phase2b
+from backend.api import codegarden, codegarden_ops
 
 
 @pytest.fixture()
 def e2e_client(tmp_path, monkeypatch) -> Iterator[TestClient]:
-    """独立临时 DB + 挂 codegarden + codegarden_phase2b 两个 router."""
-    db_file = tmp_path / "test_codegarden_phase2b_e2e.db"
+    """独立临时 DB + 挂 codegarden + codegarden_ops 两个 router."""
+    db_file = tmp_path / "test_codegarden_ops_e2e.db"
     conn = sqlite3.connect(str(db_file))
     # 019: cg_projects (跳过 skills ALTER)
     with open("backend/repository/migrations/019_codegarden.sql", "r", encoding="utf-8") as f:
@@ -69,7 +69,7 @@ def e2e_client(tmp_path, monkeypatch) -> Iterator[TestClient]:
 
     app = FastAPI()
     app.include_router(codegarden.router)
-    app.include_router(codegarden_phase2b.router)
+    app.include_router(codegarden_ops.router)
     yield TestClient(app)
 
 

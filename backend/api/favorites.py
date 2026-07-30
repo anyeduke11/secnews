@@ -37,6 +37,7 @@ from pydantic import BaseModel, Field
 from backend.domain.enums import Category
 from backend.logging_config import logger
 from backend.repository.favorite_repo import FavoriteItem, FavoriteRepository
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/favorites", tags=["favorites"])
 
@@ -82,7 +83,7 @@ def _build_list_payload(category: Optional[str], limit: int) -> dict:
         cat_value = None
     items: list[FavoriteItem] = repo.list(category=cat_value, limit=limit)
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "category": cat_value or "all",
         "total": repo.total(),
         "count": len(items),
@@ -94,7 +95,7 @@ def _build_count_payload() -> dict:
     """同步统计收藏数量（在 thread pool 内执行）。"""
     repo = FavoriteRepository()
     return {
-        "version": "1.2.0",
+        "version": API_VERSION,
         "total": repo.total(),
         "by_category": repo.count_by_category(),
     }

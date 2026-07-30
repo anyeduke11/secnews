@@ -9,12 +9,13 @@ domain: ai
 topic: ai
 type: tutorial
 difficulty: null
-tags: ["\u6a21\u578b", "\u5e94\u7528", "\u5927\u6a21\u578b\u8fdb\u5c55"]
+tags: ["模型", "应用", "大模型进展", "运维AIOPS", "学习资源", "渗透测试与攻防", "AI与机器学习", "软件下载", "SmartMarks", "日常工具", "书签栏"]
 concepts: ["ai-agent", "ai-development"]
 mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
+sources: ["bookmark"]
 ---
 
 # 2026十大AI大模型Token购买渠道：高性价比规避溢价踩坑技巧

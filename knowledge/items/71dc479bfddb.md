@@ -9,12 +9,13 @@ domain: ai
 topic: ai-tools-overview
 type: opinion
 difficulty: beginner
-tags: ["AI工具", "2026", "工具选择", "洗牌", "效率"]
+tags: ["AI工具", "2026", "工具选择", "洗牌", "效率", "书签栏", "SmartMarks", "AI与机器学习"]
 concepts: ["ai-tools-overview", "developer-tools"]
 mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
+sources: ["bookmark"]
 ---
 
 # 2026 AI工具大洗牌：你可能用错了！

@@ -1,0 +1,23 @@
+---
+id: "fbd04e5eb9d9"
+title: "Open Broadcaster Software®️ | OBS"
+source: "bookmark"
+source_url: "https://obsproject.com/"
+ingested_at: "2026-07-24T16:46:56.207295+00:00"
+compiled: false
+domain: null
+topic: null
+type: null
+difficulty: null
+tags: ["\u4e66\u7b7e\u680f", "SmartMarks", "\u6280\u672f\u535a\u5ba2\u4e0e\u6742\u9879"]
+concepts: []
+mastery: 0
+last_reviewed: null
+review_count: 0
+related_items: []
+sources: ["bookmark"]
+---
+
+# Open Broadcaster Software®️ | OBS
+
+

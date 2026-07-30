@@ -9,12 +9,13 @@ domain: dev
 topic: dev
 type: tutorial
 difficulty: beginner
-tags: ["\u7f16\u7a0b", "\u5e94\u7528", "\u6559\u7a0b\u5b9e\u64cd"]
+tags: ["编程", "应用", "教程实操", "书签栏", "SmartMarks", "AI与机器学习"]
 concepts: ["developer-tools"]
 mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
+sources: ["bookmark"]
 ---
 
 # 2026 企业级AI编程实践手册

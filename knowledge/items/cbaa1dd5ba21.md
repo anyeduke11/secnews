@@ -9,12 +9,13 @@ domain: startup
 topic: startup
 type: tool
 difficulty: beginner
-tags: ["\u6548\u7387\u5de5\u5177", "\u6280\u672f"]
+tags: ["效率工具", "技术", "书签栏", "SmartMarks", "安全资讯"]
 concepts: ["developer-tools"]
 mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
+sources: ["bookmark"]
 ---
 
 # 完全开源！狂揽9.3K Star的「AI+低代码」神器，开发者都在抢！

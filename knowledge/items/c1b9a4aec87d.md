@@ -9,12 +9,13 @@ domain: security
 topic: security
 type: standard
 difficulty: null
-tags: ["\u5408\u89c4", "\u6807\u51c6\u89c4\u8303"]
+tags: ["合规", "标准规范", "书签栏", "SmartMarks", "安全资讯"]
 concepts: ["defense-modernization"]
 mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
+sources: ["bookmark"]
 ---
 
 # 《网络安全审查办法》涉及的数据安全思考

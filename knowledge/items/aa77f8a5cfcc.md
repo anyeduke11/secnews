@@ -9,12 +9,13 @@ domain: startup
 topic: startup
 type: tutorial
 difficulty: beginner
-tags: ["\u5b66\u4e60\u65b9\u6cd5", "\u8ba4\u77e5"]
+tags: ["学习方法", "认知", "书签栏", "SmartMarks", "应用安全"]
 concepts: ["automated-research", "leadership-anti-patterns"]
 mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
+sources: ["bookmark"]
 ---
 
 # 企业安全应用安全实践

@@ -1,0 +1,23 @@
+---
+id: "dfeaf28de9ea"
+title: "Windows渗透利器之Pentest BOX使用详解（二） – 即刻安全"
+source: "bookmark"
+source_url: "http://www.secist.com/archives/2392.html"
+ingested_at: "2026-07-24T16:15:50.937364+00:00"
+compiled: false
+domain: null
+topic: null
+type: null
+difficulty: null
+tags: ["\u4e66\u7b7e\u680f", "SmartMarks", "\u6e17\u900f\u6d4b\u8bd5\u4e0e\u653b\u9632"]
+concepts: []
+mastery: 0
+last_reviewed: null
+review_count: 0
+related_items: []
+sources: ["bookmark"]
+---
+
+# Windows渗透利器之Pentest BOX使用详解（二） – 即刻安全
+
+

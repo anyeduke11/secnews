@@ -1,0 +1,23 @@
+---
+id: "aba10492cbbd"
+title: "The FreeFrameWork Project / Bugs / #19 Propath issues"
+source: "bookmark"
+source_url: "https://sourceforge.net/p/freeframework/bugs/19/"
+ingested_at: "2026-07-24T16:18:24.184419+00:00"
+compiled: false
+domain: null
+topic: null
+type: null
+difficulty: null
+tags: ["\u4e66\u7b7e\u680f", "SmartMarks", "\u65e5\u5e38\u5de5\u5177", "\u8f6f\u4ef6\u4e0b\u8f7d"]
+concepts: []
+mastery: 0
+last_reviewed: null
+review_count: 0
+related_items: []
+sources: ["bookmark"]
+---
+
+# The FreeFrameWork Project / Bugs / #19 Propath issues
+
+

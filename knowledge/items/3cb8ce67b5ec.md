@@ -1,0 +1,23 @@
+---
+id: "3cb8ce67b5ec"
+title: "windows批处理命令教程_DOS/BAT_脚本之家"
+source: "bookmark"
+source_url: "http://www.jb51.net/article/41322.htm"
+ingested_at: "2026-07-24T16:15:18.024634+00:00"
+compiled: false
+domain: null
+topic: null
+type: null
+difficulty: null
+tags: ["\u4e66\u7b7e\u680f", "SmartMarks", "AI\u4e0e\u673a\u5668\u5b66\u4e60", "AI\u7f16\u7a0b"]
+concepts: []
+mastery: 0
+last_reviewed: null
+review_count: 0
+related_items: []
+sources: ["bookmark"]
+---
+
+# windows批处理命令教程_DOS/BAT_脚本之家
+
+

@@ -9,12 +9,13 @@ domain: security
 topic: api-monetization
 type: product-announcement
 difficulty: intermediate
-tags: ["Cloudflare", "x402", "API monetization", "stablecoin", "MCP"]
+tags: ["Cloudflare", "x402", "API monetization", "stablecoin", "MCP", "书签栏", "SmartMarks", "AI与机器学习", "AI编程"]
 concepts: ["api-monetization", "payment-gateway"]
 mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
+sources: ["bookmark"]
 ---
 
 # Announcing the Monetization Gateway: charge for any resource behind Cloudflare via x402

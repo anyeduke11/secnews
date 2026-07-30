@@ -9,12 +9,13 @@ domain: security
 topic: security
 type: tutorial
 difficulty: null
-tags: ["\u5b89\u5168\u6280\u672f", "\u5b89\u5168\u7ba1\u7406"]
+tags: ["安全技术", "安全管理", "书签栏", "SmartMarks", "项目管理与标准化"]
 concepts: ["security-fundamentals"]
 mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
+sources: ["bookmark"]
 ---
 
 # 【第26期】招投标文件模板大全：不只给你框架，还告诉你每个字段怎么填、哪里是雷区

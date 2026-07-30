@@ -1,0 +1,90 @@
+{
+  "data": [
+    {
+      "id": "page-cockpit",
+      "title": "安全服务业绩分析座舱",
+      "type": "page",
+      "version": 2,
+      "createdAt": 1753249800000,
+      "group": 0,
+      "canvasData": {
+        "x": 0,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/cockpit.html",
+        "interactions": [
+          {
+            "domId": "nav-tab-customer",
+            "targetPageId": "page-customer-form"
+          },
+          {
+            "domId": "nav-tab-opportunity",
+            "targetPageId": "page-opportunity-form"
+          }
+        ]
+      }
+    },
+    {
+      "id": "page-customer-form",
+      "title": "客户管理",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1753249800000,
+      "group": 0,
+      "canvasData": {
+        "x": 620,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/customer-form.html",
+        "interactions": [
+          {
+            "domId": "nav-tab-cockpit",
+            "targetPageId": "page-cockpit"
+          },
+          {
+            "domId": "nav-tab-opportunity",
+            "targetPageId": "page-opportunity-form"
+          }
+        ]
+      }
+    },
+    {
+      "id": "page-opportunity-form",
+      "title": "商机管理",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1753249800000,
+      "group": 0,
+      "canvasData": {
+        "x": 620,
+        "y": 395,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/opportunity-form.html",
+        "interactions": [
+          {
+            "domId": "nav-tab-cockpit",
+            "targetPageId": "page-cockpit"
+          },
+          {
+            "domId": "nav-tab-customer",
+            "targetPageId": "page-customer-form"
+          }
+        ]
+      }
+    }
+  ],
+  "config": {
+    "autoLayout": true,
+    "deviceType": "desktop",
+    "canvasWidth": 1440,
+    "canvasHeight": 1024,
+    "designLibrary": null,
+    "visualEditorEnabled": true
+  }
+}

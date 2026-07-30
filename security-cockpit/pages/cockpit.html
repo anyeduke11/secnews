@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安全服务业绩分析座舱</title>
+    <style id="theme-vars">
+/* Brand CSS — Security Service Cockpit */
+:root {
+  /* === Core Palette === */
+  --brand-primary: #0A1628;
+  --brand-primary-light: #0F2140;
+  --brand-secondary: #0D1F3C;
+  --brand-accent: #00E5A0;
+  --brand-accent-dim: rgba(0, 229, 160, 0.15);
+  --brand-accent-glow: rgba(0, 229, 160, 0.35);
+  --brand-warning: #FF8C42;
+  --brand-danger: #FF4757;
+  --brand-info: #4DA6FF;
+  --brand-gold: #FFD93D;
+
+  /* === Semantic Aliases === */
+  --brand-background: var(--brand-primary);
+  --brand-foreground: #F0F4F8;
+  --brand-card: #0F2140;
+  --brand-muted: #556677;
+  --brand-radius-sm: 6px;
+  --brand-radius-md: 10px;
+  --brand-radius-lg: 16px;
+  --brand-accent: var(--color-accent);
+  --brand-border: rgba(255, 255, 255, 0.08);
+
+  --color-bg-primary: var(--brand-primary);
+  --color-bg-secondary: var(--brand-secondary);
+  --color-bg-tertiary: #132B50;
+  --color-bg-card: #0F2140;
+  --color-bg-card-hover: #162D56;
+  --color-bg-input: rgba(255, 255, 255, 0.04);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(255, 255, 255, 0.16);
+
+  --color-text-primary: #F0F4F8;
+  --color-text-secondary: #8899AA;
+  --color-text-muted: #556677;
+  --color-text-inverse: #0A1628;
+
+  --color-accent: #00E5A0;
+  --color-accent-dim: rgba(0, 229, 160, 0.15);
+  --color-warning: var(--brand-warning);
+  --color-danger: var(--brand-danger);
+  --color-info: var(--brand-info);
+  --color-success: #00E5A0;
+
+  /* === Typography === */
+  --font-display: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-body: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.5rem;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+
+  /* === Spacing === */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  /* === Layout === */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* === Shadows === */
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-glow-accent: 0 0 20px rgba(0, 229, 160, 0.12);
+  --shadow-glow-info: 0 0 20px rgba(77, 166, 255, 0.12);
+
+  /* === Grid === */
+  --grid-columns: 12;
+  --gutter: var(--space-lg);
+  --max-width: 1440px;
+}
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--brand-background);
+    --color-foreground: var(--brand-foreground);
+    --color-card: var(--brand-card);
+    --color-primary: var(--brand-primary);
+    --color-secondary: var(--brand-secondary);
+    --color-muted: var(--brand-muted);
+    --color-accent: var(--brand-accent);
+    --color-border: var(--brand-border);
+    --radius-sm: var(--brand-radius-sm);
+    --radius-md: var(--brand-radius-md);
+    --radius-lg: var(--brand-radius-lg);
+  }
+  @layer base {
+    body { background: var(--brand-background); color: var(--brand-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--brand-background); }
+      .text-background { color: var(--brand-background); }
+      .border-background { border-color: var(--brand-background); }
+      .ring-background { --tw-ring-color: var(--brand-background); }
+      .bg-foreground { background-color: var(--brand-foreground); }
+      .text-foreground { color: var(--brand-foreground); }
+      .border-foreground { border-color: var(--brand-foreground); }
+      .ring-foreground { --tw-ring-color: var(--brand-foreground); }
+      .bg-card { background-color: var(--brand-card); }
+      .text-card { color: var(--brand-card); }
+      .border-card { border-color: var(--brand-card); }
+      .ring-card { --tw-ring-color: var(--brand-card); }
+      .bg-primary { background-color: var(--brand-primary); }
+      .text-primary { color: var(--brand-primary); }
+      .border-primary { border-color: var(--brand-primary); }
+      .ring-primary { --tw-ring-color: var(--brand-primary); }
+      .bg-secondary { background-color: var(--brand-secondary); }
+      .text-secondary { color: var(--brand-secondary); }
+      .border-secondary { border-color: var(--brand-secondary); }
+      .ring-secondary { --tw-ring-color: var(--brand-secondary); }
+      .bg-muted { background-color: var(--brand-muted); }
+      .text-muted { color: var(--brand-muted); }
+      .border-muted { border-color: var(--brand-muted); }
+      .ring-muted { --tw-ring-color: var(--brand-muted); }
+      .bg-accent { background-color: var(--brand-accent); }
+      .text-accent { color: var(--brand-accent); }
+      .border-accent { border-color: var(--brand-accent); }
+      .ring-accent { --tw-ring-color: var(--brand-accent); }
+      .bg-border { background-color: var(--brand-border); }
+      .text-border { color: var(--brand-border); }
+      .border-border { border-color: var(--brand-border); }
+      .ring-border { --tw-ring-color: var(--brand-border); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main class="max-w-[1440px] mx-auto px-4 py-4 lg:px-6 lg:py-5">
+
+        <!-- ===== TOP HEADER BAR ===== -->
+        <header class="flex items-center justify-between pb-4 mb-4" style="border-bottom: 2px solid var(--color-accent);">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-9 h-9 rounded-lg" style="background: var(--color-accent-dim);">
+                    <i data-lucide="shield-check" class="w-5 h-5" style="color: var(--color-accent);"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-semibold tracking-tight" style="color: var(--color-text-primary);">安全服务业绩分析座舱</h1>
+                </div>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium whitespace-nowrap" style="background: var(--color-accent-dim); color: var(--color-accent);">H2 经营分析</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-sm font-medium whitespace-nowrap" style="color: var(--color-text-secondary);">2026年H2</span>
+                <div class="flex items-center gap-2">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span class="absolute inline-flex h-full w-full rounded-full opacity-75" style="background: var(--color-accent); animation: ping 1.5s cubic-bezier(0,0,0.2,1) infinite;"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5" style="background: var(--color-accent);"></span>
+                    </span>
+                    <span class="text-xs font-medium whitespace-nowrap" style="color: var(--color-accent);">实时数据</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ===== NAV TABS ===== -->
+        <nav class="flex items-center gap-2 mb-5">
+            <button class="cockpit-nav-tab cockpit-nav-tab-active" data-dom-id="nav-tab-cockpit">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                <span>业绩总览</span>
+            </button>
+            <button class="cockpit-nav-tab" data-dom-id="nav-tab-customer">
+                <i data-lucide="users" class="w-4 h-4"></i>
+                <span>客户管理</span>
+            </button>
+            <button class="cockpit-nav-tab" data-dom-id="nav-tab-opportunity">
+                <i data-lucide="target" class="w-4 h-4"></i>
+                <span>商机管理</span>
+            </button>
+        </nav>
+
+        <!-- ===== KPI SUMMARY ROW (4x2 = 8 cards) ===== -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+            <!-- KPI 1 -->
+            <div class="cockpit-card kpi-card">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="trending-up" class="w-4 h-4" style="color: var(--color-accent);"></i>
+                    <span class="kpi-label">年度总营收</span>
+                </div>
+                <div class="kpi-value">¥2,847万</div>
+                <div class="flex items-center gap-1 mt-1">
+                    <i data-lucide="arrow-up-right" class="w-3.5 h-3.5" style="color: var(--color-accent);"></i>
+                    <span class="kpi-trend-positive">12.3% YoY</span>
+                </div>
+            </div>
+            <!-- KPI 2 -->
+            <div class="cockpit-card kpi-card">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="percent" class="w-4 h-4" style="color: var(--color-accent);"></i>
+                    <span class="kpi-label">毛利率</span>
+                </div>
+                <div class="kpi-value">38.6%</div>
+                <div class="flex items-center gap-1 mt-1">
+                    <i data-lucide="arrow-up-right" class="w-3.5 h-3.5" style="color: var(--color-accent);"></i>
+                    <span class="kpi-trend-positive">2.1pp</span>
+                </div>
+            </div>
+            <!-- KPI 3 -->
+            <div class="cockpit-card kpi-card">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="building-2" class="w-4 h-4" style="color: var(--color-info);"></i>
+                    <span class="kpi-label">客户总数</span>
+                </div>
+                <div class="kpi-value">67家</div>
+                <div class="mt-1">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap" style="background: var(--color-accent-dim); color: var(--color-info);">+8家 新增</span>
+                </div>
+            </div>
+            <!-- KPI 4 -->
+            <div class="cockpit-card kpi-card">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="repeat" class="w-4 h-4" style="color: var(--color-danger);"></i>
+                    <span class="kpi-label">复购续签率</span>
+                </div>
+                <div class="kpi-value">82.4%</div>
+                <div class="flex items-center gap-1 mt-1">
+                    <i data-lucide="arrow-down-right" class="w-3.5 h-3.5" style="color: var(--color-danger);"></i>
+                    <span class="kpi-trend-negative">1.8%</span>
+                </div>
+            </div>
+            <!-- KPI 5: 在途商机 -->
+            <div class="cockpit-card kpi-card">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="briefcase" class="w-4 h-4" style="color: var(--color-info);"></i>
+                    <span class="kpi-label">在途商机</span>
+                </div>
+                <div class="kpi-value">23个</div>
+                <div class="mt-1">
+                    <span class="text-xs font-medium whitespace-nowrap" style="color: var(--color-info);">预估 ¥3,120万</span>
+                </div>
+            </div>
+            <!-- KPI 6: 赢单率 -->
+            <div class="cockpit-card kpi-card">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="trophy" class="w-4 h-4" style="color: var(--color-accent);"></i>
+                    <span class="kpi-label">赢单率</span>
+                </div>
+                <div class="kpi-value">45.8%</div>
+                <div class="flex items-center gap-1 mt-1">
+                    <i data-lucide="arrow-up-right" class="w-3.5 h-3.5" style="color: var(--color-accent);"></i>
+                    <span class="kpi-trend-positive">3.2pp</span>
+                </div>
+            </div>
+            <!-- KPI 7: 平均客单价 -->
+            <div class="cockpit-card kpi-card">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="wallet" class="w-4 h-4" style="color: var(--color-accent);"></i>
+                    <span class="kpi-label">平均客单价</span>
+                </div>
+                <div class="kpi-value">¥42.5万</div>
+                <div class="flex items-center gap-1 mt-1">
+                    <i data-lucide="arrow-up-right" class="w-3.5 h-3.5" style="color: var(--color-accent);"></i>
+                    <span class="kpi-trend-positive">8.6%</span>
+                </div>
+            </div>
+            <!-- KPI 8: NPS -->
+            <div class="cockpit-card kpi-card">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="heart-pulse" class="w-4 h-4" style="color: var(--color-danger);"></i>
+                    <span class="kpi-label">NPS净推荐</span>
+                </div>
+                <div class="kpi-value">62分</div>
+                <div class="flex items-center gap-1 mt-1">
+                    <i data-lucide="arrow-down-right" class="w-3.5 h-3.5" style="color: var(--color-danger);"></i>
+                    <span class="kpi-trend-negative">↓ 4分</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== TEAM UTILIZATION GAUGES ===== -->
+        <div class="cockpit-card mb-5">
+            <div class="card-title-bar mb-4">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="activity" class="w-4 h-4" style="color: var(--color-accent);"></i>
+                    <h2 class="text-sm font-semibold" style="color: var(--color-text-primary);">团队利用率</h2>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-5">
+                <div class="flex flex-col items-center gap-2">
+                    <div class="gauge-ring" style="--gauge-pct: 87; --gauge-color: var(--color-accent);">
+                        <div class="gauge-inner"><span class="gauge-value">87%</span></div>
+                    </div>
+                    <span class="text-xs font-medium whitespace-nowrap" style="color: var(--color-text-secondary);">渗透测试组</span>
+                </div>
+                <div class="flex flex-col items-center gap-2">
+                    <div class="gauge-ring" style="--gauge-pct: 92; --gauge-color: var(--color-danger);">
+                        <div class="gauge-inner"><span class="gauge-value" style="color: var(--color-danger);">92%</span></div>
+                    </div>
+                    <span class="text-xs font-medium whitespace-nowrap" style="color: var(--color-text-secondary);">安全运营组</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap" style="background: rgba(255,71,87,0.12); color: var(--color-danger);">超负荷</span>
+                </div>
+                <div class="flex flex-col items-center gap-2">
+                    <div class="gauge-ring" style="--gauge-pct: 68; --gauge-color: var(--color-warning);">
+                        <div class="gauge-inner"><span class="gauge-value" style="color: var(--color-warning);">68%</span></div>
+                    </div>
+                    <span class="text-xs font-medium whitespace-nowrap" style="color: var(--color-text-secondary);">应急响应组</span>
+                </div>
+                <div class="flex flex-col items-center gap-2">
+                    <div class="gauge-ring" style="--gauge-pct: 74; --gauge-color: var(--color-info);">
+                        <div class="gauge-inner"><span class="gauge-value" style="color: var(--color-info);">74%</span></div>
+                    </div>
+                    <span class="text-xs font-medium whitespace-nowrap" style="color: var(--color-text-secondary);">咨询合规组</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== MAIN DASHBOARD GRID ===== -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-5">
+            <!-- LEFT COLUMN -->
+            <div class="lg:col-span-3 flex flex-col gap-4">
+
+                <!-- 月度营收趋势 -->
+                <div class="cockpit-card">
+                    <div class="card-title-bar">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="bar-chart-2" class="w-4 h-4" style="color: var(--color-accent);"></i>
+                            <h2 class="text-sm font-semibold" style="color: var(--color-text-primary);">月度营收趋势</h2>
+                        </div>
+                        <span class="text-xs" style="color: var(--color-text-muted);">单位: 万元</span>
+                    </div>
+                    <div class="mt-5">
+                        <div class="flex items-end" style="height: 180px;">
+                            <div class="flex flex-col justify-between shrink-0 pr-3" style="height: 156px; padding-bottom: 24px;">
+                                <span class="text-xs whitespace-nowrap" style="color: var(--color-text-muted);">450</span>
+                                <span class="text-xs whitespace-nowrap" style="color: var(--color-text-muted);">350</span>
+                                <span class="text-xs whitespace-nowrap" style="color: var(--color-text-muted);">250</span>
+                                <span class="text-xs whitespace-nowrap" style="color: var(--color-text-muted);">150</span>
+                            </div>
+                            <div class="flex items-end justify-around flex-1" style="height: 156px; padding-bottom: 24px; border-bottom: 1px solid var(--color-border); border-left: 1px solid var(--color-border);">
+                                <div class="flex flex-col items-center gap-1" style="width: 14%;"><span class="text-xs font-medium whitespace-nowrap" style="color: var(--color-text-secondary);">180</span><div class="w-full rounded-t-md trend-bar-fill" style="height: 42.9%; background: linear-gradient(180deg, var(--color-accent), rgba(0,229,160,0.4)); min-height: 8px;"></div></div>
+                                <div class="flex flex-col items-center gap-1" style="width: 14%;"><span class="text-xs font-medium whitespace-nowrap" style="color: var(--color-text-secondary);">210</span><div class="w-full rounded-t-md trend-bar-fill" style="height: 50%; background: linear-gradient(180deg, var(--color-accent), rgba(0,229,160,0.45)); min-height: 8px;"></div></div>
+                                <div class="flex flex-col items-center gap-1" style="width: 14%;"><span class="text-xs font-medium whitespace-nowrap" style="color: var(--color-text-secondary);">245</span><div class="w-full rounded-t-md trend-bar-fill" style="height: 58.3%; background: linear-gradient(180deg, var(--color-accent), rgba(0,229,160,0.5)); min-height: 8px;"></div></div>
+                                <div class="flex flex-col items-center gap-1" style="width: 14%;"><span class="text-xs font-medium whitespace-nowrap" style="color: var(--color-text-secondary);">320</span><div class="w-full rounded-t-md trend-bar-fill" style="height: 76.2%; background: linear-gradient(180deg, var(--color-accent), rgba(0,229,160,0.6)); min-height: 8px;"></div></div>
+                                <div class="flex flex-col items-center gap-1" style="width: 14%;"><span class="text-xs font-medium whitespace-nowrap" style="color: var(--color-text-secondary);">380</span><div class="w-full rounded-t-md trend-bar-fill" style="height: 90.5%; background: linear-gradient(180deg, var(--color-accent), rgba(0,229,160,0.7)); min-height: 8px;"></div></div>
+                                <div class="flex flex-col items-center gap-1" style="width: 14%;"><span class="text-xs font-medium whitespace-nowrap" style="color: var(--color-text-primary);">420</span><div class="w-full rounded-t-md trend-bar-fill" style="height: 100%; background: linear-gradient(180deg, var(--color-accent), rgba(0,229,160,0.8)); min-height: 8px;"></div></div>
+                            </div>
+                        </div>
+                        <div class="flex" style="padding-left: 52px;">
+                            <div class="flex justify-around flex-1">
+                                <span class="text-xs" style="width: 14%; text-align: center; color: var(--color-text-muted);">1月</span>
+                                <span class="text-xs" style="width: 14%; text-align: center; color: var(--color-text-muted);">2月</span>
+                                <span class="text-xs" style="width: 14%; text-align: center; color: var(--color-text-muted);">3月</span>
+                                <span class="text-xs" style="width: 14%; text-align: center; color: var(--color-text-muted);">4月</span>
+                                <span class="text-xs" style="width: 14%; text-align: center; color: var(--color-text-muted);">5月</span>
+                                <span class="text-xs" style="width: 14%; text-align: center; color: var(--color-text-primary);">6月</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 营收结构分析 -->
+                <div class="cockpit-card">
+                    <div class="card-title-bar">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="bar-chart-3" class="w-4 h-4" style="color: var(--color-accent);"></i>
+                            <h2 class="text-sm font-semibold" style="color: var(--color-text-primary);">营收结构分析</h2>
+                        </div>
+                        <span class="text-xs" style="color: var(--color-text-muted);">单位: 万元</span>
+                    </div>
+                    <div class="space-y-3 mt-4">
+                        <div class="revenue-bar-row"><span class="revenue-bar-label">专业服务</span><div class="revenue-bar-track flex-1 min-w-0"><div class="revenue-bar-fill bar-animate" style="width: 53%; background: var(--color-accent);"></div></div><span class="revenue-bar-value">¥1,520万</span><span class="revenue-bar-pct" style="color: var(--color-accent);">53%</span></div>
+                        <div class="revenue-bar-row"><span class="revenue-bar-label">驻场业务</span><div class="revenue-bar-track flex-1 min-w-0"><div class="revenue-bar-fill bar-animate" style="width: 31%; background: var(--color-info);"></div></div><span class="revenue-bar-value">¥890万</span><span class="revenue-bar-pct" style="color: var(--color-info);">31%</span></div>
+                        <div class="revenue-bar-row"><span class="revenue-bar-label">AI安全服务</span><div class="revenue-bar-track flex-1 min-w-0"><div class="revenue-bar-fill bar-animate" style="width: 8%; background: var(--brand-gold);"></div></div><span class="revenue-bar-value">¥237万</span><span class="revenue-bar-pct" style="color: var(--brand-gold);">8%</span></div>
+                        <div class="revenue-bar-row"><span class="revenue-bar-label">咨询培训</span><div class="revenue-bar-track flex-1 min-w-0"><div class="revenue-bar-fill bar-animate" style="width: 7%; background: var(--color-text-muted);"></div></div><span class="revenue-bar-value">¥200万</span><span class="revenue-bar-pct" style="color: var(--color-text-muted);">7%</span></div>
+                    </div>
+                </div>
+
+                <!-- 驻场业务运营指标 -->
+                <div class="cockpit-card">
+                    <div class="card-title-bar">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="users" class="w-4 h-4" style="color: var(--color-info);"></i>
+                            <h2 class="text-sm font-semibold" style="color: var(--color-text-primary);">驻场业务运营指标</h2>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mt-4">
+                        <div class="mini-metric"><div class="mini-metric-value">¥1,680万</div><div class="mini-metric-label">驻场合同额</div></div>
+                        <div class="mini-metric"><div class="mini-metric-value">¥1,850<span class="text-xs" style="color: var(--color-text-muted);">/天</span></div><div class="mini-metric-label">人天均价</div></div>
+                        <div class="mini-metric"><div class="mini-metric-value">42人</div><div class="mini-metric-label">驻场人数</div></div>
+                        <div class="mini-metric"><div class="mini-metric-value flex items-center gap-1">4.2<span class="inline-flex gap-px"><i data-lucide="star" class="w-3 h-3" style="color: var(--brand-gold);"></i></span><span class="text-xs" style="color: var(--color-text-muted);">/5.0</span></div><div class="mini-metric-label">客户满意度</div></div>
+                    </div>
+                </div>
+
+                <!-- 客户AI需求热度 -->
+                <div class="cockpit-card" style="border-color: var(--color-accent); box-shadow: 0 0 20px rgba(0,229,160,0.08);">
+                    <div class="card-title-bar">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="flame" class="w-4 h-4" style="color: var(--brand-gold);"></i>
+                            <h2 class="text-sm font-semibold" style="color: var(--color-text-primary);">客户AI需求热度</h2>
+                            <span class="priority-marker">重点关注</span>
+                        </div>
+                    </div>
+                    <div class="space-y-2.5 mt-4">
+                        <div class="demand-row"><span class="demand-name">AI渗透测试</span><div class="demand-track flex-1 min-w-0"><div class="demand-fill bar-animate" style="width: 100%;"></div></div><span class="demand-count">12个客户</span></div>
+                        <div class="demand-row"><span class="demand-name">AI安全运营</span><div class="demand-track flex-1 min-w-0"><div class="demand-fill bar-animate" style="width: 75%;"></div></div><span class="demand-count">9个客户</span></div>
+                        <div class="demand-row"><span class="demand-name">智能风控</span><div class="demand-track flex-1 min-w-0"><div class="demand-fill bar-animate" style="width: 58%;"></div></div><span class="demand-count">7个客户</span></div>
+                        <div class="demand-row"><span class="demand-name">AI合规检测</span><div class="demand-track flex-1 min-w-0"><div class="demand-fill bar-animate" style="width: 42%;"></div></div><span class="demand-count">5个客户</span></div>
+                        <div class="demand-row"><span class="demand-name">大模型安全评估</span><div class="demand-track flex-1 min-w-0"><div class="demand-fill bar-animate" style="width: 33%;"></div></div><span class="demand-count">4个客户</span></div>
+                    </div>
+                </div>
+
+                <!-- 区域营收分布 -->
+                <div class="cockpit-card">
+                    <div class="card-title-bar">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="map" class="w-4 h-4" style="color: var(--color-info);"></i>
+                            <h2 class="text-sm font-semibold" style="color: var(--color-text-primary);">区域营收分布</h2>
+                        </div>
+                        <span class="text-xs" style="color: var(--color-text-muted);">总计 ¥2,847万</span>
+                    </div>
+                    <div class="space-y-3 mt-4">
+                        <div class="revenue-bar-row"><span class="revenue-bar-label">华东区</span><div class="revenue-bar-track flex-1 min-w-0"><div class="revenue-bar-fill bar-animate" style="width: 100%; background: var(--color-accent);"></div></div><span class="revenue-bar-value">¥1,020万</span><span class="revenue-bar-pct" style="color: var(--color-accent);">36%</span></div>
+                        <div class="revenue-bar-row"><span class="revenue-bar-label">华北区</span><div class="revenue-bar-track flex-1 min-w-0"><div class="revenue-bar-fill bar-animate" style="width: 76%; background: var(--color-info);"></div></div><span class="revenue-bar-value">¥780万</span><span class="revenue-bar-pct" style="color: var(--color-info);">27%</span></div>
+                        <div class="revenue-bar-row"><span class="revenue-bar-label">华南区</span><div class="revenue-bar-track flex-1 min-w-0"><div class="revenue-bar-fill bar-animate" style="width: 55%; background: var(--brand-gold);"></div></div><span class="revenue-bar-value">¥560万</span><span class="revenue-bar-pct" style="color: var(--brand-gold);">20%</span></div>
+                        <div class="revenue-bar-row"><span class="revenue-bar-label">西部区</span><div class="revenue-bar-track flex-1 min-w-0"><div class="revenue-bar-fill bar-animate" style="width: 31%; background: var(--color-warning);"></div></div><span class="revenue-bar-value">¥320万</span><span class="revenue-bar-pct" style="color: var(--color-warning);">11%</span></div>
+                        <div class="revenue-bar-row"><span class="revenue-bar-label">海外</span><div class="revenue-bar-track flex-1 min-w-0"><div class="revenue-bar-fill bar-animate" style="width: 16%; background: var(--color-text-muted);"></div></div><span class="revenue-bar-value">¥167万</span><span class="revenue-bar-pct" style="color: var(--color-text-muted);">6%</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN -->
+            <div class="lg:col-span-2 flex flex-col gap-4">
+
+                <!-- 项目漏斗 -->
+                <div class="cockpit-card">
+                    <div class="card-title-bar">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="filter" class="w-4 h-4" style="color: var(--color-accent);"></i>
+                            <h2 class="text-sm font-semibold" style="color: var(--color-text-primary);">项目漏斗</h2>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-center gap-2.5 mt-5">
+                        <div class="funnel-level" style="width: 100%;"><div class="funnel-bar" style="width: 100%; background: linear-gradient(90deg, var(--color-info), rgba(77,166,255,0.6));"></div><div class="funnel-info"><span class="funnel-label">需求沟通</span><span class="funnel-count">45个</span></div></div>
+                        <div class="funnel-level" style="width: 71%;"><div class="funnel-bar" style="width: 100%; background: linear-gradient(90deg, rgba(77,166,255,0.8), rgba(0,229,160,0.6));"></div><div class="funnel-info"><span class="funnel-label">方案提交</span><span class="funnel-count">32个</span></div></div>
+                        <div class="funnel-level" style="width: 51%;"><div class="funnel-bar" style="width: 100%; background: linear-gradient(90deg, rgba(0,229,160,0.7), rgba(0,229,160,0.4));"></div><div class="funnel-info"><span class="funnel-label">商务谈判</span><span class="funnel-count">23个</span></div></div>
+                        <div class="funnel-level" style="width: 27%;"><div class="funnel-bar" style="width: 100%; background: linear-gradient(90deg, var(--color-accent), rgba(0,229,160,0.5));"></div><div class="funnel-info"><span class="funnel-label">合同签订</span><span class="funnel-count">12个</span></div></div>
+                    </div>
+                    <div class="flex justify-between mt-4 pt-3" style="border-top: 1px solid var(--color-border);">
+                        <div class="text-center"><div class="text-xs font-semibold" style="color: var(--color-accent);">71.1%</div><div class="text-xs" style="color: var(--color-text-muted);">需求转方案</div></div>
+                        <div class="text-center"><div class="text-xs font-semibold" style="color: var(--color-accent);">71.9%</div><div class="text-xs" style="color: var(--color-text-muted);">方案转谈判</div></div>
+                        <div class="text-center"><div class="text-xs font-semibold" style="color: var(--color-accent);">52.2%</div><div class="text-xs" style="color: var(--color-text-muted);">谈判转签约</div></div>
+                    </div>
+                </div>
+
+                <!-- 竞争对手态势 -->
+                <div class="cockpit-card" style="border-color: rgba(255,140,66,0.25); box-shadow: 0 0 20px rgba(255,140,66,0.06);">
+                    <div class="card-title-bar">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="radar" class="w-4 h-4" style="color: var(--color-warning);"></i>
+                            <h2 class="text-sm font-semibold" style="color: var(--color-text-primary);">竞争对手态势</h2>
+                        </div>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap" style="background: rgba(255,140,66,0.15); color: var(--color-warning);">长亭科技</span>
+                    </div>
+                    <div class="space-y-3 mt-4">
+                        <div class="flex items-center justify-between"><span class="text-xs" style="color: var(--color-text-secondary);">金融安服报价</span><span class="text-xs font-medium" style="color: var(--color-warning);">比我方低15~20%</span></div>
+                        <div style="border-top: 1px solid var(--color-border);"></div>
+                        <div><span class="text-xs block mb-2" style="color: var(--color-text-secondary);">产品矩阵</span><div class="flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs whitespace-nowrap" style="background: rgba(255,255,255,0.04); color: var(--color-text-primary);"><i data-lucide="check" class="w-3 h-3" style="color: var(--color-accent);"></i> 渗透测试</span><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs whitespace-nowrap" style="background: rgba(255,255,255,0.04); color: var(--color-text-primary);"><i data-lucide="check" class="w-3 h-3" style="color: var(--color-accent);"></i> 安全运营</span><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs whitespace-nowrap" style="background: rgba(255,255,255,0.04); color: var(--color-text-primary);"><i data-lucide="check" class="w-3 h-3" style="color: var(--color-accent);"></i> 合规检测</span></div></div>
+                        <div style="border-top: 1px solid var(--color-border);"></div>
+                        <div class="flex items-center justify-between"><span class="text-xs" style="color: var(--color-text-secondary);">中标案例</span><span class="text-xs font-medium" style="color: var(--color-text-primary);">5个金融行业案例</span></div>
+                        <div class="flex items-center justify-between"><span class="text-xs" style="color: var(--color-text-secondary);">客户评价</span><div class="flex items-center gap-1"><span class="text-xs font-medium" style="color: var(--color-text-primary);">3.8</span><span class="inline-flex gap-px"><i data-lucide="star" class="w-3 h-3" style="color: var(--brand-gold);"></i></span><span class="text-xs" style="color: var(--color-text-muted);">/5.0</span></div></div>
+                        <div class="flex items-center justify-between pt-1"><span class="text-xs" style="color: var(--color-text-secondary);">风险等级</span><span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium whitespace-nowrap" style="background: rgba(255,140,66,0.15); color: var(--color-warning);">中高风险</span></div>
+                    </div>
+                </div>
+
+                <!-- 安服能力自评矩阵 -->
+                <div class="cockpit-card">
+                    <div class="card-title-bar">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="grid-3x3" class="w-4 h-4" style="color: var(--color-info);"></i>
+                            <h2 class="text-sm font-semibold" style="color: var(--color-text-primary);">安服能力自评矩阵</h2>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="capability-matrix">
+                            <div class="matrix-cell matrix-header" style="color: var(--color-text-muted);"></div>
+                            <div class="matrix-cell matrix-header">人员能力</div>
+                            <div class="matrix-cell matrix-header">工具链</div>
+                            <div class="matrix-cell matrix-header">流程成熟度</div>
+                            <div class="matrix-cell matrix-header">知识沉淀</div>
+                            <div class="matrix-cell matrix-row-label">渗透测试</div>
+                            <div class="matrix-cell matrix-strong"><span class="matrix-dot matrix-strong"></span>强</div>
+                            <div class="matrix-cell matrix-strong"><span class="matrix-dot matrix-strong"></span>强</div>
+                            <div class="matrix-cell matrix-moderate"><span class="matrix-dot matrix-moderate"></span>中</div>
+                            <div class="matrix-cell matrix-moderate"><span class="matrix-dot matrix-moderate"></span>中</div>
+                            <div class="matrix-cell matrix-row-label">安全运营</div>
+                            <div class="matrix-cell matrix-moderate"><span class="matrix-dot matrix-moderate"></span>中</div>
+                            <div class="matrix-cell matrix-moderate"><span class="matrix-dot matrix-moderate"></span>中</div>
+                            <div class="matrix-cell matrix-strong"><span class="matrix-dot matrix-strong"></span>强</div>
+                            <div class="matrix-cell matrix-weak"><span class="matrix-dot matrix-weak"></span>弱</div>
+                            <div class="matrix-cell matrix-row-label">应急响应</div>
+                            <div class="matrix-cell matrix-strong"><span class="matrix-dot matrix-strong"></span>强</div>
+                            <div class="matrix-cell matrix-weak"><span class="matrix-dot matrix-weak"></span>弱</div>
+                            <div class="matrix-cell matrix-moderate"><span class="matrix-dot matrix-moderate"></span>中</div>
+                            <div class="matrix-cell matrix-weak"><span class="matrix-dot matrix-weak"></span>弱</div>
+                            <div class="matrix-cell matrix-row-label">合规咨询</div>
+                            <div class="matrix-cell matrix-moderate"><span class="matrix-dot matrix-moderate"></span>中</div>
+                            <div class="matrix-cell matrix-moderate"><span class="matrix-dot matrix-moderate"></span>中</div>
+                            <div class="matrix-cell matrix-strong"><span class="matrix-dot matrix-strong"></span>强</div>
+                            <div class="matrix-cell matrix-strong"><span class="matrix-dot matrix-strong"></span>强</div>
+                        </div>
+                        <div class="flex items-center gap-4 mt-3">
+                            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background: var(--color-accent);"></span><span class="text-xs" style="color: var(--color-text-muted);">强</span></div>
+                            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background: var(--color-warning);"></span><span class="text-xs" style="color: var(--color-text-muted);">中</span></div>
+                            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background: var(--color-danger);"></span><span class="text-xs" style="color: var(--color-text-muted);">弱</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 成本控制红线预警 -->
+                <div class="cockpit-card" style="border-color: rgba(255,71,87,0.25); box-shadow: 0 0 20px rgba(255,71,87,0.06);">
+                    <div class="card-title-bar">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="alert-triangle" class="w-4 h-4" style="color: var(--color-danger);"></i>
+                            <h2 class="text-sm font-semibold" style="color: var(--color-text-primary);">成本控制红线预警</h2>
+                            <span class="priority-marker priority-danger">重点关注</span>
+                        </div>
+                    </div>
+                    <div class="space-y-3 mt-4">
+                        <div class="flex items-start gap-3"><span class="w-2.5 h-2.5 rounded-full mt-1 shrink-0" style="background: var(--color-danger); box-shadow: 0 0 8px rgba(255,71,87,0.4);"></span><div class="min-w-0 flex-1"><span class="text-xs block truncate" style="color: var(--color-text-primary);">销售报价低于成本底线</span><span class="text-xs" style="color: var(--color-danger);">3起（本季度）</span></div></div>
+                        <div class="flex items-start gap-3"><span class="w-2.5 h-2.5 rounded-full mt-1 shrink-0" style="background: var(--color-warning); box-shadow: 0 0 8px rgba(255,140,66,0.4);"></span><div class="min-w-0 flex-1"><span class="text-xs block truncate" style="color: var(--color-text-primary);">人天成本超标项目</span><span class="text-xs" style="color: var(--color-warning);">5个</span></div></div>
+                        <div class="flex items-start gap-3"><span class="w-2.5 h-2.5 rounded-full mt-1 shrink-0" style="background: var(--color-accent); box-shadow: 0 0 8px rgba(0,229,160,0.4);"></span><div class="min-w-0 flex-1"><span class="text-xs block truncate" style="color: var(--color-text-primary);">成本审批流程合规率</span><span class="text-xs" style="color: var(--color-accent);">91%</span></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 典型案例与问题追踪 -->
+        <div class="cockpit-card mb-4">
+            <div class="card-title-bar">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="file-search" class="w-4 h-4" style="color: var(--color-info);"></i>
+                    <h2 class="text-sm font-semibold" style="color: var(--color-text-primary);">典型案例与问题追踪</h2>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap" style="background: rgba(255,255,255,0.04); color: var(--color-text-muted);">共8条</span>
+                </div>
+                <button class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap" style="background: rgba(255,255,255,0.04); color: var(--color-text-secondary); border: 1px solid var(--color-border);">
+                    <i data-lucide="list-filter" class="w-3 h-3"></i>
+                    <span>筛选</span>
+                </button>
+            </div>
+            <div class="overflow-x-auto mt-4">
+                <table class="w-full" style="min-width: 640px;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--color-border);">
+                            <th class="text-left text-xs font-medium px-3 py-2 whitespace-nowrap" style="color: var(--color-text-muted);">时间</th>
+                            <th class="text-left text-xs font-medium px-3 py-2 whitespace-nowrap" style="color: var(--color-text-muted);">类型</th>
+                            <th class="text-left text-xs font-medium px-3 py-2 whitespace-nowrap" style="color: var(--color-text-muted);">客户</th>
+                            <th class="text-left text-xs font-medium px-3 py-2 whitespace-nowrap" style="color: var(--color-text-muted);">描述</th>
+                            <th class="text-left text-xs font-medium px-3 py-2 whitespace-nowrap" style="color: var(--color-text-muted);">状态</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid var(--color-border);"><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-secondary);">2026-06</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-warning);">交付延迟</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-primary);">XX银行</td><td class="px-3 py-2.5 text-xs truncate" style="color: var(--color-text-secondary); max-width: 320px;">驻场人员不足导致SLA未达标</td><td class="px-3 py-2.5"><span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap" style="background: rgba(0,229,160,0.12); color: var(--color-accent);">已解决</span></td></tr>
+                        <tr style="border-bottom: 1px solid var(--color-border);"><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-secondary);">2026-05</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-danger);">成本超支</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-primary);">XX证券</td><td class="px-3 py-2.5 text-xs truncate" style="color: var(--color-text-secondary); max-width: 320px;">渗透测试工时超出预算40%</td><td class="px-3 py-2.5"><span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap" style="background: rgba(255,140,66,0.12); color: var(--color-warning);">处理中</span></td></tr>
+                        <tr style="border-bottom: 1px solid var(--color-border);"><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-secondary);">2026-05</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-warning);">客户投诉</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-primary);">XX保险</td><td class="px-3 py-2.5 text-xs truncate" style="color: var(--color-text-secondary); max-width: 320px;">报告交付质量不达标</td><td class="px-3 py-2.5"><span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap" style="background: rgba(0,229,160,0.12); color: var(--color-accent);">已解决</span></td></tr>
+                        <tr style="border-bottom: 1px solid var(--color-border);"><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-secondary);">2026-04</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-danger);">丢单</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-primary);">XX基金</td><td class="px-3 py-2.5 text-xs truncate" style="color: var(--color-text-secondary); max-width: 320px;">竞标价格高于长亭15%</td><td class="px-3 py-2.5"><span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap" style="background: rgba(77,166,255,0.12); color: var(--color-info);">已复盘</span></td></tr>
+                        <tr style="border-bottom: 1px solid var(--color-border);"><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-secondary);">2026-03</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-danger);">重大事故</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-primary);">XX信托</td><td class="px-3 py-2.5 text-xs truncate" style="color: var(--color-text-secondary); max-width: 320px;">安全运营误报导致业务中断</td><td class="px-3 py-2.5"><span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap" style="background: rgba(0,229,160,0.12); color: var(--color-accent);">已解决</span></td></tr>
+                        <tr style="border-bottom: 1px solid var(--color-border);"><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-secondary);">2026-03</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-warning);">人员流失</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-primary);">XX资管</td><td class="px-3 py-2.5 text-xs truncate" style="color: var(--color-text-secondary); max-width: 320px;">核心安服工程师离职导致项目交接</td><td class="px-3 py-2.5"><span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap" style="background: rgba(0,229,160,0.12); color: var(--color-accent);">已解决</span></td></tr>
+                        <tr style="border-bottom: 1px solid var(--color-border);"><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-secondary);">2026-02</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--brand-gold);">工具不足</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-primary);">XX租赁</td><td class="px-3 py-2.5 text-xs truncate" style="color: var(--color-text-secondary); max-width: 320px;">缺乏自动化扫描工具导致效率低</td><td class="px-3 py-2.5"><span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap" style="background: rgba(255,140,66,0.12); color: var(--color-warning);">处理中</span></td></tr>
+                        <tr><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-secondary);">2026-01</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-danger);">竞争失利</td><td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color: var(--color-text-primary);">XX消金</td><td class="px-3 py-2.5 text-xs truncate" style="color: var(--color-text-secondary); max-width: 320px;">长亭以低价策略赢得竞标</td><td class="px-3 py-2.5"><span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap" style="background: rgba(77,166,255,0.12); color: var(--color-info);">已复盘</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <footer class="pt-3 pb-2" style="border-top: 1px solid var(--color-border);">
+            <p class="text-xs text-center" style="color: var(--color-text-muted);">数据更新时间: 2026-07-23 | 数据来源: 内部ERP/CRM/项目管理平台</p>
+        </footer>
+    </main>
+
+    <style>
+        @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        main > * { animation: fadeInUp 0.4s ease-out both; }
+        main > *:nth-child(1) { animation-delay: 0s; }
+        main > *:nth-child(2) { animation-delay: 0.04s; }
+        main > *:nth-child(3) { animation-delay: 0.08s; }
+        main > *:nth-child(4) { animation-delay: 0.12s; }
+        main > *:nth-child(5) { animation-delay: 0.16s; }
+        main > *:nth-child(6) { animation-delay: 0.20s; }
+        main > *:nth-child(7) { animation-delay: 0.24s; }
+        main > *:nth-child(8) { animation-delay: 0.28s; }
+        @keyframes barGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+        .bar-animate { transform-origin: left center; animation: barGrow 0.8s ease-out both; }
+        @keyframes trendBarGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+        .trend-bar-fill { transform-origin: bottom center; animation: trendBarGrow 0.6s ease-out both; }
+        .cockpit-card { background: rgba(15, 33, 64, 0.8); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-lg); box-shadow: var(--shadow-card); transition: box-shadow 0.2s ease, border-color 0.2s ease; }
+        .cockpit-card:hover { box-shadow: var(--shadow-card-hover); border-color: var(--color-border-hover); }
+        .kpi-card { transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease; }
+        .kpi-card:hover { transform: scale(1.02); }
+        .cockpit-nav-tab { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius-sm); font-size: var(--text-sm); font-weight: 500; color: var(--color-text-secondary); background: rgba(255,255,255,0.02); border: 1px solid transparent; cursor: pointer; transition: all 0.15s ease; }
+        .cockpit-nav-tab:hover { color: var(--color-text-primary); background: rgba(255,255,255,0.04); }
+        .cockpit-nav-tab-active { color: var(--color-accent); background: var(--color-accent-dim); border-color: rgba(0,229,160,0.2); }
+        .cockpit-nav-tab-active:hover { color: var(--color-accent); background: var(--color-accent-dim); }
+        .card-title-bar { display: flex; align-items: center; justify-content: space-between; }
+        .kpi-label { font-size: var(--text-sm); color: var(--color-text-secondary); }
+        .kpi-value { font-size: var(--text-2xl); font-weight: 700; color: var(--color-text-primary); font-family: var(--font-display); letter-spacing: -0.02em; }
+        .kpi-trend-positive { font-size: var(--text-xs); color: var(--color-accent); font-weight: 600; }
+        .kpi-trend-negative { font-size: var(--text-xs); color: var(--color-danger); font-weight: 600; }
+        .priority-marker { display: inline-flex; align-items: center; justify-content: center; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; background: var(--color-accent-dim); color: var(--color-accent); white-space: nowrap; }
+        .priority-marker.priority-danger { background: rgba(255,71,87,0.12); color: var(--color-danger); }
+        .gauge-ring { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: conic-gradient(var(--gauge-color) calc(var(--gauge-pct) * 1%), rgba(255,255,255,0.06) calc(var(--gauge-pct) * 1%)); }
+        .gauge-inner { width: 60px; height: 60px; border-radius: 50%; background: rgba(15, 33, 64, 0.95); display: flex; align-items: center; justify-content: center; }
+        .gauge-value { font-size: var(--text-base); font-weight: 700; font-family: var(--font-display); color: var(--color-text-primary); }
+        .funnel-level { position: relative; height: 40px; border-radius: var(--radius-sm); overflow: hidden; }
+        .funnel-bar { position: absolute; inset: 0; border-radius: var(--radius-sm); }
+        .funnel-info { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; height: 100%; padding: 0 12px; }
+        .funnel-label { font-size: var(--text-xs); font-weight: 500; color: var(--color-text-primary); }
+        .funnel-count { font-size: var(--text-xs); font-weight: 600; color: var(--color-text-primary); }
+        .revenue-bar-row { display: flex; align-items: center; gap: 12px; }
+        .revenue-bar-label { font-size: var(--text-sm); color: var(--color-text-secondary); min-width: 56px; white-space: nowrap; }
+        .revenue-bar-track { height: 10px; background: rgba(255,255,255,0.04); border-radius: 5px; overflow: hidden; }
+        .revenue-bar-fill { height: 100%; border-radius: 5px; transition: width 0.6s ease; }
+        .revenue-bar-value { font-size: var(--text-xs); color: var(--color-text-primary); font-weight: 500; min-width: 56px; text-align: right; white-space: nowrap; }
+        .revenue-bar-pct { font-size: var(--text-xs); font-weight: 600; min-width: 28px; text-align: right; white-space: nowrap; }
+        .mini-metric { background: rgba(255,255,255,0.03); border-radius: var(--radius-sm); padding: 10px 12px; border: 1px solid rgba(255,255,255,0.04); }
+        .mini-metric-value { font-size: var(--text-lg); font-weight: 700; color: var(--color-text-primary); font-family: var(--font-display); }
+        .mini-metric-label { font-size: var(--text-xs); color: var(--color-text-secondary); margin-top: 2px; }
+        .demand-row { display: flex; align-items: center; gap: 10px; }
+        .demand-name { font-size: var(--text-sm); color: var(--color-text-primary); min-width: 80px; white-space: nowrap; }
+        .demand-track { height: 6px; background: rgba(255,255,255,0.04); border-radius: 3px; overflow: hidden; }
+        .demand-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--color-accent), rgba(0,229,160,0.6)); transition: width 0.6s ease; }
+        .demand-count { font-size: var(--text-xs); color: var(--color-text-muted); min-width: 52px; text-align: right; white-space: nowrap; }
+        .capability-matrix { display: grid; grid-template-columns: 72px repeat(4, 1fr); gap: 1px; background: var(--color-border); border-radius: var(--radius-sm); overflow: hidden; }
+        .matrix-cell { display: flex; align-items: center; justify-content: center; padding: 8px 4px; font-size: var(--text-xs); background: rgba(15, 33, 64, 0.9); white-space: nowrap; }
+        .matrix-header { color: var(--color-text-muted); font-weight: 500; }
+        .matrix-row-label { color: var(--color-text-secondary); font-weight: 500; justify-content: flex-start; padding-left: 10px; }
+        .matrix-strong { color: var(--color-accent); font-weight: 500; }
+        .matrix-moderate { color: var(--color-warning); font-weight: 500; }
+        .matrix-weak { color: var(--color-danger); font-weight: 500; }
+        .matrix-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+        .matrix-dot.matrix-strong { background: var(--color-accent); }
+        .matrix-dot.matrix-moderate { background: var(--color-warning); }
+        .matrix-dot.matrix-weak { background: var(--color-danger); }
+        tbody tr { transition: background-color 0.15s ease; }
+        tbody tr:hover { background: rgba(255,255,255,0.02); }
+        @media (max-width: 1023px) { .revenue-bar-label { min-width: 56px; font-size: var(--text-xs); } .revenue-bar-value { min-width: 48px; } .demand-name { min-width: 64px; font-size: var(--text-xs); } .capability-matrix { grid-template-columns: 60px repeat(4, 1fr); } .matrix-cell { padding: 6px 2px; font-size: 10px; } .matrix-row-label { padding-left: 6px; } .gauge-ring { width: 68px; height: 68px; } .gauge-inner { width: 50px; height: 50px; } .gauge-value { font-size: var(--text-sm); } }
+        @media (max-width: 639px) { .cockpit-card { padding: var(--space-md); } .kpi-value { font-size: var(--text-xl); } .revenue-bar-row { flex-wrap: wrap; } .gauge-ring { width: 64px; height: 64px; } .gauge-inner { width: 46px; height: 46px; } }
+    </style>
+
+    <script>lucide.createIcons();</script>
+</body>
+</html>

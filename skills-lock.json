@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "beautify-github-readme": {
+      "source": "oil-oil/beautify-github-readme",
+      "sourceType": "github",
+      "skillPath": "skills/beautify-github-readme/SKILL.md",
+      "computedHash": "64791a34897ce3106709a5b51b7abca5b5db839fe9102d5c34e5e9e53db9397c"
+    },
+    "vibehub": {
+      "source": "oil-oil/vibe-hub-skill",
+      "sourceType": "github",
+      "skillPath": "skills/vibehub/SKILL.md",
+      "computedHash": "0ee6e90a89f2f32dd746dd9026ccfca2d98afd3da4dde6ea0ce673a2c3b7263e"
+    }
+  }
+}

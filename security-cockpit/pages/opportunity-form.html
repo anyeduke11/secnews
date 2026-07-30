@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商机管理</title>
+    <style id="theme-vars">
+/* Brand CSS — Security Service Cockpit */
+:root {
+  /* === Core Palette === */
+  --brand-primary: #0A1628;
+  --brand-primary-light: #0F2140;
+  --brand-secondary: #0D1F3C;
+  --brand-accent: #00E5A0;
+  --brand-accent-dim: rgba(0, 229, 160, 0.15);
+  --brand-accent-glow: rgba(0, 229, 160, 0.35);
+  --brand-warning: #FF8C42;
+  --brand-danger: #FF4757;
+  --brand-info: #4DA6FF;
+  --brand-gold: #FFD93D;
+
+  /* === Semantic Aliases === */
+  /* Semantic aliases required by fill-html-head */
+  --brand-background: var(--brand-primary);
+  --brand-foreground: #F0F4F8;
+  --brand-card: #0F2140;
+  --brand-muted: #556677;
+  --brand-radius-sm: 6px;
+  --brand-radius-md: 10px;
+  --brand-radius-lg: 16px;
+  --brand-accent: var(--color-accent);
+  --brand-border: rgba(255, 255, 255, 0.08);
+
+  --color-bg-primary: var(--brand-primary);
+  --color-bg-secondary: var(--brand-secondary);
+  --color-bg-tertiary: #132B50;
+  --color-bg-card: #0F2140;
+  --color-bg-card-hover: #162D56;
+  --color-bg-input: rgba(255, 255, 255, 0.04);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(255, 255, 255, 0.16);
+
+  --color-text-primary: #F0F4F8;
+  --color-text-secondary: #8899AA;
+  --color-text-muted: #556677;
+  --color-text-inverse: #0A1628;
+
+  --color-accent: #00E5A0;
+  --color-accent-dim: rgba(0, 229, 160, 0.15);
+  --color-warning: var(--brand-warning);
+  --color-danger: var(--brand-danger);
+  --color-info: var(--brand-info);
+  --color-success: #00E5A0;
+
+  /* === Typography === */
+  --font-display: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-body: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.5rem;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+
+  /* === Spacing === */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  /* === Layout === */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* === Shadows === */
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-glow-accent: 0 0 20px rgba(0, 229, 160, 0.12);
+  --shadow-glow-info: 0 0 20px rgba(77, 166, 255, 0.12);
+
+  /* === Grid === */
+  --grid-columns: 12;
+  --gutter: var(--space-lg);
+  --max-width: 1440px;
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--brand-background);
+    --color-foreground: var(--brand-foreground);
+    --color-card: var(--brand-card);
+    --color-primary: var(--brand-primary);
+    --color-secondary: var(--brand-secondary);
+    --color-muted: var(--brand-muted);
+    --color-accent: var(--brand-accent);
+    --color-border: var(--brand-border);
+    --radius-sm: var(--brand-radius-sm);
+    --radius-md: var(--brand-radius-md);
+    --radius-lg: var(--brand-radius-lg);
+  }
+  @layer base {
+    body { background: var(--brand-background); color: var(--brand-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--brand-background); }
+      .text-background { color: var(--brand-background); }
+      .border-background { border-color: var(--brand-background); }
+      .ring-background { --tw-ring-color: var(--brand-background); }
+      .bg-foreground { background-color: var(--brand-foreground); }
+      .text-foreground { color: var(--brand-foreground); }
+      .border-foreground { border-color: var(--brand-foreground); }
+      .ring-foreground { --tw-ring-color: var(--brand-foreground); }
+      .bg-card { background-color: var(--brand-card); }
+      .text-card { color: var(--brand-card); }
+      .border-card { border-color: var(--brand-card); }
+      .ring-card { --tw-ring-color: var(--brand-card); }
+      .bg-primary { background-color: var(--brand-primary); }
+      .text-primary { color: var(--brand-primary); }
+      .border-primary { border-color: var(--brand-primary); }
+      .ring-primary { --tw-ring-color: var(--brand-primary); }
+      .bg-secondary { background-color: var(--brand-secondary); }
+      .text-secondary { color: var(--brand-secondary); }
+      .border-secondary { border-color: var(--brand-secondary); }
+      .ring-secondary { --tw-ring-color: var(--brand-secondary); }
+      .bg-muted { background-color: var(--brand-muted); }
+      .text-muted { color: var(--brand-muted); }
+      .border-muted { border-color: var(--brand-muted); }
+      .ring-muted { --tw-ring-color: var(--brand-muted); }
+      .bg-accent { background-color: var(--brand-accent); }
+      .text-accent { color: var(--brand-accent); }
+      .border-accent { border-color: var(--brand-accent); }
+      .ring-accent { --tw-ring-color: var(--brand-accent); }
+      .bg-border { background-color: var(--brand-border); }
+      .text-border { color: var(--brand-border); }
+      .border-border { border-color: var(--brand-border); }
+      .ring-border { --tw-ring-color: var(--brand-border); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main class="max-w-[1440px] mx-auto px-4 py-4 lg:px-6 lg:py-5">
+
+        <!-- ===== HEADER WITH NAV TABS ===== -->
+        <header class="flex items-center justify-between pb-4 mb-5" style="border-bottom: 2px solid var(--color-accent);">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-9 h-9 rounded-lg" style="background: var(--color-accent-dim);">
+                    <i data-lucide="briefcase" class="w-5 h-5" style="color: var(--color-accent);"></i>
+                </div>
+                <h1 class="text-xl font-semibold tracking-tight" style="color: var(--color-text-primary);">商机管理</h1>
+            </div>
+            <nav class="flex items-center gap-1" style="background: rgba(255,255,255,0.04); border-radius: var(--radius-sm); padding: 3px;">
+                <a href="#" class="px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors" data-dom-id="nav-tab-cockpit" style="color: var(--color-text-secondary);">业绩总览</a>
+                <a href="#" class="px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors" data-dom-id="nav-tab-customer" style="color: var(--color-text-secondary);">客户管理</a>
+                <a href="#" class="px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap" data-dom-id="nav-tab-opportunity" style="background: var(--color-accent-dim); color: var(--color-accent);">商机管理</a>
+            </nav>
+        </header>
+
+        <!-- ===== KPI SUMMARY ROW ===== -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+            <div class="cockpit-card">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="layers" class="w-4 h-4" style="color: var(--color-info);"></i>
+                    <span class="kpi-label">在途商机</span>
+                </div>
+                <div class="kpi-value">23个</div>
+                <div class="mt-1">
+                    <span class="text-xs whitespace-nowrap" style="color: var(--color-text-muted);">全阶段进行中</span>
+                </div>
+            </div>
+            <div class="cockpit-card">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="banknote" class="w-4 h-4" style="color: var(--color-accent);"></i>
+                    <span class="kpi-label">预估金额</span>
+                </div>
+                <div class="kpi-value">¥3,120万</div>
+                <div class="flex items-center gap-1 mt-1">
+                    <i data-lucide="arrow-up-right" class="w-3.5 h-3.5" style="color: var(--color-accent);"></i>
+                    <span class="kpi-trend-positive">8.5% MoM</span>
+                </div>
+            </div>
+            <div class="cockpit-card">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4" style="color: var(--color-success);"></i>
+                    <span class="kpi-label">本月新增</span>
+                </div>
+                <div class="kpi-value">5个</div>
+                <div class="mt-1">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap" style="background: rgba(0,229,160,0.12); color: var(--color-success);">+2个 AI相关</span>
+                </div>
+            </div>
+            <div class="cockpit-card">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="trophy" class="w-4 h-4" style="color: var(--brand-gold);"></i>
+                    <span class="kpi-label">赢单率</span>
+                </div>
+                <div class="kpi-value">45.8%</div>
+                <div class="flex items-center gap-1 mt-1">
+                    <i data-lucide="arrow-up-right" class="w-3.5 h-3.5" style="color: var(--color-accent);"></i>
+                    <span class="kpi-trend-positive">3.2pp</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== KANBAN PIPELINE ===== -->
+        <section class="mb-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" style="min-height: 520px;">
+
+                <!-- Column 1: 需求沟通 -->
+                <div class="pipeline-col flex flex-col">
+                    <div class="pipeline-col-header" style="border-top-color: var(--color-info);">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full inline-block" style="background: var(--color-info);"></span>
+                            <span class="text-sm font-semibold whitespace-nowrap" style="color: var(--color-text-primary);">需求沟通</span>
+                        </div>
+                        <span class="pipeline-count" style="background: rgba(77,166,255,0.15); color: var(--color-info);">9</span>
+                    </div>
+                    <div class="pipeline-cards">
+                        <div class="opp-card">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2 min-w-0 flex-1">
+                                    <span class="priority-dot" style="background: var(--color-danger);"></span>
+                                    <span class="opp-client truncate">建设银行</span>
+                                </div>
+                                <span class="opp-date whitespace-nowrap">07-15</span>
+                            </div>
+                            <div class="mb-2"><span class="service-tag" style="background: rgba(255,217,61,0.12); color: var(--brand-gold);">AI渗透测试</span></div>
+                            <div class="flex items-center justify-between">
+                                <span class="opp-amount">¥85万</span>
+                                <div class="flex items-center gap-1.5"><span class="opp-avatar" style="background: rgba(77,166,255,0.2); color: var(--color-info);">张</span><span class="text-xs truncate" style="color: var(--color-text-muted);">张伟</span></div>
+                            </div>
+                        </div>
+                        <div class="opp-card">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2 min-w-0 flex-1">
+                                    <span class="priority-dot" style="background: var(--color-danger);"></span>
+                                    <span class="opp-client truncate">兴业银行</span>
+                                </div>
+                                <span class="opp-date whitespace-nowrap">07-10</span>
+                            </div>
+                            <div class="mb-2"><span class="service-tag" style="background: rgba(0,229,160,0.12); color: var(--color-accent);">安全运营</span></div>
+                            <div class="flex items-center justify-between">
+                                <span class="opp-amount">¥120万</span>
+                                <div class="flex items-center gap-1.5"><span class="opp-avatar" style="background: rgba(77,166,255,0.2); color: var(--color-info);">李</span><span class="text-xs truncate" style="color: var(--color-text-muted);">李明</span></div>
+                            </div>
+                        </div>
+                        <div class="opp-card">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2 min-w-0 flex-1">
+                                    <span class="priority-dot" style="background: var(--color-warning);"></span>
+                                    <span class="opp-client truncate">光大证券</span>
+                                </div>
+                                <span class="opp-date whitespace-nowrap">07-08</span>
+                            </div>
+                            <div class="mb-2"><span class="service-tag" style="background: rgba(136,153,170,0.12); color: var(--color-text-secondary);">合规咨询</span></div>
+                            <div class="flex items-center justify-between">
+                                <span class="opp-amount">¥45万</span>
+                                <div class="flex items-center gap-1.5"><span class="opp-avatar" style="background: rgba(0,229,160,0.2); color: var(--color-accent);">王</span><span class="text-xs truncate" style="color: var(--color-text-muted);">王芳</span></div>
+                            </div>
+                        </div>
+                        <div class="opp-card">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2 min-w-0 flex-1">
+                                    <span class="priority-dot" style="background: var(--color-warning);"></span>
+                                    <span class="opp-client truncate">平安银行</span>
+                                </div>
+                                <span class="opp-date whitespace-nowrap">07-05</span>
+                            </div>
+                            <div class="mb-2"><span class="service-tag" style="background: rgba(77,166,255,0.12); color: var(--color-info);">渗透测试</span></div>
+                            <div class="flex items-center justify-between">
+                                <span class="opp-amount">¥95万</span>
+                                <div class="flex items-center gap-1.5"><span class="opp-avatar" style="background: rgba(255,140,66,0.2); color: var(--color-warning);">刘</span><span class="text-xs truncate" style="color: var(--color-text-muted);">刘洋</span></div>
+                            </div>
+                        </div>
+                        <div class="opp-card">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2 min-w-0 flex-1">
+                                    <span class="priority-dot" style="background: var(--color-success);"></span>
+                                    <span class="opp-client truncate">中信银行</span>
+                                </div>
+                                <span class="opp-date whitespace-nowrap">07-02</span>
+                            </div>
+                            <div class="mb-2"><span class="service-tag" style="background: rgba(0,229,160,0.12); color: var(--color-accent);">安全运营</span></div>
+                            <div class="flex items-center justify-between">
+                                <span class="opp-amount">¥68万</span>
+                                <div class="flex items-center gap-1.5"><span class="opp-avatar" style="background: rgba(77,166,255,0.2); color: var(--color-info);">赵</span><span class="text-xs truncate" style="color: var(--color-text-muted);">赵磊</span></div>
+                            </div>
+                        </div>
+                        <div class="opp-card">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2 min-w-0 flex-1">
+                                    <span class="priority-dot" style="background: var(--color-warning);"></span>
+                                    <span class="opp-client truncate">浦发银行</span>
+                                </div>
+                                <span class="opp-date whitespace-nowrap">06-28</span>
+                            </div>
+                            <div class="mb-2"><span class="service-tag" style="background: rgba(255,217,61,0.12); color: var(--brand-gold);">大模型安全评估</span></div>
+                            <div class="flex items-center justify-between">
+                                <span class="opp-amount">¥76万</span>
+                                <div class="flex items-center gap-1.5"><span class="opp-avatar" style="background: rgba(0,229,160,0.2); color: var(--color-accent);">王</span><span class="text-xs truncate" style="color: var(--color-text-muted);">王芳</span></div>
+                            </div>
+                        </div>
+                        <div class="opp-card">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2 min-w-0 flex-1">
+                                    <span class="priority-dot" style="background: var(--color-danger);"></span>
+                                    <span class="opp-client truncate">华夏银行</span>
+                                </div>
+                                <span class="opp-date whitespace-nowrap">06-25</span>
+                            </div>
+                            <div class="mb-2"><span class="service-tag" style="background: rgba(255,217,61,0.12); color: var(--brand-gold);">AI渗透测试</span></div>
+                            <div class="flex items-center justify-between">
+                                <span class="opp-amount">¥92万</span>
+                                <div class="flex items-center gap-1.5"><span class="opp-avatar" style="background: rgba(77,166,255,0.2); color: var(--color-info);">张</span><span class="text-xs truncate" style="color: var(--color-text-muted);">张伟</span></div>
+                            </div>
+                        </div>
+                        <div class="opp-card">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2 min-w-0 flex-1">
+                                    <span class="priority-dot" style="background: var(--color-success);"></span>
+                                    <span class="opp-client truncate">北京银行</span>
+                                </div>
+                                <span class="opp-date whitespace-nowrap">06-22</span>
+                            </div>
+                            <div class="mb-2"><span class="service-tag" style="background: rgba(255,140,66,0.12); color: var(--color-warning);">应急响应</span></div>
+                            <div class="flex items-center justify-between">
+                                <span class="opp-amount">¥35万</span>
+                                <div class="flex items-center gap-1.5"><span class="opp-avatar" style="background: rgba(255,140,66,0.2); color: var(--color-warning);">刘</span><span class="text-xs truncate" style="color: var(--color-text-muted);">刘洋</span></div>
+                            </div>
+                        </div>
+                        <div class="opp-card"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-warning)"></span><span class="opp-client truncate">广发证券</span></div><span class="opp-date whitespace-nowrap">06-18</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(77,166,255,0.12);color:var(--color-info)">渗透测试</span></div><div class="flex items-center justify-between"><span class="opp-amount">¥55万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(77,166,255,0.2);color:var(--color-info)">赵</span><span class="text-xs truncate" style="color:var(--color-text-muted)">赵磊</span></div></div></div>
+                    </div>
+                </div>
+
+                <!-- COLUMN 2: 方案提交 -->
+                <div class="pipeline-col flex flex-col">
+                    <div class="pipeline-col-header" style="border-top-color: var(--color-info);">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full inline-block" style="background: var(--color-info);"></span>
+                            <span class="text-sm font-semibold whitespace-nowrap" style="color: var(--color-text-primary);">方案提交</span>
+                        </div>
+                        <span class="pipeline-count" style="background: rgba(77,166,255,0.15); color: var(--color-info);">6</span>
+                    </div>
+                    <div class="pipeline-cards">
+                        <div class="opp-card"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-danger)"></span><span class="opp-client truncate">招商银行</span></div><span class="opp-date whitespace-nowrap">06-28</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(255,217,61,0.12);color:var(--brand-gold)">AI安全运营</span></div><div class="flex items-center justify-between"><span class="opp-amount">¥180万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(77,166,255,0.2);color:var(--color-info)">张</span><span class="text-xs truncate" style="color:var(--color-text-muted)">张伟</span></div></div></div>
+                        <div class="opp-card"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-warning)"></span><span class="opp-client truncate">交通银行</span></div><span class="opp-date whitespace-nowrap">06-25</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(255,140,66,0.12);color:var(--color-warning)">应急响应</span></div><div class="flex items-center justify-between"><span class="opp-amount">¥65万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(255,140,66,0.2);color:var(--color-warning)">赵</span><span class="text-xs truncate" style="color:var(--color-text-muted)">赵磊</span></div></div></div>
+                        <div class="opp-card"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-danger)"></span><span class="opp-client truncate">泰康保险</span></div><span class="opp-date whitespace-nowrap">06-20</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(255,217,61,0.12);color:var(--brand-gold)">渗透测试+安全运营</span></div><div class="flex items-center justify-between"><span class="opp-amount">¥220万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(0,229,160,0.2);color:var(--color-accent)">陈</span><span class="text-xs truncate" style="color:var(--color-text-muted)">陈静</span></div></div></div>
+                        <div class="opp-card"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-warning)"></span><span class="opp-client truncate">东方证券</span></div><span class="opp-date whitespace-nowrap">06-18</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(255,217,61,0.12);color:var(--brand-gold)">大模型安全评估</span></div><div class="flex items-center justify-between"><span class="opp-amount">¥88万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(77,166,255,0.2);color:var(--color-info)">李</span><span class="text-xs truncate" style="color:var(--color-text-muted)">李明</span></div></div></div>
+                        <div class="opp-card"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-success)"></span><span class="opp-client truncate">上海银行</span></div><span class="opp-date whitespace-nowrap">06-15</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(77,166,255,0.12);color:var(--color-info)">渗透测试</span></div><div class="flex items-center justify-between"><span class="opp-amount">¥72万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(0,229,160,0.2);color:var(--color-accent)">王</span><span class="text-xs truncate" style="color:var(--color-text-muted)">王芳</span></div></div></div>
+                        <div class="opp-card"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-warning)"></span><span class="opp-client truncate">银河证券</span></div><span class="opp-date whitespace-nowrap">06-12</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(136,153,170,0.12);color:var(--color-text-secondary)">合规咨询</span></div><div class="flex items-center justify-between"><span class="opp-amount">¥40万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(77,166,255,0.2);color:var(--color-info)">张</span><span class="text-xs truncate" style="color:var(--color-text-muted)">张伟</span></div></div></div>
+                    </div>
+                </div>
+
+                <!-- COLUMN 3: 商务谈判 -->
+                <div class="pipeline-col flex flex-col">
+                    <div class="pipeline-col-header" style="border-top-color: var(--color-warning);">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full inline-block" style="background: var(--color-warning);"></span>
+                            <span class="text-sm font-semibold whitespace-nowrap" style="color: var(--color-text-primary);">商务谈判</span>
+                        </div>
+                        <span class="pipeline-count" style="background: rgba(255,140,66,0.15); color: var(--color-warning);">5</span>
+                    </div>
+                    <div class="pipeline-cards">
+                        <div class="opp-card"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-danger)"></span><span class="opp-client truncate">农业银行</span></div><span class="opp-date whitespace-nowrap">06-15</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(0,229,160,0.12);color:var(--color-accent)">安全运营驻场</span></div><div class="flex items-center justify-between"><span class="opp-amount">¥350万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(77,166,255,0.2);color:var(--color-info)">张</span><span class="text-xs truncate" style="color:var(--color-text-muted)">张伟</span></div></div></div>
+                        <div class="opp-card"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-danger)"></span><span class="opp-client truncate">中国银行</span></div><span class="opp-date whitespace-nowrap">06-10</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(255,217,61,0.12);color:var(--brand-gold)">AI渗透测试</span></div><div class="flex items-center justify-between"><span class="opp-amount">¥150万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(255,140,66,0.2);color:var(--color-warning)">刘</span><span class="text-xs truncate" style="color:var(--color-text-muted)">刘洋</span></div></div></div>
+                        <div class="opp-card"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-warning)"></span><span class="opp-client truncate">人保财险</span></div><span class="opp-date whitespace-nowrap">06-05</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(77,166,255,0.12);color:var(--color-info)">全面安全评估</span></div><div class="flex items-center justify-between"><span class="opp-amount">¥280万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(0,229,160,0.2);color:var(--color-accent)">王</span><span class="text-xs truncate" style="color:var(--color-text-muted)">王芳</span></div></div></div>
+                        <div class="opp-card"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-warning)"></span><span class="opp-client truncate">邮储银行</span></div><span class="opp-date whitespace-nowrap">06-01</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(0,229,160,0.12);color:var(--color-accent)">安全运营</span></div><div class="flex items-center justify-between"><span class="opp-amount">¥165万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(77,166,255,0.2);color:var(--color-info)">李</span><span class="text-xs truncate" style="color:var(--color-text-muted)">李明</span></div></div></div>
+                        <div class="opp-card"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-success)"></span><span class="opp-client truncate">宁波银行</span></div><span class="opp-date whitespace-nowrap">05-28</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(255,217,61,0.12);color:var(--brand-gold)">大模型安全评估</span></div><div class="flex items-center justify-between"><span class="opp-amount">¥58万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(255,140,66,0.2);color:var(--color-warning)">赵</span><span class="text-xs truncate" style="color:var(--color-text-muted)">赵磊</span></div></div></div>
+                    </div>
+                </div>
+
+                <!-- COLUMN 4: 合同签订 -->
+                <div class="pipeline-col flex flex-col">
+                    <div class="pipeline-col-header" style="border-top-color: var(--color-accent);">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full inline-block" style="background: var(--color-accent);"></span>
+                            <span class="text-sm font-semibold whitespace-nowrap" style="color: var(--color-text-primary);">合同签订</span>
+                        </div>
+                        <span class="pipeline-count" style="background: var(--color-accent-dim); color: var(--color-accent);">3</span>
+                    </div>
+                    <div class="pipeline-cards">
+                        <div class="opp-card" style="border-color:rgba(0,229,160,0.15)"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-danger)"></span><span class="opp-client truncate">工商银行</span></div><span class="opp-date whitespace-nowrap">06-01</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(0,229,160,0.12);color:var(--color-accent)">安全运营续签</span></div><div class="flex items-center justify-between"><span class="opp-amount" style="color:var(--color-accent)">¥380万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(77,166,255,0.2);color:var(--color-info)">张</span><span class="text-xs truncate" style="color:var(--color-text-muted)">张伟</span></div></div></div>
+                        <div class="opp-card" style="border-color:rgba(0,229,160,0.15)"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-warning)"></span><span class="opp-client truncate">民生银行</span></div><span class="opp-date whitespace-nowrap">05-28</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(77,166,255,0.12);color:var(--color-info)">渗透测试</span></div><div class="flex items-center justify-between"><span class="opp-amount" style="color:var(--color-accent)">¥92万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(77,166,255,0.2);color:var(--color-info)">李</span><span class="text-xs truncate" style="color:var(--color-text-muted)">李明</span></div></div></div>
+                        <div class="opp-card" style="border-color:rgba(0,229,160,0.15)"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2 min-w-0 flex-1"><span class="priority-dot" style="background:var(--color-success)"></span><span class="opp-client truncate">新华保险</span></div><span class="opp-date whitespace-nowrap">05-20</span></div><div class="mb-2"><span class="service-tag" style="background:rgba(136,153,170,0.12);color:var(--color-text-secondary)">合规检测</span></div><div class="flex items-center justify-between"><span class="opp-amount" style="color:var(--color-accent)">¥145万</span><div class="flex items-center gap-1.5"><span class="opp-avatar" style="background:rgba(255,140,66,0.2);color:var(--color-warning)">赵</span><span class="text-xs truncate" style="color:var(--color-text-muted)">赵磊</span></div></div></div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ===== FUNNEL STATS BAR ===== -->
+        <div class="cockpit-card mb-5">
+            <div class="flex flex-wrap items-center gap-2 justify-between">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="funnel-stage" style="background:rgba(77,166,255,0.12);color:var(--color-info)">需求沟通 <b>9</b></span>
+                    <i data-lucide="chevron-right" class="w-4 h-4" style="color:var(--color-text-muted)"></i>
+                    <span class="funnel-stage" style="background:rgba(77,166,255,0.12);color:var(--color-info)">方案提交 <b>6</b></span>
+                    <i data-lucide="chevron-right" class="w-4 h-4" style="color:var(--color-text-muted)"></i>
+                    <span class="funnel-stage" style="background:rgba(255,140,66,0.12);color:var(--color-warning)">商务谈判 <b>5</b></span>
+                    <i data-lucide="chevron-right" class="w-4 h-4" style="color:var(--color-text-muted)"></i>
+                    <span class="funnel-stage" style="background:var(--color-accent-dim);color:var(--color-accent)">合同签订 <b>3</b></span>
+                </div>
+                <div class="flex items-center gap-2 mt-2 sm:mt-0">
+                    <span class="text-xs whitespace-nowrap" style="color:var(--color-text-muted)">转化漏斗</span>
+                    <div class="flex-1 min-w-[120px] h-1.5 rounded-full overflow-hidden" style="background:rgba(255,255,255,0.04)">
+                        <div class="h-full rounded-full" style="width:45.8%;background:linear-gradient(90deg,var(--color-info),var(--color-accent))"></div>
+                    </div>
+                    <span class="text-sm font-bold whitespace-nowrap" style="color:var(--color-accent)">45.8% 赢单率</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== NEW OPPORTUNITY FORM (COLLAPSIBLE) ===== -->
+        <div class="cockpit-card mb-5">
+            <div class="form-toggle cursor-pointer flex items-center justify-between" style="border-top:3px solid var(--color-accent);margin:-16px -16px 16px;padding:12px 16px;border-radius:0;">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4" style="color:var(--color-accent)"></i>
+                    <span class="text-sm font-semibold" style="color:var(--color-text-primary)">新增商机</span>
+                </div>
+                <i data-lucide="chevron-down" class="w-4 h-4 form-chevron" style="color:var(--color-text-muted);transition:transform 0.2s"></i>
+            </div>
+            <div class="form-body" style="display:none;">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div><label class="form-label">客户名称</label><input type="text" class="form-input" placeholder="输入客户名称"></div>
+                    <div><label class="form-label">商机名称</label><input type="text" class="form-input" placeholder="输入商机名称"></div>
+                    <div><label class="form-label">服务类型</label><input type="text" class="form-input" placeholder="选择或输入服务类型"></div>
+                    <div><label class="form-label">预估金额</label><div class="relative"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color:var(--color-text-muted)">¥</span><input type="number" class="form-input" style="padding-left:28px" placeholder="0.00"></div></div>
+                    <div><label class="form-label">商机阶段</label><select class="form-input"><option>需求沟通</option><option>方案提交</option><option>商务谈判</option><option>合同签订</option></select></div>
+                    <div><label class="form-label">负责人</label><select class="form-input"><option>张伟</option><option>李明</option><option>王芳</option><option>刘洋</option><option>赵磊</option><option>陈静</option></select></div>
+                    <div><label class="form-label">预计签单日</label><input type="date" class="form-input"></div>
+                    <div><label class="form-label">竞争对手 <span style="color:var(--color-text-muted)">(选填)</span></label><input type="text" class="form-input" placeholder="输入竞争对手名称"></div>
+                </div>
+                <div class="mb-4"><label class="form-label">商机描述</label><textarea class="form-input" rows="3" placeholder="描述商机背景、需求要点..." style="resize:vertical"></textarea></div>
+                <div class="flex items-center gap-3 justify-end">
+                    <button class="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap" style="background:rgba(255,255,255,0.04);color:var(--color-text-secondary);border:1px solid var(--color-border)">取消</button>
+                    <button class="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap" style="background:var(--color-accent);color:var(--color-text-inverse)">创建商机</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <style>
+        /* Fade-in animation */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        main > * {
+            animation: fadeInUp 0.4s ease both;
+        }
+        main > *:nth-child(2) { animation-delay: 0.05s; }
+        main > *:nth-child(3) { animation-delay: 0.1s; }
+        main > *:nth-child(4) { animation-delay: 0.15s; }
+        main > *:nth-child(5) { animation-delay: 0.2s; }
+
+        /* Card base (reuse cockpit-card pattern) */
+        .cockpit-card {
+            background: rgba(15, 33, 64, 0.8);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--space-lg);
+            box-shadow: var(--shadow-card);
+            transition: box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .cockpit-card:hover {
+            box-shadow: var(--shadow-card-hover);
+            border-color: var(--color-border-hover);
+        }
+
+        /* KPI */
+        .kpi-label { font-size: var(--text-sm); color: var(--color-text-secondary); }
+        .kpi-value { font-size: var(--text-2xl); font-weight: 700; color: var(--color-text-primary); font-family: var(--font-display); letter-spacing: -0.02em; }
+        .kpi-trend-positive { font-size: var(--text-xs); color: var(--color-accent); font-weight: 600; }
+
+        /* Pipeline column */
+        .pipeline-col {
+            background: rgba(15, 33, 64, 0.5);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+        .pipeline-col-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            border-top: 3px solid var(--color-info);
+            background: rgba(255,255,255,0.02);
+        }
+        .pipeline-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            font-size: var(--text-xs);
+            font-weight: 700;
+        }
+        .pipeline-cards {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* Opportunity card */
+        .opp-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            padding: 12px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .opp-card:hover {
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(255,255,255,0.12);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .opp-client {
+            font-size: var(--text-sm);
+            font-weight: 600;
+            color: var(--color-text-primary);
+        }
+        .opp-amount {
+            font-size: var(--text-base);
+            font-weight: 700;
+            color: var(--color-text-primary);
+            font-family: var(--font-display);
+        }
+        .opp-date {
+            font-size: 10px;
+            color: var(--color-text-muted);
+        }
+        .opp-avatar {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            font-size: 10px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        .priority-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .service-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        /* Funnel */
+        .funnel-stage {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: var(--text-xs);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .funnel-stage b { font-weight: 700; }
+
+        /* Form */
+        .form-label {
+            display: block;
+            font-size: var(--text-xs);
+            font-weight: 500;
+            color: var(--color-text-secondary);
+            margin-bottom: 6px;
+            white-space: nowrap;
+        }
+        .form-input {
+            display: block;
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            color: var(--color-text-primary);
+            font-size: var(--text-sm);
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: var(--font-body);
+        }
+        .form-input:focus {
+            border-color: var(--color-accent);
+            box-shadow: 0 0 0 2px var(--color-accent-dim);
+        }
+        .form-input::placeholder { color: var(--color-text-muted); }
+        select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23556677' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+        textarea.form-input { min-height: 72px; }
+
+        /* Responsive */
+        @media (max-width: 639px) {
+            .cockpit-card { padding: var(--space-md); }
+            .kpi-value { font-size: var(--text-xl); }
+        }
+    </style>
+
+    <script>
+        document.querySelector('.form-toggle').addEventListener('click', function() {
+            const body = this.nextElementSibling;
+            const chevron = this.querySelector('.form-chevron');
+            if (body.style.display === 'none') {
+                body.style.display = 'block';
+                chevron.style.transform = 'rotate(180deg)';
+            } else {
+                body.style.display = 'none';
+                chevron.style.transform = 'rotate(0deg)';
+            }
+        });
+    </script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

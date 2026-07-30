@@ -2,7 +2,9 @@
 
 > 基于 `hotspot_v2.0_PRD.md`（4087 行）制定
 > 版本: 2026-07-28 · 总周期: ~46 天 · 4 个里程碑 · 9 个 Phase · 24 条需求
-> 状态: Phase 8 已完成，当前 Phase: 9
+> 状态: Phase 8 已完成，Phase 9 (v1.9 资讯抓取标准化) 已完成，Phase 10 (v2.0 T1/T2 触发器) 已完成，当前 Phase: 11 (v2.0 抓取层现代化)
+> 
+> > **Phase 编号说明**: 本计划中的 Phase 9 原为 v2.0 "T1/T2 触发器实施"。但实际开发中，v1.9 资讯抓取流程标准化（catchup_checkpoints + collect_validations + 结构化日志）先于 v2.0 Phase 8 完成，其 spec 位于 `.trae/specs/phase9-crawl-standardize/`。为保持版本号与 Phase 名称一致，本计划将 v1.9 标准化工作记为"Phase 9 (v1.9)"，并将 v2.0 T1/T2 触发器实施重编号为 Phase 10。后续 Phase 10–16 依次顺延为 Phase 11–17。
 
 ---
 
@@ -12,14 +14,15 @@
 2. [里程碑总览（M1-M4）](#2-里程碑总览m1-m4)
 3. [Phase 详细任务分解](#3-phase-详细任务分解)
    - [Phase 8：复利基础设施 + 资讯收藏聚合](#phase-8复利基础设施--资讯收藏聚合6-天)
-   - [Phase 9：T1/T2 触发器实施](#phase-9t1t2-触发器实施4-天)
-   - [Phase 10：抓取层现代化](#phase-10抓取层现代化5-天)
-   - [Phase 11：T3/T4/T5 触发器 + 告警系统](#phase-11t3t4t5-触发器--告警系统6-天)
-   - [Phase 12：复利可视化 + 4/6 模式 + 规划引导](#phase-12复利可视化--46-模式--规划引导4-天)
-   - [Phase 13：子系统联动](#phase-13子系统联动3-天)
-   - [Phase 14：清理 + 文档 + 迁移](#phase-14清理--文档--迁移5-天)
-   - [Phase 15：Hybrid AI](#phase-15hybrid-aicrawl4ai--本地-llm--外部-agent-并存6-天)
-   - [Phase 16：Chunks + Attention Heatmap + 6 模式完整](#phase-16chunks--attention-heatmap--6-模式完整7-天)
+   - [Phase 9 (v1.9)：资讯抓取流程标准化](#phase-9-v19资讯抓取流程标准化-已完成)
+   - [Phase 10：T1/T2 触发器实施（已完成）](#phase-10t1t2-触发器实施4-天)
+   - [Phase 11：抓取层现代化](#phase-11抓取层现代化5-天)
+   - [Phase 12：T3/T4/T5 触发器 + 告警系统](#phase-12t3t4t5-触发器--告警系统6-天)
+   - [Phase 13：复利可视化 + 4/6 模式 + 规划引导](#phase-13复利可视化--46-模式--规划引导4-天)
+   - [Phase 14：子系统联动](#phase-14子系统联动3-天)
+   - [Phase 15：清理 + 文档 + 迁移](#phase-15清理--文档--迁移5-天)
+   - [Phase 16：Hybrid AI](#phase-16hybrid-aicrawl4ai--本地-llm--外部-agent-并存6-天)
+   - [Phase 17：Chunks + Attention Heatmap + 6 模式完整](#phase-17chunks--attention-heatmap--6-模式完整7-天)
 4. [依赖关系与关键路径](#4-依赖关系与关键路径)
 5. [验收标准速查](#5-验收标准速查)
 6. [迁移策略](#6-迁移策略)
@@ -150,41 +153,76 @@
 
 ---
 
-### Phase 9：T1/T2 触发器实施（~4 天）
+### Phase 9 (v1.9)：资讯抓取流程标准化 ✅ 已完成 (2026-07-25)
+
+**目标**: 固化资讯抓取流程，实现断点续传、数据完整性验证、结构化事件日志，确保服务重启后从断点继续。
+
+> **说明**: 本 Phase 为 v1.9 版本，先于 v2.0 开发完成。spec 位于 `.trae/specs/phase9-crawl-standardize/`。
+
+| 任务 | 产出 | 前置依赖 | 估算 |
+|------|------|---------|------|
+| **9.1 数据迁移** | `migration 042_v1.9_catchup_checkpoints.sql`：catchup_checkpoints + collect_validations 2 表 + 6 索引 | 无 | 0.5d |
+| **9.2 Checkpoint Repository** | `backend/repository/catchup_checkpoint_repo.py`：7 个 CRUD 方法 + 13 单测 | 9.1 | 0.5d |
+| **9.3 Collection Logger** | `backend/services/collection_logger.py`：6 种事件类型 + 统一 schema + 8 单测 | 无 | 0.5d |
+| **9.4 Collection Validator** | `backend/services/collect_validator.py`：4 类验证（source_regression / time_coverage_gap / category_anomaly / cross_source）+ 11 单测 | 9.1 | 1d |
+| **9.5 Catchup Service 集成** | `backend/services/catchup_service.py`：per-source checkpoint + 续传 + 结构化日志 + 验证 + 8 集成测试 | 9.2, 9.3, 9.4 | 1d |
+| **9.6 API 扩展** | `backend/api/catchup.py`：`GET /api/catchup/runs/{id}/checkpoints` + `GET /api/catchup/runs/{id}/validations` + validation 摘要 | 9.5 | 0.5d |
+| **9.7 启动钩子** | `backend/main.py` lifespan：启动后 auto catchup（本周一→现在）+ 5min 防抖 | 9.5 | 0.5d |
+| **9.8 调度器 Job** | 3 个 job：catchup_watchdog（60s）+ source_revival_check（每日 03:00）+ collect_validations_cleanup（每日 04:00）| 9.5 | 0.5d |
+| **9.9 测试** | 7 个测试文件 60+ 用例全通过（checkpoint_repo 13 + logger 8 + validator 11 + phase9 集成 8 + api 7 + service + watchdog）| 全部 | 0.5d |
+
+**Phase 9 门禁**:
+- per-source checkpoint 24h 续传窗口正确
+- 4 类验证全部实现（source_regression / time_coverage_gap / category_anomaly / cross_source）
+- 结构化日志 6 种事件类型全输出
+- 启动钩子 5min 防抖不重复触发
+- 3 个 scheduler job 全部注册并运行
+
+---
+
+### Phase 10：T1/T2 触发器实施（~4 天）✅ 已完成 (2026-07-28)
 
 **目标**: 实现 5 阶段状态机引擎 + T1/T2 自动化触发器，知识库日增量开始 >0。
 
 | 任务 | 产出 | 前置依赖 | 估算 |
 |------|------|---------|------|
-| **9.1 状态机引擎** | `backend/services/kl_state_machine.py`：KLStateMachine 类 + 不变量检查 | 无 | 0.5d |
-| **9.2 T1 实施** | `backend/services/triggers/t1_raw_to_refine.py`：60s 调度 + simhash 去重 + 评分 + tag 提取 | 9.1, Phase 8 | 1d |
-| **9.3 T2 实施** | `backend/services/triggers/t2_refine_to_link.py`：120s 调度 + entity 查找 + MCP link_items 触发 | 9.1, Phase 8 | 1d |
-| **9.4 调度器注册** | `backend/scheduler/jobs.py` 注册 kl_trigger_t1 / kl_trigger_t2 | 9.2, 9.3 | 0.5d |
-| **9.5 重试 + 死信** | `backend/services/retry_policy.py`：指数退避 + 死信队列 | 9.2, 9.3 | 0.5d |
-| **9.6 Prometheus 指标** | `backend/metrics/kl_metrics.py`：6 个指标 + 仪表盘 JSON | 9.2, 9.3 | 0.5d |
-| **9.7 测试** | test_t1_trigger / test_t2_trigger / test_state_machine | 全部 | 0.5d |
+| **10.1 状态机引擎** | `backend/services/kl_state_machine.py`：KLStateMachine 类 + 不变量检查 | 无 | 0.5d |
+| **10.2 T1 实施** | `backend/services/triggers/t1_raw_to_refine.py`：60s 调度 + simhash 去重 + 评分 + tag 提取 | 10.1, Phase 8 | 1d |
+| **10.3 T2 实施** | `backend/services/triggers/t2_refine_to_link.py`：120s 调度 + entity 查找 + MCP link_items 触发 | 10.1, Phase 8 | 1d |
+| **10.4 调度器注册** | `backend/scheduler/jobs.py` 注册 kl_trigger_t1 / kl_trigger_t2 | 10.2, 10.3 | 0.5d |
+| **10.5 重试 + 死信** | `backend/services/retry_policy.py`：指数退避 + 死信队列 | 10.2, 10.3 | 0.5d |
+| **10.6 Prometheus 指标** | `backend/metrics/kl_metrics.py`：6 个指标 + 仪表盘 JSON | 10.2, 10.3 | 0.5d |
+| **10.7 测试** | test_t1_trigger / test_t2_trigger / test_state_machine | 全部 | 0.5d |
 
 **T1 验证**: 100 条样本中 95%+ 成功从 raw 推进到 refine
 **T2 验证**: 80% 找到至少 1 个关联 concept
 
+**Phase 10 门禁**:
+- 5 阶段状态机转换合法性 (50/50 单测)
+- T1 触发器 (12/12) + T2 触发器 (10/10) 全通过
+- 重试 + 死信 (11/11) + 指标 (15/15) + 集成 (6/6) 全通过
+- 调度器 job 31/32/33 注册并运行
+- `/api/kl/metrics` 返回 6 counters + by_stage_count gauge + 2 histograms
+- 详细变更日志见 [docs/phase10_changelog.md](phase10_changelog.md)
+
 ---
 
-### Phase 10：抓取层现代化（~5 天）
+### Phase 11：抓取层现代化（~5 天）
 
 **目标**: BackendSession 统一注入、可读 ID 规范化、trafilatura 可选集成、6 个新 collector。
 
 | 任务 | 产出 | 估算 |
 |------|------|------|
-| **10.1 BackendSession** | `backend/collectors/session.py`：httpx + proxy + retry + rate-limit | 1d |
-| **10.2 可读 ID 规范化** | `backend/collectors/id_factory.py`：`{source}:{subtype}:{native_id}` 工厂 | 1d |
-| **10.3 trafilatura 集成** | `backend/parsers/trafilatura_parser.py`：作为 optional extractor | 0.5d |
-| **10.4 6 个新 collector** | hn / reddit / openbb / telegram / gdelt / ossinsight 各 5 用例 | 2d |
-| **10.5 JSON pipeline_config** | `config/pipeline.json`：4 源示例 + 阈值 + 输出 | 0.5d |
-| **10.6 测试** | 6 collector × 5 用例 + BackendSession 注入测试 | 0.5d |
+| **11.1 BackendSession** | `backend/collectors/session.py`：httpx + proxy + retry + rate-limit | 1d |
+| **11.2 可读 ID 规范化** | `backend/collectors/id_factory.py`：`{source}:{subtype}:{native_id}` 工厂 | 1d |
+| **11.3 trafilatura 集成** | `backend/parsers/trafilatura_parser.py`：作为 optional extractor | 0.5d |
+| **11.4 6 个新 collector** | hn / reddit / openbb / telegram / gdelt / ossinsight 各 5 用例 | 2d |
+| **11.5 JSON pipeline_config** | `config/pipeline.json`：4 源示例 + 阈值 + 输出 | 0.5d |
+| **11.6 测试** | 6 collector × 5 用例 + BackendSession 注入测试 | 0.5d |
 
 ---
 
-### Phase 11：T3/T4/T5 触发器 + 告警系统（~6 天）
+### Phase 12：T3/T4/T5 触发器 + 告警系统（~6 天）
 
 **目标**: 完成 5 阶段状态机全部触发器，交付 3 类基础告警规则。
 
@@ -309,7 +347,7 @@
 
 ```
 P0-2 四张表 → P0-1 去重/P0-5 评分 → P0-3 T1 → P0-4 T2
-→ P0-6 日增量(Phase 9–11) → P1-1 T3/T4/T5 → P1-9 联动
+→ P0-6 日增量(Phase 10–12) → P1-1 T3/T4/T5 → P1-9 联动
 → P1-7 Hybrid AI → P2 体验项
 ```
 
@@ -318,7 +356,7 @@ P0-2 四张表 → P0-1 去重/P0-5 评分 → P0-3 T1 → P0-4 T2
 | 前置 | 后续 | 原因 |
 |------|------|------|
 | P0-2 4 张新表 | P0-5 评分 MCP、P0-1 去重、实体链接 | 表结构是底座 |
-| Phase 8 全部 | Phase 9 T1/T2 | T1 依赖 simhash + 评分 |
+| Phase 8 全部 | Phase 10 T1/T2 | T1 依赖 simhash + 评分 |
 | T1/T2 (P0-3/4) | T3/T4/T5 (P1-1) | 状态机链式推进 |
 | T1/T2 (P0-3/4) | P0-6 日增量 | 没有触发器日增量 = 0 |
 | Phase 11 | Phase 12 可视化 | 仪表盘需要触发器数据 |
@@ -371,7 +409,7 @@ P0-2 四张表 → P0-1 去重/P0-5 评分 → P0-3 T1 → P0-4 T2
 | 迁移 | 阶段 | 内容 |
 |------|------|------|
 | 043 | Phase 8 | 新增 4 表：content_fingerprints / ai_scores / item_entities / knowledge_links |
-| 044 | Phase 9 | KL 重命名：signal→kl:raw, amplify:tagged→kl:refine, generate→kl:structure |
+| 044 | Phase 10 | KL 重命名：signal→kl:raw, amplify:tagged→kl:refine, generate→kl:structure |
 | 045 | Phase 14 | DROP kv_cache 表 |
 | 046 | Phase 8 | lifecycle 5 阶段迁移（旧 3 阶段→新 5 阶段）|
 
@@ -426,12 +464,12 @@ P0-2 四张表 → P0-1 去重/P0-5 评分 → P0-3 T1 → P0-4 T2
 | 1 | 单人 46 天密集交付压力 | 高 | 高 | M1 硬承诺，M2-M4 渐进缓冲；P2 可延期至 v2.1 | 全部 |
 | 2 | simhash 误判（不同新闻被合并）| 中 | 中 | 阈值 5 起步，先 false positive 监控 | Phase 8 |
 | 3 | AI 评分波动（同一新闻两次评分差大）| 高 | 中 | 存多版本评分；v2.0 不自动应用，v2.1 引入置信度 | Phase 8 |
-| 4 | 自动入库导致知识库噪声 | 中 | 中 | 阈值 ≥ 7 才入；v2.0 不自动应用 knowledge_links | Phase 9 |
+| 4 | 自动入库导致知识库噪声 | 中 | 中 | 阈值 ≥ 7 才入；v2.0 不自动应用 knowledge_links | Phase 10 |
 | 5 | 6 个新 collector 反爬失败 | 中 | 低 | 先实现 3 个（hn/rss/openbb），其余 3 个 v2.1 | Phase 10 |
 | 6 | 可读 ID 迁移复杂 | 中 | 中 | 保留 hash ID 作为 alias；v2.0 双写，v2.1 切读路径 | Phase 10 |
 | 7 | 外部 AI Agent 不支持 score_item | 中 | 高 | 保留 manual add_favorite 路径；评分先存后用 | Phase 8 |
 | 8 | 本地 LLM 硬件门槛 | 中 | 高 | 提供云端降级/可选路径，不将本地 LLM 设为闭环硬依赖 | Phase 15 |
-| 9 | 知识库日增量 < 10 items | 中 | 高 | 监控告警；分析原因（评分太严？源失效？）；调阈值或源 | Phase 9→11 |
+| 9 | 知识库日增量 < 10 items | 中 | 高 | 监控告警；分析原因（评分太严？源失效？）；调阈值或源 | Phase 10→12 |
 | 10 | 5 触发器互相等待死锁 | 低 | 高 | T2/T4 加 hard timeout + 自动 fallback；kl_dead_letter_retry 兜底 | Phase 11 |
 | 11 | 删 /api/agent 路由破坏旧 agent | 低 | 中 | v2.0 保留 deprecated 1 个 minor 版本，v2.1 完全删 | Phase 14 |
 | 12 | attention_score 数据稀疏 | 高 | 中 | v2.0 启动时 backfill 从 SQLite history 推断初始 score | Phase 16 |
@@ -446,10 +484,10 @@ P0-2 四张表 → P0-1 去重/P0-5 评分 → P0-3 T1 → P0-4 T2
 |------|------|-----------|------|
 | P0-1 | simhash 跨源去重 | Phase 8 | 去重是数据质量地基 |
 | P0-2 | 新增 4 张数据表 | Phase 8 | 所有扩展功能的数据底座 |
-| P0-3 | T1 触发器 raw→refine | Phase 9 | 状态机链起点 |
-| P0-4 | T2 触发器 refine→link | Phase 9 | 状态机链第二环 |
+| P0-3 | T1 触发器 raw→refine | Phase 10 | 状态机链起点 |
+| P0-4 | T2 触发器 refine→link | Phase 10 | 状态机链第二环 |
 | P0-5 | AI 评分 MCP tool | Phase 8 | T1 的前置条件 |
-| P0-6 | 知识库自动入库（日增量） | Phase 9–11 | 复利北极星指标 |
+| P0-6 | 知识库自动入库（日增量） | Phase 10–12 | 复利北极星指标 |
 | P0-7 | 可读 ID 规范化 | Phase 10 | 数据资产长期可维护性 |
 | P0-8 | 遗留清理 | Phase 14 | 发布门禁 |
 
@@ -488,11 +526,11 @@ backend/services/simhash.py                    # Phase 8: 64-bit simhash
 backend/api/mcp_phase8.py                      # Phase 8: 4 new MCP tools
 backend/services/imported_aggregator.py         # Phase 8: 资讯收藏聚合
 backend/api/knowledge_imported.py               # Phase 8: 聚合 API
-backend/services/kl_state_machine.py            # Phase 9: 状态机引擎
-backend/services/triggers/t1_raw_to_refine.py   # Phase 9: T1 触发器
-backend/services/triggers/t2_refine_to_link.py  # Phase 9: T2 触发器
-backend/services/retry_policy.py                # Phase 9: 重试策略
-backend/metrics/kl_metrics.py                   # Phase 9: Prometheus 指标
+backend/services/kl_state_machine.py            # Phase 10: 状态机引擎
+backend/services/triggers/t1_raw_to_refine.py   # Phase 10: T1 触发器
+backend/services/triggers/t2_refine_to_link.py  # Phase 10: T2 触发器
+backend/services/retry_policy.py                # Phase 10: 重试策略
+backend/metrics/kl_metrics.py                   # Phase 10: Prometheus 指标
 backend/collectors/session.py                   # Phase 10: BackendSession
 backend/collectors/id_factory.py                # Phase 10: 可读 ID
 backend/parsers/trafilatura_parser.py           # Phase 10: trafilatura
@@ -513,7 +551,7 @@ backend/parsers/crawl4ai_parser.py              # Phase 15: Crawl4ai
 backend/services/attention_scorer.py            # Phase 16: attention 计算
 config/llm.yaml                                 # Phase 15: LLM 配置
 config/pipeline.json                            # Phase 10: Pipeline 配置
-config/kl_thresholds.json                       # Phase 9: 阈值配置
+config/kl_thresholds.json                       # Phase 10: 阈值配置
 ```
 
 ### 新增前端文件
@@ -537,7 +575,7 @@ frontend/src/hooks/useImported.ts                               # Phase 8
 
 ```
 backend/repository/migrations/043_v2.0_fingerprints_scores.sql  # Phase 8
-backend/repository/migrations/044_v2.0_kl_rename.sql            # Phase 9
+backend/repository/migrations/044_v2.0_kl_rename.sql            # Phase 10
 backend/repository/migrations/045_v2.0_drop_kv_cache.sql        # Phase 14
 backend/repository/migrations/046_v2.0_chunks.sql               # Phase 16
 ```

@@ -41,19 +41,19 @@ export function SourceItem({ source: s, onToggle, onProbe, onDelete }: SourceIte
           {s.name || s.url}
         </span>
         <span
-          className="px-1 py-0.5 rounded text-[9px]"
+          className="px-1 py-0.5 rounded text-[10px]"
           style={{ backgroundColor: 'var(--color-ai)', color: 'var(--text-on-color)' }}
         >
           {s.category}
         </span>
       </div>
-      <div className="text-[9px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+      <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
         {s.last_check_status || '未探测'} · {Math.round(s.last_check_latency_ms || 0)}ms
       </div>
       <div className="flex gap-1 mt-1">
         <button
           onClick={() => onToggle(s.id, !s.enabled)}
-          className="px-1.5 py-0.5 text-[9px] rounded"
+          className="px-1.5 py-0.5 text-[10px] rounded"
           style={{
             backgroundColor: s.enabled ? 'var(--color-ai)' : 'var(--bg-primary)',
             color: s.enabled ? 'var(--text-on-color)' : 'var(--text-muted)',
@@ -63,7 +63,7 @@ export function SourceItem({ source: s, onToggle, onProbe, onDelete }: SourceIte
         </button>
         <button
           onClick={() => onProbe(s.id)}
-          className="px-1.5 py-0.5 text-[9px] rounded"
+          className="px-1.5 py-0.5 text-[10px] rounded"
           style={{
             backgroundColor: 'var(--bg-primary)',
             color: 'var(--text-secondary)',
@@ -73,7 +73,7 @@ export function SourceItem({ source: s, onToggle, onProbe, onDelete }: SourceIte
         </button>
         <button
           onClick={() => onDelete(s.id)}
-          className="px-1.5 py-0.5 text-[9px] rounded"
+          className="px-1.5 py-0.5 text-[10px] rounded"
           style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--color-error)' }}
         >
           删除

@@ -122,17 +122,17 @@ const backBtnStyle: React.CSSProperties = {
   gap: 'var(--space-1, 4px)',
   padding: '4px 10px',
   fontSize: 12,
-  border: '1px solid var(--border-color, #1c1c2e)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-sm, 4px)',
   background: 'transparent',
-  color: 'var(--text-secondary, #9a9ab2)',
+  color: 'var(--text-secondary)',
   cursor: 'pointer',
 };
 
 const titleStyle: React.CSSProperties = {
   fontSize: 18,
   fontWeight: 600,
-  color: 'var(--text-primary, #f0f0f7)',
+  color: 'var(--text-primary)',
   flex: 1,
 };
 
@@ -149,31 +149,31 @@ const actionBtnStyle: React.CSSProperties = {
 const emptyStyle: React.CSSProperties = {
   padding: 'var(--space-6, 32px)',
   textAlign: 'center',
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   fontSize: 14,
 };
 
 const subHintStyle: React.CSSProperties = {
   fontSize: 11,
   marginTop: 'var(--space-1, 4px)',
-  color: 'var(--text-disabled, #414155)',
+  color: 'var(--text-disabled)',
 };
 
 const errorBannerStyle: React.CSSProperties = {
   padding: 'var(--space-2, 8px) var(--space-3, 12px)',
   marginBottom: 'var(--space-3, 12px)',
-  border: '1px solid var(--color-error, #ef4444)',
+  border: '1px solid var(--color-error)',
   borderRadius: 'var(--radius-sm, 4px)',
   background: 'color-mix(in srgb, var(--color-error) 8%, transparent)',
-  color: 'var(--color-error, #ef4444)',
+  color: 'var(--color-error)',
   fontSize: 12,
 };
 
 const digestCardStyle: React.CSSProperties = {
   padding: 'var(--space-4, 16px)',
-  border: '1px solid var(--border-color, #1c1c2e)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-md, 8px)',
-  background: 'var(--bg-card, #0d0d14)',
+  background: 'var(--bg-card)',
 };
 
 const cardHeaderStyle: React.CSSProperties = {
@@ -195,13 +195,13 @@ const periodBadgeStyle: React.CSSProperties = {
 
 const dateStyle: React.CSSProperties = {
   fontSize: 12,
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   fontFamily: 'monospace',
 };
 
 const summaryStyle: React.CSSProperties = {
   fontSize: 15,
-  color: 'var(--text-primary, #f0f0f7)',
+  color: 'var(--text-primary)',
   lineHeight: 1.7,
   marginBottom: 'var(--space-3, 12px)',
 };
@@ -219,7 +219,7 @@ const idsStyle: React.CSSProperties = {
 
 const idsLabelStyle: React.CSSProperties = {
   fontSize: 11,
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   textTransform: 'uppercase',
   letterSpacing: 0.5,
 };
@@ -229,13 +229,13 @@ const idChipStyle: React.CSSProperties = {
   padding: '1px 6px',
   borderRadius: 3,
   background: 'var(--bg-hover)',
-  color: 'var(--text-secondary, #9a9ab2)',
+  color: 'var(--text-secondary)',
   fontFamily: 'monospace',
 };
 
 const countStyle: React.CSSProperties = {
   fontSize: 13,
-  color: 'var(--text-secondary, #9a9ab2)',
+  color: 'var(--text-secondary)',
   marginBottom: 'var(--space-3, 12px)',
   fontWeight: 600,
 };
@@ -248,10 +248,10 @@ const actionsStyle: React.CSSProperties = {
 const markReadBtnStyle: React.CSSProperties = {
   padding: '4px 12px',
   fontSize: 12,
-  border: '1px solid var(--border-color, #1c1c2e)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-sm, 4px)',
   background: 'transparent',
-  color: 'var(--text-secondary, #9a9ab2)',
+  color: 'var(--text-secondary)',
   cursor: 'pointer',
 };
 

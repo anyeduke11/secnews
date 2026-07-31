@@ -231,7 +231,7 @@ export function ProjectDetail({ project, onClose, onTransition, onSync }: Projec
 function Field({ label, value, color }: { label: string; value: ReactNode; color?: string }) {
   return (
     <div>
-      <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{label}</div>
+      <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{label}</div>
       <div className="text-[11px] font-mono" style={{ color: color || 'var(--text-primary)' }}>{value}</div>
     </div>
   );

@@ -122,7 +122,7 @@ export function TopBar({
           </Icon>
           {favoritesCount > 0 && (
             <span
-              className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full text-[9px] font-bold flex items-center justify-center font-mono"
+              className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center font-mono"
               style={{ backgroundColor: 'var(--color-finance)', color: 'var(--text-on-light)' }}
             >
               {favoritesCount > 99 ? '99+' : favoritesCount}

@@ -165,7 +165,7 @@ export function PortPool({ items, onAllocate, onRelease }: PortPoolProps) {
                 border: '1px solid var(--border-color)',
               }}
             >
-              <div className="flex items-center justify-between text-[9px] mb-1">
+              <div className="flex items-center justify-between text-[10px] mb-1">
                 <span className="font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
                   {block.start}-{block.end}
                 </span>
@@ -193,7 +193,7 @@ export function PortPool({ items, onAllocate, onRelease }: PortPoolProps) {
               </div>
               {allocated > 0 && (
                 <div
-                  className="text-[8px] mt-1 text-center font-mono tabular-nums"
+                  className="text-[10px] mt-1 text-center font-mono tabular-nums"
                   style={{ color: 'var(--text-muted)' }}
                 >
                   已分配 {allocated}

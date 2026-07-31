@@ -160,19 +160,19 @@ function EventRow({ event, statusColor }: { event: CgEvent; statusColor: string 
       </div>
       {Object.keys(event.payload || {}).length > 0 && (
         <pre
-          className="font-mono text-[9px] mt-1 p-1 rounded overflow-auto max-h-20"
+          className="font-mono text-[10px] mt-1 p-1 rounded overflow-auto max-h-20"
           style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}
         >
           {JSON.stringify(event.payload, null, 2)}
         </pre>
       )}
-      <div className="flex items-center justify-between mt-1 text-[9px]" style={{ color: 'var(--text-muted)' }}>
+      <div className="flex items-center justify-between mt-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
         <span className="font-mono tabular-nums">{event.created_at?.slice(0, 19)}</span>
         {event.processed_at && <span className="font-mono tabular-nums">处理于 {event.processed_at.slice(0, 19)}</span>}
       </div>
       {event.error_message && (
         <div
-          className="text-[9px] mt-1 p-1 rounded"
+          className="text-[10px] mt-1 p-1 rounded"
           style={{
             backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
             color: 'var(--color-error)',

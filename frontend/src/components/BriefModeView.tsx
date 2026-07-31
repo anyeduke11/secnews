@@ -139,10 +139,10 @@ const titleStyle: React.CSSProperties = {
 const actionBtnStyle: React.CSSProperties = {
   padding: '4px 12px',
   fontSize: 12,
-  border: '1px solid var(--color-ai, #00d4e0)',
+  border: '1px solid var(--accent)',
   borderRadius: 'var(--radius-sm, 4px)',
-  background: 'rgba(0, 212, 224, 0.08)',
-  color: 'var(--color-ai, #00d4e0)',
+  background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
+  color: 'var(--accent)',
   cursor: 'pointer',
 };
 
@@ -164,7 +164,7 @@ const errorBannerStyle: React.CSSProperties = {
   marginBottom: 'var(--space-3, 12px)',
   border: '1px solid var(--color-error, #ef4444)',
   borderRadius: 'var(--radius-sm, 4px)',
-  background: 'rgba(239, 68, 68, 0.08)',
+  background: 'color-mix(in srgb, var(--color-error) 8%, transparent)',
   color: 'var(--color-error, #ef4444)',
   fontSize: 12,
 };
@@ -187,8 +187,8 @@ const periodBadgeStyle: React.CSSProperties = {
   fontSize: 11,
   padding: '2px 8px',
   borderRadius: 4,
-  background: 'rgba(0, 212, 224, 0.15)',
-  color: 'var(--color-ai, #00d4e0)',
+  background: 'color-mix(in srgb, var(--accent) 9%, transparent)',
+  color: 'var(--accent)',
   fontFamily: 'monospace',
   textTransform: 'uppercase',
 };
@@ -213,7 +213,7 @@ const idsStyle: React.CSSProperties = {
   gap: 'var(--space-1, 4px) var(--space-2, 8px)',
   marginBottom: 'var(--space-3, 12px)',
   padding: 'var(--space-2, 8px)',
-  background: 'rgba(255, 255, 255, 0.02)',
+  background: 'var(--bg-hover)',
   borderRadius: 'var(--radius-sm, 4px)',
 };
 
@@ -228,7 +228,7 @@ const idChipStyle: React.CSSProperties = {
   fontSize: 11,
   padding: '1px 6px',
   borderRadius: 3,
-  background: 'rgba(255, 255, 255, 0.05)',
+  background: 'var(--bg-hover)',
   color: 'var(--text-secondary, #9a9ab2)',
   fontFamily: 'monospace',
 };

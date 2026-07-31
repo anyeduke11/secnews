@@ -126,8 +126,8 @@ const countBadgeStyle: React.CSSProperties = {
   fontSize: 11,
   padding: '2px 6px',
   borderRadius: 10,
-  background: 'rgba(0, 212, 224, 0.15)',
-  color: 'var(--color-ai, #00d4e0)',
+  background: 'color-mix(in srgb, var(--accent) 9%, transparent)',
+  color: 'var(--accent)',
   fontFamily: 'monospace',
 };
 
@@ -150,7 +150,7 @@ const errorStyle: React.CSSProperties = {
   color: 'var(--color-error, #ef4444)',
   border: '1px solid var(--color-error, #ef4444)',
   borderRadius: 'var(--radius-sm, 4px)',
-  background: 'rgba(239, 68, 68, 0.05)',
+  background: 'color-mix(in srgb, var(--color-error) 5%, transparent)',
 };
 
 const listStyle: React.CSSProperties = {
@@ -165,7 +165,7 @@ const listStyle: React.CSSProperties = {
 const itemStyle: React.CSSProperties = {
   padding: 'var(--space-2, 8px) var(--space-3, 12px)',
   borderRadius: 'var(--radius-sm, 4px)',
-  background: 'rgba(255, 255, 255, 0.02)',
+  background: 'var(--bg-hover)',
   cursor: 'pointer',
   transition: 'background 0.15s',
 };
@@ -201,8 +201,8 @@ const tagStyle: React.CSSProperties = {
   fontSize: 10,
   padding: '1px 5px',
   borderRadius: 3,
-  background: 'rgba(0, 212, 224, 0.1)',
-  color: 'var(--color-ai, #00d4e0)',
+  background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
+  color: 'var(--accent)',
   fontFamily: 'monospace',
 };
 

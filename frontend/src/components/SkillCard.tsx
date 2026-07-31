@@ -83,7 +83,7 @@ export function SkillCard({ item, onEdit, onDelete }: SkillCardProps) {
           </h3>
           <span
             className="text-[10px] font-mono px-1.5 py-0.5 rounded-[var(--radius-sm)] shrink-0"
-            style={{ backgroundColor: `${sourceColor}22`, color: sourceColor, border: `1px solid ${sourceColor}55` }}
+            style={{ backgroundColor: `color-mix(in srgb, ${sourceColor} 13%, transparent)`, color: sourceColor, border: `1px solid color-mix(in srgb, ${sourceColor} 33%, transparent)` }}
           >
             {item.source}
           </span>

@@ -243,10 +243,10 @@ const textareaStyle: React.CSSProperties = {
 const addBtnStyle: React.CSSProperties = {
   padding: '6px 14px',
   fontSize: 12,
-  border: '1px solid var(--color-ai, #00d4e0)',
+  border: '1px solid var(--accent)',
   borderRadius: 'var(--radius-sm, 4px)',
-  background: 'rgba(0, 212, 224, 0.12)',
-  color: 'var(--color-ai, #00d4e0)',
+  background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
+  color: 'var(--accent)',
   cursor: 'pointer',
 };
 

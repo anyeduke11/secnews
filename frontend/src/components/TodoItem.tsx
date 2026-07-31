@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   TodoItem as TodoItemModel,
-  getCategoryColor,
+  getCategoryColorVar,
   getCategoryLabel,
 } from '../types';
 import { Icon } from './Icon';
@@ -100,7 +100,7 @@ export function TodoItem({
   const isArchived = item.status === 'archived';
   const quadrant = getQuadrant(item.urgent, item.important);
   const qInfo = QUADRANT_INFO[quadrant];
-  const catColor = item.category ? getCategoryColor(item.category) : 'var(--text-muted)';
+  const catColor = item.category ? getCategoryColorVar(item.category) : 'var(--text-muted)';
   const deadlineInfo = formatDeadline(item.deadline, item.urgent);
 
   const handleToggleClick = () => {
@@ -188,7 +188,7 @@ export function TodoItem({
             <span
               className="badge"
               style={{
-                backgroundColor: `${catColor}14`,
+                backgroundColor: `color-mix(in srgb, ${catColor} 8%, transparent)`,
                 color: catColor,
               }}
             >

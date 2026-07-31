@@ -113,23 +113,29 @@ export function Header({
       ? 'var(--color-warning)'
       : 'var(--color-success)';
 
+  // v1.9.1 修订: 恢复描边按钮形态, 配色沿用 editorial token (反色激活)
   const navLinks = (extraClass = '') => (
-    NAV_LINKS.map((link, idx) => (
-      <React.Fragment key={link.route}>
-        {idx > 0 && <span aria-hidden="true" style={{ color: 'var(--border-color)' }}>·</span>}
+    NAV_LINKS.map((link) => {
+      const active = isActive(location.pathname, link.route);
+      return (
         <button
+          key={link.route}
           onClick={() => navigateTo(link.route)}
           className={`focus-ring whitespace-nowrap transition-colors ${extraClass}`}
           style={{
-            color: isActive(location.pathname, link.route) ? 'var(--accent)' : 'var(--text-secondary)',
-            fontWeight: isActive(location.pathname, link.route) ? 700 : 400,
-            background: 'none', border: 'none', padding: '2px 1px', cursor: 'pointer',
+            color: active ? 'var(--bg-primary)' : 'var(--text-secondary)',
+            background: active ? 'var(--text-primary)' : 'transparent',
+            border: '1px solid',
+            borderColor: active ? 'var(--text-primary)' : 'var(--border-color)',
+            borderRadius: 'var(--radius-sm)',
+            fontWeight: active ? 700 : 400,
+            padding: '3px 9px', cursor: 'pointer',
             fontSize: 'inherit', letterSpacing: '0.02em', lineHeight: 1.4,
           }}
         >
           {link.label}
           {link.route === '/todos' && todosOpenCount > 0 && (
-            <span className="font-mono tabular-nums font-bold ml-0.5" style={{ color: 'var(--accent)', fontSize: '10px' }}>
+            <span className="font-mono tabular-nums font-bold ml-0.5" style={{ color: active ? 'inherit' : 'var(--accent)', fontSize: '10px' }}>
               {todosOpenCount > 99 ? '99+' : todosOpenCount}
             </span>
           )}
@@ -139,8 +145,8 @@ export function Header({
             </span>
           )}
         </button>
-      </React.Fragment>
-    ))
+      );
+    })
   );
 
   const actionButtons = (
@@ -188,12 +194,33 @@ export function Header({
 
   return (
     <header className="mb-4" style={{ borderBottom: '2px solid var(--text-primary)' }}>
-      {/* ── 工具条: 日期 + 摄取状态 | 栏目文字导航 ── */}
+      {/* ── 工具条: 栏目导航 (桌面端) ── */}
       <div
-        className="flex items-center justify-between gap-3 py-1.5 text-[11.5px]"
+        className="hidden lg:flex items-center justify-end gap-3 py-1.5 text-[11.5px]"
         style={{ borderBottom: '1px solid var(--border-light)', color: 'var(--text-muted)' }}
       >
-        <div className="flex items-center gap-2.5 min-w-0 shrink">
+        <nav className="flex items-center gap-1.5" aria-label="功能导航">
+          {navLinks()}
+        </nav>
+      </div>
+
+      {/* ── Masthead: 报头靠左 + 右侧日期/摄取状态 + 动作组 ── */}
+      <div className="flex items-end flex-wrap gap-x-5 gap-y-2 py-4 sm:py-5">
+        <button
+          onClick={() => navigate('/')}
+          className="block text-left focus-ring shrink-0"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          title="回到首页"
+        >
+          <h1 className="masthead-title">SecNews</h1>
+          <p className="mt-1 text-[11.5px] tracking-[0.18em] uppercase" style={{ color: 'var(--text-muted)' }}>
+            热点地图 · 每日情报简报
+          </p>
+        </button>
+        <div
+          className="flex items-center gap-2.5 min-w-0 shrink text-[11.5px] pb-0.5"
+          style={{ color: 'var(--text-muted)' }}
+        >
           <span className="whitespace-nowrap hidden sm:inline">{dateLine}</span>
           <span className="hidden sm:inline" aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
           <span className="flex items-center gap-1.5 whitespace-nowrap" title="最近摄取更新条数">
@@ -209,25 +236,7 @@ export function Header({
             {countdownText}
           </span>
         </div>
-        <nav className="hidden lg:flex items-center gap-2" aria-label="功能导航">
-          {navLinks()}
-        </nav>
-      </div>
-
-      {/* ── Masthead: 报头 ── */}
-      <div className="relative py-4 sm:py-5">
-        <button
-          onClick={() => navigate('/')}
-          className="block mx-auto text-center focus-ring"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-          title="回到首页"
-        >
-          <h1 className="masthead-title">SecNews</h1>
-          <p className="mt-1 text-[11.5px] tracking-[0.18em] uppercase" style={{ color: 'var(--text-muted)' }}>
-            热点地图 · 每日情报简报
-          </p>
-        </button>
-        <div className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 items-center gap-0.5">
+        <div className="hidden md:flex ml-auto items-center gap-0.5 pb-0.5">
           {actionButtons}
         </div>
       </div>

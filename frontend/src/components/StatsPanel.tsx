@@ -10,10 +10,10 @@ export function StatsPanel({ categoryCounts, total }: StatsPanelProps) {
   const filteredCats = CATEGORIES.filter(c => c.id !== 'all');
 
   return (
-    <div className="stat-card mb-4 corner-brackets" style={{ ['--card-accent' as string]: 'var(--color-ai)' }}>
+    <div className="stat-card mb-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="w-1 h-4 rounded-full" style={{ backgroundColor: 'var(--color-ai)' }} />
+          <span className="accent-bar" />
           <h3 className="text-xs font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>
             数据统计
           </h3>

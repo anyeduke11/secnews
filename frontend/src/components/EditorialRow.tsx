@@ -40,7 +40,7 @@ export function EditorialRow({
               type="button"
               onClick={() => onCategoryClick?.(item.category)}
               className="font-semibold tracking-wide uppercase focus-ring transition-opacity hover:opacity-70"
-              style={{ color, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}
+              style={{ color, background: 'none', border: 'none', padding: '4px 4px', margin: '-4px -4px', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}
               title={`查看分类: ${getCategoryLabel(item.category)}`}
             >
               {getCategoryLabel(item.category)}
@@ -57,7 +57,7 @@ export function EditorialRow({
                   type="button"
                   onClick={() => onSourceClick?.(item.source!)}
                   className="truncate max-w-[140px] focus-ring transition-colors hover:text-[var(--accent)]"
-                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', color: 'inherit' }}
+                  style={{ background: 'none', border: 'none', padding: '4px 4px', margin: '-4px -4px', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', color: 'inherit' }}
                   title={`只看来源: ${item.source}`}
                 >
                   {item.source}
@@ -85,7 +85,7 @@ export function EditorialRow({
           </h3>
 
           {item.summary && (
-            <p className="text-[13px] leading-relaxed mt-1.5 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-[13px] leading-relaxed mt-1.5 line-clamp-2 max-w-[70ch]" style={{ color: 'var(--text-secondary)' }}>
               {item.summary}
             </p>
           )}
@@ -94,7 +94,7 @@ export function EditorialRow({
         <div className="feed-actions shrink-0 pt-0.5">
           <button
             onClick={handleStarClick}
-            className="p-1 rounded-sm transition-colors focus-ring"
+            className="p-2 -m-1 rounded-sm transition-colors focus-ring"
             style={{ color: isFavorited ? 'var(--accent)' : 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
             title={isFavorited ? '取消收藏' : '收藏'}
             aria-label={isFavorited ? '取消收藏' : '收藏'}

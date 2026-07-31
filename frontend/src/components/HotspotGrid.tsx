@@ -117,14 +117,7 @@ export function HotspotGrid({
                   onClick={() => onSetPageSize(size)}
                   aria-label={`每页 ${size} 条`}
                   aria-pressed={active}
-                  className="pagination-btn focus-ring"
-                  style={{
-                    background: active ? 'var(--text-primary)' : 'transparent',
-                    color: active ? 'var(--bg-primary)' : 'var(--text-secondary)',
-                    borderColor: active ? 'var(--text-primary)' : 'var(--border-color)',
-                    fontWeight: active ? 700 : 500,
-                    padding: '4px 10px',
-                  }}
+                  className={`ink-chip focus-ring text-xs ${active ? 'active' : ''}`}
                 >
                   {size}
                 </button>

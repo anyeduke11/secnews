@@ -113,7 +113,7 @@ export function Header({
       ? 'var(--color-warning)'
       : 'var(--color-success)';
 
-  // v1.9.1 修订: 恢复描边按钮形态, 配色沿用 editorial token (反色激活)
+  // v1.9.1 修订: 描边按钮形态, 反色激活统一收敛到 .ink-chip
   const navLinks = (extraClass = '') => (
     NAV_LINKS.map((link) => {
       const active = isActive(location.pathname, link.route);
@@ -121,17 +121,9 @@ export function Header({
         <button
           key={link.route}
           onClick={() => navigateTo(link.route)}
-          className={`focus-ring whitespace-nowrap transition-colors ${extraClass}`}
-          style={{
-            color: active ? 'var(--bg-primary)' : 'var(--text-secondary)',
-            background: active ? 'var(--text-primary)' : 'transparent',
-            border: '1px solid',
-            borderColor: active ? 'var(--text-primary)' : 'var(--border-color)',
-            borderRadius: 'var(--radius-sm)',
-            fontWeight: active ? 700 : 400,
-            padding: '3px 9px', cursor: 'pointer',
-            fontSize: 'inherit', letterSpacing: '0.02em', lineHeight: 1.4,
-          }}
+          className={`ink-chip focus-ring transition-colors ${active ? 'active' : ''} ${extraClass}`}
+          style={{ padding: '3px 9px' }}
+          aria-current={active ? 'page' : undefined}
         >
           {link.label}
           {link.route === '/todos' && todosOpenCount > 0 && (
@@ -140,7 +132,7 @@ export function Header({
             </span>
           )}
           {link.route === '/secrets' && secretTTL != null && secretTTL > 0 && (
-            <span className="font-mono tabular-nums ml-0.5" style={{ color: ttlColor, fontSize: '9px' }}>
+            <span className="font-mono tabular-nums ml-0.5" style={{ color: ttlColor, fontSize: '10px' }}>
               {Math.floor(secretTTL / 60)}:{(secretTTL % 60).toString().padStart(2, '0')}
             </span>
           )}
@@ -151,18 +143,18 @@ export function Header({
 
   const actionButtons = (
     <>
-      <button onClick={onOpenFavorites} className="nav-btn relative" title={`收藏${favoritesCount > 0 ? ` (${favoritesCount})` : ''}`} style={{ padding: '5px 7px' }}>
+      <button onClick={onOpenFavorites} className="nav-btn relative" title={`收藏${favoritesCount > 0 ? ` (${favoritesCount})` : ''}`} aria-label={`打开收藏列表${favoritesCount > 0 ? `, 共 ${favoritesCount} 条` : ''}`} style={{ padding: '7px 8px' }}>
         <Icon size={14}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></Icon>
         {favoritesCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-[3px] rounded-full text-[9px] font-bold flex items-center justify-center" style={{ backgroundColor: 'var(--accent)', color: 'var(--text-on-light)' }}>
+          <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-[3px] rounded-full text-[10px] font-bold flex items-center justify-center" style={{ backgroundColor: 'var(--accent)', color: 'var(--text-on-light)' }}>
             {favoritesCount > 99 ? '99+' : favoritesCount}
           </span>
         )}
       </button>
-      <button onClick={onOpenSettings} className="nav-btn" title="设置" style={{ padding: '5px 7px' }}>
+      <button onClick={onOpenSettings} className="nav-btn" title="设置" aria-label="打开设置" style={{ padding: '7px 8px' }}>
         <Icon size={14}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></Icon>
       </button>
-      <button onClick={onThemeToggle} className="nav-btn" title={theme === 'dark' ? '切换日报版' : '切换夜读版'} style={{ padding: '5px 7px' }}>
+      <button onClick={onThemeToggle} className="nav-btn" title={theme === 'dark' ? '切换日报版' : '切换夜读版'} aria-label={theme === 'dark' ? '切换日报版 (浅色主题)' : '切换夜读版 (深色主题)'} style={{ padding: '7px 8px' }}>
         {theme === 'dark' ? (
           <Icon size={14}><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></Icon>
         ) : (
@@ -174,7 +166,7 @@ export function Header({
         onClick={onRefresh} disabled={refreshing}
         className="nav-btn"
         style={{
-          padding: '5px 7px',
+          padding: '7px 8px',
           color: refreshing ? 'var(--text-muted)' : 'var(--accent)',
           cursor: refreshing ? 'wait' : 'pointer',
         }}

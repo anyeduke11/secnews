@@ -540,6 +540,33 @@ body {
   color: var(--bg-primary);
 }
 
+/* Ink chip — 统一反色激活描边 chip: Header 栏目导航 / 分页 pageSize / 来源筛选共用 */
+.ink-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-family: var(--font-sans);
+  font-size: inherit;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.ink-chip:hover { background: var(--bg-hover); color: var(--text-primary); }
+.ink-chip.active {
+  font-weight: 700;
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: var(--bg-primary);
+}
+
 .dot-indicator {
   width: 6px;
   height: 6px;
@@ -699,10 +726,10 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   flex-shrink: 0;
 }

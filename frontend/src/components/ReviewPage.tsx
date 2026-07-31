@@ -81,9 +81,9 @@ export function ReviewPage() {
           <div style={statLabelStyle}>总计</div>
           <div style={statValueStyle}>{stats?.total ?? 0}</div>
         </div>
-        <div style={{ ...statCardStyle, borderColor: 'var(--color-ai, #00d4e0)' }}>
+        <div style={{ ...statCardStyle, borderColor: 'var(--color-ai)' }}>
           <div style={statLabelStyle}>到期</div>
-          <div style={{ ...statValueStyle, color: 'var(--color-ai, #00d4e0)' }}>
+          <div style={{ ...statValueStyle, color: 'var(--color-ai)' }}>
             {stats?.due ?? 0}
           </div>
         </div>
@@ -171,27 +171,27 @@ const backBtnStyle: React.CSSProperties = {
   gap: 'var(--space-1, 4px)',
   padding: '4px 10px',
   fontSize: 12,
-  border: '1px solid var(--border-color, #1c1c2e)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-sm, 4px)',
   background: 'transparent',
-  color: 'var(--text-secondary, #9a9ab2)',
+  color: 'var(--text-secondary)',
   cursor: 'pointer',
 };
 
 const titleStyle: React.CSSProperties = {
   fontSize: 18,
   fontWeight: 600,
-  color: 'var(--text-primary, #f0f0f7)',
+  color: 'var(--text-primary)',
   flex: 1,
 };
 
 const refreshBtnStyle: React.CSSProperties = {
   padding: '4px 12px',
   fontSize: 12,
-  border: '1px solid var(--border-color, #1c1c2e)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-sm, 4px)',
   background: 'transparent',
-  color: 'var(--text-secondary, #9a9ab2)',
+  color: 'var(--text-secondary)',
   cursor: 'pointer',
 };
 
@@ -204,15 +204,15 @@ const statsRowStyle: React.CSSProperties = {
 const statCardStyle: React.CSSProperties = {
   flex: 1,
   padding: 'var(--space-3, 12px)',
-  border: '1px solid var(--border-color, #1c1c2e)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-md, 8px)',
-  background: 'var(--bg-card, #0d0d14)',
+  background: 'var(--bg-card)',
   textAlign: 'center',
 };
 
 const statLabelStyle: React.CSSProperties = {
   fontSize: 11,
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   fontFamily: 'monospace',
   textTransform: 'uppercase',
 };
@@ -220,7 +220,7 @@ const statLabelStyle: React.CSSProperties = {
 const statValueStyle: React.CSSProperties = {
   fontSize: 24,
   fontWeight: 700,
-  color: 'var(--text-primary, #f0f0f7)',
+  color: 'var(--text-primary)',
   fontFamily: 'monospace',
   marginTop: 'var(--space-1, 4px)',
 };
@@ -228,10 +228,10 @@ const statValueStyle: React.CSSProperties = {
 const errorBannerStyle: React.CSSProperties = {
   padding: 'var(--space-2, 8px) var(--space-3, 12px)',
   marginBottom: 'var(--space-3, 12px)',
-  border: '1px solid var(--color-error, #ef4444)',
+  border: '1px solid var(--color-error)',
   borderRadius: 'var(--radius-sm, 4px)',
   background: 'color-mix(in srgb, var(--color-error) 8%, transparent)',
-  color: 'var(--color-error, #ef4444)',
+  color: 'var(--color-error)',
   fontSize: 12,
 };
 
@@ -265,14 +265,14 @@ const cardWrapperActiveStyle: React.CSSProperties = {
 const emptyStyle: React.CSSProperties = {
   padding: 'var(--space-6, 32px)',
   textAlign: 'center',
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   fontSize: 14,
 };
 
 const subHintStyle: React.CSSProperties = {
   fontSize: 11,
   marginTop: 'var(--space-1, 4px)',
-  color: 'var(--text-disabled, #414155)',
+  color: 'var(--text-disabled)',
 };
 
 const notesColStyle: React.CSSProperties = {

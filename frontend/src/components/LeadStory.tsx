@@ -20,6 +20,10 @@ export function LeadStory({
   item, isFavorited = false, onToggleFavorite, onCategoryClick, onSourceClick,
 }: LeadStoryProps) {
   const color = getCategoryColorVar(item.category);
+  // 可读性: 摘要限长——dropcap 首字下沉与 line-clamp (-webkit-box) 不兼容, 改用文本截断
+  const summary = item.summary && item.summary.length > 240
+    ? `${item.summary.slice(0, 240).trimEnd()}…`
+    : item.summary;
 
   const handleStarClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -38,7 +42,7 @@ export function LeadStory({
           type="button"
           onClick={() => onCategoryClick?.(item.category)}
           className="font-semibold tracking-wide uppercase focus-ring transition-opacity hover:opacity-70"
-          style={{ color, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}
+          style={{ color, background: 'none', border: 'none', padding: '4px 4px', margin: '-4px -4px', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}
           title={`查看分类: ${getCategoryLabel(item.category)}`}
         >
           {getCategoryLabel(item.category)}
@@ -50,7 +54,7 @@ export function LeadStory({
               type="button"
               onClick={() => onSourceClick?.(item.source!)}
               className="truncate max-w-[160px] focus-ring transition-colors hover:text-[var(--accent)]"
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', color: 'inherit' }}
+              style={{ background: 'none', border: 'none', padding: '4px 4px', margin: '-4px -4px', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', color: 'inherit' }}
               title={`只看来源: ${item.source}`}
             >
               {item.source}
@@ -59,7 +63,7 @@ export function LeadStory({
         )}
         <button
           onClick={handleStarClick}
-          className="ml-auto p-1 rounded-sm transition-colors focus-ring shrink-0"
+          className="ml-auto p-2 -my-2 -mr-1 rounded-sm transition-colors focus-ring shrink-0"
           style={{ color: isFavorited ? 'var(--accent)' : 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
           title={isFavorited ? '取消收藏' : '收藏'}
           aria-label={isFavorited ? '取消收藏' : '收藏'}
@@ -71,7 +75,7 @@ export function LeadStory({
       </div>
 
       <h2
-        className="font-serif font-bold"
+        className="font-serif font-bold max-w-[32em]"
         style={{ fontSize: 'clamp(22px, 3vw, 30px)', lineHeight: 1.25, color: 'var(--text-primary)' }}
       >
         <a
@@ -84,9 +88,9 @@ export function LeadStory({
         </a>
       </h2>
 
-      {item.summary && (
-        <p className="dropcap font-serif text-[15px] leading-[1.7] mt-2.5" style={{ color: 'var(--text-secondary)' }}>
-          {item.summary}
+      {summary && (
+        <p className="dropcap font-serif text-[15px] leading-[1.7] mt-2.5 max-w-[70ch]" style={{ color: 'var(--text-secondary)' }}>
+          {summary}
         </p>
       )}
     </article>

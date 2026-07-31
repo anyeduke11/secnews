@@ -30,7 +30,7 @@ export function SourceHealthIndicator({
         alignItems: 'center',
         gap: '4px',
         fontSize: '12px',
-        color: 'var(--text-secondary, #666)',
+        color: 'var(--text-secondary)',
       }}
       title={text}
     >

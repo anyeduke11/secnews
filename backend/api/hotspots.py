@@ -19,6 +19,7 @@ async def list_hotspots(
     limit: int = Query(50, ge=1, le=200, description="每页条数"),
     keyword: str = Query("", description="关键词搜索"),
     region: str = Query("", description="标讯地区筛选（仅 category=bid 有效）"),
+    source: str = Query("", description="v1.9.1: 来源筛选（精确匹配 source 字段）"),
     tags: str = Query("", description="v1.7: 逗号分隔 tag id, 触发标签筛选"),
     tag_mode: str = Query("or", pattern="^(and|or)$", description="v1.7: 标签筛选模式"),
 ):
@@ -41,6 +42,7 @@ async def list_hotspots(
         limit=limit,
         keyword=keyword,
         region=region or None,
+        source=source or None,
     )
 
 

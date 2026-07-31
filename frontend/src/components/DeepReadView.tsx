@@ -169,17 +169,17 @@ const backBtnStyle: React.CSSProperties = {
   gap: 'var(--space-1, 4px)',
   padding: '4px 10px',
   fontSize: 12,
-  border: '1px solid var(--border-color, #1c1c2e)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-sm, 4px)',
   background: 'transparent',
-  color: 'var(--text-secondary, #9a9ab2)',
+  color: 'var(--text-secondary)',
   cursor: 'pointer',
 };
 
 const titleStyle: React.CSSProperties = {
   fontSize: 18,
   fontWeight: 600,
-  color: 'var(--text-primary, #f0f0f7)',
+  color: 'var(--text-primary)',
   flex: 1,
 };
 
@@ -196,17 +196,17 @@ const typeBadgeStyle: React.CSSProperties = {
 const errorBannerStyle: React.CSSProperties = {
   padding: 'var(--space-2, 8px) var(--space-3, 12px)',
   marginBottom: 'var(--space-3, 12px)',
-  border: '1px solid var(--color-error, #ef4444)',
+  border: '1px solid var(--color-error)',
   borderRadius: 'var(--radius-sm, 4px)',
   background: 'color-mix(in srgb, var(--color-error) 8%, transparent)',
-  color: 'var(--color-error, #ef4444)',
+  color: 'var(--color-error)',
   fontSize: 12,
 };
 
 const emptyStyle: React.CSSProperties = {
   padding: 'var(--space-6, 32px)',
   textAlign: 'center',
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   fontSize: 14,
 };
 
@@ -220,22 +220,22 @@ const articleColStyle: React.CSSProperties = {
   flex: 1,
   minWidth: 0,
   padding: 'var(--space-4, 16px)',
-  border: '1px solid var(--border-color, #1c1c2e)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-md, 8px)',
-  background: 'var(--bg-card, #0d0d14)',
+  background: 'var(--bg-card)',
 };
 
 const articleTitleStyle: React.CSSProperties = {
   fontSize: 20,
   fontWeight: 700,
-  color: 'var(--text-primary, #f0f0f7)',
+  color: 'var(--text-primary)',
   marginBottom: 'var(--space-3, 12px)',
   lineHeight: 1.4,
 };
 
 const articleSummaryStyle: React.CSSProperties = {
   fontSize: 14,
-  color: 'var(--text-secondary, #9a9ab2)',
+  color: 'var(--text-secondary)',
   lineHeight: 1.7,
   marginBottom: 'var(--space-3, 12px)',
   whiteSpace: 'pre-wrap',
@@ -247,13 +247,13 @@ const articleMetaStyle: React.CSSProperties = {
   gap: 'var(--space-2, 8px) var(--space-3, 12px)',
   marginBottom: 'var(--space-3, 12px)',
   padding: 'var(--space-2, 8px) 0',
-  borderTop: '1px solid var(--border-color, #1c1c2e)',
-  borderBottom: '1px solid var(--border-color, #1c1c2e)',
+  borderTop: '1px solid var(--border-color)',
+  borderBottom: '1px solid var(--border-color)',
 };
 
 const metaItemStyle: React.CSSProperties = {
   fontSize: 11,
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   fontFamily: 'monospace',
 };
 

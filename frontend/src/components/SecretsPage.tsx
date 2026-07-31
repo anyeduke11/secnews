@@ -307,7 +307,7 @@ function StatusBar({
         <button
           onClick={onSetupClick}
           className="btn-ghost px-3 py-1.5 text-xs shrink-0"
-          style={{ backgroundColor: 'var(--color-ai)', color: '#0a0d12', borderColor: 'var(--color-ai)' }}
+          style={{ backgroundColor: 'var(--color-ai)', color: 'var(--text-on-light)', borderColor: 'var(--color-ai)' }}
         >
           首次设置主密钥
         </button>

@@ -93,8 +93,8 @@ export function ReviewCard({ item, onGrade }: ReviewCardProps) {
 // ── styles (tech-style: 青色主调, 透明卡片) ───────────────────────
 const cardStyle: React.CSSProperties = {
   position: 'relative',
-  background: 'var(--bg-card, #0d0d14)',
-  border: '1px solid var(--border-color, #1c1c2e)',
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-md, 8px)',
   padding: 'var(--space-4, 16px)',
   cursor: 'pointer',
@@ -123,7 +123,7 @@ const backStyle: React.CSSProperties = {
 
 const entityTypeStyle: React.CSSProperties = {
   fontSize: 11,
-  color: 'var(--color-ai, #00d4e0)',
+  color: 'var(--color-ai)',
   fontFamily: 'monospace',
   textTransform: 'uppercase',
   letterSpacing: '0.1em',
@@ -132,7 +132,7 @@ const entityTypeStyle: React.CSSProperties = {
 const entityIdStyle: React.CSSProperties = {
   fontSize: 16,
   fontWeight: 600,
-  color: 'var(--text-primary, #f0f0f7)',
+  color: 'var(--text-primary)',
   fontFamily: 'monospace',
   wordBreak: 'break-all',
   textAlign: 'center',
@@ -140,13 +140,13 @@ const entityIdStyle: React.CSSProperties = {
 
 const hintStyle: React.CSSProperties = {
   fontSize: 24,
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   marginTop: 'var(--space-2, 8px)',
 };
 
 const lastGradeStyle: React.CSSProperties = {
   fontSize: 11,
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   fontFamily: 'monospace',
 };
 
@@ -154,13 +154,13 @@ const metaStyle: React.CSSProperties = {
   display: 'flex',
   gap: 'var(--space-3, 12px)',
   fontSize: 11,
-  color: 'var(--text-secondary, #9a9ab2)',
+  color: 'var(--text-secondary)',
   fontFamily: 'monospace',
 };
 
 const gradeLabelStyle: React.CSSProperties = {
   fontSize: 12,
-  color: 'var(--text-muted, #888)',
+  color: 'var(--text-muted)',
   marginTop: 'var(--space-2, 8px)',
 };
 
@@ -172,7 +172,7 @@ const gradeBtnRowStyle: React.CSSProperties = {
 
 function gradeBtnStyle(g: number): React.CSSProperties {
   // 0-2 红色系 (重置), 3 黄色, 4-5 青色 (延长)
-  const color = g < 3 ? 'var(--color-error, #ef4444)' : g === 3 ? 'var(--color-warning, #eab308)' : 'var(--color-ai, #00d4e0)';
+  const color = g < 3 ? 'var(--color-error)' : g === 3 ? 'var(--color-warning)' : 'var(--color-ai)';
   return {
     width: 36,
     height: 36,
@@ -189,7 +189,7 @@ function gradeBtnStyle(g: number): React.CSSProperties {
 
 const gradeHintStyle: React.CSSProperties = {
   fontSize: 10,
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   textAlign: 'center',
   marginTop: 'var(--space-1, 4px)',
   lineHeight: 1.4,

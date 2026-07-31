@@ -129,7 +129,7 @@ export default function KnowledgeSearchBar({ onSelect }: KnowledgeSearchBarProps
                   style={{ borderBottom: '1px solid var(--border-color)' }}
                 >
                   <span
-                    className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium flex-shrink-0"
+                    className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0"
                     style={{
                       backgroundColor: r.source === 'local' ? 'color-mix(in srgb, var(--color-startup) 15%, transparent)' : 'color-mix(in srgb, var(--color-info) 15%, transparent)',
                       color: r.source === 'local' ? 'var(--color-startup)' : 'var(--color-info)',
@@ -144,7 +144,7 @@ export default function KnowledgeSearchBar({ onSelect }: KnowledgeSearchBarProps
                   >
                     {r.title}
                   </span>
-                  <span className="flex-shrink-0 text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                  <span className="flex-shrink-0 text-[10px]" style={{ color: 'var(--text-muted)' }}>
                     ★{r.score}
                   </span>
                 </button>

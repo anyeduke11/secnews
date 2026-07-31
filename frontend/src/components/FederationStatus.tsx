@@ -60,19 +60,19 @@ export function FederationStatus() {
       <div className="grid grid-cols-3 gap-1 mt-1">
         <div className="text-center p-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'var(--bg-hover)' }}>
           <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{status.local_concepts_count}</div>
-          <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>本地概念</div>
+          <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>本地概念</div>
         </div>
         <div className="text-center p-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'var(--bg-hover)' }}>
           <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{status.local_items_count}</div>
-          <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>本地条目</div>
+          <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>本地条目</div>
         </div>
         <div className="text-center p-1 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'var(--bg-hover)' }}>
           <div className="text-sm font-bold" style={{ color: 'var(--color-ai)' }}>{status.federated_edges}</div>
-          <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>联邦边</div>
+          <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>联邦边</div>
         </div>
       </div>
       {status.readonly && (
-        <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>只读模式</p>
+        <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>只读模式</p>
       )}
     </div>
   );

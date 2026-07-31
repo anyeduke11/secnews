@@ -37,7 +37,7 @@ export function ServiceCard({ service, onClick }: ServiceCardProps) {
           )}
         </div>
         <span
-          className="shrink-0 text-[9px] px-1.5 py-0.5 rounded"
+          className="shrink-0 text-[10px] px-1.5 py-0.5 rounded"
           style={{ backgroundColor: statusColor + '20', color: statusColor }}
         >
           {STATUS_LABELS[service.status]}
@@ -46,20 +46,20 @@ export function ServiceCard({ service, onClick }: ServiceCardProps) {
 
       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
         <span
-          className="text-[9px] px-1.5 py-0.5 rounded"
+          className="text-[10px] px-1.5 py-0.5 rounded"
           style={{ backgroundColor: runtimeColor + '20', color: runtimeColor }}
         >
           {service.runtime}
         </span>
         <span
-          className="text-[9px] px-1.5 py-0.5 rounded"
+          className="text-[10px] px-1.5 py-0.5 rounded"
           style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}
         >
           {service.type}
         </span>
         {service.endpoint_port && (
           <span
-            className="text-[9px] font-mono tabular-nums px-1.5 py-0.5 rounded"
+            className="text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded"
             style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}
           >
             :{service.endpoint_port}
@@ -67,7 +67,7 @@ export function ServiceCard({ service, onClick }: ServiceCardProps) {
         )}
         {service.endpoint_domain && (
           <span
-            className="text-[9px] truncate max-w-[100px]"
+            className="text-[10px] truncate max-w-[100px]"
             style={{ color: 'var(--text-muted)' }}
             title={service.endpoint_domain}
           >
@@ -77,7 +77,7 @@ export function ServiceCard({ service, onClick }: ServiceCardProps) {
       </div>
 
       {service.dependencies && service.dependencies.length > 0 && (
-        <div className="text-[9px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
           ↳ 依赖 {service.dependencies.length} 项
         </div>
       )}

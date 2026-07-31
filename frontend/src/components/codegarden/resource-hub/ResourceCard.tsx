@@ -33,7 +33,7 @@ export function ResourceCard({ resource, onRemove }: ResourceCardProps) {
           </div>
         </div>
         <span
-          className="shrink-0 text-[9px] px-1.5 py-0.5 rounded"
+          className="shrink-0 text-[10px] px-1.5 py-0.5 rounded"
           style={{ backgroundColor: statusColor + '20', color: statusColor }}
         >
           {resource.status}
@@ -63,7 +63,7 @@ export function ResourceCard({ resource, onRemove }: ResourceCardProps) {
               window.alert(e?.message || String(e));
             }
           }}
-          className="mt-2 text-[9px] w-full py-0.5 rounded"
+          className="mt-2 text-[10px] w-full py-0.5 rounded"
           style={{ border: '1px solid var(--border-color)', color: 'var(--color-error)' }}
         >
           删除

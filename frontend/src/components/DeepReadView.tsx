@@ -234,9 +234,11 @@ const articleTitleStyle: React.CSSProperties = {
 };
 
 const articleSummaryStyle: React.CSSProperties = {
-  fontSize: 14,
+  // 可读性: 深读正文是长文阅读主面, 提级至 16px 并限制行长
+  fontSize: 16,
   color: 'var(--text-secondary)',
   lineHeight: 1.7,
+  maxWidth: '70ch',
   marginBottom: 'var(--space-3, 12px)',
   whiteSpace: 'pre-wrap',
 };
@@ -260,7 +262,7 @@ const metaItemStyle: React.CSSProperties = {
 const linkStyle: React.CSSProperties = {
   display: 'inline-block',
   fontSize: 12,
-  color: 'var(--color-ai, #00d4e0)',
+  color: 'var(--color-ai)',
   textDecoration: 'none',
   padding: '4px 0',
 };

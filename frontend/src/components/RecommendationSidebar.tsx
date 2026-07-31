@@ -97,9 +97,9 @@ const sidebarStyle: React.CSSProperties = {
   width: 320,
   flexShrink: 0,
   padding: 'var(--space-3, 12px)',
-  border: '1px solid var(--border-color, #1c1c2e)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-md, 8px)',
-  background: 'var(--bg-card, #0d0d14)',
+  background: 'var(--bg-card)',
   maxHeight: '70vh',
   overflowY: 'auto',
 };
@@ -110,13 +110,13 @@ const headerStyle: React.CSSProperties = {
   gap: 'var(--space-2, 8px)',
   marginBottom: 'var(--space-3, 12px)',
   paddingBottom: 'var(--space-2, 8px)',
-  borderBottom: '1px solid var(--border-color, #1c1c2e)',
+  borderBottom: '1px solid var(--border-color)',
 };
 
 const titleStyle: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 600,
-  color: 'var(--text-primary, #f0f0f7)',
+  color: 'var(--text-primary)',
   flex: 1,
   textTransform: 'uppercase',
   letterSpacing: 0.5,
@@ -134,21 +134,21 @@ const countBadgeStyle: React.CSSProperties = {
 const emptyStyle: React.CSSProperties = {
   padding: 'var(--space-4, 16px)',
   textAlign: 'center',
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   fontSize: 12,
 };
 
 const subHintStyle: React.CSSProperties = {
   fontSize: 11,
   marginTop: 'var(--space-1, 4px)',
-  color: 'var(--text-disabled, #414155)',
+  color: 'var(--text-disabled)',
 };
 
 const errorStyle: React.CSSProperties = {
   padding: 'var(--space-2, 8px)',
   fontSize: 12,
-  color: 'var(--color-error, #ef4444)',
-  border: '1px solid var(--color-error, #ef4444)',
+  color: 'var(--color-error)',
+  border: '1px solid var(--color-error)',
   borderRadius: 'var(--radius-sm, 4px)',
   background: 'color-mix(in srgb, var(--color-error) 5%, transparent)',
 };
@@ -172,14 +172,14 @@ const itemStyle: React.CSSProperties = {
 
 const itemTitleStyle: React.CSSProperties = {
   fontSize: 13,
-  color: 'var(--text-primary, #f0f0f7)',
+  color: 'var(--text-primary)',
   marginBottom: 4,
   lineHeight: 1.4,
 };
 
 const itemSummaryStyle: React.CSSProperties = {
   fontSize: 11,
-  color: 'var(--text-secondary, #9a9ab2)',
+  color: 'var(--text-secondary)',
   marginBottom: 6,
   lineHeight: 1.4,
 };
@@ -208,7 +208,7 @@ const tagStyle: React.CSSProperties = {
 
 const scoreStyle: React.CSSProperties = {
   fontSize: 11,
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   fontFamily: 'monospace',
 };
 

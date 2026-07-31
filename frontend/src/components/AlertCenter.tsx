@@ -64,8 +64,8 @@ export function AlertCenter() {
             width: '380px',
             maxHeight: '500px',
             overflowY: 'auto',
-            background: 'var(--bg-card, #fff)',
-            border: '1px solid var(--border-color, #e2e8f0)',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
             borderRadius: '8px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
             zIndex: 1000,
@@ -74,7 +74,7 @@ export function AlertCenter() {
           <div
             style={{
               padding: '12px 16px',
-              borderBottom: '1px solid var(--border-color, #e2e8f0)',
+              borderBottom: '1px solid var(--border-color)',
               fontWeight: 600,
               fontSize: '14px',
             }}
@@ -106,7 +106,7 @@ export function AlertCenter() {
               className={`alert-item ${alert.status}`}
               style={{
                 padding: '12px 16px',
-                borderBottom: '1px solid var(--border-color, #f0f0f0)',
+                borderBottom: '1px solid var(--border-color)',
                 background:
                   alert.status === 'pending' || alert.status === 'fired'
                     ? 'color-mix(in srgb, var(--color-error) 4%, transparent)'

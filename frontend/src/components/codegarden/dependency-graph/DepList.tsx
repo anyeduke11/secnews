@@ -39,7 +39,7 @@ export function DepList({ dependencies, onRemove, onImpact }: DepListProps) {
                     window.alert(e?.message || String(e));
                   }
                 }}
-                className="text-[9px]"
+                className="text-[10px]"
                 style={{ color: 'var(--color-error)' }}
               >
                 删除
@@ -54,7 +54,7 @@ export function DepList({ dependencies, onRemove, onImpact }: DepListProps) {
             </div>
             <button
               onClick={() => onImpact(d.target_type, d.target_id)}
-              className="mt-1.5 text-[9px] w-full py-0.5 rounded"
+              className="mt-1.5 text-[10px] w-full py-0.5 rounded"
               style={{ border: '1px solid var(--border-color)', color: 'var(--color-ai)' }}
             >
               影响分析

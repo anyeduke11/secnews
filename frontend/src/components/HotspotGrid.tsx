@@ -1,9 +1,11 @@
 /**
- * HotspotGrid — 热点列表 + 分页 + 三态（Loading/Empty/Error）。
+ * HotspotGrid — 热点信息流 + 分页 + 三态（Loading/Empty/Error）。
+ * v1.9 Editorial: 卡片网格改报纸信息流 — 头条 (LeadStory) + 条目行 (EditorialRow)。
  */
 import React from 'react';
 import { HotspotItem } from '../types';
-import { HotspotCard } from './HotspotCard';
+import { LeadStory } from './LeadStory';
+import { EditorialRow } from './EditorialRow';
 import { EmptyState } from './EmptyState';
 import { PAGE_SIZE_OPTIONS } from '../hooks/useHotspotData';
 import { Icon } from './Icon';
@@ -73,15 +75,24 @@ export function HotspotGrid({
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      {/* 头条: 仅第一页首条升格 LeadStory, 其余条目行式排版 */}
+      <div className="flex flex-col">
         {items.map((item, index) => (
-          <HotspotCard
-            key={item.id}
-            item={item}
-            index={index}
-            isFavorited={favoritedIds?.has(item.id) ?? false}
-            onToggleFavorite={onToggleFavorite}
-          />
+          page === 1 && index === 0 ? (
+            <LeadStory
+              key={item.id}
+              item={item}
+              isFavorited={favoritedIds?.has(item.id) ?? false}
+              onToggleFavorite={onToggleFavorite}
+            />
+          ) : (
+            <EditorialRow
+              key={item.id}
+              item={item}
+              isFavorited={favoritedIds?.has(item.id) ?? false}
+              onToggleFavorite={onToggleFavorite}
+            />
+          )
         ))}
       </div>
 
@@ -100,10 +111,10 @@ export function HotspotGrid({
                   aria-pressed={active}
                   className="pagination-btn focus-ring"
                   style={{
-                    background: active ? 'var(--color-info)' : 'var(--bg-card)',
+                    background: active ? 'var(--text-primary)' : 'transparent',
                     color: active ? 'var(--bg-primary)' : 'var(--text-secondary)',
-                    borderColor: active ? 'var(--color-info)' : 'var(--border-color)',
-                    fontWeight: active ? 600 : 500,
+                    borderColor: active ? 'var(--text-primary)' : 'var(--border-color)',
+                    fontWeight: active ? 700 : 500,
                     padding: '4px 10px',
                   }}
                 >

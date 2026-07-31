@@ -47,9 +47,9 @@ export function TrendChart() {
 
   if (loading) {
     return (
-      <div className="stat-card p-3 mb-4">
-        <div className="h-3.5 w-28 rounded mb-4 animate-shimmer" />
-        <div className="h-36 rounded animate-shimmer" />
+      <div className="mb-6">
+        <div className="h-3.5 w-28 mb-4 animate-shimmer" />
+        <div className="h-36 animate-shimmer" />
       </div>
     );
   }
@@ -88,16 +88,14 @@ export function TrendChart() {
   const border = colors['border-color'] || 'var(--border-color)';
 
   return (
-    <div className="stat-card p-3 mb-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="w-1 h-4 rounded-full" style={{ backgroundColor: 'var(--color-ai)' }} />
-          <h3 className="text-xs font-semibold tracking-wide" style={{ color: textSec }}>
-            24小时热度趋势
-          </h3>
-        </div>
-        <span className="text-[11px] font-mono" style={{ color: textMuted }}>
-          每小时热点分布
+    <div className="mb-6">
+      {/* v1.9 Editorial: 侧栏版块 — 栏目小标 + 上边粗线, 去卡片盒 */}
+      <div className="flex items-center justify-between pb-2 mb-3" style={{ borderBottom: '2px solid var(--text-primary)' }}>
+        <h3 className="text-xs font-bold tracking-[0.12em] uppercase" style={{ color: 'var(--text-primary)' }}>
+          24小时热度趋势
+        </h3>
+        <span className="text-[11px]" style={{ color: textMuted }}>
+          每小时分布
         </span>
       </div>
 
@@ -131,7 +129,6 @@ export function TrendChart() {
                 name={label}
                 fill={colors[token] || 'var(--color-ai)'}
                 stackId="a"
-                radius={[2, 2, 0, 0]}
                 maxBarSize={18}
               />
             ))}

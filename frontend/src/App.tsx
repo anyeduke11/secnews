@@ -287,48 +287,54 @@ function HomePage() {
         consistencyDrift={consistencyDrift}
       />
 
-      <SearchBar
-        keyword={keyword}
-        timeRange={timeRange}
-        onKeywordChange={setKeyword}
-        onTimeRangeChange={setTimeRange}
-      />
+      {/* v1.9 Editorial: 头版双栏 — 主列信息流 + 297px 侧栏 (xl 以上), 竖分栏线 */}
+      <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_297px] xl:gap-0">
+        <main className="min-w-0 xl:pr-8 xl:border-r" style={{ borderColor: 'var(--border-light)' }}>
+          <SearchBar
+            keyword={keyword}
+            timeRange={timeRange}
+            onKeywordChange={setKeyword}
+            onTimeRangeChange={setTimeRange}
+          />
 
-      {/* Phase 8: 标讯地区筛选 — 仅 category=bid 时显示 */}
-      {category === 'bid' && (
-        <div className="mb-3">
-          <RegionFilter value={region} onChange={setRegion} />
-        </div>
-      )}
+          {/* Phase 8: 标讯地区筛选 — 仅 category=bid 时显示 */}
+          {category === 'bid' && (
+            <div className="mb-3">
+              <RegionFilter value={region} onChange={setRegion} />
+            </div>
+          )}
 
-      {!loading && items.length > 0 && (
-        <StatsPanel
-          categoryCounts={categoryCounts}
-          total={Object.values(categoryCounts).reduce((a, b) => a + b, 0)}
-        />
-      )}
+          {loading ? (
+            <LoadingSkeleton />
+          ) : (
+            <HotspotGrid
+              items={items}
+              loading={loading}
+              error={error}
+              favoritedIds={favoritedIds}
+              onToggleFavorite={handleToggleFavorite}
+              page={page}
+              pageSize={pageSize}
+              totalPages={totalPages}
+              total={total}
+              hasMore={hasMore}
+              loadingPage={loadingPage}
+              onSetPage={setPage}
+              onSetPageSize={setPageSize}
+            />
+          )}
+        </main>
 
-      {!loading && category === 'all' && <TrendChart />}
-
-      {loading ? (
-        <LoadingSkeleton />
-      ) : (
-        <HotspotGrid
-          items={items}
-          loading={loading}
-          error={error}
-          favoritedIds={favoritedIds}
-          onToggleFavorite={handleToggleFavorite}
-          page={page}
-          pageSize={pageSize}
-          totalPages={totalPages}
-          total={total}
-          hasMore={hasMore}
-          loadingPage={loadingPage}
-          onSetPage={setPage}
-          onSetPageSize={setPageSize}
-        />
-      )}
+        <aside className="mt-8 xl:mt-0 xl:pl-8 min-w-0">
+          {!loading && items.length > 0 && (
+            <StatsPanel
+              categoryCounts={categoryCounts}
+              total={Object.values(categoryCounts).reduce((a, b) => a + b, 0)}
+            />
+          )}
+          {!loading && category === 'all' && <TrendChart />}
+        </aside>
+      </div>
 
       <div className="editorial-divider mt-6" />
       <footer className="text-center pb-4">
@@ -342,8 +348,8 @@ function HomePage() {
           <a
             href="/api/export"
             target="_blank"
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border transition-colors hover:bg-[var(--bg-hover)]"
-            style={{ color: 'var(--color-ai)', borderColor: 'color-mix(in srgb, var(--color-ai) 30%, transparent)' }}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border transition-colors hover:bg-[var(--bg-hover)]"
+            style={{ color: 'var(--accent)', borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)' }}
             rel="noreferrer"
           >
             export

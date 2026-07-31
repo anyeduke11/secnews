@@ -71,3 +71,6 @@ hotspot.db-shm
 backend/cache_data.json
 backend/cache_data.bak.*.json
 backend/proxy_config.json
+cache_data.db
+agent/
+tmp/

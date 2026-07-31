@@ -14,29 +14,9 @@
 >
 > 一个人 · 一台电脑 · 零外部服务。
 
-[English](#english) | [中文](#中文)
-
 ---
 
-## 中文
-
-### 5 个子系统
-
-| #  | 子系统                | 解决什么                                          | 入口                                          |
-| -- | --------------------- | ------------------------------------------------- | --------------------------------------------- |
-| 01 | **SecNews 热点聚合**  | 7 大领域 · 30+ 数据源 · 13 质量门禁              | `/`                                           |
-| 02 | **Knowledge LLM-Wiki** | 4 层金字塔 (items → concepts → learning → content) | `/knowledge`                                   |
-| 03 | **CodeGarden**        | 项目全生命周期 + 服务网格 + 资源中枢 + 联动引擎  | `/codegarden`                                  |
-| 04 | **Security Graph**    | MITRE ATT&CK · NVD CVE · 等保 2.0 / 关基 / 数安法 | `/knowledge/process` (内嵌图谱)                |
-| 05 | **MCP Server**        | 13 个标准工具 · stdio / SSE · 零状态              | `python -m backend.mcp_stdio_main`            |
-
-### 架构
-
-<p align="center">
-  <img src="./assets/readme/architecture.svg" width="100%" alt="三层架构: 浏览器 / AI Agent → FastAPI 单进程 → SQLite / .md / WebDAV">
-</p>
-
-### 快速开始
+## 快速开始
 
 ```bash
 git clone https://github.com/anyeduke11/secnews.git && cd secnews
@@ -46,14 +26,44 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r backend/requirements.txt
 python run.py                        # http://127.0.0.1:8000
 
-# 前端 (另一个终端)
+# 前端（另一个终端）
 cd frontend && npm install && npm run dev   # http://localhost:8898
 ```
 
 **首装必做**：编辑 `backend/proxy_config.json` 把 `127.0.0.1:7897` 改成你的代理端口（默认模式 `off`）。
 `security_collector` 和 `github_collector` 走代理才能拿到数据；可不改，前端设置页可运行时改。
 
-### MCP Server
+## 5 个子系统
+
+| #  | 子系统                | 解决什么                                                             | 入口                                          |
+| -- | --------------------- | -------------------------------------------------------------------- | --------------------------------------------- |
+| 01 | **SecNews 热点聚合**  | 7 大领域 · 30+ 数据源 · 13 质量门禁                                 | `/`                                           |
+| 02 | **Knowledge LLM-Wiki** | 4 层金字塔 (items → concepts → learning → content)                  | `/knowledge`                                  |
+| 03 | **CodeGarden**        | 项目全生命周期 + 服务网格 + 资源中枢 + 联动引擎                     | `/codegarden`                                 |
+| 04 | **Security Graph**    | MITRE ATT&CK · NVD CVE · 等保 2.0 / 关基 / 数安法                   | `/knowledge/process`（内嵌图谱）               |
+| 05 | **MCP Server**        | 13 个标准工具 · stdio / SSE · 零状态                                | `python -m backend.mcp_stdio_main`            |
+
+### 数据源
+
+| 领域                | 来源                                                                 |
+| ------------------- | -------------------------------------------------------------------- |
+| 科技 / AI           | AIHOT · AGI Hunt · 小互AI                                            |
+| 网络安全            | 阿里云漏洞库 · CNNVD · 安全客 · FreeBuf · THN · 奇安信 · 绿盟 · Sogou 微信 |
+| 金融 / 投资         | 新浪财经 · 腾讯证券                                                  |
+| 独立开发 / 创业     | Hacker News · Product Hunt                                           |
+| GitHub              | GitHub Trending + 搜索                                               |
+| 标讯                | 政府采购网（代理爬取）                                                 |
+| 知识                | Cubox · 浏览器书签 · SecNews 收藏                                    |
+
+完整列表见 [`backend/collectors/`](./backend/collectors)。
+
+## 架构
+
+<p align="center">
+  <img src="./assets/readme/architecture.svg" width="100%" alt="三层架构: 浏览器 / AI Agent → FastAPI 单进程 → SQLite / .md / WebDAV">
+</p>
+
+## MCP Server
 
 13 个标准工具，外部 AI Agent 自动发现：
 
@@ -86,48 +96,34 @@ stdio 配置（粘到你的 AI Agent 配置文件）：
 
 启动 AI Agent 后直接说「给我列最近 24h 的安全热点」即可。
 
-### 技术选型
+## 技术选型
 
 | 组件        | 选型                              | 理由                                                  |
 | ----------- | --------------------------------- | ----------------------------------------------------- |
 | Web 框架    | FastAPI                           | async + OpenAPI 生态成熟                              |
 | 主存储      | **SQLite WAL** + `.md` 文件       | 零部署 · FTS5 · git 友好 · LLM 可直读                |
-| 调度        | APScheduler · 31 jobs             | 单进程内调度，无外部 MQ                                |
+| 调度        | APScheduler · 31 jobs             | 单进程内调度，无外部 MQ                               |
 | MCP         | fastapi-mcp                       | OpenAPI → MCP 自动转换                                |
-| 前端        | React 18 + Vite 5 + TypeScript    | 60+ 组件 · 类型安全 · 热重载                           |
+| 前端        | React 18 + Vite 5 + TypeScript    | 60+ 组件 · 类型安全 · 热重载                          |
 | 图表        | echarts + recharts                | 看板风格                                              |
-| 加密        | Fernet (PBKDF2 派生)              | secrets · 同步包                                       |
+| 加密        | Fernet (PBKDF2 派生)              | secrets · 同步包                                      |
 | 跨端同步    | WebDAV (坚果云) · zip 容器        | 加密包最小化 · 不依赖云服务                            |
 
-### 路线图
+## 路线图
 
 <p align="center">
   <img src="./assets/readme/roadmap.svg" width="100%" alt="SecNews 路线图: 从 v1.0 到 v1.9+ 的 7 个 Phase">
 </p>
 
-### 数据源
-
-| 领域                | 来源                                                                 | 数量 |
-| ------------------- | -------------------------------------------------------------------- | ---- |
-| 科技 / AI           | aihot.virxact.com                                                    | 1    |
-| 网络安全            | 阿里云漏洞库 · CNNVD · 安全客 · FreeBuf · THN · 奇安信 · 绿盟 · Sogou 微信 | 17+  |
-| 金融 / 投资         | 新浪财经 · 腾讯证券                                                  | 2    |
-| 独立开发 / 创业     | Hacker News · Product Hunt                                           | 2    |
-| GitHub              | GitHub Trending + 搜索                                               | 1    |
-| 标讯                | 政府采购网 (代理爬取)                                                | 1    |
-| 知识                | Cubox · 浏览器书签 · SecNews 收藏                                    | 3    |
-
-完整列表见 [`backend/collectors/`](./backend/collectors)。
-
-### 测试
+## 测试
 
 ```bash
-# 后端 (67 个 pytest 文件)
+# 后端（67 个 pytest 文件）
 .venv/bin/python3 -m pytest backend/tests/ -v
 .venv/bin/python3 -m pytest backend/tests/ -k "merge"
 .venv/bin/python3 -m py_compile backend/services/sync_merge.py
 
-# 前端 (Vitest + jsdom)
+# 前端（Vitest + jsdom）
 cd frontend
 npx vitest run
 npx tsc --noEmit
@@ -136,7 +132,7 @@ npm run build
 
 CI: `.github/workflows/ci.yml` — Python compile + pytest + tsc + vitest + vite build。
 
-### 常见问题
+## 常见问题
 
 **Q: 为什么不内置 LLM 推理？**
 A: 让用户在自己已配好的 AI Agent 环境（Cursor / Claude Desktop / Trae）中推理，避免重复配置和 API key 管理。hotspot 只负责数据存储 + 13 工具暴露。
@@ -153,7 +149,7 @@ A: 3 选 1：
 **Q: 端口冲突怎么办？**
 A: 后端改 `PORT=8001` 启动；前端改 `vite --port 8899`。**8898 是受保护端口**（CodeGarden 资源中枢），禁止释放。
 
-### 贡献
+## 贡献
 
 新源 → 继承 `BaseCollector` + 测试
 新门禁 → 继承 `BaseGate` + 进 `pipeline.py`
@@ -166,37 +162,19 @@ A: 后端改 `PORT=8001` 启动；前端改 `vite --port 8899`。**8898 是受�
 - 引入 Redis / PostgreSQL / Celery（违反「简单胜过复杂」原则）
 - 多 worker（SQLite WAL 锁限制）
 
-### 许可证
+## 许可证
 
 [LICENSE](./LICENSE) — GNU GPL-3.0
-
-### 致谢
-
-- [Anthropic MCP](https://modelcontextprotocol.io/) — 协议规范
-- [fastapi-mcp](https://github.com/ycd/manage-fastapi) — MCP 集成
-- [MITRE ATT&CK](https://attack.mitre.org/) — 攻击技术本体（CC-BY-4.0）
-- [NVD](https://nvd.nist.gov/) — CVE 数据源
 
 ---
 
 ## English
 
 **SecNews** (codename `hotspot`) is a **single-user local workstation for AI + security practitioners**.
-It unifies three daily workflows — news aggregation, knowledge capture, project lifecycle — into one local
-machine and exposes them to external AI Agents (Cursor / Claude Desktop / Trae) via the standard
-**MCP protocol** with **13 tools**.
+It unifies daily workflows — news aggregation, knowledge capture, project lifecycle — into one local
+machine and exposes them to external AI Agents via the standard **MCP protocol** with **13 tools**.
 
 > One person · one machine · zero external services.
-
-### 5 Subsystems
-
-| #  | Subsystem            | What                                                                 |
-| -- | -------------------- | -------------------------------------------------------------------- |
-| 01 | SecNews              | 7 domains · 30+ sources · 13 quality gates                          |
-| 02 | Knowledge LLM-Wiki   | 4-layer pyramid (items → concepts → learning → content)             |
-| 03 | CodeGarden           | project lifecycle + service mesh + resource hub + orchestration       |
-| 04 | Security Graph       | MITRE ATT&CK · NVD CVE · compliance (等保 2.0 / 关基 / 数安法)         |
-| 05 | MCP Server           | 13 standard tools · stdio / SSE · zero session state                 |
 
 ### Quick start
 
@@ -223,14 +201,6 @@ Configure `backend/proxy_config.json` (set your proxy port, default mode `off`).
   }
 }
 ```
-
-Works with Claude Desktop, Trae, Cursor, and Claude Code.
-
-### Tech stack
-
-Python 3.10+ · FastAPI · SQLite (WAL) · APScheduler · fastapi-mcp · loguru  
-React 18 · Vite 5 · TypeScript · Tailwind 3 · echarts · recharts  
-Fernet (PBKDF2-derived) · WebDAV (Nutstore) with zip + Fernet envelope
 
 ### License
 

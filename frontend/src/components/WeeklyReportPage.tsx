@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useWeeklyReport } from '../hooks/useWeeklyReport';
-import { WeeklyReport, CATEGORIES, getCategoryColor, getCategoryLabel } from '../types';
+import { WeeklyReport, CATEGORIES, getCategoryColorVar, getCategoryLabel } from '../types';
 import { Icon } from './Icon';
 
 interface WeeklyReportPageProps {
@@ -61,7 +61,7 @@ function TopItemsList({ items }: { items: any[] }) {
           >
             {item.title}
           </a>
-          <span className="shrink-0 px-1 rounded text-[10px]" style={{ backgroundColor: getCategoryColor(item.category) + '22', color: getCategoryColor(item.category) }}>
+          <span className="shrink-0 px-1 rounded text-[10px]" style={{ backgroundColor: `color-mix(in srgb, ${getCategoryColorVar(item.category)} 13%, transparent)`, color: getCategoryColorVar(item.category) }}>
             {getCategoryLabel(item.category)}
           </span>
         </div>

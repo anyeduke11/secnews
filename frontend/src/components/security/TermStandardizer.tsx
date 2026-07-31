@@ -77,7 +77,7 @@ export function TermStandardizer() {
             </span>
             <span className="text-[10px] px-1 py-0.5 rounded"
                   style={{
-                    backgroundColor: (matchTypeLabel[result.match_type]?.color || 'var(--text-muted)') + '22',
+                    backgroundColor: `color-mix(in srgb, ${matchTypeLabel[result.match_type]?.color || 'var(--text-muted)'} 13%, transparent)`,
                     color: matchTypeLabel[result.match_type]?.color || 'var(--text-muted)',
                   }}>
               {matchTypeLabel[result.match_type]?.label || result.match_type}

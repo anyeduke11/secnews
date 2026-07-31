@@ -79,7 +79,7 @@ export function SecurityTimeline() {
                 {node.name}
               </span>
               <span className="text-[10px] px-1 py-0.5 rounded font-semibold shrink-0"
-                    style={{ backgroundColor: SEVERITY_COLORS[severity] + '22', color: SEVERITY_COLORS[severity] }}>
+                    style={{ backgroundColor: `color-mix(in srgb, ${SEVERITY_COLORS[severity]} 13%, transparent)`, color: SEVERITY_COLORS[severity] }}>
                 {severity}
               </span>
             </div>

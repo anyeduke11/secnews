@@ -230,7 +230,7 @@ const errorBannerStyle: React.CSSProperties = {
   marginBottom: 'var(--space-3, 12px)',
   border: '1px solid var(--color-error, #ef4444)',
   borderRadius: 'var(--radius-sm, 4px)',
-  background: 'rgba(239, 68, 68, 0.08)',
+  background: 'color-mix(in srgb, var(--color-error) 8%, transparent)',
   color: 'var(--color-error, #ef4444)',
   fontSize: 12,
 };
@@ -259,7 +259,7 @@ const cardWrapperStyle: React.CSSProperties = {
 
 const cardWrapperActiveStyle: React.CSSProperties = {
   ...cardWrapperStyle,
-  boxShadow: '0 0 0 2px var(--color-ai, #00d4e0), 0 0 16px rgba(0, 212, 224, 0.3)',
+  boxShadow: '0 0 0 2px var(--accent)',
 };
 
 const emptyStyle: React.CSSProperties = {

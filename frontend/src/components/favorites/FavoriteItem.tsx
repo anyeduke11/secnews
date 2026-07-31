@@ -5,7 +5,7 @@
  * props-only: 接收 item + inTodo + isPopoverOpen + 3 个 handlers。
  */
 import React from 'react';
-import { FavoriteItem as FavoriteItemType, getCategoryColor, getCategoryLabel } from '../../types';
+import { FavoriteItem as FavoriteItemType, getCategoryColorVar, getCategoryLabel } from '../../types';
 import { FavoriteToTodoPopover } from '../FavoriteToTodoPopover';
 import { Icon } from '../Icon';
 
@@ -22,14 +22,14 @@ export function FavoriteItem({
   item: it, inTodo, isPopoverOpen,
   onTogglePopover, onAddToTodo, onRemove,
 }: FavoriteItemProps) {
-  const catColor = getCategoryColor(it.category);
+  const catColor = getCategoryColorVar(it.category);
   return (
     <li
       className="group px-3 py-2.5 rounded-[var(--radius-sm)] transition-colors"
       style={{
         backgroundColor: 'var(--bg-card)',
         border: '1px solid var(--border-color)',
-        borderLeft: `2px solid ${catColor}80`,
+        borderLeft: `2px solid color-mix(in srgb, ${catColor} 50%, transparent)`,
         boxShadow: 'var(--shadow-card)',
       }}
     >
@@ -44,7 +44,7 @@ export function FavoriteItem({
           <div className="flex items-center gap-1.5 mb-1">
             <span
               className="text-[10px] px-1.5 py-0.5 rounded"
-              style={{ backgroundColor: `${catColor}14`, color: catColor }}
+              style={{ backgroundColor: `color-mix(in srgb, ${catColor} 8%, transparent)`, color: catColor }}
             >
               {getCategoryLabel(it.category)}
             </span>

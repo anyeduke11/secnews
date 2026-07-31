@@ -20,7 +20,7 @@ export function SourceHealthIndicator({
   connected,
   label,
 }: SourceHealthIndicatorProps) {
-  const color = connected ? '#48bb78' : '#f56565';
+  const color = connected ? 'var(--color-success)' : 'var(--color-error)';
   const text = connected ? '实时连接' : '已断开';
   return (
     <span

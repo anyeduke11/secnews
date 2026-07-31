@@ -144,9 +144,9 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
             className="text-[10px] font-normal px-1.5 py-0.5 rounded"
             style={{
               background: enabled
-                ? 'rgba(34, 197, 94, 0.15)'
-                : 'rgba(148, 163, 184, 0.15)',
-              color: enabled ? 'rgb(34, 197, 94)' : 'var(--text-muted)',
+                ? 'color-mix(in srgb, var(--color-success) 9%, transparent)'
+                : 'color-mix(in srgb, var(--text-muted) 9%, transparent)',
+              color: enabled ? 'var(--color-success)' : 'var(--text-muted)',
             }}
           >
             {enabled ? '已启用' : '已禁用'}
@@ -170,7 +170,7 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
       {saved && (
         <div
           className="text-[10px] mb-2 px-2 py-1 rounded"
-          style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'rgb(34, 197, 94)' }}
+          style={{ background: 'color-mix(in srgb, var(--color-success) 8%, transparent)', color: 'var(--color-success)' }}
         >
           ✓ 已保存 (重启后生效)
         </div>
@@ -179,7 +179,7 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
       {toast && (
         <div
           className="text-[10px] mb-2 px-2 py-1 rounded"
-          style={{ background: 'rgba(59, 130, 246, 0.1)', color: 'rgb(59, 130, 246)' }}
+          style={{ background: 'color-mix(in srgb, var(--color-info) 8%, transparent)', color: 'var(--color-info)' }}
         >
           {toast}
         </div>

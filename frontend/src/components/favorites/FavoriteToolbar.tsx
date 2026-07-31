@@ -5,7 +5,7 @@
  * props-only: 接收 counts/total/activeCat + 切换/导出回调。
  */
 import React from 'react';
-import { CATEGORIES, getCategoryColor } from '../../types';
+import { CATEGORIES, getCategoryColorVar } from '../../types';
 
 const CATEGORY_CHIPS = [
   { id: 'all', label: '全部' },
@@ -31,14 +31,14 @@ export function FavoriteToolbar({
       {CATEGORY_CHIPS.map(c => {
         const cCount = c.id === 'all' ? total : (counts[c.id] || 0);
         const isActive = activeCat === c.id;
-        const catColor = c.id === 'all' ? 'var(--color-warning)' : getCategoryColor(c.id);
+        const catColor = c.id === 'all' ? 'var(--color-warning)' : getCategoryColorVar(c.id);
         return (
           <button
             key={c.id}
             onClick={() => onCategoryChange(c.id)}
             className="text-[11px] px-2.5 py-1 rounded-full transition-colors duration-150 flex items-center gap-1"
             style={{
-              backgroundColor: isActive ? `${catColor}24` : 'var(--bg-hover)',
+              backgroundColor: isActive ? `color-mix(in srgb, ${catColor} 14%, transparent)` : 'var(--bg-hover)',
               color: isActive ? catColor : 'var(--text-secondary)',
               border: `1px solid ${isActive ? catColor : 'transparent'}`,
             }}

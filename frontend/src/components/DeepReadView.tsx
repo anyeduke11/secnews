@@ -187,8 +187,8 @@ const typeBadgeStyle: React.CSSProperties = {
   fontSize: 11,
   padding: '2px 8px',
   borderRadius: 4,
-  background: 'rgba(0, 212, 224, 0.15)',
-  color: 'var(--color-ai, #00d4e0)',
+  background: 'color-mix(in srgb, var(--accent) 9%, transparent)',
+  color: 'var(--accent)',
   fontFamily: 'monospace',
   textTransform: 'uppercase',
 };
@@ -198,7 +198,7 @@ const errorBannerStyle: React.CSSProperties = {
   marginBottom: 'var(--space-3, 12px)',
   border: '1px solid var(--color-error, #ef4444)',
   borderRadius: 'var(--radius-sm, 4px)',
-  background: 'rgba(239, 68, 68, 0.08)',
+  background: 'color-mix(in srgb, var(--color-error) 8%, transparent)',
   color: 'var(--color-error, #ef4444)',
   fontSize: 12,
 };

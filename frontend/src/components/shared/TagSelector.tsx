@@ -106,15 +106,15 @@ export function TagSelector({
   );
 }
 
-// ── styles (tech-style: 青色主调, 透明卡片, 发光描边) ───────────────
+// ── styles (editorial: 强调色描边, 无发光) ───────────────
 const wrapperStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: 'var(--space-2)',
   padding: 'var(--space-3)',
-  border: '1px solid var(--color-ai, #00d4e0)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-md)',
-  background: 'rgba(0, 212, 224, 0.04)',
+  background: 'var(--bg-hover)',
 };
 
 const toggleRowStyle: React.CSSProperties = {
@@ -142,9 +142,9 @@ const modeBtnStyle: React.CSSProperties = {
 
 const modeBtnActiveStyle: React.CSSProperties = {
   ...modeBtnStyle,
-  borderColor: 'var(--color-ai, #00d4e0)',
-  color: 'var(--color-ai, #00d4e0)',
-  boxShadow: '0 0 8px rgba(0, 212, 224, 0.4)',
+  borderColor: 'var(--accent)',
+  color: 'var(--accent)',
+  fontWeight: 700,
 };
 
 const hintStyle: React.CSSProperties = {
@@ -174,10 +174,9 @@ const tagStyle: React.CSSProperties = {
 
 const tagActiveStyle: React.CSSProperties = {
   ...tagStyle,
-  borderColor: 'var(--color-ai, #00d4e0)',
-  color: 'var(--color-ai, #00d4e0)',
-  background: 'rgba(0, 212, 224, 0.12)',
-  boxShadow: '0 0 6px rgba(0, 212, 224, 0.5)',
+  borderColor: 'var(--accent)',
+  color: 'var(--accent)',
+  background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
 };
 
 const statusStyle: React.CSSProperties = {

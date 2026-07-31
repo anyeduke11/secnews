@@ -46,7 +46,7 @@ export function AlertBadge({ count, onClick }: AlertBadgeProps) {
           position: 'absolute',
           top: '-4px',
           right: '-4px',
-          background: '#e53e3e',
+          background: 'var(--color-error)',
           color: '#fff',
           fontSize: '10px',
           fontWeight: 'bold',

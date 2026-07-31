@@ -83,19 +83,19 @@ export function AlertCenter() {
           </div>
 
           {loading && alerts.length === 0 && (
-            <div style={{ padding: '24px', textAlign: 'center', color: '#999' }}>
+            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
               加载中...
             </div>
           )}
 
           {error && (
-            <div style={{ padding: '12px 16px', color: '#e53e3e', fontSize: '13px' }}>
+            <div style={{ padding: '12px 16px', color: 'var(--color-error)', fontSize: '13px' }}>
               {error}
             </div>
           )}
 
           {!loading && !error && alerts.length === 0 && (
-            <div style={{ padding: '24px', textAlign: 'center', color: '#999' }}>
+            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
               暂无告警
             </div>
           )}
@@ -109,7 +109,7 @@ export function AlertCenter() {
                 borderBottom: '1px solid var(--border-color, #f0f0f0)',
                 background:
                   alert.status === 'pending' || alert.status === 'fired'
-                    ? 'rgba(229, 62, 62, 0.04)'
+                    ? 'color-mix(in srgb, var(--color-error) 4%, transparent)'
                     : 'transparent',
               }}
             >
@@ -126,10 +126,10 @@ export function AlertCenter() {
                   >
                     {getAlertTitle(alert)}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                     {getAlertSummary(alert)}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
                     {formatTime(alert.created_at)}
                   </div>
                 </div>
@@ -141,7 +141,7 @@ export function AlertCenter() {
                     style={{
                       padding: '2px 8px',
                       fontSize: '11px',
-                      border: '1px solid #ddd',
+                      border: '1px solid var(--border-color)',
                       borderRadius: '4px',
                       background: 'transparent',
                       cursor: 'pointer',
@@ -155,7 +155,7 @@ export function AlertCenter() {
                   style={{
                     padding: '2px 8px',
                     fontSize: '11px',
-                    border: '1px solid #ddd',
+                    border: '1px solid var(--border-color)',
                     borderRadius: '4px',
                     background: 'transparent',
                     cursor: 'pointer',
@@ -168,11 +168,11 @@ export function AlertCenter() {
                   style={{
                     padding: '2px 8px',
                     fontSize: '11px',
-                    border: '1px solid #ddd',
+                    border: '1px solid var(--border-color)',
                     borderRadius: '4px',
                     background: 'transparent',
                     cursor: 'pointer',
-                    color: '#e53e3e',
+                    color: 'var(--color-error)',
                   }}
                 >
                   删除

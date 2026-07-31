@@ -215,11 +215,11 @@ export function KnowledgeImport() {
           </div>
           {syncPhase === 'processing' && syncTotal > 0 ? (
             <div
-              className="w-full h-1.5 rounded-full overflow-hidden"
+              className="w-full h-1.5 overflow-hidden"
               style={{ backgroundColor: 'color-mix(in srgb, var(--area-accent) 15%, transparent)' }}
             >
               <div
-                className="h-full rounded-full transition-all duration-500 ease-out"
+                className="h-full transition-all duration-500 ease-out"
                 style={{
                   width: `${Math.min(100, Math.round((syncCurrent / syncTotal) * 100))}%`,
                   backgroundColor: 'var(--area-accent)',
@@ -228,11 +228,11 @@ export function KnowledgeImport() {
             </div>
           ) : (
             <div
-              className="w-full h-1 rounded-full overflow-hidden"
+              className="w-full h-1 overflow-hidden"
               style={{ backgroundColor: 'color-mix(in srgb, var(--area-accent) 15%, transparent)' }}
             >
               <div
-                className="h-full rounded-full animate-pulse"
+                className="h-full animate-pulse"
                 style={{ backgroundColor: 'var(--area-accent)', width: '40%' }}
               />
             </div>

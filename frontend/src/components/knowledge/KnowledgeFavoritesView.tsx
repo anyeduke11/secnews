@@ -19,12 +19,13 @@ const SOURCE_TYPE_OPTIONS = [
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
+// v1.9 Editorial: 油墨色变量随主题切换, 去高饱和 material 色
 const SOURCE_TYPE_COLORS: Record<string, string> = {
-  favorites: '#4CAF50',
-  cubox: '#2196F3',
-  bookmark: '#FF9800',
-  secnews_archive: '#9E9E9E',
-  secnews: '#E91E63',
+  favorites: 'var(--color-success)',
+  cubox: 'var(--color-info)',
+  bookmark: 'var(--color-warning)',
+  secnews_archive: 'var(--text-muted)',
+  secnews: 'var(--color-error)',
 };
 
 export default function KnowledgeFavoritesView() {
@@ -64,13 +65,24 @@ export default function KnowledgeFavoritesView() {
 
   return (
     <div className="knowledge-favorites-view">
-      <h1>资讯收藏</h1>
+      {/* v1.9 Editorial: 栏目头 — 上边粗线 + uppercase 小标 */}
+      <div className="flex items-center justify-between pb-2 mb-4" style={{ borderBottom: '2px solid var(--text-primary)' }}>
+        <h1 className="text-sm font-bold tracking-[0.12em] uppercase" style={{ color: 'var(--text-primary)' }}>资讯收藏</h1>
+        {data && (
+          <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>共 {data.total} 条</span>
+        )}
+      </div>
 
       {/* Filters */}
-      <div className="filters">
-        <div className="filter-row">
+      <div className="filters mb-4">
+        <div className="filter-row flex flex-wrap items-center gap-x-2 gap-y-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
           <label>类型：</label>
-          <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}>
+          <select
+            className="text-xs px-2 py-1 focus-ring"
+            style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
+            value={typeFilter}
+            onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
+          >
             {SOURCE_TYPE_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
@@ -79,62 +91,83 @@ export default function KnowledgeFavoritesView() {
           <label>搜索：</label>
           <input
             type="text"
+            className="text-xs px-2 py-1 focus-ring"
+            style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
             placeholder="搜索标题..."
             value={keyword}
             onChange={e => { setKeyword(e.target.value); setPage(1); }}
           />
 
           <label>起止：</label>
-          <input type="date" value={since} onChange={e => { setSince(e.target.value); setPage(1); }} />
-          <input type="date" value={until} onChange={e => { setUntil(e.target.value); setPage(1); }} />
+          <input
+            type="date" value={since}
+            className="text-xs px-2 py-1 focus-ring"
+            style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
+            onChange={e => { setSince(e.target.value); setPage(1); }}
+          />
+          <input
+            type="date" value={until}
+            className="text-xs px-2 py-1 focus-ring"
+            style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
+            onChange={e => { setUntil(e.target.value); setPage(1); }}
+          />
         </div>
       </div>
 
       {/* Loading */}
-      {loading && <div className="loading">加载中...</div>}
+      {loading && <div className="loading text-xs py-4" style={{ color: 'var(--text-muted)' }}>加载中...</div>}
 
       {/* Error */}
-      {error && <div className="error">错误: {error}</div>}
+      {error && <div className="error text-xs py-4" style={{ color: 'var(--color-error)' }}>错误: {error}</div>}
 
       {/* Items */}
       {data && data.items.length === 0 && !loading && (
-        <div className="empty">暂无数据</div>
+        <div className="empty text-xs py-8 text-center" style={{ color: 'var(--text-muted)' }}>暂无数据</div>
       )}
 
       {data && data.items.length > 0 && (
         <>
-          <div className="item-list">
+          <div className="item-list flex flex-col">
             {data.items.map((item) => (
-              <div key={item.id} className="item-card">
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="item-title"
-                >
-                  {item.title}
-                </a>
-                <div className="item-meta">
+              <article key={item.id} className="feed-row">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
                   <span
-                    className="source-type-tag"
-                    style={{ backgroundColor: SOURCE_TYPE_COLORS[item.source_type] || '#999' }}
+                    className="editorial-badge source-type-tag"
+                    style={{ color: SOURCE_TYPE_COLORS[item.source_type] || 'var(--text-muted)', borderColor: 'currentColor' }}
                   >
                     {item.source_name}
                   </span>
+                  <span aria-hidden="true" style={{ color: 'var(--border-color)' }}>·</span>
                   <span className="item-origin">{item.origin}</span>
-                  <span className="item-time">{item.ingested_at}</span>
+                  <span aria-hidden="true" style={{ color: 'var(--border-color)' }}>·</span>
+                  <span className="item-time font-mono tabular-nums">{item.ingested_at}</span>
                 </div>
-              </div>
+                <h3 className="feed-title" style={{ fontSize: 16 }}>
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="item-title focus-ring"
+                  >
+                    {item.title}
+                  </a>
+                </h3>
+              </article>
             ))}
           </div>
 
           {/* Pagination */}
-          <div className="pagination">
+          <div className="pagination mt-5 flex flex-wrap items-center justify-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
             <span>共 {data.total} 条</span>
-            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}>上一页</button>
-            <span>第 {page}/{totalPages} 页</span>
-            <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>下一页</button>
-            <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}>
+            <button className="pagination-btn focus-ring" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>上一页</button>
+            <span className="page-indicator">第 {page}/{totalPages} 页</span>
+            <button className="pagination-btn focus-ring" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>下一页</button>
+            <select
+              className="text-xs px-2 py-1 focus-ring"
+              style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
+              value={pageSize}
+              onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+            >
               {PAGE_SIZE_OPTIONS.map(opt => (
                 <option key={opt} value={opt}>{opt}条/页</option>
               ))}

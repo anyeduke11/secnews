@@ -322,15 +322,10 @@ function HomePage() {
               <button
                 type="button"
                 onClick={() => setSourceFilter('')}
-                className="focus-ring inline-flex items-center gap-1.5 transition-colors"
-                style={{
-                  color: 'var(--bg-primary)',
-                  background: 'var(--text-primary)',
-                  border: '1px solid var(--text-primary)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '3px 9px', cursor: 'pointer', fontWeight: 700,
-                }}
+                className="ink-chip active focus-ring transition-colors"
+                style={{ padding: '3px 9px' }}
                 title="清除来源筛选"
+                aria-label={`清除来源筛选 ${sourceFilter}`}
               >
                 {sourceFilter}
                 <span aria-hidden="true" style={{ fontWeight: 400 }}>×</span>

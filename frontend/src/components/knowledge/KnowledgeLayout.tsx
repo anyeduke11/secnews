@@ -6,7 +6,7 @@
  *  - 4 Tab 导航卡片: KnowledgeTabs
  *  - 子页面 Outlet
  *
- * 设计与现有 PageLayout / Header 风格保持一致 (HUD 科技风)。
+ * 设计与现有 PageLayout / Header 风格保持一致 (v1.9 Editorial 报纸风)。
  */
 import React, { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
@@ -36,8 +36,11 @@ export function KnowledgeLayout({ areaCounts }: KnowledgeLayoutProps) {
 
   return (
     <div className="knowledge-page" data-active-area={activeTitle}>
-      {/* 顶部 Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+      {/* 顶部 Header — v1.9 Editorial: 下边墨色粗线分隔报头与内容 */}
+      <div
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2 pb-3"
+        style={{ borderBottom: '2px solid var(--text-primary)' }}
+      >
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={goHome}
@@ -52,7 +55,7 @@ export function KnowledgeLayout({ areaCounts }: KnowledgeLayoutProps) {
             返回首页
           </button>
           <h2
-            className="text-base font-bold flex items-center gap-2 min-w-0"
+            className="font-serif text-lg font-bold flex items-center gap-2 min-w-0"
             style={{ color: 'var(--text-primary)' }}
           >
             <Icon size={16}>

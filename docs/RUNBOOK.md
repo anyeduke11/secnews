@@ -1,65 +1,83 @@
 # 运维手册 (Runbook)
 
-## 常驻运维（Phase 8 Addendum）
+## 启动与停止
 
-### 启动
+### 后端
 
-```powershell
-cd c:\Users\Noped\Documents\lingxi-claw\20260704-15-04-55-413\hotspot-map
-.\scripts\service\start.ps1
+```bash
+# 启动后端 (FastAPI + APScheduler)
+python run.py
+# → http://127.0.0.1:8000，自动启动采集调度器
+
+# 指定端口
+PORT=8001 python run.py
 ```
 
-启动后端 + APScheduler 采集服务，WORKERS=4，端口 8000。
-- 日志：`scripts/logs/service.out.log` 和 `service.out.log.err`
-- PID：`scripts/logs/service.pid`
+### 前端
 
-### 状态查询
-
-```powershell
-.\scripts\service\status.ps1
+```bash
+cd frontend && npm run dev
+# → http://localhost:8898
 ```
 
-输出：pid / uptime / status / scheduler jobs / collect_interval / db size / cache hit rate
+### 停止
 
-### 优雅停止
+```bash
+# 找到后端 PID
+lsof -i :8000 | grep LISTEN
 
-```powershell
-.\scripts\service\stop.ps1
+# 停止
+kill <pid>
+# 或直接 Ctrl+C (前台运行)
 ```
 
-10s 内退出，rc=0（Phase 8 Task 1.1 容错 stop()）。
+### 生产构建
 
-### 故障排查
+```bash
+cd frontend && npm run build
+# → tsc + vite build，输出到 dist/
+```
+
+## 状态查询
+
+```bash
+# 后端健康检查
+curl http://127.0.0.1:8000/api/health | jq '.'
+
+# 调度器状态
+curl http://127.0.0.1:8000/api/health | jq '.components.scheduler'
+
+# 采集器状态
+curl http://127.0.0.1:8000/api/health | jq '.components.collectors'
+
+# 查看数据库大小
+ls -lh backend/data/hotspot.db
+
+# 查看调度器已注册 job
+sqlite3 backend/data/hotspot.db "SELECT id, name, trigger, next_run_time FROM apscheduler_jobs;"
+```
+
+## 故障排查
 
 | 症状 | 排查 |
 |------|------|
-| 端口 8000 占用 | `netstat -ano \| findstr :8000` → 找 PID → `Stop-Process -Force` |
-| 启动后 status=down | `tail scripts/logs/service.out.log` 看 traceback |
-| scheduler.ok=false | 检查 `collect_interval_seconds` 环境变量 |
-| DB 损坏 | `python scripts/chaostest/db_corrupt.py` 走演练 |
-| /api/health 慢 | PRAGMA integrity_check 60s TTL 缓存已生效 |
+| 端口 8000 占用 | `lsof -i :8000` → 找 PID → `kill <pid>` |
+| 端口 8898 占用 | `lsof -i :8898` → 8898 是受保护端口（CodeGarden 资源中枢），禁止释放 |
+| 启动后端报错 | 检查 `.venv` 是否激活，`pip install -r backend/requirements.txt` |
+| 前端启动报错 | `cd frontend && npm install` 重新安装依赖 |
+| 采集无数据 | 检查 `backend/proxy_config.json` 代理配置 |
+| 数据库损坏 | `sqlite3 backend/data/hotspot.db "PRAGMA integrity_check;"` |
 | 22h 假死 (本周资讯空) | 见下面「如何手动追抓资讯」 |
 
 ### 日志路径
 
-- 应用：`scripts/logs/service.out.log` / `.err`
-- 业务：项目根 `backend/logs/hotspot.log`
-- 压测：`scripts/logs/perf_*.log`
-- 故障演练：`scripts/logs/chaos_*.log` / `chaos_*_backend_*.log`
+- 应用日志：`backend/logs/hotspot.log`
+- 后端 stdout：终端输出（前端运行时不写文件）
 
-### 验证服务常驻
-
-跑 30 分钟，监控：
-- `status.ps1` 每 5min 跑一次
-- `cache.hit_rate.list > 0.5` 表示 list cache 在工作
-- `scheduler.jobs` 包含 collect_all + trend_rebuild + url_content_check + source_reputation_rebuild + export_rebuild
-
----
-
-## 如何手动追抓资讯（Phase 8 新增）
+## 如何手动追抓资讯
 
 `collection_service.py` 的 `asyncio.Lock` 跨进程不释放的根因**未修**（独立 PR），
-但 Phase 8 加了「被动保护 + 主动补救」双保险：
+但加了「被动保护 + 主动补救」双保险：
 
 ### A. 被动保护：watchdog
 
@@ -150,3 +168,41 @@ sqlite3 backend/data/hotspot.db \
 2. 等次日 03:00 复活 job
 3. 手动复跑: `python -c "from backend.services.source_revival_service import revive_all_dead; print(revive_all_dead())"`
 
+## 数据库维护
+
+```bash
+# 手动 VACUUM
+sqlite3 backend/data/hotspot.db "VACUUM;"
+
+# 完整性检查
+sqlite3 backend/data/hotspot.db "PRAGMA integrity_check;"
+
+# 查看各表大小
+sqlite3 backend/data/hotspot.db "
+SELECT name, SUM(pgsize) as size_bytes
+FROM dbstat GROUP BY name ORDER BY size_bytes DESC LIMIT 20;"
+
+# 备份
+cp backend/data/hotspot.db backend/data/hotspot.db.backup
+```
+
+## 测试
+
+```bash
+# 后端全部测试
+.venv/bin/python3 -m pytest backend/tests/ -v
+
+# 按类型筛选
+.venv/bin/python3 -m pytest backend/tests/ -k "merge" -v
+.venv/bin/python3 -m pytest backend/tests/ -m unit -v
+
+# 前端测试
+cd frontend && npx vitest run
+
+# 前端类型检查
+cd frontend && npx tsc --noEmit
+```
+
+## CI
+
+`.github/workflows/ci.yml` — Python compile + pytest + tsc + vitest + vite build。

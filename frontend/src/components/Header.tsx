@@ -194,17 +194,7 @@ export function Header({
 
   return (
     <header className="mb-4" style={{ borderBottom: '2px solid var(--text-primary)' }}>
-      {/* ── 工具条: 栏目导航 (桌面端) ── */}
-      <div
-        className="hidden lg:flex items-center justify-end gap-3 py-1.5 text-[11.5px]"
-        style={{ borderBottom: '1px solid var(--border-light)', color: 'var(--text-muted)' }}
-      >
-        <nav className="flex items-center gap-1.5" aria-label="功能导航">
-          {navLinks()}
-        </nav>
-      </div>
-
-      {/* ── Masthead: 报头靠左 + 右侧两行堆叠 (上: 动作组 / 下: 日期摄取状态, 均靠右) ── */}
+      {/* ── Masthead: 报头靠左 + 右侧两行堆叠 (上: 动作组 / 下: 栏目导航, 均靠右) ── */}
       <div className="flex items-end flex-wrap gap-x-5 gap-y-2 py-4 sm:py-5">
         <button
           onClick={() => navigate('/')}
@@ -217,41 +207,41 @@ export function Header({
             热点地图 · 每日情报简报
           </p>
         </button>
-        <div className="ml-auto flex flex-col items-end gap-1.5 min-w-0">
+        <div className="ml-auto flex flex-col items-end gap-1.5 min-w-0 max-w-full">
           <div className="flex items-center justify-end gap-0.5">
             {actionButtons}
           </div>
-          <div
-            className="flex items-center justify-end flex-wrap gap-x-2.5 gap-y-1 min-w-0 text-[11.5px]"
-            style={{ color: 'var(--text-muted)' }}
+          <nav
+            className="flex items-center gap-1.5 overflow-x-auto max-w-full text-[11.5px]"
+            style={{ scrollbarWidth: 'none' }}
+            aria-label="功能导航"
           >
-            <span className="whitespace-nowrap hidden sm:inline">{dateLine}</span>
-            <span className="hidden sm:inline" aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
-            <span className="flex items-center gap-1.5 whitespace-nowrap" title="最近摄取更新条数">
-              <span className="pulse-dot" style={{ backgroundColor: 'var(--color-general)', width: 5, height: 5, borderRadius: '50%', display: 'inline-block' }} />
-              <span className="font-mono tabular-nums font-semibold" style={{ color: 'var(--text-secondary)' }}>{latestIngestionCount}</span>
-              <span>更新</span>
-            </span>
-            <span aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
-            <span className="font-mono tabular-nums whitespace-nowrap" title="最近更新时间">{lastUpdatedClock}</span>
-            <span className="hidden md:inline" aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
-            <span className="hidden md:flex items-center gap-1 font-mono tabular-nums whitespace-nowrap" title="距下次自动刷新">
-              <Icon size={10}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Icon>
-              {countdownText}
-            </span>
-          </div>
+            {navLinks()}
+          </nav>
         </div>
       </div>
 
-      {/* ── 移动端: 横向滚动栏目导航 ── */}
-      <div className="flex lg:hidden items-center pb-2">
-        <nav
-          className="flex items-center gap-2 overflow-x-auto text-xs min-w-0"
-          style={{ scrollbarWidth: 'none' }}
-          aria-label="功能导航"
+      {/* ── 底行: 日期 + 摄取状态 (靠右) ── */}
+      <div className="flex items-center justify-end pb-2">
+        <div
+          className="flex items-center justify-end flex-wrap gap-x-2.5 gap-y-1 min-w-0 text-[11.5px]"
+          style={{ color: 'var(--text-muted)' }}
         >
-          {navLinks()}
-        </nav>
+          <span className="whitespace-nowrap hidden sm:inline">{dateLine}</span>
+          <span className="hidden sm:inline" aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
+          <span className="flex items-center gap-1.5 whitespace-nowrap" title="最近摄取更新条数">
+            <span className="pulse-dot" style={{ backgroundColor: 'var(--color-general)', width: 5, height: 5, borderRadius: '50%', display: 'inline-block' }} />
+            <span className="font-mono tabular-nums font-semibold" style={{ color: 'var(--text-secondary)' }}>{latestIngestionCount}</span>
+            <span>更新</span>
+          </span>
+          <span aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
+          <span className="font-mono tabular-nums whitespace-nowrap" title="最近更新时间">{lastUpdatedClock}</span>
+          <span className="hidden md:inline" aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
+          <span className="hidden md:flex items-center gap-1 font-mono tabular-nums whitespace-nowrap" title="距下次自动刷新">
+            <Icon size={10}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Icon>
+            {countdownText}
+          </span>
+        </div>
       </div>
     </header>
   );

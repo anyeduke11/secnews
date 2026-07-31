@@ -113,7 +113,7 @@ export function ContentCalendar() {
 
       <div className="grid grid-cols-7 gap-0.5 mb-1">
         {WEEKDAYS.map(d => (
-          <div key={d} className="text-center text-[9px]" style={{ color: 'var(--text-muted)' }}>{d}</div>
+          <div key={d} className="text-center text-[10px]" style={{ color: 'var(--text-muted)' }}>{d}</div>
         ))}
       </div>
 
@@ -135,12 +135,12 @@ export function ContentCalendar() {
                 border: selectedDate === dateStr ? '1px solid var(--color-ai)' : '1px solid transparent',
               }}
             >
-              <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{day}</div>
+              <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{day}</div>
               {dayEntries.map(e => (
                 <div
                   key={e.id}
                   onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }}
-                  className="text-[8px] truncate rounded px-0.5 mt-0.5"
+                  className="text-[10px] truncate rounded px-0.5 mt-0.5"
                   style={{ backgroundColor: 'var(--color-ai)', color: 'var(--text-on-color)' }}
                   title={`${e.topic} (点击删除)`}
                 >

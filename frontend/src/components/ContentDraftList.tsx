@@ -150,7 +150,7 @@ export function ContentDraftList() {
                 onClick={() => handleExpand(d.id)}
               >
                 <span
-                  className="px-1 py-0.5 rounded text-[8px] shrink-0"
+                  className="px-1 py-0.5 rounded text-[10px] shrink-0"
                   style={{
                     backgroundColor: d.status === 'final' ? 'var(--color-success)' : d.status === 'archived' ? 'var(--text-muted)' : 'var(--color-ai)',
                     color: 'var(--text-on-color)',
@@ -161,12 +161,12 @@ export function ContentDraftList() {
                 <span className="flex-1 truncate text-[10px]" style={{ color: 'var(--text-primary)' }} title={d.title}>
                   {d.title}
                 </span>
-                <span className="text-[8px] shrink-0" style={{ color: 'var(--text-muted)' }}>
+                <span className="text-[10px] shrink-0" style={{ color: 'var(--text-muted)' }}>
                   {new Date(d.updated_at).toLocaleDateString('zh-CN')}
                 </span>
                 <button
                   onClick={(e) => { e.stopPropagation(); setPublishDraftId(d.id); setPublishDraftTitle(d.title); }}
-                  className="text-[9px] px-1 shrink-0"
+                  className="text-[10px] px-1 shrink-0"
                   style={{ color: 'var(--color-ai)' }}
                   title="发布"
                 >
@@ -174,7 +174,7 @@ export function ContentDraftList() {
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setHistoryDraftId(d.id); }}
-                  className="text-[9px] px-1 shrink-0"
+                  className="text-[10px] px-1 shrink-0"
                   style={{ color: 'var(--text-muted)' }}
                   title="发布历史"
                 >
@@ -191,7 +191,7 @@ export function ContentDraftList() {
               </div>
               {expandedId === d.id && (
                 <pre
-                  className="text-[9px] whitespace-pre-wrap p-1.5 max-h-32 overflow-auto"
+                  className="text-[10px] whitespace-pre-wrap p-1.5 max-h-32 overflow-auto"
                   style={{ color: 'var(--text-primary)', fontFamily: 'monospace', borderTop: '1px solid var(--border-color)' }}
                 >
                   {loadingContent ? '加载中…' : expandedContent}

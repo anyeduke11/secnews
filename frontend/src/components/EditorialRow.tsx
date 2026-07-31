@@ -85,7 +85,7 @@ export function EditorialRow({
           </h3>
 
           {item.summary && (
-            <p className="text-[13px] leading-relaxed mt-1.5 line-clamp-2 max-w-[70ch]" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-sm md:text-[13px] leading-relaxed mt-1.5 line-clamp-2 max-w-[70ch]" style={{ color: 'var(--text-secondary)' }}>
               {item.summary}
             </p>
           )}

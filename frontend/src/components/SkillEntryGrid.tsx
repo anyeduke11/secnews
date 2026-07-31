@@ -88,7 +88,7 @@ export function SkillEntryGrid() {
             >
               <span className="text-sm">{icon}</span>
               <span className="truncate w-full text-center">{label}</span>
-              <span className="flex items-center gap-0.5 text-[8px]" style={{ color: 'var(--text-muted)' }}>
+              <span className="flex items-center gap-0.5 text-[10px]" style={{ color: 'var(--text-muted)' }}>
                 <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: dotColor }} />
                 {dotLabel}
               </span>

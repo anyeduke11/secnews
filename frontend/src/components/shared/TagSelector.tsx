@@ -125,7 +125,7 @@ const toggleRowStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = {
   fontSize: 12,
-  color: 'var(--text-muted, #888)',
+  color: 'var(--text-muted)',
   marginRight: 'var(--space-1)',
 };
 
@@ -133,10 +133,10 @@ const modeBtnStyle: React.CSSProperties = {
   padding: '2px 10px',
   fontSize: 12,
   fontFamily: 'monospace',
-  border: '1px solid var(--border-color, #333)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-sm)',
   background: 'transparent',
-  color: 'var(--text-muted, #888)',
+  color: 'var(--text-muted)',
   cursor: 'pointer',
 };
 
@@ -149,7 +149,7 @@ const modeBtnActiveStyle: React.CSSProperties = {
 
 const hintStyle: React.CSSProperties = {
   fontSize: 11,
-  color: 'var(--text-muted, #666)',
+  color: 'var(--text-muted)',
   marginLeft: 'var(--space-2)',
 };
 
@@ -164,10 +164,10 @@ const listStyle: React.CSSProperties = {
 const tagStyle: React.CSSProperties = {
   padding: '3px 10px',
   fontSize: 12,
-  border: '1px solid var(--border-color, #333)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-full)',
   background: 'transparent',
-  color: 'var(--text-muted, #aaa)',
+  color: 'var(--text-muted)',
   cursor: 'pointer',
   transition: 'all 0.15s',
 };
@@ -181,7 +181,7 @@ const tagActiveStyle: React.CSSProperties = {
 
 const statusStyle: React.CSSProperties = {
   fontSize: 12,
-  color: 'var(--text-muted, #888)',
+  color: 'var(--text-muted)',
   padding: 'var(--space-2)',
 };
 
@@ -190,7 +190,7 @@ const footerStyle: React.CSSProperties = {
   alignItems: 'center',
   gap: 'var(--space-3)',
   fontSize: 12,
-  color: 'var(--text-muted, #888)',
+  color: 'var(--text-muted)',
   fontFamily: 'monospace',
 };
 
@@ -198,10 +198,10 @@ const clearBtnStyle: React.CSSProperties = {
   marginLeft: 'auto',
   padding: '2px 8px',
   fontSize: 11,
-  border: '1px solid var(--border-color, #333)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-sm)',
   background: 'transparent',
-  color: 'var(--text-muted, #888)',
+  color: 'var(--text-muted)',
   cursor: 'pointer',
 };
 

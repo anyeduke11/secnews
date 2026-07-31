@@ -120,7 +120,7 @@ export function FromKnowledgeDialog({ open, onClose, onImported, listCandidates,
                     <div className="text-[10px] font-mono truncate" style={{ color: 'var(--text-muted)' }}>
                       {c.source_url}
                     </div>
-                    <div className="text-[9px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
                       {new Date(c.ingested_at).toLocaleString()}
                     </div>
                   </div>

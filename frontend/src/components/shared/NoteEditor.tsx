@@ -170,7 +170,7 @@ export function NoteEditor({
                     </button>
                     <button
                       type="button"
-                      style={{ ...actionBtnStyle, color: 'var(--color-error, #ef4444)' }}
+                      style={{ ...actionBtnStyle, color: 'var(--color-error)' }}
                       onClick={() => handleRemove(a.id)}
                       disabled={busy}
                     >
@@ -196,9 +196,9 @@ const wrapperStyle: React.CSSProperties = {
   flexDirection: 'column',
   gap: 'var(--space-2, 8px)',
   padding: 'var(--space-3, 12px)',
-  border: '1px solid var(--border-color, #1c1c2e)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-md, 8px)',
-  background: 'var(--bg-card, #0d0d14)',
+  background: 'var(--bg-card)',
 };
 
 const headerStyle: React.CSSProperties = {
@@ -209,7 +209,7 @@ const headerStyle: React.CSSProperties = {
 
 const titleStyle: React.CSSProperties = {
   fontSize: 13,
-  color: 'var(--color-ai, #00d4e0)',
+  color: 'var(--color-ai)',
   fontFamily: 'monospace',
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
@@ -217,7 +217,7 @@ const titleStyle: React.CSSProperties = {
 
 const countStyle: React.CSSProperties = {
   fontSize: 11,
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   fontFamily: 'monospace',
 };
 
@@ -231,10 +231,10 @@ const textareaStyle: React.CSSProperties = {
   flex: 1,
   padding: '6px 8px',
   fontSize: 13,
-  border: '1px solid var(--border-color, #1c1c2e)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-sm, 4px)',
-  background: 'var(--bg-secondary, #09090f)',
-  color: 'var(--text-primary, #f0f0f7)',
+  background: 'var(--bg-secondary)',
+  color: 'var(--text-primary)',
   fontFamily: 'inherit',
   resize: 'vertical',
   outline: 'none',
@@ -252,12 +252,12 @@ const addBtnStyle: React.CSSProperties = {
 
 const errorStyle: React.CSSProperties = {
   fontSize: 12,
-  color: 'var(--color-error, #ef4444)',
+  color: 'var(--color-error)',
 };
 
 const mutedStyle: React.CSSProperties = {
   fontSize: 12,
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   padding: 'var(--space-1, 4px)',
 };
 
@@ -278,7 +278,7 @@ const noteItemStyle: React.CSSProperties = {
 
 const noteContentStyle: React.CSSProperties = {
   fontSize: 13,
-  color: 'var(--text-primary, #f0f0f7)',
+  color: 'var(--text-primary)',
   whiteSpace: 'pre-wrap',
   wordBreak: 'break-word',
   lineHeight: 1.5,
@@ -290,7 +290,7 @@ const noteMetaStyle: React.CSSProperties = {
   alignItems: 'center',
   marginTop: 'var(--space-1, 4px)',
   fontSize: 10,
-  color: 'var(--text-muted, #5b5b72)',
+  color: 'var(--text-muted)',
   fontFamily: 'monospace',
 };
 
@@ -302,10 +302,10 @@ const noteActionsStyle: React.CSSProperties = {
 const actionBtnStyle: React.CSSProperties = {
   padding: '2px 6px',
   fontSize: 10,
-  border: '1px solid var(--border-color, #1c1c2e)',
+  border: '1px solid var(--border-color)',
   borderRadius: 'var(--radius-sm, 4px)',
   background: 'transparent',
-  color: 'var(--text-secondary, #9a9ab2)',
+  color: 'var(--text-secondary)',
   cursor: 'pointer',
 };
 

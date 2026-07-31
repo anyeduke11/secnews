@@ -48,7 +48,7 @@ export function ProjectCard({ project, onClick, onTransition }: ProjectCardProps
           )}
         </div>
         <span
-          className="shrink-0 text-[9px] px-1.5 py-0.5 rounded"
+          className="shrink-0 text-[10px] px-1.5 py-0.5 rounded"
           style={{ backgroundColor: accent + '20', color: accent }}
         >
           {LIFECYCLE_LABELS[project.lifecycle_stage]}
@@ -56,15 +56,15 @@ export function ProjectCard({ project, onClick, onTransition }: ProjectCardProps
       </div>
 
       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-        <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
           {SOURCE_TYPE_LABELS[project.source_type]}
         </span>
-        <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
           {project.type}
         </span>
         {project.source_type === 'fork' && behind > 0 && (
           <span
-            className="text-[9px] px-1.5 py-0.5 rounded font-mono tabular-nums"
+            className="text-[10px] px-1.5 py-0.5 rounded font-mono tabular-nums"
             style={{ backgroundColor: 'var(--color-error)20', color: 'var(--color-error)' }}
             title={`落后上游 ${behind} commits`}
           >
@@ -72,7 +72,7 @@ export function ProjectCard({ project, onClick, onTransition }: ProjectCardProps
           </span>
         )}
         {project.health_score > 0 && (
-          <span className="text-[9px] font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
+          <span className="text-[10px] font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
             ❤ {project.health_score}
           </span>
         )}
@@ -81,7 +81,7 @@ export function ProjectCard({ project, onClick, onTransition }: ProjectCardProps
       {next && onTransition && (
         <button
           onClick={(e) => { e.stopPropagation(); onTransition(project.id, next); }}
-          className="mt-2 text-[9px] w-full py-0.5 rounded"
+          className="mt-2 text-[10px] w-full py-0.5 rounded"
           style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
           title={`推进到 ${LIFECYCLE_LABELS[next]}`}
         >

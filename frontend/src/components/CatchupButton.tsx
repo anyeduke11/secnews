@@ -212,21 +212,20 @@ export function CatchupButton() {
 
   return (
     <div className="inline-flex items-center gap-2">
-      {/* 触发按钮 */}
+      {/* 触发按钮 — editorial 描边按钮, 配色随主题 token */}
       <button
         onClick={handleTrigger}
         disabled={busy || running != null}
         data-testid="catchup-trigger"
         className="btn-ghost px-3 py-1.5 text-xs whitespace-nowrap"
         style={{
-          color: 'var(--color-ai)',
           opacity: busy || running != null ? 0.5 : 1,
           cursor: busy || running != null ? 'not-allowed' : undefined,
         }}
         title="追抓 24h 内的资讯 (manual)"
         aria-label="追抓资讯"
       >
-        {running ? '追抓中…' : busy ? '提交中…' : '🔄 追抓资讯'}
+        {running ? '追抓中…' : busy ? '提交中…' : '追抓资讯'}
       </button>
 
       {/* 中止按钮: 仅 running 时显示 */}
@@ -254,7 +253,7 @@ export function CatchupButton() {
           className="text-[10px] px-2 py-0.5 rounded-[var(--radius-sm)]"
           style={{
             backgroundColor: 'var(--bg-hover)',
-            color: toast.ok ? 'var(--color-ai)' : 'var(--color-error)',
+            color: toast.ok ? 'var(--color-success)' : 'var(--color-error)',
           }}
         >
           {toast.msg}
@@ -275,7 +274,7 @@ export function CatchupButton() {
           <span
             aria-hidden
             className="inline-block animate-pulse mr-0.5"
-            style={{ color: 'var(--color-ai)' }}
+            style={{ color: 'var(--accent)' }}
           >
             ⏳
           </span>
@@ -284,7 +283,7 @@ export function CatchupButton() {
             style={{
               color:
                 running.sources_succeeded > 0
-                  ? 'var(--color-ai)'
+                  ? 'var(--accent)'
                   : 'var(--text-muted)',
               fontVariantNumeric: 'tabular-nums',
               fontWeight: running.sources_succeeded > 0 ? 600 : 400,

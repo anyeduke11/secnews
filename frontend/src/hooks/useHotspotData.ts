@@ -44,6 +44,7 @@ export function useHotspotData(
   timeRange: string,
   keyword: string,
   region?: string,
+  source?: string,  // v1.9.1: 来源精确筛选 (点击条目来源触发)
 ): UseHotspotDataReturn {
   const [pageSize, _setPageSize] = useState<number>(100);
   const [page, _setPage] = useState<number>(1);
@@ -99,6 +100,7 @@ export function useHotspotData(
         if (keyword) params.set('keyword', keyword);
         if (cursor) params.set('cursor', cursor);
         if (region) params.set('region', region);
+        if (source) params.set('source', source);
 
         const response = await fetch(`/api/hotspots?${params}`, {
           signal: controller.signal,
@@ -133,14 +135,14 @@ export function useHotspotData(
         else setLoadingPage(false);
       }
     },
-    [category, timeRange, keyword, region, pageSize]
+    [category, timeRange, keyword, region, source, pageSize]
   );
 
-  // 切换分类 / 时间窗 / 关键词 / 页大小 → 重置到第 1 页, 清空缓存
+  // 切换分类 / 时间窗 / 关键词 / 来源 / 页大小 → 重置到第 1 页, 清空缓存
   useEffect(() => {
     setPageData({});
     _setPage(1);
-  }, [category, timeRange, keyword, region, pageSize]);
+  }, [category, timeRange, keyword, region, source, pageSize]);
 
   // 切换 page: 已缓存 → 立即生效; 未缓存 → fetch
   useEffect(() => {

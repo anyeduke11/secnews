@@ -229,8 +229,10 @@ class HotspotRepository:
         cursor: Optional[str] = None,
         limit: int = _DEFAULT_LIMIT,
         region: Optional[str] = None,  # Phase 8: 标讯地区筛选
+        source: Optional[str] = None,  # v1.9.1: 来源筛选 (头条/条目行来源可点击)
     ) -> tuple[list[HotspotItem], Optional[str]]:
-        """List hotspots with category / time / keyword / cursor / region filters.
+        """List hotspots with category / time / keyword / cursor / region
+        / source filters.
 
         Returns ``(items, next_cursor)``. ``next_cursor`` is ``None`` when
         the result is fully exhausted within the requested ``limit``.
@@ -275,6 +277,10 @@ class HotspotRepository:
         if region:
             where_clauses.append("region = ?")
             params.append(region)
+
+        if source:
+            where_clauses.append("source = ?")
+            params.append(source)
 
         if keyword:
             # Use FTS5 to pre-resolve the matching rowid set, then JOIN

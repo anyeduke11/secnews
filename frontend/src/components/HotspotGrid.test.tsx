@@ -1,5 +1,5 @@
 // frontend/src/components/HotspotGrid.test.tsx
-// Phase 6 — HotspotGrid 列表+分页+三态测试
+// Phase 6 — HotspotGrid 列表+分页+三态测试 (v1.9 Editorial: LeadStory + EditorialRow 信息流)
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { HotspotGrid } from './HotspotGrid';
@@ -35,6 +35,41 @@ describe('HotspotGrid', () => {
         onSetPageSize={vi.fn()}
       />
     );
+    expect(screen.getByText('AI 新闻')).toBeInTheDocument();
+  });
+
+  it('renders first item as LeadStory on page 1, rest as rows', () => {
+    const second: HotspotItem = { ...baseItem, id: 'h2', title: '安全通报' };
+    render(
+      <HotspotGrid
+        items={[baseItem, second]}
+        loading={false}
+        error={null}
+        {...basePagination}
+        total={2}
+        onSetPage={vi.fn()}
+        onSetPageSize={vi.fn()}
+      />
+    );
+    // 首条升格头条 (LeadStory 带「头条」标), 次条为普通条目行
+    expect(screen.getByText('头条')).toBeInTheDocument();
+    expect(screen.getByText('安全通报')).toBeInTheDocument();
+  });
+
+  it('does not render LeadStory on page > 1', () => {
+    render(
+      <HotspotGrid
+        items={[baseItem]}
+        loading={false}
+        error={null}
+        {...basePagination}
+        page={2}
+        totalPages={3}
+        onSetPage={vi.fn()}
+        onSetPageSize={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('头条')).not.toBeInTheDocument();
     expect(screen.getByText('AI 新闻')).toBeInTheDocument();
   });
 

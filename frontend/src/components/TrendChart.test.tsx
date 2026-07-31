@@ -36,9 +36,9 @@ describe('TrendChart', () => {
     // 阻止 fetch resolve, 保持 loading=true
     globalThis.fetch = vi.fn(() => new Promise(() => {})) as any;
     render(<TrendChart />);
-    // 加载中显示占位: h-3.5 w-28 + h-36 两个 div
-    const card = document.querySelector('.stat-card');
-    expect(card).toBeInTheDocument();
+    // 加载中显示 shimmer 占位 (v1.9 Editorial: 去卡片盒)
+    const shimmer = document.querySelector('.animate-shimmer');
+    expect(shimmer).toBeInTheDocument();
   });
 
   it('renders chart title after data loads', async () => {
@@ -59,7 +59,7 @@ describe('TrendChart', () => {
     await waitFor(() => {
       expect(screen.getByText('24小时热度趋势')).toBeInTheDocument();
     });
-    expect(screen.getByText('每小时热点分布')).toBeInTheDocument();
+    expect(screen.getByText('每小时分布')).toBeInTheDocument();
   });
 
   it('renders nothing when API returns empty trends', async () => {
@@ -78,8 +78,7 @@ describe('TrendChart', () => {
     const { container } = render(<TrendChart />);
     await waitFor(() => {
       // 加载完成后空数据 → 返回 null
-      // 验证 stat-card 不在文档里
-      expect(container.querySelector('.stat-card')).not.toBeInTheDocument();
+      expect(container.firstChild).toBeNull();
     });
   });
 
@@ -89,7 +88,7 @@ describe('TrendChart', () => {
     // 等 useEffect 中的 catch 跑完
     await waitFor(() => {
       // catch 后 setLoading(false), 但 data 仍为空 → 返回 null
-      expect(container.querySelector('.stat-card.corner-brackets')).not.toBeInTheDocument();
+      expect(container.firstChild).toBeNull();
     });
   });
 

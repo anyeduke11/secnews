@@ -1,9 +1,8 @@
 import React from 'react';
 import {
   HotspotItem,
-  getCategoryColor,
+  getCategoryColorVar,
   getCategoryLabel,
-  getQualityColor,
   getBidStatusColor,
   formatRelativeTime,
 } from '../types';
@@ -16,7 +15,8 @@ interface HotspotCardProps {
 }
 
 export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite }: HotspotCardProps) {
-  const color = getCategoryColor(item.category);
+  // v1.9 Editorial: 色变量随主题切换; 透明度叠加用 color-mix 替代 hex 拼接
+  const color = getCategoryColorVar(item.category);
   const delayClass = `delay-${Math.min(index + 1, 10)}`;
 
   const handleStarClick = (e: React.MouseEvent) => {
@@ -35,7 +35,7 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
       <div className="flex items-start justify-between gap-2 px-3.5 pt-3 pb-2">
         <span
           className="editorial-badge"
-          style={{ backgroundColor: `${color}15`, color }}
+          style={{ backgroundColor: `color-mix(in srgb, ${color} 9%, transparent)`, color }}
         >
           {getCategoryLabel(item.category)}
         </span>
@@ -51,7 +51,7 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
             target="_blank"
             rel="noopener noreferrer"
             className="hover:underline decoration-from-font"
-            style={{ textDecorationColor: `${color}50`, textUnderlineOffset: '2px' }}
+            style={{ textDecorationColor: `color-mix(in srgb, ${color} 35%, transparent)`, textUnderlineOffset: '2px' }}
           >
             {item.title}
           </a>
@@ -69,7 +69,7 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
             <span
               className="editorial-badge"
               style={{
-                backgroundColor: `${getBidStatusColor(item.bid_status)}15`,
+                backgroundColor: `color-mix(in srgb, ${getBidStatusColor(item.bid_status)} 9%, transparent)`,
                 color: getBidStatusColor(item.bid_status),
               }}
             >
@@ -101,7 +101,7 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
         <button
           onClick={handleStarClick}
           className="shrink-0 p-0.5 rounded-sm transition-colors focus-ring"
-          style={{ color: isFavorited ? 'var(--color-finance)' : 'var(--text-disabled)' }}
+          style={{ color: isFavorited ? 'var(--accent)' : 'var(--text-disabled)' }}
           title={isFavorited ? '取消收藏' : '收藏'}
           aria-label={isFavorited ? '取消收藏' : '收藏'}
         >

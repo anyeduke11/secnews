@@ -1,6 +1,7 @@
 /**
  * EditorialRow — v1.9 Editorial 信息流条目行（agihunt 报纸风）。
  * 无卡片无阴影，1px 下边线分隔；serif 标题 hover 变 accent；操作按钮 hover 浮现。
+ * v1.9.1: 分类/来源可点击筛选 (与 LeadStory 一致)。
  */
 import React from 'react';
 import {
@@ -12,9 +13,13 @@ interface EditorialRowProps {
   item: HotspotItem;
   isFavorited?: boolean;
   onToggleFavorite?: (item: HotspotItem) => void;
+  onCategoryClick?: (category: string) => void;
+  onSourceClick?: (source: string) => void;
 }
 
-export function EditorialRow({ item, isFavorited = false, onToggleFavorite }: EditorialRowProps) {
+export function EditorialRow({
+  item, isFavorited = false, onToggleFavorite, onCategoryClick, onSourceClick,
+}: EditorialRowProps) {
   const color = getCategoryColorVar(item.category);
   const hasQualityNote = item.quality_flags?.includes('title_replaced');
   const isVerified = item.url_check_status === 'verified' && !hasQualityNote;
@@ -31,9 +36,15 @@ export function EditorialRow({ item, isFavorited = false, onToggleFavorite }: Ed
         <div className="min-w-0 flex-1">
           {/* meta 行: 分类 · 来源 · 时间 · 状态 */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
-            <span className="font-semibold tracking-wide uppercase" style={{ color }}>
+            <button
+              type="button"
+              onClick={() => onCategoryClick?.(item.category)}
+              className="font-semibold tracking-wide uppercase focus-ring transition-opacity hover:opacity-70"
+              style={{ color, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}
+              title={`查看分类: ${getCategoryLabel(item.category)}`}
+            >
               {getCategoryLabel(item.category)}
-            </span>
+            </button>
             {item.category === 'bid' && item.bid_status && item.bid_status !== '其他' && (
               <span className="editorial-badge" style={{ color: getBidStatusColor(item.bid_status), borderColor: 'currentColor' }}>
                 {item.bid_status}
@@ -42,7 +53,15 @@ export function EditorialRow({ item, isFavorited = false, onToggleFavorite }: Ed
             {item.source && (
               <>
                 <span aria-hidden="true" style={{ color: 'var(--border-color)' }}>·</span>
-                <span className="truncate max-w-[140px]">{item.source}</span>
+                <button
+                  type="button"
+                  onClick={() => onSourceClick?.(item.source!)}
+                  className="truncate max-w-[140px] focus-ring transition-colors hover:text-[var(--accent)]"
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', color: 'inherit' }}
+                  title={`只看来源: ${item.source}`}
+                >
+                  {item.source}
+                </button>
               </>
             )}
             <span aria-hidden="true" style={{ color: 'var(--border-color)' }}>·</span>

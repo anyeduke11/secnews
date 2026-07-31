@@ -1,19 +1,24 @@
 /**
  * LeadStory — v1.9 Editorial 头版头条（agihunt 报纸风）。
  * serif 大标题 + dropcap 首字下沉摘要；仅首页第一页第一条使用。
+ * v1.9.1: 分类/来源可点击筛选, 时间不再展示。
  */
 import React from 'react';
 import {
-  HotspotItem, getCategoryLabel, getCategoryColorVar, formatRelativeTime,
+  HotspotItem, getCategoryLabel, getCategoryColorVar,
 } from '../types';
 
 interface LeadStoryProps {
   item: HotspotItem;
   isFavorited?: boolean;
   onToggleFavorite?: (item: HotspotItem) => void;
+  onCategoryClick?: (category: string) => void;
+  onSourceClick?: (source: string) => void;
 }
 
-export function LeadStory({ item, isFavorited = false, onToggleFavorite }: LeadStoryProps) {
+export function LeadStory({
+  item, isFavorited = false, onToggleFavorite, onCategoryClick, onSourceClick,
+}: LeadStoryProps) {
   const color = getCategoryColorVar(item.category);
 
   const handleStarClick = (e: React.MouseEvent) => {
@@ -29,17 +34,29 @@ export function LeadStory({ item, isFavorited = false, onToggleFavorite }: LeadS
           头条
         </span>
         <span aria-hidden="true" style={{ color: 'var(--border-color)' }}>·</span>
-        <span className="font-semibold tracking-wide uppercase" style={{ color }}>
+        <button
+          type="button"
+          onClick={() => onCategoryClick?.(item.category)}
+          className="font-semibold tracking-wide uppercase focus-ring transition-opacity hover:opacity-70"
+          style={{ color, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}
+          title={`查看分类: ${getCategoryLabel(item.category)}`}
+        >
           {getCategoryLabel(item.category)}
-        </span>
+        </button>
         {item.source && (
           <>
             <span aria-hidden="true" style={{ color: 'var(--border-color)' }}>·</span>
-            <span className="truncate max-w-[160px]">{item.source}</span>
+            <button
+              type="button"
+              onClick={() => onSourceClick?.(item.source!)}
+              className="truncate max-w-[160px] focus-ring transition-colors hover:text-[var(--accent)]"
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', color: 'inherit' }}
+              title={`只看来源: ${item.source}`}
+            >
+              {item.source}
+            </button>
           </>
         )}
-        <span aria-hidden="true" style={{ color: 'var(--border-color)' }}>·</span>
-        <span className="font-mono tabular-nums">{formatRelativeTime(item.published_at)}</span>
         <button
           onClick={handleStarClick}
           className="ml-auto p-1 rounded-sm transition-colors focus-ring shrink-0"

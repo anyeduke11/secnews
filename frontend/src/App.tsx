@@ -131,6 +131,7 @@ function HomePage() {
   const [timeRange, setTimeRange] = useState('7d');
   const [keyword, setKeyword] = useState('');
   const [region, setRegion] = useState('');  // Phase 8: 标讯地区筛选
+  const [sourceFilter, setSourceFilter] = useState('');  // v1.9.1: 点击条目来源筛选
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [favoritesCount, setFavoritesCount] = useState(0);
@@ -144,7 +145,7 @@ function HomePage() {
     items, total, categoryCounts, loading, loadingPage, error, lastUpdated,
     hasMore, page, pageSize, totalPages, setPage, setPageSize, refresh,
     latestIngestionCount, latestIngestionAt,
-  } = useHotspotData(category, timeRange, keyword, region);
+  } = useHotspotData(category, timeRange, keyword, region, sourceFilter);
 
   const todos = useTodos();
 
@@ -249,6 +250,16 @@ function HomePage() {
     else navigate(`/category/${cat}`);
   }, [navigate]);
 
+  // v1.9.1: 条目 meta 行分类点击 — 后端 tech 合并到 ai tab
+  const handleItemCategoryClick = useCallback((cat: string) => {
+    handleCategoryChange(cat === 'tech' ? 'ai' : cat);
+  }, [handleCategoryChange]);
+
+  // v1.9.1: 条目 meta 行来源点击 — 切换式筛选 (再点同一来源取消)
+  const handleItemSourceClick = useCallback((source: string) => {
+    setSourceFilter(prev => (prev === source ? '' : source));
+  }, []);
+
   return (
     <>
       <Header
@@ -304,6 +315,29 @@ function HomePage() {
             </div>
           )}
 
+          {/* v1.9.1: 来源筛选 chip — 点击条目来源后显示, 可清除 */}
+          {sourceFilter && (
+            <div className="mb-3 flex items-center gap-2 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
+              <span>来源筛选</span>
+              <button
+                type="button"
+                onClick={() => setSourceFilter('')}
+                className="focus-ring inline-flex items-center gap-1.5 transition-colors"
+                style={{
+                  color: 'var(--bg-primary)',
+                  background: 'var(--text-primary)',
+                  border: '1px solid var(--text-primary)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '3px 9px', cursor: 'pointer', fontWeight: 700,
+                }}
+                title="清除来源筛选"
+              >
+                {sourceFilter}
+                <span aria-hidden="true" style={{ fontWeight: 400 }}>×</span>
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <LoadingSkeleton />
           ) : (
@@ -321,6 +355,8 @@ function HomePage() {
               loadingPage={loadingPage}
               onSetPage={setPage}
               onSetPageSize={setPageSize}
+              onCategoryClick={handleItemCategoryClick}
+              onSourceClick={handleItemSourceClick}
             />
           )}
         </main>

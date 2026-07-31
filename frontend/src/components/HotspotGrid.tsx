@@ -24,6 +24,8 @@ interface HotspotGridProps {
   loadingPage: boolean;
   onSetPage: (page: number) => void;
   onSetPageSize: (size: number) => void;
+  onCategoryClick?: (category: string) => void;
+  onSourceClick?: (source: string) => void;
 }
 
 export function HotspotGrid({
@@ -40,6 +42,8 @@ export function HotspotGrid({
   loadingPage,
   onSetPage,
   onSetPageSize,
+  onCategoryClick,
+  onSourceClick,
 }: HotspotGridProps) {
   if (error) {
     return (
@@ -84,6 +88,8 @@ export function HotspotGrid({
               item={item}
               isFavorited={favoritedIds?.has(item.id) ?? false}
               onToggleFavorite={onToggleFavorite}
+              onCategoryClick={onCategoryClick}
+              onSourceClick={onSourceClick}
             />
           ) : (
             <EditorialRow
@@ -91,6 +97,8 @@ export function HotspotGrid({
               item={item}
               isFavorited={favoritedIds?.has(item.id) ?? false}
               onToggleFavorite={onToggleFavorite}
+              onCategoryClick={onCategoryClick}
+              onSourceClick={onSourceClick}
             />
           )
         ))}

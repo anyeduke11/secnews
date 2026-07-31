@@ -104,6 +104,7 @@ class HotspotService:
         limit: int = DEFAULT_LIMIT,
         keyword: str = "",
         region: Optional[str] = None,  # Phase 8: 标讯地区筛选
+        source: Optional[str] = None,  # v1.9.1: 来源筛选
     ) -> dict:
         """列表查询。
 
@@ -131,12 +132,14 @@ class HotspotService:
         balanced = (
             cursor is None
             and not keyword
+            and not source
             and category == "all"
         )
 
         cache_key = (
             f"hotspots:list:{category}:{tr.value}"
-            f":{cursor or ''}:{limit}:{keyword}:{'bal' if balanced else 'raw'}"
+            f":{cursor or ''}:{limit}:{keyword}:{source or ''}"
+            f":{'bal' if balanced else 'raw'}"
         )
         if cache_key in list_cache:
             return list_cache[cache_key]
@@ -155,6 +158,7 @@ class HotspotService:
                 cursor=repo_cursor,
                 limit=limit,
                 region=region,
+                source=source,
             )
 
         # Phase 9 修复:同 url 多条 → 保留 winner

@@ -35,9 +35,11 @@ export function SearchBar({ keyword, timeRange, onKeywordChange, onTimeRangeChan
             </span>
             <input
               type="text"
+              name="hotspot-search"
               value={localKeyword}
               onChange={(e) => setLocalKeyword(e.target.value)}
               placeholder="搜索热点关键词..."
+              aria-label="搜索热点关键词"
               className="focus-ring"
             />
             {localKeyword && (

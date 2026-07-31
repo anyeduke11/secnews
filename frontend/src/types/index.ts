@@ -200,14 +200,16 @@ export interface StatsResponse {
 }
 
 // Phase 5+6: 与后端 SPEC §2.2 严格一致（无 `general` 分类；Phase 6 新增 `github`）
+// v1.9 Editorial: hex 为印刷油墨色 (供 echarts/recharts 等 canvas 消费方);
+// DOM 内联样式请用 getCategoryColorVar 以随主题切换
 export const CATEGORIES: CategoryInfo[] = [
-  { id: 'all', label: '全部热点', color: '#00c96a' },
-  { id: 'ai', label: '科技 / AI', color: '#00bcd4' },
-  { id: 'security', label: '网络安全', color: '#e85d5d' },
-  { id: 'finance', label: '金融 / 投资', color: '#f0c929' },
-  { id: 'startup', label: '独立开发 / 创业', color: '#7c6aff' },
-  { id: 'bid', label: '招标资讯', color: '#e8891a' },
-  { id: 'github', label: 'GitHub 项目', color: '#8b5cf6' },
+  { id: 'all', label: '全部热点', color: '#8E2318' },
+  { id: 'ai', label: '科技 / AI', color: '#0B6E6E' },
+  { id: 'security', label: '网络安全', color: '#A32014' },
+  { id: 'finance', label: '金融 / 投资', color: '#8A6400' },
+  { id: 'startup', label: '独立开发 / 创业', color: '#5A4FA0' },
+  { id: 'bid', label: '招标资讯', color: '#A65312' },
+  { id: 'github', label: 'GitHub 项目', color: '#5E4B8B' },
 ];
 
 export const CATEGORY_MAP: Record<string, CategoryInfo> = Object.fromEntries(
@@ -221,7 +223,17 @@ export const TIME_OPTIONS = [
 ];
 
 export function getCategoryColor(category: string): string {
-  return CATEGORY_MAP[category]?.color ?? '#888899';
+  return CATEGORY_MAP[category]?.color ?? '#7A6F5C';
+}
+
+/**
+ * v1.9 Editorial: DOM 内联样式用的分类色 CSS 变量，随 data-theme 切换。
+ * canvas 类消费方 (echarts/recharts) 请继续用 getCategoryColor。
+ */
+export function getCategoryColorVar(category: string): string {
+  if (category === 'all') return 'var(--accent)';
+  if (CATEGORY_MAP[category]) return `var(--color-${category})`;
+  return 'var(--text-muted)';
 }
 
 export function getCategoryLabel(category: string): string {
@@ -255,10 +267,18 @@ export function formatRelativeTime(isoString: string): string {
  *  - score < 50  → red
  */
 export function getQualityColor(score?: number | null): string {
-  if (score == null) return '#888899';
-  if (score >= 80) return '#00c96a';
-  if (score >= 50) return '#f0c929';
-  return '#e85d5d';
+  if (score == null) return '#7A6F5C';
+  if (score >= 80) return '#2F7D4F';
+  if (score >= 50) return '#8A6400';
+  return '#A32014';
+}
+
+/** DOM 内联样式版本：随主题切换的质量分三色 */
+export function getQualityColorVar(score?: number | null): string {
+  if (score == null) return 'var(--text-muted)';
+  if (score >= 80) return 'var(--color-success)';
+  if (score >= 50) return 'var(--color-warning)';
+  return 'var(--color-error)';
 }
 
 // ----- Todos (Phase 36) -----
@@ -593,16 +613,16 @@ export interface WeeklyReport {
 }
 
 export function getBidStatusColor(status?: string | null): string {
-  if (!status) return '#888899';
+  if (!status) return '#7A6F5C';
   switch (status) {
-    case '招标中': return '#3b82f6';   // 蓝
-    case '中标':   return '#00c96a';   // 绿
-    case '成交':   return '#00c96a';   // 绿
-    case '变更':   return '#f0c929';   // 黄
-    case '终止':   return '#e85d5d';   // 红
-    case '询价':   return '#06b6d4';   // 浅蓝
-    case '比选':   return '#06b6d4';   // 浅蓝
-    default:       return '#888899';   // 灰
+    case '招标中': return '#2C5F8A';   // 蓝墨
+    case '中标':   return '#2F7D4F';   // 绿墨
+    case '成交':   return '#2F7D4F';   // 绿墨
+    case '变更':   return '#8A6400';   // 赭金
+    case '终止':   return '#A32014';   // 砖红
+    case '询价':   return '#0B6E6E';   // 青墨
+    case '比选':   return '#0B6E6E';   // 青墨
+    default:       return '#7A6F5C';   // 灰墨
   }
 }
 

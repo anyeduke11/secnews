@@ -9,17 +9,17 @@ import {
 
 describe('getCategoryColor', () => {
   it('returns correct color for known categories', () => {
-    expect(getCategoryColor('ai')).toBe('#00bcd4');
-    expect(getCategoryColor('security')).toBe('#e85d5d');
-    expect(getCategoryColor('finance')).toBe('#f0c929');
-    expect(getCategoryColor('startup')).toBe('#7c6aff');
-    expect(getCategoryColor('bid')).toBe('#e8891a');
-    expect(getCategoryColor('github')).toBe('#8b5cf6');
+    expect(getCategoryColor('ai')).toBe('#0B6E6E');
+    expect(getCategoryColor('security')).toBe('#A32014');
+    expect(getCategoryColor('finance')).toBe('#8A6400');
+    expect(getCategoryColor('startup')).toBe('#5A4FA0');
+    expect(getCategoryColor('bid')).toBe('#A65312');
+    expect(getCategoryColor('github')).toBe('#5E4B8B');
   });
 
   it('returns fallback color for unknown category', () => {
-    expect(getCategoryColor('unknown')).toBe('#888899');
-    expect(getCategoryColor('')).toBe('#888899');
+    expect(getCategoryColor('unknown')).toBe('#7A6F5C');
+    expect(getCategoryColor('')).toBe('#7A6F5C');
   });
 });
 
@@ -68,40 +68,40 @@ describe('formatRelativeTime', () => {
 
 describe('getQualityColor', () => {
   it('returns green for score >= 80', () => {
-    expect(getQualityColor(80)).toBe('#00c96a');
-    expect(getQualityColor(100)).toBe('#00c96a');
+    expect(getQualityColor(80)).toBe('#2F7D4F');
+    expect(getQualityColor(100)).toBe('#2F7D4F');
   });
 
   it('returns yellow for 50 <= score < 80', () => {
-    expect(getQualityColor(50)).toBe('#f0c929');
-    expect(getQualityColor(79)).toBe('#f0c929');
+    expect(getQualityColor(50)).toBe('#8A6400');
+    expect(getQualityColor(79)).toBe('#8A6400');
   });
 
   it('returns red for score < 50', () => {
-    expect(getQualityColor(49)).toBe('#e85d5d');
-    expect(getQualityColor(0)).toBe('#e85d5d');
+    expect(getQualityColor(49)).toBe('#A32014');
+    expect(getQualityColor(0)).toBe('#A32014');
   });
 
   it('returns fallback for null/undefined', () => {
-    expect(getQualityColor(null)).toBe('#888899');
-    expect(getQualityColor(undefined)).toBe('#888899');
+    expect(getQualityColor(null)).toBe('#7A6F5C');
+    expect(getQualityColor(undefined)).toBe('#7A6F5C');
   });
 });
 
 describe('getBidStatusColor', () => {
   it('returns correct colors for known statuses', () => {
-    expect(getBidStatusColor('招标中')).toBe('#3b82f6');
-    expect(getBidStatusColor('中标')).toBe('#00c96a');
-    expect(getBidStatusColor('成交')).toBe('#00c96a');
-    expect(getBidStatusColor('变更')).toBe('#f0c929');
-    expect(getBidStatusColor('终止')).toBe('#e85d5d');
-    expect(getBidStatusColor('询价')).toBe('#06b6d4');
-    expect(getBidStatusColor('比选')).toBe('#06b6d4');
+    expect(getBidStatusColor('招标中')).toBe('#2C5F8A');
+    expect(getBidStatusColor('中标')).toBe('#2F7D4F');
+    expect(getBidStatusColor('成交')).toBe('#2F7D4F');
+    expect(getBidStatusColor('变更')).toBe('#8A6400');
+    expect(getBidStatusColor('终止')).toBe('#A32014');
+    expect(getBidStatusColor('询价')).toBe('#0B6E6E');
+    expect(getBidStatusColor('比选')).toBe('#0B6E6E');
   });
 
   it('returns fallback for null/undefined/unknown', () => {
-    expect(getBidStatusColor(null)).toBe('#888899');
-    expect(getBidStatusColor(undefined)).toBe('#888899');
-    expect(getBidStatusColor('未知状态')).toBe('#888899');
+    expect(getBidStatusColor(null)).toBe('#7A6F5C');
+    expect(getBidStatusColor(undefined)).toBe('#7A6F5C');
+    expect(getBidStatusColor('未知状态')).toBe('#7A6F5C');
   });
 });

@@ -78,9 +78,8 @@ import { ConsistencyDrift, StatsResponse, HotspotItem } from './types';
 function PageFallback() {
   return (
     <div className="flex items-center justify-center min-h-[40vh]">
-      <div className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>
-        <span style={{ color: 'var(--color-ai)', marginRight: 8 }}>&gt;</span>
-        加载中 ...
+      <div className="text-sm font-serif" style={{ color: 'var(--text-muted)' }}>
+        正在排版…
       </div>
     </div>
   );
@@ -93,7 +92,7 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: 'dark',
+  theme: 'light',
   toggleTheme: () => {},
 });
 
@@ -106,7 +105,8 @@ function getInitialTheme(): 'dark' | 'light' {
     const saved = localStorage.getItem('hotspot-theme');
     if (saved === 'light' || saved === 'dark') return saved;
   } catch {}
-  return 'dark';
+  // v1.9 Editorial: 日报版 (light) 为新默认, 夜读版 (dark) 可切换
+  return 'light';
 }
 
 function formatRefreshLabel(minutes: number): string {
@@ -330,14 +330,13 @@ function HomePage() {
         />
       )}
 
-      <div className="tech-divider mt-6" />
-      <footer className="text-center pb-3">
-        <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-          <span style={{ color: 'var(--color-ai)', marginRight: 4 }}>{'>'}</span>
-          SecNews 热点地图 | 数据源: 安全客 / Krebs / PortSwigger / SANS / FreeBuf / 奇安信 / AVD / CNNVD / CNVD / 新浪财经 / 东方财富 / Hacker News / aihot / GitHub Trending / 中国政府采购网
+      <div className="editorial-divider mt-6" />
+      <footer className="text-center pb-4">
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          SecNews 热点地图 · 数据源: 安全客 / Krebs / PortSwigger / SANS / FreeBuf / 奇安信 / AVD / CNNVD / CNVD / 新浪财经 / 东方财富 / Hacker News / aihot / GitHub Trending / 中国政府采购网
         </p>
-        <p className="text-xs mt-1.5 font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
-          [i] 点击卡片查看原文 · {formatRefreshLabel(refreshInterval)}
+        <p className="text-xs mt-2 font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
+          点击卡片查看原文 · {formatRefreshLabel(refreshInterval)}
         </p>
         <p className="text-xs mt-2 font-mono">
           <a
@@ -347,10 +346,7 @@ function HomePage() {
             style={{ color: 'var(--color-ai)', borderColor: 'color-mix(in srgb, var(--color-ai) 30%, transparent)' }}
             rel="noreferrer"
           >
-            <span>[</span>
-            <span>export</span>
-            <span>]</span>
-            <span>静态 HTML</span>
+            export
           </a>
         </p>
       </footer>

@@ -27,13 +27,18 @@ export function SearchBar({ keyword, timeRange, onKeywordChange, onTimeRangeChan
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
         <form onSubmit={handleSubmit} className="w-full sm:flex-1 min-w-0">
           <div className="search-box">
-            <span className="search-icon text-tech">//</span>
+            <span className="search-icon" aria-hidden="true" style={{ display: 'flex', alignItems: 'center' }}>
+              <Icon size={13}>
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </Icon>
+            </span>
             <input
               type="text"
               value={localKeyword}
               onChange={(e) => setLocalKeyword(e.target.value)}
               placeholder="搜索热点关键词..."
-              className="focus-ring font-mono"
+              className="focus-ring"
             />
             {localKeyword && (
               <button

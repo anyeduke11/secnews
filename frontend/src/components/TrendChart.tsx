@@ -47,7 +47,7 @@ export function TrendChart() {
 
   if (loading) {
     return (
-      <div className="stat-card p-3 mb-4 corner-brackets" style={{ ['--card-accent' as string]: 'var(--color-ai)' }}>
+      <div className="stat-card p-3 mb-4">
         <div className="h-3.5 w-28 rounded mb-4 animate-shimmer" />
         <div className="h-36 rounded animate-shimmer" />
       </div>
@@ -88,7 +88,7 @@ export function TrendChart() {
   const border = colors['border-color'] || 'var(--border-color)';
 
   return (
-    <div className="stat-card p-3 mb-4 corner-brackets" style={{ ['--card-accent' as string]: 'var(--color-ai)' }}>
+    <div className="stat-card p-3 mb-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="w-1 h-4 rounded-full" style={{ backgroundColor: 'var(--color-ai)' }} />

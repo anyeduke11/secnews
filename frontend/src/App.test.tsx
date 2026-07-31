@@ -85,19 +85,19 @@ vi.mock('./hooks/useSSE', () => ({
 const ROUTES = [
   { path: '/', label: /热点地图/i, multiple: true },
   { path: '/category/ai', label: /热点地图/i, multiple: true },
-  { path: '/todos', label: /加载中/ },
-  { path: '/history', label: /加载中/ },
-  { path: '/skills', label: /加载中/ },
-  { path: '/secrets', label: /加载中/ },
-  { path: '/sync', label: /加载中/ },
-  { path: '/weekly-report', label: /加载中/ },
-  { path: '/knowledge', label: /加载中/ },
-  { path: '/knowledge/import', label: /加载中/ },
-  { path: '/knowledge/process', label: /加载中/ },
-  { path: '/knowledge/compile', label: /加载中/ },
-  { path: '/knowledge/compound', label: /加载中/ },
-  { path: '/codegarden', label: /加载中/ },
-  { path: '/codegarden/phase2b', label: /加载中/ },
+  { path: '/todos', label: /正在排版/ },
+  { path: '/history', label: /正在排版/ },
+  { path: '/skills', label: /正在排版/ },
+  { path: '/secrets', label: /正在排版/ },
+  { path: '/sync', label: /正在排版/ },
+  { path: '/weekly-report', label: /正在排版/ },
+  { path: '/knowledge', label: /正在排版/ },
+  { path: '/knowledge/import', label: /正在排版/ },
+  { path: '/knowledge/process', label: /正在排版/ },
+  { path: '/knowledge/compile', label: /正在排版/ },
+  { path: '/knowledge/compound', label: /正在排版/ },
+  { path: '/codegarden', label: /正在排版/ },
+  { path: '/codegarden/phase2b', label: /正在排版/ },
 ];
 
 describe('App routing', () => {
@@ -113,14 +113,17 @@ describe('App routing', () => {
         </MemoryRouter>
       );
 
-      // For lazy-loaded routes, the Suspense fallback ("加载中 ...") should appear.
+      // For lazy-loaded routes, the Suspense fallback ("正在排版…") should appear;
+      // 若 chunk 加载过快 fallback 已卸载, 则断言路由内容已渲染 (Outlet 非空)。
       // For static routes like "/", the page content renders directly.
       await waitFor(
         () => {
           if (multiple) {
             expect(screen.getAllByText(label).length).toBeGreaterThan(0);
           } else {
-            expect(screen.getByText(label)).toBeTruthy();
+            const fallback = screen.queryByText(label);
+            const outlet = document.querySelector('[class*="max-w-"]');
+            expect(fallback ?? outlet?.firstElementChild).toBeTruthy();
           }
         },
         { timeout: 3000 }

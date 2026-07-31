@@ -77,9 +77,9 @@ describe('getBidStatusColor', () => {
 
   it('returns fallback for null/undefined/unknown', async () => {
     const { getBidStatusColor } = await import('../types');
-    expect(getBidStatusColor(null)).toBe('#888899');
-    expect(getBidStatusColor(undefined)).toBe('#888899');
-    expect(getBidStatusColor('未知状态')).toBe('#888899');
+    expect(getBidStatusColor(null)).toBe('#7A6F5C');
+    expect(getBidStatusColor(undefined)).toBe('#7A6F5C');
+    expect(getBidStatusColor('未知状态')).toBe('#7A6F5C');
   });
 });
 
@@ -88,22 +88,22 @@ describe('getBidStatusColor', () => {
 describe('getQualityColor', () => {
   it('returns fallback for undefined', async () => {
     const { getQualityColor } = await import('../types');
-    expect(getQualityColor(undefined)).toBe('#888899');
+    expect(getQualityColor(undefined)).toBe('#7A6F5C');
   });
 
   it('returns green for high scores', async () => {
     const { getQualityColor } = await import('../types');
-    expect(getQualityColor(95)).toBe('#00c96a');
+    expect(getQualityColor(95)).toBe('#2F7D4F');
   });
 
   it('returns red for low scores', async () => {
     const { getQualityColor } = await import('../types');
-    expect(getQualityColor(20)).toBe('#e85d5d');
+    expect(getQualityColor(20)).toBe('#A32014');
   });
 
   it('returns yellow for medium scores', async () => {
     const { getQualityColor } = await import('../types');
-    expect(getQualityColor(65)).toBe('#f0c929');
+    expect(getQualityColor(65)).toBe('#8A6400');
   });
 });
 
@@ -112,7 +112,7 @@ describe('getQualityColor', () => {
 describe('CATEGORY_MAP edge cases', () => {
   it('returns fallback color for unknown category via getCategoryColor', async () => {
     const { getCategoryColor } = await import('../types');
-    expect(getCategoryColor('nonexistent')).toBe('#888899');
+    expect(getCategoryColor('nonexistent')).toBe('#7A6F5C');
   });
 
   it('returns raw string for unknown category via getCategoryLabel', async () => {

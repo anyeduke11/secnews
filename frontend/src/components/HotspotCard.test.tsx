@@ -28,10 +28,9 @@ describe('HotspotCard', () => {
     expect(screen.getByText('网络安全')).toBeInTheDocument();
   });
 
-  it('renders quality score when present', () => {
+  it('does not render quality score dot (editorial 版已移除)', () => {
     render(<HotspotCard item={baseItem} index={0} />);
-    // 实际渲染: 彩色圆点, aria-label="quality 85"
-    expect(screen.getByLabelText('quality 85')).toBeInTheDocument();
+    expect(screen.queryByLabelText('quality 85')).toBeNull();
   });
 
   it('renders AI category label (科技/AI)', () => {
@@ -81,12 +80,12 @@ describe('HotspotCard', () => {
       quality_flags: [],
     };
     render(<HotspotCard item={item} index={0} />);
-    expect(screen.getByTitle(/已与详情页/)).toBeInTheDocument();
+    expect(screen.getByTitle('URL 已验证')).toBeInTheDocument();
   });
 
-  it('renders quality score dot with aria-label', () => {
+  it('renders published time as relative text', () => {
     render(<HotspotCard item={baseItem} index={0} />);
-    expect(screen.getByLabelText('quality 85')).toBeInTheDocument();
+    expect(screen.getByText(/前$|刚刚|\d+\/\d+/)).toBeInTheDocument();
   });
 
   it('renders bid_status badge for bid category', () => {

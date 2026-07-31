@@ -37,7 +37,7 @@ describe('TrendChart', () => {
     globalThis.fetch = vi.fn(() => new Promise(() => {})) as any;
     render(<TrendChart />);
     // 加载中显示占位: h-3.5 w-28 + h-36 两个 div
-    const card = document.querySelector('.stat-card.corner-brackets');
+    const card = document.querySelector('.stat-card');
     expect(card).toBeInTheDocument();
   });
 
@@ -79,7 +79,7 @@ describe('TrendChart', () => {
     await waitFor(() => {
       // 加载完成后空数据 → 返回 null
       // 验证 stat-card 不在文档里
-      expect(container.querySelector('.stat-card.corner-brackets')).not.toBeInTheDocument();
+      expect(container.querySelector('.stat-card')).not.toBeInTheDocument();
     });
   });
 

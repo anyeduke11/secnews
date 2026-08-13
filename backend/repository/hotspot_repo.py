@@ -597,6 +597,44 @@ class HotspotRepository:
             raise InternalException(f"count_unique_urls_in_range failed: {e}") from e
         return int(row["n"])
 
+    def list_recent_urls_by_source(
+        self,
+        source_name: str,
+        since_iso: str,
+    ) -> set[str]:
+        """返回 ``source`` 列匹配 ``source_name`` 且 ``COALESCE(ingested_at, published_at) >= since_iso`` 的去重 URL 集合。
+
+        2026-08-04 新增: 公众号 wechat renderer 抓取前预查询, 跳过 DB 中已
+        存在的 URL, 避免每次 scheduler tick 都重复 fetch + parse + quality
+        pipeline 同一批老文章。
+
+        Args:
+            source_name: 源名称(与 ``hotspots.source`` 列严格匹配)。
+            since_iso: ISO 8601 起点字符串(由调用方计算, 通常为
+                ``(now - max_age_days).isoformat()``)。
+
+        Returns:
+            去重 URL 集合(空集合当 source_name 为空)。
+        """
+        if not source_name or not since_iso:
+            return set()
+        conn = get_connection()
+        try:
+            rows = conn.execute(
+                "SELECT DISTINCT url FROM hotspots "
+                "WHERE source = ? AND COALESCE(ingested_at, published_at) >= ?",
+                (source_name, since_iso),
+            ).fetchall()
+        except sqlite3.Error as e:
+            logger.error(
+                "list_recent_urls_by_source failed",
+                extra={"trace_id": "", "source": source_name, "error": str(e)},
+            )
+            raise InternalException(
+                f"list_recent_urls_by_source failed: {e}"
+            ) from e
+        return {str(r["url"]) for r in rows if r["url"]}
+
     def count_by_category(
         self,
         time_range: Optional[TimeRange] = None,

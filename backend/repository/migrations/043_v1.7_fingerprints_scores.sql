@@ -1,4 +1,4 @@
--- migration 043_v2.0_fingerprints_scores.sql
+-- migration 043_v1.7_fingerprints_scores.sql
 -- 目的: Phase 8 复利基础设施 — 跨源去重/AI 评分/实体连接/知识复用关联
 
 -- 1. 跨源去重

@@ -1,6 +1,6 @@
--- 044_v2.0_kl_dead_letters.sql
+-- 044_v1.7_kl_dead_letters.sql
 -- 目的: KL 触发器死信队列（重试 3 次失败后入队）
--- 来源: docs/hotspot_v2.0_PRD.md B.11.6 + .trae/specs/phase10-t1t2-triggers/spec.md §3.2
+-- 来源: docs/hotspot_v1.7_PRD.md B.11.6 + .trae/specs/phase10-t1t2-triggers/spec.md §3.2
 
 CREATE TABLE IF NOT EXISTS kl_dead_letters (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,

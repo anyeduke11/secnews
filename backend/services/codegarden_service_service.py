@@ -30,6 +30,63 @@ from backend.repository.db import get_connection
 # lsof -i :PORT 输出中, 第 2 列是 PID, 第 9 列是 name (如 *:3000)
 _LSOF_PORT_RE = re.compile(r":(\d{2,5})\b")
 
+# P0: 系统/GUI 进程黑名单 (规范化小写, 子串匹配以兼容 macOS comm 名截断,
+# 如 "Code Helper" → "code ...")。lsof 会把整台 Mac 的监听进程全部扫出,
+# 这些 GUI/系统进程并非用户自建服务, 跳过不入库, 避免 cg_services 被
+# 噪音淹没 (历史 1300 条几乎全是 Electron/sandbox-c/UURemote/Trae 等)。
+# 如需放行/新增, 直接增删此集合即可。
+_SYSTEM_PROCESS_BLACKLIST = frozenset({
+    "electron",      # Electron 壳 (Electron Helper 等)
+    "rapportd",      # macOS 附近共享 / Handoff 守护进程
+    "controlcenter", # macOS 控制中心
+    "sandbox",       # 沙盒容器进程 (sandbox-c / sandboxd)
+    "trae",          # Trae IDE
+    "uuremote",      # UURemote (远程协助类工具, 历史噪音之一)
+    "wps",           # WPS Office
+    "chrome",        # Google Chrome / Chrome Helper
+    "code",          # VS Code / Code Helper (注意: 也会命中 code-server)
+    "safari",        # Safari 浏览器
+    "finder",        # Finder 文件管理
+    "sharingd",      # AirDrop / Handoff 守护
+    "cloudd",        # iCloud 同步守护
+    "nsurlsessiond", # macOS URL 会话守护
+    "usernoted",     # 通知中心
+    "homed",         # HomeKit
+    "symptomsd",     # 系统诊断
+    "corespotlight", # 聚焦索引
+    "mediaremoted",  # 媒体远程控制
+})
+
+# 历史噪音数据清理兜底 (保守实现, 不自动删除 — 避免误删用户真实配置)。
+# 如确认 cg_services 中残留上述系统进程, 可手动执行一次:
+#
+#   DELETE FROM cg_services
+#   WHERE runtime = 'bare'
+#     AND (lower(name) LIKE '%electron%' OR lower(name) LIKE '%rapportd%'
+#          OR lower(name) LIKE '%controlcenter%' OR lower(name) LIKE '%sandbox%'
+#          OR lower(name) LIKE '%trae%' OR lower(name) LIKE '%wps%'
+#          OR lower(name) LIKE '%chrome%' OR lower(name) LIKE '%code%');
+
+# UTF-8 mojibake 标记字符 (lsof 进程名编码损坏时的典型产物)
+_MOJIBAKE_CHARS = frozenset("ï¿½ÃÂ")
+
+
+def _is_blacklisted_process(name: str) -> bool:
+    """判断进程名是否命中系统进程黑名单 (大小写不敏感).
+
+    双向子串匹配:
+    - 黑名单 token 是进程名子串 (如 "Code Helper" 含 "code")
+    - 进程名是黑名单 token 的子串 — 兼容 macOS comm 名截断
+      (lsof COMMAND 列常见 8/16 字符截断, 如 "ControlCenter" → "ControlC")
+    """
+    normalized = name.lower()
+    if not normalized:
+        return True  # 空进程名直接跳过
+    for token in _SYSTEM_PROCESS_BLACKLIST:
+        if token in normalized or normalized in token:
+            return True
+    return False
+
 
 class CodegardenServiceService:
     """服务网格业务逻辑层."""
@@ -122,6 +179,18 @@ class CodegardenServiceService:
             if "LISTEN" not in line:
                 continue
             cmd_name = parts[0]
+            # P0 过滤 1: 跳过系统/GUI 噪音进程 (electron/rapportd/...)
+            if _is_blacklisted_process(cmd_name):
+                continue
+            # P0 过滤 2: 跳过含乱码/编码损坏的进程名 — lsof 输出经
+            # errors='replace' 解码后损坏字节变成 U+FFFD; 经典 UTF-8
+            # mojibake 标记字符 (ï/¿/½/Ã/Â) 与不可打印控制字符同样跳过
+            if (
+                "\ufffd" in cmd_name
+                or not cmd_name.isprintable()
+                or any(c in _MOJIBAKE_CHARS for c in cmd_name)
+            ):
+                continue
             name_col = parts[8]  # 形如 *:3000 或 127.0.0.1:3000
             port_match = _LSOF_PORT_RE.search(name_col)
             if not port_match:

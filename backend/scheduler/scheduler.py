@@ -165,6 +165,16 @@ class HotspotScheduler:
             name="stats recycle (daily 06:00)",
             replace_existing=True,
         )
+        # P0: job 13 — quality_check_logs 定时清理 (每周日 05:00 Asia/Shanghai)
+        # 只注册定时触发, 启动时不立即清理 (避免阻塞启动)。
+        # quality_check_logs 440万行/1.35GB, 原清理仅手动 API。
+        self.scheduler.add_job(
+            jobs.quality_logs_cleanup_job,
+            trigger=CronTrigger(day_of_week="sun", hour=5, timezone=SHANGHAI_TZ),
+            id="quality_logs_cleanup",
+            name="quality check logs cleanup (Sun 05:00)",
+            replace_existing=True,
+        )
         # Phase 2a CodeGarden: job 15 — 上游同步 (每日 09:00 Asia/Shanghai)
         self.scheduler.add_job(
             jobs.cg_upstream_sync_job,

@@ -136,19 +136,38 @@ async def scheduled_compile_job() -> None:
     """Phase 1d: 定时编译任务 — 检测 stale items 并创建编译任务。
 
     每日 02:00 (Asia/Shanghai) + 每周日 03:00 (Asia/Shanghai) 触发。
+    P0 修复: detect_stale_items 带每日配额 (STALE_ITEM_DAILY_QUOTA=50,
+    按 updated_at 最旧优先), create_compile_task 对 pending 队列去重,
+    避免历史积压 (1980+ 任务) 一次性全量入队。
     失败只 log.error，不抛异常。
     """
     try:
-        from backend.services.compiler import detect_stale_items, create_compile_task
+        from backend.services.compiler import (
+            detect_stale_items,
+            create_compile_task,
+            STALE_ITEM_DAILY_QUOTA,
+        )
 
-        result = await asyncio.to_thread(detect_stale_items)
+        result = await asyncio.to_thread(detect_stale_items, STALE_ITEM_DAILY_QUOTA)
         stale_items = result.get("stale_items", [])
         if stale_items:
             compile_result = await asyncio.to_thread(create_compile_task, stale_items)
-            _logger.info(
-                f"scheduled_compile_job: created task {compile_result.get('task_id')} "
-                f"for {len(stale_items)} stale items"
-            )
+            skipped = compile_result.get("skipped_duplicates", 0)
+            if compile_result.get("status") == "no_items":
+                # 去重后无可创建条目 (全部已在 pending 队列中)
+                _logger.info(
+                    f"scheduled_compile_job: stale={len(stale_items)} "
+                    f"created=0 skipped_duplicates={skipped}"
+                )
+            else:
+                # 兼容两种返回形态: 单任务 {task_id} / 多任务 {tasks: [...]}
+                created = compile_result.get("tasks") or [
+                    {"task_id": compile_result.get("task_id")}
+                ]
+                _logger.info(
+                    f"scheduled_compile_job: stale={len(stale_items)} "
+                    f"created={len(created)} skipped_duplicates={skipped}"
+                )
         else:
             _logger.info("scheduled_compile_job: no stale items")
     except Exception as e:
@@ -369,6 +388,31 @@ async def weekly_maintenance_job() -> None:
     await scheduled_summary_job()
 
 
+async def quality_logs_cleanup_job() -> None:
+    """P0: 每周日 05:00 (Asia/Shanghai) 清理超过保留窗口的 quality_check_logs。
+
+    quality_check_logs 是 DB 膨胀主因 (441 万行 / 1.35GB), 原清理只有
+    手动 API (POST /api/maintenance/cleanup-quality-logs)。此处注册定时
+    任务, 每周自动清理一次, 只删除超过保留窗口 (默认 30 天) 的日志。
+
+    注意: 启动时不会立即全量清理 (仅注册定时触发), 避免阻塞启动。
+    失败只 log.error，不抛异常 (与既有 job 模式一致)。
+    """
+    try:
+        from backend.services.maintenance_service import cleanup_quality_logs
+
+        result = await asyncio.to_thread(
+            cleanup_quality_logs, days=30, dry_run=False
+        )
+        _logger.info(
+            f"quality_logs_cleanup_job: retention_days=30 "
+            f"deleted={result.get('rows_to_delete')} "
+            f"remaining={result.get('rows_remaining_after')}"
+        )
+    except Exception as e:
+        _logger.error(f"quality_logs_cleanup_job crashed: {e}")
+
+
 async def cg_upstream_sync_job() -> None:
     """Phase 2a CodeGarden: 每日 09:00 (Asia/Shanghai) 触发 fork 类型项目的上游同步。
 
@@ -483,6 +527,7 @@ __all__ = [
     "scheduled_stats_job",
     "scheduled_migrate_job",
     "scheduled_summary_job",
+    "quality_logs_cleanup_job",  # P0: quality_check_logs 定时清理
     "cg_upstream_sync_job",
     "cg_service_scan_job",
     "cg_event_process_job",

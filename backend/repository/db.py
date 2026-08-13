@@ -200,7 +200,23 @@ def apply_migrations(conn: sqlite3.Connection) -> int:
                 "INSERT INTO schema_version (version, executed_at) VALUES (?, ?)",
                 (version, _now_iso()),
             )
-        except Exception:
+        except Exception as exc:
+            # 容错: SQLite 无 ALTER TABLE ... ADD COLUMN IF NOT EXISTS,
+            # 列已存在时会抛 "duplicate column name"。历史库可能已手工加过
+            # 列 (如真实库 digests.last_read_at / knowledge_items.attention_score),
+            # 此时把该迁移视为已满足并记录版本, 而不是卡死启动。
+            msg = str(exc).lower()
+            if "duplicate column" in msg:
+                logger.warning(
+                    f"migration {version}: column already exists — treated as "
+                    f"applied ({exc})"
+                )
+                conn.execute(
+                    "INSERT INTO schema_version (version, executed_at) VALUES (?, ?)",
+                    (version, _now_iso()),
+                )
+                latest_version = max(latest_version, _migration_number(version))
+                continue
             logger.exception(
                 "migration failed",
                 extra={"trace_id": "", "migration": version},

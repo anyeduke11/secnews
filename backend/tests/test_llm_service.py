@@ -18,6 +18,7 @@ Phase 16 — Hybrid AI 核心服务测试。
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock
@@ -250,10 +251,13 @@ class TestCacheHit:
         svc = LLMService()
         cache_key = _make_cache_key("score", "test content")
         conn = get_connection()
+        # cached_at 用相对时间 (60s 前) 而非写死日期 — 写死日期随真实时间
+        # 推移必然超过 TTL 导致缓存视为过期 (P0 收尾修复)。
+        cached_at = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
         conn.execute(
             "INSERT INTO llm_cache (cache_key, provider, model, response, cached_at, ttl_seconds) "
-            "VALUES (?, 'openai', 'gpt-4o-mini', '8.5', '2026-08-01T00:00:00+00:00', 86400)",
-            (cache_key,),
+            "VALUES (?, 'openai', 'gpt-4o-mini', '8.5', ?, 86400)",
+            (cache_key, cached_at),
         )
         # Ensure _call_provider is never called
         mock_call = AsyncMock()
@@ -268,10 +272,11 @@ class TestCacheHit:
         svc = LLMService()
         cache_key = _make_cache_key("summary", "chunk1\n\nchunk2")
         conn = get_connection()
+        cached_at = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
         conn.execute(
             "INSERT INTO llm_cache (cache_key, provider, model, response, cached_at, ttl_seconds) "
-            "VALUES (?, 'ollama', 'qwen2.5:14b', 'Cached summary.', '2026-08-01T00:00:00+00:00', 86400)",
-            (cache_key,),
+            "VALUES (?, 'ollama', 'qwen2.5:14b', 'Cached summary.', ?, 86400)",
+            (cache_key, cached_at),
         )
         mock_call = AsyncMock()
         monkeypatch.setattr(svc, "_call_provider", mock_call)
@@ -285,11 +290,12 @@ class TestCacheHit:
         svc = LLMService()
         cache_key = _make_cache_key("entities", "Apple and Google")
         conn = get_connection()
+        cached_at = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
         conn.execute(
             "INSERT INTO llm_cache (cache_key, provider, model, response, cached_at, ttl_seconds) "
             "VALUES (?, 'openai', 'gpt-4o-mini', '[\"Apple\",\"Google\"]', "
-            "'2026-08-01T00:00:00+00:00', 86400)",
-            (cache_key,),
+            "?, 86400)",
+            (cache_key, cached_at),
         )
         mock_call = AsyncMock()
         monkeypatch.setattr(svc, "_call_provider", mock_call)

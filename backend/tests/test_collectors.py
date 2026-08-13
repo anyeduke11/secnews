@@ -393,9 +393,14 @@ def test_phase27_agihunt_in_publisher_registry():
 
 
 def test_phase27_agihunt_ai_sources_count():
-    """Phase 27: AI_SOURCES 现应为 7 个 (含 AGI Hunt)。"""
-    assert len(AI_SOURCES) == 7
-    assert len(AICollector().sources) == 7
+    """Phase 27: AI_SOURCES 现为 13 个 (含 AGI Hunt + v0.3.0 新增源)。
+
+    P0 收尾: v0.3.0 将 AI_SOURCES 从 7 扩到 13 (HackerNews/量子位/36氪AI/
+    机器之心/新智元/硅星人/极客公园/爱范儿/品玩/AI科技评论/AIhot/小互AI/AGI Hunt),
+    本断言同步更新。
+    """
+    assert len(AI_SOURCES) == 13
+    assert len(AICollector().sources) == 13
     names = {s["name"] for s in AI_SOURCES}
     assert "AGI Hunt" in names
 

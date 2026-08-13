@@ -1,7 +1,7 @@
 # SecNews Knowledge Dashboard
 
 ## Overview
-This project contains a knowledge management dashboard (v1.4+).
+This project contains a knowledge management dashboard (v0.3.0+).
 The `knowledge/` directory is an LLM-Wiki — a filesystem-based
 knowledge base readable and writable by both humans and AI agents.
 
@@ -53,61 +53,154 @@ Cross-reference syntax:
 ### Schema
 See `knowledge/_SCHEMA.md` for the complete data model.
 
-## CodeGarden Phase 2b — Service Mesh / Resource Hub / Orchestration Engine
+## CodeGarden Phase 2b — Service Mesh / Resource Hub / Orchestration Engine (v0.3.0)
 
-> **状态**: ✅ 已实现 (v1.6, 2026-07-20)
+> **状态**: ✅ 已实现 (2026-07-20)
 > **spec**: `.trae/specs/phase2b-service-mesh/spec.md`
+> **详细设计**: `docs/CodeGarden_PRD_v1.7.md`
 
-### 范围
+服务网格(M2) / 资源中枢(M3) / 联动引擎(M4) 已全量实现:
+- M2: `cg_services` 表 + 自动发现 (lsof/docker/pm2) + 拓扑图 SVG + 日志/指标/重启
+- M3: `cg_resources` 表 (port/domain/env_template/volume) + 8898 端口保护 + Fernet 加密
+- M4: `cg_dependencies` 表 + `cg_events` 表 + Playbook YAML 执行 + BFS 影响分析
 
-- **M2 服务网格**：`cg_services` 表 + 自动发现 (lsof/docker/pm2 三源) + 拓扑图 + 日志/指标/重启
-- **M3 资源中枢**：`cg_resources` 表 (4 类: port/domain/env_template/volume) + 8898 端口保护 + env_template Fernet 加密
-- **M4 联动引擎**：`cg_dependencies` 表 + `cg_events` 表 + Playbook YAML 执行 + 影响分析 (BFS 反向追溯)
+**调度器**: job 16 `cg_service_scan` (300s) + job 17 `cg_event_process` (60s)
+**跨端同步**: `cg_services` 同步 (含加密字段)，`cg_resources`/`cg_dependencies`/`cg_events` 设备本地
+**后续版本**: AI 协作(M7-M12)、30 天自动归档、跨机网格
 
-### 关键决策 (10 条)
+## Available Design Skills (`.agents/skills/`)
 
-1. **范围**：全量 M2+M3+M4 (PRD 原计划)
-2. **拓扑图渲染**：用 SVG 实现而非 React Flow，避免重依赖 (节点数 <20 时足够) — 推翻 Phase 2a 决策 7 与 spec G1 要求
-3. **M4 事件存储**：新增 cg_events 表 (PRD §5.4.2 原计划)
-4. **M4 Playbook 执行**：复用 knowledge_tasks (task_type=playbook_run)，不新建 cg_playbook_runs 表
-5. **M2 服务发现**：定时扫描 (lsof/docker ps/pm2 list)，每 5 分钟
-6. **M3 端口保护**：hotspot 自身端口 8898 禁止释放，API 返回 403
-7. **M3 敏感字段**：env_template 的敏感值复用 secrets_service Fernet 加密，不新建加密体系
-8. **依赖关系冗余**：cg_services.dependencies (JSON) 与 cg_dependencies 表并存，前者冗余便于快速渲染，后者是 source of truth
-9. **事件处理异步**：cg_events.status=pending → cg_event_process job 异步处理 (60s)，避免事件发布阻塞
-10. **Playbook YAML 不入库**：文件存 `codegarden/playbooks/*.yml`，与 PRD §9.2 数据目录结构一致
+以下 15 个设计族技能按方向分组。Agent 在接到 UI/UX、视觉设计、前端重构类任务时，
+必须按照下方 **Selection Precedence** 确定性路由到唯一首选技能。
 
-### sync_bundle 跨端同步
+### Selection Precedence（确定性选择规则）
 
-- ✅ `cg_services` 跨端同步 (含 env_vars 加密字段)
-- ❌ `cg_resources` / `cg_dependencies` / `cg_events` 不跨端 (设备本地状态)
+> **核心原则**: 任何设计任务只能激活一个主技能。按优先级从高到低匹配，
+> 命中即停。同层内通过 `triggers` 关键词区分，不允许同时加载两个同层技能。
 
-### 调度器 (新增 2 个 job)
+#### Tier 0 — 退役隔离（永不自动触发）
+| 技能 | 状态 | 说明 |
+|------|------|------|
+| `design-taste-frontend-v1` | **RETIRED** | 已被 `design-taste-frontend` (v2) 完全取代。仅当用户**显式指名** "v1" 或项目 `package.json`/配置中硬编码引用时才可加载。任何模糊的 "taste skill"、"前端设计" 请求一律路由到 v2。 |
 
-- job 16: `cg_service_scan` — IntervalTrigger(seconds=300) — 扫描本机服务
-- job 17: `cg_event_process` — IntervalTrigger(seconds=60) — 处理 pending 事件
+#### Tier 1 — 默认路由（无特殊风格关键词时命中）
+| 优先级 | 技能 | 触发条件 | 互斥 |
+|--------|------|----------|------|
+| 1 | `design-taste-frontend` | 新建页面/组件、landing page、portfolio、通用前端设计、"帮我设计/做一个页面" | 与 v1、high-end-visual-design、gpt-taste 互斥 |
+| 2 | `redesign-existing-projects` | 现有项目 UI 升级、"重构/改造/升级现有页面"、审计去 AI 味 | 与 design-taste-frontend 互斥（新建 vs 改造） |
+| 3 | `ui-ux-pro-max` | 需要查询色板/字体/风格数据库、设计决策参考、UX 审查 | 非独占，可作为辅助参考层 |
 
-### API 端点 (新增 26 个, prefix `/api/codegarden`)
+#### Tier 2 — 显式风格路由（用户指定特定美学方向时命中）
+| 技能 | 触发关键词 | 互斥 |
+|------|-----------|------|
+| `high-end-visual-design` | "高端/奢华/代理级/Awwwards/$150k" | 与 gpt-taste、design-taste-frontend 互斥 |
+| `gpt-taste` | "GSAP/ScrollTrigger/编辑式宽排版/AIDA/bento grid 动效" | 与 high-end-visual-design、design-taste-frontend 互斥 |
+| `minimalist-ui` | "极简/编辑风/暖色单色/无渐变/扁平" | 与 industrial-brutalist-ui 互斥 |
+| `industrial-brutalist-ui` | "工业风/粗野主义/瑞士印刷/军事终端/数据密集仪表盘" | 与 minimalist-ui 互斥 |
 
-- M2 服务网格 (10): `/services` CRUD + `/scan` + `/topology` + `/{id}/restart` + `/{id}/logs` + `/{id}/metrics`
-- M3 资源中枢 (8): `/resources` CRUD + `/allocate-port` + `/release-port` + `/env-templates` POST/GET
-- M4 联动引擎 (8): `/dependencies` CRUD + `/impact` + `/events` GET/POST + `/playbooks` GET + `/playbooks/{name}/run`
+#### Tier 3 — 图像生成专用（输出为图片而非代码）
+| 技能 | 触发条件 | 互斥 |
+|------|----------|------|
+| `image-to-code` | 先生成设计图 → 再实现为代码（完整流程） | 与 imagegen-frontend-web 互斥 |
+| `imagegen-frontend-web` | 仅生成 Web 各 Section 设计参考图（不写代码） | 与 image-to-code 互斥 |
+| `imagegen-frontend-mobile` | 仅生成移动端屏幕概念图/Mockup（不写代码） | 与 imagegen-frontend-web 互斥 |
 
-### 前端
+#### Tier 4 — 领域专用资产
+| 技能 | 触发条件 | 互斥 |
+|------|----------|------|
+| `brandkit` | 品牌指南/Logo/Identity Deck/视觉世界构建 | 独占，不与网页设计技能叠加 |
+| `beautify-github-readme` | GitHub README 视觉/SVG/GIF/Hero 资产 | 独占，仅限 README 场景 |
+| `stitch-design-taste` | 生成 DESIGN.md 语义设计契约（Google Stitch 格式） | 独占，仅限设计系统文档生成 |
 
-- 路由: `/codegarden/phase2b`
-- 入口: CodegardenPage 顶部 🌐 Phase 2b 按钮
-- 组件: ServiceMesh + ServiceTopology + ResourceHub + DependencyGraph + EventBus + PlaybookList + CodegardenPhase2bPage
+#### 决策流程图
+```
+用户请求 → 是否显式指名 "v1"? → YES → design-taste-frontend-v1
+         → NO
+         → 是否为 GitHub README 资产? → YES → beautify-github-readme
+         → 是否为品牌/Logo/Identity? → YES → brandkit
+         → 是否要求生成 DESIGN.md 契约? → YES → stitch-design-taste
+         → 输出是否为纯图片(非代码)?
+             → 移动端? → imagegen-frontend-mobile
+             → Web 参考图? → imagegen-frontend-web
+             → 图→代码全流程? → image-to-code
+         → 是否包含特定风格关键词?
+             → 极简/编辑风 → minimalist-ui
+             → 工业/粗野 → industrial-brutalist-ui
+             → GSAP/动效/宽排版 → gpt-taste
+             → 高端/代理级 → high-end-visual-design
+         → 是否为现有项目改造? → YES → redesign-existing-projects
+         → 默认 → design-taste-frontend
+```
 
-### 明确不做 (推迟到 Phase 2c/2d)
+### 技能分组总览
 
-- ❌ AI 协作功能 (M7-M12) → Phase 2c
-- ❌ 项目归档 30 天自动停止服务 (依赖 M5 生命周期) → Phase 2d
-- ❌ 跨机服务网格 (本 Phase 仅本机)
+#### 高端 / 品牌视觉 (Premium & Brand)
+| 技能 | 触发场景 |
+|------|----------|
+| `brandkit` | 品牌指南、Logo 系统、Identity Deck、品牌视觉世界 |
+| `high-end-visual-design` | 高端代理级网页（字体/间距/阴影/卡片/动画标准） |
+| `gpt-taste` | 编辑式宽排版 + GSAP ScrollTrigger 动效落地页 |
+| `design-taste-frontend` | 反模板前端设计 (v2)，审计优先的重构 |
+| `design-taste-frontend-v1` | ⛔ RETIRED — 仅显式指名时加载 |
 
-### 测试覆盖
+#### 极简 / 工业风 (Minimal & Brutalist)
+| 技能 | 触发场景 |
+|------|----------|
+| `minimalist-ui` | 暖色单色、扁平 Bento 网格、无渐变编辑风界面 |
+| `industrial-brutalist-ui` | 瑞士印刷 × 军事终端、极端字号对比、数据密集仪表盘 |
 
-- API 单测: 29/29 PASS (`test_codegarden_ops_api.py`, 原 test_codegarden_phase2b_api.py)
-- e2e: 4/4 PASS (`test_codegarden_ops_e2e.py` — 全流程 + 8898 保护 + 拓扑图 + Playbook 404)
-- 前端组件: 22/22 PASS (ServiceMesh 8 + ResourceHub 6 + DependencyGraph 8)
+#### 图像生成与还原 (Image Generation & Code)
+| 技能 | 触发场景 |
+|------|----------|
+| `image-to-code` | 设计图 → 高保真前端代码（先生成再实现） |
+| `imagegen-frontend-web` | 为每个 Section 单独生成 Web 设计参考图 |
+| `imagegen-frontend-mobile` | 移动端屏幕概念图 / 多屏流程 Mockup |
+
+#### 项目改造与资产 (Redesign & Assets)
+| 技能 | 触发场景 |
+|------|----------|
+| `redesign-existing-projects` | 现有网站/App UI 升级（审计 → 去 AI 味 → 高端化） |
+| `beautify-github-readme` | GitHub README 视觉重塑 / Hero / SVG / GIF 资产 |
+
+#### 设计系统与规范 (Design System & Intelligence)
+| 技能 | 触发场景 |
+|------|----------|
+| `ui-ux-pro-max` | 84 风格 / 192 色板 / 74 字体搭配可检索数据库 |
+| `stitch-design-taste` | 生成 DESIGN.md 语义设计系统契约（Token/组件规则） |
+
+### 工程辅助 (Engineering Support)
+| 技能 | 触发场景 |
+|------|----------|
+| `full-output-enforcement` | 禁止截断/占位符，强制完整代码输出 |
+| `leader` | 一句话想法 → Agent 可独立执行的目标任务书 |
+| `vibehub` | Vibe Coding 术语学习、概念解释、边做边学 |
+
+## Development Commands
+
+### Backend (Python / FastAPI)
+
+```bash
+# Setup
+pip install -r backend/requirements.txt
+
+# Run (dev server)
+python run.py                        # 默认 127.0.0.1:8000
+# 或: python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+
+# Test
+python -m pytest backend/tests/ --tb=short -q
+```
+
+### Frontend (React / Vite / Tailwind)
+
+```bash
+# Setup
+cd frontend && npm install
+
+# Run (dev server, port 8898)
+cd frontend && npm run dev
+
+# Type-check + Test + Build
+cd frontend && npx tsc --noEmit && npx vitest run && npx vite build --logLevel error
+```
 

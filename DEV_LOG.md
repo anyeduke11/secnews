@@ -1,4 +1,38 @@
 
+## [DEV-0132] 爬虫体系 v2 正式技术方案（第一性原理驱动的批判性重构）
+- **时间**: 2026-08-01 23:00
+- **类型**: 设计
+- **关联文件**:
+  - `docs/crawler-v2-design.md`（原始设计稿）
+  - `docs/crawler-v2-technical-spec.md`（正式技术方案，新增）
+  - `backend/collectors/base.py`（现有 BaseCollector 基类）
+  - `backend/collectors/bid_collector.py`（现有标讯采集器，900+ 行硬编码源）
+  - `backend/collectors/__init__.py`（14 个 collector 注册入口）
+  - `backend/collectors/session.py`（BackendSession 统一客户端）
+  - `backend/services/collection_service.py`（采集编排服务）
+  - `backend/scheduler/scheduler.py`（调度器）
+  - `backend/quality/pipeline.py`（质量门禁流水线）
+  - `backend/utils/crawl4ai_client.py` + `backend/parsers/crawl4ai_parser.py`（crawl4ai 两套实现）
+  - `DEV_LOG.md`（本文更新）
+- **问题描述**:
+  - 现有爬虫体系 120 个源中 77 个 dead，标讯最近 14 天 0 条产出
+  - 源硬编码、RSS 直连不代理、crawl4ai 三套实现重复、质量门禁偏松
+  - 原始 v2 设计稿（`crawler-v2-design.md`）存在 10 个关键缺陷，需要基于第一性原理做批判性修订
+- **实现思路**:
+  - 以 5 条第一性原理（FP1-FP5）为不可违背定律，推导所有设计决策
+  - 识别并修复 v2 设计稿的 10 个问题，包括：P0 级标讯搜索引擎路径自相矛盾、迁移路径缺失、crawl4ai 未收敛、健康状态机缺恢复验证、标讯字段提取优先级反了、缺冷启动策略、缺审计视图、标讯过期语义不完整、单源故障隔离不完整、BackendSession 未接入主流路径
+  - 新增关键章节：迁移策略（并行运行期 + 逐步切流）、冷启动策略、健康恢复验证（grace 状态）、反爬对抗策略分级
+  - 实施路线分 5 个 Phase（0-4），总工期 10-16 天
+- **核心变更**:
+  - `docs/crawler-v2-technical-spec.md`: 正式技术方案（9 章，约 600 行），含完整架构图、数据流、SQL DDL、Python 伪代码、迁移策略、验收指标
+  - 源注册表 `crawler_sources` 表设计（含 `first_fetch` 冷启动标记、`grace` 健康状态）
+  - 标讯分级删除 P3 搜索引擎路径，标讯字段提取优先级明确为 DOM > regex > LLM
+  - 质量门禁增加 `quality_rejection_log` 审计表，URL 校验从抽样 10% 改为全量
+  - 浏览器抓取收敛为单例 `BrowserFetchService`，带预算控制
+  - 健康状态机增加 `grace` 观察期状态
+- **测试验证**: N/A（设计文档）
+- **潜在风险**: 方案总工期 10-16 天，需确保 Phase 0 基础设施不破坏现有采集链路；新旧并行运行期的数据一致性验证需要额外关注
+
 ## [DEV-0074] UI/UX — 统一科技风样式重构（第二阶段）
 - **时间**: 2026-07-22 10:45
 - **类型**: 重构
@@ -124,3 +158,16 @@
   - Hotspot -> Agent: CLI 调用 (v1.7.7 新增)
   - 轮询: 双向定时, 遵循 KL 刷新周期, 可自定义
 - **潜在风险**: item_entities 表需要与现有 tags/concepts 协调数据一致性
+
+## [DEV-0131] 爬虫体系 v2 设计架构与技术方案
+- **时间**: 2026-08-01 21:24
+- **类型**: 功能开发
+- **关联文件**: `docs/crawler-v2-design.md`
+- **问题描述**: 现网采集健康度不足：source_stats 120 个来源中 41 active / 2 stale / 77 dead，bid 最近 14 天 0 条产出；标讯源硬编码且大量直连失败，HTML 通用锚点解析与 Bing 搜索路径无法保证准确、及时、有效。
+- **实现思路**: 以“真实优先、结构化优先、增量优先、健康自愈”为原则设计爬虫 v2：源注册表 + 解析器注册表 + 源级调度/退避 + 统一抓取层（httpx/feedparser/trafilatura/crawl4ai）+ 分层质量门禁 + 三层去重 + 标讯结构化字段；明确不直接引入 Scrapy，保持 FastAPI 单进程本地优先。
+- **核心变更**: 
+  - 新增 `docs/crawler-v2-design.md`: 完整设计稿，含现状审计、目标架构、开源选型、标讯专项设计、数据模型、实施路线、验收指标
+- **测试验证**: 
+  - 测试命令: N/A（设计稿，未改业务代码）
+  - 验证结果: N/A
+- **潜在风险**: 源注册表/解析器注册表落地时需迁移现有 collector；标讯官方源若无可公开接口，需以列表页+详情页解析兜底；后续实现按 Phase A-F 分步推进

@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://hotspot.local/pipeline.schema.json",
+  "title": "Pipeline Configuration",
+  "description": "Schema for the hotspot crawl pipeline configuration",
+  "type": "object",
+  "required": ["version", "pipeline", "sources"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Configuration schema version",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "pipeline": {
+      "type": "object",
+      "description": "Pipeline-level settings",
+      "required": ["default_output", "thresholds"],
+      "properties": {
+        "default_output": {
+          "type": "string",
+          "description": "Default output target for collected items",
+          "enum": ["knowledge_items", "hotspot_items"]
+        },
+        "thresholds": {
+          "type": "object",
+          "description": "Quality and quantity thresholds",
+          "required": ["min_score", "max_items_per_source"],
+          "properties": {
+            "min_score": {
+              "type": "integer",
+              "description": "Minimum score for an item to be accepted",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "max_items_per_source": {
+              "type": "integer",
+              "description": "Maximum number of items to collect per source per cycle",
+              "minimum": 1,
+              "maximum": 1000
+            }
+          }
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "description": "List of data sources for the pipeline",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "enabled", "url", "type"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Unique source identifier",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether this source is active"
+          },
+          "url": {
+            "type": "string",
+            "description": "Base URL or endpoint for the source",
+            "format": "uri"
+          },
+          "type": {
+            "type": "string",
+            "description": "Data retrieval method",
+            "enum": ["json_api", "rss", "web"]
+          }
+        }
+      }
+    }
+  }
+}

@@ -5,12 +5,12 @@
 </p>
 
 <p align="center">
-  <code>v1.8</code>&nbsp;·&nbsp;<code>Python 3.10+</code>&nbsp;·&nbsp;<code>React 18</code>&nbsp;·&nbsp;<code>SQLite WAL</code>&nbsp;·&nbsp;<code>MCP 13 tools</code>&nbsp;·&nbsp;<code>GPL-3.0</code>
+  <code>v0.3.0</code>&nbsp;·&nbsp;<code>Python 3.10+</code>&nbsp;·&nbsp;<code>React 18</code>&nbsp;·&nbsp;<code>SQLite WAL</code>&nbsp;·&nbsp;<code>MCP 9 tools</code>&nbsp;·&nbsp;<code>GPL-3.0</code>
 </p>
 
 > **SecNews**（开发代号 `hotspot`）是面向 **AI + 安全从业者** 的单人本地工作站。
 > 把每天的「**热点聚合 → 知识沉淀 → 项目管理 → AI 协作**」合并到一台机器，
-> 通过 **MCP 协议** 开放 **13 个工具** 给 Cursor / Claude Desktop / Trae 等外部 AI Agent。
+> 通过 **MCP 协议** 开放 **9 个工具** 给 Cursor / Claude Desktop / Trae 等外部 AI Agent。
 >
 > 一个人 · 一台电脑 · 零外部服务。
 
@@ -38,10 +38,10 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 | #  | 子系统                | 解决什么                                                             | 入口                                          |
 | -- | --------------------- | -------------------------------------------------------------------- | --------------------------------------------- |
 | 01 | **SecNews 热点聚合**  | 7 大领域 · 30+ 数据源 · 13 质量门禁                                 | `/`                                           |
-| 02 | **Knowledge LLM-Wiki** | 4 层金字塔 (items → concepts → learning → content)                  | `/knowledge`                                  |
+| 02 | **Knowledge LLM-Wiki** | 4 层金字塔 (items → concepts → learning → content) · 6 认知模式 (简报/扫描/深度/告警/整理/复习) · 注意力评分 · FTS5 全文搜索 | `/knowledge` |
 | 03 | **CodeGarden**        | 项目全生命周期 + 服务网格 + 资源中枢 + 联动引擎                     | `/codegarden`                                 |
 | 04 | **Security Graph**    | MITRE ATT&CK · NVD CVE · 等保 2.0 / 关基 / 数安法                   | `/knowledge/process`（内嵌图谱）               |
-| 05 | **MCP Server**        | 13 个标准工具 · stdio / SSE · 零状态                                | `python -m backend.mcp_stdio_main`            |
+| 05 | **MCP Server**        | 9 个标准工具 · stdio / SSE · 零状态                                 | `python -m backend.mcp_stdio_main`            |
 
 ### 数据源
 
@@ -65,13 +65,12 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 
 ## MCP Server
 
-13 个标准工具，外部 AI Agent 自动发现：
+9 个标准工具，外部 AI Agent 自动发现：
 
-| 读 (5)                                                       | 写 (8)                                                                  |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------- |
-| `search_hotspots` · `get_hotspot` · `list_favorites`         | `add_favorite` · `remove_favorite` · `add_annotation`                   |
-| `search_knowledge` · `get_personal_profile`                  | `update_knowledge_item` · `trigger_extract_tags` · `trigger_cubox_sync` |
-|                                                              | `create_alert_rule` · `mark_digest_read`                                |
+| 读 (5)                                                       | 写 (4)                                                    |
+| ------------------------------------------------------------ | --------------------------------------------------------- |
+| `search_hotspots` · `get_hotspot` · `list_favorites`         | `add_favorite` · `remove_favorite` · `add_annotation`     |
+| `search_knowledge` · `get_personal_profile`                  | `update_knowledge_item`                                   |
 
 stdio 配置（粘到你的 AI Agent 配置文件）：
 
@@ -102,7 +101,7 @@ stdio 配置（粘到你的 AI Agent 配置文件）：
 | ----------- | --------------------------------- | ----------------------------------------------------- |
 | Web 框架    | FastAPI                           | async + OpenAPI 生态成熟                              |
 | 主存储      | **SQLite WAL** + `.md` 文件       | 零部署 · FTS5 · git 友好 · LLM 可直读                |
-| 调度        | APScheduler · 31 jobs             | 单进程内调度，无外部 MQ                               |
+| 调度        | APScheduler · 30 jobs             | 单进程内调度，无外部 MQ                               |
 | MCP         | fastapi-mcp                       | OpenAPI → MCP 自动转换                                |
 | 前端        | React 18 + Vite 5 + TypeScript    | 60+ 组件 · 类型安全 · 热重载                          |
 | 图表        | echarts + recharts                | 看板风格                                              |
@@ -112,13 +111,13 @@ stdio 配置（粘到你的 AI Agent 配置文件）：
 ## 路线图
 
 <p align="center">
-  <img src="./assets/readme/roadmap.svg" width="100%" alt="SecNews 路线图: 从 v1.0 到 v1.9+ 的 7 个 Phase">
+  <img src="./assets/readme/roadmap.svg" width="100%" alt="SecNews 路线图">
 </p>
 
 ## 测试
 
 ```bash
-# 后端（67 个 pytest 文件）
+# 后端（80+ 个 pytest 文件）
 .venv/bin/python3 -m pytest backend/tests/ -v
 .venv/bin/python3 -m pytest backend/tests/ -k "merge"
 .venv/bin/python3 -m py_compile backend/services/sync_merge.py
@@ -135,7 +134,7 @@ CI: `.github/workflows/ci.yml` — Python compile + pytest + tsc + vitest + vite
 ## 常见问题
 
 **Q: 为什么不内置 LLM 推理？**
-A: 让用户在自己已配好的 AI Agent 环境（Cursor / Claude Desktop / Trae）中推理，避免重复配置和 API key 管理。hotspot 只负责数据存储 + 13 工具暴露。
+A: 让用户在自己已配好的 AI Agent 环境（Cursor / Claude Desktop / Trae）中推理，避免重复配置和 API key 管理。hotspot 只负责数据存储 + 9 工具暴露。
 
 **Q: 能多用户吗？**
 A: 当前是单用户本地工作站，无多用户/权限隔离。SQLite WAL 模式下 `WORKERS=1` 是约束条件。
@@ -153,7 +152,7 @@ A: 后端改 `PORT=8001` 启动；前端改 `vite --port 8899`。**8898 是受�
 
 新源 → 继承 `BaseCollector` + 测试
 新门禁 → 继承 `BaseGate` + 进 `pipeline.py`
-新 MCP tool → `mcp_types.py` 加 Pydantic + `mcp_config.py` 加 operation_id
+新 MCP tool → `mcp_types.py` 加 Pydantic + `mcp_config.py` 加 operation_id（当前 9 个工具: 5 读 + 4 写）
 
 详细：[`AGENTS.md`](./AGENTS.md) · [`CLAUDE.md`](./CLAUDE.md) · [`docs/IMPROVEMENT_PLAN.md`](./docs/IMPROVEMENT_PLAN.md)
 
@@ -172,7 +171,7 @@ A: 后端改 `PORT=8001` 启动；前端改 `vite --port 8899`。**8898 是受�
 
 **SecNews** (codename `hotspot`) is a **single-user local workstation for AI + security practitioners**.
 It unifies daily workflows — news aggregation, knowledge capture, project lifecycle — into one local
-machine and exposes them to external AI Agents via the standard **MCP protocol** with **13 tools**.
+machine and exposes them to external AI Agents via the standard **MCP protocol** with **9 tools**.
 
 > One person · one machine · zero external services.
 

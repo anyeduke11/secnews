@@ -3,7 +3,7 @@
 > 目标：单人使用、轻量级、高性能、稳健可靠、后续扩展性强
 > 范围：后端采集 / 存储 / API / 缓存 / 可观测性 全栈重构
 > 文档版本：2026-07-04
-> 改进计划：[IMPROVEMENT_PLAN.md](./docs/IMPROVEMENT_PLAN.md) (v1.3.0)
+> 改进计划：[IMPROVEMENT_PLAN.md](./docs/IMPROVEMENT_PLAN.md) (v0.3.0)
 
 ---
 

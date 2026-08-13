@@ -2,7 +2,7 @@
   "spec_version": "2025-06-18",
   "server": {
     "name": "hotspot",
-    "version": "1.7.6",
+    "version": "0.3.0",
     "description": "Hotspot Knowledge MCP Server — 让 AI Agent 通过标准 MCP 协议读写本地知识库",
     "transports": ["stdio", "sse"]
   },

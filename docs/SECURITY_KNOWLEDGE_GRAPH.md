@@ -2,9 +2,9 @@
 
 > **版本**: v1.0.0
 > **日期**: 2026-07-20
-> **范围**: hotspot v1.5+ 安全知识图谱 + 安全术语标准化
+> **范围**: hotspot v0.3.0+ 安全知识图谱 + 安全术语标准化
 > **部署**: 纯本地单机（复用 hotspot 既有栈）
-> **基线**: 对齐 `ARCHITECTURE.md`、`CodeGarden_PRD_v2.0.md` 的分层约定
+> **基线**: 对齐 `ARCHITECTURE.md`、`CodeGarden_PRD_v1.7.md` 的分层约定
 
 ---
 

@@ -48,17 +48,21 @@ cd frontend && npx tsc --noEmit           # 类型检查
 
 ```
 backend/
-├── api/            # REST routers (23 routers, ~50 lines each)
+├── api/            # REST routers (30+ routers, ~50 lines each)
 │   ├── __init__.py # register_routers() aggregates all (lazy imports)
 │   ├── codegarden.py, codegarden_ops.py  # 项目管理 + 运维层 (服务/资源/事件) endpoints
+│   ├── knowledge_chunks_api.py  # v0.3.0 Phase 17: 知识库 chunk 级 API + FTS5
+│   ├── attention_events_api.py  # v0.3.0 Phase 17: 注意力事件追踪
 │   ├── events.py        # SSE 实时推送 (Phase 6)
 │   ├── knowledge.py, maintenance.py, security.py  # Security Knowledge Graph
 │   └── ...
-├── collectors/     # 8 collectors extending BaseCollector + support modules
+├── collectors/     # 14 collectors extending BaseCollector + support modules
 │   ├── base.py     # BaseCollector(ABC) — 已提取 parsing/keywords 模块
 │   ├── parsing.py, keywords.py  # 从 base.py 提取的解析/关键词模块
 │   ├── ai_security_collector.py  # AI 安全分类 (Phase 2)
 │   ├── security_collector.py, github_collector.py, tech_collector.py, ai_collector.py, finance_collector.py, startup_collector.py, bid_collector.py
+│   ├── hn_collector.py, reddit_collector.py, gdelt_collector.py, openbb_collector.py  # v0.3.0 Phase 11-12
+│   ├── telegram_collector.py, ossinsight_collector.py  # v0.3.0 Phase 13 (延迟, 反爬时返回空)
 │   └── sogou_search.py, bid_search.py, bid_status.py, aggregator.py  # support, not BaseCollector
 ├── parsers/        # 独立解析器 (Phase 1)
 │   ├── __init__.py # parser 注册表 + get_parser()
@@ -71,9 +75,9 @@ backend/
 │   ├── pipeline.py # QualityGatePipeline
 │   ├── scorer.py, config.py, jobs.py, publisher_registry.py, source_coverage.py
 │   └── *_gate.py   # author_verification, bid_recency, category_match, content_quality, duplicate, final_url, noise_content, recency, schema, source_reputation, title_summary, url_content, url_validity
-├── repository/     # SQLite DAO layer (20 repos, one per table)
+├── repository/     # SQLite DAO layer (33 repos, one per table)
 │   ├── db.py       # init_db, get_connection (thread-local, autocommit)
-│   ├── migrations/ # 23 SQL migration files (001-023)
+│   ├── migrations/ # 54 SQL migration files (001-054)
 │   ├── security_repo.py  # Security Knowledge Graph + Terminology
 │   └── knowledge_repo.py
 ├── scheduler/      # APScheduler jobs (sync, collection, trends, security)
@@ -82,7 +86,7 @@ backend/
 │   ├── graph.py         # SecurityGraphEngine
 │   ├── enricher.py      # CVE/ATT&CK/合规提取
 │   └── compliance.py    # 合规种子数据
-├── services/       # Business logic (41 files)
+├── services/       # Business logic (74 files)
 │   ├── sync_service.py     # Orchestration (was 1266, now 371 lines)
 │   ├── sync_merge.py       # 3-way merge engine (extracted)
 │   ├── sync_bundle.py      # Build/encrypt/decrypt bundles (extracted)
@@ -92,7 +96,9 @@ backend/
 │   ├── maintenance_service.py  # DB vacuum/cleanup
 │   ├── terminology_service.py  # Security term normalization (Phase 4)
 │   ├── security_graph_service.py  # Security graph orchestration (Phase 3)
-│   └── codegarden_*.py        # Phase 2b: scanner, project, service, resource, orchestration, github, knowledge_bridge
+│   ├── codegarden_*.py        # Phase 2b: scanner, project, service, resource, orchestration, github, knowledge_bridge
+│   ├── attention_scorer.py    # v0.3.0 Phase 17: 5 维度注意力评分
+│   ├── planning_service.py    # v0.3.0 Phase 13: 规划动作
 ├── crypto.py       # Fernet encryption, master key derivation
 ├── config.py       # Pydantic Settings (env prefix HOTSPOT_)
 └── main.py         # FastAPI app entry, CORS, middleware
@@ -108,14 +114,19 @@ Key patterns:
 
 ```
 frontend/src/
-├── components/     # ~60 React components
+├── components/     # ~120 React components
 │   ├── Icon.tsx    # Shared SVG icon component
 │   ├── SyncPage.tsx, SecretsPage.tsx  # Largest (~800 lines, needs splitting)
+│   ├── ReportPage.tsx  # v0.3.0: 日报/周报/月报 (AIHot 风格)
 │   ├── RegionFilter.tsx  # 标讯地区筛选 (Phase 8)
 │   ├── security/     # Security Knowledge Graph (Phase 5)
 │   │   ├── SecurityGraph.tsx, SecurityTimeline.tsx
 │   │   ├── SecurityEntityDetail.tsx, ComplianceMatrix.tsx
 │   │   └── TermStandardizer.tsx
+│   ├── knowledge/    # ~25 知识库组件
+│   │   ├── KnowledgeTabs.tsx, BriefingMode.tsx, ScanMode.tsx, DeepReadMode.tsx, AlertMode.tsx
+│   │   ├── OutboxMode.tsx, ReviewMode.tsx, AttentionHeatmap.tsx  # v0.3.0 Phase 17
+│   │   └── KnowledgeCompoundingDashboard.tsx, LifecycleProgress.tsx, KnowledgePlanningPanel.tsx  # v0.3.0
 │   └── codegarden/ # Phase 2b: ProjectBoard, ProjectDetail, ServiceMesh, DependencyGraph, EventBus, PlaybookList, ResourceHub, ...
 ├── hooks/          # Custom hooks (useHotspotData, useTodos, useSync, useSSE, useSecurityGraph, etc.)
 ├── types/          # Shared types, helpers, CATEGORIES table
@@ -136,7 +147,7 @@ Key patterns:
 
 ```
 knowledge/
-├── items/          # L1: Individual knowledge entries (~405 .md files)
+├── items/          # L1: Individual knowledge entries (~405 .md files, with attention_score)
 ├── concepts/       # L2: Extracted concepts (~35 .md files + graph.json)
 ├── learning/       # L3: Learning plans + tasks
 │   └── tasks/      # Pending/processing/done/failed task files
@@ -164,7 +175,7 @@ codegarden/
 └── specs/     # Project specs (scaffolded)
 ```
 
-Backed by `backend/api/codegarden.py` (项目管理) and `backend/api/codegarden_ops.py` (运维层: services, resources, dependencies, events, playbooks; 原 codegarden_phase2b.py). Business logic in `backend/services/codegarden_*.py`. DB tables come from migrations `019_codegarden.sql` and `021_codegarden_phase2b.sql`. See `docs/CodeGarden_PRD_v2.0.md` for the Phase 2b spec.
+Backed by `backend/api/codegarden.py` (项目管理) and `backend/api/codegarden_ops.py` (运维层: services, resources, dependencies, events, playbooks; 原 codegarden_phase2b.py). Business logic in `backend/services/codegarden_*.py`. DB tables come from migrations `019_codegarden.sql` and `021_codegarden_phase2b.sql`. See `docs/CodeGarden_PRD_v0.3.0.md` for the Phase 2b spec.
 
 ### Sync System (cross-device config)
 
@@ -182,8 +193,8 @@ sync_bundle.py   →  Serialization: build_bundle, encrypt/decrypt (400 lines)
 
 ### Testing
 
-- **Backend**: 67 test files, pytest with `tmp_path` + `monkeypatch` for DB isolation
-- **Frontend**: Vitest + jsdom, tests colocated with components (e.g. `codegarden/ProjectList.test.tsx`, `codegarden/ProjectCard.test.tsx`)
+- **Backend**: 2286+ tests, pytest with `tmp_path` + `monkeypatch` for DB isolation
+- **Frontend**: Vitest + jsdom, 286+ tests, tests colocated with components
 - **New tests (no DB)**: `test_sync_merge.py`, `test_auto_classifier.py`, `test_knowledge_watcher.py` — pure function tests, fastest to run
 - **CI**: `.github/workflows/ci.yml` — Python compile + pytest + tsc + vitest + vite build
 
@@ -194,9 +205,12 @@ sync_bundle.py   →  Serialization: build_bundle, encrypt/decrypt (400 lines)
 - **Proxy required**: `backend/proxy_config.json` (in `.gitignore`, must self-configure on first install) needed for security/github collectors — see README for the minimal config
 - **Master key**: PBKDF2-derived Fernet key for secrets encryption + sync bundle encryption
 - **Knowledge system**: file-first, SQLite is read cache; .md files are source of truth
+- **Attention scoring**: 5-dimensional weighted (view_count/dwell_time/scroll_depth/is_favorited/annotation_count), 0-100 scale, aggregated via 1800s interval job with 30-day window + auto-cleanup
+- **Chunk storage**: paragraph-level segmentation with FTS5 full-text search, char_start/end for原文跳转
+- **6 cognitive modes**: Briefing (简报) / Scan (扫描) / DeepRead (深度) / Alert (告警) / Outbox (整理) / Review (复习)
 
 ## Docs & Tooling Notes
 
-- `docs/` holds the design corpus: `ARCHITECTURE.md` (v3.0 optimization plan), `RUNBOOK.md`, `ADMIN_MANUAL.md`, `ACCEPTANCE.md`, `quality_gates.md`, `CodeGarden_PRD_v2.0.md`, `secnews-knowledge-design.md`, `DESIGN_GUIDE.md`. Consult these for subsystem rationale before large changes.
+- `docs/` holds the design corpus: `ARCHITECTURE.md` (v3.0 optimization plan), `RUNBOOK.md`, `ADMIN_MANUAL.md`, `ACCEPTANCE.md`, `quality_gates.md`, `CodeGarden_PRD_v0.3.0.md`, `secnews-knowledge-design.md`, `DESIGN_GUIDE.md`. Consult these for subsystem rationale before large changes. Phase 17 spec at `.trae/specs/phase17-chunks-attention/`.
 - `README.md` — quick start, data-source table, proxy config walkthrough.
 - **Gortex (Cursor-only)**: `.cursor/rules/`, `.github/copilot-instructions.md`, `docs/AGENTS.md`, and `docs/CLAUDE.md` contain auto-generated Gortex code-intelligence blocks (the `/gortex-*` skill tables and "prefer graph tools" workflow). These are managed by the Gortex MCP server for Cursor — not hand-authored instructions. In Claude Code the Gortex MCP is not wired, so ignore those skill listings and use the standard search tools.

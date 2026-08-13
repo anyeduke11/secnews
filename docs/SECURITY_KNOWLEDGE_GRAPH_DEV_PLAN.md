@@ -6,7 +6,7 @@
 > - [SECURITY_KNOWLEDGE_GRAPH.md](./SECURITY_KNOWLEDGE_GRAPH.md) 系统架构
 > - [SECURITY_KNOWLEDGE_GRAPH_PRD.md](./SECURITY_KNOWLEDGE_GRAPH_PRD.md) 产品需求
 > - [ARCHITECTURE.md](./ARCHITECTURE.md) hotspot 主架构
-> - [CodeGarden_PRD_v2.0.md](./CodeGarden_PRD_v2.0.md) CodeGarden PRD（分层对齐参考）
+> - [CodeGarden_PRD_v1.7.md](./CodeGarden_PRD_v1.7.md) CodeGarden PRD（分层对齐参考）
 
 ---
 
@@ -955,7 +955,7 @@ Phase 6（NVD + 告警）  ← 依赖 T3.3, T6.1
 | 现有文档 | 关联章节 |
 |---|---|
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | 第 3 节（目标架构总览）、第 5 节（数据层设计） |
-| [CodeGarden_PRD_v2.0.md](./CodeGarden_PRD_v2.0.md) | 第 1.3 节（与 hotspot 的关系）、第 3 节（模块边界） |
+| [CodeGarden_PRD_v1.7.md](./CodeGarden_PRD_v1.7.md) | 第 1.3 节（与 hotspot 的关系）、第 3 节（模块边界） |
 | [SPEC.md](./SPEC.md) | 第 2.2 节（分类与色值） |
 | [SECURITY_KNOWLEDGE_GRAPH.md](./SECURITY_KNOWLEDGE_GRAPH.md) | 全文档（系统架构） |
 | [SECURITY_KNOWLEDGE_GRAPH_PRD.md](./SECURITY_KNOWLEDGE_GRAPH_PRD.md) | 全文档（产品需求） |

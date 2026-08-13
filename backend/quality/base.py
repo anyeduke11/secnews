@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any, ClassVar, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -38,6 +38,7 @@ class GateContext(BaseModel):
     existing_titles: list[str] = Field(default_factory=list)
     known_ids: Optional[Any] = None  # callable returning set of known ids
     http_session_factory: Optional[Any] = None  # callable returning aiohttp session
+    rejected_by: Optional[str] = None  # 首个失败的 Hard gate 名称
 
 
 class BaseGate(ABC):
@@ -48,6 +49,9 @@ class BaseGate(ABC):
 
     #: 门禁标识（"schema" / "content" / "category_match" / ...）。
     name: str = "base"
+
+    #: 门禁类型: "hard" 表示拒绝性门禁, "soft" 表示评分性门禁。
+    gate_type: ClassVar[Literal["hard", "soft"]] = "soft"
 
     @abstractmethod
     def check(

@@ -310,18 +310,18 @@ def _update_md_frontmatter(
     if re.search(r"^sources:", frontmatter, re.MULTILINE):
         frontmatter = re.sub(
             r"^sources:.*$",
-            f"sources: {json.dumps(sources)}",
+            lambda m: f"sources: {json.dumps(sources, ensure_ascii=False)}",
             frontmatter,
             flags=re.MULTILINE,
         )
     else:
-        frontmatter = frontmatter.rstrip() + f"\nsources: {json.dumps(sources)}\n"
+        frontmatter = frontmatter.rstrip() + f"\nsources: {json.dumps(sources, ensure_ascii=False)}\n"
 
     # Replace tags line
     if re.search(r"^tags:", frontmatter, re.MULTILINE):
         frontmatter = re.sub(
             r"^tags:.*$",
-            f"tags: {json.dumps(tags)}",
+            lambda m: f"tags: {json.dumps(tags, ensure_ascii=False)}",
             frontmatter,
             flags=re.MULTILINE,
         )

@@ -57,6 +57,7 @@ class ImportedItem:
     source_name: str  # display name
     ingested_at: str  # ISO format timestamp
     origin: str       # source description
+    summary: str = "" # brief description / tags summary
 
 
 @dataclass
@@ -168,6 +169,13 @@ class ImportedAggregator:
         try:
             favorites = FavoriteRepository().list(limit=1000)
             for fav in favorites:
+                summary_parts = []
+                if fav.category:
+                    summary_parts.append(f"分类: {fav.category}")
+                if fav.source:
+                    summary_parts.append(f"来源: {fav.source}")
+                summary = " — ".join(summary_parts)
+
                 items.append(ImportedItem(
                     id=f"fav_{fav.hotspot_id}",
                     title=fav.title,
@@ -176,6 +184,7 @@ class ImportedAggregator:
                     source_name=SOURCE_LABELS["favorites"],
                     ingested_at=fav.favorited_at,
                     origin=SOURCE_ORIGINS["favorites"],
+                    summary=summary,
                 ))
         except Exception as e:
             log.warning("failed to fetch favorites: %s", e)
@@ -203,6 +212,18 @@ class ImportedAggregator:
         try:
             rows = knowledge_repo.list_items(source=source, limit=1000)
             for row in rows:
+                # 从 tags / concepts / domain / topic 构建摘要
+                parts = []
+                if row.topic:
+                    parts.append(row.topic)
+                if row.domain:
+                    parts.append(row.domain)
+                if row.tags:
+                    parts.append(" · ".join(row.tags[:4]))
+                if row.concepts:
+                    parts.append("关联: " + " · ".join(row.concepts[:3]))
+                summary = " — ".join(parts) if parts else ""
+
                 items.append(ImportedItem(
                     id=f"{source}_{row.id}",
                     title=row.title,
@@ -211,6 +232,7 @@ class ImportedAggregator:
                     source_name=SOURCE_LABELS.get(source, source),
                     ingested_at=row.ingested_at,
                     origin=SOURCE_ORIGINS.get(source, source),
+                    summary=summary,
                 ))
         except Exception as e:
             log.warning("failed to fetch %s items: %s", source, e)

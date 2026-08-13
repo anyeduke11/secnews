@@ -826,6 +826,88 @@ async def collect_validations_cleanup_job() -> None:
         _logger.error(f"collect_validations_cleanup_job crashed: {e}")
 
 
+# ============================================================================
+# Phase 3: 源级调度 (每 60s)
+# ============================================================================
+async def source_scheduler_tick_job() -> None:
+    """Phase 3: 源级调度器 tick — 每 60s 查询待调度源并执行单源采集。
+
+    委托 SourceSchedulerService.tick() 执行。
+    失败只 log.error，不抛异常（与既有 job 模式一致）。
+    """
+    try:
+        from backend.services.source_scheduler_service import (
+            SourceSchedulerService,
+            get_scheduler_service,
+            set_scheduler_service,
+        )
+        from backend.services.collection_service import CollectionService
+
+        svc = get_scheduler_service()
+        if svc is None:
+            # 首次调用时创建实例并注入 collection_service
+            _svc = SourceSchedulerService()
+            _svc.attach_collection_service(_service)  # _service 是模块级全局
+            set_scheduler_service(_svc)
+            svc = _svc
+
+        result = await svc.tick()
+        if result["scheduled"] > 0:
+            _logger.info(
+                f"source_scheduler_tick_job: scheduled={result['scheduled']} "
+                f"succeeded={result['succeeded']} failed={result['failed']} "
+                f"skipped={result['skipped']}"
+            )
+    except Exception as e:
+        _logger.error(f"source_scheduler_tick_job crashed: {e}")
+
+
+# ============================================================================
+# Phase 3: 死源探活 (每日 03:30 Asia/Shanghai)
+# ============================================================================
+async def source_probe_job() -> None:
+    """Phase 3: 每日 03:30 Asia/Shanghai 对 dead 源执行 HEAD/GET 探测。
+
+    委托 source_prober.probe_all_dead() 执行。
+    失败只 log.error，不抛异常（与既有 job 模式一致）。
+    """
+    try:
+        from backend.services.source_prober import probe_all_dead
+
+        results = await asyncio.to_thread(probe_all_dead)
+        alive = sum(1 for r in results if r["status"] == "alive")
+        _logger.info(
+            f"source_probe_job: probed {len(results)} dead sources, "
+            f"alive={alive}"
+        )
+    except Exception as e:
+        _logger.error(f"source_probe_job crashed: {e}")
+
+
+# ============================================================================
+# Phase 3: 源级告警评估 (每 300s)
+# ============================================================================
+async def source_alert_eval_job() -> None:
+    """Phase 3: 每 300s 对所有活跃源检查告警规则。
+
+    委托 SourceAlerter.evaluate_all() 执行。
+    失败只 log.error，不抛异常（与既有 job 模式一致）。
+    """
+    try:
+        from backend.services.source_alerter import SourceAlerter
+
+        alerter = SourceAlerter()
+        result = await asyncio.to_thread(alerter.evaluate_all)
+        if result["alerts_triggered"] > 0:
+            _logger.info(
+                f"source_alert_eval_job: checked {result['sources_checked']} sources, "
+                f"triggered {result['alerts_triggered']} alerts "
+                f"(P1={result['alerts_by_level']['P1']}, P2={result['alerts_by_level']['P2']})"
+            )
+    except Exception as e:
+        _logger.error(f"source_alert_eval_job crashed: {e}")
+
+
 # 更新 __all__
 __all__.extend([
     "auto_extract_job",
@@ -836,6 +918,9 @@ __all__.extend([
     "profile_decay_job",
     "source_revival_check_job",  # v1.8 Phase 8: 死源复活
     "collect_validations_cleanup_job",  # P1-1: validation 自动归档
+    "source_scheduler_tick_job",
+    "source_probe_job",
+    "source_alert_eval_job",
 ])
 
 
@@ -1007,10 +1092,187 @@ async def kl_dead_letter_retry_job() -> None:
         logger.error(f"kl_dead_letter_retry_job crashed: {e}")
 
 
-# 更新 __all__ (Phase 10)
+async def kl_trigger_t3_job() -> None:
+    """Phase 12: 每 600s 跑一次 T3 (kl:link → kl:structure)."""
+    from backend.services.triggers.t3_link_to_structure import T3Trigger
+    try:
+        t3 = T3Trigger()
+        report = await asyncio.to_thread(t3.run_once)
+        logger.info(
+            f"kl_trigger_t3_job: candidates={report['candidates']} "
+            f"advanced={report['advanced']} "
+            f"low_link={report['low_link']} "
+            f"failed={report['failed']}"
+        )
+    except Exception as e:
+        logger.error(f"kl_trigger_t3_job crashed: {e}")
+
+
+async def kl_trigger_t4_job() -> None:
+    """Phase 12: 每 1800s 跑一次 T4 (kl:structure → kl:publish)."""
+    from backend.services.triggers.t4_structure_to_publish import T4Trigger
+    try:
+        t4 = T4Trigger()
+        report = await asyncio.to_thread(t4.run_once)
+        logger.info(
+            f"kl_trigger_t4_job: candidates={report['candidates']} "
+            f"advanced={report['advanced']} "
+            f"skipped_low_score={report['skipped_low_score']} "
+            f"skipped_unstable={report['skipped_unstable']} "
+            f"failed={report['failed']}"
+        )
+    except Exception as e:
+        logger.error(f"kl_trigger_t4_job crashed: {e}")
+
+
+# ============================================================================
+# Phase 13: job 36 — 规划动作检查 (每 600s)
+# ============================================================================
+async def planning_action_check_job() -> None:
+    """Phase 13: 每 600s 生成规划动作."""
+    from backend.services.planning_service import PlanningService
+    try:
+        service = PlanningService()
+        report = await asyncio.to_thread(service.generate_actions)
+        logger.info(
+            f"planning_action_check_job: "
+            + " ".join(f"{k}={v}" for k, v in report.items())
+        )
+    except Exception as e:
+        logger.error(f"planning_action_check_job crashed: {e}")
+
+
+# ============================================================================
+# Phase 14: job 38 — 技术栈漂移评估 (每小时)
+# ============================================================================
+async def cg_drift_assess_job() -> None:
+    """Phase 14: 每小时评估一次 tech_stack drift."""
+    try:
+        from backend.services.codegarden_drift import assess_drift
+        report = await asyncio.to_thread(assess_drift)
+        logger.info(
+            f"cg_drift_assess_job: {report['matched_count']} new assessments, "
+            f"{len(report['new_techs'])} techs, "
+            f"{len(report['affected_projects'])} projects"
+        )
+    except Exception as e:
+        logger.error(f"cg_drift_assess_job crashed: {e}")
+
+
+# ============================================================================
+# Phase 14: job 39 — CVE 同步 (每 30 分钟)
+# ============================================================================
+async def cve_sync_to_security_job() -> None:
+    """Phase 14: 每 30 分钟同步 CVE 到 security_entities."""
+    try:
+        from backend.services.cve_knowledge_sync import sync_cve_to_security
+        report = await asyncio.to_thread(sync_cve_to_security)
+        logger.info(
+            f"cve_sync_to_security_job: synced={report['synced']} "
+            f"updated={report['updated']} failed={report['failed']}"
+        )
+    except Exception as e:
+        logger.error(f"cve_sync_to_security_job crashed: {e}")
+
+
+# ============================================================================
+# Phase 17: job — attention 聚合 (每 30 分钟)
+# ============================================================================
+async def attention_aggregate_job() -> None:
+    """Phase 17: 每 30 分钟聚合 attention 事件并更新 attention_score。
+
+    调用 attention_scorer.batch_score() 批量计算。
+    清理 30 天前的过期 attention_events。
+    """
+    try:
+        from backend.services.attention_scorer import batch_score
+
+        result = await asyncio.to_thread(batch_score)
+        _logger.info(f"attention_aggregate_job: updated={result.get('updated')}, errors={result.get('errors')}")
+
+        # 清理 30 天前的过期事件
+        from datetime import datetime, timedelta, timezone
+        from backend.repository.db import get_connection
+
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        conn = get_connection()
+        conn.execute("DELETE FROM attention_events WHERE created_at < ?", (cutoff,))
+        deleted = conn.total_changes
+        _logger.info(f"attention_aggregate_job: cleaned {deleted} expired events")
+    except Exception as e:
+        _logger.error(f"attention_aggregate_job crashed: {e}")
+
+
+# ============================================================================
+# Phase 1.4 (Crawler v2): 标讯过期检查 (每 30 分钟)
+# ============================================================================
+async def bid_expiry_check_job() -> None:
+    """Phase 1.4: 每 30 分钟检查过期标讯并标记。
+
+    查询 bid_details 中 deadline < now() 且尚未标记的条目，
+    更新 bid_status = '已过期'。
+    失败只 log.warning，不抛异常。
+    """
+    try:
+        from backend.repository.bid_detail_repo import BidDetailRepo
+
+        repo = BidDetailRepo()
+        expired = await asyncio.to_thread(repo.get_expired)
+        if not expired:
+            return
+
+        marked = 0
+        for row in expired:
+            try:
+                ok = await asyncio.to_thread(repo.mark_expired, row["item_id"])
+                if ok:
+                    marked += 1
+            except Exception:
+                continue
+
+        _logger.info(
+            f"bid_expiry_check_job: found {len(expired)} expired, marked {marked}"
+        )
+    except Exception as e:
+        _logger.warning(f"bid_expiry_check_job: {e}")
+
+
+# ============================================================================
+# Phase 2.2 (Crawler v2): URL 全量校验 (每 5 分钟)
+# ============================================================================
+async def url_full_check_job() -> None:
+    """Phase 2.2: 每 5 分钟对未校验条目做 URL 全量校验。
+
+    查询最近 24h 内 url_check_status IS NULL 的条目，
+    执行 HEAD 请求验证，结果写入 crawl_url_checks。
+    失败只 log.warning，不抛异常。
+    """
+    try:
+        from backend.services.url_batch_check_service import UrlBatchCheckService
+
+        service = UrlBatchCheckService()
+        result = await service.run_check(since_minutes=1440, limit=200)
+        if result["checked"] > 0:
+            _logger.info(
+                f"url_full_check_job: checked={result['checked']} "
+                f"succeeded={result['succeeded']} failed={result['failed']}"
+            )
+    except Exception as e:
+        _logger.warning(f"url_full_check_job: {e}")
+
+
+# 更新 __all__ (Phase 1.4 + Phase 2.2 + existing)
 __all__.extend([
     "catchup_watchdog_job",
     "kl_trigger_t1_job",
     "kl_trigger_t2_job",
     "kl_dead_letter_retry_job",
+    "kl_trigger_t3_job",
+    "kl_trigger_t4_job",
+    "planning_action_check_job",
+    "cg_drift_assess_job",
+    "cve_sync_to_security_job",
+    "attention_aggregate_job",
+    "bid_expiry_check_job",
+    "url_full_check_job",
 ])

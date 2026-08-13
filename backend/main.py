@@ -19,7 +19,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api import register_routers
-from backend.api.mcp_config import build_mcp_server, is_mcp_enabled, mount_sse_endpoint
+from backend.api.mcp_config import (
+    build_mcp_server,
+    is_mcp_enabled,
+    mcp_tool_registry_seed,
+    mount_sse_endpoint,
+)
 from backend.api.middleware import TraceIDMiddleware
 from backend.cache import invalidate as cache_invalidate, warmup
 from backend.config import config
@@ -52,6 +57,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         rebuild_export_cache()
     except Exception as e:  # pragma: no cover
         log.warning(f"export prebuild failed: {e}")
+
+    # v1.7 Phase 7: MCP server — HTTP/SSE transport 挂载 + tool registry seeding
+    # 幂等: mcp_tool_registry_seed 用 PRIMARY KEY name 保证重启不重复插入
+    # 失败只告警不阻断启动 (MCP 是增强功能, 不因挂载失败拖垮整个服务)
+    try:
+        if is_mcp_enabled():
+            mcp_tool_registry_seed()
+            mcp = build_mcp_server(app)
+            mount_sse_endpoint(app, mcp)
+            log.info("MCP server enabled: SSE endpoint /mcp/sse + tool registry seeded")
+        else:
+            log.info("MCP server disabled (feature.mcp_server=False), SSE endpoint not mounted")
+    except Exception as e:
+        log.warning(f"MCP setup failed (ignored): {e}")
 
     svc = CollectionService()
     set_service(svc)

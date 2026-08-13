@@ -10,10 +10,8 @@ Phase 4 (简报生成):
 
 设计决策
 ---------
-- ``digests`` 表 (migration 031) 没有 ``read`` 列, 读取状态用 ``kv_cache``
-  表 (migration 032) 记录, key=``digest_last_read_at``, value=ISO 时间戳。
 - "未读" 定义: digests 表中存在 created_at >= 今日 00:00 (Shanghai) 的简报,
-  且 kv_cache 中 ``digest_last_read_at`` < 该简报的 created_at。
+  且 digests.last_read_at < 该简报的 created_at (或 last_read_at 为 NULL)。
 - 时区: 使用 Asia/Shanghai (与 RecencyGate / TimeRange 对齐, Phase 48)。
 - Phase 4 简报: 取昨日 [yesterday_00:00, today_00:00) Shanghai 的 hotspots,
   按 score DESC 取 Top 3, 摘要 + item_ids 写入 digests 表。
@@ -26,9 +24,6 @@ from typing import Optional
 
 from backend.repository.db import get_connection
 from backend.repository.digest_repo import DigestRepository, digest_repo
-
-# kv_cache key: 记录用户最后一次标记简报已读的时间
-_KV_DIGEST_LAST_READ = "digest_last_read_at"
 
 # 时区: Asia/Shanghai (UTC+8)
 _SHANGHAI_TZ = timezone(timedelta(hours=8))
@@ -57,7 +52,7 @@ def has_unread_digest() -> bool:
     -------
     bool
         True 如果 digests 表中存在 created_at >= 今日上海 00:00 的简报,
-        且用户尚未标记已读 (kv_cache digest_last_read_at < 简报 created_at)。
+        且用户尚未标记已读 (digests.last_read_at < 简报 created_at)。
     """
     today_start = _today_start_shanghai_utc().isoformat()
     conn = get_connection()
@@ -74,20 +69,19 @@ def has_unread_digest() -> bool:
 
     # 查找用户最后标记已读的时间
     read_row = conn.execute(
-        "SELECT value FROM kv_cache WHERE key = ?",
-        (_KV_DIGEST_LAST_READ,),
+        "SELECT MAX(last_read_at) AS value FROM digests",
     ).fetchone()
 
-    if not read_row:
+    last_read_at = read_row["value"] if read_row else None
+    if not last_read_at:
         return True  # 从未标记已读 → 有未读
 
-    last_read_at = read_row["value"]
     # 如果最后读取时间 < 最新简报创建时间 → 未读
     return last_read_at < latest_digest_at
 
 
 def mark_digest_read(read_at: datetime | None = None) -> None:
-    """标记简报已读, 写入 kv_cache。
+    """标记简报已读, 写入 digests.last_read_at。
 
     Parameters
     ----------
@@ -95,15 +89,14 @@ def mark_digest_read(read_at: datetime | None = None) -> None:
         标记读取的时间戳, 默认当前 UTC 时间。
     """
     ts = (read_at or _now_utc()).isoformat()
-    now = _now_utc().isoformat()
     conn = get_connection()
     conn.execute(
         """
-        INSERT INTO kv_cache (key, value, expires_at, created_at, updated_at)
-        VALUES (?, ?, NULL, ?, ?)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+        UPDATE digests
+        SET last_read_at = ?
+        WHERE id = (SELECT id FROM digests ORDER BY created_at DESC LIMIT 1)
         """,
-        (_KV_DIGEST_LAST_READ, ts, now, now),
+        (ts,),
     )
 
 

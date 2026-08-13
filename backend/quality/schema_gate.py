@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from pydantic import ValidationError
 
+from typing import ClassVar, Literal
+
 from backend.domain.collection import GateResult
 from backend.domain.models import HotspotItem
 from backend.quality.base import BaseGate, GateContext
@@ -16,6 +18,7 @@ class SchemaGate(BaseGate):
     """Pydantic 二次校验门禁。"""
 
     name = "schema"
+    gate_type: ClassVar[Literal["hard", "soft"]] = "hard"
 
     def check(
         self, item: HotspotItem, context: GateContext

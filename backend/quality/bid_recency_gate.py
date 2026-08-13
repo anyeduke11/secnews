@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from typing import Optional
+from typing import ClassVar, Literal, Optional
 
 from backend.domain.collection import GateResult
 from backend.domain.enums import Category
@@ -60,6 +60,7 @@ class BidRecencyGate(BaseGate):
     """
 
     name = "bid_recency"
+    gate_type: ClassVar[Literal["hard", "soft"]] = "hard"
 
     def check(
         self, item: HotspotItem, context: GateContext

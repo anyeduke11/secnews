@@ -24,7 +24,12 @@ from backend.repository.settings_repo import SettingsRepository
 #   - beian.miit.gov.cn: 工信部 ICP 备案号链接
 #   - javascript:/void(0)/#: 死链/锚点
 #   - tel:/mailto:: 联系入口
-#   - /: 裸根路径(通常不是有效文章 URL)
+#
+# 注意 (2026-08-05): 不再拦截 ``r"^/"`` —— 之前的实现误伤所有站内相对路径
+# (如 ``/news/infor/2429.html`` / ``/detail/...``),导致 bid 等抓取站点的
+# 几乎所有有效链接被 NOISE_URL_REGEX 误判为噪声 → 0 items 入库。裸根路径
+# (``<a href="/">首页</a>``) 由 _is_noise_url 跨域检查 + _is_noise_title
+# 文本过滤兜底,无需在 regex 阶段强制拦截。
 NOISE_URL_PATTERNS: list[str] = [
     r"^https?://beian\.miit\.gov\.cn",   # 工信部备案号
     r"^javascript:",
@@ -32,7 +37,6 @@ NOISE_URL_PATTERNS: list[str] = [
     r"^tel:",
     r"^mailto:",
     r"^#",
-    r"^/",
 ]
 NOISE_URL_REGEX: re.Pattern = re.compile("|".join(NOISE_URL_PATTERNS), re.IGNORECASE)
 
@@ -196,10 +200,6 @@ class QualityConfig:
                                                _app_config.quality_strict_mode)),
             "min_score": int(self._repo.get("quality.min_score",
                                             _app_config.quality_min_score)),
-            "url_check_sample_rate": float(self._repo.get(
-                "quality.url_check_sample_rate",
-                _app_config.quality_url_check_sample_rate,
-            )),
             "url_check_concurrency": int(self._repo.get(
                 "quality.url_check_concurrency", 5
             )),
@@ -213,6 +213,7 @@ class QualityConfig:
                 "quality.reputation_interval_seconds", 21600
             )),
             "category_keywords": self._load_all_keywords(),
+            "hard_gate_ids": list(self._repo.get("quality.hard_gate_ids", [])),
         }
 
     def _load_all_keywords(self) -> dict[str, list[str]]:
@@ -229,10 +230,6 @@ class QualityConfig:
     @property
     def min_score(self) -> int:
         return self._cache["min_score"]
-
-    @property
-    def url_check_sample_rate(self) -> float:
-        return self._cache["url_check_sample_rate"]
 
     @property
     def url_check_concurrency(self) -> int:
@@ -253,6 +250,10 @@ class QualityConfig:
     @property
     def category_keywords(self) -> dict[str, list[str]]:
         return self._cache["category_keywords"]
+
+    @property
+    def hard_gate_ids(self) -> list[str]:
+        return self._cache.get("hard_gate_ids", [])
 
 
 __all__ = [

@@ -98,7 +98,23 @@ class SecurityGraphEngine:
             "SELECT * FROM security_entities WHERE entity_type = 'cve' "
             "ORDER BY updated_at DESC LIMIT 200"
         ).fetchall()
-        return [dict(r) for r in rows]
+        nodes = []
+        for r in rows:
+            d = dict(r)
+            # 从 metadata JSON 提取 knowledge_refs
+            metadata = d.get("metadata")
+            knowledge_refs: list[str] = []
+            if metadata:
+                try:
+                    parsed = json.loads(metadata) if isinstance(metadata, str) else metadata
+                    knowledge_refs = parsed.get("knowledge_refs", [])
+                except (json.JSONDecodeError, TypeError):
+                    knowledge_refs = []
+            d["knowledge_refs"] = knowledge_refs
+            d["knowledge_count"] = len(knowledge_refs)
+            d["linked"] = len(knowledge_refs) > 0
+            nodes.append(d)
+        return nodes
 
     def _load_cve_edges(self) -> list[dict]:
         conn = get_connection()
@@ -136,8 +152,14 @@ class SecurityGraphEngine:
         return nodes
 
     def _build_knowledge_edges(self, knowledge_nodes: list[dict]) -> list[dict]:
-        """Build edges between knowledge items and security entities."""
+        """Build edges between knowledge items and security entities.
+
+        Phase 14 扩展:
+        - 对每个 knowledge_item 的 cve_ids, 查找 security_entities 中对应 entity
+        - 添加 edge: source=knowledge_item_id, target=security_entity_id, edge_type='references'
+        """
         edges = []
+        conn = get_connection()
         for kn in knowledge_nodes:
             kid = kn["id"]
             for field, edge_type in [
@@ -155,12 +177,25 @@ class SecurityGraphEngine:
                 if not isinstance(ids, list):
                     continue
                 for target_id in ids:
-                    edges.append({
-                        "source_id": kid,
-                        "target_id": str(target_id),
-                        "edge_type": edge_type,
-                        "weight": 1.0,
-                    })
+                    # Phase 14: 查找 security_entities 中对应 entity
+                    se_row = conn.execute(
+                        "SELECT id FROM security_entities WHERE name = ? AND entity_type = 'cve'",
+                        (str(target_id),),
+                    ).fetchone()
+                    if se_row is not None:
+                        edges.append({
+                            "source_id": kid,
+                            "target_id": str(se_row["id"]),
+                            "edge_type": "references",
+                            "weight": 1.0,
+                        })
+                    else:
+                        edges.append({
+                            "source_id": kid,
+                            "target_id": str(target_id),
+                            "edge_type": edge_type,
+                            "weight": 1.0,
+                        })
         return edges
 
     # ------------------------------------------------------------------

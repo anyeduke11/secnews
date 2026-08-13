@@ -19,8 +19,11 @@ the canonical repository / domain types so all writes go through the
 same validation / error-handling path as the rest of the backend.
 """
 import asyncio
+import hashlib
+import json
 import time
 from datetime import datetime, timezone
+from typing import Any
 
 from backend.collectors.ai_collector import AICollector
 from backend.collectors.ai_security_collector import AISecurityCollector
@@ -61,6 +64,9 @@ from backend.repository.custom_source_repo import CustomSourceRepository
 from backend.repository.db import get_connection
 from backend.repository.hotspot_repo import HotspotRepository
 from backend.repository.trend_repo import TrendRepository
+
+from backend.repository.bid_detail_repo import BidDetailRepo
+from backend.parsers.bid_extractor import extract_all as extract_bid_fields
 
 
 class CollectionService:
@@ -133,6 +139,15 @@ class CollectionService:
         for r in results:
             all_items.extend(r.items)
 
+        # v1.9: 摘要富化 — 对含 HTML 元数据的 RSS 摘要，抓取实际文章内容
+        # 尽力而为，失败不阻塞主流程
+        if all_items:
+            try:
+                from backend.services.summary_enricher import batch_enrich
+                all_items = await batch_enrich(all_items, max_concurrent=5)
+            except Exception as e:
+                self.logger.warning(f"summary enrichment failed: {e}")
+
         # 写 DB — Phase 9 修复：放到 thread pool 避免阻塞 event loop
         if all_items:
             try:
@@ -141,6 +156,18 @@ class CollectionService:
             except Exception as e:
                 self.logger.error(f"upsert failed: {e}")
                 # 不中断，写入 collection_runs 失败状态
+
+            # Phase 0 (Crawler v2): 旁路写入 raw_items（不阻塞主流程）
+            try:
+                await asyncio.to_thread(self._write_raw_items, all_items, results)
+            except Exception as e:
+                self.logger.warning(f"raw_items write skipped: {e}")
+
+            # Phase 1.3: 标讯结构化字段写入 bid_details（不阻塞主流程）
+            try:
+                await asyncio.to_thread(self._write_bid_details, all_items)
+            except Exception as e:
+                self.logger.warning(f"bid_details write skipped: {e}")
 
         # 重建趋势 — Phase 9 修复：trend.rebuild 是同步 sqlite3 操作，放 thread pool
         try:
@@ -152,6 +179,13 @@ class CollectionService:
         # 写 collection_runs — Phase 9 修复：同步 DB 写，放 thread pool
         for r in results:
             await asyncio.to_thread(self._write_collection_run, r)
+
+        # Phase 0 (Crawler v2): 旁路写入 crawler_runs（不阻塞主流程）
+        for r in results:
+            try:
+                await asyncio.to_thread(self._write_crawler_runs, r)
+            except Exception as e:
+                self.logger.warning(f"crawler_runs write skipped: {e}")
 
         # 统计 (须在 SSE 推送之前算好 total/duration_ms, 否则引用未赋值局部变量)
         finished_at = datetime.now(timezone.utc)
@@ -256,6 +290,12 @@ class CollectionService:
 
         await asyncio.to_thread(self._write_collection_run, result)
 
+        # Phase 0 (Crawler v2): 旁路写入 crawler_runs
+        try:
+            await asyncio.to_thread(self._write_crawler_runs, result)
+        except Exception as e:
+            self.logger.warning(f"crawler_runs write skipped: {e}")
+
         # Phase 4: 单分类采集后也失效缓存
         try:
             cache_invalidate("hotspots:*")
@@ -290,6 +330,110 @@ class CollectionService:
             self.logger.warning(f"source coverage evaluation failed: {e}")
 
         return report
+
+    async def run_one_source(self, source_id: str) -> dict:
+        """Run collection for a single source by its crawler_sources ID.
+
+        Returns a dict with: source_id, fetched_count, accepted_count,
+        duration_ms, status ('success'|'failed'), error_msg
+        """
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT * FROM crawler_sources WHERE id = ?", (source_id,)
+        ).fetchone()
+        if row is None:
+            return {
+                "source_id": source_id,
+                "fetched_count": 0,
+                "accepted_count": 0,
+                "duration_ms": 0,
+                "status": "failed",
+                "error_msg": f"source {source_id} not found in crawler_sources",
+            }
+
+        source = dict(row)
+        category_str = source.get("category", "")
+        try:
+            category = Category(category_str)
+        except (ValueError, KeyError):
+            return {
+                "source_id": source_id,
+                "fetched_count": 0,
+                "accepted_count": 0,
+                "duration_ms": 0,
+                "status": "failed",
+                "error_msg": f"unknown category: {category_str}",
+            }
+
+        if category not in self.collectors:
+            return {
+                "source_id": source_id,
+                "fetched_count": 0,
+                "accepted_count": 0,
+                "duration_ms": 0,
+                "status": "failed",
+                "error_msg": f"no collector for category: {category_str}",
+            }
+
+        start_ms = time.time()
+        collector = self.collectors[category]
+        started_at = datetime.now(timezone.utc)
+
+        try:
+            items = await collector.collect()
+            duration_ms = int((time.time() - start_ms) * 1000)
+            fetched_count = len(items) if items else 0
+            accepted_count = fetched_count  # quality gates are applied in upsert
+
+            # Write raw_items directly
+            if items:
+                try:
+                    repo = HotspotRepository()
+                    await asyncio.to_thread(repo.upsert_many, items)
+                except Exception as e:
+                    self.logger.warning(f"run_one_source upsert failed: {e}")
+
+            # Write crawler_runs
+            try:
+                await asyncio.to_thread(
+                    self._write_crawler_runs_for_source,
+                    source_id, source.get("category", ""),
+                    fetched_count, duration_ms, None,
+                )
+            except Exception as e:
+                self.logger.warning(f"run_one_source crawler_runs write failed: {e}")
+
+            return {
+                "source_id": source_id,
+                "fetched_count": fetched_count,
+                "accepted_count": accepted_count,
+                "duration_ms": duration_ms,
+                "status": "success" if fetched_count > 0 else "partial",
+                "error_msg": None,
+            }
+        except Exception as e:
+            duration_ms = int((time.time() - start_ms) * 1000)
+            error_msg = f"{type(e).__name__}: {str(e)[:200]}"
+            self.logger.error(f"run_one_source {source_id} failed: {error_msg}")
+
+            # Write crawler_runs with failure
+            try:
+                await asyncio.to_thread(
+                    self._write_crawler_runs_for_source,
+                    source_id, source.get("category", ""),
+                    0, duration_ms, error_msg,
+                )
+            except Exception as e2:
+                self.logger.warning(f"run_one_source crawler_runs write failed: {e2}")
+
+            return {
+                "source_id": source_id,
+                "fetched_count": 0,
+                "accepted_count": 0,
+                "duration_ms": duration_ms,
+                "status": "failed",
+                "error_msg": error_msg,
+            }
 
     async def _run_one_safe(self, category: Category, collector) -> CollectionResult:
         """跑单 collector，异常隔离
@@ -468,6 +612,167 @@ class CollectionService:
             result.append(item)
 
         return result
+
+    def _write_raw_items(
+        self, items: list[Any], results: list[CollectionResult]
+    ) -> None:
+        """Phase 0 (Crawler v2): 旁路写入 raw_items 表。
+
+        从 items 和 results 中提取源信息，写入 raw_items 表。
+        不阻塞主流程，失败只打 warning。
+        """
+        if not items:
+            return
+
+        # 构建 item_id -> source_id 映射
+        item_source_map: dict[str, str] = {}
+        for r in results:
+            if r.error:
+                continue
+            for it in r.items:
+                item_source_map[str(it.id)] = str(getattr(it, "source", ""))
+
+        conn = get_connection()
+        written = 0
+        for item in items:
+            try:
+                item_id = str(item.id) if hasattr(item, "id") else ""
+                if not item_id:
+                    continue
+                source_id = item_source_map.get(item_id, "")
+                title = str(item.title) if hasattr(item, "title") else ""
+                url = str(item.url) if hasattr(item, "url") else ""
+                summary = str(item.summary or "") if hasattr(item, "summary") else ""
+                published_at = (
+                    str(item.published_at) if hasattr(item, "published_at")
+                    and item.published_at else ""
+                )
+                # content_hash 用于去重
+                content_hash = hashlib.sha256(
+                    (title + url + summary).encode("utf-8")
+                ).hexdigest()[:16]
+
+                conn.execute(
+                    """
+                    INSERT INTO raw_items
+                        (item_id, source_id, title, url, summary,
+                         content_hash, published_at, fetched_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    """,
+                    (item_id, source_id, title, url, summary,
+                     content_hash, published_at),
+                )
+                written += 1
+            except Exception:
+                # 单条失败不阻塞整体
+                continue
+
+        self.logger.debug(f"raw_items written: {written}")
+
+    def _write_bid_details(self, items: list[Any]) -> None:
+        """Phase 1.3 (Crawler v2): 旁路写入 bid_details 表。
+
+        从标讯类别 items 中提取结构化字段，写入 bid_details。
+        只处理 category=bid 的条目，其他类别的条目跳过。
+        不阻塞主流程，失败只打 warning。
+        """
+        bid_items = [it for it in items if getattr(it, "category", None) == Category.BID]
+        if not bid_items:
+            return
+
+        repo = BidDetailRepo()
+        batch: list[tuple[str, dict]] = []
+        for it in bid_items:
+            item_id = str(it.id) if hasattr(it, "id") else ""
+            title = str(it.title) if hasattr(it, "title") else ""
+            if not item_id or not title:
+                continue
+
+            fields = extract_bid_fields(title)
+            # 补充 published_at
+            published_at = (
+                str(it.published_at) if hasattr(it, "published_at")
+                and it.published_at else None
+            )
+            if published_at:
+                fields["published_at"] = published_at
+
+            batch.append((item_id, fields))
+
+        if not batch:
+            return
+
+        written = repo.upsert_many(batch)
+        self.logger.debug(f"bid_details written: {written}/{len(batch)}")
+
+    def _write_crawler_runs(self, result: CollectionResult) -> None:
+        """Phase 0 (Crawler v2): 旁路写入 crawler_runs 表。
+
+        与 _write_collection_run 并行运行，记录每源每轮抓取统计。
+        """
+        try:
+            source_results = result.source_results or []
+            if not source_results:
+                return
+
+            conn = get_connection()
+            written = 0
+            for sr in source_results:
+                source_id = sr.source_name
+                status = "failed" if sr.error_msg else (
+                    "partial" if sr.item_count == 0 else "success"
+                )
+                duration_ms = sr.duration_ms
+                started_at = result.started_at.isoformat()
+                finished_at = (
+                    result.finished_at.isoformat()
+                    if result.finished_at else ""
+                )
+
+                conn.execute(
+                    """
+                    INSERT INTO crawler_runs
+                        (source_id, category, started_at, finished_at, status,
+                         fetched_count, accepted_count, error_msg, duration_ms)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (source_id, result.category.value,
+                     started_at, finished_at, status,
+                     sr.item_count, sr.item_count,
+                     sr.error_msg or "", duration_ms),
+                )
+                written += 1
+
+            self.logger.debug(f"crawler_runs written: {written}")
+        except Exception as e:
+            self.logger.warning(f"crawler_runs write skipped: {e}")
+
+    def _write_crawler_runs_for_source(
+        self,
+        source_id: str,
+        category: str,
+        fetched_count: int,
+        duration_ms: int,
+        error_msg: str | None,
+    ) -> None:
+        """Write a single crawler_runs row for a source run."""
+        now = datetime.now(timezone.utc).isoformat()
+        status = "failed" if error_msg else (
+            "partial" if fetched_count == 0 else "success"
+        )
+        conn = get_connection()
+        conn.execute(
+            """
+            INSERT INTO crawler_runs
+                (source_id, category, started_at, finished_at, status,
+                 fetched_count, accepted_count, error_msg, duration_ms)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                source_id, category, now, now, status,
+                fetched_count, fetched_count, error_msg or "", duration_ms,
+            ),
+        )
 
     def _write_collection_run(self, result: CollectionResult) -> None:
         """写入 collection_runs 表 (Phase 8: UPDATE 起始行, 老路径 fallback INSERT)"""

@@ -172,6 +172,8 @@ PUBLISHER_REGISTRY: list[tuple[str, str]] = [
     ("agihunt.info", "AGI Hunt"),
     # Phase 29: tophub.today 聚合站 (GitHub 热榜分类页)
     ("tophub.today", "TopHub GitHub 热榜"),
+    # V1.9: 搜狗微信公众号源 (weixin.sogou.com)
+    ("weixin.sogou.com", "搜狗微信公众号"),
 ]
 
 
@@ -243,6 +245,14 @@ ALIASES: dict[str, str] = {
     "tophub": "TopHub GitHub 热榜",
     "tophub github 热榜": "TopHub GitHub 热榜",
     "tophub github": "TopHub GitHub 热榜",
+    # V1.9: 搜狗微信公众号别名
+    "微步在线": "搜狗微信公众号",
+    "奇安信威胁情报中心": "搜狗微信公众号",
+    "360威胁情报中心": "搜狗微信公众号",
+    "freebuf": "搜狗微信公众号",
+    "安全客": "搜狗微信公众号",
+    "看雪论坛": "搜狗微信公众号",
+    "安全内参": "搜狗微信公众号",
 }
 
 

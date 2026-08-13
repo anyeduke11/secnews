@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import re
 
+from typing import ClassVar, Literal
+
 from backend.domain.collection import GateResult
 from backend.domain.models import HotspotItem
 from backend.quality.base import BaseGate, GateContext
@@ -54,6 +56,7 @@ class NoiseContentGate(BaseGate):
     """噪音内容门禁：检测标题/URL 是否为备案/版权/活动等噪音。"""
 
     name = "noise"
+    gate_type: ClassVar[Literal["hard", "soft"]] = "hard"
 
     def check(
         self, item: HotspotItem, context: GateContext

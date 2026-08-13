@@ -30,7 +30,7 @@ from typing import Dict, FrozenSet, Optional
 # Stage constants
 # ---------------------------------------------------------------------------
 
-# v2.0 5 阶段 lifecycle 值
+# v1.7 5 阶段 lifecycle 值
 LIFECYCLE_RAW = "kl:raw"            # 原始入库（从 hotspots / 收藏导入）
 LIFECYCLE_REFINE = "kl:refine"      # 评分 + tag 完成
 LIFECYCLE_LINK = "kl:link"          # 实体关联完成
@@ -169,7 +169,7 @@ def successors(stage: str) -> FrozenSet[str]:
 
 
 def is_valid_stage(stage: Optional[str]) -> bool:
-    """Return True if ``stage`` is one of the 5 known v2.0 values.
+    """Return True if ``stage`` is one of the 5 known v1.7 values.
 
     Legacy 3-stage values (``signal`` / ``amplify:tagged`` / ``generate``)
     return False — they must be migrated by ``046_lifecycle_v2.sql`` first.

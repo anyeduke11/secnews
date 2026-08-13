@@ -1,7 +1,7 @@
 """In-process metrics for the KL trigger pipeline.
 
 Phase 10 — backs the ``GET /api/kl/metrics`` endpoint and provides a
-shared counter / gauge / histogram surface for the T1/T2 triggers.
+shared counter / gauge / histogram surface for the T1/T2/T3 triggers.
 
 We intentionally avoid ``prometheus_client`` because:
 
@@ -34,7 +34,7 @@ ALL_STAGES: List[str] = [
     "kl:raw", "kl:refine", "kl:link", "kl:structure", "kl:publish",
 ]
 
-# Fixed counter schema — 8 counters (4 per trigger).
+# Fixed counter schema — 16 counters (4 per trigger).
 COUNTER_KEYS: List[str] = [
     "t1_triggered",
     "t1_succeeded",
@@ -44,12 +44,22 @@ COUNTER_KEYS: List[str] = [
     "t2_succeeded",
     "t2_failed",
     "t2_dead_letter",
+    "t3_triggered",
+    "t3_succeeded",
+    "t3_failed",
+    "t3_dead_letter",
+    "t4_triggered",
+    "t4_succeeded",
+    "t4_failed",
+    "t4_dead_letter",
 ]
 
-# Histogram keys — 2 latency series (T1 / T2 per-cycle wall time in ms).
+# Histogram keys — 4 latency series (T1 / T2 / T3 / T4 per-cycle wall time in ms).
 HISTOGRAM_KEYS: List[str] = [
     "t1_latency_ms",
     "t2_latency_ms",
+    "t3_latency_ms",
+    "t4_latency_ms",
 ]
 
 # Ring buffer size for histogram samples. 100 ≈ ~2 minutes at 60s
@@ -62,8 +72,8 @@ class KLMetrics:
 
     Counters
     --------
-    - 8 fixed keys, one increment per logical event:
-      t{1,2}_{triggered, succeeded, failed, dead_letter}
+    - 12 fixed keys, one increment per logical event:
+      t{1,2,3}_{triggered, succeeded, failed, dead_letter}
 
     Gauges
     ------
@@ -72,7 +82,7 @@ class KLMetrics:
 
     Histograms
     ----------
-    - ``t{1,2}_latency_ms`` — per-cycle wall time in ms.  Ring buffer of
+    - ``t{1,2,3}_latency_ms`` — per-cycle wall time in ms.  Ring buffer of
       the most recent :data:`HISTOGRAM_MAX_SAMPLES` values.
     """
 

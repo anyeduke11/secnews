@@ -124,7 +124,13 @@ class QualityGatePipeline:
         item: HotspotItem,
         context: Optional[GateContext] = None,
     ) -> PipelineResult:
-        """顺序跑全部 9 个同步门禁。"""
+        """顺序跑全部同步门禁。
+
+        Hard/Soft 分层逻辑:
+        1. 先跑所有 Hard gates，任一失败即拒绝并抛异常
+        2. 全部 Hard gates 通过后，再跑所有 Soft gates
+        3. Soft gates 累加扣分，最终评分 < 阈值才拒绝
+        """
         if context is None:
             context = build_context(self.config)
         mode_str = "strict" if self.mode == QualityMode.STRICT else "loose"
@@ -132,7 +138,61 @@ class QualityGatePipeline:
         all_flags: list[str] = []
         gate_results: list[GateResult] = []
 
-        for gate in self.gates:
+        # 1. 先跑 Hard gates
+        hard_gates = [g for g in self.gates if g.gate_type == "hard"]
+        soft_gates = [g for g in self.gates if g.gate_type == "soft"]
+
+        for gate in hard_gates:
+            try:
+                result = gate.check(item, context)
+            except Exception as e:
+                # 门禁抛出 = 隔离到 _wrap_exception
+                logger.error(
+                    f"gate {gate.name} crashed",
+                    extra={"trace_id": "", "item_id": item.id, "error": str(e)},
+                )
+                result = GateResult(
+                    gate_name=gate.name,
+                    passed=True,
+                    error_msg=f"{type(e).__name__}: {str(e)[:200]}",
+                )
+
+            gate_results.append(result)
+            if not result.passed:
+                deductions.append(result.score_deduction)
+            all_flags = merge_flags(all_flags, result.flags)
+
+            # 写 quality_check_logs（失败不阻塞）
+            self.log_repo.write_log(
+                item.id, result, mode=mode_str, checked_at=_now().isoformat()
+            )
+
+            # Hard gate 失败 → 立即拒绝，不跑后续 Soft gates
+            if not result.passed:
+                context.rejected_by = gate.name
+                final_score = compute_final_score(100, deductions)
+                reason = (
+                    f"hard gate '{gate.name}' rejected: "
+                    f"{result.reason or 'no reason'}"
+                )
+                logger.warning(
+                    "hard gate rejection",
+                    extra={
+                        "trace_id": "",
+                        "item_id": item.id,
+                        "gate": gate.name,
+                        "reason": result.reason,
+                    },
+                )
+                raise QualityGateFailed(
+                    item_id=item.id,
+                    score=final_score,
+                    flags=all_flags,
+                    message=reason,
+                )
+
+        # 2. 全部 Hard gates 通过 → 跑 Soft gates
+        for gate in soft_gates:
             try:
                 result = gate.check(item, context)
             except Exception as e:

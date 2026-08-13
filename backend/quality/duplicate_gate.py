@@ -27,6 +27,10 @@ from backend.domain.models import HotspotItem
 from backend.quality.base import BaseGate, GateContext
 from backend.quality.title_summary_gate import _tokenize
 
+# Phase 2.3 (Crawler v2): 三层去重
+from backend.quality.url_canonicalize import canonicalize_url
+from backend.quality.simhash import compute_simhash, is_duplicate as simhash_is_duplicate
+
 
 # url_check_status 优先级: verified=0 (winner, key 最小), pending=2 (loser)
 # 用 min 选 winner (Python sorted 升序 → key 最小者胜)
@@ -89,8 +93,15 @@ class DuplicateGate(BaseGate):
 
     name = "duplicate"
 
-    def __init__(self, jaccard_threshold: float = 0.80):
+    def __init__(
+        self,
+        jaccard_threshold: float = 0.80,
+        simhash_threshold: int = 5,      # Phase 2.3: simhash 阈值
+        content_hash_dedup: bool = True,  # Phase 2.3: 正文去重开关
+    ):
         self.jaccard_threshold = jaccard_threshold
+        self.simhash_threshold = simhash_threshold
+        self.content_hash_dedup = content_hash_dedup
 
     def check(
         self, item: HotspotItem, context: GateContext
@@ -136,8 +147,19 @@ class DuplicateGate(BaseGate):
                     )
 
             # ------------------------------------------------------------------
-            # 原有逻辑：URL 已存在 / 标题 jaccard 相似
+            # Phase 2.3: 三层去重 — URL 已存在 / 标题相似 / 正文重复
             # ------------------------------------------------------------------
+            # 第 1 层 — URL 规范化去重
+            canonical = canonicalize_url(url)
+            if canonical in self._get_canonical_urls(context.existing_urls):
+                return GateResult(
+                    gate_name=self.name,
+                    passed=False,
+                    score_deduction=50,
+                    flags=["url_duplicate_canonical"],
+                    reason=f"canonical URL {canonical[:80]} already in DB",
+                )
+
             if url in context.existing_urls:
                 return GateResult(
                     gate_name=self.name,
@@ -146,6 +168,20 @@ class DuplicateGate(BaseGate):
                     flags=["url_duplicate"],
                     reason=f"URL {url[:80]} already in DB",
                 )
+
+            # Phase 2.3: 第 2 层 — simhash 标题去重
+            if context.existing_titles:
+                current_simhash = compute_simhash(item.title)
+                for prev_title in context.existing_titles:
+                    prev_simhash = compute_simhash(prev_title)
+                    if simhash_is_duplicate(current_simhash, prev_simhash, self.simhash_threshold):
+                        return GateResult(
+                            gate_name=self.name,
+                            passed=False,
+                            score_deduction=30,
+                            flags=["simhash_title_duplicate"],
+                            reason=f"simhash similary with prior title (Hamming < {self.simhash_threshold})",
+                        )
 
             new_tokens = _tokenize(item.title)
             if new_tokens and context.existing_titles:
@@ -168,6 +204,23 @@ class DuplicateGate(BaseGate):
                             ),
                         )
 
+            # Phase 2.3: 第 3 层 — content_hash 正文去重
+            if self.content_hash_dedup and item.id:
+                try:
+                    content_hash = self._get_content_hash(item.id)
+                    if content_hash:
+                        existing = self._find_content_hash_duplicate(content_hash, item.id)
+                        if existing:
+                            return GateResult(
+                                gate_name=self.name,
+                                passed=False,
+                                score_deduction=40,
+                                flags=["content_hash_duplicate"],
+                                reason=f"same content_hash as item {existing}",
+                            )
+                except Exception:
+                    pass  # 正文去重失败不阻塞
+
             return GateResult(
                 gate_name=self.name,
                 passed=True,
@@ -176,6 +229,38 @@ class DuplicateGate(BaseGate):
             )
         except Exception as e:
             return self._wrap_exception(item, e)
+
+    def _get_canonical_urls(self, urls: set[str]) -> set[str]:
+        """将 URL 集合转换为规范化形式。"""
+        return {canonicalize_url(u) for u in urls}
+
+    def _get_content_hash(self, item_id: str) -> str:
+        """从 raw_items 表获取 content_hash。"""
+        from backend.repository.db import get_connection
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT content_hash FROM raw_items WHERE item_id = ? AND content_hash != '' ORDER BY fetched_at DESC LIMIT 1",
+            (item_id,),
+        ).fetchone()
+        return str(row["content_hash"]) if row else ""
+
+    def _find_content_hash_duplicate(self, content_hash: str, exclude_item_id: str) -> str:
+        """查询最近 30 天是否有相同 content_hash 的条目。
+
+        Returns:
+            重复条目的 item_id，或空字符串
+        """
+        from backend.repository.db import get_connection
+        conn = get_connection()
+        row = conn.execute(
+            """SELECT item_id FROM raw_items
+               WHERE content_hash = ?
+                 AND item_id != ?
+                 AND fetched_at >= datetime('now', '-30 days')
+               LIMIT 1""",
+            (content_hash, exclude_item_id),
+        ).fetchone()
+        return str(row["item_id"]) if row else ""
 
 
 __all__ = ["DuplicateGate"]

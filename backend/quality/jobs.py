@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import asyncio
-import random
 from typing import Optional
 
 from backend.domain.collection import GateResult
@@ -24,12 +23,7 @@ _quality_logger = logger.bind(component="quality_runner")
 async def run_url_content_check(
     config: Optional[QualityConfig] = None,
 ) -> dict[str, int]:
-    """抽样 N% 的非 fallback items 跑 :class:`URLContentGate`。
-
-    Phase 45 增强: 同 URL 重复入库的 items (含 ``duplicate_link_real_title``
-    或 ``title_replaced`` flag) 强制 100% 抽样, 必须跑门禁验证 — 否则:
-    - 长 title 的 list 摘要可能错当 winner
-    - URLContentGate 抽样没抽到, 错 title 永远不进 verified
+    """对所有 fallback items 跑 :class:`URLContentGate`。
 
     Returns
     -------
@@ -50,26 +44,11 @@ async def run_url_content_check(
         and (it.url_check_status in (None, "pending", "skipped"))
     ]
 
-    # Phase 45: 同 URL 重复入库的 items 强制 100% 抽样 (不参与 10% 抽样)
-    duplicate_url_items = {
-        it.id: it for it in candidates
-        if it.quality_flags
-        and ("duplicate_link_real_title" in it.quality_flags
-             or "title_replaced" in it.quality_flags)
-    }
-
-    sample_n = max(1, int(len(candidates) * cfg.url_check_sample_rate))
-    if sample_n == 0 and not duplicate_url_items:
+    if not candidates:
         return {"sampled": 0, "verified": 0, "mismatch": 0, "failed": 0}
 
-    # 抽样: 10% 随机 + 所有 duplicate_url_items (并集去重)
-    regular_sample = (
-        random.sample(candidates, min(sample_n, len(candidates)))
-        if sample_n > 0 else []
-    )
-    sampled_set: dict[str, HotspotItem] = {it.id: it for it in regular_sample}
-    sampled_set.update(duplicate_url_items)  # duplicate 全量并入
-    sampled = list(sampled_set.values())
+    # 全部 candidates 都跑 URL 检查
+    sampled = list(candidates)
 
     gate = URLContentGate(timeout=cfg.url_check_timeout)
     sem = asyncio.Semaphore(cfg.url_check_concurrency)

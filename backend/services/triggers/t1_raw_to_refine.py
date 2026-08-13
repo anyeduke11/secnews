@@ -44,6 +44,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from backend.metrics.kl_metrics import kl_metrics
 from backend.repository.db import get_connection
+from backend.services.llm_service import llm_service, DEFAULT_SCORE
 from backend.services.kl_state_machine import (
     LEGACY_RAW_LIKE,
     LIFECYCLE_RAW,
@@ -134,7 +135,8 @@ class T1Trigger:
 
                 # Even if scoring fails, we still advance — the trigger's
                 # job is to move items along; the score is best-effort.
-                _score = self._get_latest_score(item_id)
+                # Try LLM scoring first, fall back to DB score.
+                _score = self._score_with_llm(item)
                 _tags = self._extract_tags(item)
                 # Validate transition; raises on stale / illegal data.
                 can_transition(item["lifecycle"], LIFECYCLE_REFINE)
@@ -235,7 +237,7 @@ class T1Trigger:
 
     @staticmethod
     def _get_latest_score(item_id: str) -> float:
-        """Read the most recent ``ai_scores.score`` for the item, else default."""
+        """Read the most recent ``ai_scores.score`` for the item (fallback when LLM scoring is unavailable), else default."""
         conn = get_connection()
         row = conn.execute(
             "SELECT score FROM ai_scores "
@@ -249,6 +251,42 @@ class T1Trigger:
             return float(row["score"])
         except (TypeError, ValueError):
             return DEFAULT_SCORE
+
+    def _score_with_llm(self, item: Dict[str, Any]) -> float:
+        """Try LLM scoring first, fall back to DB score."""
+        content = item.get("title", "") or ""
+        if item.get("concepts"):
+            try:
+                import json
+                concepts = json.loads(item["concepts"])
+                if isinstance(concepts, list):
+                    content += " " + " ".join(str(c) for c in concepts)
+            except (TypeError, ValueError):
+                pass
+        if content.strip():
+            import asyncio
+            try:
+                score = asyncio.run(llm_service.score(content, item.get("id", "")))
+                if score != DEFAULT_SCORE:
+                    # Write LLM score to ai_scores table for audit
+                    self._write_llm_score(item.get("id", ""), score)
+                    self.metrics.observe("t1_llm_score_ms", 0)
+                    return score
+            except Exception:
+                pass
+        return self._get_latest_score(item.get("id", ""))
+
+    @staticmethod
+    def _write_llm_score(item_id: str, score: float) -> None:
+        """Write LLM score to ai_scores table for audit trail."""
+        from datetime import datetime, timezone
+        conn = get_connection()
+        conn.execute(
+            "INSERT INTO ai_scores (hotspot_id, score, reason, scored_at) "
+            "VALUES (?, ?, ?, ?)",
+            (item_id, score, "llm_service",
+             datetime.now(timezone.utc).isoformat()),
+        )
 
     @staticmethod
     def _extract_tags(item: Dict[str, Any]) -> List[str]:

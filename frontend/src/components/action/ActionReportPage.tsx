@@ -6,7 +6,7 @@
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ReportPage } from '../ReportPage';
+import { ReportPage } from '../report/ReportPage';
 import { Icon } from '../Icon';
 
 export function ActionReportPage() {

@@ -11,6 +11,7 @@ import {
   FavoritesListResponse,
   FavoritesCountResponse,
 } from '../../types';
+import { apiFetch } from '../../lib/api';
 import { useTodos } from '../../hooks/useTodos';
 import { FavoriteToolbar } from './FavoriteToolbar';
 import { FavoriteList } from './FavoriteList';
@@ -45,9 +46,7 @@ export function FavoritesPanel({
     setLoading(true);
     try {
       const url = cat === 'all' ? '/api/favorites' : `/api/favorites?category=${cat}`;
-      const r = await fetch(url);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const data: FavoritesListResponse = await r.json();
+      const data = await apiFetch<FavoritesListResponse>(url);
       setItems(data.items || []);
       setTotal(data.total);
       onFavoritesChange?.(new Set((data.items || []).map(it => it.hotspot_id)));
@@ -60,9 +59,7 @@ export function FavoritesPanel({
 
   const loadCounts = useCallback(async () => {
     try {
-      const r = await fetch('/api/favorites/count');
-      if (!r.ok) return;
-      const data: FavoritesCountResponse = await r.json();
+      const data = await apiFetch<FavoritesCountResponse>('/api/favorites/count');
       setCounts(data.by_category);
       setTotal(data.total);
       onCountChange?.(data.total);
@@ -86,10 +83,9 @@ export function FavoritesPanel({
   const handleRemove = useCallback(async (hotspotId: string) => {
     setMessage(null);
     try {
-      const r = await fetch(`/api/favorites/${encodeURIComponent(hotspotId)}`, {
+      await apiFetch(`/api/favorites/${encodeURIComponent(hotspotId)}`, {
         method: 'DELETE',
       });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
       // 乐观更新: 从列表移除
       setItems(prev => prev.filter(it => it.hotspot_id !== hotspotId));
       setTotal(prev => Math.max(0, prev - 1));

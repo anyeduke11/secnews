@@ -50,35 +50,34 @@ def _insert_hotspot(hid, title="测试"):
     )
 
 
-def test_mcp_status_lists_13_tools(client, temp_db):
-    """E2E: /api/mcp/status 报告 13 tools."""
+def test_mcp_status_lists_9_tools(client, temp_db):
+    """E2E: /api/mcp/status 报告 9 tools."""
     res = client.get("/api/mcp/status")
     assert res.status_code == 200
     data = res.json()
-    assert data["tools_count"] == 13
+    assert data["tools_count"] == 9
     assert data["enabled"] is True
 
 
-def test_mcp_tools_list_13_entries(client, temp_db):
-    """E2E: /api/mcp/tools 列出 13 个 tool 元数据."""
+def test_mcp_tools_list_9_entries(client, temp_db):
+    """E2E: /api/mcp/tools 列出 9 个 tool 元数据."""
     res = client.get("/api/mcp/tools")
     assert res.status_code == 200
     data = res.json()
-    assert len(data.get("tools", [])) == 13
+    assert len(data.get("tools", [])) == 9
 
-    # 验证 5 读 + 8 写
+    # 验证 5 读 + 4 写
     by_category = {}
     for t in data["tools"]:
         by_category.setdefault(t["category"], []).append(t["name"])
     assert len(by_category.get("read", [])) == 5
-    assert len(by_category.get("write", [])) == 8
+    assert len(by_category.get("write", [])) == 4
 
     # 关键 tool 名称存在
     names = {t["name"] for t in data["tools"]}
     expected = {
         "search_hotspots", "get_hotspot", "list_favorites", "search_knowledge", "get_personal_profile",
         "add_favorite", "remove_favorite", "add_annotation", "update_knowledge_item",
-        "trigger_extract_tags", "trigger_cubox_sync", "create_alert_rule", "mark_digest_read",
     }
     assert expected.issubset(names), f"missing: {expected - names}"
 

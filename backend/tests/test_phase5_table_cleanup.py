@@ -48,16 +48,13 @@ def test_phase5_tables_dropped(temp_db):
     assert len(tables) == 0
 
 
-def test_kv_cache_preserved(temp_db):
-    """kv_cache 表保留 (不在 Phase 7 删除范围)."""
+def test_kv_cache_dropped(temp_db):
+    """kv_cache 表已删除 (Phase 15 迁移 051 删除)."""
     conn = db.get_connection()
     rows = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='kv_cache'"
     ).fetchall()
-    # kv_cache 可能在, 也可能不在 (取决于 init_db 顺序)
-    # 关键: 不在删除范围, 如果在应保留
-    # 此处不强制要求, 跳过
-    _ = rows  # 占位
+    assert len(rows) == 0, "kv_cache 表应已删除"
 
 
 # ---------- Migration 039 — favorites.created_via ----------

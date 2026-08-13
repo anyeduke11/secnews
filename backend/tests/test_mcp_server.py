@@ -2,7 +2,7 @@
 
 覆盖:
   - FastApiMCP 启动 / 关闭
-  - tools/list 返回 13 个 tool
+  - tools/list 返回 9 个 tool
   - mcp_tool_registry seeding 幂等性
   - feature.mcp_server toggle → /api/mcp/status 反映
 """
@@ -49,10 +49,10 @@ def test_seed_idempotent(temp_db):
     inserted_second = mcp_tool_registry_seed()
     # 第二次应返回 0 (无新增)
     assert inserted_second == 0
-    # 表中应有 13 个 tool
+    # 表中应有 9 个 tool (Phase 15: 从 13 移除 4 个低频工具)
     conn = db.get_connection()
     rows = conn.execute("SELECT COUNT(*) AS n FROM mcp_tool_registry").fetchone()
-    assert int(rows["n"]) == 13
+    assert int(rows["n"]) == 9
 
 
 def test_mcp_status_endpoint(temp_db):
@@ -73,11 +73,11 @@ def test_mcp_status_endpoint(temp_db):
     assert "enabled" in data
     assert "transport" in data
     assert "tools_count" in data
-    assert data["tools_count"] == 13
+    assert data["tools_count"] == 9
 
 
 def test_mcp_tools_endpoint(temp_db):
-    """GET /api/mcp/tools 返回 13 个 tool (5 读 + 8 写)."""
+    """GET /api/mcp/tools 返回 9 个 tool (5 读 + 4 写)."""
     from backend.api.mcp_config import mcp_tool_registry_seed
     mcp_tool_registry_seed()
 
@@ -92,11 +92,11 @@ def test_mcp_tools_endpoint(temp_db):
     assert res.status_code == 200
     data = res.json()
     tools = data.get("tools", [])
-    assert len(tools) == 13
+    assert len(tools) == 9
 
     categories = [t["category"] for t in tools]
     assert categories.count("read") == 5
-    assert categories.count("write") == 8
+    assert categories.count("write") == 4
 
 
 def test_toggle_mcp_enabled(temp_db):

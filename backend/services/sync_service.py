@@ -45,9 +45,8 @@ import base64
 import json
 import time
 import uuid
-from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Optional
 
 from backend.crypto import (
     DEFAULT_ITERATIONS,
@@ -75,6 +74,10 @@ from backend.services.sync_zip import (
     make_zip_remote_path,
     display_name,
 )
+from backend.services.sync_merge import (
+    MergeResult,
+    three_way_merge,
+)
 
 # ---------------------------------------------------------------------------
 # 常量
@@ -97,22 +100,6 @@ SETTINGS_BLOCKLIST = {
 
 
 # ---------------------------------------------------------------------------
-# 内部数据结构
-# ---------------------------------------------------------------------------
-@dataclass
-class MergeResult:
-    merged_bundle: dict
-    conflict_count: int
-    table_conflicts: dict[str, int]
-
-    def to_dict(self) -> dict:
-        return {
-            "conflict_count": self.conflict_count,
-            "table_conflicts": self.table_conflicts,
-        }
-
-
-# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 def _now_iso() -> str:
@@ -121,26 +108,6 @@ def _now_iso() -> str:
 
 def _new_device_id() -> str:
     return str(uuid.uuid4())
-
-
-def _validate_bundle(bundle: dict) -> None:
-    if not isinstance(bundle, dict):
-        raise InternalException("bundle 必须为 dict")
-    if bundle.get("version") != BUNDLE_VERSION:
-        raise InternalException(
-            f"bundle version 不支持: {bundle.get('version')} (期望 {BUNDLE_VERSION})"
-        )
-    if "records" not in bundle or not isinstance(bundle["records"], dict):
-        raise InternalException("bundle.records 缺失或格式错")
-    for key in (
-        "favorites", "todos", "skills", "custom_sources", "secrets",
-    ):
-        if key in bundle["records"] and not isinstance(bundle["records"][key], list):
-            raise InternalException(f"bundle.records.{key} 必须为 list")
-    if "settings" in bundle["records"] and not isinstance(
-        bundle["records"]["settings"], dict
-    ):
-        raise InternalException("bundle.records.settings 必须为 dict")
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +119,7 @@ class SyncService:
     主要入口:
     - :meth:`build_bundle`         — 读本机配置 → bundle dict
     - :meth:`apply_bundle`         — bundle dict → 写回各表
-    - :meth:`three_way_merge`      — base/local/remote → merged
+    - 3-way merge                  — 统一走 :func:`backend.services.sync_merge.three_way_merge`
     - :meth:`push` / `pull` / `bidirectional` — 完整同步流程
     """
 
@@ -171,185 +138,6 @@ class SyncService:
         """委托给 sync_bundle.apply_bundle"""
         from backend.services.sync_bundle import apply_bundle as _apply_bundle
         return _apply_bundle(bundle, master_key=master_key)
-
-    # ------------------------------------------------------------------
-    # 3-way merge
-    # ------------------------------------------------------------------
-    def three_way_merge(
-        self, base: Optional[dict], local: dict, remote: dict,
-    ) -> MergeResult:
-        """合并 base/local/remote 三方 → merged + 冲突统计。
-
-        **冲突规则 (Q3 决策)**
-        - 记录级: 按 primary key (favorites.hotspot_id / todos.id / skills.name /
-          custom_sources.url / secrets.name / settings.key) 对齐
-        - 字段级: 若 base==local==remote 同字段 → 直接采用
-        - 若 base==local, remote 变 → 接受 remote (远端有更新)
-        - 若 base==remote, local 变 → 接受 local (本地有更新)
-        - 若 local≠remote 且都≠base → 冲突, **两边都保留**: merged 字段 = 较新
-          ``updated_at`` 一边; 冲突计数 +1
-        """
-        _validate_bundle(local)
-        _validate_bundle(remote)
-
-        merged_records: dict[str, Any] = {}
-        total_conflicts = 0
-        table_conflicts: dict[str, int] = {}
-
-        # --- list-typed tables: favorites / todos / skills / custom_sources / secrets ---
-        for table, key_fn in (
-            ("favorites", lambda r: r.get("hotspot_id")),
-            ("todos", lambda r: f"{r.get('source_type')}::{r.get('source_id') or r.get('id')}"),
-            ("skills", lambda r: r.get("name")),
-            ("custom_sources", lambda r: r.get("url")),
-            ("secrets", lambda r: r.get("name")),
-        ):
-            base_recs = (base or {}).get("records", {}).get(table, []) or []
-            local_recs = local.get("records", {}).get(table, []) or []
-            remote_recs = remote.get("records", {}).get(table, []) or []
-            merged, conflicts = self._merge_records(
-                base_recs, local_recs, remote_recs, key_fn
-            )
-            merged_records[table] = merged
-            table_conflicts[table] = conflicts
-            total_conflicts += conflicts
-
-        # --- settings (dict-typed) ---
-        base_settings = (base or {}).get("records", {}).get("settings", {}) or {}
-        local_settings = local.get("records", {}).get("settings", {}) or {}
-        remote_settings = remote.get("records", {}).get("settings", {}) or {}
-        merged_settings, settings_conflicts = self._merge_settings(
-            base_settings, local_settings, remote_settings
-        )
-        merged_records["settings"] = merged_settings
-        table_conflicts["settings"] = settings_conflicts
-        total_conflicts += settings_conflicts
-
-        merged_bundle = {
-            "version": BUNDLE_VERSION,
-            "device_id": local.get("device_id") or remote.get("device_id"),
-            "merged_at": _now_iso(),
-            "records": merged_records,
-        }
-        return MergeResult(merged_bundle, total_conflicts, table_conflicts)
-
-    def _merge_records(
-        self, base: list, local: list, remote: list, key_fn
-    ) -> tuple[list, int]:
-        """单表 3-way merge, 返回 (merged_records, conflict_count)。"""
-        base_by_key = {key_fn(r): r for r in base}
-        local_by_key = {key_fn(r): r for r in local}
-        remote_by_key = {key_fn(r): r for r in remote}
-
-        all_keys = set(base_by_key) | set(local_by_key) | set(remote_by_key)
-        merged: list = []
-        conflicts = 0
-
-        for k in all_keys:
-            if k is None or k == "manual::None" or k == "::":
-                # 无主键记录, 全量保留 (来自任一边)
-                for src in (base, local, remote):
-                    for r in src:
-                        if key_fn(r) in (None, "manual::None", "::"):
-                            merged.append(r)
-                continue
-
-            b = base_by_key.get(k)
-            l = local_by_key.get(k)
-            r = remote_by_key.get(k)
-
-            if b is None and l is None and r is None:
-                continue
-            if l is None and r is None:
-                continue
-            if l is None:
-                merged.append(r)
-                continue
-            if r is None:
-                merged.append(l)
-                continue
-            if l == r:
-                merged.append(l)
-                continue
-
-            # 字段级 merge
-            fields = set(l.keys()) | set(r.keys())
-            field_merged: dict = {}
-            had_conflict = False
-            for f in fields:
-                if f == "updated_at":
-                    # updated_at 用较新的
-                    l_ts = l.get(f) or ""
-                    r_ts = r.get(f) or ""
-                    field_merged[f] = max(l_ts, r_ts)
-                    continue
-                lv = l.get(f)
-                rv = r.get(f)
-                bv = b.get(f) if b else None
-                if lv == rv:
-                    if lv is not None:
-                        field_merged[f] = lv
-                elif lv == bv:
-                    # local 未变, remote 变了 → 接受 remote
-                    if rv is not None:
-                        field_merged[f] = rv
-                elif rv == bv:
-                    # remote 未变, local 变了 → 接受 local
-                    if lv is not None:
-                        field_merged[f] = lv
-                else:
-                    # 双方都变且不一致 → 冲突, 较新 updated_at 胜出
-                    had_conflict = True
-                    l_ts = l.get("updated_at") or ""
-                    r_ts = r.get("updated_at") or ""
-                    winner = l if l_ts >= r_ts else r
-                    field_merged[f] = winner.get(f)
-            # id 字段保留 winner 的
-            if "id" in (l.keys() | r.keys()):
-                field_merged["id"] = l.get("id") or r.get("id")
-            merged.append(field_merged)
-            if had_conflict:
-                conflicts += 1
-
-        # 去重 (保留先出现的)
-        seen = set()
-        deduped: list = []
-        for r in merged:
-            k = key_fn(r)
-            if k in seen:
-                continue
-            seen.add(k)
-            deduped.append(r)
-        return deduped, conflicts
-
-    def _merge_settings(
-        self, base: dict, local: dict, remote: dict
-    ) -> tuple[dict, int]:
-        """settings 是 dict, 3-way merge: 逐 key 字段级合并。"""
-        all_keys = set(base) | set(local) | set(remote)
-        merged: dict = {}
-        conflicts = 0
-        for k in all_keys:
-            if k in SETTINGS_BLOCKLIST:
-                continue
-            lv = local.get(k)
-            rv = remote.get(k)
-            bv = base.get(k)
-            if lv == rv:
-                if lv is not None:
-                    merged[k] = lv
-            elif lv == bv:
-                if rv is not None:
-                    merged[k] = rv
-            elif rv == bv:
-                if lv is not None:
-                    merged[k] = lv
-            else:
-                # 冲突: local / remote 二选一; 简单用 local 优先 (UI 写本地为主)
-                # 实际应该按 settings 自带 _updated_at 子字段, 但 schema 简单先用 last-write-local
-                merged[k] = lv if lv is not None else rv
-                conflicts += 1
-        return merged, conflicts
 
     # ------------------------------------------------------------------
     # 加密 / 解密 bundle
@@ -576,7 +364,7 @@ class SyncService:
         base_state = ssr.get(cfg.id)
         base_bundle = json.loads(base_state["bundle_json"]) if base_state else None
         local_bundle = self.build_bundle(device_id=cfg.device_id)
-        merge_result = self.three_way_merge(base_bundle, local_bundle, remote_bundle)
+        merge_result = three_way_merge(base_bundle, local_bundle, remote_bundle)
 
         # apply
         self.apply_bundle(merge_result.merged_bundle, master_key=master_key)
@@ -828,7 +616,7 @@ class SyncService:
         base_state = ssr.get(cfg.id)
         base_bundle = json.loads(base_state["bundle_json"]) if base_state else None
         local_bundle = self.build_bundle(device_id=cfg.device_id)
-        merge_result = self.three_way_merge(base_bundle, local_bundle, remote_bundle)
+        merge_result = three_way_merge(base_bundle, local_bundle, remote_bundle)
         # apply (使用 fernet_key 而非 master_key, 派生同样的 key)
         ek_repo = EncryptionKeyRepository()
         ek_row = ek_repo.get_default()

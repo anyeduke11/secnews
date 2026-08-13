@@ -68,9 +68,6 @@ RULE_METADATA: dict[str, tuple[str, Any, str, bool]] = {
     "quality.min_score": (
         "number", 30, "最低质量分数（0-100）", True,
     ),
-    "quality.url_check_sample_rate": (
-        "number", 0.1, "URL 抽检率（0-1）", True,
-    ),
     "quality.url_check_concurrency": (
         "number", 5, "URL 并发检查数", True,
     ),
@@ -251,3 +248,132 @@ async def source_reputation():
     Phase 9 修复：同步 DB query 放 thread pool。
     """
     return await asyncio.to_thread(_build_source_reputation)
+
+
+# ---------------------------------------------------------------------------
+# GET /api/quality/rejection-log
+# ---------------------------------------------------------------------------
+def _build_rejection_log(
+    gate_name: Optional[str] = None,
+    source_id: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+) -> dict:
+    """同步构建 rejection-log payload（在 thread pool 中执行）。"""
+    from backend.repository.db import get_connection
+
+    conn = get_connection()
+    where_clauses: list[str] = ["1=1"]
+    params: list = []
+
+    if gate_name:
+        where_clauses.append("rejected_by = ?")
+        params.append(gate_name)
+    if source_id:
+        where_clauses.append("source_id LIKE ?")
+        params.append(f"%{source_id}%")
+    if date_from:
+        where_clauses.append("created_at >= ?")
+        params.append(date_from)
+    if date_to:
+        where_clauses.append("created_at <= ?")
+        params.append(date_to)
+
+    where = " AND ".join(where_clauses)
+    offset = (page - 1) * page_size
+
+    # 查询总数
+    count_row = conn.execute(
+        f"SELECT COUNT(*) as cnt FROM quality_rejection_log WHERE {where}",
+        params,
+    ).fetchone()
+    total = count_row["cnt"] if count_row else 0
+
+    # 查询分页数据
+    rows = conn.execute(
+        f"SELECT * FROM quality_rejection_log WHERE {where} ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        params + [page_size, offset],
+    ).fetchall()
+
+    return {
+        "items": [dict(r) for r in rows],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+@router.get("/rejection-log")
+async def quality_rejection_log(
+    gate_name: Optional[str] = None,
+    source_id: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+):
+    """分页查询 quality_rejection_log。"""
+    return await asyncio.to_thread(
+        _build_rejection_log,
+        gate_name, source_id, date_from, date_to, page, page_size,
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /api/quality/rejection-stats
+# ---------------------------------------------------------------------------
+def _build_rejection_stats(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+) -> dict:
+    """同步构建 rejection-stats payload（在 thread pool 中执行）。"""
+    from backend.repository.db import get_connection
+
+    conn = get_connection()
+    where_clauses: list[str] = ["1=1"]
+    params: list = []
+
+    if date_from:
+        where_clauses.append("created_at >= ?")
+        params.append(date_from)
+    if date_to:
+        where_clauses.append("created_at <= ?")
+        params.append(date_to)
+
+    where = " AND ".join(where_clauses)
+
+    # 按 gate 聚合
+    rows = conn.execute(
+        f"""SELECT rejected_by as gate_name, COUNT(*) as count
+            FROM quality_rejection_log
+            WHERE {where}
+            GROUP BY rejected_by
+            ORDER BY count DESC""",
+        params,
+    ).fetchall()
+
+    # 按日期趋势
+    trend_rows = conn.execute(
+        f"""SELECT DATE(created_at) as day, COUNT(*) as count
+            FROM quality_rejection_log
+            WHERE {where}
+            GROUP BY DATE(created_at)
+            ORDER BY day ASC""",
+        params,
+    ).fetchall()
+
+    return {
+        "by_gate": [dict(r) for r in rows],
+        "trend": [dict(r) for r in trend_rows],
+    }
+
+
+@router.get("/rejection-stats")
+async def quality_rejection_stats(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+):
+    """按 gate 名称聚合统计拒绝次数。"""
+    return await asyncio.to_thread(_build_rejection_stats, date_from, date_to)

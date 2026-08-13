@@ -21,26 +21,32 @@ from backend.domain.enums import Category
 
 AI_SECURITY_SOURCES: list[dict] = [
     # ---- English RSS sources ----
+    # 2026-08-02 实测: SecurityWeek RSS 直连 403, 代理 200(17 links), 需 proxy 可修复
+    # 当前 feedparser 路径不支持 proxy, 暂 disabled
     {
         "name": "SecurityWeek AI Security",
         "url": "https://www.securityweek.com/ai-security/",
-        "rss_url": "https://feeds.feedburner.com/securityweek/ai-security",
+        "rss_url": "https://www.securityweek.com/feed/",
         "score": 83,
         "keywords": ["AI security", "LLM", "machine learning", "adversarial"],
+        "renderer": "disabled",
     },
+    # 2026-08-02: BleepingComputer AI 直连/代理均 403 (Cloudflare), 不可抓取
     {
         "name": "BleepingComputer AI",
         "url": "https://www.bleepingcomputer.com/tag/artificial-intelligence/",
-        "rss_url": "https://www.bleepingcomputer.com/feed/artificial-intelligence.xml",
         "score": 80,
         "keywords": ["AI", "security", "LLM", "vulnerability"],
+        "renderer": "disabled",
     },
+    # 2026-08-02: Lil'Log RSS 直连/代理均返回 CF 挑战页面(80KB 非 RSS 内容), 不可抓取
     {
         "name": "Lil'Log",
         "url": "https://lilianweng.github.io/",
-        "rss_url": "https://lilianweng.github.io/feed.xml",
+        "rss_url": "https://lilianweng.github.io/index.xml",
         "score": 88,
         "keywords": ["AI safety", "alignment", "security", "LLM"],
+        "renderer": "disabled",
     },
     {
         "name": "HN AI Security",

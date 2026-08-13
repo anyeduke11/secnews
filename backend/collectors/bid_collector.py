@@ -1,4 +1,8 @@
-"""招标资讯热点数据采集器（Phase 3 + Phase 9 + Bug 1 修复）。
+"""招标资讯热点数据采集器（DEPRECATED — Phase 1.6 Crawler v2）。
+
+**DEPRECATED**: 此模块将在 Crawler v2 完全上线后停止写入新数据。
+当前仍运行以维持兼容性（Phase 1.6: 仍运行但不写入新数据）。
+新架构下标讯抓取将走 `crawler_sources` 源注册表 + `parsers/bid/` 独立 parser。
 
 继承 :class:`BaseCollector`：
 
@@ -23,10 +27,21 @@ Phase 13 硬约束: 撤销 Phase 12 的 Google 搜索 fallback 方案。用户�
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
+from typing import Any
 
 from backend.collectors.base import BaseCollector
+from backend.collectors.base import UA as _UA
+from backend.collectors.bid_utils import (
+    SECURITY_KEYWORDS,
+    SECURITY_KEYWORD_SET,
+    PROCUREMENT_KEYWORDS,
+    INDUSTRY_KEYWORDS,
+    is_security_bid,
+)
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
+from backend.parsers.crawl4ai_parser import CrawlResult
 
 # ---------------------------------------------------------------------------
 # 30+ 招标渠道（覆盖 skillhub 推荐 50+ 渠道的关键子集）
@@ -341,51 +356,39 @@ BID_SOURCES: list[dict] = [
         "score": 60,
         "keywords": ["bid", "aggregator"],
     },
-    # ===== Phase 19: v1.6.3 补全 16 源（renderer=search 走搜索引擎绕反爬）=====
-    # 标讯信源普遍有 anti-bot / WAF / 强制 JS 渲染,直抓成功率近 0。
-    # v1.6.3 思路：用搜索引擎 (DDG HTML) 抓 site:<domain> 关键词,
-    #   **提取真实源 URL** 而非搜索引擎跳转 URL,这样:
-    #   - url_validity 跑 HEAD 通过(测的是源站 URL,不是 DDG URL)
-    #   - 不命中 FORBIDDEN_URL_PATTERNS (无 google.com/search 等)
-    #   - author_verification 走新注册表(见 publisher_registry.py)
-    #   - 整链路不违反质量门禁
+    # ===== Phase 19 补全 16 源（HTTP 直连优先, 失败走代理）=====
+    # 原 renderer="search" 走 Bing 搜索, 已废弃。改为 HTTP 直连优先,
+    # 直连失败时走 ProxySession (127.0.0.1:7897) 代理兜底。
     # ----- P1 金融缺口 -----
     {
         "name": "中国农业发展银行集中采购",
         "url": "https://pms.adbc.com.cn/",
         "score": 78,
         "keywords": ["bid", "finance", "policy_bank"],
-        "renderer": "search",
     },
     {
         "name": "银保信",
         "url": "https://www.cfxcredit.com/",
         "score": 76,
         "keywords": ["bid", "finance", "banking_assoc"],
-        "renderer": "search",
     },
     {
         "name": "中国银联采购",
         "url": "https://www.chinaunionpay.com/",
         "score": 76,
         "keywords": ["bid", "finance", "unionpay"],
-        "renderer": "search",
     },
     {
         "name": "知了标讯",
         "url": "https://www.zhiliaobiaoxun.com/",
         "score": 70,
         "keywords": ["bid", "finance", "aggregator"],
-        "renderer": "search",
     },
     {
         "name": "证保信",
-        # v1.6.3 提到但未给 URL;这里用 search 模式只需 site: 域名
-        # 实际我们用 site:zgzx-pa.com.cn (深圳证券结算公司) 作为代理
         "url": "https://zgzx-pa.com.cn/",
         "score": 70,
         "keywords": ["bid", "finance", "cert_registry"],
-        "renderer": "search",
     },
     # ----- P1 能源电力缺口 -----
     {
@@ -393,35 +396,30 @@ BID_SOURCES: list[dict] = [
         "url": "https://ec.chng.com.cn/",
         "score": 78,
         "keywords": ["bid", "energy", "huaneng"],
-        "renderer": "search",
     },
     {
         "name": "大唐电子商务平台",
         "url": "https://www.cdt-ec.com/",
         "score": 78,
         "keywords": ["bid", "energy", "datang"],
-        "renderer": "search",
     },
     {
         "name": "华电电子商务平台",
         "url": "https://www.chdtp.com/",
         "score": 78,
         "keywords": ["bid", "energy", "huadian"],
-        "renderer": "search",
     },
     {
         "name": "中化商务电子招投标",
         "url": "https://ebid.sinochemitc.com/",
         "score": 74,
         "keywords": ["bid", "energy", "sinochem"],
-        "renderer": "search",
     },
     {
         "name": "深圳阳光采购平台",
         "url": "https://ygcg.szexgrp.com/",
         "score": 72,
         "keywords": ["bid", "public", "shenzhen"],
-        "renderer": "search",
     },
     # ----- P2 商业聚合缺口 -----
     {
@@ -429,35 +427,30 @@ BID_SOURCES: list[dict] = [
         "url": "https://www.okcis.cn/",
         "score": 68,
         "keywords": ["bid", "aggregator", "okcis"],
-        "renderer": "search",
     },
     {
         "name": "比地招标网",
         "url": "https://www.bidizhaobiao.com/",
         "score": 66,
         "keywords": ["bid", "aggregator", "bidizhaobiao"],
-        "renderer": "search",
     },
     {
         "name": "元博招标网",
         "url": "https://www.bidchance.com/",
         "score": 66,
         "keywords": ["bid", "aggregator", "bidchance"],
-        "renderer": "search",
     },
     {
         "name": "中国国际招标网",
         "url": "https://chinabidding.mofcom.gov.cn/",
         "score": 72,
         "keywords": ["bid", "aggregator", "mofcom"],
-        "renderer": "search",
     },
     {
         "name": "中国政府采购招标网",
         "url": "https://www.chinabidding.org.cn/",
         "score": 66,
         "keywords": ["bid", "aggregator", "chinabidding_org"],
-        "renderer": "search",
     },
     # ----- P3 辅助缺口 -----
     {
@@ -465,229 +458,19 @@ BID_SOURCES: list[dict] = [
         "url": "https://www.chinamoney.com.cn/",
         "score": 68,
         "keywords": ["bid", "finance", "forex"],
-        "renderer": "search",
     },
 ]
 
-# Phase 14/19: 标讯类源默认走 crawl4ai (政府站点普遍有 WAF / JS 渲染)
-#   - setdefault 不会覆盖已显式设 renderer="search" 的源 (Phase 19 新增 16 源)
-#   - "search" 路径走 DDG HTML 搜索,提取真实源 URL (v1.6.3 思路)
+# 标讯源: HTTP 直连优先, 失败时走 ProxySession (127.0.0.1:7897) 兜底。
+# 原 renderer="search" (Bing 搜索) 和 renderer="crawl4ai" 已废弃。
 for _src in BID_SOURCES:
-    _src.setdefault("renderer", "crawl4ai")
+    _src.setdefault("renderer", "aiohttp")
 
 
 # ---------------------------------------------------------------------------
-# 四线 AND/OR 关键词体系（参考 skillhub 网安标讯助手）
+# 四线 AND/OR 关键词体系（已提取到 bid_utils.py）
+# 保留 SECURITY_KEYWORDS 等导出符号的引用，供外部模块兼容导入。
 # ---------------------------------------------------------------------------
-# 四条业务线，每条线内的核心关键词（OR），加上采购语境词（AND）：
-#   任意一条业务线的核心关键词命中（OR）即视为网络安全/AI安全相关。
-SECURITY_KEYWORDS: dict[str, list[str]] = {
-    # ===== 安全服务线（22 + 8 补充 = 30 词） =====
-    # Phase 16 补充: 表格"覆盖范围"列出的合规测评/攻防实战/检测审计,
-    # 网安领域常用的应急响应/安全咨询/安全体系规划/数据安全咨询。
-    "安全服务线": [
-        # Phase 9 原有
-        "等保", "等级保护", "密评", "密码评估", "密码改造", "密码应用",
-        "渗透测试", "攻防演练", "重保", "护网",
-        "安全评估", "安全检测", "安全审计", "风险评估",
-        "安全咨询", "安全服务", "安全测评", "安全认证",
-        "网络安全", "信息安全", "网信安全", "安全防护",
-        # Phase 16 补充 — 表格"覆盖范围" + 完整网安术语
-        "合规测评",      # 表格"覆盖范围"
-        "攻防实战",      # 表格"覆盖范围"
-        "检测审计",      # 表格"覆盖范围"
-        "应急响应",      # 网安常用: 勒索病毒/数据泄露响应
-        "安全规划",      # 安全体系咨询
-        "安全体系",      # 体系化建设
-        "安全培训",      # 意识培训/CTF 培训
-        "安全运维",      # 也常作为服务线,这里和运维线互补
-    ],
-    # ===== 安全产品线（30 + 12 补充 = 42 词） =====
-    # Phase 16 补充: 表格"覆盖范围"的网安设备,
-    # 网安领域新型产品 API 安全/UEBA/NDR/SOAR/CASB/NTA。
-    "安全产品线": [
-        # Phase 9/14 原有
-        "防火墙", "IPS", "IPS 设备", "IDS", "IDS 设备", "WAF", "WAF 设备", "漏洞扫描",
-        "态势感知", "堡垒机", "数据库审计", "邮件安全",
-        "DLP", "DLP 系统", "零信任", "EDR", "EDR 系统", "XDR", "XDR 平台",
-        "数据安全", "数据防泄漏", "防泄漏", "数据脱敏",
-        "防病毒", "终端安全", "主机安全", "上网行为",
-        "VPN", "网闸", "蜜罐", "沙箱", "网络隔离",
-        "抗DDoS", "抗DDOS", "抗拒绝服务",
-        "网安设备",      # 表格"覆盖范围"
-        # Phase 16 补充 — 完整网安术语
-        "API安全",       # API 防护
-        "API 安全",      # 带空格变体
-        "API网关",       # API 网关产品
-        "API 网关",      # 带空格变体
-        "UEBA",          # 用户行为分析
-        "UEBA 用户行为",  # 带空格变体
-        "NDR",           # 网络检测响应
-        "NTA",           # 网络流量分析
-        "SOAR",          # 安全编排自动化响应
-        "CASB",          # 云访问安全代理
-        "SD-WAN",        # 安全广域网络
-        "主机防护",      # 主机安全(产品形态)
-        "运维审计",      # 运维堡垒机/4A
-        "应用安全",      # AppSec/WAF 体系
-    ],
-    # ===== 运维/平台线（11 + 8 补充 = 19 词） =====
-    # Phase 16 补充: 表格"覆盖范围"的维保/运营中心/驻场运维/整改,
-    # 网安新型运营形态 MSSP/安全托管/安全编排。
-    "运维/平台线": [
-        # Phase 9/14 原有
-        "安全运营", "安全运维", "安全驻场", "安全运维服务",
-        "SOC", "SOC 平台",       # 带空格变体
-        "安全管理平台", "SIEM", "SIEM 平台",
-        "安全加固", "安全合规", "安全整改", "安全维保",
-        "安全监控", "日志审计平台", "安全日志审计",
-        # Phase 16 补充 — 表格"覆盖范围" + 完整网安术语
-        "维保",          # 表格"覆盖范围"
-        "运营中心",      # 表格"覆盖范围"
-        "驻场运维",      # 表格"覆盖范围"
-        "整改",          # 表格"覆盖范围"
-        "MSSP",          # 托管安全服务
-        "安全托管",      # MSSP 中文
-        "托管检测",      # MDR
-        "MDR",           # 托管检测响应
-        "MDR 服务",      # 带空格变体
-    ],
-    # ===== 行业搜索线（17 + 5 补充 = 22 词） =====
-    # Phase 16 补充: 车联网/无人机/卫星/量子/生成式 AI。
-    "行业搜索线": [
-        # Phase 9/14 原有
-        "工控安全", "电力监控安全", "物联网安全", "云安全",
-        "数据分类分级", "主机安全", "终端安全",
-        "医疗数据安全", "教育行业安全", "交通物流安全",
-        "AI安全", "大模型安全", "算法安全", "AI风控",
-        "数据安全治理", "隐私计算", "联邦学习",
-        # Phase 16 补充 — 新型行业网安
-        "车联网安全",   # V2X/智能网联汽车
-        "卫星互联网安全",  # 卫星通信安全
-        "量子安全",     # 抗量子密码
-        "生成式AI安全", # AIGC/ChatGPT 安全
-        "智能网联汽车",  # 智能汽车
-    ],
-    # ===== 跨线通用（新增分类 — 网安/密码/数据合规顶层词） =====
-    # Phase 16 补充: 关基保护/个保/商用密码/信创 等顶层法规类术语。
-    "通用合规线": [
-        "网络与信息安全",  # 表格标题
-        "关基保护",         # 关键信息基础设施保护
-        "关键信息基础设施",  # 同上长尾
-        "个人信息保护",     # PIPL
-        "个保",             # PIPL 缩写
-        "数据出境",         # 数据安全法
-        "商用密码",         # 国密
-        "国密",             # 同上
-        "信创",             # 国产化
-        "数据安全法",       # 法规
-        "网络安全法",       # 法规
-    ],
-}
-
-# 采购语境词（AND）— 不强制要求，但用于加分
-# Phase 16 补充: 合同/续约/框架协议/年度 等新合同语境。
-PROCUREMENT_KEYWORDS: list[str] = [
-    # Phase 9 原有
-    "采购", "招标", "中标", "征集", "比选", "磋商", "竞价",
-    "询价", "项目", "服务", "设备", "平台", "系统",
-    # Phase 16 补充 — 合同/续约/框架
-    "合同", "续约", "框架", "框架协议", "年度", "运维", "驻场", "整改",
-]
-
-# 行业语境词 — Phase 16 表格提到的"金融/政府/医疗/教育/能源/电信/交通"
-# 用于 AND 配合核心关键词。当标题不含"采购"但含"医疗"+"等保"也算网安标讯。
-INDUSTRY_KEYWORDS: list[str] = [
-    "金融", "银行", "证券", "保险", "政府", "机关", "事业单位",
-    "医疗", "医院", "卫生", "教育", "高校", "学校", "院校",
-    "能源", "电力", "电网", "石化", "电信", "运营商", "通信",
-    "交通", "物流", "轨交", "铁路",
-]
-
-# 非网安标讯黑名单词 — Phase 18 截图中误录的非网安标讯
-# 任何标题/正文包含这些词都视为非网安,直接 Reject。
-# 设计动机: 标讯四线关键词中"维保"+"运营"+"系统"太宽,容易让
-#   消防/空调/饮水/办公/车辆/印刷 等无关维保项目混入。
-NON_SECURITY_BLACKLIST: list[str] = [
-    # ===== 消防/安全 (非网络安全) =====
-    # 注意: 不要用"防火" / "防火墙" 这种易误伤的子串
-    "消防", "灭火", "火灾", "消防车", "消防维保", "消防救援",
-    "消防设施", "消防设备", "消防工程", "消防器材", "消防检测",
-    "阻燃", "烟感", "喷淋", "应急照明",
-    # ===== 后勤/办公 =====
-    # 注意: 不要用"电脑" / "主机" / "笔记本" 等子串,会误伤"网络安全"主题
-    "饮水机", "饮用水", "开水器", "净化水",
-    "空调", "中央空调", "多联机", "VRV", "冷暖", "暖通", "冷源",
-    "电梯", "扶梯", "升降梯",
-    "印刷", "硒鼓", "墨盒", "复印纸", "复印机",
-    "办公家具", "办公用品", "办公耗材", "办公设备", "文具",
-    # ===== 车辆/通勤 =====
-    "车辆维保", "汽车维保", "车队", "公务用车", "班车", "通勤",
-    "租车", "租赁车", "救援车", "救护车", "工程车", "扫地车",
-    "车辆保养", "保养服务", "检测线", "验车",
-    # ===== 餐饮/物业 =====
-    "食堂", "餐饮", "厨具", "灶具", "餐具", "食材", "配送餐",
-    "物业", "保洁", "保安", "绿化", "园林", "花卉", "绿植",
-    "保洁服务", "物业管理", "物业服务",
-    # ===== 通用后勤 =====
-    "工作服", "制服", "服装", "劳保用品",
-    "基建工程", "土建", "装修", "装饰", "改造工程", "建筑",
-    "售后", "售后服务", "客服", "呼叫中心", "话务",
-    # ===== 业务类非网安 =====
-    "制卡机", "即时制卡", "POS机", "刷卡机",
-    "电视机", "显示屏采购", "广告机", "会议系统", "音响",
-    "医疗设备", "医疗器械", "检验设备",
-    "教学设备", "实验室", "实训",
-]
-
-
-def _build_keyword_set() -> set[str]:
-    """汇总所有四线关键词到 1 个 set，供 O(1) 查找。"""
-    out: set[str] = set()
-    for words in SECURITY_KEYWORDS.values():
-        out.update(words)
-    return out
-
-
-# 全量关键词（用于 _parse_html 过滤）
-SECURITY_KEYWORD_SET: set[str] = _build_keyword_set()
-
-# 编译正则（中文无空格分词，每条关键词直接 substring 匹配）
-_SECURITY_RE = re.compile(
-    "|".join(re.escape(kw) for kw in SECURITY_KEYWORD_SET)
-)
-
-# 采购语境词 — 用于 AND 配合核心关键词
-_PROCUREMENT_RE_LIST: list[str] = list(PROCUREMENT_KEYWORDS)
-
-# 行业关键词 — Phase 16 表格里的"金融/政府/医疗/教育/能源/电信/交通"
-# 当标题没有"采购"字样但有"医疗"/"金融"等行业词时也算合法
-_INDUSTRY_RE_LIST: list[str] = list(INDUSTRY_KEYWORDS)
-
-
-def is_security_bid(text: str) -> bool:
-    """判断文本是否包含网络安全/AI安全相关关键词。
-
-    规则 (Phase 16 表格四线 AND/OR 体系 + Phase 18 黑名单 Reject):
-    - **黑名单前置** (Phase 18): 标题/正文含任何 NON_SECURITY_BLACKLIST
-      词 → 直接 False。避免消防/空调/饮水/办公/车辆/印刷 等非网安标讯
-      因为"维保"+"系统" 等宽泛词被误判。
-    - **宽松层** (向后兼容): 核心关键词命中 → 保留
-      - 避免 "SOC 安全运营中心" 这种专业网安术语短句被漏
-    - **严格层** (Phase 16): 核心 + 采购/行业语境命中 → 保留
-      - 避免 "采购 WAF 系统" 这种通用 IT 采购被误判为网安标讯
-
-    实际判定: 黑名单全否决,否则核心命中即 True。
-    """
-    if not text:
-        return False
-    # Phase 18: 黑名单前置 Reject
-    if any(kw in text for kw in NON_SECURITY_BLACKLIST):
-        return False
-    # 宽松层: 核心关键词命中
-    if _SECURITY_RE.search(text):
-        return True
-    return False
 
 
 # ---------------------------------------------------------------------------
@@ -764,17 +547,15 @@ def _extract_region(text: str) -> str | None:
 class BidCollector(BaseCollector):
     """采集招标资讯热点数据。Phase 9 改造：聚焦网络安全/AI安全。
 
-    Phase 19 改造: 集成 v1.6.3 搜索引擎思路。
-    - renderer="search" 的源走 DDG HTML 搜索（绕开 anti-bot）
-    - 提取的 URL 是真实源 URL,不是 DDG 跳转 URL
-    - 走完正常 is_security_bid 过滤 + 质量门禁
+    V1.9 变更: 废弃 renderer="search" (Bing 搜索) 和 renderer="crawl4ai"。
+    改为 HTTP 直连优先, 失败时走 ProxySession (127.0.0.1:7897) 代理兜底。
     """
 
     category = Category.BID
     sources = BID_SOURCES
     timeout = 25
     max_items = 40
-    min_items_threshold = 5
+    min_items_threshold = 3
 
     def _is_relevant(self, title: str, summary: str = "") -> bool:
         """判断一条标讯是否网络安全/AI安全相关。
@@ -785,52 +566,134 @@ class BidCollector(BaseCollector):
         """
         return is_security_bid(title) or is_security_bid(summary)
 
-    async def _fetch_search_source(
+    async def _fetch_with_fallback(
         self, source: dict
     ) -> tuple[list[HotspotItem], Any]:
-        """renderer="search" 源路径: 走 DDG HTML 搜索 (Phase 19)。
+        """Playwright (Crawl4ai) 优先, 失败走 HTTP 直连 + 代理兜底。
 
-        Returns: ``(items, SourceResult)`` 形态同 :meth:`fetch_source`。
-        失败返回 ``([], SourceResult(error))``,不向上抛异常。
+        标讯网站普遍有强反爬措施 (JS 渲染 / 验证码 / User-Agent 检测),
+        Playwright 模拟真实浏览器能绕过大部分反爬。
+        1. Crawl4ai (Playwright) — 模拟正常用户
+        2. 失败 → aiohttp 直连 (无代理)
+        3. 直连失败 → ProxySession (127.0.0.1:7897)
+        4. 全失败 → 返回 SourceResult(error)
         """
         from datetime import datetime, timezone as _tz
         from backend.domain.collection import SourceResult
-        from backend.collectors.bid_search import search_one_source
+        import aiohttp
 
         start = datetime.now(_tz.utc)
         source_name = source.get("name", "unknown")
+        source_url = source["url"]
+        headers = {"User-Agent": _UA}
+        html: str | None = None
+        used_proxy = False
+        used_crawl4ai = False
+
+        # ---- 第 1 步: Crawl4ai (Playwright) 模拟正常用户 ----
+        # 标讯网站需要 JS 渲染 + 真实浏览器指纹绕过反爬
+        crawl4ai_result = await self._fetch_with_crawl4ai(source_url)
+        if crawl4ai_result.success and crawl4ai_result.content:
+            used_crawl4ai = True
+            html = crawl4ai_result.content
+            self.logger.debug(f"bid crawl4ai OK {source_name!r}")
+
+        # ---- 第 2 步: Crawl4ai 失败, 走 aiohttp 直连 ----
+        if html is None:
+            try:
+                timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
+                async with aiohttp.ClientSession(timeout=timeout_obj) as session:
+                    async with session.get(source_url, headers=headers, ssl=False) as resp:
+                        if resp.status == 200:
+                            html = await resp.text()
+                        else:
+                            self.logger.debug(
+                                f"bid direct {source_name!r} HTTP {resp.status}"
+                            )
+                if html:
+                    self.logger.debug(f"bid direct OK {source_name!r}")
+            except Exception as e:
+                self.logger.debug(
+                    f"bid direct failed {source_name!r}: "
+                    f"{type(e).__name__}: {str(e)[:60]}"
+                )
+                html = None
+
+        # ---- 第 3 步: 直连也失败, 对需要代理的源走代理兜底 ----
+        if html is None:
+            try:
+                from backend.proxy_config import should_use_proxy
+                if not should_use_proxy(source_url):
+                    self.logger.debug(
+                        f"bid proxy skipped {source_name!r} (no proxy needed)"
+                    )
+                else:
+                    from backend.proxy_session import ProxySession
+                    timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
+                    async with ProxySession(headers=headers, timeout=timeout_obj) as session:
+                        async with session.get(source_url, ssl=False) as resp:
+                            if resp.status == 200:
+                                html = await resp.text()
+                                used_proxy = True
+                            else:
+                                self.logger.debug(
+                                    f"bid proxy {source_name!r} HTTP {resp.status}"
+                                )
+                    if html:
+                        self.logger.debug(f"bid proxy OK {source_name!r}")
+            except Exception as e:
+                self.logger.warning(
+                    f"bid proxy failed {source_name!r}: "
+                    f"{type(e).__name__}: {str(e)[:60]}"
+                )
+
+        # ---- 全失败 ----
+        if html is None:
+            duration = int(
+                (datetime.now(_tz.utc) - start).total_seconds() * 1000
+            )
+            return [], SourceResult(
+                source_name=source_name,
+                source_url=source_url,
+                item_count=0,
+                error_msg="crawl4ai+direct+proxy all failed",
+                duration_ms=duration,
+            )
+
+        # ---- 解析 ----
         try:
-            raw_items = await search_one_source(source, max_results=self.max_items)
+            raw_items = self._parse_html(html, source)
+            items = self._build_items(raw_items, source)
         except Exception as e:
             duration = int(
                 (datetime.now(_tz.utc) - start).total_seconds() * 1000
             )
             self.logger.warning(
-                f"search_source {source_name!r} failed: "
-                f"{type(e).__name__}: {str(e)[:80]}"
+                f"bid parse failed {source_name!r} "
+                f"(crawler={'crawl4ai' if used_crawl4ai else 'aiohttp'}): "
+                f"{type(e).__name__}: {str(e)[:50]}"
             )
             return [], SourceResult(
                 source_name=source_name,
-                source_url=source["url"],
+                source_url=source_url,
                 item_count=0,
-                error_msg=f"search_error: {type(e).__name__}: {str(e)[:100]}",
+                error_msg=f"parse_error: {type(e).__name__}: {str(e)[:100]}",
                 duration_ms=duration,
             )
 
-        # 复用基类 _build_items
-        items = self._build_items(raw_items, source)
         # Phase 8: 从标题提取地区
         for it in items:
             if isinstance(it, dict):
                 region = _extract_region(it.get("title", ""))
                 if region:
                     it["region"] = region
+
         duration = int(
             (datetime.now(_tz.utc) - start).total_seconds() * 1000
         )
         return items, SourceResult(
             source_name=source_name,
-            source_url=source["url"],
+            source_url=source_url,
             item_count=len(items),
             duration_ms=duration,
         )
@@ -842,9 +705,7 @@ class BidCollector(BaseCollector):
         1. 优先从招标页面常见结构中提取 title + url
         2. 关键词过滤：只保留网络安全/AI安全相关条目
         """
-        # 调父类解析（默认 <a href> 锚点提取）
         raw_items = super()._parse_html(html, source)
-        # 关键词过滤
         out: list[dict] = []
         seen: set[str] = set()
         for it in raw_items:
@@ -861,15 +722,137 @@ class BidCollector(BaseCollector):
                 break
         return out
 
-    async def fetch_source(self, source: dict):
-        """Phase 19: 按 ``renderer`` 字段路由。
+    def _build_items(
+        self, raw_items: list[dict[str, Any]], source: dict
+    ) -> list[HotspotItem]:
+        """Bid 专用 _build_items：published_at 兜底 + 关键词过滤。
 
-        - ``renderer="search"`` → :meth:`_fetch_search_source` 走 DDG HTML 搜索
-        - 其他 → 走父类 ``BaseCollector.fetch_source`` 走 crawl4ai / aiohttp
+        2026-08-10 (P0 RCA 修复后暴露的第二道门禁):
+        Bid 列表页既无 ``<meta property="article:published_time">``
+        也无 URL slug 日期,``_extract_published_at`` 返回 None,
+        ``_build_items`` 上游第 102 行 ``if published_at is None: continue``
+        把全部真实标讯全部杀死。
+
+        修复: 在 published_at is None 时, 注入 ``fetched_at`` 作为
+        ``published_at`` 兜底 (同 :mod:`telegram_collector` 模式)。
+        同时保留 Phase 47 时效硬门禁 (早于本周一仍拒收)。
         """
-        if source.get("renderer") == "search":
-            return await self._fetch_search_source(source)
-        return await super().fetch_source(source)
+        from backend.domain.enums import Category as _Cat
+        from backend.utils.business_days import current_week_start
+
+        _extract_bid_status = None
+        if self.category == _Cat.BID:
+            from backend.collectors.bid_status import extract_bid_status
+            _extract_bid_status = extract_bid_status
+
+        _NAV_CTA = re.compile(
+            r"查看更多|更多\s*>>|更多\s*>|立即查看|立即申请|"
+            r"立即报名|马上了解|点击查看|>>>|>>>\s*$|>>\s*$|"
+            r"入驻\s*\S{0,4}$|注册\s*\S{0,4}$|"
+            r"查看全部|点击进入|关注我们|关于我们|"
+            r"^\s*[Aa][Bb][Oo][Uu][Tt]\s*$|"
+            r"^\s*[Cc][Oo][Nn][Tt][Aa][Cc][Tt]\s*$|"
+            r"^更多$|^首页$|^登录$|^注册$"
+        )
+        _MIN_TITLE_LEN = 8
+        _MAX_TITLE_LEN = 200
+
+        now = datetime.now(timezone.utc)
+        items: list[HotspotItem] = []
+        skipped = 0
+        recency_threshold = current_week_start()
+        for i, raw in enumerate(raw_items[: self.max_items * 2]):
+            title = (raw.get("title") or "").strip()
+            url = (raw.get("url") or "").strip()
+            if not title or len(title) < _MIN_TITLE_LEN:
+                skipped += 1
+                continue
+            if len(title) > _MAX_TITLE_LEN:
+                skipped += 1
+                continue
+            if _NAV_CTA.search(title):
+                skipped += 1
+                continue
+            if not self._title_relevant(title, url, source):
+                skipped += 1
+                continue
+
+            # published_at 兜底: bid 列表页普遍无 meta/JSON-LD/slug 日期,
+            # 用 fetch time 兜底 (同 telegram_collector)
+            published_at = raw.get("published_at")
+            if published_at is None:
+                published_at = now
+                # 标记: 让 quality gate 知道这是兜底时间
+                raw["_published_at_fallback"] = True
+
+            if not isinstance(published_at, datetime) or published_at.tzinfo is None:
+                skipped += 1
+                continue
+            if published_at < recency_threshold:
+                skipped += 1
+                continue
+
+            bid_status_val = None
+            if _extract_bid_status is not None:
+                bid_status_val = _extract_bid_status(
+                    title, raw.get("summary", "") or "",
+                )
+            try:
+                item_id = raw.get("id") or f"{self.name}_{source['name']}_{i}"
+                item = HotspotItem(
+                    id=item_id,
+                    title=title[:500],
+                    summary=(raw.get("summary") or "")[:500] or None,
+                    source=source["name"][:50],
+                    url=raw["url"],
+                    category=self.category,
+                    published_at=published_at,
+                    fetched_at=now,
+                    ingested_at=now,
+                    bid_status=bid_status_val,
+                    region=raw.get("region"),
+                    score=source.get("score", 75),
+                    is_fallback=False,
+                    quality_score=100,
+                    quality_flags=[],
+                    url_check_status="pending",
+                )
+                # 若兜底, 在 quality_flags 记录 (审计可追溯)
+                if raw.get("_published_at_fallback"):
+                    item.quality_flags.append("published_at_from_fetch_time")
+                items.append(item)
+                if len(items) >= self.max_items:
+                    break
+            except Exception as e:
+                self.logger.warning(
+                    f"skip item {i}: {type(e).__name__}: {str(e)[:50]}"
+                )
+        if skipped:
+            self.logger.debug(
+                f"{source['name']} filtered {skipped} "
+                f"nav/cta/short/irrelevant/no-pub/historical titles"
+            )
+        return items
+
+    async def fetch_source(self, source: dict):
+        """HTTP 直连优先, 失败走代理兜底。
+
+        - 全部源走 :meth:`_fetch_with_fallback` (直连→代理)
+        - 废弃 renderer="search" (Bing 搜索) 和 renderer="crawl4ai"
+        """
+        return await self._fetch_with_fallback(source)
+
+    async def _fetch_with_crawl4ai(self, url: str) -> CrawlResult:
+        """Phase 16: Crawl4ai fallback for government procurement sites with strong anti-crawling."""
+        try:
+            from backend.parsers.crawl4ai_parser import Crawl4aiParser
+            parser = Crawl4aiParser()
+            return await parser.crawl(url)
+        except ImportError:
+            return CrawlResult(url=url, success=False, error="Crawl4aiParser not available")
+        except Exception as e:
+            self.logger.warning(f"crawl4ai fallback failed: {e}")
+            return CrawlResult(url=url, success=False, error=str(e))
 
 
 __all__ = [

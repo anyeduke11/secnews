@@ -65,8 +65,18 @@ class ItemBuilderMixin:
         items: list[HotspotItem] = []
         skipped = 0
         # Phase 47: 资讯/标讯时效硬门禁 — 本周一 00:00 Asia/Shanghai
+        # 2026-08-03: 公众号源 (wechat renderer) 放宽到 30 天,
+        #   因为搜狗微信搜索索引的文章日期可能较旧。
+        # 2026-08-04: 公众号源收紧到 source.max_age_days(默认 7 天, 硬上限 14 天),
+        #   双重门禁(parser 已过滤,这里是 defense-in-depth)。
         from backend.utils.business_days import current_week_start
-        week_start = current_week_start()
+        renderer = source.get("renderer", "")
+        if renderer == "wechat":
+            raw_wechat_age = int(source.get("max_age_days", 7) or 7)
+            wechat_max_age = max(1, min(raw_wechat_age, 14))  # 硬上限 14
+            recency_threshold = now - __import__("datetime").timedelta(days=wechat_max_age)
+        else:
+            recency_threshold = current_week_start()
         for i, raw in enumerate(raw_items[: self.max_items * 2]):  # 多取些再过滤
             title = (raw.get("title") or "").strip()
             url = (raw.get("url") or "").strip()
@@ -106,12 +116,12 @@ class ItemBuilderMixin:
                     f"title={title[:40]!r} type={type(published_at).__name__}"
                 )
                 continue
-            if published_at < week_start:
+            if published_at < recency_threshold:
                 skipped += 1
                 self.logger.debug(
                     f"{source['name']} drop historical item {i}: "
                     f"pub={published_at.isoformat()} < "
-                    f"week_start={week_start.isoformat()}"
+                    f"threshold={recency_threshold.isoformat()}"
                 )
                 continue
             # Phase 20: 标讯状态提取
@@ -124,7 +134,7 @@ class ItemBuilderMixin:
             try:
                 items.append(
                     HotspotItem(
-                        id=f"{self.name}_{source['name']}_{i}",
+                        id=raw.get("id") or f"{self.name}_{source['name']}_{i}",
                         title=title[:500],
                         summary=(raw.get("summary") or "")[:500] or None,
                         source=source["name"][:50],

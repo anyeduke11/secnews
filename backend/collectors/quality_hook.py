@@ -109,6 +109,10 @@ class QualityGatesMixin:
                 self.logger.warning(
                     f"strict-mode reject: id={item.id} score={e.score} flags={e.flags}"
                 )
+                # Phase 0.5 (Crawler v2): 旁路写入 quality_rejection_log
+                await asyncio.to_thread(
+                    self._write_quality_rejection, item, "strict_mode", str(e.flags)
+                )
                 continue
             except Exception as e:
                 # 门禁本身崩了：保留原 item
@@ -127,6 +131,46 @@ class QualityGatesMixin:
                 )
             )
         return out
+
+    # ------------------------------------------------------------------
+    # Phase 0.5 (Crawler v2): 旁路写入 quality_rejection_log
+    # ------------------------------------------------------------------
+    def _write_quality_rejection(
+        self,
+        item: HotspotItem,
+        rejected_by: str,
+        reason: str,
+    ) -> None:
+        """旁路写入 quality_rejection_log 表。
+
+        记录被质量门禁拒绝的条目，用于审计视图。
+        不阻塞主流程，失败只打 warning。
+
+        Args:
+            item: 被拒绝的 HotspotItem。
+            rejected_by: gate 名称。
+            reason: 拒绝原因描述。
+        """
+        try:
+            from backend.repository.db import get_connection
+
+            conn = get_connection()
+            conn.execute(
+                """
+                INSERT INTO quality_rejection_log
+                    (source_id, item_title, item_url, rejected_by, reason, created_at)
+                VALUES (?, ?, ?, ?, ?, datetime('now'))
+                """,
+                (
+                    item.source or "",
+                    item.title[:500] if item.title else "",
+                    str(item.url) if item.url else "",
+                    rejected_by,
+                    reason[:500],
+                ),
+            )
+        except Exception as e:
+            self.logger.warning(f"quality_rejection_log write skipped: {e}")
 
 
 __all__ = ["QualityGatesMixin"]

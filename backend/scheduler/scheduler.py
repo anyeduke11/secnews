@@ -247,6 +247,103 @@ class HotspotScheduler:
             name="KL dead letter monitor (every 10min)",
             replace_existing=True,
         )
+        # Phase 12: job 34 — T3 触发器 (每 600s)
+        self.scheduler.add_job(
+            jobs.kl_trigger_t3_job,
+            trigger=IntervalTrigger(seconds=600, start_date=_now_utc),
+            id="kl_trigger_t3",
+            name="KL T3 trigger: kl:link -> kl:structure (every 600s)",
+            replace_existing=True,
+        )
+        # Phase 12: job 35 — T4 触发器 (每 1800s)
+        self.scheduler.add_job(
+            jobs.kl_trigger_t4_job,
+            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
+            id="kl_trigger_t4",
+            name="KL T4 trigger: kl:structure -> kl:publish (every 1800s)",
+            replace_existing=True,
+        )
+
+        # Phase 13: job 36 — 规划动作检查 (每 600s)
+        self.scheduler.add_job(
+            jobs.planning_action_check_job,
+            trigger=IntervalTrigger(seconds=600, start_date=_now_utc),
+            id="planning_action_check",
+            name="planning action check (every 600s)",
+            replace_existing=True,
+        )
+
+        # Phase 14: job 38 — 技术栈漂移评估 (每小时)
+        self.scheduler.add_job(
+            jobs.cg_drift_assess_job,
+            trigger=IntervalTrigger(seconds=3600, start_date=_now_utc),
+            id="cg_drift_assess",
+            name="codegarden tech stack drift assess (every 3600s)",
+            replace_existing=True,
+        )
+
+        # Phase 14: job 39 — CVE 同步 (每 30 分钟)
+        self.scheduler.add_job(
+            jobs.cve_sync_to_security_job,
+            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
+            id="cve_sync_to_security",
+            name="CVE sync to security entities (every 1800s)",
+            replace_existing=True,
+        )
+
+        # Phase 17: job — attention 聚合 (每 30 分钟)
+        self.scheduler.add_job(
+            jobs.attention_aggregate_job,
+            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
+            id="attention_aggregate",
+            name="attention event aggregation (every 1800s)",
+            replace_existing=True,
+        )
+
+        # Phase 1.4 (Crawler v2): job — 标讯过期检查 (每 30 分钟)
+        self.scheduler.add_job(
+            jobs.bid_expiry_check_job,
+            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
+            id="bid_expiry_check",
+            name="bid expiry check (every 1800s)",
+            replace_existing=True,
+        )
+
+        # Phase 2.2 (Crawler v2): job — URL 全量校验 (每 5 分钟)
+        self.scheduler.add_job(
+            jobs.url_full_check_job,
+            trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
+            id="url_full_check",
+            name="URL full check (every 300s)",
+            replace_existing=True,
+        )
+
+        # Phase 3: job — 源级调度器 tick (每 60s)
+        self.scheduler.add_job(
+            jobs.source_scheduler_tick_job,
+            trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
+            id="source_scheduler_tick",
+            name="source scheduler tick (every 60s)",
+            replace_existing=True,
+        )
+
+        # Phase 3: job — 死源探活 (每日 03:30 Asia/Shanghai)
+        self.scheduler.add_job(
+            jobs.source_probe_job,
+            trigger=CronTrigger(hour=3, minute=30, timezone=SHANGHAI_TZ),
+            id="source_probe",
+            name="dead source probe (daily 03:30 Shanghai)",
+            replace_existing=True,
+        )
+
+        # Phase 3: job — 源级告警评估 (每 300s)
+        self.scheduler.add_job(
+            jobs.source_alert_eval_job,
+            trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
+            id="source_alert_eval",
+            name="source alert evaluation (every 300s)",
+            replace_existing=True,
+        )
 
         # v1.7 Phase 5 — Agent 集成与双向环
         # Phase 7 Option A 简化: 移除 agent_task_consumer / kv_cache_cleanup 两个 job

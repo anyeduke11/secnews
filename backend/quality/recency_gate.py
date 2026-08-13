@@ -41,7 +41,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import ClassVar, Literal, Optional
 
 from backend.domain.models import HotspotItem
 from backend.quality.base import BaseGate, GateContext
@@ -60,6 +60,7 @@ class RecencyGate(BaseGate):
     """
 
     name = "recency"
+    gate_type: ClassVar[Literal["hard", "soft"]] = "hard"
 
     #: 缺失 published_at 扣分
     MISSING_DEDUCTION = 80

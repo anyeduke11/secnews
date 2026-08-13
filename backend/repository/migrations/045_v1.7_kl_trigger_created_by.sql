@@ -1,4 +1,4 @@
--- 045_v2.0_kl_trigger_created_by.sql
+-- 045_v1.7_kl_trigger_created_by.sql
 -- 目的: 扩展 knowledge_links.created_by 的 CHECK 约束, 允许 'trigger' 值
 --       (Phase 10 的 T1/T2 触发器写入链接时使用)
 -- 来源: .trae/specs/phase10-t1t2-triggers/spec.md §3 + tasks.md Group C

@@ -1,6 +1,6 @@
--- migration 046_lifecycle_v2.sql
--- 目的: 将 v1.7 旧 3 阶段 lifecycle 值迁移到 v2.0 5 阶段 (kl:* 前缀)
--- 来源: docs/v2_prd_review.md Patch 3 / docs/hotspot_v2.0_PRD.md B.11.6
+-- migration 046_v1.7_lifecycle.sql
+-- 目的: 将 v1.7 旧 3 阶段 lifecycle 值迁移到 v1.7 5 阶段 (kl:* 前缀)
+-- 来源: docs/v1.7_prd_review.md Patch 3 / docs/hotspot_v1.7_PRD.md B.11.6
 -- 状态: 2026-07-27 待 Phase 9 T1 触发器上线后执行（不在开发期提前跑）
 
 UPDATE knowledge_items

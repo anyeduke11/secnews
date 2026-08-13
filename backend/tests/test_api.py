@@ -407,7 +407,7 @@ def test_quality_rules_get_array_format(client, temp_db):
     data = r.json()
     rules = data["rules"]
     assert isinstance(rules, list), f"rules must be array, got {type(rules)}"
-    assert len(rules) >= 15  # 7 scalar + 8 category_keywords
+    assert len(rules) >= 14  # 6 scalar + 8 category_keywords (P0 收尾: 断言与 RULE_METADATA 实际条目数对齐)
     # 第一条必须是标量规则
     r0 = rules[0]
     assert {"key", "value", "default", "type", "description"}.issubset(r0.keys())

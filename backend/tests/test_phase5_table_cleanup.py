@@ -38,14 +38,25 @@ def test_mcp_tool_registry_exists(temp_db):
 
 
 def test_phase5_tables_dropped(temp_db):
-    """Migration 038 — 5 张 Phase 5 表已删除."""
+    """Migration 038 — 5 张 Phase 5 表已删除; 058 重建了 knowledge_tasks。
+
+    P0 收尾: 058_v1.7_recreate_knowledge_tasks.sql 重建 knowledge_tasks,
+    因此该表现在存在; 其余 4 张 Phase 5 表 (agent_heartbeats /
+    agent_task_skills / skill_config / mcp_tool_invocations) 保持删除。
+    """
     conn = db.get_connection()
-    tables = conn.execute(
+    # knowledge_tasks 已被 058 重建 → 存在
+    rt = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='knowledge_tasks'"
+    ).fetchall()
+    assert len(rt) == 1, "knowledge_tasks 已被 058 重建, 应存在"
+    # 其余 4 张 Phase 5 表保持删除
+    dropped = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name IN "
-        "('knowledge_tasks', 'agent_heartbeats', 'agent_task_skills', "
+        "('agent_heartbeats', 'agent_task_skills', "
         "'skill_config', 'mcp_tool_invocations')"
     ).fetchall()
-    assert len(tables) == 0
+    assert len(dropped) == 0, f"Phase 5 表应已删除, 实际存在: {[r[0] for r in dropped]}"
 
 
 def test_kv_cache_dropped(temp_db):

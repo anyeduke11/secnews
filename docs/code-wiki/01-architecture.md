@@ -49,7 +49,7 @@ hotspot/
 ├── docs/                     # 设计文档
 │   ├── ARCHITECTURE.md       # 架构优化方案 v3.0
 │   ├── DESIGN_GUIDE.md       # 设计规范
-│   ├── CodeGarden_PRD_v2.0.md
+│   ├── CodeGarden_PRD_v1.7.md
 │   └── v1.7_development_plan.md
 └── scripts/                  # 运维脚本
 ```

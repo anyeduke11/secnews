@@ -1,0 +1,48 @@
+{
+  "version": "1.0",
+  "pipeline": {
+    "default_output": "knowledge_items",
+    "thresholds": {
+      "min_score": 7,
+      "max_items_per_source": 50
+    }
+  },
+  "sources": [
+    {
+      "name": "hn",
+      "enabled": true,
+      "url": "https://hacker-news.firebaseio.com/v0/",
+      "type": "json_api"
+    },
+    {
+      "name": "reddit",
+      "enabled": true,
+      "url": "https://www.reddit.com/r/all/top.json",
+      "type": "json_api"
+    },
+    {
+      "name": "openbb",
+      "enabled": true,
+      "url": "https://openbb.co/rss/",
+      "type": "rss"
+    },
+    {
+      "name": "telegram",
+      "enabled": false,
+      "url": "",
+      "type": "web"
+    },
+    {
+      "name": "gdelt",
+      "enabled": false,
+      "url": "https://api.gdeltproject.org/api/v2/",
+      "type": "json_api"
+    },
+    {
+      "name": "ossinsight",
+      "enabled": false,
+      "url": "https://ossinsight.io/",
+      "type": "web"
+    }
+  ]
+}

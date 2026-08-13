@@ -10,7 +10,7 @@
 > - [SECURITY_KNOWLEDGE_GRAPH.md](./SECURITY_KNOWLEDGE_GRAPH.md) 系统架构
 > - [SECURITY_KNOWLEDGE_GRAPH_DEV_PLAN.md](./SECURITY_KNOWLEDGE_GRAPH_DEV_PLAN.md) 开发计划
 > - [ARCHITECTURE.md](./ARCHITECTURE.md) hotspot 主架构
-> - [CodeGarden_PRD_v2.0.md](./CodeGarden_PRD_v2.0.md) CodeGarden PRD（分层对齐参考）
+> - [CodeGarden_PRD_v1.7.md](./CodeGarden_PRD_v1.7.md) CodeGarden PRD（分层对齐参考）
 
 ---
 

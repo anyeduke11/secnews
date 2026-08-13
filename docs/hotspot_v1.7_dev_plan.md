@@ -1,10 +1,10 @@
-# hotspot v2.0 开发计划
+# hotspot v1.7 开发计划
 
-> 基于 `hotspot_v2.0_PRD.md`（4087 行）制定
+> 基于 `hotspot_v1.7_PRD.md`（4087 行）制定
 > 版本: 2026-07-29 · 总周期: ~46 天 · 4 个里程碑 · 10 个 Phase · 24 条需求
-> 状态: Phase 8 (v2.0)、Phase 9 (v1.9)、Phase 10 (v2.0 T1/T2) 已完成，**当前 Phase: 11 (抓取层现代化)**
+> 状态: Phase 8 (v1.7)、Phase 9 (v1.9)、Phase 10 (v1.7 T1/T2) 已完成，**当前 Phase 11-17 (v1.7) 已完成**
 >
-> > **Phase 编号说明**: 本计划中 Phase 9 为 v1.9 资讯抓取流程标准化（catchup_checkpoints + collect_validations + 结构化日志），Phase 10 为 v2.0 T1/T2 触发器实施。后续 Phase 11–17 对应 PRD B.10 章节中的 Phase 11–17。
+> > **Phase 编号说明**: 本计划中 Phase 9 为 v1.9 资讯抓取流程标准化（catchup_checkpoints + collect_validations + 结构化日志），Phase 10 为 v1.7 T1/T2 触发器实施。后续 Phase 11–17 对应 PRD B.10 章节中的 Phase 11–17。
 
 ---
 
@@ -74,7 +74,7 @@
 - `backend/api/knowledge_imported.py` — 聚合 API
 - `frontend/src/components/knowledge/KnowledgeFavoritesView.tsx` — 收藏视图
 - `frontend/src/hooks/useImported.ts` — 聚合 hook
-- `backend/repository/migrations/043_v2.0_fingerprints_scores.sql` — 4 张新表
+- `backend/repository/migrations/043_v1.7_fingerprints_scores.sql` — 4 张新表
 
 **Phase 8 门禁**:
 - 去重率 ≥ 95%（simhash + URL canonicalize 联合测试）
@@ -90,7 +90,7 @@
 **交付日期**: 2026-07-22 ~ 2026-07-25
 
 **产出文件**:
-- `backend/repository/migrations/042_v2.0_catchup_validations.sql` — catchup_checkpoints + collect_validations 表
+- `backend/repository/migrations/042_v1.9_catchup_checkpoints.sql` — catchup_checkpoints + collect_validations 表
 - 抓取流程结构化日志 / 断点续传 / 4 类验证（完整性/一致性/时效性/异常检测）
 - 详细变更日志见 [docs/phase9_changelog.md](phase9_changelog.md)
 
@@ -106,8 +106,8 @@
 - `backend/services/triggers/t2_refine_to_link.py` — T2 触发器（120s 调度）
 - `backend/services/retry_policy.py` — 重试策略 + 死信队列
 - `backend/metrics/kl_metrics.py` — Prometheus 指标
-- `backend/repository/migrations/044_v2.0_kl_dead_letters.sql` — kl_dead_letters 表
-- `backend/repository/migrations/045_v2.0_kl_trigger_created_by.sql` — trigger_created_by 字段
+- `backend/repository/migrations/044_v1.7_kl_dead_letters.sql` — kl_dead_letters 表
+- `backend/repository/migrations/045_v1.7_kl_trigger_created_by.sql` — trigger_created_by 字段
 - 调度器新增 3 个 job: kl_trigger_t1 / kl_trigger_t2 / kl_dead_letter_retry
 - API: `/api/kl/metrics` (6 counters + by_stage_count gauge + 2 histograms)
 
@@ -118,7 +118,7 @@
 - 调度器 job 注册并运行
 - 详细变更日志见 [docs/phase10_changelog.md](phase10_changelog.md)
 
-> **✅ 前置操作已完成**: `046_lifecycle_v2.sql` 迁移已于 2026-07-29 执行。75 条旧 3 阶段值已迁移（`generate`→`kl:structure` 74 条, `signal`→`kl:raw` 1 条），残留 0 条。
+> **✅ 前置操作已完成**: `046_v1.7_lifecycle.sql` 迁移已于 2026-07-29 执行。75 条旧 3 阶段值已迁移（`generate`→`kl:structure` 74 条, `signal`→`kl:raw` 1 条），残留 0 条。
 
 ---
 
@@ -206,13 +206,13 @@
 
 | 任务 | 产出 | 前置 | 估算 |
 |------|------|------|------|
-| **15.1 删 kv_cache** | `migration 047_v2.0_drop_kv_cache.sql` | 无 | 0.5d |
+| **15.1 删 kv_cache** | `migration 051_v1.7_drop_kv_cache.sql` | 无 | 0.5d |
 | **15.2 删 /api/agent/* 路由** | 移除 deprecated 路由 | 无 | 0.5d |
 | **15.3 删 4 个 MCP tool** | trigger_extract_tags / mark_digest_read / create_alert_rule / trigger_cubox_sync | 无 | 1d |
-| **15.4 写 v2.0 迁移指南** | `docs/v1_to_v2_migration.md`：5 阶段映射 + 触发器启用步骤 | 无 | 1d |
-| **15.5 写 v2.0 用户文档** | `docs/hotspot_v2_user_guide.md`：5 触发器说明 + 4 模式使用 | 无 | 1d |
-| **15.6 更新 CHANGELOG** | `docs/CHANGELOG.md`：v2.0 新增功能 + 破坏性变更 | 无 | 0.5d |
-| **15.7 更新 README** | 同步到 v2.0 状态（5 子系统、13 MCP tool、5 阶段） | 无 | 0.5d |
+| **15.4 写 v1.7 迁移指南** | `docs/v1_to_v1.7_migration.md`：5 阶段映射 + 触发器启用步骤 | 无 | 1d |
+| **15.5 写 v1.7 用户文档** | `docs/hotspot_v1.7_user_guide.md`：5 触发器说明 + 4 模式使用 | 无 | 1d |
+| **15.6 更新 CHANGELOG** | `docs/CHANGELOG.md`：v1.7 新增功能 + 破坏性变更 | 无 | 0.5d |
+| **15.7 更新 README** | 同步到 v1.7 状态（5 子系统、13 MCP tool、5 阶段） | 无 | 0.5d |
 
 ---
 
@@ -242,11 +242,11 @@
 
 ### Phase 17：Chunks + Attention Heatmap + 6 模式完整（~7 天）
 
-**目标**: v2.0 收尾 Phase，完成 chunks 段落级引用、attention_score 注意力热图、6 种认知模式全部实施。
+**目标**: v1.7 收尾 Phase，完成 chunks 段落级引用、attention_score 注意力热图、6 种认知模式全部实施。
 
 | 任务 | 产出 | 前置 | 估算 |
 |------|------|------|------|
-| **17.1 chunks 字段迁移** | `migration 048_v2.0_chunks.sql` + `knowledge_chunks` 表 | 无 | 0.5d |
+| **17.1 chunks 字段迁移** | `migration 054_v1.7_chunks.sql` + `knowledge_chunks` 表 | 无 | 0.5d |
 | **17.2 chunk 级 FTS5** | search_knowledge 支持 chunk_index 返回 | 17.1 | 1d |
 | **17.3 chunk 级 UI** | 深度阅读模式高亮 chunk，点击跳转原文 | 17.1 | 1d |
 | **17.4 attention_score 计算** | `backend/services/attention_scorer.py`：5 维度加权 | 无 | 0.5d |
@@ -346,14 +346,14 @@ P0-2 四张表 → P0-1 去重/P0-5 评分 → P0-3 T1 → P0-4 T2
 
 | 阶段 | hotspot.id | 兼容 |
 |------|------------|------|
-| v2.0 启动 | 旧 hash ID 保留 | 直接读 |
-| v2.0 写入 | 新 hotspot 双写：旧 hash + 新可读 | 1 个月内切 |
-| v2.0.1 | 旧 hash ID 标 deprecated | 警告 |
+| v1.7 启动 | 旧 hash ID 保留 | 直接读 |
+| v1.7 写入 | 新 hotspot 双写：旧 hash + 新可读 | 1 个月内切 |
+| v1.7.1 | 旧 hash ID 标 deprecated | 警告 |
 | v2.1 | 完全切到可读 ID | 旧 hash 失效 |
 
 ### 6.3 MCP tool 迁移
 
-| v1.7.6 tool | v2.0 状态 |
+| v1.7.6 tool | v1.7 状态 |
 |-------------|-----------|
 | trigger_extract_tags | 计划删除 → T1 触发器自动 |
 | trigger_cubox_sync | 计划删除 → 本地 cron job |
@@ -361,12 +361,12 @@ P0-2 四张表 → P0-1 去重/P0-5 评分 → P0-3 T1 → P0-4 T2
 | mark_digest_read | 计划删除 → reading_states 自动追踪 |
 | 5 读 tool | 保持 |
 | 4 保留写 tool | 保持 |
-| 4 新增 v2.0 tool | ✅ 已新增 |
+| 4 新增 v1.7 tool | ✅ 已新增 |
 
 ### 6.4 部署步骤（Phase 17 完成后）
 
 1. 停止 hotspot 服务
-2. 备份数据库：`cp hotspot.db hotspot.db.v2.0.backup`
+2. 备份数据库：`cp hotspot.db hotspot.db.v1.7.backup`
 3. 执行 migration 046-048（顺序执行）
 4. 替换 backend 二进制
 5. 替换 frontend dist
@@ -382,7 +382,7 @@ P0-2 四张表 → P0-1 去重/P0-5 评分 → P0-3 T1 → P0-4 T2
 | 5 触发器导致数据异常 | 关闭触发器 job，仅保留 catchup |
 | 知识库日增量 < 1 item | 检查阈值配置 + 触发器日志 |
 | MCP tool 调用失败率 > 10% | 降级为 v1.7.6 模式（保留 9 读 + 4 保留写）|
-| 严重 bug | 用 `hotspot.db.v2.0.backup` 还原 |
+| 严重 bug | 用 `hotspot.db.v1.7.backup` 还原 |
 
 ---
 
@@ -392,16 +392,16 @@ P0-2 四张表 → P0-1 去重/P0-5 评分 → P0-3 T1 → P0-4 T2
 |---|------|------|------|------|------|
 | 1 | 单人 30 天密集交付压力 | 高 | 高 | M2 硬承诺，M3-M4 渐进缓冲；P2 可延期至 v2.1 | 全部 |
 | 2 | simhash 误判（不同新闻被合并） | 中 | 中 | ✅ 阈值 5 起步，已上线监控 | Phase 8 |
-| 3 | AI 评分波动（同一新闻两次评分差大） | 高 | 中 | ✅ 存多版本评分；v2.0 不自动应用，v2.1 引入置信度 | Phase 8 |
-| 4 | 自动入库导致知识库噪声 | 中 | 中 | ✅ 阈值 ≥ 7 才入；v2.0 不自动应用 knowledge_links | Phase 10 |
+| 3 | AI 评分波动（同一新闻两次评分差大） | 高 | 中 | ✅ 存多版本评分；v1.7 不自动应用，后续引入置信度 | Phase 8 |
+| 4 | 自动入库导致知识库噪声 | 中 | 中 | ✅ 阈值 ≥ 7 才入；v1.7 不自动应用 knowledge_links | Phase 10 |
 | 5 | 6 个新 collector 反爬失败 | 中 | 低 | 先实现 3 个（hn/rss/openbb），其余 3 个 v2.1 | Phase 11 |
-| 6 | 可读 ID 迁移复杂 | 中 | 中 | 保留 hash ID 作为 alias；v2.0 双写，v2.1 切读路径 | Phase 11 |
+| 6 | 可读 ID 迁移复杂 | 中 | 中 | 保留 hash ID 作为 alias；v1.7 双写，后续切换 | Phase 11 |
 | 7 | 外部 AI Agent 不支持 score_item | 中 | 高 | ✅ 保留 manual add_favorite 路径；评分先存后用 | Phase 8 |
 | 8 | 本地 LLM 硬件门槛 | 中 | 高 | 提供云端降级/可选路径，不将本地 LLM 设为闭环硬依赖 | Phase 16 |
 | 9 | 知识库日增量 < 10 items | 中 | 高 | 监控告警；分析原因（评分太严？源失效？）；调阈值或源 | Phase 11→12 |
 | 10 | 5 触发器互相等待死锁 | 低 | 高 | T2/T4 加 hard timeout + 自动 fallback；kl_dead_letter_retry 兜底 | Phase 12 |
-| 11 | 删 /api/agent 路由破坏旧 agent | 低 | 中 | v2.0 保留 deprecated 1 个 minor 版本，v2.1 完全删 | Phase 15 |
-| 12 | attention_score 数据稀疏 | 高 | 中 | v2.0 启动时 backfill 从 SQLite history 推断初始 score | Phase 17 |
+| 11 | 删 /api/agent 路由破坏旧 agent | 低 | 中 | v1.7 保留 deprecated 1 个 minor 版本，后续删除 | Phase 15 |
+| 12 | attention_score 数据稀疏 | 高 | 中 | v1.7 启动时 backfill 从 SQLite history 推断初始 score | Phase 17 |
 
 ---
 
@@ -515,17 +515,17 @@ frontend/src/components/knowledge/ReviewMode.tsx                # Phase 17
 ### 新增数据库迁移
 
 ```
-backend/repository/migrations/043_v2.0_fingerprints_scores.sql  # Phase 8 ✅
-backend/repository/migrations/044_v2.0_kl_dead_letters.sql      # Phase 10 ✅
-backend/repository/migrations/045_v2.0_kl_trigger_created_by.sql # Phase 10 ✅
-backend/repository/migrations/046_lifecycle_v2.sql               # Phase 11 ✅ 已执行
-backend/repository/migrations/047_v2.0_drop_kv_cache.sql        # Phase 15 ⏳
-backend/repository/migrations/048_v2.0_chunks.sql               # Phase 17 ⏳
+backend/repository/migrations/043_v1.7_fingerprints_scores.sql  # Phase 8 ✅
+backend/repository/migrations/044_v1.7_kl_dead_letters.sql      # Phase 10 ✅
+backend/repository/migrations/045_v1.7_kl_trigger_created_by.sql # Phase 10 ✅
+backend/repository/migrations/046_v1.7_lifecycle.sql               # Phase 11 ✅ 已执行
+backend/repository/migrations/051_v1.7_drop_kv_cache.sql        # Phase 15 ⏳
+backend/repository/migrations/054_v1.7_chunks.sql               # Phase 17 ⏳
 ```
 
 ### 新增文档
 
 ```
 docs/v1_to_v2_migration.md          # Phase 15
-docs/hotspot_v2_user_guide.md       # Phase 15
+docs/hotspot_v1.7_user_guide.md       # Phase 15
 ```

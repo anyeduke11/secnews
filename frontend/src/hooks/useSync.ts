@@ -19,6 +19,7 @@
  * 错误: 4xx/5xx 抛到 .catch, 调用方负责处理 (UI 一般用 toast).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { apiFetch as rawApiFetch } from '../lib/api';
 import type {
   SyncBundlePreview,
   SyncConfigResponse,
@@ -39,7 +40,9 @@ export function useSync() {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // 通用 fetch 包装
+  // 复用 lib/api.ts 的统一 apiFetch; 本 hook 只负责:
+  //   - abort 串联 (新请求取消上一次)
+  //   - loading / error 状态联动 (与旧实现行为一致)
   const apiFetch = useCallback(async <T,>(
     url: string,
     init?: RequestInit & { skipLoading?: boolean },
@@ -47,28 +50,20 @@ export function useSync() {
     if (abortRef.current) abortRef.current.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
-    if (!init?.skipLoading) setLoading(true);
+    const { skipLoading, ...rest } = init ?? {};
     setError(null);
     try {
-      const resp = await fetch(url, {
-        ...init,
+      return await rawApiFetch<T>(url, {
+        ...rest,
         signal: ctrl.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(init?.headers || {}),
-        },
+        onLoadingChange: skipLoading ? undefined : setLoading,
       });
-      if (!resp.ok) {
-        let detail: any = null;
-        try { detail = await resp.json(); } catch { /* ignore */ }
-        const msg = (detail?.detail?.message || detail?.detail || resp.statusText || `HTTP ${resp.status}`) as string;
-        setError(msg);
-        throw new Error(msg);
-      }
-      return (await resp.json()) as T;
+    } catch (e) {
+      // 被新请求 abort 时不污染 error 状态 (与旧实现一致)
+      if ((e as Error).name !== 'AbortError') setError((e as Error).message);
+      throw e;
     } finally {
       if (abortRef.current === ctrl) abortRef.current = null;
-      if (!init?.skipLoading) setLoading(false);
     }
   }, []);
 

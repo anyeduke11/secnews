@@ -48,7 +48,7 @@ cd frontend && npx tsc --noEmit           # 类型检查
 
 ```
 backend/
-├── api/            # REST routers (30+ routers, ~50 lines each)
+├── api/            # REST routers (54 routers, ~127 lines median)
 │   ├── __init__.py # register_routers() aggregates all (lazy imports)
 │   ├── codegarden.py, codegarden_ops.py  # 项目管理 + 运维层 (服务/资源/事件) endpoints
 │   ├── knowledge_chunks_api.py  # v0.3.0 Phase 17: 知识库 chunk 级 API + FTS5
@@ -77,7 +77,7 @@ backend/
 │   └── *_gate.py   # author_verification, bid_recency, category_match, content_quality, duplicate, final_url, noise_content, recency, schema, source_reputation, title_summary, url_content, url_validity
 ├── repository/     # SQLite DAO layer (33 repos, one per table)
 │   ├── db.py       # init_db, get_connection (thread-local, autocommit)
-│   ├── migrations/ # 54 SQL migration files (001-054)
+│   ├── migrations/ # 58 SQL migration files (001-058)
 │   ├── security_repo.py  # Security Knowledge Graph + Terminology
 │   └── knowledge_repo.py
 ├── scheduler/      # APScheduler jobs (sync, collection, trends, security)
@@ -87,7 +87,7 @@ backend/
 │   ├── enricher.py      # CVE/ATT&CK/合规提取
 │   └── compliance.py    # 合规种子数据
 ├── services/       # Business logic (74 files)
-│   ├── sync_service.py     # Orchestration (was 1266, now 371 lines)
+│   ├── sync_service.py     # Orchestration (921 lines)
 │   ├── sync_merge.py       # 3-way merge engine (extracted)
 │   ├── sync_bundle.py      # Build/encrypt/decrypt bundles (extracted)
 │   ├── auto_classifier.py      # Tag→domain classification
@@ -182,9 +182,9 @@ Backed by `backend/api/codegarden.py` (项目管理) and `backend/api/codegarden
 The sync module was split into 3 files for testability:
 
 ```
-sync_service.py  →  Orchestration: push/pull/bidirectional (371 lines)
-sync_merge.py    →  3-way merge engine: MergeResult, three_way_merge() (246 lines)
-sync_bundle.py   →  Serialization: build_bundle, encrypt/decrypt (400 lines)
+sync_service.py  →  Orchestration: push/pull/bidirectional (921 lines)
+sync_merge.py    →  3-way merge engine: MergeResult, three_way_merge() (437 lines)
+sync_bundle.py   →  Serialization: build_bundle, encrypt/decrypt (853 lines)
 ```
 
 - **3-way merge**: base/local/remote, record-level alignment, field-level last-write-wins

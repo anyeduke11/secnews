@@ -412,44 +412,7 @@ export function KnowledgeImport() {
         </div>
       </section>
 
-      {/* 资讯收藏 — 第 5 个入口卡片 (全宽) */}
-      <section className="grid grid-cols-1 gap-3">
-        <div
-          className="rounded-[var(--radius-md)] p-3.5 cursor-pointer hover:bg-[var(--bg-hover)] transition-colors"
-          style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
-          onClick={() => navigate('/knowledge/imported')}
-          role="button"
-          tabIndex={0}
-          onKeyDown={e => { if (e.key === 'Enter') navigate('/knowledge/imported'); }}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <span
-              className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold"
-              style={{
-                backgroundColor: 'color-mix(in srgb, var(--area-accent) 12%, transparent)',
-                color: 'var(--area-accent)',
-              }}
-            >
-              <Icon size={12}>
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </Icon>
-            </span>
-            <h4 className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
-              资讯收藏
-            </h4>
-            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-              5 源聚合
-            </span>
-          </div>
-          <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-            聚合展示 SecNews 收藏 / Cubox / 书签导入 / 归档 / 实时 5 类数据源，支持去重、排序、筛选与分页。
-          </p>
-          <div className="mt-2 flex items-center gap-1 text-[10px] font-mono" style={{ color: 'var(--area-accent)' }}>
-            <span>浏览全部 ›</span>
-          </div>
-        </div>
-      </section>
+      
 
       {/* 冲突列表展开 */}
       {conflicts !== null && (

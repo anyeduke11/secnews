@@ -831,6 +831,7 @@ export interface ImportedItem {
   source_name: string;
   ingested_at: string;
   origin: string;
+  summary?: string;
 }
 
 export interface ImportedResponse {

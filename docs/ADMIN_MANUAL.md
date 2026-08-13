@@ -288,10 +288,10 @@ gh label create "wontfix" --color "ffffff" --description "不会修复"
 
 ```bash
 # 创建带注释的 tag
-git tag -a v2.0.0 -m "Hotspot v2.0.0 - 首次公开版本"
+git tag -a v1.7.0 -m "Hotspot v1.7.0 - 首次公开版本"
 
 # 推送 tag
-git push origin v2.0.0
+git push origin v1.7.0
 
 # 验证
 gh release list
@@ -301,8 +301,8 @@ gh release list
 
 ```bash
 # 用 gh CLI 创建 release
-gh release create v2.0.0 \
-  --title "Hotspot v2.0.0" \
+gh release create v1.7.0 \
+  --title "Hotspot v1.7.0" \
   --notes "$(cat <<'EOF'
 ## 首次公开版本
 

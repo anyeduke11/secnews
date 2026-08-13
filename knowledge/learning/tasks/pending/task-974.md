@@ -1,0 +1,28 @@
+---
+task_type: "compile"
+status: "pending"
+created_at: "2026-08-08T18:00:00.096201+00:00"
+params:
+  item_ids: ['441d2552e55d', '9d926782a926', '6d9500827fc1', 'd3a597566399', 'a99d86cffbf5', 'e233644eb417', '09913666dc1e', 'ffa0a2dfbdbb', 'c44866edd24c', '039704f2935c']
+---
+
+# 编译任务
+
+请对以下知识条目执行编译：
+
+- [[441d2552e55d]]
+- [[9d926782a926]]
+- [[6d9500827fc1]]
+- [[d3a597566399]]
+- [[a99d86cffbf5]]
+- [[e233644eb417]]
+- [[09913666dc1e]]
+- [[ffa0a2dfbdbb]]
+- [[c44866edd24c]]
+- [[039704f2935c]]
+
+## 编译步骤
+1. 分类 + 打标（domain/topic/type/difficulty + tags）
+2. 概念提取（写入 concepts/{slug}.md）
+3. 概念关联（更新条目 frontmatter.concepts）
+4. 标记 compiled=true

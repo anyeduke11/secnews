@@ -53,7 +53,7 @@ project_id: null                    # cg_projects.id if item has been converted 
 - **一致性**: 无数据库外键约束，应用层（CodegardenKnowledgeBridge）负责双向写入
 - **删除行为**: 删除 cg_projects 记录不会自动清除 item 的 `project_id`（best-effort 清理由 watchdog 负责）
 
-详见 [Phase 2a spec](../.trae/specs/phase2a-codegarden-mvp/spec.md) §决策 8/9 和 [CodeGarden PRD v2.0](../docs/CodeGarden_PRD_v2.0.md)。
+详见 [Phase 2a spec](../.trae/specs/phase2a-codegarden-mvp/spec.md) §决策 8/9 和 [CodeGarden PRD v1.7](../docs/CodeGarden_PRD_v1.7.md)。
 
 ## Concept Schema
 

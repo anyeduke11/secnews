@@ -22,7 +22,14 @@ def register_routers(app: FastAPI) -> None:
     # 因为模块顶部的 `from __future__ import annotations` 会把 `annotations`
     # 绑定为 _Feature 实例, 导致 `from backend.api import annotations` 拿到 _Feature 而非子模块.
     import backend.api.annotations as annotations_api  # v1.7 Phase 2: 笔记空间
+    import backend.api.kl_compounding_api as kl_compounding_api  # Phase 13: 复利仪表盘
+    import backend.api.kl_planning_api as kl_planning_api  # Phase 13: 规划动作 API
     from backend.api import (
+        bid_alert,  # Phase 4: 标书提醒与竞品分析
+        cache,  # v1.9: 缓存管理 (clear/stats)
+        attention_events_api,  # v1.7: 注意力事件追踪
+        reports,  # v1.9 Editorial: 日报/月报独立 API
+        alert_api as alert_api_v2,  # Phase 12: 告警系统 v2
         alerts,  # v1.7 Phase 3: 告警规则与告警
         knowledge_imported,  # v1.8 Phase 8: 资讯收藏聚合视图
         categories,
@@ -42,17 +49,20 @@ def register_routers(app: FastAPI) -> None:
         history,
         hotspots,
         knowledge,  # v1.4: 知识库
+        knowledge_chunks_api,  # Phase 17: 知识库 chunks
         maintenance,  # v1.4: DB 维护 (vacuum/cleanup)
         mcp,  # v1.7 Phase 7: MCP 调试端点 (/api/mcp/* + /api/settings/mcp/*)
         mcp_adapters,  # v1.7 Phase 7: MCP 适配端点 (/api/profile, /api/cubox/sync, /api/extract/auto)
         mcp_agent_tools,  # v1.8: 4 个 Agent 侧写 tool (score_item/enrich_concept/link_items/trigger_codegarden_drift)
-        kl_metrics_api,  # v2.0 Phase 10: KL 触发器指标 (/api/kl/metrics)
+        kl_metrics_api,  # v1.7 Phase 10: KL 触发器指标 (/api/kl/metrics)
+        kl_rollback_api,  # v1.7 Phase 10: KL 回滚 API (/api/kl/rollback)
         proxy,
         quality,
         refresh,  # Phase 32: POST /api/refresh 手动触发采集
         reviews,  # v1.7 Phase 2: SM-2 间隔复习
         secrets,  # Phase 41: 密钥管理 (LLM API Keys)
         security,  # Phase 2: Security Knowledge Graph + Terminology
+        settings,  # 运行时设置 (刷新间隔等)
         skills,  # Phase 41: Skill 管理
         sources,
         sync,    # Phase 42: 跨端配置同步 (WebDAV)
@@ -78,12 +88,17 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(skills.router, tags=["skills"])
     app.include_router(secrets.router, tags=["secrets"])
     app.include_router(security.router, tags=["security"])
+    app.include_router(settings.router, tags=["settings"])
     app.include_router(sync.router, tags=["sync"])
+    app.include_router(reports.router, tags=["reports"])
     app.include_router(weekly_report.router, tags=["weekly-report"])
     app.include_router(knowledge.router, tags=["knowledge"])
+    app.include_router(knowledge_chunks_api.router, tags=["knowledge-chunks"])
     app.include_router(content.router, tags=["content"])
     app.include_router(maintenance.router, tags=["maintenance"])
+    app.include_router(cache.router, tags=["cache"])
     app.include_router(events.router, tags=["events"])
+    app.include_router(attention_events_api.router, tags=["attention"])
     app.include_router(codegarden.router, tags=["codegarden"])
     app.include_router(codegarden_ops.router, tags=["codegarden-ops"])
     # ---- feature flag 接线区: flag=False 时对应 API 不注册 ----
@@ -99,6 +114,8 @@ def register_routers(app: FastAPI) -> None:
         app.include_router(tech_stack.router, tags=["tech-stack"])
     if config.feature_alerts:
         app.include_router(alerts.router, tags=["alerts"])
+    # Phase 12: 告警系统 v2 (不依赖 feature flag，随 app 启动)
+    app.include_router(alert_api_v2.router, tags=["alerts-v2"])
     if config.feature_unified_search:
         app.include_router(search.router, tags=["search"])
     app.include_router(mode.router, tags=["mode"])
@@ -115,8 +132,22 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(mcp_adapters.router, tags=["mcp-adapters"])
     # v1.8 Phase 8: 4 个新 MCP tool (副作用模式)
     app.include_router(mcp_agent_tools.router, tags=["mcp-agent-tools"])
-    # v2.0 Phase 10: KL 触发器指标
+    # v1.7 Phase 10: KL 触发器指标
     app.include_router(kl_metrics_api.router, tags=["kl-metrics"])
+    # v1.7 Phase 10: KL 回滚 API
+    app.include_router(kl_rollback_api.router, tags=["kl"])
+    # Phase 13: 复利仪表盘 API
+    app.include_router(kl_compounding_api.router, tags=["kl-compounding"])
+    # Phase 13: 规划动作 API
+    app.include_router(kl_planning_api.router, tags=["kl-planning"])
+    # Phase 14: 子系统联动 — 技术栈漂移评估 + CVE 同步
+    from backend.api import codegarden_phase14
+    app.include_router(codegarden_phase14.router, tags=["codegarden-phase14"])
+    # Phase 16: Hybrid AI — LLM 状态 API
+    from backend.api import llm_status
+    app.include_router(llm_status.router, tags=["llm"])
+    # Phase 4: 标书提醒与竞品分析
+    app.include_router(bid_alert.router, tags=["bid-alert"])
 
 
 __all__ = ["register_routers"]

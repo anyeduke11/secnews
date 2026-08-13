@@ -41,37 +41,77 @@ AI_SOURCES: list[dict] = [
         "score": 80,
         "keywords": ["AI", "GPT", "LLM"],
     },
+    # 2026-08-02 实测: 量子位(qbitai.com) WAF 封禁(ERR_CONNECTION_RESET, 直连/代理均有 CF 404 页面), 不可抓取
     {
         "name": "量子位",
         "url": "https://www.qbitai.com/",
         "score": 78,
         "keywords": ["AI", "大模型"],
-        "renderer": "crawl4ai",  # Phase 14: 反爬 + JS 渲染
+        "renderer": "disabled",
     },
     {
         "name": "36氪AI",
         "url": "https://36kr.com/information/AI",
         "score": 75,
         "keywords": ["AI"],
-        "renderer": "crawl4ai",  # Phase 14: 反爬 + JS 渲染
+        "renderer": "disabled",  # 2026-08-02: JS SPA 页面, aiohttp 只能拿到 3 个导航链接; 36kr 主站 RSS 已由 startup 分类覆盖
     },
+    # 2026-08-02 实测: 机器之心(jiqizhixin.com) CAPTCHA 反爬, 12KB 仅 3 links, 不可抓取
     {
         "name": "机器之心",
         "url": "https://www.jiqizhixin.com/",
-        "rss_url": "https://www.jiqizhixin.com/rss",
         "score": 78,
         "keywords": ["AI", "模型"],
-        "renderer": "crawl4ai",
+        "renderer": "disabled",
     },
-    # Phase 25 P1: AIhot 每日 AI 热点聚合 (https://aihot.virxact.com)
+    # ===== AI 公众号 (2026-08-02 新增, 走 sogou weixin 搜索) =====
+    {
+        "name": "新智元",
+        "account_name": "新智元",
+        "score": 82,
+        "renderer": "wechat",
+    },
+    {
+        "name": "硅星人",
+        "account_name": "硅星人",
+        "score": 78,
+        "renderer": "wechat",
+    },
+    {
+        "name": "极客公园",
+        "account_name": "极客公园",
+        "score": 76,
+        "renderer": "wechat",
+    },
+    {
+        "name": "爱范儿",
+        "account_name": "爱范儿",
+        "score": 74,
+        "renderer": "wechat",
+    },
+    {
+        "name": "品玩",
+        "account_name": "品玩",
+        "score": 72,
+        "renderer": "wechat",
+    },
+    {
+        "name": "AI科技评论",
+        "account_name": "AI科技评论",
+        "score": 72,
+        "renderer": "wechat",
+    },
+# Phase 25 P1: AIhot 每日 AI 热点聚合 (https://aihot.virxact.com)
     # 必须带特定 User-Agent 否则返回 403 (空 UA / 旧 Chrome 都被拦)
+    # V1.9: 新增 rss_url, 走 RSS 路径更稳定 (JSON API 保留作为 fallback)
     {
         "name": "AIhot",
         "url": "https://aihot.virxact.com/",
+        "rss_url": "https://aihot.virxact.com/feed/full.xml",
         "api_url": "https://aihot.virxact.com/api/public/items?mode=all&take=30",
         "score": 82,
         "keywords": ["AI"],
-        "renderer": "json",  # JSON API (Phase 25 P1)
+        "renderer": "json",  # JSON API (Phase 25 P1), RSS 优先
         "headers": {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

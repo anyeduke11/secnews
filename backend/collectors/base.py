@@ -67,22 +67,15 @@ from backend.collectors.quality_hook import QualityGatesMixin
 #     优先用 crawl4ai 拿 fully-rendered HTML,失败 fallback 到 aiohttp
 from backend.utils.crawl4ai_client import fetch_html, is_available as crawl4ai_available
 
-# ----------------------------------------------------------------------
-# 可选：项目内的代理感知 aiohttp 包装（``backend.proxy_session``）。
-# 老 collector 直接 ``from proxy_session import ProxySession``（依赖
-# ``sys.path`` 注入）；新代码优先走 ``backend.`` 命名空间导入，
-# 失败时回退到顶层 ``proxy_session``，最终回退到 ``aiohttp.ClientSession``。
-# ----------------------------------------------------------------------
+# ProxySession 保留导入，供 fetchers 直连失败后做代理兜底。
+# 代理不主动使用 — 直连失败 + 需要代理的源才走代理。
 try:
     from backend.proxy_session import ProxySession  # type: ignore
-    HAS_PROXY = True
 except ImportError:  # pragma: no cover
     try:
         from proxy_session import ProxySession  # type: ignore
-        HAS_PROXY = True
     except ImportError:  # pragma: no cover
         ProxySession = None  # type: ignore
-        HAS_PROXY = False
 
 
 UA = (
@@ -92,15 +85,11 @@ UA = (
 
 
 def _session_factory() -> type:
-    """Return a session context-manager **class** (not yet instantiated).
+    """始终返回 aiohttp.ClientSession（直连优先）。
 
-    Usage::
-
-        async with _session_factory()() as session:   # type: ignore
-            ...
+    代理不主动使用 — 直连失败 + 需要代理的源由调用方自行用
+    ProxySession 重试。
     """
-    if HAS_PROXY:
-        return ProxySession  # type: ignore
     return aiohttp.ClientSession
 
 

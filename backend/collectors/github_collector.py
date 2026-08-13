@@ -160,6 +160,143 @@ class GitHubCollector(BaseCollector):
     max_items = 30
     min_items_threshold = 5
 
+    async def fetch_source(
+        self, source: dict
+    ) -> tuple[list[HotspotItem], Any]:
+        """直连优先，失败走代理兜底，再失败走 Crawl4ai 渲染。
+
+        1. aiohttp 直连 — 国内 GitHub 镜像站可直连访问
+        2. 直连失败 → ProxySession (127.0.0.1:7897) 代理兜底
+        3. 代理失败 → Crawl4ai (Playwright) 渲染 JS SPA
+        4. 全失败 → 返回 SourceResult(error)
+        """
+        from datetime import datetime, timezone as _tz
+        from backend.domain.collection import SourceResult
+        from backend.collectors import base as _base
+        import aiohttp
+
+        start = datetime.now(_tz.utc)
+        source_name = source.get("name", "unknown")
+        source_url = source["url"]
+
+        html: str | None = None
+        used_crawl4ai = False
+        used_proxy = False
+
+        # ---- 第 1 步: aiohttp 直连 ----
+        try:
+            timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
+            async with aiohttp.ClientSession(timeout=timeout_obj) as session:
+                async with session.get(
+                    source_url,
+                    headers={"User-Agent": _base.UA},
+                    ssl=False,
+                ) as resp:
+                    if resp.status == 200:
+                        html = await resp.text()
+                    else:
+                        self.logger.debug(
+                            f"github direct {source_name!r} HTTP {resp.status}"
+                        )
+            if html:
+                self.logger.debug(f"github direct OK {source_name!r}")
+        except Exception as e:
+            self.logger.debug(
+                f"github direct failed {source_name!r}: "
+                f"{type(e).__name__}: {str(e)[:60]}"
+            )
+            html = None
+
+        # ---- 第 2 步: 直连失败, 走 ProxySession 代理兜底 ----
+        if html is None or len(html.strip()) < 500:
+            try:
+                from backend.proxy_session import ProxySession
+                from backend.proxy_config import should_use_proxy
+
+                if should_use_proxy(source_url):
+                    timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
+                    async with ProxySession(
+                        headers={"User-Agent": _base.UA},
+                        timeout=timeout_obj,
+                    ) as session:
+                        async with session.get(source_url, ssl=False) as resp:
+                            if resp.status == 200:
+                                html = await resp.text()
+                                used_proxy = True
+                            else:
+                                self.logger.debug(
+                                    f"github proxy {source_name!r} HTTP {resp.status}"
+                                )
+                    if html:
+                        self.logger.debug(f"github proxy OK {source_name!r}")
+            except Exception as e:
+                self.logger.debug(
+                    f"github proxy failed {source_name!r}: "
+                    f"{type(e).__name__}: {str(e)[:60]}"
+                )
+                html = None
+
+        # ---- 第 3 步: 代理也失败, 走 Crawl4ai (Playwright) 渲染 ----
+        if html is None or len(html.strip()) < 500:
+            self.logger.info(
+                "github direct+proxy failed for %s, "
+                "trying Crawl4ai (Playwright) fallback", source_name,
+            )
+            try:
+                c4_html = await _base.fetch_html(source_url, timeout=self.timeout)
+                if c4_html is not None and len(c4_html.strip()) >= 500:
+                    html = c4_html
+                    used_crawl4ai = True
+                    self.logger.debug(f"github crawl4ai OK {source_name!r}")
+            except Exception as e:
+                self.logger.debug(
+                    f"github crawl4ai failed {source_name!r}: "
+                    f"{type(e).__name__}: {str(e)[:60]}"
+                )
+
+        # ---- 全失败 ----
+        if html is None:
+            duration = int(
+                (datetime.now(_tz.utc) - start).total_seconds() * 1000
+            )
+            return [], SourceResult(
+                source_name=source_name,
+                source_url=source_url,
+                item_count=0,
+                error_msg="direct+proxy+crawl4ai all failed",
+                duration_ms=duration,
+            )
+
+        # ---- 解析 ----
+        try:
+            raw_items = self._parse_html(html, source)
+            items = self._build_items(raw_items, source)
+        except Exception as e:
+            duration = int(
+                (datetime.now(_tz.utc) - start).total_seconds() * 1000
+            )
+            self.logger.warning(
+                f"github parse failed {source_name!r}: "
+                f"{type(e).__name__}: {str(e)[:50]}"
+            )
+            return [], SourceResult(
+                source_name=source_name,
+                source_url=source_url,
+                item_count=0,
+                error_msg=f"parse_error: {type(e).__name__}: {str(e)[:100]}",
+                duration_ms=duration,
+            )
+
+        duration = int(
+            (datetime.now(_tz.utc) - start).total_seconds() * 1000
+        )
+        return items, SourceResult(
+            source_name=source_name,
+            source_url=source_url,
+            item_count=len(items),
+            duration_ms=duration,
+        )
+
     def _parse_html(self, html: str, source: dict) -> list[dict[str, Any]]:
         """重写: 从 GitHub / GitHub 聚合站页面提取真实项目链接。
 

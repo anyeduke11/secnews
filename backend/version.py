@@ -8,4 +8,4 @@ exceptions.py 错误响应体、/api/health 等) 一律从这里 import,
 (如 export envelope、sync bundle), 与应用版本无关, 不受此约束。
 """
 
-APP_VERSION = "1.8.0"
+APP_VERSION = "0.3.0"

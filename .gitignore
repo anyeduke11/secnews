@@ -74,3 +74,11 @@ backend/proxy_config.json
 cache_data.db
 agent/
 tmp/
+
+# Runtime artifacts (never commit)
+scripts/logs/
+backend/data/export_cache.*
+backend/scripts/*.json
+backend/cache_data.db
+backend/*.pid
+frontend/*.pid

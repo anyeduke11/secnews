@@ -260,7 +260,7 @@ def test_duplicate_url_match():
     g = DuplicateGate()
     item = _make_item(url="https://example.com/existing")
     r = g.check(item, _ctx(existing_urls=["https://example.com/existing"]))
-    assert "url_duplicate" in r.flags
+    assert "url_duplicate_canonical" in r.flags
     assert r.score_deduction == 50
 
 
@@ -419,7 +419,7 @@ def test_duplicate_same_url_same_titles_falls_through():
     gate = DuplicateGate()
     for it in items:
         r = gate.check(it, ctx)
-        # title 一致 → 走原有 url_duplicate 逻辑（因 existing_urls 为空，
+        # title 一致 → 走原有 url_duplicate_canonical 逻辑（因 existing_urls 为空，
         # 应该 passed=True, flags=[]）
         assert r.passed is True
         assert "duplicate_link_real_title" not in r.flags

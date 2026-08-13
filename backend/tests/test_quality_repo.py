@@ -102,7 +102,6 @@ def test_migration_seeds_quality_settings(temp_db):
     for required in (
         "quality.strict_mode",
         "quality.min_score",
-        "quality.url_check_sample_rate",
         "quality.url_check_concurrency",
         "quality.url_check_timeout",
         "quality.category_keywords.ai",

@@ -68,9 +68,9 @@ def test_sse_config_endpoint(client, temp_db):
 
 
 def test_sse_tools_count(client, temp_db):
-    """/api/mcp/tools 返回 13 tool, transport 标识正确."""
+    """/api/mcp/tools 返回 9 tool, transport 标识正确."""
     res = client.get("/api/mcp/tools")
     assert res.status_code == 200
     data = res.json()
-    assert data["count"] == 13
-    assert len(data["tools"]) == 13
+    assert data["count"] == 9
+    assert len(data["tools"]) == 9

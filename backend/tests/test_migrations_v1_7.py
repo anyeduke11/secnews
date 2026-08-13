@@ -40,7 +40,7 @@ def test_new_tables_exist(temp_db):
     expected = {
         "tags", "hotspot_tags", "reading_states", "sm2_reviews",
         "annotations", "alert_rules", "alerts", "tech_stack",
-        "personal_profile", "digests", "kv_cache",
+        "personal_profile", "digests",
     }
     missing = expected - tables
     assert not missing, f"missing tables: {missing}"

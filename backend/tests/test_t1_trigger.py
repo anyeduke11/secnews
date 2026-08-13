@@ -403,3 +403,109 @@ def test_refine_rows_not_reprocessed(temp_db, fresh_metrics):
     assert report["candidates"] == 0
     assert report["advanced"] == 0
     assert fresh_metrics.counter_value("t1_succeeded") == 0
+
+
+# ---------------------------------------------------------------------------
+# T1.13 — LLM scoring calls service and writes to ai_scores
+# ---------------------------------------------------------------------------
+
+def test_score_with_llm_calls_service(temp_db, fresh_metrics, monkeypatch):
+    """Verify that when llm_service.score() returns a non-default value,
+    it is used and written to the ai_scores table."""
+    from unittest.mock import AsyncMock
+    from backend.services.llm_service import llm_service
+    from datetime import datetime, timezone
+
+    conn = get_connection()
+    _insert_knowledge_item(conn, "llm-ok")
+    # Need a hotspots row (ai_scores has FK to hotspots)
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "INSERT OR IGNORE INTO hotspots (id, title, source, url, category, "
+        "published_at, fetched_at) VALUES (?, 'test', 'web', ?, 'ai', ?, ?)",
+        ("llm-ok", "https://x.test/llm-ok", now, now),
+    )
+    conn.commit()
+
+    mock_score = AsyncMock(return_value=8.5)
+    monkeypatch.setattr(llm_service, "score", mock_score)
+
+    t1 = _trigger(fresh_metrics)
+    item = {"id": "llm-ok", "title": "Test Article", "concepts": "[]"}
+    result = t1._score_with_llm(item)
+
+    assert result == 8.5
+    mock_score.assert_called_once()
+
+    # Verify ai_scores row was written by _write_llm_score
+    row = conn.execute(
+        "SELECT score, reason FROM ai_scores WHERE hotspot_id = ?",
+        ("llm-ok",),
+    ).fetchone()
+    assert row is not None, "ai_scores row should have been written"
+    assert row["score"] == 8.5
+    assert row["reason"] == "llm_service"
+
+
+# ---------------------------------------------------------------------------
+# T1.14 — LLM scoring fallback to DB when service raises
+# ---------------------------------------------------------------------------
+
+def test_score_with_llm_fallback_to_db(temp_db, fresh_metrics, monkeypatch):
+    """Verify that when llm_service.score() raises, the method falls back
+    to _get_latest_score() which reads from the ai_scores table."""
+    from unittest.mock import AsyncMock
+    from backend.services.llm_service import llm_service
+    from datetime import datetime, timezone
+
+    conn = get_connection()
+    _insert_knowledge_item(conn, "llm-fallback")
+    # Need a hotspots row for the ai_scores FK
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "INSERT OR IGNORE INTO hotspots (id, title, source, url, category, "
+        "published_at, fetched_at) VALUES (?, 'test', 'web', ?, 'ai', ?, ?)",
+        ("llm-fallback", "https://x.test/llm-fallback", now, now),
+    )
+    # Insert a DB score to fall back to
+    conn.execute(
+        "INSERT INTO ai_scores (hotspot_id, score, reason, scored_at) "
+        "VALUES (?, ?, ?, ?)",
+        ("llm-fallback", 7.0, "test", now),
+    )
+    conn.commit()
+
+    mock_score = AsyncMock(side_effect=ValueError("LLM unavailable"))
+    monkeypatch.setattr(llm_service, "score", mock_score)
+
+    t1 = _trigger(fresh_metrics)
+    item = {"id": "llm-fallback", "title": "Test Article", "concepts": "[]"}
+    result = t1._score_with_llm(item)
+
+    assert result == 7.0
+    mock_score.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# T1.15 — LLM scoring fallback to default when both fail
+# ---------------------------------------------------------------------------
+
+def test_score_with_llm_fallback_to_default(temp_db, fresh_metrics, monkeypatch):
+    """Verify that when both LLM and DB scores fail, DEFAULT_SCORE is used."""
+    from unittest.mock import AsyncMock
+    from backend.services.llm_service import llm_service
+
+    conn = get_connection()
+    _insert_knowledge_item(conn, "llm-default")
+    conn.commit()
+
+    # No ai_scores row → _get_latest_score returns DEFAULT_SCORE
+    mock_score = AsyncMock(side_effect=ValueError("LLM unavailable"))
+    monkeypatch.setattr(llm_service, "score", mock_score)
+
+    t1 = _trigger(fresh_metrics)
+    item = {"id": "llm-default", "title": "Test Article", "concepts": "[]"}
+    result = t1._score_with_llm(item)
+
+    assert result == DEFAULT_SCORE
+    mock_score.assert_called_once()

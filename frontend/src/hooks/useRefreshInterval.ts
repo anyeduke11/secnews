@@ -27,11 +27,21 @@ function getInitialMinutes(): number {
 export function useRefreshInterval() {
   const [interval, setIntervalState] = useState<number>(getInitialMinutes);
 
-  const setInterval = useCallback((minutes: number) => {
+  const setInterval = useCallback(async (minutes: number) => {
     setIntervalState(minutes);
     const opt = REFRESH_INTERVAL_OPTIONS.find(o => o.value === minutes);
     if (opt) {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(opt)); } catch {}
+    }
+    // 同步后端采集频率
+    try {
+      await fetch('/api/settings/refresh-interval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ minutes }),
+      });
+    } catch {
+      // 静默失败 — 不影响本地设置
     }
   }, []);
 

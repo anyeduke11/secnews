@@ -1,11 +1,11 @@
 /**
  * HotspotGrid — 热点信息流 + 分页 + 三态（Loading/Empty/Error）。
- * v1.9 Editorial: 卡片网格改报纸信息流 — 头条 (LeadStory) + 条目行 (EditorialRow)。
+ * v1.10+: 头条 (LeadStory) + 3 列卡片网格 (AgihuntCard)，参照 agihunt.info 风格。
  */
 import React from 'react';
 import { HotspotItem } from '../types';
 import { LeadStory } from './LeadStory';
-import { EditorialRow } from './EditorialRow';
+import { AgihuntCard } from './AgihuntCard';
 import { EmptyState } from './EmptyState';
 import { PAGE_SIZE_OPTIONS } from '../hooks/useHotspotData';
 import { Icon } from './Icon';
@@ -79,34 +79,38 @@ export function HotspotGrid({
 
   return (
     <>
-      {/* 头条: 仅第一页首条升格 LeadStory, 其余条目行式排版 */}
-      <div className="flex flex-col">
-        {items.map((item, index) => (
-          page === 1 && index === 0 ? (
-            <LeadStory
+      {/* 第一页首条升格 LeadStory */}
+      {page === 1 && items.length > 0 && (
+        <LeadStory
+          key={items[0].id}
+          item={items[0]}
+          isFavorited={favoritedIds?.has(items[0].id) ?? false}
+          onToggleFavorite={onToggleFavorite}
+          onCategoryClick={onCategoryClick}
+          onSourceClick={onSourceClick}
+        />
+      )}
+
+      {/* 其余条目: 3 列卡片网格 */}
+      {items.length > (page === 1 ? 1 : 0) && (
+        <div className="agihunt-card-grid">
+          {items.slice(page === 1 ? 1 : 0).map((item, index) => (
+            <AgihuntCard
               key={item.id}
               item={item}
+              index={index}
               isFavorited={favoritedIds?.has(item.id) ?? false}
               onToggleFavorite={onToggleFavorite}
               onCategoryClick={onCategoryClick}
               onSourceClick={onSourceClick}
             />
-          ) : (
-            <EditorialRow
-              key={item.id}
-              item={item}
-              isFavorited={favoritedIds?.has(item.id) ?? false}
-              onToggleFavorite={onToggleFavorite}
-              onCategoryClick={onCategoryClick}
-              onSourceClick={onSourceClick}
-            />
-          )
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* 分页控件 */}
       {!loading && total > 0 && (
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
           <div className="flex items-center gap-1.5 order-2 sm:order-1">
             {PAGE_SIZE_OPTIONS.map(size => {
               const active = size === pageSize;

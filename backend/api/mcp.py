@@ -20,6 +20,7 @@ from pydantic import BaseModel
 
 from backend.api.mcp_config import (
     is_mcp_enabled,
+    is_sse_mounted,
     list_mcp_tools_from_db,
 )
 from backend.services.feature_flag_service import enable, disable, is_enabled
@@ -45,14 +46,20 @@ class ToggleEnabledRequest(BaseModel):
 # ---------------------------------------------------------------------------
 @router.get("/mcp/status")
 async def mcp_status():
-    """MCP server 状态 (enabled / transport / tools_count)。"""
+    """MCP server 状态 (enabled / transport / tools_count)。
+
+    ``sse_endpoint`` 反映**真实挂载状态**: 仅当 MCP 启用且本进程已成功
+    挂载 /mcp/sse (main.py lifespan) 时才返回路径; 否则为 None。
+    """
     enabled = is_mcp_enabled()
+    sse_mounted = is_sse_mounted()
     tools = list_mcp_tools_from_db(enabled_only=False) if enabled else []
     return {
         "version": API_VERSION,
         "enabled": enabled,
         "transport": "stdio+sse",
-        "sse_endpoint": "/mcp/sse" if enabled else None,
+        "sse_endpoint": "/mcp/sse" if (enabled and sse_mounted) else None,
+        "sse_mounted": sse_mounted,
         "stdio_command": "python -m backend.mcp_stdio_main",
         "tools_count": len(tools),
         "spec_version": "2025-06-18",

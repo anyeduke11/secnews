@@ -27,6 +27,19 @@ from typing import Optional
 from backend.logging_config import logger
 
 # ----------------------------------------------------------------------------
+# SSE 挂载状态 (进程内)
+# ----------------------------------------------------------------------------
+# 记录 mount_sse_endpoint 是否在本进程成功挂载过 /mcp/sse。
+# /api/mcp/status 据此返回真实挂载状态, 避免"端点不存在却声称存在"的误导。
+_sse_mounted = False
+
+
+def is_sse_mounted() -> bool:
+    """返回本进程内 /mcp/sse SSE 端点是否已成功挂载。"""
+    return _sse_mounted
+
+
+# ----------------------------------------------------------------------------
 # 9 个 MCP tool 对应的 FastAPI operation_id
 # ----------------------------------------------------------------------------
 # 与 spec §4 + 当前 main.py 实际路由一致 (OpenAPI schema 已生成)
@@ -81,13 +94,21 @@ def mount_sse_endpoint(app, mcp) -> None:
     """挂载 SSE 端点到 FastAPI app, 路径 /mcp/sse。
 
     仅在 feature.mcp_server=True 且 mcp 实例存在时执行。
+    成功挂载后置位 :data:`_sse_mounted`, 供 /api/mcp/status 反映真实状态。
     """
+    global _sse_mounted
     if mcp is None:
         return
     try:
-        mcp.mount_sse_endpoint(path="/mcp/sse")
+        # fastapi-mcp >= 0.4: mount_sse(router, mount_path) 直接注册到 app
+        if hasattr(mcp, "mount_sse"):
+            mcp.mount_sse(app, mount_path="/mcp/sse")
+        else:  # 旧版 fastapi-mcp API 兜底
+            mcp.mount_sse_endpoint(path="/mcp/sse")
+        _sse_mounted = True
         logger.info("MCP SSE endpoint mounted at /mcp/sse")
     except Exception as e:
+        _sse_mounted = False
         logger.error(f"failed to mount MCP SSE endpoint: {e}")
 
 
@@ -177,6 +198,7 @@ def list_mcp_tools_from_db(enabled_only: bool = False) -> list[dict]:
 __all__ = [
     "MCP_TOOL_OPERATION_IDS",
     "is_mcp_enabled",
+    "is_sse_mounted",
     "build_mcp_server",
     "mount_sse_endpoint",
     "mcp_tool_registry_seed",

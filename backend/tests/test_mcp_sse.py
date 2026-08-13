@@ -25,13 +25,21 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
 
 @pytest.fixture
 def client(temp_db):
-    from backend.api.mcp_config import mcp_tool_registry_seed
+    from backend.api.mcp_config import (
+        mcp_tool_registry_seed,
+        build_mcp_server,
+        mount_sse_endpoint,
+    )
     mcp_tool_registry_seed()
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
     from backend.api import register_routers
     app = FastAPI()
     register_routers(app)
+    # 与 main.py lifespan 对齐: 真实挂载 /mcp/sse (fastapi-mcp 0.4 mount_sse),
+    # 使 /api/mcp/status 的 sse_endpoint 反映真实挂载状态。
+    mcp = build_mcp_server(app)
+    mount_sse_endpoint(app, mcp)
     return TestClient(app)
 
 

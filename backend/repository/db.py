@@ -99,6 +99,48 @@ def close_db() -> None:
 # ---------------------------------------------------------------------------
 # Migrations
 # ---------------------------------------------------------------------------
+def _migration_number(stem: str) -> int:
+    """Extract the leading numeric prefix of a migration filename (0 if none)."""
+    try:
+        return int(stem.split("_", 1)[0])
+    except (ValueError, IndexError):
+        return 0
+
+
+def _warn_migration_numbering_gaps(files: list[Path]) -> None:
+    """启动治理告警: 检测迁移编号断号 / 重复, 只 warning 不阻断。
+
+    历史 DB 的 ``schema_version`` 记录的是旧编号 (文件名), 因此断号只告警,
+    绝不自动改名或抛异常 —— 重命名会破坏已执行状态。
+    """
+    nums = sorted({_migration_number(f.stem) for f in files if _migration_number(f.stem) > 0})
+    if not nums:
+        return
+
+    max_num = nums[-1]
+    missing = sorted(set(range(1, max_num + 1)) - set(nums))
+    if missing:
+        logger.warning(
+            f"migration numbering gap: files cover 1..{max_num} but missing "
+            f"{', '.join(f'{n:03d}' for n in missing)} "
+            "(informational; historical DBs already applied old numbering — "
+            "do NOT rename files)"
+        )
+
+    by_num: dict[int, list[str]] = {}
+    for f in files:
+        n = _migration_number(f.stem)
+        if n > 0:
+            by_num.setdefault(n, []).append(f.name)
+    dups = {n: names for n, names in by_num.items() if len(names) > 1}
+    if dups:
+        detail = "; ".join(f"{n:03d}: {', '.join(names)}" for n, names in sorted(dups.items()))
+        logger.warning(
+            f"migration numbering duplicate: {detail} "
+            "(multiple up-files share a numeric prefix; *_down.sql are excluded)"
+        )
+
+
 def apply_migrations(conn: sqlite3.Connection) -> int:
     """Apply any pending ``.sql`` files in ``MIGRATIONS_DIR`` in order.
 
@@ -133,17 +175,13 @@ def apply_migrations(conn: sqlite3.Connection) -> int:
     # 3. Discover migration files in lexicographic order.
     #    ``*_down.sql`` 是手工回滚脚本, 绝不自动执行 (否则 up 刚跑完就被回滚)。
     files = sorted(f for f in MIGRATIONS_DIR.glob("*.sql") if not f.stem.endswith("_down"))
+    # 启动治理告警: 编号断号/重复检测 (只 warning, 不抛异常、不改名)
+    _warn_migration_numbering_gaps(files)
     latest_version = 0
-
-    def _numeric(stem: str) -> int:
-        try:
-            return int(stem.split("_", 1)[0])
-        except (ValueError, IndexError):
-            return 0
 
     # Seed with whatever is already in the DB.
     for v in executed:
-        latest_version = max(latest_version, _numeric(v))
+        latest_version = max(latest_version, _migration_number(v))
 
     for f in files:
         version = f.stem  # e.g. "001_init"
@@ -169,7 +207,7 @@ def apply_migrations(conn: sqlite3.Connection) -> int:
             )
             raise
 
-        latest_version = max(latest_version, _numeric(version))
+        latest_version = max(latest_version, _migration_number(version))
 
     return latest_version
 

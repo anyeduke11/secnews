@@ -56,6 +56,37 @@ TECH_SOURCES: list[dict] = [
         "score": 80,
         "renderer": "html",
     },
+    # ===== 科技公众号 (2026-08-03 新增, 走 sogou weixin 搜索) =====
+    {
+        "name": "极客时间",
+        "account_name": "极客时间",
+        "score": 76,
+        "renderer": "wechat",
+    },
+    {
+        "name": "InfoQ",
+        "account_name": "InfoQ",
+        "score": 74,
+        "renderer": "wechat",
+    },
+    {
+        "name": "程序人生",
+        "account_name": "程序人生",
+        "score": 72,
+        "renderer": "wechat",
+    },
+    {
+        "name": "开源中国",
+        "account_name": "开源中国",
+        "score": 72,
+        "renderer": "wechat",
+    },
+    {
+        "name": "51CTO",
+        "account_name": "51CTO",
+        "score": 70,
+        "renderer": "wechat",
+    },
 ]
 
 

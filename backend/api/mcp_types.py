@@ -2,7 +2,7 @@
 
 设计
 ----
-- 13 个 MCP tool (5 读 + 8 写) 的 input schema 集中定义
+- 9 个 MCP tool (5 读 + 4 写) 的 input schema 集中定义
 - 用于 fastapi-mcp 自动注册到 MCP server
 - 也用于 /api/mcp/tools 调试端点输出
 - 不依赖 LLM, hotspot 端只做数据存储 + 工具暴露
@@ -60,7 +60,7 @@ class GetPersonalProfileInput(BaseModel):
 
 
 # ===========================================================================
-# 8 个写 tool
+# 4 个写 tool
 # ===========================================================================
 class AddFavoriteInput(BaseModel):
     """add_favorite — 添加收藏 (created_via 自动设为 'mcp')。"""
@@ -90,33 +90,9 @@ class UpdateKnowledgeItemInput(BaseModel):
     fields: dict = Field(..., description="待更新字段 (title/lifecycle/tags/concepts/...)")
 
 
-class TriggerExtractTagsInput(BaseModel):
-    """trigger_extract_tags — 触发本地规则提取标签 (无 LLM)。"""
-
-    hotspot_id: str = Field(..., min_length=1)
-
-
-class TriggerCuboxSyncInput(BaseModel):
-    """trigger_cubox_sync — 触发 cubox-cli 本地同步。"""
-
-    target_path: str = Field("", description="目标目录; 空=默认 knowledge/items/")
-    format: str = Field("md", description="md | json")
-
-
-class CreateAlertRuleInput(BaseModel):
-    """create_alert_rule — 创建告警规则。"""
-
-    rule: dict = Field(..., description="rule 定义 (name, match, action)")
-
-
-class MarkDigestReadInput(BaseModel):
-    """mark_digest_read — 标记简报已读。"""
-
-    digest_id: str = Field(..., min_length=1)
-
 
 # ===========================================================================
-# 13 个 tool 集中注册表
+# 9 个 tool 集中注册表
 # ===========================================================================
 MCP_TOOLS = [
     # 读 (5)
@@ -160,7 +136,7 @@ MCP_TOOLS = [
         "fastapi_path": "/api/profile",
         "method": "GET",
     },
-    # 写 (8)
+    # 写 (4)
     {
         "name": "add_favorite",
         "category": "write",
@@ -193,38 +169,6 @@ MCP_TOOLS = [
         "fastapi_path": "/api/knowledge/items/{item_id}",
         "method": "PATCH",
     },
-    {
-        "name": "trigger_extract_tags",
-        "category": "write",
-        "description": "触发本地规则提取标签 (无 LLM, 同步直返)",
-        "input_model": TriggerExtractTagsInput,
-        "fastapi_path": "/api/extract/auto",
-        "method": "POST",
-    },
-    {
-        "name": "trigger_cubox_sync",
-        "category": "write",
-        "description": "触发 cubox-cli 本地同步 (无 LLM)",
-        "input_model": TriggerCuboxSyncInput,
-        "fastapi_path": "/api/cubox/sync",
-        "method": "POST",
-    },
-    {
-        "name": "create_alert_rule",
-        "category": "write",
-        "description": "创建告警规则 (rule name + match + action)",
-        "input_model": CreateAlertRuleInput,
-        "fastapi_path": "/api/alerts/rules",
-        "method": "POST",
-    },
-    {
-        "name": "mark_digest_read",
-        "category": "write",
-        "description": "标记 digest 已读",
-        "input_model": MarkDigestReadInput,
-        "fastapi_path": "/api/digests/{digest_id}/read",
-        "method": "POST",
-    },
 ]
 
 
@@ -239,8 +183,4 @@ __all__ = [
     "RemoveFavoriteInput",
     "AddAnnotationInput",
     "UpdateKnowledgeItemInput",
-    "TriggerExtractTagsInput",
-    "TriggerCuboxSyncInput",
-    "CreateAlertRuleInput",
-    "MarkDigestReadInput",
 ]

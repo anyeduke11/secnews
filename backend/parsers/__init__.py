@@ -42,10 +42,25 @@ def _register_builtin() -> None:
     from backend.parsers.aihot_parser import AihotParser, SOURCE_ID as AHIOT_ID
     from backend.parsers.jin10_parser import Jin10Parser, SOURCE_ID as JIN10_ID
     from backend.parsers.clsd_parser import ClsdParser, SOURCE_ID as CLSD_ID
+    from backend.parsers.html_generic import HtmlGenericParser, SOURCE_ID as HTML_GENERIC_ID
 
     register_parser(AHIOT_ID, AihotParser)
     register_parser(JIN10_ID, Jin10Parser)
     register_parser(CLSD_ID, ClsdParser)
+    register_parser(HTML_GENERIC_ID, HtmlGenericParser)
+
+    # Phase 1.2: P0 标讯解析器
+    from backend.parsers.bid.ccgp import CcgpParser, SOURCE_ID as CCGP_ID
+    from backend.parsers.bid.cebpub import CebpubParser, SOURCE_ID as CEBPUB_ID
+    from backend.parsers.bid.ggzy import GgzyParser, SOURCE_ID as GGZY_ID
+    from backend.parsers.bid.zycg import ZycgParser, SOURCE_ID as ZYCG_ID
+    from backend.parsers.bid.chinabidding import ChinabiddingParser, SOURCE_ID as CHINABIDDING_ID
+
+    register_parser(CCGP_ID, CcgpParser)
+    register_parser(CEBPUB_ID, CebpubParser)
+    register_parser(GGZY_ID, GgzyParser)
+    register_parser(ZYCG_ID, ZycgParser)
+    register_parser(CHINABIDDING_ID, ChinabiddingParser)
 
 
 _register_builtin()

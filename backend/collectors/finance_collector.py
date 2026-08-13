@@ -90,8 +90,9 @@ FINANCE_SOURCES: list[dict] = [
     },
     {"name": "新浪财经", "url": "https://finance.sina.com.cn/", "score": 80, "renderer": "crawl4ai"},  # Phase 14: 反爬 + JS 渲染
     {"name": "东方财富", "url": "https://www.eastmoney.com/", "score": 80, "renderer": "crawl4ai"},
-    {"name": "华尔街见闻", "url": "https://wallstreetcn.com/", "score": 78},
-    {"name": "雪球", "url": "https://xueqiu.com/", "score": 75, "renderer": "crawl4ai"},  # Phase 14: 反爬
+    # 2026-08-02 实测: 华尔街见闻(2.9KB JS SPA, 0 links), 雪球(110KB JS SPA, 0 links), 均不可抓取
+    {"name": "华尔街见闻", "url": "https://wallstreetcn.com/", "score": 78, "renderer": "disabled"},
+    {"name": "雪球", "url": "https://xueqiu.com/", "score": 75, "renderer": "disabled"},
     {"name": "财新网", "url": "https://www.caixin.com/", "score": 80},
     # Phase 25 P1: 财联社实时电报
     # 已知限制: telegraph 页是 Next.js SPA,数据通过签名 API 异步加载
@@ -111,6 +112,38 @@ FINANCE_SOURCES: list[dict] = [
         "url": "https://www.jin10.com/flash_newest.js",
         "score": 80,
         "renderer": "html",  # 自己处理 JS 响应
+    },
+    # ===== 金融公众号 (2026-08-03 新增, 走 sogou weixin 搜索) =====
+    # 华尔街见闻/雪球 网站是 JS SPA 不可抓取, 改用公众号替代
+    {
+        "name": "华尔街见闻",
+        "account_name": "华尔街见闻",
+        "score": 78,
+        "renderer": "wechat",
+    },
+    {
+        "name": "券商中国",
+        "account_name": "券商中国",
+        "score": 76,
+        "renderer": "wechat",
+    },
+    {
+        "name": "中国基金报",
+        "account_name": "中国基金报",
+        "score": 74,
+        "renderer": "wechat",
+    },
+    {
+        "name": "第一财经",
+        "account_name": "第一财经",
+        "score": 74,
+        "renderer": "wechat",
+    },
+    {
+        "name": "雪球",
+        "account_name": "雪球",
+        "score": 72,
+        "renderer": "wechat",
     },
 ]
 

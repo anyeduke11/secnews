@@ -18,13 +18,76 @@ patch 兼容约定（重要）
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+import random
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import aiohttp
 
 from backend.domain.collection import SourceResult
 from backend.domain.models import HotspotItem
+
+# 2026-08-03: 搜狗微信搜索反爬限流缓解 — 串行化 + 随机延迟
+# 避免并发请求触发 sogou anti-bot
+_wechat_lock = asyncio.Lock()
+
+
+async def _proxy_retry(source: dict, timeout: int) -> str | None:
+    """直连失败后，对需要代理的源用 ProxySession 重试（HTML）。
+
+    仅当 ``should_use_proxy(url)`` 返回 True 时才走代理，
+    国内源直连失败直接放弃，不走代理兜底。
+    """
+    from backend.collectors import base as _base
+    if _base.ProxySession is None:
+        return None
+    try:
+        from backend.proxy_config import should_use_proxy
+        if not should_use_proxy(source["url"]):
+            return None
+    except Exception:
+        return None
+    try:
+        async with _base.ProxySession(
+            headers={"User-Agent": _base.UA},
+            timeout=aiohttp.ClientTimeout(total=timeout),
+        ) as session:
+            async with session.get(source["url"], ssl=False) as resp:
+                if resp.status == 200:
+                    html = await resp.text()
+                    if html and len(html.strip()) >= 100:
+                        return html
+    except Exception:
+        pass
+    return None
+
+
+async def _proxy_json_retry(source: dict, timeout: int) -> dict | None:
+    """直连失败后，对需要代理的 JSON API 源用 ProxySession 重试。"""
+    from backend.collectors import base as _base
+    if _base.ProxySession is None:
+        return None
+    try:
+        from backend.proxy_config import should_use_proxy
+        api_url = source.get("api_url") or source["url"]
+        if not should_use_proxy(api_url):
+            return None
+    except Exception:
+        return None
+    api_url = source.get("api_url") or source["url"]
+    try:
+        async with _base.ProxySession(
+            headers={"User-Agent": _base.UA},
+            timeout=aiohttp.ClientTimeout(total=timeout),
+        ) as session:
+            async with session.get(api_url, ssl=False) as resp:
+                if resp.status == 200:
+                    data = await resp.json(content_type=None)
+                    if data:
+                        return data
+    except Exception:
+        pass
+    return None
 
 
 class FetchersMixin:
@@ -194,6 +257,10 @@ class FetchersMixin:
         if renderer == "sogou":
             return await self._fetch_sogou_source(source, start=start)
 
+        # ---- Phase 公众号: 搜狗微信搜索 (走 weixin.sogou.com 搜公众号文章) ----
+        if renderer == "wechat":
+            return await self._fetch_wechat_source(source, start=start)
+
         # ---- Phase 14: 按 renderer 字段决定是否走 crawl4ai ----------
         if renderer == "crawl4ai" and _base.crawl4ai_available():
             try:
@@ -227,20 +294,26 @@ class FetchersMixin:
                         html = await resp.text()
                         crawler_used = "aiohttp"
             except Exception as e:
-                duration = int(
-                    (datetime.now(timezone.utc) - start).total_seconds() * 1000
-                )
-                self.logger.warning(
-                    f"source {source['name']} failed: "
-                    f"{type(e).__name__}: {str(e)[:50]}"
-                )
-                return [], SourceResult(
-                    source_name=source["name"],
-                    source_url=source["url"],
-                    item_count=0,
-                    error_msg=f"{type(e).__name__}: {str(e)[:100]}",
-                    duration_ms=duration,
-                )
+                # aiohttp 直连失败 → 尝试代理兜底（仅国外源）
+                proxy_html = await _proxy_retry(source, self.timeout)
+                if proxy_html is not None:
+                    html = proxy_html
+                    crawler_used = "proxy"
+                else:
+                    duration = int(
+                        (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                    )
+                    self.logger.warning(
+                        f"source {source['name']} failed: "
+                        f"{type(e).__name__}: {str(e)[:50]}"
+                    )
+                    return [], SourceResult(
+                        source_name=source["name"],
+                        source_url=source["url"],
+                        item_count=0,
+                        error_msg=f"{type(e).__name__}: {str(e)[:100]}",
+                        duration_ms=duration,
+                    )
 
         # ---- 解析 (无论 crawl4ai 还是 aiohttp 都走原 _parse_html) ----
         try:
@@ -309,20 +382,25 @@ class FetchersMixin:
                         raise aiohttp.ClientError(f"HTTP {resp.status}")
                     data = await resp.json(content_type=None)
         except Exception as e:
-            duration = int(
-                (datetime.now(timezone.utc) - start).total_seconds() * 1000
-            )
-            self.logger.warning(
-                f"json fetch failed for {source['name']}: "
-                f"{type(e).__name__}: {str(e)[:50]}"
-            )
-            return [], SourceResult(
-                source_name=source["name"],
-                source_url=api_url,
-                item_count=0,
-                error_msg=f"{type(e).__name__}: {str(e)[:100]}",
-                duration_ms=duration,
-            )
+            # aiohttp 直连失败 → 尝试代理兜底（仅国外源）
+            proxy_data = await _proxy_json_retry(source, self.timeout)
+            if proxy_data is not None:
+                data = proxy_data
+            else:
+                duration = int(
+                    (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                )
+                self.logger.warning(
+                    f"json fetch failed for {source['name']}: "
+                    f"{type(e).__name__}: {str(e)[:50]}"
+                )
+                return [], SourceResult(
+                    source_name=source["name"],
+                    source_url=api_url,
+                    item_count=0,
+                    error_msg=f"{type(e).__name__}: {str(e)[:100]}",
+                    duration_ms=duration,
+                )
 
         try:
             raw_items = self._parse_json(data, source)
@@ -424,6 +502,293 @@ class FetchersMixin:
             item_count=len(items),
             duration_ms=duration,
         )
+
+    # ------------------------------------------------------------------
+    # Phase 公众号: 搜狗微信搜索 (走 weixin.sogou.com 搜公众号文章)
+    # 用于 renderer="wechat" 的源
+    # ------------------------------------------------------------------
+    async def _fetch_wechat_source(
+        self, source: dict, start: datetime
+    ) -> tuple[list[HotspotItem], SourceResult]:
+        """走 weixin.sogou.com 搜索特定公众号文章。
+
+        工作流程:
+        1. 取 source['account_name'] 作为公众号名称
+        2. 走 fetch_weixin_html(account_name) 搜索
+        3. 走 parse_wechat_articles_html 解析 (含 account 过滤 + timestamp)
+        4. _build_items 走通用字段约定
+
+        source 配置:
+        - account_name: 公众号名称 (必填)
+        - max_items: 可选, 默认 15
+        - max_age_days: 可选, 时效窗口(默认 7, 硬上限 14, 见
+          ``WECHAT_MAX_AGE_DAYS_HARD_CAP``)
+        - topic_keywords: 可选, 标题必须命中至少 1 个关键词才放行
+        """
+        from backend.collectors.sogou_search import (
+            fetch_weixin_html,
+            parse_wechat_articles_html,
+            WECHAT_MAX_AGE_DAYS_HARD_CAP,
+        )
+        from backend.repository.hotspot_repo import HotspotRepository
+
+        account_name = source.get("account_name") or source.get("name", "")
+        if not account_name:
+            return [], SourceResult(
+                source_name=source.get("name", "?"),
+                source_url=source.get("url", ""),
+                item_count=0,
+                error_msg="wechat: no account_name",
+                duration_ms=0,
+            )
+
+        max_items = source.get("max_items", 15) or 15
+        # 2026-08-04: 时效窗口 — 默认 7 天, 硬上限 14 天
+        raw_max_age = int(source.get("max_age_days", 7) or 7)
+        max_age_days = max(1, min(raw_max_age, WECHAT_MAX_AGE_DAYS_HARD_CAP))
+        # 2026-08-04: 可选正面白名单 — None 表示不强制, 只靠黑名单拦截
+        topic_keywords = source.get("topic_keywords")
+
+        # 2026-08-04: 跨次去重 — 抓取前查 DB, 跳过最近 max_age_days 内已存在的 URL
+        # 避免每次 scheduler tick 都重复 fetch + parse + quality pipeline 同一批老文章
+        seen_urls_external: set[str] = set()
+        try:
+            cutoff_iso = (
+                datetime.now(timezone.utc) - timedelta(days=max_age_days)
+            ).isoformat()
+            seen_urls_external = HotspotRepository().list_recent_urls_by_source(
+                source_name=source.get("name", ""), since_iso=cutoff_iso,
+            )
+        except Exception as e:
+            # 查询失败 = 不去重, 继续抓(避免阻塞主路径)
+            self.logger.debug(
+                f"wechat dedup query failed for {account_name}: "
+                f"{type(e).__name__}: {str(e)[:50]}"
+            )
+
+        # 2026-08-03: 搜狗微信搜索反爬限流缓解 — 串行化 + 随机延迟 1-4s
+        async with _wechat_lock:
+            await asyncio.sleep(random.uniform(1.0, 4.0))
+            try:
+                html = await fetch_weixin_html(account_name, timeout=self.timeout)
+            except Exception as e:
+                duration = int(
+                    (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                )
+                self.logger.warning(
+                    f"wechat fetch failed for {account_name}: "
+                    f"{type(e).__name__}: {str(e)[:50]}"
+                )
+                return [], SourceResult(
+                    source_name=account_name,
+                    source_url=f"https://weixin.sogou.com/weixin?type=2&query={account_name}",
+                    item_count=0,
+                    error_msg=f"{type(e).__name__}: {str(e)[:100]}",
+                    duration_ms=duration,
+                )
+
+        if not html:
+            duration = int(
+                (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            )
+            return [], SourceResult(
+                source_name=account_name,
+                source_url=f"https://weixin.sogou.com/weixin?type=2&query={account_name}",
+                item_count=0,
+                error_msg="wechat: anti-bot or empty response",
+                duration_ms=duration,
+            )
+
+        try:
+            raw_items = parse_wechat_articles_html(
+                html,
+                account_name=account_name,
+                max_items=max_items,
+                max_age_days=max_age_days,
+                topic_keywords=topic_keywords,
+                seen_urls_external=seen_urls_external,
+            )
+            items = self._build_items(raw_items, source)
+        except Exception as e:
+            duration = int(
+                (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            )
+            self.logger.warning(
+                f"wechat parse failed for {account_name}: "
+                f"{type(e).__name__}: {str(e)[:50]}"
+            )
+            return [], SourceResult(
+                source_name=account_name,
+                source_url=f"https://weixin.sogou.com/weixin?type=2&query={account_name}",
+                item_count=0,
+                error_msg=f"parse_error: {type(e).__name__}: {str(e)[:100]}",
+                duration_ms=duration,
+            )
+
+        duration = int(
+            (datetime.now(timezone.utc) - start).total_seconds() * 1000
+        )
+        # 2026-08-04: 观测性 — 记录 dedup 命中率
+        if seen_urls_external:
+            self.logger.info(
+                f"wechat fetch: account={account_name} "
+                f"db_urls={len(seen_urls_external)} "
+                f"max_age_days={max_age_days} "
+                f"raw_items={len(raw_items)} "
+                f"items={len(items)}"
+            )
+        return items, SourceResult(
+            source_name=account_name,
+            source_url=f"https://weixin.sogou.com/weixin?type=2&query={account_name}",
+            item_count=len(items),
+            duration_ms=duration,
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 0.4 (Crawler v2): BackendSession 统一抓取路径
+    # 作为现有 aiohttp 路径的替代方案，collector 可 opt-in 使用。
+    # 不修改现有行为，仅在 collector 配置指定 use_backend_session=True 时启用。
+    # ------------------------------------------------------------------
+    async def _fetch_via_backend_session(
+        self, source: dict
+    ) -> tuple[list[HotspotItem], SourceResult]:
+        """使用 BackendSession (httpx) 统一抓取路径。
+
+        支持 ``renderer``:
+        - ``rss``: BackendSession GET → ``feedparser.parse(bytes)``
+        - ``json``: BackendSession GET → ``resp.json()`` → ``_parse_json``
+        - ``html`` (默认): BackendSession GET → ``_parse_html``
+
+        Args:
+            source: 源配置 dict。
+
+        Returns:
+            ``(items, SourceResult)`` 元组，与 ``fetch_source`` 接口一致。
+        """
+        from backend.collectors.session import BackendSession
+
+        start = datetime.now(timezone.utc)
+        source_name = source.get("name", "?")
+        source_url = source.get("url", "")
+        renderer = source.get("renderer", "html")
+
+        # 构造 BackendSession 参数
+        bs_headers = {"User-Agent": "Mozilla/5.0"}
+        extra_headers = source.get("headers") or {}
+        if extra_headers:
+            bs_headers.update(extra_headers)
+
+        try:
+            async with BackendSession(
+                rate_limit=10,
+                connect_timeout=10.0,
+                read_timeout=float(self.timeout),
+                headers=bs_headers,
+            ) as bs:
+                # ---- RSS 路径 ----
+                if renderer == "rss":
+                    feed_url = source.get("rss_url") or source_url
+                    raw_text = await bs.get(feed_url)
+
+                    import feedparser
+                    from io import BytesIO
+
+                    d = feedparser.parse(BytesIO(raw_text.encode("utf-8")))
+
+                    status = d.get("status")
+                    if status is not None and status >= 400:
+                        duration = int(
+                            (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                        )
+                        return [], SourceResult(
+                            source_name=source_name,
+                            source_url=feed_url,
+                            item_count=0,
+                            error_msg=f"rss_http_{status}",
+                            duration_ms=duration,
+                        )
+
+                    entries = d.get("entries", [])
+                    raw_items: list[dict] = []
+                    for e in entries:
+                        title = (e.get("title") or "").strip()
+                        link = (e.get("link") or "").strip()
+                        if not title or not link:
+                            continue
+                        published_at = None
+                        pp = e.get("published_parsed") or e.get("updated_parsed")
+                        if pp is not None:
+                            try:
+                                published_at = datetime(*pp[:6], tzinfo=timezone.utc)
+                            except Exception:
+                                published_at = None
+                        raw_items.append({
+                            "title": title,
+                            "url": link,
+                            "summary": (e.get("summary") or "").strip(),
+                            "published_at": published_at,
+                        })
+
+                    items = self._build_items(raw_items, source)
+                    duration = int(
+                        (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                    )
+                    return items, SourceResult(
+                        source_name=source_name,
+                        source_url=feed_url,
+                        item_count=len(items),
+                        duration_ms=duration,
+                    )
+
+                # ---- JSON API 路径 ----
+                if renderer == "json":
+                    api_url = source.get("api_url") or source_url
+                    raw_text = await bs.get(api_url)
+
+                    import json
+                    data = json.loads(raw_text)
+
+                    raw_items = self._parse_json(data, source)
+                    items = self._build_items(raw_items, source)
+                    duration = int(
+                        (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                    )
+                    return items, SourceResult(
+                        source_name=source_name,
+                        source_url=api_url,
+                        item_count=len(items),
+                        duration_ms=duration,
+                    )
+
+                # ---- HTML 路径（默认） ----
+                html = await bs.get(source_url)
+                raw_items = self._parse_html(html, source)
+                items = self._build_items(raw_items, source)
+                duration = int(
+                    (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                )
+                return items, SourceResult(
+                    source_name=source_name,
+                    source_url=source_url,
+                    item_count=len(items),
+                    duration_ms=duration,
+                )
+
+        except Exception as e:
+            duration = int(
+                (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            )
+            self.logger.warning(
+                f"BackendSession fetch failed for {source_name}: "
+                f"{type(e).__name__}: {str(e)[:100]}"
+            )
+            return [], SourceResult(
+                source_name=source_name,
+                source_url=source_url,
+                item_count=0,
+                error_msg=f"bs_fetch: {type(e).__name__}: {str(e)[:100]}",
+                duration_ms=duration,
+            )
 
 
 __all__ = ["FetchersMixin"]

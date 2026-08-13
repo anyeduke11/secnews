@@ -254,7 +254,7 @@ def test_e2e_mixed_items():
     # n3 spam → 扣 30
     assert "spam_keyword" in results[2].final_flags
     # n4 重复 → 扣 50
-    assert "url_duplicate" in results[3].final_flags
+    assert "url_duplicate_canonical" in results[3].final_flags
     # n5 黑名单 → 扣 50
     assert "blacklisted_source" in results[4].final_flags
 

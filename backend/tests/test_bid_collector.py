@@ -12,10 +12,11 @@
 """
 from __future__ import annotations
 
-from backend.collectors.base import HAS_PROXY
 from backend.collectors.bid_collector import (
     BID_SOURCES,
     BidCollector,
+)
+from backend.collectors.bid_utils import (
     PROCUREMENT_KEYWORDS,
     SECURITY_KEYWORDS,
     SECURITY_KEYWORD_SET,
@@ -136,34 +137,33 @@ def test_bid_sources_have_phase19_sources():
     assert "chinamoney.com.cn" in urls_str, "缺外汇交易中心"
 
 
-def test_bid_phase19_sources_have_search_renderer():
-    """Phase 19 新增 16 源的 renderer 必须为 'search'（走 DDG 绕反爬）。
+def test_bid_phase19_sources_no_search_renderer():
+    """V1.9: renderer='search' 已全部移除, 不再走 Bing 搜索。
 
-    setdefault('renderer', 'crawl4ai') 不会覆盖显式设的 'search'。
+    所有标讯源改为 HTTP 直连优先, 失败走代理兜底。
     """
     search_sources = [s for s in BID_SOURCES if s.get("renderer") == "search"]
-    assert len(search_sources) >= 16, (
-        f"renderer='search' 源应 ≥ 16,实际 {len(search_sources)}"
+    assert len(search_sources) == 0, (
+        f"renderer='search' 应已全部移除, 实际还有 {len(search_sources)}"
     )
-    # 验证关键源都在
-    search_names = {s["name"] for s in search_sources}
-    expected = {
-        "中国农业发展银行集中采购", "银保信", "中国银联采购",
-        "华能电子商务平台", "大唐电子商务平台", "华电电子商务平台",
-        "中化商务电子招投标", "深圳阳光采购平台",
-        "招标采购导航网", "比地招标网", "元博招标网",
-        "中国国际招标网", "中国政府采购招标网",
-        "中国外汇交易中心",
-    }
-    missing = expected - search_names
-    assert not missing, f"Phase 19 search 源缺失: {missing}"
+    # 验证所有源都走 aiohttp 直连 (renderer 为 'aiohttp' 或未设)
+    for s in BID_SOURCES:
+        r = s.get("renderer", "aiohttp")
+        assert r in ("aiohttp", None, ""), (
+            f"源 {s['name']!r} 的 renderer 应为 'aiohttp', 实际 '{r}'"
+        )
 
 
-def test_bid_old_sources_still_use_crawl4ai():
-    """非 Phase 19 的源仍走 crawl4ai（向后兼容）。"""
-    crawl4ai_sources = [s for s in BID_SOURCES if s.get("renderer") == "crawl4ai"]
-    assert len(crawl4ai_sources) >= 20, (
-        f"renderer='crawl4ai' 源应 ≥ 20(老源),实际 {len(crawl4ai_sources)}"
+def test_bid_old_sources_still_use_aiohttp():
+    """V1.9: 所有源默认走 aiohttp 直连（废弃 crawl4ai 和 search）。"""
+    aiohttp_sources = [s for s in BID_SOURCES if s.get("renderer", "aiohttp") == "aiohttp"]
+    assert len(aiohttp_sources) >= 30, (
+        f"renderer='aiohttp' 源应 ≥ 30,实际 {len(aiohttp_sources)}"
+    )
+    # 确认没有任何 crawl4ai 或 search 源
+    other = [s for s in BID_SOURCES if s.get("renderer") not in (None, "", "aiohttp")]
+    assert len(other) == 0, (
+        f"存在非 aiohttp renderer 源: {other}"
     )
 
 

@@ -3,7 +3,6 @@
 覆盖：
   - ``category`` 设置为 ``Category.GITHUB``
   - ``_fallback()`` 返回 ≥ ``min_items_threshold`` 条且全部为 GITHUB 分类
-  - ``HAS_PROXY`` 代理会话可用
   - 已注册进 :class:`CollectionService` 的 collectors 字典
   - Phase 9: fallback URL 必须是真实的 ``https://github.com/{owner}/{repo}`` 格式
   - Phase 9: ``_is_repo_url`` 过滤器正确识别真实项目链接
@@ -11,7 +10,6 @@
 """
 from __future__ import annotations
 
-from backend.collectors.base import HAS_PROXY
 from backend.collectors.github_collector import (
     GITHUB_SOURCES,
     GitHubCollector,
@@ -147,14 +145,6 @@ def test_parse_html_extracts_repo_links_from_article_cards():
     # 确保非项目链接被过滤
     assert "https://github.com/trending" not in urls
     assert "https://github.com/collections" not in urls
-
-
-# ---------------------------------------------------------------------------
-# Proxy 会话
-# ---------------------------------------------------------------------------
-def test_github_collector_uses_proxy_session():
-    """HAS_PROXY 应为 True（GitHub 走代理）。"""
-    assert HAS_PROXY is True
 
 
 # ---------------------------------------------------------------------------

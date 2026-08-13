@@ -5,7 +5,7 @@ Covers
 - All 5 legal forward transitions (T1–T4) + the T5 rollback edge
 - 5 illegal transitions (e.g. raw → publish, publish → raw)
 - is_terminal: only kl:publish
-- is_valid_stage: accepts the 5 v2.0 values, rejects legacy values
+- is_valid_stage: accepts the 5 v1.7 values, rejects legacy values
 - transition() returns the new stage on success
 - transition() raises ValueError on illegal moves (with actor in message)
 - predecessors / successors (graph reachability)

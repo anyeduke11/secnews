@@ -98,8 +98,31 @@ def main() -> None:
     log.info("mcp_stdio_main: starting stdio transport")
 
     try:
-        # fastapi-mcp 提供 run() 方法, transport="stdio" 用 stdin/stdout
-        mcp.run(transport="stdio")
+        # fastapi-mcp 0.4.x 的 FastApiMCP 只提供 mount_sse/mount_http, 不提供
+        # stdio 运行 (mcp.run(transport="stdio") 不存在)。stdio 的正确引导:
+        # 1) setup_server() 把 OpenAPI 工具注册到内部 MCP SDK Server (self.server)
+        # 2) 用 mcp.server 的 stdio_server() + run() 走 stdin/stdout JSON-RPC
+        import anyio
+
+        async def _run_stdio() -> None:
+            from mcp.server.lowlevel.server import NotificationOptions
+            from mcp.server.models import InitializationOptions
+            from mcp.server.stdio import stdio_server
+
+            mcp.setup_server()
+            server = mcp.server  # mcp.server.Server (MCP SDK lowlevel)
+            async with stdio_server() as (read_stream, write_stream):
+                init_opts = InitializationOptions(
+                    server_name="hotspot",
+                    server_version=APP_VERSION,
+                    capabilities=server.get_capabilities(
+                        notification_options=NotificationOptions(),
+                        experimental_capabilities={},
+                    ),
+                )
+                await server.run(read_stream, write_stream, init_opts)
+
+        anyio.run(_run_stdio)
     except KeyboardInterrupt:
         log.info("mcp_stdio_main: interrupted, shutting down")
     except Exception as e:

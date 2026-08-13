@@ -1,5 +1,5 @@
 -- 019_codegarden.sql — Phase 2a CodeGarden MVP
--- PRD: docs/CodeGarden_PRD_v2.0.md (6.2 表结构定义)
+-- PRD: docs/CodeGarden_PRD_v1.7.md (6.2 表结构定义)
 -- 校正: PRD 假设的 knowledge_skills 表实际叫 skills (Phase 41 012_skills.sql 创建)
 
 -- ============================================================================

@@ -1,7 +1,7 @@
--- migration 046_lifecycle_v2_down.sql
+-- migration 046_v1.7_lifecycle_down.sql
 -- 目的: 回滚 046 migration，将 kl:* 前缀还原为 v1.7 旧 3 阶段值
--- 警告: 仅在 v2.0 5 阶段触发器尚未稳定前使用；若 T1-T4 已产生新 kl:* 状态数据，
---        回滚会破坏 v2.0 引入的新逻辑，谨慎使用。
+-- 警告: 仅在 v1.7 5 阶段触发器尚未稳定前使用；若 T1-T4 已产生新 kl:* 状态数据，
+--        回滚会破坏 v1.7 引入的新逻辑，谨慎使用。
 
 UPDATE knowledge_items
 SET lifecycle = CASE lifecycle

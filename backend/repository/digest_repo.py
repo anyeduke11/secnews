@@ -15,7 +15,7 @@
 设计决策
 --------
 - 表无 ``start_at`` / ``end_at`` / ``read`` 列 (与 PRD §3.2.10 简化版对齐),
-  时间窗口通过 ``id`` (含日期) 隐含, 读取状态用 ``kv_cache`` 表记录
+  时间窗口通过 ``id`` (含日期) 隐含, 读取状态用 ``last_read_at`` 列记录
   (见 digest_service.mark_digest_read).
 - ``add`` 用 ``ON CONFLICT(id) DO UPDATE`` 实现 upsert, 同 id 重复生成时覆盖.
 - ``list_recent`` 按 created_at DESC 排序, 用于仪表盘展示历史简报.

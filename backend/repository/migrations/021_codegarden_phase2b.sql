@@ -1,5 +1,5 @@
 -- 021_codegarden_phase2b.sql — Phase 2b CodeGarden Service Mesh
--- PRD: docs/CodeGarden_PRD_v2.0.md §5.2/§5.3/§5.4 + §6.2.5/§6.2.6/§6.2.7
+-- PRD: docs/CodeGarden_PRD_v1.7.md §5.2/§5.3/§5.4 + §6.2.5/§6.2.6/§6.2.7
 -- spec: .trae/specs/phase2b-service-mesh/spec.md §3.1
 --
 -- 新增 4 张表 (M2 服务网格 + M3 资源中枢 + M4 联动引擎)：

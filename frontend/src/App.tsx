@@ -1,9 +1,10 @@
 import React, { Suspense, useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { PageLayout } from './components/PageLayout';
+import { useFavorites } from './hooks/useFavorites';
 // Lazy-loaded page components — split into separate chunks to reduce initial bundle size.
 const SettingsPage = React.lazy(() =>
-  import('./components/SettingsPage').then(m => ({ default: m.SettingsPage }))
+  import('./components/settings/SettingsPage').then(m => ({ default: m.SettingsPage }))
 );
 const FavoritesPanel = React.lazy(() =>
   import('./components/favorites').then(m => ({ default: m.FavoritesPanel }))
@@ -18,13 +19,13 @@ const SkillsPage = React.lazy(() =>
   import('./components/SkillsPage').then(m => ({ default: m.SkillsPage }))
 );
 const SecretsPage = React.lazy(() =>
-  import('./components/SecretsPage').then(m => ({ default: m.SecretsPage }))
+  import('./components/secrets/SecretsPage').then(m => ({ default: m.SecretsPage }))
 );
 const SyncPage = React.lazy(() =>
   import('./components/sync').then(m => ({ default: m.SyncPage }))
 );
 const ReportPage = React.lazy(() =>
-  import('./components/ReportPage').then(m => ({ default: m.ReportPage }))
+  import('./components/report/ReportPage').then(m => ({ default: m.ReportPage }))
 );
 const KnowledgePage = React.lazy(() =>
   import('./components/KnowledgePage').then(m => ({ default: m.KnowledgePage }))
@@ -144,8 +145,6 @@ function CategoryRedirect() {
   return <Navigate to={`/data?category=${cat}`} replace />;
 }
 
-import type { HotspotItem } from './types';
-
 /** Minimal loading fallback for Suspense-wrapped routes. */
 function PageFallback() {
   return (
@@ -181,55 +180,11 @@ function getInitialTheme(): 'dark' | 'light' {
   return 'light';
 }
 
-// v1.8: /history 独立路由的收藏状态壳 —— 之前传入空 Set + 空函数导致
-// 历史页收藏状态恒为 false 且点击无效, 现改为真实加载 + 乐观更新
+// v1.8: /history 独立路由的收藏状态壳 —— 改用 useFavorites 共享 store
+// (之前是本地空 Set + 手动 fetch + 乐观更新, 与 DataLayerPage 各持一份导致不同步)
 function HistoryPageRoute() {
-  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const r = await fetch('/api/favorites?limit=1000');
-        if (!r.ok) return;
-        const data = await r.json();
-        if (cancelled) return;
-        setFavoritedIds(new Set((data.items || []).map((it: any) => it.hotspot_id)));
-      } catch {}
-    };
-    load();
-    return () => { cancelled = true; };
-  }, []);
-
-  const handleToggleFavorite = useCallback(async (item: HotspotItem) => {
-    const wasFavorited = favoritedIds.has(item.id);
-    setFavoritedIds(prev => {
-      const next = new Set(prev);
-      if (wasFavorited) next.delete(item.id); else next.add(item.id);
-      return next;
-    });
-    try {
-      if (wasFavorited) {
-        const r = await fetch(`/api/favorites/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      } else {
-        const r = await fetch('/api/favorites', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hotspot_id: item.id, category: item.category, title: item.title, source: item.source, url: item.url }),
-        });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      }
-    } catch {
-      setFavoritedIds(prev => {
-        const next = new Set(prev);
-        if (wasFavorited) next.add(item.id); else next.delete(item.id);
-        return next;
-      });
-    }
-  }, [favoritedIds]);
-
-  return <HistoryPage favoritedIds={favoritedIds} onToggleFavorite={handleToggleFavorite} />;
+  const { favorites: favoritedIds, toggleFavorite } = useFavorites();
+  return <HistoryPage favoritedIds={favoritedIds} onToggleFavorite={toggleFavorite} />;
 }
 
 export default function App() {

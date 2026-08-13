@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { apiFetch, getJSON } from '../lib/api';
 import {
   SecretItem,
   SecretListResponse,
@@ -56,11 +57,7 @@ export function useSecrets(): UseSecretsReturn {
 
   const refreshStatus = useCallback(async () => {
     try {
-      const r = await fetch('/api/secrets/status', {
-        headers: { Accept: 'application/json' },
-      });
-      if (!r.ok) return;
-      const data: SecretStatusResponse = await r.json();
+      const data = await getJSON<SecretStatusResponse>('/api/secrets/status');
       setStatus(data);
     } catch {
       // 静默
@@ -74,15 +71,9 @@ export function useSecrets(): UseSecretsReturn {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch('/api/secrets', {
+      const data = await apiFetch<SecretListResponse>('/api/secrets', {
         signal: controller.signal,
-        headers: { Accept: 'application/json' },
       });
-      if (!r.ok) {
-        const t = await r.text().catch(() => '');
-        throw new Error(`加载失败 (${r.status})${t ? `: ${t.slice(0, 200)}` : ''}`);
-      }
-      const data: SecretListResponse = await r.json();
       setItems(data.items || []);
       setTotal(data.total || 0);
     } catch (e: any) {
@@ -121,16 +112,10 @@ export function useSecrets(): UseSecretsReturn {
 
   const setupMasterKey = useCallback(
     async (masterKey: string): Promise<void> => {
-      const r = await fetch('/api/secrets/setup', {
+      await apiFetch('/api/secrets/setup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ master_key: masterKey }),
       });
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        const msg = (j as any)?.detail?.message || `设置失败 (${r.status})`;
-        throw new Error(msg);
-      }
       await refreshStatus();
     },
     [refreshStatus]
@@ -138,17 +123,10 @@ export function useSecrets(): UseSecretsReturn {
 
   const unlock = useCallback(
     async (masterKey: string): Promise<SecretUnlockResponse> => {
-      const r = await fetch('/api/secrets/unlock', {
+      const data = await apiFetch<SecretUnlockResponse>('/api/secrets/unlock', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ master_key: masterKey }),
       });
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        const msg = (j as any)?.detail?.message || `解锁失败 (${r.status})`;
-        throw new Error(msg);
-      }
-      const data: SecretUnlockResponse = await r.json();
       await refreshStatus();
       await refreshList();
       return data;
@@ -157,25 +135,17 @@ export function useSecrets(): UseSecretsReturn {
   );
 
   const lock = useCallback(async (): Promise<void> => {
-    const r = await fetch('/api/secrets/lock', { method: 'POST' });
-    if (!r.ok) throw new Error(`锁定失败 (${r.status})`);
+    await apiFetch('/api/secrets/lock', { method: 'POST' });
     await refreshStatus();
     await refreshList();
   }, [refreshStatus, refreshList]);
 
   const add = useCallback(
     async (req: SecretCreateRequest): Promise<SecretItem> => {
-      const r = await fetch('/api/secrets', {
+      const data = await apiFetch<{ item: SecretItem }>('/api/secrets', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(req),
       });
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        const msg = (j as any)?.detail?.message || `新建失败 (${r.status})`;
-        throw new Error(msg);
-      }
-      const data = await r.json();
       const item: SecretItem = data.item;
       setItems(prev => [item, ...prev]);
       setTotal(prev => prev + 1);
@@ -186,17 +156,10 @@ export function useSecrets(): UseSecretsReturn {
 
   const update = useCallback(
     async (id: number, req: SecretUpdateRequest): Promise<SecretItem> => {
-      const r = await fetch(`/api/secrets/${id}`, {
+      const data = await apiFetch<{ item: SecretItem }>(`/api/secrets/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(req),
       });
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        const msg = (j as any)?.detail?.message || `更新失败 (${r.status})`;
-        throw new Error(msg);
-      }
-      const data = await r.json();
       const item: SecretItem = data.item;
       setItems(prev => prev.map(p => (p.id === id ? item : p)));
       return item;
@@ -206,10 +169,8 @@ export function useSecrets(): UseSecretsReturn {
 
   const remove = useCallback(
     async (id: number): Promise<void> => {
-      const r = await fetch(`/api/secrets/${id}`, { method: 'DELETE' });
-      if (!r.ok && r.status !== 204) {
-        throw new Error(`删除失败 (${r.status})`);
-      }
+      // DELETE 返回 204, apiFetch 对 204 直接返回 undefined
+      await apiFetch(`/api/secrets/${id}`, { method: 'DELETE' });
       setItems(prev => prev.filter(p => p.id !== id));
       setTotal(prev => Math.max(0, prev - 1));
     },
@@ -218,30 +179,17 @@ export function useSecrets(): UseSecretsReturn {
 
   const reveal = useCallback(
     async (id: number, masterKey: string): Promise<SecretRevealResponse> => {
-      const r = await fetch(`/api/secrets/${id}/reveal`, {
+      return apiFetch<SecretRevealResponse>(`/api/secrets/${id}/reveal`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ master_key: masterKey }),
       });
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        const msg = (j as any)?.detail?.message || `获取明文失败 (${r.status})`;
-        throw new Error(msg);
-      }
-      return r.json();
     },
     []
   );
 
   const testConnection = useCallback(
     async (id: number): Promise<SecretTestResponse> => {
-      const r = await fetch(`/api/secrets/${id}/test`, { method: 'POST' });
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        const msg = (j as any)?.detail?.message || `测试失败 (${r.status})`;
-        throw new Error(msg);
-      }
-      return r.json();
+      return apiFetch<SecretTestResponse>(`/api/secrets/${id}/test`, { method: 'POST' });
     },
     []
   );
@@ -253,13 +201,7 @@ export function useSecrets(): UseSecretsReturn {
       // 改成 POST + body 模式更安全; 不过这里 API 已经写好了 GET + query,
       // 所以走 GET 接受这个 trade-off (短 TTL, 浏览器内存, 不会进 server log)
       const url = `/api/secrets/export?master_key=${encodeURIComponent(masterKey)}`;
-      const r = await fetch(url);
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        const msg = (j as any)?.detail?.message || `导出失败 (${r.status})`;
-        throw new Error(msg);
-      }
-      return r.blob();
+      return apiFetch<Blob>(url, { parse: 'blob' });
     },
     []
   );
@@ -276,17 +218,10 @@ export function useSecrets(): UseSecretsReturn {
       }
       const base64 = btoa(binary);
 
-      const r = await fetch('/api/secrets/import', {
+      return apiFetch<SecretImportResponse>('/api/secrets/import', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ payload_b64: base64, master_key: masterKey }),
       });
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        const msg = (j as any)?.detail?.message || `导入失败 (${r.status})`;
-        throw new Error(msg);
-      }
-      return r.json();
     },
     []
   );

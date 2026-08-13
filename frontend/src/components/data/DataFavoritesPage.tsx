@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
+import { apiFetch, postJSON } from '../../lib/api';
 import type { FavoriteItem, FavoritesListResponse, FavoritesCountResponse } from '../../types';
 
 interface TodoPayload {
@@ -28,17 +29,16 @@ export function DataFavoritesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [listR, countR] = await Promise.all([
-        fetch(`/api/favorites?limit=1000&cat=${activeCat}`),
-        fetch('/api/favorites/counts'),
+      // 统一走 lib/api.ts; 任一失败不影响另一路 (catch 兜底为 null)
+      const [listData, countData] = await Promise.all([
+        apiFetch<FavoritesListResponse>(`/api/favorites?limit=1000&category=${activeCat}`).catch(() => null),
+        apiFetch<FavoritesCountResponse>('/api/favorites/count').catch(() => null),
       ]);
-      if (listR.ok) {
-        const listData: FavoritesListResponse = await listR.json();
+      if (listData) {
         setItems(listData.items || []);
         setTotal(listData.total || 0);
       }
-      if (countR.ok) {
-        const countData: FavoritesCountResponse = await countR.json();
+      if (countData) {
         setCounts(countData.by_category || {});
       }
     } catch { /* 静默 */ }
@@ -49,8 +49,7 @@ export function DataFavoritesPage() {
 
   const handleRemove = useCallback(async (hotspotId: string) => {
     try {
-      const r = await fetch(`/api/favorites/${encodeURIComponent(hotspotId)}`, { method: 'DELETE' });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      await apiFetch(`/api/favorites/${encodeURIComponent(hotspotId)}`, { method: 'DELETE' });
       setItems(prev => prev.filter(it => it.hotspot_id !== hotspotId));
       setTotal(prev => Math.max(0, prev - 1));
       setMessage({ type: 'ok', text: '已取消收藏' });
@@ -64,18 +63,14 @@ export function DataFavoritesPage() {
   const handleAddToTodo = useCallback(async (hotspotId: string, payload: TodoPayload) => {
     try {
       const item = items.find(it => it.hotspot_id === hotspotId);
-      await fetch('/api/todos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          source_type: 'favorite',
-          source_id: hotspotId,
-          title: item ? `[收藏] ${item.title || hotspotId}` : hotspotId,
-          category: item?.category || 'other',
-          url: item?.url || '',
-          important: payload.important,
-          deadline: payload.deadline,
-        }),
+      await postJSON('/api/todos', {
+        source_type: 'favorite',
+        source_id: hotspotId,
+        title: item ? `[收藏] ${item.title || hotspotId}` : hotspotId,
+        category: item?.category || 'other',
+        url: item?.url || '',
+        important: payload.important,
+        deadline: payload.deadline,
       });
       setMessage({ type: 'ok', text: '已添加到待办' });
       setTimeout(() => setMessage(null), 3000);
@@ -89,13 +84,11 @@ export function DataFavoritesPage() {
 
   const handleExport = useCallback(async () => {
     try {
-      const r = await fetch('/api/favorites/export');
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const blob = await r.blob();
+      const blob = await apiFetch<Blob>('/api/favorites/export', { parse: 'blob' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'favorites-export.json';
+      a.download = 'favorites-export.xlsx';
       a.click();
       URL.revokeObjectURL(url);
       setMessage({ type: 'ok', text: '导出成功' });

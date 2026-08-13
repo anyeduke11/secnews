@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { apiFetch } from '../lib/api';
 import { ImportedItem, ImportedResponse } from '../types';
 
 interface FetchParams {
@@ -35,11 +36,7 @@ export function useImported(): UseImportedReturn {
       searchParams.set('page_size', String(params?.pageSize ?? 20));
 
       const qs = searchParams.toString();
-      const response = await fetch(`/api/knowledge/imported${qs ? `?${qs}` : ''}`);
-      if (!response.ok) {
-        throw new Error(`请求失败 (${response.status})`);
-      }
-      const result: ImportedResponse = await response.json();
+      const result = await apiFetch<ImportedResponse>(`/api/knowledge/imported${qs ? `?${qs}` : ''}`);
       setData(result);
     } catch (err: any) {
       setError(err.message || '加载失败');

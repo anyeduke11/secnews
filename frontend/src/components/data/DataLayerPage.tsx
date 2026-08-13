@@ -11,6 +11,7 @@ import { useNavigate, useParams, useSearchParams, useLocation } from 'react-rout
 import { useHotspotData } from '../../hooks/useHotspotData';
 import { useRefreshInterval } from '../../hooks/useRefreshInterval';
 import { useTodos } from '../../hooks/useTodos';
+import { useFavorites, syncFavorites } from '../../hooks/useFavorites';
 import { useSSE } from '../../hooks/useSSE';
 import { Header } from '../Header';
 import { CategoryNav } from '../CategoryNav';
@@ -24,7 +25,7 @@ import { FavoritesPanel } from '../favorites';
 import { LayerCard, LayerCardRow, PipelineFlow, ViewMoreLink } from '../layout/LayerCard';
 import { LayerHeader, DATA_SUB_NAV, useLayerSubNav } from '../layout/LayerHeader';
 import { useTheme } from '../../App';
-import type { HotspotItem, ConsistencyDrift, StatsResponse } from '../../types';
+import type { ConsistencyDrift, StatsResponse } from '../../types';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
 export function DataLayerPage() {
@@ -39,12 +40,13 @@ export function DataLayerPage() {
   const [region, setRegion] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
   const [favoritesOpen, setFavoritesOpen] = useState(false);
-  const [favoritesCount, setFavoritesCount] = useState(0);
-  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
   const [consistencyDrift, setConsistencyDrift] = useState<ConsistencyDrift[]>([]);
   const [manualRefreshing, setManualRefreshing] = useState(false);
   const { interval: refreshInterval, setInterval: setRefreshInterval, refreshFromServer } = useRefreshInterval();
   const lastAutoRefreshAtRef = useRef<number>(Date.now());
+
+  // 收藏状态统一走 useFavorites 共享 store (ids + 总数 + 乐观更新/回滚)
+  const { favorites: favoritedIds, count: favoritesCount, toggleFavorite } = useFavorites();
 
   const {
     items, total, categoryCounts, loading, loadingPage, error, lastUpdated,
@@ -69,22 +71,6 @@ export function DataLayerPage() {
     judge: 0,
     action: 0,
   }), [total]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const r = await fetch('/api/favorites?limit=1000');
-        if (!r.ok) return;
-        const data = await r.json();
-        if (cancelled) return;
-        setFavoritesCount(data.total || 0);
-        setFavoritedIds(new Set((data.items || []).map((it: any) => it.hotspot_id)));
-      } catch {}
-    };
-    load();
-    return () => { cancelled = true; };
-  }, []);
 
   useEffect(() => { refreshFromServer(); }, []);
 
@@ -122,39 +108,9 @@ export function DataLayerPage() {
     refresh();
   }, [refresh]);
 
-  const handleToggleFavorite = useCallback(async (item: HotspotItem) => {
-    const wasFavorited = favoritedIds.has(item.id);
-    setFavoritedIds(prev => {
-      const next = new Set(prev);
-      if (wasFavorited) next.delete(item.id); else next.add(item.id);
-      return next;
-    });
-    setFavoritesCount(prev => Math.max(0, prev + (wasFavorited ? -1 : 1)));
-    try {
-      if (wasFavorited) {
-        const r = await fetch(`/api/favorites/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      } else {
-        const r = await fetch('/api/favorites', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hotspot_id: item.id, category: item.category, title: item.title, source: item.source, url: item.url }),
-        });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      }
-    } catch {
-      setFavoritedIds(prev => {
-        const next = new Set(prev);
-        if (wasFavorited) next.add(item.id); else next.delete(item.id);
-        return next;
-      });
-      setFavoritesCount(prev => Math.max(0, prev + (wasFavorited ? 1 : -1)));
-    }
-  }, [favoritedIds]);
-
+  // FavoritesPanel 桥接: 面板内部仍是独立列表, 通过回调把 ids/count 同步进共享 store
   const handleFavoritesChange = useCallback((ids: Set<string>) => {
-    setFavoritedIds(ids);
-    setFavoritesCount(ids.size);
+    syncFavorites(ids, ids.size);
   }, []);
 
   const handleCategoryChange = useCallback((cat: string) => {
@@ -191,7 +147,7 @@ export function DataLayerPage() {
       <FavoritesPanel
         open={favoritesOpen}
         onClose={() => setFavoritesOpen(false)}
-        onCountChange={setFavoritesCount}
+        onCountChange={(count) => syncFavorites(undefined, count)}
         onFavoritesChange={handleFavoritesChange}
       />
 
@@ -249,7 +205,7 @@ export function DataLayerPage() {
               loading={loading}
               error={error}
               favoritedIds={favoritedIds}
-              onToggleFavorite={handleToggleFavorite}
+              onToggleFavorite={toggleFavorite}
               page={page}
               pageSize={pageSize}
               totalPages={totalPages}

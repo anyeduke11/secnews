@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { apiFetch, getJSON } from '../lib/api';
 import {
   TodoItem,
   TodoStatus,
@@ -95,13 +96,9 @@ export function useTodos(): UseTodosReturn {
           params.set('important', currentFilter.important ? '1' : '0');
         }
 
-        const r = await fetch(`/api/todos?${params}`, {
+        const data = await apiFetch<TodoListResponse>(`/api/todos?${params}`, {
           signal: controller.signal,
-          headers: { Accept: 'application/json' },
         });
-        if (!r.ok) throw new Error(`请求失败 (${r.status})`);
-
-        const data: TodoListResponse = await r.json();
         // 归一化 urgent/important 为 boolean
         const normalized: TodoItem[] = (data.items || []).map(it => ({
           ...it,
@@ -124,11 +121,7 @@ export function useTodos(): UseTodosReturn {
 
   const fetchCount = useCallback(async () => {
     try {
-      const r = await fetch('/api/todos/count', {
-        headers: { Accept: 'application/json' },
-      });
-      if (!r.ok) return;
-      const data: TodoCountResponse = await r.json();
+      const data = await getJSON<TodoCountResponse>('/api/todos/count');
       setCount(data);
     } catch {
       // 静默: 计数拉取失败不影响列表
@@ -137,11 +130,7 @@ export function useTodos(): UseTodosReturn {
 
   const fetchAvailableFavorites = useCallback(async () => {
     try {
-      const r = await fetch('/api/todos/available_favorites?limit=200', {
-        headers: { Accept: 'application/json' },
-      });
-      if (!r.ok) return;
-      const data = await r.json();
+      const data = await getJSON<{ items: AvailableFavorite[] }>('/api/todos/available_favorites?limit=200');
       setAvailableFavorites(data.items || []);
     } catch {
       // 静默: 可选收藏拉取失败不影响主流程
@@ -179,19 +168,10 @@ export function useTodos(): UseTodosReturn {
 
   const add = useCallback(
     async (req: TodoCreateRequest): Promise<{ item: TodoItem; created: boolean }> => {
-      const r = await fetch('/api/todos', {
+      const data = await apiFetch<{ item: TodoItem; created: boolean }>('/api/todos', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
         body: JSON.stringify(req),
       });
-      if (!r.ok) {
-        const errBody = await r.text().catch(() => '');
-        throw new Error(`新建失败 (${r.status})${errBody ? `: ${errBody}` : ''}`);
-      }
-      const data = await r.json();
       const item: TodoItem = {
         ...data.item,
         urgent: toBool(data.item.urgent),
@@ -220,19 +200,10 @@ export function useTodos(): UseTodosReturn {
 
   const update = useCallback(
     async (id: number, req: TodoUpdateRequest): Promise<TodoItem> => {
-      const r = await fetch(`/api/todos/${id}`, {
+      const data = await apiFetch<{ item: TodoItem }>(`/api/todos/${id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
         body: JSON.stringify(req),
       });
-      if (!r.ok) {
-        const errBody = await r.text().catch(() => '');
-        throw new Error(`更新失败 (${r.status})${errBody ? `: ${errBody}` : ''}`);
-      }
-      const data = await r.json();
       const item: TodoItem = {
         ...data.item,
         urgent: toBool(data.item.urgent),
@@ -252,10 +223,8 @@ export function useTodos(): UseTodosReturn {
 
   const remove = useCallback(
     async (id: number): Promise<void> => {
-      const r = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
-      if (!r.ok && r.status !== 204) {
-        throw new Error(`删除失败 (${r.status})`);
-      }
+      // DELETE 返回 204, apiFetch 对 204 直接返回 undefined
+      await apiFetch(`/api/todos/${id}`, { method: 'DELETE' });
       // 从 items 移除
       setItems(prev => prev.filter(p => p.id !== id));
       setTotal(prev => Math.max(0, prev - 1));

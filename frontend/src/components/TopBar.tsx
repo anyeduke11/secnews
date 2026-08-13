@@ -1,4 +1,5 @@
 import React, { MutableRefObject } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Icon } from './Icon';
 
 interface TopBarProps {
@@ -13,7 +14,6 @@ interface TopBarProps {
   refreshing?: boolean;
   theme: 'dark' | 'light';
   onThemeToggle: () => void;
-  onOpenSettings?: () => void;
   onOpenFavorites?: () => void;
   favoritesCount?: number;
 }
@@ -49,10 +49,10 @@ export function TopBar({
   refreshing = false,
   theme,
   onThemeToggle,
-  onOpenSettings,
   onOpenFavorites,
   favoritesCount = 0,
 }: TopBarProps) {
+  const navigate = useNavigate();
   const intervalMs = Math.max(refreshIntervalMinutes, 1) * 60 * 1000;
   const now = Date.now();
   const lastTick = lastAutoRefreshAtRef?.current ?? now;
@@ -132,9 +132,9 @@ export function TopBar({
 
         <button
           type="button"
-          onClick={onOpenSettings}
+          onClick={() => navigate('/settings')}
           className="btn-icon focus-ring"
-          title="代理设置"
+          title="设置"
           aria-label="设置"
         >
           <Icon>

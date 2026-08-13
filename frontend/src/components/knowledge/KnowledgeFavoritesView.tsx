@@ -67,7 +67,7 @@ export default function KnowledgeFavoritesView() {
     <div className="knowledge-favorites-view">
       {/* v1.9 Editorial: 栏目头 — 上边粗线 + uppercase 小标 */}
       <div className="flex items-center justify-between pb-2 mb-4" style={{ borderBottom: '2px solid var(--text-primary)' }}>
-        <h1 className="text-sm font-bold tracking-[0.12em] uppercase" style={{ color: 'var(--text-primary)' }}>资讯收藏</h1>
+        <h1 className="text-sm font-bold tracking-[0.12em] uppercase" style={{ color: 'var(--text-primary)' }}>知识展示</h1>
         {data && (
           <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>共 {data.total} 条</span>
         )}
@@ -152,6 +152,11 @@ export default function KnowledgeFavoritesView() {
                     {item.title}
                   </a>
                 </h3>
+                {item.summary && (
+                  <p className="text-[11px] leading-relaxed mt-1 line-clamp-2" style={{ color: 'var(--text-muted)' }}>
+                    {item.summary}
+                  </p>
+                )}
               </article>
             ))}
           </div>

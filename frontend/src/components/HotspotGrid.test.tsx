@@ -1,5 +1,5 @@
 // frontend/src/components/HotspotGrid.test.tsx
-// Phase 6 — HotspotGrid 列表+分页+三态测试 (v1.9 Editorial: LeadStory + EditorialRow 信息流)
+// Phase 6 — HotspotGrid 列表+分页+三态测试 (v1.10+: LeadStory + AgihuntCard 3列网格)
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { HotspotGrid } from './HotspotGrid';
@@ -38,7 +38,7 @@ describe('HotspotGrid', () => {
     expect(screen.getByText('AI 新闻')).toBeInTheDocument();
   });
 
-  it('renders first item as LeadStory on page 1, rest as rows', () => {
+  it('renders first item as LeadStory on page 1, rest as cards in grid', () => {
     const second: HotspotItem = { ...baseItem, id: 'h2', title: '安全通报' };
     render(
       <HotspotGrid
@@ -51,9 +51,11 @@ describe('HotspotGrid', () => {
         onSetPageSize={vi.fn()}
       />
     );
-    // 首条升格头条 (LeadStory 带「头条」标), 次条为普通条目行
+    // 首条升格头条 (LeadStory 带「头条」标), 次条为卡片网格
     expect(screen.getByText('头条')).toBeInTheDocument();
     expect(screen.getByText('安全通报')).toBeInTheDocument();
+    // 卡片网格容器存在
+    expect(document.querySelector('.agihunt-card-grid')).toBeInTheDocument();
   });
 
   it('does not render LeadStory on page > 1', () => {

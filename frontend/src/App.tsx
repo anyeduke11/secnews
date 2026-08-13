@@ -1,18 +1,9 @@
-import React, { Suspense, useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
+import React, { Suspense, useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { PageLayout } from './components/PageLayout';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { Header } from './components/Header';
-import { CategoryNav } from './components/CategoryNav';
-import { SearchBar } from './components/SearchBar';
-import { StatsPanel } from './components/StatsPanel';
-import { TrendChart } from './components/TrendChart';
-import { HotspotGrid } from './components/HotspotGrid';
-import { LoadingSkeleton } from './components/LoadingSkeleton';
-import { RegionFilter } from './components/RegionFilter';
 // Lazy-loaded page components — split into separate chunks to reduce initial bundle size.
-const SettingsPanel = React.lazy(() =>
-  import('./components/settings').then(m => ({ default: m.SettingsPanel }))
+const SettingsPage = React.lazy(() =>
+  import('./components/SettingsPage').then(m => ({ default: m.SettingsPage }))
 );
 const FavoritesPanel = React.lazy(() =>
   import('./components/favorites').then(m => ({ default: m.FavoritesPanel }))
@@ -32,8 +23,8 @@ const SecretsPage = React.lazy(() =>
 const SyncPage = React.lazy(() =>
   import('./components/sync').then(m => ({ default: m.SyncPage }))
 );
-const WeeklyReportPage = React.lazy(() =>
-  import('./components/WeeklyReportPage').then(m => ({ default: m.WeeklyReportPage }))
+const ReportPage = React.lazy(() =>
+  import('./components/ReportPage').then(m => ({ default: m.ReportPage }))
 );
 const KnowledgePage = React.lazy(() =>
   import('./components/KnowledgePage').then(m => ({ default: m.KnowledgePage }))
@@ -53,6 +44,27 @@ const KnowledgeCompound = React.lazy(() =>
 const KnowledgeFavoritesView = React.lazy(() =>
   import('./components/knowledge/KnowledgeFavoritesView')
 );
+const BriefingMode = React.lazy(() =>
+  import('./components/knowledge/BriefingMode').then(m => ({ default: m.BriefingMode }))
+);
+const ScanMode = React.lazy(() =>
+  import('./components/knowledge/ScanMode').then(m => ({ default: m.ScanMode }))
+);
+const DeepReadMode = React.lazy(() =>
+  import('./components/knowledge/DeepReadMode').then(m => ({ default: m.DeepReadMode }))
+);
+const AlertMode = React.lazy(() =>
+  import('./components/knowledge/AlertMode').then(m => ({ default: m.AlertMode }))
+);
+const OutboxMode = React.lazy(() =>
+  import('./components/knowledge/OutboxMode').then(m => ({ default: m.OutboxMode }))
+);
+const ReviewMode = React.lazy(() =>
+  import('./components/knowledge/ReviewMode').then(m => ({ default: m.ReviewMode }))
+);
+const AttentionHeatmap = React.lazy(() =>
+  import('./components/knowledge/AttentionHeatmap').then(m => ({ default: m.AttentionHeatmap }))
+);
 const CodegardenPage = React.lazy(() =>
   import('./components/CodegardenPage').then(m => ({ default: m.CodegardenPage }))
 );
@@ -68,11 +80,71 @@ const DeepReadView = React.lazy(() =>
 const BriefModeView = React.lazy(() =>
   import('./components/BriefModeView').then(m => ({ default: m.BriefModeView }))
 );
-import { useHotspotData } from './hooks/useHotspotData';
-import { useRefreshInterval } from './hooks/useRefreshInterval';
-import { useTodos } from './hooks/useTodos';
-import { useSSE } from './hooks/useSSE';
-import { ConsistencyDrift, StatsResponse, HotspotItem } from './types';
+const QualityRejectionPage = React.lazy(() =>
+  import('./components/QualityRejectionPage').then(m => ({ default: m.default }))
+);
+
+// Phase 1: 三层架构页面
+const DataLayerPage = React.lazy(() =>
+  import('./components/data/DataLayerPage').then(m => ({ default: m.DataLayerPage }))
+);
+const JudgeLayerPage = React.lazy(() =>
+  import('./components/judge/JudgeLayerPage').then(m => ({ default: m.JudgeLayerPage }))
+);
+const ActionLayerPage = React.lazy(() =>
+  import('./components/action/ActionLayerPage').then(m => ({ default: m.ActionLayerPage }))
+);
+// Phase 2: 资料层子页面
+const DataImportPage = React.lazy(() =>
+  import('./components/data/DataImportPage').then(m => ({ default: m.DataImportPage }))
+);
+const DataFavoritesPage = React.lazy(() =>
+  import('./components/data/DataFavoritesPage').then(m => ({ default: m.DataFavoritesPage }))
+);
+// Phase 3: 判断层子页面
+const JudgeTrendsPage = React.lazy(() =>
+  import('./components/judge/JudgeTrendsPage').then(m => ({ default: m.JudgeTrendsPage }))
+);
+const JudgeBidAnalysisPage = React.lazy(() =>
+  import('./components/judge/JudgeBidAnalysisPage').then(m => ({ default: m.JudgeBidAnalysisPage }))
+);
+
+// Phase 4: 行动层子页面（包装现有组件，添加行动层导航头）
+const ActionReportPage = React.lazy(() =>
+  import('./components/action/ActionReportPage').then(m => ({ default: m.ActionReportPage }))
+);
+const ActionCompoundPage = React.lazy(() =>
+  import('./components/action/ActionCompoundPage').then(m => ({ default: m.ActionCompoundPage }))
+);
+const ActionTodosPage = React.lazy(() =>
+  import('./components/action/ActionTodosPage').then(m => ({ default: m.ActionTodosPage }))
+);
+const ActionOutboxPage = React.lazy(() =>
+  import('./components/action/ActionOutboxPage').then(m => ({ default: m.ActionOutboxPage }))
+);
+const ActionReviewPage = React.lazy(() =>
+  import('./components/action/ActionReviewPage').then(m => ({ default: m.ActionReviewPage }))
+);
+const ActionCodegardenPage = React.lazy(() =>
+  import('./components/action/ActionCodegardenPage').then(m => ({ default: m.ActionCodegardenPage }))
+);
+const ActionCodegardenPhase2bPage = React.lazy(() =>
+  import('./components/action/ActionCodegardenPhase2bPage').then(m => ({ default: m.ActionCodegardenPhase2bPage }))
+);
+const ActionSkillsPage = React.lazy(() =>
+  import('./components/action/ActionSkillsPage').then(m => ({ default: m.ActionSkillsPage }))
+);
+const ActionBidAlertPage = React.lazy(() =>
+  import('./components/action/ActionBidAlertPage').then(m => ({ default: m.ActionBidAlertPage }))
+);
+
+/** 旧路由 /category/:cat 重定向到资料层，带上 category 参数 */
+function CategoryRedirect() {
+  const { cat } = useParams<{ cat: string }>();
+  return <Navigate to={`/data?category=${cat}`} replace />;
+}
+
+import type { HotspotItem } from './types';
 
 /** Minimal loading fallback for Suspense-wrapped routes. */
 function PageFallback() {
@@ -107,288 +179,6 @@ function getInitialTheme(): 'dark' | 'light' {
   } catch {}
   // v1.9 Editorial: 日报版 (light) 为新默认, 夜读版 (dark) 可切换
   return 'light';
-}
-
-function formatRefreshLabel(minutes: number): string {
-  if (minutes < 60) return `每${minutes}分钟自动刷新`;
-  if (minutes < 720) {
-    const hours = Math.round(minutes / 60);
-    return `每${hours}小时自动刷新`;
-  }
-  if (minutes < 1440) {
-    const hours = Math.round(minutes / 60);
-    return `每${hours}小时自动刷新`;
-  }
-  return `每约${Math.round(minutes / 60 / 24)}天自动刷新`;
-}
-
-function HomePage() {
-  const { cat } = useParams<{ cat?: string }>();
-  const navigate = useNavigate();
-  const { theme, toggleTheme } = useTheme();
-  const category = cat || 'all';
-
-  const [timeRange, setTimeRange] = useState('7d');
-  const [keyword, setKeyword] = useState('');
-  const [region, setRegion] = useState('');  // Phase 8: 标讯地区筛选
-  const [sourceFilter, setSourceFilter] = useState('');  // v1.9.1: 点击条目来源筛选
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [favoritesOpen, setFavoritesOpen] = useState(false);
-  const [favoritesCount, setFavoritesCount] = useState(0);
-  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
-  const [consistencyDrift, setConsistencyDrift] = useState<ConsistencyDrift[]>([]);
-  const [manualRefreshing, setManualRefreshing] = useState(false);
-  const { interval: refreshInterval, setInterval: setRefreshInterval, refreshFromServer } = useRefreshInterval();
-  const lastAutoRefreshAtRef = useRef<number>(Date.now());
-
-  const {
-    items, total, categoryCounts, loading, loadingPage, error, lastUpdated,
-    hasMore, page, pageSize, totalPages, setPage, setPageSize, refresh,
-    latestIngestionCount, latestIngestionAt,
-  } = useHotspotData(category, timeRange, keyword, region, sourceFilter);
-
-  const todos = useTodos();
-
-  // Phase 6: SSE 实时推送 — 连接后禁用轮询，断开时恢复
-  const { connected: sseConnected } = useSSE({
-    onEvent: (type, data) => {
-      if (type === 'collect_done') {
-        refresh();
-      }
-    },
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const r = await fetch('/api/favorites?limit=1000');
-        if (!r.ok) return;
-        const data = await r.json();
-        if (cancelled) return;
-        setFavoritesCount(data.total || 0);
-        setFavoritedIds(new Set((data.items || []).map((it: any) => it.hotspot_id)));
-      } catch {}
-    };
-    load();
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => { refreshFromServer(); }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const fetchStats = async () => {
-      try {
-        const resp = await fetch('/api/stats');
-        if (!resp.ok) return;
-        const data: StatsResponse = await resp.json();
-        if (!cancelled && data.consistency_check?.drift) {
-          setConsistencyDrift(data.consistency_check.drift);
-        }
-      } catch {}
-    };
-    fetchStats();
-    const t = window.setInterval(fetchStats, 5 * 60 * 1000);
-    return () => { cancelled = true; window.clearInterval(t); };
-  }, []);
-
-  useEffect(() => {
-    if (sseConnected) return; // SSE 推送已连接，无需轮询
-    const ms = Math.max(refreshInterval, 1) * 60 * 1000;
-    lastAutoRefreshAtRef.current = Date.now();
-    const timer = window.setInterval(() => {
-      lastAutoRefreshAtRef.current = Date.now();
-      refresh();
-    }, ms);
-    return () => window.clearInterval(timer);
-  }, [refreshInterval, refresh, sseConnected]);
-
-  const handleManualRefresh = useCallback(() => {
-    lastAutoRefreshAtRef.current = Date.now();
-    setManualRefreshing(true);
-    refresh();
-  }, [refresh]);
-
-  const handleToggleFavorite = useCallback(async (item: HotspotItem) => {
-    const wasFavorited = favoritedIds.has(item.id);
-    setFavoritedIds(prev => {
-      const next = new Set(prev);
-      if (wasFavorited) next.delete(item.id); else next.add(item.id);
-      return next;
-    });
-    setFavoritesCount(prev => Math.max(0, prev + (wasFavorited ? -1 : 1)));
-    try {
-      if (wasFavorited) {
-        const r = await fetch(`/api/favorites/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      } else {
-        const r = await fetch('/api/favorites', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hotspot_id: item.id, category: item.category, title: item.title, source: item.source, url: item.url }),
-        });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      }
-    } catch {
-      setFavoritedIds(prev => {
-        const next = new Set(prev);
-        if (wasFavorited) next.add(item.id); else next.delete(item.id);
-        return next;
-      });
-      setFavoritesCount(prev => Math.max(0, prev + (wasFavorited ? 1 : -1)));
-    }
-  }, [favoritedIds]);
-
-  const handleFavoritesChange = useCallback((ids: Set<string>) => {
-    setFavoritedIds(ids);
-    setFavoritesCount(ids.size);
-  }, []);
-
-  const handleCategoryChange = useCallback((cat: string) => {
-    if (cat === 'all') navigate('/');
-    else navigate(`/category/${cat}`);
-  }, [navigate]);
-
-  // v1.9.1: 条目 meta 行分类点击 — 后端 tech 合并到 ai tab
-  const handleItemCategoryClick = useCallback((cat: string) => {
-    handleCategoryChange(cat === 'tech' ? 'ai' : cat);
-  }, [handleCategoryChange]);
-
-  // v1.9.1: 条目 meta 行来源点击 — 切换式筛选 (再点同一来源取消)
-  const handleItemSourceClick = useCallback((source: string) => {
-    setSourceFilter(prev => (prev === source ? '' : source));
-  }, []);
-
-  return (
-    <>
-      <Header
-        latestIngestionCount={latestIngestionCount}
-        latestIngestionAt={latestIngestionAt}
-        lastUpdated={lastUpdated}
-        onRefresh={handleManualRefresh}
-        theme={theme}
-        onThemeToggle={toggleTheme}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onOpenFavorites={() => setFavoritesOpen(true)}
-        favoritesCount={favoritesCount}
-        refreshIntervalMinutes={refreshInterval}
-        lastAutoRefreshAtRef={lastAutoRefreshAtRef}
-        todosOpenCount={todos.count?.by_status.open ?? 0}
-        refreshing={manualRefreshing}
-      />
-
-      <SettingsPanel
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        onRefreshIntervalChange={setRefreshInterval}
-      />
-
-      <FavoritesPanel
-        open={favoritesOpen}
-        onClose={() => setFavoritesOpen(false)}
-        onCountChange={setFavoritesCount}
-        onFavoritesChange={handleFavoritesChange}
-      />
-
-      <CategoryNav
-        active={category}
-        onChange={handleCategoryChange}
-        counts={categoryCounts}
-        consistencyDrift={consistencyDrift}
-      />
-
-      {/* v1.9 Editorial: 头版双栏 — 主列信息流 + 297px 侧栏 (xl 以上), 竖分栏线 */}
-      <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_297px] xl:gap-0">
-        <main className="min-w-0 xl:pr-8 xl:border-r" style={{ borderColor: 'var(--border-light)' }}>
-          <SearchBar
-            keyword={keyword}
-            timeRange={timeRange}
-            onKeywordChange={setKeyword}
-            onTimeRangeChange={setTimeRange}
-          />
-
-          {/* Phase 8: 标讯地区筛选 — 仅 category=bid 时显示 */}
-          {category === 'bid' && (
-            <div className="mb-3">
-              <RegionFilter value={region} onChange={setRegion} />
-            </div>
-          )}
-
-          {/* v1.9.1: 来源筛选 chip — 点击条目来源后显示, 可清除 */}
-          {sourceFilter && (
-            <div className="mb-3 flex items-center gap-2 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
-              <span>来源筛选</span>
-              <button
-                type="button"
-                onClick={() => setSourceFilter('')}
-                className="ink-chip active focus-ring transition-colors"
-                style={{ padding: '3px 9px' }}
-                title="清除来源筛选"
-                aria-label={`清除来源筛选 ${sourceFilter}`}
-              >
-                {sourceFilter}
-                <span aria-hidden="true" style={{ fontWeight: 400 }}>×</span>
-              </button>
-            </div>
-          )}
-
-          {loading ? (
-            <LoadingSkeleton />
-          ) : (
-            <HotspotGrid
-              items={items}
-              loading={loading}
-              error={error}
-              favoritedIds={favoritedIds}
-              onToggleFavorite={handleToggleFavorite}
-              page={page}
-              pageSize={pageSize}
-              totalPages={totalPages}
-              total={total}
-              hasMore={hasMore}
-              loadingPage={loadingPage}
-              onSetPage={setPage}
-              onSetPageSize={setPageSize}
-              onCategoryClick={handleItemCategoryClick}
-              onSourceClick={handleItemSourceClick}
-            />
-          )}
-        </main>
-
-        <aside className="mt-8 xl:mt-0 xl:pl-8 min-w-0">
-          {!loading && items.length > 0 && (
-            <StatsPanel
-              categoryCounts={categoryCounts}
-              total={Object.values(categoryCounts).reduce((a, b) => a + b, 0)}
-            />
-          )}
-          {!loading && category === 'all' && <TrendChart />}
-        </aside>
-      </div>
-
-      <div className="editorial-divider mt-6" />
-      <footer className="text-center pb-4">
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          SecNews 热点地图 · 数据源: 安全客 / Krebs / PortSwigger / SANS / FreeBuf / 奇安信 / AVD / CNNVD / CNVD / 新浪财经 / 东方财富 / Hacker News / aihot / GitHub Trending / 中国政府采购网
-        </p>
-        <p className="text-xs mt-2 font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
-          点击卡片查看原文 · {formatRefreshLabel(refreshInterval)}
-        </p>
-        <p className="text-xs mt-2 font-mono">
-          <a
-            href="/api/export"
-            target="_blank"
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border transition-colors hover:bg-[var(--bg-hover)]"
-            style={{ color: 'var(--accent)', borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)' }}
-            rel="noreferrer"
-          >
-            export
-          </a>
-        </p>
-      </footer>
-    </>
-  );
 }
 
 // v1.8: /history 独立路由的收藏状态壳 —— 之前传入空 Set + 空函数导致
@@ -462,23 +252,47 @@ export default function App() {
       <Routes>
         {/* Phase 1A: 嵌套 Layout (PageLayout 含 ToastProvider + 外层容器) */}
         <Route element={<PageLayout />}>
-          <Route path="/" element={
-            <ErrorBoundary onReset={goHome}>
-              <HomePage />
-            </ErrorBoundary>
-          } />
-          <Route path="/category/:cat" element={
-            <ErrorBoundary onReset={goHome}>
-              <HomePage />
-            </ErrorBoundary>
-          } />
-          {/* Phase 5A: Lazy-loaded with Suspense boundary */}
+          {/* ── 三层架构新路由 ── */}
+          <Route path="/data" element={<Suspense fallback={<PageFallback />}><DataLayerPage /></Suspense>} />
+          <Route path="/data/import" element={<Suspense fallback={<PageFallback />}><DataImportPage /></Suspense>} />
+          <Route path="/data/favorites" element={<Suspense fallback={<PageFallback />}><DataFavoritesPage /></Suspense>} />
+          <Route path="/data/history" element={<HistoryPageRoute />} />
+          <Route path="/judge" element={<Suspense fallback={<PageFallback />}><JudgeLayerPage /></Suspense>} />
+          <Route path="/action" element={<Suspense fallback={<PageFallback />}><ActionLayerPage /></Suspense>} />
+
+          {/* ── 旧路由兼容: Navigate 到新路由 ── */}
+          <Route path="/" element={<Navigate to="/data" replace />} />
+          <Route path="/category/:cat" element={<CategoryRedirect />} />
+          <Route path="/weekly-report" element={<Navigate to="/report" replace />} />
+
+          {/* ── 行动层子路由 (Phase 4: 实际包装页面，替换旧重定向) ── */}
+          <Route path="/action/report" element={<Suspense fallback={<PageFallback />}><ActionReportPage /></Suspense>} />
+          <Route path="/action/compound" element={<Suspense fallback={<PageFallback />}><ActionCompoundPage /></Suspense>} />
+          <Route path="/action/todos" element={<Suspense fallback={<PageFallback />}><ActionTodosPage /></Suspense>} />
+          <Route path="/action/outbox" element={<Suspense fallback={<PageFallback />}><ActionOutboxPage /></Suspense>} />
+          <Route path="/action/review" element={<Suspense fallback={<PageFallback />}><ActionReviewPage /></Suspense>} />
+          <Route path="/action/skills" element={<Suspense fallback={<PageFallback />}><ActionSkillsPage /></Suspense>} />
+          <Route path="/action/codegarden" element={<Suspense fallback={<PageFallback />}><ActionCodegardenPage /></Suspense>} />
+          <Route path="/action/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><ActionCodegardenPhase2bPage /></Suspense>} />
+          <Route path="/action/bid-alert" element={<Suspense fallback={<PageFallback />}><ActionBidAlertPage /></Suspense>} />
+
+          {/* ── 判断层子路由（Phase 3: 趋势/标讯分析独立页面，其余保留跳转） ── */}
+          <Route path="/judge/trends" element={<Suspense fallback={<PageFallback />}><JudgeTrendsPage /></Suspense>} />
+          <Route path="/judge/bid-analysis" element={<Suspense fallback={<PageFallback />}><JudgeBidAnalysisPage /></Suspense>} />
+          <Route path="/judge/quality" element={<Navigate to="/quality/rejection" replace />} />
+          <Route path="/judge/heatmap" element={<Navigate to="/knowledge/heatmap" replace />} />
+          <Route path="/judge/graph" element={<Navigate to="/knowledge/process" replace />} />
+          <Route path="/judge/compile" element={<Navigate to="/knowledge/compile" replace />} />
+          <Route path="/judge/read" element={<Navigate to="/knowledge/briefing" replace />} />
+
+          {/* ── 保留的旧路由 (内容尚未迁移) ── */}
           <Route path="/todos" element={<Suspense fallback={<PageFallback />}><TodosPage /></Suspense>} />
           <Route path="/history" element={<Suspense fallback={<PageFallback />}><HistoryPageRoute /></Suspense>} />
           <Route path="/skills" element={<Suspense fallback={<PageFallback />}><SkillsPage onBack={goHome} /></Suspense>} />
           <Route path="/secrets" element={<Suspense fallback={<PageFallback />}><SecretsPage onBack={goHome} /></Suspense>} />
           <Route path="/sync" element={<Suspense fallback={<PageFallback />}><SyncPage onBack={goHome} /></Suspense>} />
-          <Route path="/weekly-report" element={<Suspense fallback={<PageFallback />}><WeeklyReportPage onBack={goHome} /></Suspense>} />
+          <Route path="/settings" element={<Suspense fallback={<PageFallback />}><SettingsPage /></Suspense>} />
+          <Route path="/report" element={<Suspense fallback={<PageFallback />}><ReportPage onBack={goHome} /></Suspense>} />
           {/* 知识管理: 4 大领域 (信息导入 / 处理数据 / 知识库编译 / 知识复利) */}
           <Route path="/knowledge" element={<Suspense fallback={<PageFallback />}><KnowledgePage onBack={goHome} /></Suspense>}>
             <Route index element={<Navigate to="import" replace />} />
@@ -487,12 +301,20 @@ export default function App() {
             <Route path="compile" element={<Suspense fallback={<PageFallback />}><KnowledgeCompile /></Suspense>} />
             <Route path="compound" element={<Suspense fallback={<PageFallback />}><KnowledgeCompound /></Suspense>} />
             <Route path="imported" element={<Suspense fallback={<PageFallback />}><KnowledgeFavoritesView /></Suspense>} />
+            <Route path="briefing" element={<Suspense fallback={<PageFallback />}><BriefingMode /></Suspense>} />
+            <Route path="scan" element={<Suspense fallback={<PageFallback />}><ScanMode /></Suspense>} />
+            <Route path="deep-read/:id" element={<Suspense fallback={<PageFallback />}><DeepReadMode /></Suspense>} />
+            <Route path="alert" element={<Suspense fallback={<PageFallback />}><AlertMode /></Suspense>} />
+            <Route path="outbox" element={<Suspense fallback={<PageFallback />}><OutboxMode /></Suspense>} />
+            <Route path="review" element={<Suspense fallback={<PageFallback />}><ReviewMode /></Suspense>} />
+            <Route path="heatmap" element={<Suspense fallback={<PageFallback />}><AttentionHeatmap /></Suspense>} />
           </Route>
           <Route path="/codegarden" element={<Suspense fallback={<PageFallback />}><CodegardenPage onBack={goHome} /></Suspense>} />
           <Route path="/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><CodegardenPhase2bPage onBack={goHome} /></Suspense>} />
           <Route path="/reviews" element={<Suspense fallback={<PageFallback />}><ReviewPage /></Suspense>} />
           <Route path="/deep/:type/:id" element={<Suspense fallback={<PageFallback />}><DeepReadView /></Suspense>} />
           <Route path="/brief" element={<Suspense fallback={<PageFallback />}><BriefModeView /></Suspense>} />
+          <Route path="/quality/rejection" element={<Suspense fallback={<PageFallback />}><QualityRejectionPage /></Suspense>} />
         </Route>
       </Routes>
     </ThemeContext.Provider>

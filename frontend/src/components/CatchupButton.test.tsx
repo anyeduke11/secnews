@@ -1,15 +1,17 @@
 // frontend/src/components/CatchupButton.test.tsx
 // v1.8 Phase 8 — CatchupButton 组件测试
 //
+// v2 精简测试: 合并触发/中止/进度为一颗按钮, 测试适配新行为.
+//
 // 覆盖 (8 用例):
 //   - F3.1 渲染触发按钮
 //   - F3.2 点击触发 → 调用 POST /api/catchup/run
 //   - F3.3 显示当前运行进度 (succeeded/attempted 计数)
-//   - F3.4 点击中止 → 调用 POST /api/catchup/abort
+//   - F3.4 运行中点击按钮 → 调用 POST /api/catchup/abort
 //   - F3.5 409 conflict 时显示 toast
 //   - F3.6 终态后停止轮询
 //   - F3.7 GET /api/catchup/status 失败不崩
-//   - F3.8 无 current_running 时不显示 abort 按钮
+//   - F3.8 无 current_running 时不显示进度文本
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
@@ -83,7 +85,7 @@ describe('CatchupButton', () => {
       render(<CatchupButton />);
     });
     expect(screen.getByTestId('catchup-trigger')).toBeInTheDocument();
-    expect(screen.getByLabelText('追抓资讯')).toBeInTheDocument();
+    expect(screen.getByLabelText('追抓')).toBeInTheDocument();
   });
 
   // F3.2
@@ -91,12 +93,10 @@ describe('CatchupButton', () => {
     await act(async () => {
       render(<CatchupButton />);
     });
-    // 等待初始 status fetch
     await waitFor(() => {
       const calls = mockFetch.mock.calls;
       expect(calls.length).toBeGreaterThan(0);
     });
-    // 点击触发
     const btn = screen.getByTestId('catchup-trigger');
     await act(async () => {
       fireEvent.click(btn);
@@ -111,7 +111,6 @@ describe('CatchupButton', () => {
 
   // F3.3
   it('displays progress when current_running is set', async () => {
-    // 用 mock 返回 running 状态
     mockFetch = vi.fn(async (url: any) => {
       const u = typeof url === 'string' ? url : url.url;
       if (u.includes('/api/catchup/status')) {
@@ -125,12 +124,12 @@ describe('CatchupButton', () => {
       render(<CatchupButton />);
     });
     await waitFor(() => {
-      expect(screen.getByTestId('catchup-progress')).toHaveTextContent('3/10 源');
+      expect(screen.getByTestId('catchup-trigger')).toHaveTextContent('3/10 源');
     });
   });
 
-  // F3.4
-  it('triggers POST /api/catchup/abort when abort button clicked', async () => {
+  // F3.4 — 运行中点击按钮 → 调用 abort
+  it('triggers POST /api/catchup/abort when running button clicked', async () => {
     mockFetch = vi.fn(async (url: any, opts: any = {}) => {
       const u = typeof url === 'string' ? url : url.url;
       const method = opts.method || 'GET';
@@ -150,9 +149,9 @@ describe('CatchupButton', () => {
     await act(async () => {
       render(<CatchupButton />);
     });
-    const abortBtn = await waitFor(() => screen.getByTestId('catchup-abort'));
+    const btn = await waitFor(() => screen.getByTestId('catchup-trigger'));
     await act(async () => {
-      fireEvent.click(abortBtn);
+      fireEvent.click(btn);
     });
     await waitFor(() => {
       const abortCall = mockFetch.mock.calls.find(
@@ -196,8 +195,6 @@ describe('CatchupButton', () => {
 
   // F3.6
   it('stops showing progress when current_running becomes null', async () => {
-    // 此测试用真实定时器 — 改写 status 回调以模拟终态到达, 验证 React effect 的清理
-    // 不依赖 fake timers (避免与 React testing-library 的 act 循环冲突)
     let statusResponse: any = mockStatusRunning;
     mockFetch = vi.fn(async (url: any) => {
       const u = typeof url === 'string' ? url : url.url;
@@ -211,17 +208,16 @@ describe('CatchupButton', () => {
     await act(async () => {
       render(<CatchupButton />);
     });
-    // 初始: current_running 存在 → 显示 progress
+    // 初始: 显示进度文本
     await waitFor(() => {
-      expect(screen.getByTestId('catchup-progress')).toBeInTheDocument();
+      expect(screen.getByTestId('catchup-trigger')).toHaveTextContent('3/10 源');
     });
-    // 模拟终态: current_running=null
-    // 改写 mock 返回值 + 主动重渲染 (通过 key 触发)
+    // 模拟终态
     statusResponse = { ...mockStatusRunning, current_running: null };
-    // 用 waitFor 等待下一次 polling 完成
     await waitFor(
       () => {
-        expect(screen.queryByTestId('catchup-progress')).not.toBeInTheDocument();
+        expect(screen.getByTestId('catchup-trigger')).toBeInTheDocument();
+        expect(screen.getByTestId('catchup-trigger')).not.toHaveTextContent('3/10');
       },
       { timeout: 5000, interval: 500 },
     );
@@ -237,20 +233,18 @@ describe('CatchupButton', () => {
     await act(async () => {
       render(<CatchupButton />);
     });
-    // 不应崩, 按钮仍可点击
     const btn = screen.getByTestId('catchup-trigger');
     expect(btn).toBeInTheDocument();
   });
 
   // F3.8
-  it('does not show abort button when no current_running', async () => {
+  it('does not show progress text when no current_running', async () => {
     await act(async () => {
       render(<CatchupButton />);
     });
     await waitFor(() => {
       expect(screen.getByTestId('catchup-trigger')).toBeInTheDocument();
     });
-    // 不应显示中止按钮
-    expect(screen.queryByTestId('catchup-abort')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('追抓')).toBeInTheDocument();
   });
 });

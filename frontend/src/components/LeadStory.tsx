@@ -8,6 +8,11 @@ import {
   HotspotItem, getCategoryLabel, getCategoryColorVar,
 } from '../types';
 
+/** 剥离 HTML 标签，保留纯文本（前端安全兜底） */
+function stripHtml(text: string): string {
+  return text.replace(/<[^>]+>/g, '').trim();
+}
+
 interface LeadStoryProps {
   item: HotspotItem;
   isFavorited?: boolean;
@@ -21,9 +26,11 @@ export function LeadStory({
 }: LeadStoryProps) {
   const color = getCategoryColorVar(item.category);
   // 可读性: 摘要限长——dropcap 首字下沉与 line-clamp (-webkit-box) 不兼容, 改用文本截断
-  const summary = item.summary && item.summary.length > 240
-    ? `${item.summary.slice(0, 240).trimEnd()}…`
-    : item.summary;
+  // v1.9: 剥离 HTML 标签（后端已富化，前端再做一次安全兜底）
+  const raw = item.summary ? stripHtml(item.summary) : '';
+  const summary = raw.length > 240
+    ? `${raw.slice(0, 240).trimEnd()}…`
+    : raw;
 
   const handleStarClick = (e: React.MouseEvent) => {
     e.preventDefault();

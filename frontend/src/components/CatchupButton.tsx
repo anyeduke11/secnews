@@ -1,13 +1,14 @@
 // frontend/src/components/CatchupButton.tsx
 // v1.8 Phase 8 — 追抓资讯按钮 (manual trigger + abort + status polling)
 //
+// v2 精简: 合并触发/中止/进度为一颗按钮, 无多余 span.
+//
 // 行为
 // ----
 // 1. 挂载时 GET /api/catchup/status → 拿 current_manual_run_id + recent
 // 2. 点击"追抓"按钮 → POST /api/catchup/run (since=24h前, max_per_source=20)
-// 3. running 时每 3s 轮询 status, 显示进度
-// 4. running 时显示"中止"按钮 → POST /api/catchup/abort
-// 5. 终态后停止轮询, 显示 toast
+// 3. running 时每 3s 轮询 status, 按钮文字变为进度; 再点即中止
+// 4. 终态后停止轮询, 显示 toast
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -21,7 +22,7 @@ interface CatchupRun {
   items_skipped: number;
   sources_attempted: number;
   sources_succeeded: number;
-  sources_skipped: number;  // P0-3: 24h 续传跳过的源数
+  sources_skipped: number;
   error_msg: string | null;
   duration_s: number;
   categories: string[];
@@ -73,13 +74,11 @@ export function CatchupButton() {
         const s = await fetchStatus();
         if (s) {
           setStatus(s);
-          // 终态: 停止轮询
           if (s.current_running == null) {
             if (pollTimerRef.current != null) {
               window.clearInterval(pollTimerRef.current);
               pollTimerRef.current = null;
             }
-            // toast 提示结果
             const last = s.recent?.[0];
             if (last) {
               if (last.status === 'success') {
@@ -121,8 +120,6 @@ export function CatchupButton() {
       if (!cancelled) setStatus(s);
     };
     refresh();
-    // tab 切回前台时重新拉 — 防止 long-lived tab 因 polling 偶发失败
-    // 导致 local state 卡在旧的 current_running={...}
     const onVisible = () => {
       if (document.visibilityState === 'visible') refresh();
     };
@@ -148,7 +145,6 @@ export function CatchupButton() {
     }
     setBusy(true);
     try {
-      // since = 24h 前
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
       const r = await fetch('/api/catchup/run', {
         method: 'POST',
@@ -171,7 +167,6 @@ export function CatchupButton() {
       }
       const data = await r.json();
       flashToast(`追抓已触发 (run_id=${data.run_id})`, true);
-      // 立即刷新 status
       const s = await fetchStatus();
       if (s) setStatus(s);
     } catch (e: any) {
@@ -210,98 +205,65 @@ export function CatchupButton() {
   const running = status?.current_running;
   const isManualRunning = running?.mode === 'manual';
 
-  return (
-    <div className="inline-flex items-center gap-2">
-      {/* 触发按钮 — editorial 描边按钮, 配色随主题 token */}
-      <button
-        onClick={handleTrigger}
-        disabled={busy || running != null}
-        data-testid="catchup-trigger"
-        className="btn-ghost px-3 py-1.5 text-xs whitespace-nowrap"
-        style={{
-          opacity: busy || running != null ? 0.5 : 1,
-          cursor: busy || running != null ? 'not-allowed' : undefined,
-        }}
-        title="追抓 24h 内的资讯 (manual)"
-        aria-label="追抓资讯"
-      >
-        {running ? '追抓中…' : busy ? '提交中…' : '追抓资讯'}
-      </button>
-
-      {/* 中止按钮: 仅 running 时显示 */}
-      {running && isManualRunning && (
+  // 运行中: 单颗按钮内含进度 + 可点击中止
+  if (running && isManualRunning) {
+    return (
+      <div className="inline-flex items-center gap-1">
         <button
           onClick={handleAbort}
           disabled={busy}
-          data-testid="catchup-abort"
-          className="btn-ghost px-2 py-1 text-[10px] whitespace-nowrap"
+          data-testid="catchup-trigger"
+          className="btn-ghost px-2 py-1.5 text-[11px] whitespace-nowrap"
           style={{
             color: 'var(--color-error)',
             opacity: busy ? 0.5 : 1,
+            cursor: busy ? 'not-allowed' : undefined,
           }}
-          title="中止当前追抓"
-          aria-label="中止追抓"
+          title="点击中止追抓"
+          aria-label="追抓中，点击中止"
         >
-          ⏹ 中止
+          <span aria-hidden className="inline-block mr-0.5" style={{ color: 'var(--accent)' }}>⏳</span>
+          #{running.id} {running.sources_succeeded}/{running.sources_attempted} 源
+          {running.sources_skipped > 0 && ` · 跳${running.sources_skipped}`}
+          {running.items_ingested > 0 && ` · ${running.items_ingested} 条`}
         </button>
-      )}
+        {toast && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'var(--bg-hover)', color: toast.ok ? 'var(--color-success)' : 'var(--color-error)' }}>
+            {toast.msg}
+          </span>
+        )}
+      </div>
+    );
+  }
 
-      {/* Toast */}
+  // 空闲: 图标按钮
+  return (
+    <div className="inline-flex items-center gap-1">
+      <button
+        onClick={handleTrigger}
+        disabled={busy}
+        data-testid="catchup-trigger"
+        className="nav-btn"
+        style={{
+          color: 'var(--accent)',
+          opacity: busy ? 0.5 : 1,
+          cursor: busy ? 'not-allowed' : undefined,
+        }}
+        title="追抓 24h 内的资讯"
+        aria-label="追抓"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      </button>
       {toast && (
         <span
           data-testid="catchup-toast"
-          className="text-[10px] px-2 py-0.5 rounded-[var(--radius-sm)]"
-          style={{
-            backgroundColor: 'var(--bg-hover)',
-            color: toast.ok ? 'var(--color-success)' : 'var(--color-error)',
-          }}
+          className="text-[10px] px-1.5 py-0.5 rounded-[var(--radius-sm)]"
+          style={{ backgroundColor: 'var(--bg-hover)', color: toast.ok ? 'var(--color-success)' : 'var(--color-error)' }}
         >
           {toast.msg}
-        </span>
-      )}
-
-      {/* 最近 run 摘要 (running 时显示进度) */}
-      {running && (
-        <span
-          data-testid="catchup-progress"
-          className="text-[11px] whitespace-nowrap"
-          style={{
-            color: 'var(--text-muted)',
-            fontFamily:
-              '-apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "Source Han Sans SC", "Noto Sans CJK SC", sans-serif',
-          }}
-        >
-          <span
-            aria-hidden
-            className="inline-block animate-pulse mr-0.5"
-            style={{ color: 'var(--accent)' }}
-          >
-            ⏳
-          </span>
-          run #{running.id}:
-          <span
-            style={{
-              color:
-                running.sources_succeeded > 0
-                  ? 'var(--accent)'
-                  : 'var(--text-muted)',
-              fontVariantNumeric: 'tabular-nums',
-              fontWeight: running.sources_succeeded > 0 ? 600 : 400,
-              marginLeft: 2,
-            }}
-          >
-            {running.sources_succeeded}/{running.sources_attempted} 源
-          </span>
-          {running.sources_skipped > 0 && (
-            <span style={{ opacity: 0.55, marginLeft: 4 }}>
-              · 跳{running.sources_skipped}
-            </span>
-          )}
-          {running.items_ingested > 0 && (
-            <span style={{ opacity: 0.55, marginLeft: 4 }}>
-              · {running.items_ingested} 条
-            </span>
-          )}
         </span>
       )}
     </div>

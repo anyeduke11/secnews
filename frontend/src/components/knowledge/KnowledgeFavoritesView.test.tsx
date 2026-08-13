@@ -40,7 +40,7 @@ describe('KnowledgeFavoritesView', () => {
     render(<KnowledgeFavoritesView />);
 
     // 标题
-    expect(screen.getByText('资讯收藏')).toBeInTheDocument();
+    expect(screen.getByText('知识展示')).toBeInTheDocument();
 
     // 筛选控件：类型下拉、搜索输入框、日期输入
     expect(screen.getByText('类型：')).toBeInTheDocument();

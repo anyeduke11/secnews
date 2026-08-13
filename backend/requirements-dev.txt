@@ -1,0 +1,5 @@
+# 开发/测试依赖 — 与运行依赖分离
+# 安装: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+pytest>=7.4
+pytest-asyncio>=0.21
+pytest-cov>=5.0

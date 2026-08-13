@@ -40,6 +40,10 @@ htmlcov/
 .trae/
 .web_builder/
 
+# 例外: 以下隐藏目录必须入库 (取消 .*/ 通配)
+!.github/
+!.trae/
+
 # Hidden single-file configs (2026-07-10)
 .mcp.json
 .merkle-snapshot.json

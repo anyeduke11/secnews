@@ -51,10 +51,10 @@ curl http://127.0.0.1:8000/api/health | jq '.components.scheduler'
 curl http://127.0.0.1:8000/api/health | jq '.components.collectors'
 
 # 查看数据库大小
-ls -lh backend/data/hotspot.db
+ls -lh backend/hotspot.db
 
 # 查看调度器已注册 job
-sqlite3 backend/data/hotspot.db "SELECT id, name, trigger, next_run_time FROM apscheduler_jobs;"
+sqlite3 backend/hotspot.db "SELECT id, name, trigger, next_run_time FROM apscheduler_jobs;"
 ```
 
 ## 故障排查
@@ -66,7 +66,7 @@ sqlite3 backend/data/hotspot.db "SELECT id, name, trigger, next_run_time FROM ap
 | 启动后端报错 | 检查 `.venv` 是否激活，`pip install -r backend/requirements.txt` |
 | 前端启动报错 | `cd frontend && npm install` 重新安装依赖 |
 | 采集无数据 | 检查 `backend/proxy_config.json` 代理配置 |
-| 数据库损坏 | `sqlite3 backend/data/hotspot.db "PRAGMA integrity_check;"` |
+| 数据库损坏 | `sqlite3 backend/hotspot.db "PRAGMA integrity_check;"` |
 | 22h 假死 (本周资讯空) | 见下面「如何手动追抓资讯」 |
 
 ### 日志路径
@@ -158,7 +158,7 @@ python run.py
 不进入追抓配额。如果发现"追抓跑了 0 条"：
 
 ```bash
-sqlite3 backend/data/hotspot.db \
+sqlite3 backend/hotspot.db \
   "SELECT category, source_name, status, last_checked_at, last_error
    FROM source_stats WHERE status='dead' ORDER BY last_checked_at DESC LIMIT 20;"
 ```
@@ -172,18 +172,18 @@ sqlite3 backend/data/hotspot.db \
 
 ```bash
 # 手动 VACUUM
-sqlite3 backend/data/hotspot.db "VACUUM;"
+sqlite3 backend/hotspot.db "VACUUM;"
 
 # 完整性检查
-sqlite3 backend/data/hotspot.db "PRAGMA integrity_check;"
+sqlite3 backend/hotspot.db "PRAGMA integrity_check;"
 
 # 查看各表大小
-sqlite3 backend/data/hotspot.db "
+sqlite3 backend/hotspot.db "
 SELECT name, SUM(pgsize) as size_bytes
 FROM dbstat GROUP BY name ORDER BY size_bytes DESC LIMIT 20;"
 
 # 备份
-cp backend/data/hotspot.db backend/data/hotspot.db.backup
+cp backend/hotspot.db backend/hotspot.db.backup
 ```
 
 ## 测试

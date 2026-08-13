@@ -25,10 +25,10 @@ import pytest
 
 from backend.repository.db import get_connection
 from backend.scheduler.jobs import should_run_catchup
+from backend.services.sync_merge import three_way_merge
 from backend.services.sync_service import (
     BUNDLE_VERSION,
     SETTINGS_BLOCKLIST,
-    MergeResult,
     SyncService,
 )
 
@@ -99,7 +99,6 @@ def _setup_master_key():
 # ---------------------------------------------------------------------------
 def test_merge_remote_only_change():
     """base==local, remote 变 → 接受 remote。"""
-    svc = SyncService()
     base = {
         "version": BUNDLE_VERSION, "device_id": "a", "merged_at": "t0",
         "records": {"favorites": [{"hotspot_id": "h1", "title": "old", "favorited_at": "t0"}],
@@ -118,7 +117,7 @@ def test_merge_remote_only_change():
                     "todos": [], "skills": [], "custom_sources": [], "secrets": [],
                     "settings": {}},
     }
-    result = svc.three_way_merge(base, local, remote)
+    result = three_way_merge(base, local, remote)
     assert result.conflict_count == 0
     titles = [f["title"] for f in result.merged_bundle["records"]["favorites"]]
     assert "new-from-remote" in titles
@@ -126,7 +125,6 @@ def test_merge_remote_only_change():
 
 def test_merge_local_only_change():
     """base==remote, local 变 → 接受 local。"""
-    svc = SyncService()
     base = {
         "version": BUNDLE_VERSION, "device_id": "a", "merged_at": "t0",
         "records": {"favorites": [{"hotspot_id": "h1", "title": "old", "favorited_at": "t0"}],
@@ -145,7 +143,7 @@ def test_merge_local_only_change():
                     "todos": [], "skills": [], "custom_sources": [], "secrets": [],
                     "settings": {}},
     }
-    result = svc.three_way_merge(base, local, remote)
+    result = three_way_merge(base, local, remote)
     assert result.conflict_count == 0
     titles = [f["title"] for f in result.merged_bundle["records"]["favorites"]]
     assert "new-from-local" in titles
@@ -153,7 +151,6 @@ def test_merge_local_only_change():
 
 def test_merge_both_changed_conflict():
     """双方都变且不一致 → 冲突, last-write-wins (updated_at 较新者胜出)。"""
-    svc = SyncService()
     base = {
         "version": BUNDLE_VERSION, "device_id": "a", "merged_at": "t0",
         "records": {"favorites": [{"hotspot_id": "h1", "title": "old",
@@ -175,7 +172,7 @@ def test_merge_both_changed_conflict():
                     "todos": [], "skills": [], "custom_sources": [], "secrets": [],
                     "settings": {}},
     }
-    result = svc.three_way_merge(base, local, remote)
+    result = three_way_merge(base, local, remote)
     assert result.conflict_count == 1
     titles = [f["title"] for f in result.merged_bundle["records"]["favorites"]]
     assert "remote-version" in titles  # remote 更新, 胜出
@@ -183,7 +180,6 @@ def test_merge_both_changed_conflict():
 
 def test_merge_addition_on_both_sides():
     """两边各自加新记录 → 都保留。"""
-    svc = SyncService()
     base = {
         "version": BUNDLE_VERSION, "device_id": "a", "merged_at": "t0",
         "records": {"favorites": [], "todos": [], "skills": [], "custom_sources": [],
@@ -199,14 +195,13 @@ def test_merge_addition_on_both_sides():
         "records": {"favorites": [{"hotspot_id": "h2", "title": "R"}],
                     "todos": [], "skills": [], "custom_sources": [], "secrets": [], "settings": {}},
     }
-    result = svc.three_way_merge(base, local, remote)
+    result = three_way_merge(base, local, remote)
     titles = sorted(f["title"] for f in result.merged_bundle["records"]["favorites"])
     assert titles == ["L", "R"]
 
 
 def test_merge_settings_blocklist_filtered():
     """SETTINGS_BLOCKLIST 里的 key 不进入 merged。"""
-    svc = SyncService()
     base = {"version": BUNDLE_VERSION, "device_id": "a", "merged_at": "t0",
             "records": {"favorites": [], "todos": [], "skills": [], "custom_sources": [],
                         "secrets": [], "settings": {}}}
@@ -217,14 +212,13 @@ def test_merge_settings_blocklist_filtered():
     remote = {"version": BUNDLE_VERSION, "device_id": "b", "merged_at": "t1",
               "records": {"favorites": [], "todos": [], "skills": [], "custom_sources": [],
                           "secrets": [], "settings": {}}}
-    result = svc.three_way_merge(base, local, remote)
+    result = three_way_merge(base, local, remote)
     assert "keep" in result.merged_bundle["records"]["settings"]
     assert "scheduler.last_run" not in result.merged_bundle["records"]["settings"]
 
 
 def test_merge_settings_conflict_counted():
     """settings 字段冲突计入 conflict_count。"""
-    svc = SyncService()
     base = {"version": BUNDLE_VERSION, "device_id": "a", "merged_at": "t0",
             "records": {"favorites": [], "todos": [], "skills": [], "custom_sources": [],
                         "secrets": [], "settings": {"k": "v0"}}}
@@ -234,7 +228,7 @@ def test_merge_settings_conflict_counted():
     remote = {"version": BUNDLE_VERSION, "device_id": "b", "merged_at": "t1",
               "records": {"favorites": [], "todos": [], "skills": [], "custom_sources": [],
                           "secrets": [], "settings": {"k": "v-remote"}}}
-    result = svc.three_way_merge(base, local, remote)
+    result = three_way_merge(base, local, remote)
     assert result.table_conflicts["settings"] == 1
 
 

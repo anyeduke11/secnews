@@ -149,7 +149,7 @@ function CategoryRedirect() {
 function PageFallback() {
   return (
     <div className="flex items-center justify-center min-h-[40vh]">
-      <div className="text-sm font-serif" style={{ color: 'var(--text-muted)' }}>
+      <div className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>
         正在排版…
       </div>
     </div>

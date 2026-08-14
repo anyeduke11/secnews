@@ -94,14 +94,14 @@
           <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
                 font-size="10" fill="#00d4e0" letter-spacing="1.5">20 REPOS  ·  DAO layer</text>
           <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
-                font-size="12" fill="#f0f0f7">SQLite WAL  ·  39 migrations</text>
+                font-size="12" fill="#f0f0f7">SQLite WAL  ·  59 migrations</text>
         </g>
         <g transform="translate(804 0)">
           <rect width="252" height="48" rx="8" fill="#050508" stroke="#00d4e0" stroke-width="1.2"/>
           <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-                font-size="10" fill="#00d4e0" letter-spacing="1.5">MCP SERVER  ·  13 tools</text>
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">MCP SERVER  ·  9 tools</text>
           <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
-                font-size="12" fill="#f0f0f7">5 read + 8 write  ·  stdio / SSE</text>
+                font-size="12" fill="#f0f0f7">5 read + 4 write  ·  stdio / SSE</text>
         </g>
       </g>
 

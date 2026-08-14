@@ -7,7 +7,7 @@
  * 右栏: 阅读模式 + 热力图 + SOUL + 跨层行动
  */
 import React from 'react';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTheme } from '../../App';
 import { Header } from '../Header';
 import { CategoryNav } from '../CategoryNav';
@@ -16,7 +16,6 @@ import { useHotspotData } from '../../hooks/useHotspotData';
 import { useRefreshInterval } from '../../hooks/useRefreshInterval';
 import { useSSE } from '../../hooks/useSSE';
 import { LayerCard, LayerCardRow, LayerCardGrid, PipelineFlow, ViewMoreLink, LayerSkeleton } from '../layout/LayerCard';
-import { LayerHeader, JUDGE_SUB_NAV, useLayerSubNav } from '../layout/LayerHeader';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { StatsResponse, ConsistencyDrift } from '../../types';
 
@@ -59,7 +58,6 @@ interface SoulProfile {
 export function JudgeLayerPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const location = useLocation();
   const category = searchParams.get('category') || 'all';
   const { theme, toggleTheme } = useTheme();
   const { refreshFromServer } = useRefreshInterval();
@@ -79,9 +77,6 @@ export function JudgeLayerPage() {
   const [rejectionStats, setRejectionStats] = useState<RejectionStats>({ total: 0, by_gate: [], today_count: 0, loaded: false });
   const [bidSummary, setBidSummary] = useState<BidSummary>({ region_dist: {}, status_dist: {}, total: 0, loaded: false });
   const [soulProfile, setSoulProfile] = useState<SoulProfile>({ expertise: {}, loaded: false });
-
-  /* 子导航 */
-  const subNav = useLayerSubNav('/judge', JUDGE_SUB_NAV, location.pathname);
 
   /* 管线摘要 */
   const pipelineSummary = useMemo(() => ({
@@ -192,13 +187,8 @@ export function JudgeLayerPage() {
         onThemeToggle={toggleTheme}
         refreshing={manualRefreshing}
         pipelineSummary={pipelineSummary}
-      />
-
-      {/* 统一层标题 + 子导航 */}
-      <LayerHeader
         layerName="判断层"
-        subtitle="我怎么看 · 筛选、分析、关联、提炼洞察"
-        subNav={subNav}
+        layerSubtitle="我怎么看 · 筛选、分析、关联、提炼洞察"
       />
 
       <CategoryNav

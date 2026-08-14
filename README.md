@@ -103,7 +103,7 @@ stdio 配置（粘到你的 AI Agent 配置文件）：
 | 主存储      | **SQLite WAL** + `.md` 文件       | 零部署 · FTS5 · git 友好 · LLM 可直读                |
 | 调度        | APScheduler · 30 jobs             | 单进程内调度，无外部 MQ                               |
 | MCP         | fastapi-mcp                       | OpenAPI → MCP 自动转换                                |
-| 前端        | React 18 + Vite 5 + TypeScript    | 60+ 组件 · 类型安全 · 热重载                          |
+| 前端        | React 18 + Vite 5 + TypeScript    | 150+ 组件 · 类型安全 · 热重载                          |
 | 图表        | echarts + recharts                | 看板风格                                              |
 | 加密        | Fernet (PBKDF2 派生)              | secrets · 同步包                                      |
 | 跨端同步    | WebDAV (坚果云) · zip 容器        | 加密包最小化 · 不依赖云服务                            |
@@ -117,7 +117,7 @@ stdio 配置（粘到你的 AI Agent 配置文件）：
 ## 测试
 
 ```bash
-# 后端（80+ 个 pytest 文件）
+# 后端（100+ 个 pytest 文件）
 .venv/bin/python3 -m pytest backend/tests/ -v
 .venv/bin/python3 -m pytest backend/tests/ -k "merge"
 .venv/bin/python3 -m py_compile backend/services/sync_merge.py

@@ -9,12 +9,12 @@ import {
 
 describe('getCategoryColor', () => {
   it('returns correct color for known categories', () => {
-    expect(getCategoryColor('ai')).toBe('#0B6E6E');
-    expect(getCategoryColor('security')).toBe('#A32014');
-    expect(getCategoryColor('finance')).toBe('#8A6400');
-    expect(getCategoryColor('startup')).toBe('#5A4FA0');
-    expect(getCategoryColor('bid')).toBe('#A65312');
-    expect(getCategoryColor('github')).toBe('#5E4B8B');
+    expect(getCategoryColor('ai')).toBe('#00bcd4');
+    expect(getCategoryColor('security')).toBe('#e85d5d');
+    expect(getCategoryColor('finance')).toBe('#f0c929');
+    expect(getCategoryColor('startup')).toBe('#7c6aff');
+    expect(getCategoryColor('bid')).toBe('#e8891a');
+    expect(getCategoryColor('github')).toBe('#9b8bff');
   });
 
   it('returns fallback color for unknown category', () => {

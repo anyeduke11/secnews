@@ -33,10 +33,10 @@ interface LayerHeaderProps {
   actions?: React.ReactNode;
   }
 
-const FLOW_COLORS: Record<string, string> = {
-  data:   'var(--color-info)',
-  judge:  'var(--color-warning)',
-  action: 'var(--color-general)',
+export const FLOW_COLORS: Record<string, string> = {
+  data:   'var(--layer-data)',
+  judge:  'var(--layer-judge)',
+  action: 'var(--layer-action)',
 };
 
 /* ─── LayerHeader 组件 ─── */
@@ -71,7 +71,7 @@ export function LayerHeader({
             返回
           </button>
         )}
-        <h2 className="font-serif text-lg font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
+        <h2 className="font-mono text-lg font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
           {layerName}
         </h2>
         <span className="text-xs tracking-wide" style={{ color: 'var(--text-muted)' }}>
@@ -81,29 +81,6 @@ export function LayerHeader({
           <div className="ml-auto flex items-center gap-2">{actions}</div>
         )}
       </div>
-
-      {/* 子导航 */}
-      {subNav && subNav.length > 0 && (
-        <div className="flex items-center gap-2 mt-3">
-          {subNav.map(item => (
-            <button
-              key={item.key}
-              onClick={() => navigate(item.path)}
-              className="ink-chip focus-ring transition-colors"
-              style={{
-                padding: '3px 9px',
-                color: item.active ? 'var(--text-on-light)' : 'var(--text-secondary)',
-                backgroundColor: item.active ? 'var(--accent)' : 'var(--bg-hover)',
-                borderColor: item.active ? 'var(--accent)' : 'var(--border-color)',
-                fontWeight: item.active ? 600 : 400,
-              }}
-              aria-current={item.active ? 'page' : undefined}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

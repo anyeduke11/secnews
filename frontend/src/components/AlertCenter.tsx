@@ -173,7 +173,7 @@ export default function AlertCenter() {
       {/* 顶栏：未读计数横幅 + 操作按钮 */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h2 className="font-serif text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+          <h2 className="font-mono text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
             告警中心
           </h2>
           {unreadCount > 0 && (
@@ -329,7 +329,7 @@ export default function AlertCenter() {
                       </span>
                     </div>
                     <h3
-                      className="font-serif font-bold text-sm leading-snug mb-0.5"
+                      className="font-mono font-bold text-sm leading-snug mb-0.5"
                       style={{ color: 'var(--text-primary)' }}
                     >
                       {alert.title}

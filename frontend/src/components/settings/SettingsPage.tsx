@@ -88,7 +88,7 @@ export function SettingsPage() {
       {/* 页面标题 — 报纸报眉风格 */}
       <div className="shrink-0 flex items-center justify-between pb-2 mb-3" style={{ borderBottom: '2px solid var(--text-primary)' }}>
         <h1 className="text-sm font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
-          <span className="font-serif mr-2">{'\u2699'}</span>
+          <span className="font-mono mr-2">{'\u2699'}</span>
           设置
         </h1>
         <button

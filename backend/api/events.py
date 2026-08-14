@@ -80,4 +80,4 @@ async def sse_events(request: Request):
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
-__all__ = ["router", "publish_event"]
+__all__ = ["publish_event", "router"]

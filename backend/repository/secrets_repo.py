@@ -11,7 +11,6 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.crypto import encrypt_api_key
 from backend.exceptions import InternalException
@@ -30,7 +29,7 @@ class SecretItem:
     created_at: str
     updated_at: str
 
-    def to_dict(self, *, reveal: Optional[str] = None) -> dict:
+    def to_dict(self, *, reveal: str | None = None) -> dict:
         """默认隐藏 api_key; reveal 明文 (已 unlock 时) 才填。"""
         return {
             "id": self.id,
@@ -70,7 +69,7 @@ class SecretRepository:
         ).fetchall()
         return [_row(r) for r in rows], len(rows)
 
-    def get(self, secret_id: int) -> Optional[SecretItem]:
+    def get(self, secret_id: int) -> SecretItem | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM llm_secrets WHERE id = ?", (int(secret_id),)
@@ -143,11 +142,11 @@ class SecretRepository:
         self,
         secret_id: int,
         *,
-        name: Optional[str] = None,
-        model: Optional[str] = None,
-        base_url: Optional[str] = None,
-        api_key: Optional[str] = None,
-        fernet_key: Optional[bytes] = None,
+        name: str | None = None,
+        model: str | None = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        fernet_key: bytes | None = None,
     ) -> SecretItem:
         existing = self.get(secret_id)
         if existing is None:
@@ -246,4 +245,4 @@ class SecretRepository:
             raise InternalException(f"clear_access_logs failed: {e}") from e
 
 
-__all__ = ["SecretRepository", "SecretItem"]
+__all__ = ["SecretItem", "SecretRepository"]

@@ -10,9 +10,8 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
 
-from backend.crypto import DEFAULT_ITERATIONS, make_verify_blob, generate_salt
+from backend.crypto import DEFAULT_ITERATIONS, generate_salt, make_verify_blob
 from backend.exceptions import InternalException
 from backend.logging_config import logger
 from backend.repository.db import get_connection
@@ -65,7 +64,7 @@ class EncryptionKeyRepository:
         ).fetchone()
         return row is not None
 
-    def get_default(self) -> Optional[EncryptionKeyRow]:
+    def get_default(self) -> EncryptionKeyRow | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM encryption_keys WHERE name = ? LIMIT 1",
@@ -73,7 +72,7 @@ class EncryptionKeyRepository:
         ).fetchone()
         return _row(row) if row else None
 
-    def get_by_id(self, key_id: int) -> Optional[EncryptionKeyRow]:
+    def get_by_id(self, key_id: int) -> EncryptionKeyRow | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM encryption_keys WHERE id = ? LIMIT 1",

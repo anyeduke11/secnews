@@ -15,8 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.collectors.session import BackendSession, RETRY_DELAYS
-
+from backend.collectors.session import BackendSession
 
 # ===========================================================================
 # 辅助函数

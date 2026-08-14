@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 
 def compute_final_score(
@@ -50,4 +50,4 @@ def is_acceptable(score: int, threshold: int = 50) -> bool:
     return score >= threshold
 
 
-__all__ = ["compute_final_score", "merge_flags", "is_acceptable"]
+__all__ = ["compute_final_score", "is_acceptable", "merge_flags"]

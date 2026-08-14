@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query
@@ -41,11 +40,11 @@ class RuleCreate(BaseModel):
 
 
 class RuleUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=200)
-    condition: Optional[dict] = None
-    action: Optional[dict] = None
-    cooldown_sec: Optional[int] = Field(None, ge=0, le=86400 * 7)
-    enabled: Optional[bool] = None
+    name: str | None = Field(None, min_length=1, max_length=200)
+    condition: dict | None = None
+    action: dict | None = None
+    cooldown_sec: int | None = Field(None, ge=0, le=86400 * 7)
+    enabled: bool | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -99,8 +98,8 @@ async def delete_rule(rule_id: str):
 # ---------------------------------------------------------------------------
 @router.get("")
 async def list_alerts(
-    status: Optional[str] = Query(None),
-    rule_id: Optional[str] = Query(None),
+    status: str | None = Query(None),
+    rule_id: str | None = Query(None),
     limit: int = Query(200, ge=1, le=1000),
 ):
     items = await asyncio.to_thread(

@@ -4,7 +4,6 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
@@ -15,20 +14,20 @@ from backend.repository.db import get_connection
 class SyncConfigRow:
     id: int
     name: str
-    webdav_url: Optional[str]
-    webdav_username: Optional[str]
-    webdav_password_encrypted: Optional[bytes]
-    webdav_password_salt: Optional[bytes]
+    webdav_url: str | None
+    webdav_username: str | None
+    webdav_password_encrypted: bytes | None
+    webdav_password_salt: bytes | None
     webdav_password_iters: int
     remote_path: str
     auto_sync_enabled: bool
     auto_sync_interval_minutes: int
     sync_frequency: str
-    last_sync_at: Optional[str]
-    last_sync_status: Optional[str]
-    last_sync_error: Optional[str]
-    last_sync_direction: Optional[str]
-    device_id: Optional[str]
+    last_sync_at: str | None
+    last_sync_status: str | None
+    last_sync_error: str | None
+    last_sync_direction: str | None
+    device_id: str | None
     created_at: str
     updated_at: str
 
@@ -87,7 +86,7 @@ class SyncConfigRepository:
     DEFAULT_NAME = "default"
 
     # ------------------------------------------------------------------
-    def get_default(self) -> Optional[SyncConfigRow]:
+    def get_default(self) -> SyncConfigRow | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM sync_configs WHERE name = ? LIMIT 1",
@@ -95,7 +94,7 @@ class SyncConfigRepository:
         ).fetchone()
         return _row(row) if row else None
 
-    def get_by_id(self, cid: int) -> Optional[SyncConfigRow]:
+    def get_by_id(self, cid: int) -> SyncConfigRow | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM sync_configs WHERE id = ?", (int(cid),)
@@ -106,16 +105,16 @@ class SyncConfigRepository:
     def upsert(
         self,
         *,
-        webdav_url: Optional[str] = None,
-        webdav_username: Optional[str] = None,
-        webdav_password_encrypted: Optional[bytes] = None,
-        webdav_password_salt: Optional[bytes] = None,
+        webdav_url: str | None = None,
+        webdav_username: str | None = None,
+        webdav_password_encrypted: bytes | None = None,
+        webdav_password_salt: bytes | None = None,
         webdav_password_iters: int = 600000,
         remote_path: str = "/hotspot/config.json",
         auto_sync_enabled: bool = False,
         auto_sync_interval_minutes: int = 10080,
         sync_frequency: str = "weekly",
-        device_id: Optional[str] = None,
+        device_id: str | None = None,
     ) -> SyncConfigRow:
         """upsert 默认实例; 不存在则 create, 存在则 update (部分字段)。"""
         conn = get_connection()
@@ -223,8 +222,8 @@ class SyncConfigRepository:
         *,
         at: str,
         status: str,
-        error: Optional[str] = None,
-        direction: Optional[str] = None,
+        error: str | None = None,
+        direction: str | None = None,
     ) -> None:
         conn = get_connection()
         try:

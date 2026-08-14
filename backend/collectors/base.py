@@ -39,33 +39,41 @@ from __future__ import annotations
 
 import asyncio
 import re
-import sys
-from abc import ABC, abstractmethod
-from datetime import datetime, timezone
-from typing import Any
+from abc import ABC
+from typing import Any, ClassVar
 from urllib.parse import urlparse
 
 import aiohttp
 
+from backend.collectors.fetchers import FetchersMixin
+from backend.collectors.item_builder import ItemBuilderMixin
+from backend.collectors.keywords import (
+    _CAT_KEYWORDS,
+    _is_title_relevant_to_category,
+)
+from backend.collectors.parsing import (
+    _extract_published_at,
+    _is_noise_title,
+    _is_noise_url,
+)
+from backend.collectors.quality_hook import QualityGatesMixin
 from backend.domain.collection import SourceResult
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
 from backend.logging_config import logger
 from backend.observability import log_event
 from backend.quality.config import NOISE_URL_REGEX
-from backend.collectors.parsing import (
-    _extract_published_at, _is_noise_title, _is_noise_url, _now_utc, _resolve_url,
-)
-from backend.collectors.keywords import _CAT_KEYWORDS, _is_title_relevant_to_category
-from backend.collectors.fetchers import FetchersMixin
-from backend.collectors.item_builder import ItemBuilderMixin
-from backend.collectors.quality_hook import QualityGatesMixin
 
 # Phase 11: crawl4ai 适配层 (Playwright-based 抓取)。
 #   - 可选依赖: 没装 crawl4ai 时 ``is_available()`` 返回 False
 #   - 默认关闭 (USE_CRAWL4AI=0);打开后 BaseCollector.fetch_source
 #     优先用 crawl4ai 拿 fully-rendered HTML,失败 fallback 到 aiohttp
-from backend.utils.crawl4ai_client import fetch_html, is_available as crawl4ai_available
+# patch 兼容: fetch_html / crawl4ai_available 模块级符号保留在本模块
+# (测试 monkeypatch backend.collectors.base.X 的路径不变) — F401 re-export
+from backend.utils.crawl4ai_client import (
+    fetch_html,
+    is_available as crawl4ai_available,
+)
 
 # ProxySession 保留导入，供 fetchers 直连失败后做代理兜底。
 # 代理不主动使用 — 直连失败 + 需要代理的源才走代理。
@@ -116,7 +124,7 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
     # ---- 子类可覆盖的 ClassVar -----------------------------------------
     name: str = ""
     category: Category = Category.AI  # subclass 必须覆盖
-    sources: list[dict] = []
+    sources: ClassVar[list[dict]] = []  # 子类覆盖的源清单
     timeout: int = 30
     max_items: int = 50
     min_items_threshold: int = 3

@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 from backend.repository.db import get_connection
 
@@ -321,10 +321,10 @@ class AlertEngine:
         title: str,
         description: str,
         severity: str,
-        source: Optional[str] = None,
-        source_url: Optional[str] = None,
-        item_id: Optional[str] = None,
-        project_id: Optional[int] = None,
+        source: str | None = None,
+        source_url: str | None = None,
+        item_id: str | None = None,
+        project_id: int | None = None,
     ) -> int:
         """Write an alert event to the alert_events table.
 

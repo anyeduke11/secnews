@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from backend.collectors.ai_collector import AICollector, AI_SOURCES
+from backend.collectors.ai_collector import AI_SOURCES, AICollector
 from backend.collectors.base import BaseCollector
 from backend.collectors.bid_collector import (
     BID_SOURCES,
@@ -31,7 +31,7 @@ from backend.collectors.finance_collector import (
     FINANCE_SOURCES,
     FinanceCollector,
 )
-from backend.collectors.github_collector import GITHUB_SOURCES, GitHubCollector
+from backend.collectors.github_collector import GitHubCollector
 from backend.collectors.security_collector import (
     SECURITY_SOURCES,
     SecurityCollector,
@@ -323,7 +323,7 @@ def test_phase26_xiaohu_rss_source_in_ai():
 def test_phase26_xiaohu_in_publisher_registry():
     """Phase 26: best.xiaohu.ai 域名必须在 PUBLISHER_REGISTRY,避免 author_unknown。"""
     from backend.quality.publisher_registry import PUBLISHER_REGISTRY, resolve_publisher
-    registry_map = {s: n for s, n in PUBLISHER_REGISTRY}
+    registry_map = dict(PUBLISHER_REGISTRY)
     assert "best.xiaohu.ai" in registry_map
     assert registry_map["best.xiaohu.ai"] == "小互AI"
 
@@ -366,7 +366,7 @@ def test_phase27_agihunt_in_publisher_registry():
         PUBLISHER_REGISTRY,
         resolve_publisher,
     )
-    registry_map = {s: n for s, n in PUBLISHER_REGISTRY}
+    registry_map = dict(PUBLISHER_REGISTRY)
     assert "agihunt.info" in registry_map
     assert registry_map["agihunt.info"] == "AGI Hunt"
 

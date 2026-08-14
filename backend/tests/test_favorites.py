@@ -22,7 +22,6 @@
 from __future__ import annotations
 
 import io
-from datetime import datetime, timezone
 
 import pytest
 from fastapi import FastAPI
@@ -32,7 +31,6 @@ from openpyxl import load_workbook
 from backend.api import register_routers
 from backend.api.middleware import TraceIDMiddleware
 from backend.config import config
-from backend.domain.enums import Category
 from backend.exceptions import register_exception_handlers
 from backend.repository import db
 from backend.repository.favorite_repo import FavoriteRepository

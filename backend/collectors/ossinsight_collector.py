@@ -79,4 +79,4 @@ class OSSInsightCollector(BaseCollector):
         return items
 
 
-__all__ = ["OSSInsightCollector", "OSSINSIGHT_SOURCES"]
+__all__ = ["OSSINSIGHT_SOURCES", "OSSInsightCollector"]

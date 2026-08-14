@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.repository.db import get_connection
 
@@ -41,8 +40,8 @@ class DigestRepository:
         digest_id: str,
         period: str,
         summary: str,
-        item_ids: Optional[list[str]] = None,
-        created_at: Optional[str] = None,
+        item_ids: list[str] | None = None,
+        created_at: str | None = None,
     ) -> dict:
         """插入或覆盖一条简报.
 
@@ -87,7 +86,7 @@ class DigestRepository:
             "created_at": ts,
         }
 
-    def get(self, digest_id: str) -> Optional[dict]:
+    def get(self, digest_id: str) -> dict | None:
         """读取一条简报. 不存在返回 None."""
         conn = get_connection()
         row = conn.execute(
@@ -104,7 +103,7 @@ class DigestRepository:
         return d
 
     def list_by_period(
-        self, period: Optional[str] = None, limit: int = 20
+        self, period: str | None = None, limit: int = 20
     ) -> list[dict]:
         """列出简报, 按 created_at DESC 排序.
 
@@ -142,7 +141,7 @@ class DigestRepository:
         """列出最近 N 条简报 (不限 period)."""
         return self.list_by_period(period=None, limit=limit)
 
-    def get_latest(self, period: Optional[str] = None) -> Optional[dict]:
+    def get_latest(self, period: str | None = None) -> dict | None:
         """获取最新一条简报, 无则返回 None."""
         items = self.list_by_period(period=period, limit=1)
         return items[0] if items else None
@@ -155,7 +154,7 @@ class DigestRepository:
         )
         return cur.rowcount > 0
 
-    def count(self, period: Optional[str] = None) -> int:
+    def count(self, period: str | None = None) -> int:
         """简报总数, 可按 period 过滤."""
         conn = get_connection()
         if period:

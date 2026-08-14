@@ -24,7 +24,7 @@ from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
 from backend.quality.base import GateContext
 from backend.quality.recency_gate import RecencyGate
-from backend.utils.business_days import SHANGHAI_TZ, current_week_start
+from backend.utils.business_days import current_week_start
 
 
 # ---------------------------------------------------------------------------

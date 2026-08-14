@@ -15,7 +15,7 @@ fixture 模式参考 test_codegarden_ops_api.py (避免触发 backend.main.app l
 from __future__ import annotations
 
 import sqlite3
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 from fastapi import FastAPI
@@ -30,7 +30,7 @@ def e2e_client(tmp_path, monkeypatch) -> Iterator[TestClient]:
     db_file = tmp_path / "test_codegarden_ops_e2e.db"
     conn = sqlite3.connect(str(db_file))
     # 019: cg_projects (跳过 skills ALTER)
-    with open("backend/repository/migrations/019_codegarden.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/019_codegarden.sql", encoding="utf-8") as f:
         sql_text = f.read()
     cg_sql = "\n".join(
         line for line in sql_text.splitlines()
@@ -39,7 +39,7 @@ def e2e_client(tmp_path, monkeypatch) -> Iterator[TestClient]:
     )
     conn.executescript(cg_sql)
     # 021: Phase 2b 4 张表
-    with open("backend/repository/migrations/021_codegarden_phase2b.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/021_codegarden_phase2b.sql", encoding="utf-8") as f:
         conn.executescript(f.read())
     conn.commit()
     conn.close()
@@ -140,7 +140,7 @@ def test_e2e_full_phase2b_flow(e2e_client: TestClient):
     assert r.status_code == 201, f"事件发布失败: {r.status_code} {r.text}"
     # publish_event 返回 {"event": {...}, "task_id": int}
     resp = r.json()
-    event = resp["event"] if "event" in resp else resp
+    event = resp.get("event", resp)
     assert event["status"] == "pending"
     assert event["event_type"] == "port_conflict"
     assert event["source_id"] == service_id

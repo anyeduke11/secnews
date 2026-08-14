@@ -23,37 +23,31 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import List
 
 import pytest
 
 from backend.config import config
 from backend.metrics.kl_metrics import (
-    COUNTER_KEYS,
-    HISTOGRAM_KEYS,
     kl_metrics,
 )
 from backend.repository import db as db_module
 from backend.repository.db import get_connection
 from backend.services.kl_state_machine import (
+    LEGACY_RAW_LIKE,
     LIFECYCLE_RAW,
     LIFECYCLE_REFINE,
-    LEGACY_RAW_LIKE,
 )
 from backend.services.retry_policy import RetryPolicy
-from backend.services.triggers import T1Trigger
-from backend.services.triggers.t1_raw_to_refine import (
-    BATCH_SIZE,
-    DEDUP_HAMMING_THRESHOLD,
-    DEFAULT_SCORE,
-    RAW_MIN_AGE_SECONDS,
-)
 from backend.services.simhash import (
     canonicalize_url,
     hamming_distance,
     simhash,
 )
-
+from backend.services.triggers import T1Trigger
+from backend.services.triggers.t1_raw_to_refine import (
+    DEDUP_HAMMING_THRESHOLD,
+    DEFAULT_SCORE,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -117,6 +111,7 @@ def _insert_fingerprint(conn, hotspot_id: str, simhash: int, url: str) -> None:
     test — only the fingerprint matters.
     """
     from datetime import datetime, timezone
+
     from backend.services.collection_service import _to_signed_64
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
@@ -412,9 +407,10 @@ def test_refine_rows_not_reprocessed(temp_db, fresh_metrics):
 def test_score_with_llm_calls_service(temp_db, fresh_metrics, monkeypatch):
     """Verify that when llm_service.score() returns a non-default value,
     it is used and written to the ai_scores table."""
-    from unittest.mock import AsyncMock
-    from backend.services.llm_service import llm_service
     from datetime import datetime, timezone
+    from unittest.mock import AsyncMock
+
+    from backend.services.llm_service import llm_service
 
     conn = get_connection()
     _insert_knowledge_item(conn, "llm-ok")
@@ -454,9 +450,10 @@ def test_score_with_llm_calls_service(temp_db, fresh_metrics, monkeypatch):
 def test_score_with_llm_fallback_to_db(temp_db, fresh_metrics, monkeypatch):
     """Verify that when llm_service.score() raises, the method falls back
     to _get_latest_score() which reads from the ai_scores table."""
-    from unittest.mock import AsyncMock
-    from backend.services.llm_service import llm_service
     from datetime import datetime, timezone
+    from unittest.mock import AsyncMock
+
+    from backend.services.llm_service import llm_service
 
     conn = get_connection()
     _insert_knowledge_item(conn, "llm-fallback")
@@ -493,6 +490,7 @@ def test_score_with_llm_fallback_to_db(temp_db, fresh_metrics, monkeypatch):
 def test_score_with_llm_fallback_to_default(temp_db, fresh_metrics, monkeypatch):
     """Verify that when both LLM and DB scores fail, DEFAULT_SCORE is used."""
     from unittest.mock import AsyncMock
+
     from backend.services.llm_service import llm_service
 
     conn = get_connection()

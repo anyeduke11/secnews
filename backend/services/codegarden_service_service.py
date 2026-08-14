@@ -11,12 +11,10 @@
 """
 from __future__ import annotations
 
-import asyncio
 import json
 import re
 import shutil
 import subprocess
-from typing import Optional
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
@@ -25,7 +23,6 @@ from backend.repository.codegarden_orchestration_repo import (
 )
 from backend.repository.codegarden_service_repo import CodegardenServiceRepository
 from backend.repository.db import get_connection
-
 
 # lsof -i :PORT 输出中, 第 2 列是 PID, 第 9 列是 name (如 *:3000)
 _LSOF_PORT_RE = re.compile(r":(\d{2,5})\b")
@@ -82,10 +79,7 @@ def _is_blacklisted_process(name: str) -> bool:
     normalized = name.lower()
     if not normalized:
         return True  # 空进程名直接跳过
-    for token in _SYSTEM_PROCESS_BLACKLIST:
-        if token in normalized or normalized in token:
-            return True
-    return False
+    return any(token in normalized or normalized in token for token in _SYSTEM_PROCESS_BLACKLIST)
 
 
 class CodegardenServiceService:
@@ -101,7 +95,7 @@ class CodegardenServiceService:
     def create_service(self, **kwargs) -> dict:
         return self.repo.create(**kwargs)
 
-    def get_service(self, service_id: str) -> Optional[dict]:
+    def get_service(self, service_id: str) -> dict | None:
         return self.repo.get(service_id)
 
     def list_services(self, **filters) -> tuple[list[dict], int]:

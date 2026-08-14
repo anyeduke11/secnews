@@ -16,7 +16,6 @@ from __future__ import annotations
 import asyncio
 import json
 import sqlite3
-from typing import Optional
 
 from backend.config import config as app_config
 from backend.domain.enums import Category
@@ -87,7 +86,7 @@ def _update_item(
 
 async def _repair_item(
     item: HotspotItem, final_gate: FinalUrlGate, content_gate: URLContentGate
-) -> tuple[str, Optional[str]]:
+) -> tuple[str, str | None]:
     """返回 (新状态, 新URL 或 None)。"""
     original_url = str(item.url)
 

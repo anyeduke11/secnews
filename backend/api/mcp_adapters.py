@@ -12,9 +12,7 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -123,9 +121,9 @@ async def trigger_extract_tags(req: ExtractAutoRequest):
     - 复用 ``extract_and_attach`` 同步直返
     - 不调 LLM
     """
-    from backend.services.extract_service import extract_and_attach
     from backend.repository.hotspot_repo import HotspotRepository
     from backend.repository.tags_repo import TagRepository
+    from backend.services.extract_service import extract_and_attach
 
     def _run() -> dict:
         item = HotspotRepository().get_by_id(req.hotspot_id)
@@ -179,8 +177,8 @@ class AddFavoriteByHotspotRequest(BaseModel):
 @router.post("/favorites/by-hotspot")
 async def add_favorite_by_hotspot(req: AddFavoriteByHotspotRequest):
     """MCP tool add_favorite 适配入口: 仅需 hotspot_id (其余字段从 hotspots 表查)。"""
-    from backend.repository.hotspot_repo import HotspotRepository
     from backend.repository.favorite_repo import FavoriteRepository
+    from backend.repository.hotspot_repo import HotspotRepository
 
     def _run() -> dict:
         item = HotspotRepository().get_by_id(req.hotspot_id)

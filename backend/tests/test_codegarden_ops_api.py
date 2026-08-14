@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -16,10 +16,10 @@ def client(tmp_path, monkeypatch) -> Iterator[TestClient]:
     db_file = tmp_path / "test_codegarden_ops_api.db"
     conn = sqlite3.connect(str(db_file))
     # 018: knowledge_tasks (restart/playbook/event 复用 knowledge_tasks 建任务)
-    with open("backend/repository/migrations/018_knowledge.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/018_knowledge.sql", encoding="utf-8") as f:
         conn.executescript(f.read())
     # 019: cg_projects + skills ALTER (跳过 skills ALTER)
-    with open("backend/repository/migrations/019_codegarden.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/019_codegarden.sql", encoding="utf-8") as f:
         sql_text = f.read()
     cg_sql = "\n".join(
         line for line in sql_text.splitlines()
@@ -28,7 +28,7 @@ def client(tmp_path, monkeypatch) -> Iterator[TestClient]:
     )
     conn.executescript(cg_sql)
     # 021: cg_services + cg_resources + cg_dependencies + cg_events
-    with open("backend/repository/migrations/021_codegarden_phase2b.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/021_codegarden_phase2b.sql", encoding="utf-8") as f:
         conn.executescript(f.read())
     conn.commit()
     conn.close()
@@ -43,16 +43,16 @@ def client(tmp_path, monkeypatch) -> Iterator[TestClient]:
 
     monkeypatch.setattr(db_mod, "get_connection", _get_conn)
     # 同时 patch 所有引用 get_connection 的 repo 模块
-    import backend.repository.codegarden_service_repo as svc_repo_mod
-    import backend.repository.codegarden_resource_repo as rsc_repo_mod
     import backend.repository.codegarden_orchestration_repo as orch_repo_mod
+    import backend.repository.codegarden_resource_repo as rsc_repo_mod
+    import backend.repository.codegarden_service_repo as svc_repo_mod
     monkeypatch.setattr(svc_repo_mod, "get_connection", _get_conn)
     monkeypatch.setattr(rsc_repo_mod, "get_connection", _get_conn)
     monkeypatch.setattr(orch_repo_mod, "get_connection", _get_conn)
     # service 层也直接 import get_connection (restart/playbook 走 asyncio.to_thread,
     # 未 patch 会命中真实 db 且在 worker 线程缓存 _tls.conn 泄漏到后续测试)
-    import backend.services.codegarden_service_service as svc_svc_mod
     import backend.services.codegarden_orchestration_service as orch_svc_mod
+    import backend.services.codegarden_service_service as svc_svc_mod
     monkeypatch.setattr(svc_svc_mod, "get_connection", _get_conn)
     monkeypatch.setattr(orch_svc_mod, "get_connection", _get_conn)
 
@@ -383,9 +383,9 @@ def test_run_playbook_returns_202(tmp_path, monkeypatch):
     db_file = tmp_path / "test_pb.db"
     conn = sqlite3.connect(str(db_file))
     # 018: knowledge_tasks (playbook_run 复用 knowledge_tasks 建任务)
-    with open("backend/repository/migrations/018_knowledge.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/018_knowledge.sql", encoding="utf-8") as f:
         conn.executescript(f.read())
-    with open("backend/repository/migrations/019_codegarden.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/019_codegarden.sql", encoding="utf-8") as f:
         sql_text = f.read()
     cg_sql = "\n".join(
         line for line in sql_text.splitlines()
@@ -393,7 +393,7 @@ def test_run_playbook_returns_202(tmp_path, monkeypatch):
         and not line.strip().startswith("CREATE INDEX IF NOT EXISTS idx_skills_")
     )
     conn.executescript(cg_sql)
-    with open("backend/repository/migrations/021_codegarden_phase2b.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/021_codegarden_phase2b.sql", encoding="utf-8") as f:
         conn.executescript(f.read())
     conn.commit()
     conn.close()
@@ -407,9 +407,9 @@ def test_run_playbook_returns_202(tmp_path, monkeypatch):
         return c
 
     monkeypatch.setattr(db_mod, "get_connection", _get_conn)
-    import backend.repository.codegarden_service_repo as svc_repo_mod
-    import backend.repository.codegarden_resource_repo as rsc_repo_mod
     import backend.repository.codegarden_orchestration_repo as orch_repo_mod
+    import backend.repository.codegarden_resource_repo as rsc_repo_mod
+    import backend.repository.codegarden_service_repo as svc_repo_mod
     monkeypatch.setattr(svc_repo_mod, "get_connection", _get_conn)
     monkeypatch.setattr(rsc_repo_mod, "get_connection", _get_conn)
     monkeypatch.setattr(orch_repo_mod, "get_connection", _get_conn)

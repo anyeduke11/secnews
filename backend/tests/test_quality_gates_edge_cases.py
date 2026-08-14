@@ -19,13 +19,13 @@ from backend.domain.collection import GateResult, PipelineResult
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
 from backend.exceptions import QualityGateFailed
-from backend.quality.base import BaseGate, GateContext
 from backend.quality.author_verification_gate import (
-    AuthorVerificationGate,
     PENALTY_MISMATCH,
     PENALTY_UNKNOWN,
     REWARD_MATCH,
+    AuthorVerificationGate,
 )
+from backend.quality.base import BaseGate, GateContext
 from backend.quality.category_match_gate import CategoryMatchGate
 from backend.quality.config import QualityConfig, QualityMode
 from backend.quality.content_quality_gate import ContentQualityGate
@@ -36,7 +36,6 @@ from backend.quality.schema_gate import SchemaGate
 from backend.quality.source_reputation_gate import SourceReputationGate
 from backend.quality.title_summary_gate import TitleSummaryGate
 from backend.quality.url_content_gate import URLContentGate
-from backend.quality.url_validity_gate import URLValidityGate
 
 
 # ---------------------------------------------------------------------------

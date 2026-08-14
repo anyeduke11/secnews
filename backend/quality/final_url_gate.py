@@ -40,7 +40,6 @@ from backend.quality.final_url_resolver import (
     resolve_final_url,
 )
 
-
 REWARD_OK = 0
 PENALTY_FAILED = 5
 PENALTY_NOT_DRILLABLE = 8

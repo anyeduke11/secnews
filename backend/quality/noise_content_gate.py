@@ -20,7 +20,6 @@ Bug 2 (fix-bug-github-category-dedup Task 3)：抓取器会把以下噪音当成
 from __future__ import annotations
 
 import re
-
 from typing import ClassVar, Literal
 
 from backend.domain.collection import GateResult

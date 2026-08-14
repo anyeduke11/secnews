@@ -9,10 +9,8 @@
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
@@ -21,7 +19,6 @@ from backend.repository.codegarden_orchestration_repo import (
     CodegardenEventRepository,
 )
 from backend.repository.db import get_connection
-
 
 # Playbook YAML 文件目录 (相对项目根)
 PLAYBOOKS_DIR = Path("codegarden/playbooks")
@@ -111,7 +108,7 @@ class CodegardenOrchestrationService:
         event_type: str,
         source_type: str,
         source_id: str,
-        payload: Optional[dict] = None,
+        payload: dict | None = None,
     ) -> dict:
         """发布事件 + 创建处理 task (异步处理).
 
@@ -166,7 +163,7 @@ class CodegardenOrchestrationService:
         event_id: str,
         *,
         success: bool = True,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
     ) -> dict:
         return self.event_repo.mark_processed(
             event_id, success=success, error_message=error_message
@@ -218,7 +215,7 @@ class CodegardenOrchestrationService:
             "steps": parsed.get("steps", []) if isinstance(parsed, dict) else [],
         }
 
-    def run_playbook(self, name: str, params: Optional[dict] = None) -> dict:
+    def run_playbook(self, name: str, params: dict | None = None) -> dict:
         """执行 Playbook — 创建 knowledge_tasks (task_type=playbook_run).
 
         实际执行由 watchdog 或 Agent 异步处理 (与本系统其他 task 一致).
@@ -264,4 +261,4 @@ class CodegardenOrchestrationService:
         }
 
 
-__all__ = ["CodegardenOrchestrationService", "PLAYBOOKS_DIR"]
+__all__ = ["PLAYBOOKS_DIR", "CodegardenOrchestrationService"]

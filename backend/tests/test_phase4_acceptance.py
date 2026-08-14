@@ -146,7 +146,7 @@ class TestAcceptance1ReadBoostsWeight:
 
     def test_record_read_updates_category_and_source(self, client, temp_db):
         """record_read 同时更新分类与源的权重."""
-        from backend.services.profile_service import record_read, get_weight
+        from backend.services.profile_service import get_weight, record_read
 
         record_read("ai", source="freebuf")
         assert get_weight("category:ai") > 0

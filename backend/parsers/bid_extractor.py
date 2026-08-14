@@ -22,7 +22,6 @@ Phase 1.3 (Crawler v2): 从列表页解析结果中提取结构化标讯字段�
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 # ---------------------------------------------------------------------------
 # 正则模式
@@ -105,7 +104,7 @@ def extract_budget(title: str) -> str:
     return ""
 
 
-def extract_deadline(title: str) -> Optional[str]:
+def extract_deadline(title: str) -> str | None:
     """提取截止时间，返回 ISO 日期字符串或 None。"""
     m = _DEADLINE_RE.search(title)
     if m:
@@ -155,10 +154,10 @@ def extract_all(title: str, url: str = "") -> dict:
 __all__ = [
     "extract_all",
     "extract_bid_no",
-    "extract_buyer",
-    "extract_region",
-    "extract_budget",
-    "extract_deadline",
     "extract_bid_status",
+    "extract_budget",
+    "extract_buyer",
+    "extract_deadline",
     "extract_industry",
+    "extract_region",
 ]

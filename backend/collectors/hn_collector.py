@@ -255,4 +255,4 @@ class HNCollector(BaseCollector):
             return CrawlResult(url=url, success=False, error=str(e))
 
 
-__all__ = ["HNCollector", "HN_SOURCES"]
+__all__ = ["HN_SOURCES", "HNCollector"]

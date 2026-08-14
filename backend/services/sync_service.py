@@ -41,43 +41,31 @@
 """
 from __future__ import annotations
 
-import base64
 import json
-import time
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.crypto import (
-    DEFAULT_ITERATIONS,
     decrypt_api_key,
     derive_fernet_key,
-    encrypt_api_key,
-    verify_master_key,
 )
 from backend.exceptions import InternalException
-from backend.logging_config import logger
-from backend.repository.custom_source_repo import CustomSourceRepository
 from backend.repository.encryption_keys_repo import EncryptionKeyRepository
-from backend.repository.favorite_repo import FavoriteRepository
 from backend.repository.secrets_repo import SecretRepository
-from backend.repository.settings_repo import SettingsRepository
-from backend.repository.skills_repo import SkillRepository
 from backend.repository.sync_configs_repo import SyncConfigRepository
 from backend.repository.sync_history_repo import SyncHistoryRepository
 from backend.repository.sync_states_repo import SyncStateRepository
-from backend.repository.todo_repo import TodoRepository
-from backend.services.webdav_client import WebDAVAuthError, WebDAVClient, WebDAVError
-from backend.services.sync_zip import (
-    build_sync_zip,
-    extract_sync_zip,
-    make_zip_remote_path,
-    display_name,
-)
 from backend.services.sync_merge import (
     MergeResult,
     three_way_merge,
 )
+from backend.services.sync_zip import (
+    build_sync_zip,
+    display_name,
+    extract_sync_zip,
+    make_zip_remote_path,
+)
+from backend.services.webdav_client import WebDAVAuthError, WebDAVClient, WebDAVError
 
 # ---------------------------------------------------------------------------
 # 常量
@@ -151,7 +139,7 @@ class SyncService:
     # ------------------------------------------------------------------
     # bundle 构建
     # ------------------------------------------------------------------
-    def build_bundle(self, *, device_id: Optional[str] = None) -> dict:
+    def build_bundle(self, *, device_id: str | None = None) -> dict:
         """委托给 sync_bundle.build_bundle"""
         from backend.services.sync_bundle import build_bundle as _build_bundle
         return _build_bundle(device_id=device_id)
@@ -159,7 +147,7 @@ class SyncService:
     # ------------------------------------------------------------------
     # bundle 写回
     # ------------------------------------------------------------------
-    def apply_bundle(self, bundle: dict, *, master_key: Optional[str] = None) -> dict:
+    def apply_bundle(self, bundle: dict, *, master_key: str | None = None) -> dict:
         """委托给 sync_bundle.apply_bundle"""
         from backend.services.sync_bundle import apply_bundle as _apply_bundle
         return _apply_bundle(bundle, master_key=master_key)
@@ -425,7 +413,7 @@ class SyncService:
         }
 
     @staticmethod
-    def _decode_remote_payload(raw: bytes) -> tuple[bytes, Optional[dict]]:
+    def _decode_remote_payload(raw: bytes) -> tuple[bytes, dict | None]:
         """解包远端 raw bytes → (envelope_bytes, manifest)。
 
         支持:
@@ -738,8 +726,8 @@ class SyncService:
 
 
 __all__ = [
-    "SyncService",
-    "MergeResult",
     "BUNDLE_VERSION",
     "SETTINGS_BLOCKLIST",
+    "MergeResult",
+    "SyncService",
 ]

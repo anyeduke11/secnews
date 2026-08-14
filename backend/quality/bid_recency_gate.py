@@ -24,13 +24,12 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from typing import ClassVar, Literal, Optional
+from typing import ClassVar, Literal
 
 from backend.domain.collection import GateResult
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
 from backend.quality.base import BaseGate, GateContext
-
 
 # 标题年份段: "2022-2023年" / "2025年" / "2024 年度" / "2023～2024 年"
 # 注意: 这里用 | 兼顾半角/全角年、"年度"、"~"、"-"

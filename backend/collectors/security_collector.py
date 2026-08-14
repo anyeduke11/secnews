@@ -323,4 +323,4 @@ class SecurityCollector(BaseCollector):
         return out
 
 
-__all__ = ["SecurityCollector", "SECURITY_SOURCES"]
+__all__ = ["SECURITY_SOURCES", "SecurityCollector"]

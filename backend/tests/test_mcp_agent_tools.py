@@ -16,8 +16,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.api import register_routers
-from backend.api import mcp_agent_tools
+from backend.api import mcp_agent_tools, register_routers
 from backend.config import config
 from backend.repository import db
 

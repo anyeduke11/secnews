@@ -10,7 +10,6 @@
 """
 from __future__ import annotations
 
-from backend.version import APP_VERSION as API_VERSION
 import asyncio
 
 from fastapi import APIRouter, HTTPException, Query
@@ -23,6 +22,7 @@ from backend.services.review_service import (
     stats,
     submit_grade,
 )
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
 

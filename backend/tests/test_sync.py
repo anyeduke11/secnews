@@ -13,12 +13,10 @@
 """
 from __future__ import annotations
 
-import asyncio
-import base64
 import json
 import sqlite3
-from datetime import datetime, timedelta, timezone
-from typing import Iterator
+from collections.abc import Iterator
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -28,10 +26,8 @@ from backend.scheduler.jobs import should_run_catchup
 from backend.services.sync_merge import three_way_merge
 from backend.services.sync_service import (
     BUNDLE_VERSION,
-    SETTINGS_BLOCKLIST,
     SyncService,
 )
-
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 
@@ -54,7 +50,7 @@ def db(tmp_path, monkeypatch) -> Iterator[None]:
         "013_secrets.sql", "014_sync.sql",
 "015_todos_deadline.sql", "016_sync_frequency.sql",
     ):
-        with open(f"{schema_dir}/{sql_file}", "r", encoding="utf-8") as f:
+        with open(f"{schema_dir}/{sql_file}", encoding="utf-8") as f:
             setup_conn.executescript(f.read())
     setup_conn.commit()
     setup_conn.close()
@@ -87,7 +83,6 @@ def db(tmp_path, monkeypatch) -> Iterator[None]:
 def _setup_master_key():
     """初始化主密钥 — secrets 服务需要。"""
     from backend.repository.encryption_keys_repo import EncryptionKeyRepository
-    from backend.crypto import make_verify_blob, generate_salt, DEFAULT_ITERATIONS
     repo = EncryptionKeyRepository()
     if repo.is_setup():
         return
@@ -281,7 +276,6 @@ def test_decrypt_uses_envelope_salt_cross_device(db):
     此前实现用本地 salt 派生 → 跨端解密必然失败。
     """
     from backend.crypto import generate_salt
-    from backend.repository.db import get_connection
 
     _setup_master_key()
     svc = SyncService()
@@ -372,8 +366,8 @@ def test_sync_config_upsert_get(db):
 
 
 def test_sync_history_write_list(db):
-    from backend.repository.sync_history_repo import SyncHistoryRepository
     from backend.repository.sync_configs_repo import SyncConfigRepository
+    from backend.repository.sync_history_repo import SyncHistoryRepository
     cfg = SyncConfigRepository().upsert()
     hr = SyncHistoryRepository()
     hr.write(
@@ -391,8 +385,8 @@ def test_sync_history_write_list(db):
 
 
 def test_sync_state_upsert_get_clear(db):
-    from backend.repository.sync_states_repo import SyncStateRepository
     from backend.repository.sync_configs_repo import SyncConfigRepository
+    from backend.repository.sync_states_repo import SyncStateRepository
     cfg = SyncConfigRepository().upsert()
     sr = SyncStateRepository()
     assert sr.get(cfg.id) is None

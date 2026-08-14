@@ -6,9 +6,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from backend.parsers.trafilatura_parser import HAS_TRAFILATURA, extract_content
+from backend.parsers.trafilatura_parser import extract_content
 
 
 class TestTrafilaturaExtract:

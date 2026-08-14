@@ -35,25 +35,25 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
 class TestSm2Schedule:
     def test_fail_resets_repetitions(self):
         """grade < 3 → repetitions 归零, interval=1。"""
-        e, i, r = review_service.sm2_schedule(grade=2, easiness=2.5, interval=10, repetitions=5)
+        _e, i, r = review_service.sm2_schedule(grade=2, easiness=2.5, interval=10, repetitions=5)
         assert r == 0
         assert i == 1
 
     def test_first_pass_interval_1(self):
         """首次通过 (repetitions=0) → interval=1, repetitions=1。"""
-        e, i, r = review_service.sm2_schedule(grade=4, easiness=2.5, interval=0, repetitions=0)
+        _e, i, r = review_service.sm2_schedule(grade=4, easiness=2.5, interval=0, repetitions=0)
         assert i == 1
         assert r == 1
 
     def test_second_pass_interval_6(self):
         """第二次通过 (repetitions=1) → interval=6。"""
-        e, i, r = review_service.sm2_schedule(grade=4, easiness=2.5, interval=1, repetitions=1)
+        _e, i, r = review_service.sm2_schedule(grade=4, easiness=2.5, interval=1, repetitions=1)
         assert i == 6
         assert r == 2
 
     def test_third_pass_uses_easiness(self):
         """第三次通过 → interval = round(prev_interval * easiness)。"""
-        e, i, r = review_service.sm2_schedule(grade=5, easiness=2.5, interval=6, repetitions=2)
+        _e, i, r = review_service.sm2_schedule(grade=5, easiness=2.5, interval=6, repetitions=2)
         assert i == round(6 * 2.5)
         assert r == 3
 

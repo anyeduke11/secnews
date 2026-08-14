@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.repository.db import get_connection
 
@@ -23,7 +22,7 @@ class ReadingState:
     entity_id: str
     opened_count: int
     dwell_ms: int
-    last_read_at: Optional[str]
+    last_read_at: str | None
     created_at: str
     updated_at: str
 
@@ -42,7 +41,7 @@ class ReadingState:
 class ReadingStateRepository:
     """reading_states 仓库."""
 
-    def get(self, entity_type: str, entity_id: str) -> Optional[ReadingState]:
+    def get(self, entity_type: str, entity_id: str) -> ReadingState | None:
         row = (
             get_connection()
             .execute(
@@ -82,7 +81,7 @@ class ReadingStateRepository:
 
     def list_recent(
         self,
-        entity_type: Optional[str] = None,
+        entity_type: str | None = None,
         limit: int = 50,
     ) -> list[ReadingState]:
         sql = "SELECT * FROM reading_states WHERE last_read_at IS NOT NULL"

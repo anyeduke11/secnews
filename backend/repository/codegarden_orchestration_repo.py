@@ -13,12 +13,11 @@ import json
 import sqlite3
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
 from backend.repository.db import get_connection
-
 
 VALID_DEP_TYPES = ("code", "service", "data")
 VALID_DEP_ENTITY_TYPES = ("project", "service")
@@ -39,7 +38,7 @@ def _new_id() -> str:
     return str(uuid.uuid4())
 
 
-def _parse_json(raw: Optional[str], default: Any) -> Any:
+def _parse_json(raw: str | None, default: Any) -> Any:
     if not raw:
         return default
     try:
@@ -89,7 +88,7 @@ class CodegardenDependencyRepository:
         target_type: str,
         target_id: str,
         dep_type: str,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> dict:
         if source_type not in VALID_DEP_ENTITY_TYPES:
             raise InternalException(f"source_type 必须为 {VALID_DEP_ENTITY_TYPES}; got {source_type!r}")
@@ -135,7 +134,7 @@ class CodegardenDependencyRepository:
 
         return self.get(dep_id)  # type: ignore[return-value]
 
-    def get(self, dep_id: str) -> Optional[dict]:
+    def get(self, dep_id: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM cg_dependencies WHERE id = ?", (dep_id,)
@@ -145,11 +144,11 @@ class CodegardenDependencyRepository:
     def list(
         self,
         *,
-        source_type: Optional[str] = None,
-        source_id: Optional[str] = None,
-        target_type: Optional[str] = None,
-        target_id: Optional[str] = None,
-        dep_type: Optional[str] = None,
+        source_type: str | None = None,
+        source_id: str | None = None,
+        target_type: str | None = None,
+        target_id: str | None = None,
+        dep_type: str | None = None,
         limit: int = 500,
         offset: int = 0,
     ) -> tuple[list[dict], int]:
@@ -262,7 +261,7 @@ class CodegardenEventRepository:
         event_type: str,
         source_type: str,
         source_id: str,
-        payload: Optional[dict] = None,
+        payload: dict | None = None,
         status: str = "pending",
     ) -> dict:
         if event_type not in VALID_EVENT_TYPES:
@@ -305,7 +304,7 @@ class CodegardenEventRepository:
 
         return self.get(event_id)  # type: ignore[return-value]
 
-    def get(self, event_id: str) -> Optional[dict]:
+    def get(self, event_id: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM cg_events WHERE id = ?", (event_id,)
@@ -315,10 +314,10 @@ class CodegardenEventRepository:
     def list(
         self,
         *,
-        event_type: Optional[str] = None,
-        status: Optional[str] = None,
-        source_type: Optional[str] = None,
-        source_id: Optional[str] = None,
+        event_type: str | None = None,
+        status: str | None = None,
+        source_type: str | None = None,
+        source_id: str | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> tuple[list[dict], int]:
@@ -371,7 +370,7 @@ class CodegardenEventRepository:
         event_id: str,
         *,
         success: bool = True,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
     ) -> dict:
         existing = self.get(event_id)
         if existing is None:
@@ -402,11 +401,11 @@ class CodegardenEventRepository:
 
 
 __all__ = [
-    "CodegardenDependencyRepository",
-    "CodegardenEventRepository",
-    "VALID_DEP_TYPES",
     "VALID_DEP_ENTITY_TYPES",
-    "VALID_EVENT_TYPES",
+    "VALID_DEP_TYPES",
     "VALID_EVENT_SOURCES",
     "VALID_EVENT_STATUSES",
+    "VALID_EVENT_TYPES",
+    "CodegardenDependencyRepository",
+    "CodegardenEventRepository",
 ]

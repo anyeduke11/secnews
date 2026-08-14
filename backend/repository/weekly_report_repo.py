@@ -1,9 +1,7 @@
 """v1.3.0 Phase 4: 周报数据仓库。"""
 from __future__ import annotations
 
-import sqlite3
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
@@ -66,7 +64,7 @@ class WeeklyReportRepository:
             logger.error("weekly_report save failed", extra={"err": str(e)})
             raise InternalException(f"weekly_report save failed: {e}") from e
 
-    def get_by_week(self, week_start: str) -> Optional[dict]:
+    def get_by_week(self, week_start: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM weekly_reports WHERE week_start = ? LIMIT 1",
@@ -82,7 +80,7 @@ class WeeklyReportRepository:
         ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_latest(self) -> Optional[dict]:
+    def get_latest(self) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM weekly_reports ORDER BY week_start DESC LIMIT 1"
@@ -126,4 +124,4 @@ class TrendDailyRepository:
         return [dict(r) for r in rows]
 
 
-__all__ = ["WeeklyReportRepository", "TrendDailyRepository"]
+__all__ = ["TrendDailyRepository", "WeeklyReportRepository"]

@@ -6,11 +6,10 @@ from __future__ import annotations
 
 import pytest
 
+from backend.config import config
 from backend.repository.codegarden_repo import CodegardenProjectRepository
 from backend.repository.db import close_db, init_db
-from backend.repository.hotspot_repo import HotspotRepository
 from backend.services.tech_stack_service import analyze_impact
-from backend.config import config
 
 
 @pytest.fixture
@@ -38,6 +37,7 @@ def _make_project(name: str, tech_stack: list[str]) -> dict:
 def _upsert_hotspot_direct(hotspot_id: str, title: str, summary: str, category: str) -> None:
     """直接 SQL 插入热点 (绕过 HotspotItem 必填字段, 仅写桥接所需列)."""
     from datetime import datetime, timezone
+
     from backend.repository.db import get_connection
     now = datetime.now(timezone.utc).isoformat()
     get_connection().execute(

@@ -49,7 +49,6 @@ from backend.domain.models import HotspotItem
 from backend.quality.base import BaseGate, GateContext
 from backend.quality.publisher_registry import resolve_publisher
 
-
 # 配置：扣分 + 奖励
 REWARD_MATCH = 2       # 完美匹配奖励
 PENALTY_MISMATCH = 10  # 域名已知但 author 不一致
@@ -153,9 +152,9 @@ class AuthorVerificationGate(BaseGate):
 
 
 __all__ = [
-    "AuthorVerificationGate",
-    "REWARD_MATCH",
     "PENALTY_MISMATCH",
     "PENALTY_UNKNOWN",
+    "REWARD_MATCH",
     "_AGGREGATOR_SOURCES",
+    "AuthorVerificationGate",
 ]

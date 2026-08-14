@@ -21,11 +21,11 @@ from backend.domain.models import HotspotItem
 from backend.quality.base import GateContext
 from backend.quality.config import QualityConfig
 from backend.quality.final_url_gate import (
-    FinalUrlGate,
     PENALTY_ERROR,
     PENALTY_FAILED,
     PENALTY_NOT_DRILLABLE,
     REWARD_OK,
+    FinalUrlGate,
 )
 from backend.quality.final_url_resolver import (
     DOMAIN_ARTICLE_PATTERNS,

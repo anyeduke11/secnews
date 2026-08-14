@@ -7,8 +7,6 @@ v1.7 Phase 1: ``compiled`` 字段被 ``lifecycle`` (SAG 生命周期) 替换.
 """
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
-
 
 # v1.7 SAG 生命周期合法状态 (PRD §3.3)
 VALID_LIFECYCLE_STATES = {
@@ -26,17 +24,17 @@ class KnowledgeItem:
     id: str
     title: str
     source: str  # cubox | bookmark | secnews | secnews_archive
-    source_url: Optional[str] = None
-    domain: Optional[str] = None
-    topic: Optional[str] = None
-    type: Optional[str] = None  # news | analysis | paper | tutorial | tool | opinion
-    difficulty: Optional[str] = None  # beginner | intermediate | advanced | expert
+    source_url: str | None = None
+    domain: str | None = None
+    topic: str | None = None
+    type: str | None = None  # news | analysis | paper | tutorial | tool | opinion
+    difficulty: str | None = None  # beginner | intermediate | advanced | expert
     tags: list[str] = field(default_factory=list)
     concepts: list[str] = field(default_factory=list)
     mastered: int = 0
     # v1.7: lifecycle 替换 compiled; news_type + tech_stack 新增
     lifecycle: str = "signal"
-    news_type: Optional[str] = None
+    news_type: str | None = None
     tech_stack: list[str] = field(default_factory=list)
     ingested_at: str = ""
     updated_at: str = ""
@@ -106,9 +104,9 @@ class KnowledgeConcept:
     """Mirrors knowledge/concepts/{slug}.md frontmatter."""
     slug: str
     title: str
-    domain: Optional[str] = None
+    domain: str | None = None
     source_items: list[str] = field(default_factory=list)
-    local_wiki_ref: Optional[str] = None
+    local_wiki_ref: str | None = None
     updated_at: str = ""
 
     @classmethod
@@ -140,9 +138,9 @@ class KnowledgeTask:
     id: int
     task_type: str
     status: str = "pending"
-    params: Optional[dict] = None
-    result_path: Optional[str] = None
-    error_message: Optional[str] = None
+    params: dict | None = None
+    result_path: str | None = None
+    error_message: str | None = None
     created_at: str = ""
     updated_at: str = ""
 

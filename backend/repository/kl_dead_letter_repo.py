@@ -23,7 +23,6 @@ from __future__ import annotations
 import json
 import sqlite3
 from dataclasses import dataclass
-from typing import List, Optional
 
 from backend.repository.db import get_connection
 
@@ -36,9 +35,9 @@ class DeadLetterEntry:
     item_id: str
     error_msg: str
     attempts: int
-    payload: Optional[str]
+    payload: str | None
     created_at: str
-    last_retry_at: Optional[str]
+    last_retry_at: str | None
     resolved: bool
 
     @property
@@ -82,7 +81,7 @@ class KLDeadLetterRepository:
         item_id: str,
         error_msg: str,
         attempts: int,
-        payload: Optional[dict] = None,
+        payload: dict | None = None,
     ) -> int:
         """Insert a new dead letter. Returns the new row id.
 
@@ -164,7 +163,7 @@ class KLDeadLetterRepository:
         self,
         trigger_name: str,
         item_id: str,
-    ) -> Optional[DeadLetterEntry]:
+    ) -> DeadLetterEntry | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM kl_dead_letters "
@@ -174,7 +173,7 @@ class KLDeadLetterRepository:
         ).fetchone()
         return _row_to_entry(row) if row else None
 
-    def get_by_id(self, entry_id: int) -> Optional[DeadLetterEntry]:
+    def get_by_id(self, entry_id: int) -> DeadLetterEntry | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM kl_dead_letters WHERE id = ?", (entry_id,)
@@ -183,9 +182,9 @@ class KLDeadLetterRepository:
 
     def list_active(
         self,
-        trigger_name: Optional[str] = None,
+        trigger_name: str | None = None,
         limit: int = 100,
-    ) -> List[DeadLetterEntry]:
+    ) -> list[DeadLetterEntry]:
         conn = get_connection()
         if trigger_name:
             rows = conn.execute(
@@ -205,7 +204,7 @@ class KLDeadLetterRepository:
 
     def list_active_count(
         self,
-        trigger_name: Optional[str] = None,
+        trigger_name: str | None = None,
     ) -> int:
         conn = get_connection()
         if trigger_name:

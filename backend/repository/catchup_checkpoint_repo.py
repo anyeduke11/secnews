@@ -15,12 +15,10 @@
 """
 from __future__ import annotations
 
-import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
 
 from backend.repository.db import get_connection
 
@@ -40,9 +38,9 @@ class Checkpoint:
     source_name: str
     status: str
     items_count: int
-    started_at: Optional[str]
-    finished_at: Optional[str]
-    error_msg: Optional[str]
+    started_at: str | None
+    finished_at: str | None
+    error_msg: str | None
 
     def to_dict(self) -> dict:
         return {
@@ -87,7 +85,7 @@ class CatchupCheckpointRepository:
         source_name: str,
         status: str,
         items_count: int = 0,
-        error_msg: Optional[str] = None,
+        error_msg: str | None = None,
     ) -> int:
         """插入或更新一条 checkpoint.
 
@@ -158,7 +156,7 @@ class CatchupCheckpointRepository:
 
     def get(
         self, run_id: int, category: str, source_name: str
-    ) -> Optional[Checkpoint]:
+    ) -> Checkpoint | None:
         conn = get_connection()
         row = conn.execute(
             """
@@ -177,7 +175,7 @@ class CatchupCheckpointRepository:
         ).fetchall()
         return [_row(r) for r in rows]
 
-    def count_for_run(self, run_id: int, status: Optional[str] = None) -> int:
+    def count_for_run(self, run_id: int, status: str | None = None) -> int:
         """统计某 run 的 checkpoint 数 (按 status 过滤)."""
         conn = get_connection()
         if status is None:
@@ -197,7 +195,7 @@ class CatchupCheckpointRepository:
         category: str,
         source_name: str,
         *,
-        since_iso: Optional[str] = None,
+        since_iso: str | None = None,
         limit: int = 1,
     ) -> list[Checkpoint]:
         """跨 run 查询: 找该源最近 N 条 status='done' 的 checkpoint.
@@ -275,7 +273,7 @@ class CatchupCheckpointRepository:
 
 
 __all__ = [
+    "CatchupCheckpointRepository",
     "Checkpoint",
     "CheckpointStatus",
-    "CatchupCheckpointRepository",
 ]

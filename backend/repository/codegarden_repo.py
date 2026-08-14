@@ -14,12 +14,11 @@ import json
 import sqlite3
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
 from backend.repository.db import get_connection
-
 
 VALID_PROJECT_TYPES = (
     "web_application", "api_service", "cli", "crawler", "library", "experiment",
@@ -39,7 +38,7 @@ def _new_id() -> str:
     return str(uuid.uuid4())
 
 
-def _parse_json(raw: Optional[str], default: Any) -> Any:
+def _parse_json(raw: str | None, default: Any) -> Any:
     if not raw:
         return default
     try:
@@ -61,19 +60,19 @@ class CodegardenProjectRepository:
         type: str,
         source_type: str,
         lifecycle_stage: str = "ideation",
-        display_name: Optional[str] = None,
-        description: Optional[str] = None,
-        local_path: Optional[str] = None,
-        repo_url: Optional[str] = None,
-        upstream_url: Optional[str] = None,
-        upstream_default_branch: Optional[str] = None,
-        source_item_id: Optional[str] = None,
-        source_type_detail: Optional[str] = None,
-        tags: Optional[list[str]] = None,
-        tech_stack: Optional[list[str]] = None,
-        domain: Optional[str] = None,
+        display_name: str | None = None,
+        description: str | None = None,
+        local_path: str | None = None,
+        repo_url: str | None = None,
+        upstream_url: str | None = None,
+        upstream_default_branch: str | None = None,
+        source_item_id: str | None = None,
+        source_type_detail: str | None = None,
+        tags: list[str] | None = None,
+        tech_stack: list[str] | None = None,
+        domain: str | None = None,
         priority: int = 0,
-        active_skill_ids: Optional[list[str]] = None,
+        active_skill_ids: list[str] | None = None,
     ) -> dict:
         if type not in VALID_PROJECT_TYPES:
             raise InternalException(
@@ -132,7 +131,7 @@ class CodegardenProjectRepository:
     # ------------------------------------------------------------------
     # 读取
     # ------------------------------------------------------------------
-    def get(self, project_id: str) -> Optional[dict]:
+    def get(self, project_id: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM cg_projects WHERE id = ?", (project_id,)
@@ -142,12 +141,12 @@ class CodegardenProjectRepository:
     def list(
         self,
         *,
-        lifecycle_stage: Optional[str] = None,
-        source_type: Optional[str] = None,
-        domain: Optional[str] = None,
-        type: Optional[str] = None,
-        source_item_id: Optional[str] = None,
-        keyword: Optional[str] = None,
+        lifecycle_stage: str | None = None,
+        source_type: str | None = None,
+        domain: str | None = None,
+        type: str | None = None,
+        source_item_id: str | None = None,
+        keyword: str | None = None,
         include_archived: bool = False,
         limit: int = 100,
         offset: int = 0,
@@ -250,7 +249,7 @@ class CodegardenProjectRepository:
 
         return self.get(project_id)  # type: ignore[return-value]
 
-    def set_lifecycle(self, project_id: str, stage: str, note: Optional[str] = None) -> dict:
+    def set_lifecycle(self, project_id: str, stage: str, note: str | None = None) -> dict:
         if stage not in VALID_LIFECYCLE_STAGES:
             raise InternalException(f"lifecycle_stage 非法: {stage!r}")
         existing = self.get(project_id)
@@ -328,7 +327,7 @@ class CodegardenProjectRepository:
         project_id: str,
         activity_type: str,
         content: str,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> dict:
         activity_id = _new_id()
         now = _now_iso()
@@ -393,13 +392,13 @@ class CodegardenProjectRepository:
         *,
         project_id: str,
         stage_name: str,
-        stage_order: Optional[int] = None,
-        deliverable_type: Optional[str] = None,
-        deliverable_url: Optional[str] = None,
-        deliverable_path: Optional[str] = None,
-        commit_sha: Optional[str] = None,
+        stage_order: int | None = None,
+        deliverable_type: str | None = None,
+        deliverable_url: str | None = None,
+        deliverable_path: str | None = None,
+        commit_sha: str | None = None,
         status: str = "planned",
-        notes: Optional[str] = None,
+        notes: str | None = None,
     ) -> dict:
         stage_id = _new_id()
         now = _now_iso()
@@ -505,8 +504,8 @@ def _row_to_stage(row: sqlite3.Row) -> dict:
 
 
 __all__ = [
-    "CodegardenProjectRepository",
+    "VALID_LIFECYCLE_STAGES",
     "VALID_PROJECT_TYPES",
     "VALID_SOURCE_TYPES",
-    "VALID_LIFECYCLE_STAGES",
+    "CodegardenProjectRepository",
 ]

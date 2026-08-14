@@ -24,7 +24,7 @@ Phase 7 历史: 原 ``agent`` flag 已废弃, 由 ``mcp_server`` 取代 (Option 
 
 from __future__ import annotations
 
-from typing import Iterable, Optional
+from collections.abc import Iterable
 
 from backend.config import config
 from backend.logging_config import logger
@@ -48,7 +48,7 @@ def is_enabled(name: str) -> bool:
     return bool(getattr(config, attr))
 
 
-def enabled_names(names: Optional[Iterable[str]] = None) -> list[str]:
+def enabled_names(names: Iterable[str] | None = None) -> list[str]:
     """返回所有 enabled flag 名称列表.
 
     Args:
@@ -87,4 +87,4 @@ def enable(name: str) -> bool:
     return True
 
 
-__all__ = ["is_enabled", "enabled_names", "enable", "disable"]
+__all__ = ["disable", "enable", "enabled_names", "is_enabled"]

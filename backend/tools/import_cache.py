@@ -40,7 +40,6 @@ from backend.exceptions import InvalidParamException
 from backend.logging_config import logger
 from backend.repository.hotspot_repo import HotspotRepository
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -110,7 +109,7 @@ def import_from_cache_json(path: Path) -> dict[str, Any]:
     # ------------------------------------------------------------------
     # 1. Backup — must happen before any DB write.
     # ------------------------------------------------------------------
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
     backup_path = path.parent / f"{path.stem}.bak.{timestamp}{path.suffix}"
     shutil.copy2(path, backup_path)
     logger.info(

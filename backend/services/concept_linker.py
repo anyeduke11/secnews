@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from pathlib import Path
-from typing import Optional
 
 log = logging.getLogger("hotspot.concept_linker")
 
@@ -126,13 +124,8 @@ AUTO_CONCEPT_TAGS: dict[str, dict] = {
     "OpenAI": {"slug": "openai", "title": "OpenAI", "domain": "ai"},
     "Coding": {"slug": "coding", "title": "AI编程", "domain": "ai"},
     "多模态": {"slug": "multimodal", "title": "多模态", "domain": "ai"},
-    "API": {"slug": "api", "title": "API", "domain": "dev"},
     "CISO": {"slug": "ciso", "title": "CISO", "domain": "security"},
     "工作汇报": {"slug": "work-report", "title": "工作汇报", "domain": "startup"},
-    "金融科技": {"slug": "fintech", "title": "金融科技", "domain": "finance"},
-    "金融监管": {"slug": "financial-regulation", "title": "金融监管", "domain": "finance"},
-    "银行业": {"slug": "banking", "title": "银行业", "domain": "finance"},
-    "证券业": {"slug": "securities", "title": "证券业", "domain": "finance"},
 }
 
 
@@ -280,8 +273,8 @@ def batch_link_items(items: list[dict]) -> list[dict]:
 
 
 __all__ = [
-    "link_tags_to_concepts",
     "auto_create_concepts",
-    "update_item_concepts",
     "batch_link_items",
+    "link_tags_to_concepts",
+    "update_item_concepts",
 ]

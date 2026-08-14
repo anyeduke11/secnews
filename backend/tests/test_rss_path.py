@@ -3,13 +3,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import patch
 
 from backend.collectors.security_collector import SecurityCollector
-from backend.domain.collection import SourceResult
-from backend.domain.models import HotspotItem
 
 
 def _make_feedparser_mock(entries: list[dict[str, Any]], status: int = 200, bozo: bool = False):
@@ -84,7 +80,6 @@ def test_rss_path_happy_path():
         "url": "https://example.com/",
         "rss_url": "https://example.com/feed",
     }
-    import time
     entries = [
         {
             "title": "First Article",

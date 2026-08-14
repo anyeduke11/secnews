@@ -27,13 +27,11 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
 from backend.repository.db import get_connection
 from backend.utils.business_days import compute_effective_urgent
-
 
 # ---------------------------------------------------------------------------
 # 常量
@@ -54,22 +52,22 @@ class TodoItem:
     """
 
     __slots__ = (
-        "id",
-        "source_type",
-        "source_id",
-        "title",
-        "url",
-        "source",
-        "category",
-        "urgent",          # 原始值 (legacy fallback), 默认 0
-        "important",
-        "deadline",        # ISO 'YYYY-MM-DD' or None
-        "note",
-        "status",
-        "created_at",
-        "updated_at",
-        "completed_at",
         "archived_at",
+        "category",
+        "completed_at",
+        "created_at",
+        "deadline",        # ISO 'YYYY-MM-DD' or None
+        "id",
+        "important",
+        "note",
+        "source",
+        "source_id",
+        "source_type",
+        "status",
+        "title",
+        "updated_at",
+        "urgent",          # 原始值 (legacy fallback), 默认 0
+        "url",
     )
 
     def __init__(
@@ -77,20 +75,20 @@ class TodoItem:
         *,
         id: int,
         source_type: str,
-        source_id: Optional[str],
+        source_id: str | None,
         title: str,
-        url: Optional[str],
-        source: Optional[str],
-        category: Optional[str],
+        url: str | None,
+        source: str | None,
+        category: str | None,
         urgent: int,
         important: int,
-        deadline: Optional[str],
-        note: Optional[str],
+        deadline: str | None,
+        note: str | None,
         status: str,
         created_at: str,
         updated_at: str,
-        completed_at: Optional[str],
-        archived_at: Optional[str],
+        completed_at: str | None,
+        archived_at: str | None,
     ):
         self.id = id
         self.source_type = source_type
@@ -179,14 +177,14 @@ class TodoRepository:
         self,
         *,
         source_type: str,
-        source_id: Optional[str],
+        source_id: str | None,
         title: str,
-        url: Optional[str],
-        source: Optional[str],
-        category: Optional[str],
+        url: str | None,
+        source: str | None,
+        category: str | None,
         important: int,
-        deadline: Optional[str] = None,
-        note: Optional[str] = None,
+        deadline: str | None = None,
+        note: str | None = None,
     ) -> tuple[TodoItem, bool]:
         """添加或幂等返回已存在 todo。
 
@@ -306,9 +304,9 @@ class TodoRepository:
     def list(
         self,
         *,
-        status: Optional[str] = None,
-        urgent: Optional[int] = None,
-        important: Optional[int] = None,
+        status: str | None = None,
+        urgent: int | None = None,
+        important: int | None = None,
         limit: int = 200,
     ) -> tuple[list[TodoItem], int]:
         """多维筛选 + 排序 (effective_urgent DESC, important DESC, created_at DESC)。
@@ -356,7 +354,7 @@ class TodoRepository:
                 if int(it.to_dict()["urgent"]) == target
             ]
         # 排序: effective_urgent DESC → important DESC → created_at DESC
-        def _sort_key(it: HotspotItem) -> tuple:
+        def _sort_key(it: TodoItem) -> tuple:
             d = it.to_dict()
             return (
                 -int(d["urgent"]),       # effective_urgent 大者排前
@@ -425,7 +423,7 @@ class TodoRepository:
             "by_priority": by_priority,
         }
 
-    def get(self, todo_id: int) -> Optional[TodoItem]:
+    def get(self, todo_id: int) -> TodoItem | None:
         conn = get_connection()
         row = conn.execute("SELECT * FROM todos WHERE id = ?", (int(todo_id),)).fetchone()
         return _row_to_todo(row) if row else None
@@ -437,11 +435,11 @@ class TodoRepository:
         self,
         todo_id: int,
         *,
-        important: Optional[int] = None,
-        deadline: Optional[str] = None,
+        important: int | None = None,
+        deadline: str | None = None,
         deadline_set: bool = False,
-        status: Optional[str] = None,
-        note: Optional[str] = None,
+        status: str | None = None,
+        note: str | None = None,
     ) -> TodoItem:
         """部分更新 + 状态迁移时间戳维护。
 
@@ -618,4 +616,4 @@ class TodoRepository:
         return out
 
 
-__all__ = ["TodoRepository", "TodoItem", "VALID_SOURCE_TYPES", "VALID_STATUSES"]
+__all__ = ["VALID_SOURCE_TYPES", "VALID_STATUSES", "TodoItem", "TodoRepository"]

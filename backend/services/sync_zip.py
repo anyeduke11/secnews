@@ -25,7 +25,6 @@ import io
 import json
 import zipfile
 from datetime import datetime, timezone
-from typing import Any, Optional
 
 # zip 内文件名常量
 ENVELOPE_FILENAME = "envelope.json"
@@ -53,7 +52,7 @@ def make_zip_remote_path(base_dir: str) -> str:
     return f"{base}/{REMOTE_ZIP_BASENAME}-{_today_str()}.zip"
 
 
-def display_name(today: Optional[str] = None) -> str:
+def display_name(today: str | None = None) -> str:
     """manifest.display_name 字段(中文展示名)。"""
     return f"配置文件 ({today or _today_str()})"
 
@@ -131,8 +130,8 @@ __all__ = [
     "ENVELOPE_FILENAME",
     "MANIFEST_FILENAME",
     "REMOTE_ZIP_BASENAME",
-    "make_zip_remote_path",
-    "display_name",
     "build_sync_zip",
+    "display_name",
     "extract_sync_zip",
+    "make_zip_remote_path",
 ]

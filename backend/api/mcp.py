@@ -7,13 +7,8 @@
 """
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
 import os
-import shutil
-import subprocess
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -23,8 +18,7 @@ from backend.api.mcp_config import (
     is_sse_mounted,
     list_mcp_tools_from_db,
 )
-from backend.services.feature_flag_service import enable, disable, is_enabled
-from backend.logging_config import logger
+from backend.services.feature_flag_service import disable, enable
 from backend.version import APP_VERSION as API_VERSION
 
 log = logging.getLogger("hotspot.api.mcp")
@@ -144,10 +138,7 @@ async def get_mcp_config():
 @router.put("/settings/mcp/enabled")
 async def toggle_mcp_enabled(req: ToggleEnabledRequest):
     """切换 feature.mcp_server 开关 (重启后生效)。"""
-    if req.enabled:
-        ok = enable("mcp_server")
-    else:
-        ok = disable("mcp_server")
+    ok = enable("mcp_server") if req.enabled else disable("mcp_server")
     return {
         "version": API_VERSION,
         "enabled": req.enabled,

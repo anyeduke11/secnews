@@ -17,4 +17,4 @@ def enrich_batch(items: list[dict]) -> list[dict]:
     return _engine.enrich_batch(items)
 
 
-__all__ = ["enrich_item", "enrich_batch"]
+__all__ = ["enrich_batch", "enrich_item"]

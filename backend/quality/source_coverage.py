@@ -19,9 +19,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
-from backend.domain.collection import CollectionReport, CollectionResult
+from backend.domain.collection import CollectionReport
 from backend.logging_config import logger
 from backend.repository.source_stats_repo import (
     CoverageRunRepository,
@@ -40,7 +40,7 @@ class SourceCoverage:
     source_name: str
     source_url: str
     item_count: int
-    error: Optional[str]
+    error: str | None
     status: str = "active"  # active/stale/dead
     zero_yield_runs: int = 0
     total_runs: int = 0
@@ -160,9 +160,9 @@ def _make_run_id() -> str:
 def evaluate_source_coverage(
     report: CollectionReport,
     *,
-    run_id: Optional[str] = None,
-    stats_repo: Optional[SourceStatsRepository] = None,
-    cov_repo: Optional[CoverageRunRepository] = None,
+    run_id: str | None = None,
+    stats_repo: SourceStatsRepository | None = None,
+    cov_repo: CoverageRunRepository | None = None,
 ) -> CoverageReport:
     """评估一次 collect run 的源覆盖度。
 
@@ -316,8 +316,8 @@ def evaluate_source_coverage(
 
 
 __all__ = [
-    "SourceCoverage",
     "CategoryCoverage",
     "CoverageReport",
+    "SourceCoverage",
     "evaluate_source_coverage",
 ]

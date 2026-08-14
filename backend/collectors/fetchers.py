@@ -51,12 +51,11 @@ async def _proxy_retry(source: dict, timeout: int) -> str | None:
         async with _base.ProxySession(
             headers={"User-Agent": _base.UA},
             timeout=aiohttp.ClientTimeout(total=timeout),
-        ) as session:
-            async with session.get(source["url"], ssl=False) as resp:
-                if resp.status == 200:
-                    html = await resp.text()
-                    if html and len(html.strip()) >= 100:
-                        return html
+        ) as session, session.get(source["url"], ssl=False) as resp:
+            if resp.status == 200:
+                html = await resp.text()
+                if html and len(html.strip()) >= 100:
+                    return html
     except Exception:
         pass
     return None
@@ -79,12 +78,11 @@ async def _proxy_json_retry(source: dict, timeout: int) -> dict | None:
         async with _base.ProxySession(
             headers={"User-Agent": _base.UA},
             timeout=aiohttp.ClientTimeout(total=timeout),
-        ) as session:
-            async with session.get(api_url, ssl=False) as resp:
-                if resp.status == 200:
-                    data = await resp.json(content_type=None)
-                    if data:
-                        return data
+        ) as session, session.get(api_url, ssl=False) as resp:
+            if resp.status == 200:
+                data = await resp.json(content_type=None)
+                if data:
+                    return data
     except Exception:
         pass
     return None
@@ -282,17 +280,16 @@ class FetchersMixin:
         if html is None:
             session_cls = _base._session_factory()
             try:
-                async with session_cls() as session:
-                    async with session.get(
-                        source["url"],
-                        headers={"User-Agent": _base.UA},
-                        timeout=aiohttp.ClientTimeout(total=self.timeout),
-                        ssl=False,
-                    ) as resp:
-                        if resp.status != 200:
-                            raise aiohttp.ClientError(f"HTTP {resp.status}")
-                        html = await resp.text()
-                        crawler_used = "aiohttp"
+                async with session_cls() as session, session.get(
+                    source["url"],
+                    headers={"User-Agent": _base.UA},
+                    timeout=aiohttp.ClientTimeout(total=self.timeout),
+                    ssl=False,
+                ) as resp:
+                    if resp.status != 200:
+                        raise aiohttp.ClientError(f"HTTP {resp.status}")
+                    html = await resp.text()
+                    crawler_used = "aiohttp"
             except Exception as e:
                 # aiohttp 直连失败 → 尝试代理兜底（仅国外源）
                 proxy_html = await _proxy_retry(source, self.timeout)
@@ -371,16 +368,15 @@ class FetchersMixin:
             base_headers.update(extra_headers)
         try:
             session_cls = _base._session_factory()
-            async with session_cls() as session:
-                async with session.get(
-                    api_url,
-                    headers=base_headers,
-                    timeout=aiohttp.ClientTimeout(total=self.timeout),
-                    ssl=False,
-                ) as resp:
-                    if resp.status != 200:
-                        raise aiohttp.ClientError(f"HTTP {resp.status}")
-                    data = await resp.json(content_type=None)
+            async with session_cls() as session, session.get(
+                api_url,
+                headers=base_headers,
+                timeout=aiohttp.ClientTimeout(total=self.timeout),
+                ssl=False,
+            ) as resp:
+                if resp.status != 200:
+                    raise aiohttp.ClientError(f"HTTP {resp.status}")
+                data = await resp.json(content_type=None)
         except Exception as e:
             # aiohttp 直连失败 → 尝试代理兜底（仅国外源）
             proxy_data = await _proxy_json_retry(source, self.timeout)
@@ -526,9 +522,9 @@ class FetchersMixin:
         - topic_keywords: 可选, 标题必须命中至少 1 个关键词才放行
         """
         from backend.collectors.sogou_search import (
+            WECHAT_MAX_AGE_DAYS_HARD_CAP,
             fetch_weixin_html,
             parse_wechat_articles_html,
-            WECHAT_MAX_AGE_DAYS_HARD_CAP,
         )
         from backend.repository.hotspot_repo import HotspotRepository
 
@@ -690,8 +686,9 @@ class FetchersMixin:
                     feed_url = source.get("rss_url") or source_url
                     raw_text = await bs.get(feed_url)
 
-                    import feedparser
                     from io import BytesIO
+
+                    import feedparser
 
                     d = feedparser.parse(BytesIO(raw_text.encode("utf-8")))
 

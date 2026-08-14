@@ -13,12 +13,11 @@ from __future__ import annotations
 import sqlite3
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
 from backend.repository.db import get_connection
-
 
 VALID_RESOURCE_TYPES = ("port", "domain", "env_template", "volume")
 VALID_RESOURCE_STATUSES = ("allocated", "free", "reserved")
@@ -39,7 +38,7 @@ def _new_id() -> str:
     return str(uuid.uuid4())
 
 
-def _parse_json(raw: Optional[str], default: Any) -> Any:
+def _parse_json(raw: str | None, default: Any) -> Any:
     if not raw:
         return default
     try:
@@ -49,7 +48,7 @@ def _parse_json(raw: Optional[str], default: Any) -> Any:
 
 
 # 延迟 import json 以避免顶部循环
-import json  # noqa: E402
+import json
 
 
 def _row_to_resource(row: sqlite3.Row) -> dict:
@@ -78,10 +77,10 @@ class CodegardenResourceRepository:
         type: str,
         value: str,
         status: str = "free",
-        owner_service_id: Optional[str] = None,
-        owner_project_id: Optional[str] = None,
-        metadata: Optional[dict] = None,
-        reserved_until: Optional[str] = None,
+        owner_service_id: str | None = None,
+        owner_project_id: str | None = None,
+        metadata: dict | None = None,
+        reserved_until: str | None = None,
     ) -> dict:
         if type not in VALID_RESOURCE_TYPES:
             raise InternalException(
@@ -127,14 +126,14 @@ class CodegardenResourceRepository:
     # ------------------------------------------------------------------
     # 读取
     # ------------------------------------------------------------------
-    def get(self, resource_id: str) -> Optional[dict]:
+    def get(self, resource_id: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM cg_resources WHERE id = ?", (resource_id,)
         ).fetchone()
         return _row_to_resource(row) if row else None
 
-    def get_by_value(self, type: str, value: str) -> Optional[dict]:
+    def get_by_value(self, type: str, value: str) -> dict | None:
         """按 (type, value) 查找资源 (如 port:8080)."""
         conn = get_connection()
         row = conn.execute(
@@ -146,10 +145,10 @@ class CodegardenResourceRepository:
     def list(
         self,
         *,
-        type: Optional[str] = None,
-        status: Optional[str] = None,
-        owner_service_id: Optional[str] = None,
-        owner_project_id: Optional[str] = None,
+        type: str | None = None,
+        status: str | None = None,
+        owner_service_id: str | None = None,
+        owner_project_id: str | None = None,
         limit: int = 500,
         offset: int = 0,
     ) -> tuple[list[dict], int]:
@@ -256,10 +255,10 @@ class CodegardenResourceRepository:
     def find_free_port(
         self,
         *,
-        exclude_ports: Optional[set[int]] = None,
+        exclude_ports: set[int] | None = None,
         range_start: int = PORT_RANGE_START,
         range_end: int = PORT_RANGE_END,
-    ) -> Optional[int]:
+    ) -> int | None:
         """查找表内未分配的最小可用端口 (8000-9999 范围).
 
         Args:
@@ -288,9 +287,9 @@ class CodegardenResourceRepository:
         self,
         port: int,
         *,
-        owner_service_id: Optional[str] = None,
-        owner_project_id: Optional[str] = None,
-        metadata: Optional[dict] = None,
+        owner_service_id: str | None = None,
+        owner_project_id: str | None = None,
+        metadata: dict | None = None,
     ) -> dict:
         """分配指定端口: 如表内无记录则创建 allocated 记录; 如有 free 记录则更新为 allocated."""
         if port in PROTECTED_PORTS:
@@ -326,10 +325,10 @@ class CodegardenResourceRepository:
 
 
 __all__ = [
-    "CodegardenResourceRepository",
-    "VALID_RESOURCE_TYPES",
-    "VALID_RESOURCE_STATUSES",
-    "PORT_RANGE_START",
     "PORT_RANGE_END",
+    "PORT_RANGE_START",
     "PROTECTED_PORTS",
+    "VALID_RESOURCE_STATUSES",
+    "VALID_RESOURCE_TYPES",
+    "CodegardenResourceRepository",
 ]

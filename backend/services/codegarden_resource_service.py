@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 import subprocess
-from typing import Any, Optional
+from typing import Any
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
@@ -21,7 +21,6 @@ from backend.repository.codegarden_resource_repo import (
     PROTECTED_PORTS,
     CodegardenResourceRepository,
 )
-
 
 # 环境变量模板中需加密的字段名关键词 (大小写不敏感)
 _SENSITIVE_KEY_PATTERNS = re.compile(
@@ -42,7 +41,7 @@ class CodegardenResourceService:
     def create_resource(self, **kwargs) -> dict:
         return self.repo.create(**kwargs)
 
-    def get_resource(self, resource_id: str) -> Optional[dict]:
+    def get_resource(self, resource_id: str) -> dict | None:
         return self.repo.get(resource_id)
 
     def list_resources(self, **filters) -> tuple[list[dict], int]:
@@ -91,10 +90,10 @@ class CodegardenResourceService:
     def allocate_port(
         self,
         *,
-        owner_service_id: Optional[str] = None,
-        owner_project_id: Optional[str] = None,
-        preferred_port: Optional[int] = None,
-        metadata: Optional[dict] = None,
+        owner_service_id: str | None = None,
+        owner_project_id: str | None = None,
+        preferred_port: int | None = None,
+        metadata: dict | None = None,
     ) -> dict:
         """智能分配端口.
 
@@ -163,7 +162,7 @@ class CodegardenResourceService:
         *,
         name: str,
         env_vars: dict,
-        owner_project_id: Optional[str] = None,
+        owner_project_id: str | None = None,
     ) -> dict:
         """保存环境变量模板. 敏感字段 (password/secret/token/api_key 等) 用 Fernet 加密.
 
@@ -214,7 +213,7 @@ class CodegardenResourceService:
         if ek_row is None:
             # 无加密密钥, 全部以明文保存 (开发模式)
             logger.warning("save_env_template: 无 encryption_key, 明文保存")
-            return {k: v for k, v in env_vars.items()}
+            return dict(env_vars.items())
 
         result: dict[str, Any] = {}
         for k, v in env_vars.items():
@@ -276,8 +275,8 @@ class CodegardenResourceService:
         *,
         domain: str,
         target: str,
-        owner_service_id: Optional[str] = None,
-        owner_project_id: Optional[str] = None,
+        owner_service_id: str | None = None,
+        owner_project_id: str | None = None,
     ) -> dict:
         """创建域名映射记录. metadata.target 存后端地址 (如 localhost:3000)."""
         return self.repo.create(

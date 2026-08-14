@@ -13,7 +13,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 from uuid import uuid4
 
 from backend.repository.db import get_connection
@@ -27,8 +26,8 @@ class AnnotationRepository:
         entity_type: str,
         entity_id: str,
         content: str,
-        range_start: Optional[int] = None,
-        range_end: Optional[int] = None,
+        range_start: int | None = None,
+        range_end: int | None = None,
     ) -> dict:
         """新增一条笔记, 返回创建后的完整记录。"""
         aid = f"{entity_type}-{entity_id}-{uuid4().hex[:8]}"
@@ -44,7 +43,7 @@ class AnnotationRepository:
         )
         return self.get(aid)
 
-    def get(self, annotation_id: str) -> Optional[dict]:
+    def get(self, annotation_id: str) -> dict | None:
         """按 id 读取一条笔记, 不存在返回 None。"""
         conn = get_connection()
         row = conn.execute(
@@ -66,10 +65,10 @@ class AnnotationRepository:
     def update(
         self,
         annotation_id: str,
-        content: Optional[str] = None,
-        range_start: Optional[int] = None,
-        range_end: Optional[int] = None,
-    ) -> Optional[dict]:
+        content: str | None = None,
+        range_start: int | None = None,
+        range_end: int | None = None,
+    ) -> dict | None:
         """更新笔记内容/区间。至少更新一个字段。返回更新后的记录或 None。"""
         existing = self.get(annotation_id)
         if existing is None:
@@ -94,7 +93,7 @@ class AnnotationRepository:
         cur = conn.execute("DELETE FROM annotations WHERE id=?", (annotation_id,))
         return cur.rowcount
 
-    def count(self, entity_type: Optional[str] = None) -> int:
+    def count(self, entity_type: str | None = None) -> int:
         """笔记总数, 可按 entity_type 过滤。"""
         conn = get_connection()
         if entity_type:

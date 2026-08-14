@@ -5,10 +5,7 @@
 
 import json
 import os
-import re
-import subprocess
-from dataclasses import dataclass, asdict
-from typing import Optional
+from dataclasses import asdict, dataclass
 
 PROXY_CONFIG_FILE = os.path.join(os.path.dirname(__file__), "proxy_config.json")
 
@@ -38,7 +35,7 @@ def load_proxy_settings() -> ProxySettings:
     """从 JSON 文件加载代理配置"""
     if os.path.exists(PROXY_CONFIG_FILE):
         try:
-            with open(PROXY_CONFIG_FILE, "r", encoding="utf-8") as f:
+            with open(PROXY_CONFIG_FILE, encoding="utf-8") as f:
                 data = json.load(f)
             return ProxySettings.from_dict(data)
         except (json.JSONDecodeError, KeyError):
@@ -117,7 +114,7 @@ def detect_system_proxy() -> dict:
     return detect_system_proxy_windows()
 
 
-def get_proxy_url(target_url: str = "") -> Optional[str]:
+def get_proxy_url(target_url: str = "") -> str | None:
     """
     根据当前配置返回适合 aiohttp 的代理 URL。
     返回 None 表示不使用代理。
@@ -160,8 +157,8 @@ def should_use_proxy(target_url: str) -> bool:
         return False
 
     no_proxy = settings.no_proxy or "localhost,127.0.0.1,::1"
-    from urllib.parse import urlparse
     import fnmatch
+    from urllib.parse import urlparse
     try:
         parsed = urlparse(target_url)
         hostname = parsed.hostname or ""

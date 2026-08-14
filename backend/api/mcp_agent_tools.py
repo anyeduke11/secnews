@@ -12,7 +12,6 @@ import asyncio
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -38,21 +37,21 @@ CONCEPT_DIR = os.path.join(
 class ScoreItemRequest(BaseModel):
     hotspot_id: str = Field(..., min_length=1)
     score: float = Field(..., ge=0, le=10)
-    reason: Optional[str] = None
+    reason: str | None = None
     scorer: str = Field(..., pattern=r"^(agent:claude-desktop|agent:cursor|rule)$")
 
 
 class EnrichConceptRequest(BaseModel):
     concept_name: str = Field(..., min_length=1)
     content: str = Field(..., min_length=1)
-    source: Optional[str] = None
+    source: str | None = None
 
 
 class LinkItemsRequest(BaseModel):
     from_id: str = Field(..., min_length=1)
     to_id: str = Field(..., min_length=1)
     link_type: str = Field(..., pattern=r"^(similar|prerequisite|extension|contradiction|source)$")
-    confidence: Optional[float] = Field(default=0.5, ge=0, le=1)
+    confidence: float | None = Field(default=0.5, ge=0, le=1)
 
 
 class TriggerDriftRequest(BaseModel):

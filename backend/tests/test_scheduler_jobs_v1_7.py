@@ -9,9 +9,8 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -74,8 +73,9 @@ class TestAutoExtractJob:
 
     def test_skips_already_tagged(self, temp_db):
         """已有 tag 的 hotspot 跳过."""
-        from backend.repository.db import get_connection
         from datetime import datetime, timezone
+
+        from backend.repository.db import get_connection
         now = datetime.now(timezone.utc).isoformat()
         _insert_hotspot("h-tagged", "已标签", "summary")
         conn = get_connection()

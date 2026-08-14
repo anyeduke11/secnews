@@ -15,17 +15,11 @@ This test exercises the full HTML import flow twice and asserts:
 from __future__ import annotations
 
 import json
-import sys
-import tempfile
-from pathlib import Path
-
-import pytest
 
 
 def test_reimport_with_chinese_tags_does_not_crash(tmp_path, monkeypatch):
     """Reproduces the 500 → 200 regression: re-importing a bookmark with
     Chinese folder names must not crash the regex-based frontmatter updater."""
-    from backend.repository import knowledge_repo
     from backend.services import bookmark_sync
 
     # Redirect ITEMS_DIR to a temp path so we don't pollute knowledge/items/

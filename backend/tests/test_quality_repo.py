@@ -16,9 +16,8 @@ from backend.config import config
 from backend.domain.collection import GateResult, PipelineResult
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
-from backend.quality.base import BaseGate, GateContext
+from backend.quality.base import BaseGate
 from backend.quality.config import (
-    DEFAULT_CATEGORY_KEYWORDS,
     QualityConfig,
     QualityMode,
     default_category_keywords,

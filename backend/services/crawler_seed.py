@@ -7,46 +7,54 @@
 """
 from __future__ import annotations
 
-import hashlib
-from typing import Any
+# AI
+from backend.collectors.ai_collector import AI_SOURCES
 
-from backend.logging_config import logger
-from backend.repository.db import get_connection
+# AI 安全
+from backend.collectors.ai_security_collector import AI_SECURITY_SOURCES
+
+# 标讯
+from backend.collectors.bid_collector import BID_SOURCES
+
+# 金融
+from backend.collectors.finance_collector import FINANCE_SOURCES
+
+# GDELT
+from backend.collectors.gdelt_collector import GDELT_SOURCES
+
+# GitHub
+from backend.collectors.github_collector import GITHUB_SOURCES
+
+# HN
+from backend.collectors.hn_collector import HN_SOURCES
+
+# OpenBB
+from backend.collectors.openbb_collector import OPENBB_SOURCES
+
+# OSS Insight
+from backend.collectors.ossinsight_collector import OSSINSIGHT_SOURCES
+
+# Reddit
+from backend.collectors.reddit_collector import REDDIT_SOURCES
 
 # ---------------------------------------------------------------------------
 # 从现有 collector 提取源配置
 # 每个 collector 导出 SOURCES 常量，格式为 list[dict]。
 # 这里直接 import，不实例化 collector。
 # ---------------------------------------------------------------------------
-
 # 安全资讯
-from backend.collectors.security_collector import SECURITY_SOURCES  # noqa: E402
-# AI 安全
-from backend.collectors.ai_security_collector import AI_SECURITY_SOURCES  # noqa: E402
-# AI
-from backend.collectors.ai_collector import AI_SOURCES  # noqa: E402
-# 金融
-from backend.collectors.finance_collector import FINANCE_SOURCES  # noqa: E402
+from backend.collectors.security_collector import SECURITY_SOURCES
+
 # 创业
-from backend.collectors.startup_collector import STARTUP_SOURCES  # noqa: E402
-# 标讯
-from backend.collectors.bid_collector import BID_SOURCES  # noqa: E402
-# GitHub
-from backend.collectors.github_collector import GITHUB_SOURCES  # noqa: E402
+from backend.collectors.startup_collector import STARTUP_SOURCES
+
 # 科技
-from backend.collectors.tech_collector import TECH_SOURCES  # noqa: E402
-# HN
-from backend.collectors.hn_collector import HN_SOURCES  # noqa: E402
-# Reddit
-from backend.collectors.reddit_collector import REDDIT_SOURCES  # noqa: E402
-# OpenBB
-from backend.collectors.openbb_collector import OPENBB_SOURCES  # noqa: E402
-# GDELT
-from backend.collectors.gdelt_collector import GDELT_SOURCES  # noqa: E402
-# OSS Insight
-from backend.collectors.ossinsight_collector import OSSINSIGHT_SOURCES  # noqa: E402
+from backend.collectors.tech_collector import TECH_SOURCES
+
 # Telegram
-from backend.collectors.telegram_collector import TELEGRAM_SOURCES  # noqa: E402
+from backend.collectors.telegram_collector import TELEGRAM_SOURCES
+from backend.logging_config import logger
+from backend.repository.db import get_connection
 
 # category -> sources 映射
 _SOURCE_GROUPS: list[tuple[str, str, list[dict]]] = [
@@ -131,7 +139,7 @@ def seed_sources() -> int:
     conn = get_connection()
     count = 0
 
-    for category, subcategory, sources in _SOURCE_GROUPS:
+    for category, _subcategory, sources in _SOURCE_GROUPS:
         for src in sources:
             name = src.get("name", "")
             url = _get_url(src)

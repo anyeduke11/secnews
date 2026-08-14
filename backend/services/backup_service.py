@@ -62,4 +62,4 @@ def backup_database() -> dict:
     return {"path": str(dst), "size": size, "retained": retained, "removed": removed}
 
 
-__all__ = ["backup_database", "BACKUP_RETENTION"]
+__all__ = ["BACKUP_RETENTION", "backup_database"]

@@ -145,10 +145,9 @@ def test_cache_invalidate_no_match_no_event():
 # ---------------------------------------------------------------------------
 def test_collect_events_in_collect_method():
     """通过真实 collector 跑一遍, 验证 collect_start / collect_end 触发。"""
+
     from backend.collectors.base import BaseCollector
     from backend.domain.enums import Category
-    from backend.domain.models import HotspotItem
-    from datetime import datetime, timezone
 
     class MockCol(BaseCollector):
         name = "mock"

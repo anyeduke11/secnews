@@ -132,15 +132,15 @@ def decrypt_api_key(fernet_key: bytes, ciphertext: bytes) -> str:
 
 
 __all__ = [
+    "DEFAULT_ITERATIONS",
+    "MIN_MASTER_KEY_LENGTH",
     "CryptoError",
-    "WeakMasterKeyError",
     "InvalidMasterKeyError",
+    "WeakMasterKeyError",
+    "decrypt_api_key",
+    "derive_fernet_key",
+    "encrypt_api_key",
     "generate_salt",
     "make_verify_blob",
     "verify_master_key",
-    "derive_fernet_key",
-    "encrypt_api_key",
-    "decrypt_api_key",
-    "DEFAULT_ITERATIONS",
-    "MIN_MASTER_KEY_LENGTH",
 ]

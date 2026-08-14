@@ -11,9 +11,9 @@ from __future__ import annotations
 import logging
 import os
 import time
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from typing import AsyncIterator
+from datetime import timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,14 +26,15 @@ from backend.api.mcp_config import (
     mount_sse_endpoint,
 )
 from backend.api.middleware import TraceIDMiddleware
-from backend.cache import invalidate as cache_invalidate, warmup
+from backend.cache import invalidate as cache_invalidate
+from backend.cache import warmup
 from backend.config import config
 from backend.exceptions import register_exception_handlers
 from backend.logging_config import setup as setup_logging
 from backend.observability import log_event, set_start_time
 from backend.repository.db import close_db, init_db
-from backend.scheduler.scheduler import HotspotScheduler, get_scheduler
 from backend.scheduler.jobs import set_service
+from backend.scheduler.scheduler import HotspotScheduler, get_scheduler
 from backend.services.collection_service import CollectionService
 from backend.services.export_service import rebuild_export_cache
 from backend.version import APP_VERSION
@@ -86,6 +87,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         try_auto_unlock()
     except Exception as e:
         log.warning(f"auto-unlock failed (ignored): {e}")
+
+    # P1: 默认启用 knowledge watchdog — 文件↔DB 双向同步。
+    # 此前仅手动 POST /api/obsidian/watchdog/start 才启动, 默认部署下
+    # knowledge/*.md 变更不会自动回灌 SQLite。config.knowledge_watchdog_
+    # enabled=False 可整体关闭 (start_watcher 幂等: 已运行返回 False)。
+    try:
+        if config.knowledge_watchdog_enabled:
+            from backend.services.knowledge_watcher import start_watcher
+            started = start_watcher()
+            log.info(f"knowledge watchdog: started={started}")
+        else:
+            log.info("knowledge watchdog disabled by config.knowledge_watchdog_enabled")
+    except Exception as e:
+        log.warning(f"knowledge watchdog start failed (ignored): {e}")
 
     # v1.9 Phase 9: 启动后自动追抓「本周一 00:00 (Asia/Shanghai) → 现在」
     # 抓取流程已标准化 (per-source checkpoint + 结构化日志 + 数据完整性验证)
@@ -176,6 +191,7 @@ async def root():
 
 if __name__ == "__main__":  # pragma: no cover
     import uvicorn
+
     from backend.config import config
     uvicorn.run(
         "backend.main:app",

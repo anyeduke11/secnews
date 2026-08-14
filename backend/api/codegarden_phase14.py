@@ -15,18 +15,17 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
 from backend.services.codegarden_drift import (
+    VALID_DRIFT_STATUSES,
     assess_drift,
     get_assessments,
     update_assessment_status,
-    VALID_DRIFT_STATUSES,
 )
 from backend.services.cve_knowledge_sync import sync_cve_to_security
 
@@ -38,7 +37,7 @@ router = APIRouter(tags=["codegarden-phase14"])
 # ===========================================================================
 class UpdateDriftStatusRequest(BaseModel):
     status: str = Field(..., description=f"新状态: {', '.join(VALID_DRIFT_STATUSES)}")
-    notes: Optional[str] = Field(None, description="备注")
+    notes: str | None = Field(None, description="备注")
 
 
 # ===========================================================================
@@ -63,8 +62,8 @@ async def trigger_drift_assess():
 
 @router.get("/api/codegarden/drift/assessments")
 async def list_drift_assessments(
-    status: Optional[str] = Query(None, description=f"筛选状态: {', '.join(VALID_DRIFT_STATUSES)}"),
-    project_id: Optional[str] = Query(None, description="筛选项目 ID"),
+    status: str | None = Query(None, description=f"筛选状态: {', '.join(VALID_DRIFT_STATUSES)}"),
+    project_id: str | None = Query(None, description="筛选项目 ID"),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):

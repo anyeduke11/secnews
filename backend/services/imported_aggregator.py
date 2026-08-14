@@ -10,8 +10,7 @@ Aggregates, deduplicates, sorts, and paginates data from:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 from backend.repository.favorite_repo import FavoriteRepository
 from backend.repository.knowledge_repo import knowledge_repo
@@ -74,10 +73,10 @@ class ImportedAggregator:
 
     def get_items(
         self,
-        source_type: Optional[str] = None,
-        keyword: Optional[str] = None,
-        since: Optional[str] = None,
-        until: Optional[str] = None,
+        source_type: str | None = None,
+        keyword: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> ImportedResult:

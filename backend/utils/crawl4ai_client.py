@@ -42,7 +42,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import Optional
 
 from backend.logging_config import logger
 
@@ -50,7 +49,7 @@ from backend.logging_config import logger
 # Optional import — crawl4ai 是可选依赖
 # ----------------------------------------------------------------------
 try:
-    from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig  # type: ignore
+    from crawl4ai import AsyncWebCrawler, CrawlerRunConfig  # type: ignore
     HAS_CRAWL4AI = True
 except ImportError:  # pragma: no cover — 没装 crawl4ai 时
     AsyncWebCrawler = None  # type: ignore
@@ -72,7 +71,7 @@ USE_CRAWL4AI_DEFAULT: bool = os.getenv("USE_CRAWL4AI", "0").lower() in (
 # 限制最多 3 个并发渲染请求 (其余排队等待,避免 OOM)。
 # 通过环境变量 CRAWL4AI_CONCURRENCY 可调。
 _MAX_CONCURRENCY: int = int(os.getenv("CRAWL4AI_CONCURRENCY", "3"))
-_concurrency_sem: Optional[asyncio.Semaphore] = None
+_concurrency_sem: asyncio.Semaphore | None = None
 
 
 # Phase 30: 真实浏览器 stealth 配置 (绕过 Playwright 自动化检测)
@@ -125,11 +124,11 @@ def is_available() -> bool:
 # ----------------------------------------------------------------------
 # 进程级单例
 # ----------------------------------------------------------------------
-_client: Optional["AsyncWebCrawler"] = None  # type: ignore[type-arg]
+_client: AsyncWebCrawler | None = None  # type: ignore[type-arg]
 _client_lock = asyncio.Lock()
 
 
-async def get_client() -> Optional["AsyncWebCrawler"]:  # type: ignore[type-arg]
+async def get_client() -> AsyncWebCrawler | None:  # type: ignore[type-arg]
     """获取 AsyncWebCrawler 单例,首次调用时启动 Playwright。
 
     Returns
@@ -188,7 +187,7 @@ async def fetch_html(
     timeout: int = 30,
     user_agent: str = DEFAULT_UA,
     use_stealth: bool = True,
-) -> Optional[str]:
+) -> str | None:
     """用 crawl4ai 抓取单个 URL 的 **fully-rendered HTML**。
 
     Returns
@@ -268,8 +267,8 @@ async def fetch_html(
 __all__ = [
     "HAS_CRAWL4AI",
     "USE_CRAWL4AI_DEFAULT",
-    "is_available",
-    "get_client",
     "close_client",
     "fetch_html",
+    "get_client",
+    "is_available",
 ]

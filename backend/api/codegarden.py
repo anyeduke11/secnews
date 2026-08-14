@@ -31,7 +31,6 @@ GitHub 导入与上游跟踪:
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field
@@ -58,64 +57,64 @@ class CreateProjectRequest(BaseModel):
     type: str = Field(..., description=f"类型: {', '.join(VALID_PROJECT_TYPES)}")
     source_type: str = Field(..., description=f"来源: {', '.join(VALID_SOURCE_TYPES)}")
     lifecycle_stage: str = Field("ideation", description="初始生命周期")
-    display_name: Optional[str] = None
-    description: Optional[str] = None
-    local_path: Optional[str] = None
-    repo_url: Optional[str] = None
-    upstream_url: Optional[str] = None
-    upstream_default_branch: Optional[str] = None
-    source_item_id: Optional[str] = None
-    source_type_detail: Optional[str] = None
+    display_name: str | None = None
+    description: str | None = None
+    local_path: str | None = None
+    repo_url: str | None = None
+    upstream_url: str | None = None
+    upstream_default_branch: str | None = None
+    source_item_id: str | None = None
+    source_type_detail: str | None = None
     tags: list[str] = Field(default_factory=list)
     tech_stack: list[str] = Field(default_factory=list)
-    domain: Optional[str] = None
+    domain: str | None = None
     priority: int = Field(0, ge=0, le=5)
 
 
 class PatchProjectRequest(BaseModel):
-    name: Optional[str] = None
-    display_name: Optional[str] = None
-    description: Optional[str] = None
-    type: Optional[str] = None
-    source_type: Optional[str] = None
-    lifecycle_stage: Optional[str] = None
-    health_score: Optional[int] = None
-    local_path: Optional[str] = None
-    repo_url: Optional[str] = None
-    upstream_url: Optional[str] = None
-    upstream_default_branch: Optional[str] = None
-    tags: Optional[list[str]] = None
-    tech_stack: Optional[list[str]] = None
-    domain: Optional[str] = None
-    priority: Optional[int] = None
+    name: str | None = None
+    display_name: str | None = None
+    description: str | None = None
+    type: str | None = None
+    source_type: str | None = None
+    lifecycle_stage: str | None = None
+    health_score: int | None = None
+    local_path: str | None = None
+    repo_url: str | None = None
+    upstream_url: str | None = None
+    upstream_default_branch: str | None = None
+    tags: list[str] | None = None
+    tech_stack: list[str] | None = None
+    domain: str | None = None
+    priority: int | None = None
 
 
 class LifecycleChangeRequest(BaseModel):
     # 字段名 `to` (不是 `stage`): 与前端 useCodegardenProjects hook 对齐
     to: str = Field(..., description=f"目标: {', '.join(VALID_LIFECYCLE_STAGES)}")
-    note: Optional[str] = None
+    note: str | None = None
 
 
 class GithubImportRequest(BaseModel):
     # 字段名 `repo_url` (不是 `url`): 与前端 GithubImportDialog 对齐
     repo_url: str = Field(..., description="GitHub repo URL")
-    local_path: Optional[str] = None
+    local_path: str | None = None
     auto_sync: bool = Field(True, description="导入后立即触发首次同步")
     # 用户可选覆盖 (默认从 repo metadata 推断)
-    source_type: Optional[str] = Field(None, description="覆盖推断的 source_type (fork/imported)")
-    source_type_detail: Optional[str] = None
-    type: Optional[str] = Field(None, description="覆盖默认 type=library")
-    tags: Optional[list[str]] = None
-    tech_stack: Optional[list[str]] = None
-    domain: Optional[str] = None
+    source_type: str | None = Field(None, description="覆盖推断的 source_type (fork/imported)")
+    source_type_detail: str | None = None
+    type: str | None = Field(None, description="覆盖默认 type=library")
+    tags: list[str] | None = None
+    tech_stack: list[str] | None = None
+    domain: str | None = None
 
 
 class FromKnowledgeRequest(BaseModel):
     # item_id 走 body 而非 path param (与前端 + e2e 对齐)
     item_id: str = Field(..., description="knowledge_items.id (type=github)")
     source_type: str = Field("reference", description="fork / reference / imported")
-    local_path: Optional[str] = None
-    source_type_detail: Optional[str] = None
+    local_path: str | None = None
+    source_type_detail: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -123,12 +122,12 @@ class FromKnowledgeRequest(BaseModel):
 # ---------------------------------------------------------------------------
 @router.get("/projects")
 async def list_projects(
-    lifecycle_stage: Optional[str] = Query(None),
-    source_type: Optional[str] = Query(None),
-    domain: Optional[str] = Query(None),
-    type: Optional[str] = Query(None),
-    source_item_id: Optional[str] = Query(None),
-    keyword: Optional[str] = Query(None),
+    lifecycle_stage: str | None = Query(None),
+    source_type: str | None = Query(None),
+    domain: str | None = Query(None),
+    type: str | None = Query(None),
+    source_item_id: str | None = Query(None),
+    keyword: str | None = Query(None),
     include_archived: bool = Query(False),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
@@ -418,9 +417,8 @@ async def get_upstream_status(project_id: str):
     """上游状态详情（实时调 GitHub compare API, 可能 5-10s）。"""
     from backend.services.codegarden_github_service import (
         GithubTokenMissingException,
-        compare_commits,
-        fetch_upstream_releases,
         fetch_repo_metadata,
+        fetch_upstream_releases,
     )
     svc = CodegardenProjectService()
     project = await asyncio.to_thread(svc.get_project, project_id)

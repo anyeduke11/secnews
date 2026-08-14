@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 import aiohttp
 
@@ -36,22 +35,21 @@ def _extract_title(html: str) -> str:
 
 async def _fetch_title(
     url: str, timeout: int
-) -> tuple[str, Optional[str]]:
+) -> tuple[str, str | None]:
     """``(title, error)``。``error`` 非空表示抓取失败。"""
     try:
         client_timeout = aiohttp.ClientTimeout(total=timeout)
-        async with aiohttp.ClientSession(timeout=client_timeout) as session:
-            async with session.get(
-                url,
-                headers={"User-Agent": "hotspot-quality/1.0"},
-                ssl=False,
-            ) as resp:
-                if resp.status >= 400:
-                    return "", f"HTTP {resp.status}"
-                # 只读 64KB 足以拿到 <title>
-                body = await resp.content.read(64 * 1024)
-                html = body.decode("utf-8", errors="ignore")
-                return _extract_title(html), None
+        async with aiohttp.ClientSession(timeout=client_timeout) as session, session.get(
+            url,
+            headers={"User-Agent": "hotspot-quality/1.0"},
+            ssl=False,
+        ) as resp:
+            if resp.status >= 400:
+                return "", f"HTTP {resp.status}"
+            # 只读 64KB 足以拿到 <title>
+            body = await resp.content.read(64 * 1024)
+            html = body.decode("utf-8", errors="ignore")
+            return _extract_title(html), None
     except Exception as e:
         return "", f"{type(e).__name__}: {str(e)[:100]}"
 
@@ -61,7 +59,7 @@ class URLContentGate(BaseGate):
 
     name = "url_content"
 
-    def __init__(self, timeout: Optional[int] = None):
+    def __init__(self, timeout: int | None = None):
         self.timeout = timeout or config.quality_url_check_timeout
 
     def check(

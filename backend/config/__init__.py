@@ -93,4 +93,4 @@ class Settings(BaseSettings):
 config = Settings()
 
 
-__all__ = ["Settings", "config", "BASE_DIR"]
+__all__ = ["BASE_DIR", "Settings", "config"]

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from typing import Optional
 from uuid import uuid4
 
 from backend.repository.db import get_connection
@@ -53,7 +52,7 @@ class AlertRuleRepository:
         )
         return self.get(id)  # type: ignore[return-value]
 
-    def get(self, id: str) -> Optional[dict]:
+    def get(self, id: str) -> dict | None:
         row = get_connection().execute(
             "SELECT * FROM alert_rules WHERE id = ?", (id,)
         ).fetchone()
@@ -74,12 +73,12 @@ class AlertRuleRepository:
     def update(
         self,
         id: str,
-        name: Optional[str] = None,
-        condition: Optional[dict] = None,
-        action: Optional[dict] = None,
-        cooldown_sec: Optional[int] = None,
-        enabled: Optional[bool] = None,
-    ) -> Optional[dict]:
+        name: str | None = None,
+        condition: dict | None = None,
+        action: dict | None = None,
+        cooldown_sec: int | None = None,
+        enabled: bool | None = None,
+    ) -> dict | None:
         existing = self.get(id)
         if not existing:
             return None
@@ -106,7 +105,7 @@ class AlertRuleRepository:
         )
         return self.get(id)
 
-    def touch_last_fired(self, id: str, fired_at: Optional[str] = None) -> None:
+    def touch_last_fired(self, id: str, fired_at: str | None = None) -> None:
         """更新规则的 last_fired_at (cooldown 检查依据)."""
         ts = fired_at or datetime.now(timezone.utc).isoformat()
         get_connection().execute(
@@ -130,7 +129,7 @@ class AlertRepository:
         rule_id: str,
         entity_type: str = "",
         entity_id: str = "",
-        payload: Optional[dict] = None,
+        payload: dict | None = None,
     ) -> dict:
         """新建一条告警实例 (status=pending)."""
         aid = f"alert-{uuid4().hex[:12]}"
@@ -149,7 +148,7 @@ class AlertRepository:
         )
         return self.get(aid)  # type: ignore[return-value]
 
-    def get(self, id: str) -> Optional[dict]:
+    def get(self, id: str) -> dict | None:
         row = get_connection().execute(
             "SELECT * FROM alerts WHERE id = ?", (id,)
         ).fetchone()
@@ -157,8 +156,8 @@ class AlertRepository:
 
     def list(
         self,
-        status: Optional[str] = None,
-        rule_id: Optional[str] = None,
+        status: str | None = None,
+        rule_id: str | None = None,
         limit: int = 200,
     ) -> list[dict]:
         sql = "SELECT * FROM alerts WHERE 1=1"
@@ -174,7 +173,7 @@ class AlertRepository:
         rows = get_connection().execute(sql, params).fetchall()
         return [_row_to_alert(r) for r in rows]
 
-    def mark_read(self, id: str) -> Optional[dict]:
+    def mark_read(self, id: str) -> dict | None:
         """标记告警为已读 (status=read)."""
         existing = self.get(id)
         if not existing:
@@ -186,7 +185,7 @@ class AlertRepository:
         )
         return self.get(id)
 
-    def mark_processed(self, id: str, status: str = "processed") -> Optional[dict]:
+    def mark_processed(self, id: str, status: str = "processed") -> dict | None:
         """标记告警已处理 (status=processed/dismissed/read)."""
         existing = self.get(id)
         if not existing:
@@ -202,7 +201,7 @@ class AlertRepository:
         cur = get_connection().execute("DELETE FROM alerts WHERE id = ?", (id,))
         return cur.rowcount or 0
 
-    def count(self, status: Optional[str] = None) -> int:
+    def count(self, status: str | None = None) -> int:
         sql = "SELECT COUNT(*) AS c FROM alerts"
         params: list = []
         if status:

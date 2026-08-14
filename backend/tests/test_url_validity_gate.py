@@ -19,10 +19,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from backend.domain.collection import GateResult, PipelineResult
+from backend.domain.collection import PipelineResult
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
-from backend.quality.config import QualityConfig, QualityMode
+from backend.quality.config import QualityConfig
 from backend.quality.pipeline import QualityGatePipeline
 from backend.quality.url_validity_gate import (
     _PENALTY,
@@ -50,7 +50,7 @@ def _make_item(
     )
 
 
-def _ctx() -> "GateContext":  # noqa: F821
+def _ctx() -> GateContext:  # noqa: F821
     from backend.quality.base import GateContext
     return GateContext(
         mode="loose",
@@ -238,9 +238,8 @@ def test_strict_mode_rejects_unreachable_url():
     )
     item = _make_item()
     with patch("backend.quality.url_validity_gate._head_status",
-               return_value=404):
-        with pytest.raises(Exception):  # QualityGateFailed
-            pipe.run_all(item, _ctx())
+               return_value=404), pytest.raises(Exception):  # QualityGateFailed
+        pipe.run_all(item, _ctx())
 
 
 def test_loose_mode_keeps_item_with_url_unreachable_flag():

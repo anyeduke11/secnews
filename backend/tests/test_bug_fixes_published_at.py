@@ -25,18 +25,17 @@ from datetime import datetime, timezone
 
 import pytest
 
+from backend.collectors.ai_collector import AICollector
+from backend.collectors.bid_collector import BidCollector
+from backend.collectors.finance_collector import FinanceCollector
+from backend.collectors.github_collector import GitHubCollector
 from backend.collectors.parsing import (
     _extract_published_at,
     _parse_iso_datetime,
 )
-from backend.collectors.bid_collector import BidCollector
-from backend.collectors.ai_collector import AICollector
 from backend.collectors.security_collector import SecurityCollector
-from backend.collectors.finance_collector import FinanceCollector
 from backend.collectors.startup_collector import StartupCollector
-from backend.collectors.github_collector import GitHubCollector
 from backend.domain.enums import Category
-from backend.domain.models import HotspotItem
 
 
 # ===========================================================================
@@ -98,7 +97,6 @@ class TestCollectReturnsEmptyOnAllSourcesFailed:
     async def test_collect_no_sources_returns_empty(self):
         """无 sources → return []。"""
         from backend.collectors.base import BaseCollector
-        from backend.domain.enums import Category
 
         class EmptyCollector(BaseCollector):
             category = Category.AI
@@ -346,9 +344,8 @@ class TestEndToEndPublishedAt:
 
 __all__ = [
     # Bug 1
-    "TestBidFallbackUrl",
+    "TestEndToEndPublishedAt",
+    "TestExtractPublishedAt",
     # Bug 2
     "TestParseIsoDatetime",
-    "TestExtractPublishedAt",
-    "TestEndToEndPublishedAt",
 ]

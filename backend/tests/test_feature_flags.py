@@ -56,7 +56,6 @@ def test_is_enabled_unknown_returns_false():
 def test_is_enabled_logs_warning_for_unknown(monkeypatch, caplog):
     """未知 flag 触发 WARNING 日志 (通过 loguru → standard logging bridge)."""
     # loguru 通过 InterceptHandler 转 standard logging; caplog 即可捕获
-    from backend.logging_config import logger
     import logging
     caplog.set_level(logging.WARNING)
     is_enabled("totally_made_up")

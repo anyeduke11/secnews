@@ -16,7 +16,6 @@ SM-2 算法 (SuperMemo 2):
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from backend.repository.reviews_repo import ReviewRepository
 
@@ -138,9 +137,9 @@ def stats() -> dict:
 
 
 __all__ = [
-    "sm2_schedule",
-    "submit_grade",
     "create_review",
     "list_due",
+    "sm2_schedule",
     "stats",
+    "submit_grade",
 ]

@@ -24,7 +24,7 @@ def register_parser(source_id: str, parser_cls: type[BaseSourceParser]) -> None:
     _PARSER_REGISTRY[source_id] = parser_cls
 
 
-def get_parser(source_id: str) -> Optional[BaseSourceParser]:
+def get_parser(source_id: str) -> BaseSourceParser | None:
     """获取指定 source_id 的解析器实例。"""
     cls = _PARSER_REGISTRY.get(source_id)
     if cls is None:
@@ -69,7 +69,7 @@ _register_builtin()
 __all__ = [
     "BaseSourceParser",
     "RawItem",
-    "register_parser",
     "get_parser",
     "list_parsers",
+    "register_parser",
 ]

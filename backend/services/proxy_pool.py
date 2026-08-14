@@ -8,7 +8,6 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import httpx
 
@@ -22,16 +21,16 @@ DEFAULT_PROXY_CONFIG_PATH = Path(__file__).resolve().parent.parent / "proxy_conf
 class ProxyPool:
     """统一代理池，支持 failover + health score."""
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         cfg_path = config_path or DEFAULT_PROXY_CONFIG_PATH
         self._load_config(cfg_path)
-        self._health_score: Dict[str, float] = {}
+        self._health_score: dict[str, float] = {}
         self._init_health()
 
     def _load_config(self, path: Path) -> None:
         if not path.exists():
             self.primary = ""
-            self.backups: List[str] = []
+            self.backups: list[str] = []
             self.strategy = "failover"
             return
         with open(path) as f:
@@ -47,7 +46,7 @@ class ProxyPool:
 
     def get_next(self) -> str:
         """按策略选下一个代理."""
-        candidates = [self.primary] + self.backups
+        candidates = [self.primary, *self.backups]
         if self.strategy == "failover":
             for proxy in candidates:
                 if self._health_score.get(proxy, 0) > 0.3:
@@ -91,7 +90,7 @@ class ProxyPool:
         if not self.primary:
             logger.info("No proxy configured, skipping health check")
             return
-        for proxy in [self.primary] + self.backups:
+        for proxy in [self.primary, *self.backups]:
             if not proxy:
                 continue
             try:

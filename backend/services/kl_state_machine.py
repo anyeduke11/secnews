@@ -23,9 +23,6 @@ Conventions
 """
 from __future__ import annotations
 
-from typing import Dict, FrozenSet, Optional
-
-
 # ---------------------------------------------------------------------------
 # Stage constants
 # ---------------------------------------------------------------------------
@@ -40,7 +37,7 @@ LIFECYCLE_PUBLISH = "kl:publish"    # 已发布到 knowledge/{item_id}.md
 
 # All known 5-stage values (used for validation, e.g. when migrating from
 # the legacy 3-stage model in 046_lifecycle_v2.sql).
-ALL_STAGES: FrozenSet[str] = frozenset({
+ALL_STAGES: frozenset[str] = frozenset({
     LIFECYCLE_RAW,
     LIFECYCLE_REFINE,
     LIFECYCLE_LINK,
@@ -63,7 +60,7 @@ LEGACY_STRUCTURE_LIKE = "generate"
 # Forward DAG: T1 raw→refine, T2 refine→link, T3 link→structure (Phase 12),
 # T4 structure→publish (Phase 12). T5 publish→refine is the user rollback
 # edge (Phase 12).
-TRANSITIONS: Dict[str, FrozenSet[str]] = {
+TRANSITIONS: dict[str, frozenset[str]] = {
     LIFECYCLE_RAW:       frozenset({LIFECYCLE_REFINE}),
     LIFECYCLE_REFINE:    frozenset({LIFECYCLE_LINK}),
     LIFECYCLE_LINK:      frozenset({LIFECYCLE_STRUCTURE}),
@@ -72,11 +69,11 @@ TRANSITIONS: Dict[str, FrozenSet[str]] = {
 }
 
 # Build reverse map: for each (dst) → set of (src) that can move into it.
-_REVERSE_BUILD: Dict[str, set] = {}
+_REVERSE_BUILD: dict[str, set] = {}
 for _src, _dsts in TRANSITIONS.items():
     for _dst in _dsts:
         _REVERSE_BUILD.setdefault(_dst, set()).add(_src)
-REVERSE_TRANSITIONS: Dict[str, FrozenSet[str]] = {
+REVERSE_TRANSITIONS: dict[str, frozenset[str]] = {
     k: frozenset(v) for k, v in _REVERSE_BUILD.items()
 }
 
@@ -84,7 +81,7 @@ REVERSE_TRANSITIONS: Dict[str, FrozenSet[str]] = {
 # Trigger name → expected (from, to) edge. Used by triggers for
 # self-validation and by the dead-letter policy to know which stage to
 # mark on a failed attempt.
-TRIGGER_EDGES: Dict[str, tuple] = {
+TRIGGER_EDGES: dict[str, tuple] = {
     "t1": (LIFECYCLE_RAW, LIFECYCLE_REFINE),
     "t2": (LIFECYCLE_REFINE, LIFECYCLE_LINK),
     # Phase 12:
@@ -158,17 +155,17 @@ def is_terminal(stage: str) -> bool:
     return stage == LIFECYCLE_PUBLISH
 
 
-def predecessors(stage: str) -> FrozenSet[str]:
+def predecessors(stage: str) -> frozenset[str]:
     """Return the set of stages that can transition INTO ``stage``."""
     return REVERSE_TRANSITIONS.get(stage, frozenset())
 
 
-def successors(stage: str) -> FrozenSet[str]:
+def successors(stage: str) -> frozenset[str]:
     """Return the set of stages reachable in one step from ``stage``."""
     return TRANSITIONS.get(stage, frozenset())
 
 
-def is_valid_stage(stage: Optional[str]) -> bool:
+def is_valid_stage(stage: str | None) -> bool:
     """Return True if ``stage`` is one of the 5 known v1.7 values.
 
     Legacy 3-stage values (``signal`` / ``amplify:tagged`` / ``generate``)
@@ -181,7 +178,7 @@ def is_valid_stage(stage: Optional[str]) -> bool:
 # Display labels
 # ---------------------------------------------------------------------------
 
-STAGE_LABELS: Dict[str, str] = {
+STAGE_LABELS: dict[str, str] = {
     LIFECYCLE_RAW:       "原始",
     LIFECYCLE_REFINE:    "精炼",
     LIFECYCLE_LINK:      "关联",
@@ -189,7 +186,7 @@ STAGE_LABELS: Dict[str, str] = {
     LIFECYCLE_PUBLISH:   "已发布",
 }
 
-STAGE_LABELS_EN: Dict[str, str] = {
+STAGE_LABELS_EN: dict[str, str] = {
     LIFECYCLE_RAW:       "raw",
     LIFECYCLE_REFINE:    "refine",
     LIFECYCLE_LINK:      "link",
@@ -205,16 +202,29 @@ def label(stage: str, lang: str = "zh") -> str:
 
 
 __all__ = [
-    # Constants
-    "LIFECYCLE_RAW", "LIFECYCLE_REFINE", "LIFECYCLE_LINK",
-    "LIFECYCLE_STRUCTURE", "LIFECYCLE_PUBLISH",
     "ALL_STAGES",
-    "LEGACY_RAW_LIKE", "LEGACY_REFINE_LIKE", "LEGACY_STRUCTURE_LIKE",
-    # Graph
-    "TRANSITIONS", "REVERSE_TRANSITIONS", "TRIGGER_EDGES",
-    # API
-    "can_transition", "transition", "is_terminal",
-    "predecessors", "successors", "is_valid_stage",
+    "LEGACY_RAW_LIKE",
+    "LEGACY_REFINE_LIKE",
+    "LEGACY_STRUCTURE_LIKE",
+    "LIFECYCLE_LINK",
+    "LIFECYCLE_PUBLISH",
+    # Constants
+    "LIFECYCLE_RAW",
+    "LIFECYCLE_REFINE",
+    "LIFECYCLE_STRUCTURE",
+    "REVERSE_TRANSITIONS",
     # Display
-    "STAGE_LABELS", "STAGE_LABELS_EN", "label",
+    "STAGE_LABELS",
+    "STAGE_LABELS_EN",
+    # Graph
+    "TRANSITIONS",
+    "TRIGGER_EDGES",
+    # API
+    "can_transition",
+    "is_terminal",
+    "is_valid_stage",
+    "label",
+    "predecessors",
+    "successors",
+    "transition",
 ]

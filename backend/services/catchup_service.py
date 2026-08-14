@@ -22,16 +22,25 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import time as _time
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from backend.logging_config import logger as _root_logger
 from backend.repository.catchup_checkpoint_repo import CatchupCheckpointRepository
-from backend.repository.catchup_repo import CatchupRepository, CatchupStatus
+from backend.repository.catchup_repo import CatchupRepository
 from backend.services import collection_logger as _clog
 from backend.services.collect_validator import validate_and_persist
+
+# P1: 保存后台 fire-and-forget task 引用 — 不保存引用时 asyncio.Task 可能被
+# GC 回收中断 (RUF006)。done 时自动从集合移除。
+_background_tasks: set = set()
+
+
+def _spawn(task) -> None:
+    """登记后台任务, 防止被 GC 提前回收。"""
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
 
 # Module-level state (Phase 8 watchdog 需要)
 logger = _root_logger.bind(component="catchup_service")
@@ -42,17 +51,17 @@ _ckpt_repo = CatchupCheckpointRepository()
 _RESUMPTION_WINDOW_HOURS = 24
 
 # Watchdog 写入, /api/health 读取
-_last_orphan_recovery_at: Optional[str] = None
+_last_orphan_recovery_at: str | None = None
 # Watchdog 防抖: 上次 enqueue_auto 的时间, 避免重复触发
-_last_auto_enqueue_at: Optional[datetime] = None
+_last_auto_enqueue_at: datetime | None = None
 _AUTO_ENQUEUE_DEBOUNCE_S = 300  # 5 分钟内不重复 enqueue auto
 
 # 全局 lock (C 任务扩展为 CatchupService 类)
 _lock = asyncio.Lock()
-_current_manual_run: Optional[int] = None
+_current_manual_run: int | None = None
 
 
-def get_last_orphan_recovery_at() -> Optional[str]:
+def get_last_orphan_recovery_at() -> str | None:
     """/api/health 读取这个值"""
     return _last_orphan_recovery_at
 
@@ -63,7 +72,7 @@ def set_last_orphan_recovery_at(iso_ts: str) -> None:
     _last_orphan_recovery_at = iso_ts
 
 
-def get_current_manual_run_id() -> Optional[int]:
+def get_current_manual_run_id() -> int | None:
     """API 端点查询当前 manual run id (用于 abort)"""
     return _current_manual_run
 
@@ -75,8 +84,8 @@ async def enqueue_catchup(
     *,
     mode: str,
     since: str,
-    until: Optional[str],
-    categories: Optional[list[str]] = None,
+    until: str | None,
+    categories: list[str] | None = None,
     max_per_source: int = 20,
     force: bool = False,
 ) -> int:
@@ -150,11 +159,11 @@ async def enqueue_catchup(
     )
 
     # Fire-and-forget 后台执行
-    asyncio.create_task(_execute_catchup_run(run.id, mode=mode, force=force))
+    _spawn(asyncio.create_task(_execute_catchup_run(run.id, mode=mode, force=force)))
     return run.id
 
 
-async def abort_current() -> Optional[int]:
+async def abort_current() -> int | None:
     """Abort 当前 manual run. Returns 被中止的 run_id 或 None.
 
     Phase 8 B stub: 直接调 repo.abort() 改 DB 状态. C 任务可加入
@@ -182,7 +191,7 @@ def _get_dead_source_names(cutoff_hours: int = 24) -> dict[str, set[str]]:
     """
     try:
         from datetime import timedelta
-        from backend.repository.db import get_connection
+
         from backend.repository.source_stats_repo import SourceStatsRepository
 
         repo = SourceStatsRepository()
@@ -229,7 +238,6 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
     异常隔离: 单 collector crash 不影响其他;整体 catchup 崩了会标 failed.
     """
     global _current_manual_run
-    from backend.repository.hotspot_repo import HotspotRepository
     from backend.domain.enums import Category
 
     run = _repo.get(run_id)
@@ -497,7 +505,7 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
         # 7. 触发 trend_rebuild (后台, 不阻塞)
         try:
             from backend.scheduler.jobs import trend_rebuild_job
-            asyncio.create_task(trend_rebuild_job())
+            _spawn(asyncio.create_task(trend_rebuild_job()))
         except Exception as e:
             logger.warning(f"schedule trend_rebuild_job failed: {e}")
 
@@ -618,11 +626,11 @@ def mark_auto_enqueued() -> None:
 
 
 __all__ = [
-    "enqueue_catchup",
     "abort_current",
-    "get_last_orphan_recovery_at",
-    "set_last_orphan_recovery_at",
+    "enqueue_catchup",
     "get_current_manual_run_id",
-    "should_enqueue_auto",
+    "get_last_orphan_recovery_at",
     "mark_auto_enqueued",
+    "set_last_orphan_recovery_at",
+    "should_enqueue_auto",
 ]

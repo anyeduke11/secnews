@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 import tarfile
 import tempfile
 import textwrap
@@ -21,14 +20,13 @@ from pathlib import Path
 import pytest
 
 from backend.services.codegarden_scanner_service import (
-    cleanup_temp,
-    scan_archive,
-    scan_local_dir,
     _detect_marker,
     _infer_from_package_json,
     _infer_from_python,
     _walk_for_projects,
-    DetectedProject,
+    cleanup_temp,
+    scan_archive,
+    scan_local_dir,
 )
 
 
@@ -234,7 +232,7 @@ def _mk_entries(names: list[str]):
 class TestInferFromPackageJson:
     def test_web_application_with_react(self) -> None:
         content = '{"dependencies": {"react": "^18"}}'
-        desc, tech, ptype = _infer_from_package_json(content)
+        _desc, tech, ptype = _infer_from_package_json(content)
         assert ptype == "web_application"
         assert "react" in tech
 
@@ -254,7 +252,7 @@ class TestInferFromPackageJson:
         assert ptype == "library"
 
     def test_invalid_json_returns_library(self) -> None:
-        desc, tech, ptype = _infer_from_package_json("not json {{{")
+        desc, _tech, ptype = _infer_from_package_json("not json {{{")
         assert ptype == "library"
         assert desc == ""
 
@@ -583,14 +581,14 @@ class TestMergeBySecondaryRoot:
     def test_merged_language_is_most_common(self, merged_fixture: Path) -> None:
         """合并项目的 language = 子项目出现最多的 (本 fixture 各 1 个, 任意其一)."""
         result = scan_local_dir(str(merged_fixture))
-        b = [p for p in result.detected if p.name == "b-merged"][0]
+        b = next(p for p in result.detected if p.name == "b-merged")
         # pkg1=node, pkg2=go, pkg3=python → 各 1 个, set 顺序非确定, 但必须三者之一
         assert b.language in ("node", "go", "python")
 
     def test_merged_tech_stack_is_union(self, merged_fixture: Path) -> None:
         """tech_stack 应是子项目 tech_stack 的并集."""
         result = scan_local_dir(str(merged_fixture))
-        b = [p for p in result.detected if p.name == "b-merged"][0]
+        b = next(p for p in result.detected if p.name == "b-merged")
         # pkg1 tech=express, pkg2 tech=[], pkg3 tech=[]
         assert "express" in b.tech_stack
         assert len(b.tech_stack) == len(set(b.tech_stack))  # 去重
@@ -631,7 +629,7 @@ class TestMergeBySecondaryRoot:
         assert "deepfence_ctl" not in names
         assert "deepfence_server" not in names
         # merged 标记
-        threat = [p for p in result.detected if p.name == "ThreatMapper"][0]
+        threat = next(p for p in result.detected if p.name == "ThreatMapper")
         assert "3 sub-projects" in threat.marker_file
         assert threat.language == "go"
 

@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Dict, Optional
 
 from backend.config.llm_schema import LLMConfig, load_llm_config
 
@@ -25,7 +24,7 @@ DEGRADATION_SCENARIOS = {
 class DegradationMatrix:
     """配置降级矩阵，检测当前 LLM 配置状态并确定降级级别."""
 
-    def __init__(self, config: Optional[LLMConfig] = None):
+    def __init__(self, config: LLMConfig | None = None):
         self._config = config
         self._scenario = self._detect()
 
@@ -75,7 +74,7 @@ class DegradationMatrix:
         """T3 摘要是否可用."""
         return self._scenario not in ("no_provider",)
 
-    def status(self) -> Dict[str, object]:
+    def status(self) -> dict[str, object]:
         """返回当前降级状态 JSON."""
         return {
             "scenario": self._scenario,
@@ -97,7 +96,7 @@ class DegradationMatrix:
         }
 
 
-def create_degradation_matrix(config_path: Optional[Path] = None) -> DegradationMatrix:
+def create_degradation_matrix(config_path: Path | None = None) -> DegradationMatrix:
     """从配置文件创建降级矩阵."""
     cfg = load_llm_config(config_path)
     matrix = DegradationMatrix(cfg)
@@ -106,7 +105,7 @@ def create_degradation_matrix(config_path: Optional[Path] = None) -> Degradation
 
 
 __all__ = [
+    "DEGRADATION_SCENARIOS",
     "DegradationMatrix",
     "create_degradation_matrix",
-    "DEGRADATION_SCENARIOS",
 ]

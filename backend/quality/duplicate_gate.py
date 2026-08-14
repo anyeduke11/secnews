@@ -25,12 +25,12 @@ from datetime import datetime
 from backend.domain.collection import GateResult
 from backend.domain.models import HotspotItem
 from backend.quality.base import BaseGate, GateContext
+from backend.quality.simhash import compute_simhash
+from backend.quality.simhash import is_duplicate as simhash_is_duplicate
 from backend.quality.title_summary_gate import _tokenize
 
 # Phase 2.3 (Crawler v2): 三层去重
 from backend.quality.url_canonicalize import canonicalize_url
-from backend.quality.simhash import compute_simhash, is_duplicate as simhash_is_duplicate
-
 
 # url_check_status 优先级: verified=0 (winner, key 最小), pending=2 (loser)
 # 用 min 选 winner (Python sorted 升序 → key 最小者胜)
@@ -55,10 +55,7 @@ def _winner_sort_key(
         rep_score = 0.0
     # fetched_at 可能是 ISO 字符串
     fetched_at = pair.get("fetched_at")
-    if isinstance(fetched_at, datetime):
-        ts = int(fetched_at.timestamp())
-    else:
-        ts = 0
+    ts = int(fetched_at.timestamp()) if isinstance(fetched_at, datetime) else 0
     url_check_rank = _URL_CHECK_RANK.get(pair.get("url_check_status"), 2)
     return (
         url_check_rank,            # 0=verified(winner), 2=pending(loser)

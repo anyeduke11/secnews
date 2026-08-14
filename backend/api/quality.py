@@ -10,17 +10,17 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
-from backend.cache import invalidate as cache_invalidate, static_cache
-from backend.exceptions import InvalidParamException, NotFoundException
+from backend.cache import invalidate as cache_invalidate
+from backend.cache import static_cache
+from backend.exceptions import InvalidParamException
 from backend.quality.config import default_category_keywords
 from backend.repository.quality_repo import (
     QualityLogRepository,
-    SourceReputationRepository,
 )
 from backend.repository.settings_repo import SettingsRepository
 from backend.version import APP_VERSION as API_VERSION
@@ -254,10 +254,10 @@ async def source_reputation():
 # GET /api/quality/rejection-log
 # ---------------------------------------------------------------------------
 def _build_rejection_log(
-    gate_name: Optional[str] = None,
-    source_id: Optional[str] = None,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
+    gate_name: str | None = None,
+    source_id: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
     page: int = 1,
     page_size: int = 50,
 ) -> dict:
@@ -294,7 +294,7 @@ def _build_rejection_log(
     # 查询分页数据
     rows = conn.execute(
         f"SELECT * FROM quality_rejection_log WHERE {where} ORDER BY created_at DESC LIMIT ? OFFSET ?",
-        params + [page_size, offset],
+        [*params, page_size, offset],
     ).fetchall()
 
     return {
@@ -307,10 +307,10 @@ def _build_rejection_log(
 
 @router.get("/rejection-log")
 async def quality_rejection_log(
-    gate_name: Optional[str] = None,
-    source_id: Optional[str] = None,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
+    gate_name: str | None = None,
+    source_id: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
 ):
@@ -325,8 +325,8 @@ async def quality_rejection_log(
 # GET /api/quality/rejection-stats
 # ---------------------------------------------------------------------------
 def _build_rejection_stats(
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
 ) -> dict:
     """同步构建 rejection-stats payload（在 thread pool 中执行）。"""
     from backend.repository.db import get_connection
@@ -372,8 +372,8 @@ def _build_rejection_stats(
 
 @router.get("/rejection-stats")
 async def quality_rejection_stats(
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
 ):
     """按 gate 名称聚合统计拒绝次数。"""
     return await asyncio.to_thread(_build_rejection_stats, date_from, date_to)

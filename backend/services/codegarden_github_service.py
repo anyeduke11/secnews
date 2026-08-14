@@ -17,14 +17,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Optional
 from urllib.parse import urlparse
 
 import httpx
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
-
 
 GITHUB_API_BASE = "https://api.github.com"
 _OWNER_REPO_RE = re.compile(r"^/([^/]+)/([^/]+?)(?:\.git)?/?$")
@@ -43,12 +41,12 @@ class RepoMetadata:
     owner: str
     repo: str
     default_branch: str
-    description: Optional[str]
-    upstream_url: Optional[str]      # fork source (parent.clone_url)
-    upstream_default_branch: Optional[str]
+    description: str | None
+    upstream_url: str | None      # fork source (parent.clone_url)
+    upstream_default_branch: str | None
     stars: int
-    language: Optional[str]
-    homepage: Optional[str]
+    language: str | None
+    homepage: str | None
 
 
 @dataclass
@@ -135,8 +133,8 @@ def fetch_repo_metadata(repo_url: str) -> RepoMetadata:
             )
         data = resp.json()
 
-        upstream_url: Optional[str] = None
-        upstream_default_branch: Optional[str] = None
+        upstream_url: str | None = None
+        upstream_default_branch: str | None = None
         parent = data.get("parent")
         if parent:
             upstream_url = parent.get("clone_url") or parent.get("html_url")
@@ -233,11 +231,11 @@ def fetch_upstream_releases(repo_url: str, limit: int = 5) -> list[dict]:
 
 
 __all__ = [
-    "RepoMetadata",
     "CompareResult",
-    "fetch_repo_metadata",
-    "compare_commits",
-    "fetch_upstream_releases",
-    "GithubTokenMissingException",
     "GithubRateLimitException",
+    "GithubTokenMissingException",
+    "RepoMetadata",
+    "compare_commits",
+    "fetch_repo_metadata",
+    "fetch_upstream_releases",
 ]

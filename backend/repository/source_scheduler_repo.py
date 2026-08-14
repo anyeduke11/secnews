@@ -5,8 +5,6 @@ Phase 3 (Crawler v2): 源级调度与健康管理。
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from backend.repository.db import get_connection
 
 
@@ -120,7 +118,7 @@ class SourceSchedulerRepository:
             "rejection_rate": round(rejection_rate, 4),
         }
 
-    def get_by_id(self, source_id: str) -> Optional[dict]:
+    def get_by_id(self, source_id: str) -> dict | None:
         """按 ID 查询单条源记录。
 
         Args:

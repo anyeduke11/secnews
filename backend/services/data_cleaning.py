@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
-from typing import Optional
 
 log = logging.getLogger("hotspot.data_cleaning")
 
@@ -119,6 +118,7 @@ def validate_url(url: str, timeout: int = 5) -> bool:
     Returns True if reachable, False otherwise.
     """
     import requests
+
     from backend.config import config
     try:
         proxies = None

@@ -262,12 +262,12 @@ class TestTodoRepoList:
 
     def test_list_filter_urgent(self, todo_repo, fav_repo):
         self._seed(todo_repo, fav_repo)
-        items, total = todo_repo.list(urgent=1)
+        _items, total = todo_repo.list(urgent=1)
         assert total == 2  # a 和 b
 
     def test_list_filter_important(self, todo_repo, fav_repo):
         self._seed(todo_repo, fav_repo)
-        items, total = todo_repo.list(important=1)
+        _items, total = todo_repo.list(important=1)
         assert total == 2  # a 和 c
 
     def test_list_combined_status_and_urgent(self, todo_repo, fav_repo):
@@ -326,7 +326,7 @@ class TestTodoRepoCount:
             important=1, note=None,
         )
         # P3: 都不 (open)
-        _, p3 = todo_repo.add_or_get(
+        _, _p3 = todo_repo.add_or_get(
             source_type="manual", source_id=None, title="p3",
             url=None, source=None, category=None,
             important=0, note=None,

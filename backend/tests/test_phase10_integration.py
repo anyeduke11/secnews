@@ -32,7 +32,6 @@ from backend.services.kl_state_machine import (
 )
 from backend.services.triggers import T1Trigger, T2Trigger
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

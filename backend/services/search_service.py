@@ -16,9 +16,6 @@
 """
 from __future__ import annotations
 
-import re
-from typing import Optional
-
 from backend.repository.db import get_connection
 
 # 限制单次返回上限，防止全表扫描型查询拖垮响应时间。
@@ -39,7 +36,7 @@ def _sanitize_query(q: str) -> str:
 
 def unified_search(
     q: str,
-    sources: Optional[list[str]] = None,
+    sources: list[str] | None = None,
     limit: int = _DEFAULT_LIMIT,
 ) -> dict:
     """跨层统一搜索。
@@ -76,8 +73,8 @@ def unified_search(
                 effective_sources.append(s_norm)
 
     where_clauses: list[str] = [
-        "(LOWER(title) LIKE LOWER(?) ESCAPE '\\' "
-        "OR LOWER(summary) LIKE LOWER(?) ESCAPE '\\')"
+        ("(LOWER(title) LIKE LOWER(?) ESCAPE '\\' "
+        "OR LOWER(summary) LIKE LOWER(?) ESCAPE '\\')")
     ]
     escaped = _sanitize_query(query)
     pattern = f"%{escaped}%"
@@ -130,7 +127,7 @@ def search_knowledge_only(q: str, limit: int = _DEFAULT_LIMIT) -> list[dict]:
 
 
 __all__ = [
-    "unified_search",
     "search_hotspots_only",
     "search_knowledge_only",
+    "unified_search",
 ]

@@ -26,7 +26,6 @@ from __future__ import annotations
 import asyncio
 import io
 from datetime import datetime, timezone
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -74,13 +73,10 @@ def _validate_category(category: str) -> str:
         )
 
 
-def _build_list_payload(category: Optional[str], limit: int) -> dict:
+def _build_list_payload(category: str | None, limit: int) -> dict:
     """同步读取收藏列表（在 thread pool 内执行）。"""
     repo = FavoriteRepository()
-    if category:
-        cat_value = _validate_category(category)
-    else:
-        cat_value = None
+    cat_value = _validate_category(category) if category else None
     items: list[FavoriteItem] = repo.list(category=cat_value, limit=limit)
     return {
         "version": API_VERSION,
@@ -106,7 +102,7 @@ def _build_count_payload() -> dict:
 # ---------------------------------------------------------------------------
 @router.get("")
 async def list_favorites(
-    category: Optional[str] = Query(None, description="分类筛选; 不传=全部"),
+    category: str | None = Query(None, description="分类筛选; 不传=全部"),
     limit: int = Query(200, ge=1, le=1000, description="最多返回条数"),
 ):
     """按收藏时间倒序列出收藏项。支持按 category 筛选。
@@ -129,10 +125,7 @@ async def add_favorite(req: AddFavoriteRequest):
     """添加收藏。已存在则返回 200 + created=False。"""
     cat_value = _validate_category(req.category)
     # 兜底: created_via 非法值降级为 ui
-    if req.created_via not in ("ui", "mcp", "agent"):
-        req_created_via = "ui"
-    else:
-        req_created_via = req.created_via
+    req_created_via = "ui" if req.created_via not in ("ui", "mcp", "agent") else req.created_via
     repo = FavoriteRepository()
     try:
         created, item = await asyncio.to_thread(
@@ -153,8 +146,9 @@ async def add_favorite(req: AddFavoriteRequest):
     # 通过 sag_service 统一管理 lifecycle, 同时写 SQLite + knowledge/items/{id}.md
     # (验收 3: 收藏后在 knowledge/items/ 生成 .md 且 lifecycle=signal)。
     try:
-        from backend.services.sag_service import promote_favorite_to_knowledge
         import logging
+
+        from backend.services.sag_service import promote_favorite_to_knowledge
         _klog = logging.getLogger("hotspot.favorites.webhook")
         fav_url = req.url.strip()
         fav_title = req.title.strip()
@@ -194,7 +188,7 @@ async def remove_favorite(hotspot_id: str):
 # ---------------------------------------------------------------------------
 # xlsx 导出
 # ---------------------------------------------------------------------------
-def _build_xlsx(category: Optional[str]) -> tuple[bytes, str, int]:
+def _build_xlsx(category: str | None) -> tuple[bytes, str, int]:
     """同步构建 xlsx 文件 bytes + 文件名 + 行数（在 thread pool 内执行）。
 
     文件结构:
@@ -206,10 +200,7 @@ def _build_xlsx(category: Optional[str]) -> tuple[bytes, str, int]:
     - 列宽: A=15 / B=60 / C=50
     """
     repo = FavoriteRepository()
-    if category:
-        cat_value = _validate_category(category)
-    else:
-        cat_value = None
+    cat_value = _validate_category(category) if category else None
     items = repo.list(category=cat_value, limit=1000)
 
     wb = Workbook()
@@ -276,7 +267,7 @@ def _build_xlsx(category: Optional[str]) -> tuple[bytes, str, int]:
 
 @router.get("/export")
 async def export_favorites(
-    category: Optional[str] = Query(None, description="分类筛选; 不传=全部导出"),
+    category: str | None = Query(None, description="分类筛选; 不传=全部导出"),
 ):
     """批量导出收藏到 .xlsx 文件 (3 列: 信息类型/标题/原文链接)。
 

@@ -26,7 +26,6 @@ from __future__ import annotations
 import asyncio
 import json
 import secrets as _secrets
-from typing import Optional
 
 from cryptography.fernet import Fernet as _F
 from fastapi import APIRouter, HTTPException
@@ -35,17 +34,14 @@ from pydantic import BaseModel, Field
 from backend.crypto import (
     DEFAULT_ITERATIONS,
     InvalidMasterKeyError,
-    derive_fernet_key,
-    encrypt_api_key,
     verify_master_key,
 )
-from backend.logging_config import logger
 from backend.repository.encryption_keys_repo import EncryptionKeyRepository
 from backend.repository.sync_configs_repo import SyncConfigRepository
 from backend.repository.sync_history_repo import SyncHistoryRepository
 from backend.repository.sync_states_repo import SyncStateRepository
 from backend.services.sync_service import SyncService
-from backend.services.webdav_client import WebDAVClient, WebDAVError
+from backend.services.webdav_client import WebDAVClient
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
 
@@ -56,7 +52,7 @@ router = APIRouter(prefix="/api/sync", tags=["sync"])
 class UpsertConfigRequest(BaseModel):
     webdav_url: str = Field(..., min_length=1, max_length=500)
     webdav_username: str = Field(..., min_length=1, max_length=200)
-    webdav_password: Optional[str] = Field(default=None, min_length=1, max_length=500,
+    webdav_password: str | None = Field(default=None, min_length=1, max_length=500,
                                            description="WebDAV 应用密码 (明文, 加密后存库); 留空 = 不修改 (仅限已配置)")
     master_key: str = Field(..., min_length=8, description="主密钥; 验证身份 (已配置时) 或 加密 webdav password (首次)")
     remote_path: str = Field(default="/hotspot/config.json", max_length=300)

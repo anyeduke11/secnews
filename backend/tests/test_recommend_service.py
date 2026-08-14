@@ -9,7 +9,6 @@
 """
 from __future__ import annotations
 
-from backend.version import APP_VERSION as API_VERSION
 from datetime import datetime, timezone
 
 import pytest
@@ -26,6 +25,7 @@ from backend.services.recommend_service import (
     recommend_hotspot,
     recommend_knowledge,
 )
+from backend.version import APP_VERSION as API_VERSION
 
 
 @pytest.fixture
@@ -52,9 +52,8 @@ def client(temp_db, monkeypatch: pytest.MonkeyPatch) -> TestClient:
 
 
 def _insert_knowledge(kid: str, title: str, tags: list[str], ingested_at: str = "") -> None:
-    import json
-    from backend.repository.knowledge_repo import knowledge_repo
     from backend.domain.knowledge_models import KnowledgeItem
+    from backend.repository.knowledge_repo import knowledge_repo
     now = ingested_at or datetime.now(timezone.utc).isoformat()
     item = KnowledgeItem(
         id=kid,

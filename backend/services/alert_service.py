@@ -23,7 +23,6 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Optional
 
 from backend.repository.alerts_repo import AlertRepository, AlertRuleRepository
 from backend.repository.db import get_connection
@@ -132,7 +131,7 @@ def _eval_keyword_match(condition: dict, hotspot: dict) -> bool:
 # ---------------------------------------------------------------------------
 # cooldown 检查
 # ---------------------------------------------------------------------------
-def _cooldown_ready(rule: dict, now: Optional[datetime] = None) -> bool:
+def _cooldown_ready(rule: dict, now: datetime | None = None) -> bool:
     """检查规则是否已过 cooldown 期 (可再次触发).
 
     Args:
@@ -185,8 +184,9 @@ def _fire(rule: dict, hotspot: dict) -> dict:
 
     # SSE 推送 (best-effort, 失败不影响告警写入)
     try:
-        from backend.api.events import publish_event
         import asyncio
+
+        from backend.api.events import publish_event
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -232,7 +232,7 @@ def evaluate_hotspot(hotspot_id: str) -> list[str]:
     return fired
 
 
-def _load_hotspot(hotspot_id: str) -> Optional[dict]:
+def _load_hotspot(hotspot_id: str) -> dict | None:
     """加载热点 + 关联标签, 返回 dict (含 tags 列表).
 
     优先从 hotspots 表读取 (含 title/summary/category),

@@ -32,8 +32,8 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from backend.config import config
 from backend.logging_config import logger
@@ -63,7 +63,7 @@ class HotspotScheduler:
 
     def __init__(self, service=None, interval: int | None = None):
         self.service = service
-        self.scheduler: Optional[AsyncIOScheduler] = None
+        self.scheduler: AsyncIOScheduler | None = None
         self._interval = (
             interval if interval is not None
             else config.collect_interval_seconds

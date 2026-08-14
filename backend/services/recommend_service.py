@@ -22,8 +22,6 @@ PRD §3.2.7: 基于标签重叠度的上下文推荐。
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from backend.repository.db import get_connection
 from backend.repository.knowledge_repo import knowledge_repo
 from backend.repository.tags_repo import TagRepository
@@ -184,4 +182,4 @@ def recommend(
     return []
 
 
-__all__ = ["recommend", "recommend_knowledge", "recommend_hotspot"]
+__all__ = ["recommend", "recommend_hotspot", "recommend_knowledge"]

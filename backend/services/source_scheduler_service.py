@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.logging_config import logger
 from backend.repository.source_scheduler_repo import SourceSchedulerRepository
@@ -138,10 +137,10 @@ class SourceSchedulerService:
 
 
 # Module-level singleton for scheduler injection
-_scheduler_instance: Optional[SourceSchedulerService] = None
+_scheduler_instance: SourceSchedulerService | None = None
 
 
-def get_scheduler_service() -> Optional[SourceSchedulerService]:
+def get_scheduler_service() -> SourceSchedulerService | None:
     return _scheduler_instance
 
 

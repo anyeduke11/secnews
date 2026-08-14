@@ -11,10 +11,10 @@ from fastapi.testclient import TestClient
 
 from backend.exceptions import (
     HotspotException,
+    InternalException,
     InvalidParamException,
     NotFoundException,
     RateLimitedException,
-    InternalException,
     SourceUnavailableException,
     register_exception_handlers,
 )
@@ -59,7 +59,7 @@ def test_invalid_param_response(client):
     data = r.json()
     assert data["code"] == "INVALID_PARAM"
     assert data["message"] == "bad param"
-    assert "trace_id" in data and data["trace_id"]
+    assert data.get("trace_id")
 
 
 def test_notfound_response(client):

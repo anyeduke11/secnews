@@ -25,7 +25,6 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Response
 from fastapi.responses import Response as FastResponse
@@ -59,11 +58,11 @@ class CreateSecretRequest(BaseModel):
 
 
 class UpdateSecretRequest(BaseModel):
-    name: Optional[str] = Field(None, max_length=120)
-    model: Optional[str] = Field(None, max_length=120)
-    base_url: Optional[str] = Field(None, max_length=300)
-    api_key: Optional[str] = None
-    master_key: Optional[str] = None
+    name: str | None = Field(None, max_length=120)
+    model: str | None = Field(None, max_length=120)
+    base_url: str | None = Field(None, max_length=300)
+    api_key: str | None = None
+    master_key: str | None = None
 
 
 class ImportRequest(BaseModel):
@@ -156,7 +155,6 @@ async def reset_all_secrets(req: ResetRequest):
     from backend.repository.sync_configs_repo import SyncConfigRepository
     from backend.repository.sync_history_repo import SyncHistoryRepository
     from backend.repository.sync_states_repo import SyncStateRepository
-    from backend.services.secrets_service import _unlock_state
 
     if req.confirm != RESET_CONFIRM_STRING:
         raise HTTPException(
@@ -325,7 +323,6 @@ async def test_connection(secret_id: int):
 @router.get("/export")
 async def export_secrets(master_key: str = ""):
     """导出加密 JSON 文件 (Phase 41 Q3)。"""
-    import base64
     svc = SecretsService()
     if not master_key:
         raise HTTPException(status_code=400, detail={"message": "master_key 必填"})

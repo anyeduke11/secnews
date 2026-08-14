@@ -13,7 +13,6 @@ Design notes
 from __future__ import annotations
 
 import json
-from typing import Optional
 
 from backend.domain.knowledge_models import (
     KnowledgeConcept,
@@ -74,7 +73,7 @@ class KnowledgeRepo:
             ),
         )
 
-    def get_item(self, item_id: str) -> Optional[KnowledgeItem]:
+    def get_item(self, item_id: str) -> KnowledgeItem | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM knowledge_items WHERE id = ?", (item_id,)
@@ -83,19 +82,19 @@ class KnowledgeRepo:
 
     def list_items(
         self,
-        domain: Optional[str] = None,
-        source: Optional[str] = None,
-        compiled: Optional[bool] = None,
-        lifecycle: Optional[str] = None,
-        topic: Optional[str] = None,
-        item_type: Optional[str] = None,
-        difficulty: Optional[str] = None,
-        since: Optional[str] = None,
-        until: Optional[str] = None,
+        domain: str | None = None,
+        source: str | None = None,
+        compiled: bool | None = None,
+        lifecycle: str | None = None,
+        topic: str | None = None,
+        item_type: str | None = None,
+        difficulty: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
         # Phase 8 新增参数
-        sources: Optional[list[str]] = None,
-        keyword: Optional[str] = None,
-        exclude_urls: Optional[list[str]] = None,
+        sources: list[str] | None = None,
+        keyword: str | None = None,
+        exclude_urls: list[str] | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[KnowledgeItem]:
@@ -151,7 +150,7 @@ class KnowledgeRepo:
         rows = conn.execute(sql, params).fetchall()
         return [KnowledgeItem.from_row(dict(r)) for r in rows]
 
-    def list_topics(self, domain: Optional[str] = None) -> list[str]:
+    def list_topics(self, domain: str | None = None) -> list[str]:
         """Return distinct topics, optionally filtered by domain."""
         conn = get_connection()
         if domain:
@@ -167,9 +166,9 @@ class KnowledgeRepo:
 
     def count_items(
         self,
-        domain: Optional[str] = None,
-        compiled: Optional[bool] = None,
-        lifecycle: Optional[str] = None,
+        domain: str | None = None,
+        compiled: bool | None = None,
+        lifecycle: str | None = None,
     ) -> int:
         conn = get_connection()
         where = ["1=1"]
@@ -271,7 +270,7 @@ class KnowledgeRepo:
             ),
         )
 
-    def list_concepts(self, domain: Optional[str] = None) -> list[KnowledgeConcept]:
+    def list_concepts(self, domain: str | None = None) -> list[KnowledgeConcept]:
         conn = get_connection()
         if domain:
             rows = conn.execute(
@@ -284,7 +283,7 @@ class KnowledgeRepo:
             ).fetchall()
         return [KnowledgeConcept.from_row(dict(r)) for r in rows]
 
-    def get_concept(self, slug: str) -> Optional[KnowledgeConcept]:
+    def get_concept(self, slug: str) -> KnowledgeConcept | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM knowledge_concepts WHERE slug = ?", (slug,)
@@ -311,7 +310,7 @@ class KnowledgeRepo:
 
     # ── Knowledge Tasks ──────────────────────────────────────────
 
-    def create_task(self, task_type: str, params: Optional[dict] = None) -> KnowledgeTask:
+    def create_task(self, task_type: str, params: dict | None = None) -> KnowledgeTask:
         conn = get_connection()
         now = now_iso()
         cursor = conn.execute(
@@ -330,7 +329,7 @@ class KnowledgeRepo:
             updated_at=now,
         )
 
-    def list_tasks(self, status: Optional[str] = None) -> list[KnowledgeTask]:
+    def list_tasks(self, status: str | None = None) -> list[KnowledgeTask]:
         conn = get_connection()
         if status:
             rows = conn.execute(
@@ -346,7 +345,7 @@ class KnowledgeRepo:
     def list_tasks_by_type(
         self,
         task_type: str,
-        params_filter: Optional[dict] = None,
+        params_filter: dict | None = None,
     ) -> list[dict]:
         """List tasks by task_type, optionally filtered by params JSON keys.
 
@@ -367,14 +366,14 @@ class KnowledgeRepo:
                     pattern_quoted_a = f'%"{key}": "{v}"%'
                     pattern_quoted_b = f'%"{key}":"{v}"%'
                     where.append(
-                        f"(params LIKE ? OR params LIKE ?)"
+                        "(params LIKE ? OR params LIKE ?)"
                     )
                     params.append(pattern_quoted_a)
                     params.append(pattern_quoted_b)
                 else:
                     # 数字 / 布尔 / None: 不带引号
                     where.append(
-                        f"(params LIKE ? OR params LIKE ?)"
+                        "(params LIKE ? OR params LIKE ?)"
                     )
                     params.append(f'%"{key}": {val}%')
                     params.append(f'%"{key}":{val}%')
@@ -386,7 +385,7 @@ class KnowledgeRepo:
         rows = conn.execute(sql, params).fetchall()
         return [dict(r) for r in rows]
 
-    def get_task(self, id: int) -> Optional[dict]:
+    def get_task(self, id: int) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM knowledge_tasks WHERE id = ?", (id,)
@@ -397,8 +396,8 @@ class KnowledgeRepo:
         self,
         task_id: int,
         status: str,
-        result_path: Optional[str] = None,
-        error_message: Optional[str] = None,
+        result_path: str | None = None,
+        error_message: str | None = None,
     ) -> None:
         conn = get_connection()
         conn.execute(
@@ -460,14 +459,14 @@ class KnowledgeRepo:
             ),
         )
 
-    def get_calendar_entry(self, id: int) -> Optional[dict]:
+    def get_calendar_entry(self, id: int) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM content_calendar WHERE id = ?", (id,)
         ).fetchone()
         return dict(row) if row else None
 
-    def list_calendar_entries(self, year_month: Optional[str]) -> list[dict]:
+    def list_calendar_entries(self, year_month: str | None) -> list[dict]:
         conn = get_connection()
         if year_month:
             rows = conn.execute(
@@ -537,7 +536,7 @@ class KnowledgeRepo:
             ),
         )
 
-    def get_draft(self, id: int) -> Optional[dict]:
+    def get_draft(self, id: int) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM content_drafts WHERE id = ?", (id,)
@@ -546,8 +545,8 @@ class KnowledgeRepo:
 
     def list_drafts(
         self,
-        status: Optional[str] = None,
-        calendar_id: Optional[int] = None,
+        status: str | None = None,
+        calendar_id: int | None = None,
     ) -> list[dict]:
         conn = get_connection()
         where = ["1=1"]
@@ -625,7 +624,7 @@ class KnowledgeRepo:
                 ),
             )
 
-    def get_plan(self, week: str) -> Optional[dict]:
+    def get_plan(self, week: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM knowledge_plans WHERE week = ?", (week,)
@@ -636,7 +635,7 @@ class KnowledgeRepo:
         r["plan_data"] = json.loads(r["plan_data"])
         return r
 
-    def list_plans(self, status: Optional[str] = None) -> list[dict]:
+    def list_plans(self, status: str | None = None) -> list[dict]:
         conn = get_connection()
         if status:
             rows = conn.execute(
@@ -684,14 +683,14 @@ class KnowledgeRepo:
             ),
         )
 
-    def get_skill(self, id: int) -> Optional[dict]:
+    def get_skill(self, id: int) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM knowledge_skill_config WHERE id = ?", (id,)
         ).fetchone()
         return _skill_row_to_dict(row) if row else None
 
-    def get_skill_by_name(self, skill_name: str) -> Optional[dict]:
+    def get_skill_by_name(self, skill_name: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM knowledge_skill_config WHERE skill_name = ?",
@@ -699,7 +698,7 @@ class KnowledgeRepo:
         ).fetchone()
         return _skill_row_to_dict(row) if row else None
 
-    def list_skills(self, enabled: Optional[bool] = None) -> list[dict]:
+    def list_skills(self, enabled: bool | None = None) -> list[dict]:
         conn = get_connection()
         if enabled is not None:
             rows = conn.execute(
@@ -757,7 +756,7 @@ class KnowledgeRepo:
         self,
         concept_slug: str,
         mastery: int,
-        last_tested: Optional[str],
+        last_tested: str | None,
         test_count: int,
     ) -> None:
         """Insert or update mastery progress for a concept."""
@@ -776,7 +775,7 @@ class KnowledgeRepo:
             (concept_slug, mastery, last_tested, test_count, now_iso()),
         )
 
-    def get_progress(self, concept_slug: str) -> Optional[dict]:
+    def get_progress(self, concept_slug: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM knowledge_progress WHERE concept_slug = ?",
@@ -784,7 +783,7 @@ class KnowledgeRepo:
         ).fetchone()
         return dict(row) if row else None
 
-    def list_progress(self, domain: Optional[str] = None) -> list[dict]:
+    def list_progress(self, domain: str | None = None) -> list[dict]:
         """List progress rows, LEFT JOIN knowledge_concepts for title/domain."""
         conn = get_connection()
         sql = (

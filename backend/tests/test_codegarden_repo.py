@@ -2,16 +2,13 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 
 from backend.exceptions import InternalException
 from backend.repository.codegarden_repo import (
     CodegardenProjectRepository,
-    VALID_LIFECYCLE_STAGES,
-    VALID_PROJECT_TYPES,
-    VALID_SOURCE_TYPES,
 )
 
 
@@ -21,7 +18,7 @@ def repo(tmp_path, monkeypatch) -> Iterator:
     db_file = tmp_path / "test_codegarden.db"
     conn = sqlite3.connect(str(db_file))
     # 只执行 cg_ 表的 CREATE TABLE 和 CREATE INDEX, 跳过 ALTER TABLE skills
-    with open("backend/repository/migrations/019_codegarden.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/019_codegarden.sql", encoding="utf-8") as f:
         sql_text = f.read()
     cg_sql = "\n".join(
         line for line in sql_text.splitlines()
@@ -50,15 +47,15 @@ def repo(tmp_path, monkeypatch) -> Iterator:
 
 
 def _make_project(repo, **overrides):
-    defaults = dict(
-        name="test-project",
-        type="web_application",
-        source_type="vibe",
-        lifecycle_stage="ideation",
-        tags=["test"],
-        tech_stack=["react"],
-        domain="frontend",
-    )
+    defaults = {
+        "name": "test-project",
+        "type": "web_application",
+        "source_type": "vibe",
+        "lifecycle_stage": "ideation",
+        "tags": ["test"],
+        "tech_stack": ["react"],
+        "domain": "frontend",
+    }
     defaults.update(overrides)
     return repo.create(**defaults)
 

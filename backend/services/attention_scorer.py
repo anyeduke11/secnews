@@ -135,6 +135,6 @@ def batch_score() -> dict:
 
 
 __all__ = [
-    "score",
     "batch_score",
+    "score",
 ]

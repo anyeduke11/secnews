@@ -29,7 +29,6 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Optional
 
 log = logging.getLogger("hotspot.knowledge_sync")
 
@@ -61,7 +60,7 @@ def _coerce_scalar(value: str):
     return value
 
 
-def parse_frontmatter(md_path: Path) -> Optional[dict]:
+def parse_frontmatter(md_path: Path) -> dict | None:
     """Parse YAML frontmatter from a .md file.
 
     Returns dict of frontmatter fields, or None if no frontmatter found.
@@ -75,7 +74,7 @@ def parse_frontmatter(md_path: Path) -> Optional[dict]:
         return None
     # Simple YAML parsing (no pyyaml dependency)
     fm: dict = {}
-    current_key: Optional[str] = None
+    current_key: str | None = None
     current_list: list = []
     for line in m.group(1).split("\n"):
         stripped = line.strip()
@@ -117,7 +116,7 @@ def parse_frontmatter(md_path: Path) -> Optional[dict]:
     return fm
 
 
-def sync_item_to_db(md_path: Path) -> Optional[str]:
+def sync_item_to_db(md_path: Path) -> str | None:
     """Sync a single knowledge/items/{id}.md to SQLite. Returns item id (or None if skipped)."""
     fm = parse_frontmatter(md_path)
     if fm is None:
@@ -152,7 +151,7 @@ def sync_item_to_db(md_path: Path) -> Optional[str]:
     return item.id
 
 
-def sync_concept_to_db(md_path: Path) -> Optional[str]:
+def sync_concept_to_db(md_path: Path) -> str | None:
     """Sync a single knowledge/concepts/{slug}.md to SQLite. Returns slug (or None if skipped)."""
     fm = parse_frontmatter(md_path)
     if fm is None:
@@ -174,7 +173,7 @@ def sync_concept_to_db(md_path: Path) -> Optional[str]:
     return concept.slug
 
 
-def write_item_to_md(item: dict, content: Optional[str] = None) -> None:
+def write_item_to_md(item: dict, content: str | None = None) -> None:
     """Write a knowledge item from SQLite back to knowledge/items/{id}.md.
 
     md 是真相源: 除保留正文外, 还保留 DB 中不存在的 md-only frontmatter
@@ -329,8 +328,8 @@ def sync_draft_to_db(md_path: Path) -> None:
       warning (the row is left untouched — deletion is handled by the
       content_service API, not by the watcher).
     """
-    from backend.repository.knowledge_repo import knowledge_repo
     from backend.domain.knowledge_models import now_iso
+    from backend.repository.knowledge_repo import knowledge_repo
 
     # file_path convention matches content_service._draft_rel_path:
     # "knowledge/content/drafts/{name}.md" (relative to project root)

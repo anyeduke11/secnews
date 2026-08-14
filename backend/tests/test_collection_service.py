@@ -24,7 +24,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from backend.config import config
-from backend.domain.collection import CollectionReport, CollectionResult
+from backend.domain.collection import CollectionReport
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
 from backend.repository import db
@@ -78,7 +78,7 @@ def _patch_all_collectors(
     ``fail``    -> 这些分类的 collect() 应抛 RuntimeError
     """
     if counts is None:
-        counts = {cat: 3 for cat in Category}
+        counts = dict.fromkeys(Category, 3)
     fail = fail or set()
     for cat, collector in svc.collectors.items():
         if cat in fail:
@@ -165,7 +165,7 @@ async def test_run_once_upsert_isolated_by_failure(temp_db, monkeypatch):
     svc = CollectionService()
     _patch_all_collectors(
         svc,
-        counts={cat: 3 for cat in Category},
+        counts=dict.fromkeys(Category, 3),
         fail={Category.AI},
     )
 
@@ -270,7 +270,7 @@ async def test_collector_exception_isolated(temp_db):
     svc = CollectionService()
     _patch_all_collectors(
         svc,
-        counts={cat: 3 for cat in Category},
+        counts=dict.fromkeys(Category, 3),
         fail={Category.AI},
     )
 

@@ -50,7 +50,7 @@ from backend.exceptions import (
 )
 from backend.repository import db
 from backend.repository.hotspot_repo import HotspotRepository
-from backend.services.hotspot_service import encode_cursor, decode_cursor
+from backend.services.hotspot_service import decode_cursor, encode_cursor
 
 
 # ---------------------------------------------------------------------------
@@ -206,7 +206,7 @@ def test_categories_cached(client, seeded_db):
     r2 = client.get("/api/categories")
     assert r1.json() == r2.json()
     # 第二次应走 static_cache (同样的数据 + fetched_at 也可能变化, 验证 keys 至少被填上)
-    assert "categories:all" in static_cache.keys() or len(static_cache) >= 1
+    assert "categories:all" in static_cache or len(static_cache) >= 1
 
 
 # ---------------------------------------------------------------------------
@@ -294,7 +294,7 @@ def test_hotspot_detail_cache_hit(client, seeded_db):
     r1 = client.get("/api/hotspots/item-1")
     r2 = client.get("/api/hotspots/item-1")
     assert r1.json() == r2.json()
-    assert "hotspots:detail:item-1" in detail_cache.keys()
+    assert "hotspots:detail:item-1" in detail_cache
 
 
 # ---------------------------------------------------------------------------

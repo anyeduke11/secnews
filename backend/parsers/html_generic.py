@@ -57,4 +57,4 @@ class HtmlGenericParser(BaseSourceParser):
         return items
 
 
-__all__ = ["HtmlGenericParser", "SOURCE_ID", "VERSION"]
+__all__ = ["SOURCE_ID", "VERSION", "HtmlGenericParser"]

@@ -6,12 +6,10 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
-from backend.domain.enums import Category
 from backend.repository.db import get_connection
 
 logger = logging.getLogger("hotspot.monthly_report_service")
@@ -119,9 +117,9 @@ def _build_main_theme(
     active_str = "、".join(active_labels)
 
     lines: list[str] = [
-        f"本月共收录{total}篇热点资讯，覆盖{len(groups)}个核心领域"
+        (f"本月共收录{total}篇热点资讯，覆盖{len(groups)}个核心领域"
         f"（{active_str}），"
-        f"各领域资讯活跃度总体保持稳定，部分领域呈现显著增长趋势。"
+        f"各领域资讯活跃度总体保持稳定，部分领域呈现显著增长趋势。")
     ]
 
     # ── Per-domain analysis ──

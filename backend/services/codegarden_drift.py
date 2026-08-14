@@ -15,11 +15,8 @@
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from backend.logging_config import logger
 from backend.repository.db import get_connection
-
 
 # 有效 status 枚举
 VALID_DRIFT_STATUSES = ("pending", "reviewed", "applied", "dismissed")
@@ -155,8 +152,8 @@ def assess_drift(limit: int = 500) -> dict:
 
 
 def get_assessments(
-    status: Optional[str] = None,
-    project_id: Optional[str] = None,
+    status: str | None = None,
+    project_id: str | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> dict:
@@ -211,8 +208,8 @@ def get_assessments(
 def update_assessment_status(
     assessment_id: int,
     status: str,
-    notes: Optional[str] = None,
-) -> Optional[dict]:
+    notes: str | None = None,
+) -> dict | None:
     """更新评估状态.
 
     Args:
@@ -267,8 +264,8 @@ def update_assessment_status(
 
 
 __all__ = [
+    "VALID_DRIFT_STATUSES",
     "assess_drift",
     "get_assessments",
     "update_assessment_status",
-    "VALID_DRIFT_STATUSES",
 ]

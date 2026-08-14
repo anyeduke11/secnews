@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from backend.repository.db import get_connection
 from backend.repository.knowledge_repo import knowledge_repo
@@ -20,7 +19,7 @@ log = logging.getLogger("hotspot.graph_builder")
 CACHE_TTL_MINUTES = 5
 
 
-def build_graph(domain: Optional[str] = None, include_local: bool = True) -> dict:
+def build_graph(domain: str | None = None, include_local: bool = True) -> dict:
     """Build knowledge graph {nodes, edges}.
 
     Args:
@@ -63,13 +62,13 @@ def build_graph(domain: Optional[str] = None, include_local: bool = True) -> dic
     return graph
 
 
-def _merge_local(graph: dict, domain: Optional[str]) -> dict:
+def _merge_local(graph: dict, domain: str | None) -> dict:
     """Merge local wiki nodes + federated edges into graph (no-op if unavailable)."""
     from backend.services.federation_service import merge_graph
     return merge_graph(graph, domain=domain)
 
 
-def _build_edges(domain: Optional[str] = None) -> list[dict]:
+def _build_edges(domain: str | None = None) -> list[dict]:
     """Build edges from concept co-occurrence in items."""
     conn = get_connection()
     if domain:
@@ -102,7 +101,7 @@ def _build_edges(domain: Optional[str] = None) -> list[dict]:
     ]
 
 
-def _get_cached_graph() -> Optional[dict]:
+def _get_cached_graph() -> dict | None:
     """Get latest cached graph from knowledge_graph table."""
     conn = get_connection()
     row = conn.execute(

@@ -2,14 +2,15 @@
 from __future__ import annotations
 
 import json
+
 import pytest
 
 from backend.config import config
 from backend.domain.security_models import SecurityEntity
 from backend.repository import db
 from backend.repository.security_repo import SecurityRepository
-from backend.security.graph import SecurityGraphEngine, _CVE_RE, _ATTACK_RE
-from backend.security.enricher import enrich_item, enrich_batch
+from backend.security.enricher import enrich_item
+from backend.security.graph import _ATTACK_RE, _CVE_RE, SecurityGraphEngine
 
 
 @pytest.fixture

@@ -118,8 +118,9 @@ class TestSearchChunks:
         This test verifies the search endpoint works by calling it directly.
         """
         _insert_knowledge_item("k-search-1")
-        from backend.api.knowledge_chunks_api import search_chunks
         import asyncio
+
+        from backend.api.knowledge_chunks_api import search_chunks
 
         _insert_chunk("k-search-1", 0, "FastAPI is a modern web framework")
         _insert_chunk("k-search-1", 1, "Pydantic provides data validation")

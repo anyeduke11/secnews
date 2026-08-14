@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import pytest
-from datetime import datetime, timezone
 
 from backend.config import config
 from backend.repository import db
@@ -81,9 +80,11 @@ def test_favorite_created_via_column_exists(temp_db):
 
 def test_favorite_default_created_via_ui():
     """未指定 created_via 时, 默认 'ui'."""
-    from backend.repository.favorite_repo import FavoriteRepository
-    import tempfile, os
+    import os
+    import tempfile
     from pathlib import Path
+
+    from backend.repository.favorite_repo import FavoriteRepository
 
     # 隔离 DB
     test_db = Path(tempfile.mkdtemp()) / "test_default.db"
@@ -112,9 +113,11 @@ def test_favorite_default_created_via_ui():
 
 def test_favorite_invalid_created_via_fallsback():
     """非法 created_via 降级为 'ui' (安全保护)."""
-    from backend.repository.favorite_repo import FavoriteRepository
-    import tempfile, os
+    import os
+    import tempfile
     from pathlib import Path
+
+    from backend.repository.favorite_repo import FavoriteRepository
 
     test_db = Path(tempfile.mkdtemp()) / "test_invalid.db"
     orig = os.environ.get("HOTSPOT_DB_PATH", "")
@@ -126,7 +129,7 @@ def test_favorite_invalid_created_via_fallsback():
         db.init_db()
 
         repo = FavoriteRepository()
-        created, item = repo.add(
+        _created, item = repo.add(
             hotspot_id="h-2",
             category="ai",
             title="Test",
@@ -142,9 +145,11 @@ def test_favorite_invalid_created_via_fallsback():
 
 def test_favorite_explicit_mcp():
     """显式 created_via='mcp' 走 MCP tool 路径."""
-    from backend.repository.favorite_repo import FavoriteRepository
-    import tempfile, os
+    import os
+    import tempfile
     from pathlib import Path
+
+    from backend.repository.favorite_repo import FavoriteRepository
 
     test_db = Path(tempfile.mkdtemp()) / "test_mcp.db"
     orig = os.environ.get("HOTSPOT_DB_PATH", "")
@@ -156,7 +161,7 @@ def test_favorite_explicit_mcp():
         db.init_db()
 
         repo = FavoriteRepository()
-        created, item = repo.add(
+        _created, item = repo.add(
             hotspot_id="h-3",
             category="ai",
             title="Test",

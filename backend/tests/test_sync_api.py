@@ -11,10 +11,8 @@
 """
 from __future__ import annotations
 
-import json
 import sqlite3
-from datetime import datetime, timezone
-from typing import Iterator
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -33,7 +31,7 @@ def client(tmp_path, monkeypatch) -> Iterator:
         "013_secrets.sql", "014_sync.sql",
 "015_todos_deadline.sql", "016_sync_frequency.sql",
     ):
-        with open(f"{schema_dir}/{sql_file}", "r", encoding="utf-8") as f:
+        with open(f"{schema_dir}/{sql_file}", encoding="utf-8") as f:
             setup_conn.executescript(f.read())
     setup_conn.commit()
     setup_conn.close()
@@ -61,6 +59,7 @@ def client(tmp_path, monkeypatch) -> Iterator:
 
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from backend.api.sync import router
 
     app = FastAPI()

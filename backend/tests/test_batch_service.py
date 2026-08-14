@@ -68,7 +68,8 @@ class TestGetBatchNo:
     def test_cst_time_5am_monday_is_utc_9pm_sunday(self):
         """Asia/Shanghai 周一 05:00 = UTC 周日 21:00 → 仍在 batch 1."""
         # 周一 05:00 CST = UTC 周日 21:00, 距 HISTORY_START_DATE 仅 21 小时
-        from datetime import timezone as tz, timedelta as td
+        from datetime import timedelta as td
+        from datetime import timezone as tz
         cst = tz(td(hours=8))
         ts = datetime(2026, 7, 13, 5, 0, 0, tzinfo=cst)
         assert ts.astimezone(tz.utc).isoformat() == "2026-07-12T21:00:00+00:00"

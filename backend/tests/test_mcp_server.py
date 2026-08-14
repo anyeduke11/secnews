@@ -8,13 +8,10 @@
 """
 from __future__ import annotations
 
-import asyncio
-import os
 import pytest
-from unittest.mock import patch
 
-from backend.repository import db
 from backend.config import config
+from backend.repository import db
 
 
 @pytest.fixture
@@ -62,6 +59,7 @@ def test_mcp_status_endpoint(temp_db):
 
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from backend.api.mcp import router as mcp_router
 
     app = FastAPI()
@@ -83,6 +81,7 @@ def test_mcp_tools_endpoint(temp_db):
 
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from backend.api.mcp import router as mcp_router
 
     app = FastAPI()
@@ -103,6 +102,7 @@ def test_toggle_mcp_enabled(temp_db):
     """PUT /api/settings/mcp/enabled 切换 feature.mcp_server."""
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from backend.api.mcp import router as mcp_router
 
     app = FastAPI()

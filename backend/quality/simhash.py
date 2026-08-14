@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 # 非字母数字分隔符
 _WORD_SPLIT_RE = re.compile(r"[^\w]+")
@@ -133,8 +132,8 @@ def is_duplicate(
 
 
 __all__ = [
+    "_tokenize",
     "compute_simhash",
     "hamming_distance",
     "is_duplicate",
-    "_tokenize",
 ]

@@ -23,14 +23,14 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from backend.metrics.kl_metrics import kl_metrics
 from backend.repository.db import get_connection
 from backend.services.kl_state_machine import (
     LEGACY_REFINE_LIKE,
-    LIFECYCLE_REFINE,
     LIFECYCLE_LINK,
+    LIFECYCLE_REFINE,
     can_transition,
 )
 from backend.services.retry_policy import RetryPolicy
@@ -66,14 +66,14 @@ class T2Trigger:
     def __init__(
         self,
         metrics: Any = None,
-        retry_policy: Optional[RetryPolicy] = None,
+        retry_policy: RetryPolicy | None = None,
     ) -> None:
         self.metrics = metrics if metrics is not None else kl_metrics
         self.retry = retry_policy or RetryPolicy(metrics=self.metrics)
 
     # ── Public entry point ────────────────────────────────────────
 
-    def run_once(self) -> Dict[str, int]:
+    def run_once(self) -> dict[str, int]:
         """Run one T2 cycle. Returns a stats dict."""
         t0 = time.monotonic()
         self.metrics.inc("t2_triggered")
@@ -90,7 +90,7 @@ class T2Trigger:
                     continue
 
                 concepts = self._extract_concepts(item)
-                related_ids: List[str] = []
+                related_ids: list[str] = []
                 if concepts:
                     related_ids = self._find_related_items(item_id, concepts)
 
@@ -122,7 +122,7 @@ class T2Trigger:
 
     # ── Read helpers ──────────────────────────────────────────────
 
-    def _fetch_candidates(self) -> List[Dict[str, Any]]:
+    def _fetch_candidates(self) -> list[dict[str, Any]]:
         """Return refine-like items (no time debounce on T2)."""
         placeholders = ",".join("?" for _ in _REFINE_LIKE_STAGES)
         sql = (
@@ -144,7 +144,7 @@ class T2Trigger:
         return lifecycle in _REFINE_LIKE_STAGES
 
     @staticmethod
-    def _extract_concepts(item: Dict[str, Any]) -> List[str]:
+    def _extract_concepts(item: dict[str, Any]) -> list[str]:
         """Return the concept slug list for an item.
 
         Reads the ``concepts`` JSON column first; falls back to ``tags``
@@ -165,8 +165,8 @@ class T2Trigger:
 
     @staticmethod
     def _find_related_items(
-        item_id: str, concepts: List[str]
-    ) -> List[str]:
+        item_id: str, concepts: list[str]
+    ) -> list[str]:
         """Return up to :data:`MAX_RELATED` other item ids sharing a concept.
 
         Strategy
@@ -185,7 +185,7 @@ class T2Trigger:
         """
         if not concepts:
             return []
-        concepts_set: Set[str] = {c.strip() for c in concepts if c and c.strip()}
+        concepts_set: set[str] = {c.strip() for c in concepts if c and c.strip()}
         if not concepts_set:
             return []
         # Look in BOTH refine-like and link-like stages. This makes the
@@ -205,8 +205,8 @@ class T2Trigger:
         rows = conn.execute(
             sql, (*all_peer_stages, item_id)
         ).fetchall()
-        related: List[str] = []
-        seen: Set[str] = set()
+        related: list[str] = []
+        seen: set[str] = set()
         for row in rows:
             rid = row["id"]
             if rid in seen:
@@ -231,7 +231,7 @@ class T2Trigger:
         return related
 
     @staticmethod
-    def _write_links(from_id: str, related_ids: List[str]) -> None:
+    def _write_links(from_id: str, related_ids: list[str]) -> None:
         """Insert one ``knowledge_links`` row per related id.
 
         ``INSERT OR IGNORE`` keeps the call idempotent — the unique
@@ -271,11 +271,11 @@ class T2Trigger:
 
 
 __all__ = [
-    "T2Trigger",
     "BATCH_SIZE",
-    "TRIGGER_NAME",
     "FROM_STAGE",
-    "TO_STAGE",
     "LINK_CONFIDENCE",
     "MAX_RELATED",
+    "TO_STAGE",
+    "TRIGGER_NAME",
+    "T2Trigger",
 ]

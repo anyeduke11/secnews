@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.repository.db import get_connection
 
@@ -22,7 +21,7 @@ class Tag:
     id: str
     label: str
     type: str
-    parent_id: Optional[str] = None
+    parent_id: str | None = None
     weight: float = 1.0
     created_at: str = ""
 
@@ -45,7 +44,7 @@ class TagRepository:
         id: str,
         label: str,
         type: str,
-        parent_id: Optional[str] = None,
+        parent_id: str | None = None,
         weight: float = 1.0,
     ) -> Tag:
         """插入或替换标签, 返回完整 Tag."""
@@ -59,7 +58,7 @@ class TagRepository:
         assert result is not None, f"tag {id} not found after add"
         return result
 
-    def get(self, id: str) -> Optional[Tag]:
+    def get(self, id: str) -> Tag | None:
         row = (
             get_connection()
             .execute("SELECT * FROM tags WHERE id=?", (id,))
@@ -71,8 +70,8 @@ class TagRepository:
 
     def list(
         self,
-        type: Optional[str] = None,
-        parent_id: Optional[str] = None,
+        type: str | None = None,
+        parent_id: str | None = None,
         limit: int = 1000,
     ) -> list[Tag]:
         sql = "SELECT * FROM tags WHERE 1=1"
@@ -165,7 +164,7 @@ class TagRepository:
             ORDER BY h.ingested_at DESC
             LIMIT ?
             """
-            params = tag_ids + [len(tag_ids), limit]
+            params = [*tag_ids, len(tag_ids), limit]
         else:
             sql = f"""
             SELECT DISTINCT h.id FROM hotspots h
@@ -174,6 +173,6 @@ class TagRepository:
             ORDER BY h.ingested_at DESC
             LIMIT ?
             """
-            params = tag_ids + [limit]
+            params = [*tag_ids, limit]
         rows = get_connection().execute(sql, params).fetchall()
         return [r[0] for r in rows]

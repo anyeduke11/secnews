@@ -6,12 +6,10 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Optional
 
 from backend.domain.knowledge_models import KnowledgeItem, now_iso
 from backend.repository.knowledge_repo import knowledge_repo
 from backend.services.data_cleaning import (
-    clean_and_dedupe,
     find_similar_items,
     item_id_from_url,
     url_fingerprint,
@@ -23,7 +21,7 @@ log = logging.getLogger("hotspot.bookmark_sync")
 ITEMS_DIR = Path(__file__).resolve().parent.parent.parent / "knowledge" / "items"
 
 
-def parse_chrome_bookmarks(node: dict | list, folder_tags: Optional[list[str]] = None) -> list[dict]:
+def parse_chrome_bookmarks(node: dict | list, folder_tags: list[str] | None = None) -> list[dict]:
     """Recursively parse Chrome/Edge bookmarks JSON.
 
     Returns list of {url, title, tags} dicts.
@@ -237,7 +235,7 @@ def import_bookmarks(items: list[dict], validate: bool = False) -> dict:
                     if isinstance(existing_fm.get("tags"), list)
                     else []
                 )
-                merged_sources = list(dict.fromkeys(existing_sources + ["bookmark"]))
+                merged_sources = list(dict.fromkeys([*existing_sources, "bookmark"]))
                 merged_tags = list(dict.fromkeys(existing_tags + tags))
 
                 _update_bookmark_md_frontmatter(md_path, merged_sources, merged_tags)
@@ -250,11 +248,10 @@ def import_bookmarks(items: list[dict], validate: bool = False) -> dict:
         
         # Optional URL validation
         is_dead = False
-        if validate:
-            if not validate_url(url):
-                is_dead = True
-                dead_links += 1
-                tags = tags + ["dead_link"]
+        if validate and not validate_url(url):
+            is_dead = True
+            dead_links += 1
+            tags = [*tags, "dead_link"]
         
         # Check for similar URLs (new item)
         similar = find_similar_items(url)

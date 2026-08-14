@@ -34,7 +34,6 @@ from backend.services.kl_state_machine import (
 )
 from backend.services.triggers.t5_publish_to_refine import T5Trigger
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -118,7 +117,7 @@ def _insert_publish_item(conn, item_id: str, title: str = "Published Article") -
     )
 
 
-def _create_md_file(items_dir: Path, item_id: str, content: str = None) -> Path:
+def _create_md_file(items_dir: Path, item_id: str, content: str | None = None) -> Path:
     """Create a .md file in the items directory for the given item."""
     md_path = items_dir / f"{item_id}.md"
     if content is None:
@@ -145,7 +144,7 @@ def _trigger() -> T5Trigger:
 # ---------------------------------------------------------------------------
 
 def test_t5_rollback_basic(temp_db, knowledge_dir):
-    items_dir, backups_dir = knowledge_dir
+    items_dir, _backups_dir = knowledge_dir
     conn = get_connection()
     _insert_publish_item(conn, "item-1")
     _create_md_file(items_dir, "item-1")
@@ -189,7 +188,7 @@ def test_t5_backup_created(temp_db, knowledge_dir):
 # ---------------------------------------------------------------------------
 
 def test_t5_stale_marked(temp_db, knowledge_dir):
-    items_dir, backups_dir = knowledge_dir
+    items_dir, _backups_dir = knowledge_dir
     conn = get_connection()
     _insert_publish_item(conn, "item-3")
     _create_md_file(items_dir, "item-3")
@@ -277,7 +276,7 @@ This content must be preserved in the backup.
 # ---------------------------------------------------------------------------
 
 def test_t5_api_endpoint(temp_db, knowledge_dir, api_client):
-    items_dir, backups_dir = knowledge_dir
+    items_dir, _backups_dir = knowledge_dir
     conn = get_connection()
     _insert_publish_item(conn, "api-item")
     _create_md_file(items_dir, "api-item")

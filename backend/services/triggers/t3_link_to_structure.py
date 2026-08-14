@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from backend.metrics.kl_metrics import kl_metrics
 from backend.repository.db import get_connection
@@ -56,14 +56,14 @@ class T3Trigger:
     def __init__(
         self,
         metrics: Any = None,
-        retry_policy: Optional[RetryPolicy] = None,
+        retry_policy: RetryPolicy | None = None,
     ) -> None:
         self.metrics = metrics if metrics is not None else kl_metrics
         self.retry = retry_policy or RetryPolicy(metrics=self.metrics)
 
     # ── Public entry point ────────────────────────────────────────
 
-    def run_once(self) -> Dict[str, int]:
+    def run_once(self) -> dict[str, int]:
         """Run one T3 cycle. Returns a stats dict."""
         t0 = time.monotonic()
         self.metrics.inc("t3_triggered")
@@ -105,7 +105,7 @@ class T3Trigger:
     # ── Read helpers ──────────────────────────────────────────────
 
     @staticmethod
-    def _fetch_candidates() -> List[Dict[str, Any]]:
+    def _fetch_candidates() -> list[dict[str, Any]]:
         """Return ``kl:link`` items (no time limit on T3)."""
         sql = (
             "SELECT id, title, content, lifecycle, "
@@ -129,7 +129,7 @@ class T3Trigger:
         ).fetchone()
         return row["cnt"] if row else 0
 
-    def _summarize_with_llm(self, item: Dict[str, Any]) -> str:
+    def _summarize_with_llm(self, item: dict[str, Any]) -> str:
         """Try LLM summarization first, fall back to text truncation."""
         content = item.get("content") or item.get("title") or ""
         if content.strip():
@@ -144,7 +144,7 @@ class T3Trigger:
         return self._generate_summary(item)
 
     @staticmethod
-    def _generate_summary(item: Dict[str, Any]) -> str:
+    def _generate_summary(item: dict[str, Any]) -> str:
         """Extract the first 200 characters of the item's content as summary."""
         content = item.get("content") or ""
         return content[:200]
@@ -162,10 +162,10 @@ class T3Trigger:
 
 
 __all__ = [
-    "T3Trigger",
     "BATCH_SIZE",
-    "TRIGGER_NAME",
     "FROM_STAGE",
-    "TO_STAGE",
     "LOW_LINK_THRESHOLD",
+    "TO_STAGE",
+    "TRIGGER_NAME",
+    "T3Trigger",
 ]

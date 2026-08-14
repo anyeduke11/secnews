@@ -24,18 +24,17 @@ from __future__ import annotations
 
 import threading
 from collections import deque
-from typing import Deque, Dict, List, Optional
 
 # ---------------------------------------------------------------------------
 # Stage constants (mirrored from kl_state_machine to avoid a cycle in callers
 # that want metrics without depending on the full state-machine module).
 # ---------------------------------------------------------------------------
-ALL_STAGES: List[str] = [
+ALL_STAGES: list[str] = [
     "kl:raw", "kl:refine", "kl:link", "kl:structure", "kl:publish",
 ]
 
 # Fixed counter schema — 16 counters (4 per trigger).
-COUNTER_KEYS: List[str] = [
+COUNTER_KEYS: list[str] = [
     "t1_triggered",
     "t1_succeeded",
     "t1_failed",
@@ -55,7 +54,7 @@ COUNTER_KEYS: List[str] = [
 ]
 
 # Histogram keys — 4 latency series (T1 / T2 / T3 / T4 per-cycle wall time in ms).
-HISTOGRAM_KEYS: List[str] = [
+HISTOGRAM_KEYS: list[str] = [
     "t1_latency_ms",
     "t2_latency_ms",
     "t3_latency_ms",
@@ -91,11 +90,11 @@ class KLMetrics:
         # histogram_summary() (which also acquires the lock). A plain
         # threading.Lock would deadlock on the recursive acquisition.
         self._lock = threading.RLock()
-        self._counters: Dict[str, int] = {k: 0 for k in COUNTER_KEYS}
-        self._gauges: Dict[str, Dict[str, int]] = {
-            "by_stage_count": {s: 0 for s in ALL_STAGES},
+        self._counters: dict[str, int] = dict.fromkeys(COUNTER_KEYS, 0)
+        self._gauges: dict[str, dict[str, int]] = {
+            "by_stage_count": dict.fromkeys(ALL_STAGES, 0),
         }
-        self._histograms: Dict[str, Deque[float]] = {
+        self._histograms: dict[str, deque[float]] = {
             k: deque(maxlen=HISTOGRAM_MAX_SAMPLES) for k in HISTOGRAM_KEYS
         }
 
@@ -124,7 +123,7 @@ class KLMetrics:
 
     # ── Gauges ────────────────────────────────────────────────────
 
-    def set_stage_counts(self, counts: Dict[str, int]) -> None:
+    def set_stage_counts(self, counts: dict[str, int]) -> None:
         """Replace ``by_stage_count`` with ``counts`` (missing keys → 0)."""
         with self._lock:
             stage_map = self._gauges["by_stage_count"]
@@ -145,7 +144,7 @@ class KLMetrics:
             if buf is not None:
                 buf.append(float(value))
 
-    def histogram_summary(self, name: str) -> Dict[str, float]:
+    def histogram_summary(self, name: str) -> dict[str, float]:
         with self._lock:
             buf = self._histograms.get(name)
             if not buf:
@@ -162,7 +161,7 @@ class KLMetrics:
 
     # ── Snapshot ──────────────────────────────────────────────────
 
-    def snapshot(self) -> Dict[str, object]:
+    def snapshot(self) -> dict[str, object]:
         """Return a JSON-serialisable snapshot of all metrics."""
         with self._lock:
             counters = dict(self._counters)

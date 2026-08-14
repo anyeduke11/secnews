@@ -191,4 +191,4 @@ class AICollector(BaseCollector):
     # 真实链接优先于"假装有数据" — 详细约束见 SPEC §3。
 
 
-__all__ = ["AICollector", "AI_SOURCES"]
+__all__ = ["AI_SOURCES", "AICollector"]

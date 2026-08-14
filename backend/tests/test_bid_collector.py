@@ -17,9 +17,8 @@ from backend.collectors.bid_collector import (
     BidCollector,
 )
 from backend.collectors.bid_utils import (
-    PROCUREMENT_KEYWORDS,
-    SECURITY_KEYWORDS,
     SECURITY_KEYWORD_SET,
+    SECURITY_KEYWORDS,
     is_security_bid,
 )
 from backend.domain.enums import Category
@@ -64,8 +63,8 @@ def test_bid_sources_count():
 def test_bid_sources_have_required_fields():
     """每个 source 必须有 name/url/score/keywords 字段。"""
     for s in BID_SOURCES:
-        assert "name" in s and s["name"], f"source 缺 name: {s}"
-        assert "url" in s and s["url"], f"source 缺 url: {s}"
+        assert s.get("name"), f"source 缺 name: {s}"
+        assert s.get("url"), f"source 缺 url: {s}"
         assert "score" in s, f"source 缺 score: {s}"
         assert 0 <= s["score"] <= 100, f"score 越界: {s}"
         assert "keywords" in s, f"source 缺 keywords: {s}"
@@ -196,7 +195,7 @@ def test_security_keywords_includes_ai_safety():
         kw for words in SECURITY_KEYWORDS.values() for kw in words
     )
     assert "AI安全" in all_words or "大模型安全" in all_words, (
-        f"缺 AI 安全关键词"
+        "缺 AI 安全关键词"
     )
 
 

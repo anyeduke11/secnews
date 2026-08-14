@@ -9,9 +9,8 @@
 """
 from __future__ import annotations
 
-import os
 import sqlite3
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 
@@ -23,7 +22,7 @@ def client(tmp_path, monkeypatch) -> Iterator:
 
     # 初始化 schema (012_skills.sql)
     conn = sqlite3.connect(str(db_file))
-    with open("backend/repository/migrations/012_skills.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/012_skills.sql", encoding="utf-8") as f:
         conn.executescript(f.read())
     conn.commit()
     conn.close()
@@ -48,6 +47,7 @@ def client(tmp_path, monkeypatch) -> Iterator:
 
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from backend.api.skills import router
 
     app = FastAPI()

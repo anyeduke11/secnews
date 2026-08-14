@@ -35,4 +35,4 @@ class OpenBBCollector(BaseCollector):
     sources = OPENBB_SOURCES
 
 
-__all__ = ["OpenBBCollector", "OPENBB_SOURCES"]
+__all__ = ["OPENBB_SOURCES", "OpenBBCollector"]

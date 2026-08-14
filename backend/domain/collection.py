@@ -20,7 +20,6 @@ them with aware datetimes.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -54,7 +53,7 @@ class SourceResult(BaseModel):
     source_url: str
     item_count: int = 0
     fallback_used: bool = False
-    error_msg: Optional[str] = None
+    error_msg: str | None = None
     duration_ms: int = 0
 
 
@@ -80,11 +79,11 @@ class CollectionResult(BaseModel):
     item_count: int = 0
     fallback_count: int = 0
     source_results: list[SourceResult] = Field(default_factory=list)
-    error: Optional[str] = None
+    error: str | None = None
     duration_ms: int = 0
     started_at: datetime
-    finished_at: Optional[datetime] = None
-    run_id: Optional[int] = None  # Phase 8: collection_runs row id
+    finished_at: datetime | None = None
+    run_id: int | None = None  # Phase 8: collection_runs row id
 
 
 class CollectionReport(BaseModel):
@@ -101,7 +100,7 @@ class CollectionReport(BaseModel):
     fallback_count: int = 0
     duration_ms: int = 0
     started_at: datetime
-    finished_at: Optional[datetime] = None
+    finished_at: datetime | None = None
     failures: list[dict[str, str]] = Field(default_factory=list)
     results: list[CollectionResult] = Field(default_factory=list)
 
@@ -142,8 +141,8 @@ class GateResult(BaseModel):
     passed: bool = True
     score_deduction: int = 0
     flags: list[str] = Field(default_factory=list)
-    reason: Optional[str] = None
-    error_msg: Optional[str] = None
+    reason: str | None = None
+    error_msg: str | None = None
 
 
 class PipelineResult(BaseModel):
@@ -163,13 +162,13 @@ class PipelineResult(BaseModel):
     final_flags: list[str] = Field(default_factory=list)
     accepted: bool = True
     mode: str = "loose"
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 __all__ = [
-    "SourceResult",
-    "CollectionResult",
     "CollectionReport",
+    "CollectionResult",
     "GateResult",
     "PipelineResult",
+    "SourceResult",
 ]

@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Optional
 from urllib.parse import quote, urlparse
 
 import httpx
@@ -58,8 +57,8 @@ def _body_hint(resp: httpx.Response, max_len: int = 200) -> str:
 class WebDAVError(Exception):
     """WebDAV 操作失败基类。"""
 
-    def __init__(self, message: str, *, status_code: Optional[int] = None,
-                 reason: Optional[str] = None) -> None:
+    def __init__(self, message: str, *, status_code: int | None = None,
+                 reason: str | None = None) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.reason = reason
@@ -198,7 +197,7 @@ class WebDAVClient:
         if resp.status_code == 404:
             return False
         if resp.status_code == 401:
-            raise WebDAVAuthError(f"认证失败 (401)", status_code=401)
+            raise WebDAVAuthError("认证失败 (401)", status_code=401)
         raise WebDAVError(
             f"HEAD 失败: {resp.status_code} {resp.reason_phrase}: {_body_hint(resp)}",
             status_code=resp.status_code, reason=resp.reason_phrase,
@@ -308,7 +307,7 @@ class WebDAVClient:
             raise WebDAVError("max_attempts 必须 >= 1")
 
         path_for_log = self._log_path(path)
-        last_err: Optional[httpx.Response] = None
+        last_err: httpx.Response | None = None
         for attempt in range(1, max_attempts + 1):
             # ensure_parents 必须用原始 path 计算父目录链, 不能先 _log_path
             if ensure_parents:
@@ -357,7 +356,7 @@ class WebDAVClient:
             reason=last_err.reason_phrase if last_err else None,
         )
 
-    async def download(self, path: str) -> Optional[bytes]:
+    async def download(self, path: str) -> bytes | None:
         """下载文件 (GET)。
 
         404 → 返回 ``None`` (语义: 远端尚无此文件, 首次 push 前正常)。
@@ -381,8 +380,8 @@ class WebDAVClient:
 
 
 __all__ = [
+    "WebDAVAuthError",
     "WebDAVClient",
     "WebDAVError",
-    "WebDAVAuthError",
     "WebDAVNotFoundError",
 ]

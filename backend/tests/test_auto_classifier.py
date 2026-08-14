@@ -5,14 +5,12 @@ Tests the rule-based classifier without needing a DB connection.
 
 from __future__ import annotations
 
-import pytest
-
 from backend.services.auto_classifier import (
-    classify_domain,
-    classify_type,
-    classify_difficulty,
-    classify_item,
     batch_classify,
+    classify_difficulty,
+    classify_domain,
+    classify_item,
+    classify_type,
 )
 
 

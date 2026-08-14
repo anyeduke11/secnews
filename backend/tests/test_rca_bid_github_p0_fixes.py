@@ -37,15 +37,14 @@ from datetime import datetime, timezone
 import pytest
 
 from backend.collectors.base import BaseCollector
-from backend.domain.collection import GateResult
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
 from backend.quality.author_verification_gate import (
-    AuthorVerificationGate,
+    _AGGREGATOR_SOURCES,
     PENALTY_MISMATCH,
     PENALTY_UNKNOWN,
     REWARD_MATCH,
-    _AGGREGATOR_SOURCES,
+    AuthorVerificationGate,
 )
 from backend.quality.base import GateContext
 from backend.quality.config import NOISE_URL_PATTERNS, NOISE_URL_REGEX

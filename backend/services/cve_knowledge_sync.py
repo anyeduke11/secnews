@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-from typing import Optional
 
 from backend.logging_config import logger
 from backend.repository.db import get_connection

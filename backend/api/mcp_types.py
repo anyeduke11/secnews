@@ -14,8 +14,6 @@
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -26,7 +24,7 @@ class SearchHotspotsInput(BaseModel):
     """search_hotspots — 搜索热点。"""
 
     q: str = Field("", description="关键词 (空=全部)")
-    tags: Optional[list[str]] = Field(None, description="标签过滤")
+    tags: list[str] | None = Field(None, description="标签过滤")
     tag_mode: str = Field("or", description="and | or")
     time_range: str = Field("D7", description="H24 | D3 | D7 | D30 | W1 | ALL")
     limit: int = Field(20, ge=1, le=100, description="返回条数上限")
@@ -42,14 +40,14 @@ class ListFavoritesInput(BaseModel):
     """list_favorites — 列出收藏。"""
 
     limit: int = Field(50, ge=1, le=500)
-    cursor: Optional[str] = Field(None, description="分页游标 (favorited_at)")
+    cursor: str | None = Field(None, description="分页游标 (favorited_at)")
 
 
 class SearchKnowledgeInput(BaseModel):
     """search_knowledge — 搜索知识库。"""
 
     q: str = Field(..., min_length=1, description="查询关键词")
-    lifecycle: Optional[str] = Field(None, description="signal | generate | refine | compose")
+    lifecycle: str | None = Field(None, description="signal | generate | refine | compose")
     limit: int = Field(20, ge=1, le=100)
 
 
@@ -174,13 +172,13 @@ MCP_TOOLS = [
 
 __all__ = [
     "MCP_TOOLS",
-    "SearchHotspotsInput",
-    "GetHotspotInput",
-    "ListFavoritesInput",
-    "SearchKnowledgeInput",
-    "GetPersonalProfileInput",
-    "AddFavoriteInput",
-    "RemoveFavoriteInput",
     "AddAnnotationInput",
+    "AddFavoriteInput",
+    "GetHotspotInput",
+    "GetPersonalProfileInput",
+    "ListFavoritesInput",
+    "RemoveFavoriteInput",
+    "SearchHotspotsInput",
+    "SearchKnowledgeInput",
     "UpdateKnowledgeItemInput",
 ]

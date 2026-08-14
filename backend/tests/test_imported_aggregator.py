@@ -4,12 +4,12 @@ All data sources are mocked; no real DB or file I/O.
 """
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from backend.repository.favorite_repo import FavoriteItem
 from backend.domain.knowledge_models import KnowledgeItem
+from backend.repository.favorite_repo import FavoriteItem
 
 
 # ---------------------------------------------------------------------------

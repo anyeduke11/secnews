@@ -13,14 +13,13 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 
 from backend.repository import db as db_mod
 from backend.services.sync_merge import (
     BUNDLE_VERSION,
-    MergeResult,
     _merge_cascade,
     _merge_sm2_reviews,
     three_way_merge,
@@ -43,10 +42,9 @@ def db(tmp_path, monkeypatch) -> Iterator[None]:
     setup_conn = sqlite3.connect(str(db_file))
     schema_dir = "backend/repository/migrations"
     # 跑所有 001-036 迁移, 缺哪个就跳 (向后兼容)
-    import re
     if (schema_dir_p := __import__("pathlib").Path(schema_dir)).exists():
         for sql_file in sorted(schema_dir_p.glob("*.sql")):
-            with open(sql_file, "r", encoding="utf-8") as f:
+            with open(sql_file, encoding="utf-8") as f:
                 setup_conn.executescript(f.read())
     setup_conn.commit()
     setup_conn.close()
@@ -351,6 +349,7 @@ def test_build_bundle_includes_v17_tables(db):
 def test_apply_bundle_writes_sm2_with_due_at_guard(db):
     """apply_bundle: sm2 写入遵守 due_at 早者胜出约束 (远端 due_at 较晚则不覆盖)."""
     from datetime import datetime, timezone
+
     from backend.services.sync_bundle import apply_bundle
 
     now = datetime.now(timezone.utc).isoformat()
@@ -396,6 +395,7 @@ def test_apply_bundle_writes_sm2_with_due_at_guard(db):
 def test_apply_bundle_writes_reading_states_last_writer_wins(db):
     """apply_bundle: reading_states 远端 updated_at 较新则覆盖."""
     from datetime import datetime, timezone
+
     from backend.services.sync_bundle import apply_bundle
 
     now = datetime.now(timezone.utc).isoformat()
@@ -434,6 +434,7 @@ def test_apply_bundle_writes_reading_states_last_writer_wins(db):
 def test_apply_bundle_writes_tags_and_hotspot_tags(db):
     """apply_bundle: tags + hotspot_tags cascade 写入。"""
     from datetime import datetime, timezone
+
     from backend.services.sync_bundle import apply_bundle
 
     now = datetime.now(timezone.utc).isoformat()
@@ -476,6 +477,7 @@ def test_apply_bundle_writes_tags_and_hotspot_tags(db):
 def test_apply_bundle_writes_annotations(db):
     """apply_bundle: annotations last_writer_wins 写入。"""
     from datetime import datetime, timezone
+
     from backend.services.sync_bundle import apply_bundle
 
     now = datetime.now(timezone.utc).isoformat()

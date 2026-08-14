@@ -12,9 +12,8 @@ from __future__ import annotations
 import logging
 import os
 import re
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
 
 from backend.domain.knowledge_models import now_iso
 from backend.repository.knowledge_repo import knowledge_repo
@@ -85,7 +84,7 @@ ITEMS_DIR = (
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 
-def _parse_updated_at(item) -> Optional[datetime]:
+def _parse_updated_at(item) -> datetime | None:
     """解析 item.updated_at 为可比较的 datetime (用于最旧优先排序).
 
     兼容 ISO 8601 带 Z 后缀 / 无时区 (按 UTC 处理) / 解析失败返回 None。
@@ -183,7 +182,7 @@ def _pending_compile_item_ids() -> set[str]:
     return queued
 
 
-def create_compile_task(item_ids: Optional[list[str]] = None) -> dict:
+def create_compile_task(item_ids: list[str] | None = None) -> dict:
     """Create a compile task.
 
     Args:
@@ -307,7 +306,7 @@ def _trigger_map_update() -> None:
 # P0 消费策略 — 规则式自动消费者 + 存量积压归档
 # ═══════════════════════════════════════════════════════════════
 
-def _advance_compile_lifecycle(current: str) -> Optional[str]:
+def _advance_compile_lifecycle(current: str) -> str | None:
     """规则式编译后的 lifecycle 推进 (compile 语义第 4 步: 标记 compiled)。
 
     - ``kl:link`` → ``kl:structure``: KL 状态机 T3 转移 (摘要+结构化完成)。
@@ -328,7 +327,7 @@ def _advance_compile_lifecycle(current: str) -> Optional[str]:
     return None
 
 
-def _task_created_dt(task) -> Optional[datetime]:
+def _task_created_dt(task) -> datetime | None:
     """解析任务 created_at 为 aware datetime (解析失败返回 None)."""
     raw = getattr(task, "created_at", "") or ""
     if raw.endswith("Z"):

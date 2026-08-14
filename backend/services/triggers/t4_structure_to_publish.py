@@ -42,13 +42,13 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from backend.metrics.kl_metrics import kl_metrics
 from backend.repository.db import get_connection
 from backend.services.kl_state_machine import (
-    LIFECYCLE_STRUCTURE,
     LIFECYCLE_PUBLISH,
+    LIFECYCLE_STRUCTURE,
     can_transition,
 )
 from backend.services.retry_policy import RetryPolicy
@@ -82,14 +82,14 @@ class T4Trigger:
     def __init__(
         self,
         metrics: Any = None,
-        retry_policy: Optional[RetryPolicy] = None,
+        retry_policy: RetryPolicy | None = None,
     ) -> None:
         self.metrics = metrics if metrics is not None else kl_metrics
         self.retry = retry_policy or RetryPolicy(metrics=self.metrics)
 
     # ── Public entry point ────────────────────────────────────────
 
-    def run_once(self) -> Dict[str, int]:
+    def run_once(self) -> dict[str, int]:
         """Run one T4 cycle. Returns a stats dict.
 
         Returns
@@ -146,7 +146,7 @@ class T4Trigger:
 
     # ── Read helpers ──────────────────────────────────────────────
 
-    def _fetch_candidates(self) -> List[Dict[str, Any]]:
+    def _fetch_candidates(self) -> list[dict[str, Any]]:
         """Return ``kl:structure`` items ordered by ingestion time."""
         sql = (
             "SELECT id, title, content, lifecycle, ingested_at, updated_at "
@@ -177,7 +177,7 @@ class T4Trigger:
             return DEFAULT_SCORE
 
     @staticmethod
-    def _is_stable(item: Dict[str, Any]) -> bool:
+    def _is_stable(item: dict[str, Any]) -> bool:
         """Return True if the item has been stable for the full window.
 
         Parses ``item["updated_at"]`` as an ISO-8601 datetime and checks
@@ -200,7 +200,7 @@ class T4Trigger:
     # ── Write helpers ─────────────────────────────────────────────
 
     @staticmethod
-    def _write_to_md(item: Dict[str, Any]) -> None:
+    def _write_to_md(item: dict[str, Any]) -> None:
         """Write the item to ``knowledge/items/{id}.md``."""
         from backend.services.knowledge_sync import write_item_to_md
 
@@ -220,12 +220,12 @@ class T4Trigger:
 
 
 __all__ = [
-    "T4Trigger",
     "BATCH_SIZE",
-    "TRIGGER_NAME",
-    "FROM_STAGE",
-    "TO_STAGE",
-    "STABLE_WINDOW_HOURS",
-    "MIN_SCORE",
     "DEFAULT_SCORE",
+    "FROM_STAGE",
+    "MIN_SCORE",
+    "STABLE_WINDOW_HOURS",
+    "TO_STAGE",
+    "TRIGGER_NAME",
+    "T4Trigger",
 ]

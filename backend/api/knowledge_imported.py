@@ -9,10 +9,6 @@
 """
 from __future__ import annotations
 
-import logging
-from datetime import datetime
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.logging_config import logger
@@ -25,10 +21,10 @@ aggregator = ImportedAggregator()
 
 @router.get("/imported")
 async def list_imported(
-    type: Optional[str] = Query(None, description="数据源类型: favorites/cubox/bookmark/secnews_archive/secnews"),
-    keyword: Optional[str] = Query(None, min_length=1, max_length=100, description="标题/内容搜索"),
-    since: Optional[str] = Query(None, description="起始时间 (ISO 格式)"),
-    until: Optional[str] = Query(None, description="截止时间 (ISO 格式)"),
+    type: str | None = Query(None, description="数据源类型: favorites/cubox/bookmark/secnews_archive/secnews"),
+    keyword: str | None = Query(None, min_length=1, max_length=100, description="标题/内容搜索"),
+    since: str | None = Query(None, description="起始时间 (ISO 格式)"),
+    until: str | None = Query(None, description="截止时间 (ISO 格式)"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
 ):

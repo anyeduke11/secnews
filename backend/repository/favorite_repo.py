@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.domain.enums import Category
 from backend.exceptions import InternalException
@@ -27,14 +26,14 @@ class FavoriteItem:
     """收藏条目的内存模型（不直接用 HotspotItem 是为了表独立）。"""
 
     __slots__ = (
-        "id",
-        "hotspot_id",
         "category",
-        "title",
-        "source",
-        "url",
-        "favorited_at",
         "created_via",
+        "favorited_at",
+        "hotspot_id",
+        "id",
+        "source",
+        "title",
+        "url",
     )
 
     def __init__(
@@ -194,7 +193,7 @@ class FavoriteRepository:
     def list(
         self,
         *,
-        category: Optional[str] = None,
+        category: str | None = None,
         limit: int = 200,
     ) -> list[FavoriteItem]:
         """按收藏时间倒序列出收藏项。``category=None`` 表示全部分类。"""
@@ -293,4 +292,4 @@ class FavoriteRepository:
             logger.warning("refresh favorites_stats failed", extra={"trace_id": ""})
 
 
-__all__ = ["FavoriteRepository", "FavoriteItem"]
+__all__ = ["FavoriteItem", "FavoriteRepository"]

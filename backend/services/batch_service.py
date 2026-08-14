@@ -16,10 +16,9 @@ batch_end = batch_start + timedelta(days=7)
 """
 from __future__ import annotations
 
-import json
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 from backend.logging_config import logger
 from backend.repository.db import get_connection
@@ -89,7 +88,7 @@ class BatchService:
 
     def list_batches(
         self,
-        cursor: Optional[int] = None,
+        cursor: int | None = None,
         limit: int = 50,
     ) -> dict[str, Any]:
         """列出所有有数据的批次 (按 batch_no DESC, 不含当前批次).
@@ -187,7 +186,7 @@ class BatchService:
         batch_no: int,
         category: str = "all",
         keyword: str = "",
-        cursor: Optional[str] = None,
+        cursor: str | None = None,
         limit: int = 50,
     ) -> dict[str, Any]:
         """列出指定批次内的所有 hotspots.
@@ -320,8 +319,8 @@ class BatchService:
 
 
 __all__ = [
-    "BatchService",
     "HISTORY_START_DATE",
+    "BatchService",
     "get_batch_no",
     "get_batch_range",
     "get_current_batch_no",

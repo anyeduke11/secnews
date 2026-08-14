@@ -10,8 +10,6 @@
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.repository.db import get_connection
@@ -27,8 +25,8 @@ def _row_to_dict(row) -> dict:
 
 @router.get("")
 async def list_alerts(
-    status: Optional[str] = Query(None),
-    severity: Optional[str] = Query(None),
+    status: str | None = Query(None),
+    severity: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
 ):
     """List alert events, with optional status/severity filtering."""

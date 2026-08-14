@@ -4,11 +4,10 @@ Phase 16 — Crawl4ai 高阶抓取集成。
 """
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 
@@ -29,8 +28,8 @@ class CrawlResult:
     content: str = ""
     markdown: str = ""
     success: bool = False
-    error: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class Crawl4aiParser:
@@ -41,8 +40,8 @@ class Crawl4aiParser:
 
     def __init__(
         self,
-        crawl_config_path: Optional[Path] = None,
-        proxy_pool_instance: Optional[ProxyPool] = None,
+        crawl_config_path: Path | None = None,
+        proxy_pool_instance: ProxyPool | None = None,
     ):
         cfg_path = crawl_config_path or DEFAULT_CRAWL_CONFIG_PATH
         self._config = self._load_config(cfg_path)

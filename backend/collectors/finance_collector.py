@@ -77,7 +77,7 @@ def _parse_jin10_time(time_str: str) -> str | None:
         return None
 
 
-from datetime import timedelta  # noqa: E402  # 延后导入避免循环
+from datetime import timedelta  # 延后导入避免循环
 
 FINANCE_SOURCES: list[dict] = [
     # Phase 48: 中国证监会 - 实际内容是金融监管公告/行政处罚/警示函/约谈
@@ -197,10 +197,7 @@ class FinanceCollector(BaseCollector):
                 continue
             # 拆【title】desc 格式
             m = re.match(r"^【([^】]*)】(.*)$", text)
-            if m:
-                title = (m.group(1) or text).strip()
-            else:
-                title = text
+            title = (m.group(1) or text).strip() if m else text
             if not title or len(title) < 8:
                 continue
             url = f"https://flash.jin10.com/detail/{entry.get('id')}"
@@ -256,4 +253,4 @@ class FinanceCollector(BaseCollector):
     # 真实链接优先于"假装有数据" — 详细约束见 SPEC §3。
 
 
-__all__ = ["FinanceCollector", "FINANCE_SOURCES"]
+__all__ = ["FINANCE_SOURCES", "FinanceCollector"]

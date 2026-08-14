@@ -10,9 +10,7 @@
 """
 from __future__ import annotations
 
-from backend.version import APP_VERSION as API_VERSION
 import asyncio
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -24,6 +22,7 @@ from backend.services.annotation_service import (
     list_annotations,
     update_annotation,
 )
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/annotations", tags=["annotations"])
 
@@ -34,16 +33,16 @@ class AnnotationCreate(BaseModel):
     entity_type: str = Field(..., min_length=1, max_length=64)
     entity_id: str = Field(..., min_length=1, max_length=256)
     content: str = Field(..., min_length=1, max_length=10000)
-    range_start: Optional[int] = Field(None, ge=0)
-    range_end: Optional[int] = Field(None, ge=0)
+    range_start: int | None = Field(None, ge=0)
+    range_end: int | None = Field(None, ge=0)
 
 
 class AnnotationUpdate(BaseModel):
     """更新笔记请求体 (所有字段可选)。"""
 
-    content: Optional[str] = Field(None, min_length=1, max_length=10000)
-    range_start: Optional[int] = Field(None, ge=0)
-    range_end: Optional[int] = Field(None, ge=0)
+    content: str | None = Field(None, min_length=1, max_length=10000)
+    range_start: int | None = Field(None, ge=0)
+    range_end: int | None = Field(None, ge=0)
 
 
 # ---------------------------------------------------------------------------

@@ -98,7 +98,8 @@ class RedditCollector(BaseCollector):
         self, source: dict
     ) -> tuple[list[HotspotItem], SourceResult]:
         """Override: 先走父类标准流程, 失败时通过 Crawl4ai 兜底抓取 Reddit 详情页."""
-        from datetime import datetime, timezone as _tz
+        from datetime import datetime
+        from datetime import timezone as _tz
 
         start = datetime.now(_tz.utc)
         source_name = source.get("name", "Reddit")
@@ -153,4 +154,4 @@ class RedditCollector(BaseCollector):
         }]
 
 
-__all__ = ["RedditCollector", "REDDIT_SOURCES"]
+__all__ = ["REDDIT_SOURCES", "RedditCollector"]

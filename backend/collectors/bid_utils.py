@@ -149,16 +149,14 @@ def is_security_bid(text: str) -> bool:
     if any(kw in text for kw in NON_SECURITY_BLACKLIST):
         return False
     # 宽松层: 核心关键词命中
-    if _SECURITY_RE.search(text):
-        return True
-    return False
+    return bool(_SECURITY_RE.search(text))
 
 
 __all__ = [
-    "is_security_bid",
-    "SECURITY_KEYWORDS",
-    "SECURITY_KEYWORD_SET",
-    "PROCUREMENT_KEYWORDS",
     "INDUSTRY_KEYWORDS",
     "NON_SECURITY_BLACKLIST",
+    "PROCUREMENT_KEYWORDS",
+    "SECURITY_KEYWORDS",
+    "SECURITY_KEYWORD_SET",
+    "is_security_bid",
 ]

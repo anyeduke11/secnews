@@ -2,16 +2,14 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 
 from backend.exceptions import InternalException
 from backend.repository.codegarden_resource_repo import (
-    CodegardenResourceRepository,
-    PROTECTED_PORTS,
     PORT_RANGE_START,
-    PORT_RANGE_END,
+    CodegardenResourceRepository,
 )
 
 
@@ -20,7 +18,7 @@ def repo(tmp_path, monkeypatch) -> Iterator[CodegardenResourceRepository]:
     """独立临时 DB, 加载 019 (cg_projects) + 021 (cg_resources)."""
     db_file = tmp_path / "test_codegarden_resources.db"
     conn = sqlite3.connect(str(db_file))
-    with open("backend/repository/migrations/019_codegarden.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/019_codegarden.sql", encoding="utf-8") as f:
         sql_text = f.read()
     cg_sql = "\n".join(
         line for line in sql_text.splitlines()
@@ -28,7 +26,7 @@ def repo(tmp_path, monkeypatch) -> Iterator[CodegardenResourceRepository]:
         and not line.strip().startswith("CREATE INDEX IF NOT EXISTS idx_skills_")
     )
     conn.executescript(cg_sql)
-    with open("backend/repository/migrations/021_codegarden_phase2b.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/021_codegarden_phase2b.sql", encoding="utf-8") as f:
         conn.executescript(f.read())
     conn.commit()
     conn.close()

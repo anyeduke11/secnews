@@ -15,7 +15,7 @@ import pytest
 from backend.config import config
 from backend.repository import db
 from backend.repository.db import get_connection
-from backend.repository.digest_repo import DigestRepository, digest_repo
+from backend.repository.digest_repo import DigestRepository
 from backend.services.digest_service import (
     create_digest,
     generate_daily_digest,

@@ -30,12 +30,10 @@ dead 是相对当前 collector 配置/网络/反爬策略的快照判断; 几周
 """
 from __future__ import annotations
 
-import socket
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+from datetime import datetime, timedelta, timezone
 
 from backend.logging_config import logger as _root_logger
 
@@ -55,8 +53,8 @@ class RevivalResult:
     source_name: str
     source_url: str
     status: str  # "revived" | "still_dead" | "error"
-    http_code: Optional[int] = None
-    error_msg: Optional[str] = None
+    http_code: int | None = None
+    error_msg: str | None = None
     last_checked_at: str = ""
 
     def to_dict(self) -> dict:
@@ -120,7 +118,7 @@ def list_dead_sources(dead_for_days: int = DEFAULT_DEAD_FOR_DAYS) -> list[dict]:
     return out
 
 
-def _check_url(url: str, timeout_s: float) -> tuple[int, Optional[str]]:
+def _check_url(url: str, timeout_s: float) -> tuple[int, str | None]:
     """HEAD 请求 URL, 返回 (status_code, error_msg).
 
     200/3xx → 视为可达
@@ -137,7 +135,7 @@ def _check_url(url: str, timeout_s: float) -> tuple[int, Optional[str]]:
     except urllib.error.HTTPError as e:
         # 4xx/5xx 也是"可达但返回错误", 仍算 reachable
         return int(e.code), None
-    except (urllib.error.URLError, socket.timeout, TimeoutError) as e:
+    except (urllib.error.URLError, TimeoutError) as e:
         return 0, f"{type(e).__name__}: {str(e)[:200]}"
     except Exception as e:
         return 0, f"{type(e).__name__}: {str(e)[:200]}"
@@ -206,7 +204,7 @@ def try_revive_one(
 
 def revive_all_dead(
     *,
-    dead_for_days: Optional[int] = None,
+    dead_for_days: int | None = None,
     timeout_s: float = DEFAULT_TIMEOUT_S,
 ) -> list[RevivalResult]:
     """对所有 dead 且死够久的源尝试复活.
@@ -244,10 +242,10 @@ def revive_all_dead(
 
 
 __all__ = [
-    "list_dead_sources",
-    "try_revive_one",
-    "revive_all_dead",
-    "RevivalResult",
     "DEFAULT_DEAD_FOR_DAYS",
     "DEFAULT_TIMEOUT_S",
+    "RevivalResult",
+    "list_dead_sources",
+    "revive_all_dead",
+    "try_revive_one",
 ]

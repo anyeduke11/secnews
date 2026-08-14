@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.repository.db import get_connection
 
@@ -63,7 +62,7 @@ class ReviewRepository:
             ),
         )
 
-    def get(self, entity_type: str, entity_id: str) -> Optional[dict]:
+    def get(self, entity_type: str, entity_id: str) -> dict | None:
         """读取一条复习记录, 不存在返回 None。"""
         conn = get_connection()
         row = conn.execute(

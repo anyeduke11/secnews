@@ -6,7 +6,6 @@ import json
 import logging
 import sqlite3
 from pathlib import Path
-from typing import Optional
 
 from backend.config import config
 from backend.domain.knowledge_models import KnowledgeItem, now_iso
@@ -121,7 +120,7 @@ def import_from_history(item_ids: list[str]) -> dict:
                     else []
                 )
                 if "secnews_archive" not in existing_sources:
-                    merged_sources = existing_sources + ["secnews_archive"]
+                    merged_sources = [*existing_sources, "secnews_archive"]
                     _update_history_md_sources(md_path, merged_sources)
             skipped_duplicates += 1
             continue

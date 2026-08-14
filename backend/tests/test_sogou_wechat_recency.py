@@ -19,7 +19,6 @@
 """
 from __future__ import annotations
 
-import time
 from datetime import datetime, timedelta, timezone
 
 from backend.collectors.sogou_search import (
@@ -120,12 +119,12 @@ def test_no_published_at_rejected():
     """缺失 Unix timestamp 的 article 应被拒收 (无法验证时效)."""
     # 不含 timeConvert 的 s-p 块
     html = _wrap(
-        f'<h3><a href="/link?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2Fno_ts">'
-        f"某活动报道但无时间戳</a></h3>"
-        f'<p class="txt-info">无摘要</p>'
-        f'<div class="s-p">'
-        f'<span class="all-time-y2">测试公众号</span>'
-        f"</div>"
+        '<h3><a href="/link?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2Fno_ts">'
+        "某活动报道但无时间戳</a></h3>"
+        '<p class="txt-info">无摘要</p>'
+        '<div class="s-p">'
+        '<span class="all-time-y2">测试公众号</span>'
+        "</div>"
     )
 
     items = parse_wechat_articles_html(html, max_items=10)

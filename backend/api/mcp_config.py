@@ -20,9 +20,7 @@
 from __future__ import annotations
 
 import json
-import logging
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.logging_config import logger
 
@@ -121,8 +119,8 @@ def mcp_tool_registry_seed() -> int:
     幂等: 重启不会重复插入 (用 PRIMARY KEY name 保证)。
     Returns: 实际写入的条数 (首次启动 = 9, 后续 = 0)。
     """
-    from backend.repository.db import get_connection
     from backend.api.mcp_types import MCP_TOOLS
+    from backend.repository.db import get_connection
 
     conn = get_connection()
     now = datetime.now(timezone.utc).isoformat()
@@ -197,10 +195,10 @@ def list_mcp_tools_from_db(enabled_only: bool = False) -> list[dict]:
 
 __all__ = [
     "MCP_TOOL_OPERATION_IDS",
+    "build_mcp_server",
     "is_mcp_enabled",
     "is_sse_mounted",
-    "build_mcp_server",
-    "mount_sse_endpoint",
-    "mcp_tool_registry_seed",
     "list_mcp_tools_from_db",
+    "mcp_tool_registry_seed",
+    "mount_sse_endpoint",
 ]

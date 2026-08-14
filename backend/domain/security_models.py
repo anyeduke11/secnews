@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
 
 
 def _now_iso() -> str:
@@ -15,15 +14,14 @@ class SecurityEntity:
     id: str
     entity_type: str
     name: str
-    description: Optional[str] = None
-    external_ref: Optional[str] = None
+    description: str | None = None
+    external_ref: str | None = None
     metadata: dict = field(default_factory=dict)
     created_at: str = ""
     updated_at: str = ""
 
     @classmethod
-    def from_row(cls, row: dict) -> "SecurityEntity":
-        import json
+    def from_row(cls, row: dict) -> SecurityEntity:
         return cls(
             id=str(row["id"]),
             entity_type=str(row["entity_type"]),
@@ -58,8 +56,7 @@ class SecurityEdge:
     created_at: str = ""
 
     @classmethod
-    def from_row(cls, row: dict) -> "SecurityEdge":
-        import json
+    def from_row(cls, row: dict) -> SecurityEdge:
         return cls(
             source_id=str(row["source_id"]),
             target_id=str(row["target_id"]),
@@ -85,16 +82,16 @@ class SecurityTerm:
     id: int = 0
     canonical: str = ""
     term_type: str = ""
-    category: Optional[str] = None
-    definition: Optional[str] = None
-    external_id: Optional[str] = None
-    external_ref: Optional[str] = None
+    category: str | None = None
+    definition: str | None = None
+    external_id: str | None = None
+    external_ref: str | None = None
     metadata: dict = field(default_factory=dict)
     created_at: str = ""
     updated_at: str = ""
 
     @classmethod
-    def from_row(cls, row: dict) -> "SecurityTerm":
+    def from_row(cls, row: dict) -> SecurityTerm:
         return cls(
             id=int(row["id"]),
             canonical=str(row["canonical"]),
@@ -123,7 +120,7 @@ class SecurityTerm:
         }
 
 
-def _parse_json(raw: Optional[str], default):
+def _parse_json(raw: str | None, default):
     if not raw:
         return default
     try:
@@ -133,4 +130,4 @@ def _parse_json(raw: Optional[str], default):
         return default
 
 
-__all__ = ["SecurityEntity", "SecurityEdge", "SecurityTerm", "_now_iso"]
+__all__ = ["SecurityEdge", "SecurityEntity", "SecurityTerm", "_now_iso"]

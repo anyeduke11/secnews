@@ -7,8 +7,6 @@
 """
 from __future__ import annotations
 
-import pytest
-
 from backend.api.sources import classify_by_url_and_title
 
 

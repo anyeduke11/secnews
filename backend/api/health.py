@@ -15,7 +15,8 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 
-from backend.cache import hit_rate, stats as cache_stats
+from backend.cache import hit_rate
+from backend.cache import stats as cache_stats
 from backend.config import config
 from backend.domain.enums import Category
 from backend.logging_config import logger
@@ -76,7 +77,7 @@ def _db_integrity() -> dict[str, Any]:
     now = time.time()
     cached = _INTEGRITY_CACHE.get("result")
     if cached and (now - cached["ts"]) < _INTEGRITY_CACHE_TTL_S:
-        return {k: v for k, v in cached["data"].items()}
+        return dict(cached["data"].items())
     try:
         conn = get_connection()
         row = conn.execute("PRAGMA integrity_check").fetchone()
@@ -207,10 +208,7 @@ def _build_health_payload(sched) -> dict:
         "proxy": _proxy_health(),
     }
     overall_ok = all(c.get("ok", False) for c in components.values())
-    if not overall_ok:
-        status = "down" if not components["db"]["ok"] else "degraded"
-    else:
-        status = "ok"
+    status = ("down" if not components["db"]["ok"] else "degraded") if not overall_ok else "ok"
     return {
         "version": VERSION,
         "status": status,

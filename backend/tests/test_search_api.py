@@ -11,7 +11,6 @@
 """
 from __future__ import annotations
 
-from backend.version import APP_VERSION as API_VERSION
 from datetime import datetime, timezone
 
 import pytest
@@ -23,6 +22,7 @@ from backend.api.middleware import TraceIDMiddleware
 from backend.config import config
 from backend.exceptions import register_exception_handlers
 from backend.repository import db
+from backend.version import APP_VERSION as API_VERSION
 
 
 @pytest.fixture

@@ -6,8 +6,9 @@
 """
 from __future__ import annotations
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 
 from backend.config import config
 from backend.repository import db
@@ -30,6 +31,7 @@ def client(temp_db):
 
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from backend.api import register_routers
 
     app = FastAPI()

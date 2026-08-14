@@ -11,15 +11,13 @@ from __future__ import annotations
 
 import base64
 import json
-from datetime import datetime
-from typing import Optional
-
-from backend.logging_config import logger
+from datetime import datetime, timezone
 
 from backend.cache import detail_cache, list_cache, static_cache
 from backend.domain.enums import Category, TimeRange
 from backend.domain.models import HotspotItem
 from backend.exceptions import InvalidParamException, NotFoundException
+from backend.logging_config import logger
 from backend.repository.hotspot_repo import HotspotRepository
 from backend.version import APP_VERSION as API_VERSION
 
@@ -100,11 +98,11 @@ class HotspotService:
         self,
         category: str = "all",
         time_range: str = "7d",
-        cursor: Optional[str] = None,
+        cursor: str | None = None,
         limit: int = DEFAULT_LIMIT,
         keyword: str = "",
-        region: Optional[str] = None,  # Phase 8: 标讯地区筛选
-        source: Optional[str] = None,  # v1.9.1: 来源筛选
+        region: str | None = None,  # Phase 8: 标讯地区筛选
+        source: str | None = None,  # v1.9.1: 来源筛选
     ) -> dict:
         """列表查询。
 
@@ -192,7 +190,7 @@ class HotspotService:
             "time_range": tr.value,
             "keyword": keyword,
             "category_counts": cat_counts,  # 本周 (D7) — 与 Grid time_range 解耦
-            "fetched_at": datetime.utcnow().isoformat() + "Z",
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
             # Phase 39: 新增 — 最近一轮 run_once() 的产出
             "latest_ingestion_count": int(latest["count"]),
             "latest_ingestion_at": latest_iso,
@@ -298,7 +296,7 @@ class HotspotService:
         return [seen_urls[u] for u in winner_order]
 
     @staticmethod
-    def _to_repo_cursor(cursor: Optional[str]) -> Optional[str]:
+    def _to_repo_cursor(cursor: str | None) -> str | None:
         """把 base64 服务层 cursor → repo 的 ``<unix_ts>_<id>`` 格式。
 
         None / 空 → None; 无效 → 抛 ``InvalidParamException`` (HTTP 400)。
@@ -341,7 +339,7 @@ class HotspotService:
             "version": API_VERSION,
             "item": item.model_dump(mode="json"),
             "tags": tag_payload,
-            "fetched_at": datetime.utcnow().isoformat() + "Z",
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
         }
         detail_cache[cache_key] = result
         return result
@@ -369,7 +367,7 @@ class HotspotService:
             "total": len(items),
             "tag_mode": mode,
             "tag_ids": tag_ids,
-            "fetched_at": datetime.utcnow().isoformat() + "Z",
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
         }
 
     # ------------------------------------------------------------------
@@ -388,4 +386,4 @@ class HotspotService:
         return result
 
 
-__all__ = ["HotspotService", "encode_cursor", "decode_cursor"]
+__all__ = ["HotspotService", "decode_cursor", "encode_cursor"]

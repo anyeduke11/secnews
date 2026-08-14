@@ -13,12 +13,11 @@ import json
 import sqlite3
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
 from backend.repository.db import get_connection
-
 
 VALID_SERVICE_TYPES = ("http", "websocket", "grpc", "static", "database")
 VALID_RUNTIMES = ("docker", "pm2", "system", "bare")
@@ -34,7 +33,7 @@ def _new_id() -> str:
     return str(uuid.uuid4())
 
 
-def _parse_json(raw: Optional[str], default: Any) -> Any:
+def _parse_json(raw: str | None, default: Any) -> Any:
     if not raw:
         return default
     try:
@@ -80,18 +79,18 @@ class CodegardenServiceRepository:
         type: str,
         runtime: str,
         status: str = "unknown",
-        project_id: Optional[str] = None,
-        namespace: Optional[str] = None,
-        endpoint_host: Optional[str] = None,
-        endpoint_port: Optional[int] = None,
-        endpoint_domain: Optional[str] = None,
-        health_check_type: Optional[str] = None,
-        health_check_path: Optional[str] = None,
+        project_id: str | None = None,
+        namespace: str | None = None,
+        endpoint_host: str | None = None,
+        endpoint_port: int | None = None,
+        endpoint_domain: str | None = None,
+        health_check_type: str | None = None,
+        health_check_path: str | None = None,
         health_check_interval: int = 30,
-        cpu_limit: Optional[str] = None,
-        memory_limit: Optional[str] = None,
-        dependencies: Optional[list[str]] = None,
-        env_vars: Optional[dict] = None,
+        cpu_limit: str | None = None,
+        memory_limit: str | None = None,
+        dependencies: list[str] | None = None,
+        env_vars: dict | None = None,
     ) -> dict:
         if type not in VALID_SERVICE_TYPES:
             raise InternalException(
@@ -151,7 +150,7 @@ class CodegardenServiceRepository:
     # ------------------------------------------------------------------
     # 读取
     # ------------------------------------------------------------------
-    def get(self, service_id: str) -> Optional[dict]:
+    def get(self, service_id: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM cg_services WHERE id = ?", (service_id,)
@@ -161,12 +160,12 @@ class CodegardenServiceRepository:
     def list(
         self,
         *,
-        project_id: Optional[str] = None,
-        status: Optional[str] = None,
-        namespace: Optional[str] = None,
-        type: Optional[str] = None,
-        runtime: Optional[str] = None,
-        keyword: Optional[str] = None,
+        project_id: str | None = None,
+        status: str | None = None,
+        namespace: str | None = None,
+        type: str | None = None,
+        runtime: str | None = None,
+        keyword: str | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> tuple[list[dict], int]:
@@ -279,7 +278,7 @@ class CodegardenServiceRepository:
                 pass
             raise InternalException(f"cg_services delete failed: {e}") from e
 
-    def set_status(self, service_id: str, status: str, note: Optional[str] = None) -> dict:
+    def set_status(self, service_id: str, status: str, note: str | None = None) -> dict:
         if status not in VALID_SERVICE_STATUSES:
             raise InternalException(f"status 非法: {status!r}")
         return self.update(service_id, status=status, last_checked_at=_now_iso())
@@ -294,9 +293,9 @@ class CodegardenServiceRepository:
         type: str,
         runtime: str,
         status: str,
-        endpoint_port: Optional[int] = None,
-        endpoint_host: Optional[str] = None,
-        namespace: Optional[str] = None,
+        endpoint_port: int | None = None,
+        endpoint_host: str | None = None,
+        namespace: str | None = None,
     ) -> tuple[dict, bool]:
         """扫描结果 upsert: 以 (name, endpoint_port) 为唯一键.
 
@@ -337,9 +336,9 @@ class CodegardenServiceRepository:
 
 
 __all__ = [
-    "CodegardenServiceRepository",
-    "VALID_SERVICE_TYPES",
+    "VALID_HEALTH_CHECK_TYPES",
     "VALID_RUNTIMES",
     "VALID_SERVICE_STATUSES",
-    "VALID_HEALTH_CHECK_TYPES",
+    "VALID_SERVICE_TYPES",
+    "CodegardenServiceRepository",
 ]

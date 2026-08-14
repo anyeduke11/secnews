@@ -11,7 +11,6 @@ import hashlib
 import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 from backend.domain.knowledge_models import now_iso
 from backend.repository.knowledge_repo import knowledge_repo
@@ -54,7 +53,7 @@ def _draft_abs_path(rel_path: str) -> Path:
     return PROJECT_ROOT / rel_path
 
 
-def _parse_json_field(row: dict, field: str) -> Optional[object]:
+def _parse_json_field(row: dict, field: str) -> object | None:
     """Deserialize a JSON column; return None if missing/empty."""
     raw = row.get(field)
     if not raw:
@@ -101,7 +100,7 @@ def _write_calendar_json() -> None:
 
 # ── Calendar CRUD ──────────────────────────────────────────────
 
-def list_calendar(year_month: Optional[str] = None) -> list[dict]:
+def list_calendar(year_month: str | None = None) -> list[dict]:
     rows = knowledge_repo.list_calendar_entries(year_month)
     return [_decorate_calendar_row(r) for r in rows]
 
@@ -109,9 +108,9 @@ def list_calendar(year_month: Optional[str] = None) -> list[dict]:
 def create_calendar_entry(
     date: str,
     topic: str,
-    type: Optional[str] = None,
-    source_items: Optional[list[str]] = None,
-    platform: Optional[str] = None,
+    type: str | None = None,
+    source_items: list[str] | None = None,
+    platform: str | None = None,
 ) -> dict:
     now = now_iso()
     entry = {
@@ -159,13 +158,13 @@ def delete_calendar_entry(id: int) -> dict:
 # ── Draft CRUD ─────────────────────────────────────────────────
 
 def list_drafts(
-    status: Optional[str] = None,
-    calendar_id: Optional[int] = None,
+    status: str | None = None,
+    calendar_id: int | None = None,
 ) -> list[dict]:
     return knowledge_repo.list_drafts(status=status, calendar_id=calendar_id)
 
 
-def get_draft(id: int) -> Optional[dict]:
+def get_draft(id: int) -> dict | None:
     row = knowledge_repo.get_draft(id)
     if row is None:
         return None
@@ -180,7 +179,7 @@ def get_draft(id: int) -> Optional[dict]:
 def create_draft(
     title: str,
     content: str,
-    calendar_id: Optional[int] = None,
+    calendar_id: int | None = None,
 ) -> dict:
     DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
     slug = _slug(title)
@@ -208,9 +207,9 @@ def create_draft(
 
 def update_draft(
     id: int,
-    content: Optional[str] = None,
-    title: Optional[str] = None,
-    status: Optional[str] = None,
+    content: str | None = None,
+    title: str | None = None,
+    status: str | None = None,
 ) -> dict:
     existing = knowledge_repo.get_draft(id)
     if existing is None:
@@ -252,7 +251,7 @@ def create_publish_task(
     draft_id: int,
     platform: str,
     skill_name: str,
-    options: Optional[dict] = None,
+    options: dict | None = None,
 ) -> dict:
     """Create a publish task for a draft.
 
@@ -366,7 +365,7 @@ def get_publish_history(draft_id: int) -> list[dict]:
         except (TypeError, ValueError):
             params = {}
 
-        published_url: Optional[str] = None
+        published_url: str | None = None
         if t.get("status") == "done":
             done_path = DONE_DIR / f"task-{t['id']}.md"
             if done_path.exists():
@@ -396,8 +395,8 @@ def get_publish_history(draft_id: int) -> list[dict]:
 def update_publish_status(
     task_id: int,
     status: str,
-    published_url: Optional[str] = None,
-    error: Optional[str] = None,
+    published_url: str | None = None,
+    error: str | None = None,
 ) -> dict:
     """Update a publish task's status and reflect it on the draft.
 

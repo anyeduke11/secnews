@@ -5,8 +5,6 @@ Phase 1.3 (Crawler v2): 写入 bid_details 表，结构化存储标讯字段。
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from backend.repository.db import get_connection
 
 
@@ -74,7 +72,7 @@ class BidDetailRepo:
                 count += 1
         return count
 
-    def get_by_item_id(self, item_id: str) -> Optional[dict]:
+    def get_by_item_id(self, item_id: str) -> dict | None:
         """按 item_id 查询标讯详情。"""
         conn = get_connection()
         row = conn.execute(

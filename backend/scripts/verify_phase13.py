@@ -1,6 +1,6 @@
 """Phase 13 验证脚本:检查 /api/hotspots 是否还有 fallback URL。"""
-import urllib.request
 import json
+import urllib.request
 
 r = urllib.request.urlopen("http://127.0.0.1:8000/api/hotspots?limit=20&category=bid")
 d = json.loads(r.read())

@@ -8,8 +8,6 @@ PRD §3.2.12 / §6.8: 跨 hotspots + knowledge_items 的统一搜索端点。
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, Query
 
 from backend.services.search_service import unified_search
@@ -21,7 +19,7 @@ router = APIRouter(prefix="/api/search", tags=["search"])
 @router.get("")
 async def search(
     q: str = Query("", description="搜索关键词"),
-    sources: Optional[str] = Query(
+    sources: str | None = Query(
         None, description="实体类型过滤，逗号分隔 (hotspot,knowledge)"
     ),
     limit: int = Query(20, ge=1, le=100, description="最大返回条数"),

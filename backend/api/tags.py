@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -42,7 +41,7 @@ class TagCreate(BaseModel):
         pattern="^(domain|category|framework|technique|source|cve)$",
         description="标签类型",
     )
-    parent_id: Optional[str] = Field(None, description="父标签 ID (层级)")
+    parent_id: str | None = Field(None, description="父标签 ID (层级)")
     weight: float = Field(1.0, ge=0.0, le=2.0, description="权重 0-2")
 
 
@@ -60,7 +59,7 @@ def _tag_to_dict(t: Tag) -> dict:
     }
 
 
-def _list_tags(type_: Optional[str], parent_id: Optional[str], limit: int) -> dict:
+def _list_tags(type_: str | None, parent_id: str | None, limit: int) -> dict:
     repo = TagRepository()
     items = repo.list(type=type_, parent_id=parent_id, limit=limit)
     return {"version": API_VERSION, "count": len(items), "items": [_tag_to_dict(i) for i in items]}
@@ -102,8 +101,8 @@ def _list_by_hotspot(hotspot_id: str) -> dict:
 # ---------------------------------------------------------------------------
 @router.get("")
 async def list_tags(
-    type: Optional[str] = Query(None, description="按类型筛选"),
-    parent_id: Optional[str] = Query(None, description="按父标签筛选"),
+    type: str | None = Query(None, description="按类型筛选"),
+    parent_id: str | None = Query(None, description="按父标签筛选"),
     limit: int = Query(200, ge=1, le=1000, description="最多返回条数"),
 ):
     """列出标签（支持 type / parent_id 筛选）。"""

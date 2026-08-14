@@ -10,7 +10,6 @@
 # 老 API 依赖的 ``{items, categoryCounts, total, trends, fetchedAt}``
 # dict 格式。
 
-import asyncio
 from datetime import datetime, timezone
 
 

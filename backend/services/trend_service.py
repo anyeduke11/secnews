@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
 
 from backend.cache import list_cache
 from backend.domain.enums import Category
@@ -14,7 +13,7 @@ _trepo = TrendRepository()
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat()
 
 
 class TrendService:

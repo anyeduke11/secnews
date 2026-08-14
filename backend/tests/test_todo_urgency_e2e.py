@@ -14,8 +14,7 @@
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
-from zoneinfo import ZoneInfo
+from datetime import date, datetime
 
 import pytest
 from fastapi import FastAPI
@@ -27,7 +26,6 @@ from backend.config import config
 from backend.exceptions import register_exception_handlers
 from backend.repository import db
 from backend.utils.business_days import SHANGHAI_TZ, next_business_day
-
 
 SHANGHAI_TODAY = next_business_day(datetime.now(SHANGHAI_TZ).date())
 TOMORROW = (SHANGHAI_TODAY.toordinal() + 1)

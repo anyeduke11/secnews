@@ -10,7 +10,7 @@ from fastapi import APIRouter
 
 from backend.metrics.kl_metrics import kl_metrics
 from backend.repository.db import get_connection
-from backend.services.kl_state_machine import ALL_STAGES, LIFECYCLE_RAW
+from backend.services.kl_state_machine import ALL_STAGES
 
 router = APIRouter(prefix="/api/kl", tags=["kl"])
 
@@ -25,7 +25,7 @@ def _refresh_stage_counts() -> None:
             "GROUP BY lifecycle".format(",".join("?" for _ in ALL_STAGES)),
             tuple(ALL_STAGES),
         ).fetchall()
-        counts = {stage: 0 for stage in ALL_STAGES}
+        counts = dict.fromkeys(ALL_STAGES, 0)
         for stage, n in rows:
             if stage in counts:
                 counts[stage] = int(n)

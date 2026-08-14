@@ -1,9 +1,7 @@
 """Phase 42 sync_states 仓库: 上次同步的 merged bundle (3-way merge base)。"""
 from __future__ import annotations
 
-import sqlite3
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
@@ -15,7 +13,7 @@ def _now_iso() -> str:
 
 
 class SyncStateRepository:
-    def get(self, config_id: int) -> Optional[dict]:
+    def get(self, config_id: int) -> dict | None:
         """返回 {bundle_json, merged_at} 或 None。"""
         conn = get_connection()
         row = conn.execute(
@@ -29,7 +27,7 @@ class SyncStateRepository:
             "merged_at": str(row["merged_at"]),
         }
 
-    def get_by_config(self, config_id: int) -> Optional[dict]:
+    def get_by_config(self, config_id: int) -> dict | None:
         """返回完整行 (含 id) 或 None。"""
         conn = get_connection()
         row = conn.execute(

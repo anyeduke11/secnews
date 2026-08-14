@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Any
 
 from backend.parsers.base_parser import BaseSourceParser, RawItem
 
@@ -69,4 +68,4 @@ class Jin10Parser(BaseSourceParser):
         return items
 
 
-__all__ = ["Jin10Parser", "SOURCE_ID"]
+__all__ = ["SOURCE_ID", "Jin10Parser"]

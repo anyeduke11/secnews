@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import base64
 import json
-from typing import Any, Optional
+from typing import Any
 
 from backend.crypto import (
     derive_fernet_key,
@@ -26,6 +26,7 @@ from backend.repository.secrets_repo import SecretRepository
 from backend.repository.settings_repo import SettingsRepository
 from backend.repository.skills_repo import SkillRepository
 from backend.repository.todo_repo import TodoRepository
+
 _SYNC_BUNDLE_MAX_ROWS = 100_000  # P1: 全量同步上限 — 消除 LIMIT 1000 截断导致的 absence-as-deletion 误判 (个人库远小于此值)
 
 
@@ -35,7 +36,6 @@ from backend.services.sync_merge import (
     _now_iso,
     validate_bundle,
 )
-
 
 # -- secrets 元数据字段 (用于 3-way merge 比对, 不含加密密文) --
 SECRET_MERGE_FIELDS = (
@@ -288,7 +288,6 @@ def _apply_hotspot_tags(items: list[dict]) -> int:
 def _read_reading_states_for_sync() -> list[dict]:
     """reading_states — last_writer_wins (按 updated_at 选最新)."""
     try:
-        from backend.repository.reading_states_repo import ReadingStateRepository
         # list_recent 用 last_read_at 排序, 此处不适用 — 改用 list_all
         from backend.repository.db import get_connection
         rows = get_connection().execute(
@@ -470,7 +469,7 @@ def _apply_sm2_reviews(items: list[dict]) -> int:
 # ---------------------------------------------------------------------------
 # Bundle building
 # ---------------------------------------------------------------------------
-def build_bundle(*, device_id: Optional[str] = None) -> dict:
+def build_bundle(*, device_id: str | None = None) -> dict:
     """Read all local config → bundle dict.
 
     ``device_id`` not provided → use sync_configs.device_id (generates on first call).
@@ -556,14 +555,13 @@ def build_bundle(*, device_id: Optional[str] = None) -> dict:
 # ---------------------------------------------------------------------------
 # Bundle apply (write back)
 # ---------------------------------------------------------------------------
-def apply_bundle(bundle: dict, *, master_key: Optional[str] = None) -> dict:
+def apply_bundle(bundle: dict, *, master_key: str | None = None) -> dict:
     """Write bundle records back to all tables.
 
     ``master_key`` is needed for decrypting secrets (Q5 decision).
     Returns per-table stats: {favorites: {...}, todos: {...}, ...}.
     """
     from backend.repository.db import get_connection
-    from backend.crypto import decrypt_api_key
 
     validate_bundle(bundle)
     records = bundle["records"]
@@ -572,7 +570,7 @@ def apply_bundle(bundle: dict, *, master_key: Optional[str] = None) -> dict:
     sr = SecretRepository()
     ek_repo = EncryptionKeyRepository()
     ek_row = ek_repo.get_default()
-    fernet_key: Optional[bytes] = None
+    fernet_key: bytes | None = None
     if ek_row is not None and master_key:
         if not verify_master_key(master_key, ek_row.salt, ek_row.iterations, ek_row.verify_blob):
             raise InternalException("主密钥错误, 无法落库 secrets")
@@ -772,7 +770,8 @@ def encrypt_bundle(bundle: dict, master_key: str) -> bytes:
 
 def decrypt_bundle(payload: bytes, master_key: str) -> dict:
     """Decrypt envelope → bundle dict."""
-    from cryptography.fernet import Fernet as _F, InvalidToken
+    from cryptography.fernet import Fernet as _F
+    from cryptography.fernet import InvalidToken
 
     ek_repo = EncryptionKeyRepository()
     ek_row = ek_repo.get_default()
@@ -825,7 +824,8 @@ def decrypt_bundle(payload: bytes, master_key: str) -> dict:
 
 def decrypt_bundle_with_fernet_key(payload: bytes, fernet_key: bytes) -> dict:
     """Decrypt bundle using a pre-derived fernet_key (scheduler auto-sync)."""
-    from cryptography.fernet import Fernet as _F, InvalidToken
+    from cryptography.fernet import Fernet as _F
+    from cryptography.fernet import InvalidToken
 
     try:
         envelope = json.loads(payload.decode("utf-8"))
@@ -844,7 +844,7 @@ def decrypt_bundle_with_fernet_key(payload: bytes, fernet_key: bytes) -> dict:
     return bundle
 
 
-def decode_remote_payload(raw: bytes) -> tuple[bytes, Optional[dict]]:
+def decode_remote_payload(raw: bytes) -> tuple[bytes, dict | None]:
     """Unpack remote raw bytes → (envelope_bytes, manifest).
 
     Supports:
@@ -864,11 +864,11 @@ def decode_remote_payload(raw: bytes) -> tuple[bytes, Optional[dict]]:
 
 
 __all__ = [
-    "build_bundle",
+    "SECRET_MERGE_FIELDS",
     "apply_bundle",
-    "encrypt_bundle",
+    "build_bundle",
+    "decode_remote_payload",
     "decrypt_bundle",
     "decrypt_bundle_with_fernet_key",
-    "decode_remote_payload",
-    "SECRET_MERGE_FIELDS",
+    "encrypt_bundle",
 ]

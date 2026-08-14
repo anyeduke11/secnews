@@ -17,8 +17,6 @@
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from backend.repository.codegarden_repo import _row_to_project
 from backend.repository.db import get_connection
 from backend.repository.tech_stack_repo import TechStackRepository
@@ -31,21 +29,21 @@ def create_tech(id: str, name: str, category: str = "", proficiency: int = 1, no
     return TechStackRepository().add(id, name, category, proficiency, notes)
 
 
-def get_tech(id: str) -> Optional[dict]:
+def get_tech(id: str) -> dict | None:
     return TechStackRepository().get(id)
 
 
-def list_tech(category: Optional[str] = None) -> list[dict]:
+def list_tech(category: str | None = None) -> list[dict]:
     return TechStackRepository().list(category)
 
 
 def update_tech(
     id: str,
-    name: Optional[str] = None,
-    category: Optional[str] = None,
-    proficiency: Optional[int] = None,
-    notes: Optional[str] = None,
-) -> Optional[dict]:
+    name: str | None = None,
+    category: str | None = None,
+    proficiency: int | None = None,
+    notes: str | None = None,
+) -> dict | None:
     return TechStackRepository().update(id, name, category, proficiency, notes)
 
 
@@ -70,8 +68,8 @@ def analyze_impact(article_id: str) -> dict:
             "matched_tech": ["fastapi", ...],
         }
     """
-    from backend.services.extract_service import extract_tags
     from backend.repository.hotspot_repo import HotspotRepository
+    from backend.services.extract_service import extract_tags
 
     hotspot = HotspotRepository().get_by_id(article_id)
     if not hotspot:

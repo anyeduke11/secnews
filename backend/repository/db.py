@@ -284,8 +284,8 @@ def init_db() -> int:
 
 __all__ = [
     "MIGRATIONS_DIR",
-    "get_connection",
-    "close_db",
     "apply_migrations",
+    "close_db",
+    "get_connection",
     "init_db",
 ]

@@ -272,11 +272,11 @@ class SourceHealthMachine:
 
 
 __all__ = [
-    "SourceHealthMachine",
-    "STALE_THRESHOLD",
-    "DEAD_THRESHOLD",
-    "GRACE_SUCCESS_THRESHOLD",
-    "GRACE_FAIL_THRESHOLD",
     "BACKOFF_BASE",
     "BACKOFF_MAX_EXPONENT",
+    "DEAD_THRESHOLD",
+    "GRACE_FAIL_THRESHOLD",
+    "GRACE_SUCCESS_THRESHOLD",
+    "STALE_THRESHOLD",
+    "SourceHealthMachine",
 ]

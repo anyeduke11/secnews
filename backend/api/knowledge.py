@@ -2,21 +2,18 @@
 
 from __future__ import annotations
 
-from backend.version import APP_VERSION as API_VERSION
 import logging
-from typing import Optional
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
 
-from backend.domain.knowledge_models import KnowledgeItem, KnowledgeConcept, KnowledgeTask, now_iso
+from backend.domain.knowledge_models import now_iso
 from backend.exceptions import InvalidParamException
 from backend.repository.knowledge_repo import knowledge_repo
-from backend.services.cubox_sync import sync_cubox_to_knowledge
 from backend.services.knowledge_sync import (
-    full_sync_items_to_db,
-    full_sync_concepts_to_db,
     write_item_to_md,
 )
+from backend.version import APP_VERSION as API_VERSION
 
 log = logging.getLogger("hotspot.api.knowledge")
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
@@ -26,14 +23,14 @@ router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
 
 @router.get("/items")
 async def list_items(
-    domain: Optional[str] = Query(None),
-    source: Optional[str] = Query(None),
-    compiled: Optional[bool] = Query(None),
-    topic: Optional[str] = Query(None),
-    type: Optional[str] = Query(None),
-    difficulty: Optional[str] = Query(None),
-    since: Optional[str] = Query(None),
-    until: Optional[str] = Query(None),
+    domain: str | None = Query(None),
+    source: str | None = Query(None),
+    compiled: bool | None = Query(None),
+    topic: str | None = Query(None),
+    type: str | None = Query(None),
+    difficulty: str | None = Query(None),
+    since: str | None = Query(None),
+    until: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
@@ -49,7 +46,7 @@ async def list_items(
 
 
 @router.get("/topics")
-async def list_topics(domain: Optional[str] = Query(None)):
+async def list_topics(domain: str | None = Query(None)):
     """List distinct topics for filter dropdown."""
     return {"topics": knowledge_repo.list_topics(domain=domain)}
 
@@ -116,7 +113,7 @@ async def delete_item(item_id: str):
 # ── Concepts ────────────────────────────────────────────────────
 
 @router.get("/concepts")
-async def list_concepts(domain: Optional[str] = Query(None)):
+async def list_concepts(domain: str | None = Query(None)):
     """List knowledge concepts."""
     concepts = knowledge_repo.list_concepts(domain=domain)
     return {"concepts": [c.to_dict() for c in concepts]}
@@ -142,7 +139,7 @@ async def get_concept(slug: str):
 
 @router.get("/graph")
 async def get_graph(
-    domain: Optional[str] = Query(None),
+    domain: str | None = Query(None),
     include_local: bool = Query(True),
 ):
     """Get knowledge graph data (nodes + edges).
@@ -177,8 +174,9 @@ async def search(q: str = Query(..., min_length=1), limit: int = Query(20, ge=1,
 async def trigger_sync(source: str = Query("cubox")):
     """Trigger cubox sync as an async task. Returns task_id for polling."""
 
-    import threading
     import json as _json
+    import threading
+
     from backend.repository.knowledge_repo import knowledge_repo
     from backend.services.cubox_sync import sync_cubox_with_progress
 
@@ -233,7 +231,7 @@ async def create_task(data: dict):
 
 
 @router.get("/tasks")
-async def list_tasks(status: Optional[str] = Query(None)):
+async def list_tasks(status: str | None = Query(None)):
     """List knowledge tasks."""
     tasks = knowledge_repo.list_tasks(status=status)
     return {"tasks": [t.to_dict() for t in tasks]}
@@ -296,9 +294,11 @@ async def import_bookmarks(data: dict, validate: bool = Query(False)):
     - HTML: ``{"html": "<Chrome export string>"}`` → parse_chrome_html
     """
     from backend.services.bookmark_sync import (
+        import_bookmarks as do_import,
+    )
+    from backend.services.bookmark_sync import (
         parse_chrome_bookmarks,
         parse_chrome_html,
-        import_bookmarks as do_import,
     )
     html = data.get("html")
     if isinstance(html, str) and html.strip():
@@ -370,10 +370,10 @@ async def classify_items_batch():
     Updates both .md files and SQLite.
     Returns count of items classified.
     """
-    from backend.services.auto_classifier import batch_classify
-    from backend.repository.knowledge_repo import knowledge_repo
-    from backend.services.knowledge_sync import write_item_to_md
     from backend.domain.knowledge_models import now_iso
+    from backend.repository.knowledge_repo import knowledge_repo
+    from backend.services.auto_classifier import batch_classify
+    from backend.services.knowledge_sync import write_item_to_md
 
     # Get all items without domain
     items = knowledge_repo.list_items(limit=10000)
@@ -427,7 +427,7 @@ async def classify_stats():
         "classified": len(items) - domain_counts.get("unclassified", 0),
         "unclassified": domain_counts.get("unclassified", 0),
         "compiled": compiled_count,
-        "by_domain": {k: v for k, v in sorted(domain_counts.items(), key=lambda x: -x[1])},
+        "by_domain": dict(sorted(domain_counts.items(), key=lambda x: -x[1])),
     }
 
 
@@ -442,10 +442,10 @@ async def link_concepts_batch():
     Updates both .md files and SQLite.
     Returns count of items linked and new concepts created.
     """
-    from backend.services.concept_linker import batch_link_items
-    from backend.repository.knowledge_repo import knowledge_repo
-    from backend.services.knowledge_sync import write_item_to_md, sync_concept_to_db
     from backend.domain.knowledge_models import now_iso
+    from backend.repository.knowledge_repo import knowledge_repo
+    from backend.services.concept_linker import batch_link_items
+    from backend.services.knowledge_sync import sync_concept_to_db, write_item_to_md
 
     # Get all items that need linking
     items = knowledge_repo.list_items(limit=10000)
@@ -508,7 +508,7 @@ async def validate_skill(skill_name: str):
 
 
 @router.get("/skills")
-async def list_skills(enabled: Optional[bool] = Query(None)):
+async def list_skills(enabled: bool | None = Query(None)):
     """[DEPRECATED] Phase 7 后 skills 不可用, 永远返回空列表。"""
     return {"version": API_VERSION, "deprecated": True, "skills": []}
 
@@ -568,7 +568,7 @@ async def obsidian_conflicts():
 @router.post("/obsidian/watchdog/start")
 async def obsidian_watchdog_start():
     """Start the knowledge watchdog."""
-    from backend.services.knowledge_watcher import start_watcher, is_running
+    from backend.services.knowledge_watcher import is_running, start_watcher
     start_watcher()
     return {"running": is_running()}
 
@@ -576,7 +576,7 @@ async def obsidian_watchdog_start():
 @router.post("/obsidian/watchdog/stop")
 async def obsidian_watchdog_stop():
     """Stop the knowledge watchdog."""
-    from backend.services.knowledge_watcher import stop_watcher, is_running
+    from backend.services.knowledge_watcher import is_running, stop_watcher
     stop_watcher()
     return {"running": is_running()}
 
@@ -591,7 +591,7 @@ async def obsidian_watchdog_status():
 # ── Learning Plans ─────────────────────────────────────────────
 
 @router.get("/plans")
-async def list_plans(status: Optional[str] = Query(None)):
+async def list_plans(status: str | None = Query(None)):
     """List weekly learning plans, optionally filtered by status."""
     from backend.services.learning_service import list_plans as svc_list_plans
     return {"plans": svc_list_plans(status=status)}
@@ -661,7 +661,7 @@ async def update_plan(week: str, data: dict):
 # ── Learning Progress ──────────────────────────────────────────
 
 @router.get("/progress")
-async def list_progress(domain: Optional[str] = Query(None)):
+async def list_progress(domain: str | None = Query(None)):
     """List mastery progress for concepts, optionally filtered by domain."""
     from backend.services.progress_service import list_progress as svc_list_progress
     return {"progress": svc_list_progress(domain=domain)}

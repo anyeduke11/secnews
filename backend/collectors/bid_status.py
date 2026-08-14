@@ -34,9 +34,7 @@
 """
 from __future__ import annotations
 
-import re
 from typing import Final
-
 
 # 状态 → 关键词列表
 # 顺序敏感: 上面状态优先级高,先命中先用
@@ -137,4 +135,4 @@ STATUS_COLOR_MAP: Final[dict[str, str]] = {
 }
 
 
-__all__ = ["extract_bid_status", "STATUS_COLOR_MAP"]
+__all__ = ["STATUS_COLOR_MAP", "extract_bid_status"]

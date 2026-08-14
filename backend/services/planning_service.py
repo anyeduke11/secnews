@@ -5,7 +5,7 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from backend.logging_config import logger
 from backend.repository.db import get_connection
@@ -24,7 +24,7 @@ class PlanningService:
     # ------------------------------------------------------------------
     # generate_actions
     # ------------------------------------------------------------------
-    def generate_actions(self) -> Dict[str, int]:
+    def generate_actions(self) -> dict[str, int]:
         """扫描 knowledge_items 并为符合规则的生命周期阶段生成规划动作.
 
         Rules:
@@ -38,7 +38,7 @@ class PlanningService:
             dict: {action_type: count, ...} 按动作类型统计的生成数量。
         """
         conn = get_connection()
-        counts: Dict[str, int] = {"read": 0, "link": 0, "refine": 0, "publish": 0, "review": 0}
+        counts: dict[str, int] = {"read": 0, "link": 0, "refine": 0, "publish": 0, "review": 0}
 
         # ── Rule 1: kl:raw → read ──────────────────────────────────
         rows = conn.execute(
@@ -237,9 +237,9 @@ class PlanningService:
     # ------------------------------------------------------------------
     def get_actions(
         self,
-        status: Optional[str] = None,
+        status: str | None = None,
         limit: int = 50,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """查询规划动作列表.
 
         Args:

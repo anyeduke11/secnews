@@ -12,7 +12,6 @@ from datetime import datetime, timezone
 
 import pytest
 
-from backend.config import config
 from backend.domain.collection import GateResult, PipelineResult
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
@@ -26,7 +25,6 @@ from backend.quality.pipeline import QualityGatePipeline
 from backend.quality.schema_gate import SchemaGate
 from backend.quality.source_reputation_gate import SourceReputationGate
 from backend.quality.title_summary_gate import TitleSummaryGate
-from backend.quality.url_validity_gate import URLValidityGate
 
 
 def _item(

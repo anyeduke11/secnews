@@ -31,8 +31,6 @@ PRD §3.2.9: 隐式权重计算与衰减。
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from backend.repository.profile_repo import ProfileRepository
 
 # ---------------------------------------------------------------------------
@@ -116,7 +114,7 @@ def get_profile_by_prefix(prefix: str) -> list[dict]:
     return ProfileRepository().list_by_prefix(prefix)
 
 
-def record_read(category: str, source: Optional[str] = None) -> float:
+def record_read(category: str, source: str | None = None) -> float:
     """便捷方法: 记录一次阅读行为, 更新分类权重 (可选源权重)。
 
     Parameters
@@ -138,17 +136,17 @@ def record_read(category: str, source: Optional[str] = None) -> float:
 
 
 __all__ = [
-    "SIGNAL_READ",
-    "SIGNAL_FAVORITE",
     "SIGNAL_DEEP_READ",
-    "SIGNAL_SKIP",
+    "SIGNAL_FAVORITE",
+    "SIGNAL_READ",
     "SIGNAL_REVIEW_GOOD",
-    "WEIGHT_MIN",
+    "SIGNAL_SKIP",
     "WEIGHT_MAX",
+    "WEIGHT_MIN",
     "apply_signal",
     "decay_all",
-    "get_weight",
     "get_profile",
     "get_profile_by_prefix",
+    "get_weight",
     "record_read",
 ]

@@ -14,8 +14,6 @@ Phase 13 硬约束：不生成 fallback 数据，源全部失败时返回空列�
 """
 from __future__ import annotations
 
-from typing import Any
-
 from backend.collectors.base import BaseCollector
 from backend.domain.enums import Category
 
@@ -86,4 +84,4 @@ class AISecurityCollector(BaseCollector):
     # 真实链接优先于"假装有数据" — 详细约束见 SPEC §3。
 
 
-__all__ = ["AISecurityCollector", "AI_SECURITY_SOURCES"]
+__all__ = ["AI_SECURITY_SOURCES", "AISecurityCollector"]

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -28,19 +28,15 @@ from backend.metrics.kl_metrics import kl_metrics
 from backend.repository import db as db_module
 from backend.repository.db import get_connection
 from backend.services.kl_state_machine import (
-    LIFECYCLE_STRUCTURE,
     LIFECYCLE_PUBLISH,
+    LIFECYCLE_STRUCTURE,
 )
 from backend.services.retry_policy import RetryPolicy
 from backend.services.triggers.t4_structure_to_publish import (
-    BATCH_SIZE,
     DEFAULT_SCORE,
     MIN_SCORE,
-    STABLE_WINDOW_HOURS,
     T4Trigger,
-    TRIGGER_NAME,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -150,7 +146,7 @@ def _insert_ai_score(
 
 def _fake_write_to_md(tmp_dir: Path):
     """Return a _write_to_md replacement that writes to a tmp directory."""
-    def _write(_self: T4Trigger, item: Dict[str, Any]) -> None:
+    def _write(_self: T4Trigger, item: dict[str, Any]) -> None:
         items_dir = tmp_dir / "knowledge" / "items"
         items_dir.mkdir(parents=True, exist_ok=True)
         path = items_dir / f"{item['id']}.md"

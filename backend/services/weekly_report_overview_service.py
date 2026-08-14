@@ -120,8 +120,8 @@ def _build_main_theme(
     active_str = "、".join(active_labels)
 
     lines: list[str] = [
-        f"本周共收录{total}篇热点资讯，覆盖{len(groups)}个核心领域"
-        f"（{active_str}），各领域资讯活跃度总体保持稳定。"
+        (f"本周共收录{total}篇热点资讯，覆盖{len(groups)}个核心领域"
+        f"（{active_str}），各领域资讯活跃度总体保持稳定。")
     ]
 
     # ── Per-domain analysis ──

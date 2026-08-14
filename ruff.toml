@@ -1,0 +1,48 @@
+# ruff 配置 — 核心规则 (安全自动修优先)
+# P1: 后端此前零 lint, 首次接入只启用高价值低噪音规则。
+# 目标版本 py310 (X | None 注解语法安全)。
+line-length = 100
+target-version = "py310"
+
+[lint]
+select = [
+    "E4", "E7", "E9",   # pycodestyle 语法/引用类 (安全)
+    "F",                # pyflakes 未定义/未使用 (自动修)
+    "I",                # isort import 排序 (自动修)
+    "UP",               # pyupgrade 现代语法 (自动修)
+    "RUF",              # ruff 特有 (自动修为主)
+    "SIM",              # 简化 (自动修为主)
+    "B",                # bugbear 关键 bug 类
+    "C4", "ISC",        # 集合/字符串简写
+    "DTZ",              # 时区感知 datetime
+    "ASYNC",            # async 阻塞调用
+]
+
+ignore = [
+    "BLE001",   # blind except — 采集层异常隔离是有意设计
+    "S110",     # try-except-pass
+    "B008",     # 函数参数默认值调用
+    "B904",     # raise-without-from — 既有大量模式, 非关键
+    "SIM105",   # suppressible-exception — 既有模式
+    "F841",     # unused-variable — 部分为故意解包
+    "RUF001",   # ambiguous-unicode-character-string — 中文注释全角字符误报
+    "RUF002",   # ambiguous-unicode-character-docstring — 同上
+    "RUF003",   # ambiguous-unicode-character-comment — 同上
+    "DTZ007",   # naive strptime — 仓库模式为"解析后显式补时区", 语义正确
+    "ASYNC240", # async 中 pathlib 小文件操作 — 性能建议非 bug
+    # 风格类 (首次接入 lint 不追求清零, 防误改行为)
+    "SIM102", "SIM117", "SIM108", "SIM110", "SIM115", "SIM118", "SIM401",
+    "E402",     # module-import-not-at-top — lazy import 模式有意
+    "RUF034", "RUF059", "RUF005",
+    "E741",     # ambiguous-variable-name
+    "B007",     # unused-loop-control-variable
+    "ISC004", "C408", "C416",
+]
+
+[lint.per-file-ignores]
+# __init__.py 的 re-export 模式
+"__init__.py" = ["F401", "I001"]
+# base.py 是 re-export 契约模块 (测试 monkeypatch backend.collectors.base.X)
+"backend/collectors/base.py" = ["F401", "I001"]
+# 测试文件放宽时区/async/异常断言检查
+"backend/tests/*" = ["DTZ", "ASYNC", "BLE001", "S110", "B017", "RUF012"]

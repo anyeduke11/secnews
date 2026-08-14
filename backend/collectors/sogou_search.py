@@ -55,7 +55,6 @@ import logging
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from urllib.parse import unquote
 
 import aiohttp
 
@@ -193,9 +192,7 @@ def _is_valid_target_url(url: str) -> bool:
         return False
     if url.startswith(("javascript:", "#", "void(0)")):
         return False
-    if _SOGOU_SELF_RE.match(url):
-        return False
-    return True
+    return not _SOGOU_SELF_RE.match(url)
 
 
 def _is_title_blocked(title: str) -> bool:
@@ -616,15 +613,15 @@ async def search_sogou(
 
 
 __all__ = [
+    "SOGOU_SEARCH_URL",
+    "WECHAT_MAX_AGE_DAYS_DEFAULT",
+    "WECHAT_MAX_AGE_DAYS_HARD_CAP",
+    "WEIXIN_SEARCH_URL",
+    "_WEIXIN_ARTICLE_RE",
     "fetch_sogou_html",
     "fetch_weixin_html",
     "parse_sogou_html",
     "parse_sogou_weixin_html",
     "parse_wechat_articles_html",
     "search_sogou",
-    "_WEIXIN_ARTICLE_RE",
-    "WEIXIN_SEARCH_URL",
-    "SOGOU_SEARCH_URL",
-    "WECHAT_MAX_AGE_DAYS_HARD_CAP",
-    "WECHAT_MAX_AGE_DAYS_DEFAULT",
 ]

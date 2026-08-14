@@ -6,10 +6,8 @@ focus on the detect-and-conflict logic that can be tested in isolation.
 
 from __future__ import annotations
 
-import json
 import time
 from pathlib import Path
-from threading import Lock
 
 import pytest
 
@@ -20,9 +18,7 @@ from backend.services.knowledge_watcher import (
     _KnowledgeEventHandler,
     _maybe_sync_publish_status,
     _maybe_update_map,
-    CONFLICTS_DIR,
 )
-
 
 # ---------------------------------------------------------------------------
 # _KnowledgeEventHandler

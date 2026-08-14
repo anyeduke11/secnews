@@ -14,7 +14,6 @@ Phase 45 关键修复:
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 
 from pydantic import HttpUrl
 
@@ -31,7 +30,7 @@ def _make(
     quality_score: int = 80,
     is_fallback: bool = False,
     fetched_at: datetime | None = None,
-    url_check_status: Optional[str] = None,
+    url_check_status: str | None = None,
 ) -> HotspotItem:
     ts = fetched_at or datetime(2026, 1, 1, tzinfo=timezone.utc)
     return HotspotItem(

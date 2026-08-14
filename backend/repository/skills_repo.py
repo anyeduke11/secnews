@@ -12,12 +12,10 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
 from backend.repository.db import get_connection
-
 
 VALID_SOURCES = ("npx", "uvx", "curl", "git", "manual")
 
@@ -29,15 +27,15 @@ class SkillItem:
     """Skill 内存模型。"""
 
     __slots__ = (
-        "id",
-        "name",
-        "url",
-        "install_command",
+        "created_at",
         "description",
+        "id",
+        "install_command",
+        "name",
         "source",
         "tags",
-        "created_at",
         "updated_at",
+        "url",
     )
 
     def __init__(
@@ -47,7 +45,7 @@ class SkillItem:
         name: str,
         url: str,
         install_command: str,
-        description: Optional[str],
+        description: str | None,
         source: str,
         tags: list[str],
         created_at: str,
@@ -129,9 +127,9 @@ class SkillRepository:
         name: str,
         url: str,
         install_command: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         source: str = "manual",
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
     ) -> SkillItem:
         """新增 skill。"""
         _validate_required(name, url, install_command)
@@ -194,9 +192,9 @@ class SkillRepository:
     def list(
         self,
         *,
-        source: Optional[str] = None,
-        tag: Optional[str] = None,
-        keyword: Optional[str] = None,
+        source: str | None = None,
+        tag: str | None = None,
+        keyword: str | None = None,
         limit: int = 200,
     ) -> tuple[list[SkillItem], int]:
         """多维筛选 + 关键词搜索 (name/description LIKE)。"""
@@ -236,7 +234,7 @@ class SkillRepository:
         ).fetchall()
         return [_row_to_skill(r) for r in rows], total
 
-    def get(self, skill_id: int) -> Optional[SkillItem]:
+    def get(self, skill_id: int) -> SkillItem | None:
         conn = get_connection()
         row = conn.execute("SELECT * FROM skills WHERE id = ?", (int(skill_id),)).fetchone()
         return _row_to_skill(row) if row else None
@@ -247,7 +245,7 @@ class SkillRepository:
         rows = conn.execute(
             "SELECT source, COUNT(*) AS n FROM skills GROUP BY source"
         ).fetchall()
-        out: dict[str, int] = {s: 0 for s in VALID_SOURCES}
+        out: dict[str, int] = dict.fromkeys(VALID_SOURCES, 0)
         for r in rows:
             key = str(r["source"] or "manual")
             if key in out:
@@ -263,12 +261,12 @@ class SkillRepository:
         self,
         skill_id: int,
         *,
-        name: Optional[str] = None,
-        url: Optional[str] = None,
-        install_command: Optional[str] = None,
-        description: Optional[str] = None,
-        source: Optional[str] = None,
-        tags: Optional[list[str]] = None,
+        name: str | None = None,
+        url: str | None = None,
+        install_command: str | None = None,
+        description: str | None = None,
+        source: str | None = None,
+        tags: list[str] | None = None,
     ) -> SkillItem:
         """部分更新; 未传的字段保持原值。"""
         existing = self.get(skill_id)
@@ -343,4 +341,4 @@ class SkillRepository:
             raise InternalException(f"skill delete failed: {e}") from e
 
 
-__all__ = ["SkillRepository", "SkillItem", "VALID_SOURCES"]
+__all__ = ["VALID_SOURCES", "SkillItem", "SkillRepository"]

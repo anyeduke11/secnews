@@ -17,7 +17,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from typing import Optional
 
 import aiohttp
 from lxml import html as lxml_html
@@ -39,7 +38,7 @@ _META_ONLY_RE = re.compile(
 )
 
 
-def _needs_enrich(summary: Optional[str]) -> bool:
+def _needs_enrich(summary: str | None) -> bool:
     """判断摘要是否需要富化。
 
     条件（满足任一即需富化）：
@@ -60,9 +59,7 @@ def _needs_enrich(summary: Optional[str]) -> bool:
         if re.search(r"<[a-z]+[^>]*>", summary, re.IGNORECASE):
             return True
     # 纯元数据（无 HTML 标签但也只有 URL）
-    if _META_ONLY_RE.match(summary):
-        return True
-    return False
+    return bool(_META_ONLY_RE.match(summary))
 
 
 def _strip_html(text: str) -> str:
@@ -76,7 +73,7 @@ def _strip_html(text: str) -> str:
         return clean.strip()
 
 
-def _extract_first_text(html_text: str) -> Optional[str]:
+def _extract_first_text(html_text: str) -> str | None:
     """从文章 HTML 中提取首段有意义文本。
 
     策略：
@@ -122,7 +119,7 @@ def _extract_first_text(html_text: str) -> Optional[str]:
     return None
 
 
-async def _fetch_article(url: str) -> Optional[str]:
+async def _fetch_article(url: str) -> str | None:
     """抓取文章 URL 并返回 HTML 文本。
 
     通过 aiohttp 抓取，超时 FETCH_TIMEOUT 秒。
@@ -131,41 +128,40 @@ async def _fetch_article(url: str) -> Optional[str]:
     try:
         connector = aiohttp.TCPConnector(ssl=False)
         timeout = aiohttp.ClientTimeout(total=FETCH_TIMEOUT)
-        async with connector:
-            async with aiohttp.ClientSession(connector=connector) as session:
-                async with session.get(
-                    url,
-                    headers={
-                        "User-Agent": (
-                            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                            "AppleWebKit/537.36 (KHTML, like Gecko) "
-                            "Chrome/120.0.0.0 Safari/537.36"
-                        ),
-                    },
-                    timeout=timeout,
-                ) as resp:
-                    if resp.status != 200:
-                        logger.debug(
-                            "article fetch HTTP %d for %s", resp.status, url
-                        )
-                        return None
-                    # 只读取前 64KB 足够提取摘要
-                    raw = await resp.content.read(65536)
-                    # 尝试解码
-                    content_type = resp.headers.get("Content-Type", "")
-                    encoding = "utf-8"
-                    if "charset=" in content_type:
-                        encoding = content_type.split("charset=")[-1].split(";")[0]
-                    try:
-                        return raw.decode(encoding, errors="replace")
-                    except (LookupError, ValueError):
-                        return raw.decode("utf-8", errors="replace")
+        async with connector, aiohttp.ClientSession(connector=connector) as session:
+            async with session.get(
+                url,
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/120.0.0.0 Safari/537.36"
+                    ),
+                },
+                timeout=timeout,
+            ) as resp:
+                if resp.status != 200:
+                    logger.debug(
+                        "article fetch HTTP %d for %s", resp.status, url
+                    )
+                    return None
+                # 只读取前 64KB 足够提取摘要
+                raw = await resp.content.read(65536)
+                # 尝试解码
+                content_type = resp.headers.get("Content-Type", "")
+                encoding = "utf-8"
+                if "charset=" in content_type:
+                    encoding = content_type.split("charset=")[-1].split(";")[0]
+                try:
+                    return raw.decode(encoding, errors="replace")
+                except (LookupError, ValueError):
+                    return raw.decode("utf-8", errors="replace")
     except (asyncio.TimeoutError, aiohttp.ClientError, OSError) as e:
         logger.debug("article fetch failed for %s: %s", url, type(e).__name__)
         return None
 
 
-async def enrich_summary(url: str, original_summary: Optional[str]) -> Optional[str]:
+async def enrich_summary(url: str, original_summary: str | None) -> str | None:
     """对单条资讯进行摘要富化。
 
     流程：
@@ -275,4 +271,4 @@ async def batch_enrich(
     return items
 
 
-__all__ = ["enrich_summary", "batch_enrich", "_needs_enrich", "_strip_html"]
+__all__ = ["_needs_enrich", "_strip_html", "batch_enrich", "enrich_summary"]

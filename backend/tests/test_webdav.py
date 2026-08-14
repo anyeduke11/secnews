@@ -12,8 +12,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Iterator
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest

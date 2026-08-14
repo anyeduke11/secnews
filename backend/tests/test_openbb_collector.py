@@ -12,7 +12,6 @@ from datetime import datetime, timezone
 
 import pytest
 
-from backend.collectors.base import BaseCollector
 from backend.collectors.openbb_collector import OPENBB_SOURCES, OpenBBCollector
 from backend.domain.collection import SourceResult
 from backend.domain.enums import Category

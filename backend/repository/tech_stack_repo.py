@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.repository.db import get_connection
 
@@ -38,13 +37,13 @@ class TechStackRepository:
         )
         return self.get(id)  # type: ignore[return-value]
 
-    def get(self, id: str) -> Optional[dict]:
+    def get(self, id: str) -> dict | None:
         row = get_connection().execute(
             "SELECT * FROM tech_stack WHERE id = ?", (id,)
         ).fetchone()
         return _row_to_tech(row) if row else None
 
-    def list(self, category: Optional[str] = None, limit: int = 500) -> list[dict]:
+    def list(self, category: str | None = None, limit: int = 500) -> list[dict]:
         sql = "SELECT * FROM tech_stack"
         params: list = []
         if category:
@@ -58,11 +57,11 @@ class TechStackRepository:
     def update(
         self,
         id: str,
-        name: Optional[str] = None,
-        category: Optional[str] = None,
-        proficiency: Optional[int] = None,
-        notes: Optional[str] = None,
-    ) -> Optional[dict]:
+        name: str | None = None,
+        category: str | None = None,
+        proficiency: int | None = None,
+        notes: str | None = None,
+    ) -> dict | None:
         existing = self.get(id)
         if not existing:
             return None
@@ -89,7 +88,7 @@ class TechStackRepository:
         cur = get_connection().execute("DELETE FROM tech_stack WHERE id = ?", (id,))
         return cur.rowcount or 0
 
-    def find_by_name(self, name: str) -> Optional[dict]:
+    def find_by_name(self, name: str) -> dict | None:
         """按 name 精确查找 (用于桥接: tag_id → tech_stack name)."""
         row = get_connection().execute(
             "SELECT * FROM tech_stack WHERE name = ? COLLATE NOCASE", (name,)

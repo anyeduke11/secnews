@@ -25,15 +25,16 @@ from __future__ import annotations
 import functools
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, Tuple
+from typing import Any
 
 from backend.repository.kl_dead_letter_repo import KLDeadLetterRepository
 
 logger = logging.getLogger("hotspot.retry")
 
 # Default backoff schedule (seconds). 3 attempts: 1s, 5s, 30s.
-DEFAULT_BACKOFF: Tuple[int, ...] = (1, 5, 30)
+DEFAULT_BACKOFF: tuple[int, ...] = (1, 5, 30)
 DEFAULT_MAX_ATTEMPTS: int = 3
 
 
@@ -46,14 +47,14 @@ class RetryResult:
     """Outcome of a :func:`with_retry`-wrapped call."""
     success: bool
     value: Any = None
-    error: Optional[BaseException] = None
+    error: BaseException | None = None
     attempts: int = 0
 
 
 def with_retry(
-    fn: Optional[Callable[..., Any]] = None,
+    fn: Callable[..., Any] | None = None,
     max_attempts: int = DEFAULT_MAX_ATTEMPTS,
-    backoff: Tuple[int, ...] = DEFAULT_BACKOFF,
+    backoff: tuple[int, ...] = DEFAULT_BACKOFF,
     sleep: Callable[[float], None] = time.sleep,
 ) -> Any:
     """Call ``fn`` with up to ``max_attempts`` retries and exponential backoff.
@@ -81,7 +82,7 @@ def with_retry(
     def _decorate(target: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(target)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exc: Optional[BaseException] = None
+            last_exc: BaseException | None = None
             for attempt in range(1, max_attempts + 1):
                 try:
                     return target(*args, **kwargs)
@@ -138,7 +139,7 @@ class RetryPolicy:
 
     def __init__(
         self,
-        dead_letter_repo: Optional[KLDeadLetterRepository] = None,
+        dead_letter_repo: KLDeadLetterRepository | None = None,
         metrics: Any = None,
         max_attempts: int = DEFAULT_MAX_ATTEMPTS,
     ):
@@ -151,7 +152,7 @@ class RetryPolicy:
         trigger_name: str,
         item_id: str,
         error: BaseException,
-        payload: Optional[dict] = None,
+        payload: dict | None = None,
     ) -> int:
         """Record a failure. Returns the new attempts count.
 
@@ -195,7 +196,7 @@ class RetryPolicy:
 __all__ = [
     "DEFAULT_BACKOFF",
     "DEFAULT_MAX_ATTEMPTS",
+    "RetryPolicy",
     "RetryResult",
     "with_retry",
-    "RetryPolicy",
 ]

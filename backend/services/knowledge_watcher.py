@@ -31,18 +31,17 @@ import re
 import threading
 import time
 from pathlib import Path
-from typing import Optional
 
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
+from backend.services import content_service as _content_service
 from backend.services.knowledge_sync import (
     KNOWLEDGE_DIR,
     full_sync_concepts_to_db,
     full_sync_drafts_to_db,
     full_sync_items_to_db,
 )
-from backend.services import content_service as _content_service
 from backend.services.map_updater import update_map as _update_map
 
 log = logging.getLogger("hotspot.knowledge_watcher")
@@ -247,7 +246,7 @@ class _Watcher:
     """Owns one Observer and its per-subdir handlers."""
 
     def __init__(self) -> None:
-        self._observer: Optional[Observer] = None
+        self._observer: Observer | None = None
         self._handlers: list[_KnowledgeEventHandler] = []
         self._lock = threading.Lock()
 
@@ -303,7 +302,7 @@ class _Watcher:
 
 
 # Module-level singleton (per task spec).
-_watcher_instance: Optional[_Watcher] = None
+_watcher_instance: _Watcher | None = None
 
 
 # ── Publish task status sync (spec 6.4) ────────────────────────
@@ -334,8 +333,8 @@ def _maybe_sync_publish_status(path: str) -> None:
         # pending/ or processing/ — no status update needed.
         return
 
-    published_url: Optional[str] = None
-    error: Optional[str] = None
+    published_url: str | None = None
+    error: str | None = None
 
     try:
         text = Path(path).read_text(encoding="utf-8")

@@ -40,12 +40,12 @@
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import ClassVar, Literal, Optional
+from datetime import timezone
+from typing import ClassVar, Literal
 
+from backend.domain.collection import GateResult
 from backend.domain.models import HotspotItem
 from backend.quality.base import BaseGate, GateContext
-from backend.domain.collection import GateResult
 from backend.utils.business_days import current_week_start
 
 

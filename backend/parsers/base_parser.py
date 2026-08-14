@@ -10,20 +10,20 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 
 class RawItem:
     """解析器输出的原始条目（尚未经 collector 的 build_items 处理）。"""
 
-    __slots__ = ("title", "url", "summary", "published_at")
+    __slots__ = ("published_at", "summary", "title", "url")
 
     def __init__(
         self,
         title: str,
         url: str,
         summary: str = "",
-        published_at: Optional[str] = None,
+        published_at: str | None = None,
     ):
         self.title = title
         self.url = url

@@ -174,7 +174,7 @@ def test_count_unique_urls_vs_count_in_range(repo):
 
 def test_count_unique_urls_excludes_historical_bid(repo):
     """historical_bid 标记的行不计入 unique (与 query 口径一致)。"""
-    from datetime import timezone, timedelta
+    from datetime import timedelta, timezone
     now = datetime.now(timezone.utc) - timedelta(hours=1)
     items = [
         _make_item("real-1", category=Category.BID, source="x",

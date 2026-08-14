@@ -8,9 +8,8 @@ skill, triggered by a task file in knowledge/learning/tasks/pending/.
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 from backend.domain.knowledge_models import now_iso
 from backend.repository.knowledge_repo import knowledge_repo
@@ -32,16 +31,16 @@ PLANS_DIR = KNOWLEDGE_DIR / "learning"
 
 def _current_iso_week() -> str:
     """Return current ISO week string, e.g. '2026-W29'."""
-    iso = date.today().isocalendar()
+    iso = datetime.now(timezone.utc).date().isocalendar()
     return f"{iso.year}-W{iso.week:02d}"
 
 
-def list_plans(status: Optional[str] = None) -> list[dict]:
+def list_plans(status: str | None = None) -> list[dict]:
     """List all learning plans, optionally filtered by status."""
     return knowledge_repo.list_plans(status=status)
 
 
-def get_plan(week: str) -> Optional[dict]:
+def get_plan(week: str) -> dict | None:
     """Get a single learning plan by week (e.g. '2026-W29')."""
     return knowledge_repo.get_plan(week)
 
@@ -145,7 +144,7 @@ def update_plan_status(week: str, status: str) -> dict:
     return saved
 
 
-def generate_plan_task(domains: Optional[list[str]] = None) -> dict:
+def generate_plan_task(domains: list[str] | None = None) -> dict:
     """Create a generate_learning_plan task for Agent to execute.
 
     Writes a task file to knowledge/learning/tasks/pending/ for the Agent
@@ -188,7 +187,7 @@ params:
     return {"task_id": task.id, "status": "pending", "week": week}
 
 
-def generate_plan_direct(domains: Optional[list[str]] = None) -> dict:
+def generate_plan_direct(domains: list[str] | None = None) -> dict:
     """Generate a learning plan directly (no external Agent needed).
 
     Scans knowledge items, groups by domain, selects unmastered items
@@ -236,7 +235,7 @@ def generate_plan_direct(domains: Optional[list[str]] = None) -> dict:
         "other": "其他",
         "其他": "其他",
     }
-    for d, count in sorted_domains[:5]:
+    for d, _count in sorted_domains[:5]:
         label = domain_labels.get(d, d)
         unmastered_count = len(domain_unmastered.get(d, []))
         if unmastered_count > 0:

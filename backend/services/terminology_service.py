@@ -11,7 +11,6 @@ from __future__ import annotations
 import difflib
 import logging
 import re
-from typing import Any, Optional
 
 from backend.repository.security_repo import SecurityRepository
 
@@ -24,7 +23,7 @@ _log = logging.getLogger("hotspot.security.terminology")
 class TerminologyService:
     """Security term normalization and search."""
 
-    def __init__(self, repo: Optional[SecurityRepository] = None):
+    def __init__(self, repo: SecurityRepository | None = None):
         self._repo = repo or SecurityRepository()
 
     def normalize(self, text: str) -> dict:
@@ -116,7 +115,7 @@ class TerminologyService:
             return []
         return self._repo.get_synonyms(term["id"])
 
-    def search(self, query: str, term_type: Optional[str] = None, limit: int = 20) -> list[dict]:
+    def search(self, query: str, term_type: str | None = None, limit: int = 20) -> list[dict]:
         """Search canonical terms."""
         return self._repo.search_terms(query, term_type=term_type, limit=limit)
 

@@ -11,7 +11,6 @@ Usage::
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
 from backend.logging_config import logger
 
@@ -46,7 +45,7 @@ class BackendSession:
         rate_limit: int = 5,
         connect_timeout: float = 10.0,
         read_timeout: float = 30.0,
-        headers: Optional[dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         if not HAS_HTTPX:
             raise ImportError(
@@ -58,7 +57,7 @@ class BackendSession:
         self._connect_timeout = connect_timeout
         self._read_timeout = read_timeout
         self._headers = headers or {}
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     async def __aenter__(self) -> BackendSession:
         self._client = httpx.AsyncClient(
@@ -97,13 +96,13 @@ class BackendSession:
         # 延迟导入避免循环依赖
         from backend.proxy_config import get_proxy_url, should_use_proxy
 
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
 
         for attempt in range(len(RETRY_DELAYS) + 1):
             async with self._semaphore:
                 try:
                     # 按 URL 决定是否走代理
-                    proxies: Optional[dict[str, str]] = None
+                    proxies: dict[str, str] | None = None
                     if should_use_proxy(url):
                         proxy_url = get_proxy_url(url)
                         if proxy_url:
@@ -150,7 +149,7 @@ class BackendSession:
 
 
 __all__ = [
-    "BackendSession",
     "HAS_HTTPX",
     "RETRY_DELAYS",
+    "BackendSession",
 ]

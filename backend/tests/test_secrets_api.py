@@ -11,8 +11,7 @@
 from __future__ import annotations
 
 import base64
-import time
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 
@@ -23,7 +22,6 @@ def client(tmp_path, monkeypatch) -> Iterator:
 
     设置 ``DB_PATH`` 环境变量让 ``backend.repository.db`` 指向新库,
     然后 install_skills + secrets router。"""
-    import os
     import sqlite3
     db_file = tmp_path / "test_secrets.db"
     monkeypatch.setenv("HOTSPOT_TEST_DB", str(db_file))
@@ -32,15 +30,15 @@ def client(tmp_path, monkeypatch) -> Iterator:
     conn = sqlite3.connect(str(db_file))
     schema_dir = "backend/repository/migrations"
     for sql_file in ("012_skills.sql", "013_secrets.sql", "014_sync.sql"):
-        with open(f"{schema_dir}/{sql_file}", "r", encoding="utf-8") as f:
+        with open(f"{schema_dir}/{sql_file}", encoding="utf-8") as f:
             conn.executescript(f.read())
     conn.commit()
     conn.close()
 
     # Patch backend.repository.db.get_connection 走我们的 db (单例, 避免 SQLite 锁竞争)
+
     from backend import repository as repo_pkg
     from backend.repository import db as db_mod
-    import contextlib
 
     shared_conn = sqlite3.connect(str(db_file), check_same_thread=False, timeout=30.0)
     shared_conn.row_factory = sqlite3.Row
@@ -63,6 +61,7 @@ def client(tmp_path, monkeypatch) -> Iterator:
 
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from backend.api.secrets import router
 
     app = FastAPI()

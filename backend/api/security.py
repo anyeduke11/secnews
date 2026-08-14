@@ -16,7 +16,6 @@ Endpoints
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Optional
 
 from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
@@ -39,8 +38,8 @@ class MitreSyncResponse(BaseModel):
 @router.get("/entities")
 async def list_entities(
     request: Request,
-    entity_type: Optional[str] = Query(None, description="Filter by entity type"),
-    q: Optional[str] = Query(None, description="Search by name"),
+    entity_type: str | None = Query(None, description="Filter by entity type"),
+    q: str | None = Query(None, description="Search by name"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
@@ -154,7 +153,7 @@ async def normalize_term(request: Request, text: str = Query(..., description="T
 async def search_terms(
     request: Request,
     q: str = Query(..., description="Search query"),
-    term_type: Optional[str] = Query(None, description="Filter by term type"),
+    term_type: str | None = Query(None, description="Filter by term type"),
     limit: int = Query(20, ge=1, le=100),
 ):
     """Search canonical terms."""
@@ -169,7 +168,7 @@ async def search_terms(
 @router.get("/terminology/taxonomy")
 async def get_taxonomy(
     request: Request,
-    term_type: Optional[str] = Query(None, description="Filter by term type"),
+    term_type: str | None = Query(None, description="Filter by term type"),
 ):
     """Get term taxonomy hierarchy."""
     try:

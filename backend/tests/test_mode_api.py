@@ -10,7 +10,6 @@
 """
 from __future__ import annotations
 
-from backend.version import APP_VERSION as API_VERSION
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -27,6 +26,7 @@ from backend.services.digest_service import (
     has_unread_digest,
     mark_digest_read,
 )
+from backend.version import APP_VERSION as API_VERSION
 
 
 @pytest.fixture

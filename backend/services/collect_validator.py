@@ -40,12 +40,11 @@ from __future__ import annotations
 
 import json
 import re
-import sqlite3
-from collections import Counter, defaultdict
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from backend.repository.db import get_connection
 
@@ -488,7 +487,8 @@ def auto_resolve_old_validations(*, older_than_days: int = 7) -> int:
     int
         被归档的 issue 数
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
+
     from backend.repository.db import get_connection
     try:
         cutoff = (
@@ -516,7 +516,7 @@ def auto_resolve_old_validations(*, older_than_days: int = 7) -> int:
 
 
 def list_recent_validations(
-    run_id: Optional[int] = None,
+    run_id: int | None = None,
     *,
     include_resolved: bool = False,
     limit: int = 50,
@@ -596,11 +596,11 @@ def validate_and_persist(
 
 
 __all__ = [
-    "ValidationReport",
-    "ValidationIssue",
-    "ValidationType",
     "Severity",
-    "validate_run",
-    "validate_and_persist",
+    "ValidationIssue",
+    "ValidationReport",
+    "ValidationType",
     "persist_report",
+    "validate_and_persist",
+    "validate_run",
 ]

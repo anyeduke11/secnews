@@ -13,8 +13,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
 from backend.collectors.base import BaseCollector
 from backend.domain.enums import Category
 from backend.utils.business_days import current_week_start

@@ -14,22 +14,19 @@
 """
 from __future__ import annotations
 
-import json
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
 
-from backend.repository.catchup_checkpoint_repo import CatchupCheckpointRepository
+from backend.repository.db import get_connection
 from backend.services.collect_validator import (
+    Severity,
     ValidationReport,
     ValidationType,
-    Severity,
-    persist_report,
     validate_and_persist,
     validate_run,
 )
-from backend.repository.db import get_connection
 
 
 @pytest.fixture

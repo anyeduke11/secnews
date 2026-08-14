@@ -26,13 +26,14 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
 @pytest.fixture
 def client(temp_db):
     from backend.api.mcp_config import (
-        mcp_tool_registry_seed,
         build_mcp_server,
+        mcp_tool_registry_seed,
         mount_sse_endpoint,
     )
     mcp_tool_registry_seed()
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from backend.api import register_routers
     app = FastAPI()
     register_routers(app)

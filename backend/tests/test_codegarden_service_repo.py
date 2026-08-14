@@ -2,16 +2,13 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 
 from backend.exceptions import InternalException
 from backend.repository.codegarden_service_repo import (
     CodegardenServiceRepository,
-    VALID_SERVICE_TYPES,
-    VALID_RUNTIMES,
-    VALID_SERVICE_STATUSES,
 )
 
 
@@ -21,7 +18,7 @@ def repo(tmp_path, monkeypatch) -> Iterator[CodegardenServiceRepository]:
     db_file = tmp_path / "test_codegarden_services.db"
     conn = sqlite3.connect(str(db_file))
     # 019: 跳过 skills ALTER
-    with open("backend/repository/migrations/019_codegarden.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/019_codegarden.sql", encoding="utf-8") as f:
         sql_text = f.read()
     cg_sql = "\n".join(
         line for line in sql_text.splitlines()
@@ -30,7 +27,7 @@ def repo(tmp_path, monkeypatch) -> Iterator[CodegardenServiceRepository]:
     )
     conn.executescript(cg_sql)
     # 021: cg_services 等
-    with open("backend/repository/migrations/021_codegarden_phase2b.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/021_codegarden_phase2b.sql", encoding="utf-8") as f:
         conn.executescript(f.read())
     conn.commit()
     conn.close()
@@ -51,15 +48,15 @@ def repo(tmp_path, monkeypatch) -> Iterator[CodegardenServiceRepository]:
 
 
 def _make_service(repo, **overrides):
-    defaults = dict(
-        name="test-api",
-        type="http",
-        runtime="docker",
-        status="running",
-        endpoint_host="127.0.0.1",
-        endpoint_port=3000,
-        namespace="test.ns",
-    )
+    defaults = {
+        "name": "test-api",
+        "type": "http",
+        "runtime": "docker",
+        "status": "running",
+        "endpoint_host": "127.0.0.1",
+        "endpoint_port": 3000,
+        "namespace": "test.ns",
+    }
     defaults.update(overrides)
     return repo.create(**defaults)
 

@@ -11,6 +11,7 @@ via :func:`set_service`; this avoids a module-level import cycle between
 ``backend.scheduler`` and ``backend.services``.
 """
 import asyncio
+from datetime import datetime
 
 from backend.logging_config import logger
 from backend.repository.trend_repo import TrendRepository
@@ -143,9 +144,9 @@ async def scheduled_compile_job() -> None:
     """
     try:
         from backend.services.compiler import (
-            detect_stale_items,
-            create_compile_task,
             STALE_ITEM_DAILY_QUOTA,
+            create_compile_task,
+            detect_stale_items,
         )
 
         result = await asyncio.to_thread(detect_stale_items, STALE_ITEM_DAILY_QUOTA)
@@ -190,10 +191,10 @@ async def consume_compile_tasks_job() -> None:
     """
     try:
         from backend.services.compiler import (
-            consume_compile_tasks,
-            archive_stale_compile_tasks,
-            CONSUME_DAILY_QUOTA,
             ARCHIVE_MAX_AGE_DAYS,
+            CONSUME_DAILY_QUOTA,
+            archive_stale_compile_tasks,
+            consume_compile_tasks,
         )
 
         consumed = await asyncio.to_thread(
@@ -219,7 +220,7 @@ async def scheduled_soul_job() -> None:
     失败只 log.error，不抛异常。
     """
     try:
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
 
         def _read_soul_updated_at():
             from backend.services.knowledge_sync import parse_frontmatter
@@ -314,6 +315,7 @@ async def sync_job(*, force: bool = False) -> None:
     - 手动 push/pull 的 catch-up 检测
     """
     from datetime import datetime, timezone
+
     from backend.repository.encryption_keys_repo import EncryptionKeyRepository
     from backend.repository.sync_configs_repo import SyncConfigRepository
     from backend.services.secrets_service import _is_unlocked
@@ -572,30 +574,30 @@ async def cg_event_process_job() -> None:
 
 
 __all__ = [
-    "set_service",
-    "reset_service",
+    "cg_event_process_job",
+    "cg_service_scan_job",
+    "cg_upstream_sync_job",
     "collect_all_job",
-    "trend_rebuild_job",
-    "url_content_check_job",
-    "source_reputation_rebuild_job",
-    "export_rebuild_job",
-    "sync_job",
-    "should_run_catchup",
-    "daily_snapshot_job",
-    "weekly_report_job",
-    "scheduled_compile_job",
     "consume_compile_tasks_job",
+    "daily_db_backup_job",  # P1: 每日数据库自动备份
+    "daily_snapshot_job",
+    "export_rebuild_job",
+    "mitre_sync_job",
+    "quality_logs_cleanup_job",  # P0: quality_check_logs 定时清理
+    "reset_service",
+    "scheduled_compile_job",
+    "scheduled_migrate_job",
     "scheduled_soul_job",
     "scheduled_stats_job",
-    "scheduled_migrate_job",
     "scheduled_summary_job",
-    "quality_logs_cleanup_job",  # P0: quality_check_logs 定时清理
-    "daily_db_backup_job",  # P1: 每日数据库自动备份
-    "cg_upstream_sync_job",
-    "cg_service_scan_job",
-    "cg_event_process_job",
-    "mitre_sync_job",
     "security_enrichment_job",
+    "set_service",
+    "should_run_catchup",
+    "source_reputation_rebuild_job",
+    "sync_job",
+    "trend_rebuild_job",
+    "url_content_check_job",
+    "weekly_report_job",
 ]
 
 
@@ -634,9 +636,9 @@ async def security_enrichment_job() -> None:
     不阻塞采集主路径，独立 job 运行。
     """
     try:
-        from backend.security.enricher import enrich_batch
-        from backend.repository.db import get_connection
         from backend.domain.security_models import _now_iso
+        from backend.repository.db import get_connection
+        from backend.security.enricher import enrich_batch
 
         conn = get_connection()
         # 查询近 24h 且尚未 enrichment 的 hotspot items
@@ -693,9 +695,9 @@ async def auto_extract_job() -> None:
     作为 agent_task_consumer_job 的同步回退路径.
     """
     try:
-        from backend.services.extract_service import extract_tags
-        from backend.repository.tags_repo import TagRepository
         from backend.repository.db import get_connection
+        from backend.repository.tags_repo import TagRepository
+        from backend.services.extract_service import extract_tags
 
         def _scan_and_extract():
             conn = get_connection()
@@ -744,8 +746,8 @@ async def alert_evaluator_job() -> None:
     60s 间隔: 复用 evaluate_hotspot 对近期未评估 hotspot 跑规则匹配.
     """
     try:
-        from backend.services.alert_service import evaluate_hotspot
         from backend.repository.db import get_connection
+        from backend.services.alert_service import evaluate_hotspot
 
         def _scan():
             conn = get_connection()
@@ -877,10 +879,11 @@ async def source_revival_check_job() -> None:
         # P1-2: 复活了源, 立刻 enqueue 1 次 auto catchup 验证
         if revived_count >= 1:
             try:
-                from datetime import datetime, timezone, timedelta
+                from datetime import datetime, timedelta, timezone
+
                 from backend.services.catchup_service import (
-                    should_enqueue_auto,
                     mark_auto_enqueued,
+                    should_enqueue_auto,
                 )
                 if should_enqueue_auto():
                     from backend.services.catchup_service import enqueue_catchup
@@ -949,7 +952,6 @@ async def source_scheduler_tick_job() -> None:
             get_scheduler_service,
             set_scheduler_service,
         )
-        from backend.services.collection_service import CollectionService
 
         svc = get_scheduler_service()
         if svc is None:
@@ -1018,17 +1020,17 @@ async def source_alert_eval_job() -> None:
 
 # 更新 __all__
 __all__.extend([
-    "auto_extract_job",
     "alert_evaluator_job",
+    "auto_extract_job",
+    "collect_validations_cleanup_job",  # P1-1: validation 自动归档
     "digest_generator_job",
-    "source_health_check_job",
     "fts_rebuild_job",
     "profile_decay_job",
-    "source_revival_check_job",  # v1.8 Phase 8: 死源复活
-    "collect_validations_cleanup_job",  # P1-1: validation 自动归档
-    "source_scheduler_tick_job",
-    "source_probe_job",
     "source_alert_eval_job",
+    "source_health_check_job",
+    "source_probe_job",
+    "source_revival_check_job",  # v1.8 Phase 8: 死源复活
+    "source_scheduler_tick_job",
 ])
 
 
@@ -1048,13 +1050,14 @@ async def catchup_watchdog_job() -> None:
 
     失败只 log.error, 不抛异常 (与既有 job 模式一致).
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
+
     from backend.repository.db import get_connection
     from backend.services.catchup_service import (
         enqueue_catchup,
+        mark_auto_enqueued,
         set_last_orphan_recovery_at,
         should_enqueue_auto,
-        mark_auto_enqueued,
     )
 
     try:
@@ -1243,7 +1246,7 @@ async def planning_action_check_job() -> None:
         service = PlanningService()
         report = await asyncio.to_thread(service.generate_actions)
         logger.info(
-            f"planning_action_check_job: "
+            "planning_action_check_job: "
             + " ".join(f"{k}={v}" for k, v in report.items())
         )
     except Exception as e:
@@ -1300,6 +1303,7 @@ async def attention_aggregate_job() -> None:
 
         # 清理 30 天前的过期事件
         from datetime import datetime, timedelta, timezone
+
         from backend.repository.db import get_connection
 
         cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
@@ -1371,16 +1375,16 @@ async def url_full_check_job() -> None:
 
 # 更新 __all__ (Phase 1.4 + Phase 2.2 + existing)
 __all__.extend([
+    "attention_aggregate_job",
+    "bid_expiry_check_job",
     "catchup_watchdog_job",
+    "cg_drift_assess_job",
+    "cve_sync_to_security_job",
+    "kl_dead_letter_retry_job",
     "kl_trigger_t1_job",
     "kl_trigger_t2_job",
-    "kl_dead_letter_retry_job",
     "kl_trigger_t3_job",
     "kl_trigger_t4_job",
     "planning_action_check_job",
-    "cg_drift_assess_job",
-    "cve_sync_to_security_job",
-    "attention_aggregate_job",
-    "bid_expiry_check_job",
     "url_full_check_job",
 ])

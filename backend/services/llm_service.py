@@ -10,7 +10,6 @@ import logging
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
@@ -23,7 +22,7 @@ logger = logging.getLogger("hotspot.llm_service")
 DEFAULT_SCORE = 5.0
 
 # 成本估算 (USD per 1M tokens) — 近似值
-COST_PER_1M_TOKENS: Dict[str, float] = {
+COST_PER_1M_TOKENS: dict[str, float] = {
     "gpt-4o-mini": 0.15,
     "gpt-4o": 5.0,
     "qwen-turbo": 0.3,
@@ -61,9 +60,9 @@ class LLMService:
 
     def __init__(
         self,
-        config_path: Optional[Path] = None,
+        config_path: Path | None = None,
     ):
-        self._config: Optional[LLMConfig] = load_llm_config(config_path)
+        self._config: LLMConfig | None = load_llm_config(config_path)
         if self._config is None:
             logger.info("LLM config not found, running in v1.7 compatibility mode")
         else:
@@ -81,7 +80,7 @@ class LLMService:
         return self._config is not None and self._config.enabled
 
     @property
-    def config(self) -> Optional[LLMConfig]:
+    def config(self) -> LLMConfig | None:
         return self._config
 
     async def score(self, content: str, hotspot_id: str = "") -> float:
@@ -117,7 +116,7 @@ class LLMService:
         logger.info("All LLM providers failed, falling back to default score")
         return DEFAULT_SCORE
 
-    async def summarize(self, chunks: List[str]) -> str:
+    async def summarize(self, chunks: list[str]) -> str:
         """T3 摘要，返回汇总文本.
 
         优先用本地 LLM（Ollama）批量处理，失败时降级。
@@ -148,7 +147,7 @@ class LLMService:
         logger.info("All LLM providers failed for summarize, using truncation")
         return text[:200]
 
-    async def extract_entities(self, content: str) -> List[str]:
+    async def extract_entities(self, content: str) -> list[str]:
         """T1 实体提取."""
         if not self.enabled:
             return []
@@ -300,7 +299,7 @@ class LLMService:
         return model_map.get(task, cfg.models.score)
 
     @staticmethod
-    def _get_api_key(env_var: Optional[str]) -> str:
+    def _get_api_key(env_var: str | None) -> str:
         """从环境变量读取 API key."""
         if not env_var:
             return ""
@@ -344,9 +343,8 @@ class LLMService:
         return DEFAULT_SCORE
 
     @staticmethod
-    def _parse_entity_list(raw: str) -> List[str]:
+    def _parse_entity_list(raw: str) -> list[str]:
         """从 LLM 响应中解析实体列表."""
-        import re
         # 尝试 JSON 解析
         try:
             parsed = json.loads(raw)
@@ -364,7 +362,7 @@ class LLMService:
 
     # ── 缓存 ──────────────────────────────────────────────────────
 
-    def _get_cached(self, cache_key: str) -> Optional[str]:
+    def _get_cached(self, cache_key: str) -> str | None:
         """从 SQLite 缓存读取."""
         if not self._config or not self._config.cache.enabled:
             return None
@@ -447,7 +445,7 @@ llm_service = LLMService()
 
 
 __all__ = [
+    "DEFAULT_SCORE",
     "LLMService",
     "llm_service",
-    "DEFAULT_SCORE",
 ]

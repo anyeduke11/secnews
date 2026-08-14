@@ -20,7 +20,6 @@ from starlette.types import ASGIApp
 
 from backend.observability import log_event
 
-
 # Header that clients can pass to participate in distributed tracing
 TRACE_HEADER = "X-Trace-Id"
 
@@ -79,4 +78,4 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
         return response
 
 
-__all__ = ["TraceIDMiddleware", "TRACE_HEADER"]
+__all__ = ["TRACE_HEADER", "TraceIDMiddleware"]

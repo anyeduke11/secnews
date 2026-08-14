@@ -4,8 +4,8 @@
 # 重要：get()/post() 返回的是 aiohttp 的 _RequestContextManager，
 # 可直接用于 async with，不要 await 返回值。
 
+
 import aiohttp
-from typing import Optional
 from proxy_config import get_proxy_url, should_use_proxy
 
 
@@ -20,7 +20,7 @@ class ProxySession:
                 text = await resp.text()
     """
 
-    def __init__(self, headers: Optional[dict] = None, timeout: Optional[aiohttp.ClientTimeout] = None):
+    def __init__(self, headers: dict | None = None, timeout: aiohttp.ClientTimeout | None = None):
         self._session = aiohttp.ClientSession(headers=headers, timeout=timeout)
 
     def get(self, url: str, **kwargs) -> aiohttp.ClientResponse:

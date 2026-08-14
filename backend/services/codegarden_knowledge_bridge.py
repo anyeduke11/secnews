@@ -11,9 +11,6 @@
 """
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Optional
-
 from backend.exceptions import InternalException
 from backend.logging_config import logger
 from backend.repository.codegarden_repo import CodegardenProjectRepository
@@ -65,7 +62,7 @@ class CodegardenKnowledgeBridge:
     # ------------------------------------------------------------------
     # 幂等检查: 找出已存在的 project
     # ------------------------------------------------------------------
-    def find_existing_project(self, item_id: str) -> Optional[dict]:
+    def find_existing_project(self, item_id: str) -> dict | None:
         """若 knowledge_item 已转化为 cg_projects, 返回既有 project; 否则 None.
 
         用于 from-knowledge 端点幂等校验 (首次 201 / 重复 200)。
@@ -87,8 +84,8 @@ class CodegardenKnowledgeBridge:
         *,
         item_id: str,
         source_type: str = "reference",  # fork / reference (reference=仅参考, fork=二开)
-        local_path: Optional[str] = None,
-        source_type_detail: Optional[str] = None,
+        local_path: str | None = None,
+        source_type_detail: str | None = None,
     ) -> dict:
         """从 knowledge_item 创建 cg_projects 记录.
 

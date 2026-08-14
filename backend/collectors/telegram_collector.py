@@ -202,4 +202,4 @@ class TelegramCollector(BaseCollector):
         return items
 
 
-__all__ = ["TelegramCollector", "TELEGRAM_SOURCES"]
+__all__ = ["TELEGRAM_SOURCES", "TelegramCollector"]

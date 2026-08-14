@@ -6,7 +6,6 @@ API: https://aihot.virxact.com/api/public/items?mode=all&take=30
 from __future__ import annotations
 
 import json
-from typing import Any
 
 from backend.parsers.base_parser import BaseSourceParser, RawItem
 
@@ -41,4 +40,4 @@ class AihotParser(BaseSourceParser):
         return items
 
 
-__all__ = ["AihotParser", "SOURCE_ID"]
+__all__ = ["SOURCE_ID", "AihotParser"]

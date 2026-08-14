@@ -61,7 +61,6 @@ Phase 4 = ``yellow`` (24h 产出比 7d 均值下降 40%)。
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from backend.repository.db import get_connection
 
@@ -81,7 +80,7 @@ def _now_utc() -> datetime:
     return datetime.now(_UTC)
 
 
-def _count_in_window(source: str, since: datetime, until: Optional[datetime] = None) -> int:
+def _count_in_window(source: str, since: datetime, until: datetime | None = None) -> int:
     """统计 source 在 [since, until) 窗口内的 hotspots 行数.
 
     Parameters
@@ -152,7 +151,7 @@ def check_health(source: str) -> dict:
     if baseline == 0:
         # 无 7d 历史: 看 24h 是否有产出
         status = "green" if recent > 0 else "red"
-        ratio: Optional[float] = None
+        ratio: float | None = None
     else:
         ratio = abs(recent - baseline) / baseline
         if ratio < _RATIO_GREEN:
@@ -220,8 +219,8 @@ def health_summary() -> dict:
 
 
 __all__ = [
-    "check_health",
     "check_all_health",
-    "list_all_sources",
+    "check_health",
     "health_summary",
+    "list_all_sources",
 ]

@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 from backend.domain.knowledge_models import now_iso
 from backend.repository.knowledge_repo import knowledge_repo
@@ -25,12 +24,12 @@ PROGRESS_PATH = (
 )
 
 
-def list_progress(domain: Optional[str] = None) -> list[dict]:
+def list_progress(domain: str | None = None) -> list[dict]:
     """List progress rows, optionally filtered by domain."""
     return knowledge_repo.list_progress(domain=domain)
 
 
-def get_progress(concept_slug: str) -> Optional[dict]:
+def get_progress(concept_slug: str) -> dict | None:
     """Get mastery progress for a single concept."""
     return knowledge_repo.get_progress(concept_slug)
 

@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Query
 
@@ -50,7 +50,7 @@ async def list_categories(time_range: str = Query(default="7d")):
     """
     try:
         tr = TimeRange(time_range)
-    except ValueError as e:
+    except ValueError:
         tr = TimeRange.D7  # 兜底: 无效输入按 7d 处理, 不阻断响应
 
     cache_key = f"categories:all:{tr.value}"
@@ -71,7 +71,7 @@ async def list_categories(time_range: str = Query(default="7d")):
             }
             for c in visible_cats
         ],
-        "fetched_at": datetime.utcnow().isoformat() + "Z",
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
     }
     static_cache[cache_key] = result
     return result

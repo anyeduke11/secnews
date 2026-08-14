@@ -28,9 +28,7 @@ from __future__ import annotations
 import re
 import time
 import urllib.request
-from typing import Optional
 from urllib.parse import urlparse
-
 
 # ---------------------------------------------------------------------------
 # Landing page 模式识别
@@ -104,7 +102,7 @@ _UA = "hotspot-urldrill/1.0 (Mozilla/5.0 compatible)"
 # ---------------------------------------------------------------------------
 # 简单内存缓存
 # ---------------------------------------------------------------------------
-_drilldown_cache: dict[str, tuple[float, Optional[str]]] = {}
+_drilldown_cache: dict[str, tuple[float, str | None]] = {}
 
 
 def _is_mailto(url: str) -> bool:
@@ -138,13 +136,10 @@ def is_landing_page(url: str) -> bool:
         host = host[4:]
     # 整段 path + 通用模式匹配
     test = path + ("?" + parsed.query if parsed.query else "")
-    for pat in LANDING_PATH_PATTERNS:
-        if re.search(pat, test):
-            return True
-    return False
+    return any(re.search(pat, test) for pat in LANDING_PATH_PATTERNS)
 
 
-def _extract_first_article_url(html: str, host: str) -> Optional[str]:
+def _extract_first_article_url(html: str, host: str) -> str | None:
     """从 tag 页面 HTML 抽取第一个真实文章 URL。
 
     匹配 :data:`DOMAIN_ARTICLE_PATTERNS` 中 ``host`` 对应的 pattern。
@@ -174,7 +169,7 @@ def _extract_first_article_url(html: str, host: str) -> Optional[str]:
     return None
 
 
-def _fetch_html(url: str, timeout: float = _FETCH_TIMEOUT) -> Optional[str]:
+def _fetch_html(url: str, timeout: float = _FETCH_TIMEOUT) -> str | None:
     """同步抓取 HTML（最多 timeout 秒），出错返回 None。"""
     try:
         req = urllib.request.Request(
@@ -189,7 +184,7 @@ def _fetch_html(url: str, timeout: float = _FETCH_TIMEOUT) -> Optional[str]:
         return None
 
 
-def resolve_final_url(url: str) -> Optional[str]:
+def resolve_final_url(url: str) -> str | None:
     """下钻 landing 页 → 抓 HTML → 抽取第一个真实文章 URL。
 
     Returns
@@ -237,9 +232,9 @@ def clear_cache() -> None:
 
 
 __all__ = [
-    "is_landing_page",
-    "resolve_final_url",
-    "clear_cache",
     "DOMAIN_ARTICLE_PATTERNS",
     "LANDING_PATH_PATTERNS",
+    "clear_cache",
+    "is_landing_page",
+    "resolve_final_url",
 ]

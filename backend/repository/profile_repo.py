@@ -23,9 +23,7 @@ Schema
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 
-from backend.exceptions import InternalException
 from backend.repository.db import get_connection
 
 # 权重上下限 (与 profile_service.apply_signal 一致)
@@ -43,7 +41,7 @@ def _now_iso() -> str:
 class ProfileRepository:
     """``personal_profile`` 表的 CRUD + 衰减。"""
 
-    def get(self, dimension: str) -> Optional[dict]:
+    def get(self, dimension: str) -> dict | None:
         """读取单个维度的权重记录。
 
         Returns

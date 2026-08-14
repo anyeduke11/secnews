@@ -13,10 +13,9 @@ Merge rules (Q3 decision):
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from backend.exceptions import InternalException
 
@@ -85,7 +84,7 @@ def validate_bundle(bundle: dict) -> None:
 # 3-way merge
 # ---------------------------------------------------------------------------
 def three_way_merge(
-    base: Optional[dict], local: dict, remote: dict,
+    base: dict | None, local: dict, remote: dict,
 ) -> MergeResult:
     """Merge base/local/remote → merged result.
 
@@ -427,12 +426,12 @@ def _merge_sm2_reviews(base: list, local: list, remote: list) -> tuple[list, int
 
 
 __all__ = [
-    "MergeResult",
     "BUNDLE_VERSION",
     "SETTINGS_BLOCKLIST",
-    "validate_bundle",
-    "three_way_merge",
-    "_now_iso",
+    "MergeResult",
     "_merge_cascade",          # v1.7 Phase 6
     "_merge_sm2_reviews",      # v1.7 Phase 6
+    "_now_iso",
+    "three_way_merge",
+    "validate_bundle",
 ]

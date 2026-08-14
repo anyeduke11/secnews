@@ -14,6 +14,9 @@ lxml>=5.0
 feedparser>=6.0
 keyring>=24.0
 
+# P1: knowledge watchdog 文件监听 (knowledge/*.md → SQLite 同步)
+watchdog>=6.0
+
 # v1.7 Phase 7: MCP Server (Option A) — hotspot ↔ 外部 AI Agent via MCP
 # 锁版本 >= 0.4.0, < 1.0 (fastapi-mcp 1.0 API 仍不稳定)
 fastapi-mcp>=0.4.0,<1.0

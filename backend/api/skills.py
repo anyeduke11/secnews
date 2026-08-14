@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field
@@ -36,18 +35,18 @@ class AddSkillRequest(BaseModel):
     name: str = Field(..., max_length=200, description="skill 名称 (必填)")
     url: str = Field(..., max_length=500, description="skill 链接 (必填)")
     install_command: str = Field(..., description="安装指令 (必填, 一键复制内容)")
-    description: Optional[str] = Field(None, description="简介")
+    description: str | None = Field(None, description="简介")
     source: str = Field("manual", description="npx/uvx/curl/git/manual")
     tags: list[str] = Field(default_factory=list, description="标签数组")
 
 
 class PatchSkillRequest(BaseModel):
-    name: Optional[str] = Field(None, max_length=200)
-    url: Optional[str] = Field(None, max_length=500)
-    install_command: Optional[str] = None
-    description: Optional[str] = None
-    source: Optional[str] = None
-    tags: Optional[list[str]] = None
+    name: str | None = Field(None, max_length=200)
+    url: str | None = Field(None, max_length=500)
+    install_command: str | None = None
+    description: str | None = None
+    source: str | None = None
+    tags: list[str] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -55,9 +54,9 @@ class PatchSkillRequest(BaseModel):
 # ---------------------------------------------------------------------------
 @router.get("")
 async def list_skills(
-    source: Optional[str] = Query(None, description="按 source 筛选"),
-    tag: Optional[str] = Query(None, description="按 tag 筛选 (单 tag)"),
-    keyword: Optional[str] = Query(None, description="name/description 关键词搜索"),
+    source: str | None = Query(None, description="按 source 筛选"),
+    tag: str | None = Query(None, description="按 tag 筛选 (单 tag)"),
+    keyword: str | None = Query(None, description="name/description 关键词搜索"),
     limit: int = Query(200, ge=1, le=1000),
 ):
     """多维筛选 skills。排序: created_at DESC。"""

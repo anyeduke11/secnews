@@ -7,7 +7,6 @@
 """
 import logging
 import uuid
-from typing import Optional
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -73,7 +72,7 @@ class QualityGateFailed(HotspotException):
         *,
         item_id: str = "",
         score: int = 0,
-        flags: Optional[list[str]] = None,
+        flags: list[str] | None = None,
     ):
         super().__init__("QUALITY_GATE_FAILED", message, 422)
         self.item_id = item_id
@@ -140,13 +139,13 @@ def register_exception_handlers(app: FastAPI) -> None:
 
 
 __all__ = [
+    "ConflictException",
     "HotspotException",
+    "InternalException",
     "InvalidParamException",
     "NotFoundException",
-    "ConflictException",
-    "RateLimitedException",
-    "InternalException",
-    "SourceUnavailableException",
     "QualityGateFailed",
+    "RateLimitedException",
+    "SourceUnavailableException",
     "register_exception_handlers",
 ]

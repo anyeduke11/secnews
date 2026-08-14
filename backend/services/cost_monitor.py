@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Literal, Optional
 
 from backend.config.llm_schema import CostAlert, LLMConfig
 from backend.repository.db import get_connection
@@ -14,7 +13,7 @@ from backend.repository.db import get_connection
 logger = logging.getLogger("hotspot.cost_monitor")
 
 # 成本估算 (USD per 1M tokens)
-COST_PER_1M_TOKENS: Dict[str, float] = {
+COST_PER_1M_TOKENS: dict[str, float] = {
     "gpt-4o-mini": 0.15,
     "gpt-4o": 5.0,
     "qwen-turbo": 0.3,
@@ -44,11 +43,11 @@ class CostMonitor:
             # 超限额，触发告警
     """
 
-    def __init__(self, llm_config: Optional[LLMConfig] = None):
+    def __init__(self, llm_config: LLMConfig | None = None):
         self._config = llm_config
 
     @property
-    def config(self) -> Optional[CostAlert]:
+    def config(self) -> CostAlert | None:
         if self._config and self._config.enabled:
             return self._config.cost_alert
         return None
@@ -207,6 +206,6 @@ cost_monitor = CostMonitor()
 
 __all__ = [
     "CostMonitor",
-    "cost_monitor",
     "_estimate_cost",
+    "cost_monitor",
 ]

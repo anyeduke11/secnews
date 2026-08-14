@@ -22,8 +22,6 @@
 """
 from __future__ import annotations
 
-import asyncio
-import logging
 import sys
 
 from backend.logging_config import logger, setup
@@ -33,9 +31,8 @@ def main() -> None:
     setup()
     log = logger.bind(component="mcp_stdio")
 
-    from backend.api.mcp_config import is_mcp_enabled, build_mcp_server
+    from backend.api.mcp_config import build_mcp_server, is_mcp_enabled, mcp_tool_registry_seed
     from backend.repository.db import init_db
-    from backend.api.mcp_config import mcp_tool_registry_seed
     from backend.version import APP_VERSION
 
     # Banner

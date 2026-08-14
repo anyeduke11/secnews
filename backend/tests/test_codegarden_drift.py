@@ -9,7 +9,6 @@
 """
 from __future__ import annotations
 
-import json
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -20,7 +19,6 @@ from backend.services.codegarden_drift import (
     assess_drift,
     get_assessments,
     update_assessment_status,
-    VALID_DRIFT_STATUSES,
 )
 
 # ---------------------------------------------------------------------------

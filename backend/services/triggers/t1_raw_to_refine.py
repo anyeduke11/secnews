@@ -40,17 +40,17 @@ import json
 import logging
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from backend.metrics.kl_metrics import kl_metrics
 from backend.repository.db import get_connection
-from backend.services.llm_service import llm_service, DEFAULT_SCORE
 from backend.services.kl_state_machine import (
     LEGACY_RAW_LIKE,
     LIFECYCLE_RAW,
     LIFECYCLE_REFINE,
     can_transition,
 )
+from backend.services.llm_service import llm_service
 from backend.services.retry_policy import RetryPolicy
 from backend.services.simhash import (
     canonicalize_url,
@@ -72,7 +72,7 @@ TO_STAGE = LIFECYCLE_REFINE
 
 # Raw-like stages T1 is allowed to pick up.  We treat the legacy
 # ``signal`` value as raw-equivalent until migration 046 runs.
-_RAW_LIKE_STAGES: Tuple[str, ...] = (LIFECYCLE_RAW, LEGACY_RAW_LIKE)
+_RAW_LIKE_STAGES: tuple[str, ...] = (LIFECYCLE_RAW, LEGACY_RAW_LIKE)
 
 
 class T1Trigger:
@@ -92,14 +92,14 @@ class T1Trigger:
     def __init__(
         self,
         metrics: Any = None,
-        retry_policy: Optional[RetryPolicy] = None,
+        retry_policy: RetryPolicy | None = None,
     ) -> None:
         self.metrics = metrics if metrics is not None else kl_metrics
         self.retry = retry_policy or RetryPolicy(metrics=self.metrics)
 
     # ── Public entry point ────────────────────────────────────────
 
-    def run_once(self) -> Dict[str, int]:
+    def run_once(self) -> dict[str, int]:
         """Run one T1 cycle. Returns a stats dict.
 
         Returns
@@ -162,7 +162,7 @@ class T1Trigger:
 
     # ── Read helpers ──────────────────────────────────────────────
 
-    def _fetch_candidates(self) -> List[Dict[str, Any]]:
+    def _fetch_candidates(self) -> list[dict[str, Any]]:
         """Return raw-like items older than the debounce window."""
         cutoff = (
             datetime.now(timezone.utc) - timedelta(seconds=RAW_MIN_AGE_SECONDS)
@@ -184,7 +184,7 @@ class T1Trigger:
         return [dict(r) for r in rows]
 
     @staticmethod
-    def _load_existing_fingerprints() -> Tuple[List[Tuple[str, int]], set]:
+    def _load_existing_fingerprints() -> tuple[list[tuple[str, int]], set]:
         """Return (existing_fingerprints, existing_canonical_urls)."""
         from backend.services.collection_service import _from_signed_64
         conn = get_connection()
@@ -209,8 +209,8 @@ class T1Trigger:
 
     def _is_duplicate(
         self,
-        item: Dict[str, Any],
-        existing_fp: List[Tuple[str, int]],
+        item: dict[str, Any],
+        existing_fp: list[tuple[str, int]],
         existing_urls: set,
     ) -> bool:
         """Return True if the item is a duplicate per simhash / URL."""
@@ -252,7 +252,7 @@ class T1Trigger:
         except (TypeError, ValueError):
             return DEFAULT_SCORE
 
-    def _score_with_llm(self, item: Dict[str, Any]) -> float:
+    def _score_with_llm(self, item: dict[str, Any]) -> float:
         """Try LLM scoring first, fall back to DB score."""
         content = item.get("title", "") or ""
         if item.get("concepts"):
@@ -289,7 +289,7 @@ class T1Trigger:
         )
 
     @staticmethod
-    def _extract_tags(item: Dict[str, Any]) -> List[str]:
+    def _extract_tags(item: dict[str, Any]) -> list[str]:
         """Read the item's tag list from the ``tags`` JSON column.
 
         Returns an empty list when the column is missing, NULL, or holds
@@ -320,12 +320,12 @@ class T1Trigger:
 
 
 __all__ = [
-    "T1Trigger",
-    "RAW_MIN_AGE_SECONDS",
-    "DEDUP_HAMMING_THRESHOLD",
     "BATCH_SIZE",
-    "TRIGGER_NAME",
-    "FROM_STAGE",
-    "TO_STAGE",
+    "DEDUP_HAMMING_THRESHOLD",
     "DEFAULT_SCORE",
+    "FROM_STAGE",
+    "RAW_MIN_AGE_SECONDS",
+    "TO_STAGE",
+    "TRIGGER_NAME",
+    "T1Trigger",
 ]

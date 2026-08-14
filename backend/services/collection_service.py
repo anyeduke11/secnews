@@ -20,11 +20,11 @@ same validation / error-handling path as the rest of the backend.
 """
 import asyncio
 import hashlib
-import json
 import time
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, ClassVar
 
+from backend.cache import invalidate as cache_invalidate
 from backend.collectors.ai_collector import AICollector
 from backend.collectors.ai_security_collector import AISecurityCollector
 from backend.collectors.base import BaseCollector
@@ -34,7 +34,6 @@ from backend.collectors.github_collector import GitHubCollector
 from backend.collectors.security_collector import SecurityCollector
 from backend.collectors.startup_collector import StartupCollector
 from backend.collectors.tech_collector import TechCollector  # Phase 25 P1
-from backend.cache import invalidate as cache_invalidate
 from backend.domain.collection import CollectionReport, CollectionResult
 from backend.services.simhash import (
     canonicalize_url,
@@ -60,13 +59,23 @@ def _from_signed_64(val: int) -> int:
 from backend.domain.enums import Category, CollectorStatus
 from backend.domain.models import HotspotItem
 from backend.logging_config import logger
+from backend.parsers.bid_extractor import extract_all as extract_bid_fields
+from backend.repository.bid_detail_repo import BidDetailRepo
 from backend.repository.custom_source_repo import CustomSourceRepository
 from backend.repository.db import get_connection
 from backend.repository.hotspot_repo import HotspotRepository
 from backend.repository.trend_repo import TrendRepository
 
-from backend.repository.bid_detail_repo import BidDetailRepo
-from backend.parsers.bid_extractor import extract_all as extract_bid_fields
+# P1: 保存后台 fire-and-forget task 引用 — 不保存引用时 asyncio.Task 可能被
+# GC 回收中断 (RUF006)。done 时自动从集合移除。
+_background_tasks: set = set()
+
+
+def _spawn(task) -> None:
+    """登记后台任务, 防止被 GC 提前回收。"""
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
 
 
 class CollectionService:
@@ -76,7 +85,7 @@ class CollectionService:
     # (key reasons: 1) 避免每次新 CollectionService 实例的 state 丢失;
     #                2) 跨请求可读, 不需要注入到 HotspotService)
     # 用 dict 包装避免 global 关键字
-    _latest_run: dict[str, Any] = {"count": 0, "at": None}
+    _latest_run: ClassVar[dict[str, Any]] = {"count": 0, "at": None}  # 类级共享运行状态
 
     def __init__(self):
         self.collectors: dict[Category, BaseCollector] = {
@@ -209,7 +218,7 @@ class CollectionService:
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 from backend.quality.jobs import run_url_content_check
-                loop.create_task(run_url_content_check())
+                _spawn(loop.create_task(run_url_content_check()))
         except Exception as e:
             self.logger.warning(f"schedule url_content_check failed: {e}")
 
@@ -217,14 +226,14 @@ class CollectionService:
         try:
             from backend.api.events import publish_event
             categories_done = [r.category.value for r in results]
-            asyncio.ensure_future(
+            _spawn(asyncio.ensure_future(
                 publish_event("collect_done", {
                     "categories": categories_done,
                     "total": total,
                     "duration_ms": duration_ms,
                     "failures": [r.category.value for r in results if r.error],
                 })
-            )
+            ))
         except Exception as e:
             self.logger.warning(f"sse publish failed: {e}")
 
@@ -484,7 +493,7 @@ class CollectionService:
                 error=f"{type(e).__name__}: {str(e)[:200]}",
             )
 
-    def _insert_running_row(self, category: Category, started_at) -> Optional[int]:
+    def _insert_running_row(self, category: Category, started_at) -> int | None:
         """Phase 8: 在 collection_runs 插一行 status='running', 供 watchdog 检测孤儿.
 
         Returns: 新行 id, 或 None (INSERT 失败时).

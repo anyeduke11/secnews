@@ -22,7 +22,6 @@ from backend.config import config
 from backend.repository import db
 from backend.repository.catchup_checkpoint_repo import (
     CatchupCheckpointRepository,
-    CheckpointStatus,
 )
 from backend.repository.db import get_connection
 

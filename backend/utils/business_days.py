@@ -23,7 +23,6 @@ API
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
-from typing import Optional
 from zoneinfo import ZoneInfo
 
 SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
@@ -32,7 +31,7 @@ SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
 # ---------------------------------------------------------------------------
 # 日期工具
 # ---------------------------------------------------------------------------
-def _parse_iso_date(s: Optional[str]) -> Optional[date]:
+def _parse_iso_date(s: str | None) -> date | None:
     """'YYYY-MM-DD' → date; 其他格式 / None / 解析失败 → None。"""
     if not s or not isinstance(s, str):
         return None
@@ -98,9 +97,9 @@ def business_days_diff(start: date, end: date) -> int:
 # 核心: 截止日期 → 紧急 (0/1)
 # ---------------------------------------------------------------------------
 def compute_effective_urgent(
-    deadline_iso: Optional[str],
+    deadline_iso: str | None,
     fallback_urgent: int = 0,
-    today: Optional[date] = None,
+    today: date | None = None,
 ) -> int:
     """根据截止日期计算 effective_urgent (0/1)。
 
@@ -141,7 +140,7 @@ def compute_effective_urgent(
 # ---------------------------------------------------------------------------
 # Phase 47: 本周一起点 — 资讯/标讯时效硬门禁阈值
 # ---------------------------------------------------------------------------
-def current_week_start(today: Optional[datetime | date] = None) -> datetime:
+def current_week_start(today: datetime | date | None = None) -> datetime:
     """返回「本周周一 00:00:00 Asia/Shanghai」tz-aware datetime。
 
     用途: 资讯/标讯时效硬门禁 (Phase 47 RecencyGate) 阈值。
@@ -178,8 +177,8 @@ def current_week_start(today: Optional[datetime | date] = None) -> datetime:
 
 __all__ = [
     "SHANGHAI_TZ",
-    "next_business_day",
     "business_days_diff",
     "compute_effective_urgent",
     "current_week_start",
+    "next_business_day",
 ]

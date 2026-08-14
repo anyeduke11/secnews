@@ -4,9 +4,6 @@ Phase 3: 6 条告警规则，24h 去重。
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
-
 from backend.logging_config import logger as _root_logger
 from backend.repository.db import get_connection
 from backend.repository.source_alert_repo import SourceAlertRepository

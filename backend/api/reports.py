@@ -10,13 +10,13 @@ import asyncio
 
 from fastapi import APIRouter, Query
 
+from backend.services.daily_report_overview_service import (
+    generate_daily_overview,
+)
 from backend.services.hotspot_service import HotspotService
 from backend.services.monthly_report_service import (
     generate_monthly_overview,
     list_available_months,
-)
-from backend.services.daily_report_overview_service import (
-    generate_daily_overview,
 )
 from backend.services.weekly_report_overview_service import (
     generate_weekly_overview,

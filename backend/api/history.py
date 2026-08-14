@@ -8,11 +8,8 @@
 from __future__ import annotations
 
 import asyncio
-import base64
-import json
 import sqlite3
-from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -34,7 +31,7 @@ def _build_items_payload(
     batch_no: int,
     category: str,
     keyword: str,
-    cursor: Optional[str],
+    cursor: str | None,
     limit: int,
 ) -> dict[str, Any]:
     """同步获取批次内 items 列表(在 thread pool 中执行)."""
@@ -54,7 +51,7 @@ def _build_items_payload(
 
 @router.get("/batches")
 async def list_batches(
-    cursor: Optional[int] = Query(None, description="上次返回的最小 batch_no; 首次传 None"),
+    cursor: int | None = Query(None, description="上次返回的最小 batch_no; 首次传 None"),
     limit: int = Query(50, ge=1, le=200, description="每页批次数"),
 ):
     """列出所有历史批次(按 batch_no DESC, 不含当前批次).

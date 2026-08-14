@@ -30,13 +30,12 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
-from backend.collectors.base import BaseCollector
 from backend.collectors.base import UA as _UA
+from backend.collectors.base import BaseCollector
 from backend.collectors.bid_utils import (
-    SECURITY_KEYWORDS,
-    SECURITY_KEYWORD_SET,
     PROCUREMENT_KEYWORDS,
-    INDUSTRY_KEYWORDS,
+    SECURITY_KEYWORD_SET,
+    SECURITY_KEYWORDS,
     is_security_bid,
 )
 from backend.domain.enums import Category
@@ -578,9 +577,12 @@ class BidCollector(BaseCollector):
         3. 直连失败 → ProxySession (127.0.0.1:7897)
         4. 全失败 → 返回 SourceResult(error)
         """
-        from datetime import datetime, timezone as _tz
-        from backend.domain.collection import SourceResult
+        from datetime import datetime
+        from datetime import timezone as _tz
+
         import aiohttp
+
+        from backend.domain.collection import SourceResult
 
         start = datetime.now(_tz.utc)
         source_name = source.get("name", "unknown")
@@ -856,10 +858,10 @@ class BidCollector(BaseCollector):
 
 
 __all__ = [
-    "BidCollector",
     "BID_SOURCES",
+    "PROCUREMENT_KEYWORDS",
     "SECURITY_KEYWORDS",
     "SECURITY_KEYWORD_SET",
-    "PROCUREMENT_KEYWORDS",
+    "BidCollector",
     "is_security_bid",
 ]

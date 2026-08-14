@@ -23,7 +23,6 @@ from __future__ import annotations
 import asyncio
 import re
 import time
-from typing import Optional
 
 import aiohttp
 from fastapi import APIRouter, HTTPException
@@ -73,7 +72,7 @@ def classify_by_url_and_title(url: str, title: str) -> str:
     取最高分对应的分类；并列/无命中 → fallback 到 ``ai``。
     """
     text = f"{url} {title}".lower()
-    scores: dict[str, int] = {c: 0 for c in CATEGORY_KEYWORDS}
+    scores: dict[str, int] = dict.fromkeys(CATEGORY_KEYWORDS, 0)
     for cat, kws in CATEGORY_KEYWORDS.items():
         for kw in kws:
             if kw.lower() in text:
@@ -93,32 +92,31 @@ async def _probe_url(url: str, timeout: float = 8.0) -> dict:
     """
     t0 = time.time()
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                url,
-                timeout=aiohttp.ClientTimeout(total=timeout),
-                headers={"User-Agent": "Mozilla/5.0"},
-            ) as resp:
-                latency_ms = round((time.time() - t0) * 1000, 2)
-                if resp.status >= 400:
-                    return {
-                        "ok": False,
-                        "status_code": resp.status,
-                        "latency_ms": latency_ms,
-                        "error": f"HTTP {resp.status}",
-                    }
-                html = await resp.text(errors="replace")
-                html = html[:50000]
-                m = re.search(
-                    r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL
-                )
-                title = m.group(1).strip()[:200] if m else ""
+        async with aiohttp.ClientSession() as session, session.get(
+            url,
+            timeout=aiohttp.ClientTimeout(total=timeout),
+            headers={"User-Agent": "Mozilla/5.0"},
+        ) as resp:
+            latency_ms = round((time.time() - t0) * 1000, 2)
+            if resp.status >= 400:
                 return {
-                    "ok": True,
+                    "ok": False,
                     "status_code": resp.status,
                     "latency_ms": latency_ms,
-                    "title": title,
+                    "error": f"HTTP {resp.status}",
                 }
+            html = await resp.text(errors="replace")
+            html = html[:50000]
+            m = re.search(
+                r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL
+            )
+            title = m.group(1).strip()[:200] if m else ""
+            return {
+                "ok": True,
+                "status_code": resp.status,
+                "latency_ms": latency_ms,
+                "title": title,
+            }
     except Exception as e:
         return {
             "ok": False,
@@ -134,7 +132,7 @@ async def _probe_url(url: str, timeout: float = 8.0) -> dict:
 class AddSourceRequest(BaseModel):
     url: str
     name: str = ""
-    category: Optional[str] = None  # None = 自动识别
+    category: str | None = None  # None = 自动识别
 
 
 # ---------------------------------------------------------------------------
@@ -246,13 +244,10 @@ async def toggle_source(sid: int, enabled: bool):
 # ===========================================================================
 # Phase 9 招标源质量门禁 API
 # ===========================================================================
-def _build_health_payload(category: Optional[str]) -> dict:
+def _build_health_payload(category: str | None) -> dict:
     """同步构建 health 报告（在 thread pool 中执行）。"""
     repo = SourceStatsRepository()
-    if category:
-        rows = repo.list_by_category(category)
-    else:
-        rows = repo.list_all()
+    rows = repo.list_by_category(category) if category else repo.list_all()
     summary = repo.summary_by_category()
     return {
         "version": API_VERSION,
@@ -280,7 +275,7 @@ def _build_health_payload(category: Optional[str]) -> dict:
 
 
 @router.get("/health")
-async def list_source_health(category: Optional[str] = None):
+async def list_source_health(category: str | None = None):
     """返回所有 / 指定分类的源健康度报告（用于运维盯盘）。
 
     Phase 9 招标源质量门禁：
@@ -351,7 +346,7 @@ async def mark_dead_source(category: str, source_name: str):
 # ===========================================================================
 # Phase 4 v1.7 数据源健康趋势 API (green/yellow/red)
 # ===========================================================================
-def _build_trend_payload(source: Optional[str]) -> dict:
+def _build_trend_payload(source: str | None) -> dict:
     """同步构建 Phase 4 健康趋势报告 (在 thread pool 中执行)。"""
     from backend.services.source_health_service import (
         check_all_health,
@@ -441,9 +436,9 @@ async def get_source_stats():
 
 @router.get("/alerts")
 async def get_source_alerts(
-    source_id: Optional[str] = None,
-    level: Optional[str] = None,
-    since: Optional[str] = None,
+    source_id: str | None = None,
+    level: str | None = None,
+    since: str | None = None,
     page: int = 1,
     page_size: int = 50,
 ):

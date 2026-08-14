@@ -13,8 +13,6 @@ import io
 import os
 import tempfile
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Optional, Tuple
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -22,7 +20,6 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from backend.config import BASE_DIR
 from backend.domain.enums import Category, TimeRange
 from backend.exceptions import InvalidParamException
-from backend.logging_config import logger
 from backend.repository.hotspot_repo import HotspotRepository
 from backend.version import APP_VERSION
 
@@ -114,7 +111,7 @@ def _esc(s: str) -> str:
 def parse_export_filters(
     time_range: str = "7d",
     types: str = "hotspot,bid",
-) -> Tuple[TimeRange, set[str]]:
+) -> tuple[TimeRange, set[str]]:
     """解析 /api/export 筛选参数。
 
     Raises:
@@ -659,7 +656,7 @@ def rebuild_export_cache() -> str:
     return etag
 
 
-def get_cached_export() -> Tuple[Optional[str], Optional[str]]:
+def get_cached_export() -> tuple[str | None, str | None]:
     """读 ``(html, etag)``；不存在返回 ``(None, None)``。"""
     if not _CACHE_HTML.exists() or not _CACHE_ETAG.exists():
         return None, None
@@ -671,7 +668,7 @@ def get_cached_export() -> Tuple[Optional[str], Optional[str]]:
     return html, etag
 
 
-def get_or_build_html() -> Tuple[str, str]:
+def get_or_build_html() -> tuple[str, str]:
     """返回 ``(html, etag)``。缓存命中 → 直接返回；否则实时构建。"""
     html, etag = get_cached_export()
     if html is not None and etag:
@@ -681,7 +678,7 @@ def get_or_build_html() -> Tuple[str, str]:
     return html, etag
 
 
-def get_cached_etag() -> Optional[str]:
+def get_cached_etag() -> str | None:
     """只读 etag（ETag 304 流程用）。"""
     if not _CACHE_ETAG.exists():
         return None
@@ -692,14 +689,14 @@ def get_cached_etag() -> Optional[str]:
 
 
 __all__ = [
-    "build_html",
     "build_export_html",
+    "build_html",
     "build_xlsx",
-    "xlsx_filename",
-    "parse_export_filters",
     "fetch_export_items",
-    "rebuild_export_cache",
-    "get_cached_export",
     "get_cached_etag",
+    "get_cached_export",
     "get_or_build_html",
+    "parse_export_filters",
+    "rebuild_export_cache",
+    "xlsx_filename",
 ]

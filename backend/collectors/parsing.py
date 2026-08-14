@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from typing import Optional
 from urllib.parse import urlparse
 
 
@@ -219,9 +218,7 @@ def _is_noise_title(title: str) -> bool:
         "archive by month", "homepage", "sitemap", "rss feed",
         "360网络安全周报",
     }
-    if low in NAV_TITLE_LOWER:
-        return True
-    return False
+    return low in NAV_TITLE_LOWER
 
 
 def _is_noise_url(url: str, source_url: str) -> bool:
@@ -269,7 +266,11 @@ def _resolve_url(href: str, base_url: str) -> str:
 
 
 __all__ = [
-    "_now_utc", "_PUBLISHED_AT_PATTERNS",
-    "_parse_iso_datetime", "_extract_published_at",
-    "_is_noise_title", "_is_noise_url", "_resolve_url",
+    "_PUBLISHED_AT_PATTERNS",
+    "_extract_published_at",
+    "_is_noise_title",
+    "_is_noise_url",
+    "_now_utc",
+    "_parse_iso_datetime",
+    "_resolve_url",
 ]

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -276,10 +275,10 @@ async def test_base_collector_falls_back_to_aiohttp_when_crawl4ai_unavailable(
     """crawl4ai 不可用 → BaseCollector 走原始 aiohttp 路径,产出 items。"""
     monkeypatch.setenv("USE_CRAWL4AI", "0")
 
+
     from backend.collectors.base import BaseCollector
     from backend.domain.enums import Category
     from backend.domain.models import HotspotItem
-    from datetime import datetime, timezone
 
     class StubCollector(BaseCollector):
         category = Category.AI
@@ -467,22 +466,22 @@ async def test_base_collector_uses_crawl4ai_html_when_available(monkeypatch):
 
 
 __all__ = [
-    "test_is_available_false_when_env_unset",
-    "test_is_available_false_when_env_true_but_no_module",
-    "test_is_available_true_when_env_true_and_module_installed",
-    "test_fetch_html_returns_none_when_unavailable",
-    "test_fetch_html_returns_none_when_module_missing",
-    "test_fetch_html_timeout_returns_none",
-    "test_fetch_html_arun_exception_returns_none",
-    "test_fetch_html_success_false_returns_none",
-    "test_fetch_html_empty_content_returns_none",
-    "test_fetch_html_returns_html_when_success",
-    "test_fetch_html_falls_back_to_markdown",
-    "test_get_client_singleton",
-    "test_get_client_returns_none_when_unavailable",
-    "test_get_client_returns_none_on_init_failure",
-    "test_close_client_releases_singleton",
-    "test_base_collector_falls_back_to_aiohttp_when_crawl4ai_unavailable",
     "test_base_collector_falls_back_to_aiohttp_when_crawl4ai_returns_none",
+    "test_base_collector_falls_back_to_aiohttp_when_crawl4ai_unavailable",
     "test_base_collector_uses_crawl4ai_html_when_available",
+    "test_close_client_releases_singleton",
+    "test_fetch_html_arun_exception_returns_none",
+    "test_fetch_html_empty_content_returns_none",
+    "test_fetch_html_falls_back_to_markdown",
+    "test_fetch_html_returns_html_when_success",
+    "test_fetch_html_returns_none_when_module_missing",
+    "test_fetch_html_returns_none_when_unavailable",
+    "test_fetch_html_success_false_returns_none",
+    "test_fetch_html_timeout_returns_none",
+    "test_get_client_returns_none_on_init_failure",
+    "test_get_client_returns_none_when_unavailable",
+    "test_get_client_singleton",
+    "test_is_available_false_when_env_true_but_no_module",
+    "test_is_available_false_when_env_unset",
+    "test_is_available_true_when_env_true_and_module_installed",
 ]

@@ -23,11 +23,8 @@ import subprocess
 import tempfile
 import uuid
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Optional
 
 from backend.logging_config import logger
-
 
 # ---------------------------------------------------------------------------
 # 项目边界 marker 文件 (相对项目根)
@@ -153,7 +150,7 @@ def _walk_for_projects(scan_root: str) -> list[DetectedProject]:
     return sorted(detected.values(), key=lambda p: p.relative_path)
 
 
-def _detect_marker(entries: list[os.DirEntry]) -> Optional[tuple[str, str]]:
+def _detect_marker(entries: list[os.DirEntry]) -> tuple[str, str] | None:
     """检查一个目录的 entries, 返回第一个匹配的 (marker_filename, language)."""
     entry_names = {e.name: e for e in entries}
     # 单文件 marker 优先
@@ -181,7 +178,7 @@ def _match_glob(name: str, pattern: str) -> bool:
     return all(p in middle for p in parts[1:-1])
 
 
-def _build_project(scan_root: str, project_dir: str, marker: tuple[str, str]) -> Optional[DetectedProject]:
+def _build_project(scan_root: str, project_dir: str, marker: tuple[str, str]) -> DetectedProject | None:
     """从项目目录 + marker 构建 DetectedProject."""
     marker_file, language = marker
     project_name = os.path.basename(project_dir.rstrip("/")) or "unnamed"
@@ -211,7 +208,7 @@ def _infer_metadata(project_dir: str, marker_file: str, language: str) -> tuple[
         return "", [], _default_type_for_language(language)
 
     try:
-        with open(marker_path, "r", encoding="utf-8", errors="replace") as f:
+        with open(marker_path, encoding="utf-8", errors="replace") as f:
             content = f.read()
     except OSError:
         return "", [], _default_type_for_language(language)
@@ -240,7 +237,7 @@ def _infer_from_package_json(content: str) -> tuple[str, list[str], str]:
     deps.update(data.get("dependencies") or {})
     deps.update(data.get("devDependencies") or {})
 
-    tech_stack = sorted({k.split("/")[0] if "/" in k else k for k in deps.keys()})[:20]
+    tech_stack = sorted({k.split("/")[0] if "/" in k else k for k in deps})[:20]
 
     # type 推断
     scripts = data.get("scripts") or {}
@@ -376,10 +373,7 @@ def _merge_by_secondary_root(
         # 二级目录不是项目, 合并子项目
         # 决定合并项目的属性
         languages = [c.language for c in children if c.language]
-        if languages:
-            most_common_lang = max(set(languages), key=languages.count)
-        else:
-            most_common_lang = ""
+        most_common_lang = max(set(languages), key=languages.count) if languages else ""
 
         # tech_stack 并集 (保序去重)
         tech_seen: set[str] = set()
@@ -446,7 +440,7 @@ class ScanResult:
     source_path: str            # 原始输入 (本地路径 / git URL / 临时解压目录)
     detected: list[DetectedProject] = field(default_factory=list)
     is_temporary: bool = False  # True 表示调用方需要在用完后清理
-    temp_id: Optional[str] = None
+    temp_id: str | None = None
     message: str = ""
 
     def to_dict(self) -> dict:
@@ -490,7 +484,7 @@ def scan_local_dir(path: str) -> ScanResult:
     )
 
 
-def scan_git_url(url: str, github_token: Optional[str] = None, depth: int = 1) -> ScanResult:
+def scan_git_url(url: str, github_token: str | None = None, depth: int = 1) -> ScanResult:
     """Clone git 仓库到临时目录, 扫描后返回结果.
 
     Phase 1: 浅克隆 (depth=1), 适合 monorepo. 不清理临时目录, 调用方负责.

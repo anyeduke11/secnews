@@ -1,10 +1,8 @@
 """v1.3.0 Phase 4: WeeklyReportService — 周报生成 + 日级快照。"""
 from __future__ import annotations
 
-from backend.version import APP_VERSION as API_VERSION
 import json
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from backend.domain.enums import Category
 from backend.logging_config import logger
@@ -13,13 +11,14 @@ from backend.repository.weekly_report_repo import (
     TrendDailyRepository,
     WeeklyReportRepository,
 )
+from backend.version import APP_VERSION as API_VERSION
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _week_range(reference: Optional[datetime] = None) -> tuple[str, str]:
+def _week_range(reference: datetime | None = None) -> tuple[str, str]:
     """Return (week_start, week_end) ISO strings for the ISO week containing *reference*.
 
     week_start = Monday 00:00 UTC, week_end = Sunday 23:59:59 UTC.
@@ -89,7 +88,7 @@ def _favorites_insight() -> dict:
 
 
 class WeeklyReportService:
-    def generate_report(self, reference: Optional[datetime] = None) -> dict:
+    def generate_report(self, reference: datetime | None = None) -> dict:
         """Generate a weekly report for the ISO week containing *reference*.
 
         Returns the saved report dict.
@@ -151,7 +150,7 @@ class WeeklyReportService:
         logger.info("daily trend snapshot taken", extra={"date": today, "categories": len(data)})
         return len(data)
 
-    def get_report(self, week_start: str) -> Optional[dict]:
+    def get_report(self, week_start: str) -> dict | None:
         """Get a specific week's report."""
         repo = WeeklyReportRepository()
         row = repo.get_by_week(week_start)
@@ -159,7 +158,7 @@ class WeeklyReportService:
             return None
         return self._enrich_report(row)
 
-    def get_latest_report(self) -> Optional[dict]:
+    def get_latest_report(self) -> dict | None:
         """Get the most recent weekly report."""
         repo = WeeklyReportRepository()
         row = repo.get_latest()

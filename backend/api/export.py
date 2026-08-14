@@ -1,7 +1,6 @@
 """Phase 4 /api/export router — 预生成 HTML + ETag 304。"""
 from __future__ import annotations
 
-from backend.version import APP_VERSION as API_VERSION
 import asyncio
 
 from fastapi import APIRouter, Header, Response
@@ -11,6 +10,7 @@ from backend.services.export_service import (
     get_cached_etag,
     get_or_build_html,
 )
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/export", tags=["export"])
 

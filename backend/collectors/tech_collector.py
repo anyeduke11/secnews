@@ -33,7 +33,6 @@ from typing import Any
 
 from backend.collectors.base import BaseCollector
 from backend.domain.enums import Category
-from backend.domain.models import HotspotItem
 
 # IT之家列表页 DOM 解析 (Phase 25 P1)
 # 标题选择器: a.t

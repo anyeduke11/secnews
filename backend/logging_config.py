@@ -8,10 +8,8 @@
 """
 import sys
 from pathlib import Path
-from typing import Optional
 
 from loguru import logger as _default_logger
-
 
 # JSON Lines 格式模板：ts / level / module / msg / trace_id
 # 注意：loguru 会先把模板里的 {xxx} 占位符替换成实际值，
@@ -38,10 +36,10 @@ def _ensure_trace_id_default(record) -> None:
 
 
 def setup(
-    log_file: Optional[str] = None,
-    level: Optional[str] = None,
-    max_bytes: Optional[int] = None,
-    backup_count: Optional[int] = None,
+    log_file: str | None = None,
+    level: str | None = None,
+    max_bytes: int | None = None,
+    backup_count: int | None = None,
     serialize: bool = True,
     also_stderr: bool = True,
 ) -> None:
@@ -67,10 +65,7 @@ def setup(
         backup_count = _cfg.log_backup_count
 
     # 解析日志文件路径
-    if log_file is None:
-        log_path = Path(_cfg.log_dir) / "app.log"
-    else:
-        log_path = Path(log_file)
+    log_path = Path(_cfg.log_dir) / "app.log" if log_file is None else Path(log_file)
 
     # 确保日志目录存在
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -104,7 +99,7 @@ def setup(
     _default_logger.info("logging initialized", trace_id="")
 
 
-__all__ = ["setup", "logger"]
+__all__ = ["logger", "setup"]
 
 
 # 重新导出 logger 便于统一引用

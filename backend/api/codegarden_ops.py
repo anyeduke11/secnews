@@ -43,27 +43,22 @@ M4 联动引擎 (8 端点):
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 from backend.exceptions import InternalException
-from backend.logging_config import logger
 from backend.repository.codegarden_orchestration_repo import (
     VALID_DEP_ENTITY_TYPES,
     VALID_DEP_TYPES,
     VALID_EVENT_SOURCES,
-    VALID_EVENT_STATUSES,
     VALID_EVENT_TYPES,
 )
 from backend.repository.codegarden_resource_repo import (
-    PROTECTED_PORTS,
     VALID_RESOURCE_STATUSES,
     VALID_RESOURCE_TYPES,
 )
 from backend.repository.codegarden_service_repo import (
-    VALID_HEALTH_CHECK_TYPES,
     VALID_RUNTIMES,
     VALID_SERVICE_STATUSES,
     VALID_SERVICE_TYPES,
@@ -85,51 +80,51 @@ class CreateServiceRequest(BaseModel):
     type: str = Field(..., description=f"类型: {', '.join(VALID_SERVICE_TYPES)}")
     runtime: str = Field(..., description=f"运行时: {', '.join(VALID_RUNTIMES)}")
     status: str = Field("unknown", description=f"状态: {', '.join(VALID_SERVICE_STATUSES)}")
-    project_id: Optional[str] = None
-    namespace: Optional[str] = None
-    endpoint_host: Optional[str] = None
-    endpoint_port: Optional[int] = None
-    endpoint_domain: Optional[str] = None
-    health_check_type: Optional[str] = None
-    health_check_path: Optional[str] = None
+    project_id: str | None = None
+    namespace: str | None = None
+    endpoint_host: str | None = None
+    endpoint_port: int | None = None
+    endpoint_domain: str | None = None
+    health_check_type: str | None = None
+    health_check_path: str | None = None
     health_check_interval: int = Field(30, ge=5, le=3600)
-    cpu_limit: Optional[str] = None
-    memory_limit: Optional[str] = None
+    cpu_limit: str | None = None
+    memory_limit: str | None = None
     dependencies: list[str] = Field(default_factory=list)
     env_vars: dict = Field(default_factory=dict)
 
 
 class PatchServiceRequest(BaseModel):
-    name: Optional[str] = None
-    namespace: Optional[str] = None
-    type: Optional[str] = None
-    runtime: Optional[str] = None
-    status: Optional[str] = None
-    endpoint_host: Optional[str] = None
-    endpoint_port: Optional[int] = None
-    endpoint_domain: Optional[str] = None
-    health_check_type: Optional[str] = None
-    health_check_path: Optional[str] = None
-    health_check_interval: Optional[int] = Field(None, ge=5, le=3600)
-    cpu_limit: Optional[str] = None
-    memory_limit: Optional[str] = None
-    project_id: Optional[str] = None
+    name: str | None = None
+    namespace: str | None = None
+    type: str | None = None
+    runtime: str | None = None
+    status: str | None = None
+    endpoint_host: str | None = None
+    endpoint_port: int | None = None
+    endpoint_domain: str | None = None
+    health_check_type: str | None = None
+    health_check_path: str | None = None
+    health_check_interval: int | None = Field(None, ge=5, le=3600)
+    cpu_limit: str | None = None
+    memory_limit: str | None = None
+    project_id: str | None = None
 
 
 class CreateResourceRequest(BaseModel):
     type: str = Field(..., description=f"类型: {', '.join(VALID_RESOURCE_TYPES)}")
     value: str = Field(..., description="值 (端口号/域名/模板名/卷名)")
     status: str = Field("free", description=f"状态: {', '.join(VALID_RESOURCE_STATUSES)}")
-    owner_service_id: Optional[str] = None
-    owner_project_id: Optional[str] = None
+    owner_service_id: str | None = None
+    owner_project_id: str | None = None
     metadata: dict = Field(default_factory=dict)
-    reserved_until: Optional[str] = None
+    reserved_until: str | None = None
 
 
 class AllocatePortRequest(BaseModel):
-    preferred_port: Optional[int] = Field(None, ge=1, le=65535, description="期望端口 (可选)")
-    owner_service_id: Optional[str] = None
-    owner_project_id: Optional[str] = None
+    preferred_port: int | None = Field(None, ge=1, le=65535, description="期望端口 (可选)")
+    owner_service_id: str | None = None
+    owner_project_id: str | None = None
     metadata: dict = Field(default_factory=dict)
 
 
@@ -140,7 +135,7 @@ class ReleasePortRequest(BaseModel):
 class SaveEnvTemplateRequest(BaseModel):
     name: str = Field(..., max_length=100, description="模板名 (如 production/development)")
     env_vars: dict = Field(..., description="环境变量字典")
-    owner_project_id: Optional[str] = None
+    owner_project_id: str | None = None
 
 
 class CreateDependencyRequest(BaseModel):
@@ -168,12 +163,12 @@ class RunPlaybookRequest(BaseModel):
 # ===========================================================================
 @router.get("/services")
 async def list_services(
-    project_id: Optional[str] = None,
-    status: Optional[str] = None,
-    namespace: Optional[str] = None,
-    type: Optional[str] = None,
-    runtime: Optional[str] = None,
-    keyword: Optional[str] = None,
+    project_id: str | None = None,
+    status: str | None = None,
+    namespace: str | None = None,
+    type: str | None = None,
+    runtime: str | None = None,
+    keyword: str | None = None,
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
@@ -284,10 +279,10 @@ async def get_service_metrics(service_id: str):
 # ===========================================================================
 @router.get("/resources")
 async def list_resources(
-    type: Optional[str] = None,
-    status: Optional[str] = None,
-    owner_service_id: Optional[str] = None,
-    owner_project_id: Optional[str] = None,
+    type: str | None = None,
+    status: str | None = None,
+    owner_service_id: str | None = None,
+    owner_project_id: str | None = None,
     limit: int = Query(500, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ):
@@ -412,11 +407,11 @@ async def load_env_template(resource_id: str):
 # ===========================================================================
 @router.get("/dependencies")
 async def list_dependencies(
-    source_type: Optional[str] = None,
-    source_id: Optional[str] = None,
-    target_type: Optional[str] = None,
-    target_id: Optional[str] = None,
-    dep_type: Optional[str] = None,
+    source_type: str | None = None,
+    source_id: str | None = None,
+    target_type: str | None = None,
+    target_id: str | None = None,
+    dep_type: str | None = None,
     limit: int = Query(500, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ):
@@ -473,10 +468,10 @@ async def impact_analysis(
 
 @router.get("/events")
 async def list_events(
-    event_type: Optional[str] = None,
-    status: Optional[str] = None,
-    source_type: Optional[str] = None,
-    source_id: Optional[str] = None,
+    event_type: str | None = None,
+    status: str | None = None,
+    source_type: str | None = None,
+    source_id: str | None = None,
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):

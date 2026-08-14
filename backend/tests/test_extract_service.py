@@ -14,9 +14,9 @@ import pytest
 from backend.config import config
 from backend.repository import db
 from backend.services.extract_service import (
-    extract_tags,
-    extract_and_attach,
     _reload_rules,
+    extract_and_attach,
+    extract_tags,
 )
 
 

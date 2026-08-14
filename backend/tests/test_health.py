@@ -14,6 +14,7 @@ from __future__ import annotations
 def test_health_exposes_collect_interval():
     """Phase 8 Addendum 需求 8.2: /api/health 必须暴露 collect_interval_seconds"""
     from fastapi.testclient import TestClient
+
     from backend.main import app
     client = TestClient(app)
     resp = client.get("/api/health")

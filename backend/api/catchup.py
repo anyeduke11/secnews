@@ -24,10 +24,8 @@
 """
 from __future__ import annotations
 
-import asyncio
-import json
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
@@ -57,7 +55,7 @@ class CatchupRunRequest(BaseModel):
     """
 
     since: str = Field(..., description="追抓窗口起点 (ISO 8601 UTC)")
-    until: Optional[str] = Field(None, description="追抓窗口终点, 默认 now")
+    until: str | None = Field(None, description="追抓窗口终点, 默认 now")
     categories: list[str] = Field(
         default_factory=list,
         description="要追抓的分类 list, 空=全部",
@@ -84,7 +82,7 @@ class CatchupRunRequest(BaseModel):
 
     @field_validator("until")
     @classmethod
-    def _validate_until(cls, v: Optional[str]) -> Optional[str]:
+    def _validate_until(cls, v: str | None) -> str | None:
         if v is None:
             return v
         try:
@@ -101,7 +99,7 @@ class CatchupRunResponse(BaseModel):
     status: str
     mode: str
     since: str
-    until: Optional[str]
+    until: str | None
     categories: list[str]
     max_per_source: int
     started_at: str
@@ -223,7 +221,7 @@ async def get_catchup_status(
 # POST /api/catchup/abort — 中止当前 manual
 # ---------------------------------------------------------------------------
 class AbortRequest(BaseModel):
-    run_id: Optional[int] = Field(
+    run_id: int | None = Field(
         None,
         description="可选: 指定 run_id, 不传则中止当前 manual",
     )
@@ -236,7 +234,7 @@ async def post_catchup_abort(req: AbortRequest = AbortRequest()) -> dict[str, An
     - 不传 run_id: 中止当前 manual (若有)
     - 传 run_id: 中止指定 run (仅当 status='running')
     """
-    target_id: Optional[int] = None
+    target_id: int | None = None
     if req.run_id is not None:
         # 校验 run_id 存在
         run = _repo.get(int(req.run_id))
@@ -261,7 +259,6 @@ async def post_catchup_abort(req: AbortRequest = AbortRequest()) -> dict[str, An
         target_id = int(req.run_id)
         # 同步释放 module state
         if catchup_service.get_current_manual_run_id() == target_id:
-            from backend.services.catchup_service import _current_manual_run
             import backend.services.catchup_service as cs
             cs._current_manual_run = None
         _logger.info(f"abort: run_id={target_id} marked aborted by user request")
@@ -288,7 +285,7 @@ async def post_catchup_abort(req: AbortRequest = AbortRequest()) -> dict[str, An
 # ---------------------------------------------------------------------------
 class AutoRequest(BaseModel):
     since: str
-    until: Optional[str] = None
+    until: str | None = None
     categories: list[str] = Field(default_factory=list)
     max_per_source: int = Field(default=20, ge=1, le=200)
     force: bool = Field(

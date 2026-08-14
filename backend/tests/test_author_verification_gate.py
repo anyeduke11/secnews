@@ -10,18 +10,17 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import pytest
-
 from backend.domain.collection import GateResult
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
 from backend.quality.author_verification_gate import (
-    AuthorVerificationGate,
     PENALTY_MISMATCH,
     PENALTY_UNKNOWN,
     REWARD_MATCH,
+    AuthorVerificationGate,
 )
 from backend.quality.base import GateContext
+from backend.quality.config import QualityConfig
 from backend.quality.pipeline import QualityGatePipeline
 from backend.quality.publisher_registry import (
     ALIASES,
@@ -31,7 +30,6 @@ from backend.quality.publisher_registry import (
     _normalize_name,
     resolve_publisher,
 )
-from backend.quality.config import QualityConfig, QualityMode
 from backend.quality.schema_gate import SchemaGate
 
 
@@ -94,7 +92,7 @@ class TestResolvePublisherMatch:
         assert "url_match" in reason
 
     def test_krebsonsecurity_match(self):
-        canonical, is_match, reason = resolve_publisher(
+        canonical, is_match, _reason = resolve_publisher(
             "https://krebsonsecurity.com/2026/06/foo/",
             "KrebsOnSecurity",
         )
@@ -131,7 +129,7 @@ class TestResolvePublisherMatch:
 
     def test_chinese_alias_match(self):
         """中文 alias 也应匹配"""
-        canonical, is_match, reason = resolve_publisher(
+        canonical, is_match, _reason = resolve_publisher(
             "https://www.anquanke.com/post/.../123",
             "安全客",
         )
@@ -248,7 +246,7 @@ class TestResolvePublisherUnknown:
 
     def test_bare_domain_no_scheme(self):
         """无 scheme 的裸域名也能解析"""
-        canonical, is_match, _ = resolve_publisher(
+        canonical, _is_match, _ = resolve_publisher(
             "krebsonsecurity.com/2026/06/foo/",
             "KrebsOnSecurity",
         )
@@ -511,7 +509,7 @@ class TestRegistryIntegrity:
 
     def test_phase29_tophub_in_registry(self):
         """Phase 29: tophub.today 聚合站必须在 PUBLISHER_REGISTRY (避免 author_unknown)。"""
-        registry_map = {s: n for s, n in PUBLISHER_REGISTRY}
+        registry_map = dict(PUBLISHER_REGISTRY)
         assert "tophub.today" in registry_map
         assert registry_map["tophub.today"] == "TopHub GitHub 热榜"
         # 别名也要能命中
@@ -547,7 +545,7 @@ class TestRegistryIntegrity:
             "venustech.com.cn": "启明星辰",
             "knownsec.com": "知道创宇",
         }
-        registry_map = {s: n for s, n in PUBLISHER_REGISTRY}
+        registry_map = dict(PUBLISHER_REGISTRY)
         for domain, expected_name in expected.items():
             assert domain in registry_map, f"{domain} 不在 PUBLISHER_REGISTRY"
             assert registry_map[domain] == expected_name, (
@@ -560,7 +558,7 @@ class TestRegistryIntegrity:
             "huxiu.com": "虎嗅",
             "itjuzi.com": "IT桔子",
         }
-        registry_map = {s: n for s, n in PUBLISHER_REGISTRY}
+        registry_map = dict(PUBLISHER_REGISTRY)
         for domain, expected_name in expected.items():
             assert domain in registry_map
             assert registry_map[domain] == expected_name

@@ -87,4 +87,4 @@ def _parse_date(date_str: str) -> str | None:
         return None
 
 
-__all__ = ["CcgpParser", "SOURCE_ID", "VERSION"]
+__all__ = ["SOURCE_ID", "VERSION", "CcgpParser"]

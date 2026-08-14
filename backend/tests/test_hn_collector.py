@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 import pytest
 
 from backend.collectors.base import BaseCollector
-from backend.collectors.hn_collector import HNCollector, HN_SOURCES
+from backend.collectors.hn_collector import HN_SOURCES, HNCollector
 from backend.collectors.id_factory import make_readable_id
 from backend.domain.collection import SourceResult
 from backend.domain.enums import Category

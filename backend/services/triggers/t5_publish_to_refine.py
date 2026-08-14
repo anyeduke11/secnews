@@ -10,7 +10,6 @@ import logging
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 from backend.repository.db import get_connection
 from backend.services.kl_state_machine import (
@@ -137,7 +136,7 @@ class T5Trigger:
         )
 
     @staticmethod
-    def _get_item_lifecycle(item_id: str) -> Optional[str]:
+    def _get_item_lifecycle(item_id: str) -> str | None:
         """Return the current lifecycle for the item, or None if not found."""
         conn = get_connection()
         row = conn.execute(

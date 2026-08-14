@@ -7,7 +7,7 @@
  * 右栏: 今日待办 + 投标提醒 + 跨层回溯
  */
 import React from 'react';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTheme } from '../../App';
 import { Header } from '../Header';
 import { CategoryNav } from '../CategoryNav';
@@ -15,7 +15,6 @@ import { useHotspotData } from '../../hooks/useHotspotData';
 import { useRefreshInterval } from '../../hooks/useRefreshInterval';
 import { useSSE } from '../../hooks/useSSE';
 import { LayerCard, LayerCardRow, LayerCardGrid, LayerCardAlert, PipelineFlow, ViewMoreLink, LayerSkeleton, LayerEmptyState } from '../layout/LayerCard';
-import { LayerHeader, ACTION_SUB_NAV, useLayerSubNav } from '../layout/LayerHeader';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { StatsResponse, ConsistencyDrift, TodoCountResponse } from '../../types';
 
@@ -51,7 +50,6 @@ const REPORT_TYPES = [
 export function ActionLayerPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const location = useLocation();
   const category = searchParams.get('category') || 'all';
   const { theme, toggleTheme } = useTheme();
   const { refreshFromServer } = useRefreshInterval();
@@ -68,9 +66,6 @@ export function ActionLayerPage() {
       if (type === 'collect_done') refresh();
     },
   });
-
-  /* 子导航 */
-  const subNav = useLayerSubNav('/action', ACTION_SUB_NAV, location.pathname);
 
   /* 待办统计 */
   const [todoCounts, setTodoCounts] = useState<TodoCountResponse | null>(null);
@@ -190,13 +185,8 @@ export function ActionLayerPage() {
         onThemeToggle={toggleTheme}
         refreshing={manualRefreshing}
         pipelineSummary={pipelineSummary}
-      />
-
-      {/* 统一层标题 + 子导航 */}
-      <LayerHeader
         layerName="行动层"
-        subtitle="我下一步做什么 · 计划、学习、创作、项目管理"
-        subNav={subNav}
+        layerSubtitle="我下一步做什么 · 计划、学习、创作、项目管理"
       />
 
       <CategoryNav

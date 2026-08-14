@@ -97,7 +97,7 @@
           font-size="13" font-weight="600" fill="#f0f0f7">MCP Server</text>
     <text x="0" y="50" text-anchor="middle"
           font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="10" fill="#9a9ab2">13 tools · stdio / SSE</text>
+          font-size="10" fill="#9a9ab2">9 tools · stdio / SSE</text>
   </g>
 
   <!-- Milestone 6: v1.8 追抓 (current, most prominent) -->
@@ -133,7 +133,7 @@
   <!-- footer note -->
   <text x="56" y="240" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
         font-size="11" fill="#5b5b72" letter-spacing="1">
-    7 Phases shipped  ·  39 migrations  ·  67 pytest files  ·  240+ frontend tests
+    7 Phases shipped  ·  59 migrations  ·  100 pytest files  ·  290+ frontend tests
   </text>
   <text x="1144" y="240" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
         font-size="11" fill="#5b5b72" letter-spacing="1">

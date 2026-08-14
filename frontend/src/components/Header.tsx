@@ -7,9 +7,10 @@
  * - 布局简化: 首行 日期+层导航 | 次行 报头+操作按钮
  */
 import React, { useEffect, useState, MutableRefObject } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { CatchupButton } from './CatchupButton';
 import { LayerNav } from './LayerNav';
+import { useLayerSubNav, DATA_SUB_NAV, JUDGE_SUB_NAV, ACTION_SUB_NAV, FLOW_COLORS } from './layout/LayerHeader';
 
 interface HeaderProps {
   latestIngestionCount: number;
@@ -26,6 +27,10 @@ interface HeaderProps {
   refreshing?: boolean;
   /** 管线各层数据量（可选） */
   pipelineSummary?: { data: number; judge: number; action: number };
+  /** 当前层名称（三层架构标题行） */
+  layerName?: string;
+  /** 当前层副标题 */
+  layerSubtitle?: string;
 }
 
 function pad2(n: number): string { return n < 10 ? `0${n}` : `${n}`; }
@@ -58,9 +63,10 @@ export function Header({
   latestIngestionCount, lastUpdated, onRefresh, theme, onThemeToggle,
   onOpenFavorites, favoritesCount = 0, refreshIntervalMinutes,
   lastAutoRefreshAtRef, todosOpenCount = 0, refreshing = false,
-  pipelineSummary,
+  pipelineSummary, layerName, layerSubtitle,
 }: HeaderProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [now, setNow] = useState<number>(Date.now());
   const [secretTTL, setSecretTTL] = useState<number | null>(null);
 
@@ -92,6 +98,28 @@ export function Header({
   const lastUpdatedClock = lastUpdated ? formatClock(new Date(lastUpdated)) : '--:--';
   const countdownText = remainingMs > 0 ? formatCountdown(remainingMs, intervalMinutes) : '00:00';
   const dateLine = formatDateLine(new Date(now));
+
+  // 根据当前路由确定子导航配置
+  const pathname = location.pathname;
+  let subNavItems: { key: string; label: string; path: string }[] = [];
+  let subNavBasePath = '';
+  if (pathname.startsWith('/data')) {
+    subNavItems = DATA_SUB_NAV;
+    subNavBasePath = '/data';
+  } else if (pathname.startsWith('/judge') || pathname.startsWith('/quality') || pathname.startsWith('/knowledge')) {
+    subNavItems = JUDGE_SUB_NAV;
+    subNavBasePath = '/judge';
+  } else if (pathname.startsWith('/action')) {
+    subNavItems = ACTION_SUB_NAV;
+    subNavBasePath = '/action';
+  }
+  const subNav = useLayerSubNav(subNavBasePath, subNavItems, pathname);
+
+  // 层标题行颜色（从路径推断当前层）
+  const currentLayerKey = pathname.startsWith('/judge') ? 'judge'
+    : pathname.startsWith('/action') ? 'action'
+    : 'data';
+  const layerColor = FLOW_COLORS[currentLayerKey] || 'var(--accent)';
 
   const actionButtons = (
     <>
@@ -137,7 +165,28 @@ export function Header({
 
   return (
     <header className="mb-4" style={{ borderBottom: '2px solid var(--text-primary)' }}>
-      {/* ── 首行: 标题（左） + 层导航（右） ── */}
+      {/* ── 首行: 日期/状态 ── */}
+      <div
+        className="flex items-center flex-wrap gap-x-2.5 gap-y-1 text-[11.5px]"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        <span className="whitespace-nowrap hidden sm:inline">{dateLine}</span>
+        <span className="hidden sm:inline" aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
+        <span className="flex items-center gap-1.5 whitespace-nowrap" title="最近摄取更新条数">
+          <span className="pulse-dot" style={{ backgroundColor: 'var(--color-general)', width: 5, height: 5, borderRadius: '50%', display: 'inline-block' }} />
+          <span className="font-mono tabular-nums font-semibold" style={{ color: 'var(--text-secondary)' }}>{latestIngestionCount}</span>
+          <span>更新</span>
+        </span>
+        <span aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
+        <span className="font-mono tabular-nums whitespace-nowrap" title="最近更新时间">{lastUpdatedClock}</span>
+        <span className="hidden md:inline" aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
+        <span className="hidden md:flex items-center gap-1 font-mono tabular-nums whitespace-nowrap" title="距下次自动刷新">
+          <Icon size={10}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Icon>
+          {countdownText}
+        </span>
+      </div>
+
+      {/* ── 次行: 标题（左） + 层导航（右） ── */}
       <div className="flex items-center justify-between flex-wrap gap-x-3 gap-y-1 py-3 sm:py-4">
         <button
           onClick={() => navigate('/')}
@@ -150,38 +199,54 @@ export function Header({
         <LayerNav pipelineSummary={pipelineSummary} />
       </div>
 
-      {/* ── 次行: 标语（左） + 日期/状态（右） ── */}
+      {/* ── 第三行: 标语 ── */}
       <div className="flex items-center justify-between flex-wrap gap-x-3 gap-y-1 pb-2">
         <p className="text-[11.5px] tracking-[0.18em] uppercase" style={{ color: 'var(--text-muted)' }}>
           AI时代IT和安全从业者的热点工作站
         </p>
-        <div
-          className="flex items-center flex-wrap gap-x-2.5 gap-y-1 text-[11.5px]"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          <span className="whitespace-nowrap hidden sm:inline">{dateLine}</span>
-          <span className="hidden sm:inline" aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
-          <span className="flex items-center gap-1.5 whitespace-nowrap" title="最近摄取更新条数">
-            <span className="pulse-dot" style={{ backgroundColor: 'var(--color-general)', width: 5, height: 5, borderRadius: '50%', display: 'inline-block' }} />
-            <span className="font-mono tabular-nums font-semibold" style={{ color: 'var(--text-secondary)' }}>{latestIngestionCount}</span>
-            <span>更新</span>
-          </span>
-          <span aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
-          <span className="font-mono tabular-nums whitespace-nowrap" title="最近更新时间">{lastUpdatedClock}</span>
-          <span className="hidden md:inline" aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
-          <span className="hidden md:flex items-center gap-1 font-mono tabular-nums whitespace-nowrap" title="距下次自动刷新">
-            <Icon size={10}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Icon>
-            {countdownText}
-          </span>
-        </div>
       </div>
 
-      {/* ── 第三行: 操作按钮（靠右，在下横线上） ── */}
-      <div className="flex justify-end pb-1.5">
-        <div className="flex items-center gap-1.5">
+      {/* ── 第四行: 子导航（左） + 操作按钮（右） ── */}
+      <div className="flex items-center justify-between flex-wrap gap-x-3 gap-y-1.5 pb-1.5">
+        {subNav.length > 0 && (
+          <div className="flex items-center gap-2">
+            {subNav.map(item => (
+              <button
+                key={item.key}
+                onClick={() => navigate(item.path)}
+                className="ink-chip focus-ring transition-colors"
+                style={{
+                  padding: '3px 9px',
+                  color: item.active ? 'var(--text-on-light)' : 'var(--text-secondary)',
+                  backgroundColor: item.active ? 'var(--accent)' : 'var(--bg-hover)',
+                  borderColor: item.active ? 'var(--accent)' : 'var(--border-color)',
+                  fontWeight: item.active ? 600 : 400,
+                }}
+                aria-current={item.active ? 'page' : undefined}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-1.5 ml-auto">
           {actionButtons}
         </div>
       </div>
+
+      {/* ── 第五行: 层标题（资料层/判断层/行动层） ── */}
+      {layerName && (
+        <div className="layer-header-accent flex items-center gap-3 pb-3" style={{ borderBottom: '1px solid var(--border-color)', '--header-accent': layerColor } as React.CSSProperties}>
+          <h2 className="font-mono text-lg font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
+            {layerName}
+          </h2>
+          {layerSubtitle && (
+            <span className="text-xs tracking-wide" style={{ color: 'var(--text-muted)' }}>
+              {layerSubtitle}
+            </span>
+          )}
+        </div>
+      )}
     </header>
   );
 }

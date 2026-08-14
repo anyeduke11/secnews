@@ -99,7 +99,7 @@ export function JudgeBidAnalysisPage() {
           </Icon>
           返回
         </button>
-        <h2 className="font-serif text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+        <h2 className="font-mono text-base font-bold" style={{ color: 'var(--text-primary)' }}>
           标讯分析
         </h2>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>

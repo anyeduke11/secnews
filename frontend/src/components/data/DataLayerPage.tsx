@@ -7,7 +7,7 @@
  * 右栏: 快捷入口 + 跨层流转 + 统计 + 趋势
  */
 import React from 'react';
-import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useHotspotData } from '../../hooks/useHotspotData';
 import { useRefreshInterval } from '../../hooks/useRefreshInterval';
 import { useTodos } from '../../hooks/useTodos';
@@ -23,7 +23,6 @@ import { LoadingSkeleton } from '../LoadingSkeleton';
 import { RegionFilter } from '../RegionFilter';
 import { FavoritesPanel } from '../favorites';
 import { LayerCard, LayerCardRow, PipelineFlow, ViewMoreLink } from '../layout/LayerCard';
-import { LayerHeader, DATA_SUB_NAV, useLayerSubNav } from '../layout/LayerHeader';
 import { useTheme } from '../../App';
 import type { ConsistencyDrift, StatsResponse } from '../../types';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -31,7 +30,6 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 export function DataLayerPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const location = useLocation();
   const category = searchParams.get('category') || 'all';
   const { theme, toggleTheme } = useTheme();
 
@@ -61,9 +59,6 @@ export function DataLayerPage() {
       if (type === 'collect_done') refresh();
     },
   });
-
-  /* 子导航 */
-  const subNav = useLayerSubNav('/data', DATA_SUB_NAV, location.pathname);
 
   /* 管线摘要 — 各层数据量 */
   const pipelineSummary = useMemo(() => ({
@@ -142,6 +137,8 @@ export function DataLayerPage() {
         todosOpenCount={todos.count?.by_status.open ?? 0}
         refreshing={manualRefreshing}
         pipelineSummary={pipelineSummary}
+        layerName="资料层"
+        layerSubtitle="我有什么 · 信息采集与组织"
       />
 
       <FavoritesPanel
@@ -149,13 +146,6 @@ export function DataLayerPage() {
         onClose={() => setFavoritesOpen(false)}
         onCountChange={(count) => syncFavorites(undefined, count)}
         onFavoritesChange={handleFavoritesChange}
-      />
-
-      {/* 统一层标题 + 子导航 */}
-      <LayerHeader
-        layerName="资料层"
-        subtitle="我有什么 · 信息采集与组织"
-        subNav={subNav}
       />
 
       {/* 层内领域筛选器 */}

@@ -56,7 +56,7 @@ export function KnowledgeLayout({ areaCounts }: KnowledgeLayoutProps) {
             返回首页
           </button>
           <h2
-            className="font-serif text-lg font-bold flex items-center gap-2 min-w-0"
+            className="font-mono text-lg font-bold flex items-center gap-2 min-w-0"
             style={{ color: 'var(--text-primary)' }}
           >
             <Icon size={16}>

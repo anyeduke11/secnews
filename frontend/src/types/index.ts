@@ -203,13 +203,13 @@ export interface StatsResponse {
 // v1.9 Editorial: hex 为印刷油墨色 (供 echarts/recharts 等 canvas 消费方);
 // DOM 内联样式请用 getCategoryColorVar 以随主题切换
 export const CATEGORIES: CategoryInfo[] = [
-  { id: 'all', label: '全部热点', color: '#8E2318' },
-  { id: 'ai', label: '科技 / AI', color: '#0B6E6E' },
-  { id: 'security', label: '网络安全', color: '#A32014' },
-  { id: 'finance', label: '金融 / 投资', color: '#8A6400' },
-  { id: 'startup', label: '独立开发 / 创业', color: '#5A4FA0' },
-  { id: 'bid', label: '招标资讯', color: '#A65312' },
-  { id: 'github', label: 'GitHub 项目', color: '#5E4B8B' },
+  { id: 'all', label: '全部热点', color: '#00bcd4' },
+  { id: 'ai', label: '科技 / AI', color: '#00bcd4' },
+  { id: 'security', label: '网络安全', color: '#e85d5d' },
+  { id: 'finance', label: '金融 / 投资', color: '#f0c929' },
+  { id: 'startup', label: '独立开发 / 创业', color: '#7c6aff' },
+  { id: 'bid', label: '招标资讯', color: '#e8891a' },
+  { id: 'github', label: 'GitHub 项目', color: '#9b8bff' },
 ];
 
 export const CATEGORY_MAP: Record<string, CategoryInfo> = Object.fromEntries(

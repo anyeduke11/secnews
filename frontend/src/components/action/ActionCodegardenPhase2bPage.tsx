@@ -27,7 +27,7 @@ export function ActionCodegardenPhase2bPage() {
           </Icon>
           返回
         </button>
-        <h2 className="font-serif text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+        <h2 className="font-mono text-base font-bold" style={{ color: 'var(--text-primary)' }}>
           服务网格 · 资源中枢 · 联动引擎
         </h2>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>

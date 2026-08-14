@@ -3,7 +3,7 @@ id: "k-ext-1"
 title: "LangChain prompt injection attack"
 source: "test"
 source_url: "None"
-ingested_at: "2026-08-04T06:07:17.883082+00:00"
+ingested_at: "2026-08-14T12:31:58.746517+00:00"
 lifecycle: "amplify:tagged"
 news_type: "None"
 tech_stack: []

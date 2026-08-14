@@ -82,7 +82,7 @@ export function LeadStory({
       </div>
 
       <h2
-        className="font-serif font-bold max-w-[32em]"
+        className="font-mono font-bold max-w-[32em]"
         style={{ fontSize: 'clamp(22px, 3vw, 30px)', lineHeight: 1.25, color: 'var(--text-primary)' }}
       >
         <a
@@ -96,7 +96,7 @@ export function LeadStory({
       </h2>
 
       {summary && (
-        <p className="dropcap font-serif text-[16px] md:text-[15px] leading-[1.7] mt-2.5 max-w-[70ch]" style={{ color: 'var(--text-secondary)' }}>
+        <p className="font-mono text-[13px] leading-[1.6] mt-2.5 max-w-[70ch]" style={{ color: 'var(--text-secondary)' }}>
           {summary}
         </p>
       )}

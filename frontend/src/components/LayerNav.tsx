@@ -20,9 +20,9 @@ interface LayerMeta {
 }
 
 const LAYER_FLOW_COLORS = {
-  data:   { color: 'var(--color-info)',   soft: 'color-mix(in srgb, var(--color-info) 10%, transparent)' },
-  judge:  { color: 'var(--color-warning)', soft: 'color-mix(in srgb, var(--color-warning) 10%, transparent)' },
-  action: { color: 'var(--color-general)', soft: 'color-mix(in srgb, var(--color-general) 10%, transparent)' },
+  data:   { color: 'var(--layer-data)',   soft: 'color-mix(in srgb, var(--layer-data) 10%, transparent)' },
+  judge:  { color: 'var(--layer-judge)',  soft: 'color-mix(in srgb, var(--layer-judge) 10%, transparent)' },
+  action: { color: 'var(--layer-action)', soft: 'color-mix(in srgb, var(--layer-action) 10%, transparent)' },
 } as const;
 
 const LAYERS: LayerMeta[] = [
@@ -95,7 +95,7 @@ export function LayerNav({ currentLayer: forcedLayer, contextCategory, pipelineS
                 border: 'none',
                 background: 'none',
                 cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '12px',
                 lineHeight: 1.4,
                 borderRadius: 'var(--radius-sm)',
@@ -129,7 +129,7 @@ export function LayerNav({ currentLayer: forcedLayer, contextCategory, pipelineS
           border: 'none',
           background: 'none',
           cursor: 'pointer',
-          fontFamily: 'var(--font-sans)',
+          fontFamily: 'var(--font-mono)',
           fontSize: '12px',
           lineHeight: 1.4,
           borderRadius: 'var(--radius-sm)',

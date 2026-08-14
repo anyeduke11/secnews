@@ -94,13 +94,48 @@ def score(item_id: str) -> int:
 def batch_score() -> dict:
     """遍历所有知识条目, 计算并更新 attention_score。
 
+    P1 优化: 原实现对每个 item 执行 6 次查询 (5 维 + UPDATE), 4000+ 条目
+    即 24000+ 次查询 (N+1)。现改为单条聚合 SQL 一次取回全部 5 维数据,
+    Python 组合评分 + executemany 批量 UPDATE (1 次查询 + 1 次批量写)。
+
     Returns:
         { updated: int, errors: int }
     """
     conn = get_connection()
 
     try:
-        rows = conn.execute("SELECT id FROM knowledge_items").fetchall()
+        rows = conn.execute(
+            """
+            SELECT
+                k.id AS id,
+                COALESCE(v.view_n, 0)      AS view_n,
+                COALESCE(d.dwell_total, 0) AS dwell_total,
+                COALESCE(s.max_depth, 0)   AS max_depth,
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM favorites f WHERE f.url = k.source_url
+                ) THEN 1.0 ELSE 0.0 END    AS fav,
+                COALESCE(a.ann_n, 0)       AS ann_n
+            FROM knowledge_items k
+            LEFT JOIN (
+                SELECT item_id, COUNT(*) AS view_n FROM attention_events
+                WHERE event_type = 'view' GROUP BY item_id
+            ) v ON v.item_id = k.id
+            LEFT JOIN (
+                SELECT item_id,
+                       COALESCE(SUM(json_extract(detail_json, '$.dwell_seconds')), 0) AS dwell_total
+                FROM attention_events WHERE event_type = 'dwell' GROUP BY item_id
+            ) d ON d.item_id = k.id
+            LEFT JOIN (
+                SELECT item_id,
+                       COALESCE(MAX(json_extract(detail_json, '$.depth_pct')), 0) AS max_depth
+                FROM attention_events WHERE event_type = 'scroll' GROUP BY item_id
+            ) s ON s.item_id = k.id
+            LEFT JOIN (
+                SELECT entity_id, COUNT(*) AS ann_n FROM annotations
+                WHERE entity_type = 'knowledge_item' GROUP BY entity_id
+            ) a ON a.entity_id = k.id
+            """,
+        ).fetchall()
     except Exception as e:
         logger.error(
             "batch_score: failed to fetch knowledge_items",
@@ -108,25 +143,43 @@ def batch_score() -> dict:
         )
         return {"updated": 0, "errors": 0}
 
-    updated = 0
+    updates: list[tuple[int, str]] = []
     errors = 0
-
     for row in rows:
-        item_id = row["id"]
         try:
-            s = score(item_id)
-            conn.execute(
-                "UPDATE knowledge_items SET attention_score = ? WHERE id = ?",
-                (s, item_id),
+            view_norm = min(row["view_n"] / 20.0, 1.0)
+            dwell_norm = min(row["dwell_total"] / 300.0, 1.0)
+            scroll_norm = min(row["max_depth"] / 100.0, 1.0)
+            ann_norm = min(row["ann_n"] / 10.0, 1.0)
+            raw = (
+                view_norm * 0.25
+                + dwell_norm * 0.25
+                + scroll_norm * 0.15
+                + float(row["fav"]) * 0.20
+                + ann_norm * 0.15
             )
-            updated += 1
+            updates.append((min(100, round(raw * 100)), row["id"]))
         except Exception as e:
             logger.error(
                 "batch_score: item failed",
-                extra={"trace_id": "", "item_id": item_id, "error": str(e)},
+                extra={"trace_id": "", "item_id": row["id"], "error": str(e)},
             )
             errors += 1
 
+    if updates:
+        try:
+            conn.executemany(
+                "UPDATE knowledge_items SET attention_score = ? WHERE id = ?",
+                updates,
+            )
+        except Exception as e:
+            logger.error(
+                "batch_score: batch update failed",
+                extra={"trace_id": "", "error": str(e)},
+            )
+            return {"updated": 0, "errors": len(updates)}
+
+    updated = len(updates)
     logger.info(
         "batch_score completed",
         extra={"trace_id": "", "updated": updated, "errors": errors},

@@ -335,3 +335,31 @@ def test_push_success_mocked(client):
     assert len(h) == 1
     assert h[0]["direction"] == "push"
     assert h[0]["status"] == "success"
+
+
+def test_push_locked_vault_with_secrets_rejected(client):
+    """P1: secrets vault 锁定且存在 secrets 时, push 必须明确拒绝。
+
+    锁定态 build_bundle 会把 secrets 密文置 None, apply 端跳过 → 静默丢失/
+    覆盖对端 secrets。修复后 push 在 WebDAV 交互前即报错提示解锁。
+    """
+    _setup_master_key(client)
+    client.post("/api/sync/config", json={
+        "webdav_url": "https://dav.jianguoyun.com/dav",
+        "webdav_username": "u@x.com",
+        "webdav_password": "my-app-password",
+        "master_key": MASTER_KEY,
+    })
+    # 直接插入一条 secrets (vault 未解锁状态)
+    from backend.repository.db import get_connection
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO llm_secrets (name, model, base_url, api_key_encrypted, "
+        "encryption_key_id, created_at, updated_at) "
+        "VALUES ('test-secret', 'gpt-4o-mini', 'https://api.openai.com', "
+        "X'deadbeef', 1, '2026-08-01T00:00:00+00:00', '2026-08-01T00:00:00+00:00')"
+    )
+    # vault 未解锁 → push 应被拒绝 (无需 WebDAV mock, 检查在交互前)
+    r = client.post("/api/sync/push", json={"master_key": MASTER_KEY})
+    assert r.status_code in (400, 409), r.text
+    assert "解锁" in r.json()["detail"]["message"]

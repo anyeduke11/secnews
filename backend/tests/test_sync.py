@@ -273,6 +273,39 @@ def test_decrypt_wrong_master_key(db):
     assert "主密钥" in str(ei.value) or "decrypt" in str(ei.value).lower()
 
 
+def test_decrypt_uses_envelope_salt_cross_device(db):
+    """P1: 跨设备 salt 一致性 — 解密必须用 envelope 携带的 salt, 而非本地 salt。
+
+    模拟两台设备 salt 不同: 用 salt_A 加密后, 把本地 encryption_keys.salt 改成
+    salt_B (对端场景), 仍应能用同一 master_key 解密 (派生密钥跟随 envelope)。
+    此前实现用本地 salt 派生 → 跨端解密必然失败。
+    """
+    from backend.crypto import generate_salt
+    from backend.repository.db import get_connection
+
+    _setup_master_key()
+    svc = SyncService()
+    bundle = svc.build_bundle()
+    master_key = "test-master-key-strong-1234"
+
+    payload = svc.encrypt_bundle(bundle, master_key)
+    envelope = json.loads(payload.decode("utf-8"))
+    salt_a = envelope["encryption"]["salt_b64"]
+    assert salt_a, "envelope 应携带加密用的 salt"
+
+    # 模拟对端: 本地 salt 改为不同的 salt_B (verify_blob 一并更新)
+    salt_b = generate_salt()
+    conn = get_connection()
+    conn.execute(
+        "UPDATE encryption_keys SET salt = ? WHERE name = 'default'",
+        (salt_b,),
+    )
+    # 本地 salt 已变, 但 decrypt 应跟随 envelope 的 salt_A 成功解密
+    out = svc.decrypt_bundle(payload, master_key)
+    assert out["device_id"] == bundle["device_id"]
+    assert out["version"] == bundle["version"]
+
+
 # ---------------------------------------------------------------------------
 # should_run_catchup
 # ---------------------------------------------------------------------------

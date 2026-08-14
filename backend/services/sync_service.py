@@ -110,6 +110,31 @@ def _new_device_id() -> str:
     return str(uuid.uuid4())
 
 
+def _assert_secrets_sync_safe() -> None:
+    """P1: secrets 锁定态禁止 push — 未解锁时 build_bundle 将密文置 None,
+    apply_bundle 对无密文记录直接 skip, 合并层无法区分"未导出"与"已删除",
+    锁定态 push 会静默丢失/覆盖对端 secrets。检测到 vault 锁定且存在
+    secrets 时明确报错, 而不是静默丢数据。
+    """
+    from backend.services.secrets_service import _is_unlocked
+
+    ek_row = EncryptionKeyRepository().get_default()
+    if ek_row is None:
+        return  # 主密钥未初始化 → 无 secrets 可同步
+    if _is_unlocked(ek_row.id):
+        return
+    try:
+        secrets, _ = SecretRepository().list()
+    except Exception:
+        return
+    if secrets:
+        raise InternalException(
+            "secrets vault 未解锁, 拒绝 push: 锁定状态下 secrets 密文不会进入 "
+            "同步 bundle, 会导致对端 secrets 被覆盖/丢失。请先在「密钥管理」"
+            "解锁后再同步。"
+        )
+
+
 # ---------------------------------------------------------------------------
 # SyncService
 # ---------------------------------------------------------------------------
@@ -161,6 +186,7 @@ class SyncService:
         Phase 49: 每次同步打成 ``配置文件-YYYY-MM-DD.zip``(覆盖式),
         内含 envelope.json (Fernet 密文) + manifest.json (同步元数据)。
         """
+        _assert_secrets_sync_safe()  # P1: secrets 锁定态禁止 push (防静默丢失)
         cfg_repo = SyncConfigRepository()
         cfg = cfg_repo.get_default()
         if cfg is None or not cfg.webdav_url or not cfg.webdav_username:
@@ -455,6 +481,10 @@ class SyncService:
         remote_ts = remote_bundle.get("merged_at") or ""
         if remote_ts > local_ts:
             return await self.pull(master_key=master_key)
+        # P1: 本地较新 → 不能盲覆盖远端 (后 push 者整体覆盖会丢对方新增)。
+        # 先 pull (3-way merge 把远端变更吸收进本地), 再把合并后的本地
+        # 作为新 bundle push —— 远端变更永不丢失。
+        await self.pull(master_key=master_key)
         return await self.push(master_key=master_key)
 
     async def bidirectional_with_fernet_key(self, fernet_key: bytes) -> dict:
@@ -497,6 +527,11 @@ class SyncService:
                     fernet_key, cfg, client, history, started_at,
                     raw, remote_bundle,
                 )
+            # P1: 本地较新 → 先 pull 合并远端变更再 push (消除盲覆盖)
+            await self._pull_with_fernet_key(
+                fernet_key, cfg, client, history, started_at,
+                raw, remote_bundle,
+            )
             return await self._push_with_fernet_key(
                 fernet_key, cfg, client, history, started_at,
             )
@@ -543,6 +578,7 @@ class SyncService:
         Phase 49 改进: 每次同步打成 ``配置文件-YYYY-MM-DD.zip``(覆盖式),
         内含 envelope.json (Fernet 密文) + manifest.json (同步元数据)。
         """
+        _assert_secrets_sync_safe()  # P1: secrets 锁定态禁止 push (防静默丢失)
         from cryptography.fernet import Fernet as _F
         # 解锁时把 fernet_key 视为 master_key 的派生 key;
         # bundle 的 envelope 用同一 key 加密/解密

@@ -26,6 +26,9 @@ from backend.repository.secrets_repo import SecretRepository
 from backend.repository.settings_repo import SettingsRepository
 from backend.repository.skills_repo import SkillRepository
 from backend.repository.todo_repo import TodoRepository
+_SYNC_BUNDLE_MAX_ROWS = 100_000  # P1: 全量同步上限 — 消除 LIMIT 1000 截断导致的 absence-as-deletion 误判 (个人库远小于此值)
+
+
 from backend.services.sync_merge import (
     BUNDLE_VERSION,
     SETTINGS_BLOCKLIST,
@@ -48,7 +51,7 @@ def _read_cg_projects_for_sync() -> list[dict]:
     try:
         from backend.repository.codegarden_repo import CodegardenProjectRepository
         items, _ = CodegardenProjectRepository().list(
-            include_archived=True, limit=1000
+            include_archived=True, limit=_SYNC_BUNDLE_MAX_ROWS
         )
         return items
     except Exception as e:
@@ -127,7 +130,7 @@ def _read_cg_services_for_sync() -> list[dict]:
     """
     try:
         from backend.repository.codegarden_service_repo import CodegardenServiceRepository
-        items, _ = CodegardenServiceRepository().list(limit=1000)
+        items, _ = CodegardenServiceRepository().list(limit=_SYNC_BUNDLE_MAX_ROWS)
         return items
     except Exception as e:
         logger.warning(f"_read_cg_services_for_sync failed (skipped): {e}")
@@ -203,7 +206,7 @@ def _read_tags_for_sync() -> list[dict]:
     """读取 tags 标签层级表 (cascade — 跨端时整表覆盖+清空关联)。"""
     try:
         from backend.repository.tags_repo import TagRepository
-        return [t.to_dict() for t in TagRepository().list(limit=1000)]
+        return [t.to_dict() for t in TagRepository().list(limit=_SYNC_BUNDLE_MAX_ROWS)]
     except Exception as e:
         logger.warning(f"_read_tags_for_sync failed (skipped): {e}")
         return []
@@ -289,7 +292,7 @@ def _read_reading_states_for_sync() -> list[dict]:
         # list_recent 用 last_read_at 排序, 此处不适用 — 改用 list_all
         from backend.repository.db import get_connection
         rows = get_connection().execute(
-            "SELECT * FROM reading_states ORDER BY updated_at DESC LIMIT 1000"
+            "SELECT * FROM reading_states ORDER BY updated_at DESC"
         ).fetchall()
         return [dict(r) for r in rows]
     except Exception as e:
@@ -346,7 +349,7 @@ def _read_annotations_for_sync() -> list[dict]:
     try:
         from backend.repository.db import get_connection
         rows = get_connection().execute(
-            "SELECT * FROM annotations ORDER BY updated_at DESC LIMIT 1000"
+            "SELECT * FROM annotations ORDER BY updated_at DESC"
         ).fetchall()
         return [dict(r) for r in rows]
     except Exception as e:
@@ -399,7 +402,7 @@ def _read_sm2_reviews_for_sync() -> list[dict]:
     try:
         from backend.repository.db import get_connection
         rows = get_connection().execute(
-            "SELECT * FROM sm2_reviews ORDER BY due_at LIMIT 1000"
+            "SELECT * FROM sm2_reviews ORDER BY due_at"
         ).fetchall()
         return [dict(r) for r in rows]
     except Exception as e:
@@ -487,13 +490,13 @@ def build_bundle(*, device_id: Optional[str] = None) -> dict:
 
     records: dict[str, Any] = {
         "favorites": [
-            it.to_dict() for it in FavoriteRepository().list(limit=1000)
+            it.to_dict() for it in FavoriteRepository().list(limit=_SYNC_BUNDLE_MAX_ROWS)
         ],
         "todos": [
-            it.to_dict() for it in TodoRepository().list(limit=1000)[0]
+            it.to_dict() for it in TodoRepository().list(limit=_SYNC_BUNDLE_MAX_ROWS)[0]
         ],
         "skills": [
-            it.to_dict() for it in SkillRepository().list(limit=1000)[0]
+            it.to_dict() for it in SkillRepository().list(limit=_SYNC_BUNDLE_MAX_ROWS)[0]
         ],
         "codegarden_projects": _read_cg_projects_for_sync(),
         "codegarden_services": _read_cg_services_for_sync(),  # Phase 2b
@@ -655,7 +658,7 @@ def apply_bundle(bundle: dict, *, master_key: Optional[str] = None) -> dict:
 
     # --- skills ---
     skr = SkillRepository()
-    existing_skills = {s.name: s for s in skr.list()[0]}
+    existing_skills = {s.name: s for s in skr.list(limit=_SYNC_BUNDLE_MAX_ROWS)[0]}
     skill_stats = {"inserted": 0, "skipped": 0, "updated": 0}
     for s in records.get("skills", []):
         name = s.get("name")
@@ -784,20 +787,37 @@ def decrypt_bundle(payload: bytes, master_key: str) -> dict:
     enc = envelope.get("encryption", {})
     if enc.get("algorithm") != "Fernet":
         raise InternalException(f"不支持的加密算法: {enc.get('algorithm')}")
-    if int(enc.get("iterations", -1)) != ek_row.iterations:
-        raise InternalException(
-            f"iterations 不一致: 文件 {enc.get('iterations')} vs 当前 {ek_row.iterations}"
-        )
-    if not verify_master_key(master_key, ek_row.salt, ek_row.iterations, ek_row.verify_blob):
-        raise InternalException("主密钥错误")
 
-    fernet_key = derive_fernet_key(master_key, ek_row.salt, ek_row.iterations)
+    # P1: 跨设备 salt 一致性 — 解密必须用 envelope 携带的 salt/iterations
+    # 派生密钥 (encrypt_bundle 已写入 salt_b64)。此前用本地 ek_row.salt:
+    # 两台设备 salt 不同 → 同一 master_key 派生不同 Fernet key → 跨端解密
+    # 必然失败。envelope 的 salt 是密文生成时的权威参数; 本地 verify_blob
+    # 校验 (基于本地 salt) 在跨设备场景无意义, 解密成功即证明 master_key 正确。
+    salt_b64 = enc.get("salt_b64")
+    iterations = enc.get("iterations")
+    if not salt_b64 or not iterations:
+        raise InternalException("sync bundle 缺少加密参数 (salt_b64/iterations)")
+    try:
+        salt = bytes.fromhex(str(salt_b64))
+        iterations = int(iterations)
+        assert iterations > 0
+    except (ValueError, AssertionError) as e:
+        raise InternalException(f"sync bundle 加密参数非法: {e}") from e
+
+    fernet_key = derive_fernet_key(master_key, salt, iterations)
     try:
         ct = bytes.fromhex(envelope["ciphertext_b64"])
         plaintext = _F(fernet_key).decrypt(ct)
         bundle = json.loads(plaintext.decode("utf-8"))
-    except (KeyError, ValueError, InvalidToken) as e:
-        raise InternalException(f"sync bundle 解密失败: {e}") from e
+    except (KeyError, ValueError) as e:
+        raise InternalException(f"sync bundle 数据格式错误: {e}") from e
+    except InvalidToken as e:
+        # Fernet AEAD 校验失败: master_key 错误或密文损坏。跨设备场景下
+        # 最常见原因是两台设备用了不同 master_key (或 envelope salt 被篡改)。
+        raise InternalException(
+            "sync bundle 解密失败: 主密钥错误或数据损坏 "
+            "(跨设备请确认两端使用同一 master_key)"
+        ) from e
 
     validate_bundle(bundle)
     return bundle

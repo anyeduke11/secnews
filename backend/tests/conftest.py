@@ -74,7 +74,9 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     from backend.repository import db
 
     test_db = tmp_path / "test.db"
-    monkeypatch.setattr(config, "db_path", str(test_db))
+    # P1: db_path 必须是 Path (repository/db.py get_connection 调用
+    # db_path.parent.mkdir, str 会 AttributeError — 此前未被触发的隐性 bug)
+    monkeypatch.setattr(config, "db_path", test_db)
     db.close_db()
     db.init_db()
     yield test_db
@@ -96,7 +98,8 @@ def e2e_api_client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[
     from backend.exceptions import register_exception_handlers
 
     test_db = tmp_path / "test.db"
-    monkeypatch.setattr(config, "db_path", str(test_db))
+    # P1: db_path 必须是 Path (见 temp_db 注释)
+    monkeypatch.setattr(config, "db_path", test_db)
 
     db.close_db()
     db.init_db()

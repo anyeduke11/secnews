@@ -8,12 +8,12 @@
 
 ## 1. 概述
 
-hotspot v1.7.6 引入 **MCP (Model Context Protocol) Server**。LLM 推理全部在外部 AI Agent 侧执行，hotspot 只做**数据存储 + 本地规则提取 + 13 个 MCP 工具暴露**。
+hotspot v1.7.6 引入 **MCP (Model Context Protocol) Server**。LLM 推理全部在外部 AI Agent 侧执行，hotspot 只做**数据存储 + 本地规则提取 + 9 个 MCP 工具暴露**。
 
 ### 1.1 核心原则
 
 - **零状态**: hotspot 不维护 session / heartbeat / watchdog
-- **同步直返**: 13 个 MCP tool 全部同步直接返回（5 读 + 8 写）
+- **同步直返**: 9 个 MCP tool 全部同步直接返回（5 读 + 4 写）
 - **数据与智能分离**: hotspot 暴露数据 + 工具；LLM 推理由外部 AI Agent 承担
 - **本地优先**: 默认绑定 127.0.0.1，避免远程攻击
 
@@ -102,7 +102,7 @@ hotspot v1.7.6 引入 **MCP (Model Context Protocol) Server**。LLM 推理全部
 
 ---
 
-## 3. 13 个 MCP Tool 详细说明
+## 3. 9 个 MCP Tool 详细说明
 
 ### 3.1 读操作（5 个）
 
@@ -188,7 +188,7 @@ hotspot v1.7.6 引入 **MCP (Model Context Protocol) Server**。LLM 推理全部
 
 ---
 
-### 3.2 写操作（8 个）
+### 3.2 写操作（4 个）
 
 #### `add_favorite` — 添加收藏
 
@@ -256,69 +256,6 @@ hotspot v1.7.6 引入 **MCP (Model Context Protocol) Server**。LLM 推理全部
 
 ---
 
-#### `trigger_extract_tags` — 触发本地标签提取（无 LLM）
-
-**输入**: `{hotspot_id: "abc123"}`
-
-**输出**:
-```json
-{
-  "success": true,
-  "tags": [
-    {"tag_id": "ai-security", "confidence": 0.7},
-    {"tag_id": "langchain", "confidence": 0.6}
-  ]
-}
-```
-
-**典型场景**: 快速、低成本、本地规则提取（不需要深度 LLM）。
-
-**注意**: 走本地规则 + 关键词，**不调 LLM**。需要深度语义时由 AI Agent 自己用 LLM 提取。
-
----
-
-#### `trigger_cubox_sync` — 触发 Cubox 同步
-
-**输入**:
-```json
-{
-  "target_path": null,         // 可选, 默认 knowledge/items
-  "format": "md"               // "md" | "json"
-}
-```
-
-**输出**: `{success: true, count: 42}`
-
-**典型场景**: AI Agent 主动拉 Cubox 新增卡片到知识库。
-
----
-
-#### `create_alert_rule` — 创建告警规则
-
-**输入**:
-```json
-{
-  "rule": {
-    "name": "FastAPI CVE 告警",
-    "pattern": "fastapi.*cve",
-    "category": "security",
-    "min_score": 80
-  }
-}
-```
-
-**输出**: `{success: true, rule_id: 12}`
-
----
-
-#### `mark_digest_read` — 标记简报已读
-
-**输入**: `{digest_id: "digest-2026-07-25"}`
-
-**输出**: `{success: true}`
-
----
-
 ## 4. 双 Transport 详解
 
 ### 4.1 stdio（默认，推荐）
@@ -347,9 +284,9 @@ python run.py
 
 # 2. 访问 MCP 状态端点
 curl http://127.0.0.1:8000/api/mcp/status
-# 应返回: {"enabled": true, "transport": "sse", "tools_count": 13, ...}
+# 应返回: {"enabled": true, "transport": "sse", "tools_count": 9, ...}
 
-# 3. 列出 13 个 tool
+# 3. 列出 9 个 tool
 curl http://127.0.0.1:8000/api/mcp/tools
 
 # 4. 测试 stdio
@@ -360,7 +297,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python -m backend.mcp_st
 
 在 Settings 抽屉的「MCP Server」卡片：
 - 启用 toggle 应为 ON（绿色）
-- 显示 5 读 + 8 写 = 13 个 tool
+- 显示 5 读 + 4 写 = 9 个 tool
 - 点击「复制 stdio 配置」可粘贴到 AI Agent 的 settings.json
 
 ---

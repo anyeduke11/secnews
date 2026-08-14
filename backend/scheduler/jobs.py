@@ -451,6 +451,29 @@ async def quality_logs_cleanup_job() -> None:
         _logger.error(f"quality_logs_cleanup_job crashed: {e}")
 
 
+async def daily_db_backup_job() -> None:
+    """P1: 每日 04:30 (Asia/Shanghai) 数据库自动备份 (online backup API)。
+
+    用 SQLite ``Connection.backup`` 对运行中的服务安全 (WAL 一致性快照,
+    等价 sqlite3 .backup)。备份到 ``config.backup_dir`` (backend/backups/),
+    保留最近 ``BACKUP_RETENTION`` (7) 份, 超龄自动删除。
+
+    在此之前 DB 无自动备份 (1.4GB 核心数据仅靠 git 跟踪 knowledge/ 的
+    文件层), 每日快照是数据安全的基本防线。失败只 log.error, 不抛异常。
+    """
+    try:
+        from backend.services.backup_service import backup_database
+
+        result = await asyncio.to_thread(backup_database)
+        _logger.info(
+            f"daily_db_backup_job: {result['path'].rsplit('/', 1)[-1]} "
+            f"({result['size'] / 1e6:.1f} MB) retained={result['retained']} "
+            f"removed={result['removed']}"
+        )
+    except Exception as e:
+        _logger.error(f"daily_db_backup_job crashed: {e}")
+
+
 async def cg_upstream_sync_job() -> None:
     """Phase 2a CodeGarden: 每日 09:00 (Asia/Shanghai) 触发 fork 类型项目的上游同步。
 
@@ -567,6 +590,7 @@ __all__ = [
     "scheduled_migrate_job",
     "scheduled_summary_job",
     "quality_logs_cleanup_job",  # P0: quality_check_logs 定时清理
+    "daily_db_backup_job",  # P1: 每日数据库自动备份
     "cg_upstream_sync_job",
     "cg_service_scan_job",
     "cg_event_process_job",

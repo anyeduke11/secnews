@@ -185,6 +185,16 @@ class HotspotScheduler:
             name="quality check logs cleanup (Sun 05:00)",
             replace_existing=True,
         )
+        # P1: job 14 — 每日数据库自动备份 (04:30 Asia/Shanghai, 避开
+        # 02:00 compile / 02:30 consumer / 05:00 cleanup 时段)。
+        # online backup API 对运行中服务安全; 保留最近 7 份自动清理。
+        self.scheduler.add_job(
+            jobs.daily_db_backup_job,
+            trigger=CronTrigger(hour=4, minute=30, timezone=SHANGHAI_TZ),
+            id="daily_db_backup",
+            name="daily db backup (04:30)",
+            replace_existing=True,
+        )
         # Phase 2a CodeGarden: job 15 — 上游同步 (每日 09:00 Asia/Shanghai)
         self.scheduler.add_job(
             jobs.cg_upstream_sync_job,

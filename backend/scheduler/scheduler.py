@@ -146,6 +146,16 @@ class HotspotScheduler:
             name="knowledge compile (daily 02:00)",
             replace_existing=True,
         )
+        # P0 消费策略: job 10 — 自动消费者 (每日 02:30 Asia/Shanghai,
+        # 在 compile_daily 之后运行): 消费 pending compile 任务 (规则式
+        # 编译: 分类 + lifecycle 流转 + done) + 归档超龄积压。
+        self.scheduler.add_job(
+            jobs.consume_compile_tasks_job,
+            trigger=CronTrigger(hour=2, minute=30, timezone=SHANGHAI_TZ),
+            id="compile_consumer",
+            name="knowledge compile consumer (daily 02:30)",
+            replace_existing=True,
+        )
         # v1.8 R3: 原 job 10 (compile_weekly, 周日 03:00) 已删除 — 与
         # compile_daily 重复注册同一函数, 周日会在 02:00/03:00 跑两次
         # v1.8 R3: 原 soul_weekly (Sun 04:00) / migrate_weekly (Sun 05:00) /

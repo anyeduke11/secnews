@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
 from backend.domain.collection import GateResult
 from backend.domain.enums import TimeRange
@@ -21,7 +20,7 @@ _quality_logger = logger.bind(component="quality_runner")
 
 
 async def run_url_content_check(
-    config: Optional[QualityConfig] = None,
+    config: QualityConfig | None = None,
 ) -> dict[str, int]:
     """对所有 fallback items 跑 :class:`URLContentGate`。
 
@@ -144,4 +143,4 @@ def _update_item_quality(
     )
 
 
-__all__ = ["run_url_content_check", "run_source_reputation_rebuild"]
+__all__ = ["run_source_reputation_rebuild", "run_url_content_check"]

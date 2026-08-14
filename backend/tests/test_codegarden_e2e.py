@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
+from collections.abc import Iterator
 from datetime import datetime, timezone
-from typing import Iterator
 
 import pytest
 from fastapi import FastAPI
@@ -33,10 +33,10 @@ def e2e_client(tmp_path, monkeypatch) -> Iterator[TestClient]:
 
     conn = sqlite3.connect(str(db_file))
     # 018: knowledge_items + knowledge_tasks (from-knowledge 需要)
-    with open("backend/repository/migrations/018_knowledge.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/018_knowledge.sql", encoding="utf-8") as f:
         conn.executescript(f.read())
     # 019: cg_projects 等 (跳过 ALTER TABLE skills, 测试 DB 无 skills 表)
-    with open("backend/repository/migrations/019_codegarden.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/019_codegarden.sql", encoding="utf-8") as f:
         sql_text = f.read()
     cg_sql = "\n".join(
         line for line in sql_text.splitlines()

@@ -14,7 +14,6 @@ import json
 import logging
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 from backend.domain.knowledge_models import KnowledgeItem, now_iso
 from backend.services.data_cleaning import find_similar_items, item_id_from_url
@@ -74,7 +73,7 @@ def fetch_cubox_cards(limit: int = 100) -> list[dict]:
         return []
 
 
-def _card_to_item(card: dict) -> Optional[KnowledgeItem]:
+def _card_to_item(card: dict) -> KnowledgeItem | None:
     """Convert a cubox card to a KnowledgeItem."""
     url = card.get("url", "")
     if not url:
@@ -172,7 +171,7 @@ def sync_cubox_to_knowledge(limit: int = 100) -> int:
                 if isinstance(existing_fm.get("tags"), list)
                 else []
             )
-            merged_sources = list(dict.fromkeys(existing_sources + ["cubox"]))
+            merged_sources = list(dict.fromkeys([*existing_sources, "cubox"]))
             merged_tags = list(dict.fromkeys(existing_tags + item.tags))
 
             # Update .md frontmatter (sources + tags) preserving body
@@ -251,7 +250,7 @@ def sync_cubox_with_progress(
                 if isinstance(existing_fm.get("tags"), list)
                 else []
             )
-            merged_sources = list(dict.fromkeys(existing_sources + ["cubox"]))
+            merged_sources = list(dict.fromkeys([*existing_sources, "cubox"]))
             merged_tags = list(dict.fromkeys(existing_tags + item.tags))
             _update_md_frontmatter(md_path, merged_sources, merged_tags)
             existing_item = knowledge_repo.get_item(item.id)
@@ -273,7 +272,7 @@ def sync_cubox_with_progress(
         _report("processing", i + 1, total_cards)
 
     _report("syncing_db", total_cards, total_cards)
-    from backend.services.knowledge_sync import full_sync_items_to_db, full_sync_concepts_to_db
+    from backend.services.knowledge_sync import full_sync_concepts_to_db, full_sync_items_to_db
     items_synced = full_sync_items_to_db()
     concepts_synced = full_sync_concepts_to_db()
 

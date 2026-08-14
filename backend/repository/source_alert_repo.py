@@ -5,8 +5,6 @@ Phase 3 (Crawler v2): 源健康状态告警记录。
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from backend.repository.db import get_connection
 
 
@@ -41,9 +39,9 @@ class SourceAlertRepository:
 
     def list(
         self,
-        source_id: Optional[str] = None,
-        level: Optional[str] = None,
-        since: Optional[str] = None,
+        source_id: str | None = None,
+        level: str | None = None,
+        since: str | None = None,
         page: int = 1,
         page_size: int = 50,
     ) -> dict:

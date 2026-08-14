@@ -84,4 +84,4 @@ class GDELTCollector(BaseCollector):
     # 这是预期行为, 不需要额外处理逻辑。
 
 
-__all__ = ["GDELTCollector", "GDELT_SOURCES"]
+__all__ = ["GDELT_SOURCES", "GDELTCollector"]

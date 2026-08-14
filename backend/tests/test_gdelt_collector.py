@@ -13,8 +13,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from backend.collectors.base import BaseCollector
-from backend.collectors.gdelt_collector import GDELTCollector, GDELT_SOURCES
+from backend.collectors.gdelt_collector import GDELT_SOURCES, GDELTCollector
 from backend.domain.collection import SourceResult
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem

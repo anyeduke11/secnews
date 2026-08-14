@@ -11,10 +11,9 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
 
 from backend.repository.db import get_connection
 
@@ -43,18 +42,18 @@ class CatchupRun:
     id: int
     mode: str
     since_window: str
-    until_window: Optional[str]
+    until_window: str | None
     categories: list[str]
     max_per_source: int
     started_at: str
-    finished_at: Optional[str]
+    finished_at: str | None
     status: str
     items_ingested: int = 0
     items_skipped: int = 0
     sources_attempted: int = 0
     sources_succeeded: int = 0
     sources_skipped: int = 0  # P0-3: 24h 续传跳过的源数 (alias of items_skipped)
-    error_msg: Optional[str] = None
+    error_msg: str | None = None
     duration_ms: int = 0
 
     def to_dict(self) -> dict:
@@ -121,7 +120,7 @@ class CatchupRepository:
         *,
         mode: str,
         since_window: str,
-        until_window: Optional[str],
+        until_window: str | None,
         categories: list[str],
         max_per_source: int,
     ) -> CatchupRun:
@@ -152,14 +151,14 @@ class CatchupRepository:
             status="running",
         )
 
-    def get(self, run_id: int) -> Optional[CatchupRun]:
+    def get(self, run_id: int) -> CatchupRun | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM catchup_runs WHERE id = ?", (int(run_id),)
         ).fetchone()
         return _row_to_run(row) if row else None
 
-    def get_current_running(self) -> Optional[CatchupRun]:
+    def get_current_running(self) -> CatchupRun | None:
         """当前在跑的 (status='running'). 一次只允许一个 manual, 但 auto 优先级低, 可能共存."""
         conn = get_connection()
         row = conn.execute(
@@ -179,10 +178,10 @@ class CatchupRepository:
         self,
         run_id: int,
         *,
-        items_ingested: Optional[int] = None,
-        items_skipped: Optional[int] = None,
-        sources_attempted: Optional[int] = None,
-        sources_succeeded: Optional[int] = None,
+        items_ingested: int | None = None,
+        items_skipped: int | None = None,
+        sources_attempted: int | None = None,
+        sources_succeeded: int | None = None,
     ) -> None:
         """增量更新 progress, 状态保持 running."""
         conn = get_connection()
@@ -217,7 +216,7 @@ class CatchupRepository:
         items_skipped: int,
         sources_attempted: int,
         sources_succeeded: int,
-        error_msg: Optional[str] = None,
+        error_msg: str | None = None,
     ) -> None:
         """终态化: status ∈ {success, partial, failed, aborted}."""
         if status not in ("success", "partial", "failed", "aborted"):

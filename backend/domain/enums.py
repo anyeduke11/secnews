@@ -35,7 +35,7 @@ class Category(str, Enum):
     TECH = "tech"
 
     @classmethod
-    def from_str(cls, s: str) -> "Category":
+    def from_str(cls, s: str) -> Category:
         """Parse a free-form string into a Category.
 
         Steps: strip surrounding whitespace, lowercase, then exact match
@@ -122,4 +122,4 @@ class CollectorStatus(str, Enum):
     FAILED = "failed"
 
 
-__all__ = ["Category", "TimeRange", "CollectorStatus"]
+__all__ = ["Category", "CollectorStatus", "TimeRange"]

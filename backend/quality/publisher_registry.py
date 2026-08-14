@@ -21,9 +21,7 @@
 """
 from __future__ import annotations
 
-from typing import Optional
 from urllib.parse import urlparse
-
 
 # ---------------------------------------------------------------------------
 # 已知发布者注册表（domain suffix -> canonical name）
@@ -246,17 +244,17 @@ ALIASES: dict[str, str] = {
     "tophub github 热榜": "TopHub GitHub 热榜",
     "tophub github": "TopHub GitHub 热榜",
     # V1.9: 搜狗微信公众号别名
+    # P1: 移除 "freebuf"/"安全客" 重复 key — 它们已在上方映射为
+    # "FreeBuf"/"安全客", 此处重复会覆盖规范发布者 (F601 数据 bug)。
     "微步在线": "搜狗微信公众号",
     "奇安信威胁情报中心": "搜狗微信公众号",
     "360威胁情报中心": "搜狗微信公众号",
-    "freebuf": "搜狗微信公众号",
-    "安全客": "搜狗微信公众号",
     "看雪论坛": "搜狗微信公众号",
     "安全内参": "搜狗微信公众号",
 }
 
 
-def _extract_registered_domain(url: str) -> Optional[str]:
+def _extract_registered_domain(url: str) -> str | None:
     """从 URL 提取 host（含子域），不做 PSL 解析但足够用。"""
     if not url:
         return None
@@ -271,7 +269,7 @@ def _extract_registered_domain(url: str) -> Optional[str]:
         return None
 
 
-def _find_matching_suffix(host: str) -> Optional[str]:
+def _find_matching_suffix(host: str) -> str | None:
     """在 PUBLISHER_REGISTRY 中查 host 命中的最长 suffix。
 
     Parameters
@@ -292,8 +290,8 @@ def _find_matching_suffix(host: str) -> Optional[str]:
 
 
 def resolve_publisher(
-    url: str, claimed: Optional[str] = None
-) -> tuple[Optional[str], bool, str]:
+    url: str, claimed: str | None = None
+) -> tuple[str | None, bool, str]:
     """根据 URL 域名反推真实发布者。
 
     Parameters
@@ -375,10 +373,10 @@ def _normalize_name(name: str) -> str:
 
 
 __all__ = [
-    "PUBLISHER_REGISTRY",
     "ALIASES",
-    "resolve_publisher",
+    "PUBLISHER_REGISTRY",
     "_extract_registered_domain",
     "_find_matching_suffix",
     "_normalize_name",
+    "resolve_publisher",
 ]

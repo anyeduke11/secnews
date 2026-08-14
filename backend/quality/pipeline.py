@@ -10,15 +10,15 @@ URL Content gate 不在此处同步跑（由 scheduler job 抽样异步跑）。
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime, timezone
-from typing import Iterable, Optional
 
 from backend.domain.collection import GateResult, PipelineResult
 from backend.domain.models import HotspotItem
 from backend.exceptions import QualityGateFailed
 from backend.logging_config import logger
-from backend.quality.base import BaseGate, GateContext
 from backend.quality.author_verification_gate import AuthorVerificationGate
+from backend.quality.base import BaseGate, GateContext
 from backend.quality.bid_recency_gate import BidRecencyGate
 from backend.quality.category_match_gate import CategoryMatchGate
 from backend.quality.config import QualityConfig, QualityMode
@@ -43,10 +43,10 @@ def _now() -> datetime:
 def build_context(
     config: QualityConfig,
     *,
-    existing_urls: Optional[Iterable[str]] = None,
-    existing_titles: Optional[Iterable[str]] = None,
-    source_reputation: Optional[dict] = None,
-    url_title_pairs: Optional[list[dict]] = None,
+    existing_urls: Iterable[str] | None = None,
+    existing_titles: Iterable[str] | None = None,
+    source_reputation: dict | None = None,
+    url_title_pairs: list[dict] | None = None,
 ) -> GateContext:
     """从 ``QualityConfig`` + 必要预查询构建 :class:`GateContext`.
 
@@ -108,8 +108,8 @@ class QualityGatePipeline:
         self,
         config: QualityConfig,
         *,
-        log_repo: Optional[QualityLogRepository] = None,
-        gates: Optional[list[BaseGate]] = None,
+        log_repo: QualityLogRepository | None = None,
+        gates: list[BaseGate] | None = None,
     ) -> None:
         self.config = config
         self.mode = config.mode
@@ -122,7 +122,7 @@ class QualityGatePipeline:
     def run_all(
         self,
         item: HotspotItem,
-        context: Optional[GateContext] = None,
+        context: GateContext | None = None,
     ) -> PipelineResult:
         """顺序跑全部同步门禁。
 
@@ -219,7 +219,7 @@ class QualityGatePipeline:
 
         final_score = compute_final_score(100, deductions)
         accepted = is_acceptable(final_score, self.config.min_score)
-        reason: Optional[str] = None
+        reason: str | None = None
         if self.mode == QualityMode.STRICT and not accepted:
             reason = (
                 f"strict mode: score {final_score} < {self.config.min_score}"

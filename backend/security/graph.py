@@ -11,9 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any, Optional
 
-from backend.domain.knowledge_models import KnowledgeItem
 from backend.repository.db import get_connection
 from backend.repository.security_repo import SecurityRepository
 
@@ -30,7 +28,7 @@ _log = logging.getLogger("hotspot.security.graph")
 class SecurityGraphEngine:
     """Build security knowledge graph and enrich hotspot/knowledge items."""
 
-    def __init__(self, repo: Optional[SecurityRepository] = None):
+    def __init__(self, repo: SecurityRepository | None = None):
         self._repo = repo or SecurityRepository()
 
     # ------------------------------------------------------------------
@@ -241,4 +239,4 @@ class SecurityGraphEngine:
         return enriched
 
 
-__all__ = ["SecurityGraphEngine", "_CVE_RE", "_ATTACK_RE"]
+__all__ = ["_ATTACK_RE", "_CVE_RE", "SecurityGraphEngine"]

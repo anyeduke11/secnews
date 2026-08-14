@@ -14,8 +14,8 @@ from __future__ import annotations
 import pytest
 
 from backend.crypto import (
-    CryptoError,
     DEFAULT_ITERATIONS,
+    CryptoError,
     InvalidMasterKeyError,
     WeakMasterKeyError,
     decrypt_api_key,

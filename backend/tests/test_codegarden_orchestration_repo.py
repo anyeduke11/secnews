@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 
@@ -10,8 +10,6 @@ from backend.exceptions import InternalException
 from backend.repository.codegarden_orchestration_repo import (
     CodegardenDependencyRepository,
     CodegardenEventRepository,
-    VALID_DEP_TYPES,
-    VALID_EVENT_TYPES,
 )
 
 
@@ -19,7 +17,7 @@ from backend.repository.codegarden_orchestration_repo import (
 def dep_repo(tmp_path, monkeypatch) -> Iterator[CodegardenDependencyRepository]:
     db_file = tmp_path / "test_codegarden_orch.db"
     conn = sqlite3.connect(str(db_file))
-    with open("backend/repository/migrations/019_codegarden.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/019_codegarden.sql", encoding="utf-8") as f:
         sql_text = f.read()
     cg_sql = "\n".join(
         line for line in sql_text.splitlines()
@@ -27,7 +25,7 @@ def dep_repo(tmp_path, monkeypatch) -> Iterator[CodegardenDependencyRepository]:
         and not line.strip().startswith("CREATE INDEX IF NOT EXISTS idx_skills_")
     )
     conn.executescript(cg_sql)
-    with open("backend/repository/migrations/021_codegarden_phase2b.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/021_codegarden_phase2b.sql", encoding="utf-8") as f:
         conn.executescript(f.read())
     conn.commit()
     conn.close()
@@ -52,7 +50,7 @@ def event_repo(tmp_path, monkeypatch) -> Iterator[CodegardenEventRepository]:
     """复用 dep_repo 的 DB 设置, 返回 EventRepository."""
     db_file = tmp_path / "test_codegarden_orch.db"
     conn = sqlite3.connect(str(db_file))
-    with open("backend/repository/migrations/019_codegarden.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/019_codegarden.sql", encoding="utf-8") as f:
         sql_text = f.read()
     cg_sql = "\n".join(
         line for line in sql_text.splitlines()
@@ -60,7 +58,7 @@ def event_repo(tmp_path, monkeypatch) -> Iterator[CodegardenEventRepository]:
         and not line.strip().startswith("CREATE INDEX IF NOT EXISTS idx_skills_")
     )
     conn.executescript(cg_sql)
-    with open("backend/repository/migrations/021_codegarden_phase2b.sql", "r", encoding="utf-8") as f:
+    with open("backend/repository/migrations/021_codegarden_phase2b.sql", encoding="utf-8") as f:
         conn.executescript(f.read())
     conn.commit()
     conn.close()
@@ -212,7 +210,7 @@ def test_create_event_invalid_source_rejected(event_repo):
 def test_list_filter_by_status(event_repo):
     event_repo.create(event_type="port_conflict", source_type="service", source_id="a")
     event_repo.create(event_type="code_push", source_type="project", source_id="b")
-    events, total = event_repo.list(status="pending")
+    _events, total = event_repo.list(status="pending")
     assert total == 2
 
 

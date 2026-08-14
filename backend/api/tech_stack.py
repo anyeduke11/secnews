@@ -10,8 +10,6 @@
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -33,17 +31,17 @@ class TechCreate(BaseModel):
 
 
 class TechUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=128)
-    category: Optional[str] = Field(None, max_length=64)
-    proficiency: Optional[int] = Field(None, ge=1, le=5)
-    notes: Optional[str] = Field(None, max_length=2000)
+    name: str | None = Field(None, min_length=1, max_length=128)
+    category: str | None = Field(None, max_length=64)
+    proficiency: int | None = Field(None, ge=1, le=5)
+    notes: str | None = Field(None, max_length=2000)
 
 
 # ---------------------------------------------------------------------------
 # CRUD
 # ---------------------------------------------------------------------------
 @router.get("")
-async def list_tech_stack(category: Optional[str] = Query(None)):
+async def list_tech_stack(category: str | None = Query(None)):
     items = svc.list_tech(category)
     return {"version": API_VERSION, "count": len(items), "items": items}
 

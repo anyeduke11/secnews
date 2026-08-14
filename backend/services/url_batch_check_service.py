@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
 from backend.logging_config import logger
 from backend.repository.crawl_url_check_repo import CrawlUrlCheckRepo

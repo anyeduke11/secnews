@@ -11,15 +11,12 @@ Covers
 
 from __future__ import annotations
 
-import pytest
-
 from backend.services.simhash import (
     canonicalize_url,
     hamming_distance,
     normalize_title,
     simhash,
 )
-
 
 # ---------------------------------------------------------------------------
 # Collision test

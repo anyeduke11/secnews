@@ -5,8 +5,6 @@
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from backend.repository.annotations_repo import AnnotationRepository
 
 
@@ -23,8 +21,8 @@ def create_annotation(
     entity_type: str,
     entity_id: str,
     content: str,
-    range_start: Optional[int] = None,
-    range_end: Optional[int] = None,
+    range_start: int | None = None,
+    range_end: int | None = None,
 ) -> dict:
     """创建一条笔记。"""
     _validate(entity_type, entity_id, content)
@@ -44,16 +42,16 @@ def list_annotations(entity_type: str, entity_id: str) -> list[dict]:
     return AnnotationRepository().list(entity_type, entity_id)
 
 
-def get_annotation(annotation_id: str) -> Optional[dict]:
+def get_annotation(annotation_id: str) -> dict | None:
     return AnnotationRepository().get(annotation_id)
 
 
 def update_annotation(
     annotation_id: str,
-    content: Optional[str] = None,
-    range_start: Optional[int] = None,
-    range_end: Optional[int] = None,
-) -> Optional[dict]:
+    content: str | None = None,
+    range_start: int | None = None,
+    range_end: int | None = None,
+) -> dict | None:
     """更新笔记。content 若提供则不能为空。"""
     if content is not None and not content.strip():
         raise ValueError("content 不能为空")
@@ -68,8 +66,8 @@ def delete_annotation(annotation_id: str) -> int:
 
 __all__ = [
     "create_annotation",
-    "list_annotations",
-    "get_annotation",
-    "update_annotation",
     "delete_annotation",
+    "get_annotation",
+    "list_annotations",
+    "update_annotation",
 ]

@@ -9,13 +9,10 @@
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from backend.exceptions import InternalException
 from backend.logging_config import logger
 from backend.repository.codegarden_repo import CodegardenProjectRepository
 from backend.repository.db import get_connection
-
 
 # lifecycle 合法跳转表（from → set of to）
 _LEGAL_TRANSITIONS: dict[str, set[str]] = {
@@ -49,7 +46,7 @@ class CodegardenProjectService:
         )
         return project
 
-    def get_project(self, project_id: str) -> Optional[dict]:
+    def get_project(self, project_id: str) -> dict | None:
         return self.repo.get(project_id)
 
     def list_projects(self, **filters) -> tuple[list[dict], int]:
@@ -64,7 +61,7 @@ class CodegardenProjectService:
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
-    def change_lifecycle(self, project_id: str, new_stage: str, note: Optional[str] = None) -> dict:
+    def change_lifecycle(self, project_id: str, new_stage: str, note: str | None = None) -> dict:
         project = self.repo.get(project_id)
         if project is None:
             raise InternalException(f"project {project_id} 不存在")
@@ -89,7 +86,7 @@ class CodegardenProjectService:
     # Activities
     # ------------------------------------------------------------------
     def add_activity(self, *, project_id: str, activity_type: str, content: str,
-                     metadata: Optional[dict] = None) -> dict:
+                     metadata: dict | None = None) -> dict:
         return self.repo.add_activity(
             project_id=project_id,
             activity_type=activity_type,
@@ -117,8 +114,8 @@ class CodegardenProjectService:
 
         实际同步由 watchdog 或手动触发执行，避免 HTTP 阻塞。
         """
-        from datetime import datetime, timezone
         import json
+        from datetime import datetime, timezone
 
         project = self.repo.get(project_id)
         if project is None:

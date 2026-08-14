@@ -5,8 +5,6 @@ Phase 2.2 (Crawler v2): 全量 URL 校验结果写入。
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from backend.repository.db import get_connection
 
 
@@ -17,9 +15,9 @@ class CrawlUrlCheckRepo:
         self,
         item_id: str,
         url: str,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         final_url: str = "",
-        title_match_score: Optional[float] = None,
+        title_match_score: float | None = None,
     ) -> bool:
         """插入一条 URL 校验记录。
 
@@ -82,7 +80,7 @@ class CrawlUrlCheckRepo:
         self,
         item_id: str,
         status_code: int,
-        title_match_score: Optional[float] = None,
+        title_match_score: float | None = None,
     ) -> bool:
         """更新校验状态。
 

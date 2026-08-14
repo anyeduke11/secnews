@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Optional
 from urllib.parse import urlparse
 
 log = logging.getLogger("hotspot.auto_classifier")
@@ -219,7 +218,7 @@ def classify_domain(
     tags: list[str],
     title: str = "",
     source_url: str = "",
-) -> Optional[str]:
+) -> str | None:
     """Classify domain from tags, title, and source URL.
 
     Priority: tags → title → source_url.
@@ -252,7 +251,7 @@ def classify_domain(
 def classify_type(
     tags: list[str],
     title: str = "",
-) -> Optional[str]:
+) -> str | None:
     """Classify type (news/analysis/paper/tutorial/tool/opinion/standard) from tags and title."""
     # 1. Tag-based
     for tag in tags:
@@ -271,7 +270,7 @@ def classify_type(
 def classify_difficulty(
     tags: list[str],
     title: str = "",
-) -> Optional[str]:
+) -> str | None:
     """Classify difficulty (beginner/intermediate/advanced) from tags and title."""
     # 1. Tag-based
     for tag in tags:
@@ -364,10 +363,10 @@ def batch_classify_with_terminology(
 
 
 __all__ = [
-    "classify_domain",
-    "classify_type",
-    "classify_difficulty",
-    "classify_item",
     "batch_classify",
     "batch_classify_with_terminology",
+    "classify_difficulty",
+    "classify_domain",
+    "classify_item",
+    "classify_type",
 ]

@@ -25,7 +25,6 @@ from backend.repository import db
 from backend.repository.knowledge_repo import knowledge_repo
 from backend.services import knowledge_sync
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

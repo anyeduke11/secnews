@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.domain.enums import Category
 from backend.repository.db import get_connection
@@ -41,10 +40,10 @@ class CustomSource:
         category: str,
         enabled: bool,
         created_at: str,
-        last_check_at: Optional[str],
-        last_check_status: Optional[str],
+        last_check_at: str | None,
+        last_check_status: str | None,
         last_check_latency_ms: float,
-        last_check_title: Optional[str],
+        last_check_title: str | None,
         notes: str = "",
     ):
         self.id = id
@@ -109,7 +108,7 @@ class CustomSourceRepository:
         category: str,
         last_check_status: str = "ok",
         last_check_latency_ms: float = 0.0,
-        last_check_title: Optional[str] = None,
+        last_check_title: str | None = None,
     ) -> int:
         conn = get_connection()
         now = datetime.now(timezone.utc).isoformat()
@@ -138,7 +137,7 @@ class CustomSourceRepository:
         return cur.rowcount > 0
 
     def update_probe_result(
-        self, id: int, status: str, latency_ms: float, title: Optional[str] = None
+        self, id: int, status: str, latency_ms: float, title: str | None = None
     ) -> None:
         conn = get_connection()
         now = datetime.now(timezone.utc).isoformat()
@@ -176,4 +175,4 @@ class CustomSourceRepository:
         )
 
 
-__all__ = ["CustomSourceRepository", "CustomSource"]
+__all__ = ["CustomSource", "CustomSourceRepository"]

@@ -10,19 +10,16 @@ Tables:
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
 
 from backend.domain.security_models import (
     SecurityEdge,
     SecurityEntity,
     SecurityTerm,
     _now_iso,
-    _parse_json,
 )
 from backend.exceptions import InternalException
 from backend.logging_config import logger
 from backend.repository.db import get_connection
-
 
 VALID_ENTITY_TYPES = (
     "tactic",
@@ -97,7 +94,7 @@ class SecurityRepository:
             logger.error("security_entities upsert failed", extra={"error": str(e), "id": entity.id})
             raise InternalException(f"security_entities upsert failed: {e}") from e
 
-    def get_entity(self, entity_id: str) -> Optional[dict]:
+    def get_entity(self, entity_id: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM security_entities WHERE id = ?", (entity_id,)
@@ -106,8 +103,8 @@ class SecurityRepository:
 
     def list_entities(
         self,
-        entity_type: Optional[str] = None,
-        name_pattern: Optional[str] = None,
+        entity_type: str | None = None,
+        name_pattern: str | None = None,
         limit: int = 200,
         offset: int = 0,
     ) -> tuple[list[dict], int]:
@@ -134,7 +131,7 @@ class SecurityRepository:
         ).fetchall()
         return [SecurityEntity.from_row(dict(r)).to_dict() for r in rows], total
 
-    def search_entities(self, query: str, entity_types: Optional[list[str]] = None) -> list[dict]:
+    def search_entities(self, query: str, entity_types: list[str] | None = None) -> list[dict]:
         conn = get_connection()
         params: list = [f"%{query}%", f"%{query}%"]
         type_filter = ""
@@ -182,8 +179,8 @@ class SecurityRepository:
 
     def get_edges(
         self,
-        entity_id: Optional[str] = None,
-        edge_type: Optional[str] = None,
+        entity_id: str | None = None,
+        edge_type: str | None = None,
     ) -> list[dict]:
         conn = get_connection()
         where: list[str] = []
@@ -287,14 +284,14 @@ class SecurityRepository:
         term.id = cursor.lastrowid
         return term
 
-    def get_term_by_canonical(self, canonical: str) -> Optional[dict]:
+    def get_term_by_canonical(self, canonical: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM security_terms WHERE canonical = ?", (canonical,)
         ).fetchone()
         return SecurityTerm.from_row(dict(row)).to_dict() if row else None
 
-    def search_terms(self, query: str, term_type: Optional[str] = None, limit: int = 20) -> list[dict]:
+    def search_terms(self, query: str, term_type: str | None = None, limit: int = 20) -> list[dict]:
         conn = get_connection()
         params: list = [f"%{query}%"]
         type_filter = ""
@@ -327,7 +324,7 @@ class SecurityRepository:
         ).fetchall()
         return [str(r["synonym"]) for r in rows]
 
-    def get_taxonomy(self, term_type: Optional[str] = None) -> list[dict]:
+    def get_taxonomy(self, term_type: str | None = None) -> list[dict]:
         conn = get_connection()
         params: list = []
         type_filter = ""
@@ -347,8 +344,8 @@ class SecurityRepository:
 
 
 __all__ = [
-    "SecurityRepository",
-    "VALID_ENTITY_TYPES",
     "VALID_EDGE_TYPES",
+    "VALID_ENTITY_TYPES",
     "VALID_TERM_TYPES",
+    "SecurityRepository",
 ]

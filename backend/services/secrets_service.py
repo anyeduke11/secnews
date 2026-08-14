@@ -18,15 +18,13 @@ from __future__ import annotations
 import json
 import time
 from datetime import datetime, timezone
-from typing import Optional
 
 import httpx
 
 from backend.crypto import (
-    DEFAULT_ITERATIONS,
     InvalidMasterKeyError,
-    derive_fernet_key,
     decrypt_api_key,
+    derive_fernet_key,
     verify_master_key,
 )
 from backend.exceptions import (
@@ -38,7 +36,6 @@ from backend.exceptions import (
 from backend.logging_config import logger
 from backend.repository.encryption_keys_repo import EncryptionKeyRepository
 from backend.repository.secrets_repo import SecretRepository
-
 
 UNLOCK_TTL_SECONDS = 30 * 60  # 30 分钟
 
@@ -339,11 +336,11 @@ class SecretsService:
         self,
         secret_id: int,
         *,
-        name: Optional[str] = None,
-        model: Optional[str] = None,
-        base_url: Optional[str] = None,
-        api_key: Optional[str] = None,
-        master_key: Optional[str] = None,
+        name: str | None = None,
+        model: str | None = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        master_key: str | None = None,
     ) -> dict:
         """更新 secret; 改 api_key 必须传 master_key。"""
         sr = SecretRepository()
@@ -470,9 +467,9 @@ class SecretsService:
         ]
         headers = {"Authorization": f"Bearer {api_key}"}
         started = _t.time()
-        last_error: Optional[str] = None
-        last_status: Optional[int] = None
-        model_count: Optional[int] = None
+        last_error: str | None = None
+        last_status: int | None = None
+        model_count: int | None = None
 
         with httpx.Client(timeout=timeout) as client:
             for ep in endpoints:
@@ -612,7 +609,8 @@ class SecretsService:
 
         # 派生 key + 解密
         fernet_key = derive_fernet_key(master_key, row.salt, row.iterations)
-        from cryptography.fernet import Fernet as _F, InvalidToken
+        from cryptography.fernet import Fernet as _F
+        from cryptography.fernet import InvalidToken
         try:
             ct = bytes.fromhex(envelope["ciphertext_b64"])
             plaintext = _F(fernet_key).decrypt(ct)
@@ -668,4 +666,4 @@ class SecretsService:
         }
 
 
-__all__ = ["SecretsService", "UNLOCK_TTL_SECONDS", "_unlock_state"]
+__all__ = ["UNLOCK_TTL_SECONDS", "SecretsService", "_unlock_state"]

@@ -13,9 +13,8 @@
 from __future__ import annotations
 
 import asyncio
-import os
-from datetime import datetime, timezone, timedelta
-from unittest.mock import patch, MagicMock
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
 import pytest
 

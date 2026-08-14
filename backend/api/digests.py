@@ -11,8 +11,6 @@
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.repository.digest_repo import DigestRepository
@@ -24,7 +22,7 @@ router = APIRouter(prefix="/api/digests", tags=["digests"])
 
 @router.get("")
 async def list_digests(
-    period: Optional[str] = Query(None, description="按周期过滤 (daily/weekly)"),
+    period: str | None = Query(None, description="按周期过滤 (daily/weekly)"),
     limit: int = Query(20, ge=1, le=100),
 ):
     """列出简报, 按 created_at DESC."""
@@ -34,7 +32,7 @@ async def list_digests(
 
 
 @router.get("/latest")
-async def get_latest_digest(period: Optional[str] = Query(None)):
+async def get_latest_digest(period: str | None = Query(None)):
     """获取最新一条简报. 无则 404."""
     repo = DigestRepository()
     item = repo.get_latest(period=period)

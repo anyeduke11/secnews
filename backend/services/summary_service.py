@@ -15,11 +15,8 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime, timedelta, timezone
-from pathlib import Path
-from typing import Optional
 
 from backend.repository.db import get_connection
-from backend.repository.knowledge_repo import knowledge_repo
 from backend.services.knowledge_sync import KNOWLEDGE_DIR
 
 log = logging.getLogger("hotspot.summary_service")
@@ -201,7 +198,7 @@ progress_total: {progress.get('total', 0)}
     return md
 
 
-def generate_weekly_summary(year_week: Optional[str] = None) -> dict:
+def generate_weekly_summary(year_week: str | None = None) -> dict:
     """Generate the weekly summary file for the given ISO week.
 
     Args:
@@ -212,7 +209,7 @@ def generate_weekly_summary(year_week: Optional[str] = None) -> dict:
         Dict with ``path``, ``year_week``, ``items_count``, ``concepts_count``.
     """
     if year_week is None:
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         iso = today.isocalendar()
         year_week = f"{iso.year}-W{iso.week:02d}"
 

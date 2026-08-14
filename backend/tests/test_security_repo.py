@@ -1,13 +1,12 @@
 """SecurityRepository 单测 — 022_security_graph 迁移 + CRUD + search + synonyms."""
 from __future__ import annotations
 
-import sqlite3
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 
 from backend.config import config
-from backend.domain.security_models import SecurityEntity, SecurityEdge, SecurityTerm
+from backend.domain.security_models import SecurityEdge, SecurityEntity, SecurityTerm
 from backend.exceptions import InternalException
 from backend.repository import db
 from backend.repository.security_repo import SecurityRepository
@@ -31,14 +30,14 @@ def repo(temp_db) -> Iterator[SecurityRepository]:
 # Helpers
 # ---------------------------------------------------------------------------
 def _entity(repo, **overrides):
-    defaults = dict(
-        id="CVE-2024-0001",
-        entity_type="cve",
-        name="Test Vulnerability",
-        description="Test desc",
-        external_ref="https://example.com",
-        metadata={"cvss": 7.5},
-    )
+    defaults = {
+        "id": "CVE-2024-0001",
+        "entity_type": "cve",
+        "name": "Test Vulnerability",
+        "description": "Test desc",
+        "external_ref": "https://example.com",
+        "metadata": {"cvss": 7.5},
+    }
     defaults.update(overrides)
     entity = SecurityEntity(**defaults)
     repo.upsert_entity(entity)
@@ -46,12 +45,12 @@ def _entity(repo, **overrides):
 
 
 def _term(repo, **overrides):
-    defaults = dict(
-        canonical="等保2.0-三级",
-        term_type="compliance",
-        category="security",
-        definition="三级要求",
-    )
+    defaults = {
+        "canonical": "等保2.0-三级",
+        "term_type": "compliance",
+        "category": "security",
+        "definition": "三级要求",
+    }
     defaults.update(overrides)
     term = SecurityTerm(**defaults)
     repo.upsert_term(term)

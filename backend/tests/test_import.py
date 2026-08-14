@@ -18,7 +18,6 @@ from backend.repository import db
 from backend.repository.hotspot_repo import HotspotRepository
 from backend.tools.import_cache import import_from_cache_json
 
-
 # 仓库根目录下的真实 cache_data.json
 # this file is in backend/tests/ → parents[0]=tests, parents[1]=backend, parents[2]=project_root
 # cache_data.json lives in backend/
@@ -114,7 +113,7 @@ def test_import_legacy_quality_flags(isolated_import):
 # ---------------------------------------------------------------------------
 def test_import_idempotent(isolated_import):
     """连续运行 2 次：imported_count 一致，DB 行数不变。"""
-    cache_path, test_db = isolated_import
+    cache_path, _test_db = isolated_import
 
     first = import_from_cache_json(cache_path)
     # 第一次写入后的行数

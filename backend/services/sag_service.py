@@ -117,4 +117,4 @@ def promote_favorite_to_knowledge(title: str, url: str) -> str:
     return item_id
 
 
-__all__ = ["transition", "promote_favorite_to_knowledge"]
+__all__ = ["promote_favorite_to_knowledge", "transition"]

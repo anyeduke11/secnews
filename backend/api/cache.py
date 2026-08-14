@@ -6,7 +6,7 @@ import logging
 
 from fastapi import APIRouter
 
-from backend.cache import list_cache, detail_cache
+from backend.cache import detail_cache, list_cache
 
 log = logging.getLogger("hotspot.api.cache")
 router = APIRouter(prefix="/api/cache", tags=["cache"])
@@ -28,7 +28,8 @@ async def clear_cache():
 @router.get("/stats")
 async def cache_stats():
     """Get current cache statistics."""
-    from backend.cache import hit_rate, stats as cache_stats_fn
+    from backend.cache import hit_rate
+    from backend.cache import stats as cache_stats_fn
 
     return {
         "list_cache": {

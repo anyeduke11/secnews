@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
@@ -49,7 +49,7 @@ class SourceStatsRepository:
         source_name: str,
         source_url: str,
         item_count: int,
-        error_msg: Optional[str] = None,
+        error_msg: str | None = None,
     ) -> None:
         """collect 完一条 source 后调用，累加统计并按阈值升级 status。
 
@@ -128,10 +128,7 @@ class SourceStatsRepository:
         prev_total_items = int(row["total_items"] or 0)
         prev_status = str(row["status"] or "active")
 
-        if produced:
-            new_zr = 0
-        else:
-            new_zr = prev_zr + 1
+        new_zr = 0 if produced else prev_zr + 1
         new_total_runs = prev_total_runs + 1
         new_total_items = prev_total_items + item_count
 
@@ -218,7 +215,7 @@ class SourceStatsRepository:
     # ------------------------------------------------------------------
     def get_one(
         self, category: str, source_name: str
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         conn = get_connection()
         try:
             row = conn.execute(
@@ -378,4 +375,4 @@ def _get_setting(conn, key: str, default: str) -> str:
     return default
 
 
-__all__ = ["SourceStatsRepository", "CoverageRunRepository"]
+__all__ = ["CoverageRunRepository", "SourceStatsRepository"]

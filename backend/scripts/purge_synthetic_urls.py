@@ -36,8 +36,6 @@ import sqlite3
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlparse
-
 
 # ---------------------------------------------------------------------------
 # 禁止的 URL pattern (Phase 13 §3.1.2)

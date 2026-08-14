@@ -136,9 +136,8 @@ def test_underlying_exception_propagates():
     """
     with patch.object(
         collection_logger, "_base_log_event", side_effect=RuntimeError("log fail")
-    ):
-        with pytest.raises(RuntimeError, match="log fail"):
-            collection_logger.log_collect_event("collect_done", run_id=1)
+    ), pytest.raises(RuntimeError, match="log fail"):
+        collection_logger.log_collect_event("collect_done", run_id=1)
 
 
 # ---------------------------------------------------------------------------

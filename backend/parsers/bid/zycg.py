@@ -83,4 +83,4 @@ def _parse_date(date_str: str) -> str | None:
         return None
 
 
-__all__ = ["ZycgParser", "SOURCE_ID", "VERSION"]
+__all__ = ["SOURCE_ID", "VERSION", "ZycgParser"]

@@ -17,34 +17,31 @@ Phase 16 — Hybrid AI 核心服务测试。
 """
 from __future__ import annotations
 
-import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock
 
 import pytest
 
 from backend.config import config as app_config
 from backend.config.llm_schema import (
+    CacheConfig,
+    CostAlert,
     LLMConfig,
     ProviderConfig,
     ProviderModels,
-    CacheConfig,
-    CostAlert,
     RateLimits,
 )
 from backend.repository import db as db_module
 from backend.repository.db import get_connection
 from backend.services.llm_service import (
-    DEFAULT_SCORE,
     COST_PER_1M_TOKENS,
+    DEFAULT_SCORE,
     LLMService,
     _estimate_cost,
     _make_cache_key,
     llm_service,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -52,9 +49,9 @@ from backend.services.llm_service import (
 
 def _make_provider_config(
     ptype: str = "openai",
-    base_url: Optional[str] = None,
-    api_key_env: Optional[str] = None,
-    models: Optional[Dict[str, str]] = None,
+    base_url: str | None = None,
+    api_key_env: str | None = None,
+    models: dict[str, str] | None = None,
 ) -> ProviderConfig:
     """Create a minimal ProviderConfig for testing."""
     return ProviderConfig(
@@ -67,8 +64,8 @@ def _make_provider_config(
 
 def _make_llm_config(
     enabled: bool = True,
-    providers: Optional[Dict[str, ProviderConfig]] = None,
-    fallback_order: Optional[List[str]] = None,
+    providers: dict[str, ProviderConfig] | None = None,
+    fallback_order: list[str] | None = None,
     cache_enabled: bool = True,
 ) -> LLMConfig:
     """Create a minimal LLMConfig for testing."""
@@ -415,7 +412,7 @@ class TestFirstProviderSucceeds:
     ):
         """score() falls back to the second provider when the first fails."""
         svc = LLMService()
-        call_log: List[str] = []
+        call_log: list[str] = []
 
         async def _call_with_log(cfg, model, prompt):
             provider_name = "ollama" if len(call_log) == 0 else "openai"

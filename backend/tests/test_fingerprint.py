@@ -16,14 +16,13 @@ import pytest
 
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
+from backend.services.collection_service import _to_signed_64
 from backend.services.simhash import (
     canonicalize_url,
     hamming_distance,
     normalize_title,
     simhash,
 )
-from backend.services.collection_service import _to_signed_64
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -242,9 +241,7 @@ class TestBatchDedup:
                 call_log.append(sql)
                 cur = MagicMock()
                 stripped = sql.strip()
-                if stripped.startswith("SELECT") and "simhash" in stripped:
-                    cur.fetchall.return_value = []
-                elif stripped.startswith("SELECT") and "url_canonical" in stripped:
+                if (stripped.startswith("SELECT") and "simhash" in stripped) or (stripped.startswith("SELECT") and "url_canonical" in stripped):
                     cur.fetchall.return_value = []
                 return cur
 

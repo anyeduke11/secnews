@@ -102,7 +102,6 @@ def cleanup_history(
     Returns:
         {"dry_run": bool, "deleted": {表名: 行数}}
     """
-    import json
     from datetime import datetime, timedelta, timezone
 
     conn = get_connection()
@@ -312,7 +311,7 @@ def cleanup_duplicate_hotspots(dry_run: bool = True) -> dict:
     ).fetchall()
 
     to_delete = 0
-    for url, cnt in dupes:
+    for url, _cnt in dupes:
         ids = [
             r[0] for r in conn.execute(
                 "SELECT id FROM hotspots WHERE url = ? ORDER BY ROWID ASC", (url,)
@@ -360,7 +359,7 @@ def cleanup_duplicate_knowledge_items(dry_run: bool = True) -> dict:
     ).fetchall()
 
     to_delete = 0
-    for title, cnt in dupes:
+    for title, _cnt in dupes:
         ids = [
             r[0] for r in conn.execute(
                 "SELECT id FROM knowledge_items WHERE title = ? ORDER BY ROWID ASC",
@@ -436,15 +435,15 @@ def dirty_data_report() -> dict:
 
 
 __all__ = [
-    "db_health",
-    "run_vacuum",
-    "cleanup_history",
-    "detect_orphan_items",
-    "table_stats",
-    "cleanup_quality_logs",
-    "detect_duplicate_hotspots",
-    "detect_duplicate_knowledge_items",
     "cleanup_duplicate_hotspots",
     "cleanup_duplicate_knowledge_items",
+    "cleanup_history",
+    "cleanup_quality_logs",
+    "db_health",
+    "detect_duplicate_hotspots",
+    "detect_duplicate_knowledge_items",
+    "detect_orphan_items",
     "dirty_data_report",
+    "run_vacuum",
+    "table_stats",
 ]

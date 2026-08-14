@@ -5,9 +5,9 @@
 """
 from __future__ import annotations
 
-from pydantic import ValidationError
-
 from typing import ClassVar, Literal
+
+from pydantic import ValidationError
 
 from backend.domain.collection import GateResult
 from backend.domain.models import HotspotItem

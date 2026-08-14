@@ -90,9 +90,10 @@ class StartupCollector(BaseCollector):
         注意: 不使用 _is_noise_url 因为其跨域过滤会误杀 news.pedaily.cn
         (子域名 ≠ www.pedaily.cn), 改用 URL_PATH_BLOCKLIST 正则。
         """
-        from backend.collectors.parsing import _is_noise_title
         import html as _html
         import re
+
+        from backend.collectors.parsing import _is_noise_title
 
         items: list[dict[str, Any]] = []
         seen: set[str] = set()
@@ -139,10 +140,7 @@ class StartupCollector(BaseCollector):
         if not _is_title_relevant_to_category(title, self.category.value):
             return False
         src_url = source.get("url", "") if isinstance(source, dict) else ""
-        if "pedaily.cn" in src_url:
-            if _PEDAILY_RANKING_TITLE_RE.search(title or ""):
-                return False
-        return True
+        return not ("pedaily.cn" in src_url and _PEDAILY_RANKING_TITLE_RE.search(title or ""))
 
 
-__all__ = ["StartupCollector", "STARTUP_SOURCES"]
+__all__ = ["STARTUP_SOURCES", "StartupCollector"]

@@ -5,9 +5,7 @@
   - HOTSPOT_ 前缀环境变量可覆盖
   - 关键字段类型与 quality_* 默认值
 """
-import os
 
-import pytest
 
 from backend.config import Settings, config
 

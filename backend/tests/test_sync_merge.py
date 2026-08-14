@@ -11,16 +11,13 @@ from __future__ import annotations
 
 import pytest
 
+from backend.exceptions import InternalException
 from backend.services.sync_merge import (
     BUNDLE_VERSION,
-    SETTINGS_BLOCKLIST,
     MergeResult,
     three_way_merge,
     validate_bundle,
-    _merge_records,
-    _merge_settings,
 )
-from backend.exceptions import InternalException
 
 
 def _empty_bundle(device_id="a", merged_at="t0"):

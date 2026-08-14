@@ -32,10 +32,9 @@ event=collect_done run_id=42 status=success items_ingested=109 sources_succeeded
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
+from typing import Any
 
 from backend.observability import log_event as _base_log_event
-
 
 # 标准字段白名单 (在 log_collect_event 中强制 snake_case)
 _KNOWN_FIELDS = {

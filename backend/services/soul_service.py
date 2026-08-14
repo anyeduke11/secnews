@@ -187,10 +187,7 @@ def _generate_soul_content() -> str:
     except sqlite3.Error as e:
         log.warning("content_drafts platform query failed: %s", e)
 
-    if platform_parts:
-        platform_summary = "、".join(platform_parts)
-    else:
-        platform_summary = "暂无创作记录"
+    platform_summary = "、".join(platform_parts) if platform_parts else "暂无创作记录"
     style_description = "偏好深度分析型长文，注重数据支撑和逻辑推演"
 
     return f"""---
@@ -229,4 +226,4 @@ updated_at: "{now}"
 """
 
 
-__all__ = ["get_soul", "create_soul_task"]
+__all__ = ["create_soul_task", "get_soul"]

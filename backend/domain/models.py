@@ -18,8 +18,8 @@ Conventions
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Literal, Optional
+from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
@@ -44,7 +44,7 @@ class HotspotItem(BaseModel):
     # Identity / source
     id: str = Field(..., min_length=1, max_length=200)
     title: str = Field(..., min_length=1, max_length=500)
-    summary: Optional[str] = Field(None, max_length=500)
+    summary: str | None = Field(None, max_length=500)
     source: str = Field(..., min_length=1, max_length=50)
     url: HttpUrl
     category: Category
@@ -57,14 +57,14 @@ class HotspotItem(BaseModel):
     # - 已录入的老资讯(本次迁移前) ingested_at = published_at
     #   让历史老旧资讯按发布时间显示在历史位置,而不是显示在最新录入位置。
     # - published_at 保留原语义(文章真实发布时间),前端卡片继续显示。
-    ingested_at: Optional[datetime] = None
+    ingested_at: datetime | None = None
     # Phase 20: bid_status 标讯状态(仅 category=bid 有效)
     # 可选值: 招标中 / 中标 / 变更 / 终止 / 成交 / 询价 / 比选 / 其他
     # 由 :func:`backend.collectors.bid_status.extract_bid_status` 标题正则提取
-    bid_status: Optional[str] = Field(None, max_length=20)
+    bid_status: str | None = Field(None, max_length=20)
     # Phase 8 (v1.3.0): 标讯地区(仅 category=bid 有效)
     # 由 :func:`_extract_region` 从标题/内容解析
-    region: Optional[str] = Field(None, max_length=30)
+    region: str | None = Field(None, max_length=30)
 
     @field_validator("published_at", "fetched_at", "ingested_at")
     @classmethod
@@ -74,16 +74,14 @@ class HotspotItem(BaseModel):
         return _require_tz_aware(v)
 
     # Popularity / fallback signal
-    score: Optional[int] = Field(None, ge=0, le=100)
+    score: int | None = Field(None, ge=0, le=100)
     is_fallback: bool = False
 
     # Quality pipeline
     quality_score: int = Field(100, ge=0, le=100)
     quality_flags: list[str] = Field(default_factory=list)
-    quality_checked_at: Optional[datetime] = None
-    url_check_status: Optional[
-        Literal["pending", "verified", "mismatch", "skipped", "unreachable"]
-    ] = None
+    quality_checked_at: datetime | None = None
+    url_check_status: Literal["pending", "verified", "mismatch", "skipped", "unreachable"] | None = None
 
     # ---- helpers -----------------------------------------------------------
     def url_str(self) -> str:
@@ -113,14 +111,14 @@ class CollectionRun(BaseModel):
 
     model_config = ConfigDict(use_enum_values=False)
 
-    id: Optional[int] = None
+    id: int | None = None
     category: str
     started_at: datetime
-    finished_at: Optional[datetime] = None
+    finished_at: datetime | None = None
     status: CollectorStatus
     item_count: int = 0
     fallback_count: int = 0
-    error_msg: Optional[str] = None
+    error_msg: str | None = None
 
 
-__all__ = ["HotspotItem", "TrendPoint", "CollectionRun"]
+__all__ = ["CollectionRun", "HotspotItem", "TrendPoint"]

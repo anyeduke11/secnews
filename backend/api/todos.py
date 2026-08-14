@@ -29,10 +29,8 @@ Phase 46: 紧急自动判断
 """
 from __future__ import annotations
 
-from backend.version import APP_VERSION as API_VERSION
 import asyncio
 import json
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field
@@ -44,6 +42,7 @@ from backend.repository.todo_repo import (
     VALID_STATUSES,
     TodoRepository,
 )
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/todos", tags=["todos"])
 
@@ -62,28 +61,28 @@ class AddTodoRequest(BaseModel):
     """
 
     source_type: str = Field(..., description="'favorite' 或 'manual'")
-    source_id: Optional[str] = Field(None, max_length=128, description="favorite 时必填")
-    title: Optional[str] = Field(None, max_length=500, description="todo 标题; manual 必填")
-    url: Optional[str] = Field(None, max_length=2000)
-    source: Optional[str] = Field(None, max_length=200)
-    category: Optional[str] = Field(None, max_length=50)
+    source_id: str | None = Field(None, max_length=128, description="favorite 时必填")
+    title: str | None = Field(None, max_length=500, description="todo 标题; manual 必填")
+    url: str | None = Field(None, max_length=2000)
+    source: str | None = Field(None, max_length=200)
+    category: str | None = Field(None, max_length=50)
     # Phase 46: ``urgent`` 移除; ``deadline`` 替代
     important: int = Field(0, ge=0, le=1, description="0/1")
-    deadline: Optional[str] = Field(
+    deadline: str | None = Field(
         None, max_length=10, description="截止日期 'YYYY-MM-DD'"
     )
-    note: Optional[str] = Field(None, description="备注")
+    note: str | None = Field(None, description="备注")
 
 
 class PatchTodoRequest(BaseModel):
     """部分更新 todo 请求体 (Phase 46)。"""
 
-    important: Optional[int] = Field(None, ge=0, le=1)
-    deadline: Optional[str] = Field(
+    important: int | None = Field(None, ge=0, le=1)
+    deadline: str | None = Field(
         None, max_length=10, description="截止日期 'YYYY-MM-DD'; 空字符串清空"
     )
-    status: Optional[str] = Field(None)
-    note: Optional[str] = Field(None)
+    status: str | None = Field(None)
+    note: str | None = Field(None)
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +108,7 @@ def _validate_status(status: str) -> str:
     return status
 
 
-def _validate_deadline(deadline: Optional[str]) -> Optional[str]:
+def _validate_deadline(deadline: str | None) -> str | None:
     """校验 deadline 格式 'YYYY-MM-DD'。空字符串 → None (清空)。"""
     if deadline is None:
         return None
@@ -128,9 +127,9 @@ def _validate_deadline(deadline: Optional[str]) -> Optional[str]:
 
 
 def _build_list_payload(
-    status: Optional[str],
-    urgent: Optional[int],
-    important: Optional[int],
+    status: str | None,
+    urgent: int | None,
+    important: int | None,
     limit: int,
 ) -> dict:
     if status is not None and status != "":
@@ -179,9 +178,9 @@ def _build_available_favorites_payload(limit: int) -> dict:
 # ---------------------------------------------------------------------------
 @router.get("")
 async def list_todos(
-    status: Optional[str] = Query(None, description="状态筛选: open/done/archived"),
-    urgent: Optional[int] = Query(None, ge=0, le=1, description="紧急筛选 0/1"),
-    important: Optional[int] = Query(None, ge=0, le=1, description="重要筛选 0/1"),
+    status: str | None = Query(None, description="状态筛选: open/done/archived"),
+    urgent: int | None = Query(None, ge=0, le=1, description="紧急筛选 0/1"),
+    important: int | None = Query(None, ge=0, le=1, description="重要筛选 0/1"),
     limit: int = Query(200, ge=1, le=1000, description="最多返回条数"),
 ):
     """多维筛选 todos。排序: urgent DESC → important DESC → created_at DESC。"""
@@ -283,7 +282,7 @@ async def patch_todo(todo_id: int, req: PatchTodoRequest):
     if req.important is not None and req.important not in (0, 1):
         raise HTTPException(status_code=400, detail={"message": "important 必须为 0 或 1"})
 
-    deadline: Optional[str] = None
+    deadline: str | None = None
     deadline_set: bool = False  # Phase 46: 显式标记字段已传入
     if "deadline" in req.model_fields_set:
         # 显式传了 deadline (包括空字符串清空)

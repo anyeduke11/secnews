@@ -51,4 +51,4 @@ class ClsdParser(BaseSourceParser):
         return items
 
 
-__all__ = ["ClsdParser", "SOURCE_ID"]
+__all__ = ["SOURCE_ID", "ClsdParser"]

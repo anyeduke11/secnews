@@ -35,7 +35,6 @@ from backend.repository import db as db_module
 from backend.repository.db import get_connection
 from backend.services.alert_engine import AlertEngine
 
-
 # ===========================================================================
 # Fixtures
 # ===========================================================================

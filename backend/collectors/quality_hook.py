@@ -10,8 +10,8 @@
 """
 from __future__ import annotations
 
-from backend.domain.models import HotspotItem
 from backend.collectors.parsing import _now_utc
+from backend.domain.models import HotspotItem
 
 
 class QualityGatesMixin:
@@ -33,6 +33,7 @@ class QualityGatesMixin:
         thread pool 跑，避免 FinalUrlGate 内部 sync urllib 阻塞 event loop。
         """
         import asyncio
+
         from backend.exceptions import QualityGateFailed
         from backend.quality.config import QualityConfig
         from backend.quality.pipeline import (

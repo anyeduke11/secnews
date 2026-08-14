@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
-from pydantic import HttpUrl, ValidationError
+from pydantic import ValidationError
 
 from backend.domain.enums import Category, TimeRange
 from backend.domain.models import HotspotItem
@@ -21,15 +21,15 @@ from backend.domain.models import HotspotItem
 # ---------------------------------------------------------------------------
 def _minimal_item(**overrides) -> HotspotItem:
     """构造一个最小可用的 HotspotItem（所有必填字段填齐）。"""
-    base = dict(
-        id="x-1",
-        title="hello",
-        source="unit-test",
-        url="https://example.com/a",
-        category=Category.AI,
-        published_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-        fetched_at=datetime(2026, 1, 1, 0, 1, tzinfo=timezone.utc),
-    )
+    base = {
+        "id": "x-1",
+        "title": "hello",
+        "source": "unit-test",
+        "url": "https://example.com/a",
+        "category": Category.AI,
+        "published_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+        "fetched_at": datetime(2026, 1, 1, 0, 1, tzinfo=timezone.utc),
+    }
     base.update(overrides)
     return HotspotItem(**base)
 
@@ -149,7 +149,6 @@ def test_time_range_start_datetime_calendar_based():
     - D3 : 上海今日 - 2 天 00:00 (3 个日历日)
     - D7 : 上海本周周一 00:00 (calendar week)
     """
-    from datetime import timezone
     from backend.domain.enums import SHANGHAI_TZ
 
     h24 = TimeRange.H24.start_datetime()

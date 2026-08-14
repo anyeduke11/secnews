@@ -20,7 +20,6 @@ Phase 4 (简报生成):
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from backend.repository.db import get_connection
 from backend.repository.digest_repo import DigestRepository, digest_repo
@@ -149,7 +148,7 @@ def _yesterday_window_shanghai() -> tuple[datetime, datetime, str]:
 
 def generate_daily_digest(
     top_n: int = 3,
-    repo: Optional[DigestRepository] = None,
+    repo: DigestRepository | None = None,
 ) -> dict:
     """生成昨日 (Shanghai) 简报, 写入 digests 表.
 
@@ -214,8 +213,8 @@ def generate_daily_digest(
 
 
 __all__ = [
-    "has_unread_digest",
-    "mark_digest_read",
     "create_digest",
     "generate_daily_digest",
+    "has_unread_digest",
+    "mark_digest_read",
 ]

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from backend.config import config
 from backend.services.knowledge_sync import parse_frontmatter
@@ -171,7 +170,7 @@ def _count_federated_edges(local_concepts: list[dict]) -> int:
     return len(local_slugs & hotspot_slugs)
 
 
-def merge_graph(hotspot_graph: dict, domain: Optional[str] = None) -> dict:
+def merge_graph(hotspot_graph: dict, domain: str | None = None) -> dict:
     """Merge hotspot graph with local wiki nodes + federated edges.
 
     - Local concept nodes: id="local:{slug}", wiki="local"
@@ -255,6 +254,7 @@ def migrate_high_mastery_items() -> dict:
     - knowledge_items 表无 migrated_to_local 列，故只更新 .md
     """
     import shutil
+
     from backend.repository.db import get_connection
 
     raw_path = config.local_wiki_path or ""

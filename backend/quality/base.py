@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Literal, Optional
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
@@ -36,9 +36,9 @@ class GateContext(BaseModel):
     source_reputation: dict[str, dict[str, Any]] = Field(default_factory=dict)
     existing_urls: set[str] = Field(default_factory=set)
     existing_titles: list[str] = Field(default_factory=list)
-    known_ids: Optional[Any] = None  # callable returning set of known ids
-    http_session_factory: Optional[Any] = None  # callable returning aiohttp session
-    rejected_by: Optional[str] = None  # 首个失败的 Hard gate 名称
+    known_ids: Any | None = None  # callable returning set of known ids
+    http_session_factory: Any | None = None  # callable returning aiohttp session
+    rejected_by: str | None = None  # 首个失败的 Hard gate 名称
 
 
 class BaseGate(ABC):

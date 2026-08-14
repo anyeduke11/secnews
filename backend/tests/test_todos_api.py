@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from backend.version import APP_VERSION as API_VERSION
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -31,6 +30,7 @@ from backend.repository import db
 from backend.repository.favorite_repo import FavoriteRepository
 from backend.repository.todo_repo import TodoRepository
 from backend.utils.business_days import SHANGHAI_TZ
+from backend.version import APP_VERSION as API_VERSION
 
 
 def _urgent_deadline() -> str:

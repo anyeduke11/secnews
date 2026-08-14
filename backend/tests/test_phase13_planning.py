@@ -29,7 +29,6 @@ from backend.repository import db as db_module
 from backend.repository.db import get_connection
 from backend.services.planning_service import PlanningService
 
-
 # ===========================================================================
 # Fixtures
 # ===========================================================================

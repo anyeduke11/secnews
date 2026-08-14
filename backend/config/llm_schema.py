@@ -4,12 +4,11 @@ Phase 16 — Hybrid AI 配置文件校验。
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
-from typing import Dict, List, Literal, Optional
+from typing import Literal
 
 import yaml
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, model_validator
 
 
 class ProviderModels(BaseModel):
@@ -22,8 +21,8 @@ class ProviderModels(BaseModel):
 
 class ProviderConfig(BaseModel):
     type: Literal["ollama", "openai", "openai_compatible", "anthropic"]
-    base_url: Optional[str] = None
-    api_key_env: Optional[str] = None
+    base_url: str | None = None
+    api_key_env: str | None = None
     models: ProviderModels
     timeout_seconds: int = 30
     max_concurrent: int = 4
@@ -34,7 +33,7 @@ class TaskOverride(BaseModel):
     model: str
     temperature: float = 0.0
     max_tokens: int = 100
-    batch_size: Optional[int] = None
+    batch_size: int | None = None
 
 
 class RateLimits(BaseModel):
@@ -57,22 +56,22 @@ class CacheConfig(BaseModel):
 class LLMConfig(BaseModel):
     enabled: bool = True
     default_provider: str = "openai"
-    fallback_order: List[str] = ["ollama", "qwen", "openai"]
-    providers: Dict[str, ProviderConfig]
-    task_overrides: Optional[Dict[str, TaskOverride]] = None
+    fallback_order: list[str] = ["ollama", "qwen", "openai"]
+    providers: dict[str, ProviderConfig]
+    task_overrides: dict[str, TaskOverride] | None = None
     rate_limits: RateLimits = RateLimits()
     cost_alert: CostAlert = CostAlert()
     cache: CacheConfig = CacheConfig()
 
     @model_validator(mode="after")
-    def _validate_fallback_order(self) -> "LLMConfig":
+    def _validate_fallback_order(self) -> LLMConfig:
         for p in self.fallback_order:
             if p not in self.providers:
                 raise ValueError(f"fallback_order provider '{p}' not in providers")
         return self
 
     @model_validator(mode="after")
-    def _validate_default_provider(self) -> "LLMConfig":
+    def _validate_default_provider(self) -> LLMConfig:
         if self.default_provider not in self.providers:
             raise ValueError(
                 f"default_provider '{self.default_provider}' not in providers"
@@ -83,7 +82,7 @@ class LLMConfig(BaseModel):
 _CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "llm.yaml"
 
 
-def load_llm_config(path: Optional[Path] = None) -> Optional[LLMConfig]:
+def load_llm_config(path: Path | None = None) -> LLMConfig | None:
     """Load and validate LLM config from YAML file.
 
     Returns None if the file doesn't exist (graceful degradation).
@@ -103,12 +102,12 @@ def load_llm_config(path: Optional[Path] = None) -> Optional[LLMConfig]:
 
 
 __all__ = [
+    "CacheConfig",
+    "CostAlert",
     "LLMConfig",
     "ProviderConfig",
     "ProviderModels",
-    "TaskOverride",
     "RateLimits",
-    "CostAlert",
-    "CacheConfig",
+    "TaskOverride",
     "load_llm_config",
 ]

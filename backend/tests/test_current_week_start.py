@@ -14,8 +14,6 @@ from __future__ import annotations
 from datetime import date, datetime, time
 from zoneinfo import ZoneInfo
 
-import pytest
-
 from backend.utils.business_days import SHANGHAI_TZ, current_week_start
 
 

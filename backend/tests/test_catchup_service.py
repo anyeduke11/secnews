@@ -149,6 +149,7 @@ async def test_auto_does_not_conflict_with_manual(temp_db):
 def test_skip_dead_sources_in_filter(temp_db):
     """_get_dead_source_names 过滤 status='dead' AND last_checked_at < cutoff."""
     from datetime import timedelta
+
     from backend.repository.db import get_connection
     conn = get_connection()
     now = datetime.now(timezone.utc)

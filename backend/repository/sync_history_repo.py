@@ -1,9 +1,7 @@
 """Phase 42 sync_history 仓库: 同步审计日志。"""
 from __future__ import annotations
 
-import sqlite3
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger
@@ -21,9 +19,9 @@ class SyncHistoryRepository:
         config_id: int,
         direction: str,
         status: str,
-        records_count: Optional[int] = None,
+        records_count: int | None = None,
         conflict_count: int = 0,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
         started_at: str,
         finished_at: str,
     ) -> int:

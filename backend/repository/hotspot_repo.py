@@ -28,7 +28,6 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import datetime
-from typing import Optional
 
 from pydantic import HttpUrl
 
@@ -223,14 +222,14 @@ class HotspotRepository:
     # ---- reads ------------------------------------------------------------
     def query(
         self,
-        category: Optional[Category],
+        category: Category | None,
         time_range: TimeRange = TimeRange.D7,
         keyword: str = "",
-        cursor: Optional[str] = None,
+        cursor: str | None = None,
         limit: int = _DEFAULT_LIMIT,
-        region: Optional[str] = None,  # Phase 8: 标讯地区筛选
-        source: Optional[str] = None,  # v1.9.1: 来源筛选 (头条/条目行来源可点击)
-    ) -> tuple[list[HotspotItem], Optional[str]]:
+        region: str | None = None,  # Phase 8: 标讯地区筛选
+        source: str | None = None,  # v1.9.1: 来源筛选 (头条/条目行来源可点击)
+    ) -> tuple[list[HotspotItem], str | None]:
         """List hotspots with category / time / keyword / cursor / region
         / source filters.
 
@@ -255,12 +254,12 @@ class HotspotRepository:
         #   (RecencyGate 拒绝, 不应出现在列表里)。
         where_clauses: list[str] = [
             "COALESCE(ingested_at, published_at) >= ?",
-            "(quality_flags IS NULL OR ("
+            ("(quality_flags IS NULL OR ("
             "  quality_flags NOT LIKE '%historical_bid%' AND"
             "  quality_flags NOT LIKE '%historical_published%' AND"
             "  quality_flags NOT LIKE '%no_published_at%' AND"
             "  quality_flags NOT LIKE '%landing_page_unresolvable%'"
-            "))",
+            "))"),
             "(url_check_status IS NULL OR url_check_status NOT IN ('mismatch', 'unreachable'))",
         ]
         params: list = [start_dt.isoformat()]
@@ -355,11 +354,11 @@ class HotspotRepository:
         self,
         start: datetime,
         end: datetime,
-        category: Optional[str] = None,
+        category: str | None = None,
         keyword: str = "",
-        cursor: Optional[str] = None,
+        cursor: str | None = None,
         limit: int = _DEFAULT_LIMIT,
-    ) -> tuple[list[HotspotItem], Optional[str]]:
+    ) -> tuple[list[HotspotItem], str | None]:
         """Phase 28: 按 ingest_at 范围查询(用于历史资讯批次内查询).
 
         与 query() 区别: time_range 用绝对 [start, end) 区间,而不是相对 now-7d.
@@ -372,11 +371,11 @@ class HotspotRepository:
         where_clauses: list[str] = [
             "COALESCE(ingested_at, published_at) >= ?",
             "COALESCE(ingested_at, published_at) < ?",
-            "(quality_flags IS NULL OR ("
+            ("(quality_flags IS NULL OR ("
             "  quality_flags NOT LIKE '%historical_bid%' AND"
             "  quality_flags NOT LIKE '%historical_published%' AND"
             "  quality_flags NOT LIKE '%no_published_at%'"
-            "))",
+            "))"),
         ]
         params: list = [start.isoformat(), end.isoformat()]
 
@@ -484,7 +483,7 @@ class HotspotRepository:
 
         return [self._row_to_item(r) for r in rows]
 
-    def get_by_id(self, id: str) -> Optional[HotspotItem]:
+    def get_by_id(self, id: str) -> HotspotItem | None:
         """Fetch a single hotspot by primary key, or ``None`` if absent."""
         conn = get_connection()
         sql = (
@@ -510,7 +509,7 @@ class HotspotRepository:
     def count_in_range(
         self,
         time_range: TimeRange,
-        category: Optional[str] = None,
+        category: str | None = None,
     ) -> int:
         """Phase 39: 统计时间窗口内的真实总数 (不依赖 cursor, 不分页)。
 
@@ -529,11 +528,11 @@ class HotspotRepository:
         start_iso = time_range.start_datetime().isoformat()
         where_clauses = [
             "ingested_at >= ?",
-            "(quality_flags IS NULL OR ("
+            ("(quality_flags IS NULL OR ("
             "  quality_flags NOT LIKE '%historical_bid%' AND"
             "  quality_flags NOT LIKE '%historical_published%' AND"
             "  quality_flags NOT LIKE '%no_published_at%'"
-            "))",
+            "))"),
         ]
         params: list = [start_iso]
         if category and category != "all":
@@ -556,7 +555,7 @@ class HotspotRepository:
     def count_unique_urls_in_range(
         self,
         time_range: TimeRange,
-        category: Optional[str] = None,
+        category: str | None = None,
     ) -> int:
         """Phase 42 修复: 统计时间窗口内的 **去重 url 数** (供 list 翻页 total)。
 
@@ -573,11 +572,11 @@ class HotspotRepository:
         start_iso = time_range.start_datetime().isoformat()
         where_clauses = [
             "ingested_at >= ?",
-            "(quality_flags IS NULL OR ("
+            ("(quality_flags IS NULL OR ("
             "  quality_flags NOT LIKE '%historical_bid%' AND"
             "  quality_flags NOT LIKE '%historical_published%' AND"
             "  quality_flags NOT LIKE '%no_published_at%'"
-            "))",
+            "))"),
         ]
         params: list = [start_iso]
         if category and category != "all":
@@ -637,7 +636,7 @@ class HotspotRepository:
 
     def count_by_category(
         self,
-        time_range: Optional[TimeRange] = None,
+        time_range: TimeRange | None = None,
     ) -> dict[str, int]:
         """Return ``{category_value: count}`` for every known category.
 
@@ -764,7 +763,7 @@ class HotspotRepository:
                 ORDER BY h.ingested_at DESC
                 LIMIT ?
             """
-            params = tag_ids + [len(tag_ids), limit]
+            params = [*tag_ids, len(tag_ids), limit]
         else:
             sql = f"""
                 SELECT DISTINCT h.* FROM hotspots h
@@ -773,7 +772,7 @@ class HotspotRepository:
                 ORDER BY h.ingested_at DESC
                 LIMIT ?
             """
-            params = tag_ids + [limit]
+            params = [*tag_ids, limit]
         rows = conn.execute(sql, params).fetchall()
         return [self._row_to_item(r) for r in rows]
 

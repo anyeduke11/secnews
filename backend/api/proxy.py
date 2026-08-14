@@ -1,7 +1,6 @@
 """Phase 4 /api/proxy router."""
 from __future__ import annotations
 
-from backend.version import APP_VERSION as API_VERSION
 from typing import Any
 
 from fastapi import APIRouter
@@ -13,6 +12,7 @@ from backend.proxy_config import (
     load_proxy_settings,
     save_proxy_settings,
 )
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/proxy", tags=["proxy"])
 

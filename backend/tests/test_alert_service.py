@@ -17,7 +17,6 @@ import pytest
 from backend.config import config
 from backend.repository import db
 from backend.repository.alerts_repo import AlertRepository, AlertRuleRepository
-from backend.repository.hotspot_repo import HotspotRepository
 from backend.repository.tags_repo import TagRepository
 from backend.services.alert_service import (
     _cooldown_ready,
@@ -39,6 +38,7 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
 def _insert_hotspot(hotspot_id: str, title: str, summary: str, category: str = "security") -> None:
     """直接 SQL 插入热点 (绕过 HotspotItem 必填字段)."""
     from datetime import datetime, timezone
+
     from backend.repository.db import get_connection
     now = datetime.now(timezone.utc).isoformat()
     get_connection().execute(

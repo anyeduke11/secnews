@@ -4,12 +4,10 @@ Phase 3: 每日 03:30 Asia/Shanghai 对 dead 源执行探测。
 """
 from __future__ import annotations
 
-import socket
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
 
 from backend.logging_config import logger as _root_logger
 from backend.repository.db import get_connection
@@ -28,8 +26,8 @@ class ProbeResult:
     url: str
     status: str  # "alive" | "dead" | "error"
     http_code: int = 0
-    error_msg: Optional[str] = None
-    new_status: Optional[str] = None  # 'grace' if alive, None if still dead
+    error_msg: str | None = None
+    new_status: str | None = None  # 'grace' if alive, None if still dead
 
     def to_dict(self) -> dict:
         return {
@@ -42,7 +40,7 @@ class ProbeResult:
         }
 
 
-def _head_status(url: str, timeout: int) -> tuple[int, Optional[str]]:
+def _head_status(url: str, timeout: int) -> tuple[int, str | None]:
     """HEAD 请求，返回 (status_code, error_msg)。"""
     try:
         req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": _UA})
@@ -51,13 +49,13 @@ def _head_status(url: str, timeout: int) -> tuple[int, Optional[str]]:
     except urllib.error.HTTPError as e:
         # 405/501 → fallback to GET in caller
         return int(e.code), None
-    except (urllib.error.URLError, socket.timeout, TimeoutError, OSError) as e:
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
         return 0, f"{type(e).__name__}: {str(e)[:200]}"
     except Exception as e:
         return 0, f"{type(e).__name__}: {str(e)[:200]}"
 
 
-def _get_status(url: str, timeout: int) -> tuple[int, Optional[str]]:
+def _get_status(url: str, timeout: int) -> tuple[int, str | None]:
     """GET 请求，返回 (status_code, error_msg)。"""
     try:
         req = urllib.request.Request(url, method="GET", headers={"User-Agent": _UA})
@@ -65,7 +63,7 @@ def _get_status(url: str, timeout: int) -> tuple[int, Optional[str]]:
             return int(resp.status), None
     except urllib.error.HTTPError as e:
         return int(e.code), None
-    except (urllib.error.URLError, socket.timeout, TimeoutError, OSError) as e:
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
         return 0, f"{type(e).__name__}: {str(e)[:200]}"
     except Exception as e:
         return 0, f"{type(e).__name__}: {str(e)[:200]}"
@@ -209,9 +207,9 @@ def probe_all_dead(*, timeout_s: float = DEFAULT_TIMEOUT_S) -> list[dict]:
 
 
 __all__ = [
-    "ProbeResult",
-    "probe_one",
-    "probe_all_dead",
-    "list_dead_sources",
     "DEFAULT_TIMEOUT_S",
+    "ProbeResult",
+    "list_dead_sources",
+    "probe_all_dead",
+    "probe_one",
 ]

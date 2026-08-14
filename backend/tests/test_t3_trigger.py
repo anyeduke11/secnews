@@ -19,14 +19,11 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List
 
 import pytest
 
 from backend.config import config
 from backend.metrics.kl_metrics import (
-    COUNTER_KEYS,
-    HISTOGRAM_KEYS,
     kl_metrics,
 )
 from backend.repository import db as db_module
@@ -38,11 +35,8 @@ from backend.services.kl_state_machine import (
 from backend.services.retry_policy import RetryPolicy
 from backend.services.triggers import T3Trigger
 from backend.services.triggers.t3_link_to_structure import (
-    BATCH_SIZE,
-    LOW_LINK_THRESHOLD,
     TRIGGER_NAME,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

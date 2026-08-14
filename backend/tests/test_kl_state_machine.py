@@ -41,7 +41,6 @@ from backend.services.kl_state_machine import (
     transition,
 )
 
-
 # ===========================================================================
 # Constants sanity
 # ===========================================================================
@@ -51,10 +50,10 @@ class TestConstants:
         assert len(ALL_STAGES) == 5
 
     def test_all_stages_contains_known_values(self):
-        assert ALL_STAGES == frozenset({
+        assert frozenset({
             LIFECYCLE_RAW, LIFECYCLE_REFINE, LIFECYCLE_LINK,
             LIFECYCLE_STRUCTURE, LIFECYCLE_PUBLISH,
-        })
+        }) == ALL_STAGES
 
     def test_all_stages_have_kl_prefix(self):
         for s in ALL_STAGES:

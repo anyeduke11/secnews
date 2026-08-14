@@ -31,7 +31,7 @@ import fnmatch
 import time
 from collections import OrderedDict
 from threading import Lock
-from typing import Any, Optional
+from typing import Any
 
 from backend.observability import log_event
 
@@ -259,11 +259,11 @@ def hit_rate() -> dict[str, float]:
 
 __all__ = [
     "TTLCache",
-    "list_cache",
     "detail_cache",
-    "static_cache",
-    "invalidate",
-    "warmup",
-    "stats",
     "hit_rate",
+    "invalidate",
+    "list_cache",
+    "static_cache",
+    "stats",
+    "warmup",
 ]

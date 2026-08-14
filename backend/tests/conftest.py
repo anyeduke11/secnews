@@ -38,14 +38,12 @@ Markers
 """
 from __future__ import annotations
 
-import sqlite3
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
 
 # ===========================================================================
 # Fixtures
@@ -61,6 +59,52 @@ def _disable_startup_catchup(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     from backend.config import config
     monkeypatch.setattr(config, "catchup_on_startup", False)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_knowledge_dirs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """P1: 所有测试强制隔离 knowledge/ 目录 — 根治测试污染真实知识库.
+
+    此前全量测试会改写真实 ``knowledge/items/*.md`` 的 ingested_at
+    (每次跑完 17+ 个文件被污染) 并重写 ``knowledge/_MAP.md``
+    (4008 items → 3), 需要每次手动 git checkout 恢复。本 fixture 把
+    11 个 service 模块里的知识库路径常量全部重定向到 tmp_path 下的隔离
+    目录树, 测试副作用只落在临时目录。
+
+    被测试自身 monkeypatch 覆盖也安全 (monkeypatch 按 LIFO 回滚)。
+    """
+    import importlib
+
+    kdir = tmp_path / "knowledge"
+    redirect = {
+        "KNOWLEDGE_DIR": kdir,
+        "ITEMS_DIR": kdir / "items",
+        "CONCEPTS_DIR": kdir / "concepts",
+        "DRAFTS_DIR": kdir / "content" / "drafts",
+        "PENDING_DIR": kdir / "learning" / "tasks" / "pending",
+        "DONE_DIR": kdir / "learning" / "tasks" / "done",
+        "FAILED_DIR": kdir / "learning" / "tasks" / "failed",
+        "MAP_PATH": kdir / "_MAP.md",
+        "SOUL_PATH": kdir / "SOUL.md",
+    }
+    modules = (
+        "backend.services.bookmark_sync",
+        "backend.services.compiler",
+        "backend.services.concept_linker",
+        "backend.services.content_service",
+        "backend.services.cubox_sync",
+        "backend.services.federation_service",
+        "backend.services.history_import",
+        "backend.services.knowledge_sync",
+        "backend.services.learning_service",
+        "backend.services.map_updater",
+        "backend.services.soul_service",
+    )
+    for mod_name in modules:
+        mod = importlib.import_module(mod_name)
+        for attr, val in redirect.items():
+            if hasattr(mod, attr):
+                monkeypatch.setattr(mod, attr, val)
 
 
 @pytest.fixture
@@ -91,11 +135,11 @@ def e2e_api_client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[
     lifespan (no scheduler / collector).  The DB at ``tmp_path/test.db``
     has all migrations applied via ``init_db()``.
     """
-    from backend.config import config
-    from backend.repository import db
     from backend.api import register_routers
     from backend.api.middleware import TraceIDMiddleware
+    from backend.config import config
     from backend.exceptions import register_exception_handlers
+    from backend.repository import db
 
     test_db = tmp_path / "test.db"
     # P1: db_path 必须是 Path (见 temp_db 注释)

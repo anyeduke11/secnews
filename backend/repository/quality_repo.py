@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from backend.domain.collection import GateResult
 from backend.exceptions import InternalException
@@ -31,7 +31,7 @@ class QualityLogRepository:
         item_id: str,
         result: GateResult,
         mode: str = "loose",
-        checked_at: Optional[str] = None,
+        checked_at: str | None = None,
     ) -> None:
         """写一行 gate 结果。**失败不抛**（写 log 失败不能阻塞采集）。"""
         conn = get_connection()
@@ -128,7 +128,7 @@ class QualityLogRepository:
 class SourceReputationRepository:
     """Persistence for ``source_reputation``."""
 
-    def get(self, source: str) -> Optional[dict[str, Any]]:
+    def get(self, source: str) -> dict[str, Any] | None:
         conn = get_connection()
         try:
             row = conn.execute(

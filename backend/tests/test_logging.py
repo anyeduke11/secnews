@@ -7,7 +7,6 @@
 import json
 from pathlib import Path
 
-import pytest
 from loguru import logger
 
 from backend.logging_config import setup

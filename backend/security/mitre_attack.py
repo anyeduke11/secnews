@@ -12,11 +12,9 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Optional
 
-from backend.domain.security_models import SecurityEntity, SecurityEdge, _now_iso
+from backend.domain.security_models import SecurityEdge, SecurityEntity, _now_iso
 from backend.repository.security_repo import SecurityRepository
-from backend.logging_config import logger
 
 MITRE_RAW_BASE = (
     "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack"
@@ -29,7 +27,7 @@ DEFAULT_BUNDLE_URL = (
 class MitreAttackClient:
     """Fetch + sync MITRE ATT&CK STIX data into local security_* tables."""
 
-    def __init__(self, repo: Optional[SecurityRepository] = None):
+    def __init__(self, repo: SecurityRepository | None = None):
         self._repo = repo or SecurityRepository()
         self._log = logging.getLogger("hotspot.security.mitre_attack")
 
@@ -90,10 +88,10 @@ class MitreAttackClient:
                 if edge:
                     self._repo.upsert_edge(edge)
 
-        self._log.info(f"MITRE sync completed", extra={"entities": count})
+        self._log.info("MITRE sync completed", extra={"entities": count})
         return count
 
-    def _parse_technique(self, obj: dict) -> Optional[SecurityEntity]:
+    def _parse_technique(self, obj: dict) -> SecurityEntity | None:
         """Parse a STIX attack-pattern into SecurityEntity."""
         ext_refs = obj.get("external_references", [])
         external_ref = ""
@@ -118,7 +116,7 @@ class MitreAttackClient:
             updated_at=_now_iso(),
         )
 
-    def _parse_tactic(self, obj: dict) -> Optional[SecurityEntity]:
+    def _parse_tactic(self, obj: dict) -> SecurityEntity | None:
         """Parse a STIX tactic into SecurityEntity."""
         ext_refs = obj.get("external_references", [])
         external_ref = ""
@@ -138,7 +136,7 @@ class MitreAttackClient:
             updated_at=_now_iso(),
         )
 
-    def _parse_relationship(self, obj: dict) -> Optional[SecurityEdge]:
+    def _parse_relationship(self, obj: dict) -> SecurityEdge | None:
         """Parse a STIX relationship into SecurityEdge."""
         rel_type = obj.get("relationship_type", "")
         edge_type_map = {
@@ -161,4 +159,4 @@ class MitreAttackClient:
         )
 
 
-__all__ = ["MitreAttackClient", "MITRE_RAW_BASE", "DEFAULT_BUNDLE_URL"]
+__all__ = ["DEFAULT_BUNDLE_URL", "MITRE_RAW_BASE", "MitreAttackClient"]

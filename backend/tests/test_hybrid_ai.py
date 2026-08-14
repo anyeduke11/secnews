@@ -26,7 +26,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import pytest
 
@@ -45,11 +44,9 @@ from backend.config.llm_schema import (
 from backend.metrics.kl_metrics import kl_metrics
 from backend.repository import db as db_module
 from backend.repository.db import get_connection
-from backend.services.cost_monitor import CostMonitor, _estimate_cost, cost_monitor
+from backend.services.cost_monitor import CostMonitor, _estimate_cost
 from backend.services.llm_service import llm_service
-from backend.services.retry_policy import RetryPolicy
 from backend.services.triggers import T1Trigger, T3Trigger
-
 
 # ===================================================================
 # Helpers
@@ -57,8 +54,8 @@ from backend.services.triggers import T1Trigger, T3Trigger
 
 def _make_provider(
     ptype: str = "ollama",
-    base_url: Optional[str] = None,
-    api_key_env: Optional[str] = None,
+    base_url: str | None = None,
+    api_key_env: str | None = None,
 ) -> ProviderConfig:
     """Create a minimal ProviderConfig for testing."""
     return ProviderConfig(
@@ -71,8 +68,8 @@ def _make_provider(
 
 def _make_llm_config(
     enabled: bool = True,
-    providers: Optional[Dict[str, ProviderConfig]] = None,
-    fallback_order: Optional[List[str]] = None,
+    providers: dict[str, ProviderConfig] | None = None,
+    fallback_order: list[str] | None = None,
     daily_usd_limit: float = 5.0,
     monthly_usd_limit: float = 100.0,
     on_exceeded: str = "warn",
@@ -272,7 +269,7 @@ class TestCostMonitor:
     def test_record_usage_multiple(self, temp_db):
         """多次 record_usage() 累积写入."""
         monitor = CostMonitor()
-        for i in range(3):
+        for _i in range(3):
             monitor.record_usage("ollama", "qwen2.5:7b", "score", 100, 0.0, 50)
         conn = get_connection()
         rows = conn.execute(
@@ -428,7 +425,7 @@ class TestT3Hybrid:
 
     def test_t3_summarize_with_llm_calls_service(self, temp_db, fresh_metrics, monkeypatch):
         """_summarize_with_llm() 调用 llm_service.summarize() 并返回摘要."""
-        async def fake_summarize(chunks: List[str]) -> str:
+        async def fake_summarize(chunks: list[str]) -> str:
             return "This is an LLM-generated summary."
         monkeypatch.setattr(llm_service, "summarize", fake_summarize)
 
@@ -439,7 +436,7 @@ class TestT3Hybrid:
 
     def test_t3_summarize_with_llm_fallback(self, temp_db, fresh_metrics, monkeypatch):
         """LLM 失败时回退到 _generate_summary (前 200 字符)."""
-        async def fake_summarize_fail(chunks: List[str]) -> str:
+        async def fake_summarize_fail(chunks: list[str]) -> str:
             raise RuntimeError("LLM unavailable")
         monkeypatch.setattr(llm_service, "summarize", fake_summarize_fail)
 
@@ -454,7 +451,7 @@ class TestT3Hybrid:
         """空内容时 LLM 不被调用，直接回退到 _generate_summary."""
         call_count = 0
 
-        async def fake_summarize(chunks: List[str]) -> str:
+        async def fake_summarize(chunks: list[str]) -> str:
             nonlocal call_count
             call_count += 1
             return "should not be called"

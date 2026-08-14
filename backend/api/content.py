@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -16,7 +15,7 @@ router = APIRouter(prefix="/api/content", tags=["content"])
 # ── Calendar ───────────────────────────────────────────────────
 
 @router.get("/calendar")
-async def list_calendar(month: Optional[str] = Query(None)):
+async def list_calendar(month: str | None = Query(None)):
     """List calendar entries, optionally filtered by ?month=YYYY-MM."""
     entries = content_service.list_calendar(month)
     return {"entries": entries}
@@ -60,8 +59,8 @@ async def delete_calendar_entry(entry_id: int):
 
 @router.get("/drafts")
 async def list_drafts(
-    status: Optional[str] = Query(None),
-    calendar_id: Optional[int] = Query(None),
+    status: str | None = Query(None),
+    calendar_id: int | None = Query(None),
 ):
     """List drafts, optionally filtered by status or calendar_id."""
     drafts = content_service.list_drafts(status=status, calendar_id=calendar_id)

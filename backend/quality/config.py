@@ -15,7 +15,6 @@ from backend.domain.enums import Category
 from backend.logging_config import logger
 from backend.repository.settings_repo import SettingsRepository
 
-
 # ---------------------------------------------------------------------------
 # Phase 1 噪音 URL 黑名单 (collector 抓取源头过滤)
 # ---------------------------------------------------------------------------
@@ -257,12 +256,12 @@ class QualityConfig:
 
 
 __all__ = [
-    "QualityMode",
-    "QualityConfig",
     "DEFAULT_CATEGORY_KEYWORDS",
-    "default_category_keywords",
-    "get_category_keywords",
     "NOISE_TITLE_PATTERNS",
     "NOISE_URL_PATTERNS",
     "NOISE_URL_REGEX",
+    "QualityConfig",
+    "QualityMode",
+    "default_category_keywords",
+    "get_category_keywords",
 ]

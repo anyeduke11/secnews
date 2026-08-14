@@ -127,9 +127,7 @@ def _is_repo_url(url: str) -> bool:
     if owner.startswith("-") or "." in owner:
         return False
     # repo 不能是纯数字（避免 /trending/123 之类）
-    if repo.isdigit():
-        return False
-    return True
+    return not repo.isdigit()
 
 
 def _extract_repo_url(title: str) -> str:
@@ -170,10 +168,13 @@ class GitHubCollector(BaseCollector):
         3. 代理失败 → Crawl4ai (Playwright) 渲染 JS SPA
         4. 全失败 → 返回 SourceResult(error)
         """
-        from datetime import datetime, timezone as _tz
-        from backend.domain.collection import SourceResult
-        from backend.collectors import base as _base
+        from datetime import datetime
+        from datetime import timezone as _tz
+
         import aiohttp
+
+        from backend.collectors import base as _base
+        from backend.domain.collection import SourceResult
 
         start = datetime.now(_tz.utc)
         source_name = source.get("name", "unknown")
@@ -210,23 +211,22 @@ class GitHubCollector(BaseCollector):
         # ---- 第 2 步: 直连失败, 走 ProxySession 代理兜底 ----
         if html is None or len(html.strip()) < 500:
             try:
-                from backend.proxy_session import ProxySession
                 from backend.proxy_config import should_use_proxy
+                from backend.proxy_session import ProxySession
 
                 if should_use_proxy(source_url):
                     timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
                     async with ProxySession(
                         headers={"User-Agent": _base.UA},
                         timeout=timeout_obj,
-                    ) as session:
-                        async with session.get(source_url, ssl=False) as resp:
-                            if resp.status == 200:
-                                html = await resp.text()
-                                used_proxy = True
-                            else:
-                                self.logger.debug(
-                                    f"github proxy {source_name!r} HTTP {resp.status}"
-                                )
+                    ) as session, session.get(source_url, ssl=False) as resp:
+                        if resp.status == 200:
+                            html = await resp.text()
+                            used_proxy = True
+                        else:
+                            self.logger.debug(
+                                f"github proxy {source_name!r} HTTP {resp.status}"
+                            )
                     if html:
                         self.logger.debug(f"github proxy OK {source_name!r}")
             except Exception as e:
@@ -385,4 +385,4 @@ class GitHubCollector(BaseCollector):
         return items
 
 
-__all__ = ["GitHubCollector", "GITHUB_SOURCES"]
+__all__ = ["GITHUB_SOURCES", "GitHubCollector"]

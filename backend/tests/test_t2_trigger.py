@@ -28,19 +28,16 @@ from backend.metrics.kl_metrics import kl_metrics
 from backend.repository import db as db_module
 from backend.repository.db import get_connection
 from backend.services.kl_state_machine import (
-    LIFECYCLE_REFINE,
-    LIFECYCLE_LINK,
     LEGACY_REFINE_LIKE,
+    LIFECYCLE_LINK,
+    LIFECYCLE_REFINE,
 )
 from backend.services.retry_policy import RetryPolicy
 from backend.services.triggers import T2Trigger
 from backend.services.triggers.t2_refine_to_link import (
-    BATCH_SIZE,
     LINK_CONFIDENCE,
     MAX_RELATED,
-    TRIGGER_NAME,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

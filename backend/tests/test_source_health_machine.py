@@ -18,14 +18,12 @@ import pytest
 from backend.services.source_health_machine import (
     BACKOFF_BASE,
     BACKOFF_MAX_EXPONENT,
-    STALE_THRESHOLD,
     DEAD_THRESHOLD,
-    GRACE_SUCCESS_THRESHOLD,
     GRACE_FAIL_THRESHOLD,
+    STALE_THRESHOLD,
     SourceHealthMachine,
     _calculate_cooldown,
 )
-
 
 # ---------------------------------------------------------------------------
 # 夹具: 临时 SQLite 数据库 + monkeypatch get_connection

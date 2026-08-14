@@ -3,7 +3,7 @@
 业务逻辑全部下沉到 :mod:`backend.api` 和 :mod:`backend.services`。
 
 Phase 5: 启动耗时打 ``startup_complete`` 事件。
-Phase 7: 集成 MCP server (Option A) — 启动时 seeding 13 tool 元数据,
+Phase 7: 集成 MCP server (Option A) — 启动时 seeding 9 tool 元数据,
          挂载 /mcp/sse SSE 端点, stdio 由 backend.mcp_stdio_main 启动。
 """
 from __future__ import annotations

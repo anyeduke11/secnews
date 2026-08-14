@@ -1,23 +1,30 @@
 ---
-task_id: 6
-task_type: generate_learning_plan
-status: pending
-created_at: "2026-07-15T13:44:13.845877+00:00"
+task_type: "compile"
+status: "failed"
+created_at: "2026-08-02T18:00:00.111194+00:00"
+reason: "superseded: 由规则式自动消费者 (consume_compile_tasks) 替代; 存量积压清理"
+failed_at: "2026-08-14T12:26:25.606927+00:00"
 params:
-  domains: ['security']
-  week: "2026-W29"
+  item_ids: ['3edb3c126755', 'aec7896e95f0', '6f9dbfa31f8c', '83169cef13cf', 'a9505c729cbf', 'a955e02c3c6f', '4dc3a769398c', '6800bdec0d46', 'cd43785a2bc9', '8eaf41bbf961']
 ---
 
-# 任务：生成学习计划
+# 编译任务
 
-请使用 knowledge-master skill 为本周（2026-W29）生成学习计划。
+请对以下知识条目执行编译：
 
-## 参数
-- 周次: 2026-W29
-- 领域: security
+- [[3edb3c126755]]
+- [[aec7896e95f0]]
+- [[6f9dbfa31f8c]]
+- [[83169cef13cf]]
+- [[a9505c729cbf]]
+- [[a955e02c3c6f]]
+- [[4dc3a769398c]]
+- [[6800bdec0d46]]
+- [[cd43785a2bc9]]
+- [[8eaf41bbf961]]
 
-## 步骤
-1. 扫描 knowledge/items/ 和 knowledge/concepts/ 了解当前知识状态
-2. 根据 SOUL.md 和知识覆盖度，生成本周学习目标（3-5 个）
-3. 选择 5-10 个知识条目作为本周学习任务
-4. 写入 knowledge_plans 表（通过 API 或直接操作）
+## 编译步骤
+1. 分类 + 打标（domain/topic/type/difficulty + tags）
+2. 概念提取（写入 concepts/{slug}.md）
+3. 概念关联（更新条目 frontmatter.concepts）
+4. 标记 compiled=true

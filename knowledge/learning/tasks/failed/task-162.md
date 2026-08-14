@@ -1,0 +1,30 @@
+---
+task_type: "compile"
+status: "failed"
+created_at: "2026-08-02T18:00:00.133130+00:00"
+reason: "superseded: 由规则式自动消费者 (consume_compile_tasks) 替代; 存量积压清理"
+failed_at: "2026-08-14T12:26:25.649400+00:00"
+params:
+  item_ids: ['a9776aa098f4', '50b9a904bb6a', '76714690dcce', '887b45939414', 'aae8e770c5fe', '09ccea48e93b', '439fcd0d90b3', '54460ef14ee4', '2f3aa354c033', 'f85fb2adbbd0']
+---
+
+# 编译任务
+
+请对以下知识条目执行编译：
+
+- [[a9776aa098f4]]
+- [[50b9a904bb6a]]
+- [[76714690dcce]]
+- [[887b45939414]]
+- [[aae8e770c5fe]]
+- [[09ccea48e93b]]
+- [[439fcd0d90b3]]
+- [[54460ef14ee4]]
+- [[2f3aa354c033]]
+- [[f85fb2adbbd0]]
+
+## 编译步骤
+1. 分类 + 打标（domain/topic/type/difficulty + tags）
+2. 概念提取（写入 concepts/{slug}.md）
+3. 概念关联（更新条目 frontmatter.concepts）
+4. 标记 compiled=true

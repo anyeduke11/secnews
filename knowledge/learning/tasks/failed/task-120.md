@@ -1,28 +1,27 @@
 ---
 task_type: "compile"
-status: "pending"
-created_at: "2026-07-16T09:47:54.035930+00:00"
+status: "failed"
+created_at: "2026-08-02T18:00:00.126248+00:00"
+reason: "superseded: 由规则式自动消费者 (consume_compile_tasks) 替代; 存量积压清理"
+failed_at: "2026-08-14T12:26:25.637999+00:00"
 params:
-  item_ids: ['1938190bd66b', 'f359c1269a77', '481edc0e71bd', '3f74b7b06bf5', '6942e25fdabc', '81464630886e', '97391be18a77', '016f66bee5b2', '1228444a4511', 'fb0dd9184474']
-reason: "superseded:Phase 1j batch compile complete; queue cleanup"
-failed_at: "2026-07-17T02:13:20.118892+00:00"
-
+  item_ids: ['0fe8e1c87b4b', 'aa42ebaf8023', '56cba9aa21cd', '8027f01bc8aa', 'cd39830c43c5', '94b3d5d6b572', 'bab26aebcb84', '93bf01534dd6', '9907563b9957', '4acf01bfe6bd']
 ---
 
 # 编译任务
 
 请对以下知识条目执行编译：
 
-- [[1938190bd66b]]
-- [[f359c1269a77]]
-- [[481edc0e71bd]]
-- [[3f74b7b06bf5]]
-- [[6942e25fdabc]]
-- [[81464630886e]]
-- [[97391be18a77]]
-- [[016f66bee5b2]]
-- [[1228444a4511]]
-- [[fb0dd9184474]]
+- [[0fe8e1c87b4b]]
+- [[aa42ebaf8023]]
+- [[56cba9aa21cd]]
+- [[8027f01bc8aa]]
+- [[cd39830c43c5]]
+- [[94b3d5d6b572]]
+- [[bab26aebcb84]]
+- [[93bf01534dd6]]
+- [[9907563b9957]]
+- [[4acf01bfe6bd]]
 
 ## 编译步骤
 1. 分类 + 打标（domain/topic/type/difficulty + tags）

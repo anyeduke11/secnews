@@ -1,34 +1,30 @@
 ---
-task_type: "publish"
-status: "pending"
-created_at: "2026-07-16T02:51:48.841567+00:00"
+task_type: "compile"
+status: "failed"
+created_at: "2026-08-02T18:00:00.111561+00:00"
+reason: "superseded: 由规则式自动消费者 (consume_compile_tasks) 替代; 存量积压清理"
+failed_at: "2026-08-14T12:26:25.607768+00:00"
 params:
-  draft_id: 4
-  platform: "wechat"
-  skill_name: "baoyu-post-to-wechat"
-  options:
-  dry_run: True
+  item_ids: ['824900d16aea', '9053fcd717b2', '868edf948701', '5748c90352bb', '49d32f7ea736', 'a9f2f7d0efde', 'bfe00170671b', 'ecd5b968ece6', '332c451a881c', '5a5dd3df1e67']
 ---
 
-# 发布任务
+# 编译任务
 
-## 草稿内容
+请对以下知识条目执行编译：
 
-# 测试
+- [[824900d16aea]]
+- [[9053fcd717b2]]
+- [[868edf948701]]
+- [[5748c90352bb]]
+- [[49d32f7ea736]]
+- [[a9f2f7d0efde]]
+- [[bfe00170671b]]
+- [[ecd5b968ece6]]
+- [[332c451a881c]]
+- [[5a5dd3df1e67]]
 
-watchdog 自动同步测试。
-
-## 发布参数
-
-- **平台**: wechat
-- **Skill**: baoyu-post-to-wechat
-- **Draft ID**: 4
-- **Options**: {'dry_run': True}
-
-## 执行步骤
-
-1. 读取草稿内容（上方 Markdown 正文）
-2. 调用 skill `baoyu-post-to-wechat` 执行发布
-3. 发布成功后，将 `published_url` 写入本文件 frontmatter 的 `result.published_url`
-4. 移动本文件到 `done/` 目录
-5. 如失败，移动到 `failed/` 并记录 error.md
+## 编译步骤
+1. 分类 + 打标（domain/topic/type/difficulty + tags）
+2. 概念提取（写入 concepts/{slug}.md）
+3. 概念关联（更新条目 frontmatter.concepts）
+4. 标记 compiled=true

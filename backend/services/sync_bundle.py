@@ -555,6 +555,93 @@ def build_bundle(*, device_id: str | None = None) -> dict:
 # ---------------------------------------------------------------------------
 # Bundle apply (write back)
 # ---------------------------------------------------------------------------
+def _apply_deletions(records: dict) -> dict:
+    """P1: 删除通道 — 删除"本地存在但 merged bundle 缺席"的记录.
+
+    语义: merged bundle 是 3-way merge 后的最终状态 (base/local/remote),
+    记录在 bundle 中缺席 = 对端删除或从未存在 (sync_merge 的
+    absence-as-deletion)。此前 apply 只 insert/update, 删除永不跨端生效。
+
+    保守边界:
+    - 只处理列表型同步表; settings (dict 合并) / secrets (密文语义) /
+      codegarden (服务发现噪音) 不适用删除。
+    - reading_states / sm2_reviews 无删除方法 (记录小且为派生状态), 跳过。
+    - 删除前以 bundle 的键集合为准, 本地多余记录才删 (不会误删 bundle 中
+      存在的记录)。
+    """
+    from backend.repository.db import get_connection
+
+    stats = {"favorites": 0, "todos": 0, "skills": 0, "custom_sources": 0, "annotations": 0}
+
+    # favorites: 键 = hotspot_id
+    bundle_ids = {r.get("hotspot_id") for r in records.get("favorites", []) if r.get("hotspot_id")}
+    local_ids = {r.hotspot_id for r in FavoriteRepository().list(limit=_SYNC_BUNDLE_MAX_ROWS)}
+    for hid in local_ids - bundle_ids:
+        try:
+            FavoriteRepository().remove(hid)
+            stats["favorites"] += 1
+        except Exception as e:
+            logger.warning(f"deletion favorites {hid} failed: {e}")
+
+    # todos: 键 = source_type::source_id
+    bundle_keys = {
+        f"{r.get('source_type')}::{r.get('source_id')}"
+        for r in records.get("todos", [])
+    }
+    local_todos, _ = TodoRepository().list(limit=_SYNC_BUNDLE_MAX_ROWS)
+    for t in local_todos:
+        key = f"{t.source_type}::{t.source_id}"
+        if key not in bundle_keys:
+            try:
+                TodoRepository().delete(t.id)
+                stats["todos"] += 1
+            except Exception as e:
+                logger.warning(f"deletion todo {t.id} failed: {e}")
+
+    # skills: 键 = name
+    bundle_names = {r.get("name") for r in records.get("skills", []) if r.get("name")}
+    local_skills, _ = SkillRepository().list(limit=_SYNC_BUNDLE_MAX_ROWS)
+    for s in local_skills:
+        if s.name not in bundle_names:
+            try:
+                SkillRepository().delete(s.id)
+                stats["skills"] += 1
+            except Exception as e:
+                logger.warning(f"deletion skill {s.id} failed: {e}")
+
+    # custom_sources: 键 = url
+    bundle_urls = {r.get("url") for r in records.get("custom_sources", []) if r.get("url")}
+    local_sources = CustomSourceRepository().list()
+    for cs in local_sources:
+        if cs.url not in bundle_urls:
+            try:
+                CustomSourceRepository().delete(cs.id)
+                stats["custom_sources"] += 1
+            except Exception as e:
+                logger.warning(f"deletion custom_source {cs.id} failed: {e}")
+
+    # annotations: 键 = id (无 repo 类, 直接 SQL)
+    bundle_ids_ann = {r.get("id") for r in records.get("annotations", []) if r.get("id")}
+    local_ann = [
+        dict(r) for r in get_connection().execute(
+            "SELECT id FROM annotations"
+        ).fetchall()
+    ]
+    for r in local_ann:
+        if r["id"] not in bundle_ids_ann:
+            try:
+                cur = get_connection().execute(
+                    "DELETE FROM annotations WHERE id = ?", (r["id"],)
+                )
+                stats["annotations"] += cur.rowcount
+            except Exception as e:
+                logger.warning(f"deletion annotation {r['id']} failed: {e}")
+
+    if any(stats.values()):
+        logger.info(f"apply deletions: {stats}")
+    return stats
+
+
 def apply_bundle(bundle: dict, *, master_key: str | None = None) -> dict:
     """Write bundle records back to all tables.
 
@@ -718,6 +805,12 @@ def apply_bundle(bundle: dict, *, master_key: str | None = None) -> dict:
         except Exception:
             settings_stats["skipped"] += 1
 
+    # --- P1 删除通道: 对端已删除的记录在本端删除 ---
+    # merged bundle 是双方同意的最终状态; 本地存在但 bundle 缺席的记录
+    # 意味着对端删除了它 (sync_merge 的 absence-as-deletion 语义)。
+    # 此前 apply 只 insert/update, 删除永不跨端生效。
+    deletion_stats = _apply_deletions(records)
+
     return {
         "favorites": fav_stats, "todos": todo_stats, "skills": skill_stats,
         "custom_sources": cs_stats, "settings": settings_stats, "secrets": secret_stats,
@@ -727,6 +820,7 @@ def apply_bundle(bundle: dict, *, master_key: str | None = None) -> dict:
         "reading_states": reading_stats,
         "annotations": annotations_stats,
         "sm2_reviews": sm2_stats,
+        "deletions": deletion_stats,             # P1: 删除通道统计
     }
 
 

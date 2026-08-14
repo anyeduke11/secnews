@@ -21,6 +21,7 @@ same validation / error-handling path as the rest of the backend.
 import asyncio
 import hashlib
 import time
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, ClassVar
 
@@ -553,6 +554,21 @@ class CollectionService:
             for row in existing_rows
         ]
 
+        # P1 性能: simhash 分桶索引 — 64-bit 指纹按 8×8-bit 块建桶。
+        # Hamming 距离 < 5 (即 ≤4) 的两个指纹必然在 8 块中至少 4 块相同
+        # (抽屉原理), 因此同桶候选集必包含全部真重复, 无需全表线性扫描。
+        # 查找从 O(M) (全表) 降为 O(桶内候选数) ≈ O(1), 整体 O(N+M) 替代
+        # O(N×M)。此为纯算法优化, 判定结果与全表扫描完全一致。
+        _BUCKET_BITS = 8  # 每块 8 bit
+
+        def _simhash_buckets(fp: int) -> list[int]:
+            return [(fp >> (8 * i)) & 0xFF for i in range(8)]
+
+        buckets: dict[int, list[tuple[str, int]]] = defaultdict(list)
+        for eid, efp in existing:
+            for b in set(_simhash_buckets(efp)):
+                buckets[b].append((eid, efp))
+
         # Load existing canonical URLs for fast exact-match check
         existing_urls = {
             row[0]
@@ -578,9 +594,13 @@ class CollectionService:
                 )
                 continue
 
-            # Simhash Hamming distance check
+            # Simhash Hamming distance check — 只比较同桶候选 (P1 分桶优化)
             duplicate = False
-            for existing_id, existing_fp in existing:
+            candidates: set[tuple[str, int]] = set()
+            for b in _simhash_buckets(fp):
+                for cand in buckets.get(b, ()):
+                    candidates.add(cand)
+            for existing_id, existing_fp in candidates:
                 if hamming_distance(fp, existing_fp) < 5:
                     self.logger.info(
                         f"Dedup skipped {item.id}: duplicate of {existing_id}"
@@ -615,6 +635,8 @@ class CollectionService:
 
             # Update in-memory sets for within-batch dedup
             existing.append((item.id, fp))
+            for b in set(_simhash_buckets(fp)):
+                buckets[b].append((item.id, fp))
             if url_canonical:
                 existing_urls.add(url_canonical)
 

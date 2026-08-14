@@ -31,7 +31,6 @@ from backend.quality.schema_gate import SchemaGate
 from backend.quality.scorer import compute_final_score, is_acceptable, merge_flags
 from backend.quality.source_reputation_gate import SourceReputationGate
 from backend.quality.title_summary_gate import TitleSummaryGate
-from backend.quality.url_validity_gate import URLValidityGate
 from backend.repository.hotspot_repo import HotspotRepository
 from backend.repository.quality_repo import QualityLogRepository
 
@@ -96,7 +95,10 @@ class QualityGatePipeline:
         NoiseContentGate,  # fix-bug-github-category-dedup Task 3 - 备案/版权/活动等噪音
         CategoryMatchGate,
         TitleSummaryGate,
-        URLValidityGate,
+        # URLValidityGate 已从同步 pipeline 移除 (P1): 其同步 HEAD 请求 (5s 超时)
+        # 经 asyncio.to_thread 逐 item 串行执行, 50 items × 5s 可阻塞采集数分钟。
+        # URL 可达性检查由异步 job run_url_content_check 承担 (quality/jobs.py,
+        # url_check_concurrency 信号量并发 + 网络失败归类 url_unreachable)。
         SourceReputationGate,
         AuthorVerificationGate,
         FinalUrlGate,  # Phase 9.2 新增 - 下钻 tag/landing 页到真实文章 URL

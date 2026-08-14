@@ -264,11 +264,13 @@ def test_loose_mode_keeps_item_with_url_unreachable_flag():
 # ---------------------------------------------------------------------------
 # 6. 集成 — pipeline 中位置正确
 # ---------------------------------------------------------------------------
-def test_url_validity_registered_in_default_pipeline():
+def test_url_validity_not_in_default_pipeline():
+    """P1: URLValidityGate 已从同步 pipeline 移除 (同步 HEAD 逐 item 串行
+    阻塞采集), URL 可达性由异步 run_url_content_check job 承担。"""
     cfg = QualityConfig()
     pipe = QualityGatePipeline(cfg, log_repo=_NoopLogRepo())
     names = [g.name for g in pipe.gates]
-    assert "url_validity" in names
+    assert "url_validity" not in names
 
 
 # ---------------------------------------------------------------------------

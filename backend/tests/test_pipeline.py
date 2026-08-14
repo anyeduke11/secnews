@@ -103,15 +103,15 @@ def _make_pipeline(
 # ---------------------------------------------------------------------------
 # 注册
 # ---------------------------------------------------------------------------
-def test_pipeline_default_gates_9():
-    """默认注册的同步门禁应有 12 个(不含 url_content)。Phase 20 BidRecency + Phase 47 Recency + fix-bug-github-category-dedup Task 3 NoiseContent."""
+def test_pipeline_default_gates_11():
+    """默认注册的同步门禁应有 11 个 (P1: URLValidityGate 已移异步 job)。"""
     cfg = QualityConfig()
     p = QualityGatePipeline(cfg, log_repo=_NoopLogRepo())
-    assert len(p.gates) == 12
+    assert len(p.gates) == 11
     names = {g.name for g in p.gates}
     assert names == {
         "schema", "recency", "content", "noise", "category_match", "title_summary",
-        "url_validity", "source_reputation", "AuthorVerification", "FinalUrl", "duplicate", "bid_recency",
+        "source_reputation", "AuthorVerification", "FinalUrl", "duplicate", "bid_recency",
     }
 
 

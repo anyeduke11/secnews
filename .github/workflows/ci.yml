@@ -35,6 +35,16 @@ jobs:
           python -m compileall backend/
           echo "Python syntax OK"
 
+      - name: Ruff lint
+        run: |
+          python -m pip install ruff
+          ruff check backend/
+
+      - name: Dependency audit (pip-audit)
+        run: |
+          python -m pip install pip-audit
+          pip-audit -r backend/requirements.lock --skip-editable
+
       - name: Run Python tests
         run: |
           python -m pytest backend/tests/ --tb=short -q
@@ -55,6 +65,9 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm ci
+
+      - name: Dependency audit (npm)
+        run: npm audit --omit=dev --audit-level=high || true
 
       - name: TypeScript type check
         run: npx tsc --noEmit

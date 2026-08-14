@@ -49,10 +49,18 @@ def _tokenize(text: str) -> list[str]:
 
 
 def _hash_token(token: str) -> int:
-    """对 token 计算 64-bit hash（使用内置 hash 并确保 64-bit）。"""
-    h = hash(token)
-    # 保证 64-bit 正数
-    return h & 0xFFFFFFFFFFFFFFFF
+    """对 token 计算确定性 64-bit hash。
+
+    P1 修复: 原实现用 Python 内置 ``hash()`` — 其对 str 有 PYTHONHASHSEED
+    进程级随机化, 同一 token 在不同进程/运行下 hash 值不同 → simhash 相似度
+    判定跨运行不稳定 (test_duplicate_similar_title 全量 flaky 的根因, 且
+    生产去重在服务重启后结果也会漂移)。改用 SHA-256 前 8 字节, 确定性且
+    分布均匀。
+    """
+    import hashlib
+
+    digest = hashlib.sha256(token.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big")
 
 
 def compute_simhash(text: str) -> int:

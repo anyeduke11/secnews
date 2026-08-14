@@ -174,6 +174,44 @@ async def scheduled_compile_job() -> None:
         _logger.error(f"scheduled_compile_job crashed: {e}")
 
 
+async def consume_compile_tasks_job() -> None:
+    """P0 消费策略: 自动消费者 — 批量执行 pending compile 任务 (规则式编译)。
+
+    每日 02:30 (Asia/Shanghai) 在 scheduled_compile_job (02:00) 之后运行,
+    两步:
+      1. consume_compile_tasks: 按 item 配额 (CONSUME_DAILY_QUOTA=100)
+         批量执行 pending compile 任务 — 分类 (auto_classifier) + 概念关联
+         (concept_linker) + lifecycle 流转 (kl:link→kl:structure /
+         legacy→generate) + md 回写 + done 文件 + _MAP 更新。
+      2. archive_stale_compile_tasks: 归档超过 ARCHIVE_MAX_AGE_DAYS 天仍
+         pending 的 compile 任务 (标记 failed + 移入 failed/), 防止队列
+         在消费者失速时再次只增不减。
+    失败只 log.error，不抛异常 (与既有 job 模式一致)。
+    """
+    try:
+        from backend.services.compiler import (
+            consume_compile_tasks,
+            archive_stale_compile_tasks,
+            CONSUME_DAILY_QUOTA,
+            ARCHIVE_MAX_AGE_DAYS,
+        )
+
+        consumed = await asyncio.to_thread(
+            consume_compile_tasks, CONSUME_DAILY_QUOTA
+        )
+        archived = await asyncio.to_thread(
+            archive_stale_compile_tasks, ARCHIVE_MAX_AGE_DAYS
+        )
+        _logger.info(
+            f"consume_compile_tasks_job: processed_tasks="
+            f"{consumed.get('processed_tasks', 0)} "
+            f"items={consumed.get('items_consumed', 0)} "
+            f"archived={archived.get('archived', 0)}"
+        )
+    except Exception as e:
+        _logger.error(f"consume_compile_tasks_job crashed: {e}")
+
+
 async def scheduled_soul_job() -> None:
     """Phase 1f Task 6.8: 定时检查 SOUL.md 周期（>7天未更新则触发重新生成）。
 
@@ -523,6 +561,7 @@ __all__ = [
     "daily_snapshot_job",
     "weekly_report_job",
     "scheduled_compile_job",
+    "consume_compile_tasks_job",
     "scheduled_soul_job",
     "scheduled_stats_job",
     "scheduled_migrate_job",

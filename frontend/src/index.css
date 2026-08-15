@@ -288,6 +288,11 @@ body {
   overflow: hidden;
 }
 
+/* Section spacing helpers */
+.section-gap { margin-bottom: 24px; }
+.section-gap-sm { margin-bottom: 16px; }
+.section-gap-lg { margin-bottom: 32px; }
+
 /* 层内卡片区统一间距 */
 .layer-section-gap {
   display: flex;
@@ -998,16 +1003,16 @@ body {
 .agihunt-card-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
-  margin-top: 14px;
+  gap: 16px;
+  margin-top: 16px;
 }
 
 @media (min-width: 640px) {
-  .agihunt-card-grid { grid-template-columns: repeat(2, 1fr); }
+  .agihunt-card-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
 
 @media (min-width: 1024px) {
-  .agihunt-card-grid { grid-template-columns: repeat(3, 1fr); }
+  .agihunt-card-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
 }
 
 .agihunt-card {
@@ -1017,10 +1022,15 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  transition: border-color var(--duration-normal) ease, background var(--duration-normal) ease;
+  transition: border-color var(--duration-normal) ease, background var(--duration-normal) ease, box-shadow var(--duration-normal) ease;
   overflow: hidden;
+  animation: fade-in-up 0.4s var(--ease-out) both;
 }
-.agihunt-card:hover { border-color: var(--text-muted); background: var(--bg-hover); }
+.agihunt-card:hover {
+  border-color: var(--text-muted);
+  background: var(--bg-hover);
+  box-shadow: var(--shadow-elevated);
+}
 
 .agihunt-card-header {
   display: flex;
@@ -1167,11 +1177,15 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  transition: border-color var(--duration-normal) ease, background var(--duration-normal) ease;
+  transition: border-color var(--duration-normal) ease, background var(--duration-normal) ease, box-shadow var(--duration-normal) ease;
   overflow: hidden;
-  padding: 20px 24px;
+  padding: 24px 28px;
 }
-.lead-story:hover { border-color: var(--text-muted); background: var(--bg-hover); }
+.lead-story:hover {
+  border-color: var(--text-muted);
+  background: var(--bg-hover);
+  box-shadow: var(--shadow-elevated);
+}
 
 .lead-story-tag {
   display: inline-flex;
@@ -1232,16 +1246,16 @@ body {
 .hotspot-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
-  margin-top: 14px;
+  gap: 16px;
+  margin-top: 16px;
 }
 
 @media (min-width: 640px) {
-  .hotspot-grid { grid-template-columns: repeat(2, 1fr); }
+  .hotspot-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
 
 @media (min-width: 1024px) {
-  .hotspot-grid { grid-template-columns: repeat(3, 1fr); }
+  .hotspot-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
 }
 
 /* ===== StatsPanel ===== */
@@ -1308,14 +1322,14 @@ body {
 .loading-skeleton-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
-  margin-top: 14px;
+  gap: 16px;
+  margin-top: 16px;
 }
 @media (min-width: 640px) {
-  .loading-skeleton-grid { grid-template-columns: repeat(2, 1fr); }
+  .loading-skeleton-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
 @media (min-width: 1024px) {
-  .loading-skeleton-grid { grid-template-columns: repeat(3, 1fr); }
+  .loading-skeleton-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
 }
 .loading-skeleton-card {
   background: var(--bg-card);

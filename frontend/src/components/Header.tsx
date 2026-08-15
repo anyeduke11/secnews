@@ -218,30 +218,24 @@ export function Header({
   );
 
   return (
-    <header className="mb-4" style={{ borderBottom: '2px solid var(--text-primary)' }}>
-      {/* ── 首行: 日期/状态（靠右） ── */}
-      <div
-        className="flex items-center justify-end flex-wrap gap-x-2.5 gap-y-1 text-[11.5px]"
-        style={{ color: 'var(--text-muted)' }}
-      >
-        <span className="whitespace-nowrap hidden sm:inline">{dateLine}</span>
-        <span className="hidden sm:inline" aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
+    <header className="mb-5" style={{ borderBottom: '2px solid var(--text-primary)' }}>
+      {/* ── 首行: 状态 + 操作按钮（靠右） ── */}
+      <div className="flex items-center justify-end gap-2.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
         <span className="flex items-center gap-1.5 whitespace-nowrap" title="最近摄取更新条数">
           <span className="pulse-dot" style={{ backgroundColor: 'var(--color-general)', width: 5, height: 5, borderRadius: '50%', display: 'inline-block' }} />
           <span className="font-mono tabular-nums font-semibold" style={{ color: 'var(--text-secondary)' }}>{latestIngestionCount}</span>
-          <span>更新</span>
+          <span className="hidden xs:inline">更新</span>
         </span>
-        <span aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
         <span className="font-mono tabular-nums whitespace-nowrap" title="最近更新时间">{lastUpdatedClock}</span>
-        <span className="hidden md:inline" aria-hidden="true" style={{ color: 'var(--border-color)' }}>|</span>
         <span className="hidden md:flex items-center gap-1 font-mono tabular-nums whitespace-nowrap" title="距下次自动刷新">
           <Icon size={10}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Icon>
           {countdownText}
         </span>
+        <div className="flex items-center gap-1">{actionButtons}</div>
       </div>
 
       {/* ── 次行: 标题（左） + 层导航（右） ── */}
-      <div className="flex items-center justify-between flex-wrap gap-x-3 gap-y-1 py-3 sm:py-4">
+      <div className="flex items-center justify-between flex-wrap gap-x-3 gap-y-1 pt-2 pb-3">
         <button
           onClick={() => navigate('/')}
           className="block text-left focus-ring shrink-0"
@@ -253,16 +247,27 @@ export function Header({
         <LayerNav pipelineSummary={pipelineSummary} />
       </div>
 
-      {/* ── 第三行: 子导航（层导航下一行，靠右） ── */}
-      {subNav.length > 0 && (
-        <div className="flex items-center justify-end flex-wrap gap-2 pb-2">
-          {subNav.map(item => (
+      {/* ── 第三行: 标语/日期 ── */}
+      <div className="flex items-center justify-between flex-wrap gap-x-4 gap-y-1.5 pb-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
+        <div className="flex items-center flex-wrap gap-x-3 gap-y-1">
+          <p className="text-[11px] tracking-[0.18em] uppercase font-medium" style={{ color: 'var(--text-muted)' }}>
+            AI时代IT和安全从业者的热点工作站
+          </p>
+          <span className="hidden sm:inline text-[11px]" style={{ color: 'var(--text-muted)' }} aria-hidden="true">·</span>
+          <span className="text-[11px] hidden sm:inline" style={{ color: 'var(--text-muted)' }}>{dateLine}</span>
+        </div>
+      </div>
+
+      {/* ── 第四行: 子导航（左） + 层标题（右） ── */}
+      <div className="flex items-center justify-between flex-wrap gap-x-3 gap-y-1.5 pt-3 pb-2">
+        <div className="flex items-center gap-2">
+          {subNav.length > 0 && subNav.map(item => (
             <button
               key={item.key}
               onClick={() => navigate(item.path)}
-              className="ink-chip focus-ring transition-colors"
+              className="ink-chip focus-ring transition-colors text-[11px]"
               style={{
-                padding: '3px 9px',
+                padding: '4px 10px',
                 color: item.active ? 'var(--text-on-light)' : 'var(--text-secondary)',
                 backgroundColor: item.active ? 'var(--accent)' : 'var(--bg-hover)',
                 borderColor: item.active ? 'var(--accent)' : 'var(--border-color)',
@@ -274,35 +279,20 @@ export function Header({
             </button>
           ))}
         </div>
-      )}
-
-      {/* ── 第四行: 标语 ── */}
-      <div className="flex items-center justify-between flex-wrap gap-x-3 gap-y-1 pb-2">
-        <p className="text-[11.5px] tracking-[0.18em] uppercase" style={{ color: 'var(--text-muted)' }}>
-          AI时代IT和安全从业者的热点工作站
-        </p>
+        {layerName && (
+          <div className="flex items-center gap-2.5" style={{ '--header-accent': layerColor } as React.CSSProperties}>
+            <span className="w-[3px] h-4 rounded-sm shrink-0" style={{ backgroundColor: layerColor, opacity: 0.5 }} />
+            <h2 className="font-mono text-sm font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
+              {layerName}
+            </h2>
+            {layerSubtitle && (
+              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                {layerSubtitle}
+              </span>
+            )}
+          </div>
+        )}
       </div>
-
-      {/* ── 第五行: 操作按钮（靠右） ── */}
-      <div className="flex items-center justify-end flex-wrap gap-x-3 gap-y-1.5 pb-1.5">
-        <div className="flex items-center gap-1.5">
-          {actionButtons}
-        </div>
-      </div>
-
-      {/* ── 第六行: 层标题（资料层/判断层/行动层） ── */}
-      {layerName && (
-        <div className="layer-header-accent flex items-center gap-3 pb-3" style={{ borderBottom: '1px solid var(--border-color)', '--header-accent': layerColor } as React.CSSProperties}>
-          <h2 className="font-mono text-lg font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
-            {layerName}
-          </h2>
-          {layerSubtitle && (
-            <span className="text-xs tracking-wide" style={{ color: 'var(--text-muted)' }}>
-              {layerSubtitle}
-            </span>
-          )}
-        </div>
-      )}
     </header>
   );
 }

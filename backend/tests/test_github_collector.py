@@ -236,4 +236,4 @@ def test_github_collector_registers_in_collection_service():
     """``CollectionService().collectors`` 应包含 ``Category.GITHUB``。"""
     svc = CollectionService()
     assert Category.GITHUB in svc.collectors
-    assert isinstance(svc.collectors[Category.GITHUB], GitHubCollector)
+    assert any(isinstance(c, GitHubCollector) for c in svc.collectors[Category.GITHUB])

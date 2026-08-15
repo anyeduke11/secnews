@@ -37,10 +37,12 @@ async def run_url_content_check(
     items, _ = hrepo.query(category=None, time_range=TimeRange.D7, limit=200)
 
     # 过滤 fallback + 已有 verified/mismatch 的
+    # P2-4: unreachable 加入复检候选 — 此前仅 None/pending/skipped,
+    # 瞬时网络失败被标 unreachable 后永不复检 → 一条资讯永久隐藏。
     candidates = [
         it for it in items
         if not it.is_fallback
-        and (it.url_check_status in (None, "pending", "skipped"))
+        and (it.url_check_status in (None, "pending", "skipped", "unreachable"))
     ]
 
     if not candidates:

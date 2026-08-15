@@ -56,8 +56,11 @@ def _make_item(id_: str, cat: Category) -> HotspotItem:
 
 
 def _make_fake_collect(cat: Category, count: int = 3):
-    """collect() 替身：返回 N 条 HotspotItem。"""
-    async def fake_collect() -> list[HotspotItem]:
+    """collect() 替身：返回 N 条 HotspotItem。
+
+    P2-3: collect() 新增 only_source/since 可选参数 — fake 需兼容。
+    """
+    async def fake_collect(only_source: str | None = None, since: str | None = None) -> list[HotspotItem]:
         return [_make_item(f"{cat.value}_{i}", cat) for i in range(count)]
     return fake_collect
 
@@ -66,10 +69,11 @@ def _patch_collectors_keep_hotspot_items(svc: CollectionService) -> None:
     """patch 5 个 collector 的 collect() 返回固定 items，并把
     ``_run_one_safe`` 替换为不 ``model_dump`` 的版本，使
     ``run_once`` 中的 upsert 路径正确写入数据库。"""
-    for cat, collector in svc.collectors.items():
-        collector.collect = AsyncMock(
-            side_effect=_make_fake_collect(cat, count=3)
-        )
+    for cat, c_list in svc.collectors.items():
+        for collector in c_list:
+            collector.collect = AsyncMock(
+                side_effect=_make_fake_collect(cat, count=3)
+            )
 
     # 替换 _run_one_safe：保留 HotspotItem，不 model_dump
     original_run_one_safe = svc._run_one_safe
@@ -129,7 +133,7 @@ async def test_e2e_full_run_6_collectors_to_db(temp_db):
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_e2e_collection_runs_records_each_category(temp_db):
-    """端到端跑一次 run_once 后，collection_runs 应有 8 行。"""
+    """端到端跑一次 run_once 后，collection_runs 应有每 collector 一行。"""
     svc = CollectionService()
     _patch_collectors_keep_hotspot_items(svc)
 
@@ -137,7 +141,8 @@ async def test_e2e_collection_runs_records_each_category(temp_db):
 
     conn = get_connection()
     rows = conn.execute("SELECT COUNT(*) FROM collection_runs").fetchall()
-    assert int(rows[0][0]) == 8
+    n_collectors = sum(len(v) for v in svc.collectors.values())
+    assert int(rows[0][0]) == n_collectors
 
     # 8 个分类都应有记录
     cat_rows = conn.execute(

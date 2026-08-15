@@ -117,9 +117,9 @@ def _make_mock_svc(target_cats, source_results_per_cat):
         ]
         col.max_items = 50
         col.last_source_results = source_results_per_cat[cat]
-        svc.collectors[cat] = col
+        svc.collectors[cat] = [col]  # P2-6: 每分类为 collector 列表
 
-    async def fake_run_one(cat):
+    async def fake_run_one(cat, since=None):
         from backend.domain.collection import CollectionResult
         results = source_results_per_cat[cat]
         total = sum(int(r.item_count or 0) for r in results if not r.error_msg)
@@ -330,9 +330,9 @@ def test_collector_state_restored_after_run(temp_db, catchup_repo):
         Category.AI: [_make_source_result("hn", 5)],
     }
     svc = _make_mock_svc(target, srs)
-    # 记录原始值
-    orig_sources = list(svc.collectors[Category.AI].sources)
-    orig_max = svc.collectors[Category.AI].max_items
+    # 记录原始值 (P2-6: collectors 是列表)
+    orig_sources = list(svc.collectors[Category.AI][0].sources)
+    orig_max = svc.collectors[Category.AI][0].max_items
 
     # 让 update_progress 抛异常 (模拟 crash)
     with patch.object(catchup_service, "_get_dead_source_names", return_value={}), \
@@ -349,8 +349,8 @@ def test_collector_state_restored_after_run(temp_db, catchup_repo):
         _run(catchup_service._execute_catchup_run(run.id, mode="manual"))
 
     # finally 应恢复
-    assert list(svc.collectors[Category.AI].sources) == orig_sources
-    assert svc.collectors[Category.AI].max_items == orig_max
+    assert list(svc.collectors[Category.AI][0].sources) == orig_sources
+    assert svc.collectors[Category.AI][0].max_items == orig_max
 
     # run 标 failed
     final = catchup_repo.get(run.id)

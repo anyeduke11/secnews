@@ -157,7 +157,7 @@ export function DataLayerPage() {
       />
 
       {/* 主内容区 — 标准侧栏宽度 280px */}
-      <div className="xl:grid xl:grid-cols-[1fr_280px] xl:gap-6">
+      <div className="xl:grid xl:grid-cols-[1fr_280px] xl:gap-8">
         <main className="min-w-0">
           <SearchBar
             keyword={keyword}
@@ -210,7 +210,7 @@ export function DataLayerPage() {
           )}
         </main>
 
-        <aside className="min-w-0 layer-section-gap">
+        <aside className="min-w-0 flex flex-col gap-4">
           {/* 快捷入口组 */}
           <LayerCard title="快捷入口" titleStyle="plain">
             <div className="flex flex-col gap-1.5">
@@ -299,13 +299,13 @@ export function DataLayerPage() {
       </div>
 
       {/* 页脚 */}
-      <div className="editorial-divider mt-6" />
-      <footer className="text-center pb-4">
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+      <div className="w-full h-px my-8" style={{ backgroundColor: 'var(--border-color)' }} />
+      <footer className="text-center pb-6">
+        <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
           SecNews 热点地图 · 数据源: 安全客 / Krebs / PortSwigger / SANS / FreeBuf / 奇安信 / AVD / CNNVD / CNVD / 新浪财经 / 东方财富 / Hacker News / aihot / GitHub Trending / 中国政府采购网
         </p>
-        <p className="text-xs mt-2 font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
-          <a href="/api/export" target="_blank" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border transition-colors hover:bg-[var(--bg-hover)]" style={{ color: 'var(--accent)', borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)' }} rel="noreferrer">export</a>
+        <p className="mt-3">
+          <a href="/api/export" target="_blank" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-[11px] font-mono font-medium transition-colors hover:bg-[var(--bg-hover)]" style={{ color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 35%, transparent)' }} rel="noreferrer">export</a>
         </p>
       </footer>
     </>

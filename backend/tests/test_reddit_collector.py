@@ -84,9 +84,14 @@ async def test_reddit_returns_hotspot_items(monkeypatch):
 # ===========================================================================
 @pytest.mark.asyncio
 async def test_reddit_returns_empty_when_sources_fail(monkeypatch):
-    """Phase 13: sources=[] → collect() 返回 [], 不调 _fallback()。"""
+    """Phase 13: sources=[] → collect() 返回 [], 不调 _fallback()。
+
+    P2-0: 隔离 crawler_sources 表依赖 — 线上库已有本分类源注册, registry
+    会覆盖 monkeypatch 的 sources=[]; 显式禁用 registry 以测试本约束。
+    """
     c = RedditCollector()
     monkeypatch.setattr(c, "sources", [])
+    monkeypatch.setattr(c, "_load_sources_from_registry", lambda: None)
 
     items = await c.collect()
     assert items == [], (

@@ -204,12 +204,12 @@ async def test_max_per_source_caps_collector_max_items(temp_db):
     fake_collector = MagicMock()
     fake_collector.sources = [{"name": "src1", "url": "https://x"}]
     fake_collector.max_items = 100  # 原始值
-    fake_svc.collectors = {Category.AI: fake_collector}
+    fake_svc.collectors = {Category.AI: [fake_collector]}  # P2-6: 列表
 
     # 捕获 run_one 被调时刻的 max_items (执行期间应该是 5)
     captured_max_items: list[int] = []
 
-    async def fake_run_one(cat):
+    async def fake_run_one(cat, since=None):
         captured_max_items.append(int(fake_collector.max_items))
         return MagicMock(
             total=0, success_count=0, failed_count=0, fallback_count=0,
@@ -255,7 +255,7 @@ async def test_happy_path_completes_with_success(temp_db):
             item_count=3, error_msg=None, duration_ms=100,
         ),
     ]
-    fake_svc.collectors = {Category.AI: fake_collector}
+    fake_svc.collectors = {Category.AI: [fake_collector]}  # P2-6: 列表
     # mock run_one 返回 3 items
     fake_result = MagicMock()
     fake_result.error = None
@@ -295,7 +295,7 @@ async def test_source_failure_marks_partial(temp_db):
         {"name": "fail_src", "url": "https://fail"},
     ]
     fake_collector.max_items = 50
-    fake_svc.collectors = {Category.AI: fake_collector}
+    fake_svc.collectors = {Category.AI: [fake_collector]}  # P2-6: 列表
     # run_one 返回带 error
     fake_result = MagicMock()
     fake_result.error = "Connection timeout"
@@ -420,7 +420,7 @@ async def test_trend_rebuild_scheduled_on_success(temp_db):
     fake_collector = MagicMock()
     fake_collector.sources = []
     fake_collector.max_items = 50
-    fake_svc.collectors = {Category.AI: fake_collector}
+    fake_svc.collectors = {Category.AI: [fake_collector]}  # P2-6: 列表
     fake_result = MagicMock(error=None, item_count=0)
     fake_svc.run_one = AsyncMock(return_value=MagicMock(
         total=0, success_count=1, failed_count=0, fallback_count=0,

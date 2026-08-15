@@ -189,7 +189,8 @@ class HotspotRepository:
                 quality_flags    = excluded.quality_flags,
                 quality_checked_at = excluded.quality_checked_at,
                 url_check_status = excluded.url_check_status,
-                ingested_at      = excluded.ingested_at,
+                -- P2-7: 不再刷新 ingested_at — 保留首次入库时间,
+                -- 重采同 ID 条目不再"浮顶"并虚增"新增 X 条"计数。
                 bid_status       = excluded.bid_status
         """
 

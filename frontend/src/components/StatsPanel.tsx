@@ -10,22 +10,17 @@ export function StatsPanel({ categoryCounts, total }: StatsPanelProps) {
   const filteredCats = CATEGORIES.filter(c => c.id !== 'all');
 
   return (
-    <div className="mb-6">
-      {/* v1.9 Editorial: 侧栏版块 — 栏目小标 + 上边粗线, 去卡片盒 */}
-      <div className="flex items-center justify-between pb-2 mb-3" style={{ borderBottom: '2px solid var(--text-primary)' }}>
-        <h3 className="text-xs font-bold tracking-[0.12em] uppercase" style={{ color: 'var(--text-primary)' }}>
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between pb-2 mb-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
+        <h3 className="text-[11px] font-bold tracking-[0.1em] uppercase" style={{ color: 'var(--text-primary)' }}>
           数据统计
         </h3>
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          共{' '}
-          <span className="font-mono tabular-nums font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {total}
-          </span>{' '}
-          条
+        <span className="text-[11px] font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
+          共 <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{total}</span> 条
         </span>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-1 gap-x-4 gap-y-3">
+      <div className="flex flex-col gap-2.5">
         {filteredCats.map((cat) => {
           const count = categoryCounts[cat.id] || 0;
           const color = getCategoryColorVar(cat.id);
@@ -34,16 +29,16 @@ export function StatsPanel({ categoryCounts, total }: StatsPanelProps) {
 
           return (
             <div key={cat.id}>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="flex items-center gap-1.5 text-xs">
-                  <span className="dot-indicator" style={{ backgroundColor: color }} />
+              <div className="flex items-center justify-between mb-1">
+                <span className="flex items-center gap-1.5 text-[11px]">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
                   <span style={{ color: 'var(--text-secondary)' }} className="truncate">{cat.label}</span>
                 </span>
-                <span className="text-xs font-mono font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{count}</span>
+                <span className="text-[11px] font-mono font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{count}</span>
               </div>
-              <div className="w-full h-1 overflow-hidden" style={{ backgroundColor: 'var(--bg-hover)' }}>
+              <div className="w-full h-[3px] overflow-hidden rounded-full" style={{ backgroundColor: 'var(--bg-hover)' }}>
                 <div
-                  className="h-full transition-all duration-500 ease-out"
+                  className="h-full rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${barWidth}%`, backgroundColor: color }}
                 />
               </div>

@@ -23,7 +23,7 @@ export function SearchBar({ keyword, timeRange, onKeywordChange, onTimeRangeChan
   }, [onKeywordChange]);
 
   return (
-    <div className="mb-3">
+    <div className="mb-4">
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
         <form onSubmit={handleSubmit} className="w-full sm:flex-1 min-w-0">
           <div className="search-box">

@@ -60,8 +60,11 @@ def _make_item(id_: str, cat: Category) -> HotspotItem:
 
 
 def _make_fake_collect(cat: Category, count: int = 3):
-    """构造一个 collect() 替身：返回指定数量的 items，全是指定 cat。"""
-    async def fake_collect() -> list[HotspotItem]:
+    """构造一个 collect() 替身：返回指定数量的 items，全是指定 cat。
+
+    P2-3: collect() 新增 since 参数 — fake 需兼容 (only_source/since 可选)。
+    """
+    async def fake_collect(only_source: str | None = None, since: str | None = None) -> list[HotspotItem]:
         return [_make_item(f"{cat.value}_{i}", cat) for i in range(count)]
     return fake_collect
 
@@ -80,15 +83,16 @@ def _patch_all_collectors(
     if counts is None:
         counts = dict.fromkeys(Category, 3)
     fail = fail or set()
-    for cat, collector in svc.collectors.items():
-        if cat in fail:
-            collector.collect = AsyncMock(
-                side_effect=RuntimeError(f"simulated crash {cat.value}")
-            )
-        else:
-            collector.collect = AsyncMock(
-                side_effect=_make_fake_collect(cat, counts.get(cat, 3))
-            )
+    for cat, c_list in svc.collectors.items():
+        for collector in c_list:
+            if cat in fail:
+                collector.collect = AsyncMock(
+                    side_effect=RuntimeError(f"simulated crash {cat.value}")
+                )
+            else:
+                collector.collect = AsyncMock(
+                    side_effect=_make_fake_collect(cat, counts.get(cat, 3))
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -115,12 +119,14 @@ async def test_run_once_returns_collection_report(temp_db):
 
     assert isinstance(report, CollectionReport)
     assert report.total >= 0
-    assert report.success_count + report.failed_count == 8
+    # P2-6: 每分类可多 collector — 结果数 = 全部 collector 数
+    n_collectors = sum(len(v) for v in svc.collectors.values())
+    assert report.success_count + report.failed_count == n_collectors
     assert report.duration_ms >= 0
     assert report.started_at is not None
     assert report.finished_at is not None
-    assert len(report.results) == 8
-    # 8 个结果都应能映射回 8 个 category
+    assert len(report.results) == n_collectors
+    # 全部结果应覆盖全部 category
     cats = {r.category for r in report.results}
     assert cats == set(Category)
 
@@ -177,25 +183,27 @@ async def test_run_once_upsert_isolated_by_failure(temp_db, monkeypatch):
     )
 
     report = await svc.run_once()
+    n_collectors = sum(len(v) for v in svc.collectors.values())
     assert report.failed_count == 1
-    assert report.success_count == 7
+    assert report.success_count == n_collectors - 1
     # upsert 仍被调用
     assert captured.get("called") is True
 
 
 # ---------------------------------------------------------------------------
-# 4. run_once 写 7 行 collection_runs (Phase 25 P1 加 tech)
+# 4. run_once 写 collection_runs (每 collector 一行, P2-6 多 collector)
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_run_once_writes_collection_runs(temp_db):
-    """run_once 完成后 collection_runs 表应有 8 行（每分类一行）。"""
+    """run_once 完成后 collection_runs 表应有每 collector 一行。"""
     svc = CollectionService()
     _patch_all_collectors(svc)
     await svc.run_once()
 
     conn = get_connection()
     rows = conn.execute("SELECT COUNT(*) FROM collection_runs").fetchall()
-    assert int(rows[0][0]) == 8
+    n_collectors = sum(len(v) for v in svc.collectors.values())
+    assert int(rows[0][0]) == n_collectors
 
     cat_rows = conn.execute(
         "SELECT DISTINCT category FROM collection_runs"
@@ -276,14 +284,15 @@ async def test_collector_exception_isolated(temp_db):
 
     report = await svc.run_once()
 
-    # 1 个 failed + 7 个 success (v1.9: 8 categories)
+    # P2-6: 1 个 failed + (全部 collector - 1) 个 success
+    n_collectors = sum(len(v) for v in svc.collectors.values())
     assert report.failed_count == 1
-    assert report.success_count == 7
+    assert report.success_count == n_collectors - 1
 
-    # collection_runs 应有 8 行
+    # collection_runs 应有每 collector 一行
     conn = get_connection()
     rows = conn.execute("SELECT COUNT(*) FROM collection_runs").fetchall()
-    assert int(rows[0][0]) == 8
+    assert int(rows[0][0]) == n_collectors
 
     # 失败的那一行应有 error_msg，状态为 'failed'
     failed_row = conn.execute(
@@ -295,8 +304,8 @@ async def test_collector_exception_isolated(temp_db):
     assert failed_row[2] is not None
     assert "simulated crash" in failed_row[2]
 
-    # 其他 7 个分类应各自有 1 行 collection_runs (v1.9: 8 - 1 = 7)
+    # 其他分类应各有自己的 collector 行 (P2-6: 全部非 ai collector)
     other_count = conn.execute(
         "SELECT COUNT(*) FROM collection_runs WHERE category != 'ai'"
     ).fetchall()
-    assert int(other_count[0][0]) == 7
+    assert int(other_count[0][0]) == n_collectors - 1

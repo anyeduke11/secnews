@@ -132,9 +132,25 @@ class ItemBuilderMixin:
                     raw.get("summary", "") or "",
                 )
             try:
+                # P2-7: ID 稳定化 — 原方案 `f"{name}_{source}_{i}"` 中 i 是
+                # 抓取列表枚举下标: 源顺序变化 → 同 URL 变新 ID → 重复入库;
+                # 内容漂移 → 同 ID 被不同 URL 覆盖 (收藏/标签按 id 关联出错)。
+                # 改为: 可读前缀 + URL 指纹哈希 (同 URL 恒同 ID, 跨轮稳定)。
+                if raw.get("id"):
+                    item_id = raw["id"]
+                else:
+                    try:
+                        from backend.services.data_cleaning import item_id_from_url
+                        url_hash = item_id_from_url(raw["url"])
+                    except Exception:
+                        import hashlib
+                        url_hash = hashlib.sha256(
+                            str(raw.get("url", "")).encode("utf-8")
+                        ).hexdigest()[:12]
+                    item_id = f"{self.name}_{source['name']}_{url_hash[:12]}"
                 items.append(
                     HotspotItem(
-                        id=raw.get("id") or f"{self.name}_{source['name']}_{i}",
+                        id=item_id,
                         title=title[:500],
                         summary=(raw.get("summary") or "")[:500] or None,
                         source=source["name"][:50],

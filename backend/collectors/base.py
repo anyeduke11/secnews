@@ -356,7 +356,7 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
             })
         return out
 
-    async def collect(self) -> list[HotspotItem]:
+    async def collect(self, only_source: str | None = None, since: str | None = None) -> list[HotspotItem]:
         """默认编排：
 
         1. 无 sources → 强制 fallback
@@ -368,6 +368,15 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
         Phase 5: 入口打 ``collect_start`` 事件，出口打 ``collect_end`` 事件
 
         P1 切流: 优先用 crawler_sources 表源 (若本分类已注册), 否则类常量。
+
+        P2-0: ``only_source`` 参数 — 源级调度 (run_one_source) 传入目标源名,
+        只抓该源, 不再整分类抓取 (此前单源调度实为整分类采集, 健康状态机
+        归因全部失真)。
+
+        P2-3: ``since`` 参数 — catchup 追抓窗口真正生效: 抓取后按
+        ``published_at >= since`` 过滤, 只保留窗口内条目 (此前 since/until
+        仅用于日志/校验, 抓取仍是全量当前内容)。增量历史回填受 RSS 等
+        源能力限制, 本实现保证"窗口过滤"语义真实生效。
         """
         import time as _time
         from uuid import uuid4 as _uuid4
@@ -376,6 +385,9 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
         registry = self._load_sources_from_registry()
         if registry is not None:
             self.sources = registry
+        if only_source is not None:
+            # P2-0: 过滤到目标源 (按 name 匹配)
+            self.sources = [s for s in self.sources if s.get("name") == only_source]
 
         run_id = _uuid4().hex[:8]
         start = _time.time()
@@ -450,6 +462,20 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
 
         used_fallback = False  # Phase 13: 永远 False
         all_items = all_items[: self.max_items]
+        # P2-3: catchup since 窗口过滤 — published_at >= since 才保留
+        # (增量追抓语义: 只处理窗口内条目, 防止重复摄入更早内容)
+        if since:
+            try:
+                from datetime import datetime, timezone
+                since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
+                if since_dt.tzinfo is None:
+                    since_dt = since_dt.replace(tzinfo=timezone.utc)
+                all_items = [
+                    it for it in all_items
+                    if it.published_at is None or it.published_at >= since_dt
+                ]
+            except (ValueError, TypeError) as _e:
+                self.logger.warning(f"since filter parse failed: {_e}")
         # Phase 3.5: 跑同步门禁（fallback 数据跳过）
         if not self._skip_quality:
             all_items = await self._run_quality_gates(all_items)

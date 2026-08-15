@@ -53,11 +53,20 @@ class QualityGatesMixin:
         existing_urls: set[str] = set()
         existing_titles: list[str] = []
         try:
-            from backend.domain.enums import TimeRange
             from backend.repository.hotspot_repo import HotspotRepository
 
             hrepo = HotspotRepository()
-            db_items, _ = hrepo.query(category=None, time_range=TimeRange.D7, limit=200)
+            # P2-2: 去重窗口用「滚动 7 天」而非 TimeRange.D7 (本周一 00:00 起) —
+            # D7 的日历周语义是 UI 展示约定, 用于去重会让上周入库的条目
+            # 本周被重复抓取时不在去重视野内 → 系统性跨周重复入库。
+            from datetime import datetime, timedelta, timezone
+            now_utc = datetime.now(timezone.utc)
+            roll_start = now_utc - timedelta(days=7)
+            db_items, _ = hrepo.query_in_range(
+                start=roll_start,
+                end=now_utc,
+                limit=2000,
+            )
             existing_urls = {str(it.url) for it in db_items}
             existing_titles = [it.title for it in db_items]
         except Exception:

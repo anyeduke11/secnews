@@ -317,4 +317,4 @@ def test_parse_html_filters_unrelated_items():
 def test_bid_collector_registers_in_collection_service():
     svc = CollectionService()
     assert Category.BID in svc.collectors
-    assert isinstance(svc.collectors[Category.BID], BidCollector)
+    assert any(isinstance(c, BidCollector) for c in svc.collectors[Category.BID])

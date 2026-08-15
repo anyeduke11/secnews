@@ -13,7 +13,7 @@ export function CategoryNav({ active, onChange, counts, consistencyDrift = [] }:
   for (const d of consistencyDrift) driftMap[d.category] = d;
 
   return (
-    <nav className="flex flex-wrap gap-1.5 mb-4">
+    <nav className="flex flex-wrap gap-2 mb-5">
       {CATEGORIES.map((cat) => {
         const isActive = active === cat.id;
         const color = getCategoryColorVar(cat.id);
@@ -27,9 +27,12 @@ export function CategoryNav({ active, onChange, counts, consistencyDrift = [] }:
             key={cat.id}
             onClick={() => onChange(cat.id)}
             className={`cat-pill focus-ring ${isActive ? 'active' : ''}`}
+            style={{
+              padding: '5px 14px',
+              fontSize: '11.5px',
+            }}
           >
             <span className="flex items-center gap-1.5">
-              {/* v1.9 Editorial: 激活反色 (cat-pill.active 墨底纸字), dot 用色变量随主题切换 */}
               <span
                 className="dot-indicator"
                 style={{ backgroundColor: isActive ? 'var(--bg-primary)' : color, width: 6, height: 6 }}
@@ -37,8 +40,8 @@ export function CategoryNav({ active, onChange, counts, consistencyDrift = [] }:
               {cat.label}
               {count > 0 && (
                 <span
-                  className="text-[10px] font-mono font-medium tabular-nums"
-                  style={{ color: isActive ? 'inherit' : 'var(--text-muted)', opacity: isActive ? 0.75 : 1 }}
+                  className="font-mono font-medium tabular-nums ml-0.5"
+                  style={{ fontSize: '10px', color: isActive ? 'inherit' : 'var(--text-muted)', opacity: isActive ? 0.75 : 1 }}
                 >
                   {count}
                 </span>

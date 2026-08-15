@@ -288,26 +288,38 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
         else:
             target_cats = list(Category)
 
-        # 3. 实例化 + 过滤 + cap
+        # 3. 实例化 + 过滤 + cap (P2-6: 每分类多个 collector)
         from backend.services.collection_service import CollectionService
         svc = CollectionService()
         # 保存原值, 跑完恢复 (避免影响后续 collect_all)
         for cat in target_cats:
             if cat not in svc.collectors:
                 continue
-            collector = svc.collectors[cat]
-            original_sources[cat] = list(collector.sources)
-            original_max_items[cat] = int(collector.max_items)
-            # 过滤 dead 源
+            c_list = svc.collectors[cat]
+            original_sources[cat] = [
+                (c, list(c.sources)) for c in c_list
+            ]
+            original_max_items[cat] = {
+                id(c): int(c.max_items) for c in c_list
+            }
+            # 过滤 dead 源 + cap max_items
             dead_names = dead_map.get(cat.value, set())
-            if dead_names:
-                filtered = [s for s in collector.sources if s.get("name") not in dead_names]
-                collector.sources = filtered
-            # cap max_items
-            collector.max_items = min(original_max_items[cat], int(run.max_per_source))
+            for collector in c_list:
+                if dead_names:
+                    filtered = [
+                        s for s in collector.sources
+                        if s.get("name") not in dead_names
+                    ]
+                    collector.sources = filtered
+                collector.max_items = min(
+                    original_max_items[cat].get(id(collector), collector.max_items),
+                    int(run.max_per_source),
+                )
 
         sources_attempted = sum(
-            len(svc.collectors[c].sources) for c in target_cats if c in svc.collectors
+            len(col.sources)
+            for cat in target_cats if cat in svc.collectors
+            for col in svc.collectors[cat]
         )
 
         # 4. v1.9 续传: 同一 (cat, source) 最近 24h 已 done → 跳过
@@ -325,35 +337,36 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
             for cat in target_cats:
                 if cat not in svc.collectors:
                     continue
-                for src in svc.collectors[cat].sources:
-                    name = src.get("name", "")
-                    if not name:
-                        continue
-                    # P0-3: force=True 时直接跳过续传查询
-                    if force:
-                        continue
-                    recent = _ckpt_repo.list_recent_done(
-                        cat.value, name, since_iso=cutoff_iso, limit=1
-                    )
-                    if recent:
-                        try:
-                            _ckpt_repo.mark_skipped(
-                                run_id, cat.value, name,
-                                reason="resumed from prior run",
-                            )
-                            _clog.log_collect_event(
-                                "source_skipped",
-                                run_id=run_id,
-                                category=cat.value,
-                                source=name,
-                                checkpoint_status="skipped",
-                                previous_finished_at=recent[0].finished_at,
-                            )
-                            sources_skipped += 1
-                        except Exception as e:
-                            logger.warning(
-                                f"checkpoint mark_skipped failed: {cat.value}/{name}: {e}"
-                            )
+                for c in svc.collectors[cat]:
+                    for src in c.sources:
+                        name = src.get("name", "")
+                        if not name:
+                            continue
+                        # P0-3: force=True 时直接跳过续传查询
+                        if force:
+                            continue
+                        recent = _ckpt_repo.list_recent_done(
+                            cat.value, name, since_iso=cutoff_iso, limit=1
+                        )
+                        if recent:
+                            try:
+                                _ckpt_repo.mark_skipped(
+                                    run_id, cat.value, name,
+                                    reason="resumed from prior run",
+                                )
+                                _clog.log_collect_event(
+                                    "source_skipped",
+                                    run_id=run_id,
+                                    category=cat.value,
+                                    source=name,
+                                    checkpoint_status="skipped",
+                                    previous_finished_at=recent[0].finished_at,
+                                )
+                                sources_skipped += 1
+                            except Exception as e:
+                                logger.warning(
+                                    f"checkpoint mark_skipped failed: {cat.value}/{name}: {e}"
+                                )
         except Exception as e:
             logger.warning(f"resumption check failed: {e}")
 
@@ -389,23 +402,30 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
             if cat not in svc.collectors:
                 continue
             cat_start = _time.time()
+            n_sources = sum(
+                len(c.sources) for c in svc.collectors[cat]
+            )
             _clog.log_collect_event(
                 "category_start",
                 run_id=run_id,
                 category=cat.value,
-                n_sources=len(svc.collectors[cat].sources),
+                n_sources=n_sources,
             )
             try:
-                report = await svc.run_one(cat)
+                # P2-3: since 窗口透传 — 抓取后按 published_at >= since 过滤,
+                # 追抓窗口真正生效 (此前仅用于日志/校验)
+                report = await svc.run_one(cat, since=since_iso or None)
                 cat_duration_ms = int((_time.time() - cat_start) * 1000)
                 if report.results:
                     items_ingested += int(report.total)
 
-                # v1.9: per-source checkpoint + 结构化日志
+                # v1.9: per-source checkpoint + 结构化日志 (P2-6: 合并多 collector)
                 try:
-                    source_results = list(
-                        getattr(svc.collectors[cat], "last_source_results", []) or []
-                    )
+                    source_results = [
+                        sr
+                        for c in svc.collectors[cat]
+                        for sr in (getattr(c, "last_source_results", []) or [])
+                    ]
                     cat_succeeded = 0
                     cat_failed = 0
                     for sr in source_results:
@@ -593,14 +613,17 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
         except Exception:
             pass
     finally:
-        # 恢复原 sources + max_items
+        # 恢复原 sources + max_items (P2-6: 多 collector)
         if svc is not None:
-            for cat, original in original_sources.items():
+            for cat, originals in original_sources.items():
                 if cat in svc.collectors:
-                    svc.collectors[cat].sources = original
-            for cat, orig_max in original_max_items.items():
+                    for collector, srcs in originals:
+                        collector.sources = srcs
+            for cat, orig_max_map in original_max_items.items():
                 if cat in svc.collectors:
-                    svc.collectors[cat].max_items = orig_max
+                    for collector in svc.collectors[cat]:
+                        if id(collector) in orig_max_map:
+                            collector.max_items = orig_max_map[id(collector)]
         if mode == "manual":
             _current_manual_run = None
 

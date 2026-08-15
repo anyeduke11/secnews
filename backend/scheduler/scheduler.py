@@ -348,6 +348,15 @@ class HotspotScheduler:
             replace_existing=True,
         )
 
+        # P1-5: job — 知识分类消费提速 (每 30 分钟, 500 条/批)
+        self.scheduler.add_job(
+            jobs.knowledge_classify_job,
+            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
+            id="knowledge_classify",
+            name="knowledge classify unclassified items (every 1800s)",
+            replace_existing=True,
+        )
+
         # Phase 3: job — 源级调度器 tick (每 60s)
         self.scheduler.add_job(
             jobs.source_scheduler_tick_job,

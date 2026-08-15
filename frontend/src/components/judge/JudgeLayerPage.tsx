@@ -24,7 +24,7 @@ import type { StatsResponse, ConsistencyDrift } from '../../types';
 const READING_MODES = [
   { key: 'briefing', label: '简报',   path: '/knowledge/briefing', desc: '每日摘要' },
   { key: 'scan',     label: '扫描',   path: '/knowledge/scan',     desc: '快速浏览' },
-  { key: 'deep',     label: '深度',   path: '/knowledge/briefing', desc: '沉浸阅读' },
+  { key: 'deep',     label: '深度',   path: '/knowledge/scan',     desc: '沉浸阅读' },
   { key: 'alert',    label: '告警',   path: '/knowledge/alert',    desc: '异常通知' },
 ];
 

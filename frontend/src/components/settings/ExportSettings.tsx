@@ -26,7 +26,7 @@ export function ExportSettings() {
               HTML 报告
             </button>
             <button
-              onClick={() => window.open('/api/export/download', '_blank')}
+              onClick={() => window.open('/api/export/xlsx', '_blank')}
               className="btn-secondary btn-sm flex-1"
             >
               XLSX 导出

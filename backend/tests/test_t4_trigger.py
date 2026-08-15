@@ -47,10 +47,10 @@ from backend.services.triggers.t4_structure_to_publish import (
 def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """Isolated SQLite database for each test.
 
-    The ``knowledge_items`` table created by migration 018 has no
-    ``content`` column.  The T4 trigger's ``_fetch_candidates`` SQL
-    selects ``content``, so we add it here to make the trigger
-    executable in tests.
+    P1-2: 修复前 T4 的 ``_fetch_candidates`` SQL 错误地 SELECT ``content``
+    (knowledge_items 无此列, 生产每轮必崩), 测试用 ALTER 补列迁就 bug。
+    修复后 SQL 不再引用 content, 保留此 ALTER 仅用于测试自身插入 content
+    参数 (不影响断言逻辑)。
     """
     test_db = tmp_path / "test_t4_trigger.db"
     monkeypatch.setattr(config, "db_path", test_db)
@@ -145,13 +145,17 @@ def _insert_ai_score(
 
 
 def _fake_write_to_md(tmp_dir: Path):
-    """Return a _write_to_md replacement that writes to a tmp directory."""
+    """Return a _write_to_md replacement that writes to a tmp directory.
+
+    P1-2: item dict 不再含 content (knowledge_items 无此列, 正文保留在
+    .md 文件, 由 write_item_to_md 从既有文件继承) — fake 只写标题。
+    """
     def _write(_self: T4Trigger, item: dict[str, Any]) -> None:
         items_dir = tmp_dir / "knowledge" / "items"
         items_dir.mkdir(parents=True, exist_ok=True)
         path = items_dir / f"{item['id']}.md"
         path.write_text(
-            f"# {item.get('title', 'Untitled')}\n\n{item.get('content', '')}",
+            f"# {item.get('title', 'Untitled')}\n",
             encoding="utf-8",
         )
     return _write
@@ -309,7 +313,6 @@ def test_t4_writes_md_file(temp_db, fresh_metrics, tmp_path, monkeypatch):
     assert md_path.exists(), f"Expected .md file at {md_path}"
     content = md_path.read_text(encoding="utf-8")
     assert "MD Test Title" in content
-    assert "Hello world" in content
 
 
 # ---------------------------------------------------------------------------
@@ -436,12 +439,16 @@ def test_t4_metrics_incremented(temp_db, fresh_metrics, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# T4.10 — score fallback: no ai_scores row → DEFAULT_SCORE (5.0) → skipped
+# T4.10 — score fallback: no ai_scores row
+#   P1-2 前: DEFAULT_SCORE(5.0) < MIN_SCORE(8.0) → 永远跳过 (LLM 未配置时
+#   ai_scores 恒空 → kl:publish 死锁)。
+#   P1-2 后: SCORE_FALLBACK_ENABLED=True (默认) → 无评分行视为通过;
+#   SCORE_FALLBACK_ENABLED=False → 维持原严格跳过语义。
 # ---------------------------------------------------------------------------
 
-def test_t4_score_fallback(temp_db, fresh_metrics, monkeypatch):
+def test_t4_score_fallback_enabled_advances(temp_db, fresh_metrics, monkeypatch):
+    """SCORE_FALLBACK_ENABLED=True: 无评分行也发布 (解除死锁)."""
     conn = get_connection()
-    # Insert item with no ai_scores row
     _insert_knowledge_item(conn, "no-score-item")
     conn.commit()
 
@@ -450,7 +457,30 @@ def test_t4_score_fallback(temp_db, fresh_metrics, monkeypatch):
     t4 = _trigger(fresh_metrics)
     report = t4.run_once()
 
-    # DEFAULT_SCORE is 5.0, which is below MIN_SCORE (8.0), so skipped
+    assert report["candidates"] == 1
+    assert report["advanced"] == 1
+    assert report["skipped_low_score"] == 0
+
+    row = conn.execute(
+        "SELECT lifecycle FROM knowledge_items WHERE id = ?", ("no-score-item",)
+    ).fetchone()
+    assert row["lifecycle"] == LIFECYCLE_PUBLISH
+
+
+def test_t4_score_fallback_disabled_skips(temp_db, fresh_metrics, monkeypatch):
+    """SCORE_FALLBACK_ENABLED=False: 无评分行维持原严格语义 (跳过)."""
+    import backend.services.triggers.t4_structure_to_publish as t4mod
+    monkeypatch.setattr(t4mod, "SCORE_FALLBACK_ENABLED", False)
+
+    conn = get_connection()
+    _insert_knowledge_item(conn, "no-score-item")
+    conn.commit()
+
+    monkeypatch.setattr(T4Trigger, "_write_to_md", lambda self, item: None)
+
+    t4 = _trigger(fresh_metrics)
+    report = t4.run_once()
+
     assert report["candidates"] == 1
     assert report["advanced"] == 0
     assert report["skipped_low_score"] == 1

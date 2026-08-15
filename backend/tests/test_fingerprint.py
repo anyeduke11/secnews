@@ -79,18 +79,18 @@ def svc():
 # ---------------------------------------------------------------------------
 
 class TestFingerprintInsertion:
-    """Non-duplicate items should be written to content_fingerprints."""
+    """Non-duplicate items' fingerprints are written by _write_fingerprints.
 
-    def test_writes_fingerprints_for_new_items(self, svc):
-        """Two distinct items → both pass through, two INSERTs occur."""
+    P0-5: _dedup_items 不再写 content_fingerprints (hotspot 行尚未入库,
+    FK 必失败); 改为入库成功后由 _write_fingerprints 补写。
+    """
+
+    def test_dedup_no_longer_writes_fingerprints(self, svc):
+        """_dedup_items 只做判定, 不再发 INSERT (指纹写入移至入库后)."""
         items = [
             _make_item("a1", title="AI Safety Research Update"),
             _make_item("a2", title="New Quantum Computing Breakthrough"),
         ]
-        # Compute expected fingerprints for assertion
-        fp1 = simhash("AI Safety Research Update")
-        fp2 = simhash("New Quantum Computing Breakthrough")
-
         with patch(
             "backend.services.collection_service.get_connection"
         ) as mock_get:
@@ -100,24 +100,41 @@ class TestFingerprintInsertion:
             result = svc._dedup_items(items)
 
             assert len(result) == 2
-            assert result[0].id == "a1"
-            assert result[1].id == "a2"
+            insert_calls = [
+                c for c in mock_conn.execute.call_args_list
+                if "INSERT" in c[0][0]
+            ]
+            assert len(insert_calls) == 0  # P0-5: 去重阶段不再写指纹
 
-            # Verify INSERT calls: 2 items × 1 INSERT each
+    def test_write_fingerprints_for_new_items(self, svc):
+        """_write_fingerprints 在入库后写入正确指纹 (FK 已满足)."""
+        items = [
+            _make_item("a1", title="AI Safety Research Update"),
+            _make_item("a2", title="New Quantum Computing Breakthrough"),
+        ]
+        fp1 = simhash("AI Safety Research Update")
+        fp2 = simhash("New Quantum Computing Breakthrough")
+
+        with patch(
+            "backend.services.collection_service.get_connection"
+        ) as mock_get:
+            mock_conn = _make_mock_conn()
+            mock_get.return_value = mock_conn
+
+            written = svc._write_fingerprints(items)
+
             insert_calls = [
                 c for c in mock_conn.execute.call_args_list
                 if "INSERT" in c[0][0]
             ]
             assert len(insert_calls) == 2
 
-            # Verify first INSERT has correct values
             _sql, params = insert_calls[0].args
             assert params[0] == "a1"  # hotspot_id
             assert params[1] == _to_signed_64(fp1)  # simhash (signed)
             assert params[2] == canonicalize_url("https://example.com/a1")
             assert params[3] == normalize_title("AI Safety Research Update")
 
-            # Second INSERT
             _sql, params = insert_calls[1].args
             assert params[0] == "a2"
             assert params[1] == _to_signed_64(fp2)
@@ -133,9 +150,8 @@ class TestFingerprintInsertion:
             mock_conn = _make_mock_conn()
             mock_get.return_value = mock_conn
 
-            result = svc._dedup_items([item])
+            svc._write_fingerprints([item])
 
-            assert len(result) == 1
             insert_calls = [
                 c for c in mock_conn.execute.call_args_list
                 if "INSERT" in c[0][0]

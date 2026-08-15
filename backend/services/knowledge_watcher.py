@@ -41,6 +41,9 @@ from backend.services.knowledge_sync import (
     full_sync_concepts_to_db,
     full_sync_drafts_to_db,
     full_sync_items_to_db,
+    sync_concept_to_db,
+    sync_draft_to_db,
+    sync_item_to_db,
 )
 from backend.services.map_updater import update_map as _update_map
 
@@ -48,12 +51,13 @@ log = logging.getLogger("hotspot.knowledge_watcher")
 
 # Subdirectories of KNOWLEDGE_DIR to watch.
 _WATCH_DIRS = ("items", "concepts", "learning", "content/drafts")
-# Subdirectories that have a DB full-sync function. ``learning/`` is watched
-# for conflict detection only (task .md files are not mirrored to SQLite).
-_SYNC_FUNCS = {
-    "items": full_sync_items_to_db,
-    "concepts": full_sync_concepts_to_db,
-    "content/drafts": full_sync_drafts_to_db,
+# P1-4: 单文件增量同步函数 — 单文件变更只同步该文件, 不再触发全目录重扫
+# (此前 4,143 文件全量扫描 + 孤儿删除, 单文件改动即全目录 IO, 且目录扫描
+# 期间文件暂时缺失会误删 DB 行)。孤儿清理留给 startup/维护期的全量 sync。
+_SYNC_FILE_FUNCS = {
+    "items": sync_item_to_db,
+    "concepts": sync_concept_to_db,
+    "content/drafts": sync_draft_to_db,
 }
 
 CONFLICTS_DIR = KNOWLEDGE_DIR / ".conflicts"
@@ -208,8 +212,8 @@ class _KnowledgeEventHandler(FileSystemEventHandler):
     def _sync(self, path: str) -> None:
         with self._lock:
             self._timers.pop(path, None)
-        sync_func = _SYNC_FUNCS.get(self._subdir)
-        if sync_func is None:
+        sync_file_func = _SYNC_FILE_FUNCS.get(self._subdir)
+        if sync_file_func is None:
             # learning/ subdir: check for publish task status files (spec 6.4)
             # and compile done files for _MAP.md update (spec 6.3)
             if self._subdir == "learning":
@@ -219,14 +223,14 @@ class _KnowledgeEventHandler(FileSystemEventHandler):
                 log.debug("watchdog: change in %s/ (no DB sync): %s", self._subdir, path)
             return
         try:
-            count = sync_func()
+            # P1-4: 单文件增量同步 (此前为全目录 full_sync_items_to_db 等)
+            item_id = sync_file_func(path)
             log.info(
-                "watchdog synced %s (triggered by %s): %d records",
+                "watchdog synced %s (triggered by %s): %s",
                 self._subdir,
                 path,
-                count,
+                item_id,
             )
-            # Phase 7: kv_cache_service 已删除, 跳过缓存失效步骤
         except Exception as e:
             log.error(
                 "watchdog sync failed for %s (triggered by %s): %s",

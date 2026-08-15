@@ -39,6 +39,20 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
   const [sourceMessage, setSourceMessage] = useState<SourceMessage>(null);
   const [addingSource, setAddingSource] = useState(false);
 
+  // P5-3: 源健康汇总 (crawler_sources 状态机 stats)
+  const [healthStats, setHealthStats] = useState<{
+    total?: number; active?: number; grace?: number;
+    stale?: number; dead?: number; disabled?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch('/api/sources/stats')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setHealthStats(d))
+      .catch(() => {});
+  }, [open]);
+
   // 自动刷新
   const [refreshOpen, setRefreshOpen] = useState(false);
   const [currentInterval, setCurrentInterval] = useState<number>(30);
@@ -151,6 +165,35 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
 
   return (
     <>
+      {/* P5-3: 数据源健康汇总 — 此前 77 dead 源对用户不可见 */}
+      {healthStats && (healthStats.total ?? 0) > 0 && (
+        <div
+          className="rounded-[var(--radius-sm)] px-3 py-2 mb-2 text-[11px]"
+          style={{
+            border: '1px solid var(--border-color)',
+            backgroundColor: (healthStats.dead ?? 0) > 0
+              ? 'color-mix(in srgb, var(--color-error) 6%, transparent)'
+              : 'var(--bg-hover)',
+          }}
+        >
+          <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+            数据源健康: 共 {healthStats.total} 源
+          </span>
+          <div className="mt-1 flex gap-2 flex-wrap" style={{ color: 'var(--text-muted)' }}>
+            <span style={{ color: 'var(--color-success)' }}>活跃 {healthStats.active ?? 0}</span>
+            {(healthStats.grace ?? 0) > 0 && <span>观察 {healthStats.grace}</span>}
+            {(healthStats.stale ?? 0) > 0 && <span style={{ color: 'var(--color-warning)' }}>滞后 {healthStats.stale}</span>}
+            {(healthStats.dead ?? 0) > 0 && <span style={{ color: 'var(--color-error)' }}>失效 {healthStats.dead}</span>}
+            {(healthStats.disabled ?? 0) > 0 && <span>禁用 {healthStats.disabled}</span>}
+          </div>
+          {(healthStats.dead ?? 0) > 0 && (
+            <p className="mt-1 text-[10px]" style={{ color: 'var(--color-warning)' }}>
+              失效源由源级调度器跳过; 可手动重置或等待每日 03:30 探活恢复。
+            </p>
+          )}
+        </div>
+      )}
+
       {/* 信源管理折叠区 */}
       <div className="rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
         <button

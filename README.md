@@ -101,7 +101,7 @@ stdio 配置（粘到你的 AI Agent 配置文件）：
 | ----------- | --------------------------------- | ----------------------------------------------------- |
 | Web 框架    | FastAPI                           | async + OpenAPI 生态成熟                              |
 | 主存储      | **SQLite WAL** + `.md` 文件       | 零部署 · FTS5 · git 友好 · LLM 可直读                |
-| 调度        | APScheduler · 30 jobs             | 单进程内调度，无外部 MQ                               |
+| 调度        | APScheduler · 36 jobs             | 单进程内调度，无外部 MQ                               |
 | MCP         | fastapi-mcp                       | OpenAPI → MCP 自动转换                                |
 | 前端        | React 18 + Vite 5 + TypeScript    | 150+ 组件 · 类型安全 · 热重载                          |
 | 图表        | echarts + recharts                | 看板风格                                              |

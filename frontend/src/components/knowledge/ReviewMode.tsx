@@ -306,7 +306,8 @@ export function ReviewMode() {
             暂无到期复习
           </p>
           <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-            当前没有到期的复习条目。学习新知识后，它们会自动进入复习队列。
+            当前没有到期的复习条目。在「深度阅读」中打开知识条目（或收藏）后，
+            它们会自动进入复习队列（1 天后到期）。
           </p>
           <button
             type="button"

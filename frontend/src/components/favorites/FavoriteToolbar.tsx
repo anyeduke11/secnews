@@ -18,10 +18,14 @@ interface FavoriteToolbarProps {
   activeCat: string;
   onCategoryChange: (cat: string) => void;
   onExport: () => void;
+  // P5-7: 收藏 → 知识库单步导入
+  onImportToKnowledge?: () => void;
+  importingToKnowledge?: boolean;
 }
 
 export function FavoriteToolbar({
   counts, total, activeCat, onCategoryChange, onExport,
+  onImportToKnowledge, importingToKnowledge = false,
 }: FavoriteToolbarProps) {
   return (
     <div
@@ -68,6 +72,18 @@ export function FavoriteToolbar({
         </svg>
         导出 .xlsx
       </button>
+      {/* P5-7: 收藏 → 知识库单步导入 */}
+      {onImportToKnowledge && (
+        <button
+          onClick={onImportToKnowledge}
+          disabled={total === 0 || importingToKnowledge}
+          className="text-[11px] px-2.5 py-1 rounded-full font-medium transition-colors duration-150 disabled:opacity-50"
+          style={{ backgroundColor: 'var(--color-ai)', color: 'var(--text-on-light)' }}
+          title="将当前收藏导入知识库"
+        >
+          {importingToKnowledge ? '导入中…' : '导入知识库'}
+        </button>
+      )}
     </div>
   );
 }

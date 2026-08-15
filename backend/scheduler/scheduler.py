@@ -357,6 +357,15 @@ class HotspotScheduler:
             replace_existing=True,
         )
 
+        # P3-4: job — 内容草稿生成 (每 6 小时)
+        self.scheduler.add_job(
+            jobs.content_draft_generation_job,
+            trigger=IntervalTrigger(seconds=21600, start_date=_now_utc),
+            id="content_draft_generation",
+            name="content draft generation from published items (every 21600s)",
+            replace_existing=True,
+        )
+
         # Phase 3: job — 源级调度器 tick (每 60s)
         self.scheduler.add_job(
             jobs.source_scheduler_tick_job,

@@ -42,9 +42,18 @@ class ScoreItemRequest(BaseModel):
 
 
 class EnrichConceptRequest(BaseModel):
-    concept_name: str = Field(..., min_length=1)
-    content: str = Field(..., min_length=1)
+    concept_name: str = Field(..., min_length=1, max_length=120)
+    content: str = Field(..., min_length=1, max_length=50000)
     source: str | None = None
+
+    @classmethod
+    def validate_concept_name(cls, name: str) -> bool:
+        """P4-9: 概念名白名单校验 — 防路径穿越写入任意文件.
+
+        只允许小写字母/数字/连字符/下划线, 禁止 / \\ .. 等路径分隔符。
+        """
+        import re
+        return bool(re.fullmatch(r"[a-z0-9][a-z0-9\-_]{0,119}", name.strip()))
 
 
 class LinkItemsRequest(BaseModel):
@@ -91,10 +100,19 @@ async def score_item(req: ScoreItemRequest):
 # ---------------------------------------------------------------------------
 @router.post("/enrich-concept")
 async def enrich_concept(req: EnrichConceptRequest):
-    """写入 concepts/{name}.md（MCP tool: enrich_concept）。"""
+    """写入 concepts/{name}.md（MCP tool: enrich_concept）。
+
+    P4-9: concept_name 白名单校验, 拒绝路径穿越 (../ 等)。
+    """
+    if not req.validate_concept_name(req.concept_name):
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "concept_name 仅允许小写字母/数字/连字符/下划线"},
+        )
+
     def _run() -> dict:
         os.makedirs(CONCEPT_DIR, exist_ok=True)
-        filepath = os.path.join(CONCEPT_DIR, f"{req.concept_name}.md")
+        filepath = os.path.join(CONCEPT_DIR, f"{req.concept_name.strip()}.md")
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(
                 f"---\n"
@@ -104,7 +122,7 @@ async def enrich_concept(req: EnrichConceptRequest):
                 f"---\n\n"
                 f"{req.content}"
             )
-        return {"status": "ok", "file": f"concepts/{req.concept_name}.md"}
+        return {"status": "ok", "file": f"concepts/{req.concept_name.strip()}.md"}
 
     try:
         return await asyncio.to_thread(_run)

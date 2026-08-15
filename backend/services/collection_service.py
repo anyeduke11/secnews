@@ -31,10 +31,16 @@ from backend.collectors.ai_security_collector import AISecurityCollector
 from backend.collectors.base import BaseCollector
 from backend.collectors.bid_collector import BidCollector
 from backend.collectors.finance_collector import FinanceCollector
+from backend.collectors.gdelt_collector import GDELTCollector  # P2-6
 from backend.collectors.github_collector import GitHubCollector
+from backend.collectors.hn_collector import HNCollector  # P2-6
+from backend.collectors.openbb_collector import OpenBBCollector  # P2-6
+from backend.collectors.ossinsight_collector import OSSInsightCollector  # P2-6
+from backend.collectors.reddit_collector import RedditCollector  # P2-6
 from backend.collectors.security_collector import SecurityCollector
 from backend.collectors.startup_collector import StartupCollector
 from backend.collectors.tech_collector import TechCollector  # Phase 25 P1
+from backend.collectors.telegram_collector import TelegramCollector  # P2-6
 from backend.domain.collection import CollectionReport, CollectionResult
 from backend.services.simhash import (
     canonicalize_url,
@@ -89,15 +95,25 @@ class CollectionService:
     _latest_run: ClassVar[dict[str, Any]] = {"count": 0, "at": None}  # 类级共享运行状态
 
     def __init__(self):
-        self.collectors: dict[Category, BaseCollector] = {
-            Category.AI: AICollector(),
-            Category.AI_SECURITY: AISecurityCollector(),
-            Category.SECURITY: SecurityCollector(),
-            Category.FINANCE: FinanceCollector(),
-            Category.STARTUP: StartupCollector(),
-            Category.BID: BidCollector(),
-            Category.GITHUB: GitHubCollector(),
-            Category.TECH: TechCollector(),  # Phase 25 P1
+        # P2-6: collectors 改为 dict[Category, list[BaseCollector]] — 支持
+        # 每分类多个 collector (此前 1:1, 6 个已实现 collector 无法接线)。
+        # 新接入: HN/Reddit/Telegram/OSSInsight → TECH, GDELT → SECURITY,
+        # OpenBB → FINANCE (异常隔离在 _run_one_safe, 单源失败不阻塞)。
+        self.collectors: dict[Category, list[BaseCollector]] = {
+            Category.AI: [AICollector()],
+            Category.AI_SECURITY: [AISecurityCollector()],
+            Category.SECURITY: [SecurityCollector(), GDELTCollector()],
+            Category.FINANCE: [FinanceCollector(), OpenBBCollector()],
+            Category.STARTUP: [StartupCollector()],
+            Category.BID: [BidCollector()],
+            Category.GITHUB: [GitHubCollector()],
+            Category.TECH: [
+                TechCollector(),  # Phase 25 P1
+                HNCollector(),
+                RedditCollector(),
+                TelegramCollector(),
+                OSSInsightCollector(),
+            ],
         }
         self.repo = HotspotRepository()
         self.trend = TrendRepository()
@@ -124,25 +140,28 @@ class CollectionService:
         # 用户添加的源优先于兜底源（追加在最后），不覆盖原 sources。
         try:
             custom_repo = CustomSourceRepository()
-            for cat, c in self.collectors.items():
+            for cat, c_list in self.collectors.items():
                 extra = custom_repo.list_enabled_by_category(cat)
-                if extra:
+                if not extra:
+                    continue
+                for c in c_list:
                     existing_urls = {s.get("url") for s in c.sources}
                     for s in extra:
                         if s["url"] not in existing_urls:
                             c.sources.append(s)
-                    self.logger.info(
-                        f"injected {len(extra)} custom sources for {cat.value}"
-                    )
+                self.logger.info(
+                    f"injected {len(extra)} custom sources for {cat.value}"
+                )
         except Exception as e:
             # 表可能还未创建（首次启动 migration 没跑完）；不阻塞采集
             self.logger.warning(f"custom_source injection skipped: {e}")
 
-        tasks = {
-            cat: asyncio.create_task(self._run_one_safe(cat, c))
-            for cat, c in self.collectors.items()
-        }
-        results = await asyncio.gather(*tasks.values(), return_exceptions=False)
+        # P2-6: 每分类跑其全部 collectors (gather 每分类下的所有 collector 任务)
+        all_tasks = []
+        for cat, c_list in self.collectors.items():
+            for c in c_list:
+                all_tasks.append(asyncio.create_task(self._run_one_safe(cat, c)))
+        results = await asyncio.gather(*all_tasks, return_exceptions=False)
 
         # 合并所有 items
         all_items: list[HotspotItem] = []
@@ -155,17 +174,38 @@ class CollectionService:
             try:
                 from backend.services.summary_enricher import batch_enrich
                 all_items = await batch_enrich(all_items, max_concurrent=5)
+                # P2-7: 富化后摘要复检 — 富化内容在质量门禁之后写入, 此前
+                # 不过 ContentQualityGate (spam/乱码/长度)。不合格的富化
+                # 摘要回退为空, 保留原标题/原摘要, 防止污染入库。
+                try:
+                    from backend.quality.content_quality_gate import check_summary_quality
+                    reverted = 0
+                    for it in all_items:
+                        if not it.summary:
+                            continue
+                        flags = check_summary_quality(it.title or "", it.summary)
+                        if flags:
+                            it.summary = None  # 富化摘要不合格 → 丢弃
+                            reverted += 1
+                    if reverted:
+                        self.logger.info(f"enriched summary reverted (low quality): {reverted}")
+                except Exception as e:
+                    self.logger.warning(f"enriched summary recheck failed: {e}")
             except Exception as e:
                 self.logger.warning(f"summary enrichment failed: {e}")
 
         # 写 DB — Phase 9 修复：放到 thread pool 避免阻塞 event loop
+        # P2-8: upsert 失败必须反映到报告 (此前仅 logger.error, result.error
+        # 仍为 None → collection_runs 记 SUCCESS + SSE 推"成功", 用户被误导)
+        upsert_error: str | None = None
         if all_items:
             try:
                 upserted = await asyncio.to_thread(self.repo.upsert_many, all_items)
                 self.logger.info(f"upserted {upserted} items")
             except Exception as e:
-                self.logger.error(f"upsert failed: {e}")
-                # 不中断，写入 collection_runs 失败状态
+                upsert_error = f"upsert failed: {type(e).__name__}: {str(e)[:200]}"
+                self.logger.error(upsert_error)
+                # 不中断其余旁路写入, 但报告记为失败
 
             # P0-5: 入库成功后补写去重指纹 (FK 依赖 hotspot 行已存在)
             try:
@@ -212,6 +252,9 @@ class CollectionService:
             {"category": r.category.value, "error": r.error}
             for r in results if r.error
         ]
+        # P2-8: upsert 失败合并进 failures (全分类级)
+        if upsert_error:
+            failures.append({"category": "*", "error": upsert_error})
 
         # Phase 4: 采集完成后失效 hotspots/trends 缓存
         try:
@@ -247,7 +290,7 @@ class CollectionService:
         report = CollectionReport(
             total=total,
             success_count=sum(1 for r in results if not r.error),
-            failed_count=sum(1 for r in results if r.error),
+            failed_count=sum(1 for r in results if r.error) + (1 if upsert_error else 0),
             fallback_count=fallback,
             duration_ms=duration_ms,
             started_at=started_at,
@@ -281,27 +324,57 @@ class CollectionService:
 
         return report
 
-    async def run_one(self, category: Category) -> CollectionReport:
-        """单分类执行（手动触发 / 重试）"""
+    async def run_one(self, category: Category, since: str | None = None) -> CollectionReport:
+        """单分类执行（手动触发 / 重试）。
+
+        P2-1: 与 run_once 共用 self._lock — 此前仅 run_once 持锁,
+        run_one / run_one_source / catchup 并发写 + 共享 collector 可变
+        状态 (self.sources) 互相覆盖, SQLite 靠 busy_timeout 硬扛。
+
+        P2-3: ``since`` — catchup 追抓窗口, 透传给 collector 做时间过滤。
+        """
+        async with self._lock:
+            return await self._run_one_locked(category, since=since)
+
+    async def _run_one_locked(self, category: Category, since: str | None = None) -> CollectionReport:
+        """单分类执行 (持锁路径)。
+
+        P2-6: 该分类下全部 collectors 依次执行并合并结果。
+        """
         started_at = datetime.now(timezone.utc)
         start_ms = time.time()
 
         if category not in self.collectors:
             raise ValueError(f"unknown category: {category}")
 
-        c = self.collectors[category]
-        result = await self._run_one_safe(category, c)
+        c_list = self.collectors[category]
+        results: list[CollectionResult] = []
+        for c in c_list:
+            r = await self._run_one_safe(category, c, since=since)
+            results.append(r)
 
-        if result.items:
+        # 合并所有 collector 的 items
+        merged_items: list[HotspotItem] = []
+        for r in results:
+            merged_items.extend(r.items)
+        merged_error = next((r.error for r in results if r.error), None)
+        merged_source_results = [
+            sr for r in results for sr in (r.source_results or [])
+        ]
+        merged_fallback = sum(r.fallback_count for r in results)
+        # 用第一个 result 承载合并 (run_id 以它为准, collection_runs 逐条写)
+        result = results[0] if results else None
+
+        if merged_items:
             try:
-                await asyncio.to_thread(self.repo.upsert_many, result.items)
+                await asyncio.to_thread(self.repo.upsert_many, merged_items)
             except Exception as e:
                 self.logger.error(f"upsert failed: {e}")
-                result.error = f"upsert failed: {e}"
+                merged_error = merged_error or f"upsert failed: {e}"
 
             # P0-5: 入库成功后补写去重指纹
             try:
-                await asyncio.to_thread(self._write_fingerprints, result.items)
+                await asyncio.to_thread(self._write_fingerprints, merged_items)
             except Exception as e:
                 self.logger.warning(f"fingerprint write skipped: {e}")
 
@@ -310,13 +383,19 @@ class CollectionService:
         except Exception as e:
             self.logger.error(f"trend rebuild failed: {e}")
 
-        await asyncio.to_thread(self._write_collection_run, result)
+        # 逐 collector 写 collection_runs 审计行
+        for r in results:
+            try:
+                await asyncio.to_thread(self._write_collection_run, r)
+            except Exception as e:
+                self.logger.warning(f"collection_runs write failed: {e}")
 
-        # Phase 0 (Crawler v2): 旁路写入 crawler_runs
-        try:
-            await asyncio.to_thread(self._write_crawler_runs, result)
-        except Exception as e:
-            self.logger.warning(f"crawler_runs write skipped: {e}")
+        # Phase 0 (Crawler v2): 旁路写入 crawler_runs (逐 collector)
+        for r in results:
+            try:
+                await asyncio.to_thread(self._write_crawler_runs, r)
+            except Exception as e:
+                self.logger.warning(f"crawler_runs write skipped: {e}")
 
         # Phase 4: 单分类采集后也失效缓存
         try:
@@ -327,16 +406,18 @@ class CollectionService:
 
         finished_at = datetime.now(timezone.utc)
         duration_ms = int((time.time() - start_ms) * 1000)
+        # 合并报告: 用合并后的 items/source_results/error (P2-6 多 collector)
+        merged_report_item_count = sum(r.item_count for r in results)
         report = CollectionReport(
-            total=result.item_count,
-            success_count=0 if result.error else 1,
-            failed_count=1 if result.error else 0,
-            fallback_count=result.fallback_count,
+            total=merged_report_item_count,
+            success_count=0 if merged_error else 1,
+            failed_count=1 if merged_error else 0,
+            fallback_count=merged_fallback,
             duration_ms=duration_ms,
             started_at=started_at,
             finished_at=finished_at,
-            failures=[{"category": category.value, "error": result.error}] if result.error else [],
-            results=[result],
+            failures=[{"category": category.value, "error": merged_error}] if merged_error else [],
+            results=results,
         )
 
         # Phase 9 招标源质量门禁：单分类 collect 也走 source coverage 评估
@@ -356,9 +437,16 @@ class CollectionService:
     async def run_one_source(self, source_id: str) -> dict:
         """Run collection for a single source by its crawler_sources ID.
 
+        P2-1: 与 run_once 共用 self._lock (防并发写与共享状态覆盖)。
+
         Returns a dict with: source_id, fetched_count, accepted_count,
         duration_ms, status ('success'|'failed'), error_msg
         """
+        async with self._lock:
+            return await self._run_one_source_locked(source_id)
+
+    async def _run_one_source_locked(self, source_id: str) -> dict:
+        """单源采集 (持锁路径)。"""
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM crawler_sources WHERE id = ?", (source_id,)
@@ -398,14 +486,24 @@ class CollectionService:
             }
 
         start_ms = time.time()
-        collector = self.collectors[category]
+        # P2-6: 在多 collector 中找到目标源所属的 collector (按源名匹配)
+        source_name = source.get("name") or source_id
+        collector = None
+        for c in self.collectors[category]:
+            c_names = {s.get("name") for s in (c.sources or [])}
+            if source_name in c_names:
+                collector = c
+                break
+        if collector is None:
+            collector = self.collectors[category][0]
         started_at = datetime.now(timezone.utc)
 
         try:
-            items = await collector.collect()
+            # P2-0: 传目标源名 — 只抓该源, 不再整分类采集
+            items = await collector.collect(only_source=source_name)
             duration_ms = int((time.time() - start_ms) * 1000)
             fetched_count = len(items) if items else 0
-            accepted_count = fetched_count  # quality gates are applied in upsert
+            accepted_count = fetched_count
 
             # Write raw_items directly
             if items:
@@ -459,7 +557,7 @@ class CollectionService:
                 "error_msg": error_msg,
             }
 
-    async def _run_one_safe(self, category: Category, collector) -> CollectionResult:
+    async def _run_one_safe(self, category: Category, collector, since: str | None = None) -> CollectionResult:
         """跑单 collector，异常隔离
 
         Phase 9 招标源质量门禁：从 ``collector.last_source_results``
@@ -468,13 +566,15 @@ class CollectionService:
         Phase 8: 起始时 INSERT 一行 collection_runs status='running',
         供 catchup_watchdog 检测孤儿. 结束时由 _write_collection_run
         UPDATE 同一行. INSERT 失败 → run_id=None (走老路径).
+
+        P2-3: ``since`` 透传给 collector.collect 做时间窗口过滤。
         """
         start_ms = time.time()
         started_at = datetime.now(timezone.utc)
         # Phase 8: 起始插 'running' 行
         run_id = self._insert_running_row(category, started_at)
         try:
-            items: list[HotspotItem] = await collector.collect()
+            items: list[HotspotItem] = await collector.collect(since=since)
             # Phase 8: dedup using simhash fingerprints
             items = await asyncio.to_thread(self._dedup_items, items)
             duration_ms = int((time.time() - start_ms) * 1000)

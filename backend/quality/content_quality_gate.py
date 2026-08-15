@@ -79,4 +79,30 @@ class ContentQualityGate(BaseGate):
             return self._wrap_exception(item, e)
 
 
-__all__ = ["ContentQualityGate"]
+# P2-7: 富化后摘要复检用纯函数 — 返回 summary 文本的质量 flags
+# (供 collection_service 在 batch_enrich 后对富化摘要做 spam/乱码/长度复检,
+# 不合格则回退原摘要, 防止富化内容绕过质量门禁入库)
+def check_summary_quality(title: str, summary: str | None) -> list[str]:
+    """对富化后的 summary 做快速质量检查, 返回 flags (空 = 合格)。
+
+    - summary_too_long: 超过 _SUMMARY_MAX
+    - spam_keyword: 命中导航/广告词
+    - garbled_text: 含乱码
+    """
+    flags: list[str] = []
+    if summary is None:
+        return flags
+    if len(summary) > _SUMMARY_MAX:
+        flags.append("summary_too_long")
+    text_blob = title + " " + summary
+    lowered = text_blob.lower()
+    for kw in _SPAM_KEYWORDS:
+        if kw.lower() in lowered:
+            flags.append("spam_keyword")
+            break
+    if _GARBLED_RE.search(text_blob):
+        flags.append("garbled_text")
+    return flags
+
+
+__all__ = ["ContentQualityGate", "check_summary_quality"]

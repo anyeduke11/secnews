@@ -121,6 +121,35 @@ class QualityGatePipeline:
         )
 
     # ------------------------------------------------------------------
+    def _check_gate(
+        self,
+        gate: BaseGate,
+        item: HotspotItem,
+        context: GateContext,
+        mode_str: str,
+    ) -> GateResult:
+        """执行单个门禁, 异常 fail-closed (P2-5)。
+
+        门禁崩溃不再转 passed=True 免检 — 改为 passed=False + gate_crashed
+        flag + 扣 15 分, 让崩溃可见 (strict 模式因此拒绝, loose 模式打标),
+        避免"任一 gate 代码缺陷 → 该关全放行"。
+        """
+        try:
+            return gate.check(item, context)
+        except Exception as e:
+            logger.error(
+                f"gate {gate.name} crashed (fail-closed)",
+                extra={"trace_id": "", "item_id": item.id, "error": str(e)},
+            )
+            return GateResult(
+                gate_name=gate.name,
+                passed=False,
+                flags=["gate_crashed"],
+                score_deduction=15,
+                reason=f"gate crashed: {type(e).__name__}: {str(e)[:200]}",
+                error_msg=f"{type(e).__name__}: {str(e)[:200]}",
+            )
+
     def run_all(
         self,
         item: HotspotItem,
@@ -128,10 +157,14 @@ class QualityGatePipeline:
     ) -> PipelineResult:
         """顺序跑全部同步门禁。
 
-        Hard/Soft 分层逻辑:
-        1. 先跑所有 Hard gates，任一失败即拒绝并抛异常
-        2. 全部 Hard gates 通过后，再跑所有 Soft gates
-        3. Soft gates 累加扣分，最终评分 < 阈值才拒绝
+        Hard/Soft 分层逻辑 (P2-5 语义对齐):
+        1. 先跑所有 Hard gates — **仅 strict 模式失败即拒绝**; loose 模式
+           打 flag + 扣分后继续 (与文档 "loose = 失败打 flag + 扣分, 仍入库"
+           一致; 此前 hard 失败在 loose 模式也抛 QualityGateFailed → 与文档
+           矛盾, 且被 quality_hook 丢弃)。
+        2. 全部通过后跑 Soft gates, 累加扣分
+        3. strict 模式: final_score < min_score → 拒绝抛异常
+           loose 模式: 返回 accepted=False (调用方决定), 不抛
         """
         if context is None:
             context = build_context(self.config)
@@ -145,20 +178,7 @@ class QualityGatePipeline:
         soft_gates = [g for g in self.gates if g.gate_type == "soft"]
 
         for gate in hard_gates:
-            try:
-                result = gate.check(item, context)
-            except Exception as e:
-                # 门禁抛出 = 隔离到 _wrap_exception
-                logger.error(
-                    f"gate {gate.name} crashed",
-                    extra={"trace_id": "", "item_id": item.id, "error": str(e)},
-                )
-                result = GateResult(
-                    gate_name=gate.name,
-                    passed=True,
-                    error_msg=f"{type(e).__name__}: {str(e)[:200]}",
-                )
-
+            result = self._check_gate(gate, item, context, mode_str)
             gate_results.append(result)
             if not result.passed:
                 deductions.append(result.score_deduction)
@@ -169,8 +189,8 @@ class QualityGatePipeline:
                 item.id, result, mode=mode_str, checked_at=_now().isoformat()
             )
 
-            # Hard gate 失败 → 立即拒绝，不跑后续 Soft gates
-            if not result.passed:
+            # Hard gate 失败 → P2-5: 仅 strict 模式立即拒绝
+            if not result.passed and self.mode == QualityMode.STRICT:
                 context.rejected_by = gate.name
                 final_score = compute_final_score(100, deductions)
                 reason = (
@@ -195,20 +215,7 @@ class QualityGatePipeline:
 
         # 2. 全部 Hard gates 通过 → 跑 Soft gates
         for gate in soft_gates:
-            try:
-                result = gate.check(item, context)
-            except Exception as e:
-                # 门禁抛出 = 隔离到 _wrap_exception
-                logger.error(
-                    f"gate {gate.name} crashed",
-                    extra={"trace_id": "", "item_id": item.id, "error": str(e)},
-                )
-                result = GateResult(
-                    gate_name=gate.name,
-                    passed=True,
-                    error_msg=f"{type(e).__name__}: {str(e)[:200]}",
-                )
-
+            result = self._check_gate(gate, item, context, mode_str)
             gate_results.append(result)
             if not result.passed:
                 deductions.append(result.score_deduction)

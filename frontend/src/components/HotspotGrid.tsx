@@ -110,7 +110,7 @@ export function HotspotGrid({
 
       {/* 分页控件 */}
       {!loading && total > 0 && (
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <div className="mt-10 mb-2 flex flex-col sm:flex-row items-center justify-center gap-4">
           <div className="flex items-center gap-1.5 order-2 sm:order-1">
             {PAGE_SIZE_OPTIONS.map(size => {
               const active = size === pageSize;
@@ -122,6 +122,7 @@ export function HotspotGrid({
                   aria-label={`每页 ${size} 条`}
                   aria-pressed={active}
                   className={`ink-chip focus-ring text-xs ${active ? 'active' : ''}`}
+                  style={{ padding: '4px 10px', fontSize: '10.5px' }}
                 >
                   {size}
                 </button>
@@ -129,13 +130,14 @@ export function HotspotGrid({
             })}
           </div>
 
-          <div className="flex items-center gap-1.5 order-1 sm:order-2">
+          <div className="flex items-center gap-2 order-1 sm:order-2">
             <button
               type="button"
               onClick={() => onSetPage(page - 1)}
               disabled={page <= 1 || loadingPage}
               className="pagination-btn focus-ring"
               aria-label="上一页"
+              style={{ padding: '7px 16px' }}
             >
               <Icon size={12}>
                 <polyline points="15 18 9 12 15 6" />
@@ -153,6 +155,7 @@ export function HotspotGrid({
               disabled={!hasMore || loadingPage}
               className="pagination-btn focus-ring"
               aria-label="下一页"
+              style={{ padding: '7px 16px' }}
             >
               <span>下一页</span>
               <Icon size={12}>

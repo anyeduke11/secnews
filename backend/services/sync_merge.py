@@ -111,7 +111,28 @@ def three_way_merge(
         base_recs = (base or {}).get("records", {}).get(table, []) or []
         local_recs = local.get("records", {}).get(table, []) or []
         remote_recs = remote.get("records", {}).get(table, []) or []
+        # P4-2: secrets 密文 (Fernet 随机 IV) 参与全字段比较必然不等 → 每次
+        # 同步产生伪冲突。合并前剥离 api_key_encrypted, 合并后从 local 恢复。
+        if table == "secrets":
+            _cipher_keys = ("api_key_encrypted", "encryption_key_id")
+            _strip = lambda recs: [
+                {k2: v2 for k2, v2 in r.items() if k2 not in _cipher_keys}
+                for r in recs
+            ]
+            base_recs, local_recs, remote_recs = (
+                _strip(base_recs), _strip(local_recs), _strip(remote_recs),
+            )
         merged, conflicts = _merge_records(base_recs, local_recs, remote_recs, key_fn)
+        if table == "secrets":
+            # 恢复密文: 优先 local 的 (本机 master_key 可解), 缺失则 remote
+            _remote_by_name = {r.get("name"): r for r in remote.get("records", {}).get("secrets", []) or []}
+            _local_by_name = {r.get("name"): r for r in local.get("records", {}).get("secrets", []) or []}
+            for rec in merged:
+                name = rec.get("name")
+                src = _local_by_name.get(name) or _remote_by_name.get(name) or {}
+                for ck in _cipher_keys:
+                    if ck in src and ck not in rec:
+                        rec[ck] = src[ck]
         merged_records[table] = merged
         table_conflicts[table] = conflicts
         total_conflicts += conflicts
@@ -208,6 +229,10 @@ def _merge_records(base: list, local: list, remote: list, key_fn) -> tuple[list,
         fields = set(l.keys()) | set(r.keys())
         field_merged: dict = {}
         had_conflict = False
+        # P4-3: 读取用户裁决标记 (sync.py 写入的 _conflict_resolved)
+        # — 此前裁决写进 merged bundle 但 merge 从不消费, 死功能。
+        local_wins = l.get("_conflict_resolved") == "local"
+        remote_wins = r.get("_conflict_resolved") == "remote"
         for f in fields:
             if f == "updated_at":
                 l_ts = l.get(f) or ""
@@ -228,10 +253,15 @@ def _merge_records(base: list, local: list, remote: list, key_fn) -> tuple[list,
                     field_merged[f] = lv
             else:
                 had_conflict = True
-                l_ts = l.get("updated_at") or ""
-                r_ts = r.get("updated_at") or ""
-                winner = l if l_ts >= r_ts else r
-                field_merged[f] = winner.get(f)
+                if local_wins:
+                    field_merged[f] = lv if lv is not None else rv
+                elif remote_wins:
+                    field_merged[f] = rv if rv is not None else lv
+                else:
+                    l_ts = l.get("updated_at") or ""
+                    r_ts = r.get("updated_at") or ""
+                    winner = l if l_ts >= r_ts else r
+                    field_merged[f] = winner.get(f)
         if "id" in (l.keys() | r.keys()):
             field_merged["id"] = l.get("id") or r.get("id")
         merged.append(field_merged)
@@ -363,10 +393,12 @@ def _merge_cascade(base: list, local: list, remote: list, key_fn) -> tuple[list,
 
 
 def _merge_sm2_reviews(base: list, local: list, remote: list) -> tuple[list, int]:
-    """SM-2 复习合并: ``due_at`` 较早的胜出 (防覆盖未到期复习)。
+    """SM-2 复习合并: ``due_at`` 较晚的胜出 (最近复习状态优先)。
 
-    业务规则: SM-2 间隔复习中, due_at 越早表示越急需复习; 如果用户在两台设备上
-    都进行过复习, 较早的 due_at 反映更近的复习状态, 必须保留。
+    P4-4 (2026-08-16) 修正: 原实现"due_at 早者胜"语义反了 —
+    复习后 SM-2 会把下次 due_at 推到更晚 (interval 之后), 因此 **较晚的
+    due_at = 更近的复习状态**, 早者胜会保留旧记录、覆盖新复习成果。
+    改为晚者胜。
 
     同样支持删除信号: local+remote 都没了, base 还在 → 删除。
     """
@@ -399,11 +431,11 @@ def _merge_sm2_reviews(base: list, local: list, remote: list) -> tuple[list, int
             merged.append(l)
             continue
 
-        # 核心规则: due_at 较早的胜出
+        # P4-4: due_at 较晚者胜 (最近复习)
         l_due = l.get("due_at") or ""
         r_due = r.get("due_at") or ""
         if l_due and r_due:
-            winner = l if l_due <= r_due else r
+            winner = l if l_due >= r_due else r
         elif l_due:
             winner = l
         elif r_due:

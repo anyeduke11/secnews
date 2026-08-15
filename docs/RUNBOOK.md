@@ -53,8 +53,8 @@ curl http://127.0.0.1:8000/api/health | jq '.components.collectors'
 # 查看数据库大小
 ls -lh backend/hotspot.db
 
-# 查看调度器已注册 job
-sqlite3 backend/hotspot.db "SELECT id, name, trigger, next_run_time FROM apscheduler_jobs;"
+# 查看调度器已注册 job (P4-9: apscheduler 未持久化到 SQLite, 改查健康接口)
+curl http://127.0.0.1:8000/api/health | jq '.components.scheduler'
 ```
 
 ## 故障排查

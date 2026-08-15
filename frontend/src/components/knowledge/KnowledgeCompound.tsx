@@ -14,6 +14,8 @@ import { MasteryGauge } from '../MasteryGauge';
 import { ContentCalendar } from '../ContentCalendar';
 import { ContentDraftList } from '../ContentDraftList';
 import { SkillEntryGrid } from '../SkillEntryGrid';
+import { KnowledgeCompoundingDashboard } from './KnowledgeCompoundingDashboard'; // P3-5 挂载
+import { KnowledgePlanningPanel } from './KnowledgePlanningPanel'; // P3-5 挂载
 import { Icon } from '../Icon';
 import { KNOWLEDGE_AREAS } from './KnowledgeTabs';
 
@@ -197,6 +199,21 @@ export function KnowledgeCompound() {
           </h3>
           <SkillEntryGrid />
         </div>
+      </section>
+
+      {/* P3-5: 复利仪表盘 (KL 触发器健康度 + 阶段分布) + 规划动作 —
+          此前两组件仅被测试引用, 文档承诺的复利入口从未挂载 */}
+      <section
+        className="rounded-[var(--radius-md)] p-3.5"
+        style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
+      >
+        <KnowledgeCompoundingDashboard />
+      </section>
+      <section
+        className="rounded-[var(--radius-md)] p-3.5"
+        style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
+      >
+        <KnowledgePlanningPanel />
       </section>
     </div>
   );

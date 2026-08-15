@@ -27,6 +27,21 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  // P3-3: 标注 (此前 NoteEditor 只在不可达的死路由 /reviews /deep 中,
+  // annotations 表恒 0 → 标注功能在实际 UI 中不存在)
+  const [notes, setNotes] = useState<Array<{ id: number; content: string; created_at?: string }>>([]);
+  const [noteText, setNoteText] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
+
+  const loadNotes = useCallback((id: string) => {
+    fetch(`/api/annotations?entity_type=knowledge_item&entity_id=${encodeURIComponent(id)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const items = data?.items ?? data?.annotations ?? [];
+        setNotes(Array.isArray(items) ? items : []);
+      })
+      .catch(() => {});
+  }, []);
 
   // 编辑字段
   const [domain, setDomain] = useState('');
@@ -70,9 +85,36 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
       setError(null);
       setConfirmDelete(false);
       setToast(null);
+      setNotes([]);
+      setNoteText('');
       loadItem(item_id);
+      loadNotes(item_id);
     }
-  }, [item_id, loadItem]);
+  }, [item_id, loadItem, loadNotes]);
+
+  const handleAddNote = () => {
+    if (!item_id || !noteText.trim()) return;
+    setNoteSaving(true);
+    fetch('/api/annotations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entity_type: 'knowledge_item',
+        entity_id: item_id,
+        content: noteText.trim(),
+      }),
+    })
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        setNoteText('');
+        loadNotes(item_id);
+      })
+      .catch(e => {
+        setToast(`✗ 标注失败: ${e?.message || String(e)}`);
+        setTimeout(() => setToast(null), 2500);
+      })
+      .finally(() => setNoteSaving(false));
+  };
 
   if (!item_id) return null;
 
@@ -288,7 +330,49 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
               </div>
             </div>
 
-            {/* 5. 掌握度 */}
+            {/* 5. 标注 (P3-3) */}
+            <div>
+              <label style={labelStyle}>标注 / 笔记</label>
+              <div className="space-y-1.5">
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    className="tech-input px-2 py-1 text-xs w-full"
+                    value={noteText}
+                    onChange={e => setNoteText(e.target.value)}
+                    placeholder="写一条笔记…"
+                    onKeyDown={e => { if (e.key === 'Enter') handleAddNote(); }}
+                  />
+                  <button
+                    onClick={handleAddNote}
+                    disabled={noteSaving || !noteText.trim()}
+                    className="btn-ghost px-2.5 py-1 text-xs shrink-0"
+                    style={{ color: 'var(--color-ai)', opacity: noteSaving ? 0.6 : 1 }}
+                  >
+                    {noteSaving ? '保存…' : '添加'}
+                  </button>
+                </div>
+                {notes.length > 0 ? (
+                  <div className="space-y-1">
+                    {notes.map(n => (
+                      <div
+                        key={n.id}
+                        className="rounded-[var(--radius-sm)] px-2 py-1.5 text-[11px]"
+                        style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}
+                      >
+                        {n.content}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    (暂无标注 — 在上方输入后回车添加)
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* 6. 掌握度 */}
             <div>
               <label style={labelStyle}>mastered: {mastered}</label>
               <input

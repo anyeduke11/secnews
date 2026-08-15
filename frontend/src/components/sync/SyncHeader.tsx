@@ -57,6 +57,17 @@ export function SyncHeader({ configured, onBack }: SyncHeaderProps) {
           </span>
         )}
       </div>
+      {/* P4-6: 明示同步范围 — 此前用户误以为 4k+ 知识条目已跨端同步 */}
+      <p
+        className="text-[10px] mt-1.5 leading-relaxed"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        同步范围: 收藏 / 待办 / 技能 / 自定义源 / 标签 / 阅读状态 / 标注 /
+        设置 / 密钥 / CodeGarden 项目与服务。
+        <span style={{ color: 'var(--color-warning)' }}>
+          {' '}知识库条目 (knowledge/items) 不参与跨端同步 — 源文件为本机真相源。
+        </span>
+      </p>
     </div>
   );
 }

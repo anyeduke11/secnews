@@ -1506,12 +1506,76 @@ async def knowledge_classify_job() -> None:
     )
 
 
+# ============================================================================
+# P3-4: 内容链路最小闭环 — kl:publish / 高注意力条目 → 内容草稿 (每 6 小时)
+# ============================================================================
+async def content_draft_generation_job() -> None:
+    """P3-4: 从已发布/高注意力知识条目生成内容草稿, 打通"知识→内容"闭环。
+
+    背景: content_calendar=0、drafts=1 — 内容日历/草稿层无自动输入。
+    本 job: 选 kl:publish 条目 + kl:structure 且 attention_score 较高的
+    条目, 若尚无对应草稿则用条目正文 (knowledge/items/{id}.md) 生成草稿。
+    """
+    try:
+        from backend.repository.db import get_connection
+        from backend.repository.knowledge_repo import knowledge_repo
+        from backend.services.content_service import create_draft
+        from backend.services.knowledge_sync import ITEMS_DIR
+
+        _DRAFT_BATCH = 10
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT id, title FROM knowledge_items "
+            "WHERE lifecycle = 'kl:publish' "
+            "   OR (lifecycle = 'kl:structure' AND COALESCE(attention_score, 0) >= 20) "
+            "ORDER BY COALESCE(attention_score, 0) DESC, ingested_at DESC "
+            "LIMIT ?",
+            (_DRAFT_BATCH,),
+        ).fetchall()
+        if not rows:
+            return
+
+        # 已存在草稿的 title 集合 (避免重复生成)
+        existing_drafts = {
+            (d.get("title") or "").strip() for d in knowledge_repo.list_drafts()
+        }
+        created = 0
+        for r in rows:
+            title = (r["title"] or "").strip()
+            if not title or title in existing_drafts:
+                continue
+            # 从条目 .md 读正文
+            body = ""
+            md_path = ITEMS_DIR / f"{r['id']}.md"
+            try:
+                if md_path.exists():
+                    import re as _re
+                    text = md_path.read_text(encoding="utf-8")
+                    m = _re.match(r"^---\s*\n.*?\n---\s*\n", text, _re.DOTALL)
+                    if m:
+                        body = text[m.end():]
+            except Exception:
+                body = ""
+            try:
+                create_draft(title=title, content=body or f"# {title}\n")
+                existing_drafts.add(title)
+                created += 1
+            except Exception as e:
+                _logger.warning(f"content draft create failed for {r['id']}: {e}")
+        _logger.info(
+            f"content_draft_generation_job: candidates={len(rows)} created={created}"
+        )
+    except Exception as e:
+        _logger.error(f"content_draft_generation_job crashed: {e}")
+
+
 # 更新 __all__ (Phase 1.4 + Phase 2.2 + existing)
 __all__.extend([
     "attention_aggregate_job",
     "bid_expiry_check_job",
     "catchup_watchdog_job",
     "cg_drift_assess_job",
+    "content_draft_generation_job",
     "cve_sync_to_security_job",
     "kl_dead_letter_retry_job",
     "kl_trigger_t1_job",

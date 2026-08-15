@@ -22,9 +22,14 @@ from datetime import datetime, timezone
 import httpx
 
 from backend.crypto import (
+    DEFAULT_ITERATIONS,  # P4-5: 轮换用
     InvalidMasterKeyError,
+    WeakMasterKeyError,  # P4-5: 轮换用
     decrypt_api_key,
     derive_fernet_key,
+    encrypt_api_key,  # P4-5: 轮换用
+    generate_salt,  # P4-5: 轮换用
+    make_verify_blob,  # P4-5: 轮换用
     verify_master_key,
 )
 from backend.exceptions import (
@@ -215,6 +220,105 @@ class SecretsService:
             "name": row.name,
             "iterations": row.iterations,
             "created_at": row.created_at,
+        }
+
+    def rotate_master_key(self, old_key: str, new_key: str) -> dict:
+        """P4-5: 轮换主密钥 — 重加密全部密文 (llm_secrets + webdav + settings).
+
+        此前无任何轮换/恢复机制: 主密钥丢失 = 全部密文永久不可解。
+        本操作:
+        1. 验证 old_key (失败抛 InvalidMasterKeyError)
+        2. 生成新 salt, 派生新旧 Fernet key
+        3. 重加密 llm_secrets.api_key_encrypted (旧→新)
+        4. 重加密 sync_configs.webdav_password_encrypted (旧→新)
+        5. 更新 encryption_keys (新 salt/iterations/verify_blob)
+        6. 持久化新 key 到 keyring/settings
+        """
+        if not new_key or len(new_key) < MIN_MASTER_KEY_LENGTH:
+            raise WeakMasterKeyError(
+                f"新主密钥长度必须 >= {MIN_MASTER_KEY_LENGTH} 字符"
+            )
+        ek = EncryptionKeyRepository()
+        row = ek.get_default()
+        if row is None:
+            raise ConflictException("主密钥未初始化")
+
+        if not verify_master_key(old_key, row.salt, row.iterations, row.verify_blob):
+            raise InvalidMasterKeyError("旧主密钥错误, 无法轮换")
+
+        old_fernet = derive_fernet_key(old_key, row.salt, row.iterations)
+        new_salt = generate_salt()
+        new_fernet = derive_fernet_key(new_key, new_salt, DEFAULT_ITERATIONS)
+
+        conn = get_connection()
+        try:
+            conn.execute("BEGIN")
+            # 3. llm_secrets 重加密
+            secret_rows = conn.execute(
+                "SELECT id, api_key_encrypted FROM llm_secrets"
+            ).fetchall()
+            for s in secret_rows:
+                try:
+                    plaintext = decrypt_api_key(old_fernet, s["api_key_encrypted"])
+                    new_ct = encrypt_api_key(new_fernet, plaintext)
+                except Exception as dec_err:
+                    conn.execute("ROLLBACK")
+                    raise InvalidMasterKeyError(
+                        f"llm_secrets {s['id']} 解密失败: {dec_err}"
+                    ) from dec_err
+                conn.execute(
+                    "UPDATE llm_secrets SET api_key_encrypted = ? WHERE id = ?",
+                    (new_ct, s["id"]),
+                )
+            # 4. webdav 密码重加密 (sync_configs.webdav_password_encrypted)
+            wd_rows = conn.execute(
+                "SELECT id, webdav_password_encrypted, webdav_password_salt "
+                "FROM sync_configs WHERE webdav_password_encrypted IS NOT NULL"
+            ).fetchall()
+            for w in wd_rows:
+                try:
+                    from backend.services.webdav_client import decrypt_webdav_password  # type: ignore
+                    plaintext = decrypt_webdav_password(
+                        old_fernet, w["webdav_password_encrypted"]
+                    )
+                    new_ct = encrypt_api_key(new_fernet, plaintext)
+                except Exception:
+                    # webdav 密码走独立 salt 派生, 重加密用新 master_key 的 fernet
+                    from cryptography.fernet import Fernet as _F
+                    try:
+                        plaintext = _F(old_fernet).decrypt(bytes(w["webdav_password_encrypted"]))
+                        new_ct = _F(new_fernet).encrypt(plaintext)
+                    except Exception:
+                        conn.execute("ROLLBACK")
+                        raise
+                conn.execute(
+                    "UPDATE sync_configs SET webdav_password_encrypted = ? WHERE id = ?",
+                    (new_ct, w["id"]),
+                )
+            # 5. 更新 encryption_keys (新 salt/iterations/verify_blob)
+            new_verify = make_verify_blob(new_key, new_salt, DEFAULT_ITERATIONS)
+            conn.execute(
+                "UPDATE encryption_keys SET salt = ?, iterations = ?, "
+                "verify_blob = ?, updated_at = ? WHERE id = ?",
+                (new_salt, DEFAULT_ITERATIONS, new_verify,
+                 datetime.now(timezone.utc).isoformat(), row.id),
+            )
+            conn.execute("COMMIT")
+        except Exception as e:
+            try:
+                conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
+
+        # 6. 持久化新 key + 清空 unlock state (强制重新解锁)
+        _persist_master_key(new_key)
+        _unlock_state.pop(row.id, None)
+        logger.info("master_key rotated: re-encrypted %d secrets", len(secret_rows))
+        return {
+            "ok": True,
+            "reencrypted_secrets": len(secret_rows),
+            "reencrypted_webdav": len(wd_rows),
         }
 
     def is_master_key_setup(self) -> bool:

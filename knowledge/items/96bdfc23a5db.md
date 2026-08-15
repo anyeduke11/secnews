@@ -4,6 +4,7 @@ title: "Getting Started with PowerShell 3.0 | Channel 9"
 source: "bookmark"
 source_url: "https://channel9.msdn.com/Series/GetStartedPowerShell3"
 ingested_at: "2026-07-24T16:15:54.851918+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Getting Started with PowerShell 3.0 | Channel 9
+---# Getting Started with PowerShell 3.0 | Channel 9
 
 

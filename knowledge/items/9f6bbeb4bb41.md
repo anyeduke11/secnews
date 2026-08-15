@@ -4,6 +4,7 @@ title: "使用python进行utf9编码和解码 - pcat - 博客园"
 source: "bookmark"
 source_url: "https://www.cnblogs.com/pcat/p/6422211.html"
 ingested_at: "2026-07-24T16:15:23.785154+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 使用python进行utf9编码和解码 - pcat - 博客园
+---# 使用python进行utf9编码和解码 - pcat - 博客园
 
 

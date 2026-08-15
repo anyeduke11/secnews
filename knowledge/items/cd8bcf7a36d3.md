@@ -4,6 +4,7 @@ title: "OSINT Resources for 2019 – Steve Micallef – Medium"
 source: "bookmark"
 source_url: "https://medium.com/@micallst/osint-resources-for-2019-b15d55187c3f"
 ingested_at: "2026-07-24T16:16:06.651811+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# OSINT Resources for 2019 – Steve Micallef – Medium
+---# OSINT Resources for 2019 – Steve Micallef – Medium
 
 

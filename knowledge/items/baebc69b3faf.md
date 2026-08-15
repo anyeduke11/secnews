@@ -4,6 +4,7 @@ title: "智能体五阶段生命周期框架：TC260 首份 Agent 部署使用�
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/UEVMzrNL1gSq_gppn7vJuQ"
 ingested_at: "2026-07-03T03:44:46Z"
+lifecycle: "generate"
 compiled: true
 domain: ai
 topic: agent-security-governance
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# 智能体五阶段生命周期框架：TC260 首份 Agent 部署使用安全指引解读（2026.7）
+---# 智能体五阶段生命周期框架：TC260 首份 Agent 部署使用安全指引解读（2026.7）
 
 Agent 安全不再只是模型安全问题，而是部署工程和组织治理问题。
 

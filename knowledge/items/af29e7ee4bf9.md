@@ -4,6 +4,7 @@ title: "专为渗透测试人员设计的Python工具大合集 - FreeBuf.COM | �
 source: "bookmark"
 source_url: "http://www.freebuf.com/sectool/138779.html"
 ingested_at: "2026-07-24T16:15:45.806537+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 专为渗透测试人员设计的Python工具大合集 - FreeBuf.COM | 关注黑客与极客
+---# 专为渗透测试人员设计的Python工具大合集 - FreeBuf.COM | 关注黑客与极客
 
 

@@ -167,6 +167,12 @@ class CollectionService:
                 self.logger.error(f"upsert failed: {e}")
                 # 不中断，写入 collection_runs 失败状态
 
+            # P0-5: 入库成功后补写去重指纹 (FK 依赖 hotspot 行已存在)
+            try:
+                await asyncio.to_thread(self._write_fingerprints, all_items)
+            except Exception as e:
+                self.logger.warning(f"fingerprint write skipped: {e}")
+
             # Phase 0 (Crawler v2): 旁路写入 raw_items（不阻塞主流程）
             try:
                 await asyncio.to_thread(self._write_raw_items, all_items, results)
@@ -293,6 +299,12 @@ class CollectionService:
                 self.logger.error(f"upsert failed: {e}")
                 result.error = f"upsert failed: {e}"
 
+            # P0-5: 入库成功后补写去重指纹
+            try:
+                await asyncio.to_thread(self._write_fingerprints, result.items)
+            except Exception as e:
+                self.logger.warning(f"fingerprint write skipped: {e}")
+
         try:
             await asyncio.to_thread(self.trend.rebuild, 24)
         except Exception as e:
@@ -400,6 +412,8 @@ class CollectionService:
                 try:
                     repo = HotspotRepository()
                     await asyncio.to_thread(repo.upsert_many, items)
+                    # P0-5: 入库成功后补写去重指纹
+                    await asyncio.to_thread(self._write_fingerprints, items)
                 except Exception as e:
                     self.logger.warning(f"run_one_source upsert failed: {e}")
 
@@ -611,27 +625,9 @@ class CollectionService:
             if duplicate:
                 continue
 
-            # Not duplicate — insert fingerprint (signed 64-bit for SQLite)
-            # Gracefully handle FOREIGN KEY / other transient errors since
-            # the hotspot row may not yet exist at this point.
-            fp_signed = _to_signed_64(fp)
-            try:
-                conn.execute(
-                    """INSERT OR IGNORE INTO content_fingerprints
-                       (hotspot_id, simhash, url_canonical, title_norm)
-                       VALUES (?, ?, ?, ?)""",
-                    (
-                        item.id,
-                        fp_signed,
-                        url_canonical or "",
-                        title_norm or "",
-                    ),
-                )
-            except Exception:
-                self.logger.warning(
-                    f"Failed to insert fingerprint for {item.id}, "
-                    "dedup still passes item through"
-                )
+            # P0-5: 不在去重阶段写 content_fingerprints — hotspot 行此时尚不存在,
+            # FK (hotspot_id REFERENCES hotspots(id)) 必失败, 指纹丢失导致跨轮去重失效。
+            # 改为: 入库成功后由 _write_fingerprints 补写 (见 run_once/run_one 调用点)。
 
             # Update in-memory sets for within-batch dedup
             existing.append((item.id, fp))
@@ -643,6 +639,49 @@ class CollectionService:
             result.append(item)
 
         return result
+
+    def _write_fingerprints(self, items: list[HotspotItem]) -> int:
+        """P0-5: 入库成功后补写 content_fingerprints 指纹。
+
+        必须在 hotspot 行已 upsert 之后调用 (content_fingerprints.hotspot_id
+        有 FK REFERENCES hotspots(id)); 此前在 _dedup_items 内提前插入,
+        新条目 hotspot 行不存在 → FK 失败被吞 → 指纹丢失 → 跨轮去重失效。
+        现在改为入库后补写: FK 满足, 指纹首轮即落库, 同 URL 二次采集被拒。
+
+        Returns: 实际写入的行数。
+        """
+        if not items:
+            return 0
+        conn = get_connection()
+        written = 0
+        try:
+            for item in items:
+                url_canonical = canonicalize_url(str(item.url))
+                title_norm = normalize_title(item.title)
+                text = item.title
+                if item.summary:
+                    text += " " + item.summary
+                fp = simhash(text)
+                cur = conn.execute(
+                    """INSERT OR IGNORE INTO content_fingerprints
+                       (hotspot_id, simhash, url_canonical, title_norm)
+                       VALUES (?, ?, ?, ?)""",
+                    (
+                        item.id,
+                        _to_signed_64(fp),
+                        url_canonical or "",
+                        title_norm or "",
+                    ),
+                )
+                written += cur.rowcount
+            conn.commit()
+        except Exception as e:
+            # 指纹补写失败不阻塞主流程 (去重是尽力而为, 下次采集会再判重)
+            self.logger.warning(f"_write_fingerprints failed: {e}")
+            return 0
+        if written:
+            self.logger.info(f"_write_fingerprints: {written} fingerprints written")
+        return written
 
     def _write_raw_items(
         self, items: list[Any], results: list[CollectionResult]

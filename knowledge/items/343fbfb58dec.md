@@ -4,6 +4,7 @@ title: "以架构视角解读和落实数字化转型的两份重磅文件"
 source: "bookmark"
 source_url: "https://mp.weixin.qq.com/s/HKiaB75Z9N-V140T_OMETA"
 ingested_at: "2026-07-24T16:28:56.961782+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 以架构视角解读和落实数字化转型的两份重磅文件
+---# 以架构视角解读和落实数字化转型的两份重磅文件
 
 

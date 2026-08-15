@@ -4,6 +4,7 @@ title: "Snort入侵检测系统的应用 - FreeBuf专栏·TideSec"
 source: "bookmark"
 source_url: "https://www.freebuf.com/column/219305.html"
 ingested_at: "2026-07-24T16:17:08.651559+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Snort入侵检测系统的应用 - FreeBuf专栏·TideSec
+---# Snort入侵检测系统的应用 - FreeBuf专栏·TideSec
 
 

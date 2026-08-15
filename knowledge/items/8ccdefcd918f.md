@@ -4,6 +4,7 @@ title: "How Claude Code is used in practice \ Anthropic"
 source: "bookmark"
 source_url: "https://www.anthropic.com/research/claude-code-expertise"
 ingested_at: "2026-07-24T16:15:27.159529+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# How Claude Code is used in practice \ Anthropic
+---# How Claude Code is used in practice \ Anthropic
 
 

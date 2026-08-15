@@ -4,6 +4,7 @@ title: "code-yeongyu/oh-my-openagent: omo/lazycodex: The coding agent for tokenm
 source: "bookmark"
 source_url: "https://github.com/code-yeongyu/oh-my-openagent"
 ingested_at: "2026-07-24T16:15:15.874401+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# code-yeongyu/oh-my-openagent: omo/lazycodex: The coding agent for tokenmaxxers;the one and only agent harness for complex codebases. For your Codex, for your OpenCode
+---# code-yeongyu/oh-my-openagent: omo/lazycodex: The coding agent for tokenmaxxers;the one and only agent harness for complex codebases. For your Codex, for your OpenCode
 
 

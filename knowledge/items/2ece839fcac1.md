@@ -4,6 +4,7 @@ title: "基于风险导向的信息安全审计方法运用"
 source: "cubox"
 source_url: "https://www.secrss.com/articles/52953"
 ingested_at: "2023-03-22T02:53:10Z"
+lifecycle: "kl:link"
 compiled: false
 domain: security
 topic: security
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# 基于风险导向的信息安全审计方法运用
+---# 基于风险导向的信息安全审计方法运用
 
 本文采用国标与金标为主要依据，结合城商行的现阶段主要特点，对全套评价要求进行适当裁剪，作为开展审计工作的主要评价点。
 

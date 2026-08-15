@@ -4,6 +4,7 @@ title: "AnyAlias - Protect your email address"
 source: "bookmark"
 source_url: "https://anyalias.com/"
 ingested_at: "2026-07-24T16:29:32.758831+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# AnyAlias - Protect your email address
+---# AnyAlias - Protect your email address
 
 

@@ -4,6 +4,7 @@ title: "影响所有windows远程桌面的漏洞！"
 source: "bookmark"
 source_url: "https://mp.weixin.qq.com/s/GoucclTO2ZUMASV8J04ICw"
 ingested_at: "2026-07-24T16:16:08.112326+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 影响所有windows远程桌面的漏洞！
+---# 影响所有windows远程桌面的漏洞！
 
 

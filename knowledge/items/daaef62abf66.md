@@ -4,6 +4,7 @@ title: "Tutorial Getting Started With Contracts · EOSIO/eos Wiki"
 source: "bookmark"
 source_url: "https://github.com/EOSIO/eos/wiki/Tutorial-Getting-Started-With-Contracts"
 ingested_at: "2026-07-24T16:46:24.678223+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Tutorial Getting Started With Contracts · EOSIO/eos Wiki
+---# Tutorial Getting Started With Contracts · EOSIO/eos Wiki
 
 

@@ -125,21 +125,22 @@ class TestFullSyncOrphanCleanup:
 class TestTransitionMdFirst:
     def test_md_write_failure_aborts_transition(self, temp_env, monkeypatch):
         """md 是真相源: md 写失败 → transition 返回 False 且 DB lifecycle 不变。"""
-        knowledge_repo.upsert_item(_make_item("t1", lifecycle="signal"))
+        knowledge_repo.upsert_item(_make_item("t1", lifecycle="kl:raw"))
 
         def _boom(*a, **kw):
             raise OSError("disk full")
 
         monkeypatch.setattr(knowledge_sync, "write_item_to_md", _boom)
-        assert sag_service.transition("t1", "generate") is False
-        assert knowledge_repo.get_item("t1").lifecycle == "signal"
+        assert sag_service.transition("t1", "kl:publish") is False
+        assert knowledge_repo.get_item("t1").lifecycle == "kl:raw"
 
     def test_md_write_success_updates_both(self, temp_env):
-        knowledge_repo.upsert_item(_make_item("t2", lifecycle="signal"))
-        assert sag_service.transition("t2", "generate") is True
-        assert knowledge_repo.get_item("t2").lifecycle == "generate"
+        """P1-3: transition 落库为 KL 规范值 (原 generate → kl:publish)。"""
+        knowledge_repo.upsert_item(_make_item("t2", lifecycle="kl:raw"))
+        assert sag_service.transition("t2", "kl:publish") is True
+        assert knowledge_repo.get_item("t2").lifecycle == "kl:publish"
         md = (temp_env["items"] / "t2.md").read_text(encoding="utf-8")
-        assert 'lifecycle: "generate"' in md
+        assert 'lifecycle: "kl:publish"' in md
 
 
 class TestUpdateMdFrontmatterField:

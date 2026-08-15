@@ -4,6 +4,7 @@ title: "入侵感知系列之反连检测思路 - 白桦林_HK - 博客园"
 source: "bookmark"
 source_url: "https://www.cnblogs.com/baihualin/p/10414682.html"
 ingested_at: "2026-07-24T16:16:19.463931+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 入侵感知系列之反连检测思路 - 白桦林_HK - 博客园
+---# 入侵感知系列之反连检测思路 - 白桦林_HK - 博客园
 
 

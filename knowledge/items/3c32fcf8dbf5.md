@@ -4,6 +4,7 @@ title: "GitHub - mitre/caldera: Automated Adversary Emulation Platform"
 source: "bookmark"
 source_url: "https://github.com/mitre/caldera"
 ingested_at: "2026-07-24T16:15:20.543234+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# GitHub - mitre/caldera: Automated Adversary Emulation Platform
+---# GitHub - mitre/caldera: Automated Adversary Emulation Platform
 
 

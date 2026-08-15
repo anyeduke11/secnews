@@ -4,6 +4,7 @@ title: "回看2017 | 威胁情报看威胁"
 source: "bookmark"
 source_url: "https://mp.weixin.qq.com/s/dsafRx9ZcDBHWOEH8xLyAw"
 ingested_at: "2026-07-24T16:23:08.495820+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 回看2017 | 威胁情报看威胁
+---# 回看2017 | 威胁情报看威胁
 
 

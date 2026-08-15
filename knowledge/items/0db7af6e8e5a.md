@@ -4,6 +4,7 @@ title: "DSMM数据安全能力成熟度模型试点评估实践体会 - FreeBuf�
 source: "bookmark"
 source_url: "https://www.freebuf.com/articles/database/206419.html"
 ingested_at: "2026-07-24T16:29:31.342890+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# DSMM数据安全能力成熟度模型试点评估实践体会 - FreeBuf互联网安全新媒体平台
+---# DSMM数据安全能力成熟度模型试点评估实践体会 - FreeBuf互联网安全新媒体平台
 
 

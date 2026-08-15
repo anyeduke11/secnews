@@ -43,8 +43,14 @@ def test_is_enabled_true():
 
 
 def test_is_enabled_false_by_default_for_experimental():
-    """实验功能 (reviews/alerts/recommendations/personalization/agent) 默认 False."""
-    for flag in ("reviews", "alerts", "recommendations", "personalization", "agent"):
+    """实验功能 (personalization/agent) 默认 False.
+
+    P0-3: reviews/alerts/recommendations 默认改为 True — 对应前端 UI
+    已可达 (ReviewMode/AlertMode/RecommendationSidebar), flag=False 时
+    路由不注册导致前端 404 (审计发现 P0-3)。backend 实现完备, 数据流
+    断裂由 Phase 3 修复。
+    """
+    for flag in ("personalization", "agent"):
         assert is_enabled(flag) is False, f"{flag} should be False by default"
 
 
@@ -105,14 +111,22 @@ def test_enabled_names_default():
     assert "auto_extract" in names
     assert "annotations" in names
     assert "unified_search" in names
-    # 实验功能应不在
-    assert "reviews" not in names
-    assert "alerts" not in names
+    # P0-3: reviews/alerts/recommendations 默认开启 (前端 UI 可达, 防 404)
+    assert "reviews" in names
+    assert "alerts" in names
+    # 个人画像仍默认关闭
+    assert "personalization" not in names
     assert "agent" not in names
 
 
 def test_enabled_names_with_explicit_list():
-    """显式传入检查列表."""
+    """显式传入检查列表.
+
+    P0-3: reviews 默认已开启, 因此首次断言为 ["tags", "reviews"];
+    disable 后再验证切换行为。
+    """
+    assert enabled_names(["tags", "reviews"]) == ["tags", "reviews"]
+    disable("reviews")
     assert enabled_names(["tags", "reviews"]) == ["tags"]
     enable("reviews")
     assert enabled_names(["tags", "reviews"]) == ["tags", "reviews"]
@@ -134,11 +148,12 @@ def test_config_default_for_stable_features():
 
 
 def test_config_default_for_experimental_features():
-    """实验功能默认 False (PRD 决策)."""
+    """P0-3 后: reviews/alerts/recommendations 默认 True (防前端 404),
+    personalization 仍默认 False."""
     from backend.config import config
-    assert config.feature_reviews is False
-    assert config.feature_alerts is False
-    assert config.feature_recommendations is False
+    assert config.feature_reviews is True
+    assert config.feature_alerts is True
+    assert config.feature_recommendations is True
     assert config.feature_personalization is False
     # Phase 7: feature_agent 已移除, 替换为 feature_mcp_server (Option A 默认开)
     assert config.feature_mcp_server is True

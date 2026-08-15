@@ -4,6 +4,7 @@ title: "lablab-ai-amd-developer-hackathon/CyberSecQwen-4B · Hugging Face"
 source: "bookmark"
 source_url: "https://huggingface.co/lablab-ai-amd-developer-hackathon/CyberSecQwen-4B"
 ingested_at: "2026-07-17T11:21:39.980654+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# lablab-ai-amd-developer-hackathon/CyberSecQwen-4B · Hugging Face
+---# lablab-ai-amd-developer-hackathon/CyberSecQwen-4B · Hugging Face
 
 

@@ -4,6 +4,7 @@ title: "使用Docker構建滲透測試容器（安全相關Docker Image收集）
 source: "bookmark"
 source_url: "https://itw01.com/LX2EL3L.html"
 ingested_at: "2026-07-24T16:18:53.259248+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 使用Docker構建滲透測試容器（安全相關Docker Image收集） - ITW01
+---# 使用Docker構建滲透測試容器（安全相關Docker Image收集） - ITW01
 
 

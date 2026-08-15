@@ -4,6 +4,7 @@ title: "IIS6.0手动安装与配置asp.net2.0全过程 - 苏飞 - 博客园"
 source: "bookmark"
 source_url: "https://www.cnblogs.com/sufei/archive/2010/03/29/1700095.html"
 ingested_at: "2026-07-24T16:47:07.380349+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# IIS6.0手动安装与配置asp.net2.0全过程 - 苏飞 - 博客园
+---# IIS6.0手动安装与配置asp.net2.0全过程 - 苏飞 - 博客园
 
 

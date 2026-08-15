@@ -4,6 +4,7 @@ title: "2026 AI工具大洗牌：你可能用错了！"
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/T5N73uYx4vXR_-bTDVffmw"
 ingested_at: "2026-07-04T10:29:25Z"
+lifecycle: "generate"
 compiled: true
 domain: ai
 topic: ai-tools-overview
@@ -16,9 +17,7 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 2026 AI工具大洗牌：你可能用错了！
+---# 2026 AI工具大洗牌：你可能用错了！
 
 
 

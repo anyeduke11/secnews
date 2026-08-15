@@ -4,6 +4,7 @@ title: "计算机与网络安全系列书单推荐"
 source: "bookmark"
 source_url: "https://mp.weixin.qq.com/s/kEH85B2L8hsTKQjaSluTVQ"
 ingested_at: "2026-07-24T16:17:24.845915+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 计算机与网络安全系列书单推荐
+---# 计算机与网络安全系列书单推荐
 
 

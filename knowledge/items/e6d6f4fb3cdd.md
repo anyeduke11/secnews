@@ -4,6 +4,7 @@ title: "Gartner 2022安全与风险趋势"
 source: "cubox"
 source_url: "https://www.freebuf.com/news/326418.html"
 ingested_at: "2022-11-28T02:32:11Z"
+lifecycle: "kl:link"
 compiled: false
 domain: security
 topic: security
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# Gartner 2022安全与风险趋势
+---# Gartner 2022安全与风险趋势
 
 安全和风险管理领导者需要应对七大趋势，才能保护企业不断扩张的数字足迹免受新威胁的影响。
 

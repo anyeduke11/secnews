@@ -4,6 +4,7 @@ title: "Index of /cdimage/weekly-live-builds/amd64/iso-hybrid"
 source: "bookmark"
 source_url: "https://cdimage.debian.org/cdimage/weekly-live-builds/amd64/iso-hybrid/"
 ingested_at: "2026-07-24T16:46:47.378446+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Index of /cdimage/weekly-live-builds/amd64/iso-hybrid
+---# Index of /cdimage/weekly-live-builds/amd64/iso-hybrid
 
 

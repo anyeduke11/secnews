@@ -4,6 +4,7 @@ title: "享好文 | 代码+安全=提升软件安全"
 source: "bookmark"
 source_url: "https://mp.weixin.qq.com/s/VX8K-NEUsYrDCngZYwEa2w"
 ingested_at: "2026-07-24T16:29:26.987662+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 享好文 | 代码+安全=提升软件安全
+---# 享好文 | 代码+安全=提升软件安全
 
 

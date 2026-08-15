@@ -4,6 +4,7 @@ title: "SQLMap用户手册【超详细】 - 曾是土木人 - 博客园"
 source: "bookmark"
 source_url: "https://www.cnblogs.com/hongfei/p/3872156.html"
 ingested_at: "2026-07-24T16:16:20.080603+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# SQLMap用户手册【超详细】 - 曾是土木人 - 博客园
+---# SQLMap用户手册【超详细】 - 曾是土木人 - 博客园
 
 

@@ -4,6 +4,7 @@ title: "SDL安全实践"
 source: "bookmark"
 source_url: "https://mp.weixin.qq.com/s/QKV7PD11BIFvt-ND2iqHrw"
 ingested_at: "2026-07-24T16:29:11.757357+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# SDL安全实践
+---# SDL安全实践
 
 

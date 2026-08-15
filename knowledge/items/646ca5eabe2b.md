@@ -4,6 +4,7 @@ title: "2025 网络安全职业路径全指南"
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/V25PaHTVJLFs0w6UfJT9zg"
 ingested_at: "2025-10-28T08:20:35Z"
+lifecycle: "kl:link"
 compiled: false
 domain: security
 topic: security
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# 2025 网络安全职业路径全指南
+---# 2025 网络安全职业路径全指南
 
 从“渗透测试员”到“网络安全法律顾问”，你能找到属于自己的赛道。
 

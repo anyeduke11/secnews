@@ -4,6 +4,7 @@ title: "免费科学上网 的DNS小工具 - 安云网 - AnYun.ORG | 专注于�
 source: "bookmark"
 source_url: "http://www.anyun.org/a/jishuguanzhu/shenbingliren/2017/0218/8587.html"
 ingested_at: "2026-07-24T16:17:20.472564+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 免费科学上网 的DNS小工具 - 安云网 - AnYun.ORG | 专注于网络信息收集、网络数据分享、网络安全研究、网络各种猎奇八卦。
+---# 免费科学上网 的DNS小工具 - 安云网 - AnYun.ORG | 专注于网络信息收集、网络数据分享、网络安全研究、网络各种猎奇八卦。
 
 

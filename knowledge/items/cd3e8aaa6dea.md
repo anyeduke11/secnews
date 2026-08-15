@@ -4,6 +4,7 @@ title: "强烈推荐：项目管理核心技能---从启动到收尾、高效实
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/ip8GMMvbsRdMHkIUzW79mw"
 ingested_at: "2025-11-04T11:54:23.800+0800"
+lifecycle: "kl:link"
 compiled: false
 domain: startup
 topic: startup
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# 强烈推荐：项目管理核心技能---从启动到收尾、高效实践指南
+---# 强烈推荐：项目管理核心技能---从启动到收尾、高效实践指南
 
 
 

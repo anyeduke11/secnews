@@ -4,6 +4,7 @@ title: "Snort - Network Intrusion Detection &amp; Prevention System"
 source: "bookmark"
 source_url: "https://www.snort.org/#documents"
 ingested_at: "2026-07-24T16:17:09.263391+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Snort - Network Intrusion Detection &amp; Prevention System
+---# Snort - Network Intrusion Detection &amp; Prevention System
 
 

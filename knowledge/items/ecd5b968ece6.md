@@ -4,6 +4,7 @@ title: "Yes Mum, I&amp;#x27;ll Behave: Beginning Behaviour Driven Infrastructure
 source: "bookmark"
 source_url: "https://www.kartar.net/2009/12/yes-mum-ill-behave-beginning-behaviour-driven-infrastructure/"
 ingested_at: "2026-07-24T17:02:59.618570+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Yes Mum, I&amp;#x27;ll Behave: Beginning Behaviour Driven Infrastructure –
+---# Yes Mum, I&amp;#x27;ll Behave: Beginning Behaviour Driven Infrastructure –
 
 

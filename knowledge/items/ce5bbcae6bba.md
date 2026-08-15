@@ -4,6 +4,7 @@ title: "绿盟2018 DDoS攻击态势报告 - FreeBuf互联网安全新媒体平�
 source: "bookmark"
 source_url: "https://www.freebuf.com/articles/paper/197236.html"
 ingested_at: "2026-07-24T16:23:19.065081+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 绿盟2018 DDoS攻击态势报告 - FreeBuf互联网安全新媒体平台
+---# 绿盟2018 DDoS攻击态势报告 - FreeBuf互联网安全新媒体平台
 
 

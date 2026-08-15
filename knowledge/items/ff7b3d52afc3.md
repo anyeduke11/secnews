@@ -4,6 +4,7 @@ title: "互联网企业数据安全体系建设 - 美团技术团队"
 source: "bookmark"
 source_url: "https://tech.meituan.com/2018/05/24/data-security-system-construction.html"
 ingested_at: "2026-07-24T16:29:30.540693+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 互联网企业数据安全体系建设 - 美团技术团队
+---# 互联网企业数据安全体系建设 - 美团技术团队
 
 

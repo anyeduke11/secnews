@@ -4,6 +4,7 @@ title: "如何应对SHA-1加密算法升级为SHA-256 - IT_Lifeng - 博客园"
 source: "bookmark"
 source_url: "https://www.cnblogs.com/TIlifeng/p/5366602.html"
 ingested_at: "2026-07-24T16:15:23.286999+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 如何应对SHA-1加密算法升级为SHA-256 - IT_Lifeng - 博客园
+---# 如何应对SHA-1加密算法升级为SHA-256 - IT_Lifeng - 博客园
 
 

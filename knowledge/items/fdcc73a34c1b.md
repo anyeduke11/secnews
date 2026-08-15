@@ -4,6 +4,7 @@ title: "Kali_linux2.0 metasploit 连接postgresql - rO_Ot - 博客园"
 source: "bookmark"
 source_url: "https://www.cnblogs.com/jshy/p/5627057.html"
 ingested_at: "2026-07-24T16:16:20.435399+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Kali_linux2.0 metasploit 连接postgresql - rO_Ot - 博客园
+---# Kali_linux2.0 metasploit 连接postgresql - rO_Ot - 博客园
 
 

@@ -4,6 +4,7 @@ title: "Nmap中一些常用的NSE脚本|NOSEC安全讯息平台 - 白帽汇安�
 source: "bookmark"
 source_url: "https://nosec.org/home/detail/2844.html"
 ingested_at: "2026-07-24T16:16:10.708316+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Nmap中一些常用的NSE脚本|NOSEC安全讯息平台 - 白帽汇安全研究院
+---# Nmap中一些常用的NSE脚本|NOSEC安全讯息平台 - 白帽汇安全研究院
 
 

@@ -4,6 +4,7 @@ title: "Infosec_Reference/Privilege Escalation &amp; Post-Exploitation.md at mas
 source: "bookmark"
 source_url: "https://github.com/rmusser01/Infosec_Reference/blob/master/Draft/Privilege%20Escalation%20%26%20Post-Exploitation.md#linpriv"
 ingested_at: "2026-07-24T16:16:02.256244+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Infosec_Reference/Privilege Escalation &amp; Post-Exploitation.md at master · rmusser01/Infosec_Reference
+---# Infosec_Reference/Privilege Escalation &amp; Post-Exploitation.md at master · rmusser01/Infosec_Reference
 
 

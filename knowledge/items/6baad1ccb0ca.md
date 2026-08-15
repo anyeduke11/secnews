@@ -4,6 +4,7 @@ title: "headroomlabs-ai/headroom: Compress tool outputs, logs, files, and RAG ch
 source: "bookmark"
 source_url: "https://github.com/headroomlabs-ai/headroom"
 ingested_at: "2026-07-24T16:15:16.201212+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# headroomlabs-ai/headroom: Compress tool outputs, logs, files, and RAG chunks before they reach the LLM. 60-95% fewer tokens, same answers. Library, proxy, MCP server.
+---# headroomlabs-ai/headroom: Compress tool outputs, logs, files, and RAG chunks before they reach the LLM. 60-95% fewer tokens, same answers. Library, proxy, MCP server.
 
 

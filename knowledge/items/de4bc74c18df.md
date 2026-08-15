@@ -4,6 +4,7 @@ title: "我们为什么需要全球IT资产视图 - 安全牛"
 source: "bookmark"
 source_url: "https://www.aqniu.com/news-views/51443.html"
 ingested_at: "2026-07-24T16:17:31.915443+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 我们为什么需要全球IT资产视图 - 安全牛
+---# 我们为什么需要全球IT资产视图 - 安全牛
 
 

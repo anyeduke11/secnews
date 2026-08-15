@@ -4,6 +4,7 @@ title: "Купить Microsoft Office 365"
 source: "bookmark"
 source_url: "https://appstorrent.ru/365-office.html"
 ingested_at: "2026-07-24T16:46:46.536062+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Купить Microsoft Office 365
+---# Купить Microsoft Office 365
 
 

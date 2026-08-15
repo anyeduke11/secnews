@@ -4,6 +4,7 @@ title: "美国NIST《网络安全框架》v1.1版草案提议修改项 | E安全
 source: "bookmark"
 source_url: "https://www.easyaq.com/news/636990985.shtml"
 ingested_at: "2026-07-24T16:28:47.565867+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 美国NIST《网络安全框架》v1.1版草案提议修改项 | E安全
+---# 美国NIST《网络安全框架》v1.1版草案提议修改项 | E安全
 
 

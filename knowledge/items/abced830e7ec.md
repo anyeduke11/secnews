@@ -4,6 +4,7 @@ title: "关于反爬虫，看这一篇就够了 - 极客头条 - CSDN.NET"
 source: "bookmark"
 source_url: "http://geek.csdn.net/news/detail/85333"
 ingested_at: "2026-07-24T16:15:17.328996+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 关于反爬虫，看这一篇就够了 - 极客头条 - CSDN.NET
+---# 关于反爬虫，看这一篇就够了 - 极客头条 - CSDN.NET
 
 

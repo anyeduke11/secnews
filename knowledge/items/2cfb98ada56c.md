@@ -4,6 +4,7 @@ title: "从DevOps到DevSecOps,贯穿始终的安全栈 - FreeBuf专栏·虫虫�
 source: "bookmark"
 source_url: "https://www.freebuf.com/column/195675.html"
 ingested_at: "2026-07-24T16:29:18.988559+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 从DevOps到DevSecOps,贯穿始终的安全栈 - FreeBuf专栏·虫虫安全
+---# 从DevOps到DevSecOps,贯穿始终的安全栈 - FreeBuf专栏·虫虫安全
 
 

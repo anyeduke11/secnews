@@ -4,6 +4,7 @@ title: "Web安全入门心法 - 知乎专栏"
 source: "bookmark"
 source_url: "https://zhuanlan.zhihu.com/p/26053309"
 ingested_at: "2026-07-24T16:29:26.593702+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Web安全入门心法 - 知乎专栏
+---# Web安全入门心法 - 知乎专栏
 
 

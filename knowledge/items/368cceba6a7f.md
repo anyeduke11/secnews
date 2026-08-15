@@ -4,6 +4,7 @@ title: "实战化威胁猎杀,让威胁无处遁形——“美向俄电网植�
 source: "bookmark"
 source_url: "https://www.secpulse.com/archives/109683.html"
 ingested_at: "2026-07-24T16:16:53.653965+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 实战化威胁猎杀,让威胁无处遁形——“美向俄电网植入恶意代码”等有关报道带来的启示 - SecPulse.COM | 安全脉搏
+---# 实战化威胁猎杀,让威胁无处遁形——“美向俄电网植入恶意代码”等有关报道带来的启示 - SecPulse.COM | 安全脉搏
 
 

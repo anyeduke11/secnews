@@ -4,6 +4,7 @@ title: "银行数字化转型路径——专访中国建设银行首席信息官
 source: "bookmark"
 source_url: "https://mp.weixin.qq.com/s/EyekchX57hNL705DV9aiXw"
 ingested_at: "2026-07-24T16:28:56.745223+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 银行数字化转型路径——专访中国建设银行首席信息官金磐石
+---# 银行数字化转型路径——专访中国建设银行首席信息官金磐石
 
 

@@ -4,6 +4,7 @@ title: "T-Pot多蜜罐平台：让蜜罐实现更简单 - FreeBuf.COM | 关注�
 source: "bookmark"
 source_url: "http://www.freebuf.com/sectool/134504.html"
 ingested_at: "2026-07-24T16:19:56.793882+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# T-Pot多蜜罐平台：让蜜罐实现更简单 - FreeBuf.COM | 关注黑客与极客
+---# T-Pot多蜜罐平台：让蜜罐实现更简单 - FreeBuf.COM | 关注黑客与极客
 
 

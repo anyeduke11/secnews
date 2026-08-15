@@ -4,6 +4,7 @@ title: "请在微信客户端打开链接"
 source: "cubox"
 source_url: "https://gitbook.cn/m/mazi/comp/column?columnId=5afbf24f753289354cab7983&utm_source=gitchatapp"
 ingested_at: "2022-04-16T03:38:45Z"
+lifecycle: "kl:structure"
 compiled: false
 domain: security
 topic: security
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# 请在微信客户端打开链接
+---# 请在微信客户端打开链接
 
 近 20 年攻防一线经验高手传授黑客密码攻防秘笈
 

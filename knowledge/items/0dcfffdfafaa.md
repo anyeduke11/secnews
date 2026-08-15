@@ -4,6 +4,7 @@ title: "编程入门纳米学位 - Udacity"
 source: "bookmark"
 source_url: "https://classroom.udacity.com/nanodegrees/nd000/parts/0001345400/modules/000134540075460/lessons/3521029360/concepts/71192198650923"
 ingested_at: "2026-07-24T16:15:19.081725+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 编程入门纳米学位 - Udacity
+---# 编程入门纳米学位 - Udacity
 
 

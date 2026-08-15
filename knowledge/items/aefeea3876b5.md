@@ -4,6 +4,7 @@ title: "ornith"
 source: "bookmark"
 source_url: "https://ollama.com/library/ornith"
 ingested_at: "2026-07-24T16:15:27.369354+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# ornith
+---# ornith
 
 

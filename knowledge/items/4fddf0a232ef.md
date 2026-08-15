@@ -4,6 +4,7 @@ title: "重磅！Anthropic内部Skills经验公开了！"
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/FCKdRHxi9c6Vby2ZRKjVTw"
 ingested_at: "2026-06-08T04:35:56Z"
+lifecycle: "kl:link"
 compiled: false
 domain: ai
 topic: ai
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# 重磅！Anthropic内部Skills经验公开了！
+---# 重磅！Anthropic内部Skills经验公开了！
 
 
 

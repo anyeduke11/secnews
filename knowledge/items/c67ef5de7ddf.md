@@ -4,6 +4,7 @@ title: "secnewsbydukez/snort: An UNOFFICIAL Git Repository of Snort(R) Releases 
 source: "bookmark"
 source_url: "https://github.com/secnewsbydukez/snort"
 ingested_at: "2026-07-24T16:17:06.353226+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# secnewsbydukez/snort: An UNOFFICIAL Git Repository of Snort(R) Releases - NOT CISCO
+---# secnewsbydukez/snort: An UNOFFICIAL Git Repository of Snort(R) Releases - NOT CISCO
 
 

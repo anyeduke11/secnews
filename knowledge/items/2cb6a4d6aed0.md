@@ -4,6 +4,7 @@ title: "如何绕过windows 2008 R2身份验证？ - FreeBuf.COM | 关注黑客�
 source: "bookmark"
 source_url: "http://www.freebuf.com/articles/system/145685.html"
 ingested_at: "2026-07-24T16:15:39.629695+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 如何绕过windows 2008 R2身份验证？ - FreeBuf.COM | 关注黑客与极客
+---# 如何绕过windows 2008 R2身份验证？ - FreeBuf.COM | 关注黑客与极客
 
 

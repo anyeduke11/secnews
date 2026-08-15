@@ -4,6 +4,7 @@ title: "Releases · microsoftarchive/redis"
 source: "bookmark"
 source_url: "https://github.com/microsoftarchive/redis/releases"
 ingested_at: "2026-07-24T16:15:20.497464+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Releases · microsoftarchive/redis
+---# Releases · microsoftarchive/redis
 
 

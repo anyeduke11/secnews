@@ -4,6 +4,7 @@ title: "Verify"
 source: "bookmark"
 source_url: "https://verify.example.com/p1b"
 ingested_at: "2026-07-15T12:54:23Z"
+lifecycle: "generate"
 compiled: true
 domain: "other"
 topic: "test"
@@ -15,8 +16,6 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# Verify
+---# Verify
 
 

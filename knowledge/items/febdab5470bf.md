@@ -4,6 +4,7 @@ title: "cropflre/nowen-note: 开源自托管笔记与私有知识库，支持 Ma
 source: "bookmark"
 source_url: "https://github.com/cropflre/nowen-note"
 ingested_at: "2026-07-24T16:18:28.023751+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# cropflre/nowen-note: 开源自托管笔记与私有知识库，支持 Markdown/富文本、AI 写作、思维导图、任务管理、全文搜索、多级笔记本和 Docker 一键部署。
+---# cropflre/nowen-note: 开源自托管笔记与私有知识库，支持 Markdown/富文本、AI 写作、思维导图、任务管理、全文搜索、多级笔记本和 Docker 一键部署。
 
 

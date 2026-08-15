@@ -4,6 +4,7 @@ title: "Gartner 2020年规划指南概述：构建数字化转型技能 - 安全
 source: "bookmark"
 source_url: "https://www.secrss.com/articles/16804"
 ingested_at: "2026-07-24T16:17:36.678065+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Gartner 2020年规划指南概述：构建数字化转型技能 - 安全内参 | 决策者的网络安全知识库
+---# Gartner 2020年规划指南概述：构建数字化转型技能 - 安全内参 | 决策者的网络安全知识库
 
 

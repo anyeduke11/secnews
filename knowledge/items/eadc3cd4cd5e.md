@@ -4,6 +4,7 @@ title: "xuzhongxing/fuchsia-notes: Some random notes taken when reading through 
 source: "bookmark"
 source_url: "https://github.com/xuzhongxing/fuchsia-notes"
 ingested_at: "2026-07-24T16:16:05.058870+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# xuzhongxing/fuchsia-notes: Some random notes taken when reading through the Fuchsia source code
+---# xuzhongxing/fuchsia-notes: Some random notes taken when reading through the Fuchsia source code
 
 

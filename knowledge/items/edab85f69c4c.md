@@ -4,6 +4,7 @@ title: "GitHub关键字扫描开源工具推荐 - FreeBuf互联网安全新媒�
 source: "bookmark"
 source_url: "https://www.freebuf.com/articles/es/187669.html"
 ingested_at: "2026-07-24T16:15:24.348524+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# GitHub关键字扫描开源工具推荐 - FreeBuf互联网安全新媒体平台
+---# GitHub关键字扫描开源工具推荐 - FreeBuf互联网安全新媒体平台
 
 

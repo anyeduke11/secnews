@@ -4,6 +4,7 @@ title: "GParted Live on Hard Disk"
 source: "bookmark"
 source_url: "http://gparted.org/livehd.php"
 ingested_at: "2026-07-24T16:18:37.732159+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# GParted Live on Hard Disk
+---# GParted Live on Hard Disk
 
 

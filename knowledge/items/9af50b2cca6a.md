@@ -4,6 +4,7 @@ title: "网易公开课"
 source: "bookmark"
 source_url: "https://open.163.com/"
 ingested_at: "2026-07-24T16:46:29.370588+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 网易公开课
+---# 网易公开课
 
 

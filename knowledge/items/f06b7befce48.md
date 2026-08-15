@@ -4,6 +4,7 @@ title: "脚本自动ping检测网络情况 - OurWorld的博客 - CSDN博客"
 source: "bookmark"
 source_url: "https://blog.csdn.net/isgordon/article/details/78500484"
 ingested_at: "2026-07-24T16:15:18.797919+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 脚本自动ping检测网络情况 - OurWorld的博客 - CSDN博客
+---# 脚本自动ping检测网络情况 - OurWorld的博客 - CSDN博客
 
 

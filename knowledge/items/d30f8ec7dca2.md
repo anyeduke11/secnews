@@ -4,6 +4,7 @@ title: "YARA规则的二进制格式探索与漏洞挖掘利用 - 安全客，�
 source: "bookmark"
 source_url: "https://www.anquanke.com/post/id/147675"
 ingested_at: "2026-07-24T16:23:14.548348+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# YARA规则的二进制格式探索与漏洞挖掘利用 - 安全客，安全资讯平台
+---# YARA规则的二进制格式探索与漏洞挖掘利用 - 安全客，安全资讯平台
 
 

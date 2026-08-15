@@ -4,6 +4,7 @@ title: "一个简单的分布式WEB扫描器的设计与实践|安全工具 - �
 source: "bookmark"
 source_url: "https://xianzhi.aliyun.com/forum/read/831.html"
 ingested_at: "2026-07-24T16:18:16.432356+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 一个简单的分布式WEB扫描器的设计与实践|安全工具 - 安全技术社区
+---# 一个简单的分布式WEB扫描器的设计与实践|安全工具 - 安全技术社区
 
 

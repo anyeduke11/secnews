@@ -4,6 +4,7 @@ title: "微软开源Intelligent Terminal：支持ACP、集成原生Agent能力"
 source: "bookmark"
 source_url: "https://mp.weixin.qq.com/s/DfIi306b1ryuvievSLO8ug"
 ingested_at: "2026-07-24T16:19:48.612969+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 微软开源Intelligent Terminal：支持ACP、集成原生Agent能力
+---# 微软开源Intelligent Terminal：支持ACP、集成原生Agent能力
 
 

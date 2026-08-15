@@ -4,6 +4,7 @@ title: "孙中东：AI Coding 时代的银行 SDLC 智能化转型报告"
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/Vr06IymeROljFkdefj2cUQ"
 ingested_at: "2026-05-27T08:39:42Z"
+lifecycle: "kl:link"
 compiled: false
 domain: ai
 topic: ai
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# 孙中东：AI Coding 时代的银行 SDLC 智能化转型报告
+---# 孙中东：AI Coding 时代的银行 SDLC 智能化转型报告
 
 
 

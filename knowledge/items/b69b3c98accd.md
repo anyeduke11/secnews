@@ -4,6 +4,7 @@ title: "尾 - 从Windows安装：概述"
 source: "bookmark"
 source_url: "https://tails.boum.org/install/win/usb/overview/index.en.html"
 ingested_at: "2026-07-24T16:18:15.295014+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 尾 - 从Windows安装：概述
+---# 尾 - 从Windows安装：概述
 
 

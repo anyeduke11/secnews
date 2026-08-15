@@ -4,6 +4,7 @@ title: "SQL注入的常规思路及奇葩技巧"
 source: "bookmark"
 source_url: "https://mp.weixin.qq.com/s/hBkJ1M6LRgssNyQyati1ng"
 ingested_at: "2026-07-24T16:16:09.214539+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# SQL注入的常规思路及奇葩技巧
+---# SQL注入的常规思路及奇葩技巧
 
 

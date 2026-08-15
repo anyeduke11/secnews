@@ -4,6 +4,7 @@ title: "linux 修改时间 - [命令操作] - 達達尼亞 - 博客园"
 source: "bookmark"
 source_url: "https://www.cnblogs.com/wayne173/p/3747337.html"
 ingested_at: "2026-07-24T16:19:03.841808+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# linux 修改时间 - [命令操作] - 達達尼亞 - 博客园
+---# linux 修改时间 - [命令操作] - 達達尼亞 - 博客园
 
 

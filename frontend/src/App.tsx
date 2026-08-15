@@ -258,6 +258,7 @@ export default function App() {
             <Route path="imported" element={<Suspense fallback={<PageFallback />}><KnowledgeFavoritesView /></Suspense>} />
             <Route path="briefing" element={<Suspense fallback={<PageFallback />}><BriefingMode /></Suspense>} />
             <Route path="scan" element={<Suspense fallback={<PageFallback />}><ScanMode /></Suspense>} />
+            <Route path="deep-read" element={<Navigate to="scan" replace />} />
             <Route path="deep-read/:id" element={<Suspense fallback={<PageFallback />}><DeepReadMode /></Suspense>} />
             <Route path="alert" element={<Suspense fallback={<PageFallback />}><AlertMode /></Suspense>} />
             <Route path="outbox" element={<Suspense fallback={<PageFallback />}><OutboxMode /></Suspense>} />

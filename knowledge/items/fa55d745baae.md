@@ -4,6 +4,7 @@ title: "一周TOP 10 AI论文_20260628"
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/IuhrsPpKX9qiouXuNbisaQ"
 ingested_at: "2026-06-29T10:42:27Z"
+lifecycle: "kl:link"
 compiled: false
 domain: security
 topic: security
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# 一周TOP 10 AI论文_20260628
+---# 一周TOP 10 AI论文_20260628
 
 本周顶级AI论文（2026年6月21日-2026年6月28日）
 

@@ -4,6 +4,7 @@ title: "内网渗透：流量转发场景测试 - 安全客，安全资讯平台
 source: "bookmark"
 source_url: "https://www.anquanke.com/post/id/204347"
 ingested_at: "2026-07-24T16:16:18.219804+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 内网渗透：流量转发场景测试 - 安全客，安全资讯平台
+---# 内网渗透：流量转发场景测试 - 安全客，安全资讯平台
 
 

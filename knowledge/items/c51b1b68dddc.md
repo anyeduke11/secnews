@@ -4,6 +4,7 @@ title: "Free Automated Malware Analysis Service - powered by Falcon Sandbox"
 source: "bookmark"
 source_url: "https://www.hybrid-analysis.com/"
 ingested_at: "2026-07-24T16:23:23.448060+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Free Automated Malware Analysis Service - powered by Falcon Sandbox
+---# Free Automated Malware Analysis Service - powered by Falcon Sandbox
 
 

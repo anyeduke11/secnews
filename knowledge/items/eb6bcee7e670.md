@@ -4,6 +4,7 @@ title: "PEP 8 -- Style Guide for Python Code | Python.org"
 source: "bookmark"
 source_url: "https://www.python.org/dev/peps/pep-0008/"
 ingested_at: "2026-07-24T16:15:25.298003+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# PEP 8 -- Style Guide for Python Code | Python.org
+---# PEP 8 -- Style Guide for Python Code | Python.org
 
 

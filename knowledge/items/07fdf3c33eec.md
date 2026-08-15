@@ -4,6 +4,7 @@ title: "The Intercept"
 source: "bookmark"
 source_url: "https://theintercept.com/snowden-sidtoday/"
 ingested_at: "2026-07-24T16:16:15.444453+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# The Intercept
+---# The Intercept
 
 

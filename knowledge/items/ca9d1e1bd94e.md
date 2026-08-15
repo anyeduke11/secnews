@@ -4,6 +4,7 @@ title: "Release 12.1.0 · jgraph/drawio-desktop"
 source: "bookmark"
 source_url: "https://github.com/jgraph/drawio-desktop/releases/tag/v12.1.0"
 ingested_at: "2026-07-24T16:19:31.602877+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Release 12.1.0 · jgraph/drawio-desktop
+---# Release 12.1.0 · jgraph/drawio-desktop
 
 

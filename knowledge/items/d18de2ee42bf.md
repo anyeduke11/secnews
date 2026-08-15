@@ -4,6 +4,7 @@ title: "一人公司OPC如何用公众号＋智能体，低成本跑通AI产品�
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/EK36FRcxAYqZjaQJFY17DA"
 ingested_at: "2026-07-13T03:53:04Z"
+lifecycle: "generate"
 compiled: true
 domain: ai
 topic: ai-entrepreneurship
@@ -16,9 +17,7 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["cubox"]
----
-
-# 一人公司OPC如何用公众号＋智能体，低成本跑通AI产品第一步？
+---# 一人公司OPC如何用公众号＋智能体，低成本跑通AI产品第一步？
 
 
 

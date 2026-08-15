@@ -4,6 +4,7 @@ title: "一次完整的从webshell到域控的探索之路 - SecPulse.COM | 安�
 source: "bookmark"
 source_url: "https://www.secpulse.com/archives/51092.html"
 ingested_at: "2026-07-24T16:16:31.886815+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 一次完整的从webshell到域控的探索之路 - SecPulse.COM | 安全脉搏
+---# 一次完整的从webshell到域控的探索之路 - SecPulse.COM | 安全脉搏
 
 

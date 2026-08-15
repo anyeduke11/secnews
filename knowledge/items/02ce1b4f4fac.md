@@ -4,6 +4,7 @@ title: "企业加强客户隐私数据保护的12条建议 - 安全内参 | 决�
 source: "bookmark"
 source_url: "https://www.secrss.com/articles/42585"
 ingested_at: "2026-07-24T16:17:44.658387+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 企业加强客户隐私数据保护的12条建议 - 安全内参 | 决策者的网络安全知识库
+---# 企业加强客户隐私数据保护的12条建议 - 安全内参 | 决策者的网络安全知识库
 
 

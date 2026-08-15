@@ -4,6 +4,7 @@ title: "FallibleInc/security-guide-for-developers: Security Guide for Developers
 source: "bookmark"
 source_url: "https://github.com/FallibleInc/security-guide-for-developers"
 ingested_at: "2026-07-24T16:19:27.093540+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# FallibleInc/security-guide-for-developers: Security Guide for Developers (实用性开发人员安全须知)
+---# FallibleInc/security-guide-for-developers: Security Guide for Developers (实用性开发人员安全须知)
 
 

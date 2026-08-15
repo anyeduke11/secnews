@@ -4,6 +4,7 @@ title: "前言 · V2Ray 配置指南|V2Ray 白话文教程"
 source: "bookmark"
 source_url: "https://toutyrater.github.io/#"
 ingested_at: "2026-07-24T16:46:30.671361+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 前言 · V2Ray 配置指南|V2Ray 白话文教程
+---# 前言 · V2Ray 配置指南|V2Ray 白话文教程
 
 

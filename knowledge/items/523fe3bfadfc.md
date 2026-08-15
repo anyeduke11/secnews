@@ -4,6 +4,7 @@ title: "Shodan新手入坑指南 - FreeBuf.COM | 关注黑客与极客"
 source: "bookmark"
 source_url: "http://www.freebuf.com/sectool/121339.html"
 ingested_at: "2026-07-24T16:15:43.453767+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Shodan新手入坑指南 - FreeBuf.COM | 关注黑客与极客
+---# Shodan新手入坑指南 - FreeBuf.COM | 关注黑客与极客
 
 

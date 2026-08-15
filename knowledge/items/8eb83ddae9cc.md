@@ -4,6 +4,7 @@ title: "AI是阿拉丁神灯？ AI漏洞挖掘系统上手教程！"
 source: "bookmark"
 source_url: "https://mp.weixin.qq.com/s/39puz-wGyVf8umpURhT3hQ"
 ingested_at: "2026-07-24T16:17:11.325884+00:00"
+lifecycle: "generate"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# AI是阿拉丁神灯？ AI漏洞挖掘系统上手教程！
+---# AI是阿拉丁神灯？ AI漏洞挖掘系统上手教程！
 
 

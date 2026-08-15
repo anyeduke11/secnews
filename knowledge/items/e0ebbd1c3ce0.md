@@ -4,6 +4,7 @@ title: "米科·哈普宁：对抗病毒，保卫网络 | TED Talk | TED.com"
 source: "bookmark"
 source_url: "http://www.ted.com/talks/mikko_hypponen_fighting_viruses_defending_the_net/transcript?language=en#t-177070"
 ingested_at: "2026-07-24T16:23:31.426947+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 米科·哈普宁：对抗病毒，保卫网络 | TED Talk | TED.com
+---# 米科·哈普宁：对抗病毒，保卫网络 | TED Talk | TED.com
 
 

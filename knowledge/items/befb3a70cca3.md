@@ -4,6 +4,7 @@ title: "excel中round函数的使用方法_百度经验"
 source: "bookmark"
 source_url: "https://jingyan.baidu.com/article/fdffd1f804de24f3e88ca140.html"
 ingested_at: "2026-07-24T16:46:28.320872+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# excel中round函数的使用方法_百度经验
+---# excel中round函数的使用方法_百度经验
 
 

@@ -4,6 +4,7 @@ title: "互联网企业安全建设思考与实践 - 安全内参 | 决策者的
 source: "bookmark"
 source_url: "https://www.secrss.com/articles/26532"
 ingested_at: "2026-07-24T16:17:41.082868+00:00"
+lifecycle: "generate"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 互联网企业安全建设思考与实践 - 安全内参 | 决策者的网络安全知识库
+---# 互联网企业安全建设思考与实践 - 安全内参 | 决策者的网络安全知识库
 
 

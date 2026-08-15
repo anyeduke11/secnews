@@ -4,6 +4,7 @@ title: "ginobefun/deep-reading-analyst-skill: 一个用于深度阅读分析的 
 source: "bookmark"
 source_url: "https://github.com/ginobefun/deep-reading-analyst-skill"
 ingested_at: "2026-07-24T16:15:16.965810+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# ginobefun/deep-reading-analyst-skill: 一个用于深度阅读分析的 Claude AI 专业技能 --- ginobefun/deep-reading-analyst-skill: A professional Claude AI skill for deep reading analysis
+---# ginobefun/deep-reading-analyst-skill: 一个用于深度阅读分析的 Claude AI 专业技能 --- ginobefun/deep-reading-analyst-skill: A professional Claude AI skill for deep reading analysis
 
 

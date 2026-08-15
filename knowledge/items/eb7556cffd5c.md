@@ -4,6 +4,7 @@ title: "dvorka-oss/mindforger: Thinking notebook and Markdown editor."
 source: "bookmark"
 source_url: "https://github.com/dvorka-oss/mindforger"
 ingested_at: "2026-07-24T16:15:28.041313+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# dvorka-oss/mindforger: Thinking notebook and Markdown editor.
+---# dvorka-oss/mindforger: Thinking notebook and Markdown editor.
 
 

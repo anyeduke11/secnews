@@ -4,6 +4,7 @@ title: "不安全的Url重定向原理概述和案例 - 程序员大本营"
 source: "bookmark"
 source_url: "https://www.pianshen.com/article/59371921463/"
 ingested_at: "2026-07-24T16:17:02.834243+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 不安全的Url重定向原理概述和案例 - 程序员大本营
+---# 不安全的Url重定向原理概述和案例 - 程序员大本营
 
 

@@ -4,6 +4,7 @@ title: "Get Started Tutorial for Python in Visual Studio Code"
 source: "bookmark"
 source_url: "https://code.visualstudio.com/docs/python/python-tutorial"
 ingested_at: "2026-07-24T16:15:19.131839+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Get Started Tutorial for Python in Visual Studio Code
+---# Get Started Tutorial for Python in Visual Studio Code
 
 

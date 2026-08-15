@@ -4,6 +4,7 @@ title: "奇安信威胁情报中心"
 source: "bookmark"
 source_url: "https://mp.weixin.qq.com/s/As902I82uYq5eYQHhUToaA"
 ingested_at: "2026-07-24T16:23:04.998948+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 奇安信威胁情报中心
+---# 奇安信威胁情报中心
 
 

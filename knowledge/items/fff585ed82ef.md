@@ -4,6 +4,7 @@ title: "Tenable Network Security"
 source: "bookmark"
 source_url: "https://plugins.nessus.org/v2/offline.php"
 ingested_at: "2026-07-24T16:17:06.969580+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Tenable Network Security
+---# Tenable Network Security
 
 

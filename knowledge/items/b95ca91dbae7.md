@@ -4,6 +4,7 @@ title: "图解项目管理发展变化的七个趋势"
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/XPY4RQUo8NNjP1-zMNZrFQ"
 ingested_at: "2025-09-20T06:27:58Z"
+lifecycle: "kl:link"
 compiled: false
 domain: startup
 topic: startup
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# 图解项目管理发展变化的七个趋势
+---# 图解项目管理发展变化的七个趋势
 
 
 

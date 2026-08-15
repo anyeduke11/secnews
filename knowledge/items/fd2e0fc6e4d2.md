@@ -4,6 +4,7 @@ title: "漏洞盒子 | 互联网安全测试平台"
 source: "bookmark"
 source_url: "https://www.vulbox.com/knowledge/detail/?id=10"
 ingested_at: "2026-07-24T16:29:24.462050+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 漏洞盒子 | 互联网安全测试平台
+---# 漏洞盒子 | 互联网安全测试平台
 
 

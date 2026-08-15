@@ -4,6 +4,7 @@ title: "HackJava/HackJava: 《Java安全-只有Java安全才能拯救宇宙》On
 source: "bookmark"
 source_url: "https://github.com/HackJava/HackJava"
 ingested_at: "2026-07-24T16:15:19.735828+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# HackJava/HackJava: 《Java安全-只有Java安全才能拯救宇宙》Only Java Security Can Save The Universe.
+---# HackJava/HackJava: 《Java安全-只有Java安全才能拯救宇宙》Only Java Security Can Save The Universe.
 
 

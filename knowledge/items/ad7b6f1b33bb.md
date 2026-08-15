@@ -4,6 +4,7 @@ title: "记一次渗透测试，好久没遇见asp了 - HackMD"
 source: "bookmark"
 source_url: "https://hackmd.io/penuUNM1RguL_rNcd_A6wA?view"
 ingested_at: "2026-07-24T16:16:05.237590+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 记一次渗透测试，好久没遇见asp了 - HackMD
+---# 记一次渗透测试，好久没遇见asp了 - HackMD
 
 

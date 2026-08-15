@@ -4,6 +4,7 @@ title: "Gartner发布《实施持续威胁暴露面管理 (CTEM) 计划》"
 source: "cubox"
 source_url: "https://www.secrss.com/articles/45416"
 ingested_at: "2022-08-06T02:47:25Z"
+lifecycle: "kl:structure"
 compiled: false
 domain: security
 topic: security
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# Gartner发布《实施持续威胁暴露面管理 (CTEM) 计划》
+---# Gartner发布《实施持续威胁暴露面管理 (CTEM) 计划》
 
 持续威胁暴露面管理计划是一种集成的迭代方法，优先考虑潜在的处理方法，并不断完善安全态势改进。
 

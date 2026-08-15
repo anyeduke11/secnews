@@ -4,6 +4,7 @@ title: "子域名发掘神器：AQUATONE – 即刻安全"
 source: "bookmark"
 source_url: "http://www.secist.com/archives/3778.html"
 ingested_at: "2026-07-24T16:15:51.296561+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 子域名发掘神器：AQUATONE – 即刻安全
+---# 子域名发掘神器：AQUATONE – 即刻安全
 
 

@@ -4,6 +4,7 @@ title: "Docker"
 source: "bookmark"
 source_url: "https://mp.weixin.qq.com/s/kRJe399S-m3NMzcIT6a-HQ"
 ingested_at: "2026-07-24T16:18:56.533867+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Docker
+---# Docker
 
 

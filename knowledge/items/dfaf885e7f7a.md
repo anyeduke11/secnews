@@ -4,6 +4,7 @@ title: "Exploring the Linux kernel: The secrets of Kconfig/kbuild | Opensource.c
 source: "bookmark"
 source_url: "https://opensource.com/article/18/10/kbuild-and-kconfig"
 ingested_at: "2026-07-24T16:16:10.895546+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Exploring the Linux kernel: The secrets of Kconfig/kbuild | Opensource.com
+---# Exploring the Linux kernel: The secrets of Kconfig/kbuild | Opensource.com
 
 

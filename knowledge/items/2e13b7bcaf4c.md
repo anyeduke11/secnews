@@ -4,6 +4,7 @@ title: "技术博客_内容中心_【安华金和】"
 source: "bookmark"
 source_url: "https://www.dbsec.cn/blog.html"
 ingested_at: "2026-07-24T16:23:36.657312+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 技术博客_内容中心_【安华金和】
+---# 技术博客_内容中心_【安华金和】
 
 

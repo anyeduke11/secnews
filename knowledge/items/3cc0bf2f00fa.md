@@ -4,6 +4,7 @@ title: "Documentation for Visual Studio Code"
 source: "bookmark"
 source_url: "https://code.visualstudio.com/docs?start=true"
 ingested_at: "2026-07-24T16:46:47.765794+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Documentation for Visual Studio Code
+---# Documentation for Visual Studio Code
 
 

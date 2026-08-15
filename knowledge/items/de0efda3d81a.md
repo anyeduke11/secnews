@@ -4,6 +4,7 @@ title: "剧透Black Hat 2017将要发布的8款安全工具 - FreeBuf.COM | 关�
 source: "bookmark"
 source_url: "http://www.freebuf.com/sectool/138445.html"
 ingested_at: "2026-07-24T16:15:45.731328+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 剧透Black Hat 2017将要发布的8款安全工具 - FreeBuf.COM | 关注黑客与极客
+---# 剧透Black Hat 2017将要发布的8款安全工具 - FreeBuf.COM | 关注黑客与极客
 
 

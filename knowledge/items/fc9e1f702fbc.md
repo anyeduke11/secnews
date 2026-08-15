@@ -4,6 +4,7 @@ title: "如何搭建自己的蜜罐系统收集恶意软件样本 - 先知社区
 source: "bookmark"
 source_url: "https://xz.aliyun.com/t/2439"
 ingested_at: "2026-07-24T16:23:28.837300+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 如何搭建自己的蜜罐系统收集恶意软件样本 - 先知社区
+---# 如何搭建自己的蜜罐系统收集恶意软件样本 - 先知社区
 
 

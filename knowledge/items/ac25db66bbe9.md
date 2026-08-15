@@ -4,6 +4,7 @@ title: "Faraday：一款多功能协同式渗透测试工具&amp;漏洞管理平
 source: "bookmark"
 source_url: "https://www.freebuf.com/articles/web/198112.html"
 ingested_at: "2026-07-24T16:16:23.951594+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Faraday：一款多功能协同式渗透测试工具&amp;漏洞管理平台 - FreeBuf互联网安全新媒体平台
+---# Faraday：一款多功能协同式渗透测试工具&amp;漏洞管理平台 - FreeBuf互联网安全新媒体平台
 
 

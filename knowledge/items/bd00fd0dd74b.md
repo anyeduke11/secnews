@@ -4,6 +4,7 @@ title: "基于Frida进行通信数据“解密” | 绿盟科技博客"
 source: "bookmark"
 source_url: "http://blog.nsfocus.net/communication-data-decryption-based-on-frida/"
 ingested_at: "2026-07-24T16:17:48.776755+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 基于Frida进行通信数据“解密” | 绿盟科技博客
+---# 基于Frida进行通信数据“解密” | 绿盟科技博客
 
 

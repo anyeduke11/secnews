@@ -4,6 +4,7 @@ title: "端口转发集合 - Powered by SecQuan"
 source: "bookmark"
 source_url: "https://www.secquan.org/Share/861#reply3"
 ingested_at: "2026-07-24T16:17:35.815228+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 端口转发集合 - Powered by SecQuan
+---# 端口转发集合 - Powered by SecQuan
 
 

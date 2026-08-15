@@ -4,6 +4,7 @@ title: "Python中有潜在代码执行风险的函数(一) - 先知社区"
 source: "bookmark"
 source_url: "https://xz.aliyun.com/t/6902"
 ingested_at: "2026-07-24T16:16:38.414109+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Python中有潜在代码执行风险的函数(一) - 先知社区
+---# Python中有潜在代码执行风险的函数(一) - 先知社区
 
 

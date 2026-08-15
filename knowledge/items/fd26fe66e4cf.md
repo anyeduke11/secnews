@@ -4,6 +4,7 @@ title: "DevSecOps的理解与思考 - FreeBuf专栏·宜人安全"
 source: "bookmark"
 source_url: "http://www.freebuf.com/column/145722.html"
 ingested_at: "2026-07-24T16:29:05.040554+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# DevSecOps的理解与思考 - FreeBuf专栏·宜人安全
+---# DevSecOps的理解与思考 - FreeBuf专栏·宜人安全
 
 

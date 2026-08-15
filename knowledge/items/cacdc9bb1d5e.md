@@ -4,6 +4,7 @@ title: "共享文件下载 - Kylin Distro"
 source: "bookmark"
 source_url: "https://iso.kylinos.cn/web_pungi/download/cdn/JiXAySdVb2sN9R7QDYPcZO1UL8tEH6gm/"
 ingested_at: "2026-07-24T16:18:23.553705+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 共享文件下载 - Kylin Distro
+---# 共享文件下载 - Kylin Distro
 
 

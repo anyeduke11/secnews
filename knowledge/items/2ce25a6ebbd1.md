@@ -4,6 +4,7 @@ title: "风控引擎的演进及设计思想 - 知乎"
 source: "bookmark"
 source_url: "https://zhuanlan.zhihu.com/p/73181470"
 ingested_at: "2026-07-24T17:02:52.474646+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 风控引擎的演进及设计思想 - 知乎
+---# 风控引擎的演进及设计思想 - 知乎
 
 

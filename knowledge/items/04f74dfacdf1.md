@@ -4,6 +4,7 @@ title: "两个月没花一分Token钱，4个白嫖渠道全摊开"
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/3ffYed_z2vc1sJN4SrVi_Q"
 ingested_at: "2026-06-15T08:44:08Z"
+lifecycle: "kl:link"
 compiled: false
 domain: security
 topic: security
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# 两个月没花一分Token钱，4个白嫖渠道全摊开
+---# 两个月没花一分Token钱，4个白嫖渠道全摊开
 
 上个月跑Agent跑嗨了，醒来一看账单——37美元。心疼得在床上躺了十分钟。
 

@@ -4,6 +4,7 @@ title: "The FreeFrameWork Project / Bugs / #19 Propath issues"
 source: "bookmark"
 source_url: "https://sourceforge.net/p/freeframework/bugs/19/"
 ingested_at: "2026-07-24T16:18:24.184419+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# The FreeFrameWork Project / Bugs / #19 Propath issues
+---# The FreeFrameWork Project / Bugs / #19 Propath issues
 
 

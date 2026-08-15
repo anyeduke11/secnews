@@ -4,6 +4,7 @@ title: "漏洞分类列表 - 知道创宇 Seebug 漏洞平台"
 source: "bookmark"
 source_url: "https://www.seebug.org/category/"
 ingested_at: "2026-07-24T16:16:34.334720+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 漏洞分类列表 - 知道创宇 Seebug 漏洞平台
+---# 漏洞分类列表 - 知道创宇 Seebug 漏洞平台
 
 

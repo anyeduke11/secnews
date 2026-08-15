@@ -4,6 +4,7 @@ title: "Microsoft 安全公告 MS17-010 - 严重"
 source: "bookmark"
 source_url: "https://technet.microsoft.com/zh-cn/en-ch/library/security/ms17-010.aspx"
 ingested_at: "2026-07-24T16:17:27.213724+00:00"
+lifecycle: "generate"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Microsoft 安全公告 MS17-010 - 严重
+---# Microsoft 安全公告 MS17-010 - 严重
 
 

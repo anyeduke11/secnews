@@ -4,6 +4,7 @@ title: "MobaXterm Xserver with SSH, telnet, RDP, VNC and X11 - Home Edition"
 source: "bookmark"
 source_url: "http://mobaxterm.mobatek.net/download-home-edition.html"
 ingested_at: "2026-07-24T16:18:38.447226+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# MobaXterm Xserver with SSH, telnet, RDP, VNC and X11 - Home Edition
+---# MobaXterm Xserver with SSH, telnet, RDP, VNC and X11 - Home Edition
 
 

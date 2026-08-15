@@ -4,6 +4,7 @@ title: "LionSec/katoolin: Automatically install all Kali linux tools"
 source: "bookmark"
 source_url: "https://github.com/LionSec/katoolin"
 ingested_at: "2026-07-24T16:15:57.731737+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# LionSec/katoolin: Automatically install all Kali linux tools
+---# LionSec/katoolin: Automatically install all Kali linux tools
 
 

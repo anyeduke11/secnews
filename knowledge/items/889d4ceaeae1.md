@@ -4,6 +4,7 @@ title: "DeftTorero: tactics, techniques and procedures of intrusions revealed"
 source: "cubox"
 source_url: "https://securelist.com/defttorero-tactics-techniques-and-procedures/107610/"
 ingested_at: "2023-02-25T00:56:39Z"
+lifecycle: "kl:link"
 compiled: false
 domain: security
 topic: security
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# DeftTorero: tactics, techniques and procedures of intrusions revealed
+---# DeftTorero: tactics, techniques and procedures of intrusions revealed
 
 DeftTorero:战术，技术和入侵程序分析
 

@@ -4,6 +4,7 @@ title: "即刻安全每日动态（8/17）"
 source: "bookmark"
 source_url: "https://mp.weixin.qq.com/s/QKCuXWzfV8RSDomEfnTCUQ"
 ingested_at: "2026-07-24T16:17:58.626870+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 即刻安全每日动态（8/17）
+---# 即刻安全每日动态（8/17）
 
 

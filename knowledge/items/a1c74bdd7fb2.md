@@ -4,6 +4,7 @@ title: "卡巴斯基安全公告2018.最重要的安全故事| Securelist"
 source: "bookmark"
 source_url: "https://securelist.com/kaspersky-security-bulletin-2018-top-security-stories/89118/"
 ingested_at: "2026-07-24T16:17:26.585491+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 卡巴斯基安全公告2018.最重要的安全故事| Securelist
+---# 卡巴斯基安全公告2018.最重要的安全故事| Securelist
 
 

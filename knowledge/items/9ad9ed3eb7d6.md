@@ -4,6 +4,7 @@ title: "云盾先知（安全情报）"
 source: "bookmark"
 source_url: "https://xianzhi.aliyun.com/"
 ingested_at: "2026-07-24T16:16:55.014434+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 云盾先知（安全情报）
+---# 云盾先知（安全情报）
 
 

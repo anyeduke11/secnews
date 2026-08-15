@@ -4,6 +4,7 @@ title: "Python代码审计实战案例总结之SQL和ORM注入 - FreeBuf互联�
 source: "bookmark"
 source_url: "https://www.freebuf.com/vuls/221548.html"
 ingested_at: "2026-07-24T16:29:19.768221+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Python代码审计实战案例总结之SQL和ORM注入 - FreeBuf互联网安全新媒体平台
+---# Python代码审计实战案例总结之SQL和ORM注入 - FreeBuf互联网安全新媒体平台
 
 

@@ -4,6 +4,7 @@ title: "mermaid · GitBook"
 source: "bookmark"
 source_url: "https://mermaidjs.github.io/"
 ingested_at: "2026-07-24T16:15:21.411788+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# mermaid · GitBook
+---# mermaid · GitBook
 
 

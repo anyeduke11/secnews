@@ -4,6 +4,7 @@ title: "Free Programming Ebooks - O&amp;#x27;Reilly Media. Codeship free ebooks 
 source: "bookmark"
 source_url: "https://gist.github.com/abstractart/7b969dd9004cd11e04ba0a031fa4ab6c"
 ingested_at: "2026-07-24T16:15:19.433299+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Free Programming Ebooks - O&amp;#x27;Reilly Media. Codeship free ebooks here - https://bit.ly/2oQ0knQ
+---# Free Programming Ebooks - O&amp;#x27;Reilly Media. Codeship free ebooks here - https://bit.ly/2oQ0knQ
 
 

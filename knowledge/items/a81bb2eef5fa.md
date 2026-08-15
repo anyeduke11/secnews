@@ -4,6 +4,7 @@ title: "Z-Library – 世界上最大的电子图书馆。自由访问知识和�
 source: "bookmark"
 source_url: "https://zh.z-library.sk/?ts=0225"
 ingested_at: "2026-07-24T16:46:37.985012+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Z-Library – 世界上最大的电子图书馆。自由访问知识和文化。
+---# Z-Library – 世界上最大的电子图书馆。自由访问知识和文化。
 
 

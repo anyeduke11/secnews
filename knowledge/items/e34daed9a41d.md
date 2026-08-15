@@ -4,6 +4,7 @@ title: "serenakeyitan/open-exam-skills: A high-quality collection of study skill
 source: "bookmark"
 source_url: "https://github.com/serenakeyitan/open-exam-skills"
 ingested_at: "2026-07-24T16:15:16.886596+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# serenakeyitan/open-exam-skills: A high-quality collection of study skills built for high school and college students, teachers, and TAs. Use it directly in Kael.im for free without installing skills
+---# serenakeyitan/open-exam-skills: A high-quality collection of study skills built for high school and college students, teachers, and TAs. Use it directly in Kael.im for free without installing skills
 
 

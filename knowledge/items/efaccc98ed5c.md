@@ -4,6 +4,7 @@ title: "Huawei NetTech TV"
 source: "bookmark"
 source_url: "http://support.huawei.com/onlinetoolsweb/ptmngsys/Web/NE/mooc_ip_basic.html"
 ingested_at: "2026-07-24T16:46:41.659545+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Huawei NetTech TV
+---# Huawei NetTech TV
 
 

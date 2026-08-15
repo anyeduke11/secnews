@@ -4,6 +4,7 @@ title: "技术讨论 | 长亭百智云"
 source: "bookmark"
 source_url: "https://bbs.baizhi.cloud/discuss"
 ingested_at: "2026-07-24T16:15:10.545982+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 技术讨论 | 长亭百智云
+---# 技术讨论 | 长亭百智云
 
 

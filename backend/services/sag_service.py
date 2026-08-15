@@ -1,33 +1,40 @@
-"""v1.7 Phase 1 — SAG (Signal-Amplify-Generate) 生命周期服务。
+"""v1.7 Phase 1 — SAG 生命周期服务 (P1-3: 已适配 KL 五阶段)。
 
-SAG 生命周期状态机 (PRD §3.3):
-    signal → amplify:tagged → amplify:linked → amplify:complete → generate
-
-本模块只实现 Phase 1 所需的最小能力:
-- ``transition``: 把知识条目推进到指定 lifecycle 状态 (校验状态合法性 +
-  单调前进), 同步回写 SQLite 与 ``knowledge/items/{id}.md``。
-- ``promote_favorite_to_knowledge``: 收藏文章时, 以 url 派生 id 创建一条
-  ``lifecycle='signal'`` 的知识条目 (已存在则直接返回 id, 不覆盖)。
+P1-3 (2026-08-15): 生命周期统一为 KL 五阶段规范 (kl:raw/refine/link/
+structure/publish)。本模块保留 SAG 语义 (信号→放大→生成) 但改用 KL 值:
+- ``promote_favorite_to_knowledge`` 创建 ``lifecycle='kl:raw'``
+- ``transition`` 推进 kl:* 状态, 兼容接受 legacy SAG 值 (映射到对应 kl:*)
 
 设计
 ----
 - .md 文件是 source of truth; SQLite 是可重建的读索引。**先写 .md 且必须
   成功** (失败则整个操作失败, 不产生 DB 领先于 md 的分歧); DB 写入紧随
   其后, DB 写入失败由下次 full_sync 从 md 自动补齐。
-- 状态推进允许跳跃 (如 signal → generate 直接归档合法), 但不允许回退到
+- 状态推进允许跳跃 (如 kl:raw → kl:publish 直接归档合法), 但不允许回退到
   更早的状态 (避免数据倒流)。
 """
 from __future__ import annotations
 
 import logging
 
-from backend.domain.knowledge_models import VALID_LIFECYCLE_STATES, KnowledgeItem, now_iso
+from backend.domain.knowledge_models import (
+    VALID_LIFECYCLE_STATES,
+    KnowledgeItem,
+    normalize_lifecycle,
+    now_iso,
+)
 from backend.repository.knowledge_repo import knowledge_repo
 
 log = logging.getLogger("hotspot.sag")
 
-# lifecycle 状态顺序 (用于单调性校验)
+# lifecycle 状态顺序 (P1-3: KL 五阶段规范; legacy SAG 值映射同序)
 _STATE_ORDER = {
+    "kl:raw": 0,
+    "kl:refine": 1,
+    "kl:link": 2,
+    "kl:structure": 3,
+    "kl:publish": 4,
+    # legacy 兼容 (映射到对应 KL 位置, 防止历史值回退判断错乱)
     "signal": 0,
     "amplify:tagged": 1,
     "amplify:linked": 2,
@@ -40,7 +47,7 @@ def transition(item_id: str, to_state: str) -> bool:
     """把知识条目 ``item_id`` 的 lifecycle 推进到 ``to_state``。
 
     规则:
-    - ``to_state`` 必须是合法状态, 否则返回 False。
+    - ``to_state`` 必须是合法状态 (kl:* 或 legacy SAG), 否则返回 False。
     - 条目不存在返回 False。
     - 不允许回退 (to_state 顺序 < 当前状态顺序) → 返回 False。
     - 相同状态 → 视为成功 (幂等) 返回 True。
@@ -64,7 +71,8 @@ def transition(item_id: str, to_state: str) -> bool:
         )
         return False
 
-    item.lifecycle = to_state
+    # P1-3: 统一落库为 KL 规范值
+    item.lifecycle = normalize_lifecycle(to_state)
     item.updated_at = now_iso()
 
     # md 是真相源: 先写 .md, 失败则整个 transition 失败 (DB 不动),
@@ -81,7 +89,7 @@ def transition(item_id: str, to_state: str) -> bool:
 
 
 def promote_favorite_to_knowledge(title: str, url: str) -> str:
-    """收藏文章 → 创建 lifecycle='signal' 的知识条目。
+    """收藏文章 → 创建 lifecycle='kl:raw' 的知识条目 (P1-3 统一为 KL 规范).
 
     - id 由 url 派生 (``item_id_from_url``), 保证同 url 幂等。
     - 已存在则直接返回 id (不覆盖已有 lifecycle/tags)。
@@ -101,7 +109,7 @@ def promote_favorite_to_knowledge(title: str, url: str) -> str:
         title=title or "Untitled",
         source="secnews",
         source_url=url,
-        lifecycle="signal",
+        lifecycle="kl:raw",
         ingested_at=now_iso(),
         updated_at=now_iso(),
     )

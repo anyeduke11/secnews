@@ -4,6 +4,7 @@ title: "mattenarle10/markamd: local-first markdown editor with live preview, rea
 source: "bookmark"
 source_url: "https://github.com/mattenarle10/markamd"
 ingested_at: "2026-07-24T16:15:29.949620+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# mattenarle10/markamd: local-first markdown editor with live preview, reading mode, diagrams, themes, and context bundles.
+---# mattenarle10/markamd: local-first markdown editor with live preview, reading mode, diagrams, themes, and context bundles.
 
 

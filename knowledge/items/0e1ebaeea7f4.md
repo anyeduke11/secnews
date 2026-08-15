@@ -4,6 +4,7 @@ title: "我的文档 - 幕布"
 source: "bookmark"
 source_url: "https://mubu.com/list"
 ingested_at: "2026-07-24T16:46:55.565744+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 我的文档 - 幕布
+---# 我的文档 - 幕布
 
 

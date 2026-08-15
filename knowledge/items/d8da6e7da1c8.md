@@ -4,6 +4,7 @@ title: "CTF All The Day - [Root Me : Hacking and Information Security learning p
 source: "bookmark"
 source_url: "https://www.root-me.org/?lang=en&page=ctf_alltheday&id_salle=2"
 ingested_at: "2026-07-24T16:16:31.099962+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# CTF All The Day - [Root Me : Hacking and Information Security learning platform]
+---# CTF All The Day - [Root Me : Hacking and Information Security learning platform]
 
 

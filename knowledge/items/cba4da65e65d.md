@@ -4,6 +4,7 @@ title: "Windows认证及抓密码总结 - SecPulse.COM | 安全脉搏"
 source: "bookmark"
 source_url: "https://www.secpulse.com/archives/106194.html"
 ingested_at: "2026-07-24T16:16:53.318978+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Windows认证及抓密码总结 - SecPulse.COM | 安全脉搏
+---# Windows认证及抓密码总结 - SecPulse.COM | 安全脉搏
 
 

@@ -4,6 +4,7 @@ title: "一种新的攻击方式：使用Outlook 表单进行横向运动并持�
 source: "bookmark"
 source_url: "http://www.4hou.com/info/news/6780.html"
 ingested_at: "2026-07-24T16:17:16.846578+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 一种新的攻击方式：使用Outlook 表单进行横向运动并持久化 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
+---# 一种新的攻击方式：使用Outlook 表单进行横向运动并持久化 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 
 

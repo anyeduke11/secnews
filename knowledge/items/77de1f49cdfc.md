@@ -4,6 +4,7 @@ title: "双 Agent 架构：渗透 Agent + Judge Agent"
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/lRp0ztT95JoY1GZdbm8irg"
 ingested_at: "2026-04-24T10:50:38Z"
+lifecycle: "kl:link"
 compiled: false
 domain: ai
 topic: ai
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# 双 Agent 架构：渗透 Agent + Judge Agent
+---# 双 Agent 架构：渗透 Agent + Judge Agent
 
 赛事参赛者需以大语言模型为核心构建自主渗透智能体，在隔离架构中逐区突破，完成从漏洞发现、利用执行到攻击路径编排的全流程验证，见证 AI 从“解题能力”向“破网能力”的跃迁
 

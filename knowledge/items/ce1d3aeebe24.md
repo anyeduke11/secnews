@@ -4,6 +4,7 @@ title: "短短 24 小时，暴涨 36000+ GitHub Star，私有 AI 工作台开源
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/ABczBWsQOuWatS45yeQ5BA"
 ingested_at: "2026-06-03T09:55:15Z"
+lifecycle: "kl:link"
 compiled: false
 domain: security
 topic: security
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# 短短 24 小时，暴涨 36000+ GitHub Star，私有 AI 工作台开源！
+---# 短短 24 小时，暴涨 36000+ GitHub Star，私有 AI 工作台开源！
 
 
 

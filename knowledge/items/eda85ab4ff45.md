@@ -4,6 +4,7 @@ title: "绕过网站安全狗拦截，上传Webshell技巧总结（附免杀PHP�
 source: "bookmark"
 source_url: "http://www.freebuf.com/articles/web/125084.html"
 ingested_at: "2026-07-24T16:15:39.989206+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 绕过网站安全狗拦截，上传Webshell技巧总结（附免杀PHP一句话） - FreeBuf.COM | 关注黑客与极客
+---# 绕过网站安全狗拦截，上传Webshell技巧总结（附免杀PHP一句话） - FreeBuf.COM | 关注黑客与极客
 
 

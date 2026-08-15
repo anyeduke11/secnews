@@ -4,6 +4,7 @@ title: "出海 | 携程《全球化技术架构与实战》一书火爆上市，
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/Ecgm_c44IYGShE2-bcFm8g"
 ingested_at: "2025-12-05T08:31:18Z"
+lifecycle: "kl:link"
 compiled: false
 domain: ai
 topic: ai
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# 出海 | 携程《全球化技术架构与实战》一书火爆上市，看 DRC 如何支撑全球旅游业务无缝切换
+---# 出海 | 携程《全球化技术架构与实战》一书火爆上市，看 DRC 如何支撑全球旅游业务无缝切换
 
 数据层支撑，让业务在出海时更平稳地落地。
 

@@ -4,6 +4,7 @@ title: "基于USB armory 制作一个USB恶意软件分析器 - 嘶吼 RoarTalk 
 source: "bookmark"
 source_url: "http://www.4hou.com/technology/5525.html"
 ingested_at: "2026-07-24T16:17:18.897202+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 基于USB armory 制作一个USB恶意软件分析器 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
+---# 基于USB armory 制作一个USB恶意软件分析器 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 
 

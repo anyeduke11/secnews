@@ -4,6 +4,7 @@ title: "fireeye/flare-vm"
 source: "bookmark"
 source_url: "https://github.com/fireeye/flare-vm"
 ingested_at: "2026-07-24T16:19:30.842242+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# fireeye/flare-vm
+---# fireeye/flare-vm
 
 

@@ -4,6 +4,7 @@ title: "客戶中心 - VirMach"
 source: "bookmark"
 source_url: "https://billing.virmach.com/clientarea.php?action=productdetails&id=100926"
 ingested_at: "2026-07-24T16:18:12.968519+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 客戶中心 - VirMach
+---# 客戶中心 - VirMach
 
 

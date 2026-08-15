@@ -4,6 +4,7 @@ title: "职业欠钱：我理解的安全运营 - 安全内参 | 网络安全首
 source: "bookmark"
 source_url: "https://www.secrss.com/articles/3857"
 ingested_at: "2026-07-24T16:17:43.645889+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 职业欠钱：我理解的安全运营 - 安全内参 | 网络安全首席知识官
+---# 职业欠钱：我理解的安全运营 - 安全内参 | 网络安全首席知识官
 
 

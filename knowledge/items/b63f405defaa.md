@@ -4,6 +4,7 @@ title: "电力信息化专委会关于征求《电力行业关键信息基础设
 source: "bookmark"
 source_url: "https://www.secrss.com/articles/50807"
 ingested_at: "2026-07-24T16:17:11.948041+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 电力信息化专委会关于征求《电力行业关键信息基础设施安全保护要求》等两项标准意见的函 - 安全内参 | 决策者的网络安全知识库
+---# 电力信息化专委会关于征求《电力行业关键信息基础设施安全保护要求》等两项标准意见的函 - 安全内参 | 决策者的网络安全知识库
 
 

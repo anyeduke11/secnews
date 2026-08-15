@@ -4,6 +4,7 @@ title: "记一次应急中发现的诡异事件 - FreeBuf互联网安全新媒�
 source: "bookmark"
 source_url: "https://www.freebuf.com/geek/205497.html"
 ingested_at: "2026-07-24T16:23:22.193550+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 记一次应急中发现的诡异事件 - FreeBuf互联网安全新媒体平台
+---# 记一次应急中发现的诡异事件 - FreeBuf互联网安全新媒体平台
 
 

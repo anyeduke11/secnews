@@ -4,6 +4,7 @@ title: "Renhuai123/ziwei-doushu: 紫微斗数开源排盘引擎 — 基于倪海
 source: "bookmark"
 source_url: "https://github.com/Renhuai123/ziwei-doushu"
 ingested_at: "2026-07-24T16:15:30.011476+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Renhuai123/ziwei-doushu: 紫微斗数开源排盘引擎 — 基于倪海夏《天纪》体系，含完整排盘算法、四化系统、格局知识库、古籍原文数据
+---# Renhuai123/ziwei-doushu: 紫微斗数开源排盘引擎 — 基于倪海夏《天纪》体系，含完整排盘算法、四化系统、格局知识库、古籍原文数据
 
 

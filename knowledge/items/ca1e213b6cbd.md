@@ -4,6 +4,7 @@ title: "红队资料集锦 - lsh4ck&amp;#x27;s Blog"
 source: "bookmark"
 source_url: "https://www.lshack.cn/772/"
 ingested_at: "2026-07-24T16:16:52.731423+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 红队资料集锦 - lsh4ck&amp;#x27;s Blog
+---# 红队资料集锦 - lsh4ck&amp;#x27;s Blog
 
 

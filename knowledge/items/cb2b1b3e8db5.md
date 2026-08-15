@@ -4,6 +4,7 @@ title: "XMind官网 | XMind: ZEN | XMind 8 | XMind 移动版 - XMind思维导图
 source: "bookmark"
 source_url: "https://www.xmind.cn/"
 ingested_at: "2026-07-24T16:18:07.127821+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# XMind官网 | XMind: ZEN | XMind 8 | XMind 移动版 - XMind思维导图中文官网
+---# XMind官网 | XMind: ZEN | XMind 8 | XMind 移动版 - XMind思维导图中文官网
 
 

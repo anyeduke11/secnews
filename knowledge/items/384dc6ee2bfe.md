@@ -4,6 +4,7 @@ title: "都说打印机不安全，那究竟有多少种黑掉它的姿势呢？
 source: "bookmark"
 source_url: "http://www.4hou.com/info/industry/5489.html"
 ingested_at: "2026-07-24T16:17:16.379015+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 都说打印机不安全，那究竟有多少种黑掉它的姿势呢？ - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
+---# 都说打印机不安全，那究竟有多少种黑掉它的姿势呢？ - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 
 

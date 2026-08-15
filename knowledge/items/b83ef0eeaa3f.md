@@ -4,6 +4,7 @@ title: "CVE-2019-1040：Windows NTLM认证漏洞预警分析 - 安全客，安�
 source: "bookmark"
 source_url: "https://www.anquanke.com/post/id/180161"
 ingested_at: "2026-07-24T16:17:30.671039+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# CVE-2019-1040：Windows NTLM认证漏洞预警分析 - 安全客，安全资讯平台
+---# CVE-2019-1040：Windows NTLM认证漏洞预警分析 - 安全客，安全资讯平台
 
 

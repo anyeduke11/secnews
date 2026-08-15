@@ -4,6 +4,7 @@ title: "众测备忘手册 - SecPulse.COM | 安全脉搏"
 source: "bookmark"
 source_url: "https://www.secpulse.com/archives/65406.html"
 ingested_at: "2026-07-24T16:16:54.068366+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 众测备忘手册 - SecPulse.COM | 安全脉搏
+---# 众测备忘手册 - SecPulse.COM | 安全脉搏
 
 

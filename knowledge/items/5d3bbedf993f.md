@@ -4,6 +4,7 @@ title: "我把知识体系做成了一套知识卡片，人人都能拥有自己
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/NIn-61jnf723cLnuhG4OGg"
 ingested_at: "2026-07-22T09:48:59.600+0800"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["cubox"]
----
-
-# 我把知识体系做成了一套知识卡片，人人都能拥有自己的第二大脑
+---# 我把知识体系做成了一套知识卡片，人人都能拥有自己的第二大脑
 
 到底什么是信息囤积？什么是知识体系？我之前专门写过一篇文章。从信息囤积到体系：建立你的个人知识体系后台有一条留言：你能不能把你自己的系统拆开给我看一眼？

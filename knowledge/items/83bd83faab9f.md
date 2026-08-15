@@ -4,6 +4,7 @@ title: "CBT.Nuggets -- Backtrack.&amp;.Kali.Linux [x264] [mkv] [Re-EnCod3r].tar 
 source: "bookmark"
 source_url: "https://yadi.sk/d/5mY-2zrwxrNPv"
 ingested_at: "2026-07-24T16:16:38.862182+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# CBT.Nuggets -- Backtrack.&amp;.Kali.Linux [x264] [mkv] [Re-EnCod3r].tar — Yandex.Disk
+---# CBT.Nuggets -- Backtrack.&amp;.Kali.Linux [x264] [mkv] [Re-EnCod3r].tar — Yandex.Disk
 
 

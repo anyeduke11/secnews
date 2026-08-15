@@ -4,6 +4,7 @@ title: "The continuous threat of malware hiding in fake Adobe Flash updates — 
 source: "bookmark"
 source_url: "https://www.nominum.com/tech-blog/continuous-threat-malware-hiding-fake-adobe-flash-updates/"
 ingested_at: "2026-07-24T16:23:25.040685+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# The continuous threat of malware hiding in fake Adobe Flash updates — Nominum
+---# The continuous threat of malware hiding in fake Adobe Flash updates — Nominum
 
 

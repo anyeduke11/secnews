@@ -4,6 +4,7 @@ title: "本地小模型的Claude Code来了，拆解它的完整 Harness！"
 source: "bookmark"
 source_url: "https://mp.weixin.qq.com/s/iiTmgbtrYHMMjQ7dn7CDrg"
 ingested_at: "2026-07-24T16:15:29.204705+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 本地小模型的Claude Code来了，拆解它的完整 Harness！
+---# 本地小模型的Claude Code来了，拆解它的完整 Harness！
 
 

@@ -4,6 +4,7 @@ title: "Microsoft Windows RDP远程桌面服务多个远程代码执行漏洞通
 source: "bookmark"
 source_url: "https://www.freebuf.com/column/211461.html"
 ingested_at: "2026-07-24T16:16:24.978817+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Microsoft Windows RDP远程桌面服务多个远程代码执行漏洞通告 - FreeBuf专栏·奇安信威胁情报中心
+---# Microsoft Windows RDP远程桌面服务多个远程代码执行漏洞通告 - FreeBuf专栏·奇安信威胁情报中心
 
 

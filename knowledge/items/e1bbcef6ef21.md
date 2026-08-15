@@ -4,6 +4,7 @@ title: "借助ProcessHollowing和代码注入感染合法进程：信息窃取�
 source: "bookmark"
 source_url: "https://www.4hou.com/technology/17823.html"
 ingested_at: "2026-07-24T16:17:28.618743+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 借助ProcessHollowing和代码注入感染合法进程：信息窃取恶意软件FormBook分析 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
+---# 借助ProcessHollowing和代码注入感染合法进程：信息窃取恶意软件FormBook分析 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 
 

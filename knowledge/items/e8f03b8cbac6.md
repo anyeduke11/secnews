@@ -4,6 +4,7 @@ title: "我是如何拿下破冰项目的|技术讨论 - 安全技术社区"
 source: "bookmark"
 source_url: "https://xianzhi.aliyun.com/forum/read/1769.html"
 ingested_at: "2026-07-24T16:17:56.205352+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 我是如何拿下破冰项目的|技术讨论 - 安全技术社区
+---# 我是如何拿下破冰项目的|技术讨论 - 安全技术社区
 
 

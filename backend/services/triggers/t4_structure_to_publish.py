@@ -63,6 +63,14 @@ TO_STAGE = LIFECYCLE_PUBLISH
 STABLE_WINDOW_HOURS = 24
 MIN_SCORE = 8.0
 DEFAULT_SCORE = 5.0  # fallback when ai_scores is empty
+# P1-2: 无 AI 评分行时的发布策略 — LLM 未配置 (llm_secrets=0) 时 ai_scores
+# 恒为空, 原逻辑 DEFAULT_SCORE(5.0) < MIN_SCORE(8.0) 导致 kl:publish 永久为 0。
+# 修复: 无评分行时若启用 fallback, 视为通过 (SCORE_FALLBACK_VALUE), 让
+# "内容已稳定" 的条目可以发布; 有评分行时仍严格执行 MIN_SCORE 门槛。
+# 可用环境变量覆盖: HOTSPOT_KL_T4_SCORE_FALLBACK=0 关闭。
+import os as _os
+SCORE_FALLBACK_ENABLED = _os.getenv("HOTSPOT_KL_T4_SCORE_FALLBACK", "1") != "0"
+SCORE_FALLBACK_VALUE = MIN_SCORE  # fallback 视为通过
 
 
 class T4Trigger:
@@ -147,9 +155,14 @@ class T4Trigger:
     # ── Read helpers ──────────────────────────────────────────────
 
     def _fetch_candidates(self) -> list[dict[str, Any]]:
-        """Return ``kl:structure`` items ordered by ingestion time."""
+        """Return ``kl:structure`` items ordered by ingestion time.
+
+        P1-2: 原 SELECT 含 ``content`` 列 — knowledge_items 无此列
+        (正文在 .md 文件), 每轮必抛 OperationalError → kl:publish 恒 0。
+        修复为仅查存在的列。
+        """
         sql = (
-            "SELECT id, title, content, lifecycle, ingested_at, updated_at "
+            "SELECT id, title, lifecycle, ingested_at, updated_at "
             "FROM knowledge_items "
             "WHERE lifecycle = ? "
             "ORDER BY ingested_at ASC "
@@ -161,7 +174,13 @@ class T4Trigger:
 
     @staticmethod
     def _get_latest_score(item_id: str) -> float:
-        """Read the most recent ``ai_scores.score`` for the item, else default."""
+        """Read the most recent ``ai_scores.score`` for the item, else fallback.
+
+        P1-2: 无评分行时:
+        - SCORE_FALLBACK_ENABLED=True → 返回 SCORE_FALLBACK_VALUE (视为通过),
+          解除"LLM 未配置 → ai_scores 恒空 → kl:publish 死锁";
+        - 否则返回 DEFAULT_SCORE (维持原严格语义)。
+        """
         conn = get_connection()
         row = conn.execute(
             "SELECT score FROM ai_scores "
@@ -170,11 +189,11 @@ class T4Trigger:
             (item_id,),
         ).fetchone()
         if row is None:
-            return DEFAULT_SCORE
+            return SCORE_FALLBACK_VALUE if SCORE_FALLBACK_ENABLED else DEFAULT_SCORE
         try:
             return float(row["score"])
         except (TypeError, ValueError):
-            return DEFAULT_SCORE
+            return SCORE_FALLBACK_VALUE if SCORE_FALLBACK_ENABLED else DEFAULT_SCORE
 
     @staticmethod
     def _is_stable(item: dict[str, Any]) -> bool:
@@ -224,6 +243,8 @@ __all__ = [
     "DEFAULT_SCORE",
     "FROM_STAGE",
     "MIN_SCORE",
+    "SCORE_FALLBACK_ENABLED",
+    "SCORE_FALLBACK_VALUE",
     "STABLE_WINDOW_HOURS",
     "TO_STAGE",
     "TRIGGER_NAME",

@@ -4,6 +4,7 @@ title: "Twitter"
 source: "bookmark"
 source_url: "https://twitter.com/"
 ingested_at: "2026-07-24T16:18:08.288948+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Twitter
+---# Twitter
 
 

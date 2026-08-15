@@ -4,6 +4,7 @@ title: "首页 - 全国标准信息公共服务平台"
 source: "bookmark"
 source_url: "https://std.samr.gov.cn/"
 ingested_at: "2026-07-24T16:18:28.767095+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 首页 - 全国标准信息公共服务平台
+---# 首页 - 全国标准信息公共服务平台
 
 

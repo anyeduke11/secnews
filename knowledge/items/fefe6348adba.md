@@ -4,6 +4,7 @@ title: "Linux应急响应（三）：挖矿病毒 - SecPulse.COM | 安全脉搏"
 source: "bookmark"
 source_url: "https://www.secpulse.com/archives/76825.html"
 ingested_at: "2026-07-24T16:23:26.858412+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Linux应急响应（三）：挖矿病毒 - SecPulse.COM | 安全脉搏
+---# Linux应急响应（三）：挖矿病毒 - SecPulse.COM | 安全脉搏
 
 

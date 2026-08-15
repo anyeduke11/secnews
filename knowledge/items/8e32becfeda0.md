@@ -4,6 +4,7 @@ title: "网络安全重大事件判定指南 - FreeBuf互联网安全新媒体�
 source: "bookmark"
 source_url: "https://www.freebuf.com/articles/network/211133.html"
 ingested_at: "2026-07-24T16:17:33.160269+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 网络安全重大事件判定指南 - FreeBuf互联网安全新媒体平台
+---# 网络安全重大事件判定指南 - FreeBuf互联网安全新媒体平台
 
 

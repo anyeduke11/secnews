@@ -4,6 +4,7 @@ title: "CISSP认证在线辅导课程"
 source: "bookmark"
 source_url: "https://www.maxstu.com/detail/p_60da7866e4b057a4e728e657/8"
 ingested_at: "2026-07-24T16:28:59.336742+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# CISSP认证在线辅导课程
+---# CISSP认证在线辅导课程
 
 

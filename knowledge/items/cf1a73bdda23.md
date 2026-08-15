@@ -4,6 +4,7 @@ title: "2026 企业级AI编程实践手册"
 source: "cubox"
 source_url: "https://lcnziv86vkx6.feishu.cn/wiki/XZOSwI51wi5a5okxCF4cAxHSnBh"
 ingested_at: "2026-05-13T12:31:21Z"
+lifecycle: "kl:link"
 compiled: false
 domain: dev
 topic: dev
@@ -16,9 +17,7 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 2026 企业级AI编程实践手册
+---# 2026 企业级AI编程实践手册
 
 
 

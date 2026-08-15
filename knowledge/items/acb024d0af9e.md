@@ -4,6 +4,7 @@ title: "Docker 学习笔记一：常用术语及常用命令汇总 | 易学教�
 source: "bookmark"
 source_url: "https://www.e-learn.cn/content/qita/780386"
 ingested_at: "2026-07-24T16:46:32.611617+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Docker 学习笔记一：常用术语及常用命令汇总 | 易学教程
+---# Docker 学习笔记一：常用术语及常用命令汇总 | 易学教程
 
 

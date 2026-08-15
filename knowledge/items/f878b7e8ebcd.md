@@ -4,6 +4,7 @@ title: "【知识库】 文件操作漏洞面面观 - SecPulse.COM | 安全脉�
 source: "bookmark"
 source_url: "https://www.secpulse.com/archives/58237.html"
 ingested_at: "2026-07-24T16:16:32.488988+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 【知识库】 文件操作漏洞面面观 - SecPulse.COM | 安全脉搏
+---# 【知识库】 文件操作漏洞面面观 - SecPulse.COM | 安全脉搏
 
 

@@ -4,6 +4,7 @@ title: "Linux下的压缩和解压缩命令——gzip/gunzip - yancy.lu - 博客
 source: "bookmark"
 source_url: "https://www.cnblogs.com/vurtne-lu/p/6208242.html"
 ingested_at: "2026-07-24T16:19:03.518753+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Linux下的压缩和解压缩命令——gzip/gunzip - yancy.lu - 博客园
+---# Linux下的压缩和解压缩命令——gzip/gunzip - yancy.lu - 博客园
 
 

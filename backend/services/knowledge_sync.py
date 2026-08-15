@@ -125,8 +125,22 @@ def sync_item_to_db(md_path: Path) -> str | None:
     from backend.domain.knowledge_models import KnowledgeItem, now_iso
     from backend.repository.knowledge_repo import knowledge_repo
 
+    item_id = fm.get("id", md_path.stem)
+
+    # P1-1: lifecycle 解析 — md 有 lifecycle 字段则用之; 没有则**保留 DB 现值**,
+    # 不再回退 compiled/signal/generate (此前回退导致 watchdog full_sync 把
+    # T1-T4 推进的 kl:* 状态批量抹回旧值, 状态机在"推进↔被抹除"间震荡)。
+    lifecycle = fm.get("lifecycle")
+    if lifecycle is None:
+        existing_row = knowledge_repo.get_item(item_id)
+        if existing_row is not None and existing_row.lifecycle:
+            lifecycle = existing_row.lifecycle
+        else:
+            # 全新条目 (DB 无记录): 用旧字段兼容推断
+            lifecycle = "generate" if fm.get("compiled") is True else "signal"
+
     item = KnowledgeItem(
-        id=fm.get("id", md_path.stem),
+        id=item_id,
         title=fm.get("title", "Untitled"),
         source=fm.get("source", "unknown"),
         source_url=fm.get("source_url"),
@@ -137,10 +151,7 @@ def sync_item_to_db(md_path: Path) -> str | None:
         tags=fm.get("tags", []) if isinstance(fm.get("tags"), list) else [],
         concepts=fm.get("concepts", []) if isinstance(fm.get("concepts"), list) else [],
         mastered=fm.get("mastery", 0) if isinstance(fm.get("mastery"), (int, float)) else 0,
-        # v1.7: lifecycle 替换 compiled. 优先读 lifecycle, 回退 compiled (兼容旧 md)
-        lifecycle=fm.get("lifecycle") or (
-            "generate" if fm.get("compiled") is True else "signal"
-        ),
+        lifecycle=lifecycle,
         news_type=fm.get("news_type") if isinstance(fm.get("news_type"), str) else None,
         tech_stack=fm.get("tech_stack", []) if isinstance(fm.get("tech_stack"), list) else [],
         ingested_at=fm.get("ingested_at", now_iso()),
@@ -213,7 +224,7 @@ title: "{item.get('title', 'Untitled')}"
 source: "{item.get('source', 'unknown')}"
 source_url: "{item.get('source_url', '')}"
 ingested_at: "{item.get('ingested_at', '')}"
-lifecycle: "{item.get('lifecycle', 'signal')}"
+lifecycle: "{item.get('lifecycle', 'kl:raw')}"
 news_type: "{item.get('news_type', '')}"
 tech_stack: {json.dumps(item.get('tech_stack', []))}
 domain: {item.get('domain') or 'null'}
@@ -381,3 +392,69 @@ def full_sync_drafts_to_db() -> int:
         count += 1
     log.info(f"full sync: {count} drafts")
     return count
+
+
+def backfill_lifecycle_to_md() -> dict:
+    """P1-1: 为缺少 lifecycle 字段的 items/*.md 补写 DB 当前值 (保守回填).
+
+    背景: 历史导入器 (bookmark/cubox) 自写 frontmatter 模板不含 lifecycle,
+    而 DB 已被 T1-T4 推进到 kl:* 状态 → 文件真相源与 DB 状态分离, 且任何
+    full_sync 会把 DB 抹回旧值。本函数仅对**缺少 lifecycle 键**的文件,
+    在 frontmatter 中插入一行 lifecycle 值 (来自 DB, 缺省 'signal'),
+    不重写正文、不改动其他字段。
+
+    Returns: {"scanned": N, "added": M, "skipped_kl": K}
+    """
+    from backend.repository.knowledge_repo import knowledge_repo
+
+    added = 0
+    skipped_kl = 0
+    scanned = 0
+    if not ITEMS_DIR.exists():
+        return {"scanned": 0, "added": 0, "skipped_kl": 0}
+
+    for f in sorted(ITEMS_DIR.glob("*.md")):
+        scanned += 1
+        try:
+            text = f.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        # 已有 lifecycle 键 → 跳过
+        m = _FRONTMATTER_RE.match(text)
+        if not m:
+            continue
+        fm_block = m.group(1)
+        if re.search(r"(?m)^lifecycle\s*:", fm_block):
+            continue
+        # 从 DB 取当前 lifecycle (P1-3: 缺省 kl:raw)
+        item_id = f.stem
+        lifecycle = "kl:raw"
+        try:
+            row = knowledge_repo.get_item(item_id)
+            if row is not None and row.lifecycle:
+                lifecycle = row.lifecycle
+        except Exception:
+            pass
+        # 在 frontmatter 中找 `compiled:` 行, 在其前插入 lifecycle 行
+        lines = fm_block.splitlines()
+        insert_at = 0
+        for i, line in enumerate(lines):
+            if line.strip().startswith("compiled:"):
+                insert_at = i
+                break
+        lines.insert(insert_at, f'lifecycle: "{lifecycle}"')
+        new_fm = "\n".join(lines)
+        # 替换原 frontmatter 块 (保留其余结构)
+        new_text = _FRONTMATTER_RE.sub(
+            lambda _m: "---\n" + new_fm + "\n---", text, count=1
+        )
+        f.write_text(new_text, encoding="utf-8")
+        if lifecycle.startswith("kl:"):
+            skipped_kl = skipped_kl + 1  # 本就从 kl 状态回填
+        added += 1
+
+    log.info(
+        f"backfill_lifecycle_to_md: scanned={scanned} added={added} "
+        f"(kl-valued={skipped_kl})"
+    )
+    return {"scanned": scanned, "added": added, "skipped_kl": skipped_kl}

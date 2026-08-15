@@ -4,6 +4,7 @@ title: "这个封装了我3年自媒体经验的AI热点网站，今天向所有
 source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/r6CE2U3Y0-pU05wF3_PuTQ"
 ingested_at: "2026-05-07T02:27:20Z"
+lifecycle: "kl:link"
 compiled: false
 domain: ai
 topic: ai
@@ -15,9 +16,7 @@ mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----
-
-# 这个封装了我3年自媒体经验的AI热点网站，今天向所有人免费开放。
+---# 这个封装了我3年自媒体经验的AI热点网站，今天向所有人免费开放。
 
 保护你的注意力
 

@@ -4,6 +4,7 @@ title: "1、上传漏洞的原理与总结 - Web漏洞 - Web安全"
 source: "bookmark"
 source_url: "https://www.kanxue.com/book-6-235.htm"
 ingested_at: "2026-07-24T16:29:20.511010+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# 1、上传漏洞的原理与总结 - Web漏洞 - Web安全
+---# 1、上传漏洞的原理与总结 - Web漏洞 - Web安全
 
 

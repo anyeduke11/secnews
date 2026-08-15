@@ -4,6 +4,7 @@ title: "Have I been pwned? Check if your email has been compromised in a data br
 source: "bookmark"
 source_url: "https://haveibeenpwned.com/"
 ingested_at: "2026-07-24T16:17:23.896509+00:00"
+lifecycle: "kl:link"
 compiled: false
 domain: null
 topic: null
@@ -16,8 +17,6 @@ last_reviewed: null
 review_count: 0
 related_items: []
 sources: ["bookmark"]
----
-
-# Have I been pwned? Check if your email has been compromised in a data breach
+---# Have I been pwned? Check if your email has been compromised in a data breach
 
 

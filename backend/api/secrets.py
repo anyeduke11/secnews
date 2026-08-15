@@ -42,7 +42,9 @@ router = APIRouter(prefix="/api/secrets", tags=["secrets"])
 # Request / Response models
 # ---------------------------------------------------------------------------
 class SetupRequest(BaseModel):
-    master_key: str = Field(..., min_length=8, description="主密钥 (>= 8 字符)")
+    # P4-9: min_length 与 crypto.MIN_MASTER_KEY_LENGTH (12) 对齐 —
+    # 此前 8 vs 12 校验不一致, 8-11 字符能过 API 却在 crypto 层被拒
+    master_key: str = Field(..., min_length=12, description="主密钥 (>= 12 字符)")
 
 
 class UnlockRequest(BaseModel):

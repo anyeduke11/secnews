@@ -220,8 +220,40 @@ class CodegardenOrchestrationService:
 
         实际执行由 watchdog 或 Agent 异步处理 (与本系统其他 task 一致).
         Returns: {"task_id": int, "playbook_name": str, "status": "pending"}
+
+        P4-7: 执行前校验 steps 命令黑名单 (为将来消费者预留 RCE 通道加固):
+        拒绝 sudo / rm -rf / curl|sh / eval / base64 解码执行等危险模式,
+        命中即拒绝创建任务。
         """
         pb = self.get_playbook(name)  # 含存在性校验
+
+        # P4-7: 危险命令黑名单 (正则, 大小写不敏感)
+        import re as _re
+        _DANGEROUS_PATTERNS = [
+            r"\bsudo\b",
+            r"\brm\s+-rf?\b",
+            r"\bchmod\s+777\b",
+            r"curl[^\n|]*\|\s*(ba)?sh\b",
+            r"wget[^\n|]*\|\s*(ba)?sh\b",
+            r"\beval\b",
+            r"base64\s+-d",
+            r"python\s+-c",
+            r"bash\s+-c",
+            r"/dev/null\s*;",
+            r">\s*/etc/",
+        ]
+        for step in pb.get("steps", []):
+            step_text = str(step)
+            if isinstance(step, dict):
+                step_text = " ".join(
+                    str(v) for v in (step.get("run") or step.get("command") or step.get("cmd") or step.values())
+                )
+            lowered = step_text.lower()
+            for pat in _DANGEROUS_PATTERNS:
+                if _re.search(pat, lowered):
+                    raise InternalException(
+                        f"Playbook {name!r} step 含危险命令, 已拒绝执行: {pat!r}"
+                    )
 
         now = datetime.now(timezone.utc).isoformat()
         task_params = {

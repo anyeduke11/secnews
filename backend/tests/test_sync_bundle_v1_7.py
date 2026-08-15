@@ -259,8 +259,8 @@ def test_merge_hotspot_tags_cascade():
 # ---------------------------------------------------------------------------
 # sm2_reviews — 特殊规则: due_at 早者胜出
 # ---------------------------------------------------------------------------
-def test_merge_sm2_local_due_earlier_wins():
-    """sm2: local.due_at < remote.due_at → local 胜出。"""
+def test_merge_sm2_local_due_later_wins():
+    """P4-4: local.due_at < remote.due_at → remote 胜出 (较晚 due = 最近复习)。"""
     base = _empty_bundle()
     base["records"]["sm2_reviews"] = [
         {"id": "knowledge-k1", "entity_type": "knowledge", "entity_id": "k1",
@@ -285,14 +285,14 @@ def test_merge_sm2_local_due_earlier_wins():
     result = three_way_merge(base, local, remote)
     sm2 = result.merged_bundle["records"]["sm2_reviews"]
     assert len(sm2) == 1
-    # local due_at (07-25) < remote due_at (08-15) → local 胜
-    assert sm2[0]["due_at"] == "2026-07-25T00:00:00+00:00"
-    assert sm2[0]["last_grade"] == 3
-    assert sm2[0]["interval"] == 1
+    # P4-4: remote due_at (08-15) 较晚 = 最近复习 → remote 胜
+    assert sm2[0]["due_at"] == "2026-08-15T00:00:00+00:00"
+    assert sm2[0]["last_grade"] == 5
+    assert sm2[0]["interval"] == 6
 
 
-def test_merge_sm2_remote_due_earlier_wins():
-    """sm2: remote.due_at < local.due_at → remote 胜出。"""
+def test_merge_sm2_remote_due_later_loses():
+    """P4-4: remote.due_at < local.due_at → local 胜出 (较晚 due = 最近复习)。"""
     base = _empty_bundle()
     base["records"]["sm2_reviews"] = [
         {"id": "knowledge-k2", "entity_type": "knowledge", "entity_id": "k2",
@@ -316,7 +316,8 @@ def test_merge_sm2_remote_due_earlier_wins():
     ]
     result = three_way_merge(base, local, remote)
     sm2 = result.merged_bundle["records"]["sm2_reviews"]
-    assert sm2[0]["due_at"] == "2026-07-25T00:00:00+00:00"
+    assert sm2[0]["due_at"] == "2026-08-20T00:00:00+00:00"
+    assert sm2[0]["interval"] == 6  # 最近复习的间隔
 
 
 def test_merge_sm2_deletion_propagation():
@@ -527,8 +528,8 @@ def test_cascade_helper_deletion():
     assert merged == []
 
 
-def test_sm2_helper_earlier_due_wins():
-    """_merge_sm2_reviews: due_at 早者胜出。"""
+def test_sm2_helper_later_due_wins():
+    """P4-4: _merge_sm2_reviews: due_at 晚者胜出 (最近复习)。"""
     base = []
     local = [{"id": "k1", "entity_type": "knowledge", "entity_id": "k1",
               "due_at": "2026-07-25T00:00:00+00:00", "easiness": 2.3}]
@@ -536,8 +537,8 @@ def test_sm2_helper_earlier_due_wins():
                "due_at": "2026-08-15T00:00:00+00:00", "easiness": 2.5}]
     merged, conflicts = _merge_sm2_reviews(base, local, remote)
     assert len(merged) == 1
-    assert merged[0]["due_at"] == "2026-07-25T00:00:00+00:00"
-    assert merged[0]["easiness"] == 2.3
+    assert merged[0]["due_at"] == "2026-08-15T00:00:00+00:00"
+    assert merged[0]["easiness"] == 2.5
     assert conflicts == 1
 
 

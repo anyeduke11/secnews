@@ -56,7 +56,7 @@ def _read_cg_projects_for_sync() -> list[dict]:
         return items
     except Exception as e:
         logger.warning(f"_read_cg_projects_for_sync failed (skipped): {e}")
-        return []
+        raise RuntimeError(f"sync bundle build aborted: table read failed: {e}")
 
 
 def _apply_cg_projects(items: list[dict]) -> int:
@@ -134,7 +134,7 @@ def _read_cg_services_for_sync() -> list[dict]:
         return items
     except Exception as e:
         logger.warning(f"_read_cg_services_for_sync failed (skipped): {e}")
-        return []
+        raise RuntimeError(f"sync bundle build aborted: table read failed: {e}")
 
 
 def _apply_cg_services(items: list[dict]) -> int:
@@ -209,7 +209,7 @@ def _read_tags_for_sync() -> list[dict]:
         return [t.to_dict() for t in TagRepository().list(limit=_SYNC_BUNDLE_MAX_ROWS)]
     except Exception as e:
         logger.warning(f"_read_tags_for_sync failed (skipped): {e}")
-        return []
+        raise RuntimeError(f"sync bundle build aborted: table read failed: {e}")
 
 
 def _apply_tags(items: list[dict]) -> int:
@@ -256,7 +256,7 @@ def _read_hotspot_tags_for_sync() -> list[dict]:
         return [dict(r) for r in rows]
     except Exception as e:
         logger.warning(f"_read_hotspot_tags_for_sync failed (skipped): {e}")
-        return []
+        raise RuntimeError(f"sync bundle build aborted: table read failed: {e}")
 
 
 def _apply_hotspot_tags(items: list[dict]) -> int:
@@ -296,7 +296,7 @@ def _read_reading_states_for_sync() -> list[dict]:
         return [dict(r) for r in rows]
     except Exception as e:
         logger.warning(f"_read_reading_states_for_sync failed (skipped): {e}")
-        return []
+        raise RuntimeError(f"sync bundle build aborted: table read failed: {e}")
 
 
 def _apply_reading_states(items: list[dict]) -> int:
@@ -353,7 +353,7 @@ def _read_annotations_for_sync() -> list[dict]:
         return [dict(r) for r in rows]
     except Exception as e:
         logger.warning(f"_read_annotations_for_sync failed (skipped): {e}")
-        return []
+        raise RuntimeError(f"sync bundle build aborted: table read failed: {e}")
 
 
 def _apply_annotations(items: list[dict]) -> int:
@@ -406,7 +406,7 @@ def _read_sm2_reviews_for_sync() -> list[dict]:
         return [dict(r) for r in rows]
     except Exception as e:
         logger.warning(f"_read_sm2_reviews_for_sync failed (skipped): {e}")
-        return []
+        raise RuntimeError(f"sync bundle build aborted: table read failed: {e}")
 
 
 def _apply_sm2_reviews(items: list[dict]) -> int:

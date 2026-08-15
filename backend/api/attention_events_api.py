@@ -77,6 +77,21 @@ async def create_attention_event(req: AttentionEventRequest) -> dict:
             detail={"message": f"写入注意力事件失败: {e}"},
         )
 
+    # P3-1: 知识条目的 view/dwell/favorite 事件 → 自动创建 SM-2 复习记录
+    # (此前 create_review 无任何调用点, sm2_reviews 恒 0 → 复习功能死代码)
+    if req.event_type in ("view", "dwell", "favorite"):
+        try:
+            _c = get_connection()
+            exists = _c.execute(
+                "SELECT 1 FROM knowledge_items WHERE id = ?",
+                (req.item_id,),
+            ).fetchone()
+            if exists:
+                from backend.services.review_service import create_review
+                create_review(entity_type="knowledge_item", entity_id=req.item_id)
+        except Exception as e:
+            logger.warning(f"auto-create sm2 review failed: {e}")
+
     return {"success": True, "event_id": event_id}
 
 

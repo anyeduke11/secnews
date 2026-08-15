@@ -77,7 +77,46 @@ export function DeepReadMode() {
         if (!cancelled) setLoading(false);
       });
 
-    return () => { cancelled = true; };
+    // P3-2: 深度阅读埋点 — view + dwell (卸载时) + scroll (节流)
+    // 注意力数据此前为 0 (前端从未 POST /api/attention/events → 热力图/评分空转)
+    // 字段契约见 attention_scorer: dwell_seconds / depth_pct
+    const startTs = Date.now();
+    fetch('/api/attention/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: id, event_type: 'view', detail_json: { source: 'deep-read' } }),
+    }).catch(() => {});
+
+    let lastScrollSent = 0;
+    const onScroll = () => {
+      const now = Date.now();
+      if (now - lastScrollSent < 5000) return; // 节流 5s
+      lastScrollSent = now;
+      const el = document.scrollingElement || document.documentElement;
+      const maxScroll = el.scrollHeight - el.clientHeight;
+      const depthPct = maxScroll > 0 ? Math.round((el.scrollTop / maxScroll) * 100) : 0;
+      if (depthPct >= 10) {
+        fetch('/api/attention/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_id: id, event_type: 'scroll', detail_json: { depth_pct: depthPct } }),
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('scroll', onScroll);
+      const dwellMs = Date.now() - startTs;
+      if (dwellMs > 3000) {
+        fetch('/api/attention/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_id: id, event_type: 'dwell', detail_json: { dwell_seconds: Math.round(dwellMs / 1000) } }),
+        }).catch(() => {});
+      }
+    };
   }, [id]);
 
   // 加载推荐条目

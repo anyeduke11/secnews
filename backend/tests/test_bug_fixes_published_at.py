@@ -103,7 +103,10 @@ class TestCollectReturnsEmptyOnAllSourcesFailed:
             sources = []
             name = "empty_test"
 
-        items = await EmptyCollector().collect()
+        # P1 切流: 禁用源注册表驱动 (本测试只测无源路径)
+        col = EmptyCollector()
+        col._load_sources_from_registry = lambda: None
+        items = await col.collect()
         assert items == []
 
 

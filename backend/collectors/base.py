@@ -40,7 +40,7 @@ from __future__ import annotations
 import asyncio
 import re
 from abc import ABC
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Optional
 from urllib.parse import urlparse
 
 import aiohttp
@@ -297,6 +297,65 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
     # ------------------------------------------------------------------
     # 编排
     # ------------------------------------------------------------------
+    def _load_sources_from_registry(self) -> list[dict] | None:
+        """P1 crawler-v2 Phase 1 切流: 从 crawler_sources 表读本分类源.
+
+        Strangler 迁移的「切流」阶段: 源注册表 (055 建表, seed_crawler_
+        sources 已注册 132 条) 成为源数据源, 替代硬编码类常量。
+
+        映射: feed_url→rss_url, priority→score; renderer 与 keywords 从
+        类常量同名源补充 (常量保留了 renderer=disabled/crawl4ai/sogou/
+        wechat 等语义与分类关键词; disabled 源已在注册时 enabled=0, 不会
+        被读出, 与常量语义等价)。
+
+        返回语义:
+        - 表无本 category 记录 (未 seed / 非主分类如 ai_security) → None,
+          调用方回退类常量 (渐进切流, 未注册分类不受影响)。
+        - 表有记录但 0 个 enabled (用户全禁用) → [] (不回退常量)。
+        """
+        try:
+            from backend.repository.db import get_connection
+            conn = get_connection()
+            rows = conn.execute(
+                "SELECT name, url, feed_url, priority FROM crawler_sources "
+                "WHERE category = ? AND enabled = 1 ORDER BY priority DESC",
+                (self.category.value,),
+            ).fetchall()
+            has_cat = conn.execute(
+                "SELECT 1 FROM crawler_sources WHERE category = ? LIMIT 1",
+                (self.category.value,),
+            ).fetchone()
+        except Exception as e:
+            self.logger.warning(
+                f"crawler_sources load failed (fallback to class constants): {e}"
+            )
+            return None
+        if not has_cat:
+            return None  # 分类未注册 → 回退常量
+        if not rows:
+            return []  # 已注册但全禁用
+
+        by_name = {s["name"]: s for s in self.sources}
+        out: list[dict] = []
+        for r in rows:
+            name = r["name"]
+            # 同名多条目 (如 华尔街见闻 disabled+wechat): 优先非 disabled 的
+            # 实际抓取条目补充 renderer/keywords。
+            const = next(
+                (s for s in self.sources
+                 if s["name"] == name and s.get("renderer") != "disabled"),
+                by_name.get(name, {}),
+            )
+            out.append({
+                "name": name,
+                "url": r["url"] or "",
+                "rss_url": r["feed_url"] or "",
+                "score": r["priority"],
+                "renderer": const.get("renderer") or "aiohttp",
+                "keywords": const.get("keywords", []),
+            })
+        return out
+
     async def collect(self) -> list[HotspotItem]:
         """默认编排：
 
@@ -307,9 +366,16 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
         5. **Phase 3.5**：跑同步质量门禁（fallback 跳过）
 
         Phase 5: 入口打 ``collect_start`` 事件，出口打 ``collect_end`` 事件
+
+        P1 切流: 优先用 crawler_sources 表源 (若本分类已注册), 否则类常量。
         """
         import time as _time
         from uuid import uuid4 as _uuid4
+
+        # P1 crawler-v2 Phase 1: 源注册表驱动 (strangler 切流)
+        registry = self._load_sources_from_registry()
+        if registry is not None:
+            self.sources = registry
 
         run_id = _uuid4().hex[:8]
         start = _time.time()

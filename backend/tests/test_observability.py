@@ -155,6 +155,8 @@ def test_collect_events_in_collect_method():
         sources = []  # Phase 13: sources=[] 走 no_sources 路径,**不**走 fallback
 
     col = MockCol()
+    # P1 切流: 禁用源注册表驱动 (本测试只测事件触发)
+    col._load_sources_from_registry = lambda: None
     with patch("backend.collectors.base.log_event") as mock:
         asyncio.run(col.collect())
         events = [_event_name(c) for c in mock.call_args_list]

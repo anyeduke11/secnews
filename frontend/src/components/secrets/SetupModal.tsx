@@ -23,7 +23,7 @@ export function SetupModal({
     e.preventDefault();
     setErr(null);
     if (mk.length < 8) {
-      setErr('主密钥至少 8 字符');
+      setErr('主密钥至少 12 字符');
       return;
     }
     if (mk !== mk2) {
@@ -65,7 +65,7 @@ export function SetupModal({
           onChange={e => setMk(e.target.value)}
           autoFocus
           autoComplete="new-password"
-          placeholder="主密钥 (>= 8 字符)"
+          placeholder="主密钥 (>= 12 字符)"
           className="tech-input px-2 py-1.5 text-xs font-mono w-full"
         />
         <input

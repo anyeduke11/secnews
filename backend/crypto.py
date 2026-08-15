@@ -31,7 +31,8 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 KDF_KEY_LENGTH: Final = 32
 SALT_LENGTH: Final = 16
 DEFAULT_ITERATIONS: Final = 600_000
-MIN_MASTER_KEY_LENGTH: Final = 8
+# P1 加固: 最小长度 8 → 12 (PBKDF2 600k 迭代下 8 字符可离线爆破)
+MIN_MASTER_KEY_LENGTH: Final = 12
 _VERIFY_PLAINTEXT: Final = b"hotspot-secrets:verify-ok:v1"
 
 

@@ -39,7 +39,7 @@ export function StatusBar({
         <div>
           <p style={{ color: 'var(--text-primary)' }}>🔒 主密钥未初始化</p>
           <p style={{ color: 'var(--text-muted)', marginTop: 2 }}>
-            请先设置主密钥 (master key, &gt;= 8 字符)。<b>主密钥不存数据库</b>, 丢失后该密钥下所有 secret 永久不可解密。
+            请先设置主密钥 (master key, &gt;= 12 字符)。<b>主密钥不存数据库</b>, 丢失后该密钥下所有 secret 永久不可解密。
           </p>
         </div>
         <button

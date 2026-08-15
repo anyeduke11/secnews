@@ -22,7 +22,7 @@ export function UnlockModal({
     e.preventDefault();
     setErr(null);
     if (mk.length < 8) {
-      setErr('主密钥至少 8 字符');
+      setErr('主密钥至少 12 字符');
       return;
     }
     setBusy(true);

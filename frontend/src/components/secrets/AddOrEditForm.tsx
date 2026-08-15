@@ -33,8 +33,8 @@ export function AddOrEditForm({
       setError('名称 / 模型 / base_url 均不能为空');
       return;
     }
-    if (needsMasterKey && masterKey.length < 8) {
-      setError('主密钥至少 8 字符 (用于加解密 api_key)');
+    if (needsMasterKey && masterKey.length < 12) {
+      setError('主密钥至少 12 字符 (用于加解密 api_key)');
       return;
     }
     setSubmitting(true);
@@ -120,7 +120,7 @@ export function AddOrEditForm({
         type="password"
         value={masterKey}
         onChange={e => setMasterKey(e.target.value)}
-        placeholder={editing ? '主密钥 (仅修改 api_key 时必填, >= 8 字符)' : '主密钥 (>= 8 字符)'}
+        placeholder={editing ? '主密钥 (仅修改 api_key 时必填, >= 12 字符)' : '主密钥 (>= 12 字符)'}
         className="tech-input px-2 py-1.5 text-xs font-mono w-full"
         autoComplete="new-password"
       />

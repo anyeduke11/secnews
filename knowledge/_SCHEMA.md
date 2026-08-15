@@ -9,7 +9,9 @@ title: "Article Title"              # required
 source: "cubox"                     # cubox | bookmark | secnews | secnews_archive
 source_url: "https://..."           # optional
 ingested_at: "2026-07-14T10:00:00Z" # ISO 8601 UTC
-compiled: false                     # defaults to false
+# v0.4.0 (P1-3): lifecycle 为 KL 五阶段规范值 (取代旧 compiled/signal/generate)
+lifecycle: "kl:raw"                 # kl:raw | kl:refine | kl:link | kl:structure | kl:publish
+compiled: false                     # 兼容字段 (lifecycle == kl:publish/generate 时派生为 true)
 
 # Classification (4 dimensions)
 domain: "security"                  # see _MAP.md for valid domains
@@ -42,6 +44,19 @@ project_id: null                    # cg_projects.id if item has been converted 
                                     # No FK constraint; application layer maintains consistency
 ---
 ```
+
+### KL 五阶段生命周期 (v0.4.0, 取代旧 SAG 3 阶段)
+
+| 阶段 | 含义 | 推进者 |
+|---|---|---|
+| `kl:raw` | 原始入库 (收藏/导入) | 收藏提升 (sag_service) |
+| `kl:refine` | 评分 + 标签完成 | T1 触发器 / extract |
+| `kl:link` | 实体关联完成 | T2 触发器 |
+| `kl:structure` | 摘要 + 结构化完成 | T3 触发器 / compile 消费者 |
+| `kl:publish` | 已发布 | T4 触发器 |
+
+旧值兼容映射: `signal→kl:raw`, `amplify:tagged→kl:refine`, `amplify:linked→kl:link`,
+`amplify:complete→kl:structure`, `generate→kl:publish`。新写入一律用 kl:*。
 
 ### `project_id` 字段说明 (v1.5+ / Phase 2a Task A3)
 

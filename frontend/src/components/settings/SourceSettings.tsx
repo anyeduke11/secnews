@@ -42,8 +42,13 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
   // P5-3: 源健康汇总 (crawler_sources 状态机 stats)
   const [healthStats, setHealthStats] = useState<{
     total?: number; active?: number; grace?: number;
-    stale?: number; dead?: number; disabled?: number;
+    stale?: number; dead?: number; unknown?: number; disabled?: number;
   } | null>(null);
+  // P5-3: 失效/滞后源明细 (供一键重置)
+  const [deadSources, setDeadSources] = useState<Array<{
+    id?: string; name?: string; category?: string; status?: string;
+    last_error?: string | null;
+  }>>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -51,7 +56,29 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
       .then(r => r.ok ? r.json() : null)
       .then(d => setHealthStats(d))
       .catch(() => {});
+    fetch('/api/sources/health/v2')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const all = d?.sources ?? [];
+        setDeadSources(all.filter((s: any) => s.status === 'dead' || s.status === 'stale'));
+      })
+      .catch(() => {});
   }, [open]);
+
+  const resetSource = useCallback(async (cat: string, name: string) => {
+    try {
+      const r = await fetch(
+        `/api/sources/health/${encodeURIComponent(cat)}/${encodeURIComponent(name)}/reset`,
+        { method: 'POST' },
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      // 刷新明细
+      const d = await (await fetch('/api/sources/health/v2')).json();
+      setDeadSources((d?.sources ?? []).filter((s: any) => s.status === 'dead' || s.status === 'stale'));
+    } catch (e: any) {
+      setSourceMessage({ type: 'error', text: `重置失败: ${e?.message || e}` });
+    }
+  }, []);
 
   // 自动刷新
   const [refreshOpen, setRefreshOpen] = useState(false);
@@ -184,12 +211,41 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
             {(healthStats.grace ?? 0) > 0 && <span>观察 {healthStats.grace}</span>}
             {(healthStats.stale ?? 0) > 0 && <span style={{ color: 'var(--color-warning)' }}>滞后 {healthStats.stale}</span>}
             {(healthStats.dead ?? 0) > 0 && <span style={{ color: 'var(--color-error)' }}>失效 {healthStats.dead}</span>}
+            {(healthStats.unknown ?? 0) > 0 && <span>待定 {healthStats.unknown}</span>}
             {(healthStats.disabled ?? 0) > 0 && <span>禁用 {healthStats.disabled}</span>}
           </div>
           {(healthStats.dead ?? 0) > 0 && (
             <p className="mt-1 text-[10px]" style={{ color: 'var(--color-warning)' }}>
               失效源由源级调度器跳过; 可手动重置或等待每日 03:30 探活恢复。
             </p>
+          )}
+          {/* P5-3: 失效/滞后源明细 + 一键重置 */}
+          {deadSources.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {deadSources.map(s => (
+                <div
+                  key={s.id || `${s.category}/${s.name}`}
+                  className="flex items-center gap-2 text-[10px] px-2 py-1 rounded"
+                  style={{ backgroundColor: 'var(--bg-hover)' }}
+                >
+                  <span style={{ color: 'var(--color-error)' }}>
+                    {s.status === 'dead' ? '✕' : '△'} {s.category}/{s.name}
+                  </span>
+                  {s.last_error && (
+                    <span className="truncate flex-1" style={{ color: 'var(--text-muted)' }} title={s.last_error}>
+                      {s.last_error}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => resetSource(s.category || '', s.name || '')}
+                    className="px-1.5 py-0.5 rounded shrink-0"
+                    style={{ backgroundColor: 'var(--color-ai)', color: 'var(--text-on-light)' }}
+                  >
+                    重置
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}

@@ -30,6 +30,9 @@ def client(tmp_path, monkeypatch) -> Iterator[TestClient]:
     # 021: cg_services + cg_resources + cg_dependencies + cg_events
     with open("backend/repository/migrations/021_codegarden_phase2b.sql", encoding="utf-8") as f:
         conn.executescript(f.read())
+    # 060 (v0.4.0): cg_services.discovery_source (P5-4 校验状态)
+    with open("backend/repository/migrations/060_v0.4_discovery_source.sql", encoding="utf-8") as f:
+        conn.executescript(f.read())
     conn.commit()
     conn.close()
 

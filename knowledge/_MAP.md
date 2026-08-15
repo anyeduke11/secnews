@@ -12,24 +12,29 @@ news, analysis, paper, tutorial, tool, opinion, case-study, report
 beginner, intermediate, advanced, expert
 
 ## Statistics
-- Total items: 4008
+- Total items: 4132
 - Total concepts: 96
-- Compiled: 1.8%
-- Last compiled: 2026-08-10T18:00:00.305380+00:00
+- Compiled: 3.0%
+- Last compiled: 2026-08-15T18:30:00.114678+00:00
 
 ## Items Index
 > `[x]` = compiled, `[ ]` = pending. Grouped by domain.
 
 
-### security (152)
+### security (168)
 
 - [ ] `016f66bee5b2` (security) — 如何使用moniorg监控新颁发域名的活动和安全性
 - [ ] `04f74dfacdf1` (security) — 两个月没花一分Token钱，4个白嫖渠道全摊开
+- [x] `050d5c759771` (security) — opensec-cn/vtest: 用于辅助安全工程师漏洞挖掘、测试、复现，集合了mock、httplog、dns tools、xss，可用于测试各类无回显、无法直观判断或特定场景下的漏洞。
+- [ ] `06f358b4eaf0` (security) — 中国电信-天翼云,云网融合,安全可信,专享定制
 - [ ] `07368d1c1d2b` (security) — GitHub上狂揽3.4万Star！开源版Claude Design来了！
+- [ ] `0a65f9d6343b` (security) — 腾讯云黑客松官网
 - [ ] `0ac8989ea3c5` (security) — 《2024年网络安全成熟度报告》：仅11%企业达到Level 2
+- [ ] `0cba0a10b800` (security) — 能力市场 - 龙虾安全伴侣
 - [ ] `0e4aa728e6f0` (security) — 一图读懂 | Gartner《新一代XDR——面向未来的数字安全防御架构》报告
 - [ ] `1073dc392166` (security) — WorkBuddy增加商汤的免费算力
 - [ ] `110089601db4` (security) — 2.EASM（外部攻击面管理）分析
+- [x] `119d10406525` (security) — 黑客，互联网的免疫系统_黑客，互联网的免疫系统_网易公开课
 - [ ] `12d3f1b4ec74` (security) — 杜绝XZ后门！OWASP发布十大开源软件安全风险清单
 - [x] `12fef42a2aa4` (log-management) — 别用 ELK了！这款开源、轻量日志存储工具，比 Loki 强很多倍？
 - [ ] `14b25e0eb5c3` (security) — 关键信息基础设施安全监测预警技术探析
@@ -38,14 +43,15 @@ beginner, intermediate, advanced, expert
 - [ ] `192f079cfcb5` (security) — FreeBuf.COM网络安全行业门户，每日发布专业的安全资讯、技术剖析。
 - [ ] `1938190bd66b` (security) — 光大银行 | 开源那些事儿-光大银行开源治理体系简介
 - [ ] `1b0f45d2f0f8` (security) — 月薪5万的项目经理，都在用AI做什么？
+- [x] `1b5229c0e24e` (security) — 一个人的武林：渗透测试常规分析（一） - SecPulse.COM | 安全脉搏
 - [ ] `1b5d5d1626cd` (security) — Dropbox 遭受网络钓鱼攻击导致数据泄露，暴露了客户和员工的电子邮件
 - [x] `1d969fa66a40` (devsecops) — 混沌模式下的研发安全解决之道
-- [x] `1e869f307ecc` (threat-intelligence) — 微步在线薛锋：攻击者迈入“工业化” 防守方亟待走出“农业时代”
 - [ ] `1eca4a922d72` (security) — DFIR：数字取证与事件应急响应
 - [ ] `201bab5565d9` (security) — 如何建立有效的安全策略
 - [ ] `2076a0fc115e` (security) — 项目管理驾驶舱到底是搞？还是不搞？PMO一定要搞清楚！
 - [ ] `207807e315e5` (security) — 《证券期货业数据安全管理与保护指引》学习笔记
 - [ ] `22043166e55b` (security) — 我国首项关基设施安全保护标准解析
+- [ ] `24ca116b8c2e` (security) — 知识图谱系列（1）基础知识简介 - 勾陈安全实验室
 - [ ] `24fe96558344` (security) — 吴云坤：立足加速攻防OODA闭环 探索AI驱动安全
 - [ ] `25fdee3a5272` (security) — RASP技术上的命令执行攻防探索
 - [x] `262220bf10d8` (internet-governance) — 国家网信办就《互联网信息服务管理办法（修订草案征求意见稿）》再次公开征求意见
@@ -57,19 +63,19 @@ beginner, intermediate, advanced, expert
 - [x] `398e3ab6a596` (sensitive-info-detection) — 敏感信息自动化挖掘检测工具-DigDeep
 - [ ] `39905d1e7deb` (security) — 欢迎新Buddy：DataBuddy
 - [ ] `39ac28cdda04` (security) — 2022年工业控制网络安全态势白皮书
+- [ ] `3b0bf1c387b8` (security) — 安全韧性人才自我培养计划：从霍普克罗夫特的启示出发
 - [ ] `3b8d6d1f1032` (security) — 数据安全意识培训课件（PPTX）
 - [ ] `3d5e18dace8f` (security) — Nuclei进阶指南：安全研究者的扫描与模板技巧
 - [ ] `3f74b7b06bf5` (security) — 央企在网络安全新形势下的动态防御体系研究与应用 - 安全内参 | 决策者的网络安全知识库
-- [x] `3fca0b6f0cdd` (ai-security-operations) — 第22篇 全栈AI · AI 安全运营平台，真正难的不是agent
 - [ ] `41bca509e92b` (security) — 《工业互联网专项工作组2023年工作计划》印发
 - [x] `4201940cd083` (vulnerability-database) — 国家信息安全漏洞库
-- [x] `4434b053e162` (ai-app-development) — 用对话写出一个微信小程序，再一键部署上线——秒悟进阶课全攻略
 - [ ] `46321ebc942a` (security) — 产品经理和项目经理，有啥不一样？
 - [ ] `472a3f214a41` (security) — 提示词注入攻击的检测和数据集介绍
 - [ ] `4786bd974287` (security) — 我的个人AI知识库-Karpathy llm-wiki
 - [ ] `481edc0e71bd` (security) — Android App隐私合规检测辅助工具
 - [ ] `4bf041f080c1` (security) — Metasploit从入门到入坟
-- [x] `512e4cf7137d` (penetration-testing) — “首发，前沿大模型突破渗透测试新范式”——绿盟智能渗透测试系统2.0正式发布
+- [x] `4ebe6340fb06` (security) — 研究报告 | 撞库攻击的成本： 亚太地区 - FreeBuf互联网安全新媒体平台
+- [x] `505b850d8f99` (security) — 平安科技诚聘各类安全工程师 - FreeBuf.COM | 关注黑客与极客
 - [ ] `538c8bc13b16` (security) — 国内四大UEBA解决方案
 - [x] `53c6022766fd` (compliance-regulation) — 金监局就网络安全办法征求意见、上海启动网络和数据安全检查、7项网络安全国标发布｜一周合规大事
 - [ ] `57d3df0e57e1` (security) — 真的没有人，能把攻击面讲得如SAFE这般清晰！
@@ -79,14 +85,14 @@ beginner, intermediate, advanced, expert
 - [ ] `5eb6539877fa` (security) — 0xL4k1d
 - [ ] `60481f665fe4` (security) — 面向数据安全的应用层访问控制方案探索
 - [ ] `60e31710aed2` (security) — 实用攻击面管理系统设计指南
-- [x] `6154f9ea945f` (security-sales) — 售前转销售后，我才知道客户根本不关心方案多专业
 - [ ] `62d5bf10ca39` (security) — 以攻促防：企业蓝军建设思考
 - [ ] `63ee19d4d96e` (security) — 公安部发布六项网络安全等级保护新标准
 - [ ] `646ca5eabe2b` (security) — 2025 网络安全职业路径全指南
 - [ ] `65eeca34fff6` (security) — 如何构建内外双循环的安全防护体系？
-- [x] `6a7a0bc848b1` (procurement) — 华能集团网络安防设备材料采购公告
+- [x] `6b0a2a35b1a2` (security) — 浅谈大型网络入侵检测建设 - 博客 - 腾讯安全应急响应中心
 - [ ] `6c1c4e920929` (security) — DevSecOps软件研发安全实践——设计篇
 - [ ] `6c44ec3bbfe0` (security) — APP版本发布流程规范V3.0
+- [ ] `6c57ad07f4d3` (security) — 慢雾出品 | OpenClaw 极简安全实践指南，极简部署
 - [ ] `6f0e0e57d169` (security) — 2 政务数据安全组织能力框架构建
 - [ ] `745980f18c6f` (security) — 细述最具影响力的三大安全架构：零信任、ATT&CK、自适应安全
 - [ ] `75aefd170516` (security) — 关于御守实验室
@@ -95,11 +101,13 @@ beginner, intermediate, advanced, expert
 - [ ] `79f573c78403` (security) — 九大热门API安全工具
 - [ ] `7faf5743ac5f` (security) — OpenClaw 多代理系統架構設計：從單一代理到協作團隊的完整技術指南
 - [ ] `86eba34d4705` (security) — ISO/IEC 27002：2022版标准变化解读
+- [x] `870ba2b59291` (security) — 央行专家：个人金融信息安全技防研究 - 安全内参 | 决策者的网络安全知识库
 - [ ] `87516fa79bb9` (security) — 关于企业漏洞管理实践的探讨
 - [ ] `88875df10b06` (security) — 最近研究安全有效性验证（Security Validation）的一些想法
 - [ ] `889d4ceaeae1` (security) — DeftTorero: tactics, techniques and procedures of intrusions revealed
 - [x] `8aa045e93fbb` (zero-trust) — Zero Trust Guide
 - [ ] `8cc5b4a9a150` (security) — 关于征集《项目复盘指南》国家标准（征求意见稿）意见的通知
+- [x] `8d7c33d5f76d` (security) — GShark：监控Github中的敏感信息泄露 - 体验盒子 - 关注网络安全
 - [ ] `8ef13b342513` (security) — BAS那点事儿
 - [ ] `8f5401c2e3ae` (security) — 有一种人，专门替你收拾AI的烂摊子
 - [ ] `8f65b296327c` (security) — 确定漏洞优先级排序的操作指南 - 嘶吼 RoarTalk – 网络安全行业综合服务平台,4hou.com
@@ -110,16 +118,18 @@ beginner, intermediate, advanced, expert
 - [ ] `957912e61a3d` (security) — Part II Chapter 14
 - [ ] `95b75ebe0140` (security) — 构建高效漏洞生命周期管理流程的4个典型框架
 - [ ] `97391be18a77` (security) — 1776年以来，“效率”就成为管理的头等大事
+- [x] `98479714b47f` (security) — zer0yu/CyberSecurityRSS: 网络空间安全相关的RSS订阅
 - [ ] `99bce587a0bb` (security) — 93 号文监管现场检查实况分享
 - [ ] `9a492374bc70` (security) — 从0到1带你速通Codex，我整理的终极保姆教程来了。
+- [x] `9a8f8bd69a3e` (security) — Linux主机安全检查与应急响应 - FreeBuf互联网安全新媒体平台
+- [x] `9cb9e8fe9724` (security) — 渗透基础——端口转发与代理 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `9f042b4c1a99` (security) — 国家标准《信息安全技术 关键信息基础设施网络安全应急体系框架》公开征求意见
 - [ ] `a34caae4b152` (security) — 免费的攻击面管理平台-森罗
 - [ ] `a41f69cda708` (security) — 努力没用，决定你上限的，是七层思维层级
-- [x] `a4ff8cbd3c74` (api-monetization) — Announcing the Monetization Gateway: charge for any resource behind Cloudflare via x402
-- [x] `a8ea6cb5ebc9` (prompt-engineering) — 元提示浅析
+- [x] `a5cf3c5becbd` (security) — 互联网企业安全建设思考与实践 - 安全内参 | 决策者的网络安全知识库
 - [x] `a9d3487a95f5` (security-philosophy) — 网络安全真的很无聊
+- [ ] `aad853bf8ebc` (security) — 腾讯云黑客松官网
 - [ ] `ab7cf02968e3` (security) — 空格的键盘的文字分享
-- [x] `afe527e5fc37` (multi-agent-systems) — 多个AI一起干活，真的比一个最强模型更靠谱吗？
 - [ ] `b14eb9d2ddd5` (security) — 收藏！国内标准化网站全汇总，再也不用东奔西跑了
 - [ ] `b16257186bf3` (security) — 网络安全行业的大洗牌已经开始！
 - [ ] `b1c3452a4100` (security) — Web 渗透测试入坑必备指南
@@ -127,13 +137,16 @@ beginner, intermediate, advanced, expert
 - [ ] `b355d460ac62` (security) — Android App半自动化静态漏洞挖掘技术分析
 - [ ] `b3c2edd2f442` (security) — ISO/IEC 42001:2023 人工智能管理体系认证课程介绍（中文版）
 - [ ] `b4e771c1c05d` (security) — 专题｜全面深度解读“零信任”
-- [x] `b5e3d65f73d2` (app-security-compliance) — 又有3家银行App被通报，民生银行罕见涉及5项问题！
+- [x] `b84333524c7f` (security) — FreeBuf.COM | 关注黑客与极客
+- [x] `b99871eb9d18` (security) — 腾讯御见威胁情报中心
+- [x] `baebc69b3faf` (agent-security-governance) — 智能体五阶段生命周期框架：TC260 首份 Agent 部署使用安全指引解读（2026.7）
 - [ ] `bdef3d01b824` (security) — 日志的艺术
 - [ ] `c024d9c46e6a` (security) — 关于大型互联网企业DevSecOps体系构建的总结与思考
 - [ ] `c1b9a4aec87d` (security) — 《网络安全审查办法》涉及的数据安全思考
 - [ ] `c25cf8c13e1e` (security) — 十个获取海外网络安全资讯的最佳网站
 - [ ] `c5dd54a2c1d2` (security) — 企业钓鱼攻击演练方案 - 边窗/SideWindow
 - [ ] `c62c97092f24` (security) — 网信办修订《互联网跟帖评论服务管理规定》发布施行
+- [x] `c81c48b0bfea` (security) — Microsoft 安全公告 MS17-010 - 严重
 - [ ] `c8c175f7063a` (security) — 2026年企业标准化工作要点：政策导向、重点领域与合规指南
 - [ ] `cc66aa48d0f9` (security) — 圆桌·钓鱼网站与反钓鱼技术剖析
 - [ ] `ccadbe65675c` (security) — 关于域攻击手段与防御思路，来看工行专家是如何总结的
@@ -151,6 +164,7 @@ beginner, intermediate, advanced, expert
 - [ ] `dd3af59f301d` (security) — DeTT&CT : Mapping detection to MITRE ATT&CK（译文）
 - [ ] `deabfdf7f5d4` (security) — 深入浅出 SSL 证书
 - [ ] `e04e7b412b73` (security) — Token不经济
+- [x] `e09690ad422f` (security) — 内网攻防备忘录 - FreeBuf互联网安全新媒体平台
 - [ ] `e0e36a0e6670` (security) — 攻击面的分析和整理
 - [ ] `e31fa3e9a8fd` (security) — 关于召开第三届大湾区网络安全大会（2026）的第一轮通知
 - [ ] `e42f1874b5d5` (security) — 第01课：Mimikatz 获取系统密码攻防研究
@@ -161,6 +175,8 @@ beginner, intermediate, advanced, expert
 - [x] `eadc2bf70243` (security-industry-report) — 中国数字安全产业年度报告2026公开版
 - [ ] `eba736614562` (security) — 炼石白小勇：实战合规辩证统一，双轮驱动数据安全（附下载）
 - [ ] `ec2001ee6138` (security) — 玩AI 安全，竟然能拿这么多钱？
+- [x] `eea374573567` (security) — jQuery 安全模型解释 - achenxy - 博客园
+- [ ] `eed7944d318c` (security) — GitHub黑板报的文字分享
 - [ ] `ef82bf33bf22` (security) — 什么是安全BP？安全BP如何深入业务？安全意识培训如何做好外包人员培训？ | 总第184周
 - [ ] `ef89edbd81d2` (security) — 请在微信客户端打开链接
 - [x] `f155176922e6` (self-media-platform) — 一键获取全网自媒体数据源，开源我的全平台自媒体管理平台
@@ -176,126 +192,265 @@ beginner, intermediate, advanced, expert
 - [ ] `ffaad4116f8c` (security) — 江西农信网络安全策略优化梳理实践
 - [ ] `ffe01d685921` (security) — 赛迪研究院发布《2022年企业合规体系建设白皮书》
 
-### ai (112)
+### ai (250)
 
+- [ ] `00467670f607` (ai) — chaitin/PandaWiki: PandaWiki 是一款 AI 大模型驱动的开源知识库搭建系统，帮助你快速构建智能化的 产品文档、技术文档、FAQ、博客系统，借助大模型的力量为你提供 AI 创作、AI 问答、AI 搜索等能力。
 - [ ] `037301e8617b` (ai) — 知识库分层编排：从 RAG 到 Agent-native Knowledge Context Layer
 - [x] `04de48060135` (self-hosted-agent) — Octop 重磅开源：更智能的自托管Agent助手
+- [x] `04f200b38a81` (ai) — AI
 - [ ] `0684a8ff48da` (prompt-engineering) — 想玩Loop Engineering，可以先从这6个Hook玩法开始。
 - [ ] `0ae5275a4c07` (ai) — 中国第一，直逼OpenAI！神秘「扫地僧」冲到全球前七
+- [ ] `0b4a13e78a16` (ai) — Hermes Agent安装与部署指南：一步步教你如何使用“爱马仕Agent”（附飞书接入教程） - 飞书官网
+- [ ] `0ce5c8f6720a` (ai) — calesthio/OpenMontage: World&#39;s first open-source, agentic video production system. 12 pipelines, 52 tools, 500+ agent skills. Turn your AI coding assistant into a full video production studio.
+- [ ] `0d73031a24d5` (ai) — CyberStrikeAI 新增资产管理：从零散目标到可持续维护的资产基线（文末附八群二维码）
 - [x] `0f19d127b1c7` (ai-fundamentals) — 20 个 AI 底层核心概念｜看懂大模型只需要这一篇！
+- [ ] `0f6b694b7c49` (ai) — Shotlab - 新片场旗下AI创作平台 | AI图片生成 AI视频生成
 - [ ] `1051fb7e288c` (ai) — 谷歌 DiffusionGemma 开源：文本生成提速 4 倍
+- [ ] `10850bda756d` (ai) — AI工具集官网 | 1000+ AI工具集合，国内外AI工具集导航大全
+- [ ] `114937dadfd6` (ai) — Seko - World Class AI Video Generation Platform
 - [ ] `1174f6786fdd` (ai) — 《审慎部署智能体AI服务》指南
 - [ ] `123685c64937` (ai) — 我用了一个月百度搭子DuMate，发现Agent真正好用的关键
 - [ ] `129ef6ba30ef` (ai) — 观猹共学营来了！7 天，带你走进 AI 产品经理的世界！
 - [ ] `136dbda08c8b` (ai) — Agent-Native 开发框架设计
+- [ ] `14723c29ee55` (ai) — TauricResearch/TradingAgents | zdoc.app
+- [ ] `14e9192d379c` (ai) — 深度之眼论文精选汇总 2026大模型必读论文
+- [ ] `15f3d522b114` (ai) — OpenCode | 开源 AI 编程代理
+- [ ] `16354bab5bdd` (ai) — AI前线
 - [x] `16dc482aa286` (llm-efficiency) — 演讲实录 | 从 Token 数量到 Token 密度：万亿参数规模下的高效智能体智能
+- [ ] `191d40536a59` (ai) — 日日新 - 商汤科技大模型平台 | SenseNova
+- [ ] `19b5e0cb31d6` (ai) — 斯坦福大学公开课 ：机器学习课程_全20集_网易公开课
+- [ ] `1a095f86835f` (ai) — AniShort - AI短剧协作平台
+- [ ] `1c8805e69107` (ai) — HBAI-Ltd/Toonflow-app: Toonflow 是开源一站式 AI 短剧创作工具，将小说、剧本快速转化为动画短剧。集成 AI 编剧、智能分镜、角色与视频生成，跨平台桌面端轻量部署，助力创作者低成本批量产出视觉内容。Toonflow is an open-source AI tool that turns stories and scripts into animated short dramas. Features AI scriptwriting, storyboarding, character and video generation. A cross-platform desktop app for efficient content creation.
+- [ ] `1cb52325fe08` (ai) — AI安全攻防挑战赛
+- [ ] `1dbd45b0d98d` (ai) — markdown-viewer/skills: Opinionated skills for AI coding agents to create stunning diagrams and visualizations directly in Markdown. These skills extend agent capabilities across diagram generation, data visualization, and technical documentation.
 - [ ] `1dfe25de28f9` (ai) — 用WinUtil，轻松优化Windows系统？
+- [ ] `1eb10708c597` (ai) — 写给机器学习从业者的12条宝贵建议
+- [ ] `1f0c4dd9086a` (ai) — 智谱AI开放平台
+- [ ] `1fa55eab89cb` (ai) — 一个研究生的硬核教程：把AI真正用进真实项目！
+- [ ] `22b15c6ff041` (ai) — archlizheng/frontend-slides-editable: Editable HTML presentation skill for Codex/Claude Code with drag-resize editing, slide reordering, local save/export, and PPTX-to-web conversion. Shout out to @zarazhangrui
+- [ ] `22c9f1673226` (ai) — ‌‍⁤‍‌⁢﻿⁤⁤‬﻿‍‍‬​⁤﻿⁣﻿﻿⁤‬‍⁢​⁤‬﻿⁤⁣⁢‌‍​⁤‬⁡⁣‌​‍⁡‍⁣⁤⁡​﻿​‍AI安全，从这里启程 - 飞书云文档
 - [x] `23076240ea4a` (ai-vulnerability-mining) — Src捡钱12，AI一键自动挖掘小程序漏洞
+- [ ] `2395652cff61` (ai) — pfrankov/obsidian-ai-providers: This plugin is a hub for setting AI providers (OpenAI-like, Ollama and more) in one place.
+- [ ] `24f60d8ca3c4` (ai) — DeepSeek - 探索未至之境
+- [x] `2664f9c30629` (ai-creation-tools) — 这个开源项目不简单，可能会掀起AI创作革命...
+- [ ] `27c0d664d961` (ai) — SecNewsAI - 个人中心 - 腾讯云开发者社区-腾讯云
+- [ ] `28da76f76ada` (ai) — TencentEdgeOne/awesome-website-prompts-and-skills: Tencent EdgeOne 维护的网站资源合集。在 AI 编程工具中，给它一个 Prompt 或 Skill，就能生成精美酷炫的网页，或者带有登录、支付、AI 能力的完整网站。WorkBuddy × Tencent EdgeOne AI Prompts × Skills 挑战赛官方作品池。
+- [ ] `28f6590113f5` (ai) — 耶西/艾格尼-人工智能生成技能：适用于艾格尼 AI 文本、图像和视频生成 API 的代理技能。 --- Yacey/agnes-ai-generation-skill: Agent Skill for Agnes AI text, image, and video generation APIs.
+- [ ] `292b5172fc5a` (ai) — 史上最全的机器学习资料（上）-博客-云栖社区-阿里云
 - [x] `298f718fa9b4` (ai-coding) — DeepSeek 官方也推荐的 Deep Code 是什么
+- [ ] `2a7e31189d9d` (ai) — PixVerse | AI 视频创作平台
 - [x] `2abc11638b79` (ai-news-digest) — 周一上线｜AI Slop 图鉴来了，TypeScript 7 快了 10 倍，MiniMax 市值蒸发近 3/4
 - [x] `2b525c5eec59` (vulnerability-mining-agent) — 面向客户端漏洞挖掘 Agent 的设计与实践之路
+- [ ] `2f2516a2d008` (ai) — 购买积分包-JoyAgent
+- [ ] `2f607399a489` (ai) — 推荐系统实践（项亮）— 后记 - 深度机器学习 - 博客园
 - [ ] `30db0a5a89ed` (ai) — How Claude Code works in large codebases: Best practices and where to start
 - [ ] `32b2251b0d6b` (ai) — Hermes Agent正式变身Codex，Hermes Desktop发布！
+- [ ] `336bbc46a065` (ai) — 学习中心 - 获取 AI 学习文章、视频与资料-火山引擎 Agent 开发者社区
 - [ ] `340acbd79960` (ai) — 推荐您下载腾讯文档PC客户端，体验更流畅。
+- [ ] `353a0508946c` (ai) — MuleRun | AI工具导航
+- [ ] `35f883e476d0` (ai) — AI助手
 - [ ] `35fb773c2988` (ai) — 我折腾了好久的Skills团队共享，终于有产品替我做出来了。
+- [ ] `367ca6f2cfec` (ai) — ArcReel/ArcReel: AI Agent 驱动的开源视频生成工作台 — 小说→角色/场景/道具设计→剧本→分镜图→视频，跨镜头角色与场景一致 | Open-source AI video workspace powered by AI Agents, Nano Banana 2 &amp; Veo 3.1 / Grok / Seedance / OpenAI
 - [x] `37b69931ba07` (ai-applications) — 一个人也能用AI：销售、行政、财务三个岗位的"单兵AI武装"最低配置指南
+- [ ] `388000a354cb` (ai) — 有戏AI - 玩转AI短剧,人人都是戏精！- 专业AI短剧创作者社区
 - [ ] `3a71c4f4cbcd` (ai) — Skill 正在重构 Agent 生态，但更危险的是认知负债
+- [ ] `3b65e25e2555` (ai) — liangdabiao/Seedance2-Storyboard-Generator: 一句话：试错成本越来越高，提示词的重要性从来没有像今天这样大。Seedance 2.0 Storyboard Generator 开源剧情剧本Skill工具，帮佬友一键写好剧本 - 将小说/故事转化为多集视频。 为什么做这个？ 因为 seedance2 已经改变了一切，需要新的剧本剧情制作工具，更好的利用新AI的能力和更方便的制作短剧
 - [ ] `3cfcb01f5788` (ai) — 人工智能治理：现状、挑战与策略研究
 - [ ] `3d2fed98f163` (ai) — 首个面向 AI Infra 的运维智能体评测基准，开源了！
 - [x] `3d82bb1020f4` (ai-vulnerability-hunting) — How I hunt for vulnerabilities with AI
+- [ ] `3dc8b1bf03ff` (ai) — Agnes AI | AI Gateway, Free AI API &amp; AI Applications
+- [ ] `3dfa47e5456f` (ai) — 前无古人，后有来者 - OpenAI模型攻击HuggingFace事件的AI威胁深度分析
 - [x] `3ea8f384fe60` (agent-loop) — Claude Code 入门：智能体循环
+- [ ] `3f6100f2682f` (ai) — CloudRouter - Unified AI Access &amp; Security Governance Platform
+- [x] `3fca0b6f0cdd` (ai-security-operations) — 第22篇 全栈AI · AI 安全运营平台，真正难的不是agent
 - [ ] `412f9825c9ed` (ai) — Skill is NOT All You Need
+- [ ] `413c575d5506` (ai) — 呜哩AI，一站式AIGC创意平台
+- [ ] `418377ea7b5d` (ai) — 机器学习基础：案例研究 | Coursera
+- [ ] `4227cb8916de` (ai) — 京东云灵境AI - 一站式AI创作平台
 - [ ] `42447909cec7` (ai) — Skills，把方法变能力
+- [ ] `42509c34c1d5` (ai) — Harness Engineering 深度解析:AI Agent 时代的驾驭工程实战指南_harness engineering 实战-CSDN博客
+- [ ] `4368395f5138` (ai) — agentscope-ai/QwenPaw: Your Personal AI Assistant; easy to install, deploy on your own machine or on the cloud; supports multiple chat apps with easily extensible capabilities.
+- [ ] `43ac0842dd77` (ai) — MuleRun — The AI Agent That Gets Work Done
+- [ ] `45f109cb3b03` (ai) — AgentNEO
+- [ ] `473b8e1b2f1e` (ai) — 讯飞星辰Agent平台 - 一站式智能体开发平台
+- [ ] `4942bf061f4c` (ai) — LobsterAI - 有道 AI Agent 产品
 - [ ] `49ccb349958a` (ai) — 0 基础入门 AI 养龙虾，我靠阶跃 AI 踩对了第一步
 - [ ] `49dc2c75f88a` (ai) — 职场人的福利来了！OpenAI推出3门免费AI课程（附课程链接）
+- [ ] `4a4cd30190ea` (ai) — 港大开源的 AI 神奇项目，有点东西！
 - [x] `4a62e2696ce4` (llm-gateway) — 每月白嫖 16 亿 Token！本地 AI 网关，231 家大模型聚合，彻底干掉你的 GPT/Claude API 账单
 - [ ] `4a7fb667ed63` (ai) — DeepSeek V4还能更省！新工具缓存命中率高达99.82%，2折稳定到手
 - [ ] `4d28832314ed` (ai) — 阳光保险集团王卓：阳光保险在AI编程和算力运营的实践分享
 - [ ] `4d381575d296` (ai) — 我把搭建wiki知识库的方法做成了skill｜已免费开源
 - [ ] `4fddf0a232ef` (ai) — 重磅！Anthropic内部Skills经验公开了！
 - [x] `5040466df887` (ai-competition) — Qoder 联合魔搭社区发起 2026 AI 开发者创作大赛
+- [x] `512e4cf7137d` (penetration-testing) — “首发，前沿大模型突破渗透测试新范式”——绿盟智能渗透测试系统2.0正式发布
 - [ ] `52f1c8c1f7bb` (ai) — Jupyter MCP来了，让AI直接动手跑你的Jupyter Notebook
+- [ ] `58087eb4b4cc` (ai) — 这是一份你们需要的Windows版深度学习软件安装指南 - 知乎专栏
+- [ ] `588127bdd194` (ai) — SkyClaw-v1.0: A Million-Context Agent Model at Ultra-Low Cost
+- [x] `5a907503e5da` (ai) — jamiepine/voicebox: The open-source AI voice studio. Clone, dictate, create.
 - [ ] `5b3cb2b8f36d` (ai) — 周一上线｜猫猫版 Pokémon GO 火了，GitHub 账号被毒舌审判，OpenAI、DeepSeek 发布新品
+- [ ] `5d924af76725` (ai) — 用户故事与使用案例 | Hermes Agent
+- [ ] `60222f10b1ae` (ai) — 灵犀 Claw - WPS 官方出品 · AI 智能助手
+- [x] `6030b2e4be27` (ai) — bytedance/deer-flow: An open-source long-horizon SuperAgent harness that researches, codes, and creates. With the help of sandboxes, memories, tools, skill, subagents and message gateway, it handles different levels of tasks that could take minutes to hours.
+- [ ] `60a9342e850d` (ai) — Sambor123/Awesome-Deep-Learning-for-Chinese: 最全的中文版深度学习资源索引，包括论文，慕课，开源框架，数据集等等
+- [ ] `617dd5d6db59` (ai) — [机器学习]机器学习笔记整理全解 - CSDN博客
+- [ ] `61e97d29b102` (ai) — 《code秘密花园 AI 教程》资源合集 - 飞书云文档
 - [ ] `62eef8361cc4` (ai) — How Anthropic's cybersecurity team built a threat detection platform with Claude Code
+- [ ] `63048895a0eb` (ai) — 企业级 AI 大模型服务平台 - 千问云
+- [ ] `63063743b439` (ai) — ogulcancelik/herdr: agent multiplexer that lives in your terminal.
 - [ ] `634c1fcff58b` (ai) — OWASP Agentic Skills Top 10 红队实战解析：从Skill注入到系统级失控
 - [ ] `6498e96092cd` (ai) — GLM-4.7-Flash 永久免费！智谱 AI 这张"长期饭票"，我愿意吹一辈子
 - [x] `658ae34ec9ee` (ai-governance) — Agentic AI Governance: Your API Key Is a Guardrail
+- [ ] `659c4c4739b1` (ai) — multica-ai/andrej-karpathy-skills: A single CLAUDE.md file to improve Claude Code behavior, derived from Andrej Karpathy&#39;s observations on LLM coding pitfalls.
+- [ ] `66df3937eafc` (ai) — 10 个本周 yyds 的 GitHub 开源项目，推荐给你。
+- [ ] `6773ed61445c` (ai) — SenseNova · LLM API 服务平台
 - [x] `6a10e0d75479` (ai-coding-tool) — Claude Code 一周年：Anthropic 内部的变革
+- [ ] `6b9633b32931` (ai) — Switch branches/tags
 - [x] `6da3013b2c36` (agent-loop-design) — Anthropic发布循环设计指南：权威拆解当下最火的AI新范式loop
+- [ ] `6f128e984e9f` (ai) — Codex 接入Kimi、火山等国产大模型，极简教程
+- [ ] `6fe669556052` (ai) — 小马算力 Token Pony - 专业 AI 大模型 API 接入平台
+- [ ] `71bc3ea8c022` (ai) — nexu-io/html-anything: ✨ The agentic HTML editor — your local AI agent writes the HTML, you ship it. 🚀 75 Skills × 9 Surfaces (magazine · deck · poster · XHS / tweet · prototype · data report · Hyperframes) 🛡️ Sandboxed preview · 📤 1-click to WeChat / X / Zhihu / HTML / PNG 🔑 Zero API key — Claude Code / Cursor / Codex / Gemini / Copilot / OpenCode / Qwen / Aider.
 - [x] `71dc479bfddb` (ai-tools-overview) — 2026 AI工具大洗牌：你可能用错了！
 - [x] `7315232bd3d4` (product-thinking) — 整合42个顶级产品经理的思维模型，封装成Skill
 - [ ] `737a0841b21b` (ai) — 硅谷CEO深夜站台！MiniMax M3冲上开源第一，中文社区却吵翻了？
 - [ ] `7798b446cf9c` (ai) — 基于大模型的下一代杀毒引擎
 - [ ] `77de1f49cdfc` (ai) — 双 Agent 架构：渗透 Agent + Judge Agent
+- [ ] `78be01c2cd10` (ai) — catimind-神经猫AI-专为行业应用打造的AI生产力工具
+- [ ] `79bb6ebacc96` (ai) — APIFree | Free AI API &amp; One-Stop Unified Models API
+- [ ] `7bccabef346e` (ai) — [机器学习入门] 经典台大李宏毅机器学习课程从这里开始 - CSDN博客
 - [ ] `7d026f1fc593` (ai) — AI Agent吃掉万亿服务市场，这家中国公司已经开始了
 - [ ] `7d76d5b9f646` (ai) — 35页PPT，读懂AI如何重塑网络安全 ｜精华版
 - [x] `7dbe5a95957b` (agent-loop) — Getting started with loops
 - [ ] `7e070ff9d107` (ai) — 整理微信读书笔记，试试WorkBuddy+金山文档Skill
-- [x] `83f460c20a7e` (ai-agent) — You don't have any lists yet.
+- [ ] `7e2d918c84b6` (ai) — ‌⁢​‬‬‬‬‬​‬​‍‍﻿﻿⁢‍⁡⁤‌﻿​‌‬‬​⁣​​‌‌‌‬⁢⁣​​​‍⁢​‍‌​‬‌⁣﻿⁣⁣💡【Agent Skills 知识库】 - 飞书云文档
+- [ ] `818e815e6d04` (ai) — Cursor - The best way to code with AI
+- [ ] `82b8f574cf25` (ai) — unclecode/crawl4ai: 🚀🤖 Crawl4AI: Open-source LLM Friendly Web Crawler &amp; Scraper. Don&#39;t be shy, join here: https://discord.gg/jP8KfhDhyN
+- [x] `838548db6e88` (ai) — AgentFlocks/flocks: Flocks is an agentic SecOps platform.
+- [ ] `842edde927f9` (ai) — Agnes AI | AI Gateway, Free AI API &amp; AI Applications
 - [ ] `85085f364a64` (ai) — 一款完全离线的自主渗透测试智能体AIRecon
 - [ ] `85126955faf6` (ai) — 别再只问AI一个问题，试试STORM研究法
 - [ ] `86117b572d0a` (ai) — 把Token、Agent当作信用卡权益！招行工程师卡“第一个吃螃蟹”
+- [ ] `88d931cfdb9f` (ai) — 在 VS Code 中使用 Claude Code - Claude Code Docs
 - [ ] `8903812033da` (ai) — Palantir引爆的本体论热潮，是企业AI“开窍”的关键吗？
+- [ ] `8a6c1ec14f08` (ai) — 大模型服务平台百炼控制台
 - [ ] `8af5082fc467` (ai) — 技术Leader：“你根本不会用 Claude Code!”,我：“用你教我？”
+- [ ] `8c00944886ae` (ai) — AI大学-讯飞开放平台
 - [x] `8c40203b708e` (llm-cost) — 多家银行披露日均Token消耗量！AI大模型应用成本如何控制？
+- [ ] `8cac7fe16b14` (ai) — 昇腾全栈技术引爆 WAIC！199 元拿华为 AI 认证，低成本补齐 AI 核心技能
 - [ ] `8d708f405970` (ai) — Vulnerabilidades/proxynotshell_checker.nse
+- [x] `8eb83ddae9cc` (ai) — AI是阿拉丁神灯？ AI漏洞挖掘系统上手教程！
 - [ ] `8f252bc91356` (ai) — 万字长文，讲透人工智能全产业链发展
+- [ ] `909b7be7673f` (ai) — Codex GPT-5.5 中转API
 - [ ] `936b45bee467` (ai) — 长程验证：AI Agent 从持续执行到工程化的收敛
 - [ ] `939f177f0b87` (ai) — How agents are transforming work
 - [x] `939fe1835768` (browser-automation) — 实战 WorkBuddy+反爬+爬虫固化 Skill，6大能力搞定浏览器自动化
 - [ ] `95e239086eaf` (ai) — DeepSeek：14天从入门到放弃-开启人工智能高效应用之旅
+- [ ] `9762ef330432` (ai) — Claude Code国内安装：2026最新保姆教程（附cc-switch配置）-阿里云开发者社区
+- [ ] `98bf2ad9124a` (ai) — 使用爬虫如果不是用来为机器学习或数据挖掘收集数据，还能做什么有趣的事情呢……？ - 知乎
+- [ ] `98d8fb3822bf` (ai) — AutoClaw - 智谱推出的国内首个一键安装本地版OpenClaw | AI工具集
+- [ ] `99f272d3c0dc` (ai) — 千问-阿里 AI 助手
+- [ ] `9ad2a9d79066` (ai) — 9分钟搞定！Claude Code 保姆级安装+原理+真实用法（国内直连）_哔哩哔哩_bilibili
+- [ ] `9bc77b72f7e3` (ai) — 【开源】接入大模型、拖拽开发、前后端打通，从报表做到大屏再到AI，这款国产开源平台凭什么能打？
 - [ ] `9d6ba1aa3ca2` (ai) — 炸了，agent开源
+- [ ] `9e75ec1ceb03` (ai) — MiniMax Hub — 多模态创作 Agent，你的AI创作工作室
+- [ ] `9e909e720d93` (ai) — DramaAI Studio — AI影视工场
+- [ ] `9ee099f33393` (ai) — 千帆大模型平台-企业级一站式大模型开发及应用开发平台-百度智能云
+- [ ] `a0179b6655cb` (ai) — 斯坦福大学公开课 ：机器学习课程_机器学习的动机与应用_网易公开课
 - [ ] `a0368b07747d` (ai) — FDE：AI时代的“新物种”岗位，正在重塑技术落地法则
 - [ ] `a05cd674bb0e` (ai) — 5.6万 Star！GitHub 爆火的 AI 求职神器，已适配 Boss 直聘
+- [ ] `a19a5b487dd0` (ai) — 程序员 - Harness Engineering：AI Agent 时代的工程范式革命 - 个人文章 - SegmentFault 思否
+- [ ] `a1d85ff52040` (ai) — ﻿‍⁤⁢​‍⁣​⁣‌⁢​⁤‍​​⁣⁤⁢​﻿⁤⁣⁣​‌‬‬⁣⁤⁣﻿﻿﻿﻿​​​‍⁡‍﻿‍​⁢​‍⁣﻿Claude Code - 飞书云文档
+- [ ] `a22bae8e51ce` (ai) — Seko - World Class AI Video Generation Platform
 - [ ] `a46dc57b5f8c` (ai) — 25K Star，每天跑1300次渗透测试，这个AI安全工具值得试
+- [ ] `a4e80889c971` (ai) — 华为云码道案例集 - AI coding创作灵感 -华为云
+- [x] `a4ff8cbd3c74` (api-monetization) — Announcing the Monetization Gateway: charge for any resource behind Cloudflare via x402
+- [ ] `a557bf23897d` (ai) — FastGPT 商业版 - 0 专家，好效果
+- [ ] `a59bf4288b5c` (ai) — HongMaCC - 企业级 AI 中转平台 | Claude Code、Codex、Gemini 国内直连
 - [x] `a6a9b647ef1e` (ai-coding) — 刚刚，一个免费AI Coding选手杀入全球第一梯队
 - [ ] `a73e57be26e5` (ai) — 从“会用AI”到“会造AI”：360 智能体工程师（ADEA）认证
+- [ ] `a747df8139d0` (ai) — 袋袋 - AI 专家市场 | 遇问题找袋袋，有专长上袋袋
 - [ ] `a789a4a14d88` (ai) — 4.1K Star 开源免费，DeepSeek 终于有了好用的桌面客户端
+- [ ] `a828afe01489` (ai) — Nova AI - SuperConnector for Autonomous Intelligence
+- [x] `a8ea6cb5ebc9` (prompt-engineering) — 元提示浅析
+- [ ] `aaad353b015d` (ai) — KKKKhazix/khazix-skills: 数字生命卡兹克开源的 AI Skills 合集
 - [x] `ab0fe0d7608c` (agent-guide) — 开源腾讯WorkBuddy蓝皮书！从0到100最系统Agent实战指南～【建议收藏】
-- [x] `ab32b5c4e649` (llm-model-evaluation) — MiniMax M3 实测：第一流的模型，已经对执行层动手了
+- [ ] `ae0690f7edee` (ai) — 小龙虾彻底凉了？清华团队连夜开源Agent神器，Token成本狂降70%！
 - [x] `af4479bdf78b` (agent-infrastructure) — Agent 专属的免费域名福利，这个大厂给 AI Agent 发用不完的公网域名..
+- [x] `afe527e5fc37` (multi-agent-systems) — 多个AI一起干活，真的比一个最强模型更靠谱吗？
 - [ ] `agent-test-1` (Web 开发) — Agent 创建的知识条目
+- [ ] `b1bac992db96` (ai) — 量云AI
 - [ ] `b227caecb555` (ai) — Claude 桌面端App 10分钟接入DeepSeek v4，全程无需魔法（保姆级教程）
+- [ ] `b2af543ed620` (ai) — ConardLi/easy-learn-ai: Easy-to-understand AI learning resources for beginners.
 - [ ] `b2cc1b533545` (ai) — Qwen 3.6 27B 是本地开发的理想选择
 - [x] `b3c0a491e490` (ai-cloud-platform) — 腾讯云放大招了，白薅 Tokens + 免费部署 AI 应用，给我爽到了！
+- [ ] `b455da4a14ac` (ai) — KimYx0207/AI-Coding-Guide-Zh: Claude Code + OpenClaw + Codex 中文教程 | 39篇完整教程 + 1张速查卡 | 80万+内容量 | 1500+实操示例 | AI Coding / Agent 三线学习路径
+- [ ] `b5d56b87a192` (ai) — OpenAI AI Assistant
+- [ ] `b63a32f1ae1c` (ai) — 一文讲透Agent三件套：MCP、Skill、Hook如何给大模型装上护栏
 - [ ] `b6f6775c9ade` (ai) — 360发布《AI Agent攻防演练指南》 提出AI时代防守新方法
 - [x] `b97d060930ee` (ai-security-attack) — 用 AI 挖 AI：多 Agent 协同时代的链式逃逸
-- [x] `baebc69b3faf` (agent-security-governance) — 智能体五阶段生命周期框架：TC260 首份 Agent 部署使用安全指引解读（2026.7）
 - [ ] `bce53e828aa5` (ai) — Qwen 3.6 27B is the sweet spot for local development
 - [ ] `bd9da35d6e7d` (ai) — 这个封装了我3年自媒体经验的AI热点网站，今天向所有人免费开放。
 - [ ] `bda8046ed058` (ai) — 用了龙虾一个月，感觉它还是没成长？queen.skill专治这三个病
+- [ ] `c1c40513f9e0` (ai) — AI 资讯标题
+- [ ] `c5468ee18c79` (ai) — AI 人才群像图谱
+- [ ] `c63c43f7d375` (ai) — 腾讯设计 Ardot — AI 驱动的智能设计工具
 - [x] `c665a613aad4` (llm-api-comparison) — Free LLM APIs Compared: Rate Limits, Models, and Real Costs (2026)
 - [ ] `c6ce89d6606a` (ai) — 3.2万 Star！Anthropic 亲自下场，开源了一整套金融圈的生产力工具Skill
 - [x] `c720a169ed09` (ai-security-operations) — 网安人看完沉默了！Qwen3.7-Max被丢进一台正在被攻击的真实服务器，零人工干预，自己查出了暴力破解
+- [ ] `ca864c2b0e4d` (ai) — OpenRouter
 - [ ] `cc66207d9194` (ai) — Qwen3.7-Plus：想得深，看得懂，做得到
-- [x] `cd04e53ebe2e` (agentic-coding) — Ornith-1.0 发布： 新一代 Agentic Coding 之王，MIT 开源
+- [ ] `cd1e18f023f7` (ai) — SenseNova · LLM API 服务平台
 - [x] `cefb71389b03` (ai-supply-chain-security) — [Agentic Skills 投毒]：免杀技术、语义混淆与三层防御框架
+- [ ] `cf769bb738df` (ai) — 禾维 AI | API 中转站真假检测,价格对比与推荐
 - [x] `d18de2ee42bf` (ai-entrepreneurship) — 一人公司OPC如何用公众号＋智能体，低成本跑通AI产品第一步？
 - [ ] `d1c0769c9c60` (ai) — 一小时入门 Python 3 网络爬虫
+- [ ] `d1ed3cb64f40` (ai) — nanocoai/nanoclaw: A lightweight alternative to OpenClaw that runs in containers for security. Connects to WhatsApp, Telegram, Slack, Discord, Gmail and other messaging apps,, has memory, scheduled jobs, and runs directly on Anthropic&#39;s Agents SDK
 - [ ] `d31daef94400` (ai) — 6月底截止，免费白嫖Qwen3.6/3.5
+- [ ] `d34e4722ecdf` (ai) — AgentNEO
+- [ ] `d630d636d35f` (ai) — 长亭百智云 | 全新一代 AI 基础服务
+- [ ] `d6ec347787f7` (ai) — Windsurf · AI 驱动的下一代代码编辑器
 - [ ] `d75b43280611` (ai) — 国务院印发《教育发展"十五五"规划》，推进人工智能全学段教育
 - [ ] `d84a1993d0f2` (ai) — Microsoft Urges Customers to Secure On-Premises Exchange Servers
+- [ ] `d900cba35dcd` (ai) — anthropics/claude-code: Claude Code is an agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster by executing routine tasks, explaining complex code, and handling git workflows - all through natural language commands.
 - [x] `d9cb75436a9d` (ai-video-generation) — LibTV Agent 正式上线｜全球最大的专业视频 Skill Hub，AI 长视频实现成品级直出
+- [ ] `da53977a5b48` (ai) — op7418/guizang-ppt-skill: AI-agent Skill for generating polished HTML slide decks: editorial magazine and Swiss layouts, image prompts, social covers, and a WebGL/low-power presentation runtime.
+- [ ] `daae8bc25d00` (ai) — SenseTime | 商汤科技-坚持原创，让AI引领人类进步
 - [ ] `db1f4178a821` (ai) — 如何快速蒸馏漏洞挖掘skills？
 - [ ] `dba11e4dee59` (ai) — 出海 | 携程《全球化技术架构与实战》一书火爆上市，看 DRC 如何支撑全球旅游业务无缝切换
 - [ ] `dbcf2b461ede` (ai) — OpenClaw、MaxClaw、KimiClaw 技术架构实现与选型指南
+- [ ] `dd5b02bc58e2` (ai) — Agnes AI | AI Gateway, Free AI API &amp; AI Applications
 - [x] `df1d3f61d0a8` (subagent-architecture) — Subagent: Let Your Model Delegate the Busywork
+- [ ] `dfcab32bb1cd` (ai) — Intel: Our upcoming AI chip will be cheaper, run cooler than Nvidia, AMD options - Ars Technica
+- [ ] `e402871df03d` (ai) — DramaAI Studio — AI影视工场
 - [ ] `e47d1252425e` (ai) — Buddy AI 国内个人版订阅升级公告
+- [ ] `e483c5f24839` (ai) — yaojingang/yao-open-skills: OpenYao 公开 Skill 合集：把决策、商业分析、学习教程、研究取证和文档生成流程沉淀成可复用的 AI 资产。
 - [ ] `e69eae2ebf2c` (ai) — 2026十大AI大模型Token购买渠道：高性价比规避溢价踩坑技巧
+- [ ] `e6c19db03260` (ai) — 腾讯云大模型Token Plan_畅享龙虾和编码自由
 - [ ] `e8a7ea88dc9e` (ai) — 孙中东：AI Coding 时代的银行 SDLC 智能化转型报告
+- [ ] `eaf83f510cf2` (ai) — Best practices for computer and browser use with Claude | Claude
 - [ ] `eb83bf584818` (ai) — 3个月20000+ Star，这个视频Agent项目疯了
+- [ ] `ebbe71bb587b` (ai) — QAX-GPT 安全大模型
+- [ ] `ee4a1e0d752b` (ai) — 智谱AI开放平台
+- [ ] `ef8fc24fbf4c` (ai) — AI实训营-阿里云
+- [ ] `efa14558604c` (ai) — 观猹｜玩 AI，上观猹！
 - [x] `f1de94d918e2` (agent-security-standard) — 关于发布《网络安全标准实践指南——智能体部署使用安全指引》的通知
+- [ ] `f36553e13ac0` (ai) — geekjourneyx/md2wechat-skill: Markdown to WeChat CLI | 一键排版发布到微信公众号：支持 40+ 排版样式和专业主题 、AI 配图 、批量发布
 - [ ] `f476b9598641` (ai) — EverOS：开源Markdown优先智能体记忆运行时，支持混合检索与自进化技能 · AI HOT
+- [ ] `f4840f52d675` (ai) — decolua/9router: Unlimited FREE AI coding. Connect Claude Code, Codex, Cursor, Cline, Copilot, Antigravity to FREE Claude/GPT/Gemini via 40+ providers. Auto-fallback, RTK -40% tokens, never hit limits.
+- [ ] `f4adde9b17c8` (ai) — 即梦AI - 一站式AI创作平台
 - [ ] `f6dae591bbd4` (ai) — 研发金融风控智能体，提升风险识别能力——《智能体规范应用与创新发展实施意见》发布
+- [ ] `f8267baf7099` (ai) — 如何拍出高质量大片、MV？我把AI工作流全拆开了
+- [ ] `fa4aae2fc901` (ai) — zephyrwang6/space-wechat: 微信聊天记录的三种深度玩法：关系画像 / 知识沉淀 / 纪念特刊。Claude Code Skill。
 - [ ] `fb82b677273d` (ai) — 14款国外AI安全态势管理工具核心能力解析
 - [ ] `ff3e00ccef1a` (ai) — OpenAI内部报告：智能体Codex如何改变工作
 - [ ] `k-ext-1` (-) — LangChain prompt injection attack
 
-### finance (37)
+### finance (41)
 
 - [ ] `032a6305bb56` (finance) — 金融领域数据安全运营体系建设探究与思考
 - [ ] `06b41092e13c` (finance) — 专题 | 西安银行开源软件治理体系的建设实践
 - [ ] `099b9de08e8b` (finance) — 新闻发布 | ISACA发布《2023年度隐私实践研究报告》，人才短缺形势依然严峻
+- [ ] `0c2c8541d849` (finance) — 请在微信客户端打开链接
 - [ ] `1660a9e75ab5` (finance) — 商业银行数字化运营六要素
 - [ ] `167c0624eaf0` (finance) — 盘点2025年银行金融科技相关的金融行业标准
 - [ ] `1a57b37a326c` (finance) — 中央经济会议重点解读（划重点+全文+图解+解读）
@@ -324,50 +479,87 @@ beginner, intermediate, advanced, expert
 - [x] `898dd96c073c` (private-equity) — 年内8家私募自购超1.6亿元
 - [ ] `a82f2313e05a` (finance) — 从需求到运维：证券领域LLM增强型DevOps平台建设实践
 - [ ] `b357d5f513e6` (finance) — 《金融科技发展规划（2022-2025 年）》实施效果总结与十五五规划展望
+- [x] `b5e3d65f73d2` (app-security-compliance) — 又有3家银行App被通报，民生银行罕见涉及5项问题！
 - [ ] `bcc52fc79708` (finance) — 标书质疑分析技能简介，让你更加公平的去投标！
 - [ ] `c01d70018bc9` (finance) — 促进证券期货业高质量发展，数据安全再度升级
 - [ ] `c80c93828061` (finance) — OpenClaw类智能体在金融行业应用的安全风险分析与防控策略
 - [ ] `c9afd0593c40` (finance) — 论个人信息出境认证与安全评估、标准合同的关系
+- [x] `d1359b9336dc` (team-management) — 把团队带废的7个坏习惯
+- [ ] `dd79e5b9aced` (finance) — 《证券信息技术》第1卷 | 目录及摘要
 - [ ] `f5de8d96aa03` (finance) — Gartner 重磅发布《2025 年十大战略技术趋势》：到 2030 年，80% 的人将每日与机器人互动（附下载）
 - [ ] `ff626cd8f407` (finance) — 网络安全事件未上报，某券商被上海证券交易所采取监管措施
 
-### business (1)
-
-- [x] `d1359b9336dc` (team-management) — 把团队带废的7个坏习惯
-
-### other (2)
+### other (1)
 
 - [x] `2bcc67a1ae5b` (test) — Verify
-- [x] `357d5032ce99` (test) — Test Bookmark
 
-### dev (12)
+### dev (51)
 
+- [x] `003077fbb3cb` (dev) — 3gstudent/Winpcap_Install: Auto install WinPcap on Windows(command line)
+- [ ] `0188a8580de5` (dev) — shiyu-coder/Kronos: Kronos: A Foundation Model for the Language of Financial Markets
+- [ ] `083e2498e00a` (dev) — 我开源了一个九步需求分析框架skill
+- [ ] `0898d672bf56` (dev) — 快速部署OpenClaw-移动云官网
+- [ ] `13da92a0bd1b` (dev) — GitHub
+- [x] `14a06f77537a` (dev) — mcms从搭建到代码审计
 - [ ] `203e6a53f4d4` (dev) — 一个 Skill，快速上手开源项目！
-- [x] `2664f9c30629` (ai-creation-tools) — 这个开源项目不简单，可能会掀起AI创作革命...
+- [ ] `2192e149232f` (dev) — Try NVIDIA NIM APIs
+- [x] `2545c46d3085` (dev) — AnyeDuke/ALB: 攻击日志分析工具
 - [ ] `2c91d10a9c8b` (dev) — 15 分钟搭建你的 AI 日报系统：Horizon 完整安装教程 + 配置详解
+- [ ] `31aad1e31926` (dev) — OWASP/www-project-agentic-skills-top-10: OWASP Foundation web repository
+- [ ] `3636a931eff3` (dev) — 腾讯云开发者社区-腾讯云
+- [ ] `3991be7bab44` (dev) — OpenClaw + Ollama + Gemma 4 本地部署-CSDN博客
+- [x] `4434b053e162` (ai-app-development) — 用对话写出一个微信小程序，再一键部署上线——秒悟进阶课全攻略
+- [x] `483144aa5aaf` (dev) — CentOS7.3安装Python3.6 - CSDN博客
+- [ ] `4a4ae86e8876` (dev) — dreammis/social-auto-upload: 自动化上传视频到社交媒体：抖音、小红书、视频号、tiktok、youtube、bilibili
+- [ ] `4bcb28d78969` (dev) — Alishahryar1/free-claude-code: Use claude-code for free in the terminal, VSCode extension or discord like OpenClaw (voice supported)
+- [ ] `4c7a7f358380` (dev) — 项目 - Dashboard - 微信开发者代码管理
 - [x] `4f3c7d046339` (cs-curriculum) — ossu / computer-science
+- [ ] `5ea507c1ec30` (dev) — blog/agent-glossary.md at main · huggingface/blog
+- [ ] `5fa7b6ca38fe` (dev) — lty931112/dev-workerflow: 这是一个skill组，由一个路由skill，一个文档skill，一个规范skill组成，专门用来规范开发，将开放方式从契约开发转变为文档开发。它可以让你对项目更加清晰，让团队协作更加简单
+- [x] `604df8e6417d` (dev) — erevus-cn/scan_webshell: 很简单的webshell扫描
+- [ ] `6c4994d73bd3` (dev) — deepseek-ai/awesome-deepseek-agent
 - [ ] `6e1dac6052e4` (dev) — 花叔不公开的写作 Skill，我逆向出来了
+- [x] `71822a499ccf` (dev) — ChrisJohnRiley/Scythe: scythe: account enumerator
+- [ ] `78c342fb5b86` (dev) — 一键部署OpenClaw/ClawdBot-火山引擎
 - [ ] `7a225283bb5a` (dev) — 又一个 Codex 神器爆火！
-- [x] `89b8fcf76698` (knowledge-architecture) — Harness不是目的，知识才是护城河 —— 一个AI工程交付团队的知识沉淀实践
+- [x] `83f460c20a7e` (ai-agent) — You don't have any lists yet.
+- [ ] `8409bab8f23c` (dev) — woyin2024/lengyi-shotlist: 专注写Seedance提示词的skill
+- [x] `85f8c9176066` (dev) — 5alt/VulHint: VulHint是辅助代码审计的 sublime text 3 插件
+- [x] `872a3510acc6` (dev) — offensive-security/nethunter-devices: NetHunter Devices
 - [ ] `8a515d12e510` (dev) — 对手情报分析技能简介，知己知彼，百战不殆——手把手教你用AI如何做竞争对手情报分析？
+- [ ] `92b8ec0b1e5f` (dev) — AnxForever/stylekit-skill
+- [ ] `94910e59629e` (dev) — ‌‍⁢⁣﻿‌‌⁡‍⁡⁣‬​﻿﻿⁣‌⁣﻿⁢‍​﻿‌⁢﻿‬⁢‬‌​‬​⁤‍​⁤⁡⁤⁡﻿‬⁡​⁢​⁤‍​⁤星火官网中转API+OpenClaw龙虾教程手册 - 飞书云文档
+- [x] `9e957f11f627` (frontend-skills) — GitHub黑板报的文字分享
+- [ ] `9ea099ba0d8c` (dev) — 孵化了 10 万多 Star 开源项目的团队，在 GitHub 上搞了一个新东西。
 - [x] `a2ad2bb1f182` (agent-skills) — OPC Skills：面向"一人公司"的开源 Skills
+- [ ] `a45f2aa098ba` (dev) — SenseNova-Skills/README_CN.md at main · OpenSenseNova/SenseNova-Skills
 - [ ] `a7f8446f5def` (dev) — 那些出圈的AI短片，都靠这个公式做出来的
+- [ ] `b220ca477ccf` (dev) — 七牛云一键部署OpenClaw特惠活动
+- [ ] `b5af8b0c5c6f` (dev) — windwiki/windwiki.github.io: 風子の空（My blog）
+- [x] `c5fde28d545a` (dev) — fireeye/commando-vm: Complete Mandiant Offensive VM (Commando VM), the first full Windows-based penetration testing virtual machine distribution. The security community recognizes Kali Linux as the go-to penetration testing platform for those that prefer
 - [x] `c71f419768a1` (markdown-tools) — 仅几MB！Rust 开源 Markdown 神器，专为 AI 设计
+- [x] `cd04e53ebe2e` (agentic-coding) — Ornith-1.0 发布： 新一代 Agentic Coding 之王，MIT 开源
 - [ ] `cf1a73bdda23` (dev) — 2026 企业级AI编程实践手册
+- [ ] `cf9284cc5c47` (dev) — AMD 开发者计划
+- [ ] `cf9a548a7623` (dev) — exacity/deeplearningbook-chinese: Deep Learning Book Chinese Translation
+- [ ] `e07bf77bdc1b` (dev) — API管理 - 网易格致开发者平台
+- [ ] `ea44614de1a8` (dev) — fchollet/deep-learning-with-python-notebooks: Jupyter notebooks for the code samples of the book &quot;Deep Learning with Python&quot;
+- [ ] `f9ab049faddd` (dev) — datalust/superpower: A C# parser construction toolkit with high-quality error reporting
+- [ ] `fcfcb364893d` (dev) — 移动云开发者社区
 
 ### general (1)
 
 - [x] `c7500134ab49` (personal-website) — 我的个人站点开通了
 
-### startup (89)
+### startup (90)
 
 - [ ] `06923b063bde` (startup) — 华为项目管理，为什么这么强？---华为内部首次揭秘【文末送纸书】
 - [ ] `0697ca48b45e` (startup) — 项目不成功？那是立项检查没做好！《项目立项前检查表》实例
 - [ ] `0b8cb57dad8a` (startup) — 我国当前面临的主要网络认知威胁分析
 - [ ] `1228444a4511` (startup) — 从甲方到乙方第一年的7000字总结
 - [ ] `171edf03abdf` (startup) — Docker 快速入门
+- [ ] `180fe56e7452` (startup) — 智聚618 年中钜惠狂欢_618大促_云计算产品_百度智能云
 - [ ] `1a89beaac445` (startup) — 开源项目信息泄露笔记
-- [x] `220153a0211f` (data-skill) — 又一个神级数据 skill，终于省事了。
 - [ ] `22816ea5f411` (startup) — Kindle电子书资源推送
 - [ ] `22db0d598793` (startup) — 深入了解了100位卓越项目管理专家的背景后我才明白：什么样的企业环境，能培养出这么优秀的项目经理
 - [ ] `2ba295584758` (startup) — 沟通能力强的项目经理，说话时有这几个方法
@@ -375,6 +567,7 @@ beginner, intermediate, advanced, expert
 - [ ] `2c58b11d0ec4` (startup) — 优秀的项目经理，一定要会检查工作
 - [ ] `2fbd59698cb6` (startup) — HW行动之蓝军总结参考
 - [ ] `2fd848a1ba70` (startup) — Security research on Private Cloud Compute
+- [ ] `35f3a3bcc3b4` (startup) — OPC创业者看过来，最高10万美元云资源等你拿
 - [ ] `3b6d7aae54df` (startup) — 公众号尚未实名
 - [ ] `3bb3c8550500` (startup) — Switch branches/tags
 - [ ] `3c6eefbc0f1d` (startup) — 十天时间，从深圳到成都自驾游攻略
@@ -406,13 +599,13 @@ beginner, intermediate, advanced, expert
 - [ ] `8842f0551fac` (startup) — 华为如何做“以功能为中心”到“以项目为中心”的变革（全篇）
 - [ ] `8918f2943be8` (startup) — 《毛选》遇事最有水平的处理方式是什么？对项目管理者的启发
 - [ ] `8953ac4ce1cb` (startup) — 涨得快、热度高的 3 个 GitHub 项目
+- [x] `89b8fcf76698` (knowledge-architecture) — Harness不是目的，知识才是护城河 —— 一个AI工程交付团队的知识沉淀实践
 - [ ] `8aa97a1b87b6` (startup) — 最新印发！江西省公共数据资源授权运营管理办法（试行）
 - [ ] `8ada921dc5a0` (startup) — OWASP Top 10:2025 RC1（全）
 - [ ] `8c3b86178c2b` (startup) — 【项目管理实战圈】如何把国标“翻译”成企业听得懂的语言？——张宝忠揭秘项目管理国家标准大讲堂背后的“降维”艺术
 - [ ] `92ea381836fe` (startup) — 咨询参悟 I 一本被低估的介绍华为DSTE体系的好书系列拆解（1）
 - [ ] `95b334acc637` (startup) — 述职报告被领导猛夸，靠的就是这套模板框架（全是干货）
 - [ ] `9c4cf8c66414` (startup) — 如何深入理解计算机系统？
-- [x] `9e957f11f627` (frontend-skills) — GitHub黑板报的文字分享
 - [ ] `9f2864036bad` (startup) — 沟通能力强的人，说话顺序都是这样的
 - [ ] `9fe7001d2b1e` (startup) — 个人信息获取与知识管理系统（Heptabase + Logseq + Readwise） · Pse...
 - [ ] `a08ccd54b509` (startup) — Part of Z-Library project. The world's largest ebook library
@@ -451,13 +644,11 @@ beginner, intermediate, advanced, expert
 - [ ] `f9058e8480f3` (startup) — Get笔记 + 腾讯iMa，玩转个人知识库
 - [ ] `fa24f7ea438f` (startup) — [PPT]企业级项目管理体系构建的方法
 
-### uncategorized (3602)
+### uncategorized (3530)
 
 - [ ] `000ff7d032fe` (-) — https://www.ichunqiu.com/open/63176
 - [ ] `00236580605e` (-) — rackerlabs/scantron: A distributed nmap / masscan scanning framework
 - [ ] `00260fdb08d4` (-) — 互联网企业如何有效落地SDL - FreeBuf互联网安全新媒体平台
-- [ ] `003077fbb3cb` (-) — 3gstudent/Winpcap_Install: Auto install WinPcap on Windows(command line)
-- [ ] `00467670f607` (-) — chaitin/PandaWiki: PandaWiki 是一款 AI 大模型驱动的开源知识库搭建系统，帮助你快速构建智能化的 产品文档、技术文档、FAQ、博客系统，借助大模型的力量为你提供 AI 创作、AI 问答、AI 搜索等能力。
 - [ ] `004932c2270f` (-) — vanhauser-thc/thc-hydra: hydra
 - [ ] `004d06ed6e74` (-) — MaiInt：基于某应用的公司雇员信息收集测试工具 - FreeBuf互联网安全新媒体平台 | 关注黑客与极客
 - [ ] `006d22721b0c` (-) — VMess 协议 · V2Ray 配置指南|V2Ray 白话文教程
@@ -477,7 +668,8 @@ beginner, intermediate, advanced, expert
 - [ ] `013fab478493` (-) — 太刺激！服务器被黑遭攻击，凌晨一点紧急逆袭！
 - [ ] `016629ad88f1` (-) — 万维网联盟（W3C）教程
 - [ ] `01859564c02e` (-) — Models running on llama.cpp – Hugging Face
-- [ ] `0188a8580de5` (-) — shiyu-coder/Kronos: Kronos: A Foundation Model for the Language of Financial Markets
+- [ ] `0190c6595470` (-) — GitHub
+- [ ] `01957566d5de` (-) — 为什么我不推荐使用 OpenCode
 - [ ] `0196e22b6c65` (-) — 拒绝服务攻击 - Open-Source Security Architecture
 - [ ] `01bb888709ec` (-) — Snailclimb/JavaGuide: Java 面试 &amp; 后端通用面试指南，覆盖计算机基础、数据库、分布式、高并发、系统设计与 AI 应用开发
 - [ ] `01cb91de68a1` (-) — Tails - Welcome to the Tails Installation Assistant
@@ -495,8 +687,10 @@ beginner, intermediate, advanced, expert
 - [ ] `02b313111f4d` (-) — 服务器入侵溯源小技巧整理 - FreeBuf互联网安全新媒体平台 | 关注黑客与极客
 - [ ] `02bfeeebf4a2` (-) — Web安全入门心法 - 知乎专栏
 - [ ] `02ce1b4f4fac` (-) — 企业加强客户隐私数据保护的12条建议 - 安全内参 | 决策者的网络安全知识库
+- [ ] `02d38562c5f7` (-) — 全国信息安全标准化技术委员会
 - [ ] `02d8fea010d3` (-) — Nightly Installers · rapid7/metasploit-framework Wiki
 - [ ] `031af888a140` (-) — Linux查看系统状态命令 - 泉眼无声溪细流 - 博客园
+- [ ] `032eb96fc40d` (-) — 安全牛
 - [ ] `03570e3ba047` (-) — 2019上半年Web应用安全报告：90%以上攻击流量来源于扫描器 - FreeBuf互联网安全新媒体平台
 - [ ] `03688bc460d1` (-) — Threekiii/Awesome-POC: 一个漏洞POC知识库 目前数量 1000+
 - [ ] `036cbe16b001` (-) — Sample Title
@@ -514,13 +708,12 @@ beginner, intermediate, advanced, expert
 - [ ] `046b282facd9` (-) — Shadowsocks-go一键安装脚本 | 秋水逸冰
 - [ ] `047a1c08f4ae` (-) — nanshihui/Scan-T: a new crawler based on python with more function including Network fingerprint search
 - [ ] `0492866dd101` (-) — Free Web Application Security Scanner Trial | Netsparker
+- [ ] `04a76bfc6cb0` (-) — 首页
 - [ ] `04b0afbac4bc` (-) — TokenDance - 词元跳动
 - [ ] `04b3732f0fa5` (-) — 技术讨论 | 简谈渗透测试各阶段我常用的那些“神器” - FreeBuf互联网安全新媒体平台
 - [ ] `04dcaa63ef15` (-) — Genymotion Android Emulator | Android virtual devices farm | Develop - Automate your tests - Validate with confidence
 - [ ] `04e7f4968294` (-) — PowerSAP：一款强大的PowerShell SAP安全审计工具 - FreeBuf.COM | 关注黑客与极客
-- [ ] `04f200b38a81` (-) — AI
 - [ ] `04f475bede6a` (-) — S2-046 - Apache Struts 2 Documentation - Apache Software Foundation
-- [ ] `050d5c759771` (-) — opensec-cn/vtest: 用于辅助安全工程师漏洞挖掘、测试、复现，集合了mock、httplog、dns tools、xss，可用于测试各类无回显、无法直观判断或特定场景下的漏洞。
 - [ ] `051020a924de` (-) — How to accelerate Suricata, Bro, Snort with PF_RING FT – ntop
 - [ ] `0518b7d6c5bb` (-) — 2021贯标回顾 | 122家中国500强企业开展两化融合管理体系贯标工作，占比超24%
 - [ ] `0522d3872af6` (-) — Nagios XI Installation Help (Manual Linux) - Nagios
@@ -554,11 +747,12 @@ beginner, intermediate, advanced, expert
 - [ ] `06b046202f5e` (-) — Using RMI over IIOP
 - [ ] `06b81daf297d` (-) — meterpreter_paranoid_mode.sh允许用户安全上演/无级连接Meterpreter经检查合格证书的处理程序正在连接到 - windwos10 - 博客园
 - [ ] `06c4f18085cf` (-) — Bypass
+- [ ] `06e00d9ac9ef` (-) — OpenAI创始成员Karpathy：人类不该成为AI的瓶颈，自我升级才是破局之路｜投资笔记第260期
 - [ ] `06e52ae0448e` (-) — 分享大佬们的博客rss源文件 - Powered by SecQuan 汇聚新锐白帽
-- [ ] `06f358b4eaf0` (-) — 中国电信-天翼云,云网融合,安全可信,专享定制
 - [ ] `070df92abb10` (-) — 【公益译文】安全意识专题 | 理解企业安全的合规性需求 | 绿盟科技博客
 - [ ] `071440dd4b18` (-) — 攻防系统之攻防环境介绍&amp;搭建 - FreeBuf互联网安全新媒体平台
 - [ ] `07205c528a7b` (-) — CVE中文漏洞信息库 - SCAP中文社区
+- [ ] `0748e78b1a70` (-) — 360威胁情报中心
 - [ ] `074c2218b5d8` (-) — deepseek-coder-v2:16b
 - [ ] `075488cbf0f0` (-) — OpenVAS - OpenVAS - Open Vulnerability Assessment System
 - [ ] `075d603ad44c` (-) — Welcome – Gentoo Linux
@@ -578,14 +772,12 @@ beginner, intermediate, advanced, expert
 - [ ] `0807b09be8c7` (-) — Security Tools (Top 100) - Linux Security Expert
 - [ ] `082e051c1783` (-) — MAC通用安装教程
 - [ ] `083671984c99` (-) — Web日志安全分析浅谈 - 有思想的安全新媒体
-- [ ] `083e2498e00a` (-) — 我开源了一个九步需求分析框架skill
 - [ ] `083ecdf5c31f` (-) — Kali 2.0 sana源 - Linux系统教程
 - [ ] `085825b03ae5` (-) — 【缺陷周话】第5期 ：越界访问 - 安全客，安全资讯平台
 - [ ] `086be67ecd04` (-) — LongCat API开放平台快速开始 | API 文档
 - [ ] `0874fa68db5b` (-) — 绿盟科技博客
 - [ ] `087ceee1e3f5` (-) — XX-Net/download.md at master · XX-net/XX-Net · GitHub
 - [ ] `08908cd143ed` (-) — AI 助力招投标全流程，让 Cherry 成为你的招投标搭档！
-- [ ] `0898d672bf56` (-) — 快速部署OpenClaw-移动云官网
 - [ ] `08aca1d570ac` (-) — linux查看用户登录时间以及命令历史 - CSDN博客
 - [ ] `08c00f9895e7` (-) — Docker官方公共仓库Docker Hub被黑，涉及19万帐户 - FreeBuf网络安全行业门户
 - [ ] `08eb7e40737e` (-) — shadowsocks/shadowsocks-windows: If you want to keep a secret, you must also hide it from yourself.
@@ -599,12 +791,13 @@ beginner, intermediate, advanced, expert
 - [ ] `09edd448e551` (-) — 乐享快云体验套餐 - 快云，一个专业的云计算公司
 - [ ] `0a0d9265e053` (-) — 360.net - Censys
 - [ ] `0a12add74d09` (-) — RGB(0,140,255),#008CFF 颜色查询,颜色梯度,色彩搭配,色盲模拟 - RGB颜色查询 - 在线工具 - Fontke.com
+- [ ] `0a20c5f4ebfa` (-) — 绝地求生 - 提高你的感官
 - [ ] `0a34add974f8` (-) — secnewsbydukez/venom: venom (metasploit) shellcode generator/compiler/listener
 - [ ] `0a3e349df363` (-) — 内容安全策略（CSP）_防御_XSS_攻击的好助手 - _夜枫 - 博客园
 - [ ] `0a4302e5407b` (-) — 基于机器学习的WebShell检测方法与实现（上） - FreeBuf互联网安全新媒体平台 | 关注黑客与极客
 - [ ] `0a4aa69b4afa` (-) — Python for Malware Analysis – Getting Started | malwology
-- [ ] `0a65f9d6343b` (-) — 腾讯云黑客松官网
 - [ ] `0a7ad0a9f323` (-) — 如何使用深度学习检测XSS - FreeBuf.COM | 关注黑客与极客
+- [ ] `0aa7f73e1c58` (-) — ourongxing/newsnow: Elegant reading of real-time and hottest news
 - [ ] `0aa80881a0a6` (-) — b-nnett/codex-plusplus：适用于 Codex 桌面应用的 Codex++调整系统 --- b-nnett/codex-plusplus: Codex++ tweak system for the Codex desktop app
 - [ ] `0ad132394461` (-) — AntSword-Loader/AntSword-Loader-v4.0.3-win32-x64.zip at 4.0.3 · AntSwordProject/AntSword-Loader
 - [ ] `0ad7c7d1cda2` (-) — ourongxing/newsnow: Elegant reading of real-time and hottest news
@@ -612,7 +805,6 @@ beginner, intermediate, advanced, expert
 - [ ] `0af2ce594295` (-) — 零基础自学IT技术有哪些可以加快学习速度的经验？ - 知乎
 - [ ] `0afc89a1d70f` (-) — devsecops
 - [ ] `0b12c916dd8d` (-) — Bandwagon Host - Shopping Cart
-- [ ] `0b4a13e78a16` (-) — Hermes Agent安装与部署指南：一步步教你如何使用“爱马仕Agent”（附飞书接入教程） - 飞书官网
 - [ ] `0b4fa3d11bd2` (-) — （受权发布）中华人民共和国数据安全法-新华网
 - [ ] `0b65713d1963` (-) — 美团点评移动端基础日志库——Logan -
 - [ ] `0b844c429135` (-) — Microsoft Security Development Lifecycle
@@ -630,29 +822,27 @@ beginner, intermediate, advanced, expert
 - [ ] `0c63001507d5` (-) — 万豪集团CEO首谈黑客入侵，分享事后取证结论-网络安全-安全频道-至顶网
 - [ ] `0c744f0370b7` (-) — Python IDE：PyCharm中的那些实用功能 - CrissChan的专栏 - CSDN博客
 - [ ] `0c8272d1fe7b` (-) — 企鹅虾友会
-- [ ] `0cba0a10b800` (-) — 能力市场 - 龙虾安全伴侣
 - [ ] `0cc56c7ffe67` (-) — 提升云中业务集成安全性的七个步骤
 - [ ] `0cc6fafc697b` (-) — TOMCAT安全测试概要_91Ri.org
 - [ ] `0cca542afe2a` (-) — The continuous threat of malware hiding in fake Adobe Flash updates — Nominum
 - [ ] `0ccbf7db21ef` (-) — NomadCN112/Chinese-translation-ATT-CK-framework: ATT&amp;CK 框架图中文翻译版 原为安恒奖品，自我二次翻译，修改了一些小的翻译错误问题，自我保存即可
 - [ ] `0cdd77e74aa9` (-) — 重磅 | FreeBuf发布2017年度移动App安全漏洞与数据泄露现状报告 - FreeBuf.COM | 关注黑客与极客
 - [ ] `0ce3a8a8d79f` (-) — Kali Linux NetHunter - Nexus and OnePlus Downloads
-- [ ] `0ce5c8f6720a` (-) — calesthio/OpenMontage: World&#39;s first open-source, agentic video production system. 12 pipelines, 52 tools, 500+ agent skills. Turn your AI coding assistant into a full video production studio.
 - [ ] `0cf7ce05023e` (-) — 封神台 - 掌控安全在线演练靶场，是一个在线黑客攻防演练平台。
 - [ ] `0d179ff5cdd4` (-) — 10x Productivity — 2000 Books
 - [ ] `0d2ca36aa5c4` (-) — MrSqar-Ye/Door404
 - [ ] `0d32918051e0` (-) — Subresource Integrity
 - [ ] `0d390c162e06` (-) — 国家能源局印发《电力行业网络安全管理办法》 - 安全内参 | 决策者的网络安全知识库
 - [ ] `0d45ff045915` (-) — centos7 mysql数据库安装和配置 - starof - 博客园
-- [ ] `0d57e562d150` (-) — Vautour Style - Nagios Exchange
+- [x] `0d57e562d150` (-) — Vautour Style - Nagios Exchange
 - [ ] `0d5b74da5048` (-) — 《无政府主义第一季》在线播放_迅雷下载_久久美剧
 - [ ] `0d5ed3814739` (-) — Download OWASP Mutillidae II from SourceForge.net
 - [ ] `0d72cd56249b` (-) — 如何自动ping多个IP地址_百度经验
-- [ ] `0d73031a24d5` (-) — CyberStrikeAI 新增资产管理：从零散目标到可持续维护的资产基线（文末附八群二维码）
 - [ ] `0d8330a762a1` (-) — secnewsbydukez/KatanaFramework: The New Hacking Framework
 - [ ] `0da555a5b64c` (-) — STIX和TAXII：了解国外较成熟的威胁情报标准 - FreeBuf.COM | 关注黑客与极客
 - [ ] `0db7af6e8e5a` (-) — DSMM数据安全能力成熟度模型试点评估实践体会 - FreeBuf互联网安全新媒体平台
 - [ ] `0db9b1e97697` (-) — DietrichGebert/ponytail: Makes your AI agent think like the laziest senior dev in the room. The best code is the code you never wrote.
+- [ ] `0dc1e75e1f32` (-) — 美团技术团队
 - [ ] `0dc86dec8ce5` (-) — GParted Live on Hard Disk
 - [ ] `0dcfffdfafaa` (-) — 编程入门纳米学位 - Udacity
 - [ ] `0df62d853a64` (-) — AnyeDuke/SecurityNews: Lists of Social Media, News sites, and other things to follow
@@ -661,8 +851,9 @@ beginner, intermediate, advanced, expert
 - [ ] `0e19276a2d9d` (-) — 一个人的武林：内网渗透测试思路（二） - SecPulse.COM | 安全脉搏
 - [ ] `0e1c5168bd32` (-) — 一个人的安全部之企业信息安全建设规划 - FreeBuf互联网安全新媒体平台
 - [ ] `0e1ebaeea7f4` (-) — 我的文档 - 幕布
+- [ ] `0e264c50dc2a` (-) — 信安之路
 - [ ] `0e33b8caf0b4` (-) — Performance Linux VPS Hosting Starting at $5.95
-- [ ] `0e4b3c0e05ba` (-) — 【作者投稿】奇葩webshell技巧
+- [x] `0e4b3c0e05ba` (-) — 【作者投稿】奇葩webshell技巧
 - [ ] `0e5201c29189` (-) — 塑造容器安全未来的五个趋势 - 安全牛
 - [ ] `0e56e4ac8a8c` (-) — VirusTotal
 - [ ] `0e5a131526bd` (-) — 国产网站恶意代码监测（网马监控）工具优化版 - FreeBuf.COM | 关注黑客与极客
@@ -678,16 +869,15 @@ beginner, intermediate, advanced, expert
 - [ ] `0ee6c4aba185` (-) — yaklang/yakit: Cyber Security ALL-IN-ONE Platform
 - [ ] `0f2c518f3b1b` (-) — 小报童
 - [ ] `0f471997c0f9` (-) — 社会工程学神器 – theHarvester修改版 - FreeBuf.COM | 关注黑客与极客
-- [ ] `0f6b694b7c49` (-) — Shotlab - 新片场旗下AI创作平台 | AI图片生成 AI视频生成
 - [ ] `0f816da5eddf` (-) — Presentations &amp; Videos - Cybersecurity Conference - USA 2019 | RSA Conference
 - [ ] `0f90037ee025` (-) — 个人总结的漏洞管理流程分享 - FreeBuf互联网安全新媒体平台
+- [ ] `0fa2ace932c4` (-) — 全国信息安全标准化技术委员会
 - [ ] `0fd65c2fd21a` (-) — Title ai
 - [ ] `0fe8e1c87b4b` (-) — 开源日志分析系统建设（三） - FreeBuf专栏·Master曹
 - [ ] `101a06b6f130` (-) — GitMiner：用于Github的高级敏感内容挖掘工具 - FreeBuf互联网安全新媒体平台
 - [ ] `10476ccb8eb4` (-) — 大数据安全之kerbros+ldap身份验证(理论篇) - 王某的博客 - CSDN博客
 - [ ] `105c53eeeba2` (-) — 基于网络欺骗与浏览器指纹的WEB攻击溯源 - FreeBuf网络安全行业门户
 - [ ] `1082a95851a2` (-) — 104 - 让 WorkBuddy 真正操控你的浏览器—Kimi WebBridge 方案
-- [ ] `10850bda756d` (-) — AI工具集官网 | 1000+ AI工具集合，国内外AI工具集导航大全
 - [ ] `10b6908f3b65` (-) — GoodBoy安全工具专场-NIKTO_神器_米安网
 - [ ] `10bad6375bed` (-) — SSCTF2017 WriteUp - SecPulse.COM | 安全脉搏
 - [ ] `10f71265a6f2` (-) — 信息安全建设三部曲 - Enweitech Software Works - CSDN博客
@@ -698,11 +888,11 @@ beginner, intermediate, advanced, expert
 - [ ] `111c539af93b` (-) — Privilege Escalation in Ubuntu Linux (dirty_sock exploit) | Shenanigans Labs
 - [ ] `112ed4ff3e43` (-) — [PentesterLab] Learn Web Penetration Testing: The Right Way
 - [ ] `113bd36ec493` (-) — ggml-org/llama.cpp: LLM inference in C/C++
-- [ ] `114937dadfd6` (-) — Seko - World Class AI Video Generation Platform
+- [ ] `1187a130af05` (-) — 腾讯视频创作平台 - 开放 共赢 创作好时光
 - [ ] `118cf1763626` (-) — V2EX
 - [ ] `119c21082b62` (-) — 大数据安全体系介绍之技术体系篇 - FreeBuf互联网安全新媒体平台
-- [ ] `119d10406525` (-) — 黑客，互联网的免疫系统_黑客，互联网的免疫系统_网易公开课
 - [ ] `11cc471069ab` (-) — openKylin开源操作系统
+- [ ] `11df61a95862` (-) — GitHub
 - [ ] `11fb76e74dd3` (-) — java学习资料_免费高速下载|百度网盘-分享无限制
 - [ ] `12087cf72c93` (-) — UEBA能够检测的七大类安全风险
 - [ ] `120c0719065e` (-) — TCP/IP协议、DoD模型、OSI模型 - CodeBlove - 博客园
@@ -728,24 +918,21 @@ beginner, intermediate, advanced, expert
 - [ ] `13be6263c617` (-) — 关于电子邮件诈骗的一些分析 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `13c984ea6fe2` (-) — QV2ray 客户端安装后提示核心文件未找到，如何解决？-深度科技论坛|深度操作系统正在为全世界的电脑提供强劲动力！
 - [ ] `13d91c765f64` (-) — 使用各种扫描工具的你，不但踩了“蜜罐”可能还要被团灭了 - FreeBuf.COM | 关注黑客与极客
-- [ ] `13da92a0bd1b` (-) — GitHub
 - [ ] `13ea2b4523a6` (-) — A3sal0n/CyberThreatHunting: A collection of resources for Threat Hunters
 - [ ] `13eab737ab3e` (-) — BAT常用命令 - IT少年 - 博客园
+- [ ] `14084ee7b57a` (-) — GitHub
 - [ ] `1437fb4dd7b0` (-) — WEB服务器与应用服务器的区别 - liupeng900605的专栏 - CSDN博客
 - [ ] `143ee67062d5` (-) — 200G python学习资料从入门到精通（菜鸟窝：www.cniao5.com更多免费资源关注菜鸟窝官网）_免费高速下载|百度网盘-分享无限制
 - [ ] `143fd87efcf9` (-) — 如何快速进行常规端口渗透 - FreeBuf专栏·攻防之路
 - [ ] `144cc5e893eb` (-) — HTTP 协议入门 - 阮一峰的网络日志
 - [ ] `145b3b6ead62` (-) — CertiK：一款智能合约的代码审计平台 - FreeBuf互联网安全新媒体平台 | 关注黑客与极客
-- [ ] `14723c29ee55` (-) — TauricResearch/TradingAgents | zdoc.app
 - [ ] `14743e1e680b` (-) — 开源软件创建SOC的一份清单 - FreeBuf互联网安全新媒体平台 | 关注黑客与极客
 - [ ] `149ccba31b77` (-) — Web渗透实验：基于Weblogic的一系列漏洞 - FreeBuf互联网安全新媒体平台
-- [ ] `14a06f77537a` (-) — mcms从搭建到代码审计
 - [ ] `14a3a43eff78` (-) — cnfeat/top-pm-skills: 一个融合了 42 位世界级产品大师思维模型的 AI Skill，帮你做好每一个产品决策。
 - [ ] `14ae65b4c5c7` (-) — All Categories | ArcSight Marketplace | Micro Focus Marketplace
 - [ ] `14d9c7e064fd` (-) — 邮件钓鱼攻击与溯源 - FreeBuf互联网安全新媒体平台
 - [ ] `14dad21eea22` (-) — s2-048 exp 和本地环境还原搭建 - Powered by SecQuan
 - [ ] `14e539f400f6` (-) — 运维安全 | 如何限制指定账户不能SSH只能SFTP在指定目录 - FreeBuf互联网安全新媒体平台
-- [ ] `14e9192d379c` (-) — 深度之眼论文精选汇总 2026大模型必读论文
 - [ ] `151b94465971` (-) — 网络安全工作的“3保1评”
 - [ ] `151ed551eb19` (-) — 合天网安实验室-国内大型MOOE在线实验室
 - [ ] `1541edd7007c` (-) — 纺织服装首位产业 | 于都县人民政府
@@ -755,11 +942,10 @@ beginner, intermediate, advanced, expert
 - [ ] `15b92310be65` (-) — 10款中小企业必备的开源免费安全工具 - FreeBuf.COM | 关注黑客与极客
 - [ ] `15ddf4cc520c` (-) — mimo.xiaomi.com/zh/blog/mimo-code-long-horizon
 - [ ] `15e62a16e6a0` (-) — meterpreter详解与渗透实战 - 成长 - 博客频道 - CSDN.NET
-- [ ] `15f3d522b114` (-) — OpenCode | 开源 AI 编程代理
 - [ ] `15f839a5ec52` (-) — security in-a-box | 数据安全工具及策略
+- [ ] `1603c1306887` (-) — Download
 - [ ] `16321cb78bc0` (-) — [转载]红队资料集锦 - Powered by SecQuan 汇聚新锐白帽
 - [ ] `16336eedf5ed` (-) — The Cross-Site Request Forgery (CSRF/XSRF) FAQ
-- [ ] `16354bab5bdd` (-) — AI前线
 - [ ] `163643b015bd` (-) — 黑客溯源分析技术 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `164c39417f9b` (-) — Zleap-Agent/README_ZH.md at main · Zleap-AI/Zleap-Agent
 - [ ] `1653c061980c` (-) — “email.phfund.com.cn”国内多个地点网站测速结果--网站测速--站长工具
@@ -782,7 +968,6 @@ beginner, intermediate, advanced, expert
 - [ ] `17cc005ca834` (-) — 基于主机的反弹shell检测思路 - BuXuan - 博客园
 - [ ] `17d7815bd3d9` (-) — https://www.mnot.net/blog/2018/07/31/read_rfc
 - [ ] `17e9c6e075bd` (-) — 360安全应急响应中心
-- [ ] `180fe56e7452` (-) — 智聚618 年中钜惠狂欢_618大促_云计算产品_百度智能云
 - [ ] `181d2f5df236` (-) — https://sourceforge.net/projects/hackxor/postdownload?source=dlp
 - [ ] `181f12b6980b` (-) — 360-A-Team/LuWu: 红队基础设施自动化部署工具
 - [ ] `182ea4efd466` (-) — 5alt/GitLeak: GitLeak 是一个从 Github 上查找密码信息的小工具
@@ -797,8 +982,8 @@ beginner, intermediate, advanced, expert
 - [ ] `190373efac6a` (-) — WinRAR archiver, a powerful tool to process RAR and ZIP files
 - [ ] `1909905da7f0` (-) — Posts By SpecterOps Team Members
 - [ ] `19122b627ae8` (-) — 黑客街 - 网络安全爱好者的安全导航
+- [ ] `19124f30b7d5` (-) — 360威胁情报中心
 - [ ] `1916d8f41c84` (-) — cobaltstrike3.6版本已破解，直接连接即可.tgz_免费高速下载|百度网盘-分享无限制
-- [ ] `191d40536a59` (-) — 日日新 - 商汤科技大模型平台 | SenseNova
 - [ ] `1936739be199` (-) — 渗透技巧：Windows平台运行Masscan和Nmap - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `194ca1a82e77` (-) — Security Hardening Guides - VMware Security
 - [ ] `1965ddfc5e12` (-) — https://exploit.courses/files/bfh2017/content.html
@@ -807,13 +992,11 @@ beginner, intermediate, advanced, expert
 - [ ] `19822f51a9d5` (-) — Packet crafting tools – SecTools Top Network Security Tools
 - [ ] `19862c568388` (-) — 腾讯防水墙团队：浅谈业务安全前端对抗
 - [ ] `19b122260ce3` (-) — 威胁研究首页_威胁检测平台_联合实验室_研究报告_威胁通告_荣誉认证 - 腾讯安全
-- [ ] `19b5e0cb31d6` (-) — 斯坦福大学公开课 ：机器学习课程_全20集_网易公开课
 - [ ] `19b7e96646ed` (-) — 19个方便渗透测试的Chrome扩展 - MyDriverC - CSDN博客
 - [ ] `19cb6abe58c9` (-) — SecureThisShit/WinPwn: Automation for internal Windows Penetrationtest / AD-Security
 - [ ] `19cd0d853af8` (-) — InfoQ
 - [ ] `19f443d2197a` (-) — WEB服务器、应用程序服务器、HTTP服务器区别 - aitao - 博客园
 - [ ] `1a0118339875` (-) — Linux下暴力破解工具Hydra详解 - David_Tang - 博客园
-- [ ] `1a095f86835f` (-) — AniShort - AI短剧协作平台
 - [ ] `1a0d4c3de1a4` (-) — 浅析通过&quot;监控&quot;来辅助进行漏洞挖掘 - FreeBuf专栏·i春秋学院
 - [ ] `1a1caeb14563` (-) — 面向新手的CTF实战教学（一） - FreeBuf互联网安全新媒体平台
 - [ ] `1a4c8be37042` (-) — 基于Openresty实现业务安全防护 - FreeBuf.COM | 关注黑客与极客
@@ -828,10 +1011,10 @@ beginner, intermediate, advanced, expert
 - [ ] `1ae6b91056f0` (-) — Nagios XI Documentation - Nagios Library
 - [ ] `1ae7712cdcdc` (-) — Petya Ransomware Without The Fluff - Binary Defense
 - [ ] `1aeee600860f` (-) — Devhints — TL;DR for developer documentation
+- [ ] `1b0df526feda` (-) — 百宝箱
 - [ ] `1b3168ad046a` (-) — p1r06u3/opencanary_web: The web management platform of honeypot
 - [ ] `1b35bf355cf1` (-) — DDOS攻击的治理和缓解 - SecPulse.COM | 安全脉搏
 - [ ] `1b41358c3883` (-) — Samba远程代码执行漏洞(CVE-2017-7494) 附加：测试环境 - Powered by SecQuan
-- [ ] `1b5229c0e24e` (-) — 一个人的武林：渗透测试常规分析（一） - SecPulse.COM | 安全脉搏
 - [ ] `1b6235880bda` (-) — BlackArch Linux - Penetration Testing Distribution
 - [ ] `1b64d0c1e671` (-) — 基金从业人员资格考试网上报名
 - [ ] `1b8a6ffef01f` (-) — Nmap插件编写之MySQL写库 - FreeBuf.COM | 关注黑客与极客
@@ -842,11 +1025,10 @@ beginner, intermediate, advanced, expert
 - [ ] `1c37256e8497` (-) — 开源资产管理系统使用指南 - 李晨光 - 博客园
 - [ ] `1c494038b9b7` (-) — rapid7/metasploit-vulnerability-emulator: Created by Jin Qian via the GitHub Connector
 - [ ] `1c549879e11f` (-) — FallenGavin/SRCINFO: 作为白帽子，手上有很多应急响应中心接受漏洞的范围和一些网站信息，为了便于管理，自己动手写了一个信息管理的平台，感兴趣的可以自己改改，制作自己的信息库
+- [ ] `1c5becdb56d6` (-) — GitHub
 - [ ] `1c7ce5a66926` (-) — openai/skills：Codex 的技能目录 --- openai/skills: Skills Catalog for Codex
 - [ ] `1c804e6d727d` (-) — Docker 系列01: Centos7.3 上安装docker - 老董 - 博客园
-- [ ] `1c8805e69107` (-) — HBAI-Ltd/Toonflow-app: Toonflow 是开源一站式 AI 短剧创作工具，将小说、剧本快速转化为动画短剧。集成 AI 编剧、智能分镜、角色与视频生成，跨平台桌面端轻量部署，助力创作者低成本批量产出视觉内容。Toonflow is an open-source AI tool that turns stories and scripts into animated short dramas. Features AI scriptwriting, storyboarding, character and video generation. A cross-platform desktop app for efficient content creation.
 - [ ] `1ca365b4c19a` (-) — 精简版SDL落地实践 - 先知社区
-- [ ] `1cb52325fe08` (-) — AI安全攻防挑战赛
 - [ ] `1cd764c71d65` (-) — CTFtime.org / All about CTF (Capture The Flag)
 - [ ] `1cdf59854988` (-) — 提供商 | OpenCode
 - [ ] `1ce5eb35f673` (-) — 首页 - 算力超市
@@ -859,28 +1041,28 @@ beginner, intermediate, advanced, expert
 - [ ] `1d83b5694f21` (-) — CIRT.net | Suspicion Breeds Confidence
 - [ ] `1d8e6a26bef8` (-) — LongCat AI
 - [ ] `1d92d4f1cdde` (-) — MobaXterm Xserver with SSH, telnet, RDP, VNC and X11 - Home Edition
-- [ ] `1dbd45b0d98d` (-) — markdown-viewer/skills: Opinionated skills for AI coding agents to create stunning diagrams and visualizations directly in Markdown. These skills extend agent capabilities across diagram generation, data visualization, and technical documentation.
 - [ ] `1dc6a4d0544c` (-) — 企业安全建设之数据库安全（上） - FreeBuf专栏·兜哥带你学安全
 - [ ] `1dd8a7e1a79a` (-) — 内网渗透之kerberos协议分析 - 先知社区
 - [ ] `1de05fd4fb5f` (-) — Wind Alice - AI金融垂类Agent智能体问答平台
 - [ ] `1e21f3d0d4c4` (-) — 企业安全建设之路：端口扫描（下） - FreeBuf.COM | 关注黑客与极客
 - [ ] `1e67d59403d1` (-) — Nyr/openvpn-install: OpenVPN road warrior installer for Debian, Ubuntu and CentOS
+- [ ] `1e727d6e9c1a` (-) — localhost
 - [ ] `1e767e8f85aa` (-) — 服务器基础知识【初学者必看】 - 飞龙在天 - CSDN博客
 - [ ] `1e771ef550b2` (-) — docker/docker-bench-security - Docker Hub
+- [x] `1e869f307ecc` (threat-intelligence) — 微步在线薛锋：攻击者迈入“工业化” 防守方亟待走出“农业时代”
 - [ ] `1e9b81ef02a3` (-) — AWVS11提取规则文件|安全工具 - 安全技术社区
 - [ ] `1ead51d0eb1d` (-) — Snort Rules and IDS Software Download
-- [ ] `1eb10708c597` (-) — 写给机器学习从业者的12条宝贵建议
 - [ ] `1eb4bc470682` (-) — Excel Excel中的常用函数-Excel函数与公式-ExcelHome技术论坛 -
 - [ ] `1eba700ec984` (-) — 『安全开发教学』Github泄露扫描系统开发 - SecPulse.COM | 安全脉搏
 - [ ] `1ef0a05e817c` (-) — PHPInfo()信息泄漏漏洞利用提权及防范-网站安全-黑吧安全网
 - [ ] `1ef3a3402855` (-) — 渗透技巧之隐藏自己的工具
 - [ ] `1ef4a890b884` (-) — 邮件伪造技术与检测 - FreeBuf互联网安全新媒体平台
 - [ ] `1ef9fd13ec86` (-) — 为Nmap添砖加瓦
-- [ ] `1f0c4dd9086a` (-) — 智谱AI开放平台
 - [ ] `1f144a6e4509` (-) — BadTunnel超级漏洞CVE-2016-3213技术分析与防护方案 | 绿盟科技博客
 - [ ] `1f1c88e35666` (-) — Shodan 新手入坑指南
 - [ ] `1f2081c2b34c` (-) — 从0到1打造一款堪称完美antSword(蚁剑) - 先知社区
 - [ ] `1f21a770e916` (-) — joeseesun/qiaomu-mondo-poster-design: 一句话生成大师级海报、书籍封面、专辑封面和各类设计作品。无需懂PS、配色或艺术史，AI自动选择最佳风格（基于20位传奇海报设计师）。支持电影海报、读书笔记、公众号封面、小红书配图等。默认9:16竖版，完美适配社交媒体。包含AI提示词优化、风格对比、图生图转换功能。触发词：&quot;Mondo风格&quot;、&quot;书籍封
+- [ ] `1f21fe2e942b` (-) — TencentCloud/TencentDB-Agent-Memory: TencentDB Agent Memory delivers fully local long-term memory for AI Agents via a 4-tier progressive pipeline, with zero external API dependencies.
 - [ ] `1f2698205f13` (-) — 2018“全国网络安全微课”百强出炉——E安全4部作品脱颖而出 | E安全
 - [ ] `1f2edafbdc82` (-) — Nagios Solutions
 - [ ] `1f34f5e2adeb` (-) — Release notes and version skew - Kubernetes
@@ -896,7 +1078,6 @@ beginner, intermediate, advanced, expert
 - [ ] `1fa2952d816b` (-) — TencentCloud/TencentDB-Agent-Memory: TencentDB Agent Memory delivers fully local long-term memory for AI Agents via a 4-tier progressive pipeline, with zero external API dependencies.
 - [ ] `1fa363f74cb0` (-) — 登录 - 腾讯云
 - [ ] `1fa4e698a52b` (-) — 中国银保监会办公厅关于银行业保险业数字化转型的指导意见（银保监办发〔2022〕2号）-移动支付网
-- [ ] `1fa55eab89cb` (-) — 一个研究生的硬核教程：把AI真正用进真实项目！
 - [ ] `1fb8d9b46061` (-) — 小书匠
 - [ ] `200a45471640` (-) — HTTP/2到HTTP/1的协议转换异常及安全风险 - 安全内参 | 决策者的网络安全知识库
 - [ ] `200ac6987e91` (-) — Buffer overflow explained: The basics - Hacking Tutorials
@@ -922,7 +1103,6 @@ beginner, intermediate, advanced, expert
 - [ ] `213e4d4e7bed` (-) — 盘点18个远程办公平台，轻松居家赚钱
 - [ ] `214ca4c2e87d` (-) — NSEDoc Reference Portal
 - [ ] `217017fc27de` (-) — Emily2040/seedance-2.0: Comprehensive production pipeline for quad-modal AI filmmaking with Seedance 2.0
-- [ ] `2192e149232f` (-) — Try NVIDIA NIM APIs
 - [ ] `21a174596a62` (-) — 三维聚合导航
 - [ ] `21acc82d14cb` (-) — 一次入侵应急响应分析 - FreeBuf互联网安全新媒体平台
 - [ ] `21b8592147af` (-) — 在小说阅读器读本章
@@ -933,6 +1113,7 @@ beginner, intermediate, advanced, expert
 - [ ] `21ee1267ab89` (-) — Software Solutions Designed to Scale | Micro Focus
 - [ ] `21f47b10452f` (-) — AlexsJones/llmfit: Hundreds of models &amp; providers. One command to find what runs on your hardware.
 - [ ] `21f93e1b3a71` (-) — binwalk · PyPI
+- [x] `220153a0211f` (data-skill) — 又一个神级数据 skill，终于省事了。
 - [ ] `2216f7bde19a` (-) — 云加社区
 - [ ] `2226ece37769` (-) — Web中间件漏洞总结之Nginx漏洞 - 先知社区
 - [ ] `2239582057a4` (-) — 想成为网安人才的后浪？绿盟科技安全服务人才发展路线图为您导航 - 绿盟新闻 - 绿盟科技-巨人背后的专家
@@ -943,8 +1124,6 @@ beginner, intermediate, advanced, expert
 - [ ] `2261ed699998` (-) — 华为云学院_云计算培训_大数据培训_AI培训_华为云官方云计算学习平台-华为云
 - [ ] `2288f88de820` (-) — php教程_phpStudy官方网站_JspStudy phpStudy 2016下载_phpStudy教程 - phpStudy
 - [ ] `229d94a3855e` (-) — Fusion | Running Windows On Mac Virtual Machine | VMware
-- [ ] `22b15c6ff041` (-) — archlizheng/frontend-slides-editable: Editable HTML presentation skill for Codex/Claude Code with drag-resize editing, slide reordering, local save/export, and PPTX-to-web conversion. Shout out to @zarazhangrui
-- [ ] `22c9f1673226` (-) — ‌‍⁤‍‌⁢﻿⁤⁤‬﻿‍‍‬​⁤﻿⁣﻿﻿⁤‬‍⁢​⁤‬﻿⁤⁣⁢‌‍​⁤‬⁡⁣‌​‍⁡‍⁣⁤⁡​﻿​‍AI安全，从这里启程 - 飞书云文档
 - [ ] `22cbb240af82` (-) — GIAC 2026·深圳站 快手PPT合集 - 轻雀文档
 - [ ] `22cf032bec5a` (-) — 内网渗透主机发现的技巧
 - [ ] `22d00140135c` (-) — 记一次Log4j失败的Gadget挖掘记录 - 跳跳糖
@@ -955,9 +1134,9 @@ beginner, intermediate, advanced, expert
 - [ ] `2332dacf5413` (-) — ‌​‬‬⁡‌﻿⁢⁤﻿⁤⁡‌‬⁢​⁤⁤﻿‌‬⁡⁣‍‍⁤‬‌‬‍​‍⁤⁤⁣​​﻿​⁣⁢‍﻿‬‌⁤​‍⁡﻿从 0 开始学 AI Agent - 飞书云文档
 - [ ] `235139acb6b3` (-) — VirusTotal/yara: The pattern matching swiss knife
 - [ ] `235dab6e9176` (-) — Nagios 系统监控 - HackerVirus - 博客园
+- [ ] `2365aff73f40` (-) — 标准云课
 - [ ] `239232d72fdf` (-) — Exploits/CVE-2017-0213 at master · WindowsExploits/Exploits
 - [ ] `23935d7bf57c` (-) — NIST NCCoE发布《实现零信任架构》 (草案) - 安全内参 | 决策者的网络安全知识库
-- [ ] `2395652cff61` (-) — pfrankov/obsidian-ai-providers: This plugin is a hub for setting AI providers (OpenAI-like, Ollama and more) in one place.
 - [ ] `23b46af2bded` (-) — Docker配置加速器 - 云+社区 - 腾讯云
 - [ ] `23b893911f93` (-) — xueyuzi/cnnvdspider: Scrapy 实现的 CNNVD(信息安全漏洞库) 爬虫
 - [ ] `23c605d7d039` (-) — 个人分享--web前端学习资源分享 - 前端学习之路 - SegmentFault
@@ -971,21 +1150,19 @@ beginner, intermediate, advanced, expert
 - [ ] `2454bf6afd7b` (-) — 不试你可能会后悔，Windows渗透测试利器Pentest Box - FreeBuf.COM | 关注黑客与极客
 - [ ] `245a77fd982e` (-) — http://journeyintoir.blogspot.co.il/p/journey-into-ir-methodology.html
 - [ ] `245ab6f74012` (-) — Freebuf公开课 曾老师 - 腾讯视频
+- [ ] `24780d5b9cd0` (-) — SDL安全实践
 - [ ] `247dddf679f2` (-) — Metasploit官方攻防模拟实训工具：Metasploit Vulnerable Services Emulator发布 - FreeBuf.COM | 关注黑客与极客
 - [ ] `24b2127a5803` (-) — 游戏全凭十力 GeForce GTX 10系列笔记 - 京东电脑、办公|电脑整机|笔记本专题活动-京东
 - [ ] `24c30276f683` (-) — PHP 教程|W3Cschool PHP 教程|PHP教程
 - [ ] `24c31abcb56d` (-) — 常见app加固厂商脱壳方法研究
 - [ ] `24c861a54be3` (-) — 搜索结果-Tuisec安全热点
-- [ ] `24ca116b8c2e` (-) — 知识图谱系列（1）基础知识简介 - 勾陈安全实验室
 - [ ] `24dca0050941` (-) — 仪表盘 - RelayHub
 - [ ] `24e14d0de8d2` (-) — Token 秘密花园
-- [ ] `24f60d8ca3c4` (-) — DeepSeek - 探索未至之境
 - [ ] `250caddccd6e` (-) — 写文章 - 知乎专栏
 - [ ] `250dc6cad8fa` (-) — mermaid · GitBook
 - [ ] `251ec385de90` (-) — Virtual Hacking Lab - Browse Files at SourceForge.net
 - [ ] `25258a9f80de` (-) — 【学习笔记】记一次服务器入侵溯源 | FreeBuf × 破壳学院训练营 - FreeBuf互联网安全新媒体平台
 - [ ] `2541bc26b92e` (-) — CVE - Search Results
-- [ ] `2545c46d3085` (-) — AnyeDuke/ALB: 攻击日志分析工具
 - [ ] `254ef865ff9d` (-) — learn-regex/README-cn.md at master · ziishaned/learn-regex
 - [ ] `2556f04bae5e` (-) — Sec-News 安全文摘
 - [ ] `2559f2ba0678` (-) — Illustrations | unDraw
@@ -1007,12 +1184,12 @@ beginner, intermediate, advanced, expert
 - [ ] `2702fe8900e1` (-) — 提升特权访问的四个安全建议 | 绿盟科技博客
 - [ ] `2711856294b3` (-) — www.freebuf.com/sectool/103766.html
 - [ ] `27199b971607` (-) — 你真的了解病毒分析吗？反病毒专家为你深度揭密 - FreeBuf互联网安全新媒体平台
+- [ ] `2725995d31c2` (-) — 奇安信威胁情报中心
 - [ ] `274e8f253d64` (-) — Getting Started with Canvas in Kibana | Elastic
 - [ ] `2762bd3447f5` (-) — 工作台 - PingCode
 - [ ] `2772972a5547` (-) — Debian镜像使用帮助 [LUG@USTC]
 - [ ] `278202119f45` (-) — 安卓应用程序渗透测试（十） - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `2787be296429` (-) — macOS High Sierra - www.gnome-look.org
-- [ ] `27c0d664d961` (-) — SecNewsAI - 个人中心 - 腾讯云开发者社区-腾讯云
 - [ ] `27e36b33fc2a` (-) — 编程派 | Coding Python
 - [ ] `27fcac200ad1` (-) — 使用Kali Nethunter破解802.1x安全性WiFi - FreeBuf.COM | 关注黑客与极客
 - [ ] `28075c61b24f` (-) — olist213/Information_Security_Books: 信息安全方面的书籍
@@ -1028,12 +1205,9 @@ beginner, intermediate, advanced, expert
 - [ ] `28ad1a754a6d` (-) — Vulnerable By Design ~ VulnHub
 - [ ] `28ba17ff1e60` (-) — NMAP的正确食用方式 - CSDN博客
 - [ ] `28cbbfe552b8` (-) — Portainer | Simple management UI for Docker
-- [ ] `28da76f76ada` (-) — TencentEdgeOne/awesome-website-prompts-and-skills: Tencent EdgeOne 维护的网站资源合集。在 AI 编程工具中，给它一个 Prompt 或 Skill，就能生成精美酷炫的网页，或者带有登录、支付、AI 能力的完整网站。WorkBuddy × Tencent EdgeOne AI Prompts × Skills 挑战赛官方作品池。
 - [ ] `28e213ec854f` (-) — Mass VPS hosting on Enterprise equipment - BandwagonHost VPS
-- [ ] `28f6590113f5` (-) — 耶西/艾格尼-人工智能生成技能：适用于艾格尼 AI 文本、图像和视频生成 API 的代理技能。 --- Yacey/agnes-ai-generation-skill: Agent Skill for Agnes AI text, image, and video generation APIs.
 - [ ] `291ca280d905` (-) — Download Burp Suite Free Edition
 - [ ] `291ec93064fd` (-) — 系统安全:Nessus Home版安装使用 - baxk2001 - 博客园
-- [ ] `292b5172fc5a` (-) — 史上最全的机器学习资料（上）-博客-云栖社区-阿里云
 - [ ] `294f945afa6e` (-) — Docs
 - [ ] `295d5ce89bcf` (-) — 【应用安全】S-SDLC安全开发生命周期 - SecPulse.COM | 安全脉搏
 - [ ] `2960d1c347fd` (-) — 第1章　Linux安全渗透简介 | 大学霸 Kali Linux 安全渗透教程
@@ -1045,7 +1219,6 @@ beginner, intermediate, advanced, expert
 - [ ] `2a339fe086cd` (-) — 将军令：数据安全平台建设实践 - 美团技术团队
 - [ ] `2a49dc66dcb8` (-) — 中国证券登记结算有限责任公司
 - [ ] `2a50d01f3ac7` (-) — CVE-2018-11776: How to find 5 RCEs in Apache Struts with Semmle QL - Blog - LGTM
-- [ ] `2a7e31189d9d` (-) — PixVerse | AI 视频创作平台
 - [ ] `2a8ed75ea370` (-) — 企业安全建设—基于Agent的HIDS系统设计的一点思路 - 先知社区
 - [ ] `2aa5dbd4d769` (-) — jiayy/android_vuln_poc-exp: This project contains pocs and exploits for android vulneribilities
 - [ ] `2aba9cb40b41` (-) — FreeBuf公开课 | 互联网安全在线教育旗舰
@@ -1086,6 +1259,7 @@ beginner, intermediate, advanced, expert
 - [ ] `2d84d83dd051` (-) — Zleap-AI/Zleap-Agent: Agent Harness developed specifically for local small-parameter models.
 - [ ] `2d9c321aaa16` (-) — 【春番】2016年4月新番一覽（日本春季新番列表）
 - [ ] `2daff7df80ec` (-) — 通义
+- [ ] `2dc0497fb034` (-) — IBM 支持：Fix Central
 - [ ] `2dcab1764ab3` (-) — 福利 I 企业安全项目架构实践分享
 - [ ] `2de6fd1e1750` (-) — Oracle数据库勒索病毒RushQL死灰复燃 - 安全客，安全资讯平台
 - [ ] `2df0950ef4cc` (-) — Envizon：一款功能强大的网络可视化&amp;漏洞管理与报告框架 - FreeBuf互联网安全新媒体平台
@@ -1097,6 +1271,7 @@ beginner, intermediate, advanced, expert
 - [ ] `2e53d514fba6` (-) — 有关Petya勒索软件，你想知道的都在这里 - FreeBuf.COM | 关注黑客与极客
 - [ ] `2e54e6c402a4` (-) — 什么是DevSecOps？ - devsecops
 - [ ] `2e668b278657` (-) — SoftPerfect Download Centre
+- [ ] `2e6b99e5305e` (-) — 黑白之道
 - [ ] `2e92247bee42` (-) — 无线键盘重放攻击 | E安全
 - [ ] `2e98d05169e6` (-) — Getting started with Acunetix Web Vulnerability Scanner - Acunetix
 - [ ] `2ea3c87f364b` (-) — web安全|web渗透|Web安全漏洞|web安全工程师|安全技术_i春秋学院_培育信息时代的安全感
@@ -1106,7 +1281,6 @@ beginner, intermediate, advanced, expert
 - [ ] `2ef25a7d2be6` (-) — DistroWatch.com: deepin
 - [ ] `2ef9041a358e` (-) — Shodan
 - [ ] `2efa77dd1271` (-) — OnionShare 2 adds anonymous dropboxes, supports new Tor addresses, and is translated into a dozen new languages
-- [ ] `2f2516a2d008` (-) — 购买积分包-JoyAgent
 - [ ] `2f292e8c103a` (-) — https://chromedriver.storage.googleapis.com/index.html?path=81.0.4044.138/
 - [ ] `2f32f5855fa7` (-) — AmyangXYZ/AssassinGo: An extensible and concurrency pentest framework in Go
 - [ ] `2f3aa354c033` (-) — 安全性
@@ -1114,7 +1288,6 @@ beginner, intermediate, advanced, expert
 - [ ] `2f49a834dba8` (-) — 爱盘，最新的在线破解工具包
 - [ ] `2f54e94a8ad9` (-) — w3school 在线教程
 - [ ] `2f5d48952292` (-) — 网信防务
-- [ ] `2f607399a489` (-) — 推荐系统实践（项亮）— 后记 - 深度机器学习 - 博客园
 - [ ] `2f6640da9348` (-) — 如何使用excel的函数截取一串数字的某一部分_百度经验
 - [ ] `2f74303c60ee` (-) — 团体标准信息化服务平台
 - [ ] `2f761926616a` (-) — ThreatMiner.org | Data Mining for Threat Intelligence
@@ -1128,6 +1301,7 @@ beginner, intermediate, advanced, expert
 - [ ] `2ffb832847c1` (-) — Usage — Scapy 2.4.3rc1.dev240 documentation
 - [ ] `300c08842d5c` (-) — joeseesun/qiaomu-anything-to-notebooklm: Claude Skill: Multi-source content processor for NotebookLM. Supports WeChat articles, web pages, YouTube, PDF, Markdown, search queries → Podcast/PPT/MindMap/Quiz etc.
 - [ ] `301a610c20c6` (-) — 甲方安全之企业安全自动化工具SeMF分享 - FreeBuf互联网安全新媒体平台 | 关注黑客与极客
+- [ ] `3034477f3cad` (-) — HRM
 - [ ] `3043676237c8` (-) — re4lity/Benchmarks: 常用服务器、数据库、中间件安全配置基线 - 基本包括了所有的操作系统、数据库、中间件、网络设备、浏览器，安卓、IOS、云的安全配置 For benchmarks.cisecurity.org
 - [ ] `3048db5a897b` (-) — NSA新型APT框架曝光：DarkPulsar - FreeBuf互联网安全新媒体平台
 - [ ] `3056ed6670a9` (-) — SecureFlag - OWASP
@@ -1142,6 +1316,7 @@ beginner, intermediate, advanced, expert
 - [ ] `31393313286f` (-) — AgnesAI-Labs/AgnesAI-Models: Official Agnes AI gateway and model catalog for OpenAI-compatible text, image, video, and agent workflows.
 - [ ] `31401078faf1` (-) — CTF比赛中SQL注入的一些经验总结 - FreeBuf.COM | 关注黑客与极客
 - [ ] `3142479dea6e` (-) — Metasploitable - Browse Files at SourceForge.net
+- [ ] `315fd9a4ef28` (-) — GitHub
 - [ ] `31729e163e67` (-) — Injecting Metasploit Payloads into Android Applications | Penetration Testing Lab
 - [ ] `3172b47bc69b` (-) — 银行系统0day漏洞挖掘与分析方法研究 - 安全内参 | 决策者的网络安全知识库
 - [ ] `317eb2df3c12` (-) — 大家的公司的code review都是怎么做的？遇到过什么问题么？ - 知乎
@@ -1149,7 +1324,6 @@ beginner, intermediate, advanced, expert
 - [ ] `318803bd1484` (-) — 我的安全视界观
 - [ ] `3189873f0c1b` (-) — 基于MicroPython的自动网络时间校准器 - FreeBuf互联网安全新媒体平台
 - [ ] `318ccfbc06a2` (-) — Centos7上安装docker - 风止雨歇 - 博客园
-- [ ] `31aad1e31926` (-) — OWASP/www-project-agentic-skills-top-10: OWASP Foundation web repository
 - [ ] `31bc13cc9241` (-) — Escaping the Sandbox – Microsoft Office on MacOS – MDSec
 - [ ] `31fd80ccd9af` (-) — 让OpenClaw随时随地为你工作-京东云
 - [ ] `3207bafd7c3f` (-) — 安全基线指南 - Windows Security | Microsoft Learn
@@ -1169,7 +1343,6 @@ beginner, intermediate, advanced, expert
 - [ ] `332c451a881c` (-) — 看着盒子里面
 - [ ] `3344e10bb45c` (-) — 邮件伪造之SPF绕过的5种思路
 - [ ] `33534932535d` (-) — Advanced persistent threat - Wikipedia
-- [ ] `336bbc46a065` (-) — 学习中心 - 获取 AI 学习文章、视频与资料-火山引擎 Agent 开发者社区
 - [ ] `33775093e1aa` (-) — 深入研究VBScript - 有思想的安全新媒体
 - [ ] `33865dad2d96` (-) — 威胁情报之落地实战-由灰向黑篇
 - [ ] `339b1d3042ad` (-) — 教你如何使用XSS来搞定当下热门的CMS（含演示视频） - FreeBuf.COM | 关注黑客与极客
@@ -1192,9 +1365,9 @@ beginner, intermediate, advanced, expert
 - [ ] `3502e792a17f` (-) — testing/libfuzzer/fuzzers/dicts - chromium/src - Git at Google
 - [ ] `352d746ba4aa` (-) — 国家标准制修订工作管理信息系统
 - [ ] `35304d1e41b9` (-) — 404notf0und/Always-Learning: 404 Not Found的知识库：计算机理论基础、计算机技术基础、底层研究、安全技术、安全研究、人工智能、企业安全建设、安全发展、职业规划、综合素质、国内外优秀技术人
-- [ ] `353a0508946c` (-) — MuleRun | AI工具导航
 - [ ] `3546780f121d` (-) — Create a new fiddle - JSFiddle
 - [ ] `356bb34b3b80` (-) — 作家专区-番茄小说网-番茄小说旗下原创文学平台
+- [x] `357d5032ce99` (test) — Test Bookmark
 - [ ] `357fff27af8c` (-) — 安全架构评审实战 - 安全客，安全资讯平台
 - [ ] `3588080711d3` (-) — 针对公安民警开展数据建模方法的研究和实践 - 安全内参 | 网络安全首席知识官
 - [ ] `358c376f2dda` (-) — 腾讯云开发AI+实战：快速搭建AI小程序全流程指南
@@ -1205,17 +1378,14 @@ beginner, intermediate, advanced, expert
 - [ ] `35cf0e438ffc` (-) — API test 1
 - [ ] `35dcae45912e` (-) — Better API Penetration Testing with Postman – Part 1 – Professionally Evil Insights
 - [ ] `35eefa28766d` (-) — 【维普官方网站】-www.cqvip.com-维普网
-- [ ] `35f3a3bcc3b4` (-) — OPC创业者看过来，最高10万美元云资源等你拿
-- [ ] `35f883e476d0` (-) — AI助手
 - [ ] `361f3f75f1eb` (-) — Introduction to Reverse Engineering_视频教程_i春秋_培育信息时代的安全感！
 - [ ] `3626672df2cf` (-) — ZMap 为什么能在一个小时内就扫描整个互联网？ - 知乎
 - [ ] `3627a992ab51` (-) — 猎户攻防实验室
-- [ ] `3636a931eff3` (-) — 腾讯云开发者社区-腾讯云
-- [ ] `367ca6f2cfec` (-) — ArcReel/ArcReel: AI Agent 驱动的开源视频生成工作台 — 小说→角色/场景/道具设计→剧本→分镜图→视频，跨镜头角色与场景一致 | Open-source AI video workspace powered by AI Agents, Nano Banana 2 &amp; Veo 3.1 / Grok / Seedance / OpenAI
 - [ ] `368cceba6a7f` (-) — 实战化威胁猎杀,让威胁无处遁形——“美向俄电网植入恶意代码”等有关报道带来的启示 - SecPulse.COM | 安全脉搏
 - [ ] `36a08491d19e` (-) — 安全测试 - 华为HarmonyOS开发者
 - [ ] `36b437dce60f` (-) — 红队测试从0到1 - PART 1 - 先知社区
 - [ ] `36dcadaaaabd` (-) — Dgraph documentation — Dgraph Doc v1.0.16
+- [x] `36ee76977a31` (-) — 一图讲清楚指标体系的搭建
 - [ ] `36fb58cbf567` (-) — Index of /dists/kali-rolling/contrib/binary-amd64
 - [ ] `370d5c4944f6` (-) — 这个Excel公式中的惊叹号“!”是什么意思？附表这个Excel - 爱问知识人
 - [ ] `3714b38bdcc8` (-) — Welcome | OBS
@@ -1223,6 +1393,7 @@ beginner, intermediate, advanced, expert
 - [ ] `372cc29cf8fb` (-) — Maltego首页、文档和下载 - 互联网情报聚合工具 - 开源中国社区
 - [ ] `374b46276fb7` (-) — excel中，如何提取两个特定字符之间所有字符_百度经验
 - [ ] `3767196a917d` (-) — Technique: SSH Hijacking - MITRE ATT&amp;CK™
+- [ ] `3769b6385607` (-) — TokenDance - 词元跳动
 - [ ] `377b88b89dcc` (-) — 赛门铁克如何用TAA搞定APT？ - 安全牛
 - [ ] `37d0d0bc3af8` (-) — Downloading an Entire Web Site with wget | Linux Journal
 - [ ] `37dfba00c8be` (-) — 记一次应急中发现的诡异事件 - FreeBuf互联网安全新媒体平台
@@ -1233,7 +1404,6 @@ beginner, intermediate, advanced, expert
 - [ ] `384ed709dda8` (-) — facebook/osquery: SQL powered operating system instrumentation, monitoring, and analytics.
 - [ ] `386098aee0a7` (-) — 安全加
 - [ ] `3870482c3fc9` (-) — daniruiz/Flat-Remix-GNOME-theme: Flat Remix GNOME theme is a pretty simple shell theme inspired on material design
-- [ ] `388000a354cb` (-) — 有戏AI - 玩转AI短剧,人人都是戏精！- 专业AI短剧创作者社区
 - [ ] `389ea18be814` (-) — Qv2ray/Qv2ray: Linux / Windows / macOS 跨平台 V2Ray 客户端 | 支持 SSR / Trojan / Trojan-Go / NaiveProxy | 使用 C++ / Qt5 开发 | 可拓展插件式设计
 - [ ] `38a9a40e6216` (-) — nginx 安全问题致使 1400 多万台服务器易遭受 DoS 攻击 - 开源中国
 - [ ] `38a9c7ece9f1` (-) — 会员登录
@@ -1246,7 +1416,6 @@ beginner, intermediate, advanced, expert
 - [ ] `397a7162d9a6` (-) — 八百元八核的服务器？二手服务器搭建指南 - FreeBuf.COM | 关注黑客与极客
 - [ ] `3985d606e6d4` (-) — 盘一盘2018年那些难缠的顽固病毒木马 - 先知社区
 - [ ] `398ec2e33faf` (-) — 产品安全设计Checklist - Open-Source Security Architecture
-- [ ] `3991be7bab44` (-) — OpenClaw + Ollama + Gemma 4 本地部署-CSDN博客
 - [ ] `399536c9e809` (-) — ClawHub
 - [ ] `399b94e70407` (-) — 网络流量抓取与还原系统Xplico架构 - FreeBuf.COM | 关注黑客与极客
 - [ ] `39a4f3b03ee5` (-) — 最全Linux应急响应技巧 - FreeBuf互联网安全新媒体平台
@@ -1265,14 +1434,12 @@ beginner, intermediate, advanced, expert
 - [ ] `3a92a360b158` (-) — Installing PowerShell Core on Windows | Microsoft Docs
 - [ ] `3ae0a928f664` (-) — 网安寻路人
 - [ ] `3b04562d5ca7` (-) — FOFA Pro - 网络空间安全搜索引擎，网络空间搜索引擎，网络空间测绘，安全态势感知
-- [ ] `3b0bf1c387b8` (-) — 安全韧性人才自我培养计划：从霍普克罗夫特的启示出发
 - [ ] `3b247ff4a7f9` (-) — 证券期货经营机构私募资产管理计划运作管理规定
 - [ ] `3b29044cd6b6` (-) — cpython: 2df462852464
 - [ ] `3b44582e8d70` (-) — 2026年值班表-外发
 - [ ] `3b560d27c417` (-) — 有道宝库_网易有道AI研究助手与知识库平台
 - [ ] `3b589909951d` (-) — 近期中文钓鱼邮件攻击事件分析报告
 - [ ] `3b5ce818d114` (-) — 虫部落快搜 - 搜索快人一步 - Google
-- [ ] `3b65e25e2555` (-) — liangdabiao/Seedance2-Storyboard-Generator: 一句话：试错成本越来越高，提示词的重要性从来没有像今天这样大。Seedance 2.0 Storyboard Generator 开源剧情剧本Skill工具，帮佬友一键写好剧本 - 将小说/故事转化为多集视频。 为什么做这个？ 因为 seedance2 已经改变了一切，需要新的剧本剧情制作工具，更好的利用新AI的能力和更方便的制作短剧
 - [ ] `3b7d7a845e51` (-) — Events : Hacking-Lab.com
 - [ ] `3b883b87cb7f` (-) — 安全开源项目wiki
 - [ ] `3baf145ff20c` (-) — NSA公司使用后退的MS Office密钥，暴露的秘密漏洞 - 卡巴斯基•注册
@@ -1304,11 +1471,11 @@ beginner, intermediate, advanced, expert
 - [ ] `3dc6d0551a17` (-) — ArchWiki
 - [ ] `3dca19ebab9f` (-) — 面试前你都做了什么准备？ - 知乎
 - [ ] `3de03f42cef4` (-) — Docker安全非事件| Docker文档
-- [ ] `3dfa47e5456f` (-) — 前无古人，后有来者 - OpenAI模型攻击HuggingFace事件的AI威胁深度分析
 - [ ] `3dfc024929a9` (-) — http://docs.oasis-open.org/csaf/csaf-cvrf/v1.2/cs01/csaf-cvrf-v1.2-cs01.zip
 - [ ] `3e1ac9268471` (-) — 给 DevOps 初学者的入门指南 - V2EX
 - [ ] `3e246444127d` (-) — Security Appscan Standard 漏洞扫描及补漏洞 - YouXu - 博客频道 - CSDN.NET
 - [ ] `3e3be15faa34` (-) — (21 条消息)mac系统好用的虚拟机软件，求推荐一下？ - 知乎
+- [ ] `3e4b79d1fa2e` (-) — 360威胁情报中心
 - [ ] `3e6a518cb5e4` (-) — Python 入门教程 — Python 3 文档(简体中文) 3.2.2 documentation
 - [ ] `3e74f2ac750d` (-) — 美国《国家网络安全应急措施》四大挑战与十项措施 - 安全内参 | 网络安全首席知识官
 - [ ] `3e819097567b` (-) — Spybot - 搜索和销毁反恶意软件和防病毒软件
@@ -1335,7 +1502,6 @@ beginner, intermediate, advanced, expert
 - [ ] `3f339fc67c29` (-) — 【威胁通告】Adobe 12月安全更新 | 绿盟科技博客
 - [ ] `3f4ab2437566` (-) — Tools
 - [ ] `3f568891a1ec` (-) — 适用于PHP初学者的学习线路和建议 | 菜鸟教程
-- [ ] `3f6100f2682f` (-) — CloudRouter - Unified AI Access &amp; Security Governance Platform
 - [ ] `3f6e9d362a5f` (-) — Web应用渗透实验策略与方法论研究 - FreeBuf互联网安全新媒体平台
 - [ ] `3f77efb29fdf` (-) — 1、上传漏洞的原理与总结 - Web漏洞 - Web安全
 - [ ] `3fc34dca87aa` (-) — “我一定会打穿你”之“渗透测试攻防解读” - FreeBuf专栏·Digapis安全
@@ -1362,12 +1528,10 @@ beginner, intermediate, advanced, expert
 - [ ] `411f71218be0` (-) — 企业安全建设之数据库安全（中） - FreeBuf专栏·兜哥带你学安全
 - [ ] `41223fc9f450` (-) — Powershell最佳安全实践 - FreeBuf.COM | 关注黑客与极客
 - [ ] `41290b3899df` (-) — Python安全工具开发(一) :分布式爬虫初探 - 知乎专栏
-- [ ] `413c575d5506` (-) — 呜哩AI，一站式AIGC创意平台
 - [ ] `414cb76de4c1` (-) — Nmap保存和输出-百度经验
 - [ ] `414e30c40a75` (-) — 网站渗透思路总结 - SecPulse.COM | 安全脉搏
 - [ ] `415fb943ddea` (-) — Snort IDS IPhone malicious User agent - more info? : security
 - [ ] `417aab4afc52` (-) — builtbybel/FluentTweaker
-- [ ] `418377ea7b5d` (-) — 机器学习基础：案例研究 | Coursera
 - [ ] `4191cf1ba4b9` (-) — 一起双网卡服务器被黑‌引发的勒索事件 - SecPulse.COM | 安全脉搏
 - [ ] `41a2d0b82780` (-) — ZCode - 简单、迅捷、氛围十足
 - [ ] `41a848e314be` (-) — DVWA - Damn Vulnerable Web Application
@@ -1378,12 +1542,11 @@ beginner, intermediate, advanced, expert
 - [ ] `41ff94d3f084` (-) — 是否有可以下载的安装包？ ·问题＃468·microsoft / Terminal
 - [ ] `420cec095763` (-) — 免费虚拟主机_免费空间_免费空间申请-景安网络
 - [ ] `421b7fdbf23d` (-) — 浏览器安全学习笔记（一） - FreeBuf互联网安全新媒体平台
-- [ ] `4227cb8916de` (-) — 京东云灵境AI - 一站式AI创作平台
 - [ ] `423e63fafcfc` (-) — 网络安全等级保护2.0 | 等保工作流程解读五件事
-- [ ] `42509c34c1d5` (-) — Harness Engineering 深度解析:AI Agent 时代的驾驭工程实战指南_harness engineering 实战-CSDN博客
 - [ ] `425d79f99d40` (-) — Radeon Cloud
 - [ ] `4263fc695dad` (-) — OPENVAS源码编译解析 - FreeBuf.COM | 关注黑客与极客
 - [ ] `4277dfbea9b5` (-) — Category:OWASP Top Ten Project - OWASP
+- [ ] `4282bb2b07a5` (-) — medium.com
 - [ ] `428407a8c03a` (-) — Bug Bounty Forum - Getting started - Intro
 - [ ] `429344b25a2e` (-) — IBM 支持：Fix Central
 - [ ] `4294861a644b` (-) — Microsoft Word - 精简版SDL在互金企业落地实践.docx
@@ -1393,7 +1556,6 @@ beginner, intermediate, advanced, expert
 - [ ] `43112b5098e9` (-) — DeepSeek 开放平台
 - [ ] `432f97f0697c` (-) — 汉斯罗素林：让我来数据化你的心态 | TED Talk | TED.com
 - [ ] `4359ff5e7939` (-) — 透过F5获取服务器真实内网IP | Lewsic
-- [ ] `4368395f5138` (-) — agentscope-ai/QwenPaw: Your Personal AI Assistant; easy to install, deploy on your own machine or on the cloud; supports multiple chat apps with easily extensible capabilities.
 - [ ] `43776338339f` (-) — IBM developerWorks : IBM Security AppScan Standard eXtensions Framework
 - [ ] `43839a0fa8c7` (-) — linux2.6.32exp-CSDN下载
 - [ ] `43854211fe53` (-) — CTF在线工具-ASCII与进制转换|任意进制转换|ASCII、2进制、8进制、10进制、16进制
@@ -1404,7 +1566,6 @@ beginner, intermediate, advanced, expert
 - [ ] `439a9bf5cc10` (-) — 注意：全世界97%的银行都无法保障你存款的安全
 - [ ] `439fcd0d90b3` (-) — 奇安信威胁情报中心
 - [ ] `43a42a9c8da1` (-) — 网络入侵溯源跟踪：Redis反弹Shell篇 - FreeBuf互联网安全新媒体平台 | 关注黑客与极客
-- [ ] `43ac0842dd77` (-) — MuleRun — The AI Agent That Gets Work Done
 - [ ] `43c17f04733e` (-) — WindClaw 官网
 - [ ] `43c701881916` (-) — YaCy - 点对点搜索引擎：主页
 - [ ] `43dcafdb70aa` (-) — twelvesec/passcat: Passwords Recovery Tool
@@ -1420,7 +1581,7 @@ beginner, intermediate, advanced, expert
 - [ ] `446e4e915689` (-) — Download HTTrack Website Copier 3.49-2 - HTTrack Website Copier - Free Software Offline Browser (GNU GPL)
 - [ ] `44772db2ae2d` (-) — 标准云课
 - [ ] `4484fbbc1bb9` (-) — 1.2-请求库的安装 - Python3网络爬虫开发实战
-- [ ] `448612c5f23b` (-) — CRLF_百度百科
+- [x] `448612c5f23b` (-) — CRLF_百度百科
 - [ ] `448da45a9c09` (-) — 全国金融标准化技术委员会 - CFSTC
 - [ ] `44bdf1c1c0b4` (-) — 基于Centos搭建ELK环境指南 - FreeBuf.COM | 关注黑客与极客
 - [ ] `44cb03ed9ba2` (-) — 虚拟网络的流量采集与分析 - CIOAge.COM
@@ -1457,7 +1618,6 @@ beginner, intermediate, advanced, expert
 - [ ] `47136c02fd2e` (-) — 谷歌翻译 - 已分享的动作 - Quicker
 - [ ] `471e2547c459` (-) — OpenStack：建立虚拟的渗透测试实验环境 – 安装篇 - FreeBuf.COM | 关注黑客与极客
 - [ ] `4736bb589082` (-) — 十大经典排序算法小结 - 路漫漫 始于足下 - CSDN博客
-- [ ] `473b8e1b2f1e` (-) — 讯飞星辰Agent平台 - 一站式智能体开发平台
 - [ ] `477d58bc4202` (-) — 欢迎使用 - UNIA
 - [ ] `47873269be13` (-) — Welcome to the PentestBox documentation! — PentestBox Documentation latest documentation
 - [ ] `4792f197bd2c` (-) — 我爱计算机视觉
@@ -1468,10 +1628,9 @@ beginner, intermediate, advanced, expert
 - [ ] `47bb821c56ea` (-) — Qwen-AgentWorld 开源：让 Agent 学会“先预测，再行动”
 - [ ] `47c0ec589946` (-) — National Security Agency
 - [ ] `47d991039f26` (-) — Kali下常用安全工具中文参数说明（160个） - FreeBuf.COM | 关注黑客与极客
-- [ ] `47f8a76f50e8` (-) — webkit-bugmap
+- [x] `47f8a76f50e8` (-) — webkit-bugmap
 - [ ] `47f8f6cdca02` (-) — 疯狂的Python：快速入门精讲 - 网易云课堂
 - [ ] `48220c7ebdfc` (-) — OSINT-CN开源情报 - start.me
-- [ ] `483144aa5aaf` (-) — CentOS7.3安装Python3.6 - CSDN博客
 - [ ] `48334f1f7ba5` (-) — python编码规范 - BoyeeStudio - 博客园
 - [ ] `483ab42f4476` (-) — DarkShadow Instructions
 - [ ] `484c3bc29cd4` (-) — 会员兑换【正版中国】
@@ -1481,7 +1640,6 @@ beginner, intermediate, advanced, expert
 - [ ] `48e97d2939f1` (-) — 智惠采购季-京东云
 - [ ] `48f1c21fd118` (-) — 马云2017年达沃斯演讲精句集锦！_财经_腾讯网
 - [ ] `493c04a95cbb` (-) — 渗透测试指南之域用户组的范围 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
-- [ ] `4942bf061f4c` (-) — LobsterAI - 有道 AI Agent 产品
 - [ ] `49510c130f57` (-) — 逆向分析华为E5573 4G Modem - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `4956793a35b5` (-) — T-github
 - [ ] `495aebae2be5` (-) — 安全报告 | 从恶意流量看2018十大互联网安全趋势 - SecPulse.COM | 安全脉搏
@@ -1495,8 +1653,6 @@ beginner, intermediate, advanced, expert
 - [ ] `4a1c4399dd6c` (-) — BeanBagKing/SecurityNews: Lists of Social Media, News sites, and other things to follow
 - [ ] `4a2931b06265` (-) — Metasploit Unleashed - Free Online Ethical Hacking Course
 - [ ] `4a30fb59a119` (-) — PhishTank | Join the fight against phishing
-- [ ] `4a4ae86e8876` (-) — dreammis/social-auto-upload: 自动化上传视频到社交媒体：抖音、小红书、视频号、tiktok、youtube、bilibili
-- [ ] `4a4cd30190ea` (-) — 港大开源的 AI 神奇项目，有点东西！
 - [ ] `4a63f54607fa` (-) — 轻松筹韩晋：解构SDL落地的关键点 - FreeBuf互联网安全新媒体平台
 - [ ] `4a642fc431d9` (-) — 值得收藏的22个免费PDF电子书网站 - 简书
 - [ ] `4aa1a78cb644` (-) — linux (RHEL) 添加和删除用户 - to be crazy - 博客园
@@ -1508,7 +1664,6 @@ beginner, intermediate, advanced, expert
 - [ ] `4b878ba8b071` (-) — ecthros/uncaptcha: Defeating Google&amp;#x27;s audio reCaptcha with 85% accuracy.
 - [ ] `4b94b78ab925` (-) — PolarisLab
 - [ ] `4ba665ab4acb` (-) — 读书笔记：从Lucene到Elasticsearch:全文检索实战 - Black-Hole&amp;#x27;s Blog
-- [ ] `4bcb28d78969` (-) — Alishahryar1/free-claude-code: Use claude-code for free in the terminal, VSCode extension or discord like OpenClaw (voice supported)
 - [ ] `4bdd7f6b71bf` (-) — Skills 广场 - RedFoxHub
 - [ ] `4be084722bc2` (-) — Blogs | The Honeynet Project
 - [ ] `4bebb909038d` (-) — List of Adversary Emulation Tools
@@ -1521,7 +1676,6 @@ beginner, intermediate, advanced, expert
 - [ ] `4c5998e7237d` (-) — Security Bulletins - Apache Struts 2 Documentation - Apache Software Foundation
 - [ ] `4c6473d82800` (-) — 安全行业小工具合集(小工具2017.3.29更新) - 安云网 - AnYun.ORG | 专注于网络信息收集、网络数据分享、网络安全研究、网络各种猎奇八卦。
 - [ ] `4c6bc5b324f0` (-) — 基于WAVSEP的靶场搭建指南 - FreeBuf.COM | 关注黑客与极客
-- [ ] `4c7a7f358380` (-) — 项目 - Dashboard - 微信开发者代码管理
 - [ ] `4c8f8a8b3e96` (-) — SOC第一防御阶段——理解攻击链和基本防御方法 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `4c99811e4bfd` (-) — CSRF Attack Details - SecPulse.COM | 安全脉搏
 - [ ] `4ca3df1ab67c` (-) — FallibleInc/security-guide-for-developers: Security Guide for Developers (实用性开发人员安全须知)
@@ -1549,17 +1703,18 @@ beginner, intermediate, advanced, expert
 - [ ] `4e764cde3b07` (-) — 活用PMBOK®指南-与《PMBOK®指南》（第7版）配套的项目管理实战模板 | 【美】辛西娅·斯奈德·迪奥尼西奥 | download on Z-Library
 - [ ] `4ead18aeb180` (-) — AnyeDuke/python_code_audit: python 代码审计项目
 - [ ] `4ebaaeb804ae` (-) — Solidot: 奇客的资讯，重要的东西
-- [ ] `4ebe6340fb06` (-) — 研究报告 | 撞库攻击的成本： 亚太地区 - FreeBuf互联网安全新媒体平台
 - [ ] `4ec875ea0b30` (-) — 新手指南：手把手教你如何搭建自己的渗透测试环境 - FreeBuf.COM | 关注黑客与极客
 - [ ] `4ed6859bebd1` (-) — Nmap Announce: Nmap 7.50 Released! 14 new NSE scripts, 300+ fingerprints, new Npcap, and more
 - [ ] `4ed920ca6397` (-) — sqlmap tamper下模块的使用 - lgf01010 - 博客园
 - [ ] `4ef397e79a60` (-) — schubergphilis/Seccubus: Easy automated vulnerability scanning, reporting and analysis
+- [ ] `4ef551233253` (-) — 腾讯玄武实验室
 - [ ] `4ef8b05b05ab` (-) — Oracle golden gate的重要漏洞分析 - FreeBuf.COM | 关注黑客与极客
 - [ ] `4f06d220946e` (-) — 安全酷
 - [ ] `4f0ab3e35e79` (-) — Download Windows Server 2008 R2 Evaluation (180 days) from Official Microsoft Download Center
 - [ ] `4f0d54a8f6b9` (-) — Introduction to osquery for Threat Detection &amp; DFIR
 - [ ] `4f26d44879ed` (-) — AI E2E 文章
 - [ ] `4f3ac38c1d3c` (-) — 2023年网络攻击新趋势预测 - 安全内参 | 决策者的网络安全知识库
+- [ ] `4f3c5914bb2b` (-) — SDL安全实践
 - [ ] `4f5bb7842f62` (-) — Oracle | Integrated Cloud Applications and Platform Services
 - [ ] `4f5d0f07559b` (-) — 公安机关开展专项行动，清理整治动态IP代理服务乱象 - 安全内参 | 决策者的网络安全知识库
 - [ ] `4f67c7d0db0b` (-) — Log Parser Lizard gives Microsoft Log Parser 2.2 a great user interface [Software]
@@ -1571,7 +1726,6 @@ beginner, intermediate, advanced, expert
 - [ ] `501d64d42b92` (-) — Gartner发布2022年主要安全和风险管理趋势
 - [ ] `50436c6e6a07` (-) — window 下python2.7与python3.5两版本共存设置 - 小倔驴 - 博客频道 - CSDN.NET
 - [ ] `5047f819119e` (-) — Kibana, Wazuh and Bro IDS | Netscylla’s Blog
-- [ ] `505b850d8f99` (-) — 平安科技诚聘各类安全工程师 - FreeBuf.COM | 关注黑客与极客
 - [ ] `50b9a904bb6a` (-) — BlueStacks蓝叠_BlueStacks蓝叠安卓模拟器官网下载_最全手游电脑版下载_安卓模拟器
 - [ ] `50bdc24f66c3` (-) — 【图片】[已解决]关于Kali安装网易云音乐的问题【kali吧】_百度贴吧
 - [ ] `50d76d53f3e2` (-) — Download Acunetix
@@ -1590,6 +1744,7 @@ beginner, intermediate, advanced, expert
 - [ ] `518f2b0accdc` (-) — 微信云托管 CLI
 - [ ] `519c43e68e7f` (-) — 金融机构重要时期安全保障思路 | 绿盟科技博客
 - [ ] `51c5d6ab4101` (-) — 科技公司钟爱的50款开源工具--转载 - fang_beny - 博客园
+- [ ] `51cbcbc05646` (-) — 中国内部审计协会
 - [ ] `51d615392731` (-) — 行业标准《金融数据安全 数据安全评估规范》(征求意见稿) 解读 - 安全内参 | 决策者的网络安全知识库
 - [ ] `51e3e2a13ff1` (-) — 蜜罐系统设计的一些想法 - FreeBuf.COM | 关注黑客与极客
 - [ ] `51edd6055007` (-) — python 2.7正则上篇
@@ -1612,6 +1767,7 @@ beginner, intermediate, advanced, expert
 - [ ] `5379afe4a8e0` (-) — developer.android.com
 - [ ] `537e36e97bb6` (-) — Manjaro – The Linux for People and Organizations
 - [ ] `538668a335bc` (-) — Install and configure Proxmox VE
+- [ ] `53a13d5d1262` (-) — 短剧创作者中心-短剧创作服务平台-抖音集团短剧版权中心
 - [ ] `53b6891700d5` (-) — OpenVAS — KaarPux
 - [ ] `53bd8a5172e3` (-) — 字符编码发展史和密码算法那些事儿 - FreeBuf.COM | 关注黑客与极客
 - [ ] `53bfae99dfbb` (-) — Top-Secret NSA Report Details Russian Hacking Effort Days Before 2016 Election
@@ -1686,15 +1842,14 @@ beginner, intermediate, advanced, expert
 - [ ] `57cc72eb6b1e` (-) — Windows 10 Decontamination Scripts « Thoughts on Security
 - [ ] `57d24296a44a` (-) — 代码审计初体验
 - [ ] `57dced7497ee` (-) — ricklamers/gridstudio: Grid studio is a web-based spreadsheet application with full integration of the Python programming language.
+- [ ] `57dfe04664db` (-) — 小詹学Python
 - [ ] `57e3aae91850` (-) — Premium Software
 - [ ] `57e5db8aa06c` (-) — MVVM Framework Security // Speaker Deck
-- [ ] `58087eb4b4cc` (-) — 这是一份你们需要的Windows版深度学习软件安装指南 - 知乎专栏
 - [ ] `58136fc78632` (-) — Office Online Server 安全更新说明：2017 年 10 月 10 日
 - [ ] `5813ac43973e` (-) — 360威胁情报中心
 - [ ] `5814550110a7` (-) — SSL/TLS协议详解(上)：密码套件，哈希，加密，密钥交换算法 - 先知社区
 - [ ] `5818f97616d4` (-) — SDL安全实践
 - [ ] `5867c269b7bb` (-) — 购物车 - 安徽博益网络信息有限责任公司
-- [ ] `588127bdd194` (-) — SkyClaw-v1.0: A Million-Context Agent Model at Ultra-Low Cost
 - [ ] `588a81c25430` (-) — 【逍遥安卓模拟器】安卓模拟器电脑版_安卓模拟器哪个好用_逍遥安卓模拟器下载官网
 - [ ] `58a9074f142a` (-) — 百度企业网盘
 - [ ] `58fbf1e0facc` (-) — 炒鸡棒的模糊测试技术 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
@@ -1722,7 +1877,6 @@ beginner, intermediate, advanced, expert
 - [ ] `5a5dd3df1e67` (-) — Homepage | Retina International
 - [ ] `5a6d11446cb5` (-) — Vault7 - Home
 - [ ] `5a82ffc87f06` (-) — Scrapy | A Fast and Powerful Scraping and Web Crawling Framework
-- [ ] `5a907503e5da` (-) — jamiepine/voicebox: The open-source AI voice studio. Clone, dictate, create.
 - [ ] `5a91464ace07` (-) — 概览 | Flocks 文档
 - [ ] `5ab3a1a2f0c1` (-) — 河马WEBSHELL扫描器1.2发布 · SHELLPUB BLOG
 - [ ] `5ac22851daac` (-) — Python开发系列课程(10) - 那些年我们踩过的那些坑(上) - 骆昊的技术专栏 - CSDN博客
@@ -1763,8 +1917,8 @@ beginner, intermediate, advanced, expert
 - [ ] `5d3bbedf993f` (-) — 我把知识体系做成了一套知识卡片，人人都能拥有自己的第二大脑
 - [ ] `5d4cca33decc` (-) — SQL注入的常规思路及奇葩技巧
 - [ ] `5d50b95c3cdf` (-) — ipstack - Free IP Geolocation API
+- [ ] `5d5b304dc6cb` (-) — LongCat AI
 - [ ] `5d78fa95c98c` (-) — IP可用性检测工具 - Tools大全在线工具
-- [ ] `5d924af76725` (-) — 用户故事与使用案例 | Hermes Agent
 - [ ] `5d956997c121` (-) — Computer Networking - Udacity
 - [ ] `5da533ed86ec` (-) — 【合集】内网端口转发及穿透|漏洞研究 - 安全技术社区
 - [ ] `5de012bcd268` (-) — 50多种安全产品？供应商言过其实？来看看整合的魅力吧 - 51CTO.COM
@@ -1781,7 +1935,6 @@ beginner, intermediate, advanced, expert
 - [ ] `5e86e9ca57df` (-) — nagios的配置（监控端和被监控端）-君落尘-ITPUB博客
 - [ ] `5e8b6551b607` (-) — Elastic日报 第676期 (2019-07-21) - Elastic 中文社区
 - [ ] `5ea3db43ab47` (-) — OWASP/Amass: In-Depth DNS Enumeration and Network Mapping
-- [ ] `5ea507c1ec30` (-) — blog/agent-glossary.md at main · huggingface/blog
 - [ ] `5ea5fb027ae6` (-) — osint.link
 - [ ] `5ec51c001bd7` (-) — CS6：一口气看完八家安全公司的数据安全解决方案（收藏版） - 安全牛
 - [ ] `5ed0756aa300` (-) — B站日志系统的前世今生
@@ -1799,23 +1952,18 @@ beginner, intermediate, advanced, expert
 - [ ] `5f638b7234f8` (-) — 小师妹对IT服务安全的思考 - FreeBuf互联网安全新媒体平台
 - [ ] `5f8ac496138b` (-) — 微软发布9月补丁修复64个安全问题.pdf
 - [ ] `5fa1277e7ff9` (-) — C2M2
-- [ ] `5fa7b6ca38fe` (-) — lty931112/dev-workerflow: 这是一个skill组，由一个路由skill，一个文档skill，一个规范skill组成，专门用来规范开发，将开放方式从契约开发转变为文档开发。它可以让你对项目更加清晰，让团队协作更加简单
 - [ ] `5fc2595150ca` (-) — Adventures In Information Security
 - [ ] `5fc646d357ab` (-) — 利用drozer进行Android渗透测试 - bamb00 - 博客园
 - [ ] `5fddfcc0367b` (-) — 主动欺骗蜜罐系统Beeswarm简介 - FreeBuf.COM | 关注黑客与极客
 - [ ] `5fe604d9be4c` (-) — 红队技术从零到一 part 1 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `5ff1d09d87ba` (-) — ginlix-ai/LangAlpha：用于投资的 Claude 代码 --- ginlix-ai/LangAlpha: Claude Code for investment
 - [ ] `5ffcd1404082` (-) — DNS Blacklists (RBL/DNSBL)
-- [ ] `60222f10b1ae` (-) — 灵犀 Claw - WPS 官方出品 · AI 智能助手
 - [ ] `6025a809fe9d` (-) — ONYX — Watch
-- [ ] `6030b2e4be27` (-) — bytedance/deer-flow: An open-source long-horizon SuperAgent harness that researches, codes, and creates. With the help of sandboxes, memories, tools, skill, subagents and message gateway, it handles different levels of tasks that could take minutes to hours.
 - [ ] `60420ab37996` (-) — vSphere 5.1 文档中心
-- [ ] `6047bb15eebd` (-) — 中华人民共和国国家发展和改革委员会
-- [ ] `604df8e6417d` (-) — erevus-cn/scan_webshell: 很简单的webshell扫描
+- [x] `6047bb15eebd` (-) — 中华人民共和国国家发展和改革委员会
 - [ ] `6051c1de2ce0` (-) — HTML 系列教程
 - [ ] `606240b9de6c` (-) — Download a Free Trial of Charles • Charles Web Debugging Proxy
 - [ ] `6088a7e232ba` (-) — BWAPP 玩法总结 - 信安之路
-- [ ] `60a9342e850d` (-) — Sambor123/Awesome-Deep-Learning-for-Chinese: 最全的中文版深度学习资源索引，包括论文，慕课，开源框架，数据集等等
 - [ ] `60d5dc210c1a` (-) — 容器安全工具 - Open-Source Security Architecture
 - [ ] `6106c67e2249` (-) — A Top 10 Reading List if You’re Getting Started in Cyber Threat Intelligence
 - [ ] `6112ffbb785e` (-) — 在学网校
@@ -1824,6 +1972,7 @@ beginner, intermediate, advanced, expert
 - [ ] `6135be3d06b3` (-) — s0md3v/AwesomeXSS: Awesome XSS stuff
 - [ ] `613e2495317b` (-) — Perun网络资产漏洞扫描器/扫描框架 - BITHACK.IO
 - [ ] `61430a647950` (-) — 【一起玩蛇】python武器库的打开方式
+- [x] `6154f9ea945f` (security-sales) — 售前转销售后，我才知道客户根本不关心方案多专业
 - [ ] `615a51aef9c0` (-) — 微信亿级用户异常检测框架的设计与实践
 - [ ] `615face74710` (-) — 再谈内网渗透 - FreeBuf互联网安全新媒体平台
 - [ ] `61681737026a` (-) — 更新Nessus及插件 - 丧心病狂 - SegmentFault
@@ -1831,13 +1980,12 @@ beginner, intermediate, advanced, expert
 - [ ] `616fc477f61e` (-) — PentestBox入门实战教程 - FreeBuf.COM | 关注黑客与极客
 - [ ] `617762326d13` (-) — 短剧创作者中心-短剧创作服务平台-抖音集团短剧版权中心
 - [ ] `61798b38c07b` (-) — NRT_v2.1.9.sfx.exe | by WugFresh for Generic Device/Other
-- [ ] `617dd5d6db59` (-) — [机器学习]机器学习笔记整理全解 - CSDN博客
 - [ ] `6188f08a7ac6` (-) — VulApps
 - [ ] `61941b431335` (-) — 渗透技巧——从Admin权限切换到System权限 – 3gstudent – Good in study, attitude and health
 - [ ] `61bb192257fe` (-) — Tool Release – Socks Over RDP – NCC Group Research
-- [ ] `61e97d29b102` (-) — 《code秘密花园 AI 教程》资源合集 - 飞书云文档
 - [ ] `61f772f5ccc2` (-) — 企业安全建设之浅谈数据防泄露 - FreeBuf.COM | 关注黑客与极客
 - [ ] `6207f5531c24` (-) — Releases · aio-libs/aiohttp
+- [ ] `621dcf40c480` (-) — code-yeongyu/oh-my-openagent: omo/lazycodex: The coding agent for tokenmaxxers;the one and only agent harness for complex codebases. For your Codex, for your OpenCode
 - [ ] `621fb5825532` (-) — 为知笔记 | 编译为知笔记客户端
 - [ ] `623a1b81c364` (-) — 网络空间搜索引擎全方位评测 - FreeBuf.COM | 关注黑客与极客
 - [ ] `6253025c012a` (-) — 一文吃透Linux提权
@@ -1850,8 +1998,6 @@ beginner, intermediate, advanced, expert
 - [ ] `62d5da5b1e63` (-) — 全国信息安全标准化技术委员会
 - [ ] `62d678a6a242` (-) — sicklepoc开源
 - [ ] `62e66c77642e` (-) — 公开课 - 申请奇绩
-- [ ] `63048895a0eb` (-) — 企业级 AI 大模型服务平台 - 千问云
-- [ ] `63063743b439` (-) — ogulcancelik/herdr: agent multiplexer that lives in your terminal.
 - [ ] `63188418535e` (-) — ginobefun/deep-reading-analyst-skill: A professional Claude AI skill for deep reading analysis
 - [ ] `635bc80a8570` (-) — 我们，已在奇点之中！
 - [ ] `63887497a92f` (-) — 几种TCP连接中出现RST的场景分析_chenlycly的专栏-CSDN博客_tcp rst出现场景
@@ -1862,7 +2008,7 @@ beginner, intermediate, advanced, expert
 - [ ] `63c669d2f1b9` (-) — 软件安全：为什么DAST和RASP不是企业级方法? - 51CTO.COM
 - [ ] `63ca0f33ed48` (-) — 奇安信集团
 - [ ] `63d31a03d575` (-) — 调查：渗透测试人员最爱的安全工具及技术 - FreeBuf.COM | 关注黑客与极客
-- [ ] `63e0392a6ab3` (-) — 运维
+- [x] `63e0392a6ab3` (-) — 运维
 - [ ] `63e0471d931c` (-) — 【视频】| SSRF漏洞
 - [ ] `63e721865b70` (-) — IIS 6.0远程代码执行0day（附PoC）
 - [ ] `63f7fc556a23` (-) — xianyu110/awesome-claudcode-tutorial: 最全面的 Claude Code 中文教程 - 从零基础到企业级应用
@@ -1887,7 +2033,6 @@ beginner, intermediate, advanced, expert
 - [ ] `655f2e9f9a95` (-) — Online regex tester and debugger: PHP, PCRE, Python, Golang and JavaScript
 - [ ] `6560fd9479bb` (-) — T00LS帖子正文XSS
 - [ ] `658a03b71653` (-) — 机器之心
-- [ ] `659c4c4739b1` (-) — multica-ai/andrej-karpathy-skills: A single CLAUDE.md file to improve Claude Code behavior, derived from Andrej Karpathy&#39;s observations on LLM coding pitfalls.
 - [ ] `65cc0cee7f83` (-) — 我们总结了 370 个免费学习编程的国外大学公开课 - 掘金
 - [ ] `65cca4f98a46` (-) — phpStudy 2016.11.03 再次更新，支持自定义php版本 - phpStudy
 - [ ] `65da51afb953` (-) — 安全卫士勒索病毒专题：系统补丁、文件恢复、安全卫士离线救灾版、文档卫士
@@ -1908,11 +2053,9 @@ beginner, intermediate, advanced, expert
 - [ ] `66bdeea28ee6` (-) — l3m0n/pentest_study: 从零开始内网渗透学习
 - [ ] `66c75d328903` (-) — 正则表达式30分钟入门教程
 - [ ] `66d43151f195` (-) — Metasploit: Penetration Testing Software | Rapid7
-- [ ] `66df3937eafc` (-) — 10 个本周 yyds 的 GitHub 开源项目，推荐给你。
 - [ ] `6705b377c793` (-) — 给我一个无线切入点，我就可以操控你的物理隔离网络 - FreeBuf互联网安全新媒体平台
 - [ ] `672b610cb765` (-) — Download PhantomJS
 - [ ] `6733a4b7ebaf` (-) — GitHub+Hexo 搭建个人网站详细教程 - 知乎专栏
-- [ ] `6773ed61445c` (-) — SenseNova · LLM API 服务平台
 - [ ] `678f3c2853a9` (-) — Netcat for Windows
 - [ ] `679f8482a8a1` (-) — 斯坦福大学公开课：编程方法学_全28集_网易公开课
 - [ ] `67c4a9172b0d` (-) — 写给十九大安保应急的兄弟们 来看看DDOS攻击应急预案 | 绿盟科技博客
@@ -1920,6 +2063,7 @@ beginner, intermediate, advanced, expert
 - [ ] `67dfb513a562` (-) — Bacon Root Toolkit v1.0.3
 - [ ] `67e11829599c` (-) — HRM
 - [ ] `67f348410e02` (-) — Censys
+- [ ] `67fe1cc1ef12` (-) — SEED Project
 - [ ] `6800bdec0d46` (-) — 如何通过Win10中的Guest帐户获取Admin权限（含视频） | E安全
 - [ ] `68043f88a784` (-) — index.dat文件查看工具下载 4.0中文版_index.dat文件阅读器 - pc6下载站
 - [ ] `680743a14634` (-) — StamOne_
@@ -1947,11 +2091,12 @@ beginner, intermediate, advanced, expert
 - [ ] `69f73ea7f664` (-) — Virtualization | Microsoft Docs
 - [ ] `6a3b2699fe33` (-) — vulnersCom/zabbix-threat-control: Zabbix vulnerability assessment plugin
 - [ ] `6a3b54313266` (-) — HTML 全局属性
-- [ ] `6a4dea9e29b2` (-) — HTTP协议漫谈 - CareySon - 博客园
+- [x] `6a4dea9e29b2` (-) — HTTP协议漫谈 - CareySon - 博客园
 - [ ] `6a52bd200355` (-) — Category:OWASP Code Review Project - OWASP
 - [ ] `6a5a249c37ab` (-) — SamurAIGPT/llm-wiki-agent: A personal knowledge base that builds and maintains itself. Drop in sources — Claude (or Codex/Gemini) reads them, extracts knowledge, and maintains a persistent interlinked wiki. Works with Claude Code, Codex, OpenCode, Gemini CLI. No API key needed.
 - [ ] `6a5c5a1629b8` (-) — 四大国产数据库?你了解用过吗 - zsq_fengchen - 博客园
 - [ ] `6a777c190f86` (-) — CodeBuddy领航：AI辅助编程应用·架构·交付 - 党超辉 杨秀璋 徐香香 主编 杜瑞祺 卜宋博 陈超帆 副主编 - 微信读书
+- [x] `6a7a0bc848b1` (procurement) — 华能集团网络安防设备材料采购公告
 - [ ] `6a7ec315a205` (-) — Watch | .conf Online
 - [ ] `6a8b51680ff4` (-) — 内行客户评估欺骗防御方案会问供应商的11个问题 - FreeBuf互联网安全新媒体平台
 - [ ] `6a929208f5d2` (-) — Technique Matrix - Enterprise ATT&amp;CK™
@@ -1962,7 +2107,6 @@ beginner, intermediate, advanced, expert
 - [ ] `6abdc74d1437` (-) — MS Guides - Using Microsoft software products for FREE
 - [ ] `6acb6e037473` (-) — HITCON ZeroDay
 - [ ] `6af32bcb7708` (-) — 解决用户登录、注册传输中账号密码的安全泄露问题 - 巅峰蜗牛 - 博客园
-- [ ] `6b0a2a35b1a2` (-) — 浅谈大型网络入侵检测建设 - 博客 - 腾讯安全应急响应中心
 - [ ] `6b1c70121365` (-) — Dotaer &amp; Hacker
 - [ ] `6b4d16fe31db` (-) — 猫鼠游戏：三种被滥用的逃避技术 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `6b59d81f6e7d` (-) — Kali sources.list Repositories | Kali Linux
@@ -1988,8 +2132,6 @@ beginner, intermediate, advanced, expert
 - [ ] `6c2dcb836916` (-) — Download Anaconda Now! | Continuum
 - [ ] `6c3ae666490e` (-) — wbh604/UZI-Skill: 冰冷的钱就这样流进我温暖的口袋-游资（UZI）Skills — 让我们欢迎，股海贼王！66位投资大佬帮你看盘 · 22维数据 × 180条量化规则 × 17种机构分析方法 · A股/港股/美股
 - [ ] `6c41ea18aff5` (-) — Docker 创建镜像、修改、上传镜像 - lsgxeva - 博客园
-- [ ] `6c4994d73bd3` (-) — deepseek-ai/awesome-deepseek-agent
-- [ ] `6c57ad07f4d3` (-) — 慢雾出品 | OpenClaw 极简安全实践指南，极简部署
 - [ ] `6c5864386d5d` (-) — 安全威胁情报
 - [ ] `6c78514689a8` (-) — 零基础新手破解学习指导教程 - 『脱壳破解区』 - 吾爱破解 - LCG - LSG |安卓破解|病毒分析|破解软件|www.52pojie.cn
 - [ ] `6cac303cf8fa` (-) — 【域渗透】 SPN 扫描利用 - BITHACK.IO
@@ -1999,6 +2141,7 @@ beginner, intermediate, advanced, expert
 - [ ] `6d1bacd94851` (-) — (1条消息)ReadyAPI 教程和示例（一） - 零度风的专栏 - CSDN博客
 - [ ] `6d3a6386250e` (-) — 十四五期间信息化及网络安全标准体系建设规划 - 安全内参 | 决策者的网络安全知识库
 - [ ] `6d45587baa40` (-) — 国家高等教育智慧教育平台
+- [ ] `6d508b5f1523` (-) — 腾讯御见威胁情报中心
 - [ ] `6d5ec70fe1c8` (-) — 腾讯玄武实验室安全动态推送(Tencent Xuanwu Lab Security Daily News) - 2018/11/18
 - [ ] `6d7901f27f13` (-) — H1ve--开源攻防训练平台 - 先知社区
 - [ ] `6d7b73753c4c` (-) — New Techniques to Uncover and Attribute Cobalt Gang Commodity Builders and Infrastructure Revealed - Palo Alto Networks Blog
@@ -2016,8 +2159,6 @@ beginner, intermediate, advanced, expert
 - [ ] `6e8767c8daf4` (-) — 使用sonar进行java代码质量管理-博客-云栖社区-阿里云
 - [ ] `6e97c6ca411e` (-) — Online Converter [ Office Converter ] Free Online Convert Video, Audio, Image, Documents and Archives for free.
 - [ ] `6edfd1892ed4` (-) — 展望2022 | 浅论金融科技五大创新热点
-- [ ] `6ee0c436c81c` (-) — GitHub
-- [ ] `6f128e984e9f` (-) — Codex 接入Kimi、火山等国产大模型，极简教程
 - [ ] `6f18dc9e465e` (-) — 天津公安科技信息化顶层设计与操作实践 - 安全内参 | 网络安全首席知识官
 - [ ] `6f607bf1d40d` (-) — 域渗透——DNS记录的获取 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `6f8708a1dcb9` (-) — oxid.it - Cain &amp; Abel
@@ -2030,7 +2171,6 @@ beginner, intermediate, advanced, expert
 - [ ] `6fc07bd31197` (-) — 简介 · GitBook
 - [ ] `6fc9206cf7d5` (-) — snyk/zip-slip-vulnerability: Zip Slip Vulnerability (Arbitrary file write through archive extraction)
 - [ ] `6fde925aa59f` (-) — 毕升Office 激活 - 毕升Office - 能私有化部署的在线Office
-- [ ] `6fe669556052` (-) — 小马算力 Token Pony - 专业 AI 大模型 API 接入平台
 - [ ] `6fffdcfde6e3` (-) — tshark - Wireshark网络分析仪3.0.3
 - [ ] `700c3a8dbe4b` (-) — 浅谈RASP技术攻防之实战（环境配置与代码实现） - FreeBuf互联网安全新媒体平台
 - [ ] `701ace378120` (-) — alibaba/page-agent: JavaScript in-page GUI agent. Control web interfaces with natural language.
@@ -2042,16 +2182,15 @@ beginner, intermediate, advanced, expert
 - [ ] `706b2fb58fbc` (-) — 学习Web应用漏洞最好的教程----WebGoat - 行百里路者半九十 - 博客频道 - CSDN.NET
 - [ ] `706b66bc22d3` (-) — SSL/TLS Attacks（一）_i春秋_培育信息时代的安全感！
 - [ ] `706d5c8b416d` (-) — Regex Tester - Javascript, PCRE, PHP
+- [ ] `70a32fabb297` (-) — 国家信息安全漏洞库
 - [ ] `70a41f17ec00` (-) — / Inet电子| SecNews详解IT安全新闻
 - [ ] `70bf9e19177f` (-) — 基于NetFlow的异常流量监测和感知分析技术 | 绿盟科技博客
 - [ ] `70c4cabec3ec` (-) — EXCEL如何将一列数据隔行提取到指定列index函数_百度经验
 - [ ] `70d309fd3f23` (-) — 写作质量是系统问题：Writing Harness把AI改写当成工程
 - [ ] `70db94db78b0` (-) — 重磅！个推牵头制定的国内首个SDK安全国家标准正式立项_标准化
 - [ ] `714f81409591` (-) — 内网工具学习之Empire后渗透 - SecPulse.COM | 安全脉搏
-- [ ] `715ab5dba18f` (-) — Top 6 Freeware Website Mirroring Tools &amp; Software
-- [ ] `71822a499ccf` (-) — ChrisJohnRiley/Scythe: scythe: account enumerator
+- [x] `715ab5dba18f` (-) — Top 6 Freeware Website Mirroring Tools &amp; Software
 - [ ] `719306291abe` (-) — Tutorials for Gerrit, Spring MVC, Apache Solr, Excel Power View, Sencha Touch, Tex Commands, Agile Testing, Apache Tajo, C++ Library, MariaDB, SAP QM, SAP SOLMAN, SAP SCM, MS Access, KoaJS, OAuth2.0, Scrapy, SAP CCA, SAP PM, SAPUI5, Cognos, Internet of Th
-- [ ] `71bc3ea8c022` (-) — nexu-io/html-anything: ✨ The agentic HTML editor — your local AI agent writes the HTML, you ship it. 🚀 75 Skills × 9 Surfaces (magazine · deck · poster · XHS / tweet · prototype · data report · Hyperframes) 🛡️ Sandboxed preview · 📤 1-click to WeChat / X / Zhihu / HTML / PNG 🔑 Zero API key — Claude Code / Cursor / Codex / Gemini / Copilot / OpenCode / Qwen / Aider.
 - [ ] `71c967216e7d` (-) — 内网公网全覆盖、Win/Linux两开花：深入分析Satan勒索软件的传播技术 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `71d9d7c119ed` (-) — secnewsbydukez/BloodHound: Six Degrees of Domain Admin
 - [ ] `71e7b0d9f463` (-) — 基于PHP的日志审计系统研究
@@ -2060,6 +2199,7 @@ beginner, intermediate, advanced, expert
 - [ ] `72117ff3eada` (-) — APT34核心组件Glimpse：远控复现与流量分析 - FreeBuf互联网安全新媒体平台
 - [ ] `72494c2227ed` (-) — mimikatz | Blog de Gentil Kiwi
 - [ ] `7258038505d1` (-) — 中国通信工业协会人工智能专业委员会
+- [ ] `727151476f17` (-) — KKKKhazix/khazix-skills: 数字生命卡兹克开源的 AI Skills 合集
 - [ ] `727f24a88d24` (-) — 比敌人更了解敌人 [ 取证入门 web篇 ] - FreeBuf专栏·攻防之路
 - [ ] `727fe77d8da3` (-) — Active Directory forest trusts part 1 - How does SID filtering work? - dirkjanm.io
 - [ ] `72ab891e000b` (-) — 如何准确卸载autodesk maya 各种版本_百度经验
@@ -2108,6 +2248,7 @@ beginner, intermediate, advanced, expert
 - [ ] `76d917d9c810` (-) — OWASP ZAP下载、安装、使用（详解）教程 - 付杰博客
 - [ ] `76e18ccffd27` (-) — Microsoft Edge Insider Channels
 - [ ] `76e201471ad2` (-) — 教你如何避免威胁建模7大“坑” - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
+- [ ] `76ed7298059f` (-) — 微信公众平台
 - [ ] `771ef2ae76f4` (-) — 相关项目| MITER ATT＆CK™
 - [ ] `77247af3523e` (-) — The Hacker Playbook 2- Practical Guide To Penetration Testing.pdf等 - 哔哩网盘搜索 - 速度最快资源最多的百度网盘搜索神器
 - [ ] `773fbf537f11` (-) — 推荐7个超级厉害的网站，一个相当于几十个 - 知乎
@@ -2118,13 +2259,16 @@ beginner, intermediate, advanced, expert
 - [ ] `7762b389b32a` (-) — 【Web安全扫盲公开课】课程汇总（持续更新） - 漏洞银行小管家 - 行长圈 | 漏洞银行(BUGBANK) | 挑战权威但不作恶，打造信息安全乌托邦
 - [ ] `777134fcecae` (-) — llama.app - Official home for llama.cpp
 - [ ] `7775aa36dde7` (-) — OWASP Dependency-Check Project | OWASP
+- [ ] `778977ae0e88` (-) — 在小说阅读器读本章
 - [ ] `77952164f0c2` (-) — 0x01被动子域名枚举 · The Art of Subdomain Enumeration_zh_CN
 - [ ] `77974c59c498` (-) — About Registry | Docker Documentation
 - [ ] `779a8eb87f06` (-) — AI创作大赛-三国主题赛 选题参考方向 - 哔哩哔哩
+- [ ] `77a19c379242` (-) — Seko - World Class AI Video Generation Platform
 - [ ] `77a575133f82` (-) — Releases · shadowsocks/shadowsocks-windows
 - [ ] `77a62f3166d5` (-) — 蚂蚁金服开源自动化测试框架 SOFAACTS
 - [ ] `77c21d100ea0` (-) — Deploy Servers - Vultr.com
 - [ ] `77cab0aa9862` (-) — 信息安全博客_渗透_编程_审计_逆向_工具_文章_CTF_writeup
+- [ ] `77ff62d75845` (-) — 360威胁情报中心
 - [ ] `78116852f30d` (-) — 由浅入深剖析序列化攻击（二） - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `782a611e24bf` (-) — 【Web安全与防御】简析Sql注入与防御措施 - 程序猿之洞 - CSDN博客
 - [ ] `784a3e45b38a` (-) — 利用WSUS部署更新程序 - 王哥哥哥哥 - 博客园
@@ -2138,9 +2282,7 @@ beginner, intermediate, advanced, expert
 - [ ] `78b1eb310f32` (-) — l3m0n/linux_information: 自动化收集linux信息
 - [ ] `78b272573e14` (-) — Penetration Testing with Kali (PWK) 课程和 Offensive Security Certified Professional (OSCP) 考试回顾
 - [ ] `78b9b8acf6d5` (-) — secnewsbydukez/awesome-web-security: 🐶 A curated list of Web Security materials and resources.
-- [ ] `78be01c2cd10` (-) — catimind-神经猫AI-专为行业应用打造的AI生产力工具
 - [ ] `78bfab3b291c` (-) — 域渗透——DCSync - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
-- [ ] `78c342fb5b86` (-) — 一键部署OpenClaw/ClawdBot-火山引擎
 - [ ] `78c6ff4bf4dc` (-) — Md5扩展攻击的原理和应用 - FreeBuf.COM | 关注黑客与极客
 - [ ] `78f28354e0dc` (-) — Andyyyy64/whichllm: Find the local LLM that actually runs and performs best on your hardware. Ranked by real, recency-aware benchmarks, not parameter count. One command, run it instantly.
 - [ ] `78f56b01af30` (-) — Nmap脚本使用指南 - 知乎专栏
@@ -2151,13 +2293,13 @@ beginner, intermediate, advanced, expert
 - [ ] `794b383b8f04` (-) — 极客时间-学 AI ，用极客时间
 - [ ] `79893cb161f0` (-) — Install Nagios Network Analyzer in a Few Easy Steps (Hyper-V) - Nagios
 - [ ] `7989b7e25bae` (-) — AssassinGo: 基于Go的高并发可拓展式Web渗透框架 - 先知社区
+- [ ] `799a97fb8d36` (-) — 京东安全应急响应中心
 - [ ] `799d8f1e1209` (-) — 【技术分享】浅谈struts2历史上的高危漏洞 - 安全客，安全资讯平台
 - [ ] `799e652540f4` (-) — Online FlowChart &amp; Diagrams Editor - Mermaid Live Editor
 - [ ] `79a5dd14333f` (-) — 企业安全管理（一） – ayazero | 漏洞人生
 - [ ] `79af851c0d16` (-) — Packet Storm
 - [ ] `79b2cdf15eb7` (-) — secnewsbydukez/flare-fakenet-ng: FakeNet-NG - Next Generation Dynamic Network Analysis Tool
 - [ ] `79b8be77232e` (-) — 论企业如何快速建立SDL流程 - FreeBuf互联网安全新媒体平台
-- [ ] `79bb6ebacc96` (-) — APIFree | Free AI API &amp; One-Stop Unified Models API
 - [ ] `79c8c22ec986` (-) — pythonran/Pcap_tools: 网络流量可配置嗅探，流量包解析，漏洞规则扫描，生成报告. ....搞网络安全这块，还凑合着用吧
 - [ ] `79d821846a07` (-) — 推荐 l 恶意邮件智能监测与溯源技术研究 - FreeBuf专栏·中睿天下
 - [ ] `79da08ff89b1` (-) — VMware Compatibility Guide - System Search
@@ -2181,11 +2323,11 @@ beginner, intermediate, advanced, expert
 - [ ] `7b3f770c51a6` (-) — 那些见不得人的链接都放在了这个地方 ！_视频教程_i春秋_培育信息时代的安全感！
 - [ ] `7b42e4ab878a` (-) — NIST Computer Security Resource Center (CSRC)
 - [ ] `7b48da58d7e7` (-) — Windows上那些值得推荐的良心软件-整理
+- [ ] `7b5a8fb932b5` (-) — 黑白之道
 - [ ] `7b65777ac50d` (-) — untitled - asciinema
 - [ ] `7b72b56aebd5` (-) — 投稿文章：如何拥有移动渗透系统，手把手教你安装手机kali
 - [ ] `7b7c150a6bd3` (-) — Scylla 中文文档 — Scylla 文档
 - [ ] `7ba5ec825811` (-) — 威胁情报中心
-- [ ] `7bccabef346e` (-) — [机器学习入门] 经典台大李宏毅机器学习课程从这里开始 - CSDN博客
 - [ ] `7bd3c0b77401` (-) — 2015年KCon黑客大会 PPT下载 | CCIE 工程师社区
 - [ ] `7bdb480f61f4` (-) — Site Mirroring Freeware Downloads
 - [ ] `7be52f65c5eb` (-) — 解析漏洞管理的五个阶段 - FreeBuf互联网安全新媒体平台
@@ -2194,11 +2336,12 @@ beginner, intermediate, advanced, expert
 - [ ] `7bf35419d2c0` (-) — 基于场景控制特征的安全性需求分析方法
 - [ ] `7c089162a7c3` (-) — microsoft/magentic-ui: MagenticLite is an experimental agent that works across the browser and local file system
 - [ ] `7c443fcc59a3` (-) — Windows渗透利器之Pentest BOX使用详解（一） – 即刻安全
+- [ ] `7c4a81326cd7` (-) — 百度安全应急响应中心
 - [ ] `7c7867d1aa8f` (-) — Linux应急响应（四）：盖茨木马 - SecPulse.COM | 安全脉搏
 - [ ] `7caff9e64d56` (-) — Hacker News
 - [ ] `7cce6156243b` (-) — Palo Alto Networks – Global Cybersecurity Leader - Palo Alto Networks
 - [ ] `7cf7771cd73e` (-) — 安全wiki · 语雀
-- [ ] `7d12d901ec99` (-) — Elastic 日报 by elastic-daily
+- [x] `7d12d901ec99` (-) — Elastic 日报 by elastic-daily
 - [ ] `7d12dd0f54cf` (-) — 云鼎实验室
 - [ ] `7d13461a9fb5` (-) — 我眼中的DevOps - InfoQ
 - [ ] `7d2123c3b6a0` (-) — 《国土安全第五季》在线播放_迅雷下载_久久美剧
@@ -2214,7 +2357,6 @@ beginner, intermediate, advanced, expert
 - [ ] `7df26f3d4e7d` (-) — 电影推荐 · MVCAT
 - [ ] `7e0f137310d9` (-) — zzet/gortex: High-performance code-intelligence engine for AI agents and IDE, supports 257 languages, multi repositories, based on graph, with access via CLI, MCP Server, and API. AI coding agents teammate - expose only needed information, cutting token usage up to 50x. 100% local.
 - [ ] `7e29a474af87` (-) — 思维导图软件 幕布、XMind 、MindManager 哪个更好？ - 知乎
-- [ ] `7e2d918c84b6` (-) — ‌⁢​‬‬‬‬‬​‬​‍‍﻿﻿⁢‍⁡⁤‌﻿​‌‬‬​⁣​​‌‌‌‬⁢⁣​​​‍⁢​‍‌​‬‌⁣﻿⁣⁣💡【Agent Skills 知识库】 - 飞书云文档
 - [ ] `7e7b800c395a` (-) — CVE-2019-1040 Windows NTLM篡改漏洞分析 - SecPulse.COM | 安全脉搏
 - [ ] `7e955f1d53a8` (-) — Transform Hub
 - [ ] `7e96b17af93d` (-) — https://github.com/appium/appium-desktop/releases
@@ -2242,6 +2384,7 @@ beginner, intermediate, advanced, expert
 - [ ] `802ad94fa2f9` (-) — OpenCTI - Open platform for cyber threat intelligence
 - [ ] `804c2f620e15` (-) — 黑吃黑！黑客黑掉黑客工具来黑黑客 - 安全内参 | 决策者的网络安全知识库
 - [ ] `805f21c06ad4` (-) — 推介计划 - Shadowsocks.com.hk Portal
+- [ ] `806ba8778583` (-) — GitHub
 - [ ] `8076842f706c` (-) — Plugins - Nagios Exchange
 - [ ] `80e31bc33e83` (-) — How to Create a Malware Detection System With Machine Learning
 - [ ] `80e987ef980d` (-) — Odysseus — A Self-Hosted AI Workspace
@@ -2253,7 +2396,6 @@ beginner, intermediate, advanced, expert
 - [ ] `81719482b11f` (-) — 论如何反击用AWVS的黑客 - FreeBuf.COM | 关注黑客与极客
 - [ ] `81812aeafec2` (-) — 订阅中心 | 简悦 SimpRead - 如杂志般沉浸式的阅读体验
 - [ ] `818719f9f291` (-) — 子域名发现工具
-- [ ] `818e815e6d04` (-) — Cursor - The best way to code with AI
 - [ ] `8195b095fe5c` (-) — 实锤！美国中情局黑客攻击中国关键领域，长达11年！
 - [ ] `81abda9069f2` (-) — Katana Framework by PowerScript
 - [ ] `81bdc91b545a` (-) — PentesterLab渗透演练平台 - ssooking - 博客园
@@ -2265,6 +2407,7 @@ beginner, intermediate, advanced, expert
 - [ ] `820d16f82fdb` (-) — My Profile | TinyLetter
 - [ ] `8219c136ee35` (-) — MISP首页、文档和下载 - 开源威胁情报和共享平台 - OSCHINA - 中文开源技术交流社区
 - [ ] `8233f1a96b67` (-) — WinPayloads：一款可生成难以被检测到的payload之神奇工具 - FreeBuf专栏·利器百宝箱
+- [ ] `82391568a39b` (-) — 信安之路
 - [ ] `823a5e2673fe` (-) — WAF攻防研究之四个层次Bypass WAF - Hookjoy - 博客园
 - [ ] `824900d16aea` (-) — 《网络寻凶第一季》在线播放_迅雷下载_久久美剧
 - [ ] `827c35976924` (-) — 开源智能收集101 - Appsecco
@@ -2274,8 +2417,8 @@ beginner, intermediate, advanced, expert
 - [ ] `829bdc0998c4` (-) — 解读2017OWASPTop10漏洞体系含接口安全|技术讨论 - 安全技术社区
 - [ ] `829cb877dc9f` (-) — 企业安全建设实践之邮件安全
 - [ ] `82a7582ecbdb` (-) — 标准管理_ 资本市场标准网
-- [ ] `82b8f574cf25` (-) — unclecode/crawl4ai: 🚀🤖 Crawl4AI: Open-source LLM Friendly Web Crawler &amp; Scraper. Don&#39;t be shy, join here: https://discord.gg/jP8KfhDhyN
 - [ ] `82c1c841c205` (-) — 吾爱破解论坛官方入门教学培训第一期开始啦！【已更新到第十课】 - 『教学培训区』 - 吾爱破解 - LCG - LSG |安卓破解|病毒分析|破解软件|www.52pojie.cn
+- [ ] `82dda528d39c` (-) — ‍​⁢﻿⁣⁤​⁤⁤⁤﻿‍⁢​​‬​⁤‍﻿⁣⁢‬‌⁢‍⁡‬⁡⁤‌⁢⁣​﻿⁤​‍⁣﻿⁡⁡​​‌⁣⁤⁤‌​OpenClaw 完全指南（花园版）！ - 飞书云文档
 - [ ] `83026dba76d7` (-) — 马可菠萝 - 分享你喜欢的MAC应用
 - [ ] `83169cef13cf` (-) — 登录 | 小宇宙
 - [ ] `8321e0406ae9` (-) — 工信部印发《网络产品安全漏洞收集平台备案管理办法》 - 安全内参 | 决策者的网络安全知识库
@@ -2285,7 +2428,6 @@ beginner, intermediate, advanced, expert
 - [ ] `8355636aa6ce` (-) — 不止Kali 和 Aircrack-ng | 无线渗透工具合集 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `836a868ebc59` (-) — 网络安全知识系列 | 数据安全
 - [ ] `8375c5902003` (-) — 新银行木马“Eventbot”，影响234个金融应用
-- [ ] `838548db6e88` (-) — AgentFlocks/flocks: Flocks is an agentic SecOps platform.
 - [ ] `83984f9965d1` (-) — CVE
 - [ ] `839987f01649` (-) — 认识二进制安全与漏洞攻防技术 （Windows平台） - 安全客，安全资讯平台
 - [ ] `83b4b400c7b0` (-) — ToutyRater/v2ray-guide
@@ -2294,9 +2436,9 @@ beginner, intermediate, advanced, expert
 - [ ] `83c5f4958907` (-) — 以太网帧、ARP协议基础_i春秋_培育信息时代的安全感！
 - [ ] `83dee5995048` (-) — 树莓派实验室 | Raspberry Pi中文资讯站，提供丰富的树莓派使用教程和DIY资讯
 - [ ] `83e0287df68a` (-) — OWASP Broken Web Applications Project download | SourceForge.net
+- [ ] `83e28e0b9a87` (-) — TideSec安全团队
 - [ ] `83e936a27b70` (-) — IDA Freeware Download Page – Hex Rays
 - [ ] `83ec40a294ee` (-) — 百宝箱
-- [ ] `8409bab8f23c` (-) — woyin2024/lengyi-shotlist: 专注写Seedance提示词的skill
 - [ ] `841b5e0a7c14` (-) — Nmap API
 - [ ] `84250c76fbe3` (-) — HoneyDrive download | SourceForge.net
 - [ ] `84346aab6c05` (-) — 2017年Top25网络安全产品集锦 - FreeBuf专栏·安全产品研修所
@@ -2319,8 +2461,9 @@ beginner, intermediate, advanced, expert
 - [ ] `85d4c246236f` (-) — Releases · qishibo/AnotherRedisDesktopManager
 - [ ] `85e155c55332` (-) — 安全脉搏 | 分享技术，悦享品质
 - [ ] `85e338a0c616` (-) — 议题解读《我的Web应用安全模糊测试之路》 - Powered by SecQuan
+- [ ] `85e81294ee43` (-) — 奇安信威胁情报中心
+- [ ] `85f482c20bfa` (-) — 国家互联网应急中心
 - [ ] `85f7eacf28a6` (-) — 浅谈入侵溯源过程中的一些常见姿势 - FreeBuf互联网安全新媒体平台
-- [ ] `85f8c9176066` (-) — 5alt/VulHint: VulHint是辅助代码审计的 sublime text 3 插件
 - [ ] `8601cfa5474e` (-) — 希赛网
 - [ ] `860c2707a7fa` (-) — Introduction to Cyber Attacks | Coursera
 - [ ] `860e9f9c825a` (-) — Exploits Database by Offensive Security
@@ -2336,10 +2479,8 @@ beginner, intermediate, advanced, expert
 - [ ] `869a13ce4f39` (-) — 中国大学MOOC(慕课)_最好的在线课程学习平台
 - [ ] `86ac37b52b21` (-) — 软件安全构建成熟度实践尝试 - FreeBuf互联网安全新媒体平台
 - [ ] `86d7c23c1feb` (-) — Releases · v2ray/v2ray-core
-- [ ] `870ba2b59291` (-) — 央行专家：个人金融信息安全技防研究 - 安全内参 | 决策者的网络安全知识库
 - [ ] `871ba92ee265` (-) — Iconfont-阿里巴巴矢量图标库
 - [ ] `8728c69e8519` (-) — AnyeDuke/sec_news-python: grab sec news with python
-- [ ] `872a3510acc6` (-) — offensive-security/nethunter-devices: NetHunter Devices
 - [ ] `8738c2baa17d` (-) — 做源头上的安全：内建安全源码保障 - FreeBuf.COM | 关注黑客与极客
 - [ ] `87655874a560` (-) — SciClaw - AI co-worker for scientific research.
 - [ ] `876ed9bff614` (-) — Microsoft 安全公告 4025685
@@ -2352,6 +2493,7 @@ beginner, intermediate, advanced, expert
 - [ ] `8828aca6eea3` (-) — dschadow/Java-Web-Security: Java-Web-Security - Sichere Webanwendungen mit Java entwickeln
 - [ ] `882b780cd7d5` (-) — SecTools.Org Top Network Security Tools
 - [ ] `8834be75e69c` (-) — kali中ARP欺骗与MITM（中间人攻击）（二）
+- [ ] `8844829614c7` (-) — 网信防务
 - [ ] `88493536d96e` (-) — 法律合规视角下的等级保护条例 - FreeBuf互联网安全新媒体平台 | 关注黑客与极客
 - [ ] `8858a4b97bf4` (-) — 安全防护场景与安全报警的：“点、线、面” - FreeBuf互联网安全新媒体平台
 - [ ] `886435c841ba` (-) — Download your Word document! - Free instant PDF to Word Converter - Preserves your document&amp;#x27;s layout so you can edit
@@ -2360,7 +2502,6 @@ beginner, intermediate, advanced, expert
 - [ ] `888ba623b61e` (-) — MadsLorentzen/ai-job-search：基于 Claude 代码构建的 AI 驱动求职框架。你可以克隆该框架，填写自己的个人信息，然后让 Claude 来评估就业机会、定制简历、撰写求职信，并帮助你准备面试。 --- MadsLorentzen/ai-job-search: AI-powered job application framework built on Claude Code. Fork it, fill in your profile, and let Claude evaluate jobs, tailor CVs, write cover letters, and prepare you for interviews.
 - [ ] `88c1ba67550e` (-) — 独家 | 一文读懂特征工程
 - [ ] `88c7b1faa503` (-) — SANS研究：如何在零信任架构下做事件响应 - 安全内参 | 决策者的网络安全知识库
-- [ ] `88d931cfdb9f` (-) — 在 VS Code 中使用 Claude Code - Claude Code Docs
 - [ ] `88f1383b96c7` (-) — Security - Security Related Downloads
 - [ ] `88f939b48ace` (-) — Nmap Network Scanning—The Official Nmap Project Guide to Network Discovery and Security Scanning
 - [ ] `8910b33ad866` (-) — 美团技术团队
@@ -2383,7 +2524,6 @@ beginner, intermediate, advanced, expert
 - [ ] `8a60fc35613c` (-) — 课程－实验吧
 - [ ] `8a6333604e7c` (-) — Hacking with Netcat part 2: Bind and reverse shells - Hacking Tutorials
 - [ ] `8a67a8ed375a` (-) — TLS握手：回顾1.2、迎接1.3 - FreeBuf互联网安全新媒体平台
-- [ ] `8a6c1ec14f08` (-) — 大模型服务平台百炼控制台
 - [ ] `8a771597fd3f` (-) — 安全牛首次公开发布《网络安全体系设计方法论》 - 安全牛
 - [ ] `8a78d3d2fe9e` (-) — 阿里巴巴信息化实践 - 安全内参 | 网络安全首席知识官
 - [ ] `8a8ea407ddac` (-) — 1583809727906058080.pdf
@@ -2406,12 +2546,13 @@ beginner, intermediate, advanced, expert
 - [ ] `8b7cf6e1b3a4` (-) — 快代理 - 高速http代理ip每天更新
 - [ ] `8b8adafea04f` (-) — The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu
 - [ ] `8b97b1951e64` (-) — IBM X-Force Malware Analysis on Cloud - Workbench - United States
+- [ ] `8ba78eb6ca8a` (-) — Agentic SOC的真相：不是AI替代人，而是重新定义安全团队
 - [ ] `8baea4044903` (-) — 如何快速定位骗子 - 知乎专栏
 - [ ] `8bbe78796cd2` (-) — RC4加密已不再安全，破解效率极高（含视频） - FreeBuf互联网安全新媒体平台
+- [ ] `8bca29e50e61` (-) — 奇安信集团
 - [ ] `8bec5aa731ad` (-) — iOSRE
 - [ ] `8bf28245b918` (-) — Coding Plan-StreamLake
 - [ ] `8bfbef6809fa` (-) — The most popular database for modern apps | MongoDB
-- [ ] `8c00944886ae` (-) — AI大学-讯飞开放平台
 - [ ] `8c14d09d5914` (-) — 简明 Vim 练级攻略 | | 酷 壳 - CoolShell
 - [ ] `8c21eec8fc75` (-) — 58安全应急响应中心
 - [ ] `8c3327441eb3` (-) — NoeFabris/opencode-antigravity-auth: Enable Opencode to authenticate against Antigravity (Google&#39;s IDE) via OAuth so you can use Antigravity rate limits and access models like gemini-3-pro and claude-opus-4-5-thinking with your Google credentials.
@@ -2419,13 +2560,12 @@ beginner, intermediate, advanced, expert
 - [ ] `8c8c1ba37a6d` (-) — Introduction - Python3网络爬虫开发实战
 - [ ] `8ca83d78d703` (-) — CVE - CVE-2011-1966
 - [ ] `8cab2065217d` (-) — 网藤正式开源漏洞检测框架——Osprey「鱼鹰」 - FreeBuf.COM | 关注黑客与极客
-- [ ] `8cac7fe16b14` (-) — 昇腾全栈技术引爆 WAIC！199 元拿华为 AI 认证，低成本补齐 AI 核心技能
 - [ ] `8ccdefcd918f` (-) — How Claude Code is used in practice \ Anthropic
 - [ ] `8d2a5b3da20d` (-) — 武汉深之度科技有限公司 | 深度操作系统
 - [ ] `8d49b38c7231` (-) — secnewsbydukez/XSS-Radar
 - [ ] `8d68f97fa427` (-) — github/spec-kit: 💫 Toolkit to help you get started with Spec-Driven Development
 - [ ] `8d6d13c8d6da` (-) — Download Cr OS Linux - Chrome Plated OS
-- [ ] `8d7c33d5f76d` (-) — GShark：监控Github中的敏感信息泄露 - 体验盒子 - 关注网络安全
+- [ ] `8d8083b6566a` (-) — 仙人掌情报站
 - [ ] `8d89f043d6dc` (-) — 腾讯玄武实验室
 - [ ] `8daea2e1dfd3` (-) — ZhiMap知识导图社区 - 用思维导图，共建知识体系
 - [ ] `8dd41a73b74d` (-) — Fileless malware: part deux - Malwarebytes Labs | Malwarebytes Labs
@@ -2441,13 +2581,14 @@ beginner, intermediate, advanced, expert
 - [ ] `8e8d4c686493` (-) — 先知社区
 - [ ] `8e9644c95334` (-) — 关于远控木马你应该了解的知识点 - FreeBuf互联网安全新媒体平台
 - [ ] `8eaf41bbf961` (-) — 奇绘馆 - 新一代AI视频创作平台
-- [ ] `8eb83ddae9cc` (-) — AI是阿拉丁神灯？ AI漏洞挖掘系统上手教程！
 - [ ] `8ed5f20fb00e` (-) — Chrome 应用商店
+- [ ] `8ee3d1455606` (-) — 讯飞星辰MaaS平台-官网
 - [ ] `8f1ee69bb31d` (-) — 企事业单位网络安全问题的三点思考 - 安全内参 | 决策者的网络安全知识库
 - [ ] `8f27bfe6a8fe` (-) — Renhuai123/ziwei-doushu: 紫微斗数开源排盘引擎 — 基于倪海夏《天纪》体系，含完整排盘算法、四化系统、格局知识库、古籍原文数据
 - [ ] `8f3257e1d72d` (-) — excel如何提取数据左边第一个#字符前面的数字_百度经验
 - [ ] `8f36f449f8ac` (-) — joeseesun/qiaomu-novel-generator: Generate complete, gripping original Chinese short fiction from story ideas with reusable narrative craft hooks.
 - [ ] `8f3f2b5f88b5` (-) — Tiny Tiny RSS
+- [ ] `8f7a05cda951` (-) — 【标准化动态】国家标准委秘书处关于鼓励中国专家积极线上参加2026年国际标准化组织（ISO）年会的通知
 - [ ] `8f82314642d4` (-) — Install Docker Compose | Docker Documentation
 - [ ] `8fa9c04e4300` (-) — OpenVAS虚拟机安装 - liuyongsheng - 博客园
 - [ ] `8fb0222bf5fe` (-) — 802 11n PDF | Download Free Ebook 802 11n
@@ -2464,7 +2605,6 @@ beginner, intermediate, advanced, expert
 - [ ] `905f2c29ab24` (-) — SMAPPER (Justin Henderson)
 - [ ] `9086b8144854` (-) — HTML Anything — the agentic HTML editor
 - [ ] `9098dadf5c13` (-) — Grok CLI 风险分析：一个 prompt 如何把敏感文件送上云端？
-- [ ] `909b7be7673f` (-) — Codex GPT-5.5 中转API
 - [ ] `90a4bb5596ee` (-) — sharexmind/Web架构中的安全问题.xmind at master · bit4woo/sharexmind
 - [ ] `90aab4d1c7db` (-) — 首页 - 全国标准信息公共服务平台
 - [ ] `90c70af6f150` (-) — AI与安全「2」：Attack AI（1）总述 - 安全客，安全资讯平台
@@ -2494,7 +2634,6 @@ beginner, intermediate, advanced, expert
 - [ ] `92751a4b3b79` (-) — BestTrace 客户端_最专业的 IP 地址库_IPIP.NET
 - [ ] `927e90e3dfb1` (-) — WEB安全入门系列之CSRF漏洞详解 - SecPulse.COM | 安全脉搏
 - [ ] `928c6beb1e85` (-) — calibre - Download for linux
-- [ ] `92b8ec0b1e5f` (-) — AnxForever/stylekit-skill
 - [ ] `92b92c1df118` (-) — DevOps 知识平台 Ledge - Periodic Table
 - [ ] `92ee27223aff` (-) — python中的none - 扫驴 - 博客园
 - [ ] `931418d1a6dc` (-) — Inside-a-Targeted-Point-of-Sale-Data-Breach.pdf
@@ -2525,13 +2664,13 @@ beginner, intermediate, advanced, expert
 - [ ] `94587c3d40eb` (-) — vllm-project/vllm-metal: Community maintained hardware plugin for vLLM on Apple Silicon
 - [ ] `946c44a9aebf` (-) — OpenBMB/PilotDeck: Task-oriented AI Agent productivity platform
 - [ ] `948f3af7b173` (-) — 书栈网 · BookStack_程序员IT互联网开源编程书籍免费阅读与下载，取之于猿用之于猿！
-- [ ] `94910e59629e` (-) — ‌‍⁢⁣﻿‌‌⁡‍⁡⁣‬​﻿﻿⁣‌⁣﻿⁢‍​﻿‌⁢﻿‬⁢‬‌​‬​⁤‍​⁤⁡⁤⁡﻿‬⁡​⁢​⁤‍​⁤星火官网中转API+OpenClaw龙虾教程手册 - 飞书云文档
 - [ ] `94b3d5d6b572` (-) — 在Linux宿主机审计docker进程和网络连接 - FreeBuf互联网安全新媒体平台
 - [ ] `94b8edaa21f8` (-) — hardenedlinux/STIG-4-Debian: Security Technical Implementation Guide for Debian
 - [ ] `94be61788382` (-) — D盾
 - [ ] `94be73bbd3b1` (-) — 等保2.0新标准详解，助力企业安全合规 - FreeBuf专栏·Digapis安全
 - [ ] `94c667901d89` (-) — 官方镜像加速_快速入门_容器镜像服务-阿里云
 - [ ] `94d1d55d6395` (-) — Christchurch Hacker Conference 2018
+- [ ] `94e1759804d8` (-) — GitHub
 - [ ] `94eaba688f07` (-) — gisle/data-dump: A Perl module for pretty printing of data structures
 - [ ] `94f7ee81ede5` (-) — MID函数的经典用法实例_百度经验
 - [ ] `9507682d90d1` (-) — Suspected BITTER APT Continues Targeting Government of China and Chinese Organizations | Anomali
@@ -2564,12 +2703,13 @@ beginner, intermediate, advanced, expert
 - [ ] `96a670999cb6` (-) — burp+sqlmap+jython - 安云网 - AnYun.ORG | 专注于网络信息收集、网络数据分享、网络安全研究、网络各种猎奇八卦。
 - [ ] `96bdfc23a5db` (-) — Getting Started with PowerShell 3.0 | Channel 9
 - [ ] `96c175356e53` (-) — 【提莫】一个域名收集及枚举工具
+- [ ] `96df431437f0` (-) — GitHub
 - [ ] `97171fd398c2` (-) — APP安全测试 - Open-Source Security Architecture
+- [ ] `9740bf5fd92c` (-) — 奇安信威胁情报中心
 - [ ] `974162e4a125` (-) — Machine Learning | Coursera
 - [ ] `9745285be9ab` (-) — The GNU netcat download | SourceForge.net
 - [ ] `9749def1ae93` (-) — 3月31日16:00 激擎内测 - 《创世战车》官方网站
 - [ ] `975e07b6c3dd` (-) — Hunting for Privilege Escalation in Windows Environment - Speaker Deck
-- [ ] `9762ef330432` (-) — Claude Code国内安装：2026最新保姆教程（附cc-switch配置）-阿里云开发者社区
 - [ ] `976a6b57167f` (-) — 企业数据资产化之路：从数据建模说起 - 安全内参 | 网络安全首席知识官
 - [ ] `976d8fcb14a6` (-) — Veil - Framework -
 - [ ] `979d1d1945e6` (-) — secnewsbydukez/SearchWebPath: 根据网站URL，判断出URL所在的网站物理路径地址。
@@ -2581,7 +2721,6 @@ beginner, intermediate, advanced, expert
 - [ ] `9807ce39c280` (-) — 总结29种不同类型的USB攻击
 - [ ] `982d73a152aa` (-) — 主页·ricklamers / gridstudio Wiki
 - [ ] `983f1fac69f7` (-) — mushorg/snare: Super Next generation Advanced Reactive honEypot
-- [ ] `98479714b47f` (-) — zer0yu/CyberSecurityRSS: 网络空间安全相关的RSS订阅
 - [ ] `9858a7fcf4ac` (-) — google/tsunami-security-scanner: Tsunami is a general purpose network security scanner with an extensible plugin system for detecting high severity vulnerabilities with high confidence.
 - [ ] `9861d18a41c0` (-) — 12种公开资源情报（OSINT）信息收集技巧分享 - FreeBuf互联网安全新媒体平台
 - [ ] `9869dfde643c` (-) — Lua 教程 | 菜鸟教程
@@ -2589,23 +2728,21 @@ beginner, intermediate, advanced, expert
 - [ ] `98a23d671645` (-) — 商业银行数据安全保护体系建设思路 - FreeBuf互联网安全新媒体平台
 - [ ] `98ae9336c485` (-) — JDCloud-Security-WhitePaper-201809.pdf
 - [ ] `98ba0a25f6cf` (-) — Fileless malware: getting the lowdown on this insidious threat - Malwarebytes Labs | Malwarebytes Labs
-- [ ] `98bf2ad9124a` (-) — 使用爬虫如果不是用来为机器学习或数据挖掘收集数据，还能做什么有趣的事情呢……？ - 知乎
 - [ ] `98caa9b9e9d2` (-) — TheAlgorithms/Python: All Algorithms implemented in Python
 - [ ] `98d06bb5e719` (-) — OSINT Resources for 2019 - 先知社区
-- [ ] `98d8fb3822bf` (-) — AutoClaw - 智谱推出的国内首个一键安装本地版OpenClaw | AI工具集
 - [ ] `98f59b916538` (-) — 数据安全法下医疗卫生行业的信息安全挑战 - 安全内参 | 决策者的网络安全知识库
 - [ ] `98fa838c681d` (-) — https://portal.msrc.microsoft.com/en-us/security-guidance
 - [ ] `99003541b521` (-) — PHP底层的运行机制与原理
 - [ ] `9907563b9957` (-) — Elasticsearch Reference [7.0] | Elastic
 - [ ] `9914fa361252` (-) — ui
 - [ ] `9916e3376c87` (-) — HTTP状态码详解
+- [ ] `99219e8dac8f` (-) — 作家专区-番茄小说网-番茄小说旗下原创文学平台
 - [ ] `992c9cd487fe` (-) — 进攻即是最好的防御！19个练习黑客技术的在线网站 - 知乎专栏
 - [ ] `9935bb4a4d9b` (-) — elknot企业安全建设日记
 - [ ] `993c3a1f3780` (-) — 用Diff和Patch工具维护源码
 - [ ] `993fd7cf26ef` (-) — TencentCloudBase/awesome-cloudbase-examples: Awesome Tencent CloudBase Examples 腾讯云开发案例
 - [ ] `99eb0b084fad` (-) — bytedance/flowgram.ai: FlowGram is an extensible workflow development framework with built-in canvas, form, variable, and materials that helps developers build AI workflow platforms faster and simpler.
 - [ ] `99ece28e24fb` (-) — kalilinux桌面的安装与美化_百度经验
-- [ ] `99f272d3c0dc` (-) — 千问-阿里 AI 助手
 - [ ] `99f93a9b2dd9` (-) — Hershell：献给渗透测试人员的礼物 - 安全客，有思想的安全新媒体
 - [ ] `9a082d6474d4` (-) — 一款用于发现SSRF、XXE、XSS漏洞的小工具 - FreeBuf.COM | 关注黑客与极客
 - [ ] `9a1418a5867b` (-) — 关于渗透测试 - CSDN博客
@@ -2617,9 +2754,7 @@ beginner, intermediate, advanced, expert
 - [ ] `9a72bce23dc6` (-) — 网卡厂商自动识别工具（Python版， 附源代码） - FreeBuf.COM | 关注黑客与极客
 - [ ] `9a7805e379af` (-) — 心智地图软件－在线头脑风暴会议
 - [ ] `9a84938f4d1c` (-) — FFmpeg CVE-2016-10191漏洞分析及利用 - FreeBuf.COM | 关注黑客与极客
-- [ ] `9a8f8bd69a3e` (-) — Linux主机安全检查与应急响应 - FreeBuf互联网安全新媒体平台
 - [ ] `9a925b0057b0` (-) — Download
-- [ ] `9ad2a9d79066` (-) — 9分钟搞定！Claude Code 保姆级安装+原理+真实用法（国内直连）_哔哩哔哩_bilibili
 - [ ] `9ad9ed3eb7d6` (-) — 云盾先知（安全情报）
 - [ ] `9ae8b8c918f9` (-) — NewsNow | 实时
 - [ ] `9af50b2cca6a` (-) — 网易公开课
@@ -2637,7 +2772,6 @@ beginner, intermediate, advanced, expert
 - [ ] `9b8ac85d1bab` (-) — 如何使用浏览器网络监视工具进行黑客攻击 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `9bacd069d219` (-) — 应急响应勒索病毒自救手册2.0
 - [ ] `9bba7343e977` (-) — SJS-SOAR项目信息表
-- [ ] `9bc77b72f7e3` (-) — 【开源】接入大模型、拖拽开发、前后端打通，从报表做到大屏再到AI，这款国产开源平台凭什么能打？
 - [ ] `9bd821818bb1` (-) — 应用软件_麦氪派
 - [ ] `9bd8e8546874` (-) — 从自身漏洞与架构缺陷，谈Docker安全建设
 - [ ] `9beae94bef55` (-) — OWASP Mutididae 2项目 - OWASP
@@ -2653,7 +2787,6 @@ beginner, intermediate, advanced, expert
 - [ ] `9c7e2969f31a` (-) — 阿里P8架构师谈：MySQL数据库的索引原理、与慢SQL优化的5大原则 - SecPulse.COM | 安全脉搏
 - [ ] `9c80be23b296` (-) — 史上最全的njRAT通信协议分析 - FreeBuf互联网安全新媒体平台
 - [ ] `9cb1af7ee252` (-) — 高级威胁启示录：VPNFilter安全威胁回顾及当前安全趋势展望 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
-- [ ] `9cb9e8fe9724` (-) — 渗透基础——端口转发与代理 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `9cc162319d03` (-) — 【实战】五个Docker监控工具的对比 - DockOne.io
 - [ ] `9cc7a908286a` (-) — Windows系统安全事件日志取证工具：LogonTracer - FreeBuf互联网安全新媒体平台
 - [ ] `9ccbe8e092c6` (-) — 花生壳控制台
@@ -2666,6 +2799,7 @@ beginner, intermediate, advanced, expert
 - [ ] `9d707f61ffde` (-) — Issue 26171: heap overflow in zipimporter module - Python tracker
 - [ ] `9d8847553b9a` (-) — 利用FOFA做些有趣的事|NOSEC安全讯息平台 - NOSEC.ORG
 - [ ] `9d926782a926` (-) — 疫情之下企业业务连续性中的网络安全考量 - 安全内参 | 决策者的网络安全知识库
+- [ ] `9dac8f4b68a5` (-) — 免费的在线文档翻译器——保留原文档的排版（Word、PDF、Excel、Powerpoint、OpenOffice、文本）
 - [ ] `9db2daa155bc` (-) — 免费科学上网 的DNS小工具 - 安云网 - AnYun.ORG | 专注于网络信息收集、网络数据分享、网络安全研究、网络各种猎奇八卦。
 - [ ] `9db8e06d236f` (-) — NGINX从入门到精通进阶系列培训
 - [ ] `9de96d50fc7e` (-) — Flat Remix GNOME theme - www.gnome-look.org
@@ -2673,23 +2807,22 @@ beginner, intermediate, advanced, expert
 - [ ] `9e0cfa322f93` (-) — 数世咨询：网络安全态势感知能力指南 - 安全内参 | 决策者的网络安全知识库
 - [ ] `9e16cb9b1375` (-) — 恶意软件模式匹配利器 – YARA - FreeBuf互联网安全新媒体平台
 - [ ] `9e32163738b3` (-) — /r/netsec - Information Security News &amp; Discussion
-- [ ] `9e75ec1ceb03` (-) — MiniMax Hub — 多模态创作 Agent，你的AI创作工作室
 - [ ] `9e76ac18d713` (-) — 2017年最佳iPhone渗透APP及工具 - FreeBuf.COM | 关注黑客与极客
 - [ ] `9e9e43bb85c3` (-) — 软件供应链安全威胁：从“奥创纪元”到“无限战争” - 安全客，安全资讯平台
 - [ ] `9e9f4787a290` (-) — 流量威胁分析系统与Tenable生产实践 - FreeBuf专栏·糖果实验室
-- [ ] `9ea099ba0d8c` (-) — 孵化了 10 万多 Star 开源项目的团队，在 GitHub 上搞了一个新东西。
 - [ ] `9eb4a0e946fc` (-) — kingbj/cve-2017-1000367 - 码云 - 开源中国
 - [ ] `9ebd45f6b672` (-) — 外部访问容器 - Docker —— 从入门到实践 - 极客学院Wiki
 - [ ] `9eccd5412132` (-) — 微软安全服务标准 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `9ed4003cd8f9` (-) — Hacking with Netcat part 1: The Basics - Hacking Tutorials
 - [ ] `9ed5330050d3` (-) — mcp
-- [ ] `9ee099f33393` (-) — 千帆大模型平台-企业级一站式大模型开发及应用开发平台-百度智能云
 - [ ] `9eefef79e5b3` (-) — ChaosVPN简要配置过程 - FreeBuf.COM | 关注黑客与极客
 - [ ] `9f034549e94c` (-) — GParted -- GParted Manual
+- [ ] `9f09ee883eb7` (-) — 猎户攻防实验室
 - [ ] `9f0cd0506cbc` (-) — 安全事件应急响应 | Linux系统BillGates botnet component查杀 - FreeBuf互联网安全新媒体平台
 - [ ] `9f248da8e24c` (-) — 电子政务工程造价指导书广东省电子政务协会
 - [ ] `9f272897f9af` (-) — 如何构建公有云DDoS溯源系统 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `9f504ebbdb97` (-) — Download - FreeMind
+- [ ] `9f5b809111aa` (-) — GitHub
 - [ ] `9f6bbeb4bb41` (-) — 使用python进行utf9编码和解码 - pcat - 博客园
 - [ ] `9f74ada7c256` (-) — AI 编程实战指南：Claude Code、Cursor、Codex、Trae 使用技巧与面试题 | JavaGuide
 - [ ] `9f83e55719bc` (-) — 史记 Wiki
@@ -2697,8 +2830,8 @@ beginner, intermediate, advanced, expert
 - [ ] `9f9dab212697` (-) — Hadoop Shell命令
 - [ ] `9fa6457bbe09` (-) — NVD - CVE-2016-10229
 - [ ] `9fbbc9becb32` (-) — ginobefun/deep-reading-analyst-skill: 一个用于深度阅读分析的 Claude AI 专业技能 --- ginobefun/deep-reading-analyst-skill: A professional Claude AI skill for deep reading analysis
+- [ ] `9fcd880456f4` (-) — 火山方舟管理控制台
 - [ ] `9fd3f863a46c` (-) — Challenges/App - System [Root Me : Hacking and Information Security learning platform]
-- [ ] `a0179b6655cb` (-) — 斯坦福大学公开课 ：机器学习课程_机器学习的动机与应用_网易公开课
 - [ ] `a03f140ad6c9` (-) — Download Filebeat • Lightweight Log Analysis | Elastic
 - [ ] `a04aa5fa2dcd` (-) — SecurityPaper-web/docs/3.SDL落地方案 at master · SecurityPaper/SecurityPaper-web
 - [ ] `a07dc719f99d` (-) — 安云信息
@@ -2711,7 +2844,6 @@ beginner, intermediate, advanced, expert
 - [ ] `a14c70b6d27c` (-) — 存储型跨站脚本攻击_一个程序员的修炼之路-CSDN博客_存储型跨站脚本攻击
 - [ ] `a1613471395e` (-) — 08 漏洞利用：使用SQLMap识别并利用SQL注入漏洞 - 简书
 - [ ] `a18524397783` (-) — Teambition · 团队协作工具创导者
-- [ ] `a19a5b487dd0` (-) — 程序员 - Harness Engineering：AI Agent 时代的工程范式革命 - 个人文章 - SegmentFault 思否
 - [ ] `a19b21fb2b4e` (-) — Request Trial - Cobalt Strike
 - [ ] `a1a2228a9437` (-) — JRE8u20反序列化漏洞分析 - SecPulse.COM | 安全脉搏
 - [ ] `a1ad622b868d` (-) — DuerOS开放平台 | 提交资料
@@ -2720,7 +2852,6 @@ beginner, intermediate, advanced, expert
 - [ ] `a1bf2cd9a111` (-) — 使用IIS 6.0配置ASP动态Web网站_百度经验
 - [ ] `a1c74bdd7fb2` (-) — 卡巴斯基安全公告2018.最重要的安全故事| Securelist
 - [ ] `a1cf3b936810` (-) — 安全 | 黑客工具12式 - 51CTO.COM
-- [ ] `a1d85ff52040` (-) — ﻿‍⁤⁢​‍⁣​⁣‌⁢​⁤‍​​⁣⁤⁢​﻿⁤⁣⁣​‌‬‬⁣⁤⁣﻿﻿﻿﻿​​​‍⁡‍﻿‍​⁢​‍⁣﻿Claude Code - 飞书云文档
 - [ ] `a1f654f43502` (-) — Ridter/Mailget: 通过脉脉用户猜测企业邮箱
 - [ ] `a1fa9c1939e0` (-) — DB Browser for SQLite
 - [ ] `a1fb568aaac1` (-) — Stack Overflow Developer Survey 2017
@@ -2734,6 +2865,7 @@ beginner, intermediate, advanced, expert
 - [ ] `a2c4a9085958` (-) — Tails - Tails 3.0 is out
 - [ ] `a2cdf762d03d` (-) — - Windows Apps That Amaze Us
 - [ ] `a2d3a974d774` (-) — Disitool | 迪迪埃史蒂文斯
+- [ ] `a316e7978466` (-) — 爱盘，最新的在线破解工具包
 - [ ] `a3189ba505fb` (-) — 端口53（tcp / udp）:: SpeedGuide
 - [ ] `a3204dddd41e` (-) — 什么是蜜罐与蜜网（Honeypots and Honeynets） - 安全牛
 - [ ] `a324ef8e4c46` (-) — 主机身份识别系统——中国黑客大学IT404.com
@@ -2744,33 +2876,30 @@ beginner, intermediate, advanced, expert
 - [ ] `a3b2bbcf3e3d` (-) — 如何应对SHA-1加密算法升级为SHA-256 - IT_Lifeng - 博客园
 - [ ] `a423b3a264d7` (-) — debian-stable - Deb - Bintray
 - [ ] `a42665a57b74` (-) — pamelafox/presentation-skills: Skills for AI agents to process presentations - helpful for teachers and speakers.
+- [ ] `a4277b1a4fd0` (-) — 黑白之道
 - [ ] `a431e445077d` (-) — Logstash ArcSight Module | ArcSight Marketplace
-- [ ] `a45f2aa098ba` (-) — SenseNova-Skills/README_CN.md at main · OpenSenseNova/SenseNova-Skills
+- [ ] `a43aeba29fcc` (-) — 2026 iFLYTEK AI开发者大赛
 - [ ] `a46eb3ae4482` (-) — knsv/mermaid: Generation of diagram and flowchart from text in a similar manner as markdown
 - [ ] `a4aa2ac280bb` (-) — PyPI · The Python Package Index
 - [ ] `a4ac5b406ad5` (-) — Learn PowerShell Toolmaking in a Month of Lunches | MoreLunches.com
 - [ ] `a4e1de925ee9` (-) — MindForger - Thinking Notebook
-- [ ] `a4e80889c971` (-) — 华为云码道案例集 - AI coding创作灵感 -华为云
 - [ ] `a4ed5c87a11f` (-) — 刺透内网的HTTP代理 - SecPulse.COM | 安全脉搏
 - [ ] `a4f8a0ab59b4` (-) — 金融黑名单API-银行卡鉴权实名验证-个人身份证实名验证-运营商三要素实名验证_鼎燚数据
 - [ ] `a5122256dcef` (-) — 论文浅尝 | 推荐系统的可解释性浅谈
 - [ ] `a539b3d804a8` (-) — Oh My OpenAgent — The Best Agent Harness | Oh My OpenAgent
 - [ ] `a54f2f00a383` (-) — piglei/one-python-craftsman: 来自一位 Pythonista 的编程经验分享，内容涵盖编码技巧、最佳实践与思维模式等方面。
-- [ ] `a557bf23897d` (-) — FastGPT 商业版 - 0 专家，好效果
 - [ ] `a5682508572a` (-) — 最新SMB僵尸网络利用了7个NSA工具，而WannaCry只用了两个…… - FreeBuf.COM | 关注黑客与极客
 - [ ] `a56d888d932b` (-) — BugScan--漏洞插件社区
 - [ ] `a57953a7ff4e` (-) — 如何搭建一套自己的蜜罐系统_搜狐科技_搜狐网
-- [ ] `a58a87d36f74` (-) — The Honeynet Project Workshop – Canberra, Australia – November 15th-17th, 2017
+- [x] `a58a87d36f74` (-) — The Honeynet Project Workshop – Canberra, Australia – November 15th-17th, 2017
 - [ ] `a59031f966ad` (-) — Java代码审计手册精华版 - 飞书云文档
 - [ ] `a599cc45b526` (-) — 2019上半年勒索病毒家族概览 - FreeBuf互联网安全新媒体平台
-- [ ] `a59bf4288b5c` (-) — HongMaCC - 企业级 AI 中转平台 | Claude Code、Codex、Gemini 国内直连
 - [ ] `a59c1ec808dc` (-) — NVD - CVSS v2 Calculator
 - [ ] `a5a045b2b2b6` (-) — Share with care: Exploiting a Firefox UAF with shared array buffers - phoenhex team
 - [ ] `a5a69510164b` (-) — CN-Chrome-DevTools/CN-Chrome-DevTools: Chrome开发者工具中文手册
 - [ ] `a5bc1bf98293` (-) — Unix jumpbox with SSH access · earthquake/XFLTReaT Wiki
 - [ ] `a5c1424159f5` (-) — Installing Locally Using Docker Compose | Superset
 - [ ] `a5c468388ea4` (-) — 云计算-云栖社区-阿里云
-- [ ] `a5cf3c5becbd` (-) — 互联网企业安全建设思考与实践 - 安全内参 | 决策者的网络安全知识库
 - [ ] `a5e7a307bf05` (-) — centos7切换图像界面和dos界面 - liaomin416100569的专栏 - CSDN博客
 - [ ] `a5f111b4b327` (-) — cobaltstrike安装加破解教程+使用教程 - windwos10 - 博客园
 - [ ] `a61f0ee011b9` (-) — Download PuTTY: latest release (0.69)
@@ -2784,7 +2913,8 @@ beginner, intermediate, advanced, expert
 - [ ] `a6e682bde401` (-) — 记一次蜜罐溯源 - FreeBuf网络安全行业门户
 - [ ] `a6f98ae0362d` (-) — 搭建秒级查询社工库实践 - Powered by SecQuan
 - [ ] `a7152950d8d1` (-) — Silence：针对银行的APT攻击 - 先知社区
-- [ ] `a747df8139d0` (-) — 袋袋 - AI 专家市场 | 遇问题找袋袋，有专长上袋袋
+- [ ] `a71b4c13716f` (-) — SDL安全实践
+- [ ] `a734a7ccfee1` (-) — 奇安信威胁情报中心
 - [ ] `a74a8ccd21e0` (-) — 浏览器中隐蔽数据传输通道-DNS隧道
 - [ ] `a7552c9efb87` (-) — 首页 - Powered by SecQuan
 - [ ] `a75e2e8f8a84` (-) — 反虚拟机和沙箱检测的一些小技巧 - FreeBuf互联网安全新媒体平台
@@ -2800,7 +2930,6 @@ beginner, intermediate, advanced, expert
 - [ ] `a7f2a73611c7` (-) — r00t-3xp10it/venom: venom (metasploit) shellcode generator/compiler/listener
 - [ ] `a7f71084c8fe` (-) — UEBA架构设计之路 (一)：UEBA框架 - 安全内参 | 网络安全首席知识官
 - [ ] `a81bb2eef5fa` (-) — Z-Library – 世界上最大的电子图书馆。自由访问知识和文化。
-- [ ] `a828afe01489` (-) — Nova AI - SuperConnector for Autonomous Intelligence
 - [ ] `a83b2e4aaa8b` (-) — API自动化测试 | KeKeFund
 - [ ] `a83e9f2ad267` (-) — The Hacker News — Cyber Security, Hacking News
 - [ ] `a85cae112d49` (-) — Excel如何隔行提取数据到指定列indirect取数_百度经验
@@ -2825,6 +2954,7 @@ beginner, intermediate, advanced, expert
 - [ ] `a9b8e83ad3f1` (-) — SANS Penetration Testing | The Secrets in URL Shortening Services | SANS Institute
 - [ ] `a9e7530cbbe2` (-) — 用最短的payload绕过WAF（入门） |指尖安全|垂直互联网安全媒体
 - [ ] `a9eba9de356f` (-) — 如何做好漏洞管理的漏洞修复工作 - 51CTO.COM
+- [ ] `a9f2f7d0efde` (-) — 首页
 - [ ] `a9f6afbd2832` (-) — Adobe全套软件下载地址
 - [ ] `a9fd0e0417d7` (-) — MCP API test
 - [ ] `a9fdc4508519` (-) — DataHub - Skills 检索
@@ -2836,7 +2966,6 @@ beginner, intermediate, advanced, expert
 - [ ] `aa78272f3be3` (-) — 科学网—现代科研兵刃谱 - 于淼的博文
 - [ ] `aa8e10d14c5f` (-) — Linux——CentOS7安装wget 及配置_慕课手记
 - [ ] `aa93e38a9004` (-) — Burp Suite release notes: 1.7.35
-- [ ] `aaad353b015d` (-) — KKKKhazix/khazix-skills: 数字生命卡兹克开源的 AI Skills 合集
 - [ ] `aabd72a03423` (-) — 浅谈Python网络爬虫 - FreeBuf.COM | 关注黑客与极客
 - [ ] `aacc62f066d9` (-) — 写在98篇漏洞分析之后---2019.03.09
 - [ ] `aae8309358b1` (-) — 威胁情报的上下文、标示及能够执行的建议 - FreeBuf专栏·360威胁情报中心
@@ -2845,10 +2974,12 @@ beginner, intermediate, advanced, expert
 - [ ] `ab12bdfc44fc` (-) — 程序设计与算法_北京大学_中国大学MOOC(慕课)
 - [ ] `ab168d39be76` (-) — Web Hacking 101 中文版 · Web Hacking 101 中文版
 - [ ] `ab285f81b845` (-) — Ping Sweep Tool - IP Sweep | SolarWinds
+- [x] `ab32b5c4e649` (llm-model-evaluation) — MiniMax M3 实测：第一流的模型，已经对执行层动手了
 - [ ] `ab38de798ddd` (-) — awake1t/linglong: 一款甲方资产巡航扫描系统。系统定位是发现资产，进行端口爆破。帮助企业更快发现弱口令问题。主要功能包括: 资产探测、端口爆破、定时任务、管理后台识别、报表展示
 - [ ] `ab4672a658b3` (-) — web安全测试 - PengMei
 - [ ] `ab5d8690b080` (-) — nagios详解 - - ITeye博客
 - [ ] `ab67bbb1af07` (-) — 针对某跨国企业的一次渗透测试-持续 « 倾旋的博客
+- [ ] `ab75fbb9a964` (-) — MS08067
 - [ ] `ab8444ff14ec` (-) — Arana Theme 1.0 for Nagios 3.x - Nagios Exchange
 - [ ] `aba10492cbbd` (-) — The FreeFrameWork Project / Bugs / #19 Propath issues
 - [ ] `abc65fe17a66` (-) — 2017黑帽大会兵工厂工具列表 - FreeBuf专栏·SecWiki周刊
@@ -2884,7 +3015,6 @@ beginner, intermediate, advanced, expert
 - [ ] `adaba04e9426` (-) — Burpsuite+SQLMAP双璧合一绕过Token保护的应用进行注入攻击 - FreeBuf.COM | 关注黑客与极客
 - [ ] `adcab605e9bc` (-) — 漏洞银行(BUGBANK) 官方网站 | 全球漏洞悬赏平台
 - [ ] `adefaeb7a3b9` (-) — 域控提权合集 - 先知社区
-- [ ] `ae0690f7edee` (-) — 小龙虾彻底凉了？清华团队连夜开源Agent神器，Token成本狂降70%！
 - [ ] `ae180ecf0756` (-) — 腾讯视频创作平台 - 开放 共赢 创作好时光
 - [ ] `ae1f45a5b387` (-) — Hugging Face – The AI community building the future.
 - [ ] `ae3f04639021` (-) — 威胁情报的艺术 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
@@ -2893,6 +3023,7 @@ beginner, intermediate, advanced, expert
 - [ ] `ae502d85ea21` (-) — 如何从根本上防止 SQL 注入？ - 知乎
 - [ ] `ae50b8273718` (-) — WampServer, la plate-forme de développement Web sous Windows - Apache, MySQL, PHP
 - [ ] `ae75f3fc0bc0` (-) — 【漏洞分析】TongWeb EJB 反序列化漏洞
+- [ ] `ae92096d5435` (-) — 飞书CEO谢欣连降两级：战功赫赫的人，为何被调整？
 - [ ] `ae9680b1824c` (-) — Parrot Security
 - [ ] `ae9b3e3732a0` (-) — AnyeDuke/python: python黑客与一些脚本
 - [ ] `aead60edf315` (-) — Excel中len函数的使用方法_百度经验
@@ -2905,6 +3036,7 @@ beginner, intermediate, advanced, expert
 - [ ] `af13669c0372` (-) — S-T-D
 - [ ] `af29e7ee4bf9` (-) — 专为渗透测试人员设计的Python工具大合集 - FreeBuf.COM | 关注黑客与极客
 - [ ] `af30ce229167` (-) — 漏洞预警 | 潜伏长达11年之久的Linux内核漏洞&amp;8221;曝光 - FreeBuf.COM | 关注黑客与极客
+- [ ] `af5043bc19da` (-) — 安惞杂谈
 - [ ] `af5dc28f1bd6` (-) — Netsess工具 - 下载频道 - CSDN.NET
 - [ ] `af695a125a34` (-) — 宜人安全应急响应中心
 - [ ] `af6f78e9ce18` (-) — CheatSheetSeries/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.md at master · OWASP/CheatSheetSeries
@@ -2926,6 +3058,7 @@ beginner, intermediate, advanced, expert
 - [ ] `b076ef366d09` (-) — [原创]登录抓包逆向分析学习笔记-『Android安全』-看雪安全论坛
 - [ ] `b07fc11bfd39` (-) — eBook Reader Reviews, eReader and Tablet News, Free eBooks
 - [ ] `b09299be792c` (-) — PDF Drive - Search and download PDF files for free.
+- [ ] `b09da1827da0` (-) — GitHub
 - [ ] `b0a052d79199` (-) — 子域名发掘神器：AQUATONE - FreeBuf.COM | 关注黑客与极客
 - [ ] `b0aceed4458e` (-) — Oalib search
 - [ ] `b0d84d571b46` (-) — IP地址混淆 | findneo
@@ -2939,12 +3072,10 @@ beginner, intermediate, advanced, expert
 - [ ] `b187b4fa8482` (-) — Package thehive - thehive-project
 - [ ] `b193827f9559` (-) — (4条消息)Python学习笔记：TypeError: not all arguments converted during string formatting 解决 - 去向前方的博客 - CSDN博客
 - [ ] `b1a7c187d33e` (-) — 补丁(patch)的制作与应用 - Linux Wiki
-- [ ] `b1bac992db96` (-) — 量云AI
 - [ ] `b1ceb98c0462` (-) — PMP免费试听课 - 安全牛课堂 - 领先的信息安全在线教育平台
 - [ ] `b1d88403d1d5` (-) — 从CTF题目中领悟的渗透技巧 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `b1edbbded13f` (-) — 应急响应处置流程Windows篇 - FreeBuf互联网安全新媒体平台
 - [ ] `b21786b5aeca` (-) — 浅谈APP存在的安全问题 - FreeBuf专栏·TideSec
-- [ ] `b220ca477ccf` (-) — 七牛云一键部署OpenClaw特惠活动
 - [ ] `b23137d62815` (-) — findneo/Newbie-Security-List: 网络安全学习资料，欢迎补充
 - [ ] `b237ef053b09` (-) — Tuhinshubhra/RED_HAWK: RED HAWK is An All In One Tool For Information Gathering, SQL Vulnerability Scannig and Crawling. Coded In PHP
 - [ ] `b240678c02ea` (-) — 看雪安全论坛
@@ -2955,10 +3086,9 @@ beginner, intermediate, advanced, expert
 - [ ] `b289cc9b25ea` (-) — 合并PDF - 在线上免费合并PDF文件
 - [ ] `b28d6392dc9b` (-) — leenbj/novel-creator-skill: AI长篇小说创作系统 - 基于文件级长期记忆的Smart State模式，支持百万字级长篇小说持续创作
 - [ ] `b2a5cbc68452` (-) — 利用爬虫获取MS(微软漏洞号)对应的KB号(补丁编号)项目 - 知乎专栏
-- [ ] `b2af543ed620` (-) — ConardLi/easy-learn-ai: Easy-to-understand AI learning resources for beginners.
 - [ ] `b2ba531923cb` (-) — 如何快速判断一个文件是否为病毒 by 是昔流芳[LSG] - 『LSG Area』 - 吾爱破解 - LCG - LSG |安卓破解|病毒分析|破解软件|www.52pojie.cn
 - [ ] `b2cbd10925b1` (-) — 内网渗透实战模拟过程浅谈 - Powered by SecQuan 汇聚新锐白帽
-- [ ] `b2d7678f25b6` (-) — M0rk&amp;#x27;s Blog
+- [x] `b2d7678f25b6` (-) — M0rk&amp;#x27;s Blog
 - [ ] `b317ef9fd545` (-) — XiaomiMiMo/MiMo-Code
 - [ ] `b3211ef347d2` (-) — Nagios | 虫虫开源
 - [ ] `b3238a0c677c` (-) — cisco/joy: A package for capturing and analyzing network flow data and intraflow data, for network research, forensics, and security monitoring.
@@ -2979,8 +3109,8 @@ beginner, intermediate, advanced, expert
 - [ ] `b40de20af947` (-) — JAD Java Decompiler Download Mirror
 - [ ] `b41e65bc9d36` (-) — 京东安全应急响应中心
 - [ ] `b42cc9cbb8e8` (-) — Get Started Tutorial for Python in Visual Studio Code
+- [ ] `b44cde1e4262` (-) — GitHub
 - [ ] `b450fa9d727f` (-) — token plan - aiionly.com
-- [ ] `b455da4a14ac` (-) — KimYx0207/AI-Coding-Guide-Zh: Claude Code + OpenClaw + Codex 中文教程 | 39篇完整教程 + 1张速查卡 | 80万+内容量 | 1500+实操示例 | AI Coding / Agent 三线学习路径
 - [ ] `b464cab4e9d9` (-) — Home - Greenbone Networks
 - [ ] `b491cac27182` (-) — 新浪某站CRLF Injection导致的安全问题 | 离别歌
 - [ ] `b4ac7855974f` (-) — 数据治理运营工作实施整体解决方案
@@ -2988,7 +3118,7 @@ beginner, intermediate, advanced, expert
 - [ ] `b4bd715c6599` (-) — 恶意分析初相逢，警惕邮件木马 - 安全客，安全资讯平台
 - [ ] `b4cc808ecfc9` (-) — 享好文 | 代码+安全=提升软件安全
 - [ ] `b4ccd81b0748` (-) — 【新手必看】CTF学习站点总结 - 知乎专栏
-- [ ] `b4d349610331` (-) — ZhiMap - 免费在线思维导图、手机微信端随时查看
+- [x] `b4d349610331` (-) — ZhiMap - 免费在线思维导图、手机微信端随时查看
 - [ ] `b4d7528a47a9` (-) — CyC2018/CS-Notes: Computer Science Learning Notes
 - [ ] `b4e2ad19c4a6` (-) — 证书在贬值，项目在升值：我用 Workbuddy 搭了一支"项目管理特种部队
 - [ ] `b4ea0ca18e93` (-) — XMind Online Library
@@ -3002,20 +3132,18 @@ beginner, intermediate, advanced, expert
 - [ ] `b592946d6753` (-) — demonsec666/Secist_Applocker
 - [ ] `b59832f49dfa` (-) — Open Access Library (OALib)
 - [ ] `b5ad1bc01b3e` (-) — 64位系统下的Office后门利用 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
-- [ ] `b5af8b0c5c6f` (-) — windwiki/windwiki.github.io: 風子の空（My blog）
 - [ ] `b5b1d823be7a` (-) — kamranahmedse/developer-roadmap: Roadmap to becoming a web developer in 2017
 - [ ] `b5c0fba707eb` (-) — Pavo
 - [ ] `b5cd3a5ea9f2` (-) — 手把手教你用永恒之蓝（Eternalblue）勒索病毒漏洞的高阶用法 - 51CTO.COM
 - [ ] `b5cdb99e0c9e` (-) — 虚拟主机优惠来袭，新用户注册即享1元/年—景安网络
-- [ ] `b5d56b87a192` (-) — OpenAI AI Assistant
 - [ ] `b5eb11092045` (-) — Learn Python the Hard Way - Read for Free
 - [ ] `b5f907f14288` (-) — IP/服务器地址查询 - 站长工具
+- [ ] `b5ff95230f01` (-) — 我的安全视界观
 - [ ] `b6058eda2e08` (-) — 从WebLogic看反序列化漏洞的利用与防御 - 360CERT
 - [ ] `b620c3b4034e` (-) — Cookie深度解析 - CSDN博客
 - [ ] `b62a428cb6a7` (-) — V2Ray 各平台客户端使用教程_笨猫博客
 - [ ] `b630b953c271` (-) — 终于让我找到一个gnome主题下载的地方了【ubuntu吧】_百度贴吧
 - [ ] `b63847d92a99` (-) — TeamoRouter - 高速稳定AI API中转平台，成本低至1折
-- [ ] `b63a32f1ae1c` (-) — 一文讲透Agent三件套：MCP、Skill、Hook如何给大模型装上护栏
 - [ ] `b63ad4ae2439` (-) — Dashboard - ANY.RUN
 - [ ] `b63f405defaa` (-) — 电力信息化专委会关于征求《电力行业关键信息基础设施安全保护要求》等两项标准意见的函 - 安全内参 | 决策者的网络安全知识库
 - [ ] `b659add8edba` (-) — SOC日志收集实践：企业邮件服务日志收集 - FreeBuf互联网安全新媒体平台 | 关注黑客与极客
@@ -3023,9 +3151,11 @@ beginner, intermediate, advanced, expert
 - [ ] `b68a5534a52f` (-) — Resources - Simple Programmer
 - [ ] `b69b3c98accd` (-) — 尾 - 从Windows安装：概述
 - [ ] `b6a773d73b2e` (-) — 中国黑客大学 | IT404.COM
+- [ ] `b6a7c477c6bb` (-) — SDL安全实践
 - [ ] `b6adc2a78699` (-) — 安全周
 - [ ] `b6b036d47a7f` (-) — 暴力破解工具Hydra 8.0版本发布 - FreeBuf.COM | 关注黑客与极客
 - [ ] `b6bffeb3af1c` (-) — sonarwhal/sonar: A linting tool for the web
+- [ ] `b6c33605f538` (-) — 一本从"踩坑"里长出来的智能体教程
 - [ ] `b6dc54120c10` (-) — Phishing Quiz
 - [ ] `b6de3a2a17ea` (-) — YJN主机 - 为您提供最专业的基础云服务!
 - [ ] `b6f2c618043d` (-) — Debian -- 获取 Debian
@@ -3034,9 +3164,9 @@ beginner, intermediate, advanced, expert
 - [ ] `b7034589b0dd` (-) — newtonguass/ADPenLab
 - [ ] `b71ead6d2e48` (-) — Loiter - Loiter - 网易博客
 - [ ] `b73d10e7be3f` (-) — SQL Injection Wiki
-- [ ] `b75229dc74bb` (-) — images - Windows Apps That Amaze Us
+- [x] `b75229dc74bb` (-) — images - Windows Apps That Amaze Us
 - [ ] `b7584436441e` (-) — Hacking Tools搜罗大集合 - FreeBuf.COM | 关注黑客与极客
-- [ ] `b77250752f5e` (-) — V2Ray客户端 - tlanyan
+- [x] `b77250752f5e` (-) — V2Ray客户端 - tlanyan
 - [ ] `b777bdaaaa63` (-) — 对Cobalt Strike进行一点二次开发 - 安全客，安全资讯平台
 - [ ] `b790d5d71a66` (-) — Norse Attack Map
 - [ ] `b7959606ab12` (-) — Black Hat Arsenal USA 2017 – Hack with GitHub – Medium
@@ -3051,16 +3181,17 @@ beginner, intermediate, advanced, expert
 - [ ] `b81cf6bf5a3e` (-) — 如何绕过域账户登录失败次数的限制 - FreeBuf专栏·白帽汇
 - [ ] `b8315f6b2c1d` (-) — https://forum.exetools.com/register.php?do=register
 - [ ] `b83ef0eeaa3f` (-) — CVE-2019-1040：Windows NTLM认证漏洞预警分析 - 安全客，安全资讯平台
-- [ ] `b84333524c7f` (-) — FreeBuf.COM | 关注黑客与极客
 - [ ] `b8434a8176f4` (-) — Ethical Hacking A to Z Bundle | The Hacker News Deals
 - [ ] `b8496fd97a54` (-) — JPCERTCC/LogonTracer: Investigate malicious Windows logon by visualizing and analyzing Windows event log
 - [ ] `b851b536e931` (-) — 腾讯哈勃分析系统
+- [ ] `b8587a08781b` (-) — 奇安信网站云监测
 - [ ] `b85b158916d3` (-) — Tsunami：一款功能强大的通用网络安全扫描工具 - FreeBuf网络安全行业门户
 - [ ] `b86080893ca6` (-) — [每天更新]2020/06/24稳定翻墙V2ray免费节点订阅地址|免费SSR账号节点|安卓苹果客户端下载 - 不过了了Blog
 - [ ] `b8a3e9cf42c2` (-) — IBM - United States
 - [ ] `b8b7ee239873` (-) — 用于横向渗透的后渗透测试框架——Invoke-Pbind - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `b8c603ae659c` (-) — slimm609/checksec.sh: Checksec.sh
 - [ ] `b8cec9ab9fb2` (-) — Redis在Windows环境下Getshell · Uknow - Stay hungry Stay foolish
+- [ ] `b8e6161b20be` (-) — Bypass
 - [ ] `b8e70bb69672` (-) — Sans Summit 2019 - Hack Inn
 - [ ] `b8ebfb42ceb2` (-) — 萌新学逆向：Crackme入门之基础操作分析 - FreeBuf互联网安全新媒体平台
 - [ ] `b8ecf99b8230` (-) — 利用MS17-010补丁对比发现的九个漏洞 - FreeBuf.COM | 关注黑客与极客
@@ -3099,6 +3230,7 @@ beginner, intermediate, advanced, expert
 - [ ] `bce5625699a9` (-) — 实用教程：手动安卓应用中注入msf后门 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `bcf33a84b320` (-) — 最常见的SSHD后门分析 - 『病毒分析区』 - 吾爱破解 - LCG - LSG |安卓破解|病毒分析|破解软件|www.52pojie.cn
 - [ ] `bcfdb8ef2063` (-) — Free threat intelligence feeds - threatfeeds.io
+- [ ] `bcfff57b797c` (-) — 搜索结果-Tuisec安全热点
 - [ ] `bd00fd0dd74b` (-) — 基于Frida进行通信数据“解密” | 绿盟科技博客
 - [ ] `bd14c7845372` (-) — Download Elasticsearch Free • Get Started Now | Elastic
 - [ ] `bd28cb0583c3` (-) — 如何巧妙绕过CSP - 先知社区
@@ -3155,6 +3287,7 @@ beginner, intermediate, advanced, expert
 - [ ] `c0a1ca579400` (-) — 27部优秀的黑客纪录片 - FreeBuf.COM | 关注黑客与极客
 - [ ] `c0a4ae06e116` (-) — Thank you for downloading WebStorm!
 - [ ] `c0a5faa5837f` (-) — Webshell入侵检测初探（一） - FreeBuf互联网安全新媒体平台
+- [ ] `c0b27a4da237` (-) — QwenPaw — Works for you, grows with you.
 - [ ] `c0deb36df52c` (-) — 【Web安全扫盲公开课】第一讲：渗透测试简介-入门（http协议） 本期课程概要： • 初始渗透测试-&amp;gt;什么是渗透测试（新安全法） • BS/CS架构 • HTTP协议简要交互过程 • 数据包解读 • 请求方
 - [ ] `c0ec30a345c2` (-) — repoog/GitPrey: Searching sensitive files and contents in GitHub associated to company name or other key words
 - [ ] `c0f18864d7a3` (-) — chryzsh/awesome-windows-security: List of Awesome Windows Security Resources
@@ -3169,7 +3302,6 @@ beginner, intermediate, advanced, expert
 - [ ] `c1ab1698ab78` (-) — mitmproxy - an interactive HTTPS proxy
 - [ ] `c1b4e5fa6eb7` (-) — Python中有潜在代码执行风险的函数(一) - 先知社区
 - [ ] `c1b918bcbc19` (-) — 黑白之道
-- [ ] `c1c40513f9e0` (-) — AI 资讯标题
 - [ ] `c1d3f3294060` (-) — 在线龙虾
 - [ ] `c1ea63d42cca` (-) — AntSword 2.0，Hello world - 云+社区 - 腾讯云
 - [ ] `c1f12a2c8c22` (-) — OneTab
@@ -3178,14 +3310,17 @@ beginner, intermediate, advanced, expert
 - [ ] `c211eb5d215b` (-) — 域渗透提权分析工具 BloodHound 1.3 中的ACL攻击路径介绍 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `c22aef4ee0e2` (-) — FlareVm.net WHOIS, DNS, &amp; Domain Info - DomainTools
 - [ ] `c23fe3e18e0b` (-) — 验证码的前世今生（前世篇） - 知乎专栏
-- [ ] `c25008b4317b` (-) — 如何组建无线局域网？--网络通信--网界网
+- [x] `c25008b4317b` (-) — 如何组建无线局域网？--网络通信--网界网
 - [ ] `c250c0180f1e` (-) — Title bid
 - [ ] `c25d6ddf853c` (-) — Kilo-Org/kilocode: Kilo is the all-in-one agentic engineering platform. Build, ship, and iterate faster with the most popular open source coding agent.
+- [ ] `c27d005945ed` (-) — 威胁建模介绍 - 先知社区
 - [ ] `c27e9666c57e` (-) — 正则表达式语言 - 快速参考
 - [ ] `c28809ba0e6c` (-) — mysql - Error Dropping Database (Can&amp;#x27;t rmdir &amp;#x27;.test\&amp;#x27;, errno: 17) - Stack Overflow
+- [ ] `c29073e54b92` (-) — 美团技术团队
 - [ ] `c292d15ed1c1` (-) — Coggle - Simple Collaborative Mind Maps
 - [ ] `c2a140b56c59` (-) — 互联网企业为什么必须关注应用安全能力建设 - 勾陈安全实验室
 - [ ] `c2a4f84028b9` (-) — Guifre Home
+- [ ] `c2b02ac5714e` (-) — GitHub
 - [ ] `c2b6fc3e8b80` (-) — 森罗 | 一款强大的网络空间测绘、资产管理、漏洞扫描等全生命漏洞周期的综合攻击面管理平台
 - [ ] `c2c01e87acc9` (-) — 看我鼓捣华西安全网(cha.hxsec.com)密码泄露查询接口（有意思的js混淆） | Anhkgg&amp;#x27;Lab | Windows Kernel | Rootkit | Reverse Engineer | Expolit | 内核研究 | 逆向分析 | 漏洞分析挖掘
 - [ ] `c2d786fb6b27` (-) — 当frida来&quot;敲&quot;门
@@ -3196,6 +3331,7 @@ beginner, intermediate, advanced, expert
 - [ ] `c34ded921e9c` (-) — 王仲远 | 基于概念知识图谱的短文本理解
 - [ ] `c36daa42562e` (-) — fireeye/gocrack
 - [ ] `c3a4e1742471` (-) — 自动监控目标子域，助你快速挖洞——Sublert|NOSEC安全讯息平台 - NOSEC.ORG
+- [ ] `c3b2896a9716` (-) — 360威胁情报中心
 - [ ] `c3d287f62231` (-) — WANTED--A DEFINITION OF &amp;#x27;INTELLIGENCE&amp;#x27;
 - [ ] `c403e4b981c7` (-) — 进阶篇 | VibeVibe
 - [ ] `c403f0c31f86` (-) — chaitin/cloudwalker: CloudWalker Platform
@@ -3212,18 +3348,15 @@ beginner, intermediate, advanced, expert
 - [ ] `c51b1b68dddc` (-) — Free Automated Malware Analysis Service - powered by Falcon Sandbox
 - [ ] `c53b5df2c89a` (-) — Free Automated Malware Analysis Service - powered by Falcon Sandbox - Viewing online file analysis results for &amp;#x27;TA6NTY.exe&amp;#x27;
 - [ ] `c543aaed4ab0` (-) — 另类端扫：无IP地址的端口扫描 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
-- [ ] `c5468ee18c79` (-) — AI 人才群像图谱
 - [ ] `c5521b47ae24` (-) — Backdoor：Win32 / Netmetro.B威胁描述 - Windows Defender安全情报
 - [ ] `c5bbf086cb50` (-) — 【应急响应】windows入侵排查思路 - FreeBuf专栏·海峡信息
 - [ ] `c5bf09213ad4` (-) — cure53/HTTPLeaks: HTTPLeaks - All possible ways, a website can leak HTTP requests
 - [ ] `c5c0412f6490` (-) — 特别的绕行代理 | security in-a-box
 - [ ] `c5de19575613` (-) — 公有云数据防泄漏系统 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `c5f8e9c81b88` (-) — 云聚517 · 好价翼起拼 - 天翼云
-- [ ] `c5fde28d545a` (-) — fireeye/commando-vm: Complete Mandiant Offensive VM (Commando VM), the first full Windows-based penetration testing virtual machine distribution. The security community recognizes Kali Linux as the go-to penetration testing platform for those that prefer
 - [ ] `c615996a0094` (-) — liliMozi/OH-Plugins：OpenHanako 官方插件市场索引及官方插件源代码库 --- liliMozi/OH-Plugins: Official OpenHanako plugin marketplace index and official plugin sources
 - [ ] `c61d3abf1776` (-) — docker/compliance: Docker Enterprise Edition Security Controls for Compliance
 - [ ] `c6300984a174` (-) — Otty — A native, beautiful terminal app
-- [ ] `c63c43f7d375` (-) — 腾讯设计 Ardot — AI 驱动的智能设计工具
 - [ ] `c6479fefe8f9` (-) — SSRF学习之路 - FreeBuf专栏·潜心学习的小白帽
 - [ ] `c649e18af9f5` (-) — Excel IF函数怎么用_百度经验
 - [ ] `c664591093a6` (-) — 安全从业人员常用工具指引 - Powered by SecQuan
@@ -3231,6 +3364,7 @@ beginner, intermediate, advanced, expert
 - [ ] `c675f610f9f6` (-) — Windows的搜索结果 - 少数派
 - [ ] `c67ef5de7ddf` (-) — secnewsbydukez/snort: An UNOFFICIAL Git Repository of Snort(R) Releases - NOT CISCO
 - [ ] `c6b1ae87b96d` (-) — 如何利用ICMP建立C2会话？ - FreeBuf互联网安全新媒体平台
+- [ ] `c6c1090e441b` (-) — 信安之路
 - [ ] `c6dcd2764235` (-) — 打造一个自动检测页面是否存在XSS的插件Ⅲ - FreeBuf.COM | 关注黑客与极客
 - [ ] `c6f46d21064b` (-) — Home :: Netspeed
 - [ ] `c6fa06b5866f` (-) — Google Gemini
@@ -3245,9 +3379,9 @@ beginner, intermediate, advanced, expert
 - [ ] `c7c40344d27b` (-) — Sysinternals Security Utilities
 - [ ] `c7ce49df5f25` (-) — 资产管理与威胁监测平台Tide-Mars开源了！
 - [ ] `c7e388b6bcf4` (-) — DevSecOps：新手需考虑的四个要点 - 51CTO.COM
+- [x] `c7e63a328106` (-) — 美团技术团队
 - [ ] `c7ebaa68c672` (-) — 2020年最受欢迎的云生态开源应用程序监控工具
 - [ ] `c7f694421046` (-) — 还有人记得这本经典书籍？精通脚本黑客|技术讨论 - 安全技术社区
-- [ ] `c81c48b0bfea` (-) — Microsoft 安全公告 MS17-010 - 严重
 - [ ] `c830492d0d9c` (-) — 小强说
 - [ ] `c836a472c574` (-) — 2.1换源和启动默认服务 · Make kali Daily
 - [ ] `c83c1664b140` (-) — 数据安全分析思想探索 - FreeBuf互联网安全新媒体平台 | 关注黑客与极客
@@ -3257,6 +3391,7 @@ beginner, intermediate, advanced, expert
 - [ ] `c8d33c2814a2` (-) — 吾爱破解 - LCG - LSG|安卓破解|病毒分析|破解软件|www.52pojie.cn
 - [ ] `c8e504f15269` (-) — 搬瓦工VPS中文网_搬瓦工, BandwagonHost VPS
 - [ ] `c8e597f02abe` (-) — Sysmon v9.0, Autoruns v13.94 – Sysinternals Site Discussion
+- [ ] `c8ebce55d5c5` (-) — zh.wikipedia.org
 - [ ] `c8edaf816914` (-) — The Burp Methodology | Burp Suite Support Center
 - [ ] `c8f7813d17a6` (-) — suricata下的挖矿行为检测 - FreeBuf互联网安全新媒体平台
 - [ ] `c8f82e6c4240` (-) — Vulhub - Docker-Compose file for vulnerability environment
@@ -3276,7 +3411,6 @@ beginner, intermediate, advanced, expert
 - [ ] `ca1e213b6cbd` (-) — 红队资料集锦 - lsh4ck&amp;#x27;s Blog
 - [ ] `ca25fb37457f` (-) — 使用sonar质量代码走查工具需要注意的事项 - 澹若水的专栏 - CSDN博客
 - [ ] `ca762e898219` (-) — phplaber/yawf: Web 漏洞检测工具
-- [ ] `ca864c2b0e4d` (-) — OpenRouter
 - [ ] `ca9d1e1bd94e` (-) — Release 12.1.0 · jgraph/drawio-desktop
 - [ ] `caa4a9ba5fac` (-) — 威胁情报 - 安全牛
 - [ ] `caabf42963f5` (-) — Udemy – Python 100% Hands-On |百度网盘|rapidgator|nitroflare
@@ -3344,16 +3478,14 @@ beginner, intermediate, advanced, expert
 - [ ] `cf18367a69ee` (-) — LFS101x 课程信息 | edX
 - [ ] `cf1d4677f3b9` (-) — Coggle
 - [ ] `cf3b34970dd1` (-) — 彻底理解Windows认证 – 议题解读 - SecPulse.COM | 安全脉搏
+- [ ] `cf5408eeee7a` (-) — SDL安全实践
 - [ ] `cf682da26b0f` (-) — t8y2/dbx: 20MB, lightweight, cross-platform database client. Supports MySQL, PostgreSQL, SQLite, Redis, MongoDB, DuckDB, ClickHouse, SQL Server and more.20MB，轻量级跨平台数据库客户端、数据库管理工具。支持 MySQL、PostgreSQL、SQLite、Redis、MongoDB、DuckDB、ClickHouse、SQL Server 等。
 - [ ] `cf6d406395ac` (-) — 供应链攻击：JavaScript公共库event-stream被植入恶意代码预警 - 360CERT
 - [ ] `cf7218c5b779` (-) — 仿效ATT&amp;CK，微软发布云安全攻击矩阵 - 安全内参 | 决策者的网络安全知识库
 - [ ] `cf7639b515b2` (-) — medium.com
-- [ ] `cf769bb738df` (-) — 禾维 AI | API 中转站真假检测,价格对比与推荐
 - [ ] `cf7ad5b7da78` (-) — 银行数字化转型路径——专访中国建设银行首席信息官金磐石
 - [ ] `cf85918537c0` (-) — 开源静态代码审计软件分析比对 - 黑客派
 - [ ] `cf863a108bc7` (-) — REST API 安全设计指南 | 绿盟科技博客
-- [ ] `cf9284cc5c47` (-) — AMD 开发者计划
-- [ ] `cf9a548a7623` (-) — exacity/deeplearningbook-chinese: Deep Learning Book Chinese Translation
 - [ ] `cfd0935f1f10` (-) — Nagios 监控系统架设全攻略
 - [ ] `cff790920741` (-) — https://portal.msrc.microsoft.com/en-US/security-guidance/advisory/CVE-2017-0199
 - [ ] `d00ae7e955d8` (-) — 渗透测试程序的子域枚举指南
@@ -3387,7 +3519,6 @@ beginner, intermediate, advanced, expert
 - [ ] `d1c565d76d55` (-) — The Ultimate WordPress (WP) Security Guide | Sucuri
 - [ ] `d1e40ae395d5` (-) — Nmap快速上手：第一部分 - FreeBuf网络安全行业门户
 - [ ] `d1e7393c4b7c` (-) — OfficePLUS，微软Office官方在线模板网站！
-- [ ] `d1ed3cb64f40` (-) — nanocoai/nanoclaw: A lightweight alternative to OpenClaw that runs in containers for security. Connects to WhatsApp, Telegram, Slack, Discord, Gmail and other messaging apps,, has memory, scheduled jobs, and runs directly on Anthropic&#39;s Agents SDK
 - [ ] `d20e947e17fc` (-) — 证监会发布7项金融行业标准保障信息系统安全
 - [ ] `d213ba22d8ff` (-) — CentOS 6.5 配置IP地址的三种方法 - 萌萌的It人 www.itmmd.com - CSDN博客
 - [ ] `d2183c181a7d` (-) — 跨站点请求伪造解决方案 - Rhys - 博客园
@@ -3405,7 +3536,6 @@ beginner, intermediate, advanced, expert
 - [ ] `d32bfe5029c0` (-) — CERNET - 中国教育和科研计算机网CERNET
 - [ ] `d337ce4b1a9f` (-) — 森立电子科技中兴努比亚Z11mini拆机视频 nx529j手机拆机视频 小牛5手机拆机教程—科技—视频高清在线观看-优酷
 - [ ] `d349df43c402` (-) — 深入解析子域名接管（Subdomain Takeover）漏洞 - SecPulse.COM | 安全脉搏
-- [ ] `d34e4722ecdf` (-) — AgentNEO
 - [ ] `d34fedb0cb1f` (-) — 百度开源项目OpenRASP快速上手指南 - FreeBuf互联网安全新媒体平台
 - [ ] `d3526fd5a10a` (-) — 免费高速下载 | 天翼云盘 极速安全
 - [ ] `d374be173166` (-) — 逆向中静态分析工具——IDA初学者笔记 - 峋山隐修会 - 博客园
@@ -3445,6 +3575,7 @@ beginner, intermediate, advanced, expert
 - [ ] `d50b9b9b73c9` (-) — netattack2: Advanced network scan &amp; attack script
 - [ ] `d523839c2fae` (-) — 知识工场
 - [ ] `d52f3654e29b` (-) — Win 10计划任务本地权限提升0 day POC - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
+- [ ] `d558b700ebed` (-) — 大模型量化翘楚，Unsloth 出桌面客户端了，这次没忘 Windows 用户
 - [ ] `d55a986ae6a8` (-) — shmilylty/OneForAll: OneForAll是一款功能强大的子域收集工具
 - [ ] `d55e5a126ea4` (-) — kali linux on Android
 - [ ] `d5655d429d38` (-) — XXNET超详细教程 · XX-net/XX-Net Wiki · GitHub
@@ -3462,7 +3593,6 @@ beginner, intermediate, advanced, expert
 - [ ] `d608851a1401` (-) — VBScript in 2018 - 安全客，安全资讯平台
 - [ ] `d60bac24f480` (-) — Winserver 2008事件日志-事件ID详解 - Jason_WangYing的博客 - CSDN博客
 - [ ] `d61c96980ff1` (-) — 闭包和匿名函数的区别 - kalinux的博客 - CSDN博客
-- [ ] `d630d636d35f` (-) — 长亭百智云 | 全新一代 AI 基础服务
 - [ ] `d670d94931ad` (-) — 618联通云智惠
 - [ ] `d67155d5379d` (-) — 《关于规范金融业开源技术应用与发展的意见》如何落地实施：开源治理保障金融行业数字科技创新
 - [ ] `d698a7f21655` (-) — Getting Started with ownCloud | ownCloud.org
@@ -3472,7 +3602,6 @@ beginner, intermediate, advanced, expert
 - [ ] `d6dc9da43fb4` (-) — 网络技术与应用_中国大学MOOC(慕课)
 - [ ] `d6ddb7a99e71` (-) — kavika13/RemCom: Remote Command Executor: A OSS replacement for PsExec and RunAs - or Telnet without having to install a server. Take your pick :)
 - [ ] `d6e9ba49b2e6` (-) — SSH 协议原理、组成、认证方式和过程 - 简书
-- [ ] `d6ec347787f7` (-) — Windsurf · AI 驱动的下一代代码编辑器
 - [ ] `d7098c7d5a04` (-) — Microsoft 安全公告 MS11-058 - 严重 | Microsoft Docs
 - [ ] `d720c9939094` (-) — SummerSec/learning-codeql: CodeQL Java 全网最全的中文学习资料
 - [ ] `d741dc66912e` (-) — 海外丨实施NIST网络安全框架的5个步骤 - SecPulse.COM | 安全脉搏
@@ -3498,7 +3627,6 @@ beginner, intermediate, advanced, expert
 - [ ] `d8da6e7da1c8` (-) — CTF All The Day - [Root Me : Hacking and Information Security learning platform]
 - [ ] `d8e083f88a91` (-) — Nmap参考指南 - 信息安全博客_渗透_编程_审计_逆向_工具_文章_CTF_writeup
 - [ ] `d8f493354cc8` (-) — 360企业安全集团
-- [ ] `d900cba35dcd` (-) — anthropics/claude-code: Claude Code is an agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster by executing routine tasks, explaining complex code, and handling git workflows - all through natural language commands.
 - [ ] `d922df7ef3bc` (-) — 天际友盟情报站
 - [ ] `d92f2b3030bc` (-) — 使用Burpsuite代理和pypcap抓包进行抢红包的尝试 - FreeBuf.COM | 关注黑客与极客
 - [ ] `d931b18e8ebd` (-) — security-guide-for-developers/security-checklist-zh.md at master · FallibleInc/security-guide-for-developers
@@ -3515,7 +3643,6 @@ beginner, intermediate, advanced, expert
 - [ ] `d9ce2e81b711` (-) — 共筑数据安全，护航个人信息 | 数据安全合规
 - [ ] `da399e6ef2de` (-) — OverTheWire: Bandit Level 0
 - [ ] `da4fb440f212` (-) — 如何为 Office 365 的中继配置 IIS - Office 365
-- [ ] `da53977a5b48` (-) — op7418/guizang-ppt-skill: AI-agent Skill for generating polished HTML slide decks: editorial magazine and Swiss layouts, image prompts, social covers, and a WebGL/low-power presentation runtime.
 - [ ] `da58b687efd7` (-) — Docker Trusted Registry overview | Docker Documentation
 - [ ] `da64d776a1d1` (-) — Nmap中一些常用的NSE脚本 - FreeBuf专栏·白帽汇
 - [ ] `da6de50a8504` (-) — 数字科技统一登录
@@ -3525,13 +3652,13 @@ beginner, intermediate, advanced, expert
 - [ ] `da85bef0d5c7` (-) — lablab-ai-amd-developer-hackathon/CyberSecQwen-4B · Hugging Face
 - [ ] `da9e5443174d` (-) — orange2ai/renwei-writing: 人味儿写作 · An AI agent skill: edit people&#39;s words without erasing the person behind them
 - [ ] `daa4d5a0e4e4` (-) — Shields.io: Quality metadata badges for open source projects
-- [ ] `daae8bc25d00` (-) — SenseTime | 商汤科技-坚持原创，让AI引领人类进步
 - [ ] `daaef62abf66` (-) — Tutorial Getting Started With Contracts · EOSIO/eos Wiki
 - [ ] `daaefd1fc3c4` (-) — RSAC 2019 | 威胁建模模型ATT&amp;CK | 绿盟科技博客
 - [ ] `dacc05f22c55` (-) — RFC INDEX
 - [ ] `dad04343a845` (-) — URLhaus | Malware URL exchange
 - [ ] `daf65b9fa260` (-) — XSS Bypass Cookbook ver 3.0 - Blog of Mathias
 - [ ] `db07a1e3fa6b` (-) — Ubuntu 14.04 内核升级 详细步骤 - IvanLJF的专栏 - CSDN博客
+- [ ] `db1addb2d46f` (-) — index - powered by h5ai v0.29.0 (https://larsjung.de/h5ai/)
 - [ ] `db38893f7abc` (-) — ‬⁤‍‬​﻿‌﻿‌⁤‍‍​⁤‬‬⁣⁡⁢‌‬⁤​⁣⁤‍​⁣‌​​‬‬​​​⁣‬‍​⁣⁣​﻿​⁡⁣⁢‌00. 知识库说明与导航 - 飞书云文档
 - [ ] `db44461c5e08` (-) — DeFi Hacks Analysis - 漏洞根本原因分析 Part1
 - [ ] `db843805ec42` (-) — 小云雀网页版
@@ -3551,13 +3678,12 @@ beginner, intermediate, advanced, expert
 - [ ] `dc61dfd29790` (-) — airbus-seclab/powersap: Powershell SAP assessment tool
 - [ ] `dc73baf36497` (-) — antdigital.com/products/DTClaw
 - [ ] `dc9ab08b5729` (-) — Profile - CloudRouter
+- [ ] `dcaf87b135cf` (-) — Docker
 - [ ] `dcb8ce97b19b` (-) — 一文看懂Python沙箱逃逸 - FreeBuf互联网安全新媒体平台
 - [ ] `dcd42753a5ab` (-) — Mitre
-- [ ] `dd5b02bc58e2` (-) — Agnes AI | AI Gateway, Free AI API &amp; AI Applications
 - [ ] `dd5d2d016805` (-) — 跳跳糖
 - [ ] `dd6a04a7be04` (-) — PaulSec/API-dnsdumpster.com: (Unofficial) Python API for https://dnsdumpster.com/
 - [ ] `dd6d70698ce2` (-) — 让你的SQL盲注快起来 - FreeBuf互联网安全新媒体平台
-- [ ] `dd79e5b9aced` (-) — 《证券信息技术》第1卷 | 目录及摘要
 - [ ] `dd86e352cc47` (-) — 过期链接劫持的利用方法探讨（附工具） - FreeBuf.COM | 关注黑客与极客
 - [ ] `dd971f0c065e` (-) — 【民政普法】一图了解数据安全法
 - [ ] `dd9a8703e2e4` (-) — 基金管理公司年度报告内容与格式准则
@@ -3573,6 +3699,7 @@ beginner, intermediate, advanced, expert
 - [ ] `de108c9b8408` (-) — 企业安全建设之主机级资产管理与分析 - FreeBuf专栏·兜哥带你学安全
 - [ ] `de46e9af9478` (-) — 各种操作系统下清空dns缓存方法 - 吹吹风----NICK - 博客园
 - [ ] `de4bc74c18df` (-) — 我们为什么需要全球IT资产视图 - 安全牛
+- [ ] `de6d973a9c25` (-) — GitHub
 - [ ] `de6f670d8cc2` (-) — Title security
 - [ ] `de70cf378412` (-) — http的无状态以及常用的状态保持方式 - Nereus_37 - 博客园
 - [ ] `de807996ab1f` (-) — 实验楼 - 做实验，学编程
@@ -3594,7 +3721,6 @@ beginner, intermediate, advanced, expert
 - [ ] `dfa3340a9746` (-) — An intensive introduction to Cryptography
 - [ ] `dfaf885e7f7a` (-) — Exploring the Linux kernel: The secrets of Kconfig/kbuild | Opensource.com
 - [ ] `dfb5a5286d54` (-) — 国家能源局综合司关于印发《2023年电力安全监管重点任务》的通知 国能综通安全〔2023〕4号-国家能源局网站
-- [ ] `dfcab32bb1cd` (-) — Intel: Our upcoming AI chip will be cheaper, run cooler than Nvidia, AMD options - Ars Technica
 - [ ] `dfdc3a253831` (-) — 聊聊我所理解的信息安全体系建设 - FreeBuf专栏·安全体系构架
 - [ ] `dfeaf28de9ea` (-) — Windows渗透利器之Pentest BOX使用详解（二） – 即刻安全
 - [ ] `dff8fdf3fe9a` (-) — XSHELL工具上传文件到Linux以及下载文件到本地(Windows) - 502studio - 博客园
@@ -3609,16 +3735,17 @@ beginner, intermediate, advanced, expert
 - [ ] `e073be14edf4` (-) — 深网与暗网初学者指南 - 安全牛
 - [ ] `e077e729872c` (-) — files | WinSetupFromUSB
 - [ ] `e07941677929` (-) — 开源漏洞检测工具 - johnhuster的专栏 - CSDN博客
-- [ ] `e07bf77bdc1b` (-) — API管理 - 网易格致开发者平台
 - [ ] `e0878d909235` (-) — SonarQube（代码质量管理）配置与使用 - 君哥~ - 博客园
 - [ ] `e08dd872c6d3` (-) — 威胁猎人
 - [ ] `e096729b6a3e` (-) — Apache James 服务器反序列化漏洞（CVE-2017-12628）分析和利用 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
-- [ ] `e09690ad422f` (-) — 内网攻防备忘录 - FreeBuf互联网安全新媒体平台
 - [ ] `e0a7de00633b` (-) — Win 10任意文件删除 0day 预警 - 安全客，安全资讯平台
 - [ ] `e0b85843ec72` (-) — Create an Account
 - [ ] `e0bb4613c6d1` (-) — creditease-sec/insight2_docker
+- [ ] `e0bff65b7b6d` (-) — GitHub
+- [ ] `e0eb3ba25f8a` (-) — Download
 - [ ] `e0ebbd1c3ce0` (-) — 米科·哈普宁：对抗病毒，保卫网络 | TED Talk | TED.com
 - [ ] `e0f4910d51e2` (-) — Linux下GNOME桌面的安装 - 夏图图 - 博客园
+- [ ] `e0fbf6a00f3d` (-) — 腾讯玄武实验室
 - [ ] `e115c5b8b8a5` (-) — 什么是实时应用程序自我保护（RASP）？ - OneAPM 官方技术专栏 - SegmentFault
 - [ ] `e11f14d345e1` (-) — 如何从零开始学习平面设计？ - 知乎
 - [ ] `e131a315a85b` (-) — Get Cr OS Linux - Chrome Plated OS
@@ -3655,13 +3782,11 @@ beginner, intermediate, advanced, expert
 - [ ] `e3d8b6aedbfc` (-) — 如何理解日志分析平台应该具有的功能_百度经验
 - [ ] `e3eabd001e6a` (-) — Black Hat 2016·时序攻击从未如此实用-高级跨站搜索攻击_视频教程_i春秋_培育信息时代的安全感！
 - [ ] `e3f4e8cb0600` (-) — Azure 1 元试用：基于微信公众号的智慧云会务解决方案 | Azure
-- [ ] `e402871df03d` (-) — DramaAI Studio — AI影视工场
 - [ ] `e40a85b8a99f` (-) — 安全分析中的威胁情报（一） - 安全客，安全资讯平台
 - [ ] `e40e5b749e7f` (-) — 浅析政务云信息安全监管 - 安全内参 | 决策者的网络安全知识库
 - [ ] `e452f34c5ce4` (-) — 爬虫的法律红线 - 知乎
 - [ ] `e45fd23cb7e6` (-) — 奇安信知识库
 - [ ] `e46095a62dd6` (-) — no-secure-code
-- [ ] `e483c5f24839` (-) — yaojingang/yao-open-skills: OpenYao 公开 Skill 合集：把决策、商业分析、学习教程、研究取证和文档生成流程沉淀成可复用的 AI 资产。
 - [ ] `e4c80bd8ec28` (-) — Download Nessus | Tenable™
 - [ ] `e4d0b11f987d` (-) — TOTOLINK N200UP 150M USB 5DB 大功率无线网卡 RT3070 芯片-tmall.com天猫
 - [ ] `e517845b7a2b` (-) — 2young2simple/yispider: 一款分布式爬虫平台，帮助你更好的管理和开发爬虫。 内置一套爬虫定义规则（模版），可使用模版快速定义爬虫，也可当作框架手动开发爬虫。(兴趣使然的项目，用的不爽
@@ -3691,13 +3816,14 @@ beginner, intermediate, advanced, expert
 - [ ] `e6ae93d51578` (-) — samratashok/nishang: Nishang - PowerShell for penetration testing and offensive security.
 - [ ] `e6b176b73b39` (-) — 关于多租户容器间安全隔离的思考 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
 - [ ] `e6c002065825` (-) — 渗透测试的一些电子书和资料 // Neurohazard
-- [ ] `e6c19db03260` (-) — 腾讯云大模型Token Plan_畅享龙虾和编码自由
 - [ ] `e6c8e63e0104` (-) — WebStorm: The Smartest JavaScript IDE
 - [ ] `e6d05035236a` (-) — Antivirus scan for 749201dc383bfedd8d1e072bb14d269b29e47d391e728971ccc214d6668529ab at 2018-05-31 09:45:21 UTC - VirusTotal
 - [ ] `e6d05dc39681` (-) — Shmakov/Honeypot: Low interaction honeypot that displays real time attacks
 - [ ] `e6e03f7a43fb` (-) — Maltego Blog: Abracadabra! It&amp;#x27;s Sho(dan) time!
 - [ ] `e70c38c4987c` (-) — 漏洞管理面面观 - FreeBuf互联网安全新媒体平台
 - [ ] `e70cbccd0f0b` (-) — fireeye/flare-vm
+- [ ] `e7347439a6e1` (-) — GitHub
+- [ ] `e73d51c1a6c5` (-) — 仙人掌情报站
 - [ ] `e758687e9804` (-) — ：绕过CDN，m0rtem/CloudFail: Utilize misconfigured DNS and old database records to find hidden IP&amp;#x27;s behind the CloudFlare network
 - [ ] `e779fc1c4fd8` (-) — Full Versions Serial Crack Keygen Warez Torrent Rapidshare
 - [ ] `e78965049364` (-) — 同一团伙还是栽赃嫁祸？丨“驱动人生”劫持事件与Mykings家族活动的关联分析 - FreeBuf互联网安全新媒体平台
@@ -3719,6 +3845,7 @@ beginner, intermediate, advanced, expert
 - [ ] `e89e0724aaf4` (-) — Windows Installation · SerpicoProject/Serpico Wiki
 - [ ] `e8b6a1b11e89` (-) — Releases · PyYoshi/cChardet
 - [ ] `e8bb9751ba14` (-) — Contactless Payments on COTS (CPoC™)
+- [ ] `e8e711451f5e` (-) — openKylin开源操作系统
 - [ ] `e8edf2d648bd` (-) — Python学习手册（原书第4版）-Mark Lutz 著-微信读书
 - [ ] `e8f03b8cbac6` (-) — 我是如何拿下破冰项目的|技术讨论 - 安全技术社区
 - [ ] `e90be2eb6941` (-) — 编写自己的Nmap（NSE）脚本 - 随风浪子的博客 - 博客园
@@ -3741,21 +3868,18 @@ beginner, intermediate, advanced, expert
 - [ ] `e9d0458dc110` (-) — Snyk研究团队发现严重的原型污染安全漏洞影响了所有版本的lodash | Snyk
 - [ ] `e9d1f273c4e5` (-) — Web 简介 - CTF Wiki
 - [ ] `e9f0ca720326` (-) — Microsoft 安全公告 MS17-010 - 严重 | Microsoft Docs
-- [ ] `ea44614de1a8` (-) — fchollet/deep-learning-with-python-notebooks: Jupyter notebooks for the code samples of the book &quot;Deep Learning with Python&quot;
 - [ ] `ea7106be91ab` (-) — 漏洞评估与Nexpose - 软件工具 - 红黑联盟
 - [ ] `ea9f9e01d864` (-) — python基础：字符编码问题三个不可见的字符（0xEF 0xBB 0xBF，即BOM） - 古怪的一阵风 - 博客园
 - [ ] `eab6ec967755` (-) — kali linux 更新软件源，安装中文输入法，修复Linux与windows引导菜单解决windows引导丢失 - 魚魚 - 博客园
 - [ ] `eac05611e5da` (-) — Install-Module
 - [ ] `eadc3cd4cd5e` (-) — xuzhongxing/fuchsia-notes: Some random notes taken when reading through the Fuchsia source code
 - [ ] `eaf036b62b34` (-) — NOSEC大数据安全协作平台，威胁情报平台 -- NOSEC.ORG
-- [ ] `eaf83f510cf2` (-) — Best practices for computer and browser use with Claude | Claude
 - [ ] `eb243e321809` (-) — gpustack/gpustack: A GPU cluster manager for high-performance AI model serving (vLLM, SGLang) and on-demand SSH-accessible GPU instances.
 - [ ] `eb29d1693cbe` (-) — CBT.Nuggets - Kali/Backtrack Linux [Course Material: Videos]
 - [ ] `eb5b983d8df1` (-) — 帮助中心 - 飞牛私有云fnOS
 - [ ] `eb6bcee7e670` (-) — PEP 8 -- Style Guide for Python Code | Python.org
 - [ ] `eb7556cffd5c` (-) — dvorka-oss/mindforger: Thinking notebook and Markdown editor.
 - [ ] `ebbc150b6437` (-) — 下载 Windows 10
-- [ ] `ebbe71bb587b` (-) — QAX-GPT 安全大模型
 - [ ] `ebc9ec9f8a9e` (-) — Checklist: Architecture and Design Review | Microsoft Learn
 - [ ] `ebf2a18a79e3` (-) — BPMN 2.0规范_feng_201的博客-CSDN博客_bpmn 2.0
 - [ ] `ebf452067ffc` (-) — 我拿了黑客松一等奖，把和 Codex 的比赛聊天蒸馏成了一个 Skill
@@ -3764,10 +3888,10 @@ beginner, intermediate, advanced, expert
 - [ ] `ec4064352404` (-) — Raspberry Pi - Teach, Learn, and Make with Raspberry Pi
 - [ ] `ec486835e709` (-) — mattpocock/skills: Skills for Real Engineers. Straight from my .claude directory.
 - [ ] `ec489f2d37d0` (-) — 浅谈漏洞管理的那些事 | 绿盟科技博客
+- [ ] `ec590ad5e19e` (-) — 讯飞星辰MaaS平台-官网
 - [ ] `ec66933af17c` (-) — 特别企划 | 冰山下的威胁：网络攻击中的隐写术 - FreeBuf.COM | 关注黑客与极客
 - [ ] `ec79dbe69814` (-) — Snipe-IT首页、文档和下载 - 开源资产管理系统 - 开源中国社区
 - [ ] `ec956355d90e` (-) — Open Design — Design with the agent already on your laptop.
-- [ ] `ec95dc9b70b6` (-) — GitHub
 - [ ] `ecbc8a34599a` (-) — www.hackfun.org
 - [ ] `ecc1d463549f` (-) — 驱动人生供应链木马攻击2019.1.30变种木马分析 « 倾旋的博客
 - [ ] `ecd5b968ece6` (-) — Yes Mum, I&amp;#x27;ll Behave: Beginning Behaviour Driven Infrastructure –
@@ -3779,6 +3903,7 @@ beginner, intermediate, advanced, expert
 - [ ] `ed2fdfa26360` (-) — Nginx 1.15.6 和 1.14.1 发布，高性能 Web 服务器 - 开源中国
 - [ ] `ed4f2f7179c5` (-) — Moxt
 - [ ] `ed71770f1be5` (-) — Nginx Lua Web Application Security - SecPulse.COM | 安全脉搏
+- [ ] `ed7637850974` (-) — GitHub
 - [ ] `ed821eb833ea` (-) — 特殊权限赋予新登录!!!-远景论坛-微软极客社区
 - [ ] `ed92f6078b44` (-) — HKUDS/DeepTutor: DeepTutor: Lifelong Personalized Tutoring. https://deeptutor.info/.
 - [ ] `ed94939453ee` (-) — DKfVvtbW0AAEgnf.jpg:large (2048×1041)
@@ -3804,7 +3929,6 @@ beginner, intermediate, advanced, expert
 - [ ] `ee6d3f0d0f2e` (-) — 什么是HttpOnly - 开源中国社区
 - [ ] `ee6f96d56331` (-) — 【记录】没有CSRF保护的HTML表单 漏洞解决办法 - Damionew的博客
 - [ ] `ee7642444275` (-) — 斯坦福大学公开课：抽象编程_全27集_网易公开课
-- [ ] `eea374573567` (-) — jQuery 安全模型解释 - achenxy - 博客园
 - [ ] `eec68ee96b69` (-) — miter-attack / attack-navigator：提供ATT和CK矩阵基本导航和注释的Web应用程序
 - [ ] `eec7dc32eafe` (-) — ownCloud - 轻松架设搭建属于自己或团队的私有云服务 (同步网盘) | 异次元软件下载
 - [ ] `ef0361ed18c3` (-) — 零日漏洞CVE-2019-0232的复现与动态安全防护 - FreeBuf互联网安全新媒体平台
@@ -3817,10 +3941,8 @@ beginner, intermediate, advanced, expert
 - [ ] `ef5f6c464635` (-) — kali linux 2016.2安装内核头文件_百度经验
 - [ ] `ef6f60e16a59` (-) — 中央网信办方新平：正在抓紧制定数安法、个保法配套法规规章 - 安全内参 | 决策者的网络安全知识库
 - [ ] `ef7e09448266` (-) — linux后渗透之收集登录凭证 - 先知社区
-- [ ] `ef8fc24fbf4c` (-) — AI实训营-阿里云
 - [ ] `ef98bdc1685a` (-) — CTF中的AWD套路 - 素时听风 - 博客园
 - [ ] `ef99d3601a73` (-) — PHP网站渗透中的奇技淫巧：检查相等时的漏洞 - FreeBuf.COM | 关注黑客与极客
-- [ ] `efa14558604c` (-) — 观猹｜玩 AI，上观猹！
 - [ ] `efa267c2d986` (-) — 2024年度计算机技术与软件专业技术资格（水平）考试报考须知-广东人事考试网
 - [ ] `efaccc98ed5c` (-) — Huawei NetTech TV
 - [ ] `efd3ab36ddaf` (-) — Web安全工程师-安全技能 -SecWiki
@@ -3829,6 +3951,7 @@ beginner, intermediate, advanced, expert
 - [ ] `f014e4b5cc1f` (-) — Download Xubuntu « Xubuntu
 - [ ] `f05e096b000f` (-) — 威胁狩猎101文档 - 安全内参 | 决策者的网络安全知识库
 - [ ] `f06b7befce48` (-) — 脚本自动ping检测网络情况 - OurWorld的博客 - CSDN博客
+- [ ] `f0840267b3fd` (-) — 讯飞星辰Agent平台 - 一站式智能体开发平台
 - [ ] `f08884015cc6` (-) — Fragmented SQL Injection Attacks – The Solution | Netsparker
 - [ ] `f0916b250604` (-) — 《黑帆第三季》在线播放_迅雷下载_久久美剧
 - [ ] `f093a68591b0` (-) — 看雪 - S2-045 原理初步分析（CVE-2017-5638）
@@ -3844,6 +3967,7 @@ beginner, intermediate, advanced, expert
 - [ ] `f19342b79ba2` (-) — 频繁的短信轰炸背后的端倪 - Powered by SecQuan
 - [ ] `f19875e5dc1d` (-) — 国产数据库汇总 - 顺其自然~专栏 - CSDN博客
 - [ ] `f1c701c6d3ce` (-) — 数起简历信息泄露事件曝光——涉及中国企业的5.9亿份简历 - 嘶吼 RoarTalk – 回归最本质的信息安全,互联网安全新媒体,4hou.com
+- [ ] `f1c79544c696` (-) — 今日热榜
 - [ ] `f1d609ec55d5` (-) — 如何开始学习逆向以及分析恶意软件？ - FreeBuf互联网安全新媒体平台 | 关注黑客与极客
 - [ ] `f1ed751cad4f` (-) — JeffXue/web-log-parser: web日志分析工具
 - [ ] `f1ee5c6a4aeb` (-) — Snort入侵检测系统的应用 - FreeBuf专栏·TideSec
@@ -3851,7 +3975,7 @@ beginner, intermediate, advanced, expert
 - [ ] `f21835c945b4` (-) — 百度网盘 请输入提取密码
 - [ ] `f2284f2eeca0` (-) — 40个安全专家需要知道的网络安全数据 - FreeBuf.COM | 关注黑客与极客
 - [ ] `f252b7c706c5` (-) — Download VMware Workstation Pro | Free Virtual Machine | VMware
-- [ ] `f25c67744baf` (-) — ATT&amp;CKcon Power Hour
+- [x] `f25c67744baf` (-) — ATT&amp;CKcon Power Hour
 - [ ] `f27f7c2c2086` (-) — Docker - docker中文社区
 - [ ] `f2ae78479ba5` (-) — 一款轻量级Web漏洞教学演示系统（DSVW） - FreeBuf.COM | 关注黑客与极客
 - [ ] `f2b33beea809` (-) — 大模型本地部署最强引擎，vLLM 大版本更新，v0.24.0
@@ -3865,7 +3989,6 @@ beginner, intermediate, advanced, expert
 - [ ] `f31c9744d049` (-) — 专家观察 | 张谦：“Docker逃逸与防护策略”
 - [ ] `f32b1e58022f` (-) — 缓冲区溢出-原理和简单利用 - FreeBuf专栏·TideSec
 - [ ] `f34760dd7e31` (-) — sdyckjq-lab/llm-wiki-skill: 基于 Karpathy llm-wiki 方法论的个人知识库构建 Skill，支持多平台！
-- [ ] `f36553e13ac0` (-) — geekjourneyx/md2wechat-skill: Markdown to WeChat CLI | 一键排版发布到微信公众号：支持 40+ 排版样式和专业主题 、AI 配图 、批量发布
 - [ ] `f3704636312a` (-) — 威胁建模介绍 - 先知社区
 - [ ] `f38214d80486` (-) — RPM Search hydra-gtk
 - [ ] `f38ec31cadc5` (-) — 保障IDC安全：分布式HIDS集群架构设计 - FreeBuf互联网安全新媒体平台
@@ -3881,9 +4004,7 @@ beginner, intermediate, advanced, expert
 - [ ] `f444ee241ee9` (-) — python3.7对应的mysql版本是_百度搜索
 - [ ] `f4627e4d4a8a` (-) — Splunk vs. QRadar：两大主流SIEM产品对比 - 安全牛
 - [ ] `f473cb4d7834` (-) — 当我们在谈论OWASP top10的时候，我们在谈论什么？|FreeBuf公开课
-- [ ] `f4840f52d675` (-) — decolua/9router: Unlimited FREE AI coding. Connect Claude Code, Codex, Cursor, Cline, Copilot, Antigravity to FREE Claude/GPT/Gemini via 40+ providers. Auto-fallback, RTK -40% tokens, never hit limits.
 - [ ] `f49441b840d9` (-) — 一封伪造邮件引发的“探索”（涉及钓鱼邮件、SPF和DKIM等） - FreeBuf.COM | 关注黑客与极客
-- [ ] `f4adde9b17c8` (-) — 即梦AI - 一站式AI创作平台
 - [ ] `f4b1b54c906b` (-) — 2017 年 Software Update Services 和 Windows Server 更新服务内容的更改说明
 - [ ] `f4b5177f9d26` (-) — 国家信息安全服务资质
 - [ ] `f4c7a9c315b5` (-) — 打造属于自己的渗透神器
@@ -3927,7 +4048,6 @@ beginner, intermediate, advanced, expert
 - [ ] `f7e7df5434a4` (-) — 标协标准管理及服务平台（中国标准化协会）
 - [ ] `f80f793dce19` (-) — 关于印发《2025年于都县制造业重点产业链现代化建设“5313”行动计划工作方案》的通知 | 于都县信息公开
 - [ ] `f8264b300f95` (-) — Linux渗透测试
-- [ ] `f8267baf7099` (-) — 如何拍出高质量大片、MV？我把AI工作流全拆开了
 - [ ] `f83e577ef713` (-) — 应急响应大合集|安全工具 - 安全技术社区
 - [ ] `f8420fd5eb84` (-) — gemma4:12b-mxfp8
 - [ ] `f843a4612537` (-) — Legal/ethical hacking. Information security.
@@ -3952,7 +4072,6 @@ beginner, intermediate, advanced, expert
 - [ ] `f970fa6f821c` (-) — RSA 2017安全大会·动荡之期如何对抗网络威胁_i春秋_培育信息时代的安全感！
 - [ ] `f97950600fd0` (-) — gemma4
 - [ ] `f99bd92f6908` (-) — Welcome to WRAITHMAIL
-- [ ] `f9ab049faddd` (-) — datalust/superpower: A C# parser construction toolkit with high-quality error reporting
 - [ ] `f9dd9ac6414b` (-) — 红联linux - Linux实验室
 - [ ] `f9e049de54b3` (-) — 基于Bro的应用层数据包识别工具 - FreeBuf互联网安全新媒体平台
 - [ ] `f9e7f8ed51be` (-) — windows bat脚本编写 - CSDN博客
@@ -3965,7 +4084,7 @@ beginner, intermediate, advanced, expert
 - [ ] `fa35ebf75671` (-) — OpenClaw免费小白安装教程来了！养成你的第一个龙虾🦞
 - [ ] `fa37c4c9839f` (-) — Certificate Transparency — The bright side and The dark side
 - [ ] `fa41a71b5c7c` (-) — AnyeDuke/reverse-engineering-for-beginners: translate project of Drops
-- [ ] `fa4aae2fc901` (-) — zephyrwang6/space-wechat: 微信聊天记录的三种深度玩法：关系画像 / 知识沉淀 / 纪念特刊。Claude Code Skill。
+- [ ] `fa4f0a9e244e` (-) — GitHub
 - [ ] `fa7256245899` (-) — PsLoggedOn
 - [ ] `fa829ace29b5` (-) — - Revision 37288: /nmap
 - [ ] `fa8f0d6fd6ab` (-) — 即刻安全每日动态（8/17）
@@ -3982,15 +4101,17 @@ beginner, intermediate, advanced, expert
 - [ ] `fb5138834dea` (-) — TideSec安全团队
 - [ ] `fb57e66fc26c` (-) — AI Native Landscape | AI 原生全景图
 - [ ] `fb5b1d6dd647` (-) — 安全小课堂第138期【浅谈电子邮件安全】 - SecPulse.COM | 安全脉搏
-- [ ] `fb6752610203` (-) — 绿盟科技等级保护2.0系列解决方案正式发布 | 绿盟科技博客
+- [x] `fb6752610203` (-) — 绿盟科技等级保护2.0系列解决方案正式发布 | 绿盟科技博客
 - [ ] `fb6b0857425f` (-) — SensePost | Mallet in the middle
 - [ ] `fb6f5b5d5a20` (-) — Pixmax
 - [ ] `fb7db9a9e11e` (-) — windows命令执行漏洞不会玩？ 看我！ - Evi1cg&amp;#x27;s blog
 - [ ] `fb84f9d45ee2` (-) — MassDNS：跨域DNS枚举工具 - 51CTO.COM
 - [ ] `fb85915c910f` (-) — 《黑客军团第一季》在线播放_迅雷下载_久久美剧
+- [ ] `fbba520465f3` (-) — GitHub
 - [ ] `fbc41681d8b6` (-) — fwaudit – PreOS Security – Firmware Security For Enterprise And Forensics
 - [ ] `fbca2dbc3c00` (-) — IIS6.0手动安装与配置asp.net2.0全过程 - 苏飞 - 博客园
 - [ ] `fbd04e5eb9d9` (-) — Open Broadcaster Software®️ | OBS
+- [ ] `fbdbd4bbf60a` (-) — 中国证券监督管理委员会
 - [ ] `fbdf82df689f` (-) — Thank You for Registering for Nessus Home! | Tenable™
 - [ ] `fbe8731ef3aa` (-) — 腾云阁 - 腾讯云
 - [ ] `fbf5d1402e8f` (-) — Hexacorn | Blog
@@ -4005,7 +4126,6 @@ beginner, intermediate, advanced, expert
 - [ ] `fc7eb315ce24` (-) — 2026 iFLYTEK AI开发者大赛
 - [ ] `fc8744833119` (-) — Malware Analysis using Osquery Part 2 | AlienVault
 - [ ] `fc9e1f702fbc` (-) — 如何搭建自己的蜜罐系统收集恶意软件样本 - 先知社区
-- [ ] `fcfcb364893d` (-) — 移动云开发者社区
 - [ ] `fd10f65d271f` (-) — SSRF攻击姿势汇总
 - [ ] `fd26fe66e4cf` (-) — DevSecOps的理解与思考 - FreeBuf专栏·宜人安全
 - [ ] `fd2dac190df3` (-) — 基于CSF的美国CII安全风险治理方式及落地实践 | 绿盟科技博客
@@ -4024,6 +4144,7 @@ beginner, intermediate, advanced, expert
 - [ ] `fdf4b5439a12` (-) — Category:Vulnerability Scanning Tools - OWASP
 - [ ] `fdfbc567263b` (-) — YARA：抗击恶意代码的神兵利器 - FreeBuf互联网安全新媒体平台
 - [ ] `fe0cb9ce6240` (-) — Pentester Lab: From SQL injection to Shell II ~ VulnHub
+- [ ] `fe22a0fd83cd` (-) — GitHub
 - [ ] `fe33c685a108` (-) — 一篇域攻击文章的复现 - 先知社区
 - [ ] `fe458bb5b0a7` (-) — AutoHotkey的
 - [ ] `fe61ab0f7f2c` (-) — EMC Community Network - DECN: 如果看了这个你还是不会用Wireshark，那就来找我吧（8月6日完结）

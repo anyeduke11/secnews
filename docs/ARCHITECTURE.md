@@ -1,8 +1,10 @@
 # SecNews（hotspot）· 现状架构文档
 
-> 本文档描述 **2026-08 当前代码** 的真实架构，供新开发者快速理解系统。
+> 本文档描述 **2026-08 当前代码 (v0.4.0)** 的真实架构，供新开发者快速理解系统。
 > 定位：现状概览，不是设计历史；历史决策与演进见 `docs/IMPROVEMENT_PLAN.md`。
-> 所有数字均从代码/文件核对（迁移 59、router 51、测试 2288/278、备份保留 7、同步上限 100k）。
+> 所有数字均从代码/文件核对（迁移 60、router 51、测试 2429/292、备份保留 7、同步上限 100k）。
+> v0.4.0 (2026-08-16): 审计重构 Phase 0-6 落地 — 知识闭环数据流/采集管道/同步安全/
+> 导航操作流统一, 详见 `docs/audit_first_principles_plan.md`。
 
 ---
 
@@ -173,8 +175,11 @@ knowledge/
 - **注意力评分**（`attention_scorer.py`）：5 维加权（view 0.25 / dwell 0.25 /
   scroll 0.15 / favorited 0.20 / annotation 0.15），0–100 分，30 天窗口，
   由 1800s 间隔 job 聚合 + 自动清理。
+  (v0.4.0: DeepReadMode 埋点 view/dwell/scroll, 注意力事件从此真实流动;
+  复习 (SM-2) 由注意力事件自动创建, 不再是无数据死功能)
 - **Chunk + FTS5**：条目按段落切分为 `knowledge_chunks`（含 char_start/end 原文定位），
   `knowledge_chunks_fts` 为 FTS5 外部内容表（触发器保持同步），支持全文检索。
+  (v0.4.0 注: chunk 生成器尚未落地, 相关 API/表为预留)
 - 相关 API：`knowledge_chunks_api.py`（chunk 级 API + FTS5）、`attention_events_api.py`。
 
 ---

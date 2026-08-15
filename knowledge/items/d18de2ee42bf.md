@@ -5,19 +5,17 @@ source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/EK36FRcxAYqZjaQJFY17DA"
 ingested_at: "2026-07-13T03:53:04Z"
 lifecycle: "generate"
-compiled: true
+news_type: "None"
+tech_stack: []
 domain: ai
 topic: ai-entrepreneurship
-type: analysis
-difficulty: intermediate
-tags: ["一人公司", "OPC", "AI产品", "公众号", "智能体"]
+type: tutorial
+difficulty: null
+tags: ["\u4e00\u4eba\u516c\u53f8", "OPC", "AI\u4ea7\u54c1", "\u516c\u4f17\u53f7", "\u667a\u80fd\u4f53"]
 concepts: ["ai-entrepreneurship", "ai-agent"]
 mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
-sources: ["cubox"]
----# 一人公司OPC如何用公众号＋智能体，低成本跑通AI产品第一步？
-
-
+---
 

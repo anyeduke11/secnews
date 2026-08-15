@@ -5,19 +5,17 @@ source: "cubox"
 source_url: "https://mp.weixin.qq.com/s/RrvDXpjDniqNDM8fv96ntQ"
 ingested_at: "2026-07-06T01:56:07Z"
 lifecycle: "generate"
-compiled: true
-domain: security
+news_type: "None"
+tech_stack: []
+domain: ai
 topic: prompt-engineering
-type: analysis
-difficulty: advanced
-tags: ["提示词工程", "元提示", "prompt", "LLM", "自动生成"]
+type: null
+difficulty: null
+tags: ["\u63d0\u793a\u8bcd\u5de5\u7a0b", "\u5143\u63d0\u793a", "prompt", "LLM", "\u81ea\u52a8\u751f\u6210"]
 concepts: ["prompt-engineering", "meta-prompting"]
 mastery: 0
 last_reviewed: null
 review_count: 0
 related_items: []
----# 元提示浅析
-
-随着大模型技术的普及，催生了“面向提示词的编程”。那么，如何自动生成这些提示词呢？......
-
+---
 

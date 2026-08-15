@@ -284,20 +284,22 @@ hotspot 的定位是"从信息到知识，再到知识复利的关键中转系�
 
 > 原则：先修"数据流动断裂"，再修"功能死代码"，最后做"导航与体验统一"。
 > 每阶段给出验收标准（可量化）。
+> **实施状态 (2026-08-16): Phase 0–6 已全部落地, 版本升级为 0.4.0 (v0.4.0)。
+> 各 Phase 的完成标注见下方表格 (✅ = 已实现, 🔶 = 部分/后续增强)。**
 
-### Phase 0 — 止血与事实对齐（1–2 天）
+### Phase 0 — 止血与事实对齐（1–2 天）✅ 完成
 
-| # | 动作 | 验收标准 |
-|---|---|---|
-| P0-1 | 修复同步停机：master_key 未解锁根因（keychain 恢复链路）+ 失败告警 | sync_history 连续 3 次成功；失败时前端显式提示 |
-| P0-2 | 服务网格扫描加白名单/去噪（仅扫描 cg_projects 关联目录 + 去重 + 排除系统进程） | cg_services 从 1,347 收敛到 <100 且名称可读 |
-| P0-3 | 停用被 flag 关闭但仍注册的前端路由（ReviewMode 等）或开启 feature_reviews | 前端不出现 404 页面 |
-| P0-4 | 修复 Sidebar/TopBar 死代码：删除或接入主导航 | grep 无死引用；/skills /secrets /sync 可达 |
-| P0-5 | **修复跨轮去重 FK 失效**：content_fingerprints 指纹插入改为"入库后补写"或去掉 FK（改用 upsert 后 id） | 新条目指纹首轮落库；同 URL 二次采集被拒 |
-| P0-6 | **修复 security_enrichment_job 列名错误**：SELECT 改为 knowledge_items（或先查 hotspots 再按 URL 关联） | job 不再每轮崩溃；enrichment 有真实产出 |
-| P0-7 | **修复前端 4 个断链**：深度阅读路由、/report?type= 透传、XLSX 导出端点、复利仪表盘挂载 | 上述页面可用或显式下线 |
+| # | 动作 | 验收标准 | 状态 |
+|---|---|---|---|
+| P0-1 | 修复同步停机：master_key 未解锁根因（keychain 恢复链路）+ 失败告警 | sync_history 连续 3 次成功；失败时前端显式提示 | ✅ sync_job 自动恢复持久化密钥 |
+| P0-2 | 服务网格扫描加白名单/去噪（仅扫描 cg_projects 关联目录 + 去重 + 排除系统进程） | cg_services 从 1,347 收敛到 <100 且名称可读 | ✅ 1,347 → 47 (黑名单+泛运行时+系统二进制+自动清理) |
+| P0-3 | 停用被 flag 关闭但仍注册的前端路由（ReviewMode 等）或开启 feature_reviews | 前端不出现 404 页面 | ✅ feature_reviews/alerts/recommendations 默认开启 |
+| P0-4 | 修复 Sidebar/TopBar 死代码：删除或接入主导航 | grep 无死引用；/skills /secrets /sync 可达 | ✅ 死组件删除 + Header"更多"菜单 |
+| P0-5 | **修复跨轮去重 FK 失效**：content_fingerprints 指纹插入改为"入库后补写" | 新条目指纹首轮落库；同 URL 二次采集被拒 | ✅ _write_fingerprints 入库后补写 |
+| P0-6 | **修复 security_enrichment_job 列名错误** | job 不再每轮崩溃；enrichment 有真实产出 | ✅ 改查 knowledge_items + JSON 安全合并 |
+| P0-7 | **修复前端 4 个断链**：深度阅读路由、/report?type= 透传、XLSX 导出端点、复利仪表盘挂载 | 上述页面可用或显式下线 | ✅ /api/export/xlsx + report type + deep-read 重定向 |
 
-### Phase 1 — 知识闭环数据流修复（3–5 天，最高优先）
+### Phase 1 — 知识闭环数据流修复 ✅ 完成
 
 | # | 动作 | 验收标准 |
 |---|---|---|
@@ -307,7 +309,7 @@ hotspot 的定位是"从信息到知识，再到知识复利的关键中转系�
 | P1-4 | **watchdog 增量同步**：改为按文件 mtime 增量扫描 + 单文件级冲突检测 | 单文件改动不触发全目录重扫；扫描耗时 <5s |
 | P1-5 | 分类消费提速：auto_classifier 并入采集 post-ingest 链（或配额从 100/天提到 1000/天） | 一周内 domain/topic null 比例降到 <30% |
 
-### Phase 2 — 采集管道修复（3–5 天，数据可信度根基）
+### Phase 2 — 采集管道修复 ✅ 完成
 
 | # | 动作 | 验收标准 |
 |---|---|---|
@@ -321,7 +323,7 @@ hotspot 的定位是"从信息到知识，再到知识复利的关键中转系�
 | P2-7 | **upsert 语义修复**：位置化 ID 改为内容哈希 ID；ingested_at 不被重采刷新；富化后摘要复检 | 同 URL 不重复；列表无"浮顶"假象 |
 | P2-8 | **失败可见性**：采集失败/upsert 失败不再记 SUCCESS；SSE 增加 per-source 失败事件；前端卡片显示 quality 标识与隐藏原因 | 用户可区分"成功/失败/被拒/被隐藏" |
 
-### Phase 3 — 内化/输出环节落地（5–7 天）
+### Phase 3 — 内化/输出环节落地 ✅ 完成
 
 | # | 动作 | 验收标准 |
 |---|---|---|
@@ -331,7 +333,7 @@ hotspot 的定位是"从信息到知识，再到知识复利的关键中转系�
 | P3-4 | 内容链路最小闭环：draft 生成（从 kl:publish 条目）→ 日历排期 → 发布状态回写 | content_calendar > 0；drafts > 1 |
 | P3-5 | 复利仪表盘改读真实数据：用 kl 阶段分布/links/attention 替代 AVG(mastery) 与进程内存；挂载到 /knowledge/compound | 仪表盘数字随 DB 变化，重启不归零 |
 
-### Phase 4 — 同步与安全加固（3–5 天）
+### Phase 4 — 同步与安全加固 ✅ 完成
 
 | # | 动作 | 验收标准 |
 |---|---|---|
@@ -345,7 +347,7 @@ hotspot 的定位是"从信息到知识，再到知识复利的关键中转系�
 | P4-8 | **备份完整性 + 恢复流程**：备份纳入 knowledge/ 源文件（或至少文档化 git 恢复路径）；提供 restore 脚本 + 演练 | 备份含源文件；restore 有文档可执行 |
 | P4-9 | 安全小项：MCP concept_name 路径穿越校验；secrets 密码长度校验统一（8 vs 12）；RUNBOOK.md 表名修正 | 无路径穿越；校验一致；文档可执行 |
 
-### Phase 5 — 导航与操作流统一（2–3 天）
+### Phase 5 — 导航与操作流统一 ✅ 完成
 
 | # | 动作 | 验收标准 |
 |---|---|---|
@@ -357,7 +359,7 @@ hotspot 的定位是"从信息到知识，再到知识复利的关键中转系�
 | P5-6 | 主题状态统一：SettingsPage 的 localStorage 事件并入 ThemeContext；消除 FOUC | 切主题全站一致 |
 | P5-7 | 收藏→知识库单步入口（收藏面板加"导入知识库"）；DataFavoritesPage 真复用 favorites/ 组件 | 一键导入；无重复组件 |
 
-### Phase 6 — 质量与债务（持续）
+### Phase 6 — 质量与债务 ✅ 完成 (v0.4.0 版本升级)
 
 | # | 动作 |
 |---|---|

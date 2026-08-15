@@ -196,6 +196,19 @@ export default function App() {
     try { localStorage.setItem('hotspot-theme', theme); } catch {}
   }, [theme]);
 
+  // P5-6: 监听 SettingsPage 的 theme-changed 事件 (此前双轨 — 设置页
+  // 切主题后首页状态不一致, 刷新才一致)
+  useEffect(() => {
+    const onThemeChanged = () => {
+      try {
+        const saved = localStorage.getItem('hotspot-theme');
+        if (saved === 'dark' || saved === 'light') setTheme(saved);
+      } catch {}
+    };
+    window.addEventListener('theme-changed', onThemeChanged);
+    return () => window.removeEventListener('theme-changed', onThemeChanged);
+  }, []);
+
   const toggleTheme = useCallback(() => {
     setTheme(t => (t === 'dark' ? 'light' : 'dark'));
   }, []);

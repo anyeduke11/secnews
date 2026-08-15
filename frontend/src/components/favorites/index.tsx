@@ -109,6 +109,30 @@ export function FavoritesPanel({
     window.open(url, '_blank');
   }, [activeCat]);
 
+  // P5-7: 收藏 → 知识库单步导入 (此前需 收藏→/data/history→导入 两跳)
+  const [importing, setImporting] = useState(false);
+  const handleImportToKnowledge = useCallback(async () => {
+    const ids = items.map(it => it.hotspot_id);
+    if (ids.length === 0) return;
+    setImporting(true);
+    setMessage(null);
+    try {
+      const r = await fetch('/api/knowledge/import-from-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_ids: ids }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      const n = typeof data === 'number' ? data : (data?.imported ?? ids.length);
+      setMessage({ type: 'ok', text: `✓ 已导入 ${n} 条到知识库` });
+    } catch (e: any) {
+      setMessage({ type: 'error', text: `✗ 导入失败: ${e?.message || e}` });
+    } finally {
+      setImporting(false);
+    }
+  }, [items]);
+
   const handleAddToTodo = useCallback(
     async (hotspotId: string, payload: { important: boolean; deadline: string | null; note: string }) => {
       setAddError(null);
@@ -191,13 +215,15 @@ export function FavoritesPanel({
           </button>
         </div>
 
-        {/* 工具栏: 分类 chips + 导出按钮 */}
+        {/* 工具栏: 分类 chips + 导出/导入按钮 */}
         <FavoriteToolbar
           counts={counts}
           total={total}
           activeCat={activeCat}
           onCategoryChange={setActiveCat}
           onExport={handleExport}
+          onImportToKnowledge={handleImportToKnowledge}
+          importingToKnowledge={importing}
         />
 
         {/* 添加待办错误条 — 优先级高于普通 message */}

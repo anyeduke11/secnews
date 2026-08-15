@@ -160,6 +160,8 @@ async def test_insufficient_items_returns_empty():
         min_items_threshold = 10
 
     c = TestCol()
+    # P1 切流: 禁用源注册表驱动 (本测试只测常量源路径)
+    c._load_sources_from_registry = lambda: None
     # mock fetch_source:返回 2 条(低于阈值 10)
     c.fetch_source = AsyncMock(
         return_value=(
@@ -187,6 +189,8 @@ async def test_collect_with_no_sources_returns_empty():
         sources = []
 
     c = TestCol()
+    # P1 切流: 禁用源注册表驱动 (本测试只测 sources=[] 常量路径)
+    c._load_sources_from_registry = lambda: None
     items = await c.collect()
     assert items == []
 

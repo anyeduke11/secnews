@@ -94,6 +94,8 @@ async def test_ossinsight_returns_empty_when_sources_fail(monkeypatch):
     """Phase 13: sources=[] → collect() 返回 [], 不调 _fallback()。"""
     c = OSSInsightCollector()
     monkeypatch.setattr(c, "sources", [])
+    # P1 切流: 禁用源注册表驱动 (本测试只测常量路径)
+    monkeypatch.setattr(c, "_load_sources_from_registry", lambda: None)
 
     items = await c.collect()
     assert items == [], (

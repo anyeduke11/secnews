@@ -240,6 +240,8 @@ export interface CgService {
   env_vars: Record<string, unknown>;
   created_at: string;
   last_checked_at: string | null;
+  /** P5-4: 校验状态 — 'auto'=扫描发现 / 'manual'=用户确认 */
+  discovery_source?: 'auto' | 'manual';
 }
 
 export interface CgServiceListResponse {

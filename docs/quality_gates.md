@@ -8,7 +8,7 @@
 
 ## 1. 概述
 
-Hotspot 质量门禁是采集后、入库前的一道核心防线。每条 `HotspotItem` 必须经过 **9 道同步门禁** (score 0-100) + **1 道异步门禁** (URL Content) 验证后,才能进入 SQLite 主表。
+Hotspot 质量门禁是采集后、入库前的一道核心防线。每条 `HotspotItem` 必须经过 **11 道同步门禁** (score 0-100) + **1 道异步门禁** (URL Content) 验证后,才能进入 SQLite 主表。
 
 ### 1.1 模式
 
@@ -32,14 +32,14 @@ APScheduler.collect_all_job (5min 周期)
   → CollectionService.run_once()
     → Collector.collect() → 抓取
       → _build_items() 解析为 HotspotItem
-      → _run_quality_gates() 9 道同步门禁
+      → _run_quality_gates() 11 道同步门禁
     → upsert_many() 批量入库
     → url_content_check_job 5min 后异步抽样 10% 跑 url_content_gate
 ```
 
 ---
 
-## 2. 9 道同步门禁
+## 2. 11 道同步门禁
 
 ### 2.1 SchemaGate · Pydantic 二次校验
 

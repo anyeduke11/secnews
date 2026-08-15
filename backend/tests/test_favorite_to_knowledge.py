@@ -59,7 +59,8 @@ def _fav_payload(hid: str = "fh-1", url: str = "https://example.com/article-1") 
 
 
 class TestFavoriteToKnowledge:
-    def test_favorite_creates_signal_knowledge_item(self, client, temp_db):
+    def test_favorite_creates_kl_raw_knowledge_item(self, client, temp_db):
+        """P1-3: 收藏提升创建 lifecycle=kl:raw 条目 (原 signal)。"""
         url = "https://example.com/article-signal"
         r = client.post("/api/favorites", json=_fav_payload("fh-1", url))
         assert r.status_code == 200
@@ -67,7 +68,7 @@ class TestFavoriteToKnowledge:
         item_id = item_id_from_url(url)
         item = knowledge_repo.get_item(item_id)
         assert item is not None
-        assert item.lifecycle == "signal"  # 验收 3
+        assert item.lifecycle == "kl:raw"  # P1-3 验收
         assert item.source == "secnews"
         assert item.source_url == url
 
@@ -80,7 +81,7 @@ class TestFavoriteToKnowledge:
         assert md_path.exists(), f".md file not generated at {md_path}"
         content = md_path.read_text(encoding="utf-8")
         assert "lifecycle:" in content
-        assert "signal" in content
+        assert "kl:raw" in content
 
     def test_repeat_favorite_does_not_overwrite(self, client, temp_db):
         url = "https://example.com/article-repeat"
@@ -90,18 +91,18 @@ class TestFavoriteToKnowledge:
             json=_fav_payload("fh-3a", url),
         )
         item_id = item_id_from_url(url)
-        # 推进 lifecycle 到 generate (模拟已编译)
+        # 推进 lifecycle 到 kl:publish (模拟已编译)
         from backend.services import sag_service
-        sag_service.transition(item_id, "generate")
+        sag_service.transition(item_id, "kl:publish")
 
         # 第二次收藏同 url (不同 hotspot_id)
         client.post(
             "/api/favorites",
             json=_fav_payload("fh-3b", url),
         )
-        # lifecycle 不应被回退到 signal
+        # lifecycle 不应被回退到 kl:raw
         item = knowledge_repo.get_item(item_id)
-        assert item.lifecycle == "generate"
+        assert item.lifecycle == "kl:publish"
 
     def test_favorite_flow_not_blocked_by_knowledge_error(self, client, temp_db):
         """即使知识提升出错, 收藏本身应成功。"""

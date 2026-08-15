@@ -8,7 +8,8 @@
  * API 保持向后兼容: export function ReportPage({ onBack })
  * (App.tsx lazy import: import('./components/report/ReportPage').then(m => ({ default: m.ReportPage })))
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Icon } from '../Icon';
 import { DailyReport } from './DailyReport';
 import { WeeklyReportContent } from './WeeklyReport';
@@ -22,7 +23,22 @@ const TABS: Array<{ id: Tab; label: string }> = [
 ];
 
 export function ReportPage({ onBack }: ReportPageProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('daily');
+  const [searchParams] = useSearchParams();
+  // P0-7: 支持 /report?type=weekly|monthly|daily — 此前固定 daily,
+  // 行动层入口 (ActionLayerPage) 跳 /report?type=weekly 被忽略。
+  const initialType = searchParams.get('type');
+  const validInitial: Tab =
+    initialType === 'weekly' || initialType === 'monthly' || initialType === 'daily'
+      ? initialType
+      : 'daily';
+  const [activeTab, setActiveTab] = useState<Tab>(validInitial);
+
+  // type 参数变化时同步 (同页二次导航)
+  useEffect(() => {
+    if (initialType === 'weekly' || initialType === 'monthly' || initialType === 'daily') {
+      setActiveTab(initialType);
+    }
+  }, [initialType]);
 
   const handleTabChange = useCallback((tab: Tab) => {
     setActiveTab(tab);

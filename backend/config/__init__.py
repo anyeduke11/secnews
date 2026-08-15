@@ -78,9 +78,13 @@ class Settings(BaseSettings):
     feature_unified_search: bool = True   # 统一跨层搜索 (Phase 3)
     feature_tech_stack: bool = True       # 技术栈管理 (Phase 2)
     # 待观察功能 (默认关闭, 验证后再开启)
-    feature_reviews: bool = False          # SM-2 间隔复习 (Phase 2)
-    feature_alerts: bool = False           # 告警规则 + SSE (Phase 3)
-    feature_recommendations: bool = False # 个性化推荐 (Phase 4)
+    # P0-3 (2026-08-15): 以下三个 flag 对应的前端 UI 均已可达 (ReviewMode/
+    # AlertMode/RecommendationSidebar), flag=False 时路由不注册 → 前端 404。
+    # 后端实现完备 (数据流断裂问题由 Phase 3 修复), 因此改为默认开启,
+    # 消除"页面可达但 API 404"的脱钩。
+    feature_reviews: bool = True           # SM-2 间隔复习 (Phase 2)
+    feature_alerts: bool = True            # 告警规则 + SSE (Phase 3)
+    feature_recommendations: bool = True   # 个性化推荐 (Phase 4)
     feature_personalization: bool = False # 个人画像 EMA (Phase 4)
     feature_source_health: bool = True    # 数据源健康指示 (Phase 4)
     feature_digests: bool = True          # 每日简报 (Phase 4)

@@ -642,27 +642,44 @@ async def mitre_sync_job() -> None:
 # Phase 3 Security Graph: job 19 — security enrichment (每 300 秒)
 # ============================================================================
 async def security_enrichment_job() -> None:
-    """Phase 3: 每 300s 扫描近 24h 未 enrichment 的 hotspot items，异步 enrichment.
+    """Phase 3: 每 300s 扫描近 24h 未 enrichment 的 knowledge items，异步 enrichment.
 
     不阻塞采集主路径，独立 job 运行。
+
+    P0-6 (2026-08-15): 修复两处致命错误:
+    1. SELECT 从 hotspots 查 cve_ids/attack_techniques/compliance_refs —
+       这些列只存在于 knowledge_items, hotspots 无此列 → 每轮必抛
+       "no such column" 崩溃。改为查询 knowledge_items。
+    2. UPDATE 用字符串拼接 JSON (COALESCE || ',' || ?) — 产生非法 JSON。
+       改为 json 模块安全合并 (去重追加)。
     """
     try:
+        import json as _json
+
         from backend.domain.security_models import _now_iso
         from backend.repository.db import get_connection
         from backend.security.enricher import enrich_batch
 
         conn = get_connection()
-        # 查询近 24h 且尚未 enrichment 的 hotspot items
+        # 查询近 24h 且尚未 enrichment 的 knowledge items
+        # (knowledge_items 无 summary 列 — 正文在 .md 文件; 富化文本用
+        # title + tags 拼接, enricher 的 CVE/ATT&CK/合规正则主要匹配标题)
         rows = conn.execute(
-            "SELECT id, title, summary FROM hotspots "
-            "WHERE datetime(published_at) >= datetime('now', '-24 hours') "
+            "SELECT id, title, tags FROM knowledge_items "
+            "WHERE datetime(ingested_at) >= datetime('now', '-24 hours') "
             "AND (cve_ids IS NULL AND attack_techniques IS NULL AND compliance_refs IS NULL)"
             "LIMIT 200"
         ).fetchall()
         if not rows:
             return
 
-        items = [dict(r) for r in rows]
+        items = []
+        for r in rows:
+            item = {"id": r["id"], "title": r["title"] or ""}
+            tags = r["tags"] or ""
+            if tags:
+                item["summary"] = " ".join(tags) if isinstance(tags, str) else " ".join(tags)
+            items.append(item)
         enriched = enrich_batch(items)
         if not enriched:
             return
@@ -673,23 +690,54 @@ async def security_enrichment_job() -> None:
             eid = e.get("id")
             if not eid:
                 continue
-            sets = []
-            params = []
-            for field in ("cve_ids", "attack_techniques", "compliance_refs"):
-                val = e.get(field)
-                if val:
-                    sets.append(f"{field} = COALESCE({field}, '[]') || ',' || ?")
-                    params.append(val)
-            if sets:
-                sets.append("updated_at = ?")
-                params.append(now)
-                params.append(eid)
-                conn.execute(
-                    f"UPDATE knowledge_items SET {', '.join(sets)} WHERE id = ?",
-                    params,
-                )
-                count += 1
+            try:
+                row = conn.execute(
+                    "SELECT cve_ids, attack_techniques, compliance_refs "
+                    "FROM knowledge_items WHERE id = ?",
+                    (eid,),
+                ).fetchone()
+                if row is None:
+                    continue
 
+                def _merge_json(existing: str | None, new_val: str | None) -> str | None:
+                    """合并 JSON 数组字段 (去重, 保持顺序)。"""
+                    merged: list = []
+                    if existing:
+                        try:
+                            merged.extend(_json.loads(existing))
+                        except (ValueError, TypeError):
+                            pass
+                    if new_val:
+                        try:
+                            merged.extend(_json.loads(new_val))
+                        except (ValueError, TypeError):
+                            pass
+                    # 去重且保留顺序
+                    seen = set()
+                    deduped = []
+                    for v in merged:
+                        if v not in seen:
+                            seen.add(v)
+                            deduped.append(v)
+                    return _json.dumps(deduped, ensure_ascii=False) if deduped else None
+
+                updates = {}
+                for field in ("cve_ids", "attack_techniques", "compliance_refs"):
+                    merged = _merge_json(row[field], e.get(field))
+                    if merged:
+                        updates[field] = merged
+                if updates:
+                    updates["updated_at"] = now
+                    set_sql = ", ".join(f"{f} = ?" for f in updates)
+                    conn.execute(
+                        f"UPDATE knowledge_items SET {set_sql} WHERE id = ?",
+                        (*updates.values(), eid),
+                    )
+                    count += 1
+            except Exception as item_err:
+                _logger.warning(f"security_enrichment_job item {eid} failed: {item_err}")
+
+        conn.commit()
         _logger.info(f"security_enrichment_job: processed {len(rows)} items, enriched {count}")
     except Exception as e:
         _logger.error(f"security_enrichment_job crashed: {e}")
@@ -1384,6 +1432,80 @@ async def url_full_check_job() -> None:
         _logger.warning(f"url_full_check_job: {e}")
 
 
+# ============================================================================
+# P1-5: 知识分类消费提速 — 未分类条目批量规则分类 (每 30 分钟)
+# ============================================================================
+async def knowledge_classify_job() -> None:
+    """P1-5: 批量规则分类未分类知识条目 (domain/type 为 null 的)。
+
+    背景: 81-94% 条目的 domain/topic/type/difficulty 为 null — 分类只靠
+    手动 API + 每日 02:30 编译消费者 (配额 100/天), 消费速率远低于摄入。
+    新增独立 job: 每 30min 处理最多 500 条未分类条目 (纯规则, 无 LLM/网络),
+    md 为真相源先回写, 再同步 DB。
+    """
+    from datetime import datetime, timezone
+
+    from backend.repository.db import get_connection
+    from backend.repository.knowledge_repo import knowledge_repo
+    from backend.services.auto_classifier import batch_classify
+    from backend.services.knowledge_sync import write_item_to_md
+
+    _CLASSIFY_BATCH = 500
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, title, tags, source_url, domain, type, difficulty "
+        "FROM knowledge_items "
+        "WHERE domain IS NULL OR type IS NULL OR difficulty IS NULL "
+        "ORDER BY ingested_at ASC LIMIT ?",
+        (_CLASSIFY_BATCH,),
+    ).fetchall()
+    if not rows:
+        return
+
+    items = [dict(r) for r in rows]
+    classified = batch_classify(items)
+    updated = 0
+    errors = 0
+    now = datetime.now(timezone.utc).isoformat()
+    for d in classified:
+        item_id = d.get("id")
+        if not item_id:
+            continue
+        try:
+            db_item = knowledge_repo.get_item(item_id)
+            if db_item is None:
+                continue
+            changed = False
+            if d.get("domain") and not db_item.domain:
+                db_item.domain = d["domain"]
+                changed = True
+            if d.get("type") and not db_item.type:
+                db_item.type = d["type"]
+                changed = True
+            if d.get("difficulty") and not db_item.difficulty:
+                db_item.difficulty = d["difficulty"]
+                changed = True
+            if d.get("topic") and not db_item.topic:
+                db_item.topic = d["topic"]
+                changed = True
+            if not changed:
+                continue
+            db_item.updated_at = now
+            # md 真相源先写, 再同步 DB
+            try:
+                write_item_to_md(db_item.to_dict())
+            except Exception as md_err:
+                _logger.warning(f"knowledge_classify md write failed for {item_id}: {md_err}")
+            knowledge_repo.upsert_item(db_item)
+            updated += 1
+        except Exception as e:
+            errors += 1
+            _logger.warning(f"knowledge_classify item {item_id} failed: {e}")
+    _logger.info(
+        f"knowledge_classify_job: scanned={len(rows)} updated={updated} errors={errors}"
+    )
+
+
 # 更新 __all__ (Phase 1.4 + Phase 2.2 + existing)
 __all__.extend([
     "attention_aggregate_job",
@@ -1396,6 +1518,7 @@ __all__.extend([
     "kl_trigger_t2_job",
     "kl_trigger_t3_job",
     "kl_trigger_t4_job",
+    "knowledge_classify_job",
     "planning_action_check_job",
     "url_full_check_job",
 ])

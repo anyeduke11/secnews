@@ -8,14 +8,55 @@ v1.7 Phase 1: ``compiled`` 字段被 ``lifecycle`` (SAG 生命周期) 替换.
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-# v1.7 SAG 生命周期合法状态 (PRD §3.3)
+# 知识条目生命周期合法状态 (v1.7 SAG + P1-3 KL 统一)
+# P1-3 (2026-08-15): 系统存在两套生命周期 — SAG (signal/amplify:*/generate)
+# 与 KL 五阶段 (kl:raw/refine/link/structure/publish)。统一以 **KL 五阶段为
+# 规范**, legacy SAG 值保留为兼容 (历史数据/外部调用), 新写入一律用 kl:*。
+# 映射关系:
+#   signal            → kl:raw        (刚被发现)
+#   amplify:tagged    → kl:refine     (已打标签)
+#   amplify:linked    → kl:link       (已关联概念)
+#   amplify:complete  → kl:structure  (已完成结构化)
+#   generate          → kl:publish    (已发布知识)
 VALID_LIFECYCLE_STATES = {
-    "signal",  # 信号: 刚被发现
-    "amplify:tagged",  # 放大: 已打标签
-    "amplify:linked",  # 放大: 已关联概念
-    "amplify:complete",  # 放大: 完成
-    "generate",  # 生成: 已产出知识
+    # --- KL 五阶段 (规范) ---
+    "kl:raw",         # 原始入库 (从 hotspots / 收藏导入)
+    "kl:refine",      # 评分 + tag 完成
+    "kl:link",        # 实体关联完成
+    "kl:structure",   # 摘要 + 结构化完成
+    "kl:publish",     # 已发布
+    # --- legacy SAG 值 (兼容, 不再新写入) ---
+    "signal",
+    "amplify:tagged",
+    "amplify:linked",
+    "amplify:complete",
+    "generate",
 }
+
+# P1-3: legacy SAG → KL 归一映射
+LEGACY_TO_KL = {
+    "signal": "kl:raw",
+    "amplify:tagged": "kl:refine",
+    "amplify:linked": "kl:link",
+    "amplify:complete": "kl:structure",
+    "generate": "kl:publish",
+}
+
+
+def normalize_lifecycle(value: str | None) -> str:
+    """P1-3: 把任意 lifecycle 值归一为 KL 五阶段规范值。
+
+    - kl:* 值原样返回
+    - legacy SAG 值映射为对应 kl:*
+    - 未知值返回 'kl:raw'
+    """
+    if value is None:
+        return "kl:raw"
+    if value in LEGACY_TO_KL:
+        return LEGACY_TO_KL[value]
+    if isinstance(value, str) and value.startswith("kl:"):
+        return value
+    return "kl:raw"
 
 
 @dataclass
@@ -33,7 +74,8 @@ class KnowledgeItem:
     concepts: list[str] = field(default_factory=list)
     mastered: int = 0
     # v1.7: lifecycle 替换 compiled; news_type + tech_stack 新增
-    lifecycle: str = "signal"
+    # P1-3: 默认值统一为 KL 规范 kl:raw
+    lifecycle: str = "kl:raw"
     news_type: str | None = None
     tech_stack: list[str] = field(default_factory=list)
     ingested_at: str = ""
@@ -42,21 +84,22 @@ class KnowledgeItem:
     # ---- v1.7 向后兼容: compiled 从 lifecycle 派生 ----
     @property
     def compiled(self) -> bool:
-        """lifecycle == 'generate' 视为已编译 (向后兼容旧代码)."""
-        return self.lifecycle == "generate"
+        """lifecycle 为 generate 或 kl:publish 视为已编译 (P1-3 统一后兼容)."""
+        return self.lifecycle in ("generate", "kl:publish")
 
     @compiled.setter
     def compiled(self, value: bool) -> None:
         """允许旧代码 ``item.compiled = True`` 设置 lifecycle."""
-        self.lifecycle = "generate" if value else "signal"
+        self.lifecycle = "kl:publish" if value else "kl:raw"
 
     @classmethod
     def from_row(cls, row: dict) -> "KnowledgeItem":
         import json
-        # v1.7: 优先读 lifecycle, 旧行回退到 compiled
+        # v1.7: 优先读 lifecycle, 旧行回退到 compiled (P1-3: 新值用 kl:* 规范;
+        # 但读取不归一 legacy 值 — 下游 (compiler 等) 仍按旧值做兼容判断)
         lifecycle = row.get("lifecycle")
         if not lifecycle:
-            lifecycle = "generate" if bool(row.get("compiled", 0)) else "signal"
+            lifecycle = "kl:publish" if bool(row.get("compiled", 0)) else "kl:raw"
         return cls(
             id=row["id"],
             title=row["title"],

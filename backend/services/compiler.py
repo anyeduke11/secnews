@@ -309,10 +309,12 @@ def _trigger_map_update() -> None:
 def _advance_compile_lifecycle(current: str) -> str | None:
     """规则式编译后的 lifecycle 推进 (compile 语义第 4 步: 标记 compiled)。
 
+    P1-3: 统一为 KL 五阶段规范。
     - ``kl:link`` → ``kl:structure``: KL 状态机 T3 转移 (摘要+结构化完成)。
       规则式编译以"分类完成"作为结构化的确定性代理。
-    - legacy 3 阶段 (``signal`` / ``amplify:*``) → ``generate``: 旧语义
-      ``compiled=true``。
+    - legacy 3 阶段 (``signal`` / ``amplify:*``) → ``kl:structure``
+      (旧语义 ``generate``/``compiled=true`` 对应 KL 的 structure→publish 之间,
+      取 structure 为确定性落点, 后续由 T4 发布)。
     - 其余状态 (``kl:raw`` / ``kl:refine`` / ``kl:structure`` /
       ``kl:publish`` / ``generate``) 不推进, 由 KL 状态机 / Agent 负责。
 
@@ -323,7 +325,7 @@ def _advance_compile_lifecycle(current: str) -> str | None:
     if current == "kl:link":
         return "kl:structure"
     if current in ("signal", "amplify:tagged", "amplify:linked", "amplify:complete"):
-        return "generate"
+        return "kl:structure"
     return None
 
 

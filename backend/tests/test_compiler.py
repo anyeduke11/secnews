@@ -274,14 +274,14 @@ class TestConsumeCompileTasks:
         stale = compile_env["compiler"].detect_stale_items(limit=100)
         assert "c1" not in stale["stale_items"]
 
-    def test_legacy_signal_advances_to_generate(self, compile_env):
-        """legacy signal 条目按旧语义标记 compiled=true (lifecycle=generate)。"""
+    def test_legacy_signal_advances_to_structure(self, compile_env):
+        """P1-3: legacy signal 条目推进到 kl:structure (原 generate/compiled)。"""
         _make_item("d1", "安全漏洞分析", tags=["漏洞管理"], lifecycle="signal")
         _make_task(compile_env, ["d1"])
         compile_env["compiler"].consume_compile_tasks(limit_items=10)
         item = knowledge_repo.get_item("d1")
-        assert item.lifecycle == "generate"
-        assert item.compiled is True
+        assert item.lifecycle == "kl:structure"
+        assert item.compiled is False  # structure 未发布, compiled 语义保留在 publish
 
     def test_missing_item_does_not_crash(self, compile_env):
         """任务引用的条目已不存在: 任务仍标记 done, missing 计数。"""

@@ -117,13 +117,13 @@ class TestExtractHotspot:
 # ===========================================================================
 class TestExtractKnowledge:
     def test_extract_advances_lifecycle(self, client, temp_db):
-        # 建一个 signal 状态的知识条目
+        # P1-3: 建一个 kl:raw 状态的知识条目
         item = KnowledgeItem(
             id="k-ext-1",
             title="LangChain prompt injection attack",
             source="test",
             domain="ai",
-            lifecycle="signal",
+            lifecycle="kl:raw",
             ingested_at=now_iso(),
             updated_at=now_iso(),
         )
@@ -132,8 +132,8 @@ class TestExtractKnowledge:
         r = client.post("/api/extract/knowledge/k-ext-1")
         assert r.status_code == 200
         body = r.json()
-        # signal → amplify:tagged
-        assert body["lifecycle"] == "amplify:tagged"
+        # kl:raw → kl:refine (P1-3: 原 signal → amplify:tagged)
+        assert body["lifecycle"] == "kl:refine"
         # tags 应包含命中的标签 id
         assert len(body["tags"]) > 0
 

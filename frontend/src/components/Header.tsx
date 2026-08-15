@@ -69,6 +69,27 @@ export function Header({
   const location = useLocation();
   const [now, setNow] = useState<number>(Date.now());
   const [secretTTL, setSecretTTL] = useState<number | null>(null);
+  // P0-4: "更多"菜单 — 承接旧 Sidebar 中被孤立的页面入口
+  // (知识管理 / Skill / 密钥 / 同步), 消除"路由存在但主导航不可达"。
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  const MORE_ITEMS = [
+    { path: '/knowledge', label: '知识管理', hint: '4 大领域 + 6 认知模式' },
+    { path: '/skills', label: 'Skill 管理', hint: '技能配置' },
+    { path: '/secrets', label: '密钥管理', hint: 'LLM API 密钥' },
+    { path: '/sync', label: '跨端同步', hint: 'WebDAV 同步' },
+  ];
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -131,6 +152,39 @@ export function Header({
           </span>
         )}
       </button>
+      {/* P0-4: "更多"菜单 — 知识/Skill/密钥/同步入口 (承接旧 Sidebar) */}
+      <div className="relative" ref={moreRef}>
+        <button
+          onClick={() => setMoreOpen(o => !o)}
+          className={`nav-btn ${moreOpen ? 'nav-btn-active' : ''}`}
+          title="更多功能"
+          aria-label="更多功能"
+          aria-expanded={moreOpen}
+        >
+          <Icon size={14}><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></Icon>
+        </button>
+        {moreOpen && (
+          <div
+            className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-md border bg-[var(--bg-card)] shadow-lg"
+            style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}
+            role="menu"
+          >
+            {MORE_ITEMS.map(item => (
+              <button
+                key={item.path}
+                type="button"
+                role="menuitem"
+                onClick={() => { navigate(item.path); setMoreOpen(false); }}
+                className="block w-full text-left px-3 py-2 text-[12px] hover:bg-[var(--bg-hover)]"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                <span className="font-medium">{item.label}</span>
+                <span className="block text-[10px]" style={{ color: 'var(--text-muted)' }}>{item.hint}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <button onClick={() => navigate('/settings')} className="nav-btn" title="设置" aria-label="打开设置">
         <Icon size={14}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></Icon>
       </button>
@@ -165,9 +219,9 @@ export function Header({
 
   return (
     <header className="mb-4" style={{ borderBottom: '2px solid var(--text-primary)' }}>
-      {/* ── 首行: 日期/状态 ── */}
+      {/* ── 首行: 日期/状态（靠右） ── */}
       <div
-        className="flex items-center flex-wrap gap-x-2.5 gap-y-1 text-[11.5px]"
+        className="flex items-center justify-end flex-wrap gap-x-2.5 gap-y-1 text-[11.5px]"
         style={{ color: 'var(--text-muted)' }}
       >
         <span className="whitespace-nowrap hidden sm:inline">{dateLine}</span>
@@ -199,42 +253,44 @@ export function Header({
         <LayerNav pipelineSummary={pipelineSummary} />
       </div>
 
-      {/* ── 第三行: 标语 ── */}
+      {/* ── 第三行: 子导航（层导航下一行，靠右） ── */}
+      {subNav.length > 0 && (
+        <div className="flex items-center justify-end flex-wrap gap-2 pb-2">
+          {subNav.map(item => (
+            <button
+              key={item.key}
+              onClick={() => navigate(item.path)}
+              className="ink-chip focus-ring transition-colors"
+              style={{
+                padding: '3px 9px',
+                color: item.active ? 'var(--text-on-light)' : 'var(--text-secondary)',
+                backgroundColor: item.active ? 'var(--accent)' : 'var(--bg-hover)',
+                borderColor: item.active ? 'var(--accent)' : 'var(--border-color)',
+                fontWeight: item.active ? 600 : 400,
+              }}
+              aria-current={item.active ? 'page' : undefined}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── 第四行: 标语 ── */}
       <div className="flex items-center justify-between flex-wrap gap-x-3 gap-y-1 pb-2">
         <p className="text-[11.5px] tracking-[0.18em] uppercase" style={{ color: 'var(--text-muted)' }}>
           AI时代IT和安全从业者的热点工作站
         </p>
       </div>
 
-      {/* ── 第四行: 子导航（左） + 操作按钮（右） ── */}
-      <div className="flex items-center justify-between flex-wrap gap-x-3 gap-y-1.5 pb-1.5">
-        {subNav.length > 0 && (
-          <div className="flex items-center gap-2">
-            {subNav.map(item => (
-              <button
-                key={item.key}
-                onClick={() => navigate(item.path)}
-                className="ink-chip focus-ring transition-colors"
-                style={{
-                  padding: '3px 9px',
-                  color: item.active ? 'var(--text-on-light)' : 'var(--text-secondary)',
-                  backgroundColor: item.active ? 'var(--accent)' : 'var(--bg-hover)',
-                  borderColor: item.active ? 'var(--accent)' : 'var(--border-color)',
-                  fontWeight: item.active ? 600 : 400,
-                }}
-                aria-current={item.active ? 'page' : undefined}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="flex items-center gap-1.5 ml-auto">
+      {/* ── 第五行: 操作按钮（靠右） ── */}
+      <div className="flex items-center justify-end flex-wrap gap-x-3 gap-y-1.5 pb-1.5">
+        <div className="flex items-center gap-1.5">
           {actionButtons}
         </div>
       </div>
 
-      {/* ── 第五行: 层标题（资料层/判断层/行动层） ── */}
+      {/* ── 第六行: 层标题（资料层/判断层/行动层） ── */}
       {layerName && (
         <div className="layer-header-accent flex items-center gap-3 pb-3" style={{ borderBottom: '1px solid var(--border-color)', '--header-accent': layerColor } as React.CSSProperties}>
           <h2 className="font-mono text-lg font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>

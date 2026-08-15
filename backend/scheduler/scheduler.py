@@ -366,6 +366,15 @@ class HotspotScheduler:
             replace_existing=True,
         )
 
+        # 遗留项: job — 知识库空壳条目补全 (每 6 小时, 20 条/批)
+        self.scheduler.add_job(
+            jobs.knowledge_stub_backfill_job,
+            trigger=IntervalTrigger(seconds=21600, start_date=_now_utc),
+            id="knowledge_stub_backfill",
+            name="knowledge stub backfill from URLs (every 21600s)",
+            replace_existing=True,
+        )
+
         # Phase 3: job — 源级调度器 tick (每 60s)
         self.scheduler.add_job(
             jobs.source_scheduler_tick_job,

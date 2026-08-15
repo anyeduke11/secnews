@@ -91,6 +91,7 @@ class CodegardenServiceRepository:
         memory_limit: str | None = None,
         dependencies: list[str] | None = None,
         env_vars: dict | None = None,
+        discovery_source: str = "manual",  # P5-4: 手动创建 = manual; 扫描 = auto
     ) -> dict:
         if type not in VALID_SERVICE_TYPES:
             raise InternalException(
@@ -126,14 +127,15 @@ class CodegardenServiceRepository:
                     endpoint_host, endpoint_port, endpoint_domain,
                     health_check_type, health_check_path, health_check_interval,
                     cpu_limit, memory_limit, dependencies, env_vars,
-                    created_at, last_checked_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    created_at, last_checked_at, discovery_source
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     service_id, project_id, name.strip(), namespace, type, runtime,
                     status, endpoint_host, endpoint_port, endpoint_domain,
                     health_check_type, health_check_path, int(health_check_interval),
                     cpu_limit, memory_limit, deps_json, env_json, now, now,
+                    discovery_source if discovery_source in ("auto", "manual") else "manual",
                 ),
             )
             conn.execute("COMMIT")
@@ -317,11 +319,11 @@ class CodegardenServiceRepository:
 
         now = _now_iso()
         if row is None:
-            # 创建
+            # 创建 (P5-4: 扫描发现的标记 discovery_source='auto')
             svc = self.create(
                 name=name, type=type, runtime=runtime, status=status,
                 endpoint_host=endpoint_host, endpoint_port=endpoint_port,
-                namespace=namespace,
+                namespace=namespace, discovery_source="auto",
             )
             return svc, True
         else:

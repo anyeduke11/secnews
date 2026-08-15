@@ -57,6 +57,21 @@ export function ServiceCard({ service, onClick }: ServiceCardProps) {
         >
           {service.type}
         </span>
+        {/* P5-4: 校验状态徽标 — auto=扫描发现 / manual=用户确认 */}
+        <span
+          className="text-[10px] px-1.5 py-0.5 rounded"
+          style={{
+            backgroundColor: service.discovery_source === 'manual'
+              ? 'color-mix(in srgb, var(--color-success) 15%, transparent)'
+              : 'var(--bg-hover)',
+            color: service.discovery_source === 'manual'
+              ? 'var(--color-success)'
+              : 'var(--text-muted)',
+          }}
+          title={service.discovery_source === 'manual' ? '用户手动登记' : '扫描自动发现 (未人工确认)'}
+        >
+          {service.discovery_source === 'manual' ? '✓ 已确认' : '自动'}
+        </span>
         {service.endpoint_port && (
           <span
             className="text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded"

@@ -167,6 +167,22 @@ class SourceHealthMachine:
             logger.debug(f"apply_run_result: source {source_id} is disabled, skip")
             transition = "disabled_skip"
 
+        elif prev_status == "unknown":
+            # P5-3: 初始迁移 — seed 的 unknown 状态此前永不被状态机处理,
+            # 130 个源永远停在 unknown (健康口径失真)。首轮结果即定初态:
+            # 有产出 → active; 无产出 → 进入 stale 观察 (连续失败计数)。
+            if fetched_count > 0:
+                new_status = "active"
+                new_consecutive_failures = 0
+                transition = "unknown_to_active"
+            else:
+                new_consecutive_failures = consecutive_failures + 1
+                if new_consecutive_failures >= STALE_THRESHOLD:
+                    new_status = "stale"
+                    transition = "unknown_to_stale"
+                else:
+                    transition = "unknown_observing"
+
         elif prev_status == "active":
             if fetched_count > 0:
                 new_consecutive_failures = 0

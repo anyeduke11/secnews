@@ -1517,6 +1517,7 @@ async def content_draft_generation_job() -> None:
     条目, 若尚无对应草稿则用条目正文 (knowledge/items/{id}.md) 生成草稿。
     """
     try:
+        from datetime import datetime, timezone
         from backend.repository.db import get_connection
         from backend.repository.knowledge_repo import knowledge_repo
         from backend.services.content_service import create_draft
@@ -1557,9 +1558,24 @@ async def content_draft_generation_job() -> None:
             except Exception:
                 body = ""
             try:
-                create_draft(title=title, content=body or f"# {title}\n")
+                draft = create_draft(title=title, content=body or f"# {title}\n")
                 existing_drafts.add(title)
                 created += 1
+                # P3-4 补充: 草稿自动排期到内容日历 (7 天后, 避免与既有条目撞期)
+                try:
+                    from backend.services.content_service import create_calendar_entry
+                    from datetime import timedelta as _td
+                    sched_date = (
+                        datetime.now(timezone.utc) + _td(days=7)
+                    ).strftime("%Y-%m-%d")
+                    create_calendar_entry(
+                        date=sched_date,
+                        topic=title[:80],
+                        type="article",
+                        source_items=[r["id"]],
+                    )
+                except Exception as cal_err:
+                    _logger.warning(f"content calendar schedule failed for {r['id']}: {cal_err}")
             except Exception as e:
                 _logger.warning(f"content draft create failed for {r['id']}: {e}")
         _logger.info(
@@ -1567,6 +1583,120 @@ async def content_draft_generation_job() -> None:
         )
     except Exception as e:
         _logger.error(f"content_draft_generation_job crashed: {e}")
+
+
+# ============================================================================
+# 遗留项: 知识库 URL 空壳条目内容补全 (每 6 小时, 20 条/批)
+# ============================================================================
+async def knowledge_stub_backfill_job() -> None:
+    """补全知识库空壳条目 — title 为 URL 或正文过短的条目, 抓取原文提取标题+摘要。
+
+    背景: bookmark 批量导入产生大量无标题/无正文条目 (title=URL,
+    body<40 字符), 知识库"信息进入"层质量差。本 job 尽力而为:
+    每 6h 处理 20 条, 并发 3, 抓取失败跳过 (下轮重试), 不阻塞主流程。
+    """
+    try:
+        import asyncio as _asyncio
+        import re as _re
+        from datetime import datetime, timezone
+
+        from backend.repository.db import get_connection
+        from backend.repository.knowledge_repo import knowledge_repo
+        from backend.services.knowledge_sync import ITEMS_DIR, write_item_to_md
+
+        _BATCH = 20
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT id, title, source_url FROM knowledge_items "
+            "WHERE (title LIKE 'http%' OR title = 'Untitled' OR title = '') "
+            "   AND source_url IS NOT NULL AND source_url != '' "
+            "ORDER BY ingested_at ASC LIMIT ?",
+            (_BATCH,),
+        ).fetchall()
+        if not rows:
+            return
+
+        async def _fetch_one(r) -> tuple[str, str, str] | None:
+            """抓取 URL, 返回 (item_id, real_title, snippet)."""
+            item_id, old_title, url = r["id"], r["title"], r["source_url"]
+            try:
+                from backend.collectors.session import BackendSession
+                timeout = 12
+                async with BackendSession(timeout=timeout) as session:
+                    resp = await session.get(url, timeout=timeout)
+                    if resp.status != 200:
+                        return None
+                    html = await resp.text(encoding="utf-8", errors="replace")
+                m = _re.search(r"<title[^>]*>(.*?)</title>", html, _re.IGNORECASE | _re.DOTALL)
+                real_title = ""
+                if m:
+                    real_title = _re.sub(r"\s+", " ", m.group(1)).strip()[:200]
+                # 摘要: meta description
+                desc = ""
+                dm = _re.search(
+                    r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)["\']',
+                    html, _re.IGNORECASE,
+                )
+                if not dm:
+                    dm = _re.search(
+                        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']description["\']',
+                        html, _re.IGNORECASE,
+                    )
+                if dm:
+                    desc = _re.sub(r"\s+", " ", dm.group(1)).strip()[:500]
+                return item_id, real_title or old_title, desc
+            except Exception:
+                return None
+
+        sem = _asyncio.Semaphore(3)
+
+        async def _limited(r):
+            async with sem:
+                return await _fetch_one(r)
+
+        results = await _asyncio.gather(*[_limited(r) for r in rows])
+        updated = 0
+        for res in results:
+            if not res:
+                continue
+            item_id, real_title, snippet = res
+            try:
+                db_item = knowledge_repo.get_item(item_id)
+                if db_item is None:
+                    continue
+                changed = False
+                if real_title and (not db_item.title or db_item.title.startswith("http")):
+                    db_item.title = real_title
+                    changed = True
+                if snippet and not db_item.topic:
+                    db_item.topic = snippet[:100]
+                    changed = True
+                if changed:
+                    db_item.updated_at = datetime.now(timezone.utc).isoformat()
+                    # 同时回写 .md 正文 (把摘要作为正文骨架)
+                    md_path = ITEMS_DIR / f"{item_id}.md"
+                    try:
+                        if md_path.exists():
+                            text = md_path.read_text(encoding="utf-8")
+                            m = _re.match(r"^---\s*\n.*?\n---\s*\n", text, _re.DOTALL)
+                            body = text[m.end():].strip() if m else text.strip()
+                            if len(body) < 40:
+                                write_item_to_md(
+                                    db_item.to_dict(),
+                                    content=(f"# {real_title}\n\n{snippet}\n" if snippet else None),
+                                )
+                                changed = True
+                    except Exception as md_err:
+                        _logger.warning(f"stub backfill md write failed {item_id}: {md_err}")
+                    knowledge_repo.upsert_item(db_item)
+                    updated += 1
+            except Exception as e:
+                _logger.warning(f"stub backfill item {item_id} failed: {e}")
+        _logger.info(
+            f"knowledge_stub_backfill_job: candidates={len(rows)} updated={updated}"
+        )
+    except Exception as e:
+        _logger.error(f"knowledge_stub_backfill_job crashed: {e}")
 
 
 # 更新 __all__ (Phase 1.4 + Phase 2.2 + existing)
@@ -1583,6 +1713,7 @@ __all__.extend([
     "kl_trigger_t3_job",
     "kl_trigger_t4_job",
     "knowledge_classify_job",
+    "knowledge_stub_backfill_job",
     "planning_action_check_job",
     "url_full_check_job",
 ])

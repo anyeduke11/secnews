@@ -150,8 +150,11 @@ class SourceSchedulerRepository:
     def get_stats_summary(self) -> dict:
         """返回源健康状态汇总统计。
 
+        P5-3: 增加 unknown 计数 (seed 初始态), 避免口径失真。
+
         Returns:
-            dict 含 total, active, grace, stale, dead, disabled, active_rate
+            dict 含 total, active, grace, stale, dead, unknown, disabled,
+            active_rate
         """
         conn = get_connection()
         rows = conn.execute(
@@ -171,6 +174,7 @@ class SourceSchedulerRepository:
         grace = counts.get("grace", 0)
         stale = counts.get("stale", 0)
         dead = counts.get("dead", 0)
+        unknown = counts.get("unknown", 0)
         disabled = counts.get("disabled", 0)
         active_rate = round(active / total, 4) if total > 0 else 0.0
 
@@ -180,6 +184,7 @@ class SourceSchedulerRepository:
             "grace": grace,
             "stale": stale,
             "dead": dead,
+            "unknown": unknown,
             "disabled": disabled,
             "active_rate": active_rate,
         }

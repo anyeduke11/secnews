@@ -9,6 +9,9 @@ import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
 import { apiFetch, postJSON } from '../../lib/api';
 import type { FavoriteItem, FavoritesListResponse, FavoritesCountResponse } from '../../types';
+// P5-7: 真复用 favorites/ 共享组件 (此前内联重写 FavoriteToolbarInline/FavoriteListInline)
+import { FavoriteToolbar } from '../favorites/FavoriteToolbar';
+import { FavoriteList } from '../favorites/FavoriteList';
 
 interface TodoPayload {
   important: boolean;
@@ -140,8 +143,8 @@ export function DataFavoritesPage() {
         </div>
       )}
 
-      {/* 分类筛选 */}
-      <FavoriteToolbarInline
+      {/* 分类筛选 (P5-7: 复用共享 FavoriteToolbar) */}
+      <FavoriteToolbar
         activeCat={activeCat}
         counts={counts}
         total={total}
@@ -149,8 +152,8 @@ export function DataFavoritesPage() {
         onExport={handleExport}
       />
 
-      {/* 收藏列表 */}
-      <FavoriteListInline
+      {/* 收藏列表 (P5-7: 复用共享 FavoriteList) */}
+      <FavoriteList
         items={items}
         loading={loading}
         popoverForId={popoverForId}
@@ -163,210 +166,3 @@ export function DataFavoritesPage() {
   );
 }
 
-/* ─── 内联版 FavoriteToolbar ─── */
-
-const CATEGORY_CHIPS = [
-  { id: 'all', label: '全部' },
-  { id: 'ai', label: 'AI' },
-  { id: 'security', label: '安全' },
-  { id: 'finance', label: '金融' },
-  { id: 'startup', label: '创业' },
-  { id: 'bid', label: '标讯' },
-  { id: 'github', label: 'GitHub' },
-  { id: 'tech', label: '科技' },
-];
-
-function FavoriteToolbarInline({
-  activeCat, counts, total,
-  onCategoryChange, onExport,
-}: {
-  activeCat: string;
-  counts: Record<string, number>;
-  total: number;
-  onCategoryChange: (cat: string) => void;
-  onExport: () => void;
-}) {
-  return (
-    <div className="flex items-center gap-2 flex-wrap mb-3 pb-2.5" style={{ borderBottom: '1px solid var(--border-color)' }}>
-      {CATEGORY_CHIPS.map(chip => {
-        const active = chip.id === activeCat;
-        const count = chip.id === 'all' ? total : (counts[chip.id] ?? 0);
-        return (
-          <button
-            key={chip.id}
-            onClick={() => onCategoryChange(chip.id)}
-            className="ink-chip focus-ring transition-colors"
-            style={{
-              padding: '3px 9px',
-              color: active ? 'var(--text-on-light)' : 'var(--text-secondary)',
-              backgroundColor: active ? 'var(--accent)' : 'var(--bg-hover)',
-              borderColor: active ? 'var(--accent)' : 'var(--border-color)',
-              fontWeight: active ? 600 : 400,
-            }}
-            aria-current={active ? 'page' : undefined}
-          >
-            {chip.label}
-            {count > 0 && (
-              <span className="ml-1.5 font-mono tabular-nums text-[10px]" style={{ opacity: 0.7 }}>
-                {count}
-              </span>
-            )}
-          </button>
-        );
-      })}
-      <div className="ml-auto">
-        <button
-          onClick={onExport}
-          className="ink-chip focus-ring transition-colors"
-          style={{ padding: '3px 9px', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-hover)', borderColor: 'var(--border-color)' }}
-          title="导出收藏"
-        >
-          导出
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ─── 内联版 FavoriteList ─── */
-
-function FavoriteListInline({
-  items, loading, popoverForId,
-  isFavoriteInTodo, onTogglePopover, onAddToTodo, onRemove,
-}: {
-  items: FavoriteItem[];
-  loading: boolean;
-  popoverForId: string | null;
-  isFavoriteInTodo: (hotspotId: string) => boolean;
-  onTogglePopover: (hotspotId: string) => void;
-  onAddToTodo: (hotspotId: string, payload: TodoPayload) => void;
-  onRemove: (hotspotId: string) => void;
-}) {
-  if (loading) {
-    return (
-      <div className="py-8 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-        加载中...
-      </div>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <div className="py-8 text-center">
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>暂无收藏</p>
-        <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
-          在资料层点击卡片上的星标即可收藏
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-1">
-      {items.map(item => (
-        <div
-          key={item.id}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] transition-colors hover:bg-[var(--bg-hover)]"
-          style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
-        >
-          <div className="min-w-0 flex-1">
-            <a
-              href={item.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[11.5px] font-medium hover:underline block truncate"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              {item.title || item.hotspot_id}
-            </a>
-            <div className="flex items-center gap-2 mt-1">
-              {item.category && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
-                  {item.category}
-                </span>
-              )}
-              {item.source && (
-                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{item.source}</span>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {popoverForId === item.hotspot_id ? (
-              <TodoPopover
-                hotspotId={item.hotspot_id}
-                onConfirm={onAddToTodo}
-                onClose={() => onTogglePopover('')}
-              />
-            ) : (
-              <button
-                onClick={() => onTogglePopover(item.hotspot_id)}
-                className="p-1.5 rounded-md transition-colors hover:bg-[var(--bg-hover)] focus-ring"
-                title="添加到待办"
-                aria-label="添加到待办"
-              >
-                <Icon size={12}>
-                  <polyline points="9 11 12 14 22 4" />
-                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                </Icon>
-              </button>
-            )}
-            <button
-              onClick={() => onRemove(item.hotspot_id)}
-              className="p-1.5 rounded-md transition-colors hover:bg-[var(--bg-hover)] focus-ring"
-              title="取消收藏"
-              aria-label="取消收藏"
-            >
-              <Icon size={12}>
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </Icon>
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ─── 内联版 TodoPopover ─── */
-
-function TodoPopover({
-  hotspotId, onConfirm, onClose,
-}: {
-  hotspotId: string;
-  onConfirm: (hotspotId: string, payload: TodoPayload) => void;
-  onClose: () => void;
-}) {
-  const [important, setImportant] = useState(false);
-  const [deadline, setDeadline] = useState('');
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <label className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-secondary)' }}>
-        <input type="checkbox" checked={important} onChange={e => setImportant(e.target.checked)} className="w-3 h-3" />
-        重要
-      </label>
-      <input
-        type="date"
-        value={deadline}
-        onChange={e => setDeadline(e.target.value)}
-        className="w-20 text-[10px] px-1 py-0.5 rounded-sm"
-        style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
-        placeholder="截止"
-      />
-      <button
-        onClick={() => { onConfirm(hotspotId, { important, deadline: deadline || null, note: '' }); onClose(); }}
-        className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium"
-        style={{ backgroundColor: 'var(--accent)', color: 'var(--text-on-light)' }}
-      >
-        确定
-      </button>
-      <button
-        onClick={onClose}
-        className="px-1.5 py-0.5 rounded-sm text-[10px]"
-        style={{ color: 'var(--text-muted)' }}
-      >
-        取消
-      </button>
-    </div>
-  );
-}

@@ -43,6 +43,20 @@ SECRET_MERGE_FIELDS = (
 )
 
 
+def _read_table_or_empty(reader, table: str, *args, **kwargs):
+    """P4-1/P4-1a: 读取同步表 — 表不存在 (新装/测试库) 返回 [] 视为合法空;
+    表存在但查询失败 → raise (中止同步, 防止空表被 absence-as-deletion 误删)。
+    """
+    try:
+        return reader(*args, **kwargs)
+    except Exception as e:
+        import sqlite3 as _sq
+        if isinstance(e, _sq.OperationalError) and "no such table" in str(e):
+            return []
+        logger.error(f"sync table read failed ({table}), aborting bundle build: {e}")
+        raise
+
+
 def _read_cg_projects_for_sync() -> list[dict]:
     """读取 cg_projects 主表数据用于跨端同步 (不含 stages/links/activities)。
 
@@ -56,6 +70,10 @@ def _read_cg_projects_for_sync() -> list[dict]:
         return items
     except Exception as e:
         logger.warning(f"_read_cg_projects_for_sync failed (skipped): {e}")
+        import sqlite3 as _sq
+        if isinstance(e, _sq.OperationalError) and "no such table" in str(e):
+            return []  # 表未建 (新装/测试库) — 视为合法空
+        logger.error(f"sync table read failed, aborting bundle build: {e}")
         raise RuntimeError(f"sync bundle build aborted: table read failed: {e}")
 
 
@@ -134,6 +152,10 @@ def _read_cg_services_for_sync() -> list[dict]:
         return items
     except Exception as e:
         logger.warning(f"_read_cg_services_for_sync failed (skipped): {e}")
+        import sqlite3 as _sq
+        if isinstance(e, _sq.OperationalError) and "no such table" in str(e):
+            return []  # 表未建 (新装/测试库) — 视为合法空
+        logger.error(f"sync table read failed, aborting bundle build: {e}")
         raise RuntimeError(f"sync bundle build aborted: table read failed: {e}")
 
 
@@ -209,6 +231,10 @@ def _read_tags_for_sync() -> list[dict]:
         return [t.to_dict() for t in TagRepository().list(limit=_SYNC_BUNDLE_MAX_ROWS)]
     except Exception as e:
         logger.warning(f"_read_tags_for_sync failed (skipped): {e}")
+        import sqlite3 as _sq
+        if isinstance(e, _sq.OperationalError) and "no such table" in str(e):
+            return []  # 表未建 (新装/测试库) — 视为合法空
+        logger.error(f"sync table read failed, aborting bundle build: {e}")
         raise RuntimeError(f"sync bundle build aborted: table read failed: {e}")
 
 
@@ -256,6 +282,10 @@ def _read_hotspot_tags_for_sync() -> list[dict]:
         return [dict(r) for r in rows]
     except Exception as e:
         logger.warning(f"_read_hotspot_tags_for_sync failed (skipped): {e}")
+        import sqlite3 as _sq
+        if isinstance(e, _sq.OperationalError) and "no such table" in str(e):
+            return []  # 表未建 (新装/测试库) — 视为合法空
+        logger.error(f"sync table read failed, aborting bundle build: {e}")
         raise RuntimeError(f"sync bundle build aborted: table read failed: {e}")
 
 
@@ -296,6 +326,10 @@ def _read_reading_states_for_sync() -> list[dict]:
         return [dict(r) for r in rows]
     except Exception as e:
         logger.warning(f"_read_reading_states_for_sync failed (skipped): {e}")
+        import sqlite3 as _sq
+        if isinstance(e, _sq.OperationalError) and "no such table" in str(e):
+            return []  # 表未建 (新装/测试库) — 视为合法空
+        logger.error(f"sync table read failed, aborting bundle build: {e}")
         raise RuntimeError(f"sync bundle build aborted: table read failed: {e}")
 
 
@@ -353,6 +387,10 @@ def _read_annotations_for_sync() -> list[dict]:
         return [dict(r) for r in rows]
     except Exception as e:
         logger.warning(f"_read_annotations_for_sync failed (skipped): {e}")
+        import sqlite3 as _sq
+        if isinstance(e, _sq.OperationalError) and "no such table" in str(e):
+            return []  # 表未建 (新装/测试库) — 视为合法空
+        logger.error(f"sync table read failed, aborting bundle build: {e}")
         raise RuntimeError(f"sync bundle build aborted: table read failed: {e}")
 
 
@@ -406,6 +444,10 @@ def _read_sm2_reviews_for_sync() -> list[dict]:
         return [dict(r) for r in rows]
     except Exception as e:
         logger.warning(f"_read_sm2_reviews_for_sync failed (skipped): {e}")
+        import sqlite3 as _sq
+        if isinstance(e, _sq.OperationalError) and "no such table" in str(e):
+            return []  # 表未建 (新装/测试库) — 视为合法空
+        logger.error(f"sync table read failed, aborting bundle build: {e}")
         raise RuntimeError(f"sync bundle build aborted: table read failed: {e}")
 
 

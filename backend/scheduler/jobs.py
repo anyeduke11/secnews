@@ -331,20 +331,31 @@ async def sync_job(*, force: bool = False) -> None:
         return
 
     # master_key unlock 检查 (非 force 模式)
+    # P0-1: 解锁状态是 30 分钟 TTL (secrets_service.UNLOCK_TTL_SECONDS),
+    # 而自动同步是每周一 10:30 触发 — 启动时 auto-unlock 的密钥早已过期。
+    # 修复: 解锁过期时先尝试从持久化存储 (OS keyring / settings 表) 自动恢复,
+    # 恢复成功即继续同步, 只有「无持久化密钥」才跳过并记录错误。
     if not force:
         ek = EncryptionKeyRepository().get_default()
         if ek is None or not _is_unlocked(ek.id):
-            _logger.warning("sync_job: master_key 未解锁, 跳过同步")
-            from backend.repository.sync_history_repo import SyncHistoryRepository
-            SyncHistoryRepository().write(
-                config_id=cfg.id,
-                direction="bidirectional",
-                status="error",
-                error_message="master_key 未解锁, 自动同步已跳过",
-                started_at=datetime.now(timezone.utc).isoformat(),
-                finished_at=datetime.now(timezone.utc).isoformat(),
-            )
-            return
+            try:
+                from backend.services.secrets_service import try_auto_unlock
+                restored = try_auto_unlock()
+            except Exception:
+                restored = False
+            if not restored or not _is_unlocked(ek.id):
+                _logger.warning("sync_job: master_key 未解锁且无持久化密钥可恢复, 跳过同步")
+                from backend.repository.sync_history_repo import SyncHistoryRepository
+                SyncHistoryRepository().write(
+                    config_id=cfg.id,
+                    direction="bidirectional",
+                    status="error",
+                    error_message="master_key 未解锁且无法从 keychain/settings 自动恢复, 自动同步已跳过",
+                    started_at=datetime.now(timezone.utc).isoformat(),
+                    finished_at=datetime.now(timezone.utc).isoformat(),
+                )
+                return
+            _logger.info("sync_job: master_key 已从持久化存储自动恢复")
 
     # 触发同步 (用 secrets_service 里的 fernet_key 派生 master_key 不行,
     # sync_service 需要原始 master_key 字符串; 但我们的 unlock state 只存

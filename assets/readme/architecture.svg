@@ -78,21 +78,21 @@
         <g>
           <rect width="252" height="48" rx="8" fill="#050508" stroke="#1c1c2e" stroke-width="1"/>
           <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-                font-size="10" fill="#00d4e0" letter-spacing="1.5">23 ROUTERS</text>
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">55 ROUTERS</text>
           <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
                 font-size="12" fill="#f0f0f7">/hotspots  ·  /knowledge  ·  /codegarden</text>
         </g>
         <g transform="translate(268 0)">
           <rect width="252" height="48" rx="8" fill="#050508" stroke="#1c1c2e" stroke-width="1"/>
           <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-                font-size="10" fill="#00d4e0" letter-spacing="1.5">41 SERVICES  ·  business logic</text>
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">81 SERVICES  ·  business logic</text>
           <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
                 font-size="12" fill="#f0f0f7">Hotspot  ·  Knowledge  ·  CodeGarden</text>
         </g>
         <g transform="translate(536 0)">
           <rect width="252" height="48" rx="8" fill="#050508" stroke="#1c1c2e" stroke-width="1"/>
           <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-                font-size="10" fill="#00d4e0" letter-spacing="1.5">20 REPOS  ·  DAO layer</text>
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">33 REPOS  ·  DAO layer</text>
           <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
                 font-size="12" fill="#f0f0f7">SQLite WAL  ·  59 migrations</text>
         </g>
@@ -110,7 +110,7 @@
         <g>
           <rect width="252" height="48" rx="8" fill="#050508" stroke="#1c1c2e" stroke-width="1"/>
           <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-                font-size="10" fill="#00d4e0" letter-spacing="1.5">8 COLLECTORS</text>
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">14 COLLECTORS</text>
           <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
                 font-size="12" fill="#f0f0f7">ai  ·  security  ·  finance  ·  github</text>
         </g>
@@ -124,7 +124,7 @@
         <g transform="translate(536 0)">
           <rect width="252" height="48" rx="8" fill="#050508" stroke="#1c1c2e" stroke-width="1"/>
           <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-                font-size="10" fill="#00d4e0" letter-spacing="1.5">APScheduler  ·  17 jobs</text>
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">APScheduler  ·  36 jobs</text>
           <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
                 font-size="12" fill="#f0f0f7">collect  ·  sync  ·  catchup  ·  revival</text>
         </g>

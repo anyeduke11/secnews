@@ -144,13 +144,20 @@ class KnowledgeItem:
 
 @dataclass
 class KnowledgeConcept:
-    """Mirrors knowledge/concepts/{slug}.md frontmatter."""
+    """Mirrors knowledge/concepts/{slug}.md frontmatter.
+
+    v0.4.0 收尾: 增加 entity_type / external_id / external_ref — security↔
+    knowledge 实体统一命名空间的互引字段 (concept 指向 security_entity)。
+    """
     slug: str
     title: str
     domain: str | None = None
     source_items: list[str] = field(default_factory=list)
     local_wiki_ref: str | None = None
     updated_at: str = ""
+    entity_type: str | None = None
+    external_id: str | None = None
+    external_ref: str | None = None
 
     @classmethod
     def from_row(cls, row: dict) -> "KnowledgeConcept":
@@ -162,6 +169,9 @@ class KnowledgeConcept:
             source_items=json.loads(row["source_items"]) if row.get("source_items") else [],
             local_wiki_ref=row.get("local_wiki_ref"),
             updated_at=row["updated_at"],
+            entity_type=row.get("entity_type"),
+            external_id=row.get("external_id"),
+            external_ref=row.get("external_ref"),
         )
 
     def to_dict(self) -> dict:
@@ -172,6 +182,9 @@ class KnowledgeConcept:
             "source_items": self.source_items,
             "local_wiki_ref": self.local_wiki_ref,
             "updated_at": self.updated_at,
+            "entity_type": self.entity_type,
+            "external_id": self.external_id,
+            "external_ref": self.external_ref,
         }
 
 

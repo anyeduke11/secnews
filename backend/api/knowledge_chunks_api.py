@@ -9,6 +9,7 @@ Endpoints
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 
@@ -41,33 +42,71 @@ async def get_chunks(item_id: str):
 
 @router.get("/search")
 async def search_chunks(q: str = Query(..., min_length=1)):
-    """FTS5 full-text search across knowledge_chunks_fts.
+    """FTS5 full-text search across knowledge chunks (v0.4.0: 中文路由).
 
-    Returns matching chunks with a content snippet via FTS5's built-in
-    ``snippet()`` function.  The query is plain FTS5 syntax — special
-    characters (``*``, ``"``, ``AND`` / ``OR`` / ``NOT``) are passed
-    through as-is so the user can write advanced queries.
+    - 含中文且长度 ≥3 → trigram 表 (knowledge_chunks_fts_cjk), 支持 CJK 子串
+    - 纯 ASCII → unicode61 表 (knowledge_chunks_fts)
+    - FTS 无命中或 2 字短查询 → LIKE 回退 (chunks 规模小, LIKE 足够)
     """
+    import re as _re
+
     conn = get_connection()
-    # Escape embedded double quotes to avoid FTS5 syntax errors while
-    # preserving the rest of the FTS5 query syntax.
     sanitized = q.replace('"', '""')
-    try:
-        rows = conn.execute(
-            """
-            SELECT c.item_id, c.chunk_index,
-                   snippet(knowledge_chunks_fts, 0, '<b>', '</b>', '...', 64) AS content_snippet,
-                   c.summary
-            FROM knowledge_chunks_fts
-            JOIN knowledge_chunks c ON knowledge_chunks_fts.rowid = c.id
-            WHERE knowledge_chunks_fts MATCH ?
-            ORDER BY rank
-            """,
-            (sanitized,),
-        ).fetchall()
-    except Exception as exc:
-        log.warning("FTS5 query failed: %s — query=%r", exc, q)
-        raise HTTPException(status_code=400, detail=f"Invalid search query: {exc}") from exc
+    has_cjk = bool(_re.search(r"[\u4e00-\u9fff]", q))
+
+    def _search_fts() -> list:
+        if has_cjk and len(q) >= 3:
+            # trigram 表 (FTS5 trigram 要求查询 ≥3 字符)
+            try:
+                return conn.execute(
+                    """
+                    SELECT c.item_id, c.chunk_index,
+                           substr(c.content, 1, 120) AS content_snippet,
+                           c.summary
+                    FROM knowledge_chunks_fts_cjk
+                    JOIN knowledge_chunks c ON knowledge_chunks_fts_cjk.rowid = c.id
+                    WHERE knowledge_chunks_fts_cjk MATCH ?
+                    ORDER BY rank
+                    LIMIT 50
+                    """,
+                    (sanitized,),
+                ).fetchall()
+            except Exception as exc:
+                log.warning("CJK FTS5 query failed: %s — %r", exc, q)
+                return []
+        # unicode61 (ASCII)
+        try:
+            return conn.execute(
+                """
+                SELECT c.item_id, c.chunk_index,
+                       snippet(knowledge_chunks_fts, 0, '<b>', '</b>', '...', 64) AS content_snippet,
+                       c.summary
+                FROM knowledge_chunks_fts
+                JOIN knowledge_chunks c ON knowledge_chunks_fts.rowid = c.id
+                WHERE knowledge_chunks_fts MATCH ?
+                ORDER BY rank
+                LIMIT 50
+                """,
+                (sanitized,),
+            ).fetchall()
+        except Exception as exc:
+            log.warning("FTS5 query failed: %s — query=%r", exc, q)
+            return []
+
+    rows = _search_fts()
+    # 回退: FTS 无命中 (或 2 字短查询) → LIKE 全文模糊匹配
+    if not rows:
+        like = f"%{q}%"
+        try:
+            rows = conn.execute(
+                "SELECT id AS item_id, chunk_index, "
+                "substr(content, 1, 120) AS content_snippet, summary "
+                "FROM knowledge_chunks "
+                "WHERE content LIKE ? OR summary LIKE ? LIMIT 50",
+                (like, like),
+            ).fetchall()
+        except Exception:
+            rows = []
 
     results = [dict(r) for r in rows]
     return {"results": results, "total": len(results)}
@@ -78,79 +117,30 @@ async def search_chunks(q: str = Query(..., min_length=1)):
 
 @router.post("/generate/{item_id}")
 async def generate_chunks(item_id: str):
-    """Split a knowledge item's .md content into chunks.
+    """Split a knowledge item's .md content into chunks (v0.4.0: 委托 chunk_service).
 
     Reads the markdown file from ``knowledge/items/{item_id}.md``,
-    strips YAML frontmatter, splits by double-newline paragraphs, and
-    writes each paragraph as a row in ``knowledge_chunks``.
+    strips YAML frontmatter, splits by paragraphs, and writes each
+    paragraph as a row in ``knowledge_chunks`` (FTS5 由触发器同步).
 
     Returns **409 Conflict** if chunks already exist for this item.
     """
-    # 1. Verify item exists in DB.
-    item = knowledge_repo.get_item(item_id)
-    if item is None:
+    from backend.services.chunk_service import generate_chunks_for_item
+
+    result = await asyncio.to_thread(generate_chunks_for_item, item_id)
+    if result.get("skipped") and result.get("reason") == "already_exists":
+        raise HTTPException(status_code=409, detail="Chunks already exist for this item")
+    if result.get("skipped") and result.get("reason") == "item_not_found":
         raise HTTPException(status_code=404, detail="Item not found")
-
-    # 2. Check for existing chunks.
-    conn = get_connection()
-    existing = conn.execute(
-        "SELECT COUNT(*) FROM knowledge_chunks WHERE item_id = ?", (item_id,)
-    ).fetchone()[0]
-    if existing > 0:
-        raise HTTPException(
-            status_code=409,
-            detail="Chunks already exist for this item",
-        )
-
-    # 3. Read .md file and strip frontmatter.
-    md_path = (
-        Path(__file__).resolve().parent.parent.parent
-        / "knowledge"
-        / "items"
-        / f"{item_id}.md"
-    )
-    if not md_path.exists():
+    if result.get("skipped") and result.get("reason") == "no_md_file":
         raise HTTPException(status_code=404, detail="Item markdown file not found")
-
-    raw = md_path.read_text(encoding="utf-8")
-    if raw.startswith("---"):
-        parts = raw.split("---", 2)
-        content = parts[2].strip() if len(parts) >= 3 else ""
-    else:
-        content = raw.strip()
-
-    if not content:
+    if result.get("skipped") and result.get("reason") == "too_short":
         raise HTTPException(status_code=400, detail="Item has no content to chunk")
-
-    # 4. Split by double newline into paragraphs.
-    paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
-
-    chunks = []
-    char_pos = 0
-    for idx, para in enumerate(paragraphs):
-        # Locate the paragraph within the original content string.
-        cs = content.find(para, char_pos)
-        ce = cs + len(para)
-        char_pos = ce
-
-        # First ~100 chars as a simple summary.
-        summary = (para[:100] + "...") if len(para) > 100 else para
-
-        conn.execute(
-            "INSERT INTO knowledge_chunks "
-            "(item_id, chunk_index, content, char_start, char_end, summary) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (item_id, idx, para, cs, ce, summary),
-        )
-        chunks.append(
-            {
-                "item_id": item_id,
-                "chunk_index": idx,
-                "content": para,
-                "char_start": cs,
-                "char_end": ce,
-                "summary": summary,
-            }
-        )
-
-    return {"chunks": chunks, "created": len(chunks)}
+    # 返回兼容结构
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, item_id, chunk_index, content, char_start, char_end, summary "
+        "FROM knowledge_chunks WHERE item_id = ? ORDER BY chunk_index",
+        (item_id,),
+    ).fetchall()
+    return {"chunks": [dict(r) for r in rows], "created": result.get("created", 0)}

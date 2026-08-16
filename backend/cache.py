@@ -188,8 +188,16 @@ class TTLCache:
 # ---------------------------------------------------------------------------
 # 3 个实例
 # ---------------------------------------------------------------------------
-list_cache: TTLCache = TTLCache(maxsize=64, ttl=300, name="list")
-detail_cache: TTLCache = TTLCache(maxsize=2000, ttl=600, name="detail")
+# v0.4.0 收尾: cache_ttl_seconds / cache_maxsize 死配置接线 —
+# 此前 config 定义但 cache.py 硬编码 (审计发现 C1: 7 项死配置)。
+try:
+    from backend.config import config as _cfg
+    _list_max = _cfg.cache_maxsize if _cfg.cache_maxsize > 0 else 64
+    _list_ttl = _cfg.cache_ttl_seconds if _cfg.cache_ttl_seconds > 0 else 300
+except Exception:
+    _list_max, _list_ttl = 64, 300
+list_cache: TTLCache = TTLCache(maxsize=_list_max, ttl=_list_ttl, name="list")
+detail_cache: TTLCache = TTLCache(maxsize=max(2000, _list_max * 2), ttl=600, name="detail")
 static_cache: TTLCache = TTLCache(maxsize=16, ttl=86400, name="static")
 
 

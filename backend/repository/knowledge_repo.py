@@ -248,17 +248,21 @@ class KnowledgeRepo:
 
     def upsert_concept(self, concept: KnowledgeConcept) -> None:
         conn = get_connection()
+        # v0.4.0: 增加 entity_type/external_id/external_ref 互引字段写入
         conn.execute(
             """
             INSERT INTO knowledge_concepts (slug, title, domain, source_items,
-                local_wiki_ref, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+                local_wiki_ref, updated_at, entity_type, external_id, external_ref)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(slug) DO UPDATE SET
                 title=excluded.title,
                 domain=excluded.domain,
                 source_items=excluded.source_items,
                 local_wiki_ref=excluded.local_wiki_ref,
-                updated_at=excluded.updated_at
+                updated_at=excluded.updated_at,
+                entity_type=excluded.entity_type,
+                external_id=excluded.external_id,
+                external_ref=excluded.external_ref
             """,
             (
                 concept.slug,
@@ -267,6 +271,9 @@ class KnowledgeRepo:
                 json.dumps(concept.source_items),
                 concept.local_wiki_ref,
                 concept.updated_at,
+                concept.entity_type,
+                concept.external_id,
+                concept.external_ref,
             ),
         )
 

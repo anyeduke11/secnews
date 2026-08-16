@@ -41,6 +41,8 @@ class Settings(BaseSettings):
 
     # Collection
     collect_interval_seconds: int = 300
+    # v0.4.0 注: collect_timeout_seconds / collect_single_source_timeout 为预留 —
+    # 抓取超时目前在 fetchers.py 内按路径各自设置, 待统一 BackendSession 接线后启用
     collect_timeout_seconds: int = 60
     collect_single_source_timeout: int = 30
     # v1.8: 启动时自动追抓「本周一 → 现在」(真实全网抓取);
@@ -58,9 +60,12 @@ class Settings(BaseSettings):
     # Quality
     quality_strict_mode: bool = False
     quality_min_score: int = 50
+    # v0.4.0 注: quality_url_check_enabled 为预留 — URL 内容校验由 collect_all
+    # 尾部 post-ingest 链统一执行 (独立调度已收敛); interval 同样由链内节奏决定
     quality_url_check_enabled: bool = True
     quality_url_check_timeout: int = 8
     quality_url_check_interval_seconds: int = 300
+    # v0.4.0: 接线到 source_reputation_rebuild 调度间隔
     quality_reputation_interval_seconds: int = 21600
 
     # v1.4 Knowledge

@@ -105,3 +105,19 @@
 ### 兼容性
 - 后端 2288+ → 2,400+ 测试全绿; 前端 292 测试全绿
 - 数据库迁移无需新增 (全部修复为代码层)
+
+### v0.4.0 收尾 (2026-08-16 补)
+
+#### Chunk + FTS5 全文检索落地 (此前 0 行)
+- `chunk_service` 段落切分生成器 (char_start/end 原文定位, 超长段落句切)
+- `knowledge_chunk_generation_job` 每 30min 处理 200 条
+- 迁移 061: FTS5 trigram 表 → 中文子串检索 (unicode61 不切 CJK)
+- 搜索端点路由: CJK≥3字→trigram / ASCII→unicode61 / 短查询→LIKE
+- 存量回填: 258 个有正文条目全部生成 chunks
+
+#### Security ↔ Knowledge 实体统一命名空间 (PRD A.3.2)
+- `security_enrichment_job` 重构为持续回填 (去掉 24h 限制 + 空结果打标)
+- 富化实体写入 `item_entities` 桥接表 (此前 0 行, 全库无写入方)
+- `security_entity_concept_sync_job`: item 实体→security_entities + 高频
+  实体→knowledge concept 互引 (external_id/external_ref)
+- 实测: 34 桥接关联 / 28 CVE 入 security 库 / 2 高频概念互引

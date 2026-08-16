@@ -365,7 +365,7 @@ hotspot 的定位是"从信息到知识，再到知识复利的关键中转系�
 |---|---|
 | P6-1 | 文档对账：ARCHITECTURE.md / CLAUDE.md / _SCHEMA.md / quality_gates.md 与代码实测对齐（chunks/attention/review 的"已实现"表述需修正；9 vs 11 门禁） |
 | P6-2 | 死代码清理：Sidebar/TopBar/chunks API/conflict resolve 标记/未接线 collector/死配置（7 项） |
-| P6-3 | security ↔ knowledge 实体统一命名空间（PRD A.3.2 遗留） |
+| P6-3 | security ↔ knowledge 实体统一命名空间（PRD A.3.2 遗留） | ✅ 落地: item_entities 桥接 + security_entity_concept_sync_job (v0.4.0 收尾) |
 | P6-4 | 为上述每个修复补回归测试（当前 2288 后端 + 278 前端测试不覆盖这些断裂；新增 FK 去重、run_one_source、merge 语义、门禁语义测试） |
 
 ---

@@ -11,12 +11,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.repository.db import get_connection
-from backend.repository.knowledge_repo import knowledge_repo
 
 log = logging.getLogger("hotspot.api.knowledge_chunks")
 router = APIRouter(prefix="/api/knowledge/chunks", tags=["knowledge-chunks"])

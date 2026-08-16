@@ -71,8 +71,15 @@ def _insert_chunk(item_id: str, idx: int, content: str) -> None:
 
 
 def _create_md_file(item_id: str, content: str) -> Path:
-    """Create a temporary .md file and monkeypatch the path resolution."""
-    md_path = Path(__file__).resolve().parent.parent.parent / "knowledge" / "items" / f"{item_id}.md"
+    """Create a temporary .md file (v0.4.0: 写到 conftest 重定向后的 ITEMS_DIR).
+
+    此前写真实 knowledge/items/ (依赖旧 API 的 __file__ 路径计算);
+    现 chunk_service 读 knowledge_sync.ITEMS_DIR (被 conftest 隔离重定向到
+    tmp), 测试必须写到同一位置。
+    """
+    from backend.services.knowledge_sync import ITEMS_DIR
+
+    md_path = ITEMS_DIR / f"{item_id}.md"
     md_path.parent.mkdir(parents=True, exist_ok=True)
     md_path.write_text(content, encoding="utf-8")
     return md_path

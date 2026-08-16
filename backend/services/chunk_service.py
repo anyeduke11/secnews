@@ -18,9 +18,14 @@ from pathlib import Path
 
 from backend.repository.db import get_connection
 from backend.repository.knowledge_repo import knowledge_repo
-from backend.services.knowledge_sync import ITEMS_DIR
+from backend.services import knowledge_sync as _ksync
 
 log = logging.getLogger("hotspot.chunk_service")
+
+# 动态引用 knowledge_sync.ITEMS_DIR — 测试 monkeypatch 该模块属性时,
+# import 时绑定会拿到旧值 (此前 chunk_service.ITEMS_DIR 绑定导致 404)
+def _items_dir() -> Path:
+    return _ksync.ITEMS_DIR
 
 # 正文过短 (< 此字符数) 的条目不切分 (空壳条目没有段落价值)
 MIN_CONTENT_LEN = 40
@@ -79,7 +84,7 @@ def generate_chunks_for_item(item_id: str) -> dict:
     if existing > 0:
         return {"item_id": item_id, "created": 0, "skipped": True, "reason": "already_exists"}
 
-    md_path = ITEMS_DIR / f"{item_id}.md"
+    md_path = _items_dir() / f"{item_id}.md"
     if not md_path.exists():
         return {"item_id": item_id, "created": 0, "skipped": True, "reason": "no_md_file"}
 

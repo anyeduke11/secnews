@@ -101,10 +101,13 @@ class HotspotScheduler:
         )
         # v1.8 R3: 原 job 2/3/5 (trend_rebuild / url_content_check /
         # export_rebuild) 已收敛进 collect_all_job 尾部 post-ingest 链
-        # Phase 3.5: job 4 — 来源信誉重算（默认 6h）
+        # Phase 3.5: job 4 — 来源信誉重算 (默认 6h; v0.4.0: 接线 config)
         self.scheduler.add_job(
             jobs.source_reputation_rebuild_job,
-            trigger=IntervalTrigger(seconds=21600, start_date=_now_utc),
+            trigger=IntervalTrigger(
+                seconds=config.quality_reputation_interval_seconds,
+                start_date=_now_utc,
+            ),
             id="source_reputation_rebuild",
             name="source reputation rebuild",
             replace_existing=True,
@@ -372,6 +375,24 @@ class HotspotScheduler:
             trigger=IntervalTrigger(seconds=21600, start_date=_now_utc),
             id="knowledge_stub_backfill",
             name="knowledge stub backfill from URLs (every 21600s)",
+            replace_existing=True,
+        )
+
+        # v0.4 收尾: job — knowledge_chunks 段落切分生成 (每 30 分钟)
+        self.scheduler.add_job(
+            jobs.knowledge_chunk_generation_job,
+            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
+            id="knowledge_chunk_generation",
+            name="knowledge chunk generation (every 1800s)",
+            replace_existing=True,
+        )
+
+        # v0.4 收尾: job — security↔knowledge 实体统一 (每 10 分钟)
+        self.scheduler.add_job(
+            jobs.security_entity_concept_sync_job,
+            trigger=IntervalTrigger(seconds=600, start_date=_now_utc),
+            id="security_entity_concept_sync",
+            name="security entity ↔ knowledge concept sync (every 600s)",
             replace_existing=True,
         )
 

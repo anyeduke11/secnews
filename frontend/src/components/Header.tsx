@@ -219,23 +219,8 @@ export function Header({
 
   return (
     <header className="mb-5" style={{ borderBottom: '2px solid var(--text-primary)' }}>
-      {/* ── 首行: 状态 + 操作按钮（靠右） ── */}
-      <div className="flex items-center justify-end gap-2.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-        <span className="flex items-center gap-1.5 whitespace-nowrap" title="最近摄取更新条数">
-          <span className="pulse-dot" style={{ backgroundColor: 'var(--color-general)', width: 5, height: 5, borderRadius: '50%', display: 'inline-block' }} />
-          <span className="font-mono tabular-nums font-semibold" style={{ color: 'var(--text-secondary)' }}>{latestIngestionCount}</span>
-          <span className="hidden xs:inline">更新</span>
-        </span>
-        <span className="font-mono tabular-nums whitespace-nowrap" title="最近更新时间">{lastUpdatedClock}</span>
-        <span className="hidden md:flex items-center gap-1 font-mono tabular-nums whitespace-nowrap" title="距下次自动刷新">
-          <Icon size={10}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Icon>
-          {countdownText}
-        </span>
-        <div className="flex items-center gap-1">{actionButtons}</div>
-      </div>
-
-      {/* ── 次行: 标题（左） + 层导航（右） ── */}
-      <div className="flex items-center justify-between flex-wrap gap-x-3 gap-y-1 pt-2 pb-3">
+      {/* ── 首行: 标题（左） + 状态/操作（右） ── */}
+      <div className="flex items-center justify-between flex-wrap gap-x-3 gap-y-1 pt-2 pb-2">
         <button
           onClick={() => navigate('/')}
           className="block text-left focus-ring shrink-0"
@@ -244,10 +229,22 @@ export function Header({
         >
           <h1 className="masthead-title">SecNews</h1>
         </button>
-        <LayerNav pipelineSummary={pipelineSummary} />
+        <div className="flex items-center justify-end gap-2.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          <span className="flex items-center gap-1.5 whitespace-nowrap" title="最近摄取更新条数">
+            <span className="pulse-dot" style={{ backgroundColor: 'var(--color-general)', width: 5, height: 5, borderRadius: '50%', display: 'inline-block' }} />
+            <span className="font-mono tabular-nums font-semibold" style={{ color: 'var(--text-secondary)' }}>{latestIngestionCount}</span>
+            <span className="hidden xs:inline">更新</span>
+          </span>
+          <span className="font-mono tabular-nums whitespace-nowrap" title="最近更新时间">{lastUpdatedClock}</span>
+          <span className="hidden md:flex items-center gap-1 font-mono tabular-nums whitespace-nowrap" title="距下次自动刷新">
+            <Icon size={10}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Icon>
+            {countdownText}
+          </span>
+          <div className="flex items-center gap-1">{actionButtons}</div>
+        </div>
       </div>
 
-      {/* ── 第三行: 标语/日期 ── */}
+      {/* ── 次行: 标语/日期（左） + 层导航（右） ── */}
       <div className="flex items-center justify-between flex-wrap gap-x-4 gap-y-1.5 pb-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
         <div className="flex items-center flex-wrap gap-x-3 gap-y-1">
           <p className="text-[11px] tracking-[0.18em] uppercase font-medium" style={{ color: 'var(--text-muted)' }}>
@@ -256,6 +253,7 @@ export function Header({
           <span className="hidden sm:inline text-[11px]" style={{ color: 'var(--text-muted)' }} aria-hidden="true">·</span>
           <span className="text-[11px] hidden sm:inline" style={{ color: 'var(--text-muted)' }}>{dateLine}</span>
         </div>
+        <LayerNav pipelineSummary={pipelineSummary} />
       </div>
 
       {/* ── 第四行: 子导航（左） + 层标题（右） ── */}

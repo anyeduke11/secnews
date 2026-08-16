@@ -124,7 +124,7 @@
         <g transform="translate(536 0)">
           <rect width="252" height="48" rx="8" fill="#050508" stroke="#1c1c2e" stroke-width="1"/>
           <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-                font-size="10" fill="#00d4e0" letter-spacing="1.5">APScheduler  ·  36 jobs</text>
+                font-size="10" fill="#00d4e0" letter-spacing="1.5">APScheduler  ·  39 jobs</text>
           <text x="12" y="38" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
                 font-size="12" fill="#f0f0f7">collect  ·  sync  ·  catchup  ·  revival</text>
         </g>

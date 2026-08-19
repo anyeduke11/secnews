@@ -12,7 +12,7 @@ export function ExportSettings() {
 
   return (
     <div className="space-y-2">
-      <div className="card-compact">
+      <div className="card-base">
         <div className="px-2.5 py-1.5">
           <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>数据导出</span>
           <p className="text-[9px] mt-1 mb-1.5" style={{ color: 'var(--text-muted)' }}>

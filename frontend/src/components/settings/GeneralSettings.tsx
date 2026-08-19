@@ -13,7 +13,7 @@ export function GeneralSettings({ onThemeToggle, theme }: { onThemeToggle: () =>
   return (
     <div className="space-y-2">
       {/* 主题切换 */}
-      <div className="card-compact">
+      <div className="card-base">
         <div className="flex items-center justify-between px-2.5 py-1.5">
           <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>主题</span>
           <div className="flex gap-1">
@@ -44,7 +44,7 @@ export function GeneralSettings({ onThemeToggle, theme }: { onThemeToggle: () =>
       </div>
 
       {/* 自动刷新 */}
-      <div className="card-compact">
+      <div className="card-base">
         <div className="px-2.5 py-1.5">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>自动刷新</span>
@@ -75,7 +75,7 @@ export function GeneralSettings({ onThemeToggle, theme }: { onThemeToggle: () =>
       </div>
 
       {/* 自动刷新 */}
-      <div className="card-compact">
+      <div className="card-base">
         <div className="px-2.5 py-1.5">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>自动刷新</span>

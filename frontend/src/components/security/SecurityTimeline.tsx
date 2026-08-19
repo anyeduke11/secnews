@@ -23,7 +23,7 @@ export function SecurityTimeline() {
 
   if (loading) {
     return (
-      <div className="tech-card flex items-center justify-center" style={{ height: '200px', color: 'var(--text-muted)' }}>
+      <div className="card-base flex items-center justify-center" style={{ height: '200px', color: 'var(--text-muted)' }}>
         <p className="text-xs">加载中…</p>
       </div>
     );
@@ -31,7 +31,7 @@ export function SecurityTimeline() {
 
   if (!data || data.nodes.length === 0) {
     return (
-      <div className="tech-card flex items-center justify-center"
+      <div className="card-base flex items-center justify-center"
            style={{ height: '200px', color: 'var(--text-muted)' }}>
         <p className="text-xs">暂无 CVE 数据</p>
       </div>
@@ -70,7 +70,7 @@ export function SecurityTimeline() {
           return (
             <div
               key={node.id}
-              className="tech-card flex items-center gap-2 px-2.5 py-1.5 text-xs"
+              className="card-base flex items-center gap-2 px-2.5 py-1.5 text-xs"
             >
               <span className="text-[10px] font-mono shrink-0" style={{ color: 'var(--text-muted)' }}>
                 {node.id}

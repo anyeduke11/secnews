@@ -30,7 +30,7 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
 
   return (
     <article
-      className={`editorial-card animate-fade-in-up ${delayClass} flex flex-col h-full`}
+      className={`card-base animate-fade-in-up ${delayClass} flex flex-col h-full`}
     >
       <div className="flex items-start justify-between gap-2 px-3.5 pt-3 pb-2">
         <span

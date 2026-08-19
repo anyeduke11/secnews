@@ -284,7 +284,7 @@ export default function AlertCenter() {
             return (
               <div
                 key={alert.id}
-                className="editorial-card"
+                className="card-base"
                 style={{
                   padding: '12px 14px',
                   borderLeft: `3px solid ${severityColor}`,

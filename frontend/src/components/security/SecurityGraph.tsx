@@ -30,7 +30,7 @@ export function SecurityGraph({ view }: SecurityGraphProps) {
 
   if (loading) {
     return (
-      <div className="tech-card flex items-center justify-center" style={{ height: '300px', color: 'var(--text-muted)' }}>
+      <div className="card-base flex items-center justify-center" style={{ height: '300px', color: 'var(--text-muted)' }}>
         <p className="text-xs">加载中…</p>
       </div>
     );
@@ -38,7 +38,7 @@ export function SecurityGraph({ view }: SecurityGraphProps) {
 
   if (error) {
     return (
-      <div className="tech-card flex items-center justify-center"
+      <div className="card-base flex items-center justify-center"
            style={{ height: '300px', color: 'var(--color-error)' }}>
         <p className="text-xs">加载失败: {error}</p>
       </div>
@@ -47,7 +47,7 @@ export function SecurityGraph({ view }: SecurityGraphProps) {
 
   if (!data || data.nodes.length === 0) {
     return (
-      <div className="tech-card flex items-center justify-center"
+      <div className="card-base flex items-center justify-center"
            style={{ height: '300px', color: 'var(--text-muted)' }}>
         <p className="text-xs">暂无安全数据。请先同步 MITRE ATT&CK 数据。</p>
       </div>
@@ -67,7 +67,7 @@ export function SecurityGraph({ view }: SecurityGraphProps) {
           };
           return (
             <div key={key}
-              className="tech-card p-2 text-center"
+              className="card-base p-2 text-center"
             >
               <div className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</div>
               <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{labelMap[key] || key}</div>
@@ -81,7 +81,7 @@ export function SecurityGraph({ view }: SecurityGraphProps) {
         {data.nodes.map((node: any) => (
           <div
             key={node.id}
-            className="tech-card flex items-center gap-2 px-2.5 py-1.5 cursor-pointer text-xs"
+            className="card-base flex items-center gap-2 px-2.5 py-1.5 cursor-pointer text-xs"
             style={{
               borderLeft: `3px solid ${ENTITY_COLORS[node.entity_type] || 'var(--text-muted)'}`,
             }}

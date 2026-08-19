@@ -109,7 +109,7 @@ export function DatabaseMaintenance() {
   return (
     <div className="space-y-2">
       {/* DB 概览 */}
-      <div className="card-compact">
+      <div className="card-base">
         <div className="px-2.5 py-1.5">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>数据库概览</span>
@@ -140,7 +140,7 @@ export function DatabaseMaintenance() {
       </div>
 
       {/* 大表 Top 10 */}
-      <div className="card-compact">
+      <div className="card-base">
         <div className="px-2.5 py-1.5">
           <span className="text-[11px] font-medium mb-1 block" style={{ color: 'var(--text-primary)' }}>大表 Top 10</span>
           <div className="space-y-0.5 text-[9px] font-mono">
@@ -155,7 +155,7 @@ export function DatabaseMaintenance() {
       </div>
 
       {/* 操作按钮组 */}
-      <div className="card-compact">
+      <div className="card-base">
         <div className="px-2.5 py-1.5">
           <span className="text-[11px] font-medium mb-1.5 block" style={{ color: 'var(--text-primary)' }}>维护操作</span>
           <div className="grid grid-cols-2 gap-1.5 mb-1.5">
@@ -180,7 +180,7 @@ export function DatabaseMaintenance() {
       </div>
 
       {/* 质量日志保留期 */}
-      <div className="card-compact">
+      <div className="card-base">
         <div className="px-2.5 py-1.5">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>质量日志保留期</span>
@@ -210,7 +210,7 @@ export function DatabaseMaintenance() {
       </div>
 
       {/* 历史数据保留期 */}
-      <div className="card-compact">
+      <div className="card-base">
         <div className="px-2.5 py-1.5">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>历史数据保留期</span>
@@ -235,7 +235,7 @@ export function DatabaseMaintenance() {
 
       {/* 重复数据详情 */}
       {(dupCount > 0 || kiDupCount > 0) && (
-        <div className="card-compact">
+        <div className="card-base">
           <div className="px-2.5 py-1.5">
             <span className="text-[11px] font-medium mb-1 block" style={{ color: 'var(--text-primary)' }}>重复数据详情</span>
             {duplicates?.hotspots && duplicates.hotspots.length > 0 && (

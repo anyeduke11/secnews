@@ -34,7 +34,7 @@ export function SecurityEntityDetail({ entity, onClose }: DetailProps) {
 
   return (
     <div
-      className="tech-card p-3 text-xs"
+      className="card-base p-3 text-xs"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-2">

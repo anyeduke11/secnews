@@ -8,7 +8,7 @@
  */
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useTheme } from '../../App';
+import { useTheme } from '../../contexts/ThemeContext';
 import { Header } from '../Header';
 import { CategoryNav } from '../CategoryNav';
 import { TrendChart } from '../TrendChart';

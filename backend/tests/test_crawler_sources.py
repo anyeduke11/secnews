@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import sqlite3
-from pathlib import Path
 
 import pytest
 
@@ -35,8 +34,8 @@ def crawler_db(tmp_path, monkeypatch):
         """
     )
     conn.commit()
-    from backend.repository import db as db_mod
     from backend import repository as repo_pkg
+    from backend.repository import db as db_mod
 
     monkeypatch.setattr(db_mod, "get_connection", lambda: conn)
     for name in list(repo_pkg.__dict__.keys()):
@@ -69,11 +68,11 @@ def _seed(conn, category: str, sources: list[dict]) -> None:
 def test_registry_driven_sources_equivalent_to_constants(crawler_db):
     """表驱动源 == 常量实际生效源 (6 个已注册分类)."""
     from backend.collectors.ai_collector import AICollector
-    from backend.collectors.security_collector import SecurityCollector
     from backend.collectors.finance_collector import FinanceCollector
     from backend.collectors.github_collector import GitHubCollector
-    from backend.collectors.tech_collector import TechCollector
+    from backend.collectors.security_collector import SecurityCollector
     from backend.collectors.startup_collector import StartupCollector
+    from backend.collectors.tech_collector import TechCollector
 
     collectors = [
         AICollector(), SecurityCollector(), FinanceCollector(),

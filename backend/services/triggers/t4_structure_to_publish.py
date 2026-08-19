@@ -69,6 +69,7 @@ DEFAULT_SCORE = 5.0  # fallback when ai_scores is empty
 # "内容已稳定" 的条目可以发布; 有评分行时仍严格执行 MIN_SCORE 门槛。
 # 可用环境变量覆盖: HOTSPOT_KL_T4_SCORE_FALLBACK=0 关闭。
 import os as _os
+
 SCORE_FALLBACK_ENABLED = _os.getenv("HOTSPOT_KL_T4_SCORE_FALLBACK", "1") != "0"
 SCORE_FALLBACK_VALUE = MIN_SCORE  # fallback 视为通过
 

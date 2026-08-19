@@ -33,6 +33,7 @@ MIN_CONTENT_LEN = 40
 MAX_CHUNK_LEN = 2000
 
 import re as _re
+
 _SENTENCE_RE = _re.compile(r"[^。！？；\n]*[。！？；\n]")
 
 
@@ -125,4 +126,4 @@ def generate_chunks_for_item(item_id: str) -> dict:
     return {"item_id": item_id, "created": len(segments), "skipped": False, "reason": None}
 
 
-__all__ = ["generate_chunks_for_item", "MIN_CONTENT_LEN"]
+__all__ = ["MIN_CONTENT_LEN", "generate_chunks_for_item"]

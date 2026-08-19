@@ -61,14 +61,22 @@
 | `./scripts/layout-restore.sh latest` | 还原到最近一次 backup |
 | `./scripts/layout-restore.sh list` | 列出所有 backup |
 
-**当前 backup**：`backup/stage-0-init-20260818-165119` @ `b9306a90`
+**当前 backup**：`backup/stage-1-infra-20260819-094211` @ `f5d841cd`（历史：`stage-0-init-20260818-165119` @ `b9306a90`）
+
+**Stage 1 完成摘要**（详见 docs/UI_DESIGN_SPEC.md §6）：
+- legacy 卡片类全量收编为 `card-base`（34 处引用 / 16 文件），legacy CSS 块删除
+- 主题双轨修正：`:root` 默认亮色（用户选定亮色优先），`:root[data-theme="dark"]` 覆盖，闪色消除
+- App.tsx 306 行 → 15 行：`contexts/ThemeContext` + `routes/lazy-imports` + `routes/index`
+- 全站无 <11px 字号（index.css 16 处 + tsx 内联 62 处待 Stage2 逐步收编），CTA 12px，`--text-min` token 就位
+- 断点：平板/宽屏基础字号兜底、`agihunt-card-grid` 2xl 起 4 列、CategoryNav 移动端单行横滚
+- 一键还原：`./scripts/layout-restore.sh stage-1-infra`
 
 ## 分阶段路线图
 
 | Stage | 范围 | 起点 backup | 当前状态 |
 |---|---|---|---|
 | 0 | 全局基线 audit | `stage-0-init` | ✅ 已 backup |
-| 1 | 全局基础设施（legacy alias 收编、字号 audit、路由拆分） | `stage-1-infra` | 待启动 |
+| 1 | 全局基础设施（legacy alias 收编、字号 audit、路由拆分） | `stage-1-infra-20260819-094211` | ✅ 已完成 (2026-08-19, commit 5e8f5a4b, 292/292 tests) |
 | 2 | SecNews 热点聚合（`/data` 及子路由） | `stage-2-secnews` | 待启动 |
 | 3 | Knowledge 知识库（6 模式 + Attention Heatmap） | `stage-3-knowledge` | 待启动 |
 | 4 | CodeGarden 项目管理（项目看板 + 服务网格 + 依赖图） | `stage-4-codegarden` | 待启动 |

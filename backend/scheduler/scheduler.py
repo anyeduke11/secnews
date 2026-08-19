@@ -36,6 +36,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from backend.config import config
+from backend.extensions import is_extension_enabled
 from backend.logging_config import logger
 from backend.scheduler import jobs
 
@@ -43,6 +44,29 @@ _logger = logger.bind(component="scheduler")
 
 # Phase 42: 跨端同步的固定时区 (用户决策 Q2: 每周一 10:30 Asia/Shanghai)
 SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
+
+# v0.4.3: job→扩展域归属表 — 扩展关闭时对应 job 不调度
+# (job_id 为 scheduler.py 中 add_job 的 id 参数)
+_JOB_EXT_MAP: dict[str, str] = {
+    "sync": "sync",                    # 跨端配置同步 (Mon 10:30)
+    "cg_upstream_sync": "codegarden",  # 上游同步 (daily 09:00)
+    "cg_service_scan": "codegarden",   # 服务网格自动发现 (5min)
+    "cg_event_process": "codegarden",  # 事件总线处理 (60s)
+    "cg_drift_assess": "tech_stack",   # 技术栈漂移评估 (3600s)
+    "mitre_sync": "security_graph",    # MITRE ATT&CK 同步 (Sun 04:00)
+    "cve_sync_to_security": "security_graph",  # CVE 同步到 security 实体 (1800s)
+}
+
+
+def _is_job_enabled(job_id: str) -> bool:
+    """job 是否参与调度 — 无扩展归属的 job 永远启用。"""
+    ext = _JOB_EXT_MAP.get(job_id)
+    if ext is None:
+        return True
+    enabled = is_extension_enabled(ext)
+    if not enabled:
+        _logger.info(f"skipping job {job_id} (extension {ext} disabled)")
+    return enabled
 
 
 # Module-level singleton (used by /api/health for status reads)
@@ -115,16 +139,17 @@ class HotspotScheduler:
         # v1.8 R3: 原 job 5 (export_rebuild 每 30min) 已并入 collect_all 尾部
         # (main.py 启动时也会 rebuild 一次, 无新数据时无需重建)
         # Phase 42: job 6 — 跨端配置同步 (Q2 决策: 每周一 10:30 Asia/Shanghai)
-        self.scheduler.add_job(
-            jobs.sync_job,
-            trigger=CronTrigger(
-                day_of_week="mon", hour=10, minute=30,
-                timezone=SHANGHAI_TZ,
-            ),
-            id="sync",
-            name="cross-device config sync (Mon 10:30)",
-            replace_existing=True,
-        )
+        if _is_job_enabled("sync"):
+            self.scheduler.add_job(
+                jobs.sync_job,
+                trigger=CronTrigger(
+                    day_of_week="mon", hour=10, minute=30,
+                    timezone=SHANGHAI_TZ,
+                ),
+                id="sync",
+                name="cross-device config sync (Mon 10:30)",
+                replace_existing=True,
+            )
         # v1.3.0 Phase 4: job 7 — 日级趋势快照 (每天 00:30 UTC)
         self.scheduler.add_job(
             jobs.daily_snapshot_job,
@@ -199,37 +224,41 @@ class HotspotScheduler:
             replace_existing=True,
         )
         # Phase 2a CodeGarden: job 15 — 上游同步 (每日 09:00 Asia/Shanghai)
-        self.scheduler.add_job(
-            jobs.cg_upstream_sync_job,
-            trigger=CronTrigger(hour=9, timezone=SHANGHAI_TZ),
-            id="cg_upstream_sync",
-            name="codegarden upstream sync (daily 09:00)",
-            replace_existing=True,
-        )
+        if _is_job_enabled("cg_upstream_sync"):
+            self.scheduler.add_job(
+                jobs.cg_upstream_sync_job,
+                trigger=CronTrigger(hour=9, timezone=SHANGHAI_TZ),
+                id="cg_upstream_sync",
+                name="codegarden upstream sync (daily 09:00)",
+                replace_existing=True,
+            )
         # Phase 2b CodeGarden: job 16 — 服务网格自动发现 (每 5 分钟)
-        self.scheduler.add_job(
-            jobs.cg_service_scan_job,
-            trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
-            id="cg_service_scan",
-            name="codegarden service scan (every 5min)",
-            replace_existing=True,
-        )
+        if _is_job_enabled("cg_service_scan"):
+            self.scheduler.add_job(
+                jobs.cg_service_scan_job,
+                trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
+                id="cg_service_scan",
+                name="codegarden service scan (every 5min)",
+                replace_existing=True,
+            )
         # Phase 2b CodeGarden: job 17 — 事件总线处理 (每 60 秒)
-        self.scheduler.add_job(
-            jobs.cg_event_process_job,
-            trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
-            id="cg_event_process",
-            name="codegarden event process (every 60s)",
-            replace_existing=True,
-        )
+        if _is_job_enabled("cg_event_process"):
+            self.scheduler.add_job(
+                jobs.cg_event_process_job,
+                trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
+                id="cg_event_process",
+                name="codegarden event process (every 60s)",
+                replace_existing=True,
+            )
         # Phase 2 Security Graph: job 18 — MITRE ATT&CK 同步 (每周日 04:00 Asia/Shanghai)
-        self.scheduler.add_job(
-            jobs.mitre_sync_job,
-            trigger=CronTrigger(day_of_week="sun", hour=4, minute=0, timezone="Asia/Shanghai"),
-            id="mitre_sync",
-            name="mitre attack sync (Sun 04:00)",
-            replace_existing=True,
-        )
+        if _is_job_enabled("mitre_sync"):
+            self.scheduler.add_job(
+                jobs.mitre_sync_job,
+                trigger=CronTrigger(day_of_week="sun", hour=4, minute=0, timezone="Asia/Shanghai"),
+                id="mitre_sync",
+                name="mitre attack sync (Sun 04:00)",
+                replace_existing=True,
+            )
         # v1.8 R3: 原 job 19 (security_enrichment 每 5min) 已并入
         # collect_all 尾部 post-ingest 链
         # v1.8 Phase 8: job 28 — 追抓 watchdog (每 60 秒)
@@ -307,22 +336,24 @@ class HotspotScheduler:
         )
 
         # Phase 14: job 38 — 技术栈漂移评估 (每小时)
-        self.scheduler.add_job(
-            jobs.cg_drift_assess_job,
-            trigger=IntervalTrigger(seconds=3600, start_date=_now_utc),
-            id="cg_drift_assess",
-            name="codegarden tech stack drift assess (every 3600s)",
-            replace_existing=True,
-        )
+        if _is_job_enabled("cg_drift_assess"):
+            self.scheduler.add_job(
+                jobs.cg_drift_assess_job,
+                trigger=IntervalTrigger(seconds=3600, start_date=_now_utc),
+                id="cg_drift_assess",
+                name="codegarden tech stack drift assess (every 3600s)",
+                replace_existing=True,
+            )
 
         # Phase 14: job 39 — CVE 同步 (每 30 分钟)
-        self.scheduler.add_job(
-            jobs.cve_sync_to_security_job,
-            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
-            id="cve_sync_to_security",
-            name="CVE sync to security entities (every 1800s)",
-            replace_existing=True,
-        )
+        if _is_job_enabled("cve_sync_to_security"):
+            self.scheduler.add_job(
+                jobs.cve_sync_to_security_job,
+                trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
+                id="cve_sync_to_security",
+                name="CVE sync to security entities (every 1800s)",
+                replace_existing=True,
+            )
 
         # Phase 17: job — attention 聚合 (每 30 分钟)
         self.scheduler.add_job(
@@ -465,6 +496,25 @@ class HotspotScheduler:
         # Phase 7: kv_cache_cleanup_job 已从 scheduler 中移除 (kv_cache_service 删除)
         # Phase 7: agent_task_consumer_job 已从 scheduler 中移除 (内部 agent 删除)
 
+        # v0.4.3 复利驱动器②: SM-2 每日复习推送 (每天 08:00 Asia/Shanghai)
+        self.scheduler.add_job(
+            jobs.sm2_daily_push_job,
+            trigger=CronTrigger(hour=8, minute=0, timezone=SHANGHAI_TZ),
+            id="sm2_daily_push",
+            name="SM-2 daily review push (08:00 Shanghai)",
+            replace_existing=True,
+            misfire_grace_time=300,
+        )
+        # v0.4.3 复利驱动器③: 知识地图每日重建 (每天 02:00 Asia/Shanghai)
+        self.scheduler.add_job(
+            jobs.map_rebuild_daily_job,
+            trigger=CronTrigger(hour=2, minute=0, timezone=SHANGHAI_TZ),
+            id="map_rebuild_daily",
+            name="knowledge map daily rebuild (02:00 Shanghai)",
+            replace_existing=True,
+            misfire_grace_time=600,
+        )
+
         self.scheduler.start()
         self.logger.info(
             f"scheduler started, {len(self.scheduler.get_jobs())} jobs "
@@ -480,7 +530,10 @@ class HotspotScheduler:
         """启动后延迟 5s 执行首次采集 + 跨端同步 catch-up 检查"""
         await asyncio.sleep(5)
         await jobs.collect_all_job()
-        # Phase 42: 启动 catch-up (Q2 决策)
+        # Phase 42: 启动 catch-up (Q2 决策; v0.4.3: sync 扩展关闭时跳过)
+        if not _is_job_enabled("sync"):
+            self.logger.info("sync extension disabled, skipping catch-up check")
+            return
         try:
             from backend.repository.sync_configs_repo import SyncConfigRepository
             from backend.scheduler.jobs import should_run_catchup

@@ -27,11 +27,14 @@ import { KnowledgeSettings } from './KnowledgeSettings';
 import { ExportSettings } from './ExportSettings';
 import { DatabaseMaintenance } from './DatabaseMaintenance';
 import { AboutSettings } from './AboutSettings';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 
 export function SettingsPage() {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<SectionKey>('general');
   const [open] = useState(true);
+  // v0.4.3: mcp 扩展关闭时隐藏集成区段 (后端 /api/mcp/* 已 404)
+  const features = useFeatureFlags();
 
   const { theme, toggleTheme } = (() => {
     try {
@@ -67,7 +70,8 @@ export function SettingsPage() {
       case 'sync':
         return <SyncSettings />;
       case 'integration':
-        return <MCPSettingsCard open={open} />;
+        // v0.4.3: mcp=false 时 MCP 设置卡片隐藏 (后端路由已 404)
+        return features.mcp ? <MCPSettingsCard open={open} /> : <div className="text-xs" style={{ color: 'var(--text-muted)' }}>MCP 扩展未启用</div>;
       case 'secrets':
         return <SecretsStatusCard />;
       case 'alerts':
@@ -112,7 +116,7 @@ export function SettingsPage() {
           style={{ scrollbarWidth: 'none' }}
           aria-label="设置分类"
         >
-          {SECTIONS.map(s => {
+          {SECTIONS.filter(s => s.key !== 'integration' || features.mcp).map(s => {
             const active = activeSection === s.key;
             return (
               <button

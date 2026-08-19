@@ -2,6 +2,7 @@ import React, { Suspense, useState, useEffect, useCallback, createContext, useCo
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { PageLayout } from './components/PageLayout';
 import { useFavorites } from './hooks/useFavorites';
+import { useFeatureFlags } from './hooks/useFeatureFlags';
 // Lazy-loaded page components — split into separate chunks to reduce initial bundle size.
 const SettingsPage = React.lazy(() =>
   import('./components/settings/SettingsPage').then(m => ({ default: m.SettingsPage }))
@@ -190,6 +191,8 @@ function HistoryPageRoute() {
 export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(getInitialTheme);
   const navigate = useNavigate();
+  // v0.4.3: 扩展路由按 feature flag 条件渲染 (core 路由永远注册)
+  const features = useFeatureFlags();
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -240,8 +243,12 @@ export default function App() {
           <Route path="/action/outbox" element={<Suspense fallback={<PageFallback />}><ActionOutboxPage /></Suspense>} />
           <Route path="/action/review" element={<Suspense fallback={<PageFallback />}><ActionReviewPage /></Suspense>} />
           <Route path="/action/skills" element={<Suspense fallback={<PageFallback />}><ActionSkillsPage /></Suspense>} />
-          <Route path="/action/codegarden" element={<Suspense fallback={<PageFallback />}><ActionCodegardenPage /></Suspense>} />
-          <Route path="/action/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><ActionCodegardenPhase2bPage /></Suspense>} />
+          {features.codegarden && (
+            <>
+              <Route path="/action/codegarden" element={<Suspense fallback={<PageFallback />}><ActionCodegardenPage /></Suspense>} />
+              <Route path="/action/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><ActionCodegardenPhase2bPage /></Suspense>} />
+            </>
+          )}
           <Route path="/action/bid-alert" element={<Suspense fallback={<PageFallback />}><ActionBidAlertPage /></Suspense>} />
 
           {/* ── 判断层子路由（Phase 3: 趋势/标讯分析独立页面，其余保留跳转） ── */}
@@ -258,7 +265,9 @@ export default function App() {
           <Route path="/history" element={<Suspense fallback={<PageFallback />}><HistoryPageRoute /></Suspense>} />
           <Route path="/skills" element={<Suspense fallback={<PageFallback />}><SkillsPage onBack={goHome} /></Suspense>} />
           <Route path="/secrets" element={<Suspense fallback={<PageFallback />}><SecretsPage onBack={goHome} /></Suspense>} />
-          <Route path="/sync" element={<Suspense fallback={<PageFallback />}><SyncPage onBack={goHome} /></Suspense>} />
+          {features.sync && (
+            <Route path="/sync" element={<Suspense fallback={<PageFallback />}><SyncPage onBack={goHome} /></Suspense>} />
+          )}
           <Route path="/settings" element={<Suspense fallback={<PageFallback />}><SettingsPage /></Suspense>} />
           <Route path="/report" element={<Suspense fallback={<PageFallback />}><ReportPage onBack={goHome} /></Suspense>} />
           {/* 知识管理: 4 大领域 (信息导入 / 处理数据 / 知识库编译 / 知识复利) */}
@@ -278,12 +287,18 @@ export default function App() {
             <Route path="review" element={<Suspense fallback={<PageFallback />}><ReviewMode /></Suspense>} />
             <Route path="heatmap" element={<Suspense fallback={<PageFallback />}><AttentionHeatmap /></Suspense>} />
           </Route>
-          <Route path="/codegarden" element={<Suspense fallback={<PageFallback />}><CodegardenPage onBack={goHome} /></Suspense>} />
-          <Route path="/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><CodegardenPhase2bPage onBack={goHome} /></Suspense>} />
           <Route path="/reviews" element={<Suspense fallback={<PageFallback />}><ReviewPage /></Suspense>} />
           <Route path="/deep/:type/:id" element={<Suspense fallback={<PageFallback />}><DeepReadView /></Suspense>} />
           <Route path="/brief" element={<Suspense fallback={<PageFallback />}><BriefModeView /></Suspense>} />
           <Route path="/quality/rejection" element={<Suspense fallback={<PageFallback />}><QualityRejectionPage /></Suspense>} />
+          {features.codegarden && (
+            <>
+              <Route path="/codegarden" element={<Suspense fallback={<PageFallback />}><CodegardenPage onBack={goHome} /></Suspense>} />
+              <Route path="/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><CodegardenPhase2bPage onBack={goHome} /></Suspense>} />
+            </>
+          )}
+          {/* v0.4.3: 未匹配路径回落到资料层首页 (扩展关闭时旧深链不白屏) */}
+          <Route path="*" element={<Navigate to="/data" replace />} />
         </Route>
       </Routes>
     </ThemeContext.Provider>

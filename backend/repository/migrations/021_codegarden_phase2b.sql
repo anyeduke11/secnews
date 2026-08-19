@@ -1,3 +1,7 @@
+-- Extension: codegarden
+-- 此迁移中的表 (cg_services, cg_resources, cg_dependencies, cg_events)
+-- 属于 ext-codegarden 扩展域。core 代码永不查询这些表。
+-- 扩展关闭时，这些表数据完整保留但无消费者。
 -- 021_codegarden_phase2b.sql — Phase 2b CodeGarden Service Mesh
 -- PRD: docs/CodeGarden_PRD_v1.7.md §5.2/§5.3/§5.4 + §6.2.5/§6.2.6/§6.2.7
 -- spec: .trae/specs/phase2b-service-mesh/spec.md §3.1

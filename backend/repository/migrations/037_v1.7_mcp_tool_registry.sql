@@ -1,3 +1,5 @@
+-- Extension: mcp
+-- 此表属于 ext-mcp 扩展域。core 代码永不查询。
 -- 037_v1.7_mcp_tool_registry.sql
 -- Phase 7: MCP Server 工具注册表（启动时 seeding 13 个 tool 元数据）
 -- 用途: tools/list 端点返回工具元数据 + SettingsPage 展示可用工具

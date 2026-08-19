@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.4.3 (2026-08-18)
+
+### 重构 — Core/Extension 软分层
+
+- 新增 `backend/config/feature_gates.toml`: 扩展层单一开关源 (codegarden/mcp/sync/tech_stack/security_graph)
+- 新增 `backend/core/routers.py`: 43 个 core router 白名单, 永远注册, 防漂移断言 (与扩展域无重叠)
+- 新增 `backend/extensions/__init__.py`: 扩展注册表 + 门控读取 (env `HOTSPOT_FEATURE_GATES` 可覆盖, 读取失败保守回退全开)
+- `backend/api/__init__.py`: 扩展 router 按 flag 注册, codegarden/mcp 关闭时 `/api/codegarden` `/api/mcp` → 404
+- `backend/scheduler/scheduler.py`: `_is_job_enabled()` 门控, 7 个 job 按扩展归属过滤 (sync/cg_*/mitre/cve)
+- 前端: `useFeatureFlags` + `extensions.ts`, App.tsx 路由按 flag 条件渲染, 导航/设置卡片同步隐藏
+- 新增 `GET /api/settings/features` 端点 (前端 flag 数据源)
+
+### 新增 4 个复利驱动器
+
+- 即时分类: `collect_all_job` 尾部 `_classify_new_items()` — 采集完 5 分钟窗口内新 items 立即分类 (md 真相源先回写)
+- SM-2 每日推送: 08:00 cron `sm2_daily_push_job` → SSE `review_due` 事件, 前端 Header 徽标
+- 地图每日重建: 02:00 cron `map_rebuild_daily_job` → 全量重建 `_MAP.md` + graph.json
+- 注意力→复习自动转化: dwell>30s 的深度阅读事件自动创建 SM-2 条目 (create_review 幂等)
+
+### 工程质量
+
+- 版本统一: backend/frontend/README 三处 0.4.3 (基线 tag v0.4.3-base)
+- 新增 `scripts/generate_meta.py`: AST 反推架构数字 (43 jobs/14 collectors/51 routers/81 services), `--check` 纳入 CI
+- 新增 `backend/tests/test_feature_gates.py`: 60 用例组合矩阵 (core-only/all-on/mixed)
+- CI 新增 `backend-core-only` job (env 全关启动 + gate 测试)
+- 测试环境默认全开 feature gates (conftest autouse), 3 处 migration 标注扩展表归属
+
 ## v0.3.0 (2026-08-01)
 
 ### 新增功能 (Phase 8-14)

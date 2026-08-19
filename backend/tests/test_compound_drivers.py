@@ -6,12 +6,11 @@
 - map_rebuild_daily_job → _MAP.md 重建
 - 驱动器异常隔离 (任一崩溃不影响采集)
 """
+
 from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta, timezone
-
-import pytest
 
 from backend.scheduler.jobs import (
     _classify_new_items,
@@ -20,15 +19,34 @@ from backend.scheduler.jobs import (
 )
 
 
-def _insert_item(conn, item_id: str, title: str, tags: str, domain=None,
-                 type_=None, difficulty=None, minutes_ago: int = 1) -> None:
+def _insert_item(
+    conn,
+    item_id: str,
+    title: str,
+    tags: str,
+    domain=None,
+    type_=None,
+    difficulty=None,
+    minutes_ago: int = 1,
+) -> None:
     now = datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)
     conn.execute(
         "INSERT INTO knowledge_items (id, title, source, source_url, domain, topic, "
         "type, difficulty, tags, ingested_at, updated_at) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (item_id, title, "unit-test", f"https://example.com/{item_id}",
-         domain, None, type_, difficulty, tags, now.isoformat(), now.isoformat()),
+        (
+            item_id,
+            title,
+            "unit-test",
+            f"https://example.com/{item_id}",
+            domain,
+            None,
+            type_,
+            difficulty,
+            tags,
+            now.isoformat(),
+            now.isoformat(),
+        ),
     )
     conn.commit()
 
@@ -51,16 +69,22 @@ class TestClassifyNewItems:
         from backend.repository.db import get_connection
 
         conn = get_connection()
-        _insert_item(conn, "driver-a1", "GPT-5 架构深度解析",
-                     '["AI编程","技术原理"]')
-        _insert_item(conn, "driver-a2", "量子计算进展",
-                     '["quantum","research"]', domain="tech", type_="news",
-                     difficulty="medium")
+        _insert_item(conn, "driver-a1", "GPT-5 架构深度解析", '["AI编程","技术原理"]')
+        _insert_item(
+            conn,
+            "driver-a2",
+            "量子计算进展",
+            '["quantum","research"]',
+            domain="tech",
+            type_="news",
+            difficulty="medium",
+        )
 
         calls = {"count": 0}
 
         orig_write = None
         import backend.services.knowledge_sync as ks
+
         orig_write = ks.write_item_to_md
         written = []
 
@@ -91,22 +115,19 @@ class TestClassifyNewItems:
         from backend.repository.db import get_connection
 
         conn = get_connection()
-        _insert_item(conn, "driver-old1", "旧条目无 domain",
-                     '["old"]', minutes_ago=30)
+        _insert_item(conn, "driver-old1", "旧条目无 domain", '["old"]', minutes_ago=30)
 
         asyncio.run(_classify_new_items())
 
-        row = conn.execute(
-            "SELECT domain FROM knowledge_items WHERE id='driver-old1'"
-        ).fetchone()
+        row = conn.execute("SELECT domain FROM knowledge_items WHERE id='driver-old1'").fetchone()
         assert row["domain"] is None
 
 
 class TestSm2DailyPush:
     def test_pushes_review_due_event(self, temp_db, monkeypatch):
         """驱动器②: 有待复习条目 → publish review_due."""
-        from backend.repository.db import get_connection
         from backend.api import events
+        from backend.repository.db import get_connection
 
         conn = get_connection()
         _insert_review(conn, "r-1", "concept-alpha", due_days_ago=1)
@@ -126,8 +147,8 @@ class TestSm2DailyPush:
 
     def test_no_due_no_event(self, temp_db, monkeypatch):
         """无到期条目 → 不推送."""
-        from backend.repository.db import get_connection
         from backend.api import events
+        from backend.repository.db import get_connection
 
         conn = get_connection()
         _insert_review(conn, "r-2", "concept-beta", due_days_ago=-1)
@@ -149,8 +170,7 @@ class TestMapRebuildDaily:
         from backend.services.map_updater import MAP_PATH
 
         conn = get_connection()
-        _insert_item(conn, "driver-m1", "零信任架构",
-                     '["zero-trust","security"]', domain="tech")
+        _insert_item(conn, "driver-m1", "零信任架构", '["zero-trust","security"]', domain="tech")
 
         MAP_PATH.parent.mkdir(parents=True, exist_ok=True)
         asyncio.run(map_rebuild_daily_job())
@@ -167,8 +187,7 @@ class TestDriverExceptionIsolation:
         from backend.services import auto_classifier
 
         conn = get_connection()
-        _insert_item(conn, "driver-x1", "GPT-5 架构深度解析",
-                     '["AI编程","技术原理"]')
+        _insert_item(conn, "driver-x1", "GPT-5 架构深度解析", '["AI编程","技术原理"]')
 
         def boom(items):
             raise RuntimeError("classifier down")

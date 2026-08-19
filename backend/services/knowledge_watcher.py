@@ -38,9 +38,6 @@ from watchdog.observers import Observer
 from backend.services import content_service as _content_service
 from backend.services.knowledge_sync import (
     KNOWLEDGE_DIR,
-    full_sync_concepts_to_db,
-    full_sync_drafts_to_db,
-    full_sync_items_to_db,
     sync_concept_to_db,
     sync_draft_to_db,
     sync_item_to_db,

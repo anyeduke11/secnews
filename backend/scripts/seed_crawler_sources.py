@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from typing import Optional
 
 # category → (collector 模块, 实例化类)
 # P1 修正: 用 collector **实例** 的 ``sources`` (实际生效源) 而非 SOURCES

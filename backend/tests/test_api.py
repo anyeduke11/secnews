@@ -521,7 +521,13 @@ def test_export_returns_etag(client, temp_db):
     assert "text/html" in r.headers.get("content-type", "")
 
 
-def test_export_returns_304_when_etag_matches(client, temp_db):
+def test_export_returns_304_when_etag_matches(client, temp_db, tmp_path, monkeypatch):
+    # 预热稳定缓存: build_html 含秒级时间戳, 实时构建的 etag 跨秒边界会漂移 (flaky)
+    from backend.services import export_service
+    monkeypatch.setattr(export_service, "_CACHE_HTML", tmp_path / "export_cache.html")
+    monkeypatch.setattr(export_service, "_CACHE_ETAG", tmp_path / "export_cache.etag")
+    export_service.rebuild_export_cache()
+
     r1 = client.get("/api/export")
     assert r1.status_code == 200
     etag = r1.headers["ETag"]

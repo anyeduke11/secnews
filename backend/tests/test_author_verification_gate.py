@@ -445,7 +445,7 @@ class TestPipelineIntegration:
         # AuthorVerification 应在 Duplicate 之前
         assert idx_av < idx_dup
 
-    def test_pipeline_runs_author_gate_and_corrections_persist(self):
+    def test_pipeline_runs_author_gate_and_corrections_persist(self, temp_db):
         """端到端：msrc URL + KrebsOnSecurity source → 跑 pipeline 后 source 被纠正
 
         关键验证：AuthorVerificationGate.check() 直接修改 item.source 后，

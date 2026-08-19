@@ -11,8 +11,10 @@ from backend.config import Settings, config
 
 
 def test_default_values():
-    s = Settings()
-    assert s.host == "0.0.0.0"
+    # _env_file=None: 不读本地 .env (gitignored, CI 无此文件), 只测代码默认值
+    s = Settings(_env_file=None)
+    # 默认仅监听回环地址 (backend/config/__init__.py)
+    assert s.host == "127.0.0.1"
     assert s.port == 8000
     assert s.cache_ttl_seconds == 300
     assert s.cache_maxsize == 64

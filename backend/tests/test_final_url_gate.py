@@ -396,7 +396,7 @@ class TestPipelineIntegration:
         assert idx_fu < idx_dup
 
     @patch("backend.quality.final_url_resolver._fetch_html")
-    def test_pipeline_correction_persists(self, mock_fetch):
+    def test_pipeline_correction_persists(self, mock_fetch, temp_db):
         """端到端：qbitai tag URL → 跑 pipeline 后 url 被纠正"""
         mock_fetch.return_value = QBITAI_TAG_HTML
         cfg = QualityConfig()

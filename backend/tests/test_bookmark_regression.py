@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 
 
-def test_reimport_with_chinese_tags_does_not_crash(tmp_path, monkeypatch):
+def test_reimport_with_chinese_tags_does_not_crash(tmp_path, monkeypatch, temp_db):
     """Reproduces the 500 → 200 regression: re-importing a bookmark with
     Chinese folder names must not crash the regex-based frontmatter updater."""
     from backend.services import bookmark_sync

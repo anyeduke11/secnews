@@ -18,5 +18,5 @@ keyring>=24.0
 watchdog>=6.0
 
 # v1.7 Phase 7: MCP Server (Option A) — hotspot ↔ 外部 AI Agent via MCP
-# 锁版本 >= 0.4.0, < 1.0 (fastapi-mcp 1.0 API 仍不稳定)
-fastapi-mcp>=0.4.0,<1.0
+# 锁版本 0.4.x: 0.5+ 的 Server 构造签名变化 (CI 2026-08 验证 0.4.0 可用)
+fastapi-mcp>=0.4.0,<0.5

@@ -12,8 +12,10 @@ export function CategoryNav({ active, onChange, counts, consistencyDrift = [] }:
   const driftMap: Record<string, ConsistencyDrift> = {};
   for (const d of consistencyDrift) driftMap[d.category] = d;
 
+  // Stage1: 移动端单行横滚 — 此前 <640px 8 个分类 pill 换行 3-4 行, 首屏被导航吃去近半;
+  // sm 及以上换回换行模式 (pill 全部可见)。负 margin 补偿使横滚内容与页面左缘对齐。
   return (
-    <nav className="flex flex-wrap gap-2 mb-5">
+    <nav className="flex flex-nowrap overflow-x-auto gap-2 mb-2 -mx-3 px-3 pb-1.5 sm:flex-wrap sm:overflow-visible sm:mx-0 sm:px-0 sm:mb-5 sm:pb-0">
       {CATEGORIES.map((cat) => {
         const isActive = active === cat.id;
         const color = getCategoryColorVar(cat.id);
@@ -41,7 +43,7 @@ export function CategoryNav({ active, onChange, counts, consistencyDrift = [] }:
               {count > 0 && (
                 <span
                   className="font-mono font-medium tabular-nums ml-0.5"
-                  style={{ fontSize: '10px', color: isActive ? 'inherit' : 'var(--text-muted)', opacity: isActive ? 0.75 : 1 }}
+                  style={{ fontSize: '11px', color: isActive ? 'inherit' : 'var(--text-muted)', opacity: isActive ? 0.75 : 1 }} /* Stage1: 10px -> 11px 字号下限 */
                 >
                   {count}
                 </span>

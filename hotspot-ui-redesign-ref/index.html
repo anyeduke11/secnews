@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SECNEWS — 安全 · AI · 金融 · 标讯 情报日报</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   SECNEWS 三层报纸 — Design Tokens
+   唯一真相源：CSS 变量（对齐 docs/UIUX_REDESIGN_EDITORIAL.md）
+   ============================================================ */
+:root {
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', 'Songti SC', STSong, SimSun, serif;
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --dur-fast: 120ms; --dur-base: 200ms; --dur-slow: 320ms;
+  --ease: cubic-bezier(0.25, 1, 0.5, 1); /* ease-out-quart */
+
+  --radius-sm: 2px; --radius-md: 3px; --radius-lg: 6px; --radius-xl: 8px;
+  --wrap: 1280px;
+}
+[data-theme="light"] {
+  --bg-primary: #F6F1E6; --bg-secondary: #FBF7EE; --bg-card: #FBF7EE;
+  --bg-hover: #EFE7D5; --bg-elevated: #EFE7D5;
+  --border-color: #CFC4AB; --border-light: #DDD3BD;
+  --text-primary: #1A1610; --text-secondary: #463E31; --text-muted: #7A6F5C;
+  --accent: #8E2318; --accent-soft: #F0E2DA; --accent-dim: #BB8D80;
+  --ok: #2F7D4F; --warn: #8A6400; --err: #A32014; --info: #0B6E6E;
+  --color-ai: #0B6E6E; --color-security: #A32014; --color-finance: #8A6400;
+  --color-startup: #5A4FA0; --color-bid: #A65312; --color-general: #2F7D4F; --color-github: #5E4B8B;
+  --shadow-pop: 0 4px 20px rgba(26,22,16,.12);
+  --shadow-modal: 0 16px 48px rgba(26,22,16,.18);
+  --overlay: rgba(26,22,16,.5);
+}
+[data-theme="dark"] {
+  --bg-primary: #181410; --bg-secondary: #1E1913; --bg-card: #1E1913;
+  --bg-hover: #282118; --bg-elevated: #2E261C;
+  --border-color: #3C3325; --border-light: #32291E;
+  --text-primary: #EDE6D8; --text-secondary: #B5A88F; --text-muted: #8C7F68;
+  --accent: #D0684E; --accent-soft: #3A241D; --accent-dim: #8A5648;
+  --ok: #6FBE93; --warn: #D4B24A; --err: #E07B6A; --info: #4FB8B8;
+  --color-ai: #4FB8B8; --color-security: #E07B6A; --color-finance: #D4B24A;
+  --color-startup: #A99BE0; --color-bid: #E09B5E; --color-general: #6FBE93; --color-github: #AC99D6;
+  --shadow-pop: 0 4px 20px rgba(0,0,0,.4);
+  --shadow-modal: 0 16px 48px rgba(0,0,0,.55);
+  --overlay: rgba(8,6,4,.6);
+}
+
+/* ---------- 基础 ---------- */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans); font-size: 15px; line-height: 1.7;
+  background: var(--bg-primary); color: var(--text-primary);
+  transition: background var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
+}
+::selection { background: var(--accent); color: var(--bg-primary); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; background: none; border: none; color: inherit; }
+.wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 32px; }
+@media (max-width: 768px) { .wrap { padding: 0 16px; } }
+.view { display: none; animation: fadein var(--dur-slow) var(--ease); }
+.view.active { display: block; }
+@keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ---------- 1. 顶部工具条 ---------- */
+.toolbar {
+  font-size: 11px; color: var(--text-muted);
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--border-light);
+}
+.toolbar .mono { font-family: var(--font-mono); }
+.sse-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ok); margin-right: 6px; vertical-align: 1px; }
+.sse-dot.poll { background: none; border: 1.5px solid var(--text-muted); }
+.toolbar-links { display: flex; gap: 0; }
+.toolbar-links a { padding: 0 8px; border-right: 1px solid var(--border-light); color: var(--text-muted); transition: color var(--dur-fast); }
+.toolbar-links a:last-child { border-right: none; }
+.toolbar-links a:hover, .toolbar-links a.on { color: var(--accent); font-weight: 600; }
+@media (max-width: 900px) { .toolbar-links { display: none; } }
+
+/* ---------- 2. 报头 masthead ---------- */
+.masthead { text-align: center; padding: 28px 0 18px; }
+.masthead h1 {
+  font-family: var(--font-serif); font-weight: 700; text-transform: uppercase;
+  font-size: clamp(32px, 5vw, 52px); letter-spacing: .12em; line-height: 1.05;
+}
+.masthead h1 .amp { color: var(--accent); }
+.masthead .tagline { font-size: 11.5px; color: var(--text-muted); letter-spacing: .3em; margin-top: 6px; text-transform: uppercase; }
+.masthead .edition-mark { font-family: var(--font-mono); font-size: 10px; color: var(--accent); letter-spacing: .15em; margin-top: 4px; }
+
+/* ---------- 3. 吸顶导航条：三层 + 分类 ---------- */
+.navsticky { position: sticky; top: 0; z-index: 50; background: var(--bg-primary);
+  border-top: 2px solid var(--text-primary); border-bottom: 1px solid var(--border-color); }
+.nav-row { display: flex; align-items: stretch; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.nav-row::-webkit-scrollbar { display: none; }
+.layer-tab {
+  font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; letter-spacing: .04em;
+  padding: 10px 14px; border-bottom: 2.5px solid transparent; margin-bottom: -1px;
+  color: var(--text-secondary); white-space: nowrap;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+.layer-tab .sub { display: block; font-size: 9.5px; font-weight: 400; color: var(--text-muted); letter-spacing: .08em; }
+.layer-tab:hover { color: var(--accent); background: var(--bg-hover); }
+.layer-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.nav-tools { margin-left: auto; display: flex; align-items: center; gap: 4px; padding-left: 12px; }
+.icon-btn {
+  width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--radius-sm);
+  color: var(--text-muted); transition: background var(--dur-fast), color var(--dur-fast);
+}
+.icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.icon-btn svg { width: 16px; height: 16px; }
+.star-count { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+
+/* 分类条（仅资料层头版） */
+.cats-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--border-light); overflow-x: auto; scrollbar-width: none; }
+.cats-row::-webkit-scrollbar { display: none; }
+.cat-pill {
+  font-size: 12px; padding: 4px 13px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color); color: var(--text-secondary); white-space: nowrap;
+  transition: all var(--dur-fast);
+}
+.cat-pill:hover { background: var(--bg-hover); }
+.cat-pill.active { background: var(--text-primary); color: var(--bg-primary); border-color: var(--text-primary); font-weight: 700; }
+.cat-pill .n { font-family: var(--font-mono); font-size: 10px; opacity: .7; margin-left: 4px; }
+
+/* 行内搜索 */
+.search-inline { display: flex; align-items: center; gap: 8px; border-left: 1px solid var(--border-light); padding-left: 12px; min-width: 0; }
+.search-inline input {
+  font-family: var(--font-sans); font-size: 12.5px; width: 150px;
+  background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+  padding: 5px 10px; color: var(--text-primary); transition: border-color var(--dur-fast);
+}
+.search-inline input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
+.kbd { font-family: var(--font-mono); font-size: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1px 5px; color: var(--text-muted); }
+
+/* ---------- 头版布局 ---------- */
+.front-grid { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 0; padding-top: 8px; }
+@media (max-width: 1100px) { .front-grid { grid-template-columns: 1fr; } .sidebar { border-left: none !important; border-top: 1px solid var(--border-color); margin-top: 24px; } }
+.main-col { padding-right: 32px; border-right: 1px solid var(--border-color); min-width: 0; }
+@media (max-width: 1100px) { .main-col { border-right: none; padding-right: 0; } }
+.sidebar { padding-left: 28px; }
+@media (max-width: 1100px) { .sidebar { padding-left: 0; } }
+
+/* 头条 LeadStory */
+.lead { padding: 20px 0 24px; border-bottom: 2px solid var(--text-primary); }
+.lead .meta-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.lead h2 { font-family: var(--font-serif); font-weight: 700; font-size: clamp(22px, 3vw, 32px); line-height: 1.25; margin-bottom: 12px; }
+.lead h2 a:hover { color: var(--accent); }
+.lead .lede { font-family: var(--font-serif); font-size: 15.5px; color: var(--text-secondary); max-width: 62ch; }
+.lead .lede::first-letter { font-size: 2.9em; font-weight: 700; color: var(--accent); float: left; line-height: .82; padding: 4px 8px 0 0; }
+.lead .foot-meta { margin-top: 12px; font-size: 11.5px; color: var(--text-muted); font-family: var(--font-sans); display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+
+/* 分类徽章（描边款） */
+.badge-cat {
+  display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  padding: 2px 7px; border-radius: var(--radius-sm); border: 1px solid; background: transparent;
+}
+.b-ai { color: var(--color-ai); border-color: var(--color-ai); }
+.b-security { color: var(--color-security); border-color: var(--color-security); }
+.b-finance { color: var(--color-finance); border-color: var(--color-finance); }
+.b-startup { color: var(--color-startup); border-color: var(--color-startup); }
+.b-bid { color: var(--color-bid); border-color: var(--color-bid); }
+.b-github { color: var(--color-github); border-color: var(--color-github); }
+.b-general { color: var(--color-general); border-color: var(--color-general); }
+
+/* 聚簇标注 ×N */
+.cluster { display: inline-block; font-size: 10px; font-weight: 700; font-family: var(--font-sans);
+  border: 1px solid var(--accent); color: var(--accent); border-radius: var(--radius-sm); padding: 1px 6px; }
+.cluster:hover { background: var(--accent-soft); }
+
+/* 排序工具行 */
+.sort-row { display: flex; align-items: center; gap: 18px; padding: 12px 0; border-bottom: 1px solid var(--border-light); font-size: 12.5px; }
+.sort-btn { font-size: 12.5px; color: var(--text-muted); padding-bottom: 3px; border-bottom: 1.5px solid transparent; transition: all var(--dur-fast); }
+.sort-btn:hover { color: var(--text-primary); }
+.sort-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+.sort-row .spacer { flex: 1; }
+.sort-row .mono-note { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+
+/* feed 条目行 EditorialRow */
+.feed-row { display: flex; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--border-color); }
+.feed-row .body { flex: 1; min-width: 0; }
+.feed-row h3 { font-family: var(--font-serif); font-size: 19px; font-weight: 700; line-height: 1.35; margin: 4px 0 4px; }
+.feed-row h3 a { transition: color var(--dur-fast); }
+.feed-row:hover h3 a { color: var(--accent); }
+.feed-row .summary { font-family: var(--font-serif); font-size: 14px; color: var(--text-secondary); line-clamp: 2; -webkit-line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.feed-row .meta { font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.feed-row .meta .mono { font-family: var(--font-mono); }
+.feed-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; opacity: .35; transition: opacity var(--dur-fast); }
+.feed-row:hover .feed-actions { opacity: 1; }
+.star { color: var(--text-muted); font-size: 15px; line-height: 1; transition: color var(--dur-fast), transform var(--dur-fast); }
+.star:hover { transform: scale(1.15); }
+.star.on { opacity: 1; color: var(--accent); }
+.qscore { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 1px 5px; }
+.qscore.good { color: var(--ok); border-color: var(--ok); }
+.qscore.bad { color: var(--err); border-color: var(--err); }
+
+/* 侧栏 */
+.side-block { padding: 18px 0; border-bottom: 1px solid var(--border-light); }
+.side-block:first-child { padding-top: 8px; }
+.side-h { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: baseline; }
+.side-h .mono { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); font-weight: 400; }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border-light); border: 1px solid var(--border-light); }
+.stat-cell { background: var(--bg-secondary); padding: 10px 12px; }
+.stat-cell .v { font-family: var(--font-mono); font-size: 20px; font-weight: 600; line-height: 1.2; }
+.stat-cell .l { font-size: 10.5px; color: var(--text-muted); }
+.stat-cell .v.c-ai { color: var(--color-ai); } .stat-cell .v.c-security { color: var(--color-security); }
+.stat-cell .v.c-finance { color: var(--color-finance); } .stat-cell .v.c-bid { color: var(--color-bid); }
+
+.mini-todo { list-style: none; font-size: 13px; }
+.mini-todo li { display: flex; gap: 8px; padding: 5px 0; border-bottom: 1px dotted var(--border-light); }
+.mini-todo li:last-child { border-bottom: none; }
+.mini-todo input[type=checkbox] { accent-color: var(--accent); }
+.mini-todo li.done { color: var(--text-muted); text-decoration: line-through; }
+.archive-list { list-style: none; font-family: var(--font-mono); font-size: 11.5px; }
+.archive-list li a { display: flex; justify-content: space-between; padding: 4px 0; color: var(--text-secondary); }
+.archive-list li a:hover { color: var(--accent); }
+
+/* ---------- 版面页模板（判断层/行动层共用） ---------- */
+.page-head { padding: 32px 0 16px; border-bottom: 2px solid var(--text-primary); margin-bottom: 24px; }
+.crumb { font-size: 11px; color: var(--text-muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
+.crumb b { color: var(--accent); font-weight: 700; }
+.page-head h2 { font-family: var(--font-serif); font-size: clamp(26px, 3.5vw, 38px); font-weight: 700; line-height: 1.2; }
+.page-head .standfirst { font-family: var(--font-serif); font-style: italic; color: var(--text-secondary); font-size: 15.5px; margin-top: 8px; max-width: 62ch; }
+
+/* 阅读模式 tab */
+.mode-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; flex-wrap: wrap; }
+.mode-tab { font-size: 13px; padding: 8px 16px; color: var(--text-muted); border-bottom: 2.5px solid transparent; margin-bottom: -1px; }
+.mode-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+.mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+/* 纸面分格（卡片降级版） */
+.cellbox { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 18px 20px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+@media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+.sect-h { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin: 28px 0 14px; display: flex; align-items: center; gap: 12px; }
+.sect-h::after { content: ""; flex: 1; border-top: 1px solid var(--border-color); }
+
+/* 门禁表格 */
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--text-primary); }
+.table td { padding: 9px 10px; border-bottom: 1px solid var(--border-light); }
+.table tr:hover td { background: var(--bg-hover); }
+.table .mono { font-family: var(--font-mono); font-size: 12px; }
+
+/* 状态点与标签 */
+.pill-status { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: var(--radius-sm); letter-spacing: .04em; }
+.p-ok { color: var(--ok); border: 1px solid var(--ok); }
+.p-warn { color: var(--warn); border: 1px solid var(--warn); }
+.p-err { color: var(--err); border: 1px solid var(--err); }
+.p-info { color: var(--info); border: 1px solid var(--info); }
+.p-solid { background: var(--text-primary); color: var(--bg-primary); border: 1px solid var(--text-primary); }
+
+/* 趋势图（内联 SVG） */
+.chart text { font-family: var(--font-mono); font-size: 9px; fill: var(--text-muted); }
+.chart .grid line { stroke: var(--border-light); stroke-width: 1; }
+.chart .l-ai { fill: none; stroke: var(--color-ai); stroke-width: 2; }
+.chart .l-sec { fill: none; stroke: var(--color-security); stroke-width: 2; }
+
+/* 标讯分析条 */
+.bidbar { margin-bottom: 12px; }
+.bidbar .lbl { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+.bidbar .lbl .mono { font-family: var(--font-mono); color: var(--text-muted); }
+.bidbar .track { height: 10px; background: var(--bg-hover); border: 1px solid var(--border-light); }
+.bidbar .fill { height: 100%; background: var(--color-bid); transition: width var(--dur-slow) var(--ease); }
+
+/* 注意力热力条 */
+.heat { display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; }
+.heat i { display: block; aspect-ratio: 1; border-radius: 1px; background: var(--bg-hover); }
+.heat i.h1 { background: color-mix(in srgb, var(--accent) 20%, var(--bg-secondary)); }
+.heat i.h2 { background: color-mix(in srgb, var(--accent) 45%, var(--bg-secondary)); }
+.heat i.h3 { background: color-mix(in srgb, var(--accent) 75%, var(--bg-secondary)); }
+.heat i.h4 { background: var(--accent); }
+
+/* 图谱占位 */
+.graph-placeholder { position: relative; border: 1px dashed var(--border-color); border-radius: var(--radius-sm); padding: 20px; text-align: center; font-size: 12px; color: var(--text-muted); }
+.graph-placeholder svg { width: 100%; height: 150px; }
+.gnode { fill: var(--bg-secondary); stroke: var(--color-ai); stroke-width: 1.2; }
+.gnode.s { stroke: var(--color-security); } .gnode.f { stroke: var(--color-finance); } .gnode.g { stroke: var(--color-github); }
+.gedge { stroke: var(--border-color); stroke-width: 1; }
+
+/* 行动层：待办/提醒 */
+.todo-list { list-style: none; }
+.todo-list li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-light); font-size: 14px; }
+.todo-list li .when { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+.alert-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border-light); }
+.alert-item .dday { font-family: var(--font-mono); font-weight: 600; font-size: 18px; color: var(--accent); min-width: 48px; text-align: center; border: 1px solid var(--accent); border-radius: var(--radius-sm); align-self: flex-start; padding: 2px 4px; }
+.alert-item .t { font-weight: 600; font-size: 14px; }
+.alert-item .m { font-size: 11.5px; color: var(--text-muted); }
+
+/* 复利进度 */
+.kl-track { display: flex; gap: 0; margin: 14px 0; }
+.kl-step { flex: 1; text-align: center; position: relative; font-size: 10.5px; color: var(--text-muted); padding-top: 12px; }
+.kl-step::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--border-light); }
+.kl-step.done::before { background: var(--ok); }
+.kl-step.now::before { background: var(--accent); }
+.kl-step.now { color: var(--accent); font-weight: 700; }
+.kl-step.now::after { content: ""; position: absolute; top: -3px; left: 50%; width: 10px; height: 10px; background: var(--accent); border-radius: 50%; transform: translateX(-50%); }
+
+/* CodeGarden 项目行 */
+.proj { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border-light); }
+.proj .nm { font-family: var(--font-serif); font-weight: 700; font-size: 16px; }
+.proj .ds { font-size: 12px; color: var(--text-muted); }
+.proj .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+/* ---------- 深读页 ---------- */
+.article { max-width: 680px; margin: 0 auto; padding: 32px 0 64px; }
+.article h2 { font-family: var(--font-serif); font-size: clamp(24px, 3.4vw, 34px); line-height: 1.25; font-weight: 700; margin-bottom: 8px; }
+.article .art-meta { font-size: 11.5px; color: var(--text-muted); display: flex; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; flex-wrap: wrap; }
+.article p { font-family: var(--font-serif); font-size: 16px; line-height: 1.9; margin-bottom: 18px; color: var(--text-secondary); }
+.article p.first::first-letter { font-size: 3em; font-weight: 700; color: var(--accent); float: left; line-height: .82; padding: 5px 10px 0 0; }
+.article .rule-end { border: none; border-top: 1px solid var(--border-color); margin: 32px 0; }
+.backlink { font-size: 12px; color: var(--text-muted); }
+.backlink:hover { color: var(--accent); }
+
+/* 按钮体系 */
+.btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-sans); font-size: 13px; font-weight: 600; border-radius: var(--radius-sm); padding: 7px 16px; transition: all var(--dur-fast); letter-spacing: .02em; }
+.btn-primary { background: var(--text-primary); color: var(--bg-primary); border: 1px solid var(--text-primary); }
+.btn-primary:hover { filter: brightness(1.12); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+.btn-ghost { border: 1px solid var(--border-color); color: var(--text-secondary); background: transparent; }
+.btn-ghost:hover { border-color: var(--text-muted); color: var(--text-primary); }
+.btn-accent { border: 1px solid var(--accent); color: var(--accent); background: transparent; }
+.btn-accent:hover { background: var(--accent-soft); }
+.btn.is-loading { pointer-events: none; position: relative; color: transparent; }
+.btn.is-loading::after { content: ""; position: absolute; width: 14px; height: 14px; border: 2px solid var(--border-color); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; left: 50%; top: 50%; margin: -8px 0 0 -8px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 输入 */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.input, .select {
+  font-family: var(--font-sans); font-size: 13px; background: var(--bg-secondary);
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; color: var(--text-primary);
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.input:focus, .select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
+.input::placeholder { color: var(--text-muted); }
+.input.error { border-color: var(--err); }
+.input:disabled { opacity: .5; cursor: not-allowed; }
+.field .hint { font-size: 11px; color: var(--text-muted); }
+.field .hint.error { color: var(--err); }
+
+/* toast */
+.toast { display: inline-flex; align-items: center; gap: 10px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-left: 3px solid var(--ok); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); padding: 10px 16px; font-size: 13px; }
+.toast.err { border-left-color: var(--err); }
+
+/* skeleton */
+.sk { background: linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-secondary) 50%, var(--bg-hover) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: var(--radius-sm); }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* 空状态 */
+.empty { text-align: center; padding: 40px 20px; }
+.empty .e-t { font-family: var(--font-serif); font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+.empty .e-m { font-size: 12.5px; color: var(--text-muted); margin-bottom: 16px; }
+
+footer { border-top: 2px solid var(--text-primary); margin-top: 56px; padding: 20px 0 40px; font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+footer .mono { font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+
+<!-- ================= 1. 工具条 ================= -->
+<div class="wrap">
+  <div class="toolbar">
+    <span><span class="mono" id="today">2026年8月18日 星期二</span>&ensp;·&ensp;<span class="sse-dot" id="sseDot"></span><span id="sseText">实时</span>&ensp;·&ensp;最近摄取 <span class="mono">37</span> 条</span>
+    <nav class="toolbar-links">
+      <a href="#action">待办</a><a href="#action">周报</a><a href="#judge">知识库</a><a href="#action">CodeGarden</a><a href="#history">历史</a><a href="#settings">技能</a><a href="#settings">凭据</a><a href="#settings">复盘</a><a href="#settings">设置</a>
+    </nav>
+  </div>
+</div>
+
+<!-- ================= 2. 报头 ================= -->
+<header class="wrap masthead">
+  <h1>SEC<span class="amp">NEWS</span></h1>
+  <div class="tagline">安全 · AI · 金融 · 标讯 情报日报</div>
+  <div class="edition-mark" id="editionMark">VOL.070 — 资料 · 头版</div>
+</header>
+
+<!-- ================= 3. 吸顶导航 ================= -->
+<div class="navsticky">
+  <div class="wrap">
+    <div class="nav-row" role="tablist" aria-label="三层导航">
+      <button class="layer-tab active" data-view="front" role="tab" aria-selected="true">资料层<span class="sub">我有什么 · 资讯流</span></button>
+      <button class="layer-tab" data-view="judge" role="tab" aria-selected="false">判断层<span class="sub">我怎么看 · 分析台</span></button>
+      <button class="layer-tab" data-view="action" role="tab" aria-selected="false">行动层<span class="sub">我做什么 · 行动台</span></button>
+      <button class="layer-tab" data-view="read" role="tab" aria-selected="false">深读<span class="sub">阅读视图</span></button>
+      <button class="layer-tab" data-view="history" role="tab" aria-selected="false">历史归档<span class="sub">往期头版</span></button>
+      <button class="layer-tab" data-view="settings" role="tab" aria-selected="false">版务<span class="sub">设置 · 凭据</span></button>
+      <div class="nav-tools">
+        <span class="star-count" title="收藏数">★ 12</span>
+        <button class="icon-btn" aria-label="刷新" title="刷新 (R)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"/></svg>
+        </button>
+        <button class="icon-btn" id="themeBtn" aria-label="切换主题" title="切换日读/夜读 (T)">
+          <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+        </button>
+      </div>
+    </div>
+    <!-- 分类条：仅头版显示 -->
+    <div class="cats-row" id="catsRow">
+      <button class="cat-pill active" data-cat="all">全部 <span class="n">37</span></button>
+      <button class="cat-pill" data-cat="security">网络安全 <span class="n">9</span></button>
+      <button class="cat-pill" data-cat="ai">科技/AI <span class="n">11</span></button>
+      <button class="cat-pill" data-cat="finance">金融 <span class="n">6</span></button>
+      <button class="cat-pill" data-cat="startup">创业 <span class="n">4</span></button>
+      <button class="cat-pill" data-cat="bid">招标 <span class="n">5</span></button>
+      <button class="cat-pill" data-cat="github">GitHub <span class="n">2</span></button>
+      <div class="search-inline">
+        <input type="search" id="searchInput" placeholder="搜索标题 / 来源 / 摘要" aria-label="搜索">
+        <span class="kbd">/</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+
+<!-- ============================================================
+     视图 A · 资料层 头版
+     ============================================================ -->
+<section class="view active" id="view-front" aria-label="资料层 头版">
+  <div class="front-grid">
+    <div class="main-col">
+      <article class="lead">
+        <div class="meta-row">
+          <span class="badge-cat b-security">安全</span>
+          <span class="qscore good mono">Q 92</span>
+          <span class="mono" style="font-size:11px;color:var(--text-muted)">2 小时前</span>
+        </div>
+        <h2><a href="#read">供应链投毒新变种：npm 生态一周内三起恶意包事件的组织化特征</a></h2>
+        <p class="lede">三起事件共享同一套构建脚本指纹与域名注册模式，指向同一个供应商标签下的组织化行动。攻击者利用维护者账号交接窗口植入 install 阶段窃取脚本，波及下载量约 48 万次。本文拆解时间线、IOC 清单与最小防御基线。</p>
+        <div class="foot-meta">
+          <span>来源 · KrebsOnSecurity / FreeBuf / 微信公众号 ×3</span>
+          <span class="cluster">×3 聚簇</span>
+          <span>已过 13 道质量门禁</span>
+        </div>
+      </article>
+
+      <div class="sort-row">
+        <button class="sort-btn active">最新</button>
+        <button class="sort-btn">最热</button>
+        <button class="sort-btn">上升</button>
+        <span class="spacer"></span>
+        <span class="mono-note">24h · 3d · 7d</span>
+        <button class="btn btn-ghost" style="padding:4px 12px;font-size:12px">生成日报</button>
+      </div>
+
+      <div id="feed">
+        <article class="feed-row" data-cat="ai">
+          <div class="body">
+            <div class="meta"><span class="badge-cat b-ai">AI</span><span>来源 · Hacker News</span><span class="mono">3 小时前</span></div>
+            <h3><a href="#read">Agent Skills 生态三个月观察：从 prompt 复用到技能市场的范式迁移</a></h3>
+            <p class="summary">技能封装正在成为 Agent 时代的新抽象层：可版本、可组合、可交易。本文统计了 214 个公开技能包的依赖结构与复用率……</p>
+            <div class="meta"><span class="cluster">×2 聚簇</span><span class="qscore good">Q 88</span></div>
+          </div>
+          <div class="feed-actions">
+            <button class="star" aria-label="收藏">★</button>
+            <button class="star" aria-label="已读">✓</button>
+          </div>
+        </article>
+
+        <article class="feed-row" data-cat="bid">
+          <div class="body">
+            <div class="meta"><span class="badge-cat b-bid">招标</span><span>来源 · 中国政府采购网</span><span class="mono">5 小时前</span></div>
+            <h3><a href="#read">某省级政务云安全运营平台采购公告（预算 1,280 万 · 上海）</a></h3>
+            <p class="summary">采购需求涵盖态势感知、蜜罐与 AI 辅助研判模块，投标截止 8 月 26 日。命中订阅规则：安全运营 + 华东地区……</p>
+            <div class="meta"><span class="pill-status p-err" style="font-size:9px">投标提醒 D-8</span><span class="qscore good">Q 81</span></div>
+          </div>
+          <div class="feed-actions">
+            <button class="star on" aria-label="取消收藏">★</button>
+          </div>
+        </article>
+
+        <article class="feed-row" data-cat="security">
+          <div class="body">
+            <div class="meta"><span class="badge-cat b-security">安全</span><span>来源 · The Hacker News</span><span class="mono">6 小时前</span></div>
+            <h3><a href="#read">CVE-2026-31xxx：主流网关设备 SSRF 链利用分析</a></h3>
+            <p class="summary">从内存破坏到云端元数据接口的完整链路复现，影响固件版本清单与检测规则已同步知识图谱……</p>
+            <div class="meta"><span class="qscore good">Q 90</span></div>
+          </div>
+          <div class="feed-actions"><button class="star" aria-label="收藏">★</button></div>
+        </article>
+
+        <article class="feed-row" data-cat="finance">
+          <div class="body">
+            <div class="meta"><span class="badge-cat b-finance">金融</span><span>来源 · 21 财经</span><span class="mono">8 小时前</span></div>
+            <h3><a href="#read">金融监管科技动态：大模型风控备案制落地首月观察</a></h3>
+            <p class="summary">首批备案的 17 家机构中，14 家采用「小模型判别 + 大模型解释」的混合架构，监管口径倾向可回溯性……</p>
+            <div class="meta"><span class="qscore">Q 74</span></div>
+          </div>
+          <div class="feed-actions"><button class="star" aria-label="收藏">★</button></div>
+        </article>
+
+        <article class="feed-row" data-cat="github">
+          <div class="body">
+            <div class="meta"><span class="badge-cat b-github">GitHub</span><span>来源 · Trending</span><span class="mono">11 小时前</span></div>
+            <h3><a href="#read">本地优先知识图谱引擎周榜：三个值得关注的新项目</a></h3>
+            <p class="summary">纯 SQLite 存储的 Graph RAG 实现本周 +1.2k star，双时态模型与时序查询是其差异化卖点……</p>
+            <div class="meta"><span class="qscore good">Q 85</span></div>
+          </div>
+          <div class="feed-actions"><button class="star" aria-label="收藏">★</button></div>
+        </article>
+
+        <article class="feed-row" data-cat="startup">
+          <div class="body">
+            <div class="meta"><span class="badge-cat b-startup">创业</span><span>来源 · 投资界</span><span class="mono">14 小时前</span></div>
+            <h3><a href="#read">安全赛道融资周报：两家 AI 攻防初创完成天使轮</a></h3>
+            <p class="summary">红队自动化与合规 Agent 是本周期资本关注的两个交叉点，估值锚点正在从 ARR 转向数据资产……</p>
+            <div class="meta"><span class="qscore bad">Q 62</span></div>
+          </div>
+          <div class="feed-actions"><button class="star" aria-label="收藏">★</button></div>
+        </article>
+      </div>
+
+      <div style="display:flex;justify-content:center;gap:8px;padding:20px 0">
+        <button class="btn btn-ghost">← 上一页</button>
+        <span class="mono" style="align-self:center;font-size:12px;color:var(--text-muted)">1 / 12</span>
+        <button class="btn btn-ghost">下一页 →</button>
+      </div>
+    </div>
+
+    <!-- 侧栏 -->
+    <aside class="sidebar">
+      <div class="side-block">
+        <div class="side-h">今日数据 <span class="mono">08-18 09:42</span></div>
+        <div class="stat-grid">
+          <div class="stat-cell"><div class="v">37</div><div class="l">今日摄取</div></div>
+          <div class="stat-cell"><div class="v c-security">9</div><div class="l">安全</div></div>
+          <div class="stat-cell"><div class="v c-ai">11</div><div class="l">AI</div></div>
+          <div class="stat-cell"><div class="v c-bid">5</div><div class="l">标讯</div></div>
+          <div class="stat-cell"><div class="v c-finance">6</div><div class="l">金融</div></div>
+          <div class="stat-cell"><div class="v">28/46</div><div class="l">活跃源</div></div>
+        </div>
+      </div>
+      <div class="side-block">
+        <div class="side-h">7 日趋势</div>
+        <svg class="chart" viewBox="0 0 260 100" role="img" aria-label="7日分类趋势">
+          <g class="grid">
+            <line x1="0" y1="25" x2="260" y2="25"/><line x1="0" y1="50" x2="260" y2="50"/><line x1="0" y1="75" x2="260" y2="75"/>
+          </g>
+          <polyline class="l-sec" points="10,62 50,48 90,55 130,30 170,38 210,22 250,28"/>
+          <polyline class="l-ai" points="10,70 50,60 90,40 130,45 170,30 210,35 250,18"/>
+          <text x="10" y="95">8/12</text><text x="230" y="95">8/18</text>
+        </svg>
+      </div>
+      <div class="side-block">
+        <div class="side-h">待办 <span class="mono">4</span></div>
+        <ul class="mini-todo">
+          <li><input type="checkbox" id="t1"><label for="t1">整理供应链投毒 IOC 到知识条目</label></li>
+          <li><input type="checkbox" id="t2"><label for="t2">复核政务云标书资质清单</label></li>
+          <li class="done"><input type="checkbox" checked id="t3"><label for="t3">周报：AI 安全交叉摘要</label></li>
+          <li><input type="checkbox" id="t4"><label for="t4">CodeGarden：hotspot v1.7 架构评审</label></li>
+        </ul>
+        <a href="#action" class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:12px;font-size:12px;padding:5px">进入行动层 →</a>
+      </div>
+      <div class="side-block">
+        <div class="side-h">近 7 天归档</div>
+        <ul class="archive-list">
+          <li><a href="#front">2026-08-18 <span>37</span></a></li>
+          <li><a href="#front">2026-08-17 <span>41</span></a></li>
+          <li><a href="#front">2026-08-16 <span>22</span></a></li>
+          <li><a href="#front">2026-08-15 <span>29</span></a></li>
+          <li><a href="#front">2026-08-14 <span>35</span></a></li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============================================================
+     视图 B · 判断层
+     ============================================================ -->
+<section class="view" id="view-judge" aria-label="判断层">
+  <div class="page-head">
+    <div class="crumb"><b>判断层</b> · 我怎么看 — 分类 · 分析 · 评分</div>
+    <h2>分析台 · Editorial Desk</h2>
+    <p class="standfirst">四种阅读模式 + 质量门禁 + 趋势与图谱——把「信息噪音」折叠成「可判断的信号」。</p>
+  </div>
+
+  <div class="mode-tabs" role="tablist">
+    <button class="mode-tab active">简报 Brief</button>
+    <button class="mode-tab">扫描 Scan</button>
+    <button class="mode-tab">深度 Deep</button>
+    <button class="mode-tab">告警 Alert</button>
+  </div>
+
+  <div class="sect-h">质量门禁 · 今日拒稿 9 / 通过 37</div>
+  <div class="cellbox" style="padding:0">
+    <table class="table">
+      <thead><tr><th>标题</th><th>来源</th><th>命中门</th><th>质量分</th><th>状态</th></tr></thead>
+      <tbody>
+        <tr><td>「某安企发布新品」营销稿（AI 生成率 0.91）</td><td class="mono">微信公众号</td><td class="mono">AIGate</td><td class="mono">28</td><td><span class="pill-status p-err">拒稿</span></td></tr>
+        <tr><td>旧闻重发：2023 年漏洞通告（超出时效窗口）</td><td class="mono">RSS-17</td><td class="mono">RecencyGate</td><td class="mono">44</td><td><span class="pill-status p-err">拒稿</span></td></tr>
+        <tr><td>金融周报转载（与 3 条已入库聚簇重复）</td><td class="mono">21 财经</td><td class="mono">DedupGate</td><td class="mono">55</td><td><span class="pill-status p-warn">折叠入簇</span></td></tr>
+        <tr><td>网关 SSRF 利用分析</td><td class="mono">THN</td><td class="mono">— 全过</td><td class="mono">90</td><td><span class="pill-status p-ok">通过</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-2" style="margin-top:8px">
+    <div>
+      <div class="sect-h">标讯分析</div>
+      <div class="cellbox">
+        <div class="bidbar"><div class="lbl"><span>华东地区</span><span class="mono">42%</span></div><div class="track"><div class="fill" style="width:42%"></div></div></div>
+        <div class="bidbar"><div class="lbl"><span>华北地区</span><span class="mono">26%</span></div><div class="track"><div class="fill" style="width:26%"></div></div></div>
+        <div class="bidbar"><div class="lbl"><span>华南地区</span><span class="mono">18%</span></div><div class="track"><div class="fill" style="width:18%"></div></div></div>
+        <div class="bidbar"><div class="lbl"><span>其他</span><span class="mono">14%</span></div><div class="track"><div class="fill" style="width:14%"></div></div></div>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-top:10px">业务线：安全运营 12 · 数据合规 7 · AI 平台 5&ensp;<a href="#action" style="color:var(--accent)">订阅规则 →</a></div>
+      </div>
+    </div>
+    <div>
+      <div class="sect-h">注意力热力 · 近 24 天</div>
+      <div class="cellbox">
+        <div class="heat" aria-label="注意力热力图">
+          <i class="h1"></i><i></i><i class="h2"></i><i class="h1"></i><i></i><i class="h1"></i><i></i><i class="h2"></i><i class="h1"></i><i></i><i></i><i class="h1"></i><i class="h3"></i><i class="h2"></i><i class="h1"></i><i></i><i class="h1"></i><i></i><i class="h2"></i><i class="h4"></i><i class="h3"></i><i class="h2"></i><i class="h1"></i><i></i>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:10px">
+          <span>07-26</span><span>注意峰值：供应链投毒 / Agent Skills</span><span>08-18</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sect-h">知识图谱 · 98 概念</div>
+  <div class="graph-placeholder">
+    <svg viewBox="0 0 600 150" aria-hidden="true">
+      <line class="gedge" x1="120" y1="75" x2="260" y2="40"/><line class="gedge" x1="120" y1="75" x2="260" y2="110"/>
+      <line class="gedge" x1="260" y1="40" x2="420" y2="75"/><line class="gedge" x1="260" y1="110" x2="420" y2="75"/>
+      <line class="gedge" x1="420" y1="75" x2="540" y2="40"/><line class="gedge" x1="420" y1="75" x2="540" y2="110"/>
+      <circle class="gnode" cx="120" cy="75" r="22"/><circle class="gnode s" cx="260" cy="40" r="17"/>
+      <circle class="gnode f" cx="260" cy="110" r="15"/><circle class="gnode g" cx="420" cy="75" r="20"/>
+      <circle class="gnode s" cx="540" cy="40" r="14"/><circle class="gnode" cx="540" cy="110" r="13"/>
+      <text x="120" y="79" text-anchor="middle" style="fill:var(--text-secondary);font-size:10px">ai-security</text>
+      <text x="420" y="79" text-anchor="middle" style="fill:var(--text-secondary);font-size:10px">supply-chain</text>
+    </svg>
+    <div>双击节点进入概念详情 · 拖拽平移 · 滚轮缩放</div>
+  </div>
+</section>
+
+<!-- ============================================================
+     视图 C · 行动层
+     ============================================================ -->
+<section class="view" id="view-action" aria-label="行动层">
+  <div class="page-head">
+    <div class="crumb"><b>行动层</b> · 我下一步做什么 — 计划 · 执行 · 复盘</div>
+    <h2>行动台 · Composing Room</h2>
+    <p class="standfirst">今日焦点由判断层推送：2 条标讯提醒、1 份周报待生成、4 个待办——从阅读到落笔，闭环于此。</p>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <div class="sect-h">投标提醒</div>
+      <div class="cellbox">
+        <div class="alert-item">
+          <div class="dday">D-8</div>
+          <div><div class="t">某省级政务云安全运营平台</div><div class="m">预算 1,280 万 · 上海 · 命中订阅「安全运营 + 华东」</div></div>
+        </div>
+        <div class="alert-item">
+          <div class="dday">D-3</div>
+          <div><div class="t">金融行业数据合规检测工具集采</div><div class="m">预算 340 万 · 深圳 · 命中订阅「数据合规」</div></div>
+        </div>
+        <button class="btn btn-accent" style="margin-top:12px">管理订阅规则</button>
+      </div>
+
+      <div class="sect-h">待办 · 4</div>
+      <div class="cellbox">
+        <ul class="todo-list">
+          <li><input type="checkbox" id="a1"><label for="a1">整理供应链投毒 IOC → 知识条目（来源：判断层头条）</label><span class="when">今日</span></li>
+          <li><input type="checkbox" id="a2"><label for="a2">复核政务云标书资质清单</label><span class="when">D-8</span></li>
+          <li><input type="checkbox" id="a3"><label for="a3">周报生成与人工校订</label><span class="when">周五</span></li>
+          <li><input type="checkbox" id="a4"><label for="a4">SM-2 复习：LLM 安全 12 条概念</label><span class="when">每日</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div>
+      <div class="sect-h">知识复利 · 生命周期</div>
+      <div class="cellbox">
+        <div class="kl-track">
+          <div class="kl-step done">raw 采集</div>
+          <div class="kl-step done">refine 精炼</div>
+          <div class="kl-step now">link 关联</div>
+          <div class="kl-step">structure 编译</div>
+          <div class="kl-step">publish 输出</div>
+        </div>
+        <div style="font-size:12.5px;color:var(--text-secondary)">本周新增 29 条 · 待关联 7 条 · 概念候选 3 个（ai-security / 供应链指纹 / 监管科技）</div>
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn btn-primary">编译本周概念</button>
+          <button class="btn btn-ghost">整理箱 · 7</button>
+          <button class="btn btn-ghost">复习 · 12</button>
+        </div>
+      </div>
+
+      <div class="sect-h">CodeGarden · 项目</div>
+      <div class="cellbox">
+        <div class="proj">
+          <div><div class="nm">hotspot</div><div class="ds">三层架构重构 · 架构审查已通过</div></div>
+          <div class="right"><span class="pill-status p-info">进行中</span><span class="mono" style="font-size:11px;color:var(--text-muted)">svc 8</span></div>
+        </div>
+        <div class="proj">
+          <div><div class="nm">secwiki-export</div><div class="ds">知识库导出与联邦同步</div></div>
+          <div class="right"><span class="pill-status p-ok">已完成</span><span class="mono" style="font-size:11px;color:var(--text-muted)">svc 2</span></div>
+        </div>
+        <div class="proj">
+          <div><div class="nm">redteam-lab</div><div class="ds">红队自动化实验环境</div></div>
+          <div class="right"><span class="pill-status p-warn">暂停</span><span class="mono" style="font-size:11px;color:var(--text-muted)">svc 3</span></div>
+        </div>
+        <a href="#action" class="backlink">服务网格 · 资源 · 事件 →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     视图 D · 深读
+     ============================================================ -->
+<section class="view" id="view-read" aria-label="深读视图">
+  <div class="article">
+    <a href="#front" class="backlink">← 返回头版</a>
+    <div style="height:20px"></div>
+    <div class="art-meta">
+      <span class="badge-cat b-security">安全</span><span>来源 · KrebsOnSecurity</span>
+      <span class="mono">2026-08-18 07:30</span><span class="qscore good">Q 92</span><span>阅读约 9 分钟</span>
+    </div>
+    <h2>供应链投毒新变种：npm 生态一周内三起恶意包事件的组织化特征</h2>
+    <p class="first">过去七天内，npm 生态接连出现三起高度相似的恶意包事件。安全研究人员最初将其视为孤立事件，但随着构建脚本指纹与域名注册模式的比对展开，一个更令人不安的结论浮出水面：这三起事件极可能出自同一团伙之手。</p>
+    <p>三起事件均利用维护者账号交接的时间窗口，在 install 阶段植入环境变量窃取脚本。受影响包的累计周下载量约为 48 万次，窃取内容包括 npm token、云厂商凭证与浏览器 cookie 存档。</p>
+    <p>防御基线建议：锁定依赖版本、启用 npm token 轮转、在 CI 层面拦截 postinstall 网络外联。完整 IOC 清单已由判断层自动同步至知识图谱的 supply-chain 概念节点。</p>
+    <hr class="rule-end">
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-accent">★ 收藏到知识库</button>
+      <button class="btn btn-ghost">加入待办</button>
+      <button class="btn btn-ghost">关联概念 →</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     视图 E · 历史归档（资料层子页）
+     ============================================================ -->
+<section class="view" id="view-history" aria-label="历史归档">
+  <div class="page-head">
+    <div class="crumb"><a href="#front">← 返回头版</a> · <b>资料层</b> · 往期归档</div>
+    <h2>往期头版 · The Archive</h2>
+    <p class="standfirst">按日期归档的全部通过条目，点击任意日期回看当期头版；排序遵循入库时间而非发布时间。</p>
+  </div>
+
+  <div class="sort-row" style="border-bottom:1px solid var(--border-color)">
+    <button class="sort-btn active">按日期</button>
+    <button class="sort-btn">按条目量</button>
+    <span class="spacer"></span>
+    <span class="mono-note">近 30 天 · 共 913 条</span>
+  </div>
+
+  <div class="cellbox" style="padding:0">
+    <table class="table">
+      <thead><tr><th>日期</th><th>总条目</th><th>安全</th><th>AI</th><th>金融</th><th>创业</th><th>招标</th><th>GitHub</th><th></th></tr></thead>
+      <tbody>
+        <tr><td class="mono">2026-08-18 星期二</td><td class="mono">37</td><td class="mono">9</td><td class="mono">11</td><td class="mono">6</td><td class="mono">4</td><td class="mono">5</td><td class="mono">2</td><td><a href="#front" style="color:var(--accent)">头版 →</a></td></tr>
+        <tr><td class="mono">2026-08-17 星期一</td><td class="mono">41</td><td class="mono">12</td><td class="mono">9</td><td class="mono">8</td><td class="mono">3</td><td class="mono">7</td><td class="mono">2</td><td><a href="#front" style="color:var(--accent)">头版 →</a></td></tr>
+        <tr><td class="mono">2026-08-16 星期日</td><td class="mono">22</td><td class="mono">5</td><td class="mono">7</td><td class="mono">3</td><td class="mono">1</td><td class="mono">4</td><td class="mono">2</td><td><a href="#front" style="color:var(--accent)">头版 →</a></td></tr>
+        <tr><td class="mono">2026-08-15 星期六</td><td class="mono">29</td><td class="mono">8</td><td class="mono">6</td><td class="mono">5</td><td class="mono">2</td><td class="mono">6</td><td class="mono">2</td><td><a href="#front" style="color:var(--accent)">头版 →</a></td></tr>
+        <tr><td class="mono">2026-08-14 星期五</td><td class="mono">35</td><td class="mono">10</td><td class="mono">8</td><td class="mono">6</td><td class="mono">3</td><td class="mono">6</td><td class="mono">2</td><td><a href="#front" style="color:var(--accent)">头版 →</a></td></tr>
+        <tr><td class="mono">2026-08-13 星期四</td><td class="mono">38</td><td class="mono">11</td><td class="mono">10</td><td class="mono">7</td><td class="mono">2</td><td class="mono">6</td><td class="mono">2</td><td><a href="#front" style="color:var(--accent)">头版 →</a></td></tr>
+        <tr><td class="mono">2026-08-12 星期三</td><td class="mono">33</td><td class="mono">9</td><td class="mono">9</td><td class="mono">5</td><td class="mono">2</td><td class="mono">7</td><td class="mono">1</td><td><a href="#front" style="color:var(--accent)">头版 →</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="display:flex;justify-content:center;gap:8px;padding:20px 0">
+    <button class="btn btn-ghost">← 更早</button>
+    <span class="mono" style="align-self:center;font-size:12px;color:var(--text-muted)">第 1 / 5 页</span>
+    <button class="btn btn-ghost">更近 →</button>
+  </div>
+</section>
+
+<!-- ============================================================
+     视图 F · 版务（设置 / 凭据 / 技能 / 复盘）
+     ============================================================ -->
+<section class="view" id="view-settings" aria-label="设置">
+  <div class="page-head">
+    <div class="crumb"><b>版务室</b> · 设置 · 采集源 · 凭据 · 技能 · 复盘</div>
+    <h2>版务室 · The Back Office</h2>
+    <p class="standfirst">工作站配置中枢：采集源、加密凭据、调度与技能——敏感字段未解锁时一律显示为密文。</p>
+  </div>
+
+  <div class="mode-tabs" role="tablist">
+    <button class="mode-tab active">通用</button>
+    <button class="mode-tab">采集源</button>
+    <button class="mode-tab">凭据</button>
+    <button class="mode-tab">技能</button>
+    <button class="mode-tab">复盘</button>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <div class="sect-h">通用</div>
+      <div class="cellbox" style="display:flex;flex-direction:column;gap:16px">
+        <div class="field"><label>默认主题</label>
+          <select class="select"><option>日报版（浅色）</option><option>夜读版（深色）</option><option>跟随系统</option></select>
+          <span class="hint">主题以 data-theme + localStorage 持久化，无重渲染成本</span></div>
+        <div class="field"><label>刷新频率</label>
+          <select class="select"><option>实时（SSE 推送）</option><option>每 5 分钟</option><option>每 15 分钟</option></select></div>
+        <div class="field"><label>服务端口</label><input class="input" value="8898" disabled><span class="hint">固定端口，禁止漂移</span></div>
+        <div style="display:flex;gap:10px"><button class="btn btn-primary">保存设置</button><button class="btn btn-ghost">重置</button></div>
+      </div>
+    </div>
+    <div>
+      <div class="sect-h">调度器 · 30 个任务</div>
+      <div class="cellbox" style="padding:0">
+        <table class="table">
+          <thead><tr><th>任务</th><th>周期</th><th>状态</th></tr></thead>
+          <tbody>
+            <tr><td>hotspot 采集（全源）</td><td class="mono">*/15m</td><td><span class="pill-status p-ok">运行中</span></td></tr>
+            <tr><td>质量门禁流水线</td><td class="mono">采集后</td><td><span class="pill-status p-ok">运行中</span></td></tr>
+            <tr><td>知识图谱增量构建</td><td class="mono">每日 06:00</td><td><span class="pill-status p-ok">运行中</span></td></tr>
+            <tr><td>跨端同步打包</td><td class="mono">每日 23:00</td><td><span class="pill-status p-warn">待凭据解锁</span></td></tr>
+            <tr><td>RSS-17 采集器</td><td class="mono">*/15m</td><td><span class="pill-status p-err">连续失败 ×3</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="sect-h">采集源 · 28 / 46 活跃</div>
+  <div class="cellbox" style="padding:0">
+    <table class="table">
+      <thead><tr><th>源</th><th>分类</th><th>频率</th><th>近7天</th><th>状态</th></tr></thead>
+      <tbody>
+        <tr><td>KrebsOnSecurity</td><td><span class="badge-cat b-security">安全</span></td><td class="mono">*/15m</td><td class="mono">21</td><td><span class="pill-status p-ok">实时</span></td></tr>
+        <tr><td>FreeBuf</td><td><span class="badge-cat b-security">安全</span></td><td class="mono">*/30m</td><td class="mono">34</td><td><span class="pill-status p-ok">实时</span></td></tr>
+        <tr><td>Hacker News</td><td><span class="badge-cat b-ai">AI</span></td><td class="mono">*/15m</td><td class="mono">52</td><td><span class="pill-status p-ok">实时</span></td></tr>
+        <tr><td>中国政府采购网</td><td><span class="badge-cat b-bid">招标</span></td><td class="mono">每小时</td><td class="mono">18</td><td><span class="pill-status p-ok">实时</span></td></tr>
+        <tr><td>21 财经</td><td><span class="badge-cat b-finance">金融</span></td><td class="mono">每小时</td><td class="mono">15</td><td><span class="pill-status p-ok">实时</span></td></tr>
+        <tr><td>RSS-17（旧版源）</td><td><span class="badge-cat b-general">通用</span></td><td class="mono">*/15m</td><td class="mono">0</td><td><span class="pill-status p-err">失败</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-2" style="margin-top:8px">
+    <div>
+      <div class="sect-h">凭据 · Fernet 加密</div>
+      <div class="cellbox" style="display:flex;flex-direction:column;gap:14px">
+        <div class="field"><label>微信公众号 Cookie</label><input class="input" value="******" disabled><span class="hint">未解锁时一律显示密文</span></div>
+        <div class="field"><label>代理会话凭证</label><input class="input" value="******" disabled></div>
+        <div style="display:flex;gap:10px"><button class="btn btn-accent">解锁主密钥</button><button class="btn btn-ghost" disabled>导出备份</button></div>
+      </div>
+    </div>
+    <div>
+      <div class="sect-h">技能 · Skills</div>
+      <div class="cellbox">
+        <div class="proj"><div><div class="nm">beautify-github-readme</div><div class="ds">README 排版强化</div></div><div class="right"><span class="pill-status p-ok">启用</span></div></div>
+        <div class="proj"><div><div class="nm">brandkit</div><div class="ds">品牌一致性检查</div></div><div class="right"><span class="pill-status p-ok">启用</span></div></div>
+        <div class="proj"><div><div class="nm">imagegen-frontend-web</div><div class="ds">前端配图生成</div></div><div class="right"><span class="pill-status p-warn">停用</span></div></div>
+        <button class="btn btn-ghost" style="margin-top:14px">管理全部技能 →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sect-h">本周复盘 · 2026-W33</div>
+  <div class="cellbox">
+    <p style="font-family:var(--font-serif);font-size:15px;line-height:1.8;color:var(--text-secondary);max-width:70ch">本周采集 243 条，通过门禁 198 条；注意力峰值集中在供应链投毒与 Agent Skills 两条主线。知识库新增 29 条，概念候选 3 个待编译。标讯命中 2 条订阅，1 条已转待办跟进。周报已生成，建议下周一前完成概念编译。</p>
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-ghost">查看 2026-W32</button>
+      <button class="btn btn-ghost">导出本周摘要</button>
+    </div>
+  </div>
+</section>
+
+
+</main>
+
+<footer class="wrap">
+  <span>SECNEWS 情报日报 — 资料层 / 判断层 / 行动层 · 知识复利闭环</span>
+  <span class="mono">VOL.070 · 46 源 · 28 活跃 · 本地工作站 :8898</span>
+</footer>
+
+<script>
+/* ---------- 视图切换（hash 路由） ---------- */
+const VIEWS = { front: '资料 · 头版', judge: '判断 · 评论版', action: '行动 · 排稿版', read: '深读 · 副刊', history: '资料 · 归档版', settings: '版务 · 附页' };
+const catsRow = document.getElementById('catsRow');
+function go(view) {
+  if (!VIEWS[view]) view = 'front';
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
+  document.querySelectorAll('.layer-tab').forEach(t => {
+    const on = t.dataset.view === view;
+    t.classList.toggle('active', on); t.setAttribute('aria-selected', on);
+  });
+  catsRow.style.display = (view === 'front') ? 'flex' : 'none';
+  document.getElementById('editionMark').textContent = 'VOL.070 — ' + VIEWS[view];
+  window.scrollTo({ top: 0 });
+}
+document.querySelectorAll('.layer-tab').forEach(t => t.addEventListener('click', () => { location.hash = t.dataset.view; }));
+window.addEventListener('hashchange', () => go(location.hash.slice(1) || 'front'));
+
+/* ---------- 主题切换 ---------- */
+const themeBtn = document.getElementById('themeBtn');
+const themeIcon = document.getElementById('themeIcon');
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  localStorage.setItem('secnews-theme', t);
+  themeIcon.innerHTML = t === 'light'
+    ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/>'
+    : '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>';
+}
+setTheme(localStorage.getItem('secnews-theme') || 'light');
+themeBtn.addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'));
+
+/* ---------- 分类筛选 ---------- */
+document.querySelectorAll('.cat-pill').forEach(p => p.addEventListener('click', () => {
+  document.querySelectorAll('.cat-pill').forEach(x => x.classList.remove('active'));
+  p.classList.add('active');
+  const cat = p.dataset.cat;
+  document.querySelectorAll('#feed .feed-row').forEach(r => {
+    r.style.display = (cat === 'all' || r.dataset.cat === cat) ? '' : 'none';
+  });
+}));
+
+/* ---------- 排序 toggle ---------- */
+document.querySelectorAll('.sort-btn').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.sort-btn').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+}));
+
+/* ---------- 收藏星 ---------- */
+document.querySelectorAll('.feed-row .star').forEach(s => s.addEventListener('click', () => {
+  s.classList.toggle('on');
+  const c = document.querySelector('.star-count');
+  const n = parseInt(c.textContent.slice(1)) + (s.classList.contains('on') ? 1 : -1);
+  c.textContent = '★ ' + n;
+}));
+
+/* ---------- 搜索 / 快捷键 ---------- */
+const si = document.getElementById('searchInput');
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement !== si) { e.preventDefault(); si.focus(); }
+  if (e.key === 't' && !e.metaKey && !e.ctrlKey && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT') themeBtn.click();
+});
+si.addEventListener('input', () => {
+  const q = si.value.trim().toLowerCase();
+  document.querySelectorAll('#feed .feed-row').forEach(r => {
+    r.style.display = (!q || r.textContent.toLowerCase().includes(q)) ? '' : 'none';
+  });
+});
+
+/* ---------- 今日日期 ---------- */
+const d = new Date();
+const wd = ['日','一','二','三','四','五','六'][d.getDay()];
+document.getElementById('today').textContent = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 星期' + wd;
+
+/* 初始化 */
+go(location.hash.slice(1) || 'front');
+</script>
+</body>
+</html>

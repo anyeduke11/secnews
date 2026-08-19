@@ -17,6 +17,7 @@ def register_routers(app: FastAPI) -> None:
     router 不注册, 对外不可达 (此前 flag 与注册脱钩, 形同虚设)。
     """
     from backend.config import config
+    from backend.extensions import is_extension_enabled
 
     # 注意: annotations 必须用 `import ... as` 显式导入子模块,
     # 因为模块顶部的 `from __future__ import annotations` 会把 `annotations`
@@ -89,7 +90,8 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(secrets.router, tags=["secrets"])
     app.include_router(security.router, tags=["security"])
     app.include_router(settings.router, tags=["settings"])
-    app.include_router(sync.router, tags=["sync"])
+    if is_extension_enabled("sync"):
+        app.include_router(sync.router, tags=["sync"])
     app.include_router(reports.router, tags=["reports"])
     app.include_router(weekly_report.router, tags=["weekly-report"])
     app.include_router(knowledge.router, tags=["knowledge"])
@@ -99,8 +101,10 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(cache.router, tags=["cache"])
     app.include_router(events.router, tags=["events"])
     app.include_router(attention_events_api.router, tags=["attention"])
-    app.include_router(codegarden.router, tags=["codegarden"])
-    app.include_router(codegarden_ops.router, tags=["codegarden-ops"])
+    # ---- extension 路由区: 按 feature_gates 注册 (v0.4.3 分层) ----
+    if is_extension_enabled("codegarden"):
+        app.include_router(codegarden.router, tags=["codegarden"])
+        app.include_router(codegarden_ops.router, tags=["codegarden-ops"])
     # ---- feature flag 接线区: flag=False 时对应 API 不注册 ----
     if config.feature_tags:
         app.include_router(tags.router, tags=["tags"])
@@ -110,7 +114,7 @@ def register_routers(app: FastAPI) -> None:
         app.include_router(reviews.router, tags=["reviews"])
     if config.feature_annotations:
         app.include_router(annotations_api.router, tags=["annotations"])
-    if config.feature_tech_stack:
+    if config.feature_tech_stack and is_extension_enabled("tech_stack"):
         app.include_router(tech_stack.router, tags=["tech-stack"])
     if config.feature_alerts:
         app.include_router(alerts.router, tags=["alerts"])
@@ -127,11 +131,12 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(catchup.router, tags=["catchup"])
     # v1.8 Phase 8: 资讯收藏聚合视图
     app.include_router(knowledge_imported.router, tags=["knowledge-imported"])
-    # v1.7 Phase 7: MCP server routers
-    app.include_router(mcp.router, tags=["mcp"])
-    app.include_router(mcp_adapters.router, tags=["mcp-adapters"])
-    # v1.8 Phase 8: 4 个新 MCP tool (副作用模式)
-    app.include_router(mcp_agent_tools.router, tags=["mcp-agent-tools"])
+    # v1.7 Phase 7: MCP server routers (v0.4.3: 由 feature_gates 控制)
+    if is_extension_enabled("mcp"):
+        app.include_router(mcp.router, tags=["mcp"])
+        app.include_router(mcp_adapters.router, tags=["mcp-adapters"])
+        # v1.8 Phase 8: 4 个新 MCP tool (副作用模式)
+        app.include_router(mcp_agent_tools.router, tags=["mcp-agent-tools"])
     # v1.7 Phase 10: KL 触发器指标
     app.include_router(kl_metrics_api.router, tags=["kl-metrics"])
     # v1.7 Phase 10: KL 回滚 API
@@ -142,7 +147,8 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(kl_planning_api.router, tags=["kl-planning"])
     # Phase 14: 子系统联动 — 技术栈漂移评估 + CVE 同步
     from backend.api import codegarden_phase14
-    app.include_router(codegarden_phase14.router, tags=["codegarden-phase14"])
+    if is_extension_enabled("codegarden"):
+        app.include_router(codegarden_phase14.router, tags=["codegarden-phase14"])
     # Phase 16: Hybrid AI — LLM 状态 API
     from backend.api import llm_status
     app.include_router(llm_status.router, tags=["llm"])

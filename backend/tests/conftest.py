@@ -62,6 +62,34 @@ def _disable_startup_catchup(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def _feature_gates_all_on_for_tests() -> None:
+    """v0.4.3: 测试环境默认全部扩展开启。
+
+    分层重构后路由/job 注册受 feature_gates.toml 控制, 而生产默认
+    codegarden/mcp/tech_stack/security_graph=false。既有功能测试假设这些
+    功能在线, 因此测试环境通过 HOTSPOT_FEATURE_GATES env 全开。
+    组合矩阵 (core-only / all-on / mixed) 由 test_feature_gates.py
+    和 CI backend-core-only job 专门覆盖。
+    """
+    import os
+
+    from backend.extensions import reset_gates
+
+    prev = os.environ.get("HOTSPOT_FEATURE_GATES")
+    os.environ["HOTSPOT_FEATURE_GATES"] = (
+        '{"extensions": {"codegarden": true, "mcp": true, "sync": true, '
+        '"tech_stack": true, "security_graph": true}}'
+    )
+    reset_gates()
+    yield
+    if prev is None:
+        os.environ.pop("HOTSPOT_FEATURE_GATES", None)
+    else:
+        os.environ["HOTSPOT_FEATURE_GATES"] = prev
+    reset_gates()
+
+
+@pytest.fixture(autouse=True)
 def _isolate_knowledge_dirs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """P1: 所有测试强制隔离 knowledge/ 目录 — 根治测试污染真实知识库.
 

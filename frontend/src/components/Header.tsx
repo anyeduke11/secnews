@@ -10,6 +10,7 @@ import React, { useEffect, useState, MutableRefObject } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CatchupButton } from './CatchupButton';
 import { LayerNav } from './LayerNav';
+import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useLayerSubNav, DATA_SUB_NAV, JUDGE_SUB_NAV, ACTION_SUB_NAV, FLOW_COLORS } from './layout/LayerHeader';
 
 interface HeaderProps {
@@ -73,6 +74,24 @@ export function Header({
   // (知识管理 / Skill / 密钥 / 同步), 消除"路由存在但主导航不可达"。
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = React.useRef<HTMLDivElement>(null);
+  // v0.4.3: 扩展导航项按 feature flag 过滤
+  const features = useFeatureFlags();
+  const [dueCount, setDueCount] = useState(0);
+
+  // v0.4.3 复利驱动器②: SM-2 每日复习推送徽标 (SSE review_due 事件)
+  useEffect(() => {
+    let evtSource: EventSource | null = null;
+    try {
+      evtSource = new EventSource('/api/events');
+      evtSource.addEventListener('review_due', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (typeof data.count === 'number') setDueCount(data.count);
+        } catch {}
+      });
+    } catch {}
+    return () => { try { evtSource?.close(); } catch {} };
+  }, []);
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
@@ -88,7 +107,7 @@ export function Header({
     { path: '/knowledge', label: '知识管理', hint: '4 大领域 + 6 认知模式' },
     { path: '/skills', label: 'Skill 管理', hint: '技能配置' },
     { path: '/secrets', label: '密钥管理', hint: 'LLM API 密钥' },
-    { path: '/sync', label: '跨端同步', hint: 'WebDAV 同步' },
+    ...(features.sync ? [{ path: '/sync', label: '跨端同步', hint: 'WebDAV 同步' }] : []),
   ];
 
   useEffect(() => {
@@ -131,7 +150,7 @@ export function Header({
     subNavItems = JUDGE_SUB_NAV;
     subNavBasePath = '/judge';
   } else if (pathname.startsWith('/action')) {
-    subNavItems = ACTION_SUB_NAV;
+    subNavItems = ACTION_SUB_NAV.filter(item => item.key !== 'cg' || features.codegarden);
     subNavBasePath = '/action';
   }
   const subNav = useLayerSubNav(subNavBasePath, subNavItems, pathname);
@@ -196,6 +215,22 @@ export function Header({
         )}
       </button>
       <CatchupButton />
+      {dueCount > 0 && (
+        <button
+          onClick={() => navigate('/knowledge/review')}
+          className="nav-btn"
+          title={`${dueCount} 条待复习`}
+          aria-label={`${dueCount} 条待复习, 点击进入复习`}
+        >
+          <Icon size={14}><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></Icon>
+          <span
+            className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+            style={{ backgroundColor: 'var(--color-error)', color: '#fff' }}
+          >
+            {dueCount > 99 ? '99+' : dueCount}
+          </span>
+        </button>
+      )}
       <button
         onClick={onRefresh} disabled={refreshing}
         className="nav-btn"

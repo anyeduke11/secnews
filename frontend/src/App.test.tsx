@@ -82,6 +82,19 @@ vi.mock('./hooks/useSSE', () => ({
   useSSE: () => ({ connected: false }),
 }));
 
+// v0.4.3: feature flag mock — 路由测试全部开启, 保证扩展路由可渲染
+// (真实默认值 codegarden/mcp 关闭, 见 hooks/useFeatureFlags DEFAULT_FLAGS)
+const mockFlags = {
+  codegarden: true,
+  mcp: true,
+  sync: true,
+  techStack: true,
+  securityGraph: true,
+};
+vi.mock('./hooks/useFeatureFlags', () => ({
+  useFeatureFlags: () => mockFlags,
+}));
+
 const ROUTES = [
   { path: '/', label: /热点地图/i, multiple: true },
   { path: '/category/ai', label: /热点地图/i, multiple: true },

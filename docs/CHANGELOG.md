@@ -24,6 +24,8 @@
 - 版本统一: backend/frontend/README 三处 0.4.3 (基线 tag v0.4.3-base)
 - 新增 `scripts/generate_meta.py`: AST 反推架构数字 (43 jobs/14 collectors/51 routers/81 services), `--check` 纳入 CI
 - 新增 `backend/tests/test_feature_gates.py`: 60 用例组合矩阵 (core-only/all-on/mixed)
+- 新增 `backend/tests/test_compound_drivers.py`: 7 用例覆盖 4 个复利驱动器 + 异常隔离
+- 修复: `_classify_new_items` 改用 `upsert_item` 模式 (原 `update_item` 不存在, 分类静默失败)
 - CI 新增 `backend-core-only` job (env 全关启动 + gate 测试)
 - 测试环境默认全开 feature gates (conftest autouse), 3 处 migration 标注扩展表归属
 

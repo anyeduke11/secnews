@@ -89,15 +89,32 @@ async def _classify_new_items() -> None:
                 return 0
             items = [dict(r) for r in rows]
             classified = batch_classify(items)
-            for item in classified:
-                write_item_to_md(item)
-                knowledge_repo.update_item(item["id"], {
-                    "domain": item.get("domain"),
-                    "topic": item.get("topic"),
-                    "type": item.get("type"),
-                    "difficulty": item.get("difficulty"),
-                })
-            return len(classified)
+            updated = 0
+            for d in classified:
+                item_id = d.get("id")
+                if not item_id:
+                    continue
+                db_item = knowledge_repo.get_item(item_id)
+                if db_item is None:
+                    continue
+                changed = False
+                for field, key in (("domain", "domain"), ("type", "type"),
+                                   ("difficulty", "difficulty"), ("topic", "topic")):
+                    if d.get(key) and not getattr(db_item, field, None):
+                        setattr(db_item, field, d[key])
+                        changed = True
+                if not changed:
+                    continue
+                # md 真相源先写, 再同步 DB
+                try:
+                    write_item_to_md(db_item.to_dict())
+                except Exception as md_err:
+                    _logger.warning(
+                        f"_classify_new_items md write failed for {item_id}: {md_err}"
+                    )
+                knowledge_repo.upsert_item(db_item)
+                updated += 1
+            return updated
 
         count = await asyncio.to_thread(_run)
         if count:

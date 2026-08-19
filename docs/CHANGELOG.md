@@ -27,6 +27,7 @@
 - 新增 `backend/tests/test_compound_drivers.py`: 7 用例覆盖 4 个复利驱动器 + 异常隔离
 - 修复: `_classify_new_items` 改用 `upsert_item` 模式 (原 `update_item` 不存在, 分类静默失败)
 - CI 新增 `backend-core-only` job (env 全关启动 + gate 测试)
+- CI 修复 (v0.4.3 发布前置, 历史 CI 长期为红): requirements.lock mcp 2.0→1.28.1 (fastapi-mcp 0.4.0 兼容), fastapi-mcp pin <0.5, frontend @types/node 显式声明 + npm install, 4 处测试消除对本地 .env/真实 hotspot.db/上级 node_modules 的隐式依赖; 2026-08-19 三个 job 首次全绿
 - 测试环境默认全开 feature gates (conftest autouse), 3 处 migration 标注扩展表归属
 
 ## v0.3.0 (2026-08-01)

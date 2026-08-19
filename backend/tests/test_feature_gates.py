@@ -134,7 +134,7 @@ class TestCoreRoutes:
         app = build_app(monkeypatch, ALL_OFF)
         assert path in _route_paths(app), f"{path} should be registered (core)"
 
-    def test_core_endpoints_not_404(self, monkeypatch):
+    def test_core_endpoints_not_404(self, monkeypatch, temp_db):
         """全关时核心端点实际可访问 (非 404)。"""
         app = build_app(monkeypatch, ALL_OFF)
         with TestClient(app) as client:

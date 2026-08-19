@@ -72,9 +72,9 @@ async def _classify_new_items() -> None:
     """
     try:
         from backend.repository.db import get_connection
+        from backend.repository.knowledge_repo import knowledge_repo
         from backend.services.auto_classifier import batch_classify
         from backend.services.knowledge_sync import write_item_to_md
-        from backend.repository.knowledge_repo import knowledge_repo
 
         def _run() -> int:
             conn = get_connection()
@@ -126,8 +126,8 @@ async def _classify_new_items() -> None:
 async def sm2_daily_push_job() -> None:
     """复利驱动器②: 每天 08:00 推送待复习条目到前端通知栏 (SSE review_due)。"""
     try:
-        from backend.services.review_service import list_due
         from backend.api.events import publish_event
+        from backend.services.review_service import list_due
 
         due = list_due(limit=20)
         if not due:
@@ -1705,6 +1705,7 @@ async def content_draft_generation_job() -> None:
     """
     try:
         from datetime import datetime, timezone
+
         from backend.repository.db import get_connection
         from backend.repository.knowledge_repo import knowledge_repo
         from backend.services.content_service import create_draft
@@ -1750,8 +1751,9 @@ async def content_draft_generation_job() -> None:
                 created += 1
                 # P3-4 补充: 草稿自动排期到内容日历 (7 天后, 避免与既有条目撞期)
                 try:
-                    from backend.services.content_service import create_calendar_entry
                     from datetime import timedelta as _td
+
+                    from backend.services.content_service import create_calendar_entry
                     sched_date = (
                         datetime.now(timezone.utc) + _td(days=7)
                     ).strftime("%Y-%m-%d")
@@ -2031,8 +2033,8 @@ __all__.extend([
     "kl_trigger_t2_job",
     "kl_trigger_t3_job",
     "kl_trigger_t4_job",
-    "knowledge_classify_job",
     "knowledge_chunk_generation_job",
+    "knowledge_classify_job",
     "knowledge_stub_backfill_job",
     "planning_action_check_job",
     "security_entity_concept_sync_job",

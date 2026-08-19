@@ -446,7 +446,7 @@ def backfill_lifecycle_to_md() -> dict:
         new_fm = "\n".join(lines)
         # 替换原 frontmatter 块 (保留其余结构)
         new_text = _FRONTMATTER_RE.sub(
-            lambda _m: "---\n" + new_fm + "\n---", text, count=1
+            lambda _m, _fm=new_fm: "---\n" + _fm + "\n---", text, count=1
         )
         f.write_text(new_text, encoding="utf-8")
         if lifecycle.startswith("kl:"):

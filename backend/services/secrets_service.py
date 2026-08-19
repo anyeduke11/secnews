@@ -23,6 +23,7 @@ import httpx
 
 from backend.crypto import (
     DEFAULT_ITERATIONS,  # P4-5: 轮换用
+    MIN_MASTER_KEY_LENGTH,
     InvalidMasterKeyError,
     WeakMasterKeyError,  # P4-5: 轮换用
     decrypt_api_key,
@@ -39,6 +40,7 @@ from backend.exceptions import (
     NotFoundException,
 )
 from backend.logging_config import logger
+from backend.repository.db import get_connection
 from backend.repository.encryption_keys_repo import EncryptionKeyRepository
 from backend.repository.secrets_repo import SecretRepository
 
@@ -277,7 +279,9 @@ class SecretsService:
             ).fetchall()
             for w in wd_rows:
                 try:
-                    from backend.services.webdav_client import decrypt_webdav_password  # type: ignore
+                    from backend.services.webdav_client import (
+                        decrypt_webdav_password,  # type: ignore
+                    )
                     plaintext = decrypt_webdav_password(
                         old_fernet, w["webdav_password_encrypted"]
                     )

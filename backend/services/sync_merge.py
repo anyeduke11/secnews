@@ -98,6 +98,16 @@ def three_way_merge(
     table_conflicts: dict[str, int] = {}
 
     # --- list-typed tables (last_writer_wins) ---
+    # P4-2: secrets 密文 (Fernet 随机 IV) 参与全字段比较必然不等 → 每次
+    # 同步产生伪冲突。合并前剥离 api_key_encrypted, 合并后从 local 恢复。
+    _cipher_keys = ("api_key_encrypted", "encryption_key_id")
+
+    def _strip_cipher(recs):
+        return [
+            {k2: v2 for k2, v2 in r.items() if k2 not in _cipher_keys}
+            for r in recs
+        ]
+
     for table, key_fn in (
         ("favorites", lambda r: r.get("hotspot_id")),
         ("todos", lambda r: f"{r.get('source_type')}::{r.get('source_id') or r.get('id')}"),
@@ -111,16 +121,9 @@ def three_way_merge(
         base_recs = (base or {}).get("records", {}).get(table, []) or []
         local_recs = local.get("records", {}).get(table, []) or []
         remote_recs = remote.get("records", {}).get(table, []) or []
-        # P4-2: secrets 密文 (Fernet 随机 IV) 参与全字段比较必然不等 → 每次
-        # 同步产生伪冲突。合并前剥离 api_key_encrypted, 合并后从 local 恢复。
         if table == "secrets":
-            _cipher_keys = ("api_key_encrypted", "encryption_key_id")
-            _strip = lambda recs: [
-                {k2: v2 for k2, v2 in r.items() if k2 not in _cipher_keys}
-                for r in recs
-            ]
             base_recs, local_recs, remote_recs = (
-                _strip(base_recs), _strip(local_recs), _strip(remote_recs),
+                _strip_cipher(base_recs), _strip_cipher(local_recs), _strip_cipher(remote_recs),
             )
         merged, conflicts = _merge_records(base_recs, local_recs, remote_recs, key_fn)
         if table == "secrets":

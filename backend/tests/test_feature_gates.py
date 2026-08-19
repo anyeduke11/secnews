@@ -20,7 +20,7 @@ ALL_OFF = {
     "codegarden": False, "mcp": False, "sync": False,
     "tech_stack": False, "security_graph": False,
 }
-ALL_ON = {k: True for k in ALL_OFF}
+ALL_ON = dict.fromkeys(ALL_OFF, True)
 
 # 代表性子路径 (从 ALL_OFF 构建中实测存在)
 CORE_PATHS = [

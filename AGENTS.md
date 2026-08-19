@@ -68,6 +68,19 @@ See `knowledge/_SCHEMA.md` for the complete data model.
 **跨端同步**: `cg_services` 同步 (含加密字段)，`cg_resources`/`cg_dependencies`/`cg_events` 设备本地
 **后续版本**: AI 协作(M7-M12)、30 天自动归档、跨机网格
 
+## v0.4.3 — Core/Extension 软分层 + Feature Gates (2026-08-18)
+
+> **架构数字由 `scripts/generate_meta.py` AST 反推维护** (43 jobs / 14 collectors / 51 routers / 81 services),
+> 改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
+
+- **开关源**: `backend/config/feature_gates.toml` — codegarden/mcp/sync/tech_stack/security_graph
+  默认关闭: codegarden/mcp/tech_stack/security_graph; 默认开启: sync
+- **core 永不消失**: `backend/core/routers.py` 43 个 core router 白名单, 与扩展域防重叠断言;
+  扩展 router 按 `is_extension_enabled()` 条件注册 (关闭时路由 404)
+- **job 门控**: `scheduler.py` `_is_job_enabled()` 按扩展归属过滤 7 个扩展 job
+- **env 覆盖**: `HOTSPOT_FEATURE_GATES='{"extensions": {...}}'` 优先级高于 TOML (CI core-only 用)
+- **测试约定**: conftest autouse fixture 测试环境全开 gates; 组合矩阵见 `backend/tests/test_feature_gates.py`
+
 ## Available Design Skills (`.agents/skills/`)
 
 以下 15 个设计族技能按方向分组。Agent 在接到 UI/UX、视觉设计、前端重构类任务时，

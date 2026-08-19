@@ -39,7 +39,7 @@ export function AboutSettings() {
 
   return (
     <div className="space-y-2">
-      <div className="card-compact">
+      <div className="card-base">
         <div className="px-2.5 py-1.5">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>系统信息</span>

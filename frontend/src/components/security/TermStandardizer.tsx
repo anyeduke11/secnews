@@ -52,7 +52,7 @@ export function TermStandardizer() {
   };
 
   return (
-    <div className="tech-card p-3 space-y-2">
+    <div className="card-base p-3 space-y-2">
       <div className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
         安全术语标准化
       </div>
@@ -70,7 +70,7 @@ export function TermStandardizer() {
         <div className="text-[10px]" style={{ color: 'var(--color-error)' }}>{error}</div>
       )}
       {result && !loading && (
-        <div className="tech-card p-2 text-xs space-y-1">
+        <div className="card-base p-2 text-xs space-y-1">
           <div className="flex items-center gap-2">
             <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
               {result.canonical}

@@ -23,7 +23,7 @@ import { LoadingSkeleton } from '../LoadingSkeleton';
 import { RegionFilter } from '../RegionFilter';
 import { FavoritesPanel } from '../favorites';
 import { LayerCard, LayerCardRow, PipelineFlow, ViewMoreLink } from '../layout/LayerCard';
-import { useTheme } from '../../App';
+import { useTheme } from '../../contexts/ThemeContext';
 import type { ConsistencyDrift, StatsResponse } from '../../types';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 

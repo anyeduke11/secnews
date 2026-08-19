@@ -21,7 +21,7 @@ export function CollectionScheduleInfo() {
   const jobs = health?.components?.scheduler?.details?.length ?? 0;
 
   return (
-    <div className="card-compact">
+    <div className="card-base">
       <div className="px-2.5 py-1.5">
         <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>采集调度</span>
         <div className="grid grid-cols-3 gap-1.5 mt-1.5 text-[9px]">

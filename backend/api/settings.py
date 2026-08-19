@@ -1,6 +1,7 @@
 """运行时设置 API — 刷新间隔等热配置端点。
 
 - ``POST /api/settings/refresh-interval`` — 更新采集间隔（分钟）
+- ``GET  /api/settings/features`` — 扩展 feature flag（前端 useFeatureFlags 数据源）
 """
 from __future__ import annotations
 
@@ -8,9 +9,23 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
 from backend.config import config
+from backend.extensions import get_enabled_extensions, is_extension_enabled
 from backend.logging_config import logger
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
+
+
+@router.get("/features")
+async def get_features() -> dict:
+    """返回全部扩展域的启停状态（feature_gates.toml 派生的运行时视图）。"""
+    return {
+        "codegarden": is_extension_enabled("codegarden"),
+        "mcp": is_extension_enabled("mcp"),
+        "sync": is_extension_enabled("sync"),
+        "tech_stack": is_extension_enabled("tech_stack"),
+        "security_graph": is_extension_enabled("security_graph"),
+        "enabled_extensions": get_enabled_extensions(),
+    }
 
 
 class RefreshIntervalRequest(BaseModel):

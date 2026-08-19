@@ -1,0 +1,10 @@
+# 扩展层开关源 — 代码完整保留，运行时按此开关控制可见性
+# false = 路由不注册 + job 不调度 + 前端 tab 隐藏
+# 用于将"一时兴起的功能"降级为插拔扩展，不伤害核心管道
+
+[extensions]
+codegarden = false      # 项目生命周期 + 服务网格/资源中枢/编排引擎
+mcp        = false      # MCP Server (SSE + stdio + 9 tools)
+sync       = true       # 跨端同步 (WebDAV + Fernet)
+tech_stack = false      # 技术栈管理 + 漂移评估
+security_graph = false  # Security Graph + MITRE 同步

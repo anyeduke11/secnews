@@ -1,3 +1,8 @@
+-- Extension: codegarden
+-- 此迁移中的表 (cg_projects, cg_project_stages, cg_project_links,
+-- cg_project_activities, cg_services, cg_resources, cg_dependencies,
+-- cg_events) 属于 ext-codegarden 扩展域。
+-- core 代码永不查询这些表。扩展关闭时，这些表数据完整保留但无消费者。
 -- 019_codegarden.sql — Phase 2a CodeGarden MVP
 -- PRD: docs/CodeGarden_PRD_v1.7.md (6.2 表结构定义)
 -- 校正: PRD 假设的 knowledge_skills 表实际叫 skills (Phase 41 012_skills.sql 创建)

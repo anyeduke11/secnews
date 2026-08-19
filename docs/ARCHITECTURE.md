@@ -35,7 +35,7 @@
 │  └──────┬───────┘  └──────┬────────┘  └────────────┬──────────────┘  │
 │         │                 │                        │                 │
 │  ┌──────▼───────┐  ┌──────▼────────┐   ┌───────────▼──────────────┐  │
-│  │ collectors/  │  │ quality/      │   │ scheduler/ 36 jobs        │  │
+│  │ collectors/  │  │ quality/      │   │ scheduler/ 43 jobs        │  │
 │  │ 8 采集器      │→│ 13 门禁 pipeline│   │ APScheduler (进程内)      │  │
 │  │ (Mixin 拆分)  │  │ (loose/strict)│   │ collect→post-ingest 链   │  │
 │  └──────────────┘  └───────────────┘   └──────────────────────────┘  │
@@ -74,9 +74,9 @@ backend/
 ├── domain/        # Pydantic 模型 (HotspotItem, CollectionReport, ...)
 ├── quality/       # 13 个门禁 + pipeline (loose/strict 双模式)
 ├── repository/    # SQLite DAO: db.py + 36 repo + migrations/ (59 个迁移)
-├── scheduler/     # APScheduler 封装 + jobs.py (36 个 job)
+├── scheduler/     # APScheduler 封装 + jobs.py (43 个 job, 数字由 scripts/generate_meta.py 反推维护)
 ├── security/      # Security Graph: MITRE STIX / graph / enricher / compliance
-├── services/      # 业务编排 (81 个文件)
+├── services/      # 业务编排 (81 个文件, 数字由 scripts/generate_meta.py 反推维护)
 ├── crypto.py      # PBKDF2 派生 + Fernet 加密 (secrets + 同步包)
 ├── config.py      # Pydantic Settings (env 前缀 HOTSPOT_)
 └── main.py        # FastAPI app: lifespan → db/cache/export/scheduler/MCP/watchdog

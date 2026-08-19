@@ -59,6 +59,85 @@ async def collect_all_job() -> None:
     await security_enrichment_job()
     await url_content_check_job()
     await export_rebuild_job()
+    # ---- 复利驱动器①: 即时分类 (不等待 30min 周期) ----
+    await _classify_new_items()
+
+
+async def _classify_new_items() -> None:
+    """采集 tail 后即时分类新 items（复利驱动器①）。
+
+    与 knowledge_classify_job 同模式: md 为真相源先回写, 再同步 DB。
+    只处理最近 5 分钟入库且未分类的条目 (上限 50), 同步 SQL 放 thread pool
+    避免阻塞 event loop; 异常隔离不影响采集。
+    """
+    try:
+        from backend.repository.db import get_connection
+        from backend.services.auto_classifier import batch_classify
+        from backend.services.knowledge_sync import write_item_to_md
+        from backend.repository.knowledge_repo import knowledge_repo
+
+        def _run() -> int:
+            conn = get_connection()
+            rows = conn.execute(
+                "SELECT id, title, tags, source_url, domain, type, difficulty "
+                "FROM knowledge_items "
+                "WHERE (domain IS NULL OR type IS NULL OR difficulty IS NULL) "
+                "AND ingested_at > datetime('now', '-5 minutes', 'utc') "
+                "ORDER BY ingested_at ASC LIMIT 50"
+            ).fetchall()
+            if not rows:
+                return 0
+            items = [dict(r) for r in rows]
+            classified = batch_classify(items)
+            for item in classified:
+                write_item_to_md(item)
+                knowledge_repo.update_item(item["id"], {
+                    "domain": item.get("domain"),
+                    "topic": item.get("topic"),
+                    "type": item.get("type"),
+                    "difficulty": item.get("difficulty"),
+                })
+            return len(classified)
+
+        count = await asyncio.to_thread(_run)
+        if count:
+            _logger.info(f"_classify_new_items: {count} items classified")
+    except Exception as e:
+        _logger.error(f"_classify_new_items crashed: {e}")
+
+
+async def sm2_daily_push_job() -> None:
+    """复利驱动器②: 每天 08:00 推送待复习条目到前端通知栏 (SSE review_due)。"""
+    try:
+        from backend.services.review_service import list_due
+        from backend.api.events import publish_event
+
+        due = list_due(limit=20)
+        if not due:
+            _logger.info("sm2_daily_push: no due items today")
+            return
+
+        await publish_event("review_due", {
+            "count": len(due),
+            "items": [{"id": d["entity_id"], "title": d.get("title", "")} for d in due],
+        })
+        _logger.info(f"sm2_daily_push: {len(due)} items pushed")
+    except Exception as e:
+        _logger.error(f"sm2_daily_push crashed: {e}")
+
+
+async def map_rebuild_daily_job() -> None:
+    """复利驱动器③: 每天 02:00 重建知识地图 (_MAP.md + graph.json)。"""
+    try:
+        from backend.services.map_updater import update_map
+
+        result = await asyncio.to_thread(update_map)
+        _logger.info(
+            f"map_rebuild_daily: {result.get('total_items', 0)} items, "
+            f"{result.get('total_concepts', 0)} concepts"
+        )
+    except Exception as e:
+        _logger.error(f"map_rebuild_daily crashed: {e}")
 
 
 async def trend_rebuild_job() -> None:

@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <code>v0.4.0</code>&nbsp;·&nbsp;<code>Python 3.10+</code>&nbsp;·&nbsp;<code>React 18</code>&nbsp;·&nbsp;<code>SQLite WAL</code>&nbsp;·&nbsp;<code>MCP 9 tools</code>&nbsp;·&nbsp;<code>GPL-3.0</code>
+  <code>v0.4.3</code>&nbsp;·&nbsp;<code>Python 3.10+</code>&nbsp;·&nbsp;<code>React 18</code>&nbsp;·&nbsp;<code>SQLite WAL</code>&nbsp;·&nbsp;<code>MCP 9 tools</code>&nbsp;·&nbsp;<code>GPL-3.0</code>
 </p>
 
 > **SecNews**（开发代号 `hotspot`）是面向 **AI + 安全从业者** 的单人本地工作站。
@@ -101,7 +101,7 @@ stdio 配置（粘到你的 AI Agent 配置文件）：
 | ----------- | --------------------------------- | ----------------------------------------------------- |
 | Web 框架    | FastAPI                           | async + OpenAPI 生态成熟                              |
 | 主存储      | **SQLite WAL** + `.md` 文件       | 零部署 · FTS5 · git 友好 · LLM 可直读                |
-| 调度        | APScheduler · 39 jobs             | 单进程内调度，无外部 MQ                               |
+| 调度        | APScheduler · 43 jobs             | 单进程内调度，无外部 MQ                               |
 | MCP         | fastapi-mcp                       | OpenAPI → MCP 自动转换                                |
 | 前端        | React 18 + Vite 5 + TypeScript    | 150+ 组件 · 类型安全 · 热重载                          |
 | 图表        | echarts + recharts                | 看板风格                                              |

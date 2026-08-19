@@ -79,6 +79,11 @@ async def create_attention_event(req: AttentionEventRequest) -> dict:
 
     # P3-1: 知识条目的 view/dwell/favorite 事件 → 自动创建 SM-2 复习记录
     # (此前 create_review 无任何调用点, sm2_reviews 恒 0 → 复习功能死代码)
+    # v0.4.3 复利驱动器④: dwell 事件需 dwell_seconds > 30 才转化 (深度阅读判定),
+    # view/favorite 保持原有即时转化; create_review 内部幂等 (已存在则返回现有)。
+    dwell_seconds = int(req.detail_json.get("dwell_seconds", 0) or 0)
+    if req.event_type == "dwell" and dwell_seconds <= 30:
+        return {"success": True, "event_id": event_id}
     if req.event_type in ("view", "dwell", "favorite"):
         try:
             _c = get_connection()

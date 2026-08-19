@@ -36,7 +36,7 @@ EXTENSION_ROUTERS: dict[str, list[str]] = {
     # 只控制 mitre_sync / cve_sync_to_security 两个 job
 }
 
-_DEFAULT_GATES: dict[str, bool] = {name: True for name in _EXTENSION_NAMES}
+_DEFAULT_GATES: dict[str, bool] = dict.fromkeys(_EXTENSION_NAMES, True)
 
 _GATES_CACHE: dict[str, bool] | None = None
 

@@ -1,0 +1,208 @@
+{
+  "dates": {
+    "2026-08-24": [
+      {
+        "id": 2,
+        "topic": "10 个本周 yyds 的 GitHub 开源项目，推荐给你。",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "66df3937eafc"
+        ],
+        "platform": null
+      },
+      {
+        "id": 3,
+        "topic": "ogulcancelik/herdr: agent multiplexer that lives in your terminal.",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "63063743b439"
+        ],
+        "platform": null
+      },
+      {
+        "id": 4,
+        "topic": "Kindle电子书资源推送",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "22816ea5f411"
+        ],
+        "platform": null
+      },
+      {
+        "id": 5,
+        "topic": "结构化表达：如何汇报工作、演讲与写作",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "f5a07aeb43cd"
+        ],
+        "platform": null
+      },
+      {
+        "id": 6,
+        "topic": "关键信息基础设施安全监测预警技术探析",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "14b25e0eb5c3"
+        ],
+        "platform": null
+      },
+      {
+        "id": 7,
+        "topic": "DFIR：数字取证与事件应急响应",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "1eca4a922d72"
+        ],
+        "platform": null
+      },
+      {
+        "id": 8,
+        "topic": "安全运营中心的六大陷阱",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "e6904f096401"
+        ],
+        "platform": null
+      },
+      {
+        "id": 9,
+        "topic": "威胁情报：重要的与不重要的",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "f25ab1a0fd29"
+        ],
+        "platform": null
+      },
+      {
+        "id": 10,
+        "topic": "金融科技背景下数据治理的国际经验及路径构建",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "47a6d4e44d11"
+        ],
+        "platform": null
+      },
+      {
+        "id": 11,
+        "topic": "FreeBuf.COM网络安全行业门户，每日发布专业的安全资讯、技术剖析。",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "192f079cfcb5"
+        ],
+        "platform": null
+      }
+    ],
+    "2026-08-25": [
+      {
+        "id": 12,
+        "topic": "在小说阅读器读本章",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "778977ae0e88"
+        ],
+        "platform": null
+      },
+      {
+        "id": 13,
+        "topic": "大模型量化翘楚，Unsloth 出桌面客户端了，这次没忘 Windows 用户",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "d558b700ebed"
+        ],
+        "platform": null
+      },
+      {
+        "id": 14,
+        "topic": "飞书CEO谢欣连降两级：战功赫赫的人，为何被调整？",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "ae92096d5435"
+        ],
+        "platform": null
+      },
+      {
+        "id": 15,
+        "topic": "【标准化动态】国家标准委秘书处关于鼓励中国专家积极线上参加2026年国际标准化组织（ISO）年会的通知",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "8f7a05cda951"
+        ],
+        "platform": null
+      },
+      {
+        "id": 16,
+        "topic": "一本从\"踩坑\"里长出来的智能体教程",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "b6c33605f538"
+        ],
+        "platform": null
+      },
+      {
+        "id": 17,
+        "topic": "为什么我不推荐使用 OpenCode",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "01957566d5de"
+        ],
+        "platform": null
+      },
+      {
+        "id": 18,
+        "topic": "OpenAI创始成员Karpathy：人类不该成为AI的瓶颈，自我升级才是破局之路｜投资笔记第260期",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "06e00d9ac9ef"
+        ],
+        "platform": null
+      },
+      {
+        "id": 19,
+        "topic": "桌面Agent下半场：能管住成本、权限和审计的，才配进企业",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "d061917c8432"
+        ],
+        "platform": null
+      },
+      {
+        "id": 20,
+        "topic": "我们，已在奇点之中！",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "635bc80a8570"
+        ],
+        "platform": null
+      },
+      {
+        "id": 21,
+        "topic": "证书在贬值，项目在升值：我用 Workbuddy 搭了一支\"项目管理特种部队",
+        "type": "article",
+        "status": "planned",
+        "source_items": [
+          "b4e2ad19c4a6"
+        ],
+        "platform": null
+      }
+    ]
+  }
+}

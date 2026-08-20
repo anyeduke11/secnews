@@ -41,9 +41,9 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
 @pytest.fixture
 def client(temp_db, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     # v1.8: feature flag 已接线到 router 注册, 测试需显式开启实验功能
-    monkeypatch.setattr(config, "feature_reviews", True)
-    monkeypatch.setattr(config, "feature_alerts", True)
-    monkeypatch.setattr(config, "feature_recommendations", True)
+    monkeypatch.setattr(config, "feature_review", True)
+    monkeypatch.setattr(config, "feature_alert", True)
+    monkeypatch.setattr(config, "feature_recommendation", True)
     app = FastAPI()
     app.add_middleware(TraceIDMiddleware)
     register_exception_handlers(app)

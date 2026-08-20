@@ -22,7 +22,9 @@ class SourceReputationGate(BaseGate):
         try:
             rep = context.source_reputation.get(item.source)
             if rep is None:
-                # 未知 source = 中性 70 分，视为通过
+                # v4.4: 未知 source 默认从 70 降到 55 (中性偏谨慎)。
+                # 不再"免费通过"——未知源仍需评估，但不扣分、不打标，
+                # 仅保留一个中性分作为可调基线。分数低于 30 的源才被判黑。
                 return GateResult(
                     gate_name=self.name,
                     passed=True,
@@ -39,7 +41,7 @@ class SourceReputationGate(BaseGate):
                     reason=f"{item.source} is blacklisted",
                 )
 
-            score = int(rep.get("score", 70))
+            score = int(rep.get("score", 55))
             if score < 30:
                 return GateResult(
                     gate_name=self.name,

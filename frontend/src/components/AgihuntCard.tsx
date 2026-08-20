@@ -22,7 +22,7 @@ interface AgihuntCardProps {
   onSourceClick?: (source: string) => void;
 }
 
-export function AgihuntCard({
+function AgihuntCardComponent({
   item, index, isFavorited = false,
   onToggleFavorite, onCategoryClick, onSourceClick,
 }: AgihuntCardProps) {
@@ -122,3 +122,7 @@ export function AgihuntCard({
     </article>
   );
 }
+
+// P2.1: React.memo 包裹 — 大数据列表 (pageSize 达 400) 时防止无谓重渲染。
+// 浅比较 item/isFavorited 引用; item 引用不变 (翻页/收藏状态变换) 时跳过重渲染。
+export const AgihuntCard = React.memo(AgihuntCardComponent);

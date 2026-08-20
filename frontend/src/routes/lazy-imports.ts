@@ -135,9 +135,12 @@ export const ReviewPage = React.lazy(() =>
 export const DeepReadView = React.lazy(() =>
   import('../components/DeepReadView').then(m => ({ default: m.DeepReadView }))
 );
-export const BriefModeView = React.lazy(() =>
-  import('../components/BriefModeView').then(m => ({ default: m.BriefModeView }))
-);
+// P1.4: BriefModeView 已删除 — 官方每日简报 (digest) 合并进 /knowledge/briefing
 export const QualityRejectionPage = React.lazy(() =>
   import('../components/QualityRejectionPage').then(m => ({ default: m.default }))
+);
+
+// v4.3: 报纸版式 (Editorial Layout) — 独立全屏视图，与老版式并行
+export const EditorialView = React.lazy(() =>
+  import('../components/editorial/EditorialView').then(m => ({ default: m.EditorialView }))
 );

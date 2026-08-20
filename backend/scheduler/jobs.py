@@ -66,7 +66,7 @@ async def collect_all_job() -> None:
 async def _classify_new_items() -> None:
     """采集 tail 后即时分类新 items（复利驱动器①）。
 
-    与 knowledge_classify_job 同模式: md 为真相源先回写, 再同步 DB。
+    P0.4: 只更新 DB, 不回写 md。分类是自动化中间状态, md 只由用户/编译器写。
     只处理最近 5 分钟入库且未分类的条目 (上限 50), 同步 SQL 放 thread pool
     避免阻塞 event loop; 异常隔离不影响采集。
     """
@@ -74,7 +74,6 @@ async def _classify_new_items() -> None:
         from backend.repository.db import get_connection
         from backend.repository.knowledge_repo import knowledge_repo
         from backend.services.auto_classifier import batch_classify
-        from backend.services.knowledge_sync import write_item_to_md
 
         def _run() -> int:
             conn = get_connection()
@@ -105,13 +104,7 @@ async def _classify_new_items() -> None:
                         changed = True
                 if not changed:
                     continue
-                # md 真相源先写, 再同步 DB
-                try:
-                    write_item_to_md(db_item.to_dict())
-                except Exception as md_err:
-                    _logger.warning(
-                        f"_classify_new_items md write failed for {item_id}: {md_err}"
-                    )
+                # P0.4: 只更新 DB, 不回写 md (分类是中间状态)
                 knowledge_repo.upsert_item(db_item)
                 updated += 1
             return updated
@@ -536,11 +529,12 @@ async def weekly_maintenance_job() -> None:
 
 
 async def quality_logs_cleanup_job() -> None:
-    """P0: 每周日 05:00 (Asia/Shanghai) 清理超过保留窗口的 quality_check_logs。
+    """P0.1: 每周日 05:00 (Asia/Shanghai) 归档超过保留窗口的 quality_check_logs。
 
-    quality_check_logs 是 DB 膨胀主因 (441 万行 / 1.35GB), 原清理只有
-    手动 API (POST /api/maintenance/cleanup-quality-logs)。此处注册定时
-    任务, 每周自动清理一次, 只删除超过保留窗口 (默认 30 天) 的日志。
+    quality_check_logs 是 DB 膨胀主因 (441 万行 / 1.35GB)。
+    v0.4.4: 改为归档机制 (先 INSERT INTO archive 再 DELETE + VACUUM)，
+    保留窗口从 30 天收紧到 7 天 (summary_24h 只看 24h, 7 天足够调试)。
+    归档表保留 90 天, 由独立 job 清理。
 
     注意: 启动时不会立即全量清理 (仅注册定时触发), 避免阻塞启动。
     失败只 log.error，不抛异常 (与既有 job 模式一致)。
@@ -549,11 +543,11 @@ async def quality_logs_cleanup_job() -> None:
         from backend.services.maintenance_service import cleanup_quality_logs
 
         result = await asyncio.to_thread(
-            cleanup_quality_logs, days=30, dry_run=False
+            cleanup_quality_logs, days=7, dry_run=False
         )
         _logger.info(
-            f"quality_logs_cleanup_job: retention_days=30 "
-            f"deleted={result.get('rows_to_delete')} "
+            f"quality_logs_cleanup_job: retention_days=7 "
+            f"archived={result.get('rows_archived')} "
             f"remaining={result.get('rows_remaining_after')}"
         )
     except Exception as e:
@@ -1628,14 +1622,13 @@ async def knowledge_classify_job() -> None:
     背景: 81-94% 条目的 domain/topic/type/difficulty 为 null — 分类只靠
     手动 API + 每日 02:30 编译消费者 (配额 100/天), 消费速率远低于摄入。
     新增独立 job: 每 30min 处理最多 500 条未分类条目 (纯规则, 无 LLM/网络),
-    md 为真相源先回写, 再同步 DB。
+    P0.4: 只更新 DB, 不回写 md (分类是中间状态, md 只由用户/编译器写)。
     """
     from datetime import datetime, timezone
 
     from backend.repository.db import get_connection
     from backend.repository.knowledge_repo import knowledge_repo
     from backend.services.auto_classifier import batch_classify
-    from backend.services.knowledge_sync import write_item_to_md
 
     _CLASSIFY_BATCH = 500
     conn = get_connection()
@@ -1678,11 +1671,7 @@ async def knowledge_classify_job() -> None:
             if not changed:
                 continue
             db_item.updated_at = now
-            # md 真相源先写, 再同步 DB
-            try:
-                write_item_to_md(db_item.to_dict())
-            except Exception as md_err:
-                _logger.warning(f"knowledge_classify md write failed for {item_id}: {md_err}")
+            # P0.4: 只更新 DB, 不回写 md (分类是中间状态)
             knowledge_repo.upsert_item(db_item)
             updated += 1
         except Exception as e:

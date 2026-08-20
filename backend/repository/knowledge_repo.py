@@ -76,7 +76,7 @@ class KnowledgeRepo:
     def get_item(self, item_id: str) -> KnowledgeItem | None:
         conn = get_connection()
         row = conn.execute(
-            "SELECT * FROM knowledge_items WHERE id = ?", (item_id,)
+            "SELECT id, title, source, source_url, domain, topic, type, difficulty, tags, concepts, mastery, compiled, ingested_at, updated_at, lifecycle, news_type, tech_stack FROM knowledge_items WHERE id = ?", (item_id,)
         ).fetchone()
         return KnowledgeItem.from_row(dict(row)) if row else None
 
@@ -107,13 +107,13 @@ class KnowledgeRepo:
         if source:
             where.append("source = ?")
             params.append(source)
-        # v1.7: lifecycle 优先; compiled 参数向后兼容 (映射到 lifecycle)
+        # v1.7: lifecycle 优先; compiled 参数向后兼容 (P1.5 单轨化: 映射到 kl:*)
         if lifecycle:
             where.append("lifecycle = ?")
             params.append(lifecycle)
         elif compiled is not None:
-            where.append("lifecycle = ?")
-            params.append("generate" if compiled else "signal")
+            # P1.5: 已编译 = kl:publish; 未编译 = 非 kl:publish
+            where.append("lifecycle = 'kl:publish'" if compiled else "lifecycle != 'kl:publish'")
         if topic:
             where.append("topic = ?")
             params.append(topic)
@@ -142,7 +142,7 @@ class KnowledgeRepo:
             where.append(f"source_url NOT IN ({placeholders})")
             params.extend(exclude_urls)
         sql = (
-            "SELECT * FROM knowledge_items WHERE "
+            "SELECT id, title, source, source_url, domain, topic, type, difficulty, tags, concepts, mastery, compiled, ingested_at, updated_at, lifecycle, news_type, tech_stack FROM knowledge_items WHERE "
             + " AND ".join(where)
             + " ORDER BY ingested_at DESC LIMIT ? OFFSET ?"
         )
@@ -176,13 +176,12 @@ class KnowledgeRepo:
         if domain:
             where.append("domain = ?")
             params.append(domain)
-        # v1.7: lifecycle 优先; compiled 参数向后兼容
+        # v1.7: lifecycle 优先; compiled 参数向后兼容 (P1.5 单轨化)
         if lifecycle:
             where.append("lifecycle = ?")
             params.append(lifecycle)
         elif compiled is not None:
-            where.append("lifecycle = ?")
-            params.append("generate" if compiled else "signal")
+            where.append("lifecycle = 'kl:publish'" if compiled else "lifecycle != 'kl:publish'")
         sql = f"SELECT COUNT(*) FROM knowledge_items WHERE {' AND '.join(where)}"
         row = conn.execute(sql, params).fetchone()
         return row[0] if row else 0
@@ -213,17 +212,17 @@ class KnowledgeRepo:
     def domain_coverage(self) -> list[dict]:
         """按 domain 分组统计覆盖度。
 
-        v1.7: ``compiled`` 列已被 ``lifecycle`` 替换; lifecycle='generate'
-        等价于旧的 compiled=1. 为保持返回结构兼容 (前端仍读 compiled 字段),
-        返回的 dict 同时输出 compiled (派生) 和 generate (新) 两个键.
+        v1.7: ``compiled`` 列已被 ``lifecycle`` 替换; P1.5 单轨化后
+        kl:publish 等价于旧的 compiled=1. 为保持返回结构兼容 (前端仍读
+        compiled 字段), 返回 dict 同时输出 compiled 和 generate (kl:publish) 两个键.
         """
         conn = get_connection()
         rows = conn.execute("""
             SELECT
                 COALESCE(domain, 'unknown') as domain,
                 COUNT(*) as total,
-                SUM(CASE WHEN lifecycle = 'generate' THEN 1 ELSE 0 END) as compiled,
-                SUM(CASE WHEN lifecycle = 'generate' THEN 1 ELSE 0 END) as generate
+                SUM(CASE WHEN lifecycle = 'kl:publish' THEN 1 ELSE 0 END) as compiled,
+                SUM(CASE WHEN lifecycle = 'kl:publish' THEN 1 ELSE 0 END) as generate
             FROM knowledge_items
             GROUP BY COALESCE(domain, 'unknown')
         """).fetchall()
@@ -281,19 +280,19 @@ class KnowledgeRepo:
         conn = get_connection()
         if domain:
             rows = conn.execute(
-                "SELECT * FROM knowledge_concepts WHERE domain = ? ORDER BY updated_at DESC",
+                "SELECT slug, title, domain, source_items, local_wiki_ref, updated_at, entity_type, external_id, external_ref FROM knowledge_concepts WHERE domain = ? ORDER BY updated_at DESC",
                 (domain,),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM knowledge_concepts ORDER BY updated_at DESC"
+                "SELECT slug, title, domain, source_items, local_wiki_ref, updated_at, entity_type, external_id, external_ref FROM knowledge_concepts ORDER BY updated_at DESC"
             ).fetchall()
         return [KnowledgeConcept.from_row(dict(r)) for r in rows]
 
     def get_concept(self, slug: str) -> KnowledgeConcept | None:
         conn = get_connection()
         row = conn.execute(
-            "SELECT * FROM knowledge_concepts WHERE slug = ?", (slug,)
+            "SELECT slug, title, domain, source_items, local_wiki_ref, updated_at, entity_type, external_id, external_ref FROM knowledge_concepts WHERE slug = ?", (slug,)
         ).fetchone()
         return KnowledgeConcept.from_row(dict(row)) if row else None
 
@@ -340,12 +339,12 @@ class KnowledgeRepo:
         conn = get_connection()
         if status:
             rows = conn.execute(
-                "SELECT * FROM knowledge_tasks WHERE status = ? ORDER BY created_at DESC",
+                "SELECT id, task_type, status, params, result_path, error_message, created_at, updated_at FROM knowledge_tasks WHERE status = ? ORDER BY created_at DESC",
                 (status,),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM knowledge_tasks ORDER BY created_at DESC"
+                "SELECT id, task_type, status, params, result_path, error_message, created_at, updated_at FROM knowledge_tasks ORDER BY created_at DESC"
             ).fetchall()
         return [KnowledgeTask.from_row(dict(r)) for r in rows]
 
@@ -385,7 +384,7 @@ class KnowledgeRepo:
                     params.append(f'%"{key}": {val}%')
                     params.append(f'%"{key}":{val}%')
         sql = (
-            "SELECT * FROM knowledge_tasks WHERE "
+            "SELECT id, task_type, status, params, result_path, error_message, created_at, updated_at FROM knowledge_tasks WHERE "
             + " AND ".join(where)
             + " ORDER BY created_at DESC"
         )
@@ -395,7 +394,7 @@ class KnowledgeRepo:
     def get_task(self, id: int) -> dict | None:
         conn = get_connection()
         row = conn.execute(
-            "SELECT * FROM knowledge_tasks WHERE id = ?", (id,)
+            "SELECT id, task_type, status, params, result_path, error_message, created_at, updated_at FROM knowledge_tasks WHERE id = ?", (id,)
         ).fetchone()
         return dict(row) if row else None
 
@@ -469,7 +468,7 @@ class KnowledgeRepo:
     def get_calendar_entry(self, id: int) -> dict | None:
         conn = get_connection()
         row = conn.execute(
-            "SELECT * FROM content_calendar WHERE id = ?", (id,)
+            "SELECT id, date, topic, type, status, source_items, draft_path, platform, published_url, stats FROM content_calendar WHERE id = ?", (id,)
         ).fetchone()
         return dict(row) if row else None
 
@@ -477,13 +476,13 @@ class KnowledgeRepo:
         conn = get_connection()
         if year_month:
             rows = conn.execute(
-                "SELECT * FROM content_calendar WHERE strftime('%Y-%m', date) = ? "
+                "SELECT id, date, topic, type, status, source_items, draft_path, platform, published_url, stats FROM content_calendar WHERE strftime('%Y-%m', date) = ? "
                 "ORDER BY date ASC",
                 (year_month,),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM content_calendar ORDER BY date ASC"
+                "SELECT id, date, topic, type, status, source_items, draft_path, platform, published_url, stats FROM content_calendar ORDER BY date ASC"
             ).fetchall()
         return [dict(r) for r in rows]
 
@@ -546,7 +545,7 @@ class KnowledgeRepo:
     def get_draft(self, id: int) -> dict | None:
         conn = get_connection()
         row = conn.execute(
-            "SELECT * FROM content_drafts WHERE id = ?", (id,)
+            "SELECT id, file_path, title, status, calendar_id, created_at, updated_at FROM content_drafts WHERE id = ?", (id,)
         ).fetchone()
         return dict(row) if row else None
 
@@ -565,7 +564,7 @@ class KnowledgeRepo:
             where.append("calendar_id = ?")
             params.append(calendar_id)
         sql = (
-            "SELECT * FROM content_drafts WHERE "
+            "SELECT id, file_path, title, status, calendar_id, created_at, updated_at FROM content_drafts WHERE "
             + " AND ".join(where)
             + " ORDER BY updated_at DESC"
         )
@@ -634,7 +633,7 @@ class KnowledgeRepo:
     def get_plan(self, week: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
-            "SELECT * FROM knowledge_plans WHERE week = ?", (week,)
+            "SELECT id, week, status, plan_data, created_at FROM knowledge_plans WHERE week = ?", (week,)
         ).fetchone()
         if not row:
             return None
@@ -646,12 +645,12 @@ class KnowledgeRepo:
         conn = get_connection()
         if status:
             rows = conn.execute(
-                "SELECT * FROM knowledge_plans WHERE status = ? ORDER BY created_at DESC",
+                "SELECT id, week, status, plan_data, created_at FROM knowledge_plans WHERE status = ? ORDER BY created_at DESC",
                 (status,),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM knowledge_plans ORDER BY created_at DESC"
+                "SELECT id, week, status, plan_data, created_at FROM knowledge_plans ORDER BY created_at DESC"
             ).fetchall()
         result = []
         for r in rows:
@@ -693,14 +692,14 @@ class KnowledgeRepo:
     def get_skill(self, id: int) -> dict | None:
         conn = get_connection()
         row = conn.execute(
-            "SELECT * FROM knowledge_skill_config WHERE id = ?", (id,)
+            "SELECT id, skill_name, secret_id, model_override, prompt_template, enabled, created_at, updated_at FROM knowledge_skill_config WHERE id = ?", (id,)
         ).fetchone()
         return _skill_row_to_dict(row) if row else None
 
     def get_skill_by_name(self, skill_name: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
-            "SELECT * FROM knowledge_skill_config WHERE skill_name = ?",
+            "SELECT id, skill_name, secret_id, model_override, prompt_template, enabled, created_at, updated_at FROM knowledge_skill_config WHERE skill_name = ?",
             (skill_name,),
         ).fetchone()
         return _skill_row_to_dict(row) if row else None
@@ -709,12 +708,12 @@ class KnowledgeRepo:
         conn = get_connection()
         if enabled is not None:
             rows = conn.execute(
-                "SELECT * FROM knowledge_skill_config WHERE enabled = ? ORDER BY id",
+                "SELECT id, skill_name, secret_id, model_override, prompt_template, enabled, created_at, updated_at FROM knowledge_skill_config WHERE enabled = ? ORDER BY id",
                 (int(enabled),),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM knowledge_skill_config ORDER BY id"
+                "SELECT id, skill_name, secret_id, model_override, prompt_template, enabled, created_at, updated_at FROM knowledge_skill_config ORDER BY id"
             ).fetchall()
         return [_skill_row_to_dict(r) for r in rows]
 
@@ -785,7 +784,7 @@ class KnowledgeRepo:
     def get_progress(self, concept_slug: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
-            "SELECT * FROM knowledge_progress WHERE concept_slug = ?",
+            "SELECT concept_slug, mastery, last_tested, test_count, updated_at FROM knowledge_progress WHERE concept_slug = ?",
             (concept_slug,),
         ).fetchone()
         return dict(row) if row else None

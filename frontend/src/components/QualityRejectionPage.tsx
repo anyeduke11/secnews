@@ -1,4 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { LayerCard } from './layout/LayerCard';
+import { LayerTable, type LayerTableColumn } from './layout/LayerTable';
+import { LayerBadge } from './layout/LayerBadge';
 
 interface RejectionLogItem {
   id: number;
@@ -68,138 +71,190 @@ export default function QualityRejectionPage() {
 
   const totalPages = Math.ceil(total / pageSize);
 
+  // 统一输入框样式
+  const inputClass = 'border rounded px-2 py-1 text-sm';
+  const inputStyle: React.CSSProperties = {
+    borderColor: 'var(--border-color)',
+    backgroundColor: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+  };
+
+  const columns: LayerTableColumn<RejectionLogItem>[] = [
+    {
+      key: 'created_at',
+      header: '时间',
+      render: (row) => (
+        <span className="font-mono tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
+          {row.created_at?.slice(0, 16)}
+        </span>
+      ),
+    },
+    {
+      key: 'source_id',
+      header: 'Source',
+      render: (row) => (
+        <span className="max-w-[150px] truncate inline-block" title={row.source_id}>
+          {row.source_id}
+        </span>
+      ),
+    },
+    {
+      key: 'item_title',
+      header: '标题',
+      render: (row) => (
+        <span className="max-w-[300px] truncate inline-block" title={row.item_title}>
+          {row.item_title}
+        </span>
+      ),
+    },
+    {
+      key: 'rejected_by',
+      header: 'Gate',
+      render: (row) => (
+        <LayerBadge variant="soft" color="var(--accent-danger, #ef4444)">
+          {row.rejected_by}
+        </LayerBadge>
+      ),
+    },
+    {
+      key: 'reason',
+      header: '原因',
+      render: (row) => (
+        <span className="max-w-[200px] truncate inline-block" style={{ color: 'var(--text-muted)' }} title={row.reason}>
+          {row.reason}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="p-4 space-y-4">
-      <h1 className="text-xl font-bold">质量门禁审计视图</h1>
+      <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+        质量门禁审计视图
+      </h1>
 
       {/* 统计卡片 */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-            <div className="text-sm" style={{ color: 'var(--text-muted)' }}>总拒绝数</div>
-            <div className="text-2xl font-bold">{total}</div>
-          </div>
-          {stats.by_gate.slice(0, 3).map((g) => (
-            <div key={g.gate_name} className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-              <div className="text-sm" style={{ color: 'var(--text-muted)' }}>{g.gate_name}</div>
-              <div className="text-2xl font-bold">{g.count}</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <LayerCard variant="compact" titleStyle="none">
+            <div className="text-[10px] font-mono uppercase tracking-[0.06em]" style={{ color: 'var(--text-muted)' }}>
+              总拒绝数
             </div>
+            <div className="text-2xl font-bold font-mono tabular-nums" style={{ color: 'var(--text-primary)' }}>
+              {total}
+            </div>
+          </LayerCard>
+          {stats.by_gate.slice(0, 3).map((g) => (
+            <LayerCard key={g.gate_name} variant="compact" titleStyle="none">
+              <div className="text-[10px] font-mono uppercase tracking-[0.06em] truncate" style={{ color: 'var(--text-muted)' }}>
+                {g.gate_name}
+              </div>
+              <div className="text-2xl font-bold font-mono tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                {g.count}
+              </div>
+            </LayerCard>
           ))}
         </div>
       )}
 
       {/* 筛选面板 */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow space-y-2">
+      <LayerCard variant="default" titleStyle="none">
         <div className="flex flex-wrap gap-4 items-end">
           <div>
-            <label className="block text-sm" style={{ color: 'var(--text-muted)' }}>Gate 名称</label>
+            <label
+              className="block text-[11px] font-mono uppercase tracking-[0.06em] mb-1"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Gate 名称
+            </label>
             <input
               type="text"
               value={gateName}
               onChange={(e) => setGateName(e.target.value)}
-              className="border rounded px-2 py-1 dark:bg-gray-700 dark:border-gray-600"
+              className={inputClass}
+              style={inputStyle}
               placeholder="如: strict_mode"
             />
           </div>
           <div>
-            <label className="block text-sm" style={{ color: 'var(--text-muted)' }}>Source ID</label>
+            <label
+              className="block text-[11px] font-mono uppercase tracking-[0.06em] mb-1"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Source ID
+            </label>
             <input
               type="text"
               value={sourceId}
               onChange={(e) => setSourceId(e.target.value)}
-              className="border rounded px-2 py-1 dark:bg-gray-700 dark:border-gray-600"
+              className={inputClass}
+              style={inputStyle}
               placeholder="搜索源名称"
             />
           </div>
           <div>
-            <label className="block text-sm" style={{ color: 'var(--text-muted)' }}>开始日期</label>
+            <label
+              className="block text-[11px] font-mono uppercase tracking-[0.06em] mb-1"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              开始日期
+            </label>
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="border rounded px-2 py-1 dark:bg-gray-700 dark:border-gray-600"
+              className={inputClass}
+              style={inputStyle}
             />
           </div>
           <div>
-            <label className="block text-sm" style={{ color: 'var(--text-muted)' }}>结束日期</label>
+            <label
+              className="block text-[11px] font-mono uppercase tracking-[0.06em] mb-1"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              结束日期
+            </label>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="border rounded px-2 py-1 dark:bg-gray-700 dark:border-gray-600"
+              className={inputClass}
+              style={inputStyle}
             />
           </div>
-          <button
-            onClick={handleSearch}
-            className="px-4 py-1 rounded text-white"
-            style={{ backgroundColor: 'var(--accent)' }}
-          >
+          <button onClick={handleSearch} className="btn-primary">
             筛选
           </button>
         </div>
-      </div>
+      </LayerCard>
 
       {/* 表格 */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
-        {loading ? (
-          <div className="p-4 text-center" style={{ color: 'var(--text-muted)' }}>加载中...</div>
-        ) : items.length === 0 ? (
-          <div className="p-4 text-center" style={{ color: 'var(--text-muted)' }}>暂无拒绝记录</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-                <th className="px-3 py-2 text-left">时间</th>
-                <th className="px-3 py-2 text-left">Source</th>
-                <th className="px-3 py-2 text-left">标题</th>
-                <th className="px-3 py-2 text-left">拒绝 Gate</th>
-                <th className="px-3 py-2 text-left">原因</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
-                    {item.created_at?.slice(0, 16)}
-                  </td>
-                  <td className="px-3 py-2 max-w-[150px] truncate" title={item.source_id}>
-                    {item.source_id}
-                  </td>
-                  <td className="px-3 py-2 max-w-[300px] truncate" title={item.item_title}>
-                    {item.item_title}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 px-2 py-0.5 rounded text-xs">
-                      {item.rejected_by}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 max-w-[200px] truncate" style={{ color: 'var(--text-muted)' }} title={item.reason}>
-                    {item.reason}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <LayerTable
+        columns={columns}
+        data={items}
+        rowKey={(row) => row.id}
+        loading={loading}
+        emptyMessage="暂无拒绝记录"
+        zebra
+      />
 
       {/* 分页 */}
       {totalPages > 1 && (
-        <div className="flex justify-center gap-2">
+        <div className="flex justify-center items-center gap-2">
           <button
             onClick={() => setPage(Math.max(1, page - 1))}
             disabled={page <= 1}
-            className="px-3 py-1 border rounded disabled:opacity-50"
+            className="btn-secondary"
           >
             上一页
           </button>
-          <span className="px-3 py-1">
+          <span className="font-mono tabular-nums text-sm" style={{ color: 'var(--text-muted)' }}>
             {page} / {totalPages}
           </span>
           <button
             onClick={() => setPage(Math.min(totalPages, page + 1))}
             disabled={page >= totalPages}
-            className="px-3 py-1 border rounded disabled:opacity-50"
+            className="btn-secondary"
           >
             下一页
           </button>

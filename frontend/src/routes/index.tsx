@@ -8,10 +8,9 @@ import * as P from './lazy-imports';
 // Stage1 拆分: 路由声明 = 应用结构图, 所有 <Route> 集中于此, 与 lazy-imports.ts 1:1 映射。
 // Stage1 批1 命名整理:
 //  - 所有旧路由重定向统一标注 "v0.4 兼容性保留", Stage6 再按实测使用频率决定去留
-//  - /brief (BriefModeView) vs /knowledge/briefing (BriefingMode):
-//    二者渲染不同组件, /brief 是全局简报视图, /knowledge/briefing 是知识库 6 模式之一, 并存不冲突
 //  - /deep/:type/:id (DeepReadView) vs /knowledge/deep-read/:id (DeepReadMode):
 //    /deep 是跨实体深读视图, /knowledge/deep-read 属知识库阅读流, 并存不冲突
+//  - P1.4: /brief (官方每日简报 digest) 已合并进 /knowledge/briefing, 旧路径重定向
 
 /** 旧路由 /category/:cat 重定向到资料层，带上 category 参数 */
 function CategoryRedirect() {
@@ -45,6 +44,9 @@ export function AppRoutes() {
 
   return (
     <Routes>
+      {/* v4.3: 报纸版式 (Editorial) — 独立全屏，不走 PageLayout */}
+      <Route path="/editorial" element={<Suspense fallback={<PageFallback />}><P.EditorialView /></Suspense>} />
+
       {/* Phase 1A: 嵌套 Layout (PageLayout 含 ToastProvider + 外层容器) */}
       <Route element={<PageLayout />}>
         {/* ── 三层架构新路由 ── */}
@@ -70,7 +72,9 @@ export function AppRoutes() {
         {features.codegarden && (
           <>
             <Route path="/action/codegarden" element={<Suspense fallback={<PageFallback />}><P.ActionCodegardenPage /></Suspense>} />
-            <Route path="/action/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><P.ActionCodegardenPhase2bPage /></Suspense>} />
+            {features.codegardenPhase2b && (
+              <Route path="/action/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><P.ActionCodegardenPhase2bPage /></Suspense>} />
+            )}
           </>
         )}
         <Route path="/action/bid-alert" element={<Suspense fallback={<PageFallback />}><P.ActionBidAlertPage /></Suspense>} />
@@ -116,13 +120,15 @@ export function AppRoutes() {
         <Route path="/reviews" element={<Suspense fallback={<PageFallback />}><P.ReviewPage /></Suspense>} />
         {/* /deep/:type/:id 跨实体深读视图, 与知识库 /knowledge/deep-read/:id 并存 (不同组件) */}
         <Route path="/deep/:type/:id" element={<Suspense fallback={<PageFallback />}><P.DeepReadView /></Suspense>} />
-        {/* /brief 全局简报视图, 与知识库 /knowledge/briefing 并存 (不同组件) */}
-        <Route path="/brief" element={<Suspense fallback={<PageFallback />}><P.BriefModeView /></Suspense>} />
+        {/* P1.4: /brief (官方每日简报) 已合并进 /knowledge/briefing, 旧路径重定向 */}
+        <Route path="/brief" element={<Navigate to="/knowledge/briefing" replace />} />
         <Route path="/quality/rejection" element={<Suspense fallback={<PageFallback />}><P.QualityRejectionPage /></Suspense>} />
         {features.codegarden && (
           <>
             <Route path="/codegarden" element={<Suspense fallback={<PageFallback />}><P.CodegardenPage onBack={goHome} /></Suspense>} />
-            <Route path="/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><P.CodegardenPhase2bPage onBack={goHome} /></Suspense>} />
+            {features.codegardenPhase2b && (
+              <Route path="/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><P.CodegardenPhase2bPage onBack={goHome} /></Suspense>} />
+            )}
           </>
         )}
         {/* v0.4.3: 未匹配路径回落到资料层首页 (扩展关闭时旧深链不白屏) */}

@@ -25,6 +25,11 @@ interface UseSSEResult {
  *
  * 自动重连（默认 3s 延时）。
  * 断开时返回 connected=false。
+ *
+ * P0.3: 节流 + 分帧
+ * - onEvent 回调立即执行 (业务逻辑不延迟)
+ * - lastEvent 状态更新用 requestAnimationFrame 批处理
+ *   高频消息时只在下一帧 setState 最后一条, 避免渲染风暴
  */
 export function useSSE(options: UseSSEOptions = {}): UseSSEResult {
   const {
@@ -38,6 +43,10 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEResult {
   const onEventRef = useRef(onEvent);
   const reconnectTimerRef = useRef<number | null>(null);
   const esRef = useRef<EventSource | null>(null);
+
+  // P0.3: raf 批处理 refs
+  const pendingEventRef = useRef<SSEEvent | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   // 保持 onEvent 引用最新
   onEventRef.current = onEvent;
@@ -69,8 +78,19 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEResult {
     es.onmessage = (e) => {
       try {
         const event: SSEEvent = JSON.parse(e.data);
-        setLastEvent(event);
+        // P0.3: onEvent 立即执行 (业务逻辑不延迟)
         onEventRef.current?.(event.type, event.data);
+        // P0.3: lastEvent 更新分帧 — 缓存到 ref, 下一帧只 setState 最后一条
+        pendingEventRef.current = event;
+        if (rafRef.current === null) {
+          rafRef.current = requestAnimationFrame(() => {
+            rafRef.current = null;
+            if (pendingEventRef.current) {
+              setLastEvent(pendingEventRef.current);
+              pendingEventRef.current = null;
+            }
+          });
+        }
       } catch {
         // 忽略解析错误
       }
@@ -103,6 +123,11 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEResult {
       if (reconnectTimerRef.current !== null) {
         window.clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = null;
+      }
+      // P0.3: 清理 raf
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
     };
   }, [connect]);

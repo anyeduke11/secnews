@@ -82,6 +82,35 @@ export function QualitySettings({ open }: QualitySettingsProps) {
     }
   }, [qualityRules, qualityEditing]);
 
+  // v4.4: 保存 LLM AI 内容检测配置
+  const saveLlm = useCallback(async () => {
+    setSavingLlm(true);
+    setLlmMessage(null);
+    try {
+      const rules: Record<string, any> = {
+        'quality.llm_enabled': llmEnabled,
+        'quality.llm_provider': llmProvider,
+      };
+      // 仅当显式输入了 key 才写入（避免覆盖已存 key 为空串）
+      if (llmKey.trim()) rules['quality.llm_api_key'] = llmKey.trim();
+      const resp = await fetch('/api/quality/rules', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rules }),
+      });
+      const data = await resp.json();
+      if (resp.ok && data.status === 'ok') {
+        setLlmMessage({ type: 'ok', text: 'LLM 检测配置已保存' });
+      } else {
+        setLlmMessage({ type: 'error', text: data.message || '保存失败' });
+      }
+    } catch {
+      setLlmMessage({ type: 'error', text: '保存失败' });
+    } finally {
+      setSavingLlm(false);
+    }
+  }, [llmEnabled, llmProvider, llmKey]);
+
   function renderQualityInput(rule: QualityRule) {
     const v = qualityEditing[rule.key];
     const setV = (val: any) => setQualityEditing(prev => ({ ...prev, [rule.key]: val }));
@@ -133,6 +162,95 @@ export function QualitySettings({ open }: QualitySettingsProps) {
 
   return (
     <div className="rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
+      {/* v4.4: LLM AI 内容检测（独立配置，默认关闭） */}
+      <button
+        onClick={() => setLlmOpen(o => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 text-xs"
+        style={{ color: 'var(--text-primary)' }}
+      >
+        <span className="font-medium flex items-center gap-2">
+          LLM AI 内容检测
+          <span
+            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{
+              backgroundColor: llmEnabled ? 'var(--color-ai)' : 'var(--bg-hover)',
+              color: llmEnabled ? 'var(--text-on-color)' : 'var(--text-muted)',
+            }}
+          >
+            {llmEnabled ? '开启' : '关闭'}
+          </span>
+        </span>
+        <span style={{ color: 'var(--text-muted)' }}>{llmOpen ? '−' : '+'}</span>
+      </button>
+      {llmOpen && (
+        <div className="px-3 py-2 space-y-2" style={{ borderTop: '1px solid var(--border-color)' }}>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>启用检测</span>
+            <button
+              onClick={() => setLlmEnabled(v => !v)}
+              className="px-3 py-0.5 text-xs rounded-[var(--radius-sm)]"
+              style={{
+                backgroundColor: llmEnabled ? 'var(--color-ai)' : 'var(--bg-hover)',
+                color: llmEnabled ? 'var(--text-on-color)' : 'var(--text-secondary)',
+                border: `1px solid ${llmEnabled ? 'var(--color-ai)' : 'var(--border-color)'}`,
+                minWidth: 54,
+              }}
+            >
+              {llmEnabled ? '已开启' : '已关闭'}
+            </button>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>提供方</span>
+            <select
+              value={llmProvider}
+              onChange={e => setLlmProvider(e.target.value)}
+              className="text-xs px-2 py-1 rounded-[var(--radius-sm)]"
+              style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+            >
+              <option value="sensenova">商汤日日新 (SenseNova)</option>
+              <option value="ollama">本地 Ollama</option>
+            </select>
+          </div>
+          {llmProvider === 'sensenova' && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] flex-1" style={{ color: 'var(--text-secondary)' }}>API Key</span>
+              <input
+                type={showKey ? 'text' : 'password'}
+                value={llmKey}
+                onChange={e => setLlmKey(e.target.value)}
+                placeholder="sk-..."
+                className="flex-1 px-2 py-1 text-xs rounded-[var(--radius-sm)] focus-ring"
+                style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+              />
+              <button onClick={() => setShowKey(v => !v)} className="text-[11px]" style={{ color: 'var(--text-muted)' }} title={showKey ? '隐藏' : '显示'}>
+                {showKey ? '隐藏' : '显示'}
+              </button>
+            </div>
+          )}
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            {llmProvider === 'sensenova'
+              ? '需填入商汤日日新 API Key（存储在本机 settings 表）。开启后用于识别 AI 批量生成/软文。'
+              : '使用本地 Ollama（qwen2.5:7b），需已在本机启动 ollama 服务。'}
+          </p>
+          {llmMessage && (
+            <p className="text-[10px]" style={{ color: llmMessage.type === 'ok' ? 'var(--color-general)' : 'var(--color-error)' }}>
+              {llmMessage.text}
+            </p>
+          )}
+          <button
+            onClick={saveLlm}
+            disabled={savingLlm}
+            className="w-full px-2 py-1 text-[11px] font-medium rounded-[var(--radius-sm)]"
+            style={{
+              backgroundColor: 'var(--color-ai)', color: 'var(--text-on-color)', border: 'none',
+              opacity: savingLlm ? 0.6 : 1, marginTop: 4,
+            }}
+          >
+            {savingLlm ? '保存中...' : '应用 LLM 配置'}
+          </button>
+        </div>
+      )}
+      {/* 通用质量规则 */}
       <button
         onClick={() => setQualityOpen(o => !o)}
         className="w-full flex items-center justify-between px-3 py-2 text-xs"

@@ -138,7 +138,7 @@ async def get_mcp_config():
 @router.put("/settings/mcp/enabled")
 async def toggle_mcp_enabled(req: ToggleEnabledRequest):
     """切换 feature.mcp_server 开关 (重启后生效)。"""
-    ok = enable("mcp_server") if req.enabled else disable("mcp_server")
+    ok = enable("mcp") if req.enabled else disable("mcp")
     return {
         "version": API_VERSION,
         "enabled": req.enabled,

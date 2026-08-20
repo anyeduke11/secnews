@@ -28,7 +28,7 @@ def test_stdio_entry_function_exists():
 def test_stdio_disabled_exits(monkeypatch):
     """feature.mcp_server=False 时, stdio 入口应直接 exit."""
     from backend.config import config
-    monkeypatch.setattr(config, "feature_mcp_server", False)
+    monkeypatch.setattr(config, "feature_mcp", False)
     from backend.mcp_stdio_main import main
     with pytest.raises(SystemExit) as exc_info:
         main()

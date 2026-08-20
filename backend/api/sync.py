@@ -25,21 +25,15 @@ from __future__ import annotations
 
 import asyncio
 import json
-import secrets as _secrets
 
-from cryptography.fernet import Fernet as _F
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from backend.crypto import (
-    DEFAULT_ITERATIONS,
-    InvalidMasterKeyError,
-    verify_master_key,
-)
-from backend.repository.encryption_keys_repo import EncryptionKeyRepository
+from backend.crypto import InvalidMasterKeyError
 from backend.repository.sync_configs_repo import SyncConfigRepository
 from backend.repository.sync_history_repo import SyncHistoryRepository
 from backend.repository.sync_states_repo import SyncStateRepository
+from backend.services.sync_config_service import SyncConfigService
 from backend.services.sync_service import SyncService
 from backend.services.webdav_client import WebDAVClient
 
@@ -106,21 +100,6 @@ def _err_to_http(e: Exception) -> HTTPException:
     return HTTPException(status_code=400, detail={"message": msg})
 
 
-def _encrypt_webdav_password(password: str, master_key: str) -> tuple[bytes, bytes, int]:
-    """加密 webdav password → (cipher, salt, iters)。
-
-    用 master_key + 独立 salt 派生 fernet_key, Fernet 加密 password。
-    salt 16 字节随机; iters = 600k (Q1 决策: 独立加密字段, 不复用 encryption_keys)。
-    """
-    salt = _secrets.token_bytes(16)
-    iters = DEFAULT_ITERATIONS
-    # 复用 crypto._derive_key 逻辑
-    from backend.crypto import _derive_key
-    fernet_key = _derive_key(master_key, salt, iters)
-    cipher = _F(fernet_key).encrypt(password.encode("utf-8"))
-    return cipher, salt, iters
-
-
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -141,63 +120,40 @@ async def get_status():
 async def upsert_config(req: UpsertConfigRequest):
     """upsert WebDAV 配置。master_key 始终必填 (验证身份 + 加密新密码)。
 
-    - 验证 master_key (须先 setup)
-    - 已配置 + webdav_password 留空 → 保留原密文 (不重新加密)
-    - 已配置 + webdav_password 提供 → 重新派生 fernet_key 加密
-    - 未配置 + webdav_password 留空 → 409 拒绝 (首次必须提供)
+    P1.1: 业务逻辑下沉到 SyncConfigService, router 只做参数提取/响应构造。
     """
-    ek = EncryptionKeyRepository().get_default()
-    if ek is None:
-        raise HTTPException(status_code=409, detail={"message": "主密钥未初始化; 请先调用 /api/secrets/setup"})
-    if not verify_master_key(req.master_key, ek.salt, ek.iterations, ek.verify_blob):
-        raise HTTPException(status_code=401, detail={"message": "主密钥错误"})
-
-    cfg_repo = SyncConfigRepository()
-    existing = cfg_repo.get_default()
-    new_password = (req.webdav_password or "").strip()
-
-    if not new_password:
-        if existing is None or existing.webdav_password_encrypted is None:
-            # 首次配置 + 密码为空 → 拒绝
-            raise HTTPException(
-                status_code=409,
-                detail={"message": "首次配置必须提供 WebDAV 应用密码; 已配置时留空 = 不修改"},
-            )
-        # 已配置: 保留原密文/salt; master_key 已在上方验证过
-        cipher, salt, iters = (
-            None, None, existing.webdav_password_iters,
+    svc = SyncConfigService()
+    try:
+        cfg_dict = svc.upsert_config(
+            webdav_url=req.webdav_url,
+            webdav_username=req.webdav_username,
+            webdav_password=req.webdav_password,
+            master_key=req.master_key,
+            remote_path=req.remote_path,
+            auto_sync_enabled=req.auto_sync_enabled,
+            auto_sync_interval_minutes=req.auto_sync_interval_minutes,
+            sync_frequency=req.sync_frequency,
         )
-    else:
-        cipher, salt, iters = _encrypt_webdav_password(new_password, req.master_key)
-
-    cfg = cfg_repo.upsert(
-        webdav_url=req.webdav_url,
-        webdav_username=req.webdav_username,
-        webdav_password_encrypted=cipher,
-        webdav_password_salt=salt,
-        webdav_password_iters=iters,
-        remote_path=req.remote_path,
-        auto_sync_enabled=req.auto_sync_enabled,
-        auto_sync_interval_minutes=req.auto_sync_interval_minutes,
-        sync_frequency=req.sync_frequency,
-    )
-    return {
-        "version": "1.0",
-        "config": cfg.to_dict(),
-    }
+    except ValueError as e:
+        msg = str(e)
+        status = 409 if "未初始化" in msg or "首次配置" in msg else 401
+        raise HTTPException(status_code=status, detail={"message": msg})
+    return {"version": "1.0", "config": cfg_dict}
 
 
 @router.delete("/config", status_code=200)
 async def delete_config():
-    """删除 sync 配置 (并清空 sync_states / history)。"""
-    cfg_repo = SyncConfigRepository()
-    cfg = cfg_repo.get_default()
-    if cfg is None:
-        raise HTTPException(status_code=404, detail={"message": "sync config 不存在"})
-    cfg_repo.delete(cfg.id)
-    SyncStateRepository().clear(cfg.id)
-    # 不删 history (审计); 但用户可以调用 history prune
-    return {"version": "1.0", "deleted": True, "id": cfg.id}
+    """删除 sync 配置 (并清空 sync_states / history)。
+
+    P1.1: 业务逻辑下沉到 SyncConfigService。
+    """
+    svc = SyncConfigService()
+    try:
+        deleted = svc.delete_config()
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail={"message": str(e)})
+    # 记录 config id 已删除 (保留审计语义)
+    return {"version": "1.0", "deleted": deleted, "id": None}
 
 
 @router.post("/test", status_code=200)
@@ -258,20 +214,15 @@ async def list_history(limit: int = 50):
 
 @router.post("/auto", status_code=200)
 async def set_auto_sync(req: AutoSyncRequest):
-    """开启/关闭自动同步 (只改 auto_sync_enabled, 不改 webdav 凭据)。"""
-    cfg_repo = SyncConfigRepository()
-    cfg = cfg_repo.get_default()
-    if cfg is None:
-        raise HTTPException(status_code=404, detail={"message": "请先调用 /api/sync/config 配置 WebDAV"})
-    # 走 upsert 改 enabled (复用已有凭据)
-    cfg_repo.upsert(
-        webdav_url=cfg.webdav_url,
-        webdav_username=cfg.webdav_username,
-        auto_sync_enabled=req.enabled,
-        auto_sync_interval_minutes=cfg.auto_sync_interval_minutes,
-        remote_path=cfg.remote_path,
-        device_id=cfg.device_id,
-    )
+    """开启/关闭自动同步 (只改 auto_sync_enabled, 不改 webdav 凭据)。
+
+    P1.1: 业务逻辑下沉到 SyncConfigService。
+    """
+    svc = SyncConfigService()
+    try:
+        svc.set_auto_sync(enabled=req.enabled)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail={"message": str(e)})
     return {
         "version": "1.0",
         "auto_sync_enabled": req.enabled,

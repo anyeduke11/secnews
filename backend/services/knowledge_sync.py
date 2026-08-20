@@ -130,14 +130,15 @@ def sync_item_to_db(md_path: Path) -> str | None:
     # P1-1: lifecycle 解析 — md 有 lifecycle 字段则用之; 没有则**保留 DB 现值**,
     # 不再回退 compiled/signal/generate (此前回退导致 watchdog full_sync 把
     # T1-T4 推进的 kl:* 状态批量抹回旧值, 状态机在"推进↔被抹除"间震荡)。
+    # P1.5: 全新条目统一落 kl:raw (单轨化, 不再产生 legacy SAG 值)
     lifecycle = fm.get("lifecycle")
     if lifecycle is None:
         existing_row = knowledge_repo.get_item(item_id)
         if existing_row is not None and existing_row.lifecycle:
             lifecycle = existing_row.lifecycle
         else:
-            # 全新条目 (DB 无记录): 用旧字段兼容推断
-            lifecycle = "generate" if fm.get("compiled") is True else "signal"
+            # 全新条目 (DB 无记录): 统一 kl:raw
+            lifecycle = "kl:raw"
 
     item = KnowledgeItem(
         id=item_id,

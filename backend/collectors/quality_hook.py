@@ -24,6 +24,18 @@ class QualityGatesMixin:
     # 测试可在 setUp() 里置 True 避免构造 QualityConfig 依赖。
     _skip_quality: bool = False
 
+    # v4.4 (P0-2): 命中以下 flag 的 item 视为重复，直接不入库。
+    # 覆盖 DuplicateGate 全部 6 种重复判定（URL 规范化 / URL 原样 /
+    # simhash 标题 / jaccard 标题 / 正文 hash / 同 URL 歧义 loser）。
+    DUPLICATE_FLAGS: frozenset[str] = frozenset({
+        "url_duplicate",
+        "url_duplicate_canonical",
+        "similar_title_duplicate",
+        "simhash_title_duplicate",
+        "content_hash_duplicate",
+        "title_replaced",
+    })
+
     async def _run_quality_gates(
         self, items: list[HotspotItem]
     ) -> list[HotspotItem]:
@@ -128,6 +140,38 @@ class QualityGatesMixin:
                 # 门禁本身崩了：保留原 item
                 self.logger.error(f"gate pipeline error: {e}")
                 out.append(item)
+                continue
+
+            # v4.4 (P0-2): 命中重复 flag → 直接不入库（斩断重复 item 写入
+            # hotspots + 后续每轮重复跑门禁写 quality_check_logs 的膨胀）。
+            # 纯确定性检查：DuplicateGate 已将重复场景统一映射为这些 flag。
+            dup_flags = [f for f in presult.final_flags if f in self.DUPLICATE_FLAGS]
+            if dup_flags:
+                self.logger.info(
+                    f"duplicate skip: id={item.id} title={item.title[:40]!r} "
+                    f"flags={dup_flags} score={presult.final_score}"
+                )
+                await asyncio.to_thread(
+                    self._write_quality_rejection,
+                    item, "duplicate", f"flags={dup_flags}",
+                )
+                continue
+
+            # v4.4 (P0-1): 显式消费 accepted —— 即使 loose 模式下不抛异常，
+            # 只要 final_score < min_score (accepted=False) 就拦截不入库，
+            # 让质量门禁真正具备拦截力，而非仅打标。
+            if not presult.accepted:
+                self.logger.warning(
+                    f"score-below-min reject: id={item.id} "
+                    f"score={presult.final_score} < min_score "
+                    f"flags={presult.final_flags}"
+                )
+                await asyncio.to_thread(
+                    self._write_quality_rejection,
+                    item, "score_below_min",
+                    f"final_score={presult.final_score} "
+                    f"flags={presult.final_flags}",
+                )
                 continue
 
             # 写回 quality_score / quality_flags / quality_checked_at

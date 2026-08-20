@@ -19,21 +19,15 @@ from datetime import datetime, timezone
 #   amplify:complete  → kl:structure  (已完成结构化)
 #   generate          → kl:publish    (已发布知识)
 VALID_LIFECYCLE_STATES = {
-    # --- KL 五阶段 (规范) ---
+    # --- KL 五阶段 (唯一规范, P1.5 单轨化; legacy SAG 值已全部迁移) ---
     "kl:raw",         # 原始入库 (从 hotspots / 收藏导入)
     "kl:refine",      # 评分 + tag 完成
     "kl:link",        # 实体关联完成
     "kl:structure",   # 摘要 + 结构化完成
     "kl:publish",     # 已发布
-    # --- legacy SAG 值 (兼容, 不再新写入) ---
-    "signal",
-    "amplify:tagged",
-    "amplify:linked",
-    "amplify:complete",
-    "generate",
 }
 
-# P1-3: legacy SAG → KL 归一映射
+# P1-3: legacy SAG → KL 归一映射 (P1.5 单轨化后保留作防御性读取; 不参与写)
 LEGACY_TO_KL = {
     "signal": "kl:raw",
     "amplify:tagged": "kl:refine",

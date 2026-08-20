@@ -50,9 +50,9 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
 @pytest.fixture
 def client(temp_db, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     # 关闭旧 API 以避免路由冲突
-    monkeypatch.setattr(config, "feature_reviews", True)
-    monkeypatch.setattr(config, "feature_alerts", False)
-    monkeypatch.setattr(config, "feature_recommendations", True)
+    monkeypatch.setattr(config, "feature_review", True)
+    monkeypatch.setattr(config, "feature_alert", False)
+    monkeypatch.setattr(config, "feature_recommendation", True)
     app = FastAPI()
     app.add_middleware(TraceIDMiddleware)
     register_exception_handlers(app)

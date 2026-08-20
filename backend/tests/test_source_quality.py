@@ -422,7 +422,7 @@ class TestEvaluateSourceCoverage:
         assert c0["total_sources"] == 2
         assert c0["active_sources"] == 1
         assert c0["min_active_sources"] == 3
-        assert c0["alert"] is True
+        assert c0["alerts"] is True
         assert c0["alert_reason"]
         assert len(c0["details"]) == 2
         assert "dead_sources" in d

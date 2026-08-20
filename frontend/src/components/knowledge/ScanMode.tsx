@@ -14,6 +14,7 @@ import { Icon } from '../Icon';
 import { EmptyState } from '../EmptyState';
 import { STAGE_LABELS, STAGE_COLORS, ALL_STAGES } from './LifecycleProgress';
 import { getCategoryColorVar, getCategoryLabel } from '../../types';
+import { OnboardingHint } from '../layout/OnboardingHint';
 import type { KnowledgeItem } from '../../types';
 
 // ── 扩展类型: 后端 to_dict() 返回的额外字段 ──────────────────
@@ -137,6 +138,10 @@ export function ScanMode() {
 
   return (
     <div className="space-y-3">
+      <OnboardingHint storageKey="kb-scan" title="扫描模式">
+        <p>快速扫描知识库新内容，发现感兴趣的条目。</p>
+      </OnboardingHint>
+
       {/* 顶部描述 */}
       <section
         className="rounded-[var(--radius-md)] p-3"

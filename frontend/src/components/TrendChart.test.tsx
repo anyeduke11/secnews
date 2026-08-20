@@ -5,6 +5,14 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { TrendChart } from './TrendChart';
 import type { TrendResponse, TrendPoint } from '../types';
 
+// ECharts canvas 在 jsdom 中触发未捕获的异步错误;
+// 仅验证容器与数据流, 故 mock 图表渲染 (同 KnowledgeGraph.test.tsx)。
+vi.mock('echarts-for-react', () => ({
+  default: function ReactEChartsMock({ style }: { style?: React.CSSProperties }) {
+    return <div style={style} data-testid="echarts-mock" />;
+  },
+}));
+
 const mkPoint = (label: string, ai: number): TrendPoint => ({
   label,
   hours_ago: 0,

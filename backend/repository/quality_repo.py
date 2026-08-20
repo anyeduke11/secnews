@@ -215,23 +215,40 @@ class SourceReputationRepository:
             ) from e
 
     def rebuild_all(self) -> int:
-        """从 quality_check_logs 重新算每个 source 的评分。
+        """从 quality_check_logs 重新算每个 source 的评分 (v4.4 增强).
 
-        Returns the number of distinct sources updated.
+        vs 旧实现 (2026-08-20):
+          - 只统计「质量型 gate」: schema / noise / duplicate / content_hash /
+            recency / bid_recency 属"结构性信号"(重复与否不反映源质量),
+            不再计入 source 声誉 —— 否则 duplicate 高的源被错误降分。
+          - 统计 gate: title_summary / category_match / source_reputation /
+            AuthorVerification / FinalUrl / content / url_content /
+            url_validity (真正反映"这条素材好不好")。
 
         score = 100 - 100 * fail_count / (pass + fail + 1)
         blacklist = (fail > 100 AND score < 30) ? 1 : 0
+
+        Returns the number of distinct sources updated.
         """
         conn = get_connection()
+        # 质量型 gate 白名单（排除结构性/去重信号）
+        quality_gates = (
+            "title_summary", "category_match", "source_reputation",
+            "AuthorVerification", "FinalUrl", "content", "url_content",
+            "url_validity",
+        )
+        placeholders = ",".join("?" for _ in quality_gates)
         try:
             rows = conn.execute(
-                "SELECT h.source, "
-                "  SUM(CASE WHEN q.passed = 1 THEN 1 ELSE 0 END) AS pass_n, "
-                "  SUM(CASE WHEN q.passed = 0 THEN 1 ELSE 0 END) AS fail_n "
-                "FROM quality_check_logs q "
-                "JOIN hotspots h ON h.id = q.item_id "
-                "WHERE q.checked_at >= datetime('now', '-7 days') "
-                "GROUP BY h.source"
+                f"SELECT h.source, "
+                f"  SUM(CASE WHEN q.passed = 1 THEN 1 ELSE 0 END) AS pass_n, "
+                f"  SUM(CASE WHEN q.passed = 0 THEN 1 ELSE 0 END) AS fail_n "
+                f"FROM quality_check_logs q "
+                f"JOIN hotspots h ON h.id = q.item_id "
+                f"WHERE q.checked_at >= datetime('now', '-7 days') "
+                f"  AND q.gate_name IN ({placeholders}) "
+                f"GROUP BY h.source",
+                quality_gates,
             ).fetchall()
         except sqlite3.Error as e:
             raise InternalException(

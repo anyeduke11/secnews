@@ -27,7 +27,7 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
 def test_is_mcp_enabled_default():
     """默认 feature.mcp_server=True (Option A 默认开)."""
     from backend.services.feature_flag_service import is_enabled
-    assert is_enabled("mcp_server") is True
+    assert is_enabled("mcp") is True
 
 
 def test_mcp_tool_registry_table_exists(temp_db):
@@ -113,9 +113,9 @@ def test_toggle_mcp_enabled(temp_db):
     res = client.put("/api/settings/mcp/enabled", json={"enabled": False})
     assert res.status_code == 200
     from backend.services.feature_flag_service import is_enabled
-    assert is_enabled("mcp_server") is False
+    assert is_enabled("mcp") is False
 
     # 开启
     res = client.put("/api/settings/mcp/enabled", json={"enabled": True})
     assert res.status_code == 200
-    assert is_enabled("mcp_server") is True
+    assert is_enabled("mcp") is True

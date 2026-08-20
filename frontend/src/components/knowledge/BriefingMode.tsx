@@ -7,7 +7,9 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../Icon';
+import { useDigest } from '../../hooks/useDigest';
 import { AttentionHeatmap } from './AttentionHeatmap';
+import { OnboardingHint } from '../layout/OnboardingHint';
 
 const SOURCE_LABELS: Record<string, string> = {
   cubox: 'Cubox',
@@ -67,6 +69,15 @@ export function BriefingMode() {
   const [healthLoading, setHealthLoading] = useState(true);
 
   const [chunkSummaries, setChunkSummaries] = useState<Record<string, string>>({});
+
+  // P1.4: 集成官方每日简报 (digest) — 原 /brief 路由功能合并到此
+  const { digest, loading: digestLoading, error: digestError, refresh: refreshDigest, generate: generateDigest, markRead: markDigestRead } = useDigest();
+
+  const handleGenerateDigest = async () => {
+    await generateDigest();
+    await markDigestRead();
+    await refreshDigest();
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -142,6 +153,10 @@ export function BriefingMode() {
 
   return (
     <div className="space-y-4" data-area-page="briefing">
+      <OnboardingHint storageKey="kb-briefing" title="简报模式">
+        <p>展示今日知识库已发布条目与官方每日简报。</p>
+      </OnboardingHint>
+
       {/* 顶部 hero */}
       <section
         className="rounded-[var(--radius-md)] p-3.5"
@@ -176,6 +191,88 @@ export function BriefingMode() {
             </p>
           </div>
         </div>
+      </section>
+
+      {/* P1.4: 官方每日简报 (digest) — 合并自原 /brief 路由 */}
+      <section
+        className="rounded-[var(--radius-md)] p-3.5"
+        style={{
+          backgroundColor: 'var(--bg-elevated)',
+          border: '1px solid var(--border-color)',
+          borderLeft: '3px solid var(--accent)',
+        }}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <h4
+            className="text-xs font-semibold flex items-center gap-2"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            <Icon size={12}>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </Icon>
+            官方每日简报
+          </h4>
+          <button
+            type="button"
+            onClick={handleGenerateDigest}
+            className="btn-secondary"
+            title="手动生成昨日简报"
+          >
+            ⟳ 生成
+          </button>
+        </div>
+
+        {digestLoading && (
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>加载简报…</p>
+        )}
+
+        {digestError && (
+          <p className="text-[11px]" style={{ color: 'var(--color-error)' }} role="alert">
+            {digestError}
+          </p>
+        )}
+
+        {!digestLoading && !digestError && !digest && (
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            暂无每日简报 — 点击右上角「生成」手动创建
+          </p>
+        )}
+
+        {!digestLoading && !digestError && digest && (
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span
+                className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded"
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--accent) 9%, transparent)',
+                  color: 'var(--accent)',
+                }}
+              >
+                {digest.period}
+              </span>
+              <span className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
+                {new Date(digest.created_at).toLocaleString('zh-CN')}
+              </span>
+              <button
+                type="button"
+                className="btn-ghost ml-auto text-[10px]"
+                onClick={async () => { await markDigestRead(); await refreshDigest(); }}
+                style={{ minHeight: 'auto', padding: '2px 8px' }}
+              >
+                标记已读
+              </button>
+            </div>
+            <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+              {digest.summary}
+            </p>
+            {typeof digest.count === 'number' && (
+              <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                昨日共 {digest.count} 篇文章
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       {/* 数据源健康状态 */}

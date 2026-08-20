@@ -9,7 +9,17 @@ export function PageLayout() {
         className="min-h-[100dvh] relative"
         style={{ backgroundColor: 'var(--bg-primary)' }}
       >
-        <div className="max-w-[1320px] mx-auto px-4 sm:px-8 lg:px-10 py-4 sm:py-6 relative z-10">
+        <a
+          href="#main-content"
+          className="skip-link"
+          aria-label="跳转到主内容"
+        >
+          跳转到主内容
+        </a>
+        <div
+          id="main-content"
+          className="max-w-[1320px] mx-auto px-4 sm:px-8 lg:px-10 py-4 sm:py-6 relative z-10"
+        >
           <Outlet />
         </div>
       </div>

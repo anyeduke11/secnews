@@ -39,6 +39,10 @@ class GateContext(BaseModel):
     known_ids: Any | None = None  # callable returning set of known ids
     http_session_factory: Any | None = None  # callable returning aiohttp session
     rejected_by: str | None = None  # 首个失败的 Hard gate 名称
+    # v4.4: LLM AI 生成检测配置（由 pipeline 构建时注入，避免 gate 查 DB）
+    llm_enabled: bool = False
+    llm_provider: str = "sensenova"  # "sensenova" | "ollama"
+    llm_api_key: str = ""
 
 
 class BaseGate(ABC):

@@ -33,14 +33,26 @@ async def run_url_content_check(
     hrepo = HotspotRepository()
     log_repo = QualityLogRepository()
 
-    # 取最近 7d 所有 item
-    items, _ = hrepo.query(category=None, time_range=TimeRange.D7, limit=200)
+    # v4.4: URL 全覆盖 —— 循环翻页拉取最近 7d 全量 item（旧版 limit=200
+    # 每轮只检查 200 条，导致大量积压，url_content 覆盖率长期 < 其他 gate）。
+    # cursor 分页直到耗尽，再过滤出"未检查 / 需复检"的候选。
+    all_items: list[HotspotItem] = []
+    cursor: str | None = None
+    while True:
+        batch, cursor = hrepo.query(
+            category=None, time_range=TimeRange.D7, cursor=cursor, limit=1000
+        )
+        all_items.extend(batch)
+        if not cursor or not batch:
+            break
+        if len(all_items) > 20000:  # 防御上限, 避免异常下无限循环
+            break
 
     # 过滤 fallback + 已有 verified/mismatch 的
     # P2-4: unreachable 加入复检候选 — 此前仅 None/pending/skipped,
     # 瞬时网络失败被标 unreachable 后永不复检 → 一条资讯永久隐藏。
     candidates = [
-        it for it in items
+        it for it in all_items
         if not it.is_fallback
         and (it.url_check_status in (None, "pending", "skipped", "unreachable"))
     ]

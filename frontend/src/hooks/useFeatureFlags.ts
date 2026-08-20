@@ -9,6 +9,8 @@ import { useEffect, useState } from 'react';
 
 export interface FeatureFlags {
   codegarden: boolean;
+  /** P1.6: M2/M3/M4 (服务网格/资源中枢/联动引擎) 独立 gate */
+  codegardenPhase2b: boolean;
   mcp: boolean;
   sync: boolean;
   techStack: boolean;
@@ -17,6 +19,7 @@ export interface FeatureFlags {
 
 export const DEFAULT_FLAGS: FeatureFlags = {
   codegarden: false,
+  codegardenPhase2b: false,
   mcp: false,
   sync: true,
   techStack: false,
@@ -59,6 +62,7 @@ async function fetchFlags(): Promise<FeatureFlags> {
     const data = await r.json();
     const flags: FeatureFlags = {
       codegarden: !!data.codegarden,
+      codegardenPhase2b: !!(data.codegarden_phase2b ?? data.codegardenPhase2b),
       mcp: !!data.mcp,
       sync: !!data.sync,
       techStack: !!(data.techStack ?? data.tech_stack),

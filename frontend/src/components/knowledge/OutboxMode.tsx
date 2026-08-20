@@ -11,6 +11,7 @@ import { Icon } from '../Icon';
 import { EmptyState } from '../EmptyState';
 import { STAGE_LABELS, STAGE_COLORS, ALL_STAGES } from './LifecycleProgress';
 import type { KnowledgeItem } from '../../types';
+import { OnboardingHint } from '../layout/OnboardingHint';
 
 // ── 扩展类型: 后端可能返回的额外字段 ──────────────────
 
@@ -271,6 +272,10 @@ export function OutboxMode() {
 
   return (
     <div className="space-y-3">
+      <OnboardingHint storageKey="kb-outbox" title="整理模式">
+        <p>将收藏或待整理的条目归集到知识库。</p>
+      </OnboardingHint>
+
       {/* 顶部描述 */}
       <section
         className="rounded-[var(--radius-md)] p-3"

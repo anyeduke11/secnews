@@ -3,7 +3,8 @@
 # 用于将"一时兴起的功能"降级为插拔扩展，不伤害核心管道
 
 [extensions]
-codegarden = false      # 项目生命周期 + 服务网格/资源中枢/编排引擎
+codegarden = true           # M1 项目生命周期 (项目/记忆/Prompt/SDD)
+codegarden_phase2b = false  # M2/M3/M4 服务网格/资源中枢/编排引擎 (P1.6 收缩关闭)
 mcp        = false      # MCP Server (SSE + stdio + 9 tools)
 sync       = true       # 跨端同步 (WebDAV + Fernet)
 tech_stack = false      # 技术栈管理 + 漂移评估

@@ -87,7 +87,7 @@ class CoverageReport:
                     "zero_sources": c.zero_sources,
                     "coverage_ratio": round(c.coverage_ratio, 3),
                     "min_active_sources": c.min_active_sources,
-                    "alert": c.alert,
+                    "alerts": c.alert,
                     "alert_reason": c.alert_reason,
                     "details": [
                         {

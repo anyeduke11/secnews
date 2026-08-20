@@ -11,7 +11,7 @@
 ```python
 from backend.services.feature_flag_service import is_enabled
 
-if is_enabled("mcp_server"):
+if is_enabled("mcp"):
     # 启动 MCP Server (Phase 7)
     ...
 ```
@@ -34,7 +34,7 @@ def is_enabled(name: str) -> bool:
     """读取 feature flag.
 
     Args:
-        name: 不含 ``feature_`` 前缀, 例如 ``"mcp_server"`` 映射到 ``config.feature_mcp_server``.
+        name: 不含 ``feature_`` 前缀, 例如 ``"mcp"`` 映射到 ``config.feature_mcp``.
 
     Returns:
         bool: flag 状态, 未知 flag 返回 ``False``.

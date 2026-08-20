@@ -103,15 +103,16 @@ def _make_pipeline(
 # ---------------------------------------------------------------------------
 # 注册
 # ---------------------------------------------------------------------------
-def test_pipeline_default_gates_11():
-    """默认注册的同步门禁应有 11 个 (P1: URLValidityGate 已移异步 job)。"""
+def test_pipeline_default_gates_12():
+    """默认注册的同步门禁应有 12 个 (v4.4 新增 ai_quality)。"""
     cfg = QualityConfig()
     p = QualityGatePipeline(cfg, log_repo=_NoopLogRepo())
-    assert len(p.gates) == 11
+    assert len(p.gates) == 12
     names = {g.name for g in p.gates}
     assert names == {
         "schema", "recency", "content", "noise", "category_match", "title_summary",
         "source_reputation", "AuthorVerification", "FinalUrl", "duplicate", "bid_recency",
+        "ai_quality",
     }
 
 

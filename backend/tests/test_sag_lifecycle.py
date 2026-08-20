@@ -52,11 +52,17 @@ class TestTransition:
         assert sag_service.transition("t1", "kl:refine") is True
         assert knowledge_repo.get_item("t1").lifecycle == "kl:refine"
 
-    def test_legacy_input_normalized(self, temp_db):
-        """P1-3: legacy SAG 输入 (amplify:tagged) 兼容, 落库归一为 kl:refine。"""
-        knowledge_repo.upsert_item(_make_item("t1b", "signal"))
-        assert sag_service.transition("t1b", "amplify:tagged") is True
-        assert knowledge_repo.get_item("t1b").lifecycle == "kl:refine"
+    def test_legacy_input_rejected_after_oneway(self, temp_db):
+        """P1.5: 单轨化后 legacy SAG 输入 (amplify:tagged) 不再被接受。
+
+        修复前 (P1-3): legacy 输入兼容, 归一为 kl:*。
+        修复后 (P1.5): VALID_LIFECYCLE_STATES 只含 kl:* 状态, legacy 目标拒绝。
+        """
+        knowledge_repo.upsert_item(_make_item("t1b", "kl:raw"))
+        # legacy 目标状态不再合法 → 拒绝
+        assert sag_service.transition("t1b", "amplify:tagged") is False
+        # 原状态不变
+        assert knowledge_repo.get_item("t1b").lifecycle == "kl:raw"
 
     def test_skip_forward_transition_allowed(self, temp_db):
         """允许跳跃: kl:raw → kl:publish 直接归档。"""

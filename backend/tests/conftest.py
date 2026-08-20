@@ -76,8 +76,10 @@ def _feature_gates_all_on_for_tests() -> None:
     from backend.extensions import reset_gates
 
     prev = os.environ.get("HOTSPOT_FEATURE_GATES")
+    # P1.6: 测试环境也全开 codegarden_phase2b (M2/M3/M4) 保证既有功能测试在线
     os.environ["HOTSPOT_FEATURE_GATES"] = (
-        '{"extensions": {"codegarden": true, "mcp": true, "sync": true, '
+        '{"extensions": {"codegarden": true, "codegarden_phase2b": true, '
+        '"mcp": true, "sync": true, '
         '"tech_stack": true, "security_graph": true}}'
     )
     reset_gates()

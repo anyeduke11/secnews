@@ -1,11 +1,8 @@
 /**
  * TrendChart — 24h 热度趋势堆叠柱状图。
  */
-import { useEffect, useState } from 'react';
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, Legend
-} from 'recharts';
+import React, { useEffect, useState } from 'react';
+import ReactECharts from 'echarts-for-react';
 import { TrendPoint, TrendResponse } from '../types';
 import { useThemeColors, ThemeColorKey } from '../hooks/useThemeColors';
 
@@ -58,34 +55,75 @@ export function TrendChart() {
 
   const sampled = data.filter((_, i) => i % 3 === 0 || i === data.length - 1);
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div
-          className="p-3 text-xs shadow-lg"
-          style={{
-            backgroundColor: colors['bg-elevated'] || 'var(--bg-elevated)',
-            border: `1px solid ${colors['border-color'] || 'var(--border-color)'}`,
-            borderRadius: 'var(--radius-sm)',
-          }}
-        >
-          <p style={{ color: colors['text-secondary'] || 'var(--text-secondary)' }} className="mb-1.5 font-mono">{label}</p>
-          {payload.map((entry: any) => (
-            <div key={entry.name} className="flex items-center gap-2 mb-0.5">
-              <span className="dot-indicator" style={{ backgroundColor: entry.color }} />
-              <span style={{ color: colors['text-primary'] || 'var(--text-primary)' }}>{entry.name}: </span>
-              <span className="font-semibold font-mono" style={{ color: colors['text-primary'] || 'var(--text-primary)' }}>{entry.value}</span>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    return null;
+  const bgElevated = colors['bg-elevated'] || 'var(--bg-elevated)';
+  const border = colors['border-color'] || 'var(--border-color)';
+  const textPrimary = colors['text-primary'] || 'var(--text-primary)';
+  const textSec = colors['text-secondary'] || 'var(--text-secondary)';
+  const textMuted = colors['text-muted'] || 'var(--text-muted)';
+
+  const tickStyle = {
+    fill: textMuted,
+    fontSize: 10,
+    fontFamily: 'JetBrains Mono, monospace',
   };
 
-  const textMuted = colors['text-muted'] || 'var(--text-muted)';
-  const textSec = colors['text-secondary'] || 'var(--text-secondary)';
-  const border = colors['border-color'] || 'var(--border-color)';
+  const option = {
+    grid: { top: 8, left: 32, right: 8, bottom: 30 },
+    xAxis: {
+      type: 'category' as const,
+      data: sampled.map(d => d.label),
+      axisLabel: tickStyle,
+      axisLine: { lineStyle: { stroke: border } },
+      splitLine: { show: false },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'value' as const,
+      axisLabel: tickStyle,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      minInterval: 1,
+      splitLine: { lineStyle: { type: 'dashed' as const, color: border }, show: true },
+    },
+    tooltip: {
+      trigger: 'axis' as const,
+      axisPointer: { type: 'shadow' as const, shadowStyle: { color: 'var(--border-subtle)' } },
+      formatter: (params: any) => {
+        const list = Array.isArray(params) ? params : [params];
+        if (!list.length) return '';
+        const label = list[0].axisValue;
+        let html = `<div class="p-3 text-xs shadow-lg" style="background-color:${bgElevated};border:1px solid ${border};border-radius:var(--radius-sm)">`;
+        html += `<p class="mb-1.5 font-mono" style="color:${textSec}">${label}</p>`;
+        for (const p of list) {
+          html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">';
+          html += `<span class="dot-indicator" style="background-color:${p.color}"></span>`;
+          html += `<span style="color:${textPrimary}">${p.seriesName}: </span>`;
+          html += `<span class="font-semibold font-mono" style="color:${textPrimary}">${p.value}</span>`;
+          html += '</div>';
+        }
+        html += '</div>';
+        return html;
+      },
+    },
+    legend: {
+      bottom: 0,
+      icon: 'circle',
+      itemWidth: 7,
+      itemHeight: 7,
+      textStyle: { fontSize: 10, color: textSec },
+      data: CATEGORY_CONFIG.map(c => c.label),
+    },
+    series: CATEGORY_CONFIG.map(({ key, token, label }) => ({
+      type: 'bar' as const,
+      name: label,
+      stack: 'total',
+      barGap: 2,
+      barCategoryGap: '20%',
+      barMaxWidth: 18,
+      itemStyle: { color: colors[token] || 'var(--color-ai)' },
+      data: sampled.map(d => (d as any)[key]),
+    })),
+  };
 
   return (
     <div className="mb-6">
@@ -100,40 +138,7 @@ export function TrendChart() {
       </div>
 
       <div className="h-44">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={sampled} barGap={2} barCategoryGap="20%">
-            <CartesianGrid strokeDasharray="3 3" stroke={border} vertical={false} />
-            <XAxis
-              dataKey="label"
-              tick={{ fill: textMuted, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-              axisLine={{ stroke: border }}
-              tickLine={false}
-              interval="preserveStartEnd"
-            />
-            <YAxis
-              tick={{ fill: textMuted, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-              axisLine={false}
-              tickLine={false}
-              allowDecimals={false}
-            />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--border-subtle)' }} />
-            <Legend
-              wrapperStyle={{ fontSize: '10px', color: textSec, paddingTop: '8px' }}
-              iconType="circle"
-              iconSize={7}
-            />
-            {CATEGORY_CONFIG.map(({ key, token, label }) => (
-              <Bar
-                key={key}
-                dataKey={key}
-                name={label}
-                fill={colors[token] || 'var(--color-ai)'}
-                stackId="a"
-                maxBarSize={18}
-              />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
+        <ReactECharts option={option} style={{ height: '100%', width: '100%' }} />
       </div>
     </div>
   );

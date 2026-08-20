@@ -32,6 +32,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.executors.asyncio import AsyncIOExecutor
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -45,13 +46,39 @@ _logger = logger.bind(component="scheduler")
 # Phase 42: 跨端同步的固定时区 (用户决策 Q2: 每周一 10:30 Asia/Shanghai)
 SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
 
+# P0.5: 调度器并发限制
+# AsyncIOExecutor 是单线程异步执行器, 本身就限制并发 (同时只有一个协程运行)。
+# max_instances=1: 同一 job 不重叠 (collect_all 跑 5min 时, 下一轮不启动)
+# coalesce=True: 错过的合并为一次 (服务重启后不补跑堆积的 job)
+# 这两个配置组合防止 43 个 job 资源耗尽。
+
+
+def create_scheduler() -> AsyncIOScheduler:
+    """P0.5: 创建带并发限制的 AsyncIOScheduler。
+
+    集中管理 scheduler 配置:
+    - AsyncIOExecutor: 单线程异步 (天然限制并发)
+    - job_defaults.max_instances=1: 同一 job 不重叠
+    - job_defaults.coalesce=True: 错过合并
+    """
+    return AsyncIOScheduler(
+        timezone="UTC",
+        executors={
+            "default": AsyncIOExecutor(),
+        },
+        job_defaults={
+            "max_instances": 1,
+            "coalesce": True,
+        },
+    )
+
 # v0.4.3: job→扩展域归属表 — 扩展关闭时对应 job 不调度
 # (job_id 为 scheduler.py 中 add_job 的 id 参数)
 _JOB_EXT_MAP: dict[str, str] = {
     "sync": "sync",                    # 跨端配置同步 (Mon 10:30)
-    "cg_upstream_sync": "codegarden",  # 上游同步 (daily 09:00)
-    "cg_service_scan": "codegarden",   # 服务网格自动发现 (5min)
-    "cg_event_process": "codegarden",  # 事件总线处理 (60s)
+    "cg_upstream_sync": "codegarden",  # 上游同步 (daily 09:00) — M1 核心
+    "cg_service_scan": "codegarden_phase2b",  # 服务网格自动发现 (5min) — M2, P1.6
+    "cg_event_process": "codegarden_phase2b",  # 事件总线处理 (60s) — M4, P1.6
     "cg_drift_assess": "tech_stack",   # 技术栈漂移评估 (3600s)
     "mitre_sync": "security_graph",    # MITRE ATT&CK 同步 (Sun 04:00)
     "cve_sync_to_security": "security_graph",  # CVE 同步到 security 实体 (1800s)
@@ -108,7 +135,7 @@ class HotspotScheduler:
         if self.service is None:
             raise RuntimeError("service not attached; call attach_service() first")
 
-        self.scheduler = AsyncIOScheduler(timezone="UTC")
+        self.scheduler = create_scheduler()
         # Phase 24: 用 start_date 替代 next_run_time=None。apscheduler 在
         # `next_run_time=None` + `IntervalTrigger` 组合下,首次跑完后 next_run_time
         # 不会被 trigger 自动更新成下一次,导致永久不再调度。
@@ -203,14 +230,15 @@ class HotspotScheduler:
             name="stats recycle (daily 06:00)",
             replace_existing=True,
         )
-        # P0: job 13 — quality_check_logs 定时清理 (每周日 05:00 Asia/Shanghai)
+        # P0.1: job 13 — quality_check_logs 归档 (每周日 05:00 Asia/Shanghai)
         # 只注册定时触发, 启动时不立即清理 (避免阻塞启动)。
-        # quality_check_logs 440万行/1.35GB, 原清理仅手动 API。
+        # v0.4.4: 改为归档机制 (archive 表 + incremental_vacuum), 保留 7 天。
+        # quality_check_logs 440万行/1.35GB, 原直接 DELETE 不回收空间。
         self.scheduler.add_job(
             jobs.quality_logs_cleanup_job,
             trigger=CronTrigger(day_of_week="sun", hour=5, timezone=SHANGHAI_TZ),
             id="quality_logs_cleanup",
-            name="quality check logs cleanup (Sun 05:00)",
+            name="quality logs archive (Sun 05:00)",
             replace_existing=True,
         )
         # P1: job 14 — 每日数据库自动备份 (04:30 Asia/Shanghai, 避开

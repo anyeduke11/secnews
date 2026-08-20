@@ -97,7 +97,7 @@ class SecurityRepository:
     def get_entity(self, entity_id: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
-            "SELECT * FROM security_entities WHERE id = ?", (entity_id,)
+            "SELECT id, entity_type, name, description, external_ref, metadata, created_at, updated_at FROM security_entities WHERE id = ?", (entity_id,)
         ).fetchone()
         return SecurityEntity.from_row(dict(row)).to_dict() if row else None
 
@@ -125,7 +125,7 @@ class SecurityRepository:
         total = int(total_row["n"]) if total_row else 0
 
         rows = conn.execute(
-            f"SELECT * FROM security_entities {where_sql} "
+            f"SELECT id, entity_type, name, description, external_ref, metadata, created_at, updated_at FROM security_entities {where_sql} "
             "ORDER BY created_at DESC LIMIT ? OFFSET ?",
             (*params, int(limit), int(offset)),
         ).fetchall()
@@ -141,7 +141,7 @@ class SecurityRepository:
             params.extend(entity_types)
 
         rows = conn.execute(
-            f"SELECT * FROM security_entities "
+            f"SELECT id, entity_type, name, description, external_ref, metadata, created_at, updated_at FROM security_entities "
             f"WHERE (name LIKE ? OR id LIKE ?) {type_filter} "
             "ORDER BY created_at DESC LIMIT 50",
             params,
@@ -194,7 +194,7 @@ class SecurityRepository:
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
         rows = conn.execute(
-            f"SELECT * FROM security_edges {where_sql} ORDER BY created_at DESC",
+            f"SELECT id, source_id, target_id, edge_type, weight, metadata, created_at FROM security_edges {where_sql} ORDER BY created_at DESC",
             params,
         ).fetchall()
         return [SecurityEdge.from_row(dict(r)).to_dict() for r in rows]
@@ -209,7 +209,7 @@ class SecurityRepository:
         for _ in range(depth):
             next_ids: set[str] = set()
             rows = conn.execute(
-                "SELECT * FROM security_edges WHERE source_id IN ({}) OR target_id IN ({})".format(
+                "SELECT id, source_id, target_id, edge_type, weight, metadata, created_at FROM security_edges WHERE source_id IN ({}) OR target_id IN ({})".format(
                     ",".join("?" for _ in current_ids),
                     ",".join("?" for _ in current_ids),
                 ),
@@ -239,7 +239,7 @@ class SecurityRepository:
         now = term.updated_at or _now_iso()
         if term.id:
             row = conn.execute(
-                "SELECT * FROM security_terms WHERE id = ?", (term.id,)
+                "SELECT id, canonical, term_type, category, definition, external_id, external_ref, metadata, created_at, updated_at FROM security_terms WHERE id = ?", (term.id,)
             ).fetchone()
             if row:
                 conn.execute(
@@ -287,7 +287,7 @@ class SecurityRepository:
     def get_term_by_canonical(self, canonical: str) -> dict | None:
         conn = get_connection()
         row = conn.execute(
-            "SELECT * FROM security_terms WHERE canonical = ?", (canonical,)
+            "SELECT id, canonical, term_type, category, definition, external_id, external_ref, metadata, created_at, updated_at FROM security_terms WHERE canonical = ?", (canonical,)
         ).fetchone()
         return SecurityTerm.from_row(dict(row)).to_dict() if row else None
 
@@ -299,7 +299,7 @@ class SecurityRepository:
             type_filter = "AND term_type = ?"
             params.append(term_type)
         rows = conn.execute(
-            f"SELECT * FROM security_terms WHERE canonical LIKE ? {type_filter} "
+            f"SELECT id, canonical, term_type, category, definition, external_id, external_ref, metadata, created_at, updated_at FROM security_terms WHERE canonical LIKE ? {type_filter} "
             "ORDER BY updated_at DESC LIMIT ?",
             (*params, int(limit)),
         ).fetchall()

@@ -17,7 +17,8 @@ from fastapi.testclient import TestClient
 from backend.api import register_routers
 
 ALL_OFF = {
-    "codegarden": False, "mcp": False, "sync": False,
+    "codegarden": False, "codegarden_phase2b": False,
+    "mcp": False, "sync": False,
     "tech_stack": False, "security_graph": False,
 }
 ALL_ON = dict.fromkeys(ALL_OFF, True)
@@ -70,12 +71,12 @@ EXTENSION_PATHS = {
     "tech_stack": ["/api/tech-stack", "/api/tech-stack/impact"],
 }
 
-# job→扩展归属 (与 scheduler.py _JOB_EXT_MAP 一致)
+# job→扩展归属 (与 scheduler.py _JOB_EXT_MAP 一致; P1.6: M2/M4 job 归 codegarden_phase2b)
 JOB_EXT_MAP = {
     "sync": "sync",
     "cg_upstream_sync": "codegarden",
-    "cg_service_scan": "codegarden",
-    "cg_event_process": "codegarden",
+    "cg_service_scan": "codegarden_phase2b",
+    "cg_event_process": "codegarden_phase2b",
     "cg_drift_assess": "tech_stack",
     "mitre_sync": "security_graph",
     "cve_sync_to_security": "security_graph",
@@ -231,7 +232,9 @@ class TestFeaturesEndpoint:
             data = client.get("/api/settings/features").json()
         assert data["codegarden"] is True
         assert data["mcp"] is True
-        assert data["enabled_extensions"] == ["codegarden", "mcp", "sync", "tech_stack"]
+        assert data["enabled_extensions"] == [
+            "codegarden", "codegarden_phase2b", "mcp", "sync", "tech_stack",
+        ]
 
 
 class TestExtensionsModule:
@@ -243,7 +246,9 @@ class TestExtensionsModule:
         monkeypatch.delenv("HOTSPOT_FEATURE_GATES", raising=False)
         reset_gates()
         try:
-            assert is_extension_enabled("codegarden") is False
+            # P1.6: codegarden (M1) 默认开启; codegarden_phase2b (M2/M3/M4) 关闭
+            assert is_extension_enabled("codegarden") is True
+            assert is_extension_enabled("codegarden_phase2b") is False
             assert is_extension_enabled("mcp") is False
             assert is_extension_enabled("sync") is True
         finally:

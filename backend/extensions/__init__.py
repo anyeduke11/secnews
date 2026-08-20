@@ -16,14 +16,20 @@ from pathlib import Path
 _GATES_PATH = Path(__file__).resolve().parent.parent / "config" / "feature_gates.toml"
 
 # 全部扩展域名称（含无 router 的 security_graph —— 只占 job）
-_EXTENSION_NAMES = ("codegarden", "mcp", "sync", "tech_stack", "security_graph")
+# P1.6: codegarden (M1 项目核心) 与 codegarden_phase2b (M2/M3/M4 服务网格等) 拆开
+_EXTENSION_NAMES = (
+    "codegarden", "codegarden_phase2b", "mcp", "sync",
+    "tech_stack", "security_graph",
+)
 
 # 扩展→router 映射（每个 router 是 backend.api 中的模块名）
 EXTENSION_ROUTERS: dict[str, list[str]] = {
     "codegarden": [
-        "codegarden",           # Phase 2a 项目生命周期
-        "codegarden_ops",       # Phase 2b 服务网格/资源中枢/联动引擎
+        "codegarden",           # Phase 2a 项目生命周期 (M1 核心)
         "codegarden_phase14",   # Phase 14 子系统联动 (漂移评估 + CVE 同步)
+    ],
+    "codegarden_phase2b": [
+        "codegarden_ops",       # Phase 2b 服务网格/资源中枢/联动引擎 (M2/M3/M4)
     ],
     "mcp": [
         "mcp",                  # MCP 调试端点 (/api/mcp/*)

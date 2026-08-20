@@ -163,6 +163,17 @@ export function Header({
 
   const actionButtons = (
     <>
+      {/* v4.3: 版式切换 — 老版式 (/data) ↔ 新版式 (/editorial) */}
+      <button
+        onClick={() => navigate('/editorial')}
+        className="nav-btn"
+        title="切换到报纸版式"
+        aria-label="切换到报纸版式 (Editorial Layout)"
+        style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em' }}
+      >
+        <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 13 }}>⇄</span>
+        <span className="hidden md:inline ml-0.5">报纸版</span>
+      </button>
       <button onClick={onOpenFavorites} className="nav-btn relative" title={`收藏${favoritesCount > 0 ? ` (${favoritesCount})` : ''}`} aria-label={`打开收藏列表${favoritesCount > 0 ? `, 共 ${favoritesCount} 条` : ''}`}>
         <Icon size={14}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></Icon>
         {favoritesCount > 0 && (

@@ -221,6 +221,25 @@ body {
   outline-offset: 2px;
 }
 
+/* Skip link — 键盘用户跳过导航直达主内容 (WCAG 2.4.1) */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  padding: 8px 16px;
+  background: var(--accent);
+  color: var(--text-on-light);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  z-index: 9999;
+  border-radius: 0 0 var(--radius-sm) 0;
+  transition: top var(--duration-fast) ease;
+}
+.skip-link:focus {
+  top: 0;
+}
+
 /* ===== Animations (MOTION_INTENSITY: 3) ===== */
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(6px); }

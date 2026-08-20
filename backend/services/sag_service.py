@@ -75,15 +75,8 @@ def transition(item_id: str, to_state: str) -> bool:
     item.lifecycle = normalize_lifecycle(to_state)
     item.updated_at = now_iso()
 
-    # md 是真相源: 先写 .md, 失败则整个 transition 失败 (DB 不动),
-    # 避免 DB 领先于 md 后被下次 full_sync 回滚。
-    try:
-        from backend.services.knowledge_sync import write_item_to_md
-        write_item_to_md(item.to_dict())
-    except Exception as e:
-        log.error(f"write_item_to_md failed for {item_id}, transition aborted: {e}")
-        return False
-
+    # P0.4: lifecycle 是中间状态, 只更新 DB, 不回写 md
+    # (md 只由用户编辑/编译器/T4 发布器写, 自动状态转换不回写)
     knowledge_repo.upsert_item(item)
     return True
 

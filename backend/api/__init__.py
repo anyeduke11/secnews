@@ -106,27 +106,27 @@ def register_routers(app: FastAPI) -> None:
         app.include_router(codegarden.router, tags=["codegarden"])
         app.include_router(codegarden_ops.router, tags=["codegarden-ops"])
     # ---- feature flag 接线区: flag=False 时对应 API 不注册 ----
-    if config.feature_tags:
+    if config.feature_tag:
         app.include_router(tags.router, tags=["tags"])
     if config.feature_auto_extract:
         app.include_router(extract.router, tags=["extract"])
-    if config.feature_reviews:
-        app.include_router(reviews.router, tags=["reviews"])
-    if config.feature_annotations:
-        app.include_router(annotations_api.router, tags=["annotations"])
+    if config.feature_review:
+        app.include_router(reviews.router, tags=["review"])
+    if config.feature_annotation:
+        app.include_router(annotations_api.router, tags=["annotation"])
     if config.feature_tech_stack and is_extension_enabled("tech_stack"):
         app.include_router(tech_stack.router, tags=["tech-stack"])
-    if config.feature_alerts:
-        app.include_router(alerts.router, tags=["alerts"])
+    if config.feature_alert:
+        app.include_router(alerts.router, tags=["alert"])
     # Phase 12: 告警系统 v2 (不依赖 feature flag，随 app 启动)
     app.include_router(alert_api_v2.router, tags=["alerts-v2"])
     if config.feature_unified_search:
         app.include_router(search.router, tags=["search"])
     app.include_router(mode.router, tags=["mode"])
-    if config.feature_recommendations:
+    if config.feature_recommendation:
         app.include_router(recommend.router, tags=["recommend"])
-    if config.feature_digests:
-        app.include_router(digests.router, tags=["digests"])
+    if config.feature_digest:
+        app.include_router(digests.router, tags=["digest"])
     # v1.8 Phase 8: 追抓资讯
     app.include_router(catchup.router, tags=["catchup"])
     # v1.8 Phase 8: 资讯收藏聚合视图

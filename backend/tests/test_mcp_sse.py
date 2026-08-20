@@ -59,10 +59,10 @@ def test_sse_endpoint_status_metadata(client, temp_db):
 def test_sse_disabled_returns_404(client, temp_db, monkeypatch):
     """feature.mcp_server=False 时, /api/mcp/tools 返 404."""
     from backend.services.feature_flag_service import disable, enable
-    disable("mcp_server")
+    disable("mcp")
     res = client.get("/api/mcp/tools")
     assert res.status_code == 404
-    enable("mcp_server")
+    enable("mcp")
 
 
 def test_sse_config_endpoint(client, temp_db):

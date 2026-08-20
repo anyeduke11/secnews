@@ -9,6 +9,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Icon } from '../Icon';
+import { OnboardingHint } from '../layout/OnboardingHint';
 
 // ── 类型定义 ──────────────────────────────────────────────────
 
@@ -426,6 +427,10 @@ export function ReviewMode() {
 
   return (
     <div className="space-y-3">
+      <OnboardingHint storageKey="kb-review" title="复习模式">
+        <p>按间隔复习已学概念，巩固掌握度。</p>
+      </OnboardingHint>
+
       {/* 顶部描述 */}
       <div
         className="rounded-[var(--radius-md)] p-3"

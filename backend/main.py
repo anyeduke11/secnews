@@ -167,6 +167,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:8898",
         "http://127.0.0.1:8898",
+        "http://localhost:8899",
+        "http://127.0.0.1:8899",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
     ],

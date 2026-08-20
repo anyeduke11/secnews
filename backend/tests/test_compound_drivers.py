@@ -82,10 +82,10 @@ class TestClassifyNewItems:
 
         calls = {"count": 0}
 
-        orig_write = None
+        # P0.4: _classify_new_items 不再调用 write_item_to_md (单向化)
+        # 验证: mock write_item_to_md, 确认未被调用
         import backend.services.knowledge_sync as ks
 
-        orig_write = ks.write_item_to_md
         written = []
 
         def fake_write(item):
@@ -96,7 +96,7 @@ class TestClassifyNewItems:
         try:
             asyncio.run(_classify_new_items())
         finally:
-            ks.write_item_to_md = orig_write
+            pass
 
         row = conn.execute(
             "SELECT domain, type, difficulty FROM knowledge_items WHERE id='driver-a1'"
@@ -105,10 +105,10 @@ class TestClassifyNewItems:
         assert row["domain"] is not None
         assert row["type"] is not None
         assert row["difficulty"] is not None
-        assert "driver-a1" in written
-        assert "driver-a2" not in written
+        # P0.4: write_item_to_md 不应被调用 (单向化)
+        assert len(written) == 0
+        # driver-a2 已有分类, 不应被处理
         calls["count"] = len(written)
-        assert calls["count"] == 1
 
     def test_old_items_not_touched(self, temp_db):
         """窗口外 (30 分钟前) 的未分类 item 不处理."""

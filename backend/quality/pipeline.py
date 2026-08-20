@@ -28,6 +28,7 @@ from backend.quality.final_url_gate import FinalUrlGate
 from backend.quality.noise_content_gate import NoiseContentGate
 from backend.quality.recency_gate import RecencyGate  # Phase 47
 from backend.quality.schema_gate import SchemaGate
+from backend.quality.ai_quality_gate import AIQualityGate  # v4.4
 from backend.quality.scorer import compute_final_score, is_acceptable, merge_flags
 from backend.quality.source_reputation_gate import SourceReputationGate
 from backend.quality.title_summary_gate import TitleSummaryGate
@@ -79,6 +80,8 @@ def build_context(
         existing_urls=set(existing_urls or []),
         existing_titles=list(existing_titles or []),
     )
+    # v4.4: LLM 凭据不再从 settings 注入（已移除设置页密钥保存）。
+    # LLM 增强检测统一走 AIService（env 凭据 / ollama），门禁不依赖 context。
     # Phase 8: 注入 url_title_pairs 到 __dict__ 绕过 Pydantic v2 严格 setattr
     # 不修改 GateContext schema，保持向后兼容
     ctx.__dict__["url_title_pairs"] = list(url_title_pairs or [])
@@ -93,6 +96,7 @@ class QualityGatePipeline:
         RecencyGate,  # Phase 47 新增 - 资讯/标讯时效硬门禁 (本周一 00:00+08:00)
         ContentQualityGate,
         NoiseContentGate,  # fix-bug-github-category-dedup Task 3 - 备案/版权/活动等噪音
+        AIQualityGate,     # v4.4 - AI 生成/低信息密度软文检测 (启发式 + LLM 预留)
         CategoryMatchGate,
         TitleSummaryGate,
         # URLValidityGate 已从同步 pipeline 移除 (P1): 其同步 HEAD 请求 (5s 超时)

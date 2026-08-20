@@ -1,10 +1,12 @@
 """LLM 状态 API — 暴露当前 provider 状态和降级模式.
 
 Phase 16 — Hybrid AI 状态端点。
+v4.4 — 新增 /evaluate: 大模型评价文章质量 + 提取关键内容（测试/复核）。
 """
 from __future__ import annotations
 
 from fastapi import APIRouter
+from pydantic import BaseModel, Field
 
 from backend.config.degradation_matrix import create_degradation_matrix
 from backend.services.llm_service import llm_service
@@ -37,3 +39,35 @@ def get_llm_status():
 
     logger.info("LLM status: %s", status["scenario"])
     return status
+
+
+class EvaluateRequest(BaseModel):
+    """文章评价测试请求."""
+    content: str = Field(..., min_length=10, description="文章正文")
+    title: str = ""
+    provider: str | None = None   # None → 使用 settings 配置
+
+
+@router.post("/evaluate")
+async def evaluate_article_endpoint(body: EvaluateRequest):
+    """用大模型评价文章质量并提取关键内容（测试用）。
+
+    - provider 未指定时用 settings 表配置（quality.llm_provider）。
+    - 严格模式：LLM 调用失败时返回 ok=False + error（便于测试定位），
+      不做静默降级。
+    """
+    import logging
+    logger = logging.getLogger("hotspot.api.llm_status")
+    from backend.services.llm_service import evaluate_article
+
+    try:
+        result = await evaluate_article(
+            body.content, title=body.title, provider=body.provider,
+        )
+        return result
+    except Exception as e:
+        logger.warning("evaluate_article failed: %s", e)
+        return {
+            "ok": False,
+            "error": f"{type(e).__name__}: {str(e)[:300]}",
+        }

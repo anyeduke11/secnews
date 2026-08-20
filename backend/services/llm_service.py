@@ -444,8 +444,44 @@ class LLMService:
 llm_service = LLMService()
 
 
+# ---------------------------------------------------------------------------
+# Article evaluation (v4.4): 大模型评价文章质量 + 提炼关键内容
+# ---------------------------------------------------------------------------
+async def evaluate_article(
+    content: str,
+    *,
+    title: str = "",
+    provider: str | None = None,
+    api_key: str | None = None,
+    timeout: float = 20.0,
+) -> dict:
+    """用大模型评价文章质量并提炼关键内容（统一委托 AIService）。
+
+    凭据 / 缓存 / 用量 / 限频统一由 ``ai_service`` 管理（env 优先，
+    不再读 settings 表）。返回结构化结果：
+
+        { ok, provider, quality_score(0-10), verdict,
+          key_points: [str], summary, error? }
+
+    失败时 ok=False + error（不静默降级，便于测试定位）。
+    """
+    import asyncio
+
+    from backend.services.ai_service import ai_service
+
+    def _call():
+        return ai_service.evaluate(
+            content, title=title, provider=provider,
+            api_key=api_key, timeout=timeout,
+        )
+
+    # evaluate 为同步阻塞的 httpx 调用，放入线程池避免阻塞事件循环
+    return await asyncio.to_thread(_call)
+
+
 __all__ = [
     "DEFAULT_SCORE",
     "LLMService",
+    "evaluate_article",
     "llm_service",
 ]

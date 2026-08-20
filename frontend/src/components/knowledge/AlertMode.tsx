@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../Icon';
 import AlertCenter from '../AlertCenter';
+import { OnboardingHint } from '../layout/OnboardingHint';
 
 const API_BASE = '/api/alerts/v2';
 
@@ -44,6 +45,10 @@ export function AlertMode() {
 
   return (
     <div className="space-y-4">
+      <OnboardingHint storageKey="kb-alert" title="告警模式">
+        <p>集中查看告警规则触发的关注信息。</p>
+      </OnboardingHint>
+
       {/* 红色横幅 — 未读告警概览 */}
       <div
         className="rounded-sm px-4 py-3 flex items-center gap-3"

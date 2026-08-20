@@ -7,6 +7,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { KnowledgeCompoundingDashboard } from './KnowledgeCompoundingDashboard';
 
+// ECharts canvas 在 jsdom 中触发未捕获的异步错误;
+// 仅验证容器与数据流, 故 mock 图表渲染 (同 KnowledgeGraph.test.tsx)。
+vi.mock('echarts-for-react', () => ({
+  default: function ReactEChartsMock({ style }: { style?: React.CSSProperties }) {
+    return <div style={style} data-testid="echarts-mock" />;
+  },
+}));
+
 const mockTrendData = [
   { day: '07-28', count: 5, avg_score: 0.6 },
   { day: '07-29', count: 8, avg_score: 0.7 },

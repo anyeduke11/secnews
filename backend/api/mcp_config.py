@@ -60,7 +60,7 @@ def is_mcp_enabled() -> bool:
     """读 settings, 检查 feature.mcp_server 状态。"""
     try:
         from backend.config import config
-        return bool(getattr(config, "feature_mcp_server", True))
+        return bool(getattr(config, "feature_mcp", True))
     except Exception:
         return False
 

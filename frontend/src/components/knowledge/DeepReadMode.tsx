@@ -12,6 +12,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
 import { LifecycleProgress } from './LifecycleProgress';
 import type { KnowledgeItem } from '../../types';
+import { OnboardingHint } from '../layout/OnboardingHint';
 
 interface RecommendResult {
   item: KnowledgeItem;
@@ -170,6 +171,10 @@ export function DeepReadMode() {
 
   return (
     <div className="space-y-3">
+      <OnboardingHint storageKey="kb-deepread" title="深度阅读模式">
+        <p>对单个知识条目做深度阅读，查看完整内容与摘要。</p>
+      </OnboardingHint>
+
       {/* 顶部导航栏 */}
       <div
         className="flex items-center gap-3 rounded-[var(--radius-md)] p-3"

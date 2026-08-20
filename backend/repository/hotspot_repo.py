@@ -756,7 +756,11 @@ class HotspotRepository:
         conn = get_connection()
         if mode == "and":
             sql = f"""
-                SELECT h.* FROM hotspots h
+                SELECT h.id, h.title, h.summary, h.source, h.url, h.category,
+                       h.published_at, h.score, h.fetched_at, h.is_fallback,
+                       h.quality_score, h.quality_flags, h.quality_checked_at,
+                       h.url_check_status, h.ingested_at, h.bid_status
+                FROM hotspots h
                 JOIN hotspot_tags ht ON h.id = ht.hotspot_id
                 WHERE ht.tag_id IN ({placeholders})
                 GROUP BY h.id
@@ -767,7 +771,11 @@ class HotspotRepository:
             params = [*tag_ids, len(tag_ids), limit]
         else:
             sql = f"""
-                SELECT DISTINCT h.* FROM hotspots h
+                SELECT DISTINCT h.id, h.title, h.summary, h.source, h.url, h.category,
+                       h.published_at, h.score, h.fetched_at, h.is_fallback,
+                       h.quality_score, h.quality_flags, h.quality_checked_at,
+                       h.url_check_status, h.ingested_at, h.bid_status
+                FROM hotspots h
                 JOIN hotspot_tags ht ON h.id = ht.hotspot_id
                 WHERE ht.tag_id IN ({placeholders})
                 ORDER BY h.ingested_at DESC

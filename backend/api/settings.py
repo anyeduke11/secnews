@@ -20,6 +20,7 @@ async def get_features() -> dict:
     """返回全部扩展域的启停状态（feature_gates.toml 派生的运行时视图）。"""
     return {
         "codegarden": is_extension_enabled("codegarden"),
+        "codegarden_phase2b": is_extension_enabled("codegarden_phase2b"),
         "mcp": is_extension_enabled("mcp"),
         "sync": is_extension_enabled("sync"),
         "tech_stack": is_extension_enabled("tech_stack"),

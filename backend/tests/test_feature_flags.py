@@ -38,8 +38,8 @@ def _restore_flags():
 # is_enabled — 基础
 # ---------------------------------------------------------------------------
 def test_is_enabled_true():
-    """feature_tags 默认 True."""
-    assert is_enabled("tags") is True
+    """feature_tag 默认 True."""
+    assert is_enabled("tag") is True
 
 
 def test_is_enabled_false_by_default_for_experimental():
@@ -75,13 +75,13 @@ def test_is_enabled_logs_warning_for_unknown(monkeypatch, caplog):
 # enable / disable
 # ---------------------------------------------------------------------------
 def test_disable_changes_flag():
-    disable("tags")
-    assert is_enabled("tags") is False
+    disable("tag")
+    assert is_enabled("tag") is False
 
 
 def test_enable_changes_flag():
-    enable("reviews")
-    assert is_enabled("reviews") is True
+    enable("review")
+    assert is_enabled("review") is True
 
 
 def test_disable_unknown_returns_false():
@@ -94,10 +94,10 @@ def test_enable_unknown_returns_false():
 
 def test_disable_then_enable_round_trip():
     """disable → enable → 默认值"""
-    disable("tags")
-    assert is_enabled("tags") is False
-    enable("tags")
-    assert is_enabled("tags") is True
+    disable("tag")
+    assert is_enabled("tag") is False
+    enable("tag")
+    assert is_enabled("tag") is True
 
 
 # ---------------------------------------------------------------------------
@@ -107,13 +107,13 @@ def test_enabled_names_default():
     """默认状态下 enabled 列表."""
     names = enabled_names()
     # 至少应包含 tags/auto_extract/annotations/unified_search/tech_stack
-    assert "tags" in names
+    assert "tag" in names
     assert "auto_extract" in names
-    assert "annotations" in names
+    assert "annotation" in names
     assert "unified_search" in names
     # P0-3: reviews/alerts/recommendations 默认开启 (前端 UI 可达, 防 404)
-    assert "reviews" in names
-    assert "alerts" in names
+    assert "review" in names
+    assert "alert" in names
     # 个人画像仍默认关闭
     assert "personalization" not in names
     assert "agent" not in names
@@ -122,14 +122,14 @@ def test_enabled_names_default():
 def test_enabled_names_with_explicit_list():
     """显式传入检查列表.
 
-    P0-3: reviews 默认已开启, 因此首次断言为 ["tags", "reviews"];
+    P0-3: reviews 默认已开启, 因此首次断言为 ["tag", "review"];
     disable 后再验证切换行为。
     """
-    assert enabled_names(["tags", "reviews"]) == ["tags", "reviews"]
-    disable("reviews")
-    assert enabled_names(["tags", "reviews"]) == ["tags"]
-    enable("reviews")
-    assert enabled_names(["tags", "reviews"]) == ["tags", "reviews"]
+    assert enabled_names(["tag", "review"]) == ["tag", "review"]
+    disable("review")
+    assert enabled_names(["tag", "review"]) == ["tag"]
+    enable("review")
+    assert enabled_names(["tag", "review"]) == ["tag", "review"]
 
 
 # ---------------------------------------------------------------------------
@@ -138,22 +138,22 @@ def test_enabled_names_with_explicit_list():
 def test_config_default_for_stable_features():
     """稳定功能默认 True (PRD 决策)."""
     from backend.config import config
-    assert config.feature_tags is True
+    assert config.feature_tag is True
     assert config.feature_auto_extract is True
-    assert config.feature_annotations is True
+    assert config.feature_annotation is True
     assert config.feature_unified_search is True
     assert config.feature_tech_stack is True
     assert config.feature_source_health is True
-    assert config.feature_digests is True
+    assert config.feature_digest is True
 
 
 def test_config_default_for_experimental_features():
     """P0-3 后: reviews/alerts/recommendations 默认 True (防前端 404),
     personalization 仍默认 False."""
     from backend.config import config
-    assert config.feature_reviews is True
-    assert config.feature_alerts is True
-    assert config.feature_recommendations is True
+    assert config.feature_review is True
+    assert config.feature_alert is True
+    assert config.feature_recommendation is True
     assert config.feature_personalization is False
-    # Phase 7: feature_agent 已移除, 替换为 feature_mcp_server (Option A 默认开)
-    assert config.feature_mcp_server is True
+    # Phase 7: feature_agent 已移除, 替换为 feature_mcp (Option A 默认开)
+    assert config.feature_mcp is True

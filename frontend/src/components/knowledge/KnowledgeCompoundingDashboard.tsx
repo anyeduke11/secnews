@@ -8,12 +8,10 @@
  *  4. 生命周期阶段分布柱状图
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Legend,
-} from 'recharts';
+import ReactECharts from 'echarts-for-react';
 import { Icon } from '../Icon';
 import { STAGE_LABELS, STAGE_COLORS } from './LifecycleProgress';
+import { useThemeColors } from '../../hooks/useThemeColors';
 
 /* ── Data types ──────────────────────────────────────────────── */
 
@@ -63,43 +61,23 @@ function healthLabel(val: number): string {
   return '严重';
 }
 
-/* ── Custom tooltip ──────────────────────────────────────────── */
-
-const LineTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div
-        className="p-3 text-xs shadow-lg"
-        style={{
-          backgroundColor: 'var(--bg-elevated)',
-          border: '1px solid var(--border-color)',
-          borderRadius: 'var(--radius-sm)',
-        }}
-      >
-        <p className="mb-1 font-mono" style={{ color: 'var(--text-secondary)' }}>
-          {label}
-        </p>
-        {payload.map((entry: any) => (
-          <div key={entry.name} className="flex items-center gap-2 mb-0.5">
-            <span className="dot-indicator" style={{ backgroundColor: entry.color }} />
-            <span style={{ color: 'var(--text-primary)' }}>{entry.name}: </span>
-            <span className="font-semibold font-mono" style={{ color: 'var(--text-primary)' }}>
-              {entry.value}
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
-
 /* ── Component ───────────────────────────────────────────────── */
 
 export function KnowledgeCompoundingDashboard() {
   const [data, setData] = useState<CompoundingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const themeColors = useThemeColors([
+    'text-muted',
+    'text-secondary',
+    'border-color',
+    'color-success',
+  ]);
+  const accentColor =
+    getComputedStyle(document.documentElement).getPropertyValue('--area-accent').trim()
+    || themeColors['color-success']
+    || '#22c55e';
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -194,9 +172,10 @@ export function KnowledgeCompoundingDashboard() {
   }
 
   const { daily_trend, top_concepts, trigger_health, stage_distribution } = data;
-  const textMuted = 'var(--text-muted)';
-  const textSec = 'var(--text-secondary)';
-  const border = 'var(--border-color)';
+  const textMuted = themeColors['text-muted'] || 'var(--text-muted)';
+  const textSec = themeColors['text-secondary'] || 'var(--text-secondary)';
+  const border = themeColors['border-color'] || 'var(--border-color)';
+  const textPrimary = 'var(--text-primary)';
 
   /* ── Stage distribution for bar chart ───────────────────── */
   const stageData = Object.entries(stage_distribution).map(([stage, count]) => ({
@@ -204,6 +183,139 @@ export function KnowledgeCompoundingDashboard() {
     count,
     fill: STAGE_COLORS[stage] || '#6b7280',
   }));
+
+  const tickStyle = {
+    color: textMuted,
+    fontSize: 10,
+    fontFamily: 'JetBrains Mono, monospace',
+  };
+
+  const tooltipHTML = (bg: string, label: string, rows: string) =>
+    `<div class="p-3 text-xs shadow-lg" style="background-color:${bg};border:1px solid ${border};border-radius:var(--radius-sm)">` +
+    `${label}${rows}</div>`;
+
+  const trendOption = {
+    grid: { top: 12, left: 32, right: 36, bottom: 30 },
+    xAxis: {
+      type: 'category' as const,
+      data: daily_trend.map(d => d.day),
+      axisLabel: tickStyle,
+      axisLine: { lineStyle: { stroke: border } },
+      splitLine: { show: false },
+      axisTick: { show: false },
+    },
+    yAxis: [
+      {
+        type: 'value' as const,
+        axisLabel: tickStyle,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        minInterval: 1,
+        splitLine: { lineStyle: { type: 'dashed' as const, color: border }, show: true },
+      },
+      {
+        type: 'value' as const,
+        min: 0,
+        max: 1,
+        axisLabel: tickStyle,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { show: false },
+      },
+    ],
+    tooltip: {
+      trigger: 'axis' as const,
+      formatter: (params: any) => {
+        const list = Array.isArray(params) ? params : [params];
+        if (!list.length) return '';
+        const label = `<p class="mb-1 font-mono" style="color:${textSec}">${list[0].axisValue}</p>`;
+        let rows = '';
+        for (const p of list) {
+          rows += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">';
+          rows += `<span class="dot-indicator" style="background-color:${p.color}"></span>`;
+          rows += `<span style="color:${textPrimary}">${p.seriesName}: </span>`;
+          rows += `<span class="font-semibold font-mono" style="color:${textPrimary}">${p.value}</span>`;
+          rows += '</div>';
+        }
+        return tooltipHTML('var(--bg-elevated)', label, rows);
+      },
+    },
+    legend: {
+      bottom: 0,
+      icon: 'roundRect',
+      textStyle: { fontSize: 10, color: textSec },
+    },
+    series: [
+      {
+        type: 'line' as const,
+        name: '条目数',
+        yAxisIndex: 0,
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 2, color: accentColor },
+        emphasis: { focus: 'series' as const },
+        data: daily_trend.map(d => d.count),
+      },
+      {
+        type: 'line' as const,
+        name: '平均掌握度',
+        yAxisIndex: 1,
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 1.5, type: 'dashed' as const, color: '#8b5cf6' },
+        emphasis: { focus: 'series' as const },
+        data: daily_trend.map(d => d.avg_score),
+      },
+    ],
+  };
+
+  const stageOption = {
+    grid: { top: 4, left: 70, right: 16, bottom: 24 },
+    xAxis: {
+      type: 'value' as const,
+      axisLabel: tickStyle,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      minInterval: 1,
+      splitLine: { lineStyle: { type: 'dashed' as const, color: border }, show: false },
+    },
+    yAxis: {
+      type: 'category' as const,
+      data: stageData.map(d => d.stage),
+      axisLabel: tickStyle,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    tooltip: {
+      trigger: 'axis' as const,
+      axisPointer: { type: 'shadow' as const, shadowStyle: { color: 'var(--border-subtle)' } },
+      formatter: (params: any) => {
+        const p = Array.isArray(params) ? params[0] : params;
+        if (!p) return '';
+        const label = `<p style="color:${textSec}">${p.name}</p>`;
+        const rows = `<p class="font-mono font-semibold" style="color:${textPrimary}">${p.value} 条</p>`;
+        return tooltipHTML('var(--bg-elevated)', label, rows);
+      },
+    },
+    series: [
+      {
+        type: 'bar' as const,
+        name: '条目数',
+        barMaxWidth: 20,
+        label: {
+          show: true,
+          position: 'right' as const,
+          color: textMuted,
+          fontSize: 10,
+          fontFamily: 'JetBrains Mono, monospace',
+          formatter: (v: any) => (typeof v.value === 'number' && v.value > 0 ? v.value : ''),
+        },
+        itemStyle: { borderRadius: [0, 3, 3, 0] },
+        data: stageData.map(d => ({ value: d.count, itemStyle: { color: d.fill } })),
+      },
+    ],
+  };
 
   /* ── Render ──────────────────────────────────────────────── */
   return (
@@ -231,60 +343,7 @@ export function KnowledgeCompoundingDashboard() {
             每日摄入趋势
           </h3>
           <div className="h-44">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={daily_trend}>
-                <CartesianGrid strokeDasharray="3 3" stroke={border} vertical={false} />
-                <XAxis
-                  dataKey="day"
-                  tick={{ fill: textMuted, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-                  axisLine={{ stroke: border }}
-                  tickLine={false}
-                  interval="preserveStartEnd"
-                />
-                <YAxis
-                  yAxisId="left"
-                  tick={{ fill: textMuted, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-                  axisLine={false}
-                  tickLine={false}
-                  allowDecimals={false}
-                />
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  tick={{ fill: textMuted, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-                  axisLine={false}
-                  tickLine={false}
-                  domain={[0, 1]}
-                />
-                <Tooltip content={<LineTooltip />} />
-                <Legend
-                  wrapperStyle={{ fontSize: '10px', color: textSec, paddingTop: '4px' }}
-                  iconType="line"
-                  iconSize={10}
-                />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="count"
-                  name="条目数"
-                  stroke="var(--area-accent, var(--color-success))"
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 4 }}
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="avg_score"
-                  name="平均掌握度"
-                  stroke="#8b5cf6"
-                  strokeWidth={1.5}
-                  strokeDasharray="4 3"
-                  dot={false}
-                  activeDot={{ r: 3 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <ReactECharts option={trendOption} style={{ height: '100%', width: '100%' }} />
           </div>
         </section>
 
@@ -463,70 +522,7 @@ export function KnowledgeCompoundingDashboard() {
             <p className="text-xs" style={{ color: textMuted }}>暂无阶段分布数据</p>
           ) : (
             <div className="h-36">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={stageData}
-                  layout="vertical"
-                  margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke={border} horizontal={false} />
-                  <XAxis
-                    type="number"
-                    tick={{ fill: textMuted, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-                    axisLine={false}
-                    tickLine={false}
-                    allowDecimals={false}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="stage"
-                    tick={{ fill: textMuted, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={60}
-                  />
-                  <Tooltip
-                    content={({ active, payload, label }: any) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div
-                            className="p-2 text-xs shadow-lg"
-                            style={{
-                              backgroundColor: 'var(--bg-elevated)',
-                              border: '1px solid var(--border-color)',
-                              borderRadius: 'var(--radius-sm)',
-                            }}
-                          >
-                            <p style={{ color: 'var(--text-secondary)' }}>{label}</p>
-                            <p className="font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
-                              {payload[0].value} 条
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                    cursor={{ fill: 'var(--border-subtle)' }}
-                  />
-                  <Bar
-                    dataKey="count"
-                    name="条目数"
-                    radius={[0, 3, 3, 0]}
-                    maxBarSize={20}
-                    label={{
-                      position: 'right',
-                      fill: textMuted,
-                      fontSize: 10,
-                      fontFamily: 'JetBrains Mono, monospace',
-                      formatter: (v: any) => (typeof v === 'number' && v > 0) ? v : '',
-                    }}
-                  >
-                    {stageData.map((entry, idx) => (
-                      <rect key={idx} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <ReactECharts option={stageOption} style={{ height: '100%', width: '100%' }} />
             </div>
           )}
         </section>

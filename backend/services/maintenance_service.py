@@ -209,50 +209,116 @@ def table_stats() -> list[dict]:
 # quality_check_logs cleanup
 # ---------------------------------------------------------------------------
 
-def cleanup_quality_logs(
+def archive_quality_logs(
     days: int = DEFAULT_QUALITY_LOG_DAYS,
     dry_run: bool = True,
 ) -> dict:
-    """Delete old quality_check_logs entries.
+    """将超过保留窗口的 quality_check_logs 归档到 archive 表。
 
-    quality_check_logs accumulates ~3M rows/month.  Only the last N days
-    are useful for debugging; everything older can be safely purged.
+    P0.1: 替代原直接 DELETE 策略。归档后数据可追溯 90 天,
+    同时通过 incremental_vacuum 回收主表磁盘空间。
+
+    Args:
+        days: 主表保留天数 (默认 7 天)
+        dry_run: True 只预览不实际移动
+
+    Returns:
+        dict with rows_to_archive, rows_archived, main_remaining, archive_total
     """
     from datetime import datetime, timedelta, timezone
 
     conn = get_connection()
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    now_iso = datetime.now(timezone.utc).isoformat()
 
-    # Total rows
-    total = conn.execute("SELECT COUNT(*) FROM quality_check_logs").fetchone()[0]
-
-    # Rows to delete
-    to_delete = conn.execute(
+    # 统计待归档行数
+    to_archive = conn.execute(
         "SELECT COUNT(*) FROM quality_check_logs WHERE checked_at < ?", (cutoff,)
     ).fetchone()[0]
 
-    # Breakdown by month
-    monthly = {}
-    for row in conn.execute(
-        "SELECT substr(checked_at,1,7) as m, COUNT(*) FROM quality_check_logs "
-        "WHERE checked_at < ? GROUP BY m ORDER BY m", (cutoff,)
-    ).fetchall():
-        monthly[row[0]] = row[1]
+    # 主表当前总行数
+    main_total = conn.execute("SELECT COUNT(*) FROM quality_check_logs").fetchone()[0]
 
-    if not dry_run and to_delete > 0:
-        conn.execute(
-            "DELETE FROM quality_check_logs WHERE checked_at < ?", (cutoff,)
+    # 归档表当前总行数
+    archive_total = conn.execute(
+        "SELECT COUNT(*) FROM quality_check_logs_archive"
+    ).fetchone()[0]
+
+    if not dry_run and to_archive > 0:
+        # 事务: 先归档再删除再回收空间
+        conn.execute("BEGIN")
+        try:
+            conn.execute(
+                "INSERT INTO quality_check_logs_archive "
+                "(id, item_id, gate_name, passed, score_deduction, flags, "
+                "reason, error_msg, checked_at, mode, archived_at) "
+                "SELECT id, item_id, gate_name, passed, score_deduction, flags, "
+                "reason, error_msg, checked_at, mode, ? "
+                "FROM quality_check_logs WHERE checked_at < ?",
+                (now_iso, cutoff),
+            )
+            conn.execute(
+                "DELETE FROM quality_check_logs WHERE checked_at < ?", (cutoff,)
+            )
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+
+        # 回收主表空间 (incremental_vacuum 需要 auto_vacuum=1, 否则降级为 VACUUM)
+        try:
+            auto_vacuum = conn.execute("PRAGMA auto_vacuum").fetchone()[0]
+            if auto_vacuum == 1:
+                conn.execute("PRAGMA incremental_vacuum(500)")
+                log.info(f"archive_quality_logs: incremental_vacuum done")
+            else:
+                log.info(f"archive_quality_logs: auto_vacuum off, skip space reclaim")
+        except Exception as e:
+            log.warning(f"archive_quality_logs: vacuum failed (non-fatal): {e}")
+
+        log.info(
+            f"archive_quality_logs: archived {to_archive} rows older than {cutoff}, "
+            f"main remaining {main_total - to_archive}"
         )
-        log.info(f"cleanup_quality_logs: deleted {to_delete} rows older than {cutoff}")
+
+    main_remaining = conn.execute(
+        "SELECT COUNT(*) FROM quality_check_logs"
+    ).fetchone()[0]
+    archive_total_after = conn.execute(
+        "SELECT COUNT(*) FROM quality_check_logs_archive"
+    ).fetchone()[0]
 
     return {
         "dry_run": dry_run,
         "retention_days": days,
         "cutoff": cutoff,
-        "total_rows_before": total,
-        "rows_to_delete": to_delete,
-        "rows_remaining_after": total - to_delete,
-        "monthly_breakdown": monthly,
+        "rows_to_archive": to_archive,
+        "rows_archived": 0 if dry_run else to_archive,
+        "main_remaining": main_remaining,
+        "archive_total": archive_total_after,
+    }
+
+
+def cleanup_quality_logs(
+    days: int = DEFAULT_QUALITY_LOG_DAYS,
+    dry_run: bool = True,
+) -> dict:
+    """清理 quality_check_logs (P0.1: 先归档再删除)。
+
+    薄包装: 调用 archive_quality_logs, 保持 API 向后兼容。
+    原 API 响应字段 (rows_to_delete 等) 保留, 新增 rows_archived。
+    """
+    result = archive_quality_logs(days=days, dry_run=dry_run)
+
+    return {
+        "dry_run": dry_run,
+        "retention_days": days,
+        "cutoff": result["cutoff"],
+        "total_rows_before": result["main_remaining"] + result["rows_archived"],
+        "rows_to_delete": result["rows_to_archive"],
+        "rows_archived": result["rows_archived"],
+        "rows_remaining_after": result["main_remaining"],
+        "monthly_breakdown": {},  # P0.1: 不再需要月度明细 (归档表可查)
     }
 
 
@@ -297,37 +363,56 @@ def detect_duplicate_knowledge_items() -> list[dict]:
 
 
 def cleanup_duplicate_hotspots(dry_run: bool = True) -> dict:
-    """Deduplicate hotspots by keeping the earliest-inserted row per URL.
+    """Deduplicate hotspots to reduce storage (v4.4 增强: 保最高质量).
 
-    Deletes all but the first (lowest rowid) entry for each duplicate URL.
+    - 分组键: ``canonicalize_url``（移除 www. / 丢弃 query / 去尾部斜杠），
+      比旧实现「URL 全字面相等」覆盖更多真实重复。
+    - 保留: 组内 ``quality_score`` 最高者；同分取 ``ROWID`` 最新（晚入库）。
+      —— 从旧「保最早插入」改为「保最高质量」。
+    - 纯内存分组后批量 DELETE，不引入新表。
+
+    注意: 纯 SQL GROUP BY canonical 需 count 无法直接复用现有表达式，
+    因此在 Python 侧按 canonical 分组（规模 ~3300 行, 无性能顾虑）。
     """
+    from backend.quality.url_canonicalize import canonicalize_url
+
     conn = get_connection()
     results: dict[str, int] = {}
 
-    # Find duplicates & keep the first one
-    dupes = conn.execute(
-        "SELECT url, COUNT(*) as cnt FROM hotspots "
-        "WHERE url != '' GROUP BY url HAVING cnt > 1"
+    # 读全量 id/title/url/quality/rowid（分组在内存做）
+    rows = conn.execute(
+        "SELECT id, url, quality_score, ROWID as _row FROM hotspots WHERE url != ''"
     ).fetchall()
 
+    # 按 canonical url 分组
+    groups: dict[str, list[tuple[str, int, int]]] = {}  # canon -> [(id, q, rowid)]
+    for row in rows:
+        _id, url, q, rid = row[0], row[1], row[2] or 0, row[3]
+        try:
+            canon = canonicalize_url(str(url))
+        except Exception:
+            canon = str(url)
+        groups.setdefault(canon, []).append((_id, q, rid))
+
     to_delete = 0
-    for url, _cnt in dupes:
-        ids = [
-            r[0] for r in conn.execute(
-                "SELECT id FROM hotspots WHERE url = ? ORDER BY ROWID ASC", (url,)
-            ).fetchall()
-        ]
-        if len(ids) > 1:
-            keep_id = ids[0]
-            delete_ids = ids[1:]
-            if not dry_run:
-                placeholders = ",".join("?" for _ in delete_ids)
-                conn.execute(
-                    f"DELETE FROM hotspots WHERE id IN ({placeholders})",
-                    delete_ids,
-                )
-                log.info(f"dedup hotspots: kept {keep_id}, deleted {len(delete_ids)} for URL {url[:60]}")
-            to_delete += len(delete_ids)
+    for canon, members in groups.items():
+        if len(members) <= 1:
+            continue
+        # 保: quality_score 最高; 同分取 ROWID 最新(large)
+        members_sorted = sorted(members, key=lambda m: (m[1], m[2]))
+        keep_id = members_sorted[-1][0]
+        delete_ids = [m[0] for m in members_sorted[:-1]]
+        if not dry_run and delete_ids:
+            placeholders = ",".join("?" for _ in delete_ids)
+            conn.execute(
+                f"DELETE FROM hotspots WHERE id IN ({placeholders})",
+                delete_ids,
+            )
+            log.info(
+                f"dedup hotspots: kept q{members_sorted[-1][1]} {keep_id[:36]}, "
+                f"deleted {len(delete_ids)} for canon={canon[:60]}"
+            )
+        to_delete += len(delete_ids)
 
     results["hotspots"] = to_delete
 

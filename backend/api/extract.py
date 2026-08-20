@@ -92,9 +92,8 @@ def _extract_knowledge(item_id: str) -> dict:
         if t["tag_id"] not in existing:
             existing.append(t["tag_id"])
     item.tags = existing
-    # 推进 lifecycle: kl:raw -> kl:refine (P1-3 统一为 KL 规范;
-    # 兼容旧 signal -> amplify:tagged 路径)
-    if item.lifecycle in ("kl:raw", "signal", None):
+    # 推进 lifecycle: kl:raw -> kl:refine (P1-3 统一为 KL 规范; P1.5 单轨化)
+    if item.lifecycle in ("kl:raw", None):
         item.lifecycle = "kl:refine"
     knowledge_repo.upsert_item(item)
     # 回写 .md (非关键, 失败不阻塞)

@@ -1,15 +1,11 @@
 # SecNews · AI + 安全 知识工作站
 
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="SecNews — 单人本地 AI 与安全工作站: 5 个子系统 (4 个数据子系统 + MCP Server), 经 stdio / SSE 暴露给外部 AI Agent">
-</p>
-
-<p align="center">
-  <code>v0.4.3</code>&nbsp;·&nbsp;<code>Python 3.10+</code>&nbsp;·&nbsp;<code>React 18</code>&nbsp;·&nbsp;<code>SQLite WAL</code>&nbsp;·&nbsp;<code>MCP 9 tools</code>&nbsp;·&nbsp;<code>GPL-3.0</code>
+  <img src="./assets/readme/hero.svg" width="100%" alt="SecNews — 单人本地 AI 与安全工作站: 5 个子系统经 MCP 协议暴露给外部 AI Agent">
 </p>
 
 > **SecNews**（开发代号 `hotspot`）是面向 **AI + 安全从业者** 的单人本地工作站。
-> 把每天的「**热点聚合 → 知识沉淀 → 项目管理 → AI 协作**」合并到一台机器，
+> 把每天的「热点聚合 → 知识沉淀 → 项目管理 → AI 协作」合并到一台机器，
 > 通过 **MCP 协议** 开放 **9 个工具** 给 Cursor / Claude Desktop / Trae 等外部 AI Agent。
 >
 > 一个人 · 一台电脑 · 零外部服务。
@@ -37,11 +33,11 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 
 | #  | 子系统                | 解决什么                                                             | 入口                                          |
 | -- | --------------------- | -------------------------------------------------------------------- | --------------------------------------------- |
-| 01 | **SecNews 热点聚合**  | 7 大领域 · 30+ 数据源 · 13 质量门禁                                 | `/`                                           |
-| 02 | **Knowledge LLM-Wiki** | 4 层金字塔 (items → concepts → learning → content) · 6 认知模式 (简报/扫描/深度/告警/整理/复习) · 注意力评分 · FTS5 全文搜索 | `/knowledge` |
-| 03 | **CodeGarden**        | 项目全生命周期 + 服务网格 + 资源中枢 + 联动引擎                     | `/codegarden`                                 |
-| 04 | **Security Graph**    | MITRE ATT&CK · NVD CVE · 等保 2.0 / 关基 / 数安法                   | `/knowledge/process`（内嵌图谱）               |
-| 05 | **MCP Server**        | 9 个标准工具 · stdio / SSE · 零状态                                 | `python -m backend.mcp_stdio_main`            |
+| 01 | **SecNews 热点聚合**  | 7 大领域 · 30+ 数据源 · 13 质量门禁 — 每天数百条情报自动采集、去重、评分 | `/`                                           |
+| 02 | **Knowledge LLM-Wiki** | 4 层金字塔 (items → concepts → learning → content) · 6 认知模式 · FTS5 全文搜索 | `/knowledge` |
+| 03 | **CodeGarden**        | 项目全生命周期管理 + 服务网格 + 资源中枢 + 联动引擎                   | `/codegarden`                                 |
+| 04 | **Security Graph**    | MITRE ATT&CK · NVD CVE · 等保 2.0 / 关基 / 数安法 知识图谱            | `/knowledge/process`                          |
+| 05 | **MCP Server**        | 9 个标准工具 · stdio / SSE 双通道 · 零状态 · 外部 AI Agent 自动发现   | `python -m backend.mcp_stdio_main`            |
 
 ### 数据源
 
@@ -60,7 +56,7 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 ## 架构
 
 <p align="center">
-  <img src="./assets/readme/architecture.svg" width="100%" alt="三层架构: 浏览器 / AI Agent → FastAPI 单进程 → SQLite / .md / WebDAV">
+  <img src="./assets/readme/architecture.svg" width="100%" alt="三层架构: 浏览器 / AI Agent 在最上，FastAPI 单进程在中间，SQLite + .md 在底层，经 MCP 暴露给外部 AI Agent">
 </p>
 
 ## MCP Server
@@ -111,7 +107,7 @@ stdio 配置（粘到你的 AI Agent 配置文件）：
 ## 路线图
 
 <p align="center">
-  <img src="./assets/readme/roadmap.svg" width="100%" alt="SecNews 路线图">
+  <img src="./assets/readme/roadmap.svg" width="100%" alt="SecNews 路线图: 从 v1.0 热点聚合到 v1.9+ MCP 暴露追抓的 7 个 Phase">
 </p>
 
 ## 测试

@@ -87,12 +87,14 @@
   --color-info: #00bcd4;
   /* PRD 分类色 (暗色) */
   --color-ai: #00bcd4;
+  --color-ai_security: #ff6b9d;
   --color-security: #e85d5d;
   --color-finance: #f0c929;
   --color-startup: #7c6aff;
   --color-bid: #e8891a;
   --color-general: #00c96a;
   --color-github: #9b8bff;
+  --color-tech: #4ecdc4;
   /* 三层架构流程标识 */
   --layer-data: #00bcd4;
   --layer-judge: #f0c929;
@@ -138,12 +140,14 @@
   --color-error: #d44a4a;
   --color-info: #00a0b8;
   --color-ai: #00a0b8;
+  --color-ai_security: #d6548a;
   --color-security: #d44a4a;
   --color-finance: #d4a800;
   --color-startup: #6a58e0;
   --color-bid: #da7a10;
   --color-general: #00a860;
   --color-github: #8a78e0;
+  --color-tech: #3fa89c;
   --layer-data: #00a0b8;
   --layer-judge: #d4a800;
   --layer-action: #00a860;

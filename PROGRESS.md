@@ -2,6 +2,11 @@
 
 > 规格文件：`docs/v0.5_refactor_plan.md`（唯一真理）。接手会话先读本文件，不重做已完成任务。
 > 止损：基线不符→BLOCKED.md；连败 3 次→停；劣于基线→回滚如实报告。
+>
+> **2026-08-21 SPEC 更替**：正式 SPEC 已改写为「统一前端 + DeepSeek Harness 认知层」方案
+> （取代旧的性能+Workbench+自研 AiHub 版，旧版归档于 `docs/archived/v0.5_refactor_plan_perf_only.md`）。
+> M1 性能三任务 / M2 DB 瘦身承接不变；M3 改为 editorial 对齐填空；M4 改为 dsh 认知层。
+> T0 已完成项保留。
 
 ## 基线档案（2026-08-20/21 实测）
 

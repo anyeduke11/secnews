@@ -1,152 +1,182 @@
 <svg xmlns="http://www.w3.org/2000/svg"
-     width="1200" height="340" viewBox="0 0 1200 340"
+     width="1200" height="360" viewBox="0 0 1200 360"
      role="img" aria-labelledby="hero-title hero-desc">
   <title id="hero-title">SecNews — 单人本地 AI 与安全工作站</title>
-  <desc id="hero-desc">左侧项目标识与价值主张，右侧 4 个核心子系统汇入 MCP Server 并经 stdio / SSE 暴露给外部 AI Agent。</desc>
+  <desc id="hero-desc">左侧品牌标识与价值主张，右侧 5 个子系统（SecNews 热点聚合、Knowledge LLM-Wiki、CodeGarden 项目管理、Security Graph 安全图谱、MCP Server）经 MCP 协议暴露给外部 AI Agent。</desc>
 
   <defs>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#00d4e0"/>
-      <stop offset="1" stop-color="#00a3ad"/>
+    <!-- 主色渐变 -->
+    <linearGradient id="primaryGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#00B4D8"/>
+      <stop offset="1" stop-color="#0096B4"/>
     </linearGradient>
-    <linearGradient id="securityAccent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#ff6b6b"/>
-      <stop offset="1" stop-color="#cc4f4f"/>
+    <!-- 安全警告色 -->
+    <linearGradient id="alertGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#F72585"/>
+      <stop offset="1" stop-color="#D61C6E"/>
     </linearGradient>
+    <!-- 节点发光 -->
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#00B4D8" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#00B4D8" stop-opacity="0"/>
+    </radialGradient>
+    <!-- 背景网格图案 -->
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#151720" stroke-width="0.5"/>
+    </pattern>
+    <!-- 箭头标记 -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#00B4D8"/>
+    </marker>
+    <marker id="arrowMuted" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3A3F4E"/>
+    </marker>
   </defs>
 
-  <!-- canvas -->
-  <rect width="1200" height="340" rx="20" fill="#050508"/>
-  <rect x="0.5" y="0.5" width="1199" height="339" rx="20" fill="none" stroke="#1c1c2e" stroke-width="1"/>
+  <!-- 背景 -->
+  <rect width="1200" height="360" rx="20" fill="#07080A"/>
+  <rect width="1200" height="360" rx="20" fill="url(#grid)"/>
+  <rect x="0.5" y="0.5" width="1199" height="359" rx="20" fill="none" stroke="#1C1E2E" stroke-width="1"/>
 
-  <!-- subtle grid background -->
-  <g stroke="#1c1c2e" stroke-width="0.5" opacity="0.35">
-    <line x1="640" y1="32" x2="640" y2="308"/>
+  <!-- 盾牌背景装饰（安全主题） -->
+  <g transform="translate(80 180)" opacity="0.04">
+    <path d="M0 0 L60 -60 L120 0 L120 80 Q60 140 0 80 Z" fill="none" stroke="#00B4D8" stroke-width="3"/>
   </g>
 
-  <!-- ───── LEFT BLOCK (0..640) ───── -->
+  <!-- ═══════ 左侧：品牌区 (0–560) ═══════ -->
   <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif">
-    <!-- top metadata -->
-    <text x="56" y="56" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="13" fill="#5b5b72" letter-spacing="2.5">
-      v0.4.0  ·  SINGLE-USER LOCAL  ·  7 DOMAINS  ·  30+ SOURCES
+    <!-- 顶部元数据 -->
+    <text x="56" y="52" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="12" fill="#3A3F4E" letter-spacing="2.5">
+      v0.4.3  ·  SINGLE-USER LOCAL  ·  7 DOMAINS  ·  30+ SOURCES
     </text>
 
-    <!-- eyebrow accent line -->
-    <rect x="56" y="74" width="32" height="2" fill="url(#accent)"/>
+    <!-- 强调线 -->
+    <rect x="56" y="68" width="36" height="3" fill="url(#primaryGrad)" rx="1.5"/>
 
-    <!-- main wordmark -->
-    <text x="56" y="160" font-size="84" font-weight="700"
-          fill="#f0f0f7" letter-spacing="-2">SecNews</text>
+    <!-- 主标题 -->
+    <text x="56" y="158" font-size="80" font-weight="700"
+          fill="#E4E9F0" letter-spacing="-2.5">SecNews</text>
 
-    <!-- codename -->
-    <text x="56" y="194" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="14" fill="#5b5b72" letter-spacing="1">
-      codename: hotspot
+    <!-- 代号 -->
+    <text x="56" y="190" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="13" fill="#3A3F4E" letter-spacing="1.5">
+      codename  hotspot
     </text>
 
-    <!-- tagline -->
-    <text x="56" y="236" font-size="26" font-weight="500" fill="#f0f0f7" letter-spacing="-0.5">
+    <!-- 标语 -->
+    <text x="56" y="238" font-size="24" font-weight="500" fill="#E4E9F0" letter-spacing="-0.5">
       AI + 安全  知识工作站
     </text>
 
-    <!-- flow -->
-    <text x="56" y="270" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="15" fill="#9a9ab2" letter-spacing="0.5">
+    <!-- 流程线 -->
+    <text x="56" y="274" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="14" fill="#6B7280" letter-spacing="0.5">
       热点聚合  →  知识沉淀  →  项目管理  →  AI 协作
     </text>
 
-    <!-- bottom meta -->
-    <text x="56" y="306" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="12" fill="#5b5b72" letter-spacing="1">
-      59 migrations  ·  100 pytest files  ·  290+ frontend tests  ·  9 MCP tools
+    <!-- 底部元数据 -->
+    <text x="56" y="320" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="11" fill="#3A3F4E" letter-spacing="1">
+      59 migrations  ·  100+ pytest files  ·  290+ frontend tests  ·  9 MCP tools
     </text>
   </g>
 
-  <!-- ───── RIGHT BLOCK (640..1200) ───── -->
-  <g transform="translate(680 56)">
-    <!-- right header -->
+  <!-- ═══════ 右侧：子系统可视化 (600..1180) ═══════ -->
+  <g transform="translate(600 46)">
+    <!-- 右侧标题 -->
     <text x="0" y="0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="12" fill="#5b5b72" letter-spacing="2.5">
-      5 SUBSYSTEMS  /  1 EXTERNAL INTERFACE
+          font-size="11" fill="#3A3F4E" letter-spacing="2.5">
+      5 SUBSYSTEMS  →  MCP SERVER  →  AI AGENT
     </text>
 
-    <!-- ─── 4 core data subsystems row ─── -->
-    <g transform="translate(0 24)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif">
-      <!-- cell 1: SecNews -->
-      <g transform="translate(0 0)">
-        <rect width="118" height="86" rx="10" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1"/>
-        <rect x="0" y="0" width="3" height="86" fill="url(#accent)"/>
-        <text x="14" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-              font-size="10" fill="#00d4e0" letter-spacing="1.5">01 · 热点</text>
-        <text x="14" y="44" font-size="15" font-weight="600" fill="#f0f0f7">SecNews</text>
-        <text x="14" y="62" font-size="10" fill="#9a9ab2">7 域 · 30+ 源</text>
-        <text x="14" y="76" font-size="10" fill="#9a9ab2">13 质量门禁</text>
-      </g>
-      <!-- cell 2: Knowledge -->
-      <g transform="translate(125 0)">
-        <rect width="118" height="86" rx="10" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1"/>
-        <rect x="0" y="0" width="3" height="86" fill="url(#accent)"/>
-        <text x="14" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-              font-size="10" fill="#00d4e0" letter-spacing="1.5">02 · 知识</text>
-        <text x="14" y="44" font-size="15" font-weight="600" fill="#f0f0f7">Knowledge</text>
-        <text x="14" y="62" font-size="10" fill="#9a9ab2">LLM-Wiki 2.0</text>
-        <text x="14" y="76" font-size="10" fill="#9a9ab2">4 层金字塔</text>
-      </g>
-      <!-- cell 3: CodeGarden -->
-      <g transform="translate(250 0)">
-        <rect width="118" height="86" rx="10" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1"/>
-        <rect x="0" y="0" width="3" height="86" fill="url(#accent)"/>
-        <text x="14" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-              font-size="10" fill="#00d4e0" letter-spacing="1.5">03 · 项目</text>
-        <text x="14" y="44" font-size="15" font-weight="600" fill="#f0f0f7">CodeGarden</text>
-        <text x="14" y="62" font-size="10" fill="#9a9ab2">全生命周期</text>
-        <text x="14" y="76" font-size="10" fill="#9a9ab2">服务网格</text>
-      </g>
-      <!-- cell 4: Security KG -->
-      <g transform="translate(375 0)">
-        <rect width="118" height="86" rx="10" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1"/>
-        <rect x="0" y="0" width="3" height="86" fill="url(#securityAccent)"/>
-        <text x="14" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-              font-size="10" fill="#ff6b6b" letter-spacing="1.5">04 · 安全</text>
-        <text x="14" y="44" font-size="15" font-weight="600" fill="#f0f0f7">Sec Graph</text>
-        <text x="14" y="62" font-size="10" fill="#9a9ab2">MITRE · CVE</text>
-        <text x="14" y="76" font-size="10" fill="#9a9ab2">合规本体</text>
-      </g>
+    <!-- ─── 5 个子系统卡片 (2 行) ─── -->
+    <!-- 第 1 行：3 个卡片 -->
+    <!-- 卡片 1: SecNews -->
+    <g transform="translate(0 18)">
+      <rect width="160" height="62" rx="8" fill="#0D0E14" stroke="#1C1E2E" stroke-width="1"/>
+      <rect x="0" y="0" width="3" height="62" fill="url(#primaryGrad)" rx="1"/>
+      <text x="14" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="9" fill="#00B4D8" letter-spacing="1.5">01  ·  热点</text>
+      <text x="14" y="36" font-size="13" font-weight="600" fill="#E4E9F0">SecNews</text>
+      <text x="14" y="50" font-size="10" fill="#6B7280">7 域 · 30+ 源 · 13 门禁</text>
+    </g>
+    <!-- 卡片 2: Knowledge -->
+    <g transform="translate(170 18)">
+      <rect width="160" height="62" rx="8" fill="#0D0E14" stroke="#1C1E2E" stroke-width="1"/>
+      <rect x="0" y="0" width="3" height="62" fill="url(#primaryGrad)" rx="1"/>
+      <text x="14" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="9" fill="#00B4D8" letter-spacing="1.5">02  ·  知识</text>
+      <text x="14" y="36" font-size="13" font-weight="600" fill="#E4E9F0">Knowledge</text>
+      <text x="14" y="50" font-size="10" fill="#6B7280">LLM-Wiki · 4 层金字塔</text>
+    </g>
+    <!-- 卡片 3: CodeGarden -->
+    <g transform="translate(340 18)">
+      <rect width="160" height="62" rx="8" fill="#0D0E14" stroke="#1C1E2E" stroke-width="1"/>
+      <rect x="0" y="0" width="3" height="62" fill="url(#primaryGrad)" rx="1"/>
+      <text x="14" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="9" fill="#00B4D8" letter-spacing="1.5">03  ·  项目</text>
+      <text x="14" y="36" font-size="13" font-weight="600" fill="#E4E9F0">CodeGarden</text>
+      <text x="14" y="50" font-size="10" fill="#6B7280">全生命周期 · 服务网格</text>
     </g>
 
-    <!-- vertical connector lines from 4 cells down to MCP -->
-    <g stroke="#1c1c2e" stroke-width="1" fill="none">
-      <path d="M 59 110 L 59 130 L 246 130 L 246 158"/>
-      <path d="M 184 110 L 184 130 L 246 130 L 246 158"/>
-      <path d="M 309 110 L 309 130 L 246 130 L 246 158"/>
-      <path d="M 434 110 L 434 130 L 246 130 L 246 158"/>
+    <!-- 第 2 行：2 个卡片 -->
+    <!-- 卡片 4: Security Graph -->
+    <g transform="translate(0 92)">
+      <rect width="160" height="62" rx="8" fill="#0D0E14" stroke="#1C1E2E" stroke-width="1"/>
+      <rect x="0" y="0" width="3" height="62" fill="url(#alertGrad)" rx="1"/>
+      <text x="14" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="9" fill="#F72585" letter-spacing="1.5">04  ·  安全</text>
+      <text x="14" y="36" font-size="13" font-weight="600" fill="#E4E9F0">Sec Graph</text>
+      <text x="14" y="50" font-size="10" fill="#6B7280">MITRE ATT&amp;CK · CVE · 合规</text>
+    </g>
+    <!-- 卡片 5: MCP Server -->
+    <g transform="translate(170 92)">
+      <rect width="160" height="62" rx="8" fill="#0D0E14" stroke="#00B4D8" stroke-width="1.2"/>
+      <rect x="0" y="0" width="3" height="62" fill="url(#primaryGrad)" rx="1"/>
+      <text x="14" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="9" fill="#00B4D8" letter-spacing="1.5">05  ·  协议</text>
+      <text x="14" y="36" font-size="13" font-weight="600" fill="#E4E9F0">MCP Server</text>
+      <text x="14" y="50" font-size="10" fill="#6B7280">9 tools · 5 读 + 4 写</text>
     </g>
 
-    <!-- ─── MCP Server hub ─── -->
-    <g transform="translate(0 158)">
-      <rect width="493" height="60" rx="10" fill="#0d0d14" stroke="#00d4e0" stroke-width="1.2"/>
-      <text x="16" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-            font-size="10" fill="#00d4e0" letter-spacing="2">05 · MCP SERVER</text>
-      <text x="16" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
-            font-size="16" font-weight="600" fill="#f0f0f7">9 tools  ·  5 read + 4 write</text>
-      <text x="280" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-            font-size="12" fill="#9a9ab2">stdio  /  SSE</text>
+    <!-- 汇聚线：5 个卡片 → MCP 中心节点 -->
+    <g stroke="#3A3F4E" stroke-width="1" fill="none" marker-end="url(#arrowMuted)">
+      <path d="M 80 80 L 80 96 L 250 96 L 250 102"/>
+      <path d="M 250 80 L 250 102"/>
+      <path d="M 420 80 L 420 96 L 250 96 L 250 102"/>
+      <path d="M 80 154 L 80 140 L 250 140 L 250 134"/>
+      <path d="M 250 154 L 250 134"/>
     </g>
 
-    <!-- arrow MCP → external AI -->
-    <g stroke="#00d4e0" stroke-width="1.2" fill="none">
-      <line x1="246" y1="222" x2="246" y2="246"/>
-      <polyline points="240,240 246,248 252,240" stroke-linejoin="round" stroke-linecap="round"/>
+    <!-- ─── MCP 中心枢纽 ─── -->
+    <g transform="translate(0 128)">
+      <circle cx="250" cy="0" r="24" fill="#07080A" stroke="#00B4D8" stroke-width="1.5"/>
+      <circle cx="250" cy="0" r="24" fill="url(#glow)"/>
+      <text x="250" y="-4" text-anchor="middle"
+            font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="8" fill="#00B4D8" font-weight="600">MCP</text>
+      <text x="250" y="8" text-anchor="middle"
+            font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="7" fill="#00B4D8">HUB</text>
     </g>
 
-    <!-- external AI agent -->
-    <g transform="translate(0 252)">
-      <rect width="493" height="32" rx="8" fill="#0d0d14" stroke="#1c1c2e" stroke-width="1" stroke-dasharray="3 3"/>
-      <text x="16" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-            font-size="11" fill="#9a9ab2" letter-spacing="1">EXTERNAL AI AGENT</text>
-      <text x="180" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-            font-size="12" fill="#f0f0f7" letter-spacing="0.5">Cursor  ·  Claude Desktop  ·  Trae  ·  Workbuddy</text>
+    <!-- MCP → 外部 AI Agent 箭头 -->
+    <g stroke="#00B4D8" stroke-width="1.2" fill="none" marker-end="url(#arrow)">
+      <line x1="250" y1="158" x2="250" y2="190"/>
+    </g>
+    <text x="260" y="178" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="9" fill="#00B4D8">stdio / SSE</text>
+
+    <!-- 外部 AI Agent -->
+    <g transform="translate(18 196)">
+      <rect width="464" height="30" rx="6" fill="#0D0E14" stroke="#1C1E2E" stroke-width="1" stroke-dasharray="3 3"/>
+      <text x="14" y="19" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="10" fill="#6B7280" letter-spacing="1.5">EXTERNAL AI AGENT</text>
+      <text x="200" y="19" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#E4E9F0" letter-spacing="0.5">Cursor  ·  Claude  ·  Trae  ·  Workbuddy</text>
     </g>
   </g>
 </svg>

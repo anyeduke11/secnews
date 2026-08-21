@@ -66,7 +66,7 @@ class KnowledgeItem:
     difficulty: str | None = None  # beginner | intermediate | advanced | expert
     tags: list[str] = field(default_factory=list)
     concepts: list[str] = field(default_factory=list)
-    mastered: int = 0
+    mastery: int = 0
     # v1.7: lifecycle 替换 compiled; news_type + tech_stack 新增
     # P1-3: 默认值统一为 KL 规范 kl:raw
     lifecycle: str = "kl:raw"
@@ -105,7 +105,7 @@ class KnowledgeItem:
             difficulty=row.get("difficulty"),
             tags=json.loads(row["tags"]) if row.get("tags") else [],
             concepts=json.loads(row["concepts"]) if row.get("concepts") else [],
-            mastered=row.get("mastery", 0),
+            mastery=row.get("mastery", 0),
             lifecycle=lifecycle,
             news_type=row.get("news_type") or None,
             tech_stack=json.loads(row["tech_stack"]) if row.get("tech_stack") else [],
@@ -125,7 +125,7 @@ class KnowledgeItem:
             "difficulty": self.difficulty,
             "tags": self.tags,
             "concepts": self.concepts,
-            "mastered": self.mastered,
+            "mastery": self.mastery,
             # v1.7: 同时输出 compiled (兼容) 和 lifecycle (新)
             "compiled": self.compiled,
             "lifecycle": self.lifecycle,

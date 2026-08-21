@@ -11,7 +11,7 @@ export interface HotspotItem {
   summary?: string;
   source: string;
   url: string;
-  category: 'ai' | 'security' | 'finance' | 'startup' | 'bid' | 'github';
+  category: 'ai' | 'ai_security' | 'security' | 'finance' | 'startup' | 'bid' | 'github' | 'tech';
   published_at: string;
   fetched_at?: string;
   // Phase 15: 录入时间(列表排序字段),缺失时回退 fetched_at/published_at
@@ -27,6 +27,22 @@ export interface HotspotItem {
   // Phase 20+: 标讯状态(仅 category=bid 有效)
   // 可选值: 招标中 / 中标 / 变更 / 终止 / 成交 / 询价 / 比选 / 其他
   bid_status?: string;
+}
+
+export interface HotspotTag {
+  /** v1.7 Phase 1: 自动提取的标签 */
+  id: string;
+  label: string;
+  type: string;  // tag type（topic / entity / etc.）
+  weight: number;
+}
+
+export interface GetHotspotResponse {
+  /** v1.7 Phase 1 验收 1: /api/hotspots/{id} 响应类型（详情页带 tags）*/
+  version: string;
+  item: HotspotItem;
+  tags: HotspotTag[];
+  fetched_at: string;
 }
 
 export interface CategoryInfo {
@@ -115,7 +131,7 @@ export interface ConsistencyDrift {
 export interface FavoriteItem {
   id: number;
   hotspot_id: string;
-  category: 'ai' | 'security' | 'finance' | 'startup' | 'bid' | 'github';
+  category: 'ai' | 'ai_security' | 'security' | 'finance' | 'startup' | 'bid' | 'github' | 'tech';
   title: string;
   source: string;
   url: string;
@@ -205,11 +221,13 @@ export interface StatsResponse {
 export const CATEGORIES: CategoryInfo[] = [
   { id: 'all', label: '全部热点', color: '#00bcd4' },
   { id: 'ai', label: '科技 / AI', color: '#00bcd4' },
+  { id: 'ai_security', label: 'AI 安全', color: '#ff6b9d' },
   { id: 'security', label: '网络安全', color: '#e85d5d' },
   { id: 'finance', label: '金融 / 投资', color: '#f0c929' },
   { id: 'startup', label: '独立开发 / 创业', color: '#7c6aff' },
   { id: 'bid', label: '招标资讯', color: '#e8891a' },
   { id: 'github', label: 'GitHub 项目', color: '#9b8bff' },
+  { id: 'tech', label: 'IT / 科技', color: '#4ecdc4' },
 ];
 
 export const CATEGORY_MAP: Record<string, CategoryInfo> = Object.fromEntries(
@@ -638,7 +656,7 @@ export interface KnowledgeItem {
   difficulty: string | null;
   tags: string[];
   concepts: string[];
-  mastered: number;
+  mastery: number;
   compiled: boolean;
   ingested_at: string;
   updated_at: string;

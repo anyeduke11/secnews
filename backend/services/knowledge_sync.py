@@ -151,7 +151,7 @@ def sync_item_to_db(md_path: Path) -> str | None:
         difficulty=fm.get("difficulty"),
         tags=fm.get("tags", []) if isinstance(fm.get("tags"), list) else [],
         concepts=fm.get("concepts", []) if isinstance(fm.get("concepts"), list) else [],
-        mastered=fm.get("mastery", 0) if isinstance(fm.get("mastery"), (int, float)) else 0,
+        mastery=fm.get("mastery", 0) if isinstance(fm.get("mastery"), (int, float)) else 0,
         lifecycle=lifecycle,
         news_type=fm.get("news_type") if isinstance(fm.get("news_type"), str) else None,
         tech_stack=fm.get("tech_stack", []) if isinstance(fm.get("tech_stack"), list) else [],

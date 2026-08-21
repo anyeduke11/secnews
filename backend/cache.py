@@ -255,8 +255,8 @@ def warmup() -> dict[str, int]:
     # 失败 → 哨兵已占位, 首次请求走 DB 覆盖即可
     real_warmed = 0
     try:
-        from backend.repository.hotspot_repo import HotspotRepository
         from backend.domain.enums import Category, TimeRange
+        from backend.repository.hotspot_repo import HotspotRepository
 
         repo = HotspotRepository()
         # 注意: query() 的 category=None 表示 "全部", 没有 Category.ALL 枚举

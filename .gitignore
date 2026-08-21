@@ -72,6 +72,8 @@ hotspot.db-wal
 hotspot.db-shm
 
 # Backup / runtime cache
+backend/hotspot.db.bak-*
+backend/hotspot.db.bak-dedup-*
 backend/cache_data.json
 backend/cache_data.bak.*.json
 backend/proxy_config.json

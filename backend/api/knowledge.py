@@ -79,19 +79,14 @@ async def update_item(item_id: str, data: dict):
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    updatable = ["domain", "topic", "type", "difficulty", "tags", "concepts", "mastered"]
+    updatable = ["domain", "topic", "type", "difficulty", "tags", "concepts", "mastery"]
     for key in updatable:
         if key in data:
             setattr(item, key, data[key])
 
     item.updated_at = now_iso()
     knowledge_repo.upsert_item(item)
-    # 写回 .md 文件（注意 to_dict() 的字段名是 mastered，但 write_item_to_md 期望 mastery）
-    item_dict = item.to_dict()
-    # write_item_to_md 期望 'mastery' 字段名（与 SQL 列一致），但 to_dict 输出 'mastered'
-    # 这里做一次字段名转换
-    item_dict["mastery"] = item_dict.pop("mastered")
-    write_item_to_md(item_dict)
+    write_item_to_md(item.to_dict())
     return item.to_dict()
 
 

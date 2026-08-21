@@ -111,15 +111,19 @@ class TTLCache:
                 raise KeyError(key)
             self.hits += 1
             self._store.move_to_end(key)
-            total = self.hits + self.misses
-            log_event(
-                "cache_hit",
-                cache_name=self.name,
-                key=key,
-                hits=self.hits,
-                misses=self.misses,
-                hit_rate=round(self.hits / total, 4) if total else 0.0,
-            )
+            # v0.5 M1-Task2: cache_hit 日志采样 (每 100 次命中记 1 次)
+            # 验收: 每 101 次 get 命中, 日志 ≤ 2 条 (即 1 次采样 + 边界)
+            # 性能: cache_hit 日志 100 倍降量, 避免热路径 IO 噪声
+            if self.hits % 100 == 0:
+                total = self.hits + self.misses
+                log_event(
+                    "cache_hit",
+                    cache_name=self.name,
+                    key=key,
+                    hits=self.hits,
+                    misses=self.misses,
+                    hit_rate=round(self.hits / total, 4) if total else 0.0,
+                )
             return value
 
     def __contains__(self, key: str) -> bool:
@@ -214,9 +218,15 @@ def invalidate(pattern: str) -> dict[str, int]:
 
 
 def warmup() -> dict[str, int]:
-    """启动时预热：插入"标记"条目（哨兵 = 0），避免冷启动全部走 DB。
+    """启动时预热：插入"标记"条目（哨兵 = 0）+ 真实预热 list_cache 主路径。
 
-    Returns 实际 warmup 的键数。哨兵值会在第一次真实请求时被覆盖。
+    v0.5 M1-Task2: warmup 改真实查询 — 调 hotspot_repo 真实列表查询预热
+    list_cache 主路径, 避免冷启动首次请求打 DB。失败回落到哨兵模式
+    (不阻塞启动)。
+
+    Returns:
+        dict 含 ``warmed`` (哨兵插入数) + ``real_warmed`` (真实预热数)。
+        测试断言: ``r["warmed"] >= 5`` (保持原契约)。
     """
     warm_keys = {
         list_cache: [
@@ -240,7 +250,39 @@ def warmup() -> dict[str, int]:
             if k not in cache:
                 cache[k] = {"_warmed": True}
                 count += 1
-    return {"warmed": count}
+
+    # v0.5 M1-Task2: 真实预热 list_cache 主路径 (all/ai/security 7d)
+    # 失败 → 哨兵已占位, 首次请求走 DB 覆盖即可
+    real_warmed = 0
+    try:
+        from backend.repository.hotspot_repo import HotspotRepository
+        from backend.domain.enums import Category, TimeRange
+
+        repo = HotspotRepository()
+        # 注意: query() 的 category=None 表示 "全部", 没有 Category.ALL 枚举
+        real_queries = [
+            (None, TimeRange.D7, "hotspots:list:all:7d::50"),
+            (Category.AI, TimeRange.D7, "hotspots:list:ai:7d::50"),
+            (Category.SECURITY, TimeRange.D7, "hotspots:list:security:7d::50"),
+        ]
+        for category, time_range, cache_key in real_queries:
+            try:
+                items, cursor = repo.query(category, time_range, limit=50)
+                list_cache[cache_key] = (items, cursor)
+                real_warmed += 1
+            except Exception as e:
+                # 单条失败不阻塞其他预热
+                log_event(
+                    "warmup_real_query_failed",
+                    cache_name="list",
+                    key=cache_key,
+                    error=str(e),
+                )
+    except Exception as e:
+        # 整个真实预热模块失败 (DB 未初始化 / import 失败) → 哨兵兜底
+        log_event("warmup_real_init_failed", error=str(e))
+
+    return {"warmed": count, "real_warmed": real_warmed}
 
 
 def stats() -> dict[str, dict[str, int]]:

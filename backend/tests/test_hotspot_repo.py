@@ -249,7 +249,11 @@ def test_query_cursor_pagination(repo):
 
 
 def test_query_next_cursor_format(repo):
-    """next_cursor 形如 ``<unix_ts>_<id>``。"""
+    """next_cursor 形如 ``<unix_ts>_<id>``。
+
+    v0.5 M1-Task1: 精度提升到微秒浮点 (e.g. ``1756000123.456789_abc``),
+    旧整数秒格式仍可被 _parse_cursor 兼容解析。
+    """
     now = datetime.now(timezone.utc)
     repo.upsert_many(
         [
@@ -261,12 +265,12 @@ def test_query_next_cursor_format(repo):
     items, cursor = repo.query(Category.AI, limit=1)
     assert len(items) == 1
     assert cursor is not None
-    # 形如 '<unix>_<id>'
+    # 形如 '<unix>_<id>' — v0.5 接受整数秒(旧) 与微秒浮点(新) 两种 ts 段
     parts = cursor.split("_", 1)
     assert len(parts) == 2
     assert parts[1] == items[-1].id
-    # unix 部分是数字
-    int(parts[0])  # raises if not int
+    # unix 部分是数值(int 或 float); 整数字面量也合法
+    float(parts[0])  # raises if neither int nor float parseable
 
 
 # ---------------------------------------------------------------------------

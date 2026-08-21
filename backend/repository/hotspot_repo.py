@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pydantic import HttpUrl
 
@@ -48,6 +48,22 @@ _SEARCH_DEFAULT_LIMIT = 50
 # All categories are always present in count_by_category() results, even
 # when their count is zero (frontend depends on a stable key set).
 _ALL_CATEGORIES: tuple[Category, ...] = tuple(Category)
+
+# v0.5 M1-Task1: 与迁移 064 对齐 — quality_flags 命中任一 → 列表隐藏(is_hidden=1)。
+# 与离线回填脚本 backend/scripts/backfill_ingested_at.py 口径一致。
+_HIDDEN_FLAGS: frozenset[str] = frozenset(
+    {
+        "historical_bid",
+        "historical_published",
+        "no_published_at",
+        "landing_page_unresolvable",
+    }
+)
+
+
+def _derive_is_hidden(quality_flags: list[str]) -> int:
+    """由 quality_flags 推导 is_hidden(1=隐藏)。与迁移 064 / 回填脚本口径一致。"""
+    return 1 if any(f in _HIDDEN_FLAGS for f in (quality_flags or [])) else 0
 
 
 # ---------------------------------------------------------------------------
@@ -129,6 +145,8 @@ class HotspotRepository:
             (item.ingested_at or item.fetched_at).isoformat(),
             # Phase 20: 标讯状态
             item.bid_status,
+            # v0.5: is_hidden 由 quality_flags 推导(μ工艺与迁移 064 一致)
+            _derive_is_hidden(item.quality_flags),
         )
 
     @staticmethod
@@ -136,19 +154,24 @@ class HotspotRepository:
         """Build a pagination cursor from a :class:`HotspotItem`.
 
         Phase 15: cursor 基于 ingested_at(列表排序字段),而非 published_at。
+        v0.5 M1-Task1: 精度提升到微秒浮点, 使 cursor 边界能走 ingested_at
+        ISO 字符串直接比较(索引可用)。旧整数秒格式仍可被 _parse_cursor
+        解析(float() 兼容)。
         """
         ts = item.ingested_at or item.fetched_at
-        return f"{int(ts.timestamp())}_{item.id}"
+        return f"{ts.timestamp():.6f}_{item.id}"
 
     @staticmethod
-    def _parse_cursor(cursor: str) -> tuple[int, str]:
+    def _parse_cursor(cursor: str) -> tuple[float, str]:
         """Parse ``<unix_ts>_<id>`` cursor. Raises ``InvalidParamException``
         on malformed input — but we translate to ``InternalException`` here
         because cursors are an internal contract, not user input.
+
+        v0.5: ts 段接受旧整数秒与新微秒浮点(float() 兼容两者)。
         """
         try:
             ts_str, _, cid = cursor.partition("_")
-            return int(ts_str), cid
+            return float(ts_str), cid
         except (ValueError, AttributeError) as e:
             raise InternalException(f"invalid cursor: {cursor!r}") from e
 
@@ -173,8 +196,8 @@ class HotspotRepository:
                 id, title, summary, source, url, category,
                 published_at, score, fetched_at, is_fallback,
                 quality_score, quality_flags, quality_checked_at, url_check_status,
-                ingested_at, bid_status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ingested_at, bid_status, is_hidden
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 title            = excluded.title,
                 summary          = excluded.summary,
@@ -191,7 +214,9 @@ class HotspotRepository:
                 url_check_status = excluded.url_check_status,
                 -- P2-7: 不再刷新 ingested_at — 保留首次入库时间,
                 -- 重采同 ID 条目不再"浮顶"并虚增"新增 X 条"计数。
-                bid_status       = excluded.bid_status
+                bid_status       = excluded.bid_status,
+                -- v0.5: 最新 quality_flags 决定最新隐藏状态
+                is_hidden        = excluded.is_hidden
         """
 
         total_affected = 0
@@ -249,18 +274,13 @@ class HotspotRepository:
 
         # Phase 15: 列表过滤/排序/cursor 全部改用 ingested_at(录入时间),
         # 避免历史老旧资讯(published_at 是历史时间)出现在最新列表里。
-        # COALESCE 兜底:迁移前的旧数据可能 ingested_at IS NULL,回退到 published_at。
-        # Phase 20+: 排除带 historical_bid flag 的标讯(时效门禁拒绝,不应出现在列表里)。
-        # Phase 47+: 排除带 historical_published / no_published_at flag 的资讯
-        #   (RecencyGate 拒绝, 不应出现在列表里)。
+        # v0.5 M1-Task1: COALESCE + NOT LIKE 逐行过滤 → ingested_at 直接比较
+        # + is_hidden 列(迁移 064 + 离线回填脚本维护), 使 idx_list_visible
+        # 部分索引被利用, 消除 TEMP B-TREE。回填前置条件: ingested_at 非 NULL
+        # (backfill_ingested_at.py 补齐) — 迁移注释明确禁止启动时全量回填。
         where_clauses: list[str] = [
-            "COALESCE(ingested_at, published_at) >= ?",
-            ("(quality_flags IS NULL OR ("
-            "  quality_flags NOT LIKE '%historical_bid%' AND"
-            "  quality_flags NOT LIKE '%historical_published%' AND"
-            "  quality_flags NOT LIKE '%no_published_at%' AND"
-            "  quality_flags NOT LIKE '%landing_page_unresolvable%'"
-            "))"),
+            "ingested_at >= ?",
+            "is_hidden = 0",
             "(url_check_status IS NULL OR url_check_status NOT IN ('mismatch', 'unreachable'))",
         ]
         params: list = [start_dt.isoformat()]
@@ -301,16 +321,17 @@ class HotspotRepository:
 
         if cursor:
             cursor_ts, cursor_id = self._parse_cursor(cursor)
-            # The stored ingested_at is an ISO-8601 string
-            # (e.g. "2026-07-04T11:10:20.624479+00:00") which is not
-            # byte-comparable to datetime(?, 'unixepoch'). We convert
-            # the column to a unix timestamp with strftime('%s', ...)
-            # so the comparison is purely numeric.
+            # v0.5 M1-Task1: 把 unix 秒(微秒浮点) 转回 ISO 字符串,
+            # 与 ingested_at 列(ISO) 直接字符串比较 — 不再 strftime 转换
+            # 到整数秒(会使索引失效 + 丢弃微秒, cursor 精度丢失)。
+            # 旧整数秒 cursor 同样可用(float 解析 → fromtimestamp 补零)。
+            cursor_iso = datetime.fromtimestamp(
+                cursor_ts, timezone.utc
+            ).isoformat()
             where_clauses.append(
-                "(CAST(strftime('%s', COALESCE(ingested_at, published_at)) AS INTEGER) < ? "
-                "OR (CAST(strftime('%s', COALESCE(ingested_at, published_at)) AS INTEGER) = ? AND id < ?))"
+                "(ingested_at < ? OR (ingested_at = ? AND id < ?))"
             )
-            params.extend([cursor_ts, cursor_ts, cursor_id])
+            params.extend([cursor_iso, cursor_iso, cursor_id])
 
         # Phase 24 bug fix: tiebreaker 用 rowid DESC 替代 id DESC
         # 原因: id 是 TEXT 主键, 字典序 security_xxx > finance_xxx > ai_xxx
@@ -323,7 +344,7 @@ class HotspotRepository:
             "bid_status "
             "FROM hotspots "
             f"WHERE {' AND '.join(where_clauses)} "
-            "ORDER BY COALESCE(ingested_at, published_at) DESC, rowid DESC "
+            "ORDER BY ingested_at DESC, rowid DESC "
             "LIMIT ?"
         )
         params.append(effective_limit + 1)
@@ -370,13 +391,9 @@ class HotspotRepository:
         conn = get_connection()
 
         where_clauses: list[str] = [
-            "COALESCE(ingested_at, published_at) >= ?",
-            "COALESCE(ingested_at, published_at) < ?",
-            ("(quality_flags IS NULL OR ("
-            "  quality_flags NOT LIKE '%historical_bid%' AND"
-            "  quality_flags NOT LIKE '%historical_published%' AND"
-            "  quality_flags NOT LIKE '%no_published_at%'"
-            "))"),
+            "ingested_at >= ?",
+            "ingested_at < ?",
+            "is_hidden = 0",
         ]
         params: list = [start.isoformat(), end.isoformat()]
 
@@ -401,11 +418,13 @@ class HotspotRepository:
 
         if cursor:
             cursor_ts, cursor_id = self._parse_cursor(cursor)
+            cursor_iso = datetime.fromtimestamp(
+                cursor_ts, timezone.utc
+            ).isoformat()
             where_clauses.append(
-                "(CAST(strftime('%s', COALESCE(ingested_at, published_at)) AS INTEGER) < ? "
-                "OR (CAST(strftime('%s', COALESCE(ingested_at, published_at)) AS INTEGER) = ? AND id < ?))"
+                "(ingested_at < ? OR (ingested_at = ? AND id < ?))"
             )
-            params.extend([cursor_ts, cursor_ts, cursor_id])
+            params.extend([cursor_iso, cursor_iso, cursor_id])
 
         sql = (
             "SELECT id, title, summary, source, url, category, "
@@ -414,7 +433,7 @@ class HotspotRepository:
             "bid_status "
             "FROM hotspots "
             f"WHERE {' AND '.join(where_clauses)} "
-            "ORDER BY COALESCE(ingested_at, published_at) DESC, rowid DESC "
+            "ORDER BY ingested_at DESC, rowid DESC "
             "LIMIT ?"
         )
         params.append(effective_limit + 1)
@@ -422,6 +441,11 @@ class HotspotRepository:
         try:
             rows = conn.execute(sql, params).fetchall()
         except Exception as e:
+            logger.error(
+                "query_in_range failed",
+                extra={"trace_id": "", "error": str(e)},
+            )
+            raise InternalException(f"query_in_range failed: {e}") from e
             logger.error(
                 "query_in_range failed",
                 extra={
@@ -469,8 +493,8 @@ class HotspotRepository:
             "FROM hotspots h "
             "JOIN hotspots_fts f ON f.rowid = h.rowid "
             "WHERE hotspots_fts MATCH ? "
-            "AND (h.quality_flags IS NULL OR h.quality_flags NOT LIKE '%historical_bid%') "
-            "ORDER BY COALESCE(h.ingested_at, h.published_at) DESC "
+            "AND h.is_hidden = 0 "
+            "ORDER BY h.ingested_at DESC "
             "LIMIT ?"
         )
         try:
@@ -529,11 +553,7 @@ class HotspotRepository:
         start_iso = time_range.start_datetime().isoformat()
         where_clauses = [
             "ingested_at >= ?",
-            ("(quality_flags IS NULL OR ("
-            "  quality_flags NOT LIKE '%historical_bid%' AND"
-            "  quality_flags NOT LIKE '%historical_published%' AND"
-            "  quality_flags NOT LIKE '%no_published_at%'"
-            "))"),
+            "is_hidden = 0",
         ]
         params: list = [start_iso]
         if category and category != "all":
@@ -573,11 +593,7 @@ class HotspotRepository:
         start_iso = time_range.start_datetime().isoformat()
         where_clauses = [
             "ingested_at >= ?",
-            ("(quality_flags IS NULL OR ("
-            "  quality_flags NOT LIKE '%historical_bid%' AND"
-            "  quality_flags NOT LIKE '%historical_published%' AND"
-            "  quality_flags NOT LIKE '%no_published_at%'"
-            "))"),
+            "is_hidden = 0",
         ]
         params: list = [start_iso]
         if category and category != "all":
@@ -586,7 +602,10 @@ class HotspotRepository:
             else:
                 where_clauses.append("category = ?")
                 params.append(category)
-        sql = f"SELECT COUNT(DISTINCT url) AS n FROM hotspots WHERE {' AND '.join(where_clauses)}"
+        sql = (
+            f"SELECT COUNT(DISTINCT url) AS n FROM hotspots "
+            f"WHERE {' AND '.join(where_clauses)}"
+        )
         try:
             row = conn.execute(sql, params).fetchone()
         except Exception as e:
@@ -602,7 +621,7 @@ class HotspotRepository:
         source_name: str,
         since_iso: str,
     ) -> set[str]:
-        """返回 ``source`` 列匹配 ``source_name`` 且 ``COALESCE(ingested_at, published_at) >= since_iso`` 的去重 URL 集合。
+        """返回 ``source`` 列匹配 ``source_name`` 且 ``ingested_at >= since_iso`` 的去重 URL 集合。
 
         2026-08-04 新增: 公众号 wechat renderer 抓取前预查询, 跳过 DB 中已
         存在的 URL, 避免每次 scheduler tick 都重复 fetch + parse + quality
@@ -622,7 +641,7 @@ class HotspotRepository:
         try:
             rows = conn.execute(
                 "SELECT DISTINCT url FROM hotspots "
-                "WHERE source = ? AND COALESCE(ingested_at, published_at) >= ?",
+                "WHERE source = ? AND ingested_at >= ?",
                 (source_name, since_iso),
             ).fetchall()
         except sqlite3.Error as e:
@@ -653,7 +672,7 @@ class HotspotRepository:
         conn = get_connection()
         base_where = (
             "(url_check_status IS NULL OR url_check_status NOT IN ('mismatch', 'unreachable')) "
-            "AND (quality_flags IS NULL OR quality_flags NOT LIKE '%landing_page_unresolvable%')"
+            "AND is_hidden = 0"
         )
         sql = (
             "SELECT CASE WHEN category = 'tech' THEN 'ai' ELSE category END AS cat, "

@@ -14,6 +14,7 @@ import { useGoHome } from '../../hooks/useGoHome';
 import { Icon } from '../Icon';
 import KnowledgeSearchBar from '../KnowledgeSearchBar';
 import { KnowledgeTabs, KnowledgeAreaKey, findAreaByPath } from './KnowledgeTabs';
+import { KnowledgeActionBar } from './KnowledgeActionBar';
 
 interface KnowledgeLayoutProps {
   /** 可选: 子页面提供各领域条目数, 显示在 tab 卡片右上角 */
@@ -79,6 +80,9 @@ export function KnowledgeLayout({ areaCounts }: KnowledgeLayoutProps) {
 
       {/* 4 大领域导航 */}
       <KnowledgeTabs counts={areaCounts} />
+
+      {/* v0.5 c4 hotspot 独立方案: 知识·执行按钮组 */}
+      <KnowledgeActionBar />
 
       {/* 知识展示 — 独立入口卡片 */}
       <div

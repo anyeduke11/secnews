@@ -126,3 +126,59 @@ class TestSyncEvents:
         assert count >= 1
         after = len(_events(get_connection()))
         assert after == before, "full_sync must not pollute wiki_events"
+
+
+class TestWriteScore:
+    """ai_scores 写路径唯一入口 (SPEC §1 Task19: 仅 ai_hub 命中)。"""
+
+    @staticmethod
+    def _insert_hotspot(hid: str) -> None:
+        """插入 hotspots 父行 (ai_scores.hotspot_id 有 FK 约束)。"""
+        from backend.repository.db import get_connection
+        now = now_iso()
+        get_connection().execute(
+            "INSERT INTO hotspots "
+            "(id, title, summary, source, url, category, published_at, score, "
+            "fetched_at, is_fallback, quality_score, quality_flags, url_check_status, ingested_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (hid, "T", "s", "test", f"https://e.com/{hid}",
+             "ai", now, 50.0, now, 0, 80, "[]", "pending", now),
+        )
+
+    def test_writes_row_and_returns_id(self, temp_env):
+        """write_score 插入 ai_scores 行并返回 lastrowid。"""
+        from backend.repository.db import get_connection
+
+        self._insert_hotspot("h-1")
+        score_id = ai_hub.write_score("h-1", 8.5, reason="llm_service")
+        assert score_id is not None
+        row = get_connection().execute(
+            "SELECT hotspot_id, score, reason, scorer FROM ai_scores WHERE id = ?",
+            (score_id,),
+        ).fetchone()
+        assert row["hotspot_id"] == "h-1"
+        assert row["score"] == 8.5
+        assert row["reason"] == "llm_service"
+        assert row["scorer"] is None
+
+    def test_with_scorer(self, temp_env):
+        """MCP agent 场景带 scorer 标识。"""
+        from backend.repository.db import get_connection
+
+        self._insert_hotspot("h-2")
+        score_id = ai_hub.write_score(
+            "h-2", 7.0, reason="agent", scorer="agent:claude-desktop",
+        )
+        row = get_connection().execute(
+            "SELECT scorer FROM ai_scores WHERE id = ?", (score_id,),
+        ).fetchone()
+        assert row["scorer"] == "agent:claude-desktop"
+
+    def test_failure_returns_none(self, temp_env, monkeypatch):
+        """连接失败 → 返回 None 不抛错 (审计增强不阻塞业务)。"""
+        def _boom(*a, **kw):
+            raise RuntimeError("no such table: ai_scores")
+
+        # ai_hub 在模块顶层绑定 get_connection, 需直接 patch 该引用
+        monkeypatch.setattr(ai_hub, "get_connection", _boom)
+        assert ai_hub.write_score("h-3", 1.0) is None

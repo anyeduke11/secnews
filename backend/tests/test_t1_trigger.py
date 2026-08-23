@@ -410,7 +410,7 @@ def test_score_with_llm_calls_service(temp_db, fresh_metrics, monkeypatch):
     from datetime import datetime, timezone
     from unittest.mock import AsyncMock
 
-    from backend.services.llm_service import llm_service
+    from backend.services.ai_hub import llm_service
 
     conn = get_connection()
     _insert_knowledge_item(conn, "llm-ok")
@@ -453,7 +453,7 @@ def test_score_with_llm_fallback_to_db(temp_db, fresh_metrics, monkeypatch):
     from datetime import datetime, timezone
     from unittest.mock import AsyncMock
 
-    from backend.services.llm_service import llm_service
+    from backend.services.ai_hub import llm_service
 
     conn = get_connection()
     _insert_knowledge_item(conn, "llm-fallback")
@@ -491,7 +491,7 @@ def test_score_with_llm_fallback_to_default(temp_db, fresh_metrics, monkeypatch)
     """Verify that when both LLM and DB scores fail, DEFAULT_SCORE is used."""
     from unittest.mock import AsyncMock
 
-    from backend.services.llm_service import llm_service
+    from backend.services.ai_hub import llm_service
 
     conn = get_connection()
     _insert_knowledge_item(conn, "llm-default")

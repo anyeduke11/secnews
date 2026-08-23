@@ -22,12 +22,12 @@ from typing import Any
 
 from backend.metrics.kl_metrics import kl_metrics
 from backend.repository.db import get_connection
+from backend.services.ai_hub import llm_service
 from backend.services.kl_state_machine import (
     LIFECYCLE_LINK,
     LIFECYCLE_STRUCTURE,
     can_transition,
 )
-from backend.services.llm_service import llm_service
 from backend.services.retry_policy import RetryPolicy
 
 logger = logging.getLogger("hotspot.trigger.t3")

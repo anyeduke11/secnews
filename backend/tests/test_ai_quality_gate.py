@@ -83,7 +83,8 @@ def test_llm_disabled_when_no_key(gate, ctx, monkeypatch):
     ollama 探测，隔离外部网络/本机 ollama 时序影响。
     """
     import os
-    from backend.services import ai_service as ai_mod
+
+    from backend.services import ai_hub as ai_mod
 
     for k in ("SENSENOVA_API_KEY", "OPENAI_API_KEY", "QWEN_API_KEY",
               "ANTHROPIC_API_KEY"):
@@ -99,7 +100,7 @@ def test_llm_disabled_when_no_key(gate, ctx, monkeypatch):
 
 def test_gate_detect_parses_content(monkeypatch):
     """ai_service.gate_detect 解析 OpenAI 兼容 choices[0].message.content。"""
-    from backend.services.ai_service import AIService
+    from backend.services.ai_hub import AIService
 
     svc = AIService()
 
@@ -130,7 +131,7 @@ def test_gate_detect_parses_content(monkeypatch):
 
 def test_gate_detect_network_fail_degrades(monkeypatch):
     """gate_detect 网络失败时返回 None（fail-open，不扣分降级）。"""
-    from backend.services.ai_service import AIService
+    from backend.services.ai_hub import AIService
 
     svc = AIService()
     monkeypatch.setattr(AIService, "_resolve_api_key", staticmethod(lambda: "fake-key"))
@@ -155,10 +156,10 @@ def test_llm_off_by_default_in_context(ctx):
 
 def test_llm_context_on_triggers(monkeypatch):
     """llm_enabled=True → check 调用 LLM 检测并扣分。"""
+    from backend.domain.models import HotspotItem
     from backend.quality.ai_quality_gate import AIQualityGate
     from backend.quality.base import GateContext
-    from backend.domain.models import HotspotItem
-    from backend.services import ai_service as ai_mod
+    from backend.services import ai_hub as ai_mod
 
     # mock ai_service.gate_detect 返回高概率 (gate._llm_detect 委托它)
     monkeypatch.setattr(ai_mod.AIService, "available", lambda self, p=None: True)

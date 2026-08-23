@@ -4,6 +4,13 @@
 
 Phase 16 引入了 Hybrid AI 架构，支持多 LLM 提供商混合调度。配置文件位于 `config/llm.yaml`，通过 Pydantic schema（`backend/config/llm_schema.py`）校验。缺失配置文件时自动降级为外部 Agent 模式，不影响现有功能。
 
+> **v0.5 (M5 Task19) 单出口**：全仓 LLM 调用只有一个入口
+> `backend/services/ai_hub.py`（合并自旧 `llm_service.py` + `ai_service.py`）。
+> `LLMService`（多 provider 回退链 + 缓存 + 用量）与 `AIService`
+> （凭据/限频/评价/门禁检测）均从 `ai_hub` 导入；`ai_scores` 写路径唯一入口
+> 为 `ai_hub.write_score()`。禁止再从 `backend.services.llm_service` /
+> `backend.services.ai_service` 导入（旧文件已删除）。
+
 ## 支持的 LLM 提供商
 
 | 提供商 | type 值 | 需要 API Key | 费用 |

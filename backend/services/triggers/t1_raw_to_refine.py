@@ -44,13 +44,13 @@ from typing import Any
 
 from backend.metrics.kl_metrics import kl_metrics
 from backend.repository.db import get_connection
+from backend.services.ai_hub import llm_service, write_score
 from backend.services.kl_state_machine import (
     LEGACY_RAW_LIKE,
     LIFECYCLE_RAW,
     LIFECYCLE_REFINE,
     can_transition,
 )
-from backend.services.llm_service import llm_service
 from backend.services.retry_policy import RetryPolicy
 from backend.services.simhash import (
     canonicalize_url,
@@ -279,14 +279,7 @@ class T1Trigger:
     @staticmethod
     def _write_llm_score(item_id: str, score: float) -> None:
         """Write LLM score to ai_scores table for audit trail."""
-        from datetime import datetime, timezone
-        conn = get_connection()
-        conn.execute(
-            "INSERT INTO ai_scores (hotspot_id, score, reason, scored_at) "
-            "VALUES (?, ?, ?, ?)",
-            (item_id, score, "llm_service",
-             datetime.now(timezone.utc).isoformat()),
-        )
+        write_score(item_id, score, reason="llm_service")
 
     @staticmethod
     def _extract_tags(item: dict[str, Any]) -> list[str]:

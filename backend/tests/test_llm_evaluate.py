@@ -1,19 +1,18 @@
 """evaluate_article 测试 (v4.4 → v0.5 基线修复)。
 
 覆盖:
-- _parse_eval_json: 解析模型 JSON 输出（含容错），实现位于 ai_service
-- evaluate_article: llm_service 统一委托 ai_service（mock HTTP）
+- _parse_eval_json: 解析模型 JSON 输出（含容错），M5 合并后位于 ai_hub
+- evaluate_article: ai_hub 统一委托 ai_service（mock HTTP）
 - sensenova / ollama 两条路径
 
 基线修复说明（v0.5 T0）：原测试从 llm_service 导入 _parse_eval_json（该函数
 v4.4 后位于 ai_service），且 mock 的是 httpx.AsyncClient，而实际调用路径是
 llm_service.evaluate_article → asyncio.to_thread → ai_service 内同步 httpx.Client。
-本文件按实际契约重写，测试意图不变。
+本文件按实际契约重写，测试意图不变。M5 T19 双出口合并后全部从 ai_hub 导入。
 """
 import pytest
 
-from backend.services.ai_service import _parse_eval_json
-from backend.services.llm_service import evaluate_article
+from backend.services.ai_hub import _parse_eval_json, evaluate_article
 
 
 @pytest.mark.parametrize("raw,expected_score", [
@@ -63,7 +62,7 @@ async def test_evaluate_sensenova_path(monkeypatch):
             )
             return _Resp()
 
-    import backend.services.ai_service as ai_mod
+    import backend.services.ai_hub as ai_mod
     monkeypatch.setattr(ai_mod.httpx, "Client", _Client)
     # 绕开 DB 缓存/用量副作用，锁定 HTTP 路径（conftest 测试库隔离外的双保险）
     monkeypatch.setattr(ai_mod.ai_service, "_cache_get", lambda key: None)
@@ -103,7 +102,7 @@ async def test_evaluate_ollama_path(monkeypatch):
             assert url.startswith("http://127.0.0.1:11434")
             return _Resp()
 
-    import backend.services.ai_service as ai_mod
+    import backend.services.ai_hub as ai_mod
     monkeypatch.setattr(ai_mod.httpx, "Client", _Client)
     monkeypatch.setattr(ai_mod.ai_service, "_cache_get", lambda key: None)
     monkeypatch.setattr(ai_mod.ai_service, "_cache_set", lambda key, value: None)

@@ -72,21 +72,20 @@ class TriggerDriftRequest(BaseModel):
 # ---------------------------------------------------------------------------
 @router.post("/score-item")
 async def score_item(req: ScoreItemRequest):
-    """写入 ai_scores 表（MCP tool: score_item）。"""
+    """写入 ai_scores 表（MCP tool: score_item）。
+
+    写路径经 ``ai_hub.write_score``（SPEC §1 Task19: ai_scores 写路径仅 ai_hub 命中）。
+    """
     def _run() -> dict:
-        conn = get_connection()
-        cur = conn.execute(
-            "INSERT INTO ai_scores (hotspot_id, score, reason, scorer, scored_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (
-                req.hotspot_id,
-                req.score,
-                req.reason,
-                req.scorer,
-                datetime.now(timezone.utc).isoformat(),
-            ),
+        from backend.services.ai_hub import write_score
+
+        score_id = write_score(
+            req.hotspot_id, req.score,
+            reason=req.reason or "agent", scorer=req.scorer,
         )
-        return {"status": "ok", "score_id": cur.lastrowid}
+        if score_id is None:
+            raise RuntimeError("write_score failed")
+        return {"status": "ok", "score_id": score_id}
 
     try:
         return await asyncio.to_thread(_run)

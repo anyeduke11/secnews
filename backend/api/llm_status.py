@@ -9,7 +9,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from backend.config.degradation_matrix import create_degradation_matrix
-from backend.services.llm_service import llm_service
+from backend.services.ai_hub import llm_service
 
 router = APIRouter(prefix="/api/llm", tags=["llm"])
 
@@ -58,7 +58,7 @@ async def evaluate_article_endpoint(body: EvaluateRequest):
     """
     import logging
     logger = logging.getLogger("hotspot.api.llm_status")
-    from backend.services.llm_service import evaluate_article
+    from backend.services.ai_hub import evaluate_article
 
     try:
         result = await evaluate_article(

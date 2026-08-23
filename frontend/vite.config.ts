@@ -20,4 +20,19 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
   },
+  // v0.5 M1-Task3: manualChunks 拆 vendor
+  // 验收: 主 chunk <300KB (基线 1.14MB)
+  // - vendor-react: react + react-dom + react-router-dom (~140KB)
+  // - vendor-echarts: echarts + echarts-for-react (~700KB)
+  // - vendor-misc: 其他第三方
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-echarts': ['echarts', 'echarts-for-react'],
+        },
+      },
+    },
+  },
 })

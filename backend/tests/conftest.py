@@ -38,6 +38,7 @@ Markers
 """
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -48,6 +49,37 @@ from fastapi.testclient import TestClient
 # ===========================================================================
 # Fixtures
 # ===========================================================================
+
+# 模块级快照 — 必须在 conftest import 时取值, 不能放 fixture 里。
+# 测试模块在 collection 阶段就执行顶层 import (test_crawl4ai_client →
+# backend.utils.crawl4ai_client → crawl4ai/config.py 顶层 load_dotenv()),
+# 会把项目根 .env 的 HOTSPOT_HOST=0.0.0.0 写进 os.environ; 若等 fixture
+# 运行才快照, 快照本身已被毒化, 还原等于没还。
+_ENV_SNAPSHOT = {k: v for k, v in os.environ.items() if k.startswith("HOTSPOT_")}
+
+
+@pytest.fixture(autouse=True)
+def _protect_hotspot_env() -> Iterator[None]:
+    """阻断 crawl4ai load_dotenv() 对 os.environ 的跨测试污染.
+
+    crawl4ai/config.py 模块顶层执行 ``load_dotenv()``, import 时把项目根
+    .env 写入 os.environ 且永不还原 — 之后同进程内 ``Settings()`` 读到
+    被污染的默认值, test_config::test_default_values 因此单跑通过、全量失败。
+    本 fixture 在每个测试结束后把全部 HOTSPOT_ 前缀变量恢复到 conftest
+    import 时的快照 (声明在最前 → LIFO 最后一个还原)。
+
+    只覆盖 HOTSPOT_ 前缀 — pydantic env_prefix 决定只有这些变量能影响
+    Settings 字段, 不越界清理无关环境变量。
+    """
+    prefix = "HOTSPOT_"
+    yield
+    polluted = {k: v for k, v in os.environ.items() if k.startswith(prefix)}
+    for k in polluted.keys() - _ENV_SNAPSHOT.keys():
+        del os.environ[k]
+    for k, v in _ENV_SNAPSHOT.items():
+        if polluted.get(k) != v:
+            os.environ[k] = v
+
 
 @pytest.fixture(autouse=True)
 def _disable_startup_catchup(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -137,6 +169,22 @@ def _isolate_knowledge_dirs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
                 monkeypatch.setattr(mod, attr, val)
 
 
+@pytest.fixture(autouse=True)
+def _isolate_temp_dbs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """M2-T6 方案 A: 隔离 warm/cold 库路径 — 根治测试写生产 warm.db.
+
+    config.warm_db_path 默认指向 backend/hotspot-warm.db, 若不隔离,
+    测试经 get_connection() 的 ATTACH 逻辑会挂上生产 warm.db,
+    INSERT INTO warm.x 类写入直接污染真实数据。本 fixture 把三个
+    库路径全部重定向到 tmp_path, 与 temp_db 的 db_path 隔离对齐。
+    """
+    from backend.config import config
+
+    monkeypatch.setattr(config, "warm_db_path", tmp_path / "test-warm.db")
+    monkeypatch.setattr(config, "cold_db_path", tmp_path / "test-cold.db")
+    monkeypatch.setattr(config, "cold_db_key", "")
+
+
 @pytest.fixture
 def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     """Redirect config.db_path to a temporary SQLite file with full schema.
@@ -174,6 +222,11 @@ def e2e_api_client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[
     test_db = tmp_path / "test.db"
     # P1: db_path 必须是 Path (见 temp_db 注释)
     monkeypatch.setattr(config, "db_path", test_db)
+    # M2-T6: warm/cold 同样隔离 (_isolate_temp_dbs 是 autouse, 但 e2e
+    # 不依赖 temp_db fixture, 显式再设一次防御性对齐 — 幂等无害)
+    monkeypatch.setattr(config, "warm_db_path", tmp_path / "test-warm.db")
+    monkeypatch.setattr(config, "cold_db_path", tmp_path / "test-cold.db")
+    monkeypatch.setattr(config, "cold_db_key", "")
 
     db.close_db()
     db.init_db()

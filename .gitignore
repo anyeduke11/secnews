@@ -89,3 +89,9 @@ backend/scripts/*.json
 backend/cache_data.db
 backend/*.pid
 frontend/*.pid
+
+# v0.5 M2-T6 分层存储运行时产物 (2026-08-23)
+backups/
+backend/hotspot-warm.db*
+backend/hotspot-cold.db*
+hotspot.db.bak-fts-*

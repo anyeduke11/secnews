@@ -94,19 +94,38 @@ def test_cache_miss_event():
 
 
 def test_cache_hit_event():
+    """v0.5 M1-Task2: cache_hit 按 100 次命中采样 1 次（热路径 IO 降噪）。
+
+    第 100 次命中触发首条日志 (hits=100, hit_rate=1.0)，
+    第 200 次命中触发第二条 — 验证采样节律而非逐条记录。
+    """
     c = TTLCache(maxsize=10, ttl=60, name="hit_cache")
     c["k"] = "v"
     with patch("backend.cache.log_event") as mock:
-        _ = c["k"]
+        for _ in range(100):
+            _ = c["k"]
         hit_events = [
             call for call in mock.call_args_list
             if _event_name(call) == "cache_hit"
         ]
         assert len(hit_events) == 1
-        assert hit_events[0].kwargs["cache_name"] == "hit_cache"
-        assert hit_events[0].kwargs["key"] == "k"
-        assert hit_events[0].kwargs["hits"] == 1
-        assert hit_events[0].kwargs["hit_rate"] == 1.0
+        first = hit_events[0]
+        assert first.kwargs["cache_name"] == "hit_cache"
+        assert first.kwargs["key"] == "k"
+        assert first.kwargs["hits"] == 100
+        assert first.kwargs["hit_rate"] == 1.0
+        # 第 101..199 次命中不再记日志; 第 200 次记第 2 条
+        for _ in range(99):
+            _ = c["k"]
+        assert len([call for call in mock.call_args_list
+                    if _event_name(call) == "cache_hit"]) == 1
+        _ = c["k"]
+        hit_events = [
+            call for call in mock.call_args_list
+            if _event_name(call) == "cache_hit"
+        ]
+        assert len(hit_events) == 2
+        assert hit_events[1].kwargs["hits"] == 200
 
 
 def test_cache_invalidate_event():

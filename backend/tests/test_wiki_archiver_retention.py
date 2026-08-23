@@ -221,3 +221,76 @@ class TestAtomicWrite:
         _atomic_write_text(target, "v2")
 
         assert target.read_text() == "v2"
+
+
+# ── e2e 链路: archive → decay → access → 再次 decay ────────────────────
+class TestEndToEndArchiveDecayAccess:
+    """SPEC §18 验收: 归档后 retention entry 写入 → 7 天后 decay 至 0.9 →
+    access 后 reset → 再次 decay。
+
+    验证整条链路 (替代手工 e2e 脚本)。
+    """
+
+    def test_archive_then_decay_then_access_then_decay(self, tmp_path: Path):
+        from datetime import datetime, timedelta, timezone
+
+        from backend.services.retention_engine import (
+            decay_score,
+            record_access,
+            run_decay,
+        )
+        from backend.services.wiki_archiver import archive_item
+
+        # 1. archive 创建一个 item (自动建 retention entry, last_accessed=now)
+        item = {
+            "id": "e2e1",
+            "title": "E2E Article",
+            "source": "secnews",
+            "ingested_at": "2026-07-15T00:00:00Z",
+        }
+        archive_item(item, wiki_root=tmp_path)
+
+        retention_path = tmp_path / "retention.json"
+        assert retention_path.exists()
+
+        # 2. 模拟「7 天后」: 把 entry 的 last_accessed 倒推 7 天
+        seven_days_ago = (
+            datetime.now(tz=timezone.utc) - timedelta(days=7)
+        ).isoformat()
+        obj = json.loads(retention_path.read_text())
+        for e in obj["entries"]:
+            if e["id"] == "e2e1":
+                e["last_accessed"] = seven_days_ago
+                e["current_score"] = 1.0  # 重置起点
+        retention_path.write_text(json.dumps(obj))
+
+        # 3. run_decay → current_score 应≈0.9
+        stats = run_decay(retention_path)
+        assert stats["updated"] == 1
+        obj = json.loads(retention_path.read_text())
+        e = next(x for x in obj["entries"] if x["id"] == "e2e1")
+        assert e["current_score"] == pytest.approx(0.9, abs=0.001)
+
+        # 4. 用户访问 → record_access → current_score 重置为 1.0
+        record_access(retention_path, "e2e1")
+        obj = json.loads(retention_path.read_text())
+        e = next(x for x in obj["entries"] if x["id"] == "e2e1")
+        assert e["current_score"] == 1.0
+        # decay_events 末条 = access
+        assert e["decay_events"][-1]["kind"] == "access"
+
+        # 5. 再次 run_decay (没有时间流逝, score 不变)
+        stats = run_decay(retention_path)
+        # last_accessed 是刚才 record_access 写入的 now, days=0 → 不衰减
+        obj = json.loads(retention_path.read_text())
+        e = next(x for x in obj["entries"] if x["id"] == "e2e1")
+        assert e["current_score"] == 1.0
+
+    def test_decay_score_pure_function_matches_formula(self):
+        """公式直接验证 (与 run_decay 路径无关): 14 天 = 0.81, 21 天 = 0.729。"""
+        from backend.services.retention_engine import decay_score
+
+        # 14 天 = 2 个 7 天窗口 → 0.9^2 = 0.81
+        assert decay_score(1.0, 14) == pytest.approx(0.81, abs=0.001)
+        # 21 天 = 3 个 7 天窗口 → 0.9^3 = 0.729
+        assert decay_score(1.0, 21) == pytest.approx(0.729, abs=0.001)

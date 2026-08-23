@@ -103,6 +103,14 @@ class Settings(BaseSettings):
     # v1.7 Phase 7 Option A: MCP server 替代 Phase 5 内部 hotspot-agent
     feature_mcp: bool = True       # MCP Server (Phase 7, 替代 feature_agent)
 
+    # v0.5 M3.5: llm-wiki-2.0 知识真源（md 文件优先, SQLite 退化为索引）
+    # 默认开启；env HOTSPOT_LLM_WIKI_V2=false 退回 v0.4 knowledge/ 路径
+    # 关闭后 wiki_archiver / retention_engine job 跳过调度，ai_hub 仍可写
+    # （但写入目标改为 knowledge/，与 v0.4 行为一致）
+    llm_wiki_v2: bool = True
+    # repo root (BASE_DIR = backend/, llm-wiki-2.0/ 在 repo 根目录与 knowledge/ 平级)
+    llm_wiki_v2_path: Path = BASE_DIR.parent / "llm-wiki-2.0"
+
 
 # 全局单例
 config = Settings()

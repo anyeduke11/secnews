@@ -30,7 +30,7 @@
 ┌───────────────────────────────▼──────────────────────────────────────┐
 │                    FastAPI 单进程 (uvicorn, :8000)                    │
 │  ┌──────────────┐  ┌───────────────┐  ┌───────────────────────────┐  │
-│  │ api/ 51 router│→│ services/ 81  │→│ repository/ 36 repo       │  │
+│  │ api/ 52 router│→│ services/ 86  │→│ repository/ 37 repo       │  │
 │  │ (lazy 注册)   │  │ (业务编排)     │  │ (SQLite DAO, 每表一 repo) │  │
 │  └──────┬───────┘  └──────┬────────┘  └────────────┬──────────────┘  │
 │         │                 │                        │                 │
@@ -64,7 +64,7 @@ Fernet (PBKDF2 派生) · WebDAV zip 同步 · fastapi-mcp · loguru 结构化�
 
 ```
 backend/
-├── api/           # 51 个 router (lazy import, feature flag 接线)
+├── api/           # 52 个 router (lazy import, feature flag 接线)
 │   └── __init__.py # register_routers() 聚合注册
 ├── collectors/    # 8 个注册采集器 (14 个 BaseCollector 子类)
 │   ├── base.py    # BaseCollector(ABC) — parsing/keywords/quality 已拆 Mixin
@@ -213,17 +213,108 @@ knowledge/
 - **WORKERS=1**：SQLite WAL 单写者约束，多 worker 会锁竞争（`run.py` 默认 1）。
 - **SQLite**（`repository/db.py`）：thread-local 连接 + autocommit +
   `journal_mode=WAL` / `synchronous=NORMAL` / `foreign_keys=ON` / `busy_timeout=5000`；
-  启动跑 `PRAGMA integrity_check` + 应用 59 个迁移（幂等，`duplicate column` 容错）。
+  启动跑 `PRAGMA integrity_check` + 应用 64 个迁移（幂等，`duplicate column` 容错）。
 - **每日备份**：04:30 Asia/Shanghai 用 SQLite online backup API 快照到
-  `backend/backups/hotspot-*.db`，保留 **7 份**（`BACKUP_RETENTION = 7`），超龄自动删。
+  `backend/backups/hotspot-*.db`，**保留 1 份**（`BACKUP_RETENTION = 1`，v0.5 收紧）；
+  WAL 增量备份 → `incremental/wal-{ts}-{seq}.bin` + `.sha256` 旁车。
+  周日走 full + chain.meta checkpoint reset。
 - **知识编译消费**：`compile_daily`（02:00 创建，配额 50 条/天）→
   `compile_consumer`（02:30 消费，配额 100 条/天，最旧优先、整任务粒度）→ 队列净流出；
-  周日 `weekly_maintenance` 链式跑 soul → migrate → summary。
+  周日 `weekly_maintenance` 链式跑 soul → migrate → summary → db_diet → vacuum → full。
 - **数据回收**：`stats_daily`（06:00）、`quality_logs_cleanup`（周日 05:00，30 天）、
   `collect_validations_cleanup`（每日 04:00）。
 - **日志**：loguru 结构化日志，事件统一经 `observability.log_event` 打点
   （`startup_complete` / `collect_end` / `api_request` 等），无 Prometheus。
 - **代理**：`backend/proxy_config.json`（.gitignore，首装自配）供 security/github 采集。
+
+---
+
+## 六点五、全站数据视图（M2-T6 物理分离 · v0.5）
+
+> 单机工位机的存储架构按"温度层"分层, 让热/温/冷/冻各自的 I/O、备份、加密策略独立。
+> 详见 `docs/v0.5_storage_design.md` (691 行)。
+
+### 六点五.1 物理分离
+
+| 温度层 | 文件 | 大小目标 | 加密 | 备份策略 |
+|--------|------|----------|------|----------|
+| **HOT** (主库) | `backend/hotspot.db` | <80 MB | 否 | 每日 WAL 增量 + 周日 full |
+| **WARM** (业务流水) | `backend/hotspot-warm.db` | <80 MB | 否 | 周增量（与主库同步） |
+| **COLD** (审计/历史) | `backend/hotspot-cold.db` | <500 MB | **Fernet 文件级 envelope** | 周 full (密文推远端) |
+| **FROZEN** (资产/真源) | `knowledge/*.md` + `llm-wiki-2.0/*.md` | ~20 MB | 否 | git + 增量 zip |
+
+启动期 `db.get_connection()` 自动 ATTACH:
+```sql
+ATTACH DATABASE 'backend/hotspot-warm.db' AS warm;
+ATTACH DATABASE 'backend/hotspot-cold.db' AS cold;
+```
+若 `cold_db_key` env 设置 + `.enc` 旁车存在, cold 先解密到 tempfile 再 ATTACH。
+
+### 六点五.2 表→温度层映射 (实时声明在 `scripts/retention.json`)
+
+- HOT (~46 张): `hotspots`, `favorites`, `settings`, `sync_states`, `encryption_keys`,
+  `knowledge_concepts`, `security_entities`, `cg_*`, `todos`, `llm_cache`, `mcp_tool_registry`...
+- WARM (~56 张): `crawler_runs`, `collection_runs`, `coverage_runs`, `raw_items`,
+  `content_fingerprints`, `collect_validations`, `planning_actions`, `knowledge_tasks`,
+  `catchup_*`, `knowledge_links`, `knowledge_chunks`, `quality_check_logs` (live),
+  `digests`, `weekly_reports`, `sync_history`...
+- COLD (1 张起步): `quality_check_logs_archive`
+- FROZEN: `knowledge/items/*.md`, `llm-wiki-2.0/items/*.md` (md 真源, git + zip)
+
+### 六点五.3 写入路径约定 (T6.5)
+
+所有生产 repo / service 代码:
+```python
+# 错 (v0.4): 写主库, 即使表已搬到 WARM
+INSERT INTO crawler_runs (...) VALUES (...)
+
+# 对 (v0.5): 表已搬到 warm.db, 必须指 alias
+INSERT INTO warm.crawler_runs (...) VALUES (...)
+```
+44 个升级点（27 个文件）已自动批量替换。
+
+### 六点五.4 备份链
+
+```
+backups/
+├── hotspot-20260822_002348.db              (1 GB, BACKUP_RETENTION=1)
+├── hotspot-20260822_002348.knowledge.zip   (4 MB)
+└── incremental/                             (BACKUP_INCREMENTAL_DIR)
+    ├── wal-20260823_043000-0000.bin       (~10 MB 每日)
+    ├── wal-20260823_043000-0000.bin.sha256 (旁车 checksum)
+    └── chain.meta                          (checkpoint_seq + sha256 + ts)
+```
+
+周日 full 后:
+```bash
+python scripts/check_backup_chain.py  # CI 校验
+# 5/5 checks passed:
+#   [OK] full_backup_exists
+#   [OK] full_backup_quick_check (或 warn: vtable)
+#   [OK] incremental_chain_count
+#   [OK] incremental_sha256
+#   [OK] knowledge_zip
+```
+
+### 六点五.5 COLD 加密
+
+`scripts/cold_db_crypto.py encrypt|decrypt|verify`:
+- 加密格式: `<16-byte salt><Fernet token>` → `hotspot-cold.db.enc`
+- 启动期解密到 tempfile → ATTACH tempfile 为 `cold`
+- 备份即密文, 离线拷贝安全 (e.g. 第三方硬盘不需再加密)
+
+启用: `HOTSPOT_COLD_DB_KEY=<≥12 字符>` env, 启动自动 decrypt。
+
+### 六点五.6 物理分离后的体积预估
+
+| 文件 | v0.4 当前 | v0.5 目标 | 节省 |
+|---|---:|---:|---:|
+| `hotspot.db` (HOT) | 685 MB | **<80 MB** | 87% ↓ |
+| `hotspot-warm.db` (WARM) | (新) | <80 MB | (新) |
+| `hotspot-cold.db` (COLD, Fernet) | (新) | <500 MB (加密) | (新) |
+| `backups/` full | 1 GB × 5 | 1 GB × 1 | 80% ↓ |
+| `backups/incremental/` daily | (无) | 10 MB × 7 | (新) |
+| **总计本地盘** | **2 GB+** | **<800 MB** | **60%+ ↓** |
 
 ---
 

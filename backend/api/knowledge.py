@@ -370,9 +370,6 @@ async def classify_items_batch():
     # Get all items without domain
     items = knowledge_repo.list_items(limit=10000)
     to_classify = [i.to_dict() for i in items if not i.domain]
-    # write_item_to_md expects 'mastery' not 'mastered'
-    for item_dict in to_classify:
-        item_dict["mastery"] = item_dict.pop("mastered", 0)
 
     if not to_classify:
         return {"classified": 0, "message": "No items need classification"}
@@ -391,7 +388,6 @@ async def classify_items_batch():
                 item.updated_at = now_iso()
                 knowledge_repo.upsert_item(item)
                 # Update .md
-                item_dict["mastery"] = item_dict.pop("mastery", 0)
                 ai_hub.write_item(item_dict, agent="api:classify_batch")
                 count += 1
 
@@ -442,9 +438,6 @@ async def link_concepts_batch():
     # Get all items that need linking
     items = knowledge_repo.list_items(limit=10000)
     to_link = [i.to_dict() for i in items if not i.concepts]
-    # write_item_to_md expects 'mastery'
-    for item_dict in to_link:
-        item_dict["mastery"] = item_dict.pop("mastered", 0)
 
     if not to_link:
         return {"linked": 0, "new_concepts": 0, "message": "All items already have concepts"}

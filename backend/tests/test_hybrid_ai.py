@@ -44,8 +44,8 @@ from backend.config.llm_schema import (
 from backend.metrics.kl_metrics import kl_metrics
 from backend.repository import db as db_module
 from backend.repository.db import get_connection
+from backend.services.ai_hub import llm_service
 from backend.services.cost_monitor import CostMonitor, _estimate_cost
-from backend.services.llm_service import llm_service
 from backend.services.triggers import T1Trigger, T3Trigger
 
 # ===================================================================

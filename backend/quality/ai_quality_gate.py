@@ -100,7 +100,7 @@ class AIQualityGate(BaseGate):
         - 仅当 AIService 可用（env 有商汤 key，或本地 ollama）才调用。
         - 超限/失败返回 None（fail-open，不误伤正常资讯）。
         """
-        from backend.services.ai_service import ai_service
+        from backend.services.ai_hub import ai_service
 
         if not ai_service.available():
             return None

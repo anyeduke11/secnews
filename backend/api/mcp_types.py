@@ -88,6 +88,50 @@ class UpdateKnowledgeItemInput(BaseModel):
     fields: dict = Field(..., description="待更新字段 (title/lifecycle/tags/concepts/...)")
 
 
+# ===========================================================================
+# v0.5 §18.4: wiki_* 工具族 (4 个读为主)
+# ===========================================================================
+class WikiSearchInputModel(BaseModel):
+    """wiki_search — 全文搜索 llm-wiki-2.0。"""
+
+    q: str = Field(..., min_length=1, description="查询关键词")
+    limit: int = Field(20, ge=1, le=50)
+
+
+class WikiReadInput(BaseModel):
+    """wiki_read — 读单个 .md 全文。"""
+
+    path: str = Field(..., min_length=1, description="相对 knowledge/ 的路径")
+
+
+class WikiGraphInput(BaseModel):
+    """wiki_graph — 概念邻接。"""
+
+    concept: str = Field(..., min_length=1)
+    depth: int = Field(1, ge=1, le=2)
+
+
+class DbTraceInputModel(BaseModel):
+    """db_trace — 反查事件对应。"""
+
+    wiki_path: str = Field("")
+    db_table: str = Field("")
+    db_row_id: str = Field("")
+    limit: int = Field(50, ge=1, le=200)
+
+
+class WikiWriteInputModel(BaseModel):
+    """wiki_write — agent 持久产物写回 llm-wiki-2.0 (经 ai_hub 单写路径)。"""
+
+    item_id: str = Field(..., min_length=1, max_length=120,
+                         description="条目 ID (即文件名 stem)")
+    title: str = Field(..., min_length=1, description="标题")
+    content: str = Field("", description="Markdown 正文 (不含 frontmatter)")
+    source: str = Field("mcp", description="来源标识")
+    source_url: str = Field("", description="原文 URL (可选)")
+    tags: list[str] = Field(default_factory=list, description="标签")
+
+
 
 # ===========================================================================
 # 9 个 tool 集中注册表
@@ -167,6 +211,48 @@ MCP_TOOLS = [
         "fastapi_path": "/api/knowledge/items/{item_id}",
         "method": "PATCH",
     },
+    # v0.5 §18.4: wiki_* (4)
+    {
+        "name": "wiki_search",
+        "category": "read",
+        "description": "全文搜索 llm-wiki-2.0 知识条目 chunks (中英文)",
+        "input_model": WikiSearchInputModel,
+        "fastapi_path": "/api/wiki/search",
+        "method": "POST",
+    },
+    {
+        "name": "wiki_read",
+        "category": "read",
+        "description": "读取 llm-wiki-2.0 单个 .md 文件全文",
+        "input_model": WikiReadInput,
+        "fastapi_path": "/api/wiki/read",
+        "method": "GET",
+    },
+    {
+        "name": "wiki_graph",
+        "category": "read",
+        "description": "概念邻接查询 (concepts/graph.json BFS)",
+        "input_model": WikiGraphInput,
+        "fastapi_path": "/api/wiki/graph",
+        "method": "GET",
+    },
+    {
+        "name": "db_trace",
+        "category": "read",
+        "description": "反查知识条目的事件来源 (wiki_events 桥接表)",
+        "input_model": DbTraceInputModel,
+        "fastapi_path": "/api/wiki/trace",
+        "method": "POST",
+    },
+    # v0.5 §18.2 强约束 1: agent 持久产物唯一写路径
+    {
+        "name": "wiki_write",
+        "category": "write",
+        "description": "agent 持久产物写回 llm-wiki-2.0 (经 ai_hub 单写路径)",
+        "input_model": WikiWriteInputModel,
+        "fastapi_path": "/api/wiki/write",
+        "method": "POST",
+    },
 ]
 
 
@@ -174,6 +260,7 @@ __all__ = [
     "MCP_TOOLS",
     "AddAnnotationInput",
     "AddFavoriteInput",
+    "DbTraceInputModel",
     "GetHotspotInput",
     "GetPersonalProfileInput",
     "ListFavoritesInput",
@@ -181,4 +268,8 @@ __all__ = [
     "SearchHotspotsInput",
     "SearchKnowledgeInput",
     "UpdateKnowledgeItemInput",
+    "WikiGraphInput",
+    "WikiReadInput",
+    "WikiSearchInputModel",
+    "WikiWriteInputModel",
 ]

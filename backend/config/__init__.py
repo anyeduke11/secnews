@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     log_dir: Path = BASE_DIR / "logs"
     db_path: Path = BASE_DIR / "hotspot.db"
     backup_dir: Path = BASE_DIR / "backups"
+    # v0.5 M2-T6: 分类型存储 (HOT/WARM/COLD/FROZEN)
+    # 默认与 hotspot.db 同目录, 启动期 ATTACH
+    warm_db_path: Path = BASE_DIR / "hotspot-warm.db"
+    cold_db_path: Path = BASE_DIR / "hotspot-cold.db"
+    # COLD 加密 master key (env HOTSPOT_COLD_DB_KEY); 留空 = 不加密 (dev)
+    cold_db_key: str = ""
 
     # Cache
     cache_ttl_seconds: int = 300

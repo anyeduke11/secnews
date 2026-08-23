@@ -8,10 +8,15 @@ Usage:
     POST /api/maintenance/cleanup-quality-logs   — 清理 quality_check_logs
     GET  /api/maintenance/duplicates             — 检测重复数据
     POST /api/maintenance/cleanup-duplicates     — 清理重复数据
+
+方案 A (M2-T6 修订): 表位置由部署期迁移脚本 (scripts/migrate_temp_layers.py)
+决定, 代码一律用裸表名 — SQLite 对未限定名称按 main → ATTACH 库顺序解析,
+迁移后自动落到 warm.db, 读写永不分裂。
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import time
@@ -108,14 +113,15 @@ def cleanup_history(
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     results: dict[str, int] = {}
 
-    # sync_history
+    # 方案 A: 裸表名 (跟随迁移后实际位置, SQLite 名称解析自动回退)
+    sh = "sync_history"
     rows = conn.execute(
-        "SELECT COUNT(*) FROM sync_history WHERE finished_at < ?", (cutoff,)
+        f"SELECT COUNT(*) FROM {sh} WHERE finished_at < ?", (cutoff,)
     ).fetchone()[0]
     if rows > 0:
         if not dry_run:
             conn.execute(
-                "DELETE FROM sync_history WHERE finished_at < ?", (cutoff,)
+                f"DELETE FROM {sh} WHERE finished_at < ?", (cutoff,)
             )
         results["sync_history"] = rows
 
@@ -231,13 +237,16 @@ def archive_quality_logs(
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     now_iso = datetime.now(timezone.utc).isoformat()
 
+    # 方案 A: 裸表名 (跟随迁移后的实际位置, 见 _cleanup_old_data 注释)
+    qcl = "quality_check_logs"
+
     # 统计待归档行数
     to_archive = conn.execute(
-        "SELECT COUNT(*) FROM quality_check_logs WHERE checked_at < ?", (cutoff,)
+        f"SELECT COUNT(*) FROM {qcl} WHERE checked_at < ?", (cutoff,)
     ).fetchone()[0]
 
     # 主表当前总行数
-    main_total = conn.execute("SELECT COUNT(*) FROM quality_check_logs").fetchone()[0]
+    main_total = conn.execute(f"SELECT COUNT(*) FROM {qcl}").fetchone()[0]
 
     # 归档表当前总行数
     archive_total = conn.execute(
@@ -254,11 +263,11 @@ def archive_quality_logs(
                 "reason, error_msg, checked_at, mode, archived_at) "
                 "SELECT id, item_id, gate_name, passed, score_deduction, flags, "
                 "reason, error_msg, checked_at, mode, ? "
-                "FROM quality_check_logs WHERE checked_at < ?",
+                f"FROM {qcl} WHERE checked_at < ?",
                 (now_iso, cutoff),
             )
             conn.execute(
-                "DELETE FROM quality_check_logs WHERE checked_at < ?", (cutoff,)
+                f"DELETE FROM {qcl} WHERE checked_at < ?", (cutoff,)
             )
             conn.execute("COMMIT")
         except Exception:
@@ -282,7 +291,7 @@ def archive_quality_logs(
         )
 
     main_remaining = conn.execute(
-        "SELECT COUNT(*) FROM quality_check_logs"
+        f"SELECT COUNT(*) FROM {qcl}"
     ).fetchone()[0]
     archive_total_after = conn.execute(
         "SELECT COUNT(*) FROM quality_check_logs_archive"
@@ -323,6 +332,74 @@ def cleanup_quality_logs(
 
 
 # ---------------------------------------------------------------------------
+# v0.5 §18 遥测窗口 (7 天滚动清理, WARM 层)
+# ---------------------------------------------------------------------------
+
+TELEMETRY_RETENTION_PATH = Path(__file__).resolve().parents[2] / "scripts" / "retention.json"
+TELEMETRY_SCHEDULE_TAG = "telemetry_window"
+
+
+def load_telemetry_specs(
+    path: Path = TELEMETRY_RETENTION_PATH,
+) -> list[dict]:
+    """从 retention.json 台账取 ``scheduled_in == "telemetry_window"`` 的表规格。
+
+    台账是唯一事实源 — 窗口天数/时间戳列/动作全部由台账声明,
+    本函数只做筛选, 不复制任何策略常量。
+    """
+    specs = json.loads(path.read_text(encoding="utf-8")).get("tables", [])
+    return [s for s in specs if s.get("scheduled_in") == TELEMETRY_SCHEDULE_TAG]
+
+
+def run_telemetry_window(
+    dry_run: bool = True,
+    specs: list[dict] | None = None,
+) -> dict:
+    """SPEC §18「7 天遥测窗口」统一入口。
+
+    按 retention.json 中 ``scheduled_in == "telemetry_window"`` 的声明
+    逐表清理 WARM 层遥测表 (crawler_runs / raw_items truncate;
+    quality_check_logs 走 archive_db_table)。每表独立 try/except 隔离,
+    失败不阻塞后续表。
+
+    复用 scripts.db_diet.cleanup_table 的单表执行器 (DRY), 避免第二份
+    DELETE 语义; get_connection() 自动 ATTACH warm, 裸表名即可达。
+    """
+    from scripts.db_diet import cleanup_table
+
+    if specs is None:
+        specs = load_telemetry_specs()
+
+    conn = get_connection()
+    results: list[dict] = []
+    for spec in specs:
+        try:
+            results.append(cleanup_table(conn, spec, dry_run=dry_run))
+            conn.commit()  # 每表一提交: 释放写锁 (与 db_diet.run 相同理由)
+        except Exception as e:
+            results.append({
+                "table": spec.get("table"),
+                "action": spec.get("action"),
+                "ok": False,
+                "skipped_reason": f"exception: {type(e).__name__}: {e}",
+            })
+
+    return {
+        "dry_run": dry_run,
+        "window_days_tag": TELEMETRY_SCHEDULE_TAG,
+        "tables": len(results),
+        "rows_deleted": sum(r.get("deleted", 0) for r in results),
+        "rows_archived": sum(r.get("archived", 0) for r in results),
+        # 仅硬错误计为 failed (table_not_found 等 skipped 不告警)
+        "failed": sum(
+            1 for r in results
+            if not r.get("ok") and not r.get("skipped_reason")
+        ),
+        "results": results,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Duplicate detection & cleanup
 # ---------------------------------------------------------------------------
 
@@ -347,10 +424,11 @@ def detect_duplicate_hotspots() -> list[dict]:
 def detect_duplicate_knowledge_items() -> list[dict]:
     """Find duplicate knowledge items by title."""
     conn = get_connection()
+    ki = "knowledge_items"
     results = []
     rows = conn.execute(
-        "SELECT title, COUNT(*) as cnt, GROUP_CONCAT(id) as ids "
-        "FROM knowledge_items WHERE title != '' GROUP BY title HAVING cnt > 1 "
+        f"SELECT title, COUNT(*) as cnt, GROUP_CONCAT(id) as ids "
+        f"FROM {ki} WHERE title != '' GROUP BY title HAVING cnt > 1 "
         "ORDER BY cnt DESC LIMIT 50"
     ).fetchall()
     for title, cnt, ids in rows:
@@ -436,10 +514,11 @@ def cleanup_duplicate_knowledge_items(dry_run: bool = True) -> dict:
     Deletes all but the first (lowest rowid) entry for each duplicate title.
     """
     conn = get_connection()
+    ki = "knowledge_items"
     results: dict[str, int] = {}
 
     dupes = conn.execute(
-        "SELECT title, COUNT(*) as cnt FROM knowledge_items "
+        f"SELECT title, COUNT(*) as cnt FROM {ki} "
         "WHERE title != '' GROUP BY title HAVING cnt > 1"
     ).fetchall()
 
@@ -447,7 +526,7 @@ def cleanup_duplicate_knowledge_items(dry_run: bool = True) -> dict:
     for title, _cnt in dupes:
         ids = [
             r[0] for r in conn.execute(
-                "SELECT id FROM knowledge_items WHERE title = ? ORDER BY ROWID ASC",
+                f"SELECT id FROM {ki} WHERE title = ? ORDER BY ROWID ASC",
                 (title,),
             ).fetchall()
         ]
@@ -456,7 +535,7 @@ def cleanup_duplicate_knowledge_items(dry_run: bool = True) -> dict:
             if not dry_run:
                 placeholders = ",".join("?" for _ in delete_ids)
                 conn.execute(
-                    f"DELETE FROM knowledge_items WHERE id IN ({placeholders})",
+                    f"DELETE FROM {ki} WHERE id IN ({placeholders})",
                     delete_ids,
                 )
                 log.info(f"dedup knowledge_items: kept {ids[0]}, deleted {len(delete_ids)} for title {title[:60]}")
@@ -477,11 +556,14 @@ def cleanup_duplicate_knowledge_items(dry_run: bool = True) -> dict:
 def dirty_data_report() -> dict:
     """Generate a comprehensive report of all detected dirty / invalid data."""
     conn = get_connection()
+    qcl = "quality_check_logs"
+    ki = "knowledge_items"
+    ri = "raw_items"
 
     # quality_check_logs
-    qcl_total = conn.execute("SELECT COUNT(*) FROM quality_check_logs").fetchone()[0]
+    qcl_total = conn.execute(f"SELECT COUNT(*) FROM {qcl}").fetchone()[0]
     qcl_old = conn.execute(
-        "SELECT COUNT(*) FROM quality_check_logs WHERE checked_at < "
+        f"SELECT COUNT(*) FROM {qcl} WHERE checked_at < "
         "(SELECT datetime('now', '-7 days'))"
     ).fetchone()[0]
 
@@ -493,13 +575,13 @@ def dirty_data_report() -> dict:
 
     # Duplicate knowledge items
     dup_ki = len(conn.execute(
-        "SELECT COUNT(*) FROM knowledge_items WHERE title != '' "
+        f"SELECT COUNT(*) FROM {ki} WHERE title != '' "
         "GROUP BY title HAVING COUNT(*) > 1"
     ).fetchall())
 
     # Orphaned raw_items
     orphan_raw = conn.execute(
-        "SELECT COUNT(*) FROM raw_items WHERE item_id NOT IN (SELECT id FROM hotspots)"
+        f"SELECT COUNT(*) FROM {ri} WHERE item_id NOT IN (SELECT id FROM hotspots)"
     ).fetchone()[0]
 
     # Invalid URLs in hotspots

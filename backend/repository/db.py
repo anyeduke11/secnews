@@ -77,11 +77,46 @@ def get_connection() -> sqlite3.Connection:
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA busy_timeout=5000")
+    # M2-T6: wal_autocheckpoint=1000 防 WAL 异常膨胀 (见 storage_design §7.3)
+    conn.execute("PRAGMA wal_autocheckpoint=1000")
+
+    # M2-T6: 启动期 ATTACH warm/cold (HOT/WARM/COLD/FROZEN 分类存储)
+    # - warm_db_path: 业务流水 (crawler_runs/raw_items/... 等 WARM 表)
+    # - cold_db_path: 加密审计 (quality_check_logs_archive 等 COLD 表) — T6.6 加 Fernet
+    # - 文件不存在时跳过 (单库起步, 逐步迁移)
+    warm_path = getattr(config, "warm_db_path", None)
+    cold_path = getattr(config, "cold_db_path", None)
+    attached: list[str] = []
+    for alias, path in (("warm", warm_path), ("cold", cold_path)):
+        if path is None:
+            continue
+        p = Path(path)
+        # T6.6: cold 支持加密 — 若 .enc 存在 + cold_db_key 设置, 解密到 tempfile
+        if alias == "cold" and getattr(config, "cold_db_key", "") and (p.parent / f"{p.name}.enc").exists():
+            from scripts.cold_db_crypto import decrypt_to_tempfile  # noqa: E402
+            try:
+                tf = decrypt_to_tempfile(
+                    src=p.parent / f"{p.name}.enc",
+                    master_key=config.cold_db_key,
+                )
+                p = tf  # attach the tempfile, not the .db path
+                logger.info(f"cold db decrypted to tempfile: {tf.name}")
+            except SystemExit as e:
+                logger.warning(f"cold db decrypt failed: {e}")
+                continue
+        if not p.exists():
+            logger.debug(f"skip ATTACH {alias}: {p} not exists")
+            continue
+        try:
+            conn.execute(f"ATTACH DATABASE ? AS {alias}", (str(p),))
+            attached.append(alias)
+        except sqlite3.Error as e:
+            logger.warning(f"ATTACH {alias} ({p}) failed: {e}")
 
     _tls.conn = conn
     logger.info(
         "db connection opened",
-        extra={"trace_id": "", "db_path": str(db_path)},
+        extra={"trace_id": "", "db_path": str(db_path), "attached": ",".join(attached) or "(none)"},
     )
     return conn
 

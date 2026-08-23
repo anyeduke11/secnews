@@ -53,6 +53,13 @@ MCP_TOOL_OPERATION_IDS = [
     "remove_favorite_api_favorites__hotspot_id__delete",           # remove_favorite
     "create_annotation_endpoint_api_annotations_post",             # add_annotation
     "update_item_api_knowledge_items__item_id__patch",            # update_knowledge_item
+    # v0.5 §18.4: wiki_* 工具族 (llm-wiki-2.0 消费面)
+    "wiki_search_api_wiki_search_post",                            # wiki_search
+    "wiki_read_api_wiki_read_get",                                 # wiki_read
+    "wiki_graph_api_wiki_graph_get",                               # wiki_graph
+    "db_trace_api_wiki_trace_post",                                # db_trace
+    # v0.5 §18.2 强约束 1: agent 持久产物唯一写路径
+    "wiki_write_api_wiki_write_post",                              # wiki_write
 ]
 
 

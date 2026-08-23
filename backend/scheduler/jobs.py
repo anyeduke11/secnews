@@ -11,7 +11,12 @@ via :func:`set_service`; this avoids a module-level import cycle between
 ``backend.scheduler`` and ``backend.services``.
 """
 import asyncio
+import os
+import subprocess
+import sys
+import time
 from datetime import datetime
+from pathlib import Path
 
 from backend.logging_config import logger
 from backend.repository.trend_repo import TrendRepository
@@ -30,6 +35,63 @@ def set_service(service) -> None:
 def reset_service() -> None:
     global _service
     _service = None
+
+
+def job_done_event(job_type: str, job_id: str, duration_ms: int, ok: bool) -> None:
+    """v0.5 M2-Task5: job_done SSE 事件发布 (SPEC §6.2 契约:
+    payload = {type, id, duration_ms, ok})。
+
+    用 fire-and-forget 模式 (create_task), 不阻塞 job 主体。
+    失败只 log.warning, 避免污染业务流。
+    """
+    try:
+        from backend.api.events import publish_event
+        loop = asyncio.get_event_loop()
+        loop.create_task(
+            publish_event("job_done", {
+                "type": job_type,
+                "id": job_id,
+                "duration_ms": duration_ms,
+                "ok": ok,
+            })
+        )
+    except Exception as e:
+        _logger.warning(f"job_done_event publish failed ({job_type}/{job_id}): {e}")
+
+
+def instrument_job(job_type: str):
+    """装饰器: 自动包 job 函数, 完成后推 job_done SSE。
+
+    用法::
+
+        @instrument_job("collect_all")
+        async def collect_all_job() -> None: ...
+
+    注意: APScheduler 直接调 job 函数, 装饰器必须在 schedule_jobs 之前完成。
+    """
+    def decorator(coro):
+        async def wrapper(*args, **kwargs):
+            started_at = time.time() if 'time' in dir() else 0
+            import time as _time
+            started_at = _time.time()
+            job_id = f"{job_type}-{int(started_at)}"
+            ok = False
+            try:
+                result = await coro(*args, **kwargs)
+                ok = True
+                return result
+            except Exception as e:
+                _logger.error(f"{job_type} crashed: {e}")
+                raise
+            finally:
+                duration_ms = int((_time.time() - started_at) * 1000)
+                job_done_event(job_type, job_id, duration_ms, ok)
+
+        wrapper.__name__ = coro.__name__
+        wrapper.__doc__ = coro.__doc__
+        return wrapper
+
+    return decorator
 
 
 async def collect_all_job() -> None:
@@ -517,27 +579,75 @@ async def scheduled_summary_job() -> None:
 
 
 async def weekly_maintenance_job() -> None:
-    """v1.8 R3: 周日维护链 — SOUL 重生成 → 掌握度迁移 → 周回顾。
+    """v1.8 R3: 周日维护链 — SOUL 重生成 → 掌握度迁移 → 周回顾 → db_diet。
 
     原 soul_weekly (Sun 04:00) / migrate_weekly (Sun 05:00) /
     summary_weekly (Sun 06:00) 三个 cron job 合并为单 job 顺序执行,
     保持原链式语义 (每个子 job 自带异常隔离, 不会中断后续)。
+
+    v0.5 M2-Task4: 末尾追加 db_diet_job — 按 retention.json 台账清表,
+    DB 瘦身的统一入口 (替代人工跑 scripts/db_diet.py)。
     """
     await scheduled_soul_job()
     await scheduled_migrate_job()
     await scheduled_summary_job()
+    await db_diet_job()
+    # v0.5: 周日轮转 — 强制 full backup, 重置增量链
+    await _force_full_backup_rotate()
+
+
+async def _force_full_backup_rotate() -> None:
+    """周日 weekly 强制 full backup (重置增量链)。
+
+    与 daily_db_backup_job (增量) 互补, 保证周一到周日: 6 增量 + 1 full。
+    """
+    try:
+        from backend.services.backup_service import backup_incremental
+
+        result = await asyncio.to_thread(backup_incremental, True)  # force_full=True
+        if result.get("mode") == "full":
+            _logger.info(
+                f"weekly_full_rotate: full={result['path'].rsplit('/', 1)[-1]} "
+                f"({result['size'] / 1e6:.1f} MB)"
+            )
+    except Exception as e:
+        _logger.error(f"weekly_full_rotate crashed: {e}")
+
+
+@instrument_job("db_diet")
+async def db_diet_job() -> None:
+    """v0.5 M2-Task4: weekly_maintenance 链末尾调 db_diet。
+
+    调用 ``scripts/db_diet.py`` 作为子进程 (避免把 cleanup_table 逻辑
+    复制进 services 层造成双份维护), dry_run 模式默认开, 失败只 log.error。
+
+    v0.5 M2-Task5: 包了 @instrument_job 装饰器, 完成后自动推 job_done SSE。
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    script = repo_root / "scripts" / "db_diet.py"
+    env = {**os.environ, "PYTHONPATH": str(repo_root)}
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(script), "--dry-run", "--json"],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=60,
+        )
+        _logger.info(
+            f"db_diet_job (dry-run): rc={proc.returncode} "
+            f"stdout_lines={len(proc.stdout.splitlines())}"
+        )
+    except Exception as e:
+        _logger.error(f"db_diet_job crashed: {e}")
+        raise  # 让 instrument_job 捕获并记 ok=False
 
 
 async def quality_logs_cleanup_job() -> None:
-    """P0.1: 每周日 05:00 (Asia/Shanghai) 归档超过保留窗口的 quality_check_logs。
+    """P0.1: 归档超过保留窗口的 quality_check_logs。
 
-    quality_check_logs 是 DB 膨胀主因 (441 万行 / 1.35GB)。
-    v0.4.4: 改为归档机制 (先 INSERT INTO archive 再 DELETE + VACUUM)，
-    保留窗口从 30 天收紧到 7 天 (summary_24h 只看 24h, 7 天足够调试)。
-    归档表保留 90 天, 由独立 job 清理。
-
-    注意: 启动时不会立即全量清理 (仅注册定时触发), 避免阻塞启动。
-    失败只 log.error，不抛异常 (与既有 job 模式一致)。
+    v0.5 §18: 已并入 telemetry_window_job (7 天遥测窗口统一入口),
+    本函数保留为薄包装以维持向后兼容 (scheduler 不再单独注册)。
     """
     try:
         from backend.services.maintenance_service import cleanup_quality_logs
@@ -554,27 +664,60 @@ async def quality_logs_cleanup_job() -> None:
         _logger.error(f"quality_logs_cleanup_job crashed: {e}")
 
 
+@instrument_job("telemetry_window")
+async def telemetry_window_job() -> None:
+    """v0.5 SPEC §18: 7 天遥测窗口 — WARM 层遥测表滚动清理。
+
+    按 retention.json 中 ``scheduled_in == "telemetry_window"`` 的声明
+    执行: quality_check_logs 归档 (>7d, 吸收原 quality_logs_cleanup_job)、
+    crawler_runs / raw_items truncate。台账是唯一事实源 — 新增遥测表
+    只需在 retention.json 打标签, 无需改本 job。
+
+    每周日 05:00 Asia/Shanghai 注册 (与原 quality_logs_cleanup 同时段,
+    避免与 04:00 soul / 04:30 backup / 周日链冲突)。
+    """
+    from backend.services.maintenance_service import run_telemetry_window
+
+    result = await asyncio.to_thread(run_telemetry_window, False)
+    if result.get("failed"):
+        raise RuntimeError(
+            f"telemetry window partial failure: "
+            f"{[r.get('table') for r in result['results'] if not r.get('ok')]}"
+        )
+    _logger.info(
+        f"telemetry_window_job: tables={result['tables']} "
+        f"deleted={result['rows_deleted']} archived={result['rows_archived']}"
+    )
+
+
+@instrument_job("db_backup_daily")
 async def daily_db_backup_job() -> None:
-    """P1: 每日 04:30 (Asia/Shanghai) 数据库自动备份 (online backup API)。
+    """P1: 每日 04:30 (Asia/Shanghai) 数据库自动备份。
 
-    用 SQLite ``Connection.backup`` 对运行中的服务安全 (WAL 一致性快照,
-    等价 sqlite3 .backup)。备份到 ``config.backup_dir`` (backend/backups/),
-    保留最近 ``BACKUP_RETENTION`` (7) 份, 超龄自动删除。
+    v0.5: 改走增量备份 (backup_incremental), 链累积超 MAX_INCREMENTAL_PAGES
+    或周日 weekly_maintenance 强制轮转时自动升级为 full。
 
-    在此之前 DB 无自动备份 (1.4GB 核心数据仅靠 git 跟踪 knowledge/ 的
-    文件层), 每日快照是数据安全的基本防线。失败只 log.error, 不抛异常。
+    失败只 log.error (不抛), 保证 scheduler 不死循环。
     """
     try:
-        from backend.services.backup_service import backup_database
+        from backend.services.backup_service import backup_incremental
 
-        result = await asyncio.to_thread(backup_database)
-        _logger.info(
-            f"daily_db_backup_job: {result['path'].rsplit('/', 1)[-1]} "
-            f"({result['size'] / 1e6:.1f} MB) retained={result['retained']} "
-            f"removed={result['removed']}"
-        )
+        result = await asyncio.to_thread(backup_incremental)
+        if result.get("mode") == "full":
+            _logger.info(
+                f"daily_db_backup_job (full): {result['path'].rsplit('/', 1)[-1]} "
+                f"({result['size'] / 1e6:.1f} MB) retained={result['retained']} "
+                f"removed={result['removed']}"
+            )
+        else:
+            _logger.info(
+                f"daily_db_backup_job (incremental): "
+                f"{result.get('pages', 0)} pages, {result.get('size', 0)} bytes, "
+                f"kept={result.get('incremental_kept', 0)} removed={result.get('incremental_removed', 0)}"
+            )
     except Exception as e:
         _logger.error(f"daily_db_backup_job crashed: {e}")
+        raise  # 让 instrument_job 标记 ok=False
 
 
 async def cg_upstream_sync_job() -> None:
@@ -684,7 +827,8 @@ __all__ = [
     "daily_snapshot_job",
     "export_rebuild_job",
     "mitre_sync_job",
-    "quality_logs_cleanup_job",  # P0: quality_check_logs 定时清理
+    "quality_logs_cleanup_job",  # P0: qcl 清理 (v0.5 起由 telemetry_window_job 承载)
+    "telemetry_window_job",  # v0.5 §18: 7 天遥测窗口
     "reset_service",
     "scheduled_compile_job",
     "scheduled_migrate_job",
@@ -1780,7 +1924,8 @@ async def knowledge_stub_backfill_job() -> None:
 
         from backend.repository.db import get_connection
         from backend.repository.knowledge_repo import knowledge_repo
-        from backend.services.knowledge_sync import ITEMS_DIR, write_item_to_md
+        from backend.services import ai_hub
+        from backend.services.knowledge_sync import ITEMS_DIR
 
         _BATCH = 20
         conn = get_connection()
@@ -1859,9 +2004,10 @@ async def knowledge_stub_backfill_job() -> None:
                             m = _re.match(r"^---\s*\n.*?\n---\s*\n", text, _re.DOTALL)
                             body = text[m.end():].strip() if m else text.strip()
                             if len(body) < 40:
-                                write_item_to_md(
+                                ai_hub.write_item(
                                     db_item.to_dict(),
                                     content=(f"# {real_title}\n\n{snippet}\n" if snippet else None),
+                                    agent="job:stub_backfill",
                                 )
                                 changed = True
                     except Exception as md_err:

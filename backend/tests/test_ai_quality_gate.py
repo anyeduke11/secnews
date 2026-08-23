@@ -6,7 +6,7 @@
 - 空摘要 → empty_summary
 - 低努力信号 → heuristic_aigc_low_effort
 - 正常高信息密度 → 通过
-- LLM 接口预留 → 默认不启用 (env 无 key 时 _llm_available=False)
+- LLM 检测委托 AIService (v4.4 集中式 AI 层); 无凭据时默认不触发
 """
 import pytest
 
@@ -77,63 +77,69 @@ def test_low_effort_flagged(gate, ctx):
 
 
 def test_llm_disabled_when_no_key(gate, ctx, monkeypatch):
-    """无 LLM key 且 ollama 不可达时，_llm_available=False（接口不触发）。
+    """无 LLM key 且 ollama 不可达时，ai_service.available()=False（不触发）。
 
-    用 monkeypatch 把 _ollama_up 固定为 False，隔离外部网络/时序影响。
+    v4.4 重构后 LLM 检测委托 ai_service；monkeypatch 其凭据解析与
+    ollama 探测，隔离外部网络/本机 ollama 时序影响。
     """
     import os
+    from backend.services import ai_service as ai_mod
+
     for k in ("SENSENOVA_API_KEY", "OPENAI_API_KEY", "QWEN_API_KEY",
               "ANTHROPIC_API_KEY"):
         os.environ.pop(k, None)
-    # 隔离 ollama 探测（避免本地 ollama 运行时误判为可用）
-    monkeypatch.setattr(
-        "backend.quality.ai_quality_gate._ollama_up", lambda *a, **k: False
-    )
-    assert gate._llm_available() is False
+    monkeypatch.setattr(ai_mod.AIService, "_resolve_api_key", staticmethod(lambda: ""))
+    monkeypatch.setattr(ai_mod.AIService, "_ollama_up", staticmethod(lambda *a, **k: False))
+    assert gate._llm_detect("标题", "摘要", ctx) is None
     item = _item()
     r = gate.check(item, ctx)
     # 无 llm_ai_generated flag
     assert "llm_ai_generated" not in r.flags
 
 
-def test_call_sensenova_parses_content(monkeypatch, gate):
-    """_call_sensenova 解析 OpenAI 兼容 choices[0].message.content。"""
-    import json
+def test_gate_detect_parses_content(monkeypatch):
+    """ai_service.gate_detect 解析 OpenAI 兼容 choices[0].message.content。"""
+    from backend.services.ai_service import AIService
+
+    svc = AIService()
 
     class _FakeResp:
-        def __init__(self, body): self._body = body
-        def read(self): return self._body.encode()
-        def __enter__(self): return self
-        def __exit__(self, *a): return False
+        def __init__(self, payload): self._payload = payload
+        def raise_for_status(self): pass
+        def json(self): return self._payload
 
     captured = {}
 
-    def _fake_urlopen(req, timeout=8):
-        captured["url"] = req.full_url
-        captured["headers"] = dict(req.headers)
-        payload = json.loads(req.data.decode())
-        captured["model"] = payload["model"]
+    def _fake_post(self, url, json=None, headers=None):
+        captured["url"] = url
+        captured["headers"] = headers or {}
+        captured["model"] = json["model"]
         captured["has_system"] = any(
-            m["role"] == "system" for m in payload["messages"]
+            m["role"] == "system" for m in json["messages"]
         )
-        body = {"choices": [{"message": {"content": "0.9"}}]}
-        return _FakeResp(json.dumps(body))
+        return _FakeResp({"choices": [{"message": {"content": "0.9"}}]})
 
-    # monkeypatch 模块级 urllib.request.urlopen（_call_sensenova 用模块级引用）
-    monkeypatch.setattr("backend.quality.ai_quality_gate.urllib.request.urlopen", _fake_urlopen)
+    monkeypatch.setattr("httpx.Client.post", _fake_post)
 
-    score = gate._call_sensenova("标题", "摘要", "fake-key")
+    score = svc._call_sensenova_detect("标题", "摘要", "fake-key", timeout=1.0)
     assert abs(score - 0.9) < 1e-6
     assert captured["url"].startswith("https://token.sensenova.cn")
     assert captured["model"] == "sensenova-6.8-flash-lite"
     assert captured["has_system"] is True
 
 
-def test_call_sensenova_network_fail_degrades(gate):
-    """_maybe_llm_detect 网络失败时返回 None（不扣分降级）。"""
-    # 传 api_key 使 _llm_available=True，但 _call_sensenova 打真实网络失败
-    r = gate._maybe_llm_detect("标题", "摘要", provider="sensenova", api_key="fake-key-for-test")
-    # 无真实网络 → 应抛异常被 except 捕获返回 None
+def test_gate_detect_network_fail_degrades(monkeypatch):
+    """gate_detect 网络失败时返回 None（fail-open，不扣分降级）。"""
+    from backend.services.ai_service import AIService
+
+    svc = AIService()
+    monkeypatch.setattr(AIService, "_resolve_api_key", staticmethod(lambda: "fake-key"))
+    monkeypatch.setattr(AIService, "_resolve_provider", staticmethod(lambda: "sensenova"))
+    monkeypatch.setattr(
+        "httpx.Client.post",
+        lambda *a, **k: (_ for _ in ()).throw(ConnectionError("no network")),
+    )
+    r = svc.gate_detect("标题", "摘要")
     assert r is None
 
 
@@ -149,23 +155,21 @@ def test_llm_off_by_default_in_context(ctx):
 
 def test_llm_context_on_triggers(monkeypatch):
     """llm_enabled=True → check 调用 LLM 检测并扣分。"""
-    import os
-    os.environ["SENSENOVA_API_KEY"] = "k"  # 保证 _llm_available env 兜底
     from backend.quality.ai_quality_gate import AIQualityGate
     from backend.quality.base import GateContext
     from backend.domain.models import HotspotItem
+    from backend.services import ai_service as ai_mod
 
-    g = AIQualityGate()
-    # mock _call_sensenova 返回高概率
-    monkeypatch.setattr(g, "_call_sensenova", lambda *a, **k: 0.95)
-    ctx = GateContext(llm_enabled=True, llm_provider="sensenova", llm_api_key="k")
+    # mock ai_service.gate_detect 返回高概率 (gate._llm_detect 委托它)
+    monkeypatch.setattr(ai_mod.AIService, "available", lambda self, p=None: True)
+    monkeypatch.setattr(ai_mod.AIService, "gate_detect", lambda *a, **k: 0.95)
+    ctx = GateContext(llm_enabled=True)
     item = HotspotItem(
         id="t", title="普通标题", summary="有实质内容的摘要，包含具体信息与结论。",
         source="s", url="https://e.com/1", category="ai",
         published_at="2026-08-20T00:00:00Z", fetched_at="2026-08-20T00:00:00Z",
         is_fallback=False,
     )
-    r = g.check(item, ctx)
+    r = AIQualityGate().check(item, ctx)
     assert "llm_ai_generated" in r.flags
     assert r.score_deduction >= 30
-    os.environ.pop("SENSENOVA_API_KEY", None)

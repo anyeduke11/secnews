@@ -221,10 +221,10 @@ class T4Trigger:
 
     @staticmethod
     def _write_to_md(item: dict[str, Any]) -> None:
-        """Write the item to ``knowledge/items/{id}.md``."""
-        from backend.services.knowledge_sync import write_item_to_md
+        """Write the item to ``knowledge/items/{id}.md`` (via ai_hub)."""
+        from backend.services import ai_hub
 
-        write_item_to_md(item)
+        ai_hub.write_item(item, agent="trigger:t4")
 
     @staticmethod
     def _update_lifecycle(item_id: str, new_stage: str) -> None:

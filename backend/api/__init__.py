@@ -145,6 +145,9 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(kl_compounding_api.router, tags=["kl-compounding"])
     # Phase 13: 规划动作 API
     app.include_router(kl_planning_api.router, tags=["kl-planning"])
+    # v0.5 §18.4: wiki_* MCP 工具族 (llm-wiki-2.0 消费面)
+    from backend.api import wiki_tools
+    app.include_router(wiki_tools.router, tags=["wiki-tools"])
     # Phase 14: 子系统联动 — 技术栈漂移评估 + CVE 同步
     from backend.api import codegarden_phase14
     if is_extension_enabled("codegarden"):

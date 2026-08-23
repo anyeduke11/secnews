@@ -40,6 +40,25 @@ DRAFTS_DIR = KNOWLEDGE_DIR / "content" / "drafts"
 # YAML frontmatter pattern: starts with ---, ends with ---
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
+# v0.5 §18: full_sync_* 批量重建索引时置 True — 同步事件不写 wiki_events
+# (避免每次全量同步灌入数百行遥测噪音; watcher 单文件增量才是真实写事件)
+_bulk_syncing = False
+
+
+def _log_wiki_event(kind: str, wiki_path: str, db_table: str, db_row_id: str) -> None:
+    """wiki_events 留痕 (migration 065 承诺的写入方之一)。失败静默降级。"""
+    if _bulk_syncing:
+        return
+    try:
+        from backend.repository.wiki_event_repo import wiki_event_repo
+
+        wiki_event_repo.log(
+            kind=kind, wiki_path=wiki_path, db_table=db_table, db_row_id=db_row_id,
+            agent="watcher",
+        )
+    except Exception as e:
+        log.debug(f"wiki_events log skipped for {wiki_path}: {e}")
+
 
 def _coerce_scalar(value: str):
     """Coerce a YAML scalar string to int/float when it looks numeric.
@@ -160,6 +179,7 @@ def sync_item_to_db(md_path: Path) -> str | None:
     )
     knowledge_repo.upsert_item(item)
     log.debug(f"synced item to db: {item.id}")
+    _log_wiki_event("sync_item", f"items/{md_path.name}", "knowledge_items", item.id)
     return item.id
 
 
@@ -182,6 +202,7 @@ def sync_concept_to_db(md_path: Path) -> str | None:
     )
     knowledge_repo.upsert_concept(concept)
     log.debug(f"synced concept to db: {concept.slug}")
+    _log_wiki_event("sync_concept", f"concepts/{md_path.name}", "knowledge_concepts", concept.slug)
     return concept.slug
 
 
@@ -286,6 +307,8 @@ def full_sync_items_to_db() -> int:
         return 0
     from backend.repository.knowledge_repo import knowledge_repo
 
+    global _bulk_syncing
+    _bulk_syncing = True
     count = 0
     seen: set[str] = set()
     for f in ITEMS_DIR.glob("*.md"):
@@ -293,6 +316,7 @@ def full_sync_items_to_db() -> int:
         # 无 frontmatter 的文件不入库, 但 stem 仍计入保留集 (不误删)
         seen.add(item_id or f.stem)
         count += 1
+    _bulk_syncing = False
     if count > 0:
         orphans = [i for i in knowledge_repo.list_item_ids() if i not in seen]
         for orphan_id in orphans:
@@ -312,12 +336,15 @@ def full_sync_concepts_to_db() -> int:
         return 0
     from backend.repository.knowledge_repo import knowledge_repo
 
+    global _bulk_syncing
+    _bulk_syncing = True
     count = 0
     seen: set[str] = set()
     for f in CONCEPTS_DIR.glob("*.md"):
         slug = sync_concept_to_db(f)
         seen.add(slug or f.stem)
         count += 1
+    _bulk_syncing = False
     if count > 0:
         orphans = [s for s in knowledge_repo.list_concept_slugs() if s not in seen]
         for orphan_slug in orphans:

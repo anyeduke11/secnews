@@ -46,10 +46,10 @@ def test_seed_idempotent(temp_db):
     inserted_second = mcp_tool_registry_seed()
     # 第二次应返回 0 (无新增)
     assert inserted_second == 0
-    # 表中应有 9 个 tool (Phase 15: 从 13 移除 4 个低频工具)
+    # 表中应有 14 个 tool (Phase 15 基础 9 + v0.5 §18 wiki_* 4 + wiki_write)
     conn = db.get_connection()
     rows = conn.execute("SELECT COUNT(*) AS n FROM mcp_tool_registry").fetchone()
-    assert int(rows["n"]) == 9
+    assert int(rows["n"]) == 14
 
 
 def test_mcp_status_endpoint(temp_db):
@@ -71,11 +71,11 @@ def test_mcp_status_endpoint(temp_db):
     assert "enabled" in data
     assert "transport" in data
     assert "tools_count" in data
-    assert data["tools_count"] == 9
+    assert data["tools_count"] == 14
 
 
 def test_mcp_tools_endpoint(temp_db):
-    """GET /api/mcp/tools 返回 9 个 tool (5 读 + 4 写)."""
+    """GET /api/mcp/tools 返回全部 tool 元数据 (10 读 + 5 写)."""
     from backend.api.mcp_config import mcp_tool_registry_seed
     mcp_tool_registry_seed()
 
@@ -91,11 +91,11 @@ def test_mcp_tools_endpoint(temp_db):
     assert res.status_code == 200
     data = res.json()
     tools = data.get("tools", [])
-    assert len(tools) == 9
+    assert len(tools) == 14
 
     categories = [t["category"] for t in tools]
-    assert categories.count("read") == 5
-    assert categories.count("write") == 4
+    assert categories.count("read") == 9
+    assert categories.count("write") == 5
 
 
 def test_toggle_mcp_enabled(temp_db):

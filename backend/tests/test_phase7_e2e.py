@@ -53,27 +53,27 @@ def _insert_hotspot(hid, title="测试"):
 
 
 def test_mcp_status_lists_9_tools(client, temp_db):
-    """E2E: /api/mcp/status 报告 9 tools."""
+    """E2E: /api/mcp/status 报告 14 tools (基础 9 + wiki 4 + wiki_write)."""
     res = client.get("/api/mcp/status")
     assert res.status_code == 200
     data = res.json()
-    assert data["tools_count"] == 9
+    assert data["tools_count"] == 14
     assert data["enabled"] is True
 
 
 def test_mcp_tools_list_9_entries(client, temp_db):
-    """E2E: /api/mcp/tools 列出 9 个 tool 元数据."""
+    """E2E: /api/mcp/tools 列出全部 tool 元数据 (基础 9 + wiki 4 + wiki_write)."""
     res = client.get("/api/mcp/tools")
     assert res.status_code == 200
     data = res.json()
-    assert len(data.get("tools", [])) == 9
+    assert len(data.get("tools", [])) == 14
 
-    # 验证 5 读 + 4 写
+    # 验证 9 读 + 5 写 (v0.5 §18: wiki_* 读 4 + wiki_write 写 1)
     by_category = {}
     for t in data["tools"]:
         by_category.setdefault(t["category"], []).append(t["name"])
-    assert len(by_category.get("read", [])) == 5
-    assert len(by_category.get("write", [])) == 4
+    assert len(by_category.get("read", [])) == 9
+    assert len(by_category.get("write", [])) == 5
 
     # 关键 tool 名称存在
     names = {t["name"] for t in data["tools"]}

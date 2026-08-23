@@ -383,6 +383,26 @@ class HotspotScheduler:
                 replace_existing=True,
             )
 
+        # v0.5 M3.5: job — wiki_archiver (每日 03:50 Asia/Shanghai)
+        # 30 天自动归档到 llm-wiki-2.0/items/ + sources/ + retention.json
+        self.scheduler.add_job(
+            jobs.wiki_archiver_job,
+            trigger=CronTrigger(hour=3, minute=50, timezone=SHANGHAI_TZ),
+            id="wiki_archiver",
+            name="wiki archiver 30d (daily 03:50 Shanghai)",
+            replace_existing=True,
+        )
+
+        # v0.5 M3.5: job — retention_decay (每周日 05:30 Asia/Shanghai,
+        # 紧跟 05:00 telemetry_window)
+        self.scheduler.add_job(
+            jobs.retention_decay_job,
+            trigger=CronTrigger(day_of_week="sun", hour=5, minute=30, timezone=SHANGHAI_TZ),
+            id="retention_decay",
+            name="retention Ebbinghaus decay (Sun 05:30 Shanghai)",
+            replace_existing=True,
+        )
+
         # Phase 17: job — attention 聚合 (每 30 分钟)
         self.scheduler.add_job(
             jobs.attention_aggregate_job,

@@ -230,15 +230,15 @@ class HotspotScheduler:
             name="stats recycle (daily 06:00)",
             replace_existing=True,
         )
-        # P0.1: job 13 — quality_check_logs 归档 (每周日 05:00 Asia/Shanghai)
-        # 只注册定时触发, 启动时不立即清理 (避免阻塞启动)。
-        # v0.4.4: 改为归档机制 (archive 表 + incremental_vacuum), 保留 7 天。
-        # quality_check_logs 440万行/1.35GB, 原直接 DELETE 不回收空间。
+        # P0.1 → v0.5 §18: job 13 — 7 天遥测窗口 (每周日 05:00 Asia/Shanghai)
+        # quality_logs_cleanup_job 并入 telemetry_window_job: 同一注册点
+        # 扩展为 WARM 层全部遥测表 (qcl 归档 / crawler_runs / raw_items
+        # truncate), 策略由 retention.json ``scheduled_in`` 标签驱动。
         self.scheduler.add_job(
-            jobs.quality_logs_cleanup_job,
+            jobs.telemetry_window_job,
             trigger=CronTrigger(day_of_week="sun", hour=5, timezone=SHANGHAI_TZ),
-            id="quality_logs_cleanup",
-            name="quality logs archive (Sun 05:00)",
+            id="telemetry_window",
+            name="telemetry window 7d (Sun 05:00)",
             replace_existing=True,
         )
         # P1: job 14 — 每日数据库自动备份 (04:30 Asia/Shanghai, 避开

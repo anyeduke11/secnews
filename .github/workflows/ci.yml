@@ -52,6 +52,12 @@ jobs:
       - name: Metadata consistency check
         run: python scripts/generate_meta.py --check
 
+      - name: llm-wiki-2.0 graph schema check (M3.5 Task13)
+        run: python scripts/check_graph_schema.py
+
+      - name: llm-wiki-2.0 retention health check (M3.5 Task13)
+        run: python scripts/check_retention_decay.py
+
   backend-core-only:
     runs-on: ubuntu-latest
     defaults:

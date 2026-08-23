@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -28,6 +27,9 @@ DECAY_WINDOW_DAYS = 7
 DECAY_FACTOR_PER_WINDOW = 0.9
 # stale 阈值 — < 0.3 视为陈旧 (不删, 只在 UI 排序里降权)
 STALE_THRESHOLD = 0.3
+# CI 健康阈值 — current_score > 0.7 的条目占比 ≥ 80% (wiki v2 §11 / SPEC M3.5)
+RETENTION_HEALTHY_THRESHOLD = 0.7
+RETENTION_HEALTHY_MIN_RATIO = 0.8
 
 
 # ---------------------------------------------------------------------------
@@ -190,13 +192,47 @@ def load_entry(retention_path: Path, item_id: str) -> dict[str, Any] | None:
     return None
 
 
+def check_retention_health(retention_path: Path) -> dict[str, Any]:
+    """CI 健康检查: ``current_score > 0.7`` 的条目占比 ≥ 80%。
+
+    Args:
+        retention_path: ``llm-wiki-2.0/retention.json`` 路径
+
+    Returns:
+        ``{"total", "healthy", "ratio", "ok"}``; 无条目时 ratio=1.0, ok=True
+        (空知识库不算失败)。
+    """
+    obj = _load_retention(retention_path)
+    entries = obj.get("entries", [])
+    total = len(entries)
+    if total == 0:
+        return {"total": 0, "healthy": 0, "ratio": 1.0, "ok": True}
+    healthy = 0
+    for entry in entries:
+        try:
+            if float(entry.get("current_score", 1.0)) > RETENTION_HEALTHY_THRESHOLD:
+                healthy += 1
+        except (TypeError, ValueError):
+            continue
+    ratio = healthy / total
+    return {
+        "total": total,
+        "healthy": healthy,
+        "ratio": round(ratio, 4),
+        "ok": ratio >= RETENTION_HEALTHY_MIN_RATIO,
+    }
+
+
 __all__ = [
-    "DECAY_WINDOW_DAYS",
     "DECAY_FACTOR_PER_WINDOW",
+    "DECAY_WINDOW_DAYS",
+    "RETENTION_HEALTHY_MIN_RATIO",
+    "RETENTION_HEALTHY_THRESHOLD",
     "STALE_THRESHOLD",
+    "check_retention_health",
     "decay_score",
-    "parse_iso",
-    "run_decay",
-    "record_access",
     "load_entry",
+    "parse_iso",
+    "record_access",
+    "run_decay",
 ]

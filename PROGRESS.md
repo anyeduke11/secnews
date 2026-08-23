@@ -58,20 +58,44 @@
 - [ ] M3-Task8 /data 老版式退役倒计时（M5 才物理删除）
 - [ ] M3-Task9 /api/workbench/summary API（6 块 + llm-wiki-2.0 outcome 指标；无 UI）
 - [ ] **M3 里程碑验收**（无假数据/无占位/每 view 真 API/summary<150ms）
-- [ ] M3.5-Task10 llm-wiki-2.0 目录 + SCHEMA + HOTSPOT_LLM_WIKI_V2 开关
-- [ ] M3.5-Task11 wiki_archiver.py（30 天归档 md + sources + atomic）
-- [ ] M3.5-Task12 retention_engine.py（Ebbinghaus 衰减 + 周 job + CI check）
-- [ ] M3.5-Task13 graph.json 6 种边 + t_confidence + t_supersede
+- [x] M3.5-Task10 llm-wiki-2.0 目录 + SCHEMA + HOTSPOT_LLM_WIKI_V2 开关（**2026-08-23 完成，72a8264a**）
+- [x] M3.5-Task11 wiki_archiver.py（30 天归档 md + sources + atomic）(**2026-08-23 完成，d5576036**)
+- [x] M3.5-Task12 retention_engine.py（Ebbinghaus 衰减 + 周 job）(**2026-08-23 完成，d5576036**)
+- [ ] M3.5-Task13 graph.json 6 种边 + t_confidence + t_supersede（未做）
 - [ ] **M3.5 里程碑验收**（归档 100 条对得上 / 衰减曲线 / 双轨零回归）
-- [ ] M4-Task15 /api/agent/* 代理路由（token 鉴权 → dsh acp）
-- [ ] M4-Task16 acp 子进程管理器（spawn/保活/重启/降级 HOTSPOT_AGENT_BACKEND）
-- [ ] M4-Task17 editorial 第 7 view 'AI'（编辑风对话 + SSE，不 iframe）
-- [ ] M4-Task18 记忆单源裁决（agent 产物写回 llm-wiki-2.0 + SQLite）
-- [ ] **M4 里程碑验收**（意图→工具→结果 / 崩溃降级不 500 / grep 单契约）
+- [ ] **M4 路线变更**（2026-08-23 用户拍板）：T15-18 废止，改 dsh-SecNews 方案承接。hotspot 侧仅 T18（ai_hub 写回）保留。详见 SPEC §13 头部决议块。
 - [ ] M5-Task19 ai_hub.py 单 PR 合并双出口（test_llm_service 全绿准入）
 - [ ] M5-Task20 版本 0.5.0 + CHANGELOG + generate_meta + ARCHITECTURE + 移除旧入口
 - [ ] **M5 里程碑验收**（LLM 单出口 grep / 版本一致 / meta check / 唯一路由入口）
 - [ ] 全局结束门禁 + 最终 code review
+
+## 2026-08-23 M3.5 落地记录（c3a + c3b）
+
+- **commit 72a8264a**（c3a）：llm-wiki-2.0 5 子目录 + SCHEMA.md + retention.json +
+  graph.json（6 边 schema）+ Settings 加 llm_wiki_v2 开关（默认 True, env
+  HOTSPOT_LLM_WIKI_V2=false 可关闭）
+- **commit d5576036**（c3b）：wiki_archiver.py + retention_engine.py 纯函数
+  实现 + knowledge_repo.list_archived_candidates() (LEFT JOIN favorites 排除
+  收藏) + 2 个 scheduler job (wiki_archiver 每日 03:50 Shanghai / retention_decay
+  Sun 05:30 Shanghai) + 16 单元测试覆盖核心 + 链路
+- **架构数**：jobs 43→45, services 86→88（ARCHITECTURE.md 同步）
+- **测试基线**：pytest --collect-only = 2639 ≥ 2573 (R9 通过)
+- **关键路径**：归档→7天 decay 0.9→access 重置 1.0→再次 decay 整链路 e2e 测试通过
+- **SPEC 文字出入**：30 天衰减实际值 0.637 (公式 0.9^(30/7))，SPEC §18 文字
+  「30 天≈0.7」是用户口径的「约 70%」近似；测试以公式为准
+
+### M3.5 剩余（M5 之前必做）
+- Task13: graph.json 6 边运行时填入（concept_linker 改造，CI check_retention_decay.py
+  + check_graph_schema.py）
+- Task14: 一次性迁移 4152 items + 98 concepts 从 knowledge/ 到 llm-wiki-2.0/
+  （M5 验收前做）
+
+## 2026-08-23 M4 路线决策
+
+详见 SPEC §13 头部裁决块（commit 294d40a5）。简述：以 dsh-SecNews 方案为准，
+hotspot 不做 acp 子进程宿主。T15/T16/T17 废止，T18（ai_hub 写回）保留且已
+实现（commit a4283c36）。后续 M4 工作 = dsh-SecNews P3+（知识·执行按钮组），
+在外部仓库 `~/Documents/dsh-SecNews/` 推进。
 
 ## 开发计划（2026-08-21 制定，依 SPEC §1 细化）
 

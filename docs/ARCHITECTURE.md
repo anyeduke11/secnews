@@ -1,8 +1,10 @@
 # SecNews（hotspot）· 现状架构文档
 
-> 本文档描述 **2026-08 当前代码 (v0.4.0)** 的真实架构，供新开发者快速理解系统。
+> 本文档描述 **2026-08 当前代码 (v0.5.0)** 的真实架构，供新开发者快速理解系统。
 > 定位：现状概览，不是设计历史；历史决策与演进见 `docs/IMPROVEMENT_PLAN.md`。
-> 所有数字均从代码/文件核对（迁移 60、router 51、测试 2429/292、备份保留 7、同步上限 100k）。
+> 所有数字均从代码/文件核对（迁移 60、router 52、测试 2662/292、备份保留 1、同步上限 100k）。
+> v0.5.0 (2026-08-23): llm-wiki-2.0 数据底座 + ai_hub LLM 单出口 — graph.json
+> 6 边运行时填入 + 一次性迁移 4149 items / 96 concepts; 详见 `docs/v0.5_refactor_plan.md`。
 > v0.4.0 (2026-08-16): 审计重构 Phase 0-6 落地 — 知识闭环数据流/采集管道/同步安全/
 > 导航操作流统一, 详见 `docs/audit_first_principles_plan.md`。
 
@@ -30,12 +32,12 @@
 ┌───────────────────────────────▼──────────────────────────────────────┐
 │                    FastAPI 单进程 (uvicorn, :8000)                    │
 │  ┌──────────────┐  ┌───────────────┐  ┌───────────────────────────┐  │
-│  │ api/ 52 router│→│ services/ 88  │→│ repository/ 37 repo       │  │
+│  │ api/ 52 router│→│ services/ 86  │→│ repository/ 37 repo       │  │
 │  │ (lazy 注册)   │  │ (业务编排)     │  │ (SQLite DAO, 每表一 repo) │  │
 │  └──────┬───────┘  └──────┬────────┘  └────────────┬──────────────┘  │
 │         │                 │                        │                 │
 │  ┌──────▼───────┐  ┌──────▼────────┐   ┌───────────▼──────────────┐  │
-│  │ collectors/  │  │ quality/      │   │ scheduler/ 45 jobs        │   │
+│  │ collectors/  │  │ quality/      │  │ scheduler/ 45 jobs        │  │
 │  │ 8 采集器      │→│ 13 门禁 pipeline│   │ APScheduler (进程内)      │  │
 │  │ (Mixin 拆分)  │  │ (loose/strict)│   │ collect→post-ingest 链   │  │
 │  └──────────────┘  └───────────────┘   └──────────────────────────┘  │
@@ -45,8 +47,8 @@
         ▼                         ▼                         ▼
    ┌─────────┐            ┌──────────────┐          ┌──────────────┐
    │ SQLite  │            │ knowledge/*.md│         │ WebDAV (坚果云)│
-   │ WAL 模式 │            │ (文件真相源)   │          │ zip+Fernet 同步│
-   │ 1 个 db  │            │ + watchdog    │          │ (每周一 10:30)│
+   │ WAL 模式 │            │ + llm-wiki-2.0│         │ zip+Fernet 同步│
+   │ 运营层   │            │ (md 文件真相源) │          │ (每周一 10:30)│
    └─────────┘            └──────────────┘          └──────────────┘
 ```
 
@@ -74,9 +76,9 @@ backend/
 ├── domain/        # Pydantic 模型 (HotspotItem, CollectionReport, ...)
 ├── quality/       # 13 个门禁 + pipeline (loose/strict 双模式)
 ├── repository/    # SQLite DAO: db.py + 36 repo + migrations/ (59 个迁移)
-├── scheduler/     # APScheduler 封装 + jobs.py (43 个 job, 数字由 scripts/generate_meta.py 反推维护)
+├── scheduler/     # APScheduler 封装 + jobs.py (45 个 job, 数字由 scripts/generate_meta.py 反推维护)
 ├── security/      # Security Graph: MITRE STIX / graph / enricher / compliance
-├── services/      # 业务编排 (81 个文件, 数字由 scripts/generate_meta.py 反推维护)
+├── services/      # 业务编排 (86 个文件, 数字由 scripts/generate_meta.py 反推维护)
 ├── crypto.py      # PBKDF2 派生 + Fernet 加密 (secrets + 同步包)
 ├── config.py      # Pydantic Settings (env 前缀 HOTSPOT_)
 └── main.py        # FastAPI app: lifespan → db/cache/export/scheduler/MCP/watchdog
@@ -161,7 +163,7 @@ frontend/src/
 
 ```
 knowledge/
-├── items/       # L1 条目 (当前 4143 个 .md, 含 attention_score)
+├── items/       # L1 条目 (当前 4149 个 .md, 含 attention_score)
 ├── concepts/    # L2 概念 (96 个 .md + graph.json)
 ├── learning/    # L3 学习计划 + 任务队列 (pending/processing/done/failed)
 ├── content/     # L4 内容日历 + 草稿
@@ -170,6 +172,27 @@ knowledge/
 └── _MAP.md      # 自动索引
 ```
 
+**v0.5 llm-wiki-2.0（知识真源升级，SPEC §18）**：`llm-wiki-2.0/` 为知识资产
+主存储 —— md 文件唯一真源，SQLite 退化为运营层/索引缓存。存量 `knowledge/`
+双轨保留（v0.5 期间不删除）。
+
+```
+llm-wiki-2.0/
+├── items/       # L1 条目 (迁移自 knowledge/: 4149 个, 补 confidence/retention frontmatter)
+├── concepts/    # L2 概念 (96 个 .md)
+├── sources/     # 抓取元数据 (url/parser/quality_gate 决策链)
+├── digest/      # 简报/结晶 (date-slug.md)
+├── schema/      # SCHEMA.md — frontmatter 字段唯一真相源
+├── retention.json # Ebbinghaus 衰减追踪 (current = initial*0.9^(days/7), <0.3 标 stale)
+└── graph.json   # 6 种 typed edges (uses/depends/contradicts/caused/fixed/supersedes)
+```
+
+- **graph.json 运行时填充**（M3.5 Task13）：`concept_linker.py` 按条目概念共现
+  累积 `uses` 边（weight + source_observation_count），保留人工/LLM 标注的其他
+  5 种边；`scripts/check_graph_schema.py` + `scripts/check_retention_decay.py` CI 校验。
+- **AI 能力单出口**（M5 Task19）：全仓 LLM 调用唯一入口 `backend/services/ai_hub.py`
+  （合并自旧 `llm_service.py` + `ai_service.py`）；`ai_scores` 写路径唯一入口
+  `ai_hub.write_score()`。`docs/llm_config.md` 有配置说明。
 - **6 认知模式**：简报（Briefing）/ 快速扫描（Scan）/ 深度阅读（DeepRead）/
   告警（Alert）/ 整理（Outbox）/ 复习（Review），对应 `/knowledge/*` 路由。
 - **注意力评分**（`attention_scorer.py`）：5 维加权（view 0.25 / dwell 0.25 /

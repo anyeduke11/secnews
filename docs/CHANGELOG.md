@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.5.0 (2026-08-23)
+
+### 数据底座 — llm-wiki-2.0 (M3.5)
+
+- `llm-wiki-2.0/` 5 子目录 + `retention.json` + `graph.json`：md 为知识真源，
+  SQLite 退化为运营层/索引缓存（SPEC §18 存储哲学反转）
+- `wiki_archiver.py`：30 天前非收藏条目自动归档 md（frontmatter 完整 + atomic 写）
+- `retention_engine.py`：Ebbinghaus 衰减 `current = initial * 0.9^(days/7)`，
+  access 重置、<0.3 标 stale、周 job 扫描
+- **Task13 graph.json 6 边运行时填入**：concept_linker 按条目概念共现累积
+  `uses` 边（weight + source_observation_count），保留人工/LLM 标注的
+  depends/contradicts/caused/fixed/supersedes 边；`scripts/check_graph_schema.py`
+  与 `scripts/check_retention_decay.py` 进 CI
+- **Task14 一次性迁移**：`scripts/migrate_v04_to_llm_wiki.py` 迁移 4149 items +
+  96 concepts（实际磁盘数，spec 预估 4152/98），补 `confidence: 0.5` +
+  `retention` frontmatter，种子 retention.json + graph.json；v0.4 `knowledge/`
+  双轨保留
+
+### LLM 单出口 — ai_hub (M5)
+
+- **Task19 合并双出口**：`llm_service.py` + `ai_service.py` 单 PR 合并为
+  `backend/services/ai_hub.py`（LLMService 回退链 + AIService 凭据/限频/缓存/
+  评价 + `evaluate_article` + `write_score` + 知识写回门面）；旧两文件删除，
+  `grep 'from llm_service|from ai_service'` = 0
+- `ai_scores` 写路径唯一入口 `ai_hub.write_score()`（T1 审计 + MCP score_item
+  全部经此）；`docs/llm_config.md` 更新单出口说明
+- 存量修复：`knowledge.py` 移除 `mastered→mastery` 死代码转换（原会把 mastery 清零）
+
+### 工程
+
+- 版本 0.5.0：`backend/version.py` + `frontend/package.json` 同步
+- CI 新增 graph schema / retention 健康两项检查
+- 测试基线：后端 2662 collected（≥2573，skipped 不增）
+
 ## v0.4.3 (2026-08-18)
 
 ### 重构 — Core/Extension 软分层

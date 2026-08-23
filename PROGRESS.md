@@ -61,11 +61,11 @@
 - [x] M3.5-Task10 llm-wiki-2.0 目录 + SCHEMA + HOTSPOT_LLM_WIKI_V2 开关（**2026-08-23 完成，72a8264a**）
 - [x] M3.5-Task11 wiki_archiver.py（30 天归档 md + sources + atomic）(**2026-08-23 完成，d5576036**)
 - [x] M3.5-Task12 retention_engine.py（Ebbinghaus 衰减 + 周 job）(**2026-08-23 完成，d5576036**)
-- [ ] M3.5-Task13 graph.json 6 种边 + t_confidence + t_supersede（未做）
+- [x] M3.5-Task13 graph.json 6 边运行时填入（concept_linker 改造 + CI check）
 - [ ] **M3.5 里程碑验收**（归档 100 条对得上 / 衰减曲线 / 双轨零回归）
 - [ ] **M4 路线变更**（2026-08-23 用户拍板）：T15-18 废止，改 dsh-SecNews 方案承接。hotspot 侧仅 T18（ai_hub 写回）保留。详见 SPEC §13 头部决议块。
-- [ ] M5-Task19 ai_hub.py 单 PR 合并双出口（test_llm_service 全绿准入）
-- [ ] M5-Task20 版本 0.5.0 + CHANGELOG + generate_meta + ARCHITECTURE + 移除旧入口
+- [x] M5-Task19 ai_hub.py 单 PR 合并双出口（test_llm_service 全绿准入）
+- [x] M5-Task20 版本 0.5.0 + CHANGELOG + generate_meta + ARCHITECTURE + 移除旧入口
 - [ ] **M5 里程碑验收**（LLM 单出口 grep / 版本一致 / meta check / 唯一路由入口）
 - [ ] 全局结束门禁 + 最终 code review
 
@@ -85,10 +85,53 @@
   「30 天≈0.7」是用户口径的「约 70%」近似；测试以公式为准
 
 ### M3.5 剩余（M5 之前必做）
-- Task13: graph.json 6 边运行时填入（concept_linker 改造，CI check_retention_decay.py
-  + check_graph_schema.py）
-- Task14: 一次性迁移 4152 items + 98 concepts 从 knowledge/ 到 llm-wiki-2.0/
-  （M5 验收前做）
+- ✅ Task13: graph.json 6 边运行时填入（concept_linker 改造，CI check_retention_decay.py
+  + check_graph_schema.py）— **2026-08-23 完成**
+- ✅ Task14: 一次性迁移 4152 items + 98 concepts 从 knowledge/ 到 llm-wiki-2.0/
+  （M5 验收前做）— **2026-08-23 完成**
+
+## 2026-08-23 M3.5 Task13/14 + M5 落地记录（c4）
+
+### Task13 — graph.json 6 边运行时填入
+- `backend/services/concept_linker.py`：新增 `update_graph_from_item/batch`（uses 边
+  共现累积, weight + source_observation_count, 幂等, 保留人工/LLM 标注的其余 5 种边）
+  + `validate_graph_schema`（6 边类型/weight/节点引用/重复边校验）; `batch_link_items`
+  处理完自动累积 graph
+- `backend/services/retention_engine.py`：新增 `check_retention_health`（>0.7 占比 ≥80%）
+- 新增 `scripts/check_graph_schema.py` + `scripts/check_retention_decay.py`（CI 接入 ci.yml）
+- 测试: `backend/tests/test_graph_runtime.py` 18 用例全绿
+
+### Task14 — 一次性迁移 knowledge/ → llm-wiki-2.0/
+- 新增 `scripts/migrate_v04_to_llm_wiki.py`（--dry-run 先统计; 幂等覆盖）
+- **实际磁盘数: 4149 items + 96 concepts**（spec 预估 4152/98 — 有漂移, 以磁盘为准）
+- 关键修复: 存量 items 91.5% 用 `---#` 结尾 (关闭 --- 无换行直接跟 H1), 宽容正则覆盖;
+  id 用原始字符串提取 (纯数字/科学计数法 id 被数值化撞车 → 9 条 inf 冲突)
+- 迁移后: llm-wiki-2.0/items 4149 + concepts 96 + retention.json 4149 条目 +
+  graph.json 96 nodes / 136 edges（check_graph_schema + check_retention_decay 双绿）
+- 存量修复: `backend/api/knowledge.py` 移除 `mastered→mastery` 死代码转换
+  （原会把 mastery 清零 — to_dict 已返回 mastery）
+
+### M5 Task19 — ai_hub 单出口合并
+- `backend/services/ai_hub.py` 合并 llm_service(LLMService 回退链+缓存+用量) +
+  ai_service(AIService 凭据/限频/评价/门禁) + evaluate_article + write_score +
+  既有 write_item/update_frontmatter; `ai_scores` 写路径唯一入口 `ai_hub.write_score()`
+- 调用方改 ai_hub: t1/t3 triggers、llm_status、ai_quality_gate、mcp_agent_tools(score_item
+  经 write_score); 测试同步改 (test_llm_service/evaluate/ai_quality_gate/hybrid_ai/
+  t1_trigger; t3_trigger 因 mock 共享单例对象无需改)
+- **删除旧双入口** `backend/services/llm_service.py` + `ai_service.py`;
+  `grep 'from llm_service|from ai_service'` = 0
+- docs/llm_config.md 补单出口说明; test_ai_hub.py 新增 TestWriteScore 3 用例
+
+### M5 Task20 — 版本 + 文档
+- backend/version.py + frontend/package.json → 0.5.0
+- docs/CHANGELOG.md 补 v0.5.0 条目
+- docs/ARCHITECTURE.md 更新至 v0.5（services 88→86, 知识库 §四 补 llm-wiki-2.0,
+  ai_hub 单出口）; `generate_meta --check` 过 (jobs 45/collectors 14/routers 52/services 86)
+- **移除旧入口**: 已删 llm_service.py + ai_service.py（"/data 老版式物理删除" 待 M3
+  editorial 接满后按 M5 门禁处理, 未动 — M3 Task6-9 未完成, 删 /data 会丢功能）
+
+### 测试基线
+- 全量 collect 2662 ≥ 2573（新增 graph_runtime 18 + ai_hub write_score 3）; ruff 全仓干净
 
 ## 2026-08-23 M4 路线决策
 

@@ -2155,6 +2155,87 @@ async def security_entity_concept_sync_job() -> None:
         _logger.error(f"security_entity_concept_sync_job crashed: {e}")
 
 
+# ============================================================================
+# v0.5 M3.5 wiki_archiver: 30 天归档 (每日 03:50 Asia/Shanghai,
+# 避开 03:00/03:30 profile_decay / source_probe 时段, 与 04:00 collect_validations 错开)
+# ============================================================================
+async def wiki_archiver_job() -> None:
+    """每日扫描 SQLite 知识条目, 把 ingested_at < now-30d 且未收藏的条目
+    原子写入 ``llm-wiki-2.0/items/{id}.md``, 同时建 sources/ 抓取快照 + retention 初始 entry。
+
+    关闭策略: ``config.llm_wiki_v2=False`` 时直接跳过。
+    """
+    from backend.config import config
+
+    if not config.llm_wiki_v2:
+        _logger.info("wiki_archiver_job skipped (llm_wiki_v2 disabled)")
+        return
+
+    from backend.services.wiki_archiver import archive_overdue_items
+
+    _t0 = datetime.now(tz=timezone.utc)
+    try:
+        stats = archive_overdue_items(
+            wiki_root=config.llm_wiki_v2_path,
+            days=30,
+        )
+        _logger.info(
+            f"wiki_archiver_job: {stats} (wiki_root={config.llm_wiki_v2_path})"
+        )
+    except Exception as e:
+        _logger.error(f"wiki_archiver_job crashed: {e}")
+        try:
+            job_done_event("wiki_archiver", "wiki_archiver", 0, ok=False)
+        except Exception:
+            pass
+        return
+    duration_ms = int((datetime.now(tz=timezone.utc) - _t0).total_seconds() * 1000)
+    ok = stats.get("errors", 0) == 0
+    try:
+        job_done_event("wiki_archiver", "wiki_archiver", duration_ms, ok=ok)
+    except Exception:
+        pass
+
+
+# ============================================================================
+# v0.5 M3.5 retention_decay: Ebbinghaus 衰减 (每周日 05:30 Asia/Shanghai,
+# 紧跟 05:00 telemetry_window)
+# ============================================================================
+async def retention_decay_job() -> None:
+    """周 job: 扫 ``llm-wiki-2.0/retention.json``, 按 Ebbinghaus 公式更新 current_score。
+
+    关闭策略: ``config.llm_wiki_v2=False`` 时直接跳过。
+    """
+    from backend.config import config
+
+    if not config.llm_wiki_v2:
+        _logger.info("retention_decay_job skipped (llm_wiki_v2 disabled)")
+        return
+
+    from backend.services.retention_engine import run_decay
+
+    _t0 = datetime.now(tz=timezone.utc)
+    retention_path = config.llm_wiki_v2_path / "retention.json"
+    try:
+        stats = run_decay(retention_path)
+        _logger.info(
+            f"retention_decay_job: {stats} (path={retention_path})"
+        )
+    except Exception as e:
+        _logger.error(f"retention_decay_job crashed: {e}")
+        try:
+            job_done_event("retention_decay", "retention_decay", 0, ok=False)
+        except Exception:
+            pass
+        return
+    duration_ms = int((datetime.now(tz=timezone.utc) - _t0).total_seconds() * 1000)
+    ok = stats.get("errors", 0) == 0
+    try:
+        job_done_event("retention_decay", "retention_decay", duration_ms, ok=ok)
+    except Exception:
+        pass
+
+
 # 更新 __all__ (Phase 1.4 + Phase 2.2 + existing)
 __all__.extend([
     "attention_aggregate_job",
@@ -2172,6 +2253,8 @@ __all__.extend([
     "knowledge_classify_job",
     "knowledge_stub_backfill_job",
     "planning_action_check_job",
+    "retention_decay_job",
     "security_entity_concept_sync_job",
     "url_full_check_job",
+    "wiki_archiver_job",
 ])

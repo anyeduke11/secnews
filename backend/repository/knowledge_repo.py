@@ -243,6 +243,41 @@ class KnowledgeRepo:
         rows = conn.execute("SELECT id FROM knowledge_items").fetchall()
         return [r[0] for r in rows]
 
+    # ── v0.5 M3.5 wiki_archiver ─────────────────────────────────
+    def list_archived_candidates(
+        self,
+        cutoff_iso: str,
+        limit: int = 500,
+    ) -> list[dict]:
+        """列出 ``ingested_at < cutoff`` 且 **未收藏** 的条目 (供 wiki_archiver)。
+
+        LEFT JOIN favorites, WHERE favorites.hotspot_id IS NULL 即排除收藏。
+        返回 dict 列表 (字段名匹配 KnowledgeItem.from_row, 含 lifecycle)。
+        """
+        conn = get_connection()
+        rows = conn.execute(
+            """
+            SELECT ki.id, ki.title, ki.source, ki.source_url, ki.domain,
+                   ki.topic, ki.type, ki.difficulty, ki.tags, ki.concepts,
+                   ki.mastery, ki.compiled, ki.ingested_at, ki.updated_at,
+                   ki.lifecycle, ki.news_type, ki.tech_stack
+              FROM knowledge_items ki
+              LEFT JOIN favorites f ON f.hotspot_id = ki.id
+             WHERE ki.ingested_at < ?
+               AND f.hotspot_id IS NULL
+             ORDER BY ki.ingested_at ASC
+             LIMIT ?
+            """,
+            (cutoff_iso, limit),
+        ).fetchall()
+        out: list[dict] = []
+        for r in rows:
+            d = dict(r)
+            # 注意: KnowledgeItem 不含 favorited 字段, 但 wiki_archiver 用 row.get("favorited")
+            # 安全降级 (实际由 SQL JOIN 过滤, 此处不写 favorited 键即可)
+            out.append(d)
+        return out
+
     # ── Knowledge Concepts ───────────────────────────────────────
 
     def upsert_concept(self, concept: KnowledgeConcept) -> None:

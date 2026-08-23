@@ -5,6 +5,9 @@ Design
 Phase 1: Tag→concept matching (existing concepts)
 Phase 2: Auto-create concept drafts for unmatched high-frequency tags
 Phase 3: Update item frontmatter with concept associations
+Phase 4 (v0.5 M3.5): Runtime fill ``llm-wiki-2.0/graph.json`` — 6 typed edges.
+  - ``uses`` 边由条目→概念共现自动累积 (weight=共现次数, source_observation_count=支撑条目数)
+  - 其余 5 种边 (depends/contradicts/caused/fixed/supersedes) 保留人工/LLM 标注, 不覆盖
 """
 
 from __future__ import annotations
@@ -22,6 +25,15 @@ log = logging.getLogger("hotspot.concept_linker")
 KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent.parent / "knowledge"
 CONCEPTS_DIR = KNOWLEDGE_DIR / "concepts"
 ITEMS_DIR = KNOWLEDGE_DIR / "items"
+
+# v0.5: llm-wiki-2.0 知识图谱主存储 (SPEC §18.2 强约束 1: 知识写入唯一路径)
+LLM_WIKI_DIR = Path(__file__).resolve().parent.parent.parent / "llm-wiki-2.0"
+GRAPH_PATH = LLM_WIKI_DIR / "graph.json"
+
+# 6 种 typed relationships (SPEC §18 / wiki v2 §10.12)
+EDGE_TYPES: tuple[str, ...] = (
+    "uses", "depends", "contradicts", "caused", "fixed", "supersedes",
+)
 
 # ═══════════════════════════════════════════════════════════════
 # Tag → concept slug mapping
@@ -246,6 +258,9 @@ def batch_link_items(items: list[dict]) -> list[dict]:
     Each item dict must have: id, tags.
     Mutates items in place, adding 'concepts' key.
     Returns items for chaining.
+
+    Side effect (v0.5 M3.5 Task13): after linking, accumulates the batch's
+    item→concept co-occurrence into ``llm-wiki-2.0/graph.json`` (``uses`` edges).
     """
     for item in items:
         tags = item.get("tags", [])
@@ -269,12 +284,191 @@ def batch_link_items(items: list[dict]) -> list[dict]:
         concepts = update_item_concepts(item["id"], tags)
         item["concepts"] = concepts
 
+    # v0.5 M3.5 Task13: 运行时填入 graph.json (uses 边, 共现累积)
+    try:
+        update_graph_from_batch(items)
+    except Exception as e:
+        log.warning(f"graph.json update skipped: {e}")
+
     return items
 
 
+# ═══════════════════════════════════════════════════════════════
+# v0.5 M3.5 Task13 — llm-wiki-2.0/graph.json 运行时填充 (6 种边)
+# ═══════════════════════════════════════════════════════════════
+
+def _load_graph() -> dict:
+    """加载 llm-wiki-2.0/graph.json; 缺失/损坏时返回空 schema 骨架。"""
+    if not GRAPH_PATH.exists():
+        return {"$schema_version": "0.5.0", "nodes": [], "edges": []}
+    try:
+        return json.loads(GRAPH_PATH.read_text(encoding="utf-8"))
+    except Exception as e:
+        log.warning(f"graph.json unreadable, returning empty: {e}")
+        return {"$schema_version": "0.5.0", "nodes": [], "edges": []}
+
+
+def _atomic_write_graph(graph: dict) -> None:
+    """原子写 graph.json (.tmp → os.replace), 与 wiki_archiver 同一模式。"""
+    import os
+
+    GRAPH_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = GRAPH_PATH.with_suffix(GRAPH_PATH.suffix + ".tmp")
+    tmp.write_text(
+        json.dumps(graph, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    os.replace(tmp, GRAPH_PATH)
+
+
+def update_graph_from_item(item_id: str, concepts: list[str]) -> dict:
+    """把单个条目的概念共现累积进 graph.json (``uses`` 边)。
+
+    每个条目概念对 (c1, c2) 生成/递增一条 ``uses`` 边:
+    - weight: 共现次数
+    - source_observation_count: 支撑条目数
+    已存在的非 uses 边 (depends/contradicts/caused/fixed/supersedes) 原样保留,
+    不覆盖人工/LLM 标注。
+
+    Returns: {"nodes", "edges", "updated"} 统计。
+    """
+    concepts = [c for c in (concepts or []) if c]
+    if len(concepts) < 2:
+        g = _load_graph()
+        return {
+            "nodes": len(g.get("nodes", [])),
+            "edges": len(g.get("edges", [])),
+            "updated": 0,
+        }
+
+    graph = _load_graph()
+    nodes: dict[str, dict] = {n["id"]: n for n in graph.get("nodes", [])}
+    for c in concepts:
+        if c not in nodes:
+            nodes[c] = {
+                "id": c, "label": c, "domain": None,
+                "count": 0, "wiki": "hotspot", "type": "concept",
+            }
+
+    edge_map: dict[tuple[str, str, str], dict] = {}
+    for e in graph.get("edges", []):
+        if isinstance(e, dict):
+            edge_map[(e["source"], e["target"], e.get("type", "uses"))] = e
+
+    updated = 0
+    for i, c1 in enumerate(concepts):
+        for c2 in concepts[i + 1:]:
+            src, tgt = sorted([str(c1), str(c2)])
+            key = (src, tgt, "uses")
+            if key in edge_map:
+                edge_map[key]["weight"] = int(edge_map[key].get("weight", 0)) + 1
+                edge_map[key]["source_observation_count"] = (
+                    int(edge_map[key].get("source_observation_count", 1)) + 1
+                )
+            else:
+                edge_map[key] = {
+                    "source": src, "target": tgt, "weight": 1,
+                    "type": "uses", "source_observation_count": 1,
+                }
+            updated += 1
+
+    graph["nodes"] = list(nodes.values())
+    graph["edges"] = list(edge_map.values())
+    _atomic_write_graph(graph)
+    return {
+        "nodes": len(graph["nodes"]),
+        "edges": len(graph["edges"]),
+        "updated": updated,
+    }
+
+
+def update_graph_from_batch(items: list[dict]) -> dict:
+    """批量累积多条目的概念共现进 graph.json。幂等 (重复跑只递增 weight)。
+
+    Args:
+        items: 每个含 ``id`` + ``concepts`` 的 dict
+
+    Returns: {"nodes", "edges", "updated", "items"} 统计。
+    """
+    stats = {"nodes": 0, "edges": 0, "updated": 0, "items": 0}
+    for item in items:
+        concepts = item.get("concepts") or []
+        if isinstance(concepts, str):
+            try:
+                concepts = json.loads(concepts)
+            except (json.JSONDecodeError, TypeError):
+                concepts = []
+        concepts = [c for c in concepts if c]
+        if len(concepts) < 2:
+            continue
+        item_stats = update_graph_from_item(item.get("id", ""), concepts)
+        stats["updated"] += item_stats["updated"]
+        stats["items"] += 1
+    final = _load_graph()
+    stats["nodes"] = len(final.get("nodes", []))
+    stats["edges"] = len(final.get("edges", []))
+    return stats
+
+
+def validate_graph_schema(graph: dict) -> list[str]:
+    """校验 graph.json schema (6 种边 + weight + source_observation_count + 节点引用)。
+
+    Args:
+        graph: 反序列化后的 graph.json dict
+
+    Returns:
+        错误字符串列表; 空 = 校验通过。
+    """
+    errors: list[str] = []
+    if not isinstance(graph, dict):
+        return ["graph.json 顶层必须是 JSON object"]
+
+    nodes = graph.get("nodes", [])
+    edges = graph.get("edges", [])
+    if not isinstance(nodes, list):
+        return ["nodes 必须是数组"]
+    if not isinstance(edges, list):
+        return ["edges 必须是数组"]
+
+    node_ids: set[str] = set()
+    for n in nodes:
+        if not isinstance(n, dict) or not n.get("id"):
+            errors.append(f"无效节点: {n!r}")
+        else:
+            node_ids.add(str(n["id"]))
+
+    seen: set[tuple[str, str, str]] = set()
+    for e in edges:
+        if not isinstance(e, dict):
+            errors.append(f"无效边: {e!r}")
+            continue
+        etype = e.get("type")
+        src, tgt = str(e.get("source", "")), str(e.get("target", ""))
+        if etype not in EDGE_TYPES:
+            errors.append(f"边 {src}→{tgt} 类型非法: {etype!r} (允许 {EDGE_TYPES})")
+        if not isinstance(e.get("weight"), (int, float)) or e.get("weight", 0) < 1:
+            errors.append(f"边 {src}→{tgt} 缺少/非法 weight")
+        if not isinstance(e.get("source_observation_count"), (int, float)) or e.get("source_observation_count", 0) < 1:
+            errors.append(f"边 {src}→{tgt} 缺少/非法 source_observation_count")
+        if src not in node_ids:
+            errors.append(f"边 source {src!r} 不在 nodes 中")
+        if tgt not in node_ids:
+            errors.append(f"边 target {tgt!r} 不在 nodes 中")
+        key = (src, tgt, str(etype))
+        if key in seen:
+            errors.append(f"重复边 {src}→{tgt} ({etype})")
+        seen.add(key)
+    return errors
+
+
 __all__ = [
+    "EDGE_TYPES",
+    "GRAPH_PATH",
     "auto_create_concepts",
     "batch_link_items",
     "link_tags_to_concepts",
+    "update_graph_from_batch",
+    "update_graph_from_item",
     "update_item_concepts",
+    "validate_graph_schema",
 ]

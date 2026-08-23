@@ -7,7 +7,7 @@ Design notes
   are committed automatically — no manual ``conn.commit()`` needed.
 - Multi-statement transactions would require explicit ``BEGIN``/``COMMIT``,
   but every method here issues a single SQL statement.
-- SQL column ``mastery`` maps to model field ``KnowledgeItem.mastered``
+- SQL column ``mastery`` maps to model field ``KnowledgeItem.mastery``
   (see ``from_row`` in ``knowledge_models.py``).
 """
 from __future__ import annotations
@@ -64,7 +64,7 @@ class KnowledgeRepo:
                 item.difficulty,
                 json.dumps(item.tags),
                 json.dumps(item.concepts),
-                item.mastered,
+                item.mastery,
                 item.lifecycle,
                 item.news_type or "",
                 json.dumps(item.tech_stack),

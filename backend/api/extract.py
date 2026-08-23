@@ -23,6 +23,7 @@ import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from backend.api.events import publish_event
 from backend.repository.hotspot_repo import HotspotRepository
 from backend.repository.knowledge_repo import knowledge_repo
 from backend.repository.tags_repo import TagRepository
@@ -98,8 +99,8 @@ def _extract_knowledge(item_id: str) -> dict:
     knowledge_repo.upsert_item(item)
     # 回写 .md (非关键, 失败不阻塞)
     try:
-        from backend.services.knowledge_sync import write_item_to_md
-        write_item_to_md(item.to_dict())
+        from backend.services import ai_hub
+        ai_hub.write_item(item.to_dict(), agent="api:extract")
     except Exception:
         pass
     return {
@@ -125,14 +126,40 @@ async def extract_hotspot(hotspot_id: str):
     """对热点触发自动标签提取 (v1.7 Phase 1 验收 1)。
 
     读取热点 title+summary, 调用三层提取器, 把命中的标签关联到 hotspot_tags 表。
+
+    v0.5 M2-Task5: 完成后推送 ``extract_done`` SSE 事件 (SPEC §6.2 契约:
+    payload = {item_id, tags:[], lifecycle}; hotspot 路径无 lifecycle 概念,
+    传 None 占位, 前端可用 item_id 推断 hotspot 域)。
     """
-    return await asyncio.to_thread(_extract_hotspot, hotspot_id)
+    result = await asyncio.to_thread(_extract_hotspot, hotspot_id)
+    try:
+        await publish_event("extract_done", {
+            "item_id": hotspot_id,
+            "tags": [t.get("label", t.get("id")) for t in result.get("attached", [])],
+            "lifecycle": None,  # hotspot 路径不推进 lifecycle, 仅作占位
+        })
+    except Exception:
+        pass  # SSE 推送失败不阻塞主流程
+    return result
 
 
 @router.post("/knowledge/{item_id}", status_code=200)
 async def extract_knowledge(item_id: str):
-    """对知识条目触发提取, 写入 tags 并推进 SAG lifecycle。"""
-    return await asyncio.to_thread(_extract_knowledge, item_id)
+    """对知识条目触发提取, 写入 tags 并推进 SAG lifecycle。
+
+    v0.5 M2-Task5: 完成后推送 ``extract_done`` 事件, payload 含完整
+    {item_id, tags, lifecycle}, 供前端 KnowledgeProcessingView 实时刷新。
+    """
+    result = await asyncio.to_thread(_extract_knowledge, item_id)
+    try:
+        await publish_event("extract_done", {
+            "item_id": item_id,
+            "tags": [t.get("label", t.get("tag_id")) for t in result.get("extracted", [])],
+            "lifecycle": result.get("lifecycle"),
+        })
+    except Exception:
+        pass
+    return result
 
 
 __all__ = ["router"]

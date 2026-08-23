@@ -502,9 +502,9 @@ def _execute_compile_task(task, item_ids: list[str]) -> dict:
 
     # 2. 批量规则分类 (纯函数, 无 LLM / 无网络)
     if loaded:
+        from backend.services import ai_hub
         from backend.services.auto_classifier import batch_classify
         from backend.services.concept_linker import link_tags_to_concepts
-        from backend.services.knowledge_sync import write_item_to_md
 
         classified = batch_classify([it.to_dict() for it in loaded])
 
@@ -537,7 +537,7 @@ def _execute_compile_task(task, item_ids: list[str]) -> dict:
 
                 # md 是真相源: 先回写 md, 再同步 DB (回写失败则跳过 DB,
                 # 避免 DB 领先于 md 被下次 full_sync 回滚)
-                write_item_to_md(item.to_dict())
+                ai_hub.write_item(item.to_dict(), agent="kl:compiler")
                 knowledge_repo.upsert_item(item)
             except Exception as e:
                 result["errors"] += 1
@@ -555,6 +555,26 @@ def _execute_compile_task(task, item_ids: list[str]) -> dict:
         f"classified={result['classified']} lifecycle={result['lifecycle_advanced']} "
         f"path={Path(done_path).name}"
     )
+    # v0.5 M2-Task5: 任务完成推 task_done SSE 事件 (SPEC §6.2 契约:
+    # payload = {task_id, action, result}, action=compile)
+    try:
+        import asyncio
+        from backend.api.events import publish_event
+        asyncio.get_event_loop().create_task(
+            publish_event("task_done", {
+                "task_id": task.id,
+                "action": "compile",
+                "result": {
+                    "items": result["items"],
+                    "classified": result["classified"],
+                    "lifecycle_advanced": result["lifecycle_advanced"],
+                    "missing": result["missing"],
+                    "errors": result["errors"],
+                },
+            })
+        )
+    except Exception:
+        pass  # SSE 推送失败不阻塞主流程
     return result
 
 

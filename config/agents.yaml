@@ -1,0 +1,36 @@
+# v0.5 §19.3 T15b — 外部 CLI runner 注册表 (dsh agent 网关的前置配置)
+#
+# dsh (DeepSeek Harness) 未嵌入前 (vendor/dsh/, M4 Task16), 本文件是
+# runner 元数据的唯一事实源; agent_bridge.py 落地后由 dsh 读取同一段
+# 配置 spawn CLI 进程, 路由决策复用 backend/config/agent_runner_schema.py
+# 的 route() 纯函数。
+#
+# 安全边界 (§19.3-3): cwd 模板仅允许展开为 codegarden/<project>/,
+# 禁止 hotspot 根目录与 knowledge/ (dsh runner cwd 锁定 + sandbox flag)。
+# 降级 (§19.4): CLI 未安装时路由回退 default_agent, 调用在 cg_events 留痕。
+
+agents:
+  # dsh 内置 DeepSeek runner — 对话/简报解读/知识提炼/灰区分类 (§19.2)
+  # 成本最低、中文友好、走 hotspot MCP 工具面; 无外部进程
+  builtin:
+    command: []
+    protocol: acp
+    task_types: [chat, summarize, classify]
+
+  # 代码重构/跨文件修改 (CodeGarden 任务书执行) — agentic 能力最强
+  claude-code:
+    command: ["claude", "--print", "--output-format", "stream-json"]
+    protocol: stream-json
+    cwd: "{workspace}"
+    task_types: [refactor]
+    timeout_seconds: 600        # §19.4: >10min kill, session 标记 failed
+
+  # 快速补丁/单文件生成/测试脚手架 — 启动快、token 便宜
+  codex:
+    command: ["codex", "exec", "--json"]
+    protocol: jsonl
+    cwd: "{workspace}"
+    task_types: [quick_patch]
+    timeout_seconds: 600
+
+default_agent: builtin

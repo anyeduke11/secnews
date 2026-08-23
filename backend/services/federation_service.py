@@ -69,18 +69,16 @@ def list_local_concepts() -> list[dict]:
     if results:
         try:
             from backend.repository.knowledge_repo import knowledge_repo
-            from backend.services.knowledge_sync import (
-                CONCEPTS_DIR,
-                update_md_frontmatter_field,
-            )
+            from backend.services import ai_hub
             local_slugs = {c["slug"] for c in results if c.get("slug")}
             if local_slugs:
                 hotspot_concepts = knowledge_repo.list_concepts()
                 for c in hotspot_concepts:
                     if c.slug in local_slugs and not c.local_wiki_ref:
                         ref = f"wiki:local:concepts/{c.slug}"
-                        md_ok = update_md_frontmatter_field(
-                            CONCEPTS_DIR / f"{c.slug}.md", "local_wiki_ref", ref
+                        md_ok = ai_hub.update_frontmatter(
+                            f"concepts/{c.slug}.md", "local_wiki_ref", ref,
+                            agent="svc:federation_backfill",
                         )
                         if md_ok:
                             knowledge_repo.update_concept_local_wiki_ref(c.slug, ref)

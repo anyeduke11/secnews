@@ -305,12 +305,15 @@ class HotspotService:
             return None
         cursor_id, ts_iso = decode_cursor(cursor)  # 失败 → InvalidParamException
         try:
-            ts_int = int(datetime.fromisoformat(ts_iso).timestamp())
+            # v0.5 M1-Task1: 保留微秒精度 (.6f 与 HotspotRepository
+            # ._make_cursor 同格式)。int() 截断会在同一秒内的多条记录间
+            # 丢失边界 — page2 永远查不到同秒的最后一条。
+            ts_float = datetime.fromisoformat(ts_iso).timestamp()
         except (TypeError, ValueError) as e:
             raise InvalidParamException(
                 f"invalid cursor timestamp: {ts_iso!r}"
             ) from e
-        return f"{ts_int}_{cursor_id}"
+        return f"{ts_float:.6f}_{cursor_id}"
 
     # ------------------------------------------------------------------
     def get_hotspot(self, id_: str) -> dict:

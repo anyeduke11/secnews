@@ -216,7 +216,7 @@ def generate_plan_direct(domains: list[str] | None = None) -> dict:
     for item in items:
         d = item.domain or "其他"
         domain_counts[d] = domain_counts.get(d, 0) + 1
-        if item.mastered == 0:
+        if item.mastery == 0:
             domain_unmastered.setdefault(d, []).append(item)
 
     # Sort domains by count (desc)

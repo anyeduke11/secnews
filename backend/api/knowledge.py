@@ -10,9 +10,7 @@ from fastapi import APIRouter, HTTPException, Query
 from backend.domain.knowledge_models import now_iso
 from backend.exceptions import InvalidParamException
 from backend.repository.knowledge_repo import knowledge_repo
-from backend.services.knowledge_sync import (
-    write_item_to_md,
-)
+from backend.services import ai_hub
 from backend.version import APP_VERSION as API_VERSION
 
 log = logging.getLogger("hotspot.api.knowledge")
@@ -86,7 +84,7 @@ async def update_item(item_id: str, data: dict):
 
     item.updated_at = now_iso()
     knowledge_repo.upsert_item(item)
-    write_item_to_md(item.to_dict())
+    ai_hub.write_item(item.to_dict(), agent="api:patch_item")
     return item.to_dict()
 
 
@@ -368,7 +366,6 @@ async def classify_items_batch():
     from backend.domain.knowledge_models import now_iso
     from backend.repository.knowledge_repo import knowledge_repo
     from backend.services.auto_classifier import batch_classify
-    from backend.services.knowledge_sync import write_item_to_md
 
     # Get all items without domain
     items = knowledge_repo.list_items(limit=10000)
@@ -395,7 +392,7 @@ async def classify_items_batch():
                 knowledge_repo.upsert_item(item)
                 # Update .md
                 item_dict["mastery"] = item_dict.pop("mastery", 0)
-                write_item_to_md(item_dict)
+                ai_hub.write_item(item_dict, agent="api:classify_batch")
                 count += 1
 
     return {
@@ -440,7 +437,7 @@ async def link_concepts_batch():
     from backend.domain.knowledge_models import now_iso
     from backend.repository.knowledge_repo import knowledge_repo
     from backend.services.concept_linker import batch_link_items
-    from backend.services.knowledge_sync import sync_concept_to_db, write_item_to_md
+    from backend.services.knowledge_sync import sync_concept_to_db
 
     # Get all items that need linking
     items = knowledge_repo.list_items(limit=10000)
@@ -466,7 +463,7 @@ async def link_concepts_batch():
                 item.concepts = concepts
                 item.updated_at = now_iso()
                 knowledge_repo.upsert_item(item)
-                write_item_to_md(item_dict)
+                ai_hub.write_item(item_dict, agent="api:link_concepts_batch")
                 count += 1
 
     # Sync newly created concept .md files to SQLite

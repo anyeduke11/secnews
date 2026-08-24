@@ -1,0 +1,60 @@
+# core.exclude — 在 core.include 命中的前提下, 进一步排除的路径 glob
+#
+# 作用: 同一改动可能同时触及 core 和非 core 文件;
+#       exclude 用于让 review-trigger 区分"核心实现" vs"附属产物"。
+#       命中 exclude 的文件即使落在 core.include 内, 也归类为 non-core。
+#
+# 典型场景:
+#   - 改了 backend/services/x.py (core) + backend/tests/test_x.py (test) →
+#     service 走完整门, test 走轻量门, 由调用方按"任一核心命中即核心"汇总
+#   - 改了 frontend/src/hooks/api.ts (core) + frontend/dist/assets/*.js (build artifact) →
+#     hook 走完整门, dist 永远不参与 review
+#
+# 语法: 与 core.include 完全一致 (gitignore-style glob; '#' 注释; 空行忽略)。
+
+# --- 测试文件 (test 由全量 pytest 单跑; 改测试不该触发架构门) ---
+/backend/tests/
+/backend/**/test_*.py
+/backend/**/tests.py
+/frontend/src/**/*.test.ts
+/frontend/src/**/*.test.tsx
+/frontend/src/**/*.spec.ts
+/frontend/src/**/*.spec.tsx
+/frontend/test-results/
+/frontend/e2e/
+/frontend/playwright.config.ts
+
+# --- 构建产物 / 缓存 / 第三方依赖 ---
+/frontend/dist/
+/frontend/node_modules/
+/backend/__pycache__/
+/backend/**/__pycache__/
+/backend/.pytest_cache/
+/backend/**/.pytest_cache/
+/backend/*.db
+/backend/*.db-shm
+/backend/*.db-wal
+/backend/cache_data.db
+/backend/.coverage
+
+# --- 备份 / 临时 / 数据文件 (运行时生成, 不属于源码契约) ---
+/backups/
+/tmp/
+/scripts/chaostest/
+/scripts/__pycache__/
+/scripts/**/__pycache__/
+/scripts/_*.txt
+
+# --- 文档中非架构契约部分 (改 docs/ 自由度高, 不触发 generate_meta --check) ---
+# 注意: docs/ARCHITECTURE.md 与 AGENTS.md / README.md / PROJECT.md 已在 core.include
+#       显式列出, 不在 exclude 中; 此处仅排除 archive/ 与 plan 草稿
+/docs/archived/
+/docs/code-wiki/
+/docs/superpowers/
+/scripts/_mc.txt
+
+# --- 工具脚本 (一次性辅助, 不参与架构数字) ---
+# 注意: scripts/generate_meta.py 在 core.include 显式列出, 不在此 exclude
+/scripts/_*.py
+/scripts/_*.sh
+/scripts/common/

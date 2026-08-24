@@ -1,0 +1,92 @@
+# core.include — 显式声明属于"核心代码"的路径 glob 模式
+#
+# 作用: 让 review-trigger (generate_meta.py --classify / CI 分流) 能精确识别
+#       哪些改动会触发"完整架构门"。core 内变更须跑:
+#         - generate_meta.py --check  (反推 43 jobs / 14 collectors / 51 routers / 81 services)
+#         - 全量 pytest + feature_gates 矩阵
+#         - backend-core-only 启动冒烟 (extensions 全部关闭后 core 仍可起)
+#
+# 语法: 逐行一个 gitignore-style glob; '#' 开头为注释; 空行忽略。
+#       命中规则与 .gitignore 一致 (fnmatch + 前导 '/' 锚定根; 末尾 '/' 仅匹配目录)。
+#
+# 默认 core 区域 (来自 v0.4.3 core/extension 软分层):
+#   - backend/services/     : 业务编排 (81 个文件)
+#   - backend/domain/       : Pydantic 模型契约
+#   - backend/repository/   : SQLite DAO (含 migrations/)
+#   - backend/collectors/   : 数据采集器 (含 base/parsing/keywords/quality_hook Mixin)
+#   - backend/parsers/      : 独立解析器
+#   - backend/quality/      : 13 门禁 pipeline
+#   - backend/scheduler/    : APScheduler 封装 + 45 个 job
+#   - backend/security/     : Security Graph (MITRE/CVE/合规)
+#   - backend/api/          : 全部 51 个 router (含扩展, 运行时由 feature_gates 控制可见性)
+#   - backend/core/         : core router 白名单 (永不消失)
+#   - backend/extensions/   : 扩展注册表
+#   - backend/config.py     : Pydantic Settings (env 前缀 HOTSPOT_)
+#   - backend/main.py       : FastAPI app 入口 (lifespan)
+#   - backend/crypto.py     : PBKDF2 + Fernet (加密/同步)
+#   - backend/requirements.txt / requirements.lock : 依赖锁定
+#   - frontend/src/         : React SPA 核心源码 (hooks/lib/api/components)
+#   - frontend/index.html   : 入口 HTML
+#   - frontend/vite.config.ts / tailwind.config.js / tsconfig.json : 前端构建契约
+#   - scripts/generate_meta.py : 架构元数据反推维护
+#   - docs/ARCHITECTURE.md   : 由 generate_meta.py 反推维护, 数字一致必检
+#   - .github/workflows/ci.yml : CI 门定义, 改 CI 必跑核心门
+#   - AGENTS.md / README.md / PROJECT.md : 项目契约
+#   - core.include / core.exclude : 本配置文件本身
+
+# --- 后端: 业务/数据/调度的核心 ---
+/backend/services/
+/backend/domain/
+/backend/repository/
+/backend/collectors/
+/backend/parsers/
+/backend/quality/
+/backend/scheduler/
+/backend/security/
+/backend/api/
+/backend/core/
+/backend/extensions/
+
+# --- 后端: 顶层模块 ---
+/backend/main.py
+/backend/config.py
+/backend/crypto.py
+/backend/exceptions.py
+/backend/logging_config.py
+/backend/observability.py
+/backend/proxy_config.py
+/backend/proxy_session.py
+/backend/cache.py
+/backend/version.py
+
+# --- 后端: 依赖锁定 (改了可能影响所有 import) ---
+/backend/requirements.txt
+/backend/requirements.lock
+/backend/requirements-dev.txt
+/backend/requirements-optional.txt
+
+# --- 前端: 核心代码与构建契约 ---
+/frontend/src/
+/frontend/index.html
+/frontend/package.json
+/frontend/package-lock.json
+/frontend/vite.config.ts
+/frontend/tailwind.config.js
+/frontend/postcss.config.js
+/frontend/tsconfig.json
+
+# --- 工具: 架构元数据反推 ---
+/scripts/generate_meta.py
+
+# --- 文档: 与架构数字强耦合 ---
+/docs/ARCHITECTURE.md
+/AGENTS.md
+/README.md
+/PROJECT.md
+
+# --- CI: 改 CI 必跑核心门 ---
+/.github/workflows/ci.yml
+
+# --- 本配置文件自身 ---
+/core.include
+/core.exclude

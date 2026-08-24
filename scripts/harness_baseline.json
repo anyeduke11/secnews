@@ -1,0 +1,33 @@
+{
+  "_comment": "agent-assets-review 豁免名单 (grandfather waiver)。每个 waiver 对应一个在 policy 落地前已存在的长 skill (>500 行), 暂记为 WARNING 而非 ERROR。新增 / 改造的 skill 不在 baseline → 按 ERROR 阻断。删除本文件中的条目等于强制该 skill 必须立刻满足 references/ 规则。",
+  "schema_version": 1,
+  "policy_added": "2026-08-24",
+  "policy_doc": "AGENTS.md → Agent Assets Lint Policy",
+  "waivers": {
+    "imagegen-frontend-mobile": {
+      "reason": "pre-policy (2026-08-24 前); SKILL.md 1477 行, 迁移 references/ 待 v0.5.1",
+      "lines_at_baseline": 1477,
+      "ticket": "M5-T7"
+    },
+    "image-to-code": {
+      "reason": "pre-policy (2026-08-24 前); SKILL.md 1239 行, 迁移 references/ 待 v0.5.1",
+      "lines_at_baseline": 1239,
+      "ticket": "M5-T7"
+    },
+    "design-taste-frontend": {
+      "reason": "pre-policy (2026-08-24 前); SKILL.md 1224 行, 迁移 references/ 待 v0.5.1",
+      "lines_at_baseline": 1224,
+      "ticket": "M5-T7"
+    },
+    "imagegen-frontend-web": {
+      "reason": "pre-policy (2026-08-24 前); SKILL.md 999 行, 迁移 references/ 待 v0.5.1",
+      "lines_at_baseline": 999,
+      "ticket": "M5-T7"
+    },
+    "brandkit": {
+      "reason": "pre-policy (2026-08-24 前); SKILL.md 811 行, 迁移 references/ 待 v0.5.1",
+      "lines_at_baseline": 811,
+      "ticket": "M5-T7"
+    }
+  }
+}

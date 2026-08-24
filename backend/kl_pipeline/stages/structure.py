@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.logging_config import logger
+from backend.wiki_fs.contract import get_lifecycle
 
 
 def run_structure(item_id: str, wiki_fs: Any, llm_client: Any) -> None:
@@ -19,8 +20,8 @@ def run_structure(item_id: str, wiki_fs: Any, llm_client: Any) -> None:
         raise ValueError(f"item not found: {item_id}")
 
     fm = doc["fm"]
-    if fm.get("kl_stage") != "kl:link":
-        logger.info(f"structure: skipping {item_id} (stage={fm.get('kl_stage')})")
+    if get_lifecycle(fm) != "kl:link":
+        logger.info(f"structure: skipping {item_id} (stage={get_lifecycle(fm)})")
         return
 
     # Update graph edges from related items.
@@ -38,7 +39,7 @@ def run_structure(item_id: str, wiki_fs: Any, llm_client: Any) -> None:
 
     _save_graph(graph_path, graph)
 
-    fm["kl_stage"] = "kl:structure"
+    fm["lifecycle"] = "kl:structure"
     wiki_fs.write_item(item_id, {"fm": fm, "body": doc.get("body", "")})
 
 

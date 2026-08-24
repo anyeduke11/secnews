@@ -10,8 +10,8 @@ from typing import Any
 
 from backend.kl_pipeline.obs.funnel import funnel_stats
 from backend.kl_pipeline.obs.ledger import TokenLedger
-from backend.logging_config import logger
 from backend.repository.db import get_connection
+from backend.wiki_fs.contract import get_lifecycle
 
 
 class SecNewsDashboard:
@@ -93,7 +93,7 @@ class SecNewsDashboard:
             for item_id in ids:
                 doc = self.wiki_fs.read_item(item_id)
                 if doc:
-                    stage = doc["fm"].get("kl_stage", "unknown")
+                    stage = get_lifecycle(doc["fm"])
                     stage_dist[stage] = stage_dist.get(stage, 0) + 1
             concepts_count = len(self.wiki_fs.list_concepts())
 

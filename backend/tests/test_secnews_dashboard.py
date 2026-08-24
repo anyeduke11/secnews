@@ -178,12 +178,13 @@ class TestGetKnowledgeStats:
     def test_returns_count_with_items(self, tmp_path):
         """WikiFs-backed path: items_count should match."""
         import os
+
         from backend.wiki_fs import WikiFs
         root = str(tmp_path / "wiki")
         os.makedirs(root, exist_ok=True)
         wiki = WikiFs(root)
-        wiki.write_item("x", {"fm": {"id": "x", "kl_stage": "kl:raw"}, "body": ""})
-        wiki.write_item("y", {"fm": {"id": "y", "kl_stage": "kl:refine"}, "body": ""})
+        wiki.write_item("x", {"fm": {"id": "x", "lifecycle": "kl:raw"}, "body": ""})
+        wiki.write_item("y", {"fm": {"id": "y", "lifecycle": "kl:refine"}, "body": ""})
 
         d = SecNewsDashboard(db=None, wiki_fs=wiki)
         result = d.get_knowledge_stats()

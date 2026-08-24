@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query
 
-from backend.logging_config import logger
 from backend.repository.db import get_connection
 from backend.secnews_dashboard import SecNewsDashboard
 
@@ -19,7 +18,12 @@ _dashboard: SecNewsDashboard | None = None
 def _get_dashboard() -> SecNewsDashboard:
     global _dashboard
     if _dashboard is None:
-        _dashboard = SecNewsDashboard(db=get_connection())
+        from backend.wiki_fs import WikiFs
+        from backend.wiki_fs.root import resolve_wiki_root
+        _dashboard = SecNewsDashboard(
+            db=get_connection(),
+            wiki_fs=WikiFs(resolve_wiki_root()),
+        )
     return _dashboard
 
 

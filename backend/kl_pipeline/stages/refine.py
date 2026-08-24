@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from backend.logging_config import logger
+from backend.wiki_fs.contract import get_lifecycle
 
 
 def run_refine(item_id: str, wiki_fs: Any, llm_client: Any) -> None:
@@ -20,13 +21,13 @@ def run_refine(item_id: str, wiki_fs: Any, llm_client: Any) -> None:
     body = doc.get("body", "")
 
     # Skip if already refined.
-    if fm.get("kl_stage") not in (None, "kl:raw"):
-        logger.info(f"refine: skipping {item_id} (stage={fm.get('kl_stage')})")
+    if get_lifecycle(fm) != "kl:raw":
+        logger.info(f"refine: skipping {item_id} (stage={get_lifecycle(fm)})")
         return
 
     # If no LLM client, do a lightweight local refine (title-only).
     if llm_client is None:
-        fm["kl_stage"] = "kl:refine"
+        fm["lifecycle"] = "kl:refine"
         if not fm.get("summary"):
             # Fallback: first 200 chars of body as summary.
             fm["summary"] = (body[:200] + "...") if len(body) > 200 else body
@@ -55,5 +56,5 @@ def run_refine(item_id: str, wiki_fs: Any, llm_client: Any) -> None:
         if not fm.get("summary"):
             fm["summary"] = (body[:200] + "...") if len(body) > 200 else body
 
-    fm["kl_stage"] = "kl:refine"
+    fm["lifecycle"] = "kl:refine"
     wiki_fs.write_item(item_id, {"fm": fm, "body": body})

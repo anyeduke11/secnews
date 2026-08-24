@@ -11,8 +11,9 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from backend.kl_pipeline.queue import KLQueue, STAGES
+from backend.kl_pipeline.queue import STAGES, KLQueue
 from backend.logging_config import logger
+from backend.wiki_fs.contract import get_lifecycle
 
 # Delay before first refine (let the raw item settle).
 _KICKOFF_DELAY_SECONDS = 45
@@ -51,10 +52,10 @@ class KLPipeline:
     @staticmethod
     def _load_stages() -> dict[str, Any]:
         """Lazy-import stage handlers to avoid circular imports."""
-        from backend.kl_pipeline.stages.refine import run_refine
         from backend.kl_pipeline.stages.link import run_link
-        from backend.kl_pipeline.stages.structure import run_structure
         from backend.kl_pipeline.stages.publish import run_publish
+        from backend.kl_pipeline.stages.refine import run_refine
+        from backend.kl_pipeline.stages.structure import run_structure
         return {
             "kl:refine": run_refine,
             "kl:link": run_link,
@@ -92,6 +93,8 @@ class KLPipeline:
                     self.queue.enqueue_unique(item_id, nxt, next_run)
                 else:
                     self.queue.mark_done(qid)
+                self._log_event("kl_transition", item_id, qid,
+                                {"stage": stage, "next": nxt})
                 done += 1
             except Exception as exc:
                 logger.error(
@@ -99,15 +102,33 @@ class KLPipeline:
                     extra={"item_id": item_id, "stage": stage, "error": str(exc)},
                 )
                 self.queue.mark_error(qid, str(exc)[:500])
+                self._log_event("kl_error", item_id, qid,
+                                {"stage": stage, "error": str(exc)[:200]})
                 failed += 1
         return {"done": done, "failed": failed}
+
+    @staticmethod
+    def _log_event(kind: str, item_id: str, queue_id: int, payload: dict) -> None:
+        """wiki_events 留痕 (DB=运营/事件管理层)。失败不阻塞管线。"""
+        try:
+            from backend.repository.wiki_event_repo import wiki_event_repo
+            wiki_event_repo.log(
+                kind=kind,
+                wiki_path=f"items/{item_id}.md",
+                db_table="kl_queue",
+                db_row_id=str(queue_id),
+                agent="kl_pipeline",
+                payload=payload,
+            )
+        except Exception as exc:
+            logger.warning(f"kl_pipeline wiki_events log failed: {exc}")
 
     def advance(self, item_id: str) -> str:
         """Manually advance an item to its next stage. Returns new stage name."""
         doc = self.wiki_fs.read_item(item_id)
         if doc is None:
             raise ValueError(f"item not found: {item_id}")
-        current = doc["fm"].get("kl_stage", "kl:raw")
+        current = get_lifecycle(doc["fm"])
         nxt = _next_stage(current)
         if nxt is None:
             return current  # already terminal
@@ -124,7 +145,7 @@ class KLPipeline:
             doc = self.wiki_fs.read_item(item_id)
             if doc is None:
                 continue
-            stage = doc["fm"].get("kl_stage", "kl:raw")
+            stage = get_lifecycle(doc["fm"])
             if stage == "kl:publish":
                 continue
             nxt = _next_stage(stage)

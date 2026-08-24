@@ -8,8 +8,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.logging_config import logger
-from backend.wiki_fs.store import WikiFs
 from backend.wiki_fs.contract import parse_frontmatter
+from backend.wiki_fs.store import WikiFs
 
 
 def migrate_from_external(src_root: str, dest_fs: WikiFs) -> dict:
@@ -49,7 +49,7 @@ def migrate_from_external(src_root: str, dest_fs: WikiFs) -> dict:
 
             # Ensure required fields.
             fm.setdefault("id", item_id)
-            fm.setdefault("kl_stage", "kl:raw")
+            fm.setdefault("lifecycle", "kl:raw")
             dest_fs.write_item(item_id, {"fm": fm, "body": body})
             migrated += 1
         except Exception as exc:

@@ -1,13 +1,14 @@
 """Funnel statistics — count items per KL stage.
 
-Reads the knowledge/ directory to count how many items are in each
-stage of the pipeline lifecycle.
+Reads the wiki archive root (llm-wiki-2.0) to count how many items are
+in each stage of the pipeline lifecycle.
 """
 from __future__ import annotations
 
 from typing import Any
 
 from backend.kl_pipeline.queue import STAGES
+from backend.wiki_fs.contract import get_lifecycle
 
 
 def funnel_stats(wiki_fs: Any) -> list[dict]:
@@ -16,7 +17,7 @@ def funnel_stats(wiki_fs: Any) -> list[dict]:
     Returns:
         [{"stage": "kl:raw", "count": 4149}, ...]
     """
-    counts: dict[str, int] = {s: 0 for s in STAGES}
+    counts: dict[str, int] = dict.fromkeys(STAGES, 0)
 
     if wiki_fs is None:
         return [{"stage": s, "count": c} for s, c in counts.items()]
@@ -27,7 +28,7 @@ def funnel_stats(wiki_fs: Any) -> list[dict]:
             if doc is None:
                 counts["kl:raw"] += 1
                 continue
-            stage = doc["fm"].get("kl_stage", "kl:raw")
+            stage = get_lifecycle(doc["fm"])
             if stage in counts:
                 counts[stage] += 1
             else:

@@ -210,6 +210,48 @@
 - [ ] S6-3: 迁移验证 + FTS5 可检索确认
 - [ ] S6-4: dsh-SecNews 仓库归档（不删除，保留备份）
 
+## 2026-08-24 产品三层架构裁决 + wiki 单根落地
+
+> **用户裁决原文**：「我的目标是将DeepSeek Harness作为大脑，pi作为执行agent，
+> hotspot作为平台看板，开发一个安全从业者的生产级别的安全从业者AI助手」
+> 「补齐llm-wiki-2.0作为知识库关键存档的部分，数据库作为事件管理」
+
+### 裁决一：产品三层架构（hotspot 保持活跃）
+
+| 层 | 角色 | 落点 |
+|----|------|------|
+| DeepSeek Harness | 大脑（认知层） | HTTP bridge localhost:3210, fallback 直连 LLM（v0.6 方案 §3） |
+| pi | 执行 agent | `backend/config/agent_runner_schema.py` runner 注册表（agents.yaml 待建） |
+| hotspot | 平台看板 | 本仓库, SECNEWS_INTEGRATION_TASKS Phase 0-6 继续推进 |
+
+**连锁裁决**：Phase 7 退役的破坏性步骤（D+2 停 :8000 / D+3 git mv 归档）**冻结不执行**；
+`export_for_dsh.py` 等工具保留为参考资产。AGENTS.md 顶部「已退役预告」banner 失效，
+以本节为准。
+
+### 裁决二：llm-wiki-2.0 = 知识唯一存档根（wiki-first）
+
+- `llm-wiki-2.0/*.md` = 知识真源；SQLite = 运营层 + 事件管理
+  （`wiki_events` 表为两世界唯一桥梁, v0.5 §18 存储哲学反转的最终收口）
+- 新增单一根解析器 `backend/wiki_fs/root.py::resolve_wiki_root()`
+  （env `HOTSPOT_WIKI_ROOT` 可覆盖）; kl_pipeline API / secnews dashboard API 全部切换,
+  旧 `knowledge/` 根不再被读写
+- 字段对齐：代码侧 `kl_stage` → SCHEMA.md 契约字段 `lifecycle`（17 处写入/读取点;
+  `contract.get_lifecycle()` 兼容读历史 kl_stage）
+- 事件留痕：engine.drain_due 成功转换 → kind=`kl_transition`, 阶段失败 → kind=`kl_error`,
+  导入入口 → kind=`ingest_url` / `ingest_bookmarks`（agent=kl_pipeline / api:kl_import）；
+  留痕失败只 warning 不阻塞管线
+- 附带修复：SecNewsDashboard 此前构造时未注入 wiki_fs 导致知识统计恒空, 已接单根 WikiFs
+
+### 验证证据（本会话实测）
+
+- `pytest test_kl_pipeline.py test_secnews_dashboard.py test_wiki_tools.py` = **54 passed**
+  （含新增 6 测: 根解析×2 / lifecycle 契约×1 / 全链路 raw→publish / 事件留痕×2）
+- 全量回归 `pytest backend/tests/` = **2760 passed, 4 skipped**（基线 2732 之上零失败）;
+  touched 文件 ruff 干净（linker/store 各余 1 处 HEAD 历史遗留, 非本次引入）;
+  `generate_meta.py --check` OK (jobs 45 / routers 54 / services 86)
+- 未竟事项（后续任务）：调度器 heartbeat job 驱动 drain_due/sweep 自动消费；
+  S1-6 refine 接 ai_hub LLM（当前 llm_client=None 走降级摘要）
+
 ## 2026-08-23 M4 路线决策（已被 2026-08-23 产品身份裁决取代）
 
 > ⚠️ 本节已被下方「产品身份裁决」取代。原文保留作为决策链审计。

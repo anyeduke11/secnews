@@ -110,7 +110,7 @@ MUTATIONS: list[tuple[str, str, str, str, str]] = [
 # golden test 选择器 (用 -k 关键字匹配)
 TEST_SELECTOR = {
     "backend.quality.simhash": "TestSimHashGolden or TestSimHashDeterminism or TestSimHashEdgeCases or TestHammingDistance or TestIsDuplicateGolden",
-    "backend.services.retention_engine": "TestRetentionRunDecayFrozen or TestRetentionRecordAccessFrozen or TestRetentionHealthFrozen",
+    "backend.services.retention_engine": "TestRetentionRunDecayFrozen or TestRetentionRecordAccessFrozen or TestRetentionHealthFrozen or TestDecayScorePrecisionFrozen",
     "backend.services.concept_linker": "TestLinkTagsToConceptsGolden",
 }
 
@@ -175,20 +175,22 @@ def run_golden_tests(module_name: str) -> tuple[int, int, str]:
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, cwd="/Users/duke/Documents/hotspot")
     output = result.stdout + result.stderr
-    # 用 regex 解析 "N failed, M passed" 或 "M passed, N failed" 任意顺序
+    # 只解析最末尾的 summary 行 (===== N failed, M passed ... =====)
+    # 避免从 "M passed, N deselected" 等中间行误取
     import re
     passed = 0
     failed = 0
+    summary_line = None
     for line in output.splitlines():
-        m_pass = re.search(r"(\d+)\s+passed", line)
-        m_fail = re.search(r"(\d+)\s+failed", line)
-        if m_pass and not m_fail:
+        # pytest summary 行模式: "=== N failed, M passed ... ===" 或 "M passed ..."
+        if "passed" in line and ("warning in" in line or "==" in line):
+            summary_line = line
+    if summary_line:
+        m_pass = re.search(r"(\d+)\s+passed", summary_line)
+        m_fail = re.search(r"(\d+)\s+failed", summary_line)
+        if m_pass:
             passed = int(m_pass.group(1))
-        elif m_fail and not m_pass:
-            failed = int(m_fail.group(1))
-        elif m_pass and m_fail:
-            # 同行 (如 "2 failed, 4 passed") — 取每个独立 token 的相邻数
-            passed = int(m_pass.group(1))
+        if m_fail:
             failed = int(m_fail.group(1))
     return passed, failed, output
 

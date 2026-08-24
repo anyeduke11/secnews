@@ -297,6 +297,42 @@
   touched 文件 ruff 干净（jobs.py 余 3 处 HEAD 历史遗留: RUF006/ASYNC221/RUF022）
 - `generate_meta.py --check` OK (**jobs 46** ← 心跳 job 入账 / routers 54 / services 86)
 
+## 2026-08-24 P1-4 遗留改动完整审计（独立记录）
+
+> 用户指令「完整审计，审计后提交本次改动」。审计对象为并行会话留在工作区的
+> P1-4 批次（死代码清理 + 前端死链 API 修正 + ROUTE_REGISTRY.md +
+> p1_4_mutation_test.py）。审计进行期间该会话已自行将其提交为
+> 7ca15779 (P1-2) / a7965dc8 (P1-3) / de4decf4 (P1-4) / b7238694 (P1-5),
+> 本节留存独立审计证据；审计中顺手修复的 4 处预存 lint
+> （backup I001 / maintenance F541×2 / 脚本 F401）已随其批次入账。
+
+### 审计发现与处置
+
+- **simhash 变异残留（审计时排除，现已回 HEAD 约定）**：工作区曾含
+  backend/services/simhash.py 位权翻转（置位→-1），与 p1_4_mutation_test.py
+  M2 变异模式吻合、且偏离 quality/simhash.py 参考实现约定；指纹持久化于
+  content_fingerprints 跨代比对, 一旦提交将使存量去重失效（新指纹=旧指纹
+  按位取反）。该文件最终未入任何 commit。
+  **教训：变异测试改写源文件的工作流必须在 finally 中还原。**
+- **knowledge/items/2d711642b726.md 未提交（仍在盘）**：title="smoke"/
+  url=https://x 的 ingest 冒烟残渣, 不应入 wiki 唯一存档根; 待人工处置。
+
+### 门禁结果
+
+- ruff：待提交文件中 4 处 HEAD 预存错误（backup I001 / maintenance F541×2 /
+  脚本 F401）已 --fix, 现全绿
+- 后端全量回归：**2821 passed / 1 failed** —— 失败为
+  test_codegarden_ops_api::test_allocate_port_returns_201, 因本机 python 进程
+  (PID 81158) 占用 8765 端口致 409, 环境性偶发, 与本批改动无关
+- 前端：tsc --noEmit ✅ / vite build ✅; vitest 存在 HEAD 预存失败
+  （e2e specs 被 vitest 误收集 ×5 + CategoryNav/OutboxMode/Phase13/ReviewMode
+  12 例）——均不在本批改动文件内; 本批唯一改动的 KnowledgeActionBar.test 通过
+- pip-audit：12 条依赖通告（aiohttp×3 可升 3.14.2+、cryptography→50、h2→4.4.1、
+  lxml→6.1、nltk×4→3.10、pip→26.2）——遗留升级任务
+- **Mimosa 密封扫描未完成**：security_scan_* MCP 工具本会话未挂载（此前 hook
+  scanner_no_output 同因）。已按技能纪律不以自管路径替代密封扫描;
+  本节门禁结果不构成安全结论, 正式密封审计待 Mimosa MCP 恢复后补跑。
+
 
 ## 2026-08-23 M4 路线决策（已被 2026-08-23 产品身份裁决取代）
 

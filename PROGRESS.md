@@ -133,12 +133,114 @@
 ### 测试基线
 - 全量 collect 2662 ≥ 2573（新增 graph_runtime 18 + ai_hub write_score 3）; ruff 全仓干净
 
-## 2026-08-23 M4 路线决策
+## 2026-08-24 整合 dsh-SecNews 方案定稿
 
-详见 SPEC §13 头部裁决块（commit 294d40a5）。简述：以 dsh-SecNews 方案为准，
-hotspot 不做 acp 子进程宿主。T15/T16/T17 废止，T18（ai_hub 写回）保留且已
-实现（commit a4283c36）。后续 M4 工作 = dsh-SecNews P3+（知识·执行按钮组），
-在外部仓库 `~/Documents/dsh-SecNews/` 推进。
+> **方案文档**：`docs/HOTSPOT_SECNEWS_INTEGRATION.md`（完整整合方案）
+> **执行任务**：`docs/SECNEWS_INTEGRATION_TASKS.md`（Phase 0-6 可落地任务清单）
+
+### 整合总览
+| Phase | 名称 | 人天 | 状态 |
+|-------|------|------|------|
+| 0 | 基础层：KL 引擎 + wiki FS + 看板壳 | 8 | 待开始 |
+| 1 | 管线引擎 + 书签导入 + Pipeline 观测 | 10 | 待开始 |
+| 2 | 质量门禁合并 + CVE/ATT&CK + sweep | 5 | 待开始 |
+| 3 | 安全看板完整 UI + 三层路由整合 | 8 | 待开始 |
+| 4 | AI 研判 + DeepRead + 模型路由 | 6 | 待开始 |
+| 5 | 复习集成 + 复利打通 | 4 | 待开始 |
+| 6 | 存量迁移 + 清理 | 3 | 待开始 |
+| 合计 | | 44 | — |
+
+### Phase 0 任务分解（当前待执行）
+
+- [ ] S0-1: 新建 `backend/kl_pipeline/` 包结构（engine.py / queue.py / stages/ / obs/）
+- [ ] S0-2: 新建 `backend/wiki_fs/` 包结构（contract.py / store.py / migrate.py / linker.py）
+- [ ] S0-3: 增强 `backend/enrich_v2.py`（CVE/ATT&CK/合规正则 + 到期时间）
+- [ ] S0-4: 新建 `backend/secnews_dashboard.py`（feed/pipeline/knowledge/stats 聚合）
+- [ ] S0-5: 新建 `backend/api/kl_pipeline_api.py`（import/url, import/bookmarks, inbox/scan, stats, drain, advance, retry）
+- [ ] S0-6: 新建 `backend/api/secnews_dashboard_api.py`（feed, pipeline, knowledge, stats）
+- [ ] S0-7: 前端新建 `frontend/src/components/secnews/` 组件目录
+- [ ] S0-8: 前端新增 `/secnews` 路由（feed, pipeline, knowledge）
+- [ ] S0-9: 数据库迁移（kl_queue + token_ledger + wiki_items_fts）
+- [ ] S0-10: LayerNav 新增「安全看板」入口按钮
+- [ ] S0-11: DataLayerPage 新增「安全看板」快捷入口卡片
+
+### Phase 1 任务分解
+- [ ] S1-1: KL 引擎五阶段状态机跑通（raw → refine → link → structure → publish）
+- [ ] S1-2: wiki_fs store.py 读写契约 + 块序列解析
+- [ ] S1-3: 书签 HTML 导入（Netscape 解析 + 存活三态检测）
+- [ ] S1-4: Pipeline 观测台 UI（漏斗 + 队列卡片 + 死信表 + token 台账）
+- [ ] S1-5: inbox 扫描入口 + quarantine 隔离区
+- [ ] S1-6: refine 轻 AI 接入（flash 档，topic/type/tags）
+
+### Phase 2 任务分解
+- [ ] S2-1: 质量门禁 13+ 道 Gate 合并（Hotspot 13 + dsh 8）
+- [ ] S2-2: CVE/ATT&CK/合规正则抽取（T\d{4} + CVE-YYYY-NNNN + 等保/关基）
+- [ ] S2-3: 每日 sweep 兜底运行（滞留条目自动入队）
+- [ ] S2-4: concept-linker Python 移植（FTS 共现 → 权重边）
+
+### Phase 3 任务分解
+- [ ] S3-1: 报纸风 Feed 完整 UI（头版头条 + 分类标签 + 网格卡片）
+- [ ] S3-2: Pipeline 观测台完整 UI（五阶段漏斗 + 队列 + 死信 + token 台账）
+- [ ] S3-3: wiki 知识浏览 UI（items + concepts + inbox 扫描）
+- [ ] S3-4: 安全看板设置页（采集源 + 模型档位 + 管线参数）
+- [ ] S3-5: LayerNav 完整四入口（资料层 / 判断层 / 行动层 / 安全看板）
+
+### Phase 4 任务分解
+- [ ] S4-1: 模型分层路由（flash/big/embed 三档配置）
+- [ ] S4-2: DeepRead 深度分析面板（四节报告）
+- [ ] S4-3: CVE 热力图 + ATT&CK 技术映射可视化
+- [ ] S4-4: 合规矩阵面板
+
+### Phase 5 任务分解
+- [ ] S5-1: SM-2 复习与 wiki pipeline 打通
+- [ ] S5-2: 复习结果单向投影回 wiki frontmatter
+- [ ] S5-3: 08:00 日报自动生成
+- [ ] S5-4: 到期复习卡自动出现
+
+### Phase 6 任务分解
+- [ ] S6-1: 存量 4149 items + 96 concepts 迁移脚本
+- [ ] S6-2: graph.json 合并去重
+- [ ] S6-3: 迁移验证 + FTS5 可检索确认
+- [ ] S6-4: dsh-SecNews 仓库归档（不删除，保留备份）
+
+## 2026-08-23 M4 路线决策（已被 2026-08-23 产品身份裁决取代）
+
+> ⚠️ 本节已被下方「产品身份裁决」取代。原文保留作为决策链审计。
+> 原决策：以 dsh-SecNews 方案为准，hotspot 不做 acp 子进程宿主，后续 M4 在外部仓库推进。
+> 新裁决：hotspot 就是产品主体，dsh-SecNews PRD 设计回灌 hotspot。
+
+## 2026-08-23 产品身份裁决（取代 M4 路线决策）
+
+> **用户拍板**：hotspot 的产品身份 = 「集成 DeepSeek Harness 的安全从业者 AI 工作台」。
+
+### 三条第一性原理
+1. **工作台 ≠ 聚合器**：用户来工作台是「做事」，不是「看新闻」。采集是管道，不是产品。
+2. **安全从业者 = 判断密集型**：核心价值是帮用户从碎片信息中形成判断，不是推送更多资讯。
+3. **集成 dsh ≠ 依赖 dsh**：hotspot 独立可运行，dsh 增强推理能力。dsh 挂了 hotspot LLM 直连兜底。
+
+### 四项结构裁决
+| # | 裁决 | 含义 |
+|---|------|------|
+| R1 | dsh-SecNews PRD 回灌 hotspot | SECNEWS-v5-PRD 的 M1-M7 映射到 hotspot 代码结构；dsh-SecNews 仓库保留为设计参考 |
+| R2 | dsh 进程间通信 | hotspot 与 deepseek-harness 通过 HTTP/WebSocket 通信，松耦合；不用 ACP 子进程 |
+| R3 | ai_hub 拆三层 | llm/(gateway+scoring+model_router) + knowledge/(wiki_io+wiki_query) + dsh/(bridge+task_router+session) |
+| R4 | editorial → 工作台 UI | 5 视图：Briefing/Pipeline/Knowledge/Analyze/Settings（取代 editorial 6 view + /data 三层） |
+
+### 对已完成工作的影响
+- **M1/M2/M3.5/M5 已完成工作全部保留**：性能优化、DB 瘦身、llm-wiki-2.0 底座、ai_hub 单出口——这些都是工作台的基础设施，方向不变。
+- **M3 editorial 接满废止**：不再按「editorial 6 view 接老功能」执行；改为按工作台 5 视图重新设计。
+- **M4 路线反转**：不再在外部仓库推进；dsh 集成回到 hotspot 代码库。
+- **dsh-SecNews/secnews/ 代码不搬迁**：作为设计参考，不合并到 hotspot。
+
+### 新重构方案骨架（已细化为 `docs/v0.6_workstation_plan.md`）
+
+| Phase | 内容 | 对应旧版 |
+|-------|------|----------|
+| Phase 1 | 清场：死代码/F821/jobs拆分/M1M2验收 | 新增 |
+| Phase 2 | ai_hub 解耦 + dsh 桥接层 | 取代 M4 |
+| Phase 3 | KL 管线落地 (wiki-first + 模型分层) | 取代 M3+M3.5 剩余 |
+| Phase 4 | 工作台 UI 重建 (5 视图) | 取代 M3 editorial |
+| Phase 5 | 执行层 (SM-2/简报/MCP/CLI) | 新增 |
 
 ## 开发计划（2026-08-21 制定，依 SPEC §1 细化）
 
@@ -372,17 +474,8 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
 - `feat(v05-§18.2)` a4283c36: ai_hub 写回唯一门面 + agent_runner_schema(T15b 前置) + agents.yaml
 - `docs/chore` (本条): PROGRESS 落账 + ARCHITECTURE meta 同步 + knowledge 快照
 
-### M4 路线决策（2026-08-23，用户裁决）
+### M4 路线决策（2026-08-23，已被产品身份裁决取代）
 
-> 发现平行工程 `~/Documents/dsh-SecNews/SECNEWS-二次开发方案.md`（dsh 宿主 :3210 反代
-> hotspot 骨干、AI 能力按钮、P2 已完成），与 SPEC §13-17 的 hotspot 宿主 + editorial 第7
-> view 自由对话方向相反。用户拍板：
-
-- **M4 以 dsh-SecNews 方案为准**：hotspot 不做 acp 子进程宿主，T16/T17 的
-  「FastAPI spawn dsh」「editorial AI 对话 view」不再按原样执行；
-  hotspot 侧保留并已提前落地的部分：agent_runner_schema + agents.yaml（T15b，
-  runner 元数据事实源）、ai_hub 写回门面、MCP 14 工具面（dsh mcp-client 已验证可连）。
-- **T18 记忆单源**改为：dsh agent 产物经 ai_hub 写回（llm-wiki-2.0 就绪前暂写 knowledge/）。
-- **SPEC 待改**：docs/v0.5_refactor_plan.md §13-§17 需按 dsh-SecNews 方案重写
-  （hotspot=确定性骨干被反代；dsh=认知宿主）；执行 M4 前先改 SPEC。
-- **M3.5 与 M4 整合推进**（用户裁决）：llm-wiki-2.0 底座与 dsh 集成一体完成。
+> 原文保留作为决策链审计。详见上方「产品身份裁决」一节。
+> - 原决策：M4 以 dsh-SecNews 方案为准，后续在外部仓库推进。
+> - 新裁决：hotspot 就是产品主体，dsh-SecNews PRD 回灌 hotspot，dsh 进程间通信。

@@ -82,6 +82,7 @@ _JOB_EXT_MAP: dict[str, str] = {
     "cg_drift_assess": "tech_stack",   # 技术栈漂移评估 (3600s)
     "mitre_sync": "security_graph",    # MITRE ATT&CK 同步 (Sun 04:00)
     "cve_sync_to_security": "security_graph",  # CVE 同步到 security 实体 (1800s)
+    "kl_pipeline_heartbeat": "secnews",  # KL 管线心跳消费 (60s) — SECNEWS Phase 1
 }
 
 
@@ -276,6 +277,16 @@ class HotspotScheduler:
                 trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
                 id="cg_event_process",
                 name="codegarden event process (every 60s)",
+                replace_existing=True,
+            )
+        # SECNEWS Phase 1 (2026-08-24): kl_queue 心跳消费 (每 60 秒) —
+        # drain_due 常规消化 + 每 10 拍 sweep 兜底; 归属 secnews 扩展域。
+        if _is_job_enabled("kl_pipeline_heartbeat"):
+            self.scheduler.add_job(
+                jobs.kl_pipeline_heartbeat_job,
+                trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
+                id="kl_pipeline_heartbeat",
+                name="kl pipeline heartbeat: drain due tasks (every 60s)",
                 replace_existing=True,
             )
         # Phase 2 Security Graph: job 18 — MITRE ATT&CK 同步 (每周日 04:00 Asia/Shanghai)

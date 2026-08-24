@@ -102,14 +102,45 @@ async def scan_inbox() -> dict:
 
 @router.get("/pipeline/stats")
 async def pipeline_stats() -> dict:
-    """Funnel + queue + dead-letter + token ledger stats."""
+    """Funnel + queue + dead-letter + alive + token ledger stats."""
+    from backend.wiki_fs.liveness import liveness_counts
+
     pipeline = _get_pipeline()
     wiki_fs = _get_wiki_fs()
     funnel = funnel_stats(wiki_fs)
     queue_stats = pipeline.queue.stats()
     errors = pipeline.queue.errors(limit=10)
     ledger = TokenLedger(get_connection()).summary()
-    return {"funnel": funnel, "queue": queue_stats, "errors": errors, "ledger": ledger}
+    return {
+        "funnel": funnel,
+        "queue": queue_stats,
+        "errors": errors,
+        "alive": liveness_counts(wiki_fs),
+        "ledger": ledger,
+    }
+
+
+@router.get("/liveness")
+async def liveness_stats() -> dict:
+    """书签存活三态分布 (只读 frontmatter, 零网络 IO)。"""
+    wiki_fs = _get_wiki_fs()
+    return liveness_counts(wiki_fs)
+
+
+@router.post("/liveness/sweep")
+async def liveness_sweep() -> dict:
+    """手动触发一次书签存活批扫 (HEAD+GET 兜底, 三态写回 frontmatter)。
+
+    网络密集操作 → asyncio.to_thread, 不阻塞事件循环。
+    """
+    import asyncio
+
+    from backend.wiki_fs.liveness import sweep_liveness
+
+    wiki_fs = _get_wiki_fs()
+    stats = await asyncio.to_thread(sweep_liveness, wiki_fs)
+    _log_ingest_event("liveness_sweep", "batch", dict(stats))
+    return stats
 
 
 @router.post("/pipeline/drain")

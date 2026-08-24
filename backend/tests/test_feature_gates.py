@@ -82,6 +82,7 @@ JOB_EXT_MAP = {
     "mitre_sync": "security_graph",
     "cve_sync_to_security": "security_graph",
     "kl_pipeline_heartbeat": "secnews",
+    "secnews_liveness_sweep": "secnews",
 }
 
 
@@ -201,8 +202,8 @@ class TestJobGating:
             assert _is_job_enabled(core_id), f"core job {core_id} must always run"
 
     def test_registered_job_count_matches_scheduler(self):
-        """scheduler.py 中 add_job 数 = 46 (复利驱动器 + llm-wiki-2.0 归档/衰减
-        + SECNEWS kl_pipeline_heartbeat)。"""
+        """scheduler.py 中 add_job 数 = 47 (复利驱动器 + llm-wiki-2.0 归档/衰减
+        + SECNEWS kl_pipeline_heartbeat / secnews_liveness_sweep)。"""
         import ast
         from pathlib import Path
         src = Path("backend/scheduler/scheduler.py").read_text(encoding="utf-8")
@@ -213,7 +214,7 @@ class TestJobGating:
             and isinstance(node.func, ast.Attribute)
             and node.func.attr == "add_job"
         )
-        assert n == 46
+        assert n == 47
 
 
 class TestFeaturesEndpoint:

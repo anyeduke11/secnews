@@ -2278,6 +2278,25 @@ async def kl_pipeline_heartbeat_job() -> None:
         logger.error(f"kl_pipeline_heartbeat_job crashed: {e}")
 
 
+async def secnews_liveness_sweep_job() -> None:
+    """每周日 02:00 UTC 书签存活三态批扫 (S1-3, 整合方案 §7.1)。
+
+    对 bookmark-import 来源 item 的 url 做 HEAD(+GET 兜底) 探测, 三态写回
+    frontmatter: alive = alive/dead/unknown。纯 FS+网络操作 → asyncio.to_thread。
+    """
+    from backend.kl_pipeline.runtime import get_production_wiki_fs
+    from backend.wiki_fs.liveness import sweep_liveness
+
+    try:
+        def _sweep() -> dict:
+            return sweep_liveness(get_production_wiki_fs())
+
+        stats = await asyncio.to_thread(_sweep)
+        logger.info(f"secnews_liveness_sweep_job: {stats}")
+    except Exception as e:
+        logger.error(f"secnews_liveness_sweep_job crashed: {e}")
+
+
 # 更新 __all__ (Phase 1.4 + Phase 2.2 + existing)
 __all__.extend([
     "attention_aggregate_job",
@@ -2288,6 +2307,7 @@ __all__.extend([
     "cve_sync_to_security_job",
     "kl_dead_letter_retry_job",
     "kl_pipeline_heartbeat_job",
+    "secnews_liveness_sweep_job",
     "kl_trigger_t1_job",
     "kl_trigger_t2_job",
     "kl_trigger_t3_job",

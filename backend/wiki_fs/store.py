@@ -107,6 +107,7 @@ class WikiFs:
                 "url": url,
                 "source": "bookmark-import",
                 "lifecycle": "kl:raw",
+                "alive": "unknown",  # S1-3 三态: alive/dead/unknown, 周批扫收敛
                 "ingested_at": now,
                 "tags": bm.get("tags", []),
             }

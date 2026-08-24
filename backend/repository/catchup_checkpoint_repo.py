@@ -122,18 +122,7 @@ class CatchupCheckpointRepository:
                 ),
             )
             return int(cur.lastrowid)
-        # UPDATE
-        finished_clause = ", finished_at = ?" if status in ("done", "failed", "skipped") else ""
-        params: list = [str(status), int(items_count), error_msg]
-        sql = f"""
-            UPDATE catchup_checkpoints
-            SET status = ?, items_count = ?, error_msg = ?
-            {finished_clause}
-            WHERE id = ?
-        """
-        if finished_clause:
-            params.insert(2, now)  # error_msg 在 finished_at 之后? 调整顺序
-        # 重写清晰版
+        # UPDATE: done/failed/skipped 写 finished_at, 其他状态不写
         if status in ("done", "failed", "skipped"):
             conn.execute(
                 """

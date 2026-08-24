@@ -239,8 +239,7 @@ def _infer_from_package_json(content: str) -> tuple[str, list[str], str]:
 
     tech_stack = sorted({k.split("/")[0] if "/" in k else k for k in deps})[:20]
 
-    # type 推断
-    scripts = data.get("scripts") or {}
+    # type 推断 (基于 dependencies, 不用 scripts)
     has_react = any(k in deps for k in ("react", "vue", "svelte", "@angular/core", "solid-js"))
     has_express = "express" in deps or "fastify" in deps or "koa" in deps
     has_cli = "bin" in data or "commander" in deps or "yargs" in deps

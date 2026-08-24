@@ -695,7 +695,6 @@ class CollectionService:
         for item in items:
             url_str = str(item.url)
             url_canonical = canonicalize_url(url_str)
-            title_norm = normalize_title(item.title)
             text = item.title
             if item.summary:
                 text += " " + item.summary

@@ -44,10 +44,9 @@ def _generate_soul_content() -> str:
     concepts = knowledge_repo.list_concepts()
 
     total = len(items)
-    with_domain = sum(1 for i in items if i.domain)
-    with_concepts = sum(1 for i in items if i.concepts)
-    compiled = sum(1 for i in items if i.compiled)
-    orphan_items = knowledge_repo.count_orphan_items()
+    # Note: with_domain/with_concepts/compiled/orphan_items 4 个统计指标
+    # 在 v0.5 soul 输出中未消费 (HISTORICAL — 早期 SOUL.md 模板用过),
+    # 现由下游 domain_counts/type_counts 替代, 故此处不再写入局部变量
 
     # Domain distribution
     domain_counts: dict[str, int] = {}

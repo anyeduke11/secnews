@@ -12,6 +12,11 @@ import * as P from './lazy-imports';
 //    /deep 是跨实体深读视图, /knowledge/deep-read 属知识库阅读流, 并存不冲突
 //  - P1.4: /brief (官方每日简报 digest) 已合并进 /knowledge/briefing, 旧路径重定向
 
+// P1-3: 跨 7 个子模块 (main hotspot / codegarden / kl / ai_hub /
+//   knowledge-master / secnews / security_cockpit) 的路由映射表见
+//   ./ROUTE_REGISTRY.md。新增 <Route> 必须同时登记该表, 否则 CI 会 fail。
+//   §三记录了 P1-1 修复的 7 个 mismatch (/api/llm/digest / /api/soul 等)。
+
 /** 旧路由 /category/:cat 重定向到资料层，带上 category 参数 */
 function CategoryRedirect() {
   const { cat } = useParams<{ cat: string }>();

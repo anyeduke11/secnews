@@ -432,6 +432,90 @@ class TestRetentionHealthFrozen:
         assert health["ok"] is False
 
 
+class TestDecayScorePrecisionFrozen:
+    """decay_score — 锁住 Ebbinghaus 公式的精度与边界行为。
+
+    P1-4 mutation test 发现盲点 M8: 现有 retention 测试只覆盖整数天 (0/7/14/21),
+    浮点精度天然对齐 round(0.9**n, 4) — 去掉 round 后 mutation 不会暴露。
+    本测试补充小数天精度断言, 让 M8 真正能被 catch。
+
+    公式: ``current = initial * 0.9 ** (days / 7)`` 截断到 [0, initial] + round(4 位)
+    若 round 被去掉, 浮点 0.9**(1.5/7) = 0.9776757055472389 ≠ round 后的 0.9777。
+    """
+
+    def test_integer_days_are_exact(self):
+        """整数天 0/7/14/21 的 0.9^n 精确, round 不改变值。"""
+        from backend.services.retention_engine import decay_score
+
+        assert decay_score(1.0, 0) == 1.0
+        assert decay_score(1.0, 7) == 0.9
+        assert decay_score(1.0, 14) == 0.81   # 0.9 ** 2
+        assert decay_score(1.0, 21) == 0.729  # 0.9 ** 3
+
+    def test_fractional_days_locked_to_4_decimals(self):
+        """小数天精度锁: round(0.9**(1.5/7), 4) = 0.9777。
+
+        若实现去掉 round(), 该测试会失败 (raw = 0.9776757055472389)。
+        """
+        from backend.services.retention_engine import decay_score
+
+        # 关键 golden: days=1.5 → 期望 4 位精度
+        assert decay_score(1.0, 1.5) == 0.9777
+
+        # 其它小数天精度对照
+        assert decay_score(1.0, 0.5) == 0.9925
+        assert decay_score(1.0, 2.5) == 0.9631
+        assert decay_score(1.0, 7.5) == 0.8933
+        assert decay_score(1.0, 14.5) == 0.8039
+
+    def test_negative_days_clamps_to_zero(self):
+        """days < 0 → 等同 days=0 (不衰减反增), 由 L49-50 防御性截断。"""
+        from backend.services.retention_engine import decay_score
+
+        assert decay_score(1.0, -1) == 1.0
+        assert decay_score(1.0, -100) == 1.0
+        assert decay_score(0.5, -0.001) == 0.5
+
+    def test_initial_below_one_unchanged(self):
+        """initial < 1 时, days=0 应返回 initial 本身 (无衰减)。"""
+        from backend.services.retention_engine import decay_score
+
+        assert decay_score(0.5, 0) == 0.5
+        assert decay_score(0.7, 0) == 0.7
+        assert decay_score(0.3, 0) == 0.3
+
+    def test_zero_initial_always_zero(self):
+        """initial=0 → 任何 days 都是 0 (max(0, min(0, raw)))。"""
+        from backend.services.retention_engine import decay_score
+
+        assert decay_score(0.0, 0) == 0.0
+        assert decay_score(0.0, 1.5) == 0.0
+        assert decay_score(0.0, 100) == 0.0
+
+    def test_returns_4_decimal_places_even_for_clean_inputs(self):
+        """M8 盲点断言: 即使 inputs 是干净的, 输出必须 round 到 4 位。
+
+        若实现去掉 round(), decay_score(1.0, 7) 会返回 0.9 而非 0.9 (整数天巧合),
+        但 decay_score(1.0, 1.5) 会返回 0.9776757055472389 而非 0.9777。
+        本测试组合整数 + 小数, 让 M8 在任一路径都暴露。
+        """
+        from backend.services.retention_engine import decay_score
+
+        results = [
+            decay_score(1.0, 0),
+            decay_score(1.0, 7),
+            decay_score(1.0, 14),
+            decay_score(1.0, 1.5),     # 关键小数精度
+            decay_score(1.0, 7.5),     # 关键小数精度
+        ]
+        # 每个结果的小数位数 ≤ 4
+        for r in results:
+            s = str(r)
+            if "." in s:
+                decimals = s.split(".")[1]
+                assert len(decimals) <= 4, f"decay_score({r}) has > 4 decimals"
+
+
 # ═══════════════════════════════════════════════════════════════
 # Concept Linker — tag→concept 映射 + graph.json schema 校验
 # ═══════════════════════════════════════════════════════════════

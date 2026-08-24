@@ -21,8 +21,18 @@
 ```bash
 cd /Users/duke/Documents/hotspot
 
-# 1. 导出 hotspot.db 行数 (基准, 不可变)
-python -c "
+# 1. 一键锁定 baseline (供 dsh 端对账)
+python3 scripts/snapshot_for_retirement.py
+# 期望输出:
+#   hotspots 3391 / favorites 4 / todos 6 / sm2_reviews 3 / annotations 2 /
+#   hotspot_tags 5356 / knowledge_concepts 98 / knowledge_graph 42
+#   → total_db_rows: 8902
+#   items 4149 / concepts 96 / inbox 0 / quarantine 0
+#   → total_wiki_files: 4245
+# 实际写入 data/retirement_baseline.json
+
+# 1b. 等价手写版 (若 snapshot 脚本不可用)
+python3 -c "
 import sqlite3, json
 conn = sqlite3.connect('backend/hotspot.db')
 tables = ['hotspots','favorites','todos','sm2_reviews','annotations',
@@ -35,12 +45,37 @@ print(json.dumps({t: conn.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0]
 #  "annotations": 2, "hotspot_tags": 5356,
 #  "knowledge_concepts": 98, "knowledge_graph": 42}
 
-# 2. wiki 文件数
+# 2. wiki 文件数 (与 baseline.json 一致)
 find knowledge/items knowledge/concepts -name '*.md' | wc -l
 # 期望: 4245 (4149 items + 96 concepts)
 
 # 3. dsh 端 secnews.db 同样跑一遍, 必须数字完全一致
 # 任何 ±1 差异都需 dsh 端补迁或 hotspot 端排除
+# (snapshot 输出的 dsh_verify_hint 给出了 node:sqlite 的对账命令模板)
+```
+
+## hotspot 端一键退役脚本
+
+上述 6 步已经打包为可一键执行的脚本 [`scripts/execute_retirement.sh`](../scripts/execute_retirement.sh)。
+
+**设计**:
+- **dry-run 默认** (`bash scripts/execute_retirement.sh`): 打印所有会做什么, 不动文件/进程/git
+- **真执行** (`bash scripts/execute_retirement.sh --apply`): 跑完 6 步, 含 safety checks
+- **可分步** (`--step N --apply`): 单步重跑, 排错用
+- **可跳过** (`--skip-kill / --skip-export / --skip-baseline`): 灵活组合
+- **错误回滚**: 失败时打印 30 天应急回滚命令
+
+**完整流程**:
+
+```bash
+# Dry-run 先看一遍会做什么
+bash scripts/execute_retirement.sh
+
+# D+0 dsh 端对账通过后, 真执行
+bash scripts/execute_retirement.sh --apply
+
+# 排错时单独跑某步
+bash scripts/execute_retirement.sh --step 3 --apply   # 只锁 baseline
 ```
 
 ## hotspot 端退役步骤 (D+2/D+3)
@@ -69,6 +104,16 @@ lsof -i :8000
 
 # 备份到外置盘 (与 hotspot-archived/ 并列)
 rsync -av data/export/ /Volumes/backup/hotspot-export-$(date +%Y%m%d)/
+```
+
+### 步骤 2.5: 锁 baseline 快照 (供 dsh 端对账)
+
+```bash
+.venv/bin/python scripts/snapshot_for_retirement.py
+# 期望: data/retirement_baseline.json 含 schema_version=1 + counts + dsh_verify_hint
+
+# 任意时刻可重新验证 (退出码 0=一致, 1=漂移)
+.venv/bin/python scripts/snapshot_for_retirement.py --verify
 ```
 
 ### 步骤 3: 归档 backend/
@@ -187,16 +232,23 @@ python scripts/migrate_from_dsh.py  # 需事先写好
 - [ ] dsh 端 secnews.db 行数 == hotspot.db 行数 (8 表逐表对账)
 - [ ] dsh 端 wiki 文件数 == 4245
 - [ ] dsh 端 React SPA 全功能冒烟通过
+- [ ] hotspot 端 baseline.json 锁定 (`data/retirement_baseline.json`)
+- [ ] hotspot 端 `--verify` 退出码 0 (`snapshot_for_retirement.py --verify`)
 - [ ] hotspot 端 :8000 端口空闲 (`lsof -i :8000` 无输出)
 - [ ] hotspot 端 `backend/` 已 git mv 为 `hotspot-archived/`
 - [ ] hotspot 端 `data/export/` 留底且备份至外置盘
 - [ ] hotspot 端 AGENTS.md / README.md 标注 RETIRED
 - [ ] hotspot 端 git tag `v0.5.0-retired` 已推送
 - [ ] 应急回滚命令备齐且在 30 天内可执行
+- [ ] `bash scripts/execute_retirement.sh --help` 可执行
 
 ## 相关文档
 
-- `scripts/export_for_dsh.py` — hotspot.db → JSON 旁路导出器 (本仓库)
-- `docs/CodeGarden_PRD_v1.7.md` — hotspot v0.3-0.4 详细设计 (本仓库)
+- [`scripts/export_for_dsh.py`](../scripts/export_for_dsh.py) — hotspot.db → JSON 旁路导出器 (本仓库)
+- [`scripts/snapshot_for_retirement.py`](../scripts/snapshot_for_retirement.py) — 行数基线快照, dsh 端对账用 (本仓库)
+- [`scripts/execute_retirement.sh`](../scripts/execute_retirement.sh) — 6 步退役一键脚本 (dry-run 默认, 本仓库)
+- [`backend/tests/test_export_for_dsh.py`](../backend/tests/test_export_for_dsh.py) — 8 个 export 契约测试 (本仓库)
+- [`backend/tests/test_snapshot_for_retirement.py`](../backend/tests/test_snapshot_for_retirement.py) — 13 个 baseline 契约测试 (本仓库)
+- [`docs/CodeGarden_PRD_v1.7.md`](CodeGarden_PRD_v1.7.md) — hotspot v0.3-0.4 详细设计 (本仓库)
 - dsh 端 `packages/store/src/migrate-from-hotspot.ts` — TS 端迁入脚本 (dsh-SecNews 仓库)
 - dsh 端 `web/` — React SPA 取代 hotspot frontend/ (dsh-SecNews 仓库)

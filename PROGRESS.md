@@ -479,3 +479,49 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
 > 原文保留作为决策链审计。详见上方「产品身份裁决」一节。
 > - 原决策：M4 以 dsh-SecNews 方案为准，后续在外部仓库推进。
 > - 新裁决：hotspot 就是产品主体，dsh-SecNews PRD 回灌 hotspot，dsh 进程间通信。
+
+## 2026-08-24 Phase 7 数据迁移 + 旧系统退役 (c5)
+
+> **背景**：hotspot v0.5.0 + dsh-SecNews 方案定稿后，进入 Phase 7 数据迁移 + 旧系统退役阶段。
+> workspace 约束下, hotspot 端能推进的是 (a) Python 旁路导出器 + (b) 退役文档;
+> dsh 端的 `migrate-from-hotspot.ts` (344 行, 已在 dsh-SecNews 仓库内) 由 dsh 侧开发。
+
+### Phase 7a — hotspot.db → JSON 旁路导出器
+
+- **commit b1cd80de**: `feat(scripts): export_for_dsh.py + test (Phase 7 数据迁移旁路)`
+- **scripts/export_for_dsh.py** (375 行):
+  - 8 张核心表: hotspots/favorites/todos/sm2_reviews/annotations/hotspot_tags/knowledge_concepts/knowledge_graph
+  - 输出契约: manifest.json (schema_version + counts + contract) + per-table *.json (CREATE TABLE DDL + columns + rows)
+  - 字段归一化: datetime → ISO8601; BLOB → {__b64__: base64}; JSON-encoded 字符串 → 原生 list/object; None → null
+  - wiki_files/: cp -r knowledge/{items,concepts,inbox,quarantine}/
+  - 37 张 SKIP_TABLES 含 rationale (schema_version / encryption_keys / cg_* / llm_* / FTS5 虚表等)
+  - 支持 --tables / --no-wiki / --dry-run / --out / --db / --wiki-src 五个 flag
+- **backend/tests/test_export_for_dsh.py** (135 行, 8 cases 全绿):
+  - manifest schema_version=1 + counts + contract
+  - 每张表 schema/columns/rows 形状
+  - JSON-encoded 字段解析
+  - row_count == SELECT COUNT(*)
+  - skip_tables_rationale ≥ 10 项
+- **实测**: 8 表 8902 行 + 4245 wiki 文件 (4149 items + 96 concepts)
+- **.gitignore**: 新增 `data/export/` (运行时产物不入版本库)
+
+### Phase 7b — 退役清单文档 (当前)
+
+- **新增 docs/HOTSPOT_RETIREMENT.md** (202 行):
+  - 退役时间线 (D+0 至 D+4)
+  - hotspot 端验收命令 (行数对账 / wiki 文件数对账)
+  - hotspot 端退役步骤 (6 步: 停 :8000 / 跑 export / git mv / 标 AGENTS / git tag)
+  - 代码迁移清单 (run.py / check_render.py / backend/main.py 等)
+  - 应急回滚 (30 天观察期)
+  - 不迁移表 + 文档同步清单 + 验收 checklist
+- **AGENTS.md 同步**:
+  - 顶部加 RETIRED banner (Phase 7 进行中)
+  - Development Commands 加退役警告
+  - 指向 HOTSPOT_RETIREMENT.md
+
+### Phase 7 后续 (待 dsh 端推进)
+
+- dsh 端 secnews.db 行数对账 == hotspot.db 8 表 8902 行
+- dsh 端 wiki 文件数对账 == 4245
+- dsh 端 React SPA `web/` 全功能冒烟
+- hotspot 端 :8000 进程停止 / git mv backend → hotspot-archived / git tag v0.5.0-retired

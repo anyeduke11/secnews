@@ -285,8 +285,8 @@ export function DeepReadMode() {
                 )}
                 {item.type && <span>类型: {item.type}</span>}
                 {item.difficulty && <span>难度: {item.difficulty}</span>}
-                {item.mastered !== undefined && (
-                  <span>掌握度: {item.mastered}%</span>
+                {item.mastery !== undefined && (
+                  <span>掌握度: {item.mastery}%</span>
                 )}
               </div>
 

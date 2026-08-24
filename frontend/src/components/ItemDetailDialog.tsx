@@ -49,7 +49,7 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
   const [type, setType] = useState('');
   const [difficulty, setDifficulty] = useState('');
   const [tagsText, setTagsText] = useState('');
-  const [mastered, setMastered] = useState(0);
+  const [mastery, setMastery] = useState(0);
 
   const loadItem = useCallback((id: string) => {
     setLoading(true);
@@ -68,7 +68,7 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
         setType(it.type || '');
         setDifficulty(it.difficulty || '');
         setTagsText((it.tags || []).join(', '));
-        setMastered(it.mastered ?? 0);
+        setMastery(it.mastery ?? 0);
         setLoading(false);
       })
       .catch(e => {
@@ -130,7 +130,7 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
       type: type || null,
       difficulty: difficulty || null,
       tags: tagsArray,
-      mastered,
+      mastery,
     };
     setSaving(true);
     fetch(`/api/knowledge/items/${encodeURIComponent(item_id)}`, {
@@ -374,13 +374,13 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
 
             {/* 6. 掌握度 */}
             <div>
-              <label style={labelStyle}>mastered: {mastered}</label>
+              <label style={labelStyle}>mastery: {mastery}</label>
               <input
                 type="range"
                 min={0}
                 max={100}
-                value={mastered}
-                onChange={e => setMastered(Number(e.target.value))}
+                value={mastery}
+                onChange={e => setMastery(Number(e.target.value))}
                 style={{ width: '100%', accentColor: 'var(--color-ai)' }}
               />
             </div>

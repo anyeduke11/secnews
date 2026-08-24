@@ -26,7 +26,16 @@ export function QualitySettings({ open }: QualitySettingsProps) {
   const [savingQuality, setSavingQuality] = useState(false);
   const [qualityMessage, setQualityMessage] = useState<QualityMessage>(null);
 
-  // 打开面板时拉质量规则
+  // v4.4: LLM AI 内容检测状态（与质量规则并列的子面板）
+  const [llmOpen, setLlmOpen] = useState(false);
+  const [llmEnabled, setLlmEnabled] = useState(false);
+  const [llmProvider, setLlmProvider] = useState('sensenova');
+  const [llmKey, setLlmKey] = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [savingLlm, setSavingLlm] = useState(false);
+  const [llmMessage, setLlmMessage] = useState<QualityMessage>(null);
+
+  // 打开面板时拉质量规则 + LLM 初始配置
   useEffect(() => {
     if (!open) return;
     fetch('/api/quality/rules')
@@ -37,6 +46,11 @@ export function QualitySettings({ open }: QualitySettingsProps) {
         const init: Record<string, any> = {};
         for (const r of rules) init[r.key] = r.value;
         setQualityEditing(init);
+        // 同步 LLM 配置（rules 是同一份列表，按 key 取值）
+        for (const r of rules) {
+          if (r.key === 'quality.llm_enabled') setLlmEnabled(Boolean(r.value));
+          else if (r.key === 'quality.llm_provider') setLlmProvider(String(r.value));
+        }
       })
       .catch(() => setQualityMessage({ type: 'error', text: '加载质量配置失败' }));
   }, [open]);

@@ -10,13 +10,11 @@ router 不做业务逻辑, service 不做 HTTP 处理。
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
 
 import pytest
 
 from backend.config import config
 from backend.repository import db
-from backend.repository.encryption_keys_repo import EncryptionKeyRepository
 from backend.repository.sync_configs_repo import SyncConfigRepository
 
 
@@ -50,7 +48,6 @@ def test_service_upsert_creates_config(temp_db):
     修复前: api/sync.py 的 upsert_config handler 直接做加密+repo 操作
     修复后: service 提供 upsert_config 方法, router 只调用
     """
-    from backend.repository.encryption_keys_repo import EncryptionKeyRepository
     from backend.services.sync_config_service import SyncConfigService
 
     _setup_master_key()

@@ -14,9 +14,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from backend.config import config
-from backend.domain.collection import GateResult
 from backend.repository import db
-from backend.repository.quality_repo import QualityLogRepository
 from backend.services.maintenance_service import archive_quality_logs, cleanup_quality_logs
 
 

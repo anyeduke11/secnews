@@ -8,7 +8,6 @@
 通过 monkeypatch QualityGatePipeline.run_all 返回预构造 PipelineResult，
 隔离验证 quality_hook 的过滤决策（不依赖每个 gate 的内部实现）。
 """
-import pytest
 import asyncio
 
 from backend.domain.collection import PipelineResult

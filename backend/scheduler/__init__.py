@@ -9,4 +9,8 @@ Phase 3 Task 5 introduces:
 
 The package is intentionally import-only: ``main.py`` (Phase 3 Task 6)
 wires a real :class:`HotspotScheduler` into the FastAPI app.
+
+``__all__`` 显式为空 — 调用方应直接 ``from backend.scheduler.X import Y``
+(``scheduler.HotspotScheduler`` 和 ``jobs.collect_all_job`` 等)。
 """
+__all__: list[str] = []

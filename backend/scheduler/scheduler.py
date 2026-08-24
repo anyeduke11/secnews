@@ -83,6 +83,7 @@ _JOB_EXT_MAP: dict[str, str] = {
     "mitre_sync": "security_graph",    # MITRE ATT&CK 同步 (Sun 04:00)
     "cve_sync_to_security": "security_graph",  # CVE 同步到 security 实体 (1800s)
     "kl_pipeline_heartbeat": "secnews",  # KL 管线心跳消费 (60s) — SECNEWS Phase 1
+    "secnews_liveness_sweep": "secnews",  # 书签存活三态批扫 (Sun 02:00 UTC) — S1-3
 }
 
 
@@ -287,6 +288,15 @@ class HotspotScheduler:
                 trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
                 id="kl_pipeline_heartbeat",
                 name="kl pipeline heartbeat: drain due tasks (every 60s)",
+                replace_existing=True,
+            )
+        # SECNEWS S1-3 (2026-08-24): 书签存活三态批扫 (每周日 02:00 UTC)。
+        if _is_job_enabled("secnews_liveness_sweep"):
+            self.scheduler.add_job(
+                jobs.secnews_liveness_sweep_job,
+                trigger=CronTrigger(day_of_week="sun", hour=2, minute=0, timezone="UTC"),
+                id="secnews_liveness_sweep",
+                name="bookmark liveness sweep: alive/dead/unknown (Sun 02:00 UTC)",
                 replace_existing=True,
             )
         # Phase 2 Security Graph: job 18 — MITRE ATT&CK 同步 (每周日 04:00 Asia/Shanghai)

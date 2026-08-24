@@ -12,6 +12,7 @@ from backend.kl_pipeline.obs.funnel import funnel_stats
 from backend.kl_pipeline.obs.ledger import TokenLedger
 from backend.repository.db import get_connection
 from backend.wiki_fs.contract import get_lifecycle
+from backend.wiki_fs.liveness import liveness_counts
 
 
 class SecNewsDashboard:
@@ -63,7 +64,7 @@ class SecNewsDashboard:
         return {"items": items, "total": total, "limit": limit}
 
     def get_pipeline_stats(self) -> dict:
-        """Pipeline observability: funnel + queue + dead-letter + token ledger."""
+        """Pipeline observability: funnel + queue + dead-letter + alive + ledger."""
         funnel = funnel_stats(self.wiki_fs)
 
         queue_stats = {"pending": 0, "running": 0, "error": 0}
@@ -78,6 +79,10 @@ class SecNewsDashboard:
             "funnel": funnel,
             "queue": queue_stats,
             "errors": errors,
+            "alive": (
+                liveness_counts(self.wiki_fs) if self.wiki_fs
+                else {"total": 0, "alive": 0, "dead": 0, "unknown": 0}
+            ),
             "ledger": ledger,
         }
 

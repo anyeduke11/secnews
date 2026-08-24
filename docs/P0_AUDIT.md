@@ -194,3 +194,25 @@
 - **P1-3** (commit a7965dc8): 建 ROUTE_REGISTRY.md (166 行) + routes/index.tsx 顶部注释
 - **P1-4** (commit de4decf4): mutation test 10/11 = 90.9% catch rate (PASS ≥ 80%)
 - **P1+ 剩余 (P2)**: 48 F841 + 1 真实盲点 (decay_score 精度) + 后端 __all__ 全量补齐
+
+## 九、P2 落地摘要 (2026-08-25)
+
+> **P2 7 子任务全部交付**, 6 commits (P2-1~P2-6) + P2-7 同步 commit。
+> **完整 report**: `docs/P2_5_ALL_AUDIT.md` + `docs/P2_6_COCKPIT_EVAL.md`
+
+- **P2-1** (commit 5fe965a7): F841 批 2 production rename, 中等风险 12 文件 17 个 dead vars (`_` 前缀 + `del` 占位 + `# noqa: F841` 留调用痕迹); 配 debug log 确认调用源; ruff F841: **44 → 27** (-17 production)
+- **P2-2** (commit eae608e1): pk_map 1 个 high-risk dead variable 留档 `docs/P2_DEAD_VARS_PR_REVIEW.md`, 等 PR 评审决议 (删前需确认热路径调用方)
+- **P2-3** (commit cf0a0a14): mutation 盲点补 test — `decay_score(days=1.5)` 精度断言 (M8 变异: 去掉 round → golden 失败); 新增 `TestDecayScorePrecisionFrozen` 6 tests + 修 mutation output regex; mutation score: 10/11 → **11/11 (100%)**
+- **P2-4** (commit dbbb3d3c): F841 tests/ 30 个 cleanup, **区分 mock patch 设计意图**: 25 个真 dead 直接删, 2 个 mock patch context manager 改 `_mock_log` (ruff 视为 used), 1 个未消费 mock_exec drop `as` 子句; 237 tests passed
+- **P2-5** (commit 4d76b2c2): 后端模块入口 `__all__` 全量 audit — 23 个 `__init__.py`, 10 个补齐 `__all__: list[str] = []` 零契约 (显式语义, 禁 `from pkg import *`); 顺手 ruff `--fix F401` 清理 19 个测试 unused imports
+- **P2-6** (commit d2200a5c, doc `docs/P2_6_COCKPIT_EVAL.md`): security cockpit SPA 完整评估 (3 个静态 HTML + 1 CSS = 2363 行, CRM-like, 与 hotspot 业务正交); 三档方案 **A 冻结留档 (0h, 推荐) / B MVP 简版 (12h) / C 完整移植 (90h)**; 决策权归用户/产品方
+- **P2-7** (本 commit): 三文档同步 — PROGRESS.md / CHANGELOG.md / P0_AUDIT.md §九
+
+**P2 累计收益**:
+- ruff F841: **44 → 0** (P2-1/-4), 剩 1 high-risk (pk_map, P2-2 留档)
+- ruff F401: **20+ → 0** (P2-5 顺手)
+- mutation coverage: 10/11 → **11/11** (100%)
+- `__all__` 契约: 23 个 `__init__.py` 三档语义清晰
+
+> **数据时间**: 2026-08-25 (系统时间)
+> **状态**: P2 全项交付 (7/7 子任务), 待 P3 任务接续

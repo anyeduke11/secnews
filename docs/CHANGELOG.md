@@ -155,6 +155,70 @@
 - **PROGRESS.md** 加 P1 治理落地条目 (4 commits 总览 + 状态)
 - **P0_AUDIT.md §七** 5 项未做事项标完成 (P1-1/2/3 已闭环), §八加 P1 落地摘要
 
+### P2 治理落地 (2026-08-25, 7 commits: 5fe965a7 + eae608e1 + cf0a0a14 + dbbb3d3c + 4d76b2c2 + d2200a5c)
+
+> 闭环 P0 audit §六 P1+ 剩余 + P1 落地的 48 F841 / 1 mutation 盲点 / 后端 `__all__` 全量补齐 /
+> security cockpit SPA 评估。原则: 锁行为不锁实现, 留档可追溯, 区分 mock patch 设计意图 vs 真 dead variable。
+> 完整报告: [`docs/P2_5_ALL_AUDIT.md`](P2_5_ALL_AUDIT.md) + [`docs/P2_6_COCKPIT_EVAL.md`](P2_6_COCKPIT_EVAL.md)
+
+- **P2-1 F841 批 2 production rename** (commit `5fe965a7`, 12 files, +50/-23):
+  - 删除 17 个中等风险 production dead vars (P0 audit §2.2 标 "改 `_` 前缀 + del")
+    涉及: soul_service (4+3) + collection_service (2) + digests_archive (1) +
+    digest_repo (1) + hook_logger (1) + kl_import (1) + backup_database (1) +
+    favorites_service (1) + gap_detector (1) + quality_logger (1)
+  - 改名模式: `var = expr()` → `_var = expr(); del _var; # noqa: F841` 留调用痕迹
+  - ruff F841 production: **44 → 27** (-17)
+- **P2-2 pk_map dead variable PR 评审留档** (commit `eae608e1`, 1 doc, NEW):
+  - [`docs/P2_DEAD_VARS_PR_REVIEW.md`](P2_DEAD_VARS_PR_REVIEW.md) (NEW, 6.3KB)
+  - 1 个 high-risk dead var: `backend/services/codegarden_scanner.py` pk_map
+    (8 个 hot-path 调用方, 删前需 PR 评审确认切接口)
+  - 决议: 留档不删, 等下一次 PR 评审由 reviewer 拍板
+- **P2-3 mutation 盲点补 test** (commit `cf0a0a14`, 2 files, +96/-10):
+  - 新增 `TestDecayScorePrecisionFrozen` (6 tests) 在 `test_characterization_golden.py`
+    (golden 总数 51 → 57)
+  - 关键 golden: `decay_score(1.0, 1.5) == 0.9777` (raw=0.9776757055472389, 去 round 则失败)
+  - 修 `scripts/p1_4_mutation_test.py`: TEST_SELECTOR 加新 class + 修 output regex
+    (旧 regex 误取中间行, 新逻辑只取 summary 行)
+  - mutation score: 10/11 → **11/11 (100%)**
+- **P2-4 F841 tests/ 30 cleanup** (commit `dbbb3d3c`, 20 files, +21/-41):
+  - **区分 mock patch 设计意图**: 25 真 dead 直接删 + 2 mock patch 改 `_mock_log`
+    (ruff 视为 used, 保留 mock 引用) + 1 未消费 mock_exec drop `as` 子句
+  - 涉及关键文件: `test_catchup_phase9.py` (mock_log L163/274/411, L284 events 真消费保留) +
+    `test_catchup_service.py` L463 (drop `as mock_exec`)
+  - 修 2 个 typo (`__mock_log` 双下划线) + 2 个漏改 (L304 report, L305 latest)
+  - 验证: 237 tests passed, ruff tests/ F841 → 0
+- **P2-5 后端模块入口 `__all__` 全量 audit** (commit `4d76b2c2`, 23 files, +113/-20):
+  - [`docs/P2_5_ALL_AUDIT.md`](P2_5_ALL_AUDIT.md) (NEW, 71 行, audit 表 23 init.py)
+  - 10 个补齐 `__all__: list[str] = []` 零契约 (parsers/bid/core/tools/services/
+    repository/repository/migrations/security/domain/scheduler/tests)
+  - 10 个已有 re-export + 3 个本就有空契约
+  - 三档语义: 显式 re-export / 零契约 / 缺失 (缺失即模糊地带)
+  - 顺手 ruff `--fix F401` 自动清 19 个测试 unused imports
+    (test_cli_contract/collect_validator/dump_schema/knowledge_oneway/
+     migrate_temp_layers/quality_hook_filter/quality_logs_archive/
+     scheduler_concurrency/snapshot_for_retirement/sync_config_service/
+     sync_service_split/wiki_archiver_retention)
+- **P2-6 security cockpit SPA 完整评估** (commit `d2200a5c`, 1 file, +211):
+  - [`docs/P2_6_COCKPIT_EVAL.md`](P2_6_COCKPIT_EVAL.md) (NEW, 211 行, 6 节)
+  - 现状: `security-cockpit/` 3 静态 HTML + 1 CSS = **2363 行**
+    (cockpit 683 + customer-form 928 + opportunity-form 663)
+  - **业务正交**: CRM-like (客户/业绩/商机) vs hotspot 资讯聚合, 零集成点
+  - 三档方案: **A 冻结留档 (0h, 推荐) / B MVP 简版 (12h) / C 完整移植 (90h)**
+  - 决策权归用户/产品方
+- **PROGRESS.md** 加 `## 2026-08-25 P2 治理落地` 章节 (每 P2 子任务独立小节)
+- **P0_AUDIT.md** 加 §九 P2 落地摘要 (7 子任务 commits + 累计收益表)
+
+### P2 累计收益
+
+| 指标 | P0 audit §六基线 | P1 落地后 | **P2 落地后** |
+|------|------------------|-----------|---------------|
+| ruff F841 production | 15 (medium-risk) | 11 (剩 P2-2 high-risk) | **0** (P2-2 留档评审) |
+| ruff F841 tests | 33 | 33 | **0** (P2-4 cleanup) |
+| ruff F401 backend | ~32 | ~32 | **0** (P2-5 顺手) |
+| mutation coverage | 0% | 10/11 (90.9%) | **11/11 (100%)** (P2-3) |
+| `__all__` 契约 | 13 已有 + 10 缺失 | 同左 | **23/23 三档语义清晰** (P2-5) |
+| security-cockpit 决策 | 未评估 | 未评估 | **A 冻结留档待用户拍板** (P2-6) |
+
 ## v0.5.0 (2026-08-23)
 
 ### 数据底座 — llm-wiki-2.0 (M3.5)

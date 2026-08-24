@@ -375,6 +375,49 @@ python scripts/check_backup_chain.py  # CI 校验
 
 ---
 
+## 九、规划文档登记表 (Planning Document Registry)
+
+> 本节是规划文档 (`docs/*_plan*.md` / `docs/*INTEGRATION*.md` / `docs/*_TASKS*.md`)
+> 与代码实现的**唯一交叉引用锚点**。`scripts/generate_meta.py --check`
+> 会扫描所有 frontmatter `status: draft` 状态的规划文档，
+> 任何未在本表登记的 draft 文档 → CI 报错（防止规划与实现脱节）。
+>
+> 表头约定：每行必须包含 `docs/<文件名>.md` 的 backtick 反引号引用，
+> 以便 `re.findall(r"`(docs/[^`]+\.md)`", text)` 机械扫描。
+>
+> 已登记引用总数：3 draft / 4 historical。
+
+### 9.1 Draft 规划（激活态，等待实现）
+
+| 文档 | 状态 | 目标版本 | 关联代码 | 依赖规划 |
+|------|------|----------|----------|----------|
+| [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](HOTSPOT_SECNEWS_INTEGRATION.md) | `draft` | v0.6 | `backend/kl_pipeline/`, `backend/services/ai_hub.py`, `backend/collectors/secnews/`, `frontend/src/components/secnews/` | `docs/v0.5_refactor_plan.md` |
+| [`docs/SECNEWS_INTEGRATION_TASKS.md`](SECNEWS_INTEGRATION_TASKS.md) | `draft` | v0.6 | `backend/kl_pipeline/`, `backend/services/ai_hub.py`, `backend/repository/kl_queue_repo.py` | `docs/HOTSPOT_SECNEWS_INTEGRATION.md`, `docs/v0.5_refactor_plan.md` |
+| [`docs/v0.6_workstation_plan.md`](v0.6_workstation_plan.md) | `draft` | v0.6 | `backend/kl_pipeline/`, `backend/services/ai_hub.py`, `frontend/src/components/security/` | `docs/v0.5_refactor_plan.md`, `docs/audit_first_principles_plan.md`, `docs/HOTSPOT_SECNEWS_INTEGRATION.md` |
+
+### 9.2 Historical / 已收敛（仅历史查阅，不阻塞 review）
+
+| 文档 | 状态 | 收敛版本 |
+|------|------|----------|
+| `docs/v0.5_refactor_plan.md` | historical (v0.5 已落账) | v0.5.0 |
+| `docs/audit_first_principles_plan.md` | historical (v0.4 已落账) | v0.4.0 |
+| `docs/IMPROVEMENT_PLAN.md` | historical (v0.3 时代) | v0.3.x |
+| `docs/crawler-v2-design.md` | historical (架构已定) | v0.4.x |
+
+### 9.3 校验脚本
+
+```bash
+python scripts/generate_meta.py --check   # 同时校验: 架构数字 + draft 规划登记
+```
+
+新增规划文档流程：
+1. 在 `docs/<新规划>.md` 顶部加 YAML frontmatter，至少包含
+   `status: draft` / `target_version: <版本>` / `related_code: <代码路径>` / `depends_on: <前置规划>`。
+2. 在上方 §9.1 表格中加一行 backtick 引用 `docs/<新规划>.md`。
+3. 跑 `python scripts/generate_meta.py --check`；应输出 `OK` 且 exit 0。
+
+---
+
 ## 附录：设计原则（保留自 v3.0 方案）
 
 1. **本地优先**（Local-First）：数据落本地 SQLite + 文件，进程崩溃/重启不丢。

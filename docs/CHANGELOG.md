@@ -72,6 +72,38 @@
   重建 62 业务表 + CLI 子命令 (--sql-only / 完整模式)
 - `docs/HOTSPOT_RETIREMENT.md` 加 §Phase 7d 链接
 
+### Phase 7e — migrations 演进日志导出 (commit pending)
+
+- `scripts/export_migrations_for_dsh.py` (337 行): 响应 spec 第 198 行
+  「65 个 migrations/*.sql → store/src/migrations/ 直接复制+改写」,
+  把 hotspot 67 个 .sql 文件**字节级**导出供 dsh `packages/store/src/migrations/`
+  直接 commit, 保留演进路径可追溯
+  - `data/migrations/*.sql`: 67 个文件 (001_init → 070_kl_pipeline) 按字典序复制
+  - `data/migrations/manifest.json`: 每文件 sha256/size/line_count + 关键词分布
+  - `data/migrations/README.md`: dsh 端消费指引 (cp -r + diff ddl.sql)
+- 关键词统计 (2026-08-24 实测): CREATE INDEX 168 + CREATE TABLE 95 + ALTER TABLE 50 +
+  INSERT INTO 34 + CREATE TRIGGER 18 + DROP TABLE 16 + UPDATE 16 + PRAGMA 4 + VIEW 2 + DELETE 1
+- `backend/tests/test_export_migrations_for_dsh.py` (196 行, 11 用例全绿):
+  entries 数量/排序/keys/sha256 校验 + keywords 分布 + manifest shape + README 含
+  dsh 端消费指引 + CLI 子命令 (--dry-run/--sql-only) + 字节级一致复制验证
+
+### Phase 7f — Python→TS 移植对照表 (commit pending)
+
+- `docs/PORT_SPEC.md` (312 行): 给 dsh 仓库开发者一份**精确到文件 + 行数 +
+  关键函数**的移植清单, 10 节覆盖:
+  - §1 总量基线: 481 py + 257 tsx / ~48.9K 行
+  - §2 Phase 1 存储层 (6 个文件映射)
+  - §3 Phase 2 采集系统 (14 collector + 行数表)
+  - §4 Phase 3 质量门禁 (13 gate + SimHash 算法移植 §4.1)
+  - §5 Phase 4 调度系统 (45 job 域分类)
+  - §6 Phase 5 AI/知识层 (5 关键算法: ai_hub/wiki_archiver/retention/concept_linker/enrich_v2)
+  - §7 Phase 6 前端迁移 (5 workbench 视图)
+  - §8 全局验收命令 (6 个 phase 的 test/build/diff)
+  - §9 hotspot 已交付的 dsh 消费资产 (6 行表格)
+  - §10 风险与缓解 (5 个移植风险点)
+- SimHash 算法移植是 P3 关键风险点, 文档给出 Python 源码 + TS 移植要点 (分词/哈希/向量)
+- Ebbinghaus 衰减公式 `current = initial * 0.9 ^ (days / 7)` 完整列出, dsh 端可直接翻译
+
 ### 工具交叉引用
 
 | 工具 | 行数 | 用途 | commit |

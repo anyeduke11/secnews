@@ -311,7 +311,9 @@ def build_export_html(
 
     # 状态条: 当前筛选摘要
     types_label = " + ".join(_TYPE_LABELS[t] for t in types)
-    summary = f"{tr_label} · {types_label} · 共 {len(items)} 条"
+    # summary 备作模板 fallback — 当前模板直接拼 tr_label/types_label
+    _summary = f"{tr_label} · {types_label} · 共 {len(items)} 条"
+    del _summary  # noqa: F841
     full_count = len(items)
     preview_count = len(preview_items)
     overflow_note = ""

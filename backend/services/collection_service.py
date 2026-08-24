@@ -358,12 +358,17 @@ class CollectionService:
         for r in results:
             merged_items.extend(r.items)
         merged_error = next((r.error for r in results if r.error), None)
-        merged_source_results = [
+        # merged_source_results 聚合各 collector 的 source_results — 现未消费,
+        # 保留供 Phase 后续按 source 维度统计成功率
+        _merged_source_results = [
             sr for r in results for sr in (r.source_results or [])
         ]
+        del _merged_source_results  # noqa: F841
         merged_fallback = sum(r.fallback_count for r in results)
         # 用第一个 result 承载合并 (run_id 以它为准, collection_runs 逐条写)
-        result = results[0] if results else None
+        # result 实际未被消费 — upsert_many 已用 merged_items
+        _result = results[0] if results else None
+        del _result  # noqa: F841
 
         if merged_items:
             try:
@@ -496,7 +501,9 @@ class CollectionService:
                 break
         if collector is None:
             collector = self.collectors[category][0]
-        started_at = datetime.now(timezone.utc)
+        # started_at 未入返回值 — 仅作时间锚点供未来 per-source 耗时统计
+        _started_at = datetime.now(timezone.utc)
+        del _started_at  # noqa: F841
 
         try:
             # P2-0: 传目标源名 — 只抓该源, 不再整分类采集

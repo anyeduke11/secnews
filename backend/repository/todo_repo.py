@@ -489,7 +489,9 @@ class TodoRepository:
         completed_at = existing.completed_at
         archived_at = existing.archived_at
 
-        prev_status = existing.status
+        # prev_status 保留供审计日志消费 (现未消费, 但 open→done / done→archived 转换应留痕)
+        _prev_status = existing.status
+        del _prev_status  # noqa: F841
         if new_status == "done":
             # open → done 或 done → done 都填 completed_at
             completed_at = now

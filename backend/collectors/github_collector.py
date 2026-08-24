@@ -181,8 +181,8 @@ class GitHubCollector(BaseCollector):
         source_url = source["url"]
 
         html: str | None = None
-        used_crawl4ai = False
-        used_proxy = False
+        # used_proxy / used_crawl4ai 在 P2-1 已删除赋值路径 — 改用 self.logger.debug 直出
+        # 此处不需要任何状态标志位
 
         # ---- 第 1 步: aiohttp 直连 ----
         try:
@@ -222,7 +222,7 @@ class GitHubCollector(BaseCollector):
                     ) as session, session.get(source_url, ssl=False) as resp:
                         if resp.status == 200:
                             html = await resp.text()
-                            used_proxy = True
+                            self.logger.debug(f"github proxy OK {source_name!r}")
                         else:
                             self.logger.debug(
                                 f"github proxy {source_name!r} HTTP {resp.status}"
@@ -246,7 +246,6 @@ class GitHubCollector(BaseCollector):
                 c4_html = await _base.fetch_html(source_url, timeout=self.timeout)
                 if c4_html is not None and len(c4_html.strip()) >= 500:
                     html = c4_html
-                    used_crawl4ai = True
                     self.logger.debug(f"github crawl4ai OK {source_name!r}")
             except Exception as e:
                 self.logger.debug(

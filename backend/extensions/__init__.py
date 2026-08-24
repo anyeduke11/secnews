@@ -19,7 +19,7 @@ _GATES_PATH = Path(__file__).resolve().parent.parent / "config" / "feature_gates
 # P1.6: codegarden (M1 项目核心) 与 codegarden_phase2b (M2/M3/M4 服务网格等) 拆开
 _EXTENSION_NAMES = (
     "codegarden", "codegarden_phase2b", "mcp", "sync",
-    "tech_stack", "security_graph",
+    "tech_stack", "security_graph", "secnews",
 )
 
 # 扩展→router 映射（每个 router 是 backend.api 中的模块名）
@@ -38,6 +38,10 @@ EXTENSION_ROUTERS: dict[str, list[str]] = {
     ],
     "sync": ["sync"],           # 跨端配置同步 (WebDAV)
     "tech_stack": ["tech_stack"],  # 技术栈管理 + 漂移评估
+    "secnews": [                  # 安全看板 (KL 管线 + Feed + Dashboard)
+        "kl_pipeline_api",
+        "secnews_dashboard_api",
+    ],
     # security_graph 不占 router (security / kl_* 属 core 核心安全数据),
     # 只控制 mitre_sync / cve_sync_to_security 两个 job
 }

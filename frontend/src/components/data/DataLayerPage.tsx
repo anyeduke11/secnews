@@ -232,6 +232,12 @@ export function DataLayerPage() {
                 onClick={() => navigate('/data/history')}
                 color="var(--color-finance)"
               />
+              <LayerCardRow
+                label="安全看板"
+                value="KL 管线"
+                onClick={() => navigate('/secnews')}
+                color="var(--color-error, #e5484d)"
+              />
             </div>
           </LayerCard>
 

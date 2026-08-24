@@ -157,6 +157,11 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(llm_status.router, tags=["llm"])
     # Phase 4: 标书提醒与竞品分析
     app.include_router(bid_alert.router, tags=["bid-alert"])
+    # SecNews 整合 Phase 0: KL 管线 + 安全看板 (按 feature_gates 注册)
+    if is_extension_enabled("secnews"):
+        from backend.api import kl_pipeline_api, secnews_dashboard_api
+        app.include_router(kl_pipeline_api.router, tags=["kl-pipeline"])
+        app.include_router(secnews_dashboard_api.router, tags=["secnews"])
 
 
 __all__ = ["register_routers"]

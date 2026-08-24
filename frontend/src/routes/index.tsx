@@ -131,6 +131,16 @@ export function AppRoutes() {
             )}
           </>
         )}
+        {/* SecNews 安全看板 (S0-8) */}
+        <Route path="/secnews" element={<Suspense fallback={<PageFallback />}><P.SecNewsShell /></Suspense>}>
+          <Route index element={<Navigate to="feed" replace />} />
+          <Route path="feed" element={<Suspense fallback={<PageFallback />}><P.SecNewsFeed /></Suspense>} />
+          <Route path="pipeline" element={<Suspense fallback={<PageFallback />}><P.SecNewsPipeline /></Suspense>} />
+          <Route path="knowledge" element={<Suspense fallback={<PageFallback />}><P.SecNewsKnowledge /></Suspense>} />
+          <Route path="inbox" element={<Suspense fallback={<PageFallback />}><P.SecNewsInbox /></Suspense>} />
+          <Route path="ledger" element={<Suspense fallback={<PageFallback />}><P.SecNewsLedger /></Suspense>} />
+        </Route>
+
         {/* v0.4.3: 未匹配路径回落到资料层首页 (扩展关闭时旧深链不白屏) */}
         <Route path="*" element={<Navigate to="/data" replace />} />
       </Route>

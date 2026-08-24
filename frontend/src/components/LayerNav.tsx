@@ -122,6 +122,32 @@ export function LayerNav({ currentLayer: forcedLayer, contextCategory, pipelineS
       <span className="mx-1" style={{ color: 'var(--border-color)' }} aria-hidden="true">│</span>
 
       <button
+        onClick={() => navigate('/secnews')}
+        className="focus-ring transition-all"
+        style={{
+          padding: '6px 12px',
+          border: 'none',
+          background: 'none',
+          cursor: 'pointer',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '12px',
+          lineHeight: 1.4,
+          borderRadius: 'var(--radius-sm)',
+          color: location.pathname.startsWith('/secnews') ? 'var(--color-error, #e5484d)' : 'var(--text-secondary)',
+          backgroundColor: location.pathname.startsWith('/secnews') ? 'color-mix(in srgb, var(--color-error, #e5484d) 10%, transparent)' : 'transparent',
+          fontWeight: location.pathname.startsWith('/secnews') ? 700 : 400,
+          letterSpacing: '0.02em',
+          whiteSpace: 'nowrap',
+        }}
+        aria-current={location.pathname.startsWith('/secnews') ? 'page' : undefined}
+        title="安全看板 — KL 管线 / 知识库 / 资讯流"
+      >
+        安全看板
+      </button>
+
+      <span className="mx-1" style={{ color: 'var(--border-color)' }} aria-hidden="true">│</span>
+
+      <button
         onClick={() => navigate('/settings')}
         className="focus-ring transition-all"
         style={{

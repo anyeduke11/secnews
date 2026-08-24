@@ -144,3 +144,23 @@ export const QualityRejectionPage = React.lazy(() =>
 export const EditorialView = React.lazy(() =>
   import('../components/editorial/EditorialView').then(m => ({ default: m.EditorialView }))
 );
+
+// SecNews 安全看板 (S0-7)
+export const SecNewsShell = React.lazy(() =>
+  import('../components/secnews/layout/SecNewsShell').then(m => ({ default: m.SecNewsShell }))
+);
+export const SecNewsFeed = React.lazy(() =>
+  import('../components/secnews/feed/FeedView').then(m => ({ default: m.FeedView }))
+);
+export const SecNewsPipeline = React.lazy(() =>
+  import('../components/secnews/pipeline/PipelineView').then(m => ({ default: m.PipelineView }))
+);
+export const SecNewsKnowledge = React.lazy(() =>
+  import('../components/secnews/knowledge/WikiBrowser').then(m => ({ default: m.WikiBrowser }))
+);
+export const SecNewsInbox = React.lazy(() =>
+  import('../components/secnews/knowledge/InboxScanner').then(m => ({ default: m.InboxScanner }))
+);
+export const SecNewsLedger = React.lazy(() =>
+  import('../components/secnews/pipeline/TokenLedger').then(m => ({ default: m.TokenLedger }))
+);

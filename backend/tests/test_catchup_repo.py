@@ -84,8 +84,6 @@ def test_get_returns_none_for_missing(temp_db):
 
 def test_get_current_running_returns_latest(temp_db):
     repo = CatchupRepository()
-    r1 = repo.create(mode="manual", since_window="2026-07-24T00:00:00+00:00",
-                     until_window=None, categories=[], max_per_source=10)
     r2 = repo.create(mode="auto", since_window="2026-07-24T01:00:00+00:00",
                      until_window=None, categories=[], max_per_source=10)
     current = repo.get_current_running()

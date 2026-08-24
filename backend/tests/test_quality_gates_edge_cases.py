@@ -456,7 +456,6 @@ async def test_url_content_gate_matches_title():
         url="https://example.com/news/1",
         category=Category.AI,
     )
-    page_html = "<html><head><title>OpenAI releases GPT-5 model with new features</title></head></html>"
     with patch("backend.quality.url_content_gate._fetch_title") as mock_fetch:
         mock_fetch.return_value = ("OpenAI releases GPT-5 model with new features", None)
         r = await g.run_async(item)

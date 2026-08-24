@@ -91,7 +91,6 @@ def test_try_revive_one_success_revives_source(temp_db):
     _insert_source("ai", "test_revive_ok", "https://a.com/ok",
                    status="dead", last_checked_offset_days=8)
 
-    fake_resp = type("R", (), {"status": 200})()
     with patch.object(source_revival_service, "_check_url", return_value=(200, None)):
         result = try_revive_one("ai", "test_revive_ok", "https://a.com/ok", timeout_s=1.0)
 

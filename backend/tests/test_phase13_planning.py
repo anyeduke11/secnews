@@ -301,7 +301,7 @@ def test_planning_no_duplicate(temp_db):
 
     # 第二次调用 → 不应重复 (counts 反映匹配行数, 不受去重影响;
     # 实际 DB 状态应保持不变)
-    counts2 = svc.generate_actions()
+    svc.generate_actions()
     assert _count_planning_actions(conn) == 1  # 仍为 1 条
     assert _count_action_log(conn) == 1  # 无新增日志
 
@@ -310,7 +310,7 @@ def test_planning_no_duplicate(temp_db):
     svc.update_action_status(action["id"], "in_progress")
     svc.update_action_status(action["id"], "completed")
 
-    counts3 = svc.generate_actions()
+    svc.generate_actions()
     assert _count_planning_actions(conn) == 2  # 新生成一条
     assert _count_action_log(conn) == 4  # 新增: created + started + completed + created
 

@@ -160,7 +160,7 @@ def test_execute_catchup_writes_done_checkpoints(
     with patch.object(catchup_service, "_get_dead_source_names", return_value={}), \
          patch("backend.services.collection_service.CollectionService", return_value=svc), \
          patch("backend.scheduler.jobs.trend_rebuild_job", new=AsyncMock()), \
-         patch("backend.services.collection_logger.log_collect_event") as mock_log:
+         patch("backend.services.collection_logger.log_collect_event") as _mock_log:
         run = catchup_repo.create(
             mode="manual",
             since_window=(datetime.now(timezone.utc) - timedelta_hours(1)).isoformat(),
@@ -271,7 +271,7 @@ def test_structured_events_emitted(temp_db, catchup_repo):
          patch("backend.scheduler.jobs.trend_rebuild_job", new=AsyncMock()), \
          patch("backend.services.catchup_service.validate_and_persist",
                return_value=MagicMock(issues=[])), \
-         patch("backend.services.collection_logger.log_collect_event") as mock_log:
+         patch("backend.services.collection_logger.log_collect_event") as _mock_log:
         run = catchup_repo.create(
             mode="manual",
             since_window=(datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
@@ -281,7 +281,7 @@ def test_structured_events_emitted(temp_db, catchup_repo):
         )
         _run(catchup_service._execute_catchup_run(run.id, mode="manual"))
 
-    events = [c.args[0] for c in mock_log.call_args_list if c.args]
+    events = [c.args[0] for c in _mock_log.call_args_list if c.args]
     # 至少: collect_start, category_start, source_done, category_done, validate_done, collect_done
     assert "collect_start" in events
     assert "source_done" in events
@@ -391,7 +391,7 @@ def test_whole_run_crash_marks_failed_and_logs(
     """让 _get_dead_source_names 抛异常 → 应标 failed + 写 collect_done(failed)."""
     with patch.object(catchup_service, "_get_dead_source_names",
                       side_effect=RuntimeError("DB totally down")), \
-         patch("backend.services.collection_logger.log_collect_event") as mock_log:
+         patch("backend.services.collection_logger.log_collect_event") as _mock_log:
         run = catchup_repo.create(
             mode="manual",
             since_window=(datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
@@ -406,9 +406,8 @@ def test_whole_run_crash_marks_failed_and_logs(
     assert "DB totally down" in (final.error_msg or "")
 
     # collect_done(failed) 被写
-    events = [c.args[0] for c in mock_log.call_args_list if c.args]
     collect_done_calls = [
-        c for c in mock_log.call_args_list
+        c for c in _mock_log.call_args_list
         if c.args and c.args[0] == "collect_done"
     ]
     assert len(collect_done_calls) >= 1

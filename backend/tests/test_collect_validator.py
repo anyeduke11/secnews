@@ -204,7 +204,6 @@ def test_category_anomaly_zero_total(temp_db):
     """历史 run 100: ai 50 items, run 101: ai 0 → error."""
     # 写一个 run 100 的 checkpoint 聚合 = 50
     from backend.repository.db import get_connection
-    conn = get_connection()
     for i in range(5):
         _insert_ckpt(100, "ai", f"src{i}", items=10, finished_offset_h=12)
     # run 101 0
@@ -230,7 +229,6 @@ def test_category_anomaly_zero_total(temp_db):
 def test_category_anomaly_above_2x(temp_db):
     """历史 avg = 10, 本次 = 30 → info (above_2x)."""
     from backend.repository.db import get_connection
-    conn = get_connection()
     for i in range(3):
         _insert_ckpt(100 + i, "ai", f"src{i}", items=10, finished_offset_h=12)
     # 本次 = 30
@@ -302,17 +300,17 @@ def test_validate_and_persist_writes_to_db_and_logs(temp_db):
     """跑完 4 类 + 写 collect_validations 表 + 写 validate_done 日志."""
     _insert_ckpt(100, "ai", "hn", items=10, finished_offset_h=12)
     _insert_ckpt(101, "ai", "hn", items=0, finished_offset_h=0)
-    with patch("backend.services.collection_logger.log_collect_event") as mock_log:
-        report = validate_and_persist(
+    with patch("backend.services.collection_logger.log_collect_event") as _mock_log:
+        validate_and_persist(
             run_id=101,
             since_iso=(datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(),
             until_iso=datetime.now(timezone.utc).isoformat(),
         )
     # 日志至少 1 次 (validate_done)
-    assert mock_log.called
+    assert _mock_log.called
     # 至少一次 call 的 event=validate_done
     validate_log = [
-        c for c in mock_log.call_args_list
+        c for c in _mock_log.call_args_list
         if c.args and c.args[0] == "validate_done"
     ]
     assert len(validate_log) >= 1

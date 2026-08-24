@@ -470,7 +470,7 @@ class TestEvaluateSourceCoverage:
                 ),
             ]
         )
-        cov = evaluate_source_coverage(report, run_id="r-yield")
+        evaluate_source_coverage(report, run_id="r-yield")
         repo = SourceStatsRepository()
         row = repo.get_one("bid", "Z")
         assert row["zero_yield_runs"] == 0

@@ -160,7 +160,6 @@ async def test_scheduler_start_schedules_initial_task(monkeypatch):
 
     # 跟踪任务创建
     initial_called = False
-    original_run_initial = s._run_initial
 
     async def fake_run_initial() -> None:
         nonlocal initial_called

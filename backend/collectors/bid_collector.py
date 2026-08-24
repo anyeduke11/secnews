@@ -589,7 +589,8 @@ class BidCollector(BaseCollector):
         source_url = source["url"]
         headers = {"User-Agent": _UA}
         html: str | None = None
-        used_proxy = False
+        # used_crawl4ai 仍被后续 (crawler='crawl4ai' if used_crawl4ai else 'aiohttp') 消费
+        # used_proxy 在 P2-1 已删除 (crawl4ai 成功路径直接走 self.logger.debug)
         used_crawl4ai = False
 
         # ---- 第 1 步: Crawl4ai (Playwright) 模拟正常用户 ----
@@ -636,7 +637,7 @@ class BidCollector(BaseCollector):
                         async with session.get(source_url, ssl=False) as resp:
                             if resp.status == 200:
                                 html = await resp.text()
-                                used_proxy = True
+                                self.logger.debug(f"bid proxy OK {source_name!r}")
                             else:
                                 self.logger.debug(
                                     f"bid proxy {source_name!r} HTTP {resp.status}"

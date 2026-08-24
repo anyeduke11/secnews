@@ -318,7 +318,9 @@ async def delete_todo(todo_id: int):
     """硬删除 todo。返回 204 (无论是否原本存在 — DELETE 是 idempotent)。"""
     repo = TodoRepository()
     try:
-        deleted = await asyncio.to_thread(repo.delete, int(todo_id))
+        # DELETE 是 idempotent — 返回值无论 True/False 都返回 204, 故忽略
+        _deleted = await asyncio.to_thread(repo.delete, int(todo_id))
+        del _deleted  # noqa: F841
     except Exception as e:
         logger.error(f"delete todo failed: {e}")
         raise HTTPException(status_code=500, detail={"message": f"删除失败: {e}"})

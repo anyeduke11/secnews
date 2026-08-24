@@ -90,7 +90,9 @@ async def run_url_content_check(
         # 回写 url_check_status + quality_score
         try:
             new_score = max(0, item.quality_score - result.score_deduction)
-            conn_path = _get_conn_for_item(item.id)
+            # conn_path 占位 — 预留给 Phase 后续按 item.id 分库场景
+            _conn_path = _get_conn_for_item(item.id)
+            del _conn_path  # noqa: F841
             _update_item_quality(
                 item.id,
                 url_check_status=new_status,

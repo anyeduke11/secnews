@@ -1879,7 +1879,9 @@ async def content_draft_generation_job() -> None:
             except Exception:
                 body = ""
             try:
-                draft = create_draft(title=title, content=body or f"# {title}\n")
+                # draft 由 create_draft 落盘, 返回值不入变量 — 失败由 create_draft 抛错
+                _draft = create_draft(title=title, content=body or f"# {title}\n")
+                del _draft  # noqa: F841
                 existing_drafts.add(title)
                 created += 1
                 # P3-4 补充: 草稿自动排期到内容日历 (7 天后, 避免与既有条目撞期)

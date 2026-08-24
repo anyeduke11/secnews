@@ -247,9 +247,11 @@ def import_bookmarks(items: list[dict], validate: bool = False) -> dict:
             continue
         
         # Optional URL validation
-        is_dead = False
+        # is_dead 仅作占位 — 实际 dead_links 计数 + tags += "dead_link" 即生效
+        _is_dead = False
         if validate and not validate_url(url):
-            is_dead = True
+            _is_dead = True
+            del _is_dead  # noqa: F841
             dead_links += 1
             tags = [*tags, "dead_link"]
         

@@ -47,7 +47,9 @@ def _week_range(week_start_str: str) -> tuple[str, str, str, str]:
     """
     start = datetime.strptime(week_start_str, "%Y-%m-%d")
     end = start + timedelta(days=6, hours=23, minutes=59, seconds=59)
-    end_of_week = start + timedelta(days=6)
+    # end_of_week 占位 — 备 Phase 后续按周维度做对比 (与上一周对比)
+    _end_of_week = start + timedelta(days=6)
+    del _end_of_week  # noqa: F841
 
     iso = start.isocalendar()
     label = f"{start.year}年W{iso.week:02d}"

@@ -17,17 +17,10 @@ from backend.wiki_fs import WikiFs
 
 router = APIRouter(prefix="/api/kl", tags=["kl-pipeline"])
 
-# Lazy-initialized singletons.
-_wiki_fs: WikiFs | None = None
-_pipeline: KLPipeline | None = None
-
 
 def _get_wiki_fs() -> WikiFs:
-    global _wiki_fs
-    if _wiki_fs is None:
-        from backend.wiki_fs.root import resolve_wiki_root
-        _wiki_fs = WikiFs(resolve_wiki_root())
-    return _wiki_fs
+    from backend.kl_pipeline.runtime import get_production_wiki_fs
+    return get_production_wiki_fs()
 
 
 def _log_ingest_event(kind: str, item_id: str, payload: dict) -> None:
@@ -45,10 +38,8 @@ def _log_ingest_event(kind: str, item_id: str, payload: dict) -> None:
 
 
 def _get_pipeline() -> KLPipeline:
-    global _pipeline
-    if _pipeline is None:
-        _pipeline = KLPipeline(wiki_fs=_get_wiki_fs())
-    return _pipeline
+    from backend.kl_pipeline.runtime import get_production_pipeline
+    return get_production_pipeline()
 
 
 # ---------------------------------------------------------------------------

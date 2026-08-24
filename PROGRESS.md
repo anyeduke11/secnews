@@ -141,7 +141,7 @@
 ### 整合总览
 | Phase | 名称 | 人天 | 状态 |
 |-------|------|------|------|
-| 0 | 基础层：KL 引擎 + wiki FS + 看板壳 | 8 | 待开始 |
+| 0 | 基础层：KL 引擎 + wiki FS + 看板壳 | 8 | ✅ 完成 (2592a640) |
 | 1 | 管线引擎 + 书签导入 + Pipeline 观测 | 10 | 待开始 |
 | 2 | 质量门禁合并 + CVE/ATT&CK + sweep | 5 | 待开始 |
 | 3 | 安全看板完整 UI + 三层路由整合 | 8 | 待开始 |
@@ -150,19 +150,26 @@
 | 6 | 存量迁移 + 清理 | 3 | 待开始 |
 | 合计 | | 44 | — |
 
-### Phase 0 任务分解（当前待执行）
+### Phase 0 任务分解（✅ 2026-08-24 完成，commit 2592a640 + 981eaae6 路由数落账）
 
-- [ ] S0-1: 新建 `backend/kl_pipeline/` 包结构（engine.py / queue.py / stages/ / obs/）
-- [ ] S0-2: 新建 `backend/wiki_fs/` 包结构（contract.py / store.py / migrate.py / linker.py）
-- [ ] S0-3: 增强 `backend/enrich_v2.py`（CVE/ATT&CK/合规正则 + 到期时间）
-- [ ] S0-4: 新建 `backend/secnews_dashboard.py`（feed/pipeline/knowledge/stats 聚合）
-- [ ] S0-5: 新建 `backend/api/kl_pipeline_api.py`（import/url, import/bookmarks, inbox/scan, stats, drain, advance, retry）
-- [ ] S0-6: 新建 `backend/api/secnews_dashboard_api.py`（feed, pipeline, knowledge, stats）
-- [ ] S0-7: 前端新建 `frontend/src/components/secnews/` 组件目录
-- [ ] S0-8: 前端新增 `/secnews` 路由（feed, pipeline, knowledge）
-- [ ] S0-9: 数据库迁移（kl_queue + token_ledger + wiki_items_fts）
-- [ ] S0-10: LayerNav 新增「安全看板」入口按钮
-- [ ] S0-11: DataLayerPage 新增「安全看板」快捷入口卡片
+> **2026-08-24 验收复核**（本会话实测）：S0-1..S0-11 已全部实现并提交。
+> 实测证据：`from backend.kl_pipeline import KLPipeline` / `from backend.wiki_fs import WikiFs` OK；
+> kl_pipeline 全部文件 <200 行；`pytest test_kl_pipeline.py test_secnews_dashboard.py` = 32 passed；
+> hotspot.db 含 kl_queue / token_ledger / wiki_items_fts 三表（schema 与任务定义一致）；
+> 测试基线 collect = 2732 ≥ 2662；前端 /secnews 路由组 + LayerNav 安全看板按钮 +
+> DataLayerPage 快捷入口均在位。
+
+- [x] S0-1: 新建 `backend/kl_pipeline/` 包结构（engine.py / queue.py / stages/ / obs/）
+- [x] S0-2: 新建 `backend/wiki_fs/` 包结构（contract.py / store.py / migrate.py / linker.py）
+- [x] S0-3: 增强 `backend/enrich_v2.py`（CVE/ATT&CK/合规正则 + 到期时间）
+- [x] S0-4: 新建 `backend/secnews_dashboard.py`（feed/pipeline/knowledge/stats 聚合）
+- [x] S0-5: 新建 `backend/api/kl_pipeline_api.py`（import/url, import/bookmarks, inbox/scan, stats, drain, advance, retry）
+- [x] S0-6: 新建 `backend/api/secnews_dashboard_api.py`（feed, pipeline, knowledge, stats）
+- [x] S0-7: 前端新建 `frontend/src/components/secnews/` 组件目录
+- [x] S0-8: 前端新增 `/secnews` 路由（feed, pipeline, knowledge）
+- [x] S0-9: 数据库迁移（kl_queue + token_ledger + wiki_items_fts）
+- [x] S0-10: LayerNav 新增「安全看板」入口按钮
+- [x] S0-11: DataLayerPage 新增「安全看板」快捷入口卡片
 
 ### Phase 1 任务分解
 - [ ] S1-1: KL 引擎五阶段状态机跑通（raw → refine → link → structure → publish）
@@ -557,3 +564,40 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
   - 相关文档加 4 个新工具交叉链接
 - **实测**: `bash scripts/execute_retirement.sh` 打印 6 步 [dry-run] 计划 + 30 天回滚指引
 - **测试**: 21 cases 全绿 (8 export + 13 snapshot)
+
+### Phase 7d — Schema dump (dsh `schema.ts` 参考) (当前)
+
+> spec 第 207 行关键决策: 「迁移策略: 从 hotspot 导出当前 schema → 生成
+> TypeScript DDL → 逐步迁移」。本阶段提供 hotspot 端的 schema 转储工具, 让
+> dsh `packages/store/src/schema.ts` 不需要反代 hotspot 也能拿到完整 DDL。
+
+- **scripts/dump_schema.py** (NEW, 425 行):
+  - 输出 4 文件到 `data/schema/` (gitignored):
+    - `ddl.sql` (36K): 全部 CREATE TABLE / VIRTUAL TABLE / INDEX / VIEW / TRIGGER
+      (跳过 FTS5 shadow 与 sqlite_* 内部表, 可被 node:sqlite 直接 exec)
+    - `tables.json` (126K): 62 业务表每张的 columns / pk / indexes / fks
+    - `fks.json` (4.6K): 21 外键扁平图 (from_table, from, to_table, to)
+    - `fts_groups.json` (1.2K): 3 个 FTS5 虚表组 (hotspots_fts + 4 shadow,
+      unified_fts + 5 shadow, wiki_items_fts + 5 shadow)
+  - 总数 (锁定 2026-08-24):
+    - 190 sqlite_master 对象: 80 表 (62 业务 + 14 FTS5 shadow + 3 internal + 1 placeholder)
+      + 106 索引 + 1 view + 3 trigger
+    - 3 FTS5 虚表组 (热点 / 统一 / wiki)
+    - 21 外键约束
+  - 命令行:
+    - `python3 scripts/dump_schema.py` 写全部 4 文件
+    - `--sql-only` 仅写 ddl.sql
+    - `--dry-run` 仅打印统计
+    - `--out DIR` 自定义输出目录
+  - 关键修复:
+    - FTS5 shadow 按**后缀**严格匹配 (config/data/docsize/idx/content), 不能用 prefix
+      匹配, 否则会把 hotspots_ad/ai/au trigger 误算
+    - render_ddl 跳过 FTS5 shadow + sqlite_* 内部表 (sqlite_sequence 不可手动 CREATE)
+- **backend/tests/test_dump_schema.py** (NEW, 14 cases 全绿):
+  - schema_version=1 + 80 表覆盖 + 3 FTS5 组
+  - FTS5 shadow 严格后缀匹配 (反向验证, trigger 不泄漏)
+  - totals.business_tables >= 60 (锁定 2026-08-24: 62)
+  - ddl.sql 经 sqlite3.executescript 重建 62 业务表全部成功
+  - CLI 子命令: --sql-only 仅 ddl.sql; 默认 4 文件
+- **docs/HOTSPOT_RETIREMENT.md** 增量: 相关文档加 dump_schema.py + test + dsh schema.ts 链接
+- **测试总计**: 35 cases 全绿 (8 export + 13 snapshot + 14 schema dump)

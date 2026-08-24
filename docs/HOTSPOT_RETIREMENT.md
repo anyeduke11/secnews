@@ -12,6 +12,8 @@
 | 7b | `HOTSPOT_RETIREMENT.md` + AGENTS/README 退役 banner | `8ec7db61` + `68234ae6` | ✅ 已交付 |
 | 7c | `snapshot_for_retirement.py` (305 行) + `execute_retirement.sh` (309 行) + baseline + 13 测试 | `94d02c49` | ✅ 已交付 |
 | 7d | `dump_schema.py` (443 行) + 4 文件 schema dump + 14 测试 | `40632c98` | ✅ 已交付 |
+| 7e | `export_migrations_for_dsh.py` (337 行) + 67 migrations/* 导出 + 11 测试 | (本轮) | ✅ 已交付 |
+| 7f | `docs/PORT_SPEC.md` (312 行) Python→TS 移植对照表 | (本轮) | ✅ 已交付 |
 | 7 D+0/D+1 | dsh 端 secnews.db 行数对账 + wiki 文件数对账 + React SPA 冒烟 | (gated on dsh 仓库) | ⏳ 待 dsh 端推进 |
 | 7 D+2/D+3 | hotspot 端 :8000 停 / `git mv` / git tag `v0.5.0-retired` | `execute_retirement.sh --apply` | ⏳ 待 D+0/D+1 完成后用户触发 |
 

@@ -24,6 +24,10 @@ htmlcov/
 # Export (Phase 7: hotspot.db → dsh-SecNews 数据迁移旁路)
 # 由 scripts/export_for_dsh.py 运行时生成
 data/export/
+# 由 scripts/dump_schema.py 运行时生成 (Phase 7d)
+data/schema/
+# 由 scripts/export_migrations_for_dsh.py 运行时生成 (Phase 7e)
+data/migrations/
 
 # Editor
 .vscode/

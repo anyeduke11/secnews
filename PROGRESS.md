@@ -601,3 +601,62 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
   - CLI 子命令: --sql-only 仅 ddl.sql; 默认 4 文件
 - **docs/HOTSPOT_RETIREMENT.md** 增量: 相关文档加 dump_schema.py + test + dsh schema.ts 链接
 - **测试总计**: 35 cases 全绿 (8 export + 13 snapshot + 14 schema dump)
+
+### Phase 7e — Migrations 演进日志导出 (当前)
+
+> spec 第 198 行要求「65 个 migrations/*.sql → store/src/migrations/ 直接复制+改写」。
+> 本阶段提供 hotspot 端 67 个 .sql 的字节级导出 + manifest + README, 让 dsh 端
+> `packages/store/src/migrations/` 可 `cp -r` 直接用。
+
+- **scripts/export_migrations_for_dsh.py** (NEW, 337 行):
+  - 扫描 `backend/repository/migrations/*.sql` (2026-08-24 实测: 67 文件)
+  - 输出 3 类文件到 `data/migrations/` (gitignored):
+    - 67 个 `.sql` 字节级复制 (sha256 一致)
+    - `manifest.json`: schema_version=1 + 每文件 sha256/size/line_count/keywords
+    - `README.md`: 关键词分布表 + 文件清单 + dsh 端消费指引
+  - 关键词分布 (2026-08-24 实测):
+    CREATE INDEX 168 / CREATE TABLE 95 / ALTER TABLE 50 / INSERT INTO 34 /
+    CREATE TRIGGER 18 / DROP TABLE 16 / UPDATE 16 / PRAGMA 4 / CREATE VIEW 2 / DELETE FROM 1
+  - 命令行:
+    - `python3 scripts/export_migrations_for_dsh.py` 写全部
+    - `--sql-only` 仅复制 .sql
+    - `--dry-run` 仅打印统计
+    - `--out DIR` 自定义输出目录
+  - 关键修复: macOS `/private/var/folders/...` tmp_path 路径兼容
+    (`_rel_or_abs()` 辅助函数, try relative_to 失败回退绝对路径)
+- **backend/tests/test_export_migrations_for_dsh.py** (NEW, 196 行, 11 cases 全绿):
+  - entries count == 67 (锁定 2026-08-24)
+  - 排序 (001_init.sql → 070_kl_pipeline.sql)
+  - 必需 keys (filename/size_bytes/line_count/sha256/keywords)
+  - sha256 字节级校验 (manifest vs 磁盘)
+  - 关键词分布 (CREATE TABLE ≥ 50 / CREATE INDEX ≥ 50)
+  - manifest shape (schema_version=1 + totals + files)
+  - README 内容 (dsh 消费指引 + 关键词表 + 文件清单)
+  - CLI 三模式: --dry-run / 完整 / --sql-only
+  - 字节级一致复制 (sha256 源 == 目标)
+- **测试总计**: 46 cases 全绿 (8 export + 13 snapshot + 14 schema dump + 11 migrations)
+
+### Phase 7f — Python → TS 移植对照表 (当前)
+
+> 给 dsh-SecNews 仓库开发者一份**精确到文件 + 行数 + 关键函数**的移植清单,
+> 照单实现 Phase 0-6 全部工作。
+
+- **docs/PORT_SPEC.md** (NEW, 312 行, 10 节):
+  - §1 总量基线: 481 py + 257 tsx / ~48.9K 行 (spec 行 9 的 "~25000 行" 是历史快照, 实测 2 倍)
+  - §2 Phase 1 存储层 (6 文件映射): db.py→schema.ts / hotspot_repo.py→hotspot-repo.ts /
+    migrations/*.sql / wiki_event_repo.py→wiki-event-repo.ts / backup_service.py→backup.ts / crypto.py→crypto.ts
+  - §3 Phase 2 采集系统 (14 collector 行数表): base 500 / bid 867 / sogou 627 / security 326 /
+    hn 257 / finance 256 / telegram 204 / item_builder 214 / tech 141 / ai_security 86 /
+    startup 146 / session 154 / bid_status 138 / id_factory 53
+  - §4 Phase 3 质量门禁 (13 gate + SimHash 算法 §4.1): 含 `simhash()` 核心算法 pseudocode
+    (3-gram + mmh3 + jieba + 64-bit 加权投票)
+  - §5 Phase 4 调度系统 (45 job 10 域分类): collect(5) / quality(4) / knowledge(8) /
+    maintenance(6) / report(4) / enrichment(3) / codegarden(4) / sync(3) / compile(4) / review(4)
+  - §6 Phase 5 AI/知识层 (5 关键算法): ai_hub 931 行 / concept_linker 473 行 /
+    wiki_archiver 254 行 / retention_engine Ebbinghaus 公式 / enrich_v2 80 行
+  - §7 Phase 6 前端迁移 (5 workbench 视图映射)
+  - §8 全局验收命令 (6 phase 的 test/build/diff)
+  - §9 hotspot 已交付的 dsh 消费资产 (7 行表格)
+  - §10 风险与缓解 (5 个移植风险点: SimHash / KL 状态机 / collector 反爬 / migration 顺序 / Fernet 加密)
+- **docs/HOTSPOT_RETIREMENT.md**: Phase 7 交付状态表加 7e/7f 两行
+- **docs/CHANGELOG.md**: 加 §Phase 7e + §Phase 7f 条目

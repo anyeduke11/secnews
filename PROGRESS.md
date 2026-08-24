@@ -790,3 +790,56 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
 
 > **数据时间**: 2026-08-24 23:15 (系统时间)
 > **状态**: P0 全项交付, 待 P1 任务接续
+
+## 2026-08-24 P1 治理落地 (4 commits, de4decf4)
+
+> **目标**: 闭环 P0 audit §六的 5 项 P1+ 建议 (4/5 实施, 1/5 调整为 mutation test)。
+> **原则**: 锁行为不锁实现, 留档可追溯。
+
+### P1-1 frontend 路由 mismatch 修复 (commit 6f235816)
+
+- 7 个 mismatch 中 **2 个真 mismatch 已修**:
+  - `KnowledgeActionBar.tsx + test`: `/api/llm/digest` → `/api/digests/generate`
+  - `JudgeLayerPage.tsx`: `/api/soul` → `/api/knowledge/soul`
+- 5 个**非真 mismatch** (留档):
+  - 3 个 mcp 路由 (`/api/mcp/status` 等) 是 feature gate 设计 (`mcp=false` 默认不注册), 前端 MCPSettingsCard 已有 try/catch + ok check
+  - 2 个 (`/api/favorites/a`, `/api/kl/planning-actions/1/status`) 是 test mock URL, 非真 API
+
+### P1-2 F841 批 1 (commit 7ca15779)
+
+- 删除 **11 个**低风险 production dead vars (P0 audit §2.2 标 "直接删")
+- ruff F841: **55 → 44** (-11)
+- 涉及 8 文件: soul_service.py (4) + collection_service (1) + catchup_checkpoint_repo (1 + 整块清理) + todo_repo (1) + backup_service (1) + codegarden_scanner (1) + maintenance_service (1) + triggers/t3 (1)
+- catchup_checkpoint_repo.py 整块删 sql/finished_clause/params/if-finished_clause 12 行, 保留 "重写清晰版" if/else 双分支 (L137-154) 已覆盖所有 status case
+- 剩余 48 F841 = 33 tests (mock 残留) + 15 production (中等风险, 待 P2 评估)
+
+### P1-3 跨子模块路由注册表 (commit a7965dc8)
+
+- **新文件**: `frontend/src/routes/ROUTE_REGISTRY.md` (166 行, 6 节)
+  - §一 7 子模块边界 (main hotspot 44% / knowledge-master 27% / codegarden 13% / kl+ai_hub 10% / security_cockpit 4% / secnews 1%)
+  - §二 前端 49 路由按子模块分组 (含 feature flag 标注)
+  - §三 P1-1 修复的 7 个 mismatch 留档
+  - §四 新增路由 CI 规则 (5 条: 声明/登记/测试/flag/跨模块标注)
+  - §五 orphan 检测脚本 (manual)
+  - §六 未决事项 (security cockpit SPA / kl ai_hub 独立前端)
+- `routes/index.tsx` 顶部加注释指向注册表
+
+### P1-4 mutation test (commit de4decf4)
+
+- **新文件**: `scripts/p1_4_mutation_test.py` (255 行, 11 类变异)
+- 对 3 个核心函数 (compute_simhash / decay_score / link_tags_to_concepts) 做变异注入
+- 用 .bak 文件做精确 revert (sentinel 标记与 Python 语法冲突故弃用)
+- **Mutation Score: 10/11 = 90.9% (PASS ≥ 80%)**
+- 1 个真实盲点: `decay_score` 去掉 round — golden 未测 days 为小数 (1.5) 时的精度漂移
+- 实施细节: P0 audit §六 P1-5 是"加 mutation test", 但原 P1-4 ("后端入口加 __all__") 部分已在 P0 完成 (`backend/quality/simhash.py` 已有 `__all__`)
+
+### P1+ 剩余 (P2 task)
+
+- 48 个剩余 F841 (33 tests + 15 production medium-risk)
+- 1 个真实盲点补 test: `decay_score(days=1.5)` 精度断言
+- 后端模块入口 `__all__` 全量补齐 (audit)
+- security cockpit SPA 接入 hotspot frontend 评估
+
+> **P1 4 commits**: 6f235816 / 7ca15779 / a7965dc8 / de4decf4
+> **数据时间**: 2026-08-24 (系统时间)
+> **状态**: P1 全项交付, 待 P2 任务接续

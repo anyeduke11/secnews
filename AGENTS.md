@@ -1,18 +1,19 @@
-# 🚨 HOTSPOT 已退役预告 (Phase 7) — 本仓库正在迁入 dsh-SecNews
+# SecNews Knowledge Dashboard — 安全从业者 AI 助手的平台看板层
 
-> **状态**: ⏳ Phase 7 数据迁移 + 旧系统退役 进行中
-> **退役文档**: [`docs/HOTSPOT_RETIREMENT.md`](docs/HOTSPOT_RETIREMENT.md)
-> **整合 spec**: `SecNews_dsh_全栈整合_task-d12.md` Phase 7
-> **本仓库在 Phase 7 期间继续提供**:
-> - `scripts/export_for_dsh.py` — hotspot.db → JSON 旁路导出器 (供 dsh `migrate-from-hotspot.ts` 消费)
-> - 8 张核心表 + 4149 wiki items (锁定 2026-08-24: hotspots 3391 / favorites 4 / todos 6 / sm2_reviews 3 / annotations 2 / hotspot_tags 5356 / knowledge_concepts 98 / knowledge_graph 42, 共 8902 行)
-> - Phase 7a 已交付 (commit `b1cd80de`)
+> **产品定位 (2026-08-24 用户裁决)**: 三层架构 — **DeepSeek Harness = 大脑 (认知层),
+> pi = 执行 agent, hotspot = 平台看板**, 目标是生产级安全从业者 AI 助手。
+> hotspot 保持活跃开发, 当前主线为 `docs/SECNEWS_INTEGRATION_TASKS.md` Phase 0-6
+> (Phase 0 已交付, commit `2592a640`)。
 >
-> **Phase 7b 完成 (commit 后)**:
-> - hotspot 端 :8000 进程停止
-> - `backend/` → `hotspot-archived/` (git mv 保留 history)
-> - `frontend/` → `hotspot-archived/frontend/`
-> - git tag `v0.5.0-retired`
+> **存储裁决 (2026-08-24)**: `llm-wiki-2.0/` = 知识唯一存档根 (wiki-first 真源);
+> SQLite = 运营层 + 事件管理 (`wiki_events` 表为两世界唯一桥梁)。
+> 全栈经 `backend/wiki_fs/root.py::resolve_wiki_root()` 单点解析根目录,
+> 旧 `knowledge/` 根不再被 pipeline / dashboard 读写。
+>
+> **Phase 7 退役冻结**: 破坏性步骤 (D+2 停 :8000 / D+3 git mv 归档 / v0.5.0-retired tag)
+> **不执行**; `scripts/export_for_dsh.py` 等工具保留为参考资产。
+> [`docs/HOTSPOT_RETIREMENT.md`](docs/HOTSPOT_RETIREMENT.md) 仅作历史文档。
+> 方向如有反复, 以 `PROGRESS.md` + `git log` 为准, 勿信单一 banner。
 
 ---
 

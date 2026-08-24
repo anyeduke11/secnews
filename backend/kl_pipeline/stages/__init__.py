@@ -4,4 +4,4 @@ from backend.kl_pipeline.stages.link import run_link
 from backend.kl_pipeline.stages.structure import run_structure
 from backend.kl_pipeline.stages.publish import run_publish
 
-__all__ = ["run_refine", "run_link", "run_structure", "run_publish"]
+__all__ = ["run_link", "run_publish", "run_refine", "run_structure"]

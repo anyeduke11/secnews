@@ -16,6 +16,7 @@ _FM_KEY_ORDER = [
     "tags",
     "summary",
     "severity",
+    "lifecycle",
     "kl_stage",
     "ingested_at",
     "published_at",
@@ -24,6 +25,17 @@ _FM_KEY_ORDER = [
     "concept_links",
     "source_items",
 ]
+
+# 生命周期阶段 (与 kl_pipeline.queue.STAGES 一致)。
+LIFECYCLE_STAGES = ("kl:raw", "kl:refine", "kl:link", "kl:structure", "kl:publish")
+
+
+def get_lifecycle(fm: dict) -> str:
+    """读取条目生命周期阶段 (SCHEMA.md 契约字段为 ``lifecycle``)。
+
+    缺失时默认 kl:raw; 兼容读取 Phase 0 开发期误写的 ``kl_stage``。
+    """
+    return fm.get("lifecycle") or fm.get("kl_stage") or "kl:raw"
 
 
 def serialize_frontmatter(fm: dict) -> str:

@@ -2,4 +2,4 @@
 from backend.kl_pipeline.obs.funnel import funnel_stats
 from backend.kl_pipeline.obs.ledger import TokenLedger
 
-__all__ = ["funnel_stats", "TokenLedger"]
+__all__ = ["TokenLedger", "funnel_stats"]

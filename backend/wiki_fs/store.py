@@ -7,11 +7,9 @@ from __future__ import annotations
 
 import hashlib
 import html.parser
-import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from backend.logging_config import logger
 from backend.wiki_fs.contract import parse_frontmatter, serialize_frontmatter
@@ -78,7 +76,7 @@ class WikiFs:
             "title": title,
             "url": url,
             "source": "url-import",
-            "kl_stage": "kl:raw",
+            "lifecycle": "kl:raw",
             "ingested_at": now,
             "tags": [],
         }
@@ -108,7 +106,7 @@ class WikiFs:
                 "title": title,
                 "url": url,
                 "source": "bookmark-import",
-                "kl_stage": "kl:raw",
+                "lifecycle": "kl:raw",
                 "ingested_at": now,
                 "tags": bm.get("tags", []),
             }
@@ -133,7 +131,7 @@ class WikiFs:
                 else:
                     item_id = fm.get("id", f.stem)
                     fm.setdefault("id", item_id)
-                    fm.setdefault("kl_stage", "kl:raw")
+                    fm.setdefault("lifecycle", "kl:raw")
                     self.write_item(item_id, {"fm": fm, "body": body})
                     f.unlink()
                     moved += 1

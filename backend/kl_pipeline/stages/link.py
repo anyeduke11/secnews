@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from backend.logging_config import logger
+from backend.wiki_fs.contract import get_lifecycle
 
 
 def run_link(item_id: str, wiki_fs: Any, llm_client: Any) -> None:
@@ -17,8 +18,8 @@ def run_link(item_id: str, wiki_fs: Any, llm_client: Any) -> None:
         raise ValueError(f"item not found: {item_id}")
 
     fm = doc["fm"]
-    if fm.get("kl_stage") != "kl:refine":
-        logger.info(f"link: skipping {item_id} (stage={fm.get('kl_stage')})")
+    if get_lifecycle(fm) != "kl:refine":
+        logger.info(f"link: skipping {item_id} (stage={get_lifecycle(fm)})")
         return
 
     # Use FTS to find related items.
@@ -41,5 +42,5 @@ def run_link(item_id: str, wiki_fs: Any, llm_client: Any) -> None:
 
     fm["related"] = [r["id"] for r in related[:10]]
     fm["concept_links"] = concepts
-    fm["kl_stage"] = "kl:link"
+    fm["lifecycle"] = "kl:link"
     wiki_fs.write_item(item_id, {"fm": fm, "body": doc.get("body", "")})

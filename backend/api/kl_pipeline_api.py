@@ -8,7 +8,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from backend.kl_pipeline import KLPipeline, KLQueue
+from backend.kl_pipeline import KLPipeline
 from backend.kl_pipeline.obs.funnel import funnel_stats
 from backend.kl_pipeline.obs.ledger import TokenLedger
 from backend.logging_config import logger
@@ -25,11 +25,23 @@ _pipeline: KLPipeline | None = None
 def _get_wiki_fs() -> WikiFs:
     global _wiki_fs
     if _wiki_fs is None:
-        from backend.config import config
-        import os
-        root = os.path.join(os.path.dirname(config.db_path), "..", "knowledge")
-        _wiki_fs = WikiFs(root)
+        from backend.wiki_fs.root import resolve_wiki_root
+        _wiki_fs = WikiFs(resolve_wiki_root())
     return _wiki_fs
+
+
+def _log_ingest_event(kind: str, item_id: str, payload: dict) -> None:
+    """导入留痕 wiki_events (DB=事件管理层)。失败不阻塞导入本身。"""
+    try:
+        from backend.repository.wiki_event_repo import wiki_event_repo
+        wiki_event_repo.log(
+            kind=kind,
+            wiki_path=f"items/{item_id}.md",
+            agent="api:kl_import",
+            payload=payload,
+        )
+    except Exception as exc:
+        logger.warning(f"kl import wiki_events log failed: {exc}")
 
 
 def _get_pipeline() -> KLPipeline:
@@ -72,6 +84,7 @@ async def import_url(req: ImportUrlRequest) -> dict:
     wiki_fs = _get_wiki_fs()
     # For Phase 0, we create a stub item. Full fetch is in Phase 1.
     result = wiki_fs.ingest_url(req.url, title=req.url, text="")
+    _log_ingest_event("ingest_url", result["id"], {"url": req.url})
     pipeline = _get_pipeline()
     pipeline.kickoff(result["id"])
     return result
@@ -81,7 +94,12 @@ async def import_url(req: ImportUrlRequest) -> dict:
 async def import_bookmarks(req: ImportBookmarksRequest) -> dict:
     """Import Netscape bookmark HTML."""
     wiki_fs = _get_wiki_fs()
-    return wiki_fs.import_bookmarks(req.html)
+    result = wiki_fs.import_bookmarks(req.html)
+    if result.get("added"):
+        _log_ingest_event("ingest_bookmarks", "batch", {
+            "added": result.get("added"), "dup": result.get("dup"),
+        })
+    return result
 
 
 @router.post("/inbox/scan")

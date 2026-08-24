@@ -10,7 +10,6 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timezone
 
-from backend.logging_config import logger
 from backend.repository.db import get_connection
 
 # Stage ordering for advancement.

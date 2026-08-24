@@ -9,9 +9,7 @@ Phase 0 acceptance: at least 5 basic test cases covering:
 from __future__ import annotations
 
 import os
-import shutil
 import sqlite3
-import tempfile
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -24,11 +22,10 @@ from backend.enrich_v2 import (
     extract_deadline,
 )
 from backend.kl_pipeline import KLPipeline, KLQueue
-from backend.wiki_fs.contract import parse_frontmatter, serialize_frontmatter
-from backend.kl_pipeline.obs.funnel import funnel_stats
 from backend.kl_pipeline.obs.ledger import TokenLedger
 from backend.kl_pipeline.queue import STAGES
 from backend.wiki_fs import WikiFs
+from backend.wiki_fs.contract import parse_frontmatter, serialize_frontmatter
 
 
 # ---------------------------------------------------------------------------
@@ -167,12 +164,35 @@ class TestWikiFs:
 # ---------------------------------------------------------------------------
 class TestFrontmatter:
     def test_roundtrip(self):
-        fm = {"id": "test", "title": "Hello", "tags": ["a", "b"], "kl_stage": "kl:raw"}
+        fm = {"id": "test", "title": "Hello", "tags": ["a", "b"], "lifecycle": "kl:raw"}
         text = serialize_frontmatter(fm)
         parsed, body = parse_frontmatter(text)
         assert parsed["id"] == "test"
         assert parsed["title"] == "Hello"
         assert parsed["tags"] == ["a", "b"]
+
+    def test_get_lifecycle_contract(self):
+        """SCHEMA.md 契约字段为 lifecycle; 缺失默认 kl:raw; 兼容读 kl_stage。"""
+        from backend.wiki_fs.contract import get_lifecycle
+        assert get_lifecycle({"lifecycle": "kl:link"}) == "kl:link"
+        assert get_lifecycle({}) == "kl:raw"
+        assert get_lifecycle({"kl_stage": "kl:refine"}) == "kl:refine"  # 历史兼容
+        assert get_lifecycle({"lifecycle": "", "kl_stage": "kl:link"}) == "kl:link"
+
+
+# ---------------------------------------------------------------------------
+# Wiki root resolution tests (llm-wiki-2.0 单根)
+# ---------------------------------------------------------------------------
+class TestWikiRoot:
+    def test_env_override(self, tmp_path, monkeypatch):
+        from backend.wiki_fs.root import resolve_wiki_root
+        monkeypatch.setenv("HOTSPOT_WIKI_ROOT", str(tmp_path / "wiki-root"))
+        assert resolve_wiki_root() == str(tmp_path / "wiki-root")
+
+    def test_default_points_to_llm_wiki_v2(self, monkeypatch):
+        from backend.wiki_fs.root import resolve_wiki_root
+        monkeypatch.delenv("HOTSPOT_WIKI_ROOT", raising=False)
+        assert os.path.basename(resolve_wiki_root()) == "llm-wiki-2.0"
 
 
 # ---------------------------------------------------------------------------
@@ -229,3 +249,75 @@ class TestTokenLedger:
         records = ledger.query(item_id="item-1")
         assert len(records) == 1
         assert records[0]["total_tokens"] == 150
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle + wiki_events integration tests (2026-08-24 wiki 单根裁决)
+# ---------------------------------------------------------------------------
+class TestPipelineLifecycleAndEvents:
+    def _enqueue_due(self, tmp_db, item_id: str, stage: str) -> None:
+        past = datetime.now(timezone.utc) - timedelta(seconds=10)
+        tmp_db.execute(
+            "INSERT INTO kl_queue (item_id, stage, next_run_at) VALUES (?, ?, ?)",
+            (item_id, stage, past.isoformat()),
+        )
+
+    def test_drain_advances_lifecycle_field(self, tmp_db, tmp_wiki):
+        """refine 后条目写 SCHEMA.md 契约字段 lifecycle=kl:refine。"""
+        result = tmp_wiki.ingest_url("https://lifecycle.example/a", title="A", text="body")
+        item_id = result["id"]
+        self._enqueue_due(tmp_db, item_id, "kl:refine")
+
+        pipeline = KLPipeline(wiki_fs=tmp_wiki, db_session=tmp_db)
+        res = pipeline.drain_due()
+        assert res == {"done": 1, "failed": 0}
+
+        doc = tmp_wiki.read_item(item_id)
+        assert doc["fm"]["lifecycle"] == "kl:refine"
+
+    def test_drain_full_path_to_publish(self, tmp_db, tmp_wiki):
+        """raw → refine → link → structure → publish 全链路走通。"""
+        result = tmp_wiki.ingest_url("https://lifecycle.example/full", title="Full", text="body")
+        item_id = result["id"]
+        for stage in ("kl:refine", "kl:link", "kl:structure", "kl:publish"):
+            self._enqueue_due(tmp_db, item_id, stage)
+
+        pipeline = KLPipeline(wiki_fs=tmp_wiki, db_session=tmp_db)
+        res = pipeline.drain_due(limit=10)
+        assert res["failed"] == 0
+        assert tmp_wiki.read_item(item_id)["fm"]["lifecycle"] == "kl:publish"
+
+    def test_drain_logs_wiki_events(self, tmp_db, tmp_wiki):
+        """阶段转换在 wiki_events 表留痕 (DB=事件管理层)。"""
+        from backend.repository.db import get_connection
+
+        result = tmp_wiki.ingest_url("https://events.example/a", title="E", text="body")
+        item_id = result["id"]
+        self._enqueue_due(tmp_db, item_id, "kl:refine")
+
+        pipeline = KLPipeline(wiki_fs=tmp_wiki, db_session=tmp_db)
+        pipeline.drain_due()
+
+        rows = [dict(r) for r in get_connection().execute(
+            "SELECT kind, agent, payload FROM wiki_events WHERE wiki_path = ?",
+            (f"items/{item_id}.md",),
+        )]
+        kinds = {r["kind"] for r in rows}
+        assert "kl_transition" in kinds
+        assert all(r["agent"] == "kl_pipeline" for r in rows)
+
+    def test_drain_failure_logs_kl_error(self, tmp_db, tmp_wiki):
+        """阶段失败留 kl_error 事件且队列记错。"""
+        from backend.repository.db import get_connection
+
+        # 不存在的 item → handler 抛 ValueError。
+        self._enqueue_due(tmp_db, "ghost-item", "kl:refine")
+        pipeline = KLPipeline(wiki_fs=tmp_wiki, db_session=tmp_db)
+        res = pipeline.drain_due()
+        assert res["failed"] == 1
+
+        rows = [dict(r) for r in get_connection().execute(
+            "SELECT kind FROM wiki_events WHERE wiki_path = ?",
+            ("items/ghost-item.md",),
+        )]
+        assert any(r["kind"] == "kl_error" for r in rows)

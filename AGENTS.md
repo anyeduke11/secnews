@@ -1,3 +1,21 @@
+# 🚨 HOTSPOT 已退役预告 (Phase 7) — 本仓库正在迁入 dsh-SecNews
+
+> **状态**: ⏳ Phase 7 数据迁移 + 旧系统退役 进行中
+> **退役文档**: [`docs/HOTSPOT_RETIREMENT.md`](docs/HOTSPOT_RETIREMENT.md)
+> **整合 spec**: `SecNews_dsh_全栈整合_task-d12.md` Phase 7
+> **本仓库在 Phase 7 期间继续提供**:
+> - `scripts/export_for_dsh.py` — hotspot.db → JSON 旁路导出器 (供 dsh `migrate-from-hotspot.ts` 消费)
+> - 8 张核心表 + 4149 wiki items (锁定 2026-08-24: hotspots 3391 / favorites 4 / todos 6 / sm2_reviews 3 / annotations 2 / hotspot_tags 5356 / knowledge_concepts 98 / knowledge_graph 42, 共 8902 行)
+> - Phase 7a 已交付 (commit `b1cd80de`)
+>
+> **Phase 7b 完成 (commit 后)**:
+> - hotspot 端 :8000 进程停止
+> - `backend/` → `hotspot-archived/` (git mv 保留 history)
+> - `frontend/` → `hotspot-archived/frontend/`
+> - git tag `v0.5.0-retired`
+
+---
+
 # SecNews Knowledge Dashboard
 
 ## Overview
@@ -333,6 +351,10 @@ description: "... Prefer this skill for Qoder Edit-time review and cloud/L2/L3 s
 | `vibehub` | Vibe Coding 术语学习、概念解释、边做边学 |
 
 ## Development Commands
+
+> ⚠️ **退役中 (Phase 7)** — 以下命令在 hotspot-archived/ 归档后停止工作。
+> Phase 7b 完成后, 改用 dsh-SecNews 仓库 (`web/`) 启动前端, Python 后端 (:8000) 停止。
+> 详细步骤见 [`docs/HOTSPOT_RETIREMENT.md`](docs/HOTSPOT_RETIREMENT.md) §hotspot 端退役步骤。
 
 ### Backend (Python / FastAPI)
 

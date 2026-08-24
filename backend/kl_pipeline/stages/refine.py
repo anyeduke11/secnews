@@ -34,12 +34,16 @@ def run_refine(item_id: str, wiki_fs: Any, llm_client: Any) -> None:
         wiki_fs.write_item(item_id, {"fm": fm, "body": body})
         return
 
-    # LLM-based refinement.
+    # LLM-based refinement (S1-6: flash 档轻 AI — summary/tags/severity/topic/type).
     prompt = (
         "Analyze the following security article and produce a JSON object with:\n"
         '1. "summary": a 2-3 sentence executive summary\n'
         '2. "tags": a list of 3-7 topical tags (e.g., "ransomware", "CVE-2026-1234")\n'
-        '3. "severity": one of "critical", "high", "medium", "low", "info"\n\n'
+        '3. "severity": one of "critical", "high", "medium", "low", "info"\n'
+        '4. "topic": the primary security topic in 1-2 words '
+        '(e.g., "云安全", "漏洞管理", "威胁情报")\n'
+        '5. "type": one of "vuln", "incident", "tool", "standard", '
+        '"opinion", "news"\n\n'
         f"Title: {fm.get('title', '')}\n"
         f"Content:\n{body[:3000]}"
     )
@@ -51,6 +55,10 @@ def run_refine(item_id: str, wiki_fs: Any, llm_client: Any) -> None:
         fm["summary"] = parsed.get("summary", "")
         fm["tags"] = parsed.get("tags", fm.get("tags", []))
         fm["severity"] = parsed.get("severity", "info")
+        if parsed.get("topic"):
+            fm["topic"] = str(parsed["topic"])[:50]
+        if parsed.get("type"):
+            fm["type"] = str(parsed["type"])
     except Exception as exc:
         logger.warning(f"refine LLM failed for {item_id}: {exc}, using fallback")
         if not fm.get("summary"):

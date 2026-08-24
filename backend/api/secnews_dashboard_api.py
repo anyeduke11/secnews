@@ -18,11 +18,10 @@ _dashboard: SecNewsDashboard | None = None
 def _get_dashboard() -> SecNewsDashboard:
     global _dashboard
     if _dashboard is None:
-        from backend.wiki_fs import WikiFs
-        from backend.wiki_fs.root import resolve_wiki_root
+        from backend.kl_pipeline.runtime import get_production_wiki_fs
         _dashboard = SecNewsDashboard(
             db=get_connection(),
-            wiki_fs=WikiFs(resolve_wiki_root()),
+            wiki_fs=get_production_wiki_fs(),
         )
     return _dashboard
 

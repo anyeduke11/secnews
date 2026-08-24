@@ -29,7 +29,6 @@ from __future__ import annotations
 import hashlib
 import shutil
 import sqlite3
-import time
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path

@@ -49,8 +49,47 @@ jobs:
         run: |
           python -m pytest backend/tests/ --tb=short -q
 
+      - name: Classify changed paths (core vs non-core review gate)
+        if: github.event_name == 'pull_request'
+        id: review-classify
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -e
+          git fetch --no-tags --depth=1 origin "${BASE_REF}" 2>/dev/null || true
+          if git rev-parse "origin/${BASE_REF}" >/dev/null 2>&1; then
+            PATHS=$(git diff --name-only "origin/${BASE_REF}...HEAD" || true)
+          else
+            PATHS=$(git diff --name-only HEAD~1 HEAD || true)
+          fi
+          if [ -z "$PATHS" ]; then
+            echo "No path changes detected; skipping review-classify."
+            echo "has_core=false" >> "$GITHUB_OUTPUT"
+            echo "tier=non-core" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # --batch 强制 strict-config: 仓库级契约必须存在; 缺文件即 CI 失败
+          # 但 batch 自身的 exit 1 (全 non-core) 不应阻塞 step — 用 || STATUS=$? 捕获
+          STATUS=0
+          RESULT=$(echo "$PATHS" | python scripts/generate_meta.py --classify --batch --strict-config 2>&1) || STATUS=$?
+          if [ "$STATUS" = "2" ]; then
+            echo "::error::core.include 配置缺失 (strict-config 拒绝回退)"
+            exit 2
+          fi
+          echo "$RESULT"
+          if [ "$STATUS" = "0" ]; then
+            echo "has_core=true" >> "$GITHUB_OUTPUT"
+            echo "tier=core" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_core=false" >> "$GITHUB_OUTPUT"
+            echo "tier=non-core" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Metadata consistency check
         run: python scripts/generate_meta.py --check
+
+      - name: Agent assets lint (agent-assets-review; errors 非零 → job 失败, warnings 保留 reviewer 备注)
+        run: python scripts/harness_analyze.py --check
 
       - name: llm-wiki-2.0 graph schema check (M3.5 Task13)
         run: python scripts/check_graph_schema.py

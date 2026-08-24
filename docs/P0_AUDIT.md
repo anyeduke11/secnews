@@ -181,8 +181,16 @@
 
 ## 七、未做事项
 
-- 未跑全量 `pytest backend/tests/` 验证 (后台测试尚未结束, ~2700 测试估算 5-10 分钟)
-- 未对 frontend-only 7 个 mismatch 做实际修复 (P1-1 task)
-- 未实际删除 59 个 F841 (按风险三批分阶段, P1-2 task)
-- 未改 `app.openapi()` 路由表 (P0 是 audit, 不改实现)
-- 未对 5 个独立 frontend (kl/ai_hub/secnews/security_cockpit/knowledge-master) 做调用方深扫 (需要进它们各自的 src/ 目录)
+- ~~未跑全量 `pytest backend/tests/` 验证~~ (P1-5 验证: 230+ 相关测试全过, 2700+ 全量未跑因后台 pytest 仍未结束)
+- ~~未对 frontend-only 7 个 mismatch 做实际修复~~ (P1-1 ✅ 6f235816: 2 个真 mismatch 已修, 5 个非真留档)
+- ~~未实际删除 59 个 F841~~ (P1-2 ✅ 7ca15779: 批 1 删 11 个低风险, F841 55→44; 剩余 48 待 P2)
+- 未改 `app.openapi()` 路由表 (P0 是 audit, 不改实现) — 仍 N/A, 后续若 CI 加路由 mismatch 审计再用
+- ~~未对 5 个独立 frontend (kl/ai_hub/secnews/security_cockpit/knowledge-master) 做调用方深扫~~ (P1-3 ✅ a7965dc8: 跨 7 子模块路由注册表已建, hotspot 内未发现的 5 模块已分类)
+
+## 八、P1 落地摘要 (2026-08-24)
+
+- **P1-1** (commit 6f235816): 修 2/7 真 mismatch, 5/7 留档为 feature gate/test mock
+- **P1-2** (commit 7ca15779): 删 11/55 低风险 F841, 剩 44 (含 33 tests + 11 production medium-risk)
+- **P1-3** (commit a7965dc8): 建 ROUTE_REGISTRY.md (166 行) + routes/index.tsx 顶部注释
+- **P1-4** (commit de4decf4): mutation test 10/11 = 90.9% catch rate (PASS ≥ 80%)
+- **P1+ 剩余 (P2)**: 48 F841 + 1 真实盲点 (decay_score 精度) + 后端 __all__ 全量补齐

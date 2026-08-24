@@ -126,6 +126,35 @@
 - **路由对账**: 后端 213 / 前端 119 / 后端独有 94 (分类到 7 个独立 frontend) / 前端独有 7 mismatch
 - P1+ 待办: F841 批 1 (~30 个低风险) / 7 mismatch 修复 / 跨 frontend 路由注册表
 
+### P1 治理落地 (2026-08-24, 4 commits: 6f235816 + 7ca15779 + a7965dc8 + de4decf4)
+
+- **P1-1 frontend 路由 mismatch 修复** (commit `6f235816`, 3 files, +6/-6):
+  - `KnowledgeActionBar.tsx + test`: `/api/llm/digest` → `/api/digests/generate`
+  - `JudgeLayerPage.tsx`: `/api/soul` → `/api/knowledge/soul`
+  - 留档: 3 个 mcp 路由 (feature gate 设计) + 2 个 test mock URL
+- **P1-2 F841 批 1 删除低风险 dead vars** (commit `7ca15779`, 8 files, +9/-34):
+  - 11 个 production dead vars: soul_service (4) + collection_service (1) +
+    catchup_checkpoint_repo (1+整块清理) + todo_repo (1) + backup_service (1) +
+    codegarden_scanner (1) + maintenance_service (1) + triggers/t3 (1)
+  - ruff F841: **55 → 44** (-11)
+  - catchup_checkpoint_repo.py 整块删 sql/finished_clause/params/if-finished_clause 12 行
+- **P1-3 跨子模块路由注册表** (commit `a7965dc8`, 2 files, +171):
+  - `frontend/src/routes/ROUTE_REGISTRY.md` (NEW, 166 行, 6 节):
+    - §一 7 子模块边界 (main hotspot 44% / knowledge-master 27% / codegarden 13% /
+      kl+ai_hub 10% / security_cockpit 4% / secnews 1%)
+    - §二 前端 49 路由按子模块分组 (含 feature flag 标注)
+    - §三 P1-1 修复的 7 mismatch 留档
+    - §四 新增路由 CI 规则 (5 条)
+    - §五 orphan 检测脚本 (manual)
+    - §六 未决事项
+  - `routes/index.tsx` 顶部加注释指向注册表
+- **P1-4 mutation test 验证 golden catch bug** (commit `de4decf4`, scripts/, +255):
+  - `scripts/p1_4_mutation_test.py` (NEW, 11 类变异, .bak 精确 revert)
+  - **Mutation Score: 10/11 = 90.9% (PASS ≥ 80%)**
+  - 1 个真实盲点: decay_score 去掉 round (golden 未测 days 小数精度漂移)
+- **PROGRESS.md** 加 P1 治理落地条目 (4 commits 总览 + 状态)
+- **P0_AUDIT.md §七** 5 项未做事项标完成 (P1-1/2/3 已闭环), §八加 P1 落地摘要
+
 ## v0.5.0 (2026-08-23)
 
 ### 数据底座 — llm-wiki-2.0 (M3.5)

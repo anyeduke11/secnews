@@ -702,3 +702,45 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
   - §10 风险与缓解 (5 个移植风险点: SimHash / KL 状态机 / collector 反爬 / migration 顺序 / Fernet 加密)
 - **docs/HOTSPOT_RETIREMENT.md**: Phase 7 交付状态表加 7e/7f 两行
 - **docs/CHANGELOG.md**: 加 §Phase 7e + §Phase 7f 条目
+
+## 2026-08-24 P0 代码治理审计 (新增)
+
+> **目标**: 给后续 P1+ 治理建立**基线 + 判据**, 非一次性大改实现。
+> **原则**: 不改实现语义, 只清死代码 + 锁算法行为。
+
+### P0-1 死代码清理
+
+- `ruff check backend/ --select F401,F811 --fix --exclude tests` → **All checks passed!**
+- F401 (unused import) 自动修复 ~32 处; F811 (redefinition) ~3 处
+- F841 (unused local var) 保留 **59 个**不动, 风险三档归档至 `docs/P0_AUDIT.md §2.2`
+- 含 ruff 自动修的 `backend/services/backup_service.py` (删 `import time`)
+
+### P0-2 API 路由对账
+
+- 后端真路由 (`app.openapi()`) **213 个** vs 前端 API 调用 (`frontend/src/`) **119 个**
+- 后端独有 **94 个** → 分类到 7 个独立 frontend (kl/ai_hub/secnews/security_cockpit/knowledge-master/codegarden/main hotspot)
+- 前端独有 **7 个 mismatch** → P1-1 task 修复
+
+### P0-3 Characterization Test
+
+- **新文件**: `backend/tests/test_characterization_golden.py` (**51 个测试, 全绿**)
+- 覆盖: simhash (8+2+4+5+3=22) / retention (5+3+4=12) / concept_linker (6+9=15)
+- 锁定 SHA-256 simhash fingerprint / retention Ebbinghaus 衰减 / 6-edge graph schema
+- 设计原则: golden 数值透明 / frozen 时间 / tmp_path 隔离 / 不引入新依赖
+
+### P0-4 交付物
+
+- `docs/P0_AUDIT.md` (NEW, 188 行, 7 节)
+- `backend/tests/test_characterization_golden.py` (NEW, 592 行, 51 tests)
+- `backend/services/backup_service.py` (M, -1 line: `import time` 删除)
+
+### P1+ 建议（按价值排序）
+
+1. **P1-1**: 修复 7 个 frontend-only 路由 mismatch (用户可见 bug)
+2. **P1-2**: F841 批 1 (~30 个低风险直删, 1 commit)
+3. **P1-3**: 跨 7 个 frontend 建路由注册表 → 0 孤儿路由
+4. **P1-4**: 后端模块入口加 `__all__`, 让 ruff / IDE 锁定对外 API
+5. **P1-5**: mutation test, 验证 golden 真能 catch bug
+
+> **数据时间**: 2026-08-24 23:15 (系统时间)
+> **状态**: P0 全项交付, 待 P1 任务接续

@@ -115,6 +115,17 @@
 | `data/retirement_baseline.json` | 42 | 2026-08-24 baseline | 94d02c49 |
 | `data/schema/` (4 文件) | - | dsh schema.ts 消费 | 40632c98 |
 
+### P0 代码治理审计 (2026-08-24, P0 commit 待 push)
+
+- **`docs/P0_AUDIT.md`** (NEW, 188 行, 7 节): 死代码 + 路由对账 + characterization test 三件套
+- **`backend/tests/test_characterization_golden.py`** (NEW, 592 行, 51 tests):
+  - SimHash: 8 段真实文本的 64-bit SHA-256 fingerprint 锁定 + hamming 距离 golden
+  - Retention: run_decay / record_access / check_retention_health 在 frozen 时间下的行为锁
+  - Concept linker: link_tags_to_concepts / validate_graph_schema 对 6-edge graph schema 的判据
+- **死代码清理** (`ruff check --select F401,F811 --fix`): 自动修 ~32 unused imports + 3 redefs
+- **路由对账**: 后端 213 / 前端 119 / 后端独有 94 (分类到 7 个独立 frontend) / 前端独有 7 mismatch
+- P1+ 待办: F841 批 1 (~30 个低风险) / 7 mismatch 修复 / 跨 frontend 路由注册表
+
 ## v0.5.0 (2026-08-23)
 
 ### 数据底座 — llm-wiki-2.0 (M3.5)

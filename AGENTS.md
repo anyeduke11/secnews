@@ -81,6 +81,150 @@ See `knowledge/_SCHEMA.md` for the complete data model.
 - **env 覆盖**: `HOTSPOT_FEATURE_GATES='{"extensions": {...}}'` 优先级高于 TOML (CI core-only 用)
 - **测试约定**: conftest autouse fixture 测试环境全开 gates; 组合矩阵见 `backend/tests/test_feature_gates.py`
 
+## Core 路径边界声明 (core.include / core.exclude)
+
+> **目的**: 让 review-trigger (CI 中的 `generate_meta.py --classify` / 各类 lint gate) 能定向识别 "core 内" vs "core 外" 变更, 两类变更对应不同门槛, 不让 non-core 改动被无谓的完整架构门拖慢。
+
+### 配置源 (单一真相)
+
+- 仓库根 `core.include` — 显式列出属于 core 的 gitignore-style glob 路径
+- 仓库根 `core.exclude` — 在 include 命中后, 进一步排除的路径 (tests / build artifacts / cache / 一次性辅助脚本)
+- 配置文件头部有注释说明每条规则的依据 (v0.4.3 core/extension 软分层)
+
+### 解析规则
+
+- `scripts/generate_meta.py --classify` 优先读取 `core.include` / `core.exclude`
+- 无 `core.include` 时回退到硬编码核心目录 (`_FALLBACK_CORE_DIRS`), **打一次性 WARN** (stderr)
+- `--strict-config` 配合时缺文件 → exit 2 (CI 阻断)
+- 匹配语义: 前导 `/` = 锚定根; 末尾 `/` = 目录前缀; `**` = 跨段; `*` = 非 `/`; 不支持 negation `!`
+
+### 两类变更的门槛差异
+
+| 维度 | **Core 内变更** (任一路径命中) | **Non-core 变更** (全路径 non-core) |
+|------|-------------------------------|-----------------------------------|
+| `generate_meta.py --check` | 必须跑 (数字反推 + draft 登记) | 不必 (但 CI 当前仍跑, 不阻塞) |
+| `pytest backend/tests/` | 全量必跑 | 可缩到 `pytest -k <scope>` |
+| `ruff check backend/` | 全量必跑 | 可缩到 touched files |
+| `pip-audit` / `npm audit` | 必跑 (依赖契约可能影响 core) | 必跑 (合规底线) |
+| `backend-core-only` 启动冒烟 | 必跑 (关闭 extensions 后 core 仍可起) | 视情况 |
+| feature_gates 矩阵 | 全开 + 全闭都跑 | 仅相关扩展 |
+| `frontend` tsc / vitest / vite build | 必跑 (核心 UI 契约) | 必跑 |
+
+### CI 集成
+
+`.github/workflows/ci.yml` `backend` job 中, `Run Python tests` 后增加 step `Classify changed paths (core vs non-core review gate)`:
+
+- 仅 PR 触发 (`github.event_name == 'pull_request'`)
+- 拉 base 后跑 `git diff --name-only ... | python scripts/generate_meta.py --classify --batch --strict-config`
+- 输出 `has_core` / `tier` 到 `GITHUB_OUTPUT`, 供后续 step 条件分支 (如未来实现 "core 变更 → 跑 core-only 启动冒烟")
+- `exit 2` (strict-config + 缺文件) → CI 阻断, 提醒补 `core.include`
+- `exit 1` (全 non-core) → step 仍成功, 不阻塞 PR; 分类信息作为 audit log
+
+### 本地用法
+
+```bash
+# 单路径分类
+python scripts/generate_meta.py --classify backend/services/ai_hub.py
+
+# 批量 (从 stdin 读, git diff 风)
+git diff --name-only origin/main | python scripts/generate_meta.py --classify --batch
+# exit 0 = 至少一个 core 命中; exit 1 = 全 non-core; exit 2 = 配置错误
+
+# JSON 输出 (便于脚本二次处理)
+git diff --name-only origin/main \
+  | python scripts/generate_meta.py --classify --batch --json
+```
+
+### 修改配置时的注意事项
+
+- 新增核心模块 (e.g. 新建 `backend/foo/`) → 同步在 `core.include` 加 glob, 否则回退模式下不会触发架构门
+- 新建测试目录 / 构建产物目录 → 在 `core.exclude` 加 glob, 否则它们会被判 core (噪音)
+- 修改 `core.include` / `core.exclude` 本身 → 自身已在 include, 算 core 变更, 走完整门
+- `core.include` / `core.exclude` 必须提交到 git; 不进 `.gitignore`
+
+## Agent Assets Lint Policy (agent-assets-review)
+
+声明级别 (声明与机械化门一致, 不可被静默忽略):
+
+- **warning** = 非阻断建议 (reviewer 备注 / PR 评论, 不阻断 CI); 资产当前可保留使用, 但需附 reviewer 在 PR 中说明后续处理计划。
+- **error** = 强制阻断 (CI 退出非零, 必须修复才能合并); 声明的验证步骤在 `.github/workflows/ci.yml` `backend` job 中机械化执行, 任何 error 都标记 job 失败。
+
+资产规则 (`.agents/skills/<name>/SKILL.md`):
+
+- **ERROR** — 新增长 skill (`>500 行`) 必须包含 `references/` 子文档。Baseline 豁免名单见 `scripts/harness_baseline.json`; 任何不在 baseline 中的长 skill 立即按 ERROR 处理, 不被静默忽略。
+- **WARNING** — SKILL.md 缺失 YAML frontmatter 的 `name` / `description` 字段; 或在 baseline 内已豁免的长 skill 暂缺 `references/` (reviewer 在 PR 中跟踪迁移进度)。
+
+机械执行:
+
+- **CI**: `.github/workflows/ci.yml` 的 `backend` job 追加
+  `python scripts/harness_analyze.py --check` 步骤, errors 非零 → job 失败; warnings 通过 reviewer 备注保留。
+- **本地**: `python scripts/harness_analyze.py` (默认人类可读) 或 `--format json` (脚本消费)。CI 与本地两条路径均执行同一脚本同一规则, 避免声明与验证漂移。
+- **豁免收紧**: 在 `scripts/harness_baseline.json` 删除某 skill 条目 = 立刻对该 skill 强制 ERROR (用于逐步清理历史债)。
+
+## 安全扫描插件职责分工 — `codex-security` vs `security-scan`
+
+两条名称家族相似的安全插件均为本工作区**并存(complementary)**关系,不互为 rename 或 replacement。两者触发关键词均含 "security scan / 安全扫描",需要靠本节文档 + description 关键词消歧。
+
+### Capability Fingerprint 对比
+
+| 维度 | `codex-security`(local, OpenAI `0.1.14`) | `security-scan`(qoder-bundler, CodeSec `0.8.1`) |
+|---|---|---|
+| 入口 | MCP STDIO `codex-security` 服务 | `~/.qodersec/bin/qodersec` 二进制 + Qoder 云端后端 |
+| hooks | **无**(不自动触发) | `SessionStart`(ensure-deps)+ `PostToolUse: Edit\|Write\|MultiEdit\|NotebookEdit`(每次编辑后自动 review) |
+| 默认启用 | 否(用户本地加装) | 是(`defaultEnabled: true`) |
+| 触发关键词 | "Codex Security"、"OpenAI Codex security"、"Codex 安全工作流" | "Qoder security scan"、"L2 lightweight"、"L3 deep"、"cloud scan" |
+| 适用场景 | 完整安全生命周期(扫+验证+攻击路径+追踪+修复+加固+报告) | 编辑即时轻量 review + 显式三档扫描 |
+| 不适用场景 | 即时轻量 edit-time warning(无 hook) | 漏洞验证 / 攻击路径 / 修复建议 / 报告生成(无对应子技能) |
+
+### 路由规则(首命中即停)
+
+1. 用户显式调用 `$codex-security:<skill>` 或声明 "Codex Security" / "OpenAI Codex security" / "Codex 安全工作流" → 走 `codex-security:*` 全套工作流。
+2. 用户显式调用 `/security-scan` / "Qoder 安全扫描" / "L2 轻量扫描" / "L3 深度扫描" / "cloud scan" / "扫描这个项目/文件/目录" → 走 `security-scan` 单技能 + 三档 picker。
+3. 用户在 Edit/Write 后未显式调用,但 `security-scan` hooks 已自动触发 edit-time review → 由 `security-scan` 静默处理;**不**反向触发 `codex-security`。
+4. 用户请求 "验证/追踪/修复这个 finding"、"攻击路径分析"、"漏洞 write-up"、"威胁建模"、"架构加固方案"、"SECURITY.md 政策" → **必须**走 `codex-security:*`(另一插件无对应子技能)。
+
+### 显式消歧调用
+
+同名 `security-scan` 子技能必须按插件名前缀调用:
+
+```text
+# Codex Security 完整工作流(单遍扫 + 验证 + 攻击路径 + 报告)
+$codex-security:security-scan <repo-or-path>
+$codex-security:deep-security-scan <repo-or-path>     # 深度多遍
+$codex-security:security-diff-scan <diff-target>      # PR/commit/branch
+$codex-security:fix-finding <finding-id>
+$codex-security:vulnerability-writeup <finding-id>
+
+# Qoder 内置 — 三档 picker + cloud scan
+/security-scan                       # bare → picker(L3/L2/Project-file)
+/security-scan --layer=l2            # 显式 L2
+/security-scan --layer=l3            # 显式 L3
+/security-scan backend/api/          # cloud scan,具体路径
+/security-scan backend/ frontend/    # 多路径
+```
+
+### Trigger 关键词补全建议
+
+> **注意**:`~/.qoder/plugins/cache/` 下两个插件目录当前为**只读**(Qoder bundler 自动管理缓存),无法就地 patch SKILL.md。需要重新打包插件或通过 Qoder 插件管理面板下发。下面是建议值,作为 patch 参考。
+
+`codex-security/skills/security-scan/SKILL.md` description 字段建议在首句加 "OpenAI Codex Security" + 排除规则:
+
+```yaml
+description: "OpenAI Codex Security standard single-pass audit. Use ONLY when the user invokes Codex Security explicitly or via the '$codex-security:' prefix. Do NOT use for Edit-time review, L2 lightweight, L3 deep, or Qoder cloud scan; route those to the Qoder security-scan plugin instead."
+```
+
+`security-scan/skills/security-scan/SKILL.md` description 首句已含 "Qoder" + L2/L3/picker 关键词,无需调整;若需进一步消歧,可在末尾追加反指语句:
+
+```yaml
+description: "... Prefer this skill for Qoder Edit-time review and cloud/L2/L3 scans. For full Codex Security lifecycle (validation, attack-path, fix-finding, vulnerability write-up, hardening, threat modeling), use the '$codex-security:' prefix instead."
+```
+
+### 替换关系
+
+无。两条插件均保留活跃状态,不互相 disable。`codex-security/README.md` 上游已显式承认并存:
+
+> "If another installed plugin also ships a `security-scan` skill (e.g. Qoder's built-in security-scan plugin), disambiguate by plugin when invoking."
+
 ## Available Design Skills (`.agents/skills/`)
 
 以下 15 个设计族技能按方向分组。Agent 在接到 UI/UX、视觉设计、前端重构类任务时，
@@ -202,6 +346,11 @@ python run.py                        # 默认 127.0.0.1:8000
 
 # Test
 python -m pytest backend/tests/ --tb=short -q
+
+# Agent assets lint gate (warning/error 分离, error 阻断 CI; 见上文 *Agent Assets Lint Policy*)
+python scripts/harness_analyze.py --check        # CI 同款: --format json + errors 非零 exit 1
+python scripts/harness_analyze.py --format json  # JSON 输出 (脚本消费 / 报告归档)
+python scripts/harness_analyze.py                # 本地预览, 人类可读
 ```
 
 ### Frontend (React / Vite / Tailwind)
@@ -216,4 +365,25 @@ cd frontend && npm run dev
 # Type-check + Test + Build
 cd frontend && npx tsc --noEmit && npx vitest run && npx vite build --logLevel error
 ```
+
+## Scoped AGENTS.md — Near-Context Index
+
+> 代理进入高频源目录时,**根 AGENTS.md + 就近 scoped AGENTS.md 在两次加载内
+> 即可定位 owner 与测试入口**,不再依赖命名约定或外部工具推断。
+> 每个 scoped 文件只承载该子树的 always-needed 约束,不重复根级内容。
+
+| 路径 | 何时加载 | 单一职责 |
+|------|----------|----------|
+| [`frontend/src/AGENTS.md`](frontend/src/AGENTS.md) | 进入 `frontend/src/` 任何 React/TS 文件 | 组件/hook/context 命名约束、Tailwind 优先、colocated test、Tailwind 配置需重启 dev server |
+| [`backend/services/AGENTS.md`](backend/services/AGENTS.md) | 进入 `backend/services/` 任何 `*_service.py` 或 `triggers/` | 服务命名、依赖方向(禁 `import backend.api`)、ai_hub 唯一性、Feature Gate 守卫、generate_meta 同步 |
+| [`backend/api/AGENTS.md`](backend/api/AGENTS.md) | 进入 `backend/api/` 任何路由文件 | 路由 ≤150 行、lazy import 协议、Feature Gate 注册、core 白名单防重叠断言 |
+| [`scripts/AGENTS.md`](scripts/AGENTS.md) | 进入 `scripts/` 任何自动化脚本 | 审计/检查/清理/修复/生成 类别前缀、破坏性脚本 `--dry-run`、generate_meta `--check` 是 CI |
+
+### 加载协议(避免重复加载)
+
+1. 根 AGENTS.md 始终作为项目级入口与命令清单(本文) — 必读。
+2. 进入 `frontend/src/` / `backend/services/` / `backend/api/` / `scripts/`
+   **其中任一目录前**,先加载对应 scoped AGENTS.md(只读一次,不必每次返回重读)。
+3. 不进入上述四个目录时,不要主动加载 scoped 文件(避免 token 浪费)。
+4. `docs/AGENTS.md` 已退化为只读自动产物,不再承担跨项目路由职责。
 

@@ -8,7 +8,6 @@
 """
 from __future__ import annotations
 
-import pytest
 
 
 def test_sync_service_inherits_mixin():

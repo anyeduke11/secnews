@@ -8,3 +8,5 @@ P0 国家级官方平台解析器:
 - bid_chinabidding: 中国采购与招标网 (chinabidding.com.cn)
 """
 from __future__ import annotations
+
+__all__: list[str] = []

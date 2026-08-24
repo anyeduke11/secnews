@@ -95,7 +95,7 @@ class TestRetentionRunAndAccess:
 
     def test_record_access_resets_to_initial(self, tmp_path: Path):
         """record_access 把 current_score 重置为 initial_score, last_accessed 刷新。"""
-        from backend.services.retention_engine import record_access, run_decay
+        from backend.services.retention_engine import record_access
 
         rp = tmp_path / "retention.json"
         now = datetime.now(tz=timezone.utc)
@@ -235,7 +235,6 @@ class TestEndToEndArchiveDecayAccess:
         from datetime import datetime, timedelta, timezone
 
         from backend.services.retention_engine import (
-            decay_score,
             record_access,
             run_decay,
         )

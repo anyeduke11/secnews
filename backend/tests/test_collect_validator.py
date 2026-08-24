@@ -203,7 +203,6 @@ def test_time_coverage_gap_3h_empty(temp_db):
 def test_category_anomaly_zero_total(temp_db):
     """历史 run 100: ai 50 items, run 101: ai 0 → error."""
     # 写一个 run 100 的 checkpoint 聚合 = 50
-    from backend.repository.db import get_connection
     for i in range(5):
         _insert_ckpt(100, "ai", f"src{i}", items=10, finished_offset_h=12)
     # run 101 0
@@ -228,7 +227,6 @@ def test_category_anomaly_zero_total(temp_db):
 # ---------------------------------------------------------------------------
 def test_category_anomaly_above_2x(temp_db):
     """历史 avg = 10, 本次 = 30 → info (above_2x)."""
-    from backend.repository.db import get_connection
     for i in range(3):
         _insert_ckpt(100 + i, "ai", f"src{i}", items=10, finished_offset_h=12)
     # 本次 = 30

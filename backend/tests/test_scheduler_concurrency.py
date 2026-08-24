@@ -8,7 +8,6 @@
 """
 from __future__ import annotations
 
-import pytest
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.executors.asyncio import AsyncIOExecutor
 
@@ -73,7 +72,7 @@ def test_start_uses_create_scheduler():
 
     验证 start() 创建的 scheduler 有 max_instances + coalesce 配置。
     """
-    from backend.scheduler.scheduler import HotspotScheduler, create_scheduler
+    from backend.scheduler.scheduler import create_scheduler
 
     # 验证 create_scheduler 是模块级函数
     assert callable(create_scheduler)

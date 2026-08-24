@@ -21,6 +21,10 @@ server.log
 .coverage
 htmlcov/
 
+# Export (Phase 7: hotspot.db → dsh-SecNews 数据迁移旁路)
+# 由 scripts/export_for_dsh.py 运行时生成
+data/export/
+
 # Editor
 .vscode/
 .idea/

@@ -1,6 +1,10 @@
 # HOTSPOT_RETIREMENT.md — Python 后端退役清单
 
-> **Spec**: `SecNews_dsh_全栈整合_task-d12.md` Phase 7
+> **状态 (2026-08-25)**: ⏸️ **已冻结** — Phase 7 破坏性步骤 (D+2 停 :8000 / D+3 `git mv` 归档) 按用户裁决 **冻结不执行**; hotspot 仍活跃开发 (`docs/SECNEWS_INTEGRATION_TASKS.md` Phase 0-6)。本文档作为 Phase 7a-7d 已交付工具的参考档案保留。
+> **裁决依据**: `PROGRESS.md` §2026-08-24 产品三层架构裁决 §连锁裁决
+> **整合 spec**: [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](HOTSPOT_SECNEWS_INTEGRATION.md) + [`docs/SECNEWS_INTEGRATION_TASKS.md`](SECNEWS_INTEGRATION_TASKS.md)
+
+> **Spec**: `docs/HOTSPOT_SECNEWS_INTEGRATION.md` Phase 7
 > **状态**: ⏳ 文档已就绪 (Phase 7a/7b/7c/7d 已交付, D+0/D+1 gated on dsh 端验收)
 > **目标**: hotspot Python 后端 (:8000) 停止运行, `backend/` 归档为 `hotspot-archived/`, 文档/AGENTS.md 同步收口
 
@@ -174,7 +178,7 @@ Phase 7b 完成: hotspot → dsh-SecNews 全栈整合闭环。
 - AGENTS.md / README.md 顶部加 RETIRED banner
 - 指向 dsh-SecNews 仓库 README
 
-Refs: SecNews_dsh_全栈整合_task-d12.md Phase 7"
+Refs: docs/HOTSPOT_SECNEWS_INTEGRATION.md Phase 7"
 
 git tag -a v0.5.0-retired -m "Python 后端退役标记, 数据已迁入 dsh-SecNews"
 git push origin main --follow-tags

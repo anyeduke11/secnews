@@ -1,21 +1,3 @@
-# 🚨 HOTSPOT 正在退役 (Phase 7) — 本仓库迁入 dsh-SecNews
-
-> **状态**: ⏳ Phase 7 数据迁移 + 旧系统退役 进行中
-> **退役文档**: [`docs/HOTSPOT_RETIREMENT.md`](docs/HOTSPOT_RETIREMENT.md)
-> **整合 spec**: `SecNews_dsh_全栈整合_task-d12.md` Phase 7
-> **本仓库在 Phase 7 期间继续提供**:
-> - `scripts/export_for_dsh.py` — hotspot.db → JSON 旁路导出器 (供 dsh `migrate-from-hotspot.ts` 消费)
-> - 8 张核心表 + 4149 wiki items (锁定 2026-08-24: hotspots 3391 / favorites 4 / todos 6 / sm2_reviews 3 / annotations 2 / hotspot_tags 5356 / knowledge_concepts 98 / knowledge_graph 42, 共 8902 行)
-> - Phase 7a 已交付 (commit `b1cd80de`) / Phase 7b 已交付 (commit `8ec7db61`)
->
-> **Phase 7b 完成后 (D+3)**:
-> - hotspot 端 :8000 进程停止
-> - `backend/` → `hotspot-archived/` (git mv 保留 history)
-> - `frontend/` → `hotspot-archived/frontend/`
-> - git tag `v0.5.0-retired`
-
----
-
 # SecNews · AI + 安全 知识工作站
 
 <p align="center">

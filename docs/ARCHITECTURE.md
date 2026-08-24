@@ -1,5 +1,15 @@
 # SecNews（hotspot）· 现状架构文档
 
+> 📜 **历史快照标注 (2026-08-24)**: hotspot 正在迁入 dsh-SecNews (Phase 7b)。
+> 本文档对应 **v0.5.0 (2026-08-23)** 代码状态, Phase 7b 完成后 (`backend/`
+> git mv 为 `hotspot-archived/`) 将转为历史快照, 后续架构演进见 dsh-SecNews
+> 仓库 `docs/ARCHITECTURE.md`。
+>
+> **退役文档**: [`HOTSPOT_RETIREMENT.md`](HOTSPOT_RETIREMENT.md)
+> **整合 spec**: `SecNews_dsh_全栈整合_task-d12.md` Phase 7
+
+---
+
 > 本文档描述 **2026-08 当前代码 (v0.5.0)** 的真实架构，供新开发者快速理解系统。
 > 定位：现状概览，不是设计历史；历史决策与演进见 `docs/IMPROVEMENT_PLAN.md`。
 > 所有数字均从代码/文件核对（迁移 60、router 52、测试 2662/292、备份保留 1、同步上限 100k）。

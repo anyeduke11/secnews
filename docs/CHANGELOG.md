@@ -1,5 +1,42 @@
 # Changelog
 
+## v0.5.0-retired (2026-08-24, Phase 7b 待 dsh 端验收后正式生效)
+
+> **状态**: ⏳ 文档已就绪, 等 dsh 端 secnews.db 行数对账完成后正式生效
+> **退役文档**: [`HOTSPOT_RETIREMENT.md`](HOTSPOT_RETIREMENT.md)
+> **整合 spec**: `SecNews_dsh_全栈整合_task-d12.md` Phase 7
+
+### Phase 7a — hotspot.db → JSON 旁路导出器 (commit b1cd80de)
+
+- `scripts/export_for_dsh.py` (375 行): 8 张核心表 (hotspots 3391 / favorites 4 /
+  todos 6 / sm2_reviews 3 / annotations 2 / hotspot_tags 5356 / knowledge_concepts 98 /
+  knowledge_graph 42 = 8902 行) + 4149 wiki items + 96 concepts = 4245 wiki 文件
+  旁路导出为 JSON, 供 dsh-SecNews `packages/store/src/migrate-from-hotspot.ts` 消费
+- 输出契约: `manifest.json` (schema_version + counts + contract) + 每张表 `*.json`
+  (CREATE TABLE DDL + columns + rows)
+- 字段归一化: datetime → ISO8601 / BLOB → `{__b64__: base64}` /
+  JSON-encoded 字符串 → 原生 list/object / None → null
+- 37 张 SKIP_TABLES 含 rationale (schema_version / encryption_keys / cg_* /
+  llm_* / FTS5 虚表等)
+- `backend/tests/test_export_for_dsh.py`: 8 用例全绿 (manifest / table shape /
+  json-encoded / row count / skip rationale)
+
+### Phase 7b — 退役清单文档 (commit 8ec7db61)
+
+- `docs/HOTSPOT_RETIREMENT.md` (202 行): 退役时间线 (D+0 至 D+4) + 行数对账命令 +
+  6 步退役步骤 + 代码迁移清单 + 30 天应急回滚 SLA + 9 项验收 checklist
+- `AGENTS.md` 顶部加 RETIRED banner, 锁定 2026-08-24 行数基线, Development Commands
+  加退役警告
+- `PROGRESS.md` 新增 §2026-08-24 Phase 7 数据迁移 + 旧系统退役 (c5)
+- `.gitignore`: 新增 `data/export/` (运行时产物不入版本库)
+
+### 待执行 (D+2/D+3, gated on dsh 端 secnews.db 行数对账)
+
+- hotspot 端 :8000 进程停止 (`kill -TERM $(lsof -ti:8000)`)
+- `git mv backend hotspot-archived` (保留 history)
+- `git mv frontend hotspot-archived/frontend`
+- `git tag -a v0.5.0-retired -m "Python 后端退役标记, 数据已迁入 dsh-SecNews"`
+
 ## v0.5.0 (2026-08-23)
 
 ### 数据底座 — llm-wiki-2.0 (M3.5)

@@ -37,6 +37,52 @@
 - `git mv frontend hotspot-archived/frontend`
 - `git tag -a v0.5.0-retired -m "Python 后端退役标记, 数据已迁入 dsh-SecNews"`
 
+### Phase 7c — 行数 baseline + 一键退役流水线 (commit 94d02c49)
+
+- `scripts/snapshot_for_retirement.py` (305 行): 锁定 2026-08-24 行数基线,
+  供 dsh 端 secnews.db 迁移完成后对账; `snapshot()` 写 `data/retirement_baseline.json`,
+  `verify()` 反向校验; 退出码 0/1/2 (一致/漂移/baseline 缺失)
+- `scripts/execute_retirement.sh` (309 行, 可执行): 6 步退役流水线 (Preflight →
+  停 :8000 → export → baseline → git mv backend → git mv frontend → git tag),
+  默认 dry-run, `--apply` 真执行, `--step N` 单步重跑, `--skip-kill/export/baseline`
+  三个开关
+- `data/retirement_baseline.json` (42 行): 锁定 8 表 8902 行 + 4 wiki 子目录
+  4245 文件 (4149 items + 96 concepts), 2026-08-24 baseline
+- `backend/tests/test_snapshot_for_retirement.py` (204 行, 13 用例全绿):
+  importlib 加载 scripts/ 脚本, 反向锁定 baseline 数字, 验证 --verify 两个退出码分支
+- `docs/HOTSPOT_RETIREMENT.md` 加 §一键退役脚本 + §步骤 2.5 锁 baseline 章节
+
+### Phase 7d — schema 导出给 dsh (commit 40632c98)
+
+- `scripts/dump_schema.py` (443 行): 响应 spec 第 207 行「迁移策略: 从 hotspot
+  导出当前 schema → 生成 TypeScript DDL → 逐步迁移」, 输出 4 文件供 dsh
+  `packages/store/src/schema.ts` 直接消费, dsh 不需反代 hotspot
+  - `data/schema/ddl.sql`: 全部 CREATE TABLE/INDEX/VIEW/TRIGGER 按依赖顺序
+    (跳过 FTS5 shadow + sqlite_* 内部表), 可被 node:sqlite `exec()` 重建
+  - `data/schema/tables.json`: 每张业务表 dict (columns/pk/indexes/fks)
+  - `data/schema/fks.json`: 全表外键扁平图 (from_table/from/to_table/to)
+  - `data/schema/fts_groups.json`: FTS5 虚表组 (hotspots_fts/unified_fts/wiki_items_fts)
+- 关键 bug 修复 (写在脚本 docstring):
+  - FTS5 shadow 必须按**后缀**匹配 (_config/_data/_docsize/_idx/_content),
+    prefix 匹配会把 hotspots_ad/ai/au trigger 误算入
+  - `render_ddl` 必须跳过 FTS5 shadow (VIRTUAL TABLE 隐式创建) + sqlite_* 内部表
+    (sqlite_sequence 不可手动 CREATE)
+- `backend/tests/test_dump_schema.py` (234 行, 14 用例全绿):
+  schema_version=1 + totals + FTS5 后缀严格匹配 + 双源校验 + sqlite3.executescript
+  重建 62 业务表 + CLI 子命令 (--sql-only / 完整模式)
+- `docs/HOTSPOT_RETIREMENT.md` 加 §Phase 7d 链接
+
+### 工具交叉引用
+
+| 工具 | 行数 | 用途 | commit |
+|------|------|------|--------|
+| `scripts/export_for_dsh.py` | 375 | 8 表 → JSON 旁路 | b1cd80de |
+| `scripts/snapshot_for_retirement.py` | 305 | 行数基线 + verify | 94d02c49 |
+| `scripts/dump_schema.py` | 443 | 80 表 DDL → 4 文件 | 40632c98 |
+| `scripts/execute_retirement.sh` | 309 | 6 步退役 dry-run/apply | 94d02c49 |
+| `data/retirement_baseline.json` | 42 | 2026-08-24 baseline | 94d02c49 |
+| `data/schema/` (4 文件) | - | dsh schema.ts 消费 | 40632c98 |
+
 ## v0.5.0 (2026-08-23)
 
 ### 数据底座 — llm-wiki-2.0 (M3.5)

@@ -1,8 +1,19 @@
 # HOTSPOT_RETIREMENT.md — Python 后端退役清单
 
 > **Spec**: `SecNews_dsh_全栈整合_task-d12.md` Phase 7
-> **状态**: ⏳ 待执行 (Phase 7b 文档已就绪, 等 dsh 端 secnews.db 行数对账完成)
+> **状态**: ⏳ 文档已就绪 (Phase 7a/7b/7c/7d 已交付, D+0/D+1 gated on dsh 端验收)
 > **目标**: hotspot Python 后端 (:8000) 停止运行, `backend/` 归档为 `hotspot-archived/`, 文档/AGENTS.md 同步收口
+
+## Phase 7 交付状态 (2026-08-24 锁定)
+
+| Phase | 内容 | commit | 状态 |
+|-------|------|--------|------|
+| 7a | `export_for_dsh.py` (375 行) + 8 测试 | `b1cd80de` | ✅ 已交付 |
+| 7b | `HOTSPOT_RETIREMENT.md` + AGENTS/README 退役 banner | `8ec7db61` + `68234ae6` | ✅ 已交付 |
+| 7c | `snapshot_for_retirement.py` (305 行) + `execute_retirement.sh` (309 行) + baseline + 13 测试 | `94d02c49` | ✅ 已交付 |
+| 7d | `dump_schema.py` (443 行) + 4 文件 schema dump + 14 测试 | `40632c98` | ✅ 已交付 |
+| 7 D+0/D+1 | dsh 端 secnews.db 行数对账 + wiki 文件数对账 + React SPA 冒烟 | (gated on dsh 仓库) | ⏳ 待 dsh 端推进 |
+| 7 D+2/D+3 | hotspot 端 :8000 停 / `git mv` / git tag `v0.5.0-retired` | `execute_retirement.sh --apply` | ⏳ 待 D+0/D+1 完成后用户触发 |
 
 ## 退役时间线 (3-5 天)
 

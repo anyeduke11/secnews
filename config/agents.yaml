@@ -33,4 +33,14 @@ agents:
     task_types: [quick_patch]
     timeout_seconds: 600
 
+  # pi 执行 agent — 三层架构 (2026-08-24 裁决) 的执行层:
+  # DeepSeek Harness 出决策 → pi 落地执行 (扫描任务书/playbook/工具调用)
+  # 注: protocol 按 pi CLI 实际输出格式校正; CLI 未安装时 §19.4 回退 default_agent
+  pi:
+    command: ["pi"]
+    protocol: acp
+    cwd: "{workspace}"
+    task_types: [execute]
+    timeout_seconds: 600
+
 default_agent: builtin

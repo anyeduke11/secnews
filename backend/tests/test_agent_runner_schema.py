@@ -29,6 +29,12 @@ class TestLoadAgentsConfig:
         assert "codex" in cfg.agents
         assert cfg.agents["claude-code"].protocol == "stream-json"
         assert cfg.agents["codex"].command[:2] == ["codex", "exec"]
+        # 三层架构 (2026-08-24 裁决): pi 为执行层 runner
+        pi = cfg.agents["pi"]
+        assert pi.command == ["pi"]
+        assert pi.protocol == "acp"
+        assert "execute" in pi.task_types
+        assert pi.timeout_seconds == 600
 
     def test_missing_file_returns_none(self, tmp_path: Path):
         """文件缺失优雅降级返回 None — 不阻塞启动。"""
@@ -50,6 +56,7 @@ class TestRoute:
         assert route("refactor") == "claude-code"
         assert route("quick_patch") == "codex"
         assert route("chat") == "builtin"
+        assert route("execute") == "pi"
 
     def test_unmapped_task_falls_back_to_default(self):
         """未登记的 task_type 走 default_agent — 新任务类型不炸路由。"""

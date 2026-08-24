@@ -37,10 +37,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         if self.command == "GET":
             self.wfile.write(b"ok")
 
-    def do_HEAD(self):  # noqa: N802
+    def do_HEAD(self):
         self._respond(200 if self.path == "/ok" else 404)
 
-    def do_GET(self):  # noqa: N802
+    def do_GET(self):
         self._respond(200 if self.path in ("/ok", "/head-only") else 404)
 
     def log_message(self, *args):  # 静默测试日志

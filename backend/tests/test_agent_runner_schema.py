@@ -29,10 +29,11 @@ class TestLoadAgentsConfig:
         assert "codex" in cfg.agents
         assert cfg.agents["claude-code"].protocol == "stream-json"
         assert cfg.agents["codex"].command[:2] == ["codex", "exec"]
-        # 三层架构 (2026-08-24 裁决): pi 为执行层 runner
+        # 三层架构 (2026-08-24 裁决): pi 为执行层 runner;
+        # 实测校正 (2026-08-24, pi 0.84.3): -p 非交互 + --mode json = NDJSON 事件流
         pi = cfg.agents["pi"]
-        assert pi.command == ["pi"]
-        assert pi.protocol == "acp"
+        assert pi.command == ["pi", "-p", "--mode", "json"]
+        assert pi.protocol == "jsonl"
         assert "execute" in pi.task_types
         assert pi.timeout_seconds == 600
 

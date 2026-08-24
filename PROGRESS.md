@@ -175,9 +175,14 @@
 - [x] S1-1: KL 引擎五阶段状态机跑通（raw → refine → link → structure → publish）
   （全链路测试通过 + heartbeat job 每 60s 自动消费 kl_queue, 见 2026-08-24 心跳节）
 - [x] S1-2: wiki_fs store.py 读写契约 + 块序列解析
-- [ ] S1-3: 书签 HTML 导入（Netscape 解析 + 存活三态检测）
-  （HTML 导入已可用; 存活三态检测未做）
-- [ ] S1-4: Pipeline 观测台 UI（漏斗 + 队列卡片 + 死信表 + token 台账）
+- [x] S1-3: 书签 HTML 导入（Netscape 解析 + 存活三态检测）
+  （`backend/wiki_fs/liveness.py`: check_url HEAD+405/501 GET 兜底, 三态
+  alive/dead/unknown 写回 frontmatter; 周日 02:00 UTC job `secnews_liveness_sweep`
+  + 手动 POST /api/kl/liveness/sweep; import_bookmarks 落库即 alive:unknown）
+- [x] S1-4: Pipeline 观测台 UI（漏斗 + 队列卡片 + 死信表 + token 台账）
+  （AliveCard 存活三态卡 + 批扫按钮; QueueCard 错误列表升级死信表
+  阶段/条目/错误/重试 四列; /api/secnews/pipeline 与 /api/kl/pipeline/stats
+  均返回 alive 块）
 - [ ] S1-5: inbox 扫描入口 + quarantine 隔离区
 - [x] S1-6: refine 轻 AI 接入（flash 档，topic/type/tags）
   （AIHubLLMClient 桥接 ai_hub; 无 provider 时 generate 返回 "" 自动降级摘要）
@@ -879,3 +884,56 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
 > **P1 4 commits**: 6f235816 / 7ca15779 / a7965dc8 / de4decf4
 > **数据时间**: 2026-08-24 (系统时间)
 > **状态**: P1 全项交付, 待 P2 任务接续
+
+---
+
+## 2026-08-24 S1-3 存活检测 + S1-4 观测台补齐 + pi/dsh 实测校正 (3 commits)
+
+### S1-3 书签存活三态检测
+
+- **新文件**: `backend/wiki_fs/liveness.py`
+  - `check_url(url)`: HEAD 探测, 405/501 降级 GET; HTTP<400 → alive,
+    >=400 / DNS 失败 / 连接拒绝 → dead, 超时等瞬态 → unknown; 永不抛异常
+  - `sweep_liveness(wiki_fs)`: 过滤 source ∈ {bookmark-import, bookmark},
+    ThreadPoolExecutor(16) 并发探测, 写回 `alive` + `alive_checked_at`;
+    写回失败计入 unknown
+  - `liveness_counts(wiki_fs)`: 只读统计三态分布 (零网络 IO)
+- **调度**: job 47 `secnews_liveness_sweep` 每周日 02:00 UTC
+  (`_JOB_EXT_MAP` 归 secnews 域); generate_meta --check = jobs 47 ✓
+- **API**: GET /api/kl/liveness (只读分布) + POST /api/kl/liveness/sweep
+  (手动批扫, asyncio.to_thread + wiki_events 留痕);
+  /api/secnews/pipeline 与 /api/kl/pipeline/stats 新增 alive 块
+- **落库契约**: import_bookmarks frontmatter 初始 `alive: "unknown"`
+- **测试**: backend/tests/test_liveness.py — 本地 http.server 双方法桩 +
+  DNS .invalid 死链 + mock 405 GET 兜底 + sweep 三态写回 + 只读计数
+
+### S1-4 Pipeline 观测台 UI 补齐
+
+- **新组件**: `AliveCard.tsx` — 书签存活三态卡 (存活/失效/未知 色点 + 占比条
+  + 「立即批扫」按钮 POST /api/kl/liveness/sweep 后刷新)
+- **QueueCard 升级**: 错误列表 → 死信表 (阶段/条目/错误/重试 四列,
+  title 悬停看全文, attempts 计数); TS DeadLetterRow 对齐 kl_queue 行
+- PipelineStats 接口补 alive 块; tsc 0 错 / vite build exit 0 /
+  vitest 无新增失败 (17 个失败为既有 HEAD 债, 上轮已 triage)
+
+### pi protocol 实测校正 (pi 0.84.3)
+
+- **实测**: `pi -p --mode json` 输出 NDJSON 事件流: session → agent_start →
+  turn_start → message_start/end → message_update(流式 delta) → turn_end →
+  agent_end → agent_settled; 最终回答取 message_end.message.content[]
+  type=="text" 段; 内建 auto_retry (实测 sensenova/deepseek-v4-flash
+  一次 429 tpm-exhausted 自动重试成功), exit 0
+- **结论**: 非 ACP — 归协议 `jsonl`; agents.yaml command 校正为
+  `["pi", "-p", "--mode", "json"]`, protocol acp → jsonl;
+  test_agent_runner_schema 同步 (10 passed)
+
+### dsh bridge 实测记录 (:3210)
+
+- **实测**: `curl http://127.0.0.1:3210/health` → connection refused (exit 7);
+  `lsof -iTCP:3210 -sTCP:LISTEN` 无监听 — dsh web 宿主未启动 (P4 未交付)
+- **代码依赖核查**: backend/ 全量 grep 无 DSH_ENDPOINT / :3210 引用 —
+  当前零硬依赖; v0.6 方案的 DSH_ENDPOINT 语义 (不可达 → ai_hub 直连 LLM
+  降级) 尚未接线, 属 P4 bridge 范围, 本轮不越界实现
+
+> **commits**: S1-3 / S1-4+pi+ dsh 校正分账提交 (一任务一提交)
+> **验证**: 后端全量回归 pytest / 前端 trio (tsc/vitest/build) / generate_meta --check (jobs 47)

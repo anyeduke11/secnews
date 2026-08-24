@@ -35,10 +35,13 @@ agents:
 
   # pi 执行 agent — 三层架构 (2026-08-24 裁决) 的执行层:
   # DeepSeek Harness 出决策 → pi 落地执行 (扫描任务书/playbook/工具调用)
-  # 注: protocol 按 pi CLI 实际输出格式校正; CLI 未安装时 §19.4 回退 default_agent
+  # 实测校正 (2026-08-24, pi 0.84.3): 非交互 = `-p`; `--mode json` 输出
+  # NDJSON 事件流 (session → agent_start → message_end → agent_settled),
+  # 最终回答在 message_end.message.content[] type=="text" 段 — 归协议 jsonl。
+  # CLI 未安装时 §19.4 回退 default_agent
   pi:
-    command: ["pi"]
-    protocol: acp
+    command: ["pi", "-p", "--mode", "json"]
+    protocol: jsonl
     cwd: "{workspace}"
     task_types: [execute]
     timeout_seconds: 600

@@ -64,7 +64,7 @@ describe('KnowledgeActionBar', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/knowledge/process');
   });
 
-  it('api button POSTs to /api/llm/digest (写日报周报)', async () => {
+  it('api button POSTs to /api/digests/generate (写日报周报)', async () => {
     render(
       <MemoryRouter>
         <KnowledgeActionBar />
@@ -74,7 +74,7 @@ describe('KnowledgeActionBar', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        '/api/llm/digest',
+        '/api/digests/generate',
         expect.objectContaining({ method: 'POST' })
       );
     });

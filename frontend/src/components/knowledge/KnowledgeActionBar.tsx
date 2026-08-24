@@ -4,7 +4,7 @@
  * 6 个执行按钮，每个映射到现有 /api 端点或路由跳转：
  *  - 出题复习     → /knowledge/review (ReviewMode 复用 SM-2 抽认卡)
  *  - 概念卡       → /knowledge/process (KnowledgeProcess 概念详情)
- *  - 写日报周报   → /api/llm/digest (POST) 调用 ai_hub
+ *  - 写日报周报   → /api/digests/generate (POST) 触发 ai_hub 日报
  *  - 转待办       → /api/todos (POST)
  *  - KL 进度可视化 → /knowledge/compile (LifecycleProgress 复用)
  *  - 研判流打通   → /knowledge/process (KnowledgeProcess KL 阶段详情)
@@ -74,8 +74,8 @@ export const KNOWLEDGE_ACTION_BUTTONS: ActionButton[] = [
   {
     key: 'digest',
     label: '写日报周报',
-    description: 'POST /api/llm/digest',
-    apiEndpoint: '/api/llm/digest',
+    description: 'POST /api/digests/generate',
+    apiEndpoint: '/api/digests/generate',
     apiMethod: 'POST',
     apiBody: { item_ids: [], summary: '' },
     showToast: true,

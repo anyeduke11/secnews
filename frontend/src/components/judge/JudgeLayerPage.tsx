@@ -136,7 +136,7 @@ export function JudgeLayerPage() {
     let cancelled = false;
     const load = async () => {
       try {
-        const r = await fetch('/api/soul');
+        const r = await fetch('/api/knowledge/soul');
         if (!r.ok) return;
         const data = await r.json();
         if (cancelled) return;

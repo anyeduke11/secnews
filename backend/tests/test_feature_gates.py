@@ -20,6 +20,7 @@ ALL_OFF = {
     "codegarden": False, "codegarden_phase2b": False,
     "mcp": False, "sync": False,
     "tech_stack": False, "security_graph": False,
+    "secnews": False,
 }
 ALL_ON = dict.fromkeys(ALL_OFF, True)
 
@@ -80,6 +81,7 @@ JOB_EXT_MAP = {
     "cg_drift_assess": "tech_stack",
     "mitre_sync": "security_graph",
     "cve_sync_to_security": "security_graph",
+    "kl_pipeline_heartbeat": "secnews",
 }
 
 
@@ -199,7 +201,8 @@ class TestJobGating:
             assert _is_job_enabled(core_id), f"core job {core_id} must always run"
 
     def test_registered_job_count_matches_scheduler(self):
-        """scheduler.py 中 add_job 数 = 45 (复利驱动器 + llm-wiki-2.0 归档/衰减)。"""
+        """scheduler.py 中 add_job 数 = 46 (复利驱动器 + llm-wiki-2.0 归档/衰减
+        + SECNEWS kl_pipeline_heartbeat)。"""
         import ast
         from pathlib import Path
         src = Path("backend/scheduler/scheduler.py").read_text(encoding="utf-8")
@@ -210,7 +213,7 @@ class TestJobGating:
             and isinstance(node.func, ast.Attribute)
             and node.func.attr == "add_job"
         )
-        assert n == 45
+        assert n == 46
 
 
 class TestFeaturesEndpoint:
@@ -234,6 +237,7 @@ class TestFeaturesEndpoint:
         assert data["mcp"] is True
         assert data["enabled_extensions"] == [
             "codegarden", "codegarden_phase2b", "mcp", "sync", "tech_stack",
+            "secnews",
         ]
 
 

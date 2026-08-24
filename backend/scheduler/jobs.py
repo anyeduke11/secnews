@@ -15,7 +15,7 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from backend.logging_config import logger
@@ -2236,6 +2236,46 @@ async def retention_decay_job() -> None:
         pass
 
 
+# ============================================================================
+# SECNEWS Phase 1 (2026-08-24): kl_queue 心跳消费 — 新 KL 管线运行时闭环。
+# 注意: 与上方 v1.8 Phase 10 的 kl_trigger_t*_job (services/triggers/*,
+# 旧 knowledge_items 状态机) 是两套系统, 本 job 驱动 backend/kl_pipeline
+# 的 kl_queue (drain_due 常规消化 + 低频 sweep 兜底滞留条目, S1-1/S2-3)。
+# ============================================================================
+_KL_SWEEP_EVERY_N_BEATS = 10  # 60s × 10 = 每 10 分钟 sweep 兜底一次
+_kl_heartbeat_beats = {"n": 0}
+
+
+async def kl_pipeline_heartbeat_job() -> None:
+    """每 60s 消费到期 kl_queue 任务; 每 10 拍附带 sweep 兜底。
+
+    drain/sweep 是同步 DB+FS 操作 → asyncio.to_thread; 失败只 log.error
+    不抛异常 (与既有 job 模式一致)。
+    """
+    from backend.kl_pipeline.runtime import get_production_pipeline
+
+    try:
+        def _drain() -> dict:
+            return get_production_pipeline().drain_due(limit=50)
+
+        result = await asyncio.to_thread(_drain)
+        if result.get("done") or result.get("failed"):
+            logger.info(f"kl_pipeline_heartbeat_job: drained {result}")
+
+        _kl_heartbeat_beats["n"] += 1
+        if _kl_heartbeat_beats["n"] % _KL_SWEEP_EVERY_N_BEATS == 0:
+            def _sweep() -> int:
+                return get_production_pipeline().sweep()
+
+            swept = await asyncio.to_thread(_sweep)
+            if swept:
+                logger.info(
+                    f"kl_pipeline_heartbeat_job: sweep re-enqueued {swept} items"
+                )
+    except Exception as e:
+        logger.error(f"kl_pipeline_heartbeat_job crashed: {e}")
+
+
 # 更新 __all__ (Phase 1.4 + Phase 2.2 + existing)
 __all__.extend([
     "attention_aggregate_job",
@@ -2245,6 +2285,7 @@ __all__.extend([
     "content_draft_generation_job",
     "cve_sync_to_security_job",
     "kl_dead_letter_retry_job",
+    "kl_pipeline_heartbeat_job",
     "kl_trigger_t1_job",
     "kl_trigger_t2_job",
     "kl_trigger_t3_job",

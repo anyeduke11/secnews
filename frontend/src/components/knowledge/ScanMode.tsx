@@ -445,7 +445,7 @@ function ScanCard({ item, index }: ScanCardProps) {
         </div>
 
         {/* 掌握度进度条 */}
-        {item.mastered !== undefined && item.mastered > 0 && (
+        {item.mastery !== undefined && item.mastery > 0 && (
           <div className="flex items-center gap-1">
             <div
               className="h-1.5 w-12 rounded-full overflow-hidden"
@@ -454,18 +454,18 @@ function ScanCard({ item, index }: ScanCardProps) {
               <div
                 className="h-full rounded-full transition-all duration-300"
                 style={{
-                  width: `${Math.min(100, item.mastered)}%`,
+                  width: `${Math.min(100, item.mastery)}%`,
                   backgroundColor:
-                    item.mastered >= 80
+                    item.mastery >= 80
                       ? 'var(--color-success)'
-                      : item.mastered >= 50
+                      : item.mastery >= 50
                         ? 'var(--color-warning)'
                         : 'var(--color-info)',
                 }}
               />
             </div>
             <span className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
-              {item.mastered}%
+              {item.mastery}%
             </span>
           </div>
         )}

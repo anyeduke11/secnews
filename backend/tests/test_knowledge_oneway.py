@@ -141,7 +141,7 @@ def test_sag_transition_does_not_write_md(temp_db, monkeypatch):
 
         # P0.4 修复后的 transition 应该不调用 write_item_to_md
         # 这里先模拟修复后的行为
-        result = transition("transition_test_1", "kl:refine")
+        transition("transition_test_1", "kl:refine")
 
         # 核心断言: write_item_to_md 不应被调用
         # (修复后 transition 只更新 DB lifecycle)

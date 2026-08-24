@@ -42,7 +42,7 @@ def test_mcp_tool_registry_table_exists(temp_db):
 def test_seed_idempotent(temp_db):
     """重复调用 mcp_tool_registry_seed 不会重复插入 (启动幂等)."""
     from backend.api.mcp_config import mcp_tool_registry_seed
-    inserted_first = mcp_tool_registry_seed()
+    mcp_tool_registry_seed()
     inserted_second = mcp_tool_registry_seed()
     # 第二次应返回 0 (无新增)
     assert inserted_second == 0

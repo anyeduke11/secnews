@@ -301,10 +301,7 @@ def test_execute_archive_hotspots_respects_favorites(mini_db: Path):
     assert archive_dir.exists()
     jsonl_files = list(archive_dir.glob("*.jsonl"))
     assert len(jsonl_files) >= 1
-    # 检查最新一个 jsonl 含正确内容
-    latest = max(jsonl_files, key=lambda p: p.stat().st_mtime)
-    content = latest.read_text(encoding="utf-8")
-    # 可能含 h_old (刚写的) — 不强求 latest 一定是本次的 (并发场景)
+    # 不强求 latest 一定是本次的 (并发场景)
     assert any(
         "h_old" in f.read_text(encoding="utf-8")
         for f in jsonl_files

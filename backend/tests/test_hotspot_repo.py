@@ -356,7 +356,6 @@ def test_query_excludes_historical_bid(repo):
     原因: bid_recency_gate 已识别为历史标讯(标题含历史年份/published_at
     超过 180d),即使 loose 模式仍入库,query 时也不应展示给用户。
     """
-    now = datetime.now(timezone.utc)
     repo.upsert_many(
         [
             # 标讯 A: 正常招标中 → 应出现

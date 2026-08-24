@@ -121,7 +121,7 @@ class TestFingerprintInsertion:
             mock_conn = _make_mock_conn()
             mock_get.return_value = mock_conn
 
-            written = svc._write_fingerprints(items)
+            svc._write_fingerprints(items)
 
             insert_calls = [
                 c for c in mock_conn.execute.call_args_list
@@ -240,8 +240,6 @@ class TestBatchDedup:
             _make_item("dup_a", title="Duplicate News Story"),
             _make_item("dup_b", title="Duplicate News Story"),
         ]
-        fp_unique = simhash("Completely Unique Topic")
-        fp_dup = simhash("Duplicate News Story")
 
         with patch(
             "backend.services.collection_service.get_connection"

@@ -126,7 +126,6 @@ class TestAcceptance2SM2IntervalExtends:
         item1 = r.json()["item"]
         assert item1["interval"] == 1, f"第一次 grade=5 后 interval 应=1, got {item1['interval']}"
         assert item1["repetitions"] == 1
-        easiness_after_1 = item1["easiness"]
 
         # 3. 第二次评分 grade=5 → interval=6, reps=2, easiness→2.7
         r = client.post(

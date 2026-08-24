@@ -139,7 +139,6 @@ def test_finished_run_not_marked_failed(temp_db):
     # 保留原 success 状态, watchdog 不覆盖
     assert r["status"] == "success"
     # finished_at 仍是原来插入的时间 (watchdog 不改)
-    original_finished = r["finished_at"]
 
 
 def test_no_orphan_no_op(temp_db):
@@ -183,9 +182,9 @@ def test_auto_catchup_since_is_earliest_orphan(temp_db):
     catchup_service._last_auto_enqueue_at = None
     catchup_service._last_orphan_recovery_at = None
 
-    rid1 = _insert_orphan(started_offset_s=1500)  # 最早
-    rid2 = _insert_orphan(started_offset_s=1000)
-    rid3 = _insert_orphan(started_offset_s=800)
+    _insert_orphan(started_offset_s=1500)  # 最早
+    _insert_orphan(started_offset_s=1000)
+    _insert_orphan(started_offset_s=800)
 
     expected_earliest_iso = (
         datetime.now(timezone.utc) - timedelta(seconds=1500)
@@ -248,7 +247,6 @@ def test_watchdog_does_not_touch_collect_all_lock(temp_db):
     """watchdog 只标孤儿, 不调用 collect_all_job, 不会与之抢锁."""
     # 收集所有 _run_once 的调用次数 (不实际跑 collect, 避免依赖网络)
     import backend.services.collection_service as cs_mod
-    original_run_once = cs_mod.CollectionService.run_once
     call_count = [0]
 
     async def fake_run_once(self):

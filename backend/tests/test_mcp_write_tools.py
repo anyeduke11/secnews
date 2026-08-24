@@ -68,7 +68,6 @@ def test_add_favorite_default_created_via(client, temp_db):
         "url": "https://example.com/h-1",
     })
     assert res.status_code == 200
-    data = res.json()
     # 验证 SQLite 中 created_via
     conn = db.get_connection()
     row = conn.execute(

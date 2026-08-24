@@ -60,7 +60,6 @@ def test_envelope_required_keys():
     cc = _load_cli_contract()
     # emit_envelope 副作用 sys.exit, 不可直接测; 测 _make_envelope 行为
     # 这里手工构造预期:
-    started_at = cc.time.monotonic()
     fake_envelope = {
         "ok": True,
         "code": cc.EXIT_OK,

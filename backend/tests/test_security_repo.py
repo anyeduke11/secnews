@@ -119,7 +119,7 @@ def test_get_edges_filters_by_type(repo):
 # security_terms + synonyms + taxonomy
 # ---------------------------------------------------------------------------
 def test_upsert_and_get_term(repo):
-    term = _term(repo)
+    _term(repo)
     row = repo.get_term_by_canonical("等保2.0-三级")
     assert row is not None
     assert row["canonical"] == "等保2.0-三级"

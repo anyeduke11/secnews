@@ -460,7 +460,7 @@ async def test_auto_and_manual_dont_block_each_other(temp_db):
     """auto enqueue + manual enqueue 都能成功 (auto 不查 _current_manual_run)."""
     catchup_service._current_manual_run = None
     with patch.object(catchup_service, "_execute_catchup_run",
-                      new=AsyncMock()) as mock_exec:
+                      new=AsyncMock()):
         auto_id = await catchup_service.enqueue_catchup(
             mode="auto", since="2026-07-24T00:00:00+00:00",
             until=None, categories=None, max_per_source=10,

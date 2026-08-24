@@ -61,7 +61,6 @@ def _ctx() -> GateContext:
 class TestMissingPublishedAt:
     def test_none_published_at_rejected(self):
         """嘶吼典型: 提取不到发布时间 → 拒收。"""
-        item = _make_item(published_at=datetime(2000, 1, 1, tzinfo=timezone.utc))
         # 模拟 None (绕过 model validator): 用 Pydantic model_construct
         item_na = HotspotItem.model_construct(
             id="t1", title="Some title", source="src_a", url="https://x.com/1",

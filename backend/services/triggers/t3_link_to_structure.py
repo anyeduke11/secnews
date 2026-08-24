@@ -80,7 +80,6 @@ class T3Trigger:
                 if link_count < LOW_LINK_THRESHOLD:
                     low_link += 1
 
-                summary = self._summarize_with_llm(item)
                 can_transition(item["lifecycle"], LIFECYCLE_STRUCTURE)
                 self._update_lifecycle(item_id, LIFECYCLE_STRUCTURE)
                 advanced += 1

@@ -248,11 +248,6 @@ def archive_quality_logs(
     # 主表当前总行数
     main_total = conn.execute(f"SELECT COUNT(*) FROM {qcl}").fetchone()[0]
 
-    # 归档表当前总行数
-    archive_total = conn.execute(
-        "SELECT COUNT(*) FROM quality_check_logs_archive"
-    ).fetchone()[0]
-
     if not dry_run and to_archive > 0:
         # 事务: 先归档再删除再回收空间
         conn.execute("BEGIN")
@@ -279,9 +274,9 @@ def archive_quality_logs(
             auto_vacuum = conn.execute("PRAGMA auto_vacuum").fetchone()[0]
             if auto_vacuum == 1:
                 conn.execute("PRAGMA incremental_vacuum(500)")
-                log.info(f"archive_quality_logs: incremental_vacuum done")
+                log.info("archive_quality_logs: incremental_vacuum done")
             else:
-                log.info(f"archive_quality_logs: auto_vacuum off, skip space reclaim")
+                log.info("archive_quality_logs: auto_vacuum off, skip space reclaim")
         except Exception as e:
             log.warning(f"archive_quality_logs: vacuum failed (non-fatal): {e}")
 

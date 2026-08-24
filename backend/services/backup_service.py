@@ -91,8 +91,9 @@ def _maybe_remote_push(db_path: Path, knowledge_zip_name: str) -> None:
         logger.warning(f"unknown HOTSPOT_REMOTE_BACKUP backend: {backend}")
         return
     try:
-        import requests
         from urllib.parse import quote
+
+        import requests
 
         webdav_url = os.environ.get("HOTSPOT_WEBDAV_URL", "")
         webdav_user = os.environ.get("HOTSPOT_WEBDAV_USER", "")
@@ -236,7 +237,6 @@ def _read_wal_pages_since(checkpoint_seq: int) -> tuple[int, list[bytes]]:
         return checkpoint_seq, []
 
     pages: list[bytes] = []
-    new_seq = checkpoint_seq
     with open(wal_path, "rb") as f:
         # WAL header (32 bytes): magic, version, page_size, checkpoint_seq, ...
         header = f.read(32)

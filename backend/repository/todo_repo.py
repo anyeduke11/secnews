@@ -330,11 +330,6 @@ class TodoRepository:
         # urgent 过滤在 Python 层做 (见下)
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
-        total_row = conn.execute(
-            f"SELECT COUNT(*) AS n FROM todos {where_sql}", params
-        ).fetchone()
-        total_raw = int(total_row["n"]) if total_row else 0
-
         rows = conn.execute(
             f"""
             SELECT * FROM todos

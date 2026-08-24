@@ -2,9 +2,9 @@
 
 ## v0.5.0-retired (2026-08-24, Phase 7b 待 dsh 端验收后正式生效)
 
-> **状态**: ⏳ 文档已就绪, 等 dsh 端 secnews.db 行数对账完成后正式生效
-> **退役文档**: [`HOTSPOT_RETIREMENT.md`](HOTSPOT_RETIREMENT.md)
-> **整合 spec**: `SecNews_dsh_全栈整合_task-d12.md` Phase 7
+> **状态 (2026-08-25)**: ⏸️ **冻结** — Phase 7 破坏性步骤 (D+2 停 :8000 / D+3 git mv 归档) 按用户裁决 (见 `PROGRESS.md` §2026-08-24 产品三层架构裁决 §连锁裁决) **冻结不执行**; hotspot 仍活跃开发 (`docs/SECNEWS_INTEGRATION_TASKS.md` Phase 0-6)。7a-7d 工具保留为参考资产。
+> **退役文档**: [`HOTSPOT_RETIREMENT.md`](HOTSPOT_RETIREMENT.md) (含冻结横幅)
+> **整合 spec**: [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](HOTSPOT_SECNEWS_INTEGRATION.md) + [`docs/SECNEWS_INTEGRATION_TASKS.md`](SECNEWS_INTEGRATION_TASKS.md)
 
 ### Phase 7a — hotspot.db → JSON 旁路导出器 (commit b1cd80de)
 

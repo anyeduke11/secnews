@@ -1,12 +1,11 @@
 # SecNews（hotspot）· 现状架构文档
 
-> 📜 **历史快照标注 (2026-08-24)**: hotspot 正在迁入 dsh-SecNews (Phase 7b)。
-> 本文档对应 **v0.5.0 (2026-08-23)** 代码状态, Phase 7b 完成后 (`backend/`
-> git mv 为 `hotspot-archived/`) 将转为历史快照, 后续架构演进见 dsh-SecNews
-> 仓库 `docs/ARCHITECTURE.md`。
+> 📜 **状态标注 (2026-08-25)**: hotspot 活跃开发中 — 当前代码 v0.5.0，对应 `docs/SECNEWS_INTEGRATION_TASKS.md` Phase 0-6 (Phase 0 已交付 commit `2592a640`)。
 >
-> **退役文档**: [`HOTSPOT_RETIREMENT.md`](HOTSPOT_RETIREMENT.md)
-> **整合 spec**: `SecNews_dsh_全栈整合_task-d12.md` Phase 7
+> Phase 7 (后端退役至 dsh-SecNews) **破坏性步骤已冻结** (D+2 停 :8000 / D+3 git mv), 见 `PROGRESS.md` §2026-08-24 §连锁裁决; `scripts/export_for_dsh.py` 等工具保留为参考资产。
+>
+> **退役文档**: [`HOTSPOT_RETIREMENT.md`](HOTSPOT_RETIREMENT.md) (含冻结横幅, 当前为参考档案)
+> **整合 spec**: [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](HOTSPOT_SECNEWS_INTEGRATION.md) + [`docs/SECNEWS_INTEGRATION_TASKS.md`](SECNEWS_INTEGRATION_TASKS.md)
 
 ---
 

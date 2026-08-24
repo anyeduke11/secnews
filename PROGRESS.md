@@ -525,3 +525,35 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
 - dsh 端 wiki 文件数对账 == 4245
 - dsh 端 React SPA `web/` 全功能冒烟
 - hotspot 端 :8000 进程停止 / git mv backend → hotspot-archived / git tag v0.5.0-retired
+
+### Phase 7c — 一键退役脚本 + baseline 快照 (当前)
+
+> 7b 文档就绪后, 补充两个**可控触发**的工具, 让 hotspot 端在 dsh 验收通过后,
+> 一条命令完成所有破坏性动作, 保留 dry-run 默认 + safety checks + 30 天回滚指引。
+
+- **scripts/snapshot_for_retirement.py** (NEW, 305 行):
+  - 8 张核心表 + 4 个 wiki 子目录行数锁定 → `data/retirement_baseline.json` (gitignored)
+  - 含 `schema_version=1` + `dsh_verify_hint` (node:sqlite 对账命令模板)
+  - 三个 mode: 默认写盘 / `--dry-run` / `--verify` (与 baseline 比对)
+  - 退出码: 0 一致, 1 漂移, 2 baseline 缺失
+- **backend/tests/test_snapshot_for_retirement.py** (NEW, 13 cases 全绿):
+  - schema_version=1 + 8 张表 + 4 个 wiki 子目录覆盖
+  - 总数与 DB/rglob 双源校验
+  - 锁定 2026-08-24 baseline 数字 (反向验证, 漂移会失败)
+  - `--verify` 子命令两个退出码分支
+- **scripts/execute_retirement.sh** (NEW, 309 行, 可执行):
+  - 6 步流水线: kill :8000 → export → baseline → git mv backend → git mv frontend → git tag v0.5.0-retired
+  - 默认 dry-run (打印所有命令, 不执行)
+  - `--apply` 真执行
+  - `--step N` 单步重跑 (排错用)
+  - `--skip-kill / --skip-export / --skip-baseline` 灵活跳过
+  - preflight 检查: git tree clean / hotspot.db 存在 / python + git 命令
+  - 失败时打印 30 天应急回滚命令
+- **docs/HOTSPOT_RETIREMENT.md** 增量:
+  - 行数对账用 `snapshot_for_retirement.py` 取代手写 python -c
+  - 新增 "步骤 2.5: 锁 baseline 快照"
+  - 新增 "一键退役脚本" 章节 (含 dry-run / --apply / --step 示例)
+  - 验收 checklist 加 3 项 (baseline 锁定 / --verify / --help 可执行)
+  - 相关文档加 4 个新工具交叉链接
+- **实测**: `bash scripts/execute_retirement.sh` 打印 6 步 [dry-run] 计划 + 30 天回滚指引
+- **测试**: 21 cases 全绿 (8 export + 13 snapshot)

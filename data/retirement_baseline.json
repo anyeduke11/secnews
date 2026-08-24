@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "snapshot_at": "2026-08-24T09:35:10.683467+00:00",
+  "hotspot_version": "0.5.0",
+  "db_path": "backend/hotspot.db",
+  "db_size_bytes": 347287552,
+  "table_counts": {
+    "hotspots": 3391,
+    "favorites": 4,
+    "todos": 6,
+    "sm2_reviews": 3,
+    "annotations": 2,
+    "hotspot_tags": 5356,
+    "knowledge_concepts": 98,
+    "knowledge_graph": 42
+  },
+  "total_db_rows": 8902,
+  "wiki_files": {
+    "items": 4149,
+    "concepts": 96,
+    "inbox": 0,
+    "quarantine": 0
+  },
+  "total_wiki_files": 4245,
+  "tables_locked": [
+    "hotspots",
+    "favorites",
+    "todos",
+    "sm2_reviews",
+    "annotations",
+    "hotspot_tags",
+    "knowledge_concepts",
+    "knowledge_graph"
+  ],
+  "wiki_subdirs_locked": [
+    "items",
+    "concepts",
+    "inbox",
+    "quarantine"
+  ],
+  "dsh_verify_hint": "# dsh 端迁移完成后, 在 secnews 仓库跑:\nnode -e \"\nimport('node:sqlite').then({DatabaseSync} => {\n  const db = new DatabaseSync('data/secnews.db')\n  for (const t of [\"hotspots\", \"favorites\", \"todos\", \"sm2_reviews\", \"annotations\", \"hotspot_tags\", \"knowledge_concepts\", \"knowledge_graph\"]) {\n    const n = db.prepare(`SELECT COUNT(*) FROM \\${t}`).get()\n    console.log(t.padEnd(22), n['COUNT(*)'])\n  }\n  db.close()\n})\n\"\n"
+}

@@ -50,7 +50,7 @@ def check_url(url: str, timeout: float = 10.0) -> str:
         return "unknown"
     try:
         return _probe(url, timeout)
-    except Exception:  # noqa: BLE001 — 三态契约要求任何异常都收敛为 unknown
+    except Exception:
         return "unknown"
 
 
@@ -84,7 +84,7 @@ def _probe(url: str, timeout: float) -> str:
 
 
 def sweep_liveness(
-    wiki_fs: "WikiFs",
+    wiki_fs: WikiFs,
     *,
     limit: int | None = None,
     workers: int = 16,
@@ -95,7 +95,7 @@ def sweep_liveness(
     for item_id in wiki_fs.list_ids():
         try:
             item = wiki_fs.read_item(item_id)
-        except Exception as e:  # noqa: BLE001 — 单条损坏不阻断批扫
+        except Exception as e:
             logger.warning(f"sweep_liveness: skip unreadable {item_id}: {e}")
             continue
         fm = item.get("fm", {})
@@ -125,7 +125,7 @@ def sweep_liveness(
                 fm["alive"] = state
                 fm["alive_checked_at"] = datetime.now(timezone.utc).isoformat()
                 wiki_fs.write_item(item_id, {"fm": fm, "body": item.get("body", "")})
-            except Exception as e:  # noqa: BLE001 — 写回失败降级为 unknown 口径外损失
+            except Exception as e:
                 counts[state] -= 1
                 counts["unknown"] += 1
                 logger.warning(f"sweep_liveness: write-back failed {item_id}: {e}")
@@ -134,13 +134,13 @@ def sweep_liveness(
     return counts
 
 
-def liveness_counts(wiki_fs: "WikiFs") -> dict:
+def liveness_counts(wiki_fs: WikiFs) -> dict:
     """只读统计当前 frontmatter 中的三态分布 (观测台 S1-4 用, 零网络 IO)。"""
     counts = {"total": 0, "alive": 0, "dead": 0, "unknown": 0}
     for item_id in wiki_fs.list_ids():
         try:
             fm = wiki_fs.read_item(item_id).get("fm", {})
-        except Exception:  # noqa: BLE001
+        except Exception:
             continue
         if fm.get("source", "") not in _BOOKMARK_SOURCES:
             continue

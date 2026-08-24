@@ -123,6 +123,8 @@ async def pipeline_stats() -> dict:
 @router.get("/liveness")
 async def liveness_stats() -> dict:
     """书签存活三态分布 (只读 frontmatter, 零网络 IO)。"""
+    from backend.wiki_fs.liveness import liveness_counts
+
     wiki_fs = _get_wiki_fs()
     return liveness_counts(wiki_fs)
 

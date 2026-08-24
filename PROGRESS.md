@@ -172,17 +172,21 @@
 - [x] S0-11: DataLayerPage 新增「安全看板」快捷入口卡片
 
 ### Phase 1 任务分解
-- [ ] S1-1: KL 引擎五阶段状态机跑通（raw → refine → link → structure → publish）
-- [ ] S1-2: wiki_fs store.py 读写契约 + 块序列解析
+- [x] S1-1: KL 引擎五阶段状态机跑通（raw → refine → link → structure → publish）
+  （全链路测试通过 + heartbeat job 每 60s 自动消费 kl_queue, 见 2026-08-24 心跳节）
+- [x] S1-2: wiki_fs store.py 读写契约 + 块序列解析
 - [ ] S1-3: 书签 HTML 导入（Netscape 解析 + 存活三态检测）
+  （HTML 导入已可用; 存活三态检测未做）
 - [ ] S1-4: Pipeline 观测台 UI（漏斗 + 队列卡片 + 死信表 + token 台账）
 - [ ] S1-5: inbox 扫描入口 + quarantine 隔离区
-- [ ] S1-6: refine 轻 AI 接入（flash 档，topic/type/tags）
+- [x] S1-6: refine 轻 AI 接入（flash 档，topic/type/tags）
+  （AIHubLLMClient 桥接 ai_hub; 无 provider 时 generate 返回 "" 自动降级摘要）
 
 ### Phase 2 任务分解
 - [ ] S2-1: 质量门禁 13+ 道 Gate 合并（Hotspot 13 + dsh 8）
-- [ ] S2-2: CVE/ATT&CK/合规正则抽取（T\d{4} + CVE-YYYY-NNNN + 等保/关基）
-- [ ] S2-3: 每日 sweep 兜底运行（滞留条目自动入队）
+- [x] S2-2: CVE/ATT&CK/合规正则抽取（T\d{4} + CVE-YYYY-NNNN + 等保/关基）
+- [x] S2-3: 每日 sweep 兜底运行（滞留条目自动入队）
+  （实现为 heartbeat 每 10 拍 = 10 分钟 sweep, 强于每日兜底）
 - [ ] S2-4: concept-linker Python 移植（FTS 共现 → 权重边）
 
 ### Phase 3 任务分解
@@ -251,6 +255,48 @@
   `generate_meta.py --check` OK (jobs 45 / routers 54 / services 86)
 - 未竟事项（后续任务）：调度器 heartbeat job 驱动 drain_due/sweep 自动消费；
   S1-6 refine 接 ai_hub LLM（当前 llm_client=None 走降级摘要）
+
+## 2026-08-24 心跳闭环 + S1-6 LLM 接入 + pi runner 注册
+
+> 承接上节两项未竟事项 + 三层架构 pi 执行层落位（一任务一提交拆 3 个 commit）。
+
+### kl_queue 心跳消费 (S1-1/S2-3 收口)
+
+- 新增 `kl_pipeline_heartbeat_job`（60s）：`drain_due(limit=50)` 常规消化；
+  每 10 拍（10 分钟）附带 `sweep()` 兜底滞留条目 —— 强于原计划的每日 sweep
+- 注册于 `scheduler.py` `_JOB_EXT_MAP` → `secnews` 扩展域（feature gate 可关）;
+  drain/sweep 为同步 DB+FS 操作, `asyncio.to_thread` 包装; 失败仅 log.error
+- 注意：与 v1.8 Phase 10 的 `kl_trigger_t1..t4_job`（services/triggers/*,
+  旧 knowledge_items 状态机）是两套系统, 本 job 驱动 backend/kl_pipeline 的 kl_queue
+- 附带修复：jobs.py 预存 F821 —— wiki_archiver_job / retention_decay_job 使用
+  未导入的 `timezone`（ruff 检出）, 一旦运行即 NameError; 补 `from datetime import timezone`
+
+### S1-6: refine 接 ai_hub LLM
+
+- 新增 `backend/kl_pipeline/llm_adapter.py::AIHubLLMClient`：
+  stage 期望同步 `chat()` ↔ ai_hub `llm_service.generate()`（async）桥接;
+  工作线程无循环时 `asyncio.run` 直跑, API 循环内用独立单线程池避免嵌套
+- refine prompt 扩展 topic/type 两字段（severity/tags/summary 沿用）;
+  无 provider / 全失败时 generate 返回 "" → JSON 解析失败 → 自动降级正文截断摘要
+- 新增 `backend/kl_pipeline/runtime.py` 生产装配单一出口（依赖方向:
+  scheduler/jobs → kl_pipeline.runtime → wiki_fs+ai_hub, 调度器不 import backend.api）;
+  API 层 `_get_wiki_fs/_get_pipeline/_get_dashboard` 全部切换至 runtime 单例
+
+### pi 执行 agent 注册 (三层架构执行层)
+
+- 仓库根 `config/agents.yaml` 新增 `pi:` 条目（command=["pi"], protocol=acp,
+  task_types=[execute], timeout=600）; CLI 未装时 §19.4 回退 default_agent
+- `route("execute") == "pi"` 路由断言入 test_agent_runner_schema.py
+
+### 验证证据（本会话实测）
+
+- 定向套件: test_secnews_p1_runtime(新,10) + test_agent_runner_schema +
+  test_kl_pipeline = **43 passed**; gates/scheduler×2/dashboard = **92 passed**;
+  test_wiki_tools = **15 passed**
+- 全量回归 `pytest backend/tests/` = **2822 passed, 4 skipped** 零失败;
+  touched 文件 ruff 干净（jobs.py 余 3 处 HEAD 历史遗留: RUF006/ASYNC221/RUF022）
+- `generate_meta.py --check` OK (**jobs 46** ← 心跳 job 入账 / routers 54 / services 86)
+
 
 ## 2026-08-23 M4 路线决策（已被 2026-08-23 产品身份裁决取代）
 

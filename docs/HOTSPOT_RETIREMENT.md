@@ -246,9 +246,12 @@ python scripts/migrate_from_dsh.py  # 需事先写好
 
 - [`scripts/export_for_dsh.py`](../scripts/export_for_dsh.py) — hotspot.db → JSON 旁路导出器 (本仓库)
 - [`scripts/snapshot_for_retirement.py`](../scripts/snapshot_for_retirement.py) — 行数基线快照, dsh 端对账用 (本仓库)
+- [`scripts/dump_schema.py`](../scripts/dump_schema.py) — 80 表 DDL + 索引 + FTS5 虚表组导出, 给 dsh `packages/store/src/schema.ts` 参考 (本仓库)
 - [`scripts/execute_retirement.sh`](../scripts/execute_retirement.sh) — 6 步退役一键脚本 (dry-run 默认, 本仓库)
 - [`backend/tests/test_export_for_dsh.py`](../backend/tests/test_export_for_dsh.py) — 8 个 export 契约测试 (本仓库)
 - [`backend/tests/test_snapshot_for_retirement.py`](../backend/tests/test_snapshot_for_retirement.py) — 13 个 baseline 契约测试 (本仓库)
+- [`backend/tests/test_dump_schema.py`](../backend/tests/test_dump_schema.py) — 14 个 schema dump 契约测试 (本仓库)
 - [`docs/CodeGarden_PRD_v1.7.md`](CodeGarden_PRD_v1.7.md) — hotspot v0.3-0.4 详细设计 (本仓库)
 - dsh 端 `packages/store/src/migrate-from-hotspot.ts` — TS 端迁入脚本 (dsh-SecNews 仓库)
+- dsh 端 `packages/store/src/schema.ts` — TS 端表结构 (dsh-SecNews 仓库, 由 dump_schema.py 提供 DDL 参考)
 - dsh 端 `web/` — React SPA 取代 hotspot frontend/ (dsh-SecNews 仓库)

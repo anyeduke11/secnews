@@ -959,10 +959,14 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
 ### P2-2 pk_map dead variable PR 评审留档 (commit eae608e1)
 
 - **新文件**: `docs/P2_DEAD_VARS_PR_REVIEW.md` (NEW, 6.3KB, 留档)
-- 1 个 high-risk dead var: `backend/services/codegarden_scanner.py` 的 pk_map
-  (删除需先确认 8 个 hot-path 调用方都已切到新接口)
+- 1 个 high-risk dead var: `backend/api/sync.py:352` 的 pk_map
+  (`resolve_all_conflicts` 批量裁决为"简化版不逐条匹配", pk_map 零消费)
 - 决议: **留档不删** — 等下一次 PR 评审时由 reviewer 拍板
 - 教训: high-risk dead var 不能"以 lint clean 为由硬删", 必须 PR 评审 + 影响面分析
+- **后续决议执行 (2026-08-25)**: 方案 A 落地 — 删死 pk_map + 修两裁决端点
+  `state.merged_bundle` dict 属性访问 AttributeError→500 前置 bug (改
+  `state["bundle_json"]`) + 补 4 个表征测试锁行为; ruff F401/F841 全仓首次
+  **All checks passed**; 详见留档文档 §9
 
 ### P2-3 mutation 盲点补 test (commit cf0a0a14)
 

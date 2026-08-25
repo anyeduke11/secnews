@@ -1,6 +1,6 @@
 # P2-2: pk_map dead variable PR 评审留档
 
-> **状态**：📝 待 PR 评审（不在本次 P2 commit 中删除）
+> **状态**：✅ 已执行方案 A (2026-08-25, 用户指示"继续未完成的重构任务"后落地)
 > **文件**：`backend/api/sync.py:352` (`resolve_all_conflicts` 函数)
 > **关联**：P0 audit §2.2 表中 pk_map 标 "高风险（业务关键路径）"
 > **关联 commit**：`5fe965a7` (P2-1 已 rename 其他 17 个 production F841)
@@ -167,3 +167,42 @@ del _PK_MAP  # noqa: F841
 2. **下次开 PR 时**：附此文档第 1-7 节作为 PR description
 3. **PR 标题建议**：`refactor(sync): 删除 resolve_all_conflicts 中 dead pk_map (F841)`
 4. **PR 模板**：附 ruff 输出前后对比 + 1 张 e2e 截图 + 1 段方案 A 的 diff
+
+## 9. 决议执行记录 (2026-08-25)
+
+方案 A 落地，**并发现一个比死变量更严重的前置 bug**：
+
+### 9.1 新发现: 两个裁决端点存在 AttributeError → 500 (已修)
+
+`resolve_conflict` 与 `resolve_all_conflicts` 原代码:
+
+```python
+state = state_repo.get_by_config(cfg.id)   # 返回 dict(row), 列名 bundle_json
+...
+merged = json.loads(state.merged_bundle) if isinstance(state.merged_bundle, str) else ...
+```
+
+`get_by_config` 返回**普通 dict**, `.merged_bundle` 属性访问必然 `AttributeError`
+(且表中根本没有 `merged_bundle` 列, 实际列名为 `bundle_json`)。
+即两个端点在"有同步状态"的正常路径上**从未成功返回过 200** — 这也解释了为何
+此前不存在任何 auto-resolve 测试 (§5 清单假设的 `test_auto_resolve_*` 并不存在)。
+
+修复: 改为 `state["bundle_json"]`; 状态行为 None 的 404 分支保持不变。
+
+### 9.2 执行清单核验
+
+- [x] 补齐表征测试后再删 (原清单假设的测试不存在, 按 "锁行为不锁实现" 先补):
+      `test_conflicts_resolve_marks_matching_key` / `_missing_key_404` /
+      `test_conflicts_auto_resolve_marks_all_items` / `_unknown_table_404`
+      (`backend/tests/test_sync_api.py`, 4 个新测试全过)
+- [x] test_sync_api.py + test_sync.py 全过 (43 passed)
+- [x] e2e: TestClient 走真实 API 路径, 断言 merged_bundle 中
+      `_conflict_resolved` 正确设置 (单条只标匹配 key; 批量全表标记 + count)
+- [x] 删除后 grep `pk_map`: 仅剩 L307 一处 (且移出 for 循环 — 循环不变量,
+      §2 提到的性能小瑕疵顺手消除)
+- [x] P0_AUDIT.md §2.2 pk_map 行标注 ✅ 已删
+
+### 9.3 结果
+
+- ruff `backend/ --select F401,F841` → **All checks passed** (P2 目标 0/0 首次真正达成)
+- 未来若实现"逐条裁决批量版", 按本档 §3.2 方案 B 重引入模块级 PK_MAP

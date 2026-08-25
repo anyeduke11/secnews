@@ -48,7 +48,7 @@
 | backend/services/collection_service.py | 499 | started_at | 低 (时间未入返回值) | rename `_started_at` |
 | backend/services/export_service.py | 314 | summary | 中 (可能喂 UI, 需看 context) | review |
 | backend/api/codegarden.py | 436 | head | 中 (注释明示"简化") | rename `_head` |
-| backend/api/sync.py | 352 | pk_map | 高 (注释中"同步方向") | review |
+| backend/api/sync.py | 352 | pk_map | 高 (注释中"同步方向") | ✅ 已删 (方案 A, 附带修 2 处 `state.merged_bundle` dict 属性访问 500 bug + 补 4 表征测试) |
 | backend/api/todos.py | 321 | deleted | 低 (返回值未用, 调用方不依赖) | rename `_deleted` |
 | backend/quality/jobs.py | 93 | conn_path | 中 (逻辑检查后未消费) | review |
 | backend/repository/catchup_checkpoint_repo.py | 128 | sql | 低 (调试残留) | 直接删 |

@@ -54,10 +54,11 @@ def decay_score(initial: float, days_since_access: float) -> float:
     return round(bounded, 4)
 
 
-def parse_iso(ts: str) -> float:
-    """ISO8601 时间字符串 → 自 epoch 的天数 (浮点)。
+def parse_iso(ts: str, *, now: datetime | None = None) -> float:
+    """ISO8601 时间字符串 → 距今天数 (浮点)。
 
     解析失败返回 0.0 (视为已充分衰减, 不抛错)。
+    now 可注入固定时刻 (测试冻结时钟), 默认当前 UTC。
     """
     if not ts:
         return 0.0
@@ -67,7 +68,8 @@ def parse_iso(ts: str) -> float:
         return 0.0
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
-    delta = datetime.now(tz=timezone.utc) - dt
+    now_dt = now or datetime.now(tz=timezone.utc)
+    delta = now_dt - dt
     return max(0.0, delta.total_seconds() / 86400.0)
 
 
@@ -105,23 +107,27 @@ def _save_retention(retention_path: Path, obj: dict) -> None:
 # 核心 API
 # ---------------------------------------------------------------------------
 
-def run_decay(retention_path: Path) -> dict[str, int]:
+def run_decay(retention_path: Path, *, now: str | None = None) -> dict[str, int]:
     """扫一遍 retention.json, 更新所有 entry 的 current_score。
 
     Args:
         retention_path: ``llm-wiki-2.0/retention.json`` 路径
+        now: ISO8601 时刻注入 (测试冻结时钟), 默认当前 UTC; 同 record_access
 
     Returns:
         统计 dict: {updated, stale_after, unchanged, errors}
     """
     obj = _load_retention(retention_path)
     stats = {"updated": 0, "stale_after": 0, "unchanged": 0, "errors": 0}
+    now_dt: datetime | None = None
+    if now:
+        now_dt = datetime.fromisoformat(now.replace("Z", "+00:00"))
 
     for entry in obj.get("entries", []):
         try:
             initial = float(entry.get("initial_score", 1.0))
             last_accessed = entry.get("last_accessed", "")
-            days = parse_iso(last_accessed)
+            days = parse_iso(last_accessed, now=now_dt)
             new_score = decay_score(initial, days)
             old_score = entry.get("current_score", 1.0)
             if abs(new_score - old_score) > 0.0001:

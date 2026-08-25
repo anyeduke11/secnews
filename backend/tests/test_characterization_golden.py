@@ -208,9 +208,8 @@ class TestRetentionRunDecayFrozen:
     def test_run_decay_updates_stale_entry(self, tmp_path):
         """距 2026-08-17 7 天的条目 (current=1.0) → decay 后 0.8915。
 
-        当前实测时间 2026-08-24, last_accessed=2026-08-17 → days≈7
-        但因测试运行时刻非 00:00, 实际 days=6.9xxx → decay ≈ 0.8915。
-        用 ±0.005 容差锚定"近似 7 天"区间, 允许秒级抖动。
+        冻结时钟 (now 注入, P3-1 根治时间炸弹): last_accessed=2026-08-17,
+        now=2026-08-24T00:00Z → days 恰为 7 → decay = 1.0 * 0.9^(7/7) = 0.9 精确断言。
         """
         from backend.services.retention_engine import run_decay
 
@@ -224,13 +223,13 @@ class TestRetentionRunDecayFrozen:
             },
         ])
 
-        result = run_decay(rp)
+        result = run_decay(rp, now="2026-08-24T00:00:00+00:00")
         assert result["updated"] == 1
         assert result["errors"] == 0
 
         obj = json.loads(rp.read_text(encoding="utf-8"))
         score = obj["entries"][0]["current_score"]
-        assert 0.88 <= score <= 0.92, f"expected ~0.9, got {score}"
+        assert score == 0.9, f"expected exactly 0.9 at frozen 7 days, got {score}"
 
     def test_run_decay_mixed_initial_scores(self, tmp_path):
         """initial=1.0 和 initial=0.8 共存时各自衰减, 不互相干扰。"""
@@ -252,14 +251,14 @@ class TestRetentionRunDecayFrozen:
             },
         ])
 
-        result = run_decay(rp)
+        result = run_decay(rp, now="2026-08-24T00:00:00+00:00")
         assert result["updated"] == 2
 
         obj = json.loads(rp.read_text(encoding="utf-8"))
         scores = {e["id"]: e["current_score"] for e in obj["entries"]}
-        # a: 距 7 天 → ~0.9; b: 距 4 天 → 0.8 * 0.9^(4/7) ≈ 0.7461
-        assert 0.85 <= scores["a"] <= 0.92, f"a={scores['a']}"
-        assert 0.72 <= scores["b"] <= 0.77, f"b={scores['b']}"
+        # 冻结时钟: a 距 7 天 → 0.9; b 距 4 天 → 0.8 * 0.9^(4/7) = 0.7533 (精确)
+        assert scores["a"] == 0.9, f"a={scores['a']}"
+        assert scores["b"] == 0.7533, f"b={scores['b']}"
 
     def test_run_decay_invalid_iso_silently_zero(self, tmp_path):
         """last_accessed 解析失败 → parse_iso 静默返回 0.0 (视为刚访问),
@@ -275,9 +274,9 @@ class TestRetentionRunDecayFrozen:
             {"id": "good", "initial_score": 1.0, "current_score": 1.0, "last_accessed": "2026-08-20T00:00:00+00:00"},
         ])
 
-        result = run_decay(rp)
-        # bad → unchanged (parse_iso 返回 0, new=1.0, old=1.0, diff<0.0001)
-        # good → updated (~0.95)
+        result = run_decay(rp, now="2026-08-24T00:00:00+00:00")
+        # 冻结时钟: bad → unchanged (parse_iso 返回 0, new=1.0, old=1.0, diff<0.0001)
+        # good 距 3 天 → updated (1.0 * 0.9^(3/7) = 0.9558)
         assert result["errors"] == 0
         assert result["unchanged"] == 1
         assert result["updated"] == 1

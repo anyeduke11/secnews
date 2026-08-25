@@ -271,11 +271,11 @@
 | # | 事项 | 实测状态 | 归属 |
 |---|------|----------|------|
 | L1 | pk_map 高危 F841 | ✅ **已闭环** — `P2_DEAD_VARS_PR_REVIEW.md` §9: 方案 A 落地, 顺手修复两裁决端点 AttributeError→500 前置 bug, F401/F841=0 首次真正达成 | 无遗留 |
-| L2 | 默认规则集 lint 41 errors (RUF100×16 等) | 会挂 CI (`ci.yml:41` 默认配置) | **P3-1** |
+| L2 | 默认规则集 lint 41 errors (RUF100×16 等) | ✅ **已闭环** — P3-1 落地: `ruff check backend/` 默认配置 All checks passed; 自动批 38 项 + 手工批异步六项 (`04a34239`) + noqa 误删暴露点 3 处根因修复; 教训: RUF100 类 `--fix` 必须默认配置下跑 | 无遗留 |
 | L3 | 前端 vitest 17 failed (knowledge 组件为主) | HEAD 本底存量, worktree 基线核实 | **P3-2** |
 | L4 | phase3 搜索 <500ms 断言 flaky | 负载敏感计时抖动 | **P3-3** |
 | L5 | Playwright 浏览器 E2E 缺位 | 以全栈 E2E 替代中 | P3-4 stretch |
 | L6 | codegarden 端口分配测试环境敏感 | ✅ 8765→8766 已改 (`3f5fe7d0`), lsof 依赖仍在但风险已降 | 无遗留 |
 | L7 | CRM UI 增强 / Auth 多租户 | 产品 backlog | 不入治理线 |
 
-> **状态**: P3 范围已定义 (P3-1 ~ P3-4), 待排期执行; L1/L6 已闭环仅存档。
+> **状态**: P3-1 已完成 (2026-08-25, L2 闭环; 计划外新增 retention decay 时间炸弹根治, 详见 PROGRESS.md 同日章节); 待办余 P3-2 / P3-3 / P3-4; L1/L2/L6 已闭环仅存档。

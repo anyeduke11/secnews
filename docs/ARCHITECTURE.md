@@ -41,7 +41,7 @@
 ┌───────────────────────────────▼──────────────────────────────────────┐
 │                    FastAPI 单进程 (uvicorn, :8000)                    │
 │  ┌──────────────┐  ┌───────────────┐  ┌───────────────────────────┐  │
-│  │ api/ 57 router│→│ services/ 87  │→│ repository/ 37 repo       │  │
+│  │ api/ 57 router│→│ services/ 88  │→│ repository/ 37 repo       │  │
 │  │ (lazy 注册)   │  │ (业务编排)     │  │ (SQLite DAO, 每表一 repo) │  │
 │  └──────┬───────┘  └──────┬────────┘  └────────────┬──────────────┘  │
 │         │                 │                        │                 │
@@ -87,7 +87,7 @@ backend/
 ├── repository/    # SQLite DAO: db.py + 36 repo + migrations/ (59 个迁移)
 ├── scheduler/     # APScheduler 封装 + jobs.py (47 个 job, 数字由 scripts/generate_meta.py 反推维护)
 ├── security/      # Security Graph: MITRE STIX / graph / enricher / compliance
-├── services/      # 业务编排 (87 个文件, 数字由 scripts/generate_meta.py 反推维护)
+├── services/      # 业务编排 (88 个文件, 数字由 scripts/generate_meta.py 反推维护)
 ├── crypto.py      # PBKDF2 派生 + Fernet 加密 (secrets + 同步包)
 ├── config.py      # Pydantic Settings (env 前缀 HOTSPOT_)
 └── main.py        # FastAPI app: lifespan → db/cache/export/scheduler/MCP/watchdog

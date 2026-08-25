@@ -294,23 +294,24 @@ async def resolve_conflict(req: ConflictResolveRequest):
     if state is None:
         raise HTTPException(status_code=404, detail={"message": "无同步状态记录"})
     try:
-        merged = json.loads(state.merged_bundle) if isinstance(state.merged_bundle, str) else state.merged_bundle
+        raw = state["bundle_json"]
+        merged = json.loads(raw) if isinstance(raw, str) else raw
     except Exception:
         raise HTTPException(status_code=500, detail={"message": "无法解析 merged bundle"})
     records = merged.get("records", {})
     table_data = records.get(req.record_type)
     if table_data is None:
         raise HTTPException(status_code=404, detail={"message": f"表 {req.record_type} 不存在"})
+    pk_map = {
+        "favorites": "hotspot_id",
+        "todos": lambda x: f"{x.get('source_type', '')}::{x.get('source_id', '')}",
+        "skills": "name",
+        "custom_sources": "url",
+        "secrets": "name",
+    }
     if isinstance(table_data, list):
         found = False
         for item in table_data:
-            pk_map = {
-                "favorites": "hotspot_id",
-                "todos": lambda x: f"{x.get('source_type', '')}::{x.get('source_id', '')}",
-                "skills": "name",
-                "custom_sources": "url",
-                "secrets": "name",
-            }
             pk_fn = pk_map.get(req.record_type)
             if pk_fn is None:
                 break
@@ -342,20 +343,14 @@ async def auto_resolve_conflicts(req: AutoResolveRequest):
     if state is None:
         raise HTTPException(status_code=404, detail={"message": "无同步状态记录"})
     try:
-        merged = json.loads(state.merged_bundle) if isinstance(state.merged_bundle, str) else state.merged_bundle
+        raw = state["bundle_json"]
+        merged = json.loads(raw) if isinstance(raw, str) else raw
     except Exception:
         raise HTTPException(status_code=500, detail={"message": "无法解析 merged bundle"})
     records = merged.get("records", {})
     table_data = records.get(req.record_type)
     if table_data is None:
         raise HTTPException(status_code=404, detail={"message": f"表 {req.record_type} 不存在"})
-    pk_map = {
-        "favorites": "hotspot_id",
-        "todos": "source_id",
-        "skills": "name",
-        "custom_sources": "url",
-        "secrets": "name",
-    }
     count = 0
     if isinstance(table_data, list):
         for item in table_data:

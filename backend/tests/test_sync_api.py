@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Iterator
 from unittest.mock import AsyncMock, patch
@@ -362,3 +363,84 @@ def test_push_locked_vault_with_secrets_rejected(client):
     r = client.post("/api/sync/push", json={"master_key": MASTER_KEY})
     assert r.status_code in (400, 409), r.text
     assert "解锁" in r.json()["detail"]["message"]
+
+
+def _seed_merged_state(client, items):
+    """建默认配置 + 直接写入含 favorites 记录的 merged bundle, 返回 config_id。"""
+    _setup_master_key(client)
+    r = client.post("/api/sync/config", json={
+        "webdav_url": "https://dav.jianguoyun.com/dav",
+        "webdav_username": "u@x.com",
+        "webdav_password": "my-app-password",
+        "master_key": MASTER_KEY,
+    })
+    assert r.status_code == 200, r.text
+    from backend.repository.sync_configs_repo import SyncConfigRepository
+    from backend.repository.sync_states_repo import SyncStateRepository
+
+    cfg = SyncConfigRepository().get_default()
+    assert cfg is not None
+    bundle = {"version": "1.7", "records": {"favorites": items}}
+    SyncStateRepository().upsert(cfg.id, json.dumps(bundle, ensure_ascii=False))
+    return cfg.id
+
+
+def test_conflicts_resolve_marks_matching_key(client):
+    """单条裁决: 只标记 record_key 匹配的 item (P2-2 表征测试)。"""
+    cfg_id = _seed_merged_state(client, [
+        {"hotspot_id": "f1", "title": "a"},
+        {"hotspot_id": "f2", "title": "b"},
+    ])
+    r = client.post("/api/sync/conflicts/resolve", json={
+        "record_type": "favorites", "record_key": "f2", "choice": "remote",
+    })
+    assert r.status_code == 200, r.text
+    assert r.json()["resolved"] is True
+    from backend.repository.sync_states_repo import SyncStateRepository
+
+    state = SyncStateRepository().get(cfg_id)
+    items = json.loads(state["bundle_json"])["records"]["favorites"]
+    assert items[0].get("_conflict_resolved") is None
+    assert items[1]["_conflict_resolved"] == "remote"
+
+
+def test_conflicts_resolve_missing_key_404(client):
+    """单条裁决: record_key 不存在 → 404, 不写回。"""
+    _seed_merged_state(client, [{"hotspot_id": "f1", "title": "a"}])
+    r = client.post("/api/sync/conflicts/resolve", json={
+        "record_type": "favorites", "record_key": "nope", "choice": "local",
+    })
+    assert r.status_code == 404
+
+
+def test_conflicts_auto_resolve_marks_all_items(client):
+    """批量裁决 (简化版): 全表统一标记, count = 条数; pk 列不参与匹配。
+
+    P2-2: auto-resolve 语义即"不逐条指定 record_key" — 死变量 pk_map 已删,
+    本测试锁定删除前后行为一致。
+    """
+    cfg_id = _seed_merged_state(client, [
+        {"hotspot_id": "f1", "title": "a"},
+        {"hotspot_id": "f2", "title": "b"},
+        {"hotspot_id": "f3", "title": "c"},
+    ])
+    r = client.post("/api/sync/conflicts/auto-resolve", json={
+        "record_type": "favorites", "choice": "local",
+    })
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["resolved"] is True and body["count"] == 3
+    from backend.repository.sync_states_repo import SyncStateRepository
+
+    state = SyncStateRepository().get(cfg_id)
+    items = json.loads(state["bundle_json"])["records"]["favorites"]
+    assert all(i["_conflict_resolved"] == "local" for i in items)
+
+
+def test_conflicts_auto_resolve_unknown_table_404(client):
+    """批量裁决: 表不存在 → 404。"""
+    _seed_merged_state(client, [{"hotspot_id": "f1"}])
+    r = client.post("/api/sync/conflicts/auto-resolve", json={
+        "record_type": "nonexistent_table", "choice": "local",
+    })
+    assert r.status_code == 404

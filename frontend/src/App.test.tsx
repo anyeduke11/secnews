@@ -90,6 +90,7 @@ const mockFlags = {
   sync: true,
   techStack: true,
   securityGraph: true,
+  crm: true,
 };
 vi.mock('./hooks/useFeatureFlags', () => ({
   useFeatureFlags: () => mockFlags,
@@ -111,6 +112,7 @@ const ROUTES = [
   { path: '/knowledge/compound', label: /正在排版/ },
   { path: '/codegarden', label: /正在排版/ },
   { path: '/codegarden/phase2b', label: /正在排版/ },
+  { path: '/crm', label: /正在排版|CRM/ },
 ];
 
 describe('App routing', () => {

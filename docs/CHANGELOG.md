@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.6.0-dev (2026-08-25) — CRM 业绩座舱 (security-cockpit 方案 C)
+
+> **决策**: 用户拍板 [`docs/P2_6_COCKPIT_EVAL.md`](P2_6_COCKPIT_EVAL.md) 方案 C (完整移植), PRD 先行 ([`COCKPIT_PRD.md`](COCKPIT_PRD.md))。CRM-like 业务 (客户/商机/业绩) 与 hotspot 资讯聚合正交, 以 `crm` feature gate 扩展域接入。
+
+### T1-T5 一任务一提交
+
+- **T1 PRD** (`b2131446`): 四问默认假设 + US-1 录入客户 / US-2 商机推进 / US-3 座舱复盘 + 六态状态机 (需求沟通→方案提交→商务谈判→合同签订→赢单/输单, 终态冻结) + KPI 口径表
+- **T2 数据层** (`4b8b4c66`): migration `071_crm_cockpit.sql` 三表 + `crm_customer_repo` / `crm_opportunity_repo` (状态机唯一裁决) + 单测 10 用例
+- **T3 API 层** (`920587c8`): `/api/crm/customers` CRUD、`/api/crm/opportunities` (+`/transition` 唯一阶段入口)、`/api/crm/stats|meta`; `X-CRM-Token` 常量时间鉴权 (未设 env = 本地模式); extensions 注册 crm 扩展域 + `feature_gates.toml` `crm = true`; 测试矩阵补 crm; ARCHITECTURE 数字同步 (routers 57 / services 87)
+- **T4 前端** (`405d98ca`): `/crm` 页面 — CockpitDashboard (8 KPI 卡 + 月度营收/区域分布/漏斗手写 SVG)、CustomerManager、OpportunityManager; `useFeatureFlags.crm` 全链路; ROUTE_REGISTRY §2.7 登记; Header「更多」入口
+- **T5 E2E+文档** (本 commit): `backend/tests/test_crm_e2e.py` 全栈闭环 (US-1→US-2→US-3 经 register_routers); PROGRESS / CHANGELOG / P2_6_COCKPIT_EVAL §决议记录 同步; Playwright 浏览器级 E2E 列为后续增强
+
 ## v0.5.0-retired (2026-08-24, Phase 7b 待 dsh 端验收后正式生效)
 
 > **状态 (2026-08-25)**: ⏸️ **冻结** — Phase 7 破坏性步骤 (D+2 停 :8000 / D+3 git mv 归档) 按用户裁决 (见 `PROGRESS.md` §2026-08-24 产品三层架构裁决 §连锁裁决) **冻结不执行**; hotspot 仍活跃开发 (`docs/SECNEWS_INTEGRATION_TASKS.md` Phase 0-6)。7a-7d 工具保留为参考资产。

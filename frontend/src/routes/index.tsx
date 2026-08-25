@@ -146,6 +146,11 @@ export function AppRoutes() {
           <Route path="ledger" element={<Suspense fallback={<PageFallback />}><P.SecNewsLedger /></Suspense>} />
         </Route>
 
+        {/* CRM 业绩座舱 (v0.6 security-cockpit 方案 C, feature gate: crm) */}
+        {features.crm && (
+          <Route path="/crm" element={<Suspense fallback={<PageFallback />}><P.CrmPage onBack={goHome} /></Suspense>} />
+        )}
+
         {/* v0.4.3: 未匹配路径回落到资料层首页 (扩展关闭时旧深链不白屏) */}
         <Route path="*" element={<Navigate to="/data" replace />} />
       </Route>

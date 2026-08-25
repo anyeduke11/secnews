@@ -105,6 +105,7 @@ export function Header({
 
   const MORE_ITEMS = [
     { path: '/knowledge', label: '知识管理', hint: '4 大领域 + 6 认知模式' },
+    ...(features.crm ? [{ path: '/crm', label: 'CRM 业绩座舱', hint: 'KPI / 客户 / 商机' }] : []),
     { path: '/skills', label: 'Skill 管理', hint: '技能配置' },
     { path: '/secrets', label: '密钥管理', hint: 'LLM API 密钥' },
     ...(features.sync ? [{ path: '/sync', label: '跨端同步', hint: 'WebDAV 同步' }] : []),

@@ -14,12 +14,13 @@
 | 4 | **ai_hub** (backend-only) | (无独立 frontend, 通过 KnowledgeActionBar / KnowledgeProcess 触发) | `/api/llm` (2), `/api/recommend` (1) | KnowledgeActionBar / KnowledgeProcess | ai_hub router | backend-only, 通过 `/api/digests/generate` 触发日报 |
 | 5 | **knowledge-master** | `/knowledge/*` (12 子路由) | `/api/knowledge` (42), `/api/wiki` (5), `/api/tags` (4), `/api/favorites` (4), `/api/content` (7), `/api/extract` (3), `/api/reviews` (4), `/api/annotations` (2), `/api/attention` (1), `/api/search` (1), `/api/categories` (1) | KnowledgePage | knowledge router + wiki router | skill "knowledge-master" 调用入口 |
 | 6 | **secnews** | `/secnews/*` (5 子路由: feed/pipeline/knowledge/inbox/ledger) | `/api/secnews` (4) | SecNewsShell | secnews router | **feature gate**: `secnews` (默认关) |
-| 7 | **security_cockpit** (设计资产, 不在 hotspot frontend) | (无 — security-cockpit/ 是独立设计稿) | `/api/security` (10) | (设计资产目录 `security-cockpit/`) | security router | **future**: security cockpit SPA 接入点 |
+| 7 | **security_cockpit** (设计资产, 已由 crm 子模块替代接入) | (原无 — security-cockpit/ 是独立设计稿) | `/api/security` (10) | (设计资产目录 `security-cockpit/`) | security router | 静态稿能力经 v0.6 方案 C 移植进 hotspot (`crm` 扩展), 见下行 |
+| 8 | **crm** (CRM 业绩座舱, v0.6 方案 C) | `/crm` | `/api/crm/customers` (5), `/api/crm/opportunities` (6), `/api/crm` stats+meta (2) | CrmPage | crm_customers_api / crm_opportunities_api / crm_stats_api | **feature gate**: `crm` (默认关; feature_gates.toml 当前 true) |
 
 **总计**:
-- 后端 268 路由（含根 /）
-- 前端 49 路由（routes/index.tsx, 含 Navigate 重定向 + Lazy Suspense）
-- 子模块归属占比: main hotspot 117 (44%) / knowledge-master 73 (27%) / codegarden 35 (13%) / kl+ai_hub 26 (10%) / security_cockpit 10 (4%) / secnews 4 (1%) / 其他 3 (1%)
+- 后端 281 路由（含根 /; v0.6 crm +13）
+- 前端 50 路由（routes/index.tsx, 含 Navigate 重定向 + Lazy Suspense; v0.6 crm +1）
+- 子模块归属占比: main hotspot 117 / knowledge-master 73 / codegarden 35 / kl+ai_hub 26 / security_cockpit+crm 23 / secnews 4 / 其他 3
 
 ## 二、前端 49 路由按子模块分组
 
@@ -105,6 +106,12 @@
 | 61 | `/secnews/inbox` | SecNewsInbox (InboxScanner) | `secnews` |
 | 62 | `/secnews/ledger` | SecNewsLedger (TokenLedger) | `secnews` |
 
+### 2.7 crm (1 路由, feature gate)
+
+| # | 路径 | 组件 | Feature Flag |
+|---|------|------|--------------|
+| 63 | `/crm` | CrmPage (页内标签: 座舱复盘 CockpitDashboard / 客户 CustomerManager / 商机 OpportunityManager) | `crm` |
+
 ### 2.5 kl / ai_hub (0 frontend routes — 通过 main hotspot 间接调用)
 
 - kl: KnowledgeProcess (`/knowledge/process`) + KnowledgeCompound (`/knowledge/compound`) 展示 KL 阶段状态
@@ -157,7 +164,7 @@ grep -E "^\| .*[a-z].*\|$" frontend/src/routes/ROUTE_REGISTRY.md | wc -l
 
 ## 六、未决事项
 
-- 安全 cockpit SPA 是否接入 hotspot frontend (P2 任务, 等 design 终稿)
+- ~~安全 cockpit SPA 是否接入 hotspot frontend~~ **已决 (2026-08-25)**: 以 CRM 业绩座舱形态接入 (`/crm`, 子模块 #8), 原 security-cockpit/ 静态稿由方案 C 移植替代
 - kl / ai_hub 是否有独立 frontend 入口 (当前决策: 不独立, 通过 KnowledgeProcess 嵌入)
 - Phase 7 dsh 移植后, 7 个子模块可能进一步拆分 (Phase 8+)
 

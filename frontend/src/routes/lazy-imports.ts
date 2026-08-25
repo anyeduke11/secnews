@@ -164,3 +164,8 @@ export const SecNewsInbox = React.lazy(() =>
 export const SecNewsLedger = React.lazy(() =>
   import('../components/secnews/pipeline/TokenLedger').then(m => ({ default: m.TokenLedger }))
 );
+
+// CRM 业绩座舱 (v0.6 security-cockpit 方案 C)
+export const CrmPage = React.lazy(() =>
+  import('../components/crm/CrmPage').then(m => ({ default: m.CrmPage }))
+);

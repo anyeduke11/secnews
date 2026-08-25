@@ -209,3 +209,25 @@ requireInteractions:       6 个导航交互已声明
 **报告生成**: 由 P2-6 audit 任务自动产出, 调研基于 `security-cockpit/` 现状 + 现有 hotspot 架构盘点。
 **决策权**: 用户/产品方。
 **下一步**: 用户决策方案后, 再决定 P2-7 (同步文档) 是否引用本报告的某个具体方案。
+
+---
+
+## 7. 决议执行记录 (2026-08-25) — 方案 C 已交付
+
+用户拍板 **方案 C (完整移植)**, 按本文档 §6 建议先写 PRD + 3 用户故事, 随后 T1-T5 一任务一提交落地:
+
+| 任务 | commit | 内容 |
+|------|--------|------|
+| C1/T1 PRD | `b2131446` | [`docs/COCKPIT_PRD.md`](COCKPIT_PRD.md): 四问默认假设 / US-1 录入客户 / US-2 商机推进 / US-3 座舱复盘 / 六态状态机 / KPI 口径 |
+| T2 数据层 | `4b8b4c66` | migration 071 三表 (crm_customers / crm_opportunities / crm_opportunity_events) + 客户/商机 repo + 状态机单测 10 用例 |
+| T3 API 层 | `920587c8` | `/api/crm/customers` CRUD + `/api/crm/opportunities` 状态机 + `/api/crm/stats|meta`; X-CRM-Token 鉴权; crm 扩展域注册; API 测试 20 用例 |
+| T4 前端 | `405d98ca` | `/crm` 页面 (座舱复盘 KPI+3 SVG 图表 / 客户管理 / 商机推进); crm feature flag 全链路; ROUTE_REGISTRY 登记 |
+| T5 E2E+文档 | (本 commit) | 全栈 E2E (US-1→US-2→US-3 闭环经 register_routers) + 三文档同步 |
+
+与原方案的偏差 (均为收紧而非缩水):
+- **90h → 实际约 1 个工作日**: 复用 hotspot 既有分层 (extensions gate / repo 模式 / apiFetch / ROUTE_REGISTRY), 未引入图表库 (React + 手写 SVG)
+- **Playwright 浏览器级 E2E 暂缓**: 当前沙箱无法跑真实浏览器矩阵; 以 TestClient 全栈链路测试替代 (`backend/tests/test_crm_e2e.py`), Playwright 列为后续增强项
+- **Auth v1 单操作者 Token**: 多租户为 PRD §5 明确非目标
+- 原 §6 "方案 A 冻结" 建议被用户决策覆盖; `security-cockpit/` 静态稿目录保持只读未动
+
+后续增强 backlog: 商机编辑/删除 UI、事件时间线抽屉、月度目标线、导出报表。

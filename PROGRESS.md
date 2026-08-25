@@ -1057,3 +1057,59 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
 > **P2 7 commits**: 5fe965a7 / eae608e1 / cf0a0a14 / dbbb3d3c / 4d76b2c2 / d2200a5c / (本 commit)
 > **数据时间**: 2026-08-25 (系统时间)
 > **状态**: P2 全项交付 (7/7 子任务), 待 P3 任务接续 / security-cockpit 决策权归用户
+
+---
+
+## 2026-08-25 security-cockpit 方案 C 交付 (CRM 业绩座舱, v0.6.0-dev)
+
+> **决策**: 用户在 `docs/P2_6_COCKPIT_EVAL.md` 三档方案中拍板 **方案 C (完整移植, 原估 90h)**。
+> 按 eval 文档要求 PRD 先行, 以 T1-T5 五任务推进, **一任务一提交**。
+> 复用 hotspot 既有分层 (feature gates / migration / repo / api ≤150 行 / React lazy route),
+> 实际交付 ~1 天; 未引入图表库, 3 个图表全部 React + SVG 手写。
+
+### 任务链 (5 commits)
+
+| 任务 | 内容 | commit |
+|------|------|--------|
+| T1 | PRD: `docs/CRM_COCKPIT_PRD.md` (用户故事 US1-US3 + 六态状态机 + KPI 公式 + 非目标) | `b2131446` |
+| T2 | migration `071_crm_cockpit.sql` (crm_customers/crm_opportunities/crm_opportunity_events) + repos + 状态机服务单测 | `4b8b4c66` |
+| T3 | `/api/crm/{customers,opportunities,stats}` 三路由 + crm_stats_service 聚合 + `crm` extension gate 注册 + ~20 API 测试 | `920587c8` |
+| T4 | 前端 CrmPage 三 tab (驾驶舱/客户/商机) + X-CRM-Token 令牌注入 + 路由/Header 接线 + 12 vitest | `405d98ca` |
+| T5 | 全栈 E2E (register_routers 全量挂载走 US1-US3 业务链) + 文档同步 + 终验门禁 | 本 commit |
+
+### 关键设计
+
+- **六态状态机**: 需求沟通→方案提交→商务谈判→合同签订→赢单/输单; 终态冻结;
+  仅 `POST /opportunities/{id}/transition` 可迁移, 非法跳转 400; 每步写 event (created + 迁移共 5 条)
+- **KPI 口径** (PRD §3): 年营收=赢单 amount 和; 毛利率=(amount-cost)/amount 按单加权;
+  复购率 = ≥2 次赢单客户数 ÷ ≥1 次赢单客户数; 区域口径只认赢单
+- **Auth v1**: `X-CRM-Token` vs `HOTSPOT_CRM_TOKEN` (hmac.compare_digest); env 未设 = 本地模式放行;
+  多租户列为非目标
+- **gate**: `backend/config/feature_gates.toml [extensions] crm` 默认关; conftest 测试全开;
+  `/api/features` 与前端 useFeatureFlags 同步暴露 `crm`
+- **排序**: CRM 表无 ingested_at, 客户/商机列表均 `updated_at DESC` (T2 `ingested_at DESC`
+  约束仅适用于新闻条目表); CRM v1 无敏感明文字段, 暂无 Fernet 加密需求
+
+### 验证 (终验门禁)
+
+- `pytest backend/tests/test_crm_api.py test_crm_e2e.py test_feature_gates.py ...` 定向 → 全绿 (~97 用例)
+- 全量后端套件: **2878 passed / 4 skipped / 1 failed** — 唯一失败
+  `test_codegarden_ops_api.py::test_allocate_port_returns_201` 为**环境性失败**: 本机 8765 被
+  外部进程 (`~/.workbuddy/.../python3 backend/server.py`, pid 25993, 今日 10:40 启动, 非本会话产物)
+  占用, lsof 分支命中 409; 测试 docstring 自认 "通常不在 lsof 占用中" 假设。与 CRM 变更无关, 未处置他人进程
+- 新增 migration 触发的 `test_export_migrations_for_dsh.py` 3 个陈旧断言失败已修复为**动态推导**
+  (首尾文件名/复制数量均从源目录推导, 后续新增迁移不再破测试)
+- 前端: `tsc --noEmit` 绿; vitest **305 passed / 17 failed** — 17 失败经干净 worktree 基线比对
+  为**存量失败** (HEAD 同样 17 failed / 292 passed), 本次净增 13 个全绿用例, 零回归
+- `ruff check backend/` 绿; `python scripts/generate_meta.py --check` 绿 (57 routers / 87 services 已同步 ARCHITECTURE.md)
+
+### 偏差与遗留
+
+- Playwright 浏览器 E2E 因沙箱环境未落地, 以 `backend/tests/test_crm_e2e.py` (全量 app + 真实 SQL 链路) 替代,
+  浏览器级 E2E 列入 backlog
+- Auth 仅单操作员令牌; 商机 UI 批量导入 / 看板拖拽等增强列入 backlog
+- `security-cockpit/` mockup 目录原样保留未触碰 (与 P2-6 建议 A 一致)
+
+> **方案 C 5 commits**: b2131446 / 4b8b4c66 / 920587c8 / 405d98ca / (本 commit)
+> **数据时间**: 2026-08-25 (系统时间)
+> **状态**: 方案 C 交付完成 (T1-T5 5/5), 版本记 v0.6.0-dev

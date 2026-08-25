@@ -216,3 +216,66 @@
 
 > **数据时间**: 2026-08-25 (系统时间)
 > **状态**: P2 全项交付 (7/7 子任务), 待 P3 任务接续
+
+## 十、P3 范围定义 (2026-08-25)
+
+> §九尾注 "待 P3 任务接续" 此前仅为占位; 本节将其落为正式范围。
+> **定位**: P3 = 治理线收尾 — 存量质量债清零 + 测试稳定性根治, **不含产品功能**。
+> 数据基线: 2026-08-25 实测 (非引用历史数字)。
+
+### P3-1 存量 lint 治理 (默认规则集, CI 必修)
+
+- **现状**: `ruff check backend/` (CI 同款默认配置, `ci.yml:41`) = **41 errors**, 会挂 CI
+  (计划门槛 `--select F401,F841` 已归零, 不受影响)
+- **分布**: RUF100 ×16 + I001 ×15 + RUF022 ×4 (共 35 个 `[*] --fix` 可自动) /
+  C401 ×2 / ASYNC230 ×2 / RUF006 ×1 / ASYNC221 ×1
+- **做法**: 自动批一个 commit (`--fix` 仅限 RUF100/I001/RUF022 三类纯机械项);
+  手工批逐个评审 — ASYNC230/221 与 RUF006 触及异步运行时语义
+  (是否真阻塞事件循环需逐处确认), 禁止盲目 `--unsafe-fixes`
+- **验收**: `ruff check backend/` 默认配置 → **0 errors**; 全量 pytest 零回归
+
+### P3-2 前端存量测试失败清理
+
+- **现状**: vitest 17 失败用例集中在 4 文件 — knowledge 模式组件
+  (`Phase13ModeComponents` 5 / `OutboxMode` 7 / `ReviewMode` 3) + `CategoryNav` 2,
+  另有文件级收集错误若干 (9 failed files 中其余为 import/collect 失败)
+- **做法**: 先甄别 (真 bug / 过期断言 / 环境依赖) 再修; **根因消除优先于 skip**
+  (用户既有偏好); 按 "一文件一 commit" 分批
+- **验收**: vitest 全绿; 若确有必须保留的失败, 每个附根因文档
+
+### P3-3 phase3 搜索性能断言根治
+
+- **现状**: `test_phase3_acceptance.py::...::test_search_returns_cross_layer_results_under_500ms`
+  固定 <500ms 阈值负载敏感 — 高负载全量跑 (448s) 超阈值, 单独复跑即过 (2026-08-25 实录)
+- **做法**: 根因消除 — 预热后测量或按环境推导阈值, 或显式 `@pytest.mark.slow` 移出默认门;
+  不接受"留档容忍"
+- **验收**: 连续 3 次全量套件该测试稳定通过
+
+### P3-4 (stretch) Playwright 浏览器 E2E 最小链路
+
+- CRM US1-US3 一条 happy path; 沙箱受限则维持 backlog, 不阻塞 P3 收口
+
+### 明确不进 P3
+
+- CRM UI 增强 (批量导入/看板拖拽) / Auth 多租户 — 产品 backlog
+- `app.openapi()` 路由 mismatch CI 化 — §七已留档为可选项, 无触发需求
+- security-cockpit mockup 目录处置 — 方案 C 已交付, 目录维持原样
+
+### 执行约定 (沿袭 P1/P2)
+
+一任务一提交; staging 只限自身路径; 禁用 git stash; Mimosa scanner_no_output 照常提交、不宣称安全;
+改动注册代码后同步 ARCHITECTURE.md (`generate_meta.py --check`)。
+
+## 十一、计划外遗留清单 (2026-08-25 盘点)
+
+| # | 事项 | 实测状态 | 归属 |
+|---|------|----------|------|
+| L1 | pk_map 高危 F841 | ✅ **已闭环** — `P2_DEAD_VARS_PR_REVIEW.md` §9: 方案 A 落地, 顺手修复两裁决端点 AttributeError→500 前置 bug, F401/F841=0 首次真正达成 | 无遗留 |
+| L2 | 默认规则集 lint 41 errors (RUF100×16 等) | 会挂 CI (`ci.yml:41` 默认配置) | **P3-1** |
+| L3 | 前端 vitest 17 failed (knowledge 组件为主) | HEAD 本底存量, worktree 基线核实 | **P3-2** |
+| L4 | phase3 搜索 <500ms 断言 flaky | 负载敏感计时抖动 | **P3-3** |
+| L5 | Playwright 浏览器 E2E 缺位 | 以全栈 E2E 替代中 | P3-4 stretch |
+| L6 | codegarden 端口分配测试环境敏感 | ✅ 8765→8766 已改 (`3f5fe7d0`), lsof 依赖仍在但风险已降 | 无遗留 |
+| L7 | CRM UI 增强 / Auth 多租户 | 产品 backlog | 不入治理线 |
+
+> **状态**: P3 范围已定义 (P3-1 ~ P3-4), 待排期执行; L1/L6 已闭环仅存档。

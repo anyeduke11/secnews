@@ -199,12 +199,12 @@ def test_delete_resource(client):
 
 
 def test_allocate_port_returns_201(client):
-    """分配端口 (preferred_port=8765, 通常不在 lsof 占用中)."""
+    """分配端口 (preferred_port=8766; 8765 曾被本机外部进程占用致 lsof 分支误报 409, 2026-08-25 改)."""
     r = client.post("/api/codegarden/resources/allocate-port", json={
-        "preferred_port": 8765,
+        "preferred_port": 8766,
     })
     assert r.status_code == 201
-    assert r.json()["value"] == "8765"
+    assert r.json()["value"] == "8766"
     assert r.json()["status"] == "allocated"
 
 

@@ -1096,7 +1096,9 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
 - 全量后端套件: **2878 passed / 4 skipped / 1 failed** — 唯一失败
   `test_codegarden_ops_api.py::test_allocate_port_returns_201` 为**环境性失败**: 本机 8765 被
   外部进程 (`~/.workbuddy/.../python3 backend/server.py`, pid 25993, 今日 10:40 启动, 非本会话产物)
-  占用, lsof 分支命中 409; 测试 docstring 自认 "通常不在 lsof 占用中" 假设。与 CRM 变更无关, 未处置他人进程
+  占用, lsof 分支命中 409; 测试 docstring 自认 "通常不在 lsof 占用中" 假设。与 CRM 变更无关, 未处置他人进程。
+  **后续处置 (同日, 用户裁决)**: 测试偏好端口 8765 → **8766**, 改后该测试单独复跑通过,
+  全量后端套件不再有此环境性失败 (见下方追加记录)
 - 新增 migration 触发的 `test_export_migrations_for_dsh.py` 3 个陈旧断言失败已修复为**动态推导**
   (首尾文件名/复制数量均从源目录推导, 后续新增迁移不再破测试)
 - 前端: `tsc --noEmit` 绿; vitest **305 passed / 17 failed** — 17 失败经干净 worktree 基线比对
@@ -1111,6 +1113,20 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
   浏览器级 E2E 列入 backlog
 - Auth 仅单操作员令牌; 商机 UI 批量导入 / 看板拖拽等增强列入 backlog
 - `security-cockpit/` mockup 目录原样保留未触碰 (与 P2-6 建议 A 一致)
+
+### 追加记录 (2026-08-25): codegarden 端口分配测试 8765 → 8766
+
+- **动因**: 8765 被外部 workbuddy 进程长期占用 (见上), 用户裁决直接改测试偏好端口, 不依赖机器环境
+- **改动**: `test_codegarden_ops_api.py::test_allocate_port_returns_201` preferred_port 8765 → **8766**
+  (8766 在允许范围 [8000,9999] 内、不在 PROTECTED_PORTS {8898}, 且实测无监听); docstring 注明改端口缘由
+- **甄别**: 全仓其余 "8765" 命中均为哈希 ID 巧合 (`87655874a560` 等) 或 HN 条目 id `87654321`, 与端口无关, 未触碰
+- **验证**: `pytest backend/tests/test_codegarden_ops_api.py` → **30 passed**; ruff 绿
+- **全量复跑**: 2878 passed / 4 skipped / 1 failed — codegarden 环境性失败已消除;
+  唯一失败换成了 `test_phase3_acceptance.py::...::test_search_returns_cross_layer_results_under_500ms`
+  的**负载敏感计时抖动** (本次套件耗时 448s vs 首次 146s, 高负载下超 500ms 阈值; 单独复跑立即 3 passed),
+  属存量 flaky 性能测试, 与本调整无关, 后续可考虑放宽阈值或标记 slow
+
+> **追加 commits**: badb1a71 (PRD 路径笔误) / ruff 陈述收窄 / (本 commit: 端口 8766)
 
 > **方案 C 5 commits**: b2131446 / 4b8b4c66 / 920587c8 / 405d98ca / (本 commit)
 > **数据时间**: 2026-08-25 (系统时间)

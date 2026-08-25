@@ -198,7 +198,7 @@ def try_auto_unlock() -> bool:
         svc = SecretsService()
         # result 是 svc.unlock 的成功标记 — 失败走 except 路径
         _result = svc.unlock(master_key)
-        del _result  # noqa: F841
+        del _result
         logger.info("auto-unlock from persisted master_key succeeded")
         return True
     except Exception as e:
@@ -311,7 +311,7 @@ class SecretsService:
             )
             conn.execute("COMMIT")
         except Exception as _e:
-            del _e  # noqa: F841
+            del _e
             try:
                 conn.execute("ROLLBACK")
             except Exception:
@@ -671,7 +671,7 @@ class SecretsService:
         plaintext = json.dumps(plaintext_dict, ensure_ascii=False, indent=2).encode("utf-8")
         # cipher 占位 — fernet_key is bytes; Fernet 接受 base64 str, 实际加密在 _F(fernet_key) 处
         _cipher = fernet_key
-        del _cipher  # noqa: F841
+        del _cipher
         from cryptography.fernet import Fernet as _F
         ct = _F(fernet_key).encrypt(plaintext)
 

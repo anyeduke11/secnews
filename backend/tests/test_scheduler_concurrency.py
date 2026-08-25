@@ -8,8 +8,8 @@
 """
 from __future__ import annotations
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.executors.asyncio import AsyncIOExecutor
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 
 def test_scheduler_creation_helper():

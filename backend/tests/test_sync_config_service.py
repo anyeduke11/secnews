@@ -10,7 +10,6 @@ router 不做业务逻辑, service 不做 HTTP 处理。
 """
 from __future__ import annotations
 
-
 import pytest
 
 from backend.config import config

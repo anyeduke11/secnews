@@ -10,9 +10,9 @@
 """
 import asyncio
 
+from backend.collectors.quality_hook import QualityGatesMixin
 from backend.domain.collection import PipelineResult
 from backend.domain.models import HotspotItem
-from backend.collectors.quality_hook import QualityGatesMixin
 from backend.quality.pipeline import QualityGatePipeline
 
 

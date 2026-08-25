@@ -10,8 +10,8 @@ from pathlib import Path
 import pytest
 
 from backend.config.agent_runner_schema import (
-    AgentsConfig,
     AgentRunner,
+    AgentsConfig,
     detect_available_agents,
     load_agents_config,
     route,

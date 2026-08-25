@@ -22,6 +22,7 @@ import pytest
 from backend.domain.collection import PipelineResult
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
+from backend.quality.base import GateContext
 from backend.quality.config import QualityConfig
 from backend.quality.pipeline import QualityGatePipeline
 from backend.quality.url_validity_gate import (
@@ -50,8 +51,7 @@ def _make_item(
     )
 
 
-def _ctx() -> GateContext:  # noqa: F821
-    from backend.quality.base import GateContext
+def _ctx() -> GateContext:
     return GateContext(
         mode="loose",
         category_keywords={"ai": ["AI", "OpenAI", "GPT"]},

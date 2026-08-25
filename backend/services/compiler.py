@@ -559,6 +559,7 @@ def _execute_compile_task(task, item_ids: list[str]) -> dict:
     # payload = {task_id, action, result}, action=compile)
     try:
         import asyncio
+
         from backend.api.events import publish_event
         asyncio.get_event_loop().create_task(
             publish_event("task_done", {

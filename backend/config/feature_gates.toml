@@ -10,3 +10,4 @@ sync       = true       # 跨端同步 (WebDAV + Fernet)
 tech_stack = false      # 技术栈管理 + 漂移评估
 security_graph = false  # Security Graph + MITRE 同步
 secnews    = true       # SecNews 安全看板 (KL 管线 + Feed + Wiki 浏览)
+crm        = true       # CRM 业绩座舱 (security-cockpit 方案 C, 用户拍板 2026-08-25)

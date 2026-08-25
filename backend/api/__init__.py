@@ -34,6 +34,9 @@ def register_routers(app: FastAPI) -> None:
         alerts,  # v1.7 Phase 3: 告警规则与告警
         knowledge_imported,  # v1.8 Phase 8: 资讯收藏聚合视图
         categories,
+        crm_customers_api,  # v0.6: CRM 业绩座舱 — 客户 CRUD
+        crm_opportunities_api,  # v0.6: CRM 业绩座舱 — 商机状态机
+        crm_stats_api,  # v0.6: CRM 业绩座舱 — KPI/图表聚合
         catchup,  # v1.8 Phase 8: 追抓资讯 (manual + watchdog auto)
         digests,  # v1.7 Phase 4: 简报
         mode,  # v1.7 Phase 3: 模式切换 (brief/scan/deep/...)
@@ -105,6 +108,10 @@ def register_routers(app: FastAPI) -> None:
     if is_extension_enabled("codegarden"):
         app.include_router(codegarden.router, tags=["codegarden"])
         app.include_router(codegarden_ops.router, tags=["codegarden-ops"])
+    if is_extension_enabled("crm"):
+        app.include_router(crm_customers_api.router, tags=["crm"])
+        app.include_router(crm_opportunities_api.router, tags=["crm"])
+        app.include_router(crm_stats_api.router, tags=["crm"])
     # ---- feature flag 接线区: flag=False 时对应 API 不注册 ----
     if config.feature_tag:
         app.include_router(tags.router, tags=["tags"])

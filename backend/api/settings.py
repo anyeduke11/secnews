@@ -25,6 +25,8 @@ async def get_features() -> dict:
         "sync": is_extension_enabled("sync"),
         "tech_stack": is_extension_enabled("tech_stack"),
         "security_graph": is_extension_enabled("security_graph"),
+        "secnews": is_extension_enabled("secnews"),
+        "crm": is_extension_enabled("crm"),
         "enabled_extensions": get_enabled_extensions(),
     }
 

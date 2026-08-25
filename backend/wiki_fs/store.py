@@ -143,6 +143,37 @@ class WikiFs:
                 quarantined += 1
         return {"moved": moved, "quarantined": quarantined}
 
+    def list_inbox(self) -> list[dict]:
+        """S1-5: 列出 inbox/ 待处理文件 (文件名 + 大小 + 首行预览)。"""
+        self._ensure_dirs()
+        out: list[dict] = []
+        for f in sorted(self._inbox_dir.glob("*.md")):
+            try:
+                stat = f.stat()
+                first_line = ""
+                try:
+                    first_line = f.read_text(encoding="utf-8").splitlines()[0][:80]
+                except Exception:
+                    pass
+                out.append({"name": f.name, "size": stat.st_size, "preview": first_line})
+            except OSError:
+                continue
+        return out
+
+    def list_quarantine(self) -> list[dict]:
+        """S1-5: 列出 quarantine/ 隔离区文件 (供前端展示与人工处置)。"""
+        self._ensure_dirs()
+        out: list[dict] = []
+        for f in sorted(self._quarantine_dir.glob("*.md")):
+            try:
+                stat = f.stat()
+                out.append({"name": f.name, "size": stat.st_size,
+                            "quarantined_at": datetime.fromtimestamp(
+                                stat.st_mtime, tz=timezone.utc).isoformat()})
+            except OSError:
+                continue
+        return out
+
     # ------------------------------------------------------------------
     # Concepts
     # ------------------------------------------------------------------

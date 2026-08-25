@@ -1,10 +1,11 @@
 /**
  * WikiBrowser — Wiki 知识库浏览视图
  *
- * 展示知识库条目列表 + 统计数据。
+ * 展示知识库条目统计 + 生命周期分布 + Inbox 扫描入库 (S1-5)。
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SecNewsHeader } from '../layout/SecNewsHeader';
+import { InboxScanner } from './InboxScanner';
 
 interface KnowledgeStats {
   items: number;
@@ -16,7 +17,7 @@ export function WikiBrowser() {
   const [stats, setStats] = useState<KnowledgeStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/secnews/knowledge');
@@ -27,9 +28,9 @@ export function WikiBrowser() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchStats(); }, []);
+  useEffect(() => { fetchStats(); }, [fetchStats]);
 
   return (
     <div>
@@ -39,6 +40,8 @@ export function WikiBrowser() {
       )}
       {stats && (
         <div className="flex flex-col gap-4">
+          {/* S1-5: Inbox 扫描 + quarantine 隔离区 */}
+          <InboxScanner onScanned={fetchStats} />
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
               <div className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>知识条目</div>

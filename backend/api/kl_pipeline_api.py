@@ -97,7 +97,22 @@ async def import_bookmarks(req: ImportBookmarksRequest) -> dict:
 async def scan_inbox() -> dict:
     """Scan inbox/ and move items to items/ or quarantine/."""
     wiki_fs = _get_wiki_fs()
-    return wiki_fs.scan_inbox()
+    result = wiki_fs.scan_inbox()
+    # S1-5: 扫描后附带 quarantine 清单，前端一次性拿到处置结果
+    result["quarantine_files"] = wiki_fs.list_quarantine()
+    return result
+
+
+@router.get("/inbox/list")
+async def list_inbox() -> dict:
+    """S1-5: 列出 inbox/ 待处理文件。"""
+    return {"files": _get_wiki_fs().list_inbox()}
+
+
+@router.get("/quarantine/list")
+async def list_quarantine() -> dict:
+    """S1-5: 列出 quarantine/ 隔离区文件。"""
+    return {"files": _get_wiki_fs().list_quarantine()}
 
 
 @router.get("/pipeline/stats")

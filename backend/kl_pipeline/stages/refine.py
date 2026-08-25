@@ -1,7 +1,8 @@
-"""kl:refine stage — light AI refinement.
+"""kl:refine stage — light AI refinement + quality gates (S2-1).
 
 Reads a raw wiki item, calls LLM to generate a structured summary,
-extracts tags, and writes the refined frontmatter back.
+extracts tags, runs quality gate checks, and writes the refined
+frontmatter back.
 """
 from __future__ import annotations
 
@@ -12,7 +13,7 @@ from backend.wiki_fs.contract import get_lifecycle
 
 
 def run_refine(item_id: str, wiki_fs: Any, llm_client: Any) -> None:
-    """Refine a raw item: generate summary + tags via LLM."""
+    """Refine a raw item: quality gates + summary + tags via LLM."""
     doc = wiki_fs.read_item(item_id)
     if doc is None:
         raise ValueError(f"item not found: {item_id}")
@@ -24,6 +25,17 @@ def run_refine(item_id: str, wiki_fs: Any, llm_client: Any) -> None:
     if get_lifecycle(fm) != "kl:raw":
         logger.info(f"refine: skipping {item_id} (stage={get_lifecycle(fm)})")
         return
+
+    # S2-1: quality gates — loose 语义, 不合格打 flag 但不拒绝入库。
+    try:
+        from backend.services.quality_gate_map import run_refine_gates
+        q_flags = run_refine_gates(fm, body)
+        if q_flags:
+            existing = fm.get("quality_flags", [])
+            fm["quality_flags"] = list(set(existing + q_flags))
+            logger.info(f"refine: {item_id} quality flags={q_flags}")
+    except Exception as exc:
+        logger.warning(f"refine: quality gates failed for {item_id}: {exc}")
 
     # If no LLM client, do a lightweight local refine (title-only).
     if llm_client is None:

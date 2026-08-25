@@ -1056,7 +1056,7 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
 
 > **P2 7 commits**: 5fe965a7 / eae608e1 / cf0a0a14 / dbbb3d3c / 4d76b2c2 / d2200a5c / (本 commit)
 > **数据时间**: 2026-08-25 (系统时间)
-> **状态**: P2 全项交付 (7/7 子任务), 待 P3 任务接续 / security-cockpit 决策权归用户
+> **状态**: P2 全项交付 (7/7 子任务); P3 范围已定义 → `docs/P0_AUDIT.md` §十 (P3-1 lint 治理 / P3-2 前端测试清理 / P3-3 flaky 根治 / P3-4 stretch); security-cockpit 决策已执行 (方案 C, 见下章)
 
 ---
 

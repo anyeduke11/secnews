@@ -828,7 +828,6 @@ __all__ = [
     "export_rebuild_job",
     "mitre_sync_job",
     "quality_logs_cleanup_job",  # P0: qcl 清理 (v0.5 起由 telemetry_window_job 承载)
-    "telemetry_window_job",  # v0.5 §18: 7 天遥测窗口
     "reset_service",
     "scheduled_compile_job",
     "scheduled_migrate_job",
@@ -840,6 +839,7 @@ __all__ = [
     "should_run_catchup",
     "source_reputation_rebuild_job",
     "sync_job",
+    "telemetry_window_job",  # v0.5 §18: 7 天遥测窗口
     "trend_rebuild_job",
     "url_content_check_job",
     "weekly_report_job",
@@ -1881,7 +1881,7 @@ async def content_draft_generation_job() -> None:
             try:
                 # draft 由 create_draft 落盘, 返回值不入变量 — 失败由 create_draft 抛错
                 _draft = create_draft(title=title, content=body or f"# {title}\n")
-                del _draft  # noqa: F841
+                del _draft
                 existing_drafts.add(title)
                 created += 1
                 # P3-4 补充: 草稿自动排期到内容日历 (7 天后, 避免与既有条目撞期)
@@ -2307,7 +2307,6 @@ __all__.extend([
     "cve_sync_to_security_job",
     "kl_dead_letter_retry_job",
     "kl_pipeline_heartbeat_job",
-    "secnews_liveness_sweep_job",
     "kl_trigger_t1_job",
     "kl_trigger_t2_job",
     "kl_trigger_t3_job",
@@ -2317,6 +2316,7 @@ __all__.extend([
     "knowledge_stub_backfill_job",
     "planning_action_check_job",
     "retention_decay_job",
+    "secnews_liveness_sweep_job",
     "security_entity_concept_sync_job",
     "url_full_check_job",
     "wiki_archiver_job",

@@ -363,12 +363,12 @@ class CollectionService:
         _merged_source_results = [
             sr for r in results for sr in (r.source_results or [])
         ]
-        del _merged_source_results  # noqa: F841
+        del _merged_source_results
         merged_fallback = sum(r.fallback_count for r in results)
         # 用第一个 result 承载合并 (run_id 以它为准, collection_runs 逐条写)
         # result 实际未被消费 — upsert_many 已用 merged_items
         _result = results[0] if results else None
-        del _result  # noqa: F841
+        del _result
 
         if merged_items:
             try:
@@ -503,7 +503,7 @@ class CollectionService:
             collector = self.collectors[category][0]
         # started_at 未入返回值 — 仅作时间锚点供未来 per-source 耗时统计
         _started_at = datetime.now(timezone.utc)
-        del _started_at  # noqa: F841
+        del _started_at
 
         try:
             # P2-0: 传目标源名 — 只抓该源, 不再整分类采集

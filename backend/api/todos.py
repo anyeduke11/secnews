@@ -320,7 +320,7 @@ async def delete_todo(todo_id: int):
     try:
         # DELETE 是 idempotent — 返回值无论 True/False 都返回 204, 故忽略
         _deleted = await asyncio.to_thread(repo.delete, int(todo_id))
-        del _deleted  # noqa: F841
+        del _deleted
     except Exception as e:
         logger.error(f"delete todo failed: {e}")
         raise HTTPException(status_code=500, detail={"message": f"删除失败: {e}"})

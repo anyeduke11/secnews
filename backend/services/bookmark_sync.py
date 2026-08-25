@@ -251,7 +251,7 @@ def import_bookmarks(items: list[dict], validate: bool = False) -> dict:
         _is_dead = False
         if validate and not validate_url(url):
             _is_dead = True
-            del _is_dead  # noqa: F841
+            del _is_dead
             dead_links += 1
             tags = [*tags, "dead_link"]
         

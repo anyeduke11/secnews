@@ -22,7 +22,6 @@ from pathlib import Path
 
 import pytest
 
-
 # ═══════════════════════════════════════════════════════════════
 # SimHash — 中文/英文标题相似度检测
 # ═══════════════════════════════════════════════════════════════
@@ -146,7 +145,9 @@ class TestIsDuplicateGolden:
     )
     def test_hamming_and_duplicate(self, a, b, expected_hamming, expected_dup):
         from backend.quality.simhash import (
-            compute_simhash, hamming_distance, is_duplicate,
+            compute_simhash,
+            hamming_distance,
+            is_duplicate,
         )
 
         ha, hb = compute_simhash(a), compute_simhash(b)
@@ -609,7 +610,8 @@ class TestValidateGraphSchemaGolden:
     def test_all_six_edge_types_accepted(self):
         """SPEC §18 / wiki v2 §10.12 定义 6 种 typed 关系。"""
         from backend.services.concept_linker import (
-            EDGE_TYPES, validate_graph_schema,
+            EDGE_TYPES,
+            validate_graph_schema,
         )
 
         for etype in EDGE_TYPES:

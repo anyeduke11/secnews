@@ -17,6 +17,7 @@ from backend.domain.collection import GateResult, PipelineResult
 from backend.domain.models import HotspotItem
 from backend.exceptions import QualityGateFailed
 from backend.logging_config import logger
+from backend.quality.ai_quality_gate import AIQualityGate  # v4.4
 from backend.quality.author_verification_gate import AuthorVerificationGate
 from backend.quality.base import BaseGate, GateContext
 from backend.quality.bid_recency_gate import BidRecencyGate
@@ -28,7 +29,6 @@ from backend.quality.final_url_gate import FinalUrlGate
 from backend.quality.noise_content_gate import NoiseContentGate
 from backend.quality.recency_gate import RecencyGate  # Phase 47
 from backend.quality.schema_gate import SchemaGate
-from backend.quality.ai_quality_gate import AIQualityGate  # v4.4
 from backend.quality.scorer import compute_final_score, is_acceptable, merge_flags
 from backend.quality.source_reputation_gate import SourceReputationGate
 from backend.quality.title_summary_gate import TitleSummaryGate

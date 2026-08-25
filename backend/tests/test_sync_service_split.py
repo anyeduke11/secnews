@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 
-
 def test_sync_service_inherits_mixin():
     """P1.2: SyncService 应为 FernetKeySyncMixin 子类。"""
     from backend.services.sync_fernet_mixin import FernetKeySyncMixin

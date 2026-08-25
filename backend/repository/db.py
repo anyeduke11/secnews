@@ -93,7 +93,7 @@ def get_connection() -> sqlite3.Connection:
         p = Path(path)
         # T6.6: cold 支持加密 — 若 .enc 存在 + cold_db_key 设置, 解密到 tempfile
         if alias == "cold" and getattr(config, "cold_db_key", "") and (p.parent / f"{p.name}.enc").exists():
-            from scripts.cold_db_crypto import decrypt_to_tempfile  # noqa: E402
+            from scripts.cold_db_crypto import decrypt_to_tempfile
             try:
                 tf = decrypt_to_tempfile(
                     src=p.parent / f"{p.name}.enc",

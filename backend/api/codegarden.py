@@ -436,7 +436,7 @@ async def get_upstream_status(project_id: str):
         # Phase 2a 简化: 直接拉 upstream 的最新状态 (用 base...base 自比, 取 0/0)
         # 真正的 behind/ahead 需要本地 fork 的 commit sha, 此处仅占位
         _head = project.get("upstream_default_branch") or base
-        del _head  # noqa: F841 — 保留占位供 Phase 2a 重启 ahead/behind 计算时使用
+        del _head
         releases = await asyncio.to_thread(fetch_upstream_releases, upstream_url, limit=5)
     except GithubTokenMissingException as e:
         raise HTTPException(

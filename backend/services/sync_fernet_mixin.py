@@ -25,10 +25,9 @@ from backend.repository.sync_configs_repo import SyncConfigRepository
 from backend.repository.sync_history_repo import SyncHistoryRepository
 from backend.repository.sync_states_repo import SyncStateRepository
 from backend.services.sync_merge import three_way_merge
+from backend.services.sync_service_constants import BUNDLE_VERSION, now_iso
 from backend.services.sync_zip import build_sync_zip, make_zip_remote_path
 from backend.services.webdav_client import WebDAVAuthError, WebDAVClient, WebDAVError
-
-from backend.services.sync_service_constants import BUNDLE_VERSION, now_iso
 
 
 def _assert_secrets_sync_safe() -> None:

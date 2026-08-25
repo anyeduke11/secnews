@@ -34,6 +34,6 @@ __all__ = [
     "BUNDLE_VERSION",
     "SECRET_MERGE_FIELDS",
     "SETTINGS_BLOCKLIST",
-    "now_iso",
     "new_device_id",
+    "now_iso",
 ]

@@ -55,11 +55,11 @@ from backend.repository.secrets_repo import SecretRepository
 from backend.repository.sync_configs_repo import SyncConfigRepository
 from backend.repository.sync_history_repo import SyncHistoryRepository
 from backend.repository.sync_states_repo import SyncStateRepository
+from backend.services.sync_fernet_mixin import FernetKeySyncMixin
 from backend.services.sync_merge import (
     MergeResult,
     three_way_merge,
 )
-from backend.services.sync_fernet_mixin import FernetKeySyncMixin
 from backend.services.sync_zip import (
     build_sync_zip,
     display_name,

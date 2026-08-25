@@ -1131,3 +1131,61 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
 > **方案 C 5 commits**: b2131446 / 4b8b4c66 / 920587c8 / 405d98ca / (本 commit)
 > **数据时间**: 2026-08-25 (系统时间)
 > **状态**: 方案 C 交付完成 (T1-T5 5/5), 版本记 v0.6.0-dev
+
+## 2026-08-25 P3 治理收尾 — P3-1 默认规则集 lint 治理
+
+> 范围定义见 `docs/P0_AUDIT.md` §十; 本节落账 P3-1 (L2 遗留闭环)。
+
+### 动机与口径澄清
+
+- `ci.yml:41` 的 ruff 门跑的是**默认规则集** (`ruff check backend/`, 无 `--select`),
+  而 P1/P2 各项验证用的是窄口径 (`--select F401,F841` 等) — 窄口径全绿掩盖了
+  全仓 41 errors (RUF100×16 / C401×2 / I001×多 / F401×3 / F821×1 / RUF006×1 /
+  ASYNC221×1 / ASYNC230×2 / RUF022×多), CI 实际处于**必挂状态**, 故 P3-1 为 P3 最高优先
+- **教训 (RUF100 语义)**: `--fix --select RUF100,...` 判定 "unused noqa" 是相对
+  当前激活规则集的 — 窄 select 下会误删为未激活规则 (F401/F821/F841) 写的 noqa,
+  本次实际删 38 处 vs 预期 35 处, 暴露 6 个新违例; **RUF100 类修复必须在默认配置下执行**
+
+### 三批改动
+
+1. **自动批 (机械 `--fix`)**: 22 文件 38 项 (I001 排序 / C401 推导式改写 / RUF022
+   __all__ 重排等)。**入库路径偏差**: 本会话提交前, 并行会话 commits `d67b8925`
+   (S3 工作台 UI) + `1d321de2` (M2 db_diet) 的 `git add` 扫入将这批未提交改动
+   一并带入历史 — 内容经抽查无误 (pipeline.py 导入 / config.py noqa /
+   test_sync_config_service.py 均正确), 未做历史改写; 此处如实披露归属
+   - 连带修复 3 个被误删 noqa 的暴露点: `config.py` 兼容 re-export `# noqa: F401`;
+     `test_sync_service_split.py` "导入即断言" 用例恢复 noqa; `test_url_validity_gate.py`
+     GateContext 内层 import 上提模块级 (F821 根因修复而非压注释)
+2. **手工批 (异步语义逐个评审, commit `04a34239`)**:
+   - ASYNC230×2: `wiki_tools.py` `wiki_read`/`wiki_graph` async def → def —
+     纯阻塞文件 IO 且无 await, FastAPI 自动入线程池, 比套 to_thread 更简
+   - ASYNC221: `scheduler/jobs.py::db_diet_job` 子进程调用包 `asyncio.to_thread`
+     (最长阻塞 60s, 防卡死调度器事件循环)
+   - RUF006: 同文件 fire-and-forget 任务加强引用集 `_pending_event_tasks` +
+     done_callback discard, 防事件循环提前 GC 弱引用 task
+   - C401/RUF022 余量由自动批覆盖; 手工批另含 `wiki_fs/linker.py`/`store.py`
+     两处 set() → 推导式 (与自动批同类, 因同文件有手工改动一并归入)
+3. **时间炸弹根治 (commit `3fb4398e`)**: 全量套件发现
+   `test_characterization_golden.py::test_run_decay_updates_stale_entry` 在 HEAD 即失败
+   (score 0.8789 vs 断言窗 [0.88,0.92] — 窗口按撰写日定死, decay 实算依赖真实时钟,
+   过日即漂移); worktree 实证先于本次改动已坏。根治: `retention_engine.parse_iso/run_decay`
+   加 keyword-only `now` 注入参数 (沿 record_access 既有 "测试可注入" 模式),
+   三个测试冻结 now=2026-08-24T00:00Z 改精确断言 (7d→0.9 / 4d→0.7533 / 3d→0.9558);
+   与 L4 phase3 计时抖动同类时钟耦合, 属计划外发现并顺手闭环
+
+### 终门与验证
+
+- `ruff check backend/` (默认配置) → **All checks passed!** (41 errors 清零, CI 门修复)
+- `generate_meta.py --check`: 发现并行提交 `1d321de2` 声称 meta 同步但漏改文档
+  (code services=88 vs doc 87) — 已手补两处计数 (commit `bf7cf151`; 注: 脚本无写模式,
+  ARCHITECTURE.md 数字需按反推值手改) → OK
+- 定向套件 (lint 触达 + retention + codegarden + migrations): 132 passed
+- 全量后端套件: **2879 passed / 4 skipped / 0 failed** (541s) — 治理线启动以来首次全绿
+  (此前两次全量各挂 1 个: codegarden 端口环境性失败已改 8766 根治; phase3 <500ms
+  计时抖动本次自然通过, 其根治仍归 P3-3 不因单次通过销案)
+- 前端不在 P3-1 范围 (17 存量 vitest 失败归 P3-2)
+
+> **P3-1 相关 commits**: 自动批经并行会话入库 (d67b8925/1d321de2 内混) / 手工批 04a34239 /
+> 时间炸弹 3fb4398e / meta 补账 bf7cf151 / 文档 (本 commit)
+> **状态**: P3-1 完成; 待办仅余 P3-2 (前端测试清理) / P3-3 (flaky 根治) / P3-4 (stretch)
+

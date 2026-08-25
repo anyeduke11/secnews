@@ -1071,7 +1071,7 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
 
 | 任务 | 内容 | commit |
 |------|------|--------|
-| T1 | PRD: `docs/CRM_COCKPIT_PRD.md` (用户故事 US1-US3 + 六态状态机 + KPI 公式 + 非目标) | `b2131446` |
+| T1 | PRD: `docs/COCKPIT_PRD.md` (用户故事 US1-US3 + 六态状态机 + KPI 公式 + 非目标) | `b2131446` |
 | T2 | migration `071_crm_cockpit.sql` (crm_customers/crm_opportunities/crm_opportunity_events) + repos + 状态机服务单测 | `4b8b4c66` |
 | T3 | `/api/crm/{customers,opportunities,stats}` 三路由 + crm_stats_service 聚合 + `crm` extension gate 注册 + ~20 API 测试 | `920587c8` |
 | T4 | 前端 CrmPage 三 tab (驾驶舱/客户/商机) + X-CRM-Token 令牌注入 + 路由/Header 接线 + 12 vitest | `405d98ca` |

@@ -1101,7 +1101,9 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
   (首尾文件名/复制数量均从源目录推导, 后续新增迁移不再破测试)
 - 前端: `tsc --noEmit` 绿; vitest **305 passed / 17 failed** — 17 失败经干净 worktree 基线比对
   为**存量失败** (HEAD 同样 17 failed / 292 passed), 本次净增 13 个全绿用例, 零回归
-- `ruff check backend/` 绿; `python scripts/generate_meta.py --check` 绿 (57 routers / 87 services 已同步 ARCHITECTURE.md)
+- ruff 对本方案新增/修改的 9 个文件全绿; `python scripts/generate_meta.py --check` 绿
+  (57 routers / 87 services 已同步 ARCHITECTURE.md)。注: 全量 `ruff check backend/` 当前 41 errors,
+  均位于他人提交的存量文件 (scheduler/jobs.py 等, 本方案未触碰), 不属本方案范围
 
 ### 偏差与遗留
 

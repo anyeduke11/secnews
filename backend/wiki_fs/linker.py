@@ -24,7 +24,7 @@ def build_edges(wiki_fs: Any, min_weight: float = 0.5) -> list[dict]:
         doc = wiki_fs.read_item(item_id)
         if doc is None:
             continue
-        tags = set(t.lower() for t in doc["fm"].get("tags", []))
+        tags = {t.lower() for t in doc["fm"].get("tags", [])}
         if tags:
             items.append({"id": item_id, "tags": tags})
 

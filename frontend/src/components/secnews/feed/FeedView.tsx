@@ -1,10 +1,10 @@
 /**
- * FeedView — 报纸风 Feed 视图
+ * FeedView — 报纸风 Feed 完整视图 (S3-1)
  *
- * 展示安全资讯流，按 ingested_at DESC 排序。
- * 支持分类筛选 + 关键词搜索。
+ * 头版头条 (hero) + 分类标签 + 网格卡片 + 关键词搜索。
+ * 视觉: 报纸编辑风 — 头版大标题 + 栏线分隔 + 卡片网格。
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SecNewsHeader } from '../layout/SecNewsHeader';
 import { FeedCard } from './FeedCard';
 import { FeedFilters } from './FeedFilters';
@@ -26,7 +26,7 @@ export function FeedView() {
   const [category, setCategory] = useState('');
   const [keyword, setKeyword] = useState('');
 
-  const fetchFeed = async () => {
+  const fetchFeed = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -42,25 +42,71 @@ export function FeedView() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [category, keyword]);
 
-  useEffect(() => { fetchFeed(); }, [category, keyword]);
+  useEffect(() => { fetchFeed(); }, [fetchFeed]);
+
+  // 头版头条 = 第一条
+  const hero = !category && !keyword && items.length > 0 ? items[0] : null;
+  const rest = hero ? items.slice(1) : items;
 
   return (
     <div>
       <SecNewsHeader title="安全资讯" onRefresh={fetchFeed} refreshing={loading} />
       <FeedFilters category={category} keyword={keyword} onCategoryChange={setCategory} onKeywordChange={setKeyword} />
-      <div className="mt-4 text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
-        共 {total} 条 · 显示 {items.length} 条
+
+      {/* 统计行 */}
+      <div className="flex items-center justify-between mt-3 mb-2 text-[10px] font-mono"
+        style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--text-primary)', paddingBottom: '4px' }}>
+        <span>共 {total.toLocaleString()} 条 · 显示 {items.length} 条</span>
+        <span>{new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</span>
       </div>
-      <div className="flex flex-col gap-2">
-        {loading && items.length === 0 && (
-          <div className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>加载中...</div>
-        )}
-        {items.map(item => <FeedCard key={item.id} item={item} />)}
-        {!loading && items.length === 0 && (
-          <div className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>暂无资讯</div>
-        )}
+
+      {loading && items.length === 0 && (
+        <div className="text-sm py-12 text-center animate-pulse" style={{ color: 'var(--text-muted)' }}>
+          正在排版…
+        </div>
+      )}
+
+      {!loading && items.length === 0 && (
+        <div className="py-16 text-center">
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>暂无资讯</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
+            调整筛选条件或等待采集管线入库
+          </p>
+        </div>
+      )}
+
+      {/* 头版头条 */}
+      {hero && (
+        <div className="mb-4 pb-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <div className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--accent)' }}>
+            ◆ 头条
+          </div>
+          <a href={hero.url} target="_blank" rel="noopener noreferrer" className="block group">
+            <h2 className="text-xl font-bold leading-tight mb-1.5 group-hover:underline"
+              style={{ color: 'var(--text-primary)' }}>
+              {hero.title}
+            </h2>
+            {hero.summary && (
+              <p className="text-sm leading-relaxed line-clamp-3" style={{ color: 'var(--text-secondary)' }}>
+                {hero.summary}
+              </p>
+            )}
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+                style={{ backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)', color: 'var(--accent)' }}>
+                {hero.source}
+              </span>
+              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{hero.category}</span>
+            </div>
+          </a>
+        </div>
+      )}
+
+      {/* 网格卡片 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {rest.map(item => <FeedCard key={item.id} item={item} />)}
       </div>
     </div>
   );

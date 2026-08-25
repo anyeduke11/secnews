@@ -144,6 +144,7 @@ export function AppRoutes() {
           <Route path="knowledge" element={<Suspense fallback={<PageFallback />}><P.SecNewsKnowledge /></Suspense>} />
           <Route path="inbox" element={<Suspense fallback={<PageFallback />}><P.SecNewsInbox /></Suspense>} />
           <Route path="ledger" element={<Suspense fallback={<PageFallback />}><P.SecNewsLedger /></Suspense>} />
+          <Route path="settings" element={<Suspense fallback={<PageFallback />}><P.SecNewsSettings /></Suspense>} />
         </Route>
 
         {/* CRM 业绩座舱 (v0.6 security-cockpit 方案 C, feature gate: crm) */}

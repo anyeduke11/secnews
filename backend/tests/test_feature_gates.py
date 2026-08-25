@@ -20,7 +20,7 @@ ALL_OFF = {
     "codegarden": False, "codegarden_phase2b": False,
     "mcp": False, "sync": False,
     "tech_stack": False, "security_graph": False,
-    "secnews": False,
+    "secnews": False, "crm": False,
 }
 ALL_ON = dict.fromkeys(ALL_OFF, True)
 
@@ -70,6 +70,11 @@ EXTENSION_PATHS = {
     ],
     "sync": ["/api/sync/status", "/api/sync/config"],
     "tech_stack": ["/api/tech-stack", "/api/tech-stack/impact"],
+    "crm": [
+        "/api/crm/customers",
+        "/api/crm/opportunities",
+        "/api/crm/stats",
+    ],
 }
 
 # job→扩展归属 (与 scheduler.py _JOB_EXT_MAP 一致; P1.6: M2/M4 job 归 codegarden_phase2b)
@@ -238,7 +243,7 @@ class TestFeaturesEndpoint:
         assert data["mcp"] is True
         assert data["enabled_extensions"] == [
             "codegarden", "codegarden_phase2b", "mcp", "sync", "tech_stack",
-            "secnews",
+            "secnews", "crm",
         ]
 
 

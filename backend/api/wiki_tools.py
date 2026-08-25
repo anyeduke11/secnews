@@ -104,11 +104,14 @@ async def wiki_search(req: WikiSearchInput):
 # wiki_read — 读单个 .md 全文
 # ---------------------------------------------------------------------------
 @router.get("/read")
-async def wiki_read(path: str = Query(..., min_length=1, description="相对 knowledge/ 的路径")):
+def wiki_read(path: str = Query(..., min_length=1, description="相对 knowledge/ 的路径")):
     """读取 llm-wiki-2.0 单个 .md 文件全文 (含 frontmatter)。
 
     路径白名单校验, 只允许 items|concepts|learning|content|summaries 下
     的 .md 文件, 禁止路径穿越。
+
+    同步 def (P3-1 ASYNC230): 纯阻塞文件 IO 且无 await, FastAPI 自动入线程池,
+    不阻塞事件循环。
     """
     normalized = os.path.normpath(path).replace("\\", "/")
     if not _PATH_RE.fullmatch(normalized):
@@ -133,7 +136,7 @@ async def wiki_read(path: str = Query(..., min_length=1, description="相对 kno
 # wiki_graph — 概念邻接
 # ---------------------------------------------------------------------------
 @router.get("/graph")
-async def wiki_graph(
+def wiki_graph(
     concept: str = Query(..., min_length=1, description="概念名 (小写连字符)"),
     depth: int = Query(1, ge=1, le=2, description="BFS 深度 (1-2)"),
 ):

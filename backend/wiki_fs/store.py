@@ -224,7 +224,7 @@ class WikiFs:
             other = self.read_item(other_id)
             if other is None:
                 continue
-            other_tags = set(t.lower() for t in other["fm"].get("tags", []))
+            other_tags = {t.lower() for t in other["fm"].get("tags", [])}
             other_title = other["fm"].get("title", "").lower()
             weight = 0.0
             for term in query_terms:

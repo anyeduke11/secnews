@@ -37,6 +37,10 @@ def reset_service() -> None:
     _service = None
 
 
+# fire-and-forget 任务的强引用集 (RUF006): 防止事件循环在任务完成前 GC 掉弱引用 task
+_pending_event_tasks: set[asyncio.Task] = set()
+
+
 def job_done_event(job_type: str, job_id: str, duration_ms: int, ok: bool) -> None:
     """v0.5 M2-Task5: job_done SSE 事件发布 (SPEC §6.2 契约:
     payload = {type, id, duration_ms, ok})。
@@ -47,7 +51,7 @@ def job_done_event(job_type: str, job_id: str, duration_ms: int, ok: bool) -> No
     try:
         from backend.api.events import publish_event
         loop = asyncio.get_event_loop()
-        loop.create_task(
+        task = loop.create_task(
             publish_event("job_done", {
                 "type": job_type,
                 "id": job_id,
@@ -55,6 +59,8 @@ def job_done_event(job_type: str, job_id: str, duration_ms: int, ok: bool) -> No
                 "ok": ok,
             })
         )
+        _pending_event_tasks.add(task)
+        task.add_done_callback(_pending_event_tasks.discard)
     except Exception as e:
         _logger.warning(f"job_done_event publish failed ({job_type}/{job_id}): {e}")
 
@@ -627,7 +633,9 @@ async def db_diet_job() -> None:
     script = repo_root / "scripts" / "db_diet.py"
     env = {**os.environ, "PYTHONPATH": str(repo_root)}
     try:
-        proc = subprocess.run(
+        # ASYNC221 根治: 子进程最长可阻塞 60s, to_thread 丢线程池避免卡死调度器事件循环
+        proc = await asyncio.to_thread(
+            subprocess.run,
             [sys.executable, str(script), "--dry-run", "--json"],
             capture_output=True,
             text=True,

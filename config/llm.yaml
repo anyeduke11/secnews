@@ -1,14 +1,31 @@
 # hotspot/config/llm.yaml
 # v2.0 新增：local LLM 配置，缺失时降级为 v1.7 Option A
+# v0.6 P0-⑤/⑥：凭据单一来源 + ai_hub 双引擎收敛 ——
+#   LLMService（score/summarize 等，走 fallback_order）与 AIService
+#   （evaluate/gate_detect 门禁，取 default_provider）共用本文件。
+#   密钥只以环境变量名（api_key_env）声明，值不落仓库。
 
 enabled: true  # 总开关；false 时降级为外部 Agent 模式
-default_provider: openai  # openai | ollama | qwen | anthropic
-fallback_order:  # 失败时降级顺序
+default_provider: sensenova  # 当前唯一持有凭据的云端 provider；AI_PROVIDER env 可覆盖
+fallback_order:  # 失败时降级顺序（仅 LLMService 生成类 API 使用）
   - ollama       # 优先本地（零成本）
   - qwen         # 次选国产
   - openai       # 末选 openai
 
 providers:
+  sensenova:
+    type: openai_compatible
+    api_key_env: "SENSENOVA_API_KEY"
+    base_url: "https://token.sensenova.cn/v1"
+    models:
+      score: "sensenova-6.8-flash-lite"
+      tag: "sensenova-6.8-flash-lite"
+      ner: "sensenova-6.8-flash-lite"
+      summary: "sensenova-6.8-flash-lite"
+      chunk_summary: "sensenova-6.8-flash-lite"
+    timeout_seconds: 20
+    max_concurrent: 2
+
   ollama:
     type: ollama
     base_url: "http://127.0.0.1:11434"

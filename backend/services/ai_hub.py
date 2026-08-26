@@ -479,36 +479,87 @@ def _cache_key(prefix: str, content: str) -> str:
 
 
 class AIService:
-    """集中式 AI 服务：凭据 / 缓存 / 用量 / 限频 / 调用统一管理。"""
+    """集中式 AI 服务：凭据 / 缓存 / 用量 / 限频 / 调用统一管理。
+
+    v0.6 P0-⑥ 双引擎收敛：provider 定义（base_url / 模型 / api_key_env）
+    与 LLMService 共用 ``config/llm.yaml`` 单一来源（经 ``llm_service.config``）。
+    ``FALLBACK_*`` 常量仅在配置缺失/未声明该 provider 时兜底，取值与
+    收敛前的硬编码一致，保证无配置环境行为不变。
+    """
 
     # 采集热路径限频：默认 60s 内最多 6 次（商汤免费 rpm 有限）。
     GATE_RATE_WINDOW_S = 60
     GATE_RATE_MAX = 6
 
+    # 无 llm.yaml 或 provider 未声明时的历史兜底值
+    FALLBACK_BASE_URLS = {
+        "sensenova": "https://token.sensenova.cn/v1",
+        "ollama": "http://127.0.0.1:11434",
+    }
+    FALLBACK_EVAL_MODELS = {
+        "sensenova": "sensenova-6.8-flash-lite",
+        "ollama": "qwen2.5:7b",
+    }
+
     def __init__(self) -> None:
         self._gate_calls: deque[float] = deque(maxlen=128)
 
     # ------------------------------------------------------------------
-    # provider / 凭据
+    # provider / 凭据（llm.yaml 单一来源 + env 覆盖）
     # ------------------------------------------------------------------
     @staticmethod
+    def _provider_cfg(name: str):
+        """取共享 LLMConfig 中 provider 定义；无配置或未声明时返回 None。"""
+        cfg = llm_service.config
+        if cfg is None:
+            return None
+        return cfg.providers.get(name)
+
+    @classmethod
+    def _base_url(cls, provider: str) -> str:
+        """chat 端点 base（不含路径后缀；openai 系拼 /chat/completions）。"""
+        pcfg = cls._provider_cfg(provider)
+        if pcfg is not None and pcfg.base_url:
+            return pcfg.base_url.rstrip("/")
+        return cls.FALLBACK_BASE_URLS.get(
+            provider, cls.FALLBACK_BASE_URLS["sensenova"])
+
+    @classmethod
+    def _eval_model(cls, provider: str) -> str:
+        """evaluate / gate_detect 所用模型。"""
+        pcfg = cls._provider_cfg(provider)
+        if pcfg is not None:
+            return pcfg.models.score
+        return cls.FALLBACK_EVAL_MODELS.get(
+            provider, cls.FALLBACK_EVAL_MODELS["sensenova"])
+
+    @staticmethod
     def _resolve_provider() -> str:
-        """默认 sensenova，环境变量显式指定时可用 ollama。"""
+        """默认取 llm.yaml default_provider；AI_PROVIDER 环境变量显式覆盖。"""
         import os
-        return os.environ.get("AI_PROVIDER", "sensenova")
+        env = os.environ.get("AI_PROVIDER")
+        if env:
+            return env
+        cfg = llm_service.config
+        return cfg.default_provider if cfg is not None else "sensenova"
 
     @staticmethod
     def _resolve_api_key() -> str:
-        """从环境变量读商汤 key（不再持久化到 settings）。"""
+        """按当前 provider 的 api_key_env 读密钥（不持久化到 settings）。"""
         import os
-        return os.environ.get("SENSENOVA_API_KEY", "") or ""
+        p = AIService._resolve_provider()
+        pcfg = AIService._provider_cfg(p)
+        env_name = (pcfg.api_key_env if pcfg is not None else None) \
+            or "SENSENOVA_API_KEY"
+        return os.environ.get(env_name, "") or ""
 
     @staticmethod
     def _ollama_up(timeout: float = 1.0) -> bool:
         import urllib.request
+        base = AIService._base_url("ollama")
         try:
             with urllib.request.urlopen(
-                "http://127.0.0.1:11434/api/tags", timeout=timeout
+                f"{base}/api/tags", timeout=timeout
             ):
                 return True
         except Exception:
@@ -623,7 +674,8 @@ class AIService:
                 "INSERT OR REPLACE INTO llm_cache "
                 "(cache_key, provider, model, response, cached_at, ttl_seconds) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
-                (key, value.get("provider", ""), "sensenova-6.8-flash-lite",
+                (key, value.get("provider", ""),
+                 self._eval_model(value.get("provider") or "sensenova"),
                  json.dumps(value, ensure_ascii=False), _now_iso(), 86400),
             )
         except Exception:
@@ -636,7 +688,8 @@ class AIService:
                 "INSERT INTO llm_usage_log "
                 "(provider, model, task, tokens, cost_usd, latency_ms, occurred_at) "
                 "VALUES (?, ?, ?, ?, ?, 0, ?)",
-                (provider, "sensenova-6.8-flash-lite", task, tokens, cost, _now_iso()),
+                (provider, self._eval_model(provider), task, tokens, cost,
+                 _now_iso()),
             )
         except Exception:
             pass
@@ -646,9 +699,9 @@ class AIService:
     # ------------------------------------------------------------------
     def _call_sensenova_eval(self, title: str, content: str, key: str, timeout: float) -> dict:
         prompt = _eval_prompt(title, content)
-        url = "https://token.sensenova.cn/v1/chat/completions"
+        url = self._base_url("sensenova") + "/chat/completions"
         payload = {
-            "model": "sensenova-6.8-flash-lite",
+            "model": self._eval_model("sensenova"),
             "messages": [{"role": "user", "content": prompt}],
             "stream": False, "temperature": 0.2, "max_tokens": 600,
         }
@@ -662,9 +715,9 @@ class AIService:
 
     def _call_ollama_eval(self, title: str, content: str, timeout: float) -> dict:
         prompt = _eval_prompt(title, content)
-        url = "http://127.0.0.1:11434/api/chat"
+        url = self._base_url("ollama") + "/api/chat"
         payload = {
-            "model": "qwen2.5:7b",
+            "model": self._eval_model("ollama"),
             "messages": [{"role": "user", "content": prompt}],
             "stream": False, "temperature": 0.2, "options": {"num_predict": 600},
         }
@@ -677,9 +730,9 @@ class AIService:
 
     def _call_sensenova_detect(self, title: str, summary: str, key: str, timeout: float) -> float:
         text = f"标题：{title}\n摘要：{summary}"
-        url = "https://token.sensenova.cn/v1/chat/completions"
+        url = self._base_url("sensenova") + "/chat/completions"
         payload = {
-            "model": "sensenova-6.8-flash-lite",
+            "model": self._eval_model("sensenova"),
             "messages": [
                 {"role": "system", "content": _DETECT_SYSTEM},
                 {"role": "user", "content": text},
@@ -696,9 +749,9 @@ class AIService:
 
     def _call_ollama_detect(self, title: str, summary: str, timeout: float) -> float:
         text = f"标题：{title}\n摘要：{summary}"
-        url = "http://127.0.0.1:11434/api/chat"
+        url = self._base_url("ollama") + "/api/chat"
         payload = {
-            "model": "qwen2.5:7b",
+            "model": self._eval_model("ollama"),
             "messages": [
                 {"role": "system", "content": _DETECT_SYSTEM},
                 {"role": "user", "content": text},

@@ -54,40 +54,50 @@ def build_edges(wiki_fs: Any, min_weight: float = 0.5) -> list[dict]:
 
 
 def find_related(
-    db_conn: Any,
+    wiki_fs: Any,
     item_id: str,
     title: str,
     tags: list[str],
     top_k: int = 10,
 ) -> list[str]:
-    """找相关条目 ID (标题关键词 LIKE + 标签匹配, 排除自身)。
+    """找相关条目 ID (标题关键词匹配, 排除自身)。
 
-    供 kl_pipeline link 阶段调用。使用 SQL LIKE 而非 FTS5 MATCH —
-    wiki_items_fts 的 tokenizer 对中文不理想, 且 LIKE 在当前规模 (<10k)
-    下性能可接受。
+    S2-4 修正: knowledge_items 表已按 wiki-first 哲学移除,
+    改用 wiki_fs 遍历 + 标题关键词匹配。
     """
-    if db_conn is None or not title:
+    if wiki_fs is None or not title:
         return []
 
-    # 提取标题中 ≥2 字的词段作为 LIKE 模式
-    keywords = [w.strip() for w in title.replace("：", " ").replace("，", " ").split() if len(w.strip()) >= 2]
-    keywords.extend(str(t) for t in (tags or [])[:3] if t)
+    # 提取标题关键词 (≥2 字的词段 + tags)
+    keywords = set()
+    for w in title.replace("：", " ").replace("，", " ").replace("。", " ").split():
+        w = w.strip()
+        if len(w) >= 2:
+            keywords.add(w.lower())
+    for t in (tags or [])[:5]:
+        t = str(t).strip().lower()
+        if len(t) >= 2:
+            keywords.add(t)
     if not keywords:
         return []
 
-    conditions = " OR ".join(["title LIKE ?"] * min(len(keywords), 5))
-    params = [f"%{kw}%" for kw in keywords[:5]]
+    related: list[str] = []
+    for other_id in wiki_fs.list_ids():
+        if other_id == item_id:
+            continue
+        doc = wiki_fs.read_item(other_id)
+        if doc is None:
+            continue
+        other_title = str(doc["fm"].get("title") or "").lower()
+        other_tags = {str(t).lower() for t in doc["fm"].get("tags", [])}
+        for kw in keywords:
+            if kw in other_title or kw in other_tags:
+                related.append(other_id)
+                break
+        if len(related) >= top_k:
+            break
 
-    try:
-        rows = db_conn.execute(
-            f"SELECT id FROM knowledge_items "
-            f"WHERE id != ? AND ({conditions}) LIMIT ?",
-            [item_id, *params, top_k],
-        ).fetchall()
-        return [r[0] for r in rows]
-    except Exception as e:
-        logger.warning(f"find_related failed for {item_id}: {e}")
-        return []
+    return related
 
 
 __all__ = ["build_edges", "find_related"]

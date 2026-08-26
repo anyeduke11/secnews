@@ -45,14 +45,15 @@ class EvaluateRequest(BaseModel):
     """文章评价测试请求."""
     content: str = Field(..., min_length=10, description="文章正文")
     title: str = ""
-    provider: str | None = None   # None → 使用 settings 配置
+    provider: str | None = None   # None → env AI_PROVIDER, 其次 llm.yaml default_provider
 
 
 @router.post("/evaluate")
 async def evaluate_article_endpoint(body: EvaluateRequest):
     """用大模型评价文章质量并提取关键内容（测试用）。
 
-    - provider 未指定时用 settings 表配置（quality.llm_provider）。
+    - provider 未指定时走 ai_hub 解析链：env AI_PROVIDER →
+      config/llm.yaml ``default_provider``（不读 settings 表）。
     - 严格模式：LLM 调用失败时返回 ok=False + error（便于测试定位），
       不做静默降级。
     """

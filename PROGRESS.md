@@ -1253,3 +1253,43 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
 
 ### 其他修复
 - test_snapshot_for_retirement.py 改为容忍数据漂移 (活跃系统行数必然增长)
+
+
+## 2026-08-26 v0.5.1 发版 — v0.6 P0 清场第一批 (⑥③⑤) 落账
+
+> 用户裁决顺序执行完毕: ⑥ ai_hub 双引擎收敛 → ③ jobs.py 拆分 → ⑤ 凭据单一来源。
+> 版本 `backend/version.py` + `frontend/package.json(+lock)` → **0.5.1**;
+> CHANGELOG 新增 v0.5.1 条目。
+
+### 执行记录
+- [x] **⑥ ai_hub 双引擎收敛**: AIService sensenova 硬编码并入 llm.yaml
+  (`sensenova` provider 块, `default_provider` → sensenova); 公共契约零漂移,
+  定向 63 测 + 全量 2879 passed / 0 failed。主体 diff 因并行会话共享暂存区卷入
+  `e94e90f1`, 收尾补交 `6556cd83` (归因已在 CHANGELOG 显式声明, 未改写历史)
+- [x] **③ jobs.py 拆分**: 2331 行单文件 → jobs/ 八模块包 (空壳门面 + PEP562
+  活委托), AST 逐字节搬运; 三类测试契约 (import/jobs.X/patch) 全保持;
+  `8f4ae80a` 建包 + `f554c46c` 删旧文件; generate_meta jobs=47 拆分不变
+- [x] **⑤ 凭据单一来源**: 审计坐实 settings 明文 `quality.llm_api_key`
+  (后端零读者); llm.yaml provider 链对齐已随 ⑥; 明文置空 + 仓库外备份
+  (`~/.hotspot/legacy-quality-llm-api-key-20260825.txt`, 0600);
+  docstring 对齐 ai_hub 解析链 (`5ab5d996`)
+- [x] meta 同步: ARCHITECTURE services 88→89 补账 (`d473070e`)
+
+### ⚠️ ⑤ 遗留阻塞 — llm_secrets 主密钥丢失 (需用户裁决)
+- keyring 的 master_key 对 encryption_keys id=2 verify 失败, service 按设计清除
+  了该过期条目; settings 回退 (`master_key_encrypted`) 为空 → 主密钥不可恢复
+- Q1 产品决策禁止重置主密钥 (重置须删库重建); 且 sync_configs 存量 1 行
+  webdav_password_encrypted 密文依赖现 key, 强行换 key 将使其永久不可解密
+- 因此 "llm_secrets 加密通道接管" 本期未达成: 加密迁移无 master_key 可用。
+  可选路径: (a) 接受通道休眠, 凭据走 env (现状即 T1 合规);
+  (b) 按 Q1 删库重置后在 /api/secrets 重录凭据 (含备份文件中的 legacy key)
+- 迁移过程中的附带发现: t4 触发器对 llm_secrets 仅注释引用 (运行时判据是
+  ai_scores 行), LLMService 凭据走 env — 插入密文行不会有行为翻转
+
+### 门禁结果 (§10)
+- pytest 全量: 2879 passed / 0 failed (拆分前后各一轮)
+- `generate_meta --check`: 绿 (jobs 47 / collectors 14 / routers 57 / services 89)
+- ruff: 本次触碰文件全绿; ⚠️ 并行会话存量 6 error 未清
+  (model_router.py ×3 / mastery_projection.py ×3, 非本批次所有权)
+- 前端: tsc 0 错 / vitest **322 passed** / vite build 过; 入口 chunk **28KB**
+  (<300KB 门禁), 最大懒加载 vendor echarts 1120KB

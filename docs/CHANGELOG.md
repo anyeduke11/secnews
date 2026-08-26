@@ -1,5 +1,58 @@
 # Changelog
 
+## v0.5.1 (2026-08-25) — v0.6 P0 清场第一批 (⑥③⑤)
+
+> 方案: [`docs/v0.6_ai_workstation_plan.md`](v0.6_ai_workstation_plan.md) §P0 清场与统一。
+> 本批次为用户裁决顺序: 先 ⑥ ai_hub 双引擎收敛 → ③ jobs.py 拆分 → ⑤ 凭据单一来源。
+
+### ⑥ ai_hub 双引擎收敛 (`6556cd83`; 归因说明见下)
+
+- `AIService` sensenova 硬编码 (URL/模型名/api_key) 并入 `config/llm.yaml` 单一来源:
+  新增 `sensenova` provider 块 (`type: openai_compatible`, base_url
+  `https://token.sensenova.cn/v1`); `default_provider: openai → sensenova`
+- `AIService` 改为经 `_provider_cfg/_base_url/_eval_model` 从 `llm_service.config`
+  解析, env 覆盖 (`AI_PROVIDER`) 保留; ClassVar 兜底表防配置缺失
+- **公共契约零漂移**: `_call_sensenova_detect/_resolve_api_key/_resolve_provider/
+  _ollama_up/_cache_set` 名称签名不变, URL 前缀与模型串断言全过; 定向 63 测 +
+  全量 2879 passed / 0 failed
+- `fallback_order` 刻意不含 sensenova — LLMService 评分链保持休眠 (真实计费翻转
+  留 P1), 避免 T1 场景意外产生调用成本
+
+> **归因说明**: ⑥ 的主体 diff (ai_hub.py +87 / llm.yaml +21) 因并行会话共享暂存区
+> 被卷入其提交 `e94e90f1` (linker wiki_fs 修复) 入库; `6556cd83` 为补交的收尾部分。
+> 内容归属以本条目为准。
+
+### ③ scheduler/jobs.py 按域拆分 (`8f4ae80a` + `f554c46c`)
+
+- 单文件 (2331 行) → `backend/scheduler/jobs/` 包: `_runtime`(注入+SSE 插桩) /
+  `collect` / `kl` / `codegarden` / `security` / `knowledge` / `digest` /
+  `maintenance` 八模块, 段落 AST 逐字节搬运
+- **空壳门面** (方案 §9): `__init__.py` 全量 re-export + PEP562 `__getattr__`
+  活委托 `_service`; `from ...jobs import X` / `jobs.X` / `patch("...jobs.X")`
+  三种契约行为与拆分前一致; 跨域 job 经 `_jobs_pkg.<fn>` 动态解析防快照绑定
+- generate_meta `count_jobs` 计数拆分不变 (47, 数的是 scheduler.py 的 add_job);
+  定向 54+11 测 + 全量两轮绿; 旧文件删除单独成 commit 防 pathspec 漏删
+
+### ⑤ 凭据单一来源 (`5ab5d996` + 数据面收敛)
+
+- **核验坐实审计**: settings 表残留明文 `quality.llm_api_key` (37 字符 sk- 串);
+  llm_secrets 表存在但 0 行; 后端对该 settings 键零读取方 (GateContext.llm_api_key
+  字段无赋值点, 纯死字段)
+- **llm.yaml provider 链对齐**: 已随 ⑥ 完成 (sensenova 块 + default_provider)
+- **明文收敛**: settings 值置空 (保留行作溯源), 原值备份至仓库外
+  `~/.hotspot/legacy-quality-llm-api-key-20260825.txt` (0600)
+- ⚠️ **加密通道接管受阻**: llm_secrets 主密钥已丢失 (keyring 条目对 encryption_keys
+  id=2 verify 失败被 service 清除, settings 回退亦空), 且产品决策 Q1 禁止重置、
+  sync_configs.webdav_password_encrypted 存量密文依赖现 key — 加密迁移需用户侧
+  裁决 (重建主密钥须按 Q1 走 DB 重置, 或通道继续休眠)。详见 PROGRESS 同日条目
+- `api/llm_status.py` EvaluateRequest docstring 对齐 ai_hub 实际解析链
+  (env AI_PROVIDER → llm.yaml default_provider, 不再指向已废弃 settings 路径)
+
+### meta 同步 (`d473070e`)
+
+- ARCHITECTURE.md services 88→89 (并行会话 mastery_projection.py 注册补账);
+  `generate_meta --check` 绿 (jobs 47 / collectors 14 / routers 57 / services 89)
+
 ## v0.6.0-dev (2026-08-25) — CRM 业绩座舱 (security-cockpit 方案 C)
 
 > **决策**: 用户拍板 [`docs/P2_6_COCKPIT_EVAL.md`](P2_6_COCKPIT_EVAL.md) 方案 C (完整移植), PRD 先行 ([`COCKPIT_PRD.md`](COCKPIT_PRD.md))。CRM-like 业务 (客户/商机/业绩) 与 hotspot 资讯聚合正交, 以 `crm` feature gate 扩展域接入。

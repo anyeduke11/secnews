@@ -14,6 +14,11 @@ v0.5.0 (2026-08-23): llm-wiki-2.0 数据底座 + ai_hub 单出口 — M3.5 Task1
 graph.json 6 边运行时填入 + 一次性迁移 4149 items / 96 concepts; M5 Task19
 合并 llm_service+ai_service 为 ai_hub 单出口 (ai_scores 写路径唯一);
 见 docs/v0.5_refactor_plan.md。
+
+v0.5.1 (2026-08-25): v0.6 P0 清场第一批 — ⑥ ai_hub 双引擎收敛
+(AIService sensenova 硬编码并入 llm.yaml 单一来源) + ③ scheduler/jobs.py
+按域拆分为 jobs/ 包 (空壳门面) + ⑤ 凭据单一来源 (settings 明文收敛);
+见 docs/v0.6_ai_workstation_plan.md §P0。
 """
 
-APP_VERSION = "0.5.0"
+APP_VERSION = "0.5.1"

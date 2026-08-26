@@ -46,6 +46,26 @@ def _grade(entity_type: str, entity_id: str, grade: int) -> dict:
         row = submit_grade(entity_type, entity_id, grade)
     except ValueError as e:
         raise HTTPException(status_code=400, detail={"message": str(e)})
+
+    # S5-1/S5-2: SM-2 评分 → 单向投影回 wiki frontmatter
+    try:
+        from backend.services.mastery_projection import project_review_to_wiki
+
+        if row and isinstance(row, dict):
+            project_review_to_wiki(
+                entity_type=entity_type,
+                entity_id=entity_id,
+                easiness=float(row.get("easiness", 2.5)),
+                repetitions=int(row.get("repetitions", 0)),
+                last_reviewed=row.get("last_reviewed") or "",
+                review_count=int(row.get("repetitions", 0)) + 1,
+            )
+    except Exception as e:
+        import logging
+        logging.getLogger("hotspot.reviews").warning(
+            f"mastery projection failed for {entity_id}: {e}"
+        )
+
     return {"version": API_VERSION, "status": "ok", "item": row}
 
 

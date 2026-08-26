@@ -103,3 +103,7 @@ backups/
 backend/hotspot-warm.db*
 backend/hotspot-cold.db*
 hotspot.db.bak-fts-*
+
+# P3-4 Playwright E2E 运行产物 (2026-08-26)
+frontend/test-results/
+frontend/playwright-report/

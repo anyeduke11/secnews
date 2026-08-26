@@ -13,9 +13,10 @@ describe('CategoryNav', () => {
         counts={{ all: 10, ai: 3, security: 2 }}
       />
     );
-    // 来自 CATEGORIES 常量
+    // 来自 CATEGORIES 常量; 用 name 精确锚定 ai 分类 —
+    // 'tech' (IT / 科技) 分类加入后, 模糊 /科技/ 会同时命中两个按钮
     expect(screen.getByText('全部热点')).toBeInTheDocument();
-    expect(screen.getByText(/科技/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /科技 \/ AI/ })).toBeInTheDocument();
     expect(screen.getByText('网络安全')).toBeInTheDocument();
   });
 
@@ -52,8 +53,8 @@ describe('CategoryNav', () => {
         counts={{ ai: 0, security: 3 }}
       />
     );
-    // ai 计数为 0, 不显示
-    const aiBtn = screen.getByText(/科技/).closest('button')!;
+    // ai 计数为 0, 不显示 (name 精确锚定, 同上避免命中 tech 分类)
+    const aiBtn = screen.getByRole('button', { name: /科技 \/ AI/ });
     expect(aiBtn.textContent).not.toContain('0');
   });
 

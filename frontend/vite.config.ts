@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { configDefaults } from 'vitest/config'
 
 export default defineConfig({
   plugins: [react()],
@@ -19,6 +20,9 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
+    // e2e/*.spec.ts 是 Playwright 用例 (有自己的 runner), vitest 收集会在
+    // import 阶段报 "test.describe() called here" 假失败
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
   // v0.5 M1-Task3: manualChunks 拆 vendor
   // 验收: 主 chunk <300KB (基线 1.14MB)

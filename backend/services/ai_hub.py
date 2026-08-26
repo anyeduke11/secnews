@@ -27,6 +27,7 @@ import time
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import ClassVar
 
 import httpx
 
@@ -492,11 +493,11 @@ class AIService:
     GATE_RATE_MAX = 6
 
     # 无 llm.yaml 或 provider 未声明时的历史兜底值
-    FALLBACK_BASE_URLS = {
+    FALLBACK_BASE_URLS: ClassVar[dict[str, str]] = {
         "sensenova": "https://token.sensenova.cn/v1",
         "ollama": "http://127.0.0.1:11434",
     }
-    FALLBACK_EVAL_MODELS = {
+    FALLBACK_EVAL_MODELS: ClassVar[dict[str, str]] = {
         "sensenova": "sensenova-6.8-flash-lite",
         "ollama": "qwen2.5:7b",
     }

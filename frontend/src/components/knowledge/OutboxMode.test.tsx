@@ -82,7 +82,8 @@ describe('OutboxMode', () => {
   it('renders title and item count', async () => {
     render(<OutboxMode />);
 
-    expect(screen.getByText('整理模式')).toBeInTheDocument();
+    // 页面标题是 h3; 嵌套的 OnboardingHint 也有同文案 h4, 用 heading level 消歧
+    expect(screen.getByRole('heading', { level: 3, name: '整理模式' })).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText('2 条待处理')).toBeInTheDocument();

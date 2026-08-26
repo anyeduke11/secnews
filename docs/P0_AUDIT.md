@@ -272,10 +272,10 @@
 |---|------|----------|------|
 | L1 | pk_map 高危 F841 | ✅ **已闭环** — `P2_DEAD_VARS_PR_REVIEW.md` §9: 方案 A 落地, 顺手修复两裁决端点 AttributeError→500 前置 bug, F401/F841=0 首次真正达成 | 无遗留 |
 | L2 | 默认规则集 lint 41 errors (RUF100×16 等) | ✅ **已闭环** — P3-1 落地: `ruff check backend/` 默认配置 All checks passed; 自动批 38 项 + 手工批异步六项 (`04a34239`) + noqa 误删暴露点 3 处根因修复; 教训: RUF100 类 `--fix` 必须默认配置下跑 | 无遗留 |
-| L3 | 前端 vitest 17 failed (knowledge 组件为主) | HEAD 本底存量, worktree 基线核实 | **P3-2** |
-| L4 | phase3 搜索 <500ms 断言 flaky | 负载敏感计时抖动 | **P3-3** |
-| L5 | Playwright 浏览器 E2E 缺位 | 以全栈 E2E 替代中 | P3-4 stretch |
+| L3 | 前端 vitest 17 failed (knowledge 组件为主) | ✅ **已闭环** — P3-2 根因清零: Node≥22 localStorage 全局遮蔽 jsdom (A簇×15, setup.ts 恢复) + tech 分类致查询歧义 (B簇×2, getByRole 锚定); 44 files/322 tests 全绿零 skip (`65f84231`) | 无遗留 |
+| L4 | phase3 搜索 <500ms 断言 flaky | ✅ **已闭环** — P3-3 预热剥离冷启动 + 3 次稳态取最小; 4 核满载压力复跑亦绿 (`fec6ac0c`) | 无遗留 |
+| L5 | Playwright 浏览器 E2E 缺位 | ✅ **已闭环** — P3-4: config/spec 原已存在仅缺运行入口, 补 `test:e2e` 后首次全栈真跑 chromium 19 passed / 50.5s 零漂移 (`a6524637`) | 无遗留 |
 | L6 | codegarden 端口分配测试环境敏感 | ✅ 8765→8766 已改 (`3f5fe7d0`), lsof 依赖仍在但风险已降 | 无遗留 |
 | L7 | CRM UI 增强 / Auth 多租户 | 产品 backlog | 不入治理线 |
 
-> **状态**: P3-1 已完成 (2026-08-25, L2 闭环; 计划外新增 retention decay 时间炸弹根治, 详见 PROGRESS.md 同日章节); 待办余 P3-2 / P3-3 / P3-4; L1/L2/L6 已闭环仅存档。
+> **状态**: **P3 全部完成 (2026-08-26)** — P3-1 lint 治理 / P3-2 前端测试清零 / P3-3 flaky 根治 / P3-4 Playwright 真跑, 治理线 P0→P3 收官 (详见 PROGRESS.md 同日章节); L1-L6 全部闭环仅存档, L7 留产品 backlog。

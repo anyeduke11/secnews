@@ -1189,3 +1189,47 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
 > 时间炸弹 3fb4398e / meta 补账 bf7cf151 / 文档 (本 commit)
 > **状态**: P3-1 完成; 待办仅余 P3-2 (前端测试清理) / P3-3 (flaky 根治) / P3-4 (stretch)
 
+## 2026-08-26 P3 收尾 — P3-2 / P3-3 / P3-4 全部落地 (治理线收官)
+
+### P3-2 前端 vitest 17 存量失败根因清零 (commit `65f84231`)
+
+- **分簇归因** (此前仅有 worktree 基线判定 "存量", 本次落到具体机制):
+  - **A 簇 ×15** (OutboxMode 7 / Phase13ModeComponents 5 / ReviewMode 3, 全部挂载即崩):
+    Node ≥22 在 `globalThis` 预置了 `localStorage` 访问器 (`--localstorage-file` 未提供时
+    取值 undefined 并发 ExperimentalWarning), vitest jsdom 环境注入全局时因该属性已存在而跳过;
+    `OnboardingHint.tsx:34` 在 useEffect 裸调 `localStorage.getItem` 抛 TypeError,
+    经 react 提交阶段冒泡拖垮三个宿主组件树。组件自身不用 storage — 纯环境性根因
+  - **B 簇 ×2** (CategoryNav): `types/index.ts` 后来新增 `tech`(IT / 科技) 分类,
+    与既有 `ai`(科技 / AI) 并存后, 测试的模糊 `/科技/` 正则双匹配 — 测试查询歧义, 组件无错
+- **根治** (无一 skip): `src/test/setup.ts` 检测全局 localStorage 缺失时显式恢复
+  jsdom window 的实现 (再兜底内存 Storage), 组件与用例试行为零改动;
+  两处测试查询改 `getByRole` name / heading level 精确锚定。
+  A 簇复活后暴露一枚同型隐藏歧义 (OutboxMode 页面 h3 与嵌套 OnboardingHint h4
+  同名"整理模式"), 一并锚定修复
+- **附带**: `vite.config.ts` test.exclude 加 `e2e/**` — Playwright 用例被 vitest 误收集
+  造成的 5 个文件级假失败 ("test.describe() called here") 一并消除
+- **验证**: vitest **44 files / 322 tests 全绿** (此前 9 failed files / 17 failed tests),
+  `tsc --noEmit` 绿, 零 skip 零放宽
+
+### P3-3 phase3 <500ms 计时断言根治 (commit `fec6ac0c`)
+
+- **归因**: LIKE 搜索实算 <10ms (服务层自述口径即"稳态 P95 < 500ms"); 原断言测的是
+  首调墙钟, 混入路由/连接池一次性预热与全量套件 CPU 争抢噪声 (448s 慢速套件下必抖)
+- **改法**: 预热一次剥离冷启动, 再 3 次稳态测量取最小值断言 — 只考核被验收属性本身,
+  预算 500ms 与跨层内容断言不变; 非 skip、非放宽阈值
+- **验证**: 定向复跑 ×3 全绿 (4.5s/4.8s/5.6s); 另做 **4 核 CPU 满载压力复跑亦绿** (2.9s),
+  即当初致 flaky 的负载条件下不再抖动
+
+### P3-4 Playwright 浏览器 E2E 真实跑通 (commit `a6524637`, stretch 达成)
+
+- **盘点修正**: `playwright.config.ts` 与 5 个 e2e spec (333 行, 冒烟/资料层/判断层/
+  知识流 6 模式/行动层) 早已存在, 但没有 npm 入口、从未真正运行 —
+  L5 "缺位" 实为 "从未跑起来", 非从零建设
+- **落地**: package.json 增 `test:e2e` 脚本; .gitignore 增 playwright 产物目录
+- **首次真实全栈验证**: 后端 :8000 + webServer 自动拉起前端 :8898, chromium
+  **19 passed / 50.5s**, 五个 spec 零漂移 (用例无需改动); 验证后已清理自起进程
+
+> **P3 收尾 commits**: 65f84231 (P3-2) / fec6ac0c (P3-3) / a6524637 (P3-4) / 文档 (本 commit)
+> **终态**: P3-1 ~ P3-4 全部闭环, 治理线 P0 → P1 → P2 → P3 收官;
+> L1-L6 全部闭环仅存档, L7 (CRM UI/Auth 多租户) 留产品 backlog
+

@@ -306,9 +306,23 @@
   t4 触发器接线 (`86abe58e` P3 S5 闭环)
 - [x] S5-2: 复习结果单向投影回 wiki frontmatter — `mastery_projection.project_review_to_wiki`
   写 mastery / last_reviewed / review_count (失败仅 warning)
+  - [x] **v0.6 Phase 5 闭合 (S5-2 bugfix + 双向写入)** (`87540929`):
+    修复 `api/reviews.py:60` 列名 `last_reviewed` → `last_reviewed_at`;
+    S5-2 半成品 (last_reviewed/review_count 被 existing_fm 遮蔽) 根除 —
+    item_dict 侧通道传给 md frontmatter, SSoT 真实落盘; 新增 7 用例覆盖
 - [x] S5-3: 08:00 日报自动生成 — `digest_generator_job` 已有 (scheduler 主线)
+  - [x] **v0.6 Phase 5 简报 LLM 叙事摘要** (`73d1dc05`):
+    替换模板 `_render_template_summary()` → `llm_service.summarize([prompt])`;
+    新增 `digests.summary_md` 列 (迁移 `072_v0.6_digest_summary_md.sql`);
+    Python 3.14 兼容 (asyncio.new_event_loop 包裹); 前端 BriefingView 优先展示
+    summary_md, 失败 fallback summary; 新增 3 用例
 - [x] S5-4: 到期复习卡自动出现 — `attention_events` 自动创建 SM-2 记录
   (P3-1 lint 治理落账 + retention decay 修复后, `3fb4398e` 注入 now 根除时间炸弹)
+- [x] **v0.6 Phase 5 MCP 工具扩展 (5 tool)** (`840987fe`):
+  KL 推进族 (kl_enqueue / kl_status / kl_retry) + DSH 分析族
+  (dsh_analyze / dsh_session); operation_id 与 FastAPI openapi 自动生成
+  100% 对齐; 硬编码测试断言同步 14→19 (test_mcp_server / test_mcp_sse /
+  test_phase7_e2e); MCP 总数 9 → 14 → **19** (12 read + 7 write)
 
 ### Phase 6 任务分解
 - [ ] S6-1: 存量 4149 items + 96 concepts 迁移脚本

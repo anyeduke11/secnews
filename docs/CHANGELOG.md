@@ -1,10 +1,10 @@
 # Changelog
 
-## v0.6.1 (2026-08-27) — v0.6 P0 清场第二批 (infra 净底, 不含 dsh)
+## v0.6.1 (2026-08-27) — v0.6 P0 清场第二批 + dsh 桥接层
 
-> **范围**: 死代码扫描 + jobs 下线 + M1/M2 终验门禁 + TS6133 清零 + HOT 瘦身 + llm_secrets 主密钥重置。
-> **方案**: [`.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md`](.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md) (8 commit 计划 + 追加修复)。
-> **批次 commit**: `e89fbb0b` → `f8858cfb` + 追加 3 个修复 commit。本节仅做 CHANGELOG 落账。
+> **范围**: 死代码扫描 + jobs 下线 + M1/M2 终验门禁 + TS6133 清零 + HOT 瘦身 + llm_secrets 主密钥重置 + dsh 桥接层。
+> **方案**: [`.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md`](.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md) (8 commit 计划 + 追加修复 + dsh 桥接层)。
+> **批次 commit**: `e89fbb0b` → `f8858cfb` + 追加 3 个修复 commit + dsh 桥接层 commit。本节仅做 CHANGELOG 落账。
 
 ### 批次 ①：死代码扫描 (3 commits)
 
@@ -63,9 +63,19 @@
     - `SecretsService.setup_master_key(new_key)` 重建通道; keyring 无残留条目
     - **结果**: 加密通道已重建; 存量密文为空, 无重加密需求
 
+11. **`feat(dsh-bridge): backend/services/dsh/ + /api/dsh/* + PipelineSettings 状态块`** (`ffe2df60`)
+    - `backend/services/dsh/` 子包: `bridge.py` (DSHClient HTTP 客户端) + `task_router.py` (DSHTaskRouter 路由 + DSH/LLM 降级) + `session.py` (DSHSessionManager 会话生命周期) + `__init__.py`
+    - `backend/api/dsh_api.py`: `POST /api/dsh/task` (DSH 不可达时降级 LLM 直连) + `GET /api/dsh/session/{id}` + `GET /api/dsh/health`
+    - `backend/api/__init__.py`: dsh router 按 `is_extension_enabled("dsh")` 注册
+    - `backend/config/feature_gates.toml`: `[extensions]` 下加 `dsh = true`
+    - `frontend/src/components/secnews/settings/PipelineSettings.tsx`: 实时显示 dsh 连接状态 (绿=connected, 黄=disconnected+fallback, 红=error) + endpoint 配置值
+    - `backend/tests/test_dsh_api.py`: 4 用例 (health disconnected/connected, task fallback llm, session not found)
+    - 修复 Python 3.14 兼容: `asyncio.get_event_loop().run_until_complete` → `asyncio.new_event_loop()` (3.12+ 移除前者)
+    - 修复测试 mock: `asyncio.coroutine` (已移除) → `AsyncMock`
+
 ### 门禁结果
 
-- pytest 全量: **2892 collected** (≥2879 baseline) / 0 failed (含本批新增 12 用例: 6 + 3 + 3)
+- pytest 全量: **2896 collected** (≥2879 baseline) / 0 failed (含本批新增 16 用例: 6 + 3 + 3 + 4)
 - ruff: `All checks passed!` (backend + scripts 全绿)
 - tsc: **0 TS6133 错** (142→0, React 19 + 手评 7 处)
 - M1 冷路径 p95: **30.38ms < 150ms** ✅
@@ -74,7 +84,7 @@
 
 ### 遗留 / 阻塞 (承接 v0.6.0)
 
-- ⏳ **dsh 桥接层**: 0% 落地, 下批独立 (3-4 commits)
+- ✅ **dsh 桥接层**: 已落地 (commit `ffe2df60`, 9 files, 393 insertions)
 - ⏳ **SecNEWS Phase 4-6 未开始**: S4-1..S4-4 (AI 研判/DeepRead/CVE 热力图/ATT&CK/合规矩阵) + S6-1..S6-4 (存量迁移)
 
 > **决策**: 用户拍板 [`docs/P2_6_COCKPIT_EVAL.md`](P2_6_COCKPIT_EVAL.md) 方案 C (完整移植), PRD 先行 ([`COCKPIT_PRD.md`](COCKPIT_PRD.md))。CRM-like 业务 (客户/商机/业绩) 与 hotspot 资讯聚合正交, 以 `crm` feature gate 扩展域接入。

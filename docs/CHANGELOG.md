@@ -1,8 +1,8 @@
 # Changelog
 
-## v0.6.1 (2026-08-27) — v0.6 P0 清场第二批 + dsh 桥接层
+## v0.6.1 (2026-08-27) — v0.6 P0 清场第二批 + dsh 桥接层 + Phase 4 工作台 UI
 
-> **范围**: 死代码扫描 + jobs 下线 + M1/M2 终验门禁 + TS6133 清零 + HOT 瘦身 + llm_secrets 主密钥重置 + dsh 桥接层。
+> **范围**: 死代码扫描 + jobs 下线 + M1/M2 终验门禁 + TS6133 清零 + HOT 瘦身 + llm_secrets 主密钥重置 + dsh 桥接层 + Phase 4 工作台 5 视图。
 > **方案**: [`.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md`](.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md) (8 commit 计划 + 追加修复 + dsh 桥接层)。
 > **批次 commit**: `e89fbb0b` → `f8858cfb` + 追加 3 个修复 commit + dsh 桥接层 commit。本节仅做 CHANGELOG 落账。
 
@@ -73,11 +73,29 @@
     - 修复 Python 3.14 兼容: `asyncio.get_event_loop().run_until_complete` → `asyncio.new_event_loop()` (3.12+ 移除前者)
     - 修复测试 mock: `asyncio.coroutine` (已移除) → `AsyncMock`
 
+12. **`feat(phase4-workbench): 5 视图工作台 UI (Briefing/Pipeline/Knowledge/Analyze/Settings)`** (`f03a0414`)
+    - `frontend/src/components/workbench/` 新建 8 文件:
+      - `WorkbenchLayout.tsx` (5 Tab 壳 + StatusBar + Outlet)
+      - `WorkbenchPage.tsx` (lazy 友好出口)
+      - `StatusBar.tsx` (dsh 指示灯 + 管线队列 + token 日用量)
+      - `BriefingView.tsx` (官方每日简报 + 今日已发布 + 源健康)
+      - `PipelineView.tsx` (5 阶段漏斗 + 队列 + 书签存活 + 错误队列 + token 台账)
+      - `KnowledgeView.tsx` (wiki items 搜索 + 概念标签 + 复习到期)
+      - `AnalyzeView.tsx` (URL 导入 + 深度研判 dsh+LLM 双轨)
+      - `SettingsView.tsx` (模型档位 + dsh 连接 + 采集源 + token 预算)
+    - `backend/config/__init__.py`: 新增 `feature_workbench_ui = True`
+    - `backend/api/settings.py`: `/api/settings/features` 返回 `workbench_ui`
+    - `frontend/useFeatureFlags`: `FeatureFlags` 接口 + `DEFAULT_FLAGS` + `fetchFlags` 映射加 `workbench_ui` (默认 true)
+    - `routes/lazy-imports.ts`: 6 个 lazy import
+    - `routes/index.tsx`: `/workbench` 路由 + 5 子路由, gated by `features.workbenchUi`
+
 ### 门禁结果
 
 - pytest 全量: **2896 collected** (≥2879 baseline) / 0 failed (含本批新增 16 用例: 6 + 3 + 3 + 4)
 - ruff: `All checks passed!` (backend + scripts 全绿)
 - tsc: **0 TS6133 错** (142→0, React 19 + 手评 7 处)
+- vitest: **322 passed** (44 test files, 无回归)
+- vite build: 成功 (无 TS / 静态错误)
 - M1 冷路径 p95: **30.38ms < 150ms** ✅
 - M2 终验: HOT **7.8MB < 80MB** ✅ / WARM 365MB / COLD 未启用 (脚本 + verify 已验)
 - CI YAML: 语法 OK

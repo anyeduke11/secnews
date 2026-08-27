@@ -66,27 +66,6 @@ async def export_rebuild_job() -> None:
         _logger.error(f"export_rebuild_job crashed: {e}")
 
 
-async def quality_logs_cleanup_job() -> None:
-    """P0.1: 归档超过保留窗口的 quality_check_logs。
-
-    v0.5 §18: 已并入 telemetry_window_job (7 天遥测窗口统一入口),
-    本函数保留为薄包装以维持向后兼容 (scheduler 不再单独注册)。
-    """
-    try:
-        from backend.services.maintenance_service import cleanup_quality_logs
-
-        result = await asyncio.to_thread(
-            cleanup_quality_logs, days=7, dry_run=False
-        )
-        _logger.info(
-            f"quality_logs_cleanup_job: retention_days=7 "
-            f"archived={result.get('rows_archived')} "
-            f"remaining={result.get('rows_remaining_after')}"
-        )
-    except Exception as e:
-        _logger.error(f"quality_logs_cleanup_job crashed: {e}")
-
-
 @instrument_job("telemetry_window")
 async def telemetry_window_job() -> None:
     """v0.5 SPEC §18: 7 天遥测窗口 — WARM 层遥测表滚动清理。

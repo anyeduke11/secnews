@@ -1,5 +1,32 @@
 # v0.5 重构执行进度（PROGRESS.md）
 
+## 2026-08-27 v0.6.0 发版 — CRM 业绩座舱落账
+
+> 用户拍板 [P2_6_COCKPIT_EVAL.md](docs/P2_6_COCKPIT_EVAL.md) 方案 C 完整移植, 5 个 commit 早已入仓推送 (`b2131446` / `4b8b4c66` / `920587c8` / `405d98ca` / `abfc7761`), 本批次仅做版本号 bump + 文档对齐。
+> 版本: `backend/version.py` + `frontend/package.json(+lock)` → **0.6.0**; CHANGELOG 顶部新增 v0.6.0 段 (保留下方 v0.6.0-dev 段作为开发过程审计痕迹); 本段为发版执行记录。
+
+### 执行记录
+
+- [x] **CRM 业绩座舱 5 commit**: T1 PRD (用户故事/状态机/KPI) → T2 migration 071 三表 → T3 三路由 (`/api/crm/*`) → T4 `/crm` 页面 (CockpitDashboard + CustomerManager + OpportunityManager) → T5 E2E + 文档同步。crm feature gate 扩展域接入, `X-CRM-Token` 常量时间鉴权 (未设 env = 本地模式)
+- [x] **v0.5.1 收尾 + 文档对齐** (`d5696fb9`): ruff 6 处存量清零 (model_router.py + mastery_projection.py); PROGRESS Phase 5 S5-1..S5-4 勾选 + 证据 commit 补齐; services 89 叙述与 generate_meta 实测对齐
+- [x] **版本 bump**: `backend/version.py` `APP_VERSION = "0.6.0"`, docstring 追加 v0.6.0 段; `frontend/package.json` + `package-lock.json` 顶部 hotspot 包节点同步
+- [x] **CHANGELOG**: 顶部新增 v0.6.0 正式段; 下方 v0.6.0-dev 段改 `(开发过程审计痕迹)` 标注避免读者困惑; v0.5.1 → v0.6.0 演进指针清晰
+
+### 门禁结果
+
+- pytest 全量: ≥2879 passed / 0 failed (ruff --fix 后复测)
+- `generate_meta --check`: 绿 (jobs 47 / collectors 14 / routers 57 / services 89)
+- ruff: 全仓 `All checks passed!`
+- 前端: tsc --noEmit 0 错 + vitest 322 passed + vite build 过 (主 chunk 24-28 KB)
+- Mimosa 密封扫描: `scanner_no_output` (按 memory `hotspot-env-operational-quirks.md` 兼容策略; 不宣称项目安全)
+
+### 遗留 / 阻塞 (沿袭 v0.5.1)
+
+- ⚠️ **llm_secrets 主密钥丢失**: 加密通道接管需用户裁决 (Q1 禁重置 vs webdav 存量密文依赖现 key)
+- ⏳ **SecNEWS Phase 4-6 未开始**: S4-1..S4-4 (AI 研判/DeepRead/CVE 热力图/ATT&CK/合规矩阵) + S6-1..S6-4 (存量迁移)
+
+---
+
 > 规格文件：`docs/v0.5_refactor_plan.md`（唯一真理）。接手会话先读本文件，不重做已完成任务。
 > 止损：基线不符→BLOCKED.md；连败 3 次→停；劣于基线→回滚如实报告。
 >

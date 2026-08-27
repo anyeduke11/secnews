@@ -19,6 +19,10 @@ v0.5.1 (2026-08-25): v0.6 P0 清场第一批 — ⑥ ai_hub 双引擎收敛
 (AIService sensenova 硬编码并入 llm.yaml 单一来源) + ③ scheduler/jobs.py
 按域拆分为 jobs/ 包 (空壳门面) + ⑤ 凭据单一来源 (settings 明文收敛);
 见 docs/v0.6_ai_workstation_plan.md §P0。
+
+v0.6.0 (2026-08-27): CRM 业绩座舱正式发版 — security-cockpit 方案 C 完整移植。
+T1 PRD (用户故事/状态机/KPI) + T2 migration 071 三表 + T3 三路由 + T4 /crm 页面
++ T5 全栈 E2E 闭环; crm feature gate 扩展域接入; 见 docs/COCKPIT_PRD.md。
 """
 
-APP_VERSION = "0.5.1"
+APP_VERSION = "0.6.0"

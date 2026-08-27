@@ -172,3 +172,23 @@ export const SecNewsSettings = React.lazy(() =>
 export const CrmPage = React.lazy(() =>
   import('../components/crm/CrmPage').then(m => ({ default: m.CrmPage }))
 );
+
+// Phase 4: 工作台 UI (v0.6.1) — 5 视图统一壳
+export const WorkbenchPage = React.lazy(() =>
+  import('../components/workbench/WorkbenchPage').then(m => ({ default: m.WorkbenchPage }))
+);
+export const BriefingView = React.lazy(() =>
+  import('../components/workbench/BriefingView').then(m => ({ default: m.BriefingView }))
+);
+export const PipelineView = React.lazy(() =>
+  import('../components/workbench/PipelineView').then(m => ({ default: m.PipelineView }))
+);
+export const KnowledgeView = React.lazy(() =>
+  import('../components/workbench/KnowledgeView').then(m => ({ default: m.KnowledgeView }))
+);
+export const AnalyzeView = React.lazy(() =>
+  import('../components/workbench/AnalyzeView').then(m => ({ default: m.AnalyzeView }))
+);
+export const WorkbenchSettingsView = React.lazy(() =>
+  import('../components/workbench/SettingsView').then(m => ({ default: m.SettingsView }))
+);

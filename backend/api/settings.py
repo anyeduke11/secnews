@@ -27,6 +27,7 @@ async def get_features() -> dict:
         "security_graph": is_extension_enabled("security_graph"),
         "secnews": is_extension_enabled("secnews"),
         "crm": is_extension_enabled("crm"),
+        "workbench_ui": config.feature_workbench_ui,
         "enabled_extensions": get_enabled_extensions(),
     }
 

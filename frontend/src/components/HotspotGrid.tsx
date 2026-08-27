@@ -2,7 +2,6 @@
  * HotspotGrid — 热点信息流 + 分页 + 三态（Loading/Empty/Error）。
  * v1.10+: 头条 (LeadStory) + 3 列卡片网格 (AgihuntCard)，参照 agihunt.info 风格。
  */
-import React from 'react';
 import { HotspotItem } from '../types';
 import { LeadStory } from './LeadStory';
 import { AgihuntCard } from './AgihuntCard';

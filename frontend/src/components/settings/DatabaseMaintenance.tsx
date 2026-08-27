@@ -4,7 +4,7 @@
  * 拆自原 SettingsPage.tsx (1065 行) 中 DatabaseMaintenance (~683-946 行)。
  * 纯结构拆分: 全部状态 (13 个 useState) 与 fetch/渲染逻辑逐字迁移。
  */
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 export function DatabaseMaintenance() {
   const [dbHealth, setDbHealth] = useState<{ size_mb?: number; fragmentation_pct?: number; journal_mode?: string } | null>(null);

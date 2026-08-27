@@ -3,7 +3,7 @@
  *
  * Phase 3: 错误态用 --color-error, 空态/加载态/任务样式 token 化。
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { LearningPlan } from '../types';
 import { EmptyState } from './EmptyState';
 

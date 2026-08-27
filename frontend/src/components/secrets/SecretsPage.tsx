@@ -8,7 +8,7 @@
  * API 保持向后兼容: export function SecretsPage({ onBack })
  * (App.tsx lazy import: import('./components/secrets/SecretsPage').then(m => ({ default: m.SecretsPage })))
  */
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSecrets } from '../../hooks/useSecrets';
 import { SecretItem } from '../../types';
 import { Icon } from '../Icon';

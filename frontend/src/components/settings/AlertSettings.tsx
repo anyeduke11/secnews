@@ -4,7 +4,7 @@
  * 拆自原 SettingsPage.tsx (1065 行) 中 AlertSettings (~386-456 行)。
  * 纯结构拆分: 状态与 fetch/渲染逻辑逐字迁移。
  */
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 export function AlertSettings() {
   const [rules, setRules] = useState<any[]>([]);

@@ -5,7 +5,7 @@
  * 纯结构拆分: 状态/加载/渲染逻辑逐字迁移, 仅将 catColors/renderFormatted
  * 改为引用 utils, 文章行改为共享 HighlightArticleCard。
  */
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { catColors, renderFormatted } from './utils';
 import { HighlightArticleCard } from './shared';
 import type { DailyOverview } from './types';

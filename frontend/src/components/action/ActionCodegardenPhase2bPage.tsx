@@ -4,7 +4,6 @@
  * 包装 CodegardenPhase2bPage 组件，添加行动层页面头部。
  * 路由: /action/codegarden/phase2b
  */
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CodegardenPhase2bPage } from '../CodegardenPhase2bPage';
 import { Icon } from '../Icon';

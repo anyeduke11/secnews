@@ -3,7 +3,6 @@
  *
  * Phase 6 拆分: 从 SyncConfigForm 抽出, 减少后者体积, 保持单文件 ≤ 10KB。
  */
-import React from 'react';
 import { Icon } from '../Icon';
 
 interface SyncConfigActionsProps {

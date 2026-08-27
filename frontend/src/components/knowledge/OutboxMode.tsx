@@ -6,7 +6,7 @@
  *
  * 路由: /knowledge/outbox
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '../Icon';
 import { EmptyState } from '../EmptyState';
 import { STAGE_LABELS, STAGE_COLORS, ALL_STAGES } from './LifecycleProgress';

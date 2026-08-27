@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useSkills } from '../hooks/useSkills';
 import { SkillCard } from '../components/SkillCard';
 import { AddSkillForm } from '../components/AddSkillForm';

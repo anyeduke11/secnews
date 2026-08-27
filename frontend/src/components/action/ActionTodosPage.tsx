@@ -4,7 +4,6 @@
  * 包装 TodosPage 组件，添加行动层页面头部。
  * 路由: /action/todos
  */
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TodosPage } from '../TodosPage';
 import { Icon } from '../Icon';

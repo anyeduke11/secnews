@@ -4,7 +4,6 @@
  * Phase 1B: 拆自原 FavoritesPanel.tsx 单条 li 段。
  * props-only: 接收 item + inTodo + isPopoverOpen + 3 个 handlers。
  */
-import React from 'react';
 import { FavoriteItem as FavoriteItemType, getCategoryColorVar, getCategoryLabel } from '../../types';
 import { FavoriteToTodoPopover } from '../FavoriteToTodoPopover';
 import { Icon } from '../Icon';

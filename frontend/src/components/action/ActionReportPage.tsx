@@ -4,7 +4,6 @@
  * 包装 ReportPage 组件，添加行动层页面头部（返回按钮 + 标题）。
  * 路由: /action/report
  */
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ReportPage } from '../report/ReportPage';
 import { Icon } from '../Icon';

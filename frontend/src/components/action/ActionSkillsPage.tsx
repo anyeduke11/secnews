@@ -4,7 +4,6 @@
  * 包装 SkillsPage 组件，添加行动层页面头部。
  * 路由: /action/skills
  */
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SkillsPage } from '../SkillsPage';
 import { Icon } from '../Icon';

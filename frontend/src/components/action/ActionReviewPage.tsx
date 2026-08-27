@@ -4,7 +4,6 @@
  * 包装 ReviewMode 组件，添加行动层页面头部。
  * 路由: /action/review
  */
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ReviewMode } from '../knowledge/ReviewMode';
 import { Icon } from '../Icon';

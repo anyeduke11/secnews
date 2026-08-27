@@ -4,7 +4,6 @@
  * 包装 CodegardenPage 组件，添加行动层页面头部。
  * 路由: /action/codegarden
  */
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CodegardenPage } from '../CodegardenPage';
 import { Icon } from '../Icon';

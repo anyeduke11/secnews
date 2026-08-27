@@ -8,7 +8,6 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import React from 'react';
 
 // Mock fetch — 每个 test 重新 mock
 const mockFetch = vi.fn();

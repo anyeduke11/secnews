@@ -11,7 +11,7 @@
  *  - /knowledge/compile  → 知识库编译 (KnowledgeCompile)
  *  - /knowledge/compound → 知识复利 (KnowledgeCompound)
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { KnowledgeLayout } from './knowledge/KnowledgeLayout';
 import type { KnowledgeAreaKey } from './knowledge/KnowledgeTabs';
 

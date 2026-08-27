@@ -1,7 +1,7 @@
 /**
  * TrendChart — 24h 热度趋势堆叠柱状图。
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { TrendPoint, TrendResponse } from '../types';
 import { useThemeColors, ThemeColorKey } from '../hooks/useThemeColors';

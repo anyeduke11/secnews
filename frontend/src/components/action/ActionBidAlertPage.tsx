@@ -4,7 +4,7 @@
  * 显示标书摘要、地区分布、竞品热词分析、最近标讯列表。
  * 路由: /action/bid-alert
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
 

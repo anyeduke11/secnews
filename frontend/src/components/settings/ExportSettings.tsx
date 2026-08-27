@@ -4,7 +4,6 @@
  * 拆自原 SettingsPage.tsx (1065 行) 中 ExportSettings (~553-588 行)。
  * 纯结构拆分: 渲染逻辑逐字迁移。
  */
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export function ExportSettings() {

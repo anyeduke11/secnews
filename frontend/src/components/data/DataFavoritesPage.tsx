@@ -4,7 +4,7 @@
  * Phase 2: 将 FavoritesPanel 以全页形式展示在资料层。
  * 复用 FavoriteToolbar + FavoriteList 子组件，以页面模式渲染（非抽屉）。
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
 import { apiFetch, postJSON } from '../../lib/api';

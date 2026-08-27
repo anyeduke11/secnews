@@ -6,7 +6,6 @@
  * 左栏: 质量门禁 + 趋势分析 + 标讯分析
  * 右栏: 阅读模式 + 热力图 + SOUL + 跨层行动
  */
-import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Header } from '../Header';

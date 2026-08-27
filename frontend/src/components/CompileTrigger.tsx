@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { CompilePreview } from '../types';
 
 interface CompileTriggerProps {

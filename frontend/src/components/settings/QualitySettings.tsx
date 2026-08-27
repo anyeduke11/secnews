@@ -5,7 +5,7 @@
  * 包含质量规则列表 + 多种输入类型（boolean/number/text/sample_rate slider）。
  * 自包含状态 + handlers；通过 props.open 触发数据加载。
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export interface QualityRule {
   key: string;

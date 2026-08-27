@@ -5,7 +5,7 @@
  * 当前负责：抽屉壳 + 状态管理 + 副作用（拉取/计数）+ 渲染 3 个子区段。
  * 公开 API 完全保留（<FavoritesPanel open onClose onCountChange onFavoritesChange />）。
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   FavoriteItem as FavoriteItemType,
   FavoritesListResponse,

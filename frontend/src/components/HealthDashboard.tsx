@@ -1,6 +1,6 @@
 // HealthDashboard — 知识库健康度卡片
 // Phase 5A: coverage <50% 改用 --color-error token (替换硬编码 var(--color-error))
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import type { KnowledgeHealth } from '../types';
 
 export function HealthDashboard() {

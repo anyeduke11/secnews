@@ -1,4 +1,3 @@
-import React from 'react';
 import { CATEGORIES, getCategoryColorVar, ConsistencyDrift } from '../types';
 
 interface CategoryNavProps {

@@ -5,7 +5,7 @@
  * 包含：代理模式切换、白名单输入、检测到的代理展示、连通性测试、保存按钮。
  * 自包含状态 + handlers + footer；通过 props.open 触发数据加载。
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export interface TestResult {
   url: string;

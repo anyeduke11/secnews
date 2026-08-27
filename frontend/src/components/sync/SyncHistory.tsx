@@ -5,7 +5,6 @@
  * 包含冲突表列表 (保留本地/远端) 与最近 N 条同步历史。
  * 仅渲染, props-only; 数据与回调由 index.tsx 注入。
  */
-import React from 'react';
 import { formatRelativeTime } from '../../types';
 import { SyncStatusBadge } from './SyncStatusBadge';
 import type { ConflictInfo, HistoryItem } from './types';

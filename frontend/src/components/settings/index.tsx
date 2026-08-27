@@ -8,7 +8,7 @@
  * 公开 API 与原 SettingsPanel 完全一致（向后兼容）：
  *   <SettingsPanel open={...} onClose={...} onRefreshIntervalChange={...} />
  */
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { QualitySettings } from './QualitySettings';
 import { SourceSettings } from './SourceSettings';
 import { ProxySettings } from './ProxySettings';

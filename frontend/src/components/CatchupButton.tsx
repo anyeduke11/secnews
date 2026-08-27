@@ -10,7 +10,7 @@
 // 3. running 时每 3s 轮询 status, 按钮文字变为进度; 再点即中止
 // 4. 终态后停止轮询, 显示 toast
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface CatchupRun {
   id: number;

@@ -4,7 +4,6 @@
  * Phase 1B: 拆自原 FavoritesPanel.tsx 工具栏段。
  * props-only: 接收 counts/total/activeCat + 切换/导出回调。
  */
-import React from 'react';
 import { CATEGORIES, getCategoryColorVar } from '../../types';
 
 const CATEGORY_CHIPS = [

@@ -5,7 +5,7 @@
  * 数据源: 复用 useHotspotData / useFavorites / useSSE / useTheme，直连后端实时 API
  * 切换: Header 右上角「⇄ 版式」按钮在 /data (老版) 与 /editorial (新版) 间 toggle
  */
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useHotspotData } from '../../hooks/useHotspotData';
 import { useFavorites } from '../../hooks/useFavorites';

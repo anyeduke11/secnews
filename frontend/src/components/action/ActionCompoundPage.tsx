@@ -4,7 +4,6 @@
  * 包装 KnowledgeCompound 组件，添加行动层页面头部。
  * 路由: /action/compound
  */
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { KnowledgeCompound } from '../knowledge/KnowledgeCompound';
 import { Icon } from '../Icon';

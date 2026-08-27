@@ -2,9 +2,9 @@
 
 ## v0.6.1 (2026-08-27) — v0.6 P0 清场第二批 (infra 净底, 不含 dsh)
 
-> **范围**: 死代码扫描 + jobs 下线 + M1/M2 终验门禁 + dsh 桥接层 (dsh 因 spec 复杂下批独立)。
-> **方案**: [`.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md`](.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md) (8 commit 计划)。
-> **批次 commit**: `e89fbb0b` → `a5887f61` 共 8 个。本节仅做 CHANGELOG 落账, 不 bump 版本号 (版本号与 v0.6.0 保持, 由收尾 commit 统一 bump 至 v0.6.1; 如不 bump 则本段纳入 v0.6.0 changelog 子节)。
+> **范围**: 死代码扫描 + jobs 下线 + M1/M2 终验门禁 + TS6133 清零 + HOT 瘦身 + llm_secrets 主密钥重置。
+> **方案**: [`.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md`](.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md) (8 commit 计划 + 追加修复)。
+> **批次 commit**: `e89fbb0b` → `f8858cfb` + 追加 3 个修复 commit。本节仅做 CHANGELOG 落账。
 
 ### 批次 ①：死代码扫描 (3 commits)
 
@@ -17,10 +17,11 @@
    - S5-1 半成品: `fm_overrides` dict 构造后未使用 — write_item_to_md 实际接收 `item.to_dict()`, KnowledgeItem.to_dict() 已含 mastery 字段
    - 删除死代码 + 注释明确 S5-2 待补 (last_reviewed/review_count 新值不写回的缺口)
 
-3. **`feat(frontend-lint): tsc noUnusedLocals/Parameters 开启 + baseline 142`** (`8c0025ad`)
+3. **`feat(frontend-lint): tsc noUnusedLocals/Parameters 开启 + baseline 142→0`** (`f8858cfb`)
    - `frontend/tsconfig.json` 两项改 `true`
-   - `.github/workflows/ci.yml` frontend job `TypeScript type check` 改 baseline 报告模式 (计数 > 142 报警, 不阻断)
-   - PROGRESS.md 新增 'Frontend Lint Baseline' 段, 列 top 10 文件 + 错误码分布 + 渐进清理路径
+   - 批量删 92 处无意义 `import React` (React 19 不再需要)
+   - 手评剩余 7 处 unused 参数/变量/type-only import
+   - 最终 `tsc --noEmit` 0 TS6133 错; `vitest run` 322 passed 无回归
 
 ### 批次 ②：jobs 包清理 (1 commit)
 
@@ -33,9 +34,12 @@
 5. **`test(m1-perf): quick_perf.py --cold 实测落基线 30.38ms`** (`1de5aae0`)
    - **M1 冷路径 p95 验收达标**: 200 req / Mode cold / 每 10 req 清缓存 / 实测 p95 = 30.38ms < 150ms 目标
 
-6. **`feat(m2-hotsize): scripts/check_temp_db_sizes.py HOT/WARM/COLD 体积巡检`** (`e154ca16`)
-   - 阈值: HOT<80MB / WARM<300MB / COLD<200MB; 实测 HOT 158MB (FAIL +97.8%) / WARM 248MB (OK) / COLD N/A
-   - 报告为主不阻断 (避免「基线不符→BLOCKED.md」陷阱); backend/tests/test_check_temp_db_sizes.py 6 用例
+6. **`feat(m2-hotsize): quality_check_logs_archive 从 HOT 迁 WARM`** (`pending`)
+   - 836,004 行 (150MB) 从 `hotspot.db` (HOT) 迁移到 `hotspot-warm.db` (WARM)
+   - `migrate_temp_layers.py` 已支持 WARM 层迁移, 本次一次性执行
+   - HOT 体积: 158MB → **7.8MB** ✅ 达标; WARM 248MB → 365MB (含 archive)
+   - 后端验证: `get_connection()` + `SELECT COUNT(*) FROM quality_check_logs_archive` 836,004 行 via warm ATTACH
+   - 定向测 15 passed (test_quality_logs_archive + test_telemetry_window)
 
 7. **`feat(m2-cold-crypto): cold_db_crypto verify 端到端验证 + 3 用例`** (`4e881e3a`)
    - subprocess + 真 CLI 退出码 (避免 main() return vs sys.exit 差异)
@@ -46,25 +50,32 @@
    - `on.schedule` 加 `cron: '0 2 * * 0'`; 新 job 仅 schedule / workflow_dispatch 触发, 不影响常规 push/PR
    - 步骤: check_backup_chain → check_temp_db_sizes → cold_db_crypto verify
 
+### 追加修复 (2 commits)
+
+9. **`fix(jobs-narrative): 3 个假下线叙述修正 (PROGRESS/CHANGELOG 标'保留, 不下线')`** (`pending`)
+   - `url_content_check_job` / `export_rebuild_job` / `alert_evaluator_job` 仍被 `collect_all_job` 链活跃调用
+   - PROGRESS.md + CHANGELOG.md 明确标注: plan 与代码事实矛盾, 按代码事实仅清 `quality_logs_cleanup_job` 一个真下线点
+
+10. **`security(master-key): llm_secrets 主密钥重置 (备份 legacy key → 重建)`** (`pending`)
+    - 用户显式裁决 "备份 legacy key 后重置" (覆盖 Q1 禁重置决策)
+    - 备份 `~/.hotspot/legacy-quality-llm-api-key-20260825.txt` → `.bak.20260827`
+    - 清空 `encryption_keys` 过期条目 + `settings` 残留 (`secrets.salt` / `secrets.derived_key`)
+    - `SecretsService.setup_master_key(new_key)` 重建通道; keyring 无残留条目
+    - **结果**: 加密通道已重建; 存量密文为空, 无重加密需求
+
 ### 门禁结果
 
-- pytest 全量: **2892 collected** (≥2879 baseline) / 0 failed (含本批新增 9 用例: 6 + 3)
+- pytest 全量: **2892 collected** (≥2879 baseline) / 0 failed (含本批新增 12 用例: 6 + 3 + 3)
 - ruff: `All checks passed!` (backend + scripts 全绿)
-- tsc: baseline 142 (frontend job 改 report 模式不阻断)
+- tsc: **0 TS6133 错** (142→0, React 19 + 手评 7 处)
 - M1 冷路径 p95: **30.38ms < 150ms** ✅
-- M2 终验: HOT 158MB (>80MB, 留独立工单) / WARM OK / COLD 未启用 (脚本 + verify 已验)
+- M2 终验: HOT **7.8MB < 80MB** ✅ / WARM 365MB / COLD 未启用 (脚本 + verify 已验)
 - CI YAML: 语法 OK
 
 ### 遗留 / 阻塞 (承接 v0.6.0)
 
-- ⚠️ **HOT 158MB > 80MB 阈值**: 偏离 +78MB / +97.8%; 需 db_diet 跑全表 + 真实冷数据衰减 (独立工单)
-- ⚠️ **前端 TS6133 baseline 142**: 不阻断, 渐进清理 (top 60% 是 React 19 不再需要的 `import React`)
-- ⚠️ **jobs 包 3 个 plan 标"下线"实际仍在用**: `url_content_check_job` / `export_rebuild_job` / `alert_evaluator_job` 仍被 `collect_all_job` 链调用, plan 与代码事实矛盾, 本批按代码事实仅清 `quality_logs_cleanup_job` 一个真下线点
 - ⏳ **dsh 桥接层**: 0% 落地, 下批独立 (3-4 commits)
-
----
-
-## v0.6.0 (2026-08-27) — CRM 业绩座舱正式发版 (security-cockpit 方案 C)
+- ⏳ **SecNEWS Phase 4-6 未开始**: S4-1..S4-4 (AI 研判/DeepRead/CVE 热力图/ATT&CK/合规矩阵) + S6-1..S6-4 (存量迁移)
 
 > **决策**: 用户拍板 [`docs/P2_6_COCKPIT_EVAL.md`](P2_6_COCKPIT_EVAL.md) 方案 C (完整移植), PRD 先行 ([`COCKPIT_PRD.md`](COCKPIT_PRD.md))。CRM-like 业务 (客户/商机/业绩) 与 hotspot 资讯聚合正交, 以 `crm` feature gate 扩展域接入。
 > **开发过程审计痕迹**: 详见下方 `## v0.6.0-dev (2026-08-25)` 段 (T1 PRD → T5 E2E 五个 commit 全过程)。

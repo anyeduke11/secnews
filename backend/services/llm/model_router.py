@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
 
 from backend.logging_config import logger
 
@@ -50,8 +49,9 @@ def route_model(task_type: str) -> tuple[str, str]:
     tier = get_tier(task_type)
 
     try:
-        import yaml
         from pathlib import Path
+
+        import yaml
         yaml_path = Path(__file__).resolve().parent.parent / "config" / "llm.yaml"
         if not yaml_path.exists():
             return _fallback(tier)
@@ -98,4 +98,4 @@ def get_tier(task_type: str) -> ModelTier:
     return TASK_TIER_MAP.get(task_type, ModelTier.STANDARD)
 
 
-__all__ = ["ModelTier", "TASK_TIER_MAP", "route_model", "get_tier"]
+__all__ = ["TASK_TIER_MAP", "ModelTier", "get_tier", "route_model"]

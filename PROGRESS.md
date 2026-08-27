@@ -209,10 +209,13 @@
 - [ ] S4-4: 合规矩阵面板
 
 ### Phase 5 任务分解
-- [ ] S5-1: SM-2 复习与 wiki pipeline 打通
-- [ ] S5-2: 复习结果单向投影回 wiki frontmatter
-- [ ] S5-3: 08:00 日报自动生成
-- [ ] S5-4: 到期复习卡自动出现
+- [x] S5-1: SM-2 复习与 wiki pipeline 打通 — `mastery_projection.py` 单向投影实现,
+  t4 触发器接线 (`86abe58e` P3 S5 闭环)
+- [x] S5-2: 复习结果单向投影回 wiki frontmatter — `mastery_projection.project_review_to_wiki`
+  写 mastery / last_reviewed / review_count (失败仅 warning)
+- [x] S5-3: 08:00 日报自动生成 — `digest_generator_job` 已有 (scheduler 主线)
+- [x] S5-4: 到期复习卡自动出现 — `attention_events` 自动创建 SM-2 记录
+  (P3-1 lint 治理落账 + retention decay 修复后, `3fb4398e` 注入 now 根除时间炸弹)
 
 ### Phase 6 任务分解
 - [ ] S6-1: 存量 4149 items + 96 concepts 迁移脚本
@@ -1273,7 +1276,8 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
   (后端零读者); llm.yaml provider 链对齐已随 ⑥; 明文置空 + 仓库外备份
   (`~/.hotspot/legacy-quality-llm-api-key-20260825.txt`, 0600);
   docstring 对齐 ai_hub 解析链 (`5ab5d996`)
-- [x] meta 同步: ARCHITECTURE services 88→89 补账 (`d473070e`)
+- [x] meta 同步: ARCHITECTURE services 88→89 补账 (`d473070e`); 当前 jobs 47 / collectors 14 /
+  routers 57 / services 89 (`generate_meta --check` 实测 2026-08-27)
 
 ### ⚠️ ⑤ 遗留阻塞 — llm_secrets 主密钥丢失 (需用户裁决)
 - keyring 的 master_key 对 encryption_keys id=2 verify 失败, service 按设计清除

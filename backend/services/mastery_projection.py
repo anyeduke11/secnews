@@ -9,7 +9,6 @@ wiki frontmatter (mastery / last_reviewed / review_count)。
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 
 log = logging.getLogger("hotspot.mastery_projection")
 
@@ -40,8 +39,8 @@ def project_review_to_wiki(
         return False
 
     try:
-        from backend.services.knowledge_sync import write_item_to_md
         from backend.repository.knowledge_repo import knowledge_repo
+        from backend.services.knowledge_sync import write_item_to_md
 
         item = knowledge_repo.get_item(entity_id)
         if item is None:

@@ -1,5 +1,4 @@
 """Phase 10 调试: 用 base.py 默认 _parse_html 跑 krebsonsecurity.com"""
-import re
 import ssl
 import sys
 import urllib.request

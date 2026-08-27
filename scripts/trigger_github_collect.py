@@ -6,7 +6,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.collectors.github_collector import GitHubCollector
-from backend.domain.enums import Category
 from backend.repository.db import close_db, init_db
 from backend.repository.hotspot_repo import HotspotRepository
 from backend.logging_config import setup as setup_logging

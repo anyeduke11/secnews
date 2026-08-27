@@ -131,7 +131,6 @@ def _fetch_table_detail(conn: sqlite3.Connection, table: str) -> dict[str, Any]:
     cols = conn.execute(f'PRAGMA table_info("{table}")').fetchall()
     # cols: cid, name, type, notnull, dflt_value, pk
 
-    pks = [c[1] for c in cols if c[5] > 0]
     pk_cols = sorted(
         [(c[5], c[1]) for c in cols if c[5] > 0], key=lambda x: x[0]
     )

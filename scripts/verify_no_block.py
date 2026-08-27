@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -23,7 +22,6 @@ def fetch_once(idx: int) -> tuple[int, float, str]:
         r = urllib.request.urlopen(API, timeout=TIMEOUT)
         elapsed = time.perf_counter() - t0
         body = r.read()
-        ok = len(body) > 0
         return idx, elapsed, f"OK {r.status} bytes={len(body)}"
     except Exception as e:
         elapsed = time.perf_counter() - t0

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -212,8 +212,6 @@ def main() -> None:
     # Verify
     print("\n=== Verification ===")
     from backend.repository.knowledge_repo import knowledge_repo
-    null_count = knowledge_repo.count_items() - knowledge_repo.count_items(domain=None) if False else None
-    # Actually, let's count properly
     conn_items = knowledge_repo.list_items(limit=1000)
     null_domain = [i for i in conn_items if i.domain is None]
     print(f"  Items with domain=null: {len(null_domain)} (expected 0)")

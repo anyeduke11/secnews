@@ -22,7 +22,7 @@ import json
 import re
 from pathlib import Path
 
-from backend.domain.knowledge_models import KnowledgeConcept, KnowledgeItem, now_iso
+from backend.domain.knowledge_models import KnowledgeConcept, now_iso
 from backend.repository.knowledge_repo import knowledge_repo
 from backend.services.knowledge_sync import parse_frontmatter
 

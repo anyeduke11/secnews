@@ -32,6 +32,10 @@ def project_review_to_wiki(
     写入字段: mastery / last_reviewed / review_count。
     失败只 warning 不阻塞评分主流程。
 
+    S5-2 闭合: last_reviewed / review_count 通过 item dict 侧通道传给
+    ``write_item_to_md``, 覆盖 existing_fm 继承 (即新值真正写回 md,
+    旧值不再"保留不丢" — 评分即覆盖, 单一真相源).
+
     Returns:
         True if projected, False if skipped/failed.
     """
@@ -48,18 +52,19 @@ def project_review_to_wiki(
             return False
 
         mastery = compute_mastery(easiness, repetitions)
-        item.mastered = mastery
+        item.mastery = mastery
         item.updated_at = last_reviewed
 
-        # write_item_to_md 通过 item dict + 现有 frontmatter 写回:
-        #   - mastery 由 KnowledgeItem.to_dict() 携带 (生效)
-        #   - last_reviewed / review_count 不在 to_dict() 内,
-        #     回退到 existing_fm 继承 (保持原值不丢, 新值暂不写回,
-        #     这是 S5-2 待补的功能缺口)
-        write_item_to_md(item.to_dict())
+        # S5-2 闭合: 把 last_reviewed / review_count 合并到 to_dict() 副本
+        # (KnowledgeItem 字段不污染 DB 形状, 仅投影到 md frontmatter)
+        item_dict = item.to_dict()
+        item_dict["last_reviewed"] = last_reviewed
+        item_dict["review_count"] = review_count
+
+        write_item_to_md(item_dict)
         log.info(
             f"project: {entity_id} mastery={mastery} "
-            f"review_count={review_count}"
+            f"review_count={review_count} last_reviewed={last_reviewed}"
         )
         return True
     except Exception as e:

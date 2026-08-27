@@ -52,12 +52,15 @@ def _grade(entity_type: str, entity_id: str, grade: int) -> dict:
         from backend.services.mastery_projection import project_review_to_wiki
 
         if row and isinstance(row, dict):
+            # Bugfix: row 列名是 last_reviewed_at (见 migration 026),
+            # 旧代码写 last_reviewed 永远拿到 None, 导致 md frontmatter
+            # 的 last_reviewed 字段被回退到 'null' 写盘。
             project_review_to_wiki(
                 entity_type=entity_type,
                 entity_id=entity_id,
                 easiness=float(row.get("easiness", 2.5)),
                 repetitions=int(row.get("repetitions", 0)),
-                last_reviewed=row.get("last_reviewed") or "",
+                last_reviewed=row.get("last_reviewed_at") or "",
                 review_count=int(row.get("repetitions", 0)) + 1,
             )
     except Exception as e:

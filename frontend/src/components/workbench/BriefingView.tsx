@@ -75,7 +75,11 @@ export function BriefingView() {
         {!digestLoading && digest && (
           <div className="text-[11px] font-mono space-y-1">
             <div style={{ color: 'var(--text-muted)' }}>{digest.period} · {digest.created_at}</div>
-            <pre className="whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{digest.summary}</pre>
+            {digest.summary_md ? (
+              <pre className="whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{digest.summary_md}</pre>
+            ) : (
+              <pre className="whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{digest.summary}</pre>
+            )}
             <div style={{ color: 'var(--text-muted)' }}>关联条目: {digest.item_ids?.length ?? digest.count ?? 0}</div>
           </div>
         )}

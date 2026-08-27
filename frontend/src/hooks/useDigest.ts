@@ -21,6 +21,11 @@ export interface Digest {
   id: string;
   period: string;
   summary: string;
+  /**
+   * Phase 5 commit 2: LLM 生成的 Markdown 叙事摘要.
+   * 若为空 (LLM 不可用 / 输入为空), 前端 fallback 到 summary 字段.
+   */
+  summary_md?: string | null;
   item_ids: string[];
   created_at: string;
   count?: number;

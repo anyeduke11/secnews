@@ -120,6 +120,53 @@ def create_digest(
     )
 
 
+def _summarize_with_llm(top_items: list, count: int) -> str:
+    """Phase 5: 用 LLM 生成 Markdown 叙事摘要.
+
+    Args:
+        top_items: Top N HotspotItem (已有 title/summary/score).
+        count: 窗口内文章总数.
+
+    Returns:
+        LLM 生成的 Markdown 字符串; LLM 不可用 / 输入为空时返回空串
+        (前端 fallback 到 ``summary`` 字段的模板版本).
+    """
+    if not top_items:
+        return ""
+
+    try:
+        from backend.services.ai_hub import llm_service
+    except Exception:
+        return ""
+
+    chunks = []
+    for i, item in enumerate(top_items, 1):
+        title = getattr(item, "title", "")
+        sm = getattr(item, "summary", None) or ""
+        score = getattr(item, "score", None)
+        score_str = f" (score={score})" if score is not None else ""
+        chunks.append(f"{i}. {title}{score_str}\n   {sm}".strip())
+
+    prompt = (
+        f"昨日共收录 {count} 篇文章。以下是 Top {len(top_items)} 要点:\n\n"
+        + "\n\n".join(chunks)
+        + "\n\n请用 2-4 句中文 Markdown 总结核心趋势, "
+        + "便于读者快速理解昨日要点。直接给 Markdown 内容, 不要前缀。"
+    )
+
+    try:
+        import asyncio
+
+        loop = asyncio.new_event_loop()
+        try:
+            result = loop.run_until_complete(llm_service.summarize([prompt]))
+        finally:
+            loop.close()
+        return result or ""
+    except Exception:
+        return ""
+
+
 # ---------------------------------------------------------------------------
 # Phase 4: 简报生成
 # ---------------------------------------------------------------------------
@@ -198,6 +245,10 @@ def generate_daily_digest(
         f"昨日共 {len(items)} 篇文章，Top {len(top)}: {top_titles}"
     )
 
+    # Phase 5 commit 2: LLM 生成 Markdown 叙事摘要.
+    # 失败 / 禁用 / 输入为空 → summary_md 为空串, 前端 fallback 到 summary 字段.
+    summary_md = _summarize_with_llm(top, len(items))
+
     digest_id = f"digest-{yesterday_str}"
     item_ids = [i.id for i in top]
     repository = repo or digest_repo
@@ -206,6 +257,7 @@ def generate_daily_digest(
         period="daily",
         summary=summary,
         item_ids=item_ids,
+        summary_md=summary_md,
     )
     # 补充 count 字段 (前端展示用)
     record["count"] = len(items)

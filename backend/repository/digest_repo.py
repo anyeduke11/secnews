@@ -42,6 +42,7 @@ class DigestRepository:
         summary: str,
         item_ids: list[str] | None = None,
         created_at: str | None = None,
+        summary_md: str | None = None,
     ) -> dict:
         """插入或覆盖一条简报.
 
@@ -52,11 +53,16 @@ class DigestRepository:
         period:
             周期类型 (``"daily"`` / ``"weekly"`` / ...).
         summary:
-            简报摘要文本.
+            简报摘要文本 (模板字符串, 保留向后兼容).
         item_ids:
             关联的 hotspot/knowledge id 列表, 存为 JSON.
         created_at:
             创建时间 (ISO 8601), 默认当前 UTC.
+        summary_md:
+            LLM 生成的 Markdown 摘要 (Phase 5 commit 2 新增).
+            与 ``summary`` 并存: ``summary`` 用于结构化展示
+            (count + Top N titles), ``summary_md`` 用于叙事化阅读.
+            为 None 时落盘 NULL.
 
         Returns
         -------
@@ -68,21 +74,23 @@ class DigestRepository:
         conn = get_connection()
         conn.execute(
             """
-            INSERT INTO digests (id, period, summary, item_ids, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO digests (id, period, summary, item_ids, created_at, summary_md)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 period = excluded.period,
                 summary = excluded.summary,
                 item_ids = excluded.item_ids,
-                created_at = excluded.created_at
+                created_at = excluded.created_at,
+                summary_md = excluded.summary_md
             """,
-            (digest_id, period, summary, ids_json, ts),
+            (digest_id, period, summary, ids_json, ts, summary_md),
         )
         return self.get(digest_id) or {
             "id": digest_id,
             "period": period,
             "summary": summary,
             "item_ids": ids_json,
+            "summary_md": summary_md,
             "created_at": ts,
         }
 

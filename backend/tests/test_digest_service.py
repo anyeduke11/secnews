@@ -371,3 +371,74 @@ class TestAcceptance4DailyDigest:
         assert len(recent) == 1
         assert recent[0]["id"] == result["id"]
         assert recent[0]["summary"] == result["summary"]
+
+
+# ===========================================================================
+# v0.6 Phase 5 commit 2: LLM 摘要 (summary_md)
+# ===========================================================================
+class TestLlmSummary:
+    """summary_md 字段路径测试.
+
+    LLM 不可用时 summary_md 为空串 (前端 fallback 到 summary 字段);
+    LLM 可用时 summary_md 应承载 Markdown 摘要. 测试用 mock llm_service.
+    """
+
+    def test_summary_md_empty_when_llm_disabled(self, temp_db, monkeypatch):
+        """LLM 不可用 → summary_md 字段为空, summary 字段保留模板."""
+        _insert_hotspot("h1", "AI 突破", score=80,
+                        ingested_at=_yesterday_shanghai_hours_ago(1))
+
+        # patch llm_service 让 summarize 返回空 (LLM 禁用 / 失败)
+        from backend.services.ai_hub import llm_service
+
+        async def _empty_summarize(chunks):
+            return ""
+
+        monkeypatch.setattr(
+            llm_service, "summarize", _empty_summarize
+        )
+
+        result = generate_daily_digest()
+        # summary_md 字段存在但为空串 (前端 fallback)
+        assert result["summary_md"] == ""
+        # summary 字段保留模板字符串 (向后兼容)
+        assert "昨日共 1 篇" in result["summary"]
+
+    def test_summary_md_populated_when_llm_available(self, temp_db, monkeypatch):
+        """LLM 可用 → summary_md 承载 Markdown 叙事."""
+        _insert_hotspot("h1", "AI 突破", score=80,
+                        ingested_at=_yesterday_shanghai_hours_ago(1))
+        _insert_hotspot("h2", "安全事件", score=95,
+                        ingested_at=_yesterday_shanghai_hours_ago(2))
+
+        from backend.services.ai_hub import llm_service
+
+        async def _fake_summarize(chunks):
+            return "昨日聚焦 AI 与安全两大主线, 安全事件以 95 分居首。"
+
+        monkeypatch.setattr(
+            llm_service, "summarize", _fake_summarize
+        )
+
+        result = generate_daily_digest()
+        assert result["summary_md"] == "昨日聚焦 AI 与安全两大主线, 安全事件以 95 分居首。"
+        # summary 字段仍保留模板 (两值并存)
+        assert "昨日共 2 篇" in result["summary"]
+
+    def test_summary_md_persists_to_db(self, temp_db, monkeypatch):
+        """summary_md 写入 DB, repository.get 可读出."""
+        _insert_hotspot("h1", "测试", score=50,
+                        ingested_at=_yesterday_shanghai_hours_ago(1))
+
+        from backend.services.ai_hub import llm_service
+
+        async def _fake(chunks):
+            return "LLM narrative"
+
+        monkeypatch.setattr(llm_service, "summarize", _fake)
+
+        generate_daily_digest()
+
+        recent = DigestRepository().list_recent(limit=1)
+        assert len(recent) == 1
+        assert recent[0]["summary_md"] == "LLM narrative"

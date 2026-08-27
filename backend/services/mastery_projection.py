@@ -51,12 +51,11 @@ def project_review_to_wiki(
         item.mastered = mastery
         item.updated_at = last_reviewed
 
-        # 读现有 frontmatter 以保留 md-only 字段
-        fm_overrides: dict = {
-            "mastery": mastery,
-            "last_reviewed": last_reviewed,
-            "review_count": review_count,
-        }
+        # write_item_to_md 通过 item dict + 现有 frontmatter 写回:
+        #   - mastery 由 KnowledgeItem.to_dict() 携带 (生效)
+        #   - last_reviewed / review_count 不在 to_dict() 内,
+        #     回退到 existing_fm 继承 (保持原值不丢, 新值暂不写回,
+        #     这是 S5-2 待补的功能缺口)
         write_item_to_md(item.to_dict())
         log.info(
             f"project: {entity_id} mastery={mastery} "

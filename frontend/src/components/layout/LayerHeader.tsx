@@ -42,7 +42,7 @@ export const FLOW_COLORS: Record<string, string> = {
 /* ─── LayerHeader 组件 ─── */
 
 export function LayerHeader({
-  layerName, subtitle, subNav, backPath, isSubPage, actions,
+  layerName, subtitle, backPath, isSubPage, actions,
 }: LayerHeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -89,7 +89,7 @@ export function LayerHeader({
  * useLayerSubNav — 根据当前路径生成层内子导航
  */
 export function useLayerSubNav(
-  basePath: string,
+  _basePath: string,
   items: { key: string; label: string; path: string }[],
   currentPath: string,
 ): LayerSubNav[] {

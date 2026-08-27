@@ -105,7 +105,7 @@ describe('ResourceHub', () => {
 
   it('renders domain cards when switched to domain tab', async () => {
     vi.stubGlobal('fetch', mockFetchFor([domain]));
-    const { container } = render(<ResourceHub />);
+    render(<ResourceHub />);
     // 等待初始 mount 的 fetch 完成（以总数徽章判断）
     await waitFor(() => {
       expect(screen.getByText(/共 1/)).toBeInTheDocument();

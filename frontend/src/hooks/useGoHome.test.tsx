@@ -1,6 +1,6 @@
 // frontend/src/hooks/useGoHome.test.ts
 // Phase 6 — useGoHome hook 测试
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useGoHome } from './useGoHome';

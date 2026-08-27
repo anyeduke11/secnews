@@ -87,7 +87,7 @@ export function WeeklyReportContent() {
     );
   }
 
-  const { period, total, category_counts, main_theme, highlights, stats } = overview;
+  const { period, total, main_theme, highlights, stats } = overview;
 
   return (
     <div className="space-y-6">

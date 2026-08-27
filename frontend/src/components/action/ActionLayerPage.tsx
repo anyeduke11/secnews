@@ -56,11 +56,11 @@ export function ActionLayerPage() {
   const [manualRefreshing, setManualRefreshing] = useState(false);
 
   const {
-    items, categoryCounts, loading, lastUpdated,
+    categoryCounts, lastUpdated,
     latestIngestionCount, latestIngestionAt, refresh,
   } = useHotspotData(category, '7d', '', '', '');
 
-  const { connected: sseConnected } = useSSE({
+  useSSE({
     onEvent: (type, _data) => {
       if (type === 'collect_done') refresh();
     },

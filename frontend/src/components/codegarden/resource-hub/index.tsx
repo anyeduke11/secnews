@@ -20,7 +20,6 @@ export function ResourceHub() {
   const [tab, setTab] = useState<Tab>('port');
   const {
     items, total, loading, error,
-    resourceType, resourceStatus,
     setResourceType, setResourceStatus,
     refresh, allocatePort, releasePort, remove,
   } = useCodegardenResources();

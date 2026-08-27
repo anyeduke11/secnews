@@ -1,7 +1,7 @@
 // frontend/src/components/DeepReadView.test.tsx
 // v1.7 Phase 4 — DeepReadView 组件测试
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 // Mock useGoHome — 避免 jsdom 跳转问题

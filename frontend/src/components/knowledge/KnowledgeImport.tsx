@@ -7,8 +7,7 @@
  *  - 打开 Obsidian 知识库
  *  - 查看同步冲突快照
  */
-import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef } from 'react';
 import { Icon } from '../Icon';
 import { BookmarkImport } from '../BookmarkImport';
 import { KNOWLEDGE_AREAS } from './KnowledgeTabs';
@@ -23,7 +22,6 @@ const PHASE_LABELS: Record<string, string> = {
 };
 
 export function KnowledgeImport() {
-  const navigate = useNavigate();
   const [syncing, setSyncing] = useState(false);
   const [syncPhase, setSyncPhase] = useState('');
   const [syncCurrent, setSyncCurrent] = useState(0);

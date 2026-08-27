@@ -6,10 +6,9 @@
  * 左栏: 资讯流/标讯列表
  * 右栏: 快捷入口 + 跨层流转 + 统计 + 趋势
  */
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useHotspotData } from '../../hooks/useHotspotData';
 import { useRefreshInterval } from '../../hooks/useRefreshInterval';
-import { useTodos } from '../../hooks/useTodos';
 import { useFavorites, syncFavorites } from '../../hooks/useFavorites';
 import { useSSE } from '../../hooks/useSSE';
 import { Header } from '../Header';
@@ -21,7 +20,7 @@ import { HotspotGrid } from '../HotspotGrid';
 import { LoadingSkeleton } from '../LoadingSkeleton';
 import { RegionFilter } from '../RegionFilter';
 import { FavoritesPanel } from '../favorites';
-import { LayerCard, LayerCardRow, PipelineFlow, ViewMoreLink } from '../layout/LayerCard';
+import { LayerCard, LayerCardRow, PipelineFlow } from '../layout/LayerCard';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { ConsistencyDrift, StatsResponse } from '../../types';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -39,7 +38,7 @@ export function DataLayerPage() {
   const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [consistencyDrift, setConsistencyDrift] = useState<ConsistencyDrift[]>([]);
   const [manualRefreshing, setManualRefreshing] = useState(false);
-  const { interval: refreshInterval, setInterval: setRefreshInterval, refreshFromServer } = useRefreshInterval();
+  const { interval: refreshInterval, refreshFromServer } = useRefreshInterval();
   const lastAutoRefreshAtRef = useRef<number>(Date.now());
 
   // 收藏状态统一走 useFavorites 共享 store (ids + 总数 + 乐观更新/回滚)
@@ -50,8 +49,6 @@ export function DataLayerPage() {
     hasMore, page, pageSize, totalPages, setPage, setPageSize, refresh,
     latestIngestionCount, latestIngestionAt,
   } = useHotspotData(category, timeRange, keyword, region, sourceFilter);
-
-  const todos = useTodos();
 
   const { connected: sseConnected } = useSSE({
     onEvent: (type, _data) => {
@@ -133,7 +130,6 @@ export function DataLayerPage() {
         favoritesCount={favoritesCount}
         refreshIntervalMinutes={refreshInterval}
         lastAutoRefreshAtRef={lastAutoRefreshAtRef}
-        todosOpenCount={todos.count?.by_status.open ?? 0}
         refreshing={manualRefreshing}
         pipelineSummary={pipelineSummary}
         layerName="资料层"

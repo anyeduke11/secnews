@@ -22,7 +22,6 @@ export function CollectionSettings() {
   const [stats, setStats] = useState<StatsSummary | null>(null);
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [toggling, setToggling] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);

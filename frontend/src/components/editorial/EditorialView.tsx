@@ -503,7 +503,7 @@ export function EditorialView() {
               <div className="ed-cellbox" style={{ padding: 0 }}>
                 {outboxItems.length === 0 ? (
                   <div className="ed-empty">尚未收藏任何条目 — 回到资料层点「★」。</div>
-                ) : outboxItems.map((it, i) => (
+                ) : outboxItems.map((it) => (
                   <div key={it.id} className="ed-outbox-row">
                     <span className={`ed-badge-cat ${bc(it.category)}`}>{getCategoryLabel(it.category)}</span>
                     <span style={{ flex: 1, fontSize: 13 }}>{esc(it.title)}</span>

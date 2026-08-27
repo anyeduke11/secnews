@@ -22,7 +22,7 @@ import type { SecretsPageProps } from './types';
 export function SecretsPage({ onBack }: SecretsPageProps) {
   const {
     status, items, total, loading, error,
-    refreshStatus, refreshList,
+    refreshList,
     setupMasterKey, unlock, lock,
     add, update, remove,
     reveal, testConnection,
@@ -183,7 +183,6 @@ export function SecretsPage({ onBack }: SecretsPageProps) {
         <div className="mb-3">
           <AddOrEditForm
             editing={editing}
-            unlocked={status.unlocked}
             onSubmit={async req => {
               if (editing) {
                 await update(editing.id, req);

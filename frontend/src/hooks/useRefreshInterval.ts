@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 
 export const REFRESH_INTERVAL_OPTIONS = [
   { value: 5, label: '5 分钟' },

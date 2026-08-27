@@ -24,7 +24,6 @@ interface HeaderProps {
   favoritesCount?: number;
   refreshIntervalMinutes?: number;
   lastAutoRefreshAtRef?: MutableRefObject<number>;
-  todosOpenCount?: number;
   refreshing?: boolean;
   /** 管线各层数据量（可选） */
   pipelineSummary?: { data: number; judge: number; action: number };
@@ -63,13 +62,13 @@ function Icon({ children, size = 14 }: { children: React.ReactNode; size?: numbe
 export function Header({
   latestIngestionCount, lastUpdated, onRefresh, theme, onThemeToggle,
   onOpenFavorites, favoritesCount = 0, refreshIntervalMinutes,
-  lastAutoRefreshAtRef, todosOpenCount = 0, refreshing = false,
+  lastAutoRefreshAtRef, refreshing = false,
   pipelineSummary, layerName, layerSubtitle,
 }: HeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [now, setNow] = useState<number>(Date.now());
-  const [secretTTL, setSecretTTL] = useState<number | null>(null);
+  const [_secretTTL, setSecretTTL] = useState<number | null>(null);
   // P0-4: "更多"菜单 — 承接旧 Sidebar 中被孤立的页面入口
   // (知识管理 / Skill / 密钥 / 同步), 消除"路由存在但主导航不可达"。
   const [moreOpen, setMoreOpen] = useState(false);

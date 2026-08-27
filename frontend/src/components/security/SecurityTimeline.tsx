@@ -1,13 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSecurityGraph } from '../../hooks/useSecurityGraph';
-
-interface TimelineEntry {
-  date: string;
-  cve_id: string;
-  title: string;
-  severity?: string;
-  related_hotspots: Array<{ id: string; title: string; category: string }>;
-}
 
 const SEVERITY_COLORS: Record<string, string> = {
   CRITICAL: 'var(--color-error)',
@@ -18,7 +10,7 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 export function SecurityTimeline() {
-  const { data, loading, error } = useSecurityGraph('cve');
+  const { data, loading } = useSecurityGraph('cve');
   const [severityFilter, setSeverityFilter] = useState<string>('all');
 
   if (loading) {

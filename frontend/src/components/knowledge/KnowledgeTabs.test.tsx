@@ -1,6 +1,6 @@
 // frontend/src/components/knowledge/KnowledgeTabs.test.tsx
 // 知识管理 4 大领域导航测试
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { KnowledgeTabs, KNOWLEDGE_AREAS, findAreaByPath } from './KnowledgeTabs';

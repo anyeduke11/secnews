@@ -4,15 +4,14 @@
  * 拆自原 SecretsPage.tsx (794 行) 中 AddOrEditForm (~460-605 行)。
  * 纯结构拆分: 表单状态与提交校验逻辑逐字迁移。
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { SecretItem } from '../../types';
 import type { SecretFormRequest } from './types';
 
 export function AddOrEditForm({
-  editing, unlocked, onSubmit, onCancel,
+  editing, onSubmit, onCancel,
 }: {
   editing: SecretItem | null;
-  unlocked: boolean;
   onSubmit: (req: SecretFormRequest) => Promise<void>;
   onCancel?: () => void;
 }) {

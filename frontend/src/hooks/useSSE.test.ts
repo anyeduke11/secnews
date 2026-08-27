@@ -10,7 +10,7 @@
  * 这些测试验证的是"避免高频 SSE 消息导致渲染风暴"的意图。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 
 // Mock EventSource
 class MockEventSource {
@@ -58,7 +58,6 @@ class MockEventSource {
 
 describe('useSSE — P0.3 节流 + 分帧', () => {
   let originalEventSource: typeof EventSource;
-  let rafSpy: ReturnType<typeof vi.spyOn>;
   let originalRaf: typeof globalThis.requestAnimationFrame;
 
   beforeEach(() => {

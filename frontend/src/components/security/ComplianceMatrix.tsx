@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
 import { useSecurityGraph } from '../../hooks/useSecurityGraph';
 
 export function ComplianceMatrix() {
-  const { data, loading, error } = useSecurityGraph('compliance');
+  const { data, loading } = useSecurityGraph('compliance');
 
   if (loading) {
     return (

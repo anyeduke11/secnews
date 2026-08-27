@@ -322,7 +322,7 @@ export function MonthlyReport() {
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {months.map((m, mi) => {
+            {months.map((m) => {
               const isActive = m.label === period.label;
               return (
                 <button

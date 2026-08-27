@@ -50,7 +50,7 @@
 | 指标 | 基线值 | 目标 | 测量命令 |
 |------|--------|------|----------|
 | 后端测试收集数 | **2573**（0 error，含 M2-T4 db_diet 9 + M2-T5 cli_contract 7 + sse_events 8 + M2-T6 修复的 cwd/env） | ≥2573，skipped 不增 | `.venv/bin/python -m pytest backend/tests/ --collect-only -q \| tail -1` |
-| 冷路径 p95 | **待服务启动后测**（后端当前未运行） | <150ms | `.venv/bin/python scripts/quick_perf.py --cold` |
+| 冷路径 p95 | **30.38ms**（2026-08-27 v0.6 P0 清场第二批 commit 5 实测，200 req / Mode cold） | <150ms | `.venv/bin/python scripts/quick_perf.py --cold` |
 | 查询计划 | `idx_hotspot_region` + **TEMP B-TREE FOR ORDER BY** | 出 `idx_list_visible` 无 TEMP SORT | §12 EXPLAIN 命令 |
 | 主 chunk | **1,144,684 B (1.14MB)** `index-DugkVWQY.js` | <300KB | `ls -laS frontend/dist/assets/*.js` |
 | DB 体积 | **1.0GB**（vacuum_into 后 0.997GB；质量审计日志占 73% 体积） | <300MB → M2-T6 终态 HOT<80MB | `du -sh backend/hotspot.db` |

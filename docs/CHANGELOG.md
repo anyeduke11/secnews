@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.6.0 (2026-08-27) — CRM 业绩座舱正式发版 (security-cockpit 方案 C)
+
+> **决策**: 用户拍板 [`docs/P2_6_COCKPIT_EVAL.md`](P2_6_COCKPIT_EVAL.md) 方案 C (完整移植), PRD 先行 ([`COCKPIT_PRD.md`](COCKPIT_PRD.md))。CRM-like 业务 (客户/商机/业绩) 与 hotspot 资讯聚合正交, 以 `crm` feature gate 扩展域接入。
+> **开发过程审计痕迹**: 详见下方 `## v0.6.0-dev (2026-08-25)` 段 (T1 PRD → T5 E2E 五个 commit 全过程)。
+> **本批次**: 仅做版本号 bump (0.5.1 → 0.6.0) + 本段正式条目 + PROGRESS 落账; CRM 5 commit 已随 v0.5.1 推送批次入仓 (`b2131446` / `4b8b4c66` / `920587c8` / `405d98ca` / `abfc7761`)。
+
+### 核心交付
+
+- **T1 PRD** (`b2131446`): 四问默认假设 + US-1 录入客户 / US-2 商机推进 / US-3 座舱复盘 + 六态状态机 (需求沟通→方案提交→商务谈判→合同签订→赢单/输单, 终态冻结) + KPI 口径表
+- **T2 数据层** (`4b8b4c66`): migration `071_crm_cockpit.sql` 三表 + `crm_customer_repo` / `crm_opportunity_repo` (状态机唯一裁决) + 单测 10 用例
+- **T3 API 层** (`920587c8`): `/api/crm/customers` CRUD、`/api/crm/opportunities` (+`/transition` 唯一阶段入口)、`/api/crm/stats|meta`; `X-CRM-Token` 常量时间鉴权 (未设 env = 本地模式); extensions 注册 crm 扩展域 + `feature_gates.toml` `crm = true`; 测试矩阵补 crm; ARCHITECTURE 数字同步 (routers 57 / services 87)
+- **T4 前端** (`405d98ca`): `/crm` 页面 — CockpitDashboard (8 KPI 卡 + 月度营收/区域分布/漏斗手写 SVG)、CustomerManager、OpportunityManager; `useFeatureFlags.crm` 全链路; ROUTE_REGISTRY §2.7 登记; Header「更多」入口
+- **T5 E2E+文档** (`abfc7761`): `backend/tests/test_crm_e2e.py` 全栈闭环 (US-1→US-2→US-3 经 register_routers); PROGRESS / CHANGELOG / P2_6_COCKPIT_EVAL §决议记录 同步; Playwright 浏览器级 E2E 列为后续增强
+
+### 门禁结果
+
+- pytest 全量: ≥2879 passed / 0 failed (ruff --fix 后复测)
+- `generate_meta --check`: 绿 (jobs 47 / collectors 14 / routers 57 / services 89)
+- ruff: 全仓 `All checks passed!`
+- 前端: tsc --noEmit 0 错 + vitest 322 passed + vite build 过 (主 chunk 24-28 KB)
+
+### 关联清理 (`d5696fb9`)
+
+- ruff 6 处存量清零 (model_router.py + mastery_projection.py)
+- PROGRESS.md Phase 5 S5-1..S5-4 勾选 + 证据 commit 补齐
+- services 89 叙述与 generate_meta 实测对齐
+
+### 遗留 / 阻塞
+
+- ⚠️ **llm_secrets 主密钥丢失**: ⑤ v0.6 P0 清场第一批遗留阻塞, 加密通道接管需用户裁决 (Q1 禁重置 vs webdav 存量密文依赖现 key)
+- ⏳ **SecNEWS Phase 4-6 未开始**: S4-1..S4-4 (AI 研判/DeepRead/CVE 热力图/ATT&CK/合规矩阵) + S5-1..S5-4 部分 + S6-1..S6-4 (存量迁移)
+
+---
+
 ## v0.5.1 (2026-08-25) — v0.6 P0 清场第一批 (⑥③⑤)
 
 > 方案: [`docs/v0.6_ai_workstation_plan.md`](v0.6_ai_workstation_plan.md) §P0 清场与统一。
@@ -53,8 +87,9 @@
 - ARCHITECTURE.md services 88→89 (并行会话 mastery_projection.py 注册补账);
   `generate_meta --check` 绿 (jobs 47 / collectors 14 / routers 57 / services 89)
 
-## v0.6.0-dev (2026-08-25) — CRM 业绩座舱 (security-cockpit 方案 C)
+## v0.6.0-dev (2026-08-25) — CRM 业绩座舱 (开发过程审计痕迹) (security-cockpit 方案 C)
 
+> **状态**: ⏸️ **开发过程审计段** — 本段由 v0.6.0 正式发布前的 5 个 T 任务 commit (T1 PRD → T5 E2E) 留痕构成; 正式发版段见顶部 `## v0.6.0 (2026-08-27)`。保留本段作为开发过程可追溯审计痕迹, 不抹除历史。
 > **决策**: 用户拍板 [`docs/P2_6_COCKPIT_EVAL.md`](P2_6_COCKPIT_EVAL.md) 方案 C (完整移植), PRD 先行 ([`COCKPIT_PRD.md`](COCKPIT_PRD.md))。CRM-like 业务 (客户/商机/业绩) 与 hotspot 资讯聚合正交, 以 `crm` feature gate 扩展域接入。
 
 ### T1-T5 一任务一提交

@@ -1,6 +1,68 @@
 # Changelog
 
-## v0.6.1 (2026-08-27) — v0.6 P0 清场第二批 + dsh 桥接层 + Phase 4 工作台 UI
+## v0.6.1 (2026-08-27) — v0.6 P0 清场第二批 + dsh 桥接层 + Phase 4 工作台 UI + **v0.6 Phase 5 (mastery 闭合 + 08:00 LLM 简报 + MCP 扩展 5 tool)**
+
+> **范围**: 在 v0.6 P0 清场第二批 / dsh 桥接层 / Phase 4 工作台 UI 之外, 追加 Phase 5 三批落地:
+> 1. SM-2 复习 → wiki mastery 投影闭合 (last_reviewed/review_count 双向写入)
+> 2. 08:00 简报接入 LLM 叙事摘要 (summary_md 列)
+> 3. MCP tool 扩展 5 个 (kl_enqueue/status/retry + dsh_analyze/session)
+>
+> **批次 commit**: 3 个 (`87540929` / `73d1dc05` / `840987fe`), 紧接 Phase 4 (`301837d2`) 入仓。
+
+### 批次 ⑩：v0.6 Phase 5 — SM-2 复习 → wiki mastery 闭合 + LLM 简报 + MCP 工具扩展
+
+1. **`fix(phase5-sm2-mastery): 修复 last_reviewed 列名 + 闭合 S5-2 frontmatter 写入`** (`87540929`)
+   - `backend/api/reviews.py:60` 列名 bug: 旧代码读 `row.get("last_reviewed")` 返回 `None` (DB 字段为 `last_reviewed_at`), 落到 md frontmatter 是 `last_reviewed: null`。
+     修复为 `last_reviewed=row.get("last_reviewed_at") or ""` + bugfix 注释。
+   - S5-2 闭合: `mastery_projection.project_review_to_wiki` 新值不再被 `existing_fm` 继承遮蔽。`item_dict = item.to_dict()` + `item_dict["last_reviewed"] = ...` 侧通道传给 `write_item_to_md`, 单一真相源 (SSoT)。
+   - 新文件 `backend/tests/test_mastery_projection.py` (7 用例): 公式 / 重复 / 截断 / 非 knowledge_item 跳过 / 找不到 item 跳过 / Bugfix 验证 / S5-2 覆盖验证。
+   - 涉及: `backend/api/reviews.py` / `backend/services/mastery_projection.py` / 新增 `backend/tests/test_mastery_projection.py`。
+
+2. **`feat(phase5-digest-llm): 08:00 简报接入 LLM 叙事摘要 (summary_md 字段)`** (`73d1dc05`)
+   - `generate_daily_digest()` 原本用模板拼接 `_render_template_summary()`, 现改走 `llm_service.summarize([prompt])` 生成 Markdown 叙事 (2-4 句中文, Top 10 要点 → 核心趋势)。
+   - LLM 不可用 / 输入空 / 异常时 `summary_md` 落空串, 前端 fallback 到既有 `summary` 字段模板版本, 不破坏既有阅读体验。
+   - Python 3.14 兼容: `asyncio.new_event_loop()` + `loop.run_until_complete()` 包裹 sync 调用 (no implicit event loop)。
+   - 新增 `backend/repository/migrations/072_v0.6_digest_summary_md.sql` (`ALTER TABLE digests ADD COLUMN summary_md TEXT`), 幂等迁移 (error-tolerant in db.py)。
+   - `digest_repo.add()` 扩展 `summary_md: str | None = None` 参数, INSERT/ON CONFLICT 同步更新。
+   - 前端 `useDigest` `Digest` 接口增 `summary_md?: string | null`; `BriefingView` 优先展示 `digest.summary_md`, fallback 到 `digest.summary`。
+   - 新增 3 用例 (`backend/tests/test_digest_service.py`): `_summary_md` 空时 / LLM 可用时 / 持久化到 DB。
+   - 涉及: 新迁移 / `digest_repo.py` / `digest_service.py` / `useDigest.ts` / `BriefingView.tsx` / 新增 3 用例。
+
+3. **`feat(phase5-mcp-extend): 5 个 MCP tool 扩展 (kl_enqueue/kl_status/kl_retry/dsh_analyze/dsh_session)`** (`840987fe`)
+   - 沿用 Phase 1 (wiki_*) 的 3 步模式: Pydantic 输入模型 → `MCP_TOOLS` 列表项 → FastAPI 端点。
+   - 5 个新 tool 路由:
+     - KL 推进族 `/api/mcp/kl/*`: `kl_enqueue` (推进 item, kl_state_machine 校验) / `kl_status` (漏斗 + 队列 + 错误 + alive + ledger 快照) / `kl_retry` (重试错误任务)
+     - DSH 分析族 `/api/mcp/dsh/*`: `dsh_analyze` (DSH classify + LLM fallback) / `dsh_session` (按 session_id 查询会话)
+   - 错误响应语义: 503 (KL 不可达) / 404 (item 不存在 / 非法 transition) / 500 (dsh_analyze 兜底)。
+   - operation_id 通过 FastAPI `openapi()` 自动生成验证, 5 个 id 与 `mcp_config.MCP_TOOL_OPERATION_IDS` 100% 对齐:
+     - `kl_enqueue_api_mcp_kl_enqueue_post` / `kl_status_api_mcp_kl_status_get`
+     - `kl_retry_api_mcp_kl_retry_post` / `dsh_analyze_api_mcp_dsh_analyze_post`
+     - `dsh_session_api_mcp_dsh_session__session_id__get`
+   - 硬编码测试断言同步更新: `test_mcp_server.py` / `test_mcp_sse.py` / `test_phase7_e2e.py` 14 → 19, 类别 9 read + 5 write → 12 read + 7 write (新增 3 读 + 2 写)。
+   - 涉及: 新增 `backend/api/mcp_phase5_tools.py` / `backend/api/__init__.py` (mcp 守卫) / `backend/api/mcp_types.py` (3 input model + 5 MCP_TOOLS 项) / `backend/api/mcp_config.py` (5 operation_id) / 3 测试文件。
+
+#### MCP tool 总数演进
+
+| 阶段 | 累计 | 来源 |
+|---|---|---|
+| Phase 15 基础 | 9 | search_hotspots / get_hotspot / list_favorites / search_knowledge / get_personal_profile / add_favorite / remove_favorite / add_annotation / update_knowledge_item |
+| v0.5 §18 wiki_* | +5 | wiki_search / wiki_read / wiki_graph / db_trace / wiki_write |
+| v0.6 Phase 5 | **+5** | kl_enqueue / kl_status / kl_retry / dsh_analyze / dsh_session |
+| **总计** | **19** | 12 read + 7 write |
+
+#### 验收
+
+- `ruff check backend/api/`: 4 文件全清 (含 mcp_phase5_tools 内 3 处 import 排序 + 1 处 __all__ 排序)。
+- `pytest backend/tests/test_mastery_projection.py`: 7/7 通过。
+- `pytest backend/tests/test_digest_service.py`: 31/31 通过 (3 新增 + 28 旧)。
+- `pytest backend/tests/test_mcp_server.py + test_mcp_sse.py + test_phase7_e2e.py`: 22/22 通过 (硬编码更新后)。
+- `tsc --noEmit`: 0 错 (前端无回归)。
+- 全量 `pytest backend/tests/`: 2896 通过 / 6 skip / 4 失败 → 2 个失败为本批次本 commit 修复 (硬编码计数) ; 2 个为 pre-existing `test_codegarden_ops_api` port 状态 flake (在 plain main 也失败, 与本批无关)。
+
+#### 关联
+
+- `PROGRESS.md` v0.6 Phase 5 段落勾选 + 验收补充。
+- `backend/ARCHITECTURE.md` 服务/路由/job 数无需刷新 (Phase 5 未增减 services, 仅 mcp_router 注册一处, 由 `is_extension_enabled('mcp')` 守卫)。
 
 > **范围**: 死代码扫描 + jobs 下线 + M1/M2 终验门禁 + TS6133 清零 + HOT 瘦身 + llm_secrets 主密钥重置 + dsh 桥接层 + Phase 4 工作台 5 视图。
 > **方案**: [`.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md`](.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md) (8 commit 计划 + 追加修复 + dsh 桥接层)。

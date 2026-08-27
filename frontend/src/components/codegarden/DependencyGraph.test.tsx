@@ -31,7 +31,7 @@ function mockFetchFor(
   events: CgEvent[] = [],
   playbooks: Playbook[] = [],
 ) {
-  return vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+  return vi.fn().mockImplementation((url: string) => {
     if (url.startsWith('/api/codegarden/dependencies?')) {
       return Promise.resolve({
         ok: true, status: 200,

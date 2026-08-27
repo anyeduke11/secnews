@@ -1,17 +1,9 @@
 // frontend/src/components/PageLayout.test.tsx
 // Phase 6 — PageLayout 路由壳 + ToastProvider 测试
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { PageLayout } from './PageLayout';
-
-// 捕获 toast 触发: 用一个 useToast 消费者组件
-function ToastTrigger({ message }: { message: string }) {
-  // 动态引入避免循环
-  const ev = new CustomEvent('test:show-toast', { detail: { message } });
-  window.dispatchEvent(ev);
-  return <div>trigger-{message}</div>;
-}
 
 describe('PageLayout', () => {
   beforeEach(() => {

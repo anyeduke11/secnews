@@ -46,9 +46,8 @@ const mockAlerts = [
 describe('AlertCenter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn(async (url: any, opts?: any) => {
+    global.fetch = vi.fn(async (url: any, _opts?: any) => {
       const u = typeof url === 'string' ? url : url.url;
-      const method = opts?.method || 'GET';
 
       // GET /api/alerts/v2 — 告警列表
       if (u.startsWith(`${API_BASE}?`) || u === API_BASE) {

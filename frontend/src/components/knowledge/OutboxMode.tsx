@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '../Icon';
 import { EmptyState } from '../EmptyState';
-import { STAGE_LABELS, STAGE_COLORS, ALL_STAGES } from './LifecycleProgress';
+import { STAGE_LABELS, STAGE_COLORS } from './LifecycleProgress';
 import type { KnowledgeItem } from '../../types';
 import { OnboardingHint } from '../layout/OnboardingHint';
 

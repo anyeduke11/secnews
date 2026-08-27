@@ -14,7 +14,7 @@ function Safe({ text }: { text: string }) {
 
 describe('ErrorBoundary', () => {
   // 静默 React 的 error 警告, 测试中预期会触发
-  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'error').mockImplementation(() => {});
 
   it('renders children when no error', () => {
     render(

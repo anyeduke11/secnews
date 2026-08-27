@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSecurityGraph, SecurityEntity } from '../../hooks/useSecurityGraph';
 import { SecurityEntityDetail } from './SecurityEntityDetail';
 

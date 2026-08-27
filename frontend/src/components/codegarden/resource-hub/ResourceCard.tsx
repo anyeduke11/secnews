@@ -4,7 +4,7 @@
  * Phase 1B: 拆自原 ResourceHub.tsx ResourceCard 段。
  * props-only: 接收 resource + 可选 onRemove, 渲染状态徽标 + owner 元数据。
  */
-import { CgResource, RESOURCE_TYPE_LABELS } from '../../../types/codegarden';
+import { RESOURCE_TYPE_LABELS } from '../../../types/codegarden';
 import { ResourceCardProps, PORT_STATUS_COLORS } from './types';
 
 export function ResourceCard({ resource, onRemove }: ResourceCardProps) {

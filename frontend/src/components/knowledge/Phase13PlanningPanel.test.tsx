@@ -44,7 +44,7 @@ describe('KnowledgePlanningPanel', () => {
   });
 
   it('test_planning_panel_renders', async () => {
-    global.fetch = vi.fn(async (url: any, opts?: any) => {
+    global.fetch = vi.fn(async (url: any) => {
       const u = typeof url === 'string' ? url : url.url;
       if (u.includes('/api/kl/planning-actions')) {
         return new Response(

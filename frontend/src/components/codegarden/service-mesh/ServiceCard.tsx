@@ -4,7 +4,7 @@
  * Phase 1B: 拆自原 ServiceMesh.tsx ServiceCard。
  * props-only: 接收 service + onClick, 完全无业务状态。
  */
-import { CgService, SERVICE_RUNTIME_COLORS, SERVICE_STATUS_COLORS } from '../../../types/codegarden';
+import { SERVICE_RUNTIME_COLORS, SERVICE_STATUS_COLORS } from '../../../types/codegarden';
 import { ServiceCardProps, STATUS_LABELS } from './types';
 
 export function ServiceCard({ service, onClick }: ServiceCardProps) {

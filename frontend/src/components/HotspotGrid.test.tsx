@@ -91,7 +91,7 @@ describe('HotspotGrid', () => {
   });
 
   it('shows nothing when loading and no items (LoadingSkeleton 由父级渲染)', () => {
-    const { container } = render(
+    render(
       <HotspotGrid
         items={[]}
         loading={true}

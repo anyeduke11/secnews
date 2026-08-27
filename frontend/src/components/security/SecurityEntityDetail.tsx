@@ -8,7 +8,7 @@ interface DetailProps {
 
 export function SecurityEntityDetail({ entity, onClose }: DetailProps) {
   const [related, setRelated] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);

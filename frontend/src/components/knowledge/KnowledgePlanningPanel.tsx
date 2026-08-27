@@ -44,7 +44,6 @@ const ACTION_CONFIG: Record<string, { color: string; label: string }> = {
 // ---------------------------------------------------------------------------
 
 function ActionTypeIcon({ type }: { type: string }) {
-  const cfg = ACTION_CONFIG[type] || { color: 'var(--text-muted)', label: type };
   switch (type) {
     case 'read':
       return (

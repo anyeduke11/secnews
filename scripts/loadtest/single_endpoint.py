@@ -111,7 +111,6 @@ def main() -> int:
         with ThreadPoolExecutor(max_workers=workers) as pool:
             dispatch_log = 0
             while not stop_flag["stop"] and time.time() < deadline:
-                now = time.time()
                 # 一次最多 dispatch 一批，保持并发
                 batch: list = []
                 # 在本 1ms 内尽量多发，直到 inflight == workers

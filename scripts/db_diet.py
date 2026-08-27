@@ -47,8 +47,6 @@ from scripts.cli_contract import (
     EXIT_OK,
     EXIT_PARTIAL,
     EXIT_FATAL,
-    emit_envelope,
-    emit_not_implemented,
 )
 
 # ---------------------------------------------------------------------------
@@ -138,7 +136,6 @@ def cleanup_table(
     table = spec["table"]
     ts_col = spec["ts_column"]
     action = spec["action"]
-    target = spec.get("target")
     days = spec.get("retention_days")
 
     result: dict[str, Any] = {

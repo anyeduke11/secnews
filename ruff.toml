@@ -46,3 +46,7 @@ ignore = [
 "backend/collectors/base.py" = ["F401", "I001"]
 # 测试文件放宽时区/async/异常断言检查
 "backend/tests/*" = ["DTZ", "ASYNC", "BLE001", "S110", "B017", "RUF012"]
+# scripts/ 是运维/迁移/调试 CLI, 与 backend 长期累计的存量 (I001/F541/DTZ 等)
+# 风格/兼容问题混杂, 不适合一次性阻断. v0.6 P0 清场第二批先以 F401/F841 为主阻断点.
+# 历史存量 (I001/F541/D/B/UP/SIM/...) 走独立工单渐进清理, CI 不阻断.
+"scripts/*" = ["I001", "F541", "DTZ", "B", "UP", "SIM", "E402", "E501", "E731", "E401", "PTH", "PLW", "G", "ERA", "TID", "TRY", "ARG", "RET", "PIE", "RUF012", "RUF100", "RUF022"]

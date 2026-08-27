@@ -8,7 +8,6 @@
 写入 scripts/logs/metrics_YYYYMMDD_HHMMSS.jsonl
 """
 import os
-import sys
 import time
 import json
 import signal

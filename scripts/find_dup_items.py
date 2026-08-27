@@ -1,6 +1,5 @@
 """查找 url 重复的 ai items（用户截图中的两张卡片）"""
 import sqlite3
-import json
 from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parent.parent / "backend" / "hotspot.db"

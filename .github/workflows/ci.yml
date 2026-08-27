@@ -38,7 +38,10 @@ jobs:
       - name: Ruff lint
         run: |
           python -m pip install ruff
-          ruff check backend/
+          # v0.6 P0 清场第二批: scripts/ 纳入 CI. 历史存量 I001/F541/DTZ 等
+          # 暂未清零 — ruff.toml [lint.per-file-ignores] 给 scripts/ 设白名单
+          # 阻断放宽; 主阻断点仍是 F401/F841.
+          ruff check backend/ scripts/
 
       - name: Dependency audit (pip-audit)
         run: |

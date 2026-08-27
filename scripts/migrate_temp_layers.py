@@ -44,7 +44,6 @@ from scripts.cli_contract import (
     EXIT_FATAL,
     EXIT_OK,
     EXIT_PARTIAL,
-    emit_envelope,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]

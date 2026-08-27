@@ -37,7 +37,7 @@ def hit(path):
         r = requests.get(BASE + path, timeout=10)
         dt = (time.time() - t0) * 1000
         return dt, r.status_code
-    except Exception as e:
+    except Exception:
         dt = (time.time() - t0) * 1000
         return dt, -1
 

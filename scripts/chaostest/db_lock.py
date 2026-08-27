@@ -19,7 +19,6 @@ import sqlite3
 import sys
 import threading
 import time
-import traceback
 import urllib.error
 import urllib.request
 from datetime import datetime

@@ -1,6 +1,5 @@
 """查找真实抓取数据中 url 重复且 title 不同的 items(用户截图场景)"""
 import sqlite3
-import json
 from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parent.parent / "backend" / "hotspot.db"

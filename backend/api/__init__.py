@@ -169,6 +169,10 @@ def register_routers(app: FastAPI) -> None:
         from backend.api import kl_pipeline_api, secnews_dashboard_api
         app.include_router(kl_pipeline_api.router, tags=["kl-pipeline"])
         app.include_router(secnews_dashboard_api.router, tags=["secnews"])
+    # v0.6 P0: DSH 桥接层 (按 feature_gates 注册)
+    if is_extension_enabled("dsh"):
+        from backend.api import dsh_api
+        app.include_router(dsh_api.router, tags=["dsh"])
 
 
 __all__ = ["register_routers"]

@@ -16,20 +16,29 @@ interface LLMStatus {
   providers?: Record<string, { status?: string; model?: string }>;
 }
 
+interface DshHealth {
+  status?: string;
+  fallback?: string;
+  endpoint?: string;
+}
+
 export function PipelineSettings() {
   const [pipeline, setPipeline] = useState<PipelineStats | null>(null);
   const [llm, setLlm] = useState<LLMStatus | null>(null);
+  const [dsh, setDsh] = useState<DshHealth | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [pRes, lRes] = await Promise.all([
+      const [pRes, lRes, dRes] = await Promise.all([
         fetch('/api/secnews/pipeline'),
         fetch('/api/llm/status'),
+        fetch('/api/dsh/health'),
       ]);
       if (pRes.ok) setPipeline(await pRes.json());
       if (lRes.ok) setLlm(await lRes.json());
+      if (dRes.ok) setDsh(await dRes.json());
     } catch { /* silent */ } finally {
       setLoading(false);
     }
@@ -102,15 +111,40 @@ export function PipelineSettings() {
       {/* dsh 连接 */}
       <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
         <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>dsh 连接</h3>
-        <div className="flex items-center gap-2 text-[10px] font-mono">
-          <span className="w-2 h-2 rounded-full inline-block"
-            style={{ backgroundColor: 'var(--color-warning)' }} />
-          <span style={{ color: 'var(--text-muted)' }}>
-            DSH_ENDPOINT 未配置 — 深度分析走 LLM 直连兜底
-          </span>
-        </div>
+        {dsh ? (
+          <div className="text-[10px] font-mono space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full inline-block"
+                style={{
+                  backgroundColor:
+                    dsh.status === 'connected' ? 'var(--color-success)' :
+                    dsh.status === 'disconnected' ? 'var(--color-warning)' :
+                    'var(--color-error)',
+                }} />
+              <span style={{ color: 'var(--text-primary)' }}>
+                {dsh.status === 'connected' ? 'connected' : dsh.status}
+              </span>
+              {dsh.fallback && dsh.fallback !== 'none' && (
+                <span style={{ color: 'var(--text-muted)' }}>
+                  (fallback: {dsh.fallback})
+                </span>
+              )}
+            </div>
+            {dsh.endpoint && (
+              <div style={{ color: 'var(--text-muted)' }}>
+                endpoint: {dsh.endpoint}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-[10px] font-mono">
+            <span className="w-2 h-2 rounded-full inline-block"
+              style={{ backgroundColor: 'var(--color-warning)' }} />
+            <span style={{ color: 'var(--text-muted)' }}>checking...</span>
+          </div>
+        )}
         <p className="text-[9px] mt-1.5" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
-          配置 DSH_ENDPOINT 环境变量后可启用 dsh agent-loop 增强推理
+          DSH 不可达时深度分析自动降级到 LLM 直连兜底
         </p>
       </div>
     </div>

@@ -1,0 +1,12 @@
+-- 072_v0.6_digest_summary_md.sql: v0.6 Phase 5 commit 2
+-- Phase 5: 08:00 每日简报自动生成 (LLM 摘要)
+--
+-- 背景:
+--   digest_service.generate_daily_digest() 当前用模板字符串拼接
+--   (count + Top N titles), 没有 LLM 生成的连贯叙事。
+--   新增 summary_md 列承载 LLM 摘要 (Markdown 格式),
+--   模板字符串保留到 summary 列以保证向后兼容 (旧测试 + 旧客户端)。
+--
+-- 幂等性: ALTER TABLE ADD COLUMN 与 059 一样由 db.py 容错
+-- (列已存在视为已应用)。
+ALTER TABLE digests ADD COLUMN summary_md TEXT;

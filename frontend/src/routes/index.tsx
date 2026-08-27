@@ -152,6 +152,18 @@ export function AppRoutes() {
           <Route path="/crm" element={<Suspense fallback={<PageFallback />}><P.CrmPage onBack={goHome} /></Suspense>} />
         )}
 
+        {/* Phase 4 工作台 (v0.6.1) — 5 视图统一壳, feature gate: workbench_ui */}
+        {features.workbenchUi && (
+          <Route path="/workbench" element={<Suspense fallback={<PageFallback />}><P.WorkbenchPage /></Suspense>}>
+            <Route index element={<Navigate to="briefing" replace />} />
+            <Route path="briefing" element={<Suspense fallback={<PageFallback />}><P.BriefingView /></Suspense>} />
+            <Route path="pipeline" element={<Suspense fallback={<PageFallback />}><P.PipelineView /></Suspense>} />
+            <Route path="knowledge" element={<Suspense fallback={<PageFallback />}><P.KnowledgeView /></Suspense>} />
+            <Route path="analyze" element={<Suspense fallback={<PageFallback />}><P.AnalyzeView /></Suspense>} />
+            <Route path="settings" element={<Suspense fallback={<PageFallback />}><P.WorkbenchSettingsView /></Suspense>} />
+          </Route>
+        )}
+
         {/* v0.4.3: 未匹配路径回落到资料层首页 (扩展关闭时旧深链不白屏) */}
         <Route path="*" element={<Navigate to="/data" replace />} />
       </Route>

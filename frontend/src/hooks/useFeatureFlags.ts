@@ -17,6 +17,8 @@ export interface FeatureFlags {
   securityGraph: boolean;
   /** v0.6: CRM 业绩座舱 (security-cockpit 方案 C) */
   crm: boolean;
+  /** v0.6.1: Phase 4 工作台 UI (5 视图统一壳) */
+  workbenchUi: boolean;
 }
 
 export const DEFAULT_FLAGS: FeatureFlags = {
@@ -27,6 +29,7 @@ export const DEFAULT_FLAGS: FeatureFlags = {
   techStack: false,
   securityGraph: false,
   crm: false,
+  workbenchUi: true,
 };
 
 const CACHE_KEY = 'hotspot-feature-flags';
@@ -71,6 +74,7 @@ async function fetchFlags(): Promise<FeatureFlags> {
       techStack: !!(data.techStack ?? data.tech_stack),
       securityGraph: !!(data.securityGraph ?? data.security_graph),
       crm: !!data.crm,
+      workbenchUi: !!(data.workbench_ui ?? data.workbenchUi ?? true),
     };
     writeCache(flags);
     return flags;

@@ -233,7 +233,8 @@ class HotspotScheduler:
             replace_existing=True,
         )
         # P0.1 → v0.5 §18: job 13 — 7 天遥测窗口 (每周日 05:00 Asia/Shanghai)
-        # quality_logs_cleanup_job 并入 telemetry_window_job: 同一注册点
+        # 原 quality_logs_cleanup_job v0.5 起并入 telemetry_window_job (同一注册点),
+        # v0.6 P0 清场第二批删除 standalone 函数 (现仅 telemetry_window_job 担责).
         # 扩展为 WARM 层全部遥测表 (qcl 归档 / crawler_runs / raw_items
         # truncate), 策略由 retention.json ``scheduled_in`` 标签驱动。
         self.scheduler.add_job(

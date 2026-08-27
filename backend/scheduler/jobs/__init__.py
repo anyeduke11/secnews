@@ -100,7 +100,6 @@ from backend.scheduler.jobs.maintenance import (
     map_rebuild_daily_job,
     planning_action_check_job,
     profile_decay_job,
-    quality_logs_cleanup_job,
     retention_decay_job,
     source_reputation_rebuild_job,
     scheduled_stats_job,
@@ -132,7 +131,6 @@ __all__ = [
     "daily_snapshot_job",
     "export_rebuild_job",
     "mitre_sync_job",
-    "quality_logs_cleanup_job",  # P0: qcl 清理 (v0.5 起由 telemetry_window_job 承载)
     "reset_service",
     "scheduled_compile_job",
     "scheduled_migrate_job",

@@ -53,7 +53,8 @@
 | 冷路径 p95 | **30.38ms**（2026-08-27 v0.6 P0 清场第二批 commit 5 实测，200 req / Mode cold） | <150ms | `.venv/bin/python scripts/quick_perf.py --cold` |
 | 查询计划 | `idx_hotspot_region` + **TEMP B-TREE FOR ORDER BY** | 出 `idx_list_visible` 无 TEMP SORT | §12 EXPLAIN 命令 |
 | 主 chunk | **1,144,684 B (1.14MB)** `index-DugkVWQY.js` | <300KB | `ls -laS frontend/dist/assets/*.js` |
-| DB 体积 | **1.0GB**（vacuum_into 后 0.997GB；质量审计日志占 73% 体积） | <300MB → M2-T6 终态 HOT<80MB | `du -sh backend/hotspot.db` |
+| DB 体积 | **HOT 158MB** / **WARM 248MB** / **COLD N/A**（2026-08-27 v0.6 P0 清场第二批实测；vs 目标 HOT<80MB 偏离 +97.8%） | HOT<80MB / WARM<300MB / COLD<200MB | `.venv/bin/python scripts/check_temp_db_sizes.py` |
+| COLD 加密通道 | **未启用**（`backend/hotspot-cold.db.enc` 不存在）；脚本 + verify 已端到端验证（commit 7, 3 passed） | — | `.venv/bin/python scripts/cold_db_crypto.py verify`（缺 .enc 时退 1） |
 | backups/ 体积 | **1.0GB** 单 full | ≤1GB 单盘 + ≤300MB 增量（7 份） | `du -sh backend/backups/` |
 | hotspots 行数 | 2952（ingested_at NULL 仅 1 行） | — | sqlite3 COUNT |
 | LLM 出口 | 双入口（llm_service + ai_service） | 单出口 ai_hub.py | §12 grep 命令 |

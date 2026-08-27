@@ -1,6 +1,6 @@
 // AlertCenter — Phase 12 告警中心
 // 告警事件列表、未读计数、标记已读/解决、手动评估触发
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 interface AlertEvent {
   id: number;

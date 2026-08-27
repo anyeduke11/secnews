@@ -4,7 +4,6 @@
  * 拆自原 SecretsPage.tsx (794 行) 中 StatusBar (~278-367 行) + formatRemaining。
  * 纯结构拆分, 渲染逻辑逐字迁移。
  */
-import React from 'react';
 import { useSecrets } from '../../hooks/useSecrets';
 
 function formatRemaining(seconds: number): string {

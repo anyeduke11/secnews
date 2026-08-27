@@ -4,7 +4,6 @@
  * 拆自原 SecretsPage.tsx (794 行) 中 SecretCardView (~369-458 行)。
  * 纯结构拆分, 渲染逻辑逐字迁移。
  */
-import React from 'react';
 import { SecretItem } from '../../types';
 import { Icon } from '../Icon';
 

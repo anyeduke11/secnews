@@ -1,4 +1,3 @@
-import React from 'react';
 import { CATEGORIES, getCategoryColorVar } from '../types';
 
 interface StatsPanelProps {

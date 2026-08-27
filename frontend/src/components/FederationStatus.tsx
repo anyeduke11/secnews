@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import type { FederationStatus as FederationStatusData } from '../types';
 
 export function FederationStatus() {

@@ -8,7 +8,7 @@
  *
  * 设计与现有 PageLayout / Header 风格保持一致 (v1.9 Editorial 报纸风)。
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useGoHome } from '../../hooks/useGoHome';
 import { Icon } from '../Icon';

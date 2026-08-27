@@ -8,7 +8,7 @@
  *
  * 不调 LLM, 同步直返, 全部本地 SQLite 读 mcp_tool_registry 表。
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Icon } from '../Icon';
 
 interface MCPTool {

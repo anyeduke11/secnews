@@ -4,7 +4,7 @@
  * Phase 3: 节点色按 domain 走 token, 暗/亮主题自动切换。
  *          通过 useThemeColors 读取 ECharts 所需的字面色值。
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { GraphData } from '../types';
 import { useThemeColors, ThemeColorKey } from '../hooks/useThemeColors';

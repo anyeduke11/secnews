@@ -5,7 +5,7 @@
  * 聚合 favorites / cubox / bookmark / secnews_archive / secnews 五源数据，
  * 提供类型筛选、关键词搜索、时间范围、分页等功能。
  */
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useImported } from '../../hooks/useImported';
 
 const SOURCE_TYPE_OPTIONS = [

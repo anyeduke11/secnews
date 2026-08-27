@@ -3,7 +3,7 @@
  *
  * Phase 3: 将 TrendChart 扩展到完整页面，支持多时间范围切换。
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { Icon } from '../Icon';

@@ -8,7 +8,7 @@
  * API 保持向后兼容: export function ReportPage({ onBack })
  * (App.tsx lazy import: import('./components/report/ReportPage').then(m => ({ default: m.ReportPage })))
  */
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Icon } from '../Icon';
 import { DailyReport } from './DailyReport';

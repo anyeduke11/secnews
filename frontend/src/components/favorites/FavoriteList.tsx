@@ -4,7 +4,6 @@
  * Phase 1B: 拆自原 FavoritesPanel.tsx 列表段。
  * props-only: 接收 items + 各种回调, 渲染 FavoriteItem 列表。
  */
-import React from 'react';
 import { FavoriteItem as FavoriteItemType } from '../../types';
 import { FavoriteItem } from './FavoriteItem';
 import { Icon } from '../Icon';

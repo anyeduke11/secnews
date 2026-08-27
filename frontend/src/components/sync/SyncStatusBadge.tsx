@@ -4,7 +4,6 @@
  * 在 SyncStatusPanel / SyncHistory 中复用, 单独抽出避免循环依赖。
  * Phase 1B: 拆自原 SyncPage.tsx 内联组件。
  */
-import React from 'react';
 
 interface StatusBadgeProps {
   status?: string | null;

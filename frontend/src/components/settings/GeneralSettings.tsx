@@ -4,7 +4,6 @@
  * 拆自原 SettingsPage.tsx (1065 行) 中 GeneralSettings (~100-199 行)。
  * 纯结构拆分: 状态 (useRefreshInterval) 与渲染逻辑逐字迁移。
  */
-import React from 'react';
 import { useRefreshInterval } from '../../hooks/useRefreshInterval';
 
 export function GeneralSettings({ onThemeToggle, theme }: { onThemeToggle: () => void; theme: 'dark' | 'light' }) {

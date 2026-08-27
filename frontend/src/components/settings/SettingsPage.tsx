@@ -9,7 +9,7 @@
  * API 保持向后兼容: export function SettingsPage
  * (App.tsx lazy import: import('./components/settings/SettingsPage').then(m => ({ default: m.SettingsPage })))
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
 import { SECTIONS } from './sections';

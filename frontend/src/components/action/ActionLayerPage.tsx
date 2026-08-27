@@ -6,7 +6,6 @@
  * 左栏: 报告生成 + 知识复利 + CodeGarden
  * 右栏: 今日待办 + 投标提醒 + 跨层回溯
  */
-import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Header } from '../Header';

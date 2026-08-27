@@ -1,4 +1,4 @@
-import React, { Suspense, useCallback } from 'react';
+import { Suspense, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { PageLayout } from '../components/PageLayout';
 import { useFavorites } from '../hooks/useFavorites';

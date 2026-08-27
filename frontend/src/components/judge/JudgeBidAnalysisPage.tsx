@@ -4,7 +4,7 @@
  * Phase 3: 标讯地区分布、状态分布、业务线分类可视化。
  * 数据来源于现有 `/api/hotspots?category=bid` 接口。
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
 

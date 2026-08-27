@@ -4,7 +4,6 @@
  * Phase 1B: 拆自原 SyncPage.tsx 状态卡 (lines 303-340)。
  * 仅渲染, props-only; 数据由 index.tsx 注入。
  */
-import React from 'react';
 import { formatRelativeTime } from '../../types';
 import { SyncStatusBadge } from './SyncStatusBadge';
 

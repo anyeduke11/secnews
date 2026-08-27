@@ -6,7 +6,7 @@
  * 自动刷新：选择 localStorage 缓存的刷新间隔。
  * 两个折叠区组合在一起 — 都是"配置列表"语义。
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { REFRESH_INTERVAL_OPTIONS } from '../../hooks/useRefreshInterval';
 import { SourceItem, SourceItemData } from './SourceItem';
 

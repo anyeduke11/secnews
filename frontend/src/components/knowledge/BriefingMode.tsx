@@ -5,7 +5,7 @@
  * 展示最近发布的 knowledge 条目 (lifecycle=kl:publish)，
  * 附带数据源健康状态概览。
  */
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Icon } from '../Icon';
 import { useDigest } from '../../hooks/useDigest';
 import { AttentionHeatmap } from './AttentionHeatmap';

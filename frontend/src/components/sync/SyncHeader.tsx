@@ -3,7 +3,6 @@
  *
  * Phase 1B: 拆自原 SyncPage.tsx 顶部 (lines 256-301)。
  */
-import React from 'react';
 import { Icon } from '../Icon';
 
 interface SyncHeaderProps {

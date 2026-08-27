@@ -7,7 +7,7 @@
  *  3. 触发器健康度 (T1-T4 + dead_letter)
  *  4. 生命周期阶段分布柱状图
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Icon } from '../Icon';
 import { STAGE_LABELS, STAGE_COLORS } from './LifecycleProgress';

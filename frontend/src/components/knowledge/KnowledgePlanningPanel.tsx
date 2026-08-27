@@ -4,7 +4,7 @@
  * 展示系统根据知识条目生命周期阶段自动生成的待办规划动作，
  * 支持标记完成和忽略操作。
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '../Icon';
 import { STAGE_COLORS, STAGE_LABELS } from './LifecycleProgress';
 

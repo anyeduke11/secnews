@@ -1,6 +1,6 @@
 // HistoryPage — 历史资讯 (按自然周边界 7 天分批)
 // Phase 5A: 移除 onBack prop (用 useGoHome), 错误色走 --color-error, 收藏数用 --color-finance, 空态走 EmptyState
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Batch,
   BatchListResponse,

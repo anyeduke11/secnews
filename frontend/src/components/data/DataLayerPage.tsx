@@ -6,7 +6,6 @@
  * 左栏: 资讯流/标讯列表
  * 右栏: 快捷入口 + 跨层流转 + 统计 + 趋势
  */
-import React from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useHotspotData } from '../../hooks/useHotspotData';
 import { useRefreshInterval } from '../../hooks/useRefreshInterval';

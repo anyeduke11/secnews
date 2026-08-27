@@ -4,7 +4,6 @@
  * Phase 2: 将 KnowledgeImport 以独立页面形式展示在资料层。
  * 添加资料层回退导航，复用 KnowledgeImport 全部功能。
  */
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
 import { KnowledgeImport } from '../knowledge/KnowledgeImport';

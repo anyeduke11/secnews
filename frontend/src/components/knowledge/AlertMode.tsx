@@ -4,7 +4,7 @@
  * 告警中心首页，顶部红色横幅显示未读告警数，下方渲染完整 AlertCenter。
  * 用于路由 /knowledge/alert。
  */
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Icon } from '../Icon';
 import AlertCenter from '../AlertCenter';
 import { OnboardingHint } from '../layout/OnboardingHint';

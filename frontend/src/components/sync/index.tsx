@@ -13,7 +13,6 @@
  *
  * API 保持向后兼容: export function SyncPage({ onBack })
  */
-import React from 'react';
 import { useGoHome } from '../../hooks/useGoHome';
 import { SyncHeader } from './SyncHeader';
 import { SyncStatusPanel } from './SyncStatusPanel';

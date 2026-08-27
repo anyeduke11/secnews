@@ -4,7 +4,6 @@
  * 包装 OutboxMode 组件，添加行动层页面头部。
  * 路由: /action/outbox
  */
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OutboxMode } from '../knowledge/OutboxMode';
 import { Icon } from '../Icon';

@@ -7,7 +7,7 @@
  *
  * 路由: /knowledge/review
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '../Icon';
 import { OnboardingHint } from '../layout/OnboardingHint';
 

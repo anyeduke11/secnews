@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { ContentDraft } from '../types';
 import { PublishDialog } from './PublishDialog';
 import { PublishHistory } from './PublishHistory';

@@ -4,7 +4,6 @@
  * Phase 1B: 拆自 SourceSettings.tsx 中单条信源的复杂 JSX。
  * 独立可测；通过 props 接收 source 数据和 handlers。
  */
-import React from 'react';
 
 export interface SourceItemData {
   id: number;

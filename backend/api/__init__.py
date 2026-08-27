@@ -144,6 +144,10 @@ def register_routers(app: FastAPI) -> None:
         app.include_router(mcp_adapters.router, tags=["mcp-adapters"])
         # v1.8 Phase 8: 4 个新 MCP tool (副作用模式)
         app.include_router(mcp_agent_tools.router, tags=["mcp-agent-tools"])
+        # v0.6 Phase 5 commit 3: 5 个 MCP tool 扩展 (kl_*/dsh_*)
+        from backend.api import mcp_phase5_tools
+        app.include_router(mcp_phase5_tools.kl_router, tags=["mcp-kl-tools"])
+        app.include_router(mcp_phase5_tools.dsh_router, tags=["mcp-dsh-tools"])
     # v1.7 Phase 10: KL 触发器指标
     app.include_router(kl_metrics_api.router, tags=["kl-metrics"])
     # v1.7 Phase 10: KL 回滚 API

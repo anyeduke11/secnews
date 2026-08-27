@@ -46,10 +46,10 @@ def test_seed_idempotent(temp_db):
     inserted_second = mcp_tool_registry_seed()
     # 第二次应返回 0 (无新增)
     assert inserted_second == 0
-    # 表中应有 14 个 tool (Phase 15 基础 9 + v0.5 §18 wiki_* 4 + wiki_write)
+    # 表中应有 19 个 tool (Phase 15 基础 9 + v0.5 §18 wiki_* 4 + wiki_write + Phase 5 kl/dsh 5)
     conn = db.get_connection()
     rows = conn.execute("SELECT COUNT(*) AS n FROM mcp_tool_registry").fetchone()
-    assert int(rows["n"]) == 14
+    assert int(rows["n"]) == 19
 
 
 def test_mcp_status_endpoint(temp_db):
@@ -71,7 +71,7 @@ def test_mcp_status_endpoint(temp_db):
     assert "enabled" in data
     assert "transport" in data
     assert "tools_count" in data
-    assert data["tools_count"] == 14
+    assert data["tools_count"] == 19
 
 
 def test_mcp_tools_endpoint(temp_db):
@@ -91,11 +91,13 @@ def test_mcp_tools_endpoint(temp_db):
     assert res.status_code == 200
     data = res.json()
     tools = data.get("tools", [])
-    assert len(tools) == 14
+    assert len(tools) == 19
 
     categories = [t["category"] for t in tools]
-    assert categories.count("read") == 9
-    assert categories.count("write") == 5
+    # Phase 5 commit 3 新增 5 tool: 3 read (kl_status/dsh_analyze/dsh_session) + 2 write (kl_enqueue/kl_retry)
+    # 旧 9 read + 5 write = 14; 新 12 read + 7 write = 19
+    assert categories.count("read") == 12
+    assert categories.count("write") == 7
 
 
 def test_toggle_mcp_enabled(temp_db):

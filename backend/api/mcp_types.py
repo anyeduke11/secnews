@@ -132,6 +132,28 @@ class WikiWriteInputModel(BaseModel):
     tags: list[str] = Field(default_factory=list, description="标签")
 
 
+# ===========================================================================
+# v0.6 Phase 5 commit 3: KL/DSH 工具族 (5 个 — KL 推进/状态/重试 + DSH 分析/会话)
+# ===========================================================================
+class KlEnqueueInputModel(BaseModel):
+    """kl_enqueue — 推进单个 knowledge item 到下一阶段 (kl_state_machine 校验)."""
+
+    item_id: str = Field(..., min_length=1, description="knowledge item id (wiki file stem)")
+
+
+class KlRetryInputModel(BaseModel):
+    """kl_retry — 重试错误任务 (可选按 wiki_id 过滤)."""
+
+    wiki_id: str | None = Field(None, description="可选, 仅重试指定 wiki_id 的错误任务")
+
+
+class DshAnalyzeInputModel(BaseModel):
+    """dsh_analyze — 调用 DSH classify 任务 (fallback LLM)."""
+
+    content: str = Field(..., min_length=1, description="待分类文本 (URL/标题/段落)")
+    hint: str | None = Field(None, description="可选上下文 (用于引导分类标签)")
+
+
 
 # ===========================================================================
 # 9 个 tool 集中注册表
@@ -253,6 +275,47 @@ MCP_TOOLS = [
         "fastapi_path": "/api/wiki/write",
         "method": "POST",
     },
+    # v0.6 Phase 5 commit 3: 5 个 MCP tool 扩展 (KL 推进 + DSH 分析)
+    {
+        "name": "kl_enqueue",
+        "category": "write",
+        "description": "推进单个 knowledge item 到下一阶段 (kl_state_machine 校验)",
+        "input_model": KlEnqueueInputModel,
+        "fastapi_path": "/api/mcp/kl/enqueue",
+        "method": "POST",
+    },
+    {
+        "name": "kl_status",
+        "category": "read",
+        "description": "返回 KL pipeline 漏斗 + 队列 + 错误 + 计数",
+        "input_model": None,  # 无入参
+        "fastapi_path": "/api/mcp/kl/status",
+        "method": "GET",
+    },
+    {
+        "name": "kl_retry",
+        "category": "write",
+        "description": "重试 KL pipeline 错误任务 (可选按 wiki_id 过滤)",
+        "input_model": KlRetryInputModel,
+        "fastapi_path": "/api/mcp/kl/retry",
+        "method": "POST",
+    },
+    {
+        "name": "dsh_analyze",
+        "category": "read",
+        "description": "调用 DSH classify 任务 (DSH 不可达时 fallback LLM)",
+        "input_model": DshAnalyzeInputModel,
+        "fastapi_path": "/api/mcp/dsh/analyze",
+        "method": "POST",
+    },
+    {
+        "name": "dsh_session",
+        "category": "read",
+        "description": "查询 DSH 会话状态 (按 session_id)",
+        "input_model": None,  # session_id 在 path 中
+        "fastapi_path": "/api/mcp/dsh/session/{session_id}",
+        "method": "GET",
+    },
 ]
 
 
@@ -261,8 +324,11 @@ __all__ = [
     "AddAnnotationInput",
     "AddFavoriteInput",
     "DbTraceInputModel",
+    "DshAnalyzeInputModel",
     "GetHotspotInput",
     "GetPersonalProfileInput",
+    "KlEnqueueInputModel",
+    "KlRetryInputModel",
     "ListFavoritesInput",
     "RemoveFavoriteInput",
     "SearchHotspotsInput",

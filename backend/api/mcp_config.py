@@ -60,6 +60,12 @@ MCP_TOOL_OPERATION_IDS = [
     "db_trace_api_wiki_trace_post",                                # db_trace
     # v0.5 §18.2 强约束 1: agent 持久产物唯一写路径
     "wiki_write_api_wiki_write_post",                              # wiki_write
+    # v0.6 Phase 5 commit 3: 5 个 MCP tool 扩展 (KL 推进 + DSH 分析)
+    "kl_enqueue_api_mcp_kl_enqueue_post",                          # kl_enqueue
+    "kl_status_api_mcp_kl_status_get",                             # kl_status
+    "kl_retry_api_mcp_kl_retry_post",                              # kl_retry
+    "dsh_analyze_api_mcp_dsh_analyze_post",                        # dsh_analyze
+    "dsh_session_api_mcp_dsh_session__session_id__get",            # dsh_session
 ]
 
 

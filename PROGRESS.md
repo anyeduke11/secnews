@@ -70,6 +70,37 @@
   该函数 v4.4 后位于 ai_service，测试仍从 llm_service 导入且 mock 错层（AsyncClient vs 同步 Client）。
   已按实际契约重写，测试意图不变，7 用例全过。
 
+### Frontend Lint Baseline（v0.6 P0 清场第二批，2026-08-27 开启）
+
+`tsconfig.json` `noUnusedLocals: true` / `noUnusedParameters: true` 已开。`npx tsc --noEmit` baseline = **142 错**，分布：
+
+| 错误码 | 数量 | 含义 |
+|--------|------|------|
+| TS6133 | 140 | 'X' is declared but its value is never read |
+| TS6196 | 1 | 'TimelineEntry' declared but never used（type-only import） |
+| TS6192 | 1 | All imports in import declaration are unused |
+
+**Top 10 文件命中**（按文件聚合）：
+
+| 文件 | 错数 |
+|------|------|
+| `src/components/security/SecurityTimeline.tsx` | 4 |
+| `src/components/data/DataLayerPage.tsx` | 4 |
+| `src/components/action/ActionLayerPage.tsx` | 4 |
+| `src/components/PageLayout.test.tsx` | 4 |
+| `src/components/judge/JudgeLayerPage.tsx` | 3 |
+| `src/hooks/useSSE.test.ts` | 2 |
+| `src/components/security/SecurityGraph.tsx` | 2 |
+| `src/components/security/SecurityEntityDetail.tsx` | 2 |
+| `src/components/security/ComplianceMatrix.tsx` | 2 |
+| `src/components/secrets/SecretsPage.tsx` | 2 |
+
+**主体死代码类型**：约 60% 是 `import React` 在 React 19 / JSX-runtime 下不再需要（`tsconfig.json` 已设 `jsx: "react-jsx"`）。
+
+**CI 行为**：`.github/workflows/ci.yml` frontend job `TypeScript type check` step 改为 baseline 报告模式（计数 vs baseline 142；增长报警，不阻断）。`vitest run`（322 passed）+ `vite build` 不动。
+
+**渐进清理路径**（不在本批）：每目录 `lint:unused` 工单 → React import 先批量删除（mechanical, 低风险）→ 局部变量 / 函数参数 / type-only import 走人工 review。
+
 ## 任务清单
 
 - [x] T0 基线测量 + PROGRESS.md + quick_perf --cold 模式 + 测试基线修复

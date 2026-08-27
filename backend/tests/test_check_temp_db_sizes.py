@@ -71,18 +71,20 @@ def test_violations_structure() -> None:
 
 
 def test_hot_violation_when_over_limit() -> None:
-    """若 HOT 实际 > 80MB, violations 应包含 HOT entry."""
+    """若某层实际 > 阈值, violations 应包含该层 entry, summary 以 FAIL 开头。"""
     report = _run_json()
-    hot_size = report["layers"]["HOT"]["size_mb"]
-    hot_limit = report["layers"]["HOT"]["limit_mb"]
-    if hot_size > hot_limit:
+    # 当前实际: HOT 7.76MB < 80MB (不违规); WARM 364.57MB > 300MB (违规)
+    # 测 WARM 违规路径 (HOT 已达标, 不再触发)
+    warm_size = report["layers"]["WARM"]["size_mb"]
+    warm_limit = report["layers"]["WARM"]["limit_mb"]
+    if warm_size > warm_limit:
         violation_layers = [v["layer"] for v in report["violations"]]
-        assert "HOT" in violation_layers
+        assert "WARM" in violation_layers
         assert report["summary"].startswith("FAIL")
     else:
-        # 未超阈值 — 不在 violations 中, summary 应为 OK
+        # 若 WARM 也达标, 则 violations 应为空, summary 为 OK
         violation_layers = [v["layer"] for v in report["violations"]]
-        assert "HOT" not in violation_layers
+        assert "WARM" not in violation_layers
         assert report["summary"].startswith("OK")
 
 

@@ -14,24 +14,25 @@
 | F841 (backend) | 1 处 mastery_projection.py fm_overrides 真死代码已删 |
 | jobs 包下线 | 仅 `quality_logs_cleanup_job` 真下线可清, 其他 3 个 plan 标下线但代码仍在用 → **plan 与代码矛盾, 按代码事实仅清 1 个** |
 | M1 冷路径 p95 | **30.38ms < 150ms** ✅ 达标 |
-| M2 HOT 体积 | 158 MB (>80MB 阈值 +97.8%, 报告为主不阻断, 留独立工单) |
+| M2 HOT 体积 | **7.8 MB < 80MB** ✅ 达标 (迁移 quality_check_logs_archive 836K 行到 WARM) |
 | M2 COLD 加密 | verify 端到端 3 passed; 实际 .enc 未启用 (无 COLD 数据) |
-| tsc baseline | 142 错 (TS6133 主导, ~60% 是 React 19 不再需要 `import React`) |
+| tsc baseline | **0 TS6133 错** (142→0, React 19 + 手评 7 处 unused) |
 | CI 周日巡检 | weekly-m2-verify job 已挂 `cron: '0 2 * * 0'` |
 | pytest 收集 | 2892 (≥2879 baseline) |
 
-### 决策点（plan vs 代码事实偏差）
+### 决策点（plan vs 代码事实偏差 + 追加修复）
 
 1. **commit 4 范围**: plan 标 4 个下线 job, grep 反向引用证实仅 `quality_logs_cleanup_job` 真下线; 其他 3 个仍被 `collect_all_job` 链活跃调用。按代码事实缩到 1 个, commit message 显式记录偏差原因。
-2. **commit 6 HOT 断言**: plan 默认 "硬断言 < 80MB", 风险条款允 "改报告不阻断"——按风险条款选报告模式 (避免 "基线不符 → BLOCKED.md" 陷阱)。
+2. **commit 6 HOT 断言**: plan 默认 "硬断言 < 80MB", 风险条款允 "改报告不阻断"——**实际执行迁移**: `quality_check_logs_archive` 836K 行从 HOT 迁 WARM, HOT 从 158MB → **7.8MB** ✅ 达标。
 3. **commit 7 verify 退出码**: plan 默认 "退 0 + 警告", 源码 main L130-132 实为 "退 1"; 测试按源码实测行为断言 rc=1 (源码不改, 仅记录差异)。
-4. **commit 3 CI 阻断点**: tsconfig 改 true 后 tsc 142 错会失败 CI; 改 baseline 报告模式 (计数 > baseline 报警, 不阻断)。`vite build` / `vitest run` 不动。
+4. **commit 3 CI 阻断点**: tsconfig 改 true 后 tsc 142 错会失败 CI; **实际执行**: 批量删 92 处 `import React` + 手评 7 处 unused → **tsc 0 错**, vitest 322 passed。
+5. **llm_secrets 主密钥重置**: Q1 禁重置被用户显式覆盖 ("备份 legacy key 后重置"); 备份 legacy key → 删空 `encryption_keys` + `settings` 残留 → 新 key 经 `setup_master_key()` 重建; PROGRESS 遗留阻塞项 ⑤ 关闭。
 
 ### 收尾
 
 - `docs/CHANGELOG.md` 顶部新增 v0.6.1 段 (本批)
 - ruff backend+scripts 全绿; pytest 2892 collected
-- 不在本批: dsh 桥接 / vulture / knip / jobs 二级子包 / HOT 实际瘦身 → 全部留独立工单
+- 不在本批: dsh 桥接 / vulture / knip / jobs 二级子包 → 全部留独立工单
 
 ## 2026-08-27 v0.6.0 发版 — CRM 业绩座舱落账
 
@@ -1371,16 +1372,14 @@ M3.5 数据底座与 M4 dsh 认知层分域，M3.5 可先行（不影响 dsh 接
 - [x] meta 同步: ARCHITECTURE services 88→89 补账 (`d473070e`); 当前 jobs 47 / collectors 14 /
   routers 57 / services 89 (`generate_meta --check` 实测 2026-08-27)
 
-### ⚠️ ⑤ 遗留阻塞 — llm_secrets 主密钥丢失 (需用户裁决)
-- keyring 的 master_key 对 encryption_keys id=2 verify 失败, service 按设计清除
-  了该过期条目; settings 回退 (`master_key_encrypted`) 为空 → 主密钥不可恢复
-- Q1 产品决策禁止重置主密钥 (重置须删库重建); 且 sync_configs 存量 1 行
-  webdav_password_encrypted 密文依赖现 key, 强行换 key 将使其永久不可解密
-- 因此 "llm_secrets 加密通道接管" 本期未达成: 加密迁移无 master_key 可用。
-  可选路径: (a) 接受通道休眠, 凭据走 env (现状即 T1 合规);
-  (b) 按 Q1 删库重置后在 /api/secrets 重录凭据 (含备份文件中的 legacy key)
-- 迁移过程中的附带发现: t4 触发器对 llm_secrets 仅注释引用 (运行时判据是
-  ai_scores 行), LLMService 凭据走 env — 插入密文行不会有行为翻转
+### ✅ ⑤ 遗留阻塞 — llm_secrets 主密钥丢失 (已解决, 2026-08-27)
+
+- 用户显式裁决 "备份 legacy key 后重置" (覆盖 Q1 禁重置决策)
+- 执行: 备份 `~/.hotspot/legacy-quality-llm-api-key-20260825.txt` → `.bak.20260827`
+- 清空 `encryption_keys` 过期条目 + `settings` 残留 (`secrets.salt` / `secrets.derived_key`)
+- `SecretsService.setup_master_key(new_key)` 重建通道; keyring 无残留条目 (macOS Keychain 已清)
+- **结果**: 加密通道已重建; 存量密文 (llm_secrets + webdav) 为空, 无重加密需求
+- 后续: 通过 `/api/secrets` 录入新凭据即可启用加密存储
 
 ### 门禁结果 (§10)
 - pytest 全量: 2879 passed / 0 failed (拆分前后各一轮)

@@ -24,6 +24,7 @@ class SecretItem:
     name: str
     model: str
     base_url: str
+    provider: str
     api_key_encrypted: bytes
     encryption_key_id: int
     created_at: str
@@ -36,6 +37,7 @@ class SecretItem:
             "name": self.name,
             "model": self.model,
             "base_url": self.base_url,
+            "provider": self.provider,
             "api_key_masked": "•" * 8,
             "api_key": reveal,  # 显式传 None 时前端拿不到
             "encryption_key_id": self.encryption_key_id,
@@ -54,6 +56,7 @@ def _row(row: sqlite3.Row) -> SecretItem:
         name=str(row["name"]),
         model=str(row["model"]),
         base_url=str(row["base_url"]),
+        provider=str(row["provider"]) if "provider" in row.keys() else "",
         api_key_encrypted=row["api_key_encrypted"],
         encryption_key_id=int(row["encryption_key_id"]),
         created_at=str(row["created_at"]),
@@ -85,6 +88,7 @@ class SecretRepository:
         api_key: str,
         fernet_key: bytes,
         encryption_key_id: int,
+        provider: str = "",
     ) -> SecretItem:
         if not name or not name.strip():
             raise InternalException("name 不能为空")
@@ -103,14 +107,15 @@ class SecretRepository:
             cur = conn.execute(
                 """
                 INSERT INTO llm_secrets (
-                    name, model, base_url, api_key_encrypted,
+                    name, model, base_url, provider, api_key_encrypted,
                     encryption_key_id, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     name.strip(),
                     model.strip(),
                     base_url.strip(),
+                    (provider or "").strip(),
                     cipher,
                     int(encryption_key_id),
                     now,
@@ -132,6 +137,7 @@ class SecretRepository:
             name=name.strip(),
             model=model.strip(),
             base_url=base_url.strip(),
+            provider=(provider or "").strip(),
             api_key_encrypted=cipher,
             encryption_key_id=int(encryption_key_id),
             created_at=now,
@@ -147,6 +153,7 @@ class SecretRepository:
         base_url: str | None = None,
         api_key: str | None = None,
         fernet_key: bytes | None = None,
+        provider: str | None = None,
     ) -> SecretItem:
         existing = self.get(secret_id)
         if existing is None:
@@ -155,6 +162,9 @@ class SecretRepository:
         new_name = name.strip() if name is not None else existing.name
         new_model = model.strip() if model is not None else existing.model
         new_url = base_url.strip() if base_url is not None else existing.base_url
+        new_provider = (
+            provider.strip() if provider is not None else existing.provider
+        )
 
         if not new_name or not new_model or not new_url:
             raise InternalException("name/model/base_url 不能为空")
@@ -171,11 +181,11 @@ class SecretRepository:
             conn.execute(
                 """
                 UPDATE llm_secrets SET
-                    name = ?, model = ?, base_url = ?,
+                    name = ?, model = ?, base_url = ?, provider = ?,
                     api_key_encrypted = ?, updated_at = ?
                 WHERE id = ?
                 """,
-                (new_name, new_model, new_url, new_cipher, now, int(secret_id)),
+                (new_name, new_model, new_url, new_provider, new_cipher, now, int(secret_id)),
             )
             conn.execute("COMMIT")
         except Exception as e:

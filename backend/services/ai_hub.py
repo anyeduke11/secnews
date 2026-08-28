@@ -106,10 +106,43 @@ class LLMService:
     def config(self) -> LLMConfig | None:
         return self._config
 
+    def resolve_provider_for_task(self, task: str) -> tuple[str, str] | None:
+        """S4-1: 委托 ``model_router.route_model`` 返回 (provider, model)。
+
+        返回 None 时表示 router 不可用 (LLM 未启用或 import 失败), 调用方
+        走原有 fallback_order 兜底链; 此时行为完全等价于 S4-1 之前的实现。
+        """
+        if not self.enabled or self._config is None:
+            return None
+        try:
+            from backend.services.llm.model_router import route_model
+            return route_model(task, config=self._config)
+        except Exception as e:
+            log.warning(f"resolve_provider_for_task({task}) failed: {e}")
+            return None
+
+    def _try_order(self, task_attr: str) -> list[str]:
+        """S4-1: 拼接"router 优先 + fallback_order 兜底"的尝试列表。
+
+        首位插入 router 推荐的 provider; 后续 fallback_order 元素去重保留,
+        行为不变 (router 推荐失败 → fallback_order 全部仍然尝试)。
+        """
+        routed = self.resolve_provider_for_task(task_attr)
+        order: list[str] = []
+        if routed is not None:
+            pname = routed[0]
+            if pname in self._config.providers:
+                order.append(pname)
+        for p in self._config.fallback_order:
+            if p not in order:
+                order.append(p)
+        return order
+
     async def score(self, content: str, hotspot_id: str = "") -> float:
         """T1 评分，返回 0~10.
 
         按 fallback_order 依次尝试 provider，全部失败时返回 DEFAULT_SCORE (5.0)。
+        S4-1: router 推荐的 provider 作为首位优先尝试, 失败后兜底链不变。
         """
         if not self.enabled:
             return DEFAULT_SCORE
@@ -122,7 +155,7 @@ class LLMService:
             except (TypeError, ValueError):
                 pass
 
-        for provider_name in self._config.fallback_order:
+        for provider_name in self._try_order("score"):
             try:
                 cfg = self._config.providers[provider_name]
                 model = self._resolve_model(provider_name, "score")
@@ -153,7 +186,7 @@ class LLMService:
         if cached is not None:
             return cached
 
-        for provider_name in self._config.fallback_order:
+        for provider_name in self._try_order("summary"):
             try:
                 cfg = self._config.providers[provider_name]
                 model = self._resolve_model(provider_name, "summary")
@@ -183,7 +216,7 @@ class LLMService:
             except (json.JSONDecodeError, TypeError):
                 pass
 
-        for provider_name in self._config.fallback_order:
+        for provider_name in self._try_order("ner"):
             try:
                 cfg = self._config.providers[provider_name]
                 model = self._resolve_model(provider_name, "ner")
@@ -207,7 +240,7 @@ class LLMService:
         if not self.enabled:
             return ""
 
-        for provider_name in self._config.fallback_order:
+        for provider_name in self._try_order("summary"):
             try:
                 cfg = self._config.providers[provider_name]
                 model = self._resolve_model(provider_name, "summary")
@@ -536,11 +569,23 @@ class AIService:
 
     @staticmethod
     def _resolve_provider() -> str:
-        """默认取 llm.yaml default_provider；AI_PROVIDER 环境变量显式覆盖。"""
+        """S4-1 决议: 三级优先级 — AI_PROVIDER env > router 推荐 > default_provider。
+
+        兼容旧行为: cfg.default_provider 为空 / 未配置时仍兜底到 sensenova。
+        router 推荐失败 (LLM 未启用 / import 异常) 时也直接回退到 default_provider。
+        """
         import os
         env = os.environ.get("AI_PROVIDER")
         if env:
             return env
+        try:
+            from backend.services.llm.model_router import route_model
+            # AIService 的 evaluate/gate_detect 是标准分析档; router 推荐最稳的 provider
+            routed = route_model("evaluate", config=llm_service.config)
+            if routed and routed[0]:
+                return routed[0]
+        except Exception as e:
+            log.debug(f"AIService._resolve_provider router fallback: {e}")
         cfg = llm_service.config
         return cfg.default_provider if cfg is not None else "sensenova"
 

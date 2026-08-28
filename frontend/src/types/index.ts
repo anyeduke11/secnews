@@ -858,3 +858,27 @@ export interface ImportedResponse {
   page: number;
   page_size: number;
 }
+
+// ----- Phase 4 S4-2: DeepRead 4 节深度分析面板 -----
+export interface DeepReadSections {
+  summary: string;
+  impact: string;
+  relations: string;
+  risks: string;
+}
+
+export interface DeepReadResponse {
+  entity_type: string;
+  entity_id: string;
+  content_md: string;
+  sections: DeepReadSections;
+  sections_json: string;
+  provider: string;
+  model: string;
+  tokens_in: number;
+  tokens_out: number;
+  cost_usd: number;
+  latency_ms: number;
+  created_at: string;
+  updated_at: string;
+}

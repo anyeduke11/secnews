@@ -59,7 +59,7 @@
 | 29 | `/settings` | SettingsPage | - | Page |
 | 30 | `/report` | ReportPage | - | Page |
 | 31 | `/reviews` | ReviewPage | - | Page |
-| 32 | `/deep/:type/:id` | DeepReadView | - | Page (跨实体深读) |
+| 32 | `/deep/:type/:id` | DeepReadPage | - | Page (S4-2 4 节深度分析) |
 | 33 | `/brief` | → `/knowledge/briefing` | - | Navigate (P1.4 合并) |
 | 34 | `/quality/rejection` | QualityRejectionPage | - | Page |
 | 35 | `/editorial` | EditorialView | - | Page (独立全屏, v4.3) |

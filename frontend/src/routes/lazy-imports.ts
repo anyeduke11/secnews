@@ -132,8 +132,9 @@ export const CodegardenPhase2bPage = React.lazy(() =>
 export const ReviewPage = React.lazy(() =>
   import('../components/ReviewPage').then(m => ({ default: m.ReviewPage }))
 );
+// S4-2: 新版 DeepReadPage (4 节 LLM 深度分析) 覆盖旧 DeepReadView
 export const DeepReadView = React.lazy(() =>
-  import('../components/DeepReadView').then(m => ({ default: m.DeepReadView }))
+  import('../components/DeepReadPage').then(m => ({ default: m.DeepReadPage }))
 );
 // P1.4: BriefModeView 已删除 — 官方每日简报 (digest) 合并进 /knowledge/briefing
 export const QualityRejectionPage = React.lazy(() =>

@@ -1,7 +1,16 @@
 # SecNews Knowledge Dashboard — 安全从业者 AI 助手的平台看板层
 
-> **当前状态 (2026-08-25)**: hotspot 活跃开发主线为 `docs/SECNEWS_INTEGRATION_TASKS.md` Phase 0-6 (Phase 0 已交付 commit `2592a640`)。
+> **当前状态 (2026-08-28)**: hotspot 活跃开发主线为 `docs/SECNEWS_INTEGRATION_TASKS.md` Phase 4-6 已全部交付 (Phase 4 合规矩阵 `5c657d99` / Phase 6 wiki 迁移 `309a83da` + FTS5 同步 `e53790cc`)。
 > 历史决策 (产品三层架构裁决 / wiki-first 存储哲学 / Phase 7 退役冻结) 见 `PROGRESS.md` 与 `git log`，不在此重复。
+
+---
+
+## v0.6.2 — Phase 6 收尾 (2026-08-28)
+
+> Phase 6 三批全部落地 (commit `309a83da` / `e53790cc` / `chore(phase6-archive)`):
+> 1. `scripts/migrate_wiki.py` CLI 包装 — 幂等迁移 4149 items + 96 concepts, 排除 2 个 P2 fixture
+> 2. `wiki_items_fts` 完整同步层 (migration 073 + 链式 job + `search_wiki_only` FTS5 旁路)
+> 3. dsh-SecNews secnews/data 离线归档 (21.6MB → 2.3MB tar.zst, 4285 文件 SHA256)
 
 ---
 
@@ -15,7 +24,7 @@
 
 ## v0.4.3 — Core/Extension 软分层 + Feature Gates (2026-08-18)
 
-> **架构数字由 `scripts/generate_meta.py` AST 反推维护** (43 jobs / 14 collectors / 51 routers / 81 services),
+> **架构数字由 `scripts/generate_meta.py` AST 反推维护** (47 jobs / 14 collectors / 63 routers / 94 services),
 > 改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
 
 - **开关源**: `backend/config/feature_gates.toml` — codegarden/mcp/sync/tech_stack/security_graph

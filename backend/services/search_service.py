@@ -138,8 +138,8 @@ def _search_wiki_fts(q: str, limit: int) -> list[dict]:
         rows = conn.execute(
             """
             SELECT
-                k.id AS entity_id,
-                k.title AS title,
+                IFNULL(k.id, f.id) AS entity_id,
+                IFNULL(k.title, '') AS title,
                 IFNULL(k.topic, '') AS summary,
                 IFNULL(k.type, '') AS category,
                 IFNULL(k.ingested_at, '') AS ingested_at,

@@ -54,7 +54,11 @@ class WikiFs:
             return None
 
     def write_item(self, item_id: str, doc: dict) -> None:
-        """Atomic write (.tmp → rename) with stable frontmatter ordering."""
+        """Atomic write (.tmp → rename) with stable frontmatter ordering.
+
+        P0-3 (v0.6.2): 写后立即同步 FTS 索引 (wiki_items_fts), 避免新条目
+        等待 scheduler 兜底 (wiki_items_fts_sync_job 5min 周期).
+        """
         self._ensure_dirs()
         path = self._items_dir / f"{item_id}.md"
         fm = doc.get("fm", {})
@@ -66,6 +70,38 @@ class WikiFs:
         tmp = path.with_suffix(".tmp")
         tmp.write_text(content, encoding="utf-8")
         tmp.rename(path)
+
+        # P0-3: 写后即时 upsert FTS 索引 (失败不影响主流程)
+        try:
+            self._sync_fts_upsert(item_id, fm)
+        except Exception as exc:
+            logger.warning(f"write_item: fts upsert failed for {item_id}: {exc}")
+
+    def _sync_fts_upsert(self, item_id: str, fm: dict) -> None:
+        """upsert 单条到 wiki_items_fts (P0-3, 073 迁移 4 列 schema).
+
+        rowid 用 item_id 的稳定 hash: 跨进程/跨重启一致, FTS 索引可幂等 upsert.
+        search_service 通过 LEFT JOIN warm.knowledge_items ON k.rowid=f.rowid
+        回查实体字段 (rowid 不一致时回查字段为 NULL, 但 f.id UNINDEXED
+        已携带字符串 ID 足够独立显示).
+        """
+        from backend.repository.db import get_connection
+        # item_id 是字符串 TEXT PRIMARY KEY, FTS5 rowid 必须 INTEGER;
+        # 用 32-bit hash 截断 (撞库 1/4B, 实际 4K 容量足够, SQLite INTEGER 兼容)
+        import hashlib
+        rowid = int(hashlib.md5(item_id.encode("utf-8")).hexdigest()[:8], 16)
+        conn = get_connection()
+        conn.execute(
+            "INSERT OR REPLACE INTO wiki_items_fts(rowid, id, title, topic, tags, type) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                rowid, item_id,
+                str(fm.get("title", "") or ""),
+                str(fm.get("topic", "") or ""),
+                str(fm.get("tags", "") or ""),
+                str(fm.get("type", "") or ""),
+            ),
+        )
 
     def ingest_url(self, url: str, title: str, text: str) -> dict:
         """Import a URL as a new item. Returns {"id": str, "title": str}."""

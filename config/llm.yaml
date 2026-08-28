@@ -26,6 +26,37 @@ providers:
     timeout_seconds: 20
     max_concurrent: 2
 
+  # S4-1: sensenova 生产端 (与 sensenova 走同协议, 不同 base_url + 模型档位)
+  # 适用于客户已开 sensenova 付费通道 / 想用更大上下文模型
+  sensenova_prod:
+    type: openai_compatible
+    api_key_env: "SENSENOVA_API_KEY"
+    base_url: "https://api.sensenova.cn/v1"
+    models:
+      score: "sensenova-70b"
+      tag: "sensenova-70b"
+      ner: "sensenova-70b"
+      summary: "sensenova-72b"
+      chunk_summary: "sensenova-70b"
+    timeout_seconds: 30
+    max_concurrent: 4
+
+  # S4-1: dots.ai (用户自配 LLM, OpenAI 兼容 /chat/completions)
+  # 端点 / 鉴权见 https://dots.ai/platform/docs#messages-api
+  # 选用该 provider 时请把 llm_secrets 的 provider 字段设为 "dots_ai"
+  dots_ai:
+    type: openai_compatible
+    api_key_env: "DOTS_API_KEY"
+    base_url: "https://api.dots.ai/v1"
+    models:
+      score: "dots-v1-flash"
+      tag: "dots-v1-flash"
+      ner: "dots-v1-flash"
+      summary: "dots-v1-pro"
+      chunk_summary: "dots-v1-flash"
+    timeout_seconds: 30
+    max_concurrent: 4
+
   ollama:
     type: ollama
     base_url: "http://127.0.0.1:11434"
@@ -69,6 +100,10 @@ providers:
       summary: "claude-3-5-sonnet-20241022"
       chunk_summary: "claude-3-5-haiku-20241022"
 
+# S4-1: model_router 真正消费 task_overrides; 之前是死配置 (ai_hub 不读)
+# - t1_score     → router STANDARD 档, 覆盖 score / ner 任务 (T1 评分)
+# - t3_summary   → router HEAVY 档, 覆盖 deep_read / report 任务
+# - t3_chunk_summary → router FLASH 档, 覆盖 summarize / chunk_summary
 task_overrides:
   t1_score:
     provider: ollama

@@ -41,7 +41,7 @@
 ┌───────────────────────────────▼──────────────────────────────────────┐
 │                    FastAPI 单进程 (uvicorn, :8000)                    │
 │  ┌──────────────┐  ┌───────────────┐  ┌───────────────────────────┐  │
-│  │ api/ 57 router│→│ services/ 89  │→│ repository/ 37 repo       │  │
+│  │ api/ 60 router│→│ services/ 89  │→│ repository/ 37 repo       │  │
 │  │ (lazy 注册)   │  │ (业务编排)     │  │ (SQLite DAO, 每表一 repo) │  │
 │  └──────┬───────┘  └──────┬────────┘  └────────────┬──────────────┘  │
 │         │                 │                        │                 │
@@ -75,7 +75,7 @@ Fernet (PBKDF2 派生) · WebDAV zip 同步 · fastapi-mcp · loguru 结构化�
 
 ```
 backend/
-├── api/           # 57 个 router (lazy import, feature flag 接线)
+├── api/           # 60 个 router (lazy import, feature flag 接线)
 │   └── __init__.py # register_routers() 聚合注册
 ├── collectors/    # 8 个注册采集器 (14 个 BaseCollector 子类)
 │   ├── base.py    # BaseCollector(ABC) — parsing/keywords/quality 已拆 Mixin

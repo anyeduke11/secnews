@@ -55,6 +55,9 @@ class CreateSecretRequest(BaseModel):
     name: str = Field(..., max_length=120)
     model: str = Field(..., max_length=120)
     base_url: str = Field(..., max_length=300)
+    # S4-1: provider 字段 (sensenova / dots.ai / openai / anthropic / ollama / 自定义),
+    # 与 ai_hub _resolve_provider + secrets_service provider 路由联动; 默认空串向后兼容。
+    provider: str = Field("", max_length=64, description="LLM provider 名 (sensenova / dots.ai / openai / anthropic / ollama / 自定义)")
     api_key: str = Field(..., description="明文 API key, 仅在传输/落库加密时短暂存在")
     master_key: str = Field(..., description="主密钥, 用于加密新条目")
 
@@ -63,6 +66,7 @@ class UpdateSecretRequest(BaseModel):
     name: str | None = Field(None, max_length=120)
     model: str | None = Field(None, max_length=120)
     base_url: str | None = Field(None, max_length=300)
+    provider: str | None = Field(None, max_length=64, description="LLM provider 名")
     api_key: str | None = None
     master_key: str | None = None
 
@@ -252,6 +256,7 @@ async def create_secret(req: CreateSecretRequest):
             base_url=req.base_url,
             api_key=req.api_key,
             master_key=req.master_key,
+            provider=req.provider,
         )
     except Exception as e:
         raise _err_to_http(e)
@@ -274,6 +279,7 @@ async def update_secret(secret_id: int, req: UpdateSecretRequest):
             base_url=req.base_url,
             api_key=req.api_key,
             master_key=req.master_key,
+            provider=req.provider,
         )
     except Exception as e:
         raise _err_to_http(e)

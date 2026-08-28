@@ -296,7 +296,15 @@
 - [x] S3-5: LayerNav 四入口已存在 (安全看板 /secnews 路由)
 
 ### Phase 4 任务分解
-- [ ] S4-1: 模型分层路由（flash/big/embed 三档配置）
+- [x] **S4-1: model_router ↔ ai_hub 双向接入 + llm_secrets.provider** (`810a4c47`):
+    `model_router.route_model(task, config=None)` 接受 LLMConfig 注入, 复用 ai_hub 已持有 config (消除 yaml 二次 IO);
+    `_route_from_config()` 让 `task_overrides[t1_score/t3_summary/t3_chunk_summary]` 真正生效;
+    修复隐藏 bug: yaml 路径从 `parent.parent.parent` → `parent.parent.parent.parent` (Phase 6 之前是死代码);
+    `LLMService.resolve_provider_for_task()` + `_try_order()`: router 推荐优先 + fallback_order 兜底;
+    `AIService._resolve_provider()` 三级优先级: AI_PROVIDER env > router > default_provider;
+    `llm_secrets` 新增 `provider` 列 (迁移 `074_v0.6_llm_secrets_provider.sql`) + repo/service/api/sync_bundle 透传;
+    `config/llm.yaml` 新增 sensenova_prod + dots_ai 示例 provider (OpenAI 兼容);
+    新增 6 用例; 全量 2914 passed/6 skipped + ruff 0 + generate_meta OK
 - [ ] S4-2: DeepRead 深度分析面板（四节报告）
 - [ ] S4-3: CVE 热力图 + ATT&CK 技术映射可视化
 - [ ] S4-4: 合规矩阵面板

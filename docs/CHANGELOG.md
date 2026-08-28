@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.6.2 (2026-08-28) — v0.6 Phase 4 第一批: model_router ↔ ai_hub 双向接入 + llm_secrets.provider
+
+> **范围**: 推进 Phase 4 第一项 S4-1 — 把 `backend/services/llm/model_router.py` 从死代码接到 ai_hub, 同时为多 provider 接入打基础。
+> **批次 commit**: 1 个, 紧接 Phase 5 三批 (`87540929` / `73d1dc05` / `840987fe`) 入仓。
+
+### 批次 ⑪：v0.6 Phase 4 S4-1 — model_router 双向接入 + secrets.provider
+
+1. **`feat(s4-1): model_router ↔ ai_hub 双向接入 + llm_secrets.provider`** (`810a4c47`)
+   - `backend/services/llm/model_router.py`: 新增 `route_model(task, config=None)` 接受 LLMConfig 注入 (消除 yaml 二次 IO); `_route_from_config()` 让 `task_overrides[t1_score/t3_summary/t3_chunk_summary]` 真正生效; TASK_TIER_MAP 补全 (refine/classify/tag/summarize/summary/brief/generate/chunk_summary/evaluate/compare/score/ner/deep_read/assess/compliance/report); **修复隐藏 bug**: yaml 路径从 `parent.parent.parent` → `parent.parent.parent.parent` (Phase 6 之前是 dead code, bug 一直隐藏)。
+   - `backend/services/ai_hub.py`: `LLMService.resolve_provider_for_task(task) -> tuple[str,str] | None`; `_try_order(task_attr)` 把 router 推荐 provider 放在首位 + fallback_order 去重兜底; `score/summarize/extract_entities/generate` 4 个循环体改用 `_try_order`; `AIService._resolve_provider()` 改为三级优先级 (AI_PROVIDER env > router > default_provider), 不再硬编码 sensenova 兜底。
+   - `backend/repository/migrations/074_v0.6_llm_secrets_provider.sql` (新建): `ALTER TABLE llm_secrets ADD COLUMN provider TEXT NOT NULL DEFAULT ''; CREATE INDEX idx_llm_secrets_provider ON llm_secrets(provider)` (幂等)。
+   - `backend/repository/secrets_repo.py`: `SecretItem` 加 `provider` 字段; `_row()` / `to_dict()` / `create(provider=...)` / `update(provider=...)` 全链路透传; 向后兼容老 payload (`provider = str(row["provider"]) if "provider" in row.keys() else ""`)。
+   - `backend/services/secrets_service.py`: `create_secret(provider="")` / `update_secret(provider=None)` kwarg; `export` / `import_from_bytes` 兼容老 bundle (`s.get("provider","")`); `reveal()` 含 provider 字段。
+   - `backend/api/secrets.py`: `CreateSecretRequest.provider: str = Field("", max_length=64)`; `UpdateSecretRequest.provider: str | None = None`; 路由 handler 透传。
+   - `backend/services/sync_bundle.py`: INSERT/UPDATE `llm_secrets` 处加 `provider` 列; 兼容老 bundle (`provider_val = str(s.get("provider","") or "").strip()`)。
+   - `config/llm.yaml`: 新增 sensenova_prod (OpenAI 兼容, https://api.sensenova.cn/v1) + dots_ai (OpenAI 兼容, https://api.dots.ai/v1) 示例 provider; `task_overrides` 注释说明 S4-1 激活。
+   - `backend/tests/test_s4_1_model_router.py` (新建, 6 用例): route_model 注入 config 优先 yaml / task_overrides 命中 / fallback_order 第一项兜底 / ai_hub.score 走 router 推荐 provider / router 异常时 fallback_order 完整遍历 / AIService._resolve_provider 三路径优先级。
+   - `backend/tests/test_secrets_api.py`: fixture schema 列表追加 074 迁移 (修复 7 个 secrets_api 测试因 `provider` 列缺失)。
+   - `docs/ARCHITECTURE.md`: `api/ 57 router` → `api/ 60 router` (新引入 deep_read / cve_analytics / compliance router 注册, generate_meta.py --check OK)。
+
+**S4-1 验收**:
+| 维度 | 验收 | 实测 |
+|------|------|------|
+| 全量 pytest | 基线 2898 (含 S4-1 新增 6) | 2914 passed / 6 skipped (✓) |
+| ruff 增量 | 新+改文件 0 错 | 0 (✓, 5 处自动修复) |
+| generate_meta --check | doc 与 code 一致 | `routers: 60` OK (✓) |
+| router 注入 config | 不再走 yaml IO | 6/6 通过 (✓) |
+| task_overrides 激活 | 优先级最高 | task_overrides 命中覆盖 fallback_order (✓) |
+| yaml 路径 bug | 修复隐藏死路径 | parent.parent.parent → parent.parent.parent.parent (✓) |
+| secrets_api 回归 | 18/18 通过 | 18 passed (✓, fixture 加 074 迁移) |
+
 ## v0.6.1 (2026-08-27) — v0.6 P0 清场第二批 + dsh 桥接层 + Phase 4 工作台 UI + **v0.6 Phase 5 (mastery 闭合 + 08:00 LLM 简报 + MCP 扩展 5 tool)**
 
 > **范围**: 在 v0.6 P0 清场第二批 / dsh 桥接层 / Phase 4 工作台 UI 之外, 追加 Phase 5 三批落地:

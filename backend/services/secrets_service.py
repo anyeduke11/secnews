@@ -421,6 +421,7 @@ class SecretsService:
         base_url: str,
         api_key: str,
         master_key: str,
+        provider: str = "",
     ) -> dict:
         """新增 secret, 需要 master_key 当场加密。"""
         ek = EncryptionKeyRepository()
@@ -440,6 +441,7 @@ class SecretsService:
             api_key=api_key,
             fernet_key=fernet_key,
             encryption_key_id=row.id,
+            provider=provider,
         )
         return item.to_dict(reveal=None)
 
@@ -452,6 +454,7 @@ class SecretsService:
         base_url: str | None = None,
         api_key: str | None = None,
         master_key: str | None = None,
+        provider: str | None = None,
     ) -> dict:
         """更新 secret; 改 api_key 必须传 master_key。"""
         sr = SecretRepository()
@@ -478,6 +481,7 @@ class SecretsService:
             base_url=base_url,
             api_key=api_key,
             fernet_key=fernet_key,
+            provider=provider,
         )
         return item.to_dict(reveal=None)
 
@@ -516,6 +520,7 @@ class SecretsService:
             "name": item.name,
             "model": item.model,
             "base_url": item.base_url,
+            "provider": item.provider,
             "api_key": plaintext,
             "unlocked": True,
         }
@@ -663,6 +668,7 @@ class SecretsService:
                     "name": it.name,
                     "model": it.model,
                     "base_url": it.base_url,
+                    "provider": it.provider,
                     "api_key": decrypt_api_key(fernet_key, it.api_key_encrypted),
                 }
                 for it in items
@@ -747,6 +753,8 @@ class SecretsService:
                 name = str(s["name"]).strip()
                 model = str(s["model"]).strip()
                 base_url = str(s["base_url"]).strip()
+                # S4-1: 老 payload 无 provider 字段 (v1.0 导出) → 默认空串, 行为兼容
+                provider = str(s.get("provider", "")).strip()
                 api_key = str(s["api_key"])
                 if name in existing_by_name:
                     sr.update(
@@ -756,6 +764,7 @@ class SecretsService:
                         base_url=base_url,
                         api_key=api_key,
                         fernet_key=fernet_key,
+                        provider=provider,
                     )
                     updated += 1
                 else:
@@ -766,6 +775,7 @@ class SecretsService:
                         api_key=api_key,
                         fernet_key=fernet_key,
                         encryption_key_id=row.id,
+                        provider=provider,
                     )
                     inserted += 1
             except Exception as e:

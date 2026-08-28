@@ -29,7 +29,12 @@ def client(tmp_path, monkeypatch) -> Iterator:
     # 直接用 sqlite3 初始化 schema (012 + 013 + 014)
     conn = sqlite3.connect(str(db_file))
     schema_dir = "backend/repository/migrations"
-    for sql_file in ("012_skills.sql", "013_secrets.sql", "014_sync.sql"):
+    for sql_file in (
+        "012_skills.sql",
+        "013_secrets.sql",
+        "014_sync.sql",
+        "074_v0.6_llm_secrets_provider.sql",
+    ):
         with open(f"{schema_dir}/{sql_file}", encoding="utf-8") as f:
             conn.executescript(f.read())
     conn.commit()

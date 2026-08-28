@@ -723,6 +723,8 @@ def apply_bundle(bundle: dict, *, master_key: str | None = None) -> dict:
                 secret_stats["skipped"] += 1
                 continue
             api_key_cipher = cipher_bytes
+            # S4-1: 兼容老 bundle 无 provider 字段 → 空串; 新 bundle 含 provider 字段透传
+            provider_val = str(s.get("provider", "") or "").strip()
             if name in existing_by_name:
                 existing = existing_by_name[name]
                 if existing.api_key_encrypted != api_key_cipher:
@@ -730,6 +732,7 @@ def apply_bundle(bundle: dict, *, master_key: str | None = None) -> dict:
                         existing.id, name=name, model=s.get("model") or existing.model,
                         base_url=s.get("base_url") or existing.base_url,
                         api_key=None, fernet_key=None,
+                        provider=provider_val,
                     )
                     conn = get_connection()
                     conn.execute(
@@ -743,10 +746,10 @@ def apply_bundle(bundle: dict, *, master_key: str | None = None) -> dict:
             else:
                 conn = get_connection()
                 conn.execute(
-                    """INSERT INTO llm_secrets (name, model, base_url, api_key_encrypted,
-                        encryption_key_id, created_at, updated_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                    (name, s.get("model", ""), s.get("base_url", ""),
+                    """INSERT INTO llm_secrets (name, model, base_url, provider,
+                        api_key_encrypted, encryption_key_id, created_at, updated_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (name, s.get("model", ""), s.get("base_url", ""), provider_val,
                      api_key_cipher, ek_row.id,
                      s.get("created_at") or _now_iso(),
                      s.get("updated_at") or _now_iso()),

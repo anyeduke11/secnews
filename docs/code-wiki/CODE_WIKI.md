@@ -1,6 +1,6 @@
 # SecNews Hotspot — Code Wiki
 
-> 版本: v2.0 | 基准代码: v0.5.0 | 生成日期: 2026-08-27 | 目标读者: 开发者 / AI Agent
+> 版本: v2.0 | 基准代码: v0.6.2 | 生成日期: 2026-08-28 | 目标读者: 开发者 / AI Agent
 >
 > 本版在旧版 Wiki (2026-07-23) 基础上**全量重写**，补齐 2026-07 以来的新模块:
 > `kl_pipeline/` (KL 知识管线)、`wiki_fs/` (文件存储契约)、Core/Extension 软分层与 feature gates、

@@ -1,6 +1,6 @@
 # 02 — 后端详解
 
-> 基准: v0.5.0 (2026-08)。数字快照: 57 router / 89 service / 37 repo / 47 job / 14 collector,
+> 基准: v0.6.2 (2026-08-28)。数字快照: 63 router / 93 service / 37 repo / 47 job / 14 collector,
 > 由 `scripts/generate_meta.py` 反推维护, 见 `docs/ARCHITECTURE.md`。
 
 ## 1. 启动与生命周期
@@ -129,7 +129,7 @@ Pydantic Settings, 环境变量前缀 `HOTSPOT_`。关键字段:
 | `sync_bundle.py` | ~850 | bundle 生命周期: 读本地配置 / 写回各表 / Fernet 加解密 / apply |
 | `sync_zip.py` | — | zip 容器: `build_sync_zip()` / `extract_sync_zip()`; envelope.json (密文) + manifest.json (明文) |
 
-**`ai_hub.py` — LLM 单出口 (v0.5.0 起)**
+**`ai_hub.py` — LLM 单出口 (v0.5.0 起, v0.6.2 拆为 ai_hub/ 包)**
 
 - `LLMService`: 多 provider + fallback + 缓存; `score` 按 `fallback_order` 依次调用,
   全部失败回退默认分数

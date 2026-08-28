@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 产品定位
 
-hotspot 是面向 **AI + 安全从业者** 的单人本地工作站。安全与 AI 是双核心领域——安全数据源最广（17 源）、knowledge 库中安全 + AI 内容合计占 65%、CodeGarden 定位即「AI 协作全生命周期管理」；金融/创业/招标/科技/GitHub 为辅助领域。三大子系统（SecNews 热点聚合 / Knowledge 知识闭环 / CodeGarden 项目管理）均围绕这一人群设计。AI 安全交叉内容（OWASP LLM Top 10、对抗 ML、prompt injection、AI 红队）是区别于纯安全或纯 AI 产品的差异化方向。
+hotspot 是面向 **AI + 安全从业者** 的单机本地工作站（v0.6.2）。知识域以 `llm-wiki-2.0/` md 文件为唯一真相源（wiki-first 哲学），SQLite 仅做投影索引；AI 调用经 `backend/services/ai_hub.py` 单出口；SecNews 工作台（5 视图）+ DSH HTTP 桥接 + CRM 业绩座舱于 v0.6 完成。架构数字由 `scripts/generate_meta.py` AST 反推维护（当前 47 jobs / 14 collectors / 63 routers / 94 services）。详细机制见 `docs/ARCHITECTURE.md`（v0.6.2），跑测试与生成迁移见 `backend/requirements*.txt` 与 `backend/repository/migrations/`。历史设计见 `docs/archived/`。
 
 ## Commands
 
@@ -36,19 +36,21 @@ cd frontend && npx tsc --noEmit           # 类型检查
 
 ## Architecture
 
-### Three Subsystems
+### Five Subsystems (v0.6.2)
 
-| Subsystem | Path | Purpose |
-|-----------|------|---------|
-| **SecNews** | `backend/` | Multi-domain news aggregation (7 domains, 30+ sources) |
-| **Knowledge LLM-Wiki** | `knowledge/` | File-based knowledge base w/ concepts, learning plans, SOUL profile |
-| **CodeGarden** | `codegarden/` + `backend/api/codegarden*.py` | Personal code project lifecycle management |
+| # | Subsystem | 入口 | 说明 |
+|---|-----------|------|------|
+| 01 | **SecNews 热点聚合** | `/` | 14 采集器 · 11+ 质量门禁 · 趋势/搜索/导出 |
+| 02 | **Knowledge LLM-Wiki** | `/knowledge` | `llm-wiki-2.0/` md 真源 · kl_pipeline 五阶段 · FTS5 |
+| 03 | **CodeGarden** | `/codegarden` | 项目生命周期 + 服务网格 + 资源中枢 + 联动引擎 |
+| 04 | **Security Graph** | `/knowledge/process` | MITRE ATT&CK · NVD CVE · 等保 / 关基 / 数安法 |
+| 05 | **SecNews 工作台 (v0.6)** | `/workbench` | 5 视图: Briefing / Pipeline / Knowledge / Analyze / Settings |
 
 ### Backend (FastAPI, no async DB)
 
 ```
 backend/
-├── api/            # REST routers (54 routers, ~127 lines median)
+├── api/            # REST routers (63 include_router @ v0.6.2, 14 个按 feature_gates 条件注册)
 │   ├── __init__.py # register_routers() aggregates all (lazy imports)
 │   ├── codegarden.py, codegarden_ops.py  # 项目管理 + 运维层 (服务/资源/事件) endpoints
 │   ├── knowledge_chunks_api.py  # v0.3.0 Phase 17: 知识库 chunk 级 API + FTS5
@@ -70,14 +72,14 @@ backend/
 │   ├── aihot_parser.py, jin10_parser.py, clsd_parser.py  # 具体解析器
 ├── domain/         # Pydantic models (HotspotItem, KnowledgeItem, etc.)
 │   └── security_models.py  # SecurityEntity / SecurityEdge / SecurityTerm
-├── quality/        # 13 quality gates (flat layout, pipeline architecture)
+├── quality/        # 11+ quality gates (flat layout, pipeline architecture) — 13 道已并入 Pipeline v0.6 收缩
 │   ├── base.py     # GateContext + BaseGate(ABC)
 │   ├── pipeline.py # QualityGatePipeline
 │   ├── scorer.py, config.py, jobs.py, publisher_registry.py, source_coverage.py
 │   └── *_gate.py   # author_verification, bid_recency, category_match, content_quality, duplicate, final_url, noise_content, recency, schema, source_reputation, title_summary, url_content, url_validity
-├── repository/     # SQLite DAO layer (33 repos, one per table)
+├── repository/     # SQLite DAO layer (37 repos @ v0.6.2, one per table)
 │   ├── db.py       # init_db, get_connection (thread-local, autocommit)
-│   ├── migrations/ # 58 SQL migration files (001-058)
+│   ├── migrations/ # 60+ SQL migration files (001-074) — 含 v0.6 llm_secrets.provider 等
 │   ├── security_repo.py  # Security Knowledge Graph + Terminology
 │   └── knowledge_repo.py
 ├── scheduler/      # APScheduler jobs (sync, collection, trends, security)
@@ -86,7 +88,7 @@ backend/
 │   ├── graph.py         # SecurityGraphEngine
 │   ├── enricher.py      # CVE/ATT&CK/合规提取
 │   └── compliance.py    # 合规种子数据
-├── services/       # Business logic (74 files)
+├── services/       # Business logic (94 services @ v0.6.2, 含 kl_pipeline/wiki_fs/dsh/llm/model_router 等)
 │   ├── sync_service.py     # Orchestration (921 lines)
 │   ├── sync_merge.py       # 3-way merge engine (extracted)
 │   ├── sync_bundle.py      # Build/encrypt/decrypt bundles (extracted)
@@ -114,7 +116,7 @@ Key patterns:
 
 ```
 frontend/src/
-├── components/     # ~120 React components
+├── components/     # 290 React components @ v0.6.2 — workbench/ 5 视图 + secnews/ + crm/ 为 v0.6 新增
 │   ├── Icon.tsx    # Shared SVG icon component
 │   ├── SyncPage.tsx, SecretsPage.tsx  # Largest (~800 lines, needs splitting)
 │   ├── ReportPage.tsx  # v0.3.0: 日报/周报/月报 (AIHot 风格)
@@ -193,10 +195,10 @@ sync_bundle.py   →  Serialization: build_bundle, encrypt/decrypt (853 lines)
 
 ### Testing
 
-- **Backend**: 2286+ tests, pytest with `tmp_path` + `monkeypatch` for DB isolation
-- **Frontend**: Vitest + jsdom, 286+ tests, tests colocated with components
-- **New tests (no DB)**: `test_sync_merge.py`, `test_auto_classifier.py`, `test_knowledge_watcher.py` — pure function tests, fastest to run
-- **CI**: `.github/workflows/ci.yml` — Python compile + pytest + tsc + vitest + vite build
+- **Backend**: 2892 tests @ v0.6.2, pytest with `tmp_path` + `monkeypatch` for DB isolation
+- **Frontend**: Vitest + jsdom, 322 tests, tests colocated with components (17 预存失败: e2e specs 误收集 + localStorage mock, 非功能回归)
+- **New tests (no DB)**: `test_sync_merge.py`, `test_auto_classifier.py`, `test_knowledge_watcher.py`, `test_kl_pipeline.py`, `test_secnews_dashboard.py` — pure function tests, fastest to run
+- **CI**: `.github/workflows/ci.yml` — Python compile + pytest + tsc + vitest + vite build + `generate_meta.py --check` + `harness_analyze.py --check`
 
 ### Key Design Decisions
 

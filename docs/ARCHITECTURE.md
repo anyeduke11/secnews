@@ -1,19 +1,10 @@
 # SecNews（hotspot）· 现状架构文档
 
-> 📜 **状态标注 (2026-08-25)**: hotspot 活跃开发中 — 当前代码 v0.5.0，对应 `docs/SECNEWS_INTEGRATION_TASKS.md` Phase 0-6 (Phase 0 已交付 commit `2592a640`)。
->
-> Phase 7 (后端退役至 dsh-SecNews) **破坏性步骤已冻结** (D+2 停 :8000 / D+3 git mv), 见 `PROGRESS.md` §2026-08-24 §连锁裁决; `scripts/export_for_dsh.py` 等工具保留为参考资产。
->
-> **退役文档**: [`HOTSPOT_RETIREMENT.md`](HOTSPOT_RETIREMENT.md) (含冻结横幅, 当前为参考档案)
-> **整合 spec**: [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](HOTSPOT_SECNEWS_INTEGRATION.md) + [`docs/SECNEWS_INTEGRATION_TASKS.md`](SECNEWS_INTEGRATION_TASKS.md)
-
----
-
-> 本文档描述 **2026-08 当前代码 (v0.5.0)** 的真实架构，供新开发者快速理解系统。
+> 本文档描述 **2026-08-28 当前代码 (v0.6.2)** 的真实架构，供新开发者快速理解系统。
 > 定位：现状概览，不是设计历史；历史决策与演进见 `docs/IMPROVEMENT_PLAN.md`。
-> 所有数字均从代码/文件核对（迁移 60、router 52、测试 2662/292、备份保留 1、同步上限 100k）。
-> v0.5.0 (2026-08-23): llm-wiki-2.0 数据底座 + ai_hub LLM 单出口 — graph.json
-> 6 边运行时填入 + 一次性迁移 4149 items / 96 concepts; 详见 `docs/v0.5_refactor_plan.md`。
+> 所有数字均从代码/文件核对（迁移 60+、router 63、jobs 47、collectors 14、services 94、测试 2892/322、备份保留 7、同步上限 100k），`scripts/generate_meta.py --check` 是 CI 门禁。
+> v0.6 (2026-08-23 → 08-28): SecNews 工作台 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings) + kl_pipeline 五阶段管线 + DSH HTTP 桥接 + CRM 业绩座舱 + wiki_items_fts 完整同步层 + dsh-SecNews 归档, 详见 `docs/CODE_AUDIT_2026-08-28.md`。
+> v0.5 (2026-08-21 → 08-23): llm-wiki-2.0 数据底座 + ai_hub LLM 单出口 + Hot/Warm/Cold 分层 + dlq retry + 性能三任务, 详见 `docs/v0.5_refactor_plan.md`。
 > v0.4.0 (2026-08-16): 审计重构 Phase 0-6 落地 — 知识闭环数据流/采集管道/同步安全/
 > 导航操作流统一, 详见 `docs/audit_first_principles_plan.md`。
 
@@ -56,8 +47,8 @@
         ▼                         ▼                         ▼
    ┌─────────┐            ┌──────────────┐          ┌──────────────┐
    │ SQLite  │            │ knowledge/*.md│         │ WebDAV (坚果云)│
-   │ WAL 模式 │            │ + llm-wiki-2.0│         │ zip+Fernet 同步│
-   │ 运营层   │            │ (md 文件真相源) │          │ (每周一 10:30)│
+   │ WAL 模式 │            │ (文件真相源)   │          │ zip+Fernet 同步│
+   │ 1 个 db  │            │ + watchdog    │          │ (每周一 10:30)│
    └─────────┘            └──────────────┘          └──────────────┘
 ```
 
@@ -75,7 +66,7 @@ Fernet (PBKDF2 派生) · WebDAV zip 同步 · fastapi-mcp · loguru 结构化�
 
 ```
 backend/
-├── api/           # 61 个 router (lazy import, feature flag 接线)
+├── api/           # 63 个 router (lazy import, feature flag 接线)
 │   └── __init__.py # register_routers() 聚合注册
 ├── collectors/    # 8 个注册采集器 (14 个 BaseCollector 子类)
 │   ├── base.py    # BaseCollector(ABC) — parsing/keywords/quality 已拆 Mixin
@@ -172,7 +163,7 @@ frontend/src/
 
 ```
 knowledge/
-├── items/       # L1 条目 (当前 4149 个 .md, 含 attention_score)
+├── items/       # L1 条目 (当前 4143 个 .md, 含 attention_score)
 ├── concepts/    # L2 概念 (96 个 .md + graph.json)
 ├── learning/    # L3 学习计划 + 任务队列 (pending/processing/done/failed)
 ├── content/     # L4 内容日历 + 草稿
@@ -181,27 +172,6 @@ knowledge/
 └── _MAP.md      # 自动索引
 ```
 
-**v0.5 llm-wiki-2.0（知识真源升级，SPEC §18）**：`llm-wiki-2.0/` 为知识资产
-主存储 —— md 文件唯一真源，SQLite 退化为运营层/索引缓存。存量 `knowledge/`
-双轨保留（v0.5 期间不删除）。
-
-```
-llm-wiki-2.0/
-├── items/       # L1 条目 (迁移自 knowledge/: 4149 个, 补 confidence/retention frontmatter)
-├── concepts/    # L2 概念 (96 个 .md)
-├── sources/     # 抓取元数据 (url/parser/quality_gate 决策链)
-├── digest/      # 简报/结晶 (date-slug.md)
-├── schema/      # SCHEMA.md — frontmatter 字段唯一真相源
-├── retention.json # Ebbinghaus 衰减追踪 (current = initial*0.9^(days/7), <0.3 标 stale)
-└── graph.json   # 6 种 typed edges (uses/depends/contradicts/caused/fixed/supersedes)
-```
-
-- **graph.json 运行时填充**（M3.5 Task13）：`concept_linker.py` 按条目概念共现
-  累积 `uses` 边（weight + source_observation_count），保留人工/LLM 标注的其他
-  5 种边；`scripts/check_graph_schema.py` + `scripts/check_retention_decay.py` CI 校验。
-- **AI 能力单出口**（M5 Task19）：全仓 LLM 调用唯一入口 `backend/services/ai_hub.py`
-  （合并自旧 `llm_service.py` + `ai_service.py`）；`ai_scores` 写路径唯一入口
-  `ai_hub.write_score()`。`docs/llm_config.md` 有配置说明。
 - **6 认知模式**：简报（Briefing）/ 快速扫描（Scan）/ 深度阅读（DeepRead）/
   告警（Alert）/ 整理（Outbox）/ 复习（Review），对应 `/knowledge/*` 路由。
 - **注意力评分**（`attention_scorer.py`）：5 维加权（view 0.25 / dwell 0.25 /
@@ -384,46 +354,16 @@ python scripts/check_backup_chain.py  # CI 校验
 
 ---
 
-## 九、规划文档登记表 (Planning Document Registry)
+## 九、规划文档登记
 
-> 本节是规划文档 (`docs/*_plan*.md` / `docs/*INTEGRATION*.md` / `docs/*_TASKS*.md`)
-> 与代码实现的**唯一交叉引用锚点**。`scripts/generate_meta.py --check`
-> 会扫描所有 frontmatter `status: draft` 状态的规划文档，
-> 任何未在本表登记的 draft 文档 → CI 报错（防止规划与实现脱节）。
->
-> 表头约定：每行必须包含 `docs/<文件名>.md` 的 backtick 反引号引用，
-> 以便 `re.findall(r"`(docs/[^`]+\.md)`", text)` 机械扫描。
->
-> 已登记引用总数：3 draft / 4 historical。
+> 本节用于 `scripts/generate_meta.py` draft 校验。所有 `status: draft` 的规划文档
+> 必须在此出现至少一次反引号引用，否则 `--check` 会报 WARN。
 
-### 9.1 Draft 规划（激活态，等待实现）
-
-| 文档 | 状态 | 目标版本 | 关联代码 | 依赖规划 |
-|------|------|----------|----------|----------|
-| [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](HOTSPOT_SECNEWS_INTEGRATION.md) | `draft` | v0.6 | `backend/kl_pipeline/`, `backend/services/ai_hub.py`, `backend/collectors/secnews/`, `frontend/src/components/secnews/` | `docs/v0.5_refactor_plan.md` |
-| [`docs/SECNEWS_INTEGRATION_TASKS.md`](SECNEWS_INTEGRATION_TASKS.md) | `draft` | v0.6 | `backend/kl_pipeline/`, `backend/services/ai_hub.py`, `backend/repository/kl_queue_repo.py` | `docs/HOTSPOT_SECNEWS_INTEGRATION.md`, `docs/v0.5_refactor_plan.md` |
-| [`docs/v0.6_workstation_plan.md`](v0.6_workstation_plan.md) | `draft` | v0.6 | `backend/kl_pipeline/`, `backend/services/ai_hub.py`, `frontend/src/components/security/` | `docs/v0.5_refactor_plan.md`, `docs/audit_first_principles_plan.md`, `docs/HOTSPOT_SECNEWS_INTEGRATION.md` |
-
-### 9.2 Historical / 已收敛（仅历史查阅，不阻塞 review）
-
-| 文档 | 状态 | 收敛版本 |
-|------|------|----------|
-| `docs/v0.5_refactor_plan.md` | historical (v0.5 已落账) | v0.5.0 |
-| `docs/audit_first_principles_plan.md` | historical (v0.4 已落账) | v0.4.0 |
-| `docs/IMPROVEMENT_PLAN.md` | historical (v0.3 时代) | v0.3.x |
-| `docs/crawler-v2-design.md` | historical (架构已定) | v0.4.x |
-
-### 9.3 校验脚本
-
-```bash
-python scripts/generate_meta.py --check   # 同时校验: 架构数字 + draft 规划登记
-```
-
-新增规划文档流程：
-1. 在 `docs/<新规划>.md` 顶部加 YAML frontmatter，至少包含
-   `status: draft` / `target_version: <版本>` / `related_code: <代码路径>` / `depends_on: <前置规划>`。
-2. 在上方 §9.1 表格中加一行 backtick 引用 `docs/<新规划>.md`。
-3. 跑 `python scripts/generate_meta.py --check`；应输出 `OK` 且 exit 0。
+| 文档 | 状态 | 说明 |
+|------|------|------|
+| [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](docs/HOTSPOT_SECNEWS_INTEGRATION.md) | draft | SecNews 集成总览 (Phase 0-6 映射) |
+| [`docs/SECNEWS_INTEGRATION_TASKS.md`](docs/SECNEWS_INTEGRATION_TASKS.md) | draft | SecNews 集成任务清单 (W0-W2 粒度) |
+| [`docs/v0.6_workstation_plan.md`](docs/v0.6_workstation_plan.md) | draft | Workstation 5 视图重构方案 |
 
 ---
 

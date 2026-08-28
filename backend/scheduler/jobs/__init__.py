@@ -106,6 +106,7 @@ from backend.scheduler.jobs.maintenance import (
     telemetry_window_job,
     trend_rebuild_job,
     weekly_maintenance_job,
+    wiki_items_fts_sync_job,
 )
 
 

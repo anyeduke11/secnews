@@ -35,6 +35,7 @@ async def collect_all_job() -> None:
     # ---- post-ingest 链 (各 job 内部自带异常隔离, 不会中断彼此) ----
     await _jobs_pkg.trend_rebuild_job()
     await _jobs_pkg.fts_rebuild_job()
+    await _jobs_pkg.wiki_items_fts_sync_job()
     await _jobs_pkg.security_enrichment_job()
     await url_content_check_job()
     await _jobs_pkg.export_rebuild_job()

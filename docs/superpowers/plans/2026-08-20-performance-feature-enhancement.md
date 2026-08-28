@@ -1,6 +1,6 @@
 # Hotspot 性能优化与功能完善实施计划（草稿 · 已被取代）
 
-> ⚠️ **本文件为历史草稿，已被正式版 `docs/v0.5_refactor_plan.md` 完全取代。**
+> ⚠️ **本文件为历史草稿，已被正式版 `docs/v0.5_refactor_plan/README.md` 完全取代。**
 > 执行 v0.5 重构只读正式版；本文件仅供追溯方案演进（批判性审查结论已整合进正式版 §2 A11–A15 / §5.3 / §6）。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

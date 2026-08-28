@@ -98,7 +98,7 @@
 
 ---
 
-> 规格文件：`docs/v0.5_refactor_plan.md`（唯一真理）。接手会话先读本文件，不重做已完成任务。
+> 规格文件：`docs/v0.5_refactor_plan/README.md`（唯一真理）。接手会话先读本文件，不重做已完成任务。
 > 止损：基线不符→BLOCKED.md；连败 3 次→停；劣于基线→回滚如实报告。
 >
 > **2026-08-21 SPEC 更替**：正式 SPEC 已改写为「统一前端 + DeepSeek Harness 认知层 + llm-wiki-2.0」方案
@@ -109,7 +109,7 @@
 > ## 5 文件用法（接手必读）
 > | 文件 | 角色 | 用法 |
 > |---|---|---|
-> | `docs/v0.5_refactor_plan.md` | **正式 SPEC（唯一真理）** | 执行时只读它。M1→M5 定义/硬指标/验收全在 §1。 |
+> | `docs/v0.5_refactor_plan/README.md` | **正式 SPEC（唯一真理）** | 执行时只读它。M1→M5 定义/硬指标/验收全在 §1。 |
 > | `docs/archived/v0.5_refactor_plan_perf_only.md` | 旧计划归档 (性能+Workbench+AiHub v1) | 查 v1 细节/后悔回退时参考。 |
 > | `docs/archived/v0.5_refactor_plan_wiki_v2.md` | 并行 v2 归档 (llm-wiki-2.0) | 执行 M3.5 的参考底稿：细节 Task 4-17 在此。 |
 > | `PROGRESS.md`（本文件） | 执行进度台账 | 每次动手前后必读写；接手会话第一件事读它。 |

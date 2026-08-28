@@ -10,6 +10,7 @@ const TABS = [
   { key: 'feed', label: '安全资讯', path: '/secnews/feed' },
   { key: 'pipeline', label: '管线观测', path: '/secnews/pipeline' },
   { key: 'knowledge', label: '知识库', path: '/secnews/knowledge' },
+  { key: 'analytics', label: '分析', path: '/secnews/analytics' },
   { key: 'settings', label: '设置', path: '/secnews/settings' },
 ] as const;
 

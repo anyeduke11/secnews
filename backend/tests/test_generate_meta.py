@@ -59,7 +59,7 @@ class TestParseFrontmatter:
         f.write_text(
             "---\nstatus: draft\n"
             "related_code: backend/kl_pipeline/;backend/services/ai_hub.py\n"
-            "depends_on: docs/v0.5_refactor_plan.md\n"
+            "depends_on: docs/v0.5_refactor_plan/README.md\n"
             "---\n\n# body\n",
             encoding="utf-8",
         )
@@ -68,7 +68,7 @@ class TestParseFrontmatter:
             "backend/kl_pipeline/",
             "backend/services/ai_hub.py",
         ]
-        assert fm["depends_on"] == ["docs/v0.5_refactor_plan.md"]
+        assert fm["depends_on"] == ["docs/v0.5_refactor_plan/README.md"]
 
     def test_missing_file_returns_empty(self, gm, tmp_path: Path):
         f = tmp_path / "does_not_exist.md"
@@ -106,11 +106,11 @@ class TestParseArchitectureRegistry:
     def test_extracts_backticked_docs_refs(self, gm):
         text = (
             "Some intro.\n\n"
-            "`docs/v0.5_refactor_plan.md` is one ref.\n\n"
+            "`docs/v0.5_refactor_plan/README.md` is one ref.\n\n"
             "And `docs/SECNEWS_INTEGRATION_TASKS.md` is another.\n"
         )
         assert gm.parse_architecture_registry(text) == {
-            "docs/v0.5_refactor_plan.md",
+            "docs/v0.5_refactor_plan/README.md",
             "docs/SECNEWS_INTEGRATION_TASKS.md",
         }
 

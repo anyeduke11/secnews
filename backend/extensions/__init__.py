@@ -51,6 +51,38 @@ EXTENSION_ROUTERS: dict[str, list[str]] = {
     # 只控制 mitre_sync / cve_sync_to_security 两个 job
 }
 
+# P1-1 (v0.6.2): 扩展→job 归属表 (与 EXTENSION_ROUTERS 并列, 单一来源).
+# 此前 _JOB_EXT_MAP 散落在 backend/scheduler/scheduler.py + 测试三处重复;
+# 现统一在此声明, scheduler.py 与测试反向派生.
+EXTENSION_JOBS: dict[str, list[str]] = {
+    "sync": ["sync"],                       # 跨端配置同步 (Mon 10:30)
+    "codegarden": [
+        "cg_upstream_sync",                 # 上游同步 (daily 09:00) — M1 核心
+    ],
+    "codegarden_phase2b": [
+        "cg_service_scan",                  # 服务网格自动发现 (5min) — M2, P1.6
+        "cg_event_process",                 # 事件总线处理 (60s) — M4, P1.6
+    ],
+    "tech_stack": [
+        "cg_drift_assess",                  # 技术栈漂移评估 (3600s)
+    ],
+    "security_graph": [
+        "mitre_sync",                       # MITRE ATT&CK 同步 (Sun 04:00)
+        "cve_sync_to_security",             # CVE 同步到 security 实体 (1800s)
+    ],
+    "secnews": [
+        "kl_pipeline_heartbeat",            # KL 管线心跳消费 (60s) — SECNEWS Phase 1
+        "secnews_liveness_sweep",           # 书签存活三态批扫 (Sun 02:00 UTC) — S1-3
+    ],
+}
+
+# 反向派生: job→扩展. 替代 scheduler.py 中重复的 _JOB_EXT_MAP.
+JOB_TO_EXTENSION: dict[str, str] = {
+    job: ext
+    for ext, jobs in EXTENSION_JOBS.items()
+    for job in jobs
+}
+
 _DEFAULT_GATES: dict[str, bool] = dict.fromkeys(_EXTENSION_NAMES, True)
 
 _GATES_CACHE: dict[str, bool] | None = None
@@ -102,6 +134,11 @@ def get_extension_routers(name: str) -> list[str]:
     return EXTENSION_ROUTERS.get(name, [])
 
 
+def get_extension_jobs(name: str) -> list[str]:
+    """P1-1: 扩展对应的 scheduler job 列表。"""
+    return EXTENSION_JOBS.get(name, [])
+
+
 def reset_gates() -> None:
     """清空缓存强制重读（测试用）。"""
     global _GATES_CACHE
@@ -110,7 +147,10 @@ def reset_gates() -> None:
 
 __all__ = [
     "EXTENSION_ROUTERS",
+    "EXTENSION_JOBS",
+    "JOB_TO_EXTENSION",
     "get_enabled_extensions",
+    "get_extension_jobs",
     "get_extension_routers",
     "is_extension_enabled",
     "reset_gates",

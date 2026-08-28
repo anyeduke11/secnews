@@ -72,24 +72,14 @@ def create_scheduler() -> AsyncIOScheduler:
         },
     )
 
-# v0.4.3: job→扩展域归属表 — 扩展关闭时对应 job 不调度
-# (job_id 为 scheduler.py 中 add_job 的 id 参数)
-_JOB_EXT_MAP: dict[str, str] = {
-    "sync": "sync",                    # 跨端配置同步 (Mon 10:30)
-    "cg_upstream_sync": "codegarden",  # 上游同步 (daily 09:00) — M1 核心
-    "cg_service_scan": "codegarden_phase2b",  # 服务网格自动发现 (5min) — M2, P1.6
-    "cg_event_process": "codegarden_phase2b",  # 事件总线处理 (60s) — M4, P1.6
-    "cg_drift_assess": "tech_stack",   # 技术栈漂移评估 (3600s)
-    "mitre_sync": "security_graph",    # MITRE ATT&CK 同步 (Sun 04:00)
-    "cve_sync_to_security": "security_graph",  # CVE 同步到 security 实体 (1800s)
-    "kl_pipeline_heartbeat": "secnews",  # KL 管线心跳消费 (60s) — SECNEWS Phase 1
-    "secnews_liveness_sweep": "secnews",  # 书签存活三态批扫 (Sun 02:00 UTC) — S1-3
-}
-
-
 def _is_job_enabled(job_id: str) -> bool:
-    """job 是否参与调度 — 无扩展归属的 job 永远启用。"""
-    ext = _JOB_EXT_MAP.get(job_id)
+    """job 是否参与调度 — 无扩展归属的 job 永远启用。
+
+    P1-1 (v0.6.2): job→扩展 映射改为从 ``backend.extensions.JOB_TO_EXTENSION``
+    派生 (单一来源), 移除原 scheduler.py 内的 _JOB_EXT_MAP 硬编码副本.
+    """
+    from backend.extensions import JOB_TO_EXTENSION
+    ext = JOB_TO_EXTENSION.get(job_id)
     if ext is None:
         return True
     enabled = is_extension_enabled(ext)

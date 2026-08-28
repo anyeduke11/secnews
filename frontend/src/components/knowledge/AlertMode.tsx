@@ -1,6 +1,11 @@
 /**
  * AlertMode — 告警模式 (Phase 13)
  *
+ * @deprecated v0.6.2 (P1-5): 告警展示功能在 workbench/ 中分散到
+ * PipelineView (error 队列) + AnalyzeView (cap 触发); 完整 AlertCenter 仍
+ * 在 /api/alerts/rules 路由内可访问。本组件保留为兼容旧路由 /knowledge/alert,
+ * 计划 v0.7 退役。
+ *
  * 告警中心首页，顶部红色横幅显示未读告警数，下方渲染完整 AlertCenter。
  * 用于路由 /knowledge/alert。
  */

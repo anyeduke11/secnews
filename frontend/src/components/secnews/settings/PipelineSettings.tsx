@@ -20,6 +20,7 @@ interface DshHealth {
   status?: string;
   fallback?: string;
   endpoint?: string;
+  note?: string;        // P1-2: 降级为实验性时携带说明
 }
 
 export function PipelineSettings() {
@@ -133,6 +134,11 @@ export function PipelineSettings() {
             {dsh.endpoint && (
               <div style={{ color: 'var(--text-muted)' }}>
                 endpoint: {dsh.endpoint}
+              </div>
+            )}
+            {dsh.note && (
+              <div style={{ color: 'var(--text-muted)', marginTop: '4px', fontSize: '9px' }}>
+                {dsh.note}
               </div>
             )}
           </div>

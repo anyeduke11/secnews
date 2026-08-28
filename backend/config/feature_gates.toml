@@ -11,4 +11,7 @@ tech_stack = false      # 技术栈管理 + 漂移评估
 security_graph = false  # Security Graph + MITRE 同步
 secnews    = true       # SecNews 安全看板 (KL 管线 + Feed + Wiki 浏览)
 crm        = true       # CRM 业绩座舱 (security-cockpit 方案 C, 用户拍板 2026-08-25)
-dsh        = true       # DSH 桥接层 (DeepSeek Harness HTTP 桥接, v0.6)
+dsh        = false      # P1-2 降级为实验性 — DSH 桥接层 (DeepSeek Harness HTTP 桥接, v0.6)
+                   # 启用条件: ① 设置 DSH_ENDPOINT 环境变量 (默认 http://localhost:3210)
+                   # ② DeepSeek Harness 实际运行并暴露 /health /api/task 端点
+                   # ③ 测试 DSH 不可达时自动降级 llm_service 直连 (无需改业务代码)"

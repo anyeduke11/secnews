@@ -53,6 +53,55 @@
 | 前端 vitest | 322 用例 | 322 passed (✓) |
 | vite build | 产物无错 | clean (✓) |
 
+### 批次 ⑬：v0.6 Phase 4 S4-3 — CVE 热力图 + ATT&CK 技术映射 (STIX 子集嵌入)
+
+1. **`feat(s4-3): CVE 热力图 + ATT&CK 技术映射 (STIX 子集嵌入)`** (`9c38cda2`)
+   - `data/stix/`: attack-tactics.json (14 tactics) + attack-techniques.json (Top-200) + cwe-to-technique.json (~150 mappings) 静态嵌入。
+   - `backend/repository/migrations/076_v0.6_attack_data.sql`: `attack_techniques` + `attack_cwe_map` 两表 (幂等 IF NOT EXISTS)。
+   - `backend/services/attack_loader.py`: `load_attack_data()` 启动时幂等灌入; `cwe_to_techniques(cwe_ids)` 查询。
+   - `backend/services/cve_heatmap_service.py`: `weekly_heatmap(weeks=12)` → 12×5 (critical/high/medium/low/none) 二维数组。
+   - `backend/services/cve_attack_service.py`: `cves_to_attack_techniques(cve_ids)` → CVE → CWE → technique 聚合。
+   - `backend/api/cve_analytics.py`: `GET /api/cve/heatmap?weeks=` + `GET /api/cve/attack-mapping?cve_ids=` + `POST /api/cve/attack-data/load`。
+   - `frontend/src/components/secnews/CveHeatmap.tsx`: SVG 12×5 热力图 (行=severity, 列=week)。
+   - `frontend/src/components/secnews/AttackNavigator.tsx`: ATT&CK navigator 风格 (14 tactic 卡片 + technique 进度条)。
+   - `frontend/src/hooks/useCveHeatmap.ts` + `useAttackMapping.ts`: 数据拉取 hooks。
+   - `frontend/src/routes/index.tsx` + `lazy-imports.ts`: `/secnews/analytics` 路由接入。
+   - `backend/tests/test_attack_loader.py` (6) + `test_cve_heatmap_service.py` (5) + `test_cve_attack_service.py` (5)。
+
+**S4-3 验收**:
+| 维度 | 验收 | 实测 |
+|------|------|------|
+| 全量 pytest | 基线 2919 + 新 16 | 2935 passed / 6 skipped (✓) |
+| ruff 增量 | 新+改文件 0 错 | 0 (✓, 8 处自动修复) |
+| generate_meta --check | doc 与 code 一致 | `routers: 62 / services: 93` OK (✓) |
+| 前端 tsc | 零类型错 | clean (✓) |
+| 前端 vitest | 322 用例 | 322 passed (✓) |
+| vite build | 产物无错 | clean (✓) |
+
+### 批次 ⑭：v0.6 Phase 4 S4-4 — 合规矩阵面板 (等保 2.0 + GDPR + ISO 27001)
+
+1. **`feat(s4-4): 合规矩阵面板 (等保 2.0 + GDPR + ISO 27001)`** (`5c657d99`)
+   - `data/compliance/frameworks.json`: 3 框架静态嵌入 (等保 2.0 三级 8 控制项 + GDPR 8 articles + ISO 27001 Annex A 10 controls)。
+   - `data/compliance/event-mapping.json`: 7 种事件类型 → 合规条款静态映射 (data_breach / unauthorized_access / malware / phishing / ddos / insider_threat / misconfiguration)。
+   - `backend/repository/migrations/077_v0.6_compliance.sql`: `compliance_controls` + `compliance_event_map` 两表 (幂等 IF NOT EXISTS)。
+   - `backend/services/compliance_service.py`: `list_frameworks()` / `controls_for_event(event_type)` / `matrix(event_types, frameworks)`。
+   - `backend/api/compliance.py`: `GET /api/compliance/frameworks` + `GET /api/compliance/matrix` + `GET /api/compliance/controls/{event_type}`。
+   - `frontend/src/hooks/useCompliance.ts`: `fetchFrameworks` / `fetchMatrix` / `fetchControlsForEvent`。
+   - `frontend/src/components/secnews/FrameworkFilter.tsx`: 3 框架勾选过滤器。
+   - `frontend/src/components/secnews/ComplianceMatrix.tsx`: 矩阵视图 (sticky 行/列头, 高亮命中格, 点击展开控制项)。
+   - `frontend/src/components/secnews/analytics/SecNewsAnalytics.tsx`: 第三视图 "合规矩阵" tab。
+   - `backend/tests/test_compliance_service.py` (6 用例)。
+
+**S4-4 验收**:
+| 维度 | 验收 | 实测 |
+|------|------|------|
+| 全量 pytest | 基线 2935 + 新 6 | 2940 passed / 6 skipped (✓) |
+| ruff 增量 | 新+改文件 0 错 | 0 (✓, 5 处自动修复) |
+| generate_meta --check | doc 与 code 一致 | `routers: 63 / services: 94` OK (✓) |
+| 前端 tsc | 零类型错 | clean (✓) |
+| 前端 vitest | 322 用例 | 322 passed (✓) |
+| vite build | 产物无错 | clean (✓) |
+
 ## v0.6.1 (2026-08-27) — v0.6 P0 清场第二批 + dsh 桥接层 + Phase 4 工作台 UI + **v0.6 Phase 5 (mastery 闭合 + 08:00 LLM 简报 + MCP 扩展 5 tool)**
 
 > **范围**: 在 v0.6 P0 清场第二批 / dsh 桥接层 / Phase 4 工作台 UI 之外, 追加 Phase 5 三批落地:

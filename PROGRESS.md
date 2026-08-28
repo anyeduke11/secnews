@@ -34,6 +34,43 @@
 - ruff backend+scripts 全绿; pytest 2892 collected
 - 不在本批: dsh 桥接 / vulture / knip / jobs 二级子包 → 全部留独立工单
 
+## 2026-08-28 v0.6 Phase 4 第二批 — CVE 热力图 + ATT&CK 映射 + 合规矩阵 (S4-3 + S4-4)
+
+> **范围**: Phase 4 剩余两项 S4-3 (CVE 热力图 + ATT&CK 技术映射) + S4-4 (合规矩阵面板)。
+> **commit 链**: `9c38cda2` (S4-3) → `5c657d99` (S4-4)。
+
+### S4-3: CVE 热力图 + ATT&CK 技术映射 (`9c38cda2`)
+
+- [x] `data/stix/`: attack-tactics.json + attack-techniques.json + cwe-to-technique.json 静态嵌入
+- [x] `backend/repository/migrations/076_v0.6_attack_data.sql`: attack_techniques + attack_cwe_map 两表
+- [x] `backend/services/attack_loader.py`: 幂等灌入 + cwe_to_techniques 查询
+- [x] `backend/services/cve_heatmap_service.py`: weekly_heatmap 12×5 热力图
+- [x] `backend/services/cve_attack_service.py`: cves_to_attack_techniques 聚合
+- [x] `backend/api/cve_analytics.py`: 3 端点 (heatmap / attack-mapping / attack-data/load)
+- [x] `frontend/src/components/secnews/CveHeatmap.tsx` + `AttackNavigator.tsx`
+- [x] `frontend/src/hooks/useCveHeatmap.ts` + `useAttackMapping.ts`
+- [x] `frontend/src/routes/index.tsx` + `lazy-imports.ts`: `/secnews/analytics` 路由
+- [x] `backend/tests/`: test_attack_loader (6) + test_cve_heatmap_service (5) + test_cve_attack_service (5)
+
+### S4-4: 合规矩阵面板 (`5c657d99`)
+
+- [x] `data/compliance/frameworks.json`: 等保 2.0 + GDPR + ISO 27001 三框架
+- [x] `data/compliance/event-mapping.json`: 7 事件类型 → 合规条款映射
+- [x] `backend/repository/migrations/077_v0.6_compliance.sql`: compliance_controls + compliance_event_map
+- [x] `backend/services/compliance_service.py`: list_frameworks / controls_for_event / matrix
+- [x] `backend/api/compliance.py`: 3 端点 (frameworks / matrix / controls/{event_type})
+- [x] `frontend/src/hooks/useCompliance.ts`: 3 个 fetch hooks
+- [x] `frontend/src/components/secnews/FrameworkFilter.tsx` + `ComplianceMatrix.tsx`
+- [x] `frontend/src/components/secnews/analytics/SecNewsAnalytics.tsx`: 第三视图
+- [x] `backend/tests/test_compliance_service.py` (6)
+
+### 门禁结果
+
+- pytest 全量: **2940 passed** / 6 skipped (S4-3 新增 16 + S4-4 新增 6)
+- ruff: `All checks passed!` (backend + scripts 全绿)
+- generate_meta --check: `routers: 63 / services: 94` OK
+- 前端: tsc --noEmit 0 错 + vitest 322 passed + vite build clean
+
 ## 2026-08-27 v0.6.0 发版 — CRM 业绩座舱落账
 
 > 用户拍板 [P2_6_COCKPIT_EVAL.md](docs/P2_6_COCKPIT_EVAL.md) 方案 C 完整移植, 5 个 commit 早已入仓推送 (`b2131446` / `4b8b4c66` / `920587c8` / `405d98ca` / `abfc7761`), 本批次仅做版本号 bump + 文档对齐。
@@ -57,7 +94,7 @@
 ### 遗留 / 阻塞 (沿袭 v0.5.1)
 
 - ⚠️ **llm_secrets 主密钥丢失**: 加密通道接管需用户裁决 (Q1 禁重置 vs webdav 存量密文依赖现 key)
-- ⏳ **SecNEWS Phase 4-6 未开始**: S4-1..S4-4 (AI 研判/DeepRead/CVE 热力图/ATT&CK/合规矩阵) + S6-1..S6-4 (存量迁移)
+- ⏳ **SecNEWS Phase 4 S4-1..S4-4 已完成**: S4-1 (`e6eaa45f`) / S4-2 (`794d8873`+`6f0db422`) / S4-3 (`9c38cda2`) / S4-4 (`5c657d99`)；**S6-1..S6-4 存量迁移待开始**
 
 ---
 

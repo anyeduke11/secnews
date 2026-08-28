@@ -77,17 +77,14 @@ EXTENSION_PATHS = {
     ],
 }
 
-# job→扩展归属 (与 scheduler.py _JOB_EXT_MAP 一致; P1.6: M2/M4 job 归 codegarden_phase2b)
-JOB_EXT_MAP = {
-    "sync": "sync",
-    "cg_upstream_sync": "codegarden",
-    "cg_service_scan": "codegarden_phase2b",
-    "cg_event_process": "codegarden_phase2b",
-    "cg_drift_assess": "tech_stack",
-    "mitre_sync": "security_graph",
-    "cve_sync_to_security": "security_graph",
-    "kl_pipeline_heartbeat": "secnews",
-    "secnews_liveness_sweep": "secnews",
+# P1-1 (v0.6.2): job→扩展 派生自 backend.extensions.EXTENSION_JOBS (单一来源),
+# 不再硬编码 3 处副本 (extensions.py / scheduler.py / 测试).
+JOB_EXT_MAP: dict[str, str] = {
+    job: ext
+    for ext, jobs in __import__(
+        "backend.extensions", fromlist=["EXTENSION_JOBS"]
+    ).EXTENSION_JOBS.items()
+    for job in jobs
 }
 
 

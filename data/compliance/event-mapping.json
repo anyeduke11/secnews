@@ -1,0 +1,53 @@
+{
+  "data_breach": [
+    {"framework": "gdpr", "control_id": "Art.33"},
+    {"framework": "gdpr", "control_id": "Art.34"},
+    {"framework": "gdpr", "control_id": "Art.32"},
+    {"framework": "dengbao", "control_id": "8.1.4"},
+    {"framework": "dengbao", "control_id": "8.1.5"},
+    {"framework": "dengbao", "control_id": "8.2.1"},
+    {"framework": "iso27001", "control_id": "A.5.35"},
+    {"framework": "iso27001", "control_id": "A.8.15"},
+    {"framework": "iso27001", "control_id": "A.8.23"}
+  ],
+  "unauthorized_access": [
+    {"framework": "gdpr", "control_id": "Art.5"},
+    {"framework": "gdpr", "control_id": "Art.32"},
+    {"framework": "dengbao", "control_id": "8.2.1"},
+    {"framework": "dengbao", "control_id": "8.2.2"},
+    {"framework": "dengbao", "control_id": "8.3.3"},
+    {"framework": "iso27001", "control_id": "A.5.15"},
+    {"framework": "iso27001", "control_id": "A.5.25"},
+    {"framework": "iso27001", "control_id": "A.8.3"}
+  ],
+  "malware": [
+    {"framework": "dengbao", "control_id": "8.2.2"},
+    {"framework": "dengbao", "control_id": "8.2.1"},
+    {"framework": "iso27001", "control_id": "A.8.1"},
+    {"framework": "iso27001", "control_id": "A.8.23"},
+    {"framework": "gdpr", "control_id": "Art.32"}
+  ],
+  "phishing": [
+    {"framework": "dengbao", "control_id": "8.2.1"},
+    {"framework": "iso27001", "control_id": "A.6.8"},
+    {"framework": "gdpr", "control_id": "Art.5"}
+  ],
+  "ddos": [
+    {"framework": "dengbao", "control_id": "8.2.1"},
+    {"framework": "iso27001", "control_id": "A.8.16"},
+    {"framework": "gdpr", "control_id": "Art.32"}
+  ],
+  "insider_threat": [
+    {"framework": "dengbao", "control_id": "8.1.4"},
+    {"framework": "dengbao", "control_id": "8.1.5"},
+    {"framework": "dengbao", "control_id": "8.4.1"},
+    {"framework": "iso27001", "control_id": "A.5.15"},
+    {"framework": "iso27001", "control_id": "A.8.15"},
+    {"framework": "gdpr", "control_id": "Art.25"}
+  ],
+  "misconfiguration": [
+    {"framework": "dengbao", "control_id": "8.5.1"},
+    {"framework": "iso27001", "control_id": "A.5.25"},
+    {"framework": "gdpr", "control_id": "Art.32"}
+  ]
+}

@@ -36,6 +36,8 @@ def register_routers(app: FastAPI) -> None:
         categories,
         crm_customers_api,  # v0.6: CRM 业绩座舱 — 客户 CRUD
         deep_read,  # v0.6 Phase 4 S4-2: DeepRead 4 节深度分析
+        cve_analytics,  # v0.6 Phase 4 S4-3: CVE 热力图 + ATT&CK 映射
+        compliance,  # v0.6 Phase 4 S4-4: 合规矩阵 (等保 2.0 + GDPR + ISO 27001)
         crm_opportunities_api,  # v0.6: CRM 业绩座舱 — 商机状态机
         crm_stats_api,  # v0.6: CRM 业绩座舱 — KPI/图表聚合
         catchup,  # v1.8 Phase 8: 追抓资讯 (manual + watchdog auto)
@@ -99,6 +101,8 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(reports.router, tags=["reports"])
     app.include_router(weekly_report.router, tags=["weekly-report"])
     app.include_router(deep_read.router, tags=["deep-read"])
+    app.include_router(cve_analytics.router, tags=["cve-analytics"])
+    app.include_router(compliance.router, tags=["compliance"])
     app.include_router(knowledge.router, tags=["knowledge"])
     app.include_router(knowledge_chunks_api.router, tags=["knowledge-chunks"])
     app.include_router(content.router, tags=["content"])

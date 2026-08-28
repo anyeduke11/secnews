@@ -296,7 +296,7 @@
 - [x] S3-5: LayerNav 四入口已存在 (安全看板 /secnews 路由)
 
 ### Phase 4 任务分解
-- [x] **S4-1: model_router ↔ ai_hub 双向接入 + llm_secrets.provider** (`810a4c47`):
+- [x] **S4-1: model_router ↔ ai_hub 双向接入 + llm_secrets.provider** (`e6eaa45f`):
     `model_router.route_model(task, config=None)` 接受 LLMConfig 注入, 复用 ai_hub 已持有 config (消除 yaml 二次 IO);
     `_route_from_config()` 让 `task_overrides[t1_score/t3_summary/t3_chunk_summary]` 真正生效;
     修复隐藏 bug: yaml 路径从 `parent.parent.parent` → `parent.parent.parent.parent` (Phase 6 之前是死代码);
@@ -305,7 +305,10 @@
     `llm_secrets` 新增 `provider` 列 (迁移 `074_v0.6_llm_secrets_provider.sql`) + repo/service/api/sync_bundle 透传;
     `config/llm.yaml` 新增 sensenova_prod + dots_ai 示例 provider (OpenAI 兼容);
     新增 6 用例; 全量 2914 passed/6 skipped + ruff 0 + generate_meta OK
-- [ ] S4-2: DeepRead 深度分析面板（四节报告）
+- [x] **S4-2: DeepRead 深度分析面板（四节报告）** (`794d8873`):
+  `POST /api/deep-read/{entity_type}/{entity_id}` 触发 HEAVY 档 LLM 生成 4 节结构化报告;
+  持久化到 `deep_reads` 表 (UPSERT); 前端 `/deep/:type/:id` DeepReadPage 4节手风琴 + provider/model 栏;
+  新增 `deepread_repo.py` + `deep_read_service.py` + `api/deep_read.py` + `useDeepRead.ts` + 5 用例。
 - [ ] S4-3: CVE 热力图 + ATT&CK 技术映射可视化
 - [ ] S4-4: 合规矩阵面板
 

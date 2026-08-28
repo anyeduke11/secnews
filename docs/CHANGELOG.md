@@ -7,7 +7,7 @@
 
 ### 批次 ⑪：v0.6 Phase 4 S4-1 — model_router 双向接入 + secrets.provider
 
-1. **`feat(s4-1): model_router ↔ ai_hub 双向接入 + llm_secrets.provider`** (`810a4c47`)
+1. **`feat(s4-1): model_router ↔ ai_hub 双向接入 + llm_secrets.provider`** (`e6eaa45f`)
    - `backend/services/llm/model_router.py`: 新增 `route_model(task, config=None)` 接受 LLMConfig 注入 (消除 yaml 二次 IO); `_route_from_config()` 让 `task_overrides[t1_score/t3_summary/t3_chunk_summary]` 真正生效; TASK_TIER_MAP 补全 (refine/classify/tag/summarize/summary/brief/generate/chunk_summary/evaluate/compare/score/ner/deep_read/assess/compliance/report); **修复隐藏 bug**: yaml 路径从 `parent.parent.parent` → `parent.parent.parent.parent` (Phase 6 之前是 dead code, bug 一直隐藏)。
    - `backend/services/ai_hub.py`: `LLMService.resolve_provider_for_task(task) -> tuple[str,str] | None`; `_try_order(task_attr)` 把 router 推荐 provider 放在首位 + fallback_order 去重兜底; `score/summarize/extract_entities/generate` 4 个循环体改用 `_try_order`; `AIService._resolve_provider()` 改为三级优先级 (AI_PROVIDER env > router > default_provider), 不再硬编码 sensenova 兜底。
    - `backend/repository/migrations/074_v0.6_llm_secrets_provider.sql` (新建): `ALTER TABLE llm_secrets ADD COLUMN provider TEXT NOT NULL DEFAULT ''; CREATE INDEX idx_llm_secrets_provider ON llm_secrets(provider)` (幂等)。
@@ -30,6 +30,28 @@
 | task_overrides 激活 | 优先级最高 | task_overrides 命中覆盖 fallback_order (✓) |
 | yaml 路径 bug | 修复隐藏死路径 | parent.parent.parent → parent.parent.parent.parent (✓) |
 | secrets_api 回归 | 18/18 通过 | 18 passed (✓, fixture 加 074 迁移) |
+
+### 批次 ⑫：v0.6 Phase 4 S4-2 — DeepRead 深度分析面板 (四节报告)
+
+1. **`feat(s4-2): DeepRead 深度分析面板 (四节报告)`** (`794d8873`)
+   - 新 `backend/repository/migrations/075_v0.6_deep_reads.sql`: `deep_reads` 表 (UNIQUE(entity_type, entity_id)) + `idx_deep_reads_created`。
+   - 新 `backend/repository/deepread_repo.py`: `DeepReadRepository` UPSERT (INSERT ... ON CONFLICT DO UPDATE)。
+   - 新 `backend/services/deep_read_service.py`: `DeepReadService.run()` — 缓存命中直接返回, 否则按 entity_type 拉原文 → 拼 4 节 prompt → 走 router HEAVY 档 `LLMService.generate` → 解析 JSON → 写表; 失败抛 `DeepReadError`。
+   - 新 `backend/api/deep_read.py`: `POST /api/deep-read/{entity_type}/{entity_id}?force=` + `GET /api/deep-read/{entity_type}/{entity_id}`。
+   - `backend/api/__init__.py` 注册 `deep_read` router + `docs/ARCHITECTURE.md` 同步 (`routers 61 / services 90`)。
+   - 新 `frontend/src/hooks/useDeepRead.ts` + `frontend/src/components/DeepReadPage.tsx` (4 节手风琴 + provider/model 栏 + 重新生成按钮)。
+   - `frontend/src/routes/lazy-imports.ts` 覆盖旧 `DeepReadView` 指向 `DeepReadPage`; `frontend/src/types/index.ts` 新增 `DeepReadSections` / `DeepReadResponse`。
+   - 新 `backend/tests/test_deep_read_service.py` (5 用例: 缓存命中不调 LLM / force 重跑 / LLM 空结果抛错 / JSON 4 节解析 / JSON 失败不写表)。
+
+**S4-2 验收**:
+| 维度 | 验收 | 实测 |
+|------|------|------|
+| 全量 pytest | 基线 2914 + 新 5 | 2919 passed / 6 skipped (✓) |
+| ruff 增量 | 新+改文件 0 错 | 0 (✓) |
+| generate_meta --check | doc 与 code 一致 | `routers: 61 / services: 90` OK (✓) |
+| 前端 tsc | 零类型错 | clean (✓) |
+| 前端 vitest | 322 用例 | 322 passed (✓) |
+| vite build | 产物无错 | clean (✓) |
 
 ## v0.6.1 (2026-08-27) — v0.6 P0 清场第二批 + dsh 桥接层 + Phase 4 工作台 UI + **v0.6 Phase 5 (mastery 闭合 + 08:00 LLM 简报 + MCP 扩展 5 tool)**
 

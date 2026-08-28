@@ -1,9 +1,19 @@
-"""DSH 桥接层 API (v0.6 P0).
+"""DSH 桥接层 API (v0.6 P0, P1-2 降级为实验性).
+
+⚠️ 状态 (P1-2, 2026-08-28): DSH 集成已降级为"实验性"扩展 (feature_gates.toml
+`dsh = false`). 当前不推荐生产启用, 原因:
+  1. 协议对接 dsh-SecNews 实际端点未文档化 (本端按推测的 /api/task 路径)
+  2. 无重试/熔断/SSE 流式 (54 行 bridge.py 仅为 3 个端点 stub)
+  3. 默认 localhost:3210 99% 不可达, 业务走 LLM fallback (等价于直接调 LLM)
+
+启用前需: ① 设置 DSH_ENDPOINT ② 启动 DeepSeek Harness 实例
+③ 验证 /health 返回 200. 本 API 仍可访问, 但 route=disabled 时 /health
+返回 status=disabled 而非 disconnected; /task 仍走 LLM fallback.
 
 端点:
 - POST /api/dsh/task   — 发送任务到 DSH / LLM fallback
 - GET  /api/dsh/session/{id} — 查询会话状态
-- GET  /api/dsh/health — DSH 连接健康检查
+- GET  /api/dsh/health — DSH 连接健康检查 (status: connected | disconnected | disabled)
 """
 from __future__ import annotations
 
@@ -43,9 +53,17 @@ def get_dsh_health() -> dict[str, Any]:
     """DSH 连接健康检查.
 
     返回:
-    - status: "connected" | "disconnected"
+    - status: "connected" | "disconnected" | "disabled"
     - fallback: "llm_direct" | "none"
     """
+    from backend.extensions import is_extension_enabled
+    if not is_extension_enabled("dsh"):
+        return {
+            "status": "disabled",     # P1-2: gate 关闭状态
+            "fallback": "llm_direct",
+            "endpoint": _dsh_client._endpoint,
+            "note": "DSH 桥接层已降级为实验性 (P1-2). 启用: feature_gates.toml dsh=true + 设置 DSH_ENDPOINT",
+        }
     connected = _dsh_client.health_check()
     return {
         "status": "connected" if connected else "disconnected",

@@ -63,7 +63,10 @@ async def test_evaluate_sensenova_path(monkeypatch):
             return _Resp()
 
     import backend.services.ai_hub as ai_mod
-    monkeypatch.setattr(ai_mod.httpx, "Client", _Client)
+    import backend.services.ai_hub.tasks as ai_tasks
+    # httpx 在 ai_hub 拆分子包后由 tasks.py 直接使用；patch 其实际 import 路径，
+    # 而非包入口 re-export，否则 pytest 进程内引用不传播。
+    monkeypatch.setattr(ai_tasks.httpx, "Client", _Client)
     # 绕开 DB 缓存/用量副作用，锁定 HTTP 路径（conftest 测试库隔离外的双保险）
     monkeypatch.setattr(ai_mod.ai_service, "_cache_get", lambda key: None)
     monkeypatch.setattr(ai_mod.ai_service, "_cache_set", lambda key, value: None)
@@ -103,7 +106,8 @@ async def test_evaluate_ollama_path(monkeypatch):
             return _Resp()
 
     import backend.services.ai_hub as ai_mod
-    monkeypatch.setattr(ai_mod.httpx, "Client", _Client)
+    import backend.services.ai_hub.tasks as ai_tasks
+    monkeypatch.setattr(ai_tasks.httpx, "Client", _Client)
     monkeypatch.setattr(ai_mod.ai_service, "_cache_get", lambda key: None)
     monkeypatch.setattr(ai_mod.ai_service, "_cache_set", lambda key, value: None)
     monkeypatch.setattr(ai_mod.ai_service, "_usage", lambda *a, **k: None)

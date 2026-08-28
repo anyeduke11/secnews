@@ -136,7 +136,7 @@ def mock_config(monkeypatch: pytest.MonkeyPatch):
     """Mock load_llm_config to return a test LLMConfig."""
     cfg = _make_llm_config()
     monkeypatch.setattr(
-        "backend.services.ai_hub.load_llm_config",
+        "backend.services.ai_hub.gateway.load_llm_config",
         lambda _path=None: cfg,
     )
     return cfg
@@ -147,7 +147,7 @@ def mock_config_no_cache(monkeypatch: pytest.MonkeyPatch):
     """Mock load_llm_config with cache disabled."""
     cfg = _make_llm_config(cache_enabled=False)
     monkeypatch.setattr(
-        "backend.services.ai_hub.load_llm_config",
+        "backend.services.ai_hub.gateway.load_llm_config",
         lambda _path=None: cfg,
     )
     return cfg
@@ -158,7 +158,7 @@ def mock_config_disabled(monkeypatch: pytest.MonkeyPatch):
     """Mock load_llm_config with enabled=False."""
     cfg = _make_llm_config(enabled=False)
     monkeypatch.setattr(
-        "backend.services.ai_hub.load_llm_config",
+        "backend.services.ai_hub.gateway.load_llm_config",
         lambda _path=None: cfg,
     )
     return cfg
@@ -183,7 +183,7 @@ class TestDisabled:
     def test_no_config_returns_defaults(self, temp_db, monkeypatch):
         """No config file → load_llm_config returns None → enabled=False."""
         monkeypatch.setattr(
-            "backend.services.ai_hub.load_llm_config",
+            "backend.services.ai_hub.gateway.load_llm_config",
             lambda _path=None: None,
         )
         svc = LLMService()
@@ -194,7 +194,7 @@ class TestDisabled:
     async def test_disabled_score(self, temp_db, monkeypatch):
         """score() returns 5.0 when LLM is disabled."""
         monkeypatch.setattr(
-            "backend.services.ai_hub.load_llm_config",
+            "backend.services.ai_hub.gateway.load_llm_config",
             lambda _path=None: None,
         )
         svc = LLMService()
@@ -205,7 +205,7 @@ class TestDisabled:
     async def test_disabled_summarize(self, temp_db, monkeypatch):
         """summarize() returns '' when LLM is disabled."""
         monkeypatch.setattr(
-            "backend.services.ai_hub.load_llm_config",
+            "backend.services.ai_hub.gateway.load_llm_config",
             lambda _path=None: None,
         )
         svc = LLMService()
@@ -216,7 +216,7 @@ class TestDisabled:
     async def test_disabled_extract_entities(self, temp_db, monkeypatch):
         """extract_entities() returns [] when LLM is disabled."""
         monkeypatch.setattr(
-            "backend.services.ai_hub.load_llm_config",
+            "backend.services.ai_hub.gateway.load_llm_config",
             lambda _path=None: None,
         )
         svc = LLMService()
@@ -227,7 +227,7 @@ class TestDisabled:
     async def test_disabled_generate(self, temp_db, monkeypatch):
         """generate() returns '' when LLM is disabled."""
         monkeypatch.setattr(
-            "backend.services.ai_hub.load_llm_config",
+            "backend.services.ai_hub.gateway.load_llm_config",
             lambda _path=None: None,
         )
         svc = LLMService()

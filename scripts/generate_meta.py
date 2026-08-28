@@ -38,6 +38,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SCHEDULER = ROOT / "backend" / "scheduler" / "scheduler.py"
 API_INIT = ROOT / "backend" / "api" / "__init__.py"
+# P0-2 (v0.6.2): register_routers 已拆为薄壳, 实际注册在 _registry.register_all
+# 此处显式登记多文件以保持数字稳定, 禁止仅扫描单文件绕过 CI。
+API_ROUTER_SOURCES: tuple[Path, ...] = (
+    API_INIT,
+    ROOT / "backend" / "api" / "_registry.py",
+)
 COLLECTORS = ROOT / "backend" / "collectors"
 SERVICES = ROOT / "backend" / "services"
 ARCHITECTURE = ROOT / "docs" / "ARCHITECTURE.md"
@@ -101,15 +107,22 @@ def count_collectors() -> int:
 
 
 def count_routers() -> int:
-    tree = ast.parse(API_INIT.read_text(encoding="utf-8"))
+    """扫描 API 入口文件, 数 app.include_router 调用总数。
+
+    多源扫描: backend/api/__init__.py (薄壳) + backend/api/_registry.py (P0-2 拆分后)。
+    """
     n = 0
-    for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "include_router"
-        ):
-            n += 1
+    for src in API_ROUTER_SOURCES:
+        if not src.exists():
+            continue
+        tree = ast.parse(src.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "include_router"
+            ):
+                n += 1
     return n
 
 

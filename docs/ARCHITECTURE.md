@@ -4,7 +4,7 @@
 > 定位：现状概览，不是设计历史；历史决策与演进见 `docs/IMPROVEMENT_PLAN.md`。
 > 所有数字均从代码/文件核对（迁移 60+、router 63、jobs 47、collectors 14、services 93、测试 2892/322、备份保留 7、同步上限 100k），`scripts/generate_meta.py --check` 是 CI 门禁。
 > v0.6 (2026-08-23 → 08-28): SecNews 工作台 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings) + kl_pipeline 五阶段管线 + DSH HTTP 桥接 + CRM 业绩座舱 + wiki_items_fts 完整同步层 + dsh-SecNews 归档, 详见 `docs/CODE_AUDIT_2026-08-28.md`。
-> v0.5 (2026-08-21 → 08-23): llm-wiki-2.0 数据底座 + ai_hub LLM 单出口 + Hot/Warm/Cold 分层 + dlq retry + 性能三任务, 详见 `docs/v0.5_refactor_plan.md`。
+> v0.5 (2026-08-21 → 08-23): llm-wiki-2.0 数据底座 + ai_hub LLM 单出口 + Hot/Warm/Cold 分层 + dlq retry + 性能三任务, 详见 `docs/v0.5_refactor_plan/README.md`。
 > v0.4.0 (2026-08-16): 审计重构 Phase 0-6 落地 — 知识闭环数据流/采集管道/同步安全/
 > 导航操作流统一, 详见 `docs/audit_first_principles_plan.md`。
 

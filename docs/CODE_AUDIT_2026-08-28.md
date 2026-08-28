@@ -145,7 +145,7 @@ RSS 采集 → quality 13 gate → kl:raw →
 | **docs/ARCHITECTURE.md 头部仍写"v0.5.0"**（实际 v0.6.2） | 读者以为架构未变 | 改为 v0.6.2 |
 | **docs/SYSTEM_WHITEPAPER.md 顶部 v0.4.0** | 旧 v0.4 重构说明 v0.5/v0.6 已超越 | 加"v0.5/v0.6 修订指针"段 |
 | **docs/code-wiki/*.md（5 个共 1186 行）头部 v0.5.0** | 全部过期 | 重写头注或在 ARCHITECTURE.md 集中维护 |
-| **docs/v0.5_refactor_plan.md 1508 行**超软限 1500 | 读者疲劳 | 拆为 README/SPEC/EXEC 三文件 |
+| **docs/v0.5_refactor_plan/ 三文件（README 187 + SPEC 249 + EXEC 1125 = 1561 行）** 已拆分完成 | — | 拆为 README/SPEC/EXEC 三文件 |
 | **README "首装必做: 编辑 proxy_config.json"** 已过时（v0.5+ settings 改"运行时改"） | 新用户按错指示操作 | 改为 settings page 路径 |
 
 ### 3.2 代码层
@@ -217,7 +217,7 @@ RSS 采集 → quality 13 gate → kl:raw →
 
 1. **High**（本周内）：修 CLAUDE.md/AGENTS.md 数字（routers 63 / services 94 / 12 collectors 与 generate_meta 同步），加 v0.6 新增段说明
 2. **High**：拆 `services/ai_hub.py` 至少为 gateway/cache/usage 三文件
-3. **Medium**：docs/v0.5_refactor_plan.md 1508 行 → 拆为 README + SPEC + EXEC
+3. **Medium**：docs/v0.5_refactor_plan.md 1508 行 → 拆为 README + SPEC + EXEC（已完成）
 4. **Medium**：docs/code-wiki/01-architecture.md 头部改为"v0.6.2" + 更新数据流图
 5. **Low**：extension 注册 vs feature_gates.toml 合并
 6. **Low**：data/judge/action 三层目录退役到 v0.7

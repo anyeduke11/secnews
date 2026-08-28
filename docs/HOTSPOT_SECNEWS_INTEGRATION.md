@@ -3,7 +3,7 @@ status: draft
 target_version: v0.6
 phase: SecNews Integration
 related_code: backend/kl_pipeline/;backend/services/ai_hub.py;backend/collectors/secnews/;frontend/src/components/secnews/
-depends_on: docs/v0.5_refactor_plan.md;docs/audit_first_principles_plan.md
+depends_on: docs/v0.5_refactor_plan/README.md;docs/audit_first_principles_plan.md
 owner: integration
 last_reviewed: 2026-08-24
 ---

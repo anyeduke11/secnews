@@ -2,7 +2,7 @@
 
 > **audit 日期**: 2026-08-21
 > **audit 范围**: 54 个后端 router + 前端 207 个 .tsx + 路由表 + 关键 hooks/types
-> **配套文档**: `docs/v0.5_refactor_plan.md`（v0.5 计划，v1 版）/ `docs/LAYOUT_REDESIGN_PLAN.md`（界面改造）
+> **配套文档**: `docs/v0.5_refactor_plan/README.md`（v0.5 计划，v1 版）/ `docs/LAYOUT_REDESIGN_PLAN.md`（界面改造）
 > **方法论**: 静态代码 audit，逐 router / 逐 endpoint / 逐字段对比
 > **数据状态声明**（重要，影响 §1 / §3 / §5 数字可信度）：
 > - **实测**：约 10 个 router（hotspots / knowledge / todos / secrets / favorites / sync / llm_status / hotspot_service / knowledge_sync / hotspots 完整）的 endpoint 列表
@@ -464,7 +464,7 @@ function extractErrorDetail(detail: unknown): string | null {
 
 ## §5 v0.5 plan 新增能力对齐矩阵
 
-> **版本假设**：本节基于 `docs/v0.5_refactor_plan.md` **v1 版**（v0.5.0 终态，AiHub 5 步 strangler 跨 3 里程碑）。**v2 视角修订版**（上一轮提议的：引入 llm-wiki-2.0 归档、typed relationships 6 种、Ebbinghaus 衰减、t_confidence/supersede/digest）落地后，本节需重做：会增加 ~10 行新端点缺口、~5 个新类型字段、~3 个新前端能力组。
+> **版本假设**：本节基于 `docs/v0.5_refactor_plan/README.md` **v1 版**（v0.5.0 终态，AiHub 5 步 strangler 跨 3 里程碑）。**v2 视角修订版**（上一轮提议的：引入 llm-wiki-2.0 归档、typed relationships 6 种、Ebbinghaus 衰减、t_confidence/supersede/digest）落地后，本节需重做：会增加 ~10 行新端点缺口、~5 个新类型字段、~3 个新前端能力组。
 
 按 v0.5 plan 的 4 大目标（性能 / Workbench / AiHub / llm-wiki-2.0）逐项对齐：
 

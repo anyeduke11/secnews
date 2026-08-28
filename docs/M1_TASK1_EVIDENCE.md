@@ -1,6 +1,6 @@
 # M1-Task1 收尾证据（2026-08-21）
 
-> 规格: `docs/v0.5_refactor_plan.md` §1 M1-Task1
+> 规格: `docs/v0.5_refactor_plan/README.md` §1 M1-Task1
 > 实现: commit `0490470f` (hotspot_repo 改造 + IndentationError 修复)
 > 目的: 记录 EXPLAIN 验证 + 回填脚本验证 + 数据一致性核对的硬证据。
 
@@ -163,7 +163,7 @@ QUERY PLAN
 
 ## 9. 引用
 
-- SPEC: `docs/v0.5_refactor_plan.md` §1 M1-Task1 / §4 现状基线 / §7 退出门禁
+- SPEC: `docs/v0.5_refactor_plan/README.md` §1 M1-Task1 / §4 现状基线 / §7 退出门禁
 - 迁移: `backend/repository/migrations/064_list_query_optimization.sql`
 - 实现: commit `0490470f` (hotspot_repo + test)
 - 脚本: `backend/scripts/backfill_ingested_at.py` (159 行, 幂等)

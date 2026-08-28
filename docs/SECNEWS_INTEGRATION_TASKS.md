@@ -3,7 +3,7 @@ status: draft
 target_version: v0.6
 phase: SecNews Integration / W0-W2
 related_code: backend/kl_pipeline/;backend/services/ai_hub.py;backend/repository/kl_queue_repo.py
-depends_on: docs/HOTSPOT_SECNEWS_INTEGRATION.md;docs/v0.5_refactor_plan.md
+depends_on: docs/HOTSPOT_SECNEWS_INTEGRATION.md;docs/v0.5_refactor_plan/README.md
 owner: integration
 last_reviewed: 2026-08-24
 ---

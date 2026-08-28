@@ -13,7 +13,7 @@ v0.4.3 (2026-08-16): 结构收敛 + 复利引擎落地 — 软分层 Core/Extens
 v0.5.0 (2026-08-23): llm-wiki-2.0 数据底座 + ai_hub 单出口 — M3.5 Task13/14
 graph.json 6 边运行时填入 + 一次性迁移 4149 items / 96 concepts; M5 Task19
 合并 llm_service+ai_service 为 ai_hub 单出口 (ai_scores 写路径唯一);
-见 docs/v0.5_refactor_plan.md。
+见 docs/v0.5_refactor_plan/README.md。
 
 v0.5.1 (2026-08-25): v0.6 P0 清场第一批 — ⑥ ai_hub 双引擎收敛
 (AIService sensenova 硬编码并入 llm.yaml 单一来源) + ③ scheduler/jobs.py

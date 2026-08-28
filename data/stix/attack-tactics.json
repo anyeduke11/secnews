@@ -1,0 +1,14 @@
+[
+  {"id": "TA0001", "name": "Initial Access", "description": "The adversary is trying to get into your network."},
+  {"id": "TA0002", "name": "Execution", "description": "The adversary is trying to run malicious code."},
+  {"id": "TA0003", "name": "Persistence", "description": "The adversary is trying to maintain their foothold."},
+  {"id": "TA0004", "name": "Privilege Escalation", "description": "The adversary is trying to gain higher-level permissions."},
+  {"id": "TA0005", "name": "Defense Evasion", "description": "The adversary is trying to avoid being detected."},
+  {"id": "TA0006", "name": "Credential Access", "description": "The adversary is trying to steal account names and passwords."},
+  {"id": "TA0007", "name": "Discovery", "description": "The adversary is trying to figure out your environment."},
+  {"id": "TA0008", "name": "Lateral Movement", "description": "The adversary is trying to move through your environment."},
+  {"id": "TA0009", "name": "Collection", "description": "The adversary is trying to gather data of interest."},
+  {"id": "TA0011", "name": "Command and Control", "description": "The adversary is trying to communicate with compromised systems."},
+  {"id": "TA0010", "name": "Exfiltration", "description": "The adversary is trying to steal data."},
+  {"id": "TA0040", "name": "Impact", "description": "The adversary is trying to manipulate, interrupt, or destroy systems and data."}
+]

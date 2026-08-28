@@ -1,0 +1,1466 @@
+[
+  {
+    "id": "T1059",
+    "name": "Command and Scripting Interpreter",
+    "tactic_id": "TA0002",
+    "description": "Adversaries may abuse command and script interpreters to execute commands, scripts, or binaries."
+  },
+  {
+    "id": "T1059.001",
+    "name": "PowerShell",
+    "tactic_id": "TA0002",
+    "description": "PowerShell is used to run commands and scripts."
+  },
+  {
+    "id": "T1059.003",
+    "name": "Windows Command Shell",
+    "tactic_id": "TA0002",
+    "description": "cmd.exe is used to execute commands."
+  },
+  {
+    "id": "T1059.004",
+    "name": "Unix Shell",
+    "tactic_id": "TA0002",
+    "description": "Unix shells like bash, sh, zsh are used."
+  },
+  {
+    "id": "T1059.005",
+    "name": "Visual Basic",
+    "tactic_id": "TA0002",
+    "description": "Visual Basic is used for execution."
+  },
+  {
+    "id": "T1059.006",
+    "name": "Python",
+    "tactic_id": "TA0002",
+    "description": "Python is used for execution."
+  },
+  {
+    "id": "T1059.007",
+    "name": "JavaScript",
+    "tactic_id": "TA0002",
+    "description": "JavaScript is used for execution."
+  },
+  {
+    "id": "T1566",
+    "name": "Phishing",
+    "tactic_id": "TA0001",
+    "description": "Adversaries may send phishing messages to gain access to victim systems."
+  },
+  {
+    "id": "T1566.001",
+    "name": "Spearphishing Attachment",
+    "tactic_id": "TA0001",
+    "description": "Malicious attachments in emails."
+  },
+  {
+    "id": "T1566.002",
+    "name": "Spearphishing Link",
+    "tactic_id": "TA0001",
+    "description": "Malicious links in emails."
+  },
+  {
+    "id": "T1190",
+    "name": "Exploit Public-Facing Application",
+    "tactic_id": "TA0001",
+    "description": "Adversaries may attempt to exploit software vulnerabilities in public-facing applications."
+  },
+  {
+    "id": "T1133",
+    "name": "External Remote Services",
+    "tactic_id": "TA0001",
+    "description": "Adversaries may leverage external remote services to access systems."
+  },
+  {
+    "id": "T1078",
+    "name": "Valid Accounts",
+    "tactic_id": "TA0001",
+    "description": "Adversaries may obtain and use credentials of existing accounts."
+  },
+  {
+    "id": "T1078.002",
+    "name": "Domain Account",
+    "tactic_id": "TA0001",
+    "description": "Domain account credentials are used."
+  },
+  {
+    "id": "T1078.003",
+    "name": "Local Account",
+    "tactic_id": "TA0001",
+    "description": "Local account credentials are used."
+  },
+  {
+    "id": "T1078.004",
+    "name": "Cloud Account",
+    "tactic_id": "TA0001",
+    "description": "Cloud account credentials are used."
+  },
+  {
+    "id": "T1110",
+    "name": "Brute Force",
+    "tactic_id": "TA0006",
+    "description": "Adversaries may use brute force techniques to gain access to accounts."
+  },
+  {
+    "id": "T1110.001",
+    "name": "Password Guessing",
+    "tactic_id": "TA0006",
+    "description": "Guessing passwords for accounts."
+  },
+  {
+    "id": "T1110.002",
+    "name": "Password Cracking",
+    "tactic_id": "TA0006",
+    "description": "Cracking passwords from hashes."
+  },
+  {
+    "id": "T1110.003",
+    "name": "Password Spraying",
+    "tactic_id": "TA0006",
+    "description": "Spraying common passwords across many accounts."
+  },
+  {
+    "id": "T1003",
+    "name": "OS Credential Dumping",
+    "tactic_id": "TA0006",
+    "description": "Adversaries may attempt to dump credentials from the OS."
+  },
+  {
+    "id": "T1003.001",
+    "name": "LSASS Memory",
+    "tactic_id": "TA0006",
+    "description": "Dumping LSASS memory for credentials."
+  },
+  {
+    "id": "T1003.002",
+    "name": "Security Account Manager",
+    "tactic_id": "TA0006",
+    "description": "Dumping SAM for credentials."
+  },
+  {
+    "id": "T1003.003",
+    "name": "NTDS",
+    "tactic_id": "TA0006",
+    "description": "Dumping NTDS.dit for domain credentials."
+  },
+  {
+    "id": "T1047",
+    "name": "Windows Management Instrumentation",
+    "tactic_id": "TA0002",
+    "description": "Using WMI for execution and reconnaissance."
+  },
+  {
+    "id": "T1053",
+    "name": "Scheduled Task/Job",
+    "tactic_id": "TA0003",
+    "description": "Using scheduled tasks for persistence and execution."
+  },
+  {
+    "id": "T1053.005",
+    "name": "Scheduled Task",
+    "tactic_id": "TA0003",
+    "description": "Windows scheduled tasks."
+  },
+  {
+    "id": "T1543",
+    "name": "Create or Modify System Process",
+    "tactic_id": "TA0003",
+    "description": "Creating or modifying system processes for persistence."
+  },
+  {
+    "id": "T1543.003",
+    "name": "Windows Service",
+    "tactic_id": "TA0003",
+    "description": "Creating Windows services for persistence."
+  },
+  {
+    "id": "T1136",
+    "name": "Create Account",
+    "tactic_id": "TA0003",
+    "description": "Creating new accounts for persistence."
+  },
+  {
+    "id": "T1098",
+    "name": "Account Manipulation",
+    "tactic_id": "TA0003",
+    "description": "Manipulating accounts for persistence."
+  },
+  {
+    "id": "T1098.004",
+    "name": "SSH Authorized Keys",
+    "tactic_id": "TA0003",
+    "description": "Adding SSH keys for persistence."
+  },
+  {
+    "id": "T1547",
+    "name": "Boot or Logon Autostart Execution",
+    "tactic_id": "TA0003",
+    "description": "Using autostart locations for persistence."
+  },
+  {
+    "id": "T1547.001",
+    "name": "Registry Run Keys / Startup Folder",
+    "tactic_id": "TA0003",
+    "description": "Registry run keys and startup folder."
+  },
+  {
+    "id": "T1547.009",
+    "name": "Shortcut Modification",
+    "tactic_id": "TA0003",
+    "description": "Modifying shortcuts for persistence."
+  },
+  {
+    "id": "T1056",
+    "name": "Input Capture",
+    "tactic_id": "TA0009",
+    "description": "Capturing user input via keylogging or other methods."
+  },
+  {
+    "id": "T1056.001",
+    "name": "Keylogging",
+    "tactic_id": "TA0009",
+    "description": "Logging keystrokes."
+  },
+  {
+    "id": "T1113",
+    "name": "Screen Capture",
+    "tactic_id": "TA0009",
+    "description": "Capturing screen content."
+  },
+  {
+    "id": "T1114",
+    "name": "Email Collection",
+    "tactic_id": "TA0009",
+    "description": "Collecting emails from targets."
+  },
+  {
+    "id": "T1114.001",
+    "name": "Local Email Collection",
+    "tactic_id": "TA0009",
+    "description": "Collecting emails from local stores."
+  },
+  {
+    "id": "T1039",
+    "name": "Data from Network Shared Drive",
+    "tactic_id": "TA0009",
+    "description": "Collecting data from network shares."
+  },
+  {
+    "id": "T1005",
+    "name": "Data from Local System",
+    "tactic_id": "TA0009",
+    "description": "Collecting data from local system."
+  },
+  {
+    "id": "T1041",
+    "name": "Exfiltration Over C2 Channel",
+    "tactic_id": "TA0010",
+    "description": "Exfiltrating data over command and control channel."
+  },
+  {
+    "id": "T1048",
+    "name": "Exfiltration Over Alternative Protocol",
+    "tactic_id": "TA0010",
+    "description": "Using alternative protocols for exfiltration."
+  },
+  {
+    "id": "T1048.002",
+    "name": "Exfiltration Over FTP",
+    "tactic_id": "TA0010",
+    "description": "Using FTP for exfiltration."
+  },
+  {
+    "id": "T1048.003",
+    "name": "Exfiltration Over DNS",
+    "tactic_id": "TA0010",
+    "description": "Using DNS tunneling for exfiltration."
+  },
+  {
+    "id": "T1567",
+    "name": "Exfiltration Over Web Service",
+    "tactic_id": "TA0010",
+    "description": "Using web services for exfiltration."
+  },
+  {
+    "id": "T1567.001",
+    "name": "Exfiltration to Code Repository",
+    "tactic_id": "TA0010",
+    "description": "Exfiltrating to GitHub or similar."
+  },
+  {
+    "id": "T1567.002",
+    "name": "Exfiltration to Cloud Storage",
+    "tactic_id": "TA0010",
+    "description": "Exfiltrating to cloud storage."
+  },
+  {
+    "id": "T1027",
+    "name": "Obfuscated Files or Information",
+    "tactic_id": "TA0005",
+    "description": "Using obfuscation to hide artifacts."
+  },
+  {
+    "id": "T1027.001",
+    "name": "Binary Padding",
+    "tactic_id": "TA0005",
+    "description": "Adding padding to binaries."
+  },
+  {
+    "id": "T1027.002",
+    "name": "Software Packing",
+    "tactic_id": "TA0005",
+    "description": "Packing software to evade detection."
+  },
+  {
+    "id": "T1027.003",
+    "name": "Steganography",
+    "tactic_id": "TA0005",
+    "description": "Hiding data in images or other media."
+  },
+  {
+    "id": "T1027.005",
+    "name": "Indicator Removal from Tools",
+    "tactic_id": "TA0005",
+    "description": "Removing indicators from tools."
+  },
+  {
+    "id": "T1218",
+    "name": "System Binary Proxy Execution",
+    "tactic_id": "TA0005",
+    "description": "Using system binaries to proxy execution."
+  },
+  {
+    "id": "T1218.001",
+    "name": "Rundll32",
+    "tactic_id": "TA0005",
+    "description": "Using rundll32 for proxy execution."
+  },
+  {
+    "id": "T1218.003",
+    "name": "CMSTP",
+    "tactic_id": "TA0005",
+    "description": "Using CMSTP for proxy execution."
+  },
+  {
+    "id": "T1218.004",
+    "name": "Mshta",
+    "tactic_id": "TA0005",
+    "description": "Using mshta for proxy execution."
+  },
+  {
+    "id": "T1218.009",
+    "name": "Regsvr32",
+    "tactic_id": "TA0005",
+    "description": "Using regsvr32 for proxy execution."
+  },
+  {
+    "id": "T1562",
+    "name": "Impair Defenses",
+    "tactic_id": "TA0005",
+    "description": "Impairing defenses to evade detection."
+  },
+  {
+    "id": "T1562.001",
+    "name": "Disable or Modify Tools",
+    "tactic_id": "TA0005",
+    "description": "Disabling or modifying security tools."
+  },
+  {
+    "id": "T1562.002",
+    "name": "Disable Windows Event Logging",
+    "tactic_id": "TA0005",
+    "description": "Disabling Windows event logging."
+  },
+  {
+    "id": "T1562.004",
+    "name": "Disable or Modify System Firewall",
+    "tactic_id": "TA0005",
+    "description": "Disabling or modifying system firewall."
+  },
+  {
+    "id": "T1556",
+    "name": "Modify Authentication Process",
+    "tactic_id": "TA0006",
+    "description": "Modifying authentication processes for credential access."
+  },
+  {
+    "id": "T1556.001",
+    "name": "Domain Controller Authentication",
+    "tactic_id": "TA0006",
+    "description": "Modifying DC authentication."
+  },
+  {
+    "id": "T1556.003",
+    "name": "Pluggable Authentication Modules",
+    "tactic_id": "TA0006",
+    "description": "Modifying PAM configuration."
+  },
+  {
+    "id": "T1552",
+    "name": "Unsecured Credentials",
+    "tactic_id": "TA0006",
+    "description": "Searching for unsecured credentials."
+  },
+  {
+    "id": "T1552.001",
+    "name": "Files and Directories",
+    "tactic_id": "TA0006",
+    "description": "Searching files and directories for credentials."
+  },
+  {
+    "id": "T1552.003",
+    "name": "Bash History",
+    "tactic_id": "TA0006",
+    "description": "Searching bash history for credentials."
+  },
+  {
+    "id": "T1552.004",
+    "name": "Private Keys",
+    "tactic_id": "TA0006",
+    "description": "Searching for private keys."
+  },
+  {
+    "id": "T1552.005",
+    "name": "Cloud Instance Metadata API",
+    "tactic_id": "TA0006",
+    "description": "Querying cloud instance metadata API."
+  },
+  {
+    "id": "T1552.006",
+    "name": "Group Policy Preferences",
+    "tactic_id": "TA0006",
+    "description": "Searching GPO preferences for credentials."
+  },
+  {
+    "id": "T1555",
+    "name": "Credentials from Password Stores",
+    "tactic_id": "TA0006",
+    "description": "Extracting credentials from password stores."
+  },
+  {
+    "id": "T1555.001",
+    "name": "Keychain",
+    "tactic_id": "TA0006",
+    "description": "Extracting credentials from macOS Keychain."
+  },
+  {
+    "id": "T1555.003",
+    "name": "Credentials from Browsers",
+    "tactic_id": "TA0006",
+    "description": "Extracting credentials from browsers."
+  },
+  {
+    "id": "T1555.004",
+    "name": "Windows Credential Manager",
+    "tactic_id": "TA0006",
+    "description": "Extracting credentials from Windows Credential Manager."
+  },
+  {
+    "id": "T1555.005",
+    "name": "Password Managers",
+    "tactic_id": "TA0006",
+    "description": "Extracting credentials from password managers."
+  },
+  {
+    "id": "T1082",
+    "name": "System Information Discovery",
+    "tactic_id": "TA0007",
+    "description": "Discovering system information."
+  },
+  {
+    "id": "T1083",
+    "name": "File and Directory Discovery",
+    "tactic_id": "TA0007",
+    "description": "Discovering files and directories."
+  },
+  {
+    "id": "T1087",
+    "name": "Account Discovery",
+    "tactic_id": "TA0007",
+    "description": "Discovering user accounts."
+  },
+  {
+    "id": "T1087.001",
+    "name": "Local Account",
+    "tactic_id": "TA0007",
+    "description": "Discovering local accounts."
+  },
+  {
+    "id": "T1087.002",
+    "name": "Domain Account",
+    "tactic_id": "TA0007",
+    "description": "Discovering domain accounts."
+  },
+  {
+    "id": "T1087.004",
+    "name": "Cloud Account",
+    "tactic_id": "TA0007",
+    "description": "Discovering cloud accounts."
+  },
+  {
+    "id": "T1046",
+    "name": "Network Service Scanning",
+    "tactic_id": "TA0007",
+    "description": "Scanning for network services."
+  },
+  {
+    "id": "T1040",
+    "name": "Network Sniffing",
+    "tactic_id": "TA0007",
+    "description": "Sniffing network traffic."
+  },
+  {
+    "id": "T1135",
+    "name": "Network Share Discovery",
+    "tactic_id": "TA0007",
+    "description": "Discovering network shares."
+  },
+  {
+    "id": "T1057",
+    "name": "Process Discovery",
+    "tactic_id": "TA0007",
+    "description": "Discovering running processes."
+  },
+  {
+    "id": "T1012",
+    "name": "Query Registry",
+    "tactic_id": "TA0007",
+    "description": "Querying the Windows Registry."
+  },
+  {
+    "id": "T1018",
+    "name": "Remote System Discovery",
+    "tactic_id": "TA0007",
+    "description": "Discovering remote systems."
+  },
+  {
+    "id": "T1033",
+    "name": "System Owner/User Discovery",
+    "tactic_id": "TA0007",
+    "description": "Discovering system owners and users."
+  },
+  {
+    "id": "T1210",
+    "name": "Exploitation of Remote Services",
+    "tactic_id": "TA0008",
+    "description": "Exploiting remote services for lateral movement."
+  },
+  {
+    "id": "T1021",
+    "name": "Remote Services",
+    "tactic_id": "TA0008",
+    "description": "Using remote services for lateral movement."
+  },
+  {
+    "id": "T1021.001",
+    "name": "Remote Desktop Protocol",
+    "tactic_id": "TA0008",
+    "description": "Using RDP for lateral movement."
+  },
+  {
+    "id": "T1021.002",
+    "name": "SMB/Windows Admin Shares",
+    "tactic_id": "TA0008",
+    "description": "Using SMB for lateral movement."
+  },
+  {
+    "id": "T1021.004",
+    "name": "SSH",
+    "tactic_id": "TA0008",
+    "description": "Using SSH for lateral movement."
+  },
+  {
+    "id": "T1021.005",
+    "name": "VNC",
+    "tactic_id": "TA0008",
+    "description": "Using VNC for lateral movement."
+  },
+  {
+    "id": "T1080",
+    "name": "Taint Shared Content",
+    "tactic_id": "TA0008",
+    "description": "Tainting shared content for lateral movement."
+  },
+  {
+    "id": "T1037",
+    "name": "Boot or Logon Initialization Scripts",
+    "tactic_id": "TA0003",
+    "description": "Using initialization scripts for persistence."
+  },
+  {
+    "id": "T1037.001",
+    "name": "Registry Run Keys / Startup Folder",
+    "tactic_id": "TA0003",
+    "description": "Registry run keys for persistence."
+  },
+  {
+    "id": "T1037.002",
+    "name": "Login Script",
+    "tactic_id": "TA0003",
+    "description": "Login scripts for persistence."
+  },
+  {
+    "id": "T1037.003",
+    "name": "Network Logon Script",
+    "tactic_id": "TA0003",
+    "description": "Network logon scripts for persistence."
+  },
+  {
+    "id": "T1037.004",
+    "name": "RC Scripts",
+    "tactic_id": "TA0003",
+    "description": "RC scripts for persistence."
+  },
+  {
+    "id": "T1037.005",
+    "name": "Scheduled Task",
+    "tactic_id": "TA0003",
+    "description": "Scheduled tasks for persistence."
+  },
+  {
+    "id": "T1050",
+    "name": "Service Registry Permissions Weakness",
+    "tactic_id": "TA0003",
+    "description": "Modifying service registry permissions for persistence."
+  },
+  {
+    "id": "T1546",
+    "name": "Event Triggered Execution",
+    "tactic_id": "TA0003",
+    "description": "Using event triggers for execution and persistence."
+  },
+  {
+    "id": "T1546.001",
+    "name": "Trap",
+    "tactic_id": "TA0003",
+    "description": "Using trap for event-triggered execution."
+  },
+  {
+    "id": "T1546.002",
+    "name": "Accessibility Features",
+    "tactic_id": "TA0003",
+    "description": "Using accessibility features for persistence."
+  },
+  {
+    "id": "T1546.003",
+    "name": "Windows Management Instrumentation Event Subscription",
+    "tactic_id": "TA0003",
+    "description": "WMI event subscriptions for persistence."
+  },
+  {
+    "id": "T1546.004",
+    "name": "Unix Shell Configuration Modification",
+    "tactic_id": "TA0003",
+    "description": "Unix shell configuration for persistence."
+  },
+  {
+    "id": "T1546.005",
+    "name": "Image File Execution Options Injection",
+    "tactic_id": "TA0003",
+    "description": "IFEO injection for persistence."
+  },
+  {
+    "id": "T1546.006",
+    "name": "Modify Existing Service",
+    "tactic_id": "TA0003",
+    "description": "Modifying existing services for persistence."
+  },
+  {
+    "id": "T1546.007",
+    "name": "SIEM Agent Modification",
+    "tactic_id": "TA0003",
+    "description": "Modifying SIEM agents for persistence."
+  },
+  {
+    "id": "T1546.008",
+    "name": "Netsh Helper DLL",
+    "tactic_id": "TA0003",
+    "description": "Using netsh helper DLL for persistence."
+  },
+  {
+    "id": "T1546.009",
+    "name": "AppCert DLLs",
+    "tactic_id": "TA0003",
+    "description": "Using AppCert DLLs for persistence."
+  },
+  {
+    "id": "T1546.010",
+    "name": "AppInit DLLs",
+    "tactic_id": "TA0003",
+    "description": "Using AppInit DLLs for persistence."
+  },
+  {
+    "id": "T1546.011",
+    "name": "Application Shimming",
+    "tactic_id": "TA0003",
+    "description": "Using application shims for persistence."
+  },
+  {
+    "id": "T1546.012",
+    "name": "Image File Execution Options Injection",
+    "tactic_id": "TA0003",
+    "description": "IFEO injection for persistence."
+  },
+  {
+    "id": "T1546.013",
+    "name": "PowerShell Profile",
+    "tactic_id": "TA0003",
+    "description": "Using PowerShell profiles for persistence."
+  },
+  {
+    "id": "T1546.014",
+    "name": "Emond",
+    "tactic_id": "TA0003",
+    "description": "Using emond for persistence on macOS."
+  },
+  {
+    "id": "T1546.015",
+    "name": "Component Object Model Hijacking",
+    "tactic_id": "TA0003",
+    "description": "COM hijacking for persistence."
+  },
+  {
+    "id": "T1496",
+    "name": "Data Encryption",
+    "tactic_id": "TA0040",
+    "description": "Encrypting data for impact."
+  },
+  {
+    "id": "T1486",
+    "name": "Data Encrypted for Impact",
+    "tactic_id": "TA0040",
+    "description": "Encrypting data to cause impact."
+  },
+  {
+    "id": "T1489",
+    "name": "Service Stop",
+    "tactic_id": "TA0040",
+    "description": "Stopping services for impact."
+  },
+  {
+    "id": "T1490",
+    "name": "Inhibit System Recovery",
+    "tactic_id": "TA0040",
+    "description": "Inhibiting system recovery."
+  },
+  {
+    "id": "T1499",
+    "name": "Endpoint Denial of Service",
+    "tactic_id": "TA0040",
+    "description": "Denial of service on endpoints."
+  },
+  {
+    "id": "T1499.001",
+    "name": "OS Exhaustion Flood",
+    "tactic_id": "TA0040",
+    "description": "OS exhaustion flooding."
+  },
+  {
+    "id": "T1498",
+    "name": "Network Denial of Service",
+    "tactic_id": "TA0040",
+    "description": "Network denial of service."
+  },
+  {
+    "id": "T1498.002",
+    "name": "Reflection Amplification",
+    "tactic_id": "TA0040",
+    "description": "Reflection amplification DoS."
+  },
+  {
+    "id": "T1485",
+    "name": "Data Destruction",
+    "tactic_id": "TA0040",
+    "description": "Destroying data."
+  },
+  {
+    "id": "T1488",
+    "name": "Disk Structure Wipe",
+    "tactic_id": "TA0040",
+    "description": "Wiping disk structures."
+  },
+  {
+    "id": "T1491",
+    "name": "Defacement",
+    "tactic_id": "TA0040",
+    "description": "Defacing websites or content."
+  },
+  {
+    "id": "T1531",
+    "name": "Account Access Removal",
+    "tactic_id": "TA0040",
+    "description": "Removing account access for impact."
+  },
+  {
+    "id": "T1529",
+    "name": "System Shutdown/Reboot",
+    "tactic_id": "TA0040",
+    "description": "Shutting down or rebooting systems."
+  },
+  {
+    "id": "T1565",
+    "name": "Data Manipulation",
+    "tactic_id": "TA0040",
+    "description": "Manipulating data for impact."
+  },
+  {
+    "id": "T1071",
+    "name": "Application Layer Protocol",
+    "tactic_id": "TA0011",
+    "description": "Using application layer protocols for C2."
+  },
+  {
+    "id": "T1071.001",
+    "name": "Web Protocols",
+    "tactic_id": "TA0011",
+    "description": "Using web protocols for C2."
+  },
+  {
+    "id": "T1071.004",
+    "name": "DNS",
+    "tactic_id": "TA0011",
+    "description": "Using DNS for C2."
+  },
+  {
+    "id": "T1095",
+    "name": "Non-Application Layer Protocol",
+    "tactic_id": "TA0011",
+    "description": "Using non-application layer protocols for C2."
+  },
+  {
+    "id": "T1132",
+    "name": "Data Encoding",
+    "tactic_id": "TA0011",
+    "description": "Encoding data for C2 communication."
+  },
+  {
+    "id": "T1105",
+    "name": "Ingress Tool Transfer",
+    "tactic_id": "TA0011",
+    "description": "Transferring tools into the environment."
+  },
+  {
+    "id": "T1102",
+    "name": "Web Service",
+    "tactic_id": "TA0011",
+    "description": "Using web services for C2."
+  },
+  {
+    "id": "T1571",
+    "name": "Non-Standard Port",
+    "tactic_id": "TA0011",
+    "description": "Using non-standard ports for C2."
+  },
+  {
+    "id": "T1572",
+    "name": "Protocol Tunneling",
+    "tactic_id": "TA0011",
+    "description": "Tunneling C2 through protocols."
+  },
+  {
+    "id": "T1573",
+    "name": "Encrypted Channel",
+    "tactic_id": "TA0011",
+    "description": "Using encrypted channels for C2."
+  },
+  {
+    "id": "T1090",
+    "name": "Proxy",
+    "tactic_id": "TA0011",
+    "description": "Using proxies for C2."
+  },
+  {
+    "id": "T1090.001",
+    "name": "Internal Proxy",
+    "tactic_id": "TA0011",
+    "description": "Using internal proxies for C2."
+  },
+  {
+    "id": "T1090.002",
+    "name": "External Proxy",
+    "tactic_id": "TA0011",
+    "description": "Using external proxies for C2."
+  },
+  {
+    "id": "T1090.003",
+    "name": "Multi-hop Proxy",
+    "tactic_id": "TA0011",
+    "description": "Using multi-hop proxies for C2."
+  },
+  {
+    "id": "T1219",
+    "name": "Remote Access Software",
+    "tactic_id": "TA0011",
+    "description": "Using remote access software for C2."
+  },
+  {
+    "id": "T1219.001",
+    "name": "Remote Desktop Protocols",
+    "tactic_id": "TA0011",
+    "description": "Using RDP for C2."
+  },
+  {
+    "id": "T1552.002",
+    "name": "Stored Browser Data",
+    "tactic_id": "TA0006",
+    "description": "Searching browser data for credentials."
+  },
+  {
+    "id": "T1552.007",
+    "name": "Container API",
+    "tactic_id": "TA0006",
+    "description": "Extracting credentials from container API."
+  },
+  {
+    "id": "T1552.008",
+    "name": "Chat Messages",
+    "tactic_id": "TA0006",
+    "description": "Searching chat messages for credentials."
+  },
+  {
+    "id": "T1552.010",
+    "name": "Application Config",
+    "tactic_id": "TA0006",
+    "description": "Searching application config for credentials."
+  },
+  {
+    "id": "T1553.002",
+    "name": "Code Signing",
+    "tactic_id": "TA0005",
+    "description": "Using code signing to bypass trust controls."
+  },
+  {
+    "id": "T1553.004",
+    "name": "Install Root Certificate",
+    "tactic_id": "TA0005",
+    "description": "Installing root certificates to bypass trust."
+  },
+  {
+    "id": "T1557",
+    "name": "Adversary-in-the-Middle",
+    "tactic_id": "TA0006",
+    "description": "Using MITM techniques for credential access."
+  },
+  {
+    "id": "T1557.001",
+    "name": "LLMNR/NBNSpoofing",
+    "tactic_id": "TA0006",
+    "description": "Spoofing LLMNR/NBNS for credential capture."
+  },
+  {
+    "id": "T1557.002",
+    "name": "ARP Cache Poisoning",
+    "tactic_id": "TA0006",
+    "description": "ARP cache poisoning for MITM."
+  },
+  {
+    "id": "T1557.003",
+    "name": "DHCP Spoofing",
+    "tactic_id": "TA0006",
+    "description": "DHCP spoofing for MITM."
+  },
+  {
+    "id": "T1558",
+    "name": "Steal or Forge Kerberos Tickets",
+    "tactic_id": "TA0006",
+    "description": "Stealing or forging Kerberos tickets."
+  },
+  {
+    "id": "T1558.001",
+    "name": "Golden Ticket",
+    "tactic_id": "TA0006",
+    "description": "Creating golden tickets."
+  },
+  {
+    "id": "T1558.002",
+    "name": "Silver Ticket",
+    "tactic_id": "TA0006",
+    "description": "Creating silver tickets."
+  },
+  {
+    "id": "T1558.003",
+    "name": "Kerberoasting",
+    "tactic_id": "TA0006",
+    "description": "Kerberoasting for credential access."
+  },
+  {
+    "id": "T1558.004",
+    "name": "AS-REP Roasting",
+    "tactic_id": "TA0006",
+    "description": "AS-REP roasting for credential access."
+  },
+  {
+    "id": "T1212",
+    "name": "Exploitation for Credential Access",
+    "tactic_id": "TA0006",
+    "description": "Exploiting vulnerabilities for credential access."
+  },
+  {
+    "id": "T1559",
+    "name": "Inter-Process Communication",
+    "tactic_id": "TA0002",
+    "description": "Using IPC for execution."
+  },
+  {
+    "id": "T1559.001",
+    "name": "Component Object Model",
+    "tactic_id": "TA0002",
+    "description": "Using COM for execution."
+  },
+  {
+    "id": "T1559.002",
+    "name": "Dynamic Data Exchange",
+    "tactic_id": "TA0002",
+    "description": "Using DDE for execution."
+  },
+  {
+    "id": "T1559.003",
+    "name": "XPC Services",
+    "tactic_id": "TA0002",
+    "description": "Using XPC services for execution on macOS."
+  },
+  {
+    "id": "T1564",
+    "name": "Hide Artifacts",
+    "tactic_id": "TA0005",
+    "description": "Hiding artifacts to evade detection."
+  },
+  {
+    "id": "T1564.001",
+    "name": "Hidden Files and Directories",
+    "tactic_id": "TA0005",
+    "description": "Using hidden files and directories."
+  },
+  {
+    "id": "T1564.002",
+    "name": "Hidden Users",
+    "tactic_id": "TA0005",
+    "description": "Creating hidden users."
+  },
+  {
+    "id": "T1564.003",
+    "name": "Hidden Window",
+    "tactic_id": "TA0005",
+    "description": "Using hidden windows."
+  },
+  {
+    "id": "T1564.004",
+    "name": "NTFS File Attributes",
+    "tactic_id": "TA0005",
+    "description": "Using NTFS file attributes to hide."
+  },
+  {
+    "id": "T1564.005",
+    "name": "Hidden File System",
+    "tactic_id": "TA0005",
+    "description": "Using hidden file systems."
+  },
+  {
+    "id": "T1564.006",
+    "name": "Process Argument Spoofing",
+    "tactic_id": "TA0005",
+    "description": "Spoofing process arguments."
+  },
+  {
+    "id": "T1564.007",
+    "name": "Binary Masquerading",
+    "tactic_id": "TA0005",
+    "description": "Masquerading binaries as legitimate."
+  },
+  {
+    "id": "T1564.008",
+    "name": "Email Hiding Rules",
+    "tactic_id": "TA0005",
+    "description": "Using email hiding rules."
+  },
+  {
+    "id": "T1564.009",
+    "name": "Hidden Files and Directories",
+    "tactic_id": "TA0005",
+    "description": "Using hidden files and directories."
+  },
+  {
+    "id": "T1564.010",
+    "name": "Process Argument Spoofing",
+    "tactic_id": "TA0005",
+    "description": "Spoofing process arguments."
+  },
+  {
+    "id": "T1070",
+    "name": "Indicator Removal on Host",
+    "tactic_id": "TA0005",
+    "description": "Removing indicators from the host."
+  },
+  {
+    "id": "T1070.001",
+    "name": "Clear Windows Event Logs",
+    "tactic_id": "TA0005",
+    "description": "Clearing Windows event logs."
+  },
+  {
+    "id": "T1070.002",
+    "name": "Clear Linux or Mac System Logs",
+    "tactic_id": "TA0005",
+    "description": "Clearing Linux/Mac system logs."
+  },
+  {
+    "id": "T1070.003",
+    "name": "Clear Command History",
+    "tactic_id": "TA0005",
+    "description": "Clearing command history."
+  },
+  {
+    "id": "T1070.004",
+    "name": "File Deletion",
+    "tactic_id": "TA0005",
+    "description": "Deleting files to remove indicators."
+  },
+  {
+    "id": "T1070.005",
+    "name": "Network Share Connection Removal",
+    "tactic_id": "TA0005",
+    "description": "Removing network share connections."
+  },
+  {
+    "id": "T1070.006",
+    "name": "Timestomp",
+    "tactic_id": "TA0005",
+    "description": "Manipulating timestamps to evade detection."
+  },
+  {
+    "id": "T1202",
+    "name": "Indirect Command Execution",
+    "tactic_id": "TA0002",
+    "description": "Using indirect command execution."
+  },
+  {
+    "id": "T1203",
+    "name": "Exploitation for Client Execution",
+    "tactic_id": "TA0002",
+    "description": "Exploiting client-side vulnerabilities for execution."
+  },
+  {
+    "id": "T1204",
+    "name": "User Execution",
+    "tactic_id": "TA0001",
+    "description": "Tricking users into executing malicious code."
+  },
+  {
+    "id": "T1204.001",
+    "name": "Malicious File",
+    "tactic_id": "TA0001",
+    "description": "Users opening malicious files."
+  },
+  {
+    "id": "T1204.002",
+    "name": "Malicious Link",
+    "tactic_id": "TA0001",
+    "description": "Users clicking malicious links."
+  },
+  {
+    "id": "T1218.011",
+    "name": "Mshta",
+    "tactic_id": "TA0005",
+    "description": "Using mshta for proxy execution."
+  },
+  {
+    "id": "T1222",
+    "name": "File and Directory Permissions Modification",
+    "tactic_id": "TA0005",
+    "description": "Modifying file permissions to hide artifacts."
+  },
+  {
+    "id": "T1480",
+    "name": "Execution Guardrails",
+    "tactic_id": "TA0005",
+    "description": "Using execution guardrails to evade defenses."
+  },
+  {
+    "id": "T1620",
+    "name": "Reflective Code Loading",
+    "tactic_id": "TA0005",
+    "description": "Loading code reflectively to evade detection."
+  },
+  {
+    "id": "T1471",
+    "name": "Valid Accounts",
+    "tactic_id": "TA0006",
+    "description": "Using valid accounts for credential access."
+  },
+  {
+    "id": "T1550",
+    "name": "Use Alternate Authentication Material",
+    "tactic_id": "TA0006",
+    "description": "Using alternate authentication material."
+  },
+  {
+    "id": "T1550.001",
+    "name": "Application Access Token",
+    "tactic_id": "TA0006",
+    "description": "Using application access tokens."
+  },
+  {
+    "id": "T1550.002",
+    "name": "Web Session Cookie",
+    "tactic_id": "TA0006",
+    "description": "Using web session cookies."
+  },
+  {
+    "id": "T1550.003",
+    "name": "SAML Tokens",
+    "tactic_id": "TA0006",
+    "description": "Using SAML tokens."
+  },
+  {
+    "id": "T1550.004",
+    "name": "Web Session Cookie",
+    "tactic_id": "TA0006",
+    "description": "Using web session cookies."
+  },
+  {
+    "id": "T1048.001",
+    "name": "Exfiltration Over Symmetric Encrypted Channel",
+    "tactic_id": "TA0010",
+    "description": "Using symmetric encrypted channels for exfiltration."
+  },
+  {
+    "id": "T1048.004",
+    "name": "Exfiltration Over Unencrypted Channel",
+    "tactic_id": "TA0010",
+    "description": "Using unencrypted channels for exfiltration."
+  },
+  {
+    "id": "T1052",
+    "name": "Exfiltration Over Physical Medium",
+    "tactic_id": "TA0010",
+    "description": "Exfiltrating data over physical media."
+  },
+  {
+    "id": "T1052.001",
+    "name": "Exfiltration over USB",
+    "tactic_id": "TA0010",
+    "description": "Using USB for exfiltration."
+  },
+  {
+    "id": "T1537",
+    "name": "Transfer Data to Cloud Account",
+    "tactic_id": "TA0010",
+    "description": "Transferring data to cloud accounts."
+  },
+  {
+    "id": "T1530",
+    "name": "Data from Cloud Storage",
+    "tactic_id": "TA0009",
+    "description": "Accessing data from cloud storage."
+  },
+  {
+    "id": "T1602",
+    "name": "Data from Configuration Repository",
+    "tactic_id": "TA0009",
+    "description": "Accessing data from configuration repositories."
+  },
+  {
+    "id": "T1602.001",
+    "name": "Application Config",
+    "tactic_id": "TA0009",
+    "description": "Accessing application configuration."
+  },
+  {
+    "id": "T1602.002",
+    "name": "Platform Features",
+    "tactic_id": "TA0009",
+    "description": "Using platform features for data access."
+  },
+  {
+    "id": "T1548.001",
+    "name": "Setuid and Setgid",
+    "tactic_id": "TA0004",
+    "description": "Using setuid/setgid for privilege escalation."
+  },
+  {
+    "id": "T1548.002",
+    "name": "Bypass User Account Control",
+    "tactic_id": "TA0004",
+    "description": "Bypassing UAC for privilege escalation."
+  },
+  {
+    "id": "T1548.003",
+    "name": "Sudo and Sudo Caching",
+    "tactic_id": "TA0004",
+    "description": "Abusing sudo for privilege escalation."
+  },
+  {
+    "id": "T1548.004",
+    "name": "Sudo and Sudo Caching",
+    "tactic_id": "TA0004",
+    "description": "Abusing sudo caching for privilege escalation."
+  },
+  {
+    "id": "T1078.001",
+    "name": "Default Account",
+    "tactic_id": "TA0001",
+    "description": "Using default accounts."
+  },
+  {
+    "id": "T1558.005",
+    "name": "Cached Kerberos Tickets",
+    "tactic_id": "TA0006",
+    "description": "Using cached Kerberos tickets."
+  },
+  {
+    "id": "T1558.006",
+    "name": "Cached Kerberos Tickets",
+    "tactic_id": "TA0006",
+    "description": "Using cached Kerberos tickets."
+  },
+  {
+    "id": "T1071.002",
+    "name": "File Transfer Protocols",
+    "tactic_id": "TA0011",
+    "description": "Using file transfer protocols for C2."
+  },
+  {
+    "id": "T1071.003",
+    "name": "Mail Protocols",
+    "tactic_id": "TA0011",
+    "description": "Using mail protocols for C2."
+  },
+  {
+    "id": "T1132.001",
+    "name": "Standard Encoding",
+    "tactic_id": "TA0011",
+    "description": "Using standard encoding for C2."
+  },
+  {
+    "id": "T1132.002",
+    "name": "Non-Standard Encoding",
+    "tactic_id": "TA0011",
+    "description": "Using non-standard encoding for C2."
+  },
+  {
+    "id": "T1102.001",
+    "name": "Social Media",
+    "tactic_id": "TA0011",
+    "description": "Using social media for C2."
+  },
+  {
+    "id": "T1102.002",
+    "name": "Webinar",
+    "tactic_id": "TA0011",
+    "description": "Using webinars for C2."
+  },
+  {
+    "id": "T1102.004",
+    "name": "Cloud Instance",
+    "tactic_id": "TA0011",
+    "description": "Using cloud instances for C2."
+  },
+  {
+    "id": "T1573.001",
+    "name": "Symmetric Cryptography",
+    "tactic_id": "TA0011",
+    "description": "Using symmetric cryptography for C2."
+  },
+  {
+    "id": "T1573.002",
+    "name": "Asymmetric Cryptography",
+    "tactic_id": "TA0011",
+    "description": "Using asymmetric cryptography for C2."
+  },
+  {
+    "id": "T1090.004",
+    "name": "Domain Fronting",
+    "tactic_id": "TA0011",
+    "description": "Using domain fronting for C2."
+  },
+  {
+    "id": "T1219.002",
+    "name": "Remote Access Tools",
+    "tactic_id": "TA0011",
+    "description": "Using remote access tools for C2."
+  },
+  {
+    "id": "T1219.003",
+    "name": "Virtual Private Networks",
+    "tactic_id": "TA0011",
+    "description": "Using VPNs for C2."
+  },
+  {
+    "id": "T1219.004",
+    "name": "Web-based Remote Access",
+    "tactic_id": "TA0011",
+    "description": "Using web-based remote access for C2."
+  },
+  {
+    "id": "T1219.005",
+    "name": "Screen Sharing and Control",
+    "tactic_id": "TA0011",
+    "description": "Using screen sharing for C2."
+  },
+  {
+    "id": "T1547.006",
+    "name": "Kernel Modules and Extensions",
+    "tactic_id": "TA0003",
+    "description": "Using kernel modules for persistence."
+  },
+  {
+    "id": "T1547.007",
+    "name": "Re-opened Applications",
+    "tactic_id": "TA0003",
+    "description": "Re-opening applications for persistence."
+  },
+  {
+    "id": "T1547.010",
+    "name": "Port Monitors",
+    "tactic_id": "TA0003",
+    "description": "Using port monitors for persistence."
+  },
+  {
+    "id": "T1547.011",
+    "name": "Accessibility Features",
+    "tactic_id": "TA0003",
+    "description": "Using accessibility features for persistence."
+  },
+  {
+    "id": "T1547.012",
+    "name": "XDG Autostart Entries",
+    "tactic_id": "TA0003",
+    "description": "Using XDG autostart entries for persistence."
+  },
+  {
+    "id": "T1547.013",
+    "name": "Application Shimming",
+    "tactic_id": "TA0003",
+    "description": "Using application shims for persistence."
+  },
+  {
+    "id": "T1547.014",
+    "name": "rc.common",
+    "tactic_id": "TA0003",
+    "description": "Using rc.common for persistence on macOS."
+  },
+  {
+    "id": "T1547.015",
+    "name": "Login Items",
+    "tactic_id": "TA0003",
+    "description": "Using login items for persistence on macOS."
+  },
+  {
+    "id": "T1547.016",
+    "name": "Mixed Userland/Kernel Bootkits",
+    "tactic_id": "TA0003",
+    "description": "Using bootkits for persistence."
+  },
+  {
+    "id": "T1547.018",
+    "name": "Active Setup",
+    "tactic_id": "TA0003",
+    "description": "Using Active Setup for persistence."
+  },
+  {
+    "id": "T1547.019",
+    "name": ".bashrc and .bash_profile",
+    "tactic_id": "TA0003",
+    "description": "Using shell startup files for persistence."
+  }
+]

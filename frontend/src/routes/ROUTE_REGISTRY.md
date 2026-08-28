@@ -19,7 +19,7 @@
 
 **总计**:
 - 后端 281 路由（含根 /; v0.6 crm +13）
-- 前端 50 路由（routes/index.tsx, 含 Navigate 重定向 + Lazy Suspense; v0.6 crm +1）
+- 前端 50 路由（routes/index.tsx, 含 Navigate 重定向 + Lazy Suspense; v0.6 crm +1, S4-3 analytics +1）
 - 子模块归属占比: main hotspot 117 / knowledge-master 73 / codegarden 35 / kl+ai_hub 26 / security_cockpit+crm 23 / secnews 4 / 其他 3
 
 ## 二、前端 49 路由按子模块分组
@@ -105,6 +105,7 @@
 | 60 | `/secnews/knowledge` | SecNewsKnowledge (WikiBrowser) | `secnews` |
 | 61 | `/secnews/inbox` | SecNewsInbox (InboxScanner) | `secnews` |
 | 62 | `/secnews/ledger` | SecNewsLedger (TokenLedger) | `secnews` |
+| 63 | `/secnews/analytics` | SecNewsAnalytics (CVE 热力图 + ATT&CK 映射) | `secnews` |
 
 ### 2.7 crm (1 路由, feature gate)
 

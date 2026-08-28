@@ -324,11 +324,21 @@
   100% 对齐; 硬编码测试断言同步 14→19 (test_mcp_server / test_mcp_sse /
   test_phase7_e2e); MCP 总数 9 → 14 → **19** (12 read + 7 write)
 
-### Phase 6 任务分解
-- [ ] S6-1: 存量 4149 items + 96 concepts 迁移脚本
-- [ ] S6-2: graph.json 合并去重
-- [ ] S6-3: 迁移验证 + FTS5 可检索确认
-- [ ] S6-4: dsh-SecNews 仓库归档（不删除，保留备份）
+### Phase 6 任务分解 (v0.6 P0 第二批 — 3 commit 落地)
+- [x] S6-1: 存量 4149 items + 96 concepts 迁移脚本 (`309a83da` scripts/migrate_wiki.py)
+- [x] S6-2: graph.json 合并去重 (早 P0 批次已 deduped; 136 edges / 96 nodes / 0 重复)
+- [x] S6-3: 迁移验证 + FTS5 可检索确认 (`e53790cc` wiki_items_fts 完整同步层 + search_wiki_only FTS5 MATCH)
+- [x] S6-4: dsh-SecNews 仓库归档（不删除，保留备份） (本批 archives/dsh-secs-news-2026-08-27.tar.zst + MANIFEST + verify 脚本)
+
+**Phase 6 三批说明**:
+
+1. `309a83da` `feat(phase6-migrate-cli)` — scripts/migrate_wiki.py CLI 包装
+   (含 SHA256 清单 / dry-run / apply / 报告), 幂等迁移 4149 items + 96 concepts,
+   排除 2 个 P2 fixture (97f91158db66 / agent-test-1)
+2. `e53790cc` `feat(phase6-fts-sync)` — wiki_items_fts 完整同步层
+   (migration 073 contentless FTS5 + 链式 job + search_wiki_only 真相关度排序)
+3. (本批) `chore(phase6-archive)` — dsh-SecNews secnews/data 离线归档
+   (21.6MB → 2.3MB tar.zst, 4285 文件 SHA256 全校验, 源 chmod -R a-w)
 
 ## 2026-08-24 产品三层架构裁决 + wiki 单根落地
 

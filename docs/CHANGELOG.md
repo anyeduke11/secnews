@@ -669,3 +669,48 @@
 - `security_entity_concept_sync_job`: item 实体→security_entities + 高频
   实体→knowledge concept 互引 (external_id/external_ref)
 - 实测: 34 桥接关联 / 28 CVE 入 security 库 / 2 高频概念互引
+
+---
+
+## v0.6.2 (2026-08-28) — v0.6 Phase 6 (存量迁移 + wiki FTS5 同步层 + dsh-SecNews 归档)
+
+> **范围**: Phase 6 三批落地, wiki-first 存储哲学闭环:
+> 1. 一次性迁移脚本 (scripts/migrate_wiki.py) — 幂等 + SHA256 报告
+> 2. wiki_items_fts 完整同步层 (migration 073 + 链式 job + search_wiki_only FTS5 MATCH 旁路)
+> 3. dsh-SecNews secnews/data 离线归档 (21.6MB → 2.3MB tar.zst + MANIFEST + verify 脚本)
+>
+> **批次 commit**: 3 个 (`309a83da` / `e53790cc` / 本批 `chore(phase6-archive)`)。
+
+### 批次 ⑪：v0.6 Phase 6 — 存量迁移 CLI + wiki_items_fts 同步层 + dsh-SecNews 归档
+
+1. **`feat(phase6-migrate-cli): scripts/migrate_wiki.py CLI wrapper + 幂等执行 + 测试`** (`309a83da`)
+   - 新 `scripts/migrate_wiki.py`: argparse (`--src` / `--dest` / `--dry-run` / `--report` / `--exclude-pattern`); SHA256 清单 + 报告入仓 (`docs/data/migration-report.json`)。
+   - 强制 safety-net excludes: `*P2*` / `*Test*` / `*test*` + 保守 title 正则 (仅 P2 Import Test fixture, 不碰 \bsample\b/\bdemo\b)。
+   - 真实运行: apply `migrated=0 / skipped=4149 / errors=0` (幂等闭环); dry-run `would_migrate=0 / would_skip=4147 / excluded=2`。
+   - 新增 `backend/tests/test_migrate_cli.py` (3 用例: fresh / idempotent / dry-run 0 写盘); ruff 通过。
+
+2. **`feat(phase6-fts-sync): wiki_items_fts 完整同步层 + FTS5 MATCH 旁路`** (`e53790cc`)
+   - 新 `backend/repository/migrations/073_v0.6_wiki_items_fts_sync.sql`: DROP & 重建 `wiki_items_fts` (id UNINDEXED + contentless FTS5, 5 列: id/title/topic/tags/type, 与 `hotspots_fts` 平行); 不加 DB trigger (SQLite 禁跨 attached DB trigger) — 同步由 `wiki_items_fts_sync_job` 兜底。
+   - 新 `wiki_items_fts_sync_job()` (`backend/scheduler/jobs/maintenance.py`): drift 检测 (COUNT 不等 → 'delete-all' + 全量 rebuild + optimize); 链式触发 (`backend/scheduler/jobs/collect.py` L38, 与 `fts_rebuild_job` 平级)。
+   - `backend/services/search_service.py`: `_VALID_SOURCES += 'wiki'`; `unified_search` 新增 `wiki` source → `_search_wiki_fts` FTS5 MATCH 旁路, `LEFT JOIN warm.knowledge_items k ON k.rowid = f.rowid` 回查实体字段 (contentless 列投影为 NULL, 必须 JOIN); 新增 `search_wiki_only(q, limit)` 便捷方法; FTS5 syntax 错误 → 空结果 (不 5xx)。
+   - 新增 `backend/tests/test_wiki_items_fts.py` (5 用例: 5 列 / MATCH 命中 / entity_id 非 None / sources=['wiki'] 旁路 / drift 自愈); ruff 通过; pytest 5/5 + 周边搜索/mcp/migrate 45/45 全绿。
+
+3. **`chore(phase6-archive): dsh-SecNews secnews/data 离线归档`** (本批)
+   - 新 `archives/dsh-secs-news-2026-08-27.tar.zst` (2.3MB zstd / 21.6MB raw, 4285 文件; sha256 `f785bceb590f131104423b09c721437f8ff0f4367543056da1abbb6db5b53a67`)。
+   - 新 `archives/dsh-secs-news.MANIFEST` (per-file SHA256 + 归档元信息)。
+   - 新 `archives/ARCHIVE_NOTES.md` (归档原因 / 与 plan 偏差说明 / 还原步骤 / 与 hotspot 关系图 / 后续动作)。
+   - 新 `scripts/verify_dsh_archive.sh` (Python 包装, 跨 shell 兼容; archive-SHA + file-level 双层校验, 4285/4285 通过)。
+   - `chmod -R a-w /Users/duke/Documents/dsh-SecNews` (源冻结; 不删除, 保留备份 — 用户决策)。
+   - **与 plan 偏差**: 范围从 `dsh-SecNews/` 整体 (估 50MB, 实测1.8GB 含 node_modules) 缩到 `secnews/data/` (24MB), 因 node_modules 与 wiki 无关不入仓; 归档本体 2.3MB 小于 plan 估的 50MB, 优势。
+
+### Phase 6 验收数据
+
+| 维度 | 验收 | 实测 |
+|------|------|------|
+| 迁移脚本幂等 | 二次 apply 0 迁移 | `migrated=0 / skipped=4149` (✓) |
+| dry-run 0 写盘 | dest 保持空 | `would_migrate=0 / would_skip=4147 / excluded=2` (✓) |
+| FTS5 检索 | 真相关度排序 | `search_wiki_only('渗透', limit=3)` 返回 ≥1 行 (✓) |
+| sources=wiki 旁路 | unified_search 分组含 wiki | `len(grouped['wiki']) >= 1` (✓) |
+| drift 自愈 | COUNT 不等触发 rebuild | `wiki_items_fts_sync_job` 后两侧 COUNT 对齐 (✓) |
+| 归档完整性 | SHA256 全通过 | 4285/4285 文件 + archive SHA (✓) |
+| 源冻结 | chmod a-w 验证 | `dr-xr-xr-x` 权限确认 (✓) |

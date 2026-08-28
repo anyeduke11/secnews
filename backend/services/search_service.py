@@ -10,7 +10,8 @@
   手动维护双源 (hotspots + knowledge_items) 的 FTS5 触发器复杂度高 (delete
   需 rowid 映射)。LIKE 在 10k 行级别 (<10ms) 足以满足验收 2 的 P95 < 500ms
   预算。FTS5 优化推迟到性能瓶颈出现时。
-- ``sources`` 参数映射到 ``entity_type`` 列 ('hotspot' / 'knowledge')。
+- ``sources`` 参数映射到 ``entity_type`` 列 ('hotspot' / 'knowledge' /
+  'wiki')。'wiki' 走 FTS5 MATCH (migration 073 维护), 与 LIKE 兜底并存。
 - 大小写不敏感: 用 ``LOWER(title) LIKE LOWER(?)`` 兼容 SQLite 默认大小写
   不敏感的 LIKE，但显式 LOWER 保证可移植性。
 """
@@ -22,8 +23,8 @@ from backend.repository.db import get_connection
 _MAX_LIMIT = 100
 _DEFAULT_LIMIT = 20
 
-# 允许的 source 过滤值 (对应 unified_search.entity_type)
-_VALID_SOURCES = {"hotspot", "knowledge"}
+# 允许的 source 过滤值 (对应 unified_search.entity_type + wiki_items_fts 旁路)
+_VALID_SOURCES = {"hotspot", "knowledge", "wiki"}
 
 
 def _sanitize_query(q: str) -> str:
@@ -80,10 +81,13 @@ def unified_search(
     pattern = f"%{escaped}%"
     params: list = [pattern, pattern]
 
-    if effective_sources:
-        placeholders = ",".join("?" * len(effective_sources))
+    # LIKE 兜底路径: hotspot + knowledge (entity_type 不含 'wiki')
+    like_sources = [s for s in effective_sources if s != "wiki"]
+
+    if like_sources:
+        placeholders = ",".join("?" * len(like_sources))
         where_clauses.append(f"entity_type IN ({placeholders})")
-        params.extend(effective_sources)
+        params.extend(like_sources)
 
     params.append(effective_limit)
 
@@ -111,7 +115,61 @@ def unified_search(
         items.append(item)
         grouped.setdefault(item["entity_type"], []).append(item)
 
+    # 'wiki' source 走 FTS5 MATCH 旁路 (migration 073 维护 wiki_items_fts)
+    if "wiki" in effective_sources:
+        wiki_hits = _search_wiki_fts(query, effective_limit)
+        items.extend(wiki_hits)
+        grouped.setdefault("wiki", []).extend(wiki_hits)
+
     return {"query": q, "items": items, "grouped": grouped}
+
+
+def _search_wiki_fts(q: str, limit: int) -> list[dict]:
+    """FTS5 MATCH 旁路: 走 wiki_items_fts (MATCH 真相关度排序) + LEFT JOIN
+    knowledge_items 回查 title / topic / ingested_at.
+
+    注意 wiki_items_fts 是 contentless FTS5 (content=''); FTS5 行只存索引,
+    列投影 (f.title / f.id) 总是 NULL — 必须靠 LEFT JOIN knowledge_items
+    按 rowid 回查实体字段。所以 entity_id 也用 k.id (而不是 f.id), 避免
+    返回 None。snippet() 仍可用 (FTS5 内部存词位 + 偏移)。
+    """
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                k.id AS entity_id,
+                k.title AS title,
+                IFNULL(k.topic, '') AS summary,
+                IFNULL(k.type, '') AS category,
+                IFNULL(k.ingested_at, '') AS ingested_at,
+                snippet(wiki_items_fts, 1, '[', ']', '...', 12) AS fts_snippet
+            FROM wiki_items_fts f
+            LEFT JOIN warm.knowledge_items k ON k.rowid = f.rowid
+            WHERE wiki_items_fts MATCH ?
+            ORDER BY rank
+            LIMIT ?
+            """,
+            (q, limit),
+        ).fetchall()
+    except Exception:
+        # FTS5 syntax errors on malformed query → 空结果而非 5xx
+        return []
+
+    items: list[dict] = []
+    for r in rows:
+        items.append(
+            {
+                "entity_type": "wiki",
+                "entity_id": r["entity_id"],
+                "title": r["title"] or "",
+                "summary": r["summary"],
+                "category": r["category"],
+                "ingested_at": r["ingested_at"],
+                "fts_snippet": r["fts_snippet"],
+            }
+        )
+    return items
 
 
 def search_hotspots_only(q: str, limit: int = _DEFAULT_LIMIT) -> list[dict]:
@@ -126,8 +184,17 @@ def search_knowledge_only(q: str, limit: int = _DEFAULT_LIMIT) -> list[dict]:
     return result["items"]
 
 
+def search_wiki_only(q: str, limit: int = _DEFAULT_LIMIT) -> list[dict]:
+    """便捷方法: 仅走 wiki_items_fts FTS5 MATCH, 真相关度排序.
+
+    与 search_knowledge_only (LIKE 兜底) 并存; 走纯 FTS5 索引, 不经 unified_search.
+    """
+    return _search_wiki_fts(q, max(1, min(limit, _MAX_LIMIT)))
+
+
 __all__ = [
     "search_hotspots_only",
     "search_knowledge_only",
+    "search_wiki_only",
     "unified_search",
 ]

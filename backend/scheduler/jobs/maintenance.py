@@ -207,6 +207,56 @@ async def fts_rebuild_job() -> None:
         _logger.debug(f"fts_rebuild_job: {e}")
 
 
+async def wiki_items_fts_sync_job() -> None:
+    """v0.6 Phase 6: wiki_items_fts 失同步自愈 (与 fts_rebuild_job 链式触发).
+
+    正常路径: 073_v0.6_wiki_items_fts_sync.sql 的 3 触发器 (AI/AD/AU)
+    自动维护 wiki_items_fts 与 knowledge_items 同步. 本 job 是兜底:
+    触发器被误删 / 大批量历史数据迁移后, 比较两侧 COUNT, 失同步则
+    ``INSERT INTO wiki_items_fts(wiki_items_fts) VALUES('rebuild')``
+    (FTS5 的增量 rebuild 自愈命令).
+    """
+    try:
+        from backend.repository.db import get_connection
+
+        def _sync():
+            conn = get_connection()
+            cur = conn.execute(
+                "SELECT (SELECT COUNT(*) FROM warm.knowledge_items),"
+                " (SELECT COUNT(*) FROM wiki_items_fts)"
+            )
+            src_count, fts_count = cur.fetchone()
+            if src_count != fts_count:
+                _logger.warning(
+                    f"wiki_items_fts_sync_job: drift detected "
+                    f"(knowledge_items={src_count}, wiki_items_fts={fts_count}); "
+                    "rebuilding"
+                )
+                # FTS5 没有 DELETE FROM 语法; 用 'delete-all' 命令清空 (SQLite
+                # 3.7.4+, 对 content='/external 表都支持; content='' 表更稳)。
+                # 'delete-all' 会清除全部 rowid 数据但保留表结构, 之后可重新
+                # INSERT 填充。
+                conn.execute(
+                    "INSERT INTO wiki_items_fts(wiki_items_fts) VALUES('delete-all')"
+                )
+                conn.execute(
+                    """
+                    INSERT INTO wiki_items_fts(rowid, id, title, topic, tags, type)
+                    SELECT rowid, id, IFNULL(title, ''), IFNULL(topic, ''),
+                           IFNULL(tags, ''), IFNULL(type, '')
+                    FROM warm.knowledge_items
+                    """
+                )
+                conn.execute(
+                    "INSERT INTO wiki_items_fts(wiki_items_fts) VALUES('optimize')"
+                )
+
+        await asyncio.to_thread(_sync)
+    except Exception as e:
+        # 表可能不存在 (旧 DB, 073 未跑), 不报严重错
+        _logger.debug(f"wiki_items_fts_sync_job: {e}")
+
+
 async def profile_decay_job() -> None:
     """v1.7 Phase 5: 每日 03:00 Shanghai 衰减所有 profile 权重."""
     try:

@@ -1,6 +1,10 @@
 /**
  * ScanMode — 快速扫描模式 (Phase 13)
  *
+ * @deprecated v0.6.2 (P1-5): 扫描功能已由 WorkbenchKnowledgeView 接管
+ * (route /workbench/knowledge)。本组件保留为兼容旧路由 /knowledge/scan,
+ * 计划 v0.7 退役。功能等价物: WorkbenchKnowledgeView + wiki_items_fts (P0-3)。
+ *
  * 增强版知识条目列表视图，支持多维筛选:
  *  - 领域 (domain) 筛选
  *  - 生命周期 (lifecycle) 筛选

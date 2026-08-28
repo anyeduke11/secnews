@@ -1,6 +1,10 @@
 /**
  * OutboxMode — 整理模式 (Phase 17)
  *
+ * @deprecated v0.6.2 (P1-5): 整理功能由 WorkbenchKnowledgeView 提供
+ * (筛选 + 注意力评分) + WorkbenchAnalyzeView 提供批量操作 (DeepRead 触发)。
+ * 本组件保留为兼容旧路由 /knowledge/outbox, 计划 v0.7 退役。
+ *
  * 知识条目待处理列表，按 attention_score 降序排列。
  * 支持批量操作（标记已读 / 归档 / 生成摘要）和多维筛选。
  *

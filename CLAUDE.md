@@ -209,7 +209,9 @@ sync_bundle.py   →  Serialization: build_bundle, encrypt/decrypt (853 lines)
 - **Knowledge system**: file-first, SQLite is read cache; .md files are source of truth
 - **Attention scoring**: 5-dimensional weighted (view_count/dwell_time/scroll_depth/is_favorited/annotation_count), 0-100 scale, aggregated via 1800s interval job with 30-day window + auto-cleanup
 - **Chunk storage**: paragraph-level segmentation with FTS5 full-text search, char_start/end for原文跳转
-- **6 cognitive modes**: Briefing (简报) / Scan (扫描) / DeepRead (深度) / Alert (告警) / Outbox (整理) / Review (复习)
+- **Knowledge 域模式 (v0.6.2)**: Review (SM-2 复习) + DeepRead (重分析 4 节报告, S4-2) — **主路径**;
+  其余 4 模式 (Briefing/Scan/Alert/Outbox) v0.6.2 已加 `@deprecated`, 计划 v0.7 退役,
+  功能由 `/workbench` 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings) 接替
 
 ## Docs & Tooling Notes
 

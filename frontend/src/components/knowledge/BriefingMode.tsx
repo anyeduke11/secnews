@@ -1,6 +1,10 @@
 /**
  * BriefingMode — 简报模式
  *
+ * @deprecated v0.6.2 (P1-5): 简报功能已由 WorkbenchBriefingView 接管
+ * (route /workbench/briefing)。本组件保留为兼容旧路由 /knowledge/briefing,
+ * 计划 v0.7 退役。功能等价物: WorkbenchBriefingView + 08:00 digest_generator_job。
+ *
  * Phase 13: 每日简报
  * 展示最近发布的 knowledge 条目 (lifecycle=kl:publish)，
  * 附带数据源健康状态概览。

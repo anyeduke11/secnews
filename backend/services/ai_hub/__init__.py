@@ -4,11 +4,12 @@
 ------------------
 原 ``backend/services/ai_hub.py`` (1030 行) 拆分为包:
 
-- ``gateway.py``  — ``LLMService`` (score/summarize/extract_entities/generate)
-- ``cache.py``    — LLM/AI 缓存统一操作 (``llm_cache`` 表)
-- ``usage.py``    — LLM/AI 用量日志统一操作 (``llm_usage_log`` 表)
-- ``tasks.py``    — ``AIService`` (evaluate/gate_detect) + ``evaluate_article``
-                    + ``write_score`` + ``write_item`` / ``update_frontmatter``
+- ``gateway.py``    — ``LLMService`` (score/summarize/extract_entities/generate)
+- ``cache.py``      — LLM/AI 缓存统一操作 (``llm_cache`` 表)
+- ``usage.py``      — LLM/AI 用量日志统一操作 (``llm_usage_log`` 表)
+- ``tasks.py``      — ``AIService`` (evaluate/gate_detect) + ``evaluate_article`` + 评价辅助
+- ``write_back.py`` — 知识写回唯一门面 (v0.5 §18.2 强约束 1):
+                      ``write_score`` / ``write_item`` / ``update_frontmatter``
 
 向后兼容: 所有原有 ``from backend.services.ai_hub import ...`` 保持不变。
 """
@@ -26,21 +27,25 @@ from .gateway import (
     load_llm_config,
     httpx,
 )
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection  # 显式 re-export 以兼容 monkeypatch(ai_hub, "get_connection", ...)
 
-# ── AIService + 辅助 ────────────────────────────────────────────
+# ── AIService + 评价辅助 ──────────────────────────────────────────
 from .tasks import (
     AIService,
     ai_service,
     evaluate_article,
-    write_score,
-    write_item,
-    update_frontmatter,
     _DETECT_SYSTEM,
     _eval_prompt,
     _parse_eval_json,
     _parse_score01,
     _est_tokens,
+)
+
+# ── 知识写回门面 (v0.5 §18.2 强约束 1) ───────────────────────────
+from .write_back import (
+    write_score,
+    write_item,
+    update_frontmatter,
 )
 
 # ── 公开 API ────────────────────────────────────────────────────

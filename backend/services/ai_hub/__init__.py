@@ -1,13 +1,14 @@
 """ai_hub — LLM 单出口 + 知识写回唯一门面 (v0.5 M5 Task19)。
 
-重构说明 (v0.6.2)
-------------------
+重构说明 (v0.7.0-step1)
+------------------------
 原 ``backend/services/ai_hub.py`` (1030 行) 拆分为包:
 
 - ``gateway.py``    — ``LLMService`` (score/summarize/extract_entities/generate)
 - ``cache.py``      — LLM/AI 缓存统一操作 (``llm_cache`` 表)
 - ``usage.py``      — LLM/AI 用量日志统一操作 (``llm_usage_log`` 表)
-- ``tasks.py``      — ``AIService`` (evaluate/gate_detect) + ``evaluate_article`` + 评价辅助
+- ``service.py``    — v0.7 拆分: ``AIService`` (evaluate/gate_detect/限频/缓存/用量) + ``_DETECT_SYSTEM``
+- ``tasks.py``      — 评价辅助 (``_cache_key/_eval_prompt/_parse_*``) + ``evaluate_article`` 入口
 - ``write_back.py`` — 知识写回唯一门面 (v0.5 §18.2 强约束 1):
                       ``write_score`` / ``write_item`` / ``update_frontmatter``
 
@@ -29,12 +30,14 @@ from .gateway import (
 )
 from backend.repository.db import get_connection  # 显式 re-export 以兼容 monkeypatch(ai_hub, "get_connection", ...)
 
-# ── AIService + 评价辅助 ──────────────────────────────────────────
-from .tasks import (
+# ── AIService (v0.7 拆分到 .service) + 评价辅助 ─────────────────
+from .service import (
     AIService,
     ai_service,
-    evaluate_article,
     _DETECT_SYSTEM,
+)
+from .tasks import (
+    evaluate_article,
     _eval_prompt,
     _parse_eval_json,
     _parse_score01,

@@ -39,6 +39,28 @@
 
 ## 当前活跃段 (2026-08-27 起)
 
+### 2026-08-29 v0.7.0 重构完成度审计收尾修复（本批）
+
+> **来源**: 审计报告 5 维度结论（整合 Phase 0-6 本体 100% 交付，失分集中在发版收尾）。
+> **范围**: 审计建议 1-4 项；第 5 项 sentinel v0.7.1 原型对照实现为后续独立批次。
+
+- [x] **修 2 个红测**: `docs/v0.6_workstation_plan.md` 在 `795189ca` 归档至 `docs/archived/`
+  后，`test_generate_meta.py::TestRepoSelfCheck` 硬编码"3 draft"预期漂移 → 收敛为 2 个活跃
+  draft + 新增 `test_archived_plan_not_counted_as_draft` 防回归；登记表同步指向归档路径；
+  归档文件 frontmatter `status: draft → archived`
+- [x] **版本对齐**: `frontend/package.json` + `package-lock.json` 0.6.0 → **0.7.0**
+  （补齐 v0.6.0 发版约定两侧同步 bump 的遗漏）；AGENTS.md services 94 → **93**（generate_meta 实测）
+- [x] **图表色令牌化**: ComplianceMatrix/CveHeatmap 裸 hex 清零 →
+  `--chart-compliance-{dengbao,gdpr,iso27001}` + `--chart-severity-{critical,high,medium,low,none}`
+  （暗/亮双主题块同步定义），DESIGN_SYSTEM.md §色板后新增"数据可视化色板"登记表。
+  ⚠️ 该组改动与 sentinel WIP 同在 `index.css` 主题块内，**随 v0.7.1 批次一并提交**
+- [x] **spec 头注修正**: `HOTSPOT_SECNEWS_INTEGRATION.md` related_code 改
+  `backend/services/ai_hub/`（包）+ `backend/wiki_fs/`，删不存在的 `collectors/secnews/`；
+  Phase 2.2 门禁合并表追加"三道新增 Gate 实际以 Phase 4 分析服务落地"裁决注记
+
+**门禁**: pytest 全量见本批提交（2 红测归零）；generate_meta --check rc=0 (47/14/63/93)；
+tsc 0 错；vitest 43 文件 310 passed；vite build 过。
+
 ### 2026-08-27 v0.6 P0 清场第二批 — infra 净底 (8 commits)
 
 > **范围**: 死代码扫描 + jobs 下线 + M1/M2 终验门禁; dsh 桥接层因 spec 复杂下批独立。

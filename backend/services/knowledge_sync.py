@@ -238,7 +238,7 @@ def write_item_to_md(item: dict, content: str | None = None) -> None:
     review_count = item.get("review_count", existing_fm.get("review_count", 0))
     related_items = item.get("related_items") or existing_fm.get("related_items") or []
     sources = item.get("sources") or existing_fm.get("sources")
-    sources_line = f"sources: {json.dumps(sources)}\n" if sources else ""
+    sources_line = f"sources: {json.dumps(sources, ensure_ascii=False)}\n" if sources else ""
 
     frontmatter = f"""---
 id: "{item.get('id', item_id)}"
@@ -248,17 +248,17 @@ source_url: "{item.get('source_url', '')}"
 ingested_at: "{item.get('ingested_at', '')}"
 lifecycle: "{item.get('lifecycle', 'kl:raw')}"
 news_type: "{item.get('news_type', '')}"
-tech_stack: {json.dumps(item.get('tech_stack', []))}
+tech_stack: {json.dumps(item.get('tech_stack', []), ensure_ascii=False)}
 domain: {item.get('domain') or 'null'}
 topic: {item.get('topic') or 'null'}
 type: {item.get('type') or 'null'}
 difficulty: {item.get('difficulty') or 'null'}
-tags: {json.dumps(item.get('tags', []))}
-concepts: {json.dumps(item.get('concepts', []))}
+tags: {json.dumps(item.get('tags', []), ensure_ascii=False)}
+concepts: {json.dumps(item.get('concepts', []), ensure_ascii=False)}
 mastery: {item.get('mastery', 0)}
 last_reviewed: {last_reviewed or 'null'}
 review_count: {review_count}
-related_items: {json.dumps(related_items)}
+related_items: {json.dumps(related_items, ensure_ascii=False)}
 {sources_line}---
 
 """

@@ -104,10 +104,7 @@ export const QualityRejectionPage = React.lazy(() =>
   import('../components/QualityRejectionPage').then(m => ({ default: m.default }))
 );
 
-// v4.3: 报纸版式 (Editorial Layout) — 独立全屏视图，与老版式并行
-export const EditorialView = React.lazy(() =>
-  import('../components/editorial/EditorialView').then(m => ({ default: m.EditorialView }))
-);
+// v4.3 报纸版式 (Editorial) 已于 v0.7.1 移除, /editorial 重定向到哨兵终端资料层首页
 
 // SecNews 安全看板 (S0-7)
 export const SecNewsShell = React.lazy(() =>

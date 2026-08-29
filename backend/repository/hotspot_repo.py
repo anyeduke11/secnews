@@ -302,22 +302,10 @@ class HotspotRepository:
             where_clauses.append("source = ?")
             params.append(source)
 
-        if keyword:
-            # Use FTS5 to pre-resolve the matching rowid set, then JOIN
-            # by rowid. We use a subquery (rather than JOIN) so the
-            # parameter list stays flat. The keyword is wrapped in
-            # double quotes as a single phrase so FTS5 tokenises the
-            # entire string literally.
-            where_clauses.append(
-                "id IN ("
-                "SELECT h2.id FROM hotspots h2 "
-                "JOIN hotspots_fts f2 ON f2.rowid = h2.rowid "
-                "WHERE hotspots_fts MATCH ?"
-                ")"
-            )
-            # Escape any embedded double quotes inside the keyword.
-            safe_keyword = keyword.replace('"', '""')
-            params.append(f'"{safe_keyword}"')
+        kw_sql, kw_params = self._keyword_condition(keyword)
+        if kw_sql:
+            where_clauses.append(kw_sql)
+            params.extend(kw_params)
 
         if cursor:
             cursor_ts, cursor_id = self._parse_cursor(cursor)
@@ -573,10 +561,40 @@ class HotspotRepository:
             raise InternalException(f"count_in_range failed: {e}") from e
         return int(row["n"])
 
+    def _keyword_condition(self, keyword: str) -> tuple[str, list[str]]:
+        """关键词检索的 SQL 片段 + 绑定参数 (供 query 与计数共用同一口径)。
+
+        ``hotspots_fts`` 用 ``tokenize='unicode61'``, 它按空白/标点切 token, 不切
+        中日韩连写 —— 实测 "漏洞" LIKE 140 / MATCH 10, "勒索" LIKE 18 / MATCH 0。
+        故含非 ASCII 的关键词走 LIKE (与 search_service.py 当年放弃 FTS5 改用
+        LIKE 的取舍一致); 纯 ASCII 仍走 FTS5 索引 (CVE 召回 40/44 且更快)。
+        两个分支匹配范围一致, 都只覆盖 title + summary —— FTS 索引里没有 source。
+        """
+        if not keyword:
+            return "", []
+        if any(ord(ch) > 127 for ch in keyword):
+            escaped = (
+                keyword.replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_")
+            )
+            pat = f"%{escaped}%"
+            return "(title LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\')", [pat, pat]
+        safe = keyword.replace('"', '""')
+        return (
+            "id IN ("
+            "SELECT h2.id FROM hotspots h2 "
+            "JOIN hotspots_fts f2 ON f2.rowid = h2.rowid "
+            "WHERE hotspots_fts MATCH ?"
+            ")",
+            [f'"{safe}"'],
+        )
+
     def count_unique_urls_in_range(
         self,
         time_range: TimeRange,
         category: str | None = None,
+        keyword: str = "",
     ) -> int:
         """Phase 42 修复: 统计时间窗口内的 **去重 url 数** (供 list 翻页 total)。
 
@@ -586,6 +604,9 @@ class HotspotRepository:
           后的 ``items`` 口径一致, 避免前端 "X / Y" 出现 X 远大于 Y 的显示问题
           (用户反馈: "已显示 83 / 841 条, 已是最后一页" 但 841 实际包含大量
           重复 url, 真正唯一 url 只有 83 条)
+
+        ``keyword`` 必须与 :meth:`query` 同口径, 否则搜索时 "X / Y" 的分母会
+        退回全窗口总数。
         """
         if not isinstance(time_range, TimeRange):
             raise InternalException(f"time_range must be TimeRange, got {type(time_range).__name__}")
@@ -602,6 +623,10 @@ class HotspotRepository:
             else:
                 where_clauses.append("category = ?")
                 params.append(category)
+        kw_sql, kw_params = self._keyword_condition(keyword)
+        if kw_sql:
+            where_clauses.append(kw_sql)
+            params.extend(kw_params)
         sql = (
             f"SELECT COUNT(DISTINCT url) AS n FROM hotspots "
             f"WHERE {' AND '.join(where_clauses)}"

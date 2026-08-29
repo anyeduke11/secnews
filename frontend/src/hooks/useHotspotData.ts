@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { HotspotItem, HotspotResponse } from '../types';
 
-// Phase 38: 页大小可调 (100/200/300/400), 居中显示在网格尾部
-export const PAGE_SIZE_OPTIONS = [100, 200, 300, 400] as const;
+// Phase 38: 页大小可调 (100/200), 居中显示在网格尾部
+// 上限来自后端 Query(50, ge=1, le=200) —— 300/400 会被 API 拒 422。
+export const PAGE_SIZE_OPTIONS = [100, 200] as const;
 export type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 
 interface PageData {

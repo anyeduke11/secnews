@@ -162,7 +162,7 @@ domain: null
 topic: null
 type: null
 difficulty: null
-tags: {json.dumps(tags)}
+tags: {json.dumps(tags, ensure_ascii=False)}
 concepts: []
 mastery: 0
 last_reviewed: null

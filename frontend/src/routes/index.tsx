@@ -49,8 +49,8 @@ export function AppRoutes() {
 
   return (
     <Routes>
-      {/* v4.3: 报纸版式 (Editorial) — 独立全屏，不走 PageLayout */}
-      <Route path="/editorial" element={<Suspense fallback={<PageFallback />}><P.EditorialView /></Suspense>} />
+      {/* v4.3 报纸版式已移除 (v0.7.1) — 保留入口重定向, 老书签与外链不 404 */}
+      <Route path="/editorial" element={<Navigate to="/" replace />} />
 
       {/* v0.7.1: 哨兵终端 (V2 设计稿还原) — 独立全屏, 不走 PageLayout, 壳由 SentinelShell 提供 */}
       <Route path="/" element={<Suspense fallback={<PageFallback />}><P.SentinelHomePage /></Suspense>} />

@@ -2,10 +2,10 @@
 status: draft
 target_version: v0.6
 phase: SecNews Integration
-related_code: backend/kl_pipeline/;backend/services/ai_hub.py;backend/collectors/secnews/;frontend/src/components/secnews/
+related_code: backend/kl_pipeline/;backend/wiki_fs/;backend/services/ai_hub/;frontend/src/components/secnews/
 depends_on: docs/v0.5_refactor_plan/README.md;docs/audit_first_principles_plan.md
 owner: integration
-last_reviewed: 2026-08-24
+last_reviewed: 2026-08-29
 ---
 
 # Hotspot × dsh-SecNews 整合方案
@@ -666,6 +666,15 @@ Hotspot 已有 13 道 Gate，dsh-SecNews 有 8 道 Gate。合并策略：
 | `CVEEnrichGate` | — | ✅ 新增 | CVE 编号提取 |
 | `ATT&CKEnrichGate` | — | ✅ 新增 | MITRE ATT&CK 技术标注 |
 | `ComplianceGate` | — | ✅ 新增 | 等保/关基/数据安全法 匹配 |
+
+> **落地裁决注记 (2026-08-29 审计补记)**：上表末行 `CVEEnrichGate` / `ATT&CKEnrichGate` /
+> `ComplianceGate` 三道"新增 Gate" **未以 `backend/quality/` 门禁类落地**，实际以后 Phase 4
+> 分析服务形式交付（`9c38cda2` / `5c657d99`）：`cve_heatmap_service.py` +
+> `cve_attack_service.py` + `attack_loader.py`（STIX 子集）+ `compliance_service.py`，
+> 语义从"入库前拦截"调整为"入库后标注与可视化"（/api/cve、/api/compliance）。
+> 请勿在 `backend/quality/` 下按 Gate 名寻找这三个类。
+> 另：本方案 `related_code` 中 `backend/services/ai_hub.py` 单文件已随 P0-1/82ed0189
+> 拆分为 `backend/services/ai_hub/` 包（gateway/cache/usage/tasks/service/prompts/write_back）。
 
 ### Phase 3: 前端统一与 UI 升级（W6-W8）
 

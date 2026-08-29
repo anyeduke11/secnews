@@ -106,7 +106,7 @@ COLD 加密: `scripts/cold_db_crypto.py encrypt|decrypt|verify`，格式 `<16-by
 | 4 | **crawler-v2 strangler** | `crawler_sources` / `source_scheduler` 已建，源级调度逐步接管 |
 | 5 | **SecNEWS Phase 6 存量迁移** (S6-1..S6-4) | Phase 6 wiki_items_fts + migrate_wiki.py 已落，S6-3/S6-4 待 |
 | 6 | **组件过大** | `SyncPage.tsx` / `SecretsPage.tsx` 约 800 行，需拆分 |
-| 7 | **Mimosa 密封扫描** | 未启用 (P2-4 待办) |
+| 7 | **Mimosa 密封扫描** | 未启用 (P2-4, 见 [docs/SECURITY_AUDIT.md](SECURITY_AUDIT.md) §1; 工具不可用待 sandbox 释放) |
 
 ---
 

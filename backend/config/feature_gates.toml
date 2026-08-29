@@ -20,4 +20,3 @@ workbench_legacy = true  # P2-3 三层目录退役规划 — v0.6.2+ 默认开�
                    #      2) 客户端导航隐藏 data/judge/action 三层入口
                    # 功能等价物: /workbench 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings)
                    # 计划: v0.7+ 集中删除 16 个 .tsx 组件 + 10 个路由
-secnews    = true       # SecNews 安全看板 (KL 管线 + Feed + Wiki 浏览)

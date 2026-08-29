@@ -384,3 +384,28 @@ html[data-theme="light"] .sentinel .tb-sun{display:none}
   .sentinel .head-foot{gap:14px}
   .sentinel .rail{grid-template-columns:1fr}
 }
+
+/* ===== 溢出菜单: 报纸版删除后承接 12 项能力的唯一入口 ===== */
+.sentinel .sn-more{position:relative;display:flex}
+.sentinel .sn-more-btn{gap:6px;font-family:var(--sn-mono);font-size:12px;letter-spacing:.02em}
+.sentinel .sn-menu{
+  position:absolute;top:calc(100% + 8px);right:0;z-index:var(--z-dropdown,100);
+  min-width:268px;padding:6px;
+  background:var(--sn-bg-panel);border:1px solid var(--sn-line-strong);border-radius:8px;
+  display:grid;grid-template-columns:1fr;gap:2px;
+  animation:fade-in 120ms var(--ease-out) both;
+}
+.sentinel .sn-menu-kick{
+  margin:10px 10px 4px;font-size:11px;letter-spacing:.12em;text-transform:none;
+  color:var(--sn-ink-3);font-family:var(--sn-mono);
+}
+.sentinel .sn-menu-item{
+  display:flex;align-items:baseline;gap:10px;padding:7px 10px;border-radius:6px;
+  font-size:13px;color:var(--sn-ink);transition:background 120ms var(--ease-out);
+}
+.sentinel .sn-menu-item:hover{background:var(--sn-bg-hover)}
+.sentinel .sn-menu-note{margin-left:auto;font-size:11px;letter-spacing:.08em;color:var(--sn-ink-3)}
+@media (prefers-reduced-motion: reduce){
+  .sentinel .sn-menu{animation:none}
+  .sentinel .sn-menu-item{transition:none}
+}

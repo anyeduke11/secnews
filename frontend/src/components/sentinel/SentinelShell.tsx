@@ -11,7 +11,7 @@
  *  - 子页通过 children 注入; SSE collect 事件由各页自行订阅
  */
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import './sentinel.css';
 
@@ -86,6 +86,85 @@ const LAYER_DEFS: { layer: SentinelLayer; label: string; sub: string; to: string
   },
 ];
 
+/** 报纸版删除后, 这些能力失去了唯一点击入口 — 由壳层溢出菜单统一承接 */
+const UTILITY_GROUPS: { label: string; items: { to: string; label: string; note: string }[] }[] = [
+  {
+    label: '情报输出',
+    items: [
+      { to: '/report', label: '周报 / 月报', note: 'REPORT' },
+      { to: '/history', label: '浏览历史', note: 'HISTORY' },
+      { to: '/reviews', label: '间隔复习', note: 'SRS' },
+      { to: '/secnews', label: 'SecNews 看板', note: 'BOARD' },
+    ],
+  },
+  {
+    label: '知识资产',
+    items: [
+      { to: '/knowledge', label: '知识库', note: 'KNOWLEDGE' },
+      { to: '/skills', label: '技能库', note: 'SKILLS' },
+      { to: '/todos', label: '待办', note: 'TODOS' },
+    ],
+  },
+  {
+    label: '运维与配置',
+    items: [
+      { to: '/garden', label: 'CodeGarden', note: 'GARDEN' },
+      { to: '/secrets', label: '密钥管理', note: 'SECRETS' },
+      { to: '/sync', label: '同步与备份', note: 'SYNC' },
+      { to: '/settings', label: '全局设置', note: 'SETTINGS' },
+    ],
+  },
+];
+
+function SentinelMoreMenu() {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="sn-more" ref={boxRef}>
+      <button
+        type="button"
+        className="iconbtn sn-more-btn"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+      >
+        更多
+        <svg width="9" height="9" viewBox="0 0 9 9" aria-hidden="true"><path d="M1.5 3l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
+      </button>
+      {open && (
+        <div className="sn-menu" role="menu" aria-label="功能入口">
+          {UTILITY_GROUPS.map(g => (
+            <div className="sn-menu-grp" key={g.label}>
+              <p className="sn-menu-kick num">{g.label}</p>
+              {g.items.map(it => (
+                <Link key={it.to} className="sn-menu-item" role="menuitem" to={it.to} onClick={() => setOpen(false)}>
+                  <span>{it.label}</span>
+                  <span className="sn-menu-note num">{it.note}</span>
+                </Link>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
   layer: SentinelLayer;
   mode?: string;
@@ -140,6 +219,7 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
           </nav>
 
           <div className="appbar-right">
+            <SentinelMoreMenu />
             <button type="button" className="iconbtn" onClick={toggleTheme} aria-label={theme === 'dark' ? '切换到晨间亮色' : '切换到夜航暗色'}>
               <svg className="tb-sun" viewBox="0 0 18 18" width="17" height="17" aria-hidden="true" focusable="false"><circle cx="9" cy="9" r="3.6" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M9 1.2v2.1M9 14.7v2.1M1.2 9h2.1M14.7 9h2.1M3.7 3.7l1.5 1.5M12.8 12.8l1.5 1.5M14.3 3.7l-1.5 1.5M5.2 12.8l-1.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
               <svg className="tb-moon" viewBox="0 0 18 18" width="17" height="17" aria-hidden="true" focusable="false"><path d="M15.2 11.2A6.6 6.6 0 0 1 6.8 2.8a6.6 6.6 0 1 0 8.4 8.4Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>

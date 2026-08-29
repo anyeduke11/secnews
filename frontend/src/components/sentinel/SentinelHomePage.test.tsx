@@ -346,4 +346,27 @@ describe('SentinelHomePage — 哨兵终端首页', () => {
     // pageSize 由 hook 提供 (默认 100), 展示在页脚
     expect(screen.getByText(/每页 100/)).toBeInTheDocument();
   });
+
+  it('壳层溢出菜单: 展开可达报纸版删除后失去入口的 11 项能力, Esc 收起', async () => {
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+
+    const btn = screen.getByRole('button', { name: /更多/ });
+    expect(btn).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+
+    fireEvent.click(btn);
+    const menu = screen.getByRole('menu');
+    expect(btn).toHaveAttribute('aria-expanded', 'true');
+
+    const hrefs = [...menu.querySelectorAll('a')].map(a => a.getAttribute('href'));
+    for (const to of ['/report', '/history', '/reviews', '/secnews', '/knowledge',
+                      '/skills', '/todos', '/garden', '/secrets', '/sync', '/settings']) {
+      expect(hrefs, `菜单缺少 ${to}`).toContain(to);
+    }
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(btn).toHaveAttribute('aria-expanded', 'false');
+  });
 });

@@ -4,6 +4,26 @@ import React from 'react';
 // 懒加载位置 = 业务模块位置, 与路由表 1:1 映射, 见 routes/index.tsx。
 // 注: 原 App.tsx 中声明但从未被路由引用的 FavoritesPanel (死代码) 未迁移。
 
+// 哨兵终端首页 (V2 设计稿还原, v0.7.1)
+export const SentinelHomePage = React.lazy(() =>
+  import('../components/sentinel/SentinelHomePage').then(m => ({ default: m.SentinelHomePage }))
+);
+export const SentinelJudgePage = React.lazy(() =>
+  import('../components/sentinel/SentinelJudgePage').then(m => ({ default: m.SentinelJudgePage }))
+);
+export const SentinelGraphPage = React.lazy(() =>
+  import('../components/sentinel/SentinelGraphPage').then(m => ({ default: m.SentinelGraphPage }))
+);
+export const SentinelActionPage = React.lazy(() =>
+  import('../components/sentinel/SentinelActionPage').then(m => ({ default: m.SentinelActionPage }))
+);
+export const SentinelGardenPage = React.lazy(() =>
+  import('../components/sentinel/SentinelGardenPage').then(m => ({ default: m.SentinelGardenPage }))
+);
+export const SentinelSettingsPage = React.lazy(() =>
+  import('../components/sentinel/SentinelSettingsPage').then(m => ({ default: m.SentinelSettingsPage }))
+);
+
 // 全局工具页
 export const SettingsPage = React.lazy(() =>
   import('../components/settings/SettingsPage').then(m => ({ default: m.SettingsPage }))

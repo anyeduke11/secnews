@@ -27,61 +27,16 @@ export const ReportPage = React.lazy(() =>
   import('../components/report/ReportPage').then(m => ({ default: m.ReportPage }))
 );
 
-// Phase 1: 三层架构页面
-export const DataLayerPage = React.lazy(() =>
-  import('../components/data/DataLayerPage').then(m => ({ default: m.DataLayerPage }))
-);
-export const JudgeLayerPage = React.lazy(() =>
-  import('../components/judge/JudgeLayerPage').then(m => ({ default: m.JudgeLayerPage }))
-);
-export const ActionLayerPage = React.lazy(() =>
-  import('../components/action/ActionLayerPage').then(m => ({ default: m.ActionLayerPage }))
-);
-// Phase 2: 资料层子页面
-export const DataImportPage = React.lazy(() =>
-  import('../components/data/DataImportPage').then(m => ({ default: m.DataImportPage }))
-);
-export const DataFavoritesPage = React.lazy(() =>
-  import('../components/data/DataFavoritesPage').then(m => ({ default: m.DataFavoritesPage }))
-);
-// Phase 3: 判断层子页面
-export const JudgeTrendsPage = React.lazy(() =>
-  import('../components/judge/JudgeTrendsPage').then(m => ({ default: m.JudgeTrendsPage }))
-);
-export const JudgeBidAnalysisPage = React.lazy(() =>
-  import('../components/judge/JudgeBidAnalysisPage').then(m => ({ default: m.JudgeBidAnalysisPage }))
-);
+// v0.7.0 (D.8-D.10): 三层架构 (data/judge/action) + 4 cognitive mode 物理删除
+// 功能承接: /workbench 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings)
+// 保留: ReviewMode + DeepReadMode (主路径) + 8 个 knowledge 域组件
+// 详细迁移指南: docs/v0.7_migration_checklist.md
 
-// Phase 4: 行动层子页面（包装现有组件，添加行动层导航头）
-export const ActionReportPage = React.lazy(() =>
-  import('../components/action/ActionReportPage').then(m => ({ default: m.ActionReportPage }))
-);
-export const ActionCompoundPage = React.lazy(() =>
-  import('../components/action/ActionCompoundPage').then(m => ({ default: m.ActionCompoundPage }))
-);
-export const ActionTodosPage = React.lazy(() =>
-  import('../components/action/ActionTodosPage').then(m => ({ default: m.ActionTodosPage }))
-);
-export const ActionOutboxPage = React.lazy(() =>
-  import('../components/action/ActionOutboxPage').then(m => ({ default: m.ActionOutboxPage }))
-);
-export const ActionReviewPage = React.lazy(() =>
-  import('../components/action/ActionReviewPage').then(m => ({ default: m.ActionReviewPage }))
-);
-export const ActionCodegardenPage = React.lazy(() =>
-  import('../components/action/ActionCodegardenPage').then(m => ({ default: m.ActionCodegardenPage }))
-);
-export const ActionCodegardenPhase2bPage = React.lazy(() =>
-  import('../components/action/ActionCodegardenPhase2bPage').then(m => ({ default: m.ActionCodegardenPhase2bPage }))
-);
-export const ActionSkillsPage = React.lazy(() =>
-  import('../components/action/ActionSkillsPage').then(m => ({ default: m.ActionSkillsPage }))
-);
-export const ActionBidAlertPage = React.lazy(() =>
-  import('../components/action/ActionBidAlertPage').then(m => ({ default: m.ActionBidAlertPage }))
-);
+// (Phase 1-4 路由已删除, 22 个老路由 404, workbench 唯一入口)
 
-// 知识管理: 4 大领域 (信息导入 / 处理数据 / 知识库编译 / 知识复利) + 6 模式
+// 知识管理: 4 大领域 (信息导入 / 处理数据 / 知识库编译 / 知识复利) — 保留 8 路由
+// 6 模式去 4 留 2: 删 BriefingMode / ScanMode / AlertMode / OutboxMode (v0.6 已 @deprecated, v0.7 物理删除);
+// 保留 ReviewMode (主路径 SM-2) + DeepReadMode (主路径 S4-2 重分析)
 export const KnowledgePage = React.lazy(() =>
   import('../components/KnowledgePage').then(m => ({ default: m.KnowledgePage }))
 );
@@ -100,20 +55,8 @@ export const KnowledgeCompound = React.lazy(() =>
 export const KnowledgeFavoritesView = React.lazy(() =>
   import('../components/knowledge/KnowledgeFavoritesView')
 );
-export const BriefingMode = React.lazy(() =>
-  import('../components/knowledge/BriefingMode').then(m => ({ default: m.BriefingMode }))
-);
-export const ScanMode = React.lazy(() =>
-  import('../components/knowledge/ScanMode').then(m => ({ default: m.ScanMode }))
-);
 export const DeepReadMode = React.lazy(() =>
   import('../components/knowledge/DeepReadMode').then(m => ({ default: m.DeepReadMode }))
-);
-export const AlertMode = React.lazy(() =>
-  import('../components/knowledge/AlertMode').then(m => ({ default: m.AlertMode }))
-);
-export const OutboxMode = React.lazy(() =>
-  import('../components/knowledge/OutboxMode').then(m => ({ default: m.OutboxMode }))
 );
 export const ReviewMode = React.lazy(() =>
   import('../components/knowledge/ReviewMode').then(m => ({ default: m.ReviewMode }))

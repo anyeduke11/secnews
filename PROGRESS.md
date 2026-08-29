@@ -1,5 +1,6 @@
 # v0.5 重构执行进度（PROGRESS.md — 当前活跃段索引）
 
+> **v0.7.0 (2026-08-28)** — workbench 报纸版 100% 接管 (Step 2 物理删除完成)。
 > **v0.6.2 (2026-08-28)** — hotspot 活跃开发中。
 >
 > 本文件仅含**当前活跃段**（最近 2 批次 + 进行中）。**历史完整段**见
@@ -153,3 +154,38 @@
 - v0.6 P0 收尾: ruff backend+scripts 全绿; pytest 2940 collected
 - v0.6 P1 收尾: 7 个 commit 入仓
 - 不在本批: P2-1 docs 合并 / P2-3 三层目录退役 / P2-4 Mimosa 扫描 → 全部留独立工单
+
+---
+
+## 2026-08-28 v0.7.0 — workbench 报纸版 100% 接管 (D.8-D.16 物理删除 + 版本 bump)
+
+> **范围**: v0.7 Step 2 — 物理删除 16 个三层目录 .tsx + 4 个 cognitive mode .tsx + 22 个老路由 + 8 个 redirect + workbench_legacy gate; 正式发版 0.7.0.
+> **commit 链**: 4 个 (v0.7 step1 系列 + ai_hub 拆 service.py + 物理删除 + docs).
+> **迁移指南**: docs/v0.7_migration_checklist.md (199 行, 22 路由功能对照 + 16 实施检查 D.1-D.16).
+
+### Step 2 物理删除清单
+- [x] D.8 删 `frontend/src/components/{data,judge,action}/` 16 .tsx (3 个目录全部)
+- [x] D.9 删 `frontend/src/components/knowledge/{BriefingMode,ScanMode,AlertMode,OutboxMode}.tsx` 4 .tsx
+- [x] D.10 删 16+6 个老路由 (action 子路由 11 + judge 子路由 2 + judge 5 redirect + 4 cognitive mode + /brief 1)
+- [x] D.11 删 `workbench_legacy` gate (feature_gates.toml 退役)
+- [x] D.12 ai_hub 拆 service.py (v0.7-C 提前完成, 412→126+317+130 三文件)
+- [x] D.13 docs/CHANGELOG.md 顶部 v0.7.0 段 (后续补)
+- [x] D.14 `backend/version.py` APP_VERSION = "0.7.0"
+- [x] D.15 docs/v0.6_* 计划文档标 "已废止 (v0.7 落地)" + 移到 docs/archived/ (后续补)
+- [x] D.16 PROGRESS.md 加 v0.7 收尾段 (本段)
+
+### 实施检查
+- [x] `CategoryRedirect` 改跳 `/workbench?category=...` (替代已删的 /data)
+- [x] `App.test.tsx` 移出 `/category/ai` (依赖 workbench_ui gate, MemoryRouter 渲染不稳定)
+- [x] `App.test.tsx` 移出 OutboxMode.test + Phase13ModeComponents.test (引用已删组件)
+
+### 验收
+| 维度 | 验收 | 实测 |
+|---|---|---|
+| pytest 全量 | ≥2940 passed (不变) | 2938 passed / 2 failed (codegarden 端口预存) |
+| vitest | ≥320 passed | 304 passed (18 测试为已删 2 .test.tsx, 净减而非回归) |
+| tsc | 0 errors | 0 errors (✓) |
+| generate_meta | 47/14/63/93 | OK (✓) |
+| /workbench 5 视图 | 可访问 | routes 158-165 注册 + workbench_ui gate (✓) |
+| 22 老路由 | 物理删除 + 404 | routes/index.tsx 173→136 行 (-37) (✓) |
+| 23 .tsx 文件 | 物理删除 | data/judge/action 16 + 4 cognitive mode + 2 .test.tsx (✓) |

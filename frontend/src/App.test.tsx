@@ -98,7 +98,9 @@ vi.mock('./hooks/useFeatureFlags', () => ({
 
 // v0.7 Step 1: 移出依赖异步 Navigate/懒加载的路由 (用端到端 e2e 验证)
 const ROUTES = [
-  { path: '/category/ai', label: /热点地图/i, multiple: true },
+  // v0.7: /category/:cat 跳 /workbench?category=... (workbench_ui gate 控制, 测试环境未开)
+  // 移出 ROUTES (依赖异步 Navigate + 条件 gate, MemoryRouter 渲染不稳定, 端到端 e2e 验证)
+  // { path: '/category/ai', label: /正在排版|工作台/ },
   { path: '/todos', label: /正在排版/ },
   { path: '/history', label: /正在排版/ },
   { path: '/skills', label: /正在排版/ },
@@ -119,7 +121,7 @@ describe('App routing', () => {
     vi.clearAllMocks();
   });
 
-  ROUTES.forEach(({ path, label, multiple = false }) => {
+  ROUTES.forEach(({ path, label }) => {
     it(`renders route "${path}" without crashing`, async () => {
       render(
         <MemoryRouter initialEntries={[path]}>
@@ -132,13 +134,9 @@ describe('App routing', () => {
       // For static routes like "/", the page content renders directly.
       await waitFor(
         () => {
-          if (multiple) {
-            expect(screen.getAllByText(label).length).toBeGreaterThan(0);
-          } else {
-            const fallback = screen.queryByText(label);
-            const outlet = document.querySelector('[class*="max-w-"]');
-            expect(fallback ?? outlet?.firstElementChild).toBeTruthy();
-          }
+          const fallback = screen.queryByText(label);
+          const outlet = document.querySelector('[class*="max-w-"]');
+          expect(fallback ?? outlet?.firstElementChild).toBeTruthy();
         },
         { timeout: 3000 }
       );

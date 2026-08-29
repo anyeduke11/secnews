@@ -14,4 +14,10 @@ crm        = true       # CRM 业绩座舱 (security-cockpit 方案 C, 用户拍
 dsh        = false      # P1-2 降级为实验性 — DSH 桥接层 (DeepSeek Harness HTTP 桥接, v0.6)
                    # 启用条件: ① 设置 DSH_ENDPOINT 环境变量 (默认 http://localhost:3210)
                    # ② DeepSeek Harness 实际运行并暴露 /health /api/task 端点
-                   # ③ 测试 DSH 不可达时自动降级 llm_service 直连 (无需改业务代码)"
+                   # ③ 测试 DSH 不可达时自动降级 llm_service 直连 (无需改业务代码)
+workbench_legacy = true  # P2-3 三层目录退役规划 — v0.6.2+ 默认开保持向后兼容
+                   # 关闭: 1) /data/* /judge/* /action/* 路由 404
+                   #      2) 客户端导航隐藏 data/judge/action 三层入口
+                   # 功能等价物: /workbench 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings)
+                   # 计划: v0.7+ 集中删除 16 个 .tsx 组件 + 10 个路由
+secnews    = true       # SecNews 安全看板 (KL 管线 + Feed + Wiki 浏览)

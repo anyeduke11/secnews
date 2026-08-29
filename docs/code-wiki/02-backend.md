@@ -2,6 +2,8 @@
 
 > 基准: v0.6.2 (2026-08-28)。数字快照: 63 router / 93 service / 37 repo / 47 job / 14 collector,
 > 由 `scripts/generate_meta.py` 反推维护, 见 `docs/ARCHITECTURE.md`。
+>
+> **本文件是 [`../ARCHITECTURE.md`](../ARCHITECTURE.md) §一"系统总览"中后端层的细节展开** — 详列 5 大包分层、数据流、quality 门禁、sync 模块。
 
 ## 1. 启动与生命周期
 

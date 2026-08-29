@@ -104,6 +104,22 @@ function mockFetch(hotspotBody: FixtureBody = HOTSPOT_FIXTURE) {
       // GET /api/favorites?limit=1000 — 初始为空收藏
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ total: 0, items: [] }) } as Response);
     }
+    if (url.startsWith('/api/kl/pipeline/stats')) {
+      // 真实返回口径 (实测 2026-08-29): funnel + queue 三态
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({
+        funnel: [
+          { stage: 'kl:raw', count: 175 }, { stage: 'kl:refine', count: 0 },
+          { stage: 'kl:link', count: 2 }, { stage: 'kl:structure', count: 0 },
+          { stage: 'kl:publish', count: 3973 },
+        ],
+        queue: { pending: 0, running: 0, error: 2 },
+      }) } as Response);
+    }
+    if (url.startsWith('/api/kl/import/url') && method === 'POST') {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({
+        id: 'imported-abc123', title: 'x', url: 'https://example.com/a',
+      }) } as Response);
+    }
     if (url.startsWith('/api/sources/health')) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(SOURCES_FIXTURE) } as Response);
     }
@@ -368,5 +384,45 @@ describe('SentinelHomePage — 哨兵终端首页', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(btn).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('心跳条: 渲染生命周期漏斗与队列三态 (吸收自 workbench StatusBar)', async () => {
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+
+    const funnel = document.querySelector('.pipe-funnel')!;
+    expect(funnel.textContent).toContain('publish');
+    expect(funnel.textContent).toContain('3973');
+    expect(funnel.textContent).toContain('raw');
+    // 阶段名去掉 kl: 前缀以保持可扫读
+    expect(funnel.textContent).not.toContain('kl:');
+    // 队列: error > 0 用 amber 提示 (red 专属漏洞语境)
+    expect(screen.getByText(/2 异常/)).toBeInTheDocument();
+  });
+
+  it('URL 导入: 挡住非 http(s) 输入, 合法 URL 走 POST 并回显条目 id', async () => {
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /导入 URL/ }));
+    const input = screen.getByLabelText('待导入的文章 URL');
+    const submit = screen.getByRole('button', { name: '导入' });
+
+    // 后端 ImportUrlRequest 不校验 scheme, 故客户端必须挡住
+    fireEvent.change(input, { target: { value: 'javascript:alert(1)' } });
+    expect(submit).toBeDisabled();
+    fireEvent.change(input, { target: { value: 'ftp://x' } });
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(input, { target: { value: 'https://example.com/a' } });
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+
+    await waitFor(() => {
+      expect(callsWith(fetchMock, '/api/kl/import/url', 'POST').length).toBe(1);
+    });
+    const body = callsWith(fetchMock, '/api/kl/import/url', 'POST')[0][1]!.body;
+    expect(JSON.parse(String(body))).toEqual({ url: 'https://example.com/a' });
+    await waitFor(() => expect(screen.getByText(/已入库 imported-abc123/)).toBeInTheDocument());
   });
 });

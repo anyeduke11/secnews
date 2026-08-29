@@ -409,3 +409,20 @@ html[data-theme="light"] .sentinel .tb-sun{display:none}
   .sentinel .sn-menu{animation:none}
   .sentinel .sn-menu-item{transition:none}
 }
+
+/* ===== 心跳条 · 生命周期漏斗 (吸收自 workbench StatusBar / PipelineView) ===== */
+.sentinel .pipe-funnel{flex-wrap:wrap;gap:2px 10px;font-size:13px}
+.sentinel .pipe-funnel .fs{display:inline-flex;align-items:baseline;gap:4px}
+.sentinel .pipe-funnel .fs + .fs{padding-left:10px;border-left:1px solid var(--sn-line)}
+.sentinel .pipe-funnel .fs i{font-style:normal;font-size:11px;letter-spacing:.05em;color:var(--sn-ink-3)}
+.sentinel .pipe-funnel .fs b{font-weight:500;color:var(--sn-ink)}
+
+/* ===== 资料层 · URL 导入 ===== */
+.sentinel .sn-import{display:flex;align-items:center;gap:8px}
+.sentinel .sn-import-form{display:flex;align-items:center;gap:8px}
+.sentinel .sn-import-form input{font-size:12px;padding:5px 9px}
+.sentinel .sn-import-msg{font-size:11px;color:var(--sn-ink-3);max-width:280px}
+@media (max-width:900px){
+  .sentinel .sn-import-form{flex-wrap:wrap}
+  .sentinel .sn-import-form input{width:100% !important;flex:1 1 100%}
+}

@@ -25,6 +25,10 @@ export interface PipeSnapshot {
   total: number;
   health: '良好' | '一般' | '告警' | '--';
   sources: SourceHealthRow[];
+  /** /api/kl/pipeline/stats — 生命周期漏斗 (旧 workbench StatusBar 常驻项) */
+  funnel: { stage: string; count: number }[] | null;
+  /** 队列三态; error > 0 时以 amber 提示 */
+  queue: { pending: number; running: number; error: number } | null;
 }
 
 /** /api/sources/health 单行 — 右栏源监控还需累计产出与最近活动时间 */
@@ -36,29 +40,49 @@ export interface SourceHealthRow {
   last_seen_at?: string | null;
 }
 
+interface PipelineStats {
+  funnel?: { stage: string; count: number }[];
+  queue?: { pending?: number; running?: number; error?: number };
+}
+
+async function fetchPipelineStats(): Promise<Pick<PipeSnapshot, 'funnel' | 'queue'>> {
+  try {
+    const r = await fetch('/api/kl/pipeline/stats', { headers: { Accept: 'application/json' } });
+    if (!r.ok) return { funnel: null, queue: null };
+    const data = (await r.json()) as PipelineStats;
+    return {
+      funnel: Array.isArray(data.funnel) ? data.funnel : null,
+      queue: data.queue
+        ? { pending: data.queue.pending ?? 0, running: data.queue.running ?? 0, error: data.queue.error ?? 0 }
+        : null,
+    };
+  } catch {
+    // 端点未注册或后端不可达时降级为 null, 不影响源健康展示
+    return { funnel: null, queue: null };
+  }
+}
+
 function clockText(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} · ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 export async function fetchPipe(): Promise<PipeSnapshot> {
-  try {
-    const r = await fetch('/api/sources/health', { headers: { Accept: 'application/json' } });
-    if (!r.ok) throw new Error(String(r.status));
-    const data = await r.json();
-    const rows: SourceHealthRow[] = data.sources || [];
-    const active = rows.filter(s => s.status === 'active').length;
-    const stale = rows.filter(s => s.status === 'stale').length;
-    const dead = rows.filter(s => s.status === 'dead').length;
-    const total = rows.length;
-    const ratio = total > 0 ? active / total : 0;
-    return {
-      active, stale, dead, total, sources: rows,
-      health: total === 0 ? '--' : ratio >= 0.9 ? '良好' : ratio >= 0.7 ? '一般' : '告警',
-    };
-  } catch {
-    return { active: 0, stale: 0, dead: 0, total: 0, health: '--', sources: [] };
-  }
+  const [res, stats] = await Promise.all([
+    fetch('/api/sources/health', { headers: { Accept: 'application/json' } })
+      .then(r => (r.ok ? r.json() : null)).catch(() => null),
+    fetchPipelineStats(),
+  ]);
+  const rows: SourceHealthRow[] = (res && res.sources) || [];
+  const active = rows.filter(s => s.status === 'active').length;
+  const stale = rows.filter(s => s.status === 'stale').length;
+  const dead = rows.filter(s => s.status === 'dead').length;
+  const total = rows.length;
+  const ratio = total > 0 ? active / total : 0;
+  return {
+    active, stale, dead, total, sources: rows, ...stats,
+    health: total === 0 ? '--' : ratio >= 0.9 ? '良好' : ratio >= 0.7 ? '一般' : '告警',
+  };
 }
 
 const PipeContext = createContext<{ pipe: PipeSnapshot | null; reload: () => void }>({
@@ -250,6 +274,32 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
           <div className="pipe-block">
             <span className="pipe-k">今日收录</span>
             <span className="pipe-v">{ingested != null ? `${ingested} 篇` : '…'}</span>
+          </div>
+          <div className="pipe-block">
+            <span className="pipe-k">管线漏斗</span>
+            <span className="pipe-v pipe-funnel">
+              {pipe?.funnel
+                ? pipe.funnel.map(f => (
+                  <span className="fs" key={f.stage}>
+                    <i>{f.stage.replace(/^kl:/, '')}</i>
+                    <b className="num">{f.count}</b>
+                  </span>
+                ))
+                : '…'}
+            </span>
+          </div>
+          <div className="pipe-block">
+            <span className="pipe-k">队列</span>
+            <span className="pipe-v">
+              {pipe?.queue
+                ? <>
+                  {pipe.queue.pending} 待 · {pipe.queue.running} 运
+                  {pipe.queue.error > 0 && (
+                    <span className="delta" style={{ color: 'var(--sn-amber)' }}>{pipe.queue.error} 异常</span>
+                  )}
+                </>
+                : '…'}
+            </span>
           </div>
           <div className="pipe-live">
             <div className="beat-row">

@@ -216,8 +216,9 @@ describe('SentinelGardenPage — 哨兵终端 · 05 CodeGarden', () => {
     const { container } = await renderGarden();
     await waitFor(() => expect(screen.getByText('6 PROJECTS')).toBeInTheDocument());
 
-    // 壳层仅主题切换 + 设置两个 iconbtn; 本页不新增任何 button / role=button
-    expect(container.querySelectorAll('button')).toHaveLength(2);
+    // 壳层 appbar 自带主题/设置/更多三个按钮; 本页自身不得新增任何可操作按钮
+    expect(container.querySelectorAll('.scr-codegarden button')).toHaveLength(0);
+    expect(container.querySelectorAll('button')).toHaveLength(3);
     expect(container.querySelectorAll('[role="button"]')).toHaveLength(0);
 
     const interactiveText = [...container.querySelectorAll('button, a, [role="button"]')]

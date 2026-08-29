@@ -187,7 +187,7 @@ class AIService:
                 )
         except Exception as e:
             self._usage(p, self._eval_model(p), "evaluate", 0, 0.0)
-            _logger.warning("ai evaluate failed (%s): %s", p, e)
+            _logger.warning("ai evaluate failed ({}): {}: {}", p, type(e).__name__, e)
             return {"ok": False, "provider": p, "error": f"{type(e).__name__}: {str(e)[:300]}"}
 
         result["ok"] = True
@@ -216,7 +216,7 @@ class AIService:
             self.gate_rate_mark()
             return self._call_sensenova_detect(title, summary, key, timeout)
         except Exception as e:
-            _logger.warning("ai gate-detect failed (%s): %s", p, e)
+            _logger.warning("ai gate-detect failed ({}): {}: {}", p, type(e).__name__, e)
             return None
 
     # ------------------------------------------------------------------
@@ -295,7 +295,7 @@ class AIService:
         return _parse_score01(raw)
 
     # ------------------------------------------------------------------
-    # 向后兼容：旧版 _cache_get/_cache_set/_usage 方法签名
+    # 向后兼容：旧版 _cache_get/_cache_set 方法签名
     # (测试 monkeypatch 仍通过 ai_service 实例调用)
     # ------------------------------------------------------------------
     def _cache_get(self, key: str) -> dict | None:
@@ -304,9 +304,17 @@ class AIService:
     def _cache_set(self, key: str, value: dict) -> None:
         set_ai_cache(key, value)
 
-    def _usage(self, task: str, provider: str, tokens: int, cost: float) -> None:
+    def _usage(
+        self, provider: str, model: str, task: str, tokens: int, cost: float,
+    ) -> None:
+        """签名必须与 :189/:196 两个调用点一致 (provider, model, task, tokens, cost)。
+
+        此前定义只有 4 个参数, 于是 provider 抛错时 except 分支里的这次调用会
+        再抛 TypeError 并逃出 handler, 使文档承诺的 "失败返回 ok=False + error"
+        永不成立, 成功路径的用量也从未落表。测试用 lambda *a 桩把它盖住了。
+        """
         from .usage import log_ai_usage
-        log_ai_usage(provider, self._eval_model(provider), task, tokens, cost)
+        log_ai_usage(provider, model, task, tokens, cost)
 
 
 # 全局单例

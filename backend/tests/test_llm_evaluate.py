@@ -70,7 +70,15 @@ async def test_evaluate_sensenova_path(monkeypatch):
     # 绕开 DB 缓存/用量副作用，锁定 HTTP 路径（conftest 测试库隔离外的双保险）
     monkeypatch.setattr(ai_mod.ai_service, "_cache_get", lambda key: None)
     monkeypatch.setattr(ai_mod.ai_service, "_cache_set", lambda key, value: None)
-    monkeypatch.setattr(ai_mod.ai_service, "_usage", lambda *a, **k: None)
+    # 用量记录: 签名与定义一致, 参数数量再漂移会立刻失败
+    # (此前是 lambda *a, **k —— 它把 _usage 的 arity bug 整个盖住了)
+    usage_calls: list[tuple] = []
+    monkeypatch.setattr(
+        ai_mod.ai_service, "_usage",
+        lambda provider, model, task, tokens, cost: usage_calls.append(
+            (provider, model, task, tokens, cost)
+        ),
+    )
 
     result = await evaluate_article(
         "一段文章内容-sensenova-用例", title="测试", provider="sensenova",
@@ -79,6 +87,11 @@ async def test_evaluate_sensenova_path(monkeypatch):
     assert result["ok"] is True
     assert result["provider"] == "sensenova"
     assert abs(result["quality_score"] - 8.0) < 1e-6
+    # 成功路径必须记录一次用量 (修复前 _usage 抛 TypeError, 用量从未落表)
+    assert len(usage_calls) == 1, f"期望记录 1 次用量, 实得 {usage_calls}"
+    prov, model, task, tokens, cost = usage_calls[0]
+    assert prov == "sensenova" and task == "evaluate"
+    assert model and tokens > 0 and cost == 0.0
     assert result["key_points"] == ["方法A", "结果B"]
     assert captured["has_auth"] is True
     assert captured["url"].startswith("https://token.sensenova.cn")
@@ -110,9 +123,55 @@ async def test_evaluate_ollama_path(monkeypatch):
     monkeypatch.setattr(ai_service_mod.httpx, "Client", _Client)
     monkeypatch.setattr(ai_mod.ai_service, "_cache_get", lambda key: None)
     monkeypatch.setattr(ai_mod.ai_service, "_cache_set", lambda key, value: None)
-    monkeypatch.setattr(ai_mod.ai_service, "_usage", lambda *a, **k: None)
+    # 用量记录: 签名与定义一致, 参数数量再漂移会立刻失败
+    # (此前是 lambda *a, **k —— 它把 _usage 的 arity bug 整个盖住了)
+    usage_calls: list[tuple] = []
+    monkeypatch.setattr(
+        ai_mod.ai_service, "_usage",
+        lambda provider, model, task, tokens, cost: usage_calls.append(
+            (provider, model, task, tokens, cost)
+        ),
+    )
 
     result = await evaluate_article("一段文章-ollama-用例", provider="ollama")
     assert result["ok"] is True
     assert result["provider"] == "ollama"
     assert abs(result["quality_score"] - 6.0) < 1e-6
+    assert len(usage_calls) == 1, f"期望记录 1 次用量, 实得 {usage_calls}"
+    prov, model, task, tokens, cost = usage_calls[0]
+    assert prov == "ollama" and task == "evaluate"
+    assert model and tokens > 0 and cost == 0.0
+
+
+def test_provider_failure_returns_ok_false_and_records_usage(monkeypatch):
+    """provider 抛错 → ok=False + error, 且用量记录一次 (tokens=0)。
+
+    这是当初真正坏掉的分支: except 里调用 _usage 传 5 个位置参数, 而定义只有
+    4 个参数 → TypeError 逃出 handler, 承诺的降级契约从未成立, 成功路径的用量
+    也从不落表。旧测试用 lambda *a, **k 桩把 arity 不一致整个掩盖了。
+    """
+    from backend.services.ai_hub import service as svc_mod
+
+    def _boom(*a, **k):
+        raise RuntimeError("provider down")
+
+    usage_calls: list[tuple] = []
+    monkeypatch.setattr(svc_mod.ai_service, "available", lambda p=None: True)
+    monkeypatch.setattr(svc_mod.ai_service, "_cache_get", lambda key: None)
+    monkeypatch.setattr(svc_mod.ai_service, "_cache_set", lambda key, value: None)
+    monkeypatch.setattr(svc_mod.ai_service, "_call_ollama_eval", _boom)
+    monkeypatch.setattr(
+        svc_mod.ai_service, "_usage",
+        lambda provider, model, task, tokens, cost: usage_calls.append(
+            (provider, model, task, tokens, cost)
+        ),
+    )
+
+    result = svc_mod.ai_service.evaluate("一段会失败的正文", title="标题", provider="ollama")
+
+    assert result["ok"] is False
+    assert result["provider"] == "ollama"
+    assert "RuntimeError" in result["error"] and "provider down" in result["error"]
+    assert len(usage_calls) == 1, f"失败路径也应记录用量, 实得 {usage_calls}"
+    assert usage_calls[0][0] == "ollama" and usage_calls[0][2] == "evaluate"
+    assert usage_calls[0][3] == 0

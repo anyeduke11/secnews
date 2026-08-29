@@ -164,32 +164,38 @@ class TestRepoSelfCheck:
     数字或忘了登记 draft。
     """
 
-    def test_three_known_drafts_are_registered_in_real_arch(self, gm):
-        """3 个 draft 规划必须都已登记（防回归）。"""
+    # v0.7.0 (795189ca) 起 v0.6_workstation_plan.md 归档至 docs/archived/，
+    # 顶层 docs/*.md 活跃 draft 由 3 个收敛为 2 个。
+    def test_two_known_drafts_are_registered_in_real_arch(self, gm):
+        """2 个活跃 draft 规划必须都已登记（防回归）。"""
         arch_text = (REPO_ROOT / "docs" / "ARCHITECTURE.md").read_text(encoding="utf-8")
         registry = gm.parse_architecture_registry(arch_text)
         for rel in (
             "docs/HOTSPOT_SECNEWS_INTEGRATION.md",
             "docs/SECNEWS_INTEGRATION_TASKS.md",
-            "docs/v0.6_workstation_plan.md",
         ):
             assert rel in registry, (
                 f"{rel} 应在 ARCHITECTURE.md §9.1 表格登记;实际找到的 docs 引用: {sorted(registry)}"
             )
 
-    def test_three_known_drafts_have_frontmatter(self, gm):
-        """3 个规划文档必须都含 status: draft frontmatter。"""
+    def test_two_known_drafts_have_frontmatter(self, gm):
+        """2 个活跃规划文档必须都含 status: draft frontmatter。"""
         docs_dir = REPO_ROOT / "docs"
         for fname in (
             "HOTSPOT_SECNEWS_INTEGRATION.md",
             "SECNEWS_INTEGRATION_TASKS.md",
-            "v0.6_workstation_plan.md",
         ):
             path = docs_dir / fname
             assert gm.is_draft_planning_doc(path), f"{fname} 缺少 'status: draft' frontmatter"
 
-    def test_drafts_only_outputs_three_known_drafts(self, gm, capsys):
-        """--drafts-only 应正好列出 3 个已知 draft 文档（以 relpath 校验）。"""
+    def test_archived_plan_not_counted_as_draft(self, gm):
+        """归档到 docs/archived/ 的规划不再被顶层扫描计入 draft。"""
+        drafts = gm.collect_planning_drafts(REPO_ROOT / "docs")
+        rels = {d["relpath"] for d in drafts}
+        assert "docs/v0.6_workstation_plan.md" not in rels
+
+    def test_drafts_only_outputs_two_known_drafts(self, gm, capsys):
+        """--drafts-only 应正好列出 2 个已知活跃 draft 文档（以 relpath 校验）。"""
         from generate_meta import main as gm_main
 
         old_argv = sys.argv
@@ -205,5 +211,4 @@ class TestRepoSelfCheck:
         assert rels == [
             "docs/HOTSPOT_SECNEWS_INTEGRATION.md",
             "docs/SECNEWS_INTEGRATION_TASKS.md",
-            "docs/v0.6_workstation_plan.md",
         ]

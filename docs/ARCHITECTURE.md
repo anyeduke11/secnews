@@ -127,4 +127,4 @@ COLD 加密: `scripts/cold_db_crypto.py encrypt|decrypt|verify`，格式 `<16-by
 |---|---|---|
 | [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](HOTSPOT_SECNEWS_INTEGRATION.md) | draft | SecNews 集成总览 (Phase 0-6 映射) |
 | [`docs/SECNEWS_INTEGRATION_TASKS.md`](SECNEWS_INTEGRATION_TASKS.md) | draft | SecNews 集成任务清单 |
-| [`docs/v0.6_workstation_plan.md`](v0.6_workstation_plan.md) | draft | Workstation 5 视图重构方案 |
+| [`docs/archived/v0.6_workstation_plan.md`](archived/v0.6_workstation_plan.md) | archived | Workstation 5 视图重构方案 (v0.7.0 起归档，功能由 /workbench 承接) |

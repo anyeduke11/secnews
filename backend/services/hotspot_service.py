@@ -174,7 +174,7 @@ class HotspotService:
         # 之前用 count_in_range 返回行数 (同 url 多次入库会算多次),
         # 导致 "X / 841" 而 X 远小于 841, 分页器提前显示 "已是最后一页"
         cat_for_count = None if category == "all" else category
-        true_total = _hrepo.count_unique_urls_in_range(tr, category=cat_for_count)
+        true_total = _hrepo.count_unique_urls_in_range(tr, category=cat_for_count, keyword=keyword)
 
         # Phase 39: 最近一次采集的产出
         from backend.services.collection_service import get_latest_run as _get_latest_run

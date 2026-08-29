@@ -216,6 +216,59 @@ def test_query_by_keyword_fts(repo):
     assert ids == {"k-2"}
 
 
+def test_query_by_keyword_cjk_uses_like(repo):
+    """中文关键词必须走 LIKE 分支 —— FTS5 unicode61 不切中文连写。
+
+    实测旧行为: "勒索" 在含该词的语料上 MATCH 命中 0 / LIKE 命中 18,
+    "漏洞" 10 / 140。本用例锁住修复后的召回。
+    """
+    repo.upsert_many(
+        [
+            _make_item("c-1", title="某团伙发起勒索软件攻击事件通报"),
+            _make_item("c-2", title="供应链投毒风险预警"),
+        ]
+    )
+    items, _ = repo.query(None, time_range=TimeRange.D7, keyword="勒索", limit=10)
+    assert {it.id for it in items} == {"c-1"}
+
+    # 部分词也应命中 (LIKE 子串语义), 而 FTS 短语匹配做不到
+    items, _ = repo.query(None, time_range=TimeRange.D7, keyword="供应链投", limit=10)
+    assert {it.id for it in items} == {"c-2"}
+
+
+def test_count_unique_urls_honors_keyword(repo):
+    """分页分母必须随 keyword 收窄, 否则搜索时 "X / Y" 会显示全窗口总数。"""
+    repo.upsert_many(
+        [
+            _make_item("n-1", title="勒索软件样本分析笔记"),
+            _make_item("n-2", title="零信任架构落地实践"),
+            _make_item("n-3", title="另一篇无关文章"),
+        ]
+    )
+    all_cnt = repo.count_unique_urls_in_range(TimeRange.D7)
+    kw_cnt = repo.count_unique_urls_in_range(TimeRange.D7, keyword="勒索")
+    assert all_cnt == 3
+    assert kw_cnt == 1
+
+
+def test_keyword_condition_branching_and_escaping(repo):
+    """分支选择与 LIKE 通配符转义: % / _ 必须按字面匹配, ASCII 仍走 FTS。"""
+    ascii_sql, ascii_params = repo._keyword_condition("CVE")
+    assert "hotspots_fts MATCH" in ascii_sql
+    assert ascii_params == ['"CVE"']
+
+    cjk_sql, cjk_params = repo._keyword_condition("漏洞")
+    assert cjk_sql.startswith("(title LIKE ?") and "ESCAPE" in cjk_sql
+    assert cjk_params == ["%漏洞%", "%漏洞%"]
+
+    # 含通配符的非 ASCII 关键词应被转义, 不退化成全表匹配
+    assert repo._keyword_condition("勒索%") == (
+        "(title LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\')",
+        ["%勒索\\%%", "%勒索\\%%"],
+    )
+    assert repo._keyword_condition("") == ("", [])
+
+
 # ---------------------------------------------------------------------------
 # query — 游标分页
 # ---------------------------------------------------------------------------

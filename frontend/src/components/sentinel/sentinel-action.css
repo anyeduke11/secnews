@@ -1,0 +1,253 @@
+/* ============================================================
+ * sentinel-action.css — 哨兵终端 · 行动层「今日行动」屏 (V2 ac 屏移植)
+ *
+ * 来源: V2 SecNews-哨兵终端-可交互原型.html `04 今日行动` / ACTION FLOOR
+ * 约定 (见 sentinel.css 头部纪律):
+ *  - 选择器一律 scoped 在 .sentinel 下, 前缀 ac- (action console)
+ *  - 色值只引用 var(--sn-*) 令牌, 本文件不出现任何字面色板
+ *  - 圆角只 6/8/10 三档; 层次靠 1px hairline 与亮度差, 无彩色发光
+ *  - 语义三色锁: mint=完成/激活, amber=需注意(含逾期/写入失败), red 不启用
+ *  - 数据 (编号/时间戳/优先级/周期) 一律 .num 等宽; 辅助文字最小 11px
+ * ============================================================ */
+
+/* ===== 屏容器 ===== */
+.sentinel .ac-scr{
+  max-width:1440px;margin:0 auto;
+  padding:26px 32px 56px;
+}
+.sentinel .sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
+}
+
+/* ===== 层标题区 ===== */
+.sentinel .ac-head{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
+  flex-wrap:wrap;padding-bottom:20px;margin-bottom:22px;
+  border-bottom:1px solid var(--sn-line-strong);
+}
+.sentinel .ac-kicker{
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:var(--sn-mono);font-size:11px;letter-spacing:.14em;
+  color:var(--sn-ink-3);margin-bottom:10px;
+}
+.sentinel .ac-kicker::before{content:'';width:6px;height:6px;border-radius:1px;background:var(--sn-mint);flex:none}
+.sentinel .ac-h1{font-size:clamp(26px,3vw,34px);line-height:1.2;letter-spacing:-.01em;font-weight:400}
+.sentinel .ac-h1 b{font-weight:800}
+.sentinel .ac-h1 span{font-weight:400;color:var(--sn-ink-2)}
+.sentinel .ac-sub{font-size:13.5px;color:var(--sn-ink-2);margin-top:6px}
+
+/* ===== 本周节奏 (七日强度点阵) ===== */
+.sentinel .ac-rhythm{
+  flex:none;display:flex;flex-direction:column;gap:8px;
+  padding:14px 16px;border:1px solid var(--sn-line);border-radius:10px;
+  background:var(--sn-bg-lift);
+}
+.sentinel .ac-rh-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
+.sentinel .ac-rh-t{font-size:12px;font-weight:600;color:var(--sn-ink-2)}
+.sentinel .ac-rh-c{font-size:11px;color:var(--sn-ink-3)}
+.sentinel .ac-rh-cells{display:flex;flex-direction:column;gap:5px}
+.sentinel .ac-days{display:grid;grid-template-columns:repeat(7,16px);gap:3px}
+.sentinel .ac-days i{
+  font-style:normal;text-align:center;
+  font-family:var(--sn-mono);font-size:11px;line-height:1.4;color:var(--sn-ink-3);
+}
+.sentinel .ac-rh-note{font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3)}
+/* 今日格: 复用 sentinel.css 的 .heat-cells b, 只加一层 hairline 环 (非彩色发光) */
+.sentinel .heat-cells b.ac-live{position:relative;background:var(--sn-mint);opacity:.5}
+.sentinel .heat-cells b.ac-live::after{
+  content:'';position:absolute;inset:-3px;border-radius:3px;
+  border:1px solid var(--sn-mint);opacity:0;
+  animation:ac-pulse 2.6s ease-out infinite;
+}
+@keyframes ac-pulse{0%{transform:scale(.5);opacity:.8}70%{transform:scale(1.35);opacity:0}100%{transform:scale(1.35);opacity:0}}
+
+/* ===== 三列网格 (布局契约) ===== */
+.sentinel .ac-grid{
+  display:grid;
+  grid-template-columns:minmax(0,.92fr) minmax(0,1.16fr) minmax(0,.92fr);
+  gap:18px;align-items:start;
+}
+.sentinel .ac-panel{
+  min-width:0;background:var(--sn-bg-lift);
+  border:1px solid var(--sn-line);border-radius:10px;
+  padding:18px 18px 16px;
+}
+.sentinel .ac-ph{
+  display:flex;align-items:center;gap:8px;
+  padding-bottom:10px;margin-bottom:4px;
+  border-bottom:1px solid var(--sn-line-strong);
+}
+.sentinel .ac-ph h2{font-size:13.5px;font-weight:700;color:var(--sn-ink);display:flex;align-items:center;gap:7px}
+.sentinel .ac-ph h2 svg{color:var(--sn-ink-3);flex:none}
+.sentinel .ac-phn{margin-left:auto;font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3);white-space:nowrap}
+
+/* ===== 待办清单 ===== */
+.sentinel .ac-tlist{list-style:none;padding:0;margin:0}
+.sentinel .ac-tlist li{border-bottom:1px solid var(--sn-line)}
+.sentinel .ac-tlist li:last-child{border-bottom:0}
+.sentinel .ac-tlist label{
+  display:flex;align-items:flex-start;gap:10px;padding:9px 2px;
+  cursor:pointer;font-size:13px;line-height:1.55;color:var(--sn-ink);
+}
+.sentinel .ac-tlist input[type="checkbox"]{
+  width:15px;height:15px;flex:none;margin-top:3px;accent-color:var(--sn-mint);cursor:pointer;
+}
+.sentinel .ac-tlist li.is-done label{cursor:pointer}
+.sentinel .ac-tlist li.is-done .ac-tt{text-decoration:line-through;color:var(--sn-ink-3)}
+.sentinel .ac-tbody{min-width:0}
+.sentinel .ac-tt{font-size:13px;line-height:1.55;color:var(--sn-ink);word-break:break-word}
+.sentinel .ac-tt a:hover{color:var(--sn-mint);text-decoration:underline;text-underline-offset:2px}
+.sentinel .ac-tmeta{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin-top:4px;font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3);
+}
+.sentinel .ac-tmeta .due-warn{color:var(--sn-amber)}
+.sentinel .ac-tmeta .due-miss{color:var(--sn-amber);font-weight:600}
+.sentinel .ac-tstate{margin-left:auto;font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3)}
+.sentinel .ac-tstate.saving{color:var(--sn-amber)}
+.sentinel .ac-tstate.fail{color:var(--sn-amber);font-weight:600}
+
+/* 快速捕获 */
+.sentinel .ac-qcap{display:flex;gap:8px;margin-top:12px}
+.sentinel .ac-qcap input{
+  flex:1;min-width:0;background:var(--sn-bg);
+  border:1px solid var(--sn-line-strong);border-radius:8px;
+  padding:9px 12px;font-family:var(--sn-sans);font-size:13px;color:var(--sn-ink);
+  transition:border-color .15s ease;
+}
+.sentinel .ac-qcap input::placeholder{color:var(--sn-ink-3)}
+.sentinel .ac-qcap input:focus{outline:none;border-color:var(--sn-mint)}
+.sentinel .ac-add{
+  display:inline-flex;align-items:center;gap:6px;flex:none;
+  padding:9px 14px;border:1px solid var(--sn-line-strong);border-radius:8px;
+  font-size:13px;font-weight:600;color:var(--sn-ink);background:var(--sn-bg-panel);
+  transition:background .15s ease,border-color .15s ease,color .15s ease;
+}
+.sentinel .ac-add:hover:not(:disabled){border-color:var(--sn-mint);color:var(--sn-mint);background:var(--sn-mint-dim)}
+.sentinel .ac-add:disabled{opacity:.5;cursor:not-allowed}
+.sentinel .ac-add svg{color:var(--sn-mint);flex:none}
+.sentinel .ac-qnote{font-size:11px;color:var(--sn-ink-3);margin-top:8px;line-height:1.6}
+.sentinel .ac-qnote.is-fail{color:var(--sn-amber)}
+
+/* ===== 复习栈 (SM-2) ===== */
+.sentinel .ac-stack{position:relative;height:196px;margin:14px 0 16px}
+.sentinel .ac-card{
+  position:absolute;inset:0;display:flex;flex-direction:column;gap:8px;
+  border:1px solid var(--sn-line);border-radius:10px;
+  background:var(--sn-bg-panel);padding:15px 16px;min-width:0;
+}
+.sentinel .ac-card.c2{transform:translate(-6px,5px) rotate(-1.2deg);background:var(--sn-bg-lift)}
+.sentinel .ac-card.c1{transform:translate(6px,3px) rotate(1deg);background:var(--sn-bg-lift)}
+.sentinel .ac-card.top{border-color:var(--sn-line-strong)}
+.sentinel .ac-cmeta{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3);
+}
+.sentinel .ac-cdeck{
+  font-family:var(--sn-mono);font-size:11px;font-weight:600;letter-spacing:.04em;
+  color:var(--sn-ink-2);border:1px solid var(--sn-line-strong);border-radius:6px;
+  padding:1px 7px;white-space:nowrap;
+}
+.sentinel .ac-ct{font-family:var(--sn-mono);font-size:12px;font-weight:500;color:var(--sn-ink);line-height:1.5;word-break:break-all}
+.sentinel .ac-card.top .ac-ct{font-size:13px;font-weight:600}
+.sentinel .ac-chint{font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3);line-height:1.6}
+.sentinel .ac-sm2{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3)}
+.sentinel .ac-sm2 b{font-weight:600;color:var(--sn-ink-2)}
+/* 三档自评: 复用 abtn 的 hairline 语言, 不引入霓虹 */
+.sentinel .ac-grade{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}
+.sentinel .ac-gbtn{
+  font-family:var(--sn-mono);font-size:11.5px;padding:5px 10px;border-radius:6px;
+  border:1px solid var(--sn-line-strong);color:var(--sn-ink-2);
+  transition:background .15s ease,border-color .15s ease,color .15s ease;
+}
+.sentinel .ac-gbtn:hover:not(:disabled){border-color:var(--sn-mint);color:var(--sn-mint);background:var(--sn-mint-dim)}
+.sentinel .ac-gbtn:disabled{opacity:.5;cursor:not-allowed}
+.sentinel .ac-gbtn .g{color:var(--sn-ink-3);margin-left:5px}
+.sentinel .ac-sched{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:10px 14px;border:1px solid var(--sn-line);border-radius:8px;
+  background:var(--sn-bg-panel);font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3);
+}
+.sentinel .ac-sched .num{color:var(--sn-ink-2)}
+.sentinel .ac-sched .num.ac-now{color:var(--sn-mint);font-weight:700}
+.sentinel .ac-sched i{width:3px;height:3px;border-radius:50%;background:var(--sn-ink-3);flex:none}
+.sentinel .ac-self{font-size:12px;color:var(--sn-ink-2);margin-top:10px;line-height:1.6}
+
+/* ===== 判读待办 (planning_actions) ===== */
+.sentinel .ac-dlist{list-style:none;padding:0;margin:0}
+.sentinel .ac-dlist li{border-bottom:1px solid var(--sn-line)}
+.sentinel .ac-dlist li:last-child{border-bottom:0}
+.sentinel .ac-drow{display:flex;align-items:flex-start;gap:10px;padding:11px 2px}
+.sentinel .ac-drow input[type="checkbox"]{
+  width:15px;height:15px;flex:none;margin-top:3px;accent-color:var(--sn-mint);cursor:pointer;
+}
+.sentinel .ac-dbody{min-width:0;flex:1}
+.sentinel .ac-dt{display:flex;align-items:flex-start;gap:8px;font-size:13.5px;font-weight:600;line-height:1.5;color:var(--sn-ink)}
+.sentinel .ac-dtitle{min-width:0;word-break:break-word}
+.sentinel .ac-badge{
+  flex:none;font-family:var(--sn-mono);font-size:11px;font-weight:500;
+  padding:1px 6px;border-radius:6px;margin-top:2px;
+  color:var(--sn-ink-3);border:1px solid var(--sn-line-strong);
+}
+.sentinel .ac-badge.hot{color:var(--sn-mint);border-color:var(--sn-mint-dim);background:var(--sn-mint-dim)}
+.sentinel .ac-badge.warm{color:var(--sn-amber);border-color:var(--sn-amber-dim);background:var(--sn-amber-dim)}
+.sentinel .ac-dm{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3);margin-top:4px;
+}
+.sentinel .ac-dm .stage{color:var(--sn-ink-2)}
+.sentinel .ac-dops{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none}
+.sentinel .ac-dbtn{
+  font-family:var(--sn-mono);font-size:11.5px;padding:4px 10px;border-radius:6px;
+  border:1px solid var(--sn-line-strong);color:var(--sn-ink-2);
+  transition:background .15s ease,border-color .15s ease,color .15s ease;
+}
+.sentinel .ac-dbtn:hover:not(:disabled){border-color:var(--sn-mint);color:var(--sn-mint);background:var(--sn-mint-dim)}
+.sentinel .ac-dbtn:disabled{opacity:.5;cursor:not-allowed}
+.sentinel .ac-dstate{font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3)}
+.sentinel .ac-dstate.fail{color:var(--sn-amber);font-weight:600}
+.sentinel .ac-dstate.doing{color:var(--sn-amber)}
+.sentinel .ac-dstate.done{color:var(--sn-mint)}
+
+/* ===== 通用: 提示 / 空态 / 骨架 ===== */
+.sentinel .ac-note{font-size:11px;color:var(--sn-ink-3);line-height:1.6;margin-top:10px}
+.sentinel .ac-note.is-fail{color:var(--sn-amber)}
+.sentinel .ac-empty{padding:26px 2px;text-align:center}
+.sentinel .ac-empty-ring{
+  width:44px;height:44px;border-radius:50%;border:1px dashed var(--sn-line-strong);
+  margin:0 auto 12px;display:grid;place-items:center;color:var(--sn-ink-3);
+}
+.sentinel .ac-empty h3{font-size:13.5px;font-weight:600;color:var(--sn-ink-2);margin-bottom:6px}
+.sentinel .ac-empty p{font-size:11.5px;color:var(--sn-ink-3);line-height:1.65;max-width:30ch;margin:0 auto}
+.sentinel .ac-load{padding:18px 2px}
+.sentinel .ac-banner{
+  display:flex;align-items:center;gap:10px;
+  margin:0 0 18px;padding:10px 14px;
+  border:1px solid var(--sn-amber-dim);background:var(--sn-amber-dim);
+  border-radius:8px;font-size:12px;color:var(--sn-amber);
+}
+.sentinel .ac-banner svg{flex:none}
+.sentinel .ac-link{
+  font-size:12.5px;font-weight:600;color:var(--sn-mint);
+  display:inline-flex;align-items:center;gap:6px;margin-top:12px;
+}
+.sentinel .ac-link:hover{text-decoration:underline;text-underline-offset:3px}
+
+/* ===== 动效降级 ===== */
+@media (prefers-reduced-motion: reduce){
+  .sentinel .heat-cells b.ac-live::after{animation:none;opacity:.5}
+  .sentinel .ac-card,.sentinel .ac-gbtn,.sentinel .ac-dbtn,.sentinel .ac-add,.sentinel .ac-qcap input{transition:none}
+}
+
+/* ===== 响应式 (平板两列 / 窄屏单列) ===== */
+@media (max-width:1100px){
+  .sentinel .ac-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sentinel .ac-out{grid-column:1 / -1}
+}
+@media (max-width:900px){
+  .sentinel .ac-grid{grid-template-columns:minmax(0,1fr)}
+  .sentinel .ac-out{grid-column:auto}
+  .sentinel .ac-head{align-items:flex-start}
+  .sentinel .ac-scr{padding:22px 20px 48px}
+}

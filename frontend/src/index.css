@@ -7,12 +7,17 @@
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, 'Fira Code', 'Cascadia Code', monospace;
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
 
-  /* 圆角: PRD 卡片 10px / 按钮 6px / 徽标 full */
+  /* 圆角统一三档 6/8/10 (哨兵终端纪律) / 徽标 full */
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 10px;
   --radius-full: 9999px;
+
+  /* 原参考稿 token 短别名: 新组件按参考稿命名引用, 与 --font-* 同源 */
+  --mono: var(--font-mono);
+  --sans: var(--font-sans);
+  --hairline: 1px solid var(--line);
 
   --space-0: 0px;
   --space-1: 4px;
@@ -54,105 +59,166 @@
    选择器用 :root[data-theme=dark] 提升特异性, 避免与 :root(同为单伪类) 平局时被后写覆盖。 */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg-primary: #0a0a0f;
-  --bg-secondary: #0f0f15;
-  --bg-card: #111118;
-  --bg-hover: #181825;
-  --bg-elevated: #1c1c2e;
-  --surface-raised: rgba(255, 255, 255, 0.03);
-  --surface-glass: rgba(10, 10, 15, 0.92);
-  --border-color: #1e1e30;
-  --border-light: #252538;
-  --border-subtle: rgba(255, 255, 255, 0.04);
-  --text-primary: #e8e8ee;
-  --text-secondary: #8888a0;
-  --text-muted: #555568;
-  --text-disabled: #3a3a4a;
-  --accent: #00bcd4;
-  --accent-soft: rgba(0, 188, 212, 0.08);
-  --accent-dim: rgba(0, 188, 212, 0.35);
-  --accent-highlight: rgba(0, 188, 212, 0.06);
-  --accent-glow: rgba(0, 188, 212, 0.12);
-  --text-on-light: #0a0a0f;
-  --bg-overlay: rgba(0, 0, 0, 0.6);
+  /* 哨兵终端 · 夜巡 — 近黑深蓝底, 层次靠 hairline + 1-3% 亮度差 */
+  --bg-primary: #0a1628;
+  --bg-lift: #0d1c33;
+  --bg-secondary: #0d1c33;
+  --bg-card: #0f2140;
+  --bg-panel: #0f2140;
+  --bg-hover: #13294d;
+  --bg-elevated: #16304f;
+  --surface-raised: rgba(238, 243, 250, 0.03);
+  --surface-glass: rgba(10, 22, 40, 0.92);
+  --line: rgba(148, 180, 220, 0.14);
+  --line-strong: rgba(148, 180, 220, 0.26);
+  --border-color: rgba(148, 180, 220, 0.14);
+  --border-light: rgba(148, 180, 220, 0.2);
+  --border-subtle: rgba(148, 180, 220, 0.08);
+  --ink: #eef3fa;
+  --ink-2: #9db0c9;
+  --ink-3: #5f7492;
+  --text-primary: #eef3fa;
+  --text-secondary: #9db0c9;
+  --text-muted: #5f7492;
+  --text-disabled: rgba(95, 116, 146, 0.45);
+  /* 语义三色锁: mint=正常/新增/激活, amber=需注意, red 专属漏洞告警 */
+  --mint: #00e5a0;
+  --amber: #ffab5e;
+  --red: #ff6470;
+  --mint-dim: rgba(0, 229, 160, 0.13);
+  --amber-dim: rgba(255, 140, 66, 0.14);
+  --red-dim: rgba(255, 71, 87, 0.12);
+  --accent: #00e5a0;
+  --accent-soft: rgba(0, 229, 160, 0.13);
+  --accent-dim: rgba(0, 229, 160, 0.35);
+  --accent-highlight: rgba(0, 229, 160, 0.06);
+  --accent-glow: rgba(0, 229, 160, 0.1);
+  --text-on-light: #06281c;
+  --text-on-color: #06281c;
+  --bg-overlay: rgba(4, 12, 24, 0.66);
+  /* 零霓虹纪律: 禁彩色发光阴影, 层次只给 hairline 与亮度差 */
   --shadow-card: none;
-  --shadow-elevated: 0 2px 12px rgba(0, 0, 0, 0.35);
-  --shadow-popover: 0 4px 20px rgba(0, 0, 0, 0.45);
-  --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.6);
-  --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-elevated: none;
+  --shadow-popover: 0 4px 20px rgba(4, 12, 24, 0.5);
+  --shadow-modal: 0 12px 40px rgba(4, 12, 24, 0.5);
+  --shadow-toast: 0 4px 20px rgba(4, 12, 24, 0.45);
   --shadow-glow: none;
-  --color-success: #00c96a;
-  --color-warning: #f0c929;
-  --color-error: #e85d5d;
-  --color-info: #00bcd4;
-  /* PRD 分类色 (暗色) */
-  --color-ai: #00bcd4;
-  --color-ai_security: #ff6b9d;
-  --color-security: #e85d5d;
-  --color-finance: #f0c929;
-  --color-startup: #7c6aff;
-  --color-bid: #e8891a;
-  --color-general: #00c96a;
-  --color-github: #9b8bff;
-  --color-tech: #4ecdc4;
-  /* 三层架构流程标识 */
-  --layer-data: #00bcd4;
-  --layer-judge: #f0c929;
-  --layer-action: #00c96a;
+  --color-success: #00e5a0;
+  --color-warning: #ffab5e;
+  --color-error: #ff6470;
+  --color-info: #4dd6e2;
+  /* 分类色 (暗色) — mint 不参与分类, 保留给信号语义 */
+  --color-ai: #4dd6e2;
+  --color-ai_security: #ff8093;
+  --color-security: #ff8093;
+  --color-finance: #ffd257;
+  --color-startup: #a48bff;
+  --color-bid: #ff9e57;
+  --color-general: #00e5a0;
+  --color-github: #8f9dff;
+  --color-tech: #54ccbf;
+  /* 三层流程标识 (资料 / 判读 / 行动) */
+  --layer-data: #4dd6e2;
+  --layer-judge: #ffab5e;
+  --layer-action: #8f9dff;
+  /* 数据可视化色板 (SecNews 看板图表专用, 分类色板即品牌) */
+  --chart-compliance-dengbao: #4f46e5;
+  --chart-compliance-gdpr: #059669;
+  --chart-compliance-iso27001: #d97706;
+  --chart-severity-critical: #b91c1c;
+  --chart-severity-high: #ea580c;
+  --chart-severity-medium: #f59e0b;
+  --chart-severity-low: #84cc16;
+  --chart-severity-none: #e5e7eb;
+  /* 图谱与 P0 语境 */
+  --node-solid: #eef3fa;
+  --p0-title: #ffd7db;
+  --kg-halo-dim: rgba(238, 243, 250, 0.55);
   --flow-arrow: var(--border-color);
-  --flow-connector-bg: rgba(255, 255, 255, 0.03);
+  --flow-connector-bg: rgba(238, 243, 250, 0.03);
   --transition-card: all 200ms var(--ease-out);
   --transition-btn: all 120ms var(--ease-out);
 }
 
-/* ===== 亮色主题 (默认) — v1.9 日报版 light, PRD 亮色独立色板 ===== */
+/* ===== 亮色主题 (默认) — 哨兵终端 · 晨间: 冷白纸底 + 深海军蓝墨 ===== */
 :root {
   color-scheme: light;
-  --bg-primary: #f4f4f8;
-  --bg-secondary: #fafafe;
+  --bg-primary: #edf1f7;
+  --bg-lift: #fbfcfe;
+  --bg-secondary: #fbfcfe;
   --bg-card: #ffffff;
-  --bg-hover: #eeeef4;
-  --bg-elevated: #e8e8f0;
-  --surface-raised: rgba(0, 0, 0, 0.02);
-  --surface-glass: rgba(244, 244, 248, 0.92);
-  --border-color: #dcdce6;
-  --border-light: #e4e4ee;
-  --border-subtle: rgba(0, 0, 0, 0.04);
-  --text-primary: #1a1a2e;
-  --text-secondary: #555570;
-  --text-muted: #9999aa;
-  --text-disabled: #c0c0cc;
-  --accent: #00acc1;
-  --accent-soft: rgba(0, 172, 193, 0.08);
-  --accent-dim: rgba(0, 172, 193, 0.30);
-  --accent-highlight: rgba(0, 172, 193, 0.06);
-  --accent-glow: rgba(0, 172, 193, 0.10);
+  --bg-panel: #ffffff;
+  --bg-hover: #e2e9f3;
+  --bg-elevated: #dfe7f2;
+  --surface-raised: rgba(20, 41, 74, 0.03);
+  --surface-glass: rgba(237, 241, 247, 0.92);
+  --line: rgba(22, 43, 80, 0.13);
+  --line-strong: rgba(22, 43, 80, 0.26);
+  --border-color: rgba(22, 43, 80, 0.13);
+  --border-light: rgba(22, 43, 80, 0.19);
+  --border-subtle: rgba(22, 43, 80, 0.07);
+  --ink: #14294a;
+  --ink-2: #45597c;
+  --ink-3: #7188a8;
+  --text-primary: #14294a;
+  --text-secondary: #45597c;
+  --text-muted: #7188a8;
+  --text-disabled: rgba(113, 136, 168, 0.5);
+  /* 语义三色锁 (亮色降饱和过 AA): mint=正常/新增/激活, amber=需注意, red 专属漏洞 */
+  --mint: #04785c;
+  --amber: #a86314;
+  --red: #cc3d50;
+  --mint-dim: rgba(4, 120, 92, 0.1);
+  --amber-dim: rgba(168, 99, 20, 0.12);
+  --red-dim: rgba(204, 61, 80, 0.1);
+  --accent: #04785c;
+  --accent-soft: rgba(4, 120, 92, 0.1);
+  --accent-dim: rgba(4, 120, 92, 0.3);
+  --accent-highlight: rgba(4, 120, 92, 0.06);
+  --accent-glow: rgba(4, 120, 92, 0.1);
   --text-on-light: #ffffff;
-  --bg-overlay: rgba(0, 0, 0, 0.4);
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-elevated: 0 2px 12px rgba(0, 0, 0, 0.06);
-  --shadow-popover: 0 4px 20px rgba(0, 0, 0, 0.08);
-  --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.12);
-  --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.10);
+  --text-on-color: #ffffff;
+  --bg-overlay: rgba(20, 41, 74, 0.4);
+  /* 零霓虹纪律: 层次靠 hairline 与亮度差, 不给彩色发光阴影 */
+  --shadow-card: none;
+  --shadow-elevated: none;
+  --shadow-popover: 0 4px 20px rgba(20, 41, 74, 0.1);
+  --shadow-modal: 0 12px 40px rgba(20, 41, 74, 0.16);
+  --shadow-toast: 0 4px 20px rgba(20, 41, 74, 0.1);
   --shadow-glow: none;
-  --color-success: #00a860;
-  --color-warning: #d4a800;
-  --color-error: #d44a4a;
-  --color-info: #00a0b8;
-  --color-ai: #00a0b8;
-  --color-ai_security: #d6548a;
-  --color-security: #d44a4a;
-  --color-finance: #d4a800;
-  --color-startup: #6a58e0;
-  --color-bid: #da7a10;
-  --color-general: #00a860;
-  --color-github: #8a78e0;
-  --color-tech: #3fa89c;
-  --layer-data: #00a0b8;
-  --layer-judge: #d4a800;
-  --layer-action: #00a860;
+  --color-success: #04785c;
+  --color-warning: #a86314;
+  --color-error: #cc3d50;
+  --color-info: #0e7490;
+  /* 分类色 (亮色) — 与暗色同色相, 压暗保证纸底可读 */
+  --color-ai: #0e7490;
+  --color-ai_security: #be185d;
+  --color-security: #be185d;
+  --color-finance: #8a6508;
+  --color-startup: #6d28d9;
+  --color-bid: #b45309;
+  --color-general: #04785c;
+  --color-github: #4338ca;
+  --color-tech: #0f766e;
+  /* 三层流程标识 (资料 / 判读 / 行动) */
+  --layer-data: #0e7490;
+  --layer-judge: #a86314;
+  --layer-action: #4338ca;
+  /* 数据可视化色板 (SecNews 看板图表专用, 亮色与暗色同值, 纸底可读) */
+  --chart-compliance-dengbao: #4f46e5;
+  --chart-compliance-gdpr: #059669;
+  --chart-compliance-iso27001: #d97706;
+  --chart-severity-critical: #b91c1c;
+  --chart-severity-high: #ea580c;
+  --chart-severity-medium: #f59e0b;
+  --chart-severity-low: #84cc16;
+  --chart-severity-none: #e5e7eb;
+  /* 图谱与 P0 语境 */
+  --node-solid: #14294a;
+  --p0-title: #7e1d2e;
+  --kg-halo-dim: rgba(22, 43, 80, 0.42);
   --flow-arrow: var(--border-color);
-  --flow-connector-bg: rgba(0, 0, 0, 0.02);
+  --flow-connector-bg: rgba(20, 41, 74, 0.02);
   --transition-card: all 200ms var(--ease-out);
   --transition-btn: all 120ms var(--ease-out);
 }
@@ -170,7 +236,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.65;
 }
 
 @media (max-width: 767px) {

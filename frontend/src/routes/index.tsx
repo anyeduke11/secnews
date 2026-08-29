@@ -52,11 +52,18 @@ export function AppRoutes() {
       {/* v4.3: 报纸版式 (Editorial) — 独立全屏，不走 PageLayout */}
       <Route path="/editorial" element={<Suspense fallback={<PageFallback />}><P.EditorialView /></Suspense>} />
 
+      {/* v0.7.1: 哨兵终端 (V2 设计稿还原) — 独立全屏, 不走 PageLayout, 壳由 SentinelShell 提供 */}
+      <Route path="/" element={<Suspense fallback={<PageFallback />}><P.SentinelHomePage /></Suspense>} />
+      <Route path="/judge" element={<Suspense fallback={<PageFallback />}><P.SentinelJudgePage /></Suspense>} />
+      <Route path="/judge/graph" element={<Suspense fallback={<PageFallback />}><P.SentinelGraphPage /></Suspense>} />
+      <Route path="/action" element={<Suspense fallback={<PageFallback />}><P.SentinelActionPage /></Suspense>} />
+      <Route path="/garden" element={<Suspense fallback={<PageFallback />}><P.SentinelGardenPage /></Suspense>} />
+      <Route path="/sentinel/settings" element={<Suspense fallback={<PageFallback />}><P.SentinelSettingsPage /></Suspense>} />
+
       {/* Phase 1A: 嵌套 Layout (PageLayout 含 ToastProvider + 外层容器) */}
       <Route element={<PageLayout />}>
-        {/* v0.7.0 (D.8-D.10): 三层架构 (data/judge/action) 物理删除 — workbench 唯一入口 */}
+        {/* v0.7.0 (D.8-D.10): 三层架构 (data/judge/action) 物理删除 — workbench 承接剩余功能入口 */}
         {/* ── 旧路由兼容 (v0.7 Step 1: workbench_legacy=false 关闭老路由) ── */}
-        <Route path="/" element={<Navigate to="/workbench" replace />} />
         <Route path="/category/:cat" element={<CategoryRedirect />} />
         <Route path="/weekly-report" element={<Navigate to="/report" replace />} />
 
@@ -128,8 +135,8 @@ export function AppRoutes() {
           </Route>
         )}
 
-        {/* v0.4.3: 未匹配路径回落到资料层首页 (扩展关闭时旧深链不白屏) */}
-        <Route path="*" element={<Navigate to="/workbench" replace />} />
+        {/* v0.7.1: 未匹配路径回落到哨兵首页 (扩展关闭时旧深链不白屏) */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

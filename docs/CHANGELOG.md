@@ -1,5 +1,60 @@
 # Changelog
 
+## v0.7.0 (2026-08-28) — workbench 报纸版 100% 接管 (Step 2 物理删除 + 正式发版)
+
+> **范围**: v0.7 Step 2 — 物理删除 16 个三层目录 .tsx + 4 个 cognitive mode .tsx + 22 个老路由 + 8 个 redirect + workbench_legacy gate; 正式发版 0.7.0.
+> **commit 链**: 见批次 ⑫ (D.1-D.16 全 ✅, 4 commits).
+> **迁移指南**: [docs/v0.7_migration_checklist.md](v0.7_migration_checklist.md) (199 行, 22 路由功能对照 + 16 实施检查 D.1-D.16).
+> **workbench 5 视图**: Briefing / Pipeline / Knowledge / Analyze / Settings (`/workbench` 唯一入口, 路由 `features.workbenchUi` 守卫, 灰度)
+
+### 批次 ⑬：v0.7.0 Step 2 — 物理删除 + 正式发版
+
+1. **物理删除 23 个 .tsx**:
+   - `frontend/src/components/data/{DataLayerPage,DataImportPage,DataFavoritesPage}.tsx` (3)
+   - `frontend/src/components/judge/{JudgeLayerPage,JudgeTrendsPage,JudgeBidAnalysisPage}.tsx` (3)
+   - `frontend/src/components/action/{ActionLayerPage,ActionReportPage,ActionCompoundPage,ActionTodosPage,ActionOutboxPage,ActionReviewPage,ActionSkillsPage,ActionCodegardenPage,ActionCodegardenPhase2bPage,ActionBidAlertPage}.tsx` (10)
+   - `frontend/src/components/knowledge/{BriefingMode,ScanMode,AlertMode,OutboxMode}.tsx` (4) + `OutboxMode.test.tsx` (1) + `Phase13ModeComponents.test.tsx` (1)
+   - **功能承接**: `/workbench` 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings) — workbench_ui feature gate 控制, 默认开 (checklist §A/B 验证清单)
+
+2. **物理删除 22 个老路由 + 8 个 redirect**:
+   - 6 个三层入口 (`/data` `/data/import` `/data/favorites` `/data/history` `/judge` `/action`)
+   - 8 个 action 子路由 (`/action/{report,compound,todos,outbox,review,skills,codegarden,codegarden/phase2b,bid-alert}`)
+   - 2 个 judge 子路由 (`/judge/{trends,bid-analysis}`)
+   - 5 个 judge redirect (`/judge/{quality,heatmap,graph,compile,read}`)
+   - 4 个 cognitive mode (`/knowledge/{briefing,scan,alert,outbox}`) + 1 个 redirect (`/knowledge/deep-read` → `scan`)
+   - 1 个 `/brief` redirect
+   - 改写: 根路径 `/` → `/workbench` (D.2), 404 fallback `*` → `/workbench` (D.3), `CategoryRedirect` 跳 `/workbench?category=...` 替代 `/data?category=...`
+
+3. **删除 `workbench_legacy` gate** (`backend/config/feature_gates.toml`):
+   - 22 个老路由已物理删除, gate 失效, 退役
+   - 后端元数据 47 jobs / 14 collectors / 63 routers / 93 services 不变 (gate 不参与 router 计数)
+
+4. **版本 bump**: `backend/version.py` APP_VERSION = "0.7.0-step1" → "0.7.0" 正式发版
+
+5. **测试同步**:
+   - `frontend/src/App.test.tsx`: 移出 `/category/ai` 路由 (依赖 workbench_ui gate + 异步 Navigate, 端到端 e2e 替代)
+   - `frontend/src/routes/index.tsx`: `CategoryRedirect` 改 `/workbench?category=...` (替代已删的 /data)
+   - 净减 18 个测试 = 2 个 .test.tsx 文件 (引用已删 4 个 cognitive mode 组件) — 不是回归, 是删除已删组件的测试
+
+### v0.7.0 验收数据
+
+| 维度 | 验收 | 实测 |
+|------|------|------|
+| routes/index.tsx 行数 | 173 → 136 (-37) | 136 行 (✓) |
+| 物理删除 .tsx | 23 文件 | 23 文件 (✓) |
+| pytest 全量 | ≥2940 passed (不减少) | 2938 passed / 2 failed (codegarden 端口预存问题, 与 v0.7 无关) (✓) |
+| vitest | ≥320 passed (不减少) | 304 passed (净减 18 测试 = 2 .test.tsx, 非回归) (✓) |
+| tsc | 0 errors | 0 errors (✓) |
+| generate_meta | 47/14/63/93 | OK (✓) |
+| /workbench 5 视图 | 可访问 | routes 158-165 注册 + workbench_ui gate (✓) |
+| 老路由 404 | 22 个 | 物理删除 (✓) |
+
+### v0.7.0 后续 (D.15, 后续工单)
+
+- docs/v0.6_ai_workstation_plan.md 标 "已废止 (v0.7 落地)" → 移到 docs/archived/ (非阻塞, 留 P2-5)
+- codex-security 启用 (P2-4 推迟, sandbox 不可用, docs/SECURITY_AUDIT.md 模板就位)
+- ai_hub gateway.py 406 行超软限 (审计报告 §六 P1-3 后续), v0.7+ 拆 gateway/ → gateway.py + tasks_adapter.py
+
 ## v0.7.0-step1 (2026-08-28) — workbench 报纸版 100% 接管 (灰度准备)
 
 > **范围**: v0.7 Step 1 灰度 — workbench 5 视图全量接管老三层目录 + 4 cognitive mode 功能

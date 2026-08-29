@@ -15,9 +15,4 @@ dsh        = false      # P1-2 降级为实验性 — DSH 桥接层 (DeepSeek Ha
                    # 启用条件: ① 设置 DSH_ENDPOINT 环境变量 (默认 http://localhost:3210)
                    # ② DeepSeek Harness 实际运行并暴露 /health /api/task 端点
                    # ③ 测试 DSH 不可达时自动降级 llm_service 直连 (无需改业务代码)
-workbench_legacy = false # v0.7 Step 1 灰度: 三层目录 + 4 cognitive mode 路由 404
-                   # 关闭时: 1) /data/* /judge/* /action/* 路由 404 (workbench 5 视图 100% 接管)
-                   #        2) /knowledge/{briefing,scan,alert,outbox} 路由 404 (ReviewMode/DeepReadMode 保留)
-                   # 功能等价物: /workbench 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings)
-                   # 迁移 checklist: docs/v0.7_migration_checklist.md
-                   # Step 2 计划: 物理删除 19+4 个 .tsx + 10+6 路由 + 删除本 gate
+

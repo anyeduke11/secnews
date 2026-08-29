@@ -17,10 +17,10 @@ import * as P from './lazy-imports';
 //   ./ROUTE_REGISTRY.md。新增 <Route> 必须同时登记该表, 否则 CI 会 fail。
 //   §三记录了 P1-1 修复的 7 个 mismatch (/api/llm/digest / /api/soul 等)。
 
-/** 旧路由 /category/:cat 重定向到资料层，带上 category 参数 */
+/** 旧路由 /category/:cat 兼容 (v0.7.0: 跳 /workbench 而非已删的 /data) */
 function CategoryRedirect() {
   const { cat } = useParams<{ cat: string }>();
-  return <Navigate to={`/data?category=${cat}`} replace />;
+  return <Navigate to={`/workbench?category=${cat}`} replace />;
 }
 
 /** Suspense 全局加载占位 (不进行白屏) */
@@ -54,44 +54,11 @@ export function AppRoutes() {
 
       {/* Phase 1A: 嵌套 Layout (PageLayout 含 ToastProvider + 外层容器) */}
       <Route element={<PageLayout />}>
-        {/* ── 三层架构新路由 ── */}
-        <Route path="/data" element={<Suspense fallback={<PageFallback />}><P.DataLayerPage /></Suspense>} />
-        <Route path="/data/import" element={<Suspense fallback={<PageFallback />}><P.DataImportPage /></Suspense>} />
-        <Route path="/data/favorites" element={<Suspense fallback={<PageFallback />}><P.DataFavoritesPage /></Suspense>} />
-        <Route path="/data/history" element={<HistoryPageRoute />} />
-        <Route path="/judge" element={<Suspense fallback={<PageFallback />}><P.JudgeLayerPage /></Suspense>} />
-        <Route path="/action" element={<Suspense fallback={<PageFallback />}><P.ActionLayerPage /></Suspense>} />
-
+        {/* v0.7.0 (D.8-D.10): 三层架构 (data/judge/action) 物理删除 — workbench 唯一入口 */}
         {/* ── 旧路由兼容 (v0.7 Step 1: workbench_legacy=false 关闭老路由) ── */}
         <Route path="/" element={<Navigate to="/workbench" replace />} />
         <Route path="/category/:cat" element={<CategoryRedirect />} />
         <Route path="/weekly-report" element={<Navigate to="/report" replace />} />
-
-        {/* ── 行动层子路由 (Phase 4: 实际包装页面，替换旧重定向) ── */}
-        <Route path="/action/report" element={<Suspense fallback={<PageFallback />}><P.ActionReportPage /></Suspense>} />
-        <Route path="/action/compound" element={<Suspense fallback={<PageFallback />}><P.ActionCompoundPage /></Suspense>} />
-        <Route path="/action/todos" element={<Suspense fallback={<PageFallback />}><P.ActionTodosPage /></Suspense>} />
-        <Route path="/action/outbox" element={<Suspense fallback={<PageFallback />}><P.ActionOutboxPage /></Suspense>} />
-        <Route path="/action/review" element={<Suspense fallback={<PageFallback />}><P.ActionReviewPage /></Suspense>} />
-        <Route path="/action/skills" element={<Suspense fallback={<PageFallback />}><P.ActionSkillsPage /></Suspense>} />
-        {features.codegarden && (
-          <>
-            <Route path="/action/codegarden" element={<Suspense fallback={<PageFallback />}><P.ActionCodegardenPage /></Suspense>} />
-            {features.codegardenPhase2b && (
-              <Route path="/action/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><P.ActionCodegardenPhase2bPage /></Suspense>} />
-            )}
-          </>
-        )}
-        <Route path="/action/bid-alert" element={<Suspense fallback={<PageFallback />}><P.ActionBidAlertPage /></Suspense>} />
-
-        {/* ── 判断层子路由 (Phase 3: 趋势/标讯分析独立页面, 其余 v0.4 兼容性保留跳转) ── */}
-        <Route path="/judge/trends" element={<Suspense fallback={<PageFallback />}><P.JudgeTrendsPage /></Suspense>} />
-        <Route path="/judge/bid-analysis" element={<Suspense fallback={<PageFallback />}><P.JudgeBidAnalysisPage /></Suspense>} />
-        <Route path="/judge/quality" element={<Navigate to="/quality/rejection" replace />} />
-        <Route path="/judge/heatmap" element={<Navigate to="/knowledge/heatmap" replace />} />
-        <Route path="/judge/graph" element={<Navigate to="/knowledge/process" replace />} />
-        <Route path="/judge/compile" element={<Navigate to="/knowledge/compile" replace />} />
-        <Route path="/judge/read" element={<Navigate to="/knowledge/briefing" replace />} />
 
         {/* ── 保留的旧路由 (内容尚未迁移) ── */}
         <Route path="/todos" element={<Suspense fallback={<PageFallback />}><P.TodosPage /></Suspense>} />
@@ -112,12 +79,9 @@ export function AppRoutes() {
           <Route path="compile" element={<Suspense fallback={<PageFallback />}><P.KnowledgeCompile /></Suspense>} />
           <Route path="compound" element={<Suspense fallback={<PageFallback />}><P.KnowledgeCompound /></Suspense>} />
           <Route path="imported" element={<Suspense fallback={<PageFallback />}><P.KnowledgeFavoritesView /></Suspense>} />
-          <Route path="briefing" element={<Suspense fallback={<PageFallback />}><P.BriefingMode /></Suspense>} />
-          <Route path="scan" element={<Suspense fallback={<PageFallback />}><P.ScanMode /></Suspense>} />
-          <Route path="deep-read" element={<Navigate to="scan" replace />} />
+          {/* v0.7.0 (D.9): 4 cognitive mode 物理删除 — 删 briefing/scan/alert/outbox 4 路由 */}
+          {/* 保留: deep-read/:id (主路径), review (主路径 SM-2), heatmap (知识图谱) */}
           <Route path="deep-read/:id" element={<Suspense fallback={<PageFallback />}><P.DeepReadMode /></Suspense>} />
-          <Route path="alert" element={<Suspense fallback={<PageFallback />}><P.AlertMode /></Suspense>} />
-          <Route path="outbox" element={<Suspense fallback={<PageFallback />}><P.OutboxMode /></Suspense>} />
           <Route path="review" element={<Suspense fallback={<PageFallback />}><P.ReviewMode /></Suspense>} />
           <Route path="heatmap" element={<Suspense fallback={<PageFallback />}><P.AttentionHeatmap /></Suspense>} />
         </Route>
@@ -126,7 +90,6 @@ export function AppRoutes() {
         {/* /deep/:type/:id 跨实体深读视图, 与知识库 /knowledge/deep-read/:id 并存 (不同组件) */}
         <Route path="/deep/:type/:id" element={<Suspense fallback={<PageFallback />}><P.DeepReadView /></Suspense>} />
         {/* P1.4: /brief (官方每日简报) 已合并进 /knowledge/briefing, 旧路径重定向 */}
-        <Route path="/brief" element={<Navigate to="/knowledge/briefing" replace />} />
         <Route path="/quality/rejection" element={<Suspense fallback={<PageFallback />}><P.QualityRejectionPage /></Suspense>} />
         {features.codegarden && (
           <>

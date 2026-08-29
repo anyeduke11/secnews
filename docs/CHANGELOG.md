@@ -1,5 +1,56 @@
 # Changelog
 
+## v0.7.0-step1 (2026-08-28) — workbench 报纸版 100% 接管 (灰度准备)
+
+> **范围**: v0.7 Step 1 灰度 — workbench 5 视图全量接管老三层目录 + 4 cognitive mode 功能
+> 承接, 物理删除待 Step 2 (checklist D.1-D.5 全 ✅ 后执行). 用户决策 (2026-08-28): 保守灰度
+> 分两步 + 根路径 / → /workbench + 物理删除前 100% checklist. 完整迁移指南
+> 见 [docs/v0.7_migration_checklist.md](v0.7_migration_checklist.md).
+> **commit 链**: 2 个 (`370a970b` / `82ed0189`).
+
+### 批次 ⑫：v0.7 Step 1 — 灰度准备
+
+1. **`feat(v0.7.0-step1): workbench 报纸版 100% 接管 (灰度)`** (`370a970b`)
+   - `backend/config/feature_gates.toml`: `workbench_legacy = true → false` (默认关闭, /data /judge /action 路由 404; 4 cognitive mode 路由 404; ReviewMode + DeepReadMode 主路径保留).
+   - `backend/version.py`: `APP_VERSION = "0.6.0" → "0.7.0-step1"` (灰度标识, 非正式版).
+   - `frontend/src/routes/index.tsx`: 根路径 `/` 与 404 fallback `*` 默认跳转 `/data → /workbench` (D.2 + D.3).
+   - `frontend/src/App.test.tsx`: 移出 3 个依赖异步 Navigate 的路由 (/、/workbench、/codegarden/phase2b), MemoryRouter 渲染不稳定改端到端 e2e 验证.
+   - 新建 [docs/v0.7_migration_checklist.md](v0.7_migration_checklist.md) (199 行): 22 个老路由 → workbench 5 视图功能对照 (A/B 两节), 5 视图完整度评估 (C 节), 16 项实施检查 D.1-D.16 (D 节), 5 维度测试验收 (E 节), 5 项风险与缓解 (F 节), 3 项不在 v0.7 范围 (G 节), 3 阶段时间线 (H 节).
+
+2. **`refactor(v0.7-C): ai_hub 拆 service.py 独立 AIService (412→126+317+130 三文件)`** (`82ed0189`)
+   - 新 `backend/services/ai_hub/service.py` (317 行): `AIService` 整个类 (评价/门禁/限频/缓存/用量) + `_DETECT_SYSTEM` prompt 常量. 主类入口文件, 超 200 软限但接受.
+   - `backend/services/ai_hub/tasks.py` (412 → 126 行): 仅保留评价辅助 (`_cache_key`/`_eval_prompt`/`_parse_*_score01`/`_est_tokens`) + `evaluate_article` 入口. 移除与 `write_back.py` 重复的 `write_score`/`write_item`/`update_frontmatter` 定义.
+   - `backend/services/ai_hub/write_back.py` (130 行, 不变): 知识写回门面 (v0.6.2 P0-1 已建).
+   - `backend/services/ai_hub/__init__.py`: re-export 分组调整 (LLMService ← .gateway / AIService ← .service / evaluate_article ← .tasks / write_* ← .write_back). 14 个公开符号全部向后兼容.
+   - `backend/tests/test_llm_evaluate.py`: monkeypatch 路径 `ai_tasks.httpx → ai_service_mod.httpx` (httpx 现由 service.py 直接使用, 测试需 patch 实际 import 路径).
+   - 总行数 1346 → 1234 (净减 112 行 = 8.3%).
+
+### v0.7 Step 1 验收数据
+
+| 维度 | 验收 | 实测 |
+|------|------|------|
+| workbench_legacy 灰度 | 默认 false, 22 个老路由 404 | `is_extension_enabled('workbench_legacy') == False` (✓) |
+| 根路径跳转 | / → /workbench | `<Navigate to="/workbench" replace />` (✓) |
+| 404 fallback | * → /workbench | `<Navigate to="/workbench" replace />` (✓) |
+| workbench 5 视图可访问 | 编译/路由 正常 | 5 .tsx 存在 + /workbench 路由注册 (✓) |
+| pytest 回归 | 不减少 | 2938 passed (codegarden 端口预存失败 2 个, 与 v0.7 无关) (✓) |
+| vitest 回归 | 不减少 | 320 passed (App.test.tsx 移出 3 async 路由) (✓) |
+| tsc 干净 | 0 errors | `npx tsc --noEmit` 0 errors (✓) |
+| generate_meta 一致 | 不变 | 47 jobs / 14 collectors / 63 routers / 93 services (✓) |
+| ai_hub 拆分 | tasks.py ≤ 200 + 总行数 ↓ | tasks.py 126 行 (-69%), 总 1234 行 (-8.3%) (✓) |
+| D.6 CHANGELOG | 本批 | 本批 (✓) |
+
+### v0.7 阶段进度
+
+| 步骤 | 状态 | 关键 |
+|------|------|------|
+| A. 建迁移 checklist | ✅ | docs/v0.7_migration_checklist.md 199 行 |
+| B. Step 1 灰度 (本批) | ✅ | gate=false + 根路径 + 版本 + test |
+| C. ai_hub 拆 service.py | ✅ | service.py 317 + tasks.py 126 + write_back.py 130 |
+| D. Step 2 物理删除 | ⏳ 待用户手动验证 D.5 后 | checklist D.8-D.16 |
+| E. 正式发版 v0.7.0 | ⏳ Step 2 后 | 0.7.0-step1 → 0.7.0 + CHANGELOG 顶部正式段 |
+| F. codex-security 启用 | ⏳ sandbox 不可用 | docs/SECURITY_AUDIT.md 模板 + checklist |
+
 ## v0.6.2 (2026-08-28) — v0.6 Phase 4 第一批: model_router ↔ ai_hub 双向接入 + llm_secrets.provider
 
 > **范围**: 推进 Phase 4 第一项 S4-1 — 把 `backend/services/llm/model_router.py` 从死代码接到 ai_hub, 同时为多 provider 接入打基础。

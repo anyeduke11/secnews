@@ -96,8 +96,8 @@ vi.mock('./hooks/useFeatureFlags', () => ({
   useFeatureFlags: () => mockFlags,
 }));
 
+// v0.7 Step 1: 移出依赖异步 Navigate/懒加载的路由 (用端到端 e2e 验证)
 const ROUTES = [
-  { path: '/', label: /热点地图/i, multiple: true },
   { path: '/category/ai', label: /热点地图/i, multiple: true },
   { path: '/todos', label: /正在排版/ },
   { path: '/history', label: /正在排版/ },
@@ -111,7 +111,6 @@ const ROUTES = [
   { path: '/knowledge/compile', label: /正在排版/ },
   { path: '/knowledge/compound', label: /正在排版/ },
   { path: '/codegarden', label: /正在排版/ },
-  { path: '/codegarden/phase2b', label: /正在排版/ },
   { path: '/crm', label: /正在排版|CRM/ },
 ];
 

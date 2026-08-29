@@ -23,6 +23,12 @@ v0.5.1 (2026-08-25): v0.6 P0 清场第一批 — ⑥ ai_hub 双引擎收敛
 v0.6.0 (2026-08-27): CRM 业绩座舱正式发版 — security-cockpit 方案 C 完整移植。
 T1 PRD (用户故事/状态机/KPI) + T2 migration 071 三表 + T3 三路由 + T4 /crm 页面
 + T5 全栈 E2E 闭环; crm feature gate 扩展域接入; 见 docs/COCKPIT_PRD.md。
+
+v0.7.0-step1 (2026-08-28): workbench 报纸版 100% 接管 — Step 1 灰度
+workbench_legacy=false 默认关闭 /data /judge /action 三层 + 4 cognitive mode 路由
+(Briefing/Scan/Alert/Outbox), ReviewMode + DeepReadMode 保留为主路径;
+根路径 / 与 404 fallback 跳 /workbench; 迁移 checklist docs/v0.7_migration_checklist.md。
+Step 2 待 checklist D.1-D.5 全 ✅ 后物理删除 19+4 .tsx + 10+6 路由。
 """
 
-APP_VERSION = "0.6.0"
+APP_VERSION = "0.7.0-step1"

@@ -62,8 +62,8 @@ export function AppRoutes() {
         <Route path="/judge" element={<Suspense fallback={<PageFallback />}><P.JudgeLayerPage /></Suspense>} />
         <Route path="/action" element={<Suspense fallback={<PageFallback />}><P.ActionLayerPage /></Suspense>} />
 
-        {/* ── 旧路由兼容 (v0.4 兼容性保留): Navigate 到新路由 ── */}
-        <Route path="/" element={<Navigate to="/data" replace />} />
+        {/* ── 旧路由兼容 (v0.7 Step 1: workbench_legacy=false 关闭老路由) ── */}
+        <Route path="/" element={<Navigate to="/workbench" replace />} />
         <Route path="/category/:cat" element={<CategoryRedirect />} />
         <Route path="/weekly-report" element={<Navigate to="/report" replace />} />
 
@@ -166,7 +166,7 @@ export function AppRoutes() {
         )}
 
         {/* v0.4.3: 未匹配路径回落到资料层首页 (扩展关闭时旧深链不白屏) */}
-        <Route path="*" element={<Navigate to="/data" replace />} />
+        <Route path="*" element={<Navigate to="/workbench" replace />} />
       </Route>
     </Routes>
   );

@@ -25,8 +25,10 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
+import os
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import Response as FastResponse
 from pydantic import BaseModel, Field
 
@@ -85,6 +87,36 @@ class RevealRequest(BaseModel):
 # Phase 42: admin reset 二次确认字符串 (在 setup 之外的紧急清空入口)
 RESET_CONFIRM_STRING = "YES_RESET_ALL_SECRETS"
 
+# 本机来源判定: 空 peer 与 "testclient" 来自 ASGI 进程内调用 (无真实 socket);
+# 真实 uvicorn 连接总能拿到具体 host。
+_LOCAL_PEERS = {"127.0.0.1", "::1", "::ffff:127.0.0.1", "testclient"}
+
+
+def _require_local_or_admin(request: Request) -> None:
+    """不可逆销毁类端点的来源门禁。
+
+    原先唯一的防线是 docstring 里"服务默认仅监听 127.0.0.1"这一**假设**,
+    而部署实况绑 0.0.0.0 时局域网任意主机都能一次清空全部密钥 —— 确认串
+    又就写在源码里, 等于没有防线。这里改成校验请求**实际来源**:
+    本机直连放行, 非本机必须带 HOTSPOT_ADMIN_TOKEN (常数时间比较)。
+    """
+    peer = (request.client.host if request.client else "") or ""
+    if not peer or peer in _LOCAL_PEERS:
+        return
+    token = os.getenv("HOTSPOT_ADMIN_TOKEN", "").strip()
+    supplied = request.headers.get("X-Admin-Token", "")
+    if token and hmac.compare_digest(token, supplied):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "message": (
+                "不可逆清空仅限本机来源; 远程调用需配置环境变量 "
+                "HOTSPOT_ADMIN_TOKEN 并携带 X-Admin-Token 请求头"
+            )
+        },
+    )
+
 
 class ResetRequest(BaseModel):
     """admin reset — 二次确认, **不可恢复**。"""
@@ -136,7 +168,7 @@ async def setup_master_key(req: SetupRequest):
 
 
 @router.post("/reset", status_code=200)
-async def reset_all_secrets(req: ResetRequest):
+async def reset_all_secrets(req: ResetRequest, request: Request):
     """**Admin 紧急清空** — 不可恢复。
 
     清空范围 (按顺序):
@@ -151,8 +183,10 @@ async def reset_all_secrets(req: ResetRequest):
     二次确认不通过 → 409 Conflict, 不做任何操作。
 
     **定位**: 这是「忘记主密码」时的逃生舱, 因此无法要求 master_key 作为
-    凭证; 防滥用依赖两点 —— 服务默认仅监听 127.0.0.1 (见 config.host),
-    以及本确认串。若显式绑定 0.0.0.0, 局域网内任何人都能触发此接口。
+    凭证。防滥用依赖两点 —— ``confirm`` 二次确认 (防误触), 以及
+    :func:`_require_local_or_admin` 的**来源门禁**: 本机回环直连放行,
+    远程调用必须配置 HOTSPOT_ADMIN_TOKEN 并携带 X-Admin-Token。
+    绑定 0.0.0.0 时局域网主机若无双因子, 得到 403 而不是清空成功。
 
     **警告**: 调用后所有加密数据永久丢失, 需重新 setup + 重新录入 LLM 密钥。
     """
@@ -165,13 +199,10 @@ async def reset_all_secrets(req: ResetRequest):
     if req.confirm != RESET_CONFIRM_STRING:
         raise HTTPException(
             status_code=409,
-            detail={
-                "message": (
-                    "二次确认字符串不匹配; 想执行清空请传 confirm="
-                    f"'{RESET_CONFIRM_STRING}'"
-                )
-            },
+            detail={"message": "二次确认字符串不匹配 (见 API 文档 / 源码常量 RESET_CONFIRM_STRING)"},
         )
+
+    _require_local_or_admin(request)
 
     # 进程内 unlock state 先清, 避免后续操作还在用旧 fernet_key
     _unlock_state.clear()

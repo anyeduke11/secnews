@@ -1,5 +1,7 @@
 # 04 — 子系统详解
 
+> **本文件是 [`../ARCHITECTURE.md`](../ARCHITECTURE.md) §一"系统总览"中 5 个子系统的细节展开** — 详列 SecNews / Knowledge / CodeGarden / SecurityGraph / SecNews 工作台 + CRM 座舱的功能与数据流。
+
 ## 1. SecNews 热点聚合 + 安全看板
 
 **聚合层** (core, 永远可用): 8 分类 × 14 collector × 30+ 源 → 12 同步质量门禁 →

@@ -1,6 +1,10 @@
 /**
  * JudgeLayerPage — 判断层首页
  *
+ * @deprecated v0.6.2 (P2-3): 三层工作流目录 (data/judge/action) 计划 v0.7 退役,
+ * 功能由 /workbench 5 视图接替 (Briefing/Pipeline/Knowledge/Analyze/Settings)。
+ * 本组件保留为兼容旧路由 /judge, 行为由 feature_gates.toml `workbench_legacy=true` 控制。
+ *
  * Phase 5: 设计治理
  * 使用 LayerCard + LayerHeader 统一组件，增加跨层流转指示。
  * 左栏: 质量门禁 + 趋势分析 + 标讯分析

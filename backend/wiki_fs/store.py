@@ -85,10 +85,11 @@ class WikiFs:
         回查实体字段 (rowid 不一致时回查字段为 NULL, 但 f.id UNINDEXED
         已携带字符串 ID 足够独立显示).
         """
-        from backend.repository.db import get_connection
         # item_id 是字符串 TEXT PRIMARY KEY, FTS5 rowid 必须 INTEGER;
         # 用 32-bit hash 截断 (撞库 1/4B, 实际 4K 容量足够, SQLite INTEGER 兼容)
         import hashlib
+
+        from backend.repository.db import get_connection
         rowid = int(hashlib.md5(item_id.encode("utf-8")).hexdigest()[:8], 16)
         conn = get_connection()
         conn.execute(

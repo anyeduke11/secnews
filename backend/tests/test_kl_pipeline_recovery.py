@@ -32,7 +32,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from backend.kl_pipeline.queue import KLQueue, RETRY_BACKOFF_BASE_S
+from backend.kl_pipeline.queue import RETRY_BACKOFF_BASE_S, KLQueue
 from backend.kl_pipeline.stages.structure import _upsert_edge
 
 

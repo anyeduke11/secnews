@@ -102,8 +102,9 @@ async def evaluate_article(
 
     失败时 ok=False + error（不静默降级，便于测试定位）。
     """
-    from backend.services.ai_hub.service import ai_service
     import asyncio
+
+    from backend.services.ai_hub.service import ai_service
 
     def _call():
         return ai_service.evaluate(
@@ -117,10 +118,10 @@ async def evaluate_article(
 
 __all__ = [
     "DEFAULT_SCORE",
-    "evaluate_article",
     "_cache_key",
     "_est_tokens",
     "_eval_prompt",
     "_parse_eval_json",
     "_parse_score01",
+    "evaluate_article",
 ]

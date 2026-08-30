@@ -9,7 +9,6 @@
 """
 from __future__ import annotations
 
-import hashlib
 import logging
 import time
 from collections import deque
@@ -18,7 +17,6 @@ from typing import ClassVar
 import httpx
 
 from backend.logging_config import logger as _logger
-from backend.repository.db import get_connection
 from backend.services.ai_hub.cache import get_ai_cache, set_ai_cache
 from backend.services.ai_hub.gateway import llm_service
 
@@ -322,4 +320,4 @@ ai_service = AIService()
 
 
 # Re-export 提示常量供 tasks.py 复用
-__all__ = ["AIService", "ai_service", "_DETECT_SYSTEM"]
+__all__ = ["_DETECT_SYSTEM", "AIService", "ai_service"]

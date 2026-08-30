@@ -39,7 +39,20 @@
 
 ## 当前活跃段 (2026-08-27 起)
 
-### 2026-08-29 v0.7.0 重构完成度审计收尾修复（本批）
+### 2026-08-30 v0.6.3 — 交互修复 + 统一工作台 + dsh 内置化 (本批)
+
+> **用户裁决四项**: ① 修 P0; ② 保留 SecNews、workbench 整合后删除; ③ 6 丢失域找回; ④ dsh 重型一体化 + pi 执行层 + 一键启停。
+> **commit 链**: `80e6ad1e` → `c754549f` → `4cbad763` → (找回入口) → (dsh 内置化)。
+
+- [x] **P0 交互断线修复** (`80e6ad1e`): 源健康重置 404 (补 by-source) / CodeGarden 影响分析 items→impacts / KnowledgeTabs 5 死链 chip + heatmap 死链
+- [x] **统一工作台** (`c754549f`): workbench 5 视图并入 SecNews (Briefing→DigestCard / Analyze→研判 tab / Knowledge→WikiItemBrowser / Settings→采集源+预算 / StatusBar→壳底栏); 删除 /workbench 路由+组件+gate+feature_workbench_ui; 修 checking 永挂 + 三视图 error 态
+- [x] **lint 机械债** (`4cbad763`): 并行会话扫入文件的 10 处 I001/F401/RUF022 清零
+- [x] **找回 4 域入口 + 模式切换器**: /bid-alert + /tags + /extract + /search 四页面 (三态反馈契约) + ModeSwitcher 入 /settings; weekly_report 由 /report 覆盖不重建; SentinelShell 菜单 +4
+- [x] **dsh 内置化 + pi 执行层**: ProcessSupervisor 宿主 + dsh/supervisor 配置持久化 (settings KV) + /api/dsh/control/* 五端点 + DshControlCard 前端一键启停 (10s 轮询) + AgentRunnerCard (jsonl/stream-json 协议 + workspace 锁定 codegarden/ + builtin→ai_hub) + /api/agents/*; gate dsh→true; lifespan autostart 钩子
+- [x] **根治 test_dsh_api 404** (P1-2 起即坏): 注册期 gate 快照 — conftest 模块级 setdefault 全开含 dsh + autouse fixture 补 dsh; 4 用例复活 (S4 批次"全量通过"声明系漏检, 已在本批修正)
+- [x] **meta 同步**: routers 63→65 / services 96 (ARCHITECTURE.md 手改 + --check OK); 新增 25 后端用例 (supervisor 9 / control 5 / agent_bridge 11)
+
+### 2026-08-29 v0.7.0 重构完成度审计收尾修复（上批）
 
 > **来源**: 审计报告 5 维度结论（整合 Phase 0-6 本体 100% 交付，失分集中在发版收尾）。
 > **范围**: 审计建议 1-4 项；第 5 项 sentinel v0.7.1 原型对照实现为后续独立批次。

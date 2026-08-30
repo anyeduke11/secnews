@@ -208,7 +208,7 @@ def build_html() -> str:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>热点地图 - 静态导出</title>
+<title>热点地图 - SecNews · 静态导出</title>
 <style>
 * {{ margin:0; padding:0; box-sizing:border-box; }}
 body {{ font-family:'JetBrains Mono','Fira Code',monospace; background:#0a0a0f; color:#e0e0e0; min-height:100vh; }}
@@ -238,9 +238,9 @@ body {{ font-family:'JetBrains Mono','Fira Code',monospace; background:#0a0a0f; 
 <div class="container">
     <div class="header">
         <div class="header-left">
-            <div class="logo">H</div>
+            <div class="logo">S</div>
             <div>
-                <h1 style="font-size:20px;">热点地图 <span style="font-size:12px;color:#888899;font-weight:normal;">HOTSPOT MAP</span></h1>
+                <h1 style="font-size:20px;">热点地图 <span style="font-size:12px;color:#888899;font-weight:normal;">SECNEWS</span></h1>
                 <p style="font-size:12px;color:#888899;margin-top:2px;">{now} UTC 导出</p>
             </div>
         </div>
@@ -259,7 +259,7 @@ body {{ font-family:'JetBrains Mono','Fira Code',monospace; background:#0a0a0f; 
     <div class="grid">{cards_html}</div>
 
     <div class="footer">
-        热点地图 &middot; 数据来源: aihot.virxact.com / AVD / THN / 新浪财经 / Hacker News<br>
+        热点地图 - SecNews &middot; 数据来源: aihot.virxact.com / AVD / THN / 新浪财经 / Hacker News<br>
         导出时间: {now} UTC
     </div>
 </div>
@@ -334,7 +334,7 @@ def build_export_html(
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>热点地图 / 数据导出</title>
+<title>热点地图 - SecNews / 数据导出</title>
 <style>
   * {{ margin:0; padding:0; box-sizing:border-box; }}
   body {{
@@ -472,9 +472,9 @@ def build_export_html(
   <!-- Header -->
   <div class="header">
     <div class="header-left">
-      <div class="logo">H</div>
+      <div class="logo">S</div>
       <div>
-        <div class="header-title">热点地图 <span style="font-size:11px;color:{L['text_muted']};font-weight:400;">HOTSPOT MAP</span></div>
+        <div class="header-title">热点地图 <span style="font-size:11px;color:{L['text_muted']};font-weight:400;">SECNEWS</span></div>
         <div class="header-subtitle">数据导出 · {now}</div>
       </div>
     </div>

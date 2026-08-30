@@ -1,8 +1,8 @@
 /**
- * KnowledgeView — 工作台知识视图 (Phase 4 v0.6.1)
+ * WikiItemBrowser — wiki 条目浏览 (workbench/KnowledgeView 并入 SecNews 知识库)
  *
- * 展示 wiki items 列表 + 概念标签 + 复习到期。
- * 数据源: GET /api/knowledge/items · GET /api/knowledge/concepts · GET /api/knowledge/health
+ * 条目搜索 + 概念标签 + 复习到期 (mastery < 0.5) + 全部条目列表。
+ * 数据源: GET /api/knowledge/items · GET /api/knowledge/concepts
  */
 import { useEffect, useMemo, useState } from 'react';
 
@@ -23,10 +23,11 @@ interface Concept {
   item_count: number;
 }
 
-export function KnowledgeView() {
+export function WikiItemBrowser() {
   const [items, setItems] = useState<KnowledgeItem[]>([]);
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -39,7 +40,12 @@ export function KnowledgeView() {
       setItems(kb.items || []);
       setConcepts(cs.concepts || []);
       setLoading(false);
-    }).catch(() => { if (!cancelled) setLoading(false); });
+    }).catch(() => {
+      if (!cancelled) {
+        setError('条目加载失败: 网络或后端不可达');
+        setLoading(false);
+      }
+    });
     return () => { cancelled = true; };
   }, []);
 
@@ -59,7 +65,7 @@ export function KnowledgeView() {
   );
 
   return (
-    <div className="space-y-3 max-w-5xl">
+    <div className="space-y-3">
       {/* 搜索 + 概念 */}
       <section className="p-3 rounded-[var(--radius-sm)]" style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}>
         <div className="flex items-center gap-2 mb-2">
@@ -110,6 +116,8 @@ export function KnowledgeView() {
         </h3>
         {loading ? (
           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>加载中...</p>
+        ) : error ? (
+          <p className="text-[10px]" style={{ color: 'var(--color-error)' }}>{error}</p>
         ) : filtered.length === 0 ? (
           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{search ? '无匹配项' : '暂无条目'}</p>
         ) : (

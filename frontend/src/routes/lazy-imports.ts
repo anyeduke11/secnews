@@ -48,11 +48,12 @@ export const ReportPage = React.lazy(() =>
 );
 
 // v0.7.0 (D.8-D.10): 三层架构 (data/judge/action) + 4 cognitive mode 物理删除
-// 功能承接: /workbench 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings)
+// v0.6.3: /workbench 5 视图已并入 SecNews (Briefing→feed 简报卡 / Pipeline→管线观测 /
+//   Knowledge→知识库条目浏览 / Analyze→研判 tab / Settings→设置面板 / StatusBar→壳底栏)
 // 保留: ReviewMode + DeepReadMode (主路径) + 8 个 knowledge 域组件
 // 详细迁移指南: docs/v0.7_migration_checklist.md
 
-// (Phase 1-4 路由已删除, 22 个老路由 404, workbench 唯一入口)
+// (Phase 1-4 路由已删除, 22 个老路由 404; SecNews 为统一工作台入口)
 
 // 知识管理: 4 大领域 (信息导入 / 处理数据 / 知识库编译 / 知识复利) — 保留 8 路由
 // 6 模式去 4 留 2: 删 BriefingMode / ScanMode / AlertMode / OutboxMode (v0.6 已 @deprecated, v0.7 物理删除);
@@ -106,7 +107,9 @@ export const QualityRejectionPage = React.lazy(() =>
 
 // v4.3 报纸版式 (Editorial) 已于 v0.7.1 移除, /editorial 重定向到哨兵终端资料层首页
 
-// SecNews 安全看板 (S0-7)
+// SecNews 安全看板 (S0-7) — v0.6.3 起为统一工作台
+// (/secnews/inbox 与 /secnews/ledger 独立路由已删: InboxScanner 内嵌知识库,
+//  TokenLedger 内嵌管线观测, 无独立入口需求)
 export const SecNewsShell = React.lazy(() =>
   import('../components/secnews/layout/SecNewsShell').then(m => ({ default: m.SecNewsShell }))
 );
@@ -119,11 +122,8 @@ export const SecNewsPipeline = React.lazy(() =>
 export const SecNewsKnowledge = React.lazy(() =>
   import('../components/secnews/knowledge/WikiBrowser').then(m => ({ default: m.WikiBrowser }))
 );
-export const SecNewsInbox = React.lazy(() =>
-  import('../components/secnews/knowledge/InboxScanner').then(m => ({ default: m.InboxScanner }))
-);
-export const SecNewsLedger = React.lazy(() =>
-  import('../components/secnews/pipeline/TokenLedger').then(m => ({ default: m.TokenLedger }))
+export const SecNewsAnalyze = React.lazy(() =>
+  import('../components/secnews/analyze/SecNewsAnalyze').then(m => ({ default: m.SecNewsAnalyze }))
 );
 export const SecNewsSettings = React.lazy(() =>
   import('../components/secnews/settings/PipelineSettings').then(m => ({ default: m.PipelineSettings }))
@@ -135,24 +135,4 @@ export const SecNewsAnalytics = React.lazy(() =>
 // CRM 业绩座舱 (v0.6 security-cockpit 方案 C)
 export const CrmPage = React.lazy(() =>
   import('../components/crm/CrmPage').then(m => ({ default: m.CrmPage }))
-);
-
-// Phase 4: 工作台 UI (v0.6.1) — 5 视图统一壳
-export const WorkbenchPage = React.lazy(() =>
-  import('../components/workbench/WorkbenchPage').then(m => ({ default: m.WorkbenchPage }))
-);
-export const BriefingView = React.lazy(() =>
-  import('../components/workbench/BriefingView').then(m => ({ default: m.BriefingView }))
-);
-export const PipelineView = React.lazy(() =>
-  import('../components/workbench/PipelineView').then(m => ({ default: m.PipelineView }))
-);
-export const KnowledgeView = React.lazy(() =>
-  import('../components/workbench/KnowledgeView').then(m => ({ default: m.KnowledgeView }))
-);
-export const AnalyzeView = React.lazy(() =>
-  import('../components/workbench/AnalyzeView').then(m => ({ default: m.AnalyzeView }))
-);
-export const WorkbenchSettingsView = React.lazy(() =>
-  import('../components/workbench/SettingsView').then(m => ({ default: m.SettingsView }))
 );

@@ -101,18 +101,32 @@ class TestKLQueue:
         stats2 = q.stats()
         assert "running" not in stats2 or stats2["running"] == 0
 
-    def test_mark_error_and_retry(self, tmp_db):
+    def test_mark_error_retries_then_goes_terminal(self, tmp_db):
+        """失败先重试, 耗尽才进死信视图。
+
+        原用例断言"第一次 mark_error 就出现在 errors()", 那是无重试出口设计的
+        契约化: due() 只取 pending, 而 mark_error 既不写退避也不比较
+        max_attempts → 实测 2 个任务在 error 态搁死 2-3 天, attempts 永远停在 1/5。
+        """
         q = KLQueue(tmp_db)
         past = datetime.now(timezone.utc) - timedelta(seconds=10)
         q.enqueue_unique("item-3", "kl:refine", past)
-        tasks = q.due(limit=1)
-        assert len(tasks) == 1
-        q.mark_error(tasks[0]["id"], "test error")
+        qid = q.due(limit=1)[0]["id"]
+
+        # 未耗尽重试 → 回 pending + 退避, 不该污染死信视图
+        assert q.mark_error(qid, "transient") == "retry"
+        assert q.errors() == []
+        row = tmp_db.execute("SELECT status, next_run_at FROM kl_queue WHERE id = ?", (qid,)).fetchone()
+        assert row["status"] == "pending"
+        assert datetime.fromisoformat(row["next_run_at"]) > datetime.now(timezone.utc)
+
+        # 耗尽重试 → error 终态, 进死信视图, 仍可人工 reset
+        tmp_db.execute("UPDATE kl_queue SET attempts = max_attempts WHERE id = ?", (qid,))
+        assert q.mark_error(qid, "test error") == "terminal"
         errors = q.errors()
         assert len(errors) >= 1
         assert errors[0]["last_error"] == "test error"
-        count = q.reset_errors()
-        assert count >= 1
+        assert q.reset_errors() >= 1
 
 
 # ---------------------------------------------------------------------------

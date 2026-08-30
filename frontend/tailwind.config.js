@@ -57,7 +57,6 @@ export default {
           'Fira Code',
           'monospace',
         ],
-        'serif': ['Newsreader', 'Georgia', 'Times New Roman', 'Songti SC', 'STSong', 'SimSun', 'serif'],
       },
       fontWeight: {
         normal:  '400',

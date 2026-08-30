@@ -24,18 +24,30 @@ router = APIRouter(prefix="/api/deep-read", tags=["deep-read"])
 # ── Response Models ──────────────────────────────────────────
 
 
-class DeepReadSectionResponse(BaseModel):
-    summary: str = ""
-    impact: str = ""
-    relations: str = ""
-    risks: str = ""
+class DeepReadSectionItem(BaseModel):
+    """一节解读。``tone`` ∈ {mint, amber, red} (哨兵终端语义三色锁)。"""
+
+    key: str
+    title: str
+    tone: str = "mint"
+    body: str = ""
+
+
+# 旧行 (v1 envelope 之前的扁平 4 键) 的标题兜底, 保证历史缓存仍渲染出小标题
+_LEGACY_SECTION_TITLES: dict[str, str] = {
+    "summary": "摘要",
+    "impact": "影响",
+    "relations": "关联",
+    "risks": "风险",
+}
 
 
 class DeepReadResponse(BaseModel):
     entity_type: str
     entity_id: str
     content_md: str
-    sections: DeepReadSectionResponse
+    category: str = ""
+    sections: list[DeepReadSectionItem]
     sections_json: str
     provider: str
     model: str
@@ -47,20 +59,45 @@ class DeepReadResponse(BaseModel):
     updated_at: str
 
 
-def _to_response(item_dict: dict[str, Any]) -> DeepReadResponse:
+def _build_sections(item_dict: dict[str, Any]) -> list[DeepReadSectionItem]:
+    """分节渲染源: 优先 v1 有序定义, 旧行回落扁平键 + 中文标题表。"""
+    defs = item_dict.get("section_defs") or []
+    if isinstance(defs, list) and defs:
+        out = []
+        for d in defs:
+            if not isinstance(d, dict) or not d.get("key"):
+                continue
+            out.append(
+                DeepReadSectionItem(
+                    key=str(d["key"]),
+                    title=str(d.get("title") or d["key"]),
+                    tone=str(d.get("tone") or "mint"),
+                    body=str(d.get("body") or ""),
+                )
+            )
+        if out:
+            return out
+
     sections_raw = item_dict.get("sections") or {}
     if not isinstance(sections_raw, dict):
-        sections_raw = {}
+        return []
+    return [
+        DeepReadSectionItem(
+            key=str(k),
+            title=_LEGACY_SECTION_TITLES.get(str(k), str(k)),
+            body=str(v or ""),
+        )
+        for k, v in sections_raw.items()
+    ]
+
+
+def _to_response(item_dict: dict[str, Any]) -> DeepReadResponse:
     return DeepReadResponse(
         entity_type=item_dict.get("entity_type", ""),
         entity_id=item_dict.get("entity_id", ""),
         content_md=item_dict.get("content_md", ""),
-        sections=DeepReadSectionResponse(
-            summary=str(sections_raw.get("summary", "")),
-            impact=str(sections_raw.get("impact", "")),
-            relations=str(sections_raw.get("relations", "")),
-            risks=str(sections_raw.get("risks", "")),
-        ),
+        category=str(item_dict.get("category") or ""),
+        sections=_build_sections(item_dict),
         sections_json=item_dict.get("sections_json", "{}"),
         provider=str(item_dict.get("provider", "")),
         model=str(item_dict.get("model", "")),

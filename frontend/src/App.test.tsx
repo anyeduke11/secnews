@@ -98,8 +98,8 @@ vi.mock('./hooks/useFeatureFlags', () => ({
 
 // v0.7 Step 1: 移出依赖异步 Navigate/懒加载的路由 (用端到端 e2e 验证)
 const ROUTES = [
-  // v0.7: /category/:cat 跳 /workbench?category=... (workbench_ui gate 控制, 测试环境未开)
-  // 移出 ROUTES (依赖异步 Navigate + 条件 gate, MemoryRouter 渲染不稳定, 端到端 e2e 验证)
+  // v0.7: /category/:cat 跳哨兵首页 (workbench 已于 v0.6.3 并入 SecNews 并删除)
+  // 移出 ROUTES (依赖异步 Navigate, MemoryRouter 渲染不稳定, 端到端 e2e 验证)
   // { path: '/category/ai', label: /正在排版|工作台/ },
   { path: '/todos', label: /正在排版/ },
   { path: '/history', label: /正在排版/ },

@@ -15,10 +15,12 @@ export interface FeatureFlags {
   sync: boolean;
   techStack: boolean;
   securityGraph: boolean;
+  /** v0.6: SecNews 安全看板 */
+  secnews: boolean;
   /** v0.6: CRM 业绩座舱 (security-cockpit 方案 C) */
   crm: boolean;
-  /** v0.6.1: Phase 4 工作台 UI (5 视图统一壳) */
-  workbenchUi: boolean;
+  /** v0.6: dsh 桥接层 (关闭时 /api/dsh/* 404, 界面需如实呈现) */
+  dsh: boolean;
 }
 
 export const DEFAULT_FLAGS: FeatureFlags = {
@@ -28,8 +30,9 @@ export const DEFAULT_FLAGS: FeatureFlags = {
   sync: true,
   techStack: false,
   securityGraph: false,
+  secnews: true,
   crm: false,
-  workbenchUi: true,
+  dsh: false,
 };
 
 const CACHE_KEY = 'hotspot-feature-flags';
@@ -73,8 +76,9 @@ async function fetchFlags(): Promise<FeatureFlags> {
       sync: !!data.sync,
       techStack: !!(data.techStack ?? data.tech_stack),
       securityGraph: !!(data.securityGraph ?? data.security_graph),
+      secnews: !!(data.secnews ?? true),
       crm: !!data.crm,
-      workbenchUi: !!(data.workbench_ui ?? data.workbenchUi ?? true),
+      dsh: !!data.dsh,
     };
     writeCache(flags);
     return flags;

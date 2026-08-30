@@ -4,9 +4,11 @@
 
 行为:
 - 表里已有 → 直接返回 (cache 命中, 不调 LLM)
-- force=True 或不存在 → 按 entity_type 拉原文 → 拼 prompt → 调 LLM → 解析 4 节
-  JSON → UPSERT deep_reads → 返回
+- force=True 或不存在 → 按 entity_type 拉原文 → 按文章 category 选视角 →
+  拼 prompt → 调 LLM → 解析动态分节 JSON → UPSERT deep_reads → 返回
 - LLM 失败/解析失败 → 抛 ``DeepReadError``, **不写表** (避免半成品污染)
+
+分节集合由 ``ai_hub.prompts.DEEP_READ_PROFILES`` 按 category 决定, 不再固定 4 节。
 """
 from __future__ import annotations
 
@@ -20,41 +22,112 @@ from backend.repository.deepread_repo import DeepReadItem, DeepReadRepository
 # 模块级绑定 (让 ``patch("backend.services.deep_read_service.llm_service")`` 可用):
 # 直接 import 单例会让函数体内的 import 重新覆盖 mock, 因此用 ai_hub.llm_service 路径访问。
 from backend.services import ai_hub as _ai_hub_mod
+from backend.services.ai_hub.prompts import (
+    DEEP_READ_PROFILE_VERSION,
+    _build_deep_read_prompt,
+    deep_read_sections,
+)
+
+# 走 model_router 的 HEAVY 档 (→ t3_summary → 有凭据的 provider)。
+# 历史上本服务不传 task, 被 generate() 内部写死成 "summary" → FLASH 档 →
+# 未运行的 ollama, 导致 deep_reads 表长期 0 行。
+DEEP_READ_TASK = "deep_read"
+# 输出上限: sensenova 实测约 80ms/token (推理已关) × provider 超时 90s 反推,
+# 再高会在到达前被截断。配合 prompt 里"每节 60~120 字"约束。
+DEEP_READ_MAX_TOKENS = 1100
+DEEP_READ_TEMPERATURE = 0.3
 
 
 class DeepReadError(Exception):
     """DeepRead 流程失败 (LLM 调用 / 解析 / 原文缺失)。"""
 
 
-# ── Prompt 模板 ──────────────────────────────────────────────
-
-_PROMPT_INSTRUCTION = """你是一名资深安全研究员, 正在分析下面这条信息, 生成 4 节深度分析报告。
-
-严格要求:
-1. **必须**返回合法 JSON, 字段严格匹配下方 schema, 不可省略任意 key。
-2. 每节内容用 markdown 格式 (可含列表 / 粗体 / 代码块), 但不要套外层 markdown fence。
-3. 简洁直接, 每节 80~200 字, 避免空话/重复条目/无信息量总结。
-4. "summary" 节必须有具体技术内容 (CVE 编号/受影响组件/时间线/关键 IoC)。
-5. "impact" 节必须区分影响范围 (全球/区域/特定行业) 与受影响对象 (终端/服务器/云/IoT)。
-6. "relations" 节必须列出 ≥1 个可验证关联 (CVE ↔ 家族 / 漏洞 ↔ 利用框架 / 事件 ↔ actor)。
-7. "risks" 节必须给出 ≥1 条具体可操作缓解建议 (补丁版本/配置项/监控规则)。
-
-JSON schema:
-{
-  "summary": "<本条最核心的事件摘要, 含关键时间/技术/对象>",
-  "impact": "<影响范围与对象的层次化分析>",
-  "relations": "<关联家族/技术/事件的证据链>",
-  "risks": "<威胁评估与可操作缓解建议>"
-}
-
-待分析内容:
-"""
+# ── 分节解析 (按分类的动态节集合) ─────────────────────────
 
 
-def _build_prompt(entity_type: str, entity_id: str, content: str) -> str:
-    """组装 prompt (头部指令 + 来源元信息 + 正文)。"""
-    header = f"[来源类型] {entity_type}\n[来源 ID] {entity_id}\n\n"
-    return _PROMPT_INSTRUCTION + header + content[:8000]
+def _parse_sections(raw: str, section_defs: list[dict[str, str]]) -> dict[str, str]:
+    """从 LLM 原始输出抽取分节 JSON, 容错 markdown fence + 文本包裹。"""
+    import re
+
+    text = raw.strip()
+    keys = [s["key"] for s in section_defs]
+
+    def _try(candidate: str) -> dict[str, str] | None:
+        try:
+            data = json.loads(candidate)
+        except json.JSONDecodeError:
+            return None
+        return _normalize_sections(data, keys) if isinstance(data, dict) else None
+
+    # 1) 直接 JSON 解析
+    parsed = _try(text)
+    if parsed is not None:
+        return parsed
+
+    # 2) 去掉 ```json ... ``` 包裹
+    fence_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    if fence_match:
+        parsed = _try(fence_match.group(1))
+        if parsed is not None:
+            return parsed
+
+    # 3) 截取首个 { 到最后一个 } 之间
+    if "{" in text and "}" in text:
+        parsed = _try(text[text.index("{"): text.rindex("}") + 1])
+        if parsed is not None:
+            return parsed
+
+    # 4) 全失败 — 整段塞首节, 其余空
+    logger.warning(
+        "DeepRead JSON 解析失败, fallback 到整段首节 (raw=%d 字符, 期望 %d 节)",
+        len(text), len(keys),
+    )
+    fallback = dict.fromkeys(keys, "")
+    if keys:
+        fallback[keys[0]] = text[:1000]
+    return fallback
+
+
+def _normalize_sections(data: dict[str, Any], keys: list[str]) -> dict[str, str]:
+    """统一各节为 str (LLM 可能返回 list / None / 多余键)。"""
+    out: dict[str, str] = {}
+    for key in keys:
+        val = data.get(key, "")
+        if val is None:
+            val = ""
+        elif isinstance(val, list):
+            val = "\n".join(str(x) for x in val)
+        else:
+            val = str(val)
+        out[key] = val.strip()
+    return out
+
+
+def _build_payload(
+    category: str | None,
+    sections: dict[str, str],
+) -> tuple[str, str]:
+    """分节 → (sections_json, content_md)。
+
+    ``sections_json`` 自描述 (schema / category / profile_version / 有序 sections),
+    因此新增或调整分节**不需要数据库迁移** —— 迁移 075 当初选 JSON 串就是为了这个。
+    """
+    defs = deep_read_sections(category)
+    ordered = [{**d, "body": sections.get(d["key"], "")} for d in defs]
+    sections_json = json.dumps(
+        {
+            "schema": 1,
+            "category": category or "general",
+            "profile_version": DEEP_READ_PROFILE_VERSION,
+            "sections": ordered,
+        },
+        ensure_ascii=False,
+    )
+    lines = [
+        f"## {d['title']}\n\n{sections.get(d['key'], '').strip() or '_(本节暂无内容)_'}\n"
+        for d in defs
+    ]
+    return sections_json, "\n".join(lines)
 
 
 # ── 原文拉取 ──────────────────────────────────────────────────
@@ -76,6 +149,11 @@ def _fetch_source(entity_type: str, entity_id: str) -> tuple[str, dict[str, str]
         if item is None:
             raise DeepReadError(f"hotspot not found: {entity_id}")
         metadata["title"] = str(getattr(item, "title", "") or "")
+        metadata["source"] = str(getattr(item, "source", "") or "")
+        # category 决定视角 profile (persona / 专属节 / 原文预算)。
+        # 兼容枚举与裸字符串两种落值形态。
+        raw_cat = getattr(item, "category", None)
+        metadata["category"] = str(getattr(raw_cat, "value", raw_cat) or "")
         # HotspotItem 字段探测: summary / content / body
         body = str(
             getattr(item, "summary", "")
@@ -100,86 +178,14 @@ def _fetch_source(entity_type: str, entity_id: str) -> tuple[str, dict[str, str]
     )
 
 
-# ── JSON 解析 (容错) ─────────────────────────────────────────
-
-
-def _parse_sections(raw: str) -> dict[str, str]:
-    """从 LLM 原始输出抽取 4 节 JSON, 容错 markdown fence + 文本包裹。"""
-    import re
-
-    text = raw.strip()
-
-    # 1) 直接 JSON 解析
-    try:
-        data = json.loads(text)
-        if isinstance(data, dict):
-            return _normalize_sections(data)
-    except json.JSONDecodeError:
-        pass
-
-    # 2) 去掉 ```json ... ``` 包裹
-    fence_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if fence_match:
-        try:
-            data = json.loads(fence_match.group(1))
-            if isinstance(data, dict):
-                return _normalize_sections(data)
-        except json.JSONDecodeError:
-            pass
-
-    # 3) 截取首个 { 到最后一个 } 之间
-    if "{" in text and "}" in text:
-        try:
-            start, end = text.index("{"), text.rindex("}")
-            data = json.loads(text[start:end + 1])
-            if isinstance(data, dict):
-                return _normalize_sections(data)
-        except (ValueError, json.JSONDecodeError):
-            pass
-
-    # 4) 全失败 — 整段塞 summary, 其余空
-    logger.warning("DeepRead 4 节 JSON 解析失败, fallback 到整段 summary (raw=%d 字符)", len(text))
-    return {"summary": text[:1000], "impact": "", "relations": "", "risks": ""}
-
-
-def _normalize_sections(data: dict[str, Any]) -> dict[str, str]:
-    """统一 4 节为 str (LLM 可能返回 list / None)。"""
-    out: dict[str, str] = {}
-    for key in ("summary", "impact", "relations", "risks"):
-        val = data.get(key, "")
-        if val is None:
-            val = ""
-        elif isinstance(val, list):
-            val = "\n".join(str(x) for x in val)
-        else:
-            val = str(val)
-        out[key] = val.strip()
-    return out
-
-
-def _sections_to_markdown(sections: dict[str, str]) -> str:
-    """4 节 JSON → 完整 markdown 文档 (供前端整段渲染 / 下载)。"""
-    titles = {
-        "summary": "摘要",
-        "impact": "影响",
-        "relations": "关联",
-        "risks": "风险",
-    }
-    lines: list[str] = []
-    for key in ("summary", "impact", "relations", "risks"):
-        title = titles[key]
-        body = sections.get(key, "").strip()
-        if not body:
-            body = "_(本节暂无内容)_"
-        lines.append(f"## {title}\n\n{body}\n")
-    return "\n".join(lines)
-
-
 # ── 入口 ──────────────────────────────────────────────────────
 
 
 class DeepReadService:
-    """DeepRead 4 节分析: hotspot / cve / wiki 跨实体一致接口。"""
+    """DeepRead 分类型深度解读: hotspot / wiki 跨实体一致接口。
+
+    分节集合由文章 category 决定 (见 ``ai_hub.prompts.DEEP_READ_PROFILES``)。
+    """
 
     def __init__(self) -> None:
         self.repo = DeepReadRepository()
@@ -193,7 +199,7 @@ class DeepReadService:
         """获取或生成 DeepRead。
 
         - force=False 且表里有 → 直接返回
-        - 否则拉原文 → 调 LLM → 4 节 JSON → UPSERT
+        - 否则拉原文 → 按 category 选视角 → 调 LLM → 动态分节 → UPSERT
         """
         existing = self.repo.get(entity_type, entity_id)
         if existing is not None and not force:
@@ -201,15 +207,29 @@ class DeepReadService:
 
         body, metadata = _fetch_source(entity_type, entity_id)
 
-        # 拼 prompt
+        # 视角由文章分类决定; 取不到分类回落通用视角而不是失败。
+        category = metadata.get("category") or None
+        section_defs = deep_read_sections(category)
         content = body if body else "(原文为空, 仅依据 ID 与类型生成)"
-        prompt = _build_prompt(entity_type, entity_id, content)
+        prompt = _build_deep_read_prompt(category, metadata, content)
 
         # 调 LLM (走 ai_hub.LLMService.generate, 失败抛 DeepReadError)
         # 通过模块属性访问 (而非 from-import) 以保持测试 mock 生效。
+        #
+        # task 必须显式传 "deep_read": 历史上 generate() 内部写死 "summary",
+        # 会被 model_router 分到 FLASH 档 → t3_chunk_summary → 未运行的 ollama,
+        # 于是深度阅读从未成功过 (deep_reads 表 0 行)。
+        # max_tokens / temperature 同样只能由调用方给 —— TaskOverride 里这两个值
+        # 今天不下发到请求体。上限按 sensenova 实测吞吐 (~80ms/token, 推理已关)
+        # 与 90s provider 超时反推, 再高会被截断。
         llm_service = _ai_hub_mod.llm_service
         t0 = time.monotonic()
-        raw = await llm_service.generate(prompt)
+        raw = await llm_service.generate(
+            prompt,
+            task=DEEP_READ_TASK,
+            max_tokens=DEEP_READ_MAX_TOKENS,
+            temperature=DEEP_READ_TEMPERATURE,
+        )
         latency_ms = int((time.monotonic() - t0) * 1000)
 
         if not raw or not raw.strip():
@@ -217,13 +237,13 @@ class DeepReadService:
                 f"LLM 返回空 (entity={entity_type}/{entity_id}); 可能所有 provider 不可用"
             )
 
-        sections = _parse_sections(raw)
-        content_md = _sections_to_markdown(sections)
-        sections_json = json.dumps(sections, ensure_ascii=False)
+        sections = _parse_sections(raw, section_defs)
+        sections_json, content_md = _build_payload(category, sections)
 
         # provider/model 记账: generate() 内部不暴露, 用 router 推荐 + 当前 model 推导。
-        # 若 LLM 实际跑了 fallback 链的不同 provider, 这里记的是预期值 — 仍可追溯 (审计/对账)。
-        routed = llm_service.resolve_provider_for_task("summary")
+        # 必须用**同一个** DEEP_READ_TASK 查询, 否则记下来的 provider/model 与实际
+        # 跑的那条链不是一条 (历史上这里写死 "summary", 记的是 FLASH 档)。
+        routed = llm_service.resolve_provider_for_task(DEEP_READ_TASK)
         if routed:
             provider, model = routed
         else:

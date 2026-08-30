@@ -1,15 +1,17 @@
 /**
  * SecNewsShell — 安全看板壳组件
  *
- * 三层导航 + 子路由容器。提供 SecNews 内部的 Tab 切换
- * (Feed / Pipeline / Knowledge) 以及 Outlet 渲染区。
+ * Tab 导航 + 子路由容器 + 底部 StatusBar。
+ * v0.6.3: workbench 5 视图并入 — 研判 tab (AnalyzeView) + StatusBar 落位此处。
  */
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { StatusBar } from './StatusBar';
 
 const TABS = [
   { key: 'feed', label: '安全资讯', path: '/secnews/feed' },
   { key: 'pipeline', label: '管线观测', path: '/secnews/pipeline' },
   { key: 'knowledge', label: '知识库', path: '/secnews/knowledge' },
+  { key: 'analyze', label: '研判', path: '/secnews/analyze' },
   { key: 'analytics', label: '分析', path: '/secnews/analytics' },
   { key: 'settings', label: '设置', path: '/secnews/settings' },
 ] as const;
@@ -47,6 +49,9 @@ export function SecNewsShell() {
       <div className="flex-1 overflow-auto p-4">
         <Outlet />
       </div>
+
+      {/* 底部状态栏 (dsh / 管线队列 / token 日用量) */}
+      <StatusBar />
     </div>
   );
 }

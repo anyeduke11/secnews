@@ -17,10 +17,11 @@ import * as P from './lazy-imports';
 //   ./ROUTE_REGISTRY.md。新增 <Route> 必须同时登记该表, 否则 CI 会 fail。
 //   §三记录了 P1-1 修复的 7 个 mismatch (/api/llm/digest / /api/soul 等)。
 
-/** 旧路由 /category/:cat 兼容 (v0.7.0: 跳 /workbench 而非已删的 /data) */
+/** 旧路由 /category/:cat 兼容 (v0.6.3: workbench 已并入 SecNews, 跳哨兵首页) */
 function CategoryRedirect() {
   const { cat } = useParams<{ cat: string }>();
-  return <Navigate to={`/workbench?category=${cat}`} replace />;
+  void cat;
+  return <Navigate to="/" replace />;
 }
 
 /** Suspense 全局加载占位 (不进行白屏) */
@@ -62,7 +63,7 @@ export function AppRoutes() {
 
       {/* Phase 1A: 嵌套 Layout (PageLayout 含 ToastProvider + 外层容器) */}
       <Route element={<PageLayout />}>
-        {/* v0.7.0 (D.8-D.10): 三层架构 (data/judge/action) 物理删除 — workbench 承接剩余功能入口 */}
+        {/* v0.7.0 (D.8-D.10): 三层架构 (data/judge/action) 物理删除 — v0.6.3 起 SecNews 为统一工作台 */}
         {/* ── 旧路由兼容 (v0.7 Step 1: workbench_legacy=false 关闭老路由) ── */}
         <Route path="/category/:cat" element={<CategoryRedirect />} />
         <Route path="/weekly-report" element={<Navigate to="/report" replace />} />
@@ -106,14 +107,13 @@ export function AppRoutes() {
             )}
           </>
         )}
-        {/* SecNews 安全看板 (S0-8) */}
+        {/* SecNews 安全看板 (S0-8) — v0.6.3 workbench 5 视图并入 (研判 tab + 状态栏) */}
         <Route path="/secnews" element={<Suspense fallback={<PageFallback />}><P.SecNewsShell /></Suspense>}>
           <Route index element={<Navigate to="feed" replace />} />
           <Route path="feed" element={<Suspense fallback={<PageFallback />}><P.SecNewsFeed /></Suspense>} />
           <Route path="pipeline" element={<Suspense fallback={<PageFallback />}><P.SecNewsPipeline /></Suspense>} />
           <Route path="knowledge" element={<Suspense fallback={<PageFallback />}><P.SecNewsKnowledge /></Suspense>} />
-          <Route path="inbox" element={<Suspense fallback={<PageFallback />}><P.SecNewsInbox /></Suspense>} />
-          <Route path="ledger" element={<Suspense fallback={<PageFallback />}><P.SecNewsLedger /></Suspense>} />
+          <Route path="analyze" element={<Suspense fallback={<PageFallback />}><P.SecNewsAnalyze /></Suspense>} />
           <Route path="analytics" element={<Suspense fallback={<PageFallback />}><P.SecNewsAnalytics /></Suspense>} />
           <Route path="settings" element={<Suspense fallback={<PageFallback />}><P.SecNewsSettings /></Suspense>} />
         </Route>
@@ -121,18 +121,6 @@ export function AppRoutes() {
         {/* CRM 业绩座舱 (v0.6 security-cockpit 方案 C, feature gate: crm) */}
         {features.crm && (
           <Route path="/crm" element={<Suspense fallback={<PageFallback />}><P.CrmPage onBack={goHome} /></Suspense>} />
-        )}
-
-        {/* Phase 4 工作台 (v0.6.1) — 5 视图统一壳, feature gate: workbench_ui */}
-        {features.workbenchUi && (
-          <Route path="/workbench" element={<Suspense fallback={<PageFallback />}><P.WorkbenchPage /></Suspense>}>
-            <Route index element={<Navigate to="briefing" replace />} />
-            <Route path="briefing" element={<Suspense fallback={<PageFallback />}><P.BriefingView /></Suspense>} />
-            <Route path="pipeline" element={<Suspense fallback={<PageFallback />}><P.PipelineView /></Suspense>} />
-            <Route path="knowledge" element={<Suspense fallback={<PageFallback />}><P.KnowledgeView /></Suspense>} />
-            <Route path="analyze" element={<Suspense fallback={<PageFallback />}><P.AnalyzeView /></Suspense>} />
-            <Route path="settings" element={<Suspense fallback={<PageFallback />}><P.WorkbenchSettingsView /></Suspense>} />
-          </Route>
         )}
 
         {/* v0.7.1: 未匹配路径回落到哨兵首页 (扩展关闭时旧深链不白屏) */}

@@ -138,16 +138,23 @@ class TestSourceStatsRepository:
         assert row["status"] == "active"  # 不主动降级 stale → active
         assert row["total_items"] == 3
 
-    def test_dead_status_persists_after_yield(self, temp_db):
-        """标 dead 后即使有产出也不会自动恢复为 active。"""
+    def test_dead_source_revives_on_next_yield(self, temp_db):
+        """标 dead 后一旦有产出必须自动回 active。
+
+        原用例断言"dead 后即使有产出也不恢复, 运维需手动 reset" —— 那正是单向
+        棘轮的契约化: 实测 16 个当轮仍有产出的源永久显示 dead (FreeBuf
+        total_items=66968, last_seen_at 距写入不足 1 分钟), 让前端"119 离线"失真。
+        运维若要停用某源, 正确工具是 crawler_sources.enabled=0 (不再采集),
+        而不是让健康面板把有产出的源谎报成离线。
+        """
         repo = SourceStatsRepository()
         for _ in range(6):
             repo.upsert_after_run("bid", "源D", "https://d/", 0, "err")
         assert repo.get_one("bid", "源D")["status"] == "dead"
         repo.upsert_after_run("bid", "源D", "https://d/", 1, None)
-        # status 仍为 dead (运维需手动 reset)
-        assert repo.get_one("bid", "源D")["status"] == "dead"
-        assert repo.get_one("bid", "源D")["zero_yield_runs"] == 0
+        row = repo.get_one("bid", "源D")
+        assert row["status"] == "active"
+        assert row["zero_yield_runs"] == 0
 
     def test_mark_dead_manual(self, temp_db):
         repo = SourceStatsRepository()
@@ -448,9 +455,13 @@ class TestEvaluateSourceCoverage:
         assert len(cov.categories) == 1
         assert cov.categories[0].total_sources == 0
 
-    def test_resume_after_yield_resets_status(self, temp_db):
-        """X 累计 3 次 0 → stale; 之后 1 次有产出 → zero_yield=0 但 status
-        仍为 stale（不自动降级，需要运维 reset）。"""
+    def test_resume_after_yield_restores_active(self, temp_db):
+        """X 累计 3 次 0 → stale; 之后 1 次有产出 → zero_yield=0 且回 active。
+
+        原断言为"status 仍为 stale（不自动降级，需要运维 reset）", 与 dead 单向
+        棘轮同源: 状态必须是"最近是否有产出"的事实函数, 否则面板会把正在产出的
+        源长期显示为不健康。
+        """
         for i in range(3):
             report = _make_report(
                 [
@@ -474,4 +485,4 @@ class TestEvaluateSourceCoverage:
         repo = SourceStatsRepository()
         row = repo.get_one("bid", "Z")
         assert row["zero_yield_runs"] == 0
-        assert row["status"] == "stale"  # 不自动降级
+        assert row["status"] == "active"

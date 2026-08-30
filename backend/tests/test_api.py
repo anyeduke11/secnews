@@ -122,7 +122,7 @@ def client(temp_db):
     @app.get("/")
     async def root():
         return {
-            "name": "热点地图 API",
+            "name": "热点地图 - SecNews API",
             "version": API_VERSION,
             "docs": "/docs",
             "health": "/api/health",
@@ -143,7 +143,7 @@ def test_root(client):
     r = client.get("/")
     assert r.status_code == 200
     data = r.json()
-    assert data["name"] == "热点地图 API"
+    assert data["name"] == "热点地图 - SecNews API"
     assert data["version"] == API_VERSION
     assert data["health"] == "/api/health"
 

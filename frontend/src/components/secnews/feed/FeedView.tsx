@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { SecNewsHeader } from '../layout/SecNewsHeader';
+import { DigestCard } from './DigestCard';
 import { FeedCard } from './FeedCard';
 import { FeedFilters } from './FeedFilters';
 
@@ -23,22 +24,28 @@ export function FeedView() {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState('');
   const [keyword, setKeyword] = useState('');
 
   const fetchFeed = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (category) params.set('category', category);
       if (keyword) params.set('keyword', keyword);
       params.set('limit', '30');
       const res = await fetch(`/api/secnews/feed?${params}`);
+      if (!res.ok) {
+        setError(`资讯加载失败 (${res.status})`);
+        return;
+      }
       const data = await res.json();
       setItems(data.items ?? []);
       setTotal(data.total ?? 0);
     } catch {
-      setItems([]);
+      setError('资讯加载失败: 网络或后端不可达');
     } finally {
       setLoading(false);
     }
@@ -53,6 +60,12 @@ export function FeedView() {
   return (
     <div>
       <SecNewsHeader title="安全资讯" onRefresh={fetchFeed} refreshing={loading} />
+
+      {/* 官方每日简报 (workbench BriefingView 并入) */}
+      <div className="mb-4">
+        <DigestCard />
+      </div>
+
       <FeedFilters category={category} keyword={keyword} onCategoryChange={setCategory} onKeywordChange={setKeyword} />
 
       {/* 统计行 */}
@@ -68,7 +81,16 @@ export function FeedView() {
         </div>
       )}
 
-      {!loading && items.length === 0 && (
+      {error && !loading && items.length === 0 && (
+        <div className="py-16 text-center">
+          <p className="text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
+            检查后端服务后点击右上角刷新重试
+          </p>
+        </div>
+      )}
+
+      {!error && !loading && items.length === 0 && (
         <div className="py-16 text-center">
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>暂无资讯</p>
           <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>

@@ -5,7 +5,7 @@ Phase 16 — Hybrid AI 配置文件校验。
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, model_validator
@@ -26,6 +26,8 @@ class ProviderConfig(BaseModel):
     models: ProviderModels
     timeout_seconds: int = 30
     max_concurrent: int = 4
+    # provider 特有的非标准请求体开关 (如关推理)。默认不改变请求体。
+    extra_request_body: dict[str, Any] | None = None
 
 
 class TaskOverride(BaseModel):

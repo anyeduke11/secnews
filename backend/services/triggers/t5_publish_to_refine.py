@@ -103,8 +103,26 @@ class T5Trigger:
         return backup_path
 
     def _mark_stale(self, item_id: str) -> None:
-        """Set stale_at to now for the given item."""
+        """Set ``stale_at`` to now when the column exists; otherwise skip.
+
+        ``knowledge_items`` 的真实 schema **没有** ``stale_at`` 列, 无条件 UPDATE 会
+        让用户可触发的回滚整条失败 —— 单测此前用 ``ALTER TABLE ... ADD COLUMN
+        stale_at`` 补出该列, 恰好掩盖了这个崩溃。回滚时刻已由
+        :meth:`_update_lifecycle` 写入的 ``updated_at`` 与 ``wiki_events`` 承载,
+        因此缺列时降级为 no-op, 而不是让主流程失败。
+        """
         conn = get_connection()
+        cols = {
+            str(r["name"])
+            for r in conn.execute("PRAGMA table_info(knowledge_items)").fetchall()
+        }
+        if "stale_at" not in cols:
+            logger.debug(
+                "knowledge_items.stale_at absent — skipping stale stamp for %s "
+                "(rollback time is carried by updated_at / wiki_events)",
+                item_id,
+            )
+            return
         now_iso = datetime.now(timezone.utc).isoformat()
         conn.execute(
             "UPDATE knowledge_items SET stale_at = ? WHERE id = ?",

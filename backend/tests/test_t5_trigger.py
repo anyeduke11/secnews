@@ -44,13 +44,8 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setattr(config, "db_path", test_db)
     db_module.close_db()
     db_module.init_db()
-    # stale_at column is not yet in the migration chain; add it here so
-    # the T5 trigger's _mark_stale SQL works.
-    conn = get_connection()
-    try:
-        conn.execute("ALTER TABLE knowledge_items ADD COLUMN stale_at TEXT")
-    except Exception:
-        pass  # already exists (e.g. if migration catches up later)
+    # 刻意不补 stale_at 列: 测试库与生产迁移保持一致,
+    # 缺列时的降级契约由 test_t5_stale_marked 显式断言。
     yield test_db
     db_module.close_db()
 
@@ -184,10 +179,16 @@ def test_t5_backup_created(temp_db, knowledge_dir):
 
 
 # ---------------------------------------------------------------------------
-# T5.3 — stale_at timestamp is set
+# T5.3 — 回滚在真实 schema 上必须成功 (staleness 时刻由 updated_at 承载)
 # ---------------------------------------------------------------------------
 
 def test_t5_stale_marked(temp_db, knowledge_dir):
+    """回滚不得因缺列失败; 有 stale_at 列时才写审计戳。
+
+    生产 ``knowledge_items`` 没有 ``stale_at`` 列 —— 旧用例依赖 fixture 里的
+    ``ALTER TABLE ADD COLUMN stale_at`` 才成立, 等于断言一个不存在的功能, 并
+    掩盖了 ``api/kl_rollback_api.py`` 这条用户可触发路径会整条崩溃的事实。
+    """
     items_dir, _backups_dir = knowledge_dir
     conn = get_connection()
     _insert_publish_item(conn, "item-3")
@@ -195,15 +196,26 @@ def test_t5_stale_marked(temp_db, knowledge_dir):
     conn.commit()
 
     t5 = _trigger()
-    t5.rollback("item-3")
+    result = t5.rollback("item-3")
 
     row = conn.execute(
-        "SELECT stale_at FROM knowledge_items WHERE id = ?", ("item-3",)
+        "SELECT lifecycle, updated_at FROM knowledge_items WHERE id = ?", ("item-3",)
     ).fetchone()
-    assert row["stale_at"] is not None
-    # stale_at should be a valid ISO timestamp
-    dt = datetime.fromisoformat(row["stale_at"])
-    assert dt.tzinfo is not None  # should be timezone-aware
+    assert result["new_lifecycle"] == "kl:refine"
+    assert row["lifecycle"] == "kl:refine"
+    # 回滚时刻至少落在 updated_at 上
+    assert datetime.fromisoformat(row["updated_at"]).tzinfo is not None
+
+    cols = {
+        str(r["name"])
+        for r in conn.execute("PRAGMA table_info(knowledge_items)").fetchall()
+    }
+    if "stale_at" in cols:  # 未来迁移补上该列时, 审计戳必须写入
+        stamped = conn.execute(
+            "SELECT stale_at FROM knowledge_items WHERE id = ?", ("item-3",)
+        ).fetchone()
+        assert stamped["stale_at"] is not None
+        assert datetime.fromisoformat(stamped["stale_at"]).tzinfo is not None
 
 
 # ---------------------------------------------------------------------------

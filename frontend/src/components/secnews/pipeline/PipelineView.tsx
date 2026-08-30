@@ -28,21 +28,31 @@ interface PipelineStats {
 export function PipelineView() {
   const [stats, setStats] = useState<PipelineStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchStats = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/secnews/pipeline');
-      const data = await res.json();
-      setStats(data);
+      if (!res.ok) {
+        setError(`管线数据加载失败 (${res.status})`);
+        return;
+      }
+      setStats(await res.json());
     } catch {
-      setStats(null);
+      setError('管线数据加载失败: 网络或后端不可达');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => { fetchStats(); }, []);
+  // 30s 自动刷新 (workbench/PipelineView 行为承接)
+  useEffect(() => {
+    const timer = window.setInterval(fetchStats, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   if (loading && !stats) {
     return <div className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>加载中...</div>;
@@ -51,6 +61,11 @@ export function PipelineView() {
   return (
     <div>
       <SecNewsHeader title="管线观测" onRefresh={fetchStats} refreshing={loading} />
+      {error && !loading && !stats && (
+        <div className="py-8 text-center">
+          <p className="text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>
+        </div>
+      )}
       {stats && (
         <div className="flex flex-col gap-4">
           <FunnelBar funnel={stats.funnel} />

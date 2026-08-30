@@ -1,8 +1,9 @@
 /**
- * StatusBar — 工作台顶部状态栏 (Phase 4 v0.6)
+ * StatusBar — SecNews 底部状态栏 (原 workbench/StatusBar 并入 SecNews 壳)
  *
- * 实时显示: dsh 连接状态 + 管线健康度 + 今日 token 用量。
+ * 实时显示: dsh 连接状态 + 管线健康度 + 今日 token 用量 (30s 轮询)。
  * 数据源: GET /api/dsh/health · GET /api/kl/pipeline/stats
+ * dsh gate 关闭时 /api/dsh/health 404 → 指示灯显示 unknown, 属如实降级。
  */
 import { useEffect, useState } from 'react';
 
@@ -38,7 +39,7 @@ export function StatusBar() {
             ledger: data.ledger,
           });
         }
-      } catch { /* silent */ }
+      } catch { /* 状态栏轮询失败保持上次值, 指示灯显示 unknown */ }
     };
     refresh();
     const timer = window.setInterval(refresh, 30_000);

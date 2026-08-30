@@ -110,3 +110,37 @@ def test_rebuild_window_hours_6(repo):
     assert len(points) == 48
     # hours_ago 取值仅为 0..5
     assert {p.hours_ago for p in points} == {0, 1, 2, 3, 4, 5}
+
+
+def test_rebuild_bucket_placement_and_wide_window(repo):
+    """锁定 GROUP BY 重写后的桶归属语义。
+
+    hours_ago=h 必须等价于旧区间比较的 [now-(h+1)h, now-h)；未来时间戳仍要排除
+    （旧 SQL 有 ``< datetime('now','-0 hours')`` 上界）；168h 宽窗口要能真正表示
+    超出 24h 的历史桶 —— 旧 job 硬编码 rebuild(24) 时那段只能被上层补成假 0。
+    """
+    from backend.repository.hotspot_repo import HotspotRepository
+
+    now = datetime.now(timezone.utc)
+    HotspotRepository().upsert_many([
+        _make_item("b0", Category.AI, published_at=now - timedelta(minutes=30)),   # 桶 0
+        _make_item("b2", Category.SECURITY, published_at=now - timedelta(hours=2, minutes=30)),  # 桶 2
+        _make_item("b100", Category.AI, published_at=now - timedelta(hours=100)),  # 桶 100 (>24h)
+        _make_item("future", Category.AI, published_at=now + timedelta(hours=5)),  # 未来 → 排除
+    ])
+
+    assert repo.rebuild(168) == 168 * 8
+
+    def _count(category: Category, hours_ago: int) -> int:
+        return sum(
+            p.count for p in repo.get_current()
+            if p.category == category.value and p.hours_ago == hours_ago
+        )
+
+    assert _count(Category.AI, 0) == 1
+    assert _count(Category.SECURITY, 2) == 1
+    assert _count(Category.AI, 100) == 1, "168h 宽窗口的远端历史桶必须可表达"
+    # 未来条目不得污染任何桶；桶 1 应为空
+    assert _count(Category.AI, 1) == 0
+    ai_total = sum(p.count for p in repo.get_current() if p.category == Category.AI.value)
+    assert ai_total == 2, "3 条 ai 入库但有 1 条是未来时间戳 → 只应计 2 条"

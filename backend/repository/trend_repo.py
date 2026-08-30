@@ -122,37 +122,46 @@ class TrendRepository:
         #    ``published_at`` in ``datetime(...)`` normalises both
         #    sides to ``YYYY-MM-DD HH:MM:SS`` and makes the comparison
         #    correct.
+        #
+        #    单条 GROUP BY 取代原 hours × len(_CATEGORIES) 次 COUNT:
+        #    原实现重建 24h 要 192 次查询, 想扩到 168h 就得 1344 次 (每 5 分钟
+        #    一轮的 post-ingest 链上不可接受), 而窗口只有 24h 又让
+        #    ``/api/trends?hours=168`` 的后 144 桶被上层补成假 0。
+        placeholders = ",".join("?" for _ in self._CATEGORIES)
         count_sql = (
-            "SELECT COUNT(*) FROM hotspots "
-            "WHERE category = ? "
-            "  AND is_fallback = 0 "
+            "SELECT category, "
+            "  CAST((julianday('now') - julianday(datetime(published_at))) * 24 AS INTEGER) "
+            "    AS hours_ago, "
+            "  COUNT(*) "
+            "FROM hotspots "
+            "WHERE is_fallback = 0 "
+            "  AND datetime(published_at) < datetime('now') "
             "  AND datetime(published_at) >= datetime('now', ?) "
-            "  AND datetime(published_at) <  datetime('now', ?)"
+            f"  AND category IN ({placeholders}) "
+            "GROUP BY category, hours_ago"
         )
+        try:
+            counted = conn.execute(
+                count_sql, (f"-{hours} hours", *self._CATEGORIES)
+            ).fetchall()
+        except sqlite3.Error as e:
+            logger.error(
+                "trend rebuild count failed",
+                extra={"trace_id": "", "hours": hours, "error": str(e)},
+            )
+            raise InternalException(
+                f"trend rebuild count failed: {e}"
+            ) from e
+
+        by_bucket: dict[tuple[str, int], int] = {
+            (str(r[0]), int(r[1])): int(r[2]) for r in counted
+        }
+
+        # 完整网格: 无数据的桶写 0, 保证 get_current() 始终返回 hours × 类别。
         rows: list[tuple[str, int, str, int]] = []
         for h in range(hours):
-            lower = f"-{h + 1} hours"  # "now - (h+1) hours"
-            upper = f"-{h} hours"      # "now - h hours"
             for cat in self._CATEGORIES:
-                try:
-                    row = conn.execute(
-                        count_sql, (cat, lower, upper)
-                    ).fetchone()
-                except sqlite3.Error as e:
-                    logger.error(
-                        "trend rebuild count failed",
-                        extra={
-                            "trace_id": "",
-                            "hours_ago": h,
-                            "category": cat,
-                            "error": str(e),
-                        },
-                    )
-                    raise InternalException(
-                        f"trend rebuild count failed: {e}"
-                    ) from e
-                count = int(row[0]) if row is not None else 0
-                rows.append((snapshot_at, h, cat, count))
+                rows.append((snapshot_at, h, cat, by_bucket.get((cat, h), 0)))
 
         # 3. Bulk insert. One transaction so partial writes are not
         #    observable.

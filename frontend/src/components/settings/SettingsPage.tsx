@@ -27,6 +27,7 @@ import { KnowledgeSettings } from './KnowledgeSettings';
 import { ExportSettings } from './ExportSettings';
 import { DatabaseMaintenance } from './DatabaseMaintenance';
 import { AboutSettings } from './AboutSettings';
+import { ModeSwitcher } from './ModeSwitcher';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 
 export function SettingsPage() {
@@ -56,7 +57,12 @@ export function SettingsPage() {
   const renderContent = () => {
     switch (activeSection) {
       case 'general':
-        return <GeneralSettings onThemeToggle={toggleTheme} theme={theme} />;
+        return (
+          <div className="space-y-2">
+            <ModeSwitcher />
+            <GeneralSettings onThemeToggle={toggleTheme} theme={theme} />
+          </div>
+        );
       case 'collection':
         return (
           <div className="space-y-2">

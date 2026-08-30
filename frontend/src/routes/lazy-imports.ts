@@ -136,3 +136,17 @@ export const SecNewsAnalytics = React.lazy(() =>
 export const CrmPage = React.lazy(() =>
   import('../components/crm/CrmPage').then(m => ({ default: m.CrmPage }))
 );
+
+// 找回丢失前端入口 (v0.6.3: 后端路由已存在, 前端从未接入)
+export const BidAlertPage = React.lazy(() =>
+  import('../components/bid/BidAlertPage').then(m => ({ default: m.BidAlertPage }))
+);
+export const TagsPage = React.lazy(() =>
+  import('../components/tags/TagsPage').then(m => ({ default: m.TagsPage }))
+);
+export const ExtractPage = React.lazy(() =>
+  import('../components/extract/ExtractPage').then(m => ({ default: m.ExtractPage }))
+);
+export const UnifiedSearchPage = React.lazy(() =>
+  import('../components/search/UnifiedSearchPage').then(m => ({ default: m.UnifiedSearchPage }))
+);

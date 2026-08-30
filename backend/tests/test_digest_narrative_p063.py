@@ -39,10 +39,19 @@ def _insert_hotspot(item_id: str, title: str, score: float, ingested_at: str):
 
 
 def _yesterday_shanghai_hours_ago(hours: int) -> str:
+    """昨日窗口内的稳定种子: 昨日 12:00 Shanghai - hours (任意运行时刻都落在昨日窗口)。
+
+    v0.6.3 修正: 原 `now - 1d - hours` 在本地 00:00-01:00 之间运行会落进
+    前天 (周一零晨周界炸弹同款), 改为按"昨日日历日"锚定。
+    """
     from datetime import datetime, timedelta, timezone
 
     tz = timezone(timedelta(hours=8))  # Asia/Shanghai
-    dt = datetime.now(tz) - timedelta(days=1, hours=hours)
+    now_sh = datetime.now(tz)
+    yesterday_noon = (now_sh - timedelta(days=1)).replace(
+        hour=12, minute=0, second=0, microsecond=0
+    )
+    dt = yesterday_noon - timedelta(hours=hours)
     return dt.astimezone(timezone.utc).isoformat()
 
 

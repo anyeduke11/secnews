@@ -89,12 +89,12 @@ export function KnowledgeTabs({ counts }: KnowledgeTabsProps) {
   const location = useLocation();
   const active = findAreaByPath(location.pathname);
 
+  // 快捷模式仅保留仍存在路由的入口。
+  // briefing/scan/alert/outbox 4 个认知模式路由已于 v0.7.0 (D.9) 删除;
+  // 深度阅读 (/knowledge/deep-read/:id) 需要 item id, 从知识图谱页 (SentinelGraphPage)
+  // 与条目推荐 (DeepReadMode 侧栏) 上下文进入, 无独立列表入口;
+  // 简报能力在 SecNews feed (digest)。
   const MODE_ITEMS = [
-    { key: 'briefing', label: '简报', path: '/knowledge/briefing' },
-    { key: 'scan', label: '快速扫描', path: '/knowledge/scan' },
-    { key: 'deep-read', label: '深度阅读', path: '/knowledge/deep-read' },
-    { key: 'alert', label: '告警', path: '/knowledge/alert' },
-    { key: 'outbox', label: '整理', path: '/knowledge/outbox' },
     { key: 'review', label: '复习', path: '/knowledge/review' },
   ] as const;
 

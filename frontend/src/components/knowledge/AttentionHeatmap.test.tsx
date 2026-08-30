@@ -78,7 +78,7 @@ describe('AttentionHeatmap', () => {
     await waitFor(() => {
       // The grid contains 30 rows of 24 cells each = 720 cells
       // With sample data, some cells should have color
-      const cells = document.querySelectorAll('[style*="cursor: pointer"]');
+      const cells = document.querySelectorAll('[data-cell]');
       expect(cells.length).toBeGreaterThan(0);
     });
   });
@@ -100,12 +100,12 @@ describe('AttentionHeatmap', () => {
     // Wait for grid to render
     await waitFor(() => {
       // The grid cells are rendered, find one with a cursor pointer
-      const cells = document.querySelectorAll('[style*="cursor: pointer"]');
+      const cells = document.querySelectorAll('[data-cell]');
       expect(cells.length).toBeGreaterThan(0);
     });
 
     // Find all cells and hover over one
-    const cells = document.querySelectorAll('[style*="cursor: pointer"]');
+    const cells = document.querySelectorAll('[data-cell]');
     if (cells.length > 0) {
       fireEvent.mouseEnter(cells[0]);
       // Tooltip should appear with count info
@@ -116,7 +116,7 @@ describe('AttentionHeatmap', () => {
     }
   });
 
-  it('navigates on cell click', async () => {
+  it('does not navigate on cell click (briefing route removed, drill-down pending)', async () => {
     const today = new Date();
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
@@ -131,16 +131,15 @@ describe('AttentionHeatmap', () => {
     renderWithRouter(<AttentionHeatmap />);
 
     await waitFor(() => {
-      const cells = document.querySelectorAll('[style*="cursor: pointer"]');
+      const cells = document.querySelectorAll('[data-cell]');
       expect(cells.length).toBeGreaterThan(0);
     });
 
-    const cells = document.querySelectorAll('[style*="cursor: pointer"]');
+    const cells = document.querySelectorAll('[data-cell]');
     if (cells.length > 0) {
       fireEvent.click(cells[0]);
-      expect(mockNavigate).toHaveBeenCalledWith(
-        expect.stringContaining('/knowledge/briefing?date=')
-      );
+      // 原 /knowledge/briefing?date= 死链已移除; 下钻页未实现前点击不导航
+      expect(mockNavigate).not.toHaveBeenCalled();
     }
   });
 });

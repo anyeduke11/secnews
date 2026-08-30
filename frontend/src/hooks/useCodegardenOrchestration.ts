@@ -158,7 +158,7 @@ export function useCodegardenOrchestration(): UseCodegardenOrchestrationReturn {
     );
     if (!r.ok) throw new Error(`影响分析失败 (${r.status})`);
     const data = await r.json();
-    return data.items || [];
+    return data.impacts || [];
   }, []);
 
   const publishEvent = useCallback(async (req: {

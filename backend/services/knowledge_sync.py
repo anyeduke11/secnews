@@ -1,17 +1,19 @@
-"""Knowledge sync service — bidirectional sync between knowledge/ .md files and SQLite.
+"""Knowledge sync service — bidirectional sync between llm-wiki-2.0/ .md files and SQLite.
 
-Truth model (P3 重构后统一约定)
----------------------------------
-- ``items/`` 与 ``concepts/``: **md 文件是唯一真相源**, SQLite 是可随时从 md
-  全量重建的只读索引。``full_sync_*`` 除 upsert 外还会清理 md 已删除的孤儿行;
-  DB→md 回写 (``write_item_to_md``) 保留 md-only frontmatter 字段不丢失。
+Truth model (P3 重构后统一约定, v0.6.3 P3-4 收官)
+-------------------------------------------------
+- ``items/`` 与 ``concepts/``: **md 文件是唯一真相源** (位于 llm-wiki-2.0/),
+  SQLite 是可随时从 md 全量重建的只读索引。``full_sync_*`` 除 upsert 外还会
+  清理 md 已删除的孤儿行; DB→md 回写 (``write_item_to_md``) 保留 md-only
+  frontmatter 字段不丢失。
 - ``content/drafts/``: SQLite 行是元数据真相源 (title/status/calendar_id),
-  md 只存正文 (无 frontmatter) — 运行时状态不适合落盘 md。
+  md 只存正文 (无 frontmatter) — 运行时状态不适合落盘 md。位置
+  ``llm-wiki-2.0/content/drafts/`` (从旧 ``knowledge/content/drafts/`` 迁出)。
 
 Design notes
 ------------
-- ``knowledge/`` lives at the project root (parent.parent.parent of this
-  file: services/ → backend/ → project root).
+- 路径常量全部从 ``backend.wiki_fs.paths`` 导入, 禁止再硬编码
+  ``Path(...) / "knowledge" / ...`` — 旧根已于 v0.6.3 P3-4 下线。
 - A minimal YAML frontmatter parser is used to avoid a ``pyyaml`` dependency.
   It handles the subset of YAML used by the ``_SCHEMA.md`` contract:
   scalar ``key: value`` pairs and ``- item`` lists. Quoted strings are
@@ -30,12 +32,37 @@ import logging
 import re
 from pathlib import Path
 
+from backend.wiki_fs.paths import (
+    CONCEPTS_DIR,
+    DRAFTS_DIR,
+    ITEMS_DIR,
+    wiki_root,
+)
+
 log = logging.getLogger("hotspot.knowledge_sync")
 
-KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent.parent / "knowledge"
-ITEMS_DIR = KNOWLEDGE_DIR / "items"
-CONCEPTS_DIR = KNOWLEDGE_DIR / "concepts"
-DRAFTS_DIR = KNOWLEDGE_DIR / "content" / "drafts"
+# 兼容旧引用方 (下游代码仍 `from backend.services.knowledge_sync import KNOWLEDGE_DIR`),
+# 现在指向 llm-wiki-2.0/。新代码禁止再 import, 改走 backend.wiki_fs.paths.wiki_root()。
+KNOWLEDGE_DIR = wiki_root()
+
+# 兼容旧引用方 (下游代码仍在 `from backend.services.knowledge_sync import ITEMS_DIR`),
+# 不再指向旧根, 统一走 wiki_fs/paths。
+__all__ = [
+    "CONCEPTS_DIR",
+    "DRAFTS_DIR",
+    "ITEMS_DIR",
+    "KNOWLEDGE_DIR",
+    "backfill_lifecycle_to_md",
+    "full_sync_concepts_to_db",
+    "full_sync_drafts_to_db",
+    "full_sync_items_to_db",
+    "parse_frontmatter",
+    "sync_concept_to_db",
+    "sync_draft_to_db",
+    "sync_item_to_db",
+    "update_md_frontmatter_field",
+    "write_item_to_md",
+]
 
 # YAML frontmatter pattern: starts with ---, ends with ---
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)

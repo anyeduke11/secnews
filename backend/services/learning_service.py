@@ -2,31 +2,24 @@
 
 Design: backend handles plan storage (SQLite) and task creation.
 The actual LLM-based plan generation is done by Agent via knowledge-master
-skill, triggered by a task file in knowledge/learning/tasks/pending/.
+skill, triggered by a task file in llm-wiki-2.0/learning/tasks/pending/.
 """
 
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from pathlib import Path
 
 from backend.domain.knowledge_models import now_iso
 from backend.repository.knowledge_repo import knowledge_repo
-from backend.services.knowledge_sync import KNOWLEDGE_DIR
+from backend.wiki_fs.paths import LEARNING_DIR, LEARNING_PENDING_DIR
 
 log = logging.getLogger("hotspot.learning")
 
-PENDING_DIR = (
-    Path(__file__).resolve().parent.parent.parent
-    / "knowledge"
-    / "learning"
-    / "tasks"
-    / "pending"
-)
+PENDING_DIR = LEARNING_PENDING_DIR
 
 # Plans .md dual-write directory (Markdown is the truth source per design §3.5).
-PLANS_DIR = KNOWLEDGE_DIR / "learning"
+PLANS_DIR = LEARNING_DIR
 
 
 def _current_iso_week() -> str:

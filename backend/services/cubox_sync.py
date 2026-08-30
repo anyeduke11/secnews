@@ -1,12 +1,6 @@
-"""Cubox sync service — sync cubox cards to knowledge/items/*.md.
+"""Cubox sync service — sync cubox cards to llm-wiki-2.0/items/*.md.
 
-Design notes
-------------
-- ``knowledge/`` lives at the project root (parent.parent.parent of this
-  file: services/ → backend/ → project root).
-- Falls back gracefully when ``cubox-cli`` is not installed (returns 0).
-- Item IDs are derived from URL fingerprints via ``item_id_from_url``,
-  so re-syncing the same card is idempotent (existing files are skipped).
+v0.6.3 P3-4: 路径全部走 wiki_fs/paths, 旧 ``knowledge/`` 根下线。
 """
 from __future__ import annotations
 
@@ -17,11 +11,9 @@ from pathlib import Path
 
 from backend.domain.knowledge_models import KnowledgeItem, now_iso
 from backend.services.data_cleaning import find_similar_items, item_id_from_url
+from backend.wiki_fs.paths import ITEMS_DIR
 
 log = logging.getLogger("hotspot.cubox_sync")
-
-KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent.parent / "knowledge"
-ITEMS_DIR = KNOWLEDGE_DIR / "items"
 
 
 def _check_cubox_cli() -> bool:

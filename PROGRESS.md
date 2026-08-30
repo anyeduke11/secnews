@@ -39,7 +39,20 @@
 
 ## 当前活跃段 (2026-08-27 起)
 
-### 2026-08-30/31 v0.6.3 P3 批次 — feed FTS 阈值自执行 + 运行时复核 (本批)
+### 2026-08-30/31 v0.6.3 P4 批次 — 双根合并 + llm-wiki-2.0 唯一根锁定 (本批)
+
+> **来源**: 用户 2026-08-30 裁决"全部切换并锁定到 llm-wiki-2.0 唯一根, 删除旧根, 并保证功能正常"。批前盘点: items/concepts 1:1 对齐, 但 64 个旧根条目 mtime 更新 (新根补齐 alive/compiled 字段); learning/content/summaries/_MAP.md/SOUL.md 仅在旧根; 12 service 仍写旧根。commit 见 CHANGELOG 批次 ㉜-㉝。
+
+- [x] **单一路径源**: 新增 `backend/wiki_fs/paths.py` — ITEMS_DIR/CONCEPTS_DIR/LEARNING_*/CONTENT/DRAFTS_DIR/SUMMARIES_DIR/GRAPH_PATH/SOUL_PATH/CALENDAR_PATH 全部基于 `resolve_wiki_root()` 派生, 测试 env `HOTSPOT_WIKI_ROOT` 一键重定向
+- [x] **12 service 全迁移**: knowledge_sync / content_service / history_import / bookmark_sync / concept_linker / compiler / learning_service / soul_service / map_updater / cubox_sync / progress_service / federation_service + api/knowledge.py → wiki_fs/paths; SOUL.md 旧位 → llm-wiki-2.0/soul.md; _MAP.md 旧位 → llm-wiki-2.0/_MAP.md (watcher 不再自动调用, 留运维偶发导出)
+- [x] **数据搬移**: knowledge/learning (2062 files / 7.9M) + knowledge/content (16 files / 68K) + knowledge/summaries (8 files / 28K) + SOUL.md + _MAP.md → llm-wiki-2.0/ 对应子树; 双根 md 头字段差异已分析 (旧根 = 未对齐字段, 新根是更完整事实源, 无需反向灌回)
+- [x] **测试 fixture 重构**: conftest `_isolate_knowledge_dirs` 改用 `HOTSPOT_WIKI_ROOT` env + reload wiki_fs/paths, 11 个 service 模块自动跟随; 旧 fixture `kdir = tmp_path / "knowledge"` 改 `tmp_path / "wiki"` + 补 Path import (cubox_sync/history_import/bookmark_sync)
+- [x] **反向引用 grep 0 命中** (生产代码 / scripts); `/api/knowledge/*` 路由字符串保留语义
+- [x] **删除 knowledge/ 旧根**: `rm -rf knowledge/`, llm-wiki-2.0/ 成为唯一真相源 (items 4149 / concepts 96 / learning 2062 / content 16 / summaries 8 + soul.md + _MAP.md + 系统文件 inbox/quarantine/digest/graph.json/retention.json/sources/schema)
+- [x] **周一边界炸弹**: 用户同批指令; recency 28 例全过 (含 `test_few_hours_ago_passes`), max(now-4h, week_start+1min) 钳位逻辑生效
+- [x] **门禁**: ruff 0 错; 全量 pytest **3047 passed / 6 skipped / 0 failed** (基线持平); generate_meta --check OK (97 services 含 paths.py 新模块); tsc 0 错; vitest 310 pass
+
+### 2026-08-30 v0.6.3 P3 批次 — feed FTS 阈值自执行 + 运行时复核
 
 > **来源**: 用户指定 P3 收尾 (feed 5 万行 FTS 化裁决 + py-spy 复核)。执行中挖出 2 个真 bug + 周一边界测试腐坏类。commit 见 CHANGELOG 批次 ㉘-㉛。
 
@@ -57,7 +70,7 @@
 - [x] **P2-2a**: wiki_fs.read_item mtime+size 缓存 + write_item 写穿 — 全量 4149 条 702ms→17-20ms (35×); concept_linker 甄别修正: 两层不同职责 (概念图填充器 vs 条目 related 边), 非重复不归一
 - [x] **P2-3**: 统计失效接入 store.write_item 单点
 - [x] **AST 复扫**: API 面 async 阻断残留 0
-- ⚠️ **待拍板**: wiki 单根写路径迁移未完成 — 12 service 仍写旧根 knowledge/items, 同 id 文件两根内容已分裂 (详见 CHANGELOG 批次 ㉖ 后"待用户拍板")
+- [x] **P4 后续**: wiki 单根写路径迁移完成 — 12 service 全切新根, 旧根 knowledge/ 已物理删除 (见 P4 批次)
 
 ### 2026-08-30 v0.6.3 性能/修复批次 — 卡顿根治 + AI 伪完成修复 (上批)
 

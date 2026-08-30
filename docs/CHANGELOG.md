@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.6.3 P4 批次 (2026-08-30/31) — 双根合并 + llm-wiki-2.0 唯一根锁定 + 周界炸弹根治
+
+> **来源**: 用户 2026-08-30 裁决"全部切换并锁定到 llm-wiki-2.0 唯一根, 删除旧根, 并保证功能正常"+"修复周界炸弹"。批前盘点: items/concepts 1:1 对齐 (4149/96), learning/content/summaries/_MAP.md/SOUL.md 仅在旧根, 12 service 仍写旧根。
+
+### 批次 ㉜：单一路径源 `backend/wiki_fs/paths.py` + 12 service 全迁移
+
+- **单一真相源**: 新增 `backend/wiki_fs/paths.py` — ITEMS_DIR / CONCEPTS_DIR / INBOX_DIR / QUARANTINE_DIR / LEARNING_DIR / LEARNING_PENDING_DIR / LEARNING_DONE_DIR / LEARNING_FAILED_DIR / LEARNING_TASKS_DIR / CONTENT_DIR / DRAFTS_DIR / CALENDAR_PATH / SUMMARIES_DIR / GRAPH_PATH / SOUL_PATH 全部基于 `resolve_wiki_root()` 派生; 测试 env `HOTSPOT_WIKI_ROOT` 一键重定向, 无须逐个 monkeypatch
+- **12 service 全迁移**: knowledge_sync / content_service / history_import / bookmark_sync / concept_linker / compiler / learning_service / soul_service / map_updater / cubox_sync / progress_service / federation_service + api/knowledge.py → wiki_fs/paths; SOUL_PATH 旧位 `knowledge/SOUL.md` → `llm-wiki-2.0/soul.md`; MAP_PATH 旧位 `knowledge/_MAP.md` → `llm-wiki-2.0/_MAP.md` (watcher 不再自动调用, 留运维偶发导出)
+- **测试 fixture 重构**: conftest `_isolate_knowledge_dirs` 改用 `HOTSPOT_WIKI_ROOT` env + reload wiki_fs/paths, 11 个 service 模块自动跟随; 旧 fixture `kdir = tmp_path / "knowledge"` 改 `tmp_path / "wiki"`; 补回 cubox_sync/history_import/bookmark_sync 的 `from pathlib import Path` (误删)
+- **数据搬移**: knowledge/learning (2062 files / 7.9M) + knowledge/content (16 files / 68K) + knowledge/summaries (8 files / 28K) + SOUL.md + _MAP.md → llm-wiki-2.0/ 对应子树; 双根 md 头字段差异已分析: 旧根 64 个条目 mtime 更新但语义是新根补齐 alive/compiled 字段 (新根 = 更完整事实源, 无需反向灌回)
+- **反向引用 grep 0 命中** (生产代码 + scripts); `/api/knowledge/*` 路由字符串保留语义
+
+### 批次 ㉝：删除 knowledge/ 旧根 + 周一边界炸弹根治
+
+- **物理删除旧根**: `rm -rf knowledge/` — llm-wiki-2.0/ 成为唯一真相源 (items 4149 / concepts 96 / learning 2062 / content 16 / summaries 8 + soul.md + _MAP.md + 系统文件 inbox/quarantine/digest/graph.json/retention.json/sources/schema)
+- **周一边界炸弹根治**: recency 28 例全过 (含 `test_few_hours_ago_passes`); 用户同日指令; 钳位逻辑 `max(now-4h, week_start+1min)` 已由并行会话在 commit `381f05f` 落地, 本批验证其稳定性
+- **门禁全清**: ruff 0 错; 全量 pytest **3047 passed / 6 skipped / 0 failed** (基线持平); generate_meta --check OK (97 services 含 paths.py 新模块); tsc 0 错; vitest 310 pass
+
 ## v0.6.3 P3 批次 (2026-08-30/31) — feed FTS 阈值自执行 + 运行时复核 + 两个真 bug 根治
 
 > **来源**: 用户指定 P3 收尾 = ① feed 数据量到 5 万行再 FTS 化 (卡顿审计遗留裁决); ② 运行时 py-spy 采样复核。执行中挖出并根治 2 个真 bug + 1 类周一边界测试腐坏。

@@ -1,4 +1,7 @@
-"""History import service — import archived hotspot items into knowledge base."""
+"""History import service — import archived hotspot items into knowledge base.
+
+v0.6.3 P3-4: ITEMS_DIR 重指向 llm-wiki-2.0/items, 路径常量走 wiki_fs/paths。
+"""
 
 from __future__ import annotations
 
@@ -11,13 +14,13 @@ from backend.config import config
 from backend.domain.knowledge_models import KnowledgeItem, now_iso
 from backend.repository.knowledge_repo import knowledge_repo
 from backend.services.data_cleaning import item_id_from_url
+from backend.wiki_fs.paths import ITEMS_DIR
 
 log = logging.getLogger("hotspot.history_import")
 
 # hotspots.id 是 TEXT (如 "ai_量子位_0"), 所以 item_ids 用 list[str].
 # 用 config.db_path 与 db.py 保持一致 (默认 backend/hotspot.db).
 DB_PATH = config.db_path
-ITEMS_DIR = Path(__file__).resolve().parent.parent.parent / "knowledge" / "items"
 
 
 def _fetch_hotspots(item_ids: list[str]) -> list[dict]:

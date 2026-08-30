@@ -1,15 +1,23 @@
-"""Map updater — regenerate knowledge/_MAP.md after compilation."""
+"""Map updater — regenerate _MAP.md after compilation.
+
+v0.6.3 P3-4: 旧 ``knowledge/_MAP.md`` 已被 ``wiki_stats_service`` + 前端
+``/api/knowledge/items`` 实时接口取代。``update_map()`` 仍可调用 (写至
+``llm-wiki-2.0/_MAP.md``, 旧根下线), 但 ``knowledge_watcher`` 不再自动
+触发, 仅供运维偶发手动导出。推荐直接删除本模块; 当前保留以避免破坏现有
+``import update_map`` 调用方 (迁移期内可能仍有 reviewer 脚本)。
+"""
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 from backend.domain.knowledge_models import now_iso
 from backend.repository.knowledge_repo import knowledge_repo
+from backend.wiki_fs.paths import wiki_root
 
 log = logging.getLogger("hotspot.map_updater")
 
-MAP_PATH = Path(__file__).resolve().parent.parent.parent / "knowledge" / "_MAP.md"
+# 新位置: llm-wiki-2.0/_MAP.md (旧 knowledge/_MAP.md 已下线)
+MAP_PATH = wiki_root() / "_MAP.md"
 
 VALID_DOMAINS = [
     "security", "ai", "finance", "product",

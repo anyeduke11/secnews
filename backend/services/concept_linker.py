@@ -19,16 +19,20 @@ from pathlib import Path
 log = logging.getLogger("hotspot.concept_linker")
 
 # ═══════════════════════════════════════════════════════════════
-# Paths
+# Paths — v0.6.3 P3-4: 全部走 wiki_fs/paths 唯一源 (旧 knowledge/ 根已下线)
 # ═══════════════════════════════════════════════════════════════
 
-KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent.parent / "knowledge"
-CONCEPTS_DIR = KNOWLEDGE_DIR / "concepts"
-ITEMS_DIR = KNOWLEDGE_DIR / "items"
+from backend.wiki_fs.paths import (
+    CONCEPTS_DIR,
+    GRAPH_PATH,
+    ITEMS_DIR,
+    wiki_root,
+)
 
-# v0.5: llm-wiki-2.0 知识图谱主存储 (SPEC §18.2 强约束 1: 知识写入唯一路径)
-LLM_WIKI_DIR = Path(__file__).resolve().parent.parent.parent / "llm-wiki-2.0"
-GRAPH_PATH = LLM_WIKI_DIR / "graph.json"
+# 保留 KNOWLEDGE_DIR / LLM_WIKI_DIR 旧名导出供历史引用方 (e.g. tests)
+# 短暂过渡, 实际指向 wiki_root()。新代码禁止再 import。
+KNOWLEDGE_DIR = wiki_root()
+LLM_WIKI_DIR = wiki_root()
 
 # 6 种 typed relationships (SPEC §18 / wiki v2 §10.12)
 EDGE_TYPES: tuple[str, ...] = (
@@ -462,8 +466,10 @@ def validate_graph_schema(graph: dict) -> list[str]:
 
 
 __all__ = [
+    "CONCEPTS_DIR",
     "EDGE_TYPES",
     "GRAPH_PATH",
+    "ITEMS_DIR",
     "auto_create_concepts",
     "batch_link_items",
     "link_tags_to_concepts",

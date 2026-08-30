@@ -6,6 +6,10 @@ Reads local LLM-Wiki at config.local_wiki_path (default ~/knowledge-base).
 
 All operations are readonly when config.local_wiki_readonly=True.
 Gracefully degrades when local_wiki_enabled=False or path missing.
+
+v0.6.3 P3-4: KNOWLEDGE_DIR 现指向 wiki_root() (llm-wiki-2.0/), 旧
+``knowledge/`` 根已下线。新代码请直接 ``from backend.wiki_fs.paths
+import wiki_root``。
 """
 
 from __future__ import annotations
@@ -15,6 +19,7 @@ from pathlib import Path
 
 from backend.config import config
 from backend.services.knowledge_sync import parse_frontmatter
+from backend.wiki_fs.paths import wiki_root
 
 log = logging.getLogger("hotspot.federation")
 
@@ -22,8 +27,8 @@ DEFAULT_LOCAL_WIKI_PATH = "~/knowledge-base"
 LOCAL_CONCEPTS_DIR = "02-知识库"
 LOCAL_ITEMS_DIR = "01-资料库"
 
-# Hotspot knowledge 目录（项目根 /knowledge）
-KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent.parent / "knowledge"
+# v0.6.3 P3-4: hotspot 内部 wiki 目录 = wiki_root() (llm-wiki-2.0)
+KNOWLEDGE_DIR = wiki_root()
 
 
 def _local_wiki_root() -> Path:

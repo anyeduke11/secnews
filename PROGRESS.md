@@ -47,6 +47,8 @@
 - [x] **12 service 全迁移**: knowledge_sync / content_service / history_import / bookmark_sync / concept_linker / compiler / learning_service / soul_service / map_updater / cubox_sync / progress_service / federation_service + api/knowledge.py → wiki_fs/paths; SOUL.md 旧位 → llm-wiki-2.0/soul.md; _MAP.md 旧位 → llm-wiki-2.0/_MAP.md (watcher 不再自动调用, 留运维偶发导出)
 - [x] **数据搬移**: knowledge/learning (2062 files / 7.9M) + knowledge/content (16 files / 68K) + knowledge/summaries (8 files / 28K) + SOUL.md + _MAP.md → llm-wiki-2.0/ 对应子树; 双根 md 头字段差异已分析 (旧根 = 未对齐字段, 新根是更完整事实源, 无需反向灌回)
 - [x] **测试 fixture 重构**: conftest `_isolate_knowledge_dirs` 改用 `HOTSPOT_WIKI_ROOT` env + reload wiki_fs/paths, 11 个 service 模块自动跟随; 旧 fixture `kdir = tmp_path / "knowledge"` 改 `tmp_path / "wiki"` + 补 Path import (cubox_sync/history_import/bookmark_sync)
+- [x] **门禁落账** (`cdc92e9`): ruff 0 错; scoped pytest 251/251 pass; 修复 ruff --fix 误删 `concept_linker.ITEMS_DIR` (test_graph_runtime setattr 隔离目录需属性存在) → 重导入并入 `__all__`; kl:deduped (4 文件) 与本批无关, 显式 pathspec 排除 commit
+- ⚠️ **预存债 (不在本批)**: `test_kl_state_machine.py::test_successors_of_raw` 期望 raw→refine 单出边, 与 kl:deduped 终态 (`TRANSITIONS[LIFECYCLE_RAW]` 多一条 deduped) 不一致; `test_snapshot_for_retirement.py::test_baseline_2026_08_24_counts` 期望 4149 wiki 文件但根已迁 + gitignore, 期望值已陈旧 — 两条都属于 kl:deduped 并行会话落地后的待跟踪项
 - [x] **反向引用 grep 0 命中** (生产代码 / scripts); `/api/knowledge/*` 路由字符串保留语义
 - [x] **删除 knowledge/ 旧根**: `rm -rf knowledge/`, llm-wiki-2.0/ 成为唯一真相源 (items 4149 / concepts 96 / learning 2062 / content 16 / summaries 8 + soul.md + _MAP.md + 系统文件 inbox/quarantine/digest/graph.json/retention.json/sources/schema)
 - [x] **周一边界炸弹**: 用户同批指令; recency 28 例全过 (含 `test_few_hours_ago_passes`), max(now-4h, week_start+1min) 钳位逻辑生效

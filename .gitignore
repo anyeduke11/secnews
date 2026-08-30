@@ -62,6 +62,11 @@ data/migrations/
 knowledge/
 llm-wiki-2.0/
 
+# dsh-SecNews data archive (contains credentials + wiki + db — NEVER publish)
+# Decision: 2026-08-30 — archives/dsh-secs-news-2026-08-27.tar.zst contains
+# 3 plaintext API keys + 4149 wiki items + 5.2MB db. Removed via filter-repo.
+archives/
+
 # Env
 .env
 .env.local

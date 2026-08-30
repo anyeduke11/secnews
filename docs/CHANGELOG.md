@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.6.3 安全批次 (2026-08-30) — 依赖漏洞清零 + weekly 全环境 pip-audit
+
+> **范围**: 2026-08-30 安全扫描报告的处置落地。代码级 SAST 三通道 (Mimosa MCP / Qoder qoder / Qoder hand) 仍需用户侧解锁, 依赖维度已清零。
+
+### 批次 ⑲：依赖漏洞清零 (pip-audit 148 包 / 0 漏洞; npm 0)
+
+- **cryptography 49.0.0 → 50.0.0** (加密面: Fernet/主密钥/同步包; CVE-2026-69247) — venv 同步 lock (lock 已钉, venv 曾漂移)
+- **aiohttp 3.14.1 → 3.14.3** (CVE-2026-69244/69243/59881) + **lxml 5.4.0 → 6.1.1** — 同为 lock 对齐
+- **h2 4.3.0 → 4.4.1** (GHSA-6hr6-w5qg-qmwg) + **pip 26.1.2 → 26.2** (CVE-2026-13346)
+- **nltk 卸载** (6 条 CVE): 全仓零 import 且未被任何 requirements/lock 声明 = 孤儿包, 根因清除
+- 全量 pytest **3032 passed / 6 skipped** — cryptography 50.0.0 下 Fernet 全链路 (encrypt/decrypt/主密钥派生/secrets) 回归通过
+- 教训: CI `pip-audit -r requirements.lock` 只扫 75 pin, 覆盖不到 transitive/optional/孤儿包
+
+### 批次 ⑳：CI 周期复核 (weekly-m2-verify)
+
+新增 "Dependency vulnerability audit (weekly, full env)" 步 — 全环境 pip-audit (非 lock-only), 报告为主不阻断 (沿本 job 惯例), 修复跟踪落 `docs/SECURITY_AUDIT.md` §3。
+
+### 代码级 SAST 待用户解锁 (docs/SECURITY_AUDIT.md §3.3)
+
+Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audit`。Qoder hand: 配 `YUNDUN_CODESEC_OPENAPI_AK/SECRET` 后 `qodersec scan --platform hand --all`。
+
 ## v0.6.3 (2026-08-30) — 交互断线修复 + 统一工作台 (workbench 并入 SecNews) + dsh 内置化 + pi 执行层
 
 > **范围**: 用户裁决四项 — ① P0 交互断线修复; ② workbench 5 视图并入 SecNews (统一工作台); ③ 找回 6 个丢失前端入口; ④ dsh 重型一体化 (受管子进程 + 前端一键启停) + pi 轻量执行 agent 落地。

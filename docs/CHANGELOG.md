@@ -1,5 +1,60 @@
 # Changelog
 
+## v0.6.3 (2026-08-30) — 交互断线修复 + 统一工作台 (workbench 并入 SecNews) + dsh 内置化 + pi 执行层
+
+> **范围**: 用户裁决四项 — ① P0 交互断线修复; ② workbench 5 视图并入 SecNews (统一工作台); ③ 找回 6 个丢失前端入口; ④ dsh 重型一体化 (受管子进程 + 前端一键启停) + pi 轻量执行 agent 落地。
+> **commit 链**: `80e6ad1e` (P0) → `c754549f` (统一工作台) → `4cbad763` (lint) → 找回入口 → dsh 内置化。
+
+### 批次 ⑮：P0 交互断线修复 (`80e6ad1e`)
+
+3 路并行深审 (前端交互流 / 前后端 367 路由 × 150 调用点对账 / dsh-pi 整合度) 产出, 按影响排序修复:
+1. 源健康「重置」404 — 前端路径补 `by-source` 段 (sources.py:318)
+2. CodeGarden 影响分析恒空 — `data.items` → `data.impacts` (codegarden_ops.py:466)
+3. KnowledgeTabs 5 个死链 chip (v0.7.0 删路由漏删入口) + AttentionHeatmap 格点击死链 — 移除死链, 保留 review/review 上下文入口, 下钻页未实现前由 tooltip 呈现
+
+### 批次 ⑯：统一工作台 — workbench 5 视图并入 SecNews (`c754549f`)
+
+能力迁移映射 (无功能丢失): BriefingView → feed 简报卡 (DigestCard, 补 error 呈现 + 防连点) / AnalyzeView → 新研判 tab (SecNewsAnalyze, 补独立 error state + dsh gate 感知) / KnowledgeView → 知识库条目浏览 (WikiItemBrowser) / SettingsView → 设置面板 (采集源 + token 预算两节) / StatusBar → SecNewsShell 底栏。PipelineView 承接 30s 自动刷新。
+删除: /workbench 路由 + lazy-imports 6 导出 + components/workbench/ 全目录 + useFeatureFlags.workbenchUi + 后端 feature_workbench_ui 字段; /secnews/inbox + /secnews/ledger 孤儿路由 (内嵌能力已覆盖)。
+顺带修复: PipelineSettings "checking..." 永挂 → dshGateOff/失败态分支; feed/pipeline/knowledge 三视图补 error 态 (网络失败不再伪装"暂无数据")。
+
+### 批次 ⑰：找回 6 个丢失前端入口
+
+后端整域无前端消费功能, 用户裁决"都有计划, 丢失的找回来":
+- `/bid-alert` 标书提醒页 (摘要/地区分布/竞品热词/最近标讯)
+- `/tags` 标签管理页 (CRUD + 前缀搜索 + 类型筛选)
+- `/extract` 自动提取页 (preview 不落盘 + hotspot/knowledge ID 触发)
+- `/search` 统一搜索页 (hotspot/knowledge/wiki FTS 分组)
+- ModeSwitcher → /settings 通用区 (PRD §3.2.10 六模式切换)
+- weekly_report 不建新前端: /report 页 (reports API) 已覆盖, /api/weekly-report/* 为 v1.3 重复实现, 保留不删
+导航: SentinelShell 溢出菜单 情报输出 +2, 知识资产 +2。
+
+### 批次 ⑱：dsh 内置化 (受管子进程 + 一键启停) + pi 执行层落地
+
+用户裁决"走重的一体化方案, dsh 作为大脑, pi 作为执行的轻量级 agent, 服务解耦, 一键启停":
+- **`backend/services/process_supervisor.py`** (NEW): 通用受管子进程宿主 — start/stop/restart/status/poll, 意外退出自动复活 (上限 3 次) + 尾部日志保留
+- **`backend/services/dsh/supervisor.py`** (NEW): dsh 专属管理层 — 配置持久化 (settings KV: dsh.endpoint/dsh.command/dsh.autostart) + 生命周期 + endpoint 探测状态合并 (connected/starting/stopped/not_configured)
+- **`backend/api/dsh_control_api.py`** (NEW): `/api/dsh/control/status|start|stop|restart|config` — 前端一键启停与配置写入; 未配置命令 start/restart → 409
+- **`backend/services/agent_bridge.py`** (NEW, M4 T15b 落地): CLI runner 执行宿主 — route() 路由决策 + jsonl (pi NDJSON message_end 解析) / stream-json (claude result 事件) 协议处理 + timeout kill + workspace 锁定 codegarden/<project>/ (§19.3-3) + builtin → ai_hub LLM 单出口
+- **`backend/api/agents_api.py`** (NEW): `/api/agents/available|run`
+- **前端**: DshControlCard (10s 自动刷新 + 启停按钮 + 配置表单) + AgentRunnerCard (可用性 + 执行表单) 入 /secnews/settings; AnalyzeView 双轨研判感知 dsh gate
+- **gate**: feature_gates.toml dsh=false → **true** (内置化完成后 gate 仅作总可见性开关; 未配置时状态如实呈现, 业务自动降级 LLM 直连)
+- **lifespan**: autostart=true 且已配置时启动自动拉起 dsh (失败不阻塞)
+- **根治 test_dsh_api 404** (P1-2 起即坏, 非 regress): register_routers 在 backend.main import (collection) 时读一次 gate, fixture 晚于 collection 无法生效 — conftest 模块级注册期 gate 快照 (setdefault 全开含 dsh) + autouse fixture JSON 补 dsh, 4 用例复活
+- **测试**: test_process_supervisor (9) + test_dsh_control_api (5) + test_agent_bridge (11) = 新增 25 用例
+- **meta**: routers 63→65 / services 96 (ARCHITECTURE.md 同步, --check OK)
+
+### 批次 ⑱ 验收
+
+| 维度 | 结果 |
+|------|------|
+| tsc --noEmit | 0 错 |
+| vitest | 309 passed |
+| vite build | clean |
+| ruff backend+scripts | All checks passed |
+| generate_meta --check | OK (65/47/14/96) |
+| pytest 全量 | 见批次尾部补记 |
+
 ## v0.7.0 (2026-08-28) — workbench 报纸版 100% 接管 (Step 2 物理删除 + 正式发版)
 
 > **范围**: v0.7 Step 2 — 物理删除 16 个三层目录 .tsx + 4 个 cognitive mode .tsx + 22 个老路由 + 8 个 redirect + workbench_legacy gate; 正式发版 0.7.0.

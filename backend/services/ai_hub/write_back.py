@@ -14,7 +14,6 @@ import logging
 from datetime import datetime, timezone
 
 from backend.repository.db import get_connection
-from backend.services.ai_hub.tasks import DEFAULT_SCORE
 
 log = logging.getLogger("hotspot.ai_hub")
 
@@ -127,4 +126,4 @@ def update_frontmatter(
     return ok
 
 
-__all__ = ["write_score", "write_item", "update_frontmatter"]
+__all__ = ["update_frontmatter", "write_item", "write_score"]

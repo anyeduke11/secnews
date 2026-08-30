@@ -19,9 +19,6 @@ def register_all(app: FastAPI) -> None:
     v1.8 加固: config.feature_* flag 在此接线 —— flag=False 的功能
     router 不注册, 对外不可达 (此前 flag 与注册脱钩, 形同虚设)。
     """
-    from backend.config import config
-    from backend.extensions import is_extension_enabled
-
     # 注意: annotations 必须用 `import ... as` 显式导入子模块,
     # 因为模块顶部的 `from __future__ import annotations` 会把 `annotations`
     # 绑定为 _Feature 实例, 导致 `from backend.api import annotations` 拿到 _Feature 而非子模块.
@@ -29,28 +26,25 @@ def register_all(app: FastAPI) -> None:
     import backend.api.kl_compounding_api as kl_compounding_api  # Phase 13: 复利仪表盘
     import backend.api.kl_planning_api as kl_planning_api  # Phase 13: 规划动作 API
     from backend.api import (
+        alert_api as alert_api_v2,  # Phase 12: 告警系统 v2
+    )
+    from backend.api import (
+        alerts,  # v1.7 Phase 3: 告警规则与告警
+        attention_events_api,  # v1.7: 注意力事件追踪
         bid_alert,  # Phase 4: 标书提醒与竞品分析
         cache,  # v1.9: 缓存管理 (clear/stats)
-        attention_events_api,  # v1.7: 注意力事件追踪
-        reports,  # v1.9 Editorial: 日报/月报独立 API
-        alert_api as alert_api_v2,  # Phase 12: 告警系统 v2
-        alerts,  # v1.7 Phase 3: 告警规则与告警
-        knowledge_imported,  # v1.8 Phase 8: 资讯收藏聚合视图
-        categories,
-        crm_customers_api,  # v0.6: CRM 业绩座舱 — 客户 CRUD
-        deep_read,  # v0.6 Phase 4 S4-2: DeepRead 4 节深度分析
-        cve_analytics,  # v0.6 Phase 4 S4-3: CVE 热力图 + ATT&CK 映射
-        compliance,  # v0.6 Phase 4 S4-4: 合规矩阵 (等保 2.0 + GDPR + ISO 27001)
-        crm_opportunities_api,  # v0.6: CRM 业绩座舱 — 商机状态机
-        crm_stats_api,  # v0.6: CRM 业绩座舱 — KPI/图表聚合
         catchup,  # v1.8 Phase 8: 追抓资讯 (manual + watchdog auto)
-        digests,  # v1.7 Phase 4: 简报
-        mode,  # v1.7 Phase 3: 模式切换 (brief/scan/deep/...)
-        recommend,  # v1.7 Phase 4: 上下文推荐
-        search,  # v1.7 Phase 3: 统一跨层搜索
+        categories,
         codegarden,  # v1.5+: CodeGarden 代码花园 (Phase 2a)
         codegarden_ops,  # v1.5+: CodeGarden 运维层 — 服务网格/资源中枢/联动引擎 (原 phase2b)
+        compliance,  # v0.6 Phase 4 S4-4: 合规矩阵 (等保 2.0 + GDPR + ISO 27001)
         content,  # v1.4: 内容创作 (calendar/drafts/templates)
+        crm_customers_api,  # v0.6: CRM 业绩座舱 — 客户 CRUD
+        crm_opportunities_api,  # v0.6: CRM 业绩座舱 — 商机状态机
+        crm_stats_api,  # v0.6: CRM 业绩座舱 — KPI/图表聚合
+        cve_analytics,  # v0.6 Phase 4 S4-3: CVE 热力图 + ATT&CK 映射
+        deep_read,  # v0.6 Phase 4 S4-2: DeepRead 4 节深度分析
+        digests,  # v1.7 Phase 4: 简报
         events,  # v1.3.0 Phase 6: SSE 实时推送
         export,
         extract,  # v1.7 Phase 1: 标签自动提取
@@ -58,30 +52,37 @@ def register_all(app: FastAPI) -> None:
         health,
         history,
         hotspots,
+        kl_metrics_api,  # v1.7 Phase 10: KL 触发器指标 (/api/kl/metrics)
+        kl_rollback_api,  # v1.7 Phase 10: KL 回滚 API (/api/kl/rollback)
         knowledge,  # v1.4: 知识库
         knowledge_chunks_api,  # Phase 17: 知识库 chunks
+        knowledge_imported,  # v1.8 Phase 8: 资讯收藏聚合视图
         maintenance,  # v1.4: DB 维护 (vacuum/cleanup)
         mcp,  # v1.7 Phase 7: MCP 调试端点 (/api/mcp/* + /api/settings/mcp/*)
         mcp_adapters,  # v1.7 Phase 7: MCP 适配端点 (/api/profile, /api/cubox/sync, /api/extract/auto)
         mcp_agent_tools,  # v1.8: 4 个 Agent 侧写 tool (score_item/enrich_concept/link_items/trigger_codegarden_drift)
-        kl_metrics_api,  # v1.7 Phase 10: KL 触发器指标 (/api/kl/metrics)
-        kl_rollback_api,  # v1.7 Phase 10: KL 回滚 API (/api/kl/rollback)
+        mode,  # v1.7 Phase 3: 模式切换 (brief/scan/deep/...)
         proxy,
         quality,
+        recommend,  # v1.7 Phase 4: 上下文推荐
         refresh,  # Phase 32: POST /api/refresh 手动触发采集
+        reports,  # v1.9 Editorial: 日报/月报独立 API
         reviews,  # v1.7 Phase 2: SM-2 间隔复习
+        search,  # v1.7 Phase 3: 统一跨层搜索
         secrets,  # Phase 41: 密钥管理 (LLM API Keys)
         security,  # Phase 2: Security Knowledge Graph + Terminology
         settings,  # 运行时设置 (刷新间隔等)
         skills,  # Phase 41: Skill 管理
         sources,
-        sync,    # Phase 42: 跨端配置同步 (WebDAV)
+        sync,  # Phase 42: 跨端配置同步 (WebDAV)
         tags,  # v1.7 Phase 1: 标签管理
         tech_stack,  # v1.7 Phase 2: 技术栈 + 项目桥接
-        todos,   # Phase 36: /api/todos 待办 (Todos) CRUD
+        todos,  # Phase 36: /api/todos 待办 (Todos) CRUD
         trends,
         weekly_report,  # v1.3.0 Phase 4: 周报
     )
+    from backend.config import config
+    from backend.extensions import is_extension_enabled
 
     app.include_router(hotspots.router, tags=["hotspots"])
     app.include_router(trends.router, tags=["trends"])

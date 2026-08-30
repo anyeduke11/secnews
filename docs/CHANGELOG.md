@@ -17,6 +17,8 @@
 - **物理删除旧根**: `rm -rf knowledge/` — llm-wiki-2.0/ 成为唯一真相源 (items 4149 / concepts 96 / learning 2062 / content 16 / summaries 8 + soul.md + _MAP.md + 系统文件 inbox/quarantine/digest/graph.json/retention.json/sources/schema)
 - **周一边界炸弹根治**: recency 28 例全过 (含 `test_few_hours_ago_passes`); 用户同日指令; 钳位逻辑 `max(now-4h, week_start+1min)` 已由并行会话在 commit `381f05f` 落地, 本批验证其稳定性
 - **门禁全清**: ruff 0 错; 全量 pytest **3047 passed / 6 skipped / 0 failed** (基线持平); generate_meta --check OK (97 services 含 paths.py 新模块); tsc 0 错; vitest 310 pass
+- **commit** `cdc92e9` + `78706e8`; ruff --fix 误删 `concept_linker.ITEMS_DIR` (test_graph_runtime setattr 隔离目录需属性存在) → 重导入并入 `__all__`, scoped pytest 251/251 复绿; kl:deduped (4 文件: kl_state_machine / t1_raw_to_refine / wiki_stats_service / test_t1_trigger) 显式 pathspec 排除 commit, 属并行会话另起批次
+- **预存债 (不在本批)**: `test_kl_state_machine.py::test_successors_of_raw` 期望 raw→refine 单出边, kl:deduped 终态落地后 `TRANSITIONS[LIFECYCLE_RAW]` 多一条 deduped → 该用例需更新期望集合; `test_snapshot_for_retirement.py::test_baseline_2026_08_24_counts` 期望 4149 wiki 文件在 knowledge/, 旧根已 gitignore + 新根不含 → 期望值陈旧; 两条皆属 kl:deduped 并行会话落账后的待跟踪项
 
 ## v0.6.3 P3 批次 (2026-08-30/31) — feed FTS 阈值自执行 + 运行时复核 + 两个真 bug 根治
 

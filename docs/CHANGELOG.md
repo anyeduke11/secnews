@@ -53,7 +53,7 @@
 | vite build | clean |
 | ruff backend+scripts | All checks passed |
 | generate_meta --check | OK (65/47/14/96) |
-| pytest 全量 | 见批次尾部补记 |
+| pytest 全量 | **3025 passed / 6 skipped** (含并行会话在途 census 改动一并验证) |
 
 ## v0.7.0 (2026-08-28) — workbench 报纸版 100% 接管 (Step 2 物理删除 + 正式发版)
 

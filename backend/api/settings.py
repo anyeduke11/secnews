@@ -27,6 +27,8 @@ async def get_features() -> dict:
         "security_graph": is_extension_enabled("security_graph"),
         "secnews": is_extension_enabled("secnews"),
         "crm": is_extension_enabled("crm"),
+        # C4 之后 dsh 才真正可配: 关闭时 /api/dsh/* 返回 404, 界面需如实呈现该状态
+        "dsh": is_extension_enabled("dsh"),
         "workbench_ui": config.feature_workbench_ui,
         "enabled_extensions": get_enabled_extensions(),
     }

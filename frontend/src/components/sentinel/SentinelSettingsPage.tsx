@@ -42,6 +42,7 @@ interface FeaturesPayload {
   security_graph?: boolean;
   secnews?: boolean;
   crm?: boolean;
+  dsh?: boolean;
   workbench_ui?: boolean;
   enabled_extensions?: string[];
 }
@@ -105,6 +106,12 @@ const FEATURE_DEFS: { key: keyof FeaturesPayload; label: string; desc: string }[
   { key: 'tech_stack', label: '技术栈图谱', desc: '技术栈关联分析与图谱视图。' },
   { key: 'security_graph', label: '安全图谱', desc: 'ATT&CK / CVE 安全关联图谱。' },
   { key: 'crm', label: 'CRM 业绩座舱', desc: '客户与商机状态机视图。' },
+  {
+    key: 'dsh',
+    label: 'dsh-SecNews 桥接',
+    desc: '外部 dsh 工作站的任务派发与健康端点。关闭时 /api/dsh/* 返回 404，'
+      + '研判类请求回退为本地直连 LLM —— 这是 feature_gates.toml 的预期状态，不是故障。',
+  },
   { key: 'workbench_ui', label: '工作台 UI 壳', desc: '五视图统一工作台外壳 (config.feature_workbench_ui)。' },
 ];
 

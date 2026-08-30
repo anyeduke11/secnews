@@ -56,6 +56,12 @@ data/migrations/
 .mcp.json
 .merkle-snapshot.json
 
+# Personal knowledge base (local-only truth source, never publish to GitHub)
+# Decision: 2026-08-30 — knowledge/ + llm-wiki-2.0/ removed from git history via filter-repo.
+# These dirs are wiki-first source-of-truth, kept ONLY on local disk.
+knowledge/
+llm-wiki-2.0/
+
 # Env
 .env
 .env.local

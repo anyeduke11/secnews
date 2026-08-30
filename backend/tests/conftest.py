@@ -57,6 +57,22 @@ from fastapi.testclient import TestClient
 # 运行才快照, 快照本身已被毒化, 还原等于没还。
 _ENV_SNAPSHOT = {k: v for k, v in os.environ.items() if k.startswith("HOTSPOT_")}
 
+# ---------------------------------------------------------------------------
+# 注册期 gate 快照 (根治 test_dsh_api 404, 2026-08-30)
+# register_routers(app) 在 backend.main **import 时** (即 pytest collection
+# 阶段) 读一次 feature gate; autouse fixture 运行晚于 collection, 无力回天。
+# P1-2 把 TOML dsh 翻成 false 后, dsh 路由在测试进程里从未注册过 —
+# test_dsh_api 4 用例 404 (S4 批次的"全量通过"声明未覆盖此点)。
+# 这里在 backend.main 被 import 前铺好"测试全开" env, 与下方 autouse
+# fixture 语义一致 (setdefault 尊重外部显式覆盖, 如 CI core-only job)。
+# ---------------------------------------------------------------------------
+os.environ.setdefault(
+    "HOTSPOT_FEATURE_GATES",
+    '{"extensions": {"codegarden": true, "codegarden_phase2b": true, '
+    '"mcp": true, "sync": true, "tech_stack": true, "security_graph": true, '
+    '"dsh": true}}',
+)
+
 
 @pytest.fixture(autouse=True)
 def _protect_hotspot_env() -> Iterator[None]:
@@ -109,10 +125,11 @@ def _feature_gates_all_on_for_tests() -> None:
 
     prev = os.environ.get("HOTSPOT_FEATURE_GATES")
     # P1.6: 测试环境也全开 codegarden_phase2b (M2/M3/M4) 保证既有功能测试在线
+    # v0.6.3: 补 dsh — 动态 gate 读数 (per-request) 与注册期快照保持一致
     os.environ["HOTSPOT_FEATURE_GATES"] = (
         '{"extensions": {"codegarden": true, "codegarden_phase2b": true, '
         '"mcp": true, "sync": true, '
-        '"tech_stack": true, "security_graph": true}}'
+        '"tech_stack": true, "security_graph": true, "dsh": true}}'
     )
     reset_gates()
     yield

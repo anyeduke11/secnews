@@ -1,11 +1,14 @@
 /**
  * PipelineSettings — 管线参数配置 (S3-4)
  *
- * KL 管线运行参数 + dsh 连接状态 + LLM 模型档位 + 采集源健康 + token 预算。
- * v0.6.3: workbench/SettingsView 采集源/预算两节并入; 刷新按钮接线 + 失败态显式呈现。
- * 数据源: GET /api/secnews/pipeline · GET /api/llm/status · GET /api/dsh/health · GET /api/sources/health
+ * KL 管线运行参数 + LLM 模型档位 + 采集源健康 + token 预算
+ * + dsh 认知大脑控制面板 (v0.6.3 内置化, 一键启停) + pi 执行 agent 面板。
+ * 数据源: GET /api/secnews/pipeline · /api/llm/status · /api/sources/health
+ *         dsh/agent 面板自取 /api/dsh/control/* 与 /api/agents/*
  */
 import { useState, useEffect, useCallback } from 'react';
+import { DshControlCard } from './DshControlCard';
+import { AgentRunnerCard } from './AgentRunnerCard';
 
 interface PipelineStats {
   queue?: { pending?: number; running?: number; error?: number };
@@ -15,13 +18,6 @@ interface PipelineStats {
 interface LLMStatus {
   enabled?: boolean;
   providers?: Record<string, { status?: string; model?: string }>;
-}
-
-interface DshHealth {
-  status?: string;
-  fallback?: string;
-  endpoint?: string;
-  note?: string;        // P1-2: 降级为实验性时携带说明
 }
 
 interface SourceHealth {
@@ -34,32 +30,21 @@ interface SourceHealth {
 export function PipelineSettings() {
   const [pipeline, setPipeline] = useState<PipelineStats | null>(null);
   const [llm, setLlm] = useState<LLMStatus | null>(null);
-  const [dsh, setDsh] = useState<DshHealth | null>(null);
   const [sources, setSources] = useState<SourceHealth[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dshGateOff, setDshGateOff] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [pRes, lRes, dRes, sRes] = await Promise.all([
+      const [pRes, lRes, sRes] = await Promise.all([
         fetch('/api/secnews/pipeline'),
         fetch('/api/llm/status'),
-        fetch('/api/dsh/health'),
         fetch('/api/sources/health'),
       ]);
       if (pRes.ok) setPipeline(await pRes.json());
       if (lRes.ok) setLlm(await lRes.json());
-      // dsh gate 关闭 → 404, 如实呈现而非永远 checking
-      if (dRes.status === 404) {
-        setDsh(null);
-        setDshGateOff(true);
-      } else if (dRes.ok) {
-        setDsh(await dRes.json());
-        setDshGateOff(false);
-      }
       if (sRes.ok) {
         const s = await sRes.json();
         setSources(s.sources || []);
@@ -152,60 +137,11 @@ export function PipelineSettings() {
         </div>
       </div>
 
-      {/* dsh 连接 */}
-      <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-        <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>dsh 连接</h3>
-        {dshGateOff ? (
-          <div className="flex items-center gap-2 text-[10px] font-mono">
-            <span className="w-2 h-2 rounded-full inline-block"
-              style={{ backgroundColor: 'var(--text-disabled)' }} />
-            <span style={{ color: 'var(--text-muted)' }}>
-              dsh 桥接未启用 (feature_gates.toml dsh=false, /api/dsh/* 返回 404)
-            </span>
-          </div>
-        ) : dsh ? (
-          <div className="text-[10px] font-mono space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full inline-block"
-                style={{
-                  backgroundColor:
-                    dsh.status === 'connected' ? 'var(--color-success)' :
-                    dsh.status === 'disconnected' ? 'var(--color-warning)' :
-                    'var(--color-error)',
-                }} />
-              <span style={{ color: 'var(--text-primary)' }}>
-                {dsh.status === 'connected' ? 'connected' : dsh.status}
-              </span>
-              {dsh.fallback && dsh.fallback !== 'none' && (
-                <span style={{ color: 'var(--text-muted)' }}>
-                  (fallback: {dsh.fallback})
-                </span>
-              )}
-            </div>
-            {dsh.endpoint && (
-              <div style={{ color: 'var(--text-muted)' }}>
-                endpoint: {dsh.endpoint}
-              </div>
-            )}
-            {dsh.note && (
-              <div style={{ color: 'var(--text-muted)', marginTop: '4px', fontSize: '9px' }}>
-                {dsh.note}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 text-[10px] font-mono">
-            <span className="w-2 h-2 rounded-full inline-block"
-              style={{ backgroundColor: 'var(--color-warning)' }} />
-            <span style={{ color: 'var(--text-muted)' }}>
-              {loading ? 'checking...' : 'dsh 状态加载失败, 点击刷新重试'}
-            </span>
-          </div>
-        )}
-        <p className="text-[9px] mt-1.5" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
-          DSH 不可达时深度分析自动降级到 LLM 直连兜底
-        </p>
-      </div>
+      {/* dsh 认知大脑 (v0.6.3 内置化: 受管子进程 + 前端一键启停 + 配置持久化) */}
+      <DshControlCard />
+
+      {/* pi 执行 agent (三层架构执行层) */}
+      <AgentRunnerCard />
 
       {/* 采集源健康 (workbench/SettingsView 并入) */}
       <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>

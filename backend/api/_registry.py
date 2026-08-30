@@ -184,9 +184,14 @@ def register_all(app: FastAPI) -> None:
         app.include_router(kl_pipeline_api.router, tags=["kl-pipeline"])
         app.include_router(secnews_dashboard_api.router, tags=["secnews"])
     # v0.6 P0: DSH 桥接层 (按 feature_gates 注册)
+    # v0.6.3: 内置化 — dsh 升级为受管子进程 (control 面启停), pi 执行 agent 同 gate
     if is_extension_enabled("dsh"):
         from backend.api import dsh_api
         app.include_router(dsh_api.router, tags=["dsh"])
+        from backend.api import dsh_control_api
+        app.include_router(dsh_control_api.router, tags=["dsh-control"])
+        from backend.api import agents_api
+        app.include_router(agents_api.router, tags=["agents"])
 
 
 __all__ = ["register_all"]

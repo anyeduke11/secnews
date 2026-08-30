@@ -74,10 +74,14 @@ export async function fetchPipe(): Promise<PipeSnapshot> {
     fetchPipelineStats(),
   ]);
   const rows: SourceHealthRow[] = (res && res.sources) || [];
-  const active = rows.filter(s => s.status === 'active').length;
-  const stale = rows.filter(s => s.status === 'stale').length;
-  const dead = rows.filter(s => s.status === 'dead').length;
-  const total = rows.length;
+  // 优先用后端"注册且启用"口径: source_stats 历史行含已无 collector 抓取的孤儿源
+  // (旧分母 152 含 22 个孤儿行, 若干还显示 active), 拿它当分母会让"源在线 x/y"
+  // 与管道状态一起失真。后端未升级缺字段时回落逐行统计, 保持兼容。
+  const registered = typeof res?.registered_total === 'number' ? res : null;
+  const active = registered ? registered.registered_active : rows.filter(s => s.status === 'active').length;
+  const stale = registered ? registered.registered_stale : rows.filter(s => s.status === 'stale').length;
+  const dead = registered ? registered.registered_dead : rows.filter(s => s.status === 'dead').length;
+  const total = registered ? registered.registered_total : rows.length;
   const ratio = total > 0 ? active / total : 0;
   return {
     active, stale, dead, total, sources: rows, ...stats,

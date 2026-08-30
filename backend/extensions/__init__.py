@@ -9,9 +9,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tomllib
 from pathlib import Path
+
+_logger = logging.getLogger(__name__)
 
 _GATES_PATH = Path(__file__).resolve().parent.parent / "config" / "feature_gates.toml"
 
@@ -20,6 +23,9 @@ _GATES_PATH = Path(__file__).resolve().parent.parent / "config" / "feature_gates
 _EXTENSION_NAMES = (
     "codegarden", "codegarden_phase2b", "mcp", "sync",
     "tech_stack", "security_graph", "secnews", "crm",
+    # dsh 桥接: _registry.py 以 is_extension_enabled("dsh") 守卫 dsh_api。
+    # 此前漏登记 → feature_gates.toml 的 dsh=false 被过滤掉, 端点意外在线。
+    "dsh",
 )
 
 # 扩展→router 映射（每个 router 是 backend.api 中的模块名）
@@ -83,13 +89,16 @@ JOB_TO_EXTENSION: dict[str, str] = {
     for job in jobs
 }
 
-_DEFAULT_GATES: dict[str, bool] = dict.fromkeys(_EXTENSION_NAMES, True)
+# 默认关闭 (fail-closed): 新增扩展若漏登记 feature_gates.toml, 应当不注册、
+# 不调度, 而不是在"全 API 无认证"的工作站上意外开放。
+# 实测爆炸半径 0: 当前 9 个扩展名全部在 TOML 中显式声明。
+_DEFAULT_GATES: dict[str, bool] = dict.fromkeys(_EXTENSION_NAMES, False)
 
 _GATES_CACHE: dict[str, bool] | None = None
 
 
 def _load_gates() -> dict[str, bool]:
-    """读取 feature_gates.toml；失败回退全部开启；env 可覆盖。"""
+    """读取 feature_gates.toml；失败则保持 fail-closed 默认 (全关)；env 可覆盖。"""
     global _GATES_CACHE
     if _GATES_CACHE is not None:
         return _GATES_CACHE
@@ -100,8 +109,12 @@ def _load_gates() -> dict[str, bool]:
         with open(_GATES_PATH, "rb") as f:
             raw = tomllib.load(f).get("extensions", {})
         gates.update({k: bool(v) for k, v in raw.items() if k in _DEFAULT_GATES})
-    except Exception:
-        pass  # 保守降级: 文件缺失/损坏时保持默认, 不阻塞启动
+    except Exception as e:
+        # 不静默: 默认已是全关, 这里只记录, 让"扩展集体消失"可被诊断而非猜测
+        _logger.error(
+            "feature_gates 读取失败 (%s: %s); 全部扩展按默认关闭处理",
+            _GATES_PATH, e,
+        )
 
     # CI/测试覆盖: HOTSPOT_FEATURE_GATES='{"extensions": {"codegarden": false, ...}}'
     # 优先级: 默认 < TOML < env
@@ -119,8 +132,8 @@ def _load_gates() -> dict[str, bool]:
 
 
 def is_extension_enabled(name: str) -> bool:
-    """扩展是否启用。未知名称默认视为启用（核心行为不受影响）。"""
-    return bool(_load_gates().get(name, True))
+    """扩展是否启用。未知名称按**关闭**处理 (fail-closed, 防漏登记即开放)。"""
+    return bool(_load_gates().get(name, False))
 
 
 def get_enabled_extensions() -> list[str]:
@@ -146,8 +159,8 @@ def reset_gates() -> None:
 
 
 __all__ = [
-    "EXTENSION_ROUTERS",
     "EXTENSION_JOBS",
+    "EXTENSION_ROUTERS",
     "JOB_TO_EXTENSION",
     "get_enabled_extensions",
     "get_extension_jobs",

@@ -8,7 +8,7 @@
 
 > 本文档描述 **2026-08-28 当前代码 (v0.6.2)** 的真实架构，供新开发者快速理解系统。
 > **定位**：现状导览 (≤ 200 行)；详细专题见 [docs/code-wiki/](code-wiki/CODE_WIKI.md) 5 个分章节文件。
-> 所有数字均从代码/文件核对（迁移 60+、router 65、jobs 47、collectors 14、services 96、测试 2892/322、备份保留 7、同步上限 100k），`scripts/generate_meta.py --check` 是 CI 门禁。
+> 所有数字均从代码/文件核对（迁移 60+、router 65、jobs 47、collectors 14、services 97、测试 2892/322、备份保留 7、同步上限 100k），`scripts/generate_meta.py --check` 是 CI 门禁。
 > v0.6 (2026-08-23 → 08-28): SecNews 工作台 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings) + kl_pipeline 五阶段管线 + DSH HTTP 桥接 + CRM 业绩座舱 + wiki_items_fts 完整同步层 + dsh-SecNews 归档, 详见 `docs/CODE_AUDIT_2026-08-28.md`。
 > v0.5 (2026-08-21 → 08-23): llm-wiki-2.0 数据底座 + ai_hub LLM 单出口 + Hot/Warm/Cold 分层 + dlq retry + 性能三任务, 详见 `docs/v0.5_refactor_plan/README.md`。
 > v0.4.0 (2026-08-16): 审计重构 Phase 0-6 落地, 详见 `docs/audit_first_principles_plan.md`。
@@ -42,7 +42,7 @@
 │  └──────┬───────┘  └──────┬───────┘  └─────────┬─────────┘   │
 │         │                │                    │             │
 │  ┌──────▼───────┐  ┌──────▼────────┐  ┌────────▼────────┐  │
-│  │ api/ 65 router│  │ services/ 96  │  │ repository/ 40  │  │
+│  │ api/ 65 router│  │ services/ 97  │  │ repository/ 40  │  │
 │  │ (lazy 注册)   │  │ (业务编排)     │  │ (SQLite DAO)    │  │
 │  └──────────────┘  └──────┬────────┘  └─────────────────┘  │
 └─────────────────────────┬──────────────────────────────────┘

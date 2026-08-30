@@ -31,13 +31,34 @@ async def map_rebuild_daily_job() -> None:
         _logger.error(f"map_rebuild_daily crashed: {e}")
 
 
+def _trend_rebuild_hours(default: int = 168) -> int:
+    """读 settings.trend.rebuild_hours, 缺失或脏值回落到 default。"""
+    try:
+        from backend.repository.db import get_connection
+
+        row = get_connection().execute(
+            "SELECT value FROM settings WHERE key = ?", ("trend.rebuild_hours",)
+        ).fetchone()
+        if row and row["value"] is not None:
+            return max(1, int(row["value"]))
+    except Exception as e:  # settings 缺表/脏值都不该让重建停摆
+        _logger.debug(f"_trend_rebuild_hours: {e}")
+    return default
+
+
 async def trend_rebuild_job() -> None:
-    """周期性重建 trend（不跑采集）"""
+    """周期性重建 trend（不跑采集）
+
+    窗口默认 168h（原硬编码 24h）。``/api/trends?hours=N`` 对超出快照窗口的桶
+    一律补 0 —— 24h 快照下实测 168 点仅 19 个非零, "没有数据"被显示成
+    "零资讯"; 判断层「时段吞吐」点阵正是按 168h 取数。
+    """
     try:
         trend = TrendRepository()
+        hours = _trend_rebuild_hours()
         # Phase 9 修复：trend.rebuild 是同步 sqlite3 操作，放 thread pool 避免阻塞 event loop
-        count = await asyncio.to_thread(trend.rebuild, 24)
-        _logger.info(f"trend_rebuild_job: {count} points")
+        count = await asyncio.to_thread(trend.rebuild, hours)
+        _logger.info(f"trend_rebuild_job: {count} points ({hours}h window)")
     except Exception as e:
         _logger.error(f"trend_rebuild_job crashed: {e}")
 

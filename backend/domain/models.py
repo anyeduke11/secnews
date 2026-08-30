@@ -90,15 +90,21 @@ class HotspotItem(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# TrendPoint — 24h trend bucket, one row per (hours_ago, category).
+# TrendPoint — hourly trend bucket, one row per (hours_ago, category).
 # ---------------------------------------------------------------------------
 class TrendPoint(BaseModel):
-    """One bucket in the 24h heatmap trend."""
+    """One hourly bucket in the trend heatmap.
+
+    ``hours_ago`` 的上界必须与 ``/api/trends`` 声明的 ``hours ≤ 168`` 一致：
+    旧值 ``le=23`` 把数据层锁死在 24 桶, 而 ``trend_snapshots.hours_ago`` 本身
+    没有 CHECK 约束 → 超出 24h 的请求只能被 service 补成假 0, "没有快照"于是被
+    渲染成"零资讯" (实测 ``/api/trends?hours=168`` 168 点仅 19 个非零)。
+    """
 
     model_config = ConfigDict(use_enum_values=False)
 
     label: str
-    hours_ago: int = Field(..., ge=0, le=23)
+    hours_ago: int = Field(..., ge=0, le=167)
     category: str
     count: int = Field(..., ge=0)
 

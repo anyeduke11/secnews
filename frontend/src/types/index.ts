@@ -859,19 +859,28 @@ export interface ImportedResponse {
   page_size: number;
 }
 
-// ----- Phase 4 S4-2: DeepRead 4 节深度分析面板 -----
-export interface DeepReadSections {
-  summary: string;
-  impact: string;
-  relations: string;
-  risks: string;
+// ----- Phase 4 S4-2: DeepRead 深度分析面板 (分类型动态分节) -----
+/** 语义三色锁: mint=正常/建议动作, amber=需注意/存疑, red=漏洞与攻击面告警 */
+export type DeepReadTone = 'mint' | 'amber' | 'red';
+
+/**
+ * 一节解读。分节集合由后端按文章 category 决定 (视角 profile),
+ * 前端不再假设固定有哪几节 —— 标题与顺序都由服务端下发。
+ */
+export interface DeepReadSection {
+  key: string;
+  title: string;
+  tone: DeepReadTone;
+  body: string;
 }
 
 export interface DeepReadResponse {
   entity_type: string;
   entity_id: string;
   content_md: string;
-  sections: DeepReadSections;
+  /** 本次解读所用的视角分类 (旧行可能为空) */
+  category: string;
+  sections: DeepReadSection[];
   sections_json: string;
   provider: string;
   model: string;

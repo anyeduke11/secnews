@@ -33,7 +33,6 @@ const FEATURES_FIXTURE = {
   security_graph: false,
   secnews: true,
   crm: true,
-  workbench_ui: true,
   enabled_extensions: ['sync', 'secnews', 'crm'],
 };
 

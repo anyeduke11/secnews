@@ -11,9 +11,16 @@
 - 健康状态 ``status`` ∈ {``active``, ``stale``, ``dead``}
 
 阈值从 ``settings`` 表读取，可被运维热更新：
-- ``quality.coverage_max_zero_yield_runs`` (默认 3) → 升级 stale
-- ``quality.coverage_dead_threshold`` (默认 6) → 升级 dead
+- ``quality.coverage_max_zero_yield_runs`` (默认 3) → 降级 stale
+- ``quality.coverage_dead_threshold`` (默认 6) → 降级 dead（连续零产出轮次）
+- ``quality.coverage_dead_min_hours`` (默认 72) → 判死的**时间下限**：距最近一次
+  产出不足该时长不判死。轮次阈值单独用会误杀低频发布源（政府招标站夜间/周末不
+  发布，实测 17 分钟一轮 × 6 ≈ 1.7 小时即被判死，导致 bid 类 64/64 全 dead）。
 - ``quality.coverage_min_active_sources`` (默认 3) → 覆盖度告警阈值
+
+``status`` 是"最近是否有产出"的函数，**可双向迁移**：有产出即回 active。
+历史实现的单向棘轮（只升不降）会让永久停在 dead 的源即使当轮采集成功也无法
+复活，详见 ``upsert_after_run`` 内注释。
 """
 from __future__ import annotations
 
@@ -29,6 +36,27 @@ from backend.repository.db import get_connection
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _idle_exceeds(last_seen: Any, now_iso: str, min_hours: int) -> bool:
+    """距最近一次产出是否已超过 ``min_hours`` 小时。
+
+    ``last_seen`` 为空 = 该源从未产出过, 没有"产出节奏"可言 → 返回 True, 让轮次
+    阈值继续生效。时间戳无法解析时同样返回 True (退回按轮次判死的旧语义), 避免
+    脏数据让故障源永远不被判死。
+    """
+    if not last_seen:
+        return True
+    try:
+        seen = datetime.fromisoformat(str(last_seen))
+        now = datetime.fromisoformat(now_iso)
+    except (TypeError, ValueError):
+        return True
+    if seen.tzinfo is None:
+        seen = seen.replace(tzinfo=timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return (now - seen).total_seconds() >= min_hours * 3600
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +106,7 @@ class SourceStatsRepository:
         conn = get_connection()
         # 读当前 row（如果存在）
         cur = conn.execute(
-            "SELECT zero_yield_runs, total_runs, total_items, status "
+            "SELECT zero_yield_runs, total_runs, total_items, status, last_seen_at "
             "FROM source_stats WHERE category = ? AND source_name = ?",
             (category, source_name),
         )
@@ -132,19 +160,34 @@ class SourceStatsRepository:
         new_total_runs = prev_total_runs + 1
         new_total_items = prev_total_items + item_count
 
-        # 状态升级（不会主动降级，运维可手动 reset）
-        new_status = prev_status
-        # 读阈值
+        # 阈值读取
         try:
             max_zr = int(_get_setting(conn, "quality.coverage_max_zero_yield_runs", "3"))
             dead_thr = int(_get_setting(conn, "quality.coverage_dead_threshold", "6"))
+            dead_min_hours = int(
+                _get_setting(conn, "quality.coverage_dead_min_hours", "72")
+            )
         except Exception:
             max_zr = 3
             dead_thr = 6
-        if new_zr >= dead_thr:
-            new_status = "dead"
-        elif new_zr >= max_zr and new_status == "active":
-            new_status = "stale"
+            dead_min_hours = 72
+
+        # 状态机: status 必须是"最近是否有产出"的函数, 可双向迁移。
+        # 历史实现为 `new_status = prev_status` + 注释"不会主动降级", 使 dead 成为
+        # 单向棘轮: 当轮产出使 new_zr=0 后两个分支都不再命中, 源会永久停在 dead。
+        # 实测 16 个源带产出仍显示 dead (FreeBuf total_items=66968, last_seen 距
+        # 本次写入不足 1 分钟), 直接导致前端"119 离线"失真。
+        if produced:
+            new_status = "active"
+        else:
+            new_status = prev_status
+            # 判死需同时满足"连续零产出轮次"与"距上次产出足够久", 否则低频发布源
+            # (政府招标站夜间/周末不发布) 会被轮次阈值误杀: 17min/轮 × 6 ≈ 1.7h。
+            # 从未产出过的源没有 last_seen_at 可依, 按轮次判死 (含解析器从未生效)。
+            if new_zr >= dead_thr and _idle_exceeds(row["last_seen_at"], now, dead_min_hours):
+                new_status = "dead"
+            elif new_zr >= max_zr and prev_status == "active":
+                new_status = "stale"
 
         last_seen = now if produced else None
         try:

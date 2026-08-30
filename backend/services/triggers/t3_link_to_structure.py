@@ -80,7 +80,17 @@ class T3Trigger:
                 if link_count < LOW_LINK_THRESHOLD:
                     low_link += 1
 
-                can_transition(item["lifecycle"], LIFECYCLE_STRUCTURE)
+                # 状态机守卫: can_transition 返回 bool 且不抛异常
+                # (见 backend/services/kl_state_machine.py:98), 原先调用后丢弃返回值
+                # 等于任何 lifecycle 都可被强推到 kl:structure。
+                if not can_transition(item["lifecycle"], LIFECYCLE_STRUCTURE):
+                    failed += 1
+                    self.metrics.inc("t3_failed")
+                    logger.warning(
+                        "T3: illegal transition %s → %s for %s",
+                        item["lifecycle"], LIFECYCLE_STRUCTURE, item_id,
+                    )
+                    continue
                 self._update_lifecycle(item_id, LIFECYCLE_STRUCTURE)
                 advanced += 1
                 self.metrics.inc("t3_succeeded")
@@ -105,9 +115,15 @@ class T3Trigger:
 
     @staticmethod
     def _fetch_candidates() -> list[dict[str, Any]]:
-        """Return ``kl:link`` items (no time limit on T3)."""
+        """Return ``kl:link`` items (no time limit on T3).
+
+        注意列白名单: ``knowledge_items`` 无 ``content`` 列 (真实 schema 24 列 +
+        全部迁移均无), 带上会抛 ``no such column: content`` 并使整个 job 每轮
+        崩溃 —— 实测日志中该错误连续出现 167 次, kl:link→kl:structure 长期全断。
+        t4 已按同样方式修过 (见 ``t4_structure_to_publish.py`` P1-2 注释)。
+        """
         sql = (
-            "SELECT id, title, content, lifecycle, "
+            "SELECT id, title, lifecycle, "
             "ingested_at, updated_at "
             "FROM knowledge_items "
             "WHERE lifecycle = ? "

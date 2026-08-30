@@ -482,8 +482,9 @@ body {
 }
 
 /* ===== Forms ===== */
-.editorial-input,
-.editorial-select {
+/* .editorial-select 已随报纸版下拉一并删除 (全仓零消费者);
+   .editorial-input 仍在用 (哨兵终端 URL 导入框), 不要连带删掉。 */
+.editorial-input {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -495,10 +496,8 @@ body {
   transition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease, background var(--duration-fast) ease;
 }
 .editorial-input::placeholder { color: var(--text-muted); }
-.editorial-input:hover,
-.editorial-select:hover { background: var(--bg-hover); }
-.editorial-input:focus,
-.editorial-select:focus {
+.editorial-input:hover { background: var(--bg-hover); }
+.editorial-input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
   background: var(--bg-secondary);

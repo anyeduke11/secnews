@@ -90,10 +90,18 @@ def _read_threshold() -> int:
 
 
 def list_dead_sources(dead_for_days: int = DEFAULT_DEAD_FOR_DAYS) -> list[dict]:
-    """返回所有 status='dead' AND last_checked_at < now - N days 的源.
+    """返回所有 status='dead' 且"死够久"的源。
+
+    "死了多久"以 ``last_seen_at`` (最近一次**有产出**的时间) 度量: 它只在采集
+    真的拿到内容时才刷新, 才是"沉默了多久"的事实。
+
+    历史实现比较的是 ``last_checked_at`` (最近一次**尝试**采集的时间), 而
+    ``source_stats_repo.upsert_after_run`` 每轮都刷新该字段 → 只要源还在被采集就
+    永远不满足 ``< now - N days``, 复活探测恰好跳过了它唯一该救的那批源
+    (实测候选仅 10 个, 且全是已停用/孤儿行)。从未产出过的源没有 last_seen_at,
+    回退用 last_checked_at 作为沉默起点。
 
     返回的 dict 来源自 source_stats repo, 字段:
-    category / source_name / source_url / last_checked_at
     """
     from backend.repository.source_stats_repo import SourceStatsRepository
 
@@ -104,15 +112,15 @@ def list_dead_sources(dead_for_days: int = DEFAULT_DEAD_FOR_DAYS) -> list[dict]:
     for r in rows:
         if str(r.get("status", "")) != "dead":
             continue
-        last_checked = r.get("last_checked_at")
-        if not last_checked or last_checked > cutoff:
+        last_active = r.get("last_seen_at") or r.get("last_checked_at")
+        if not last_active or str(last_active) > cutoff:
             continue  # 死得不够久, 跳过
         out.append(
             {
                 "category": str(r["category"]),
                 "source_name": str(r["source_name"]),
                 "source_url": str(r["source_url"]),
-                "last_checked_at": str(last_checked),
+                "last_checked_at": str(last_active),
             }
         )
     return out

@@ -1,9 +1,7 @@
 # 02 — 后端详解
 
-> 基准: v0.6.2 (2026-08-28)。数字快照: 63 router / 93 service / 37 repo / 47 job / 14 collector,
-> 由 `scripts/generate_meta.py` 反推维护, 见 `docs/ARCHITECTURE.md`。
->
-> **本文件是 [`../ARCHITECTURE.md`](../ARCHITECTURE.md) §一"系统总览"中后端层的细节展开** — 详列 5 大包分层、数据流、quality 门禁、sync 模块。
+> 基准: **v0.7.0** (2026-08-28)。数字快照: 63 router / 93 service / 47 job / 14 collector,
+> 由 `scripts/generate_meta.py` 反推维护, 见 `docs/ARCHITECTURE.md` (CI `--check` 验收 47/14/63/93)。
 
 ## 1. 启动与生命周期
 
@@ -25,7 +23,7 @@ startup:
   init_db()                    # SQLite + WAL + apply_migrations()
   warmup()                     # 缓存预热
   rebuild_export_cache()       # 导出预生成 (失败只告警)
-  [MCP] is_mcp_enabled() →     # feature gate
+  [MCP] is_mcp_enabled() →     # feature gate (默认关)
         mcp_tool_registry_seed()  (PRIMARY KEY name, 重启幂等)
         build_mcp_server(app) + mount_sse_endpoint(app, mcp)  # /mcp/sse
   svc = CollectionService(); set_service(svc)
@@ -44,7 +42,7 @@ shutdown (yield 之后, 逆序):
 - **异常体系**: `register_exception_handlers` (`backend/exceptions.py`), 统一错误体
   `{"detail": {"message": "...", "missing": "github_token"}}`, 前端按此解析
 
-### 1.3 配置 (`backend/config.py`)
+### 1.3 配置 (`backend/config.py` + `backend/config/` 包)
 
 Pydantic Settings, 环境变量前缀 `HOTSPOT_`。关键字段:
 
@@ -55,22 +53,35 @@ Pydantic Settings, 环境变量前缀 `HOTSPOT_`。关键字段:
 | `quality_reputation_interval_seconds` | 21600 | 来源信誉重算间隔 |
 | `knowledge_watchdog_enabled` | True | 文件↔DB 自动同步开关 |
 | `catchup_on_startup` | True | 启动自动追抓 (测试环境必须关) |
+| `feature_workbench_ui` | **True** | `/workbench` 5 视图路由守卫 (v0.7 首页) |
 | `feature_*` | 见 01 §4 | 细粒度功能 flag (tag/extract/review/annotation/tech_stack/alert/unified_search/recommendation/digest/mcp_server) |
+
+LLM provider 配置: `backend/config/llm_schema.py` (Pydantic 模型) + 仓库根 `config/llm.yaml`
+(v0.5.1 起单一来源, AIService 的 sensenova 硬编码已并入)。
 
 ## 2. API 路由层 (`backend/api/`)
 
-### 2.1 注册机制 (`api/__init__.py::register_routers`)
+### 2.1 注册机制 (v0.6.2 拆分后)
 
-- 全部 **lazy import** (函数体内 import, 避免循环依赖)
-- 每个 router 文件 **≤ 150 行**; `annotations` 等模块用 `import x as y` 显式绕开
-  `from __future__ import annotations` 的名字遮蔽
+```
+api/__init__.py   18 行薄壳 — register_routers(app) 委托 _registry.register_all
+api/_registry.py  实际注册表 — 分组 + app.include_router 调用 (无 150 行限制)
+api/_flags.py     feature_flag 批量检查 — 收敛 register_routers 内的 if config.feature_xxx 块
+```
+
+- 全部 **lazy import** (函数体内 import, 避免循环依赖; `annotations` 等模块用
+  `import x as y` 显式绕开 `from __future__ import annotations` 的名字遮蔽)
+- 每个 router 文件 **≤ 150 行**; 头部必写路由清单注释
 - 三类注册路径:
 
 | 类别 | 判定 | 示例 |
 |------|------|------|
-| **core 白名单** (`core/routers.py`) | 永远注册 | hotspots / trends / categories / health / export / proxy / quality / sources / favorites / history / refresh / todos / skills / secrets / security / settings / knowledge / knowledge_chunks / content / maintenance / cache / events / attention_events / reports / weekly_report / catchup / knowledge_imported / kl_* / wiki_tools / llm_status / bid_alert / mode / alert_api_v2 … |
+| **core 白名单** (`core/routers.py`) | 永远注册 | hotspots / trends / categories / health / export / proxy / quality / sources / favorites / history / refresh / todos / skills / secrets / security / settings / knowledge / knowledge_chunks / content / maintenance / cache / events / attention_events / reports / weekly_report / catchup / knowledge_imported / kl_* / wiki_tools / llm_status / bid_alert / mode / alert_api_v2 / deep_read / cve_analytics / compliance … |
 | **extension gates** (`is_extension_enabled`) | 条件注册 | sync · codegarden + codegarden_ops + codegarden_phase14 · crm×3 · mcp×3 + phase5_tools (kl_*/dsh_*) · secnews (kl_pipeline_api + secnews_dashboard_api) · dsh_api |
 | **config.feature_* flag** | 条件注册 | tags · extract · reviews · annotations · tech_stack · alerts · search · recommend · digests |
+
+- **依赖方向硬约束**: router 可 import `backend.services.*` / `backend.core.*`,
+  **严禁** `import backend.collectors.*` / `import backend.repository.*` (DB 必须经 service)
 
 ### 2.2 主要 router 一览 (按域)
 
@@ -79,6 +90,7 @@ Pydantic Settings, 环境变量前缀 `HOTSPOT_`。关键字段:
 | 资讯 | `hotspots.py` `categories.py` `history.py` `refresh.py` `export.py` | `GET /api/hotspots` · `POST /api/refresh` (手动触发采集) |
 | 采集运维 | `sources.py` `quality.py` `cache.py` `catchup.py` | 源列表 / 质量日志 / 缓存管理 / 追抓 |
 | 知识 | `knowledge.py` `knowledge_chunks_api.py` `knowledge_imported.py` `attention_events_api.py` | 知识条目 / chunks FTS5 / 收藏聚合 / 注意力事件 |
+| 深读/分析 (v0.6 S4) | `deep_read.py` (S4-2 四节 LLM 深度分析) · `cve_analytics.py` (S4-3 CVE 热力图 + ATT&CK 映射) · `compliance.py` (S4-4 合规矩阵: 等保 2.0 + GDPR + ISO 27001) | `/api/deep-read/*` · `/api/cve/*` · `/api/compliance/*` |
 | KL | `kl_metrics_api.py` `kl_rollback_api.py` `kl_compounding_api.py` `kl_planning_api.py` `kl_pipeline_api.py` | 触发器指标 / 回滚 / 复利仪表盘 / 规划动作 / 管线 |
 | 行动层 | `todos.py` `skills.py` `secrets.py` `reviews.py` `tags.py` `annotations.py` `bid_alert.py` `digests.py` `content.py` | 待办 / 技能 / 密钥 / SM-2 复习 / 标签 / 笔记 / 标讯提醒 / 简报 / 内容日历 |
 | 判断层 | `trends.py` `search.py` `recommend.py` `mode.py` | 趋势 / 统一搜索 / 上下文推荐 / 模式切换 |
@@ -87,10 +99,13 @@ Pydantic Settings, 环境变量前缀 `HOTSPOT_`。关键字段:
 | 安全 | `security.py` | Security Graph + Terminology |
 | CodeGarden | `codegarden.py` `codegarden_ops.py` `codegarden_phase14.py` | `/api/codegarden/*` 项目 / M2-M4 运维 / 漂移+CVE |
 | 同步 | `sync.py` | push / pull / 状态 |
-| MCP | `mcp.py` `mcp_adapters.py` `mcp_agent_tools.py` `mcp_phase5_tools.py` `wiki_tools.py` | 调试端点 / 适配端点 / agent tools / kl+dsh tools / wiki 工具族 |
-| 系统 | `health.py` `maintenance.py` `settings.py` `proxy.py` `llm_status.py` | 健康 / DB 维护 / 运行时设置 / 代理 / LLM 状态 |
+| MCP | `mcp.py` `mcp_adapters.py` `mcp_agent_tools.py` `mcp_phase5_tools.py` `wiki_tools.py` | 调试 / 适配 / agent tools / kl+dsh tools / wiki 工具族 |
+| 系统 | `health.py` `maintenance.py` `settings.py` `proxy.py` `llm_status.py` | 健康 / DB 维护 / 运行时设置 (含 `/api/settings/features`) / 代理 / LLM 状态 |
 
-## 3. 服务层 (`backend/services/`, 89 模块)
+`/api/settings/features` (settings.py): 把 feature_gates 派生的扩展状态 + config.feature_*
+(含 `workbench_ui`) 下发给前端 `useFeatureFlags`, 是前后端可见性同源点。
+
+## 3. 服务层 (`backend/services/`, 93 模块)
 
 ### 3.1 分组总表
 
@@ -104,12 +119,12 @@ Pydantic Settings, 环境变量前缀 `HOTSPOT_`。关键字段:
 | **报告/摘要** | `daily_report_overview_service` · `weekly_report_service` · `weekly_report_overview_service` · `monthly_report_service` · `digest_service` · `summary_service` · `summary_enricher` · `stats_recycle_service` |
 | **CodeGarden** | `codegarden_project_service` · `codegarden_service_service` · `codegarden_resource_service` · `codegarden_orchestration_service` · `codegarden_scanner_service` · `codegarden_github_service` · `codegarden_knowledge_bridge` · `codegarden_drift` · `tech_stack_service` |
 | **Security** | `security_graph_service` · `terminology_service` · `graph_builder` · `federation_service` · `cve_knowledge_sync` |
-| **AI/LLM** | `ai_hub` (LLM 单出口) · `llm/model_router` · `cost_monitor` |
+| **AI/LLM** | **`ai_hub/` 子包** (见 §3.3) · `llm/model_router` · `cost_monitor` |
 | **同步** | `sync_service` · `sync_merge` · `sync_bundle` · `sync_zip` · `sync_fernet_mixin` · `sync_config_service` · `sync_service_constants` · `webdav_client` · `bookmark_sync` |
 | **用户数据** | `hotspot_service` · `search_service` · `recommend_service` · `alert_engine` · `alert_service` · `annotation_service` · `extract_service` · `content_service` · `attention_scorer` |
 | **画像** | `profile_service` · `soul_service` · `progress_service` |
 | **运维** | `maintenance_service` · `backup_service` · `data_cleaning` · `feature_flag_service` · `secrets_service` · `history_import` · `imported_aggregator` · `export_service` · `trend_service` · `url_batch_check_service` |
-| **外部桥接** | `cubox_sync` (Cubox 收藏) · `sag_service` · `dsh/` (bridge + session + task_router) |
+| **外部桥接** | `cubox_sync` (Cubox 收藏) · `sag_service` · `dsh/` (bridge + session + task_router, 实验性) |
 
 ### 3.2 关键服务详解
 
@@ -131,12 +146,23 @@ Pydantic Settings, 环境变量前缀 `HOTSPOT_`。关键字段:
 | `sync_bundle.py` | ~850 | bundle 生命周期: 读本地配置 / 写回各表 / Fernet 加解密 / apply |
 | `sync_zip.py` | — | zip 容器: `build_sync_zip()` / `extract_sync_zip()`; envelope.json (密文) + manifest.json (明文) |
 
-**`ai_hub.py` — LLM 单出口 (v0.5.0 起, v0.6.2 拆为 ai_hub/ 包)**
+### 3.3 `ai_hub/` 子包 — LLM 单出口 (v0.7-C 拆分后)
 
-- `LLMService`: 多 provider + fallback + 缓存; `score` 按 `fallback_order` 依次调用,
-  全部失败回退默认分数
-- provider 配置见 `backend/config/llm_schema.py` 与 `config/llm.yaml`;
-  AIQualityGate 的 LLM 检测 (sensenova / ollama) 走此出口, sensenova 有限频控制
+v0.5.0 合并 llm_service + ai_service 为单出口; v0.6.2-v0.7 持续拆分,
+原 412 行模块现为子包:
+
+| 模块 | 职责 |
+|------|------|
+| `service.py` (~126 行) | `AIService` 对外门面 — 业务侧唯一调用入口 |
+| `gateway.py` (~406 行, **超 400 行软限, 待拆 gateway/ + tasks_adapter.py**) | provider 网关: 多 provider + fallback_order 依次调用 + 失败回退默认分; sensenova 限频在此 |
+| `tasks.py` (~130 行) | 任务型调用 (批量评分 / 深读分析等) |
+| `write_back.py` | tasks 的写回门面 (ai_scores 写路径唯一) |
+| `cache.py` | LLM 响应缓存 (配 `llm_cache` 表) |
+| `usage.py` | token / cost 用量统计 (配 cost_monitor) |
+| `prompts.py` | prompt 模板集中 (**工作区未提交新文件, v0.7-C 进行中**) |
+
+配置单一来源 `config/llm.yaml`; AIQualityGate 的 LLM 检测 (sensenova / ollama)
+走此出口, `quality.llm_enabled` 默认关。
 
 **其它高频服务**
 
@@ -147,7 +173,8 @@ Pydantic Settings, 环境变量前缀 `HOTSPOT_`。关键字段:
 - `secrets_service.py`: Fernet 加密存储 + `try_auto_unlock()` (OS keychain)
 - `webdav_client.py`: 坚果云 WebDAV 传输层
 - `dsh/bridge.py`: `DSHClient` — HTTP 连接 deepseek-harness 运行时
-  (`health_check` / `send_task` / `get_session`), feature gate `dsh`
+  (`health_check` / `send_task` / `get_session`); gate `dsh` 默认关,
+  **不可达时自动降级 llm_service 直连** (P1-2 实验性定位)
 
 ## 4. 数据层 (`backend/repository/`)
 
@@ -171,7 +198,7 @@ Pydantic Settings, 环境变量前缀 `HOTSPOT_`。关键字段:
 | 源 | `custom_sources` (004) · `source_stats` (005) · discovery_source (060) · proxy_health (053) |
 | 采集运维 | `bid_status` (008) · `history_batches` (010) · catchup_runs/checkpoints (040/042) · collect_running_status (041) · crawler_v2 (055-057) |
 | 行动 | `todos` (011) · `skills` (012) · `secrets` (013) · tags (024) · reading_states (025) · sm2_reviews (026) · annotations (027) · planning_actions (049) |
-| 知识 | `knowledge` (018/020) · unified_fts (033) · compiled (035) · lifecycle (036/046, `kl:*` 5 阶段) · chunks (054 + CJK FTS 061) · knowledge_indexes (063) · wiki_events (065) · digest_summary_md (072) · wiki items fts (073) |
+| 知识 | `knowledge` (018/020) · unified_fts (033) · compiled (035) · lifecycle (036/046, `kl:*` 5 阶段) · chunks (054 + CJK FTS 061) · knowledge_indexes (063) · wiki_events (065) · digest_summary_md (072) · wiki_items_fts (073, 写后即时同步) |
 | CodeGarden | (019) 项目/记忆/Prompt/SDD + (021) cg_services/cg_resources/cg_dependencies/cg_events + drift_assessments (050) |
 | 安全图谱 | security_graph (022) + tech_stack (029) |
 | 告警 | alert_rules (028/048) |
@@ -197,9 +224,6 @@ Pydantic Settings, 环境变量前缀 `HOTSPOT_`。关键字段:
 辅助模块: `session.py` (`BackendSession`, httpx 重试) · `id_factory.py` (`make_readable_id`,
 格式 `{source}:{subtype}:{native_id}` 如 `hn:item:12345678`) · `parsing.py` / `keywords.py`
 (从 base 拆出) · `item_builder.py` (透传 `raw.get("id")`)。
-
-> 注意: `collectors/__init__.py` 只导出 Phase 13 六个新 collector; 旧 8 个分类采集器由
-> `collection_service.py` 直接 import 装配。
 
 ### 5.2 分类 × 采集器注册表 (`CollectionService.__init__`)
 
@@ -272,7 +296,7 @@ quality_check_logs 膨胀由每周日 job + `POST /api/maintenance/cleanup-quali
 
 | 模块 | 关键成员 | 职责 |
 |------|----------|------|
-| `engine.py` | `KLPipeline.kickout()` / `drain_due()` | 主引擎: 入队 / 执行到期阶段任务并推进 stage, 失败标 error |
+| `engine.py` | `KLPipeline.kickoff()` / `drain_due()` | 主引擎: 入队 / 执行到期阶段任务并推进 stage, 失败标 error |
 | `queue.py` | `KLQueue.enqueue_unique()` (基于 `(item_id, stage)` 唯一约束幂等) · `due()` · `mark_run()` · `mark_done()` · `mark_error()` | 队列 DAO + 状态流转 |
 | `runtime.py` | 单例装配 | 绑定 `WikiFs` + `AIHubLLMClient` + `KLPipeline` |
 | `services/triggers/` | t1…t5 | T1 raw→refine (60s) / T2 refine→link (120s) / T3 link→structure (600s) / T4 structure→publish (1800s) / T5 publish→refine 回流; 每个含触发条件、执行主体、副作用、失败回退 |
@@ -281,7 +305,7 @@ quality_check_logs 膨胀由每周日 job + `POST /api/maintenance/cleanup-quali
 心跳: `kl_pipeline_heartbeat` job (60s) — `drain_due` 常规消化 + 每 10 拍 sweep 兜底,
 归属 secnews 扩展域。
 
-## 8. 调度器 (`backend/scheduler/scheduler.py`)
+## 8. 调度器 (`backend/scheduler/`)
 
 ### 8.1 `HotspotScheduler` 生命周期
 
@@ -292,10 +316,12 @@ quality_check_logs 膨胀由每周日 job + `POST /api/maintenance/cleanup-quali
 4. `stop()` — 优雅关闭 (所有异常吞掉, 保证 SIGTERM rc=0)
 
 并发保护: `AsyncIOExecutor` 单线程异步 + `job_defaults.max_instances=1` (同 job 不重叠)
-+ `coalesce=True` (错过的合并); Phase 24 修复: 用 `start_date` 替代 `next_run_time=None`
++ `coalesce=True` (错过的合并); 用 `start_date` 替代 `next_run_time=None`
 (否则 IntervalTrigger 首跑后永久不再调度)。
 
-`_JOB_EXT_MAP` + `_is_job_enabled()`: 扩展关闭时对应 job 不调度。
+**job 门控单一来源** (v0.6.2 P1-1): `backend/extensions/__init__.py` 的
+`EXTENSION_JOBS` 声明扩展→job 归属, scheduler.py 反向派生 `JOB_TO_EXTENSION`
+(替代旧散落三处的 `_JOB_EXT_MAP`)。扩展关闭时对应 job 不调度。
 
 ### 8.2 Job 全表 (47 个; ⛭ = 受 feature gate 条件注册)
 
@@ -356,10 +382,10 @@ quality_check_logs 膨胀由每周日 job + `POST /api/maintenance/cleanup-quali
 
 | 模块 | 职责 |
 |------|------|
-| `mitre_attack.py` | 从 GitHub raw 拉取 MITRE ATT&CK STIX bundle, 解析 attack patterns / tactics / relationships 写入图谱 (周同步 job) |
+| `mitre_attack.py` | 从 GitHub raw 拉取 MITRE ATT&CK STIX bundle, 解析 attack patterns / tactics / relationships 写入图谱 (周同步 job); S4-3 在前端以 STIX 子集嵌入做技术映射 |
 | `graph.py` | `SecurityGraphEngine` — 构建安全知识图谱, 对 hotspot/knowledge items 抽取安全实体 ID 并关联 |
 | `enricher.py` | `enrich_item` / `enrich_batch` — CVE/ATT&CK/合规提取便捷导出层 |
-| `compliance.py` | 合规本体种子: 等保 2.0 / 关基 / 数安法 / 网安法 / 个保法 compliance entities |
+| `compliance.py` | 合规本体种子: 等保 2.0 / 关基 / 数安法 / 网安法 / 个保法 (S4-4 扩展 GDPR + ISO 27001 矩阵, API 在 `api/compliance.py`) |
 
 数据落 `security_graph` 表族 (migration 022); terminology 归一化在
 `services/terminology_service.py`; CVE 侧另有 `services/cve_knowledge_sync.py`
@@ -386,6 +412,7 @@ quality_check_logs 膨胀由每周日 job + `POST /api/maintenance/cleanup-quali
   link_items / trigger_codegarden_drift)
 - **phase5 扩展**: `mcp_phase5_tools.py` — `kl_*` / `dsh_*` 5 个 tool
 - **wiki 工具族**: `wiki_tools.py` — llm-wiki-2.0 消费面
+- **gate**: `mcp` 扩展默认**关闭** (启用需 feature_gates.toml 置 true)
 
 ## 12. 其它顶层模块
 
@@ -396,4 +423,4 @@ quality_check_logs 膨胀由每周日 job + `POST /api/maintenance/cleanup-quali
 | `enrich_v2.py` | enrichment v2 |
 | `tools/import_cache.py` | import 缓存工具 |
 | `utils/business_days.py` | `current_week_start()` 等周锚定时间函数 (RecencyGate/catchup 共用) |
-| `version.py` | `APP_VERSION` |
+| `version.py` | `APP_VERSION = "0.7.0"` 单一来源 |

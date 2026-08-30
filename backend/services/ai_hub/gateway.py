@@ -200,17 +200,41 @@ class LLMService:
 
         return []
 
-    async def generate(self, prompt: str) -> str:
-        """通用生成接口."""
+    async def generate(
+        self,
+        prompt: str,
+        *,
+        task: str = "summary",
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> str:
+        """通用生成接口.
+
+        ``task`` 决定 router 选哪条链 (provider + 模型档位)。默认 ``"summary"``
+        等于本函数历史上写死的那个值 —— 不传参的调用点行为逐字节不变。
+        深度阅读传 ``"deep_read"`` 才能命中 HEAVY 档; 历史上它被写死成
+        ``summary`` → FLASH 档 → ``t3_chunk_summary`` → 未运行的 ollama,
+        于是 ``deep_reads`` 表长期 0 行。
+        """
         if not self.enabled:
             return ""
 
-        for provider_name in self._try_order("summary"):
+        cache_key = _make_cache_key(task, prompt)
+        cached = get_llm_cache(cache_key)
+        if cached is not None:
+            return cached
+
+        for provider_name in self._try_order(task):
             try:
                 cfg = self._config.providers[provider_name]
-                model = self._resolve_model(provider_name, "summary")
-                raw = await self._call_provider(cfg, model, prompt)
-                log_llm_usage(provider_name, model, "generate", prompt, raw)
+                model = self._resolve_model(provider_name, task)
+                raw = await self._call_provider(
+                    cfg, model, prompt,
+                    max_tokens=max_tokens, temperature=temperature,
+                )
+                if raw:
+                    set_llm_cache(cache_key, raw)
+                log_llm_usage(provider_name, model, task or "generate", prompt, raw)
                 return raw
             except Exception as e:
                 log.warning("Provider %s generate failed: %s", provider_name, e)
@@ -221,19 +245,37 @@ class LLMService:
     # ── Provider 调用 ─────────────────────────────────────────────
 
     async def _call_provider(
-        self, cfg: ProviderConfig, model: str, prompt: str
+        self,
+        cfg: ProviderConfig,
+        model: str,
+        prompt: str,
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
     ) -> str:
-        """调用指定 provider 的 LLM API."""
+        """调用指定 provider 的 LLM API.
+
+        ``max_tokens`` / ``temperature`` 默认 None → 各分支沿用今天写死的值,
+        既有调用点 (score / summarize / extract_entities) 行为不变。
+        """
         t0 = time.monotonic()
 
         if cfg.type == "ollama":
-            result = await self._call_ollama(cfg, model, prompt)
+            result = await self._call_ollama(
+                cfg, model, prompt, max_tokens=max_tokens, temperature=temperature
+            )
         elif cfg.type == "openai":
-            result = await self._call_openai(cfg, model, prompt)
+            result = await self._call_openai(
+                cfg, model, prompt, max_tokens=max_tokens, temperature=temperature
+            )
         elif cfg.type == "openai_compatible":
-            result = await self._call_openai_compatible(cfg, model, prompt)
+            result = await self._call_openai_compatible(
+                cfg, model, prompt, max_tokens=max_tokens, temperature=temperature
+            )
         elif cfg.type == "anthropic":
-            result = await self._call_anthropic(cfg, model, prompt)
+            result = await self._call_anthropic(
+                cfg, model, prompt, max_tokens=max_tokens, temperature=temperature
+            )
         else:
             raise ValueError(f"Unsupported provider type: {cfg.type}")
 
@@ -241,7 +283,15 @@ class LLMService:
         log.debug("LLM call %s/%s: %dms", cfg.type, model, int(elapsed_ms))
         return result
 
-    async def _call_ollama(self, cfg: ProviderConfig, model: str, prompt: str) -> str:
+    async def _call_ollama(
+        self,
+        cfg: ProviderConfig,
+        model: str,
+        prompt: str,
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> str:
         """调用 Ollama API."""
         base_url = cfg.base_url or "http://127.0.0.1:11434"
         url = f"{base_url.rstrip('/')}/api/generate"
@@ -249,7 +299,12 @@ class LLMService:
             "model": model,
             "prompt": prompt,
             "stream": False,
-            "options": {"temperature": 0.0, "num_predict": 100},
+            "options": {
+                # 默认沿用历史值 (num_predict=100 / temperature=0.0);
+                # 调用方显式传 max_tokens 时才放宽, 否则长生成会被静默截断。
+                "temperature": temperature if temperature is not None else 0.0,
+                "num_predict": max_tokens if max_tokens else 100,
+            },
         }
         async with httpx.AsyncClient(timeout=cfg.timeout_seconds) as client:
             resp = await client.post(url, json=payload)
@@ -257,18 +312,35 @@ class LLMService:
             data = resp.json()
             return data.get("response", "")
 
-    async def _call_openai(self, cfg: ProviderConfig, model: str, prompt: str) -> str:
+    async def _call_openai(
+        self,
+        cfg: ProviderConfig,
+        model: str,
+        prompt: str,
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> str:
         """调用 OpenAI API."""
         api_key = self._get_api_key(cfg.api_key_env)
         base_url = cfg.base_url or "https://api.openai.com/v1"
         # C3: 凭据只允许发往代码侧白名单主机 (base_url 可被同步包写入 llm.yaml)
         check_credential_egress(base_url)
         url = f"{base_url.rstrip('/')}/chat/completions"
-        payload = {
+        payload: dict = {
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.0,
+            "temperature": temperature if temperature is not None else 0.0,
         }
+        # 历史上本分支从不发 max_tokens (输出长度由 provider 默认值决定)。
+        # 仅在调用方显式指定时才下发, 保持既有 score/summarize 请求体不变。
+        if max_tokens:
+            payload["max_tokens"] = max_tokens
+        # provider 特有的非标准开关, 例如 sensenova 的
+        # ``thinking: {type: disabled}`` —— 实测同一份深度阅读负载
+        # 84s/reasoning 428 tokens 降到 11s/reasoning 0。
+        if cfg.extra_request_body:
+            payload.update(cfg.extra_request_body)
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -280,22 +352,39 @@ class LLMService:
             return data["choices"][0]["message"]["content"]
 
     async def _call_openai_compatible(
-        self, cfg: ProviderConfig, model: str, prompt: str
+        self,
+        cfg: ProviderConfig,
+        model: str,
+        prompt: str,
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
     ) -> str:
         """调用兼容 OpenAI API 的 provider（如 Qwen）. """
-        return await self._call_openai(cfg, model, prompt)
+        return await self._call_openai(
+            cfg, model, prompt, max_tokens=max_tokens, temperature=temperature
+        )
 
     async def _call_anthropic(
-        self, cfg: ProviderConfig, model: str, prompt: str
+        self,
+        cfg: ProviderConfig,
+        model: str,
+        prompt: str,
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
     ) -> str:
         """调用 Anthropic API."""
         api_key = self._get_api_key(cfg.api_key_env)
         url = "https://api.anthropic.com/v1/messages"
         payload = {
             "model": model,
-            "max_tokens": 500,
+            # anthropic 要求显式 max_tokens, 默认沿用历史 500
+            "max_tokens": max_tokens if max_tokens else 500,
             "messages": [{"role": "user", "content": prompt}],
         }
+        if temperature is not None:
+            payload["temperature"] = temperature
         headers = {
             "x-api-key": api_key,
             "anthropic-version": "2023-06-01",
@@ -318,6 +407,9 @@ class LLMService:
             "ner": cfg.models.ner,
             "tag": cfg.models.tag,
             "chunk_summary": cfg.models.chunk_summary,
+            # 深度阅读走 summary 档模型。刻意**不**给 "summary" 补键:
+            # 它今天回落到 models.score, 补上会让 summarize 换档 (独立行为变更)。
+            "deep_read": cfg.models.summary,
         }
         return model_map.get(task, cfg.models.score)
 

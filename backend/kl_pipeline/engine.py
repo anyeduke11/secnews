@@ -101,11 +101,31 @@ class KLPipeline:
                     "kl_pipeline stage failed",
                     extra={"item_id": item_id, "stage": stage, "error": str(exc)},
                 )
-                self.queue.mark_error(qid, str(exc)[:500])
+                outcome = self.queue.mark_error(qid, str(exc)[:500])
+                if outcome == "terminal":
+                    self._to_dead_letter(item_id, stage, exc)
                 self._log_event("kl_error", item_id, qid,
                                 {"stage": stage, "error": str(exc)[:200]})
                 failed += 1
         return {"done": done, "failed": failed}
+
+    @staticmethod
+    def _to_dead_letter(item_id: str, stage: str, exc: BaseException) -> None:
+        """重试耗尽 → 落死信, 给人工处理留出口。失败不阻塞主循环。"""
+        try:
+            from backend.repository.kl_dead_letter_repo import KLDeadLetterRepository
+
+            KLDeadLetterRepository().add(
+                trigger_name=f"kl_pipeline:{stage}",
+                item_id=item_id,
+                error_msg=f"{type(exc).__name__}: {exc}"[:500],
+                attempts=0,
+                payload={"stage": stage},
+            )
+        except Exception as dlq_exc:  # pragma: no cover - defensive
+            logger.warning(
+                f"kl_pipeline dead letter write failed for {item_id}: {dlq_exc}"
+            )
 
     @staticmethod
     def _log_event(kind: str, item_id: str, queue_id: int, payload: dict) -> None:

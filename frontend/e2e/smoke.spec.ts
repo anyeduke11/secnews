@@ -44,13 +44,16 @@ test.describe('冒烟测试 - 首页加载', () => {
     // / 会 Navigate 到 /data
     await expect(page).toHaveURL(/\/data$/);
     // 等待关键元素出现 (避免 Suspense fallback)
-    await expect(page).toHaveTitle(/热点地图|Hotspot/i);
+    await expect(page).toHaveTitle(/热点地图.*SecNews/);
   });
 
-  test('index.html title 正确', async ({ page }) => {
+  test('index.html title 正确 (品牌口径: 热点地图 - SecNews)', async ({ page }) => {
     await page.goto('/data');
     const title = await page.title();
     expect(title).toContain('热点地图');
+    expect(title).toContain('SecNews');
+    // 钉住不回退到旧英文品牌名
+    expect(title).not.toMatch(/HOTSPOT MAP/i);
   });
 
   test('页面根节点 #root 渲染了内容', async ({ page }) => {

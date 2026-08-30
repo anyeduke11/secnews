@@ -48,13 +48,9 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setattr(config, "db_path", test_db)
     db_module.close_db()
     db_module.init_db()
-    # The T3 trigger SELECTs content from knowledge_items, but the column
-    # is not part of the current migration set. Add it here for test isolation.
-    conn = get_connection()
-    try:
-        conn.execute("ALTER TABLE knowledge_items ADD COLUMN content TEXT DEFAULT ''")
-    except Exception:
-        pass
+    # 刻意不给 knowledge_items 补 content 列: 测试库必须与生产迁移一致。
+    # 历史版本在此 ALTER TABLE ADD COLUMN content, 使本文件长期全绿, 而同一时间
+    # 生产日志里 kl_trigger_t3_job 因 "no such column: content" 崩了 167 次。
     yield test_db
     db_module.close_db()
 
@@ -88,14 +84,16 @@ def _insert_knowledge_item(
 ) -> None:
     now = datetime.now(timezone.utc)
     ingested = (now - timedelta(seconds=ingested_seconds_ago)).isoformat()
+    # content 不再入库: knowledge_items 无该列, 摘要相关用例直接以 dict 调
+    # _generate_summary / _summarize_with_llm。
     conn.execute(
         """
         INSERT INTO knowledge_items
             (id, title, source, source_url, concepts, tags,
-             mastery, compiled, ingested_at, updated_at, lifecycle, content)
-        VALUES (?, ?, 'web', ?, ?, ?, 0, 0, ?, ?, ?, ?)
+             mastery, compiled, ingested_at, updated_at, lifecycle)
+        VALUES (?, ?, 'web', ?, ?, ?, 0, 0, ?, ?, ?)
         """,
-        (id, title, source_url, concepts, tags, ingested, ingested, lifecycle, content),
+        (id, title, source_url, concepts, tags, ingested, ingested, lifecycle),
     )
 
 

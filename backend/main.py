@@ -157,7 +157,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="热点地图 API",
+    title="热点地图 - SecNews API",
     version=APP_VERSION,
     description="多域热点聚合仪表盘 — Phase 4 API 层",
     lifespan=lifespan,
@@ -184,7 +184,7 @@ register_routers(app)
 @app.get("/")
 async def root():
     return {
-        "name": "热点地图 API",
+        "name": "热点地图 - SecNews API",
         "version": APP_VERSION,
         "docs": "/docs",
         "health": "/api/health",

@@ -43,7 +43,6 @@ interface FeaturesPayload {
   secnews?: boolean;
   crm?: boolean;
   dsh?: boolean;
-  workbench_ui?: boolean;
   enabled_extensions?: string[];
 }
 
@@ -108,11 +107,10 @@ const FEATURE_DEFS: { key: keyof FeaturesPayload; label: string; desc: string }[
   { key: 'crm', label: 'CRM 业绩座舱', desc: '客户与商机状态机视图。' },
   {
     key: 'dsh',
-    label: 'dsh-SecNews 桥接',
-    desc: '外部 dsh 工作站的任务派发与健康端点。关闭时 /api/dsh/* 返回 404，'
-      + '研判类请求回退为本地直连 LLM —— 这是 feature_gates.toml 的预期状态，不是故障。',
+    label: 'dsh 认知层',
+    desc: 'DeepSeek Harness 内置认知服务的启停与健康端点。关闭时 /api/dsh/* 返回 404，'
+      + '研判类请求回退为本地直连 LLM。',
   },
-  { key: 'workbench_ui', label: '工作台 UI 壳', desc: '五视图统一工作台外壳 (config.feature_workbench_ui)。' },
 ];
 
 /**

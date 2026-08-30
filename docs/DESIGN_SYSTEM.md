@@ -23,6 +23,23 @@
 
 **约束**：整个系统只有一个 accent color。不允许多个强调色并存。
 
+### 数据可视化色板（SecNews 看板图表专用，dark/light 同值）
+
+分类色板即品牌：以下令牌**只允许**用于 CVE 热力图 / 合规矩阵等图表着色，禁止用作界面强调色。
+
+| Token | 值 | 用途 |
+|-------|----|------|
+| `--chart-compliance-dengbao` | #4f46e5 | 合规矩阵 · 等保 2.0 列头 |
+| `--chart-compliance-gdpr` | #059669 | 合规矩阵 · GDPR 列头 |
+| `--chart-compliance-iso27001` | #d97706 | 合规矩阵 · ISO 27001 列头 |
+| `--chart-severity-critical` | #b91c1c | CVE 热力图 · critical 行 |
+| `--chart-severity-high` | #ea580c | CVE 热力图 · high 行 |
+| `--chart-severity-medium` | #f59e0b | CVE 热力图 · medium 行 |
+| `--chart-severity-low` | #84cc16 | CVE 热力图 · low 行 |
+| `--chart-severity-none` | #e5e7eb | CVE 热力图 · none 行 / 零值空格 |
+
+**约束**：图表组件内禁止出现裸 hex 色值，一律引用 `var(--chart-*)`；新增图表色板先登记本表再进 [index.css](file:///Users/duke/Documents/hotspot/frontend/src/index.css)。
+
 ### 间距
 
 | Token | 值 | 用途 |

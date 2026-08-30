@@ -27,8 +27,15 @@ class DeepReadItem:
     latency_ms: int = 0
     created_at: str = ""
     updated_at: str = ""
-    # 派生: 4 节 markdown 字典 (从 sections_json 反序列化, 失败时返回空 dict)
+    # 派生: ``key → 正文`` 扁平字典 (从 sections_json 反序列化, 失败时返回空 dict)。
+    # 无论旧行 (扁平 4 键) 还是新行 (v1 envelope) 都归一成同一形状 ——
+    # API 与前端都按这个 dict 取值, 形状一变就会静默渲染成空白节。
     sections: dict = field(default_factory=dict)
+    # 派生: 有序分节定义 [{key,title,tone,body}] —— 供前端动态渲染分节。
+    # 旧行没有该信息时回落为空, 由调用方按 sections 键序兜底。
+    section_defs: list = field(default_factory=list)
+    # 派生: 本次解读所用的视角分类 (旧行为空字符串)
+    category: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -36,6 +43,8 @@ class DeepReadItem:
             "entity_id": self.entity_id,
             "content_md": self.content_md,
             "sections": self.sections,
+            "section_defs": self.section_defs,
+            "category": self.category,
             "sections_json": self.sections_json,
             "provider": self.provider,
             "model": self.model,
@@ -137,12 +146,30 @@ class DeepReadRepository:
     def _row_to_item(self, row) -> DeepReadItem:
         import json as _json
         sections_raw = str(row["sections_json"] or "{}")
+        section_defs: list = []
+        category = ""
         try:
-            sections = _json.loads(sections_raw)
-            if not isinstance(sections, dict):
-                sections = {}
+            parsed = _json.loads(sections_raw)
         except _json.JSONDecodeError:
-            sections = {}
+            parsed = {}
+        if not isinstance(parsed, dict):
+            parsed = {}
+
+        if isinstance(parsed.get("sections"), list):
+            # v1 envelope: 分节带 title/tone, 顺序即渲染顺序
+            category = str(parsed.get("category") or "")
+            section_defs = [
+                d for d in parsed["sections"]
+                if isinstance(d, dict) and d.get("key")
+            ]
+            # sections 仍归一成扁平 key→body, 与旧行保持同一形状
+            sections = {
+                str(d["key"]): str(d.get("body") or "") for d in section_defs
+            }
+        else:
+            # 旧行: 扁平 {summary, impact, relations, risks}
+            sections = parsed
+
         return DeepReadItem(
             entity_type=str(row["entity_type"]),
             entity_id=str(row["entity_id"]),
@@ -157,6 +184,8 @@ class DeepReadRepository:
             created_at=str(row["created_at"] or ""),
             updated_at=str(row["updated_at"] or ""),
             sections=sections,
+            section_defs=section_defs,
+            category=category,
         )
 
 

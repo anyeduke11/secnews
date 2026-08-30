@@ -23,8 +23,13 @@ providers:
       ner: "sensenova-6.8-flash-lite"
       summary: "sensenova-6.8-flash-lite"
       chunk_summary: "sensenova-6.8-flash-lite"
-    timeout_seconds: 20
+    timeout_seconds: 90
     max_concurrent: 2
+    # 关闭推理模式: 实测同一份深度阅读负载, 默认 84s(其中 reasoning 428 tokens)
+    # → 本开关下 11s(reasoning 0)。20s 的旧超时对任何真实生成都必然失败。
+    extra_request_body:
+      thinking:
+        type: "disabled"
 
   # S4-1: sensenova 生产端 (与 sensenova 走同协议, 不同 base_url + 模型档位)
   # 适用于客户已开 sensenova 付费通道 / 想用更大上下文模型
@@ -110,11 +115,15 @@ task_overrides:
     model: qwen2.5:7b
     temperature: 0.0
     max_tokens: 50
+  # HEAVY 档入口 (当前唯一生产调用方 = 深度阅读)。
+  # 原为 openai/gpt-4o, 但实测 OPENAI_API_KEY 未配置 → 该链必然失败,
+  # deep_reads 表因此长期 0 行。sensenova 是唯一持凭据且实测可达的通道。
+  # 刻意不改 fallback_order: 那会连带改掉评分/摘要/NER/门禁四条链的首选 provider。
   t3_summary:
-    provider: openai
-    model: gpt-4o
+    provider: sensenova
+    model: sensenova-6.8-flash-lite
     temperature: 0.3
-    max_tokens: 500
+    max_tokens: 1600
   t3_chunk_summary:
     provider: ollama
     model: qwen2.5:7b

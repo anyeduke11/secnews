@@ -3,6 +3,48 @@
 > **状态 (2026-08-28, P2-4)**: ⏸️ **未启用** — Claude Code / DSH sandbox 中
 > `codex-security` MCP 服务与 `Mimosa` 封闭扫描工具均不可用, 本文件作为
 > 启用前的占位与 checklist. 启动后自动填充扫描结果.
+> **2026-08-30 v0.6.3 安全批次**: 依赖风险维度完成清零 (§3.1), 代码级 SAST
+> 三通道仍未接入 (§1), weekly 巡检补全环境 pip-audit (§3.2).
+
+---
+
+## 3.1 依赖漏洞清零 (2026-08-30, v0.6.3 安全批次)
+
+pip-audit 实测 **148 包 / 0 漏洞**; npm audit **0 漏洞**。处置清单:
+
+| 包 | 处置 | 依据 | 关闭的 CVE |
+|---|---|---|---|
+| cryptography 49.0.0 → **50.0.0** | venv 同步 lock (lock 已钉) | 加密面 (Fernet/主密钥/同步包) | CVE-2026-69247 |
+| aiohttp 3.14.1 → **3.14.3** | venv 同步 lock | lock 已 prescribe | CVE-2026-69244/69243/59881 |
+| lxml 5.4.0 → **6.1.1** | venv 同步 lock | lock 已 prescribe | GHSA-vfmq-68hx-4jfw |
+| h2 4.3.0 → **4.4.1** | 直接升级 (lock 未收, transitive) | patch 级 | GHSA-6hr6-w5qg-qmwg |
+| pip 26.1.2 → **26.2** | venv 升级 | 安装器 | CVE-2026-13346 |
+| nltk 3.9.4 → **卸载** | 全仓零 `import nltk` + 未被任何 requirements/lock 声明 = 孤儿包, 根因清除而非升级 | — | 6 条 (CVE-2026-12061 等) |
+
+全量 pytest **3032 passed / 6 skipped** (cryptography 50.0.0 下 Fernet 加解密/主密钥派生/secrets 全链路回归通过)。
+
+### 教训
+
+- **CI 的 `pip-audit -r requirements.lock` 只扫 75 个 lock pin**, 覆盖不到 venv 实际安装的 transitive/optional/孤儿包 (本次 nltk/h2/pip 即从该缝隙漏进) → weekly-m2-verify 已补"全环境"审计步 (§3.2)。
+- lock 与 venv 曾漂移 (lock 已钉 50.0.0 而 venv 49.0.0): 升级后须 `.venv/bin/pip install -r backend/requirements.lock` 或对照 `pip list` 复核。
+
+---
+
+## 3.2 CI 周期复核 (2026-08-30 落地)
+
+`weekly-m2-verify` job (周日 02:00 UTC) 新增 **"Dependency vulnerability audit (weekly, full env)"** 步:
+全环境 pip-audit (非 lock-only), 沿用本 job 报告为主不阻断惯例 (新 CVE 披露不可控), 输出
+`packages / vulnerable / total` 摘要 + 每条 CVE 与 fix 版本; 触发时按上方 §3.1 模式处置。
+
+## 3.3 代码级 SAST 三通道现状 (截至 2026-08-30 仍全部未接入)
+
+| 通道 | 阻塞点 | 解锁动作 (用户侧) |
+|---|---|---|
+| Mimosa 密封扫描 | MCP server 激活是宿主侧开关 (插件不覆盖宿主激活状态), 且 MCP 配置在任务启动时快照 | 在 ZCode 中启用 `mimosa` MCP server → **开新任务** → `/mimosa-deep-audit` |
+| Qoder CodeSec (qoder 模式) | 需 Qoder IDE 环境标记 (`QODER_CLI=1` 等) | 在 Qoder IDE 内触发 `/security-scan` |
+| Qoder CodeSec (hand 模式) | 需 `YUNDUN_CODESEC_OPENAPI_AK` + `YUNDUN_CODESEC_OPENAPI_SECRET` | 配置凭证后: `~/.qodersec/bin/qodersec scan --platform hand --all --fail-on none` |
+
+依赖审计不能替代 SAST — 三通道任一接入后应跑一次全仓深度扫描并回填 §3 记录。
 
 ---
 

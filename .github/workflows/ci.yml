@@ -211,6 +211,35 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.lock -r backend/requirements-dev.txt
 
+      - name: Dependency vulnerability audit (weekly, full env)
+        # v0.6.3 安全批次 (2026-08-30): backend job 的 pip-audit 只扫 lock (75 pin),
+        # 覆盖不到 venv 实际安装的 transitive/optional/孤儿包 — 2026-08-30 本地
+        # pip-audit 实测 nltk (6 CVE, 未声明孤儿包) / h2 / pip 即从该缝隙漏进。
+        # 周日巡检补"全环境"审计; 沿用本 job 报告为主不阻断的惯例 (新 CVE 披露
+        # 不可控, 硬阻断会让 schedule job 无害挂红), 修复跟踪见 docs/SECURITY_AUDIT.md。
+        run: |
+          set +e
+          python -m pip install pip-audit
+          AUDIT_OUT=$(pip-audit --skip-editable --format json 2>&1)
+          AUDIT_RC=$?
+          echo "$AUDIT_OUT" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    deps = data.get('dependencies', data if isinstance(data, list) else [])
+    vulns = [(d['name'], d['version'], v['id'], ','.join(v.get('fix_versions', []) or ['-']))
+             for d in deps for v in d.get('vulns', [])]
+    print(f'packages: {len(deps)}, vulnerable: {len(set(v[0] for v in vulns))}, total: {len(vulns)}')
+    for name, ver, vid, fixes in sorted(vulns):
+        print(f'  {name}=={ver}  {vid}  fix-> {fixes}')
+except Exception as e:
+    print('pip-audit 输出解析失败:', e)
+    sys.exit(1)
+"
+          if [ "$AUDIT_RC" -ne 0 ]; then
+            echo "::warning::pip-audit 发现漏洞 (rc=$AUDIT_RC) — 周日巡检报告模式, 请按上方清单升级/豁免"
+          fi
+
       - name: Backup chain check (M2 增量 + sha256 sidecar)
         run: |
           set +e

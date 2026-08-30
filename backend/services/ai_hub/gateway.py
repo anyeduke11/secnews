@@ -1,17 +1,16 @@
-"""ai_hub/gateway.py — LLM 网关：多 provider 调用 + 路由 + 缓存/用量委托。
+"""ai_hub/gateway.py — LLM 网关: 多 provider 调用 + 路由 + 缓存/用量委托 (v0.7+ 拆分)。
 
-职责
-----
-- ``LLMService``: score / summarize / extract_entities / generate 四条主路径
-- provider 分发: ollama / openai / openai_compatible / anthropic
-- 路由委托: ``resolve_provider_for_task`` 委托 ``model_router.route_model``
-- 缓存委托: ``_get_cached`` / ``_set_cache`` → ``ai_hub.cache``
-- 用量委托: ``_log_usage`` → ``ai_hub.usage``
+v0.7+ 拆分: 原 gateway.py (406 行) 拆为:
+- ``gateway.py``     (本文件, ~260 行) — ``LLMService`` 类 (构造 / config / provider 解析 /
+  4 任务循环 / provider 调用 / 模型+key 解析)
+- ``prompts.py``     (~110 行) — 无状态工具: prompt 构造 + LLM 响应解析 + 缓存 key
+- ``cache.py`` / ``usage.py`` — 数据面 (DB 投影)
+
+向后兼容: ``from backend.services.ai_hub import llm_service, LLMService, DEFAULT_SCORE,
+COST_PER_1M_TOKENS`` 仍可解析 (由 ``__init__.py`` re-export).
 """
-
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import time
@@ -22,37 +21,21 @@ import httpx
 from backend.config.llm_schema import LLMConfig, ProviderConfig, load_llm_config
 
 from .cache import get_llm_cache, set_llm_cache
+from .egress import check_credential_egress
+from .prompts import (
+    COST_PER_1M_TOKENS,  # noqa: F401  -- 由 __init__.py 从本模块再导出, 保 `from backend.services.ai_hub import COST_PER_1M_TOKENS`
+    DEFAULT_SCORE,
+    _build_extract_entities_prompt,
+    _build_score_prompt,
+    _build_summary_prompt,
+    _estimate_cost,
+    _make_cache_key,
+    _parse_entity_list,
+    _parse_score,
+)
 from .usage import log_llm_usage
 
 log = logging.getLogger("hotspot.ai_hub")
-
-# 默认评分兜底 (score 0-10)
-DEFAULT_SCORE = 5.0
-
-# 成本估算 (USD per 1M tokens) — 近似值
-COST_PER_1M_TOKENS: dict[str, float] = {
-    "gpt-4o-mini": 0.15,
-    "gpt-4o": 5.0,
-    "qwen-turbo": 0.3,
-    "qwen-plus": 0.8,
-    "claude-3-5-haiku-20241022": 0.8,
-    "claude-3-5-sonnet-20241022": 3.0,
-    # Ollama 本地模型零成本
-}
-
-
-def _estimate_cost(model: str, tokens: int) -> float:
-    """估算一次 LLM 调用的 USD 成本."""
-    if tokens <= 0:
-        return 0.0
-    rate = COST_PER_1M_TOKENS.get(model, 0.5)  # 默认 $0.5/1M
-    return (tokens / 1_000_000) * rate
-
-
-def _make_cache_key(prefix: str, content: str) -> str:
-    """生成缓存 key: {prefix}:{sha256(content)[:16]}."""
-    h = hashlib.sha256(content.encode()).hexdigest()[:16]
-    return f"{prefix}:{h}"
 
 
 class LLMService:
@@ -144,9 +127,9 @@ class LLMService:
             try:
                 cfg = self._config.providers[provider_name]
                 model = self._resolve_model(provider_name, "score")
-                prompt = self._build_score_prompt(content)
+                prompt = _build_score_prompt(content)
                 raw = await self._call_provider(cfg, model, prompt)
-                score = self._parse_score(raw)
+                score = _parse_score(raw)
                 set_llm_cache(cache_key, str(score))
                 log_llm_usage(provider_name, model, "score", prompt, raw)
                 return score
@@ -175,7 +158,7 @@ class LLMService:
             try:
                 cfg = self._config.providers[provider_name]
                 model = self._resolve_model(provider_name, "summary")
-                prompt = self._build_summary_prompt(text)
+                prompt = _build_summary_prompt(text)
                 raw = await self._call_provider(cfg, model, prompt)
                 set_llm_cache(cache_key, raw)
                 log_llm_usage(provider_name, model, "summarize", prompt, raw)
@@ -205,12 +188,9 @@ class LLMService:
             try:
                 cfg = self._config.providers[provider_name]
                 model = self._resolve_model(provider_name, "ner")
-                prompt = (
-                    "Extract named entities (person/company/technology/product) "
-                    f"from the following text. Return as a JSON list of strings:\n\n{content}"
-                )
+                prompt = _build_extract_entities_prompt(content)
                 raw = await self._call_provider(cfg, model, prompt)
-                entities = self._parse_entity_list(raw)
+                entities = _parse_entity_list(raw)
                 set_llm_cache(cache_key, json.dumps(entities))
                 log_llm_usage(provider_name, model, "extract_entities", prompt, raw)
                 return entities
@@ -281,6 +261,8 @@ class LLMService:
         """调用 OpenAI API."""
         api_key = self._get_api_key(cfg.api_key_env)
         base_url = cfg.base_url or "https://api.openai.com/v1"
+        # C3: 凭据只允许发往代码侧白名单主机 (base_url 可被同步包写入 llm.yaml)
+        check_credential_egress(base_url)
         url = f"{base_url.rstrip('/')}/chat/completions"
         payload = {
             "model": model,
@@ -350,56 +332,37 @@ class LLMService:
             log.warning("API key env var %s not set", env_var)
         return key
 
-    @staticmethod
-    def _build_score_prompt(content: str) -> str:
-        """构建评分 prompt."""
-        MAX_LEN = 2000
-        truncated = content[:MAX_LEN]
-        return (
-            "Rate the following article on a scale of 0.0 to 10.0 based on its "
-            "relevance to AI and cybersecurity. Consider: technical depth, novelty, "
-            "practical applicability. Return ONLY a number between 0 and 10.\n\n"
-            f"Article:\n{truncated}"
-        )
-
-    @staticmethod
-    def _build_summary_prompt(text: str) -> str:
-        """构建摘要 prompt."""
-        MAX_LEN = 4000
-        truncated = text[:MAX_LEN]
-        return (
-            "Summarize the following text in 2-3 sentences. "
-            "Focus on key technical points and actionable insights.\n\n"
-            f"{truncated}"
-        )
-
+    # ── 静态方法委托 (向后兼容: 旧测试 LLMService._parse_score 等) ───
+    # v0.7 拆分后内部实现移至 prompts.py, 类方法仅作委托.
     @staticmethod
     def _parse_score(raw: str) -> float:
-        """从 LLM 响应中解析评分."""
-        import re
-        match = re.search(r"(\d+(?:\.\d+)?)", raw.strip())
-        if match:
-            val = float(match.group(1))
-            return max(0.0, min(10.0, val))
-        return DEFAULT_SCORE
+        """[委托] 从 LLM 响应中解析评分."""
+        return _parse_score(raw)
 
     @staticmethod
     def _parse_entity_list(raw: str) -> list[str]:
-        """从 LLM 响应中解析实体列表."""
-        # 尝试 JSON 解析
-        try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, list):
-                return [str(e) for e in parsed]
-        except (json.JSONDecodeError, TypeError):
-            pass
-        # 尝试行解析
-        entities = []
-        for line in raw.strip().split("\n"):
-            line = line.strip().strip("- ").strip('"').strip("'")
-            if line and not line.startswith("{"):
-                entities.append(line)
-        return entities[:20]  # 最多 20 个实体
+        """[委托] 从 LLM 响应中解析实体列表."""
+        return _parse_entity_list(raw)
+
+    @staticmethod
+    def _build_score_prompt(content: str) -> str:
+        """[委托] 构建评分 prompt."""
+        return _build_score_prompt(content)
+
+    @staticmethod
+    def _build_summary_prompt(text: str) -> str:
+        """[委托] 构建摘要 prompt."""
+        return _build_summary_prompt(text)
+
+    @staticmethod
+    def _make_cache_key(prefix: str, content: str) -> str:
+        """[委托] 生成缓存 key."""
+        return _make_cache_key(prefix, content)
+
+    @staticmethod
+    def _estimate_cost(model: str, tokens: int) -> float:
+        """[委托] 估算 LLM 调用 USD 成本."""
+        return _estimate_cost(model, tokens)
 
 
 # 全局单例

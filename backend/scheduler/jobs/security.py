@@ -53,6 +53,19 @@ async def security_enrichment_job() -> None:
        security graph 与 knowledge 由此统一命名空间。
     """
     try:
+        import asyncio
+
+        def _run() -> None:
+            _run_enrichment_sync()
+
+        await asyncio.to_thread(_run)
+    except Exception as e:
+        _logger.error(f"security_enrichment_job crashed: {e}")
+
+
+def _run_enrichment_sync() -> None:
+    """security_enrichment_job 的同步体 (v0.6.3 P2-1: 移入 worker 线程)。"""
+    try:
         import json as _json
 
         from backend.domain.security_models import _now_iso
@@ -250,7 +263,19 @@ async def security_entity_concept_sync_job() -> None:
     2. 高频实体 (≥3 条引用) → 创建 knowledge concept, 通过 entity_type +
        external_id 指向 security_entity (两库互引)
     3. 幂等: 已存在的跳过
+
+    v0.6.3 P2-1: 全同步体 (聚合查询 + upsert + commit) 移入 worker 线程。
     """
+    try:
+        import asyncio
+
+        await asyncio.to_thread(_run_entity_concept_sync)
+    except Exception as e:
+        _logger.error(f"security_entity_concept_sync_job crashed: {e}")
+
+
+def _run_entity_concept_sync() -> None:
+    """security_entity_concept_sync_job 的同步体 (v0.6.3 P2-1)。"""
     try:
         from backend.domain.security_models import _now_iso
         from backend.repository.db import get_connection

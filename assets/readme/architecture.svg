@@ -194,7 +194,7 @@
         <text x="14" y="16" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
               font-size="9" fill="#00B4D8" letter-spacing="1.5">SQLite  ·  WAL</text>
         <text x="14" y="30" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-              font-size="10" fill="#E4E9F0">hotspot.db  ·  59 migrations  ·  24h 备份</text>
+              font-size="10" fill="#E4E9F0">hotspot.db  ·  77 migrations  ·  24h 备份</text>
       </g>
       <!-- .md 文件系统 -->
       <g transform="translate(268 0)">

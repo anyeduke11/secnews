@@ -50,7 +50,7 @@
     <!-- 顶部元数据 -->
     <text x="56" y="52" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
           font-size="12" fill="#3A3F4E" letter-spacing="2.5">
-      v0.4.3  ·  SINGLE-USER LOCAL  ·  7 DOMAINS  ·  30+ SOURCES
+      v0.7.0  ·  SINGLE-USER LOCAL  ·  7 DOMAINS  ·  30+ SOURCES
     </text>
 
     <!-- 强调线 -->
@@ -80,7 +80,7 @@
     <!-- 底部元数据 -->
     <text x="56" y="320" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
           font-size="11" fill="#3A3F4E" letter-spacing="1">
-      59 migrations  ·  100+ pytest files  ·  290+ frontend tests  ·  9 MCP tools
+      77 migrations  ·  100+ pytest files  ·  300+ frontend tests  ·  19 MCP tools
     </text>
   </g>
 
@@ -139,7 +139,7 @@
       <text x="14" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
             font-size="9" fill="#00B4D8" letter-spacing="1.5">05  ·  协议</text>
       <text x="14" y="36" font-size="13" font-weight="600" fill="#E4E9F0">MCP Server</text>
-      <text x="14" y="50" font-size="10" fill="#6B7280">9 tools · 5 读 + 4 写</text>
+      <text x="14" y="50" fill="#6B7280">19 tools · 11 读 + 8 写</text>
     </g>
 
     <!-- 汇聚线：5 个卡片 → MCP 中心节点 -->

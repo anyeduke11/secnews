@@ -123,6 +123,12 @@ export function AppRoutes() {
           <Route path="/crm" element={<Suspense fallback={<PageFallback />}><P.CrmPage onBack={goHome} /></Suspense>} />
         )}
 
+        {/* 找回丢失前端入口 (v0.6.3): 后端路由已存在, 前端从未接入的 4 域 */}
+        <Route path="/bid-alert" element={<Suspense fallback={<PageFallback />}><P.BidAlertPage onBack={goHome} /></Suspense>} />
+        <Route path="/tags" element={<Suspense fallback={<PageFallback />}><P.TagsPage onBack={goHome} /></Suspense>} />
+        <Route path="/extract" element={<Suspense fallback={<PageFallback />}><P.ExtractPage onBack={goHome} /></Suspense>} />
+        <Route path="/search" element={<Suspense fallback={<PageFallback />}><P.UnifiedSearchPage onBack={goHome} /></Suspense>} />
+
         {/* v0.7.1: 未匹配路径回落到哨兵首页 (扩展关闭时旧深链不白屏) */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

@@ -1,6 +1,6 @@
 # SecNews Knowledge Dashboard — 安全从业者 AI 助手的平台看板层
 
-> **当前状态 (2026-08-28)**: hotspot 活跃开发主线为 `docs/SECNEWS_INTEGRATION_TASKS.md` Phase 4-6 已全部交付 (Phase 4 合规矩阵 `5c657d99` / Phase 6 wiki 迁移 `309a83da` + FTS5 同步 `e53790cc`)。
+> **当前状态 (2026-08-30, v0.6.3)**: SecNews 为**统一工作台** (workbench 5 视图已并入, `/workbench` 已删, gate workbench_ui 移除)。dsh 内置为受管子进程 — 前端 `/secnews/settings` 一键启停 (gate dsh=true, 控制面 `/api/dsh/control/*`); pi 执行 agent 经 `/api/agents/run` 可用。
 > 历史决策 (产品三层架构裁决 / wiki-first 存储哲学 / Phase 7 退役冻结) 见 `PROGRESS.md` 与 `git log`，不在此重复。
 
 ---

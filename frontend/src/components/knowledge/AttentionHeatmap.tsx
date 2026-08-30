@@ -8,7 +8,6 @@
  * 若端点不存在，降级展示空网格。
  */
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
 
 // ── 类型 ────────────────────────────────────────────────────
@@ -84,7 +83,6 @@ interface AttentionHeatmapProps {
 }
 
 export function AttentionHeatmap({ compact = false }: AttentionHeatmapProps) {
-  const navigate = useNavigate();
   const [data, setData] = useState<AttentionDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -141,8 +139,10 @@ export function AttentionHeatmap({ compact = false }: AttentionHeatmapProps) {
 
   // ── 事件处理 ──────────────────────────────────────────────
 
-  const handleCellClick = (date: string) => {
-    navigate(`/knowledge/briefing?date=${date}`);
+  const handleCellClick = (_date: string) => {
+    // 原 /knowledge/briefing?date= 路由已在 v0.7.0 删除 (死链)。
+    // 日期维度的下钻列表页尚未实现 (数据源 /api/attention/events)，
+    // 在此之前不导航避免死链; 数据细节由悬浮 tooltip 呈现。
   };
 
   const handleCellEnter = (
@@ -292,6 +292,7 @@ export function AttentionHeatmap({ compact = false }: AttentionHeatmapProps) {
                     return (
                       <div
                         key={`${date}-${hour}`}
+                        data-cell={`${date}|${hour}`}
                         style={{
                           gridRow: rowIdx + 2,
                           gridColumn: hour + 2,
@@ -301,7 +302,6 @@ export function AttentionHeatmap({ compact = false }: AttentionHeatmapProps) {
                           backgroundColor: active
                             ? getCellColor(count, maxCount)
                             : 'var(--border-subtle)',
-                          cursor: 'pointer',
                           outline: isHovered
                             ? '1.5px solid var(--color-info)'
                             : 'none',

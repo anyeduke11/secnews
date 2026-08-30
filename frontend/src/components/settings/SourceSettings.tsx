@@ -68,7 +68,7 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
   const resetSource = useCallback(async (cat: string, name: string) => {
     try {
       const r = await fetch(
-        `/api/sources/health/${encodeURIComponent(cat)}/${encodeURIComponent(name)}/reset`,
+        `/api/sources/health/by-source/${encodeURIComponent(cat)}/${encodeURIComponent(name)}/reset`,
         { method: 'POST' },
       );
       if (!r.ok) throw new Error(`HTTP ${r.status}`);

@@ -50,35 +50,17 @@ ARCHIVE_REASON = (
     "superseded: 由规则式自动消费者 (consume_compile_tasks) 替代; 存量积压清理"
 )
 
-PENDING_DIR = (
-    Path(__file__).resolve().parent.parent.parent
-    / "knowledge"
-    / "learning"
-    / "tasks"
-    / "pending"
+# v0.6.3 P3-4: 任务队列路径与 items 路径全部走 wiki_fs/paths 唯一源
+from backend.wiki_fs.paths import (
+    ITEMS_DIR,
+    LEARNING_DONE_DIR,
+    LEARNING_FAILED_DIR,
+    LEARNING_PENDING_DIR,
 )
 
-DONE_DIR = (
-    Path(__file__).resolve().parent.parent.parent
-    / "knowledge"
-    / "learning"
-    / "tasks"
-    / "done"
-)
-
-FAILED_DIR = (
-    Path(__file__).resolve().parent.parent.parent
-    / "knowledge"
-    / "learning"
-    / "tasks"
-    / "failed"
-)
-
-ITEMS_DIR = (
-    Path(__file__).resolve().parent.parent.parent
-    / "knowledge"
-    / "items"
-)
+PENDING_DIR = LEARNING_PENDING_DIR
+DONE_DIR = LEARNING_DONE_DIR
+FAILED_DIR = LEARNING_FAILED_DIR
 
 # 任务文件 frontmatter 提取 (与 knowledge_sync 相同的最小 YAML 子集)。
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
@@ -548,7 +530,7 @@ def _execute_compile_task(task, item_ids: list[str]) -> dict:
     result["types"] = types
     done_path = _write_done_task_file(task, dict(result))
     knowledge_repo.update_task_status(
-        task.id, "done", result_path=f"knowledge/learning/tasks/done/task-{task.id}.md"
+        task.id, "done", result_path=f"llm-wiki-2.0/learning/tasks/done/task-{task.id}.md"
     )
     log.info(
         f"compile task {task.id} done: items={result['items']} "

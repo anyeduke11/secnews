@@ -1,9 +1,11 @@
-"""Knowledge API — CRUD for knowledge items, concepts, tasks, sync, health."""
+"""Knowledge API — CRUD for knowledge items, concepts, tasks, sync, health.
+
+v0.6.3 P3-4: items/concepts 路径全部从 wiki_fs/paths 导入, 旧 ``knowledge/`` 根下线。
+"""
 
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -12,6 +14,7 @@ from backend.exceptions import InvalidParamException
 from backend.repository.knowledge_repo import knowledge_repo
 from backend.services import ai_hub
 from backend.version import APP_VERSION as API_VERSION
+from backend.wiki_fs.paths import CONCEPTS_DIR, ITEMS_DIR
 
 log = logging.getLogger("hotspot.api.knowledge")
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
@@ -55,8 +58,7 @@ def get_item(item_id: str):
     item = knowledge_repo.get_item(item_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
-    from pathlib import Path
-    md_path = Path(__file__).resolve().parent.parent.parent / "knowledge" / "items" / f"{item_id}.md"
+    md_path = ITEMS_DIR / f"{item_id}.md"
     content = ""
     if md_path.exists():
         text = md_path.read_text(encoding="utf-8")
@@ -96,8 +98,7 @@ async def delete_item(item_id: str):
         raise HTTPException(status_code=404, detail="Item not found")
     knowledge_repo.delete_item(item_id)
     # Also delete the .md file
-    from pathlib import Path
-    md_path = Path(__file__).resolve().parent.parent.parent / "knowledge" / "items" / f"{item_id}.md"
+    md_path = ITEMS_DIR / f"{item_id}.md"
     if md_path.exists():
         md_path.unlink()
     return {"deleted": item_id}
@@ -460,7 +461,7 @@ async def link_concepts_batch():
                 count += 1
 
     # Sync newly created concept .md files to SQLite
-    for f in Path(__file__).resolve().parent.parent.parent.glob("knowledge/concepts/*.md"):
+    for f in CONCEPTS_DIR.glob("*.md"):
         if f.stem == "graph":
             continue
         sync_concept_to_db(f)

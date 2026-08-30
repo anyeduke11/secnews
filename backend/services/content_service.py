@@ -1,8 +1,12 @@
 """Content creation service — calendar + drafts + templates.
 
 Bridges :mod:`backend.repository.knowledge_repo` (SQLite) with the
-filesystem under ``knowledge/content/drafts/``. Draft bodies live in
+filesystem under ``llm-wiki-2.0/content/drafts/``. Draft bodies live in
 ``.md`` files (pure Markdown, no frontmatter); metadata lives in SQLite.
+
+v0.6.3 P3-4 收官: 路径全部从 ``backend.wiki_fs.paths`` 导入, 旧 ``knowledge/``
+根已下线。``_draft_rel_path`` 返回路径改为 ``llm-wiki-2.0/...`` 相对格式,
+供 SQLite 列存查 (下游读取方可同步识别)。
 """
 
 from __future__ import annotations
@@ -14,14 +18,14 @@ from pathlib import Path
 
 from backend.domain.knowledge_models import now_iso
 from backend.repository.knowledge_repo import knowledge_repo
-from backend.services.knowledge_sync import KNOWLEDGE_DIR
+from backend.wiki_fs.paths import (
+    CALENDAR_PATH,
+    DRAFTS_DIR,
+    LEARNING_DONE_DIR,
+    LEARNING_PENDING_DIR,
+)
 
 log = logging.getLogger("hotspot.content")
-
-# Project root — resolve once at import time (matches SOUL_PATH pattern).
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-DRAFTS_DIR = PROJECT_ROOT / "knowledge" / "content" / "drafts"
-CALENDAR_PATH = KNOWLEDGE_DIR / "content" / "calendar.json"
 
 TEMPLATES = [
     {"id": "deep-analysis", "name": "深度分析", "type": "analysis", "platform": "wechat"},
@@ -33,9 +37,9 @@ TEMPLATES = [
     {"id": "xhs-cards", "name": "小红书图文", "type": "cards", "platform": "xhs"},
 ]
 
-# Task queue directories (mirrors compiler.py PENDING_DIR pattern).
-PENDING_DIR = PROJECT_ROOT / "knowledge" / "learning" / "tasks" / "pending"
-DONE_DIR = PROJECT_ROOT / "knowledge" / "learning" / "tasks" / "done"
+# Task queue directories (mirrors compiler.py LEARNING_PENDING_DIR pattern).
+PENDING_DIR = LEARNING_PENDING_DIR
+DONE_DIR = LEARNING_DONE_DIR
 
 
 # ── Helpers ────────────────────────────────────────────────────
@@ -46,11 +50,24 @@ def _slug(title: str) -> str:
 
 
 def _draft_rel_path(slug: str) -> str:
-    return f"knowledge/content/drafts/{slug}.md"
+    return f"llm-wiki-2.0/content/drafts/{slug}.md"
 
 
 def _draft_abs_path(rel_path: str) -> Path:
-    return PROJECT_ROOT / rel_path
+    """Resolve a stored rel_path like ``llm-wiki-2.0/content/drafts/<slug>.md``.
+
+    v0.6.3 P3-4: rel_path 全部以 ``llm-wiki-2.0/`` 为前缀 (见 :func:`_draft_rel_path`)。
+    实现策略: 把 ``llm-wiki-2.0/`` 前缀视为 wiki_root() 自身的占位, 替换为
+    当前实际 wiki_root() 后拼接剩余部分 — 测试设 HOTSPOT_WIKI_ROOT 临时目录时,
+    前缀会按字面整体被替换, 不依赖 PROJECT_ROOT 假定。
+    """
+    from backend.wiki_fs.paths import wiki_root
+    root = wiki_root()
+    parts = Path(rel_path).parts
+    if parts and parts[0] == root.name:
+        return root.joinpath(*parts[1:])
+    # 不带前缀 (历史脏数据) — 回退到 wiki_root 直接拼, 避免 404
+    return root / rel_path
 
 
 def _parse_json_field(row: dict, field: str) -> object | None:

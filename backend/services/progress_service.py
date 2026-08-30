@@ -1,27 +1,25 @@
 """Progress service — mastery tracking + JSON ↔ SQLite sync.
 
 Design: backend stores progress in SQLite (knowledge_progress table).
-A mirror copy is kept at knowledge/learning/progress.json for human/Agent
+A mirror copy is kept at llm-wiki-2.0/learning/progress.json for human/Agent
 inspection. The sync endpoints keep both sides consistent.
+
+v0.6.3 P3-4: PROGRESS_PATH 从旧 ``knowledge/learning/progress.json`` 迁至
+``llm-wiki-2.0/learning/progress.json``, 路径常量走 wiki_fs/paths。
 """
 
 from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
 
 from backend.domain.knowledge_models import now_iso
 from backend.repository.knowledge_repo import knowledge_repo
+from backend.wiki_fs.paths import LEARNING_DIR
 
 log = logging.getLogger("hotspot.progress")
 
-PROGRESS_PATH = (
-    Path(__file__).resolve().parent.parent.parent
-    / "knowledge"
-    / "learning"
-    / "progress.json"
-)
+PROGRESS_PATH = LEARNING_DIR / "progress.json"
 
 
 def list_progress(domain: str | None = None) -> list[dict]:

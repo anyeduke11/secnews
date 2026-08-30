@@ -142,19 +142,32 @@ def _feature_gates_all_on_for_tests() -> None:
 
 @pytest.fixture(autouse=True)
 def _isolate_knowledge_dirs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """P1: 所有测试强制隔离 knowledge/ 目录 — 根治测试污染真实知识库.
+    """P1: 所有测试强制隔离 wiki 根目录 — 根治测试污染真实知识库.
 
-    此前全量测试会改写真实 ``knowledge/items/*.md`` 的 ingested_at
-    (每次跑完 17+ 个文件被污染) 并重写 ``knowledge/_MAP.md``
-    (4008 items → 3), 需要每次手动 git checkout 恢复。本 fixture 把
-    11 个 service 模块里的知识库路径常量全部重定向到 tmp_path 下的隔离
-    目录树, 测试副作用只落在临时目录。
+    此前全量测试会改写真实 ``llm-wiki-2.0/items/*.md`` 的 ingested_at
+    (每次跑完 17+ 个文件被污染) 并重写 ``llm-wiki-2.0/_MAP.md``
+    (4008 items → 3), 需要每次手动 git checkout 恢复。v0.6.3 P3-4 收官
+    后 wiki 唯一根已切到 llm-wiki-2.0, 本 fixture 改用 ``HOTSPOT_WIKI_ROOT``
+    env 一次设到 tmp_path, ``backend.wiki_fs.paths`` 的所有 *DIR 常量
+    (ITEMS_DIR / CONCEPTS_DIR / DRAFTS_DIR / LEARNING_*DIR / SUMMARIES_DIR
+    / GRAPH_PATH / SOUL_PATH / CALENDAR_PATH) 都基于 ``resolve_wiki_root()``
+    动态推导, 因此无须逐个 monkeypatch — 一次性 env 重定向即生效。
 
-    被测试自身 monkeypatch 覆盖也安全 (monkeypatch 按 LIFO 回滚)。
+    仍保留对各 service 模块顶层导出 ``ITEMS_DIR / KNOWLEDGE_DIR /
+    SOUL_PATH`` 等符号的 monkeypatch, 是为了兼容测试自身或下游模块
+    已经持有对这些符号的引用 (例如 ``from backend.services.X import
+    ITEMS_DIR`` 在 fixture 之前 import)。
     """
     import importlib
 
-    kdir = tmp_path / "knowledge"
+    # 1) 通过 env 让所有 wiki_fs/paths.* 派生常量自动跟随 tmp_path
+    monkeypatch.setenv("HOTSPOT_WIKI_ROOT", str(tmp_path / "wiki"))
+
+    # 2) 重新加载 wiki_fs.paths, 让模块级 *DIR 常量按当前 env 重新绑定
+    from backend.wiki_fs import paths as wiki_paths
+    importlib.reload(wiki_paths)
+
+    kdir = tmp_path / "wiki"
     redirect = {
         "KNOWLEDGE_DIR": kdir,
         "ITEMS_DIR": kdir / "items",
@@ -164,7 +177,7 @@ def _isolate_knowledge_dirs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
         "DONE_DIR": kdir / "learning" / "tasks" / "done",
         "FAILED_DIR": kdir / "learning" / "tasks" / "failed",
         "MAP_PATH": kdir / "_MAP.md",
-        "SOUL_PATH": kdir / "SOUL.md",
+        "SOUL_PATH": kdir / "soul.md",
     }
     modules = (
         "backend.services.bookmark_sync",
@@ -184,6 +197,13 @@ def _isolate_knowledge_dirs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
         for attr, val in redirect.items():
             if hasattr(mod, attr):
                 monkeypatch.setattr(mod, attr, val)
+        # 让模块顶层 from … import 进来的 wiki_fs/paths 符号也跟随新 env
+        if hasattr(mod, "wiki_paths"):
+            importlib.reload(mod.wiki_paths)
+    # 重新加载依赖 wiki_fs/paths 的具体 service 模块, 让它们的内部
+    # ``from backend.wiki_fs.paths import X`` 拿到的也是新的 Path 对象
+    for mod_name in modules:
+        importlib.reload(importlib.import_module(mod_name))
 
 
 @pytest.fixture(autouse=True)

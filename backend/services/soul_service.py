@@ -1,16 +1,21 @@
-"""SOUL.md service — read / regenerate role profile from real data."""
+"""SOUL.md service — read / regenerate role profile from real data.
+
+v0.6.3 P3-4: SOUL_PATH 从旧 ``knowledge/SOUL.md`` 迁至
+``llm-wiki-2.0/soul.md``, 路径常量走 wiki_fs/paths。PENDING_DIR 已不再被本
+模块产出 (knowledge_watcher 直接调 ``create_soul_task``), 保留仅供历史
+import 兼容, 实际值 = llm-wiki-2.0/learning/tasks/pending/。
+"""
 
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 from backend.domain.knowledge_models import now_iso
+from backend.wiki_fs.paths import LEARNING_PENDING_DIR, SOUL_PATH
 
 log = logging.getLogger("hotspot.soul")
 
-SOUL_PATH = Path(__file__).resolve().parent.parent.parent / "knowledge" / "SOUL.md"
-PENDING_DIR = SOUL_PATH.parent / "learning" / "tasks" / "pending"
+PENDING_DIR = LEARNING_PENDING_DIR
 
 
 def get_soul() -> dict:
@@ -195,7 +200,7 @@ updated_at: "{now}"
 
 # SOUL.md — 角色画像
 
-> 此文件由系统自动生成，基于 knowledge/items/ 和 knowledge/concepts/ 的统计聚合。
+> 此文件由系统自动生成，基于 llm-wiki-2.0/items/ 和 llm-wiki-2.0/concepts/ 的统计聚合。
 
 ## 身份
 - 角色: 安全与 AI 交叉领域从业者 / 独立开发者

@@ -1,4 +1,7 @@
-"""Bookmark import service — parse Chrome/Edge bookmarks JSON, dedup, write to knowledge/items/."""
+"""Bookmark import service — parse Chrome/Edge bookmarks JSON, dedup, write to llm-wiki-2.0/items/.
+
+v0.6.3 P3-4: ITEMS_DIR 改从 wiki_fs/paths 导入。
+"""
 
 from __future__ import annotations
 
@@ -15,10 +18,9 @@ from backend.services.data_cleaning import (
     url_fingerprint,
     validate_url,
 )
+from backend.wiki_fs.paths import ITEMS_DIR
 
 log = logging.getLogger("hotspot.bookmark_sync")
-
-ITEMS_DIR = Path(__file__).resolve().parent.parent.parent / "knowledge" / "items"
 
 
 def parse_chrome_bookmarks(node: dict | list, folder_tags: list[str] | None = None) -> list[dict]:

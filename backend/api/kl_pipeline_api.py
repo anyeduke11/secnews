@@ -117,7 +117,14 @@ async def list_quarantine() -> dict:
 
 @router.get("/pipeline/stats")
 async def pipeline_stats() -> dict:
-    """Funnel + queue + dead-letter + alive + token ledger stats."""
+    """Funnel + queue + dead-letter + alive + token ledger stats.
+
+    口径溯源 (重要): ``funnel`` 统计的是 **wiki md frontmatter** —— 它读的是
+    ``llm-wiki-2.0`` 归档目录; 而真正推进管线的 T1–T5 触发器读写的是 **DB**
+    ``knowledge_items.lifecycle``。同一"漏斗"名义下是两份存储, 数字本就不同
+    (实测 funnel ``kl:raw=48`` 来自 md, DB 侧真实 ``kl:raw`` 只有 2)。
+    前端展示必须注明统计对象, 不能把两者当成同一个漏斗的两级。
+    """
     from backend.wiki_fs.liveness import liveness_counts
 
     pipeline = _get_pipeline()
@@ -128,7 +135,12 @@ async def pipeline_stats() -> dict:
     ledger = TokenLedger(get_connection()).summary()
     return {
         "funnel": funnel,
+        "funnel_source": "wiki_md_frontmatter",
+        "funnel_counts_items": sum(int(f.get("count") or 0) for f in funnel),
+        "funnel_note": "按 wiki md frontmatter 统计 (含 unknown 桶); 管线推进读 DB knowledge_items.lifecycle",
         "queue": queue_stats,
+        "queue_source": "kl_queue_table",
+        "queue_note": "待处理任务队列, 非全量条目数",
         "errors": errors,
         "alive": liveness_counts(wiki_fs),
         "ledger": ledger,

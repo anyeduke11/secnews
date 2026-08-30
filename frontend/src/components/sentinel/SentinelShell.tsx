@@ -272,7 +272,7 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
             </span>
           </div>
           <div className="pipe-block">
-            <span className="pipe-k">源在线</span>
+            <span className="pipe-k" title="分母 = 采集器注册表中 enabled=1 的源数（不含已停止抓取的 source_stats 历史行）">源在线</span>
             <span className="pipe-v">
               {pipe ? `${pipe.active} / ${pipe.total}` : '…'}
               {pipe && pipe.stale > 0 && <span className="delta" style={{ color: 'var(--sn-amber)' }}>{pipe.stale} 重试</span>}
@@ -284,7 +284,7 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
             <span className="pipe-v">{ingested != null ? `${ingested} 篇` : '…'}</span>
           </div>
           <div className="pipe-block">
-            <span className="pipe-k">管线漏斗</span>
+            <span className="pipe-k" title="统计对象 = wiki md frontmatter（llm-wiki-2.0 归档）；管线推进实际读写 DB knowledge_items.lifecycle，两者数字本就不同">管线漏斗</span>
             <span className="pipe-v pipe-funnel">
               {pipe?.funnel
                 ? pipe.funnel.map(f => (

@@ -88,6 +88,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         log.warning(f"auto-unlock failed (ignored): {e}")
 
+    # v0.6.3: dsh 内置受管服务 — autostart=true 且已配置启动命令时自动拉起。
+    # gate 关闭 (is_extension_enabled("dsh")=false) 时跳过; 失败不阻塞启动
+    # (认知层缺失时业务走 LLM fallback)。
+    try:
+        from backend.extensions import is_extension_enabled
+        if is_extension_enabled("dsh"):
+            from backend.services.dsh.supervisor import autostart_if_configured
+            autostart_if_configured()
+    except Exception as e:
+        log.warning(f"dsh autostart hook failed (ignored): {e}")
+
     # P1: 默认启用 knowledge watchdog — 文件↔DB 双向同步。
     # 此前仅手动 POST /api/obsidian/watchdog/start 才启动, 默认部署下
     # knowledge/*.md 变更不会自动回灌 SQLite。config.knowledge_watchdog_

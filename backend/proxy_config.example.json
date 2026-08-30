@@ -1,0 +1,8 @@
+{
+  "_comment": "Template for proxy_config.json. Copy this file to backend/proxy_config.json and edit with your real proxy settings. The real file is gitignored. Default mode=off means collectors run direct (no proxy).",
+  "mode": "off",
+  "http_proxy": "",
+  "https_proxy": "",
+  "socks_proxy": "",
+  "no_proxy": "localhost,127.0.0.1,::1,.local"
+}

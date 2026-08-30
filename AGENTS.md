@@ -5,15 +5,6 @@
 
 ---
 
-## v0.6.2 — Phase 6 收尾 (2026-08-28)
-
-> Phase 6 三批全部落地 (commit `309a83da` / `e53790cc` / `chore(phase6-archive)`):
-> 1. `scripts/migrate_wiki.py` CLI 包装 — 幂等迁移 4149 items + 96 concepts, 排除 2 个 P2 fixture
-> 2. `wiki_items_fts` 完整同步层 (migration 073 + 链式 job + `search_wiki_only` FTS5 旁路)
-> 3. dsh-SecNews secnews/data 离线归档 (21.6MB → 2.3MB tar.zst, 4285 文件 SHA256)
-
----
-
 ## CodeGarden Phase 2b — Service Mesh / Resource Hub / Orchestration Engine (v0.3.0)
 
 - M2 `cg_services` 表 + 自动发现 (lsof/docker/pm2) + 拓扑图 SVG + 日志/指标/重启
@@ -24,11 +15,11 @@
 
 ## v0.4.3 — Core/Extension 软分层 + Feature Gates (2026-08-18)
 
-> **架构数字由 `scripts/generate_meta.py` AST 反推维护** (47 jobs / 14 collectors / 63 routers / 93 services),
+> **架构数字由 `scripts/generate_meta.py` AST 反推维护** (47 jobs / 14 collectors / 65 routers / 96 services),
 > 改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
 
-- **开关源**: `backend/config/feature_gates.toml` — codegarden/mcp/sync/tech_stack/security_graph
-  默认关闭: codegarden/mcp/tech_stack/security_graph; 默认开启: sync
+- **开关源**: `backend/config/feature_gates.toml` — 当前默认开启: codegarden/sync/secnews/crm/dsh;
+  默认关闭: codegarden_phase2b/mcp/tech_stack/security_graph
 - **core 永不消失**: `backend/core/routers.py` 43 个 core router 白名单, 与扩展域防重叠断言;
   扩展 router 按 `is_extension_enabled()` 条件注册 (关闭时路由 404)
 - **job 门控**: `scheduler.py` `_is_job_enabled()` 按扩展归属过滤 7 个扩展 job

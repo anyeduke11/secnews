@@ -6,7 +6,7 @@
 
 > **SecNews**（开发代号 `hotspot`）是面向 **AI + 安全从业者** 的单人本地工作站。
 > 把每天的「热点聚合 → 知识沉淀 → 项目管理 → AI 协作」合并到一台机器，
-> 通过 **MCP 协议** 开放 **9 个工具** 给 Cursor / Claude Desktop / Trae 等外部 AI Agent。
+> 通过 **MCP 协议** 开放 **19 个工具** (12 读 + 7 写) 给 Cursor / Claude Desktop / Trae 等外部 AI Agent。
 >
 > 一个人 · 一台电脑 · 零外部服务。
 
@@ -26,18 +26,18 @@ python run.py                        # http://127.0.0.1:8000
 cd frontend && npm install && npm run dev   # http://localhost:8898
 ```
 
-**首装必做**：编辑 `backend/proxy_config.json` 把 `127.0.0.1:7897` 改成你的代理端口（默认模式 `off`）。
-`security_collector` 和 `github_collector` 走代理才能拿到数据；可不改，前端设置页可运行时改。
+**代理配置（可选）**：`backend/proxy_config.json` 默认模式 `off`，需要时把 `127.0.0.1:7897` 改成你的代理端口。
+`security_collector` 和 `github_collector` 走代理才能拿到数据；前端设置页可运行时改，无需重启。
 
 ## 5 个子系统
 
 | #  | 子系统                | 解决什么                                                             | 入口                                          |
 | -- | --------------------- | -------------------------------------------------------------------- | --------------------------------------------- |
-| 01 | **SecNews 热点聚合**  | 7 大领域 · 30+ 数据源 · 11+ 质量门禁 + 报纸风 5 视图工作台 (Briefing/Pipeline/Knowledge/Analyze/Settings) | `/` + `/workbench` |
-| 02 | **Knowledge LLM-Wiki** | 4 层金字塔 (items → concepts → learning → content) · 6 认知模式 · FTS5 全文搜索 | `/knowledge` |
+| 01 | **SecNews 热点聚合**  | 7 大领域 · 30+ 数据源 · 11+ 质量门禁 · 统一工作台 6 tab (Feed/Pipeline/Knowledge/Analyze/Analytics/Settings) | `/` + `/secnews` |
+| 02 | **Knowledge LLM-Wiki** | 4 层金字塔 (items → concepts → learning → content) · SM-2 复习 + DeepRead 深读 · FTS5 全文搜索 | `/knowledge` |
 | 03 | **CodeGarden**        | 项目全生命周期管理 + 服务网格 + 资源中枢 + 联动引擎                   | `/codegarden`                                 |
 | 04 | **Security Graph**    | MITRE ATT&CK · NVD CVE · 等保 2.0 / 关基 / 数安法 知识图谱            | `/knowledge/process`                          |
-| 05 | **MCP Server**        | 14 个标准工具 (含 kl_enqueue/dsh_analyze) · stdio / SSE 双通道 · 零状态 · 外部 AI Agent 自动发现   | `python -m backend.mcp_stdio_main`            |
+| 05 | **MCP Server**        | 19 个标准工具 (12 读 + 7 写, 含 kl_*/dsh_*) · stdio / SSE 双通道 · 零状态 · 外部 AI Agent 自动发现 | `python -m backend.mcp_stdio_main`            |
 
 ### 数据源
 
@@ -61,12 +61,11 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 
 ## MCP Server
 
-9 个标准工具，外部 AI Agent 自动发现：
+19 个标准工具 (12 读 + 7 写)，外部 AI Agent 自动发现：
 
-| 读 (5)                                                       | 写 (4)                                                    |
-| ------------------------------------------------------------ | --------------------------------------------------------- |
-| `search_hotspots` · `get_hotspot` · `list_favorites`         | `add_favorite` · `remove_favorite` · `add_annotation`     |
-| `search_knowledge` · `get_personal_profile`                  | `update_knowledge_item`                                   |
+| 读 (12)                                                                                                                                    | 写 (7)                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `search_hotspots` · `get_hotspot` · `list_favorites` · `search_knowledge` · `get_personal_profile` · `wiki_search` · `wiki_read` · `wiki_graph` · `db_trace` · `kl_status` · `dsh_analyze` · `dsh_session` | `add_favorite` · `remove_favorite` · `add_annotation` · `update_knowledge_item` · `wiki_write` · `kl_enqueue` · `kl_retry` |
 
 stdio 配置（粘到你的 AI Agent 配置文件）：
 

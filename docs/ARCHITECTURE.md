@@ -26,12 +26,12 @@
 | 02 | **Knowledge LLM-Wiki** | `llm-wiki-2.0/` md 真源 · kl_pipeline 五阶段 · FTS5 | `/knowledge` |
 | 03 | **CodeGarden** | 项目生命周期 + 服务网格 + 资源中枢 + 联动引擎 | `/codegarden` |
 | 04 | **Security Graph** | MITRE ATT&CK · NVD CVE · 等保/关基/数安法 | `/knowledge/process` |
-| 05 | **SecNews 工作台 (v0.6)** | 5 视图: Briefing / Pipeline / Knowledge / Analyze / Settings | `/workbench` |
+| 05 | **SecNews 统一工作台 (v0.6.3)** | 6 tab: Feed / Pipeline / Knowledge / Analyze / Analytics / Settings (workbench 已并入) | `/secnews` |
 | 06 | **CRM 业绩座舱 (v0.6.0)** | 客户/商机/状态机/KPI 聚合 | `/crm` |
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  Browser (React 18 SPA, :8898) — workbench/ 5 视图 + secnews/ + crm/  + data/judge/action 历史
+│  Browser (React SPA, :8898) — secnews/ 统一工作台 + sentinel + crm/ + knowledge/
 └───────────────┬──────────────────────────────────────────────┘
                 │ HTTP / JSON / SSE
 ┌───────────────▼──────────────────────────────────────────────┐
@@ -42,7 +42,7 @@
 │  └──────┬───────┘  └──────┬───────┘  └─────────┬─────────┘   │
 │         │                │                    │             │
 │  ┌──────▼───────┐  ┌──────▼────────┐  ┌────────▼────────┐  │
-│  │ api/ 65 router│  │ services/ 96  │  │ repository/ 37  │  │
+│  │ api/ 65 router│  │ services/ 96  │  │ repository/ 40  │  │
 │  │ (lazy 注册)   │  │ (业务编排)     │  │ (SQLite DAO)    │  │
 │  └──────────────┘  └──────┬────────┘  └─────────────────┘  │
 └─────────────────────────┬──────────────────────────────────┘
@@ -100,11 +100,11 @@ COLD 加密: `scripts/cold_db_crypto.py encrypt|decrypt|verify`，格式 `<16-by
 
 | # | 项 | 状态 |
 |---|----|------|
-| 1 | **data/judge/action 三层目录退役** (v0.6+ 工作台替代) | 待 P2-3 加 `@deprecated` + `workbench_legacy` gate |
-| 2 | **DSH 桥接层** | P1-2 降级为实验性 (`dsh = false` 默认)；需 DSH_ENDPOINT 才启用 |
-| 3 | **6 cognitive modes** (Briefing/Scan/Alert/Outbox) | P1-5 加 `@deprecated`，v0.7 退役 |
+| 1 | **data/judge/action 三层目录** | v0.7.0 已物理删除; 工作台统一为 /secnews (v0.6.3 workbench 并入) |
+| 2 | **dsh 认知大脑** | v0.6.3 内置化: 受管子进程 + /api/dsh/control/* 前端一键启停 (gate dsh=true); pi 执行 agent 经 /api/agents/* |
+| 3 | **6 cognitive modes** (Briefing/Scan/Alert/Outbox) | v0.7.0 已删除; Review + DeepRead 保留 |
 | 4 | **crawler-v2 strangler** | `crawler_sources` / `source_scheduler` 已建，源级调度逐步接管 |
-| 5 | **SecNEWS Phase 6 存量迁移** (S6-1..S6-4) | Phase 6 wiki_items_fts + migrate_wiki.py 已落，S6-3/S6-4 待 |
+| 5 | **SecNEWS Phase 6 存量迁移** (S6-1..S6-4) | 已全部落地 (`309a83da`/`e53790cc`/`30146c41`) |
 | 6 | **组件过大** | `SyncPage.tsx` / `SecretsPage.tsx` 约 800 行，需拆分 |
 | 7 | **Mimosa 密封扫描** | 未启用 (P2-4, 见 [docs/SECURITY_AUDIT.md](SECURITY_AUDIT.md) §1; 工具不可用待 sandbox 释放) |
 
@@ -127,4 +127,4 @@ COLD 加密: `scripts/cold_db_crypto.py encrypt|decrypt|verify`，格式 `<16-by
 |---|---|---|
 | [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](HOTSPOT_SECNEWS_INTEGRATION.md) | draft | SecNews 集成总览 (Phase 0-6 映射) |
 | [`docs/SECNEWS_INTEGRATION_TASKS.md`](SECNEWS_INTEGRATION_TASKS.md) | draft | SecNews 集成任务清单 |
-| [`docs/archived/v0.6_workstation_plan.md`](archived/v0.6_workstation_plan.md) | archived | Workstation 5 视图重构方案 (v0.7.0 起归档，功能由 /workbench 承接) |
+| [`docs/archived/v0.6_workstation_plan.md`](archived/v0.6_workstation_plan.md) | archived | Workstation 5 视图重构方案 (v0.7.0 起归档; workbench v0.6.3 起并入 /secnews) |

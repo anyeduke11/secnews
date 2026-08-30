@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 产品定位
 
-hotspot 是面向 **AI + 安全从业者** 的单机本地工作站（v0.6.2）。知识域以 `llm-wiki-2.0/` md 文件为唯一真相源（wiki-first 哲学），SQLite 仅做投影索引；AI 调用经 `backend/services/ai_hub.py` 单出口；SecNews 工作台（5 视图）+ DSH HTTP 桥接 + CRM 业绩座舱于 v0.6 完成。架构数字由 `scripts/generate_meta.py` AST 反推维护（当前 47 jobs / 14 collectors / 63 routers / 94 services）。详细机制见 `docs/ARCHITECTURE.md`（v0.6.2），跑测试与生成迁移见 `backend/requirements*.txt` 与 `backend/repository/migrations/`。历史设计见 `docs/archived/`。
+hotspot 是面向 **AI + 安全从业者** 的单机本地工作站（v0.6.3）。知识域以 `llm-wiki-2.0/` md 文件为唯一真相源（wiki-first 哲学），SQLite 仅做投影索引；AI 调用经 `backend/services/ai_hub/` 包单出口；SecNews 为**统一工作台**（`/secnews` 6 tab，v0.6.3 起 workbench 已并入）；dsh 认知大脑为受管子进程（前端 `/secnews/settings` 一键启停），pi 执行 agent 经 `/api/agents/*`；CRM 业绩座舱于 v0.6 完成。架构数字由 `scripts/generate_meta.py` AST 反推维护（当前 47 jobs / 14 collectors / 65 routers / 96 services）。详细机制见 `docs/ARCHITECTURE.md`，跑测试与生成迁移见 `backend/requirements*.txt` 与 `backend/repository/migrations/`。历史设计见 `docs/archived/`。
 
 ## Commands
 
@@ -36,7 +36,7 @@ cd frontend && npx tsc --noEmit           # 类型检查
 
 ## Architecture
 
-### Five Subsystems (v0.6.2)
+### Five Subsystems (v0.6.3)
 
 | # | Subsystem | 入口 | 说明 |
 |---|-----------|------|------|
@@ -44,13 +44,13 @@ cd frontend && npx tsc --noEmit           # 类型检查
 | 02 | **Knowledge LLM-Wiki** | `/knowledge` | `llm-wiki-2.0/` md 真源 · kl_pipeline 五阶段 · FTS5 |
 | 03 | **CodeGarden** | `/codegarden` | 项目生命周期 + 服务网格 + 资源中枢 + 联动引擎 |
 | 04 | **Security Graph** | `/knowledge/process` | MITRE ATT&CK · NVD CVE · 等保 / 关基 / 数安法 |
-| 05 | **SecNews 工作台 (v0.6)** | `/workbench` | 5 视图: Briefing / Pipeline / Knowledge / Analyze / Settings |
+| 05 | **SecNews 统一工作台 (v0.6.3)** | `/secnews` | 6 tab: Feed / Pipeline / Knowledge / Analyze / Analytics / Settings |
 
 ### Backend (FastAPI, no async DB)
 
 ```
 backend/
-├── api/            # REST routers (63 include_router @ v0.6.2, 14 个按 feature_gates 条件注册)
+├── api/            # REST routers (65 include_router @ v0.6.3, 14 个按 feature_gates 条件注册)
 │   ├── __init__.py # register_routers() aggregates all (lazy imports)
 │   ├── codegarden.py, codegarden_ops.py  # 项目管理 + 运维层 (服务/资源/事件) endpoints
 │   ├── knowledge_chunks_api.py  # v0.3.0 Phase 17: 知识库 chunk 级 API + FTS5
@@ -77,9 +77,9 @@ backend/
 │   ├── pipeline.py # QualityGatePipeline
 │   ├── scorer.py, config.py, jobs.py, publisher_registry.py, source_coverage.py
 │   └── *_gate.py   # author_verification, bid_recency, category_match, content_quality, duplicate, final_url, noise_content, recency, schema, source_reputation, title_summary, url_content, url_validity
-├── repository/     # SQLite DAO layer (37 repos @ v0.6.2, one per table)
+├── repository/     # SQLite DAO layer (40 repos @ v0.6.3, one per table)
 │   ├── db.py       # init_db, get_connection (thread-local, autocommit)
-│   ├── migrations/ # 60+ SQL migration files (001-074) — 含 v0.6 llm_secrets.provider 等
+│   ├── migrations/ # 77 SQL migration files (001-077) — 含 v0.6 llm_secrets.provider / deep_reads / attack_data / compliance
 │   ├── security_repo.py  # Security Knowledge Graph + Terminology
 │   └── knowledge_repo.py
 ├── scheduler/      # APScheduler jobs (sync, collection, trends, security)
@@ -88,7 +88,7 @@ backend/
 │   ├── graph.py         # SecurityGraphEngine
 │   ├── enricher.py      # CVE/ATT&CK/合规提取
 │   └── compliance.py    # 合规种子数据
-├── services/       # Business logic (94 services @ v0.6.2, 含 kl_pipeline/wiki_fs/dsh/llm/model_router 等)
+├── services/       # Business logic (96 services @ v0.6.3, 含 ai_hub/ 包、kl_pipeline/wiki_fs/dsh/llm/model_router/process_supervisor/agent_bridge 等)
 │   ├── sync_service.py     # Orchestration (921 lines)
 │   ├── sync_merge.py       # 3-way merge engine (extracted)
 │   ├── sync_bundle.py      # Build/encrypt/decrypt bundles (extracted)
@@ -116,7 +116,7 @@ Key patterns:
 
 ```
 frontend/src/
-├── components/     # 290 React components @ v0.6.2 — workbench/ 5 视图 + secnews/ + crm/ 为 v0.6 新增
+├── components/     # ~290 React components @ v0.6.3 — secnews/ 统一工作台 (v0.6.3 起 workbench 已并入) + crm/ 为 v0.6 新增
 │   ├── Icon.tsx    # Shared SVG icon component
 │   ├── SyncPage.tsx, SecretsPage.tsx  # Largest (~800 lines, needs splitting)
 │   ├── ReportPage.tsx  # v0.3.0: 日报/周报/月报 (AIHot 风格)
@@ -125,9 +125,9 @@ frontend/src/
 │   │   ├── SecurityGraph.tsx, SecurityTimeline.tsx
 │   │   ├── SecurityEntityDetail.tsx, ComplianceMatrix.tsx
 │   │   └── TermStandardizer.tsx
-│   ├── knowledge/    # ~25 知识库组件
-│   │   ├── KnowledgeTabs.tsx, BriefingMode.tsx, ScanMode.tsx, DeepReadMode.tsx, AlertMode.tsx
-│   │   ├── OutboxMode.tsx, ReviewMode.tsx, AttentionHeatmap.tsx  # v0.3.0 Phase 17
+│   ├── knowledge/    # 知识库组件
+│   │   ├── KnowledgeTabs.tsx, DeepReadMode.tsx, ReviewMode.tsx, AttentionHeatmap.tsx
+│   │   ├── InboxScanner.tsx, WikiBrowser.tsx, WikiItemBrowser.tsx  # v0.6 SecNews 知识库 tab
 │   │   └── KnowledgeCompoundingDashboard.tsx, LifecycleProgress.tsx, KnowledgePlanningPanel.tsx  # v0.3.0
 │   └── codegarden/ # Phase 2b: ProjectBoard, ProjectDetail, ServiceMesh, DependencyGraph, EventBus, PlaybookList, ResourceHub, ...
 ├── hooks/          # Custom hooks (useHotspotData, useTodos, useSync, useSSE, useSecurityGraph, etc.)
@@ -145,25 +145,23 @@ Key patterns:
 - **Charts** — `echarts-for-react` + `recharts` for visualizations
 - **Vitest + jsdom** — frontend testing
 
-### Knowledge Base (file system, no DB)
+### Knowledge Base (wiki-first: llm-wiki-2.0/ md 真源, SQLite 投影索引)
 
 ```
-knowledge/
-├── items/          # L1: Individual knowledge entries (~405 .md files, with attention_score)
-├── concepts/       # L2: Extracted concepts (~35 .md files + graph.json)
-├── learning/       # L3: Learning plans + tasks
-│   └── tasks/      # Pending/processing/done/failed task files
-├── content/        # L4: Content calendar + drafts
-├── summaries/      # Generated summaries
+llm-wiki-2.0/
+├── items/          # L1: Individual knowledge entries (~4149 .md files)
+├── concepts/       # L2: Extracted concepts (~96 .md files + graph.json)
+├── digest/         # 每日简报归档
+├── sources/        # 原文来源留存
+├── schema/         # frontmatter schema
 ├── SOUL.md         # Role profile (auto-generated from stats)
 ├── _MAP.md         # Auto-generated index map
 └── _SCHEMA.md      # Frontmatter schema reference
 ```
 
-Frontmatter-driven `.md` files. Sync to SQLite via `knowledge_sync.py`:
-- `sync_item_to_db()` / `sync_concept_to_db()` — parse YAML frontmatter → SQLite
-- `write_item_to_md()` — write SQLite → .md file
-- Watchdog (`knowledge_watcher.py`) detects file changes, debounces, syncs
+- 单根解析: `backend/wiki_fs/root.py::resolve_wiki_root()` (env `HOTSPOT_WIKI_ROOT` 可覆盖); 旧 `knowledge/` 根 v0.5 P1 起不再读写
+- kl_pipeline 五阶段 (raw → refine → link → structure → publish) 读写 frontmatter; `lifecycle` 字段为契约 (历史 `kl_stage` 兼容读)
+- `wiki_events` 表为 md 世界与 SQLite 世界唯一事件桥梁
 
 ### CodeGarden (personal project lifecycle)
 
@@ -195,8 +193,8 @@ sync_bundle.py   →  Serialization: build_bundle, encrypt/decrypt (853 lines)
 
 ### Testing
 
-- **Backend**: 2892 tests @ v0.6.2, pytest with `tmp_path` + `monkeypatch` for DB isolation
-- **Frontend**: Vitest + jsdom, 322 tests, tests colocated with components (17 预存失败: e2e specs 误收集 + localStorage mock, 非功能回归)
+- **Backend**: 3025 tests @ v0.6.3, pytest with `tmp_path` + `monkeypatch` for DB isolation
+- **Frontend**: Vitest + jsdom, 309 tests, tests colocated with components, 0 失败为新常态
 - **New tests (no DB)**: `test_sync_merge.py`, `test_auto_classifier.py`, `test_knowledge_watcher.py`, `test_kl_pipeline.py`, `test_secnews_dashboard.py` — pure function tests, fastest to run
 - **CI**: `.github/workflows/ci.yml` — Python compile + pytest + tsc + vitest + vite build + `generate_meta.py --check` + `harness_analyze.py --check`
 
@@ -209,9 +207,7 @@ sync_bundle.py   →  Serialization: build_bundle, encrypt/decrypt (853 lines)
 - **Knowledge system**: file-first, SQLite is read cache; .md files are source of truth
 - **Attention scoring**: 5-dimensional weighted (view_count/dwell_time/scroll_depth/is_favorited/annotation_count), 0-100 scale, aggregated via 1800s interval job with 30-day window + auto-cleanup
 - **Chunk storage**: paragraph-level segmentation with FTS5 full-text search, char_start/end for原文跳转
-- **Knowledge 域模式 (v0.6.2)**: Review (SM-2 复习) + DeepRead (重分析 4 节报告, S4-2) — **主路径**;
-  其余 4 模式 (Briefing/Scan/Alert/Outbox) v0.6.2 已加 `@deprecated`, 计划 v0.7 退役,
-  功能由 `/workbench` 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings) 接替
+- **Knowledge 域模式**: Review (SM-2 复习) + DeepRead (重分析 4 节报告, S4-2) 两条主路径; Briefing/Scan/Alert/Outbox 4 模式 v0.7.0 已删除 (简报能力在 /secnews feed 简报卡, v0.6.3 起 workbench 也已并入 /secnews 统一工作台)
 
 ## Docs & Tooling Notes
 

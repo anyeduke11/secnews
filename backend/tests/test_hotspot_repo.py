@@ -39,6 +39,19 @@ def repo(temp_db) -> HotspotRepository:
     return HotspotRepository()
 
 
+def _recent_ts(*, hours: float = 1.0) -> datetime:
+    """``now - hours`` 钳制进 D7 日历周窗口。
+
+    时间边界根治 (2026-08-31): D7 是「本周周一 00:00」日历周语义 —
+    每逢周一 00:00-01:00 (本地), now-Nh 的 recent 种子会落入上周窗口,
+    query/count 断言集体腐坏。钳制规则: 种子落在窗口内保持原值 (其余
+    6 天 23 小时行为不变); 落在窗外取窗口起点 +1min。
+    """
+    ts = datetime.now(timezone.utc) - timedelta(hours=hours)
+    floor = TimeRange.D7.start_datetime() + timedelta(minutes=1)
+    return max(ts, floor)
+
+
 def _make_item(
     id_: str,
     category: Category = Category.AI,
@@ -50,9 +63,10 @@ def _make_item(
     quality_flags: list[str] | None = None,
     bid_status: str | None = None,
 ) -> HotspotItem:
-    """构造一个 tz-aware 时间戳的 HotspotItem；默认时间 = now - 1h。"""
+    """构造一个 tz-aware 时间戳的 HotspotItem；默认时间 = now - 1h
+    (经 :func:`_recent_ts` 钳制, 见其 docstring)。"""
     if published_at is None:
-        published_at = datetime.now(timezone.utc) - timedelta(hours=1)
+        published_at = _recent_ts(hours=1)
     return HotspotItem(
         id=id_,
         title=title,
@@ -109,18 +123,18 @@ def test_query_basic(repo):
 def test_query_by_time_range(repo):
     """time_range=D7 过滤 7 天窗口内的数据。"""
     now = datetime.now(timezone.utc)
-    in_window = now - timedelta(hours=1)
+    in_window = _recent_ts(hours=1)
     out_of_window = now - timedelta(days=10)
     repo.upsert_many(
         [
             _make_item("recent-1", published_at=in_window),
-            _make_item("recent-2", published_at=in_window - timedelta(hours=1)),
+            _make_item("recent-2", published_at=_recent_ts(hours=2)),
             _make_item("old-1", published_at=out_of_window),
         ]
     )
     items, _ = repo.query(Category.AI, time_range=TimeRange.D7, limit=10)
     ids = {it.id for it in items}
-    # D7 (168h) 应只包含 1h 和 2h 前那两条
+    # D7 (日历周) 应只包含两个 recent 种子 (经 _recent_ts 钳制保证在窗口内)
     assert "recent-1" in ids
     assert "recent-2" in ids
     assert "old-1" not in ids
@@ -138,7 +152,7 @@ def test_count_unique_urls_vs_count_in_range(repo):
     # 1 个 url 在 ai/security/finance 各 1 行 → 3 行
     # 2 个独立 url 在 bid 各 1 行 → 2 行
     # 共 5 行, 但 unique url = 3
-    now = datetime.now(timezone.utc) - timedelta(hours=1)
+    now = _recent_ts(hours=1)
     items = [
         _make_item("dup-a-ai", category=Category.AI, source="x",
                    published_at=now),
@@ -174,8 +188,7 @@ def test_count_unique_urls_vs_count_in_range(repo):
 
 def test_count_unique_urls_excludes_historical_bid(repo):
     """historical_bid 标记的行不计入 unique (与 query 口径一致)。"""
-    from datetime import timedelta, timezone
-    now = datetime.now(timezone.utc) - timedelta(hours=1)
+    now = _recent_ts(hours=1)
     items = [
         _make_item("real-1", category=Category.BID, source="x",
                    published_at=now, quality_flags=[]),
@@ -274,9 +287,8 @@ def test_keyword_condition_branching_and_escaping(repo):
 # ---------------------------------------------------------------------------
 def test_query_cursor_pagination(repo):
     """10 条数据，limit=3，多次翻页无重复且能取完。"""
-    now = datetime.now(timezone.utc)
     items = [
-        _make_item(f"p-{i:02d}", published_at=now - timedelta(hours=i))
+        _make_item(f"p-{i:02d}", published_at=_recent_ts(hours=i))
         for i in range(10)
     ]
     repo.upsert_many(items)
@@ -307,12 +319,11 @@ def test_query_next_cursor_format(repo):
     v0.5 M1-Task1: 精度提升到微秒浮点 (e.g. ``1756000123.456789_abc``),
     旧整数秒格式仍可被 _parse_cursor 兼容解析。
     """
-    now = datetime.now(timezone.utc)
     repo.upsert_many(
         [
-            _make_item("c-1", published_at=now - timedelta(hours=1)),
-            _make_item("c-2", published_at=now - timedelta(hours=2)),
-            _make_item("c-3", published_at=now - timedelta(hours=3)),
+            _make_item("c-1", published_at=_recent_ts(hours=1)),
+            _make_item("c-2", published_at=_recent_ts(hours=2)),
+            _make_item("c-3", published_at=_recent_ts(hours=3)),
         ]
     )
     items, cursor = repo.query(Category.AI, limit=1)

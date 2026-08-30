@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.6.3 P3 批次 (2026-08-30/31) — feed FTS 阈值自执行 + 运行时复核 + 两个真 bug 根治
+
+> **来源**: 用户指定 P3 收尾 = ① feed 数据量到 5 万行再 FTS 化 (卡顿审计遗留裁决); ② 运行时 py-spy 采样复核。执行中挖出并根治 2 个真 bug + 1 类周一边界测试腐坏。
+
+### 批次 ㉘：P3-1 — feed 关键词搜索 5 万行阈值惰性 trigram FTS 化 (`secnews_dashboard.py`)
+
+- **裁决变自执行**: 带关键词的 `get_feed` 经 TTL (10min) 行数探针发现 `hotspots` ≥ 50,000 行时, 在 worker 线程内一次性建 `hotspots_trigram_fts` (contentless FTS5) + 全量回填 + AFTER INSERT/DELETE/UPDATE 同步触发器 (幂等, 崩溃可续), 之后 ≥3 字符查询词切 `MATCH`; <3 字符与未达标时维持 LIKE, 行为零变化
+- **选 trigram 而非既有 unicode61 的原因**: unicode61 不切中日韩连写 (hotspot_repo 实测 "勒索" MATCH 0 / LIKE 18), 而 trigram 引号短语查询 = 子串匹配, 与 `LIKE %kw%` 语义等价 (ASCII 大小写不敏感 + CJK 逐字), ≥3 字符零召回损失 — 5 万行时自动升级索引且不牺牲中文搜索
+- **响应口径标注**: `search_engine` ("fts5_trigram" | "like") + `feed_rows` (沿用 funnel_source 模式); 当前 live 库 4700 行, 机制休眠待命
+- 测试 `test_feed_fts_threshold.py` NEW (9 用例: 阈值前 LIKE / 激活后 LIKE 等价召回对照 / 进程重启恢复 / 短词回退 / 触发器同步 / 引号转义 / 崩溃续回填不重复)
+
+### 批次 ㉙：P3-1 执行中挖出的两个真 bug (根治)
+
+1. **contentless FTS5 'delete' 触发器缺陷** (001_init.sql 起): `hotspots_ad`/`hotspots_au` 在 'delete' 命令里只给 rowid — 不报错但词条**静默残留** (SQLite 3.53 实证), UPDATE/DELETE 后旧 title/summary 词条残留 = 搜索假阳性; 当前 hotspots 以 INSERT-only + flag 更新为主故未爆发。→ migration **078** 重建两触发器为"提供旧值"写法 + delete-all 全量重灌清历史残留; `secnews_dashboard` 新触发器直接用正确写法; `test_migrations_v1_7.py` +3 行为锁
+2. **`_parse_iso_datetime` 微秒路径时区偏移 8h** (`collectors/parsing.py`): 带 `.ffffff` 的 ISO 串先 `split(".")[0]` 把 `+00:00` 时区后缀一起截掉 → naive `astimezone(UTC)` 被当本地 (+8) 解析 → published_at 偏早 8 小时 → recency 门禁误杀周界 8h 内文章。→ 先 `fromisoformat` 再处理时区 (naive 仍按 UTC); crawl4ai ×3 + rss_path ×2 测试随即转绿
+
+### 批次 ㉚：周一边界测试腐坏根治 (2026-08-31 00:00 实际爆发)
+
+`TimeRange.D7` 与 recency 门禁是「本周周一 00:00」日历周语义, 而 4 个测试文件用 `now - N 小时` 种 "recent" 数据 — **每逢周一 00:00-01:00 (本地) 集体腐坏 14 例** (当晚实测 9 failed)。修法 = 种子钳制进当前周窗口 (`max(seed, week_start + 1min)`, 语义不变): `test_hotspot_repo.py` (`_recent_ts` 助手) / `test_collector_recency.py` (`_in_week_ts`) / `test_recency_gate.py` / `test_rss_path.py` (`_recent_dt` 钳制)。**教训**: 日历周窗口 + now 相对种子 = 每周必炸一次的组合, 新测试一律走钳制助手。
+
+### 批次 ㉛：P3-2 — 运行时复核 (py-spy 不可用 → 进程内 loop-lag 探针等价达成)
+
+- py-spy 0.4.2 在 macOS 附着需 root (sudo 免密不可用) → 改用**更强证据**: 真实 `backend.main:app` 跑 8001 + 进程内事件循环滞后监视器 (每 100ms 测 `asyncio.sleep` 漂移, 直测"循环被同步段占用"), 4 并发锤打 5 端点 45s ≈ 46k 请求
+- **结果: loop lag p50=0ms / p95=2ms / p99=9ms / max=63ms; >200ms 样本 0 个** (旧故障模式 = 每请求阻塞事件循环 337-1176ms)。单请求 max 1116ms 出现在 `/api/secnews/pipeline` = liveness TTL 过期的那一次 md 全量扫描, 落在 worker 线程 (设计内, 摊薄)
+- 常态负载 60s 报告: 统计端点 p95 < 8ms; feed 关键词 p95 20.8ms (4700 行 LIKE 路径); 0 错误
+
+### 门禁
+
+| 维度 | 结果 |
+|---|---|
+| ruff backend | All checks passed |
+| 全量 pytest | **3047 passed / 6 skipped / 0 failed** (基线 3035 → 3047, 新增 P3 锁) |
+| live 后端 | 重启加载新代码, migration 078 已应用, trigram 机制休眠待命 |
+
 ## v0.6.3 P2 批次 (2026-08-30) — job 纪律补全 + wiki_fs 缓存层 + 失效接线
 
 > **来源**: P0 修复后第一性重审 — API 面 AST 复扫 0 残留; scheduler 面新发现 6 个 async job 事件循环直接同步 IO; 指名嫌疑实测 (read_item 491ms 实锤 / ATTACH 0.2ms / feed LIKE <1ms 双双排除); **重大发现: wiki 单根裁决写路径未完成** (见下"待拍板")。

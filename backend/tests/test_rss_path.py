@@ -1,11 +1,12 @@
 """Phase 22: BaseCollector._fetch_rss RSS 抓取路径测试"""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from unittest.mock import patch
 
 from backend.collectors.security_collector import SecurityCollector
+from backend.utils.business_days import current_week_start
 
 
 def _make_feedparser_mock(entries: list[dict[str, Any]], status: int = 200, bozo: bool = False):
@@ -18,20 +19,24 @@ def _make_feedparser_mock(entries: list[dict[str, Any]], status: int = 200, bozo
     return d
 
 
-def _recent_parsed(hour: int = 12) -> tuple:
-    """本周内 (今天 UTC) 的 ``published_parsed`` 元组。
+def _recent_dt(hour: int = 12) -> datetime:
+    """「今天 UTC 的 hour 点」钳制进本周窗口 (周一 00:00 Shanghai +1min 起)。
 
-    Phase 47 起 ``_build_items`` 拒收早于本周一 00:00 (Shanghai) 的条目;
-    用「今天」而非硬编码日期,让测试与系统时间无关 (不再随周次过期)。
+    Phase 47 起 ``_build_items`` 拒收早于本周一 00:00 (Shanghai) 的条目。
+    周一边界根治 (2026-08-31): 每逢周一 00:00-08:00 (本地), 「今天 UTC 的
+    hour 点」仍在上周日历里 → 被门禁正确拒收 → 用例腐坏; 钳制后用例在
+    任意时刻都表达其本意 ("当周条目")。
     """
     now = datetime.now(timezone.utc)
-    return (now.year, now.month, now.day, hour, 0, 0, 0, 0, 0)
+    ts = datetime(now.year, now.month, now.day, hour, 0, 0, tzinfo=timezone.utc)
+    floor = current_week_start().astimezone(timezone.utc) + timedelta(minutes=1)
+    return max(ts, floor)
 
 
-def _recent_dt(hour: int = 12) -> datetime:
-    """与 :func:`_recent_parsed` 对应的 tz-aware UTC datetime。"""
-    now = datetime.now(timezone.utc)
-    return datetime(now.year, now.month, now.day, hour, 0, 0, tzinfo=timezone.utc)
+def _recent_parsed(hour: int = 12) -> tuple:
+    """本周内的 ``published_parsed`` 元组 (与 :func:`_recent_dt` 同源钳制)。"""
+    dt = _recent_dt(hour)
+    return (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, 0, 0, 0)
 
 
 def test_rss_path_in_security_collector_sources():

@@ -110,7 +110,9 @@ def _parse_iso_datetime(s: str) -> datetime | None:
     """从 ISO 8601 字符串解析为 tz-aware UTC datetime。
 
     容忍:
-    - 带/不带 microseconds
+    - 带/不带 microseconds (必须先 fromisoformat 再处理 — 旧实现先按 '.'
+      split 截掉小数秒, 连时区后缀一起丢掉, naive 再 astimezone 被当本地
+      时解析 → 输出偏移了一个本地时区 (v0.6.3 P3 修复))
     - 带/不带 timezone(naive 当作 UTC)
     - None / 空字符串 / 无效格式 → None
     - 年份超出 [2000, 2100] → None (防止 1970/2150 这类异常时间)
@@ -119,16 +121,13 @@ def _parse_iso_datetime(s: str) -> datetime | None:
         if s is None:
             return None
         s = s.strip().replace("T", " ")
-        if "." in s:
-            s = s.split(".")[0]
         if s.endswith("Z"):
-            s = s[:-1]
-        elif "+" in s or "-" in s[1:]:
-            dt = datetime.fromisoformat(s).astimezone(timezone.utc)
-            if not (2000 <= dt.year <= 2100):
-                return None
-            return dt
-        dt = datetime.fromisoformat(s).replace(tzinfo=timezone.utc)
+            s = s[:-1] + "+00:00"
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
         if not (2000 <= dt.year <= 2100):
             return None
         return dt

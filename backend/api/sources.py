@@ -246,9 +246,25 @@ async def toggle_source(sid: int, enabled: bool):
 # ===========================================================================
 def _build_health_payload(category: str | None) -> dict:
     """同步构建 health 报告（在 thread pool 中执行）。"""
+    from backend.services.source_census_service import build_census, registry_snapshot
+
     repo = SourceStatsRepository()
     rows = repo.list_by_category(category) if category else repo.list_all()
     summary = repo.summary_by_category()
+    reg = registry_snapshot()
+    census = build_census(reg)
+    reg_keys, live_keys = reg["keys"], reg["enabled_keys"]
+
+    def _key(r: dict) -> tuple[str, str]:
+        return (str(r["category"]), str(r["source_name"]))
+
+    # 只有"注册且启用"的源才该进分母: 旧口径把 source_stats 历史行全数计入,
+    # 实测 152 行含 22 个已无 collector 抓取的孤儿行 + 2 个跨 category 重名。
+    live = [r for r in rows if _key(r) in live_keys]
+
+    def _count(status: str) -> int:
+        return sum(1 for r in live if str(r["status"] or "") == status)
+
     return {
         "version": API_VERSION,
         "category": category or "all",
@@ -265,12 +281,20 @@ def _build_health_payload(category: str | None) -> dict:
                 "total_items": int(r["total_items"] or 0),
                 "last_error": r["last_error"],
                 "status": r["status"],
+                # false = 历史遗留行, 已不再被任何 collector 抓取 (不该计入分母)
+                "registered": _key(r) in reg_keys,
             }
             for r in rows
         ],
         "dead_count": sum(1 for r in rows if r["status"] == "dead"),
         "stale_count": sum(1 for r in rows if r["status"] == "stale"),
         "active_count": sum(1 for r in rows if r["status"] == "active"),
+        # ↓ 新口径: 仅统计注册且启用的源 (前端心跳条应改用这一组)
+        "registered_total": len(live),
+        "registered_active": _count("active"),
+        "registered_stale": _count("stale"),
+        "registered_dead": _count("dead"),
+        "census": census,
     }
 
 
@@ -347,22 +371,44 @@ async def mark_dead_source(category: str, source_name: str):
 # Phase 4 v1.7 数据源健康趋势 API (green/yellow/red)
 # ===========================================================================
 def _build_trend_payload(source: str | None) -> dict:
-    """同步构建 Phase 4 健康趋势报告 (在 thread pool 中执行)。"""
+    """同步构建 Phase 4 健康趋势报告 (在 thread pool 中执行)。
+
+    口径自述: 本端点只覆盖 ``hotspots.source`` 里**出现过**的源名 (实测 ~47 个)。
+    注册表里一条都没采到的源根本不在结果集中 —— 这正是它与 ``/health`` 的
+    dead 数不一致的原因, 而不是谁算错了。
+    """
+    from backend.services.source_census_service import (
+        STATUS_EQUIVALENCE,
+        registry_snapshot,
+    )
     from backend.services.source_health_service import (
         check_all_health,
         check_health,
         health_summary,
     )
 
+    reg = registry_snapshot()
+    framing = {
+        "metric": "phase4_throughput_trend",
+        "measures": "24h 产出 vs 7d 日均偏离度 (green/yellow/red)",
+        "registry_total": reg["registered_total"],
+        "registry_enabled": reg["enabled_total"],
+        "status_equivalence": STATUS_EQUIVALENCE,
+    }
+
     if source:
         result = check_health(source)
-        return {"version": API_VERSION, "item": result}
+        return {"version": API_VERSION, "item": result, **framing}
     items = check_all_health()
     summary = health_summary()
     return {
         "version": API_VERSION,
         "summary": summary,
         "items": items,
+        **framing,
+        # 有产出记录、因此本端点能判定的源数; 与 registry_enabled 的差 = 完全无产出信号源
+        "covered": len(items),
+        "uncovered_by_no_output": max(0, reg["enabled_total"] - len(items)),
     }
 
 
@@ -391,13 +437,27 @@ async def get_source_health_v2():
     """Phase 3: 返回所有源的详细健康状态（crawler_sources 表）。
 
     返回字段: id, name, category, status, health_score, consecutive_failures,
-    cooldown_until, last_success_at, last_yield_at, last_error, grace_rounds.
+    cooldown_until, last_success_at, last_yield_at, last_error, grace_rounds。
+
+    口径: ``status`` 来自 Phase 3 **调度器状态机** (含 ``unknown`` / 停用源),
+    既不是 Phase 9 的 liveness (``/health``), 也不是 Phase 4 的产出趋势
+    (``/health/trend``) —— 三者度量不同事实, 用 ``status_equivalence`` 对照。
     """
     from backend.repository.source_scheduler_repo import SourceSchedulerRepository
+    from backend.services.source_census_service import STATUS_EQUIVALENCE
+
     repo = SourceSchedulerRepository()
     sources = repo.list_all()
+    statuses = [str(s.get("status", "unknown")) for s in sources]
     return {
         "version": API_VERSION,
+        "metric": "phase3_scheduler_state",
+        "measures": "调度器连续失败 / 冷却 / 健康分 (crawler_sources.status)",
+        "registry_total": len(sources),
+        "enabled_total": sum(1 for s in sources if bool(s.get("enabled", 1))),
+        # unknown 通常是"注册了但从没被调度过"的源 —— 三个端点数字对不上的主因之一
+        "unknown_status_count": sum(1 for x in statuses if x == "unknown"),
+        "status_equivalence": STATUS_EQUIVALENCE,
         "sources": [
             {
                 "id": s["id"],

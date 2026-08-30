@@ -408,20 +408,18 @@ async def catchup_watchdog_job() -> None:
     4. 更新 ``last_orphan_recovery_at`` 时间戳 (供 /api/health 暴露)
 
     失败只 log.error, 不抛异常 (与既有 job 模式一致).
+
+    v0.6.3 P2-1: 60s 高频 job — DB 扫描/标记 (同步 IO) 移入 worker 线程,
+    enqueue_catchup (async) 保留在事件循环。
     """
+    import asyncio
     from datetime import datetime, timedelta
 
-    from backend.repository.db import get_connection
-    from backend.services.catchup_service import (
-        enqueue_catchup,
-        mark_auto_enqueued,
-        set_last_orphan_recovery_at,
-        should_enqueue_auto,
-    )
+    def _scan_and_mark_orphans():
+        """同步段: 查孤儿 + 标 failed。返回 (earliest, now_iso, n) 或 None。"""
+        from backend.repository.db import get_connection
 
-    try:
         conn = get_connection()
-        # 1. 查孤儿 (started_at < now-600s, finished_at IS NULL)
         cutoff_iso = (
             datetime.now(timezone.utc) - timedelta(seconds=600)
         ).isoformat()
@@ -433,12 +431,8 @@ async def catchup_watchdog_job() -> None:
             """,
             (cutoff_iso,),
         ).fetchall()
-
         if not stuck_rows:
-            # 无孤儿: 重置 recovery timestamp 不必要 (保留最近值)
-            return
-
-        # 2. 标记所有孤儿为 failed
+            return None
         now_iso = datetime.now(timezone.utc).isoformat()
         stuck_ids = [int(r["id"]) for r in stuck_rows]
         for sid in stuck_ids:
@@ -452,12 +446,25 @@ async def catchup_watchdog_job() -> None:
                 """,
                 (now_iso, sid),
             )
+        earliest = min(r["started_at"] for r in stuck_rows)
         logger.info(
             f"catchup_watchdog_job: marked {len(stuck_ids)} orphan runs as failed"
         )
+        return earliest, now_iso, len(stuck_ids)
 
-        # 3. 防抖 + enqueue auto catchup
-        earliest = min(r["started_at"] for r in stuck_rows)
+    from backend.services.catchup_service import (
+        enqueue_catchup,
+        mark_auto_enqueued,
+        set_last_orphan_recovery_at,
+        should_enqueue_auto,
+    )
+
+    try:
+        result = await asyncio.to_thread(_scan_and_mark_orphans)
+        if result is None:
+            return
+        earliest, now_iso, orphan_count = result
+
         if should_enqueue_auto():
             try:
                 run_id = await enqueue_catchup(
@@ -484,7 +491,7 @@ async def catchup_watchdog_job() -> None:
             # 在防抖窗口内, 仅标孤儿失败 + 更新 recovery timestamp
             set_last_orphan_recovery_at(now_iso)
             logger.info(
-                f"catchup_watchdog_job: orphans={len(stuck_ids)} marked, "
+                f"catchup_watchdog_job: orphans={orphan_count} marked, "
                 f"skip enqueue (within {300}s debounce window)"
             )
     except Exception as e:

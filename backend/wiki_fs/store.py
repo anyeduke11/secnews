@@ -24,6 +24,11 @@ class WikiFs:
         self._concepts_dir = Path(root) / "concepts"
         self._inbox_dir = Path(root) / "inbox"
         self._quarantine_dir = Path(root) / "quarantine"
+        # v0.6.3 P2-2a: read_item mtime 缓存 — 4149 条全量读一遍 491ms,
+        # liveness/funnel 等统计是 O(N) 读放大点。键 = item_id, 值 =
+        # (st_mtime_ns, st_size, 解析结果); write_item 写后更新, mtime/size
+        # 不匹配即失效 (外部进程改写也能感知)。内存上界 ≈ 条目 md 总字节。
+        self._item_cache: dict[str, tuple[int, int, dict | None]] = {}
 
     def _ensure_dirs(self) -> None:
         for d in (self._items_dir, self._concepts_dir, self._inbox_dir, self._quarantine_dir):
@@ -41,23 +46,39 @@ class WikiFs:
         )
 
     def read_item(self, item_id: str) -> dict | None:
-        """Return {"fm": dict, "body": str} or None if not found."""
+        """Return {"fm": dict, "body": str} or None if not found.
+
+        v0.6.3 P2-2a: mtime+size 校验缓存。stat 一次 (~10µs) 命中即免
+        read_text+YAML 解析 (~130µs); 外部改写因 mtime/size 变化自动失效。
+        """
         path = self._items_dir / f"{item_id}.md"
-        if not path.exists():
+        try:
+            stat = path.stat()
+        except OSError:
+            self._item_cache.pop(item_id, None)
             return None
+        sig = (stat.st_mtime_ns, stat.st_size)
+        cached = self._item_cache.get(item_id)
+        if cached and (cached[0], cached[1]) == sig:
+            return cached[2]
         try:
             text = path.read_text(encoding="utf-8")
             fm, body = parse_frontmatter(text)
-            return {"fm": fm, "body": body}
+            result = {"fm": fm, "body": body}
         except Exception as exc:
             logger.warning(f"read_item failed: {item_id}: {exc}")
+            self._item_cache.pop(item_id, None)
             return None
+        self._item_cache[item_id] = (sig[0], sig[1], result)
+        return result
 
     def write_item(self, item_id: str, doc: dict) -> None:
         """Atomic write (.tmp → rename) with stable frontmatter ordering.
 
         P0-3 (v0.6.2): 写后立即同步 FTS 索引 (wiki_items_fts), 避免新条目
         等待 scheduler 兜底 (wiki_items_fts_sync_job 5min 周期).
+        v0.6.3 P2-2a: 写后以写入内容刷新读缓存 (rename 后 mtime 已变,
+        直接覆盖缓存条目, 后续 read_item 免 stat 后重解析)。
         """
         self._ensure_dirs()
         path = self._items_dir / f"{item_id}.md"
@@ -70,6 +91,22 @@ class WikiFs:
         tmp = path.with_suffix(".tmp")
         tmp.write_text(content, encoding="utf-8")
         tmp.rename(path)
+
+        # P2-2a: 以新 stat 刷新缓存 (write-through)
+        try:
+            stat = path.stat()
+            self._item_cache[item_id] = (
+                stat.st_mtime_ns, stat.st_size, {"fm": fm, "body": body},
+            )
+        except OSError:
+            self._item_cache.pop(item_id, None)
+
+        # P2-3: md 生命周期写入后失效统计缓存 (liveness 30s 陈旧窗口收敛)
+        try:
+            from backend.services.wiki_stats_service import invalidate_stats_cache
+            invalidate_stats_cache()
+        except Exception:
+            pass
 
         # P0-3: 写后即时 upsert FTS 索引 (失败不影响主流程)
         try:

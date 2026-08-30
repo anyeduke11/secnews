@@ -19,63 +19,71 @@ async def knowledge_classify_job() -> None:
     手动 API + 每日 02:30 编译消费者 (配额 100/天), 消费速率远低于摄入。
     新增独立 job: 每 30min 处理最多 500 条未分类条目 (纯规则, 无 LLM/网络),
     P0.4: 只更新 DB, 不回写 md (分类是中间状态, md 只由用户/编译器写)。
+
+    v0.6.3 P2-1: 全同步体 (DB 扫描 500 行 + upsert) 移入 worker 线程,
+    不再占用事件循环。
     """
-    from datetime import datetime, timezone
+    import asyncio
 
-    from backend.repository.db import get_connection
-    from backend.repository.knowledge_repo import knowledge_repo
-    from backend.services.auto_classifier import batch_classify
+    def _run() -> None:
+        from datetime import datetime, timezone
 
-    _CLASSIFY_BATCH = 500
-    conn = get_connection()
-    rows = conn.execute(
-        "SELECT id, title, tags, source_url, domain, type, difficulty "
-        "FROM knowledge_items "
-        "WHERE domain IS NULL OR type IS NULL OR difficulty IS NULL "
-        "ORDER BY ingested_at ASC LIMIT ?",
-        (_CLASSIFY_BATCH,),
-    ).fetchall()
-    if not rows:
-        return
+        from backend.repository.db import get_connection
+        from backend.repository.knowledge_repo import knowledge_repo
+        from backend.services.auto_classifier import batch_classify
 
-    items = [dict(r) for r in rows]
-    classified = batch_classify(items)
-    updated = 0
-    errors = 0
-    now = datetime.now(timezone.utc).isoformat()
-    for d in classified:
-        item_id = d.get("id")
-        if not item_id:
-            continue
-        try:
-            db_item = knowledge_repo.get_item(item_id)
-            if db_item is None:
+        _CLASSIFY_BATCH = 500
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT id, title, tags, source_url, domain, type, difficulty "
+            "FROM knowledge_items "
+            "WHERE domain IS NULL OR type IS NULL OR difficulty IS NULL "
+            "ORDER BY ingested_at ASC LIMIT ?",
+            (_CLASSIFY_BATCH,),
+        ).fetchall()
+        if not rows:
+            return
+
+        items = [dict(r) for r in rows]
+        classified = batch_classify(items)
+        updated = 0
+        errors = 0
+        now = datetime.now(timezone.utc).isoformat()
+        for d in classified:
+            item_id = d.get("id")
+            if not item_id:
                 continue
-            changed = False
-            if d.get("domain") and not db_item.domain:
-                db_item.domain = d["domain"]
-                changed = True
-            if d.get("type") and not db_item.type:
-                db_item.type = d["type"]
-                changed = True
-            if d.get("difficulty") and not db_item.difficulty:
-                db_item.difficulty = d["difficulty"]
-                changed = True
-            if d.get("topic") and not db_item.topic:
-                db_item.topic = d["topic"]
-                changed = True
-            if not changed:
-                continue
-            db_item.updated_at = now
-            # P0.4: 只更新 DB, 不回写 md (分类是中间状态)
-            knowledge_repo.upsert_item(db_item)
-            updated += 1
-        except Exception as e:
-            errors += 1
-            _logger.warning(f"knowledge_classify item {item_id} failed: {e}")
-    _logger.info(
-        f"knowledge_classify_job: scanned={len(rows)} updated={updated} errors={errors}"
-    )
+            try:
+                db_item = knowledge_repo.get_item(item_id)
+                if db_item is None:
+                    continue
+                changed = False
+                if d.get("domain") and not db_item.domain:
+                    db_item.domain = d["domain"]
+                    changed = True
+                if d.get("type") and not db_item.type:
+                    db_item.type = d["type"]
+                    changed = True
+                if d.get("difficulty") and not db_item.difficulty:
+                    db_item.difficulty = d["difficulty"]
+                    changed = True
+                if d.get("topic") and not db_item.topic:
+                    db_item.topic = d["topic"]
+                    changed = True
+                if not changed:
+                    continue
+                db_item.updated_at = now
+                # P0.4: 只更新 DB, 不回写 md (分类是中间状态)
+                knowledge_repo.upsert_item(db_item)
+                updated += 1
+            except Exception as e:
+                errors += 1
+                _logger.warning(f"knowledge_classify item {item_id} failed: {e}")
+        _logger.info(
+            f"knowledge_classify_job: scanned={len(rows)} updated={updated} errors={errors}"
+        )
+
+    await asyncio.to_thread(_run)
 
 
 async def knowledge_stub_backfill_job() -> None:
@@ -84,11 +92,13 @@ async def knowledge_stub_backfill_job() -> None:
     背景: bookmark 批量导入产生大量无标题/无正文条目 (title=URL,
     body<40 字符), 知识库"信息进入"层质量差。本 job 尽力而为:
     每 6h 处理 20 条, 并发 3, 抓取失败跳过 (下轮重试), 不阻塞主流程。
+
+    v0.6.3 P2-1: 三段式 — 候选 SELECT 与结果回写 (同步 DB/md IO) 移入
+    worker 线程; 网络抓取 (aiohttp) 保留在事件循环 (真异步不阻塞)。
     """
     try:
         import asyncio as _asyncio
         import re as _re
-        from datetime import datetime, timezone
 
         from backend.repository.db import get_connection
         from backend.repository.knowledge_repo import knowledge_repo
@@ -96,14 +106,18 @@ async def knowledge_stub_backfill_job() -> None:
         from backend.services.knowledge_sync import ITEMS_DIR
 
         _BATCH = 20
-        conn = get_connection()
-        rows = conn.execute(
-            "SELECT id, title, source_url FROM knowledge_items "
-            "WHERE (title LIKE 'http%' OR title = 'Untitled' OR title = '') "
-            "   AND source_url IS NOT NULL AND source_url != '' "
-            "ORDER BY ingested_at ASC LIMIT ?",
-            (_BATCH,),
-        ).fetchall()
+
+        def _select_candidates():
+            conn = get_connection()
+            return conn.execute(
+                "SELECT id, title, source_url FROM knowledge_items "
+                "WHERE (title LIKE 'http%' OR title = 'Untitled' OR title = '') "
+                "   AND source_url IS NOT NULL AND source_url != '' "
+                "ORDER BY ingested_at ASC LIMIT ?",
+                (_BATCH,),
+            ).fetchall()
+
+        rows = await _asyncio.to_thread(_select_candidates)
         if not rows:
             return
 
@@ -146,47 +160,54 @@ async def knowledge_stub_backfill_job() -> None:
                 return await _fetch_one(r)
 
         results = await _asyncio.gather(*[_limited(r) for r in rows])
-        updated = 0
-        for res in results:
-            if not res:
-                continue
-            item_id, real_title, snippet = res
-            try:
-                db_item = knowledge_repo.get_item(item_id)
-                if db_item is None:
+
+        def _apply_results(results) -> None:
+            """结果回写 (同步 DB + md IO) — worker 线程执行。"""
+            from datetime import datetime, timezone
+
+            updated = 0
+            for res in results:
+                if not res:
                     continue
-                changed = False
-                if real_title and (not db_item.title or db_item.title.startswith("http")):
-                    db_item.title = real_title
-                    changed = True
-                if snippet and not db_item.topic:
-                    db_item.topic = snippet[:100]
-                    changed = True
-                if changed:
-                    db_item.updated_at = datetime.now(timezone.utc).isoformat()
-                    # 同时回写 .md 正文 (把摘要作为正文骨架)
-                    md_path = ITEMS_DIR / f"{item_id}.md"
-                    try:
-                        if md_path.exists():
-                            text = md_path.read_text(encoding="utf-8")
-                            m = _re.match(r"^---\s*\n.*?\n---\s*\n", text, _re.DOTALL)
-                            body = text[m.end():].strip() if m else text.strip()
-                            if len(body) < 40:
-                                ai_hub.write_item(
-                                    db_item.to_dict(),
-                                    content=(f"# {real_title}\n\n{snippet}\n" if snippet else None),
-                                    agent="job:stub_backfill",
-                                )
-                                changed = True
-                    except Exception as md_err:
-                        _logger.warning(f"stub backfill md write failed {item_id}: {md_err}")
-                    knowledge_repo.upsert_item(db_item)
-                    updated += 1
-            except Exception as e:
-                _logger.warning(f"stub backfill item {item_id} failed: {e}")
-        _logger.info(
-            f"knowledge_stub_backfill_job: candidates={len(rows)} updated={updated}"
-        )
+                item_id, real_title, snippet = res
+                try:
+                    db_item = knowledge_repo.get_item(item_id)
+                    if db_item is None:
+                        continue
+                    changed = False
+                    if real_title and (not db_item.title or db_item.title.startswith("http")):
+                        db_item.title = real_title
+                        changed = True
+                    if snippet and not db_item.topic:
+                        db_item.topic = snippet[:100]
+                        changed = True
+                    if changed:
+                        db_item.updated_at = datetime.now(timezone.utc).isoformat()
+                        # 同时回写 .md 正文 (把摘要作为正文骨架)
+                        md_path = ITEMS_DIR / f"{item_id}.md"
+                        try:
+                            if md_path.exists():
+                                text = md_path.read_text(encoding="utf-8")
+                                m = _re.match(r"^---\s*\n.*?\n---\s*\n", text, _re.DOTALL)
+                                body = text[m.end():].strip() if m else text.strip()
+                                if len(body) < 40:
+                                    ai_hub.write_item(
+                                        db_item.to_dict(),
+                                        content=(f"# {real_title}\n\n{snippet}\n" if snippet else None),
+                                        agent="job:stub_backfill",
+                                    )
+                                    changed = True
+                        except Exception as md_err:
+                            _logger.warning(f"stub backfill md write failed {item_id}: {md_err}")
+                        knowledge_repo.upsert_item(db_item)
+                        updated += 1
+                except Exception as e:
+                    _logger.warning(f"stub backfill item {item_id} failed: {e}")
+            _logger.info(
+                f"knowledge_stub_backfill_job: candidates={len(rows)} updated={updated}"
+            )
+
+        await _asyncio.to_thread(_apply_results, results)
     except Exception as e:
         _logger.error(f"knowledge_stub_backfill_job crashed: {e}")
 
@@ -324,8 +345,12 @@ async def content_draft_generation_job() -> None:
     背景: content_calendar=0、drafts=1 — 内容日历/草稿层无自动输入。
     本 job: 选 kl:publish 条目 + kl:structure 且 attention_score 较高的
     条目, 若尚无对应草稿则用条目正文 (knowledge/items/{id}.md) 生成草稿。
+
+    v0.6.3 P2-1: 全同步体 (DB + md 读取 + 草稿落盘) 移入 worker 线程。
     """
-    try:
+    import asyncio
+
+    def _run() -> None:
         from datetime import datetime, timezone
 
         from backend.repository.db import get_connection
@@ -394,8 +419,8 @@ async def content_draft_generation_job() -> None:
         _logger.info(
             f"content_draft_generation_job: candidates={len(rows)} created={created}"
         )
-    except Exception as e:
-        _logger.error(f"content_draft_generation_job crashed: {e}")
+
+    await asyncio.to_thread(_run)
 
 
 async def scheduled_migrate_job() -> None:

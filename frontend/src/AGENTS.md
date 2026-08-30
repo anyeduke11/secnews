@@ -12,7 +12,7 @@ React 18 + TypeScript + Vite 5 + Tailwind 3 SPA(后端固定 127.0.0.1:8000,
 | 子目录 | 角色 | 互斥命名 |
 |--------|------|----------|
 | `components/` | 业务组件,PascalCase,与同名 `.test.tsx` 并排放置 | 严禁 `*.component.tsx`、kebab-case、camelCase 组件名 |
-| `components/action/`、`components/codegarden/`、`components/data/`、`components/editorial/` | 按领域分子目录,组件仍 PascalCase | 子目录内禁止再嵌 `components/` 子目录 |
+| `components/action/`、`components/codegarden/`、`components/data/` | 按领域分子目录,组件仍 PascalCase | 子目录内禁止再嵌 `components/` 子目录 |
 | `hooks/` | 自定义 hook,`useXxx.ts` | 禁止 `useXxx.tsx`、禁止 PascalCase |
 | `routes/` | 路由表 + 页面级容器组件 | 页面组件命名为 `XxxPage.tsx`,与业务组件同目录风格但带 `Page` 后缀 |
 | `lib/` | 纯函数工具、与 React 无关的客户端工具 | 禁止放置 JSX、禁止依赖 `react` 包 |

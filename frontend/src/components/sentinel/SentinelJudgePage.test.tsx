@@ -71,12 +71,14 @@ const QUALITY = {
   FinalUrl: { pass: 100, total: 100, avg_deduction: 0 },
 };
 
+/** /api/kl/compounding → stage_distribution: 服务端 GROUP BY lifecycle 的全量计数 */
 const KNOWLEDGE = {
-  items: [
-    { id: 'k1', title: '供应链投毒', lifecycle: 'kl:publish' },
-    { id: 'k2', title: '模型窃取', lifecycle: 'kl:publish' },
-    { id: 'k3', title: 'API 网关滥用', lifecycle: 'kl:raw' },
-  ],
+  stage_distribution: {
+    'kl:structure': 3512,
+    'kl:publish': 284,
+    'kl:raw': 2,
+    generate: 124, // 历史遗留 lifecycle (迁移 046 只改过 DB), 应归入"其他"而非丢失
+  },
 };
 
 const SOURCES = {
@@ -100,7 +102,7 @@ function makeFetch() {
     if (url.startsWith('/api/quality/summary')) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ summary: QUALITY }) } as Response);
     }
-    if (url.startsWith('/api/knowledge/items')) {
+    if (url.startsWith('/api/kl/compounding')) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(KNOWLEDGE) } as Response);
     }
     if (url.startsWith('/api/sources/health')) {
@@ -222,11 +224,22 @@ describe('SentinelJudgePage — 哨兵终端 · 判读台', () => {
   it('屏尾结算行数字全部来自实测数据', async () => {
     renderPage();
     await waitForQueue();
-    // 168h total 合计 = 30+10+5 = 45; kl:publish = 2; 队列 = 4
+    // 168h total 合计 = 30+10+5 = 45; kl:publish = 284 (全量聚合); 队列 = 4
     const settled = screen.getByText(/过去 168 小时共收录/);
     expect(settled.textContent).toContain('45');
-    expect(settled.textContent).toContain('2');
+    expect(settled.textContent).toContain('284');
     expect(settled.textContent).toContain('4');
+  });
+
+  it('知识管线用服务端全量聚合，不是 200 条样本', async () => {
+    renderPage();
+    await waitForQueue();
+    // 全库 kl:structure = 3512 —— 旧实现抓 limit=200 样本再数, 绝不可能显示这个量级
+    expect(screen.getByText('KL PIPELINE · 全库')).toBeInTheDocument();
+    const bars = screen.getAllByText(/^3512$|^284$|^124$/);
+    expect(bars.length).toBeGreaterThanOrEqual(3);
+    // 不在五段口径内的历史遗留值必须可见, 不能被静默丢弃
+    expect(screen.getByText('其他')).toBeInTheDocument();
   });
 
   it('归档成功: POST 带 hotspot_id，按钮锁定为已归档 + disabled', async () => {

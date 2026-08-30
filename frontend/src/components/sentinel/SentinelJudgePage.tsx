@@ -7,7 +7,8 @@
  *    知识管线 (KL 生命周期计数) / 时段吞吐 (7 天 × 5 时段点阵)
  *  - 屏尾: 168h 收录与沉淀结算行
  *
- * 数据源: /api/hotspots (24h) · /api/trends (168h) · /api/quality/summary · /api/knowledge/items
+ * 数据源: /api/hotspots (24h) · /api/trends (168h) · /api/quality/summary ·
+ *         /api/kl/compounding (stage_distribution 全量聚合)
  */
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -35,12 +36,6 @@ interface QualityGateStat {
   pass: number;
   total: number;
   avg_deduction: number;
-}
-
-interface KnowledgeItemLite {
-  id: string;
-  title: string;
-  lifecycle: string;
 }
 
 const SIGNAL_DEFS: { key: keyof TrendPoint; label: string; color: string }[] = [
@@ -145,7 +140,7 @@ export function SentinelJudgePage() {
   const [items, setItems] = useState<HotspotItem[]>([]);
   const [trends, setTrends] = useState<TrendPoint[]>([]);
   const [quality, setQuality] = useState<Record<string, QualityGateStat> | null>(null);
-  const [knowledge, setKnowledge] = useState<KnowledgeItemLite[]>([]);
+  const [knowledge, setKnowledge] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [archived, setArchived] = useState<Record<string, 'ok' | 'fail'>>({});
   // AI 评测 (POST /api/llm/evaluate) — 迁移自 workbench/AnalyzeView, 逐行独立状态
@@ -206,13 +201,19 @@ export function SentinelJudgePage() {
         fetch('/api/hotspots?category=all&time_range=24h&limit=15').then(r => r.ok ? r.json() : { items: [], total: 0 }),
         fetch('/api/trends?hours=168').then(r => r.ok ? r.json() : { trends: [] }).catch(() => ({ trends: [] })),
         fetch('/api/quality/summary').then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch('/api/knowledge/items?limit=200').then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] })),
+        fetch('/api/kl/compounding')
+          .then(r => (r.ok
+            ? r.json()
+            : { stage_distribution: {} }) as Promise<{ stage_distribution?: Record<string, number> }>)
+          .catch(() => ({ stage_distribution: {} })),
       ]);
       // 队列按评分降序 (判读优先级 = 信号强度)
       setItems([...(hp.items || [])].sort((a, b) => (b.score ?? b.quality_score ?? 0) - (a.score ?? a.quality_score ?? 0)));
       setTrends(tr.trends || []);
       setQuality(qs?.summary ?? null);
-      setKnowledge(ki.items || []);
+      // stage_distribution = 服务端 GROUP BY lifecycle 的全量聚合 (非样本)
+      const dist = (ki && ki.stage_distribution) || {};
+      setKnowledge(dist);
       setSettled({ ingested: hp.total ?? 0, rejected: 0 });
     } finally {
       setLoading(false);
@@ -240,14 +241,13 @@ export function SentinelJudgePage() {
     return { rows, max };
   }, [trends]);
 
-  // KL 管线分布
+  // KL 管线分布 (全量聚合, 来自服务端 GROUP BY lifecycle)
   const pipeline = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const k of knowledge) {
-      const stage = LIFECYCLE_ORDER.includes(k.lifecycle) ? k.lifecycle : '其他';
-      counts.set(stage, (counts.get(stage) ?? 0) + 1);
-    }
-    return LIFECYCLE_ORDER.map(stage => ({ stage, count: counts.get(stage) ?? 0 }));
+    const known = LIFECYCLE_ORDER.map(stage => ({ stage, count: Number(knowledge[stage] ?? 0) }));
+    const other = Object.entries(knowledge)
+      .filter(([stage]) => !LIFECYCLE_ORDER.includes(stage))
+      .reduce((sum, [, n]) => sum + Number(n ?? 0), 0);
+    return other > 0 ? [...known, { stage: '其他', count: other }] : known;
   }, [knowledge]);
 
   // 质量门禁汇总 — intercepted 按「门禁次数」累计 (同一条目可被多道门禁命中, 非去重条目数)
@@ -283,7 +283,7 @@ export function SentinelJudgePage() {
   // 168h 收录与沉淀结算
   const weekTotal = useMemo(() => trends.reduce((s, t) => s + Number(t.total ?? 0), 0), [trends]);
   const published = useMemo(
-    () => knowledge.filter(k => k.lifecycle === 'kl:publish').length,
+    () => Number(knowledge['kl:publish'] ?? 0),
     [knowledge],
   );
   const archivedCount = useMemo(
@@ -504,7 +504,7 @@ export function SentinelJudgePage() {
             </div>
 
             <div className="jd-mod">
-              <h3>知识管线<small>KL PIPELINE</small></h3>
+              <h3>知识管线<small>KL PIPELINE · 全库</small></h3>
               <ul className="jd-bars">
                 {pipeline.map(p => (
                   <li key={p.stage}>

@@ -100,7 +100,8 @@ hotspot/
 | `/workbench/settings` | 运行时设置 |
 
 其余独立子系统壳保留: `/knowledge` (4 大领域 + DeepRead/Review/Heatmap 主路径)、
-`/secnews` (安全看板 7 子页)、`/codegarden`、`/crm`、`/editorial`。
+`/secnews` (安全看板 7 子页)、`/codegarden`、`/crm`。
+`/editorial` (报纸版) 已于 2026-08-29 退役, 仅保留 → `/` 重定向。
 旧路由 (22 个) 已物理删除返回 404, `*` fallback 与根路径均跳 `/workbench`。
 
 ## 3. 后端分层与依赖方向

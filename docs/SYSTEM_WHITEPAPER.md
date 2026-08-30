@@ -205,7 +205,6 @@ frontend/src/
 ├── components/            # ~150 组件（含 knowledge/ security/ codegarden/ 子目录）
 │   ├── PageLayout.tsx     # 嵌套 Layout（ToastProvider + 容器）
 │   ├── Icon.tsx           # 共享 SVG 图标
-│   ├── EditorialView      # 报纸版式（全屏独立，不走 PageLayout）
 │   └── ...
 ├── hooks/                 # useHotspotData / useFavorites / useSSE / useFeatureFlags...
 ├── contexts/ThemeContext  # 明暗主题
@@ -215,7 +214,7 @@ frontend/src/
 ### 4.2 路由地图（三层架构）
 
 ```
-/editorial                     报纸版式（独立全屏）
+/editorial                     → / （报纸版 EditorialView 已于 2026-08-29 删除，仅保留重定向）
 
 /data                          资料层首页（资讯流）
 /data/import /data/favorites   导入 / 收藏
@@ -255,7 +254,7 @@ frontend/src/
 - **多域采集**：7 领域（安全/AI/金融/创业/标讯/科技/GitHub）30+ 源，14 collector 并行抓取
 - **追抓（catchup）**：按 per-source checkpoint 追补「本周一以来」缺口；watchdog 每 60s 巡检队列；死源每日复活探测 + 每日探活
 - **标讯专线**：搜狗搜索抓取 + 地区筛选 + 过期检查（30min）+ 竞品分析与标书提醒
-- **消费界面**：资料层资讯流（领域筛选/排序/搜索）、Editorial 报纸版式、收藏/历史、导出（CSV/XLSX/MD）
+- **消费界面**：资料层资讯流（领域筛选/排序/搜索）、收藏/历史、导出（CSV/XLSX/MD）
 - **趋势与报告**：趋势快照（每日）、日报/周报/月报自动生成（Editorial 风格）
 
 ### 5.2 Knowledge LLM-Wiki

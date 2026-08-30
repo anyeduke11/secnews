@@ -52,7 +52,7 @@ index.html
 
 | 路由 | 组件 (lazy) | 说明 |
 |------|-------------|------|
-| `/editorial` | EditorialView | 报纸版式, 独立全屏不走 PageLayout |
+| `/editorial` | → `/` (Navigate) | 报纸版 EditorialView 已于 2026-08-29 物理删除; 仅保留重定向防老书签 404 |
 | **`/`** | **→ `/workbench`** | **根路径重定向 (v0.7.0 D.2)** |
 | `/category/:cat` | → `/workbench?category=` | 旧路由兼容 (v0.7.0 改指向 workbench) |
 | `/weekly-report` | → `/report` | 旧路由兼容 |
@@ -148,7 +148,6 @@ components/
 ├── report/          # DailyReport / WeeklyReport / MonthlyReport + shared
 ├── sync/            # SyncPage 拆分: SyncConfigForm/SyncOperations/SyncHistory/... + useSyncPage
 ├── secrets/         # SecretsPage + Setup/Unlock 模态 + SecretCardView
-├── editorial/       # EditorialView (报纸版式)
 ├── favorites/       # FavoriteList / FavoriteItem / FavoriteToolbar
 ├── layout/          # LayerBadge/LayerCard/LayerHeader/LayerTable/OnboardingHint
 ├── shared/          # AlertBadge/NoteEditor/ReviewCard/SourceHealthIndicator/TagSelector

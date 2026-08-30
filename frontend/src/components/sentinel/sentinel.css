@@ -426,3 +426,12 @@ html[data-theme="light"] .sentinel .tb-sun{display:none}
   .sentinel .sn-import-form{flex-wrap:wrap}
   .sentinel .sn-import-form input{width:100% !important;flex:1 1 100%}
 }
+
+/* ===== 判读台 · 逐行 AI 评测结果 (吸收自 workbench AnalyzeView) ===== */
+.sentinel .jd-evalrow > td{padding:0 0 12px;border-bottom:1px solid var(--sn-line)}
+.sentinel .jd-eval{display:flex;align-items:baseline;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--sn-ink-2)}
+.sentinel .jd-eval b{font-family:var(--sn-mono);font-size:13px;font-weight:500;color:var(--sn-mint)}
+.sentinel .jd-eval em{font-style:normal;color:var(--sn-ink)}
+.sentinel .jd-eval.err{color:var(--sn-amber)}
+.sentinel .jd-eval-kps{display:inline-flex;flex-wrap:wrap;gap:6px}
+.sentinel .jd-eval-src{margin-left:auto;font-size:11px;letter-spacing:.06em;color:var(--sn-ink-3)}

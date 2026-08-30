@@ -269,4 +269,71 @@ describe('SentinelJudgePage — 哨兵终端 · 判读台', () => {
     expect(screen.getByText('暂无逐小时趋势数据')).toBeInTheDocument();
     expect(screen.getByText('暂无门禁数据')).toBeInTheDocument();
   });
+
+  it('逐行 AI 评测 → POST /api/llm/evaluate; ok=false 时原样显示错误', async () => {
+    const calls: Array<[string, RequestInit | undefined]> = [];
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      calls.push([url, init]);
+      if (url.startsWith('/api/hotspots')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({
+          total: 1, items: [{
+            id: 'j1', title: '供应链投毒事件通报', summary: '一段足够长的正文用于评测。',
+            source: 'FreeBuf', url: 'https://e.com/1', category: 'security',
+            score: 88, published_at: new Date().toISOString(),
+          }],
+        }) } as Response);
+      }
+      if (url.startsWith('/api/llm/evaluate')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({
+          ok: true, quality_score: 9.2, verdict: '值得沉淀',
+          key_points: ['攻击面扩大', '影响面广'], provider: 'sensenova',
+        }) } as Response);
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
+    }));
+
+    renderPage();
+    const btn = await screen.findByRole('button', { name: 'AI 评测：供应链投毒事件通报' });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      const post = calls.find(([u, i]) => u.startsWith('/api/llm/evaluate') && i?.method === 'POST');
+      expect(post, '未发出评测请求').toBeTruthy();
+      expect(JSON.parse(String(post![1]!.body))).toMatchObject({
+        title: '供应链投毒事件通报',
+        content: '一段足够长的正文用于评测。',
+      });
+    });
+    expect(await screen.findByText(/AI 9/)).toBeInTheDocument();
+    expect(screen.getByText('值得沉淀')).toBeInTheDocument();
+    expect(screen.getByText('影响面广')).toBeInTheDocument();
+    expect(screen.getByText('sensenova')).toBeInTheDocument();
+  });
+
+  it('AI 评测失败 (ok=false) 不得被吞掉, 要原样呈现错误', async () => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith('/api/hotspots')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({
+          total: 1, items: [{
+            id: 'j2', title: '另一条待评测条目', summary: '正文内容足够长可以送去评测。',
+            source: 'HN', url: 'https://e.com/2', category: 'ai',
+            score: 60, published_at: new Date().toISOString(),
+          }],
+        }) } as Response);
+      }
+      if (url.startsWith('/api/llm/evaluate')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({
+          ok: false, error: 'ConnectionError: provider 不可达',
+        }) } as Response);
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
+    }));
+
+    renderPage();
+    const btn = await screen.findByRole('button', { name: 'AI 评测：另一条待评测条目' });
+    fireEvent.click(btn);
+    expect(await screen.findByText(/评测未成功：ConnectionError/)).toBeInTheDocument();
+  });
 });

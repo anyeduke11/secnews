@@ -8,7 +8,10 @@
 enabled: true  # 总开关；false 时降级为外部 Agent 模式
 default_provider: sensenova  # 当前唯一持有凭据的云端 provider；AI_PROVIDER env 可覆盖
 fallback_order:  # 失败时降级顺序（仅 LLMService 生成类 API 使用）
-  - ollama       # 优先本地（零成本）
+  - ollama       # 优先本地（零成本; ollama 离线时自动落到下一项）
+  - sensenova    # v0.6.3 P0-3: 唯一持凭据 provider 加入生成类兜底链 —
+                 # 此前 [ollama,qwen,openai] 三者全不可用, score 恒 5.0 /
+                 # summarize 恒 prompt 回显 (审计发现: 配置面向理想环境而非实际环境)
   - qwen         # 次选国产
   - openai       # 末选 openai
 
@@ -31,36 +34,11 @@ providers:
       thinking:
         type: "disabled"
 
-  # S4-1: sensenova 生产端 (与 sensenova 走同协议, 不同 base_url + 模型档位)
-  # 适用于客户已开 sensenova 付费通道 / 想用更大上下文模型
-  sensenova_prod:
-    type: openai_compatible
-    api_key_env: "SENSENOVA_API_KEY"
-    base_url: "https://api.sensenova.cn/v1"
-    models:
-      score: "sensenova-70b"
-      tag: "sensenova-70b"
-      ner: "sensenova-70b"
-      summary: "sensenova-72b"
-      chunk_summary: "sensenova-70b"
-    timeout_seconds: 30
-    max_concurrent: 4
-
-  # S4-1: dots.ai (用户自配 LLM, OpenAI 兼容 /chat/completions)
-  # 端点 / 鉴权见 https://dots.ai/platform/docs#messages-api
-  # 选用该 provider 时请把 llm_secrets 的 provider 字段设为 "dots_ai"
-  dots_ai:
-    type: openai_compatible
-    api_key_env: "DOTS_API_KEY"
-    base_url: "https://api.dots.ai/v1"
-    models:
-      score: "dots-v1-flash"
-      tag: "dots-v1-flash"
-      ner: "dots-v1-flash"
-      summary: "dots-v1-pro"
-      chunk_summary: "dots-v1-flash"
-    timeout_seconds: 30
-    max_concurrent: 4
+  # v0.6.3 P0-3: 以下两个示例 provider (sensenova_prod / dots_ai) 已删除 —
+  # sensenova_prod 与 sensenova 同 key 却无任何路由指向 (死配置), dots_ai 无
+  # 凭据且仅作占位。二者在 /api/llm/status 里制造 "多模型矩阵" 的完成错觉。
+  # 需要接入新 provider 时: 在此添加条目 + 设对应 api_key_env 环境变量 +
+  # (如走 egress 校验) 在 backend/services/ai_hub/egress.py 加域名。
 
   ollama:
     type: ollama
@@ -110,20 +88,25 @@ providers:
 # - t3_summary   → router HEAVY 档, 覆盖 deep_read / report 任务
 # - t3_chunk_summary → router FLASH 档, 覆盖 summarize / chunk_summary
 task_overrides:
+  # v0.6.3 P0-3: t1_score 由 ollama 改为 sensenova —— override 是单点选择
+  # (无 fallback 链), 指向未运行的 ollama = evaluate/gate_detect 必败
+  # (审计发现 #3: t1_score override 劫持 AIService)。ollama 可用时如需
+  # 切回本地, 改回 provider: ollama 即可。
   t1_score:
-    provider: ollama
-    model: qwen2.5:7b
+    provider: sensenova
+    model: sensenova-6.8-flash-lite
     temperature: 0.0
     max_tokens: 50
   # HEAVY 档入口 (当前唯一生产调用方 = 深度阅读)。
   # 原为 openai/gpt-4o, 但实测 OPENAI_API_KEY 未配置 → 该链必然失败,
   # deep_reads 表因此长期 0 行。sensenova 是唯一持凭据且实测可达的通道。
-  # 刻意不改 fallback_order: 那会连带改掉评分/摘要/NER/门禁四条链的首选 provider。
   t3_summary:
     provider: sensenova
     model: sensenova-6.8-flash-lite
     temperature: 0.3
     max_tokens: 1600
+  # FLASH 档 (summarize/chunk_summary): ollama 优先, 离线时经
+  # fallback_order 落到 sensenova (LLMService 有降级链, 与 t1_score 不同)
   t3_chunk_summary:
     provider: ollama
     model: qwen2.5:7b

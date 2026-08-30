@@ -22,8 +22,6 @@ from urllib.parse import urlsplit
 # 已知合法 provider 主机。新增 provider 必须在这里显式登记。
 TRUSTED_LLM_HOSTS: frozenset[str] = frozenset({
     "token.sensenova.cn",   # sensenova (config/llm.yaml)
-    "api.sensenova.cn",     # sensenova_prod
-    "api.dots.ai",          # dots_ai
     "api.openai.com",       # openai
     "dashscope.aliyuncs.com",  # qwen (compatible-mode)
     "api.anthropic.com",    # anthropic (gateway 内硬编码)

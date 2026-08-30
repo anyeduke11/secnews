@@ -9,7 +9,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from backend.kl_pipeline import KLPipeline
-from backend.kl_pipeline.obs.funnel import funnel_stats
 from backend.kl_pipeline.obs.ledger import TokenLedger
 from backend.logging_config import logger
 from backend.repository.db import get_connection
@@ -119,41 +118,48 @@ async def list_quarantine() -> dict:
 async def pipeline_stats() -> dict:
     """Funnel + queue + dead-letter + alive + token ledger stats.
 
-    口径溯源 (重要): ``funnel`` 统计的是 **wiki md frontmatter** —— 它读的是
-    ``llm-wiki-2.0`` 归档目录; 而真正推进管线的 T1–T5 触发器读写的是 **DB**
-    ``knowledge_items.lifecycle``。同一"漏斗"名义下是两份存储, 数字本就不同
-    (实测 funnel ``kl:raw=48`` 来自 md, DB 侧真实 ``kl:raw`` 只有 2)。
-    前端展示必须注明统计对象, 不能把两者当成同一个漏斗的两级。
+    口径 (v0.6.3 P0-1 卡顿根治): ``funnel`` 改读 **DB 投影**
+    ``warm.knowledge_items.lifecycle`` —— T1–T5 触发器读写的就是这张表,
+    这才是管线真实口径 (历史 md 口径 kl:raw=48 vs DB=2, 见 git blame)。
+    liveness (书签存活) 仍按 md frontmatter 统计 (``alive`` 字段尚无 DB
+    投影), 30s TTL 缓存 + to_thread, 不再阻塞事件循环。
     """
-    from backend.wiki_fs.liveness import liveness_counts
+    import asyncio
+
+    from backend.services.wiki_stats_service import (
+        funnel_from_db,
+        liveness_from_md_cached,
+    )
 
     pipeline = _get_pipeline()
     wiki_fs = _get_wiki_fs()
-    funnel = funnel_stats(wiki_fs)
+    funnel = await asyncio.to_thread(funnel_from_db)
     queue_stats = pipeline.queue.stats()
     errors = pipeline.queue.errors(limit=10)
     ledger = TokenLedger(get_connection()).summary()
+    alive = await asyncio.to_thread(liveness_from_md_cached, wiki_fs)
     return {
         "funnel": funnel,
-        "funnel_source": "wiki_md_frontmatter",
+        "funnel_source": "db_knowledge_items_lifecycle",
         "funnel_counts_items": sum(int(f.get("count") or 0) for f in funnel),
-        "funnel_note": "按 wiki md frontmatter 统计 (含 unknown 桶); 管线推进读 DB knowledge_items.lifecycle",
+        "funnel_note": "按 DB warm.knowledge_items.lifecycle 统计 (T1-T5 管线真实口径, 与 md 归档数字不同)",
         "queue": queue_stats,
         "queue_source": "kl_queue_table",
         "queue_note": "待处理任务队列, 非全量条目数",
         "errors": errors,
-        "alive": liveness_counts(wiki_fs),
+        "alive": alive,
         "ledger": ledger,
     }
 
 
 @router.get("/liveness")
 async def liveness_stats() -> dict:
-    """书签存活三态分布 (只读 frontmatter, 零网络 IO)。"""
-    from backend.wiki_fs.liveness import liveness_counts
+    """书签存活三态分布 (md frontmatter 口径, 30s TTL 缓存 + to_thread)。"""
+    import asyncio
 
-    wiki_fs = _get_wiki_fs()
-    return liveness_counts(wiki_fs)
+    from backend.services.wiki_stats_service import liveness_from_md_cached
+
+    return await asyncio.to_thread(liveness_from_md_cached, _get_wiki_fs())
 
 
 @router.post("/liveness/sweep")
@@ -232,7 +238,7 @@ async def list_concepts() -> dict:
 
 
 @router.get("/graph")
-async def get_graph() -> dict:
+def get_graph() -> dict:
     """Return knowledge graph edges."""
     import json
     from pathlib import Path

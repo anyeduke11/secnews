@@ -168,27 +168,32 @@ class TestGetPipelineStats:
 # get_knowledge_stats tests
 # ---------------------------------------------------------------------------
 class TestGetKnowledgeStats:
-    def test_returns_zero_without_wiki_fs(self, tmp_db):
+    def test_returns_zero_on_empty_db(self, tmp_db):
+        """无 warm.knowledge_items / knowledge_concepts 表 → 优雅归零 (DB 口径)。"""
         d = SecNewsDashboard(db=tmp_db, wiki_fs=None)
         result = d.get_knowledge_stats()
         assert result["items"] == 0
         assert result["concepts"] == 0
         assert result["stage_distribution"] == {}
 
-    def test_returns_count_with_items(self, tmp_path):
-        """WikiFs-backed path: items_count should match."""
-        import os
+    def test_returns_count_from_db_projection(self, tmp_db):
+        """v0.6.3 P0-1 契约: 统计来自 DB 投影 (warm.knowledge_items +
+        main.knowledge_concepts), 不再扫描 wiki md 文件。"""
+        tmp_db.execute("CREATE TABLE knowledge_concepts (id TEXT PRIMARY KEY)")
+        tmp_db.execute("ATTACH DATABASE ':memory:' AS warm")
+        tmp_db.execute(
+            "CREATE TABLE warm.knowledge_items "
+            "(id TEXT PRIMARY KEY, lifecycle TEXT)"
+        )
+        tmp_db.execute(
+            "INSERT INTO warm.knowledge_items VALUES ('x', 'kl:raw'), ('y', 'kl:refine')"
+        )
+        tmp_db.execute("INSERT INTO knowledge_concepts VALUES ('c1')")
 
-        from backend.wiki_fs import WikiFs
-        root = str(tmp_path / "wiki")
-        os.makedirs(root, exist_ok=True)
-        wiki = WikiFs(root)
-        wiki.write_item("x", {"fm": {"id": "x", "lifecycle": "kl:raw"}, "body": ""})
-        wiki.write_item("y", {"fm": {"id": "y", "lifecycle": "kl:refine"}, "body": ""})
-
-        d = SecNewsDashboard(db=None, wiki_fs=wiki)
+        d = SecNewsDashboard(db=tmp_db, wiki_fs=None)
         result = d.get_knowledge_stats()
         assert result["items"] == 2
+        assert result["concepts"] == 1
         assert result["stage_distribution"].get("kl:raw") == 1
         assert result["stage_distribution"].get("kl:refine") == 1
 

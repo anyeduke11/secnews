@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/knowledge/chunks", tags=["knowledge-chunks"])
 
 
 @router.get("/{item_id}")
-async def get_chunks(item_id: str):
+def get_chunks(item_id: str):
     """Return all chunks for a knowledge item, ordered by chunk_index."""
     conn = get_connection()
     rows = conn.execute(
@@ -39,7 +39,7 @@ async def get_chunks(item_id: str):
 
 
 @router.get("/search")
-async def search_chunks(q: str = Query(..., min_length=1)):
+def search_chunks(q: str = Query(..., min_length=1)):
     """FTS5 full-text search across knowledge chunks (v0.4.0: 中文路由).
 
     - 含中文且长度 ≥3 → trigram 表 (knowledge_chunks_fts_cjk), 支持 CJK 子串

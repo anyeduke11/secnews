@@ -40,7 +40,7 @@ class AttentionEventRequest(BaseModel):
 
 
 @router.post("/attention/events", status_code=201)
-async def create_attention_event(req: AttentionEventRequest) -> dict:
+def create_attention_event(req: AttentionEventRequest) -> dict:
     """记录一条注意力事件.
 
     校验 event_type 为 6 种合法值之一, 写入 attention_events 表。
@@ -101,7 +101,7 @@ async def create_attention_event(req: AttentionEventRequest) -> dict:
 
 
 @router.get("/attention/events")
-async def list_attention_events(
+def list_attention_events(
     days: int = Query(
         30, ge=1, le=365, description="返回最近 N 天的注意力聚合 (默认 30)"
     ),

@@ -24,7 +24,7 @@ def _row_to_dict(row) -> dict:
 
 
 @router.get("")
-async def list_alerts(
+def list_alerts(
     status: str | None = Query(None),
     severity: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
@@ -48,7 +48,7 @@ async def list_alerts(
 
 
 @router.get("/unread-count")
-async def unread_count():
+def unread_count():
     """Get the count of unread alerts."""
     conn = get_connection()
     row = conn.execute(
@@ -58,7 +58,7 @@ async def unread_count():
 
 
 @router.put("/{alert_id}/read")
-async def mark_read(alert_id: int):
+def mark_read(alert_id: int):
     """Mark a single alert as read."""
     from datetime import datetime, timezone
 
@@ -77,7 +77,7 @@ async def mark_read(alert_id: int):
 
 
 @router.put("/read-all")
-async def mark_all_read():
+def mark_all_read():
     """Mark all unread alerts as read."""
     from datetime import datetime, timezone
 
@@ -91,7 +91,7 @@ async def mark_all_read():
 
 
 @router.put("/{alert_id}/resolve")
-async def resolve_alert(alert_id: int):
+def resolve_alert(alert_id: int):
     """Mark a single alert as resolved."""
     from datetime import datetime, timezone
 

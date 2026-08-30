@@ -62,8 +62,15 @@ async def generate_digest(top_n: int = Query(3, ge=1, le=10)):
     """手动触发生成昨日简报.
 
     正常由 scheduler 每 08:00 Shanghai 自动触发; 此端点供手动补生成.
+
+    v0.6.3 P0-2: 必须 to_thread —— generate_daily_digest 是同步重活
+    (DB 扫描 + LLM 调用), 直接在事件循环线程跑会 (a) 阻塞全站请求,
+    (b) 其内部的 new_event_loop 桥在运行中的 loop 上必然 RuntimeError
+    → LLM 叙事静默缺失。to_thread 后与 08:00 job 路径同构, 叙事恢复。
     """
-    item = generate_daily_digest(top_n=top_n)
+    import asyncio
+
+    item = await asyncio.to_thread(generate_daily_digest, top_n)
     return {"version": API_VERSION, "item": item}
 
 

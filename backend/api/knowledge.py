@@ -50,7 +50,7 @@ async def list_topics(domain: str | None = Query(None)):
 
 
 @router.get("/items/{item_id}")
-async def get_item(item_id: str):
+def get_item(item_id: str):
     """Get a single knowledge item by ID, with markdown content."""
     item = knowledge_repo.get_item(item_id)
     if item is None:

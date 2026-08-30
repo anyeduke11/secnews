@@ -141,7 +141,12 @@ class TestWithinWeek:
         assert result.passed is True
 
     def test_few_hours_ago_passes(self):
-        pub = datetime.now(timezone.utc) - timedelta(hours=4)
+        # 周一边界根治: now-4h 在周一 00:00-04:00 (本地) 落入上周, 会被门禁
+        # 正确拒收; 钳制进本周后用例在任意时刻表达其本意 ("几小时前 → 通过")。
+        pub = max(
+            datetime.now(timezone.utc) - timedelta(hours=4),
+            current_week_start() + timedelta(minutes=1),
+        )
         item = _make_item(published_at=pub)
         result = RecencyGate().check(item, _ctx())
         assert result.passed is True

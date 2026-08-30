@@ -39,9 +39,19 @@
 
 ## 当前活跃段 (2026-08-27 起)
 
-### 2026-08-30 v0.6.3 P2 批次 — job 纪律 + wiki_fs 缓存层 (本批)
+### 2026-08-30/31 v0.6.3 P3 批次 — feed FTS 阈值自执行 + 运行时复核 (本批)
 
-> **来源**: P0 修复后第一性重审。指名嫌疑实测: read_item 491ms 实锤 (已缓存隔离) / ATTACH 0.2ms 排除 / feed LIKE <1ms 排除。
+> **来源**: 用户指定 P3 收尾 (feed 5 万行 FTS 化裁决 + py-spy 复核)。执行中挖出 2 个真 bug + 周一边界测试腐坏类。commit 见 CHANGELOG 批次 ㉘-㉛。
+
+- [x] **P3-1**: `get_feed` 关键词搜索 5 万行阈值惰性 trigram FTS 化 — 探针达标自动建索引+回填+触发器, ≥3 字符查询切 MATCH (子串语义 = LIKE 等价, 中文零召回损失); 响应标 `search_engine`/`feed_rows`; live 4700 行休眠待命
+- [x] **真 bug 根治 ×2**: ① contentless FTS5 'delete' 只给 rowid 词条静默残留 (001 起潜伏) → migration 078 重建触发器 + 全量重灌; ② `_parse_iso_datetime` 微秒路径丢时区后缀 → published_at 偏早 8h → recency 门禁误杀
+- [x] **周一边界腐坏根治**: D7/日历周语义 + now 相对种子 = 每周一 00:00-01:00 必炸 (实测 9 failed) → 4 测试文件种子钳制进周窗口
+- [x] **P3-2 运行时复核**: py-spy macOS 需 root 不可用 → 进程内 loop-lag 探针等价达成: 45s/46k 请求锤打下 **p95=2ms / max=63ms / >200ms 零样本** (旧模式 337-1176ms/请求阻塞), P0-P3 全链验证通过
+- [x] **门禁**: ruff 0 错; 全量 pytest **3047 passed / 6 skipped / 0 failed** (基线 3035→3047)
+
+### 2026-08-30 v0.6.3 P2 批次 — job 纪律 + wiki_fs 缓存层
+
+> **来源**: P0 修复后第一性重审。指名嫌疑实测: read_item 491ms 实锤 (已缓存隔离) / ATTACH 0.2ms 排除 / feed LIKE <1ms 排除。commit `d2fc1ea`。
 
 - [x] **P2-1**: 6 个 async scheduler job 同步 IO to_thread 化 (catchup_watchdog 60s 最优先; stub_backfill 三段式保留 aiohttp 异步段)
 - [x] **P2-2a**: wiki_fs.read_item mtime+size 缓存 + write_item 写穿 — 全量 4149 条 702ms→17-20ms (35×); concept_linker 甄别修正: 两层不同职责 (概念图填充器 vs 条目 related 边), 非重复不归一

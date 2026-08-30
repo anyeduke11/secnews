@@ -40,15 +40,25 @@ def _sihou_source():
 class TestSihouScenario:
     """模拟嘶吼首页抓到的混合 batch."""
 
+    @staticmethod
+    def _in_week_ts(*, hours_ago: int) -> datetime:
+        """``now - hours`` 钳制进本周窗口。
+
+        周一边界根治 (2026-08-31): 每逢周一 00:00-01:00 (本地), now-Nh 的
+        "当周"种子会落入上周被 recency 门禁正确拒收 — 钳制到本周一
+        00:00 +1min 后, 用例在任何时刻都表达其本意 ("当周新资讯")。
+        """
+        ts = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+        return max(ts, current_week_start() + timedelta(minutes=1))
+
     def test_current_week_articles_pass(self):
         """嘶吼抓到的 5 条当周新资讯 (页面级 published_at = 抓取前几小时) → 通过."""
         c = _TestSecCollector()
-        now_utc = datetime.now(timezone.utc)
         raw = [
             {
                 "title": f"嘶吼安全资讯第 {i} 期: 某 APT 组织最新活动分析",
                 "url": f"https://www.4hou.com/post/{i}",
-                "published_at": now_utc - timedelta(hours=i),
+                "published_at": self._in_week_ts(hours_ago=i),
             }
             for i in range(5)
         ]
@@ -101,7 +111,6 @@ class TestSihouScenario:
     def test_mixed_batch_only_current_week_passes(self):
         """混合 batch: 5 条当周 + 10 条缺失 + 5 条历史 → 只 5 条当周通过."""
         c = _TestSecCollector()
-        now_utc = datetime.now(timezone.utc)
         week_start = current_week_start()
 
         raw = []
@@ -111,7 +120,7 @@ class TestSihouScenario:
             raw.append({
                 "title": f"嘶吼当周新资讯第 {i} 期: 某 CVE 漏洞",
                 "url": f"https://www.4hou.com/post/new{i}",
-                "published_at": now_utc - timedelta(hours=i),
+                "published_at": self._in_week_ts(hours_ago=i),
             })
 
         # 10 条缺失 published_at (HTML 抓不到时间)

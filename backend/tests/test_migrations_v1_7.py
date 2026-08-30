@@ -120,3 +120,66 @@ def test_hotspot_tags_composite_pk(temp_db):
     pk = conn.execute("PRAGMA table_info(hotspot_tags)").fetchall()
     pk_cols = [r[1] for r in pk if r[5]]  # pk flag
     assert set(pk_cols) == {"hotspot_id", "tag_id"}
+
+
+def test_078_hotspots_fts_update_removes_old_terms(temp_db):
+    """078: contentless 'delete' 触发器修复 — UPDATE 后旧词条不再假阳性。
+
+    缺陷背景: 001 的 hotspots_au 在 'delete' 命令里只给 rowid, 词条静默
+    残留 (SQLite 3.53 实证不报错但不移除); 078 重建为提供旧值的写法。
+    """
+    conn = db.get_connection()
+    conn.execute(
+        "INSERT INTO hotspots (id, title, source, url, category, published_at, fetched_at) "
+        "VALUES ('h1', '供应链投毒事件', 'src', 'https://x/1', 'security', '2026-01-01', '2026-01-01')"
+    )
+    conn.execute("UPDATE hotspots SET title = '勒索软件复盘' WHERE id = 'h1'")
+    stale = conn.execute(
+        "SELECT rowid FROM hotspots_fts WHERE hotspots_fts MATCH ?",
+        ('"供应链投毒"',),
+    ).fetchall()
+    assert stale == []
+    fresh = conn.execute(
+        "SELECT rowid FROM hotspots_fts WHERE hotspots_fts MATCH ?",
+        ('"勒索软件复盘"',),
+    ).fetchall()
+    assert fresh != []
+
+
+def test_078_hotspots_fts_delete_removes_terms(temp_db):
+    """078: DELETE 后词条从 hotspots_fts 消失 (旧触发器只清 rowid 不清词条)。"""
+    conn = db.get_connection()
+    conn.execute(
+        "INSERT INTO hotspots (id, title, source, url, category, published_at, fetched_at) "
+        "VALUES ('h1', '零日漏洞预警', 'src', 'https://x/1', 'security', '2026-01-01', '2026-01-01')"
+    )
+    conn.execute("DELETE FROM hotspots WHERE id = 'h1'")
+    rows = conn.execute(
+        "SELECT rowid FROM hotspots_fts WHERE hotspots_fts MATCH ?",
+        ('"零日漏洞预警"',),
+    ).fetchall()
+    assert rows == []
+
+
+def test_078_fts_index_rebuilt_without_stale_terms(temp_db):
+    """078: 迁移内 delete-all + 全量重灌 — 存量行可检索且无重复导入。"""
+    conn = db.get_connection()
+    conn.execute(
+        "INSERT INTO hotspots (id, title, source, url, category, published_at, fetched_at) "
+        "VALUES ('h1', 'APT 活动追踪', 'src', 'https://x/1', 'security', '2026-01-01', '2026-01-01')"
+    )
+    # 迁移已应用 (078 在建库时跑), 存量重灌发生在迁移时点 — 此处手动重跑
+    # 迁移的清理段, 验证幂等且行数对齐。
+    conn.execute("INSERT INTO hotspots_fts(hotspots_fts) VALUES ('delete-all')")
+    conn.execute(
+        "INSERT INTO hotspots_fts(rowid, title, summary) "
+        "SELECT rowid, title, IFNULL(summary, '') FROM hotspots"
+    )
+    hits = conn.execute(
+        "SELECT rowid FROM hotspots_fts WHERE hotspots_fts MATCH ?",
+        ('"APT 活动追踪"',),
+    ).fetchall()
+    assert len(hits) == 1
+    n_fts = conn.execute("SELECT COUNT(*) FROM hotspots_fts").fetchone()[0]
+    n_hot = conn.execute("SELECT COUNT(*) FROM hotspots").fetchone()[0]
+    assert n_fts == n_hot

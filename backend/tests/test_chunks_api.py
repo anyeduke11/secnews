@@ -125,14 +125,15 @@ class TestSearchChunks:
         This test verifies the search endpoint works by calling it directly.
         """
         _insert_knowledge_item("k-search-1")
-        import asyncio
 
         from backend.api.knowledge_chunks_api import search_chunks
 
         _insert_chunk("k-search-1", 0, "FastAPI is a modern web framework")
         _insert_chunk("k-search-1", 1, "Pydantic provides data validation")
 
-        result = asyncio.run(search_chunks(q="FastAPI"))
+        # v0.6.3 P3-1: search_chunks 由 async def 转为 def (同步阻塞调用
+        # 交 FastAPI 线程池), 直接调用即可, 不再需要 asyncio.run
+        result = search_chunks(q="FastAPI")
         assert "results" in result
         assert isinstance(result["results"], list)
 

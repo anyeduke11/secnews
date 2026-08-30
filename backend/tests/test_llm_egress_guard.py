@@ -13,11 +13,13 @@ from backend.services.ai_hub.egress import (
 
 
 def test_real_provider_hosts_pass():
-    """config/llm.yaml 里 5 个带凭据的 provider 必须原样通过, 否则改完就断服。"""
+    """config/llm.yaml 里带凭据的 provider 必须原样通过, 否则改完就断服。
+
+    v0.6.3 P0-3: sensenova_prod / dots_ai 两个死 provider 已从 yaml 与
+    本白名单同时删除 — 白名单与 yaml 必须同步增减。
+    """
     for url in (
         "https://token.sensenova.cn/v1",
-        "https://api.sensenova.cn/v1",
-        "https://api.dots.ai/v1",
         "https://api.openai.com/v1",
         "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "https://api.anthropic.com/v1",

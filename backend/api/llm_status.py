@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/llm", tags=["llm"])
 
 @router.get("/status")
 def get_llm_status():
-    """返回当前 LLM 配置状态和降级模式."""
+    """返回当前 LLM 配置状态和降级模式 + 调用观测面 (v0.6.3 P3-3)."""
     import logging
     logger = logging.getLogger("hotspot.api.llm_status")
 
@@ -36,6 +36,21 @@ def get_llm_status():
         status["providers"] = provider_status
     else:
         status["providers"] = {}
+
+    # v0.6.3 P3-3 观测面: 此前 "AI 是否真在工作" 不可判读
+    # (llm_usage_log 只记成功, 失败只进 logger)。诚实口径: 错误环随进程
+    # 重启清零, success_rate 是"本进程窗口"而非全天。
+    from backend.services.ai_hub.usage import (
+        recent_calls,
+        recent_llm_errors,
+        success_stats_24h,
+    )
+
+    status["observability"] = {
+        "recent_calls": recent_calls(20),
+        "recent_errors": recent_llm_errors(),
+        "success_stats": success_stats_24h(),
+    }
 
     logger.info("LLM status: %s", status["scenario"])
     return status

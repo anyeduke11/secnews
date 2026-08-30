@@ -88,7 +88,7 @@ async def kl_enqueue(req: KlEnqueueInput) -> dict[str, Any]:
 
 
 @kl_router.get("/status")
-async def kl_status() -> dict[str, Any]:
+def kl_status() -> dict[str, Any]:
     """返回漏斗 + 队列 + 错误 + 计数 (与 /api/kl/pipeline/stats 等价)."""
     try:
         from backend.kl_pipeline.obs.funnel import funnel_stats

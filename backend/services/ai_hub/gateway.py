@@ -33,7 +33,7 @@ from .prompts import (
     _parse_entity_list,
     _parse_score,
 )
-from .usage import log_llm_usage
+from .usage import log_llm_usage, record_llm_error
 
 log = logging.getLogger("hotspot.ai_hub")
 
@@ -135,6 +135,7 @@ class LLMService:
                 return score
             except Exception as e:
                 log.warning("Provider %s score failed: %s", provider_name, e)
+                record_llm_error("score", provider_name, str(e))
                 continue
 
         log.info("All LLM providers failed, falling back to default score")
@@ -165,11 +166,15 @@ class LLMService:
                 return raw
             except Exception as e:
                 log.warning("Provider %s summarize failed: %s", provider_name, e)
+                record_llm_error("summarize", provider_name, str(e))
                 continue
 
-        # 降级：返回前 200 字符
-        log.info("All LLM providers failed for summarize, using truncation")
-        return text[:200]
+        # v0.6.3 P1-1: 全链失败返回空串而非 text[:200] —— 旧兜底把
+        # "prompt 指令头" 当摘要写进 digest.summary_md, 前端优先渲染它,
+        # 用户看到的是指令回显而非叙事 (内容污染而非降级, 审计发现 #1②)。
+        # 调用方 (digest_service) 对空串有明确的"未生成"处理路径。
+        log.warning("All LLM providers failed for summarize — returning empty")
+        return ""
 
     async def extract_entities(self, content: str) -> list[str]:
         """T1 实体提取."""
@@ -196,6 +201,7 @@ class LLMService:
                 return entities
             except Exception as e:
                 log.warning("Provider %s extract_entities failed: %s", provider_name, e)
+                record_llm_error("ner", provider_name, str(e))
                 continue
 
         return []
@@ -238,6 +244,7 @@ class LLMService:
                 return raw
             except Exception as e:
                 log.warning("Provider %s generate failed: %s", provider_name, e)
+                record_llm_error("generate", provider_name, str(e))
                 continue
 
         return ""

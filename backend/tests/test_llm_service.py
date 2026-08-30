@@ -358,14 +358,18 @@ class TestProviderFallback:
     async def test_all_providers_fail_summarize(
         self, temp_db, mock_config, monkeypatch
     ):
-        """summarize() falls back to first 200 chars."""
+        """summarize() 全链失败返回空串 (v0.6.3 P1-1)。
+
+        旧兜底 text[:200] 会把 prompt 指令头当摘要写进 digest.summary_md,
+        前端优先渲染 → 用户看到指令回显 (内容污染而非降级)。
+        """
         svc = LLMService()
         async def _fail(*args, **kwargs):
             raise RuntimeError("API error")
         monkeypatch.setattr(svc, "_call_provider", _fail)
         long_text = "A" * 500
         result = await svc.summarize([long_text])
-        assert result == long_text[:200]
+        assert result == ""
 
     @pytest.mark.asyncio
     async def test_all_providers_fail_entities(

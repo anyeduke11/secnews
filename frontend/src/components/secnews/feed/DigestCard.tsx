@@ -43,6 +43,11 @@ export function DigestCard() {
       {digest ? (
         <div className="text-[11px] font-mono space-y-1">
           <div style={{ color: 'var(--text-muted)' }}>{digest.period} · {digest.created_at}</div>
+          {!digest.summary_md && (
+            <p className="text-[10px]" style={{ color: 'var(--color-warning)' }}>
+              ⚠ LLM 叙事未生成 (provider 不可用或生成失败) — 以下为模板摘要
+            </p>
+          )}
           <pre className="whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>
             {digest.summary_md || digest.summary}
           </pre>

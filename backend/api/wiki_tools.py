@@ -45,7 +45,7 @@ class WikiSearchInput(BaseModel):
 
 
 @router.post("/search")
-async def wiki_search(req: WikiSearchInput):
+def wiki_search(req: WikiSearchInput):
     """FTS5 全文搜索知识条目 chunks (中文 trigram / ASCII unicode61 / LIKE 回退)。"""
     q = req.q.strip()
     conn = get_connection()

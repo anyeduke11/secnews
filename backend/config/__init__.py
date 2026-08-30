@@ -10,10 +10,17 @@ conflict between the ``backend/config`` module and the
 """
 from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# v0.6.3 P1-2: 显式加载仓库根 .env —— 此前仅 pydantic-settings 读 HOTSPOT_*
+# 前缀字段, 而 LLM provider 凭据 (SENSENOVA_API_KEY 等) 走 os.getenv,
+# 生效与否全凭 crawl4ai 库侧 load_dotenv 是否被顺带 import (审计发现 #5
+# "凭据加载靠巧合")。override=False: 真实环境变量始终优先于 .env。
+load_dotenv(BASE_DIR.parent / ".env", override=False)
 
 
 class Settings(BaseSettings):

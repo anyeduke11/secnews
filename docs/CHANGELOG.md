@@ -1,5 +1,52 @@
 # Changelog
 
+## v0.6.3 性能/修复批次 (2026-08-30) — 卡顿根治 (P0) + AI 伪完成修复 + 观测面
+
+> **来源**: 2026-08-30 三路深审 (AI 功能完成度矩阵 14 项 / 架构评估 / 卡顿根因)。
+> **核心结论**: ① 3 个统计端点在事件循环上全量扫盘 4149 个 md (无缓存) 被轮询/SSE 反复触发 = 全站卡顿主因; ② LLM 配置面向"理想环境" (唯一持 key 的 sensenova 不在兜底链) 致多个 AI 功能静默假值; ③ 失败被伪装成成功 (prompt 回显当摘要)。
+
+### 批次 ㉑：P0 — 卡顿根治
+
+1. **统计端点切 DB 投影** (`backend/services/wiki_stats_service.py` NEW + 3 端点改造):
+   - funnel/stage 分布/条目计数 → `warm.knowledge_items.lifecycle` GROUP BY (T1-T5 管线真实口径; md 归档数字本就不同 — 实测 md kl:raw=48 vs DB=2, 并行会话注释已预警口径分裂, 本次统一)
+   - liveness (书签存活, `alive` 字段尚无 DB 投影) → md 扫描 + **30s TTL 进程内缓存**
+   - `/api/kl/pipeline/stats` + `/api/secnews/pipeline` + `/api/secnews/knowledge` 全部 `asyncio.to_thread` 化
+   - 修次生 bug: `secnews_dashboard_api._get_dashboard` 缓存了 thread-affinity SQLite 连接, to_thread 后跨线程 ProgrammingError → 改为每请求在工作线程内取 thread-local 连接
+   - **基准**: 旧路径 (md 扫盘等价复刻) 337ms/请求且阻塞事件循环 → 新路径 0.5-8ms (worker 线程 + TTL 摊薄), funnel 纯 DB **0.4ms (≈800×)**
+2. **`POST /api/digests/generate` to_thread** (`digests.py`): 旧实现在 async def 里同步跑全量简报构建 — (a) 阻塞事件循环, (b) 内部 new_event_loop 桥必败 → LLM 叙事静默缺失。to_thread 后与 08:00 job 同构。
+
+### 批次 ㉒：P0-3 — LLM provider 链对齐现实 (config/llm.yaml)
+
+- `fallback_order` [ollama,qwen,openai] → **[ollama, sensenova, qwen, openai]**: 唯一持凭据 provider 进入生成类兜底链 (ollama 仍本地优先, 离线自动落到 sensenova)
+- `t1_score` override: ollama → **sensenova** — override 是单点选择无降级链, 指向未运行的 ollama = evaluate/gate_detect 必败 (审计发现 #3)
+- **删除死 provider** `sensenova_prod` (同 key 无路由指向) + `dots_ai` (无凭据占位) + 对应 egress 白名单两条 — 消除"多模型矩阵"完成错觉; 接新 provider 的三步说明写在 yaml 注释
+
+### 批次 ㉓：P1 — 失败不再伪装成功
+
+- `gateway.summarize` 兜底 `text[:200]` → **返回空串** (旧兜底把 prompt 指令头写进 summary_md, 前端优先渲染 = 用户看到指令回显而非叙事)
+- `DigestCard`: `summary_md` 为空时显式提示 "LLM 叙事未生成 — 以下为模板摘要"
+- `backend/config/__init__.py`: 显式 `load_dotenv(仓库根/.env, override=False)` — 凭据加载不再依赖 crawl4ai 库侧顺带注入 (审计发现 #5)
+- **ATT&CK 空壳复活**: 新端点 `GET /api/cve/recent` + `SecNewsAnalytics` 改接真实 CVE 实体 (此前 `sampleCveIds=[]` 恒空), 空数据有明确提示
+
+### 批次 ㉔：P3 — 系统性审计 + 观测面 + 测试锁
+
+- **P3-1 async 阻断审计**: AST 扫描全部 async 端点 → 14 个 RAW 违规 (alert_api×5 / attention×2 / chunks×2 / wiki_search / kl graph / knowledge get_item / mcp kl_status / cve recent) 全部 `async def`→`def` (FastAPI 自动线程池派发); `test_chunks_api` 调用方式同步适配
+- **P3-3 LLM 观测面**: `usage.py` 新增进程内错误环 (`record_llm_error`, gateway 4 个 provider except 挂钩) + `recent_calls` / `success_stats_24h` (诚实口径: 错误环随进程重启清零); `/api/llm/status` 新增 `observability` 块 — "AI 是否真在工作" 可判读
+- **P3-4 测试锁** (`test_digest_narrative_p063.py` NEW): ① async 端点端到端 summary_md 承载叙事 (P0-2 锁) ② 全 provider 失败 → summary_md 空且**不含 prompt 回显** (P1-1 锁) ③ gateway.summarize 全链失败返回 "" (单元锁)
+- `test_secnews_dashboard` knowledge 统计契约更新为 DB 投影 (memory attach 方式种数据)
+
+### 门禁
+
+| 维度 | 结果 |
+|---|---|
+| tsc --noEmit | 0 错 |
+| vitest | 310 passed |
+| vite build | clean |
+| ruff backend+scripts | All checks passed |
+| 定向 pytest (digest/dashboard/alerts/attention/chunks/wiki/mcp/cve/kl/dsh/s4-1) | 全绿 |
+| 全量 pytest | 见批次尾部补记 |
+| **P3-2 基准** | pipeline/stats: 旧 337ms (阻塞 loop) → 新 0.5-8ms; funnel 纯 DB 0.4ms (≈800×) |
+
 ## v0.6.3 安全批次 (2026-08-30) — 依赖漏洞清零 + weekly 全环境 pip-audit
 
 > **范围**: 2026-08-30 安全扫描报告的处置落地。代码级 SAST 三通道 (Mimosa MCP / Qoder qoder / Qoder hand) 仍需用户侧解锁, 依赖维度已清零。

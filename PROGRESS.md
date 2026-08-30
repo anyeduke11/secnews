@@ -39,7 +39,21 @@
 
 ## 当前活跃段 (2026-08-27 起)
 
-### 2026-08-30 v0.6.3 — 交互修复 + 统一工作台 + dsh 内置化 (本批)
+### 2026-08-30 v0.6.3 性能/修复批次 — 卡顿根治 + AI 伪完成修复 (本批)
+
+> **来源**: AI 功能完成度矩阵 (14 项, 仅 4 项真闭环) + 架构评估 + 卡顿根因三路深审; 用户裁决按 P0-1(含口径)→P0-2→P0-3→P1→P3-1→P3-3→P3-4 顺序修复, P3-2 profiling 最后验证效果。
+> **commit**: 本批 (CHANGELOG 批次 ㉑-㉔)。
+
+- [x] **P0-1 卡顿根治**: 3 统计端点 (kl pipeline/stats / secnews pipeline / knowledge) 从"事件循环上全量扫盘 4149 md"切换为 DB 投影 (warm.knowledge_items.lifecycle, 管线真实口径) + liveness 30s TTL 缓存 + 全部 to_thread; 基准 337ms→0.5-8ms (funnel 纯 DB 0.4ms ≈800×); 修次生 bug: dashboard 缓存 thread-affinity 连接跨线程 ProgrammingError
+- [x] **P0-2**: `POST /api/digests/generate` to_thread — 修复事件循环阻塞 + LLM 叙事静默缺失 (async 线程里 new_event_loop 必败)
+- [x] **P0-3 LLM 链对齐现实**: fallback_order 加 sensenova (唯一持 key); t1_score override ollama→sensenova (单点选择无降级链, 指向离线 ollama = evaluate/gate_detect 必败); 删死 provider sensenova_prod/dots_ai + egress 2 条
+- [x] **P1**: gateway.summarize 兜底 prompt[:200]→空串 (内容污染→诚实降级); DigestCard 空叙事显式提示; config 显式 load_dotenv (凭据不再靠 crawl4ai 顺带注入); ATT&CK 空壳复活 (/api/cve/recent + 前端接真实 CVE 实体)
+- [x] **P3-1**: AST 扫描 14 个 async 端点 RAW 阻断 → 全部转 sync def (线程池派发)
+- [x] **P3-3 观测面**: llm_usage 错误环 + /api/llm/status observability 块 (recent_calls/errors/success_rate, 诚实口径=进程窗口)
+- [x] **P3-4 测试锁**: test_digest_narrative_p063 (async 端到端叙事 / 不回显 prompt / gateway 空串); dashboard knowledge 统计契约更新 DB 投影
+- [x] **P3-2 profiling**: 基准对照落 CHANGELOG (旧 337ms 阻塞 → 新 0.5-8ms 非阻塞)
+
+### 2026-08-30 v0.6.3 — 交互修复 + 统一工作台 + dsh 内置化 (上批)
 
 > **用户裁决四项**: ① 修 P0; ② 保留 SecNews、workbench 整合后删除; ③ 6 丢失域找回; ④ dsh 重型一体化 + pi 执行层 + 一键启停。
 > **commit 链**: `80e6ad1e` → `c754549f` → `4cbad763` → (找回入口) → (dsh 内置化)。

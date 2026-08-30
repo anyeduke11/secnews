@@ -39,7 +39,17 @@
 
 ## 当前活跃段 (2026-08-27 起)
 
-### 2026-08-30 v0.6.3 性能/修复批次 — 卡顿根治 + AI 伪完成修复 (本批)
+### 2026-08-30 v0.6.3 P2 批次 — job 纪律 + wiki_fs 缓存层 (本批)
+
+> **来源**: P0 修复后第一性重审。指名嫌疑实测: read_item 491ms 实锤 (已缓存隔离) / ATTACH 0.2ms 排除 / feed LIKE <1ms 排除。
+
+- [x] **P2-1**: 6 个 async scheduler job 同步 IO to_thread 化 (catchup_watchdog 60s 最优先; stub_backfill 三段式保留 aiohttp 异步段)
+- [x] **P2-2a**: wiki_fs.read_item mtime+size 缓存 + write_item 写穿 — 全量 4149 条 702ms→17-20ms (35×); concept_linker 甄别修正: 两层不同职责 (概念图填充器 vs 条目 related 边), 非重复不归一
+- [x] **P2-3**: 统计失效接入 store.write_item 单点
+- [x] **AST 复扫**: API 面 async 阻断残留 0
+- ⚠️ **待拍板**: wiki 单根写路径迁移未完成 — 12 service 仍写旧根 knowledge/items, 同 id 文件两根内容已分裂 (详见 CHANGELOG 批次 ㉖ 后"待用户拍板")
+
+### 2026-08-30 v0.6.3 性能/修复批次 — 卡顿根治 + AI 伪完成修复 (上批)
 
 > **来源**: AI 功能完成度矩阵 (14 项, 仅 4 项真闭环) + 架构评估 + 卡顿根因三路深审; 用户裁决按 P0-1(含口径)→P0-2→P0-3→P1→P3-1→P3-3→P3-4 顺序修复, P3-2 profiling 最后验证效果。
 > **commit**: 本批 (CHANGELOG 批次 ㉑-㉔)。

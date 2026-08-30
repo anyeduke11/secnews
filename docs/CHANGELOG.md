@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.6.3 P2 批次 (2026-08-30) — job 纪律补全 + wiki_fs 缓存层 + 失效接线
+
+> **来源**: P0 修复后第一性重审 — API 面 AST 复扫 0 残留; scheduler 面新发现 6 个 async job 事件循环直接同步 IO; 指名嫌疑实测 (read_item 491ms 实锤 / ATTACH 0.2ms / feed LIKE <1ms 双双排除); **重大发现: wiki 单根裁决写路径未完成** (见下"待拍板")。
+
+### 批次 ㉕：P2-1 — scheduler job 纪律 (6 job to_thread 化)
+
+- `knowledge_classify_job` (30min, 500 行批) / `content_draft_generation_job` (6h) / `security_enrichment_job` / `security_entity_concept_sync_job` (10min): 全同步体抽 `_run()` → `asyncio.to_thread`
+- `knowledge_stub_backfill_job` (6h): 三段式 — 候选 SELECT 与结果回写 (DB/md IO) 入线程, aiohttp 抓取保留事件循环 (真异步)
+- `catchup_watchdog_job` (**60s 高频**): 扫描+标孤儿入线程, `enqueue_catchup` (async) 保留事件循环
+
+### 批次 ㉖：P2-2 — wiki_fs mtime 缓存层 + concept_linker 甄别
+
+- **read_item mtime+size 校验缓存** (`store.py`): stat ~10µs 命中免 read_text+YAML (~130µs); write_item 写穿刷新 (P2-3 失效单点同在此); 外部改写 mtime 变化自动失效
+  - 实测: 全量 4149 条 702ms (冷) → **17-20ms** (35×); 单文件热路径 ~4µs
+- **concept_linker 甄别修正**: 此前审计称"三实现并存零入口"——实为**两层不同职责**: `services/concept_linker.py` = tag→concept 归类 + llm-wiki-2.0/graph.json 6 typed 边运行时填充 (compiler 消费, M3.5 Task13); `wiki_fs/linker.py` = 条目 related 边 (KL link 阶段)。非重复, 不归一。**真债务**: 两个 linker 的输入目录仍指向旧根 `knowledge/` (见下)
+
+### 批次 ㉗：P2-3 — 统计失效接线
+
+`store.write_item` (md 生命周期写入单点) 写后调 `wiki_stats_service.invalidate_stats_cache()` — liveness 30s 陈旧窗口在管线写入后即时收敛; 配合 mtime 缓存, 未写条目零成本。
+
+### ⚠️ 待用户拍板 (本轮第一性发现, 未擅动)
+
+**wiki 单根裁决 (2026-08-24) 写路径迁移未完成**: `root.py` 声明 llm-wiki-2.0 为唯一存档根, 但 **12 个 service 仍经 `knowledge_sync` 写旧根 `knowledge/items`** (write_back/cubox_sync/history_import/learning/mastery_projection/chunk_service/watcher/summary/content/federation/bookmark_sync/codegarden_bridge)。实测同 id 文件两根内容已分裂 (llm-wiki-2.0 版 lifecycle=kl:publish+tags+alive, knowledge/ 版滞留 kl:link)。需裁决: (a) knowledge_sync 的 ITEMS_DIR 重指向 llm-wiki-2.0 + 12 写入方迁移; (b) 或承认双根分工并文档化 (旧根=agent 写入面, 新根=pipeline 存档), 补同步器。
+
 ## v0.6.3 性能/修复批次 (2026-08-30) — 卡顿根治 (P0) + AI 伪完成修复 + 观测面
 
 > **来源**: 2026-08-30 三路深审 (AI 功能完成度矩阵 14 项 / 架构评估 / 卡顿根因)。

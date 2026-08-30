@@ -69,3 +69,64 @@ def test_env_var_cannot_silently_narrow_builtin_allowlist(monkeypatch):
 def test_case_insensitive_host_match(monkeypatch):
     monkeypatch.delenv("HOTSPOT_LLM_ALLOWED_HOSTS", raising=False)
     assert check_credential_egress("https://API.OpenAI.COM/v1") == "api.openai.com"
+
+
+class _RecordingClient:
+    """替身 httpx.AsyncClient: 记录每个真实发出的请求。"""
+
+    calls: list[tuple[str, dict]] = []
+
+    def __init__(self, *a, **k):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    async def post(self, url, json=None, headers=None):
+        _RecordingClient.calls.append((url, dict(headers or {})))
+
+        class _R:
+            def raise_for_status(self):
+                pass
+
+            @staticmethod
+            def json():
+                return {"choices": [{"message": {"content": "ok"}}]}
+
+        return _R()
+
+
+def test_wired_into_call_openai_no_key_leaks(monkeypatch):
+    """守卫确实接在 _call_openai 上: 恶意 base_url 一个请求都发不出去。"""
+    import asyncio
+
+    from backend.config.llm_schema import ProviderConfig
+    from backend.services.ai_hub import gateway as G
+
+    monkeypatch.delenv("HOTSPOT_LLM_ALLOWED_HOSTS", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-should-not-leave")
+    monkeypatch.setattr(G.httpx, "AsyncClient", _RecordingClient)
+    _RecordingClient.calls = []
+
+    svc = G.LLMService.__new__(G.LLMService)
+
+    def _cfg(base_url):
+        return ProviderConfig(
+            type="openai", api_key_env="OPENAI_API_KEY",
+            base_url=base_url, models={}, timeout_seconds=5,
+        )
+
+    async def _run():
+        with pytest.raises(EgressNotAllowedError):
+            await svc._call_openai(_cfg("https://evil.example.net/v1"), "gpt-x", "机密 prompt")
+        assert _RecordingClient.calls == [], "恶意主机不应收到任何请求"
+        out = await svc._call_openai(_cfg("https://api.openai.com/v1"), "gpt-x", "正常 prompt")
+        assert out == "ok"
+        return _RecordingClient.calls[-1]
+
+    url, hdrs = asyncio.run(_run())
+    assert url == "https://api.openai.com/v1/chat/completions"
+    assert hdrs.get("Authorization") == "Bearer sk-should-not-leave", "白名单主机不得被误伤"

@@ -9,7 +9,7 @@
  *
  * 数据源: /api/hotspots (24h) · /api/trends (168h) · /api/quality/summary · /api/knowledge/items
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSSE } from '../../hooks/useSSE';
 import { CATEGORIES, HotspotItem } from '../../types';
@@ -148,6 +148,52 @@ export function SentinelJudgePage() {
   const [knowledge, setKnowledge] = useState<KnowledgeItemLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [archived, setArchived] = useState<Record<string, 'ok' | 'fail'>>({});
+  // AI 评测 (POST /api/llm/evaluate) — 迁移自 workbench/AnalyzeView, 逐行独立状态
+  const [evalMap, setEvalMap] = useState<Record<string, {
+    busy?: boolean;
+    score?: number;
+    verdict?: string;
+    key_points?: string[];
+    provider?: string;
+    error?: string;
+  }>>({});
+
+  const evaluate = useCallback(async (item: HotspotItem) => {
+    const content = (item.summary || '').trim() || item.title;
+    if (content.length < 10) {
+      setEvalMap(m => ({ ...m, [item.id]: { error: '正文不足 10 字, 后端会拒 422' } }));
+      return;
+    }
+    setEvalMap(m => ({ ...m, [item.id]: { busy: true } }));
+    try {
+      const r = await fetch('/api/llm/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ content, title: item.title }),
+      });
+      if (!r.ok) {
+        setEvalMap(m => ({ ...m, [item.id]: { error: `评测失败 (${r.status})` } }));
+        return;
+      }
+      const d = await r.json();
+      // 后端严格模式: 失败返回 ok=False + error, 不静默降级 —— 原样呈现
+      if (d.ok === false) {
+        setEvalMap(m => ({ ...m, [item.id]: { error: String(d.error || 'LLM 调用失败') } }));
+        return;
+      }
+      setEvalMap(m => ({
+        ...m,
+        [item.id]: {
+          score: d.quality_score,
+          verdict: d.verdict,
+          key_points: Array.isArray(d.key_points) ? d.key_points.slice(0, 3) : [],
+          provider: d.provider,
+        },
+      }));
+    } catch {
+      setEvalMap(m => ({ ...m, [item.id]: { error: '评测失败: 网络或后端不可达' } }));
+    }
+  }, []);
   const [archiving, setArchiving] = useState<Record<string, boolean>>({});
   const [settled, setSettled] = useState<{ ingested: number; rejected: number } | null>(null);
 
@@ -320,8 +366,11 @@ export function SentinelJudgePage() {
                       const state = stateChipOf(item);
                       const done = archived[item.id];
                       const busy = !!archiving[item.id];
+                      const ev = evalMap[item.id];
+                      const colSpan = 7;
                       return (
-                        <tr key={item.id} className={isP0 ? 'jd-p0' : undefined}>
+                        <Fragment key={item.id}>
+                        <tr className={isP0 ? 'jd-p0' : undefined}>
                           <td className="jd-id">{score}<span className="of">/100</span></td>
                           <td>
                             <p className="jd-rowtitle">
@@ -349,9 +398,39 @@ export function SentinelJudgePage() {
                               >
                                 {busy ? '归档中' : done === 'ok' ? '已归档' : done === 'fail' ? '归档失败' : '归档'}
                               </button>
+                              <button
+                                type="button"
+                                className="jd-op"
+                                disabled={!!ev?.busy}
+                                aria-label={`AI 评测：${item.title}`}
+                                onClick={() => evaluate(item)}
+                              >
+                                {ev?.busy ? '评测中' : 'AI 评测'}
+                              </button>
                             </span>
                           </td>
                         </tr>
+                        {ev && !ev.busy && (
+                          <tr className="jd-evalrow">
+                            <td colSpan={colSpan}>
+                              {ev.error ? (
+                                <span className="jd-eval err">评测未成功：{ev.error}</span>
+                              ) : (
+                                <span className="jd-eval">
+                                  <b className="num">AI {Math.round(ev.score ?? 0)}</b>
+                                  {ev.verdict && <em>{ev.verdict}</em>}
+                                  {(ev.key_points?.length ?? 0) > 0 && (
+                                    <span className="jd-eval-kps">
+                                      {ev.key_points!.map((k, i) => <span className="ftag" key={i}>{k}</span>)}
+                                    </span>
+                                  )}
+                                  {ev.provider && <span className="jd-eval-src num">{ev.provider}</span>}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                        </Fragment>
                       );
                     })}
                   </tbody>

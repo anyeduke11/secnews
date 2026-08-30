@@ -4,9 +4,9 @@ import { useCompliance } from '../../hooks/useCompliance';
 import { FrameworkFilter, type FrameworkOption } from './FrameworkFilter';
 
 const FRAMEWORK_COLORS: Record<string, string> = {
-  dengbao: '#4f46e5',
-  gdpr: '#059669',
-  iso27001: '#d97706',
+  dengbao: 'var(--chart-compliance-dengbao)',
+  gdpr: 'var(--chart-compliance-gdpr)',
+  iso27001: 'var(--chart-compliance-iso27001)',
 };
 
 interface ComplianceMatrixProps {

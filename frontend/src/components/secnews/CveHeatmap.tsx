@@ -10,11 +10,11 @@ import { useCveHeatmap } from '../../hooks/useCveHeatmap';
 
 const SEVERITIES = ['critical', 'high', 'medium', 'low', 'none'] as const;
 const SEVERITY_COLORS: Record<string, string> = {
-  critical: '#b91c1c',
-  high: '#ea580c',
-  medium: '#f59e0b',
-  low: '#84cc16',
-  none: '#e5e7eb',
+  critical: 'var(--chart-severity-critical)',
+  high: 'var(--chart-severity-high)',
+  medium: 'var(--chart-severity-medium)',
+  low: 'var(--chart-severity-low)',
+  none: 'var(--chart-severity-none)',
 };
 
 export function CveHeatmap() {
@@ -46,8 +46,8 @@ export function CveHeatmap() {
             x={i * (cellSize + gap) + cellSize / 2}
             y={12}
             textAnchor="middle"
-            className="text-[10px] fill-gray-500"
-            style={{ fontSize: '10px', fill: '#6b7280' }}
+            className="text-[10px]"
+            style={{ fontSize: '10px', fill: 'var(--text-muted)' }}
           >
             {w.slice(5)}
           </text>
@@ -61,7 +61,7 @@ export function CveHeatmap() {
             <g key={sev}>
               {counts.map((count: number, colIdx: number) => {
                 const intensity = count / rowMax;
-                const fill = count === 0 ? '#f3f4f6' : SEVERITY_COLORS[sev] || '#d1d5db';
+                const fill = count === 0 ? 'var(--chart-severity-none)' : SEVERITY_COLORS[sev] || 'var(--chart-severity-none)';
                 const opacity = count === 0 ? 1 : 0.35 + intensity * 0.65;
                 return (
                   <rect
@@ -81,7 +81,7 @@ export function CveHeatmap() {
                 y={rowIdx * (cellSize + gap) + 20 + cellSize / 2}
                 textAnchor="end"
                 dominantBaseline="middle"
-                style={{ fontSize: '10px', fill: '#374151', textTransform: 'capitalize' }}
+                style={{ fontSize: '10px', fill: 'var(--text-secondary)', textTransform: 'capitalize' }}
               >
                 {sev}
               </text>

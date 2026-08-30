@@ -28,8 +28,8 @@
 
 | # | 路径 | 组件 | Feature Flag | 类型 |
 |---|------|------|--------------|------|
-| 1 | `/` | → `/data` (重定向) | - | Navigate |
-| 2 | `/data` | DataLayerPage | - | Page |
+| 1 | `/` | SentinelHomePage (哨兵终端, v0.7.1 独立全屏) | - | Page |
+| 2 | `/data` | DataLayerPage | - | Page (v0.7.0 已删除) |
 | 3 | `/data/import` | DataImportPage | - | Page |
 | 4 | `/data/favorites` | DataFavoritesPage | - | Page |
 | 5 | `/data/history` | HistoryPageRoute | - | Page (hook) |

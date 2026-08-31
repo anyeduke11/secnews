@@ -40,10 +40,16 @@ async def secnews_feed(
     category: str = Query("", description="Filter by category"),
     keyword: str = Query("", description="Search keyword"),
     limit: int = Query(30, ge=1, le=100),
+    profile_boost: bool = Query(False, description="Apply personalization boost"),
 ) -> dict:
     """Newspaper-style feed data."""
     def _run():
-        return _get_dashboard().get_feed(category=category, keyword=keyword, limit=limit)
+        return _get_dashboard().get_feed(
+            category=category,
+            keyword=keyword,
+            limit=limit,
+            profile_boost=profile_boost,
+        )
 
     return await asyncio.to_thread(_run)
 

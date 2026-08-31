@@ -244,3 +244,35 @@ class TestGetDashboardStats:
         # because the code path requires self.pipeline to evaluate. Either
         # "idle" or "unknown" is acceptable as a default sentinel.
         assert result["pipeline_health"] in ("idle", "unknown")
+
+
+# ---------------------------------------------------------------------------
+# v0.7 Batch ⑤: profile_boost 个性化排序
+# ---------------------------------------------------------------------------
+class TestProfileBoost:
+    def test_no_boost_when_disabled(self, tmp_db):
+        _insert_hotspot(tmp_db, title="A", url="https://x/1",
+                        category="ai", summary="x",
+                        ingested_at="2026-08-01T00:00:00")
+        d = SecNewsDashboard(db=tmp_db)
+        result = d.get_feed(profile_boost=False)
+        assert "profile_boost" not in result
+        # default order: ingested_at DESC
+        assert result["items"][0]["title"] == "A"
+
+    def test_profile_boost_flag_set_when_enabled(self, tmp_db):
+        _insert_hotspot(tmp_db, title="A", url="https://x/1",
+                        category="ai", summary="x",
+                        ingested_at="2026-08-01T00:00:00")
+        d = SecNewsDashboard(db=tmp_db)
+        result = d.get_feed(profile_boost=True)
+        assert result.get("profile_boost") is True
+
+    def test_empty_profile_no_error(self, tmp_db):
+        _insert_hotspot(tmp_db, title="A", url="https://x/1",
+                        category="ai", summary="x",
+                        ingested_at="2026-08-01T00:00:00")
+        d = SecNewsDashboard(db=tmp_db)
+        result = d.get_feed(profile_boost=True)
+        assert result["total"] == 1
+        assert result["items"][0]["_boost"] == 0.0

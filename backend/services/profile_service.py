@@ -41,6 +41,8 @@ SIGNAL_FAVORITE = 0.3      # 收藏一篇文章
 SIGNAL_DEEP_READ = 0.2     # 深度阅读 + 笔记
 SIGNAL_SKIP = -0.05        # 跳过/不感兴趣
 SIGNAL_REVIEW_GOOD = 0.15  # SM-2 复习评分高
+SIGNAL_LIKE = 0.4          # 用户显式点赞
+SIGNAL_DISLIKE = -0.3      # 用户显式点踩
 
 # 权重范围
 WEIGHT_MIN = -2.0
@@ -135,11 +137,57 @@ def record_read(category: str, source: str | None = None) -> float:
     return new_weight
 
 
+def record_feedback(
+    entity_type: str,
+    entity_id: str,
+    action: str,
+    metadata: dict | None = None,
+) -> dict[str, float]:
+    """v0.7 Batch ⑤: 记录用户显式反馈 (like/dislike) 并更新权重。
+
+    Parameters
+    ----------
+    entity_type:
+        ``"hotspot"`` 或 ``"knowledge"``。
+    entity_id:
+        实体 ID。
+    action:
+        ``"like"`` 或 ``"dislike"``。
+    metadata:
+        可选实体元数据, 至少包含 ``category`` / ``source`` / ``tags``。
+
+    Returns
+    -------
+    dict[str, float]
+        被更新的维度 → 新权重映射。
+    """
+    signal = SIGNAL_LIKE if action == "like" else SIGNAL_DISLIKE
+    weights: dict[str, float] = {}
+    if not metadata:
+        return weights
+
+    category = metadata.get("category")
+    source = metadata.get("source")
+    tags = metadata.get("tags", [])
+
+    if category:
+        weights[f"category:{category}"] = apply_signal(f"category:{category}", signal)
+    if source:
+        weights[f"source:{source}"] = apply_signal(f"source:{source}", signal)
+    for tag in tags or []:
+        key = f"tag:{tag}"
+        weights[key] = apply_signal(key, signal)
+
+    return weights
+
+
 __all__ = [
     "SIGNAL_DEEP_READ",
     "SIGNAL_FAVORITE",
     "SIGNAL_READ",
     "SIGNAL_REVIEW_GOOD",
+    "SIGNAL_LIKE",
+    "SIGNAL_DISLIKE",
     "SIGNAL_SKIP",
     "WEIGHT_MAX",
     "WEIGHT_MIN",
@@ -148,5 +196,6 @@ __all__ = [
     "get_profile",
     "get_profile_by_prefix",
     "get_weight",
+    "record_feedback",
     "record_read",
 ]

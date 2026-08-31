@@ -7,7 +7,7 @@
 import React from 'react';
 import { Icon } from '../Icon';
 
-export type SectionKey = 'general' | 'collection' | 'network' | 'sync' | 'integration' | 'secrets' | 'alerts' | 'knowledge' | 'export' | 'maintenance' | 'about';
+export type SectionKey = 'general' | 'collection' | 'network' | 'sync' | 'integration' | 'secrets' | 'alerts' | 'knowledge' | 'export' | 'maintenance' | 'about' | 'feedback';
 
 export interface SectionDef {
   key: SectionKey;
@@ -82,5 +82,11 @@ export const SECTIONS: SectionDef[] = [
     label: '关于',
     icon: <Icon size={12}><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></Icon>,
     desc: '版本 / 运行状态',
+  },
+  {
+    key: 'feedback',
+    label: '反馈画像',
+    icon: <Icon size={12}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></Icon>,
+    desc: '点赞/点踩记录 + 角色倾向总结',
   },
 ];

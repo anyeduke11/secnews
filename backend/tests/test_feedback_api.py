@@ -1,9 +1,11 @@
-"""v0.7 Batch ⑤ — Feedback API 端到端测试.
+"""v0.7 Batch ⑤ + 设置画像 — Feedback API 端到端测试.
 
 覆盖:
 - POST /api/feedback/ — 提交 like/dislike
-- GET /api/feedback/profile — 画像摘要
-- GET /api/feedback/entity/{type}/{id} — 实体反馈历史
+- GET  /api/feedback/profile — 画像摘要
+- GET  /api/feedback/history — 全量反馈历史 (设置页)
+- GET  /api/feedback/role-summary — 角色倾向总结 (设置页)
+- GET  /api/feedback/entity/{type}/{id} — 实体反馈历史
 - 校验: 非法 action 400, 非法 entity_type 400
 """
 from __future__ import annotations
@@ -128,3 +130,40 @@ class TestGetEntityFeedback:
         assert r.status_code == 200
         data = r.json()
         assert data["items"] == []
+
+
+class TestFeedbackHistory:
+    def test_history_returns_list(self, client):
+        _insert_hotspot("h-1")
+        client.post("/api/feedback/", json={"entity_type": "hotspot", "entity_id": "h-1", "action": "like"})
+        r = client.get("/api/feedback/history?limit=10")
+        assert r.status_code == 200
+        data = r.json()
+        assert "items" in data
+        assert len(data["items"]) >= 1
+
+    def test_history_empty_when_no_feedback(self, client):
+        r = client.get("/api/feedback/history")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["items"] == []
+
+
+class TestRoleSummary:
+    def test_role_summary_no_feedback(self, client):
+        r = client.get("/api/feedback/role-summary")
+        assert r.status_code == 200
+        data = r.json()
+        assert "summary" in data
+        assert "interests" in data
+        assert "reading_style" in data
+        assert data["confidence"] == 0.0
+
+    def test_role_summary_after_feedback(self, client):
+        _insert_hotspot("h-1", category="ai", source="test")
+        client.post("/api/feedback/", json={"entity_type": "hotspot", "entity_id": "h-1", "action": "like"})
+        r = client.get("/api/feedback/role-summary")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total_feedback"] >= 1
+        assert "累计反馈" in data["summary"]

@@ -129,6 +129,73 @@ class FeedbackService:
             "recent": recent,
         }
 
+    def get_feedback_history(self, limit: int = 100) -> dict[str, Any]:
+        """获取全部反馈记录（用于设置页历史列表）。
+
+        Returns
+        -------
+        dict
+            ``{"items": [...]}``
+        """
+        items = self._repo.recent(limit=limit)
+        return {"items": items}
+
+    def get_role_summary(self) -> dict[str, Any]:
+        """生成/获取角色倾向总结。
+
+        优先从 user_memory 读取 AI 已分析结果；若不存在则返回基础统计。
+        """
+        try:
+            from backend.services.user_memory_service import user_memory_service
+            ctx = user_memory_service.get_user_context()
+            interests = [m.get("key", "").split(":", 1)[-1] for m in ctx.get("interests", [])]
+            dislikes = [m.get("key", "").split(":", 1)[-1] for m in ctx.get("dislikes", [])]
+            sources = [m.get("key", "").split(":", 1)[-1] for m in ctx.get("source_prefs", [])]
+            style = ""
+            for m in ctx.get("reading_style", []):
+                val = m.get("value", "")
+                try:
+                    import json
+                    style = json.loads(val).get("style", "")
+                except Exception:
+                    pass
+            total_likes = self._repo.count_by_action("like")
+            total_dislikes = self._repo.count_by_action("dislike")
+            total = total_likes + total_dislikes
+            confidence = min(1.0, total / 20.0) if total > 0 else 0.0
+            summary = self._build_summary_text(total_likes, total_dislikes, interests, dislikes, style)
+            return {
+                "summary": summary,
+                "interests": interests[:8],
+                "dislikes": dislikes[:8],
+                "preferred_sources": sources[:8],
+                "reading_style": style or "mixed",
+                "confidence": round(confidence, 2),
+                "total_feedback": total,
+            }
+        except Exception as exc:
+            logger.warning("get_role_summary failed: %s", exc)
+            return {
+                "summary": "暂无足够反馈数据，继续点赞/点踩后将自动生成画像。",
+                "interests": [],
+                "dislikes": [],
+                "preferred_sources": [],
+                "reading_style": "mixed",
+                "confidence": 0.0,
+                "total_feedback": 0,
+            }
+
+    @staticmethod
+    def _build_summary_text(likes: int, dislikes: int, interests: list[str], dislikes_list: list[str], style: str) -> str:
+        parts = [f"累计反馈 {likes + dislikes} 次（👍{likes} / 👎{dislikes}）"]
+        if interests:
+            parts.append(f"兴趣集中在 {', '.join(interests[:5])}")
+        if dislikes_list:
+            parts.append(f"排斥 {', '.join(dislikes_list[:5])}")
+        style_map = {"deep": "深度阅读型", "skim": "快速浏览型", "mixed": "混合阅读型"}
+        parts.append(f"阅读风格：{style_map.get(style, '混合阅读型')}")
+        return "；".join(parts) + "。"
+
     # ------------------------------------------------------------------
     # 私有方法
     # ------------------------------------------------------------------

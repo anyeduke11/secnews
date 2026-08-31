@@ -1,9 +1,11 @@
-"""v0.7 Batch ⑤ — Feedback API.
+"""v0.7 Batch ⑤ + 设置画像 — Feedback API.
 
 Endpoints
 ---------
 - POST /api/feedback/          — submit like/dislike
 - GET  /api/feedback/profile   — feedback profile summary
+- GET  /api/feedback/history   — full feedback history (settings page)
+- GET  /api/feedback/role-summary — role tendency summary (settings page)
 - GET  /api/feedback/entity/{entity_type}/{entity_id} — entity history
 """
 from __future__ import annotations
@@ -73,5 +75,23 @@ async def get_entity_feedback(entity_type: str, entity_id: str) -> dict[str, Any
     def _run():
         items = _feedback_service.get_entity_feedback(entity_type, entity_id)
         return {"entity_id": entity_id, "entity_type": entity_type, "items": items}
+
+    return await asyncio.to_thread(_run)
+
+
+@router.get("/history")
+async def get_feedback_history(limit: int = Query(100, ge=1, le=500)) -> dict[str, Any]:
+    """Get full feedback history for settings page."""
+    def _run():
+        return _feedback_service.get_feedback_history(limit=limit)
+
+    return await asyncio.to_thread(_run)
+
+
+@router.get("/role-summary")
+async def get_role_summary() -> dict[str, Any]:
+    """Get role tendency summary based on feedback history."""
+    def _run():
+        return _feedback_service.get_role_summary()
 
     return await asyncio.to_thread(_run)

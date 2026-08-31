@@ -28,6 +28,7 @@ import { ExportSettings } from './ExportSettings';
 import { DatabaseMaintenance } from './DatabaseMaintenance';
 import { AboutSettings } from './AboutSettings';
 import { ModeSwitcher } from './ModeSwitcher';
+import { FeedbackSettings } from './FeedbackSettings';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 
 export function SettingsPage() {
@@ -90,6 +91,8 @@ export function SettingsPage() {
         return <DatabaseMaintenance />;
       case 'about':
         return <AboutSettings />;
+      case 'feedback':
+        return <FeedbackSettings />;
     }
   };
 

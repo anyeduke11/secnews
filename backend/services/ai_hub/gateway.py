@@ -38,6 +38,20 @@ from .usage import record_llm_call, record_llm_error
 log = logging.getLogger("hotspot.ai_hub")
 
 
+def _ai_key_source(provider_name: str) -> str:
+    """v0.7.x Batch ⑥: gateway → AIService()._key_source(provider) 单点。
+
+    委托而非内联, 让 AIService 持有密钥解析的真相; gateway 只负责
+    provider 调度与 cache/usage 包装。异常时返 "none" 不阻塞 record_llm_call。
+    """
+    try:
+        from backend.services.ai_hub.service import AIService
+        return AIService()._key_source(provider_name)
+    except Exception as e:
+        log.debug("gateway._ai_key_source(%s): %s", provider_name, e)
+        return "none"
+
+
 class LLMService:
     """统一 LLM 入口，支持多 provider + 降级 + 缓存.
 
@@ -152,7 +166,8 @@ class LLMService:
                 cfg = self._config.providers[provider_name]
                 model = self._resolve_model(provider_name, "score")
                 prompt = _build_score_prompt(content)
-                raw = await self._call_provider(cfg, model, prompt)
+                raw = await self._call_provider(cfg, model, prompt,
+                                                provider_name=provider_name)
                 score = _parse_score(raw)
                 set_llm_cache(cache_key, str(score))
                 record_llm_call(
@@ -161,7 +176,7 @@ class LLMService:
                     latency_ms=(time.monotonic() - t0) * 1000,
                     scene="t1_score",
                     config_source=self._config_source_for("score", provider_name),
-                    key_source="env",  # 批次②接 llm_secrets 后改 secrets|env|none
+                    key_source=_ai_key_source(provider_name),
                 )
                 return score
             except Exception as e:
@@ -173,7 +188,7 @@ class LLMService:
                     latency_ms=(time.monotonic() - t0) * 1000,
                     scene="t1_score",
                     config_source=self._config_source_for("score", provider_name),
-                    key_source="env",
+                    key_source=_ai_key_source(provider_name),
                 )
                 continue
 
@@ -200,7 +215,8 @@ class LLMService:
                 cfg = self._config.providers[provider_name]
                 model = self._resolve_model(provider_name, "summary")
                 prompt = _build_summary_prompt(text)
-                raw = await self._call_provider(cfg, model, prompt)
+                raw = await self._call_provider(cfg, model, prompt,
+                                                provider_name=provider_name)
                 set_llm_cache(cache_key, raw)
                 record_llm_call(
                     provider=provider_name, model=model, task="summarize",
@@ -208,7 +224,7 @@ class LLMService:
                     latency_ms=(time.monotonic() - t0) * 1000,
                     scene="t3_summary",
                     config_source=self._config_source_for("summary", provider_name),
-                    key_source="env",
+                    key_source=_ai_key_source(provider_name),
                 )
                 return raw
             except Exception as e:
@@ -220,7 +236,7 @@ class LLMService:
                     latency_ms=(time.monotonic() - t0) * 1000,
                     scene="t3_summary",
                     config_source=self._config_source_for("summary", provider_name),
-                    key_source="env",
+                    key_source=_ai_key_source(provider_name),
                 )
                 continue
 
@@ -250,7 +266,8 @@ class LLMService:
                 cfg = self._config.providers[provider_name]
                 model = self._resolve_model(provider_name, "ner")
                 prompt = _build_extract_entities_prompt(content)
-                raw = await self._call_provider(cfg, model, prompt)
+                raw = await self._call_provider(cfg, model, prompt,
+                                                provider_name=provider_name)
                 entities = _parse_entity_list(raw)
                 set_llm_cache(cache_key, json.dumps(entities))
                 record_llm_call(
@@ -259,7 +276,7 @@ class LLMService:
                     latency_ms=(time.monotonic() - t0) * 1000,
                     scene="t1_entities",
                     config_source=self._config_source_for("ner", provider_name),
-                    key_source="env",
+                    key_source=_ai_key_source(provider_name),
                 )
                 return entities
             except Exception as e:
@@ -271,7 +288,7 @@ class LLMService:
                     latency_ms=(time.monotonic() - t0) * 1000,
                     scene="t1_entities",
                     config_source=self._config_source_for("ner", provider_name),
-                    key_source="env",
+                    key_source=_ai_key_source(provider_name),
                 )
                 continue
 
@@ -309,6 +326,7 @@ class LLMService:
                 raw = await self._call_provider(
                     cfg, model, prompt,
                     max_tokens=max_tokens, temperature=temperature,
+                    provider_name=provider_name,
                 )
                 if raw:
                     set_llm_cache(cache_key, raw)
@@ -319,7 +337,7 @@ class LLMService:
                     # 通用 generate 接口: scene 推断; deep_read 显式识别
                     scene="deep_read" if task == "deep_read" else "generate",
                     config_source=self._config_source_for(task, provider_name),
-                    key_source="env",
+                    key_source=_ai_key_source(provider_name),
                 )
                 return raw
             except Exception as e:
@@ -331,7 +349,7 @@ class LLMService:
                     latency_ms=(time.monotonic() - t0) * 1000,
                     scene="deep_read" if task == "deep_read" else "generate",
                     config_source=self._config_source_for(task, provider_name),
-                    key_source="env",
+                    key_source=_ai_key_source(provider_name),
                 )
                 continue
 
@@ -347,11 +365,14 @@ class LLMService:
         *,
         max_tokens: int | None = None,
         temperature: float | None = None,
+        provider_name: str | None = None,
     ) -> str:
         """调用指定 provider 的 LLM API.
 
         ``max_tokens`` / ``temperature`` 默认 None → 各分支沿用今天写死的值,
         既有调用点 (score / summarize / extract_entities) 行为不变。
+        ``provider_name`` v0.7.x Batch ⑥: 下传给 _call_openai/_call_anthropic,
+        让 ``_get_api_key`` 走 AIService 单点四级链。
         """
         t0 = time.monotonic()
 
@@ -361,15 +382,18 @@ class LLMService:
             )
         elif cfg.type == "openai":
             result = await self._call_openai(
-                cfg, model, prompt, max_tokens=max_tokens, temperature=temperature
+                cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
+                provider_name=provider_name,
             )
         elif cfg.type == "openai_compatible":
             result = await self._call_openai_compatible(
-                cfg, model, prompt, max_tokens=max_tokens, temperature=temperature
+                cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
+                provider_name=provider_name,
             )
         elif cfg.type == "anthropic":
             result = await self._call_anthropic(
-                cfg, model, prompt, max_tokens=max_tokens, temperature=temperature
+                cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
+                provider_name=provider_name,
             )
         else:
             raise ValueError(f"Unsupported provider type: {cfg.type}")
@@ -415,9 +439,10 @@ class LLMService:
         *,
         max_tokens: int | None = None,
         temperature: float | None = None,
+        provider_name: str | None = None,
     ) -> str:
         """调用 OpenAI API."""
-        api_key = self._get_api_key(cfg.api_key_env)
+        api_key = self._get_api_key(cfg.api_key_env, provider_name)
         base_url = cfg.base_url or "https://api.openai.com/v1"
         # C3: 凭据只允许发往代码侧白名单主机 (base_url 可被同步包写入 llm.yaml)
         check_credential_egress(base_url)
@@ -454,10 +479,13 @@ class LLMService:
         *,
         max_tokens: int | None = None,
         temperature: float | None = None,
+        provider_name: str | None = None,
     ) -> str:
         """调用兼容 OpenAI API 的 provider（如 Qwen）. """
         return await self._call_openai(
-            cfg, model, prompt, max_tokens=max_tokens, temperature=temperature
+            cfg, model, prompt,
+            max_tokens=max_tokens, temperature=temperature,
+            provider_name=provider_name,
         )
 
     async def _call_anthropic(
@@ -468,9 +496,10 @@ class LLMService:
         *,
         max_tokens: int | None = None,
         temperature: float | None = None,
+        provider_name: str | None = None,
     ) -> str:
         """调用 Anthropic API."""
-        api_key = self._get_api_key(cfg.api_key_env)
+        api_key = self._get_api_key(cfg.api_key_env, provider_name)
         url = "https://api.anthropic.com/v1/messages"
         payload = {
             "model": model,
@@ -509,12 +538,21 @@ class LLMService:
         return model_map.get(task, cfg.models.score)
 
     @staticmethod
-    def _get_api_key(env_var: str | None) -> str:
-        """从环境变量读取 API key."""
-        if not env_var:
+    def _get_api_key(env_var: str | None, provider_name: str | None = None) -> str:
+        """v0.7.x Batch ⑥: 四级链 ``env > secrets > default`` — 委托 AIService 单点。
+
+        provider_name 用于 secrets 表按 provider 查表; 若为 None 则退回
+        env_var 单源读 (保留向后兼容, 旧测试桩仍可工作)。
+        """
+        if not env_var and not provider_name:
             return ""
+        from backend.services.ai_hub.service import AIService
+        ai = AIService()
+        if provider_name is not None:
+            return ai._resolve_api_key(provider_name)
+        # 旧调用路径: 仅 env_var, 不走 secrets (向后兼容)
         import os
-        key = os.environ.get(env_var, "")
+        key = os.environ.get(env_var or "", "")
         if not key:
             log.warning("API key env var %s not set", env_var)
         return key

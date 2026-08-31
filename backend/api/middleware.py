@@ -80,15 +80,20 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
                 trace_id=trace_id,
                 error=type(e).__name__,
             )
-            # v0.7 Batch ③: 异常路径同样落表 (status=500, error=异常名)
-            record_api_call(
-                trace_id=trace_id,
-                method=request.method,
-                path_template=path_template,
-                status=500,
-                duration_ms=round(duration_ms, 2),
-                error=f"{type(e).__name__}: {e}",
-            )
+            # v0.7 Batch ③: 异常路径同样落表 (status=500, error=异常名).
+            # 双层防御 (与正常路径一致): 外层再 swallow, 不阻塞 raise.
+            try:
+                record_api_call(
+                    trace_id=trace_id,
+                    method=request.method,
+                    path_template=path_template,
+                    status=500,
+                    duration_ms=round(duration_ms, 2),
+                    error=f"{type(e).__name__}: {e}",
+                )
+            except Exception as _obs_e:
+                log_event("api_observability_swallowed", level="debug",
+                          trace_id=trace_id, error=str(_obs_e))
             reset_trace_id(token)
             raise
 
@@ -103,14 +108,20 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
             duration_ms=round(duration_ms, 2),
             trace_id=trace_id,
         )
-        # v0.7 Batch ③: 正常路径落表 (status=response.status_code)
-        record_api_call(
-            trace_id=trace_id,
-            method=request.method,
-            path_template=path_template,
-            status=response.status_code,
-            duration_ms=round(duration_ms, 2),
-        )
+        # v0.7 Batch ③: 正常路径落表 (status=response.status_code).
+        # 双层防御: record_api_call 内部 try/except 已 swallow; 此处外层
+        # 再包一道确保任何诡异路径 (例如被 monkey-patch 抛异常) 都不阻塞响应.
+        try:
+            record_api_call(
+                trace_id=trace_id,
+                method=request.method,
+                path_template=path_template,
+                status=response.status_code,
+                duration_ms=round(duration_ms, 2),
+            )
+        except Exception as _obs_e:
+            log_event("api_observability_swallowed", level="debug",
+                      trace_id=trace_id, error=str(_obs_e))
         reset_trace_id(token)
         return response
 

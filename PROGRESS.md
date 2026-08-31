@@ -75,13 +75,83 @@
 | GateContext | 仍 dead default, 不引入新注入点 (与 PRD §5.3 不冲突) |
 | commit 链 | `ade3b03` (backend) → `ba69454` (frontend) → docs commit |
 
-### 不在本批范围 (留作 Batch ③+ 开放尾巴)
+### 2026-08-31 v0.7 Batch ③ — middleware 写表 + api_events/api_metrics_hourly + aggregator (本批)
 
-- Batch ③ API 观测 (HTTP middleware trace_id 注入 + 业务 endpoint observability)
-- Batch ④ 看板告警 (Dashboard 嵌入 + 阈值规则)
-- Batch ⑤ 收尾
-- llm_secrets 主密钥恢复 (Q1 禁重置沿袭, 加密通道休眠待用户裁决)
-- 已知预存债 (来自 P4): `test_kl_state_machine.py::test_successors_of_raw` 期望漂移 / `test_snapshot_for_retirement.py::test_baseline_2026_08_24_counts` 期望陈旧
+> **来源**: Observability PRD v1.0 §5.3"业务 endpoint 观测" + Batch 1/2 落地的 record_* 模式顺接; Batch 2 已把 audit_log 接通, 本批把 API 调用层接通。
+> **范围**: ① `record_api_call` 函数 (observability_records.py, 镜像 record_audit 失败 swallow); ② migration 081 建 `api_events` (7d TTL) + `api_metrics_hourly` (30d TTL, hour+path_template 主键); ③ `TraceIDMiddleware` 收尾调 `record_api_call`, path 取 FastAPI `request.scope["route"].path` (非 raw URL); ④ `observability_aggregator_job` 60min, Python 两步走聚合 (绕开 SQLite 不能引用外层 SELECT 别名); ⑤ `observability_ttl_job` 扩 5 张表; ⑥ `/api/observability/{summary,recent,timeseries,llm-usage}` 4 GET 端点, 无 feature flag (基础设施)。
+> **不引入**: 新传输层 (ws/SSE) / 阈值引擎 (Batch ④) / 新 feature gate。
+> **commit 链**: `63c856c` (backend) + `108afde` (frontend) + 本 docs commit (Batch ⑤)。
+
+- [x] **后端 — `record_api_call`** (`backend/observability_records.py`): `def` 非 async (镜像 record_audit), INSERT `api_events` 失败 swallow, `__all__` 追加。
+- [x] **后端 — migration 081**: `api_events` (trace_id/method/path_template/status/duration_ms/error/occurred_at) + 4 索引; `api_metrics_hourly` (hour/path_template/errors/p50_ms/p95_ms/max_ms) 主键 (hour, path_template) + 1 索引。
+- [x] **后端 — `TraceIDMiddleware` 接入** (`backend/api/middleware.py`): dispatch 收尾调一次 `record_api_call`, 异常路径同样落表 (status=500, error 截断 [:500]); `path_template = request.scope["route"].path` (路由模板而非 raw URL, 避免 query string 维度爆炸); `/api/health` 在 `exclude_paths` 仍不入表。
+- [x] **后端 — `observability_aggregator_job`** (`backend/scheduler/jobs/maintenance.py`): 60min, 起点 +5min 错峰 ttl; 拉 api_events 最近 2h → Python dict 按 (hour, path_template) buckets 聚 total/errors/p50/p95/max → `INSERT OR REPLACE` 幂等; SQLite correlated subquery 不能引用外层 SELECT 别名或 FROM 表别名, 用 Python 两步走比单条 SQL 更清晰。
+- [x] **后端 — `observability_ttl_job` 扩 5 表** (Batch 1 4 表 + `api_events` 7d); `observability_alerts` 仍归 Batch ④ 引入。
+- [x] **后端 — `observability_router`** (`backend/api/observability_router.py`, NEW): 4 GET 端点, 全部 `def` (async→def 线程池派发规则); `/api/observability/timeseries` 直接读 `api_metrics_hourly`, 不重算; `summary` 直接扫 `api_events` 当小时 (即时准确)。
+- [x] **后端 — 10 测试** (`tests/test_api_observability.py`): middleware 落表 200/4xx/5xx / 排除路径 / error 截断 [:500] / aggregator 跨小时 / summary error_rate+p95 / recent desc / timeseries。
+- [x] **前端 — `ObservabilityDashboard.tsx`** (`frontend/src/components/secnews/observability/`): 3 卡片网格 (1h 概览 / Top 5 慢路径 / 最近 20 条事件, 5s 自动刷新); `ObservabilityTab.tsx` 路由壳; 嵌入 `/secnews/observability` 子路由; `SecNewsShell` nav 追加「观测」tab; `StatusBar` 加 obs 1h 节 (total / err% / p95, err≥5% 黄 / ≥15% 红)。
+- [x] **前端 — 3 测试** (`tests/ObservabilityDashboard.test.tsx`): 渲染 / recent events / fetch 错误降级; 跨组件状态按 `getAllByText` 容错 (path_template 同名)。
+- [x] **门禁 (Batch ③ 后端)**: ruff 0 / pytest scoped 10/10 pass。
+- [x] **门禁 (Batch ③ 前端)**: tsc 0 / vitest 317 pass (baseline 314 + 3 new) / vite build OK。
+
+### 2026-08-31 v0.7 Batch ④ — 阈值规则引擎 + observability_alerts + 看板嵌入 (本批)
+
+> **来源**: Batch ③ 数据落地后即可评估越界 + 落告警, 闭环观测→告警→用户响应。
+> **范围**: ① `services/observability_thresholds.py` (Threshold 数据类 + load/save/validate/evaluate, DEFAULT_THRESHOLDS 兜底); ② migration 082 建 `observability_alerts` (level/metric/value/threshold/window_minutes/detail/fired_at/cooldown_until/acked) + 3 索引; ③ `observability_threshold_check_job` 60min (aggregator +10min 错峰), 扫 api_events 1h 摘要 → 评估 breach → cooldown 去重 → 写 alerts + audit_log action=threshold.breach; ④ `/api/observability/{alerts/active, alerts/{id}/ack, thresholds GET/PUT}`; ⑥ 前端 `ActiveAlertsBanner` + `ThresholdEditor` + `StatusBar` 角标 (🚨 N critical 红 / ⚠ N warn 黄)。
+> **不引入**: 新传输层 / 新 feature gate / 告警通道扩展 (webhook/email, channels 仅 `["status_bar"]`)。
+> **commit 链**: `bf5a982` (backend) + `f0e01a4` (frontend) + 本 docs commit (Batch ⑤)。
+
+- [x] **后端 — `observability_thresholds`**: `Breach` dataclass; `load_thresholds` 从 settings.kv 拉, 缺失/坏值兜底 `DEFAULT_THRESHOLDS` (api.error_rate_pct 5/15, api.p95_latency_ms 800/2000, llm.error_rate_pct 10/30, job.failure_rate_pct 10/25, audit.llm_config_change_per_hour 10/50); `_validate` schema 校验 (非 dict / 负值 / warn ≥ critical); `evaluate_api` 同时返 warn + critical 越界。
+- [x] **后端 — migration 082**: `observability_alerts` 表 + 3 索引 (`fired_at`, `acked+fired_at`, `metric+level+fired_at`)。
+- [x] **后端 — `observability_threshold_check_job`**: 60min, 起点 +10min; 拉 1h 摘要 (total/errors/error_rate/p95) → 评估 breach → 同 (metric, level) cooldown 期内跳过 (15min 默认); 同步入 audit_log `threshold.breach` (Batch ② record_audit 模式延伸); 失败 swallow 不阻塞 raise。
+- [x] **后端 — `observability_ttl_job` 扩 6 表**: 新增 `observability_alerts` 30d TTL。
+- [x] **后端 — 4 新端点**: `GET /alerts/active` (24h 窗口, critical 优先 / fired_at desc); `POST /alerts/{id}/ack` (幂等, 第二次返 `already=True`); `GET/PUT /thresholds` (PUT 校验 schema, 落 audit_log `observability.thresholds.update`)。
+- [x] **后端 — 14 测试** (`tests/test_observability_thresholds.py`): load 兜底 / roundtrip / `_validate` 3 例 (非 dict / warn≥critical / 负值) / evaluate warn+critical / p95 多越界 / summary dict / cooldown_until / alerts active list / ack 幂等 / thresholds GET defaults / PUT 拒绝非法 / PUT 200 更新。
+- [x] **后端 — `test_feature_gates.py::test_registered_job_count_matches_scheduler`**: AST 计数 48 → 50 (Batch ③+1, Batch ④+1)。
+- [x] **前端 — `ActiveAlertsBanner`****: 30s 自动刷新, critical/warn 双色染色, ack 按钮 inline 调 POST + 自动刷新, 错误降级为顶部红条。
+- [x] **前端 — `ThresholdEditor`****: 折叠面板, 4 大类规则 (api/llm/job/audit) warn/critical/window 三输入, PUT 200 → "已保存" / 400 → toast 错误; `ObservabilityTab` 顶部装 banner, 底部装 editor。
+- [x] **前端 — `StatusBar` 告警角标**: 并行增加 `/alerts/active` fetch; 🚨 N critical (红) / ⚠ N warn (黄), 仅非零显示。
+- [x] **前端 — 5 测试** (`tests/Batch4.test.tsx`): banner 渲染 / 空态不渲染 / ack POST 触发 / editor 折叠展开 / PUT 200 成功消息。
+- [x] **门禁 (Batch ④ 后端)**: ruff 0 / pytest scoped 14/14 pass / `test_feature_gates` 65/16 pass。
+- [x] **门禁 (Batch ④ 前端)**: tsc 0 / vitest 322 pass (baseline 314 + Batch ③ 3 + Batch ④ 5) / vite build OK。
+
+### 2026-08-31 v0.7 Batch ⑤ — 收口落账 + carry 收编 (本批)
+
+> **来源**: Batch ③ + ④ 落地后须集成测试 + 架构数字同步 + PROGRESS/CHANGELOG 落账 + 公开 commit 链。
+> **范围**: ① 集成测试 5 例 (middleware → aggregator → summary / threshold breach → alert / cooldown 去重 / ack 后从 active 消失 / record_api_call 失败 swallow 双层防御); ② `ARCHITECTURE.md` 数字同步 (routers 65→66 / services 97→98 / jobs 48→50); ③ `PROGRESS.md` 加 Batch ③ + ④ + ⑤ 三段; ④ `CHANGELOG.md` 加 v0.7 Batch 3+4+5 段; ⑤ carry 分支 `1f3d0e7` 收编 P4 双预存债根治 (test_kl_state_machine + test_snapshot_for_retirement, `e209a57` 携带修复)。
+> **不引入**: 新数据库表 / 新前端页面 / 新 feature gate。
+> **commit 链**: `1f3d0e7` (carry merge) → `63c856c` → `108afde` → `bf5a982` → `f0e01a4` → 本 docs commit。
+
+- [x] **集成测试 5 例** (`tests/test_observability_integration.py`): 1) middleware → aggregator → summary total+errors 正确; 2) 100 行 5xx → threshold_check 触发 critical breach; 3) 同 breach 连跑 2 次仅 1 条 alert (cooldown); 4) ack 后 active 列表消失; 5) `record_api_call` 抛异常 → 业务响应仍 200 (middleware 双层 swallow 防御)。
+- [x] **middleware 双层 swallow**: `record_api_call` 内部 try/except 已 swallow, middleware 外层再 try/except 一道 (log_event api_observability_swallowed), 满足 PRD §10 红线 ② "永不阻塞响应"。
+- [x] **ARCHITECTURE.md**: 顶部数字带更新 routers 65→66 / services 97→98 / jobs 48→50; 框图 r 同步; 状态标注保留 v0.6.2 (不误称 v0.7)。
+- [x] **PROGRESS.md**: 加 Batch ③ + ④ + ⑤ 三段 (含 commit 链 + 关键事实表 + 不在本批范围)。
+- [x] **CHANGELOG.md**: 加 v0.7 Batch 3+4+5 段, 与 Batch 2 段并列。
+- [x] **carry merge**: `carry/earlier-session-leftovers` (`e209a57`) 携带 7 文件 (kl_state_machine +12 / t1_raw_to_refine +22 / wiki_stats_service +new / 3 测试期望更新 / snapshot_for_retirement DEFAULT_WIKI 重指向), 与 batch-2 5 文件零重叠, `--no-ff` 收编; `e209a57` 修复 `test_successors_of_raw` 期望漂移 + `test_baseline_2026_08_24_counts` 期望陈旧, 0 冲突。
+- [x] **门禁 (Batch ⑤ 后端)**: ruff 0 / pytest 集成测试 5/5 pass。
+- [x] **门禁 (Batch ⑤ 全量)**: 全量 pytest 0fail (carry 收编后 P4 预存债清零) / ruff 0 / `generate_meta --check` OK (routers 66 / services 98 / jobs 50) / tsc 0 / vitest 322 pass / vite build OK。
+
+### 不在本批范围 (留作独立批次)
+
+- llm_secrets 主密钥恢复 (Q1 禁重置沿袭, 加密通道休眠待用户裁决; 沿用 env 链)
+- 告警通道扩展 (webhook / email / Slack; 当前仅 `["status_bar"]`)
+- 观测数据采样 (api_events 100% 写, 7d TTL 兜底)
+- WebSocket / SSE 实时推送 (当前 30s 轮询够用, 与 StatusBar 一致)
+- codegarden_phase2b / tech_stack / security_graph 等扩展域 (feature gate 默认关闭)
+
+### 关键事实 (Batch ②+③+④+⑤ 累计)
+
+| 维度 | 结果 |
+|------|------|
+| record_audit 首个真实调用 | Batch ② llm_config.update; Batch ④ 续接 threshold.breach |
+| 观测数据落地 | api_events 7d + api_metrics_hourly 30d + observability_alerts 30d |
+| 阈值默认 (保守) | api.error_rate 5%/15% / api.p95 800/2000ms / llm.error 10%/30% / job.fail 10%/25% |
+| 告警风暴防护 | cooldown 15min (metric+level 维度); 同阈值不重复刷屏 |
+| 看板嵌入 | `/secnews/observability` (与 analytics/settings 并列 6 子); StatusBar 加 obs 1h + 告警角标 |
+| path_template | FastAPI route.path (非 raw URL); query string 维度爆炸已规避 |
+| middleware 双层防御 | record_api_call 内部 + middleware 外层, 永不阻塞响应 (PRD §10 红线 ②) |
+| aggregator 算法 | Python 两步走 dict buckets; SQLite correlated subquery 不能引用外层别名 |
+| commit 链 | carry `1f3d0e7` → backend `63c856c` → frontend `108afde` → backend `bf5a982` → frontend `f0e01a4` → docs (Batch ⑤) |
 
 ### 2026-08-31 v0.7 Batch 1 — Observability 观测地基 + LLM/Job/Agent/Process 执行记录 (本批)
 

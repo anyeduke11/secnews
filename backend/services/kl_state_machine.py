@@ -34,6 +34,13 @@ LIFECYCLE_LINK = "kl:link"          # 实体关联完成
 LIFECYCLE_STRUCTURE = "kl:structure"  # 摘要 + 结构化完成
 LIFECYCLE_PUBLISH = "kl:publish"    # 已发布到 knowledge/{item_id}.md
 
+# 终态 (非管线阶段): T1 判定为重复的条目落到这里。
+# 历史上判重只 `continue`, 既不推进也不出队 → 同一批项每 60s 被重取重判,
+# ``advanced=0`` 成为无法与真故障区分的常态噪声。落终态后队列可收敛、决策可审计。
+# 刻意**不**加入 ALL_STAGES: 它不是管线位置, 加入会污染迁移校验与按阶段聚合查询。
+LIFECYCLE_DEDUPED = "kl:deduped"
+TERMINAL_LIFECYCLES: frozenset[str] = frozenset({LIFECYCLE_DEDUPED})
+
 
 # All known 5-stage values (used for validation, e.g. when migrating from
 # the legacy 3-stage model in 046_lifecycle_v2.sql).
@@ -60,8 +67,10 @@ LEGACY_STRUCTURE_LIKE = "generate"
 # Forward DAG: T1 raw→refine, T2 refine→link, T3 link→structure (Phase 12),
 # T4 structure→publish (Phase 12). T5 publish→refine is the user rollback
 # edge (Phase 12).
+# kl:raw 另有一条到 kl:deduped 的出边: T1 判重项的终态 (T1 的副作用出口)。
+# kl:deduped 刻意**没有**出边 —— 它是真终态, 不给回边以免被 sweep 再拉回管线。
 TRANSITIONS: dict[str, frozenset[str]] = {
-    LIFECYCLE_RAW:       frozenset({LIFECYCLE_REFINE}),
+    LIFECYCLE_RAW:       frozenset({LIFECYCLE_REFINE, LIFECYCLE_DEDUPED}),
     LIFECYCLE_REFINE:    frozenset({LIFECYCLE_LINK}),
     LIFECYCLE_LINK:      frozenset({LIFECYCLE_STRUCTURE}),
     LIFECYCLE_STRUCTURE: frozenset({LIFECYCLE_PUBLISH}),
@@ -148,11 +157,10 @@ def transition(
 def is_terminal(stage: str) -> bool:
     """Return True for stages that should not be auto-advanced further.
 
-    Currently only ``kl:publish`` is "terminal" in the forward direction;
-    it can still be moved back to ``kl:refine`` via the T5 rollback
-    trigger (Phase 12).
+    - ``kl:publish`` 是管线正向终点 (仍可经 T5 rollback 回到 ``kl:refine``)。
+    - ``kl:deduped`` 是 T1 判重的出口终态, 无任何出边, 不该被再次推进。
     """
-    return stage == LIFECYCLE_PUBLISH
+    return stage in (LIFECYCLE_PUBLISH, LIFECYCLE_DEDUPED)
 
 
 def predecessors(stage: str) -> frozenset[str]:

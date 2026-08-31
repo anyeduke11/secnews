@@ -22,6 +22,7 @@ import pytest
 
 from backend.services.kl_state_machine import (
     ALL_STAGES,
+    LIFECYCLE_DEDUPED,
     LIFECYCLE_LINK,
     LIFECYCLE_PUBLISH,
     LIFECYCLE_RAW,
@@ -143,6 +144,10 @@ class TestIsTerminal:
     def test_publish_is_terminal(self):
         assert is_terminal(LIFECYCLE_PUBLISH) is True
 
+    def test_deduped_is_terminal(self):
+        """判重出口终态: 不该被任何 trigger / sweep 再推进。"""
+        assert is_terminal(LIFECYCLE_DEDUPED) is True
+
     @pytest.mark.parametrize("stage", [
         LIFECYCLE_RAW, LIFECYCLE_REFINE, LIFECYCLE_LINK, LIFECYCLE_STRUCTURE,
     ])
@@ -178,7 +183,10 @@ class TestIsValidStage:
 
 class TestGraphHelpers:
     def test_successors_of_raw(self):
-        assert successors(LIFECYCLE_RAW) == frozenset({LIFECYCLE_REFINE})
+        # refine 是正常推进; deduped 是 T1 判重出口的副作用终态 (v0.6.3 kl:deduped)
+        assert successors(LIFECYCLE_RAW) == frozenset({
+            LIFECYCLE_REFINE, LIFECYCLE_DEDUPED,
+        })
 
     def test_successors_of_publish(self):
         # publish can only go to refine (T5 rollback)

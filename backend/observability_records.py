@@ -152,14 +152,36 @@ def record_audit(actor: str, action: str, *, target: str | None = None,
     try:
         if not trace_id:
             trace_id = get_trace_id()
-        get_connection().execute(
-            "INSERT INTO audit_log "
-            "(actor, action, target, detail, trace_id, occurred_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (actor, action, target,
-             json.dumps(detail, ensure_ascii=False, default=str) if detail else None,
-             trace_id, _now_iso()),
-        )
+        conn = get_connection()
+        # 写 audit_log 必须独立完成, 不污染调用方事务。
+        # 若连接在 autocommit (isolation_level=None), 直接 INSERT 即可;
+        # 若调用方已 BEGIN, 用 SAVEPOINT 隔离: 失败 ROLLBACK TO 仅回滚本审计行。
+        iso = getattr(conn, "isolation_level", None)
+        sp_name = "sp_audit_" + action.replace(".", "_")[:40]
+        in_tx = iso is not None  # isolation_level=None 表示 autocommit
+        if in_tx:
+            try:
+                conn.execute(f"SAVEPOINT {sp_name}")
+            except Exception:
+                in_tx = False
+        try:
+            conn.execute(
+                "INSERT INTO audit_log "
+                "(actor, action, target, detail, trace_id, occurred_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (actor, action, target,
+                 json.dumps(detail, ensure_ascii=False, default=str) if detail else None,
+                 trace_id, _now_iso()),
+            )
+            if in_tx:
+                conn.execute(f"RELEASE SAVEPOINT {sp_name}")
+        except Exception:
+            if in_tx:
+                try:
+                    conn.execute(f"ROLLBACK TO SAVEPOINT {sp_name}")
+                except Exception:
+                    pass
+            raise
     except Exception as e:
         log.debug(f"record_audit failed: {e}")
 

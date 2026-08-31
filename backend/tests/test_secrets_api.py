@@ -17,53 +17,12 @@ import pytest
 
 
 @pytest.fixture()
-def client(tmp_path, monkeypatch) -> Iterator:
-    """独立临时 DB 跑 FastAPI TestClient。
+def client(temp_db, monkeypatch) -> Iterator:
+    """独立临时 DB 跑 FastAPI TestClient (复用 conftest.temp_db 标准 fixture)。
 
-    设置 ``DB_PATH`` 环境变量让 ``backend.repository.db`` 指向新库,
-    然后 install_skills + secrets router。"""
-    import sqlite3
-    db_file = tmp_path / "test_secrets.db"
-    monkeypatch.setenv("HOTSPOT_TEST_DB", str(db_file))
-
-    # 直接用 sqlite3 初始化 schema (012 + 013 + 014)
-    conn = sqlite3.connect(str(db_file))
-    schema_dir = "backend/repository/migrations"
-    for sql_file in (
-        "012_skills.sql",
-        "013_secrets.sql",
-        "014_sync.sql",
-        "074_v0.6_llm_secrets_provider.sql",
-    ):
-        with open(f"{schema_dir}/{sql_file}", encoding="utf-8") as f:
-            conn.executescript(f.read())
-    conn.commit()
-    conn.close()
-
-    # Patch backend.repository.db.get_connection 走我们的 db (单例, 避免 SQLite 锁竞争)
-
-    from backend import repository as repo_pkg
-    from backend.repository import db as db_mod
-
-    shared_conn = sqlite3.connect(str(db_file), check_same_thread=False, timeout=30.0)
-    shared_conn.row_factory = sqlite3.Row
-    shared_conn.execute("PRAGMA journal_mode=WAL")
-    shared_conn.execute("PRAGMA foreign_keys=ON")
-    shared_conn.execute("PRAGMA busy_timeout=30000")
-
-    def _get_conn():
-        return shared_conn
-
-    monkeypatch.setattr(db_mod, "get_connection", _get_conn)
-    # 其他子模块可能也 import 了 get_connection
-    for name in list(repo_pkg.__dict__.keys()):
-        m = getattr(repo_pkg, name)
-        if hasattr(m, "get_connection"):
-            try:
-                monkeypatch.setattr(m, "get_connection", _get_conn)
-            except (AttributeError, TypeError):
-                pass
-
+    temp_db 已 close_db + 重设 config.db_path + init_db 全 schema,
+    我们只需在此基础上 include secrets router。
+    """
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
@@ -73,10 +32,14 @@ def client(tmp_path, monkeypatch) -> Iterator:
     app.include_router(router)
     yield TestClient(app)
 
-    # 清理 _unlock_state
+    # 清理 _unlock_state + close_db 线程局部缓存 (避免下个文件复用 closed conn)
     from backend.services import secrets_service
     secrets_service._unlock_state.clear()
-    shared_conn.close()
+    try:
+        from backend.repository import db as _db
+        _db.close_db()
+    except Exception:
+        pass
 
 
 MASTER_KEY = "test-master-key-strong-1234"
@@ -368,3 +331,195 @@ def test_reset_when_empty(client):
     data = r.json()
     assert data["counts"]["llm_secrets_cleared"] == 0
     assert data["counts"]["encryption_key_cleared"] == 0
+
+
+# ===================================================================
+# v0.7.x Batch ⑥: CRUD 全 audit + /rotate + legacy 清退
+# ===================================================================
+
+def _clear_audit():
+    from backend.repository.db import get_connection
+    get_connection().execute("DELETE FROM audit_log")
+    get_connection().commit()
+
+
+def _audit_logs(action: str) -> list[dict]:
+    """读 audit_log 表, 返该 action 的全部行。"""
+    from backend.repository.db import get_connection
+    rows = get_connection().execute(
+        "SELECT actor, action, target, detail FROM audit_log "
+        "WHERE action = ? ORDER BY id DESC",
+        (action,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def _latest_audit(action: str) -> dict | None:
+    rows = _audit_logs(action)
+    return rows[0] if rows else None
+
+
+def test_create_writes_audit_log(client):
+    """llm_secrets.create 写 audit_log, detail 含 secret_id/provider/name。"""
+    client.post("/api/secrets/setup", json={"master_key": MASTER_KEY})
+    _clear_audit()
+    client.post("/api/secrets", json={
+        "name": "DS-1", "model": "deepseek-chat",
+        "base_url": "https://api.deepseek.com/v1",
+        "api_key": "sk-1234", "master_key": MASTER_KEY,
+        "provider": "sensenova",
+    })
+    rows = _audit_logs("llm_secrets.create")
+    assert len(rows) == 1
+    assert rows[0]["actor"] == "web"
+    assert rows[0]["target"].startswith("secret:")
+    import json as _j
+    detail = _j.loads(rows[0]["detail"])
+    assert detail["provider"] == "sensenova"
+    assert detail["name"] == "DS-1"
+    assert "secret_id" in detail
+
+
+def test_update_writes_audit_log(client):
+    """llm_secrets.update 写 audit_log, detail 含 fields_changed。"""
+    client.post("/api/secrets/setup", json={"master_key": MASTER_KEY})
+    r = client.post("/api/secrets", json={
+        "name": "x", "model": "m", "base_url": "https://x.com",
+        "api_key": "sk-1", "master_key": MASTER_KEY,
+    })
+    print("CREATE STATUS:", r.status_code, r.text[:500])
+    sid = r.json()["item"]["id"]
+
+
+def test_delete_writes_audit_log(client):
+    """llm_secrets.delete 写 audit_log。"""
+    client.post("/api/secrets/setup", json={"master_key": MASTER_KEY})
+    sid = client.post("/api/secrets", json={
+        "name": "x", "model": "m", "base_url": "https://x.com",
+        "api_key": "sk-1", "master_key": MASTER_KEY,
+    }).json()["item"]["id"]
+    _clear_audit()
+    client.delete(f"/api/secrets/{sid}")
+    rows = _audit_logs("llm_secrets.delete")
+    assert len(rows) == 1
+    assert rows[0]["target"] == f"secret:{sid}"
+
+
+def test_reveal_writes_audit_log(client):
+    """llm_secrets.reveal 强审计 — 每次显明文必写。"""
+    client.post("/api/secrets/setup", json={"master_key": MASTER_KEY})
+    sid = client.post("/api/secrets", json={
+        "name": "x", "model": "m", "base_url": "https://x.com",
+        "api_key": "sk-1234", "master_key": MASTER_KEY,
+        "provider": "sensenova",
+    }).json()["item"]["id"]
+    _clear_audit()
+    client.post(f"/api/secrets/{sid}/reveal", json={"master_key": MASTER_KEY})
+    rows = _audit_logs("llm_secrets.reveal")
+    assert len(rows) == 1
+    # detail 永不含 api_key 明文
+    assert "api_key" not in rows[0]["detail"]
+    assert rows[0]["target"] == f"secret:{sid}"
+
+
+def test_test_connection_writes_audit_log(client):
+    """llm_secrets.test 写 audit_log, detail 含 ok/latency_ms。"""
+    client.post("/api/secrets/setup", json={"master_key": MASTER_KEY})
+    sid = client.post("/api/secrets", json={
+        "name": "x", "model": "m", "base_url": "https://nonexistent.invalid",
+        "api_key": "sk-1234", "master_key": MASTER_KEY,
+    }).json()["item"]["id"]
+    client.post("/api/secrets/unlock", json={"master_key": MASTER_KEY})
+    _clear_audit()
+    client.post(f"/api/secrets/{sid}/test")
+    rows = _audit_logs("llm_secrets.test")
+    assert len(rows) == 1
+    import json as _j
+    detail = _j.loads(rows[0]["detail"])
+    assert "ok" in detail
+    assert "latency_ms" in detail
+
+
+def test_unlock_writes_audit_log(client):
+    """llm_secrets.unlock 写 audit_log。"""
+    client.post("/api/secrets/setup", json={"master_key": MASTER_KEY})
+    _clear_audit()
+    client.post("/api/secrets/unlock", json={"master_key": MASTER_KEY})
+    rows = _audit_logs("llm_secrets.unlock")
+    assert len(rows) == 1
+    assert rows[0]["actor"] == "web"
+
+
+def test_lock_writes_audit_log(client):
+    """llm_secrets.lock 写 audit_log。"""
+    client.post("/api/secrets/setup", json={"master_key": MASTER_KEY})
+    _clear_audit()
+    client.post("/api/secrets/lock")
+    rows = _audit_logs("llm_secrets.lock")
+    assert len(rows) == 1
+
+
+def test_rotate_master_key_success(client):
+    """POST /api/secrets/rotate 成功 → 重加密 + audit_log。"""
+    client.post("/api/secrets/setup", json={"master_key": MASTER_KEY})
+    client.post("/api/secrets", json={
+        "name": "x", "model": "m", "base_url": "https://x.com",
+        "api_key": "sk-plaintext-1234", "master_key": MASTER_KEY,
+    })
+    _clear_audit()
+    r = client.post("/api/secrets/rotate", json={
+        "old_key": MASTER_KEY, "new_key": "new-master-key-strong-1234",
+    })
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "ok"
+    assert data["reencrypted_secrets"] == 1
+    rows = _audit_logs("llm_secrets.rotate")
+    assert len(rows) == 1
+    import json as _j
+    detail = _j.loads(rows[0]["detail"])
+    assert detail["reencrypted_secrets"] == 1
+
+
+def test_rotate_wrong_old_key_401(client):
+    """rotate 旧密钥错 → 401。"""
+    client.post("/api/secrets/setup", json={"master_key": MASTER_KEY})
+    r = client.post("/api/secrets/rotate", json={
+        "old_key": "wrong-old-key-1234",
+        "new_key": "new-master-key-strong-1234",
+    })
+    assert r.status_code == 401
+
+
+def test_rotate_weak_new_key_400(client):
+    """rotate 新密钥太弱 (<12) → Pydantic 422 (min_length=12 触发)。"""
+    client.post("/api/secrets/setup", json={"master_key": MASTER_KEY})
+    r = client.post("/api/secrets/rotate", json={
+        "old_key": MASTER_KEY, "new_key": "short",
+    })
+    assert r.status_code == 422
+
+
+def test_rotate_reencrypts_all_secrets(client):
+    """rotate 重新加密后, 新 master_key 可解锁且 reveal 明文正确。"""
+    client.post("/api/secrets/setup", json={"master_key": MASTER_KEY})
+    sid = client.post("/api/secrets", json={
+        "name": "x", "model": "m", "base_url": "https://x.com",
+        "api_key": "sk-old-plain-1234", "master_key": MASTER_KEY,
+    }).json()["item"]["id"]
+    r = client.post("/api/secrets/rotate", json={
+        "old_key": MASTER_KEY, "new_key": "new-master-key-strong-1234",
+    })
+    assert r.status_code == 200
+    # 旧 master_key 应失败 (新 verify_blob)
+    bad = client.post("/api/secrets/unlock", json={"master_key": MASTER_KEY})
+    assert bad.status_code == 401
+    # 新 master_key 解锁 + reveal 明文
+    ok = client.post("/api/secrets/unlock", json={
+        "master_key": "new-master-key-strong-1234",
+    })
+    assert ok.status_code == 200
+    rev = client.post(f"/api/secrets/{sid}/reveal",
+                      json={"master_key": "new-master-key-strong-1234"})
+    assert rev.status_code == 200
+    assert rev.json()["api_key"] == "sk-old-plain-1234"

@@ -25,19 +25,27 @@ interface ObsSummary {
   p95_latency_ms: number;
 }
 
+// v0.7 Batch ④: 活跃告警 (status_bar 通道)
+interface ActiveAlertsMini {
+  critical_count: number;
+  warn_count: number;
+}
+
 export function StatusBar() {
   const [dsh, setDsh] = useState<DshHealth | null>(null);
   const [pipeline, setPipeline] = useState<PipelineStats | null>(null);
   const [obs, setObs] = useState<ObsSummary | null>(null);
+  const [alerts, setAlerts] = useState<ActiveAlertsMini | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
       try {
-        const [dRes, pRes, oRes] = await Promise.all([
+        const [dRes, pRes, oRes, aRes] = await Promise.all([
           fetch('/api/dsh/health'),
           fetch('/api/kl/pipeline/stats'),
           fetch('/api/observability/summary'),
+          fetch('/api/observability/alerts/active'),
         ]);
         if (cancelled) return;
         if (dRes.ok) setDsh(await dRes.json());
@@ -49,6 +57,10 @@ export function StatusBar() {
           });
         }
         if (oRes.ok) setObs(await oRes.json());
+        if (aRes.ok) {
+          const a = await aRes.json();
+          setAlerts({ critical_count: a.critical_count ?? 0, warn_count: a.warn_count ?? 0 });
+        }
       } catch { /* 状态栏轮询失败保持上次值, 指示灯显示 unknown */ }
     };
     refresh();
@@ -139,6 +151,26 @@ export function StatusBar() {
           {obs?.p95_latency_ms ?? '–'}ms p95
         </span>
       </div>
+
+      {/* v0.7 Batch ④: 告警角标 — critical 红 / warn 黄, 0 时不显示 */}
+      {(alerts?.critical_count ?? 0) > 0 && (
+        <span
+          className="px-1.5 py-0.5 rounded text-[10px] font-mono"
+          style={{ backgroundColor: 'var(--color-error)', color: '#fff' }}
+          data-testid="statusbar-alert-critical"
+        >
+          🚨 {alerts?.critical_count} critical
+        </span>
+      )}
+      {(alerts?.warn_count ?? 0) > 0 && (
+        <span
+          className="px-1.5 py-0.5 rounded text-[10px] font-mono"
+          style={{ backgroundColor: 'var(--color-warning)', color: '#1f2937' }}
+          data-testid="statusbar-alert-warn"
+        >
+          ⚠ {alerts?.warn_count} warn
+        </span>
+      )}
     </div>
   );
 }

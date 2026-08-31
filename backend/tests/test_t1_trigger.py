@@ -34,6 +34,7 @@ from backend.repository import db as db_module
 from backend.repository.db import get_connection
 from backend.services.kl_state_machine import (
     LEGACY_RAW_LIKE,
+    LIFECYCLE_DEDUPED,
     LIFECYCLE_RAW,
     LIFECYCLE_REFINE,
 )
@@ -224,7 +225,13 @@ def test_duplicate_by_url_is_skipped(temp_db, fresh_metrics):
     row = conn.execute(
         "SELECT lifecycle FROM knowledge_items WHERE id = ?", ("new-1",)
     ).fetchone()
-    assert row["lifecycle"] == LIFECYCLE_RAW  # unchanged
+    # 修复后必须落终态。原断言是 `== LIFECYCLE_RAW (unchanged)` —— 那正是
+    # "判重无出口"缺陷的契约化: 留在 kl:raw 会被下一轮重新取到、重新判重,
+    # 实测 1684/1684 行恒为 candidates=2 advanced=0 skipped_duplicate=2。
+    assert row["lifecycle"] == LIFECYCLE_DEDUPED
+
+    # 收敛: 第二轮不该再看到它
+    assert t1.run_once()["candidates"] == 0
 
 
 # ---------------------------------------------------------------------------

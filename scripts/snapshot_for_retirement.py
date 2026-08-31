@@ -72,12 +72,13 @@ data/retirement_baseline.json (gitignored, 运行时生成)
 - hotspot v0.5.x (本文档写作时): hotspots 3391 / favorites 4 / todos 6 /
   sm2_reviews 3 / annotations 2 / hotspot_tags 5356 / knowledge_concepts 98 /
   knowledge_graph 42 (8 表 8902 行) + wiki items 4149 / concepts 96
-  (4245 wiki 文件)
+  (items>=4149 / concepts>=96，v0.6.3 起以 llm-wiki-2.0 为根，活跃根随采集增长)
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 import sys
 from datetime import datetime, timezone
@@ -87,7 +88,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DB = REPO_ROOT / "backend" / "hotspot.db"
 DEFAULT_OUT = REPO_ROOT / "data" / "retirement_baseline.json"
-DEFAULT_WIKI = REPO_ROOT / "knowledge"
+# v0.6.3 P4 双根合并: 旧 knowledge/ 根已删, 唯一真相源 = llm-wiki-2.0
+# (优先级与 backend/wiki_fs/root.py::resolve_wiki_root 一致: env 覆盖 > 新根)
+DEFAULT_WIKI = Path(os.environ.get("HOTSPOT_WIKI_ROOT") or REPO_ROOT / "llm-wiki-2.0")
 
 # 与 scripts/export_for_dsh.py 锁定的 8 张核心表保持一致
 CORE_TABLES = [

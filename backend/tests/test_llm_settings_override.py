@@ -5,6 +5,11 @@
 - settings.kv 异常 / 类型异常 全吞, 不影响主链
 - 端到端: 切换 settings.kv 后 ``_record`` 写入的 ``config_source`` 反映新路径
 - ``_config_source`` 与 ``_resolve_provider`` 走同一链, 一致性
+
+每个用例都请求 ``temp_db`` fixture: 它把连接重定向到迁移过 (含 ``settings`` /
+``llm_usage_log`` 表) 的隔离临时库, 使本文件不依赖仓库里预先迁移过的
+``backend/hotspot.db``——否则在全新 checkout / CI runner 上会以
+``no such table: settings`` 失败。
 """
 from __future__ import annotations
 
@@ -12,14 +17,7 @@ import sqlite3
 from unittest.mock import patch
 
 
-def _ensure_settings_table(db_path):
-    """测试隔离: 确保 settings 表存在 (走 settings_repo 实际路径)。"""
-    from backend.repository.settings_repo import SettingsRepository
-    SettingsRepository.set = SettingsRepository.set.__get__(SettingsRepository())
-    SettingsRepository().set("__probe__.init", None)
-
-
-def test_env_wins_over_settings_kv(monkeypatch):
+def test_env_wins_over_settings_kv(monkeypatch, temp_db):
     """env 设 + settings.kv 设 → env 赢 (env 是运维最高优先级)。
 
     与 Batch 1 ``test_s4_1_model_router::test_ai_service_resolve_provider_three_levels``
@@ -40,7 +38,7 @@ def test_env_wins_over_settings_kv(monkeypatch):
     SettingsRepository().delete("llm.default_provider")
 
 
-def test_settings_kv_wins_when_env_unset(monkeypatch):
+def test_settings_kv_wins_when_env_unset(monkeypatch, temp_db):
     """env 未设 + settings.kv 设 → settings.kv 赢 (Batch 2 核心承诺)。"""
     import os
 
@@ -56,7 +54,7 @@ def test_settings_kv_wins_when_env_unset(monkeypatch):
     SettingsRepository().delete("llm.default_provider")
 
 
-def test_router_wins_when_env_and_settings_unset():
+def test_router_wins_when_env_and_settings_unset(temp_db):
     """env 未设 + settings.kv 未设 + router 推荐 → router 赢 (既有三级链)。"""
     import os
 
@@ -73,7 +71,7 @@ def test_router_wins_when_env_and_settings_unset():
     assert AIService._config_source() in ("router", "default")
 
 
-def test_default_fallback_when_router_raises():
+def test_default_fallback_when_router_raises(temp_db):
     """env/settings.kv/router 全失败 → 兜底 cfg.default_provider (sensenova)。"""
     import os
 
@@ -91,7 +89,7 @@ def test_default_fallback_when_router_raises():
         assert AIService._config_source() == "default"
 
 
-def test_settings_kv_non_string_value_is_skipped():
+def test_settings_kv_non_string_value_is_skipped(temp_db):
     """settings.kv 设为非字符串 (int / list / dict) → 跳过, 退回 router/default。"""
     import os
 
@@ -110,7 +108,7 @@ def test_settings_kv_non_string_value_is_skipped():
     SettingsRepository().delete("llm.default_provider")
 
 
-def test_settings_kv_empty_string_is_skipped():
+def test_settings_kv_empty_string_is_skipped(temp_db):
     """settings.kv 设为空字符串 / 全空格 → 跳过 (避免空串被当成合法 provider 名)。"""
     import os
 
@@ -126,7 +124,7 @@ def test_settings_kv_empty_string_is_skipped():
     SettingsRepository().delete("llm.default_provider")
 
 
-def test_settings_repo_failure_does_not_break_chain():
+def test_settings_repo_failure_does_not_break_chain(temp_db):
     """settings_repo.get 抛 sqlite 错 → 吞, 不影响主链, 退回 router/default。"""
     import os
 
@@ -144,7 +142,7 @@ def test_settings_repo_failure_does_not_break_chain():
         assert isinstance(result, str) and result
 
 
-def test_record_carries_config_source_end_to_end(monkeypatch):
+def test_record_carries_config_source_end_to_end(monkeypatch, temp_db):
     """_record 写入 llm_usage_log 时 config_source 字段反映 settings.kv 路径。
 
     端到端契约: 当前端切换到 ollama 时, 调用 evaluate() 落库的 config_source

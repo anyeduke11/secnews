@@ -131,6 +131,10 @@ export const SecNewsSettings = React.lazy(() =>
 export const SecNewsAnalytics = React.lazy(() =>
   import('../components/secnews/analytics/SecNewsAnalytics').then(m => ({ default: m.SecNewsAnalytics }))
 );
+// v0.7 Batch ③: API 观测面板 — middleware 落表数据可视化
+export const SecNewsObservability = React.lazy(() =>
+  import('../components/secnews/observability/ObservabilityTab').then(m => ({ default: m.ObservabilityTab }))
+);
 
 // CRM 业绩座舱 (v0.6 security-cockpit 方案 C)
 export const CrmPage = React.lazy(() =>

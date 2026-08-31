@@ -113,6 +113,7 @@ export function AppRoutes() {
           <Route path="knowledge" element={<Suspense fallback={<PageFallback />}><P.SecNewsKnowledge /></Suspense>} />
           <Route path="analyze" element={<Suspense fallback={<PageFallback />}><P.SecNewsAnalyze /></Suspense>} />
           <Route path="analytics" element={<Suspense fallback={<PageFallback />}><P.SecNewsAnalytics /></Suspense>} />
+          <Route path="observability" element={<Suspense fallback={<PageFallback />}><P.SecNewsObservability /></Suspense>} />
           <Route path="settings" element={<Suspense fallback={<PageFallback />}><P.SecNewsSettings /></Suspense>} />
         </Route>
 

@@ -14,21 +14,30 @@ interface DshHealth {
 }
 
 interface PipelineStats {
-  queue?: { pending?: number; running?: number; error?: number };
+  queue?: { pending?: number; running?: number; error: number };
   ledger?: Array<{ model: string; calls: number; total_tokens: number }>;
+}
+
+// v0.7 Batch ③: 观测面板 1h 摘要, 状态栏追加节
+interface ObsSummary {
+  total: number;
+  error_rate_pct: number;
+  p95_latency_ms: number;
 }
 
 export function StatusBar() {
   const [dsh, setDsh] = useState<DshHealth | null>(null);
   const [pipeline, setPipeline] = useState<PipelineStats | null>(null);
+  const [obs, setObs] = useState<ObsSummary | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
       try {
-        const [dRes, pRes] = await Promise.all([
+        const [dRes, pRes, oRes] = await Promise.all([
           fetch('/api/dsh/health'),
           fetch('/api/kl/pipeline/stats'),
+          fetch('/api/observability/summary'),
         ]);
         if (cancelled) return;
         if (dRes.ok) setDsh(await dRes.json());
@@ -39,6 +48,7 @@ export function StatusBar() {
             ledger: data.ledger,
           });
         }
+        if (oRes.ok) setObs(await oRes.json());
       } catch { /* 状态栏轮询失败保持上次值, 指示灯显示 unknown */ }
     };
     refresh();
@@ -60,6 +70,13 @@ export function StatusBar() {
   const totalTokens = (pipeline?.ledger ?? []).reduce(
     (sum, row) => sum + (row.total_tokens ?? 0), 0,
   );
+
+  // v0.7 Batch ③: obs 节染色 — 错误率 ≥ 5% 黄, ≥ 15% 红 (与 Dashboard 一致)
+  const obsErrorRate = obs?.error_rate_pct ?? 0;
+  const obsErrorColor =
+    obsErrorRate >= 15 ? 'var(--color-error)' :
+    obsErrorRate >= 5 ? 'var(--color-warning)' :
+    'var(--text-secondary)';
 
   return (
     <div
@@ -102,6 +119,24 @@ export function StatusBar() {
         <span style={{ color: 'var(--text-secondary)' }}>token 日用量:</span>
         <span style={{ color: 'var(--text-primary)' }}>
           {totalTokens.toLocaleString()}
+        </span>
+      </div>
+
+      <span style={{ color: 'var(--text-muted)' }}>·</span>
+
+      {/* v0.7 Batch ③: obs 1h 摘要 */}
+      <div className="flex items-center gap-1.5" data-testid="statusbar-obs">
+        <span style={{ color: 'var(--text-secondary)' }}>obs 1h:</span>
+        <span style={{ color: 'var(--text-primary)' }}>
+          {obs?.total ?? '–'} req
+        </span>
+        <span style={{ color: 'var(--text-muted)' }}>·</span>
+        <span style={{ color: obsErrorColor }}>
+          {obs ? `${obsErrorRate.toFixed(1)}% err` : '–'}
+        </span>
+        <span style={{ color: 'var(--text-muted)' }}>·</span>
+        <span style={{ color: 'var(--text-primary)' }}>
+          {obs?.p95_latency_ms ?? '–'}ms p95
         </span>
       </div>
     </div>

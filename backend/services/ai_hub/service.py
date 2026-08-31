@@ -88,15 +88,30 @@ class AIService:
 
     @staticmethod
     def _resolve_provider() -> str:
-        """S4-1 决议: 三级优先级 — AI_PROVIDER env > router 推荐 > default_provider。
+        """v0.7 Batch 2: 四级优先级 — env > settings.kv > router > default。
 
-        兼容旧行为: cfg.default_provider 为空 / 未配置时仍兜底到 sensenova。
-        router 推荐失败 (LLM 未启用 / import 异常) 时也直接回退到 default_provider。
+        三级链 (env/router/default) 是 ``test_s4_1_model_router`` 既有断言的
+        硬约束。Batch 2 把 settings.kv 插在 env 之后、router 之前 — 当前端
+        切换过 ``llm.default_provider`` 时覆盖 env, 当未切换时退回 env。
+        这符合 PRD §5.3 "用户切换 > 运维默认"。
+
+        不读 ``quality.llm_provider``: 那是 QualityRules 死字段 (v4.4 起
+        ai_hub 不接), 仍由 ``PUT /api/quality/rules`` 维护。
         """
         import os
         env = os.environ.get("AI_PROVIDER")
         if env:
             return env
+
+        # v0.7 Batch 2: settings.kv "llm.default_provider" 覆盖 (env 之后)
+        try:
+            from backend.repository.settings_repo import SettingsRepository
+            kv_provider = SettingsRepository().get("llm.default_provider")
+            if isinstance(kv_provider, str) and kv_provider.strip():
+                return kv_provider.strip()
+        except Exception as e:
+            log.debug(f"_resolve_provider settings.kv fallback: {e}")
+
         try:
             from backend.services.llm.model_router import route_model
             # AIService 的 evaluate/gate_detect 是标准分析档; router 推荐最稳的 provider
@@ -107,6 +122,36 @@ class AIService:
             log.debug(f"AIService._resolve_provider router fallback: {e}")
         cfg = llm_service.config
         return cfg.default_provider if cfg is not None else "sensenova"
+
+    @staticmethod
+    def _config_source() -> str:
+        """v0.7 Batch 2: 解析路径打标 (env|settings|router|default)。
+
+        与 :meth:`_resolve_provider` 走同一路径, 但返回来源而非 provider 名;
+        调用方写入 ``record_llm_call(config_source=...)``, 看板可按来源
+        聚合 (例: 用户切换过几次 / 当前生效比例)。
+
+        不抛 — 任一层失败回退到下一层, 与 ``_resolve_provider`` 等价。
+        settings.kv 的非字符串值 (typo 写入 list/dict) **不算** settings 命中,
+        因为 resolver 不会接受它, 故打标与解析保持一致。
+        """
+        import os
+        if os.environ.get("AI_PROVIDER"):
+            return "env"
+        try:
+            from backend.repository.settings_repo import SettingsRepository
+            kv_provider = SettingsRepository().get("llm.default_provider")
+            if isinstance(kv_provider, str) and kv_provider.strip():
+                return "settings"
+        except Exception:
+            pass
+        try:
+            from backend.services.llm.model_router import route_model
+            if route_model("evaluate", config=llm_service.config):
+                return "router"
+        except Exception:
+            pass
+        return "default"
 
     @staticmethod
     def _resolve_api_key() -> str:
@@ -177,6 +222,7 @@ class AIService:
             return self._cache_get(cache_key)
 
         try:
+            t0 = time.monotonic()
             if p == "ollama":
                 result = self._call_ollama_eval(title, content, timeout)
             else:
@@ -184,14 +230,27 @@ class AIService:
                     title, content, key, timeout
                 )
         except Exception as e:
-            self._usage(p, self._eval_model(p), "evaluate", 0, 0.0)
+            self._record(p, self._eval_model(p), "evaluate",
+                         ok=False, error=f"{type(e).__name__}: {e}",
+                         latency_ms=(time.monotonic() - t0) * 1000,
+                         scene="evaluate_article",
+                         config_source=self._config_source(),
+                         key_source="env")
             _logger.warning("ai evaluate failed ({}): {}: {}", p, type(e).__name__, e)
             return {"ok": False, "provider": p, "error": f"{type(e).__name__}: {str(e)[:300]}"}
 
         result["ok"] = True
         result["provider"] = result.get("provider", p)
         self._cache_set(cache_key, result)
-        self._usage(p, self._eval_model(p), "evaluate", _est_tokens(f"{title}{content}"), 0.0)
+        self._record(p, self._eval_model(p), "evaluate",
+                     ok=True,
+                     prompt=f"{title}\n{content}",
+                     response=result.get("summary", ""),
+                     total_tokens=_est_tokens(f"{title}{content}"),
+                     latency_ms=(time.monotonic() - t0) * 1000,
+                     scene="evaluate_article",
+                     config_source=self._config_source(),
+                     key_source="env")
         return result
 
     def gate_detect(
@@ -305,14 +364,58 @@ class AIService:
     def _usage(
         self, provider: str, model: str, task: str, tokens: int, cost: float,
     ) -> None:
-        """签名必须与 :189/:196 两个调用点一致 (provider, model, task, tokens, cost)。
+        """[deprecated v0.7 Batch 1] 旧接口, 保留签名兼容旧测试桩 (lambda *a)。
 
-        此前定义只有 4 个参数, 于是 provider 抛错时 except 分支里的这次调用会
-        再抛 TypeError 并逃出 handler, 使文档承诺的 "失败返回 ok=False + error"
-        永不成立, 成功路径的用量也从未落表。测试用 lambda *a 桩把它盖住了。
+        推荐改用 :meth:`_record` (新统一入口)。本方法内部直接转发到
+        record_llm_call 保证旧链路不破。
         """
-        from .usage import log_ai_usage
-        log_ai_usage(provider, model, task, tokens, cost)
+        from .usage import record_llm_call
+        record_llm_call(
+            provider=provider, model=model, task=task,
+            total_tokens=int(tokens), cost_usd=float(cost),
+            ok=True, scene="legacy_ai_usage",
+        )
+
+    def _record(
+        self,
+        provider: str,
+        model: str,
+        task: str,
+        *,
+        ok: bool,
+        error: str | None = None,
+        prompt: str | None = None,
+        response: str | None = None,
+        total_tokens: int | None = None,
+        cost_usd: float | None = None,
+        latency_ms: float = 0.0,
+        scene: str | None = None,
+        config_source: str | None = None,
+        key_source: str | None = None,
+    ) -> None:
+        """v0.7 Batch 1: AIService 内部 record_llm_call 薄包装 (避免每个调用
+        点重复 import)。参数语义与 usage.record_llm_call 一致 (见该处文档)。
+        """
+        from .usage import record_llm_call
+        record_llm_call(
+            provider=provider, model=model, task=task,
+            ok=ok, error=error, prompt=prompt, response=response,
+            total_tokens=total_tokens, cost_usd=cost_usd,
+            latency_ms=latency_ms, scene=scene,
+            config_source=config_source, key_source=key_source,
+        )
+
+    def _default_provider(self) -> str:
+        """当前解析后的 default provider 名 (用于 config_source 判定)。
+
+        返回值供 :meth:`_record` 调用方作为 "default" 源判定基准。
+        AIService 不持 LLMConfig, 借 gateway.llm_service.config 间接读。
+        """
+        try:
+            cfg = llm_service.config
+            return cfg.default_provider if cfg else "sensenova"
+        except Exception:
+            return "sensenova"
 
 
 # 全局单例

@@ -61,25 +61,24 @@ class CostMonitor:
         cost_usd: float,
         latency_ms: int,
     ) -> None:
-        """记录一次 LLM 调用用量."""
+        """记录一次 LLM 调用用量.
+
+        v0.7 Observability Batch 1 (PRD §5.2): 改为转发到 ai_hub.record_llm_call
+        统一入口, 避免与 gateway / service 双 INSERT 漂移。cost_monitor 自身
+        不再直接写 llm_usage_log; check_limits / get_daily_cost 等聚合查询
+        仍走 llm_usage_log (read-only), 行为不变。
+        """
         try:
-            conn = get_connection()
-            conn.execute(
-                "INSERT INTO llm_usage_log "
-                "(provider, model, task, tokens, cost_usd, latency_ms, occurred_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (
-                    provider,
-                    model,
-                    task,
-                    tokens,
-                    cost_usd,
-                    latency_ms,
-                    datetime.now(timezone.utc).isoformat(),
-                ),
+            from backend.services.ai_hub.usage import record_llm_call
+            record_llm_call(
+                provider=provider, model=model, task=task,
+                total_tokens=int(tokens), cost_usd=float(cost_usd),
+                latency_ms=float(latency_ms),
+                ok=True,
+                scene="cost_monitor_legacy",
             )
         except Exception as e:
-            logger.warning("Failed to record LLM usage: %s", e)
+            logger.warning("Failed to record LLM usage via record_llm_call: %s", e)
 
     def check_limits(self) -> bool:
         """检查日/月 USD 限额.

@@ -16,7 +16,13 @@ router = APIRouter(prefix="/api/llm", tags=["llm"])
 
 @router.get("/status")
 def get_llm_status():
-    """返回当前 LLM 配置状态和降级模式 + 调用观测面 (v0.6.3 P3-3)."""
+    """返回当前 LLM 配置状态和降级模式 + 调用观测面 (v0.6.3 P3-3).
+
+    v0.7 Batch 2 增量: ``effective_provider`` (实际生效的 provider, 经
+    env > settings.kv > router > default 四级链解析) 与 ``config_source``
+    (解析路径打标: env|settings|router|default)。前端可用这俩字段确认
+    "我现在到底用哪个 / 是哪条链生效的"。
+    """
     import logging
     logger = logging.getLogger("hotspot.api.llm_status")
 
@@ -36,6 +42,11 @@ def get_llm_status():
         status["providers"] = provider_status
     else:
         status["providers"] = {}
+
+    # v0.7 Batch 2: 解析路径打标 (与 _resolve_provider 走同一链)
+    from backend.services.ai_hub.service import AIService
+    status["effective_provider"] = AIService._resolve_provider()
+    status["config_source"] = AIService._config_source()
 
     # v0.6.3 P3-3 观测面: 此前 "AI 是否真在工作" 不可判读
     # (llm_usage_log 只记成功, 失败只进 logger)。诚实口径: 错误环随进程

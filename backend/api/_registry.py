@@ -176,6 +176,9 @@ def register_all(app: FastAPI) -> None:
     # Phase 16: Hybrid AI — LLM 状态 API
     from backend.api import llm_status
     app.include_router(llm_status.router, tags=["llm"])
+    # v0.7 Batch ③: 观测面 query API (无条件注册, 是基础设施)
+    from backend.api import observability_router
+    app.include_router(observability_router.router, tags=["observability"])
     # Phase 4: 标书提醒与竞品分析
     app.include_router(bid_alert.router, tags=["bid-alert"])
     # SecNews 整合 Phase 0: KL 管线 + 安全看板 (按 feature_gates 注册)

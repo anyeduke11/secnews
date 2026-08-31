@@ -5,23 +5,29 @@
     setup()  # 在应用启动最早处调用一次
     from loguru import logger
     logger.info("hello", extra={"trace_id": "abc"})
+
+v0.7 Observability Batch 1 (docs/Observability_PRD_v1.0.md §6.1):
+    历史 (logging_config.py:19-25) 的手写 JSON 模板只挑 5 个固定字段,
+    log_event 传入的 method/path/status/duration_ms 全部不进文件。
+    修法: 切到 loguru 内置 ``serialize=True``, 走 loguru 自己的 JSON
+    序列化器, 全部 record["extra"] 字段都会落到 "record.extra" 子对象
+    下; 与历史顶层 5 字段契约相比, 多了一层 "record" / "text" 包装。
+    读取方式: ``jq '.record.extra.method'`` / ``jq '.record.extra.status'``。
+    patcher 仍注入 trace_id/event 默认空串, 方便下游查询。
 """
 import sys
 from pathlib import Path
 
 from loguru import logger as _default_logger
 
-# JSON Lines 格式模板：ts / level / module / msg / trace_id
-# 注意：loguru 会先把模板里的 {xxx} 占位符替换成实际值，
-# 然后再对结果调用 .format_map(record) 二次格式化。
-# 因此 JSON 字面量中的 { 和 } 必须转义为 {{ 和 }}，否则会被当成
-# 占位符去 record 里查找 "ts" 之类的 key，导致 KeyError。
+# 顶层 JSON 模板 (保留作为配置参考 / 旧契约回退)
 _JSON_LINE_FORMAT = (
     '{{"ts": "{time:YYYY-MM-DDTHH:mm:ss.SSS!UTC}Z", '
     '"level": "{level.name}", '
     '"module": "{name}", '
     '"msg": "{message}", '
-    '"trace_id": "{extra[trace_id]}"}}\n'
+    '"trace_id": "{extra[trace_id]}", '
+    '"event": "{extra[event]}"}}\n'
 )
 _PLAIN_FORMAT = (
     "{time:YYYY-MM-DD HH:mm:ss} | {level} | {name} | {message}\n"
@@ -29,10 +35,16 @@ _PLAIN_FORMAT = (
 
 
 def _ensure_trace_id_default(record) -> None:
-    """patcher：保证 record['extra']['trace_id'] 一定存在。"""
+    """patcher：保证 record['extra']['trace_id'/'event'] 一定存在（默认空串）。
+
+    v0.7 Batch 1: event 也注入默认空串, 让模板渲染不抛 KeyError,
+    与 trace_id 行为一致。
+    """
     extra = record.get("extra", {})
     if "trace_id" not in extra:
         extra["trace_id"] = ""
+    if "event" not in extra:
+        extra["event"] = ""
 
 
 def setup(
@@ -77,16 +89,29 @@ def setup(
     _default_logger.configure(patcher=_ensure_trace_id_default)
 
     # 文件 handler（带轮转）
-    file_format = _JSON_LINE_FORMAT if serialize else _PLAIN_FORMAT
-    _default_logger.add(
-        str(log_path),
-        level=level,
-        rotation=max_bytes,
-        retention=backup_count,
-        encoding="utf-8",
-        enqueue=True,
-        format=file_format,
-    )
+    if serialize:
+        # v0.7 Batch 1 (PRD §6.1): 切到 loguru 内置 serialize=True,
+        # 全部 record["extra"] 进 "record.extra" 子对象。
+        # 读法: jq '.record.extra.method' / '.record.extra.status'。
+        _default_logger.add(
+            str(log_path),
+            level=level,
+            rotation=max_bytes,
+            retention=backup_count,
+            encoding="utf-8",
+            enqueue=True,
+            serialize=True,
+        )
+    else:
+        _default_logger.add(
+            str(log_path),
+            level=level,
+            rotation=max_bytes,
+            retention=backup_count,
+            encoding="utf-8",
+            enqueue=True,
+            format=_PLAIN_FORMAT,
+        )
 
     # stderr handler（开发用，固定为可读格式）
     if also_stderr:

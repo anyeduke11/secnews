@@ -3,10 +3,11 @@
 patch("backend.scheduler.jobs.<fn>") 测试契约。
 """
 import asyncio
+import json
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import backend.scheduler.jobs as _jobs_pkg
@@ -414,14 +415,14 @@ async def scheduled_stats_job() -> None:
 
 @instrument_job("observability_ttl")
 async def observability_ttl_job() -> None:
-    """v0.7 Batch 1+③: 观测表 TTL 清理 — 按迁移 080/081 的 retention 注释执行。
+    """v0.7 Batch 1+③+④: 观测表 TTL 清理 — 按迁移 080/081/082 的 retention 注释执行。
 
     job_runs 30d / agent_runs 30d / process_events 14d / audit_log 90d /
-    api_events 7d (Batch ③ 新增)。
+    api_events 7d (Batch ③) / observability_alerts 30d (Batch ④)。
     llm_usage_log 由 retention.json `scheduled_in == "telemetry_window"` 路径
     维护 (沿用现有周日凌晨清理链); 本 job 不重复清理。
 
-    每小时一次: 5 张表均为追加写入, 缓慢累积, 高频清理能把单次 DELETE
+    每小时一次: 6 张表均为追加写入, 缓慢累积, 高频清理能把单次 DELETE
     控制在毫秒级; 同时错峰 telemetry_window (周日凌晨) 的批量清理。
     """
     try:
@@ -436,6 +437,7 @@ async def observability_ttl_job() -> None:
             "process_events": now - timedelta(days=14),
             "audit_log": now - timedelta(days=90),
             "api_events": now - timedelta(days=7),
+            "observability_alerts": now - timedelta(days=30),
         }
         ts_column = {
             "job_runs": "started_at",
@@ -443,6 +445,7 @@ async def observability_ttl_job() -> None:
             "process_events": "occurred_at",
             "audit_log": "occurred_at",
             "api_events": "occurred_at",
+            "observability_alerts": "fired_at",
         }
         deleted_total = 0
         per_table = {}
@@ -527,6 +530,113 @@ async def observability_aggregator_job() -> None:
         raise
 
 
-# 注: observability_threshold_check_job 与 _compute_summary helper 由 v0.7 Batch ④
-# 落地 (届时 services/observability_thresholds.py 一并创建). Batch ③ 不引入以
-# 保持单批 PR 自包含可独立合.
+# v0.7 Batch ④: 阈值检查 — 拉 settings.kv 规则 → 扫 api_events 1h 摘要 →
+# 评估 breach → 写 observability_alerts (cooldown 防止同阈值风暴).
+@instrument_job("observability_threshold_check")
+async def observability_threshold_check_job() -> None:
+    """每小时跑一次, 与 aggregator 错峰 (aggregator 起点 +5min).
+
+    cooldown 策略: 同 (metric, level) 已存在 cooldown_until > now 的活跃告警,
+    跳过本轮 — 不重复刷屏.
+    """
+    try:
+        from datetime import datetime, timezone
+
+        from backend.observability_records import record_audit
+        from backend.repository.db import get_connection
+        from backend.services.observability_thresholds import (
+            DEFAULT_THRESHOLDS,
+            evaluate,
+            load_thresholds,
+        )
+
+        now = datetime.now(timezone.utc)
+        cooldown_min = int(DEFAULT_THRESHOLDS["alerts"]["cooldown_minutes"])
+
+        # 1) 拉阈值规则
+        try:
+            thresholds = load_thresholds()
+        except Exception as e:
+            _logger.warning(f"observability_threshold_check_job: load_thresholds failed, using defaults: {e}")
+            thresholds = DEFAULT_THRESHOLDS
+
+        # 2) 计算最近 60min api 摘要 (复用 Batch ③ summary 逻辑的轻量版)
+        cutoff = (now - timedelta(minutes=60)).isoformat()
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT COUNT(*) AS total, "
+            "SUM(CASE WHEN status >= 500 THEN 1 ELSE 0 END) AS errors "
+            "FROM api_events WHERE occurred_at > ?",
+            (cutoff,),
+        ).fetchone()
+        total = int(row["total"] or 0)
+        errors = int(row["errors"] or 0)
+        error_rate_pct = (errors / total * 100) if total > 0 else 0.0
+
+        # p95: 拉所有 duration_ms 排序取位 (与 aggregator 同算法, 单次扫描)
+        durations = [
+            int(r["duration_ms"])
+            for r in conn.execute(
+                "SELECT duration_ms FROM api_events WHERE occurred_at > ? "
+                "ORDER BY duration_ms",
+                (cutoff,),
+            ).fetchall()
+        ]
+        if durations:
+            idx = max(0, min(len(durations) - 1, int(len(durations) * 0.95)))
+            p95_latency_ms = durations[idx]
+        else:
+            p95_latency_ms = 0
+
+        # 3) 评估
+        breaches = evaluate(
+            api_summary={"error_rate_pct": error_rate_pct, "p95_latency_ms": p95_latency_ms},
+            thresholds=thresholds,
+        )
+
+        # 4) cooldown 去重 + 写入
+        new_alerts = 0
+        for breach in breaches:
+            existing = conn.execute(
+                "SELECT id, cooldown_until FROM observability_alerts "
+                "WHERE metric = ? AND level = ? AND acked = 0 "
+                "ORDER BY fired_at DESC LIMIT 1",
+                (breach.metric, breach.level),
+            ).fetchone()
+            if existing and existing["cooldown_until"] > now.isoformat():
+                continue  # cooldown 期间跳过
+            conn.execute(
+                "INSERT INTO observability_alerts "
+                "(level, metric, value, threshold, window_minutes, detail, "
+                "fired_at, cooldown_until, acked) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
+                (
+                    breach.level, breach.metric, breach.value, breach.threshold,
+                    breach.window_minutes, json.dumps(breach.detail or {}),
+                    now.isoformat(),
+                    (now + timedelta(minutes=cooldown_min)).isoformat(),
+                ),
+            )
+            new_alerts += 1
+            # 同步入 audit_log (沿用 Batch ② audit pattern, action=threshold.breach)
+            try:
+                record_audit(
+                    action="threshold.breach",
+                    target=breach.metric,
+                    status="warn",
+                    detail=f"{breach.level} {breach.value} >= {breach.threshold}",
+                )
+            except Exception as e:
+                _logger.debug(f"record_audit threshold.breach failed: {e}")
+
+        _logger.info(
+            f"observability_threshold_check_job: "
+            f"errors={errors}/{total}={error_rate_pct:.2f}% p95={p95_latency_ms}ms "
+            f"breaches={len(breaches)} new={new_alerts}"
+        )
+    except Exception as e:
+        _logger.error(f"observability_threshold_check_job crashed: {e}")
+        raise
+
+
+# 注: Batch ⑤ 可在此处加 metrics aggregate helpers.

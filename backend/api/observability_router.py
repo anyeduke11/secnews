@@ -199,4 +199,119 @@ def get_llm_usage_recent(limit: int = Query(20, ge=1, le=200)):
     }
 
 
+# ── v0.7 Batch ④: alerts + thresholds CRUD ───────────────────────────────
+
+
+@router.get("/alerts/active")
+def get_alerts_active():
+    """活跃告警 (acked=0, fired_at 在最近 24h), 按 critical 先 / 触发时间倒序.
+
+    前端 Dashboard 顶部活跃横幅 + StatusBar 角标共用. 限制 24h 窗口避免
+    历史告警堆积; acked 告警走 /alerts/recent (Batch ⑤ 视情况再加).
+    """
+    conn = get_connection()
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        cur = conn.execute(
+            "SELECT id, level, metric, value, threshold, window_minutes, "
+            "       detail, fired_at, cooldown_until "
+            "FROM observability_alerts "
+            "WHERE acked = 0 AND fired_at > ? "
+            "ORDER BY "
+            "  CASE level WHEN 'critical' THEN 0 WHEN 'warn' THEN 1 ELSE 2 END, "
+            "  fired_at DESC",
+            (cutoff,),
+        )
+        items = []
+        for r in cur.fetchall():
+            items.append({
+                "id": int(r["id"]),
+                "level": r["level"],
+                "metric": r["metric"],
+                "value": float(r["value"]),
+                "threshold": float(r["threshold"]),
+                "window_minutes": int(r["window_minutes"]),
+                "detail": r["detail"],
+                "fired_at": r["fired_at"],
+                "cooldown_until": r["cooldown_until"],
+            })
+        return {
+            "items": items,
+            "critical_count": sum(1 for i in items if i["level"] == "critical"),
+            "warn_count": sum(1 for i in items if i["level"] == "warn"),
+            "as_of": _now_iso(),
+        }
+    except Exception as e:
+        # 失败降级返空 — 不阻塞前端展示, 仅日志
+        from backend.logging_config import logger
+        logger.warning(f"get_alerts_active failed: {e}")
+        return {"items": [], "critical_count": 0, "warn_count": 0, "as_of": _now_iso()}
+
+
+@router.post("/alerts/{alert_id}/ack")
+def post_alerts_ack(alert_id: int):
+    """标记告警已读 (acked=1). 不删 — 保留追溯链路.
+
+    不写 audit_log (acm 是 self-service 操作, 非策略变更).
+    """
+    conn = get_connection()
+    now = _now_iso()
+    cur = conn.execute(
+        "UPDATE observability_alerts SET acked = 1, acked_at = ? "
+        "WHERE id = ? AND acked = 0",
+        (now, int(alert_id)),
+    )
+    if cur.rowcount == 0:
+        # 已 ack 或 id 不存在 — idempotent 返 200, 客户端无需刷新
+        return {"ok": True, "id": int(alert_id), "already": True}
+    return {"ok": True, "id": int(alert_id), "acked_at": now}
+
+
+@router.get("/thresholds")
+def get_thresholds():
+    """当前生效阈值规则 — 从 settings.kv 拉, 失败返默认."""
+    from backend.services.observability_thresholds import (
+        DEFAULT_THRESHOLDS,
+        load_thresholds,
+    )
+    try:
+        rules = load_thresholds()
+    except Exception:
+        rules = DEFAULT_THRESHOLDS
+    return {"thresholds": rules, "defaults": DEFAULT_THRESHOLDS, "as_of": _now_iso()}
+
+
+@router.put("/thresholds")
+def put_thresholds(body: dict):
+    """覆盖式更新阈值规则 — 校验 → 写 settings.kv → 落 audit_log.
+
+    body 必须是合法 dict 结构 (校验失败 400). 不增量 merge — 全量替换语义清晰.
+    """
+    from fastapi import HTTPException
+
+    from backend.observability_records import record_audit
+    from backend.services.observability_thresholds import (
+        DEFAULT_THRESHOLDS,
+        save_thresholds,
+    )
+
+    if not isinstance(body, dict) or "thresholds" not in body:
+        raise HTTPException(status_code=400, detail="body.thresholds must be a dict")
+    rules = body["thresholds"]
+    try:
+        save_thresholds(rules)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve)) from ve
+    try:
+        record_audit(
+            action="observability.thresholds.update",
+            target="observability.thresholds",
+            status="ok",
+            detail=f"rules={len(rules)} categories",
+        )
+    except Exception:
+        pass  # 审计失败不影响主流程
+    return {"ok": True, "thresholds": rules, "defaults": DEFAULT_THRESHOLDS}
+
+
 __all__ = ["router"]

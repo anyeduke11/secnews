@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sqlite3
 import subprocess
 import sys
@@ -28,7 +29,9 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "snapshot_for_retirement.py"
 DEFAULT_DB = REPO_ROOT / "backend" / "hotspot.db"
-DEFAULT_WIKI = REPO_ROOT / "knowledge"
+# v0.6.3 P4 双根合并: 旧 knowledge/ 根已删, 唯一真相源 = llm-wiki-2.0
+# (优先级与 backend/wiki_fs/root.py::resolve_wiki_root 一致: env 覆盖 > 新根)
+DEFAULT_WIKI = Path(os.environ.get("HOTSPOT_WIKI_ROOT") or REPO_ROOT / "llm-wiki-2.0")
 
 
 def _load_snapshot_module():
@@ -108,6 +111,9 @@ def test_baseline_2026_08_24_counts(snapshot_data):
     - 关键表必须存在且 count >= 0
     - 核心知识表 (knowledge_concepts) 必须有数据 (>0)
     - schema 变更仍会被 generate_meta.py --check 和 migration 测试捕获
+
+    v0.6.3 修正 (预存债②): wiki 根已迁 llm-wiki-2.0, items 随采集持续增长,
+    精确值断言同样陈旧 → wiki 部分改下限容忍 (基线快照 4149/96 为floor)。
     """
     tc = snapshot_data["table_counts"]
     # 关键表存在性 + 非负数
@@ -120,14 +126,13 @@ def test_baseline_2026_08_24_counts(snapshot_data):
     assert tc["knowledge_concepts"] > 0, "knowledge_concepts should have data"
     assert tc["hotspots"] > 0, "hotspots should have data"
 
-    expected_wiki = {
-        "items": 4149,
-        "concepts": 96,
-        "inbox": 0,
-        "quarantine": 0,
-    }
-    assert snapshot_data["wiki_files"] == expected_wiki
-    assert snapshot_data["total_wiki_files"] == 4245
+    wf = snapshot_data["wiki_files"]
+    # 新根基线 (2026-08-30 双根合并时点): items>=4149, concepts>=96;
+    # inbox/quarantine 必须保持空 (有文件 = 流转异常)。
+    assert wf["items"] >= 4149, f"items dropped below baseline: {wf['items']}"
+    assert wf["concepts"] >= 96, f"concepts dropped below baseline: {wf['concepts']}"
+    assert wf["inbox"] == 0
+    assert wf["quarantine"] == 0
 
 
 def test_table_counts_match_db_direct_query(snapshot_data):
@@ -192,9 +197,13 @@ def test_verify_subcommand_writes_real_baseline_then_verifies(tmp_path):
     out.write_text(json.dumps(baseline, ensure_ascii=False, indent=2), encoding="utf-8")
 
     # 2. --verify 比对 (应一致)
+    # 显式传 --db/--wiki-src 与 baseline 同源: conftest autouse fixture 会把
+    # HOTSPOT_WIKI_ROOT 指到 tmp, 子进程继承 env 后若不传参会读到空 wiki 目录。
     verify_cmd = [
         sys.executable,
         str(SCRIPT),
+        "--db", str(DEFAULT_DB),
+        "--wiki-src", str(DEFAULT_WIKI),
         "--out", str(out),
         "--verify",
     ]

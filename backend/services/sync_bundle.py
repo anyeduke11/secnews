@@ -741,11 +741,21 @@ def apply_bundle(bundle: dict, *, master_key: str | None = None) -> dict:
                     )
                     conn.commit()
                     secret_stats["updated"] += 1
+                    # v0.7.x Batch ⑥: sync 复制 secrets 写审计
+                    try:
+                        from backend.observability_records import record_audit
+                        record_audit(actor="system", action="llm_secrets.sync_write",
+                                     target=f"secret:{existing.id}",
+                                     detail={"source": "sync_bundle",
+                                             "op": "update",
+                                             "secret_id": existing.id})
+                    except Exception:
+                        pass
                 else:
                     secret_stats["skipped"] += 1
             else:
                 conn = get_connection()
-                conn.execute(
+                cur = conn.execute(
                     """INSERT INTO llm_secrets (name, model, base_url, provider,
                         api_key_encrypted, encryption_key_id, created_at, updated_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -755,7 +765,18 @@ def apply_bundle(bundle: dict, *, master_key: str | None = None) -> dict:
                      s.get("updated_at") or _now_iso()),
                 )
                 conn.commit()
+                new_id = int(cur.lastrowid)
                 secret_stats["inserted"] += 1
+                # v0.7.x Batch ⑥: sync 复制 secrets 写审计
+                try:
+                    from backend.observability_records import record_audit
+                    record_audit(actor="system", action="llm_secrets.sync_write",
+                                 target=f"secret:{new_id}",
+                                 detail={"source": "sync_bundle",
+                                         "op": "insert",
+                                         "secret_id": new_id})
+                except Exception:
+                    pass
 
     # --- favorites ---
     fr = FavoriteRepository()

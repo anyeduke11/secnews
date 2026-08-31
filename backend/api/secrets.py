@@ -35,6 +35,7 @@ from pydantic import BaseModel, Field
 from backend.crypto import InvalidMasterKeyError, WeakMasterKeyError
 from backend.exceptions import HotspotException
 from backend.logging_config import logger
+from backend.observability_records import record_audit
 from backend.services.secrets_service import SecretsService, _unlock_state
 
 router = APIRouter(prefix="/api/secrets", tags=["secrets"])
@@ -51,6 +52,17 @@ class SetupRequest(BaseModel):
 
 class UnlockRequest(BaseModel):
     master_key: str = Field(..., description="主密钥")
+
+
+class RotateRequest(BaseModel):
+    """v0.7.x Batch ⑥: 轮换主密钥 — 重加密全部密文 (llm_secrets + webdav)。
+
+    重加密过程走事务, 部分失败 ROLLBACK, 旧密钥仍可用。
+    旧密钥错误 → 401 INVALID_MASTER_KEY; 新密钥太弱 → 400 WEAK_MASTER_KEY。
+    """
+    old_key: str = Field(..., min_length=12, description="旧主密钥")
+    new_key: str = Field(..., min_length=12, description="新主密钥")
+    actor: str = Field("web", description="操作者 (web / system / agent:*)")
 
 
 class CreateSecretRequest(BaseModel):
@@ -161,6 +173,8 @@ async def setup_master_key(req: SetupRequest):
         result = await asyncio.to_thread(svc.setup_master_key, req.master_key)
     except Exception as e:
         raise _err_to_http(e)
+    record_audit(actor="web", action="llm_secrets.setup",
+                 detail={"encryption_key_id": result.get("id")})
     return {
         "version": "1.0",
         "encryption_key": result,
@@ -221,6 +235,8 @@ async def reset_all_secrets(req: ResetRequest, request: Request):
         "admin reset: all secrets cleared",
         extra={"counts": str(counts)},
     )
+    record_audit(actor="web", action="llm_secrets.reset",
+                 detail={"counts": counts})
     return {
         "version": "1.0",
         "reset": True,
@@ -240,6 +256,8 @@ async def unlock(req: UnlockRequest):
         result = await asyncio.to_thread(svc.unlock, req.master_key)
     except Exception as e:
         raise _err_to_http(e)
+    record_audit(actor="web", action="llm_secrets.unlock",
+                 detail={"ttl_seconds": result.get("ttl_seconds")})
     return {
         "version": "1.0",
         **result,
@@ -257,6 +275,7 @@ async def unlock_status():
 async def lock_now():
     """立即清空 unlock 状态。"""
     svc = SecretsService()
+    record_audit(actor="web", action="llm_secrets.lock")
     return await asyncio.to_thread(svc.lock)
 
 
@@ -291,6 +310,10 @@ async def create_secret(req: CreateSecretRequest):
         )
     except Exception as e:
         raise _err_to_http(e)
+    record_audit(actor="web", action="llm_secrets.create",
+                 target=f"secret:{item['id']}",
+                 detail={"secret_id": item["id"], "provider": item.get("provider", ""),
+                         "name": item.get("name", "")})
     return {
         "version": "1.0",
         "item": item,
@@ -314,6 +337,14 @@ async def update_secret(secret_id: int, req: UpdateSecretRequest):
         )
     except Exception as e:
         raise _err_to_http(e)
+    fields_changed = sorted(
+        f for f in ("name", "model", "base_url", "api_key", "provider")
+        if getattr(req, f) is not None
+    )
+    record_audit(actor="web", action="llm_secrets.update",
+                 target=f"secret:{item['id']}",
+                 detail={"secret_id": item["id"], "fields_changed": fields_changed,
+                         "api_key_changed": bool(req.api_key)})
     return {
         "version": "1.0",
         "item": item,
@@ -328,17 +359,27 @@ async def delete_secret(secret_id: int):
         await asyncio.to_thread(svc.delete_secret, int(secret_id))
     except Exception as e:
         raise _err_to_http(e)
+    record_audit(actor="web", action="llm_secrets.delete",
+                 target=f"secret:{secret_id}",
+                 detail={"secret_id": secret_id})
     return Response(status_code=204)
 
 
 @router.post("/{secret_id}/reveal")
 async def reveal(secret_id: int, req: RevealRequest):
-    """返回明文 api_key (每次都必须现场提交并验证 master_key)。"""
+    """返回明文 api_key (每次都必须现场提交并验证 master_key)。
+
+    v0.7.x Batch ⑥: reveal 是高敏感操作, 强审计 — audit_log 必写, detail
+    含 secret_id 但不含 api_key 明文 (永远不进 audit_log)。
+    """
     svc = SecretsService()
     try:
         result = await asyncio.to_thread(svc.reveal, int(secret_id), req.master_key)
     except Exception as e:
         raise _err_to_http(e)
+    record_audit(actor="web", action="llm_secrets.reveal",
+                 target=f"secret:{secret_id}",
+                 detail={"secret_id": secret_id, "provider": result.get("provider", "")})
     return {
         "version": "1.0",
         **result,
@@ -353,8 +394,34 @@ async def test_connection(secret_id: int):
         result = await asyncio.to_thread(svc.test_connection, int(secret_id))
     except Exception as e:
         raise _err_to_http(e)
+    record_audit(actor="web", action="llm_secrets.test",
+                 target=f"secret:{secret_id}",
+                 detail={"secret_id": secret_id, "ok": bool(result.get("ok")),
+                         "latency_ms": result.get("latency_ms")})
     return {
         "version": "1.0",
+        **result,
+    }
+
+
+@router.post("/rotate", status_code=200)
+async def rotate_master_key(req: RotateRequest):
+    """v0.7.x Batch ⑥: 轮换主密钥 (重加密全部密文)。
+
+    旧密钥错误 → 401; 新密钥太弱 → 400; 重加密部分失败 → ROLLBACK
+    (由 SecretsService.rotate_master_key 内部事务保证)。
+    """
+    svc = SecretsService()
+    try:
+        result = await asyncio.to_thread(svc.rotate_master_key, req.old_key, req.new_key)
+    except Exception as e:
+        raise _err_to_http(e)
+    record_audit(actor=req.actor, action="llm_secrets.rotate",
+                 detail={"reencrypted_secrets": result.get("reencrypted_secrets", 0),
+                         "reencrypted_webdav": result.get("reencrypted_webdav", 0)})
+    return {
+        "version": "1.0",
+        "status": "ok",
         **result,
     }
 

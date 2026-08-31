@@ -305,9 +305,8 @@ class SecretsService:
             new_verify = make_verify_blob(new_key, new_salt, DEFAULT_ITERATIONS)
             conn.execute(
                 "UPDATE encryption_keys SET salt = ?, iterations = ?, "
-                "verify_blob = ?, updated_at = ? WHERE id = ?",
-                (new_salt, DEFAULT_ITERATIONS, new_verify,
-                 datetime.now(timezone.utc).isoformat(), row.id),
+                "verify_blob = ? WHERE id = ?",
+                (new_salt, DEFAULT_ITERATIONS, new_verify, row.id),
             )
             conn.execute("COMMIT")
         except Exception as _e:

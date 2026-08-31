@@ -1,6 +1,6 @@
 # SecNews Knowledge Dashboard — 安全从业者 AI 助手的平台看板层
 
-> **当前状态 (2026-08-30, v0.6.3)**: SecNews 为**统一工作台** (workbench 5 视图已并入, `/workbench` 已删, gate workbench_ui 移除)。dsh 内置为受管子进程 — 前端 `/secnews/settings` 一键启停 (gate dsh=true, 控制面 `/api/dsh/control/*`); pi 执行 agent 经 `/api/agents/run` 可用。
+> **当前状态 (2026-08-31, v0.7.0)**: Sentinel Terminal 全屏页已上线 (`/` `/judge` `/action` `/garden`); data/judge/action 三层目录与 6 cognitive modes 已物理删除; `/secnews` 为统一工作台 (6 tab); dsh 内置为受管子进程 — 前端 `/secnews/settings` 一键启停 (gate dsh=true, 控制面 `/api/dsh/control/*`); ai_hub 已包化, LLM provider 四级切换链落地 (v0.7 Batch 2 进行中, 见 `PROGRESS.md`)。
 > 历史决策 (产品三层架构裁决 / wiki-first 存储哲学 / Phase 7 退役冻结) 见 `PROGRESS.md` 与 `git log`，不在此重复。
 
 ---
@@ -15,7 +15,7 @@
 
 ## v0.4.3 — Core/Extension 软分层 + Feature Gates (2026-08-18)
 
-> **架构数字由 `scripts/generate_meta.py` AST 反推维护** (47 jobs / 14 collectors / 65 routers / 96 services),
+> **架构数字由 `scripts/generate_meta.py` AST 反推维护** (50 jobs / 14 collectors / 66 routers / 98 services),
 > 改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
 
 - **开关源**: `backend/config/feature_gates.toml` — 当前默认开启: codegarden/sync/secnews/crm/dsh;

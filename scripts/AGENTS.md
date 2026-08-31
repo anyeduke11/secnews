@@ -64,8 +64,11 @@
    否则与 cleanup 边界模糊,违反单一职责。
 5. **删除临时 `debug_*.py`** — 调试脚本跑通后必须删除或迁到 `backend/tests/`,
    长期堆在 scripts/ 会让审计扫描噪声放大。
-6. **不改 docs 数字** — `docs/ARCHITECTURE.md` 中的 43/14/51/81 计数
-   一律来自 `scripts/generate_meta.py`,手改会立刻被 `--check` 拦下。
+6. **不改 docs 数字** — `docs/ARCHITECTURE.md` 中的架构计数
+   (66 routers / 50 jobs / 14 collectors / 98 services)
+   一律来自 `scripts/generate_meta.py`,手改会立刻被 `--check` 拦下;
+   各 AGENTS.md 中 `N routers/services/jobs/collectors` 形式的数字声明
+   同样纳入 `--check` 校验,漂移即 CI fail。
 7. **共享 helpers 进 `common/`** — DB 连接、HTTP 客户端、Cubox/WebDAV 封装
    等重复 ≥2 个脚本用到的代码必须落 `scripts/common/`,禁止各脚本自实现副本。
 8. **chaostest/ 子目录独立** — 故障注入测试不要散落顶层,放在 `chaostest/` 子目录。

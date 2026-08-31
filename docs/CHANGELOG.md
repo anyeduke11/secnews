@@ -47,6 +47,23 @@
 - [x] `carry/earlier-session-leftovers` (`e209a57`) `--no-ff` 收编, P4 双预存债根治 (test_successors_of_raw + test_baseline_2026_08_24_counts)
 - [x] **门禁**: ruff 0 / pytest 集成测试 5/5 pass / 全量 pytest 0fail (P4 清零) / `generate_meta --check` OK (routers 66 / services 98 / jobs 50) / tsc 0 / vitest 322 pass / vite build OK
 
+## v0.7 Batch 6 (2026-08-31) — llm_secrets 接入 AIService/LLMService + key_source 兑现
+
+### 批次 ㊳: Batch ⑥ — 加密通道接管
+
+- [x] `backend/repository/secrets_repo.py`: 新增 `get_by_provider(provider)` helper (`ORDER BY updated_at DESC, id DESC LIMIT 1` 复用 `idx_llm_secrets_provider`)
+- [x] `backend/services/ai_hub/service.py`: `_resolve_api_key` 重写为实例方法 + 四级链 (env > secrets > "" fail-soft); 新增 `_key_source` 返 `env|secrets|none`; 2 处 `key_source="env"` 硬编码改动态; 5 处调用改 `self._resolve_api_key(provider)`
+- [x] `backend/services/ai_hub/gateway.py`: `_ai_key_source(provider_name)` 模块辅助函数委托 AIService; `_call_provider/_call_openai/_call_anthropic/_call_openai_compatible` 接受 `provider_name=`; 8 处 `key_source="env"` 改 `_ai_key_source(provider_name)`
+- [x] `backend/api/secrets.py`: 7 audit calls (`create/update/delete/reveal/test/unlock/lock`) + `POST /api/secrets/rotate` 端点 (master_key 轮换 + 重加密 + 强审计); `RotateRequest` Pydantic 校验 (min_length=12)
+- [x] `backend/services/sync_bundle.py`: 复制 llm_secrets INSERT/UPDATE 路径加 `llm_secrets.sync_write` 审计
+- [x] `backend/observability_records.py`: SAVEPOINT 隔离, 兼容 autocommit / 隐式事务两种连接模式; record_audit 失败 swallow 保持业务路径不阻塞
+- [x] `backend/services/secrets_service.py`: 修复 `rotate_master_key` 引用 `encryption_keys.updated_at` 列的旧 bug (该列不存在, UPDATE 失败)
+- [x] `backend/api/llm_status.py`: status 返回新增 `key_source` 字段 (供前端 QualitySettings 徽章展示)
+- [x] `frontend/src/components/settings/QualitySettings.tsx`: 折叠面板 "🔐 LLM 密钥管理 (加密保险箱)" + `key_source` 徽章 + 3 弹窗 (master_key_prompt / reveal_10s_auto_hide / upsert) + 7 handler; `saveLlm` 不再写 `quality.llm_api_key` settings.kv (legacy 清退)
+- [x] **遗留阻塞项 ⑤ 关闭**: "加密通道接管" → llm_secrets 真正接入业务路径; key_source 三态可观测; reveal 强审计; rotate HTTP 端点就绪
+- [x] **测试**: SecretRepository 5 例 + AIService 10 例 + LLMService 4 例 + QualitySettings 5 例 + secrets API 11 audit + 4 rotate = **39 例**
+- [x] **门禁**: ruff 0 / pytest 3138 passed / 6 skipped / 0 failed (基线 3108 + 39 净增) / `generate_meta --check` OK (routers 66 / services 98 / jobs 50 — 不变) / tsc 0 / vitest 327 pass (基线 322 + 5 QualitySettings) / vite build OK
+
 ## v0.7 Batch 2 (2026-08-31) — LLM provider 切换 + settings.kv 覆盖 + audit_log 写入
 
 > **来源**: Observability PRD v1.0 §5.3 + Batch 1 已落地的 `record_audit` 0 生产调用者顺接, 闭环为 audit_log 首个真实写入场景。批前盘点: ai_hub 默认 provider 仅 env/router/default 三级, 用户切换要重启进程或改 env; QualitySettings 写 `quality.llm_provider` 是 v4.4 起的 dead 字段 (ai_hub 不读)。

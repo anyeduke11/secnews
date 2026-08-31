@@ -399,7 +399,7 @@ class TestFirstProviderSucceeds:
         svc = LLMService()
         call_count = 0
 
-        async def _call_counter(cfg, model, prompt):
+        async def _call_counter(cfg, model, prompt, **kwargs):
             nonlocal call_count
             call_count += 1
             return "9.0"
@@ -418,7 +418,7 @@ class TestFirstProviderSucceeds:
         svc = LLMService()
         call_log: list[str] = []
 
-        async def _call_with_log(cfg, model, prompt):
+        async def _call_with_log(cfg, model, prompt, **kwargs):
             provider_name = "ollama" if len(call_log) == 0 else "openai"
             call_log.append(provider_name)
             if provider_name == "ollama":

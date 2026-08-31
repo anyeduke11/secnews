@@ -89,7 +89,7 @@ def test_llm_disabled_when_no_key(gate, ctx, monkeypatch):
     for k in ("SENSENOVA_API_KEY", "OPENAI_API_KEY", "QWEN_API_KEY",
               "ANTHROPIC_API_KEY"):
         os.environ.pop(k, None)
-    monkeypatch.setattr(ai_mod.AIService, "_resolve_api_key", staticmethod(lambda: ""))
+    monkeypatch.setattr(ai_mod.AIService, "_resolve_api_key", lambda self, provider=None: "")
     monkeypatch.setattr(ai_mod.AIService, "_ollama_up", staticmethod(lambda *a, **k: False))
     assert gate._llm_detect("标题", "摘要", ctx) is None
     item = _item()
@@ -134,7 +134,7 @@ def test_gate_detect_network_fail_degrades(monkeypatch):
     from backend.services.ai_hub import AIService
 
     svc = AIService()
-    monkeypatch.setattr(AIService, "_resolve_api_key", staticmethod(lambda: "fake-key"))
+    monkeypatch.setattr(AIService, "_resolve_api_key", lambda self, provider=None: "fake-key")
     monkeypatch.setattr(AIService, "_resolve_provider", staticmethod(lambda: "sensenova"))
     monkeypatch.setattr(
         "httpx.Client.post",

@@ -48,6 +48,10 @@ def get_llm_status():
     status["effective_provider"] = AIService._resolve_provider()
     status["config_source"] = AIService._config_source()
 
+    # v0.7.x Batch ⑥: 密钥来源打标 (env|secrets|none) — 与 AIService._key_source 同链
+    ai_svc = AIService()
+    status["key_source"] = ai_svc._key_source(status["effective_provider"])
+
     # v0.6.3 P3-3 观测面: 此前 "AI 是否真在工作" 不可判读
     # (llm_usage_log 只记成功, 失败只进 logger)。诚实口径: 错误环随进程
     # 重启清零, success_rate 是"本进程窗口"而非全天。

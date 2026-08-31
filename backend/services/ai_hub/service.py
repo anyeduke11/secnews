@@ -153,15 +153,63 @@ class AIService:
             pass
         return "default"
 
-    @staticmethod
-    def _resolve_api_key() -> str:
-        """按当前 provider 的 api_key_env 读密钥（不持久化到 settings）。"""
+    def _resolve_api_key(self, provider: str | None = None) -> str:
+        """v0.7.x Batch ⑥: 四级链 ``env > secrets(provider=...) > default(fail-soft)``。
+
+        与 :meth:`_resolve_provider` 同源 (provider 名取一处), 优先级:
+        1. ``os.environ[api_key_env]`` — 运维首选 (env 永不落库/永不轮换)
+        2. ``llm_secrets WHERE provider=?`` — 加密保险箱, 需 ``_is_unlocked``
+        3. ``""`` — fail-soft, 与 Batch ② env 未设行为一致
+
+        fail-soft: decrypt 失败 / 未 unlock / 表空 → ``""``, 不抛 (调用方
+        通常已 ``available()`` 守住)。``secrets_service`` import 走 lazy —
+        测试/单 provider 场景不引 secrets 即可跑。
+        """
         import os
-        p = AIService._resolve_provider()
-        pcfg = AIService._provider_cfg(p)
+        p = provider or self._resolve_provider()
+        pcfg = self._provider_cfg(p)
         env_name = (pcfg.api_key_env if pcfg is not None else None) \
             or "SENSENOVA_API_KEY"
-        return os.environ.get(env_name, "") or ""
+        if env_val := os.environ.get(env_name, ""):
+            return env_val
+        try:
+            from backend.repository.secrets_repo import SecretRepository
+            from backend.services.secrets_service import SecretsService, _is_unlocked
+            item = SecretRepository().get_by_provider(p)
+            if item is None:
+                return ""
+            if not _is_unlocked(item.encryption_key_id):
+                return ""
+            return SecretsService().decrypt_for_internal_use(item.id) or ""
+        except Exception as e:
+            log.warning("secrets read for provider %s failed: %s", p, e)
+            return ""
+
+    def _key_source(self, provider: str | None = None) -> str:
+        """v0.7.x Batch ⑥: 解析路径打标 (env|secrets|none)。
+
+        与 :meth:`_resolve_api_key` 走同一路径, 但不取明文 — 仅返回来源
+        标签, 供 ``llm_usage_log.key_source`` 列写入。
+        """
+        import os
+        p = provider or self._resolve_provider()
+        pcfg = self._provider_cfg(p)
+        env_name = (pcfg.api_key_env if pcfg is not None else None) \
+            or "SENSENOVA_API_KEY"
+        if os.environ.get(env_name, ""):
+            return "env"
+        try:
+            from backend.repository.secrets_repo import SecretRepository
+            from backend.services.secrets_service import _is_unlocked
+            item = SecretRepository().get_by_provider(p)
+            if item is None:
+                return "none"
+            if not _is_unlocked(item.encryption_key_id):
+                return "none"
+            return "secrets"
+        except Exception as e:
+            log.debug("key_source for provider %s: %s", p, e)
+            return "none"
 
     @staticmethod
     def _ollama_up(timeout: float = 1.0) -> bool:
@@ -180,7 +228,7 @@ class AIService:
         p = provider or self._resolve_provider()
         if p == "ollama":
             return self._ollama_up()
-        return bool(self._resolve_api_key())
+        return bool(self._resolve_api_key(p))
 
     # ------------------------------------------------------------------
     # 限频（供采集热路径门禁用）
@@ -213,7 +261,7 @@ class AIService:
         失败时 ok=False + error（不静默降级，便于人工复核/测试）。
         """
         p = provider or self._resolve_provider()
-        key = api_key if api_key is not None else self._resolve_api_key()
+        key = api_key if api_key is not None else self._resolve_api_key(p)
 
         # 缓存 (复用 tasks._cache_key 避免重复定义)
         from backend.services.ai_hub.tasks import _cache_key, _est_tokens
@@ -235,7 +283,7 @@ class AIService:
                          latency_ms=(time.monotonic() - t0) * 1000,
                          scene="evaluate_article",
                          config_source=self._config_source(),
-                         key_source="env")
+                         key_source=self._key_source(p))
             _logger.warning("ai evaluate failed ({}): {}: {}", p, type(e).__name__, e)
             return {"ok": False, "provider": p, "error": f"{type(e).__name__}: {str(e)[:300]}"}
 
@@ -250,7 +298,7 @@ class AIService:
                      latency_ms=(time.monotonic() - t0) * 1000,
                      scene="evaluate_article",
                      config_source=self._config_source(),
-                     key_source="env")
+                     key_source=self._key_source(p))
         return result
 
     def gate_detect(
@@ -265,7 +313,7 @@ class AIService:
         # 商汤付费：限频；ollama 本地免费不限。
         if p != "ollama" and not self.gate_rate_allowed():
             return None
-        key = api_key if api_key is not None else self._resolve_api_key()
+        key = api_key if api_key is not None else self._resolve_api_key(p)
         try:
             if p == "ollama":
                 self.gate_rate_mark()

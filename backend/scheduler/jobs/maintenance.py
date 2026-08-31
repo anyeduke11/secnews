@@ -410,3 +410,50 @@ async def scheduled_stats_job() -> None:
         )
     except Exception as e:
         _logger.error(f"scheduled_stats_job crashed: {e}")
+
+
+@instrument_job("observability_ttl")
+async def observability_ttl_job() -> None:
+    """v0.7 Batch 1: 观测表 TTL 清理 — 按迁移 080 的 retention 注释执行。
+
+    job_runs 30d / agent_runs 30d / process_events 14d / audit_log 90d。
+    llm_usage_log 由 retention.json `scheduled_in == "telemetry_window"` 路径
+    维护 (沿用现有周日凌晨清理链); 本 job 不重复清理。
+
+    每小时一次: 4 张表均为追加写入, 缓慢累积, 高频清理能把单次 DELETE
+    控制在毫秒级; 同时错峰 telemetry_window (周日凌晨) 的批量清理。
+    """
+    try:
+        from datetime import datetime, timedelta, timezone
+
+        from backend.repository.db import get_connection
+
+        now = datetime.now(timezone.utc)
+        ttl_table = {
+            "job_runs": now - timedelta(days=30),
+            "agent_runs": now - timedelta(days=30),
+            "process_events": now - timedelta(days=14),
+            "audit_log": now - timedelta(days=90),
+        }
+        ts_column = {
+            "job_runs": "started_at",
+            "agent_runs": "started_at",
+            "process_events": "occurred_at",
+            "audit_log": "occurred_at",
+        }
+        deleted_total = 0
+        per_table = {}
+        for table, cutoff in ttl_table.items():
+            col = ts_column[table]
+            cur = get_connection().execute(
+                f"DELETE FROM {table} WHERE {col} < ?", (cutoff.isoformat(),)
+            )
+            n = cur.rowcount
+            per_table[table] = n
+            deleted_total += n
+        _logger.info(
+            f"observability_ttl_job: deleted={deleted_total} per_table={per_table}"
+        )
+    except Exception as e:
+        _logger.error(f"observability_ttl_job crashed: {e}")
+        raise  # 让 instrument_job 落 ok=False

@@ -177,6 +177,7 @@ class AIService:
             return self._cache_get(cache_key)
 
         try:
+            t0 = time.monotonic()
             if p == "ollama":
                 result = self._call_ollama_eval(title, content, timeout)
             else:
@@ -184,14 +185,25 @@ class AIService:
                     title, content, key, timeout
                 )
         except Exception as e:
-            self._usage(p, self._eval_model(p), "evaluate", 0, 0.0)
+            self._record(p, self._eval_model(p), "evaluate",
+                         ok=False, error=f"{type(e).__name__}: {e}",
+                         latency_ms=(time.monotonic() - t0) * 1000,
+                         scene="evaluate_article")
             _logger.warning("ai evaluate failed ({}): {}: {}", p, type(e).__name__, e)
             return {"ok": False, "provider": p, "error": f"{type(e).__name__}: {str(e)[:300]}"}
 
         result["ok"] = True
         result["provider"] = result.get("provider", p)
         self._cache_set(cache_key, result)
-        self._usage(p, self._eval_model(p), "evaluate", _est_tokens(f"{title}{content}"), 0.0)
+        self._record(p, self._eval_model(p), "evaluate",
+                     ok=True,
+                     prompt=f"{title}\n{content}",
+                     response=result.get("summary", ""),
+                     total_tokens=_est_tokens(f"{title}{content}"),
+                     latency_ms=(time.monotonic() - t0) * 1000,
+                     scene="evaluate_article",
+                     config_source="default" if p == self._default_provider() else "fallback",
+                     key_source="env")
         return result
 
     def gate_detect(
@@ -305,14 +317,58 @@ class AIService:
     def _usage(
         self, provider: str, model: str, task: str, tokens: int, cost: float,
     ) -> None:
-        """签名必须与 :189/:196 两个调用点一致 (provider, model, task, tokens, cost)。
+        """[deprecated v0.7 Batch 1] 旧接口, 保留签名兼容旧测试桩 (lambda *a)。
 
-        此前定义只有 4 个参数, 于是 provider 抛错时 except 分支里的这次调用会
-        再抛 TypeError 并逃出 handler, 使文档承诺的 "失败返回 ok=False + error"
-        永不成立, 成功路径的用量也从未落表。测试用 lambda *a 桩把它盖住了。
+        推荐改用 :meth:`_record` (新统一入口)。本方法内部直接转发到
+        record_llm_call 保证旧链路不破。
         """
-        from .usage import log_ai_usage
-        log_ai_usage(provider, model, task, tokens, cost)
+        from .usage import record_llm_call
+        record_llm_call(
+            provider=provider, model=model, task=task,
+            total_tokens=int(tokens), cost_usd=float(cost),
+            ok=True, scene="legacy_ai_usage",
+        )
+
+    def _record(
+        self,
+        provider: str,
+        model: str,
+        task: str,
+        *,
+        ok: bool,
+        error: str | None = None,
+        prompt: str | None = None,
+        response: str | None = None,
+        total_tokens: int | None = None,
+        cost_usd: float | None = None,
+        latency_ms: float = 0.0,
+        scene: str | None = None,
+        config_source: str | None = None,
+        key_source: str | None = None,
+    ) -> None:
+        """v0.7 Batch 1: AIService 内部 record_llm_call 薄包装 (避免每个调用
+        点重复 import)。参数语义与 usage.record_llm_call 一致 (见该处文档)。
+        """
+        from .usage import record_llm_call
+        record_llm_call(
+            provider=provider, model=model, task=task,
+            ok=ok, error=error, prompt=prompt, response=response,
+            total_tokens=total_tokens, cost_usd=cost_usd,
+            latency_ms=latency_ms, scene=scene,
+            config_source=config_source, key_source=key_source,
+        )
+
+    def _default_provider(self) -> str:
+        """当前解析后的 default provider 名 (用于 config_source 判定)。
+
+        返回值供 :meth:`_record` 调用方作为 "default" 源判定基准。
+        AIService 不持 LLMConfig, 借 gateway.llm_service.config 间接读。
+        """
+        try:
+            cfg = llm_service.config
+            return cfg.default_provider if cfg else "sensenova"
+        except Exception:
+            return "sensenova"
 
 
 # 全局单例

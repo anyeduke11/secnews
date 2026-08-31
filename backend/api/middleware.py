@@ -8,6 +8,10 @@
 - 不阻塞业务；只做 trace_id 注入 + duration 记录
 - 现有 app 仍兼容（无 trace_id 头时生成 UUIDv4）
 - 排除 health 端点（避免日志噪音）
+
+v0.7 Observability Batch 1 (PRD §5.3): 在 dispatch 入口 set_trace_id,
+业务代码 (LLM 记录 / job_runs / agent_runs 写入) 任意位置 get_trace_id()
+即拿到当前请求关联键, 实现跨边界串联。finally reset_trace_id 避免污染。
 """
 from __future__ import annotations
 
@@ -18,7 +22,7 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from backend.observability import log_event
+from backend.observability import log_event, reset_trace_id, set_trace_id
 
 # Header that clients can pass to participate in distributed tracing
 TRACE_HEADER = "X-Trace-Id"
@@ -34,6 +38,7 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         trace_id = request.headers.get(TRACE_HEADER) or uuid.uuid4().hex
         request.state.trace_id = trace_id
+        token = set_trace_id(trace_id)
 
         log_event(
             "api_request",
@@ -44,7 +49,10 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
 
         # 记录 health 检查路径不写入 duration log
         if request.url.path in self.exclude_paths:
-            response = await call_next(request)
+            try:
+                response = await call_next(request)
+            finally:
+                reset_trace_id(token)
             response.headers[TRACE_HEADER] = trace_id
             return response
 
@@ -62,6 +70,7 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
                 trace_id=trace_id,
                 error=type(e).__name__,
             )
+            reset_trace_id(token)
             raise
 
         duration_ms = (time.time() - start) * 1000
@@ -75,6 +84,7 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
             duration_ms=round(duration_ms, 2),
             trace_id=trace_id,
         )
+        reset_trace_id(token)
         return response
 
 

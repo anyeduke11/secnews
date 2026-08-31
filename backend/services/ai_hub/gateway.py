@@ -33,7 +33,7 @@ from .prompts import (
     _parse_entity_list,
     _parse_score,
 )
-from .usage import log_llm_usage, record_llm_error
+from .usage import record_llm_call, record_llm_error
 
 log = logging.getLogger("hotspot.ai_hub")
 
@@ -106,6 +106,29 @@ class LLMService:
                 order.append(p)
         return order
 
+    def _config_source_for(self, task_attr: str, provider_name: str) -> str:
+        """v0.7 Batch 1 (PRD §5.2): 判定 provider 解析来源, 写入 llm_usage_log.config_source。
+
+        判定逻辑 (按 _try_order 输出顺序):
+            - 首位 = router 推荐 -> "router" (model_router task_overrides / tier)
+            - 在 fallback_order 中但不在 router -> "fallback"
+            - 都不在 -> "default" (config.default_provider 直选)
+
+        简化说明: 这里不区分 task_override 与 router tier (model_router.py
+        内部已合并), 一律记 "router"; 细粒度归属留给 model_router 后续
+        批次按需扩展。
+        """
+        if not self._config:
+            return "unknown"
+        routed = self.resolve_provider_for_task(task_attr)
+        if routed is not None and routed[0] == provider_name:
+            return "router"
+        if provider_name in self._config.fallback_order:
+            return "fallback"
+        if self._config.default_provider == provider_name:
+            return "default"
+        return "unknown"
+
     async def score(self, content: str, hotspot_id: str = "") -> float:
         """T1 评分，返回 0~10.
 
@@ -124,6 +147,7 @@ class LLMService:
                 pass
 
         for provider_name in self._try_order("score"):
+            t0 = time.monotonic()
             try:
                 cfg = self._config.providers[provider_name]
                 model = self._resolve_model(provider_name, "score")
@@ -131,11 +155,26 @@ class LLMService:
                 raw = await self._call_provider(cfg, model, prompt)
                 score = _parse_score(raw)
                 set_llm_cache(cache_key, str(score))
-                log_llm_usage(provider_name, model, "score", prompt, raw)
+                record_llm_call(
+                    provider=provider_name, model=model, task="score",
+                    prompt=prompt, response=raw, ok=True,
+                    latency_ms=(time.monotonic() - t0) * 1000,
+                    scene="t1_score",
+                    config_source=self._config_source_for("score", provider_name),
+                    key_source="env",  # 批次②接 llm_secrets 后改 secrets|env|none
+                )
                 return score
             except Exception as e:
                 log.warning("Provider %s score failed: %s", provider_name, e)
                 record_llm_error("score", provider_name, str(e))
+                record_llm_call(
+                    provider=provider_name, model="", task="score",
+                    prompt=prompt, ok=False, error=str(e),
+                    latency_ms=(time.monotonic() - t0) * 1000,
+                    scene="t1_score",
+                    config_source=self._config_source_for("score", provider_name),
+                    key_source="env",
+                )
                 continue
 
         log.info("All LLM providers failed, falling back to default score")
@@ -156,17 +195,33 @@ class LLMService:
             return cached
 
         for provider_name in self._try_order("summary"):
+            t0 = time.monotonic()
             try:
                 cfg = self._config.providers[provider_name]
                 model = self._resolve_model(provider_name, "summary")
                 prompt = _build_summary_prompt(text)
                 raw = await self._call_provider(cfg, model, prompt)
                 set_llm_cache(cache_key, raw)
-                log_llm_usage(provider_name, model, "summarize", prompt, raw)
+                record_llm_call(
+                    provider=provider_name, model=model, task="summarize",
+                    prompt=prompt, response=raw, ok=True,
+                    latency_ms=(time.monotonic() - t0) * 1000,
+                    scene="t3_summary",
+                    config_source=self._config_source_for("summary", provider_name),
+                    key_source="env",
+                )
                 return raw
             except Exception as e:
                 log.warning("Provider %s summarize failed: %s", provider_name, e)
                 record_llm_error("summarize", provider_name, str(e))
+                record_llm_call(
+                    provider=provider_name, model="", task="summarize",
+                    prompt=prompt, ok=False, error=str(e),
+                    latency_ms=(time.monotonic() - t0) * 1000,
+                    scene="t3_summary",
+                    config_source=self._config_source_for("summary", provider_name),
+                    key_source="env",
+                )
                 continue
 
         # v0.6.3 P1-1: 全链失败返回空串而非 text[:200] —— 旧兜底把
@@ -190,6 +245,7 @@ class LLMService:
                 pass
 
         for provider_name in self._try_order("ner"):
+            t0 = time.monotonic()
             try:
                 cfg = self._config.providers[provider_name]
                 model = self._resolve_model(provider_name, "ner")
@@ -197,11 +253,26 @@ class LLMService:
                 raw = await self._call_provider(cfg, model, prompt)
                 entities = _parse_entity_list(raw)
                 set_llm_cache(cache_key, json.dumps(entities))
-                log_llm_usage(provider_name, model, "extract_entities", prompt, raw)
+                record_llm_call(
+                    provider=provider_name, model=model, task="extract_entities",
+                    prompt=prompt, response=raw, ok=True,
+                    latency_ms=(time.monotonic() - t0) * 1000,
+                    scene="t1_entities",
+                    config_source=self._config_source_for("ner", provider_name),
+                    key_source="env",
+                )
                 return entities
             except Exception as e:
                 log.warning("Provider %s extract_entities failed: %s", provider_name, e)
                 record_llm_error("ner", provider_name, str(e))
+                record_llm_call(
+                    provider=provider_name, model="", task="extract_entities",
+                    prompt=prompt, ok=False, error=str(e),
+                    latency_ms=(time.monotonic() - t0) * 1000,
+                    scene="t1_entities",
+                    config_source=self._config_source_for("ner", provider_name),
+                    key_source="env",
+                )
                 continue
 
         return []
@@ -231,6 +302,7 @@ class LLMService:
             return cached
 
         for provider_name in self._try_order(task):
+            t0 = time.monotonic()
             try:
                 cfg = self._config.providers[provider_name]
                 model = self._resolve_model(provider_name, task)
@@ -240,11 +312,27 @@ class LLMService:
                 )
                 if raw:
                     set_llm_cache(cache_key, raw)
-                log_llm_usage(provider_name, model, task or "generate", prompt, raw)
+                record_llm_call(
+                    provider=provider_name, model=model, task=task or "generate",
+                    prompt=prompt, response=raw, ok=True,
+                    latency_ms=(time.monotonic() - t0) * 1000,
+                    # 通用 generate 接口: scene 推断; deep_read 显式识别
+                    scene="deep_read" if task == "deep_read" else "generate",
+                    config_source=self._config_source_for(task, provider_name),
+                    key_source="env",
+                )
                 return raw
             except Exception as e:
                 log.warning("Provider %s generate failed: %s", provider_name, e)
                 record_llm_error("generate", provider_name, str(e))
+                record_llm_call(
+                    provider=provider_name, model="", task=task or "generate",
+                    prompt=prompt, ok=False, error=str(e),
+                    latency_ms=(time.monotonic() - t0) * 1000,
+                    scene="deep_read" if task == "deep_read" else "generate",
+                    config_source=self._config_source_for(task, provider_name),
+                    key_source="env",
+                )
                 continue
 
         return ""

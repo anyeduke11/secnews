@@ -16,6 +16,7 @@ v1.3.0 Phase 5: master_key OS keychain 持久化。
 from __future__ import annotations
 
 import json
+import os
 import time
 from datetime import datetime, timezone
 
@@ -44,7 +45,7 @@ from backend.repository.db import get_connection
 from backend.repository.encryption_keys_repo import EncryptionKeyRepository
 from backend.repository.secrets_repo import SecretRepository
 
-UNLOCK_TTL_SECONDS = 30 * 60  # 30 分钟
+UNLOCK_TTL_SECONDS = int(os.environ.get("HOTSPOT_SECRETS_TTL_SECONDS", 30 * 60))  # 默认 30 分钟
 
 _KEYRING_SERVICE = "hotspot"
 _KEYRING_USERNAME = "master_key"
@@ -301,12 +302,13 @@ class SecretsService:
                     "UPDATE sync_configs SET webdav_password_encrypted = ? WHERE id = ?",
                     (new_ct, w["id"]),
                 )
-            # 5. 更新 encryption_keys (新 salt/iterations/verify_blob)
+            # 5. 更新 encryption_keys (新 salt/iterations/verify_blob + last_rotated_at)
             new_verify = make_verify_blob(new_key, new_salt, DEFAULT_ITERATIONS)
             conn.execute(
                 "UPDATE encryption_keys SET salt = ?, iterations = ?, "
-                "verify_blob = ? WHERE id = ?",
-                (new_salt, DEFAULT_ITERATIONS, new_verify, row.id),
+                "verify_blob = ?, last_rotated_at = ? WHERE id = ?",
+                (new_salt, DEFAULT_ITERATIONS, new_verify,
+                 _now_iso(), row.id),
             )
             conn.execute("COMMIT")
         except Exception as _e:
@@ -388,6 +390,40 @@ class SecretsService:
             "expires_at": datetime.fromtimestamp(state["expires_at"], tz=timezone.utc).isoformat(),
             "remaining_seconds": remaining,
             "keychain_persisted": keychain_persisted,
+        }
+
+    def rotation_status(self) -> dict:
+        """T3: 主密钥轮换状态 (TTL 自动过期 + 强制轮换提醒)."""
+        ek = EncryptionKeyRepository()
+        row = ek.get_default()
+        if row is None:
+            return {
+                "setup": False,
+                "last_rotated_at": None,
+                "age_days": None,
+                "should_rotate": False,
+                "ttl_seconds": UNLOCK_TTL_SECONDS,
+                "remind_days": 90,
+            }
+        last_rotated = None
+        age_days = None
+        should_rotate = False
+        if row.last_rotated_at:
+            try:
+                last_dt = datetime.fromisoformat(row.last_rotated_at)
+                age_delta = datetime.now(timezone.utc) - last_dt
+                age_days = max(0, age_delta.days)
+                last_rotated = row.last_rotated_at
+                should_rotate = age_days >= 90
+            except Exception:
+                pass
+        return {
+            "setup": True,
+            "last_rotated_at": last_rotated,
+            "age_days": age_days,
+            "should_rotate": should_rotate,
+            "ttl_seconds": UNLOCK_TTL_SECONDS,
+            "remind_days": 90,
         }
 
     def lock(self) -> dict:

@@ -13,6 +13,7 @@ const TABS = [
   { key: 'knowledge', label: '知识库', path: '/secnews/knowledge' },
   { key: 'analyze', label: '研判', path: '/secnews/analyze' },
   { key: 'analytics', label: '分析', path: '/secnews/analytics' },
+  { key: 'observability', label: '观测', path: '/secnews/observability' },
   { key: 'settings', label: '设置', path: '/secnews/settings' },
 ] as const;
 

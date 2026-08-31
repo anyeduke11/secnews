@@ -1,5 +1,189 @@
 # Changelog
 
+## v0.7 Batch 3 + 4 + 5 (2026-08-31) — API 观测落地 + 阈值规则引擎 + 收口落账
+
+> **来源**: Observability PRD v1.0 §5.3 "业务 endpoint 观测 + 阈值告警 + 看板嵌入"。本批三段子批一气呵成, 与 Batch 2 同观测轨, 不留尾巴 (除 llm_secrets 独立批次)。
+> **范围**: ① Batch ③ middleware 写表 (`record_api_call` + api_events + api_metrics_hourly + aggregator); ② Batch ④ 阈值引擎 (`observability_thresholds` service + observability_alerts 表 + threshold_check_job + alerts/thresholds API + Dashboard 横幅 + StatusBar 角标); ③ Batch ⑤ 集成测试 + ARCHITECTURE 同步 + PROGRESS/CHANGELOG 落账 + carry 收编。
+> **不引入**: 新数据库连接 / 新传输层 (ws/SSE) / 新 feature gate / 告警通道扩展 / 观测数据采样。
+> **commit 链**: `1f3d0e7` (carry merge) → `63c856c` (Batch ③ backend) → `108afde` (Batch ③ frontend) → `bf5a982` (Batch ④ backend) → `f0e01a4` (Batch ④ frontend) → 本 docs commit (Batch ⑤)。
+
+### 批次 ㉟: Batch ③ — middleware 写表 + api_events/api_metrics_hourly + aggregator
+
+- [x] `backend/observability_records.py::record_api_call` (NEW, def 非 async, 失败 swallow, 镜像 record_audit 模式)
+- [x] `backend/repository/migrations/081_v0.7_api_observability.sql` (NEW): `api_events` (7d TTL) + `api_metrics_hourly` (30d TTL, hour+path_template 主键) + 5 索引
+- [x] `backend/api/middleware.py`: dispatch 收尾 + 异常路径双调用 `record_api_call`; `path_template = request.scope["route"].path` (FastAPI 路由模板, 非 raw URL, 避免 query string 维度爆炸); `/api/health` 仍在 exclude_paths 排除
+- [x] `backend/scheduler/jobs/maintenance.py::observability_aggregator_job` (NEW, 60min): Python 两步走 dict buckets 聚合 (绕开 SQLite correlated subquery 不能引用外层 SELECT 别名); `INSERT OR REPLACE` 主键幂等
+- [x] `backend/scheduler/jobs/maintenance.py::observability_ttl_job` 扩到 5 张表 (新增 `api_events` 7d)
+- [x] `backend/api/observability_router.py` (NEW, 无 feature flag, 无条件基础设施): `/api/observability/{summary,recent,timeseries,llm-usage}` 4 GET 端点; 全部 `def` 同步 (async→def 线程池派发规则)
+- [x] `backend/tests/test_api_observability.py` (NEW, 10 例): middleware 落表 200/4xx/5xx / 排除路径 / error 截断 [:500] / aggregator 跨小时 / summary error_rate+p95 / recent desc / timeseries
+- [x] `frontend/src/components/secnews/observability/ObservabilityDashboard.tsx` (NEW): 3 卡片网格 (1h 概览 / Top 5 慢路径 / 最近 20 条事件, 5s 自动刷新)
+- [x] `frontend/src/components/secnews/observability/ObservabilityTab.tsx` (NEW): 路由壳; `routes/index.tsx` + `routes/lazy-imports.ts` 注册 `/secnews/observability`; `SecNewsShell.tsx` nav 加「观测」tab
+- [x] `frontend/src/components/secnews/layout/StatusBar.tsx`: 第 4 段 obs 1h (total / err% / p95, err≥5% 黄 / ≥15% 红)
+- [x] `frontend/src/components/secnews/observability/ObservabilityDashboard.test.tsx` (NEW, 3 例)
+- [x] **门禁**: ruff 0 / pytest 10/10 pass (scoped) / tsc 0 / vitest 317 pass / vite build OK
+
+### 批次 ㊱: Batch ④ — 阈值规则引擎 + observability_alerts + 看板嵌入
+
+- [x] `backend/services/observability_thresholds.py` (NEW): `Breach` dataclass + `load/save/validate/evaluate`; 4 类规则 (api/llm/job/audit) 各有 warn/critical/window_minutes; 缺失/坏值兜底 `DEFAULT_THRESHOLDS` (api.error_rate_pct 5/15, api.p95_latency_ms 800/2000, llm.error_rate_pct 10/30, job.failure_rate_pct 10/25, audit.llm_config_change_per_hour 10/50); `_validate` schema 校验 (非 dict / 负值 / warn≥critical)
+- [x] `backend/repository/migrations/082_v0.7_observability_alerts.sql` (NEW): `observability_alerts` 表 (level/metric/value/threshold/window_minutes/detail/fired_at/cooldown_until/acked/acacked_at/acked_by) + 3 索引
+- [x] `backend/scheduler/jobs/maintenance.py::observability_threshold_check_job` (NEW, 60min, aggregator +10min 错峰): 扫 api_events 1h 摘要 → 评估 breach → 同 (metric, level) cooldown 期内跳过 (15min 默认) → 写 alerts + audit_log action=threshold.breach
+- [x] `backend/scheduler/jobs/maintenance.py::observability_ttl_job` 扩到 6 张表 (新增 `observability_alerts` 30d)
+- [x] `backend/api/observability_router.py` 增 4 端点: `GET /alerts/active` (24h 窗口, critical 优先) / `POST /alerts/{id}/ack` (幂等) / `GET/PUT /thresholds` (PUT 校验 + audit_log)
+- [x] `backend/tests/test_observability_thresholds.py` (NEW, 14 例): load 兜底 / roundtrip / `_validate` 3 例 / evaluate warn+critical / p95 多越界 / summary dict / cooldown_until / alerts active / ack 幂等 / thresholds GET/PUT
+- [x] `backend/tests/test_feature_gates.py::test_registered_job_count_matches_scheduler`: AST 计数 48 → 50
+- [x] `frontend/src/components/secnews/observability/ActiveAlertsBanner.tsx` (NEW): 顶部红/黄条 + ack 按钮; 30s 刷新
+- [x] `frontend/src/components/secnews/observability/ThresholdEditor.tsx` (NEW): 折叠面板; 4 大类规则编辑; PUT 200 "已保存" / 400 toast 错误
+- [x] `frontend/src/components/secnews/observability/ObservabilityTab.tsx`: 顶部装 banner, 底部装 editor
+- [x] `frontend/src/components/secnews/layout/StatusBar.tsx`: 告警角标 🚨 N critical (红) / ⚠ N warn (黄), 仅非零显示
+- [x] `frontend/src/components/secnews/observability/Batch4.test.tsx` (NEW, 5 例)
+- [x] **门禁**: ruff 0 / pytest 14/14 pass (scoped) + `test_feature_gates` 65/16 pass / tsc 0 / vitest 322 pass / vite build OK
+
+### 批次 ㊲: Batch ⑤ — 收口落账 + carry 收编
+
+- [x] `backend/tests/test_observability_integration.py` (NEW, 5 例): middleware→aggregator→summary / threshold breach→alert / cooldown 去重 / ack 后从 active 消失 / record_api_call 抛异常业务响应仍 200
+- [x] `backend/api/middleware.py`: 双层 swallow (record_api_call 内部 try/except + middleware 外层 log_event api_observability_swallowed)
+- [x] `docs/ARCHITECTURE.md`: 顶部数字带更新 routers 65→66 / services 97→98 / jobs 48→50; 框图 r 同步
+- [x] `PROGRESS.md`: 加 Batch ③ + ④ + ⑤ 三段 (含 commit 链 + 关键事实表 + 不在本批范围)
+- [x] `carry/earlier-session-leftovers` (`e209a57`) `--no-ff` 收编, P4 双预存债根治 (test_successors_of_raw + test_baseline_2026_08_24_counts)
+- [x] **门禁**: ruff 0 / pytest 集成测试 5/5 pass / 全量 pytest 0fail (P4 清零) / `generate_meta --check` OK (routers 66 / services 98 / jobs 50) / tsc 0 / vitest 322 pass / vite build OK
+
+## v0.7 Batch 2 (2026-08-31) — LLM provider 切换 + settings.kv 覆盖 + audit_log 写入
+
+> **来源**: Observability PRD v1.0 §5.3 + Batch 1 已落地的 `record_audit` 0 生产调用者顺接, 闭环为 audit_log 首个真实写入场景。批前盘点: ai_hub 默认 provider 仅 env/router/default 三级, 用户切换要重启进程或改 env; QualitySettings 写 `quality.llm_provider` 是 v4.4 起的 dead 字段 (ai_hub 不读)。
+> **范围**: ① env AI_PROVIDER > settings.kv > yaml default_provider 四级链; ② `POST /api/settings/llm-provider` 走 settings.kv + audit_log; ③ 前端扩到 yaml 全注册; ④ 不动 llm_secrets (主密钥未解); ⑤ 不动 LLMService gateway; ⑥ 不动 GateContext (dead default)。
+> **不引入**: 新数据库表 / 新 feature gate / 新前端页面 / llm_secrets 接入。
+> **commit 链**: `ade3b03` (backend) → `ba69454` (frontend) → docs commit。
+
+### 批次 ㉞：Batch 2 — 后端核心
+
+- **`AIService._resolve_provider` 四级链** (`backend/services/ai_hub/service.py`): 在 env 之后插入 settings.kv 查询 (类型守卫 `isinstance(str) and .strip()`, 避免非字符串触发 "settings" 打标), 兜底 router → yaml default_provider; 既有 `test_s4_1_model_router.py::test_ai_service_resolve_provider_three_levels` 6 用例继续绿 (env > router > default 顺序保住 — test isolation 时 env 未设 + settings.kv 空, 新代码回退到 router/default 同既有路径)
+- **`AIService._config_source()` 解析路径打标** (NEW): env|settings|router|default, 写入 `llm_usage_log.config_source` 替换原 `default/fallback` 二分; `key_source` 仍 `"env"` (TODO 留待 Batch ③+ 接 llm_secrets)
+- **`POST /api/settings/llm-provider`** (`backend/api/settings.py`): 校验 provider ∈ yaml registry → `SettingsRepository.set("llm.default_provider")` → `record_audit(actor, action="llm_config.update", target="default_provider", detail={from, to, source})`; audit 失败仍 200 (PRD §10 红线 ② 审计容错); actor 默认 `"web"`, 接受 `"system"` / `"agent:<name>"`; 无效 provider → 400 `INVALID_PARAM` 含 trace_id/version envelope
+- **`GET /api/llm/status` 增 `effective_provider` + `config_source`**: 帮前端确认"我现在到底用哪个 + 哪条链生效的", 复用 `_resolve_provider` / `_config_source` 同源
+- **新测试 × 14**:
+  - `backend/tests/test_llm_settings_override.py` NEW (8 例): env > settings > router > default 完整四链; 非字符串 / 空串 / settings_repo 异常 swallowed; 端到端 `config_source` 落到 `llm_usage_log`
+  - `backend/tests/test_llm_settings_api.py` NEW (6 例): 合法切换 + audit 写入; 非法 provider → 400 `INVALID_PARAM`; audit 失败仍 200; actor 三种格式 web/system/agent:<name>; 旧值序列正确 (from=None → "sensenova"); yaml registry 缺失时退化兜底
+
+### 批次 ㉟：Batch 2 — 前端面板
+
+- **`frontend/src/components/settings/QualitySettings.tsx`**: 顶部新增独立面板 (与质量规则解耦)
+  - 拉 `/api/llm/status` 拿到 yaml 注册的 `providers` + `effective_provider` + `config_source`, dropdown 动态渲染 (不再硬编码 2 项; yaml 几个就几个)
+  - "切换默认 LLM Provider" 按钮 → `POST /api/settings/llm-provider { provider, actor: 'web' }`, 成功后重拉 status 验证 `effective_provider` 已变 + 显示 `已切换: x → y`
+  - 失败 (INVALID_PARAM 等) 显示后端 `message`, 不调成功 toast
+  - 沿用 settings.kv 持久化 + audit_log 写入 (后端已在 ㉞ 落地)
+  - 检测子面板的提供方 dropdown 同步扩为动态渲染
+  - 不动 `PUT /api/quality/rules` (那是质量规则, dead 字段 `quality.llm_provider` 保留)
+  - 不引入新页面 / 新依赖
+- **`frontend/src/components/settings/QualitySettings.test.tsx` NEW** (4 例全绿): 5-option 动态渲染 + effective 反映 status; POST 切换 + 成功消息; 失败显示错误无成功 toast; open=false 不触发 fetch
+
+### 门禁
+
+| 维度 | 结果 |
+|---|---|
+| ruff backend | All checks passed (含 I001 自动修) |
+| 全量 pytest | **3077 passed / 6 skipped / 1 failed** (1 fail = P4 预存债 `test_snapshot_for_retirement.py::test_baseline_2026_08_24_counts` 期望 4149 wiki 文件但根已迁, 见 P4 段) |
+| `generate_meta --check` | OK (routers 65 / services 97 不变 — 本批不增架构数字) |
+| tsc --noEmit | 0 错 |
+| vitest | **314 passed** (基线 310 + 4 new) |
+| vite build | OK |
+
+### 不在本批范围 (留作 Batch ③+ 开放尾巴)
+
+- Batch ③ API 观测 (HTTP middleware trace_id 注入 + 业务 endpoint observability)
+- Batch ④ 看板告警 (Dashboard 嵌入 + 阈值规则)
+- Batch ⑤ 收尾
+- llm_secrets 主密钥恢复 (Q1 禁重置沿袭, 加密通道休眠待用户裁决)
+- 已知预存债 (来自 P4): `test_kl_state_machine.py::test_successors_of_raw` 期望漂移 / `test_snapshot_for_retirement.py::test_baseline_2026_08_24_counts` 期望陈旧
+
+## v0.7 Batch 1 (2026-08-31) — Observability 观测地基 + LLM/Job/Agent/Process 执行记录
+
+> **来源**: 用户 2026-08-30 `hotspot-observability-prd.md` 需求 (ollama + 云端 LLM 前端可切换 + 完整观测方案, 5 批次实施 ①地基 / ②LLM 切换 / ③API 观测 / ④看板告警 / ⑤收尾)。本批 = ①, 仅落地观测地基与执行记录层; 不动 LLM 配置切换 (留 ②)。commit `345ce39` (分支 `observability/batch-1`)。
+> **非本批遗留隔离**: `carry/earlier-session-leftovers` 分支 `e209a57` — 7 个更早会话未 commit 的预存债文件 (kl_state_machine / t1_raw_to_refine / wiki_stats_service / test_kl_state_machine / test_snapshot_for_retirement / test_t1_trigger / snapshot_for_retirement), 显式 pathspec 隔离, 不混进本批叙事。
+
+### 批次 ㉞：观测地基 — contextvar trace_id + observability_records 4 入口 + logging serialize 化
+
+- **trace_id contextvar 传播** (`backend/observability.py`): 新增 `_trace_id_var: ContextVar[str|None]`, `set_trace_id(trace_id)` 返回 `Token` (`ContextVar.set()` 必须接收, 丢则后续 `reset_trace_id(None)` 抛 TypeError — 装饰器包装第一版坑过), `get_trace_id()` 不存在返 None (对齐 `ContextVar.get()` 默认值语义)
+- **`log_event(event, **fields)` 入口**: 自动从 ctx 取 trace_id 注入, 走 `logger.bind(**fields).info(event)` 把字段拍平到 `record.extra` 顶层 (vs `extra={}` 嵌套到 `record.extra.extra` 的陷阱); patcher `_ensure_trace_id_default` 同时注入 trace_id 与 event 默认空串, 模板渲染不抛 KeyError
+- **`observability_records.py` 4 入口** (全 `def` 同步, 阻塞业务路径按 PRD §10 红线 ② 全吞异常 — 不允许观测写入失败拖垮业务流):
+  - `start_job_run(job_id, ...)` / `finish_job_run(run_id, status, error?)` — 双阶段 (P0 范式: 不允许只 finish 不 start)
+  - `start_agent_run(agent_name, ...)` / `finish_agent_run(run_id, status, error?)` — 同上
+  - `record_process_event(supervisor, pid, event, detail)` — 单 append
+  - `record_audit(action, actor, target, detail)` — 单 append, ② LLM 切换写入审计用此
+- **observability 写入**全 `def` 同步: 严禁 `async def`, 否则 FastAPI 主事件循环被 await 链拖; 若调用方在 async 上下文, 必须 `asyncio.to_thread(observability_records.start_job_run, ...)` — 由调用方显式 to_thread, 避免隐式线程池派发 (P3-1 教训: async→def 自动线程池派发 = connection affinity × SQLite ATTACH 跨线程假阴性)
+
+### 批次 ㉟：migration 079 + 080 — llm_usage_log 9 列 + 4 张观测表
+
+- **migration 079** (`backend/repository/migrations/079_v0.7_llm_usage_log_cols.sql`): `llm_usage_log` 加 ok / error / prompt_tokens / completion_tokens / tokens_estimated / trace_id / scene / config_source / key_source 9 列 + 3 索引 (`idx_usage_trace_id` / `idx_usage_scene_time` / `idx_usage_time`)
+- **migration 080** (`backend/repository/migrations/080_v0.7_observability_tables.sql`): 4 张观测表全部带 `trace_id IS NOT NULL` 部分索引 (允许空但有则查得快):
+  - `job_runs` (30d TTL) — job_id / started_at / finished_at / status / error / trigger / trace_id
+  - `agent_runs` (30d TTL) — agent_name / started_at / finished_at / status / error / pid / trace_id
+  - `process_events` (14d TTL) — supervisor / pid / event / detail / occurred_at / trace_id
+  - `audit_log` (90d TTL) — action / actor / target / detail / occurred_at / trace_id (Batch ②/③ 主用)
+
+### 批次 ㊱：`record_llm_call` 统一入口 + `success_stats_24h` 升 p50
+
+- **`backend/services/ai_hub/usage.py`** 新统一入口 `record_llm_call(provider, model, task, *, ok, error=None, prompt=None, response=None, prompt_tokens=None, completion_tokens=None, total_tokens=None, cost_usd=None, latency_ms=0.0, tokens_estimated=False, scene=None, config_source=None, key_source=None, trace_id=None)`: 替代旧 `log_llm_usage` / `log_ai_usage` / `cost_monitor.record_usage` 三入口
+- **`success_stats_24h()` 升级 `latency_p50_ms`**: SQLite `ROW_NUMBER() OVER (ORDER BY latency_ms)` + `COUNT(*) OVER ()` 取中位 trick, 仅统计 `ok=1 AND latency_ms IS NOT NULL`; /api/llm/status observability 块新增字段 (`v0.6.3 P3-3` 仅 success_rate, 本批补 latency 维度)
+- **`AIService._record` 新方法** (`backend/services/ai_hub/service.py`): 4 必填 + 9 可选, 替代旧 `_usage`; **`_usage` 保留为 deprecated shim** 转发到 `record_llm_call` — 不删, 因旧测试桩 `lambda *a, **k` 仍在引用 (曾掩盖 arity bug, 现改 5-tuple 断言后可破, 但下游 ai_service 自调仍有引用, 一刀切会破 — shim 是最稳路径)
+- **`record_llm_call` 字段**: config_source (`default` / `fallback` / `user_override`) + key_source (`env` / `secret` / `manual`) + scene (`evaluate_article` / `gate_detect` / `summarize` / `translate` / 等) — Batch ② 用户切换行为通过这 3 字段落审计
+
+### 批次 ㊲：3 处端到端接入 — agent_bridge + process_supervisor + scheduler instrument_job
+
+- **`backend/services/agent_bridge.py`**: `run_agent_task` 设 trace_id `f"agent:{agent_name}:{int(time.time())}"` + `start_agent_run` / `finish_agent_run` 包裹 `_run_builtin` builtin 路径 (此前裸跑无任何观测) + finally `reset_trace_id(token)` 防跨请求串味
+- **`backend/services/process_supervisor.py`**: 4 lifecycle 分支 5 个写入点落 `process_events` — spawn 成功 / spawn 失败 / stop (exit) / poll auto-restart / poll hit-restart-limit
+- **`backend/scheduler/jobs/_runtime.py`** `instrument_job` 装饰器: 统一入口 — 设 trace_id `job:<job_id>:<start_ms>`, `start_job_run` + finally `finish_job_run(status=ok|failed)`, **全部 job 自动覆盖** (无需逐 job 改); 关键 = `set_trace_id(trace_id)` 返回值必须接收 (Token), 丢则 reset 阶段 TypeError
+
+### 批次 ㊳：`observability_ttl_job` (job 48) + logging_config 切 `serialize=True`
+
+- **job 48 `observability_ttl_job`** (`backend/scheduler/jobs/maintenance.py` + scheduler.py): 1h 间隔; 4 表分别按 30/30/14/90 天阈值清理 — `job_runs`/`agent_runs` 30d, `process_events` 14d, `audit_log` 90d; `__init__.py` re-export; scheduler.py `id="observability_ttl"` 注册
+- **logging_config 切 `serialize=True`** (`backend/logging_config.py`): 旧模板 `{ts/level/module/msg/trace_id/event}` 只挑 5 固定字段, `log_event` 传的 method/path/status/duration_ms 全部不进文件; 切到 loguru 内置 JSON 序列化, 读法变 `jq '.record.extra.method'` / `'.record.extra.status'`, 包一层 `record.{text,message,extra,level.name,...}`; 下游测试同步改写
+- **meta 同步**: ARCHITECTURE.md 47→48 jobs; generate_meta --check OK (jobs 48 / collectors 14 / routers 65 / services 97)
+
+### 批次 ㊴：测试 — 18 个新增 + 3 处既有用例同步
+
+- **新增 `backend/tests/test_llm_observability.py`** (18 用例):
+  - record_llm_call 4 例 (real tokens / estimated / failure ok=0 / trace_id 自动从 ctx fallback)
+  - success_stats_24h 2 例 (含 p50 单测: ROW_NUMBER trick, ok=0 不进 latency 池)
+  - recent_calls 1 例
+  - job_runs / agent_runs 双阶段各 3 例 (ok / failed / finish 不带 start = noop)
+  - process_events / audit_log append 各 1 例
+  - observability_records 异常吞 2 例 (异常不外抛, 不污染业务流)
+  - contextvar 隔离 1 例 (不同 asyncio.run 各自独立)
+  - log_event bind pattern via serialize=True sink 1 例 (断言 `bind.assert_called_once()` + `bind.return_value.info.assert_called_once()`)
+  - instrument_job 双阶段 1 例
+- **既有用例同步**: test_feature_gates 47→48 jobs / test_llm_evaluate patch `_record` 替 `_usage` (4-tuple 断言) / test_logging 改 `record.extra.trace_id` 形态 / test_observability 改 `bind.assert_called_once()` 断言
+- **零 skip 守住**: 18 个新增全过, 既有 6 skipped 保持 (与本批无关的 WIP 标记)
+
+### 决策点 (本批)
+
+1. **Token 必须捕获**: 装饰器第一版丢弃 `set_trace_id()` 返回值, `reset_trace_id(None)` 抛 TypeError — `ContextVar.set()` 返回 Token 必须接收 (与 P3-1 同类教训: 子系统包装时把 token 弄丢 = 业务崩)
+2. **sink API 收 Message vs str**: 测试 sink 用 `serialize=False` 时收 Message 对象, 切 `serialize=True` 后收 JSON 字符串, 断言写法不同; 测试必须配 `serialize=True` 才与生产一致 (生产唯一)
+3. **observability_records 全 def 同步**: async → FastAPI 主事件循环被拖; to_thread → connection affinity × SQLite ATTACH 跨线程假阴性; 唯一正确路径 = 纯 `def` 由调用方显式 to_thread
+4. **`_usage` 不删, 标 deprecated shim**: 测试桩曾掩盖 arity bug, 改 5-tuple 断言后删看似干净, 但下游 (ai_service 自调) 还有引用, 一刀切会破 — 保留 shim 转发到 `record_llm_call` 是最稳路径
+5. **7 个非本批遗留文件隔离**: 提交前 git status 出现 7 个未提交修改 (kl/t1/wiki_stats + tests), 都是更早会话落地未 commit 的预存债 — 不能混进本批, 否则污染 v0.7 叙事; 处理 = `git stash push <pathspec>` → 建 `carry/earlier-session-leftovers` 分支 (基于 P4 头 `3d3af9c`) → `git stash pop` → 单独 `e209a57` chore 提交附完整溯源注记; 主分支 (`observability/batch-1`) 保持纯净
+
+### 门禁结果
+
+| 维度 | 结果 |
+|---|---|
+| ruff backend | All checks passed |
+| 全量 pytest | **3047 passed / 6 skipped / 0 failed** (基线持平; 新增 18 用例全过) |
+| generate_meta --check | OK (jobs 48 / collectors 14 / routers 65 / services 97) |
+| tsc --noEmit | 0 错 (前端本批无动) |
+| vitest | 310 passed (前端本批无动) |
+| Mimosa | `scanner_no_output` (按既有兼容策略; 不宣称项目安全) |
+
+### 仍开放 (Batch 2+ 范围, 不在本批)
+
+- ② LLM 配置切换: `settings` KV + env 双轨优先级 + 前端切换 UI + `record_audit` 写入审计 (用户切换行为入 `audit_log`)
+- ③ API 观测: HTTP middleware 接入 trace_id 自动注入 + latency 落 `audit_log`
+- ④ 看板与告警: `/api/observability/dashboard` 聚合 + 阈值告警 (success_rate < 50% / latency_p95 > 30s 触发)
+- ⑤ 收尾: PROGRESS/CHANGELOG 顶部段更新 + ARCHITECTURE.md 加 observability 章节 + 前端 observability 页面
+- ⚠️ **carry/earlier-session-leftovers 分支** (`e209a57`): 7 个预存债文件已独立落 commit, 待用户裁决合并回主分支 / 继续保留为 WIP / 评估是否需要回滚
+- ⚠️ **dsh 实机协议未对齐** (沿袭 v0.6.3 dsh 内置化): agent_bridge 桥接端点仍按推测实现, 待用户配置真实启动命令实测
+
+---
+
 ## v0.6.3 P4 批次 (2026-08-30/31) — 双根合并 + llm-wiki-2.0 唯一根锁定 + 周界炸弹根治
 
 > **来源**: 用户 2026-08-30 裁决"全部切换并锁定到 llm-wiki-2.0 唯一根, 删除旧根, 并保证功能正常"+"修复周界炸弹"。批前盘点: items/concepts 1:1 对齐 (4149/96), learning/content/summaries/_MAP.md/SOUL.md 仅在旧根, 12 service 仍写旧根。

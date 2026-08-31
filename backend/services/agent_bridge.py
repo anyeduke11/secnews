@@ -35,6 +35,8 @@ from backend.config.agent_runner_schema import (
     route,
 )
 from backend.logging_config import logger
+from backend.observability import reset_trace_id, set_trace_id
+from backend.observability_records import finish_agent_run, start_agent_run
 
 # {workspace} 模板只允许落在 codegarden/<project>/ 下 (agents.yaml §19.3-3)
 _WORKSPACE_ROOT = Path("codegarden")
@@ -164,58 +166,103 @@ def run_agent_task(
 
     runner = cfg.agents[agent_name]
     started = time.monotonic()
-
-    # builtin — 无外部进程, 走 ai_hub LLM 单出口
-    if not runner.command:
-        return _run_builtin(agent_name, task_type, input_text, started)
-
-    # 外部 CLI
-    cwd = _resolve_workspace(workspace)
-    stdin_payload = json.dumps(
-        {"task_type": task_type, "input": input_text, "payload": payload or {}},
-        ensure_ascii=False,
+    trace_id = f"agent:{agent_name}:{int(time.time())}"
+    token = set_trace_id(trace_id)
+    run_rowid = start_agent_run(
+        agent=agent_name,
+        protocol=runner.protocol,
+        task_kind=task_type,
+        trigger_source="api",
     )
     try:
-        proc = subprocess.run(
-            runner.command + [input_text],
-            input=stdin_payload,
-            capture_output=True,
-            text=True,
-            timeout=runner.timeout_seconds,
-            cwd=cwd,
-        )
-    except subprocess.TimeoutExpired:
-        logger.warning("agent %s timeout after %ss", agent_name, runner.timeout_seconds)
-        return {
-            "ok": False, "agent": agent_name, "protocol": runner.protocol,
-            "error": f"timeout after {runner.timeout_seconds}s (§19.4 kill)",
-            "duration_ms": round((time.monotonic() - started) * 1000),
-        }
-    except OSError as e:
-        return {"ok": False, "agent": agent_name, "error": f"spawn failed: {e}"}
+        # builtin — 无外部进程, 走 ai_hub LLM 单出口
+        if not runner.command:
+            builtin_result = _run_builtin(agent_name, task_type, input_text, started)
+            finish_agent_run(
+                run_rowid,
+                ok=bool(builtin_result.get("ok")),
+                duration_ms=builtin_result.get("duration_ms") or 0,
+                result_excerpt=str(builtin_result.get("result"))[:500]
+                    if builtin_result.get("ok") else None,
+                error=builtin_result.get("error"),
+            )
+            return builtin_result
 
-    duration_ms = round((time.monotonic() - started) * 1000)
-    if proc.returncode != 0:
-        tail = (proc.stderr or proc.stdout or "").strip()[-500:]
+        # 外部 CLI
+        cwd = _resolve_workspace(workspace)
+        stdin_payload = json.dumps(
+            {"task_type": task_type, "input": input_text, "payload": payload or {}},
+            ensure_ascii=False,
+        )
+        try:
+            proc = subprocess.run(
+                runner.command + [input_text],
+                input=stdin_payload,
+                capture_output=True,
+                text=True,
+                timeout=runner.timeout_seconds,
+                cwd=cwd,
+            )
+        except subprocess.TimeoutExpired:
+            logger.warning("agent %s timeout after %ss", agent_name, runner.timeout_seconds)
+            result = {
+                "ok": False, "agent": agent_name, "protocol": runner.protocol,
+                "error": f"timeout after {runner.timeout_seconds}s (§19.4 kill)",
+                "duration_ms": round((time.monotonic() - started) * 1000),
+            }
+            finish_agent_run(
+                run_rowid, ok=False, duration_ms=result["duration_ms"],
+                error=result["error"],
+            )
+            return result
+        except OSError as e:
+            duration_ms = round((time.monotonic() - started) * 1000)
+            finish_agent_run(
+                run_rowid, ok=False, duration_ms=duration_ms,
+                error=f"spawn failed: {e}",
+            )
+            return {"ok": False, "agent": agent_name, "error": f"spawn failed: {e}",
+                    "duration_ms": duration_ms}
+
+        duration_ms = round((time.monotonic() - started) * 1000)
+        if proc.returncode != 0:
+            tail = (proc.stderr or proc.stdout or "").strip()[-500:]
+            finish_agent_run(
+                run_rowid, ok=False, duration_ms=duration_ms,
+                error=f"exit rc={proc.returncode}: {tail}",
+            )
+            return {
+                "ok": False, "agent": agent_name, "protocol": runner.protocol,
+                "error": f"exit rc={proc.returncode}: {tail}",
+                "duration_ms": duration_ms,
+            }
+
+        result = _parse_output(runner.protocol, proc.stdout)
+        ok = result is not None
+        finish_agent_run(
+            run_rowid, ok=ok, duration_ms=duration_ms,
+            result_excerpt=str(result)[:500] if ok else None,
+            error=None if ok else "stdout 无可解析输出",
+        )
         return {
-            "ok": False, "agent": agent_name, "protocol": runner.protocol,
-            "error": f"exit rc={proc.returncode}: {tail}",
+            "ok": ok,
+            "agent": agent_name,
+            "protocol": runner.protocol,
+            "result": result,
+            "error": None if ok else "stdout 无可解析输出",
             "duration_ms": duration_ms,
         }
-
-    result = _parse_output(runner.protocol, proc.stdout)
-    return {
-        "ok": result is not None,
-        "agent": agent_name,
-        "protocol": runner.protocol,
-        "result": result,
-        "error": None if result is not None else "stdout 无可解析输出",
-        "duration_ms": duration_ms,
-    }
+    finally:
+        reset_trace_id(token)
 
 
 def _run_builtin(agent_name: str, task_type: str, input_text: str, started: float) -> dict[str, Any]:
-    """builtin runner → ai_hub generate (LLM 单出口契约)。"""
+    """builtin runner → ai_hub generate (LLM 单出口契约)。
+
+    仅返回结果信封, 不负责写 agent_runs — 由调用方 run_agent_task 在拿到
+    返回值后调 finish_agent_run 落库。trace_id 已被调用方注入, 内层
+    ai_hub LLM 调用自动关联。
+    """
     import asyncio
 
     from backend.services.ai_hub import LLMService

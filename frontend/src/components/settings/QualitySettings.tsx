@@ -35,6 +35,15 @@ export function QualitySettings({ open }: QualitySettingsProps) {
   const [savingLlm, setSavingLlm] = useState(false);
   const [llmMessage, setLlmMessage] = useState<QualityMessage>(null);
 
+  // v0.7 Batch 2: 默认 provider 切换（独立面板，与质量规则解耦）
+  // 数据源：/api/llm/status 返回 providers（yaml 注册）+ effective_provider（实际生效）
+  // + config_source（解析路径打标）。动态拉避免硬编码 5 项与 yaml 漂移。
+  const [defaultProvider, setDefaultProvider] = useState('sensenova');
+  const [providerOptions, setProviderOptions] = useState<string[]>(['sensenova', 'ollama']);
+  const [providerSource, setProviderSource] = useState<string>('default');
+  const [savingDefaultProvider, setSavingDefaultProvider] = useState(false);
+  const [providerMessage, setProviderMessage] = useState<QualityMessage>(null);
+
   // 打开面板时拉质量规则 + LLM 初始配置
   useEffect(() => {
     if (!open) return;
@@ -54,6 +63,55 @@ export function QualitySettings({ open }: QualitySettingsProps) {
       })
       .catch(() => setQualityMessage({ type: 'error', text: '加载质量配置失败' }));
   }, [open]);
+
+  // v0.7 Batch 2: 拉 /api/llm/status 拿到 yaml 注册的 provider 列表 + 当前 effective
+  useEffect(() => {
+    if (!open) return;
+    fetch('/api/llm/status')
+      .then(r => r.json())
+      .then(data => {
+        const providers = data.providers ? Object.keys(data.providers) : [];
+        if (providers.length > 0) setProviderOptions(providers);
+        if (typeof data.effective_provider === 'string' && data.effective_provider) {
+          setDefaultProvider(data.effective_provider);
+        }
+        if (typeof data.config_source === 'string') setProviderSource(data.config_source);
+      })
+      .catch(() => {
+        // fallback 已在 useState 初始值里 (sensenova/ollama)
+      });
+  }, [open]);
+
+  // v0.7 Batch 2: 切换默认 provider → POST /api/settings/llm-provider
+  const switchDefaultProvider = useCallback(async () => {
+    setSavingDefaultProvider(true);
+    setProviderMessage(null);
+    try {
+      const resp = await fetch('/api/settings/llm-provider', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: defaultProvider, actor: 'web' }),
+      });
+      const data = await resp.json();
+      if (resp.ok && data.status === 'ok') {
+        setProviderMessage({
+          type: 'ok',
+          text: `已切换: ${data.old_provider ?? '(无)'} → ${data.new_provider}`,
+        });
+        // 重拉 /api/llm/status 确认 effective_provider 已变
+        const r2 = await fetch('/api/llm/status');
+        const d2 = await r2.json();
+        if (typeof d2.effective_provider === 'string') setDefaultProvider(d2.effective_provider);
+        if (typeof d2.config_source === 'string') setProviderSource(d2.config_source);
+      } else {
+        setProviderMessage({ type: 'error', text: data.message || '切换失败' });
+      }
+    } catch {
+      setProviderMessage({ type: 'error', text: '切换失败 (网络错误)' });
+    } finally {
+      setSavingDefaultProvider(false);
+    }
+  }, [defaultProvider]);
 
   const saveQuality = useCallback(async () => {
     setSavingQuality(true);
@@ -176,6 +234,58 @@ export function QualitySettings({ open }: QualitySettingsProps) {
 
   return (
     <div className="rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
+      {/* v0.7 Batch 2: 默认 LLM Provider 切换（settings.kv 持久化 + audit_log 写入） */}
+      <div className="px-3 py-2 space-y-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+            默认 LLM Provider
+          </span>
+          <span
+            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{
+              backgroundColor: 'var(--bg-hover)',
+              color: 'var(--text-muted)',
+            }}
+            title={`解析路径: ${providerSource}`}
+          >
+            {providerSource}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>当前生效</span>
+          <select
+            value={defaultProvider}
+            onChange={e => setDefaultProvider(e.target.value)}
+            className="text-xs px-2 py-1 rounded-[var(--radius-sm)]"
+            style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+          >
+            {providerOptions.map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
+        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+          优先级: env AI_PROVIDER &gt; 本设置 (settings.kv) &gt; llm.yaml default_provider。
+          切换写入 settings 表 + audit_log，进程内立即生效，无需重启。
+        </p>
+        {providerMessage && (
+          <p className="text-[10px]" style={{ color: providerMessage.type === 'ok' ? 'var(--color-general)' : 'var(--color-error)' }}>
+            {providerMessage.text}
+          </p>
+        )}
+        <button
+          onClick={switchDefaultProvider}
+          disabled={savingDefaultProvider}
+          className="w-full px-2 py-1 text-[11px] font-medium rounded-[var(--radius-sm)]"
+          style={{
+            backgroundColor: 'var(--color-general)', color: 'var(--text-on-color)', border: 'none',
+            opacity: savingDefaultProvider ? 0.6 : 1, marginTop: 4,
+          }}
+        >
+          {savingDefaultProvider ? '保存中...' : '切换默认 LLM Provider'}
+        </button>
+      </div>
+
       {/* v4.4: LLM AI 内容检测（独立配置，默认关闭） */}
       <button
         onClick={() => setLlmOpen(o => !o)}
@@ -221,8 +331,10 @@ export function QualitySettings({ open }: QualitySettingsProps) {
               className="text-xs px-2 py-1 rounded-[var(--radius-sm)]"
               style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
             >
-              <option value="sensenova">商汤日日新 (SenseNova)</option>
-              <option value="ollama">本地 Ollama</option>
+              {/* v0.7 Batch 2: 动态从 yaml 注册的 provider 列表渲染（与上方默认切换面板共用 providerOptions） */}
+              {providerOptions.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
             </select>
           </div>
           {llmProvider === 'sensenova' && (

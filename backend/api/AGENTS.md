@@ -2,11 +2,11 @@
 
 > **就近作用域**:此文件仅承载 `backend/api/` 子树进入时即时需要的约束。
 > 跨项目路由、设计技能选择、根级命令、Feature Gates 总览见根 `AGENTS.md`。
-> 架构数字(`51 routers`)由 `scripts/generate_meta.py` AST 反推维护,不要手改。
+> 架构数字(`66 routers`)由 `scripts/generate_meta.py` AST 反推维护,不要手改。
 
 ## 子树身份
 
-FastAPI 路由层(51 个 `include_router` 注册入口),**唯一对外 HTTP 入口**。
+FastAPI 路由层(66 routers,`include_router` 注册入口),**唯一对外 HTTP 入口**。
 位于 `services/` 之上、`main.py` 之下,通过 `register_routers(app)` 一次性挂载。
 所有 `__init__.py` 内的 import 必须 lazy,否则会触发循环。
 
@@ -25,7 +25,7 @@ FastAPI 路由层(51 个 `include_router` 注册入口),**唯一对外 HTTP 入�
   ```bash
   python -m pytest backend/tests/ --tb=short -q -k "test_<feature>_api"    # 单路由回归
   python -m pytest backend/tests/ --tb=short -q                             # 全量回归
-  python scripts/generate_meta.py --check                                    # CI 校验 51 routers 计数
+   python scripts/generate_meta.py --check                                    # CI 校验 66 routers 计数
   ```
 - **本地起服务**: 根 AGENTS.md 已列 `python run.py` / `uvicorn backend.main:app`。
   修改后访问 `http://127.0.0.1:8000/docs` 看 Swagger 是否列出新路由。
@@ -60,6 +60,11 @@ FastAPI 路由层(51 个 `include_router` 注册入口),**唯一对外 HTTP 入�
 |------|-------------|----------|
 | 普通业务路由 | `<feature>.py`(`APIRouter` 在文件内) | `router_<X>.py`、`<feature>_router.py`(后缀重复) |
 | 跨阶段复合 API | `<phase>_<feature>_api.py` | `<feature>_api.py`(无 phase 限定)、`<phase>_<feature>.py`(无 `_api` 后缀) |
-| MCP / CodeGarden | `mcp_<feature>.py` / `codegarden<feature>.py` | `mcp_<feature>_api.py`(本目录不重复 `_api`) |
 | 中间件 | `middleware.py` 唯一 | 散落多个 `*_middleware.py` |
 | 测试文件 | `backend/tests/test_<feature>_api.py` | `tests/api/<feature>.py`(路径错误) |
+
+> **历史豁免名单 (v0.7.0 审计登记)**: 以下存量文件不符合 `<phase>_<feature>_api.py`
+> 规范但已稳定运行、改名会牵动 import/测试/generate_meta 链路, 暂不改名 —
+> 新增文件仍必须按上表规范: `secnews_dashboard_api.py`、`agents_api.py`、
+> `dsh_api.py`、`dsh_control_api.py`、`crm_customers_api.py`、`crm_stats_api.py`、
+> `crm_opportunities_api.py`、`alert_api.py`。若后续重构触碰其中文件, 顺带迁移到规范名。

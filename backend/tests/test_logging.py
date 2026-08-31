@@ -2,7 +2,9 @@
 
 验证：
   - setup() 不会抛错并能创建日志文件
-  - JSON Lines 格式 + 必含字段 ts/level/module/msg/trace_id
+  - JSON Lines 格式 + 必含字段 record.extra.trace_id / record.message / level
+  - v0.7 Batch 1 (PRD §6.1): 切到 loguru 内置 serialize=True, 输出顶层
+    "record.extra.trace_id" 而非历史 "trace_id" 字段; 读取方式 ``jq .record.extra.x``.
 """
 import json
 from pathlib import Path
@@ -29,26 +31,29 @@ def test_logging_json_format(tmp_path: Path):
     lines = [line for line in content.strip().split("\n") if line]
     assert lines, "log file should have at least one line"
     parsed = [json.loads(line) for line in lines]
-    assert any(item.get("msg") == "hello world" for item in parsed)
+    # serialize=True 形态: message 在 record.message
+    assert any(item.get("record", {}).get("message") == "hello world"
+               for item in parsed)
 
 
 def test_logging_required_fields(tmp_path: Path):
     log_file = tmp_path / "fields.log"
     setup(log_file=str(log_file), also_stderr=False)
-    # 注意：loguru 把 "extra" 当作普通 kwarg 时会嵌套到 record["extra"]["extra"]，
-    # 直接传 trace_id=... 是最稳的做法。
-    logger.info("fields-check", trace_id="abc-123")
+    # v0.7 Batch 1: bind 模式让 trace_id 进 record.extra 顶层
+    logger.bind(trace_id="abc-123").info("fields-check")
     logger.complete()
     content = log_file.read_text(encoding="utf-8")
     lines = [json.loads(line) for line in content.strip().split("\n") if line]
-    matched = [item for item in lines if item.get("msg") == "fields-check"]
-    assert matched, "expected at least one line with msg=fields-check"
+    matched = [item for item in lines
+               if item.get("record", {}).get("message") == "fields-check"]
+    assert matched, "expected at least one line with record.message=fields-check"
     item = matched[-1]
+    rec = item["record"]
     # 必含字段
-    for key in ("ts", "level", "module", "msg", "trace_id"):
-        assert key in item, f"missing required field: {key}"
-    assert item["trace_id"] == "abc-123"
-    assert item["level"] == "INFO"
+    for key in ("time", "level", "extra", "message"):
+        assert key in rec, f"missing required record field: {key}"
+    assert rec["extra"]["trace_id"] == "abc-123"
+    assert rec["level"]["name"] == "INFO"
 
 
 def test_logging_rotation_uses_max_bytes(tmp_path: Path):

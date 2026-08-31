@@ -216,7 +216,7 @@ class TestJobGating:
             and isinstance(node.func, ast.Attribute)
             and node.func.attr == "add_job"
         )
-        assert n == 47
+        assert n == 48  # v0.7 Batch 1: observability_ttl_job 落地
 
 
 class TestFeaturesEndpoint:

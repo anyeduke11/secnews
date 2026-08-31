@@ -424,6 +424,16 @@ class HotspotScheduler:
             replace_existing=True,
         )
 
+        # v0.7 Batch 1: 观测表 TTL 清理 (每小时一次, 与周日 telemetry_window
+        # 错峰; 4 张表均为追加, 高频清理把单次 DELETE 控制在毫秒级)
+        self.scheduler.add_job(
+            jobs.observability_ttl_job,
+            trigger=IntervalTrigger(seconds=3600, start_date=_now_utc),
+            id="observability_ttl",
+            name="observability tables TTL cleanup (every 3600s)",
+            replace_existing=True,
+        )
+
         # Phase 1.4 (Crawler v2): job — 标讯过期检查 (每 30 分钟)
         self.scheduler.add_job(
             jobs.bid_expiry_check_job,

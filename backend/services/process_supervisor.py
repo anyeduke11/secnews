@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from backend.logging_config import logger
+from backend.observability_records import record_process_event
 
 _MAX_TAIL_LINES = 50
 
@@ -88,6 +89,7 @@ class ProcessSupervisor:
                 mp = existing or ManagedProcess(name=name, command=[])
                 mp.last_error = "command not configured"
                 self._procs[name] = mp
+                record_process_event(name=name, event="spawn", detail="command not configured")
                 return mp.snapshot()
 
             mp = existing or ManagedProcess(name=name, command=command)
@@ -109,6 +111,10 @@ class ProcessSupervisor:
                 mp.last_error = f"spawn failed: {e}"
                 mp.popen = None
                 logger.warning("supervisor spawn %s failed: %s", name, e)
+                record_process_event(
+                    name=name, event="crash",
+                    detail=f"spawn failed: {e}",
+                )
                 self._procs[name] = mp
                 return mp.snapshot()
 
@@ -120,6 +126,11 @@ class ProcessSupervisor:
                 target=self._drain_output, args=(mp,), daemon=True, name=f"sup-{name}",
             ).start()
             logger.info("supervisor started %s: %s", name, " ".join(command))
+            record_process_event(
+                name=name, event="spawn",
+                pid=mp.popen.pid,
+                detail=f"command={' '.join(command)[:200]}",
+            )
             self._procs[name] = mp
             return mp.snapshot()
 
@@ -144,6 +155,12 @@ class ProcessSupervisor:
                 mp.last_error = f"stop failed: {e}"
             mp.started_at = None
             logger.info("supervisor stopped %s", name)
+            record_process_event(
+                name=name, event="exit",
+                pid=mp.popen.pid if mp.popen else None,
+                exit_code=mp.popen.returncode if mp.popen else None,
+                detail="stop_requested",
+            )
             return mp.snapshot()
 
     def restart(self, name: str, *, command: list[str] | None = None,
@@ -195,12 +212,28 @@ class ProcessSupervisor:
         if mp.restarts >= self._max_restarts:
             mp.last_error = f"exited rc={rc}; auto-restart limit ({self._max_restarts}) reached"
             logger.warning("supervisor %s: %s", name, mp.last_error)
+            record_process_event(
+                name=name, event="crash",
+                pid=mp.popen.pid if mp.popen else None,
+                uptime_s=round(time.monotonic() - mp.started_at, 1)
+                    if mp.started_at else None,
+                exit_code=rc,
+                detail=mp.last_error,
+            )
             return mp.snapshot()
 
         mp.restarts += 1
         mp.last_error = f"exited rc={rc}; auto-restarting ({mp.restarts}/{self._max_restarts})"
         logger.warning("supervisor %s exited rc=%s; restart %s/%s",
                        name, rc, mp.restarts, self._max_restarts)
+        record_process_event(
+            name=name, event="exit",
+            pid=mp.popen.pid if mp.popen else None,
+            uptime_s=round(time.monotonic() - mp.started_at, 1)
+                if mp.started_at else None,
+            exit_code=rc,
+            detail=mp.last_error,
+        )
         return self.restart(name, command=command or mp.command,
                             cwd=cwd, env=env)
 

@@ -98,6 +98,7 @@ from backend.scheduler.jobs.maintenance import (
     export_rebuild_job,
     fts_rebuild_job,
     map_rebuild_daily_job,
+    observability_ttl_job,
     planning_action_check_job,
     profile_decay_job,
     retention_decay_job,
@@ -177,6 +178,7 @@ __all__.extend([
     "knowledge_chunk_generation_job",
     "knowledge_classify_job",
     "knowledge_stub_backfill_job",
+    "observability_ttl_job",  # v0.7 Batch 1: 观测表 TTL 清理
     "planning_action_check_job",
     "retention_decay_job",
     "secnews_liveness_sweep_job",

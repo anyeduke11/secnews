@@ -41,20 +41,21 @@ def _event_name(call) -> str | None:
 def test_log_event_calls_logger_info():
     with patch("backend.observability.logger") as mock_logger:
         log_event("test_event", key="value", n=42)
-        mock_logger.info.assert_called_once()
-        call_args = mock_logger.info.call_args
-        # 第一位置参数是 event 名
-        assert call_args.args[0] == "test_event"
-        # extra 字段含 event
-        assert call_args.kwargs["extra"]["event"] == "test_event"
-        assert call_args.kwargs["extra"]["key"] == "value"
-        assert call_args.kwargs["extra"]["n"] == 42
+        mock_logger.bind.assert_called_once()
+        bind_kwargs = mock_logger.bind.call_args.kwargs
+        # bind 把所有字段平铺, 然后 .info(event_name) 调用一次
+        assert bind_kwargs["event"] == "test_event"
+        assert bind_kwargs["key"] == "value"
+        assert bind_kwargs["n"] == 42
+        mock_logger.bind.return_value.info.assert_called_once()
+        assert mock_logger.bind.return_value.info.call_args.args[0] == "test_event"
 
 
 def test_log_event_swallows_exceptions():
     """即使 logger 抛错, 业务也不应崩。"""
     with patch("backend.observability.logger") as mock_logger:
-        mock_logger.info.side_effect = RuntimeError("disk full")
+        # v0.7 Batch 1: log_event 用 .bind(...).info(...), 模拟 bind 链任一处抛
+        mock_logger.bind.return_value.info.side_effect = RuntimeError("disk full")
         # 不应抛
         log_event("x", y=1)
 

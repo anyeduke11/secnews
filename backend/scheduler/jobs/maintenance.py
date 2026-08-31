@@ -414,13 +414,14 @@ async def scheduled_stats_job() -> None:
 
 @instrument_job("observability_ttl")
 async def observability_ttl_job() -> None:
-    """v0.7 Batch 1: 观测表 TTL 清理 — 按迁移 080 的 retention 注释执行。
+    """v0.7 Batch 1+③: 观测表 TTL 清理 — 按迁移 080/081 的 retention 注释执行。
 
-    job_runs 30d / agent_runs 30d / process_events 14d / audit_log 90d。
+    job_runs 30d / agent_runs 30d / process_events 14d / audit_log 90d /
+    api_events 7d (Batch ③ 新增)。
     llm_usage_log 由 retention.json `scheduled_in == "telemetry_window"` 路径
     维护 (沿用现有周日凌晨清理链); 本 job 不重复清理。
 
-    每小时一次: 4 张表均为追加写入, 缓慢累积, 高频清理能把单次 DELETE
+    每小时一次: 5 张表均为追加写入, 缓慢累积, 高频清理能把单次 DELETE
     控制在毫秒级; 同时错峰 telemetry_window (周日凌晨) 的批量清理。
     """
     try:
@@ -434,12 +435,14 @@ async def observability_ttl_job() -> None:
             "agent_runs": now - timedelta(days=30),
             "process_events": now - timedelta(days=14),
             "audit_log": now - timedelta(days=90),
+            "api_events": now - timedelta(days=7),
         }
         ts_column = {
             "job_runs": "started_at",
             "agent_runs": "started_at",
             "process_events": "occurred_at",
             "audit_log": "occurred_at",
+            "api_events": "occurred_at",
         }
         deleted_total = 0
         per_table = {}
@@ -457,3 +460,73 @@ async def observability_ttl_job() -> None:
     except Exception as e:
         _logger.error(f"observability_ttl_job crashed: {e}")
         raise  # 让 instrument_job 落 ok=False
+
+
+@instrument_job("observability_aggregator")
+async def observability_aggregator_job() -> None:
+    """v0.7 Batch ③: api_events → api_metrics_hourly roll-up.
+
+    每小时跑一次, 重算最近 2h 防小时边界跨越 (与 ttl 错峰运行避免同窗口).
+    p50/p95 走 Python 二次扫描: GROUP BY 拉出 (hour, path_template) 各分组的
+    duration_ms 列表, 取 COUNT*0.50 / COUNT*0.95 位置 (sorted 索引).
+
+    SQL correlated subquery 在 SQLite 不能引用外层 SELECT 别名或外层 FROM 表,
+    复杂度受限; 用两步走比单条 SQL 更清晰且基数 < 10k/h/path 时差异可忽略。
+    主键 (hour, path_template) INSERT OR REPLACE 幂等.
+    """
+    try:
+        from datetime import datetime, timedelta, timezone
+
+        from backend.repository.db import get_connection
+
+        now = datetime.now(timezone.utc)
+        cutoff = (now - timedelta(hours=2)).isoformat()
+
+        # 1) 拉取每个 (hour, path_template) 的 duration_ms 列表
+        rows = get_connection().execute(
+            "SELECT strftime('%Y-%m-%dT%H', occurred_at) AS hr, "
+            "path_template, duration_ms, status "
+            "FROM api_events WHERE occurred_at > ? ORDER BY hr, path_template, duration_ms",
+            (cutoff,),
+        ).fetchall()
+
+        # 2) Python 聚合: p50/p95 + total/errors/max
+        buckets: dict[tuple[str, str], list[int]] = {}
+        errors_map: dict[tuple[str, str], int] = {}
+        max_map: dict[tuple[str, str], int] = {}
+        for r in rows:
+            key = (r["hr"], r["path_template"])
+            buckets.setdefault(key, []).append(int(r["duration_ms"]))
+            if int(r["status"]) >= 500:
+                errors_map[key] = errors_map.get(key, 0) + 1
+            v = int(r["duration_ms"])
+            if key not in max_map or v > max_map[key]:
+                max_map[key] = v
+
+        # 3) 写回 (幂等)
+        n = 0
+        conn = get_connection()
+        for (hr, path), durs in buckets.items():
+            durs_sorted = sorted(durs)
+            n_count = len(durs_sorted)
+            p50 = durs_sorted[max(0, int(n_count * 0.50))] if n_count else 0
+            p95 = durs_sorted[max(0, min(n_count - 1, int(n_count * 0.95)))] if n_count else 0
+            total = n_count
+            errors = errors_map.get((hr, path), 0)
+            max_ms = max_map.get((hr, path), 0)
+            conn.execute(
+                "INSERT OR REPLACE INTO api_metrics_hourly "
+                "(hour, path_template, total, errors, p50_ms, p95_ms, max_ms) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (hr, path, total, errors, p50, p95, max_ms),
+            )
+            n += 1
+        _logger.info(f"observability_aggregator_job: upserted={n} buckets (since {cutoff})")
+    except Exception as e:
+        _logger.error(f"observability_aggregator_job crashed: {e}")
+        raise
+
+
+# 注: observability_threshold_check_job 与 _compute_summary helper 由 v0.7 Batch ④
+# 落地 (届时 services/observability_thresholds.py 一并创建). Batch ③ 不引入以
+# 保持单批 PR 自包含可独立合.

@@ -12,6 +12,10 @@
 v0.7 Observability Batch 1 (PRD §5.3): 在 dispatch 入口 set_trace_id,
 业务代码 (LLM 记录 / job_runs / agent_runs 写入) 任意位置 get_trace_id()
 即拿到当前请求关联键, 实现跨边界串联。finally reset_trace_id 避免污染。
+
+v0.7 Observability Batch ③ (PRD §5.3): 在响应收尾调 record_api_call,
+把每次 API 调用的 trace_id / method / path_template / status / duration_ms
+ 写到 api_events 表 — 供 dashboard 查询与阈值扫. 失败 swallow, 永不阻塞响应.
 """
 from __future__ import annotations
 
@@ -23,6 +27,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from backend.observability import log_event, reset_trace_id, set_trace_id
+from backend.observability_records import record_api_call
 
 # Header that clients can pass to participate in distributed tracing
 TRACE_HEADER = "X-Trace-Id"
@@ -39,6 +44,11 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
         trace_id = request.headers.get(TRACE_HEADER) or uuid.uuid4().hex
         request.state.trace_id = trace_id
         token = set_trace_id(trace_id)
+
+        # v0.7 Batch ③: 路由模板 (FastAPI route.path), 不是 raw URL;
+        # raw URL 含 query string 会导致维度爆炸.
+        route = request.scope.get("route")
+        path_template = getattr(route, "path", request.url.path)
 
         log_event(
             "api_request",
@@ -70,6 +80,15 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
                 trace_id=trace_id,
                 error=type(e).__name__,
             )
+            # v0.7 Batch ③: 异常路径同样落表 (status=500, error=异常名)
+            record_api_call(
+                trace_id=trace_id,
+                method=request.method,
+                path_template=path_template,
+                status=500,
+                duration_ms=round(duration_ms, 2),
+                error=f"{type(e).__name__}: {e}",
+            )
             reset_trace_id(token)
             raise
 
@@ -83,6 +102,14 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
             status=response.status_code,
             duration_ms=round(duration_ms, 2),
             trace_id=trace_id,
+        )
+        # v0.7 Batch ③: 正常路径落表 (status=response.status_code)
+        record_api_call(
+            trace_id=trace_id,
+            method=request.method,
+            path_template=path_template,
+            status=response.status_code,
+            duration_ms=round(duration_ms, 2),
         )
         reset_trace_id(token)
         return response

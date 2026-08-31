@@ -60,6 +60,28 @@ _ARCH_DOC_REF = re.compile(r"`(docs/[^`\s]+\.md)`")
 CORE_INCLUDE = ROOT / "core.include"
 CORE_EXCLUDE = ROOT / "core.exclude"
 
+# AGENTS.md 数字/版本一致性校验 (v0.7+) 的受管文档集合。
+AGENTS_DOC_SOURCES: tuple[Path, ...] = (
+    ROOT / "AGENTS.md",
+    ROOT / "backend" / "api" / "AGENTS.md",
+    ROOT / "backend" / "services" / "AGENTS.md",
+    ROOT / "scripts" / "AGENTS.md",
+)
+# `N routers` / `N services` / `N jobs` / `N collectors` (可带 "个")。
+_AGENTS_NUM = re.compile(
+    r"(?P<num>\d+)\s*(?:个\s*)?(?P<kind>routers?|services?|jobs?|collectors?)\b"
+)
+_KIND_KEY = {
+    "router": "routers", "routers": "routers",
+    "service": "services", "services": "services",
+    "job": "jobs", "jobs": "jobs",
+    "collector": "collectors", "collectors": "collectors",
+}
+VERSION_PY = ROOT / "backend" / "version.py"
+_AGENTS_VERSION = re.compile(
+    r"当前状态\s*\(\s*\d{4}-\d{2}-\d{2}\s*,\s*v(?P<version>[0-9][0-9.]*)\s*\)"
+)
+
 # 回退: core.include 缺失时使用的硬编码核心目录
 # 这是 v0.4.3 core/extension 软分层的隐式约定, 与 core.include 头部注释一致
 _FALLBACK_CORE_DIRS: tuple[str, ...] = (
@@ -151,6 +173,64 @@ def parse_doc_numbers(text: str) -> dict:
         "routers": int(routers.group(1)) if routers else None,
         "services": int(services.group(1)) if services else None,
     }
+
+
+# --------------------------------------------------------------------------- #
+# AGENTS.md 数字/版本一致性校验 (v0.7+)
+# --------------------------------------------------------------------------- #
+
+
+def check_agents_numbers(actual: dict) -> list[tuple[str, str, int, int]]:
+    """扫描各 AGENTS.md 中 `N <kind>` 形式的架构数字声明。
+
+    返回不一致项 [(relpath, kind, doc_value, actual_value), ...]。
+    """
+    bad: list[tuple[str, str, int, int]] = []
+    for path in AGENTS_DOC_SOURCES:
+        if not path.exists():
+            continue
+        rel = path.relative_to(ROOT).as_posix()
+        for m in _AGENTS_NUM.finditer(path.read_text(encoding="utf-8")):
+            key = _KIND_KEY[m.group("kind")]
+            doc_val = int(m.group("num"))
+            if doc_val != actual[key]:
+                bad.append((rel, key, doc_val, actual[key]))
+    return bad
+
+
+def get_app_version() -> str | None:
+    """AST 提取 backend/version.py 的 APP_VERSION 字符串常量; 缺失返回 None。"""
+    if not VERSION_PY.exists():
+        return None
+    tree = ast.parse(VERSION_PY.read_text(encoding="utf-8"))
+    for node in tree.body:
+        targets: tuple = ()
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            targets = (node.target,)
+        for target in targets:
+            if isinstance(target, ast.Name) and target.id == "APP_VERSION":
+                value = node.value
+                if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                    return value.value
+    return None
+
+
+def check_agents_version() -> list[str]:
+    """根 AGENTS.md 头部 `当前状态 (date, vX.Y.Z)` 必须与 version.py 一致。"""
+    app_version = get_app_version()
+    agents_md = AGENTS_DOC_SOURCES[0]
+    if app_version is None or not agents_md.exists():
+        return []
+    m = _AGENTS_VERSION.search(agents_md.read_text(encoding="utf-8"))
+    if m is None:
+        return []
+    if m.group("version") != app_version:
+        return [
+            f"AGENTS.md 头部声明 v{m.group('version')} vs backend/version.py v{app_version}"
+        ]
+    return []
 
 
 # --------------------------------------------------------------------------- #
@@ -265,6 +345,12 @@ def check(actual: dict) -> int:
     drafts = collect_planning_drafts()
     missing = check_drafts_registration(arch_text, drafts)
 
+    # 3) scoped AGENTS.md 数字一致性校验 (v0.7+)
+    agents_bad = check_agents_numbers(actual)
+
+    # 4) 根 AGENTS.md 头部版本 vs version.py (v0.7+)
+    version_bad = check_agents_version()
+
     failed = False
     if not mismatches:
         print(f"OK: ARCHITECTURE.md matches code ({json.dumps(actual)})")
@@ -280,6 +366,37 @@ def check(actual: dict) -> int:
             file=sys.stderr,
         )
         failed = True
+
+    if agents_bad:
+        print(
+            "MISMATCH: AGENTS.md 架构数字声明与代码反推值不一致 (doc vs code):",
+            file=sys.stderr,
+        )
+        for rel, kind, doc_val, real in agents_bad:
+            print(f"  {rel}: {kind} {doc_val} vs {real}", file=sys.stderr)
+        print(
+            "  修复方式: 按反推值更正对应 AGENTS.md 中的 `N <kind>` 声明\n"
+            "  (数字唯一真源是本脚本的 AST 反推结果, 禁止手改反推值)。",
+            file=sys.stderr,
+        )
+        failed = True
+    else:
+        print(
+            "OK: AGENTS.md 数字一致性校验通过 "
+            f"({sum(1 for p in AGENTS_DOC_SOURCES if p.exists())}/{len(AGENTS_DOC_SOURCES)} 文档)"
+        )
+
+    if version_bad:
+        for msg in version_bad:
+            print(f"MISMATCH: {msg}", file=sys.stderr)
+        print(
+            "  修复方式: 更新根 AGENTS.md 头部 `当前状态 (date, vX.Y.Z)` 声明\n"
+            "  (版本唯一真源是 backend/version.py 的 APP_VERSION)。",
+            file=sys.stderr,
+        )
+        failed = True
+    else:
+        print("OK: AGENTS.md 版本一致性校验通过 (version.py 单一真源)")
 
     if missing:
         print(

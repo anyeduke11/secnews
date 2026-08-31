@@ -9,7 +9,8 @@ Lifecycle
 1. ``attach_service(service)`` — inject the ``CollectionService``
    instance. Must be called before ``start()``; ``jobs.set_service``
    is called as a side-effect so the job functions can find it.
-2. ``start()`` — start APScheduler, register the periodic jobs, and
+2. ``start()`` — start APScheduler, register the periodic jobs
+   (delegated to ``_register_*`` domain methods), and
    schedule a one-shot initial run after a 5s warm-up delay.
 3. ``stop()`` — graceful shutdown (waits for in-flight jobs to finish).
 4. ``reschedule(interval_seconds)`` — dynamically adjust the
@@ -27,7 +28,7 @@ next_run_time 永久为 None, **永远不再调度**。trend_rebuild 没设 None
 现在统一用 start_date 替代 next_run_time=None, 确保 trigger 自动从当前时间计算。
 """
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -118,21 +119,19 @@ class HotspotScheduler:
         self.service = service
         jobs.set_service(service)
 
-    def start(self) -> None:
-        """启动调度器 + 立即触发 collect_all"""
-        if self.scheduler is not None:
-            self.logger.warning("scheduler already started")
-            return
+    # ------------------------------------------------------------------
+    # job 注册 — 按域拆分 (v0.7.1 重构: 原 start() 单方法 49 个 add_job
+    # 按域聚合为 7 个 _register_* 方法; 仅搬移注册顺序到域分组,
+    # 每个 add_job 的 id/trigger/参数/注释与拆分前逐字一致,
+    # APScheduler 以 job id + trigger 调度, 注册顺序不影响语义)
+    # ------------------------------------------------------------------
 
-        if self.service is None:
-            raise RuntimeError("service not attached; call attach_service() first")
-
-        self.scheduler = create_scheduler()
+    def _register_ingest_jobs(self, _now_utc: datetime) -> None:
+        """采集 / 源健康域: collect_all + post-ingest 链 + 源级调度/探活/告警。"""
         # Phase 24: 用 start_date 替代 next_run_time=None。apscheduler 在
         # `next_run_time=None` + `IntervalTrigger` 组合下,首次跑完后 next_run_time
         # 不会被 trigger 自动更新成下一次,导致永久不再调度。
         # `start_date=now` 让 trigger 从当前时间计算 next_run_time, 自动链式调度。
-        _now_utc = datetime.now(tz=timezone.utc)
         # job 1: 完整采集
         self.scheduler.add_job(
             jobs.collect_all_job,
@@ -155,152 +154,6 @@ class HotspotScheduler:
             name="source reputation rebuild",
             replace_existing=True,
         )
-        # v1.8 R3: 原 job 5 (export_rebuild 每 30min) 已并入 collect_all 尾部
-        # (main.py 启动时也会 rebuild 一次, 无新数据时无需重建)
-        # Phase 42: job 6 — 跨端配置同步 (Q2 决策: 每周一 10:30 Asia/Shanghai)
-        if _is_job_enabled("sync"):
-            self.scheduler.add_job(
-                jobs.sync_job,
-                trigger=CronTrigger(
-                    day_of_week="mon", hour=10, minute=30,
-                    timezone=SHANGHAI_TZ,
-                ),
-                id="sync",
-                name="cross-device config sync (Mon 10:30)",
-                replace_existing=True,
-            )
-        # v1.3.0 Phase 4: job 7 — 日级趋势快照 (每天 00:30 UTC)
-        self.scheduler.add_job(
-            jobs.daily_snapshot_job,
-            trigger=CronTrigger(hour=0, minute=30, timezone="UTC"),
-            id="daily_snapshot",
-            name="daily trend snapshot (00:30 UTC)",
-            replace_existing=True,
-        )
-        # v1.3.0 Phase 4: job 8 — 周报自动生成 (每周一 02:00 UTC)
-        self.scheduler.add_job(
-            jobs.weekly_report_job,
-            trigger=CronTrigger(day_of_week="mon", hour=2, minute=0, timezone="UTC"),
-            id="weekly_report",
-            name="weekly report generation (Mon 02:00 UTC)",
-            replace_existing=True,
-        )
-        # Phase 1d: job 9 — 定时编译 (每日 02:00 Asia/Shanghai)
-        self.scheduler.add_job(
-            jobs.scheduled_compile_job,
-            trigger=CronTrigger(hour=2, timezone=SHANGHAI_TZ),
-            id="compile_daily",
-            name="knowledge compile (daily 02:00)",
-            replace_existing=True,
-        )
-        # P0 消费策略: job 10 — 自动消费者 (每日 02:30 Asia/Shanghai,
-        # 在 compile_daily 之后运行): 消费 pending compile 任务 (规则式
-        # 编译: 分类 + lifecycle 流转 + done) + 归档超龄积压。
-        self.scheduler.add_job(
-            jobs.consume_compile_tasks_job,
-            trigger=CronTrigger(hour=2, minute=30, timezone=SHANGHAI_TZ),
-            id="compile_consumer",
-            name="knowledge compile consumer (daily 02:30)",
-            replace_existing=True,
-        )
-        # v1.8 R3: 原 job 10 (compile_weekly, 周日 03:00) 已删除 — 与
-        # compile_daily 重复注册同一函数, 周日会在 02:00/03:00 跑两次
-        # v1.8 R3: 原 soul_weekly (Sun 04:00) / migrate_weekly (Sun 05:00) /
-        # summary_weekly (Sun 06:00) 三个链式 cron 合并为单个周日维护 job
-        self.scheduler.add_job(
-            jobs.weekly_maintenance_job,
-            trigger=CronTrigger(day_of_week="sun", hour=4, timezone=SHANGHAI_TZ),
-            id="weekly_maintenance",
-            name="weekly maintenance: soul -> migrate -> summary (Sun 04:00)",
-            replace_existing=True,
-        )
-        # Phase 1f Task 6.9: job 12 — 发布后数据回收 (每日 06:00 Asia/Shanghai)
-        self.scheduler.add_job(
-            jobs.scheduled_stats_job,
-            trigger=CronTrigger(hour=6, timezone=SHANGHAI_TZ),
-            id="stats_daily",
-            name="stats recycle (daily 06:00)",
-            replace_existing=True,
-        )
-        # P0.1 → v0.5 §18: job 13 — 7 天遥测窗口 (每周日 05:00 Asia/Shanghai)
-        # 原 quality_logs_cleanup_job v0.5 起并入 telemetry_window_job (同一注册点),
-        # v0.6 P0 清场第二批删除 standalone 函数 (现仅 telemetry_window_job 担责).
-        # 扩展为 WARM 层全部遥测表 (qcl 归档 / crawler_runs / raw_items
-        # truncate), 策略由 retention.json ``scheduled_in`` 标签驱动。
-        self.scheduler.add_job(
-            jobs.telemetry_window_job,
-            trigger=CronTrigger(day_of_week="sun", hour=5, timezone=SHANGHAI_TZ),
-            id="telemetry_window",
-            name="telemetry window 7d (Sun 05:00)",
-            replace_existing=True,
-        )
-        # P1: job 14 — 每日数据库自动备份 (04:30 Asia/Shanghai, 避开
-        # 02:00 compile / 02:30 consumer / 05:00 cleanup 时段)。
-        # online backup API 对运行中服务安全; 保留最近 7 份自动清理。
-        self.scheduler.add_job(
-            jobs.daily_db_backup_job,
-            trigger=CronTrigger(hour=4, minute=30, timezone=SHANGHAI_TZ),
-            id="daily_db_backup",
-            name="daily db backup (04:30)",
-            replace_existing=True,
-        )
-        # Phase 2a CodeGarden: job 15 — 上游同步 (每日 09:00 Asia/Shanghai)
-        if _is_job_enabled("cg_upstream_sync"):
-            self.scheduler.add_job(
-                jobs.cg_upstream_sync_job,
-                trigger=CronTrigger(hour=9, timezone=SHANGHAI_TZ),
-                id="cg_upstream_sync",
-                name="codegarden upstream sync (daily 09:00)",
-                replace_existing=True,
-            )
-        # Phase 2b CodeGarden: job 16 — 服务网格自动发现 (每 5 分钟)
-        if _is_job_enabled("cg_service_scan"):
-            self.scheduler.add_job(
-                jobs.cg_service_scan_job,
-                trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
-                id="cg_service_scan",
-                name="codegarden service scan (every 5min)",
-                replace_existing=True,
-            )
-        # Phase 2b CodeGarden: job 17 — 事件总线处理 (每 60 秒)
-        if _is_job_enabled("cg_event_process"):
-            self.scheduler.add_job(
-                jobs.cg_event_process_job,
-                trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
-                id="cg_event_process",
-                name="codegarden event process (every 60s)",
-                replace_existing=True,
-            )
-        # SECNEWS Phase 1 (2026-08-24): kl_queue 心跳消费 (每 60 秒) —
-        # drain_due 常规消化 + 每 10 拍 sweep 兜底; 归属 secnews 扩展域。
-        if _is_job_enabled("kl_pipeline_heartbeat"):
-            self.scheduler.add_job(
-                jobs.kl_pipeline_heartbeat_job,
-                trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
-                id="kl_pipeline_heartbeat",
-                name="kl pipeline heartbeat: drain due tasks (every 60s)",
-                replace_existing=True,
-            )
-        # SECNEWS S1-3 (2026-08-24): 书签存活三态批扫 (每周日 02:00 UTC)。
-        if _is_job_enabled("secnews_liveness_sweep"):
-            self.scheduler.add_job(
-                jobs.secnews_liveness_sweep_job,
-                trigger=CronTrigger(day_of_week="sun", hour=2, minute=0, timezone="UTC"),
-                id="secnews_liveness_sweep",
-                name="bookmark liveness sweep: alive/dead/unknown (Sun 02:00 UTC)",
-                replace_existing=True,
-            )
-        # Phase 2 Security Graph: job 18 — MITRE ATT&CK 同步 (每周日 04:00 Asia/Shanghai)
-        if _is_job_enabled("mitre_sync"):
-            self.scheduler.add_job(
-                jobs.mitre_sync_job,
-                trigger=CronTrigger(day_of_week="sun", hour=4, minute=0, timezone="Asia/Shanghai"),
-                id="mitre_sync",
-                name="mitre attack sync (Sun 04:00)",
-                replace_existing=True,
-            )
-        # v1.8 R3: 原 job 19 (security_enrichment 每 5min) 已并入
-        # collect_all 尾部 post-ingest 链
         # v1.8 Phase 8: job 28 — 追抓 watchdog (每 60 秒)
         self.scheduler.add_job(
             jobs.catchup_watchdog_job,
@@ -325,6 +178,87 @@ class HotspotScheduler:
             name="collect validations cleanup (daily 04:00 Shanghai)",
             replace_existing=True,
         )
+        # Phase 1.4 (Crawler v2): job — 标讯过期检查 (每 30 分钟)
+        self.scheduler.add_job(
+            jobs.bid_expiry_check_job,
+            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
+            id="bid_expiry_check",
+            name="bid expiry check (every 1800s)",
+            replace_existing=True,
+        )
+        # Phase 2.2 (Crawler v2): job — URL 全量校验 (每 5 分钟)
+        self.scheduler.add_job(
+            jobs.url_full_check_job,
+            trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
+            id="url_full_check",
+            name="URL full check (every 300s)",
+            replace_existing=True,
+        )
+        # Phase 3: job — 源级调度器 tick (每 60s)
+        self.scheduler.add_job(
+            jobs.source_scheduler_tick_job,
+            trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
+            id="source_scheduler_tick",
+            name="source scheduler tick (every 60s)",
+            replace_existing=True,
+        )
+        # Phase 3: job — 死源探活 (每日 03:30 Asia/Shanghai)
+        self.scheduler.add_job(
+            jobs.source_probe_job,
+            trigger=CronTrigger(hour=3, minute=30, timezone=SHANGHAI_TZ),
+            id="source_probe",
+            name="dead source probe (daily 03:30 Shanghai)",
+            replace_existing=True,
+        )
+        # Phase 3: job — 源级告警评估 (每 300s)
+        self.scheduler.add_job(
+            jobs.source_alert_eval_job,
+            trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
+            id="source_alert_eval",
+            name="source alert evaluation (every 300s)",
+            replace_existing=True,
+        )
+        # job 26: 数据源健康检查 (15min)
+        self.scheduler.add_job(
+            jobs.source_health_check_job,
+            trigger=IntervalTrigger(seconds=900, start_date=_now_utc),
+            id="source_health_check",
+            name="source health check (every 15min)",
+            replace_existing=True,
+        )
+        # v1.7 Phase 5 — Agent 集成与双向环
+        # Phase 7 Option A 简化: 移除 agent_task_consumer / kv_cache_cleanup 两个 job
+        # v1.8 R3: 原 job 21 (auto_extract) + job 22 (alert_evaluator) 合并
+        # 为单个 60s job (同节奏、同扫描对象, 顺序执行)
+        self.scheduler.add_job(
+            jobs.auto_extract_alert_job,
+            trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
+            id="auto_extract_alert",
+            name="auto extract tags + alert evaluator (every 60s)",
+            replace_existing=True,
+        )
+
+    def _register_kl_jobs(self, _now_utc: datetime) -> None:
+        """KL / SecNews 管线域: 心跳 + 书签存活 + T1-T4 触发器 + 死信 + 规划。"""
+        # SECNEWS Phase 1 (2026-08-24): kl_queue 心跳消费 (每 60 秒) —
+        # drain_due 常规消化 + 每 10 拍 sweep 兜底; 归属 secnews 扩展域。
+        if _is_job_enabled("kl_pipeline_heartbeat"):
+            self.scheduler.add_job(
+                jobs.kl_pipeline_heartbeat_job,
+                trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
+                id="kl_pipeline_heartbeat",
+                name="kl pipeline heartbeat: drain due tasks (every 60s)",
+                replace_existing=True,
+            )
+        # SECNEWS S1-3 (2026-08-24): 书签存活三态批扫 (每周日 02:00 UTC)。
+        if _is_job_enabled("secnews_liveness_sweep"):
+            self.scheduler.add_job(
+                jobs.secnews_liveness_sweep_job,
+                trigger=CronTrigger(day_of_week="sun", hour=2, minute=0, timezone="UTC"),
+                id="secnews_liveness_sweep",
+                name="bookmark liveness sweep: alive/dead/unknown (Sun 02:00 UTC)",
+                replace_existing=True,
+            )
         # Phase 10: job 31 — KL T1 触发器 (kl:raw → kl:refine, 每 60s)
         self.scheduler.add_job(
             jobs.kl_trigger_t1_job,
@@ -365,7 +299,6 @@ class HotspotScheduler:
             name="KL T4 trigger: kl:structure -> kl:publish (every 1800s)",
             replace_existing=True,
         )
-
         # Phase 13: job 36 — 规划动作检查 (每 600s)
         self.scheduler.add_job(
             jobs.planning_action_check_job,
@@ -375,26 +308,50 @@ class HotspotScheduler:
             replace_existing=True,
         )
 
-        # Phase 14: job 38 — 技术栈漂移评估 (每小时)
-        if _is_job_enabled("cg_drift_assess"):
-            self.scheduler.add_job(
-                jobs.cg_drift_assess_job,
-                trigger=IntervalTrigger(seconds=3600, start_date=_now_utc),
-                id="cg_drift_assess",
-                name="codegarden tech stack drift assess (every 3600s)",
-                replace_existing=True,
-            )
-
-        # Phase 14: job 39 — CVE 同步 (每 30 分钟)
-        if _is_job_enabled("cve_sync_to_security"):
-            self.scheduler.add_job(
-                jobs.cve_sync_to_security_job,
-                trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
-                id="cve_sync_to_security",
-                name="CVE sync to security entities (every 1800s)",
-                replace_existing=True,
-            )
-
+    def _register_knowledge_jobs(self, _now_utc: datetime) -> None:
+        """知识库域: 编译/消费/分类/chunk + wiki 归档 + 衰减复习 + 注意力。"""
+        # Phase 1d: job 9 — 定时编译 (每日 02:00 Asia/Shanghai)
+        self.scheduler.add_job(
+            jobs.scheduled_compile_job,
+            trigger=CronTrigger(hour=2, timezone=SHANGHAI_TZ),
+            id="compile_daily",
+            name="knowledge compile (daily 02:00)",
+            replace_existing=True,
+        )
+        # P0 消费策略: job 10 — 自动消费者 (每日 02:30 Asia/Shanghai,
+        # 在 compile_daily 之后运行): 消费 pending compile 任务 (规则式
+        # 编译: 分类 + lifecycle 流转 + done) + 归档超龄积压。
+        self.scheduler.add_job(
+            jobs.consume_compile_tasks_job,
+            trigger=CronTrigger(hour=2, minute=30, timezone=SHANGHAI_TZ),
+            id="compile_consumer",
+            name="knowledge compile consumer (daily 02:30)",
+            replace_existing=True,
+        )
+        # P1-5: job — 知识分类消费提速 (每 30 分钟, 500 条/批)
+        self.scheduler.add_job(
+            jobs.knowledge_classify_job,
+            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
+            id="knowledge_classify",
+            name="knowledge classify unclassified items (every 1800s)",
+            replace_existing=True,
+        )
+        # 遗留项: job — 知识库空壳条目补全 (每 6 小时, 20 条/批)
+        self.scheduler.add_job(
+            jobs.knowledge_stub_backfill_job,
+            trigger=IntervalTrigger(seconds=21600, start_date=_now_utc),
+            id="knowledge_stub_backfill",
+            name="knowledge stub backfill from URLs (every 21600s)",
+            replace_existing=True,
+        )
+        # v0.4 收尾: job — knowledge_chunks 段落切分生成 (每 30 分钟)
+        self.scheduler.add_job(
+            jobs.knowledge_chunk_generation_job,
+            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
+            id="knowledge_chunk_generation",
+            name="knowledge chunk generation (every 1800s)",
+            replace_existing=True,
+        )
         # v0.5 M3.5: job — wiki_archiver (每日 03:50 Asia/Shanghai)
         # 30 天自动归档到 llm-wiki-2.0/items/ + sources/ + retention.json
         self.scheduler.add_job(
@@ -404,7 +361,6 @@ class HotspotScheduler:
             name="wiki archiver 30d (daily 03:50 Shanghai)",
             replace_existing=True,
         )
-
         # v0.5 M3.5: job — retention_decay (每周日 05:30 Asia/Shanghai,
         # 紧跟 05:00 telemetry_window)
         self.scheduler.add_job(
@@ -414,158 +370,6 @@ class HotspotScheduler:
             name="retention Ebbinghaus decay (Sun 05:30 Shanghai)",
             replace_existing=True,
         )
-
-        # Phase 17: job — attention 聚合 (每 30 分钟)
-        self.scheduler.add_job(
-            jobs.attention_aggregate_job,
-            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
-            id="attention_aggregate",
-            name="attention event aggregation (every 1800s)",
-            replace_existing=True,
-        )
-
-        # v0.7 Batch 1: 观测表 TTL 清理 (每小时一次, 与周日 telemetry_window
-        # 错峰; 4 张表均为追加, 高频清理把单次 DELETE 控制在毫秒级)
-        self.scheduler.add_job(
-            jobs.observability_ttl_job,
-            trigger=IntervalTrigger(seconds=3600, start_date=_now_utc),
-            id="observability_ttl",
-            name="observability tables TTL cleanup (every 3600s)",
-            replace_existing=True,
-        )
-
-        # Phase 1.4 (Crawler v2): job — 标讯过期检查 (每 30 分钟)
-        self.scheduler.add_job(
-            jobs.bid_expiry_check_job,
-            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
-            id="bid_expiry_check",
-            name="bid expiry check (every 1800s)",
-            replace_existing=True,
-        )
-
-        # Phase 2.2 (Crawler v2): job — URL 全量校验 (每 5 分钟)
-        self.scheduler.add_job(
-            jobs.url_full_check_job,
-            trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
-            id="url_full_check",
-            name="URL full check (every 300s)",
-            replace_existing=True,
-        )
-
-        # P1-5: job — 知识分类消费提速 (每 30 分钟, 500 条/批)
-        self.scheduler.add_job(
-            jobs.knowledge_classify_job,
-            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
-            id="knowledge_classify",
-            name="knowledge classify unclassified items (every 1800s)",
-            replace_existing=True,
-        )
-
-        # P3-4: job — 内容草稿生成 (每 6 小时)
-        self.scheduler.add_job(
-            jobs.content_draft_generation_job,
-            trigger=IntervalTrigger(seconds=21600, start_date=_now_utc),
-            id="content_draft_generation",
-            name="content draft generation from published items (every 21600s)",
-            replace_existing=True,
-        )
-
-        # 遗留项: job — 知识库空壳条目补全 (每 6 小时, 20 条/批)
-        self.scheduler.add_job(
-            jobs.knowledge_stub_backfill_job,
-            trigger=IntervalTrigger(seconds=21600, start_date=_now_utc),
-            id="knowledge_stub_backfill",
-            name="knowledge stub backfill from URLs (every 21600s)",
-            replace_existing=True,
-        )
-
-        # v0.4 收尾: job — knowledge_chunks 段落切分生成 (每 30 分钟)
-        self.scheduler.add_job(
-            jobs.knowledge_chunk_generation_job,
-            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
-            id="knowledge_chunk_generation",
-            name="knowledge chunk generation (every 1800s)",
-            replace_existing=True,
-        )
-
-        # v0.4 收尾: job — security↔knowledge 实体统一 (每 10 分钟)
-        self.scheduler.add_job(
-            jobs.security_entity_concept_sync_job,
-            trigger=IntervalTrigger(seconds=600, start_date=_now_utc),
-            id="security_entity_concept_sync",
-            name="security entity ↔ knowledge concept sync (every 600s)",
-            replace_existing=True,
-        )
-
-        # Phase 3: job — 源级调度器 tick (每 60s)
-        self.scheduler.add_job(
-            jobs.source_scheduler_tick_job,
-            trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
-            id="source_scheduler_tick",
-            name="source scheduler tick (every 60s)",
-            replace_existing=True,
-        )
-
-        # Phase 3: job — 死源探活 (每日 03:30 Asia/Shanghai)
-        self.scheduler.add_job(
-            jobs.source_probe_job,
-            trigger=CronTrigger(hour=3, minute=30, timezone=SHANGHAI_TZ),
-            id="source_probe",
-            name="dead source probe (daily 03:30 Shanghai)",
-            replace_existing=True,
-        )
-
-        # Phase 3: job — 源级告警评估 (每 300s)
-        self.scheduler.add_job(
-            jobs.source_alert_eval_job,
-            trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
-            id="source_alert_eval",
-            name="source alert evaluation (every 300s)",
-            replace_existing=True,
-        )
-
-        # v1.7 Phase 5 — Agent 集成与双向环
-        # Phase 7 Option A 简化: 移除 agent_task_consumer / kv_cache_cleanup 两个 job
-        # v1.8 R3: 原 job 21 (auto_extract) + job 22 (alert_evaluator) 合并
-        # 为单个 60s job (同节奏、同扫描对象, 顺序执行)
-        self.scheduler.add_job(
-            jobs.auto_extract_alert_job,
-            trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
-            id="auto_extract_alert",
-            name="auto extract tags + alert evaluator (every 60s)",
-            replace_existing=True,
-        )
-        # v1.8: 原 job 23 (review_scheduler) / job 24 (profile_updater) 为 NoOp
-        # 占位, 已删除 —— 复习由前端 /api/reviews/due 驱动, profile 由事件实时写入
-        # job 25: 每日简报生成 (08:00 Shanghai)
-        self.scheduler.add_job(
-            jobs.digest_generator_job,
-            trigger=CronTrigger(hour=8, minute=0, timezone=SHANGHAI_TZ),
-            id="digest_generator",
-            name="daily digest generator (08:00 Shanghai)",
-            replace_existing=True,
-        )
-        # job 26: 数据源健康检查 (15min)
-        self.scheduler.add_job(
-            jobs.source_health_check_job,
-            trigger=IntervalTrigger(seconds=900, start_date=_now_utc),
-            id="source_health_check",
-            name="source health check (every 15min)",
-            replace_existing=True,
-        )
-        # v1.8 R3: 原 job 27 (fts_rebuild 每 5min 全量重建) 已并入
-        # collect_all 尾部 post-ingest 链 — 无新数据时全量重建 FTS 纯属浪费
-        # job 28: Profile 衰减 (03:00 Shanghai)
-        self.scheduler.add_job(
-            jobs.profile_decay_job,
-            trigger=CronTrigger(hour=3, minute=0, timezone=SHANGHAI_TZ),
-            id="profile_decay",
-            name="profile weight decay (03:00 Shanghai)",
-            replace_existing=True,
-        )
-        # Phase 7: kv_cache_cleanup_job 已从 scheduler 中移除 (kv_cache_service 删除)
-        # Phase 7: agent_task_consumer_job 已从 scheduler 中移除 (内部 agent 删除)
-
         # v0.4.3 复利驱动器②: SM-2 每日复习推送 (每天 08:00 Asia/Shanghai)
         self.scheduler.add_job(
             jobs.sm2_daily_push_job,
@@ -584,6 +388,226 @@ class HotspotScheduler:
             replace_existing=True,
             misfire_grace_time=600,
         )
+        # Phase 17: job — attention 聚合 (每 30 分钟)
+        self.scheduler.add_job(
+            jobs.attention_aggregate_job,
+            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
+            id="attention_aggregate",
+            name="attention event aggregation (every 1800s)",
+            replace_existing=True,
+        )
+
+    def _register_codegarden_jobs(self, _now_utc: datetime) -> None:
+        """CodeGarden 扩展域: 上游同步 + 服务网格 + 事件总线 + 漂移评估。"""
+        # Phase 2a CodeGarden: job 15 — 上游同步 (每日 09:00 Asia/Shanghai)
+        if _is_job_enabled("cg_upstream_sync"):
+            self.scheduler.add_job(
+                jobs.cg_upstream_sync_job,
+                trigger=CronTrigger(hour=9, timezone=SHANGHAI_TZ),
+                id="cg_upstream_sync",
+                name="codegarden upstream sync (daily 09:00)",
+                replace_existing=True,
+            )
+        # Phase 2b CodeGarden: job 16 — 服务网格自动发现 (每 5 分钟)
+        if _is_job_enabled("cg_service_scan"):
+            self.scheduler.add_job(
+                jobs.cg_service_scan_job,
+                trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
+                id="cg_service_scan",
+                name="codegarden service scan (every 5min)",
+                replace_existing=True,
+            )
+        # Phase 2b CodeGarden: job 17 — 事件总线处理 (每 60 秒)
+        if _is_job_enabled("cg_event_process"):
+            self.scheduler.add_job(
+                jobs.cg_event_process_job,
+                trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
+                id="cg_event_process",
+                name="codegarden event process (every 60s)",
+                replace_existing=True,
+            )
+        # Phase 14: job 38 — 技术栈漂移评估 (每小时)
+        if _is_job_enabled("cg_drift_assess"):
+            self.scheduler.add_job(
+                jobs.cg_drift_assess_job,
+                trigger=IntervalTrigger(seconds=3600, start_date=_now_utc),
+                id="cg_drift_assess",
+                name="codegarden tech stack drift assess (every 3600s)",
+                replace_existing=True,
+            )
+
+    def _register_security_jobs(self, _now_utc: datetime) -> None:
+        """安全图谱域: MITRE 同步 + CVE 同步 + security↔knowledge 实体统一。"""
+        # Phase 2 Security Graph: job 18 — MITRE ATT&CK 同步 (每周日 04:00 Asia/Shanghai)
+        if _is_job_enabled("mitre_sync"):
+            self.scheduler.add_job(
+                jobs.mitre_sync_job,
+                trigger=CronTrigger(day_of_week="sun", hour=4, minute=0, timezone="Asia/Shanghai"),
+                id="mitre_sync",
+                name="mitre attack sync (Sun 04:00)",
+                replace_existing=True,
+            )
+        # Phase 14: job 39 — CVE 同步 (每 30 分钟)
+        if _is_job_enabled("cve_sync_to_security"):
+            self.scheduler.add_job(
+                jobs.cve_sync_to_security_job,
+                trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
+                id="cve_sync_to_security",
+                name="CVE sync to security entities (every 1800s)",
+                replace_existing=True,
+            )
+        # v0.4 收尾: job — security↔knowledge 实体统一 (每 10 分钟)
+        self.scheduler.add_job(
+            jobs.security_entity_concept_sync_job,
+            trigger=IntervalTrigger(seconds=600, start_date=_now_utc),
+            id="security_entity_concept_sync",
+            name="security entity ↔ knowledge concept sync (every 600s)",
+            replace_existing=True,
+        )
+
+    def _register_digest_jobs(self, _now_utc: datetime) -> None:
+        """简报 / 报告域: 快照 + 周报 + 发布回收 + 每日简报 + 草稿生成。"""
+        # v1.3.0 Phase 4: job 7 — 日级趋势快照 (每天 00:30 UTC)
+        self.scheduler.add_job(
+            jobs.daily_snapshot_job,
+            trigger=CronTrigger(hour=0, minute=30, timezone="UTC"),
+            id="daily_snapshot",
+            name="daily trend snapshot (00:30 UTC)",
+            replace_existing=True,
+        )
+        # v1.3.0 Phase 4: job 8 — 周报自动生成 (每周一 02:00 UTC)
+        self.scheduler.add_job(
+            jobs.weekly_report_job,
+            trigger=CronTrigger(day_of_week="mon", hour=2, minute=0, timezone="UTC"),
+            id="weekly_report",
+            name="weekly report generation (Mon 02:00 UTC)",
+            replace_existing=True,
+        )
+        # Phase 1f Task 6.9: job 12 — 发布后数据回收 (每日 06:00 Asia/Shanghai)
+        self.scheduler.add_job(
+            jobs.scheduled_stats_job,
+            trigger=CronTrigger(hour=6, timezone=SHANGHAI_TZ),
+            id="stats_daily",
+            name="stats recycle (daily 06:00)",
+            replace_existing=True,
+        )
+        # job 25: 每日简报生成 (08:00 Shanghai)
+        self.scheduler.add_job(
+            jobs.digest_generator_job,
+            trigger=CronTrigger(hour=8, minute=0, timezone=SHANGHAI_TZ),
+            id="digest_generator",
+            name="daily digest generator (08:00 Shanghai)",
+            replace_existing=True,
+        )
+        # P3-4: job — 内容草稿生成 (每 6 小时)
+        self.scheduler.add_job(
+            jobs.content_draft_generation_job,
+            trigger=IntervalTrigger(seconds=21600, start_date=_now_utc),
+            id="content_draft_generation",
+            name="content draft generation from published items (every 21600s)",
+            replace_existing=True,
+        )
+
+    def _register_maintenance_jobs(self, _now_utc: datetime) -> None:
+        """运维 / 观测域: 跨端同步 + 周维护 + 遥测/备份 + 观测表 TTL/roll-up + 衰减。"""
+        # Phase 42: job 6 — 跨端配置同步 (Q2 决策: 每周一 10:30 Asia/Shanghai)
+        if _is_job_enabled("sync"):
+            self.scheduler.add_job(
+                jobs.sync_job,
+                trigger=CronTrigger(
+                    day_of_week="mon", hour=10, minute=30,
+                    timezone=SHANGHAI_TZ,
+                ),
+                id="sync",
+                name="cross-device config sync (Mon 10:30)",
+                replace_existing=True,
+            )
+        # v1.8 R3: 原 job 10 (compile_weekly, 周日 03:00) 已删除 — 与
+        # compile_daily 重复注册同一函数, 周日会在 02:00/03:00 跑两次
+        # v1.8 R3: 原 soul_weekly (Sun 04:00) / migrate_weekly (Sun 05:00) /
+        # summary_weekly (Sun 06:00) 三个链式 cron 合并为单个周日维护 job
+        self.scheduler.add_job(
+            jobs.weekly_maintenance_job,
+            trigger=CronTrigger(day_of_week="sun", hour=4, timezone=SHANGHAI_TZ),
+            id="weekly_maintenance",
+            name="weekly maintenance: soul -> migrate -> summary (Sun 04:00)",
+            replace_existing=True,
+        )
+        # P0.1 → v0.5 §18: job 13 — 7 天遥测窗口 (每周日 05:00 Asia/Shanghai)
+        # 原 quality_logs_cleanup_job v0.5 起并入 telemetry_window_job (同一注册点),
+        # v0.6 P0 清场第二批删除 standalone 函数 (现仅 telemetry_window_job 担责).
+        # 扩展为 WARM 层全部遥测表 (qcl 归档 / crawler_runs / raw_items
+        # truncate), 策略由 retention.json ``scheduled_in`` 标签驱动。
+        self.scheduler.add_job(
+            jobs.telemetry_window_job,
+            trigger=CronTrigger(day_of_week="sun", hour=5, timezone=SHANGHAI_TZ),
+            id="telemetry_window",
+            name="telemetry window 7d (Sun 05:00)",
+            replace_existing=True,
+        )
+        # P1: job 14 — 每日数据库自动备份 (04:30 Asia/Shanghai, 避开
+        # 02:00 compile / 02:30 consumer / 05:00 cleanup 时段)。
+        # online backup API 对运行中服务安全; 保留最近 7 份自动清理。
+        self.scheduler.add_job(
+            jobs.daily_db_backup_job,
+            trigger=CronTrigger(hour=4, minute=30, timezone=SHANGHAI_TZ),
+            id="daily_db_backup",
+            name="daily db backup (04:30)",
+            replace_existing=True,
+        )
+        # v0.7 Batch 1: 观测表 TTL 清理 (每小时一次, 与周日 telemetry_window
+        # 错峰; 5 张表均为追加, 高频清理把单次 DELETE 控制在毫秒级)
+        self.scheduler.add_job(
+            jobs.observability_ttl_job,
+            trigger=IntervalTrigger(seconds=3600, start_date=_now_utc),
+            id="observability_ttl",
+            name="observability tables TTL cleanup (every 3600s)",
+            replace_existing=True,
+        )
+        # v0.7 Batch ③: api_events → api_metrics_hourly roll-up (每小时一次,
+        # 与 ttl 错峰 5min 避免同窗口 — 实际由 3600 整数倍漂移自然错开;
+        # 重算最近 2h 防小时边界跨越; INSERT OR REPLACE 幂等)
+        self.scheduler.add_job(
+            jobs.observability_aggregator_job,
+            trigger=IntervalTrigger(seconds=3600, start_date=_now_utc + timedelta(minutes=5)),
+            id="observability_aggregator",
+            name="api_events → api_metrics_hourly roll-up (every 3600s, +5min offset)",
+            replace_existing=True,
+        )
+        # v1.8: 原 job 23 (review_scheduler) / job 24 (profile_updater) 为 NoOp
+        # 占位, 已删除 —— 复习由前端 /api/reviews/due 驱动, profile 由事件实时写入
+        # job 28: Profile 衰减 (03:00 Shanghai)
+        self.scheduler.add_job(
+            jobs.profile_decay_job,
+            trigger=CronTrigger(hour=3, minute=0, timezone=SHANGHAI_TZ),
+            id="profile_decay",
+            name="profile weight decay (03:00 Shanghai)",
+            replace_existing=True,
+        )
+
+    def start(self) -> None:
+        """启动调度器 + 立即触发 collect_all"""
+        if self.scheduler is not None:
+            self.logger.warning("scheduler already started")
+            return
+
+        if self.service is None:
+            raise RuntimeError("service not attached; call attach_service() first")
+
+        self.scheduler = create_scheduler()
+        # Phase 24: 用 start_date 替代 next_run_time=None (原因见模块 docstring
+        # 与 _register_ingest_jobs 内注释)。
+        _now_utc = datetime.now(tz=timezone.utc)
+        # v0.7.1 重构: job 注册按域聚合为 7 个 _register_* 方法 (仅重排
+        # 注册顺序到域分组, 每个 add_job 的 id/trigger/参数与拆分前逐字一致;
+        # APScheduler 以 job id + trigger 调度, 注册顺序不影响语义)。
+        self._register_ingest_jobs(_now_utc)
+        self._register_kl_jobs(_now_utc)
+        self._register_knowledge_jobs(_now_utc)
+        self._register_codegarden_jobs(_now_utc)
+        self._register_security_jobs(_now_utc)
+        self._register_digest_jobs(_now_utc)
+        self._register_maintenance_jobs(_now_utc)
 
         self.scheduler.start()
         self.logger.info(

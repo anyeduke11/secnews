@@ -164,9 +164,37 @@ def record_audit(actor: str, action: str, *, target: str | None = None,
         log.debug(f"record_audit failed: {e}")
 
 
+# ── api_events (纯追加, v0.7 Batch ③) ──────────────────────────
+
+def record_api_call(*, trace_id: str, method: str, path_template: str,
+                    status: int, duration_ms: int,
+                    error: str | None = None) -> None:
+    """INSERT api_events (TraceIDMiddleware 收尾调一次).
+
+    v0.7 Batch ③: middleware 已有 api_request/api_response log_event (文件
+    日志), 本函数补 SQL 表 — 供 dashboard 查询与阈值扫. 失败 swallow,
+    永不阻塞响应 (沿用 observability_records 不阻塞业务契约, PRD §10 红线 ②).
+
+    path_template 必须用 FastAPI 路由模板 (e.g. /api/llm/status/{id}),
+    不是 raw URL — 避免 query string 维度爆炸.
+    """
+    try:
+        get_connection().execute(
+            "INSERT INTO api_events "
+            "(trace_id, method, path_template, status, duration_ms, error, occurred_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (str(trace_id), str(method).upper(), str(path_template),
+             int(status), int(duration_ms),
+             (str(error)[:500] if error else None), _now_iso()),
+        )
+    except Exception as e:
+        log.debug(f"record_api_call failed: {e}")
+
+
 __all__ = [
     "finish_agent_run",
     "finish_job_run",
+    "record_api_call",
     "record_audit",
     "record_process_event",
     "start_agent_run",

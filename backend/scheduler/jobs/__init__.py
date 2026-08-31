@@ -99,6 +99,7 @@ from backend.scheduler.jobs.maintenance import (
     fts_rebuild_job,
     map_rebuild_daily_job,
     observability_ttl_job,
+    observability_aggregator_job,
     planning_action_check_job,
     profile_decay_job,
     retention_decay_job,
@@ -178,6 +179,7 @@ __all__.extend([
     "knowledge_chunk_generation_job",
     "knowledge_classify_job",
     "knowledge_stub_backfill_job",
+    "observability_aggregator_job",  # v0.7 Batch ③: api_events → api_metrics_hourly roll-up
     "observability_ttl_job",  # v0.7 Batch 1: 观测表 TTL 清理
     "planning_action_check_job",
     "retention_decay_job",

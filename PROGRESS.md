@@ -131,6 +131,50 @@
 - [x] **门禁 (Batch ⑤ 后端)**: ruff 0 / pytest 集成测试 5/5 pass。
 - [x] **门禁 (Batch ⑤ 全量)**: 全量 pytest 0fail (carry 收编后 P4 预存债清零) / ruff 0 / `generate_meta --check` OK (routers 66 / services 98 / jobs 50) / tsc 0 / vitest 322 pass / vite build OK。
 
+### 2026-08-31 v0.7 Batch ⑥ — llm_secrets 接入 AIService/LLMService + key_source 兑现 (本批)
+
+> **来源**: 兑现 Batch ② PROGRESS 显式 TODO "Batch ③+ 接 llm_secrets"; 关闭遗留阻塞项 ⑤ "加密通道接管" (P0-Q1 沿袭, 现主密钥已重建, 接入业务路径最后一步)。
+> **范围**: ① `SecretRepository.get_by_provider()` helper + 5 tests (C1); ② AIService `_resolve_api_key` 四级链 + `_key_source` 打标 + 10 处硬编码 `key_source="env"` 改动态 + 14 tests (C2); ③ LLMService gateway `_get_api_key` 同步接 AIService 单点 + 4 tests (C3); ④ QualitySettings "LLM 密钥管理" 面板 + `key_source` 徽章 + legacy `quality.llm_api_key` 清退 + 5 tests (C4); ⑤ secrets API 全 audit + `POST /api/secrets/rotate` 端点 + sync 复制 secrets audit + legacy 清退 + 15 tests (C5); ⑥ docs 落账 + 关遗留阻塞项 ⑤ (本段)。
+> **不引入**: 新数据库表 / 新前端页面 / 新 feature gate / 不动 ARCHITECTURE 数字 (routers 66 / services 98 / jobs 50 不变)。
+> **commit 链**: `83721c2` (C1) → `e7171c2` (C2) → `2b36d7c` (C3) → `9734e65` (C4) → `3f30d00` (C5) → 本 docs commit。
+
+- [x] **C1 — `SecretRepository.get_by_provider()`**: `ORDER BY updated_at DESC, id DESC LIMIT 1` 复用 `idx_llm_secrets_provider`; 多条同 provider 取最新约定; AIService 接入落地 (migration 074 已下契约)。
+- [x] **C2 — AIService 四级链 + key_source**: `_resolve_api_key` 实例方法 (env > secrets(provider=...) > "" fail-soft); `_key_source` 同路径返 `env|secrets|none` 标签; 2 处 AIService 内部 `key_source="env"` 改 `key_source=self._key_source(p)`; 5 处 `_resolve_api_key()` 调用改 `self._resolve_api_key(provider)`。
+- [x] **C3 — LLMService gateway 同步**: `_ai_key_source(provider_name)` 模块辅助函数委托 AIService; `_call_provider/_call_openai/_call_anthropic/_call_openai_compatible` 接受 `provider_name=`; 8 处 gateway 内 `key_source="env"` 改 `key_source=_ai_key_source(provider_name)`。
+- [x] **C4 — QualitySettings 子面板**: 折叠面板 + `key_source` 徽章 + 3 弹窗 (master_key_prompt / reveal_10s / upsert) + 7 handler (loadSecrets / handleUnlock / handleLock / handleReveal / handleTestConnection / handleUpsertSecret / handleDeleteSecret); 前端 `saveLlm` 不再写 `quality.llm_api_key` (legacy 路径)。
+- [x] **C5 — secrets API 全 audit**: 7 audit calls (`create/update/delete/reveal/test/unlock/lock`) + `POST /api/secrets/rotate` 端点 (master_key 轮换 + 重加密 + 强审计) + `sync_bundle.py` 复制 llm_secrets 路径加 `llm_secrets.sync_write` 审计 + 修复 `encryption_keys` 无 `updated_at` 列的旧 bug。
+- [x] **observability_records 通用化**: SAVEPOINT 隔离兼容 autocommit / 隐式事务两种连接模式; record_audit 失败 swallow 保持业务路径不阻塞。
+- [x] **遗留阻塞项 ⑤ 关闭**: "加密通道接管" → llm_secrets 真正接入 AIService/LLMService 业务路径; key_source 三态完整可观测; reveal 强审计; rotate HTTP 端点就绪。
+
+### 关键事实 (Batch ⑥)
+
+| 维度 | 事实 |
+|---|---|
+| 密钥链 | env > secrets(provider=...) > "" (fail-soft, 与 env 未设行为一致) |
+| key_source 写表 | `llm_usage_log.key_source` (`migration 079` ALTER ADD 已落) 写 `env`/`secrets`/`none` |
+| reveal 强审计 | 每次显明文必写 `audit_log`; detail 永不含 api_key 明文 |
+| rotate 端点 | `POST /api/secrets/rotate` (master_key 旧→新 + 重加密 llm_secrets + webdav + settings) |
+| sync audit | `sync_bundle.py` 复制 llm_secrets INSERT/UPDATE 路径均写 `llm_secrets.sync_write` |
+| legacy 清退 | 前端不写 `quality.llm_api_key` settings.kv; 后端保留读 + 加忽略 + 兼容旧用户 |
+| 单点复用 | gateway._get_api_key(env_var, provider_name) 委托 AIService._resolve_api_key(provider); 不重复实现 |
+
+### 不在本批范围 (留作独立批次)
+
+- 主密钥多用户分级 (admin/user 双层解锁)
+- secrets TTL 自动过期 + 强制轮换提醒
+- SSO / OAuth 接入 SecretsService
+- webdav 密文迁移 (0 行空载, 无重加密负担)
+- codegarden / sync / dsh 域 secrets 全量审计 (本批仅 sync.write 审计)
+
+### 门禁 (Batch ⑥ 全量)
+
+- [x] ruff backend 0 错
+- [x] pytest 3138 passed / 6 skipped / 0 failed (基线 3108 + 5 repo + 14 AIService + 4 LLMService + 11 secrets API + 4 rotate = +38)
+- [x] `generate_meta --check` OK (routers 66 / services 98 / jobs 50 — 不变)
+- [x] tsc --noEmit 0 错
+- [x] vitest 327 pass (基线 322 + 5 QualitySettings)
+- [x] vite build OK
+
 ### 不在本批范围 (留作独立批次)
 
 - llm_secrets 主密钥恢复 (Q1 禁重置沿袭, 加密通道休眠待用户裁决; 沿用 env 链)

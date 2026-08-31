@@ -223,3 +223,67 @@ def test_evaluate_no_key_key_source_none(monkeypatch, temp_db):
     ).fetchone()
     assert row is not None
     assert row["key_source"] == "none"
+
+
+# ----------------------------------------------------------------------------
+# LLMService gateway 同步 (C3)
+# ----------------------------------------------------------------------------
+
+def test_gateway_get_api_key_falls_back_to_aiservice(monkeypatch, temp_db):
+    """11. gateway._get_api_key(env, provider) 委托 AIService._resolve_api_key。"""
+    from backend.services.ai_hub.gateway import LLMService
+    _clear_env(monkeypatch)
+    _make_secret("openai", api_key="from-db-openai-key")
+    api_key = LLMService()._get_api_key("OPENAI_API_KEY", "openai")
+    assert api_key == "from-db-openai-key"
+
+
+def test_gateway_get_api_key_env_beats_secrets(monkeypatch, temp_db):
+    """12. env 命中 → env_var 优先, 不走 secrets。"""
+    from backend.services.ai_hub.gateway import LLMService
+    _clear_env(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "env-openai-wins")
+    _make_secret("openai", api_key="db-loses")
+    assert LLMService()._get_api_key("OPENAI_API_KEY", "openai") == "env-openai-wins"
+
+
+def test_gateway_call_provider_passes_provider_name(monkeypatch, temp_db):
+    """13. _call_provider(provider_name=...) 下传到 _call_openai/_call_anthropic。"""
+    from backend.services.ai_hub.gateway import LLMService
+    seen = []
+
+    async def fake_openai(self, cfg, model, prompt, *, provider_name=None, **kwargs):
+        seen.append(("openai", provider_name))
+        return "{}"
+
+    async def fake_anthropic(self, cfg, model, prompt, *, provider_name=None, **kwargs):
+        seen.append(("anthropic", provider_name))
+        return "{}"
+
+    monkeypatch.setattr(LLMService, "_call_openai", fake_openai)
+    monkeypatch.setattr(LLMService, "_call_anthropic", fake_anthropic)
+
+    import asyncio
+    svc = LLMService()
+    cfg_openai = type("C", (), {"type": "openai", "api_key_env": None,
+                                "base_url": "https://x", "timeout_seconds": 30,
+                                "extra_request_body": None})()
+    asyncio.run(svc._call_provider(cfg_openai, "m", "p", provider_name="openai"))
+    assert seen == [("openai", "openai")]
+
+
+def test_gateway_ai_key_source_delegate(monkeypatch, temp_db):
+    """14. _ai_key_source(provider) 委托 AIService._key_source(provider)。"""
+    from backend.services.ai_hub import gateway
+    _clear_env(monkeypatch)
+    _make_secret("sensenova")
+    assert gateway._ai_key_source("sensenova") == "secrets"
+    # env 命中 (清掉 secrets 后)
+    from backend.repository.db import get_connection
+    get_connection().execute("DELETE FROM llm_secrets")
+    get_connection().commit()
+    monkeypatch.setenv("SENSENOVA_API_KEY", "x")
+    assert gateway._ai_key_source("sensenova") == "env"
+    # 全空
+    monkeypatch.delenv("SENSENOVA_API_KEY")
+    assert gateway._ai_key_source("sensenova") == "none"

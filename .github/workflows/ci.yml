@@ -158,22 +158,19 @@ jobs:
 
       - name: TypeScript type check
         run: |
-          # v0.6 P0 清场第二批: noUnusedLocals/noUnusedParameters 已开启,
-          # baseline 142 (140 TS6133 + 1 TS6196 + 1 TS6192) 记 PROGRESS §Frontend Lint Baseline;
-          # CI 暂不阻断, 以 baseline 报告 (差值 > 0 报警, 绝对值不限).
+          # v0.7.1: TS6133 baseline 已清零 (tsc --noEmit 0 错误),
+          # 从 baseline 报告模式升级为硬阻断 — 任何 TS 错误即 CI fail.
           set +e
           TSC_OUT=$(npx tsc --noEmit 2>&1)
           TSC_RC=$?
           set -e
           echo "$TSC_OUT" | grep "error TS" > /tmp/tsc_errors.txt || true
           COUNT=$(wc -l < /tmp/tsc_errors.txt | tr -d ' ')
-          BASELINE=142
-          echo "TS6133+ errors: $COUNT (baseline $BASELINE)"
-          if [ "$COUNT" -gt "$BASELINE" ]; then
-            echo "::warning::TS 死代码数从 baseline 增长 ($COUNT > $BASELINE)"
-          fi
-          if [ "$TSC_RC" -ne 0 ]; then
-            echo "::warning::tsc --noEmit 退出非零 ($TSC_RC), baseline 模式不阻断"
+          echo "TS errors: $COUNT"
+          if [ "$TSC_RC" -ne 0 ] || [ "$COUNT" -gt 0 ]; then
+            echo "::error::tsc --noEmit 失败 ($COUNT 个 TS 错误, exit $TSC_RC)"
+            cat /tmp/tsc_errors.txt
+            exit 1
           fi
 
       - name: Run Vitest tests

@@ -25,6 +25,7 @@ from backend.kl_pipeline.obs.funnel import _LEGACY_TO_STAGE, UNKNOWN_STAGE
 from backend.kl_pipeline.queue import STAGES
 from backend.logging_config import logger
 from backend.repository.db import get_connection
+from backend.services.kl_state_machine import LIFECYCLE_DEDUPED
 
 _LIFECYCLE_SQL = (
     "SELECT COALESCE(lifecycle, '') AS lifecycle, COUNT(*) AS c "
@@ -48,11 +49,15 @@ def funnel_from_db(conn: Any = None) -> list[dict[str, Any]]:
             缺省用 get_connection()。
 
     Returns:
-        ``[{"stage": "kl:raw", "count": n}, ..., {"stage": "unknown", "count": m}]``
-        (stage 顺序与 STAGES 一致, 值域外/历史值经 _LEGACY_TO_STAGE 归一,
-        归不进去的进 unknown, 与 funnel_stats 语义对齐)
+        ``[{"stage": "kl:raw", "count": n}, ..., {"stage": "kl:deduped", "count": d},
+        {"stage": "unknown", "count": m}]``
+        (stage 顺序与 STAGES 一致 + 终态 ``kl:deduped`` 单列; 值域外/历史值经
+        _LEGACY_TO_STAGE 归一, 归不进去的进 unknown, 与 funnel_stats 语义对齐)
     """
     counts: dict[str, int] = dict.fromkeys(STAGES, 0)
+    # kl:deduped 单列: 它是 T1 判重项的真实终态。若落进 unknown, 看板会把
+    # "已判定重复"显示成"状态未知", 正好掩盖刚建立的可审计性。
+    counts[LIFECYCLE_DEDUPED] = 0
     counts[UNKNOWN_STAGE] = 0
     try:
         rows = (conn or get_connection()).execute(_LIFECYCLE_SQL).fetchall()

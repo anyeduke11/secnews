@@ -47,6 +47,7 @@ from backend.repository.db import get_connection
 from backend.services.ai_hub import llm_service, write_score
 from backend.services.kl_state_machine import (
     LEGACY_RAW_LIKE,
+    LIFECYCLE_DEDUPED,
     LIFECYCLE_RAW,
     LIFECYCLE_REFINE,
     can_transition,
@@ -131,6 +132,12 @@ class T1Trigger:
 
                 if self._is_duplicate(item, existing_fp, existing_urls):
                     skipped_duplicate += 1
+                    # 落终态, 而不是原地留在 kl:raw。
+                    # 旧实现只 continue → 下一轮又被 _fetch_candidates 取到、
+                    # 再判重、无限空转 (实测 1684/1684 行恒为
+                    # candidates=2 advanced=0 skipped_duplicate=2)。
+                    self._mark_deduped(item_id)
+                    self.metrics.inc("t1_deduped")
                     continue
 
                 # Even if scoring fails, we still advance — the trigger's
@@ -298,6 +305,21 @@ class T1Trigger:
         except (TypeError, ValueError):
             pass
         return []
+
+    @staticmethod
+    def _mark_deduped(item_id: str) -> None:
+        """把判重项落到 ``kl:deduped`` 终态, 使其离开候选集。
+
+        自身吞异常: 落终态失败不该把该条误计为本轮 ``failed``(那是评分/DB 故障
+        的信号), 更不该中断整轮 —— 下一轮它仍会被取到重判, 行为退化成修复前,
+        不会更糟。
+        """
+        try:
+            T1Trigger._update_lifecycle(item_id, LIFECYCLE_DEDUPED)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "T1: failed to mark %s as %s: %s", item_id, LIFECYCLE_DEDUPED, exc
+            )
 
     @staticmethod
     def _update_lifecycle(item_id: str, new_stage: str) -> None:

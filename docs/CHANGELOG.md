@@ -1,5 +1,53 @@
 # Changelog
 
+## v0.7 Batch 2 (2026-08-31) — LLM provider 切换 + settings.kv 覆盖 + audit_log 写入
+
+> **来源**: Observability PRD v1.0 §5.3 + Batch 1 已落地的 `record_audit` 0 生产调用者顺接, 闭环为 audit_log 首个真实写入场景。批前盘点: ai_hub 默认 provider 仅 env/router/default 三级, 用户切换要重启进程或改 env; QualitySettings 写 `quality.llm_provider` 是 v4.4 起的 dead 字段 (ai_hub 不读)。
+> **范围**: ① env AI_PROVIDER > settings.kv > yaml default_provider 四级链; ② `POST /api/settings/llm-provider` 走 settings.kv + audit_log; ③ 前端扩到 yaml 全注册; ④ 不动 llm_secrets (主密钥未解); ⑤ 不动 LLMService gateway; ⑥ 不动 GateContext (dead default)。
+> **不引入**: 新数据库表 / 新 feature gate / 新前端页面 / llm_secrets 接入。
+> **commit 链**: `ade3b03` (backend) → `ba69454` (frontend) → docs commit。
+
+### 批次 ㉞：Batch 2 — 后端核心
+
+- **`AIService._resolve_provider` 四级链** (`backend/services/ai_hub/service.py`): 在 env 之后插入 settings.kv 查询 (类型守卫 `isinstance(str) and .strip()`, 避免非字符串触发 "settings" 打标), 兜底 router → yaml default_provider; 既有 `test_s4_1_model_router.py::test_ai_service_resolve_provider_three_levels` 6 用例继续绿 (env > router > default 顺序保住 — test isolation 时 env 未设 + settings.kv 空, 新代码回退到 router/default 同既有路径)
+- **`AIService._config_source()` 解析路径打标** (NEW): env|settings|router|default, 写入 `llm_usage_log.config_source` 替换原 `default/fallback` 二分; `key_source` 仍 `"env"` (TODO 留待 Batch ③+ 接 llm_secrets)
+- **`POST /api/settings/llm-provider`** (`backend/api/settings.py`): 校验 provider ∈ yaml registry → `SettingsRepository.set("llm.default_provider")` → `record_audit(actor, action="llm_config.update", target="default_provider", detail={from, to, source})`; audit 失败仍 200 (PRD §10 红线 ② 审计容错); actor 默认 `"web"`, 接受 `"system"` / `"agent:<name>"`; 无效 provider → 400 `INVALID_PARAM` 含 trace_id/version envelope
+- **`GET /api/llm/status` 增 `effective_provider` + `config_source`**: 帮前端确认"我现在到底用哪个 + 哪条链生效的", 复用 `_resolve_provider` / `_config_source` 同源
+- **新测试 × 14**:
+  - `backend/tests/test_llm_settings_override.py` NEW (8 例): env > settings > router > default 完整四链; 非字符串 / 空串 / settings_repo 异常 swallowed; 端到端 `config_source` 落到 `llm_usage_log`
+  - `backend/tests/test_llm_settings_api.py` NEW (6 例): 合法切换 + audit 写入; 非法 provider → 400 `INVALID_PARAM`; audit 失败仍 200; actor 三种格式 web/system/agent:<name>; 旧值序列正确 (from=None → "sensenova"); yaml registry 缺失时退化兜底
+
+### 批次 ㉟：Batch 2 — 前端面板
+
+- **`frontend/src/components/settings/QualitySettings.tsx`**: 顶部新增独立面板 (与质量规则解耦)
+  - 拉 `/api/llm/status` 拿到 yaml 注册的 `providers` + `effective_provider` + `config_source`, dropdown 动态渲染 (不再硬编码 2 项; yaml 几个就几个)
+  - "切换默认 LLM Provider" 按钮 → `POST /api/settings/llm-provider { provider, actor: 'web' }`, 成功后重拉 status 验证 `effective_provider` 已变 + 显示 `已切换: x → y`
+  - 失败 (INVALID_PARAM 等) 显示后端 `message`, 不调成功 toast
+  - 沿用 settings.kv 持久化 + audit_log 写入 (后端已在 ㉞ 落地)
+  - 检测子面板的提供方 dropdown 同步扩为动态渲染
+  - 不动 `PUT /api/quality/rules` (那是质量规则, dead 字段 `quality.llm_provider` 保留)
+  - 不引入新页面 / 新依赖
+- **`frontend/src/components/settings/QualitySettings.test.tsx` NEW** (4 例全绿): 5-option 动态渲染 + effective 反映 status; POST 切换 + 成功消息; 失败显示错误无成功 toast; open=false 不触发 fetch
+
+### 门禁
+
+| 维度 | 结果 |
+|---|---|
+| ruff backend | All checks passed (含 I001 自动修) |
+| 全量 pytest | **3077 passed / 6 skipped / 1 failed** (1 fail = P4 预存债 `test_snapshot_for_retirement.py::test_baseline_2026_08_24_counts` 期望 4149 wiki 文件但根已迁, 见 P4 段) |
+| `generate_meta --check` | OK (routers 65 / services 97 不变 — 本批不增架构数字) |
+| tsc --noEmit | 0 错 |
+| vitest | **314 passed** (基线 310 + 4 new) |
+| vite build | OK |
+
+### 不在本批范围 (留作 Batch ③+ 开放尾巴)
+
+- Batch ③ API 观测 (HTTP middleware trace_id 注入 + 业务 endpoint observability)
+- Batch ④ 看板告警 (Dashboard 嵌入 + 阈值规则)
+- Batch ⑤ 收尾
+- llm_secrets 主密钥恢复 (Q1 禁重置沿袭, 加密通道休眠待用户裁决)
+- 已知预存债 (来自 P4): `test_kl_state_machine.py::test_successors_of_raw` 期望漂移 / `test_snapshot_for_retirement.py::test_baseline_2026_08_24_counts` 期望陈旧
+
 ## v0.7 Batch 1 (2026-08-31) — Observability 观测地基 + LLM/Job/Agent/Process 执行记录
 
 > **来源**: 用户 2026-08-30 `hotspot-observability-prd.md` 需求 (ollama + 云端 LLM 前端可切换 + 完整观测方案, 5 批次实施 ①地基 / ②LLM 切换 / ③API 观测 / ④看板告警 / ⑤收尾)。本批 = ①, 仅落地观测地基与执行记录层; 不动 LLM 配置切换 (留 ②)。commit `345ce39` (分支 `observability/batch-1`)。

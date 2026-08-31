@@ -39,6 +39,50 @@
 
 ## 当前活跃段 (2026-08-27 起)
 
+### 2026-08-31 v0.7 Batch 2 — LLM provider 切换 + settings.kv 覆盖 + audit_log 写入 (本批)
+
+> **来源**: Observability PRD v1.0 §5.3 "用户切换 > 运维默认" + Batch 1 已落地的 `record_audit` 仍 0 生产调用者, 顺接作为首个真实调用场景。批前盘点: ai_hub 默认 provider 仅 env / router / default 三级, 用户切换要重启进程或改 env; QualitySettings 写 `quality.llm_provider` 是 v4.4 起的 dead 字段 (ai_hub 不读)。
+> **范围**: ① env `AI_PROVIDER` > settings.kv `llm.default_provider` > yaml default_provider 四级链; ② `POST /api/settings/llm-provider` 走 settings.kv + audit_log; ③ 前端扩到 yaml 全注册; ④ 不动 llm_secrets (主密钥未解, 见旧 v0.6 P0 决策点 ⑤); ⑤ 不动 LLMService gateway (PRD §5.3 不冲突, AIService.evaluate/gate_detect 走新链); ⑥ 不动 GateContext (dead default, 不引入新注入点)。
+> **不引入**: 新数据库表 / 新 feature gate / 新前端页面 / llm_secrets 接入。
+> **commit 链**: `ade3b03` (backend 主批) + `ba69454` (frontend 主批) + 本 docs commit。
+
+- [x] **后端 — `_resolve_provider` 四级链**: `backend/services/ai_hub/service.py` 在 env 之后插入 settings.kv 查询 (类型守卫 `isinstance(str) and .strip()`, 避免非字符串触发 "settings" 打标), 兜底 router → yaml default_provider; 既有 `test_s4_1_model_router.py::test_ai_service_resolve_provider_three_levels` 6 用例继续绿 (env > router > default 顺序保住)。
+- [x] **后端 — `_config_source()` 解析路径打标**: env|settings|router|default, 写入 `llm_usage_log.config_source` 替换原 `default/fallback` 二分; `key_source` 仍 `"env"` (TODO 留待 Batch ③+ 接 llm_secrets)。
+- [x] **后端 — `POST /api/settings/llm-provider`** (`backend/api/settings.py`): 校验 provider ∈ yaml registry → `SettingsRepository.set("llm.default_provider")` → `record_audit(actor, action="llm_config.update", target="default_provider", detail={from, to, source})`; audit 失败仍 200 (PRD §10 红线 ②, 审计容错); actor 默认 `"web"`, 接受 `"system"` / `"agent:<name>"`。
+- [x] **后端 — `GET /api/llm/status` 增 effective_provider + config_source**: 帮前端确认 "我现在到底用哪个 + 哪条链生效的", 复用 `_resolve_provider` / `_config_source` 同源。
+- [x] **后端 — 2 个新测试文件**:
+  - `backend/tests/test_llm_settings_override.py` — 8 例: env > settings > router > default 完整四链; 非字符串 / 空串 / 异常 swallowed; 端到端 `config_source` 落到 `llm_usage_log`。
+  - `backend/tests/test_llm_settings_api.py` — 6 例: 合法切换 + audit 写入; 非法 provider → 400 `INVALID_PARAM`; audit 失败仍 200; actor 三种格式; 旧值序列正确; yaml registry 缺失时退化兜底。
+- [x] **前端 — QualitySettings 顶部新面板** (`ba69454`): 拉 `/api/llm/status` 拿到 yaml 注册的 `providers` + `effective_provider` + `config_source`, dropdown 动态渲染 (不再硬编码 2 项); "切换默认 LLM Provider" 按钮 → `POST /api/settings/llm-provider { provider, actor: 'web' }`, 成功后重拉 status 验证 `effective_provider` 已变 + 显示 `已切换: x → y`; 失败显示后端 `message` 不调成功 toast; 检测子面板的提供方 dropdown 同步扩为动态渲染。
+- [x] **前端 — `QualitySettings.test.tsx`** (NEW, 4 例全绿): 5-option 渲染; POST 切换 + 成功消息; 失败显示错误无成功 toast; open=false 不触发 fetch。
+- [x] **不破坏既有契约**: `test_s4_1_model_router.py::test_ai_service_resolve_provider_three_levels` 6/6 继续绿 (env > router > default 三段断言 — 因 test isolation env 未设 + settings.kv 空, 新代码回退到 router/default 同既有路径); `test_quality_rules.py` 不受影响 (QualitySettings 写 quality.llm_enabled / quality.llm_provider 的旧路径保留, 与新 default_provider 面板并行存在)。
+- [x] **门禁**:
+  - ruff backend: 0 错 (含 I001 自动修)
+  - 全量 pytest: **3077 passed / 6 skipped / 1 failed** (1 fail = `test_snapshot_for_retirement.py::test_baseline_2026_08_24_counts` 期望 4149 wiki 文件但根已迁 + gitignore, 见 P4 预存债, 非本批范围)
+  - `generate_meta --check` OK (routers 65 不变 / services 97 不变 — 本批不增架构数字)
+  - tsc --noEmit: 0 错
+  - vitest: **314 passed** (基线 310 + 4 new)
+  - vite build: OK
+
+### 关键事实 (Batch 2)
+
+| 维度 | 结果 |
+|------|------|
+| 四级链覆盖 | env AI_PROVIDER > settings.kv > router > yaml default_provider; 既有三段断言保住 |
+| audit_log 写入 | `llm_config.update` action + `from/to/source` detail; 0 production caller → Batch 2 起为 audit_log 首个生产调用 |
+| 前端 dropdown 漂移 | 杜绝硬编码 2→5; 选项从 yaml registry 动态拉; 新增 provider 零前端改动 |
+| llm_secrets 状态 | 未动; keyring 主密钥未解, 沿用 env (旧 v0.6 P0 决策点 ⑤ 关闭条件未触发) |
+| GateContext | 仍 dead default, 不引入新注入点 (与 PRD §5.3 不冲突) |
+| commit 链 | `ade3b03` (backend) → `ba69454` (frontend) → docs commit |
+
+### 不在本批范围 (留作 Batch ③+ 开放尾巴)
+
+- Batch ③ API 观测 (HTTP middleware trace_id 注入 + 业务 endpoint observability)
+- Batch ④ 看板告警 (Dashboard 嵌入 + 阈值规则)
+- Batch ⑤ 收尾
+- llm_secrets 主密钥恢复 (Q1 禁重置沿袭, 加密通道休眠待用户裁决)
+- 已知预存债 (来自 P4): `test_kl_state_machine.py::test_successors_of_raw` 期望漂移 / `test_snapshot_for_retirement.py::test_baseline_2026_08_24_counts` 期望陈旧
+
 ### 2026-08-31 v0.7 Batch 1 — Observability 观测地基 + LLM/Job/Agent/Process 执行记录 (本批)
 
 > **来源**: 用户 2026-08-30 `hotspot-observability-prd.md` 需求: ollama+云端 LLM 前端可切换 + 完整观测方案; 5 批次实施 (①观测地基 / ②LLM 切换 / ③API 观测 / ④看板与告警 / ⑤收尾)。本批 = ①, 仅落地基与执行记录层, 不动 LLM 配置切换逻辑 (留 ②)。

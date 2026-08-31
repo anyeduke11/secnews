@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 // Mock EventSource (useSSE 依赖)
 class MockEventSource {
@@ -424,5 +424,30 @@ describe('SentinelHomePage — 哨兵终端首页', () => {
     const body = callsWith(fetchMock, '/api/kl/import/url', 'POST')[0][1]!.body;
     expect(JSON.parse(String(body))).toEqual({ url: 'https://example.com/a' });
     await waitFor(() => expect(screen.getByText(/已入库 imported-abc123/)).toBeInTheDocument());
+  });
+
+  it('每个 tag 右侧有金黄深度阅读入口, 点击进入 /deep 路由', async () => {
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route path="/" element={<SentinelHomePage />} />
+          <Route path="/deep/:type/:id" element={<div>DEEP_ROUTE_MARKER</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // 每个 tag 旁都应有深读 chip (头条 + 2 次级 + 快讯 >= 3)
+    const chips = await waitFor(() => {
+      const all = screen.getAllByRole('button', { name: /进入深度阅读/ });
+      expect(all.length).toBeGreaterThanOrEqual(3);
+      return all;
+    });
+    expect(screen.getByRole('button', { name: '对「企业自建大模型网关曝出未授权访问风险」进入深度阅读' })).toBeInTheDocument();
+    const secondaryChip = screen.getByRole('button', { name: '对「次级重点条目一」进入深度阅读' });
+    expect(secondaryChip).toBeInTheDocument();
+
+    fireEvent.click(secondaryChip);
+    await waitFor(() => expect(screen.getByText('DEEP_ROUTE_MARKER')).toBeInTheDocument());
+    expect(chips.length).toBeGreaterThanOrEqual(3);
   });
 });

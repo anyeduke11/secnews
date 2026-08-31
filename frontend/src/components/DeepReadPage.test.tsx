@@ -145,6 +145,21 @@ describe('DeepReadPage — 动态分节渲染', () => {
     await mockOnce({ detail: { message: 'LLM 返回空; 可能所有 provider 不可用' } }, false);
     renderPage();
 
-    await waitFor(() => expect(screen.getByText(/provider 不可用|深读生成失败|加载深读失败/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/provider 不可用|深读生成失败/)).toBeInTheDocument());
+  });
+
+  it('进入页面即以 force=0 POST 自动分析, 不再单独 GET (去掉 not found 环节)', async () => {
+    const fn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(response({ sections: BID_SECTIONS })),
+    });
+    vi.stubGlobal('fetch', fn);
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('要点速读')).toBeInTheDocument());
+    const calls = fn.mock.calls.map(c => String(c[0]));
+    expect(calls.some(u => u.startsWith('/api/deep-read/hotspot/h-1?force=0'))).toBe(true);
+    const getOnly = fn.mock.calls.filter(([, init]) => (init?.method ?? 'GET') === 'GET');
+    expect(getOnly.length).toBe(0);
   });
 });

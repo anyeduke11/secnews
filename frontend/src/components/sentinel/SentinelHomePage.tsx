@@ -218,6 +218,23 @@ function StarButton({ item, fav, onToggle }: { item: HotspotItem; fav: boolean; 
   );
 }
 
+/** tag 右侧的"进入深度阅读"金黄入口, 跳转后由 DeepReadPage 自动开始分析 */
+function DeepReadChip({ id, label = '深读', itemTitle }: { id: string; label?: string; itemTitle?: string }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      className="dr-link"
+      title="进入深度阅读"
+      aria-label={itemTitle ? `对「${itemTitle}」进入深度阅读` : undefined}
+      onClick={e => { e.stopPropagation(); navigate(`/deep/hotspot/${id}`); }}
+    >
+      {label}
+      <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2.5 7h8M7.5 3.5L11 7l-3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+    </button>
+  );
+}
+
 export function SentinelHomePage() {
   const navigate = useNavigate();
 
@@ -430,6 +447,7 @@ export function SentinelHomePage() {
                 <article className="story-top">
                   <div className="meta-row">
                     <span className="tag" style={{ '--sn-tag-c': tagColorOf(lead.category) } as React.CSSProperties}><i aria-hidden="true" />{labelOf(lead.category)}</span>
+                    <DeepReadChip id={lead.id} label="进入深度阅读" itemTitle={lead.title} />
                     <span className="src">{lead.source}</span>
                     <span className="time num">{relTime(lead.published_at)}</span>
                     <span className="time num">评分 {Math.round(lead.score ?? lead.quality_score ?? 0)}</span>
@@ -473,6 +491,7 @@ export function SentinelHomePage() {
                             {heatCells(heatOf(item)).map((on, i) => <b key={i} className={on ? 'on' : undefined} />)}
                           </span>
                           <span className="ftag" style={{ color: tagColorOf(item.category), background: 'transparent', border: '1px solid var(--sn-line)' }}>{labelOf(item.category)}</span>
+                          <DeepReadChip id={item.id} itemTitle={item.title} />
                           <StarButton item={item} fav={isFavorite(item.id)} onToggle={star} />
                         </div>
                       </div>
@@ -547,7 +566,7 @@ export function SentinelHomePage() {
                           ) : (
                             <span className="flash-title">{item.title}</span>
                           )}
-                          <span className="flash-tags"><span className="ftag" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span></span>
+                          <span className="flash-tags"><span className="ftag" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span><DeepReadChip id={item.id} itemTitle={item.title} /></span>
                         </div>
                         <div className="flash-side">
                           <span className="flash-src">{item.source}</span>

@@ -179,6 +179,17 @@
 .sentinel .readmore:hover{background:var(--sn-mint-dim);border-color:var(--sn-mint)}
 .sentinel .readmore svg{transition:transform .2s ease}
 .sentinel .readmore:hover svg{transform:translateX(3px)}
+/* tag 右侧金黄"深度阅读"入口 (复用金融金黄色板, 随主题翻转) */
+.sentinel .dr-link{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:11.5px;font-weight:600;font-family:var(--sn-mono);
+  color:var(--sn-cat-fin);
+  padding:2px 9px;border:1px solid color-mix(in srgb,var(--sn-cat-fin) 34%,transparent);border-radius:5px;
+  transition:background .15s ease,border-color .15s ease;
+}
+.sentinel .dr-link:hover{background:color-mix(in srgb,var(--sn-cat-fin) 16%,transparent);border-color:var(--sn-cat-fin)}
+.sentinel .dr-link svg{transition:transform .2s ease}
+.sentinel .dr-link:hover svg{transform:translateX(2px)}
 
 /* 次级重点 */
 .sentinel .secondary{padding:6px 0 10px}

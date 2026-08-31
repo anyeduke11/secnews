@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { apiFetch, getJSON } from '../lib/api';
+import { apiFetch } from '../lib/api';
 import { DeepReadResponse, DeepReadSection, DeepReadTone } from '../types';
 
 const VALID_TONES: readonly DeepReadTone[] = ['mint', 'amber', 'red'];
@@ -25,9 +25,7 @@ export interface UseDeepReadReturn {
   loading: boolean;
   /** 错误信息 */
   error: string | null;
-  /** 读取已有分析 (不触发 LLM) */
-  fetch: (entityType: string, entityId: string) => Promise<void>;
-  /** 触发/刷新 LLM 深度解读 */
+  /** 读取或生成深度解读: force=false 命中缓存则瞬时返回, 否则调 LLM 生成 */
   regenerate: (entityType: string, entityId: string, force?: boolean) => Promise<void>;
   /** 清空当前状态 */
   clear: () => void;
@@ -51,30 +49,6 @@ export function useDeepRead(): UseDeepReadReturn {
     setData(null);
     setError(null);
     setLoading(false);
-  }, []);
-
-  const fetch = useCallback(async (entityType: string, entityId: string) => {
-    if (fetchAbortRef.current) fetchAbortRef.current.abort();
-    const controller = new AbortController();
-    fetchAbortRef.current = controller;
-
-    setLoading(true);
-    setError(null);
-    try {
-      const item = await getJSON<DeepReadResponse>(
-        `/api/deep-read/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}`,
-        { signal: controller.signal },
-      );
-      setData(item);
-    } catch (e: any) {
-      if (e?.name === 'AbortError') return;
-      setError(e?.message || '加载深读失败');
-      setData(null);
-    } finally {
-      if (fetchAbortRef.current === controller) {
-        setLoading(false);
-      }
-    }
   }, []);
 
   const regenerate = useCallback(
@@ -113,5 +87,5 @@ export function useDeepRead(): UseDeepReadReturn {
     };
   }, []);
 
-  return { data, sections, loading, error, fetch, regenerate, clear };
+  return { data, sections, loading, error, regenerate, clear };
 }

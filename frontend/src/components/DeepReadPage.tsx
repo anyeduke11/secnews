@@ -173,14 +173,14 @@ function SectionCard({ section }: { section: DeepReadSection }) {
 export function DeepReadPage() {
   const { type, id } = useParams<{ type: string; id: string }>();
   const goHome = useGoHome();
-  const { data, sections, loading, error, fetch, regenerate, clear } = useDeepRead();
+  const { data, sections, loading, error, regenerate, clear } = useDeepRead();
 
-  // 路由参数变化时重新拉取
+  // 进入即分析: force=false 命中后端缓存则瞬时返回, 无缓存则直接调 LLM 生成
   useEffect(() => {
     if (!type || !id) return;
-    fetch(type, id);
+    regenerate(type, id, false);
     return clear;
-  }, [type, id, fetch, clear]);
+  }, [type, id, regenerate, clear]);
 
   const handleRegenerate = useCallback(async () => {
     if (!type || !id) return;
@@ -312,7 +312,7 @@ export function DeepReadPage() {
             fontSize: 13,
           }}
         >
-          暂无分析, 点击右上角"重新生成"触发 LLM 深度分析。
+          深度分析未完成, 点击右上角"重新生成"重试。
         </div>
       )}
 

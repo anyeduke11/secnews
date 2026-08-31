@@ -574,6 +574,15 @@ class HotspotScheduler:
             name="api_events → api_metrics_hourly roll-up (every 3600s, +5min offset)",
             replace_existing=True,
         )
+        # v0.7 Batch ④: 阈值规则检查 (aggregator 之后再 +5min; 阈值评估依赖
+        # 当小时完整聚合后做才有意义; cooldown 默认 15min 防风暴)
+        self.scheduler.add_job(
+            jobs.observability_threshold_check_job,
+            trigger=IntervalTrigger(seconds=3600, start_date=_now_utc + timedelta(minutes=10)),
+            id="observability_threshold_check",
+            name="observability threshold check (every 3600s, +10min offset)",
+            replace_existing=True,
+        )
         # v1.8: 原 job 23 (review_scheduler) / job 24 (profile_updater) 为 NoOp
         # 占位, 已删除 —— 复习由前端 /api/reviews/due 驱动, profile 由事件实时写入
         # job 28: Profile 衰减 (03:00 Shanghai)

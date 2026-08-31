@@ -271,6 +271,13 @@ async def unlock_status():
     return await asyncio.to_thread(svc.unlock_status)
 
 
+@router.get("/rotation-status")
+async def rotation_status():
+    """T3: 查询主密钥轮换状态 (age + should_rotate 提醒)."""
+    svc = SecretsService()
+    return await asyncio.to_thread(svc.rotation_status)
+
+
 @router.post("/lock")
 async def lock_now():
     """立即清空 unlock 状态。"""

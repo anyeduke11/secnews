@@ -88,15 +88,30 @@ class AIService:
 
     @staticmethod
     def _resolve_provider() -> str:
-        """S4-1 决议: 三级优先级 — AI_PROVIDER env > router 推荐 > default_provider。
+        """v0.7 Batch 2: 四级优先级 — env > settings.kv > router > default。
 
-        兼容旧行为: cfg.default_provider 为空 / 未配置时仍兜底到 sensenova。
-        router 推荐失败 (LLM 未启用 / import 异常) 时也直接回退到 default_provider。
+        三级链 (env/router/default) 是 ``test_s4_1_model_router`` 既有断言的
+        硬约束。Batch 2 把 settings.kv 插在 env 之后、router 之前 — 当前端
+        切换过 ``llm.default_provider`` 时覆盖 env, 当未切换时退回 env。
+        这符合 PRD §5.3 "用户切换 > 运维默认"。
+
+        不读 ``quality.llm_provider``: 那是 QualityRules 死字段 (v4.4 起
+        ai_hub 不接), 仍由 ``PUT /api/quality/rules`` 维护。
         """
         import os
         env = os.environ.get("AI_PROVIDER")
         if env:
             return env
+
+        # v0.7 Batch 2: settings.kv "llm.default_provider" 覆盖 (env 之后)
+        try:
+            from backend.repository.settings_repo import SettingsRepository
+            kv_provider = SettingsRepository().get("llm.default_provider")
+            if isinstance(kv_provider, str) and kv_provider.strip():
+                return kv_provider.strip()
+        except Exception as e:
+            log.debug(f"_resolve_provider settings.kv fallback: {e}")
+
         try:
             from backend.services.llm.model_router import route_model
             # AIService 的 evaluate/gate_detect 是标准分析档; router 推荐最稳的 provider
@@ -107,6 +122,36 @@ class AIService:
             log.debug(f"AIService._resolve_provider router fallback: {e}")
         cfg = llm_service.config
         return cfg.default_provider if cfg is not None else "sensenova"
+
+    @staticmethod
+    def _config_source() -> str:
+        """v0.7 Batch 2: 解析路径打标 (env|settings|router|default)。
+
+        与 :meth:`_resolve_provider` 走同一路径, 但返回来源而非 provider 名;
+        调用方写入 ``record_llm_call(config_source=...)``, 看板可按来源
+        聚合 (例: 用户切换过几次 / 当前生效比例)。
+
+        不抛 — 任一层失败回退到下一层, 与 ``_resolve_provider`` 等价。
+        settings.kv 的非字符串值 (typo 写入 list/dict) **不算** settings 命中,
+        因为 resolver 不会接受它, 故打标与解析保持一致。
+        """
+        import os
+        if os.environ.get("AI_PROVIDER"):
+            return "env"
+        try:
+            from backend.repository.settings_repo import SettingsRepository
+            kv_provider = SettingsRepository().get("llm.default_provider")
+            if isinstance(kv_provider, str) and kv_provider.strip():
+                return "settings"
+        except Exception:
+            pass
+        try:
+            from backend.services.llm.model_router import route_model
+            if route_model("evaluate", config=llm_service.config):
+                return "router"
+        except Exception:
+            pass
+        return "default"
 
     @staticmethod
     def _resolve_api_key() -> str:
@@ -188,7 +233,9 @@ class AIService:
             self._record(p, self._eval_model(p), "evaluate",
                          ok=False, error=f"{type(e).__name__}: {e}",
                          latency_ms=(time.monotonic() - t0) * 1000,
-                         scene="evaluate_article")
+                         scene="evaluate_article",
+                         config_source=self._config_source(),
+                         key_source="env")
             _logger.warning("ai evaluate failed ({}): {}: {}", p, type(e).__name__, e)
             return {"ok": False, "provider": p, "error": f"{type(e).__name__}: {str(e)[:300]}"}
 
@@ -202,7 +249,7 @@ class AIService:
                      total_tokens=_est_tokens(f"{title}{content}"),
                      latency_ms=(time.monotonic() - t0) * 1000,
                      scene="evaluate_article",
-                     config_source="default" if p == self._default_provider() else "fallback",
+                     config_source=self._config_source(),
                      key_source="env")
         return result
 

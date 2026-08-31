@@ -48,6 +48,7 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 from backend.exceptions import InternalException
+from backend.observability_records import record_audit
 from backend.repository.codegarden_orchestration_repo import (
     VALID_DEP_ENTITY_TYPES,
     VALID_DEP_TYPES,
@@ -389,6 +390,10 @@ async def save_env_template(req: SaveEnvTemplateRequest, response: Response):
     except InternalException as e:
         raise HTTPException(status_code=400, detail=str(e))
     response.status_code = 201
+    record_audit(actor="web", action="codegarden.env_template.save",
+                 target=f"resource:{resource.get('id', '')}",
+                 detail={"name": req.name, "owner_project_id": req.owner_project_id,
+                         "var_count": len(req.env_vars)})
     return resource
 
 

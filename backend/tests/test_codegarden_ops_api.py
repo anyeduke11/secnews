@@ -33,6 +33,22 @@ def client(tmp_path, monkeypatch) -> Iterator[TestClient]:
     # 060 (v0.4.0): cg_services.discovery_source (P5-4 校验状态)
     with open("backend/repository/migrations/060_v0.4_discovery_source.sql", encoding="utf-8") as f:
         conn.executescript(f.read())
+    # 080 (v0.7): audit_log (record_audit 表) — 取 audit_log 段 (从 CREATE TABLE 起)
+    with open("backend/repository/migrations/080_v0.7_observability_tables.sql", encoding="utf-8") as f:
+        obs_lines = f.read().splitlines()
+    keep_lines = []
+    started = False
+    for ln in obs_lines:
+        s = ln.strip()
+        if s.startswith("CREATE TABLE IF NOT EXISTS audit_log"):
+            started = True
+        if started:
+            keep_lines.append(ln)
+    obs_sql = "\n".join(keep_lines)
+    conn.executescript(obs_sql)
+    # 013: encryption_keys (save_env_template 走 Fernet 加密需要默认主密钥)
+    with open("backend/repository/migrations/013_secrets.sql", encoding="utf-8") as f:
+        conn.executescript(f.read())
     conn.commit()
     conn.close()
 
@@ -58,6 +74,9 @@ def client(tmp_path, monkeypatch) -> Iterator[TestClient]:
     import backend.services.codegarden_service_service as svc_svc_mod
     monkeypatch.setattr(svc_svc_mod, "get_connection", _get_conn)
     monkeypatch.setattr(orch_svc_mod, "get_connection", _get_conn)
+    # observability_records 也直接 import get_connection (record_audit)
+    import backend.observability_records as obs_mod
+    monkeypatch.setattr(obs_mod, "get_connection", _get_conn)
 
     from fastapi import FastAPI
     app = FastAPI()
@@ -436,3 +455,38 @@ def test_run_playbook_returns_202(tmp_path, monkeypatch):
     data = r.json()
     assert data["playbook_name"] == "test-pb"
     assert "task_id" in data
+
+
+# ===========================================================================
+# M3 env_template audit (Batch ⑦ T2 — codegarden secrets 全量审计)
+# ===========================================================================
+def test_save_env_template_writes_audit_log(client):
+    """save_env_template 落 audit_log (action=codegarden.env_template.save)."""
+    r = client.post("/api/codegarden/resources/env-templates", json={
+        "name": "production",
+        "env_vars": {"API_KEY": "secret-value", "DEBUG": "false"},
+        "owner_project_id": None,
+    })
+    assert r.status_code == 201, r.text
+    body = r.json()
+    # cg_resources 行: value=模板名, type=env_template
+    assert body["value"] == "production"
+    assert body["type"] == "env_template"
+
+    # 验 audit_log — 直接走 monkeypatch 后的 get_connection
+    from backend.repository import db as db_mod
+    probe = db_mod.get_connection()
+    try:
+        row = probe.execute(
+            "SELECT action, target, detail FROM audit_log "
+            "WHERE action='codegarden.env_template.save' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    finally:
+        probe.close()
+    assert row is not None, "audit_log 未写入 env_template.save"
+    assert row["action"] == "codegarden.env_template.save"
+    assert row["target"].startswith("resource:")
+    import json as _json
+    detail = _json.loads(row["detail"])
+    assert detail["name"] == "production"
+    assert detail["var_count"] == 2

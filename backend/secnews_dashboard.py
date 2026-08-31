@@ -17,6 +17,12 @@ from typing import Any
 
 from backend.kl_pipeline.obs.ledger import TokenLedger
 from backend.repository.db import get_connection
+from backend.services.profile_service import get_profile as get_user_profile
+from backend.services.wiki_stats_service import (
+    funnel_from_db,
+    knowledge_stats_from_db,
+    liveness_from_md_cached,
+)
 from backend.services.wiki_stats_service import (
     funnel_from_db,
     knowledge_stats_from_db,
@@ -271,3 +277,129 @@ class SecNewsDashboard:
             "top_categories": [dict(r) for r in top_cats],
             "date": today,
         }
+
+    def get_feed(
+        self,
+        category: str = "",
+        keyword: str = "",
+        limit: int = 30,
+        profile_boost: bool = False,
+    ) -> dict:
+        """Newspaper-style feed sorted by ingested_at DESC.
+
+        When ``profile_boost=True``, items are additionally sorted by a
+        personalization boost derived from ``personal_profile`` weights.
+        """
+        # Base query (unchanged from original).
+        base = self._get_feed_base(category=category, keyword=keyword, limit=limit)
+
+        if not profile_boost or not base["items"]:
+            return base
+
+        # Load user profile weights and compute per-item boost.
+        profile = get_user_profile()
+        weights = self._load_profile_weights(profile)
+
+        def _boost(item: dict) -> float:
+            return self._calc_profile_boost(item, weights)
+
+        items = sorted(
+            base["items"],
+            key=lambda item: (_boost(item), item.get("ingested_at", "")),
+            reverse=True,
+        )
+        base["items"] = [
+            {**item, "_boost": round(self._calc_profile_boost(item, weights), 4)}
+            for item in items
+        ]
+        base["profile_boost"] = True
+        return base
+
+    # ------------------------------------------------------------------
+    # v0.7 Batch ⑤: 个性化排序 helpers
+    # ------------------------------------------------------------------
+    def _load_profile_weights(self, profile: list[dict]) -> dict[str, float]:
+        """Flatten profile rows into a simple ``dimension:weight`` lookup.
+
+        ``get_profile()`` returns rows like
+        ``{"dimension": "category:ai", "weight": 0.4, ...}``.
+        """
+        weights: dict[str, float] = {}
+        for row in profile:
+            key = row.get("dimension", "")
+            weight = row.get("weight", 0.0)
+            if key:
+                weights[key] = float(weight)
+        return weights
+
+    @staticmethod
+    def _calc_profile_boost(item: dict, weights: dict[str, float]) -> float:
+        """Map item fields to profile keys and sum matching weights.
+
+        Keys follow the ``category:<cat>`` / ``source:<src>`` convention
+        used by ``profile_service.apply_signal``.
+        """
+        boost = 0.0
+        category = item.get("category") or ""
+        source = item.get("source") or ""
+        if category:
+            boost += weights.get(f"category:{category}", 0.0)
+        if source:
+            boost += weights.get(f"source:{source}", 0.0)
+        # Clamp to a reasonable range so one hot topic does not dominate.
+        return max(-5.0, min(5.0, boost))
+
+    def _get_feed_base(
+        self,
+        category: str = "",
+        keyword: str = "",
+        limit: int = 30,
+    ) -> dict:
+        """Original get_feed body, extracted for reuse."""
+        conditions = []
+        params: list = []
+
+        if category and category != "all":
+            conditions.append("category = ?")
+            params.append(category)
+
+        search_engine = ""
+        if keyword:
+            feed_rows = _probe_feed_rows(self.db)
+            if feed_rows >= _FEED_FTS_ROW_THRESHOLD:
+                _ensure_feed_fts(self.db)
+            if _feed_fts_state["activated"] and len(keyword) >= 3:
+                phrase = '"' + keyword.replace('"', '""') + '"'
+                conditions.append(
+                    "rowid IN (SELECT rowid FROM hotspots_trigram_fts "
+                    "WHERE hotspots_trigram_fts MATCH ?)"
+                )
+                params.append(phrase)
+                search_engine = "fts5_trigram"
+            else:
+                conditions.append("(title LIKE ? OR summary LIKE ?)")
+                params.extend([f"%{keyword}%", f"%{keyword}%"])
+                search_engine = "like"
+
+        where = " AND ".join(conditions) if conditions else "1=1"
+        sql = (
+            f"SELECT id, title, url, source, category, summary, "
+            f"published_at, ingested_at "
+            f"FROM hotspots WHERE {where} "
+            f"ORDER BY ingested_at DESC LIMIT ?"
+        )
+        params.append(limit)
+
+        rows = self.db.execute(sql, params).fetchall()
+        total_row = self.db.execute(
+            f"SELECT COUNT(*) FROM hotspots WHERE {where}", params[:-1]
+        ).fetchone()
+
+        items = [dict(r) for r in rows]
+        total = total_row[0] if total_row else 0
+
+        result: dict[str, Any] = {"items": items, "total": total, "limit": limit}
+        if keyword:
+            result["search_engine"] = search_engine
+            result["feed_rows"] = _feed_fts_state["rows"]
+        return result

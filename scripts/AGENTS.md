@@ -65,7 +65,7 @@
 5. **删除临时 `debug_*.py`** — 调试脚本跑通后必须删除或迁到 `backend/tests/`,
    长期堆在 scripts/ 会让审计扫描噪声放大。
 6. **不改 docs 数字** — `docs/ARCHITECTURE.md` 中的架构计数
-   (66 routers / 50 jobs / 14 collectors / 98 services)
+   (67 routers / 50 jobs / 14 collectors / 101 services)
    一律来自 `scripts/generate_meta.py`,手改会立刻被 `--check` 拦下;
    各 AGENTS.md 中 `N routers/services/jobs/collectors` 形式的数字声明
    同样纳入 `--check` 校验,漂移即 CI fail。

@@ -39,7 +39,54 @@
 
 ## 当前活跃段 (2026-08-27 起)
 
-### 2026-08-30/31 v0.6.3 P4 批次 — 双根合并 + llm-wiki-2.0 唯一根锁定 (本批)
+### 2026-08-31 v0.7 Batch 1 — Observability 观测地基 + LLM/Job/Agent/Process 执行记录 (本批)
+
+> **来源**: 用户 2026-08-30 `hotspot-observability-prd.md` 需求: ollama+云端 LLM 前端可切换 + 完整观测方案; 5 批次实施 (①观测地基 / ②LLM 切换 / ③API 观测 / ④看板与告警 / ⑤收尾)。本批 = ①, 仅落地基与执行记录层, 不动 LLM 配置切换逻辑 (留 ②)。
+> **commit**: `345ce39`。carry/earlier-session-leftovers = `e209a57` (7 个非本批遗留修改隔离, 见下方"分支隔离"段)。
+
+- [x] **contextvar trace_id 传播**: `backend/observability.py` 新增 `_trace_id_var: ContextVar[str|None]`, `set_trace_id(trace_id)` 返回 Token, `get_trace_id()` 返 None 时不抛 (语义对齐 `ContextVar.get()`); `log_event(event, **fields)` 自动从 ctx 取 trace_id, 走 `logger.bind(**fields).info(event)` 把字段拍平到 `record.extra` 顶层 (bind vs extra 陷阱 = bind 拍平, extra 嵌套到 `record.extra.extra`)
+- [x] **observability_records 双阶段 / 单阶段 4 入口**: `backend/observability_records.py` 全 `def` 同步, 阻塞业务路径按 PRD §10 红线 ② 全吞异常; `start_job_run` / `finish_job_run` (status ok/failed), `start_agent_run` / `finish_agent_run`, `record_process_event`, `record_audit`; **阻塞 async→def 线程池派发 (P3-1 教训)**
+- [x] **migration 079**: `llm_usage_log` 加 ok/error/prompt_tokens/completion_tokens/tokens_estimated/trace_id/scene/config_source/key_source 9 列 + 3 索引 (trace_id / scene+occurred_at / occurred_at)
+- [x] **migration 080**: 4 表落库 — `job_runs` (30d TTL) / `agent_runs` (30d) / `process_events` (14d) / `audit_log` (90d), 全部带 `trace_id IS NOT NULL` 部分索引 (允许空但有则查得快)
+- [x] **`record_llm_call` 统一入口** (`backend/services/ai_hub/usage.py`): 替代旧 `log_llm_usage` / `log_ai_usage` / `cost_monitor.record_usage`; `success_stats_24h` 升级 — 旧版仅返 success_rate / ok_n / fail_n / tokens, **新版加 `latency_p50_ms`**: SQLite `ROW_NUMBER() OVER (ORDER BY latency_ms)` + `cnt+1)/2` 中位数 trick, 仅统计 `ok=1 AND latency_ms IS NOT NULL`
+- [x] **`AIService._record` 新方法** (`backend/services/ai_hub/service.py`): 替代旧 `_usage`, 接收 4 必填 (provider/model/task/ok) + 9 可选 (error/prompt/response/total_tokens/cost_usd/latency_ms/scene/config_source/key_source); `_usage` 保留为 deprecated shim 转发到 `record_llm_call` 保旧测试桩不破
+- [x] **agent_runs 端到端落地** (`backend/services/agent_bridge.py`): `run_agent_task` 设 trace_id `f"agent:{agent_name}:{int(time.time())}"` + `start_agent_run` / `finish_agent_run` 包裹 `_run_builtin` builtin 路径 (此前裸跑无观测) + finally `reset_trace_id(token)` 防跨请求串味
+- [x] **process_events 4 分支** (`backend/services/process_supervisor.py`): spawn (成功+失败)/ stop (exit)/ poll (auto-restart + hit-restart-limit) 共 5 个写入点
+- [x] **job_runs 端到端落地** (`backend/scheduler/jobs/_runtime.py`): `instrument_job` 装饰器统一入口 — 设 trace_id `job:<job_id>:<start_ms>`, `start_job_run` + finally `finish_job_run(status=ok/failed)`, 全部 job 自动覆盖; `_runtime.py` 写入 trace_id 路径, 旧 wrapper 签名不漂移
+- [x] **observability_ttl_job (job 48)**: `backend/scheduler/jobs/maintenance.py` 新增, 1h 间隔; 4 表分别按 30/30/14/90 天阈值清理; `backend/scheduler/scheduler.py` 注册 `id="observability_ttl"`; `__init__.py` re-export
+- [x] **logging_config 切 `serialize=True`**: 旧模板 `{ts/level/module/msg/trace_id/event}` 只挑 5 固定字段, `log_event` 传的 method/path/status/duration_ms 全部不进文件; 切到 loguru 内置 JSON 序列化, 读法变 `jq '.record.extra.method'` — 包一层 `record.text` / `record.{message,extra,...}` 包装; 下游测试同步改写
+- [x] **测试 18 个新增** (`backend/tests/test_llm_observability.py`): record_llm_call (real tokens / estimated / failure / trace_id fallback) / success_stats_24h p50 / recent_calls / job_runs 双阶段 / agent_runs 双阶段 / process_events append / audit_log append / observability_records 异常吞 / contextvar 隔离 / log_event bind pattern via serialize=True sink / instrument_job 双阶段; **既有用例同步**: test_feature_gates 47→48 jobs / test_llm_evaluate patch `_record` 替 `_usage` / test_logging 改 `record.extra.trace_id` 形态 / test_observability 改 `bind.assert_called_once()` 断言
+- [x] **meta 同步**: ARCHITECTURE.md 47→48 jobs; generate_meta --check OK (jobs 48 / collectors 14 / routers 65 / services 97)
+
+### 决策点 (Batch 1)
+
+1. **contextvar Token 必须捕获**: `_runtime.py` 装饰器第一版丢弃 `set_trace_id()` 返回值, 然后 `reset_trace_id(None)` 抛 `TypeError: expected an instance of Token, got None` — `ContextVar.set()` 返回 Token 必须接收 (P3-1 同类教训: 子系统包装时把 token 弄丢 = 业务崩)
+2. **loguru sink 收 Message vs str**: 测试 sink 用 `serialize=False` 时收 Message 对象, 切 `serialize=True` 后收 JSON 字符串, 断言写法不同; 测试必须配 `serialize=True` 才与生产一致 (生产唯一)
+3. **observability_records 全 def 同步**: 若写 async, FastAPI 主事件循环里的端点会因 await 链被拖; 若走 asyncio.to_thread 派发, 连接亲和 × SQLite ATTACH 又会跨线程假阴性 — 唯一正确路径 = 纯 `def` 由调用方显式 to_thread (调用方已在主业务路径就绪, 不需再绕)
+4. **`_usage` 不删, 标 deprecated**: 测试桩 `lambda *a, **k` 曾掩盖 arity bug, 改 5-tuple 断言后删 `_usage` 看似干净, 但下游 (ai_service 自调) 还有引用, 一刀切会破 — 保留 shim 转发到 `record_llm_call` 是最稳路径
+5. **7 个非本批遗留文件隔离**: 提交前 git status 出现 7 个未提交修改 (kl_state_machine.py / t1_raw_to_refine.py / wiki_stats_service.py / test_kl_state_machine.py / test_snapshot_for_retirement.py / test_t1_trigger.py / snapshot_for_retirement.py), 都是更早会话落地未 commit 的预存债 — 不能混进本批, 否则污染 v0.7 叙事; 处理 = `git stash push <pathspec>` → 建 `carry/earlier-session-leftovers` 分支 (基于 P4 头 `3d3af9c`) → `git stash pop` → 单独 `e209a57` chore 提交附完整溯源注记; 主分支 (本批 `observability/batch-1`) 保持纯净
+
+### 门禁结果
+
+- pytest 全量: **3047 passed / 6 skipped / 0 failed** (基线持平, 18 个新增全过)
+- ruff: `All checks passed!`
+- generate_meta --check: OK (jobs 48 / collectors 14 / routers 65 / services 97)
+- tsc --noEmit: 0 错 (前端本批无动)
+- vitest: 310 passed (前端本批无动)
+- Mimosa: `scanner_no_output` (按既有兼容策略; 不宣称项目安全)
+
+### 仍开放 (Batch 2+ 范围, 不在本批)
+
+- ② LLM 配置切换: `settings` KV + env 双轨优先级 + 前端切换 UI + audit_log 写入审计 (用户切换行为入 `record_audit`)
+- ③ API 观测: HTTP middleware 接入 trace_id 自动注入 + latency 落 `audit_log`
+- ④ 看板与告警: `/api/observability/dashboard` 聚合 + 阈值告警 (success_rate < 50% / latency_p95 > 30s 触发)
+- ⑤ 收尾: PROGRESS/CHANGELOG 顶部段更新 + ARCHITECTURE.md 加 observability 章节 + 前端 observability 页面
+- ⚠️ **carry/earlier-session-leftovers 分支** (`e209a57`): 7 个预存债文件已独立落 commit, 待用户裁决合并回主分支 / 继续保留为 WIP / 评估是否需要回滚
+- ⚠️ **dsh 实机协议未对齐** (沿袭 v0.6.3 dsh 内置化): agent_bridge 桥接端点仍按推测实现, 待用户配置真实启动命令实测
+
+---
+
+### 2026-08-30/31 v0.6.3 P4 批次 — 双根合并 + llm-wiki-2.0 唯一根锁定 (上批)
 
 > **来源**: 用户 2026-08-30 裁决"全部切换并锁定到 llm-wiki-2.0 唯一根, 删除旧根, 并保证功能正常"。批前盘点: items/concepts 1:1 对齐, 但 64 个旧根条目 mtime 更新 (新根补齐 alive/compiled 字段); learning/content/summaries/_MAP.md/SOUL.md 仅在旧根; 12 service 仍写旧根。commit 见 CHANGELOG 批次 ㉜-㉝。
 

@@ -44,6 +44,20 @@ export function QualitySettings({ open }: QualitySettingsProps) {
   const [savingDefaultProvider, setSavingDefaultProvider] = useState(false);
   const [providerMessage, setProviderMessage] = useState<QualityMessage>(null);
 
+  // v0.7.x Batch ⑥: LLM 密钥管理 (加密保险箱) — 替代 settings.kv 'quality.llm_api_key'
+  // 数据源: /api/secrets (列表) + /api/secrets/unlock (状态) + /api/secrets/{id}/reveal (明文)
+  //        + /api/secrets/{id}/test (连通性) + POST/PATCH/DELETE (CRUD)
+  const [secretsOpen, setSecretsOpen] = useState(false);
+  const [secretsList, setSecretsList] = useState<Array<Record<string, any>>>([]);
+  const [secretsUnlocked, setSecretsUnlocked] = useState(false);
+  const [secretsLoading, setSecretsLoading] = useState(false);
+  const [secretsMessage, setSecretsMessage] = useState<QualityMessage>(null);
+  const [secretsKeySource, setSecretsKeySource] = useState<string>('none');
+  const [revealModal, setRevealModal] = useState<{ id: number; apiKey: string; ts: number } | null>(null);
+  const [upsertModal, setUpsertModal] = useState<{ id?: number; provider: string; name: string; model: string; base_url: string; api_key: string; master_key: string } | null>(null);
+  const [masterKeyPrompt, setMasterKeyPrompt] = useState<{ target: 'unlock' | 'reveal' | 'upsert'; secretId?: number } | null>(null);
+  const [masterKeyInput, setMasterKeyInput] = useState('');
+
   // 打开面板时拉质量规则 + LLM 初始配置
   useEffect(() => {
     if (!open) return;
@@ -113,6 +127,89 @@ export function QualitySettings({ open }: QualitySettingsProps) {
     }
   }, [defaultProvider]);
 
+  // v0.7.x Batch ⑥: secrets 子面板 — 拉列表 + 状态
+  const loadSecrets = useCallback(async () => {
+    setSecretsLoading(true);
+    try {
+      // secrets 列表 + 状态独立 try (失败不阻塞 llm/status 的 key_source 标)
+      try {
+        const [lr, sr] = await Promise.all([
+          fetch('/api/secrets').then(r => r.json()),
+          fetch('/api/secrets/status').then(r => r.json()),
+        ]);
+        setSecretsList(Array.isArray(lr?.items) ? lr.items : []);
+        setSecretsUnlocked(Boolean(sr?.unlocked));
+      } catch {
+        setSecretsList([]);
+      }
+      // 从 /api/llm/status 拿 key_source 标 (env / secrets / none) — 独立 try
+      try {
+        const ls = await fetch('/api/llm/status').then(r => r.json());
+        if (typeof ls?.key_source === 'string') setSecretsKeySource(ls.key_source);
+      } catch {
+        // keep prior key_source
+      }
+    } finally {
+      setSecretsLoading(false);
+    }
+  }, []);
+
+  const handleUnlock = useCallback(async (masterKey: string) => {
+    const r = await fetch('/api/secrets/unlock', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ master_key: masterKey }),
+    });
+    if (!r.ok) throw new Error('INVALID_MASTER_KEY');
+    setSecretsUnlocked(true);
+    await loadSecrets();
+  }, [loadSecrets]);
+
+  const handleLock = useCallback(async () => {
+    await fetch('/api/secrets/lock', { method: 'POST' });
+    setSecretsUnlocked(false);
+  }, []);
+
+  const handleReveal = useCallback(async (secretId: number, masterKey: string) => {
+    const r = await fetch(`/api/secrets/${secretId}/reveal`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ master_key: masterKey }),
+    });
+    if (!r.ok) throw new Error('REVEAL_FAILED');
+    const data = await r.json();
+    return data.api_key as string;
+  }, []);
+
+  const handleTestConnection = useCallback(async (secretId: number) => {
+    const r = await fetch(`/api/secrets/${secretId}/test`, { method: 'POST' });
+    const data = await r.json();
+    return data;
+  }, []);
+
+  const handleUpsertSecret = useCallback(async (body: Record<string, any>) => {
+    const isUpdate = Boolean(body.id);
+    const url = isUpdate ? `/api/secrets/${body.id}` : '/api/secrets';
+    const method = isUpdate ? 'PATCH' : 'POST';
+    const r = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error('UPSERT_FAILED');
+    await loadSecrets();
+  }, [loadSecrets]);
+
+  const handleDeleteSecret = useCallback(async (secretId: number) => {
+    const r = await fetch(`/api/secrets/${secretId}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error('DELETE_FAILED');
+    await loadSecrets();
+  }, [loadSecrets]);
+
+  useEffect(() => {
+    if (!open) return;
+    // 打开面板时拉 secrets 状态 + 列表 (key_source 徽章始终可见,
+    // 即使 secretsOpen=false 也要从 /api/llm/status 拿 key_source 标)
+    loadSecrets();
+  }, [open, loadSecrets]);
+
   const saveQuality = useCallback(async () => {
     setSavingQuality(true);
     setQualityMessage(null);
@@ -155,6 +252,8 @@ export function QualitySettings({ open }: QualitySettingsProps) {
   }, [qualityRules, qualityEditing]);
 
   // v4.4: 保存 LLM AI 内容检测配置
+  // v0.7.x Batch ⑥: legacy 清退 — 不再写 'quality.llm_api_key' 到 settings.kv,
+  // 仅写 llm_enabled/llm_provider; 密钥改走下方加密保险箱 (secrets 子面板).
   const saveLlm = useCallback(async () => {
     setSavingLlm(true);
     setLlmMessage(null);
@@ -163,8 +262,6 @@ export function QualitySettings({ open }: QualitySettingsProps) {
         'quality.llm_enabled': llmEnabled,
         'quality.llm_provider': llmProvider,
       };
-      // 仅当显式输入了 key 才写入（避免覆盖已存 key 为空串）
-      if (llmKey.trim()) rules['quality.llm_api_key'] = llmKey.trim();
       const resp = await fetch('/api/quality/rules', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -172,7 +269,7 @@ export function QualitySettings({ open }: QualitySettingsProps) {
       });
       const data = await resp.json();
       if (resp.ok && data.status === 'ok') {
-        setLlmMessage({ type: 'ok', text: 'LLM 检测配置已保存' });
+        setLlmMessage({ type: 'ok', text: 'LLM 检测配置已保存 (密钥请到下方加密保险箱配置)' });
       } else {
         setLlmMessage({ type: 'error', text: data.message || '保存失败' });
       }
@@ -181,7 +278,7 @@ export function QualitySettings({ open }: QualitySettingsProps) {
     } finally {
       setSavingLlm(false);
     }
-  }, [llmEnabled, llmProvider, llmKey]);
+  }, [llmEnabled, llmProvider]);
 
   function renderQualityInput(rule: QualityRule) {
     const v = qualityEditing[rule.key];
@@ -285,6 +382,150 @@ export function QualitySettings({ open }: QualitySettingsProps) {
           {savingDefaultProvider ? '保存中...' : '切换默认 LLM Provider'}
         </button>
       </div>
+
+      {/* v0.7.x Batch ⑥: LLM 密钥管理 (加密保险箱) — 替代 settings.kv 'quality.llm_api_key' */}
+      <button
+        onClick={() => setSecretsOpen(o => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 text-xs"
+        style={{ color: 'var(--text-primary)', borderTop: '1px solid var(--border-color)' }}
+      >
+        <span className="font-medium flex items-center gap-2">
+          🔐 LLM 密钥管理 (加密保险箱)
+          <span
+            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{
+              backgroundColor:
+                secretsKeySource === 'env' ? 'var(--color-general)' :
+                secretsKeySource === 'secrets' ? 'var(--color-ai)' :
+                'var(--bg-hover)',
+              color:
+                secretsKeySource === 'none' ? 'var(--text-muted)' : 'var(--text-on-color)',
+            }}
+            title={`key_source: ${secretsKeySource}`}
+          >
+            {secretsKeySource}
+          </span>
+        </span>
+        <span style={{ color: 'var(--text-muted)' }}>{secretsOpen ? '−' : '+'}</span>
+      </button>
+      {secretsOpen && (
+        <div className="px-3 py-2 space-y-2" style={{ borderTop: '1px solid var(--border-color)' }}>
+          {!secretsUnlocked && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] flex-1" style={{ color: 'var(--text-secondary)' }}>
+                保险箱状态: 未解锁
+              </span>
+              <button
+                onClick={() => { setMasterKeyInput(''); setMasterKeyPrompt({ target: 'unlock' }); }}
+                className="px-2 py-1 text-[11px] rounded-[var(--radius-sm)]"
+                style={{ backgroundColor: 'var(--color-general)', color: 'var(--text-on-color)' }}
+              >
+                解锁
+              </button>
+            </div>
+          )}
+          {secretsUnlocked && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] flex-1" style={{ color: 'var(--text-secondary)' }}>
+                保险箱已解锁 (30 分钟自动失效)
+              </span>
+              <button
+                onClick={handleLock}
+                className="px-2 py-1 text-[11px] rounded-[var(--radius-sm)]"
+                style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}
+              >
+                立即锁定
+              </button>
+            </div>
+          )}
+          {secretsList.length === 0 && secretsUnlocked && !secretsLoading && (
+            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              暂无密钥 — 点下方"新增"录入第一条
+            </p>
+          )}
+          {secretsList.map(s => (
+            <div key={s.id} className="flex items-center gap-2 p-2 rounded-[var(--radius-sm)]"
+                 style={{ backgroundColor: 'var(--bg-hover)' }}>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                  {s.name || '(无名)'} · {s.provider || '(无 provider)'}
+                </div>
+                <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                  {s.model} · {s.base_url}
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  setMasterKeyInput('');
+                  setMasterKeyPrompt({ target: 'reveal', secretId: s.id });
+                }}
+                className="text-[10px] px-1.5 py-0.5"
+                style={{ color: 'var(--text-secondary)' }}
+                title="显明文 10s 自动隐藏"
+              >
+                显明文
+              </button>
+              <button
+                onClick={async () => {
+                  const r = await handleTestConnection(s.id);
+                  setSecretsMessage({ type: r.ok ? 'ok' : 'error', text: r.ok ? '连接 OK' : (r.error || '失败') });
+                }}
+                className="text-[10px] px-1.5 py-0.5"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                测连
+              </button>
+              <button
+                onClick={() => setUpsertModal({
+                  id: s.id, provider: s.provider || '', name: s.name || '',
+                  model: s.model || '', base_url: s.base_url || '',
+                  api_key: '', master_key: '',
+                })}
+                className="text-[10px] px-1.5 py-0.5"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                编辑
+              </button>
+              <button
+                onClick={async () => {
+                  if (!confirm(`删除密钥 "${s.name}"?`)) return;
+                  await handleDeleteSecret(s.id);
+                }}
+                className="text-[10px] px-1.5 py-0.5"
+                style={{ color: 'var(--color-error)' }}
+              >
+                删
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() => setUpsertModal({
+              provider: providerOptions[0] || 'sensenova',
+              name: '', model: '', base_url: '',
+              api_key: '', master_key: '',
+            })}
+            className="w-full px-2 py-1 text-[11px] rounded-[var(--radius-sm)]"
+            style={{
+              backgroundColor: secretsUnlocked ? 'var(--color-ai)' : 'var(--bg-hover)',
+              color: secretsUnlocked ? 'var(--text-on-color)' : 'var(--text-muted)',
+              border: 'none',
+            }}
+            disabled={!secretsUnlocked}
+            title={secretsUnlocked ? '新增密钥' : '请先解锁保险箱'}
+          >
+            + 新增密钥
+          </button>
+          {secretsMessage && (
+            <p className="text-[10px]" style={{ color: secretsMessage.type === 'ok' ? 'var(--color-general)' : 'var(--color-error)' }}>
+              {secretsMessage.text}
+            </p>
+          )}
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            密钥 Fernet 加密 (PBKDF2 600k 派生主密钥); reveal/test 写 audit_log;
+            进程内 30min unlock 窗口,过期需重新输入主密钥。
+          </p>
+        </div>
+      )}
 
       {/* v4.4: LLM AI 内容检测（独立配置，默认关闭） */}
       <button
@@ -413,6 +654,206 @@ export function QualitySettings({ open }: QualitySettingsProps) {
           >
             {savingQuality ? '保存中...' : '应用质量配置'}
           </button>
+        </div>
+      )}
+
+      {/* v0.7.x Batch ⑥: secrets 主密钥 prompt modal (unlock / reveal / upsert 共用) */}
+      {masterKeyPrompt && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+          }}
+          onClick={() => setMasterKeyPrompt(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--bg-elevated)', padding: 20, borderRadius: 8,
+              minWidth: 320, border: '1px solid var(--border-color)',
+            }}
+          >
+            <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+              {masterKeyPrompt.target === 'unlock' ? '解锁保险箱' :
+               masterKeyPrompt.target === 'reveal' ? '显明文需验证主密钥' :
+               '新增/更新密钥需主密钥'}
+            </h4>
+            <input
+              type="password" value={masterKeyInput}
+              onChange={e => setMasterKeyInput(e.target.value)}
+              placeholder="主密钥 (12+ 字符)"
+              autoFocus
+              className="w-full px-2 py-1 text-xs rounded-[var(--radius-sm)] focus-ring mb-2"
+              style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setMasterKeyPrompt(null)}
+                className="flex-1 px-2 py-1 text-[11px] rounded-[var(--radius-sm)]"
+                style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}
+              >
+                取消
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    if (masterKeyPrompt.target === 'unlock') {
+                      await handleUnlock(masterKeyInput);
+                      setSecretsMessage({ type: 'ok', text: '保险箱已解锁' });
+                    } else if (masterKeyPrompt.target === 'reveal' && masterKeyPrompt.secretId) {
+                      const k = await handleReveal(masterKeyPrompt.secretId, masterKeyInput);
+                      setRevealModal({ id: masterKeyPrompt.secretId, apiKey: k, ts: Date.now() });
+                      setTimeout(() => setRevealModal(null), 10_000);
+                    }
+                    setMasterKeyPrompt(null);
+                    setMasterKeyInput('');
+                  } catch (e: any) {
+                    setSecretsMessage({ type: 'error', text: `失败: ${e.message}` });
+                  }
+                }}
+                disabled={masterKeyInput.length < 12}
+                className="flex-1 px-2 py-1 text-[11px] rounded-[var(--radius-sm)]"
+                style={{
+                  backgroundColor: 'var(--color-general)', color: 'var(--text-on-color)',
+                  opacity: masterKeyInput.length < 12 ? 0.5 : 1,
+                }}
+              >
+                确认
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* v0.7.x Batch ⑥: reveal 明文 modal (10s 自动隐藏) */}
+      {revealModal && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+          }}
+          onClick={() => setRevealModal(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--bg-elevated)', padding: 20, borderRadius: 8,
+              minWidth: 360, border: '1px solid var(--border-color)',
+            }}
+          >
+            <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+              明文密钥 (10s 自动隐藏)
+            </h4>
+            <code
+              className="block p-2 text-xs rounded-[var(--radius-sm)] mb-2 break-all"
+              style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}
+            >
+              {revealModal.apiKey}
+            </code>
+            <button
+              onClick={() => navigator.clipboard.writeText(revealModal.apiKey)}
+              className="w-full px-2 py-1 text-[11px] rounded-[var(--radius-sm)]"
+              style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}
+            >
+              复制
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* v0.7.x Batch ⑥: 新增/编辑密钥 modal */}
+      {upsertModal && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+          }}
+          onClick={() => setUpsertModal(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--bg-elevated)', padding: 20, borderRadius: 8,
+              minWidth: 360, border: '1px solid var(--border-color)',
+            }}
+          >
+            <h4 className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
+              {upsertModal.id ? `编辑密钥 #${upsertModal.id}` : '新增密钥'}
+            </h4>
+            <div className="space-y-2">
+              <label className="block text-[10px]" style={{ color: 'var(--text-muted)' }}>Provider</label>
+              <select
+                value={upsertModal.provider}
+                onChange={e => setUpsertModal({ ...upsertModal, provider: e.target.value })}
+                className="w-full px-2 py-1 text-xs rounded-[var(--radius-sm)]"
+                style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+              >
+                {providerOptions.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <label className="block text-[10px]" style={{ color: 'var(--text-muted)' }}>名称</label>
+              <input value={upsertModal.name}
+                     onChange={e => setUpsertModal({ ...upsertModal, name: e.target.value })}
+                     className="w-full px-2 py-1 text-xs rounded-[var(--radius-sm)]"
+                     style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
+              <label className="block text-[10px]" style={{ color: 'var(--text-muted)' }}>Model</label>
+              <input value={upsertModal.model}
+                     onChange={e => setUpsertModal({ ...upsertModal, model: e.target.value })}
+                     className="w-full px-2 py-1 text-xs rounded-[var(--radius-sm)]"
+                     style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
+              <label className="block text-[10px]" style={{ color: 'var(--text-muted)' }}>Base URL</label>
+              <input value={upsertModal.base_url}
+                     onChange={e => setUpsertModal({ ...upsertModal, base_url: e.target.value })}
+                     className="w-full px-2 py-1 text-xs rounded-[var(--radius-sm)]"
+                     style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
+              <label className="block text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                API Key {upsertModal.id && <span className="opacity-60">(留空保留旧值)</span>}
+              </label>
+              <input type="password" value={upsertModal.api_key}
+                     onChange={e => setUpsertModal({ ...upsertModal, api_key: e.target.value })}
+                     className="w-full px-2 py-1 text-xs rounded-[var(--radius-sm)]"
+                     style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
+              <label className="block text-[10px]" style={{ color: 'var(--text-muted)' }}>主密钥 (验证身份)</label>
+              <input type="password" value={upsertModal.master_key}
+                     onChange={e => setUpsertModal({ ...upsertModal, master_key: e.target.value })}
+                     className="w-full px-2 py-1 text-xs rounded-[var(--radius-sm)]"
+                     style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => setUpsertModal(null)}
+                className="flex-1 px-2 py-1 text-[11px] rounded-[var(--radius-sm)]"
+                style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}
+              >取消</button>
+              <button
+                onClick={async () => {
+                  try {
+                    const body: Record<string, any> = {
+                      name: upsertModal.name,
+                      model: upsertModal.model,
+                      base_url: upsertModal.base_url,
+                      provider: upsertModal.provider,
+                      master_key: upsertModal.master_key,
+                    };
+                    if (upsertModal.api_key) body.api_key = upsertModal.api_key;
+                    await handleUpsertSecret(upsertModal.id ? { ...body, id: upsertModal.id } : body);
+                    setSecretsMessage({ type: 'ok', text: upsertModal.id ? '已更新' : '已新增' });
+                    setUpsertModal(null);
+                  } catch (e: any) {
+                    setSecretsMessage({ type: 'error', text: `失败: ${e.message}` });
+                  }
+                }}
+                disabled={
+                  !upsertModal.name || !upsertModal.model || !upsertModal.base_url ||
+                  (!upsertModal.id && !upsertModal.api_key) ||
+                  upsertModal.master_key.length < 12
+                }
+                className="flex-1 px-2 py-1 text-[11px] rounded-[var(--radius-sm)]"
+                style={{
+                  backgroundColor: 'var(--color-ai)', color: 'var(--text-on-color)',
+                }}
+              >保存</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

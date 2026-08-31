@@ -16,13 +16,14 @@ import { QualitySettings } from './QualitySettings';
 const mockFetch = vi.fn();
 global.fetch = mockFetch as unknown as typeof fetch;
 
-function mockStatusResp(providers: Record<string, unknown>, effective = 'sensenova', source = 'default') {
+function mockStatusResp(providers: Record<string, unknown>, effective = 'sensenova', source = 'default', keySource = 'none') {
   return {
     ok: true,
     json: () => Promise.resolve({
       providers,
       effective_provider: effective,
       config_source: source,
+      key_source: keySource,
       scenario: 'NORMAL',
     }),
   };
@@ -196,6 +197,151 @@ describe('QualitySettings — v0.7 Batch 2 LLM provider 切换', () => {
     await waitFor(() => {
       const callsAfter = mockFetch.mock.calls.filter((c) => c[0] === '/api/llm/status').length;
       expect(callsAfter).toBeGreaterThan(0);
+    });
+  });
+});
+
+// ===================================================================
+// v0.7.x Batch ⑥: secrets 子面板 + legacy 清退
+// ===================================================================
+
+describe('QualitySettings — v0.7.x Batch ⑥ secrets 子面板', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  function mockSecretsStatus(unlocked: boolean) {
+    return {
+      ok: true,
+      json: () => Promise.resolve({
+        setup: true, unlocked,
+        ttl_seconds: unlocked ? 1800 : 0,
+      }),
+    };
+  }
+
+  function mockSecretsList(items: Array<Record<string, unknown>>) {
+    return {
+      ok: true,
+      json: () => Promise.resolve({ items, count: items.length }),
+    };
+  }
+
+  it('key_source 徽章渲染 (env / secrets / none)', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
+      if (url === '/api/llm/status') {
+        return Promise.resolve(mockStatusResp({ sensenova: {} }, 'sensenova', 'settings', 'secrets'));
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    render(<QualitySettings open={true} />);
+    await waitFor(() => {
+      // secrets 子面板默认折叠, 但 key_source 徽章始终可见
+      expect(screen.getByText('secrets')).toBeInTheDocument();
+    });
+  });
+
+  it('saveLlm 不再写 quality.llm_api_key 到 settings.kv (legacy 清退)', async () => {
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/quality/rules' && init?.method === 'GET') {
+        return Promise.resolve(mockQualityRules());
+      }
+      if (url === '/api/quality/rules' && init?.method === 'PUT') {
+        const body = JSON.parse(init.body as string);
+        (mockFetch as any).__lastPutBody = body;
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'ok' }) });
+      }
+      if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }));
+      return Promise.resolve({ ok: false });
+    });
+
+    render(<QualitySettings open={true} />);
+    await waitFor(() => screen.getByText('LLM AI 内容检测'));
+    fireEvent.click(screen.getByText('LLM AI 内容检测'));
+    const apiKeyInput = await screen.findByPlaceholderText('sk-...');
+    fireEvent.change(apiKeyInput, { target: { value: 'sk-should-not-be-saved' } });
+    // 保存按钮 — 用 role + name 精确匹配避免 "保存中..." 干扰
+    const saveBtn = await screen.findByRole('button', { name: '应用 LLM 配置' });
+    fireEvent.click(saveBtn);
+    await waitFor(() => {
+      const body = (mockFetch as any).__lastPutBody;
+      expect(body).toBeTruthy();
+      expect(body.rules).not.toHaveProperty('quality.llm_api_key');
+      expect(body.rules).toHaveProperty('quality.llm_enabled');
+      expect(body.rules).toHaveProperty('quality.llm_provider');
+    });
+  });
+
+  it('点开 secrets 子面板 → 调 /api/secrets + /api/secrets/status', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
+      if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }));
+      if (url === '/api/secrets') return Promise.resolve(mockSecretsList([]));
+      if (url === '/api/secrets/status') return Promise.resolve(mockSecretsStatus(false));
+      return Promise.resolve({ ok: false });
+    });
+
+    render(<QualitySettings open={true} />);
+    await waitFor(() => screen.getByText(/LLM 密钥管理/));
+    fireEvent.click(screen.getByText(/LLM 密钥管理/));
+    await waitFor(() => {
+      expect(mockFetch.mock.calls.some((c) => c[0] === '/api/secrets')).toBe(true);
+      expect(mockFetch.mock.calls.some((c) => c[0] === '/api/secrets/status')).toBe(true);
+    });
+  });
+
+  it('解锁按钮 → POST /api/secrets/unlock 带 master_key', async () => {
+    const unlockCalls: Array<unknown> = [];
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
+      if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }));
+      if (url === '/api/secrets') return Promise.resolve(mockSecretsList([]));
+      if (url === '/api/secrets/status') return Promise.resolve(mockSecretsStatus(false));
+      if (url === '/api/secrets/unlock' && init?.method === 'POST') {
+        unlockCalls.push(JSON.parse(init.body as string));
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: true }) });
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    render(<QualitySettings open={true} />);
+    await waitFor(() => screen.getByText(/LLM 密钥管理/));
+    fireEvent.click(screen.getByText(/LLM 密钥管理/));
+    await waitFor(() => screen.getByText('解锁'));
+    fireEvent.click(screen.getByText('解锁'));
+    const mkInput = await screen.findByPlaceholderText(/主密钥/);
+    fireEvent.change(mkInput, { target: { value: 'strong-master-key-1234' } });
+    await waitFor(() => screen.getByText('确认'));
+    fireEvent.click(screen.getByText('确认'));
+    await waitFor(() => {
+      expect(unlockCalls.length).toBe(1);
+      expect(unlockCalls[0]).toEqual({ master_key: 'strong-master-key-1234' });
+    });
+  });
+
+  it('已解锁时显示"立即锁定"按钮 → POST /api/secrets/lock', async () => {
+    const lockCalls: Array<unknown> = [];
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
+      if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }, 'sensenova', 'settings', 'env'));
+      if (url === '/api/secrets') return Promise.resolve(mockSecretsList([]));
+      if (url === '/api/secrets/status') return Promise.resolve(mockSecretsStatus(true));
+      if (url === '/api/secrets/lock' && init?.method === 'POST') {
+        lockCalls.push(url);
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: false }) });
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    render(<QualitySettings open={true} />);
+    await waitFor(() => screen.getByText(/LLM 密钥管理/));
+    fireEvent.click(screen.getByText(/LLM 密钥管理/));
+    await waitFor(() => screen.getByText('立即锁定'));
+    fireEvent.click(screen.getByText('立即锁定'));
+    await waitFor(() => {
+      expect(lockCalls.length).toBe(1);
     });
   });
 });

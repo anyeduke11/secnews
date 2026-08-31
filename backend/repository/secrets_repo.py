@@ -79,6 +79,31 @@ class SecretRepository:
         ).fetchone()
         return _row(row) if row else None
 
+    def get_by_provider(self, provider: str) -> SecretItem | None:
+        """按 provider 拿一条 secret（多条时取 updated_at 最新）。
+
+        AIService / LLMService 接入约定 — migration 074
+        (``074_v0.6_llm_secrets_provider.sql``) 已下契约: 让 ai_hub
+        能按 provider 名查表拿到明文。该 helper 是该契约的兑现点。
+
+        复用 ``idx_llm_secrets_provider`` 索引（013_secrets.sql 建表时建立）。
+        ``provider`` 留空字符串等价于未分类，等价于未命中 — 调用方应先做
+        ``provider.strip()`` 非空判断。
+
+        多条同 provider 按 ``updated_at DESC, id DESC`` 取最新 — 约定
+        1 provider = 1 条有效 secret，重复录入时新覆盖旧。
+        """
+        if not provider or not provider.strip():
+            return None
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT * FROM llm_secrets "
+            "WHERE provider = ? "
+            "ORDER BY updated_at DESC, id DESC LIMIT 1",
+            (provider.strip(),),
+        ).fetchone()
+        return _row(row) if row else None
+
     def create(
         self,
         *,

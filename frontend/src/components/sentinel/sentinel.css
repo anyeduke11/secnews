@@ -76,16 +76,16 @@
 
 /* ===== 管道心跳条 ===== */
 .sentinel .pipeline{
-  display:flex;align-items:stretch;gap:0;
+  display:flex;align-items:stretch;gap:0;flex-wrap:wrap;
   margin:20px 32px 0;
   border:1px solid var(--sn-line);border-radius:10px;
   background:var(--sn-bg-lift);
   overflow:hidden;
 }
-.sentinel .pipe-block{padding:14px 22px;display:flex;flex-direction:column;gap:5px;border-right:1px solid var(--sn-line)}
+.sentinel .pipe-block{padding:14px 22px;display:flex;flex-direction:column;gap:5px;border-right:1px solid var(--sn-line);flex:0 0 auto;white-space:nowrap}
 .sentinel .pipe-block:last-child{border-right:0}
-.sentinel .pipe-k{font-size:11px;color:var(--sn-ink-3);letter-spacing:.05em}
-.sentinel .pipe-v{font-family:var(--sn-mono);font-size:15px;font-weight:500;display:flex;align-items:baseline;gap:8px}
+.sentinel .pipe-k{font-size:11px;color:var(--sn-ink-3);letter-spacing:.05em;white-space:nowrap}
+.sentinel .pipe-v{font-family:var(--sn-mono);font-size:15px;font-weight:500;display:flex;align-items:baseline;gap:8px;white-space:nowrap}
 .sentinel .pipe-v .delta{font-size:11px;color:var(--sn-mint);font-weight:400}
 .sentinel .pipe-live{margin-left:auto;padding:14px 22px;display:flex;flex-direction:column;justify-content:center;gap:8px;min-width:0}
 .sentinel .pulse{width:8px;height:8px;border-radius:50%;background:var(--sn-mint);position:relative;flex:none}

@@ -41,7 +41,7 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 
 | 层     | 解决什么                                                                 | 入口路由                                                                                       |
 | ------ | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| **Data**     | 14 采集器 × 11+ 质量门禁 × Pipeline 流水线 · 趋势 / 搜索 / 导出       | `/secnews` (Feed · Pipeline · Analytics 3 tab)                                                  |
+| **Data**     | 14 采集器 × 11+ 质量门禁 × Pipeline 流水线 · 趋势 / 搜索 / 导出       | `/secnews` (统一工作台 6 tab: Feed · Pipeline · Knowledge · Analyze · Analytics · Settings)      |
 | **Judge**    | 知识库 v2 · md 真源 · kl_pipeline 5 阶段 · FTS5 检索 · 注意力 5 维     | `/knowledge` (Import · Process · Compile · Compound 4 tab) + `/judge` (Sentinel Judge)         |
 | **Action**   | CodeGarden 资源中枢 · Service Mesh · 联动引擎 · AI 协作                | `/action` (Sentinel Action) + `/codegarden` + `/garden` (Sentinel Garden) + `/sentinel/settings` |
 

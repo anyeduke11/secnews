@@ -20,7 +20,7 @@ ALL_OFF = {
     "codegarden": False, "codegarden_phase2b": False,
     "mcp": False, "sync": False,
     "tech_stack": False, "security_graph": False,
-    "secnews": False, "crm": False,
+    "secnews": False, "crm": False, "dsh": False,
 }
 ALL_ON = dict.fromkeys(ALL_OFF, True)
 
@@ -72,6 +72,15 @@ EXTENSION_PATHS = {
     ],
     "sync": ["/api/sync/status", "/api/sync/config"],
     "tech_stack": ["/api/tech-stack", "/api/tech-stack/impact"],
+    "secnews": [
+        "/api/kl/pipeline/stats",
+        "/api/feedback/profile",
+    ],
+    "dsh": [
+        "/api/dsh/health",
+        "/api/dsh/control/status",
+        "/api/agents/available",
+    ],
     "crm": [
         "/api/crm/customers",
         "/api/crm/opportunities",
@@ -240,9 +249,11 @@ class TestFeaturesEndpoint:
             data = client.get("/api/settings/features").json()
         assert data["codegarden"] is True
         assert data["mcp"] is True
+        # 存量 bug 修复: EXTENSION_ROUTERS 此前缺 dsh 键 → enabled_extensions
+        # 漏报 dsh, 该断言把错误输出固化。现在补齐后应含 dsh。
         assert data["enabled_extensions"] == [
             "codegarden", "codegarden_phase2b", "mcp", "sync", "tech_stack",
-            "secnews", "crm",
+            "secnews", "crm", "dsh",
         ]
 
 

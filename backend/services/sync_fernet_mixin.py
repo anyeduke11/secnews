@@ -271,6 +271,10 @@ class FernetKeySyncMixin:
             config_id=cfg.id, direction="pull", status="success",
             records_count=records_count, conflict_count=merge_result.conflict_count,
             started_at=started_at, finished_at=finished_at,
+            table_conflicts=(
+                json.dumps(merge_result.table_conflicts, ensure_ascii=False)
+                if merge_result.table_conflicts else None
+            ),
         )
         SyncConfigRepository().update_last_sync(
             cfg.id, at=finished_at, status="success", error=None, direction="pull",

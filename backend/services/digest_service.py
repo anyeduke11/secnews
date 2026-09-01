@@ -170,8 +170,14 @@ def _summarize_with_llm(top_items: list, count: int) -> str:
 # ---------------------------------------------------------------------------
 # Phase 4: 简报生成
 # ---------------------------------------------------------------------------
-def _yesterday_window_shanghai() -> tuple[datetime, datetime, str]:
+def _yesterday_window_shanghai(now: datetime | None = None) -> tuple[datetime, datetime, str]:
     """返回昨日简报时间窗口 (Shanghai 时区).
+
+    Parameters
+    ----------
+    now:
+        可注入当前时间 (Shanghai aware datetime); None 走真实时钟。
+        测试用冻结时钟根治跨零点 (23:59→00:00) 边界 flake。
 
     Returns
     -------
@@ -181,7 +187,11 @@ def _yesterday_window_shanghai() -> tuple[datetime, datetime, str]:
         - ``today_start_utc``: 今日 00:00 Shanghai 对应的 UTC datetime
         - ``yesterday_date_str``: 昨日 Shanghai 日期 ``"YYYY-MM-DD"``
     """
-    now_shanghai = datetime.now(_SHANGHAI_TZ)
+    now_shanghai = now or datetime.now(_SHANGHAI_TZ)
+    if now_shanghai.tzinfo is None:
+        now_shanghai = now_shanghai.replace(tzinfo=_SHANGHAI_TZ)
+    else:
+        now_shanghai = now_shanghai.astimezone(_SHANGHAI_TZ)
     today_start_shanghai = now_shanghai.replace(
         hour=0, minute=0, second=0, microsecond=0
     )
@@ -196,6 +206,7 @@ def _yesterday_window_shanghai() -> tuple[datetime, datetime, str]:
 def generate_daily_digest(
     top_n: int = 3,
     repo: DigestRepository | None = None,
+    now: datetime | None = None,
 ) -> dict:
     """生成昨日 (Shanghai) 简报, 写入 digests 表.
 
@@ -213,6 +224,8 @@ def generate_daily_digest(
         Top N 文章数, 默认 3.
     repo:
         可选 DigestRepository 注入 (测试用).
+    now:
+        可注入当前时间 (测试冻结时钟, 根治跨零点边界 flake)。
 
     Returns
     -------
@@ -227,7 +240,7 @@ def generate_daily_digest(
     from backend.repository.hotspot_repo import HotspotRepository
 
     effective_top_n = max(1, min(top_n, 10))
-    yesterday_start, today_start, yesterday_str = _yesterday_window_shanghai()
+    yesterday_start, today_start, yesterday_str = _yesterday_window_shanghai(now)
 
     # 查询昨日 hotspots (limit 留余量以拿到 Top N)
     hotspot_repo = HotspotRepository()

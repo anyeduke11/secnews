@@ -136,6 +136,7 @@ class SecretRepository:
         fernet_key: bytes,
         encryption_key_id: int,
         provider: str = "",
+        owner_role: str = "admin",
     ) -> SecretItem:
         if not name or not name.strip():
             raise InternalException("name 不能为空")
@@ -145,6 +146,8 @@ class SecretRepository:
             raise InternalException("base_url 不能为空")
         if not api_key or not api_key.strip():
             raise InternalException("api_key 不能为空")
+        if owner_role not in ("admin", "user"):
+            raise InternalException("owner_role 必须为 admin 或 user")
 
         cipher = encrypt_api_key(fernet_key, api_key.strip())
         conn = get_connection()
@@ -155,8 +158,8 @@ class SecretRepository:
                 """
                 INSERT INTO llm_secrets (
                     name, model, base_url, provider, api_key_encrypted,
-                    encryption_key_id, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    encryption_key_id, created_at, updated_at, owner_role
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     name.strip(),
@@ -167,6 +170,7 @@ class SecretRepository:
                     int(encryption_key_id),
                     now,
                     now,
+                    owner_role,
                 ),
             )
             conn.execute("COMMIT")
@@ -189,6 +193,7 @@ class SecretRepository:
             encryption_key_id=int(encryption_key_id),
             created_at=now,
             updated_at=now,
+            owner_role=owner_role,
         )
 
     def update(

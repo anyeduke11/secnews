@@ -29,29 +29,38 @@ _EXTENSION_NAMES = (
 )
 
 # 扩展→router 映射（每个 router 是 backend.api 中的模块名）
+# 与 backend/api/_registry.py 的 gate 分支保持一致 (存量 bug 清扫 D5 批:
+# phase14 错绑 codegarden 已改 phase2b; dsh/mcp/secnews 名单补齐).
 EXTENSION_ROUTERS: dict[str, list[str]] = {
     "codegarden": [
         "codegarden",           # Phase 2a 项目生命周期 (M1 核心)
-        "codegarden_phase14",   # Phase 14 子系统联动 (漂移评估 + CVE 同步)
     ],
     "codegarden_phase2b": [
         "codegarden_ops",       # Phase 2b 服务网格/资源中枢/联动引擎 (M2/M3/M4)
+        "codegarden_phase14",   # Phase 14 子系统联动 (漂移评估 + CVE 同步) — D5 起跟随 phase2b
     ],
     "mcp": [
         "mcp",                  # MCP 调试端点 (/api/mcp/*)
         "mcp_adapters",         # MCP 适配端点 (/api/profile, /api/cubox/sync, ...)
         "mcp_agent_tools",      # 4 个 Agent 侧写 tool
+        "mcp_phase5_tools",     # Phase 5 扩展 tool (kl_router + dsh_router)
     ],
     "sync": ["sync"],           # 跨端配置同步 (WebDAV)
     "tech_stack": ["tech_stack"],  # 技术栈管理 + 漂移评估
     "secnews": [                  # 安全看板 (KL 管线 + Feed + Dashboard)
         "kl_pipeline_api",
         "secnews_dashboard_api",
+        "feedback_api",         # 用户反馈 (/api/feedback/*)
     ],
     "crm": [                      # CRM 业绩座舱 (security-cockpit 方案 C)
         "crm_customers_api",
         "crm_opportunities_api",
         "crm_stats_api",
+    ],
+    "dsh": [                      # dsh 桥接 + pi 执行 agent (此前整键缺失 →
+        "dsh_api",                #  /api/settings/features enabled_extensions 漏报)
+        "dsh_control_api",
+        "agents_api",
     ],
     # security_graph 不占 router (security / kl_* 属 core 核心安全数据),
     # 只控制 mitre_sync / cve_sync_to_security 两个 job

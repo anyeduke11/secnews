@@ -50,7 +50,8 @@ def _row(row: sqlite3.Row) -> EncryptionKeyRow:
         iterations=int(row["iterations"]),
         verify_blob=row["verify_blob"],
         created_at=str(row["created_at"]),
-        role=str(row["role"]) if "role" in row else "admin",
+        # "role" in row 对 sqlite3.Row 是值迭代而非列名检查 (恒 False) — 必须用 row.keys()
+        role=str(row["role"]) if "role" in row.keys() else "admin",
         last_rotated_at=str(row["last_rotated_at"]) if "last_rotated_at" in row.keys() and row["last_rotated_at"] is not None else None,
     )
 
@@ -129,6 +130,7 @@ class EncryptionKeyRepository:
             verify_blob=verify_blob,
             created_at=now,
             role=role,
+            last_rotated_at=now,
         )
 
     # ------------------------------------------------------------------
@@ -178,6 +180,7 @@ class EncryptionKeyRepository:
             verify_blob=verify_blob,
             created_at=now,
             role=role,
+            last_rotated_at=now,
         )
 
     # ------------------------------------------------------------------

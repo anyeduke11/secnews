@@ -120,6 +120,7 @@ class HotspotRepository:
             url_check_status=row["url_check_status"],
             ingested_at=ingested_at,
             bid_status=row["bid_status"] if "bid_status" in row.keys() else None,
+            region=row["region"] if "region" in row.keys() else None,
         )
 
     @staticmethod
@@ -147,6 +148,9 @@ class HotspotRepository:
             item.bid_status,
             # v0.5: is_hidden 由 quality_flags 推导(μ工艺与迁移 064 一致)
             _derive_is_hidden(item.quality_flags),
+            # Phase 8 标讯地区 (migration 023) — 此前 INSERT 漏列导致 region 恒 NULL,
+            # 地区筛选 / list_regions() 整条链静默失效
+            getattr(item, "region", None),
         )
 
     @staticmethod
@@ -196,8 +200,8 @@ class HotspotRepository:
                 id, title, summary, source, url, category,
                 published_at, score, fetched_at, is_fallback,
                 quality_score, quality_flags, quality_checked_at, url_check_status,
-                ingested_at, bid_status, is_hidden
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ingested_at, bid_status, is_hidden, region
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 title            = excluded.title,
                 summary          = excluded.summary,
@@ -216,7 +220,8 @@ class HotspotRepository:
                 -- 重采同 ID 条目不再"浮顶"并虚增"新增 X 条"计数。
                 bid_status       = excluded.bid_status,
                 -- v0.5: 最新 quality_flags 决定最新隐藏状态
-                is_hidden        = excluded.is_hidden
+                is_hidden        = excluded.is_hidden,
+                region           = excluded.region
         """
 
         total_affected = 0
@@ -503,7 +508,7 @@ class HotspotRepository:
             "SELECT id, title, summary, source, url, category, "
             "published_at, score, fetched_at, is_fallback, quality_score, "
             "quality_flags, quality_checked_at, url_check_status, ingested_at, "
-            "bid_status "
+            "bid_status, region "
             "FROM hotspots WHERE id = ?"
         )
         try:

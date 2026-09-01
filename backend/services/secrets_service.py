@@ -559,8 +559,9 @@ class SecretsService:
         api_key: str,
         master_key: str,
         provider: str = "",
+        owner_role: str = "admin",
     ) -> dict:
-        """新增 secret, 需要 master_key 当场加密。"""
+        """新增 secret, 需要 master_key 当场加密。B9-3+: owner_role 可指定归属角色。"""
         ek = EncryptionKeyRepository()
         row = ek.get_default()
         if row is None:
@@ -579,6 +580,7 @@ class SecretsService:
             fernet_key=fernet_key,
             encryption_key_id=row.id,
             provider=provider,
+            owner_role=owner_role,
         )
         return item.to_dict(reveal=None)
 

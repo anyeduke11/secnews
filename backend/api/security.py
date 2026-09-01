@@ -116,20 +116,36 @@ async def enrich_item(request: Request, item: dict):
 
 
 @router.post("/mitre/sync", response_model=MitreSyncResponse)
-async def trigger_mitre_sync(request: Request, clear: bool = Query(False)):
+async def trigger_mitre_sync(request: Request, clear: bool = Query(False), force: bool = Query(False)):
     """Manually trigger MITRE ATT&CK sync.
 
     Args:
         clear: if True, delete all existing ATT&CK rows before syncing.
+        force: if True, skip ETag/Last-Modified check (B9-4 强制重灌).
     """
     try:
         from backend.security.mitre_attack import MitreAttackClient
         client = MitreAttackClient()
-        count = await asyncio.to_thread(client.sync_to_db, clear=clear)
-        return MitreSyncResponse(ok=True, count=count, message=f"synced {count} entities")
+        result = await asyncio.to_thread(client.sync_to_db, clear=clear, force=force)
+        return MitreSyncResponse(
+            ok=True,
+            count=result["entities"],
+            message=(
+                f"synced {result['entities']} entities, {result['edges']} edges "
+                f"(from_cache={result['from_cache']})"
+            ),
+        )
     except Exception as e:
         from backend.exceptions import InternalException
         raise InternalException(f"mitre sync failed: {e}")
+
+
+@router.get("/mitre/cache")
+async def get_mitre_cache_info():
+    """v0.7 Batch ⑨ B9-4: 返回本地 MITRE cache 状态 (路径/大小/mtime/etag)."""
+    from backend.security.mitre_attack import MitreAttackClient
+    client = MitreAttackClient()
+    return client.cache_info()
 
 
 # ---------------------------------------------------------------------------

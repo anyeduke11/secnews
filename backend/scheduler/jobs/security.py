@@ -26,8 +26,12 @@ async def mitre_sync_job() -> None:
         from backend.security.mitre_attack import MitreAttackClient
 
         client = MitreAttackClient()
-        count = await asyncio.to_thread(client.sync_to_db, clear=False)
-        _logger.info(f"mitre_sync_job: synced {count} entities")
+        # v0.7 Batch ⑨ B9-4: 增量同步 (默认 force=False, 304 跳过下载)
+        result = await asyncio.to_thread(client.sync_to_db, clear=False, force=False)
+        _logger.info(
+            f"mitre_sync_job: entities={result['entities']} edges={result['edges']} "
+            f"from_cache={result['from_cache']} new_modified={result['new_modified']}"
+        )
     except Exception as e:
         _logger.error(f"mitre_sync_job crashed: {e}")
 

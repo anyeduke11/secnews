@@ -6,6 +6,7 @@
  * dsh gate 关闭时 /api/dsh/health 404 → 指示灯显示 unknown, 属如实降级。
  */
 import { useEffect, useState } from 'react';
+import { useI18n } from '../../../contexts/I18nContext';
 
 interface DshHealth {
   status?: string;
@@ -32,6 +33,7 @@ interface ActiveAlertsMini {
 }
 
 export function StatusBar() {
+  const { t } = useI18n();
   const [dsh, setDsh] = useState<DshHealth | null>(null);
   const [pipeline, setPipeline] = useState<PipelineStats | null>(null);
   const [obs, setObs] = useState<ObsSummary | null>(null);
@@ -113,7 +115,7 @@ export function StatusBar() {
 
       {/* 管线队列 */}
       <div className="flex items-center gap-1.5">
-        <span style={{ color: 'var(--text-secondary)' }}>管线队列:</span>
+        <span style={{ color: 'var(--text-secondary)' }}>{t('pipeline.pipeline_queue')}</span>
         <span style={{ color: 'var(--text-primary)' }}>
           {pipeline?.queue?.pending ?? '–'}/{pipeline?.queue?.running ?? '–'}
         </span>
@@ -128,7 +130,7 @@ export function StatusBar() {
 
       {/* token 日用量 */}
       <div className="flex items-center gap-1.5">
-        <span style={{ color: 'var(--text-secondary)' }}>token 日用量:</span>
+        <span style={{ color: 'var(--text-secondary)' }}>{t('pipeline.token_daily')}</span>
         <span style={{ color: 'var(--text-primary)' }}>
           {totalTokens.toLocaleString()}
         </span>

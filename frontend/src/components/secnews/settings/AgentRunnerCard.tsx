@@ -5,6 +5,7 @@
  * 数据源: GET /api/agents/available · POST /api/agents/run
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useI18n } from '../../../contexts/I18nContext';
 
 interface AgentInfo {
   name: string;
@@ -25,6 +26,7 @@ interface RunResult {
 }
 
 export function AgentRunnerCard() {
+  const { t } = useI18n();
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [defaultAgent, setDefaultAgent] = useState('builtin');
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function AgentRunnerCard() {
     try {
       const r = await fetch('/api/agents/available');
       if (!r.ok) {
-        setLoadError(`runner 面板加载失败 (${r.status})`);
+        setLoadError(`${t('runner.load_failed')} (${r.status})`);
         return;
       }
       const d = await r.json();
@@ -48,9 +50,9 @@ export function AgentRunnerCard() {
       setDefaultAgent(d.default_agent ?? 'builtin');
       setAgent(prev => prev || d.default_agent || 'builtin');
     } catch {
-      setLoadError('runner 面板加载失败: 网络或后端不可达');
+      setLoadError(t('runner.load_failed_network'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -70,12 +72,12 @@ export function AgentRunnerCard() {
         }),
       });
       if (!r.ok) {
-        setResult({ ok: false, agent: null, error: `执行失败 (${r.status})` });
+        setResult({ ok: false, agent: null, error: `${t('runner.execute_failed')} (${r.status})` });
         return;
       }
       setResult(await r.json());
     } catch {
-      setResult({ ok: false, agent: null, error: '执行失败: 网络或后端不可达' });
+      setResult({ ok: false, agent: null, error: t('runner.execute_failed_network') });
     } finally {
       setRunning(false);
     }
@@ -88,9 +90,9 @@ export function AgentRunnerCard() {
   return (
     <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
       <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
-        执行 Agent
+        {t('runner.card_title')}
         <span className="ml-2 text-[9px] font-normal" style={{ color: 'var(--text-muted)' }}>
-          dsh 决策 → CLI agent 执行 (三层架构执行层)
+          {t('runner.card_subtitle')}
         </span>
       </h3>
 
@@ -109,8 +111,8 @@ export function AgentRunnerCard() {
                 backgroundColor: agent === a.name ? 'var(--accent-soft)' : 'var(--bg-hover)',
                 border: '1px solid var(--border-color)',
               }}
-              title={a.available ? `${a.protocol} · timeout ${a.timeout_seconds}s` : 'CLI 未安装'}>
-              {a.name}{a.external ? '' : ' (内置)'}{a.available ? '' : ' ✗'}
+              title={a.available ? `${a.protocol} · timeout ${a.timeout_seconds}s` : t('runner.cli_not_installed')}>
+              {a.name}{a.external ? '' : t('runner.builtin_tag')}{a.available ? '' : t('runner.unavailable_tag')}
             </button>
           ))}
         </div>
@@ -122,7 +124,7 @@ export function AgentRunnerCard() {
           <select value={agent} onChange={e => setAgent(e.target.value)}
             className="px-2 py-1 text-[11px] font-mono rounded w-36"
             style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
-            <option value="">自动路由 (默认 {defaultAgent})</option>
+            <option value="">{t('runner.auto_route', { default: defaultAgent })}</option>
             {agents.map(a => <option key={a.name} value={a.name}>{a.name}</option>)}
           </select>
           <input value={taskType} onChange={e => setTaskType(e.target.value)} list="agent-task-types"
@@ -134,17 +136,21 @@ export function AgentRunnerCard() {
           </datalist>
         </div>
         <textarea value={input} onChange={e => setInput(e.target.value)} rows={3}
-          placeholder={selected?.external ? `任务书 (由 ${selected.name} 执行, timeout ${selected.timeout_seconds}s)...` : '任务输入 (builtin → ai_hub LLM)...'}
+          placeholder={
+            selected?.external
+              ? t('runner.task_input_external', { name: selected.name, timeout: selected.timeout_seconds })
+              : t('runner.task_input_builtin')
+          }
           className="w-full px-2 py-1.5 text-[11px] font-mono rounded resize-y"
           style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
         <div className="flex items-center gap-1.5">
           <input value={workspace} onChange={e => setWorkspace(e.target.value)}
-            placeholder="workspace (可选, 仅 codegarden/<project>/)"
+            placeholder={t('runner.workspace_placeholder')}
             className="flex-1 px-2 py-1 text-[11px] font-mono rounded"
             style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
           <button onClick={run} disabled={running || !input.trim()}
             className="btn-secondary text-[10px] px-3 py-1 shrink-0">
-            {running ? '执行中...' : '执行'}
+            {running ? t('runner.executing') : t('runner.execute')}
           </button>
         </div>
       </div>

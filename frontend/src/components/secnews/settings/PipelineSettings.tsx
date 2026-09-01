@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DshControlCard } from './DshControlCard';
 import { AgentRunnerCard } from './AgentRunnerCard';
+import { useI18n } from '../../../contexts/I18nContext';
 
 interface PipelineStats {
   queue?: { pending?: number; running?: number; error?: number };
@@ -28,6 +29,7 @@ interface SourceHealth {
 }
 
 export function PipelineSettings() {
+  const { t } = useI18n();
   const [pipeline, setPipeline] = useState<PipelineStats | null>(null);
   const [llm, setLlm] = useState<LLMStatus | null>(null);
   const [sources, setSources] = useState<SourceHealth[]>([]);
@@ -50,14 +52,14 @@ export function PipelineSettings() {
         setSources(s.sources || []);
       }
       if (!pRes.ok && !lRes.ok) {
-        setError('设置面板加载失败: 后端不可达');
+        setError(t('settings.load_failed'));
       }
     } catch {
-      setError('设置面板加载失败: 网络或后端不可达');
+      setError(t('settings.load_failed_network'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -65,9 +67,9 @@ export function PipelineSettings() {
     <div className="space-y-3">
       {/* 面板头 + 刷新 */}
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>设置</h2>
-        <button onClick={refresh} disabled={loading} className="btn-secondary text-[10px] px-2 py-0.5">
-          {loading ? '刷新中...' : '刷新'}
+        <h2 className="text-sm font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>{t('settings.title')}</h2>
+        <button onClick={refresh} disabled={loading} className="btn-secondary text-[10px] px-2 py-0.5" aria-label={t('settings.refresh')}>
+          {loading ? t('settings.refreshing') : t('settings.refresh')}
         </button>
       </div>
 
@@ -79,11 +81,11 @@ export function PipelineSettings() {
 
       {/* KL 管线参数 */}
       <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-        <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>KL 管线</h3>
+        <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>{t('settings.kl_pipeline')}</h3>
         {!loading && pipeline?.queue && (
           <div className="grid grid-cols-3 gap-2 mb-2">
             {([
-              ['pending', '待处理'], ['running', '运行中'], ['error', '失败'],
+              ['pending', t('settings.queue_pending')], ['running', t('settings.queue_running')], ['error', t('settings.queue_failed')],
             ] as const).map(([key, label]) => (
               <div key={key} className="text-center p-1.5 rounded" style={{ backgroundColor: 'var(--bg-hover)' }}>
                 <div className="text-base font-mono font-bold"
@@ -96,29 +98,29 @@ export function PipelineSettings() {
           </div>
         )}
         <div className="text-[10px] font-mono space-y-0.5" style={{ color: 'var(--text-muted)' }}>
-          <div>阶段: kl:raw → refine → link → structure → publish</div>
-          <div>重试上限: 5 次 · Kickoff 延迟: 45s · 批大小: 20</div>
-          <div>心跳消费: 每 60s drain_due(50) + 每 10min sweep</div>
+          <div>{t('settings.kl_stages')}</div>
+          <div>{t('settings.kl_meta')}</div>
+          <div>{t('settings.kl_heartbeat')}</div>
         </div>
       </div>
 
       {/* LLM 模型档位 */}
       <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-        <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>模型档位</h3>
+        <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>{t('settings.model_tier')}</h3>
         <div className="text-[10px] font-mono space-y-1">
           <div className="flex justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>LLM 总开关</span>
+            <span style={{ color: 'var(--text-secondary)' }}>{t('settings.llm_master')}</span>
             <span style={{ color: llm?.enabled ? 'var(--color-success)' : 'var(--color-error)' }}>
               {llm?.enabled ? 'ON' : 'OFF'}
             </span>
           </div>
           <div className="flex justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>refine / 打标</span>
-            <span style={{ color: 'var(--accent)' }}>flash 档</span>
+            <span style={{ color: 'var(--text-secondary)' }}>{t('settings.refine_flash')}</span>
+            <span style={{ color: 'var(--accent)' }}>{t('settings.flash_tier')}</span>
           </div>
           <div className="flex justify-between">
             <span style={{ color: 'var(--text-secondary)' }}>deep_read / assess</span>
-            <span style={{ color: 'var(--color-warning)' }}>heavy 档（点击触发）</span>
+            <span style={{ color: 'var(--color-warning)' }}>{t('settings.heavy_tier')}</span>
           </div>
           <div className="flex justify-between">
             <span style={{ color: 'var(--text-secondary)' }}>embed / rerank</span>
@@ -146,10 +148,10 @@ export function PipelineSettings() {
       {/* 采集源健康 (workbench/SettingsView 并入) */}
       <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
         <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
-          采集源 · {sources.length}
+          {t('settings.sources_count', { n: sources.length })}
         </h3>
         {sources.length === 0 ? (
-          <p className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>暂无源数据</p>
+          <p className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>{t('settings.no_sources')}</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
             {sources.slice(0, 18).map(s => (
@@ -167,9 +169,9 @@ export function PipelineSettings() {
 
       {/* token 预算 (workbench/SettingsView 并入, 后端预算配置 Phase 5 实装) */}
       <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-        <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>token 预算</h3>
+        <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>{t('settings.token_budget')}</h3>
         <p className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
-          暂无预算配置（Phase 5 实装; 当前用量见底部状态栏 token 日用量）
+          {t('settings.no_budget')}
         </p>
       </div>
     </div>

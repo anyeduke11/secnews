@@ -4,11 +4,11 @@
 
 [extensions]
 codegarden = true           # M1 项目生命周期 (项目/记忆/Prompt/SDD)
-codegarden_phase2b = false  # M2/M3/M4 服务网格/资源中枢/编排引擎 (P1.6 收缩关闭)
+codegarden_phase2b = true   # D5 Batch ⑧: M2/M3/M4 服务网格/资源中枢/编排引擎 (开闸, P1.6 收缩解除)
 mcp        = false      # MCP Server (SSE + stdio + 9 tools)
 sync       = true       # 跨端同步 (WebDAV + Fernet)
-tech_stack = false      # 技术栈管理 + 漂移评估
-security_graph = false  # Security Graph + MITRE 同步
+tech_stack = true       # D5 Batch ⑧: 技术栈管理 + 漂移评估 (开闸)
+security_graph = true    # D5 Batch ⑧: Security Graph + MITRE 同步 (开闸)
 secnews    = true       # SecNews 安全看板 (KL 管线 + Feed + Wiki 浏览)
 crm        = true       # CRM 业绩座舱 (security-cockpit 方案 C, 用户拍板 2026-08-25)
 dsh        = true       # v0.6.3 内置化 — dsh 认知大脑 (受管子进程, 前端一键启停) + pi 执行 agent

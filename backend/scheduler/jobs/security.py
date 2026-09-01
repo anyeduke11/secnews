@@ -350,3 +350,72 @@ def _run_entity_concept_sync() -> None:
         )
     except Exception as e:
         _logger.error(f"security_entity_concept_sync_job crashed: {e}")
+
+
+async def secrets_rotation_check_job() -> None:
+    """v0.7 Batch ⑨ B9-2: secrets 主密钥轮换检查 (每日 09:00 Asia/Shanghai).
+
+    通过 SecretsService.rotation_status() 拉 should_rotate 标志,
+    若 True 调 AlertDispatcher 发所有启用 channel (webhook/slack/feishu/dingtalk/email),
+    并写 audit_log 落 (secrets.rotation_reminded).
+
+    cooldown 24h: 同一天不会重复发, 防止反复刷屏.
+    cooldown 状态落在 settings.kv key 'secrets.rotation.last_notified_at'.
+    """
+    try:
+        from datetime import datetime, timezone
+
+        from backend.observability_records import record_audit
+        from backend.repository.settings_repo import SettingsRepository
+        from backend.services.alert_dispatcher import AlertPayload, dispatch
+        from backend.services.secrets_service import SecretsService
+
+        status = await asyncio.to_thread(SecretsService().rotation_status)
+        if not status.get("setup") or not status.get("should_rotate"):
+            return
+
+        repo = SettingsRepository()
+        last_iso = repo.get("secrets.rotation.last_notified_at", None)
+        today = datetime.now(timezone.utc).date().isoformat()
+        if last_iso == today:
+            _logger.info("secrets_rotation_check_job: already notified today, skip")
+            return
+
+        age = status.get("age_days", 0)
+        last_rotated = status.get("last_rotated_at", "?")
+        remind = status.get("remind_days", 90)
+        payload = AlertPayload(
+            metric="secrets.rotation_age_days",
+            level="warn",
+            value=float(age),
+            threshold=float(remind),
+            window_minutes=0,
+            detail={
+                "title": "Secrets 主密钥需轮换",
+                "message": (
+                    f"Secrets 主密钥已使用 {age} 天 (>= {remind} 天阈值)。\n"
+                    f"最后轮换时间: {last_rotated}\n"
+                    f"建议立即通过 POST /api/secrets/rotate 轮换以保 LLM 凭据安全。"
+                ),
+                "age_days": age,
+                "last_rotated_at": last_rotated,
+                "remind_days": remind,
+                "action": "POST /api/secrets/rotate",
+            },
+            fired_at=datetime.now(timezone.utc).isoformat(),
+            source="secrets_rotation_check_job",
+        )
+        await dispatch(payload, alert_id=None)
+        repo.set("secrets.rotation.last_notified_at", today)
+        try:
+            record_audit(
+                "system",
+                action="secrets.rotation_reminded",
+                target="secrets.master_key",
+                detail={"age_days": age, "remind_days": status.get("remind_days", 90)},
+            )
+        except Exception:
+            pass
+        _logger.warning(f"secrets_rotation_check_job: notified (age_days={age})")
+    except Exception as e:
+        _logger.error(f"secrets_rotation_check_job crashed: {e}")

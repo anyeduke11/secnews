@@ -26,6 +26,7 @@ class EncryptionKeyRow:
     verify_blob: bytes
     created_at: str
     role: str = "admin"
+    last_rotated_at: str | None = None  # v0.7 Batch ⑦ T3: TTL + 强制轮换
 
     def to_dict(self) -> dict:
         return {
@@ -50,6 +51,7 @@ def _row(row: sqlite3.Row) -> EncryptionKeyRow:
         verify_blob=row["verify_blob"],
         created_at=str(row["created_at"]),
         role=str(row["role"]) if "role" in row else "admin",
+        last_rotated_at=str(row["last_rotated_at"]) if "last_rotated_at" in row.keys() and row["last_rotated_at"] is not None else None,
     )
 
 
@@ -105,10 +107,10 @@ class EncryptionKeyRepository:
             conn.execute("BEGIN")
             cur = conn.execute(
                 """
-                INSERT INTO encryption_keys (name, salt, iterations, verify_blob, created_at, role)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO encryption_keys (name, salt, iterations, verify_blob, created_at, role, last_rotated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (name, salt, iterations, verify_blob, now, role),
+                (name, salt, iterations, verify_blob, now, role, now),
             )
             conn.execute("COMMIT")
         except Exception as e:
@@ -153,10 +155,10 @@ class EncryptionKeyRepository:
             conn.execute("BEGIN")
             cur = conn.execute(
                 """
-                INSERT INTO encryption_keys (name, salt, iterations, verify_blob, created_at, role)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO encryption_keys (name, salt, iterations, verify_blob, created_at, role, last_rotated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (self.DEFAULT_NAME, salt, iterations, verify_blob, now, role),
+                (self.DEFAULT_NAME, salt, iterations, verify_blob, now, role, now),
             )
             conn.execute("COMMIT")
         except Exception as e:

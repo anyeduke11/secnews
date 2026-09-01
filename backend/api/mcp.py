@@ -1,7 +1,7 @@
 """v1.7 Phase 7 — MCP Server 调试端点 + Settings 端点.
 
 - GET  /api/mcp/status               MCP server 状态 (enabled/transport/tools_count)
-- GET  /api/mcp/tools                列出 13 个 tool 元数据
+- GET  /api/mcp/tools                列出全部 tool 元数据 (数量以 MCP_TOOLS 为准, 当前 19)
 - GET  /api/settings/mcp/config      返回 MCP 端点 + 复制配置 JSON
 - PUT  /api/settings/mcp/enabled     切换 feature.mcp_server 开关
 """
@@ -65,7 +65,7 @@ async def mcp_status():
 # ---------------------------------------------------------------------------
 @router.get("/mcp/tools")
 async def mcp_tools():
-    """列出 13 个 tool 的元数据 (name / description / input_schema / enabled)。"""
+    """列出全部 tool 的元数据 (数量以 MCP_TOOLS 为准, 当前 19) (name / description / input_schema / enabled)。"""
     if not is_mcp_enabled():
         raise HTTPException(
             status_code=404,

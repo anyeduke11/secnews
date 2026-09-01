@@ -113,6 +113,24 @@ def _yesterday_shanghai_hours_ago(h: int) -> datetime:
     return (yesterday_noon_shanghai - timedelta(hours=h)).astimezone(_UTC)
 
 
+@pytest.fixture
+def _frozen_digest_window(monkeypatch):
+    """T2 (存量 bug 修复): 冻结 digest 昨日窗口一次, 根治跨零点 (23:59→00:00) flake.
+
+    生产 generate_daily_digest 内部读真实时钟算窗口, 测试再读一次钟推导期望值 —
+    两次读钟跨零点时窗口漂移一天。此 fixture 在用例开头冻结一次 now,
+    窗口与种数据共用同一时钟基准。
+    """
+    from backend.services import digest_service
+
+    frozen_now = datetime.now(_SHANGHAI)
+    real_fn = digest_service._yesterday_window_shanghai
+    monkeypatch.setattr(
+        digest_service, "_yesterday_window_shanghai", lambda now=None: real_fn(frozen_now)
+    )
+    return frozen_now
+
+
 # ===========================================================================
 # 验收 1: 阅读 3 篇 AI 文章后 AI 分类权重提升
 # ===========================================================================
@@ -291,7 +309,7 @@ class TestAcceptance3SourceHealthAccurate:
 class TestAcceptance4DailyDigest:
     """验收 4: POST /api/digests/generate 生成昨日简报, 可通过 latest 读取."""
 
-    def test_generate_and_fetch_via_api(self, client, temp_db):
+    def test_generate_and_fetch_via_api(self, client, temp_db, _frozen_digest_window):
         # 昨日插 3 篇文章 (不同分数)
         _insert_hotspot(
             "y1", "重磅：AI 新模型",
@@ -329,7 +347,7 @@ class TestAcceptance4DailyDigest:
         assert r.status_code == 200
         assert r.json()["item"]["id"] == digest["id"]
 
-    def test_generate_excludes_today_articles(self, client, temp_db):
+    def test_generate_excludes_today_articles(self, client, temp_db, _frozen_digest_window):
         """今日文章不计入昨日简报."""
         # 昨日 1 篇
         _insert_hotspot(
@@ -350,7 +368,7 @@ class TestAcceptance4DailyDigest:
         assert "昨日共 1 篇" in digest["summary"]
         assert digest["item_ids"] == ["y1"]
 
-    def test_generate_empty_db_still_creates_digest(self, client, temp_db):
+    def test_generate_empty_db_still_creates_digest(self, client, temp_db, _frozen_digest_window):
         """无任何 hotspots 时, 仍生成简报 (count=0)."""
         r = client.post("/api/digests/generate")
         assert r.status_code == 200

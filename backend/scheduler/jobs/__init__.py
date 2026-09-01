@@ -127,6 +127,8 @@ def __getattr__(name: str):
 
 
 __all__ = [
+    # 存量 bug 清扫补齐 (此前 import 了但 __all__ 漏登记, *-import 拿不到):
+    "auto_extract_alert_job",
     "cg_event_process_job",
     "cg_service_scan_job",
     "cg_upstream_sync_job",
@@ -134,7 +136,11 @@ __all__ = [
     "consume_compile_tasks_job",
     "daily_db_backup_job",  # P1: 每日数据库自动备份
     "daily_snapshot_job",
+    "db_diet_job",
     "export_rebuild_job",
+    "instrument_job",
+    "job_done_event",
+    "map_rebuild_daily_job",
     "mitre_sync_job",
     "reset_service",
     "scheduled_compile_job",
@@ -146,12 +152,15 @@ __all__ = [
     "security_enrichment_job",
     "set_service",
     "should_run_catchup",
+    "sm2_daily_push_job",
     "source_reputation_rebuild_job",
     "sync_job",
     "telemetry_window_job",  # v0.5 §18: 7 天遥测窗口
     "trend_rebuild_job",
     "url_content_check_job",
+    "weekly_maintenance_job",
     "weekly_report_job",
+    "wiki_items_fts_sync_job",
 ]
 __all__.extend([
     "alert_evaluator_job",

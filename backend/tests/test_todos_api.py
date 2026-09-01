@@ -43,6 +43,13 @@ def _non_urgent_deadline() -> str:
     return (datetime.now(SHANGHAI_TZ).date() + timedelta(days=10)).isoformat()
 
 
+def _tomorrow_deadline() -> str:
+    """明天 — 未来日期触发 urgent 且与"逾期"分支无关 (动态注入根治硬编码日期
+    跨天腐坏: 硬编码 2026-07-10 已过期, 用例实际在走 overdue 分支而非未来分支)。
+    """
+    return (datetime.now(SHANGHAI_TZ).date() + timedelta(days=1)).isoformat()
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -92,7 +99,7 @@ class TestTodosAPIPost:
             "source_type": "favorite",
             "source_id": "h-1",
             "title": "ignored by snapshot",  # 实际会被 favorites 快照覆盖
-            "deadline": "2026-07-10",  # 未来某天, 触发有效 urgent 判断
+            "deadline": _tomorrow_deadline(),  # 未来某天, 触发有效 urgent 判断
             "important": 1,
         }
         resp = client.post("/api/todos", json=body)
@@ -102,7 +109,7 @@ class TestTodosAPIPost:
         assert data["item"]["source_type"] == "favorite"
         assert data["item"]["source_id"] == "h-1"
         assert data["item"]["title"] == "AI news"  # 来自 favorites 快照
-        assert data["item"]["deadline"] == "2026-07-10"
+        assert data["item"]["deadline"] == _tomorrow_deadline()
         assert data["item"]["important"] == 1
         assert data["item"]["status"] == "open"
         assert data["item"]["completed_at"] is None
@@ -125,7 +132,7 @@ class TestTodosAPIPost:
         body = {
             "source_type": "manual",
             "title": "周会",
-            "deadline": "2026-07-10",  # 未来, 触发 urgent
+            "deadline": _tomorrow_deadline(),  # 未来, 触发 urgent
             "important": 0,
             "note": "周一下午",
         }
@@ -136,7 +143,7 @@ class TestTodosAPIPost:
         assert data["item"]["source_type"] == "manual"
         assert data["item"]["source_id"] is None
         assert data["item"]["title"] == "周会"
-        assert data["item"]["deadline"] == "2026-07-10"
+        assert data["item"]["deadline"] == _tomorrow_deadline()
         assert data["item"]["important"] == 0
         assert data["item"]["note"] == "周一下午"
 
@@ -222,12 +229,12 @@ class TestTodosAPIPatch:
         # 通过 deadline = 明天 触发 urgent
         resp = client.patch(
             f"/api/todos/{todo_id}",
-            json={"deadline": "2026-07-10", "important": 1},
+            json={"deadline": _tomorrow_deadline(), "important": 1},
         )
         assert resp.status_code == 200
         item = resp.json()["item"]
         assert item["important"] == 1
-        assert item["deadline"] == "2026-07-10"
+        assert item["deadline"] == _tomorrow_deadline()
         # effective_urgent 由 deadline 派生
         assert item["urgent"] == 1  # 明天 = 1 业务日 = urgent
 
@@ -365,7 +372,7 @@ class TestTodosAPICount:
         client.post(
             "/api/todos",
             json={"source_type": "favorite", "source_id": "h-1", "title": "P0",
-                  "deadline": "2026-07-10", "important": 1},
+                  "deadline": _tomorrow_deadline(), "important": 1},
         )
         # 1 P3 manual (no deadline, no important)
         client.post(

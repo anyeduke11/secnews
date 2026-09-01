@@ -256,22 +256,30 @@ class TestGenerateDailyDigest:
         assert result["item_ids"] == ["h2", "h3"]
 
     def test_excludes_today_articles(self, temp_db):
-        """今日文章不计入昨日简报."""
-        # 昨日 1 篇
-        _insert_hotspot("y1", "昨日文章", score=80, ingested_at=_yesterday_shanghai_hours_ago(1))
-        # 今日 1 篇 (在今日 00:00 Shanghai 之后)
-        now_utc = datetime.now(_UTC)
-        _insert_hotspot("t1", "今日文章", score=100, ingested_at=now_utc)
+        """今日文章不计入昨日简报.
 
-        result = generate_daily_digest()
+        T2 (存量 bug 修复): 冻结时钟一次, 种数据与生成共用同一 now —
+        此前生产函数内真实时钟 + 测试二次读钟, 23:59→00:00 跨零点 flake。
+        """
+        frozen_now = datetime.now(_SHANGHAI_TZ)
+        # 昨日 1 篇 (相对冻结 now 的昨日窗口内)
+        yesterday_noon = (frozen_now - timedelta(days=1)).replace(
+            hour=12, minute=0, second=0, microsecond=0
+        )
+        _insert_hotspot("y1", "昨日文章", score=80, ingested_at=yesterday_noon.astimezone(_UTC))
+        # 今日 1 篇 (冻结 now 当天中午, 落在今日窗口 → 不计入)
+        today_noon = frozen_now.replace(hour=12, minute=0, second=0, microsecond=0)
+        _insert_hotspot("t1", "今日文章", score=100, ingested_at=today_noon.astimezone(_UTC))
+
+        result = generate_daily_digest(now=frozen_now)
         assert result["count"] == 1
         assert result["item_ids"] == ["y1"]
 
     def test_excludes_articles_outside_window(self, temp_db):
         """前日及更早的文章不计入昨日简报."""
+        frozen_now = datetime.now(_SHANGHAI_TZ)
         # 前天 12:00 Shanghai (在昨日窗口外)
-        now_shanghai = datetime.now(_SHANGHAI_TZ)
-        day_before_yesterday = (now_shanghai - timedelta(days=2)).replace(
+        day_before_yesterday = (frozen_now - timedelta(days=2)).replace(
             hour=12, minute=0, second=0, microsecond=0
         )
         _insert_hotspot(
@@ -279,29 +287,36 @@ class TestGenerateDailyDigest:
             ingested_at=day_before_yesterday.astimezone(_UTC),
         )
         # 昨日 1 篇
-        _insert_hotspot("y1", "昨日文章", score=50, ingested_at=_yesterday_shanghai_hours_ago(1))
+        yesterday_noon = (frozen_now - timedelta(days=1)).replace(
+            hour=12, minute=0, second=0, microsecond=0
+        )
+        _insert_hotspot("y1", "昨日文章", score=50, ingested_at=yesterday_noon.astimezone(_UTC))
 
-        result = generate_daily_digest()
+        result = generate_daily_digest(now=frozen_now)
         assert result["count"] == 1
         assert result["item_ids"] == ["y1"]
 
     def test_id_format_is_digest_yyyymmdd(self, temp_db):
         """简报 ID 格式为 digest-YYYY-MM-DD (昨日 Shanghai 日期)."""
-        result = generate_daily_digest()
-        now_shanghai = datetime.now(_SHANGHAI_TZ)
-        yesterday_shanghai = now_shanghai - timedelta(days=1)
+        frozen_now = datetime.now(_SHANGHAI_TZ)
+        result = generate_daily_digest(now=frozen_now)
+        yesterday_shanghai = frozen_now - timedelta(days=1)
         expected_id = f"digest-{yesterday_shanghai.strftime('%Y-%m-%d')}"
         assert result["id"] == expected_id
 
     def test_upsert_same_day(self, temp_db):
         """同日多次生成, 后者覆盖前者."""
-        _insert_hotspot("h1", "文章1", score=80, ingested_at=_yesterday_shanghai_hours_ago(1))
-        first = generate_daily_digest()
+        frozen_now = datetime.now(_SHANGHAI_TZ)
+        yesterday_noon = (frozen_now - timedelta(days=1)).replace(
+            hour=12, minute=0, second=0, microsecond=0
+        )
+        _insert_hotspot("h1", "文章1", score=80, ingested_at=yesterday_noon.astimezone(_UTC))
+        first = generate_daily_digest(now=frozen_now)
         assert first["count"] == 1
 
         # 再加一篇, 重新生成
-        _insert_hotspot("h2", "文章2", score=90, ingested_at=_yesterday_shanghai_hours_ago(2))
-        second = generate_daily_digest()
+        _insert_hotspot("h2", "文章2", score=90, ingested_at=yesterday_noon.astimezone(_UTC))
+        second = generate_daily_digest(now=frozen_now)
         assert second["count"] == 2
         assert second["id"] == first["id"]  # 同 ID (覆盖)
 
@@ -311,8 +326,12 @@ class TestGenerateDailyDigest:
 
     def test_record_persisted_to_db(self, temp_db):
         """generate_daily_digest 写入的记录可通过 DigestRepository.get 读出."""
-        _insert_hotspot("h1", "AI 突破", score=80, ingested_at=_yesterday_shanghai_hours_ago(1))
-        result = generate_daily_digest()
+        frozen_now = datetime.now(_SHANGHAI_TZ)
+        yesterday_noon = (frozen_now - timedelta(days=1)).replace(
+            hour=12, minute=0, second=0, microsecond=0
+        )
+        _insert_hotspot("h1", "AI 突破", score=80, ingested_at=yesterday_noon.astimezone(_UTC))
+        result = generate_daily_digest(now=frozen_now)
         fetched = DigestRepository().get(result["id"])
         assert fetched is not None
         assert fetched["summary"] == result["summary"]
@@ -320,9 +339,13 @@ class TestGenerateDailyDigest:
 
     def test_injected_repo(self, temp_db):
         """可注入自定义 DigestRepository (测试用)."""
-        _insert_hotspot("h1", "文章1", score=80, ingested_at=_yesterday_shanghai_hours_ago(1))
+        frozen_now = datetime.now(_SHANGHAI_TZ)
+        yesterday_noon = (frozen_now - timedelta(days=1)).replace(
+            hour=12, minute=0, second=0, microsecond=0
+        )
+        _insert_hotspot("h1", "文章1", score=80, ingested_at=yesterday_noon.astimezone(_UTC))
         custom_repo = DigestRepository()
-        result = generate_daily_digest(repo=custom_repo)
+        result = generate_daily_digest(repo=custom_repo, now=frozen_now)
         assert result["id"].startswith("digest-")
         # 通过注入的 repo 也能读到
         assert custom_repo.get(result["id"]) is not None

@@ -7,12 +7,12 @@
 - 双 transport:
   - stdio (默认, 本地单进程, AI Agent 启动)
   - SSE / StreamableHTTP (HTTP, 跨网络/调试用)
-- 启动时 idempotent seeding 9 个 tool 元数据到 mcp_tool_registry 表
+- 启动时 idempotent seeding MCP_TOOLS 全部 tool 元数据到 mcp_tool_registry 表 (当前 19)
 - feature.mcp_server (默认 True) 控制是否挂载 MCP
 
 关键决策
 ---------
-1. **范围**: 全量 9 个 tool (5 读 + 4 写), 1:1 对应 FastAPI 路由
+1. **范围**: 全量 MCP_TOOLS (当前 19, 12 读 + 7 写), 1:1 对应 FastAPI 路由
 2. **绑定地址**: 默认 127.0.0.1:8000 (避免远程攻击), 改 0.0.0.0 需 warning log
 3. **tool 元数据**: 启动 seeding 到 mcp_tool_registry, 不跨端同步
 4. **降级**: 关闭 feature.mcp_server 时 SSE 端点 404, stdio 入口 print 警告并退出
@@ -79,7 +79,7 @@ def is_mcp_enabled() -> bool:
 
 
 def build_mcp_server(app):
-    """构建 FastApiMCP 实例 (按 9 tool 列表 include_operations)。
+    """构建 FastApiMCP 实例 (按 MCP_TOOLS 列表 include_operations)。
 
     Returns: FastApiMCP instance, 或 None (feature 关闭时)
     """
@@ -94,7 +94,7 @@ def build_mcp_server(app):
         name="hotspot",
         description=(
             "Hotspot Knowledge MCP Server — 让 AI Agent 通过标准 MCP 协议"
-            " 读写本地知识库 (9 个 tool: 5 读 + 4 写)"
+            " 读写本地知识库 (MCP_TOOLS, 当前 19 个)"
         ),
         include_operations=MCP_TOOL_OPERATION_IDS,
     )
@@ -127,7 +127,7 @@ def mount_sse_endpoint(app, mcp) -> None:
 # mcp_tool_registry 启动 seeding (idempotent)
 # ----------------------------------------------------------------------------
 def mcp_tool_registry_seed() -> int:
-    """启动时把 9 个 tool 元数据写入 mcp_tool_registry 表。
+    """启动时把 MCP_TOOLS 全部 tool 元数据写入 mcp_tool_registry 表。
 
     幂等: 重启不会重复插入 (用 PRIMARY KEY name 保证)。
     Returns: 实际写入的条数 (首次启动 = 9, 后续 = 0)。
@@ -178,7 +178,7 @@ def mcp_tool_registry_seed() -> int:
 
 
 def list_mcp_tools_from_db(enabled_only: bool = False) -> list[dict]:
-    """从 mcp_tool_registry 表读 9 tool 元数据。"""
+    """从 mcp_tool_registry 表读 tool 元数据。"""
     from backend.repository.db import get_connection
 
     conn = get_connection()

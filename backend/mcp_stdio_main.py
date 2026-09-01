@@ -50,7 +50,7 @@ def main() -> None:
         log.error("mcp_stdio_main: feature.mcp_server disabled, exiting")
         sys.exit(1)
 
-    # 初始化 DB + seeding 13 tool 元数据
+    # 初始化 DB + seeding MCP_TOOLS tool 元数据 (当前 19)
     try:
         init_db()
         inserted = mcp_tool_registry_seed()

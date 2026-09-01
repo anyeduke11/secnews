@@ -3,9 +3,10 @@
  *
  * 一键启停 (受管子进程) + 端点/启动命令/自启配置持久化 + 状态自动刷新。
  * 数据源: GET /api/dsh/control/status · POST start|stop|restart · PUT config
- * gate 关闭时 /api/dsh/control/* 404 → 面板如实呈现降级说明。
+ * v0.7 Batch ⑨ B9-1: 接入 i18n (dsh.* namespace)
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useI18n } from '../../../contexts/I18nContext';
 
 interface ProcessSnapshot {
   running: boolean;
@@ -26,11 +27,11 @@ interface DshStatus {
   process: ProcessSnapshot;
 }
 
-const STATUS_LABEL: Record<DshStatus['status'], string> = {
-  connected: '已连接',
-  starting: '运行中 (endpoint 未响应)',
-  stopped: '已停止',
-  not_configured: '未配置启动命令',
+const STATUS_I18N: Record<DshStatus['status'], string> = {
+  connected: 'dsh.connected',
+  starting: 'dsh.running_no_endpoint',
+  stopped: 'dsh.stopped',
+  not_configured: 'dsh.not_configured',
 };
 
 const STATUS_COLOR: Record<DshStatus['status'], string> = {
@@ -41,13 +42,13 @@ const STATUS_COLOR: Record<DshStatus['status'], string> = {
 };
 
 export function DshControlCard() {
+  const { t } = useI18n();
   const [status, setStatus] = useState<DshStatus | null>(null);
   const [gateOff, setGateOff] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opBusy, setOpBusy] = useState<'start' | 'stop' | 'restart' | 'save' | null>(null);
   const [opMsg, setOpMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
-  // 表单 (加载后初始化)
   const [endpoint, setEndpoint] = useState('');
   const [command, setCommand] = useState('');
   const [autostart, setAutostart] = useState(false);
@@ -61,7 +62,7 @@ export function DshControlCard() {
         return;
       }
       if (!r.ok) {
-        setError(`状态加载失败 (${r.status})`);
+        setError(`${t('dsh.status_load_failed')} (${r.status})`);
         return;
       }
       const d: DshStatus = await r.json();
@@ -74,12 +75,11 @@ export function DshControlCard() {
         setAutostart(d.autostart ?? false);
       }
     } catch {
-      setError('状态加载失败: 网络或后端不可达');
+      setError(t('dsh.status_load_failed_network'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { refresh(); }, [refresh]);
-  // 10s 自动刷新 (轮询同时驱动后端 poll → 意外退出自动复活)
   useEffect(() => {
     const timer = window.setInterval(refresh, 10_000);
     return () => window.clearInterval(timer);
@@ -92,14 +92,19 @@ export function DshControlCard() {
       const r = await fetch(`/api/dsh/control/${op}`, { method: 'POST' });
       const d = await r.json().catch(() => ({}));
       if (r.status === 409) {
-        setOpMsg({ kind: 'err', text: d.error ?? '操作被拒绝' });
+        setOpMsg({ kind: 'err', text: d.error ?? t('dsh.op_rejected') });
       } else if (!r.ok) {
-        setOpMsg({ kind: 'err', text: `操作失败 (${r.status})` });
+        setOpMsg({ kind: 'err', text: `${t('dsh.op_failed')} (${r.status})` });
       } else {
-        setOpMsg({ kind: 'ok', text: { start: '已启动', stop: '已停止', restart: '已重启' }[op] });
+        const okI18n: Record<typeof op, string> = {
+          start: 'dsh.started',
+          stop: 'dsh.stopped_action',
+          restart: 'dsh.restarted',
+        };
+        setOpMsg({ kind: 'ok', text: t(okI18n[op]) });
       }
     } catch {
-      setOpMsg({ kind: 'err', text: '操作失败: 网络或后端不可达' });
+      setOpMsg({ kind: 'err', text: t('dsh.op_failed_network') });
     } finally {
       setOpBusy(null);
       await refresh();
@@ -116,13 +121,13 @@ export function DshControlCard() {
         body: JSON.stringify({ endpoint, command, autostart }),
       });
       if (!r.ok) {
-        setOpMsg({ kind: 'err', text: `保存失败 (${r.status})` });
+        setOpMsg({ kind: 'err', text: `${t('dsh.save_failed')} (${r.status})` });
         return;
       }
-      setOpMsg({ kind: 'ok', text: '配置已保存' });
+      setOpMsg({ kind: 'ok', text: t('dsh.saved') });
       dirtyRef.current = false;
     } catch {
-      setOpMsg({ kind: 'err', text: '保存失败: 网络或后端不可达' });
+      setOpMsg({ kind: 'err', text: t('dsh.save_failed_network') });
     } finally {
       setOpBusy(null);
       await refresh();
@@ -132,10 +137,10 @@ export function DshControlCard() {
   if (gateOff) {
     return (
       <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-        <h3 className="text-xs font-mono font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>dsh 认知大脑</h3>
+        <h3 className="text-xs font-mono font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>{t('dsh.cognitive_brain')}</h3>
         <p className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
-          dsh 扩展未启用 (feature_gates.toml dsh=false, /api/dsh/* 返回 404)。
-          业务自动降级 LLM 直连。
+          {t('dsh.disabled_hint')}
+          {t('dsh.fallback_llm')}
         </p>
       </div>
     );
@@ -147,11 +152,11 @@ export function DshControlCard() {
     <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-xs font-mono font-medium" style={{ color: 'var(--text-primary)' }}>
-          dsh 认知大脑
+          {t('dsh.cognitive_brain')}
           {status && (
             <span className="ml-2 inline-flex items-center gap-1 text-[10px]">
               <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: STATUS_COLOR[status.status] }} />
-              <span style={{ color: 'var(--text-secondary)' }}>{STATUS_LABEL[status.status]}</span>
+              <span style={{ color: 'var(--text-secondary)' }}>{t(STATUS_I18N[status.status])}</span>
               {status.endpoint_reachable && status.status === 'connected' && (
                 <span style={{ color: 'var(--color-success)' }}> · endpoint OK</span>
               )}
@@ -160,16 +165,19 @@ export function DshControlCard() {
         </h3>
         <div className="flex items-center gap-1">
           <button onClick={() => doOp('start')} disabled={opBusy !== null}
-            className="btn-secondary text-[10px] px-2 py-0.5">
-            {opBusy === 'start' ? '启动中...' : '启动'}
+            className="btn-secondary text-[10px] px-2 py-0.5"
+            aria-label={t('dsh.start')}>
+            {opBusy === 'start' ? t('dsh.starting') : t('dsh.start')}
           </button>
           <button onClick={() => doOp('stop')} disabled={opBusy !== null || !proc?.running}
-            className="btn-secondary text-[10px] px-2 py-0.5">
-            {opBusy === 'stop' ? '停止中...' : '停止'}
+            className="btn-secondary text-[10px] px-2 py-0.5"
+            aria-label={t('dsh.stop')}>
+            {opBusy === 'stop' ? t('dsh.stopping') : t('dsh.stop')}
           </button>
           <button onClick={() => doOp('restart')} disabled={opBusy !== null}
-            className="btn-secondary text-[10px] px-2 py-0.5">
-            {opBusy === 'restart' ? '重启中...' : '重启'}
+            className="btn-secondary text-[10px] px-2 py-0.5"
+            aria-label={t('dsh.restart')}>
+            {opBusy === 'restart' ? t('dsh.restarting') : t('dsh.restart')}
           </button>
         </div>
       </div>
@@ -177,35 +185,41 @@ export function DshControlCard() {
       {error && <p className="text-[10px] font-mono mb-1.5" style={{ color: 'var(--color-error)' }}>{error}</p>}
       {opMsg && (
         <p className="text-[10px] font-mono mb-1.5"
-          style={{ color: opMsg.kind === 'ok' ? 'var(--color-success)' : 'var(--color-error)' }}>
+          style={{ color: opMsg.kind === 'ok' ? 'var(--color-success)' : 'var(--color-error)' }}
+          role="status" aria-live="polite">
           {opMsg.text}
         </p>
       )}
 
-      {/* 进程详情 */}
       {proc?.running && (
         <div className="text-[10px] font-mono mb-2" style={{ color: 'var(--text-muted)' }}>
-          pid {proc.pid} · 运行 {proc.uptime_s != null ? `${Math.round(proc.uptime_s)}s` : '–'}
-          {proc.restarts > 0 && <span style={{ color: 'var(--color-warning)' }}> · 自动重启 {proc.restarts} 次</span>}
+          {t('dsh.pid_info', {
+            pid: proc.pid ?? '–',
+            uptime: proc.uptime_s != null ? `${Math.round(proc.uptime_s)}${t('common.seconds')}` : t('dsh.uptime_unknown'),
+          })}
+          {proc.restarts > 0 && (
+            <span style={{ color: 'var(--color-warning)' }}>
+              {t('dsh.restart_count', { n: proc.restarts })}
+            </span>
+          )}
         </div>
       )}
       {proc?.last_error && (
         <p className="text-[10px] font-mono mb-2" style={{ color: 'var(--color-error)' }}>{proc.last_error}</p>
       )}
 
-      {/* 配置表单 */}
       <div className="space-y-1.5">
         <input
           value={endpoint}
           onChange={e => { dirtyRef.current = true; setEndpoint(e.target.value); }}
-          placeholder="endpoint (如 http://localhost:3210)"
+          placeholder={t('dsh.endpoint_placeholder')}
           className="w-full px-2 py-1 text-[11px] font-mono rounded"
           style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
         />
         <input
           value={command}
           onChange={e => { dirtyRef.current = true; setCommand(e.target.value); }}
-          placeholder="启动命令 (如 node /path/to/dsh/dev.mjs)"
+          placeholder={t('dsh.cmd_placeholder')}
           className="w-full px-2 py-1 text-[11px] font-mono rounded"
           style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
         />
@@ -213,15 +227,15 @@ export function DshControlCard() {
           <label className="flex items-center gap-1.5 text-[10px] font-mono" style={{ color: 'var(--text-secondary)' }}>
             <input type="checkbox" checked={autostart}
               onChange={e => { dirtyRef.current = true; setAutostart(e.target.checked); }} />
-            app 启动时自动拉起
+            {t('dsh.autostart')}
           </label>
           <button onClick={saveConfig} disabled={opBusy !== null} className="btn-secondary text-[10px] px-2 py-0.5">
-            {opBusy === 'save' ? '保存中...' : '保存配置'}
+            {opBusy === 'save' ? t('dsh.saving') : t('dsh.save_config')}
           </button>
         </div>
       </div>
       <p className="text-[9px] mt-1.5" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
-        dsh 不可达时深度分析自动降级 LLM 直连; 意外退出自动复活 (上限 3 次)
+        {t('dsh.fallback_hint')}
       </p>
     </div>
   );

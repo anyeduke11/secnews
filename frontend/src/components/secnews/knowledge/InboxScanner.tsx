@@ -5,6 +5,7 @@
  * 数据源: GET /api/kl/inbox/list · POST /api/kl/inbox/scan · GET /api/kl/quarantine/list
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useI18n } from '../../../contexts/I18nContext';
 
 interface FileEntry {
   name: string;
@@ -14,6 +15,7 @@ interface FileEntry {
 }
 
 export function InboxScanner({ onScanned }: { onScanned?: () => void }) {
+  const { t } = useI18n();
   const [inbox, setInbox] = useState<FileEntry[]>([]);
   const [quarantine, setQuarantine] = useState<FileEntry[]>([]);
   const [scanning, setScanning] = useState(false);
@@ -51,16 +53,16 @@ export function InboxScanner({ onScanned }: { onScanned?: () => void }) {
 
   return (
     <div className="p-3 rounded-[var(--radius-sm)] border" style={{ borderColor: 'var(--border-color)' }}>
-      <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Inbox 投递区</h3>
+      <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>{t('kb.inbox_scanner')}</h3>
       <p className="text-[10px] mb-2" style={{ color: 'var(--text-muted)' }}>
-        将 .md 文件放入 inbox 目录，点击扫描后有效条目移入知识库，无效文件隔离到 quarantine
+        {t('kb.inbox_hint')}
       </p>
 
       {/* inbox 待处理 */}
       {inbox.length > 0 && (
         <div className="mb-2 space-y-0.5">
           <div className="text-[10px] font-mono" style={{ color: 'var(--color-warning)' }}>
-            待处理 ({inbox.length})
+            {t('kb.inbox_pending', { n: inbox.length })}
           </div>
           {inbox.map(f => (
             <div key={f.name}
@@ -79,12 +81,17 @@ export function InboxScanner({ onScanned }: { onScanned?: () => void }) {
         className="w-full px-3 py-1.5 text-xs font-mono rounded-[var(--radius-sm)] transition-colors disabled:opacity-50 hover:bg-[var(--bg-hover)]"
         style={{ border: '1px solid var(--accent)', color: 'var(--accent)' }}
       >
-        {scanning ? '扫描中...' : `扫描入库${inbox.length > 0 ? ` (${inbox.length})` : ''}`}
+        {scanning
+          ? t('kb.scanning')
+          : t('kb.scan', { n: inbox.length > 0 ? ` (${inbox.length})` : '' })}
       </button>
 
       {result && (
         <div className="mt-2 text-[10px] font-mono" style={{ color: 'var(--color-success)' }}>
-          ✓ 入库 {result.moved} 条{result.quarantined > 0 ? ` · 隔离 ${result.quarantined} 条` : ''}
+          {t('kb.scan_result_ok', {
+            moved: result.moved,
+            quarantined: result.quarantined > 0 ? t('kb.scan_result_quarantined', { n: result.quarantined }) : '',
+          })}
         </div>
       )}
 

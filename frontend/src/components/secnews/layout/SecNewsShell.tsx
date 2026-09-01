@@ -6,31 +6,33 @@
  */
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { StatusBar } from './StatusBar';
+import { useI18n } from '../../../contexts/I18nContext';
 
-const TABS = [
-  { key: 'feed', label: '安全资讯', path: '/secnews/feed' },
-  { key: 'pipeline', label: '管线观测', path: '/secnews/pipeline' },
-  { key: 'knowledge', label: '知识库', path: '/secnews/knowledge' },
-  { key: 'analyze', label: '研判', path: '/secnews/analyze' },
-  { key: 'analytics', label: '分析', path: '/secnews/analytics' },
-  { key: 'observability', label: '观测', path: '/secnews/observability' },
-  { key: 'settings', label: '设置', path: '/secnews/settings' },
+const TAB_KEYS = [
+  { key: 'feed', i18n: 'feed.security_news', path: '/secnews/feed' },
+  { key: 'pipeline', i18n: 'pipeline.title', path: '/secnews/pipeline' },
+  { key: 'knowledge', i18n: 'kb.title', path: '/secnews/knowledge' },
+  { key: 'analyze', i18n: 'analyze.title', path: '/secnews/analyze' },
+  { key: 'analytics', i18n: 'analytics.attack_mapping', path: '/secnews/analytics' },
+  { key: 'observability', i18n: 'nav.observability', path: '/secnews/observability' },
+  { key: 'settings', i18n: 'nav.settings', path: '/secnews/settings' },
 ] as const;
 
 export function SecNewsShell() {
+  const { t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const activeTab = TABS.find(t => location.pathname.startsWith(t.path))?.key ?? 'feed';
+  const activeTab = TAB_KEYS.find(t => location.pathname.startsWith(t.path))?.key ?? 'feed';
 
   return (
     <div className="flex flex-col min-h-0">
       {/* SecNews 内部 Tab 导航 */}
       <nav className="flex items-center gap-1 px-4 py-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
         <span className="text-xs font-mono font-medium mr-3" style={{ color: 'var(--text-muted)' }}>
-          SecNews
+          {t('nav.brand')}
         </span>
-        {TABS.map(tab => (
+        {TAB_KEYS.map(tab => (
           <button
             key={tab.key}
             onClick={() => navigate(tab.path)}
@@ -40,8 +42,9 @@ export function SecNewsShell() {
               backgroundColor: activeTab === tab.key ? 'var(--accent-soft)' : 'transparent',
               fontWeight: activeTab === tab.key ? 600 : 400,
             }}
+            aria-current={activeTab === tab.key ? 'page' : undefined}
           >
-            {tab.label}
+            {t(tab.i18n)}
           </button>
         ))}
       </nav>

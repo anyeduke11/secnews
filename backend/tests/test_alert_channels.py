@@ -12,12 +12,10 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import json
 from base64 import b64encode
 from collections.abc import Iterator
 
 import pytest
-
 
 # ============ Fixtures ============
 
@@ -201,11 +199,10 @@ async def test_dispatcher_sends_to_webhook(monkeypatch, temp_db):
     """WebhookChannel 投递成功 → alert_deliveries 写 ok=1."""
     import httpx
 
-    from backend.services.alert_channels import AlertPayload
-    from backend.services.alert_dispatcher import dispatch
-
     # settings.kv 配 webhook
     from backend.repository.settings_repo import SettingsRepository
+    from backend.services.alert_channels import AlertPayload
+    from backend.services.alert_dispatcher import dispatch
     SettingsRepository().set("observability.channels", [
         {"type": "webhook", "config": {"url": "https://example.com/hook"}},
     ])
@@ -214,7 +211,7 @@ async def test_dispatcher_sends_to_webhook(monkeypatch, temp_db):
 
     async def fake_post(self, url, json=None, headers=None, **kwargs):
         sent_to_httpx.append({"url": url, "json": json})
-        from httpx import Response, Request
+        from httpx import Request, Response
         req = Request("POST", url)
         return Response(200, content=b"ok", request=req)
 
@@ -251,17 +248,16 @@ async def test_dispatcher_isolates_channel_failures(monkeypatch, temp_db):
     """一个 channel 失败不影响其他 channel 投递."""
     import httpx
 
+    from backend.repository.settings_repo import SettingsRepository
     from backend.services.alert_channels import AlertPayload
     from backend.services.alert_dispatcher import dispatch
-
-    from backend.repository.settings_repo import SettingsRepository
     SettingsRepository().set("observability.channels", [
         {"type": "webhook", "config": {"url": "https://will.fail/hook"}},
         {"type": "webhook", "config": {"url": "https://ok.example.com/hook"}},
     ])
 
     async def fake_post(self, url, json=None, **kwargs):
-        from httpx import Response, Request
+        from httpx import Request, Response
         if "will.fail" in url:
             raise RuntimeError("simulated network error")
         req = Request("POST", url)
@@ -290,10 +286,9 @@ async def test_dispatcher_isolates_channel_failures(monkeypatch, temp_db):
 @pytest.mark.asyncio
 async def test_dispatcher_skips_unconfigured(temp_db):
     """未配置 (env 缺失) 的 channel 被跳过."""
+    from backend.repository.settings_repo import SettingsRepository
     from backend.services.alert_channels import AlertPayload
     from backend.services.alert_dispatcher import dispatch
-
-    from backend.repository.settings_repo import SettingsRepository
     SettingsRepository().set("observability.channels", [
         {"type": "email"},  # 无 SMTP env → is_configured=False
         {"type": "slack"},  # 无 SLACK_WEBHOOK_URL env

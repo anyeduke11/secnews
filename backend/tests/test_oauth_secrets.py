@@ -12,7 +12,6 @@ from collections.abc import Iterator
 
 import pytest
 
-
 # ============ Fixtures ============
 
 
@@ -88,6 +87,7 @@ def test_oauth_config_disabled_when_no_env(monkeypatch):
     monkeypatch.delenv("HOTSPOT_OAUTH_AUTHORIZE_URL", raising=False)
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from backend.api.secrets import router
 
     app = FastAPI()
@@ -107,6 +107,7 @@ def test_oauth_config_enabled_with_full_env(monkeypatch):
     monkeypatch.setenv("HOTSPOT_OAUTH_AUTHORIZE_URL", "https://auth.example.com/authorize")
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from backend.api.secrets import router
 
     app = FastAPI()

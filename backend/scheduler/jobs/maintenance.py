@@ -552,6 +552,7 @@ async def observability_threshold_check_job() -> None:
 
         now = datetime.now(timezone.utc)
         cooldown_min = int(DEFAULT_THRESHOLDS["alerts"]["cooldown_minutes"])
+        dispatch_tasks: list = []  # D2 (Batch ⑧): 收集本轮 dispatch 任务
 
         # 1) 拉阈值规则
         try:
@@ -617,6 +618,7 @@ async def observability_threshold_check_job() -> None:
                     (now + timedelta(minutes=cooldown_min)).isoformat(),
                 ),
             )
+            alert_rowid = conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
             new_alerts += 1
             # 同步入 audit_log (沿用 Batch ② audit pattern, action=threshold.breach)
             try:
@@ -628,6 +630,33 @@ async def observability_threshold_check_job() -> None:
                 )
             except Exception as e:
                 _logger.debug(f"record_audit threshold.breach failed: {e}")
+
+            # D2 (Batch ⑧): 投递到已配置 channels (webhook / slack / feishu / dingtalk / email)
+            # 不阻塞主路径: 收集本轮所有 dispatch task, 退出循环后统一 await
+            try:
+                from backend.services.alert_channels import AlertPayload
+                from backend.services.alert_dispatcher import dispatch
+
+                payload = AlertPayload(
+                    metric=breach.metric,
+                    level=breach.level,
+                    value=breach.value,
+                    threshold=breach.threshold,
+                    window_minutes=breach.window_minutes,
+                    detail=breach.detail or {},
+                    fired_at=now.isoformat(),
+                    source="observability_thresholds",
+                )
+                dispatch_tasks.append(dispatch(payload, alert_id=alert_rowid))
+            except Exception as e:
+                _logger.debug(f"alert dispatch schedule failed: {e}")
+
+        # D2: 集中 await 所有本轮创建的 dispatch tasks (并发执行, 失败 swallow)
+        for t in dispatch_tasks:
+            try:
+                await t
+            except Exception as e:
+                _logger.debug(f"await dispatch failed: {e}")
 
         _logger.info(
             f"observability_threshold_check_job: "

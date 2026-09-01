@@ -314,4 +314,116 @@ def put_thresholds(body: dict):
     return {"ok": True, "thresholds": rules, "defaults": DEFAULT_THRESHOLDS}
 
 
+# ── v0.7 Batch ⑧ D2: 告警通道配置 CRUD ───────────────────────────────
+
+
+@router.get("/channels")
+def get_channels():
+    """列出已注册 channel 类型 + 当前配置 (不返回凭据 secret, 仅元数据)."""
+    from backend.services.alert_channels import registered_channel_types
+    from backend.services.alert_dispatcher import load_channels_config
+
+    return {
+        "supported_types": registered_channel_types(),
+        "channels": load_channels_config(),
+    }
+
+
+@router.put("/channels")
+def put_channels(body: dict):
+    """覆盖式更新 channel 配置 — 校验 + 写 settings.kv + audit."""
+    from fastapi import HTTPException
+
+    from backend.observability_records import record_audit
+    from backend.services.alert_dispatcher import save_channels_config
+
+    if not isinstance(body, dict) or "channels" not in body:
+        raise HTTPException(status_code=400, detail="body.channels must be a list")
+    chs = body["channels"]
+    try:
+        save_channels_config(chs)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve)) from ve
+    try:
+        record_audit(
+            action="observability.channels.update",
+            target="observability.channels",
+            status="ok",
+            detail=f"channels={len(chs)}",
+        )
+    except Exception:
+        pass
+    return {"ok": True, "channels": chs}
+
+
+@router.post("/channels/test")
+async def post_channels_test(body: dict):
+    """测试 channel 配置 — 构造一个 mock AlertPayload 试发一次, 不写 alert_deliveries."""
+    from fastapi import HTTPException
+
+    from backend.services.alert_channels import (
+        AlertPayload,
+        build_channel,
+        registered_channel_types,
+    )
+
+    if not isinstance(body, dict) or "type" not in body:
+        raise HTTPException(status_code=400, detail="body.type 必填")
+    t = body["type"]
+    if t not in registered_channel_types():
+        raise HTTPException(
+            status_code=400,
+            detail=f"未知 channel type: {t}; 支持 {registered_channel_types()}",
+        )
+    cfg = body.get("config") or {}
+    try:
+        ch = build_channel(t, **cfg)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"build_channel 失败: {e}") from e
+    if not ch.is_configured():
+        raise HTTPException(status_code=400, detail=f"channel {t} 未配置 (env / config 缺失)")
+    payload = AlertPayload(
+        metric="test.connection",
+        level="warn",
+        value=0.0,
+        threshold=0.0,
+        window_minutes=1,
+        detail={"source": "manual_test"},
+        fired_at=_now_iso(),
+        source="manual_test",
+    )
+    try:
+        res = await ch.send(payload)
+        return {"ok": True, "type": t, "result": res}
+    except Exception as e:
+        return {"ok": False, "type": t, "error": str(e)}
+
+
+@router.get("/deliveries")
+def get_deliveries(limit: int = Query(50, ge=1, le=500)):
+    """列最近 alert_deliveries (审计 "告警是否真的发出去了")."""
+    from backend.repository.db import get_connection
+
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, alert_id, channel, ok, status_code, error, delivered_at "
+        "FROM alert_deliveries ORDER BY id DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    return {
+        "deliveries": [
+            {
+                "id": r["id"],
+                "alert_id": r["alert_id"],
+                "channel": r["channel"],
+                "ok": bool(r["ok"]),
+                "status_code": r["status_code"],
+                "error": r["error"],
+                "delivered_at": r["delivered_at"],
+            }
+            for r in rows
+        ]
+    }
+
+
 __all__ = ["router"]

@@ -1,12 +1,21 @@
 /**
- * secrets/UnlockModal — 解锁主密钥模态。
+ * secrets/UnlockModal — 解锁主密钥模态 (支持 master_key + OAuth 两种方式).
  *
  * 拆自原 SecretsPage.tsx (794 行) 中 UnlockModal (~607-682 行)。
- * 纯结构拆分: 表单状态与校验逻辑逐字迁移。
+ * D1 (Batch ⑧): 加 OAuth 解锁按钮 — 调 /api/secrets/oauth-config 拿 authorize_url 跳转,
+ * 回调后 /oauth-callback 路由用 token 调 unlockWithOAuth。
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Icon } from '../Icon';
 import { Modal } from './Modal';
+
+interface OAuthConfig {
+  enabled: boolean;
+  client_id: string;
+  redirect_uri: string;
+  authorize_url: string;
+  scope: string;
+}
 
 export function UnlockModal({
   onSubmit, onClose,
@@ -17,6 +26,23 @@ export function UnlockModal({
   const [mk, setMk] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [oauthCfg, setOauthCfg] = useState<OAuthConfig | null>(null);
+
+  // 读 OAuth 配置 — 仅显示按钮当 enabled
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch('/api/secrets/oauth-config');
+        if (!r.ok) return;
+        const cfg: OAuthConfig = await r.json();
+        if (!cancelled) setOauthCfg(cfg);
+      } catch {
+        // 网络/解析失败 → 不显示 OAuth 按钮 (静默降级)
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +60,17 @@ export function UnlockModal({
       setBusy(false);
     }
   };
+
+  const handleOAuthClick = () => {
+    if (!oauthCfg?.enabled || !oauthCfg.authorize_url) return;
+    // CSRF state 由前端 sessionStorage 持有, 回调时校验
+    const state = crypto.randomUUID();
+    sessionStorage.setItem('oauth_state', state);
+    const url = `${oauthCfg.authorize_url}&state=${encodeURIComponent(state)}`;
+    window.location.href = url;
+  };
+
+  const showOAuth = oauthCfg?.enabled === true;
 
   return (
     <Modal onClose={onClose}>
@@ -76,6 +113,16 @@ export function UnlockModal({
           >
             {busy ? '验证中…' : '解锁'}
           </button>
+          {showOAuth && (
+            <button
+              type="button"
+              onClick={handleOAuthClick}
+              className="btn-ghost px-3 py-1.5 text-xs"
+              data-testid="oauth-unlock-btn"
+            >
+              OAuth 解锁
+            </button>
+          )}
           <button type="button" onClick={onClose} className="btn-ghost px-3 py-1.5 text-xs">
             取消
           </button>

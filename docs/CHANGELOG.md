@@ -1341,3 +1341,25 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
 | drift 自愈 | COUNT 不等触发 rebuild | `wiki_items_fts_sync_job` 后两侧 COUNT 对齐 (✓) |
 | 归档完整性 | SHA256 全通过 | 4285/4285 文件 + archive SHA (✓) |
 | 源冻结 | chmod a-w 验证 | `dr-xr-xr-x` 权限确认 (✓) |
+
+## v0.7.4-cleanup (2026-09-01) — Batch ⑧ 观测深化 + 扩展开闸 + i18n + 历史债
+
+### 新增
+- **D1 OAuth 真身**: `services/oauth_provider.py` (CloudBase 真身 + URL 校验) + `secrets_service.unlock_with_oauth()` (双因素语义) + 前端 `routes/oauth-callback.tsx`
+- **D2 告警 5 档通道**: `services/alert_channels.py` (Webhook/Email/Slack/Feishu/Dingtalk) + `alert_dispatcher.py` (asyncio.gather 并发) + migration 087 alert_deliveries 表
+- **D3 SSE 推送**: backend `publish_event("observability.update/breach")` + frontend EventSource + polling 兜底
+- **D4 api_events 采样降级**: `services/observability_sampling.py` (success 10% / error 100% / slow 100%) + `GET/PUT /api/observability/sampling`
+- **D5 扩展域开闸**: phase2b / tech_stack / security_graph 三闸门 true, 修复 phase2b 路由错绑 codegarden 脏状态
+- **D6 前端 i18n**: 0 依赖 `contexts/I18nContext.tsx` (zh-CN / en-US) + `LocaleToggle` + ObservabilityDashboard a11y (role/aria)
+- **D7 历史债清偿**: `scripts/check_docstrings.py` (237 模块全覆盖) + 补 kl_rollback_api 1 处历史债 + CI Mimosa best-effort step
+
+### 改进
+- ARCHITECTURE.md / AGENTS.md 数字同步 (services 101→105)
+- 路由注册与 job 注册对齐, "job 不跑但端点 200" 脏状态根治
+- conftest autouse 测试环境强制 sampling=100% 锁住 "必落表" 语义
+
+### 门禁
+- pytest 3234 passed / 6 skipped / 0 failed
+- vitest 345 passed
+- generate_meta --check OK
+- check_docstrings.py 0 缺

@@ -117,6 +117,9 @@ def register_all(app: FastAPI) -> None:
     # ---- extension 路由区: 按 feature_gates 注册 (v0.4.3 分层) ----
     if is_extension_enabled("codegarden"):
         app.include_router(codegarden.router, tags=["codegarden"])
+    if is_extension_enabled("codegarden_phase2b"):
+        # D5 Batch ⑧: M2/M3/M4 服务网格/资源中枢/编排引擎 — 独立 gate,
+        # 之前错绑 codegarden 导致 phase2b=false 时路由仍在 (job 不跑但端点 200)
         app.include_router(codegarden_ops.router, tags=["codegarden-ops"])
     if is_extension_enabled("crm"):
         app.include_router(crm_customers_api.router, tags=["crm"])
@@ -170,8 +173,9 @@ def register_all(app: FastAPI) -> None:
     from backend.api import wiki_tools
     app.include_router(wiki_tools.router, tags=["wiki-tools"])
     # Phase 14: 子系统联动 — 技术栈漂移评估 + CVE 同步
+    # D5 Batch ⑧: phase14 是 M4 联动引擎, 跟随 codegarden_phase2b gate
     from backend.api import codegarden_phase14
-    if is_extension_enabled("codegarden"):
+    if is_extension_enabled("codegarden_phase2b"):
         app.include_router(codegarden_phase14.router, tags=["codegarden-phase14"])
     # Phase 16: Hybrid AI — LLM 状态 API
     from backend.api import llm_status

@@ -58,6 +58,8 @@ CORE_PATHS = [
 EXTENSION_PATHS = {
     "codegarden": [
         "/api/codegarden/projects",
+    ],
+    "codegarden_phase2b": [
         "/api/codegarden/services",
         "/api/codegarden/drift/assessments",
         "/api/cve/sync",
@@ -253,9 +255,11 @@ class TestExtensionsModule:
         monkeypatch.delenv("HOTSPOT_FEATURE_GATES", raising=False)
         reset_gates()
         try:
-            # P1.6: codegarden (M1) 默认开启; codegarden_phase2b (M2/M3/M4) 关闭
+            # D5 Batch ⑧: phase2b / tech_stack / security_graph 三扩展开闸
             assert is_extension_enabled("codegarden") is True
-            assert is_extension_enabled("codegarden_phase2b") is False
+            assert is_extension_enabled("codegarden_phase2b") is True
+            assert is_extension_enabled("tech_stack") is True
+            assert is_extension_enabled("security_graph") is True
             assert is_extension_enabled("mcp") is False
             assert is_extension_enabled("sync") is True
         finally:

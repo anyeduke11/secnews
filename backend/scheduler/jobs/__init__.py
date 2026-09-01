@@ -67,6 +67,7 @@ from backend.scheduler.jobs.codegarden import (
 from backend.scheduler.jobs.security import (
     cve_sync_to_security_job,
     mitre_sync_job,
+    secrets_rotation_check_job,
     security_enrichment_job,
     security_entity_concept_sync_job,
 )
@@ -141,6 +142,7 @@ __all__ = [
     "scheduled_soul_job",
     "scheduled_stats_job",
     "scheduled_summary_job",
+    "secrets_rotation_check_job",
     "security_enrichment_job",
     "set_service",
     "should_run_catchup",

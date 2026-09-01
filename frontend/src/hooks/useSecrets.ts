@@ -114,7 +114,7 @@ export function useSecrets(): UseSecretsReturn {
     async (masterKey: string): Promise<void> => {
       await apiFetch('/api/secrets/setup', {
         method: 'POST',
-        body: JSON.stringify({ master_key: masterKey }),
+        body: JSON.stringify({ master_key: masterKey, role: 'admin' }),
       });
       await refreshStatus();
     },
@@ -125,7 +125,7 @@ export function useSecrets(): UseSecretsReturn {
     async (masterKey: string): Promise<SecretUnlockResponse> => {
       const data = await apiFetch<SecretUnlockResponse>('/api/secrets/unlock', {
         method: 'POST',
-        body: JSON.stringify({ master_key: masterKey }),
+        body: JSON.stringify({ master_key: masterKey, role: 'admin' }),
       });
       await refreshStatus();
       await refreshList();

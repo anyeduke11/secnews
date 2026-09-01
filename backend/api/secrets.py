@@ -48,10 +48,12 @@ class SetupRequest(BaseModel):
     # P4-9: min_length 与 crypto.MIN_MASTER_KEY_LENGTH (12) 对齐 —
     # 此前 8 vs 12 校验不一致, 8-11 字符能过 API 却在 crypto 层被拒
     master_key: str = Field(..., min_length=12, description="主密钥 (>= 12 字符)")
+    role: str = Field("admin", description="密钥角色 (admin|user)")
 
 
 class UnlockRequest(BaseModel):
     master_key: str = Field(..., description="主密钥")
+    role: str = Field("admin", description="密钥角色 (admin|user)")
 
 
 class RotateRequest(BaseModel):
@@ -167,14 +169,14 @@ async def get_status():
 
 @router.post("/setup", status_code=201)
 async def setup_master_key(req: SetupRequest):
-    """首次设置主密钥 (一次性, 禁止重置)。"""
+    """首次设置主密钥 (一次性, 禁止重置)。T4: role=admin|user."""
     svc = SecretsService()
     try:
-        result = await asyncio.to_thread(svc.setup_master_key, req.master_key)
+        result = await asyncio.to_thread(svc.setup_master_key, req.master_key, req.role)
     except Exception as e:
         raise _err_to_http(e)
     record_audit(actor="web", action="llm_secrets.setup",
-                 detail={"encryption_key_id": result.get("id")})
+                 detail={"encryption_key_id": result.get("id"), "role": req.role})
     return {
         "version": "1.0",
         "encryption_key": result,
@@ -250,14 +252,14 @@ async def reset_all_secrets(req: ResetRequest, request: Request):
 
 @router.post("/unlock")
 async def unlock(req: UnlockRequest):
-    """30 分钟解锁。"""
+    """30 分钟解锁。T4: role=admin|user."""
     svc = SecretsService()
     try:
-        result = await asyncio.to_thread(svc.unlock, req.master_key)
+        result = await asyncio.to_thread(svc.unlock, req.master_key, req.role)
     except Exception as e:
         raise _err_to_http(e)
     record_audit(actor="web", action="llm_secrets.unlock",
-                 detail={"ttl_seconds": result.get("ttl_seconds")})
+                 detail={"ttl_seconds": result.get("ttl_seconds"), "role": req.role})
     return {
         "version": "1.0",
         **result,
@@ -265,14 +267,14 @@ async def unlock(req: UnlockRequest):
 
 
 @router.get("/unlock")
-async def unlock_status():
-    """查询 unlock 状态 + 剩余秒数。"""
+async def unlock_status(role: str = "admin"):
+    """查询 unlock 状态 + 剩余秒数。T4: role=admin|user."""
     svc = SecretsService()
-    return await asyncio.to_thread(svc.unlock_status)
+    return await asyncio.to_thread(svc.unlock_status, role)
 
 
 @router.get("/rotation-status")
-async def rotation_status():
+async def rotation_status(role: str = "admin"):
     """T3: 查询主密钥轮换状态 (age + should_rotate 提醒)."""
     svc = SecretsService()
     return await asyncio.to_thread(svc.rotation_status)

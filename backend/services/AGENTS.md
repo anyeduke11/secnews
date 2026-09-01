@@ -2,11 +2,11 @@
 
 > **就近作用域**:此文件仅承载 `backend/services/` 子树进入时即时需要的约束。
 > 跨项目路由、设计技能选择、根级命令、Feature Gates 总览见根 `AGENTS.md`。
-> 架构数字(`101 services`)由 `scripts/generate_meta.py` AST 反推维护,不要手改。
+> 架构数字(`105 services`)由 `scripts/generate_meta.py` AST 反推维护,不要手改。
 
 ## 子树身份
 
-Python 3 服务编排层(101 services,`*_service.py` + `triggers/` 子目录)。
+Python 3 服务编排层(105 services,`*_service.py` + `triggers/` 子目录)。
 位于 `collectors/`(采集)与 `repository/`(数据访问)之上、`api/`(路由)之下,
 **严禁反向依赖**(service → api 反向 import 会触发循环导入)。
 

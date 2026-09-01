@@ -141,6 +141,39 @@ def _feature_gates_all_on_for_tests() -> None:
 
 
 @pytest.fixture(autouse=True)
+def _oauth_provider_mock(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """D1 (Batch ⑧): 测试环境强制走 MockOAuthProvider + 重置单例。
+
+    任何测试若 import oauth_provider, 默认拿到 mock 而非 CloudBase 真身。
+    集成测试 (需真身) 在子 fixture 里再 ``monkeypatch.setenv("HOTSPOT_OAUTH_PROVIDER", "cloudbase")``。
+    """
+    monkeypatch.setenv("HOTSPOT_OAUTH_PROVIDER", "mock")
+    monkeypatch.delenv("HOTSPOT_OAUTH_CLIENT_ID", raising=False)
+    monkeypatch.delenv("HOTSPOT_OAUTH_CLIENT_SECRET", raising=False)
+    monkeypatch.delenv("HOTSPOT_OAUTH_REDIRECT_URI", raising=False)
+    monkeypatch.delenv("HOTSPOT_OAUTH_AUTHORIZE_URL", raising=False)
+    from backend.services import oauth_provider
+    oauth_provider.reset_oauth_provider()
+    yield
+    oauth_provider.reset_oauth_provider()
+
+
+@pytest.fixture(autouse=True)
+def _api_sampling_disabled_in_tests(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """D4 (Batch ⑧): 测试环境强制 success/error/slow 全 100%, 锁住"必落表"语义.
+
+    否则 D4 引入的 10% success_rate 会让 test_api_observability 等单次断言
+    不可靠 (status=400 路径被随机丢弃); 集成测试应改用 ``monkeypatch.setenv``
+    显式注入 0% 验证 sampling 行为本身 (见 test_observability_sampling.py).
+    """
+    monkeypatch.setenv("HOTSPOT_API_SAMPLING_SUCCESS_RATE_PCT", "100")
+    monkeypatch.setenv("HOTSPOT_API_SAMPLING_ERROR_RATE_PCT", "100")
+    monkeypatch.setenv("HOTSPOT_API_SAMPLING_SLOW_RATE_PCT", "100")
+    monkeypatch.setenv("HOTSPOT_API_SAMPLING_SLOW_THRESHOLD_MS", "2000")
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _isolate_knowledge_dirs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """P1: 所有测试强制隔离 wiki 根目录 — 根治测试污染真实知识库.
 

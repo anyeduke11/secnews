@@ -10,6 +10,7 @@
  * Batch ④ 落 alerts/thresholds 后, 顶部加告警横幅 + 阈值编辑折叠面板。
  */
 import { useEffect, useState } from 'react';
+import { useI18n } from '../../../contexts/I18nContext';
 
 interface SummaryResp {
   total: number;
@@ -40,6 +41,7 @@ interface RecentEvent {
 const REFRESH_MS = 5_000;
 
 export function ObservabilityDashboard() {
+  const { t } = useI18n();
   const [summary, setSummary] = useState<SummaryResp | null>(null);
   const [recent, setRecent] = useState<RecentEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +49,9 @@ export function ObservabilityDashboard() {
 
   useEffect(() => {
     let cancelled = false;
+    let sse: EventSource | null = null;
+    let timer: number | undefined;
+
     const refresh = async () => {
       try {
         const [sRes, rRes] = await Promise.all([
@@ -66,15 +71,50 @@ export function ObservabilityDashboard() {
         if (!cancelled) setLoading(false);
       }
     };
+
     refresh();
-    const timer = window.setInterval(refresh, REFRESH_MS);
-    return () => { cancelled = true; window.clearInterval(timer); };
+
+    // D3 (Batch ⑧): SSE 接入 — 收到 "observability.update" / "observability.breach" 即刷新
+    // polling 降级为兜底 (SSE 断开时仍能拿到最新数据)
+    try {
+      sse = new EventSource('/api/events');
+      sse.onmessage = (ev) => {
+        try {
+          const payload = JSON.parse(ev.data);
+          if (payload?.type === 'observability.update' || payload?.type === 'observability.breach') {
+            void refresh();
+          }
+        } catch {
+          // 忽略解析错误
+        }
+      };
+      sse.onerror = () => {
+        // SSE 断开, polling 兜底 (浏览器会自动重连, 但这里额外 timer 防失效)
+        if (!cancelled && timer === undefined) {
+          timer = window.setInterval(refresh, REFRESH_MS);
+        }
+      };
+    } catch {
+      // EventSource 不可用 (老浏览器) → 仅 polling
+      timer = window.setInterval(refresh, REFRESH_MS);
+    }
+
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearInterval(timer);
+      if (sse) sse.close();
+    };
   }, []);
 
   if (loading) {
     return (
-      <div className="p-4 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-        正在加载观测数据…
+      <div
+        className="p-4 text-xs font-mono"
+        style={{ color: 'var(--text-muted)' }}
+        role="status"
+        aria-live="polite"
+      >
+        {t('observability.loading')}
       </div>
     );
   }
@@ -85,38 +125,40 @@ export function ObservabilityDashboard() {
     'var(--color-success)';
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" role="region" aria-label={t('observability.title')}>
       {error && (
         <div
           className="px-3 py-2 rounded text-xs font-mono"
           style={{ backgroundColor: 'var(--color-error-soft, rgba(239,68,68,0.1))', color: 'var(--color-error)' }}
+          role="alert"
         >
           {error}
         </div>
       )}
 
       <div className="text-sm font-mono font-medium" style={{ color: 'var(--text-primary)' }}>
-        观测面板 — 实时 API 健康度
+        {t('observability.title')}
       </div>
 
       {/* 1h 概览 */}
       <section
         className="p-4 rounded"
         style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}
+        aria-label={t('observability.last_1h')}
       >
         <div className="text-xs font-mono mb-3" style={{ color: 'var(--text-muted)' }}>
-          最近 1 小时
+          {t('observability.last_1h')}
         </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Stat label="总请求" value={summary?.total ?? 0} />
-          <Stat label="5xx 错误" value={summary?.errors ?? 0} />
+          <Stat label={t('observability.total')} value={summary?.total ?? 0} />
+          <Stat label={t('observability.errors_5xx')} value={summary?.errors ?? 0} />
           <Stat
-            label="错误率"
+            label={t('observability.error_rate')}
             value={`${(summary?.error_rate_pct ?? 0).toFixed(1)}%`}
             color={errorRateColor}
           />
-          <Stat label="p50 延迟" value={`${summary?.p50_latency_ms ?? 0} ms`} />
-          <Stat label="p95 延迟" value={`${summary?.p95_latency_ms ?? 0} ms`} />
+          <Stat label={t('observability.p50')} value={`${summary?.p50_latency_ms ?? 0} ms`} />
+          <Stat label={t('observability.p95')} value={`${summary?.p95_latency_ms ?? 0} ms`} />
         </div>
       </section>
 
@@ -124,9 +166,10 @@ export function ObservabilityDashboard() {
       <section
         className="p-4 rounded"
         style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}
+        aria-label={t('observability.top_slow_paths')}
       >
         <div className="text-xs font-mono mb-3" style={{ color: 'var(--text-muted)' }}>
-          Top 5 慢路径 (按 p95)
+          {t('observability.top_slow_paths')}
         </div>
         {(summary?.top_slow_paths ?? []).length === 0 ? (
           <div className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>

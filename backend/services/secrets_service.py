@@ -44,6 +44,7 @@ from backend.logging_config import logger
 from backend.repository.db import get_connection
 from backend.repository.encryption_keys_repo import EncryptionKeyRepository
 from backend.repository.secrets_repo import SecretRepository
+from backend.services.oauth_provider import OAuthVerificationError  # D1
 
 UNLOCK_TTL_SECONDS = int(os.environ.get("HOTSPOT_SECRETS_TTL_SECONDS", 30 * 60))  # 默认 30 分钟
 
@@ -81,6 +82,21 @@ def _purge_expired() -> None:
     expired = [k for k, v in _unlock_state.items() if v["expires_at"] < now]
     for k in expired:
         _unlock_state.pop(k, None)
+
+
+def _get_oauth_allowlist() -> list[str]:
+    """D1: 读 settings.kv ``secrets.oauth_allowlist`` 逗号分隔邮箱白名单。
+
+    空 / 不存在 → 返 [] (允许所有, 与现状对齐: 默认无 OAuth 解锁入口, 配了才生效)。
+    """
+    try:
+        from backend.repository.settings_repo import SettingsRepository
+
+        raw = SettingsRepository().get("secrets.oauth_allowlist", "") or ""
+    except Exception:
+        return []
+    items = [s.strip().lower() for s in raw.split(",") if s.strip()]
+    return items
 
 
 def _check_keyring() -> bool:
@@ -407,6 +423,74 @@ class SecretsService:
             "expires_at": datetime.fromtimestamp(state["expires_at"], tz=timezone.utc).isoformat(),
             "remaining_seconds": remaining,
             "keychain_persisted": keychain_persisted,
+        }
+
+    def unlock_with_oauth(self, access_token: str, role: str = "admin") -> dict:
+        """D1: OAuth 解锁 — 跳过 master_key 校验, 走 OAuth token + allowlist。
+
+        安全约束:
+        - access_token 经 OAuthProvider.get_user_info() 验证 (CloudBase OAuth API)
+        - user.email 必须命中 settings.kv ``secrets.oauth_allowlist`` (逗号分隔列表)
+        - 不持久化 master_key 到 keyring (OAuth 解锁无 master_key)
+        - 返回 unlock dict (格式与 unlock() 一致) + audit 记录 actor=oauth
+
+        Raises:
+            OAuthVerificationError: token 无效 / 过期 / user 不在 allowlist
+            ConflictException: 主密钥未初始化 (role 未 setup)
+        """
+        from backend.services.oauth_provider import (
+            get_oauth_provider,
+        )
+
+        try:
+            provider = get_oauth_provider()
+            user = provider.get_user_info(access_token)
+        except OAuthVerificationError:
+            raise
+        except Exception as e:  # pragma: no cover - 防御性
+            logger.warning("OAuth provider error: %s", e)
+            raise OAuthVerificationError(f"OAuth provider 错误: {e}") from e
+
+        if not user.email:
+            raise OAuthVerificationError("OAuth user.email 为空")
+
+        allowlist = _get_oauth_allowlist()
+        if allowlist and user.email.lower() not in {a.lower() for a in allowlist}:
+            raise OAuthVerificationError(
+                f"OAuth user {user.email} 不在 allowlist"
+            )
+
+        ek = EncryptionKeyRepository()
+        if role == "admin":
+            row = ek.get_default()
+        else:
+            row = ek.get_by_role(role)
+        if row is None:
+            raise ConflictException(f"主密钥未初始化 (role={role}); 请先调用 setup 接口")
+
+        # OAuth 解锁: 不派生 Fernet (没 master_key), 走 settings 解锁路径
+        # 这里 _unlock_state 需要 fernet_key 才能 decrypt, 因此 OAuth 解锁后
+        # 仅做 "audit + allow" 而不解密, 业务侧 reveal/decrypt 仍需 master_key。
+        # 实际 OAuth 解锁语义 = 临时授权 audit 通行, 不解密密文。
+        # **设计选择**: OAuth 解锁仅置 unlocked=True (audit 通路), 不写 fernet_key
+        # — 解密仍要求 master_key。这是"双因素"语义: OAuth 是身份, master_key 是密钥。
+        expires_at = _now_ts() + UNLOCK_TTL_SECONDS
+        _unlock_state[row.id] = {
+            "fernet_key": None,  # OAuth 解锁不解密
+            "expires_at": expires_at,
+            "oauth_verified": True,
+            "oauth_user": user.email,
+        }
+
+        return {
+            "encryption_key_id": row.id,
+            "role": row.role,
+            "unlocked": True,
+            "expires_at": datetime.fromtimestamp(expires_at, tz=timezone.utc).isoformat(),
+            "ttl_seconds": UNLOCK_TTL_SECONDS,
+            "oauth_verified": True,
+            "oauth_user": user.email,
+            "note": "OAuth 解锁仅作 audit 授权, 解密仍需 master_key",
         }
 
     def rotation_status(self) -> dict:

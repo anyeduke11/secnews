@@ -92,4 +92,28 @@ describe('I18nContext (D6 Batch ⑧)', () => {
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
+
+  it('支持 {n} / {name} 占位符替换 (B9-1)', () => {
+    function Probe() {
+      const { t, toggleLocale } = useI18n();
+      return (
+        <div>
+          <span data-testid="zh">{t('pipeline.bookmark_total', { n: 42 })}</span>
+          <span data-testid="zh-pid">{t('dsh.pid_info', { pid: 1234, uptime: '5s' })}</span>
+          <span data-testid="fallback">{t('pipeline.bookmark_total', { n: 'X' })}</span>
+          <button onClick={toggleLocale}>toggle</button>
+        </div>
+      );
+    }
+    render(
+      <I18nProvider>
+        <Probe />
+      </I18nProvider>,
+    );
+    expect(screen.getByTestId('zh').textContent).toBe('共 42 条书签');
+    expect(screen.getByTestId('zh-pid').textContent).toBe('pid 1234 · 运行 5s');
+    expect(screen.getByTestId('fallback').textContent).toBe('共 X 条书签');
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByTestId('zh').textContent).toBe('Total 42 bookmarks');
+  });
 });

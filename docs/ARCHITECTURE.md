@@ -37,7 +37,7 @@
 ┌───────────────▼──────────────────────────────────────────────┐
 │  FastAPI 单进程 (uvicorn, :8000) — 67 router / 105 services    │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────────────┐   │
-│  │ collectors/  │→│ quality/     │→│ scheduler/ 50 jobs │   │
+│  │ collectors/  │→│ quality/     │→│ scheduler/ 51 jobs │   │
 │  │ 14 BaseColl.  │  │ 11+ gates    │  │ APScheduler         │   │
 │  └──────┬───────┘  └──────┬───────┘  └─────────┬─────────┘   │
 │         │                │                    │             │

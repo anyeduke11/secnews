@@ -17,6 +17,7 @@ import { SecretCardView } from './SecretCardView';
 import { AddOrEditForm } from './AddOrEditForm';
 import { SetupModal } from './SetupModal';
 import { UnlockModal } from './UnlockModal';
+import { MasterKeyPromptModal } from './MasterKeyPromptModal';
 import type { SecretsPageProps } from './types';
 
 export function SecretsPage({ onBack }: SecretsPageProps) {
@@ -33,6 +34,13 @@ export function SecretsPage({ onBack }: SecretsPageProps) {
   const [editing, setEditing] = useState<SecretItem | null>(null);
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
   const [setupModalOpen, setSetupModalOpen] = useState(false);
+  // 三处 window.prompt 的统一替换: 单一 modal 复用, promptRequest 描述当前场景
+  const [promptRequest, setPromptRequest] = useState<null | {
+    title: string;
+    hint?: string;
+    submitLabel?: string;
+    onSubmit: (mk: string) => void | Promise<void>;
+  }>(null);
 
   // 倒计时显示 (前端估算, 每秒 tick)
   const [remaining, setRemaining] = useState<number>(0);
@@ -87,17 +95,23 @@ export function SecretsPage({ onBack }: SecretsPageProps) {
                 input.onchange = async (e: any) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  const mk = window.prompt('请输入主密钥 (master_key)');
-                  if (!mk) return;
-                  try {
-                    const result = await importSecrets(file, mk);
-                    window.alert(
-                      `导入完成: 新增 ${result.inserted}, 更新 ${result.updated}, 失败 ${result.failures.length}`
-                    );
-                    await refreshList();
-                  } catch (err: any) {
-                    window.alert(`导入失败: ${err?.message || err}`);
-                  }
+                  setPromptRequest({
+                    title: '导入加密 JSON',
+                    hint: '请输入主密钥以解密',
+                    submitLabel: '导入',
+                    onSubmit: async (mk) => {
+                      setPromptRequest(null);
+                      try {
+                        const result = await importSecrets(file, mk);
+                        window.alert(
+                          `导入完成: 新增 ${result.inserted}, 更新 ${result.updated}, 失败 ${result.failures.length}`
+                        );
+                        await refreshList();
+                      } catch (err: any) {
+                        window.alert(`导入失败: ${err?.message || err}`);
+                      }
+                    },
+                  });
                 };
                 input.click();
               }}
@@ -110,21 +124,27 @@ export function SecretsPage({ onBack }: SecretsPageProps) {
           {status?.setup && (
             <button
               onClick={async () => {
-                const mk = window.prompt('请输入主密钥以导出 (主密钥不存 DB, 丢失则无法解密)');
-                if (!mk) return;
-                try {
-                  const blob = await exportSecrets(mk);
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `secrets-export-${Math.floor(Date.now() / 1000)}.json`;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                } catch (err: any) {
-                  window.alert(`导出失败: ${err?.message || err}`);
-                }
+                setPromptRequest({
+                  title: '导出加密 JSON',
+                  hint: '主密钥不存 DB, 丢失则无法解密。导出文件用此密钥加密。',
+                  submitLabel: '导出',
+                  onSubmit: async (mk) => {
+                    setPromptRequest(null);
+                    try {
+                      const blob = await exportSecrets(mk);
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `secrets-export-${Math.floor(Date.now() / 1000)}.json`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    } catch (err: any) {
+                      window.alert(`导出失败: ${err?.message || err}`);
+                    }
+                  },
+                });
               }}
               className="btn-ghost px-3 py-1.5 text-xs"
               title="导出加密 JSON (整个文件用 master_key 加密)"
@@ -223,15 +243,21 @@ export function SecretsPage({ onBack }: SecretsPageProps) {
                 }
               }}
               onCopy={async () => {
-                const mk = window.prompt('复制明文需验证主密钥, 请输入:');
-                if (!mk) return;
-                try {
-                  const r = await reveal(item.id, mk);
-                  await navigator.clipboard.writeText(r.api_key);
-                  window.alert(`已复制到剪贴板`);
-                } catch (e: any) {
-                  window.alert(`复制失败: ${e?.message || e}`);
-                }
+                setPromptRequest({
+                  title: `复制明文 (${item.name})`,
+                  hint: '复制明文 API key 需验证主密钥',
+                  submitLabel: '复制',
+                  onSubmit: async (mk) => {
+                    setPromptRequest(null);
+                    try {
+                      const r = await reveal(item.id, mk);
+                      await navigator.clipboard.writeText(r.api_key);
+                      window.alert(`已复制到剪贴板`);
+                    } catch (e: any) {
+                      window.alert(`复制失败: ${e?.message || e}`);
+                    }
+                  },
+                });
               }}
               onTest={async () => {
                 try {
@@ -271,6 +297,17 @@ export function SecretsPage({ onBack }: SecretsPageProps) {
             setUnlockModalOpen(false);
           }}
           onClose={() => setUnlockModalOpen(false)}
+        />
+      )}
+
+      {/* 模态: 主密钥 prompt (替换导入/导出/reveal 三处 window.prompt) */}
+      {promptRequest && (
+        <MasterKeyPromptModal
+          title={promptRequest.title}
+          hint={promptRequest.hint}
+          submitLabel={promptRequest.submitLabel}
+          onSubmit={promptRequest.onSubmit}
+          onClose={() => setPromptRequest(null)}
         />
       )}
     </div>

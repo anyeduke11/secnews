@@ -16,6 +16,7 @@ v1.3.0 Phase 5: master_key OS keychain 持久化。
 from __future__ import annotations
 
 import json
+import os
 import time
 from datetime import datetime, timezone
 
@@ -44,7 +45,7 @@ from backend.repository.db import get_connection
 from backend.repository.encryption_keys_repo import EncryptionKeyRepository
 from backend.repository.secrets_repo import SecretRepository
 
-UNLOCK_TTL_SECONDS = 30 * 60  # 30 分钟
+UNLOCK_TTL_SECONDS = int(os.environ.get("HOTSPOT_SECRETS_TTL_SECONDS", 30 * 60))  # 默认 30 分钟
 
 _KEYRING_SERVICE = "hotspot"
 _KEYRING_USERNAME = "master_key"
@@ -96,23 +97,23 @@ def _check_keyring() -> bool:
     return _keychain_available
 
 
-def _persist_master_key(master_key: str) -> bool:
+def _persist_master_key(master_key: str, key_id: int = 0, role: str = "admin") -> bool:
     """持久化 master_key。OS keyring 优先 (自身加密), 降级到 settings 表。
 
-    OS keyring 模式: keyring 自身提供加密, 直接存明文 master_key。
-    settings 表模式: 用 verify_blob 作为 Fernet key 加密 master_key 后存储。
+    T4: key_id/role 后缀隔离多用户存储。
     """
+    suffix = f"_{key_id}" if key_id else ""
     if _check_keyring():
         try:
             import keyring as _kr
-            _kr.set_password(_KEYRING_SERVICE, _KEYRING_USERNAME, master_key)
-            logger.info("master_key persisted to OS keyring")
+            _kr.set_password(_KEYRING_SERVICE, f"{_KEYRING_USERNAME}{suffix}", master_key)
+            logger.info("master_key persisted to OS keyring (key_id=%s, role=%s)", key_id, role)
             return True
         except Exception as e:
             logger.warning(f"keyring set_password failed, falling back to settings: {e}")
 
     ek = EncryptionKeyRepository()
-    row = ek.get_default()
+    row = ek.get_default() if key_id == 0 else ek.get_by_id(key_id)
     if row is None:
         return False
 
@@ -120,71 +121,73 @@ def _persist_master_key(master_key: str) -> bool:
         from cryptography.fernet import Fernet as _F
         encrypted = _F(row.verify_blob).encrypt(master_key.encode("utf-8")).decode("ascii")
         from backend.repository.settings_repo import SettingsRepository
-        SettingsRepository().set(_SETTINGS_KEY_ENCRYPTED, encrypted)
-        logger.info("master_key persisted to settings table (keyring unavailable)")
+        SettingsRepository().set(f"{_SETTINGS_KEY_ENCRYPTED}{suffix}", encrypted)
+        logger.info("master_key persisted to settings table (key_id=%s, role=%s)", key_id, role)
         return True
     except Exception as e:
         logger.warning(f"master_key persist failed: {e}")
         return False
 
 
-def _load_persisted_master_key() -> str | None:
+def _load_persisted_master_key(key_id: int = 0) -> str | None:
     """从 OS keyring 或 settings 表加载 master_key。返回 None 表示无持久化数据。"""
+    suffix = f"_{key_id}" if key_id else ""
     if _check_keyring():
         try:
             import keyring as _kr
-            val = _kr.get_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
+            val = _kr.get_password(_KEYRING_SERVICE, f"{_KEYRING_USERNAME}{suffix}")
             if val:
                 ek = EncryptionKeyRepository()
-                row = ek.get_default()
+                row = ek.get_default() if key_id == 0 else ek.get_by_id(key_id)
                 if row and verify_master_key(val, row.salt, row.iterations, row.verify_blob):
-                    logger.info("master_key restored from OS keyring")
+                    logger.info("master_key restored from OS keyring (key_id=%s)", key_id)
                     return val
                 else:
                     logger.warning("keyring master_key verification failed, clearing stale entry")
                     try:
-                        _kr.delete_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
+                        _kr.delete_password(_KEYRING_SERVICE, f"{_KEYRING_USERNAME}{suffix}")
                     except Exception:
                         pass
         except Exception as e:
             logger.warning(f"keyring get_password failed: {e}")
 
     ek = EncryptionKeyRepository()
-    row = ek.get_default()
+    row = ek.get_default() if key_id == 0 else ek.get_by_id(key_id)
     if row is None:
         return None
 
     try:
         from backend.repository.settings_repo import SettingsRepository
-        encrypted = SettingsRepository().get(_SETTINGS_KEY_ENCRYPTED)
+        encrypted = SettingsRepository().get(f"{_SETTINGS_KEY_ENCRYPTED}{suffix}")
         if not encrypted:
             return None
         from cryptography.fernet import Fernet as _F
         plaintext = _F(row.verify_blob).decrypt(encrypted.encode("ascii"))
         master_key = plaintext.decode("utf-8")
         if verify_master_key(master_key, row.salt, row.iterations, row.verify_blob):
-            logger.info("master_key restored from settings table")
+            logger.info("master_key restored from settings table (key_id=%s)", key_id)
             return master_key
         else:
             logger.warning("settings master_key verification failed, clearing stale entry")
-            SettingsRepository().delete(_SETTINGS_KEY_ENCRYPTED)
+            SettingsRepository().delete(f"{_SETTINGS_KEY_ENCRYPTED}{suffix}")
     except Exception as e:
         logger.warning(f"master_key restore from settings failed: {e}")
 
     return None
 
 
-def _clear_persisted_master_key() -> None:
+def _clear_persisted_master_key(key_id: int = 0) -> None:
     """清除持久化的 master_key (lock/reset 时调用)。"""
+    suffix = f"_{key_id}" if key_id else ""
     if _check_keyring():
         try:
             import keyring as _kr
-            _kr.delete_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
+            _kr.delete_password(_KEYRING_SERVICE, f"{_KEYRING_USERNAME}{suffix}")
         except Exception:
             pass
     try:
         from backend.repository.settings_repo import SettingsRepository
-        SettingsRepository().delete(_SETTINGS_KEY_ENCRYPTED)
+        SettingsRepository().delete(f"{_SETTINGS_KEY_ENCRYPTED}{suffix}")
     except Exception:
         pass
 
@@ -213,15 +216,16 @@ class SecretsService:
     # ------------------------------------------------------------------
     # 主密钥 setup
     # ------------------------------------------------------------------
-    def setup_master_key(self, master_key: str) -> dict:
-        """初始化主密钥 (单次, 禁止重置)。"""
+    def setup_master_key(self, master_key: str, role: str = "admin") -> dict:
+        """初始化主密钥 (单次, 禁止重置)。T4: role=admin|user."""
         ek = EncryptionKeyRepository()
         if ek.is_setup():
             raise ConflictException("主密钥已初始化; 禁止重置 (Q1 决策)")
-        row = ek.setup_default(master_key=master_key)
+        row = ek.setup_default(master_key=master_key, role=role)
         return {
             "id": row.id,
             "name": row.name,
+            "role": row.role,
             "iterations": row.iterations,
             "created_at": row.created_at,
         }
@@ -301,12 +305,13 @@ class SecretsService:
                     "UPDATE sync_configs SET webdav_password_encrypted = ? WHERE id = ?",
                     (new_ct, w["id"]),
                 )
-            # 5. 更新 encryption_keys (新 salt/iterations/verify_blob)
+            # 5. 更新 encryption_keys (新 salt/iterations/verify_blob + last_rotated_at)
             new_verify = make_verify_blob(new_key, new_salt, DEFAULT_ITERATIONS)
             conn.execute(
                 "UPDATE encryption_keys SET salt = ?, iterations = ?, "
-                "verify_blob = ? WHERE id = ?",
-                (new_salt, DEFAULT_ITERATIONS, new_verify, row.id),
+                "verify_blob = ?, last_rotated_at = ? WHERE id = ?",
+                (new_salt, DEFAULT_ITERATIONS, new_verify,
+                 _now_iso(), row.id),
             )
             conn.execute("COMMIT")
         except Exception as _e:
@@ -333,12 +338,18 @@ class SecretsService:
     # ------------------------------------------------------------------
     # Unlock / lock
     # ------------------------------------------------------------------
-    def unlock(self, master_key: str) -> dict:
-        """验证 master_key, 设置 30 分钟 unlock, 并持久化到 keychain。"""
+    def unlock(self, master_key: str, role: str = "admin") -> dict:
+        """验证 master_key, 设置 30 分钟 unlock, 并持久化到 keychain。
+
+        T4: role=admin|user, 按 role 取对应 key_id 解锁。
+        """
         ek = EncryptionKeyRepository()
-        row = ek.get_default()
+        if role == "admin":
+            row = ek.get_default()
+        else:
+            row = ek.get_by_role(role)
         if row is None:
-            raise ConflictException("主密钥未初始化; 请先调用 setup 接口")
+            raise ConflictException(f"主密钥未初始化 (role={role}); 请先调用 setup 接口")
 
         if not verify_master_key(master_key, row.salt, row.iterations, row.verify_blob):
             raise InvalidMasterKeyError("主密钥错误")
@@ -350,23 +361,29 @@ class SecretsService:
             "expires_at": expires_at,
         }
 
-        _persist_master_key(master_key)
+        _persist_master_key(master_key, key_id=row.id, role=row.role)
 
         return {
             "encryption_key_id": row.id,
+            "role": row.role,
             "unlocked": True,
             "expires_at": datetime.fromtimestamp(expires_at, tz=timezone.utc).isoformat(),
             "ttl_seconds": UNLOCK_TTL_SECONDS,
         }
 
-    def unlock_status(self) -> dict:
+    def unlock_status(self, role: str = "admin") -> dict:
+        """T4: 查询 unlock 状态 + 剩余秒数 (按 role)."""
         ek = EncryptionKeyRepository()
-        row = ek.get_default()
-        keychain_persisted = _load_persisted_master_key() is not None if row else False
+        if role == "admin":
+            row = ek.get_default()
+        else:
+            row = ek.get_by_role(role)
+        keychain_persisted = _load_persisted_master_key(key_id=row.id) is not None if row else False
         if row is None:
             return {
                 "setup": False,
                 "unlocked": False,
+                "role": role,
                 "expires_at": None,
                 "remaining_seconds": 0,
                 "keychain_persisted": False,
@@ -377,6 +394,7 @@ class SecretsService:
             return {
                 "setup": True,
                 "unlocked": False,
+                "role": row.role,
                 "expires_at": None,
                 "remaining_seconds": 0,
                 "keychain_persisted": keychain_persisted,
@@ -385,9 +403,44 @@ class SecretsService:
         return {
             "setup": True,
             "unlocked": True,
+            "role": row.role,
             "expires_at": datetime.fromtimestamp(state["expires_at"], tz=timezone.utc).isoformat(),
             "remaining_seconds": remaining,
             "keychain_persisted": keychain_persisted,
+        }
+
+    def rotation_status(self) -> dict:
+        """T3: 主密钥轮换状态 (TTL 自动过期 + 强制轮换提醒)."""
+        ek = EncryptionKeyRepository()
+        row = ek.get_default()
+        if row is None:
+            return {
+                "setup": False,
+                "last_rotated_at": None,
+                "age_days": None,
+                "should_rotate": False,
+                "ttl_seconds": UNLOCK_TTL_SECONDS,
+                "remind_days": 90,
+            }
+        last_rotated = None
+        age_days = None
+        should_rotate = False
+        if row.last_rotated_at:
+            try:
+                last_dt = datetime.fromisoformat(row.last_rotated_at)
+                age_delta = datetime.now(timezone.utc) - last_dt
+                age_days = max(0, age_delta.days)
+                last_rotated = row.last_rotated_at
+                should_rotate = age_days >= 90
+            except Exception:
+                pass
+        return {
+            "setup": True,
+            "last_rotated_at": last_rotated,
+            "age_days": age_days,
+            "should_rotate": should_rotate,
+            "ttl_seconds": UNLOCK_TTL_SECONDS,
+            "remind_days": 90,
         }
 
     def lock(self) -> dict:

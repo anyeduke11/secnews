@@ -3,6 +3,23 @@
 ## v0.7 Batch 3 + 4 + 5 (2026-08-31) — API 观测落地 + 阈值规则引擎 + 收口落账
 
 > **来源**: Observability PRD v1.0 §5.3 "业务 endpoint 观测 + 阈值告警 + 看板嵌入"。本批三段子批一气呵成, 与 Batch 2 同观测轨, 不留尾巴 (除 llm_secrets 独立批次)。
+## v0.7 Batch 7 (2026-09-01) — 修复遗留阻塞项 (5 项全清)
+
+> **来源**: 用户指令 "修复遗留阻塞项" — 关闭 Batch ⑥ "不在本批范围" 全部 5 项。
+> **范围**: ① webdav 密文迁移关单 (零工作) + SecretsPage 三处 window.prompt 替换 MasterKeyPromptModal (6 tests); ② codegarden/sync/dsh 三域 secrets 全量 audit_log (codegarden env_template 1 处 + sync Batch ⑥ 已覆盖 + dsh 零写入); ③ secrets TTL 自动过期 + 强制轮换提醒 (HOTSPOT_SECRETS_TTL_SECONDS env + last_rotated_at + rotation_status API); ④ 主密钥多用户分级 admin/user 双层解锁 (encryption_keys.role + get_by_role + unlock(role) + keyring/settings 后缀隔离); ⑤ SSO/OAuth 接入 SecretsService (CloudBase OAuth provider + unlock_with_oauth + frontend callback)。
+> **commit 链**: `cd7187c` (T1) → `4171d2f` (T3) → T4/T5 (本段)。
+> **不引入**: 新数据库连接 / 新 feature gate / 新前端页面 / 不动 ARCHITECTURE 数字。
+
+### 批次 ㊲: Batch ⑦ — T1+T2+T3+T4+T5 遗留阻塞项全清
+
+- [x] **T1 — webdav 密文迁移关单**: 零工作 (014_sync.sql Fernet 密文, DB 0 行存量); 前端 SecretsPage 三处 window.prompt 替换为 MasterKeyPromptModal 通用组件 (password input, autoComplete=new-password); 新增 MasterKeyPromptModal.test.tsx (6 tests: 渲染/默认 label/password input/提交回调/空值禁用/取消关闭)
+- [x] **T2 — codegarden/sync/dsh 三域 secrets 全量 audit_log**: codegarden save_env_template 新增 codegarden.env_template.save audit (action/target/detail); sync Batch ⑥ C5 已覆盖 llm_secrets.sync_write; dsh agent_bridge/secnews_dashboard 零 secrets 写入; 新增 test_save_env_template_writes_audit_log (1 例, fixture 加 080 audit_log + 013 encryption_keys + patch observability_records.get_connection)
+- [x] **T3 — secrets TTL 自动过期 + 强制轮换提醒**: UNLOCK_TTL_SECONDS 改为 HOTSPOT_SECRETS_TTL_SECONDS env (默认 30 分钟); encryption_keys.last_rotated_at (085 migration); SecretsService.rotation_status() → age_days + should_rotate (90 天); 新增 GET /api/secrets/rotation-status; rotate_master_key 写 last_rotated_at
+- [x] **T4 — 主密钥多用户分级 (admin/user 双层解锁)**: encryption_keys.role 列 (admin|user, 086 migration); EncryptionKeyRow.role; EncryptionKeyRepository.get_by_role() + setup_user_key(); SecretsService.unlock(role=) + unlock_status(role=); _persist_master_key(key_id, role) + _load_persisted_master_key(key_id) + _clear_persisted_master_key(key_id) keyring/settings 后缀隔离; API SetupRequest/UnlockRequest 加 role 字段; unlock 返回 role
+- [x] **T5 — SSO/OAuth 接入 SecretsService**: CloudBase OAuth provider 配置 (manageAppAuth ensurePublishableKey + addProvider); POST /api/secrets/unlock-with-oauth 端点 (CloudBase token 校验 → 取 openid → 映射 role → unlock); 前端 OAuth callback 路由 /secnews/settings/oauth-callback + useSecrets 加 unlockWithOAuth(provider); 凭据只从 env/keyring/settings 读取, 源码/测试不写真实 key 字面量
+- [x] **前端 MasterKeyPromptModal**: 新增 frontend/src/components/secrets/MasterKeyPromptModal.tsx + .test.tsx (6/6 passed); SecretsPage.tsx 三处 window.prompt (import/export/reveal) 全替换为 promptRequest state + modal 复用
+- [x] **门禁**: ruff backend 0 / pytest 全量通过 / tsc 0 / generate_meta OK / 前端 vitest 通过 / vite build OK
+
 > **范围**: ① Batch ③ middleware 写表 (`record_api_call` + api_events + api_metrics_hourly + aggregator); ② Batch ④ 阈值引擎 (`observability_thresholds` service + observability_alerts 表 + threshold_check_job + alerts/thresholds API + Dashboard 横幅 + StatusBar 角标); ③ Batch ⑤ 集成测试 + ARCHITECTURE 同步 + PROGRESS/CHANGELOG 落账 + carry 收编。
 > **不引入**: 新数据库连接 / 新传输层 (ws/SSE) / 新 feature gate / 告警通道扩展 / 观测数据采样。
 > **commit 链**: `1f3d0e7` (carry merge) → `63c856c` (Batch ③ backend) → `108afde` (Batch ③ frontend) → `bf5a982` (Batch ④ backend) → `f0e01a4` (Batch ④ frontend) → 本 docs commit (Batch ⑤)。

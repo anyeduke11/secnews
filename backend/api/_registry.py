@@ -183,7 +183,8 @@ def register_all(app: FastAPI) -> None:
     app.include_router(bid_alert.router, tags=["bid-alert"])
     # SecNews 整合 Phase 0: KL 管线 + 安全看板 (按 feature_gates 注册)
     if is_extension_enabled("secnews"):
-        from backend.api import kl_pipeline_api, secnews_dashboard_api
+        from backend.api import feedback_api, kl_pipeline_api, secnews_dashboard_api
+        app.include_router(feedback_api.router, tags=["feedback"])
         app.include_router(kl_pipeline_api.router, tags=["kl-pipeline"])
         app.include_router(secnews_dashboard_api.router, tags=["secnews"])
     # v0.6 P0: DSH 桥接层 (按 feature_gates 注册)

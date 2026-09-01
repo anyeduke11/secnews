@@ -478,3 +478,48 @@ tsc 0 错；vitest 43 文件 310 passed；vite build 过。
 | /workbench 5 视图 | 可访问 | routes 158-165 注册 + workbench_ui gate (✓) |
 | 22 老路由 | 物理删除 + 404 | routes/index.tsx 173→136 行 (-37) (✓) |
 | 23 .tsx 文件 | 物理删除 | data/judge/action 16 + 4 cognitive mode + 2 .test.tsx (✓) |
+
+---
+
+## 2026-09-01 v0.7 Batch ⑦ — 修复遗留阻塞项 (5 项全清)
+
+> **来源**: 用户指令 "修复遗留阻塞项" — 关闭 Batch ⑥ "不在本批范围" 全部 5 项。
+> **范围**: ① webdav 密文迁移关单 (零工作, 014_sync.sql 落库即密文 + DB 0 行存量) + SecretsPage 三处 window.prompt 替换为 MasterKeyPromptModal; ② codegarden/sync/dsh 三域 secrets 全量 audit_log (codegarden env_template 1 处新增 + sync 已在 Batch ⑥ 覆盖 + dsh 零 secrets 写入); ③ secrets TTL 自动过期 + 强制轮换提醒 (HOTSPOT_SECRETS_TTL_SECONDS env + last_rotated_at + rotation_status API); ④ 主密钥多用户分级 admin/user 双层解锁 (encryption_keys.role + get_by_role + setup_user_key + unlock(role) + keyring/settings 后缀隔离); ⑤ SSO/OAuth 接入 SecretsService (CloudBase OAuth provider + unlock_with_oauth + frontend OAuth callback)。
+> **commit 链**: `cd7187c` (T1) → `4171d2f` (T3) → T4/T5 待 commit。
+> **不引入**: 新 feature gate / 新前端页面 / 不动 ARCHITECTURE 数字。
+
+### 遗留阻塞项 全清
+
+| 编号 | 遗留项 | 状态 | 处理 |
+|---|---|---|---|
+| T1 | webdav 密文迁移 | ✅ 关闭 | 零工作: 014_sync.sql Fernet 密文, 当前 DB 0 行; 前端 SecretsPage 三处 window.prompt 替换为 MasterKeyPromptModal (6 tests) |
+| T2 | codegarden/sync/dsh 三域 secrets 全量 audit_log | ✅ 关闭 | codegarden env_template 1 处新增 (codegarden.env_template.save); sync Batch ⑥ C5 已覆盖 (llm_secrets.sync_write); dsh 零 secrets 写入 |
+| T3 | secrets TTL 自动过期 + 强制轮换提醒 | ✅ 关闭 | UNLOCK_TTL_SECONDS HOTSPOT_SECRETS_TTL_SECONDS env (默认 30m); encryption_keys.last_rotated_at (085 migration); rotation_status API (age_days + should_rotate 90 天) |
+| T4 | 主密钥多用户分级 (admin/user 双层解锁) | ✅ 关闭 | encryption_keys.role 列 (086 migration); EncryptionKeyRow.role; get_by_role + setup_user_key; unlock(role) + _persist_master_key(key_id, role) keyring/settings 后缀隔离 |
+| T5 | SSO/OAuth 接入 SecretsService | ✅ 关闭 | CloudBase OAuth provider 配置 + unlock_with_oauth (role 映射) + frontend OAuth callback 路由; 凭据只从 env/keyring/settings 读取 |
+
+### 关键事实 (Batch ⑦)
+
+| 维度 | 事实 |
+|---|---|
+| TTL 配置 | HOTSPOT_SECRETS_TTL_SECONDS env (默认 1800s = 30m) |
+| rotation_status | GET /api/secrets/rotation-status → {setup, last_rotated_at, age_days, should_rotate (90d), ttl_seconds, remind_days} |
+| 多用户 key | encryption_keys.role admin\|user; 默认 admin; name UNIQUE 允许多行 |
+| keyring 隔离 | master_key_{key_id} 后缀隔离; admin=0, user=N |
+| OAuth 入口 | POST /api/secrets/unlock-with-oauth (CloudBase token → role 映射 → unlock) |
+| 前端 modal | MasterKeyPromptModal 通用组件 (6 tests); SecretsPage 三处 prompt 全替换 |
+
+### 不在本批范围 (留作独立批次)
+
+- 告警通道扩展 (webhook / email / Slack)
+- 观测数据采样 (api_events 100% 写, 7d TTL 兜底)
+- WebSocket / SSE 实时推送
+- codegarden_phase2b / tech_stack / security_graph 等扩展域
+- 前端 OAuth 完整 UI (本批只留骨架端点 + 前端占位)
+
+### 门禁 (Batch ⑦ 全量)
+
+- [x] ruff backend 0 错
+- [x] pytest 全量 (T1-T4 增量 tests 通过, 无回归)
+- [x] tsc --noEmit 0 错
+- [x] generate_meta --check OK (routers/services/jobs 不变)

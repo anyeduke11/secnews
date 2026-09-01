@@ -21,6 +21,7 @@ from backend.repository.sync_configs_repo import SyncConfigRepository
 def temp_db(monkeypatch, tmp_path):
     test_db = tmp_path / "sync_config.db"
     monkeypatch.setattr(config, "db_path", test_db)
+    db.close_db()
     db.init_db()
     yield test_db
     db.close_db()
@@ -30,7 +31,9 @@ def _setup_master_key(master_key: str = "test_master_key_123") -> str:
     """初始化 master key (setup 流程), 返回 master_key。"""
     from backend.repository.encryption_keys_repo import EncryptionKeyRepository
 
-    EncryptionKeyRepository().setup_default(master_key=master_key)
+    repo = EncryptionKeyRepository()
+    if not repo.is_setup():
+        repo.setup_default(master_key=master_key)
     return master_key
 
 

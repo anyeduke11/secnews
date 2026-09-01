@@ -23,18 +23,13 @@ import pytest
 def client(tmp_path, monkeypatch) -> Iterator:
     db_file = tmp_path / "test_sync_api.db"
     setup_conn = sqlite3.connect(str(db_file))
-    schema_dir = "backend/repository/migrations"
-    for sql_file in (
-        "001_init.sql", "002_quality.sql", "003_github_category.sql",
-        "004_custom_sources.sql", "005_source_stats.sql", "006_favorites.sql",
-        "007_ingested_at.sql", "008_bid_status.sql", "009_tech_category.sql",
-        "010_history_batches.sql", "011_todos.sql", "012_skills.sql",
-        "013_secrets.sql", "014_sync.sql",
-"015_todos_deadline.sql", "016_sync_frequency.sql",
-    ):
-        with open(f"{schema_dir}/{sql_file}", encoding="utf-8") as f:
-            setup_conn.executescript(f.read())
-    setup_conn.commit()
+    setup_conn.execute("PRAGMA journal_mode=WAL")
+    setup_conn.execute("PRAGMA foreign_keys=ON")
+    setup_conn.execute("PRAGMA busy_timeout=30000")
+
+    from backend.repository import db as db_mod
+
+    db_mod.apply_migrations(setup_conn)
     setup_conn.close()
 
     from backend import repository as repo_pkg

@@ -360,11 +360,15 @@ async def lock_now():
 
 
 @router.get("")
-async def list_secrets():
-    """列出所有 secret (元数据, 不含明文; 每条带 unlocked 标记)。"""
+async def list_secrets(actor_role: str = "admin"):
+    """列出 secret (元数据, 不含明文; 每条带 unlocked 标记).
+
+    v0.7 Batch ⑨ B9-3: actor_role 透传到 service; user 角色只看 user-owned.
+    默认 admin 保持向后兼容 (前端现仅 admin 角色).
+    """
     svc = SecretsService()
     try:
-        items, total = await asyncio.to_thread(svc.list_secrets)
+        items, total = await asyncio.to_thread(svc.list_secrets, actor_role)
     except Exception as e:
         raise _err_to_http(e)
     return {

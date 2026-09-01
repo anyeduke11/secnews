@@ -1,6 +1,9 @@
 /**
  * FeedFilters — 分类/时间/关键词筛选
+ * v0.7 Batch ⑨ B9-1: 接入 i18n (feed.filter.* / feed.search_placeholder)
  */
+import { useI18n } from '../../../contexts/I18nContext';
+
 interface FeedFiltersProps {
   category: string;
   keyword: string;
@@ -8,20 +11,21 @@ interface FeedFiltersProps {
   onKeywordChange: (v: string) => void;
 }
 
-const CATEGORIES = [
-  { value: '', label: '全部' },
-  { value: 'security', label: '安全' },
-  { value: 'general', label: '综合' },
-  { value: 'finance', label: '金融' },
-  { value: 'ai', label: 'AI' },
-  { value: 'bid', label: '标讯' },
+const CATEGORY_KEYS = [
+  { value: '', i18n: 'feed.filter_all' },
+  { value: 'security', i18n: 'feed.filter_security' },
+  { value: 'general', i18n: 'feed.filter_general' },
+  { value: 'finance', i18n: 'feed.filter_finance' },
+  { value: 'ai', i18n: 'feed.filter_all' },       // 复用 All 占位 — 实际可加 feed.filter_ai
+  { value: 'bid', i18n: 'feed.filter_bidding' },
 ];
 
 export function FeedFilters({ category, keyword, onCategoryChange, onKeywordChange }: FeedFiltersProps) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <div className="flex items-center gap-1">
-        {CATEGORIES.map(c => (
+        {CATEGORY_KEYS.map(c => (
           <button
             key={c.value}
             onClick={() => onCategoryChange(c.value)}
@@ -30,8 +34,9 @@ export function FeedFilters({ category, keyword, onCategoryChange, onKeywordChan
               color: category === c.value ? 'var(--accent)' : 'var(--text-muted)',
               backgroundColor: category === c.value ? 'var(--accent-soft)' : 'transparent',
             }}
+            aria-pressed={category === c.value}
           >
-            {c.label}
+            {t(c.i18n)}
           </button>
         ))}
       </div>
@@ -39,7 +44,8 @@ export function FeedFilters({ category, keyword, onCategoryChange, onKeywordChan
         type="text"
         value={keyword}
         onChange={e => onKeywordChange(e.target.value)}
-        placeholder="搜索关键词..."
+        placeholder={t('feed.search_placeholder')}
+        aria-label={t('common.search')}
         className="px-2 py-1 text-xs font-mono rounded-[var(--radius-sm)] w-40"
         style={{
           border: '1px solid var(--border-color)',

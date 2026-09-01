@@ -556,3 +556,36 @@ tsc 0 错；vitest 43 文件 310 passed；vite build 过。
 - [x] vitest 全量 (345 passed)
 - [x] generate_meta --check OK (routers 67 / services 105)
 - [x] check_docstrings.py 0 缺 (237/237)
+
+---
+
+## 2026-09-01 v0.7.5 — Batch ⑨ — i18n 全量 + secrets 主动运维 + ACL + MITRE 离线包
+
+> **来源**: 用户指令 "处理接下来的遗留项" (Batch ⑧ 仍开放 4 项全纳入, 顺序 1→2→3→4)。
+> **范围**: ① B9-1 i18n 全量 (120+ key + 10 组件 + {n} 占位符) ② B9-2 secrets 主密钥轮换主动通知 (scheduler 每日 09:00 + 告警通道 + 前端 RotationBanner) ③ B9-3 per-secret owner_role ACL (migration 088 + role 优先级过滤) ④ B9-4 MITRE ATT&CK 离线包 + 增量同步 (HEAD/Last-Modified 304 跳过 + 本地 cache + force 重灌 + cache_info 端点) ⑤ B9-5 全量门禁 + merge + tag。
+
+### 关键事实 (Batch ⑨)
+
+- **B9-1 i18n**: `I18nContext.tsx` messages dict 12 namespace / 120+ key, t() 支持 {n} 占位符 + D6 旧 (key, fallback) 调用兼容; 10 个高频组件接入 (SecNewsShell/Header/StatusBar, FeedView/Filters/DigestCard, WikiBrowser/InboxScanner, PipelineView, PipelineSettings/DshControlCard/AgentRunnerCard)。仍 0 依赖 (react-i18next 评估结论: 120+ 字符串已覆盖高频路径, 引入边际收益 < 成本; 迁移点 = 接 3rd-party 翻译服务)。
+- **B9-2 轮换通知**: `secrets_rotation_check_job` (cron 每日 09:00 Asia/Shanghai) — age>=90d 时 AlertDispatcher 发全部已配 channel + audit_log(secrets.rotation_reminded) + settings.kv 24h cooldown; 前端 RotationBanner 24h 轮询 /api/secrets/rotation-status 显 warning 横幅。**排查中挖出真 bug**: `EncryptionKeyRow` dataclass 缺 `last_rotated_at` 字段 (migration 085 加了列但 dataclass 漂移), rotation_status 一直靠 SQL 绕开; 本批补齐字段 + _row() 解析 + INSERT 写入。
+- **B9-3 ACL**: migration 088 `llm_secrets.owner_role` (DEFAULT 'admin' + 索引); `_role_can_access()` 优先级 (admin 2 / user 1 / unknown 0 fail-closed); `list(actor_role)` + `get(id, actor_role)` 过滤, 跨 role get 返 None (404 语义不暴露存在性); `GET /api/secrets?actor_role=` 透传。最小可用版 — 多 owner 共享 / UI 切换控件留 v0.8+。
+- **B9-4 MITRE 离线包**: cache 目录 (env MITRE_CACHE_DIR, 默认 backend/data/mitre/) + HEAD Last-Modified/ETag 304 检查 (mtime 相同 → 0 下载直接读 cache) + 网络失败兜底 stale cache + force=True 重灌; sync_to_db 返 dict {entities, edges, from_cache, new_modified}; settings.kv 落 mitre.last_synced_at/stix_modified; 新端点 GET /api/security/mitre/cache + sync ?force=。省 ~30MB/次下载, 真正支持离线。
+- **B9-2 补漏教训**: 新 job 忘登 `scheduler/jobs/__init__.py` → `jobs.secrets_rotation_check_job` AttributeError → e2e client fixture 级联 28 errors; test_feature_gates job 计数 50→51 + 三处 AGENTS.md/ARCHITECTURE.md 同步。
+- **日期敏感炸弹再排一颗**: test_alerts_active_lists_recent 硬编码 fired_at='2026-08-31' 跨天 (09-01) 超 recent 窗口 → 改 now-5min 动态注入 (与 memory '日历周窗口周一必炸' 同类根因)。
+
+### 仍开放 (Batch ⑨ 后)
+
+- ACL 多 owner 共享允许列表 / 前端 owner_role 切换控件 (v0.8+)
+- MITRE 增量对象级 diff (当前 bundle 级 304, 对象级留后续)
+- react-i18next 迁移评估点 = 接入 deepl/azure 翻译服务时
+- secrets 过期剩余时间在 StatusBar 常驻显示 (当前仅 RotationBanner 条件显示)
+
+### 门禁 (Batch ⑨ 全量)
+
+- [x] ruff backend + scripts 0 错
+- [x] pytest 全量 (3250 passed / 6 skipped / 0 failed; 含 B9 新增 16 例: rotation 4 + acl 4 + mitre cache 8)
+- [x] tsc --noEmit 0 错
+- [x] vitest 全量 (346 passed, +1 占位符测试)
+- [x] vite build OK
+- [x] generate_meta --check OK (jobs 51 / routers 67 / services 105)
+- [x] check_docstrings.py 0 缺 (237/237)

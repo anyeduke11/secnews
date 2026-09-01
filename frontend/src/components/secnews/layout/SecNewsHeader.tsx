@@ -2,7 +2,10 @@
  * SecNewsHeader — 看板页头组件
  *
  * 显示标题 + 当前日期 + 刷新按钮。
+ * v0.7 Batch ⑨ B9-1: 接入 i18n (nav.refresh / nav.refreshing), 日期 locale 跟随
  */
+import { useI18n } from '../../../contexts/I18nContext';
+
 interface SecNewsHeaderProps {
   title?: string;
   onRefresh?: () => void;
@@ -10,7 +13,10 @@ interface SecNewsHeaderProps {
 }
 
 export function SecNewsHeader({ title = '安全看板', onRefresh, refreshing }: SecNewsHeaderProps) {
-  const today = new Date().toLocaleDateString('zh-CN', {
+  const { locale, t } = useI18n();
+  // locale=en-US 时浏览器输出 "Monday, September 1, 2026" 风格
+  const dateLocale = locale === 'en-US' ? 'en-US' : 'zh-CN';
+  const today = new Date().toLocaleDateString(dateLocale, {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
   });
 
@@ -26,10 +32,11 @@ export function SecNewsHeader({ title = '安全看板', onRefresh, refreshing }:
         <button
           onClick={onRefresh}
           disabled={refreshing}
+          aria-label={t('nav.refresh')}
           className="px-3 py-1.5 text-xs font-mono rounded-[var(--radius-sm)] transition-colors hover:bg-[var(--bg-hover)]"
           style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
         >
-          {refreshing ? '刷新中...' : '刷新'}
+          {refreshing ? t('nav.refreshing') : t('nav.refresh')}
         </button>
       )}
     </header>

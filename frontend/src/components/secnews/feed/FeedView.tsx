@@ -3,12 +3,14 @@
  *
  * 头版头条 (hero) + 分类标签 + 网格卡片 + 关键词搜索。
  * 视觉: 报纸编辑风 — 头版大标题 + 栏线分隔 + 卡片网格。
+ * v0.7 Batch ⑨ B9-1: 接入 i18n (feed.* namespace)
  */
 import { useState, useEffect, useCallback } from 'react';
 import { SecNewsHeader } from '../layout/SecNewsHeader';
 import { DigestCard } from './DigestCard';
 import { FeedCard } from './FeedCard';
 import { FeedFilters } from './FeedFilters';
+import { useI18n } from '../../../contexts/I18nContext';
 
 interface FeedItem {
   id: string;
@@ -21,6 +23,7 @@ interface FeedItem {
 }
 
 export function FeedView() {
+  const { locale, t } = useI18n();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -38,28 +41,28 @@ export function FeedView() {
       params.set('limit', '30');
       const res = await fetch(`/api/secnews/feed?${params}`);
       if (!res.ok) {
-        setError(`资讯加载失败 (${res.status})`);
+        setError(`${t('feed.load_failed_status', { status: res.status })}`);
         return;
       }
       const data = await res.json();
       setItems(data.items ?? []);
       setTotal(data.total ?? 0);
     } catch {
-      setError('资讯加载失败: 网络或后端不可达');
+      setError(t('feed.load_failed_network'));
     } finally {
       setLoading(false);
     }
-  }, [category, keyword]);
+  }, [category, keyword, t]);
 
   useEffect(() => { fetchFeed(); }, [fetchFeed]);
 
-  // 头版头条 = 第一条
   const hero = !category && !keyword && items.length > 0 ? items[0] : null;
   const rest = hero ? items.slice(1) : items;
+  const dateLocale = locale === 'en-US' ? 'en-US' : 'zh-CN';
 
   return (
     <div>
-      <SecNewsHeader title="安全资讯" onRefresh={fetchFeed} refreshing={loading} />
+      <SecNewsHeader title={t('feed.security_news')} onRefresh={fetchFeed} refreshing={loading} />
 
       {/* 官方每日简报 (workbench BriefingView 并入) */}
       <div className="mb-4">
@@ -71,30 +74,31 @@ export function FeedView() {
       {/* 统计行 */}
       <div className="flex items-center justify-between mt-3 mb-2 text-[10px] font-mono"
         style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--text-primary)', paddingBottom: '4px' }}>
-        <span>共 {total.toLocaleString()} 条 · 显示 {items.length} 条</span>
-        <span>{new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</span>
+        <span>{t('feed.total_count', { total: total.toLocaleString(), shown: items.length })}</span>
+        <span>{new Date().toLocaleDateString(dateLocale, { month: 'long', day: 'numeric', weekday: 'long' })}</span>
       </div>
 
       {loading && items.length === 0 && (
-        <div className="text-sm py-12 text-center animate-pulse" style={{ color: 'var(--text-muted)' }}>
-          正在排版…
+        <div className="text-sm py-12 text-center animate-pulse" style={{ color: 'var(--text-muted)' }}
+          role="status" aria-live="polite">
+          {t('feed.laying_out')}
         </div>
       )}
 
       {error && !loading && items.length === 0 && (
         <div className="py-16 text-center">
-          <p className="text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>
+          <p className="text-sm" style={{ color: 'var(--color-error)' }} role="alert">{error}</p>
           <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
-            检查后端服务后点击右上角刷新重试
+            {t('feed.check_backend')}
           </p>
         </div>
       )}
 
       {!error && !loading && items.length === 0 && (
         <div className="py-16 text-center">
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>暂无资讯</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('feed.empty_title')}</p>
           <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
-            调整筛选条件或等待采集管线入库
+            {t('feed.empty_hint')}
           </p>
         </div>
       )}
@@ -103,7 +107,7 @@ export function FeedView() {
       {hero && (
         <div className="mb-4 pb-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
           <div className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--accent)' }}>
-            ◆ 头条
+            {t('feed.headlines')}
           </div>
           <a href={hero.url} target="_blank" rel="noopener noreferrer" className="block group">
             <h2 className="text-xl font-bold leading-tight mb-1.5 group-hover:underline"

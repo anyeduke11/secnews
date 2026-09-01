@@ -464,6 +464,15 @@ class HotspotScheduler:
             name="security entity ↔ knowledge concept sync (every 600s)",
             replace_existing=True,
         )
+        # v0.7 Batch ⑨ B9-2: secrets 主密钥轮换检查 (每日 09:00 Asia/Shanghai)
+        # 调 SecretsService.rotation_status(), 超 90 天阈值则触发告警通道 + audit
+        self.scheduler.add_job(
+            jobs.secrets_rotation_check_job,
+            trigger=CronTrigger(hour=9, minute=0, timezone="Asia/Shanghai"),
+            id="secrets_rotation_check",
+            name="secrets master key rotation check (daily 09:00 Asia/Shanghai)",
+            replace_existing=True,
+        )
 
     def _register_digest_jobs(self, _now_utc: datetime) -> None:
         """简报 / 报告域: 快照 + 周报 + 发布回收 + 每日简报 + 草稿生成。"""

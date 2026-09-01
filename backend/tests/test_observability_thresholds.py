@@ -133,7 +133,10 @@ def test_cooldown_until_default_15min():
 
 def test_alerts_active_lists_recent(temp_db, client):
     conn = get_connection()
-    now_iso = "2026-08-31T12:00:00+00:00"
+    # fired_at 必须落在 /alerts/active 的 recent 窗口内 — 用动态 now 而非硬编码
+    # 日期 (硬编码跨天后超窗, 2026-09-01 起挂过一次)
+    from datetime import datetime, timedelta, timezone
+    now_iso = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
     conn.execute(
         "INSERT INTO observability_alerts "
         "(level, metric, value, threshold, window_minutes, detail, "

@@ -536,9 +536,10 @@ class SecretsService:
     # ------------------------------------------------------------------
     # Secret CRUD
     # ------------------------------------------------------------------
-    def list_secrets(self) -> tuple[list[dict], int]:
+    def list_secrets(self, actor_role: str = "admin") -> tuple[list[dict], int]:
+        """v0.7 Batch ⑨ B9-3: actor_role 过滤 secret 列表."""
         sr = SecretRepository()
-        items, total = sr.list()
+        items, total = sr.list(actor_role=actor_role)
         ek = EncryptionKeyRepository()
         row = ek.get_default()
         is_unlocked = bool(row and _is_unlocked(row.id))

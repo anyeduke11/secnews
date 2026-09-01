@@ -18,6 +18,7 @@ import { AddOrEditForm } from './AddOrEditForm';
 import { SetupModal } from './SetupModal';
 import { UnlockModal } from './UnlockModal';
 import { MasterKeyPromptModal } from './MasterKeyPromptModal';
+import { RotationBanner } from './RotationBanner';
 import type { SecretsPageProps } from './types';
 
 export function SecretsPage({ onBack }: SecretsPageProps) {
@@ -55,6 +56,10 @@ export function SecretsPage({ onBack }: SecretsPageProps) {
 
   return (
     <div className="secrets-page">
+      {/* v0.7 Batch ⑨ B9-2: 主密钥轮换提醒 (年龄 >= remind_days 时显示) */}
+      <div className="mb-3">
+        <RotationBanner />
+      </div>
       {/* 顶部标题区 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
         <div className="flex items-center gap-3">

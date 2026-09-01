@@ -61,6 +61,9 @@ def _row_to_service(row: sqlite3.Row) -> dict:
         "memory_limit": row["memory_limit"],
         "dependencies": _parse_json(row["dependencies"], []),
         "env_vars": _parse_json(row["env_vars"], {}),
+        # migration 060: 扫描发现 'auto' vs 手动创建 'manual' — 此前写端写入但读端
+        # 丢弃, 前端无法区分服务来源
+        "discovery_source": str(row["discovery_source"]) if "discovery_source" in row.keys() and row["discovery_source"] else "manual",
         "created_at": str(row["created_at"]),
         "last_checked_at": row["last_checked_at"],
     }

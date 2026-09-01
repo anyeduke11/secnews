@@ -24,7 +24,13 @@ class SyncHistoryRepository:
         error_message: str | None = None,
         started_at: str,
         finished_at: str,
+        table_conflicts: str | None = None,
     ) -> int:
+        """落一条同步审计。
+
+        table_conflicts: JSON 文本 (migration 016 列, /api/sync history 读端
+        一直在聚合该字段; 此前写端漏传导致冲突明细恒 NULL — 修复补参数)。
+        """
         conn = get_connection()
         try:
             try:
@@ -36,8 +42,9 @@ class SyncHistoryRepository:
                 """
                 INSERT INTO sync_history (
                     config_id, direction, status, records_count,
-                    conflict_count, error_message, started_at, finished_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    conflict_count, error_message, started_at, finished_at,
+                    table_conflicts
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     int(config_id),
@@ -48,6 +55,7 @@ class SyncHistoryRepository:
                     error_message,
                     started_at,
                     finished_at,
+                    table_conflicts,
                 ),
             )
             conn.execute("COMMIT")

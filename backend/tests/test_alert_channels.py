@@ -14,6 +14,7 @@ import hashlib
 import hmac
 from base64 import b64encode
 from collections.abc import Iterator
+from datetime import datetime, timezone
 
 import pytest
 
@@ -224,7 +225,7 @@ async def test_dispatcher_sends_to_webhook(monkeypatch, temp_db):
         threshold=5.0,
         window_minutes=60,
         detail={},
-        fired_at="2026-09-01T00:00:00Z",
+        fired_at=datetime.now(timezone.utc).isoformat(),
     )
     res = await dispatch(payload, alert_id=42)
     assert res["dispatched"] == 1
@@ -267,7 +268,7 @@ async def test_dispatcher_isolates_channel_failures(monkeypatch, temp_db):
 
     payload = AlertPayload(
         metric="x", level="warn", value=1, threshold=0,
-        window_minutes=60, detail={}, fired_at="2026-09-01T00:00:00Z",
+        window_minutes=60, detail={}, fired_at=datetime.now(timezone.utc).isoformat(),
     )
     res = await dispatch(payload, alert_id=99)
     # 两条 channel 都尝试了; 一条失败一条成功
@@ -296,7 +297,7 @@ async def test_dispatcher_skips_unconfigured(temp_db):
 
     payload = AlertPayload(
         metric="x", level="warn", value=1, threshold=0,
-        window_minutes=60, detail={}, fired_at="2026-09-01T00:00:00Z",
+        window_minutes=60, detail={}, fired_at=datetime.now(timezone.utc).isoformat(),
     )
     res = await dispatch(payload, alert_id=1)
     assert res["dispatched"] == 0  # 都没配, 没投递

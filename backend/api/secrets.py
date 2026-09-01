@@ -94,6 +94,7 @@ class CreateSecretRequest(BaseModel):
     provider: str = Field("", max_length=64, description="LLM provider 名 (sensenova / dots.ai / openai / anthropic / ollama / 自定义)")
     api_key: str = Field(..., description="明文 API key, 仅在传输/落库加密时短暂存在")
     master_key: str = Field(..., description="主密钥, 用于加密新条目")
+    owner_role: str = Field("admin", description="归属角色 admin|user (B9-3 ACL)")
 
 
 class UpdateSecretRequest(BaseModel):
@@ -391,6 +392,7 @@ async def create_secret(req: CreateSecretRequest):
             api_key=req.api_key,
             master_key=req.master_key,
             provider=req.provider,
+            owner_role=req.owner_role,
         )
     except Exception as e:
         raise _err_to_http(e)

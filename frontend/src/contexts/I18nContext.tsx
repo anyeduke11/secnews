@@ -266,6 +266,9 @@ const messages_zhCN: Messages = {
   'common.no': '否',
   'common.seconds': '秒',
   'common.minutes': '分钟',
+  // ── rotation banner (B9-2) ──
+  'rotation_banner.title': 'Secrets 主密钥已使用 {age} 天 (>= {remind} 天阈值), 建议轮换以保 LLM 凭据安全',
+  'rotation_banner.howto': '如何轮换 →',
 };
 
 const messages_enUS: Messages = {
@@ -502,6 +505,9 @@ const messages_enUS: Messages = {
   'common.no': 'No',
   'common.seconds': 's',
   'common.minutes': 'min',
+  // ── rotation banner (B9-2) ──
+  'rotation_banner.title': 'Secrets master key is {age} days old (>= {remind}-day threshold); rotate to keep LLM credentials safe',
+  'rotation_banner.howto': 'How to rotate →',
 };
 
 const MESSAGES: Record<Locale, Messages> = {

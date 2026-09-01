@@ -1363,3 +1363,21 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
 - vitest 345 passed
 - generate_meta --check OK
 - check_docstrings.py 0 缺
+
+## v0.7.5 (2026-09-01) — Batch ⑨ i18n 全量 + secrets 主动运维 + ACL + MITRE 离线包
+
+### 新增
+- **B9-1 i18n 全量**: I18nContext 12 namespace / 120+ key + {n} 占位符; 10 高频组件接入 (Shell/Header/StatusBar/Feed×3/Knowledge×2/Pipeline/Settings×3)
+- **B9-2 轮换主动通知**: secrets_rotation_check_job (每日 09:00) 超期 90d → 告警通道全发 + audit + 24h cooldown; 前端 RotationBanner
+- **B9-3 per-secret ACL**: migration 088 llm_secrets.owner_role + role 优先级过滤 (admin>user, fail-closed) + GET /api/secrets?actor_role=
+- **B9-4 MITRE 离线包**: 本地 cache + HEAD Last-Modified 304 增量 + 网络失败兜底 + force 重灌 + GET /api/security/mitre/cache; 省 ~30MB/次
+
+### 修复
+- EncryptionKeyRow dataclass 缺 last_rotated_at 字段 (migration 085 schema/dataclass 漂移, rotation_status 潜在 AttributeError)
+- secrets_rotation_check_job 漏登 jobs/__init__.py → e2e fixture 级联 28 errors
+- test_alerts_active_lists_recent 硬编码 fired_at 跨天超窗 → 动态 now-5min
+
+### 门禁
+- pytest 3250 passed / 6 skipped / 0 failed
+- vitest 346 passed / tsc 0 错 / vite build OK
+- generate_meta --check OK (jobs 51 / routers 67 / services 105)

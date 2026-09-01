@@ -154,3 +154,8 @@ export const ExtractPage = React.lazy(() =>
 export const UnifiedSearchPage = React.lazy(() =>
   import('../components/search/UnifiedSearchPage').then(m => ({ default: m.UnifiedSearchPage }))
 );
+
+// D1 (Batch ⑧): OAuth 授权回调页 — OAuth 解锁跳转回此页处理 code
+export const OAuthCallbackPage = React.lazy(() =>
+  import('./oauth-callback').then(m => ({ default: m.OAuthCallbackPage }))
+);

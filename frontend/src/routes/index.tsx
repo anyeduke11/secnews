@@ -128,6 +128,9 @@ export function AppRoutes() {
         <Route path="/extract" element={<Suspense fallback={<PageFallback />}><P.ExtractPage onBack={goHome} /></Suspense>} />
         <Route path="/search" element={<Suspense fallback={<PageFallback />}><P.UnifiedSearchPage onBack={goHome} /></Suspense>} />
 
+        {/* D1 (Batch ⑧): OAuth 授权回调页 (无 PageLayout, 全屏显示状态) */}
+        <Route path="/oauth-callback" element={<Suspense fallback={<PageFallback />}><P.OAuthCallbackPage /></Suspense>} />
+
         {/* v0.7.1: 未匹配路径回落到哨兵首页 (扩展关闭时旧深链不白屏) */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

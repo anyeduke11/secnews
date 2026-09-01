@@ -183,11 +183,11 @@ def record_feedback(
 
 __all__ = [
     "SIGNAL_DEEP_READ",
+    "SIGNAL_DISLIKE",
     "SIGNAL_FAVORITE",
+    "SIGNAL_LIKE",
     "SIGNAL_READ",
     "SIGNAL_REVIEW_GOOD",
-    "SIGNAL_LIKE",
-    "SIGNAL_DISLIKE",
     "SIGNAL_SKIP",
     "WEIGHT_MAX",
     "WEIGHT_MIN",

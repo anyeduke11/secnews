@@ -100,7 +100,7 @@ class DSHSessionBridge:
             for f in sorted(self._session_dir.glob("*.jsonl"), reverse=True):
                 if not f.is_file():
                     continue
-                with open(f, "r", encoding="utf-8") as fh:
+                with open(f, encoding="utf-8") as fh:
                     for line in fh:
                         line = line.strip()
                         if not line:

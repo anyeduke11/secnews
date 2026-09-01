@@ -7,13 +7,14 @@
 from __future__ import annotations
 
 import json
+
 import pytest
 
 from backend.config import config
 from backend.repository import db
 from backend.repository.feedback_repo import FeedbackRepository
 from backend.services.feedback_analyzer import FeedbackAnalyzer
-from backend.services.user_memory_service import UserMemoryService, user_memory_service
+from backend.services.user_memory_service import UserMemoryService
 
 
 @pytest.fixture

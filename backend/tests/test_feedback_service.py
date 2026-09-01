@@ -13,8 +13,8 @@ import pytest
 from backend.config import config
 from backend.repository import db
 from backend.repository.feedback_repo import FeedbackRepository
-from backend.services.feedback_service import FeedbackService
 from backend.services import profile_service
+from backend.services.feedback_service import FeedbackService
 
 
 @pytest.fixture

@@ -11,11 +11,14 @@
 """
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from backend.repository.db import get_connection
 from backend.repository.feedback_repo import FeedbackRepository
 from backend.services import profile_service
+
+logger = logging.getLogger(__name__)
 
 # v0.7 Batch ⑤: dsh session 桥接 (可选, 不阻塞主路径)
 try:

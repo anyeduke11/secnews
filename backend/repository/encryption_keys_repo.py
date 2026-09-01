@@ -25,11 +25,13 @@ class EncryptionKeyRow:
     iterations: int
     verify_blob: bytes
     created_at: str
+    role: str = "admin"
 
     def to_dict(self) -> dict:
         return {
             "id": self.id,
             "name": self.name,
+            "role": self.role,
             "iterations": self.iterations,
             "created_at": self.created_at,
         }
@@ -47,6 +49,7 @@ def _row(row: sqlite3.Row) -> EncryptionKeyRow:
         iterations=int(row["iterations"]),
         verify_blob=row["verify_blob"],
         created_at=str(row["created_at"]),
+        role=str(row["role"]) if "role" in row else "admin",
     )
 
 
@@ -80,11 +83,57 @@ class EncryptionKeyRepository:
         ).fetchone()
         return _row(row) if row else None
 
+    def get_by_role(self, role: str) -> EncryptionKeyRow | None:
+        """T4: 按 role 取 key (admin|user)."""
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT * FROM encryption_keys WHERE role = ? LIMIT 1",
+            (role,),
+        ).fetchone()
+        return _row(row) if row else None
+
+    def setup_user_key(self, *, name: str, master_key: str, role: str = "user") -> EncryptionKeyRow:
+        """T4: 创建 user 级主密钥 (允许同一 role 多行, name 唯一)."""
+        if not master_key or len(master_key) < 8:
+            raise InternalException("主密钥长度必须 >= 8 字符")
+        salt = generate_salt()
+        iterations = DEFAULT_ITERATIONS
+        verify_blob = make_verify_blob(master_key, salt, iterations)
+        conn = get_connection()
+        now = _now_iso()
+        try:
+            conn.execute("BEGIN")
+            cur = conn.execute(
+                """
+                INSERT INTO encryption_keys (name, salt, iterations, verify_blob, created_at, role)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (name, salt, iterations, verify_blob, now, role),
+            )
+            conn.execute("COMMIT")
+        except Exception as e:
+            try:
+                conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            logger.error("user_key setup failed", extra={"err": str(e)})
+            raise InternalException(f"setup user_key failed: {e}") from e
+        new_id = int(cur.lastrowid)
+        return EncryptionKeyRow(
+            id=new_id,
+            name=name,
+            salt=salt,
+            iterations=iterations,
+            verify_blob=verify_blob,
+            created_at=now,
+            role=role,
+        )
+
     # ------------------------------------------------------------------
-    def setup_default(self, *, master_key: str) -> EncryptionKeyRow:
+    def setup_default(self, *, master_key: str, role: str = "admin") -> EncryptionKeyRow:
         """初始化主密钥 (全 DB 仅 1 次, 第二次调用抛错, 禁止重置)。
 
-        Phase 41 决策: Q1 禁止重置 — 重复调用直接抛 InternalException。
+        T4: role 列支持 admin|user 分级。
         """
         if self.is_setup():
             raise InternalException(
@@ -92,6 +141,8 @@ class EncryptionKeyRepository:
             )
         if not master_key or len(master_key) < 8:
             raise InternalException("主密钥长度必须 >= 8 字符")
+        if role not in ("admin", "user"):
+            raise InternalException("role 必须为 admin 或 user")
         salt = generate_salt()
         iterations = DEFAULT_ITERATIONS
         verify_blob = make_verify_blob(master_key, salt, iterations)
@@ -102,10 +153,10 @@ class EncryptionKeyRepository:
             conn.execute("BEGIN")
             cur = conn.execute(
                 """
-                INSERT INTO encryption_keys (name, salt, iterations, verify_blob, created_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO encryption_keys (name, salt, iterations, verify_blob, created_at, role)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (self.DEFAULT_NAME, salt, iterations, verify_blob, now),
+                (self.DEFAULT_NAME, salt, iterations, verify_blob, now, role),
             )
             conn.execute("COMMIT")
         except Exception as e:
@@ -124,6 +175,7 @@ class EncryptionKeyRepository:
             iterations=iterations,
             verify_blob=verify_blob,
             created_at=now,
+            role=role,
         )
 
     # ------------------------------------------------------------------

@@ -24,6 +24,7 @@ export interface UseSecretsReturn {
   refreshList: () => Promise<void>;
   setupMasterKey: (masterKey: string) => Promise<void>;
   unlock: (masterKey: string) => Promise<SecretUnlockResponse>;
+  unlockWithOAuth: (token: string, role?: string) => Promise<SecretUnlockResponse>;
   lock: () => Promise<void>;
   add: (req: SecretCreateRequest) => Promise<SecretItem>;
   update: (id: number, req: SecretUpdateRequest) => Promise<SecretItem>;
@@ -32,6 +33,15 @@ export interface UseSecretsReturn {
   testConnection: (id: number) => Promise<SecretTestResponse>;
   exportSecrets: (masterKey: string) => Promise<Blob>;
   importSecrets: (file: File, masterKey: string) => Promise<SecretImportResponse>;
+  getOAuthConfig: () => Promise<OAuthConfigResponse>;
+}
+
+export interface OAuthConfigResponse {
+  enabled: boolean;
+  client_id: string;
+  redirect_uri: string;
+  authorize_url: string;
+  scope: string;
 }
 
 /**
@@ -226,6 +236,29 @@ export function useSecrets(): UseSecretsReturn {
     []
   );
 
+  // D1 (Batch ⑧): OAuth 解锁 — 前端 OAuth 授权后拿 access_token 调此接口
+  const getOAuthConfig = useCallback(async (): Promise<OAuthConfigResponse> => {
+    return apiFetch<OAuthConfigResponse>('/api/secrets/oauth-config', {
+      method: 'GET',
+    });
+  }, []);
+
+  const unlockWithOAuth = useCallback(
+    async (token: string, role: string = 'admin'): Promise<SecretUnlockResponse> => {
+      const data = await apiFetch<SecretUnlockResponse>(
+        '/api/secrets/unlock-with-oauth',
+        {
+          method: 'POST',
+          body: JSON.stringify({ token, role }),
+        }
+      );
+      await refreshStatus();
+      await refreshList();
+      return data;
+    },
+    [refreshStatus, refreshList]
+  );
+
   return {
     status,
     items,
@@ -244,5 +277,7 @@ export function useSecrets(): UseSecretsReturn {
     testConnection,
     exportSecrets,
     importSecrets,
+    getOAuthConfig,
+    unlockWithOAuth,
   };
 }

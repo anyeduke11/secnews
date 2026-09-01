@@ -23,11 +23,6 @@ from backend.services.wiki_stats_service import (
     knowledge_stats_from_db,
     liveness_from_md_cached,
 )
-from backend.services.wiki_stats_service import (
-    funnel_from_db,
-    knowledge_stats_from_db,
-    liveness_from_md_cached,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -278,7 +273,7 @@ class SecNewsDashboard:
             "date": today,
         }
 
-    def get_feed(
+    def get_feed(  # noqa: F811 — intentional override with profile_boost param
         self,
         category: str = "",
         keyword: str = "",

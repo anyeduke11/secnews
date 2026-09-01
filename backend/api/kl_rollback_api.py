@@ -1,3 +1,8 @@
+"""v0.5+: KL (Knowledge Lifecycle) 回滚 API.
+
+提供 /api/kl/rollback 端点, 调用 T5PublishToRefine trigger 把 KL 状态从
+PUBLISHED 回滚到 REFINING (用于 Batch ⑦ T5 假象兜底).
+"""
 from fastapi import APIRouter, HTTPException
 
 from backend.services.triggers.t5_publish_to_refine import T5Trigger

@@ -28,6 +28,7 @@ from starlette.types import ASGIApp
 
 from backend.observability import log_event, reset_trace_id, set_trace_id
 from backend.observability_records import record_api_call
+from backend.services.observability_sampling import should_record_api_event
 
 # Header that clients can pass to participate in distributed tracing
 TRACE_HEADER = "X-Trace-Id"
@@ -81,16 +82,18 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
                 error=type(e).__name__,
             )
             # v0.7 Batch ③: 异常路径同样落表 (status=500, error=异常名).
+            # v0.7 Batch ⑧ D4: 5xx 默认 error_rate_pct=100% (保 error_rate 精度);
             # 双层防御 (与正常路径一致): 外层再 swallow, 不阻塞 raise.
             try:
-                record_api_call(
-                    trace_id=trace_id,
-                    method=request.method,
-                    path_template=path_template,
-                    status=500,
-                    duration_ms=round(duration_ms, 2),
-                    error=f"{type(e).__name__}: {e}",
-                )
+                if should_record_api_event(status=500, duration_ms=duration_ms):
+                    record_api_call(
+                        trace_id=trace_id,
+                        method=request.method,
+                        path_template=path_template,
+                        status=500,
+                        duration_ms=round(duration_ms, 2),
+                        error=f"{type(e).__name__}: {e}",
+                    )
             except Exception as _obs_e:
                 log_event("api_observability_swallowed", level="debug",
                           trace_id=trace_id, error=str(_obs_e))
@@ -109,16 +112,21 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
             trace_id=trace_id,
         )
         # v0.7 Batch ③: 正常路径落表 (status=response.status_code).
+        # v0.7 Batch ⑧ D4: 成功路径按 success_rate_pct 采样 (默认 10%),
+        # 慢请求 (>= slow_threshold_ms) 按 slow_rate_pct (默认 100%) 保留;
         # 双层防御: record_api_call 内部 try/except 已 swallow; 此处外层
         # 再包一道确保任何诡异路径 (例如被 monkey-patch 抛异常) 都不阻塞响应.
         try:
-            record_api_call(
-                trace_id=trace_id,
-                method=request.method,
-                path_template=path_template,
-                status=response.status_code,
-                duration_ms=round(duration_ms, 2),
-            )
+            if should_record_api_event(
+                status=response.status_code, duration_ms=duration_ms
+            ):
+                record_api_call(
+                    trace_id=trace_id,
+                    method=request.method,
+                    path_template=path_template,
+                    status=response.status_code,
+                    duration_ms=round(duration_ms, 2),
+                )
         except Exception as _obs_e:
             log_event("api_observability_swallowed", level="debug",
                       trace_id=trace_id, error=str(_obs_e))

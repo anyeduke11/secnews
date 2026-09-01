@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,9 +18,10 @@ def _cache_dir(monkeypatch, tmp_path):
 
 def test_cache_dir_default():
     """未设 env 时走 backend/data/mitre/."""
-    from backend.security import mitre_attack
     # 清 env
     import os
+
+    from backend.security import mitre_attack
     old = os.environ.pop("MITRE_CACHE_DIR", None)
     try:
         d = mitre_attack.cache_dir()

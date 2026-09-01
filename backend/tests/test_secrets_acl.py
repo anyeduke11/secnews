@@ -7,9 +7,10 @@ import pytest
 @pytest.fixture
 def _seed_secrets(temp_db):
     """建 encryption_key + 2 个不同 owner_role 的 secret (SQL 直插, 绕过 master_key 解密路径)."""
-    from backend.repository.encryption_keys_repo import EncryptionKeyRepository
-    from backend.repository.db import get_connection
     from datetime import datetime, timezone
+
+    from backend.repository.db import get_connection
+    from backend.repository.encryption_keys_repo import EncryptionKeyRepository
 
     ek = EncryptionKeyRepository()
     ek.setup_default(master_key="test-master-key-12345678", role="admin")

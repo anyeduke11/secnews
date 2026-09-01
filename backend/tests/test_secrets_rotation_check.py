@@ -1,7 +1,7 @@
 """v0.7 Batch ⑨ B9-2: secrets 主密钥轮换检查 job + audit + cooldown tests."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -11,9 +11,10 @@ from backend.repository.db import get_connection
 @pytest.fixture
 def _setup_master_key(temp_db):
     """临时 db 上创建主密钥, last_rotated_at 设为 100 天前 → should_rotate=True."""
-    from backend.repository.encryption_keys_repo import EncryptionKeyRepository
     from datetime import datetime, timedelta, timezone
+
     from backend.repository.db import get_connection
+    from backend.repository.encryption_keys_repo import EncryptionKeyRepository
 
     ek = EncryptionKeyRepository()
     ek.setup_default(master_key="test-master-key-12345678", role="admin")
@@ -41,8 +42,8 @@ async def test_rotation_check_job_skips_when_no_setup(temp_db, monkeypatch):
 @pytest.mark.asyncio
 async def test_rotation_check_job_dispatches_and_audits(temp_db, _setup_master_key, monkeypatch):
     """已设主密钥 + age >= 阈值 → 调 dispatch + 落 audit + 写 cooldown settings."""
-    from backend.scheduler.jobs.security import secrets_rotation_check_job
     from backend.repository.settings_repo import SettingsRepository
+    from backend.scheduler.jobs.security import secrets_rotation_check_job
 
     # mock dispatch 避免真发通道
     captured: dict = {}
@@ -78,8 +79,9 @@ async def test_rotation_check_job_dispatches_and_audits(temp_db, _setup_master_k
 async def test_rotation_check_job_cooldown_blocks_resend(temp_db, _setup_master_key, monkeypatch):
     """同一天已通知 → 跳过 dispatch."""
     from datetime import datetime, timezone
-    from backend.scheduler.jobs.security import secrets_rotation_check_job
+
     from backend.repository.settings_repo import SettingsRepository
+    from backend.scheduler.jobs.security import secrets_rotation_check_job
 
     today = datetime.now(timezone.utc).date().isoformat()
     SettingsRepository().set("secrets.rotation.last_notified_at", today)
@@ -107,9 +109,10 @@ async def test_rotation_check_job_should_rotate_false(temp_db, _setup_master_key
     monkeypatch.setattr("backend.services.alert_dispatcher.dispatch", fake_dispatch)
     # 强制 SecretsService 走我们 mock path — 但本测试用 _setup_master_key fixture 已建老 key
     # 改 age < 90 通过改 last_rotated_at
-    from backend.repository.encryption_keys_repo import EncryptionKeyRepository
     from datetime import datetime, timedelta, timezone
+
     from backend.repository.db import get_connection
+    from backend.repository.encryption_keys_repo import EncryptionKeyRepository
     new = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
     EncryptionKeyRepository()  # ensure import
     get_connection().execute(

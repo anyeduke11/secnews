@@ -29,6 +29,7 @@ class SecretItem:
     encryption_key_id: int
     created_at: str
     updated_at: str
+    owner_role: str = "admin"  # v0.7 Batch ⑨ B9-3: per-secret 权限位
 
     def to_dict(self, *, reveal: str | None = None) -> dict:
         """默认隐藏 api_key; reveal 明文 (已 unlock 时) 才填。"""
@@ -43,6 +44,7 @@ class SecretItem:
             "encryption_key_id": self.encryption_key_id,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "owner_role": self.owner_role,
         }
 
 
@@ -61,23 +63,43 @@ def _row(row: sqlite3.Row) -> SecretItem:
         encryption_key_id=int(row["encryption_key_id"]),
         created_at=str(row["created_at"]),
         updated_at=str(row["updated_at"]),
+        owner_role=str(row["owner_role"]) if "owner_role" in row.keys() and row["owner_role"] else "admin",
     )
 
 
+# v0.7 Batch ⑨ B9-3: role 优先级 (高 → 低). actor_role >= owner_role 才能访问.
+# admin 能看 admin + user 全部; user 只能看 user 自己的.
+_ROLE_RANK = {"admin": 2, "user": 1}
+
+
+def _role_can_access(actor_role: str, owner_role: str) -> bool:
+    return _ROLE_RANK.get(actor_role, 0) >= _ROLE_RANK.get(owner_role, 0)
+
+
 class SecretRepository:
-    def list(self) -> tuple[list[SecretItem], int]:
+    def list(self, actor_role: str = "admin") -> tuple[list[SecretItem], int]:
+        """B9-3: actor_role 过滤. user 仅看 user-owned, admin 看全部."""
         conn = get_connection()
         rows = conn.execute(
             "SELECT * FROM llm_secrets ORDER BY created_at DESC"
         ).fetchall()
-        return [_row(r) for r in rows], len(rows)
+        items = [
+            _row(r) for r in rows
+            if _role_can_access(actor_role, str(r["owner_role"]) if r["owner_role"] else "admin")
+        ]
+        return items, len(items)
 
-    def get(self, secret_id: int) -> SecretItem | None:
+    def get(self, secret_id: int, actor_role: str = "admin") -> SecretItem | None:
+        """B9-3: 跨 role get 返 None (404 语义), 不抛异常 (避免暴露存在性)."""
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM llm_secrets WHERE id = ?", (int(secret_id),)
         ).fetchone()
-        return _row(row) if row else None
+        if not row:
+            return None
+        if not _role_can_access(actor_role, str(row["owner_role"]) if row["owner_role"] else "admin"):
+            return None
+        return _row(row)
 
     def get_by_provider(self, provider: str) -> SecretItem | None:
         """按 provider 拿一条 secret（多条时取 updated_at 最新）。

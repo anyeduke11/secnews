@@ -426,4 +426,90 @@ def get_deliveries(limit: int = Query(50, ge=1, le=500)):
     }
 
 
+# ── v0.7 Batch ⑧ D4: api_events 采样降级配置 ───────────────────────────
+
+
+@router.get("/sampling")
+def get_sampling():
+    """当前生效的采样配置 (success / error / slow 三档保留率).
+
+    失败/缺失走 DEFAULT_SAMPLING 兜底; 与 thresholds 同款 load 模式.
+    """
+    from backend.services.observability_sampling import (
+        DEFAULT_SAMPLING,
+        effective_sampling,
+    )
+
+    try:
+        cfg = effective_sampling()
+    except Exception:
+        cfg = None
+    return {
+        "sampling": (
+            {
+                "success_rate_pct": cfg.success_rate_pct,
+                "error_rate_pct": cfg.error_rate_pct,
+                "slow_threshold_ms": cfg.slow_threshold_ms,
+                "slow_rate_pct": cfg.slow_rate_pct,
+            }
+            if cfg is not None
+            else DEFAULT_SAMPLING
+        ),
+        "defaults": DEFAULT_SAMPLING,
+        "as_of": _now_iso(),
+    }
+
+
+@router.put("/sampling")
+def put_sampling(body: dict):
+    """覆盖式更新采样配置 — 校验 → 写 settings.kv → 落 audit_log.
+
+    body.sampling 必填, 含 success_rate_pct / error_rate_pct /
+    slow_threshold_ms / slow_rate_pct; 不增量 merge — 全量替换语义清晰.
+    校验失败 400; env 覆盖 (HOTSPOT_API_SAMPLING_*) 优先于 settings.kv,
+    但这里写 settings.kv 后 env 仍生效 (运维优先).
+    """
+    from fastapi import HTTPException
+
+    from backend.observability_records import record_audit
+    from backend.services.observability_sampling import (
+        DEFAULT_SAMPLING,
+        SamplingConfig,
+        save_sampling,
+    )
+
+    if not isinstance(body, dict) or "sampling" not in body:
+        raise HTTPException(status_code=400, detail="body.sampling must be a dict")
+    raw = body["sampling"]
+    if not isinstance(raw, dict):
+        raise HTTPException(status_code=400, detail="sampling must be a dict")
+    try:
+        cfg = SamplingConfig.from_dict({**DEFAULT_SAMPLING, **raw})
+    except (TypeError, ValueError) as ve:
+        raise HTTPException(status_code=400, detail=str(ve)) from ve
+    save_sampling(cfg)
+    try:
+        record_audit(
+            "web",
+            action="observability.sampling.update",
+            target="observability.api_sampling",
+            detail=(
+                f"success={cfg.success_rate_pct}% "
+                f"error={cfg.error_rate_pct}% "
+                f"slow={cfg.slow_rate_pct}%@{cfg.slow_threshold_ms}ms"
+            ),
+        )
+    except Exception:
+        pass
+    return {
+        "ok": True,
+        "sampling": {
+            "success_rate_pct": cfg.success_rate_pct,
+            "error_rate_pct": cfg.error_rate_pct,
+            "slow_threshold_ms": cfg.slow_threshold_ms,
+            "slow_rate_pct": cfg.slow_rate_pct,
+        },
+    }
+
+
 __all__ = ["router"]

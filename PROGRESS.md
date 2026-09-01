@@ -523,3 +523,36 @@ tsc 0 错；vitest 43 文件 310 passed；vite build 过。
 - [x] pytest 全量 (T1-T4 增量 tests 通过, 无回归)
 - [x] tsc --noEmit 0 错
 - [x] generate_meta --check OK (routers/services/jobs 不变)
+
+---
+
+## 2026-09-01 v0.7 Batch ⑧ — 观测深化 + 扩展开闸 + i18n + 历史债清偿 (本批)
+
+> **来源**: 兑现 Batch ⑦ 仍开放尾巴 (phase2b / tech_stack / security_graph + 前端 i18n) + 观测/告警/Sampling 收尾。
+> **范围**: ① D1 OAuth 真身 (前置修复 Batch ⑦ T5 假象) ② D2 告警通道 5 档 (webhook/email/slack/飞书/钉钉) ③ D3 SSE 接入观测面板 ④ D4 api_events 采样降级 ⑤ D5 扩展域开闸 ⑥ D6 前端 i18n + a11y ⑦ D7 历史债清偿 (架构数字 + docstring 强制 + Mimosa CI 软接入) ⑧ D8 merge + tag v0.7.4-cleanup。
+
+### 关键事实 (Batch ⑧)
+
+- **D1 OAuth**: `services/oauth_provider.py` CloudBase 真身 + 13 例 URL 校验测试 (http/localhost/10.x/169.254 全拒), `secrets_service.unlock_with_oauth()` 双因素语义 (OAuth = 身份, master_key = 密钥), 前端 `routes/oauth-callback.tsx` + `UnlockModal` OAuth 按钮。
+- **D2 告警 5 档**: `services/alert_channels.py` (ABC + Webhook/Email/Slack/Feishu/Dingtalk), 飞书 HMAC-SHA256 timestamp\nsecret base64; 钉钉 HMAC-SHA256 ms + base64 url-encoded; 共享 `_validate_url` (https + 拒环回/私有/链路本地/多播/保留); `services/alert_dispatcher.py` asyncio.gather 并发 + alert_deliveries 表落审计; migration 087。
+- **D3 SSE**: backend `scheduler/jobs/maintenance.py` 阈值 breach + aggregator 完成时 `publish_event`; frontend `ObservabilityDashboard` EventSource + polling 兜底。
+- **D4 采样**: `services/observability_sampling.py` 3 档 (success 10% / error 100% / slow 100%) + env 覆盖 (HOTSPOT_API_SAMPLING_*); `GET/PUT /api/observability/sampling` 端点; middleware 写前 `should_record_api_event` 判定; conftest autouse 强制测试环境 100% 锁住语义。
+- **D5 扩展开闸**: feature_gates.toml 三闸门 true; `_registry.py` 把 codegarden_ops 从 codegarden gate 拆出独立 codegarden_phase2b; codegarden_phase14 (drift + cve/sync) 跟随 phase2b; 修复"job 不跑但端点 200"脏状态。
+- **D6 i18n**: 0 依赖 `contexts/I18nContext.tsx` (zh-CN / en-US) + `components/LocaleToggle.tsx`; `ObservabilityDashboard` 接入 12 处翻译 + a11y (role="alert" / role="status" aria-live / aria-label 段)。
+- **D7 历史债**: `scripts/check_docstrings.py` (237 模块全有 docstring) + 补 kl_rollback_api 历史债; CI 加 Mimosa best-effort step (continue-on-error, 不阻断); CI 加 docstring 强制 step; 架构数字 101→105 services, ARCHITECTURE.md + AGENTS.md 同步。
+
+### 仍开放 (Batch ⑧ 范围, 不在本批)
+
+- 内容源 100+ 字符串后再评估接 react-i18next
+- 完整 MITRE ATT&CK 离线包 + 自动更新 (当前 mitre_sync 走云端)
+- secrets 自动过期主动通知 (当前仅 API 可查)
+- 主密钥分级 → 多用户细粒度 ACL
+
+### 门禁 (Batch ⑧ 全量)
+
+- [x] ruff backend 0 错
+- [x] pytest 全量 (3234 passed / 6 skipped / 0 failed)
+- [x] tsc --noEmit 0 错
+- [x] vitest 全量 (345 passed)
+- [x] generate_meta --check OK (routers 67 / services 105)
+- [x] check_docstrings.py 0 缺 (237/237)

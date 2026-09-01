@@ -95,8 +95,23 @@ jobs:
       - name: Metadata consistency check
         run: python scripts/generate_meta.py --check
 
+      - name: Mimosa security scan (best-effort; scanner_no_output 不阻断, 兼容策略见 memory)
+        # v0.7 Batch ⑧ D7: CI 引入 mimosa 但不强制 — 本地已知 scanner_no_output 误报;
+        # 改为可选 + 永不失败 (|| true) + 输出 artifact 供 review
+        run: |
+          if command -v mimosa >/dev/null 2>&1; then
+            mimosa scan --depth=shallow --output=json . > mimosa-scan.json 2> mimosa-scan.err || true
+            echo "Mimosa scan complete (see mimosa-scan.{json,err})"
+          else
+            echo "::notice::Mimosa not installed in this runner, skipping (local-only check)"
+          fi
+        continue-on-error: true
+
       - name: Agent assets lint (agent-assets-review; errors 非零 → job 失败, warnings 保留 reviewer 备注)
         run: python scripts/harness_analyze.py --check
+
+      - name: Docstring mandatory check (v0.7 Batch ⑧ D7)
+        run: python scripts/check_docstrings.py
 
       - name: llm-wiki-2.0 graph schema check (M3.5 Task13)
         run: python scripts/check_graph_schema.py

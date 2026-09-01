@@ -525,6 +525,16 @@ async def observability_aggregator_job() -> None:
             )
             n += 1
         _logger.info(f"observability_aggregator_job: upserted={n} buckets (since {cutoff})")
+        # D3 (Batch ⑧): SSE 推送到前端, 替代 polling
+        try:
+            from backend.api.events import publish_event
+
+            await publish_event(
+                "observability.update",
+                {"source": "aggregator", "buckets": n, "since": cutoff},
+            )
+        except Exception as e:
+            _logger.debug(f"publish_event aggregator failed: {e}")
     except Exception as e:
         _logger.error(f"observability_aggregator_job crashed: {e}")
         raise
@@ -650,6 +660,23 @@ async def observability_threshold_check_job() -> None:
                 dispatch_tasks.append(dispatch(payload, alert_id=alert_rowid))
             except Exception as e:
                 _logger.debug(f"alert dispatch schedule failed: {e}")
+
+            # D3 (Batch ⑧): SSE 推送 breach, 前端可立即高亮 (替代 polling 5s 延迟)
+            try:
+                from backend.api.events import publish_event
+
+                await publish_event(
+                    "observability.breach",
+                    {
+                        "alert_id": alert_rowid,
+                        "level": breach.level,
+                        "metric": breach.metric,
+                        "value": breach.value,
+                        "threshold": breach.threshold,
+                    },
+                )
+            except Exception as e:
+                _logger.debug(f"publish_event breach failed: {e}")
 
         # D2: 集中 await 所有本轮创建的 dispatch tasks (并发执行, 失败 swallow)
         for t in dispatch_tasks:

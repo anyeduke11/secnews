@@ -47,6 +47,9 @@ export function ObservabilityDashboard() {
 
   useEffect(() => {
     let cancelled = false;
+    let sse: EventSource | null = null;
+    let timer: number | undefined;
+
     const refresh = async () => {
       try {
         const [sRes, rRes] = await Promise.all([
@@ -66,9 +69,39 @@ export function ObservabilityDashboard() {
         if (!cancelled) setLoading(false);
       }
     };
+
     refresh();
-    const timer = window.setInterval(refresh, REFRESH_MS);
-    return () => { cancelled = true; window.clearInterval(timer); };
+
+    // D3 (Batch ⑧): SSE 接入 — 收到 "observability.update" / "observability.breach" 即刷新
+    // polling 降级为兜底 (SSE 断开时仍能拿到最新数据)
+    try {
+      sse = new EventSource('/api/events');
+      sse.onmessage = (ev) => {
+        try {
+          const payload = JSON.parse(ev.data);
+          if (payload?.type === 'observability.update' || payload?.type === 'observability.breach') {
+            void refresh();
+          }
+        } catch {
+          // 忽略解析错误
+        }
+      };
+      sse.onerror = () => {
+        // SSE 断开, polling 兜底 (浏览器会自动重连, 但这里额外 timer 防失效)
+        if (!cancelled && timer === undefined) {
+          timer = window.setInterval(refresh, REFRESH_MS);
+        }
+      };
+    } catch {
+      // EventSource 不可用 (老浏览器) → 仅 polling
+      timer = window.setInterval(refresh, REFRESH_MS);
+    }
+
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearInterval(timer);
+      if (sse) sse.close();
+    };
   }, []);
 
   if (loading) {

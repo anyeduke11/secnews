@@ -32,6 +32,9 @@ class ModelTier(str, Enum):
     STANDARD = "standard"    # 标准分析: evaluate / compare / score / ner
     HEAVY = "heavy"          # 重分析: deep_read / assess / compliance / report
     EMBED = "embed"          # 向量: embed / rerank (P3+)
+    # v0.7.4-image: 图片档 (image_generation / image_understand)
+    # 走 sensenova-u1.5-lite, 公测期 watermark=false 免费
+    IMAGE = "image"
 
 
 # 任务类型 → 档位映射 (与 dsh-SecNews cap registry 对齐)
@@ -55,6 +58,9 @@ TASK_TIER_MAP: dict[str, ModelTier] = {
     "assess": ModelTier.HEAVY,
     "compliance": ModelTier.HEAVY,
     "report": ModelTier.HEAVY,
+    # v0.7.4-image: 图片档 — image_generation (文生图) + image_understand (多模态)
+    "image_generation": ModelTier.IMAGE,
+    "image_understand": ModelTier.IMAGE,
 }
 
 
@@ -65,6 +71,8 @@ TIER_TO_OVERRIDE_KEY: dict[ModelTier, str] = {
     ModelTier.STANDARD: "t1_score",
     ModelTier.HEAVY: "t3_summary",
     ModelTier.EMBED: "t3_chunk_summary",
+    # v0.7.4-image: image 档对应 task_overrides.image_generation 节点
+    ModelTier.IMAGE: "image_generation",
 }
 
 
@@ -74,6 +82,8 @@ TIER_TO_MODEL_ATTR: dict[ModelTier, str] = {
     ModelTier.STANDARD: "score",
     ModelTier.HEAVY: "summary",
     ModelTier.EMBED: "summary",
+    # v0.7.4-image: image 档走 ProviderModels.image 字段
+    ModelTier.IMAGE: "image",
 }
 
 
@@ -179,6 +189,8 @@ def _fallback(tier: ModelTier) -> tuple[str, str]:
         ModelTier.STANDARD: ("openai", "gpt-4o-mini"),
         ModelTier.HEAVY: ("openai", "gpt-4o"),
         ModelTier.EMBED: ("ollama", "nomic-embed-text"),
+        # v0.7.4-image: yaml 不可用时 image 档走 sensenova-u1.5-lite
+        ModelTier.IMAGE: ("sensenova", "sensenova-u1.5-lite"),
     }
     return defaults.get(tier, ("openai", ""))
 

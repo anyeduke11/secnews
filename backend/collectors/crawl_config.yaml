@@ -3,7 +3,7 @@
 # 代理从 proxy_config.json 统一注入，不在此硬编码
 
 crawl4ai:
-  enabled: false  # 默认关闭，需用户手动安装 crawl4ai + playwright 后开启
+  enabled: true  # gateway 方案 §3.1: 生产默认开启 (测试环境经 conftest 指向 disabled yaml 隔离)
   browser: chromium  # chromium | firefox | webkit
   headless: true
   timeout_seconds: 30

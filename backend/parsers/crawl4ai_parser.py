@@ -1,6 +1,8 @@
-"""Crawl4ai + Playwright 统一代理包装器.
+"""Crawl4ai 详情页抓取包装器.
 
 Phase 16 — Crawl4ai 高阶抓取集成。
+gateway 方案 §3.1 改② — 复用 utils/crawl4ai_client 进程级单例,
+不再每次抓取新建浏览器实例。
 """
 from __future__ import annotations
 
@@ -74,27 +76,37 @@ class Crawl4aiParser:
             return CrawlResult(url=url, success=False, error=str(e))
 
     async def _crawl_with_crawl4ai(self, url: str) -> CrawlResult:
-        """实际调用 Crawl4ai 进行抓取（延迟导入，避免可选依赖报错）。"""
-        # 延迟导入 crawl4ai
-        from crawl4ai import AsyncWebCrawler
-        from crawl4ai.async_configs import BrowserConfig, CrawlerRunConfig
+        """实际调用 Crawl4ai 进行抓取（延迟导入，避免可选依赖报错）。
 
-        proxy = self._proxy_pool.get_next()
-        browser_cfg = BrowserConfig(
-            browser_type=self._config["crawl4ai"].get("browser", "chromium"),
-            headless=self._config["crawl4ai"].get("headless", True),
-            proxy=proxy if proxy else None,
-        )
+        gateway 方案 §3.1 改②: 复用 ``utils/crawl4ai_client.get_client()``
+        进程级单例, 删除每次 ``async with AsyncWebCrawler()`` 新建浏览器
+        (Playwright 启动 5-10s)。浏览器生命周期与并发信号量统一由 client
+        层管理; 每请求级代理轮换随单例架构移除（BrowserConfig 在启动时
+        固定），``_proxy_pool`` 属性保留以兼容既有构造调用方。
+        """
+        # 延迟导入 crawl4ai
+        from crawl4ai.async_configs import CrawlerRunConfig
+
+        from backend.utils.crawl4ai_client import get_client
+
+        client = await get_client()
+        if client is None:
+            return CrawlResult(
+                url=url,
+                success=False,
+                error="crawl4ai client unavailable",
+            )
+
+        # crawl4ai 0.9 的 CrawlerRunConfig 用 page_timeout (ms), 与
+        # utils/crawl4ai_client.fetch_html 同一语义; 旧 timeout kwarg 会
+        # TypeError → 每次抓取必失败 (本次回归测试暴露的存量 bug)。
         run_cfg = CrawlerRunConfig(
             verbose=True,
-            timeout=self._config["crawl4ai"].get("timeout_seconds", 30),
+            page_timeout=self._config["crawl4ai"].get("timeout_seconds", 30) * 1000,
         )
-
-        async with AsyncWebCrawler(config=browser_cfg) as crawler:
-            result = await crawler.arun(url=url, config=run_cfg)
+        result = await client.arun(url=url, config=run_cfg)
 
         if result.success:
-            self._proxy_pool.mark_success(proxy)
             return CrawlResult(
                 url=url,
                 title=result.metadata.get("title", "") if result.metadata else "",
@@ -104,7 +116,6 @@ class Crawl4aiParser:
                 metadata=result.metadata or {},
             )
         else:
-            self._proxy_pool.mark_failed(proxy)
             return CrawlResult(
                 url=url,
                 success=False,

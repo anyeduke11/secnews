@@ -190,7 +190,7 @@ async def test_crawl_general_error(tmp_path):
 
 @pytest.mark.asyncio
 async def test_crawl_success(tmp_path):
-    """_crawl_with_crawl4ai 成功 → mark_success 被调用, CrawlResult 含完整内容。"""
+    """get_client 单例 arun 成功 → CrawlResult 含完整内容 (gateway §3.1 改②)。"""
     config = {
         "crawl4ai": {
             "enabled": True,
@@ -203,28 +203,20 @@ async def test_crawl_success(tmp_path):
     with open(p, "w") as f:
         yaml.dump(config, f)
 
-    mock_pool = MagicMock()
-    mock_pool.get_next.return_value = "http://proxy:8080"
+    parser = Crawl4aiParser(crawl_config_path=p)
 
-    parser = Crawl4aiParser(crawl_config_path=p, proxy_pool_instance=mock_pool)
-
-    # 模拟 crawl4ai 返回结果
+    # 模拟 crawl4ai 单例 client 返回结果
     mock_crawl_result = MagicMock()
     mock_crawl_result.success = True
     mock_crawl_result.markdown = "# Hello World\n\nThis is content."
     mock_crawl_result.metadata = {"title": "Test Page"}
 
-    mock_crawler = AsyncMock()
-    mock_crawler.__aenter__.return_value = mock_crawler
-    mock_crawler.arun.return_value = mock_crawl_result
-
-    mock_async_web_crawler = MagicMock(return_value=mock_crawler)
+    mock_client = MagicMock()
+    mock_client.arun = AsyncMock(return_value=mock_crawl_result)
 
     # 模拟 crawl4ai 模块（延迟导入，需要 patch sys.modules）
     crawl4ai_mod = MagicMock()
-    crawl4ai_mod.AsyncWebCrawler = mock_async_web_crawler
     async_configs_mod = MagicMock()
-    async_configs_mod.BrowserConfig = MagicMock()
     async_configs_mod.CrawlerRunConfig = MagicMock()
 
     with patch.dict(
@@ -233,6 +225,9 @@ async def test_crawl_success(tmp_path):
             "crawl4ai": crawl4ai_mod,
             "crawl4ai.async_configs": async_configs_mod,
         },
+    ), patch(
+        "backend.utils.crawl4ai_client.get_client",
+        AsyncMock(return_value=mock_client),
     ):
         result = await parser.crawl("https://example.com")
 
@@ -241,13 +236,12 @@ async def test_crawl_success(tmp_path):
     assert result.content == "# Hello World\n\nThis is content."
     assert result.markdown == "# Hello World\n\nThis is content."
     assert result.metadata == {"title": "Test Page"}
-    mock_pool.mark_success.assert_called_once_with("http://proxy:8080")
-    mock_pool.mark_failed.assert_not_called()
+    mock_client.arun.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_crawl_result_failure(tmp_path):
-    """_crawl_with_crawl4ai 返回 success=False → mark_failed 被调用, CrawlResult 含错误信息。"""
+    """get_client 单例 arun 返回 success=False → CrawlResult 含错误信息。"""
     config = {
         "crawl4ai": {
             "enabled": True,
@@ -260,25 +254,17 @@ async def test_crawl_result_failure(tmp_path):
     with open(p, "w") as f:
         yaml.dump(config, f)
 
-    mock_pool = MagicMock()
-    mock_pool.get_next.return_value = "http://proxy:8080"
-
-    parser = Crawl4aiParser(crawl_config_path=p, proxy_pool_instance=mock_pool)
+    parser = Crawl4aiParser(crawl_config_path=p)
 
     mock_crawl_result = MagicMock()
     mock_crawl_result.success = False
     mock_crawl_result.error_message = "Blocked by Cloudflare"
 
-    mock_crawler = AsyncMock()
-    mock_crawler.__aenter__.return_value = mock_crawler
-    mock_crawler.arun.return_value = mock_crawl_result
-
-    mock_async_web_crawler = MagicMock(return_value=mock_crawler)
+    mock_client = MagicMock()
+    mock_client.arun = AsyncMock(return_value=mock_crawl_result)
 
     crawl4ai_mod = MagicMock()
-    crawl4ai_mod.AsyncWebCrawler = mock_async_web_crawler
     async_configs_mod = MagicMock()
-    async_configs_mod.BrowserConfig = MagicMock()
     async_configs_mod.CrawlerRunConfig = MagicMock()
 
     with patch.dict(
@@ -287,43 +273,36 @@ async def test_crawl_result_failure(tmp_path):
             "crawl4ai": crawl4ai_mod,
             "crawl4ai.async_configs": async_configs_mod,
         },
+    ), patch(
+        "backend.utils.crawl4ai_client.get_client",
+        AsyncMock(return_value=mock_client),
     ):
         result = await parser.crawl("https://example.com")
 
     assert result.success is False
     assert result.error == "Blocked by Cloudflare"
-    mock_pool.mark_failed.assert_called_once_with("http://proxy:8080")
-    mock_pool.mark_success.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_crawl_success_no_proxy(tmp_path):
-    """无代理配置时 get_next 返回空字符串 → crawl 仍正常执行。"""
+    """无代理配置场景下 crawl 仍正常执行 (代理轮换已随单例架构移除)。"""
     config = {"crawl4ai": {"enabled": True}}
     p = tmp_path / "crawl_config.yaml"
     with open(p, "w") as f:
         yaml.dump(config, f)
 
-    mock_pool = MagicMock()
-    mock_pool.get_next.return_value = ""  # 无代理
-
-    parser = Crawl4aiParser(crawl_config_path=p, proxy_pool_instance=mock_pool)
+    parser = Crawl4aiParser(crawl_config_path=p)
 
     mock_crawl_result = MagicMock()
     mock_crawl_result.success = True
     mock_crawl_result.markdown = "content"
     mock_crawl_result.metadata = {"title": "No Proxy"}
 
-    mock_crawler = AsyncMock()
-    mock_crawler.__aenter__.return_value = mock_crawler
-    mock_crawler.arun.return_value = mock_crawl_result
-
-    mock_async_web_crawler = MagicMock(return_value=mock_crawler)
+    mock_client = MagicMock()
+    mock_client.arun = AsyncMock(return_value=mock_crawl_result)
 
     crawl4ai_mod = MagicMock()
-    crawl4ai_mod.AsyncWebCrawler = mock_async_web_crawler
     async_configs_mod = MagicMock()
-    async_configs_mod.BrowserConfig = MagicMock()
     async_configs_mod.CrawlerRunConfig = MagicMock()
 
     with patch.dict(
@@ -332,6 +311,9 @@ async def test_crawl_success_no_proxy(tmp_path):
             "crawl4ai": crawl4ai_mod,
             "crawl4ai.async_configs": async_configs_mod,
         },
+    ), patch(
+        "backend.utils.crawl4ai_client.get_client",
+        AsyncMock(return_value=mock_client),
     ):
         result = await parser.crawl("https://example.com")
 
@@ -347,25 +329,17 @@ async def test_crawl_failure_unknown_error(tmp_path):
     with open(p, "w") as f:
         yaml.dump(config, f)
 
-    mock_pool = MagicMock()
-    mock_pool.get_next.return_value = "http://proxy:8080"
-
-    parser = Crawl4aiParser(crawl_config_path=p, proxy_pool_instance=mock_pool)
+    parser = Crawl4aiParser(crawl_config_path=p)
 
     mock_crawl_result = MagicMock()
     mock_crawl_result.success = False
     mock_crawl_result.error_message = None  # 无错误信息
 
-    mock_crawler = AsyncMock()
-    mock_crawler.__aenter__.return_value = mock_crawler
-    mock_crawler.arun.return_value = mock_crawl_result
-
-    mock_async_web_crawler = MagicMock(return_value=mock_crawler)
+    mock_client = MagicMock()
+    mock_client.arun = AsyncMock(return_value=mock_crawl_result)
 
     crawl4ai_mod = MagicMock()
-    crawl4ai_mod.AsyncWebCrawler = mock_async_web_crawler
     async_configs_mod = MagicMock()
-    async_configs_mod.BrowserConfig = MagicMock()
     async_configs_mod.CrawlerRunConfig = MagicMock()
 
     with patch.dict(
@@ -374,6 +348,9 @@ async def test_crawl_failure_unknown_error(tmp_path):
             "crawl4ai": crawl4ai_mod,
             "crawl4ai.async_configs": async_configs_mod,
         },
+    ), patch(
+        "backend.utils.crawl4ai_client.get_client",
+        AsyncMock(return_value=mock_client),
     ):
         result = await parser.crawl("https://example.com")
 
@@ -381,9 +358,71 @@ async def test_crawl_failure_unknown_error(tmp_path):
     assert result.error == "Unknown crawl error"
 
 
+# ---------------------------------------------------------------------------
+# 7. 单例复用 / client 不可用 (gateway §3.1 改②)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_crawl_client_unavailable(tmp_path):
+    """get_client 返回 None (未装/YAML 关闭/启动失败) → CrawlResult 失败而非抛异常。"""
+    config = {"crawl4ai": {"enabled": True}}
+    p = tmp_path / "crawl_config.yaml"
+    with open(p, "w") as f:
+        yaml.dump(config, f)
+
+    parser = Crawl4aiParser(crawl_config_path=p)
+    with patch(
+        "backend.utils.crawl4ai_client.get_client",
+        AsyncMock(return_value=None),
+    ):
+        result = await parser.crawl("https://example.com")
+
+    assert result.success is False
+    assert result.error == "crawl4ai client unavailable"
+
+
+@pytest.mark.asyncio
+async def test_crawl_reuses_client_singleton(tmp_path, monkeypatch):
+    """两次 parser.crawl 共用同一 AsyncWebCrawler 单例, 构造只发生一次。"""
+    from backend.utils import crawl4ai_client
+
+    # YAML 双侧启用: parser 自身配置 + utils client 配置
+    config = {"crawl4ai": {"enabled": True, "timeout_seconds": 10}}
+    p = tmp_path / "crawl_config.yaml"
+    with open(p, "w") as f:
+        yaml.dump(config, f)
+    monkeypatch.setattr(crawl4ai_client, "_config_path", p)
+
+    fake_instance = MagicMock()
+    fake_instance.start = AsyncMock()
+
+    mock_crawl_result = MagicMock()
+    mock_crawl_result.success = True
+    mock_crawl_result.markdown = "content"
+    mock_crawl_result.metadata = {"title": "T"}
+
+    fake_instance.arun = AsyncMock(return_value=mock_crawl_result)
+
+    fake_class = MagicMock(return_value=fake_instance)
+
+    parser = Crawl4aiParser(crawl_config_path=p)
+    with patch.object(crawl4ai_client, "HAS_CRAWL4AI", True), \
+         patch.object(crawl4ai_client, "AsyncWebCrawler", fake_class):
+        r1 = await parser.crawl("https://example.com/1")
+        r2 = await parser.crawl("https://example.com/2")
+
+    assert r1.success is True and r2.success is True
+    # 单例: AsyncWebCrawler() 构造 + start() 各只一次, arun 两次
+    assert fake_class.call_count == 1
+    assert fake_instance.start.await_count == 1
+    assert fake_instance.arun.await_count == 2
+
+
 __all__ = [
     "test_constructor_custom_proxy_pool",
     "test_constructor_default_proxy_pool",
+    "test_crawl_client_unavailable",
     "test_crawl_disabled",
     "test_crawl_failure_unknown_error",
     "test_crawl_general_error",
@@ -391,6 +430,7 @@ __all__ = [
     "test_crawl_result_defaults",
     "test_crawl_result_failure",
     "test_crawl_result_full_fields",
+    "test_crawl_reuses_client_singleton",
     "test_crawl_success",
     "test_crawl_success_no_proxy",
     "test_load_config_empty_yaml",

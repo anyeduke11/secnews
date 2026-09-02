@@ -1,6 +1,6 @@
 # 可选 — Phase 11 crawl4ai refactor (JS 渲染 / 反爬页面抓取)。
 # 从主 requirements 移出: 仅当需要 crawl4ai 抓取路径时安装。
-# 代码层已保证: 未安装或 USE_CRAWL4AI=0 时自动 fallback 到 aiohttp。
+# 代码层已保证: 未安装或 crawl_config.yaml enabled=false 时自动 fallback 到 aiohttp。
 # 安装:  pip install -r backend/requirements-optional.txt
 #        crawl4ai-setup
 #        python -m playwright install --with-deps chromium

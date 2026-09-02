@@ -5,7 +5,9 @@
 > 本版对齐 v0.7.0 → v0.7.4 全部批次后的代码现状。相对 v3.0 (v0.7.0) 的重大变化:
 >
 > - **首页已换** — 根路径 `/` 直接渲染**哨兵终端**全屏页 (v0.7.1 起, 报纸版 EditorialView 退役仅留重定向),
->   哨兵域页面 `/` `/judge` `/judge/graph` `/action` `/garden` `/sentinel/settings` 独立全屏, 不走 PageLayout
+>   哨兵域页面 `/` `/judge` `/judge/graph` `/action` `/garden` 独立全屏, 不走 PageLayout; `/sentinel/settings` 已 redirect 到 `/settings?cat=sentinel` (v0.7.x SettingsHub)
+> - **设置入口统一** (v0.7.x SettingsHub): 原 `/secnews/settings` `/secnews/image` `/sentinel/settings` 三处孤页
+>   已合并到 `/settings?cat=pipeline|image_models|sentinel` 统一入口, 永久 redirect 保留外部书签兼容
 > - **SecNews 为统一工作台** — workbench 5 视图在 v0.6.3 已并入 `/secnews`, 现为 7 子 tab:
 >   feed / pipeline / knowledge / analyze / analytics / **observability (v0.7.3 新增)** / settings
 > - **Observability 观测闭环落地** (Batch 1-5): api_events / api_metrics_hourly / job_runs / agent_runs /

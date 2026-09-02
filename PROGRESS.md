@@ -758,3 +758,59 @@ tsc 0 错；vitest 43 文件 310 passed；vite build 过。
 - 图片存储与归档 (目前生成只回 base64, 不进 storage) — 留 v0.7.5+
 - 多模态端到端 UI 打磨 (ImageStudio 已可跑, 进阶编辑/批处理/mask 留 v0.8+)
 - deepseek-v4-flash 作为 LIGHT 降级 (yaml override 改 flash-lite → flash) — 留 v0.7.5
+
+---
+
+## 2026-09-02 v0.7.x — SettingsHub 统一设置入口 (refactor/unified-settings-hub)
+
+### 用户裁决
+
+> "将这个页面整个进 setting 中, 不应该有多个类似于管理或者设置的页面, 且几乎要形成孤页了, 先出详细整合方案"
+> — 用户 2026-09-02 关于 ImageStudio 整合, 后扩展到 PipelineSettings + SentinelSettingsPage
+
+### 整合范围 (本批最小集)
+
+3 处"孤页"合并到 `/settings` 统一入口 (深链 `?cat=...`)：
+
+| 旧路由 | 新路由 | 旧组件 |
+|---|---|---|
+| `/secnews/image` | `/settings?cat=image_models` | `ImageStudio` |
+| `/secnews/settings` | `/settings?cat=pipeline` | `PipelineSettings` |
+| `/sentinel/settings` | `/settings?cat=sentinel` | `SentinelSettingsPage` |
+
+3 处旧路由在 `routes/index.tsx` 用 `<Navigate replace>` 永久 redirect, 外部书签不失效。
+
+### 关键实现
+
+- `settings/sections.tsx` SectionKey 加 `pipeline` / `sentinel` / `image_models` 3 个分类, sidebar 视觉与现有 11 个分类一致 (12px Icon + `var(--text-primary)` + active 用 `var(--accent)`)
+- `SettingsPage.renderContent` 接 3 case, 直接复用原组件 (零功能拆分)
+- `?cat=...` URL 参数解析 → 初始化 `activeSection` (默认 `general`)
+- `sentinel-settings.css` 113 条 st-* 选择器前缀从 `.sentinel .st-scr .st-*` 改为 `.settings-shell .st-scr .st-*` (SettingsPage 根 div 加 `settings-shell` 类)
+- SecNewsShell 删 `image` tab; `settings` tab 改为跳 `/settings` (外链视觉 + `marginLeft:auto` 区分)
+- `SecNewsImage` / `SecNewsSettings` lazy export 删除 (404-safe); `ImageStudio.tsx` 文件保留 deprecated 警告 + 路由层不可达
+
+### 关键事实表
+
+| 项 | 现状 | 锚点 |
+|---|---|---|
+| 统一入口 | `/settings` (15 个 sidebar 分类) | `SettingsPage.tsx` |
+| 深链协议 | `?cat=<section_key>` | `SettingsPage.tsx` URLSearch 解析 |
+| 永久 redirect | 3 处旧路由 Navigate replace | `routes/index.tsx` |
+| Sentinel 视觉保留 | st-* 选择器前缀改为 .settings-shell (保持只读控制台语义) | `sentinel-settings.css` |
+| 域外链 | SecNewsShell 的 settings tab 视觉外键 (`marginLeft:auto` + 强色) | `SecNewsShell.tsx` |
+| ImageStudio 状态 | 路由层不可达, 文件 deprecated, v0.8 可彻底删除 | `ImageStudio.tsx` |
+| 端口/表/feature gate | **不新增** | (不适用) |
+
+### 门禁 (本批)
+
+- [x] tsc --noEmit 0 错
+- [x] vitest 单跑 23/23 (ImageStudio 2 + QualitySettings 14 + SentinelSettings 7); 全量 349 passed / 6 failed (并发 timeout 与本批无关, 单跑均绿)
+- [x] vite build exit 0
+
+### 不在本批 (留独立批次)
+
+- `/secrets` (794 行 SecretsPage + 7 子组件 + useSecrets hook) — 与 `/settings?cat=secrets` 重叠但实现不共用, 体量大风险高
+- `/sync` (WebDAV 同步独立页) — `/settings?cat=sync` 仅是配置, 不含同步触发 UI
+- `/quality/rejection` (流水线拒收明细) — 详情页, 归 `/settings?cat=maintenance` 但表格实现独立
+- SentinelSettingsPage 4 tab → 4 section 物理拆分 (本批直接复用整组件; 留 v0.7.5 按需)
+- PipelineSettings → 3 section 物理拆分 (KL/model tier/dsh/agent/源健康/token 预算; 同上留 v0.7.5)

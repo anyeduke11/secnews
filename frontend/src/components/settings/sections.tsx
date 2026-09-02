@@ -7,7 +7,12 @@
 import React from 'react';
 import { Icon } from '../Icon';
 
-export type SectionKey = 'general' | 'collection' | 'network' | 'sync' | 'integration' | 'secrets' | 'alerts' | 'knowledge' | 'export' | 'maintenance' | 'about' | 'feedback';
+// v0.7.x SettingsHub: 合并 PipelineSettings / SentinelSettingsPage / ImageStudio 三处入口
+//   pipeline        — 原 /secnews/settings (KL/model tier/dsh/agent/源健康/token)
+//   sentinel        — 原 /sentinel/settings (只读控制台 4 子面板)
+//   image_models    — 原 /secnews/image (ScenarioModelsPanel 复用)
+// image/sentinel/settings 三个旧路由永久 redirect → /settings?cat=...
+export type SectionKey = 'general' | 'collection' | 'network' | 'sync' | 'integration' | 'secrets' | 'alerts' | 'knowledge' | 'export' | 'maintenance' | 'pipeline' | 'sentinel' | 'image_models' | 'about' | 'feedback';
 
 export interface SectionDef {
   key: SectionKey;
@@ -76,6 +81,27 @@ export const SECTIONS: SectionDef[] = [
     label: '维护',
     icon: <Icon size={12}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></Icon>,
     desc: 'VACUUM / 清理 / 去重',
+  },
+  // v0.7.x SettingsHub: 取代 /secnews/settings 独立路由
+  {
+    key: 'pipeline',
+    label: '管线',
+    icon: <Icon size={12}><path d="M3 3h18v4H3zM3 10h18v4H3zM3 17h18v4H3z" /></Icon>,
+    desc: 'KL 队列 / 模型档位 / dsh / Agent / 源健康 / token 预算',
+  },
+  // v0.7.x SettingsHub: 取代 /sentinel/settings 独立路由 (只读, 保留 st-* 视觉)
+  {
+    key: 'sentinel',
+    label: '哨兵',
+    icon: <Icon size={12}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /></Icon>,
+    desc: '只读控制台: 采集 / 能力 / 模型 / 危险区',
+  },
+  // v0.7.x SettingsHub: 取代 /secnews/image 独立路由 (ScenarioModelsPanel 同源)
+  {
+    key: 'image_models',
+    label: '图片模型',
+    icon: <Icon size={12}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></Icon>,
+    desc: '深度/轻度/图片 三场景模型选择',
   },
   {
     key: 'about',

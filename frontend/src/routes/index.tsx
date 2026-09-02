@@ -57,7 +57,8 @@ export function AppRoutes() {
       <Route path="/judge/graph" element={<Suspense fallback={<PageFallback />}><P.SentinelGraphPage /></Suspense>} />
       <Route path="/action" element={<Suspense fallback={<PageFallback />}><P.SentinelActionPage /></Suspense>} />
       <Route path="/garden" element={<Suspense fallback={<PageFallback />}><P.SentinelGardenPage /></Suspense>} />
-      <Route path="/sentinel/settings" element={<Suspense fallback={<PageFallback />}><P.SentinelSettingsPage /></Suspense>} />
+      {/* v0.7.x SettingsHub: /sentinel/settings 已并入 /settings?sentinel=, 永久 redirect (外部书签不失效) */}
+      <Route path="/sentinel/settings" element={<Navigate to="/settings?cat=sentinel" replace />} />
 
       {/* Phase 1A: 嵌套 Layout (PageLayout 含 ToastProvider + 外层容器) */}
       <Route element={<PageLayout />}>
@@ -112,10 +113,11 @@ export function AppRoutes() {
           <Route path="pipeline" element={<Suspense fallback={<PageFallback />}><P.SecNewsPipeline /></Suspense>} />
           <Route path="knowledge" element={<Suspense fallback={<PageFallback />}><P.SecNewsKnowledge /></Suspense>} />
           <Route path="analyze" element={<Suspense fallback={<PageFallback />}><P.SecNewsAnalyze /></Suspense>} />
-          <Route path="image" element={<Suspense fallback={<PageFallback />}><P.SecNewsImage /></Suspense>} />
+          {/* v0.7.x SettingsHub: /secnews/image 与 /secnews/settings 已并入 /settings, 永久 redirect */}
+          <Route path="image" element={<Navigate to="/settings?cat=image_models" replace />} />
           <Route path="analytics" element={<Suspense fallback={<PageFallback />}><P.SecNewsAnalytics /></Suspense>} />
           <Route path="observability" element={<Suspense fallback={<PageFallback />}><P.SecNewsObservability /></Suspense>} />
-          <Route path="settings" element={<Suspense fallback={<PageFallback />}><P.SecNewsSettings /></Suspense>} />
+          <Route path="settings" element={<Navigate to="/settings?cat=pipeline" replace />} />
         </Route>
 
         {/* CRM 业绩座舱 (v0.6 security-cockpit 方案 C, feature gate: crm) */}

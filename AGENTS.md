@@ -15,7 +15,7 @@
 
 ## v0.4.3 — Core/Extension 软分层 + Feature Gates (2026-08-18)
 
-> **架构数字由 `scripts/generate_meta.py` AST 反推维护** (51 jobs / 14 collectors / 67 routers / 105 services),
+> **架构数字由 `scripts/generate_meta.py` AST 反推维护** (51 jobs / 14 collectors / 68 routers / 105 services),
 > 改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
 
 - **开关源**: `backend/config/feature_gates.toml` — 当前默认开启: codegarden/sync/secnews/crm/dsh;
@@ -213,4 +213,16 @@ cd frontend && npx tsc --noEmit && npx vitest run && npx vite build --logLevel e
    **其中任一目录前**,先加载对应 scoped AGENTS.md(只读一次,不必每次返回重读)。
 3. 不进入上述四个目录时,不要主动加载 scoped 文件(避免 token 浪费)。
 4. `docs/AGENTS.md` 已退化为只读自动产物,不再承担跨项目路由职责。
+
+## ZCode Hooks (workspace-level, 2026-09-02 起)
+
+> **目的**: 跨事件注入 `additionalContext` 形式的备忘,镜像 CI 阻断门 + MEMORY.md 高频失误模式。
+> **策略**: 全部 **warn-only**(exit 0/1),永不阻断 — 与 Mimosa `MIMOSA_HOOK_PROJECT=1` 模式一致。
+
+- **配置源**: `.zcode/config.json`(`hooks.enabled: true`),事件 = `PreToolUse(Bash)` / `PostToolUse(Edit|Write|MultiEdit)` / `UserPromptSubmit` / `Stop`
+- **Dispatcher**: `scripts/hook_runner.py` (单文件派发,≤250 行),通过子进程复用既有 CI 脚本 — **不 fork** `check_docstrings.py` / `harness_analyze.py` / `generate_meta.py`
+- **Check 模块**: `scripts/hooks/bash_risk.py` (Bash 风险) + `scripts/hooks/post_edit_quality.py` (编辑后质量门)
+- **状态日志**: `.zcode/hook-status/<sessionId>.json` (per-session 覆写, 0600, gitignored)
+- **回滚**: 删除 `.zcode/config.json` 即关闭全部钩子(configuration hooks 默认禁用,一行回滚)
+- **与现有钩子关系**: `.gemini/settings.json` / `.claude/settings.local.json` 里的 gortex 钩子独立 runner,**互不干扰**(schema 不同)
 

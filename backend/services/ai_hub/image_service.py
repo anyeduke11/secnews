@@ -18,7 +18,7 @@ import httpx
 
 from backend.logging_config import logger
 
-from .scenarios import Scenario, ScenarioRoute, resolve_scenario_model
+from .scenarios import Scenario, resolve_scenario_model
 
 
 class ImageGenerationError(Exception):
@@ -207,4 +207,4 @@ class ImageGenerationService:
             logger.debug("image_service._record swallow: %s", e)
 
 
-__all__ = ["ImageGenerationService", "ImageGenerationError"]
+__all__ = ["ImageGenerationError", "ImageGenerationService"]

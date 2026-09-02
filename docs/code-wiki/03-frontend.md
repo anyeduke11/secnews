@@ -56,7 +56,9 @@ index.html
 | `/judge/graph` | SentinelGraphPage | 哨兵·图谱 (独立全屏) |
 | `/action` | SentinelActionPage | 哨兵·行动层 (独立全屏) |
 | `/garden` | SentinelGardenPage | 哨兵·花园 (CodeGarden 入口, 独立全屏) |
-| `/sentinel/settings` | SentinelSettingsPage | 哨兵·设置 (独立全屏) |
+| `/sentinel/settings` | → `/settings?cat=sentinel` (Navigate) | v0.7.x SettingsHub: 已并入统一设置, 永久 redirect |
+| `/secnews/settings` | → `/settings?cat=pipeline` (Navigate) | v0.7.x SettingsHub: 已并入统一设置, 永久 redirect |
+| `/secnews/image` | → `/settings?cat=image_models` (Navigate) | v0.7.x SettingsHub: 已并入统一设置, 永久 redirect |
 | `/category/:cat` | → `/` (CategoryRedirect) | 旧路由兼容 |
 | `/weekly-report` | → `/report` | 旧路由兼容 |
 | `/todos` `/history` `/skills` `/secrets` | 各页面 | 保留旧路由 (history 共享 useFavorites store) |
@@ -78,7 +80,6 @@ index.html
 | `/secnews/feed` `/pipeline` `/knowledge` `/analyze` | SecNews* | 信息流/管线/知识/研判 tab |
 | `/secnews/analytics` | SecNewsAnalytics | CVE 热力图 + ATT&CK 映射 |
 | `/secnews/observability` | SecNewsObservability | **v0.7.3 新增**: 观测看板 tab |
-| `/secnews/settings` | SecNewsSettings | 采集/管线/LLM 设置 |
 | `/crm` ⛭ | CrmPage | feature `crm` (业绩座舱) |
 | `/bid-alert` `/tags` `/extract` `/search` | Bid/Tags/Extract/UnifiedSearch | v0.6.3 找回的 4 域入口 |
 | `/oauth-callback` | OAuthCallbackPage | **Batch ⑧**: OAuth 授权回调 (全屏状态页) |

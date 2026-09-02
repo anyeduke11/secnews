@@ -181,7 +181,7 @@ api/_flags.py     feature_flag 批量检查
 | `egress.py` | egress 域名白名单校验 |
 
 配置单一来源 `config/llm.yaml` (5 provider); AIQualityGate 的 LLM 检测走此出口,
-`quality.llm_enabled` 默认关。前端 `/secnews/settings` 可切换默认 provider (写 settings.kv + audit)。
+`quality.llm_enabled` 默认关。前端 `/settings?cat=pipeline` 可切换默认 provider (写 settings.kv + audit; v0.7.x SettingsHub 已从 `/secnews/settings` 合并)。
 
 ### 3.4 观测服务族 (v0.7)
 

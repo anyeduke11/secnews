@@ -51,6 +51,9 @@ data/migrations/
 # 例外: 以下隐藏目录必须入库 (取消 .*/ 通配)
 !.github/
 !.trae/
+!.zcode/                       # ZCode hooks config + plans (intentional)
+# 但 .zcode/hook-status/ 写入的状态 JSON 不入库 (per-session, 含 path 预览)
+.zcode/hook-status/
 
 # Hidden single-file configs (2026-07-10)
 .mcp.json

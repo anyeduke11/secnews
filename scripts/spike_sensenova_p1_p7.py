@@ -49,6 +49,16 @@ IMAGE_MODEL = "sensenova-u1.5-lite"  # image generation 模型 (与文本 chat �
 DEFAULT_TIMEOUT = 30.0
 DEFAULT_RETRIES = 3
 
+# 3 场景路由 (2026-09-02 用户裁决 + GET /v1/models 官方清单实证)
+# 依据: https://platform.sensenova.cn/docs (模型总览) + 实测 8 个 model ID 可调用
+# 深度场景 (复杂 Agent / 推理 / 长上下文): deepseek-v4-pro (1M 上下文 + 思考模式)
+# 轻度场景 (日常问答 / 代码辅助 / 规模化):   deepseek-v4-flash / sensenova-6.8-flash-lite
+# 图片场景 (生成 / 编辑):                   sensenova-u1.5-lite / sensenova-u1-fast
+DEEP_MODEL = "deepseek-v4-pro"      # 思考深度高的场景
+LIGHT_MODEL = "deepseek-v4-flash"   # 轻度场景
+LIGHT_MODEL_ALT = "sensenova-6.8-flash-lite"  # sensenova 原生轻度场景备选
+IMAGE_GEN_MODEL = "sensenova-u1.5-lite"  # 图片场景 (与 IMAGE_MODEL 同名)
+
 
 def _retry(fn, name: str, retries: int = DEFAULT_RETRIES) -> dict:
     """串行重试 — 探针内失败 (ReadTimeout/ConnectError) 时重试; 4xx 业务错不重试 (持续性问题)。"""
@@ -223,7 +233,7 @@ def make_valid_png_b64() -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="sensenova OpenAI 兼容范围探针")
-    parser.add_argument("--target", choices=["all", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8"], default="all")
+    parser.add_argument("--target", choices=["all", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10", "p11"], default="all")
     parser.add_argument("--retries", type=int, default=DEFAULT_RETRIES, help="失败重试次数 (默认 3)")
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT, help="单次超时 (默认 30s)")
     args = parser.parse_args()
@@ -314,10 +324,49 @@ def main():
             },
             timeout=args.timeout,
         ),
+        # P9 deep 场景 — deepseek-v4-pro (1M 上下文 + 思考模式)
+        # 用 complex reasoning 提示验证深度推理能力
+        "p9": lambda: probe(
+            "P9_deep_reasoning_deepseek_v4_pro",
+            {
+                "model": DEEP_MODEL,
+                "messages": [{"role": "user", "content": (
+                    "A train leaves Beijing at 09:00 at 120 km/h. Another leaves Shanghai at 10:00 "
+                    "at 150 km/h toward Beijing on the same line (1312 km). At what time do they meet? "
+                    "Reply with a JSON object {time, distance_from_beijing_km, distance_from_shanghai_km}."
+                )}],
+                "temperature": 0,
+                "max_tokens": 1024,
+                "response_format": {"type": "json_object"},
+            },
+            timeout=args.timeout,
+        ),
+        # P10 light 场景 — deepseek-v4-flash (日常问答, 经济型)
+        "p10": lambda: probe(
+            "P10_light_qa_deepseek_v4_flash",
+            {
+                "model": LIGHT_MODEL,
+                "messages": [{"role": "user", "content": "用一句话解释什么是 HTTP 状态码 404?"}],
+                "temperature": 0,
+                "max_tokens": 128,
+            },
+            timeout=args.timeout,
+        ),
+        # P11 轻量 alt — sensenova-6.8-flash-lite (sensenova 原生轻度模型, 已大量生产)
+        "p11": lambda: probe(
+            "P11_light_alt_sensenova_flash_lite",
+            {
+                "model": LIGHT_MODEL_ALT,
+                "messages": [{"role": "user", "content": "用一句话解释什么是 HTTP 状态码 404?"}],
+                "temperature": 0,
+                "max_tokens": 128,
+            },
+            timeout=args.timeout,
+        ),
     }
 
     if args.target == "all":
-        run_order = ["p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8"]
+        run_order = ["p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10", "p11"]
     else:
         run_order = [args.target]
 

@@ -143,6 +143,31 @@ export function SettingsDashboard({ onJump }: Props) {
 
   return (
     <div className="space-y-3" data-testid="settings-dashboard">
+      {/* Q1 收口: 仪表盘用途 / 不加的代价 / 用户习惯 / 业务逻辑 (Vercel/Linear 控制面板模式) */}
+      <section className="st-section" aria-label="仪表盘说明" data-testid="dash-purpose">
+        <h3>为什么需要这张仪表盘</h3>
+        <div className="st-section-body">
+          <div className="st-info">
+            <p style={{ marginBottom: 6 }}>
+              <strong>用途</strong> · 这是 /settings 的首屏, 不点进任何分类也能回答"系统还好吗":
+              4 张子状态卡 (DB / 采集 / 凭据 / 调度) + 8 张区段跳转 + 信源健康, 共 13 个一眼可读的体检项。
+            </p>
+            <p style={{ marginBottom: 6 }}>
+              <strong>不打开会怎样</strong> · 想确认状态必须进 5+ 个分类; 凭据 LOCKED 看不见, 直到跑管线失败才意识到;
+              scheduler 静默停摆无人察觉, 采集 24h 数字无从获取。
+            </p>
+            <p style={{ marginBottom: 6 }}>
+              <strong>用户习惯契合</strong> · 对齐 Vercel / Linear / Notion 控制面板的"单屏 glance"模式 — 工程师打开 dashboard
+              0.5 秒可确认系统健康, 与哨兵 /judge /action 全屏风格一致。
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong>业务逻辑对齐</strong> · 哨兵"管道体检"模式已固化 (KL 队列 + dsh 状态 + 凭据可用性), 本页 = 哨兵体检的设置侧镜像;
+              字段复用 /api/health /api/stats /api/secrets/status 三个观测面, 不引入新数据源。
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* 4 系统子状态 — st-cellgrid */}
       <section className="st-cellgrid" aria-label="系统状态">
         <article className="st-cell" data-testid="dash-db">

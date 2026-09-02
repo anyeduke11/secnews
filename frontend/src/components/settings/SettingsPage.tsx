@@ -29,11 +29,22 @@ import { DatabaseMaintenance } from './DatabaseMaintenance';
 import { AboutSettings } from './AboutSettings';
 import { ModeSwitcher } from './ModeSwitcher';
 import { FeedbackSettings } from './FeedbackSettings';
+import { ScenarioModelsPanel } from './ScenarioModelsPanel';
+// v0.7.x SettingsHub: 三处合并入口 (PipelineSettings / SentinelSettingsPage / ImageStudio)
+// 直接复用旧组件, 行为与原 /secnews/settings /sentinel/settings /secnews/image 完全等价。
+import { PipelineSettings } from '../secnews/settings/PipelineSettings';
+import { SentinelSettingsPage } from '../sentinel/SentinelSettingsPage';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 
 export function SettingsPage() {
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState<SectionKey>('general');
+  // v0.7.x SettingsHub: 解析 ?cat= 深链 (默认 general)
+  // 旧路由 /secnews/settings /secnews/image /sentinel/settings 重定向到此并携带 cat
+  const search = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const catParam = search?.get('cat') as SectionKey | null;
+  const [activeSection, setActiveSection] = useState<SectionKey>(
+    catParam && SECTIONS.some(s => s.key === catParam) ? catParam : 'general',
+  );
   const [open] = useState(true);
   // v0.4.3: mcp 扩展关闭时隐藏集成区段 (后端 /api/mcp/* 已 404)
   const features = useFeatureFlags();
@@ -89,6 +100,25 @@ export function SettingsPage() {
         return <ExportSettings />;
       case 'maintenance':
         return <DatabaseMaintenance />;
+      // v0.7.x SettingsHub: 三处合并入口
+      case 'pipeline':
+        return <PipelineSettings />;
+      case 'sentinel':
+        return <SentinelSettingsPage />;
+      case 'image_models':
+        return (
+          <div className="space-y-3">
+            <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
+              <h3 className="text-xs font-mono font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+                🖼️ 图片工具 · 模型配置
+              </h3>
+              <p className="text-[10px] font-mono mb-2" style={{ color: 'var(--text-muted)' }}>
+                深度 / 轻度 / 图片 三场景的模型选择在这里配置; 文生图与图理解功能已下线 (用户裁决 2026-09-02)
+              </p>
+            </div>
+            <ScenarioModelsPanel scope="settings-image-models" compact />
+          </div>
+        );
       case 'about':
         return <AboutSettings />;
       case 'feedback':
@@ -97,7 +127,9 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="w-full flex flex-col" style={{ minHeight: 'calc(100dvh - 1.5rem)' }}>
+    // v0.7.x SettingsHub: .settings-shell 是 sentinel-settings.css 的新作用域前缀
+    // (原 .sentinel 前缀已废弃; SentinelSettingsPage 嵌入本根后需要新前缀避免 st-* 全局泄漏)
+    <div className="settings-shell w-full flex flex-col" style={{ minHeight: 'calc(100dvh - 1.5rem)' }}>
       {/* 页面标题 — 报纸报眉风格 */}
       <div className="shrink-0 flex items-center justify-between pb-2 mb-3" style={{ borderBottom: '2px solid var(--text-primary)' }}>
         <h1 className="text-sm font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>

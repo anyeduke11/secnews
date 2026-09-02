@@ -101,7 +101,7 @@ hotspot/
 | 判断层 | `/judge` (+ `/judge/graph`) | 研判 / 图谱 |
 | 行动层 | `/action` | 行动待办 |
 | 花园 | `/garden` | CodeGarden 入口 (哨兵壳内) |
-| 设置 | `/sentinel/settings` | 哨兵侧设置 |
+| 设置 | `/settings` (+ `?cat=...`) | v0.7.x SettingsHub: 统一设置入口 (原 3 处孤页已合并) |
 
 以上页面**独立全屏, 不走 PageLayout**, 壳由 `SentinelShell` 提供。报纸版 `/editorial`
 2026-08-29 已退役, 仅保留 `→ /` 重定向防老书签 404。

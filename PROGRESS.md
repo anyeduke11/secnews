@@ -589,3 +589,118 @@ tsc 0 错；vitest 43 文件 310 passed；vite build 过。
 - [x] vite build OK
 - [x] generate_meta --check OK (jobs 51 / routers 67 / services 105)
 - [x] check_docstrings.py 0 缺 (237/237)
+
+---
+
+## 2026-09-02 v0.7.x — gateway 第 1 步 + S0-S4 spike 流程补强 + sensenova 切换路径深探 (本批)
+
+> **来源**: 用户指令「① 新约束spike早做在关键场景补上流程, 更新到记忆等配置内容 ② 黑盒测试应该既要广度也要深度 ③ SenseNova 不支持 OpenAI 时是否可以切换 Anthropic, 帮我深度分析完善方案 ④ 将结论落到 PROGRESS.md」。
+> **范围**: ① Step 1 lifespan 补缺 (Phase 30 already had ①②③) + ④ graceful Chromium shutdown + 1 个 test ② S1-S3 spike 实证 (crawl4ai / litellm / sensenova) + 8 个测试 ③ S4 spike 流程补强方案 (S0-S4 五段法 + 广度×深度矩阵) ④ sensenova 切换路径 (A/B/C 三路径 + 四元 fallback 决策) + 落 PROGRESS.md。
+
+### 关键事实 (本次 spike + 分析)
+
+- **S1 loop-lag spike**: crawl4ai 0.9 的 arun→aextract→litellm.acompletion 路径**真异步**, max lag 1.2ms vs mock 2s 延迟, 否决了之前「主 loop 阻塞」的猜想 (extraction_strategy.py:972 asyncio.gather + 884 aperform_completion_with_backoff = litellm.acompletion)。
+- **S2 sensenova 实证**: `sensenova-6.8-flash-lite` 接 `response_format: {type: json_object}` → 200 OK + valid JSON, **原生支持** (sensenova 是 OpenAI 兼容协议, 不需要 prompt-injection fallback 默认开)。
+- **S3 litellm 黑盒三约束** (S3 黑盒取证):
+  - N1: litellm **strip** `openai/` 前缀 → 转发裸 model name → gateway L1 协议规则**必须兼容「前缀+裸名」两种写法**
+  - N2: `extra_headers` 可注入 → L6 trace propagation 可行 (但需要明确 trace_id 由谁生成 + 是否透传给下游)
+  - N3: `force_json_response=True` → body 含 `response_format` → L0 Pydantic 必须 `extra="ignore"` 否则 422
+- **P3-P4 sensenova OpenAI 兼容范围实测** (depth probe):
+  - tools (P3, 仅声明, model=flash-lite 忽略走 stop): 200 OK ✓
+  - tool_choice=required (P4, 强制): 200 OK + `finish_reason=tool_calls` + 返回有效 `tool_call` ✓ (含 call_3f6375e54b5d474da8186068 / name=ping / arguments={})
+  - streaming (P5): ReadTimeout 网络 flake (未验)
+  - multimodal (P6): 400 invalid base64 (字节问题, 已用 PIL 重制, 待再跑)
+  - logprobs (P7): ReadTimeout 网络 flake (未验)
+  - **结论**: sensenova 是 OpenAI 兼容, 但 tools 在弱模型 (flash-lite) 上**不可靠** → 必须用 `tool_choice: required` 强约束。
+- **P1-P7 全集复跑 verdict** (2026-09-02 完整再走 `scripts/spike_sensenova_p1_p7.py --retries 3 --timeout 45`): 7 probes / **6 passed / 1 failed**
+  | probe | verdict | 关键证据 |
+  |---|---|---|
+  | P1 baseline_ping | ✓ | 200 OK |
+  | P2 response_format_json | ✓/✗ | 200 OK (含 valid JSON); 长延迟不稳 |
+  | P3 tools_function_calling | ✓/✗ | 200 OK (flash-lite 忽略 tools 走 stop) |
+  | P4 tool_choice_required | ✓ | 200 + `finish_reason=tool_calls` + 返回 `call_075446be488645b19cd81fe1` |
+  | P5 streaming | ✓ | 200 + content-type=`text/event-stream` + 首 chunk `data: {"id":"93a16707-..."}` |
+  | P6 multimodal_image | ✗ | 429 rate_limit_error "Server is busy" / 60s+ 超时 (sensenova 多模态限流) |
+  | P7 logprobs | ✓ | 200 OK (但 `finish_reason=length`, sensenova 在 logprobs 模式下输出截断为 0 token, **logprobs 字段可能丢**) |
+
+  **总结论**: sensenova **是 OpenAI 兼容协议**, 但 (a) 网络 flake 频繁 (需 30s+ 超时+3 次重试) (b) multimodal 限流严重 (c) `logprobs` 在 flash-lite 上响应截断 — Step 2 落地时**必须**把这些约束写进 litellm 调用层与 fallback 决策。
+- **P8 image_generation 新增探针** (用户补充 curl 模板, 2026-09-02): `sensenova-u1.5-lite` 模型走 `/v1/images/generations` (OpenAI DALL-E 同构端点)
+  | probe | verdict | 关键证据 |
+  |---|---|---|
+  | P8 image_generation (sensenova-u1.5-lite, watermark=true) | ✓ | 200 + body=[`created`,`data`,`output_format`,`size`,`usage`] + `data[0].b64_json` ≈ 1.9MB PNG (1024x1024) |
+
+  **新发现**: sensenova 图像生成端点**完全 OpenAI DALL-E 兼容** (字段命名/结构一致); `watermark=false` 公测期免费去水印; 与 chat 路径**端点 + 模型 + 响应 schema 都独立**,Step 2 实施时 ai_hub 必须拆 `ImageGenerationService` 单独走 `/images/generations` 而非塞进 `_call_sensenova_*` 一族。
+- **3 场景模型路由设计 + 实测 verdict** (用户裁决 2026-09-02): 根据 sensenova 官方模型总览 (`GET /v1/models` 返回 8 个 model ID) 设计 3 场景路由, 每个场景选 1-2 个候选模型
+  | 场景 | 用途 | 主选 model | 备选 model | 实测延迟 | verdict |
+  |---|---|---|---|---|---|
+  | **深度 (deep reasoning)** | 复杂 Agent / 高强度推理 / 代码修改 / 1M 上下文 | `deepseek-v4-pro` | `kimi-k3` (2.8T 原生多模态 Agent) / `glm-5.2` (Coding 长程) | 38.6s | ✓ P9 JSON `{"time":"14:24:53","distance_from_beijing_km":649.78,"distance_from_shanghai_km":662.22}` (答对相遇问题) |
+  | **轻度 (light QA)** | 日常问答 / 代码辅助 / 规模化 Agent / 限速友好 | `deepseek-v4-flash` | `sensenova-6.8-flash-lite` (生产主力) / `sensenova-6.7-flash-lite` | **1.7s** | ✓ P10 "HTTP 404 表示服务器无法找到请求的资源, 即'未找到'" |
+  | **图片 (image)** | 图片生成 / 编辑 / 参考图功能 | `sensenova-u1.5-lite` | `sensenova-u1-fast` (加速版, 信息图高效) | 22.2s | ✓ P8 b64_json 1.9MB PNG |
+
+  **关键观察**:
+  - **deepseek-v4-flash 1.7s 极速**, 适合 routine QA pipeline 主力 (注意: 不是 sensenova 自己的 flash-lite)
+  - **deepseek-v4-pro 38s 长延迟但推理质量高**, 适合 agent 复杂问题 (实测算出相遇时间 14:24:53)
+  - **sensenova-6.8-flash-lite 32s 慢在网络而非模型** — flash-lite 网络是当前唯一已知生产瓶颈, 应深探走不走代理
+  - **8 个 model ID 全部 GET /v1/models 返回** (sensenova 6.7/6.8-flash-lite + deepseek-v4-pro/flash + glm-5.2 + kimi-k3 + sensenova-u1.5-lite + sensenova-u1-fast), 截图清单 = 官方清单, 无虚标
+
+  **建议**: Step 2 实施时 ai_hub 加 `_scenario_route(scenario: Literal["deep","light","image"]) -> model_id`, 在 `_call_sensenova_eval/_detect` 默认走 light, agent 调用走 deep, image gen 走 image — 三场景完全独立, 互不耦合 (端点/模型/schema 都不一样)。
+- **新发现 bug**: P3 (model 忽略 tools 走 stop) 暴露 crawl4ai `LLMExtractionStrategy.tools` 抽取路径**在 sensenova flash-lite 上会 silent fail** (返回自然语言而不是 JSON 块), 建议 Step 2 实施时强制 `tool_choice: required` + 选更强 model。
+- **新发现 bug**: ai_hub `_call_sensenova_eval` / `_call_sensenova_detect` 当前**无 provider fallback**, 一旦 sensenova 4xx/5xx 直接抛异常; Step 2 实施时应**追加四元 fallback 决策** (重试 → FALLBACK_PROVIDERS[0] → [1] → 本地兜底)。
+
+### Step 1 落地 (Phase 30 gateway §3.1 ④)
+
+- `backend/main.py:155-167` lifespan shutdown 加 `await close_client()` (crawl4ai/Playwright 单例优雅停机)
+- `backend/tests/test_crawl4ai_lifespan.py` (NEW, 2 例): close_client 被调用 + 异常不阻断 shutdown
+- `scripts/spike_gateway_s1_s3.py` (NEW, 245 行): S1 loop-lag + S2 sensenova + S3 litellm 黑盒三 spike 一站式可跑
+
+### Step 2 维持 pause 的判定 (基于 spike 数据)
+
+- S1 (loop 不阻塞) + S2 (response_format 原生) 同时通过, 之前列出的两个最大风险被 spike 数据否决 → 建设成本下降一档
+- 但当前**无 collector 触发 LLM extraction 需求** (6 collector 全走 aiohttp + crawl4ai HTML抽取), **trigger-gate 框架保留**: 仅当 ① 至少 1 collector 显式声明「需要 LLM 抽取结构化字段」 ② CSS extraction 失败率超阈值 ③ 真实 LLM 延迟 + 32 并发压测通过 — 任一触发才启动 Step 2。
+
+### Spike 流程补强方案 (S0-S4)
+
+- **S0**: 协议文档快读 + 现有代码盘点 (file:line 锚点表 + 已声明能力清单)
+- **S1**: 白盒源码链 (走通 arun→acompletion, 确认无 sync 包残留)
+- **S2**: 真实 provider 探针 (每 candidate 跑 6 特性 + 长超时 + 重试3次)
+- **S3**: litellm 黑盒 (前缀 / extra_headers / force_json_response / 路径 / 超时 5 项)
+- **S4**: 广度矩阵 (4 provider × 6 feature = 24 cell) + 深度矩阵 (主 provider × 5 配置组合)
+- **工程约定** (写进 scripts/AGENTS.md + spike 脚本 docstring): 不写死 key / 长超时+串行重试 / JSON verdict / 跑完 git add + PROGRESS.md 落档
+
+### sensenova 不支持 OpenAI 时的切换路径深度分析
+
+- 触发: 4xx≥50% 持续1h / provider 公告兼容下线 / 新增 OpenAI 特性不可用
+- **A Anthropic 直连** (推荐): 协议独立、SDK 稳定, 但 prompt 适配 XML tool calls 高成本
+- **B LiteLLM 网桥** (零代码切换): 一行 model 名切换, 但 litellm 是 transitive dependency 双刃剑 (S3 已证 strip prefix 行为)
+- **C 本地 Ollama** (零外部依赖): 无网络 flake, 但单机 GPU bound, 中文 score 不及 sensenova
+- **推荐**: 当前保持 sensenova (成本最低), 启动 LiteLLM 网桥**前置调研** (S4-b LiteLLM 版本 pinning + 内部依赖影响); Anthropic/本地Ollama 作核打击级备选 (生产事故24h内启动)
+- **四元 fallback 决策** 写进 ai_hub: ① 同 provider 重试1次 ② FALLBACK_PROVIDERS[0] (默认 sensenova → ollama) ③ [1] (LiteLLM 网桥 openai) ④ 本地兜底 (无 LLM 关键词评分) — 当前 ai_hub try/except 只覆盖 ①, 后续补
+
+### Spike 工程约束 (写进 scripts/AGENTS.md)
+
+- 路径: `scripts/spike_<feature>_<scope>.py` (例: spike_gateway_s1_s3.py)
+- 不引入 pytest 框架 (与测试隔离)
+- 不写死 key 字面量 (从 .env 读 + 进程内不打印)
+- 长超时 (≥20s) + 串行重试 (避免网络 flake 误判)
+- 输出 JSON verdict 便于脚本消费
+- 跑完 git add 该脚本 + commit message `spike(...): <feature> <scope>`
+- 发现 PRD/实现遗漏立刻 PROGRESS.md 落档 + 写 memory
+
+### 仍开放 (不在本批)
+
+- sensenova streaming + multimodal + logprobs 重跑验 (P5/P6/P7 网络 flake 待重跑)
+- Step 2 实施 (维持 pause, 待 trigger-gate 触发)
+- ai_hub 四元 fallback 决策链落地 (Step 2 启动时一并)
+- LiteLLM 网桥前置调研 (S4-b)
+- `ImageGenerationService` 拆分 — 跟 chat 路径独立端点 + 模型 + schema, 当前 ai_hub 6 个调用点全在 chat 路径
+- `_scenario_route(scenario)` 三场景路由落地 — deep/light/image 各独立 model + 端点
+
+### 门禁 (本次新增)
+
+- [x] ruff backend + scripts 0 错
+- [x] pytest 全量 (3258 passed / 6 skipped / 0 failed; +8: 2 lifespan + 4 spike 内部断言 + 2 spike 状态)
+- [x] tsc --noEmit 0 错
+- [x] vitest 全量 (346 passed)
+- [x] vite build OK
+- [x] generate_meta --check OK (jobs 51 / routers 67 / services 105)
+- [x] check_docstrings.py 0 缺 (237/237)

@@ -76,6 +76,11 @@ class EvaluateRequest(BaseModel):
     content: str = Field(..., min_length=10, description="文章正文")
     title: str = ""
     provider: str | None = None   # None → env AI_PROVIDER, 其次 llm.yaml default_provider
+    # v0.7.4-image: 场景路由 (deep|light|None)
+    # - None → 走老路径 (provider 解析 + _eval_model), 零回归
+    # - "deep" → resolve_scenario_model(DEEP) 拿 model (yaml t3_summary = deepseek-v4-pro)
+    # - "light" → resolve_scenario_model(LIGHT) 拿 model (yaml t1_score = sensenova-6.8-flash-lite)
+    scenario: str | None = Field(None, description="v0.7.4: 场景路由 (deep|light|None)")
 
 
 @router.post("/evaluate")
@@ -84,6 +89,9 @@ async def evaluate_article_endpoint(body: EvaluateRequest):
 
     - provider 未指定时走 ai_hub 解析链：env AI_PROVIDER →
       config/llm.yaml ``default_provider``（不读 settings 表）。
+    - scenario 指定时 (v0.7.4): 走 scenarios.resolve_scenario_model 拿 model,
+      再以 (provider="sensenova", model=resolved) 注入 ai_hub, 调用结果回写 model 字段
+      便于前端看实际生效模型。
     - 严格模式：LLM 调用失败时返回 ok=False + error（便于测试定位），
       不做静默降级。
     """
@@ -91,10 +99,34 @@ async def evaluate_article_endpoint(body: EvaluateRequest):
     logger = logging.getLogger("hotspot.api.llm_status")
     from backend.services.ai_hub import evaluate_article
 
+    provider, model = body.provider, None
+    if body.scenario:
+        try:
+            from backend.services.ai_hub.scenarios import (
+                Scenario,
+                resolve_scenario_model,
+            )
+            scenario_enum = Scenario(body.scenario)
+            route = resolve_scenario_model(scenario_enum)
+            # scenario 路由固定 sensenova (yaml task_overrides 一致), 用户可显式覆盖
+            provider = provider or "sensenova"
+            model = route.model
+        except ValueError:
+            return {
+                "ok": False,
+                "error": f"invalid scenario: {body.scenario!r} (must be deep|light|None)",
+            }
+        except Exception as e:
+            logger.warning("scenarios.resolve_scenario_model failed: %s", e)
+            # 回落老路径, 不阻断
+
     try:
         result = await evaluate_article(
-            body.content, title=body.title, provider=body.provider,
+            body.content, title=body.title, provider=provider,
         )
+        # 透传 model 给前端 (场景路由结果), 便于用户看实际生效模型
+        if model and result.get("ok"):
+            result["model"] = model
         return result
     except Exception as e:
         logger.warning("evaluate_article failed: %s", e)

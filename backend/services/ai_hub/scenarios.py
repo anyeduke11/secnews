@@ -114,12 +114,22 @@ def _settings_lookup(scenario: Scenario) -> str:
 
 
 def _router_lookup(scenario: Scenario, config: Any) -> str:
-    """router 路由 — 让 yaml task_overrides 显式 override 生效 (S1 配的 deepseek-v4-pro / u1.5-lite)。"""
+    """router 路由 — 让 yaml task_overrides 显式 override 生效 (S1 配的 deepseek-v4-pro / u1.5-lite)。
+
+    关键转换: Scenario 枚举值 (deep/light/image) 必须映射到 router 的 task key
+    (image_generation / image_understand), 否则 ``route_model("image")`` 落 STANDARD 兜底。
+    """
+    # Scenario → router task key 映射 (单点表, 新增场景只动这一处)
+    task_key_map = {
+        Scenario.DEEP: "deep_read",         # router HEAVY 档 → t3_summary
+        Scenario.LIGHT: "score",            # router STANDARD 档 → t1_score
+        Scenario.IMAGE: "image_generation",  # router IMAGE 档 → image_generation
+    }
     try:
         from backend.services.ai_hub import llm_service
         from backend.services.llm.model_router import route_model
         cfg = config or llm_service.config
-        routed = route_model(scenario.value, config=cfg)
+        routed = route_model(task_key_map[scenario], config=cfg)
         if routed:
             return routed[1]
     except Exception as e:

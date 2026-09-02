@@ -26,6 +26,8 @@ providers:
       ner: "sensenova-6.8-flash-lite"
       summary: "sensenova-6.8-flash-lite"
       chunk_summary: "sensenova-6.8-flash-lite"
+      # v0.7.4-image: IMAGE 档模型 (image_generation/image_understand)
+      image: "sensenova-u1.5-lite"
     timeout_seconds: 90
     max_concurrent: 2
     # 关闭推理模式: 实测同一份深度阅读负载, 默认 84s(其中 reasoning 428 tokens)
@@ -100,9 +102,11 @@ task_overrides:
   # HEAVY 档入口 (当前唯一生产调用方 = 深度阅读)。
   # 原为 openai/gpt-4o, 但实测 OPENAI_API_KEY 未配置 → 该链必然失败,
   # deep_reads 表因此长期 0 行。sensenova 是唯一持凭据且实测可达的通道。
+  # v0.7.4-image: 升级到 deepseek-v4-pro (spike 验过 meeting 真输出), yaml-only
+  # 改动 → deep_read 路由自动生效, 零代码改动。
   t3_summary:
     provider: sensenova
-    model: sensenova-6.8-flash-lite
+    model: deepseek-v4-pro
     temperature: 0.3
     max_tokens: 1600
   # FLASH 档 (summarize/chunk_summary): ollama 优先, 离线时经
@@ -113,6 +117,14 @@ task_overrides:
     temperature: 0.0
     max_tokens: 100
     batch_size: 10
+  # v0.7.4-image: IMAGE 档入口 (image_generation/image_understand 任务)
+  # u1.5-lite 公测期 watermark=false 免费 (官方明示), 上限 60s 超时。
+  image_generation:
+    provider: sensenova
+    model: sensenova-u1.5-lite
+    size: "1024x1024"
+    n: 1
+    watermark: false
 
 rate_limits:
   requests_per_minute: 60

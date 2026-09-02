@@ -17,6 +17,9 @@ class ProviderModels(BaseModel):
     ner: str = "qwen2.5:7b"
     summary: str = "qwen2.5:14b"
     chunk_summary: str = "qwen2.5:7b"
+    # v0.7.4-image: IMAGE 档模型字段 (image_generation / image_understand 任务)
+    # 留默认空串而非 None, 让既有 yaml 不补该字段也能落 schema
+    image: str = ""
 
 
 class ProviderConfig(BaseModel):
@@ -36,6 +39,11 @@ class TaskOverride(BaseModel):
     temperature: float = 0.0
     max_tokens: int = 100
     batch_size: int | None = None
+    # v0.7.4-image: image_generation override 专属字段 (公测期 watermark 默认 false)
+    # 旧 override (t1_score/t3_summary/t3_chunk_summary) 不传 = 行为不变
+    size: str | None = None
+    n: int | None = None
+    watermark: bool | None = None
 
 
 class RateLimits(BaseModel):

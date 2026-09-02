@@ -98,6 +98,27 @@ def _protect_hotspot_env() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _crawl4ai_disabled_for_tests(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> Iterator[None]:
+    """测试环境统一禁用 crawl4ai (gateway 方案 §3.1 ③).
+
+    生产 ``crawl_config.yaml`` 默认 ``enabled: true``; 若不隔离, 装了
+    crawl4ai + Chromium 的环境里任何触发 crawl4ai 路径的测试都会尝试
+    启动真实浏览器。本 fixture 把 ``crawl4ai_client._config_path`` 指向
+    一个 disabled 的 tmp yaml → ``is_available()=False`` → 全部走 aiohttp
+    路径。crawl4ai 专属测试 (test_crawl4ai_client / test_crawl4ai_parser)
+    自行写 tmp yaml 重新启用。
+    """
+    from backend.utils import crawl4ai_client
+
+    cfg = tmp_path / "crawl_config_disabled.yaml"
+    cfg.write_text("crawl4ai:\n  enabled: false\n")
+    monkeypatch.setattr(crawl4ai_client, "_config_path", cfg)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _disable_startup_catchup(monkeypatch: pytest.MonkeyPatch) -> None:
     """v1.8: 全局禁用 lifespan 的启动自动追抓 (真实全网抓取).
 

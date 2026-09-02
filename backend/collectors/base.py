@@ -66,8 +66,9 @@ from backend.quality.config import NOISE_URL_REGEX
 
 # Phase 11: crawl4ai 适配层 (Playwright-based 抓取)。
 #   - 可选依赖: 没装 crawl4ai 时 ``is_available()`` 返回 False
-#   - 默认关闭 (USE_CRAWL4AI=0);打开后 BaseCollector.fetch_source
-#     优先用 crawl4ai 拿 fully-rendered HTML,失败 fallback 到 aiohttp
+#   - 开关来自 crawl_config.yaml ``enabled`` (默认关);打开后
+#     BaseCollector.fetch_source 优先用 crawl4ai 拿 fully-rendered
+#     HTML,失败 fallback 到 aiohttp
 # patch 兼容: fetch_html / crawl4ai_available 模块级符号保留在本模块
 # (测试 monkeypatch backend.collectors.base.X 的路径不变) — F401 re-export
 from backend.utils.crawl4ai_client import (

@@ -1,15 +1,16 @@
-"""crawl4ai 适配层测试 (Phase 11)
+"""crawl4ai 适配层测试 (Phase 11 / gateway 方案第 1 步)
 
 覆盖
 ----
-- ``is_available()`` 反映 (USE_CRAWL4AI env + crawl4ai 是否安装) 两状态
+- ``is_available()`` 反映 (crawl_config.yaml ``enabled`` + crawl4ai 是否安装) 两状态
 - ``fetch_html`` 在 crawl4ai 不可用时返回 ``None`` (caller 走 fallback)
 - ``fetch_html`` 内部异常 (timeout / arun error / success=False) 都
   返回 ``None`` 而不抛
 - ``get_client`` 进程级单例:多次调用返回同一对象
 - ``close_client`` 清空单例,后续 get_client 重新初始化
 - ``fetch_html`` 拿到的 HTML 含 ``.html`` 字段
-- ``BaseCollector.fetch_source`` 在 USE_CRAWL4AI 关闭时仍走 aiohttp
+- YAML 配置生效: 开关 / concurrent_requests 信号量 / timeout_seconds 默认超时
+- ``BaseCollector.fetch_source`` 在 YAML 关闭时仍走 aiohttp
   路径 (向后兼容)
 - ``BaseCollector.fetch_source`` 在 crawl4ai 不可用 / 失败时降级到
   aiohttp,产出正常 items
@@ -41,40 +42,107 @@ def _published_meta() -> str:
     return f'<meta property="article:published_time" content="{now_iso}">'
 
 
+def _write_config(enabled: bool, **extra: object) -> None:
+    """把当前 ``crawl4ai_client._config_path`` 指向的 yaml 重写为新配置。
+
+    替代旧 USE_CRAWL4AI env 双轨 (gateway 方案 §3.1 改①), 测试直接
+    驱动 YAML 单一真相源。
+    """
+    lines = ["crawl4ai:", f"  enabled: {'true' if enabled else 'false'}"]
+    for key, value in extra.items():
+        lines.append(f"  {key}: {value}")
+    crawl4ai_client._config_path.write_text("\n".join(lines) + "\n")
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 @pytest.fixture(autouse=True)
-def _reset_singleton():
-    """每个测试前后重置 _client 单例,避免互相污染。"""
+def _isolated_config(tmp_path, monkeypatch):
+    """每个测试独立 yaml 配置 + 重置单例/信号量,避免互相污染。
+
+    conftest autouse 已把 _config_path 指向全局 disabled yaml;这里再换
+    成本文件私有的 tmp yaml, 供 _write_config 按测试改写。
+    """
     crawl4ai_client._client = None
+    crawl4ai_client._concurrency_sem = None
+    cfg = tmp_path / "crawl_config.yaml"
+    cfg.write_text("crawl4ai:\n  enabled: false\n")
+    monkeypatch.setattr(crawl4ai_client, "_config_path", cfg)
     yield
     crawl4ai_client._client = None
+    crawl4ai_client._concurrency_sem = None
 
 
 # ---------------------------------------------------------------------------
-# 1. is_available 反映 env + import 状态
+# 1. is_available 反映 YAML enabled + import 状态
 # ---------------------------------------------------------------------------
-def test_is_available_false_when_env_unset(monkeypatch):
-    """USE_CRAWL4AI 未设置 → is_available() = False。"""
-    monkeypatch.delenv("USE_CRAWL4AI", raising=False)
-    # 不管 crawl4ai 装没装,env 未开就 False
+def test_is_available_false_when_yaml_disabled():
+    """YAML enabled=false → is_available() = False。"""
+    _write_config(False)
+    # 不管 crawl4ai 装没装,YAML 未开就 False
     assert is_available() is False
 
 
-def test_is_available_false_when_env_true_but_no_module(monkeypatch):
-    """env 开但 crawl4ai 未装 → False (graceful)。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "1")
+def test_is_available_false_when_yaml_enabled_but_no_module():
+    """YAML 开但 crawl4ai 未装 → False (graceful)。"""
+    _write_config(True)
     # 模拟 crawl4ai 未装
     with patch.object(crawl4ai_client, "HAS_CRAWL4AI", False):
         assert is_available() is False
 
 
-def test_is_available_true_when_env_true_and_module_installed(monkeypatch):
-    """env 开 + crawl4ai 装了 → True。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "1")
+def test_is_available_true_when_yaml_enabled_and_module_installed():
+    """YAML 开 + crawl4ai 装了 → True。"""
+    _write_config(True)
     with patch.object(crawl4ai_client, "HAS_CRAWL4AI", True):
         assert is_available() is True
+
+
+def test_is_available_false_when_config_file_missing(tmp_path, monkeypatch):
+    """配置文件不存在 → 返回 {} → disabled (与旧 env 默认关语义一致)。"""
+    monkeypatch.setattr(
+        crawl4ai_client, "_config_path", tmp_path / "nonexistent.yaml"
+    )
+    assert is_available() is False
+
+
+def test_semaphore_size_from_yaml():
+    """YAML concurrent_requests ⇒ 信号量大小 (gateway §3.1)。"""
+    _write_config(True, concurrent_requests=2)
+    sem = crawl4ai_client._get_semaphore()
+    assert sem._value == 2
+
+
+def test_semaphore_size_default_when_invalid():
+    """concurrent_requests 非法值 → 回落默认 3。"""
+    _write_config(True, concurrent_requests="abc")
+    sem = crawl4ai_client._get_semaphore()
+    assert sem._value == 3
+
+
+@pytest.mark.asyncio
+async def test_fetch_html_timeout_defaults_from_yaml():
+    """fetch_html 未显式传 timeout → 回落 YAML timeout_seconds。"""
+    _write_config(True, timeout_seconds=7)
+
+    captured: dict = {}
+
+    def _fake_cfg(**kwargs):
+        captured.update(kwargs)
+        return None
+
+    fake_client = MagicMock()
+    fake_result = MagicMock()
+    fake_result.success = True
+    fake_result.html = "<html></html>"
+    fake_client.arun = AsyncMock(return_value=fake_result)
+
+    with patch.object(crawl4ai_client, "HAS_CRAWL4AI", True), \
+         patch.object(crawl4ai_client, "get_client", AsyncMock(return_value=fake_client)), \
+         patch.object(crawl4ai_client, "CrawlerRunConfig", side_effect=_fake_cfg):
+        await fetch_html("https://example.com")
+    assert captured.get("page_timeout") == 7000  # ms
 
 
 # ---------------------------------------------------------------------------
@@ -83,7 +151,7 @@ def test_is_available_true_when_env_true_and_module_installed(monkeypatch):
 @pytest.mark.asyncio
 async def test_fetch_html_returns_none_when_unavailable(monkeypatch):
     """crawl4ai 不可用 → fetch_html 返回 None,不抛异常。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "0")
+    _write_config(False)
     result = await fetch_html("https://example.com", timeout=5)
     assert result is None
 
@@ -91,7 +159,7 @@ async def test_fetch_html_returns_none_when_unavailable(monkeypatch):
 @pytest.mark.asyncio
 async def test_fetch_html_returns_none_when_module_missing(monkeypatch):
     """env 开但 crawl4ai 未装 → None。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "1")
+    _write_config(True)
     with patch.object(crawl4ai_client, "HAS_CRAWL4AI", False):
         result = await fetch_html("https://example.com", timeout=5)
         assert result is None
@@ -103,7 +171,7 @@ async def test_fetch_html_returns_none_when_module_missing(monkeypatch):
 @pytest.mark.asyncio
 async def test_fetch_html_timeout_returns_none(monkeypatch):
     """arun 超时 → fetch_html 返回 None,不抛 TimeoutError。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "1")
+    _write_config(True)
 
     fake_client = MagicMock()
     fake_client.arun = AsyncMock(side_effect=asyncio.TimeoutError())
@@ -117,7 +185,7 @@ async def test_fetch_html_timeout_returns_none(monkeypatch):
 @pytest.mark.asyncio
 async def test_fetch_html_arun_exception_returns_none(monkeypatch):
     """arun 内部抛异常 → fetch_html 返回 None。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "1")
+    _write_config(True)
 
     fake_client = MagicMock()
     fake_client.arun = AsyncMock(side_effect=RuntimeError("chromium crashed"))
@@ -131,7 +199,7 @@ async def test_fetch_html_arun_exception_returns_none(monkeypatch):
 @pytest.mark.asyncio
 async def test_fetch_html_success_false_returns_none(monkeypatch):
     """arun 返回 success=False → None。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "1")
+    _write_config(True)
 
     fake_result = MagicMock()
     fake_result.success = False
@@ -149,7 +217,7 @@ async def test_fetch_html_success_false_returns_none(monkeypatch):
 @pytest.mark.asyncio
 async def test_fetch_html_empty_content_returns_none(monkeypatch):
     """arun 成功但 .html 和 .markdown 都为空 → None。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "1")
+    _write_config(True)
 
     fake_result = MagicMock()
     fake_result.success = True
@@ -168,7 +236,7 @@ async def test_fetch_html_empty_content_returns_none(monkeypatch):
 @pytest.mark.asyncio
 async def test_fetch_html_returns_html_when_success(monkeypatch):
     """arun 成功 + .html 有内容 → 返回 HTML 字符串。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "1")
+    _write_config(True)
 
     expected_html = "<html><body><h1>Hello</h1></body></html>"
     fake_result = MagicMock()
@@ -187,7 +255,7 @@ async def test_fetch_html_returns_html_when_success(monkeypatch):
 @pytest.mark.asyncio
 async def test_fetch_html_falls_back_to_markdown(monkeypatch):
     """.html 为空但 .markdown 有内容 → 返回 markdown。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "1")
+    _write_config(True)
 
     expected_md = "# Hello World\n\nLorem ipsum"
     fake_result = MagicMock()
@@ -210,7 +278,7 @@ async def test_fetch_html_falls_back_to_markdown(monkeypatch):
 @pytest.mark.asyncio
 async def test_get_client_singleton(monkeypatch):
     """多次 get_client() 返回同一对象 (Playwright 启动只一次)。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "1")
+    _write_config(True)
     fake_instance = MagicMock()
     fake_instance.start = AsyncMock()
 
@@ -229,14 +297,14 @@ async def test_get_client_singleton(monkeypatch):
 @pytest.mark.asyncio
 async def test_get_client_returns_none_when_unavailable(monkeypatch):
     """crawl4ai 不可用 → get_client() 返回 None。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "0")
+    _write_config(False)
     assert await crawl4ai_client.get_client() is None
 
 
 @pytest.mark.asyncio
 async def test_get_client_returns_none_on_init_failure(monkeypatch):
     """AsyncWebCrawler() 构造失败 → get_client 返回 None,不清空其他状态。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "1")
+    _write_config(True)
     fake_class = MagicMock(side_effect=RuntimeError("chromium missing"))
     with patch.object(crawl4ai_client, "HAS_CRAWL4AI", True), \
          patch.object(crawl4ai_client, "AsyncWebCrawler", fake_class):
@@ -247,7 +315,7 @@ async def test_get_client_returns_none_on_init_failure(monkeypatch):
 @pytest.mark.asyncio
 async def test_close_client_releases_singleton(monkeypatch):
     """close_client() 后 _client=None,下次 get_client 重新构造。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "1")
+    _write_config(True)
     fake_instance = MagicMock()
     fake_instance.start = AsyncMock()
     fake_instance.close = AsyncMock()
@@ -273,7 +341,7 @@ async def test_base_collector_falls_back_to_aiohttp_when_crawl4ai_unavailable(
     monkeypatch,
 ):
     """crawl4ai 不可用 → BaseCollector 走原始 aiohttp 路径,产出 items。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "0")
+    _write_config(False)
 
 
     from backend.collectors.base import BaseCollector
@@ -340,7 +408,7 @@ async def test_base_collector_falls_back_to_aiohttp_when_crawl4ai_returns_none(
     monkeypatch,
 ):
     """crawl4ai 开关开但 fetch_html 返回 None → 降级 aiohttp,仍能产出 items。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "1")
+    _write_config(True)
 
     from backend.collectors.base import BaseCollector
     from backend.domain.enums import Category
@@ -406,7 +474,7 @@ async def test_base_collector_falls_back_to_aiohttp_when_crawl4ai_returns_none(
 @pytest.mark.asyncio
 async def test_base_collector_uses_crawl4ai_html_when_available(monkeypatch):
     """crawl4ai 可用且返回 HTML → 优先用 crawl4ai 的 HTML,不调 aiohttp。"""
-    monkeypatch.setenv("USE_CRAWL4AI", "1")
+    _write_config(True)
 
     from backend.collectors.base import BaseCollector
     from backend.domain.enums import Category
@@ -477,11 +545,15 @@ __all__ = [
     "test_fetch_html_returns_none_when_module_missing",
     "test_fetch_html_returns_none_when_unavailable",
     "test_fetch_html_success_false_returns_none",
+    "test_fetch_html_timeout_defaults_from_yaml",
     "test_fetch_html_timeout_returns_none",
     "test_get_client_returns_none_on_init_failure",
     "test_get_client_returns_none_when_unavailable",
     "test_get_client_singleton",
-    "test_is_available_false_when_env_true_but_no_module",
-    "test_is_available_false_when_env_unset",
-    "test_is_available_true_when_env_true_and_module_installed",
+    "test_is_available_false_when_config_file_missing",
+    "test_is_available_false_when_yaml_disabled",
+    "test_is_available_false_when_yaml_enabled_but_no_module",
+    "test_is_available_true_when_yaml_enabled_and_module_installed",
+    "test_semaphore_size_default_when_invalid",
+    "test_semaphore_size_from_yaml",
 ]

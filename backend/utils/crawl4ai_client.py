@@ -23,8 +23,8 @@ crawl4ai (https://github.com/unclecode/crawl4ai) 提供
    (collector) 决定 fallback 到 aiohttp 还是放弃该源。
 4. **超时严格** — 用 ``asyncio.wait_for`` 包裹 arun,避免 Playwright
    内部 hang 死锁整个 collect 任务。
-5. **环境变量开关** — ``USE_CRAWL4AI=1`` 才走 crawl4ai 路径 (默认关,
-   单元测试环境无 Chromium 也能跑)。
+5. **YAML 单一开关** — ``crawl_config.yaml`` 的 ``enabled`` 才走 crawl4ai
+   路径 (gateway 方案第 1 步: 删除 USE_CRAWL4AI env 双轨, 配置单一真相源)。
 
 Usage
 -----
@@ -41,7 +41,7 @@ Usage
 from __future__ import annotations
 
 import asyncio
-import os
+from pathlib import Path
 
 from backend.logging_config import logger
 
@@ -56,21 +56,40 @@ except ImportError:  # pragma: no cover — 没装 crawl4ai 时
     CrawlerRunConfig = None  # type: ignore
     HAS_CRAWL4AI = False
 
-# 环境变量开关 — 默认关 (测试 / 无 Chromium 环境)
-#   USE_CRAWL4AI=1 → 启用 crawl4ai
+# YAML 单一真相源 — 开关/并发/超时统一来自 crawl_config.yaml (gateway §3.1)
+#   enabled: true            → 启用 crawl4ai
+#   concurrent_requests: 3   → 渲染并发信号量大小
+#   timeout_seconds: 30      → 单次抓取默认超时
 #
-# 注: 这里只把开关字面量读出来作为 default;``is_available()`` 每次
-# 调用时 re-read env,方便测试 monkeypatch 切换 + 生产环境热切换。
-USE_CRAWL4AI_DEFAULT: bool = os.getenv("USE_CRAWL4AI", "0").lower() in (
-    "1",
-    "true",
-    "yes",
+# 注: ``_config_path`` 每次调用时重读, 便于测试 monkeypatch 指向 tmp yaml
+# 和生产环境热切换; conftest autouse fixture 会把它指到 disabled yaml,
+# 保证测试环境永远走 aiohttp 路径。
+DEFAULT_CRAWL_CONFIG_PATH = (
+    Path(__file__).resolve().parent.parent / "collectors" / "crawl_config.yaml"
 )
+_config_path: Path = DEFAULT_CRAWL_CONFIG_PATH
+
+
+def _load_crawl4ai_config() -> dict:
+    """惰性读取 crawl_config.yaml 的 ``crawl4ai`` 段 (每次调用重读)。
+
+    文件缺失/解析失败/段落缺失一律返回 ``{}`` → 全部字段走默认值
+    (enabled=False), 与旧 env 双轨的默认关闭语义一致。
+    """
+    try:
+        import yaml
+
+        with open(_config_path) as f:
+            data = yaml.safe_load(f) or {}
+        cfg = data.get("crawl4ai")
+        return cfg if isinstance(cfg, dict) else {}
+    except Exception:
+        return {}
+
 
 # 并发控制 — Playwright 单浏览器实例同时处理多 tab 会内存爆炸,
-# 限制最多 3 个并发渲染请求 (其余排队等待,避免 OOM)。
-# 通过环境变量 CRAWL4AI_CONCURRENCY 可调。
-_MAX_CONCURRENCY: int = int(os.getenv("CRAWL4AI_CONCURRENCY", "3"))
+# 限制并发渲染请求个数 (其余排队等待,避免 OOM)。
+# 大小来自 YAML ``concurrent_requests`` (默认 3), 信号量惰性创建。
 _concurrency_sem: asyncio.Semaphore | None = None
 
 
@@ -105,20 +124,27 @@ STEALTH_BROWSER_CONFIG: dict = {
 
 
 def _get_semaphore() -> asyncio.Semaphore:
-    """惰性创建 Semaphore (避免在模块加载时绑定错误的 event loop)。"""
+    """惰性创建 Semaphore (避免在模块加载时绑定错误的 event loop)。
+
+    并发大小来自 YAML ``concurrent_requests`` (默认 3);信号量创建后
+    不随配置热更新,重启进程生效。
+    """
     global _concurrency_sem
     if _concurrency_sem is None:
-        _concurrency_sem = asyncio.Semaphore(_MAX_CONCURRENCY)
+        try:
+            size = int(_load_crawl4ai_config().get("concurrent_requests", 3))
+        except (TypeError, ValueError):
+            size = 3
+        _concurrency_sem = asyncio.Semaphore(max(1, size))
     return _concurrency_sem
 
 
 def is_available() -> bool:
-    """crawl4ai 是否可用 (装了 + 开关打开)。
+    """crawl4ai 是否可用 (装了 + YAML ``enabled`` 打开)。
 
-    每次重新读 env,便于测试 monkeypatch 和运行时切换。
+    每次重新读 YAML,便于测试 monkeypatch 配置路径和运行时切换。
     """
-    use = os.getenv("USE_CRAWL4AI", "0").lower() in ("1", "true", "yes")
-    return HAS_CRAWL4AI and use
+    return HAS_CRAWL4AI and bool(_load_crawl4ai_config().get("enabled", False))
 
 
 # ----------------------------------------------------------------------
@@ -184,11 +210,13 @@ DEFAULT_UA = (
 async def fetch_html(
     url: str,
     *,
-    timeout: int = 30,
+    timeout: int | None = None,
     user_agent: str = DEFAULT_UA,
     use_stealth: bool = True,
 ) -> str | None:
     """用 crawl4ai 抓取单个 URL 的 **fully-rendered HTML**。
+
+    ``timeout`` 未显式传入时,回落 YAML ``timeout_seconds`` (默认 30s)。
 
     Returns
     -------
@@ -200,6 +228,11 @@ async def fetch_html(
     """
     if not is_available():
         return None
+    if timeout is None:
+        try:
+            timeout = int(_load_crawl4ai_config().get("timeout_seconds", 30))
+        except (TypeError, ValueError):
+            timeout = 30
     client = await get_client()
     if client is None:
         return None
@@ -265,8 +298,8 @@ async def fetch_html(
 
 
 __all__ = [
+    "DEFAULT_CRAWL_CONFIG_PATH",
     "HAS_CRAWL4AI",
-    "USE_CRAWL4AI_DEFAULT",
     "close_client",
     "fetch_html",
     "get_client",

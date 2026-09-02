@@ -131,7 +131,7 @@ type / difficulty / tags / concepts / mastery / related_items / project_id`。
 - feature gate `dsh` = **true** (v0.6.3 起内置化; 未配置启动命令时如实 `not_configured`)
 - **子进程宿主**: `process_supervisor` (spawn/stop/poll/auto-restart/重启上限, 5 个 process_events 写入点)
   + `dsh/supervisor.py` (配置持久化 settings KV + `autostart_if_configured` lifespan 钩子)
-- **控制面**: `/api/dsh/control/*` 5 端点 + 前端 `/secnews/settings` DshControlCard 一键启停 (10s 轮询)
+- **控制面**: `/api/dsh/control/*` 5 端点 + 前端 `/settings?cat=pipeline` DshControlCard 一键启停 (10s 轮询; v0.7.x SettingsHub 已从 `/secnews/settings` 合并)
 - **pi 执行 agent**: `agent_bridge` (jsonl/stream-json 协议 + workspace 锁定 codegarden/ + builtin→ai_hub) + `/api/agents/*` (AgentRunnerCard)
 - **不可达自动降级** llm_service 直连 (无需改业务代码)
 

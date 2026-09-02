@@ -125,13 +125,9 @@ export const SecNewsKnowledge = React.lazy(() =>
 export const SecNewsAnalyze = React.lazy(() =>
   import('../components/secnews/analyze/SecNewsAnalyze').then(m => ({ default: m.SecNewsAnalyze }))
 );
-// v0.7.4-image: 文生图 + 图理解 工具页 (sensenova-u1.5-lite)
-export const SecNewsImage = React.lazy(() =>
-  import('../components/secnews/ImageStudio').then(m => ({ default: m.ImageStudio }))
-);
-export const SecNewsSettings = React.lazy(() =>
-  import('../components/secnews/settings/PipelineSettings').then(m => ({ default: m.PipelineSettings }))
-);
+// v0.7.x SettingsHub: SecNewsImage + SecNewsSettings 已删除 (功能并入 /settings)
+// 旧路由 /secnews/image 与 /secnews/settings 在 index.tsx 用 Navigate 永久 redirect,
+// 此处不再 export。ImageStudio.tsx 文件保留为 deprecated 标记, 但路由层不可达。
 export const SecNewsAnalytics = React.lazy(() =>
   import('../components/secnews/analytics/SecNewsAnalytics').then(m => ({ default: m.SecNewsAnalytics }))
 );

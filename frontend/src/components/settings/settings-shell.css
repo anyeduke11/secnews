@@ -1,0 +1,361 @@
+/* ============================================================
+ * settings-shell.css — /settings v2 设计系统 (V2 设计稿 settings 屏)
+ *
+ * 来源: 哨兵终端 V2 设计稿 settings 屏 (st-* 命名族) + SentinelSettingsPage
+ *       哨兵 CSS 提炼而来;扩展 .st-input / .st-textarea / .st-select /
+ *       .st-checkbox / .st-radio / .st-progress / .st-action-bar 等
+ *       让"读写模式"与哨兵"只读模式"可共存 (保留可写)。
+ * 作用域: 全部选择器以 `.settings-shell` 双级前缀锁定 —
+ *   v0.7.x SettingsHub 整合后,SettingsPage 根 div 带 .settings-shell
+ *   本文件不出现任何色板字面值；需要半透明时用 color-mix 派生。
+ * 主题跟随: html[data-theme] (与 ThemeContext 联动)
+ *
+ * 五条设计纪律落点 (来自哨兵 V2 设计稿):
+ *   1 零霓虹      — 无彩色 box-shadow; 层次靠 1px hairline 与 1~3% 亮度差;
+ *                   圆角只用 6 / 8 / 10px (圆点用 50%)。
+ *   2 语义三色锁  — mint=正常/已就绪/激活, amber=需注意/降级,
+ *                   red 仅用于破坏性语境 (DANGER ZONE / 离线 / 不可达标记)。
+ *   3 等宽承载数据 — 数值/计数/路径全部 var(--sn-mono) + tnum;与哨兵同源。
+ *   4 辅助文字    — 最小 11.5px, 灰字用 --sn-ink-2/--sn-ink-3 (WCAG AA)。
+ *   5 动效        — warn chip 呼吸点在 prefers-reduced-motion 下关闭。
+ * ============================================================ */
+
+/* ===== Token 转发 (与 sentinel.css 同源,扩展字号/间距/控件) ===== */
+.settings-shell{
+  /* 全局 token 转发 */
+  --sn-bg:var(--bg-primary); --sn-bg-lift:var(--bg-lift); --sn-bg-panel:var(--bg-card); --sn-bg-hover:var(--bg-hover);
+  --sn-line:var(--line); --sn-line-strong:var(--line-strong);
+  --sn-ink:var(--ink); --sn-ink-2:var(--ink-2); --sn-ink-3:var(--ink-3);
+  --sn-mint:var(--mint); --sn-mint-dim:var(--mint-dim);
+  --sn-amber:var(--amber); --sn-amber-dim:var(--amber-dim);
+  --sn-red:var(--red); --sn-red-dim:var(--red-dim);
+  --sn-mono:var(--font-mono);
+  --sn-sans:var(--font-sans);
+
+  /* 字号五档 (来自哨兵 V2 设计稿 + 适应读写模式) */
+  --sn-fs-title:22px;
+  --sn-fs-h2:16px;
+  --sn-fs-h3:13px;
+  --sn-fs-body:12.5px;
+  --sn-fs-mute:11.5px;
+
+  /* 字重三档 */
+  --sn-fw-bold:800;
+  --sn-fw-medium:500;
+  --sn-fw-regular:400;
+
+  /* 间距四档 (gutter / row / cell-pad / tight) */
+  --sn-gutter:24px;
+  --sn-row:12px;
+  --sn-cell-pad:14px 16px;
+  --sn-tight:6px;
+
+  /* 圆角三档 (哨兵 6/8/10 圆点 50%) */
+  --sn-radius-sm:6px;
+  --sn-radius-md:8px;
+  --sn-radius-lg:10px;
+
+  /* 阴影 (克制:仅 1~3% 亮度差,无彩色霓虹) */
+  --sn-shadow-hairline:inset 0 0 0 1px var(--sn-line);
+  --sn-shadow-panel:0 1px 0 var(--sn-line);
+}
+
+/* ===== 顶层页头 (st-head) ===== */
+.settings-shell .st-head{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:var(--sn-gutter);
+  flex-wrap:wrap;padding-bottom:14px;margin-bottom:var(--sn-gutter);
+  border-bottom:1px solid var(--sn-line-strong);
+}
+.settings-shell .st-head .st-title{font-size:var(--sn-fs-title);font-weight:var(--sn-fw-bold);letter-spacing:-.01em;line-height:1.3;color:var(--sn-ink);margin:0}
+.settings-shell .st-head .st-sub2{font-size:var(--sn-fs-mute);color:var(--sn-ink-2);line-height:1.65;margin-top:6px;max-width:62ch}
+.settings-shell .st-headops{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* ===== 只读徽章 (保留可写模式下不出现) ===== */
+.settings-shell .st-readonlypill{
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:var(--sn-mono);font-size:11px;letter-spacing:.1em;color:var(--sn-mint);
+  border:1px solid color-mix(in srgb,var(--sn-mint) 32%,transparent);
+  border-radius:var(--sn-radius-sm);padding:4px 9px;
+}
+.settings-shell .st-readonlypill>i{width:6px;height:6px;border-radius:50%;background:var(--sn-mint)}
+
+/* ===== 按钮 (st-btn) — 替代 btn-secondary / btn-ghost ===== */
+.settings-shell .st-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--sn-mono);font-size:11.5px;line-height:1;
+  color:var(--sn-ink);background:transparent;
+  border:1px solid var(--sn-line);border-radius:var(--sn-radius-sm);
+  padding:7px 12px;cursor:pointer;
+  transition:background-color .12s ease,border-color .12s ease;
+}
+.settings-shell .st-btn:hover:not(:disabled){background:var(--sn-bg-hover);border-color:var(--sn-line-strong)}
+.settings-shell .st-btn:active:not(:disabled){background:var(--sn-bg-lift)}
+.settings-shell .st-btn:disabled{opacity:.45;cursor:not-allowed}
+.settings-shell .st-btn.primary{background:var(--sn-mint);color:var(--bg-primary);border-color:var(--sn-mint);font-weight:var(--sn-fw-medium)}
+.settings-shell .st-btn.primary:hover:not(:disabled){background:color-mix(in srgb,var(--sn-mint) 88%,var(--sn-ink))}
+.settings-shell .st-btn.danger{color:var(--sn-red);border-color:color-mix(in srgb,var(--sn-red) 30%,var(--sn-line))}
+.settings-shell .st-btn.danger:hover:not(:disabled){background:color-mix(in srgb,var(--sn-red) 8%,transparent)}
+.settings-shell .st-btn.ghost{border-color:transparent}
+.settings-shell .st-btn.ghost:hover:not(:disabled){background:var(--sn-bg-hover)}
+
+/* ===== 输入控件 (st-input / st-textarea / st-select) — 哨兵无,本批扩展 ===== */
+.settings-shell .st-input,
+.settings-shell .st-textarea,
+.settings-shell .st-select{
+  font-family:var(--sn-mono);font-size:var(--sn-fs-body);
+  color:var(--sn-ink);background:var(--sn-bg-panel);
+  border:1px solid var(--sn-line);border-radius:var(--sn-radius-sm);
+  padding:7px 10px;line-height:1.4;
+  transition:border-color .12s ease;
+  width:100%;box-sizing:border-box;
+}
+.settings-shell .st-input:focus,
+.settings-shell .st-textarea:focus,
+.settings-shell .st-select:focus{outline:none;border-color:var(--sn-mint);box-shadow:0 0 0 2px color-mix(in srgb,var(--sn-mint) 18%,transparent)}
+.settings-shell .st-textarea{min-height:72px;resize:vertical}
+.settings-shell .st-input:disabled,
+.settings-shell .st-textarea:disabled,
+.settings-shell .st-select:disabled{opacity:.55;cursor:not-allowed;background:var(--sn-bg-hover)}
+
+/* ===== 开关 (st-switch) — 哨兵只读语义,本批保留可写 ===== */
+.settings-shell .st-switch{
+  appearance:none;-webkit-appearance:none;
+  width:32px;height:18px;border-radius:999px;
+  background:var(--sn-line);border:none;cursor:pointer;position:relative;
+  transition:background-color .15s ease;
+  flex-shrink:0;
+}
+.settings-shell .st-switch::before{
+  content:"";position:absolute;top:2px;left:2px;
+  width:14px;height:14px;border-radius:50%;background:var(--sn-bg-panel);
+  transition:left .15s ease;box-shadow:0 1px 2px rgba(0,0,0,.12);
+}
+.settings-shell .st-switch[aria-checked="true"]{background:var(--sn-mint)}
+.settings-shell .st-switch[aria-checked="true"]::before{left:16px}
+.settings-shell .st-switch:disabled{opacity:.5;cursor:not-allowed}
+
+/* ===== 复选 / 单选 (st-checkbox / st-radio) ===== */
+.settings-shell .st-checkbox,
+.settings-shell .st-radio{
+  appearance:none;-webkit-appearance:none;
+  width:14px;height:14px;
+  border:1px solid var(--sn-line-strong);background:var(--sn-bg-panel);
+  cursor:pointer;position:relative;flex-shrink:0;
+  transition:border-color .12s ease,background-color .12s ease;
+}
+.settings-shell .st-checkbox{border-radius:3px}
+.settings-shell .st-radio{border-radius:50%}
+.settings-shell .st-checkbox:checked,
+.settings-shell .st-radio:checked{background:var(--sn-mint);border-color:var(--sn-mint)}
+.settings-shell .st-checkbox:checked::after{
+  content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;
+  border:solid var(--bg-primary);border-width:0 2px 2px 0;transform:rotate(45deg);
+}
+.settings-shell .st-radio:checked::after{
+  content:"";position:absolute;left:3px;top:3px;width:6px;height:6px;
+  border-radius:50%;background:var(--bg-primary);
+}
+.settings-shell .st-checkbox:disabled,
+.settings-shell .st-radio:disabled{opacity:.5;cursor:not-allowed}
+
+/* ===== 状态徽章 (st-chip) — 四态 ok/warn/bad/mute ===== */
+.settings-shell .st-chip{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:var(--sn-mono);font-size:10.5px;letter-spacing:.04em;
+  color:var(--sn-ink-2);
+  border:1px solid var(--sn-line);border-radius:var(--sn-radius-sm);
+  padding:2px 8px;line-height:1.4;
+  background:var(--sn-bg-panel);
+}
+.settings-shell .st-chip>i{width:6px;height:6px;border-radius:50%;background:var(--sn-ink-3);display:inline-block}
+.settings-shell .st-chip.ok{color:var(--sn-mint);border-color:color-mix(in srgb,var(--sn-mint) 28%,transparent)}
+.settings-shell .st-chip.ok>i{background:var(--sn-mint)}
+.settings-shell .st-chip.warn{color:var(--sn-amber);border-color:color-mix(in srgb,var(--sn-amber) 28%,transparent)}
+.settings-shell .st-chip.warn>i{background:var(--sn-amber);animation:st-warn-blink 1.6s ease-in-out infinite}
+.settings-shell .st-chip.bad{color:var(--sn-red);border-color:color-mix(in srgb,var(--sn-red) 32%,transparent)}
+.settings-shell .st-chip.bad>i{background:var(--sn-red)}
+.settings-shell .st-chip.mute>i{background:var(--sn-ink-3)}
+@keyframes st-warn-blink{0%,100%{opacity:1}50%{opacity:.4}}
+@media(prefers-reduced-motion:reduce){.settings-shell .st-chip.warn>i{animation:none}}
+
+/* ===== 行式布局 (.rule) — 哨兵 212px 标签列 + 控件列 ===== */
+.settings-shell .st-rule{
+  display:grid;grid-template-columns:212px minmax(0,1fr);gap:var(--sn-row);
+  padding:var(--sn-cell-pad);align-items:start;
+  border-bottom:1px solid var(--sn-line);
+}
+.settings-shell .st-rule:last-child{border-bottom:none}
+.settings-shell .st-rule .st-label{font-family:var(--sn-sans);font-size:var(--sn-fs-body);font-weight:var(--sn-fw-medium);color:var(--sn-ink);margin:0 0 2px}
+.settings-shell .st-rule .st-key{font-family:var(--sn-mono);font-size:10.5px;color:var(--sn-ink-3);margin:0}
+.settings-shell .st-rule .st-ctrl{display:flex;flex-direction:column;gap:8px}
+.settings-shell .st-rule .st-ctrlrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.settings-shell .st-rule .st-desc{font-size:var(--sn-fs-mute);color:var(--sn-ink-2);line-height:1.5;margin:4px 0 0}
+.settings-shell .st-rule .st-fnote{font-size:var(--sn-fs-mute);color:var(--sn-ink-3);margin-top:6px;line-height:1.5}
+
+/* ===== 卡片网格 (.cellgrid) — 哨兵 st-cellgrid 直接移植 ===== */
+.settings-shell .st-cellgrid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:var(--sn-row);
+}
+.settings-shell .st-cell{
+  padding:var(--sn-cell-pad);border:1px solid var(--sn-line);
+  border-radius:var(--sn-radius-md);background:var(--sn-bg-panel);
+  display:flex;flex-direction:column;gap:6px;
+}
+.settings-shell .st-cell .st-cellk{font-size:11px;color:var(--sn-ink-3);font-family:var(--sn-mono);letter-spacing:.03em}
+.settings-shell .st-cell .st-cellv{font-family:var(--sn-mono);font-size:18px;font-weight:var(--sn-fw-bold);font-variant-numeric:tabular-nums;color:var(--sn-ink);line-height:1.1}
+.settings-shell .st-cell .st-cellv.sm{font-size:13px;font-weight:var(--sn-fw-medium)}
+.settings-shell .st-cell .st-cellv.amber{color:var(--sn-amber)}
+.settings-shell .st-cell .st-cellv.red{color:var(--sn-red)}
+.settings-shell .st-cell .st-cellv.mint{color:var(--sn-mint)}
+.settings-shell .st-cell .st-cellnote{font-size:var(--sn-fs-mute);color:var(--sn-ink-3);line-height:1.4}
+
+/* ===== 双栏主区 (.st-grid) — 哨兵 minmax(0,1fr) 340px 右栏 ===== */
+.settings-shell .st-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:var(--sn-gutter);margin-top:var(--sn-gutter)}
+.settings-shell .st-grid .st-main{min-width:0;display:flex;flex-direction:column;gap:var(--sn-row)}
+.settings-shell .st-grid .st-rail{min-width:0;display:flex;flex-direction:column;gap:var(--sn-row)}
+
+/* ===== 卡片 (.st-card) — 通用容器 ===== */
+.settings-shell .st-card{
+  background:var(--sn-bg-panel);border:1px solid var(--sn-line);
+  border-radius:var(--sn-radius-md);padding:var(--sn-cell-pad);
+  display:flex;flex-direction:column;gap:var(--sn-row);
+}
+.settings-shell .st-card h3{display:flex;align-items:center;gap:6px;font-family:var(--sn-mono);font-size:var(--sn-fs-h3);font-weight:var(--sn-fw-medium);color:var(--sn-ink);margin:0}
+.settings-shell .st-card .st-raildesc{font-size:var(--sn-fs-mute);color:var(--sn-ink-2);margin:0}
+
+/* ===== 状态卡片墙 (.st-tilegrid) — Dashboard 用 ===== */
+.settings-shell .st-tilegrid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+  gap:var(--sn-row);
+}
+.settings-shell .st-tile{
+  display:flex;flex-direction:column;gap:6px;
+  padding:var(--sn-cell-pad);border:1px solid var(--sn-line);
+  border-radius:var(--sn-radius-md);background:var(--sn-bg-panel);
+  cursor:pointer;transition:border-color .12s ease,background-color .12s ease,transform .08s ease;
+  text-align:left;
+}
+.settings-shell .st-tile:hover{border-color:var(--sn-line-strong);background:var(--sn-bg-lift)}
+.settings-shell .st-tile:active{transform:translateY(1px)}
+.settings-shell .st-tile .st-tile-label{font-family:var(--sn-sans);font-size:var(--sn-fs-body);font-weight:var(--sn-fw-medium);color:var(--sn-ink);margin:0}
+.settings-shell .st-tile .st-tile-key{font-family:var(--sn-mono);font-size:10.5px;color:var(--sn-ink-3);margin:0}
+.settings-shell .st-tile .st-tile-state{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.settings-shell .st-tile .st-tile-note{font-size:var(--sn-fs-mute);color:var(--sn-ink-2);margin:4px 0 0;line-height:1.4}
+
+/* ===== Sidebar (st-sidenav) ===== */
+.settings-shell .st-sidenav{
+  display:flex;flex-direction:column;gap:2px;overflow-y:auto;
+  scrollbar-width:thin;
+}
+.settings-shell .st-sidenav-item{
+  display:flex;flex-direction:column;gap:2px;
+  padding:8px 10px;border-radius:var(--sn-radius-sm);
+  cursor:pointer;border:1px solid transparent;background-color:transparent;
+  text-align:left;width:100%;
+  font-family:var(--sn-sans);color:var(--sn-ink-2);
+  transition:background-color .12s ease,color .12s ease,border-color .12s ease;
+}
+.settings-shell .st-sidenav-item:hover:not(.active){background:var(--sn-bg-hover);color:var(--sn-ink)}
+.settings-shell .st-sidenav-item.active{
+  background:color-mix(in srgb,var(--sn-mint) 10%,transparent);
+  border-color:color-mix(in srgb,var(--sn-mint) 32%,transparent);
+  color:var(--sn-ink);
+}
+.settings-shell .st-sidenav-item .st-snav-row{display:flex;align-items:center;gap:6px}
+.settings-shell .st-sidenav-item .st-snav-icon{display:inline-flex;align-items:center;justify-content:center;color:var(--sn-ink-2)}
+.settings-shell .st-sidenav-item.active .st-snav-icon{color:var(--sn-mint)}
+.settings-shell .st-sidenav-item .st-snav-label{font-size:12px;font-weight:var(--sn-fw-medium);line-height:1.3}
+.settings-shell .st-sidenav-item .st-snav-desc{font-size:10.5px;color:var(--sn-ink-3);line-height:1.35;margin-top:1px}
+.settings-shell .st-sidenav-item .st-snav-state{margin-left:auto;font-size:10px;color:var(--sn-ink-3);font-family:var(--sn-mono)}
+
+/* ===== Section / 段 (st-section) ===== */
+.settings-shell .st-section{
+  display:flex;flex-direction:column;gap:var(--sn-row);
+  padding:var(--sn-cell-pad);border:1px solid var(--sn-line);
+  border-radius:var(--sn-radius-md);background:var(--sn-bg-panel);
+}
+.settings-shell .st-section h3{display:flex;align-items:center;gap:6px;font-family:var(--sn-mono);font-size:var(--sn-fs-h3);font-weight:var(--sn-fw-medium);color:var(--sn-ink);margin:0}
+.settings-shell .st-section .st-section-desc{font-size:var(--sn-fs-mute);color:var(--sn-ink-2);margin:0;line-height:1.5}
+.settings-shell .st-section .st-section-body{display:flex;flex-direction:column;gap:var(--sn-row)}
+
+/* ===== Action Bar (st-actionbar) — SAVE / RESET / 测试 按钮行 ===== */
+.settings-shell .st-actionbar{
+  display:flex;align-items:center;gap:10px;padding-top:10px;
+  border-top:1px solid var(--sn-line);margin-top:4px;
+}
+.settings-shell .st-actionbar .st-ab-msg{margin-right:auto;font-family:var(--sn-mono);font-size:var(--sn-fs-mute)}
+.settings-shell .st-actionbar .st-ab-msg.ok{color:var(--sn-mint)}
+.settings-shell .st-actionbar .st-ab-msg.bad{color:var(--sn-red)}
+
+/* ===== 进度条 (st-progress) ===== */
+.settings-shell .st-progress{
+  height:6px;background:var(--sn-line);border-radius:999px;
+  overflow:hidden;position:relative;
+}
+.settings-shell .st-progress .st-progress-bar{
+  height:100%;background:var(--sn-mint);border-radius:999px;
+  transition:width .25s ease;
+}
+.settings-shell .st-progress .st-progress-bar.warn{background:var(--sn-amber)}
+.settings-shell .st-progress .st-progress-bar.bad{background:var(--sn-red)}
+
+/* ===== 表 (st-table) — 源健康 / 反馈记录 ===== */
+.settings-shell .st-table{width:100%;border-collapse:collapse;font-family:var(--sn-mono);font-size:var(--sn-fs-mute)}
+.settings-shell .st-table th{
+  text-align:left;font-weight:var(--sn-fw-medium);color:var(--sn-ink-2);
+  padding:8px 10px;border-bottom:1px solid var(--sn-line-strong);
+  font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;
+}
+.settings-shell .st-table td{padding:9px 10px;border-bottom:1px solid var(--sn-line);color:var(--sn-ink)}
+.settings-shell .st-table tr:last-child td{border-bottom:none}
+.settings-shell .st-table tr.is-warn td{color:var(--sn-amber)}
+.settings-shell .st-table tr.is-off td{color:var(--sn-ink-3)}
+.settings-shell .st-table .st-nm{font-family:var(--sn-sans);font-size:var(--sn-fs-body);font-weight:var(--sn-fw-medium);color:var(--sn-ink);display:block}
+.settings-shell .st-table .st-sub{font-size:10.5px;color:var(--sn-ink-3);display:block;margin-top:1px}
+
+/* ===== 危险区 (st-danger) — 复用哨兵 DANGER ZONE 视觉 ===== */
+.settings-shell .st-dangerline{
+  display:flex;align-items:center;gap:8px;padding:8px 0;
+  font-family:var(--sn-mono);font-size:10.5px;letter-spacing:.18em;
+  color:var(--sn-red);text-transform:uppercase;
+}
+.settings-shell .st-dangerline::after{content:"";flex:1;height:1px;background:color-mix(in srgb,var(--sn-red) 24%,transparent)}
+.settings-shell .st-dangerhint{font-size:var(--sn-fs-mute);color:var(--sn-ink-2);margin:6px 0 0;line-height:1.55}
+.settings-shell .st-dangerlist{display:flex;flex-direction:column;gap:var(--sn-row);margin-top:var(--sn-row)}
+.settings-shell .st-dangeritem{
+  display:flex;flex-direction:column;gap:4px;padding:10px 12px;
+  border:1px solid color-mix(in srgb,var(--sn-red) 18%,var(--sn-line));
+  border-radius:var(--sn-radius-sm);background:color-mix(in srgb,var(--sn-red) 4%,var(--sn-bg-panel));
+}
+.settings-shell .st-dangeritem .st-dng-cap{font-size:var(--sn-fs-body);font-weight:var(--sn-fw-medium);color:var(--sn-ink)}
+.settings-shell .st-dangeritem .st-dng-ep{font-family:var(--sn-mono);font-size:10.5px;color:var(--sn-ink-2)}
+.settings-shell .st-dangeritem .st-dng-note{font-size:var(--sn-fs-mute);color:var(--sn-ink-3);line-height:1.4}
+
+/* ===== 信息提示 (st-info / st-warn / st-bad) ===== */
+.settings-shell .st-info{
+  font-size:var(--sn-fs-mute);color:var(--sn-ink-2);
+  padding:8px 12px;border-radius:var(--sn-radius-sm);
+  border:1px solid var(--sn-line);background:var(--sn-bg-panel);
+}
+.settings-shell .st-info.warn{color:var(--sn-amber);border-color:color-mix(in srgb,var(--sn-amber) 28%,transparent)}
+.settings-shell .st-info.bad{color:var(--sn-red);border-color:color-mix(in srgb,var(--sn-red) 28%,transparent)}
+
+/* ===== Skel 占位 (skel-line) — 沿用哨兵命名 ===== */
+.settings-shell .skel-line{
+  height:10px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--sn-line) 60%,transparent),transparent);
+  background-size:200% 100%;animation:st-skel-shimmer 1.4s ease-in-out infinite;
+  border-radius:var(--sn-radius-sm);margin:8px 0;
+}
+.settings-shell .skel-line.w1{width:48%}.settings-shell .skel-line.w2{width:62%}.settings-shell .skel-line.w3{width:36%}
+@keyframes st-skel-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@media(prefers-reduced-motion:reduce){.settings-shell .skel-line{animation:none;opacity:.5}}
+
+/* ===== 响应式 (820px 降为单列) ===== */
+@media(max-width:820px){
+  .settings-shell .st-grid{grid-template-columns:minmax(0,1fr);gap:var(--sn-row)}
+  .settings-shell .st-rule{grid-template-columns:minmax(0,1fr);gap:8px}
+  .settings-shell .st-cellgrid{grid-template-columns:minmax(0,1fr)}
+  .settings-shell .st-tilegrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .settings-shell .st-head{align-items:flex-start}
+}

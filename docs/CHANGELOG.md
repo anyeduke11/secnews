@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.7.x SettingsHub V2 (2026-09-02) — 哨兵化全重设计 + 5 子组件拆分
+
+> **来源**: 用户指令 "哨兵以外的 UI/UX 调整, 参考哨兵进行美化" + 四问决策 (Q1 dashboard 用途/代价/习惯, Q2 拆 5 子组件, Q3 全重设计, Q4 测试全重写)。
+> **范围**: ① `settings-shell.css` (哨兵令牌层 + `.settings-shell` 前缀隔离) + ② `SettingsDashboard` 总览 (默认 `?cat=dashboard`) + ③ QualitySettings 5 件套拆分 (ProviderPanel / SecretsPanel / LlmDetectionPanel / QualityRulesPanel + ScenarioModelsPanel) + ④ 14 个分类页面全部按 st-* 原子样式重写 + ⑤ 测试 semantic query 重写 (role / aria-label / data-testid, 不再依赖 button 文案) + ⑥ 修复 2 个 V2 重构暴露的真 bug。
+> **不引入**: 新依赖 / 新路由 / 新 state 库 / 新 feature gate。
+> **commit 链**: `refactor/settings-v2-sentinel-style` 分支, 待 merge。
+
+### 关键变更
+
+- **设计语言收敛**: 5 条 V2 纪律 (零霓虹 / 语义三色 / mono 数据 / 可访问降噪 / 减少动效); 共享 `settings-shell.css` (settings 域独占, `.settings-shell` 前缀防泄漏); `--sn-fs-*` 字号 / `--sn-radius-*` 圆角 / `--sn-gutter` 间距令牌新增。
+- **总览页落地**: Vercel/Linear/Notion 控制面板模式 — `SettingsDashboard` 说明每个分类的用途 / 不加的代价 / 用户习惯契合 / 业务逻辑对齐, URL `?cat=dashboard` 默认落地。
+- **QualitySettings 拆分**: 879 行单体 → 5 子组件 (各 ≤130 行), 主文件只做组合层; `ScenarioModelsPanel` 支持 `compact` prop 供 ImageStudio 嵌入复用。
+- **LlmDetectionPanel legacy 清退**: sk-... 输入框彻底移除 (Batch ⑥ 已迁移到 SecretsPanel 加密保险箱); 测试改为校验 PUT body 不含 `quality.llm_api_key` 字段。
+- **测试重构**: 22 settings 测试 (QualitySettings 14 + MCPSettingsCard 8) 全部 semantic query, 改文案不再破测试。
+- **修复 V2 暴露的真 bug**:
+  1. **SecretsPanel 越过 open gate**: 原独立拉 `/api/llm/status` 拿 key_source, 父 `open=false` 失效 → 提升到 QualitySettings 通过 `initialKeySource` prop 注入, 父级 gate 真正生效。
+  2. **SecretsPanel state 不响应 prop 变化**: `useState(initialKeySource)` 只用初值 → 加 `useEffect([initialKeySource])` 同步 (ProviderPanel 切换后触发 status 重拉)。
+
+### 门禁
+
+- tsc --noEmit: 0 错
+- vitest: 355/355 (48 files, +22 settings 重写)
+- vite build: 干净
+- ruff backend: 跳过 (后端无改动)
+- 架构数字: routers/services 不变 (frontend-only 重构)
+
+### 不在本批范围
+
+- 设置项 schema 化动态渲染 / 暗亮主题切换 / 设置搜索 / mobile 适配 (均与桌面哨兵布局同假设)
+
 ## v0.7 Batch 3 + 4 + 5 (2026-08-31) — API 观测落地 + 阈值规则引擎 + 收口落账
 
 > **来源**: Observability PRD v1.0 §5.3 "业务 endpoint 观测 + 阈值告警 + 看板嵌入"。本批三段子批一气呵成, 与 Batch 2 同观测轨, 不留尾巴 (除 llm_secrets 独立批次)。

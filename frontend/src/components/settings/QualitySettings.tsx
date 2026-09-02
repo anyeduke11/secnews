@@ -6,6 +6,7 @@
  * 自包含状态 + handlers；通过 props.open 触发数据加载。
  */
 import { useState, useEffect, useCallback } from 'react';
+import { ScenarioModelsPanel } from './ScenarioModelsPanel';
 
 export interface QualityRule {
   key: string;
@@ -58,15 +59,9 @@ export function QualitySettings({ open }: QualitySettingsProps) {
   const [masterKeyPrompt, setMasterKeyPrompt] = useState<{ target: 'unlock' | 'reveal' | 'upsert'; secretId?: number } | null>(null);
   const [masterKeyInput, setMasterKeyInput] = useState('');
 
-  // v0.7.4-image: 三场景模型选择 (deep / light / image) — 与 secrets 面板并列
-  // 数据源: POST /api/settings/scenario-model {scenario, model, actor}
-  // 优先级: env HOTSPOT_SCENARIO_*_MODEL > 本设置 (settings.kv) > yaml task_overrides > 兜底
+  // v0.7.4-image: 三场景模型选择 — 复用 ScenarioModelsPanel (与 /secnews/image 同源)
+  // 状态/保存逻辑/数据契约已外提到独立组件, 此处仅留折叠开关
   const [scenarioOpen, setScenarioOpen] = useState(false);
-  const [scenarioModels, setScenarioModels] = useState<{
-    deep: string; light: string; image: string;
-  }>({ deep: '', light: '', image: '' });
-  const [savingScenario, setSavingScenario] = useState<string | null>(null);
-  const [scenarioMessage, setScenarioMessage] = useState<QualityMessage>(null);
 
   // 打开面板时拉质量规则 + LLM 初始配置
   useEffect(() => {
@@ -261,31 +256,7 @@ export function QualitySettings({ open }: QualitySettingsProps) {
     }
   }, [qualityRules, qualityEditing]);
 
-  // v0.7.4-image: 场景模型保存 — POST /api/settings/scenario-model
-  const saveScenarioModel = useCallback(async (
-    scenario: 'deep' | 'light' | 'image',
-    model: string,
-  ) => {
-    setSavingScenario(scenario);
-    setScenarioMessage(null);
-    try {
-      const r = await fetch('/api/settings/scenario-model', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario, model, actor: 'web' }),
-      });
-      const d = await r.json();
-      if (r.ok && d.status === 'ok') {
-        setScenarioMessage({ type: 'ok', text: `${scenario}: ${d.old_model ?? '(无)'} → ${d.new_model}` });
-      } else {
-        setScenarioMessage({ type: 'error', text: d.message || '保存失败' });
-      }
-    } catch {
-      setScenarioMessage({ type: 'error', text: '保存失败 (网络错误)' });
-    } finally {
-      setSavingScenario(null);
-    }
-  }, []);
+  // v0.7.4-image: 场景模型保存逻辑已外提到 ScenarioModelsPanel — 此处不再需要
 
   // v4.4: 保存 LLM AI 内容检测配置
   // v0.7.x Batch ⑥: legacy 清退 — 不再写 'quality.llm_api_key' 到 settings.kv,
@@ -563,7 +534,7 @@ export function QualitySettings({ open }: QualitySettingsProps) {
         </div>
       )}
 
-      {/* v0.7.4-image: 三场景模型选择 — 与 secrets 面板并列, 默认折叠 */}
+      {/* v0.7.4-image: 三场景模型选择 — 复用 ScenarioModelsPanel (与 /secnews/image 同源) */}
       <button
         onClick={() => setScenarioOpen(o => !o)}
         className="w-full flex items-center justify-between px-3 py-2 text-xs"
@@ -572,50 +543,7 @@ export function QualitySettings({ open }: QualitySettingsProps) {
         <span className="font-medium">🎯 场景模型选择 (深度 / 轻度 / 图片)</span>
         <span style={{ color: 'var(--text-muted)' }}>{scenarioOpen ? '−' : '+'}</span>
       </button>
-      {scenarioOpen && (
-        <div className="px-3 py-2 space-y-2" style={{ borderTop: '1px solid var(--border-color)' }}>
-          {(['deep', 'light', 'image'] as const).map(scenario => {
-            const current = scenarioModels[scenario] || '';
-            const isSaving = savingScenario === scenario;
-            const isDirty = current !== '';
-            return (
-              <div key={scenario} className="flex items-center gap-2">
-                <span className="text-[11px] font-mono w-12" style={{ color: 'var(--text-secondary)' }}>
-                  {scenario}
-                </span>
-                <input
-                  value={current}
-                  onChange={e => setScenarioModels(m => ({ ...m, [scenario]: e.target.value }))}
-                  placeholder="留空走 yaml router 默认"
-                  className="flex-1 px-2 py-1 text-xs font-mono rounded-[var(--radius-sm)] focus-ring"
-                  style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
-                />
-                <button
-                  onClick={() => saveScenarioModel(scenario, current.trim())}
-                  disabled={isSaving || !isDirty}
-                  className="px-2 py-1 text-[10px] rounded-[var(--radius-sm)]"
-                  style={{
-                    backgroundColor: isDirty ? 'var(--color-general)' : 'var(--bg-hover)',
-                    color: isDirty ? 'var(--text-on-color)' : 'var(--text-muted)',
-                    opacity: isSaving ? 0.6 : 1,
-                  }}
-                >
-                  {isSaving ? '保存中...' : '保存'}
-                </button>
-              </div>
-            );
-          })}
-          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-            优先级: env HOTSPOT_SCENARIO_*_MODEL &gt; 本设置 (settings.kv) &gt; yaml task_overrides &gt; 兜底。
-            模型选择 = 路由选择, 密钥仍走下方加密保险箱 (Batch ⑥)。
-          </p>
-          {scenarioMessage && (
-            <p className="text-[10px]" style={{ color: scenarioMessage.type === 'ok' ? 'var(--color-general)' : 'var(--color-error)' }}>
-              {scenarioMessage.text}
-            </p>
-          )}
-        </div>
-      )}
+      {scenarioOpen && <ScenarioModelsPanel scope="settings-scenario" />}
 
       {/* v4.4: LLM AI 内容检测（独立配置，默认关闭） */}
       <button

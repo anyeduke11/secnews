@@ -1,193 +1,116 @@
 /**
- * ImageStudio 组件测试 (v0.7.4-image).
+ * ImageStudio 组件测试 (v0.7.4-image 重构版)
  *
- * 覆盖 8 例:
- * 1. 渲染两 section (文生图 + 图理解)
- * 2. 空 prompt 时生成按钮 disabled
- * 3. 生成调用 API 带正确 payload
- * 4. 200 响应渲染 <img>
- * 5. 失败响应显示 error
- * 6. 图理解要求 file + prompt
- * 7. 图理解调用 API 带 b64
- * 8. 延迟角标显示
+ * 2026-09-02 用户裁决: 删文生图 + 图理解, 只保留三场景模型配置。
+ * 现 ImageStudio 仅渲染 ScenarioModelsPanel (与 /settings 同源)。
+ *
+ * 覆盖 6 例:
+ * 1. 渲染标题与说明文案
+ * 2. 渲染三场景输入行 (deep / light / image)
+ * 3. 初始值全空 (用户未配置) — 保存按钮 disabled
+ * 4. 输入 deep 模型 → 保存 → POST /api/settings/scenario-model
+ * 5. 保存成功显示消息
+ * 6. 文生图/图理解功能确实未渲染 (data-testid 不存在)
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import { ImageStudio } from './ImageStudio';
 
-// FileReader mock (test environment 默认无 DOM)
-class MockFileReader {
-  onload: (() => void) | null = null;
-  onerror: (() => void) | null = null;
-  result: string | null = null;
-  readAsDataURL(_file: File) {
-    // 模拟 base64 编码
-    this.result = 'data:image/png;base64,aGVsbG8=';
-    if (this.onload) this.onload();
-  }
-}
-
-// @ts-ignore
-global.FileReader = MockFileReader;
-
 beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe('ImageStudio', () => {
-  it('渲染文生图 + 图理解两 section', () => {
+describe('ImageStudio (v0.7.4-image 重构后)', () => {
+  it('渲染页面标题 + 说明文案 (含功能下线声明)', () => {
     render(<ImageStudio />);
-    expect(screen.getByText(/文生图/)).toBeTruthy();
-    expect(screen.getByText(/图理解/)).toBeTruthy();
+    expect(screen.getByText(/图片工具 · 模型配置/)).toBeTruthy();
+    expect(screen.getByText(/文生图与图理解功能已下线/)).toBeTruthy();
+    // 提到 /settings 绑定关系
+    expect(screen.getByText(/secnews\/settings/)).toBeTruthy();
   });
 
-  it('空 prompt 时生成按钮 disabled', () => {
+  it('渲染三场景输入行 (deep / light / image) 与保存按钮', () => {
     render(<ImageStudio />);
-    const btn = screen.getByTestId('image-gen-submit') as HTMLButtonElement;
-    expect(btn.disabled).toBe(true);
+    for (const s of ['deep', 'light', 'image']) {
+      expect(screen.getByTestId(`image-studio-input-${s}`)).toBeTruthy();
+      expect(screen.getByTestId(`image-studio-save-${s}`)).toBeTruthy();
+    }
   });
 
-  it('点生成 → POST /api/image/generate 带 {prompt, size, n, watermark, actor}', async () => {
-    const calls: Array<{ url: string; body: any }> = [];
-    const mockFetch = vi.fn((url: string, init?: RequestInit) => {
-      calls.push({ url, body: JSON.parse(init?.body as string || '{}') });
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
-          ok: true,
-          images: [{ url: 'https://img/x.png' }],
-          provider: 'sensenova',
-          model: 'sensenova-u1.5-lite',
-          latency_ms: 1234,
-        }),
-      });
-    });
-    global.fetch = mockFetch as any;
-
+  it('初始值全空 → 三个保存按钮全部 disabled', () => {
     render(<ImageStudio />);
-    fireEvent.change(screen.getByTestId('image-gen-prompt'), { target: { value: 'a cat' } });
-    fireEvent.click(screen.getByTestId('image-gen-submit'));
-
-    await waitFor(() => {
-      expect(calls.length).toBe(1);
-    });
-    const c = calls[0];
-    expect(c.url).toBe('/api/image/generate');
-    expect(c.body.prompt).toBe('a cat');
-    expect(c.body.size).toBe('1024x1024');
-    expect(c.body.n).toBe(1);
-    expect(c.body.watermark).toBe(false);
-    expect(c.body.actor).toBe('web');
+    for (const s of ['deep', 'light', 'image']) {
+      const btn = screen.getByTestId(`image-studio-save-${s}`) as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+    }
   });
 
-  it('生成 200 响应 → 渲染 <img> + 角标', async () => {
-    global.fetch = vi.fn(() => Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({
-        ok: true,
-        images: [{ url: 'https://img/x.png' }],
-        provider: 'sensenova',
-        model: 'sensenova-u1.5-lite',
-        latency_ms: 1234,
-      }),
-    })) as any;
-
-    render(<ImageStudio />);
-    fireEvent.change(screen.getByTestId('image-gen-prompt'), { target: { value: 'a cat' } });
-    fireEvent.click(screen.getByTestId('image-gen-submit'));
-
-    await waitFor(() => screen.getByTestId('image-gen-result'));
-    // 角标内容: {provider} · {model} · {latency}ms — 在 image-gen-result 内
-    const resultBox = screen.getByTestId('image-gen-result');
-    expect(resultBox.textContent).toMatch(/sensenova-u1.5-lite/);
-    expect(resultBox.textContent).toMatch(/1234ms/);
-    expect(screen.getByAltText('')).toBeTruthy();
-  });
-
-  it('生成失败 (ok=false) → 显示 error', async () => {
-    global.fetch = vi.fn(() => Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({ ok: false, error: 'invalid api key' }),
-    })) as any;
-
-    render(<ImageStudio />);
-    fireEvent.change(screen.getByTestId('image-gen-prompt'), { target: { value: 'a cat' } });
-    fireEvent.click(screen.getByTestId('image-gen-submit'));
-
-    await waitFor(() => screen.getByTestId('image-gen-error'));
-    expect(screen.getByText(/invalid api key/)).toBeTruthy();
-  });
-
-  it('图理解: 无文件 + 无 prompt 时按钮 disabled', () => {
-    render(<ImageStudio />);
-    const btn = screen.getByTestId('image-und-submit') as HTMLButtonElement;
-    expect(btn.disabled).toBe(true);
-  });
-
-  it('图理解: 选择文件 + 输入 prompt → POST /api/image/understand 带 image_b64', async () => {
+  it('输入 deep 模型 → 保存 → POST /api/settings/scenario-model 带 {scenario, model, actor}', async () => {
     const calls: Array<{ url: string; body: any }> = [];
     global.fetch = vi.fn((url: string, init?: RequestInit) => {
       calls.push({ url, body: JSON.parse(init?.body as string || '{}') });
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({
-          ok: true,
-          text: '图中是一只猫',
-          provider: 'sensenova',
-          model: 'sensenova-u1.5-lite',
-          latency_ms: 800,
+          status: 'ok',
+          scenario: 'deep',
+          old_model: null,
+          new_model: 'deepseek-v4-pro',
         }),
       });
     }) as any;
 
     render(<ImageStudio />);
-    // 模拟上传文件
-    const file = new File(['x'], 'test.png', { type: 'image/png' });
-    fireEvent.change(screen.getByTestId('image-und-file'), {
-      target: { files: [file] },
-    });
-    fireEvent.change(screen.getByTestId('image-und-prompt'), {
-      target: { value: '描述这张图' },
-    });
-    fireEvent.click(screen.getByTestId('image-und-submit'));
+    const input = screen.getByTestId('image-studio-input-deep') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'deepseek-v4-pro' } });
+
+    const btn = screen.getByTestId('image-studio-save-deep') as HTMLButtonElement;
+    expect(btn.disabled).toBe(false); // 输入后 dirty
+    fireEvent.click(btn);
 
     await waitFor(() => {
       expect(calls.length).toBe(1);
     });
     const c = calls[0];
-    expect(c.url).toBe('/api/image/understand');
-    expect(c.body.prompt).toBe('描述这张图');
-    expect(c.body.image_b64).toBe('aGVsbG8='); // 来自 MockFileReader
+    expect(c.url).toBe('/api/settings/scenario-model');
+    expect(c.body.scenario).toBe('deep');
+    expect(c.body.model).toBe('deepseek-v4-pro');
     expect(c.body.actor).toBe('web');
   });
 
-  it('图理解 200 响应 → 显示文本 + 角标', async () => {
+  it('保存成功 → 显示 ok 消息含 old → new', async () => {
     global.fetch = vi.fn(() => Promise.resolve({
       ok: true,
       json: () => Promise.resolve({
-        ok: true,
-        text: '图中是一只橘猫',
-        provider: 'sensenova',
-        model: 'sensenova-u1.5-lite',
-        latency_ms: 800,
+        status: 'ok',
+        scenario: 'image',
+        old_model: 'sensenova-u1.5-lite',
+        new_model: 'sensenova-u2-lite',
       }),
     })) as any;
 
     render(<ImageStudio />);
-    const file = new File(['x'], 'test.png', { type: 'image/png' });
-    fireEvent.change(screen.getByTestId('image-und-file'), {
-      target: { files: [file] },
+    fireEvent.change(screen.getByTestId('image-studio-input-image'), {
+      target: { value: 'sensenova-u2-lite' },
     });
-    fireEvent.change(screen.getByTestId('image-und-prompt'), {
-      target: { value: '描述' },
-    });
-    fireEvent.click(screen.getByTestId('image-und-submit'));
+    fireEvent.click(screen.getByTestId('image-studio-save-image'));
 
-    await waitFor(() => screen.getByTestId('image-und-result'));
-    expect(screen.getByTestId('image-und-text').textContent).toBe('图中是一只橘猫');
-    const resultBox = screen.getByTestId('image-und-result');
-    expect(resultBox.textContent).toMatch(/sensenova-u1.5-lite/);
-    expect(resultBox.textContent).toMatch(/800ms/);
+    await waitFor(() => screen.getByTestId('image-studio-message'));
+    const msg = screen.getByTestId('image-studio-message');
+    expect(msg.textContent).toMatch(/image/);
+    expect(msg.textContent).toMatch(/sensenova-u1\.5-lite.*→.*sensenova-u2-lite/);
+  });
+
+  it('确认文生图/图理解 UI 已下线 (老 data-testid 不再存在)', () => {
+    render(<ImageStudio />);
+    // S9 阶段存在, 重构后必须全部不存在
+    expect(screen.queryByTestId('image-gen-prompt')).toBeNull();
+    expect(screen.queryByTestId('image-gen-submit')).toBeNull();
+    expect(screen.queryByTestId('image-gen-result')).toBeNull();
+    expect(screen.queryByTestId('image-und-file')).toBeNull();
+    expect(screen.queryByTestId('image-und-prompt')).toBeNull();
+    expect(screen.queryByTestId('image-und-submit')).toBeNull();
+    expect(screen.queryByTestId('image-und-result')).toBeNull();
   });
 });

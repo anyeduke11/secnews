@@ -164,7 +164,7 @@ export function SentinelJudgePage() {
       const r = await fetch('/api/llm/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ content, title: item.title }),
+        body: JSON.stringify({ content, title: item.title, scenario: 'deep' }),
       });
       if (!r.ok) {
         setEvalMap(m => ({ ...m, [item.id]: { error: `评测失败 (${r.status})` } }));

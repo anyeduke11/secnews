@@ -91,7 +91,7 @@ export function SecNewsAnalyze() {
       const evalR = await fetch('/api/llm/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: analyzeInput }),
+        body: JSON.stringify({ content: analyzeInput, scenario: 'deep' }),
       });
       if (!evalR.ok) {
         setEvalError(`LLM 评测失败 (${evalR.status})`);

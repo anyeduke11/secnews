@@ -352,8 +352,8 @@ describe('QualitySettings — v0.7.4-image 场景模型选择', () => {
     mockFetch.mockImplementation((url: string) => {
       if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
       if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }));
-      if (url === '/api/secrets') return Promise.resolve(mockSecretsList([]));
-      if (url === '/api/secrets/status') return Promise.resolve(mockSecretsStatus(false));
+      if (url === '/api/secrets') return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], count: 0 }) });
+      if (url === '/api/secrets/status') return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: false }) });
       return Promise.resolve({ ok: false });
     });
 
@@ -372,8 +372,8 @@ describe('QualitySettings — v0.7.4-image 场景模型选择', () => {
     mockFetch.mockImplementation((url: string, init?: RequestInit) => {
       if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
       if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }));
-      if (url === '/api/secrets') return Promise.resolve(mockSecretsList([]));
-      if (url === '/api/secrets/status') return Promise.resolve(mockSecretsStatus(false));
+      if (url === '/api/secrets') return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], count: 0 }) });
+      if (url === '/api/secrets/status') return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: false }) });
       if (url === '/api/settings/scenario-model' && init?.method === 'POST') {
         scenarioCalls.push(JSON.parse(init.body as string));
         return Promise.resolve({
@@ -415,8 +415,8 @@ describe('QualitySettings — v0.7.4-image 场景模型选择', () => {
     mockFetch.mockImplementation((url: string) => {
       if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
       if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }));
-      if (url === '/api/secrets') return Promise.resolve(mockSecretsList([]));
-      if (url === '/api/secrets/status') return Promise.resolve(mockSecretsStatus(false));
+      if (url === '/api/secrets') return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], count: 0 }) });
+      if (url === '/api/secrets/status') return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: false }) });
       return Promise.resolve({ ok: false });
     });
 
@@ -435,8 +435,8 @@ describe('QualitySettings — v0.7.4-image 场景模型选择', () => {
     mockFetch.mockImplementation((url: string, init?: RequestInit) => {
       if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
       if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }));
-      if (url === '/api/secrets') return Promise.resolve(mockSecretsList([]));
-      if (url === '/api/secrets/status') return Promise.resolve(mockSecretsStatus(false));
+      if (url === '/api/secrets') return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], count: 0 }) });
+      if (url === '/api/secrets/status') return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: false }) });
       if (url === '/api/settings/scenario-model' && init?.method === 'POST') {
         return Promise.resolve({
           ok: true,
@@ -466,8 +466,8 @@ describe('QualitySettings — v0.7.4-image 场景模型选择', () => {
     mockFetch.mockImplementation((url: string, init?: RequestInit) => {
       if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
       if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }));
-      if (url === '/api/secrets') return Promise.resolve(mockSecretsList([]));
-      if (url === '/api/secrets/status') return Promise.resolve(mockSecretsStatus(false));
+      if (url === '/api/secrets') return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], count: 0 }) });
+      if (url === '/api/secrets/status') return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: false }) });
       if (url === '/api/settings/scenario-model' && init?.method === 'POST') {
         return Promise.resolve({
           ok: true,

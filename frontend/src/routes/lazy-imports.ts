@@ -125,6 +125,10 @@ export const SecNewsKnowledge = React.lazy(() =>
 export const SecNewsAnalyze = React.lazy(() =>
   import('../components/secnews/analyze/SecNewsAnalyze').then(m => ({ default: m.SecNewsAnalyze }))
 );
+// v0.7.4-image: 文生图 + 图理解 工具页 (sensenova-u1.5-lite)
+export const SecNewsImage = React.lazy(() =>
+  import('../components/secnews/ImageStudio').then(m => ({ default: m.ImageStudio }))
+);
 export const SecNewsSettings = React.lazy(() =>
   import('../components/secnews/settings/PipelineSettings').then(m => ({ default: m.PipelineSettings }))
 );

@@ -41,6 +41,8 @@ const messages_zhCN: Messages = {
   'nav.refresh': '刷新',
   'nav.refreshing': '刷新中...',
   'nav.brand': '安全看板',
+  // v0.7.4-image: 文生图 / 图理解 工具页
+  'image.studio': '图片工坊',
   // ── workspace 首页 ──
   'workspace.welcome': '欢迎回到 SecNews',
   'workspace.subtitle': '今日安全资讯、研判、知识库总览',
@@ -280,6 +282,8 @@ const messages_enUS: Messages = {
   'nav.refresh': 'Refresh',
   'nav.refreshing': 'Refreshing...',
   'nav.brand': 'SecNews',
+  // v0.7.4-image: 文生图 / 图理解 工具页
+  'image.studio': 'Image Studio',
   // ── workspace ──
   'workspace.welcome': 'Welcome back to SecNews',
   'workspace.subtitle': 'Today\u2019s security news, analysis, and knowledge base overview',

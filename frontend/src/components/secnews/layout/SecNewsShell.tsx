@@ -13,6 +13,7 @@ const TAB_KEYS = [
   { key: 'pipeline', i18n: 'pipeline.title', path: '/secnews/pipeline' },
   { key: 'knowledge', i18n: 'kb.title', path: '/secnews/knowledge' },
   { key: 'analyze', i18n: 'analyze.title', path: '/secnews/analyze' },
+  { key: 'image', i18n: 'image.studio', path: '/secnews/image' },
   { key: 'analytics', i18n: 'analytics.attack_mapping', path: '/secnews/analytics' },
   { key: 'observability', i18n: 'nav.observability', path: '/secnews/observability' },
   { key: 'settings', i18n: 'nav.settings', path: '/secnews/settings' },

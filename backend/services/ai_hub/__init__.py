@@ -51,17 +51,41 @@ from .write_back import (
     update_frontmatter,
 )
 
+# ── v0.7.4-image: 三场景路由 (deep/light/image) ──────────────────
+from .scenarios import (
+    SCENARIO_DEFAULT_MODEL,
+    SCENARIO_ENDPOINT,
+    SCENARIO_MAX_TOKENS,
+    Scenario,
+    ScenarioRoute,
+    get_tier_for,
+    resolve_scenario_model,
+)
+from .image_service import (
+    ImageGenerationError,
+    ImageGenerationService,
+)
+
 # ── 公开 API ────────────────────────────────────────────────────
 __all__ = [
     "COST_PER_1M_TOKENS",
     "DEFAULT_SCORE",
     "AIService",
+    "ImageGenerationError",
+    "ImageGenerationService",
     "LLMService",
+    "SCENARIO_DEFAULT_MODEL",
+    "SCENARIO_ENDPOINT",
+    "SCENARIO_MAX_TOKENS",
+    "Scenario",
+    "ScenarioRoute",
     "_est_tokens",
     "_parse_eval_json",
     "ai_service",
     "evaluate_article",
+    "get_tier_for",
     "llm_service",
+    "resolve_scenario_model",
     "update_frontmatter",
     "write_item",
     "write_score",

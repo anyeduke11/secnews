@@ -2,11 +2,11 @@
 
 > **就近作用域**:此文件仅承载 `backend/api/` 子树进入时即时需要的约束。
 > 跨项目路由、设计技能选择、根级命令、Feature Gates 总览见根 `AGENTS.md`。
-> 架构数字(`67 routers`)由 `scripts/generate_meta.py` AST 反推维护,不要手改。
+> 架构数字(`68 routers`)由 `scripts/generate_meta.py` AST 反推维护,不要手改。
 
 ## 子树身份
 
-FastAPI 路由层(67 routers,`include_router` 注册入口),**唯一对外 HTTP 入口**。
+FastAPI 路由层(68 routers,`include_router` 注册入口),**唯一对外 HTTP 入口**。
 位于 `services/` 之上、`main.py` 之下,通过 `register_routers(app)` 一次性挂载。
 所有 `__init__.py` 内的 import 必须 lazy,否则会触发循环。
 
@@ -25,7 +25,7 @@ FastAPI 路由层(67 routers,`include_router` 注册入口),**唯一对外 HTTP 
   ```bash
   python -m pytest backend/tests/ --tb=short -q -k "test_<feature>_api"    # 单路由回归
   python -m pytest backend/tests/ --tb=short -q                             # 全量回归
-   python scripts/generate_meta.py --check                                    # CI 校验 67 routers 计数
+   python scripts/generate_meta.py --check                                    # CI 校验 68 routers 计数
   ```
 - **本地起服务**: 根 AGENTS.md 已列 `python run.py` / `uvicorn backend.main:app`。
   修改后访问 `http://127.0.0.1:8000/docs` 看 Swagger 是否列出新路由。

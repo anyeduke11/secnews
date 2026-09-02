@@ -345,3 +345,149 @@ describe('QualitySettings — v0.7.x Batch ⑥ secrets 子面板', () => {
     });
   });
 });
+
+// v0.7.4-image: 三场景模型选择 (deep/light/image) 折叠面板
+describe('QualitySettings — v0.7.4-image 场景模型选择', () => {
+  it('点开场景模型面板 → 渲染 deep/light/image 三个 input', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
+      if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }));
+      if (url === '/api/secrets') return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], count: 0 }) });
+      if (url === '/api/secrets/status') return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: false }) });
+      return Promise.resolve({ ok: false });
+    });
+
+    render(<QualitySettings open={true} />);
+    await waitFor(() => screen.getByText(/场景模型选择/));
+    fireEvent.click(screen.getByText(/场景模型选择/));
+    await waitFor(() => {
+      // 三个 input 占位符 = "留空走 yaml router 默认"
+      const inputs = screen.getAllByPlaceholderText(/留空走 yaml router/);
+      expect(inputs.length).toBe(3);
+    });
+  });
+
+  it('输入 deep 模型 → 保存 → POST /api/settings/scenario-model 带 {scenario, model, actor}', async () => {
+    const scenarioCalls: Array<unknown> = [];
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
+      if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }));
+      if (url === '/api/secrets') return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], count: 0 }) });
+      if (url === '/api/secrets/status') return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: false }) });
+      if (url === '/api/settings/scenario-model' && init?.method === 'POST') {
+        scenarioCalls.push(JSON.parse(init.body as string));
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            status: 'ok', scenario: 'deep', old_model: null, new_model: 'custom-deep',
+          }),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    render(<QualitySettings open={true} />);
+    await waitFor(() => screen.getByText(/场景模型选择/));
+    fireEvent.click(screen.getByText(/场景模型选择/));
+
+    const inputs = await waitFor(() => screen.getAllByPlaceholderText(/留空走 yaml router/));
+    // 第一个是 deep
+    fireEvent.change(inputs[0], { target: { value: 'custom-deep' } });
+
+    // 找到 deep 那行的"保存"按钮 (三个保存按钮中第一个)
+    const saveButtons = await waitFor(() => {
+      const btns = screen.getAllByText('保存');
+      expect(btns.length).toBe(3);
+      return btns;
+    });
+    fireEvent.click(saveButtons[0]);
+
+    await waitFor(() => {
+      expect(scenarioCalls.length).toBe(1);
+      const body = scenarioCalls[0] as Record<string, unknown>;
+      expect(body.scenario).toBe('deep');
+      expect(body.model).toBe('custom-deep');
+      expect(body.actor).toBe('web');
+    });
+  });
+
+  it('input 为空时, "保存" 按钮 disabled', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
+      if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }));
+      if (url === '/api/secrets') return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], count: 0 }) });
+      if (url === '/api/secrets/status') return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: false }) });
+      return Promise.resolve({ ok: false });
+    });
+
+    render(<QualitySettings open={true} />);
+    await waitFor(() => screen.getByText(/场景模型选择/));
+    fireEvent.click(screen.getByText(/场景模型选择/));
+
+    const saveButtons = await waitFor(() => screen.getAllByText('保存'));
+    // 三个保存按钮都应 disabled (input 全空)
+    saveButtons.forEach(btn => {
+      expect((btn as HTMLButtonElement).disabled).toBe(true);
+    });
+  });
+
+  it('保存成功 → 显示 ok toast 含 scenario + 模型名', async () => {
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
+      if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }));
+      if (url === '/api/secrets') return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], count: 0 }) });
+      if (url === '/api/secrets/status') return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: false }) });
+      if (url === '/api/settings/scenario-model' && init?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            status: 'ok', scenario: 'light', old_model: null, new_model: 'm',
+          }),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    render(<QualitySettings open={true} />);
+    await waitFor(() => screen.getByText(/场景模型选择/));
+    fireEvent.click(screen.getByText(/场景模型选择/));
+
+    const inputs = await waitFor(() => screen.getAllByPlaceholderText(/留空走 yaml router/));
+    fireEvent.change(inputs[1], { target: { value: 'm' } }); // light
+    const saveButtons = await waitFor(() => screen.getAllByText('保存'));
+    fireEvent.click(saveButtons[1]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/light: \(无\) → m/)).toBeTruthy();
+    });
+  });
+
+  it('保存失败 → 显示 error toast', async () => {
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
+      if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }));
+      if (url === '/api/secrets') return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], count: 0 }) });
+      if (url === '/api/secrets/status') return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: false }) });
+      if (url === '/api/settings/scenario-model' && init?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ status: 'error', message: 'invalid' }),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    render(<QualitySettings open={true} />);
+    await waitFor(() => screen.getByText(/场景模型选择/));
+    fireEvent.click(screen.getByText(/场景模型选择/));
+
+    const inputs = await waitFor(() => screen.getAllByPlaceholderText(/留空走 yaml router/));
+    fireEvent.change(inputs[2], { target: { value: 'x' } }); // image
+    const saveButtons = await waitFor(() => screen.getAllByText('保存'));
+    fireEvent.click(saveButtons[2]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/invalid/)).toBeTruthy();
+    });
+  });
+});

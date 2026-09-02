@@ -3,12 +3,18 @@
 - ``POST /api/settings/refresh-interval`` — 更新采集间隔（分钟）
 - ``GET  /api/settings/features`` — 扩展 feature flag（前端 useFeatureFlags 数据源）
 - ``POST /api/settings/llm-provider`` — 切换运行时默认 LLM provider (v0.7 Batch 2)
+- ``POST /api/settings/scenario-model`` — 设置三场景模型 (v0.7.4-image)
 
 v0.7 Batch 2 增量:
 - ``llm.default_provider`` 写入 settings.kv (进程内立即生效, 不需重启)
 - 每次成功切换写 ``audit_log`` (action=``llm_config.update``)
 - 校验: provider 必须在 ``config/llm.yaml`` 已注册 (防 typo 把所有 LLM 调用
   推到一个 yaml 未声明的 provider)
+
+v0.7.4-image 增量:
+- ``llm.scenario.{deep|light|image}_model`` 写入 settings.kv
+- 优先级链: env ``HOTSPOT_SCENARIO_{DEEP|LIGHT|IMAGE}_MODEL`` > 本端点写入 > yaml router > 兜底
+- 每次成功写入写 ``audit_log`` (action=``llm.scenario_model.set``)
 """
 from __future__ import annotations
 
@@ -149,4 +155,50 @@ async def set_llm_provider(body: LLMProviderRequest):
         "old_provider": old,
         "new_provider": body.provider,
         "valid_providers": valid,
+    }
+
+
+# ── v0.7.4-image: 三场景模型选择 ───────────────────────────────
+
+
+class ScenarioModelRequest(BaseModel):
+    """v0.7.4: 设置三场景 (deep/light/image) 的模型覆盖."""
+
+    scenario: str = Field(..., pattern="^(deep|light|image)$")
+    model: str = Field(..., min_length=1, max_length=200)
+    actor: str = Field("web")
+
+
+@router.post("/scenario-model")
+async def set_scenario_model(body: ScenarioModelRequest):
+    """v0.7.4: 写 ``llm.scenario.{scenario}_model`` → settings.kv + audit_log.
+
+    优先级链 (与 AIService._resolve_api_key 同构):
+      env ``HOTSPOT_SCENARIO_{DEEP|LIGHT|IMAGE}_MODEL`` > 本端点写入 > yaml router > 兜底
+
+    不传 model 时 (留空) 不合法 — 校验由 Pydantic pattern + min_length 兜底。
+    """
+    repo = SettingsRepository()
+    key = f"llm.scenario.{body.scenario}_model"
+    old = repo.get(key)
+    repo.set(key, body.model)
+
+    from backend.observability_records import record_audit
+    record_audit(
+        actor=body.actor,
+        action="llm.scenario_model.set",
+        target=key,
+        detail={"scenario": body.scenario, "from": old, "to": body.model},
+    )
+
+    logger.info(
+        "scenario model set: {} {} -> {} (actor={})",
+        body.scenario, old, body.model, body.actor,
+    )
+
+    return {
+        "status": "ok",
+        "scenario": body.scenario,
+        "old_model": old,
+        "new_model": body.model,
     }

@@ -6,9 +6,15 @@
 > **整合 spec**: [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](docs/HOTSPOT_SECNEWS_INTEGRATION.md) + [`docs/SECNEWS_INTEGRATION_TASKS.md`](docs/SECNEWS_INTEGRATION_TASKS.md)
 > **代码审计**: [`docs/CODE_AUDIT_2026-08-28.md`](docs/CODE_AUDIT_2026-08-28.md) (架构深度分析)
 
-> 本文档描述 **2026-08-28 当前代码 (v0.6.2)** 的真实架构，供新开发者快速理解系统。
+> 本文档描述 **2026-09-02 当前代码 (v0.7.4-image)** 的真实架构，供新开发者快速理解系统。
 > **定位**：现状导览 (≤ 200 行)；详细专题见 [docs/code-wiki/](code-wiki/CODE_WIKI.md) 5 个分章节文件。
-> 所有数字均从代码/文件核对（迁移 60+、router 67、jobs 50、collectors 14、services 101、测试 3088+/325+、备份保留 7、同步上限 100k），`scripts/generate_meta.py --check` 是 CI 门禁。
+> 所有数字均从代码/文件核对（迁移 60+、router 68、jobs 51、collectors 14、services 105、测试 3500+/370+、备份保留 7、同步上限 100k），`scripts/generate_meta.py --check` 是 CI 门禁。
+> v0.7.4 (2026-09-02): ai_hub 三场景路由 (deep/light/image) — `scenarios.py` 单点 + `image_service.py` 复用 Batch ⑥ 凭据链 + `/api/image/{generate,understand}` + QualitySettings 折叠面板 + ImageStudio 工具页 + sensenova-u1.5-lite (文生图) + deepseek-v4-pro (深度档 yaml 升级)。
+> v0.7.2 (2026-08-31): llm_secrets 接入 AIService + key_source 兑现 (Batch ⑥, 详见 PROGRESS.md)
+> v0.7.0 (2026-08-30): 观测地基 (PRD §5.1) + LLM provider 四级链 (env > settings.kv > router > yaml)
+> v0.6 (2026-08-23 → 08-28): SecNews 工作台 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings) + kl_pipeline 五阶段管线 + DSH HTTP 桥接 + CRM 业绩座舱 + wiki_items_fts 完整同步层 + dsh-SecNews 归档, 详见 `docs/CODE_AUDIT_2026-08-28.md`。
+> v0.5 (2026-08-21 → 08-23): llm-wiki-2.0 数据底座 + ai_hub LLM 单出口 + Hot/Warm/Cold 分层 + dlq retry + 性能三任务, 详见 `docs/v0.5_refactor_plan/README.md`。
+> v0.4.0 (2026-08-16): 审计重构 Phase 0-6 落地, 详见 `docs/audit_first_principles_plan.md`。
 > v0.6 (2026-08-23 → 08-28): SecNews 工作台 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings) + kl_pipeline 五阶段管线 + DSH HTTP 桥接 + CRM 业绩座舱 + wiki_items_fts 完整同步层 + dsh-SecNews 归档, 详见 `docs/CODE_AUDIT_2026-08-28.md`。
 > v0.5 (2026-08-21 → 08-23): llm-wiki-2.0 数据底座 + ai_hub LLM 单出口 + Hot/Warm/Cold 分层 + dlq retry + 性能三任务, 详见 `docs/v0.5_refactor_plan/README.md`。
 > v0.4.0 (2026-08-16): 审计重构 Phase 0-6 落地, 详见 `docs/audit_first_principles_plan.md`。
@@ -35,14 +41,14 @@
 └───────────────┬──────────────────────────────────────────────┘
                 │ HTTP / JSON / SSE
 ┌───────────────▼──────────────────────────────────────────────┐
-│  FastAPI 单进程 (uvicorn, :8000) — 67 router / 105 services    │
+│  FastAPI 单进程 (uvicorn, :8000) — 68 router / 105 services    │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────────────┐   │
 │  │ collectors/  │→│ quality/     │→│ scheduler/ 51 jobs │   │
 │  │ 14 BaseColl.  │  │ 11+ gates    │  │ APScheduler         │   │
 │  └──────┬───────┘  └──────┬───────┘  └─────────┬─────────┘   │
 │         │                │                    │             │
 │  ┌──────▼───────┐  ┌──────▼────────┐  ┌────────▼────────┐  │
-│  │ api/ 67 router│  │ services/ 105 │  │ repository/ 40  │  │
+│  │ api/ 68 router│  │ services/ 105 │  │ repository/ 40  │  │
 │  │ (lazy 注册)   │  │ (业务编排)     │  │ (SQLite DAO)    │  │
 │  └──────────────┘  └──────┬────────┘  └─────────────────┘  │
 └─────────────────────────┬──────────────────────────────────┘

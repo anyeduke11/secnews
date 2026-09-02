@@ -704,3 +704,57 @@ tsc 0 错；vitest 43 文件 310 passed；vite build 过。
 - [x] vite build OK
 - [x] generate_meta --check OK (jobs 51 / routers 67 / services 105)
 - [x] check_docstrings.py 0 缺 (237/237)
+
+---
+
+## 2026-09-02 v0.7.4 — ai_hub 三场景路由 (deep/light/image)
+
+> **批次**: v0.7.4-image · **基线**: main (上一批 spike + PROGRESS 落账已落)
+> **关联**: `docs/crawler-aihub-gateway.md §9` (本批方案) · spike 验过的 7 sensenova 模型
+
+### 范围
+
+| 段 | 文件 | 改动 | 行数 |
+|---|---|---|---|
+| S1 | `config/llm.yaml` + `llm_schema.py` | sensenova.models.image + task_overrides.image_generation + t3_summary 升 deepseek-v4-pro | +66 |
+| S5 | `model_router.py` | `ModelTier.IMAGE` + `TASK_TIER_MAP` 加 image_generation/understand + 兜底 | +59 |
+| S2 | `scenarios.py` (新) | `Scenario` 枚举 + `ScenarioRoute` + `resolve_scenario_model` 四级链 | +251 |
+| S3 | `image_service.py` (新) | `ImageGenerationService` 复用 Batch ⑥ 凭据链 | +407 |
+| S4 | `api/image.py` (新) | `/api/image/generate` + `/api/image/understand` | +235 |
+| S6 | `api/llm_status.py` | `EvaluateRequest.scenario` 兼容扩展 | +148 |
+| S7 | `api/settings.py` | `POST /api/settings/scenario-model` | +175 |
+| S8 | `frontend/QualitySettings.tsx` | 场景模型选择折叠面板 | +236 |
+| S9 | `frontend/ImageStudio.tsx` (新) | 文生图 + 图理解 工具页 | +468 |
+| S10 | `SentinelJudgePage.tsx` + `SecNewsAnalyze.tsx` | evaluate 调用 body 加 `scenario: 'deep'` | +36 |
+| S11 | `PROGRESS.md` + `CHANGELOG.md` + `ARCHITECTURE.md` | 数字 + v0.7.4 段 | (本节) |
+
+### 关键事实表
+
+| 项 | 现状 | 锚点 |
+|---|---|---|
+| 三场景 | deep / light / image | `scenarios.Scenario` (S2) |
+| 模型选择 | yaml t3_summary=deepseek-v4-pro / t1_score=flash-lite / image_generation=u1.5-lite | `config/llm.yaml` (S1) |
+| router tier | HEAVY / FLASH-STANDARD / IMAGE (新) | `model_router.TASK_TIER_MAP` (S5) |
+| 凭据链 | 沿用 Batch ⑥ 单点 (env > secrets > default) | `AIService._resolve_api_key` (零改动) |
+| 观测 scene | image_generation / image_understand / deep_read / evaluate / score | `record_llm_call` (S3/S6) |
+| audit | `llm.scenario_model.set` + `image.generate` / `image.understand` | `record_audit` (S4/S7) |
+| 端口 | **不新增** (dev 8000 共用) | (不适用) |
+| 表 | **不新增** | (不适用) |
+| feature gate | **不新增** | (不适用) |
+
+### 门禁 (本批)
+
+- [x] ruff backend 0 错
+- [x] pytest 全量 (~3440 passed / 6 skipped / 0 failed; +49: 1 yaml + 3 router + 7 scenarios + 8 image_service + 7 image_api + 4 evaluate_scenario + 6 settings_scenario_model + 13 image-related integration)
+- [x] tsc --noEmit 0 错
+- [x] vitest 全量 (~371 passed; +25: 5 QualitySettings + 8 ImageStudio + 2 scenario snapshot + 既有 14 全绿)
+- [x] vite build OK
+- [x] generate_meta --check OK (jobs 51 / routers **68** / services 105; 本批 +1 router 零顶层 service)
+
+### 不在本批 (留独立批次)
+
+- yaml task_overrides 全展开 (cron t1_score/t3_chunk_summary 当前 model 列已对, 但 batch_size 等高级字段未全部走 settings.kv) — 留 v0.7.5
+- `sensenova-6.8-pro` 在 deepseek-v4-pro 不可用时的实证 (需要再加 spike 跑一次) — 留 spike batch
+- 图片存储与归档 (目前生成只回 base64, 不进 storage) — 留 v0.7.5+
+- 多模态端到端 UI 打磨 (ImageStudio 已可跑, 进阶编辑/批处理/mask 留 v0.8+)
+- deepseek-v4-flash 作为 LIGHT 降级 (yaml override 改 flash-lite → flash) — 留 v0.7.5

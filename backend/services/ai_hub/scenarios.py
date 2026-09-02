@@ -60,7 +60,7 @@ SCENARIO_MAX_TOKENS: dict[Scenario, int | None] = {
 }
 
 
-def get_tier_for(scenario: Scenario) -> "ModelTier":
+def get_tier_for(scenario: Scenario) -> ModelTier:
     """场景 → router tier (复用 model_router.ModelTier, 单一映射表)。"""
     from backend.services.llm.model_router import ModelTier
     return {
@@ -138,11 +138,11 @@ def _router_lookup(scenario: Scenario, config: Any) -> str:
 
 
 __all__ = [
-    "Scenario",
-    "ScenarioRoute",
     "SCENARIO_DEFAULT_MODEL",
     "SCENARIO_ENDPOINT",
     "SCENARIO_MAX_TOKENS",
+    "Scenario",
+    "ScenarioRoute",
     "get_tier_for",
     "resolve_scenario_model",
 ]

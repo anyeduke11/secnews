@@ -1381,3 +1381,31 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
 - pytest 3250 passed / 6 skipped / 0 failed
 - vitest 346 passed / tsc 0 错 / vite build OK
 - generate_meta --check OK (jobs 51 / routers 67 / services 105)
+
+## v0.7.4-image (2026-09-02) — ai_hub 三场景路由
+
+### 新增
+- `backend/services/ai_hub/scenarios.py` — `Scenario` (deep/light/image) + `ScenarioRoute` + `resolve_scenario_model` 四级链 (env > settings.kv > router > default),与 `AIService._resolve_api_key` 同构
+- `backend/services/ai_hub/image_service.py` — `ImageGenerationService` (复用 Batch ⑥ 凭据链),`generate()` → `/v1/images/generations` + `understand()` → `/chat/completions` 携 image_url
+- `backend/api/image.py` — `POST /api/image/generate` + `POST /api/image/understand`,Pydantic 验证 + 失败模式同 `/api/llm/evaluate` (ok=false)
+- `backend/services/llm/model_router.py` — `ModelTier.IMAGE` + `TASK_TIER_MAP` 加 image_generation/understand + 兜底 (sensenova, sensenova-u1.5-lite)
+- `frontend/src/components/secnews/ImageStudio.tsx` — 文生图 + 图理解 工具页
+- QualitySettings 折叠面板 "🎯 场景模型选择" → `POST /api/settings/scenario-model`
+
+### 升级
+- `config/llm.yaml`: `t3_summary.model` 升级 `sensenova-6.8-flash-lite` → `deepseek-v4-pro` (spike 验过, deep_read 自动生效)
+- `config/llm.yaml`: `providers.sensenova.models.image` 新增 `sensenova-u1.5-lite`
+- `config/llm.yaml`: `task_overrides.image_generation` 新增 (provider=sensenova, model=u1.5-lite, size=1024x1024, watermark=false)
+- `backend/config/llm_schema.py`: `ProviderModels.image` 字段 (默认空串) + `TaskOverride.size/n/watermark` 可选字段
+
+### 兼容扩展
+- `EvaluateRequest.scenario: str | None` (deep|light|None, 默认 None 走老路径零回归)
+- `SentinelJudgePage` / `SecNewsAnalyze` evaluate 调用 body 加 `scenario: 'deep'` (S10)
+
+### 门禁
+- pytest ~3440 passed / 6 skipped / 0 failed
+- vitest ~371 passed / tsc 0 错 / vite build OK
+- generate_meta --check OK (jobs 51 / routers 68 / services 105; 本批 +1 router, services 数不变因 scenarios/image_service 在 ai_hub 子包内)
+
+### 不在本批
+- yaml task_overrides 全展开 / 图片存储 / 多模态端到端 / deepseek-v4-flash LIGHT 降级

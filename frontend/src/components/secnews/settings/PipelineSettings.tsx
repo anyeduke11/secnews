@@ -1,10 +1,12 @@
 /**
- * PipelineSettings — 管线参数配置 (S3-4)
+ * PipelineSettings — 管线参数配置 (S3-4) (V2 哨兵化)
  *
  * KL 管线运行参数 + LLM 模型档位 + 采集源健康 + token 预算
  * + dsh 认知大脑控制面板 (v0.6.3 内置化, 一键启停) + pi 执行 agent 面板。
  * 数据源: GET /api/secnews/pipeline · /api/llm/status · /api/sources/health
  *         dsh/agent 面板自取 /api/dsh/control/* 与 /api/agents/*
+ *
+ * V2: 全部走 settings-shell.css 的 st-cellgrid / st-section / st-rule / st-chip
  */
 import { useState, useEffect, useCallback } from 'react';
 import { DshControlCard } from './DshControlCard';
@@ -63,117 +65,125 @@ export function PipelineSettings() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  const q = pipeline?.queue;
+  const queueKeys = [
+    ['pending', t('settings.queue_pending'), 'mint'] as const,
+    ['running', t('settings.queue_running'), 'mint'] as const,
+    ['error', t('settings.queue_failed'), 'red'] as const,
+  ];
+
   return (
-    <div className="space-y-3">
-      {/* 面板头 + 刷新 */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>{t('settings.title')}</h2>
-        <button onClick={refresh} disabled={loading} className="btn-secondary text-[10px] px-2 py-0.5" aria-label={t('settings.refresh')}>
+    <div className="space-y-3" data-testid="pipeline-settings">
+      <div className="st-actionbar" style={{ borderTop: 'none', marginTop: 0, paddingTop: 0 }}>
+        {error && !loading && <span className="st-ab-msg bad">{error}</span>}
+        <button type="button" className="st-btn ghost" onClick={refresh} disabled={loading}
+                aria-label={t('settings.refresh')}>
           {loading ? t('settings.refreshing') : t('settings.refresh')}
         </button>
       </div>
 
-      {error && !loading && (
-        <div className="p-2 rounded text-[10px] font-mono" style={{ color: 'var(--color-error)', border: '1px solid var(--color-error)' }}>
-          {error}
-        </div>
-      )}
-
       {/* KL 管线参数 */}
-      <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-        <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>{t('settings.kl_pipeline')}</h3>
-        {!loading && pipeline?.queue && (
-          <div className="grid grid-cols-3 gap-2 mb-2">
-            {([
-              ['pending', t('settings.queue_pending')], ['running', t('settings.queue_running')], ['error', t('settings.queue_failed')],
-            ] as const).map(([key, label]) => (
-              <div key={key} className="text-center p-1.5 rounded" style={{ backgroundColor: 'var(--bg-hover)' }}>
-                <div className="text-base font-mono font-bold"
-                  style={{ color: key === 'error' ? 'var(--color-error)' : 'var(--text-primary)' }}>
-                  {pipeline.queue?.[key] ?? 0}
+      <section className="st-section" aria-label={t('settings.kl_pipeline')}>
+        <h3>{t('settings.kl_pipeline')}</h3>
+        <p className="st-section-desc">
+          KL 多阶段管线 (raw → chunk → score → rank) 的运行队列与心跳。
+        </p>
+        <div className="st-section-body">
+          {!loading && q && (
+            <div className="st-cellgrid">
+              {queueKeys.map(([key, label, color]) => (
+                <div key={key} className="st-cell">
+                  <span className="st-cellk">{label}</span>
+                  <span className={`st-cellv sm ${color}`}>{q[key] ?? 0}</span>
                 </div>
-                <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{label}</div>
-              </div>
-            ))}
+              ))}
+            </div>
+          )}
+          <div className="st-cellnote">
+            <div>{t('settings.kl_stages')}</div>
+            <div>{t('settings.kl_meta')}</div>
+            <div>{t('settings.kl_heartbeat')}</div>
           </div>
-        )}
-        <div className="text-[10px] font-mono space-y-0.5" style={{ color: 'var(--text-muted)' }}>
-          <div>{t('settings.kl_stages')}</div>
-          <div>{t('settings.kl_meta')}</div>
-          <div>{t('settings.kl_heartbeat')}</div>
         </div>
-      </div>
+      </section>
 
       {/* LLM 模型档位 */}
-      <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-        <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>{t('settings.model_tier')}</h3>
-        <div className="text-[10px] font-mono space-y-1">
-          <div className="flex justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>{t('settings.llm_master')}</span>
-            <span style={{ color: llm?.enabled ? 'var(--color-success)' : 'var(--color-error)' }}>
-              {llm?.enabled ? 'ON' : 'OFF'}
-            </span>
+      <section className="st-section" aria-label={t('settings.model_tier')}>
+        <h3>{t('settings.model_tier')}</h3>
+        <p className="st-section-desc">4 档模型档位: master / flash / heavy / embed-rerank; 数据来自 /api/llm/status。</p>
+        <div className="st-section-body">
+          <div className="st-rule">
+            <div><p className="st-label">{t('settings.llm_master')}</p></div>
+            <div className="st-ctrl">
+              <span className={llm?.enabled ? 'st-chip ok' : 'st-chip bad'}>
+                <i aria-hidden />{llm?.enabled ? 'ON' : 'OFF'}
+              </span>
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>{t('settings.refine_flash')}</span>
-            <span style={{ color: 'var(--accent)' }}>{t('settings.flash_tier')}</span>
+          <div className="st-rule">
+            <div><p className="st-label">{t('settings.refine_flash')}</p></div>
+            <div className="st-ctrl"><span className="st-chip warn"><i aria-hidden />{t('settings.flash_tier')}</span></div>
           </div>
-          <div className="flex justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>deep_read / assess</span>
-            <span style={{ color: 'var(--color-warning)' }}>{t('settings.heavy_tier')}</span>
+          <div className="st-rule">
+            <div><p className="st-label">deep_read / assess</p></div>
+            <div className="st-ctrl"><span className="st-chip warn"><i aria-hidden />{t('settings.heavy_tier')}</span></div>
           </div>
-          <div className="flex justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>embed / rerank</span>
-            <span style={{ color: 'var(--text-muted)' }}>local ollama (P3)</span>
+          <div className="st-rule">
+            <div><p className="st-label">embed / rerank</p></div>
+            <div className="st-ctrl"><span className="st-chip mute"><i aria-hidden />local ollama (P3)</span></div>
           </div>
           {llm?.providers && Object.entries(llm.providers).map(([name, p]) => (
-            <div key={name} className="flex justify-between">
-              <span style={{ color: 'var(--text-muted)' }}>provider: {name}</span>
-              <span style={{
-                color: p.status === 'ok' ? 'var(--color-success)' : 'var(--color-error)',
-              }}>
-                {p.model ?? name} [{p.status ?? '?'}]
-              </span>
+            <div key={name} className="st-rule">
+              <div><p className="st-label">provider: {name}</p></div>
+              <div className="st-ctrl">
+                <span className={p.status === 'ok' ? 'st-chip ok' : 'st-chip bad'}>
+                  <i aria-hidden />{p.model ?? name} [{p.status ?? '?'}]
+                </span>
+              </div>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* dsh 认知大脑 (v0.6.3 内置化: 受管子进程 + 前端一键启停 + 配置持久化) */}
+      {/* dsh 认知大脑 */}
       <DshControlCard />
 
-      {/* pi 执行 agent (三层架构执行层) */}
+      {/* pi 执行 agent */}
       <AgentRunnerCard />
 
-      {/* 采集源健康 (workbench/SettingsView 并入) */}
-      <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-        <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
-          {t('settings.sources_count', { n: sources.length })}
-        </h3>
-        {sources.length === 0 ? (
-          <p className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>{t('settings.no_sources')}</p>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
-            {sources.slice(0, 18).map(s => (
-              <div key={`${s.category}-${s.source_name}`} className="text-[10px] font-mono flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full inline-block shrink-0" style={{
-                  backgroundColor: s.status === 'active' ? 'var(--color-success)' :
-                    s.status === 'stale' ? 'var(--color-warning)' : 'var(--color-error)',
-                }} />
-                <span style={{ color: 'var(--text-secondary)' }} className="truncate">{s.source_name}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* token 预算 (workbench/SettingsView 并入, 后端预算配置 Phase 5 实装) */}
-      <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-        <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>{t('settings.token_budget')}</h3>
-        <p className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
-          {t('settings.no_budget')}
+      {/* 采集源健康 */}
+      <section className="st-section" aria-label={t('settings.sources_count', { n: sources.length })}>
+        <h3>{t('settings.sources_count', { n: sources.length })}</h3>
+        <p className="st-section-desc">
+          实时源健康 (active=绿 / stale=琥珀 / dead=红)。只显示前 18 个, 完整列表见采集区段。
         </p>
-      </div>
+        <div className="st-section-body">
+          {sources.length === 0 ? (
+            <p className="st-cellnote">{t('settings.no_sources')}</p>
+          ) : (
+            <div className="st-tilegrid">
+              {sources.slice(0, 18).map(s => (
+                <div key={`${s.category}-${s.source_name}`}
+                     className={`st-tile ${s.status === 'stale' ? 'is-warn' : s.status === 'dead' ? 'is-off' : ''}`}>
+                  <p className="st-tile-label">{s.source_name}</p>
+                  <p className="st-tile-key">{s.category}</p>
+                  <span className={`st-chip ${s.status === 'active' ? 'ok' : s.status === 'stale' ? 'warn' : 'bad'}`}>
+                    <i aria-hidden />{s.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* token 预算 */}
+      <section className="st-section" aria-label={t('settings.token_budget')}>
+        <h3>{t('settings.token_budget')}</h3>
+        <p className="st-cellnote">{t('settings.no_budget')}</p>
+      </section>
     </div>
   );
 }
+
+export default PipelineSettings;

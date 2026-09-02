@@ -245,3 +245,155 @@ strategy = LLMExtractionStrategy(
 
 > 边界声明：本方案不引入新数据库表、不新增 feature gate 注册（网关不可用时全集回落第 1 步路径）、不改变 `config/llm.yaml` provider 清单、不触碰 `llm_secrets` 解析链。
 
+---
+
+## 9. 扩展：ai\_hub 三场景路由（深度 / 轻度 / 图片）
+
+> 章节类型: 方案扩展 · 状态: 与前 8 节正交、可独立排期
+> 触发: 2026-09-02 v0.7.x — sensenova 多模型 (deepseek-v4-pro / sensenova-6.8-flash-lite / sensenova-u1.5-lite) spike 实跑验证后落地 (`scripts/spike_sensenova_p1_p7.py`)
+> 关联: [`docs/Observability_PRD_v1.0.md`](Observability_PRD_v1.0.md) 观测面 · `backend/services/llm/model_router.py` 既有 `TASK_TIER_MAP`
+
+### 9.1 现状：ai\_hub 当前是"两档半"
+
+| 现状 | 文件:行 | 备注 |
+|---|---|---|
+| `AIService._eval_model()` 写死 `sensenova-6.8-flash-lite` | `backend/services/ai_hub/service.py:53` | 无场景区分 |
+| `AIService.gate_detect()` 限频热路径 | `backend/services/ai_hub/service.py:304` | 写死 flash-lite |
+| `LLMService.score/summarize/extract_entities` 走 router + fallback_order | `backend/services/ai_hub/gateway.py:146/198/250` | 已 router 化 |
+| `LLMService.generate(task="deep_read")` 走 router HEAVY 档 | `backend/services/ai_hub/gateway.py:297` + `deep_read_service.py:34` | 已 router 化 |
+| `model_router.ModelTier` 仅 FLASH / STANDARD / HEAVY / EMBED | `backend/services/llm/model_router.py:30` | **缺 IMAGE 档** |
+| `/v1/images/generations` 与 `/chat/completions` 多模态 (image_url) 都没接 | (无对应 service) | **完全缺** |
+
+**结论**: 现有 ai\_hub 已能跑**深度 + 轻度**两档（经 router tier），但**图片档完全没接入**；且 DEEP 档没显式指向 deepseek-v4-pro / sensenova-6.8-pro（依赖 yaml `task_overrides.t3_summary` 显式配）。
+
+### 9.2 三场景映射表
+
+| 场景 | 业务诉求 | LLM 任务 | 模型候选 (spike 验) | router tier | 现有 / 新增 |
+|---|---|---|---|---|---|
+| **深度 deep** | 长文深读 / 安全研判 / 多节结构化 / 大 token 预算 | `deep_read` / `evaluate` / `assess` | `deepseek-v4-pro` (meeting 真出), `sensenova-6.8-pro` | HEAVY | **现有** `/api/deep-read` + `/api/llm/evaluate` |
+| **轻度 light** | 评分 / 分类 / 摘要 / 实体 / 限频热路径 | `score` / `summarize` / `ner` / `gate_detect` / `refine` | `sensenova-6.8-flash-lite` (默认兜底), `deepseek-v4-flash` (降级) | FLASH / STANDARD | **现有** cron 触发；QualitySettings 切默认 provider |
+| **图片 image** | 封面生成 / OCR / 视觉问答 / 截图识别 | `image_generation` / `image_understand` | `sensenova-u1.5-lite` (spike 验过 `/v1/images/generations`) | **新增** `IMAGE` | **新增** `ImageGenerationService` + `/api/image/*` |
+
+### 9.3 接口契约（新增薄壳, 不改旧路径）
+
+#### A. 后端 — 场景路由抽象层
+
+**新文件** `backend/services/ai_hub/scenarios.py` (~120 行):
+
+```python
+class Scenario(str, Enum):
+    DEEP = "deep"      # 长文/深读/研判
+    LIGHT = "light"    # 评分/分类/摘要/限频
+    IMAGE = "image"    # 图片生成 + 视觉理解
+
+@dataclass(frozen=True)
+class ScenarioRoute:
+    scenario: Scenario
+    model: str         # spike 已验的模型名
+    endpoint: str      # "/chat/completions" | "/v1/images/generations"
+    max_tokens: int | None
+
+# 单一真相表 — env > settings.kv > yaml model_router > 兜底
+SCENARIO_DEFAULT_MODEL: dict[Scenario, str] = {
+    Scenario.DEEP: "sensenova-6.8-pro",          # 占位, 真下发前 spike 验
+    Scenario.LIGHT: "sensenova-6.8-flash-lite",
+    Scenario.IMAGE: "sensenova-u1.5-lite",
+}
+
+def resolve_scenario_model(scenario: Scenario, *, provider: str | None = None) -> ScenarioRoute:
+    """优先级: env HOTSPOT_SCENARIO_{DEEP|LIGHT|IMAGE}_MODEL > settings.kv > yaml > 兜底."""
+```
+
+**新文件** `backend/services/ai_hub/image_service.py` (~150 行):
+- `ImageGenerationService` — **独立类**（不污染现有 `LLMService.score/summarize` 循环）
+- `generate(prompt: str, *, size: str = "1024x1024", n: int = 1) -> dict` → `/v1/images/generations`
+- `understand(image_b64: str, prompt: str) -> str` → `/chat/completions` 携 `image_url`
+- **复用** `AIService._resolve_api_key("sensenova")` + `_key_source("sensenova")` 单点 (Batch ⑥ 已落)
+
+**新文件** `backend/api/image.py` (~60 行):
+- `POST /api/image/generate` body `{prompt, size?, n?, actor}` → `{ok, images: [...], provider, model, latency_ms}`
+- `POST /api/image/understand` body `{image_b64, prompt, actor}` → `{ok, text, provider, model, latency_ms}`
+- 复用 `_ai_key_source` 写 `audit_log`
+
+#### B. 复用现有路径 (零新接口, 改 router 语义)
+
+| 场景 | 现有端点 | 触发面 | 改 router 映射 |
+|---|---|---|---|
+| DEEP | `POST /api/llm/evaluate` | SentinelJudge / SecNewsAnalyze | `EvaluateRequest` 加 `scenario: Scenario \| None`; 走 `resolve_scenario_model` 选模型 |
+| DEEP | `POST /api/deep-read/{type}/{id}` | useDeepRead | yaml `task_overrides.t3_summary` 显式指向 deep 模型（yaml-only, 零代码） |
+| LIGHT | (无前端直调) | 后端 cron | 不动 — router FLASH/STANDARD 已适配 |
+| LIGHT | `AIService.gate_detect` | 采集热路径 (60s/6 次) | 不动 — 写死 flash-lite 本就是 FLASH 档 |
+
+### 9.4 与现有 aihub 网关 (§4) 的关系
+
+- §4 网关只服务 **crawl4ai `LLMExtractionStrategy`**，scene 固定为 `crawl4ai_extract`，路径走 `/api/aihub/v1/chat/completions`，只绑 127.0.0.1。
+- 本节 IMAGE 场景走**公网 sensenova** `/v1/images/generations`，绑 `0.0.0.0`（前端 ImageStudio 直调），scene = `image_generation` / `image_understand`。
+- **两条路径不复用端点**：避免 §4 的 loopback 限速限并发被图片大 body 误伤。
+
+### 9.5 前端 — QualitySettings 加场景模型小节 + 新建 ImageStudio
+
+**`frontend/src/components/settings/QualitySettings.tsx`** 在 secrets 面板下方加折叠 `<details>`:
+- 三个 select (DEEP/LIGHT/IMAGE), 值 = `providerOptions` × 模型名
+- 保存 = `POST /api/settings/scenario-model {scenario, model, actor}`
+- **不直写 key**; 模型选择 = 路由选择, 密钥走 secrets (单点)
+
+**新文件** `frontend/src/components/secnews/tools/ImageStudio.tsx` (~200 行):
+- 文生图: textarea + size/n 下拉 + 生成 → `<img>` 预览 + 下载
+- 图理解: 上传 + textarea + 生成 → 文本框
+- 两个动作都显示 `provider / model / latency_ms` 角标
+
+### 9.6 代码落地清单 (按改动量排)
+
+| 优先级 | 文件 | 改动 | 行数估算 |
+|---|---|---|---|
+| **P0** | `backend/services/ai_hub/__init__.py` | re-export `Scenario` / `SCENARIO_DEFAULT_MODEL` | +5 |
+| **P0** | `backend/services/ai_hub/scenarios.py` | 新文件 (枚举 + 解析 + 真值表) | +120 |
+| **P0** | `backend/services/llm/model_router.py` | 加 `ModelTier.IMAGE` + `TASK_TIER_MAP["image_generation"]=IMAGE` + `TIER_TO_MODEL_ATTR` 加 image 分支 | +10 |
+| **P0** | `backend/services/ai_hub/image_service.py` | 新文件 (生成 + 理解 + 复用 AIService 四级链) | +150 |
+| **P0** | `backend/api/image.py` | 新文件 (两个端点 + audit_log) | +60 |
+| **P1** | `backend/api/llm_status.py` | `EvaluateRequest` 加 `scenario` 入参; 走 `resolve_scenario_model` 选模型 | +15 |
+| **P1** | `backend/api/settings.py` | 新加 `POST /api/settings/scenario-model` (写 settings.kv + audit_log) | +40 |
+| **P1** | `backend/services/ai_hub/service.py` | `evaluate()` 接受 `scenario` 参数; 走 `resolve_scenario_model` 而非 `_eval_model` | +20 |
+| **P1** | `frontend/src/components/settings/QualitySettings.tsx` | 加场景模型面板 (复用现有样式/状态/handlers) | +80 |
+| **P2** | `frontend/src/components/secnews/tools/ImageStudio.tsx` | 新文件 (文生图 + 图理解) | +200 |
+| **P2** | `backend/tests/test_scenario_routing.py` | 新文件 (spike 验过的 7 模型做黑盒断言) | +150 |
+| **P2** | `backend/tests/test_image_service.py` | 新文件 (image gen401/200/超时/无水印) | +120 |
+| **P3** | `frontend/src/components/sentinel/SentinelJudgePage.tsx` | `evaluate()` 调用加 `scenario: "deep"` 入参 | +3 |
+| **P3** | `frontend/src/components/secnews/analyze/SecNewsAnalyze.tsx` | 同上 | +3 |
+
+**P0 落地后立刻能跑**:
+- 旧 `/api/llm/evaluate` 行为不变 (`scenario` 缺省 → 走老 `_eval_model`)
+- 旧 `/api/deep-read` 行为不变 (router 已有 HEAVY 档)
+- 新 `/api/image/generate` + `/api/image/understand` 走 sensenova u1.5-lite (spike 验过)
+- QualitySettings 多 1 个折叠面板, 默认折叠
+
+### 9.7 安全检查清单 (沿用既有约束)
+
+| 项 | 措施 |
+|---|---|
+| URL 仅 http/https | sensenova.cn 是公网域名 (非 localhost/环回/私有/保留), 通 |
+| 凭据只从 env 或密钥服务 | 全部走 `AIService._resolve_api_key()` 单点 (Batch ⑥ 已落), 源码不写 key 字面量 |
+| `record_audit` 全异常 swallow | 不阻塞业务 |
+| 图片上传走 base64 内联 | 端点 body 限 8MB 与 sensenova 文档一致; 再大要进 storage |
+| `/api/image/generate` 默认 `watermark=false` | 公测期免费; 用户显式传 `watermark=true` 才加水印 |
+| Mimosa 兼容 | `scanner_no_output` 照常提交, 不宣称安全 |
+
+### 9.8 推荐执行顺序
+
+1. **先 commit 上一批** (SenseNova 三场景 spike + PROGRESS 落账) — 已落 main 前置
+2. **本批新开分支** `feature/scenario-routing-and-image` off main
+3. **P0 三件套先落 + 跑测试** — scenarios / image_service / api/image, 跑 spike 验过的 7 模型做黑盒
+4. **P1 三件套接 QualitySettings + settings API**, 端到端跑通 settings → AIService.evaluate()
+5. **P2 前端 ImageStudio + 测试**, 跑 tsc + vitest
+6. **P3 两处 evaluate 调用传 `scenario="deep"`** (非阻断, 可单 commit)
+7. **merge --no-ff + tag v0.7.4-image + push**
+
+### 9.9 不在本批范围 (留独立批次)
+
+- 把 `LLMService.score/summarize` 拆 `task_overrides` 到 yaml 完全跑通 (已落 Batch ② 脚手架, 只等 yaml 真值)
+- `sensenova-6.8-pro` 在 deepseek-v4-pro 不可用时的实证 (需要再加 spike 跑一次)
+- 图片存储与归档 (目前生成只回 base64, 不进 storage)
+- 多模态端到端 (理解接口已留, 前端 UI 单独立项)
+
+> 边界声明：本节扩展同样不引入新数据库表 / 不新增 feature gate 注册 / 不改变 `config/llm.yaml` provider 清单 / 不触碰 `llm_secrets` 解析链。模型选择 = 路由选择, 密钥仍走 Batch ⑥ 单点四级链 (env > secrets > default)。
+

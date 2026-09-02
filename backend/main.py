@@ -154,6 +154,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     log.info(f"startup complete in {startup_duration_ms}ms")
     yield
 
+    # gateway 方案 §3.1: crawl4ai/Playwright 单例优雅停机 — 进程 shutdown
+    # 时关闭常驻 Chromium, 否则浏览器变僵尸进程 (第 1 步实施缺口)。
+    # crawl4ai 未安装时 close_client 内部 no-op, 不影响无依赖环境。
+    try:
+        from backend.utils.crawl4ai_client import close_client
+        await close_client()
+    except Exception as e:
+        log.warning(f"crawl4ai close_client error: {e}")
     try:
         sched.stop()
     except Exception as e:

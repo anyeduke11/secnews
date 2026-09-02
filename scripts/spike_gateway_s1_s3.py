@@ -182,11 +182,15 @@ async def s2_sensenova() -> dict:
 
     key = os.environ.get("SENSENOVA_API_KEY")
     if not key:
-        # 从 .env 读 (仅进程内, 不打印值)
-        for line in open(".env"):
-            if line.startswith("SENSENOVA_API_KEY="):
-                key = line.split("=", 1)[1].strip()
-                break
+        # 从 .env 读 (仅进程内, 不打印值) — 用 Path.read_text 替代 open() 避 ruff ASYNC230
+        from pathlib import Path
+        try:
+            for line in Path(".env").read_text().splitlines():
+                if line.startswith("SENSENOVA_API_KEY="):
+                    key = line.split("=", 1)[1].strip()
+                    break
+        except FileNotFoundError:
+            pass
     if not key:
         return {"error": "SENSENOVA_API_KEY not found"}
 

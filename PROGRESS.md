@@ -630,6 +630,20 @@ tsc 0 错；vitest 43 文件 310 passed；vite build 过。
   | P8 image_generation (sensenova-u1.5-lite, watermark=true) | ✓ | 200 + body=[`created`,`data`,`output_format`,`size`,`usage`] + `data[0].b64_json` ≈ 1.9MB PNG (1024x1024) |
 
   **新发现**: sensenova 图像生成端点**完全 OpenAI DALL-E 兼容** (字段命名/结构一致); `watermark=false` 公测期免费去水印; 与 chat 路径**端点 + 模型 + 响应 schema 都独立**,Step 2 实施时 ai_hub 必须拆 `ImageGenerationService` 单独走 `/images/generations` 而非塞进 `_call_sensenova_*` 一族。
+- **3 场景模型路由设计 + 实测 verdict** (用户裁决 2026-09-02): 根据 sensenova 官方模型总览 (`GET /v1/models` 返回 8 个 model ID) 设计 3 场景路由, 每个场景选 1-2 个候选模型
+  | 场景 | 用途 | 主选 model | 备选 model | 实测延迟 | verdict |
+  |---|---|---|---|---|---|
+  | **深度 (deep reasoning)** | 复杂 Agent / 高强度推理 / 代码修改 / 1M 上下文 | `deepseek-v4-pro` | `kimi-k3` (2.8T 原生多模态 Agent) / `glm-5.2` (Coding 长程) | 38.6s | ✓ P9 JSON `{"time":"14:24:53","distance_from_beijing_km":649.78,"distance_from_shanghai_km":662.22}` (答对相遇问题) |
+  | **轻度 (light QA)** | 日常问答 / 代码辅助 / 规模化 Agent / 限速友好 | `deepseek-v4-flash` | `sensenova-6.8-flash-lite` (生产主力) / `sensenova-6.7-flash-lite` | **1.7s** | ✓ P10 "HTTP 404 表示服务器无法找到请求的资源, 即'未找到'" |
+  | **图片 (image)** | 图片生成 / 编辑 / 参考图功能 | `sensenova-u1.5-lite` | `sensenova-u1-fast` (加速版, 信息图高效) | 22.2s | ✓ P8 b64_json 1.9MB PNG |
+
+  **关键观察**:
+  - **deepseek-v4-flash 1.7s 极速**, 适合 routine QA pipeline 主力 (注意: 不是 sensenova 自己的 flash-lite)
+  - **deepseek-v4-pro 38s 长延迟但推理质量高**, 适合 agent 复杂问题 (实测算出相遇时间 14:24:53)
+  - **sensenova-6.8-flash-lite 32s 慢在网络而非模型** — flash-lite 网络是当前唯一已知生产瓶颈, 应深探走不走代理
+  - **8 个 model ID 全部 GET /v1/models 返回** (sensenova 6.7/6.8-flash-lite + deepseek-v4-pro/flash + glm-5.2 + kimi-k3 + sensenova-u1.5-lite + sensenova-u1-fast), 截图清单 = 官方清单, 无虚标
+
+  **建议**: Step 2 实施时 ai_hub 加 `_scenario_route(scenario: Literal["deep","light","image"]) -> model_id`, 在 `_call_sensenova_eval/_detect` 默认走 light, agent 调用走 deep, image gen 走 image — 三场景完全独立, 互不耦合 (端点/模型/schema 都不一样)。
 - **新发现 bug**: P3 (model 忽略 tools 走 stop) 暴露 crawl4ai `LLMExtractionStrategy.tools` 抽取路径**在 sensenova flash-lite 上会 silent fail** (返回自然语言而不是 JSON 块), 建议 Step 2 实施时强制 `tool_choice: required` + 选更强 model。
 - **新发现 bug**: ai_hub `_call_sensenova_eval` / `_call_sensenova_detect` 当前**无 provider fallback**, 一旦 sensenova 4xx/5xx 直接抛异常; Step 2 实施时应**追加四元 fallback 决策** (重试 → FALLBACK_PROVIDERS[0] → [1] → 本地兜底)。
 
@@ -679,6 +693,7 @@ tsc 0 错；vitest 43 文件 310 passed；vite build 过。
 - ai_hub 四元 fallback 决策链落地 (Step 2 启动时一并)
 - LiteLLM 网桥前置调研 (S4-b)
 - `ImageGenerationService` 拆分 — 跟 chat 路径独立端点 + 模型 + schema, 当前 ai_hub 6 个调用点全在 chat 路径
+- `_scenario_route(scenario)` 三场景路由落地 — deep/light/image 各独立 model + 端点
 
 ### 门禁 (本次新增)
 

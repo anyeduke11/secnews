@@ -1,8 +1,10 @@
 /**
- * ModeSwitcher — 工作模式切换 (找回丢失前端入口 v1.7 Phase 3, PRD §3.2.10/§4.2)
+ * ModeSwitcher — 工作模式切换 (V2 哨兵化)
  *
- * 展示当前推荐模式 (有未读简报 → brief, 否则 scan) + 6 模式切换。
+ * 找回丢失前端入口 v1.7 Phase 3, PRD §3.2.10/§4.2
  * 数据源: GET /api/mode/current · GET /api/mode/modes · PUT /api/mode/switch
+ *
+ * V2: st-section + st-cellgrid + st-btn (active=primary)
  */
 import { useCallback, useEffect, useState } from 'react';
 
@@ -64,41 +66,39 @@ export function ModeSwitcher() {
   };
 
   return (
-    <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-elevated)' }}>
-      <h3 className="text-xs font-mono font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-        工作模式 {current && (
-          <span className="font-normal text-[10px]" style={{ color: 'var(--text-muted)' }}>
-            · 当前推荐: {MODE_LABELS[current] ?? current}
+    <section className="st-section" aria-label="工作模式" data-testid="mode-switcher">
+      <h3>
+        工作模式
+        {current && (
+          <span className="st-chip ok" title={`当前: ${current}`}>
+            <i aria-hidden />{MODE_LABELS[current] ?? current}
           </span>
         )}
       </h3>
-      {error && (
-        <p className="text-[10px] font-mono mb-1.5" style={{ color: 'var(--color-error)' }}>{error}</p>
-      )}
-      <div className="flex flex-wrap gap-1.5">
-        {(modes.length > 0 ? modes : Object.keys(MODE_LABELS)).map(m => {
-          const active = current === m;
-          return (
-            <button
-              key={m}
-              onClick={() => handleSwitch(m)}
-              disabled={switching}
-              className="text-[11px] font-mono px-2.5 py-1 rounded transition-colors"
-              style={{
-                color: active ? 'var(--accent)' : 'var(--text-secondary)',
-                backgroundColor: active ? 'var(--accent-soft)' : 'var(--bg-hover)',
-                border: '1px solid',
-                borderColor: active ? 'color-mix(in srgb, var(--accent) 40%, transparent)' : 'var(--border-color)',
-              }}
-            >
-              {MODE_LABELS[m] ?? m}
-            </button>
-          );
-        })}
+      <p className="st-section-desc">切换模式会同时标记简报已读 (PRD §4.2)。</p>
+      <div className="st-section-body">
+        {error && <p className="st-info bad">{error}</p>}
+        <div className="st-cellgrid">
+          {(modes.length > 0 ? modes : Object.keys(MODE_LABELS)).map(m => {
+            const active = current === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => handleSwitch(m)}
+                disabled={switching}
+                className={active ? 'st-btn primary' : 'st-btn'}
+                aria-pressed={active}
+                aria-label={`切换到 ${MODE_LABELS[m] ?? m}`}
+              >
+                {MODE_LABELS[m] ?? m}
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <p className="text-[9px] mt-1.5" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
-        切换模式会同时标记简报已读 (PRD §4.2)
-      </p>
-    </div>
+    </section>
   );
 }
+
+export default ModeSwitcher;

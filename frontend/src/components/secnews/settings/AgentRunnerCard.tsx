@@ -1,5 +1,5 @@
 /**
- * AgentRunnerCard — pi 轻量级执行 agent 面板 (v0.6.3 三层架构执行层)
+ * AgentRunnerCard — pi 轻量级执行 agent 面板 (v0.6.3 三层架构执行层, Sentinel V2 token)。
  *
  * runner 可用性 + 任务执行 (路由: preferred_agent > task_types > default)。
  * 数据源: GET /api/agents/available · POST /api/agents/run
@@ -88,68 +88,122 @@ export function AgentRunnerCard() {
   const selected = agents.find(a => a.name === agent);
 
   return (
-    <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-      <h3 className="text-xs font-mono font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+    <div
+      style={{
+        padding: 'var(--sn-cell-pad)',
+        borderRadius: 'var(--sn-radius-md)',
+        border: '1px solid var(--sn-line)',
+        backgroundColor: 'var(--sn-bg-1)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--sn-row)',
+      }}
+    >
+      <h3 style={{
+        fontFamily: 'var(--sn-mono)',
+        fontSize: 'var(--sn-fs-h3)',
+        fontWeight: 'var(--sn-fw-medium)',
+        color: 'var(--sn-ink)',
+        margin: 0,
+      }}>
         {t('runner.card_title')}
-        <span className="ml-2 text-[9px] font-normal" style={{ color: 'var(--text-muted)' }}>
+        <span style={{
+          marginLeft: 12,
+          fontSize: 'var(--sn-fs-mute)',
+          fontWeight: 'var(--sn-fw-regular)',
+          color: 'var(--sn-ink-3)',
+        }}>
           {t('runner.card_subtitle')}
         </span>
       </h3>
 
       {loadError && (
-        <p className="text-[10px] font-mono mb-2" style={{ color: 'var(--color-error)' }}>{loadError}</p>
+        <p style={{
+          fontFamily: 'var(--sn-mono)',
+          fontSize: 'var(--sn-fs-mute)',
+          color: 'var(--sn-red)',
+          margin: 0,
+        }}>
+          {loadError}
+        </p>
       )}
 
       {/* runner 可用性 */}
       {agents.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-2">
-          {agents.map(a => (
-            <button key={a.name} onClick={() => setAgent(a.name)}
-              className="text-[10px] font-mono px-2 py-0.5 rounded"
-              style={{
-                color: agent === a.name ? 'var(--accent)' : a.available ? 'var(--text-secondary)' : 'var(--text-disabled)',
-                backgroundColor: agent === a.name ? 'var(--accent-soft)' : 'var(--bg-hover)',
-                border: '1px solid var(--border-color)',
-              }}
-              title={a.available ? `${a.protocol} · timeout ${a.timeout_seconds}s` : t('runner.cli_not_installed')}>
-              {a.name}{a.external ? '' : t('runner.builtin_tag')}{a.available ? '' : t('runner.unavailable_tag')}
-            </button>
-          ))}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {agents.map(a => {
+            const selected = agent === a.name;
+            const tone = selected ? 'mint' : a.available ? 'mute' : 'bad';
+            const toneColor = tone === 'mint' ? 'var(--sn-mint)' : tone === 'bad' ? 'var(--sn-red)' : 'var(--sn-ink-2)';
+            const toneBg = selected
+              ? 'color-mix(in srgb, var(--sn-mint) 14%, transparent)'
+              : 'var(--sn-bg-hover)';
+            return (
+              <button
+                key={a.name}
+                onClick={() => setAgent(a.name)}
+                title={a.available ? `${a.protocol} · timeout ${a.timeout_seconds}s` : t('runner.cli_not_installed')}
+                style={{
+                  padding: '3px 10px',
+                  borderRadius: 'var(--sn-radius-sm)',
+                  fontSize: 11,
+                  fontFamily: 'var(--sn-mono)',
+                  color: toneColor,
+                  backgroundColor: toneBg,
+                  border: `1px solid ${selected ? 'var(--sn-mint)' : 'var(--sn-line)'}`,
+                  cursor: 'pointer',
+                }}
+              >
+                {a.name}{a.external ? '' : t('runner.builtin_tag')}{a.available ? '' : t('runner.unavailable_tag')}
+              </button>
+            );
+          })}
         </div>
       )}
 
       {/* 执行表单 */}
-      <div className="space-y-1.5">
-        <div className="flex items-center gap-1.5">
-          <select value={agent} onChange={e => setAgent(e.target.value)}
-            className="px-2 py-1 text-[11px] font-mono rounded w-36"
-            style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <select
+            value={agent} onChange={e => setAgent(e.target.value)}
+            className="st-select"
+            style={{ width: 144, fontFamily: 'var(--sn-mono)' }}
+          >
             <option value="">{t('runner.auto_route', { default: defaultAgent })}</option>
             {agents.map(a => <option key={a.name} value={a.name}>{a.name}</option>)}
           </select>
-          <input value={taskType} onChange={e => setTaskType(e.target.value)} list="agent-task-types"
+          <input
+            value={taskType} onChange={e => setTaskType(e.target.value)} list="agent-task-types"
             placeholder="task_type"
-            className="flex-1 px-2 py-1 text-[11px] font-mono rounded"
-            style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
+            className="st-input"
+            style={{ flex: 1, fontFamily: 'var(--sn-mono)' }}
+          />
           <datalist id="agent-task-types">
             {taskTypeOptions.map(t => <option key={t} value={t} />)}
           </datalist>
         </div>
-        <textarea value={input} onChange={e => setInput(e.target.value)} rows={3}
+        <textarea
+          value={input} onChange={e => setInput(e.target.value)} rows={3}
           placeholder={
             selected?.external
               ? t('runner.task_input_external', { name: selected.name, timeout: selected.timeout_seconds })
               : t('runner.task_input_builtin')
           }
-          className="w-full px-2 py-1.5 text-[11px] font-mono rounded resize-y"
-          style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
-        <div className="flex items-center gap-1.5">
-          <input value={workspace} onChange={e => setWorkspace(e.target.value)}
+          className="st-textarea"
+          style={{ fontFamily: 'var(--sn-mono)' }}
+        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input
+            value={workspace} onChange={e => setWorkspace(e.target.value)}
             placeholder={t('runner.workspace_placeholder')}
-            className="flex-1 px-2 py-1 text-[11px] font-mono rounded"
-            style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
-          <button onClick={run} disabled={running || !input.trim()}
-            className="btn-secondary text-[10px] px-3 py-1 shrink-0">
+            className="st-input"
+            style={{ flex: 1, fontFamily: 'var(--sn-mono)' }}
+          />
+          <button
+            className="st-btn primary"
+            onClick={run}
+            disabled={running || !input.trim()}
+          >
             {running ? t('runner.executing') : t('runner.execute')}
           </button>
         </div>
@@ -157,17 +211,25 @@ export function AgentRunnerCard() {
 
       {/* 结果 */}
       {result && (
-        <div className="mt-2 p-2 rounded text-[10px] font-mono"
-          style={{
-            backgroundColor: 'var(--bg-hover)',
-            border: `1px solid ${result.ok ? 'var(--color-success)' : 'var(--color-error)'}`,
-          }}>
-          <div style={{ color: 'var(--text-muted)' }}>
+        <div style={{
+          padding: 'var(--sn-cell-pad)',
+          borderRadius: 'var(--sn-radius-md)',
+          fontFamily: 'var(--sn-mono)',
+          fontSize: 'var(--sn-fs-mute)',
+          backgroundColor: 'var(--sn-bg-hover)',
+          border: `1px solid ${result.ok ? 'color-mix(in srgb, var(--sn-mint) 32%, transparent)' : 'color-mix(in srgb, var(--sn-red) 32%, transparent)'}`,
+        }}>
+          <div style={{ color: 'var(--sn-ink-3)' }}>
             agent={result.agent ?? '–'}{result.duration_ms != null ? ` · ${result.duration_ms}ms` : ''}
           </div>
-          <div className="mt-1 whitespace-pre-wrap" style={{
-            color: result.ok ? 'var(--text-primary)' : 'var(--color-error)',
-          }}>
+          <div
+            className="mt-1 whitespace-pre-wrap"
+            style={{
+              color: result.ok ? 'var(--sn-ink)' : 'var(--sn-red)',
+              marginTop: 4,
+              whiteSpace: 'pre-wrap',
+            }}
+          >
             {result.ok ? result.result : result.error}
           </div>
         </div>

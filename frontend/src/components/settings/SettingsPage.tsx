@@ -1,13 +1,16 @@
 /**
- * settings/SettingsPage — 设置页面主入口 / 薄壳。
+ * settings/SettingsPage — 设置页面主入口 / 薄壳 (V2 哨兵化)
  *
- * 拆自原 SettingsPage.tsx (1065 行 → 12 文件, 每文件 ≤ 400 行)。
- * 本文件仅做组合: 激活 section 状态 + 侧边导航 + 各区段组件。
- * 各区段 (通用/采集/网络/同步/集成/密钥/告警/知识库/导出/维护/关于)
- * 的 state 与 fetch 已下沉到各自组件文件。
+ * v0.7.x SettingsHub V2:
+ *  - 头部双列 st-head (标题 / 副标题 / 状态徽章 / 操作)
+ *  - sidebar 改 st-sidenav-item (图标 + 标签 + 描述 + 状态点)
+ *  - 默认 cat=dashboard (哨兵式首屏体检: 8 张 st-tile 跳转 + 4 系统子状态)
+ *  - 各区段 (16 个 cat) 共享 .settings-shell 作用域, 借 settings-shell.css 的
+ *    --sn-* token 与 st-rule / st-card / st-chip 等原子样式
  *
- * API 保持向后兼容: export function SettingsPage
- * (App.tsx lazy import: import('./components/settings/SettingsPage').then(m => ({ default: m.SettingsPage })))
+ * 历史: v0.6.x 原 SettingsPage.tsx 1065 行; v0.7.0 拆 12 文件;
+ *       v0.7.x SettingsHub 合并 PipelineSettings / SentinelSettingsPage / ImageStudio;
+ *       V2 引入 dashboard 首屏 + 全页面哨兵化。
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -30,20 +33,20 @@ import { AboutSettings } from './AboutSettings';
 import { ModeSwitcher } from './ModeSwitcher';
 import { FeedbackSettings } from './FeedbackSettings';
 import { ScenarioModelsPanel } from './ScenarioModelsPanel';
-// v0.7.x SettingsHub: 三处合并入口 (PipelineSettings / SentinelSettingsPage / ImageStudio)
-// 直接复用旧组件, 行为与原 /secnews/settings /sentinel/settings /secnews/image 完全等价。
+import { SettingsDashboard } from './SettingsDashboard';
 import { PipelineSettings } from '../secnews/settings/PipelineSettings';
 import { SentinelSettingsPage } from '../sentinel/SentinelSettingsPage';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
+import './settings-shell.css';
 
 export function SettingsPage() {
   const navigate = useNavigate();
-  // v0.7.x SettingsHub: 解析 ?cat= 深链 (默认 general)
-  // 旧路由 /secnews/settings /secnews/image /sentinel/settings 重定向到此并携带 cat
+  // v0.7.x SettingsHub V2: 默认 cat=dashboard (体检面板) — 哨兵式首屏
+  // 旧路由 /secnews/settings /secnews/image /sentinel/settings 携带 cat 跳转
   const search = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const catParam = search?.get('cat') as SectionKey | null;
   const [activeSection, setActiveSection] = useState<SectionKey>(
-    catParam && SECTIONS.some(s => s.key === catParam) ? catParam : 'general',
+    catParam && SECTIONS.some(s => s.key === catParam) ? catParam : 'dashboard',
   );
   const [open] = useState(true);
   // v0.4.3: mcp 扩展关闭时隐藏集成区段 (后端 /api/mcp/* 已 404)
@@ -68,6 +71,8 @@ export function SettingsPage() {
 
   const renderContent = () => {
     switch (activeSection) {
+      case 'dashboard':
+        return <SettingsDashboard onJump={setActiveSection} />;
       case 'general':
         return (
           <div className="space-y-2">
@@ -88,8 +93,9 @@ export function SettingsPage() {
       case 'sync':
         return <SyncSettings />;
       case 'integration':
-        // v0.4.3: mcp=false 时 MCP 设置卡片隐藏 (后端路由已 404)
-        return features.mcp ? <MCPSettingsCard open={open} /> : <div className="text-xs" style={{ color: 'var(--text-muted)' }}>MCP 扩展未启用</div>;
+        return features.mcp ? <MCPSettingsCard open={open} /> : (
+          <div className="st-info">MCP 扩展未启用</div>
+        );
       case 'secrets':
         return <SecretsStatusCard />;
       case 'alerts':
@@ -100,7 +106,6 @@ export function SettingsPage() {
         return <ExportSettings />;
       case 'maintenance':
         return <DatabaseMaintenance />;
-      // v0.7.x SettingsHub: 三处合并入口
       case 'pipeline':
         return <PipelineSettings />;
       case 'sentinel':
@@ -108,11 +113,9 @@ export function SettingsPage() {
       case 'image_models':
         return (
           <div className="space-y-3">
-            <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-              <h3 className="text-xs font-mono font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                🖼️ 图片工具 · 模型配置
-              </h3>
-              <p className="text-[10px] font-mono mb-2" style={{ color: 'var(--text-muted)' }}>
+            <div className="st-card">
+              <h3>🖼️ 图片工具 · 模型配置</h3>
+              <p className="st-section-desc">
                 深度 / 轻度 / 图片 三场景的模型选择在这里配置; 文生图与图理解功能已下线 (用户裁决 2026-09-02)
               </p>
             </div>
@@ -126,54 +129,67 @@ export function SettingsPage() {
     }
   };
 
-  return (
-    // v0.7.x SettingsHub: .settings-shell 是 sentinel-settings.css 的新作用域前缀
-    // (原 .sentinel 前缀已废弃; SentinelSettingsPage 嵌入本根后需要新前缀避免 st-* 全局泄漏)
-    <div className="settings-shell w-full flex flex-col" style={{ minHeight: 'calc(100dvh - 1.5rem)' }}>
-      {/* 页面标题 — 报纸报眉风格 */}
-      <div className="shrink-0 flex items-center justify-between pb-2 mb-3" style={{ borderBottom: '2px solid var(--text-primary)' }}>
-        <h1 className="text-sm font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
-          <span className="font-mono mr-2">{'\u2699'}</span>
-          设置
-        </h1>
-        <button
-          onClick={() => navigate('/')}
-          className="btn-ghost gap-1.5 px-2 py-1 text-[10px]"
-          aria-label="返回首页"
-        >
-          <Icon size={11}>
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </Icon>
-          <span className="hidden sm:inline">返回首页</span>
-        </button>
-      </div>
+  // 当前激活 section 的元数据 — 用于头部标题/副标题
+  const active = SECTIONS.find(s => s.key === activeSection);
 
-      {/* 主区域：sidebar + 可滚动内容 — 填满剩余高度 */}
+  return (
+    // v0.7.x SettingsHub V2: 全部 16 cat 共享 .settings-shell 作用域
+    // settings-shell.css 提供 --sn-* token 与 st-rule / st-card / st-chip 等原子样式
+    <div className="settings-shell w-full flex flex-col" style={{ minHeight: 'calc(100dvh - 1.5rem)' }}>
+      {/* V2 头部 — st-head 双列: 标题 + 副标题 / 状态徽章 + 操作 */}
+      <header className="st-head">
+        <div>
+          <h1 className="st-title">
+            <span style={{ marginRight: 10, color: 'var(--sn-mint)' }}>⚙</span>
+            {active?.label ?? '设置'}
+          </h1>
+          <p className="st-sub2">{active?.desc ?? '系统设置 · 哨兵化首屏'}</p>
+        </div>
+        <div className="st-headops">
+          <span className="st-chip ok" aria-label="设置已就绪">
+            <i aria-hidden />就绪
+          </span>
+          <button
+            type="button"
+            className="st-btn ghost"
+            onClick={() => navigate('/')}
+            aria-label="返回首页"
+          >
+            <Icon size={11}>
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </Icon>
+            返回首页
+          </button>
+        </div>
+      </header>
+
+      {/* 主区域: sidebar + 可滚动内容 — 填满剩余高度 */}
       <div className="flex flex-1 gap-3 min-h-0">
-        {/* 侧边导航 — 桌面 sticky 竖排, 移动端横向横滚 */}
+        {/* V2 sidebar — st-sidenav-item: 图标 + 标签 + 描述 + 状态点 */}
         <nav
-          className="shrink-0 flex flex-row sm:flex-col gap-px overflow-x-auto sm:overflow-y-auto pb-1 sm:pb-0 sm:sticky sm:top-0 sm:self-start sm:w-[78px] sm:max-h-full"
-          style={{ scrollbarWidth: 'none' }}
+          className="settings-shell st-sidenav shrink-0 sm:w-[210px] sm:max-h-full"
           aria-label="设置分类"
         >
           {SECTIONS.filter(s => s.key !== 'integration' || features.mcp).map(s => {
-            const active = activeSection === s.key;
+            const isActive = activeSection === s.key;
             return (
               <button
                 key={s.key}
+                type="button"
                 onClick={() => setActiveSection(s.key)}
-                className="settings-nav-btn"
+                className={`st-sidenav-item${isActive ? ' active' : ''}`}
                 title={s.desc}
-                style={{
-                  backgroundColor: active ? 'var(--accent)' : 'transparent',
-                  color: active ? 'var(--text-on-color)' : 'var(--text-secondary)',
-                  fontWeight: active ? 700 : 400,
-                }}
-                aria-current={active ? 'page' : undefined}
+                aria-current={isActive ? 'page' : undefined}
               >
-                {s.icon}
-                <span className="leading-tight">{s.label}</span>
+                <span className="st-snav-row">
+                  <span className="st-snav-icon" aria-hidden>{s.icon}</span>
+                  <span className="st-snav-label">{s.label}</span>
+                  <span className="st-snav-state" aria-hidden>
+                    {isActive ? '●' : '○'}
+                  </span>
+                </span>
+                {s.desc && <span className="st-snav-desc">{s.desc}</span>}
               </button>
             );
           })}

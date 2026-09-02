@@ -1,10 +1,10 @@
-"""spike: sensenova OpenAI 兼容范围深探 (P1-P7) + 切换路径压力测试。
+"""spike: sensenova OpenAI 兼容范围深探 (P1-P8) + 切换路径压力测试。
 
 设计要点 (v0.7.x gateway S2 黑盒广度探针):
 - 不引入 pytest 框架 (与测试隔离; spike 是临时验证, 不进 CI)
 - 不写死 key 字面量 (从 .env 读 SENSENOVA_API_KEY, 进程内不打印)
 - 长超时 (30s) + 串行重试 3 次 (避免网络 flake 误判)
-- 探测 7 个能力: response_format / function_calling / streaming / multimodal / logprobs
+- 探测 8 个能力: response_format / function_calling / streaming / multimodal / logprobs / image_generation
 - 输出 JSON verdict, 便于脚本消费 (人/AI 都可解析)
 - 跑完即用, 不修改 db / 不引入迁移
 
@@ -13,8 +13,8 @@
 ::
 
     .venv/bin/python scripts/spike_sensenova_p1_p7.py
-    .venv/bin/python scripts/spike_sensenova_p1_p7.py --target streaming  # 只跑 P5
-    .venv/bin/python scripts/spike_sensenova_p1_p7.py --retries 5         # 5 次重试
+    .venv/bin/python scripts/spike_sensenova_p1_p7.py --target p8        # 只跑 P8 image generation
+    .venv/bin/python scripts/spike_sensenova_p1_p7.py --retries 5        # 5 次重试
 
 依据: docs/crawler-aihub-gateway.md §3.2 + memory hotspot-gateway-s1-s4-spike-flow
 """
@@ -45,6 +45,7 @@ def _key() -> str:
 
 BASE = "https://token.sensenova.cn/v1"
 MODEL = "sensenova-6.8-flash-lite"
+IMAGE_MODEL = "sensenova-u1.5-lite"  # image generation 模型 (与文本 chat 模型不同)
 DEFAULT_TIMEOUT = 30.0
 DEFAULT_RETRIES = 3
 
@@ -151,6 +152,54 @@ def probe_streaming(name: str, payload: dict, *, timeout: float = 30.0) -> dict:
         return {"name": name, "ok": False, "error": f"{type(e).__name__}: {e}"}
 
 
+def probe_image(name: str, payload: dict, *, timeout: float = 60.0) -> dict:
+    """image generation 探针 — POST /v1/images/generations (OpenAI 同构端点)。
+
+    与 chat 路径不同: 端点不是 /chat/completions 而是 /images/generations;
+    模型是 sensenova-u1.5-lite (不是 sensenova-6.8-flash-lite);
+    response_format 仅支持 'b64_json' (没有 'url' 选项, 推测为版权保护);
+    watermark=false 公测期间免费去水印。
+    """
+    t0 = time.time()
+    try:
+        with httpx.Client(timeout=timeout) as c:
+            r = c.post(
+                f"{BASE}/images/generations",
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {_key()}",
+                    "Content-Type": "application/json",
+                },
+            )
+        dt = (time.time() - t0) * 1000
+        ok = 200 <= r.status_code < 300
+        body: dict[str, Any] = {}
+        try:
+            body = r.json()
+        except Exception:
+            body = {"_raw": r.text[:300]}
+        # image generation 响应结构: {created, data:[{b64_json}], usage}
+        data_list = body.get("data") if isinstance(body, dict) else None
+        b64_preview = ""
+        if isinstance(data_list, list) and data_list:
+            first = data_list[0] if isinstance(data_list[0], dict) else {}
+            b64 = first.get("b64_json") or ""
+            b64_preview = f"<{len(b64)} chars>" if b64 else ""
+        return {
+            "name": name,
+            "status": r.status_code,
+            "ok": ok,
+            "latency_ms": round(dt, 1),
+            "body_keys": list(body.keys()) if isinstance(body, dict) else [],
+            "error_type": (body.get("error") or {}).get("type") if isinstance(body, dict) else None,
+            "error_msg": ((body.get("error") or {}).get("message") or "")[:200] if isinstance(body, dict) else "",
+            "data_count": len(data_list) if isinstance(data_list, list) else 0,
+            "b64_json_preview": b64_preview,
+        }
+    except Exception as e:
+        return {"name": name, "ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
 def make_valid_png_b64() -> str:
     """用 PIL 生成 valid 2x2 PNG (字节序列必须可被 sensenova image 解码)。"""
     try:
@@ -174,7 +223,7 @@ def make_valid_png_b64() -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="sensenova OpenAI 兼容范围探针")
-    parser.add_argument("--target", choices=["all", "p1", "p2", "p3", "p4", "p5", "p6", "p7"], default="all")
+    parser.add_argument("--target", choices=["all", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8"], default="all")
     parser.add_argument("--retries", type=int, default=DEFAULT_RETRIES, help="失败重试次数 (默认 3)")
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT, help="单次超时 (默认 30s)")
     args = parser.parse_args()
@@ -251,10 +300,24 @@ def main():
             {**base, "temperature": 0, "logprobs": True, "top_logprobs": 1},
             timeout=args.timeout,
         ),
+        # P8 image generation — 独立端点 /v1/images/generations, 模型 sensenova-u1.5-lite
+        "p8": lambda: probe_image(
+            "P8_image_generation",
+            {
+                "model": IMAGE_MODEL,
+                "prompt": "a baby otter floating on calm sea at dawn, soft morning light, photorealistic",
+                "n": 1,
+                "size": "1024x1024",
+                "output_format": "png",
+                "response_format": "b64_json",
+                "watermark": True,
+            },
+            timeout=args.timeout,
+        ),
     }
 
     if args.target == "all":
-        run_order = ["p1", "p2", "p3", "p4", "p5", "p6", "p7"]
+        run_order = ["p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8"]
     else:
         run_order = [args.target]
 

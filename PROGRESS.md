@@ -624,6 +624,12 @@ tsc 0 错；vitest 43 文件 310 passed；vite build 过。
   | P7 logprobs | ✓ | 200 OK (但 `finish_reason=length`, sensenova 在 logprobs 模式下输出截断为 0 token, **logprobs 字段可能丢**) |
 
   **总结论**: sensenova **是 OpenAI 兼容协议**, 但 (a) 网络 flake 频繁 (需 30s+ 超时+3 次重试) (b) multimodal 限流严重 (c) `logprobs` 在 flash-lite 上响应截断 — Step 2 落地时**必须**把这些约束写进 litellm 调用层与 fallback 决策。
+- **P8 image_generation 新增探针** (用户补充 curl 模板, 2026-09-02): `sensenova-u1.5-lite` 模型走 `/v1/images/generations` (OpenAI DALL-E 同构端点)
+  | probe | verdict | 关键证据 |
+  |---|---|---|
+  | P8 image_generation (sensenova-u1.5-lite, watermark=true) | ✓ | 200 + body=[`created`,`data`,`output_format`,`size`,`usage`] + `data[0].b64_json` ≈ 1.9MB PNG (1024x1024) |
+
+  **新发现**: sensenova 图像生成端点**完全 OpenAI DALL-E 兼容** (字段命名/结构一致); `watermark=false` 公测期免费去水印; 与 chat 路径**端点 + 模型 + 响应 schema 都独立**,Step 2 实施时 ai_hub 必须拆 `ImageGenerationService` 单独走 `/images/generations` 而非塞进 `_call_sensenova_*` 一族。
 - **新发现 bug**: P3 (model 忽略 tools 走 stop) 暴露 crawl4ai `LLMExtractionStrategy.tools` 抽取路径**在 sensenova flash-lite 上会 silent fail** (返回自然语言而不是 JSON 块), 建议 Step 2 实施时强制 `tool_choice: required` + 选更强 model。
 - **新发现 bug**: ai_hub `_call_sensenova_eval` / `_call_sensenova_detect` 当前**无 provider fallback**, 一旦 sensenova 4xx/5xx 直接抛异常; Step 2 实施时应**追加四元 fallback 决策** (重试 → FALLBACK_PROVIDERS[0] → [1] → 本地兜底)。
 
@@ -672,6 +678,7 @@ tsc 0 错；vitest 43 文件 310 passed；vite build 过。
 - Step 2 实施 (维持 pause, 待 trigger-gate 触发)
 - ai_hub 四元 fallback 决策链落地 (Step 2 启动时一并)
 - LiteLLM 网桥前置调研 (S4-b)
+- `ImageGenerationService` 拆分 — 跟 chat 路径独立端点 + 模型 + schema, 当前 ai_hub 6 个调用点全在 chat 路径
 
 ### 门禁 (本次新增)
 

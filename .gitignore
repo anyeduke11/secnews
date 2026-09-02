@@ -28,6 +28,8 @@ data/export/
 data/schema/
 # 由 scripts/export_migrations_for_dsh.py 运行时生成 (Phase 7e)
 data/migrations/
+# dsh 受管子进程运行数据 (sessions jsonl) — 本地持久化但不入库 (per-session, 量随 dsh 启用增长)
+data/dsh/
 
 # Editor
 .vscode/

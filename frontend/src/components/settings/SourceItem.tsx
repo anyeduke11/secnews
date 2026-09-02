@@ -1,10 +1,9 @@
 /**
- * SourceItem — 单条自定义信源渲染（Phase 1B 抽出）。
+ * SourceItem — 单条自定义信源渲染 (Sentinel V2)。
  *
- * Phase 1B: 拆自 SourceSettings.tsx 中单条信源的复杂 JSX。
- * 独立可测；通过 props 接收 source 数据和 handlers。
+ * V2 token: --sn-ink / --sn-ink-3 / --sn-mint / --sn-red / --sn-bg-hover
+ * 嵌入 SourceSettings (PipelineSettings 信源管理) 中使用.
  */
-
 export interface SourceItemData {
   id: number;
   name: string;
@@ -25,55 +24,74 @@ interface SourceItemProps {
 export function SourceItem({ source: s, onToggle, onProbe, onDelete }: SourceItemProps) {
   return (
     <div
-      className="p-1.5 rounded-[var(--radius-sm)] text-[10px]"
       style={{
-        backgroundColor: 'var(--bg-hover)',
-        border: '1px solid var(--border-color)',
+        padding: 'var(--sn-cell-pad)',
+        borderRadius: 'var(--sn-radius-md)',
+        backgroundColor: 'var(--sn-bg-hover)',
+        border: '1px solid var(--sn-line)',
+        fontSize: 'var(--sn-fs-mute)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
       }}
     >
-      <div className="flex items-center gap-1.5">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span
-          className="font-mono truncate flex-1"
-          style={{ color: 'var(--text-primary)' }}
+          style={{
+            fontFamily: 'var(--sn-mono)',
+            color: 'var(--sn-ink)',
+            flex: 1,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
           title={s.url}
         >
           {s.name || s.url}
         </span>
         <span
-          className="px-1 py-0.5 rounded text-[10px]"
-          style={{ backgroundColor: 'var(--color-ai)', color: 'var(--text-on-color)' }}
+          style={{
+            padding: '2px 8px',
+            borderRadius: 'var(--sn-radius-sm)',
+            fontSize: 10,
+            backgroundColor: 'color-mix(in srgb, var(--sn-mint) 14%, transparent)',
+            color: 'var(--sn-mint)',
+            fontFamily: 'var(--sn-mono)',
+            letterSpacing: '0.03em',
+          }}
         >
           {s.category}
         </span>
       </div>
-      <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+      <div style={{ fontSize: 'var(--sn-fs-mute)', color: 'var(--sn-ink-3)' }}>
         {s.last_check_status || '未探测'} · {Math.round(s.last_check_latency_ms || 0)}ms
       </div>
-      <div className="flex gap-1 mt-1">
+      <div style={{ display: 'flex', gap: 6 }}>
         <button
+          className="st-btn"
           onClick={() => onToggle(s.id, !s.enabled)}
-          className="px-1.5 py-0.5 text-[10px] rounded"
           style={{
-            backgroundColor: s.enabled ? 'var(--color-ai)' : 'var(--bg-primary)',
-            color: s.enabled ? 'var(--text-on-color)' : 'var(--text-muted)',
+            padding: '4px 10px',
+            fontSize: 11,
+            backgroundColor: s.enabled ? 'var(--sn-mint)' : 'var(--sn-bg-1)',
+            color: s.enabled ? 'var(--bg-primary)' : 'var(--sn-ink-3)',
+            borderColor: s.enabled ? 'var(--sn-mint)' : 'var(--sn-line)',
           }}
         >
           {s.enabled ? '启用' : '禁用'}
         </button>
         <button
+          className="st-btn"
           onClick={() => onProbe(s.id)}
-          className="px-1.5 py-0.5 text-[10px] rounded"
-          style={{
-            backgroundColor: 'var(--bg-primary)',
-            color: 'var(--text-secondary)',
-          }}
+          style={{ padding: '4px 10px', fontSize: 11 }}
         >
           探测
         </button>
         <button
+          className="st-btn danger"
           onClick={() => onDelete(s.id)}
-          className="px-1.5 py-0.5 text-[10px] rounded"
-          style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--color-error)' }}
+          style={{ padding: '4px 10px', fontSize: 11 }}
         >
           删除
         </button>

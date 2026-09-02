@@ -7,12 +7,29 @@
 import React from 'react';
 import { Icon } from '../Icon';
 
-// v0.7.x SettingsHub: 合并 PipelineSettings / SentinelSettingsPage / ImageStudio 三处入口
+// v0.7.x SettingsHub V2: 新增 dashboard 作为首屏"体检面板", 一眼看完所有子系统状态
+//   dashboard       — 首屏, 哨兵式体检: 4 系统子状态 + 8 区段跳转 + 最近 24h 趋势 (用户裁决 V2)
 //   pipeline        — 原 /secnews/settings (KL/model tier/dsh/agent/源健康/token)
 //   sentinel        — 原 /sentinel/settings (只读控制台 4 子面板)
 //   image_models    — 原 /secnews/image (ScenarioModelsPanel 复用)
 // image/sentinel/settings 三个旧路由永久 redirect → /settings?cat=...
-export type SectionKey = 'general' | 'collection' | 'network' | 'sync' | 'integration' | 'secrets' | 'alerts' | 'knowledge' | 'export' | 'maintenance' | 'pipeline' | 'sentinel' | 'image_models' | 'about' | 'feedback';
+export type SectionKey =
+  | 'dashboard'
+  | 'general'
+  | 'collection'
+  | 'network'
+  | 'sync'
+  | 'integration'
+  | 'secrets'
+  | 'alerts'
+  | 'knowledge'
+  | 'export'
+  | 'maintenance'
+  | 'pipeline'
+  | 'sentinel'
+  | 'image_models'
+  | 'about'
+  | 'feedback';
 
 export interface SectionDef {
   key: SectionKey;
@@ -22,6 +39,15 @@ export interface SectionDef {
 }
 
 export const SECTIONS: SectionDef[] = [
+  // v0.7.x SettingsHub V2: 首屏体检面板 — 默认 cat=dashboard
+  // 用途: 不点进各分类也能看到"系统还好吗", 8 张 st-tile 跳转对应 cat, 哨兵式体检
+  // 不加的代价: 用户需逐个点 cat 才能确认系统状态, 心智负担大
+  {
+    key: 'dashboard',
+    label: '总览',
+    icon: <Icon size={12}><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></Icon>,
+    desc: '首屏体检 · 8 区段快速跳转',
+  },
   {
     key: 'general',
     label: '通用',

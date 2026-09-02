@@ -1,10 +1,17 @@
 /**
- * settings/DatabaseMaintenance — 数据库维护。
+ * settings/DatabaseMaintenance — 数据库维护 (Sentinel V2)。
  *
- * 拆自原 SettingsPage.tsx (1065 行) 中 DatabaseMaintenance (~683-946 行)。
- * 纯结构拆分: 全部状态 (13 个 useState) 与 fetch/渲染逻辑逐字迁移。
+ * 拆分自原 SettingsPage.tsx (1065 行) 中 DatabaseMaintenance 段.
+ *
+ * 设计原则:
+ * - 顶部 4 格状态卡 (SIZE / FRAG / LOGS / DUPS) 取代零碎分布
+ * - 维护动作区 st-section + st-rule 编辑行 + st-actionbar footer
+ * - 危险动作 (清理历史) 用 st-dangerline + danger label 区分
+ * - 重复数据详情用 st-table 列表
+ * - Sentinel 5 disciplines: zero-neon / semantic-3-color / mono-data / mute-text / reduced-motion
  */
 import { useState, useCallback, useEffect } from 'react';
+import '../settings/settings-shell.css';
 
 export function DatabaseMaintenance() {
   const [dbHealth, setDbHealth] = useState<{ size_mb?: number; fragmentation_pct?: number; journal_mode?: string } | null>(null);
@@ -14,17 +21,19 @@ export function DatabaseMaintenance() {
 
   // 操作状态
   const [vacuuming, setVacuuming] = useState(false);
-  const [vacuumMsg, setVacuumMsg] = useState<string | null>(null);
-  const [cleaningLogs, setCleaningLogs] = useState(false);
-  const [cleanLogsMsg, setCleanLogsMsg] = useState<string | null>(null);
+  const [cacheClearing, setCacheClearing] = useState(false);
   const [deduping, setDeduping] = useState(false);
-  const [dedupMsg, setDedupMsg] = useState<string | null>(null);
+  const [cleaningLogs, setCleaningLogs] = useState(false);
   const [cleaning, setCleaning] = useState(false);
-  const [cleanMsg, setCleanMsg] = useState<string | null>(null);
   const [retentionDays, setRetentionDays] = useState(90);
   const [qualityLogDays, setQualityLogDays] = useState(7);
-  const [cacheClearing, setCacheClearing] = useState(false);
-  const [cacheMsg, setCacheMsg] = useState<string | null>(null);
+
+  type Msg = { kind: 'ok' | 'bad' | 'mute'; text: string } | null;
+  const [vacuumMsg, setVacuumMsg] = useState<Msg>(null);
+  const [cacheMsg, setCacheMsg] = useState<Msg>(null);
+  const [dedupMsg, setDedupMsg] = useState<Msg>(null);
+  const [cleanLogsMsg, setCleanLogsMsg] = useState<Msg>(null);
+  const [cleanMsg, setCleanMsg] = useState<Msg>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -49,9 +58,11 @@ export function DatabaseMaintenance() {
     try {
       const r = await fetch('/api/maintenance/vacuum', { method: 'POST' });
       const d = await r.json();
-      setVacuumMsg(d.status === 'ok' ? `VACUUM 完成 (${d.total_seconds}s)` : 'VACUUM 失败');
+      setVacuumMsg(d.status === 'ok'
+        ? { kind: 'ok', text: `VACUUM 完成 (${d.total_seconds}s)` }
+        : { kind: 'bad', text: 'VACUUM 失败' });
       await loadData();
-    } catch { setVacuumMsg('VACUUM 请求失败'); }
+    } catch { setVacuumMsg({ kind: 'bad', text: 'VACUUM 请求失败' }); }
     finally { setVacuuming(false); }
   };
 
@@ -61,9 +72,12 @@ export function DatabaseMaintenance() {
     try {
       const r = await fetch(`/api/maintenance/cleanup-quality-logs?days=${qualityLogDays}&dry_run=false`, { method: 'POST' });
       const d = await r.json();
-      setCleanLogsMsg(`已清理 ${d.rows_to_delete} 条 quality 日志，剩余 ${d.rows_remaining_after} 条`);
+      setCleanLogsMsg({
+        kind: 'ok',
+        text: `已清理 ${d.rows_to_delete} 条 quality 日志, 剩余 ${d.rows_remaining_after} 条`,
+      });
       await loadData();
-    } catch { setCleanLogsMsg('清理请求失败'); }
+    } catch { setCleanLogsMsg({ kind: 'bad', text: '清理请求失败' }); }
     finally { setCleaningLogs(false); }
   };
 
@@ -73,9 +87,12 @@ export function DatabaseMaintenance() {
     try {
       const r = await fetch('/api/maintenance/cleanup-duplicates?dry_run=false', { method: 'POST' });
       const d = await r.json();
-      setDedupMsg(`已删除 ${d.total_deleted} 条重复记录 (hotspots ${d.hotspots?.total_deleted || 0} + 知识库 ${d.knowledge_items?.total_deleted || 0})`);
+      setDedupMsg({
+        kind: 'ok',
+        text: `已删除 ${d.total_deleted} 条重复 (hotspots ${d.hotspots?.total_deleted || 0} + 知识库 ${d.knowledge_items?.total_deleted || 0})`,
+      });
       await loadData();
-    } catch { setDedupMsg('去重请求失败'); }
+    } catch { setDedupMsg({ kind: 'bad', text: '去重请求失败' }); }
     finally { setDeduping(false); }
   };
 
@@ -85,9 +102,9 @@ export function DatabaseMaintenance() {
     try {
       const r = await fetch(`/api/maintenance/cleanup?days=${retentionDays}&dry_run=false`, { method: 'POST' });
       const d = await r.json();
-      setCleanMsg(`历史清理完成: ${d.total_rows || 0} 条`);
+      setCleanMsg({ kind: 'ok', text: `历史清理完成: ${d.total_rows || 0} 条` });
       await loadData();
-    } catch { setCleanMsg('清理请求失败'); }
+    } catch { setCleanMsg({ kind: 'bad', text: '清理请求失败' }); }
     finally { setCleaning(false); }
   };
 
@@ -97,8 +114,8 @@ export function DatabaseMaintenance() {
     try {
       const r = await fetch('/api/cache/clear', { method: 'POST' });
       const d = await r.json();
-      setCacheMsg(d.status === 'ok' ? '缓存已清除' : '清除失败');
-    } catch { setCacheMsg('清除请求失败'); }
+      setCacheMsg(d.status === 'ok' ? { kind: 'ok', text: '缓存已清除' } : { kind: 'bad', text: '清除失败' });
+    } catch { setCacheMsg({ kind: 'bad', text: '清除请求失败' }); }
     finally { setCacheClearing(false); }
   };
 
@@ -106,162 +123,273 @@ export function DatabaseMaintenance() {
   const dupCount = duplicates?.hotspots?.length ?? 0;
   const kiDupCount = duplicates?.knowledge_items?.length ?? 0;
 
+  // 派生语义三色: 数据体积 / 碎片 / 脏数据
+  const sizeMB = dbHealth?.size_mb ?? 0;
+  const fragPct = dbHealth?.fragmentation_pct ?? 0;
+  const cleanableLogs = dirtyReport?.quality_check_logs?.older_than_7_days ?? 0;
+  const invalidUrls = dirtyReport?.invalid_urls ?? 0;
+
+  const sizeTone: 'mint' | 'amber' | 'red' = sizeMB > 200 ? 'red' : sizeMB > 80 ? 'amber' : 'mint';
+  const fragTone: 'mint' | 'amber' | 'red' = fragPct > 30 ? 'red' : fragPct > 10 ? 'amber' : 'mint';
+  const dirtyTone: 'mint' | 'amber' | 'red' =
+    dupCount + kiDupCount + invalidUrls > 50 ? 'red'
+    : dupCount + kiDupCount + invalidUrls > 10 ? 'amber'
+    : 'mint';
+
   return (
-    <div className="space-y-2">
-      {/* DB 概览 */}
-      <div className="card-base">
-        <div className="px-2.5 py-1.5">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>数据库概览</span>
-            {dbHealth && (
-              <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>
-                {dbHealth.size_mb?.toFixed(1)} MB · 碎片 {dbHealth.fragmentation_pct?.toFixed(1)}%
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-3 gap-1 text-[9px] font-mono mb-1.5">
-            <div style={{ color: 'var(--text-muted)' }}>
-              <span className="block" style={{ color: 'var(--text-secondary)' }}>总行数</span>
-              <span style={{ color: 'var(--text-primary)' }}>{dirtyReport?.quality_check_logs?.total?.toLocaleString() || '-'}</span>
-            </div>
-            <div style={{ color: 'var(--text-muted)' }}>
-              <span className="block" style={{ color: 'var(--text-secondary)' }}>质量日志</span>
-              <span style={{ color: 'var(--color-warning)' }}>{dirtyReport?.quality_check_logs?.older_than_7_days?.toLocaleString() || '-'} 条可清理</span>
-            </div>
-            <div style={{ color: 'var(--text-muted)' }}>
-              <span className="block" style={{ color: 'var(--text-secondary)' }}>脏数据</span>
-              <span style={{ color: dupCount > 0 ? 'var(--color-error)' : 'var(--color-success)' }}>
-                {dirtyReport?.duplicate_hotspots || 0} 重复URL · {dirtyReport?.duplicate_knowledge_items || 0} 重复标题
-                {dirtyReport?.invalid_urls ? ` · ${dirtyReport.invalid_urls} 无效URL` : ''}
-              </span>
-            </div>
-          </div>
+    <div className="settings-shell" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sn-row)' }}>
+      <div className="st-head">
+        <h2 className="st-title">数据库维护</h2>
+        <p className="st-sub2">
+          体检 SQLite 数据库体积 / 碎片 / 脏数据; 提供 VACUUM 压缩 / 缓存清除 / 重复去重 /
+          质量日志清理 / 历史数据保留期 等维护动作. 危险动作 (历史清理) 标红, 误操作不可逆.
+        </p>
+      </div>
+
+      {/* 状态卡 — 4 格 */}
+      <div className="st-cellgrid">
+        <div className="st-cell">
+          <span className="st-cellk">SIZE</span>
+          <span className={`st-cellv ${sizeTone === 'mint' ? '' : sizeTone}`}>
+            {sizeMB ? `${sizeMB.toFixed(1)} MB` : '—'}
+          </span>
+          <span className="st-cellnote">{dbHealth?.journal_mode || 'journal'} · {sizeTone === 'red' ? '过大' : sizeTone === 'amber' ? '关注' : '健康'}</span>
+        </div>
+        <div className="st-cell">
+          <span className="st-cellk">FRAGMENTATION</span>
+          <span className={`st-cellv ${fragTone === 'mint' ? '' : fragTone}`}>
+            {dbHealth?.fragmentation_pct != null ? `${dbHealth.fragmentation_pct.toFixed(1)}%` : '—'}
+          </span>
+          <span className="st-cellnote">{fragTone === 'red' ? '建议 VACUUM' : fragTone === 'amber' ? '可压缩' : 'OK'}</span>
+        </div>
+        <div className="st-cell">
+          <span className="st-cellk">CLEANABLE LOGS</span>
+          <span className={`st-cellv ${cleanableLogs > 1000 ? 'red' : cleanableLogs > 100 ? 'amber' : ''}`}>
+            {cleanableLogs.toLocaleString()}
+          </span>
+          <span className="st-cellnote">超过 7 天可清理</span>
+        </div>
+        <div className="st-cell">
+          <span className="st-cellk">DIRTY DATA</span>
+          <span className={`st-cellv ${dirtyTone === 'mint' ? '' : dirtyTone}`}>
+            {dupCount + kiDupCount + invalidUrls || '—'}
+          </span>
+          <span className="st-cellnote">
+            {dupCount} 重复URL + {kiDupCount} 重复标题 + {invalidUrls} 无效URL
+          </span>
         </div>
       </div>
 
       {/* 大表 Top 10 */}
-      <div className="card-base">
-        <div className="px-2.5 py-1.5">
-          <span className="text-[11px] font-medium mb-1 block" style={{ color: 'var(--text-primary)' }}>大表 Top 10</span>
-          <div className="space-y-0.5 text-[9px] font-mono">
-            {topTables.map(t => (
-              <div key={t.table} className="flex items-center justify-between px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-hover)' }}>
-                <span className="truncate" style={{ color: 'var(--text-primary)' }}>{t.table}</span>
-                <span style={{ color: 'var(--text-muted)' }}>{t.rows.toLocaleString()} 行</span>
-              </div>
-            ))}
+      {topTables.length > 0 && (
+        <div className="st-section">
+          <div className="st-section-body" style={{ padding: 0 }}>
+            <table className="st-table">
+              <thead>
+                <tr>
+                  <th>表名</th>
+                  <th style={{ width: 120, textAlign: 'right' }}>行数</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topTables.map(t => (
+                  <tr key={t.table}>
+                    <td style={{ fontFamily: 'var(--sn-mono)', fontSize: 12 }}>{t.table}</td>
+                    <td style={{ fontFamily: 'var(--sn-mono)', textAlign: 'right', color: 'var(--sn-ink-2)' }}>
+                      {t.rows.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* 操作按钮组 */}
-      <div className="card-base">
-        <div className="px-2.5 py-1.5">
-          <span className="text-[11px] font-medium mb-1.5 block" style={{ color: 'var(--text-primary)' }}>维护操作</span>
-          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
-            <button onClick={handleVacuum} disabled={vacuuming} className="btn-secondary btn-sm">
-              {vacuuming ? '压缩中...' : 'VACUUM 压缩'}
-            </button>
-            <button onClick={handleClearCache} disabled={cacheClearing} className="btn-secondary btn-sm">
-              {cacheClearing ? '清除中...' : '清除缓存'}
-            </button>
-            <button onClick={handleDedup} disabled={deduping} className="btn-secondary btn-sm">
-              {deduping ? '去重中...' : '重复数据去重'}
-            </button>
-            <button onClick={() => { handleCleanupQualityLogs(); }} disabled={cleaningLogs} className="btn-secondary btn-sm" style={{ color: 'var(--color-warning)' }}>
-              {cleaningLogs ? '清理中...' : '清理质量日志'}
-            </button>
+      {/* 维护操作 */}
+      <div className="st-section">
+        <div className="st-section-body">
+          <div className="st-rule">
+            <span className="st-label">维护操作</span>
+            <div className="st-ctrlrow" style={{ flexWrap: 'wrap', gap: 6 }}>
+              <button
+                className="st-btn"
+                onClick={handleVacuum}
+                disabled={vacuuming}
+              >
+                {vacuuming ? '压缩中...' : 'VACUUM 压缩'}
+              </button>
+              <button
+                className="st-btn"
+                onClick={handleClearCache}
+                disabled={cacheClearing}
+              >
+                {cacheClearing ? '清除中...' : '清除缓存'}
+              </button>
+              <button
+                className="st-btn"
+                onClick={handleDedup}
+                disabled={deduping}
+              >
+                {deduping ? '去重中...' : '重复数据去重'}
+              </button>
+            </div>
           </div>
-          {vacuumMsg && <p className="text-[9px]" style={{ color: 'var(--color-general)' }}>{vacuumMsg}</p>}
-          {cacheMsg && <p className="text-[9px]" style={{ color: 'var(--color-general)' }}>{cacheMsg}</p>}
-          {dedupMsg && <p className="text-[9px]" style={{ color: 'var(--color-general)' }}>{dedupMsg}</p>}
-          {cleanLogsMsg && <p className="text-[9px]" style={{ color: 'var(--color-general)' }}>{cleanLogsMsg}</p>}
+
+          {(vacuumMsg || cacheMsg || dedupMsg) && (
+            <div className="st-rule" style={{ borderBottom: 'none' }}>
+              <span className="st-label">结果</span>
+              <div className="st-ctrl" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+                {vacuumMsg && <span className={`st-ab-msg ${vacuumMsg.kind}`}>{vacuumMsg.text}</span>}
+                {cacheMsg && <span className={`st-ab-msg ${cacheMsg.kind}`}>{cacheMsg.text}</span>}
+                {dedupMsg && <span className={`st-ab-msg ${dedupMsg.kind}`}>{dedupMsg.text}</span>}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* 质量日志保留期 */}
-      <div className="card-base">
-        <div className="px-2.5 py-1.5">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>质量日志保留期</span>
-            <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{qualityLogDays} 天</span>
+      <div className="st-section">
+        <div className="st-section-body">
+          <div className="st-rule">
+            <span className="st-label">质量日志保留期</span>
+            <div className="st-ctrl" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <input
+                  type="range" min={1} max={90} step={1}
+                  value={qualityLogDays}
+                  onChange={e => setQualityLogDays(Number(e.target.value))}
+                  style={{ flex: 1 }}
+                />
+                <span style={{ fontFamily: 'var(--sn-mono)', fontSize: 13, color: 'var(--sn-mint)', minWidth: 56, textAlign: 'right' }}>
+                  {qualityLogDays} 天
+                </span>
+              </div>
+              <span className="st-cellnote">保留最近 {qualityLogDays} 天的质量检测日志</span>
+            </div>
           </div>
-          <input
-            type="range" min={1} max={90} step={1} value={qualityLogDays}
-            onChange={e => setQualityLogDays(Number(e.target.value))}
-            className="w-full h-1 accent-[var(--accent)] mb-1.5"
-            style={{ accentColor: 'var(--accent)' }}
-          />
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>1 天</span>
-            <span className="flex-1 text-[9px] text-center" style={{ color: 'var(--text-muted)' }}>
-              保留最近 {qualityLogDays} 天的质量日志
-            </span>
-            <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>90 天</span>
+
+          <div className="st-rule" style={{ borderBottom: 'none' }}>
+            <span className="st-label">立即清理</span>
+            <div className="st-ctrl">
+              <button
+                className="st-btn"
+                onClick={handleCleanupQualityLogs}
+                disabled={cleaningLogs}
+              >
+                {cleaningLogs ? '清理中...' : `清理质量日志 (保留 ${qualityLogDays} 天)`}
+              </button>
+              {cleanLogsMsg && <span className={`st-ab-msg ${cleanLogsMsg.kind}`}>{cleanLogsMsg.text}</span>}
+            </div>
           </div>
-          <button
-            onClick={handleCleanupQualityLogs}
-            disabled={cleaningLogs}
-            className="btn-secondary btn-sm w-full mt-1.5"
-          >
-            {cleaningLogs ? '清理中...' : `立即清理质量日志 (保留 ${qualityLogDays} 天)`}
-          </button>
         </div>
       </div>
 
-      {/* 历史数据保留期 */}
-      <div className="card-base">
-        <div className="px-2.5 py-1.5">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>历史数据保留期</span>
-            <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{retentionDays} 天</span>
+      {/* 历史数据保留期 — 危险动作 */}
+      <div className="st-section">
+        <div className="st-section-body">
+          <div className="st-rule">
+            <span className="st-label" style={{ color: 'var(--sn-red)' }}>历史数据保留期</span>
+            <div className="st-ctrl" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <input
+                  type="range" min={7} max={365} step={1}
+                  value={retentionDays}
+                  onChange={e => setRetentionDays(Number(e.target.value))}
+                  style={{ flex: 1 }}
+                />
+                <span style={{ fontFamily: 'var(--sn-mono)', fontSize: 13, color: 'var(--sn-red)', minWidth: 56, textAlign: 'right' }}>
+                  {retentionDays} 天
+                </span>
+              </div>
+              <span className="st-cellnote" style={{ color: 'var(--sn-amber)' }}>
+                保留期外数据将永久删除, 不可恢复
+              </span>
+            </div>
           </div>
-          <input
-            type="range" min={7} max={365} step={1} value={retentionDays}
-            onChange={e => setRetentionDays(Number(e.target.value))}
-            className="w-full h-1 accent-[var(--accent)] mb-1.5"
-            style={{ accentColor: 'var(--accent)' }}
-          />
-          <button
-            onClick={handleCleanup}
-            disabled={cleaning}
-            className="btn-secondary btn-sm w-full mt-1.5"
-          >
-            {cleaning ? '清理中...' : `清理历史数据 (保留 ${retentionDays} 天)`}
-          </button>
-          {cleanMsg && <p className="text-[9px] mt-1" style={{ color: 'var(--color-general)' }}>{cleanMsg}</p>}
+
+          <div className="st-rule" style={{ borderBottom: 'none' }}>
+            <span className="st-label">立即清理</span>
+            <div className="st-ctrl">
+              <button
+                className="st-btn danger"
+                onClick={handleCleanup}
+                disabled={cleaning}
+              >
+                {cleaning ? '清理中...' : `清理历史数据 (保留 ${retentionDays} 天)`}
+              </button>
+              {cleanMsg && <span className={`st-ab-msg ${cleanMsg.kind}`}>{cleanMsg.text}</span>}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* 重复数据详情 */}
       {(dupCount > 0 || kiDupCount > 0) && (
-        <div className="card-base">
-          <div className="px-2.5 py-1.5">
-            <span className="text-[11px] font-medium mb-1 block" style={{ color: 'var(--text-primary)' }}>重复数据详情</span>
+        <div className="st-section">
+          <h3 style={{ margin: '0 0 var(--sn-row) 0', fontSize: 'var(--sn-fs-h3)', color: 'var(--sn-ink)' }}>
+            重复数据详情
+          </h3>
+          <div className="st-section-body" style={{ padding: 0 }}>
             {duplicates?.hotspots && duplicates.hotspots.length > 0 && (
-              <div className="mb-1">
-                <span className="text-[9px] font-medium" style={{ color: 'var(--color-warning)' }}>Hotspots 重复 URL ({duplicates.hotspots.length} 组)</span>
-                <div className="space-y-0.5 mt-0.5">
-                  {duplicates.hotspots.slice(0, 5).map((d: any, i: number) => (
-                    <div key={i} className="flex items-center gap-1 text-[9px] font-mono px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-hover)' }}>
-                      <span className="text-[8px] px-1 rounded" style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 9%, transparent)', color: 'var(--color-error)' }}>{d.count}×</span>
-                      <span className="truncate flex-1" style={{ color: 'var(--text-muted)' }}>{d.url?.substring(0, 60)}</span>
-                    </div>
-                  ))}
+              <div>
+                <div style={{
+                  padding: '8px 12px',
+                  fontFamily: 'var(--sn-mono)',
+                  fontSize: 11,
+                  color: 'var(--sn-amber)',
+                  borderBottom: '1px solid var(--sn-line)',
+                  letterSpacing: '0.03em',
+                }}>
+                  HOTSPOTS 重复 URL · {duplicates.hotspots.length} 组
                 </div>
+                <table className="st-table">
+                  <tbody>
+                    {duplicates.hotspots.slice(0, 5).map((d: any, i: number) => (
+                      <tr key={i}>
+                        <td style={{ width: 56 }}>
+                          <span className="st-chip bad">
+                            <i /> {d.count}×
+                          </span>
+                        </td>
+                        <td style={{ fontFamily: 'var(--sn-mono)', fontSize: 11, color: 'var(--sn-ink-3)' }}>
+                          {d.url?.substring(0, 80)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
             {duplicates?.knowledge_items && duplicates.knowledge_items.length > 0 && (
               <div>
-                <span className="text-[9px] font-medium" style={{ color: 'var(--color-warning)' }}>知识库重复标题 ({duplicates.knowledge_items.length} 组)</span>
-                <div className="space-y-0.5 mt-0.5">
-                  {duplicates.knowledge_items.slice(0, 5).map((d: any, i: number) => (
-                    <div key={i} className="flex items-center gap-1 text-[9px] font-mono px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-hover)' }}>
-                      <span className="text-[8px] px-1 rounded" style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 9%, transparent)', color: 'var(--color-error)' }}>{d.count}×</span>
-                      <span className="truncate flex-1" style={{ color: 'var(--text-muted)' }}>{d.title}</span>
-                    </div>
-                  ))}
+                <div style={{
+                  padding: '8px 12px',
+                  fontFamily: 'var(--sn-mono)',
+                  fontSize: 11,
+                  color: 'var(--sn-amber)',
+                  borderBottom: '1px solid var(--sn-line)',
+                  letterSpacing: '0.03em',
+                }}>
+                  KNOWLEDGE 重复标题 · {duplicates.knowledge_items.length} 组
                 </div>
+                <table className="st-table">
+                  <tbody>
+                    {duplicates.knowledge_items.slice(0, 5).map((d: any, i: number) => (
+                      <tr key={i}>
+                        <td style={{ width: 56 }}>
+                          <span className="st-chip bad">
+                            <i /> {d.count}×
+                          </span>
+                        </td>
+                        <td style={{ fontFamily: 'var(--sn-mono)', fontSize: 11, color: 'var(--sn-ink-3)' }}>
+                          {d.title}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

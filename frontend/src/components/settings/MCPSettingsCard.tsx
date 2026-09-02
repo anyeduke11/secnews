@@ -1,5 +1,5 @@
 /**
- * MCPSettingsCard — MCP Server 设置卡片 (Phase 7).
+ * MCPSettingsCard — MCP Server 设置卡片 (Sentinel V2)。
  *
  * 嵌入 SettingsPanel 抽屉中, 提供:
  * 1. 启用 toggle: PUT /api/settings/mcp/enabled
@@ -7,9 +7,16 @@
  * 3. 复制配置 JSON 按钮 (供 Claude Desktop / Trae / Cursor / Workbuddy 4 个 AI Agent)
  *
  * 不调 LLM, 同步直返, 全部本地 SQLite 读 mcp_tool_registry 表。
+ *
+ * V2 设计:
+ * - st-head 头部 + st-chip 状态徽章
+ * - st-rule: 启用 toggle / transport hints / 复制按钮
+ * - st-section 列表展示工具, 读 / 写分类
+ * - Sentinel 5 disciplines: zero-neon / semantic-3-color / mono-data / mute-text / reduced-motion
  */
 import { useEffect, useState, useCallback } from 'react';
 import { Icon } from '../Icon';
+import '../settings/settings-shell.css';
 
 interface MCPTool {
   name: string;
@@ -122,137 +129,136 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
   const writeTools = tools.filter((t) => t.category === 'write');
 
   return (
-    <div
-      className="rounded-md p-3"
-      style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-color)',
-      }}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <h3
-          className="text-xs font-bold flex items-center gap-2"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          <Icon size={14}>
+    <div className="settings-shell" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sn-row)' }}>
+      <div className="st-head">
+        <h2 className="st-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icon size={16}>
             <path d="M4 17l6-6-4-4" />
             <path d="M12 19h8" />
           </Icon>
           MCP Server
-          <span
-            className="text-[10px] font-normal px-1.5 py-0.5 rounded"
-            style={{
-              background: enabled
-                ? 'color-mix(in srgb, var(--color-success) 9%, transparent)'
-                : 'color-mix(in srgb, var(--text-muted) 9%, transparent)',
-              color: enabled ? 'var(--color-success)' : 'var(--text-muted)',
-            }}
-          >
-            {enabled ? '已启用' : '已禁用'}
+        </h2>
+        <p className="st-sub2">
+          暴露 5 读 + 8 写 共 13 个工具给 AI Agent (Claude Desktop / Cursor / Trae / Workbuddy).
+          关闭后 AI 仍可对话, 但读不到数据库, 写不了 Wiki; 排查 AI 工具有无响应时第一检查这里.
+          stdio 用于本地 IDE, sse 用于远端调用。
+        </p>
+        <div className="st-headops">
+          <span className={`st-chip ${enabled ? 'ok' : 'mute'}`}>
+            <i /> {enabled ? '已启用' : '已禁用'}
           </span>
-        </h3>
-        <label className="flex items-center gap-1.5 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={enabled}
-            disabled={loading}
-            onChange={(e) => onToggle(e.target.checked)}
-            className="w-3.5 h-3.5"
-            aria-label="启用 MCP Server"
-          />
-          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-            启用
-          </span>
-        </label>
+        </div>
       </div>
 
-      {saved && (
-        <div
-          className="text-[10px] mb-2 px-2 py-1 rounded"
-          style={{ background: 'color-mix(in srgb, var(--color-success) 8%, transparent)', color: 'var(--color-success)' }}
-        >
-          ✓ 已保存 (重启后生效)
-        </div>
-      )}
+      {/* 启用 toggle + 保存提示 */}
+      <div className="st-section">
+        <div className="st-section-body">
+          <div className="st-rule">
+            <span className="st-label">启用 MCP</span>
+            <div className="st-ctrl">
+              <button
+                role="switch"
+                aria-checked={enabled}
+                disabled={loading}
+                className="st-switch"
+                onClick={() => onToggle(!enabled)}
+                style={{ width: 32, height: 16 }}
+              />
+              {saved && (
+                <span className="st-ab-msg ok">✓ 已保存 (重启后生效)</span>
+              )}
+              {toast && (
+                <span className="st-ab-msg mute">{toast}</span>
+              )}
+            </div>
+          </div>
 
-      {toast && (
-        <div
-          className="text-[10px] mb-2 px-2 py-1 rounded"
-          style={{ background: 'color-mix(in srgb, var(--color-info) 8%, transparent)', color: 'var(--color-info)' }}
-        >
-          {toast}
-        </div>
-      )}
+          {/* Transport hints */}
+          <div className="st-rule">
+            <span className="st-label">传输方式</span>
+            <div className="st-ctrl" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+              <span style={{ fontFamily: 'var(--sn-mono)', fontSize: 11, color: 'var(--sn-ink-2)' }}>
+                stdio: <code style={{ color: 'var(--sn-mint)' }}>python -m backend.mcp_stdio_main</code>
+              </span>
+              <span style={{ fontFamily: 'var(--sn-mono)', fontSize: 11, color: 'var(--sn-ink-2)' }}>
+                sse: <code style={{ color: 'var(--sn-mint)' }}>http://127.0.0.1:8000/mcp/sse</code>
+              </span>
+            </div>
+          </div>
 
-      {/* Transport hint */}
-      <div
-        className="text-[10px] mb-2 px-2 py-1.5 rounded font-mono"
-        style={{ background: 'var(--bg-muted)', color: 'var(--text-muted)' }}
-      >
-        <div>stdio: <code>python -m backend.mcp_stdio_main</code></div>
-        <div>sse: <code>http://127.0.0.1:8000/mcp/sse</code></div>
+          {/* Copy config */}
+          <div className="st-rule" style={{ borderBottom: 'none' }}>
+            <span className="st-label">接入配置</span>
+            <div className="st-ctrl">
+              <button
+                className="st-btn"
+                onClick={copyConfig}
+                aria-label="复制 stdio 配置"
+              >
+                <Icon size={12}>
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </Icon>
+                复制 stdio 配置 (Claude Desktop / Trae / Cursor / Workbuddy)
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-
-      {/* Copy config button */}
-      <button
-        onClick={copyConfig}
-        className="btn-ghost w-full text-[11px] py-1.5 mb-2 flex items-center justify-center gap-1.5"
-        aria-label="复制 stdio 配置"
-      >
-        <Icon size={12}>
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-        </Icon>
-        复制 stdio 配置 (Claude Desktop / Trae / Cursor / Workbuddy)
-      </button>
 
       {/* Tools list */}
-      <div className="text-[10px] space-y-1">
-        <div
-          className="font-semibold mt-2 mb-1"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          读 ({readTools.length})
+      <div className="st-section">
+        <h3 style={{ margin: '0 0 var(--sn-row) 0', fontSize: 'var(--sn-fs-h3)', color: 'var(--sn-ink)' }}>
+          工具清单 · {tools.length}
+        </h3>
+        <div className="st-section-body" style={{ padding: 0 }}>
+          <table className="st-table">
+            <thead>
+              <tr>
+                <th style={{ width: 60 }}>类型</th>
+                <th>名称</th>
+                <th style={{ width: 80 }}>状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              {readTools.map(t => (
+                <tr key={t.name}>
+                  <td>
+                    <span className="st-chip ok">
+                      <i /> READ
+                    </span>
+                  </td>
+                  <td style={{ fontFamily: 'var(--sn-mono)', fontSize: 11 }} title={t.description}>
+                    {t.name}
+                  </td>
+                  <td>
+                    <span className={`st-chip ${t.enabled ? 'ok' : 'mute'}`}>
+                      <i /> {t.enabled ? 'ON' : 'OFF'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {writeTools.map(t => (
+                <tr key={t.name}>
+                  <td>
+                    <span className="st-chip warn">
+                      <i /> WRITE
+                    </span>
+                  </td>
+                  <td style={{ fontFamily: 'var(--sn-mono)', fontSize: 11 }} title={t.description}>
+                    {t.name}
+                  </td>
+                  <td>
+                    <span className={`st-chip ${t.enabled ? 'ok' : 'mute'}`}>
+                      <i /> {t.enabled ? 'ON' : 'OFF'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        {readTools.map((t) => (
-          <ToolRow key={t.name} tool={t} />
-        ))}
-        <div
-          className="font-semibold mt-2 mb-1"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          写 ({writeTools.length})
-        </div>
-        {writeTools.map((t) => (
-          <ToolRow key={t.name} tool={t} />
-        ))}
       </div>
-    </div>
-  );
-}
-
-function ToolRow({ tool }: { tool: MCPTool }) {
-  return (
-    <div
-      className="flex items-start gap-1.5 px-1.5 py-1 rounded font-mono"
-      style={{ background: 'var(--bg-muted)' }}
-      title={tool.description}
-    >
-      <span
-        className="text-[10px] flex-shrink-0"
-        style={{
-          color: tool.enabled ? 'var(--color-ai)' : 'var(--text-muted)',
-        }}
-      >
-        {tool.enabled ? '●' : '○'}
-      </span>
-      <span
-        className="text-[10px] break-all"
-        style={{ color: 'var(--text-primary)' }}
-      >
-        {tool.name}
-      </span>
     </div>
   );
 }

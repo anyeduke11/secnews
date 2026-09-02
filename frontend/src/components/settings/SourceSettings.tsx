@@ -1,10 +1,10 @@
 /**
- * SourceSettings — 自定义信源管理（Phase 8 8.4）+ 自动刷新间隔（Phase 6）。
+ * SourceSettings — 自定义信源管理 + 自动刷新间隔 (V2 哨兵化)
  *
- * Phase 1B: 拆自原 SettingsPanel.tsx 信源管理 + 自动刷新折叠区。
- * 信源管理：增删改查 + 探测 + 启用/禁用（单条渲染在 SourceItem.tsx）。
- * 自动刷新：选择 localStorage 缓存的刷新间隔。
- * 两个折叠区组合在一起 — 都是"配置列表"语义。
+ * Phase 1B 拆自原 SettingsPanel.tsx; V2 三个 st-section:
+ *   1. 数据源健康 (healthStats + deadSources 明细)
+ *   2. 信源管理 (新增/启用/禁用/探测/删除) — SourceItem 嵌入保留
+ *   3. 自动刷新 (localStorage + 回调)
  */
 import { useState, useEffect, useCallback } from 'react';
 import { REFRESH_INTERVAL_OPTIONS } from '../../hooks/useRefreshInterval';
@@ -16,35 +16,19 @@ interface SourceSettingsProps {
 }
 
 type SourceMessage = { type: 'ok' | 'error'; text: string } | null;
-type RefreshMessage = { type: 'ok' | 'error'; text: string } | null;
-
-// 共享样式常量
-const inputStyle = {
-  backgroundColor: 'var(--bg-hover)',
-  border: '1px solid var(--border-color)',
-  color: 'var(--text-primary)',
-} as const;
-const btnStyle = {
-  backgroundColor: 'var(--color-ai)',
-  color: 'var(--text-on-color)',
-  border: 'none',
-} as const;
 
 export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettingsProps) {
-  // 信源管理
-  const [sourceOpen, setSourceOpen] = useState(false);
   const [sources, setSources] = useState<SourceItemData[]>([]);
   const [newUrl, setNewUrl] = useState('');
   const [newName, setNewName] = useState('');
   const [sourceMessage, setSourceMessage] = useState<SourceMessage>(null);
   const [addingSource, setAddingSource] = useState(false);
 
-  // P5-3: 源健康汇总 (crawler_sources 状态机 stats)
+  // P5-3: 源健康汇总
   const [healthStats, setHealthStats] = useState<{
     total?: number; active?: number; grace?: number;
     stale?: number; dead?: number; unknown?: number; disabled?: number;
   } | null>(null);
-  // P5-3: 失效/滞后源明细 (供一键重置)
   const [deadSources, setDeadSources] = useState<Array<{
     id?: string; name?: string; category?: string; status?: string;
     last_error?: string | null;
@@ -72,7 +56,6 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
         { method: 'POST' },
       );
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      // 刷新明细
       const d = await (await fetch('/api/sources/health/v2')).json();
       setDeadSources((d?.sources ?? []).filter((s: any) => s.status === 'dead' || s.status === 'stale'));
     } catch (e: any) {
@@ -80,23 +63,17 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
     }
   }, []);
 
-  // 自动刷新
-  const [refreshOpen, setRefreshOpen] = useState(false);
   const [currentInterval, setCurrentInterval] = useState<number>(30);
-  const [refreshMessage, setRefreshMessage] = useState<RefreshMessage>(null);
+  const [refreshMessage, setRefreshMessage] = useState<SourceMessage>(null);
 
-  // 打开面板时拉取自定义信源列表
   const refreshSources = useCallback(async () => {
     try {
       const r = await fetch('/api/sources/custom');
       const d = await r.json();
       setSources(d.sources || []);
-    } catch {
-      // 静默失败 — 不打断面板其他操作
-    }
+    } catch { /* 静默 */ }
   }, []);
 
-  // 打开面板时读取已保存的自动刷新间隔
   useEffect(() => {
     if (!open) return;
     refreshSources();
@@ -150,39 +127,25 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
     if (!confirm(`确定删除 source #${id}?`)) return;
     try {
       await fetch(`/api/sources/custom/${id}`, { method: 'DELETE' });
-    } catch {
-      // ignore
-    }
+    } catch {}
     refreshSources();
   }, [refreshSources]);
 
   const toggleSource = useCallback(async (id: number, enabled: boolean) => {
     try {
-      await fetch(`/api/sources/custom/${id}/toggle?enabled=${enabled}`, {
-        method: 'POST',
-      });
-    } catch {
-      // ignore
-    }
+      await fetch(`/api/sources/custom/${id}/toggle?enabled=${enabled}`, { method: 'POST' });
+    } catch {}
     refreshSources();
   }, [refreshSources]);
 
   const probeSource = useCallback(async (id: number) => {
     try {
-      const r = await fetch(`/api/sources/custom/${id}/probe`, {
-        method: 'POST',
-      });
+      const r = await fetch(`/api/sources/custom/${id}/probe`, { method: 'POST' });
       const d = await r.json();
       if (d.status === 'ok') {
-        setSourceMessage({
-          type: 'ok',
-          text: `探测成功: ${d.probe.latency_ms}ms`,
-        });
+        setSourceMessage({ type: 'ok', text: `探测成功: ${d.probe.latency_ms}ms` });
       } else {
-        setSourceMessage({
-          type: 'error',
-          text: `探测失败: ${d.probe?.error || 'unknown'}`,
-        });
+        setSourceMessage({ type: 'error', text: `探测失败: ${d.probe?.error || 'unknown'}` });
       }
     } catch {
       setSourceMessage({ type: 'error', text: '探测请求失败' });
@@ -191,162 +154,145 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
   }, [refreshSources]);
 
   return (
-    <>
-      {/* P5-3: 数据源健康汇总 — 此前 77 dead 源对用户不可见 */}
+    <div className="space-y-3" data-testid="source-settings">
+      {/* 数据源健康 */}
       {healthStats && (healthStats.total ?? 0) > 0 && (
-        <div
-          className="rounded-[var(--radius-sm)] px-3 py-2 mb-2 text-[11px]"
-          style={{
-            border: '1px solid var(--border-color)',
-            backgroundColor: (healthStats.dead ?? 0) > 0
-              ? 'color-mix(in srgb, var(--color-error) 6%, transparent)'
-              : 'var(--bg-hover)',
-          }}
-        >
-          <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
-            数据源健康: 共 {healthStats.total} 源
-          </span>
-          <div className="mt-1 flex gap-2 flex-wrap" style={{ color: 'var(--text-muted)' }}>
-            <span style={{ color: 'var(--color-success)' }}>活跃 {healthStats.active ?? 0}</span>
-            {(healthStats.grace ?? 0) > 0 && <span>观察 {healthStats.grace}</span>}
-            {(healthStats.stale ?? 0) > 0 && <span style={{ color: 'var(--color-warning)' }}>滞后 {healthStats.stale}</span>}
-            {(healthStats.dead ?? 0) > 0 && <span style={{ color: 'var(--color-error)' }}>失效 {healthStats.dead}</span>}
-            {(healthStats.unknown ?? 0) > 0 && <span>待定 {healthStats.unknown}</span>}
-            {(healthStats.disabled ?? 0) > 0 && <span>禁用 {healthStats.disabled}</span>}
+        <section className="st-section" aria-label="数据源健康">
+          <h3>数据源健康: 共 {healthStats.total} 源</h3>
+          <p className="st-section-desc">
+            失效源由源级调度器跳过; 可手动重置或等待每日 03:30 探活恢复。
+          </p>
+          <div className="st-section-body">
+            <div className="st-ctrlrow" style={{ gap: 8 }}>
+              <span className="st-chip ok"><i aria-hidden />活跃 {healthStats.active ?? 0}</span>
+              {(healthStats.grace ?? 0) > 0 && <span className="st-chip mute"><i aria-hidden />观察 {healthStats.grace}</span>}
+              {(healthStats.stale ?? 0) > 0 && <span className="st-chip warn"><i aria-hidden />滞后 {healthStats.stale}</span>}
+              {(healthStats.dead ?? 0) > 0 && <span className="st-chip bad"><i aria-hidden />失效 {healthStats.dead}</span>}
+              {(healthStats.unknown ?? 0) > 0 && <span className="st-chip mute"><i aria-hidden />待定 {healthStats.unknown}</span>}
+              {(healthStats.disabled ?? 0) > 0 && <span className="st-chip mute"><i aria-hidden />禁用 {healthStats.disabled}</span>}
+            </div>
+            {deadSources.length > 0 && (
+              <table className="st-table" aria-label="失效/滞后源明细">
+                <thead>
+                  <tr><th>源</th><th>错误</th><th style={{ width: 80 }}>操作</th></tr>
+                </thead>
+                <tbody>
+                  {deadSources.map(s => (
+                    <tr key={s.id || `${s.category}/${s.name}`} className={s.status === 'dead' ? 'is-warn' : ''}>
+                      <td>
+                        <span className="st-nm">{s.category}/{s.name}</span>
+                        <span className={`st-chip ${s.status === 'dead' ? 'bad' : 'warn'}`} style={{ marginLeft: 8 }}>
+                          <i aria-hidden />{s.status}
+                        </span>
+                      </td>
+                      <td style={{ color: 'var(--sn-ink-3)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                          title={s.last_error ?? ''}>
+                        {s.last_error || '—'}
+                      </td>
+                      <td>
+                        <button type="button" className="st-btn primary" onClick={() => resetSource(s.category || '', s.name || '')}>
+                          重置
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
-          {(healthStats.dead ?? 0) > 0 && (
-            <p className="mt-1 text-[10px]" style={{ color: 'var(--color-warning)' }}>
-              失效源由源级调度器跳过; 可手动重置或等待每日 03:30 探活恢复。
-            </p>
-          )}
-          {/* P5-3: 失效/滞后源明细 + 一键重置 */}
-          {deadSources.length > 0 && (
-            <div className="mt-2 space-y-1">
-              {deadSources.map(s => (
-                <div
-                  key={s.id || `${s.category}/${s.name}`}
-                  className="flex items-center gap-2 text-[10px] px-2 py-1 rounded"
-                  style={{ backgroundColor: 'var(--bg-hover)' }}
-                >
-                  <span style={{ color: 'var(--color-error)' }}>
-                    {s.status === 'dead' ? '✕' : '△'} {s.category}/{s.name}
-                  </span>
-                  {s.last_error && (
-                    <span className="truncate flex-1" style={{ color: 'var(--text-muted)' }} title={s.last_error}>
-                      {s.last_error}
-                    </span>
-                  )}
-                  <button
-                    onClick={() => resetSource(s.category || '', s.name || '')}
-                    className="px-1.5 py-0.5 rounded shrink-0"
-                    style={{ backgroundColor: 'var(--color-ai)', color: 'var(--text-on-light)' }}
-                  >
-                    重置
-                  </button>
-                </div>
+        </section>
+      )}
+
+      {/* 信源管理 */}
+      <section className="st-section" aria-label="信源管理">
+        <h3>信源管理 ({sources.length})</h3>
+        <p className="st-section-desc">
+          增删改查自定义信源 — 添加时自动探测延迟与分类, 启用/禁用即时生效。
+        </p>
+        <div className="st-section-body">
+          <div className="st-rule">
+            <div>
+              <p className="st-label">URL</p>
+              <p className="st-key">https://example.com/news</p>
+            </div>
+            <div className="st-ctrl">
+              <input
+                type="text" value={newUrl} onChange={e => setNewUrl(e.target.value)}
+                placeholder="https://example.com/news"
+                className="st-input" aria-label="新信源 URL"
+                data-testid="source-url-input"
+              />
+            </div>
+          </div>
+          <div className="st-rule">
+            <div><p className="st-label">名称</p><p className="st-key">可选</p></div>
+            <div className="st-ctrl">
+              <input
+                type="text" value={newName} onChange={e => setNewName(e.target.value)}
+                placeholder="名称（可选）"
+                className="st-input" aria-label="新信源 名称"
+              />
+            </div>
+          </div>
+          <div className="st-actionbar">
+            {sourceMessage && (
+              <span className={`st-ab-msg ${sourceMessage.type === 'ok' ? 'ok' : 'bad'}`}>{sourceMessage.text}</span>
+            )}
+            <button type="button" className="st-btn primary" onClick={addSource} disabled={addingSource}>
+              {addingSource ? '探测中...' : '添加（自动探测+分类）'}
+            </button>
+          </div>
+
+          {sources.length === 0 ? (
+            <p className="st-cellnote">尚未添加</p>
+          ) : (
+            <div className="st-section-body">
+              {sources.map(s => (
+                <SourceItem key={s.id} source={s} onToggle={toggleSource} onProbe={probeSource} onDelete={deleteSource} />
               ))}
             </div>
           )}
         </div>
-      )}
+      </section>
 
-      {/* 信源管理折叠区 */}
-      <div className="rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-        <button
-          onClick={() => setSourceOpen(o => !o)}
-          className="w-full flex items-center justify-between px-3 py-2 text-xs"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          <span className="font-medium">信源管理 ({sources.length})</span>
-          <span style={{ color: 'var(--text-muted)' }}>{sourceOpen ? '−' : '+'}</span>
-        </button>
-        {sourceOpen && (
-          <div className="px-3 py-2 space-y-2" style={{ borderTop: '1px solid var(--border-color)' }}>
-            <div className="space-y-1.5">
-              <input type="text" value={newUrl} onChange={e => setNewUrl(e.target.value)}
-                placeholder="https://example.com/news"
-                className="w-full px-2 py-1 text-[11px] rounded-[var(--radius-sm)] focus-ring"
-                style={inputStyle} />
-              <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
-                placeholder="名称（可选）"
-                className="w-full px-2 py-1 text-[11px] rounded-[var(--radius-sm)] focus-ring"
-                style={inputStyle} />
-              <button onClick={addSource} disabled={addingSource}
-                className="w-full px-2 py-1 text-[11px] font-medium rounded-[var(--radius-sm)]"
-                style={btnStyle}>
-                {addingSource ? '探测中...' : '添加（自动探测+分类）'}
-              </button>
-            </div>
-            {sourceMessage && (
-              <p className="text-[10px]" style={{ color: sourceMessage.type === 'ok' ? 'var(--color-general)' : 'var(--color-error)' }}>
-                {sourceMessage.text}
-              </p>
-            )}
-            <div className="space-y-1 max-h-60 overflow-y-auto">
-              {sources.length === 0 ? (
-                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>尚未添加</p>
-              ) : sources.map(s => (
-                <SourceItem
-                  key={s.id}
-                  source={s}
-                  onToggle={toggleSource}
-                  onProbe={probeSource}
-                  onDelete={deleteSource}
-                />
-              ))}
-            </div>
+      {/* 自动刷新 */}
+      <section className="st-section" aria-label="自动刷新">
+        <h3>自动刷新</h3>
+        <p className="st-section-desc">
+          设置后立即生效, 下次自动刷新按新间隔进行 (写入 localStorage `hotspot-refresh-interval`)。
+        </p>
+        <div className="st-section-body">
+          <div className="st-cellgrid">
+            {REFRESH_INTERVAL_OPTIONS.map(opt => {
+              const active = currentInterval === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={active ? 'st-btn primary' : 'st-btn'}
+                  onClick={() => {
+                    setCurrentInterval(opt.value);
+                    const fullOpt = { value: opt.value, label: opt.label };
+                    try { localStorage.setItem('hotspot-refresh-interval', JSON.stringify(fullOpt)); } catch {}
+                    onRefreshIntervalChange?.(opt.value);
+                    setRefreshMessage({ type: 'ok', text: `已选择: ${opt.label}` });
+                  }}
+                  aria-pressed={active}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
-        )}
-      </div>
-
-      {/* 自动刷新折叠区 */}
-      <div className="rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-        <button
-          onClick={() => setRefreshOpen(o => !o)}
-          className="w-full flex items-center justify-between px-3 py-2 text-xs"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          <span className="font-medium">自动刷新</span>
-          <span style={{ color: 'var(--text-muted)' }}>{refreshOpen ? '−' : '+'}</span>
-        </button>
-        {refreshOpen && (
-          <div className="px-3 py-2 space-y-2" style={{ borderTop: '1px solid var(--border-color)' }}>
-            <div className="grid grid-cols-3 gap-1.5">
-              {REFRESH_INTERVAL_OPTIONS.map(opt => {
-                const active = currentInterval === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    onClick={() => {
-                      setCurrentInterval(opt.value);
-                      const fullOpt = { value: opt.value, label: opt.label };
-                      try { localStorage.setItem('hotspot-refresh-interval', JSON.stringify(fullOpt)); } catch {}
-                      onRefreshIntervalChange?.(opt.value);
-                      setRefreshMessage({ type: 'ok', text: `已选择: ${opt.label}` });
-                    }}
-                    className="px-2 py-1.5 text-[11px] font-medium rounded-[var(--radius-sm)] transition-colors"
-                    style={{
-                      backgroundColor: active ? 'var(--color-ai)' : 'var(--bg-hover)',
-                      color: active ? 'var(--text-on-color)' : 'var(--text-secondary)',
-                      border: `1px solid ${active ? 'var(--color-ai)' : 'var(--border-color)'}`,
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-            {refreshMessage && (
-              <p className="text-[10px]" style={{ color: refreshMessage.type === 'ok' ? 'var(--color-general)' : 'var(--color-error)' }}>
-                {refreshMessage.text}
-              </p>
-            )}
-            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-              设置后立即生效，下次自动刷新按新间隔进行
+          {refreshMessage && (
+            <p className={`st-cellnote`} style={{ color: refreshMessage.type === 'ok' ? 'var(--sn-mint)' : 'var(--sn-red)' }}>
+              {refreshMessage.text}
             </p>
-          </div>
-        )}
-      </div>
-    </>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
+
+export default SourceSettings;

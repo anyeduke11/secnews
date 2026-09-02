@@ -1,5 +1,5 @@
 /**
- * DshControlCard — dsh 认知大脑控制面板 (v0.6.3 内置化)
+ * DshControlCard — dsh 认知大脑控制面板 (v0.6.3 内置化, Sentinel V2 token)
  *
  * 一键启停 (受管子进程) + 端点/启动命令/自启配置持久化 + 状态自动刷新。
  * 数据源: GET /api/dsh/control/status · POST start|stop|restart · PUT config
@@ -34,11 +34,11 @@ const STATUS_I18N: Record<DshStatus['status'], string> = {
   not_configured: 'dsh.not_configured',
 };
 
-const STATUS_COLOR: Record<DshStatus['status'], string> = {
-  connected: 'var(--color-success)',
-  starting: 'var(--color-warning)',
-  stopped: 'var(--text-disabled)',
-  not_configured: 'var(--color-warning)',
+const STATUS_TONE: Record<DshStatus['status'], 'ok' | 'warn' | 'mute' | 'bad'> = {
+  connected: 'ok',
+  starting: 'warn',
+  stopped: 'mute',
+  not_configured: 'warn',
 };
 
 export function DshControlCard() {
@@ -136,9 +136,29 @@ export function DshControlCard() {
 
   if (gateOff) {
     return (
-      <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-        <h3 className="text-xs font-mono font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>{t('dsh.cognitive_brain')}</h3>
-        <p className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
+      <div
+        style={{
+          padding: 'var(--sn-cell-pad)',
+          borderRadius: 'var(--sn-radius-md)',
+          border: '1px solid var(--sn-line)',
+          backgroundColor: 'var(--sn-bg-1)',
+        }}
+      >
+        <h3 style={{
+          fontFamily: 'var(--sn-mono)',
+          fontSize: 'var(--sn-fs-h3)',
+          fontWeight: 'var(--sn-fw-medium)',
+          color: 'var(--sn-ink)',
+          margin: '0 0 6px 0',
+        }}>
+          {t('dsh.cognitive_brain')}
+        </h3>
+        <p style={{
+          fontFamily: 'var(--sn-mono)',
+          fontSize: 'var(--sn-fs-mute)',
+          color: 'var(--sn-ink-3)',
+          margin: 0,
+        }}>
           {t('dsh.disabled_hint')}
           {t('dsh.fallback_llm')}
         </p>
@@ -147,94 +167,153 @@ export function DshControlCard() {
   }
 
   const proc = status?.process;
+  const tone = status ? STATUS_TONE[status.status] : 'mute';
 
   return (
-    <div className="p-3 rounded-[var(--radius-sm)]" style={{ border: '1px solid var(--border-color)' }}>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-mono font-medium" style={{ color: 'var(--text-primary)' }}>
+    <div
+      style={{
+        padding: 'var(--sn-cell-pad)',
+        borderRadius: 'var(--sn-radius-md)',
+        border: '1px solid var(--sn-line)',
+        backgroundColor: 'var(--sn-bg-1)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--sn-row)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h3 style={{
+          fontFamily: 'var(--sn-mono)',
+          fontSize: 'var(--sn-fs-h3)',
+          fontWeight: 'var(--sn-fw-medium)',
+          color: 'var(--sn-ink)',
+          margin: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}>
           {t('dsh.cognitive_brain')}
           {status && (
-            <span className="ml-2 inline-flex items-center gap-1 text-[10px]">
-              <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: STATUS_COLOR[status.status] }} />
-              <span style={{ color: 'var(--text-secondary)' }}>{t(STATUS_I18N[status.status])}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--sn-fs-mute)' }}>
+              <span className={`st-chip ${tone}`}>
+                <i /> {t(STATUS_I18N[status.status])}
+              </span>
               {status.endpoint_reachable && status.status === 'connected' && (
-                <span style={{ color: 'var(--color-success)' }}> · endpoint OK</span>
+                <span style={{ color: 'var(--sn-mint)', fontFamily: 'var(--sn-mono)' }}>· endpoint OK</span>
               )}
             </span>
           )}
         </h3>
-        <div className="flex items-center gap-1">
-          <button onClick={() => doOp('start')} disabled={opBusy !== null}
-            className="btn-secondary text-[10px] px-2 py-0.5"
-            aria-label={t('dsh.start')}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            className="st-btn"
+            onClick={() => doOp('start')}
+            disabled={opBusy !== null}
+            aria-label={t('dsh.start')}
+          >
             {opBusy === 'start' ? t('dsh.starting') : t('dsh.start')}
           </button>
-          <button onClick={() => doOp('stop')} disabled={opBusy !== null || !proc?.running}
-            className="btn-secondary text-[10px] px-2 py-0.5"
-            aria-label={t('dsh.stop')}>
+          <button
+            className="st-btn"
+            onClick={() => doOp('stop')}
+            disabled={opBusy !== null || !proc?.running}
+            aria-label={t('dsh.stop')}
+          >
             {opBusy === 'stop' ? t('dsh.stopping') : t('dsh.stop')}
           </button>
-          <button onClick={() => doOp('restart')} disabled={opBusy !== null}
-            className="btn-secondary text-[10px] px-2 py-0.5"
-            aria-label={t('dsh.restart')}>
+          <button
+            className="st-btn"
+            onClick={() => doOp('restart')}
+            disabled={opBusy !== null}
+            aria-label={t('dsh.restart')}
+          >
             {opBusy === 'restart' ? t('dsh.restarting') : t('dsh.restart')}
           </button>
         </div>
       </div>
 
-      {error && <p className="text-[10px] font-mono mb-1.5" style={{ color: 'var(--color-error)' }}>{error}</p>}
+      {error && (
+        <p style={{ fontFamily: 'var(--sn-mono)', fontSize: 'var(--sn-fs-mute)', color: 'var(--sn-red)', margin: 0 }}>
+          {error}
+        </p>
+      )}
       {opMsg && (
-        <p className="text-[10px] font-mono mb-1.5"
-          style={{ color: opMsg.kind === 'ok' ? 'var(--color-success)' : 'var(--color-error)' }}
-          role="status" aria-live="polite">
+        <p
+          role="status" aria-live="polite"
+          style={{
+            fontFamily: 'var(--sn-mono)',
+            fontSize: 'var(--sn-fs-mute)',
+            color: opMsg.kind === 'ok' ? 'var(--sn-mint)' : 'var(--sn-red)',
+            margin: 0,
+          }}
+        >
           {opMsg.text}
         </p>
       )}
 
       {proc?.running && (
-        <div className="text-[10px] font-mono mb-2" style={{ color: 'var(--text-muted)' }}>
+        <div style={{ fontFamily: 'var(--sn-mono)', fontSize: 'var(--sn-fs-mute)', color: 'var(--sn-ink-3)' }}>
           {t('dsh.pid_info', {
             pid: proc.pid ?? '–',
             uptime: proc.uptime_s != null ? `${Math.round(proc.uptime_s)}${t('common.seconds')}` : t('dsh.uptime_unknown'),
           })}
           {proc.restarts > 0 && (
-            <span style={{ color: 'var(--color-warning)' }}>
+            <span style={{ color: 'var(--sn-amber)', marginLeft: 8 }}>
               {t('dsh.restart_count', { n: proc.restarts })}
             </span>
           )}
         </div>
       )}
       {proc?.last_error && (
-        <p className="text-[10px] font-mono mb-2" style={{ color: 'var(--color-error)' }}>{proc.last_error}</p>
+        <p style={{ fontFamily: 'var(--sn-mono)', fontSize: 'var(--sn-fs-mute)', color: 'var(--sn-red)', margin: 0 }}>
+          {proc.last_error}
+        </p>
       )}
 
-      <div className="space-y-1.5">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <input
+          className="st-input"
           value={endpoint}
           onChange={e => { dirtyRef.current = true; setEndpoint(e.target.value); }}
           placeholder={t('dsh.endpoint_placeholder')}
-          className="w-full px-2 py-1 text-[11px] font-mono rounded"
-          style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+          style={{ fontFamily: 'var(--sn-mono)' }}
         />
         <input
+          className="st-input"
           value={command}
           onChange={e => { dirtyRef.current = true; setCommand(e.target.value); }}
           placeholder={t('dsh.cmd_placeholder')}
-          className="w-full px-2 py-1 text-[11px] font-mono rounded"
-          style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+          style={{ fontFamily: 'var(--sn-mono)' }}
         />
-        <div className="flex items-center justify-between">
-          <label className="flex items-center gap-1.5 text-[10px] font-mono" style={{ color: 'var(--text-secondary)' }}>
-            <input type="checkbox" checked={autostart}
-              onChange={e => { dirtyRef.current = true; setAutostart(e.target.checked); }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            fontSize: 'var(--sn-fs-mute)', fontFamily: 'var(--sn-mono)',
+            color: 'var(--sn-ink-2)',
+          }}>
+            <input
+              type="checkbox"
+              checked={autostart}
+              onChange={e => { dirtyRef.current = true; setAutostart(e.target.checked); }}
+              style={{ accentColor: 'var(--sn-mint)' }}
+            />
             {t('dsh.autostart')}
           </label>
-          <button onClick={saveConfig} disabled={opBusy !== null} className="btn-secondary text-[10px] px-2 py-0.5">
+          <button
+            className="st-btn primary"
+            onClick={saveConfig}
+            disabled={opBusy !== null}
+          >
             {opBusy === 'save' ? t('dsh.saving') : t('dsh.save_config')}
           </button>
         </div>
       </div>
-      <p className="text-[9px] mt-1.5" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
+      <p style={{
+        fontFamily: 'var(--sn-mono)',
+        fontSize: 'var(--sn-fs-mute)',
+        color: 'var(--sn-ink-3)',
+        margin: 0,
+      }}>
         {t('dsh.fallback_hint')}
       </p>
     </div>

@@ -39,6 +39,40 @@
 
 ## 当前活跃段 (2026-08-27 起)
 
+### 2026-09-02 SettingsHub V2 — 哨兵化全重设计 + 5 子组件拆分 (本批)
+
+> **来源**: 用户指令 "哨兵以外的 UI/UX 调整, 参考哨兵进行美化" + 四问决策 (Q1 加 dashboard 用途/代价/习惯说明, Q2 拆 5 子组件, Q3 全重设计, Q4 测试全重写一步到位)。
+> **基线**: `main` HEAD `fda2d5a` (含 Batch ⑥ llm_secrets 接入 + Batch ⑦ 阻塞项清零); off 分支 `refactor/settings-v2-sentinel-style`。
+> **范围**: ① 新 `settings-shell.css` (`.settings-shell` 前缀防泄漏, 哨兵令牌 `--sn-*` 全量复用 + 新 `--sn-fs-*` / `--sn-radius-*` / `--sn-gutter`); ② 新 `SettingsDashboard` 总览 + URL `?cat=` deep-link (默认 `dashboard`); ③ QualitySettings 拆 `ProviderPanel / SecretsPanel / LlmDetectionPanel / QualityRulesPanel + ScenarioModelsPanel` 5 件套; ④ 14 个分类页面 (PipelineSettings / ModeSwitcher / ProxySettings / DatabaseMaintenance / SyncSettings / SecretsStatusCard / KnowledgeSettings / ExportSettings / AboutSettings / MCPSettingsCard / GeneralSettings / CollectionScheduleInfo / SourceSettings / AlertSettings / FeedbackSettings / AgentRunnerCard / DshControlCard) 全部按哨兵 st-* 原子样式重写; ⑤ 测试全重写 (semantic query: role / aria-label / data-testid, 不再依赖 button 文案); ⑥ 修复 2 个 V2 重构暴露的真 bug。
+> **不引入**: 新依赖 / 新路由 / 新 state 库 / 新 feature gate。
+> **commit 链**: `refactor/settings-v2-sentinel-style` 分支 (待 merge --no-ff)。
+
+- [x] **C1 — `settings-shell.css` 哨兵令牌层**: 全局 `--sn-mint/amber/red/line/ink-1/2/3/bg-0/1/2/hover` 转发 + 扩展 `--sn-fs-title/h2/h3/body/mute` 字号 / `--sn-fw-bold/medium/regular` 字重 / `--sn-radius-sm/md/lg` 圆角 / `--sn-gutter/row/cell-pad` 间距 / `--sn-mono` 等宽。st-* 原子类: st-head / st-btn (primary|ghost|danger) / st-input / st-textarea / st-select / st-switch / st-checkbox / st-radio / st-chip (ok|warn|bad|mute) / st-rule / st-cellgrid / st-cell / st-card / st-tilegrid / st-sidenav-item / st-sidenav / st-section / st-actionbar / st-ab-msg / st-progress / st-table / st-dangerline / st-dangerlist / st-info / st-grid / st-rail。所有选择器挂 `.settings-shell` 前缀, 防止哨兵样式泄漏到 /secnews 主区。
+- [x] **C2 — `SettingsPage` 总览 + sidebar**: 头部 st-head 双栏 (左标题 + 副描述 / 右关键 chip); 默认 `?cat=dashboard` 落地 `SettingsDashboard` 总览页 (Vercel/Linear/Notion 控制面板模式 — 用途 + 不加的代价 + 用户习惯契合 + 业务逻辑对齐说明); sidebar 14 项分类用 st-sidenav-item 高亮当前 cat。URL 解析走 `URLSearchParams`, 切换时 `navigate({search: ?cat=...})`。
+- [x] **C3 — QualitySettings 5 子组件拆分**: 原 879 行单体 → 5 文件 (~80-130 行/件)。ProviderPanel (yaml options + effective + config_source chip + 切换保存); SecretsPanel (主密钥 prompt / reveal 10s / upsert / lock / 解锁状态); LlmDetectionPanel (启用 switch + provider select + 应用配置, 无 sk-... 输入框); QualityRulesPanel (按 rule.value 类型分发: boolean → switch / sample_rate → range slider / number → input / 其他 → text); ScenarioModelsPanel (deep/light/image 三行 st-rule, compact 模式供 ImageStudio 嵌入)。
+- [x] **C4 — 核心组件重构 (PipelineSettings / ScenarioModelsPanel / ModeSwitcher)**: PipelineSettings 改 st-cellgrid 3 卡 (mode + status + uptime) + 触发器 st-table + st-actionbar; ScenarioModelsPanel 加 compact 模式; ModeSwitcher st-cellgrid 双卡 + reason 文本。
+- [x] **C5 — 其他分类重构 (GeneralSettings / CollectionScheduleInfo / SourceSettings / AlertSettings / FeedbackSettings)**: 全部按 st-rule + st-cellgrid + st-table 落位; SourceItem 用 --sn-ink-3 / --sn-bg-hover token 升级 V2。
+- [x] **C6 — 高级分类重构 (SecretsStatusCard / SyncSettings / ProxySettings / DatabaseMaintenance)**: SecretsStatusCard TS2322 (`ttlChip: string | null` → `string | undefined`); ProxySettings 3 卡 + 5 连接测试 st-table; DatabaseMaintenance 4 卡 + top10 表 + 维护操作 + 滑动条; SyncSettings 改 st-rule。
+- [x] **C7 — 总览分类重构 (KnowledgeSettings / ExportSettings / AboutSettings / MCPSettingsCard)**: KnowledgeSettings 单按钮入口 + items/concepts/last_sync 3 卡; ExportSettings 3 cellgrid (HTML/XLSX/日报周报); AboutSettings 6 卡 status (VERSION/UPTIME/DB/SCHED/COLLECT/PROXY); MCPSettingsCard toggle 改 button role=switch + st-table 工具清单。
+- [x] **C8 — 字体/间距/圆角 token 全覆盖**: SourceItem / AgentRunnerCard / DshControlCard 迁移 V2 token (`--sn-mono` / `--sn-radius-md` / `--sn-fs-mute` / `--sn-mint` / `--sn-red` / `--sn-ink-3` / `--sn-bg-hover`)。AgentRunnerCard 全 V2 重写 (input/select/btn/textarea); DshControlCard 全 V2 重写 (chip status + 输入 + gate-off fallback)。
+- [x] **C9 — 测试全重写 semantic query**: QualitySettings 14 用例 + MCPSettingsCard 8 用例全部按 role / aria-label / data-testid 重写, 不再依赖 button 文案 (V2 改文案如 "切换默认 LLM Provider" → "应用 LLM 配置" 直接破测试)。修复 2 个 V2 重构暴露的真 bug: (a) SecretsPanel 越过父级 `open=false` 门控另起 `/api/llm/status` 调 key_source → 提升到 QualitySettings 通过 `initialKeySource` prop 注入, SecretsPanel 不再自拉, 父级 open gate 真正生效; (b) SecretsPanel `keySource` state 不响应 prop 变化 → 加 `useEffect([initialKeySource])` 同步 (ProviderPanel 切换后重拉 status 触发更新)。
+- [x] **C10 — 门禁全绿**: tsc 0 错 / vitest 355/355 (48 files) / vite build 干净 / ruff (后端无改动) 跳过。
+
+### 关键事实 (V2)
+
+- **设计语言**: 5 条 V2 设计纪律 — 零霓虹 (零渐变零阴影零模糊) / 语义三色 (mint/amber/red + mono 辅助) / mono 数据 (等宽表格对齐) / 可访问降噪 (mute 文本 contrast ≥ 4.5) / 减少动效 (默认 `prefers-reduced-motion`)。色调 90% 走 ink/line 三阶灰, 10% 走 mint/amber/red 语义色。
+- **共享样式边界**: `settings-shell.css` 是 settings 域独占资产, 选择器挂 `.settings-shell` 防泄漏。哨兵 `--sn-*` 令牌全局可达, 但 `.sentinel` 类前缀仅哨兵内部使用, settings 用 `.st-*` 自成一系。
+- **5 子组件组合模式**: QualitySettings 只做初始数据加载 + providerOptions 共享 + 子组件组合, 单组件 ≤ 130 行。每个子组件自管状态/弹窗/handler, 主组件不掺业务。
+- **deep-link URL**: `?cat=dashboard` 为默认 cat; 切换分类时 `navigate(..., {replace: true})`, 避免污染 history stack。
+- **遗留**: V2-C10 (docs/code-wiki + 本 PROGRESS.md) / V2-C11 (merge + tag + push 用户授权)。
+
+### 不在本批范围 (留独立段)
+
+- 设置项 schema 化 (当前 st-rule 硬编码, 未来可走 JSON Schema 动态渲染)
+- 暗色/亮色主题切换 (当前仅暗色, 与哨兵统一)
+- 设置搜索 (14 项分类未超密度, 暂不需要)
+- mobile 适配 (settings 假设 ≥1024px 桌面, 与主应用一致)
+
 ### 2026-08-31 v0.7 Batch 2 — LLM provider 切换 + settings.kv 覆盖 + audit_log 写入 (本批)
 
 > **来源**: Observability PRD v1.0 §5.3 "用户切换 > 运维默认" + Batch 1 已落地的 `record_audit` 仍 0 生产调用者, 顺接作为首个真实调用场景。批前盘点: ai_hub 默认 provider 仅 env / router / default 三级, 用户切换要重启进程或改 env; QualitySettings 写 `quality.llm_provider` 是 v4.4 起的 dead 字段 (ai_hub 不读)。

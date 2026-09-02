@@ -1,11 +1,14 @@
 /**
- * ProxySettings — 代理设置区（核心功能 + footer 测试/保存按钮）。
+ * ProxySettings — 系统代理设置 (Sentinel V2)。
  *
- * Phase 1B: 拆自原 SettingsPanel.tsx 代理设置段（最重的一段）。
- * 包含：代理模式切换、白名单输入、检测到的代理展示、连通性测试、保存按钮。
- * 自包含状态 + handlers + footer；通过 props.open 触发数据加载。
+ * 设计原则:
+ * - off 模式: 仅展示状态 + 模式切换, 无更多信息
+ * - auto 模式: 检测结果 + 白名单输入 + 连通性测试 + 保存
+ * - st-cellgrid 状态卡 + st-rule 编辑行 + st-actionbar footer
+ * - Sentinel 5 disciplines: zero-neon / semantic-3-color / mono-data / mute-text / reduced-motion
  */
 import { useState, useEffect, useCallback } from 'react';
+import '../settings/settings-shell.css';
 
 export interface TestResult {
   url: string;
@@ -19,7 +22,7 @@ interface ProxySettingsProps {
 }
 
 type ProxyMode = 'off' | 'auto';
-type ProxyMessage = { type: 'ok' | 'error'; text: string } | null;
+type ProxyMessage = { type: 'ok' | 'error' | 'mute'; text: string } | null;
 
 const TEST_SITES = [
   { url: 'https://www.google.com', name: 'Google' },
@@ -89,7 +92,7 @@ export function ProxySettings({ open }: ProxySettingsProps) {
       const data = await resp.json();
       setTestResults(data.results || []);
       if (data.status === 'skipped') {
-        setMessage({ type: 'ok', text: '代理未启用，无需测试' });
+        setMessage({ type: 'mute', text: '代理未启用, 无需测试' });
       } else {
         setMessage({ type: data.status === 'ok' ? 'ok' : 'error', text: `测试完成: ${data.summary}` });
       }
@@ -105,129 +108,164 @@ export function ProxySettings({ open }: ProxySettingsProps) {
     for (const r of testResults) testResultMap[r.url] = r;
   }
 
+  const detectedHas = detectedProxy && (detectedProxy.http || detectedProxy.https);
+  const testedCount = testResults?.length ?? 0;
+  const passedCount = testResults?.filter(r => r.ok).length ?? 0;
+
   return (
-    <>
-      <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 12 }}>
-        <p className="text-xs font-bold mb-3" style={{ color: 'var(--text-primary)' }}>代理设置</p>
+    <div className="settings-shell" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sn-row)' }}>
+      <div className="st-head">
+        <h2 className="st-title">系统代理</h2>
+        <p className="st-sub2">
+          关闭: 全部请求直连, 国内源最快, 国外源可能被墙.
+          开启"系统代理": 自动读取 macOS/Windows 系统代理或 HTTP_PROXY/HTTPS_PROXY 环境变量,
+          国外资讯源走代理, 国内源走白名单直连. 未检测到代理时 fallback 直连.
+        </p>
       </div>
-      <div>
-        <p className="text-xs font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>代理模式</p>
-        <div className="flex gap-2">
-          {[
-            { value: 'off', label: '关闭' },
-            { value: 'auto', label: '系统代理' },
-          ].map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => setMode(opt.value as ProxyMode)}
-              className="flex-1 px-3 py-2 text-xs font-medium rounded-[var(--radius-sm)] transition-colors"
-              style={{
-                backgroundColor: mode === opt.value ? 'var(--color-ai)' : 'var(--bg-hover)',
-                color: mode === opt.value ? 'var(--text-on-color)' : 'var(--text-secondary)',
-                border: `1px solid ${mode === opt.value ? 'var(--color-ai)' : 'var(--border-color)'}`,
-              }}
-            >
-              {opt.label}
-            </button>
-          ))}
+
+      <div className="st-cellgrid">
+        <div className="st-cell">
+          <span className="st-cellk">MODE</span>
+          <span className={`st-cellv ${mode === 'auto' ? 'mint' : ''}`}>
+            {mode === 'auto' ? '系统代理' : '关闭'}
+          </span>
+          <span className="st-cellnote">{mode === 'auto' ? 'env / OS 接管' : '全部直连'}</span>
+        </div>
+        <div className="st-cell">
+          <span className="st-cellk">DETECTED</span>
+          <span className={`st-cellv ${detectedHas ? 'mint' : 'sm'}`}>
+            {detectedHas ? '已识别' : '未检测到'}
+          </span>
+          <span className="st-cellnote">
+            {detectedProxy?.http ? `HTTP ${detectedProxy.http}` : '无 HTTP 代理'}
+          </span>
+        </div>
+        <div className="st-cell">
+          <span className="st-cellk">TEST</span>
+          <span className={`st-cellv ${testResults && passedCount === testedCount && testedCount > 0 ? 'mint' : testedCount > 0 ? 'amber' : 'sm'}`}>
+            {testResults ? `${passedCount}/${testedCount}` : '—'}
+          </span>
+          <span className="st-cellnote">{testResults ? '连通性测试结果' : '尚未测试'}</span>
         </div>
       </div>
 
-      {/* Auto mode: detected proxy info */}
-      {mode === 'auto' && detectedProxy && (
-        <div className="p-2.5 rounded-[var(--radius-sm)] text-xs space-y-1" style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)' }}>
-          <p style={{ color: 'var(--text-secondary)' }}>检测到系统代理：</p>
-          {detectedProxy.http && <p style={{ color: 'var(--text-muted)' }}>HTTP: <span style={{ color: 'var(--color-general)' }}>{detectedProxy.http}</span></p>}
-          {detectedProxy.https && <p style={{ color: 'var(--text-muted)' }}>HTTPS: <span style={{ color: 'var(--color-general)' }}>{detectedProxy.https}</span></p>}
-          {!detectedProxy.http && !detectedProxy.https && (
-            <p style={{ color: 'var(--text-muted)' }}>未检测到系统代理，直连访问</p>
+      <div className="st-section">
+        <div className="st-section-body">
+          <div className="st-rule">
+            <span className="st-label">代理模式</span>
+            <div className="st-ctrlrow">
+              <button
+                className={`st-btn ${mode === 'off' ? 'primary' : ''}`}
+                onClick={() => setMode('off')}
+              >
+                关闭
+              </button>
+              <button
+                className={`st-btn ${mode === 'auto' ? 'primary' : ''}`}
+                onClick={() => setMode('auto')}
+              >
+                系统代理
+              </button>
+            </div>
+          </div>
+
+          {mode === 'auto' && detectedProxy && (
+            <div className="st-rule">
+              <span className="st-label">检测结果</span>
+              <div className="st-ctrl" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {detectedProxy.http && (
+                  <span style={{ fontFamily: 'var(--sn-mono)', fontSize: 12, color: 'var(--sn-ink-2)' }}>
+                    HTTP · <span style={{ color: 'var(--sn-mint)' }}>{detectedProxy.http}</span>
+                  </span>
+                )}
+                {detectedProxy.https && (
+                  <span style={{ fontFamily: 'var(--sn-mono)', fontSize: 12, color: 'var(--sn-ink-2)' }}>
+                    HTTPS · <span style={{ color: 'var(--sn-mint)' }}>{detectedProxy.https}</span>
+                  </span>
+                )}
+                {!detectedProxy.http && !detectedProxy.https && (
+                  <span style={{ fontSize: 'var(--sn-fs-mute)', color: 'var(--sn-ink-3)' }}>
+                    未检测到系统代理, 将走直连
+                  </span>
+                )}
+              </div>
+            </div>
           )}
-        </div>
-      )}
 
-      {/* Whitelist */}
-      {mode === 'auto' && (
-        <div>
-          <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>绕过代理（白名单域名）</p>
-          <input
-            type="text"
-            value={noProxy}
-            onChange={e => setNoProxy(e.target.value)}
-            placeholder="localhost,127.0.0.1,*.cn"
-            className="w-full px-2.5 py-1.5 text-xs rounded-[var(--radius-sm)] focus-ring"
-            style={{
-              backgroundColor: 'var(--bg-hover)',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-primary)',
-            }}
-          />
-          <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
-            逗号分隔，支持通配符如 *.cn
-          </p>
-        </div>
-      )}
-
-      {/* Test results */}
-      {mode === 'auto' && testResults && testResults.length > 0 && (
-        <div className="p-2.5 rounded-[var(--radius-sm)] space-y-1" style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)' }}>
-          <p className="text-[10px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>连通性测试</p>
-          {TEST_SITES.map(site => {
-            const r = testResultMap[site.url];
-            if (!r) return null;
-            return (
-              <div key={site.url} className="flex items-center justify-between text-xs">
-                <span style={{ color: 'var(--text-primary)' }}>{site.name}</span>
-                <span style={{ color: r.ok ? 'var(--color-general)' : 'var(--color-error)', fontSize: 10 }}>
-                  {r.ok ? `✓ ${r.status}` : `✗ ${r.error || r.status}`}
+          {mode === 'auto' && (
+            <div className="st-rule">
+              <span className="st-label">绕过代理 (白名单)</span>
+              <div className="st-ctrl" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                <input
+                  className="st-input"
+                  type="text"
+                  value={noProxy}
+                  onChange={e => setNoProxy(e.target.value)}
+                  placeholder="localhost,127.0.0.1,*.cn"
+                />
+                <span className="st-cellnote" style={{ marginTop: 2 }}>
+                  逗号分隔, 支持通配符如 *.cn
                 </span>
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Message */}
-      {message && (
-        <div className="p-2.5 rounded-[var(--radius-sm)] text-xs" style={{
-          backgroundColor: message.type === 'ok' ? 'color-mix(in srgb, var(--color-success) 8%, transparent)' : 'color-mix(in srgb, var(--color-error) 8%, transparent)',
-          border: `1px solid ${message.type === 'ok' ? 'color-mix(in srgb, var(--color-success) 20%, transparent)' : 'color-mix(in srgb, var(--color-error) 20%, transparent)'}`,
-          color: message.type === 'ok' ? 'var(--color-general)' : 'var(--color-error)',
-        }}>
-          {message.text}
-        </div>
-      )}
-
-      <div className="p-2.5 rounded-[var(--radius-sm)] text-xs leading-relaxed" style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-        <p>开启"系统代理"后，采集器自动读取 Windows 系统代理设置或环境变量 HTTP_PROXY/HTTPS_PROXY，国外资讯源通过代理获取。</p>
-        <p className="mt-1">未检测到代理时自动直连，不影响国内数据源采集。</p>
       </div>
 
-      {/* Footer - 测试连通性 + 保存设置 */}
-      <div className="sticky bottom-0 px-4 py-3 flex items-center gap-2 -mx-4 mt-4" style={{ backgroundColor: 'var(--bg-primary)', borderTop: '1px solid var(--border-color)' }}>
+      {mode === 'auto' && testResults && testResults.length > 0 && (
+        <div className="st-section">
+          <div className="st-section-body" style={{ padding: 0 }}>
+            <table className="st-table">
+              <thead>
+                <tr>
+                  <th>目标</th>
+                  <th style={{ width: 80 }}>状态</th>
+                  <th style={{ width: 100 }}>结果</th>
+                </tr>
+              </thead>
+              <tbody>
+                {TEST_SITES.map(site => {
+                  const r = testResultMap[site.url];
+                  if (!r) return null;
+                  return (
+                    <tr key={site.url}>
+                      <td>{site.name}</td>
+                      <td>
+                        <span className={`st-chip ${r.ok ? 'ok' : 'bad'}`}>
+                          <i /> {r.ok ? 'OK' : 'FAIL'}
+                        </span>
+                      </td>
+                      <td style={{ fontFamily: 'var(--sn-mono)', color: r.ok ? 'var(--sn-ink-2)' : 'var(--sn-red)' }}>
+                        {r.ok ? String(r.status) : (r.error || String(r.status))}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="st-actionbar">
+        {message && (
+          <span className={`st-ab-msg ${message.type}`}>{message.text}</span>
+        )}
         <button
+          className="st-btn"
           onClick={handleTest}
           disabled={testing || mode === 'off'}
-          className="btn-ghost px-3 py-1.5 text-xs flex-1"
-          style={{ opacity: mode === 'off' ? 0.5 : 1 }}
         >
           {testing ? '测试中...' : '测试连通性'}
         </button>
         <button
+          className="st-btn primary"
           onClick={handleSave}
           disabled={saving}
-          className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-sm)]"
-          style={{
-            backgroundColor: 'var(--color-ai)',
-            color: 'var(--text-on-color)',
-            border: 'none',
-            cursor: 'pointer',
-            opacity: saving ? 0.6 : 1,
-            flex: 1,
-          }}
         >
           {saving ? '保存中...' : '保存设置'}
         </button>
       </div>
-    </>
+    </div>
   );
 }

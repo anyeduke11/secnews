@@ -1,5 +1,7 @@
 /**
- * settings/FeedbackSettings — 点赞/点踩记录 + 角色倾向总结。
+ * settings/FeedbackSettings — 点赞/点踩记录 + 角色倾向总结 (V2 哨兵化)
+ *
+ * v0.7.x SettingsHub V2: st-section + st-cellgrid + st-chip + st-table
  */
 import { useState, useEffect } from 'react';
 
@@ -70,92 +72,88 @@ export function FeedbackSettings() {
     return () => { cancelled = true; };
   }, []);
 
-  const renderContent = () => {
-    if (loading) {
-      return <div className="text-xs py-6 text-center" style={{ color: 'var(--text-muted)' }}>正在加载反馈画像…</div>;
-    }
-    if (error) {
-      return <div className="text-xs py-6 text-center" style={{ color: 'var(--color-error)' }}>{error}</div>;
-    }
-
-    return (
-      <div className="space-y-4">
-        {/* 统计卡片 */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="p-3 rounded" style={{ border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
-            <div className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>点赞</div>
-            <div className="text-xl font-bold" style={{ color: 'var(--color-success)' }}>{profile?.total_likes ?? 0}</div>
-          </div>
-          <div className="p-3 rounded" style={{ border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
-            <div className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>点踩</div>
-            <div className="text-xl font-bold" style={{ color: 'var(--color-error)' }}>{profile?.total_dislikes ?? 0}</div>
-          </div>
-        </div>
-
-        {/* 角色倾向总结 */}
-        {role && (
-          <div className="p-3 rounded" style={{ border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
-            <div className="text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--accent)' }}>角色倾向总结</div>
-            <p className="text-xs leading-relaxed mb-2" style={{ color: 'var(--text-primary)' }}>{role.summary}</p>
-            <div className="flex flex-wrap gap-1 mb-2">
-              {role.interests?.map((item) => (
-                <span key={item} className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ backgroundColor: 'color-mix(in srgb, var(--color-success) 15%, transparent)', color: 'var(--color-success)' }}>
-                  {item}
-                </span>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-1 mb-2">
-              {role.dislikes?.map((item) => (
-                <span key={item} className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ backgroundColor: 'color-mix(in srgb, var(--color-error) 15%, transparent)', color: 'var(--color-error)' }}>
-                  {item}
-                </span>
-              ))}
-            </div>
-            <div className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
-              阅读风格: {role.reading_style} · 置信度: {Math.round((role.confidence ?? 0) * 100)}%
-            </div>
-          </div>
-        )}
-
-        {/* 反馈记录 */}
-        <div>
-          <div className="text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>最近记录</div>
-          <div className="space-y-1">
-            {history.length === 0 && (
-              <div className="text-xs py-4 text-center" style={{ color: 'var(--text-muted)' }}>暂无反馈记录</div>
-            )}
-            {history.map((item) => (
-              <div key={item.id} className="flex items-center gap-2 p-2 rounded text-[11px]" style={{ border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
-                <span className="shrink-0 font-mono" style={{ color: item.action === 'like' ? 'var(--color-success)' : 'var(--color-error)' }}>
-                  {item.action === 'like' ? '👍' : '👎'}
-                </span>
-                <span className="flex-1 min-w-0 truncate" style={{ color: 'var(--text-primary)' }}>
-                  {item.title || item.entity_id}
-                </span>
-                <span className="shrink-0 font-mono" style={{ color: 'var(--text-muted)' }}>
-                  {item.category || '-'}
-                </span>
-                <span className="shrink-0 font-mono" style={{ color: 'var(--text-muted)' }}>
-                  {new Date(item.created_at).toLocaleDateString('zh-CN')}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="space-y-2">
-      <div className="text-sm font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
-        <span className="font-mono mr-2">♥</span>
-        反馈画像
-      </div>
-      <div className="text-[10px] font-mono mb-2" style={{ color: 'var(--text-muted)' }}>
-        你的点赞/点踩记录将用于生成个性化内容推荐与阅读风格总结。
-      </div>
-      {renderContent()}
+    <div className="space-y-3" data-testid="feedback-settings">
+      <section className="st-section" aria-label="统计">
+        <h3>反馈画像</h3>
+        <p className="st-section-desc">
+          你的点赞/点踩记录将用于生成个性化内容推荐与阅读风格总结。
+        </p>
+        <div className="st-section-body">
+          {loading && <p className="st-cellnote">正在加载反馈画像…</p>}
+          {error && <p className="st-info bad">{error}</p>}
+          {!loading && !error && (
+            <div className="st-cellgrid">
+              <div className="st-cell">
+                <span className="st-cellk">LIKES</span>
+                <span className="st-cellv mint">{profile?.total_likes ?? 0}</span>
+              </div>
+              <div className="st-cell">
+                <span className="st-cellk">DISLIKES</span>
+                <span className="st-cellv red">{profile?.total_dislikes ?? 0}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {!loading && !error && role && (
+        <section className="st-section" aria-label="角色倾向">
+          <h3>角色倾向总结</h3>
+          <p className="st-section-desc">
+            阅读风格: {role.reading_style} · 置信度: {Math.round((role.confidence ?? 0) * 100)}%
+          </p>
+          <div className="st-section-body">
+            <p className="st-cellnote" style={{ color: 'var(--sn-ink)', lineHeight: 1.5 }}>
+              {role.summary}
+            </p>
+            <div className="st-ctrlrow" style={{ gap: 6 }}>
+              {role.interests?.map((item) => (
+                <span key={item} className="st-chip ok"><i aria-hidden />{item}</span>
+              ))}
+              {role.dislikes?.map((item) => (
+                <span key={item} className="st-chip bad"><i aria-hidden />{item}</span>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!loading && !error && (
+        <section className="st-section" aria-label="最近记录">
+          <h3>最近记录 ({history.length})</h3>
+          {history.length === 0 ? (
+            <p className="st-cellnote">暂无反馈记录</p>
+          ) : (
+            <table className="st-table" aria-label="反馈记录">
+              <thead>
+                <tr>
+                  <th style={{ width: 36 }}>反应</th>
+                  <th>标题</th>
+                  <th>分类</th>
+                  <th>日期</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((item) => (
+                  <tr key={item.id} className={item.action === 'like' ? '' : 'is-warn'}>
+                    <td style={{ color: item.action === 'like' ? 'var(--sn-mint)' : 'var(--sn-red)' }}>
+                      {item.action === 'like' ? '👍' : '👎'}
+                    </td>
+                    <td>
+                      <span className="st-nm">{item.title || item.entity_id}</span>
+                    </td>
+                    <td>{item.category || '—'}</td>
+                    <td>{new Date(item.created_at).toLocaleDateString('zh-CN')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      )}
     </div>
   );
 }
+
+export default FeedbackSettings;

@@ -1,8 +1,7 @@
 /**
- * settings/SecretsStatusCard — 密钥管理器状态卡片。
+ * settings/SecretsStatusCard — 密钥管理器状态卡片 (V2 哨兵化)
  *
- * 拆自原 SettingsPage.tsx (1065 行) 中 SecretsStatusCard (~286-381 行)。
- * 纯结构拆分: 状态与 fetch/渲染逻辑逐字迁移。
+ * v0.7.x SettingsHub V2: st-section + st-cellgrid + st-chip + st-btn
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -23,83 +22,82 @@ export function SecretsStatusCard() {
       .catch(() => {});
   }, []);
 
-  const ttlColor = status?.remaining_seconds != null && status.remaining_seconds < 300
-    ? 'var(--color-error)'
-    : status?.remaining_seconds != null && status.remaining_seconds < 600
-      ? 'var(--color-warning)'
-      : 'var(--color-general)';
+  const remain = status?.remaining_seconds;
+  const ttlChip: string | undefined = remain == null ? undefined
+    : remain < 300 ? 'st-chip bad'
+    : remain < 600 ? 'st-chip warn'
+    : 'st-chip ok';
+
+  const statusChip = status?.unlocked ? 'st-chip ok'
+    : status?.setup ? 'st-chip warn'
+    : 'st-chip mute';
+
+  const totalItems = status?.total ?? items.length;
 
   return (
-    <div className="space-y-2">
-      <div className="card-base">
-        <div className="px-2.5 py-1.5">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>密钥管理器</span>
-            <span className="text-[9px] px-1.5 py-0.5 rounded" style={{
-              backgroundColor: status?.unlocked
-                ? 'color-mix(in srgb, var(--color-success) 9%, transparent)'
-                : status?.setup
-                  ? 'color-mix(in srgb, var(--color-warning) 9%, transparent)'
-                  : 'color-mix(in srgb, var(--text-muted) 9%, transparent)',
-              color: status?.unlocked ? 'var(--color-success)' : status?.setup ? 'var(--color-warning)' : 'var(--text-muted)',
-            }}>
-              {status?.unlocked ? '已解锁' : status?.setup ? '已锁定' : '未设置'}
-            </span>
+    <section className="st-section" aria-label="密钥管理器" data-testid="secrets-status-card">
+      <h3>
+        密钥管理器
+        <span className={statusChip}>
+          <i aria-hidden />{status?.unlocked ? '已解锁' : status?.setup ? '已锁定' : '未设置'}
+        </span>
+      </h3>
+      <p className="st-section-desc">
+        设置主密钥以安全存储 LLM API Key 等敏感凭据。
+        {status?.unlocked && remain != null && (
+          <span style={{ marginLeft: 8, color: 'var(--sn-ink-3)' }}>
+            剩余 <span className={ttlChip}><i aria-hidden />{Math.floor(remain / 60)}:{String(remain % 60).padStart(2, '0')}</span>
+          </span>
+        )}
+      </p>
+      <div className="st-section-body">
+        <div className="st-cellgrid">
+          <div className="st-cell">
+            <span className="st-cellk">SETUP</span>
+            <span className="st-cellv sm">{status?.setup ? 'YES' : 'NO'}</span>
           </div>
-          {status?.unlocked && status.remaining_seconds != null && (
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>剩余锁定时间</span>
-              <span className="text-[9px] font-mono font-bold" style={{ color: ttlColor }}>
-                {Math.floor(status.remaining_seconds / 60)}:{String(status.remaining_seconds % 60).padStart(2, '0')}
-              </span>
-              <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>
-                · {status.total ?? items.length} 条密钥
-              </span>
-            </div>
-          )}
-          {items.length > 0 && status?.unlocked && (
-            <div className="space-y-0.5 mb-1.5">
-              {items.slice(0, 3).map((item: any) => (
-                <div key={item.id} className="flex items-center gap-1.5 text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>
-                  <span className="w-2.5 h-2.5 rounded flex items-center justify-center" style={{ backgroundColor: 'color-mix(in srgb, var(--color-ai) 15%, transparent)', fontSize: 6 }}>
-                    {item.name?.charAt(0)?.toUpperCase() || 'K'}
-                  </span>
-                  <span className="truncate flex-1">{item.name}</span>
-                  <span>{'●'.repeat(6)}</span>
-                </div>
-              ))}
-              {(status.total ?? items.length) > 3 && (
-                <p className="text-[9px]" style={{ color: 'var(--text-muted)' }}>+{(status.total ?? items.length) - 3} 条更多...</p>
-              )}
-            </div>
-          )}
-          {!status?.setup && (
-            <p className="text-[9px] mb-1.5" style={{ color: 'var(--text-muted)' }}>
-              设置主密钥以安全存储 LLM API Key 等敏感凭据
-            </p>
-          )}
-          <div className="flex gap-1.5">
-            <button
-              onClick={() => navigate('/secrets')}
-              className="btn-secondary btn-sm flex-1"
-            >
-              管理密钥
-            </button>
-            {status?.unlocked && (
-              <button
-                onClick={async () => {
-                  try { await fetch('/api/secrets/lock', { method: 'POST' }); } catch {}
-                  window.location.reload();
-                }}
-                className="btn-secondary btn-sm"
-                style={{ color: 'var(--color-error)' }}
-              >
-                立即锁定
-              </button>
-            )}
+          <div className="st-cell">
+            <span className="st-cellk">UNLOCKED</span>
+            <span className="st-cellv sm">{status?.unlocked ? 'YES' : 'NO'}</span>
+          </div>
+          <div className="st-cell">
+            <span className="st-cellk">SECRETS</span>
+            <span className="st-cellv sm">{totalItems} 条</span>
           </div>
         </div>
+
+        {items.length > 0 && status?.unlocked && (
+          <table className="st-table" aria-label="密钥预览 (top 3)">
+            <thead>
+              <tr><th>名称</th><th style={{ width: 80 }}>密钥</th></tr>
+            </thead>
+            <tbody>
+              {items.slice(0, 3).map((item: any) => (
+                <tr key={item.id}>
+                  <td><span className="st-nm">{item.name}</span></td>
+                  <td style={{ color: 'var(--sn-ink-3)' }}>{'●'.repeat(8)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        <div className="st-actionbar">
+          <button type="button" className="st-btn primary" onClick={() => navigate('/secrets')}>
+            管理密钥 →
+          </button>
+          {status?.unlocked && (
+            <button type="button" className="st-btn danger" onClick={async () => {
+              try { await fetch('/api/secrets/lock', { method: 'POST' }); } catch {}
+              window.location.reload();
+            }} aria-label="立即锁定">
+              立即锁定
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
+
+export default SecretsStatusCard;

@@ -8,7 +8,7 @@
 
 > 本文档描述 **2026-09-02 当前代码 (v0.7.4-image)** 的真实架构，供新开发者快速理解系统。
 > **定位**：现状导览 (≤ 200 行)；详细专题见 [docs/code-wiki/](code-wiki/CODE_WIKI.md) 5 个分章节文件。
-> 所有数字均从代码/文件核对（迁移 60+、router 68、jobs 51、collectors 14、services 105、测试 3500+/370+、备份保留 7、同步上限 100k），`scripts/generate_meta.py --check` 是 CI 门禁。
+> 所有数字均从代码/文件核对（迁移 60+、router 68、jobs 51、collectors 14、services 106、测试 3500+/370+、备份保留 7、同步上限 100k），`scripts/generate_meta.py --check` 是 CI 门禁。
 > v0.7.4 (2026-09-02): ai_hub 三场景路由 (deep/light/image) — `scenarios.py` 单点 + `image_service.py` 复用 Batch ⑥ 凭据链 + `/api/image/{generate,understand}` + QualitySettings 折叠面板 + ImageStudio 工具页 + sensenova-u1.5-lite (文生图) + deepseek-v4-pro (深度档 yaml 升级)。
 > v0.7.2 (2026-08-31): llm_secrets 接入 AIService + key_source 兑现 (Batch ⑥, 详见 PROGRESS.md)
 > v0.7.0 (2026-08-30): 观测地基 (PRD §5.1) + LLM provider 四级链 (env > settings.kv > router > yaml)
@@ -41,14 +41,14 @@
 └───────────────┬──────────────────────────────────────────────┘
                 │ HTTP / JSON / SSE
 ┌───────────────▼──────────────────────────────────────────────┐
-│  FastAPI 单进程 (uvicorn, :8000) — 68 router / 105 services    │
+│  FastAPI 单进程 (uvicorn, :8000) — 68 router / 106 services    │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────────────┐   │
 │  │ collectors/  │→│ quality/     │→│ scheduler/ 51 jobs │   │
 │  │ 14 BaseColl.  │  │ 11+ gates    │  │ APScheduler         │   │
 │  └──────┬───────┘  └──────┬───────┘  └─────────┬─────────┘   │
 │         │                │                    │             │
 │  ┌──────▼───────┐  ┌──────▼────────┐  ┌────────▼────────┐  │
-│  │ api/ 68 router│  │ services/ 105 │  │ repository/ 40  │  │
+│  │ api/ 68 router│  │ services/ 106 │  │ repository/ 40  │  │
 │  │ (lazy 注册)   │  │ (业务编排)     │  │ (SQLite DAO)    │  │
 │  └──────────────┘  └──────┬────────┘  └─────────────────┘  │
 └─────────────────────────┬──────────────────────────────────┘

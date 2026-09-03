@@ -54,12 +54,21 @@ def _collect_sources() -> list[dict]:
                 continue
             renderer = s.get("renderer") or ""
             enabled = 0 if renderer == "disabled" else 1
+            url = s.get("url") or ""
+            feed_url = s.get("rss_url") or ""
+            # P0 SSRF 副作用根除 (Layer 2): wechat / sogou / disabled 源不需要 url,
+            # 其他 renderer 必须有可抓 URL, 否则跳过后续 fetch_source 走 aiohttp
+            # fallback 会 session.get("") 抛 InvalidUrlClientError。
+            # 与 backend/services/crawler_seed.py:146 守卫同语义。
+            if enabled and renderer not in ("wechat", "sogou", "disabled", ""):
+                if not (url or feed_url):
+                    continue
             entry = {
                 "category": category,
                 "name": s["name"],
-                "url": s.get("url") or "",
-                "feed_url": s.get("rss_url") or "",
-                "kind": "rss" if s.get("rss_url") else "html",
+                "url": url,
+                "feed_url": feed_url,
+                "kind": "rss" if feed_url else "html",
                 "priority": int(s.get("score") or 50),
                 "renderer": renderer,
                 "enabled": enabled,

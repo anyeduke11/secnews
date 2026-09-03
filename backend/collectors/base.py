@@ -298,6 +298,45 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
     # ------------------------------------------------------------------
     # 编排
     # ------------------------------------------------------------------
+
+    # P0 SSRF 副作用根除 (Layer 3): 全局 name→renderer 查表缓存。
+    # 跨 collector 共享 (e.g. SecurityCollector + GDELTCollector 同 category),
+    # 避免次 collector 拿 wechat 源时 const 查表失败导致 renderer 静默
+    # 降级为 "aiohttp" → fetch_source 走 aiohttp fallback → session.get("")
+    # 抛 InvalidUrlClientError。
+    _RENDERER_BY_NAME: dict[str, str] | None = None
+
+    @classmethod
+    def _get_renderer_by_name(cls) -> dict[str, str]:
+        """扫描所有 Collector 子类的 SOURCES 常量, 缓存 name→renderer.
+
+        类加载时一次性建, 跨实例共享, 不在 hot path。
+        """
+        if cls._RENDERER_BY_NAME is not None:
+            return cls._RENDERER_BY_NAME
+        out: dict[str, str] = {}
+        try:
+            import backend.collectors as _c
+        except ImportError:
+            return out
+        for name in dir(_c):
+            obj = getattr(_c, name, None)
+            if not isinstance(obj, type):
+                continue
+            srcs = getattr(obj, "sources", None)
+            if not isinstance(srcs, list):
+                continue
+            for s in srcs:
+                if (
+                    isinstance(s, dict)
+                    and s.get("name")
+                    and s.get("renderer")
+                    and s.get("renderer") != "disabled"
+                ):
+                    out[s["name"]] = s["renderer"]
+        cls._RENDERER_BY_NAME = out
+        return out
+
     def _load_sources_from_registry(self) -> list[dict] | None:
         """P1 crawler-v2 Phase 1 切流: 从 crawler_sources 表读本分类源.
 
@@ -309,6 +348,13 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
         wechat 等语义与分类关键词; disabled 源已在注册时 enabled=0, 不会
         被读出, 与常量语义等价)。
 
+        P0 SSRF 副作用根除 (Layer 3):
+        - 顶层过滤 url/feed_url/api_url 全空行 (wechat 源不应入 registry
+          表, 但 Layer 1 migration 清理后仍可能有漏网)
+        - renderer 字段优先用类常量同名片查 (const), fallback 到全局
+          _get_renderer_by_name 查表 (跨 collector 共享); 都查不到再
+          fallback 到 "aiohttp" (有 url 的普通 HTML 源)
+
         返回语义:
         - 表无本 category 记录 (未 seed / 非主分类如 ai_security) → None,
           调用方回退类常量 (渐进切流, 未注册分类不受影响)。
@@ -318,7 +364,7 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
             from backend.repository.db import get_connection
             conn = get_connection()
             rows = conn.execute(
-                "SELECT name, url, feed_url, priority FROM crawler_sources "
+                "SELECT name, url, feed_url, api_url, priority FROM crawler_sources "
                 "WHERE category = ? AND enabled = 1 ORDER BY priority DESC",
                 (self.category.value,),
             ).fetchall()
@@ -337,23 +383,42 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
             return []  # 已注册但全禁用
 
         by_name = {s["name"]: s for s in self.sources}
+        renderer_by_name = self._get_renderer_by_name()
         out: list[dict] = []
         for r in rows:
             name = r["name"]
-            # 同名多条目 (如 华尔街见闻 disabled+wechat): 优先非 disabled 的
-            # 实际抓取条目补充 renderer/keywords。
+            url = r["url"] or ""
+            feed_url = r["feed_url"] or ""
+            api_url = r["api_url"] or ""
+
+            # P0 SSRF 副作用根除 (Layer 3 兜底): url/feed_url/api_url 全空
+            # 的行 (wechat/sogou 源误入) 直接跳过, 避免 fetch_source
+            # 走 aiohttp fallback 抛 InvalidUrlClientError。
+            if not (url or feed_url or api_url):
+                self.logger.debug(
+                    f"skip registry row {name!r}: url/feed_url/api_url all empty"
+                )
+                continue
+
+            # renderer 解析: const (本 collector SOURCES) > 全局查表 > aiohttp
             const = next(
                 (s for s in self.sources
                  if s["name"] == name and s.get("renderer") != "disabled"),
-                by_name.get(name, {}),
+                None,
+            )
+            renderer = (
+                (const or {}).get("renderer")
+                or renderer_by_name.get(name)
+                or "aiohttp"
             )
             out.append({
                 "name": name,
-                "url": r["url"] or "",
-                "rss_url": r["feed_url"] or "",
+                "url": url,
+                "rss_url": feed_url,
+                "api_url": api_url,
                 "score": r["priority"],
-                "renderer": const.get("renderer") or "aiohttp",
-                "keywords": const.get("keywords", []),
+                "renderer": renderer,
+                "keywords": (const or by_name.get(name, {})).get("keywords", []),
             })
         return out
 

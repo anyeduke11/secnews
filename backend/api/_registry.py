@@ -203,6 +203,10 @@ def register_all(app: FastAPI) -> None:
         app.include_router(dsh_control_api.router, tags=["dsh-control"])
         from backend.api import agents_api
         app.include_router(agents_api.router, tags=["agents"])
+    # v0.8 P1 info_filter: 独立资讯筛选门禁
+    if is_extension_enabled("info_filter"):
+        from backend.api import info_filter_api
+        app.include_router(info_filter_api.router, tags=["info-filter"])
 
 
 __all__ = ["register_all"]

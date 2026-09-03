@@ -5,12 +5,13 @@
  *  - 头部双列 st-head (标题 / 副标题 / 状态徽章 / 操作)
  *  - sidebar 改 st-sidenav-item (图标 + 标签 + 描述 + 状态点)
  *  - 默认 cat=dashboard (哨兵式首屏体检: 8 张 st-tile 跳转 + 4 系统子状态)
- *  - 各区段 (16 个 cat) 共享 .settings-shell 作用域, 借 settings-shell.css 的
+ *  - 各区段 (17 个 cat) 共享 .settings-shell 作用域, 借 settings-shell.css 的
  *    --sn-* token 与 st-rule / st-card / st-chip 等原子样式
  *
  * 历史: v0.6.x 原 SettingsPage.tsx 1065 行; v0.7.0 拆 12 文件;
  *       v0.7.x SettingsHub 合并 PipelineSettings / SentinelSettingsPage / ImageStudio;
- *       V2 引入 dashboard 首屏 + 全页面哨兵化。
+ *       V2 引入 dashboard 首屏 + 全页面哨兵化;
+ *       v0.8 P1 新增 info_filter (独立资讯筛选门禁) → 17 cat.
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -36,6 +37,7 @@ import { ScenarioModelsPanel } from './ScenarioModelsPanel';
 import { SettingsDashboard } from './SettingsDashboard';
 import { PipelineSettings } from '../secnews/settings/PipelineSettings';
 import { SentinelSettingsPage } from '../sentinel/SentinelSettingsPage';
+import { InfoFilterCard } from '../secnews/settings/InfoFilterCard';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import './settings-shell.css';
 
@@ -122,6 +124,9 @@ export function SettingsPage() {
             <ScenarioModelsPanel scope="settings-image-models" compact />
           </div>
         );
+      // v0.8 P1: 独立资讯筛选门禁 (扩展域, 受 feature_gates.info_filter 控制)
+      case 'info_filter':
+        return <InfoFilterCard />;
       case 'about':
         return <AboutSettings />;
       case 'feedback':

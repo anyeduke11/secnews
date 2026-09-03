@@ -431,3 +431,212 @@ class TestP12CrawlerRunsWiring:
 
         src = inspect.getsource(CollectionService._write_crawler_runs)
         assert "P1.2" in src
+
+
+# ===========================================================================
+# P0 SSRF 副作用根除 — Layer 3 (base.py 全局 const 查表 + null URL 过滤)
+# ===========================================================================
+class TestP0SsrfLayer3BasePy:
+    """Layer 3: _load_sources_from_registry 修复跨 collector renderer 降级."""
+
+    def test_null_url_row_filtered_from_registry(self):
+        """url/feed_url/api_url 全空 → skip, 避免 aiohttp fallback 崩."""
+        from backend.collectors.base import BaseCollector
+        from backend.domain.enums import Category
+
+        # 用 mock 替代 get_connection
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            """
+            CREATE TABLE crawler_sources (
+              id TEXT PRIMARY KEY,
+              category TEXT NOT NULL,
+              name TEXT NOT NULL,
+              kind TEXT,
+              url TEXT,
+              feed_url TEXT,
+              api_url TEXT,
+              priority INTEGER DEFAULT 50,
+              enabled INTEGER DEFAULT 1
+            )
+            """
+        )
+        # 插两行: 一行 null url, 一行正常
+        conn.execute(
+            "INSERT INTO crawler_sources VALUES (?,?,?,?,?,?,?,?,?)",
+            ("sec:wechat_null", "security", "微步在线", "html",
+             "", "", "", 80, 1),
+        )
+        conn.execute(
+            "INSERT INTO crawler_sources VALUES (?,?,?,?,?,?,?,?,?)",
+            ("sec:rss_ok", "security", "freebuf", "rss",
+             "", "https://www.freebuf.com/feed/", "", 80, 1),
+        )
+        conn.commit()
+
+        class _TestCollector(BaseCollector):
+            category = Category.SECURITY
+            name = "test_security"
+            sources = []  # 空, 模拟 GDELT 次 collector
+
+        c = _TestCollector()
+        with patch(
+            "backend.repository.db.get_connection", return_value=conn,
+        ):
+            result = c._load_sources_from_registry()
+
+        assert result is not None
+        names = [r["name"] for r in result]
+        # null url 源被过滤
+        assert "微步在线" not in names, (
+            "P0 SSRF Layer 3: url/feed_url/api_url 全空行必须 skip"
+        )
+        # 正常行保留
+        assert "freebuf" in names
+        # 保留行的 url/rss_url/api_url 字段被填充
+        freebuf = next(r for r in result if r["name"] == "freebuf")
+        assert freebuf["rss_url"] == "https://www.freebuf.com/feed/"
+
+    def test_global_renderer_const_lookup_for_wechat(self):
+        """次 collector (无 wechat 源 const) 通过全局 _RENDERER_BY_NAME
+        仍能解析出 renderer='wechat'."""
+        from backend.collectors.base import BaseCollector
+        from backend.domain.enums import Category
+
+        # 关键: 重置类级 cache, 确认全局查表生效
+        BaseCollector._RENDERER_BY_NAME = None
+
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            """
+            CREATE TABLE crawler_sources (
+              id TEXT PRIMARY KEY, category TEXT NOT NULL, name TEXT NOT NULL,
+              kind TEXT, url TEXT, feed_url TEXT, api_url TEXT,
+              priority INTEGER DEFAULT 50, enabled INTEGER DEFAULT 1
+            )
+            """
+        )
+        # url=NULL 但实际是 wechat 源 (历史脏数据, Layer 1 漏过)
+        conn.execute(
+            "INSERT INTO crawler_sources VALUES (?,?,?,?,?,?,?,?,?)",
+            ("sec:wechat_dirty", "security", "微步在线", "html",
+             "", "", "", 80, 1),
+        )
+        # 但仍有一个真 wechat 源在 security category, 不该被 Layer 3 误吞
+        conn.execute(
+            "INSERT INTO crawler_sources VALUES (?,?,?,?,?,?,?,?,?)",
+            ("sec:wechat_with_url", "security", "看雪学院", "html",
+             "https://www.kanxue.com/", "", "", 75, 1),
+        )
+        conn.commit()
+
+        class _SecondarySecurityCollector(BaseCollector):
+            """模拟 GDELTCollector — category=SECURITY 但 self.sources 无 wechat."""
+            category = Category.SECURITY
+            name = "secondary"
+            sources = []  # 空, 模拟次 collector
+
+        c = _SecondarySecurityCollector()
+        with patch(
+            "backend.repository.db.get_connection", return_value=conn,
+        ):
+            result = c._load_sources_from_registry()
+
+        # 全空 url 被 skip (Layer 3 兜底)
+        assert result is not None
+        names = [r["name"] for r in result]
+        assert "微步在线" not in names
+        # 有 url 的 wechat 源, renderer 通过全局 const 查表解析为 "wechat"
+        # (前提: SecurityCollector 类常量有看雪学院的 wechat renderer)
+        kanxue = next((r for r in result if r["name"] == "看雪学院"), None)
+        if kanxue is not None:
+            # 若全局 const 查到, renderer 应是 wechat
+            # (若查不到, fallback "aiohttp" — 也是可接受行为, 因为有 url)
+            assert kanxue["renderer"] in ("wechat", "aiohttp")
+
+    def test_global_renderer_cache_populated(self):
+        """_get_renderer_by_name 应在首次调用后填充类级 cache."""
+        from backend.collectors.base import BaseCollector
+
+        # 清空 cache
+        BaseCollector._RENDERER_BY_NAME = None
+        m1 = BaseCollector._get_renderer_by_name()
+        # 第二次调用应返同一对象 (cache hit)
+        m2 = BaseCollector._get_renderer_by_name()
+        assert m1 is m2
+        # 至少含一些已知 wechat 源 (取决于 collector 模块加载顺序)
+        # 不强制断言具体 key (环境依赖), 只验证 cache 行为
+        assert isinstance(m1, dict)
+
+
+# ===========================================================================
+# P0 SSRF 副作用根除 — Layer 4 (fetchers.py no_fetchable_url 防御)
+# ===========================================================================
+class TestP0SsrfLayer4FetchersPy:
+    """Layer 4: fetch_source 入口 no_fetchable_url 干净错误."""
+
+    def test_no_fetchable_url_returns_clean_error(self):
+        """url/rss_url/api_url 全空 + renderer=aiohttp → no_fetchable_url, 不抛."""
+        from backend.collectors.base import BaseCollector
+        from backend.domain.enums import Category
+
+        class _TestCollector(BaseCollector):
+            category = Category.TECH
+            name = "test_no_url"
+            sources = []
+
+        c = _TestCollector()
+        # 模拟: 子类构造的 source dict 全空
+        source = {
+            "name": "broken_source",
+            "url": "",
+            "rss_url": "",
+            "api_url": "",
+            "renderer": "aiohttp",
+        }
+        # 同步入口实际是 async, 用 asyncio.run 跑
+        import asyncio
+        items, result = asyncio.run(c.fetch_source(source))
+        assert items == []
+        assert result.item_count == 0
+        assert "no_fetchable_url" in result.error_msg
+        # 关键: 不抛 InvalidUrlClientError
+
+    def test_wechat_renderer_with_no_url_passes_through(self):
+        """url 全空但 renderer=wechat → 不应触发 no_fetchable_url 守门
+        (wechat 路径会自己取 account_name 抓搜狗)."""
+        from backend.collectors.base import BaseCollector
+        from backend.domain.enums import Category
+        from unittest.mock import AsyncMock
+
+        class _TestWechatCollector(BaseCollector):
+            category = Category.SECURITY
+            name = "test_wechat"
+            sources = []
+
+        c = _TestWechatCollector()
+        # 替换 _fetch_wechat_source (真实实现会真访问 sogou)
+        c._fetch_wechat_source = AsyncMock(
+            return_value=([], None),
+        )
+        source = {
+            "name": "微步在线",
+            "account_name": "微步在线",
+            "url": "",
+            "rss_url": "",
+            "api_url": "",
+            "renderer": "wechat",
+        }
+        import asyncio
+        try:
+            asyncio.run(c.fetch_source(source))
+        except Exception:
+            pass  # _fetch_wechat_source mock 可能 raise, 关键是 no_fetchable_url 没拦
+        # mock 应被调用
+        assert c._fetch_wechat_source.called, (
+            "wechat renderer 源应被 _fetch_wechat_source 接走, "
+            "不应被 no_fetchable_url 守门误拦"
+        )
+

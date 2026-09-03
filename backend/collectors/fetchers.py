@@ -268,8 +268,35 @@ class FetchersMixin:
         crawler_used: str = "none"  # "crawl4ai" / "aiohttp" / "rss" / "none"
         renderer = source.get("renderer", "aiohttp")
 
+        # P0 SSRF 副作用根除 (Layer 4): defense-in-depth guard.
+        # url/rss_url/api_url 全空且 renderer 不是 wechat/sogou/disabled,
+        # 即没有可抓目标 (registry 行 url NULL 残留 或 子类构造 source 时
+        # 漏填 url), 立即返回干净错误, 不要让 aiohttp 走 session.get("")
+        # 抛 InvalidUrlClientError 污染日志/健康指标。
+        url_v = source.get("url") or ""
+        rss_url_v = source.get("rss_url") or ""
+        api_url_v = source.get("api_url") or ""
+        if (
+            not (url_v or rss_url_v or api_url_v)
+            and renderer not in ("wechat", "sogou", "disabled")
+        ):
+            self.logger.warning(
+                f"source {source.get('name', '?')!r} no_fetchable_url: "
+                f"url/rss_url/api_url all empty and renderer={renderer!r}"
+            )
+            return [], SourceResult(
+                source_name=source.get("name", "?"),
+                source_url="",
+                item_count=0,
+                error_msg=(
+                    "no_fetchable_url: source has no url/feed_url/api_url "
+                    f"and renderer={renderer!r} (expected wechat/sogou/disabled)"
+                ),
+                duration_ms=0,
+            )
+
         # v0.7.x P0: SSRF 防护 — 入口校验 source["url"] (默认抓取目标)
-        target_url = source.get("url", "")
+        target_url = url_v
         if target_url:
             try:
                 validate_url(target_url)

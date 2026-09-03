@@ -15,7 +15,7 @@
 
 ## v0.4.3 — Core/Extension 软分层 + Feature Gates (2026-08-18)
 
-> **架构数字由 `scripts/generate_meta.py` AST 反推维护** (51 jobs / 14 collectors / 68 routers / 106 services),
+> **架构数字由 `scripts/generate_meta.py` AST 反推维护** (51 jobs / 14 collectors / 68 routers / 107 services),
 > 改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
 
 - **开关源**: `backend/config/feature_gates.toml` — 当前默认开启: codegarden/sync/secnews/crm/dsh;

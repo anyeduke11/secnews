@@ -455,6 +455,23 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
             # P2-0: 过滤到目标源 (按 name 匹配)
             self.sources = [s for s in self.sources if s.get("name") == only_source]
 
+        # v0.8 P1 info_filter Layer 1: 源级 allow/deny 名单。
+        # 命中 deny → 跳过整源, 写 crawler_runs.error_msg 标记。
+        from backend.services.info_filter_gate import filter_source
+        filtered_sources: list[dict] = []
+        for s in self.sources:
+            s_with_cat = dict(s)
+            if "category" not in s_with_cat:
+                s_with_cat["category"] = self.category.value
+            allowed, reason = filter_source(s_with_cat)
+            if allowed:
+                filtered_sources.append(s)
+            else:
+                self.logger.info(
+                    f"info_filter Layer 1 deny: {s.get('name')!r} ({reason})"
+                )
+        self.sources = filtered_sources
+
         run_id = _uuid4().hex[:8]
         start = _time.time()
         log_event(

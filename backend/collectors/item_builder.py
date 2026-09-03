@@ -181,6 +181,16 @@ class ItemBuilderMixin:
             self.logger.debug(
                 f"{source['name']} filtered {skipped} nav/cta/short/irrelevant/no-pub/historical titles"
             )
+        # v0.8 P1 info_filter Layer 2: item 落库前 deny 源 item 丢弃.
+        # Layer 1 已在 collect 入口过滤了整源, 本层是 schema drift 兜底.
+        from backend.services.info_filter_gate import filter_items
+        before = len(items)
+        items = filter_items(items)
+        if len(items) < before:
+            self.logger.debug(
+                f"info_filter Layer 2 dropped {before - len(items)} items "
+                f"from {source['name']}"
+            )
         return items
 
     def _title_relevant(

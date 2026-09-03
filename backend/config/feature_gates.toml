@@ -19,4 +19,7 @@ info_filter = false  # v0.8 P1 独立资讯筛选门禁 — allow/deny 规则 CR
                    # 关闭时 collector 完全不查规则表, 零开销; 启用走 /api/info-filter/* 面板.
 skill_registry = false  # v0.8 Phase A A3 — Skill 商店 (20 内置 skill + 启停 + trigger-gate 触发)
                    # 路由 /api/skill-registry/*; 默认 false fail-closed, 开闸 + ARCHITECTURE 同步归 A5.
+trigger_gate = false  # v0.8 Phase A A1+A5 — skill/playbook 触发单一入口
+                   # (限流 60/min·user + 600/min 全局 / trigger_tickets 持久化队列 /
+                   #  三档优先级非抢占 / TriggerWorker 出队泵); worker 消费接线归 Phase B.
 

@@ -318,6 +318,9 @@ class SecurityCollector(BaseCollector):
                     "url": url,
                     "summary": (entry.get("summary") or "").strip(),
                     "published_at": published_at,
+                    # P1.6: secrss 返回 naive "YYYY-MM-DD HH:MM:SS"
+                    # (Shanghai), 假定 Beijing tz → 减 8h 转 UTC。
+                    "published_at_tz_assumed": True,
                 }
             )
         return out

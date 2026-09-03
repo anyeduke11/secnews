@@ -207,6 +207,9 @@ class FinanceCollector(BaseCollector):
                     "title": title,
                     "url": url,
                     "published_at": published_at,
+                    # P1.6: 金十 "YYYY-MM-DD HH:MM:SS" 无 tz, 据业务
+                    # 常识假定 Beijing (+08:00)。
+                    "published_at_tz_assumed": True,
                 }
             )
         return items
@@ -244,6 +247,9 @@ class FinanceCollector(BaseCollector):
                     "title": text,
                     "url": url,
                     "published_at": published_at,
+                    # P1.6: 财联社电报只有 HH:MM:SS, _parse_cls_telegraph_time
+                    # 假定为 Beijing 当日 + 转 UTC。
+                    "published_at_tz_assumed": True,
                 }
             )
         return items

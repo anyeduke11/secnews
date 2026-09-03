@@ -117,7 +117,10 @@ def poll_dsh() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 def _probe_endpoint(endpoint: str) -> bool:
     try:
-        return DSHClient(endpoint=endpoint).health_check()
+        # P1.8: with 上下文保证 httpx.Client.close() 被调用, 避免
+        # 频繁探测时连接池泄漏
+        with DSHClient(endpoint=endpoint) as client:
+            return client.health_check()
     except Exception:
         return False
 

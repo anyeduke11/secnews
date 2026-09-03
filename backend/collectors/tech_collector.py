@@ -136,6 +136,9 @@ class TechCollector(BaseCollector):
                     "title": title,
                     "url": url,
                     "published_at": published_at,
+                    # P1.6: IT之家 "YYYY-MM-DD HH:MM" 无 tz, 默认源
+                    # 本地(中国), 假定 UTC (实际是源时区, 审计标记)
+                    "published_at_tz_assumed": True,
                 }
             )
         return raw_items

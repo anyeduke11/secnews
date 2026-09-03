@@ -2,13 +2,18 @@
 
 Phase 11: 新 collector 使用 readable_id 作为 HotspotItem.id；
 旧 collector 的 sha256 hash ID 保留为 hotspot_id 字段。
+
+P1.5 (v0.7.x): 新增 ``make_readable_id_safe`` — 空 native_id 时
+返回 ``None`` 而非抛异常, 让调用方在 _build_items 处显式处理
+(此前 ValueError 被外层 try/except 静默吞掉, 同源撞库风险)。
 """
 
 from __future__ import annotations
 
+import hashlib
 import re
 
-__all__ = ["make_readable_id"]
+__all__ = ["make_readable_id", "make_readable_id_safe"]
 
 
 def _sanitize(text: str) -> str:
@@ -52,3 +57,27 @@ def make_readable_id(source: str, subtype: str, native_id: str) -> str:
         )
 
     return f"{src}:{sub}:{nid}"
+
+
+def make_readable_id_safe(
+    source: str, subtype: str, native_id: str | None
+) -> str | None:
+    """P1.5: 安全的可读 ID 构造 — 空 native_id / 清理后为空 → 返回 None。
+
+    此前 ``make_readable_id`` 抛 ``ValueError`` 被 _build_items 外层
+    try/except 静默吞掉, 整批 item 被丢且 result.error_msg 只显示
+    "fetch failed" 通用错误, 同源撞库风险被遮蔽。
+
+    新行为: 返回 None 让调用方显式 skip 单条 item + 记入 source 级
+    "empty_native_id" 计数, 不再静默丢整批。
+
+    Returns:
+        可读 ID, 或 None (native_id 无效)。
+    """
+    if not native_id:
+        return None
+    try:
+        return make_readable_id(source, subtype, str(native_id))
+    except ValueError:
+        # 清理后为空 (eg native_id 是 "  ...  ") → 视为无效
+        return None

@@ -50,17 +50,22 @@ from backend.utils.business_days import current_week_start
 
 
 class RecencyGate(BaseGate):
-    """Phase 47: 资讯/标讯时效硬门禁 (所有 category)。
+    """Phase 47: 资讯/标讯时效门禁 (所有 category)。
+
+    P1.3 (v0.7.x): 由硬门禁改为软门禁 — archive 类 item (含 ``is_archive``
+    标记或 category=archive) 放行, 仅标 ``recency_warning: true``;
+    hot 类别继续硬门禁 (``historical_published`` 拒收)。
 
     判定规则:
     1. ``published_at is None`` → ``no_published_at`` flag, 扣 80 分
     2. ``published_at < current_week_start()`` → ``historical_published``
-       flag, 扣 100 分
-    3. 否则通过
+       flag, 扣 100 分 (硬门禁拒收 hot 类别)
+    3. archive 类别放行历史资讯, 标 ``recency_warning=true``
+    4. 否则通过
     """
 
     name = "recency"
-    gate_type: ClassVar[Literal["hard", "soft"]] = "hard"
+    gate_type: ClassVar[Literal["hard", "soft"]] = "soft"
 
     #: 缺失 published_at 扣分
     MISSING_DEDUCTION = 80
@@ -84,7 +89,7 @@ class RecencyGate(BaseGate):
                     reason="published_at is None, cannot verify recency",
                 )
 
-            # 2) published_at 早于本周一 00:00 Shanghai → 拒绝
+            # 2) published_at 早于本周一 00:00 Shanghai → 拒收 hot, 放行 archive
             week_start = current_week_start()
             # 确保 pub 是 tz-aware (model validator 已强约束, 这里再兜底)
             if pub.tzinfo is None:
@@ -94,6 +99,25 @@ class RecencyGate(BaseGate):
                 # 计算「早多少」便于诊断
                 delta = week_start - pub
                 days = delta.days
+                # P1.3: archive 类 item 放行 (软过滤)
+                # HotspotItem 当前没有 tags 字段, 仅依赖 is_archive 标记。
+                # 用 getattr 兜底避免 AttributeError 把整个 gate 拖进 except。
+                tags = getattr(item, "tags", None) or []
+                is_archive = bool(
+                    getattr(item, "is_archive", False)
+                    or any(t.lower() == "archive" for t in tags)
+                )
+                if is_archive:
+                    return GateResult(
+                        gate_name=self.name,
+                        passed=True,
+                        score_deduction=0,
+                        flags=["recency_warning"],
+                        reason=(
+                            f"archive item {days}d before week_start, "
+                            f"kept with recency_warning"
+                        ),
+                    )
                 return GateResult(
                     gate_name=self.name,
                     passed=False,

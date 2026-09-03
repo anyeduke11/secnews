@@ -37,6 +37,10 @@ export const TodosPage = React.lazy(() =>
 export const SkillsPage = React.lazy(() =>
   import('../components/SkillsPage').then(m => ({ default: m.SkillsPage }))
 );
+// v0.8 Phase A (A4): Skill Store — /skill-registry 技能商店 (/skills 已被 Phase 41 技能库占用)
+export const SkillStore = React.lazy(() =>
+  import('../components/skills/SkillStore').then(m => ({ default: m.SkillStore }))
+);
 export const SecretsPage = React.lazy(() =>
   import('../components/secrets/SecretsPage').then(m => ({ default: m.SecretsPage }))
 );

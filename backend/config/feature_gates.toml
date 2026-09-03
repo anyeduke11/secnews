@@ -22,4 +22,7 @@ skill_registry = false  # v0.8 Phase A A3 — Skill 商店 (20 内置 skill + �
 trigger_gate = false  # v0.8 Phase A A1+A5 — skill/playbook 触发单一入口
                    # (限流 60/min·user + 600/min 全局 / trigger_tickets 持久化队列 /
                    #  三档优先级非抢占 / TriggerWorker 出队泵); worker 消费接线归 Phase B.
+agent_loop = false     # v0.8 Phase B B1 — AgentLoop 五阶段状态机
+                   # (Intent→Plan→Execute→Reflect→Commit + loop_checkpoints 崩溃恢复 + REFLECT 重试 1).
+                   # 默认 false fail-closed, 开闸 + 接 trigger-gate worker 归 B5.
 

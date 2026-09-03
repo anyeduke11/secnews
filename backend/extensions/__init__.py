@@ -26,6 +26,8 @@ _EXTENSION_NAMES = (
     # dsh 桥接: _registry.py 以 is_extension_enabled("dsh") 守卫 dsh_api。
     # 此前漏登记 → feature_gates.toml 的 dsh=false 被过滤掉, 端点意外在线。
     "dsh",
+    # v0.8 P1 info_filter: 独立资讯筛选门禁 (源级 allow/deny 名单, 实时启停)
+    "info_filter",
 )
 
 # 扩展→router 映射（每个 router 是 backend.api 中的模块名）
@@ -61,6 +63,9 @@ EXTENSION_ROUTERS: dict[str, list[str]] = {
         "dsh_api",                #  /api/settings/features enabled_extensions 漏报)
         "dsh_control_api",
         "agents_api",
+    ],
+    "info_filter": [              # v0.8 P1 独立资讯筛选门禁
+        "info_filter_api",        #   /api/info-filter/* (CRUD + preview + gate)
     ],
     # security_graph 不占 router (security / kl_* 属 core 核心安全数据),
     # 只控制 mitre_sync / cve_sync_to_security 两个 job

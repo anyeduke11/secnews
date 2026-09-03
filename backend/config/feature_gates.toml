@@ -15,4 +15,6 @@ dsh        = true       # v0.6.3 内置化 — dsh 认知大脑 (受管子进程
                    # 启停/配置经 /api/dsh/control/* 与 /secnews/settings 控制面板;
                    # 未配置启动命令时状态如实显示 not_configured, 业务自动降级 LLM 直连。
                    # (P1-2 曾降级 false; 内置化完成后 gate 仅作总可见性开关)
+info_filter = false  # v0.8 P1 独立资讯筛选门禁 — allow/deny 规则 CRUD + 实时启停
+                   # 关闭时 collector 完全不查规则表, 零开销; 启用走 /api/info-filter/* 面板.
 

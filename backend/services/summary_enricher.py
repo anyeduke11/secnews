@@ -124,7 +124,17 @@ async def _fetch_article(url: str) -> str | None:
 
     通过 aiohttp 抓取，超时 FETCH_TIMEOUT 秒。
     失败或超时返回 None（不阻塞主流程）。
+
+    v0.7.x P0: SSRF 防护 — 出站前 ``validate_url``,
+    防攻击者通过 item.url 间接命中 localhost / 私网。
     """
+    # SSRF 校验 — item.url 来自 RSS feed (公网), 但允许内网 host 仍是越权
+    try:
+        from backend.utils.url_safety import UrlSafetyError, validate_url
+        validate_url(url)
+    except UrlSafetyError as e:
+        logger.debug("article fetch ssrf_block for %s: %s", url[:80], e)
+        return None
     try:
         connector = aiohttp.TCPConnector(ssl=False)
         timeout = aiohttp.ClientTimeout(total=FETCH_TIMEOUT)

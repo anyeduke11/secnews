@@ -26,6 +26,7 @@ import aiohttp
 
 from backend.domain.collection import SourceResult
 from backend.domain.models import HotspotItem
+from backend.utils.url_safety import UrlSafetyError, validate_url
 
 # 2026-08-03: 搜狗微信搜索反爬限流缓解 — 串行化 + 随机延迟
 # 避免并发请求触发 sogou anti-bot
@@ -37,13 +38,23 @@ async def _proxy_retry(source: dict, timeout: int) -> str | None:
 
     仅当 ``should_use_proxy(url)`` 返回 True 时才走代理，
     国内源直连失败直接放弃，不走代理兜底。
+
+    v0.7.x P0: 加 SSRF 校验 — 代理路径也走公网域名 (github.com 等),
+    防止 source 配置指向 127.0.0.1 / 私有 IP。
     """
     from backend.collectors import base as _base
     if _base.ProxySession is None:
         return None
+    target_url = source.get("url", "")
+    if not target_url:
+        return None
+    try:
+        validate_url(target_url)
+    except UrlSafetyError:
+        return None  # SSRF 阻断 — 静默放弃, 不抛异常
     try:
         from backend.proxy_config import should_use_proxy
-        if not should_use_proxy(source["url"]):
+        if not should_use_proxy(target_url):
             return None
     except Exception:
         return None
@@ -51,7 +62,7 @@ async def _proxy_retry(source: dict, timeout: int) -> str | None:
         async with _base.ProxySession(
             headers={"User-Agent": _base.UA},
             timeout=aiohttp.ClientTimeout(total=timeout),
-        ) as session, session.get(source["url"], ssl=False) as resp:
+        ) as session, session.get(target_url, ssl=False) as resp:
             if resp.status == 200:
                 html = await resp.text()
                 if html and len(html.strip()) >= 100:
@@ -62,18 +73,26 @@ async def _proxy_retry(source: dict, timeout: int) -> str | None:
 
 
 async def _proxy_json_retry(source: dict, timeout: int) -> dict | None:
-    """直连失败后，对需要代理的 JSON API 源用 ProxySession 重试。"""
+    """直连失败后，对需要代理的 JSON API 源用 ProxySession 重试。
+
+    v0.7.x P0: 加 SSRF 校验。
+    """
     from backend.collectors import base as _base
     if _base.ProxySession is None:
         return None
+    api_url = source.get("api_url") or source.get("url", "")
+    if not api_url:
+        return None
+    try:
+        validate_url(api_url)
+    except UrlSafetyError:
+        return None
     try:
         from backend.proxy_config import should_use_proxy
-        api_url = source.get("api_url") or source["url"]
         if not should_use_proxy(api_url):
             return None
     except Exception:
         return None
-    api_url = source.get("api_url") or source["url"]
     try:
         async with _base.ProxySession(
             headers={"User-Agent": _base.UA},
@@ -117,6 +136,24 @@ class FetchersMixin:
         rss_url = source["rss_url"]
         source_name = source.get("name", "?")
         source_url = source.get("url", rss_url)
+
+        # v0.7.x P0: SSRF 防护 — 拒绝 localhost / 私有 IP / 非 http(s) scheme
+        try:
+            validate_url(rss_url)
+        except UrlSafetyError as e:
+            duration = int(
+                (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            )
+            self.logger.warning(
+                f"rss url blocked by ssrf guard: {source_name} → {str(e)[:80]}"
+            )
+            return [], SourceResult(
+                source_name=source_name,
+                source_url=source_url,
+                item_count=0,
+                error_msg=f"ssrf_block: {str(e)[:100]}",
+                duration_ms=duration,
+            )
 
         # feedparser 是同步库;用 asyncio.to_thread 跑,避免阻塞事件循环
         def _parse() -> dict[str, Any]:
@@ -230,6 +267,27 @@ class FetchersMixin:
         html: str | None = None
         crawler_used: str = "none"  # "crawl4ai" / "aiohttp" / "rss" / "none"
         renderer = source.get("renderer", "aiohttp")
+
+        # v0.7.x P0: SSRF 防护 — 入口校验 source["url"] (默认抓取目标)
+        target_url = source.get("url", "")
+        if target_url:
+            try:
+                validate_url(target_url)
+            except UrlSafetyError as e:
+                duration = int(
+                    (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                )
+                self.logger.warning(
+                    f"source {source.get('name', '?')!r} url blocked by ssrf guard: "
+                    f"{str(e)[:80]}"
+                )
+                return [], SourceResult(
+                    source_name=source.get("name", "?"),
+                    source_url=target_url,
+                    item_count=0,
+                    error_msg=f"ssrf_block: {str(e)[:100]}",
+                    duration_ms=duration,
+                )
 
         # ---- Phase 22: RSS 路由 (优先) -----------------------------------
         if source.get("rss_url"):
@@ -360,7 +418,29 @@ class FetchersMixin:
         """
         from backend.collectors import base as _base
 
-        api_url = source.get("api_url") or source["url"]
+        api_url = source.get("api_url") or source.get("url", "")
+        if not api_url:
+            return [], SourceResult(
+                source_name=source.get("name", "?"),
+                source_url="",
+                item_count=0,
+                error_msg="json: no api_url or url configured",
+                duration_ms=0,
+            )
+        # v0.7.x P0: SSRF 防护
+        try:
+            validate_url(api_url)
+        except UrlSafetyError as e:
+            duration = int(
+                (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            )
+            return [], SourceResult(
+                source_name=source.get("name", "?"),
+                source_url=api_url,
+                item_count=0,
+                error_msg=f"ssrf_block: {str(e)[:100]}",
+                duration_ms=duration,
+            )
         # 允许 source 配置里 override headers (例如 AIhot 强制要求特定 UA)
         base_headers = {"User-Agent": _base.UA}
         extra_headers = source.get("headers") or {}
@@ -674,6 +754,21 @@ class FetchersMixin:
         if extra_headers:
             bs_headers.update(extra_headers)
 
+        # v0.7.x P0: SSRF 防护 — 校验本次抓取的 URL
+        try:
+            validate_url(source_url)
+        except UrlSafetyError as e:
+            duration = int(
+                (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            )
+            return [], SourceResult(
+                source_name=source_name,
+                source_url=source_url,
+                item_count=0,
+                error_msg=f"ssrf_block: {str(e)[:100]}",
+                duration_ms=duration,
+            )
+
         try:
             async with BackendSession(
                 rate_limit=10,
@@ -684,6 +779,19 @@ class FetchersMixin:
                 # ---- RSS 路径 ----
                 if renderer == "rss":
                     feed_url = source.get("rss_url") or source_url
+                    try:
+                        validate_url(feed_url)
+                    except UrlSafetyError as e:
+                        duration = int(
+                            (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                        )
+                        return [], SourceResult(
+                            source_name=source_name,
+                            source_url=feed_url,
+                            item_count=0,
+                            error_msg=f"ssrf_block: {str(e)[:100]}",
+                            duration_ms=duration,
+                        )
                     raw_text = await bs.get(feed_url)
 
                     from io import BytesIO
@@ -740,6 +848,19 @@ class FetchersMixin:
                 # ---- JSON API 路径 ----
                 if renderer == "json":
                     api_url = source.get("api_url") or source_url
+                    try:
+                        validate_url(api_url)
+                    except UrlSafetyError as e:
+                        duration = int(
+                            (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                        )
+                        return [], SourceResult(
+                            source_name=source_name,
+                            source_url=api_url,
+                            item_count=0,
+                            error_msg=f"ssrf_block: {str(e)[:100]}",
+                            duration_ms=duration,
+                        )
                     raw_text = await bs.get(api_url)
 
                     import json

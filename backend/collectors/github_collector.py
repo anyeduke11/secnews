@@ -34,6 +34,7 @@ from urllib.parse import urlparse
 from backend.collectors.base import BaseCollector
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
+from backend.utils.url_safety import UrlSafetyError, validate_url
 
 GITHUB_SOURCES: list[dict] = [
     {
@@ -179,6 +180,24 @@ class GitHubCollector(BaseCollector):
         start = datetime.now(_tz.utc)
         source_name = source.get("name", "unknown")
         source_url = source["url"]
+
+        # v0.7.x P0: SSRF 防护 — GitHub collector 也走公网 github.com 等域名,
+        # 加 validate_url 防配置指向私网
+        try:
+            validate_url(source_url)
+        except UrlSafetyError as e:
+            duration = int(
+                (datetime.now(_tz.utc) - start).total_seconds() * 1000
+            )
+            from backend.domain.collection import SourceResult
+
+            return [], SourceResult(
+                source_name=source_name,
+                source_url=source_url,
+                item_count=0,
+                error_msg=f"ssrf_block: {str(e)[:100]}",
+                duration_ms=duration,
+            )
 
         html: str | None = None
         # used_proxy / used_crawl4ai 在 P2-1 已删除赋值路径 — 改用 self.logger.debug 直出

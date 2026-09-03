@@ -39,34 +39,31 @@ class AlertPayload:
 
 
 def _validate_url(url: str, *, allow_http: bool = False) -> str:
-    """URL 校验: https 必填, 拒绝 localhost / 私有 / 链路本地。
+    """URL 校验: 委托到 ``backend.utils.url_safety.validate_url`` 做 SSRF 防护。
 
-    例外: allow_http=True 时 slack incoming-webhook (hooks.slack.com 默认 https)
-    仍要求 https, 仅测试环境允许 http。
+    历史: 早期版本只做 scheme + 字面 IP 检查, 不防 DNS rebinding / 不防域名解析到私网。
+    v0.7.x P0 改走 url_safety 单一真相源。
+
+    Args:
+        url: 待校验 URL。
+        allow_http: 保留参数 (历史兼容), 不影响校验语义。
+            注: ``url_safety.validate_url`` 默认同时允许 http/https (SSRF 关键约束在
+            host/IP, 不在 scheme); webhook 强制 https 的旧行为由 ``WebhookChannel.__init__``
+            单独保留 (``url.startswith("https://")`` 检查, 见下文)。
+
+    Raises:
+        ValueError: SSRF 阻断时包装 ``UrlSafetyError``。
     """
-    if not url.startswith(("https://", "http://")):
-        raise ValueError(f"URL 必须以 https:// 或 http:// 开头, 实际: {url[:30]}")
-    if url.startswith("http://") and not allow_http:
-        raise ValueError("URL 必须 https; 不允许 http")
-    # 解析 hostname
-    import ipaddress
-    from urllib.parse import urlparse
-    parsed = urlparse(url)
-    host = (parsed.hostname or "").lower()
-    # 字面 localhost / 域 阻断
-    if host in ("localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"):
-        raise ValueError(f"URL host {host} 是回环地址")
-    # 字面 IP 检查
+    from backend.utils.url_safety import UrlSafetyError, validate_url as _v
+
+    # 兼容旧语义: webhook 强制 https (除测试 allow_http)
+    if not allow_http and not url.startswith("https://"):
+        raise ValueError(f"URL 必须 https; 不允许 http: {url[:30]}")
     try:
-        ip = ipaddress.ip_address(host)
-        if ip.is_loopback or ip.is_private or ip.is_link_local or ip.is_multicast or ip.is_reserved:
-            raise ValueError(f"URL host {host} 是回环/私有/链路本地/多播/保留地址")
-        return url
-    except ValueError as e:
-        if "回环" in str(e) or "私有" in str(e) or "链路" in str(e) or "多播" in str(e) or "保留" in str(e):
-            raise
-        # host 是域名 (例如 example.com), OK (此处不做 DNS 防 SSRF, 由 httpx timeout 控制)
-    return url
+        return _v(url)
+    except UrlSafetyError as e:
+        # 兼容老调用方 — 仍抛 ValueError
+        raise ValueError(str(e)) from e
 
 
 class AlertChannel(ABC):

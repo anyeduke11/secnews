@@ -1,6 +1,9 @@
 """死源探活服务 — 对 dead 源执行 HEAD/GET 探测，恢复后入 grace 状态。
 
 Phase 3: 每日 03:30 Asia/Shanghai 对 dead 源执行探测。
+
+v0.7.x P0: SSRF 防护 — ``_head_status`` / ``_get_status`` 在出站前
+走 ``validate_url``,阻断 localhost / 环回 / 私网 / 保留 IP。
 """
 from __future__ import annotations
 
@@ -12,6 +15,7 @@ from datetime import datetime, timezone
 from backend.logging_config import logger as _root_logger
 from backend.repository.db import get_connection
 from backend.repository.source_scheduler_repo import SourceSchedulerRepository
+from backend.utils.url_safety import UrlSafetyError, safe_urllib_request, validate_url
 
 logger = _root_logger.bind(component="source_prober")
 
@@ -41,9 +45,19 @@ class ProbeResult:
 
 
 def _head_status(url: str, timeout: int) -> tuple[int, str | None]:
-    """HEAD 请求，返回 (status_code, error_msg)。"""
+    """HEAD 请求，返回 (status_code, error_msg)。
+
+    v0.7.x P0: SSRF 校验 — ``crawler_sources`` 行是 admin 注入的,
+    但允许内网/环回 host 进入仍是越权 (probe 服务在 8000 端口,
+    ``UrlSafetyError`` 应阻断任意"探自家服务"的尝试)。
+    """
     try:
-        req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": _UA})
+        validate_url(url)
+    except UrlSafetyError as e:
+        return 0, f"ssrf_block: {str(e)[:200]}"
+    try:
+        req = safe_urllib_request(url, method="HEAD", timeout=timeout)
+        req.add_header("User-Agent", _UA)
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return int(resp.status), None
     except urllib.error.HTTPError as e:
@@ -58,7 +72,12 @@ def _head_status(url: str, timeout: int) -> tuple[int, str | None]:
 def _get_status(url: str, timeout: int) -> tuple[int, str | None]:
     """GET 请求，返回 (status_code, error_msg)。"""
     try:
-        req = urllib.request.Request(url, method="GET", headers={"User-Agent": _UA})
+        validate_url(url)
+    except UrlSafetyError as e:
+        return 0, f"ssrf_block: {str(e)[:200]}"
+    try:
+        req = safe_urllib_request(url, method="GET", timeout=timeout)
+        req.add_header("User-Agent", _UA)
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return int(resp.status), None
     except urllib.error.HTTPError as e:

@@ -32,6 +32,7 @@ from backend.domain.enums import Category
 from backend.logging_config import logger
 from backend.repository.custom_source_repo import CustomSourceRepository
 from backend.repository.source_stats_repo import SourceStatsRepository
+from backend.utils.url_safety import UrlSafetyError, validate_url
 from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/sources", tags=["sources"])
@@ -86,10 +87,24 @@ def classify_by_url_and_title(url: str, title: str) -> str:
 async def _probe_url(url: str, timeout: float = 8.0) -> dict:
     """异步探测 URL 可用性 + 抓取 title
 
+    v0.7.x P0: SSRF 防护 — ``add_custom_source`` 已先验过,
+    这里再次校验防 DB 内 url 被改 / 重 probe 时 url 已失效 (defense in depth)。
+
     Returns
     -------
     ``{"ok": bool, "status_code": int, "latency_ms": float, "title"?: str, "error"?: str}``
     """
+    # Defense in depth: 防御性 SSRF 校验 (add_custom_source 已先验, 这里兜底)
+    try:
+        validate_url(url)
+    except UrlSafetyError as e:
+        return {
+            "ok": False,
+            "status_code": 0,
+            "latency_ms": 0.0,
+            "error": f"ssrf_block: {str(e)[:200]}",
+        }
+
     t0 = time.time()
     try:
         async with aiohttp.ClientSession() as session, session.get(
@@ -147,12 +162,33 @@ async def list_custom_sources():
 
 @router.post("/custom")
 async def add_custom_source(req: AddSourceRequest):
-    """添加自定义信源：先探测，探测通过则写入"""
+    """添加自定义信源：先探测，探测通过则写入
+
+    v0.7.x P0: SSRF 防护 — 用户自定义 source 是高风险入口,
+    URL 必须先过 ``validate_url`` 防 localhost / 私网 / 环回 IP,
+    阻断时直接 400 拒收 (符合 ``parallel-session-stash-wipes`` 约束)。
+    """
     url = req.url.strip()
     if not url.startswith(("http://", "https://")):
         raise HTTPException(
             status_code=400,
             detail={"message": "URL 必须以 http:// 或 https:// 开头"},
+        )
+
+    # SSRF 防护: 协议 + 主机 + IP 全链路校验
+    try:
+        validate_url(url)
+    except UrlSafetyError as e:
+        logger.warning(f"custom_source ssrf_block: url={url[:80]} reason={e}")
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "reason": "ssrf_block",
+                "message": (
+                    f"URL 命中 SSRF 黑名单 (拒绝 localhost / 环回 / 私网 / "
+                    f"保留 IP): {str(e)[:200]}"
+                ),
+            },
         )
 
     # 1) 探测

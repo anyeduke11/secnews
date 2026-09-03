@@ -28,6 +28,7 @@ from backend.domain.collection import SourceResult
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
 from backend.parsers.crawl4ai_parser import CrawlResult
+from backend.utils.url_safety import UrlSafetyError, validate_url
 
 HN_SOURCES: list[dict] = [
     {
@@ -116,6 +117,21 @@ class HNCollector(BaseCollector):
         try:
             session_cls = _base._session_factory()
 
+            # v0.7.x P0: SSRF 防护 — topstories API
+            try:
+                validate_url(api_url)
+            except UrlSafetyError as e:
+                duration = int(
+                    (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                )
+                return [], SourceResult(
+                    source_name=source_name,
+                    source_url=source_url,
+                    item_count=0,
+                    error_msg=f"ssrf_block: {str(e)[:100]}",
+                    duration_ms=duration,
+                )
+
             # ---- Step 1: fetch top story IDs ----
             async with session_cls() as session:  # type: ignore
                 async with session.get(
@@ -144,6 +160,11 @@ class HNCollector(BaseCollector):
                 item_url = (
                     f"https://hacker-news.firebaseio.com/v0/item/{sid}.json"
                 )
+                # v0.7.x P0: SSRF 防护 — item endpoint (host 写死, 防御性)
+                try:
+                    validate_url(item_url)
+                except UrlSafetyError:
+                    return None
                 try:
                     async with session_cls() as s:  # type: ignore
                         async with s.get(

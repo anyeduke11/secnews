@@ -1,11 +1,14 @@
 """BackendSession — httpx 统一 HTTP 客户端。
 
-内置 proxy / retry / rate-limit / timeout 支持。
+内置 proxy / retry / rate-limit / timeout / SSRF 校验 支持。
 
 Usage::
 
     async with BackendSession() as session:
         text = await session.get("https://example.com")
+
+v0.7.x P0: 加 SSRF 校验 — 所有 GET 入口经 ``url_safety.validate_url`` 阻断
+localhost / 私有 IP / 非法 scheme。
 """
 
 from __future__ import annotations
@@ -13,6 +16,7 @@ from __future__ import annotations
 import asyncio
 
 from backend.logging_config import logger
+from backend.utils.url_safety import UrlSafetyError, validate_url
 
 try:
     import httpx
@@ -87,11 +91,15 @@ class BackendSession:
         Raises:
             RuntimeError: 未在 ``async with`` 上下文内调用。
             httpx.HTTPError: 所有重试均失败后抛出。
+            UrlSafetyError: URL 是 localhost / 私有 IP / 非 http(s) (v0.7.x P0 SSRF 防护)。
         """
         if self._client is None:
             raise RuntimeError(
                 "BackendSession must be used as async context manager"
             )
+
+        # v0.7.x P0: SSRF 防护 — 拒绝 localhost / 私有 IP / 非法 scheme
+        validate_url(url)
 
         # 延迟导入避免循环依赖
         from backend.proxy_config import get_proxy_url, should_use_proxy

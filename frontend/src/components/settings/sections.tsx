@@ -28,6 +28,7 @@ export type SectionKey =
   | 'pipeline'
   | 'sentinel'
   | 'image_models'
+  | 'info_filter'
   | 'about'
   | 'feedback';
 
@@ -128,6 +129,13 @@ export const SECTIONS: SectionDef[] = [
     label: '图片模型',
     icon: <Icon size={12}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></Icon>,
     desc: '深度/轻度/图片 三场景模型选择',
+  },
+  // v0.8 P1: 独立资讯筛选门禁 (扩展域, 受 feature_gates.info_filter 控制)
+  {
+    key: 'info_filter',
+    label: '资讯门禁',
+    icon: <Icon size={12}><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></Icon>,
+    desc: 'allow/deny 规则 · 实时预览 · 闸门启停',
   },
   {
     key: 'about',

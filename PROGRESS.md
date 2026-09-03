@@ -40,6 +40,32 @@
 
 ## 当前活跃段 (2026-08-27 起)
 
+### 2026-09-04 v0.8 Skills — Skill/Playbook 双轨看板型 AI 智能体 (Phase A 进行中)
+
+> **来源**: 用户裁决 "非 chatbox, 把常用对话/prompt/skill 固化为主面板可启停功能" + 批判性审查 R1-R13 修订 (见 `docs/V0.8_REFACTOR_PLAN.md` / `docs/V0.8_DECISION_REGISTER.md` / `.trae/specs/v08-skills-agent/`)。
+> **基线**: main HEAD `919e2ca` (pytest 3437 / vitest 370 / routers 68 / services 107 / migrations 87 .sql, 2026-09-03 实测); 分支 `refactor/v0.8-skills`, 4 阶段 × 22 commits 路径推进, 主干 merge = W1-W4 末四次。
+> **范围 (Phase A/W1)**: ① `trigger_gate/` 服务包 (限流 + trigger_tickets 持久化队列 + 三档优先级非抢占 + TriggerWorker 出队泵) + migration 091 (trigger_tickets + skill_runs); ② `skill_registry/` 服务包 (A2a 抽象原则 + 反模式 linter / A2b 20 内置 skill 静态注册, SkillDef 统一契约: target/pipeline 一等公民); ③ `/api/skill-registry/*` API 5 端点; ④ 前端 `/skill-store` Skill Store; ⑤ feature_gates.toml `skill_registry`/`trigger_gate` 默认 false (fail-closed)。
+> **路径偏离裁决**: `/api/skills` 前缀被 Phase 41 书签 CRUD 占用 (core 白名单) → 新 API 用 `/api/skill-registry` (info_filter kebab 先例); 前端 `/skills` 路由被 SkillsPage 占用 → 新页 `/skill-store`。
+
+- [x] **A1 — trigger-gate 单一入口** (`36be3d1`): 5 模块 + migration 091 + 17 测试 (限流 429/原子出队/非抢占/崩溃恢复/持久化重开)。每票据独立短线程 + Semaphore(3); 原子 dequeue 用 `UPDATE ... WHERE status='pending'` 双保险。
+- [x] **A2a — 抽象原则 + 反模式 linter** (`080d117`): `docs/V0.8_SKILL_ABSTRACTION.md` (363 行) + abstractor.py (CRUD/高频 cron/高 QPS 三客观信号, A-E 分类人工裁决) + 8 测试。
+- [x] **A2b — 20 skill 静态注册** (`c56b08b`): SkillDef 统一契约 + loader 八条校验 (feature_gate 锁/module find_spec) + gate.py (settings.kv + 父 gate fail-closed) + 43 测试。实际归类 A=12/B=1/C=4/D=3; 7 处 target 按真实代码替换 plan 假设 (只读优先, 避免双调度); #13 requires_gate_check=["mcp"] (R12)。
+- [x] **A3 — /api/skill-registry API** (`1d00e25`): 5 端点 (列表/详情/enable/disable/run 预注册态入队) + 错误信封 {message, code, hint} 三字段 + extensions 登记 skill_registry gate + 17 测试。
+- [x] **A4 — 前端 Skill Store** (`3ccd703`): SkillCard/SkillToggle/SkillStore + useSkillRegistry hooks + 16 vitest + tsc 0 错。跑一次 → POST run 入队回显 ticket_id; 详情/历史按钮禁用占位 (B6 开放); i18n 硬编码 + TODO(D3)。
+- [x] **A5 — docs 同步** (本 commit): ARCHITECTURE.md routers 68→70 + v0.8 Skills 段; feature_gates.toml trigger_gate gate 登记 (extensions 登记, fail-closed); 本 PROGRESS 段; `docs/V0.8_SKILLS.md`。
+- [ ] **Phase A 验收**: pytest ≥3490 (= 3437+52) / vitest ≥382 (= 370+16) / tsc 0 / 零回归 / `generate_meta.py --check` 通过。
+
+### 关键事实 (v0.8 Skills Phase A)
+
+- **agent_loop / playbook_engine / user_skills 三个 gate 未提前声明** — 模块未实现, TOML 死配置会被 _load_gates 过滤为恒 False (无害但误导), 留 Phase B/C 对应任务随实现登记
+- **run 端点预注册态语义**: POST run → trigger-gate REALTIME 入队 → 返回 ticket_id; worker 消费 skill 票据的执行接线归 B5 (Phase A 票据只入队不执行)
+- **settings kv 复用 SettingsRepository** (settings 表, migration 001): enable/disable = set(skill.<id>.enabled, True/False); kv 未写回落 default_enabled (全 False)
+- **SkillDef 的 input_schema 值是 Python type 对象** — API 层 _json_schema 转 __name__ 字符串序列化
+
+### 不在本批范围 (留 Phase B/C/D)
+
+- worker 接 skill 执行 (B5) / agent_loop 五阶段 (B1) / agent_memory v2 (B3) / Playbook 引擎 (C1) / webhook 触发 (D1) / i18n 双语迁移 (D3)
+
 ### 2026-09-03 v0.8 P1 — 独立资讯筛选门禁 (info_filter, 受管扩展域, 本批)
 
 > **来源**: 用户指令 "结合身份角色, 建立一套前后端一致、前端可启停的独立资讯筛选门禁" (腾讯金融安全 PM, 5 大内容方向, gate 控制资讯 quality)。

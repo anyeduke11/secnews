@@ -32,6 +32,10 @@ _EXTENSION_NAMES = (
     # + trigger-gate 触发)。TOML 默认 false (fail-closed), 开闸决策归 A5。
     # 不登记此名则 TOML/env 的同名 key 会被 _load_gates 过滤, gate 永远 False。
     "skill_registry",
+    # v0.8 Phase A A1+A5: trigger_gate — skill/playbook 触发单一入口
+    # (限流 + 持久化队列 + 三档优先级 + worker 出队泵)。服务包 A1 已落地,
+    # gate 控制后续 worker/触发器接线的可见性 (Phase B/D)。
+    "trigger_gate",
 )
 
 # 扩展→router 映射（每个 router 是 backend.api 中的模块名）

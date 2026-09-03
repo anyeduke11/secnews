@@ -58,6 +58,8 @@ from typing import Any
 
 import aiohttp
 
+from backend.utils.url_safety import UrlSafetyError, validate_url
+
 logger = logging.getLogger(__name__)
 
 # 真实 Chrome UA — sogou 对 UA 敏感,默认 Python UA 会返回简化版页面
@@ -474,13 +476,51 @@ def parse_sogou_html(
 # ---------------------------------------------------------------------------
 # HTTP 抓取
 # ---------------------------------------------------------------------------
+# v0.7.x P0: SSRF 防护 — sogou 内部使用的两个 host 是写死的常量
+# (weixin.sogou.com / www.sogou.com)。但代理路径仍会把 url 转给
+# ProxySession,代理解析/重定向时可能被劫持到私网。
+# 显式白名单 + validate_url 双重防御。
+_SOGOU_HOST_ALLOWLIST: frozenset[str] = frozenset(
+    {"weixin.sogou.com", "www.sogou.com"}
+)
+
+
+def _is_sogou_host_allowed(url: str) -> bool:
+    """sogou 内部白名单 — host 字面必须在 _SOGOU_HOST_ALLOWLIST 内。"""
+    try:
+        from urllib.parse import urlparse
+        host = (urlparse(url).hostname or "").lower()
+    except Exception:
+        return False
+    return host in _SOGOU_HOST_ALLOWLIST
+
+
 async def _fetch_html(
     url: str,
     params: dict[str, Any] | None = None,
     timeout: int = DEFAULT_TIMEOUT,
     headers: dict[str, str] | None = None,
 ) -> str | None:
-    """统一 GET 入口: 优先用 ProxySession (走 127.0.0.1:7897), 降级用裸 aiohttp。"""
+    """统一 GET 入口: 优先用 ProxySession (走 127.0.0.1:7897), 降级用裸 aiohttp。
+
+    v0.7.x P0: SSRF 防护 — 仅允许 sogou 内部白名单 host
+    (weixin.sogou.com / www.sogou.com),并在出站前 ``validate_url``
+    防 DNS rebinding / 私网劫持。
+    """
+    # 白名单硬约束 — 即使 source dict 注入其他 url 也直接拒
+    if not _is_sogou_host_allowed(url):
+        logger.warning(
+            f"sogou_search ssrf_block: host not in allowlist url={url[:80]}"
+        )
+        return None
+    # SSRF 二次校验 — 防止 DNS 解析到私网 / 锁 IP 后连接错位
+    try:
+        validate_url(url)
+    except UrlSafetyError as e:
+        logger.warning(
+            f"sogou_search ssrf_block: {e} url={url[:80]}"
+        )
+        return None
     _ProxySession = None
     try:
         from backend.proxy_session import ProxySession  # type: ignore

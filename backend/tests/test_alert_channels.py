@@ -252,6 +252,13 @@ async def test_dispatcher_isolates_channel_failures(monkeypatch, temp_db):
     from backend.repository.settings_repo import SettingsRepository
     from backend.services.alert_channels import AlertPayload
     from backend.services.alert_dispatcher import dispatch
+
+    # v0.7.x P0 SSRF: validate_url 会触发 DNS 解析, 测试环境无法解 ok.example.com
+    # 这里 patch 掉让测试聚焦 "channel 失败隔离" 语义而非 SSRF 阻断
+    # (url_safety 的全局 patch 会被 alert_channels 的 lazy from-import 读到)
+    from backend.utils import url_safety as _us
+    monkeypatch.setattr(_us, "validate_url", lambda url, **_kw: url)
+
     SettingsRepository().set("observability.channels", [
         {"type": "webhook", "config": {"url": "https://will.fail/hook"}},
         {"type": "webhook", "config": {"url": "https://ok.example.com/hook"}},

@@ -1,5 +1,6 @@
 # v0.5 重构执行进度（PROGRESS.md — 当前活跃段索引）
 
+> **v0.8 P1 (2026-09-03)** — 独立资讯筛选门禁 (info_filter, 详见活跃段)。
 > **v0.7.0 (2026-08-28)** — workbench 报纸版 100% 接管 (Step 2 物理删除完成)。
 > **v0.6.2 (2026-08-28)** — hotspot 活跃开发中。
 >
@@ -38,6 +39,34 @@
 ---
 
 ## 当前活跃段 (2026-08-27 起)
+
+### 2026-09-03 v0.8 P1 — 独立资讯筛选门禁 (info_filter, 受管扩展域, 本批)
+
+> **来源**: 用户指令 "结合身份角色, 建立一套前后端一致、前端可启停的独立资讯筛选门禁" (腾讯金融安全 PM, 5 大内容方向, gate 控制资讯 quality)。
+> **基线**: `main` HEAD `46d89c5` (SettingsHub V2 落地, 17 cat SettingsHub); off main 5 个 commits 路径推进。
+> **范围**: ① `backend/services/info_filter_service.py` — 规则 CRUD/校验/evaluate (deny>allow>neutral 三优先级); ② `backend/services/info_filter_gate.py` — 5s TTL module-level cache + 2 层 hook (Layer 1 源级 filter_source + Layer 2 item 落库前 filter_items); ③ `backend/api/info_filter_api.py` — 6 端点 (GET /rules, POST /rules, PATCH /rules/{id}, DELETE /rules/{id}, POST /preview, GET /gate); ④ 前端 `InfoFilterCard.tsx` (V2 sentinelized, gate-off fallback + rules + 新增 + 预览); ⑤ SettingsHub 17 cat 加 `info_filter` SectionKey; ⑥ i18n 双语 ~30 key (zh-CN/en-US); ⑦ migration 090 `info_filter_rules` 表; ⑧ `feature_gates.toml info_filter=false` 默认关闭 (fail-closed)。
+> **不引入**: 新依赖 / 新路由 / 新 state 库 / 新聚合器 / 新迁移框架。
+> **commit 链**: `main` 5 commits (`67cb74d` service + `b1b309c` gate + `6777f4d` api + `46d89c5` frontend + docs)。
+
+- [x] **C1 — service + gate + api + 3 commits 路径**: info_filter_service (12 测试: CRUD 4 + validation 3 + evaluate 5) + info_filter_gate (6 测试: hook + cache + HotspotItem .source 字段) + info_filter_api (9 测试: TestClient 集成 + 6 端点); 33 pytest 测试全绿; thread affinity (`check_same_thread=False`) + 跨文件 conn 污染根治 (decoupled api_db/client fixtures + api 模块 `get_connection` 单独 monkeypatch)。
+- [x] **C2 — 前端 InfoFilterCard + SettingsHub 17 cat**: InfoFilterCard.tsx V2 sentinelized (gate-off fallback 模式同 DshControlCard, refresh 10s interval); sections.tsx 加 'info_filter' SectionKey + SECTIONS 项 (icon: 立体闸门, label: 资讯门禁); SettingsPage.tsx renderContent case 'info_filter'; I18nContext.tsx 加 info_filter.* 命名空间 (~30 key 双语)。
+- [x] **C3 — vitest 10/10 pass**: 覆盖 gate off(2) / 列表(2) / 创建(2) / 预览(2) / 删除(1) / 启停(1); full 370/370 (基线 360 + 本批 +10); tsc 0 错。
+- [x] **C4 — 架构同步**: ARCHITECTURE.md 顶部状态更新 (v0.7.4-image → v0.8 P1 info_filter) + #8 技术债/路线表加 info_filter entry + 测试基线 370+ 同步; PROGRESS.md 加 v0.8 P1 段。
+
+### 关键事实 (v0.8 P1)
+
+- **5 commits on main, pathspec 严格**: `67cb74d` + `b1b309c` + `6777f4d` + `46d89c5` + (docs pending)
+- **三层 hook 设计**: Layer 1 (collectors/base.py `_load_sources_from_registry` 之后, registry 源级 allow/deny) + Layer 2 (item_builder 落库前 deny 源 item 丢弃) — Layer 3 (ai_hub gateway chunks) 因 gateway.py:summarize 签名只接 chunks: list[str] (无 source 维度) 取消, 文档化为 out-of-scope
+- **fail-closed**: gate off → `is_extension_enabled("info_filter")` 返 False → `filter_source`/`filter_items` 直接返回原样 (pass-all), 与 dsh gate 一致; 路由级 `if is_extension_enabled("info_filter")` 条件注册
+- **deny > allow > neutral 三优先级**: 命中 deny 立刻返 deny; 命中 allow 继续扫 (可能后有 deny); 无任何命中返 neutral (pass)
+- **5s TTL module-level cache**: `_cached_rules + _cached_at`; 任何写操作 (POST/PATCH/DELETE) API 端 `invalidate_cache()`; 5s 后下一次访问自动重拉
+- **HotspotItem.source 字段是 source name (非 source_name)**: filter_items 用 `getattr(it, "source", "")` 兼容
+
+### 不在本批范围 (留独立段)
+
+- ai_hub Layer 3 (gateway chunks source 维度过滤) — chunks 签名不匹配, 需先重构 gateway.py
+- batch import (一次创建多条规则) — API 已可单条循环, 不阻塞
+- rules 按 enabled/category 排序持久化 — list_rules 直接 ORDER BY id, 简单够用
 
 ### 2026-09-02 SettingsHub V2 — 哨兵化全重设计 + 5 子组件拆分 (本批)
 

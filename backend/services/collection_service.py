@@ -177,20 +177,36 @@ class CollectionService:
                 # P2-7: 富化后摘要复检 — 富化内容在质量门禁之后写入, 此前
                 # 不过 ContentQualityGate (spam/乱码/长度)。不合格的富化
                 # 摘要回退为空, 保留原标题/原摘要, 防止污染入库。
-                try:
-                    from backend.quality.content_quality_gate import check_summary_quality
-                    reverted = 0
-                    for it in all_items:
-                        if not it.summary:
-                            continue
+                # P1.4 (v0.7.x): 单 item 异常隔离 — 此前 try/except 包整个
+                # for 循环, 单个 item 触发 check 异常 → 整个 batch 的复检
+                # 跳过, 全部以原 summary 入库 (可能含垃圾内容)。
+                # 改为 per-item try/except, 单 item 异常仅丢该 item 的复检,
+                # 不影响其余 item。
+                from backend.quality.content_quality_gate import check_summary_quality
+                reverted = 0
+                recheck_errors = 0
+                for it in all_items:
+                    if not it.summary:
+                        continue
+                    try:
                         flags = check_summary_quality(it.title or "", it.summary)
                         if flags:
                             it.summary = None  # 富化摘要不合格 → 丢弃
                             reverted += 1
-                    if reverted:
-                        self.logger.info(f"enriched summary reverted (low quality): {reverted}")
-                except Exception as e:
-                    self.logger.warning(f"enriched summary recheck failed: {e}")
+                    except Exception as item_err:
+                        # 单 item 异常: 仅丢该 item 的复检, 保留原 summary
+                        # (避免污染其余 item), 但记录错误便于审计
+                        recheck_errors += 1
+                        self.logger.debug(
+                            f"quality recheck failed for {getattr(it, 'id', '?')}: "
+                            f"{type(item_err).__name__}: {str(item_err)[:80]}"
+                        )
+                if reverted:
+                    self.logger.info(f"enriched summary reverted (low quality): {reverted}")
+                if recheck_errors:
+                    self.logger.warning(
+                        f"enriched summary recheck had {recheck_errors} per-item errors"
+                    )
             except Exception as e:
                 self.logger.warning(f"summary enrichment failed: {e}")
 
@@ -885,6 +901,12 @@ class CollectionService:
         """Phase 0 (Crawler v2): 旁路写入 crawler_runs 表。
 
         与 _write_collection_run 并行运行，记录每源每轮抓取统计。
+
+        P1.2 (v0.7.x): 写 crawler_runs 后, 通过 (name, category) 反查
+        ``crawler_sources.id`` 并触发 ``SourceHealthMachine.apply_run_result``
+        — 此前 ``run_once`` 路径不调健康机 (只有 scheduler per-source tick
+        会调), 导致 RSS 空 / 抓取失败的源连续多轮不更新 consecutive_failures,
+        健康口径失真。此处补齐后, 失败源会自动从 active → stale → dead。
         """
         try:
             source_results = result.source_results or []
@@ -893,8 +915,9 @@ class CollectionService:
 
             conn = get_connection()
             written = 0
+            health_results: list[dict] = []
             for sr in source_results:
-                source_id = sr.source_name
+                source_name = sr.source_name
                 status = "failed" if sr.error_msg else (
                     "partial" if sr.item_count == 0 else "success"
                 )
@@ -912,13 +935,60 @@ class CollectionService:
                          fetched_count, accepted_count, error_msg, duration_ms)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (source_id, result.category.value,
+                    (source_name, result.category.value,
                      started_at, finished_at, status,
                      sr.item_count, sr.item_count,
                      sr.error_msg or "", duration_ms),
                 )
                 written += 1
 
+                # P1.2: 反查 crawler_sources.id 触发健康机。
+                # 用 name + category 匹配 (id 是 slug, name 在 source dict 是原名)。
+                # 找不到 → skip (源未 seed 进 crawler_sources, 不影响主流程)。
+                src_row = conn.execute(
+                    "SELECT id FROM crawler_sources "
+                    "WHERE name = ? AND category = ? LIMIT 1",
+                    (source_name, result.category.value),
+                ).fetchone()
+                if src_row is None:
+                    continue
+                source_id = str(src_row["id"])
+                try:
+                    from backend.services.source_health_machine import (
+                        SourceHealthMachine,
+                    )
+                    hm = SourceHealthMachine()
+                    health = hm.apply_run_result(
+                        source_id,
+                        {
+                            "fetched_count": sr.item_count,
+                            "accepted_count": sr.item_count,
+                            "status": status,
+                            "duration_ms": duration_ms,
+                            "error_msg": sr.error_msg or "",
+                        },
+                    )
+                    health_results.append(health)
+                except Exception as e:
+                    self.logger.debug(
+                        f"apply_run_result skipped for {source_id}: {e}"
+                    )
+
+            if health_results:
+                transitioned = [
+                    h for h in health_results
+                    if h.get("transition") not in ("none", "success_reset")
+                    and "incremented" in h.get("transition", "")
+                    or "to_" in h.get("transition", "")
+                ]
+                if transitioned:
+                    self.logger.info(
+                        f"crawler_runs: {len(transitioned)} source health transitions: "
+                        + ", ".join(
+                            f"{h['source_id']}→{h['new_status']}(f={h['consecutive_failures']})"
+                            for h in transitioned[:5]
+                        )
+                    )
             self.logger.debug(f"crawler_runs written: {written}")
         except Exception as e:
             self.logger.warning(f"crawler_runs write skipped: {e}")

@@ -52,3 +52,9 @@ class DSHClient:
     def close(self) -> None:
         """关闭底层 httpx client."""
         self._client.close()
+
+    def __enter__(self) -> "DSHClient":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()

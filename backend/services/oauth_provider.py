@@ -122,18 +122,20 @@ class CloudBaseOAuthProvider(OAuthProvider):
         """OAuth code → access_token."""
         if not code or len(code) < 8:
             raise OAuthVerificationError("OAuth code 太短")
+        # P1.8: with httpx.Client 显式管理连接, 避免 httpx.post 模块函数
+        # 每次创建内部 Client 不复用 (连接池泄露)
         try:
-            resp = httpx.post(
-                self.token_url,
-                data={
-                    "grant_type": "authorization_code",
-                    "code": code,
-                    "client_id": self.client_id,
-                    "client_secret": self.client_secret,
-                    "redirect_uri": self.redirect_uri,
-                },
-                timeout=10.0,
-            )
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.post(
+                    self.token_url,
+                    data={
+                        "grant_type": "authorization_code",
+                        "code": code,
+                        "client_id": self.client_id,
+                        "client_secret": self.client_secret,
+                        "redirect_uri": self.redirect_uri,
+                    },
+                )
         except httpx.HTTPError as e:
             logger.warning("OAuth token exchange failed: %s", e)
             raise OAuthVerificationError(f"OAuth token 交换失败: {e}") from e
@@ -151,12 +153,13 @@ class CloudBaseOAuthProvider(OAuthProvider):
         """OAuth access_token → user info。"""
         if not access_token or len(access_token) < 10:
             raise OAuthVerificationError("OAuth access_token 太短")
+        # P1.8: 同 exchange_code, 显式 Client 上下文管理连接池
         try:
-            resp = httpx.get(
-                self.userinfo_url,
-                headers={"Authorization": f"Bearer {access_token}"},
-                timeout=10.0,
-            )
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.get(
+                    self.userinfo_url,
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
         except httpx.HTTPError as e:
             logger.warning("OAuth userinfo failed: %s", e)
             raise OAuthVerificationError(f"OAuth userinfo 失败: {e}") from e

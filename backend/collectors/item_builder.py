@@ -161,6 +161,9 @@ class ItemBuilderMixin:
                         ingested_at=now,
                         bid_status=bid_status_val,
                         region=raw.get("region"),  # Phase 8: 标讯地区
+                        published_at_tz_assumed=bool(
+                            raw.get("published_at_tz_assumed", False)
+                        ),
                         score=source.get("score", 75),
                         is_fallback=False,
                         quality_score=100,

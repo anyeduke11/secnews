@@ -52,6 +52,11 @@ class HotspotItem(BaseModel):
     # Timestamps (must be tz-aware UTC; see module docstring)
     published_at: datetime
     fetched_at: datetime
+    # P1.6: 当 published_at 由 naive 字符串(strptime / 无 tz 的 HTML 提取)
+    # 经过 ``.replace(tzinfo=timezone.utc)`` 显式假定 UTC 时为 True;
+    # 由 ``datetime.fromtimestamp(..., tz=utc)`` / ISO 携带时区得到的为 False。
+    # 仅供审计与排查; 不影响序列化。
+    published_at_tz_assumed: bool = False
     # Phase 15: ingested_at = 录入时间(列表排序/过滤用)。
     # - 新抓取的资讯 ingested_at = now()
     # - 已录入的老资讯(本次迁移前) ingested_at = published_at

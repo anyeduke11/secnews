@@ -23,7 +23,10 @@ from typing import Any
 import aiohttp
 
 from backend.collectors.base import BaseCollector
-from backend.collectors.id_factory import make_readable_id
+from backend.collectors.id_factory import (
+    make_readable_id,
+    make_readable_id_safe,
+)
 from backend.domain.collection import SourceResult
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
@@ -191,12 +194,22 @@ class HNCollector(BaseCollector):
             raw_items = self._parse_json(valid_stories, source)
 
             # ---- Step 4: 构建 HotspotItem (用 readable ID) ----
+            # P1.5: 用 make_readable_id_safe — 空 native_id 返回 None,
+            # 单条 skip + error_msg 显式记录, 避免 ValueError 被外层
+            # try/except 静默吞掉导致整批丢。
             now = datetime.now(timezone.utc)
             items: list[HotspotItem] = []
+            empty_id_count = 0
             for raw in raw_items:
-                readable_id = make_readable_id(
-                    "hn", "item", str(raw["id"])
+                readable_id = make_readable_id_safe(
+                    "hn", "item", str(raw.get("id", ""))
                 )
+                if readable_id is None:
+                    empty_id_count += 1
+                    self.logger.warning(
+                        f"hn: empty/invalid native_id, skip item: {raw.get('title', '')[:40]!r}"
+                    )
+                    continue
                 published_at = raw.get("published_at") or now
                 items.append(
                     HotspotItem(

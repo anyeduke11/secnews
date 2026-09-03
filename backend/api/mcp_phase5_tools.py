@@ -147,31 +147,32 @@ async def dsh_analyze(req: DshAnalyzeInput) -> dict[str, Any]:
         from backend.services.dsh.session import DSHSessionManager
         from backend.services.dsh.task_router import DSHTaskRouter
 
-        client = DSHClient()
-        sess_mgr = DSHSessionManager()
-        payload = {"content": req.content, "hint": req.hint or ""}
+        # P1.8: with 上下文确保 httpx.Client 在异常路径也关闭
+        with DSHClient() as client:
+            sess_mgr = DSHSessionManager()
+            payload = {"content": req.content, "hint": req.hint or ""}
 
-        session_id = sess_mgr.create_session("classify", payload)
-        try:
-            result = client.send_task("classify", payload)
-            sess_mgr.close_session(session_id)
-            return {
-                "ok": True,
-                "agent": "dsh",
-                "session_id": session_id,
-                "result": result,
-            }
-        except Exception as e:
-            logger.warning("dsh_analyze: DSH failed, fallback LLM: %s", e)
-            router = DSHTaskRouter(dsh_client=None)
-            result = router.dispatch("classify", payload)
-            return {
-                "ok": result.get("ok", False),
-                "agent": result.get("agent", "llm_direct"),
-                "session_id": session_id,
-                "result": result.get("score") or result.get("result"),
-                "error": result.get("error"),
-            }
+            session_id = sess_mgr.create_session("classify", payload)
+            try:
+                result = client.send_task("classify", payload)
+                sess_mgr.close_session(session_id)
+                return {
+                    "ok": True,
+                    "agent": "dsh",
+                    "session_id": session_id,
+                    "result": result,
+                }
+            except Exception as e:
+                logger.warning("dsh_analyze: DSH failed, fallback LLM: %s", e)
+                router = DSHTaskRouter(dsh_client=None)
+                result = router.dispatch("classify", payload)
+                return {
+                    "ok": result.get("ok", False),
+                    "agent": result.get("agent", "llm_direct"),
+                    "session_id": session_id,
+                    "result": result.get("score") or result.get("result"),
+                    "error": result.get("error"),
+                }
     except Exception as e:
         logger.warning("dsh_analyze: unexpected error: %s", e)
         raise HTTPException(

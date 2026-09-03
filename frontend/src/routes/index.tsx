@@ -71,6 +71,8 @@ export function AppRoutes() {
         <Route path="/todos" element={<Suspense fallback={<PageFallback />}><P.TodosPage /></Suspense>} />
         <Route path="/history" element={<Suspense fallback={<PageFallback />}><HistoryPageRoute /></Suspense>} />
         <Route path="/skills" element={<Suspense fallback={<PageFallback />}><P.SkillsPage onBack={goHome} /></Suspense>} />
+        {/* v0.8 Phase A (A4): 技能商店 (/skill-registry) — /skills 已被 Phase 41 技能库占用, 故用 /skill-store */}
+        <Route path="/skill-store" element={<Suspense fallback={<PageFallback />}><P.SkillStore onBack={goHome} /></Suspense>} />
         <Route path="/secrets" element={<Suspense fallback={<PageFallback />}><P.SecretsPage onBack={goHome} /></Suspense>} />
         {features.sync && (
           <Route path="/sync" element={<Suspense fallback={<PageFallback />}><P.SyncPage onBack={goHome} /></Suspense>} />

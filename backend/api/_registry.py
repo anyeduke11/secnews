@@ -207,6 +207,10 @@ def register_all(app: FastAPI) -> None:
     if is_extension_enabled("info_filter"):
         from backend.api import info_filter_api
         app.include_router(info_filter_api.router, tags=["info-filter"])
+    # v0.8 Phase A A3: skill_registry Skill 商店 (默认 false, 开闸归 A5)
+    if is_extension_enabled("skill_registry"):
+        from backend.api import skill_registry_api
+        app.include_router(skill_registry_api.router, tags=["skill-registry"])
 
 
 __all__ = ["register_all"]

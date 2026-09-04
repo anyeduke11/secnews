@@ -6,9 +6,10 @@
 > **整合 spec**: [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](docs/HOTSPOT_SECNEWS_INTEGRATION.md) + [`docs/SECNEWS_INTEGRATION_TASKS.md`](docs/SECNEWS_INTEGRATION_TASKS.md)
 > **代码审计**: [`docs/CODE_AUDIT_2026-08-28.md`](docs/CODE_AUDIT_2026-08-28.md) (架构深度分析)
 
-> 本文档描述 **2026-09-03 当前代码 (v0.8 P1 info_filter)** 的真实架构，供新开发者快速理解系统。
+> 本文档描述 **2026-09-04 当前代码 (v0.8 Skills Phase A)** 的真实架构，供新开发者快速理解系统。
 > **定位**：现状导览 (≤ 200 行)；详细专题见 [docs/code-wiki/](code-wiki/CODE_WIKI.md) 5 个分章节文件。
-> 所有数字均从代码/文件核对（迁移 60+、router 68、jobs 51、collectors 14、services 107、测试 3500+/380+、备份保留 7、同步上限 100k），`scripts/generate_meta.py --check` 是 CI 门禁。
+> 所有数字均从代码/文件核对（迁移 60+、router 70、jobs 51、collectors 14、services 107、测试 3500+/380+、备份保留 7、同步上限 100k），`scripts/generate_meta.py --check` 是 CI 门禁。
+> v0.8 Skills Phase A (2026-09-04): Skill/Playbook 双轨看板 — `trigger_gate/` (限流+持久化队列+三档优先级+worker 泵, migration 091) + `skill_registry/` (20 内置 skill, 反模式 linter) + `/api/skill-registry/*` 5 端点 + 前端 `/skill-store` + gates skill_registry/trigger_gate 默认 false。设计见 [docs/V0.8_SKILLS.md](V0.8_SKILLS.md), 进度见 PROGRESS.md。
 > v0.8 P1 (2026-09-03): 独立资讯筛选门禁 — `info_filter_service` (CRUD/校验/evaluate) + `info_filter_gate` (5s TTL cache + Layer 1 源级 + Layer 2 item 级 hooks) + `/api/info-filter/{rules,preview,gate}` 6 端点 + 前端 InfoFilterCard (SettingsHub 17 cat) + feature_gates.toml `info_filter=false` 默认关闭。详见 PROGRESS.md。
 > v0.7.4 (2026-09-02): ai_hub 三场景路由 (deep/light/image) — `scenarios.py` 单点 + `image_service.py` 复用 Batch ⑥ 凭据链 + `/api/image/{generate,understand}` + QualitySettings 折叠面板 + ImageStudio 工具页 + sensenova-u1.5-lite (文生图) + deepseek-v4-pro (深度档 yaml 升级)。
 > v0.7.2 (2026-08-31): llm_secrets 接入 AIService + key_source 兑现 (Batch ⑥, 详见 PROGRESS.md)
@@ -42,14 +43,14 @@
 └───────────────┬──────────────────────────────────────────────┘
                 │ HTTP / JSON / SSE
 ┌───────────────▼──────────────────────────────────────────────┐
-│  FastAPI 单进程 (uvicorn, :8000) — 68 router / 107 services    │
+│  FastAPI 单进程 (uvicorn, :8000) — 73 router / 107 services    │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────────────┐   │
 │  │ collectors/  │→│ quality/     │→│ scheduler/ 51 jobs │   │
 │  │ 14 BaseColl.  │  │ 11+ gates    │  │ APScheduler         │   │
 │  └──────┬───────┘  └──────┬───────┘  └─────────┬─────────┘   │
 │         │                │                    │             │
 │  ┌──────▼───────┐  ┌──────▼────────┐  ┌────────▼────────┐  │
-│  │ api/ 68 router│  │ services/ 107 │  │ repository/ 40  │  │
+│  │ api/ 73 router│  │ services/ 107 │  │ repository/ 40  │  │
 │  │ (lazy 注册)   │  │ (业务编排)     │  │ (SQLite DAO)    │  │
 │  └──────────────┘  └──────┬────────┘  └─────────────────┘  │
 └─────────────────────────┬──────────────────────────────────┘

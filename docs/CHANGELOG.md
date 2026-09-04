@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.8.0 Skills (2026-09-04) — Skill/Playbook 双轨看板型 AI 智能体 (Phase A/B/C/D 全绿)
+
+> **来源**: 用户裁决 "非 chatbox, 把常用对话/prompt/skill 固化为主面板可启停功能" + 批判性审查 R1-R13 修订。
+> **范围**: Phase A trigger_gate 包 (限流 + trigger_tickets 持久化队列 + 三档优先级非抢占 + TriggerWorker 出队泵) + skill_registry 包 (20 内置 skill 静态注册 + 反模式 linter + gate.py) + `/api/skill-registry` 5 端点 + `/skill-store` 前端; Phase B agent_loop 五阶段 + agent_memory v2 + worker 执行接线 + B6 详情页/历史回放/反馈打分; Phase C playbook_engine (skill/api/condition 三类 Step, 砍 script RCE) + cron 调度 SQLite 持久化 + skill_builder (user_skills 表 + 4 步向导) + skill_eval 5 黄金 fixtures 评测; Phase D webhook + KL 事件 + collector failure 三触发源 + `/dashboard` 看板 + i18n 双语补齐 + 用户文档/迁移指南。
+> **commit 链**: `refactor/v0.8-skills` 分支, 4 阶段 × 22 commits 路径推进 (A1-A5 / B1-B6 / C1-C5 / D1-D5)。
+
+### 关键变更
+
+- **触发门 (trigger_gate)**: 所有 skill 执行经单一入口入队 — TriggerThrottle (per-user + global 双层限流) + `trigger_tickets` 表持久化队列 + 三档优先级 (BACKGROUND/NORMAL/REALTIME 非抢占) + 崩溃恢复 (pending 票据重开); migration 091。
+- **skill_registry 统一契约**: SkillDef (target/pipeline 一等公民) + loader 八条校验 (feature_gate 锁 + module find_spec) + 20 内置 skill (A=12/B=1/C=4/D=3); settings.kv `skill.<id>.enabled` 启停; 反模式 linter (CRUD/高频 cron/高 QPS 三客观信号)。
+- **Playbook 引擎**: YAML 编排 (StepKind = skill/api/condition; MAX_STEPS=50 / MAX_TOTAL_SECONDS=3600; 危险命令黑名单) + `playbook_schedules`/`playbook_runs` 双表 cron 持久化; migration 094。
+- **Skill Builder**: `/skill-store/new` 4 步向导 (基本信息 / Schema与Prompt / Target引用 / 复核保存) + dry-run validate + user_skills 表 (MAX=50 soft delete); migration 095。
+- **Eval 评测**: 5 黄金 fixtures 覆盖 A/B/C/D/Playbook 五种 + 12 种 assertion.type + pass_rate/verdict 报告 (evaluation engine 为 Protocol 抽象, 真实 LLM engine 留 v0.9)。
+- **三触发源 (D1)**: `POST /api/trigger/webhook/{source}` (6 白名单源, SHA-256 HMAC 签名, R7 fail-closed) + KL T1-T5 事件 (默认联动 quality-patrol) + collector failure (failed→NORMAL / timeout→REALTIME, success 不入队)。
+- **看板 (D2)**: `/dashboard` — HealthCard 健康卡片 + SkillMatrix 20 skill 状态矩阵 + TriggerTimeline 触发时间线 (五态徽章)。
+- **i18n (D3)**: dashboard/skill.store/skill.builder 三命名空间 +36 key 双语补齐, A4/C4 硬编码文案清账; REQUIRED_KEYS 防漂移测试。
+- **feature gates**: `skill_registry` / `trigger_gate` / `user_skills` 默认 false (fail-closed), `feature_gates.toml` 显式开启。
+- **版本**: `version.py` APP_VERSION 0.7.0→0.8.0; 根 AGENTS.md 头部 `当前状态 (2026-09-04, v0.8.0)` 激活版本一致性校验。
+
+### 门禁
+
+- pytest: 3740 passed / 6 skipped (Phase D 实测, 基线 3437 + Phase A-D 新增 ≥173 ✓)
+- vitest: 434 passed (Phase D 实测, 基线 370 + 新增 ≥50 ✓)
+- tsc --noEmit: 0 错
+- `generate_meta.py --check`: 通过 (routers 72→73 / services 107 / jobs 51 / collectors 14)
+- `harness_analyze.py --check`: 通过 (0 errors)
+- 架构数字已同步 ARCHITECTURE.md + 4 个 AGENTS.md
+
+### 不在本批范围 (留 v0.9)
+
+- `/api/trigger/tickets` 列表端点 (看板时间线暂 mock) / 真实 LLM evaluation engine / skill 版本管理 (仅 latest) / webhook secret 轮换 UI
+
 ## v0.7.x SettingsHub V2 (2026-09-02) — 哨兵化全重设计 + 5 子组件拆分
 
 > **来源**: 用户指令 "哨兵以外的 UI/UX 调整, 参考哨兵进行美化" + 四问决策 (Q1 dashboard 用途/代价/习惯, Q2 拆 5 子组件, Q3 全重设计, Q4 测试全重写)。

@@ -1,0 +1,39 @@
+# playbook_engine/examples/weekly_top5.yml
+# C1 示例 2: 每周 top 5 安全事件 — 多步编排 (skill → condition → api 通知)
+
+apiVersion: hotspot/v0.8
+kind: Playbook
+metadata:
+  name: weekly-top5-summary
+  desc: "周末汇总近 7 天安全事件, 条件命中建 ticket 提醒"
+  owner: builtin
+  tags: [report, weekly]
+
+inputs:
+  week_limit:
+    type: int
+    default: 5
+
+steps:
+  - id: top5
+    skill: weekly-top-events
+    params:
+      limit: "{{ inputs.week_limit }}"
+    output: top5_result
+
+  - id: gate
+    if: "{{ steps.top5_result.status == 'succeeded' }}"
+    type: condition
+    expr: "{{ steps.top5_result.status == 'succeeded' }}"
+
+  - id: notify
+    if: "{{ steps.gate.output == true }}"
+    type: api
+    action: POST /api/codegarden/tasks
+    body:
+      title: "周 top 5 安全事件已生成"
+      body:
+        wiki_path: "{{ steps.top5_result.output.wiki_path }}"
+
+outputs:
+  primary: top5

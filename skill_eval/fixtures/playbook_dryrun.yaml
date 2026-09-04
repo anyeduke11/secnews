@@ -1,0 +1,46 @@
+# skill_eval/fixtures/playbook_dryrun.yaml
+# C5 Eval v1 fixture 5: Playbook 编排 — daily-source-health
+#
+# 黄金断言 (EVAL_C5_PLAYBOOK):
+# - playbook_steps 长度 = 3 (scan / ticket_if_dead / outputs)
+# - 每个 step 必含 status=success
+# - scan 步骤的 output 包含 running_count 字段
+# - 总执行时间 < 30s (健康预算)
+# - 错误字段为空 (R12: playbook 失败必含 step_id)
+
+id: daily-source-health-PB-001
+playbook: daily-source-health
+kind: playbook
+desc: "Playbook 编排 - 每日信源巡检: 验证多步骤串联 + 字段透传"
+
+inputs:
+  hours: 24
+  top_n: 10
+
+assertions:
+  - name: returns_dict
+    type: type_check
+    target: result
+    expected: dict
+
+  - name: all_steps_success
+    type: list_field_eq
+    target: result.steps
+    field: status
+    expected: success
+
+  - name: scan_output_has_running_count
+    type: field_type
+    target: result.step_outputs.scan.running_count
+    expected: int
+
+  - name: duration_under_30s
+    type: range
+    target: duration_ms
+    min: 0
+    max: 30000
+
+  - name: no_error
+    type: equal
+    target: result.error
+    expected: null

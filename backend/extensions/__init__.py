@@ -28,6 +28,14 @@ _EXTENSION_NAMES = (
     "dsh",
     # v0.8 P1 info_filter: 独立资讯筛选门禁 (源级 allow/deny 名单, 实时启停)
     "info_filter",
+    # v0.8 Phase A A3: skill_registry — Skill 商店 (20 内置 skill 注册 + 启停
+    # + trigger-gate 触发)。TOML 默认 false (fail-closed), 开闸决策归 A5。
+    # 不登记此名则 TOML/env 的同名 key 会被 _load_gates 过滤, gate 永远 False。
+    "skill_registry",
+    # v0.8 Phase A A1+A5: trigger_gate — skill/playbook 触发单一入口
+    # (限流 + 持久化队列 + 三档优先级 + worker 出队泵)。服务包 A1 已落地,
+    # gate 控制后续 worker/触发器接线的可见性 (Phase B/D)。
+    "trigger_gate",
 )
 
 # 扩展→router 映射（每个 router 是 backend.api 中的模块名）
@@ -66,6 +74,9 @@ EXTENSION_ROUTERS: dict[str, list[str]] = {
     ],
     "info_filter": [              # v0.8 P1 独立资讯筛选门禁
         "info_filter_api",        #   /api/info-filter/* (CRUD + preview + gate)
+    ],
+    "skill_registry": [           # v0.8 Phase A A3: Skill 商店
+        "skill_registry_api",     #   /api/skill-registry/* (列表/详情/启停/run 入队)
     ],
     # security_graph 不占 router (security / kl_* 属 core 核心安全数据),
     # 只控制 mitre_sync / cve_sync_to_security 两个 job

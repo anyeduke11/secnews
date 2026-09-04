@@ -135,7 +135,11 @@ class SkillRunner:
                 self._repo.mark_finished(
                     run_id,
                     status="failed",
-                    metrics={"elapsed_ms": elapsed_ms, "fast_path": skill.skill_type in ("A", "B")},
+                    metrics={
+                        "elapsed_ms": elapsed_ms,
+                        "fast_path": skill.skill_type in ("A", "B"),
+                        "target_kind": _target_kind(skill),
+                    },
                     error=err,
                 )
             return SkillRunResult(
@@ -145,6 +149,11 @@ class SkillRunner:
                 status="failed",
                 fast_path=skill.skill_type in ("A", "B"),
                 elapsed_ms=elapsed_ms,
+                metrics={
+                    "elapsed_ms": elapsed_ms,
+                    "fast_path": skill.skill_type in ("A", "B"),
+                    "target_kind": _target_kind(skill),
+                },
                 error=err,
             )
 

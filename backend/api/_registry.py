@@ -211,6 +211,17 @@ def register_all(app: FastAPI) -> None:
     if is_extension_enabled("skill_registry"):
         from backend.api import skill_registry_api
         app.include_router(skill_registry_api.router, tags=["skill-registry"])
+        # v0.8 Phase B B6: 运行历史 + 反馈打分 (与 A3 同 gate, 拆文件避 150 行上限)
+        from backend.api import skill_registry_runs_api
+        app.include_router(skill_registry_runs_api.router, tags=["skill-registry"])
+    # v0.8 Phase C C3: Skill Builder (用户自建 skill)
+    if is_extension_enabled("user_skills"):
+        from backend.api import skill_builder_api
+        app.include_router(skill_builder_api.router, tags=["skill-builder"])
+    # v0.8 Phase D D1: webhook + KL + collector 触发源适配 (webhook 端点需暴露, 沿用 trigger_gate gate)
+    if is_extension_enabled("trigger_gate"):
+        from backend.api import trigger_webhook_api
+        app.include_router(trigger_webhook_api.router, tags=["trigger-webhook"])
 
 
 __all__ = ["register_all"]

@@ -1,6 +1,6 @@
 # SecNews Knowledge Dashboard — 安全从业者 AI 助手的平台看板层
 
-> **当前状态 (2026-08-31, v0.7.0)**: Sentinel Terminal 全屏页已上线 (`/` `/judge` `/action` `/garden`); data/judge/action 三层目录与 6 cognitive modes 已物理删除; `/secnews` 为统一工作台 (6 tab); dsh 内置为受管子进程 — 前端 `/secnews/settings` 一键启停 (gate dsh=true, 控制面 `/api/dsh/control/*`); ai_hub 已包化, LLM provider 四级切换链落地 (v0.7 Batch 2 进行中, 见 `PROGRESS.md`)。
+> **当前状态 (2026-09-04, v0.8.0)**: Sentinel Terminal 全屏页已上线 (`/` `/judge` `/action` `/garden`); data/judge/action 三层目录与 6 cognitive modes 已物理删除; `/secnews` 为统一工作台 (6 tab); dsh 内置为受管子进程 — 前端 `/secnews/settings` 一键启停 (gate dsh=true, 控制面 `/api/dsh/control/*`); ai_hub 已包化, LLM provider 四级切换链落地; v0.8 Skills 四阶段全部收口 — Phase A 触发门 + Skill Store + 20 内置 skill / Phase B 详情页历史回放反馈打分 (B6) / Phase C Playbook 引擎 + Cron 调度 + Skill Builder + Eval 评测框架 (C1-C5) / Phase D webhook + KL 事件 + collector failure 三触发源 (D1) + /dashboard 看板 (D2) + i18n 双语补齐 (D3) + 文档迁移指南 (D5), 详见 `PROGRESS.md` v0.8 Skills 段。
 > 历史决策 (产品三层架构裁决 / wiki-first 存储哲学 / Phase 7 退役冻结) 见 `PROGRESS.md` 与 `git log`，不在此重复。
 
 ---
@@ -15,7 +15,7 @@
 
 ## v0.4.3 — Core/Extension 软分层 + Feature Gates (2026-08-18)
 
-> **架构数字由 `scripts/generate_meta.py` AST 反推维护** (51 jobs / 14 collectors / 70 routers / 107 services),
+> **架构数字由 `scripts/generate_meta.py` AST 反推维护** (51 jobs / 14 collectors / 73 routers / 107 services),
 > 改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
 
 - **开关源**: `backend/config/feature_gates.toml` — 当前默认开启: codegarden/sync/secnews/crm/dsh;

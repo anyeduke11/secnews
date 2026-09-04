@@ -40,10 +40,11 @@
 
 ## 当前活跃段 (2026-08-27 起)
 
-### 2026-09-04 v0.8 Skills — Skill/Playbook 双轨看板型 AI 智能体 (Phase A 进行中)
+### 2026-09-04 v0.8 Skills — Skill/Playbook 双轨看板型 AI 智能体 (Phase A/B/C/D 全绿)
 
 > **来源**: 用户裁决 "非 chatbox, 把常用对话/prompt/skill 固化为主面板可启停功能" + 批判性审查 R1-R13 修订 (见 `docs/V0.8_REFACTOR_PLAN.md` / `docs/V0.8_DECISION_REGISTER.md` / `.trae/specs/v08-skills-agent/`)。
 > **基线**: main HEAD `919e2ca` (pytest 3437 / vitest 370 / routers 68 / services 107 / migrations 87 .sql, 2026-09-03 实测); 分支 `refactor/v0.8-skills`, 4 阶段 × 22 commits 路径推进, 主干 merge = W1-W4 末四次。
+> **Phase C 末态 (2026-09-04)**: pytest **3717** / vitest **410** / routers **72** / services **107** / migrations **95** .sql (Phase C +2: 094 playbook_engine / 095 user_skills)。
 > **范围 (Phase A/W1)**: ① `trigger_gate/` 服务包 (限流 + trigger_tickets 持久化队列 + 三档优先级非抢占 + TriggerWorker 出队泵) + migration 091 (trigger_tickets + skill_runs); ② `skill_registry/` 服务包 (A2a 抽象原则 + 反模式 linter / A2b 20 内置 skill 静态注册, SkillDef 统一契约: target/pipeline 一等公民); ③ `/api/skill-registry/*` API 5 端点; ④ 前端 `/skill-store` Skill Store; ⑤ feature_gates.toml `skill_registry`/`trigger_gate` 默认 false (fail-closed)。
 > **路径偏离裁决**: `/api/skills` 前缀被 Phase 41 书签 CRUD 占用 (core 白名单) → 新 API 用 `/api/skill-registry` (info_filter kebab 先例); 前端 `/skills` 路由被 SkillsPage 占用 → 新页 `/skill-store`。
 
@@ -54,6 +55,19 @@
 - [x] **A4 — 前端 Skill Store** (`3ccd703`): SkillCard/SkillToggle/SkillStore + useSkillRegistry hooks + 16 vitest + tsc 0 错。跑一次 → POST run 入队回显 ticket_id; 详情/历史按钮禁用占位 (B6 开放); i18n 硬编码 + TODO(D3)。
 - [x] **A5 — docs 同步** (9974787): ARCHITECTURE.md routers 68→70 + v0.8 Skills 段; feature_gates.toml trigger_gate gate 登记 (extensions 登记, fail-closed); 本 PROGRESS 段; `docs/V0.8_SKILLS.md`。
 - [x] **Phase A 验收 (2026-09-04)**: pytest **3516 passed / 6 skipped** (零回归, ≥3490 ✓) / vitest **386** (≥382 ✓) / tsc 0 错 / `generate_meta.py --check` 通过 (routers 70)。已知偏离: A4 文案硬编码中文 (i18n 双满推迟 D3)。
+- [x] **B6 — 前端详情页 + 历史回放 + 反馈打分** (本批, Phase B 收尾): 后端 `skill_registry_runs_api.py` 3 端点 (GET /{id}/runs · GET /runs/{run_id} · POST /runs/{run_id}/feedback), 15 测试全绿 (含 B6 验收链路: 👍 → feedback_log → recall 命中 hit.score=反馈分); `_registry.py` 共享 skill_registry gate 拆文件防 150 行溢出。前端 `SkillDetail.tsx` + `RunHistory.tsx` + `FeedbackBar.tsx` (router-free, skillId/onBack 由包装层注入; ?focus=history 直达历史区); `SkillCard` 详情/历史按钮 B6 接线 (按 onDetail/onHistory 传入启用); `SkillStore` 增 onDetail/onHistory 回调; `lazy-imports` + `routes/index.tsx` 加 `/skill-store/:skillId` 路由; 15 vitest 全绿 (含 schema 表 / prompt 全文 / 历史回放 JSON / 👍👎 提交 / 锁定 / running 不出现反馈条 / focus 直达等); `useSkillDetail` / `useSkillRuns` hooks + `SkillRun` / `SkillFeedback` types。
+- [x] **C1 — playbook_engine 包 + 3 examples** (`playbook_engine/core.py` `loader.py` `step.py` + 3 examples `cve_intel.yml` / `daily_source_health.yml` / `weekly_top5.yml`): Playbook dataclass + StepKind (skill/api/condition, R7 砍 script RCE) + MAX_STEPS=50 / MAX_TOTAL_SECONDS=3600 (R6) + 危险命令黑名单 (P4-7 沿用) + 26 测试全绿。
+- [x] **C2 — scheduler/cron + SQLite 持久化** (`migration 094` + `playbook_engine/scheduler.py` + 14 测试全绿): `playbook_schedules` + `playbook_runs` 双表 + `PlaybookScheduler` 独立运行 (隔离 R6 1h 预算) + `upsert_schedule` / `set_enabled` / `remove_schedule` + cron 校验 upfront fail-loud + `_find_playbook_path` 支持 snake/kebab 双形态。
+- [x] **C3 — skill_builder + migration 095 + API** (`backend/services/skill_builder/` + `backend/api/skill_builder_api.py` + 18 测试全绿): `user_skills` 表 + `UserSkillRepo` (MAX=50 + soft delete) + `validate_user_skill` (id regex snake/kebab / category 4 选 / skill_type A-D 拒 E / runner builtin-only v0.8 / target importlib.find_spec + hasattr) + 6 端点 (`/api/skill-builder` GET/POST/validate/GET-id/PATCH/DELETE) + P3-2 错误信封 + feature_gates.toml `user_skills = false` 默认关闭。
+- [x] **C4 — SkillBuilder.tsx 4 步向导** (`frontend/src/components/skills/SkillBuilder.tsx` + 9 vitest 全绿): StepHeader / SchemaEditor / 4 步向导 (基本信息 / Schema与Prompt / Target引用 / 复核&保存) + dry-run validate + save POST + a11y htmlFor+id+data-testid 三件套 (jsdom 兼容) + `/skill-store/new` 路由。
+- [x] **C5 — skill_eval 5 黄金 fixtures + 评测报告** (`skill_eval/fixtures/*.yaml` + `backend/services/skill_eval/{dataset,runner,judge,report}.py` + 22 测试全绿): 5 fixtures 覆盖 A/B/C/D/Playbook 5 种 (`source_health_a` / `weekly_top5_c` / `compliance_query_b` / `cve_correlate_d` / `playbook_dryrun`) + 12 种 assertion.type (type_check / equal / range / field_type / length_eq / list_field_* / list_avg_above / dict_has_keys) + skip_if_null/empty + build_report(pass_rate, verdict) + render_markdown + to_dict JSON 序列化 + 评测全绿 (5/5 fixtures × 32/32 assertions)。
+- [x] **Phase C 验收 (2026-09-04)**: pytest **3717 passed / 6 skipped** (零回归, ≥3595 ✓) / vitest **410 passed (53 files)** (≥402 ✓) / tsc **0 错** / `generate_meta.py --check` 通过 (routers 70→72) / `harness_analyze.py --check` 通过 (0 errors, 5 warnings waivers)。架构数字 70→72 已同步 ARCHITECTURE.md / 4 个 AGENTS.md。已知偏离: C4 文案硬编码中文 (i18n 双满推迟 D3); C5 evaluation engine 是 Protocol 抽象 (真实 LLM engine 留 v0.9)。
+- [x] **D1 — 三触发源接入** (`triggers/` 包 3 模块 + `api/trigger_webhook_api.py` + 23 测试全绿): `WebhookTrigger` (SHA-256 HMAC 签名 `path|payload` hex, `hmac.compare_digest` 时序安全, secret_provider 注入 + settings.kv `webhook.secret` 回落, R7 fail-closed 无 secret 但有签名头 → 422) / `KLEventTrigger` (T1-T5 五阶段白名单, target 默认 `quality-patrol`) / `CollectorEventTrigger` (success 早返回 None 不耗限流配额, failed→NORMAL, timeout→REALTIME); API `POST /api/trigger/webhook/{source}` 6 白名单源 (github/stripe/secnews/custom/cve_feed/cti) + `GET /health`; 端点引用模块级 `wh_mod._default` 供测试 monkeypatch; `_registry.py` 按 trigger_gate gate 条件注册 (fail-closed)。
+- [x] **D2 — /dashboard 看板** (`components/dashboard/Dashboard.tsx` ~260 行 + 14 vitest 全绿): HealthCard (触发源/技能/待处理/限流 4 行 + ok/caution/saturated 三态) + SkillMatrix (20 内置 skill 状态矩阵 + enable 开关) + TriggerTimeline (pending/running/succeeded/failed/partial 五态 StatusBadge; `/api/trigger/tickets` 未实现先用 mock 3 条占位); `lazy-imports` + `routes/index.tsx` 加 `/dashboard` lazy 路由。
+- [x] **D3 — i18n 全栈双语补齐** (I18nContext +36 key × zh-CN/en-US + 7 测试全绿): `dashboard.*` 15 + `skill.store.*` 8 + `skill.builder.*` 12 + `common.back` 1; Dashboard/SkillStore/SkillBuilder 硬编码文案迁 `t(key, fallback)` (A4/C4 已知偏离清账); REQUIRED_KEYS 数组防漂移测试。
+- [x] **D4 — release 文档同步**: `generate_meta.py` 反推 routers 72→73 (trigger_webhook_api), 同步 ARCHITECTURE.md (2 处) + 根/backend.api/scripts 3 个 AGENTS.md (5 处); `version.py` APP_VERSION 0.7.0→0.8.0 + v0.8.0 docstring 段; 根 AGENTS.md 头部改 `当前状态 (2026-09-04, v0.8.0)` (激活版本一致性校验); docs/CHANGELOG.md 加 v0.8.0 Skills 段; PROGRESS.md 本段。tag `v0.8.0-skills` 推送留用户授权 (V2-C11 同款约定)。
+- [x] **D5 — 用户文档 + 迁移指南**: `docs/V0.8_USER_GUIDE.md` (Skill vs Playbook 对照 / 20 内置 skill / 手动运行·启停·详情·反馈 / Builder 4 步向导 / Playbook YAML 三类 Step / 三触发源 / 看板 / i18n) + `docs/MIGRATION_TO_V0.8.md` (v0.7→v0.8 gate 开启顺序 / Playbook schema 变更 / run 端点异步语义 / i18n key / 测试基线自检 / 回滚方案)。
+- [x] **Phase D 验收 (2026-09-04)**: 见下方验收行 (测试数字以本轮实测为准)。
 
 ### 关键事实 (v0.8 Skills Phase A)
 
@@ -61,6 +75,23 @@
 - **run 端点预注册态语义**: POST run → trigger-gate REALTIME 入队 → 返回 ticket_id; worker 消费 skill 票据的执行接线归 B5 (Phase A 票据只入队不执行)
 - **settings kv 复用 SettingsRepository** (settings 表, migration 001): enable/disable = set(skill.<id>.enabled, True/False); kv 未写回落 default_enabled (全 False)
 - **SkillDef 的 input_schema 值是 Python type 对象** — API 层 _json_schema 转 __name__ 字符串序列化
+
+### 关键事实 (v0.8 Skills Phase B/B6)
+
+- **runs/feedback 路由拆文件**: A3 `skill_registry_api.py` 已达 150 行上限, B6 新路由 (`/{id}/runs` · `/runs/{run_id}` · `/runs/{run_id}/feedback`) 拆 `skill_registry_runs_api.py`, 共享 `/api/skill-registry` 前缀 + skill_registry gate, 同源注册避免 150 行合并溢出。
+- **B6 验收链路**: 后端测试 `test_feedback_recall_acceptance` 串完整链路 — POST /runs/{run_id}/feedback score=5 → feedback_log 写入 → `agent_memory.recall` 三路径 (exact > simhash ≤12 > keyword) 命中 + `_attach_feedback_scores` 拼接 avg score → hit.score=5.0。
+- **FeedbackBar 锁定语义**: 一次提交即锁定为 `已反馈 👍/👎`, postJSON 不重复发; 防同 run 重复打分污染 feedback_log (供 recall 学习)。
+- **router-free 设计**: SkillDetail/FeedbackBar/RunHistory 不直接调 useParams, 由路由包装层 SkillDetailRoute 注入 onBack; 既保持单测免 Router 包装, 又避免 router 状态污染组件渲染。SkillDetail 内部 fallback `useParams<{skillId}>()` 让裸 props 也能工作。
+- **historyRef 锚定**: useEffect deps `[searchParams, detail]`, detail 异步加载完成才触发 scrollIntoView, historyRef.current 此时已绑定 (避免初次空 ref)。
+
+### 关键事实 (v0.8 Skills Phase D)
+
+- **模块级 `_default` 可测性模式**: trigger_webhook_api 端点引用 `wh_mod._default` 而非每次 new — 测试 monkeypatch 模块属性即可替换 secret 状态 (fresh `WebhookTrigger()` 永远无 secret, 会绕过签名校验分支)
+- **签名 = SHA-256 HMAC(secret, `path|payload`)** hex digest, path 含 `/api/trigger/webhook/{source}` 前缀; `hmac.compare_digest` 防时序侧信道; R7 fail-closed — 配置了 secret 但请求缺签名头 → 422 拒绝
+- **collector success 不入队**: 早返回 None, 避免高频成功事件把全局限流配额 (60/min) 打满挤掉真实告警; failed→NORMAL / timeout→REALTIME 抢占档
+- **/dashboard 触发时间线是 mock 占位**: `/api/trigger/tickets` 列表端点留 v0.9 (TriggerWorker 表查询 + 分页), 组件层已按 TriggerTicket 契约留好 data-testid
+- **版本一致性校验激活**: 根 AGENTS.md 头部 `当前状态 (2026-09-04, v0.8.0)` 现在被 generate_meta 正则精确匹配, 版本漂移即 CI fail (此前因尾缀文字正则不命中而静默跳过)
+- **i18n 防漂移测试**: I18nContext.test.tsx REQUIRED_KEYS 数组 38 key — 新增 namespace 时改数组即可让缺 key 提前爆红
 
 ### 不在本批范围 (留 Phase B/C/D)
 

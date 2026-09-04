@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch, postJSON } from '../lib/api';
-import { SkillSummary } from '../types/skill';
+import { SkillDetail, SkillRun, SkillSummary } from '../types/skill';
 
 export interface UseSkillRegistryReturn {
   skills: SkillSummary[];
@@ -54,6 +54,92 @@ export function useSkillRegistry(category?: string): UseSkillRegistryReturn {
   }, [category, reloadSeq]);
 
   return { skills, loading, error, refresh };
+}
+
+export interface UseSkillDetailReturn {
+  detail: SkillDetail | null;
+  loading: boolean;
+  error: string | null;
+  refresh: () => void;
+}
+
+/** GET /api/skill-registry/{id} — 详情 (B6 SkillDetail 页数据源) */
+export function useSkillDetail(skillId: string): UseSkillDetailReturn {
+  const [detail, setDetail] = useState<SkillDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadSeq, setReloadSeq] = useState(0);
+
+  const refresh = useCallback(() => setReloadSeq(s => s + 1), []);
+
+  useEffect(() => {
+    if (!skillId) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    apiFetch<SkillDetail>(`/api/skill-registry/${encodeURIComponent(skillId)}`, { skipLoading: true })
+      .then(data => {
+        if (cancelled) return;
+        setDetail(data);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const msg = err instanceof Error && err.message ? err.message : '技能详情加载失败';
+        setError(msg);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [skillId, reloadSeq]);
+
+  return { detail, loading, error, refresh };
+}
+
+export interface UseSkillRunsReturn {
+  runs: SkillRun[];
+  loading: boolean;
+  error: string | null;
+  refresh: () => void;
+}
+
+/** GET /api/skill-registry/{id}/runs?limit=20 — 运行历史 (B6 RunHistory 数据源) */
+export function useSkillRuns(skillId: string): UseSkillRunsReturn {
+  const [runs, setRuns] = useState<SkillRun[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadSeq, setReloadSeq] = useState(0);
+
+  const refresh = useCallback(() => setReloadSeq(s => s + 1), []);
+
+  useEffect(() => {
+    if (!skillId) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    apiFetch<SkillRun[]>(`/api/skill-registry/${encodeURIComponent(skillId)}/runs?limit=20`, {
+      skipLoading: true,
+    })
+      .then(data => {
+        if (cancelled) return;
+        setRuns(Array.isArray(data) ? data : []);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const msg = err instanceof Error && err.message ? err.message : '运行历史加载失败';
+        setError(msg);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [skillId, reloadSeq]);
+
+  return { runs, loading, error, refresh };
 }
 
 export interface UseSkillToggleReturn {

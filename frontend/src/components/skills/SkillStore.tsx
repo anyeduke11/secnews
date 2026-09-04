@@ -10,7 +10,8 @@
  *    错误信封 {detail:{message}} 已被 apiFetch 提为 Error.message, 再按
  *    后端语义 (未启用 → 提示先启用; 触发过于频繁 → 提示稍后再试) 转译。
  *  - 启停: 二次确认在 SkillToggle (window.confirm, 仓库既有模式), 成功后 refresh。
- *  - 详情/历史: Phase A 目标不存在 → 卡片内禁用态 + title 提示 (B6)。
+ *  - 详情/历史: B6 接线 → 跳 /skill-store/:skillId (历史带 ?focus=history);
+ *    回调由路由包装层注入, 页面组件保持 router-free (单测免 Router 包装)。
  *
  * 文案暂硬编码中文 (i18n 接入为 D3 任务; I18nContext 只读使用无既有 key 可复用)。
  * TODO(v0.8 D3): 接入 useI18n 后迁移本页文案。
@@ -35,7 +36,17 @@ function runErrorMessage(raw: string): string {
   return raw || '运行请求失败';
 }
 
-export function SkillStore({ onBack }: { onBack?: () => void }) {
+export function SkillStore({
+  onBack,
+  onDetail,
+  onHistory,
+}: {
+  onBack?: () => void;
+  /** B6: 跳详情页 (路由包装层注入) */
+  onDetail?: (skillId: string) => void;
+  /** B6: 跳详情页并锚定历史区 */
+  onHistory?: (skillId: string) => void;
+}) {
   const [category, setCategory] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -210,6 +221,8 @@ export function SkillStore({ onBack }: { onBack?: () => void }) {
               skill={skill}
               onToggle={handleToggle}
               onRun={handleRun}
+              onDetail={onDetail}
+              onHistory={onHistory}
               busy={busy}
               running={runningId === skill.id}
             />

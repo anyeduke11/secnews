@@ -1,0 +1,45 @@
+# skill_eval/fixtures/source_health_a.yaml
+# C5 Eval v1 fixture 1: A 类巡检 — source-health-scan (A 类, builtin 直调 service)
+#
+# 黄金断言:
+# - 返回 dict 含 running_count 字段 (int)
+# - 含 stats 子字段且为 dict, 含 active/dead/total 三个计数键
+# - active_rate 在 [0.0, 1.0] 范围 (若 0 分母则跳过 range 断言)
+# - 错误字段 (error) 为 None
+
+id: source-health-scan-A-001
+skill_id: source-health-scan
+skill_type: A
+category: operations
+desc: "A 类巡检 - 信源健康扫描: 验证返回结构与字段类型"
+
+inputs:
+  top_n: 10
+
+assertions:
+  - name: returns_dict
+    type: type_check
+    target: result
+    expected: dict
+
+  - name: has_running_count_int
+    type: field_type
+    target: result.running_count
+    expected: int
+
+  - name: has_stats_dict
+    type: field_type
+    target: result.stats
+    expected: dict
+
+  - name: stats_active_rate_range
+    type: range
+    target: result.stats.active_rate
+    min: 0.0
+    max: 1.0
+    skip_if_null: true
+
+  - name: no_error
+    type: equal
+    target: result.error
+    expected: null

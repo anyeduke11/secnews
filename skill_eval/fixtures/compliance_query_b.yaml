@@ -1,0 +1,54 @@
+# skill_eval/fixtures/compliance_query_b.yaml
+# C5 Eval v1 fixture 4: B 类查询 — compliance-status (单 GET API 直查)
+#
+# 黄金断言 (EVAL_C5_B_QUERY):
+# - result.http_status == 200
+# - result.body 含 required 字段列表 (等保 level_2/level_3/关基 categories)
+# - result.body.coverage_pct 范围 [0, 100]
+# - 调用次数 == 1 (B 类直调, 不编排)
+
+id: compliance-status-B-001
+skill_id: compliance-status
+skill_type: B
+category: compliance
+desc: "B 类查询 - 等保合规覆盖查询: 验证 HTTP 状态与字段完整性"
+
+inputs:
+  level: "level_2"
+
+assertions:
+  - name: returns_dict
+    type: type_check
+    target: result
+    expected: dict
+
+  - name: http_status_200
+    type: equal
+    target: result.http_status
+    expected: 200
+
+  - name: body_has_categories
+    type: dict_has_keys
+    target: result.body
+    expected: ["categories", "level", "coverage_pct"]
+
+  - name: coverage_pct_int
+    type: field_type
+    target: result.body.coverage_pct
+    expected: int
+
+  - name: coverage_pct_range
+    type: range
+    target: result.body.coverage_pct
+    min: 0
+    max: 100
+
+  - name: calls_count_eq_1
+    type: equal
+    target: meta.call_count
+    expected: 1
+
+  - name: no_error
+    type: equal
+    target: result.error
+    expected: null

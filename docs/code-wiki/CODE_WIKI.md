@@ -33,7 +33,7 @@
 | [03-frontend.md](03-frontend.md) | 前端详解：技术栈、路由表全量 (哨兵终端首页)、Hooks 数据层、API 客户端、组件目录树、i18n、测试 |
 | [04-subsystems.md](04-subsystems.md) | 子系统：哨兵终端 / SecNews 统一工作台 / Knowledge LLM-Wiki / CodeGarden / Security Graph / Sync / MCP / DSH / CRM / Observability |
 | [05-running.md](05-running.md) | 运行方式：环境要求、安装、启动、配置、测试、CI 门禁、运维 API、开发约定、首页变更与回退、已知注意事项 |
-| [06-firecrawl-comparison.md](06-firecrawl-comparison.md) | 与 [firecrawl/firecrawl](https://github.com/firecrawl/firecrawl) 的对比分析 (定位/架构/采集/质量/调度/存储/LLM/生态) |
+| [06-crawler-comparison.md](06-crawler-comparison.md) | 与 firecrawl / crawl4ai 的批判性对比 (定位/架构/采集/质量/调度/存储/LLM/生态, v0.7.x 自定位) |
 
 ## 快速概览
 
@@ -85,7 +85,7 @@
 ### 关键设计决策
 
 - **单用户、单进程、零外部服务** — 显式不引入 Redis / PostgreSQL / Celery / Elasticsearch / Docker / Prometheus
-  (对比 firecrawl 的多服务微服务栈见 [06](06-firecrawl-comparison.md))
+  (对比 firecrawl / crawl4ai 的多服务微服务栈见 [06](06-crawler-comparison.md))
 - **SQLite WAL 模式** — 线程本地连接 + autocommit; `WORKERS=1` 避免多 worker 锁竞争
 - **文件优先** — Knowledge 以 `llm-wiki-2.0/` `.md` 为唯一真相源, SQLite 是投影索引
   (Watchdog 双向同步; v0.6.3 P4 已删除旧根 `knowledge/`)
@@ -118,4 +118,4 @@ cd frontend && npx tsc --noEmit && npx vitest run      # 345+ passed
 ```
 
 完整说明 (代理配置、环境变量、CI 门禁、运维 API、首页变更回退) 见 [05-running.md](05-running.md)。
-与 firecrawl 的深度对比见 [06-firecrawl-comparison.md](06-firecrawl-comparison.md)。
+与 firecrawl / crawl4ai 的深度对比见 [06-crawler-comparison.md](06-crawler-comparison.md)。

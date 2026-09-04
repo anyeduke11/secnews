@@ -41,6 +41,18 @@ export const SkillsPage = React.lazy(() =>
 export const SkillStore = React.lazy(() =>
   import('../components/skills/SkillStore').then(m => ({ default: m.SkillStore }))
 );
+// v0.8 Phase B (B6): Skill 详情页 + 运行历史回放 + 反馈打分
+export const SkillDetail = React.lazy(() =>
+  import('../components/skills/SkillDetail').then(m => ({ default: m.SkillDetail }))
+);
+// v0.8 Phase C (C4): Skill Builder 4 步向导
+export const SkillBuilder = React.lazy(() =>
+  import('../components/skills/SkillBuilder').then(m => ({ default: m.SkillBuilder }))
+);
+// v0.8 Phase D D2: Dashboard — skill 状态矩阵 + 触发器时间线 + 健康指标
+export const Dashboard = React.lazy(() =>
+  import('../components/dashboard/Dashboard').then(m => ({ default: m.Dashboard }))
+);
 export const SecretsPage = React.lazy(() =>
   import('../components/secrets/SecretsPage').then(m => ({ default: m.SecretsPage }))
 );

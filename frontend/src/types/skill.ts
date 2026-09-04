@@ -40,6 +40,33 @@ export interface SkillDetail extends SkillSummary {
   prompt_template?: string;
 }
 
+/** skill_runs 行 (B6: GET /{id}/runs 与 GET /runs/{run_id}) — migration 091 对齐 */
+export interface SkillRun {
+  run_id: string;
+  ticket_id: string | null;
+  skill_id: string;
+  /** 'running' | 'succeeded' | 'partial' | 'failed' */
+  status: string;
+  phase: string | null;
+  inputs: Record<string, unknown> | null;
+  result: Record<string, unknown> | null;
+  metrics: Record<string, unknown> | null;
+  error: string | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+/** feedback_log 行 (B6: POST /runs/{run_id}/feedback 返回) — migration 093 对齐 */
+export interface SkillFeedback {
+  id: number;
+  skill_run_id: string;
+  skill_id: string;
+  /** 1-5 整数 (👍=5 / 👎=1) */
+  score: number;
+  comment: string;
+  created_at: string;
+}
+
 /** 类别中文标签 — 与后端 category 枚举对齐 */
 export const CATEGORY_LABELS: Record<SkillCategory, string> = {
   operations: '安全运营',

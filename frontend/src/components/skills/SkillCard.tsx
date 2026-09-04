@@ -4,8 +4,8 @@
  * 哨兵 V2 风格: hairline 边框 + bg-card + 类别色条 (左缘 3px), 徽章用等宽小字,
  * 状态 [ON]/[OFF] 由 SkillToggle 承载; React.memo 参考 AgihuntCard 先例
  * (20+ 卡片网格下避免无关重渲染)。
- * 快捷操作: [跑一次] 即时可用; [详情]/[历史] Phase A 跳转目标不存在 →
- * 视觉 disabled + title 提示 (B6 开放)。
+ * 快捷操作: [跑一次]/[详情]/[历史] — 详情/历史由 B6 接线
+ * (未传 onDetail/onHistory 时保持禁用态, 如单测裸渲染场景)。
  */
 import React from 'react';
 import { CATEGORY_LABELS, SKILL_TYPE_LABELS, SkillCategory, SkillSummary } from '../../types/skill';
@@ -27,6 +27,8 @@ interface SkillCardProps {
   onRun: (skill: SkillSummary) => void;
   /** Phase A 未接线: 不传则详情按钮渲染禁用态 */
   onDetail?: (skillId: string) => void;
+  /** B6 接线: 跳详情页历史区 */
+  onHistory?: (skillId: string) => void;
   /** 启停请求在途 (开关禁用) */
   busy?: boolean;
   /** run 请求在途 (跑一次禁用) */
@@ -38,6 +40,7 @@ export const SkillCard = React.memo(function SkillCard({
   onToggle,
   onRun,
   onDetail,
+  onHistory,
   busy = false,
   running = false,
 }: SkillCardProps) {
@@ -128,9 +131,10 @@ export const SkillCard = React.memo(function SkillCard({
         <button
           type="button"
           aria-label={`历史 ${skill.name}`}
-          disabled
-          title="执行历史 B6 开放"
-          className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[12px] border disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!onHistory}
+          title={onHistory ? undefined : '执行历史 B6 开放'}
+          onClick={() => onHistory?.(skill.id)}
+          className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[12px] border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ borderColor: 'var(--line-strong)', color: 'var(--ink-2)' }}
         >
           <Icon size={12}>

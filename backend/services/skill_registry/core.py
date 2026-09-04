@@ -232,3 +232,35 @@ class SkillRegistry:
     def __len__(self) -> int:
         """注册数量 — 测试与启动冒烟用。"""
         return len(self._skills)
+
+    # -- 执行接线 (B2.3) -----------------------------------------------------
+    def execute(
+        self,
+        skill_id: str,
+        inputs: dict,
+        *,
+        ticket_id: str | None = None,
+        runner: "SkillRunner | None" = None,
+    ) -> "SkillRunResult":
+        """按 id 跑一次 skill — gate 校验 + 委托 SkillRunner.run。
+
+        - 未知 id 抛 SkillNotFoundError
+        - gate 关 (is_skill_enabled=False) 抛 PermissionError (fail loud,
+          调用方 B5 worker 应在派发前就过滤; 此处是二次保险)
+        - runner 缺省时懒构造 SkillRunner(), 走 process-singleton 默认路径
+        - 返回 SkillRunResult, 不抛异常 (skill_runner 内部已兜底 → failed)
+
+        反向依赖禁令: 顶层不 import backend.services.skill_runner, 走函数
+        参数注入避免 registry ↔ runner 循环 (B5 worker 传 runner 进来时更友好)。
+        """
+        from backend.services.skill_registry.gate import is_skill_enabled
+        from backend.services.skill_runner import SkillRunner as _Runner, SkillRunResult as _Result
+
+        skill = self.get(skill_id)
+        if not is_skill_enabled(skill_id):
+            raise PermissionError(
+                f"skill 已停用或扩展未注册: {skill_id!r} "
+                f"(检查 kv {skill.feature_gate} AND 父扩展 skill_registry)"
+            )
+        r = runner or _Runner()
+        return r.run(skill, inputs, ticket_id=ticket_id)

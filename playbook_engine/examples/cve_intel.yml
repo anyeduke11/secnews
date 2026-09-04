@@ -1,0 +1,23 @@
+# playbook_engine/examples/cve_intel.yml
+# C1 示例 3: 每日 CVE 情报扫描 — 单 skill + 极简编排 (E2E 跑通路径)
+
+apiVersion: hotspot/v0.8
+kind: Playbook
+metadata:
+  name: daily-cve-intel
+  desc: "每日 CVE 情报扫描, 产出 wiki 归档"
+  owner: builtin
+  tags: [security, daily]
+
+trigger:
+  type: cron
+  spec: "0 9 * * *"
+  timezone: Asia/Shanghai
+
+steps:
+  - id: scan_cve
+    skill: daily-vuln-intel
+    output: cve_result
+
+outputs:
+  primary: scan_cve

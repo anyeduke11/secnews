@@ -170,108 +170,114 @@ class CodegardenOrchestrationService:
         )
 
     # ------------------------------------------------------------------
-    # Playbook — list + run
+    # Playbook — list + run (Phase C C1 升级: 委托 playbook_engine)
     # ------------------------------------------------------------------
     def list_playbooks(self) -> list[dict]:
-        """扫描 codegarden/playbooks/*.yml, 返回 [{name, path, content}]."""
-        playbooks: list[dict] = []
-        if not PLAYBOOKS_DIR.exists():
-            return playbooks
+        """扫描双源 (Phase C 升级): 新 playbook_engine/examples + 旧 codegarden/playbooks.
 
-        for pb_file in sorted(PLAYBOOKS_DIR.glob("*.yml")):
+        新源优先 (R12-style 演进策略); 同 path 跳过 (防御性). 旧 API 字段 (name/path/content/size) 保留.
+        """
+        from backend.services.playbook_engine.loader import EXAMPLES_DIR, list_examples
+
+        out: list[dict] = []
+        seen: set[str] = set()
+
+        # 1. 新引擎 examples (Phase C 优先)
+        for entry in list_examples():
+            p = entry["path"]
+            if p in seen:
+                continue
             try:
-                content = pb_file.read_text(encoding="utf-8")
-                playbooks.append({
-                    "name": pb_file.stem,
-                    "path": str(pb_file),
-                    "content": content,
-                    "size": len(content),
-                })
+                content = Path(p).read_text(encoding="utf-8")
             except Exception as e:
-                logger.warning(f"list_playbooks: read {pb_file} failed: {e}")
-        return playbooks
+                logger.warning(f"list_playbooks: read {p} failed: {e}")
+                continue
+            out.append({"name": entry["name"], "path": p, "content": content, "size": entry["size"]})
+            seen.add(p)
+
+        # 2. 旧 codegarden/playbooks (向后兼容)
+        if PLAYBOOKS_DIR.exists():
+            for pb_file in sorted(PLAYBOOKS_DIR.glob("*.yml")):
+                p = str(pb_file)
+                if p in seen:
+                    continue
+                try:
+                    content = pb_file.read_text(encoding="utf-8")
+                except Exception as e:
+                    logger.warning(f"list_playbooks: read {pb_file} failed: {e}")
+                    continue
+                out.append({"name": pb_file.stem, "path": p, "content": content, "size": len(content)})
+                seen.add(p)
+        return out
 
     def get_playbook(self, name: str) -> dict:
-        """获取单个 Playbook 详情 (含解析后的 steps)."""
-        pb_path = PLAYBOOKS_DIR / f"{name}.yml"
-        if not pb_path.exists():
-            raise InternalException(f"Playbook {name!r} 不存在")
+        """获取单个 Playbook 详情 — Phase C 委托 playbook_engine.load_playbook.
 
-        content = pb_path.read_text(encoding="utf-8")
-        try:
-            import yaml
-            parsed = yaml.safe_load(content) or {}
-        except ImportError:
-            # PyYAML 未安装, 返回原始内容
-            parsed = {}
-        except Exception as e:
-            raise InternalException(f"Playbook {name!r} YAML 解析失败: {e}") from e
+        旧字段 (name/path/content/parsed/steps) 保留, content 为原始 YAML 字符串.
+        """
+        from backend.services.playbook_engine.loader import EXAMPLES_DIR, load_playbook
 
-        return {
-            "name": name,
-            "path": str(pb_path),
-            "content": content,
-            "parsed": parsed,
-            "steps": parsed.get("steps", []) if isinstance(parsed, dict) else [],
-        }
+        for pb_path in (EXAMPLES_DIR / f"{name}.yml", PLAYBOOKS_DIR / f"{name}.yml"):
+            if not pb_path.exists():
+                continue
+            try:
+                pb = load_playbook(str(pb_path))
+            except ValueError as e:
+                raise InternalException(str(e)) from e
+            content = pb_path.read_text(encoding="utf-8")
+            step_dicts = [s.__dict__ for s in pb.steps]
+            return {
+                "name": name,
+                "path": str(pb_path),
+                "content": content,
+                "parsed": {"steps": step_dicts},
+                "steps": step_dicts,
+            }
+        raise InternalException(f"Playbook {name!r} 不存在")
 
     def run_playbook(self, name: str, params: dict | None = None) -> dict:
-        """执行 Playbook — 创建 knowledge_tasks (task_type=playbook_run).
+        """执行 Playbook — Phase C 升级: 委托 PlaybookEngine.execute() (P4-7 + R7 + R8).
 
-        实际执行由 watchdog 或 Agent 异步处理 (与本系统其他 task 一致).
-        Returns: {"task_id": int, "playbook_name": str, "status": "pending"}
+        旧签名保留; 内部走新引擎:
+          1. load → validate (P4-7 黑名单 + R8 引用校验 + R6 50step/1h)
+          2. execute(inputs=params) 同步跑完 (skill/api/condition)
+          3. PlaybookRun.steps 落 knowledge_tasks params (audit + 兼容旧 watcher)
 
-        P4-7: 执行前校验 steps 命令黑名单 (为将来消费者预留 RCE 通道加固):
-        拒绝 sudo / rm -rf / curl|sh / eval / base64 解码执行等危险模式,
-        命中即拒绝创建任务。
+        Returns: {"task_id": int, "playbook_name": str, "status": str (succeeded/partial/...),
+                  "steps_count": int, "run_id": str}
         """
-        pb = self.get_playbook(name)  # 含存在性校验
+        from backend.services.playbook_engine import PlaybookEngine, load_playbook
 
-        # P4-7: 危险命令黑名单 (正则, 大小写不敏感)
-        import re as _re
-        _DANGEROUS_PATTERNS = [
-            r"\bsudo\b",
-            r"\brm\s+-rf?\b",
-            r"\bchmod\s+777\b",
-            r"curl[^\n|]*\|\s*(ba)?sh\b",
-            r"wget[^\n|]*\|\s*(ba)?sh\b",
-            r"\beval\b",
-            r"base64\s+-d",
-            r"python\s+-c",
-            r"bash\s+-c",
-            r"/dev/null\s*;",
-            r">\s*/etc/",
-        ]
-        for step in pb.get("steps", []):
-            step_text = str(step)
-            if isinstance(step, dict):
-                step_text = " ".join(
-                    str(v) for v in (step.get("run") or step.get("command") or step.get("cmd") or step.values())
-                )
-            lowered = step_text.lower()
-            for pat in _DANGEROUS_PATTERNS:
-                if _re.search(pat, lowered):
-                    raise InternalException(
-                        f"Playbook {name!r} step 含危险命令, 已拒绝执行: {pat!r}"
-                    )
+        pb_meta = self.get_playbook(name)  # 含存在性校验 + 旧字段透传
+        loaded = load_playbook(pb_meta["path"])
+
+        engine = PlaybookEngine()  # 默认 BUILTIN registry
+        run = engine.execute(loaded, inputs=params or {})
 
         now = datetime.now(timezone.utc).isoformat()
         task_params = {
             "playbook_name": name,
-            "playbook_path": pb["path"],
-            "steps": pb["steps"],
+            "playbook_path": pb_meta["path"],
+            "run_id": run.run_id,
+            "status": run.status,
+            "steps": [s.to_dict() for s in run.steps],
             "user_params": params or {},
         }
-
         conn = get_connection()
         try:
             conn.execute("BEGIN")
             cur = conn.execute(
                 """
                 INSERT INTO knowledge_tasks (task_type, status, params, created_at, updated_at)
-                VALUES (?, 'pending', ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                ("playbook_run", json.dumps(task_params, ensure_ascii=False), now, now),
+                (
+                    "playbook_run",
+                    run.status,
+                    json.dumps(task_params, ensure_ascii=False),
+                    now,
+                    now,
+                ),
             )
             task_id = int(cur.lastrowid)
             conn.execute("COMMIT")
@@ -283,13 +289,15 @@ class CodegardenOrchestrationService:
             raise InternalException(f"create playbook_run task failed: {e}") from e
 
         logger.info(
-            f"run_playbook: name={name} task_id={task_id} steps_count={len(pb['steps'])}"
+            f"run_playbook: name={name} task_id={task_id} run_id={run.run_id} "
+            f"status={run.status} steps_count={len(loaded.steps)}"
         )
         return {
             "task_id": task_id,
             "playbook_name": name,
-            "status": "pending",
-            "steps_count": len(pb["steps"]),
+            "run_id": run.run_id,
+            "status": run.status,
+            "steps_count": len(loaded.steps),
         }
 
 

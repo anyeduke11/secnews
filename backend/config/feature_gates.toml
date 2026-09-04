@@ -25,4 +25,15 @@ trigger_gate = false  # v0.8 Phase A A1+A5 — skill/playbook 触发单一入口
 agent_loop = false     # v0.8 Phase B B1 — AgentLoop 五阶段状态机
                    # (Intent→Plan→Execute→Reflect→Commit + loop_checkpoints 崩溃恢复 + REFLECT 重试 1).
                    # 默认 false fail-closed, 开闸 + 接 trigger-gate worker 归 B5.
+playbook_engine = false  # v0.8 Phase C C1+C2 — Playbook YAML 引擎 + cron 调度
+                   # (step 类型仅 skill/api/condition, 50step/1h 上限, 危险命令黑名单 P4-7);
+                   # 旧 codegarden_orchestration_service 路由保留, 由新引擎驱动.
+                   # 默认 false fail-closed, 开闸 + 接 trigger-gate 归 D2.
+user_skills = false     # v0.8 Phase C C3 — Skill Builder (用户自建 skill)
+                   # (user_skills 表 50 上限 + 软删 + dry-run + importlib.find_spec 校验);
+                   # 仅支持 builtin runner (Phase C 范围); E 操作型 v0.8 不开放.
+                   # 默认 false fail-closed, 开闸 + 接 trigger-gate 归 D2.
+skill_eval = false     # v0.8 Phase C C5 — Eval (5 黄金 fixture + 评分 + 报告)
+                   # (黄金 skill fixtures + judge 评分 + SQLite 报告); 默认 false.
+                   # 开闸 + Skill Builder 联动归 D2.
 

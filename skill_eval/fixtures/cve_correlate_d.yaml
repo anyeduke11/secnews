@@ -1,0 +1,67 @@
+# skill_eval/fixtures/cve_correlate_d.yaml
+# C5 Eval v1 fixture 3: D 类分析 — cve-cross-period (跨期关联分析)
+#
+# 黄金断言 (EVAL_C5_D_ANALYSIS):
+# - result 为 dict, 含 correlations 字段 (list)
+# - 每条 correlation 至少含 cve_id / period_a / period_b / score 4 个键
+# - score 范围 [0.0, 1.0], 平均分 > 0.5 (高质量关联)
+# - 跨期字段差异天数 >= 7 (D 类分析的核心语义: 跨期不是同期)
+
+id: cve-cross-period-D-001
+skill_id: cve-cross-period
+skill_type: D
+category: analysis
+desc: "D 类分析 - CVE 跨期关联: 验证关联分数与跨期天数"
+
+inputs:
+  window_days: 30
+  min_correlation_score: 0.5
+
+assertions:
+  - name: returns_dict
+    type: type_check
+    target: result
+    expected: dict
+
+  - name: correlations_is_list
+    type: type_check
+    target: result.correlations
+    expected: list
+
+  - name: correlation_has_cve_id
+    type: list_field_type
+    target: result.correlations
+    field: cve_id
+    expected: str
+
+  - name: correlation_score_is_float
+    type: list_field_type
+    target: result.correlations
+    field: score
+    expected: float
+
+  - name: correlation_has_score_range
+    type: list_field_range
+    target: result.correlations
+    field: score
+    min: 0.0
+    max: 1.0
+
+  - name: avg_score_above_threshold
+    type: list_avg_above
+    target: result.correlations
+    field: score
+    threshold: 0.5
+    skip_if_empty: true
+
+  - name: period_gap_at_least_7_days
+    type: list_field_min
+    target: result.correlations
+    field: period_gap_days
+    min: 7
+    skip_if_empty: true
+
+  - name: no_error
+    type: equal
+    target: result.error
+    expected: null

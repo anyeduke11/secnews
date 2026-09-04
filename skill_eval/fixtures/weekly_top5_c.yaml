@@ -1,0 +1,59 @@
+# skill_eval/fixtures/weekly_top5_c.yaml
+# C5 Eval v1 fixture 2: C 类报告 — weekly-top-events (LLM 摘要型)
+#
+# 黄金断言 (EVAL_C5_C_REPORT):
+# - result 为 dict
+# - 含 top5 字段且为 list, length = 5
+# - 每条 item 必含 title/importance/source 三个键 (LLM 输出 schema 约束)
+# - title 长度 >= 4 字符 (避免空标题退化)
+# - importance 字段包含中文 (≤200 字符, 1 句理由)
+
+id: weekly-top-events-C-001
+skill_id: weekly-top-events
+skill_type: C
+category: operations
+desc: "C 类报告 - 本周 top5 安全事件: 验证 LLM 输出结构 + 中文约束"
+
+inputs:
+  category: security
+  time_range: 7d
+  limit: 50
+
+assertions:
+  - name: returns_dict
+    type: type_check
+    target: result
+    expected: dict
+
+  - name: top5_is_list
+    type: type_check
+    target: result.top5
+    expected: list
+
+  - name: top5_count_5
+    type: length_eq
+    target: result.top5
+    expected: 5
+
+  - name: each_item_has_title
+    type: list_field_type
+    target: result.top5
+    field: title
+    expected: str
+
+  - name: title_min_length
+    type: list_field_min_length
+    target: result.top5
+    field: title
+    min_length: 4
+
+  - name: each_item_has_importance
+    type: list_field_type
+    target: result.top5
+    field: importance
+    expected: str
+
+  - name: no_error
+    type: equal
+    target: result.error
+    expected: null

@@ -40,6 +40,42 @@ function HistoryPageRoute() {
   return <P.HistoryPage favoritedIds={favoritedIds} onToggleFavorite={toggleFavorite} />;
 }
 
+// v0.8 Phase B (B6): /skill-store 路由包装 — 导航回调在此收敛, 页面组件保持 router-free
+function SkillStoreRoute() {
+  const navigate = useNavigate();
+  return (
+    <P.SkillStore
+      onBack={() => navigate('/')}
+      onDetail={id => navigate(`/skill-store/${encodeURIComponent(id)}`)}
+      onHistory={id => navigate(`/skill-store/${encodeURIComponent(id)}?focus=history`)}
+    />
+  );
+}
+
+// v0.8 Phase B (B6): /skill-store/:skillId 详情页包装 — 路由参数注入 + 返回商店
+// skillId 从 useParams 注入已不需要, SkillDetail 自己 fallback 到路由
+function SkillDetailRoute() {
+  const navigate = useNavigate();
+  return <P.SkillDetail onBack={() => navigate('/skill-store')} />;
+}
+
+// v0.8 Phase C (C4): /skill-store/new 包装 — 4 步创建向导
+function SkillBuilderRoute() {
+  const navigate = useNavigate();
+  return (
+    <P.SkillBuilder
+      onBack={() => navigate('/skill-store')}
+      onCreated={id => navigate(`/skill-store/${encodeURIComponent(id)}`)}
+    />
+  );
+}
+
+// v0.8 Phase D (D2): /dashboard 包装 — 技能看板
+function DashboardRoute() {
+  const navigate = useNavigate();
+  return <P.Dashboard onBack={() => navigate('/skill-store')} />;
+}
+
 export function AppRoutes() {
   const navigate = useNavigate();
   // v0.4.3: 扩展路由按 feature flag 条件渲染 (core 路由永远注册)
@@ -71,6 +107,14 @@ export function AppRoutes() {
         <Route path="/todos" element={<Suspense fallback={<PageFallback />}><P.TodosPage /></Suspense>} />
         <Route path="/history" element={<Suspense fallback={<PageFallback />}><HistoryPageRoute /></Suspense>} />
         <Route path="/skills" element={<Suspense fallback={<PageFallback />}><P.SkillsPage onBack={goHome} /></Suspense>} />
+        {/* v0.8 Phase A (A4): 技能商店 (/skill-registry) — /skills 已被 Phase 41 技能库占用, 故用 /skill-store */}
+        <Route path="/skill-store" element={<Suspense fallback={<PageFallback />}><SkillStoreRoute /></Suspense>} />
+        {/* v0.8 Phase B (B6): 详情页 + 运行历史回放 + 反馈打分 */}
+        <Route path="/skill-store/:skillId" element={<Suspense fallback={<PageFallback />}><SkillDetailRoute /></Suspense>} />
+        {/* v0.8 Phase C (C4): Skill Builder 4 步向导 */}
+        <Route path="/skill-store/new" element={<Suspense fallback={<PageFallback />}><SkillBuilderRoute /></Suspense>} />
+        {/* v0.8 Phase D (D2): 技能看板 */}
+        <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><DashboardRoute /></Suspense>} />
         <Route path="/secrets" element={<Suspense fallback={<PageFallback />}><P.SecretsPage onBack={goHome} /></Suspense>} />
         {features.sync && (
           <Route path="/sync" element={<Suspense fallback={<PageFallback />}><P.SyncPage onBack={goHome} /></Suspense>} />

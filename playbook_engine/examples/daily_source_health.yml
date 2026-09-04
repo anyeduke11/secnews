@@ -1,0 +1,45 @@
+# playbook_engine/examples/daily_source_health.yaml
+# C1 示例 1: 每日信源健康巡检 — 跑 source-health-scan skill, 条件命中后
+# 调本机 /api/codegarden/tasks 建 ticket (spec §5.1 daily-source-health 风格)。
+# 所有引用 skill 必须已注册 (R8) — source-health-scan 是 builtin 20 之一。
+
+apiVersion: hotspot/v0.8
+kind: Playbook
+metadata:
+  name: daily-source-health
+  desc: "每天 8am 跑信源质量巡检, 死源超阈自动建 ticket"
+  owner: builtin
+  tags: [operations, daily]
+
+trigger:
+  type: cron
+  spec: "0 8 * * *"
+  timezone: Asia/Shanghai
+
+inputs:
+  hours:
+    type: int
+    default: 24
+  top_n:
+    type: int
+    default: 10
+
+steps:
+  - id: scan
+    skill: source-health-scan
+    params:
+      top_n: "{{ inputs.top_n }}"
+    output: scan_result
+
+  - id: ticket_if_dead
+    if: "{{ steps.scan_result.output.running_count >= 0 }}"
+    type: api
+    action: POST /api/codegarden/tasks
+    body:
+      title: "信源巡检完成 {{ inputs.hours }}h 窗口"
+      body:
+        stats: "{{ steps.scan_result.output.outputs.stats }}"
+        running: "{{ steps.scan_result.output.outputs.running_count }}"
+
+outputs:
+  primary: scan

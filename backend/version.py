@@ -29,6 +29,15 @@ Step 1 (D.1-D.7) 灰度通过后, 物理删除 19+4 个 .tsx (3 三层目录 + 4
 workbench_legacy gate 退役; 根路径 / 与 404 fallback 跳 /workbench;
 ReviewMode + DeepReadMode 保留为主路径, 8 个 knowledge 域组件 (KnowledgeImport/Process/Compile/Compound/FavoritesView/AttentionHeatmap) 不变;
 迁移 checklist docs/v0.7_migration_checklist.md (199 行) 全 ✅.
+
+v0.8.0 (2026-09-04): v0.8 Skills — Skill/Playbook 双轨看板型 AI 智能体 (Phase A/B/C/D 全绿)
+Phase A: trigger_gate 包 (限流 + trigger_tickets 持久化队列 + 三档优先级) + skill_registry 包
+(20 内置 skill 静态注册 + 反模式 linter) + /api/skill-registry API + /skill-store 前端;
+Phase B: agent_loop 五阶段 + agent_memory v2 + worker 执行接线 + B6 详情页/历史回放/反馈打分;
+Phase C: playbook_engine (skill/api/condition 三类 Step) + cron 调度持久化 + skill_builder
+(user_skills 表 + 4 步向导) + skill_eval 5 黄金 fixtures 评测框架;
+Phase D: webhook/KL 事件/collector failure 三触发源 + /dashboard 看板 + i18n 双语补齐;
+见 docs/V0.8_REFACTOR_PLAN.md / docs/V0.8_USER_GUIDE.md。
 """
 
-APP_VERSION = "0.7.0"
+APP_VERSION = "0.8.0"

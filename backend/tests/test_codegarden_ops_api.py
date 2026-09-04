@@ -393,11 +393,12 @@ def test_run_playbook_not_exist_returns_404(client):
 
 def test_run_playbook_returns_202(tmp_path, monkeypatch):
     """需 mock PLAYBOOKS_DIR, 用独立 fixture."""
-    # 创建临时 playbook
+    # 创建临时 playbook (Phase C 新引擎 schema: metadata + steps with kind=skill/api)
     pb_dir = tmp_path / "playbooks"
     pb_dir.mkdir()
     (pb_dir / "test-pb.yml").write_text(
-        "name: test-pb\nsteps:\n  - name: step1\n    run: echo hello\n",
+        "kind: Playbook\nmetadata:\n  name: test-pb\n  desc: 'unit test playbook'\nsteps:\n"
+        "  - id: step1\n    kind: api\n    action: GET /api/_dummy\n    output: api_result\n",
         encoding="utf-8",
     )
 

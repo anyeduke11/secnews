@@ -143,6 +143,30 @@ class LLMService:
             return "default"
         return "unknown"
 
+    # ── v0.8.1 Day 3: 运行时弹性接线 (V0.8.1_PRD v1.0 §2.2) ──────────
+    @staticmethod
+    def _provider_allowed(provider_name: str) -> bool:
+        """breaker 前置检查 — OPEN 期跳过该 provider。
+
+        拒绝 ≠ 失败: 熔断拒绝**不计入**健康窗口 (否则拒绝会持续恶化窗口,
+        provider 永远无法经探针恢复)。检查失败按放行处理 (观测不可拖垮业务)。
+        """
+        try:
+            from backend.services.ai_hub.provider_health import get_provider_health
+            return get_provider_health().get_breaker(provider_name).allow()
+        except Exception as e:
+            log.warning("breaker check failed (ignored, allow-by-default): %s", e)
+            return True
+
+    @staticmethod
+    def _record_result(provider_name: str, ok: bool) -> None:
+        """真实调用结果 → ProviderHealth 记账 (窗口判定 + breaker 驱动)。"""
+        try:
+            from backend.services.ai_hub.provider_health import get_provider_health
+            get_provider_health().record(provider_name, ok)
+        except Exception as e:
+            log.warning("provider health record failed (ignored): %s", e)
+
     async def score(self, content: str, hotspot_id: str = "") -> float:
         """T1 评分，返回 0~10.
 
@@ -161,6 +185,9 @@ class LLMService:
                 pass
 
         for provider_name in self._try_order("score"):
+            if not self._provider_allowed(provider_name):
+                log.warning("provider %s skipped (breaker open), trying next", provider_name)
+                continue
             t0 = time.monotonic()
             try:
                 cfg = self._config.providers[provider_name]
@@ -210,6 +237,9 @@ class LLMService:
             return cached
 
         for provider_name in self._try_order("summary"):
+            if not self._provider_allowed(provider_name):
+                log.warning("provider %s skipped (breaker open), trying next", provider_name)
+                continue
             t0 = time.monotonic()
             try:
                 cfg = self._config.providers[provider_name]
@@ -261,6 +291,9 @@ class LLMService:
                 pass
 
         for provider_name in self._try_order("ner"):
+            if not self._provider_allowed(provider_name):
+                log.warning("provider %s skipped (breaker open), trying next", provider_name)
+                continue
             t0 = time.monotonic()
             try:
                 cfg = self._config.providers[provider_name]
@@ -319,6 +352,9 @@ class LLMService:
             return cached
 
         for provider_name in self._try_order(task):
+            if not self._provider_allowed(provider_name):
+                log.warning("provider %s skipped (breaker open), trying next", provider_name)
+                continue
             t0 = time.monotonic()
             try:
                 cfg = self._config.providers[provider_name]
@@ -376,29 +412,38 @@ class LLMService:
         """
         t0 = time.monotonic()
 
-        if cfg.type == "ollama":
-            result = await self._call_ollama(
-                cfg, model, prompt, max_tokens=max_tokens, temperature=temperature
-            )
-        elif cfg.type == "openai":
-            result = await self._call_openai(
-                cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
-                provider_name=provider_name,
-            )
-        elif cfg.type == "openai_compatible":
-            result = await self._call_openai_compatible(
-                cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
-                provider_name=provider_name,
-            )
-        elif cfg.type == "anthropic":
-            result = await self._call_anthropic(
-                cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
-                provider_name=provider_name,
-            )
-        else:
-            raise ValueError(f"Unsupported provider type: {cfg.type}")
+        try:
+            if cfg.type == "ollama":
+                result = await self._call_ollama(
+                    cfg, model, prompt, max_tokens=max_tokens, temperature=temperature
+                )
+            elif cfg.type == "openai":
+                result = await self._call_openai(
+                    cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
+                    provider_name=provider_name,
+                )
+            elif cfg.type == "openai_compatible":
+                result = await self._call_openai_compatible(
+                    cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
+                    provider_name=provider_name,
+                )
+            elif cfg.type == "anthropic":
+                result = await self._call_anthropic(
+                    cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
+                    provider_name=provider_name,
+                )
+            else:
+                raise ValueError(f"Unsupported provider type: {cfg.type}")
+        except Exception:
+            # v0.8.1 Day 3: 真实失败 → 健康窗口记账 (判定/breaker 驱动在
+            # ProviderHealth.record 内), 再向上抛给调用方的 fallback 循环。
+            if provider_name:
+                self._record_result(provider_name, False)
+            raise
 
         elapsed_ms = (time.monotonic() - t0) * 1000
+        if provider_name:
+            self._record_result(provider_name, True)
         log.debug("LLM call %s/%s: %dms", cfg.type, model, int(elapsed_ms))
         return result
 

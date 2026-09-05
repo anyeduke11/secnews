@@ -233,6 +233,13 @@
 > **env (D3)**: `HOTSPOT_BREAKER_FAILURE_THRESHOLD=0.5` / `MIN_SAMPLES=4` / `RECOVERY_TIMEOUT=30`, 非法值安全回退。
 > **验收**: 23/23 全绿 (窗口滚动/淘汰/阈值边界/隔离/8 线程×50 record 无丢账/env 覆盖) + ruff 0 错; **generate_meta services 107 不变** (包内新文件不改口径, PLAN §7 预期一致)。
 
+### 2026-09-05 v0.8.1 Day 3 — gateway + image 接入 (弹性闭环) (本批)
+
+> **来源**: PRD v1.0 §8 Day 3; PLAN v1.2 §2.3 D3 (审查 P0-2 数据闭环)。
+> **范围**: ① gateway.py: `_provider_allowed` (breaker 前置, **拒绝 ≠ 失败不计账** — 否则拒绝持续恶化窗口永无恢复) + `_record_result` + **`_call_provider` 成败集中记账** (4 方法唯一真实出站口, try/except 包裹) + 4 循环头 skip 检查; ② image_service.py: generate/understand 两直连点 breaker 前置 (OPEN 快速失败, **allow() 到期授予探针 → 图片路径参与恢复探测**) + `_record` 内回写 health (覆盖全部成败路径); ③ service.py: `AIService.provider_health()` 快照访问器 (Day 4 /health 消费)。
+> **测试教训 (2 个)**: ① mock `_call_provider` 本体会绕过记账路径 → 必须 mock 下层 per-type 方法让真实 `_call_provider` 执行; ② 同 type provider 的同名方法 setattr 互相覆盖 → a/b/c 三 provider 分设 openai/anthropic/ollama 三种 type。
+> **验收**: test_ai_hub_failover **12/12** (跳过不计账/成败记账/unhealthy 自动 trip 中途熔断/探针恢复/探针失败重开/三任务共用窗口/image 拒绝不发 HTTP/image 双点记账) + 定向回归 127 passed + ruff 0 错。
+
 ### 2026-09-02 SettingsHub V2 — 哨兵化全重设计 + 5 子组件拆分 (本批)
 
 > **来源**: 用户指令 "哨兵以外的 UI/UX 调整, 参考哨兵进行美化" + 四问决策 (Q1 加 dashboard 用途/代价/习惯说明, Q2 拆 5 子组件, Q3 全重设计, Q4 测试全重写一步到位)。

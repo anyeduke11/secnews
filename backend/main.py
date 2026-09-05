@@ -30,7 +30,7 @@ from backend.cache import invalidate as cache_invalidate
 from backend.cache import warmup
 from backend.config import config
 from backend.exceptions import register_exception_handlers
-from backend.logging_config import setup as setup_logging
+from backend.logging_config import logger, setup as setup_logging
 from backend.observability import log_event, set_start_time
 from backend.repository.db import close_db, init_db
 from backend.scheduler.jobs import set_service
@@ -72,6 +72,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             log.info("MCP server disabled (feature.mcp_server=False), SSE endpoint not mounted")
     except Exception as e:
         log.warning(f"MCP setup failed (ignored): {e}")
+    # v0.8.2 X-B3: mcp 双开关契约显式化 — stdlib log 全仓不可见, 两态诊断走 loguru
+    try:
+        from backend.extensions import is_extension_enabled
+        logger.info(
+            "MCP switches: server={} (config.feature_mcp) | debug routes /api/mcp/*={} (gate mcp)",
+            "on" if is_mcp_enabled() else "off",
+            "on" if is_extension_enabled("mcp") else "off",
+        )
+    except Exception as e:  # pragma: no cover
+        log.warning(f"MCP switch diagnostic failed (ignored): {e}")
 
     svc = CollectionService()
     set_service(svc)

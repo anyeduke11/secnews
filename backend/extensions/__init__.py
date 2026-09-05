@@ -39,8 +39,8 @@ _EXTENSION_NAMES = (
     # v0.8.1 Day 0 开闸演练 (2026-09-05): user_skills 自 Phase C C3 落地后
     # 一直漏登记 → _load_gates 过滤恒 False → /api/skill-builder 从未注册,
     # Skill Builder 前端永远 404。Phase A "关键事实"预言的"随实现登记"欠账。
-    # agent_loop / playbook_engine / skill_eval 同样未登记但**无消费点**
-    # (服务本体不受 gate 控制), 维持死配置键, 随未来消费点再登记。
+    # (v0.8.2 X-B3 治理: agent_loop / playbook_engine / skill_eval 三个无消费点
+    # 死键已从 TOML 移除; gate 化须随消费点同时登记, 勿再留无效配置键。)
     "user_skills",
 )
 

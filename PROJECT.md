@@ -29,7 +29,7 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 ```
 
 - **关键路径**: `backend/main.py` → `api/__init__.py register_routers()` (core 白名单 + 扩展按 gate 条件注册) → `scheduler/scheduler.py` (51 job 集中注册, 实现在 `scheduler/jobs/` 按域拆分) → `repository/db.py` 启动期 ATTACH warm/cold。
-- **feature gates**: `backend/config/feature_gates.toml` 16 gate — 开 8 (codegarden/codegarden_phase2b/sync/tech_stack/security_graph/secnews/crm/dsh), 关 8 (mcp/info_filter + v0.8 Skills 六 gate, fail-closed 未开闸)。
+- **feature gates**: `backend/config/feature_gates.toml` 13 gate — 开 12 (codegarden/codegarden_phase2b/sync/tech_stack/security_graph/secnews/crm/dsh + info_filter/skill_registry/trigger_gate/user_skills, 2026-09-05 Day 0 演练通电), 关 1 (mcp, 只管 /api/mcp/* 调试路由; server 本体走 config.feature_mcp)。v0.8.2 X-B3: agent_loop/playbook_engine/skill_eval 三个无消费点死键已移除。
 
 ## 模块地图
 

@@ -18,8 +18,8 @@
 > **架构数字由 `scripts/generate_meta.py` AST 反推维护** (51 jobs / 14 collectors / 73 routers / 107 services),
 > 改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
 
-- **开关源**: `backend/config/feature_gates.toml` — 当前 16 gate: 默认开启 15 (codegarden / codegarden_phase2b / sync / tech_stack / security_graph / secnews / crm / dsh + v0.8 七 gate info_filter·skill_registry·trigger_gate·agent_loop·playbook_engine·user_skills·skill_eval, 2026-09-05 Day 0 开闸演练通电);
-  默认关闭 1 (mcp — extension gate 只管 /api/mcp/* 调试路由, server 本体由 is_mcp_enabled() 读 config.feature_mcp, 两套开关语义分裂)
+- **开关源**: `backend/config/feature_gates.toml` — 当前 13 gate: 默认开启 12 (codegarden / codegarden_phase2b / sync / tech_stack / security_graph / secnews / crm / dsh + v0.8 四 gate info_filter·skill_registry·trigger_gate·user_skills, 2026-09-05 Day 0 开闸演练通电);
+  默认关闭 1 (mcp — extension gate 只管 /api/mcp/* 调试路由, server 本体由 is_mcp_enabled() 读 config.feature_mcp, 双开关契约见 mcp_config.py docstring)。agent_loop/playbook_engine/skill_eval 三个无消费点死键已移除 (v0.8.2 X-B3), gate 化须随消费点同时登记 (user_skills 先例)
 - **core 永不消失**: `backend/core/routers.py` 45 个 core router 白名单, 与扩展域防重叠断言;
   扩展 router 按 `is_extension_enabled()` 条件注册 (关闭时路由 404)
 - **job 门控**: `scheduler.py` `_is_job_enabled()` 按扩展归属过滤 8 个扩展 job

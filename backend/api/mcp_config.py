@@ -70,7 +70,13 @@ MCP_TOOL_OPERATION_IDS = [
 
 
 def is_mcp_enabled() -> bool:
-    """读 settings, 检查 feature.mcp_server 状态。"""
+    """MCP server 本体开关 — 读 ``config.feature_mcp`` (env/.env 可覆盖, 默认 true)。
+
+    双开关契约 (v0.8.2 X-B3 治理, 两键语义不同源、勿合并):
+    - 本函数 = server 本体: /mcp/sse 挂载 + tool registry seed + stdio main
+    - ``feature_gates.toml`` 的 ``extensions.mcp`` 只控制 /api/mcp/* 调试路由注册
+    启动日志 (main.py lifespan) 会以 loguru 同时打印两态, 便于诊断"开了没生效"。
+    """
     try:
         from backend.config import config
         return bool(getattr(config, "feature_mcp", True))

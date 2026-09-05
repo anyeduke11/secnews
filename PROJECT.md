@@ -99,7 +99,7 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 
 ## 生命周期
 
-当前阶段：**开发 (v0.8.1 batch)** — Day 0 完成 (graceful + 演练 + 通电, `3bfce93`); **Day 1 完成 (2026-09-05)**: CircuitBreaker 薄状态机 + 14 测试; 下一 Day 2 = ProviderHealth (唯一判定源) → Day 3 gateway/image 接入 → Day 4 /api/llm/health + scenario 权重 → Day 5 回归; 规格 = [`docs/V0.8.1_PRD.md`](docs/V0.8.1_PRD.md) v1.0 + [`docs/V0.8.1_PLAN.md`](docs/V0.8.1_PLAN.md) v1.2。
+当前阶段：**开发 (v0.8.1 batch)** — Day 0 完成 (graceful + 演练 + 通电, `3bfce93`); Day 1 完成 (CircuitBreaker 薄状态机 + 14 测试); **Day 2 完成 (2026-09-05)**: ProviderHealth 唯一判定源 (5min 窗判定 + min_samples 防单发误熔断 + breaker 驱动, 23 测试, services 107 不变); 下一 Day 3 = gateway + image_service 接入 → Day 4 /api/llm/health + scenario 权重 → Day 5 回归; 规格 = [`docs/V0.8.1_PRD.md`](docs/V0.8.1_PRD.md) v1.0 + [`docs/V0.8.1_PLAN.md`](docs/V0.8.1_PLAN.md) v1.2。
 
 ### 阶段检查记录
 

@@ -1,10 +1,10 @@
 # PROJECT.md — 项目心智模型
 
-> **2026-09-05 全面刷新** (project-brain 中途接入): 本文件曾冻结在 2026-08-07 "架构阶段", 描述的前端三层 (资料/判断/行动, /data/judge/action) 已于 v0.7.0 **物理删除** (历史见 git log + ~~docs/superpowers/specs/2026-08-06-second-brain-three-layer-architecture-prd.md~~ 废止)。现按 v0.8.0 现实重写; 决策日志历史行保留。
+> **2026-09-05 全面刷新** (project-brain 中途接入): 本文件曾冻结在 2026-08-07 "架构阶段", 描述的前端三层 (资料/判断/行动, /data/judge/action) 已于 v0.7.0 **物理删除** (历史见 git log + ~~docs/superpowers/specs/2026-08-06-second-brain-three-layer-architecture-prd.md~~ 废止)。现按 v0.8.1 现实重写; 决策日志历史行保留。
 
 ## 项目概述
 
-- **一句话描述**: 面向 AI + 安全从业者的单人本地工作站 — SecNews 资讯聚合 + 知识复利 + Skill/Playbook 看板型 AI 智能体 (v0.8.0)。
+- **一句话描述**: 面向 AI + 安全从业者的单人本地工作站 — SecNews 资讯聚合 + 知识复利 + Skill/Playbook 看板型 AI 智能体 (v0.8.1, 运行时弹性层已通电)。
 - **核心目标**:
   1. 看板型 AI 智能体: 常用对话/prompt/skill 固化为主面板可启停功能 (非 chatbox) — Skill 商店 + Playbook YAML 双轨
   2. 知识复利闭环: 采集 → wiki-first md 真源 → 学习/掌握 → 输出
@@ -99,7 +99,7 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 
 ## 生命周期
 
-当前阶段：**开发 (v0.8.1 batch)** — Day 0-3 完成 (通电 / CircuitBreaker / ProviderHealth / gateway+image 接入); **Day 4 完成 (2026-09-05)**: `/api/observability/llm/health` + reset 端点 (routers 73 不变) + breaker 迁移 audit_log 留痕 + `quality/scenario_router.py` 场景权重 (deep 重排 fallback 尾部, light 零变化); 下一 Day 5 = 全量回归 + 文档收口; llm.yaml per-provider 阈值字段推迟 v0.8.2 (偏离已记录 PROGRESS); 规格 = [`docs/V0.8.1_PRD.md`](docs/V0.8.1_PRD.md) v1.0 + [`docs/V0.8.1_PLAN.md`](docs/V0.8.1_PLAN.md) v1.2。
+当前阶段：**v0.8.1 batch 完成 (2026-09-05), 待收尾动作** — Day 0-5 全绿: 通电 (7 gate true) + graceful shutdown (20× soak) + 弹性层 (CircuitBreaker/ProviderHealth/gateway+image 接入//health 端点/场景权重) + 全量回归 **3818 passed / 0 failed**; version 0.8.1。**待办**: ① tag `v0.8.1` 本地打点 + 远端推送 (用户授权, V2-C11) ② 次周 D-d pi live 实测 ③ v0.8.2 候选 (llm.yaml per-provider 阈值 / error_classifier / react-query)。规格 = [`docs/V0.8.1_PRD.md`](docs/V0.8.1_PRD.md) v1.1 + [`docs/V0.8.1_PLAN.md`](docs/V0.8.1_PLAN.md) v1.3。
 
 ### 阶段检查记录
 

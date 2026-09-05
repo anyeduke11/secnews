@@ -11,6 +11,7 @@
 > 所有数字均从代码/文件核对（迁移 60+、router 70、jobs 51、collectors 14、services 107、测试 3500+/380+、备份保留 7、同步上限 100k），`scripts/generate_meta.py --check` 是 CI 门禁。
 > v0.8 Skills Phase A (2026-09-04): Skill/Playbook 双轨看板 — `trigger_gate/` (限流+持久化队列+三档优先级+worker 泵, migration 091) + `skill_registry/` (20 内置 skill, 反模式 linter) + `/api/skill-registry/*` 5 端点 + 前端 `/skill-store` + gates skill_registry/trigger_gate 默认 false。设计见 [docs/V0.8_SKILLS.md](V0.8_SKILLS.md), 进度见 PROGRESS.md。
 > v0.8 P1 (2026-09-03): 独立资讯筛选门禁 — `info_filter_service` (CRUD/校验/evaluate) + `info_filter_gate` (5s TTL cache + Layer 1 源级 + Layer 2 item 级 hooks) + `/api/info-filter/{rules,preview,gate}` 6 端点 + 前端 InfoFilterCard (SettingsHub 17 cat) + feature_gates.toml `info_filter=false` 默认关闭。详见 PROGRESS.md。
+> v0.8.1 (2026-09-05): 运行时弹性层 + Skills 通电 — 七 gate 开闸演练通过后保持 true (mcp 回关); `utils/shutdown.py` graceful shutdown (drain + WAL checkpoint); `utils/circuit_breaker.py` 薄状态机 + `ai_hub/provider_health.py` 唯一判定源 (5min 滑窗 + min_samples) + gateway/image 集中记账; `/api/observability/llm/health` + reset; breaker 迁移 audit_log; `quality/scenario_router.py` deep 场景权重重排。见 [docs/V0.8.1_PLAN.md](V0.8.1_PLAN.md)。
 > v0.7.4 (2026-09-02): ai_hub 三场景路由 (deep/light/image) — `scenarios.py` 单点 + `image_service.py` 复用 Batch ⑥ 凭据链 + `/api/image/{generate,understand}` + QualitySettings 折叠面板 + ImageStudio 工具页 + sensenova-u1.5-lite (文生图) + deepseek-v4-pro (深度档 yaml 升级)。
 > v0.7.2 (2026-08-31): llm_secrets 接入 AIService + key_source 兑现 (Batch ⑥, 详见 PROGRESS.md)
 > v0.7.0 (2026-08-30): 观测地基 (PRD §5.1) + LLM provider 四级链 (env > settings.kv > router > yaml)
@@ -116,6 +117,7 @@ COLD 加密: `scripts/cold_db_crypto.py encrypt|decrypt|verify`，格式 `<16-by
 | 6 | **组件过大** | `SyncPage.tsx` / `SecretsPage.tsx` 约 800 行，需拆分 |
 | 7 | **Mimosa 密封扫描** | 未启用 (P2-4, 见 [docs/SECURITY_AUDIT.md](SECURITY_AUDIT.md) §1; 工具不可用待 sandbox 释放) |
 | 8 | **info_filter 资讯筛选门禁 (v0.8 P1)** | 已落地: `info_filter_service` (CRUD/校验/evaluate, deny>allow>neutral 三优先级) + `info_filter_gate` (5s TTL cache + 2 层: Layer 1 源级 allow/deny + Layer 2 item 落库前 drop) + 6 端点 API + 前端 InfoFilterCard (SettingsHub 17 cat, V2 sentinelized) + `feature_gates.toml info_filter=false` 默认关闭 (fail-closed). 受管门禁, 路由级条件注册, gate off → 采集器自动降级全放行 |
+| 9 | **运行时弹性层 (v0.8.1)** | 已落地 + 通电 (2026-09-05 Day 0-5): 七 gate 开闸演练通过 (修复 user_skills gate 漏登记 P0) → 7 gate true; `utils/shutdown.py` graceful shutdown (drain + WAL checkpoint, 20× SIGTERM soak 零损坏); `utils/circuit_breaker.py` 薄状态机 + `ai_hub/provider_health.py` 唯一判定源 (5min 滑窗 + min_samples=4 防单发误熔断) + gateway/_call_provider 集中记账 + image 双直连点接入; `/api/observability/llm/health` + reset; breaker 迁移 audit_log; `quality/scenario_router.py` deep 权重重排. 遗留: llm.yaml per-provider 阈值 (v0.8.2), pi live 实测 (次周) |
 
 ---
 

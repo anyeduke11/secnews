@@ -38,6 +38,16 @@ Phase C: playbook_engine (skill/api/condition 三类 Step) + cron 调度持久�
 (user_skills 表 + 4 步向导) + skill_eval 5 黄金 fixtures 评测框架;
 Phase D: webhook/KL 事件/collector failure 三触发源 + /dashboard 看板 + i18n 双语补齐;
 见 docs/V0.8_REFACTOR_PLAN.md / docs/V0.8_USER_GUIDE.md。
+
+v0.8.1 (2026-09-05): 运行时弹性层 + Skills 通电 — Day 0 graceful shutdown
+(utils/shutdown.py: drain_in_flight 有界等在跑 job + wal_checkpoint) + 七 gate
+开闸演练 (修复 user_skills gate 漏登记 P0, /api/skill-builder 首次可达) + 7 gate
+通电 (mcp 回关); Day 1 CircuitBreaker 薄状态机 (utils/circuit_breaker.py, 无失败
+计数单一真相源); Day 2 ProviderHealth (ai_hub/provider_health.py, 5min 滑窗判定
++ min_samples 防单发误熔断); Day 3 gateway/_call_provider 集中记账 + 4 循环
+breaker skip + image 双直连点接入; Day 4 /api/observability/llm/health + reset
+端点 + breaker 迁移 audit_log + quality/scenario_router.py deep 场景权重重排;
+见 docs/V0.8.1_PRD.md / docs/V0.8.1_PLAN.md。
 """
 
-APP_VERSION = "0.8.0"
+APP_VERSION = "0.8.1"

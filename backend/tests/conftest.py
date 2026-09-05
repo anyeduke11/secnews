@@ -79,6 +79,18 @@ os.environ.setdefault("HOTSPOT_GRACEFUL_TIMEOUT", "0")
 
 
 @pytest.fixture(autouse=True)
+def _reset_provider_health_singleton():
+    """v0.8.1 Day 3 起 ProviderHealth 模块级单例跨测试残留 (全量跑 image_service
+    ×5 失败的根因: 前序文件 record 的 sensenova 失败把 breaker 判 OPEN)。
+    每测前后复位 — 与 _protect_hotspot_env 同模式。"""
+    from backend.services.ai_hub.provider_health import reset_provider_health
+
+    reset_provider_health()
+    yield
+    reset_provider_health()
+
+
+@pytest.fixture(autouse=True)
 def _protect_hotspot_env() -> Iterator[None]:
     """阻断 crawl4ai load_dotenv() 对 os.environ 的跨测试污染.
 

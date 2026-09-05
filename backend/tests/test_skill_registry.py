@@ -397,8 +397,13 @@ class TestRegistryQuery:
         enabled = BUILTIN.list(enabled_only=True)
         assert [s.id for s in enabled] == ["daily-briefing"]
 
-    def test_list_enabled_only_empty_when_gate_off(self, temp_db):
-        """父 gate 关 (未注册的真实 fail-closed 行为) → enabled_only 恒空。"""
+    def test_list_enabled_only_empty_when_gate_off(self, temp_db, monkeypatch):
+        """父 gate 关 → enabled_only 恒空 (显式 monkeypatch, 不依赖 toml 默认:
+        v0.8.1 Day 0 通电后 toml skill_registry=true, 父 gate 关闭语义由测试自持)。"""
+        monkeypatch.setattr(
+            "backend.services.skill_registry.gate.is_extension_enabled",
+            lambda name: False,
+        )
         BUILTIN.enable("daily-briefing")
         assert BUILTIN.list(enabled_only=True) == []
 
@@ -468,10 +473,15 @@ class TestSkillGate:
 
         assert is_skill_enabled("source-health-scan") is False
 
-    def test_parent_gate_fail_closed(self, temp_db):
-        """父 gate 关 → False: "skill_registry" 未登记 _EXTENSION_NAMES,
-        is_extension_enabled 未知名称按 fail-closed 返回 False (代码实况),
-        kv 写 True 也不放行 — 防漏登记即开放。"""
+    def test_parent_gate_fail_closed(self, temp_db, monkeypatch):
+        """父 gate 关 → False: is_extension_enabled 返回 False 时, kv 写 True
+        也不放行 (fail-closed, 防漏登记即开放)。
+        v0.8.1 Day 0 通电后 toml skill_registry=true — 父 gate 关闭语义由
+        monkeypatch 显式自持, 不依赖 toml 默认。"""
+        monkeypatch.setattr(
+            "backend.services.skill_registry.gate.is_extension_enabled",
+            lambda name: False,
+        )
         BUILTIN.enable("source-health-scan")
         from backend.services.skill_registry.gate import is_skill_enabled
 

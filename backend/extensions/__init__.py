@@ -36,6 +36,12 @@ _EXTENSION_NAMES = (
     # (限流 + 持久化队列 + 三档优先级 + worker 出队泵)。服务包 A1 已落地,
     # gate 控制后续 worker/触发器接线的可见性 (Phase B/D)。
     "trigger_gate",
+    # v0.8.1 Day 0 开闸演练 (2026-09-05): user_skills 自 Phase C C3 落地后
+    # 一直漏登记 → _load_gates 过滤恒 False → /api/skill-builder 从未注册,
+    # Skill Builder 前端永远 404。Phase A "关键事实"预言的"随实现登记"欠账。
+    # agent_loop / playbook_engine / skill_eval 同样未登记但**无消费点**
+    # (服务本体不受 gate 控制), 维持死配置键, 随未来消费点再登记。
+    "user_skills",
 )
 
 # 扩展→router 映射（每个 router 是 backend.api 中的模块名）
@@ -74,6 +80,9 @@ EXTENSION_ROUTERS: dict[str, list[str]] = {
     ],
     "info_filter": [              # v0.8 P1 独立资讯筛选门禁
         "info_filter_api",        #   /api/info-filter/* (CRUD + preview + gate)
+    ],
+    "user_skills": [              # v0.8 C3 Skill Builder (v0.8.1 Day 0 补登记)
+        "skill_builder_api",      #   /api/skill-builder/* (6 端点)
     ],
     "skill_registry": [           # v0.8 Phase A A3: Skill 商店
         "skill_registry_api",     #   /api/skill-registry/* (列表/详情/启停/run 入队)

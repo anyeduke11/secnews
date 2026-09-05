@@ -81,21 +81,25 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 | 2026-09-04 | dsh mock 优先 (真二进制仅搭桥); runner_pool 3; tag `v0.8.0-skills` | 风险控制 | — |
 | 2026-09-05 | 架构图 dsh 诚实化 (选项 A 中庸版: 保留 :3210 + 暴露降级链); CRITICAL_REVIEW 09-05 复核; **V0.8.1_PLAN v1.1 推荐方案 A (断路器+health 单一真相源), 裁决点 D1-D6 待用户拍板** | 看图即知真相 | 选项 B 独立网关（1 月工作量, 未采纳） |
 | 2026-09-05 | **v0.8.1 D1 = 方案 A 锁定** (断路器 + provider_health 单一真相源联动, 5 天); D2-D6 按默认; PRD v1.0 立项 | 雪崩防御 + 通电前置; 单一真相源避免双记账矛盾 | B (2 天, 缺健康度数据源) / C (SWR, 与弹性正交) / D-d pi 实测 (顺延次周, 非否决) |
+| 2026-09-05 | **Day 0 通电裁定**: 7 个 v0.8 gate → true (演练通过后保持全开, PRD F5 [假设]); mcp 回关 (gate 语义分裂, server 本体归 config.feature_mcp); 修复 user_skills gate 漏登记 P0 | 演练 = 通电验收; fail-closed 随时可回关 | mcp 同开 (拒绝: 调试路由扩面非本批目标) |
 
-## 已知问题 (2026-09-05, 源 = CRITICAL_REVIEW 复核 ❌/◐)
+## 已知问题 (2026-09-05, 源 = CRITICAL_REVIEW 复核 ❌/◐ + Day 0 演练发现)
 
-- **七 gate 全 false 未开闸** — "建成 ≠ 通电", 开闸演练是 v0.8.1 前置 (1 天)
-- **运行时弹性缺失** — 断路器 + provider_health 缺 (V0.8.1 方案 A 待裁决)
-- **graceful shutdown 缺** (SIGTERM 0 命中) — 演练前应补 (0.5 天)
+- ~~七 gate 全 false 未开闸~~ → **已通电 (2026-09-05 Day 0)**: 7 gate true, 演练 pytest 3755/0 fail; 20 skill 真实运行验证仍随弹性层落地观察
+- **运行时弹性缺失** — 断路器 + provider_health 缺 (V0.8.1 方案 A, Day 1-5)
+- **graceful shutdown 缺** → **已落地 (Day 0)**: drain + WAL checkpoint + 20× soak 0 损坏
+- **agent_loop / playbook_engine / skill_eval 三 gate 无消费点** (Day 0 演练发现) — toml 死配置键, 服务本体不受 gate 控制; 随未来消费点登记
+- **mcp extension gate 与 is_mcp_enabled() 语义分裂** (Day 0 发现) — 两套开关, mcp 回关 + P2 备忘
+- **stdlib logging 全仓不可见** (Day 0 发现) — 无 InterceptHandler, main.py 自身 log.info 全隐形; 新代码一律 loguru (PROJECT 红线)
 - **pi CLI 未实测** — agent_bridge jsonl 协议字段仍推测 (V0.8.1 D-d, live 测试不进 CI)
-- **services 层 320 处宽泛 except Exception** — error_classifier 缺 (D-a, 2 天)
-- **前端数据层原始** — 25 处 setInterval/15 文件, 无 react-query/swr, SSE 割裂 (方案 C)
-- 备份完整性校验缺 (§2.4) / 配置热重载缺 (§2.6) / dsh 桥接协议未实测 — v0.8.2 候选
+- **services 层 320 处宽泛 except Exception** — error_classifier 缺 (D-a, 未选)
+- **前端数据层原始** — 25 处 setInterval/15 文件, 无 react-query/swr (方案 C, 未选)
+- 备份完整性校验缺 (§2.4) / 配置热重载缺 (§2.6) — v0.8.2 候选
 - Toast 零使用 / SecretsPage 主密钥明文输入 (UX 审计遗留)
 
 ## 生命周期
 
-当前阶段：**开发 (v0.8.1 batch)** — v0.8.0 已发布 (本地 tag, 推送留授权); **v0.8.1 需求已闭合 (2026-09-05 D1=方案 A 锁定, D2-D6 按默认)**, 批次日历 = Day 0 (graceful shutdown + 七 gate 开闸演练) → Day 1-5 (弹性层: ProviderHealth 唯一判定源 + CircuitBreaker 薄状态机 + gateway/image 接入) → 次周 (pi live 实测); 规格 = [`docs/V0.8.1_PRD.md`](docs/V0.8.1_PRD.md) v1.0 + [`docs/V0.8.1_PLAN.md`](docs/V0.8.1_PLAN.md) v1.2。
+当前阶段：**开发 (v0.8.1 batch)** — **Day 0 已完成 (2026-09-05)**: graceful shutdown (20× SIGTERM soak 0 损坏) + 七 gate 开闸演练通过 (pytest 3755/0 fail, 修复 user_skills gate 漏登记 P0) + **通电** (7 gate true, mcp 回关); 下一 Day 1-5 = 弹性层 (ProviderHealth 唯一判定源 + CircuitBreaker 薄状态机 + gateway/image 接入) → 次周 pi live; 规格 = [`docs/V0.8.1_PRD.md`](docs/V0.8.1_PRD.md) v1.0 + [`docs/V0.8.1_PLAN.md`](docs/V0.8.1_PLAN.md) v1.2。
 
 ### 阶段检查记录
 

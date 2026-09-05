@@ -73,6 +73,10 @@ os.environ.setdefault(
     '"dsh": true}}',
 )
 
+# v0.8.1 Day 0: graceful drain 默认 0s — 否则每个 TestClient lifespan 关闭
+# 都会 sleep HOTSPOT_GRACEFUL_TIMEOUT (默认 30s), 测试套件直接爆炸。
+os.environ.setdefault("HOTSPOT_GRACEFUL_TIMEOUT", "0")
+
 
 @pytest.fixture(autouse=True)
 def _protect_hotspot_env() -> Iterator[None]:

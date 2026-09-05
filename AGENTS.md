@@ -18,8 +18,8 @@
 > **架构数字由 `scripts/generate_meta.py` AST 反推维护** (51 jobs / 14 collectors / 73 routers / 107 services),
 > 改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
 
-- **开关源**: `backend/config/feature_gates.toml` — 当前 16 gate: 默认开启 8 (codegarden / codegarden_phase2b / sync / tech_stack / security_graph / secnews / crm / dsh);
-  默认关闭 8 (mcp / info_filter / v0.8 Skills 六 gate: skill_registry·trigger_gate·agent_loop·playbook_engine·user_skills·skill_eval — 全 fail-closed 未开闸)
+- **开关源**: `backend/config/feature_gates.toml` — 当前 16 gate: 默认开启 15 (codegarden / codegarden_phase2b / sync / tech_stack / security_graph / secnews / crm / dsh + v0.8 七 gate info_filter·skill_registry·trigger_gate·agent_loop·playbook_engine·user_skills·skill_eval, 2026-09-05 Day 0 开闸演练通电);
+  默认关闭 1 (mcp — extension gate 只管 /api/mcp/* 调试路由, server 本体由 is_mcp_enabled() 读 config.feature_mcp, 两套开关语义分裂)
 - **core 永不消失**: `backend/core/routers.py` 45 个 core router 白名单, 与扩展域防重叠断言;
   扩展 router 按 `is_extension_enabled()` 条件注册 (关闭时路由 404)
 - **job 门控**: `scheduler.py` `_is_job_enabled()` 按扩展归属过滤 8 个扩展 job

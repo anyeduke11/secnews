@@ -154,6 +154,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     log.info(f"startup complete in {startup_duration_ms}ms")
     yield
 
+    # v0.8.1 Day 0 (PRD F5/D-b): drain 必须在 sched.stop() 之前 —
+    # AsyncIOScheduler.shutdown() 会 cancel pending futures (协作式打断
+    # 在跑 job), 先等自然收尾 (有界, HOTSPOT_GRACEFUL_TIMEOUT 默认 30s)。
+    # 统计日志由 drain_in_flight 内部走 loguru 输出。
+    try:
+        from backend.utils.shutdown import drain_in_flight
+        await drain_in_flight(sched)
+    except Exception as e:
+        log.warning(f"graceful drain error (ignored): {e}")
     # gateway 方案 §3.1: crawl4ai/Playwright 单例优雅停机 — 进程 shutdown
     # 时关闭常驻 Chromium, 否则浏览器变僵尸进程 (第 1 步实施缺口)。
     # crawl4ai 未安装时 close_client 内部 no-op, 不影响无依赖环境。
@@ -163,14 +172,27 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         log.warning(f"crawl4ai close_client error: {e}")
     try:
-        sched.stop()
+        sched.stop(wait=False)
     except Exception as e:
         log.warning(f"scheduler.stop error: {e}")
+    # v0.8.1 Day 0: dsh 受管子进程随主进程退出, 防孤儿 (autostart 拉起的才管)。
+    try:
+        from backend.services.dsh.supervisor import stop_dsh
+        stop_dsh()
+    except Exception as e:
+        log.warning(f"dsh stop error (ignored): {e}")
     # Phase 8: 清理 app.state.scheduler
     try:
         app.state.scheduler = None
     except Exception:
         pass
+    # v0.8.1 Day 0: close_db 前显式折叠 WAL (PRD 验收项; busy 不致命, 下次
+    # 打开时 SQLite 自动恢复)。
+    try:
+        from backend.utils.shutdown import wal_checkpoint
+        wal_checkpoint()
+    except Exception as e:
+        log.warning(f"wal checkpoint error (ignored): {e}")
     cache_invalidate("*")
     close_db()
 

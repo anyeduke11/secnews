@@ -202,6 +202,21 @@
 - [x] **V0.8.1_PLAN v1.2**: 状态 → 已裁决; 批次日历定稿 = **Day 0** (graceful shutdown 0.5 天 + 七 gate 开闸演练 1 天) → **Day 1-5** (方案 A 弹性层) → **次周** (pi live 实测)
 - [x] **PROJECT.md 生命周期推进**: v0.8.1 需求阶段 ✅ 闭合 → 当前阶段 = 开发 (v0.8.1 batch); 决策日志追加 D1=A 行 (含替代方案否决理由)
 
+### 2026-09-05 v0.8.1 Day 0 — graceful shutdown + 七 gate 开闸演练 (通电) (本批)
+
+> **来源**: PRD v1.0 §8 Day 0 (D1=方案 A 前置); 用户指令 "开始Day0"。
+> **范围**: D-b graceful shutdown + D4 七 gate 开闸演练 + **演练修复 user_skills gate 漏登记 P0** + toml 通电。
+
+- [x] **D-b graceful shutdown** (`backend/utils/shutdown.py` + main.py lifespan 重排): `drain_in_flight` (快照 AsyncIOExecutor `_pending_futures`, 只读内省, 有界等待在跑 job 自然收尾; 无在跑不空等; 无法内省走固定 sleep 兜底) → `sched.stop(wait=False)` → `stop_dsh()` 防孤儿 → `wal_checkpoint(TRUNCATE)` → close_db。**根因**: AsyncIOScheduler.shutdown() 会 cancel pending futures = 协作式打断在跑 job, 此前 `sched.stop()` 默认 wait=True 但 timeout 形参从未被使用; 全仓此前无显式 WAL checkpoint。conftest 预置 `HOTSPOT_GRACEFUL_TIMEOUT=0` (否则每个 TestClient lifespan sleep 30s)。15 测试全绿 + ruff 过。
+  - **验收 (PRD: 重启 20 次无损坏)**: 真 uvicorn + 真 SIGTERM soak **PASS=20/20** (每轮 drain done + `wal_checkpoint: truncated` + shutdown complete + 0 traceback); day0/warm/cold 三库 `integrity_check` ok。
+  - **踩坑 (Day 0 发现, 仓库级)**: **stdlib logging 全仓无 InterceptHandler → 生产完全不可见** — main.py 自身 `log.info("startup complete...")` 历史上就是隐形的; 第一轮 soak 日志无 drain/checkpoint 行即此因 (代码已跑, 输出进黑洞)。shutdown.py 改用 loguru; 新代码一律 loguru。
+- [x] **D4 七 gate 开闸演练** (env 全开 16 gate): uvicorn 启动冒烟 ✓ / openapi+端点探针 / pytest 全量 / vite build ✓。
+  - **演练修复 P0**: `user_skills` gate 自 Phase C 落地起**漏登记 `_EXTENSION_NAMES`** → `_load_gates` 过滤恒 False → `/api/skill-builder` 从未注册 (Skill Builder 前端永远 404)。正是 Phase A "关键事实" 预言的 "随实现登记" 欠账。修复: 补登记 + EXTENSION_ROUTERS + 复探 200 (`{"items":[],"total":0,"max":50}`)。agent_loop/playbook_engine/skill_eval 同漏但**无消费点** (服务本体不受 gate 控制), 记录不登记。
+  - **发现 F2**: mcp extension gate 与 `is_mcp_enabled()` (读 config.feature_mcp) 两套开关语义分裂 — env 开 mcp gate 不开 MCP server。mcp 回关, P2 备忘。
+  - **验收**: pytest **3755 passed / 6 skipped / 0 failed** (gates 全开, 基线 3740 + Day 0 新增 15, 零回归, 931s); skill-registry 20 skill 全注册 / info-filter true / trigger-webhook health / skill-builder 200 全探针过。
+- [x] **通电**: `feature_gates.toml` 7 个 v0.8 gate → true (info_filter/skill_registry/trigger_gate/agent_loop/playbook_engine/user_skills/skill_eval), mcp 回关; **纯 toml (零 env) 复探 4/4 = 200**。演练通过后保持全开 (PRD F5 [假设]), fail-closed 随时可回关。
+- [x] **文档**: AGENTS.md gate 数字 (15 开 1 关) / PROJECT.md 生命周期+已知问题+决策日志 / `generate_meta --check` 4/4 过。
+
 ### 2026-09-02 SettingsHub V2 — 哨兵化全重设计 + 5 子组件拆分 (本批)
 
 > **来源**: 用户指令 "哨兵以外的 UI/UX 调整, 参考哨兵进行美化" + 四问决策 (Q1 加 dashboard 用途/代价/习惯说明, Q2 拆 5 子组件, Q3 全重设计, Q4 测试全重写一步到位)。

@@ -99,7 +99,7 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 
 ## 生命周期
 
-当前阶段：**v0.8.1 batch 完成 (2026-09-05), 待收尾动作** — Day 0-5 全绿: 通电 (7 gate true) + graceful shutdown (20× soak) + 弹性层 (CircuitBreaker/ProviderHealth/gateway+image 接入//health 端点/场景权重) + 全量回归 **3818 passed / 0 failed**; version 0.8.1。**待办**: ① tag `v0.8.1` 本地打点 + 远端推送 (用户授权, V2-C11) ② 次周 D-d pi live 实测 ③ v0.8.2 候选 (llm.yaml per-provider 阈值 / error_classifier / react-query)。规格 = [`docs/V0.8.1_PRD.md`](docs/V0.8.1_PRD.md) v1.1 + [`docs/V0.8.1_PLAN.md`](docs/V0.8.1_PLAN.md) v1.3。
+当前阶段：**v0.8.1 batch 完成 + D6 pi 实测闭合 (2026-09-05), tag `v0.8.1` 已打 (1963bdc)** — 全量 3818/0 fail; pi 0.84.4 live 实测协议吻合 + 修 2 假阳性缺口 (user 回显 / 429 stopReason), bridge 全链 agent_runs id=286 ok='PONG', soaktest 探针可重跑。**待办**: ① 远端推送 (用户授权, V2-C11) ② v0.8.2 候选 (llm.yaml per-provider 阈值 / error_classifier / react-query / pi 流式 UI §4.3.B)。规格 = [`docs/V0.8.1_PRD.md`](docs/V0.8.1_PRD.md) v1.2 + [`docs/V0.8.1_PLAN.md`](docs/V0.8.1_PLAN.md) v1.4。
 
 ### 阶段检查记录
 

@@ -81,9 +81,21 @@ def _resolve_workspace(workspace: str | None) -> str | None:
 # 协议解析
 # ---------------------------------------------------------------------------
 def _parse_jsonl_events(stdout: str) -> str | None:
-    """pi `--mode json` NDJSON 事件流: message_end.content[] 文本段优先。"""
+    """pi `--mode json` NDJSON 事件流: message_end.content[] 文本段优先。
+
+    2026-09-05 pi 0.84.4 live 实测对齐 (V0.8.1 D-d): 事件序列
+    session → agent_start → turn_start → (message_start/message_end × N) →
+    turn_end; 文本在 ``message.content[]`` 的 ``type=="text"`` 段。
+    实测抓到的两个缺口:
+    ① **user 消息也发 message_end 且带 text 段** — 不滤会把用户输入当结果
+       (role=="user" 跳过; 无 role 的历史样本保持旧行为);
+    ② **上游 LLM 失败 (429 等) 时 pi 仍 rc=0**, assistant message_end 带
+       ``stopReason=="error"`` 且 content=[] — 标记 errored, 无成功文本时
+       返回 None (让 run_agent_task 走失败信封, 而非退化成 JSON 行假阳性)。
+    """
     final_text: str | None = None
     last_json_text: str | None = None
+    assistant_errored = False
     for line in stdout.splitlines():
         line = line.strip()
         if not line:
@@ -94,14 +106,24 @@ def _parse_jsonl_events(stdout: str) -> str | None:
             continue
         last_json_text = line
         if event.get("type") == "message_end":
-            content = event.get("message", {}).get("content", [])
+            message = event.get("message", {})
+            if message.get("role") == "user":
+                continue  # 实测缺口①: 用户回显不算结果
+            if message.get("stopReason") == "error":
+                assistant_errored = True  # 实测缺口②: 上游失败
+                continue
+            content = message.get("content", [])
             texts = [
                 seg.get("text", "") for seg in content
                 if isinstance(seg, dict) and seg.get("type") == "text"
             ]
             if texts:
                 final_text = "\n".join(t for t in texts if t)
-    return final_text or last_json_text
+    if final_text:
+        return final_text
+    if assistant_errored:
+        return None  # 上游失败显式失败, 不退化成 JSON 行假阳性
+    return last_json_text
 
 
 def _parse_stream_json(stdout: str) -> str | None:

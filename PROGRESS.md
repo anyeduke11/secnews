@@ -248,6 +248,23 @@
 > **范围偏离 (如实记录)**: PRD §7 的 llm.yaml per-provider 阈值字段 **推迟 v0.8.2** — env 全局默认已覆盖 D3 裁决, LLMConfig schema 变更涟漪大且无差异化需求实证; 权重表暂硬编码于 scenario_router.py (5 provider 名单稳定)。
 > **验收**: test_llm_health_api 15/15 + 既有弹性 49 = **64 全绿** (含 test_api_observability 回归) + ruff 0 错 + generate_meta routers **73 不变**。
 
+### 2026-09-05 v0.8.1 Day 5 — 全量回归 + 收口 (版本 0.8.1) (本批)
+
+> **来源**: PRD v1.0 §8 Day 5; PLAN v1.2 §2.3 D5。
+> **范围**: 全量门禁 + 版本落定 + 文档收口。
+
+- [x] **门禁全过**: pytest **3818 passed / 6 skipped (基线预存: cold_db_crypto ×2 防覆盖真实数据 + test_import ×4 legacy cache_data.json 缺失, 零新增) / 0 failed** (基线 3740 + Day 0-5 新增 78, ≥3800 ✓); vitest 425 / tsc 0 错 (前端零改); harness_analyze --check 0 errors; generate_meta 4/4 (**routers 73 不变 / services 107 不变**); 全仓 ruff 166 预存错均在未触碰文件 (本地仓 CI 从未远程执行的历史债, 本批文件 0 错)。
+- [x] **首轮全量 8 failed 根治 (两类测试债, 均非产品逻辑 bug)**:
+  ① **ProviderHealth 模块级单例跨测试残留** — image_service ×5 全量跑时被前序文件 record 的 sensenova 失败判 OPEN (单跑即过) → conftest 加 autouse fixture 每测前后 `reset_provider_health()` (对齐 _protect_hotspot_env 模式);
+  ② **skill_registry ×2 断言父 gate off 依赖 toml=false** — Day 0 通电后 toml=true, "父 gate off" 语义改由 monkeypatch `gate.is_extension_enabled` 显式自持 (兄弟测试同款手法); 过时注释 ("未登记 _EXTENSION_NAMES") 同步更新。
+- [x] **版本落定**: `version.py` APP_VERSION 0.8.0→**0.8.1** + v0.8.1 docstring 段; 根 AGENTS.md 头部 `(2026-09-05, v0.8.1)` (版本一致性校验保持); ARCHITECTURE.md 头部 + §三 row 9 弹性层; CHANGELOG.md v0.8.1 段。
+- [x] **PRD/PLAN 收口**: PRD 变更日志 v1.1 (实施完成 + 偏离); PLAN v1.3 (Day 0-5 完成链 `3bfce93`..HEAD)。
+
+### 关键事实 (v0.8.1 Day 5)
+
+- **conftest autouse 复位单例是硬要求**: 任何引入模块级可变单例 (如 ProviderHealth) 的功能, 必须同步 conftest autouse 复位 fixture — 否则全量跑时跨文件污染 (单跑全过的假绿)。
+- **通电改变 toml 默认 = 改变测试前置**: 断言 "gate off 行为" 的测试必须 monkeypatch 显式自持, 不得依赖 toml 默认值 (默认值现在会随通电演进)。
+
 ### 2026-09-02 SettingsHub V2 — 哨兵化全重设计 + 5 子组件拆分 (本批)
 
 > **来源**: 用户指令 "哨兵以外的 UI/UX 调整, 参考哨兵进行美化" + 四问决策 (Q1 加 dashboard 用途/代价/习惯说明, Q2 拆 5 子组件, Q3 全重设计, Q4 测试全重写一步到位)。

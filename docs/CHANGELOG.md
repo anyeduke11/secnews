@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.8.1 (2026-09-05) — 运行时弹性层 + Skills 通电 (方案 A, Day 0-5)
+
+> **来源**: D1=方案 A 用户裁决 (断路器 + provider_health 联动) + CRITICAL_REVIEW §1.2/§2.1 (2026-09-05 复核 ❌ 仍开放) + prd-iterative 三维审查。
+> **规格**: [docs/V0.8.1_PRD.md](V0.8.1_PRD.md) v1.0 + [docs/V0.8.1_PLAN.md](V0.8.1_PLAN.md) v1.2; Day 0-5 逐日实施 (commit 链 `3bfce93`..HEAD)。
+
+### 关键变更
+
+- **通电 (Day 0)**: 七 gate 开闸演练通过 → `feature_gates.toml` 7 个 v0.8 gate 保持 true (mcp 回关); **演练修复 P0**: `user_skills` gate 漏登记 `_EXTENSION_NAMES` → `/api/skill-builder` 从未注册 (Skill Builder 永远 404), 补登记后 200。agent_loop/playbook_engine/skill_eval 三 gate 无消费点 (死配置键, 记录)。
+- **graceful shutdown (Day 0)**: `utils/shutdown.py` — `drain_in_flight` (只读内省 AsyncIOExecutor pending futures, 有界等在跑 job; 拒绝 ≠ 失败不计账) + `wal_checkpoint(TRUNCATE)`; lifespan 重排 drain→stop(wait=False)→stop_dsh→checkpoint→close_db; **20× 真 SIGTERM soak 零损坏**。
+- **CircuitBreaker 薄状态机 (Day 1)**: closed/open/half_open; **无失败计数** (单一真相源, trip 由 ProviderHealth 判定驱动); 探针防死锁 (half_open 滞留超时重授); 可注入时钟; threading.Lock。
+- **ProviderHealth 唯一判定源 (Day 2)**: 单队列 1h 滑窗 (1m/5m/60m 按时界统计); **判定只用 5min 窗 + min_samples=4 防单发误熔断**; 阈值严格 >; env `HOTSPOT_BREAKER_*`; 进程内不持久化。
+- **gateway/image 接入 (Day 3)**: `_call_provider` 成败集中记账 (4 方法唯一出站口); 4 循环头 breaker skip (**拒绝 ≠ 失败不计账**); image generate/understand 直连点前置检查 + `_record` 全路径回写。
+- **观测 (Day 4)**: `GET /api/observability/llm/health` (窗口 + breaker 快照) + `POST /{provider}/reset` (运维兜底, 写审计); breaker 状态迁移 100% 写 `audit_log`; **routers 73 不变** (并入 core 白名单既有 router)。
+- **场景降级 (Day 4)**: 新建 `quality/scenario_router.py` — deep 场景权重 [sensenova→anthropic→openai→qwen→ollama] 重排 fallback 尾部 (router primary 保持首位); light 热路径零变化; OPEN provider 由 breaker skip 叠加 = 健康感知场景降级。
+
+### 演练发现 (Day 0)
+
+- `user_skills` gate 漏登记 (P0, 已修); `agent_loop`/`playbook_engine`/`skill_eval` 同漏但无消费点 (死配置键); mcp extension gate 与 `is_mcp_enabled()` 两套开关语义分裂; **stdlib logging 全仓无 InterceptHandler → 生产不可见** (新代码一律 loguru)。
+
+### 范围偏离 (如实记录)
+
+- PRD §7 llm.yaml per-provider 阈值字段**推迟 v0.8.2** — env 全局默认已覆盖 D3 裁决, schema 变更涟漪大且无差异化需求实证; D-d pi 协议实测按裁决排次周。
+
+### 门禁
+
+- pytest: **3818 passed / 6 skipped (基线预存: cold_db_crypto ×2 防覆盖真实数据 + test_import ×4 legacy 文件缺失, 零新增) / 0 failed** (gates 全开; 基线 3740 + Day 0-5 新增 78 ✓)
+- vitest: 425 passed (前端零改) / tsc --noEmit 0 错
+- `generate_meta.py --check`: 通过 (**routers 73 不变** / services 107 不变 / jobs 51 / collectors 14)
+- `harness_analyze.py --check`: 0 errors
+- 插曲 (Day 5 首轮全量 8 failed, 已根治): ① ProviderHealth 单例跨测试残留 → conftest autouse 复位; ② skill_registry ×2 断言父 gate off 依赖 toml=false, 通电后失效 → monkeypatch 显式自持
+
 ## v0.8.0 Skills (2026-09-04) — Skill/Playbook 双轨看板型 AI 智能体 (Phase A/B/C/D 全绿)
 
 > **来源**: 用户裁决 "非 chatbox, 把常用对话/prompt/skill 固化为主面板可启停功能" + 批判性审查 R1-R13 修订。

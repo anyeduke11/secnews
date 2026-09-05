@@ -42,6 +42,25 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-09-05 v0.8.2 子批 1 — 快赢包 X (低风险清债: B1/B2/B3/B4/C2 全绿)
+
+> **来源**: 用户裁决 "v0.8.2 = X + Y 合批 (~9 天, 分两子批): 子批 1 快赢包 (X, 低风险先清债), 子批 2 通电治理 (Y)" — 推荐=上会话收尾 (X=B1/B2/B3/B4/C2 ~4 天; Y=A1 全局限流单一真相源 + A2 配置热重载 + A4 backup_verify ~5.5 天; react-query/pi 流式留独立窗口)。
+> **基线**: main HEAD `382a578` (v0.8.1, pytest 3818/6/0, vitest 425, ruff 全仓 167 错, 16 gate)。
+
+- [x] **X-B3 — 死 gate 键治理 + mcp 双开关契约化** (`36fc733`): feature_gates.toml 移除 agent_loop/playbook_engine/skill_eval 三个无消费点死键 (本就被 _load_gates 过滤, 16→13 gate); mcp 双开关语义分工契约写入 `is_mcp_enabled` docstring (extension gate=调试路由 / feature_mcp=server 本体), main.py lifespan 以 loguru 打印两态 (stdlib log 全仓不可见教训); AGENTS/PROJECT 计数与过时描述同步。
+- [x] **X-B1 — llm.yaml per-provider 断路器阈值** (`f4dd800`, v0.8.1 PRD §7 推迟项偿还): `ProviderBreaker` schema (failure_threshold/min_samples/recovery_timeout) + `ProviderHealth` per_provider 覆盖表; 解析链 **provider yaml > env 全局 (HOTSPOT_BREAKER_*) > 内建默认** (特异性优先); yaml 读取失败静默降级 (观测配置不拖垮 LLM 主链); snapshot 增 `thresholds` 块 (/health 可见每 provider 生效值); llm.yaml 注释样例 (无差异化实证不激活)。
+- [x] **X-C2 — GZip + Cache-Control** (`80b0d08`): main.py `GZipMiddleware(minimum_size=1000)` (starlette 1.3.1 默认排除 text/event-stream — SSE 不受缓冲影响); GET /api/quality/rules 加 `Cache-Control: public, max-age=10` (§3.2 点名字典端点)。
+- [x] **X-B2 — 全仓 ruff 167→0** (`2d5b756`): --fix 150 (F401×54/I001×24/UP045×21/RUF100×20/...) + 手工 23 (DTZ005×10 aware 化, strftime 站点输出不变 / F821 skill_registry TYPE_CHECKING / B905+RUF007 pairwise / zip strict / RUF043 raw-string / SIM103); ruff.toml `extend-exclude .trae` (第三方 vendored skill 资产); **全量回归 3838 passed / 6 skipped / 0 failed**。
+- [x] **X-B4 — PROGRESS 归档 + CHANGELOG 时序** (`c7bd9c2`): PROGRESS 收缩至 v0.8 时代 (1089→281 行), 809 行归档 `docs/progress-archive/v0.7-records.md`; CHANGELOG 29 节严格新→旧重排 (尾部追加错位 ×8); **补记 v0.8 P1 info_filter 整节** (当时漏登)。
+- [x] **子批 1 收口门禁**: pytest **3838/6/0** (基线 3818 + 本批 +16~20 新测试) / vitest **425** / tsc **0 错** / generate_meta 4/4 (routers 73 / services 107 不变) / harness 0 errors / ruff 全仓 **0**。
+
+### 关键事实 (v0.8.2 子批 1)
+
+- **per-provider 阈值判定在 ProviderHealth 层而非 breaker 层** — `_unhealthy_locked`/`_get_breaker_locked` 按 provider 查覆盖表回落实例默认; breaker 本体保持无计数薄状态机 (单一真相源契约不破)。
+- **aware-local 时间约定**: DTZ005 修复统一 `datetime.now(timezone.utc).astimezone()` — 本地墙钟语义 (run.date/ingested_at 输出不变), isoformat 站点新增时区后缀 (+08:00), JS `new Date()` 两侧解析等价。
+- **zip strict 语义**: `zip(seq, seq[1:])` → `itertools.pairwise(seq)` (长度差恒 1, strict 会炸); 平行数组 `zip(runs, fixtures)` → `strict=True` (fixture 错位应 fail loud)。
+- **mcp 双开关不合并的理由**: gate=false (调试路由关) 与 feature_mcp=true (server 开) 同时成立是 Day 0 有意状态; 单开关无法表达, 契约化+启动两态日志替代。
+
 ### 2026-09-04 v0.8 Skills — Skill/Playbook 双轨看板型 AI 智能体 (Phase A/B/C/D 全绿)
 
 > **来源**: 用户裁决 "非 chatbox, 把常用对话/prompt/skill 固化为主面板可启停功能" + 批判性审查 R1-R13 修订 (见 `docs/V0.8_REFACTOR_PLAN.md` / `docs/V0.8_DECISION_REGISTER.md` / `.trae/specs/v08-skills-agent/`)。

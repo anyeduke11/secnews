@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.8.2 (2026-09-05) — 治理合批 (子批 1 快赢包 X; 子批 2 通电治理 Y 进行中)
+
+### X-B1 llm.yaml per-provider 断路器阈值 (v0.8.1 PRD §7 推迟项偿还)
+- `llm_schema.ProviderBreaker` (failure_threshold/min_samples/recovery_timeout, 范围校验) + `ProviderConfig.breaker` 可选字段
+- `ProviderHealth` per_provider 覆盖表; 解析链 provider yaml > env 全局 > 内建默认; snapshot 增 thresholds 块
+- yaml 读取失败静默降级纯 env (观测配置不拖垮 LLM 主链)
+
+### X-B3 死 gate 键治理 + mcp 双开关契约化
+- feature_gates.toml 移除 agent_loop/playbook_engine/skill_eval 死键 (16→13 gate)
+- mcp 双开关语义分工写入 `is_mcp_enabled` docstring; 启动日志以 loguru 打印两态
+
+### X-C2 GZip + Cache-Control
+- main.py `GZipMiddleware(minimum_size=1000)` (text/event-stream 默认排除, SSE 不受影响)
+- GET /api/quality/rules `Cache-Control: public, max-age=10`
+
+### X-B2 全仓 ruff 167→0
+- --fix 150 + 手工 23 (DTZ005 aware 化 / F821 TYPE_CHECKING / pairwise / zip strict / raw-string)
+- ruff.toml `extend-exclude .trae`; 全量回归 3838 passed / 0 failed
+
+### X-B4 PROGRESS 归档 + CHANGELOG 时序
+- PROGRESS 收缩至 v0.8 时代 (809 行归档 progress-archive/v0.7-records.md)
+- CHANGELOG 29 节新→旧重排 + 补记 v0.8 P1 info_filter 节 (漏登)
+
+### 门禁 (子批 1)
+- pytest 3838 passed / 6 skipped (基线预存) / 0 failed; vitest 425 / tsc 0 错
+- generate_meta 4/4 (routers 73 / services 107 不变); harness 0 errors; ruff 全仓 0
+
 ## v0.8.1 (2026-09-05) — 运行时弹性层 + Skills 通电 (方案 A, Day 0-5)
 
 > **来源**: D1=方案 A 用户裁决 (断路器 + provider_health 联动) + CRITICAL_REVIEW §1.2/§2.1 (2026-09-05 复核 ❌ 仍开放) + prd-iterative 三维审查。

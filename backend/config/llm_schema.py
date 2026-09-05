@@ -22,6 +22,29 @@ class ProviderModels(BaseModel):
     image: str = ""
 
 
+class ProviderBreaker(BaseModel):
+    """v0.8.2 X-B1: per-provider 弹性阈值 (v0.8.1 PRD §7 推迟项偿还)。
+
+    解析链: provider yaml 值 > env 全局 (HOTSPOT_BREAKER_*) > 内建默认 —
+    特异性优先 (per-provider 调优理应压过全局 env); 未声明字段 = 沿用全局。
+    字段语义与 ``provider_health.ProviderHealth`` 全局参数一一对应。
+    """
+
+    failure_threshold: float | None = None  # (0, 1] 5min 窗失败率阈值
+    min_samples: int | None = None  # >= 1 判定最小样本数 (防单发误熔断)
+    recovery_timeout: float | None = None  # > 0 breaker OPEN 时长秒
+
+    @model_validator(mode="after")
+    def _validate_ranges(self) -> ProviderBreaker:
+        if self.failure_threshold is not None and not 0 < self.failure_threshold <= 1:
+            raise ValueError("breaker.failure_threshold 必须在 (0, 1]")
+        if self.min_samples is not None and self.min_samples < 1:
+            raise ValueError("breaker.min_samples 必须 >= 1")
+        if self.recovery_timeout is not None and self.recovery_timeout <= 0:
+            raise ValueError("breaker.recovery_timeout 必须 > 0")
+        return self
+
+
 class ProviderConfig(BaseModel):
     type: Literal["ollama", "openai", "openai_compatible", "anthropic"]
     base_url: str | None = None
@@ -31,6 +54,8 @@ class ProviderConfig(BaseModel):
     max_concurrent: int = 4
     # provider 特有的非标准请求体开关 (如关推理)。默认不改变请求体。
     extra_request_body: dict[str, Any] | None = None
+    # v0.8.2 X-B1: per-provider 断路器阈值 (不写 = 沿用 env 全局/内建默认)
+    breaker: ProviderBreaker | None = None
 
 
 class TaskOverride(BaseModel):
@@ -115,6 +140,7 @@ __all__ = [
     "CacheConfig",
     "CostAlert",
     "LLMConfig",
+    "ProviderBreaker",
     "ProviderConfig",
     "ProviderModels",
     "RateLimits",

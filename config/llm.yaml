@@ -35,6 +35,13 @@ providers:
     extra_request_body:
       thinking:
         type: "disabled"
+    # v0.8.2 X-B1: per-provider 断路器阈值 (v0.8.1 PRD §7 推迟项偿还)。
+    # 解析链: 此处 per-provider 值 > env 全局 (HOTSPOT_BREAKER_*) > 内建默认
+    # (0.5 / 4 / 30s)。未声明字段沿用全局; 当前无差异化实证, 保持注释样例。
+    # breaker:
+    #   failure_threshold: 0.4   # (0,1] 5min 窗失败率阈值
+    #   min_samples: 6           # >=1 判定最小样本数 (防单发误熔断)
+    #   recovery_timeout: 60     # >0  breaker OPEN 时长秒
 
   # v0.6.3 P0-3: 以下两个示例 provider (sensenova_prod / dots_ai) 已删除 —
   # sensenova_prod 与 sensenova 同 key 却无任何路由指向 (死配置), dots_ai 无

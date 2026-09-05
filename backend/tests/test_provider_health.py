@@ -248,3 +248,133 @@ class TestValidation:
     def test_invalid_min_samples_raises(self):
         with pytest.raises(ValueError):
             ProviderHealth(min_samples=0)
+
+
+class TestPerProviderOverrides:
+    """v0.8.2 X-B1 — llm.yaml per-provider 断路器阈值 (v0.8.1 PRD §7 推迟项偿还)。"""
+
+    def test_threshold_override_isolates_provider(self):
+        """5 样本 0.8 失败率: 全局阈值 0.5 → ollama 熔断; sensenova 覆盖 0.9 → 不熔断。
+        (trip 只由 fail 记账驱动, 故末条须为 fail 让 4th/5th 样本判定生效。)"""
+        ph, _ = _make(min_samples=4, per_provider={"sensenova": {"failure_threshold": 0.9}})
+        for ok in (False, False, False, True, False):
+            ph.record("sensenova", ok=ok)
+            ph.record("ollama", ok=ok)
+        assert ph.is_unhealthy("sensenova") is False  # 0.8 <= 0.9 (覆盖)
+        assert ph.is_unhealthy("ollama") is True  # 0.8 > 0.5 (全局)
+        assert ph.get_breaker("ollama").state == "open"
+        assert ph.get_breaker("sensenova").state == "closed"
+
+    def test_min_samples_override(self):
+        """覆盖 min_samples=2: 2 样本即判; 全局 4 时同窗口不判。"""
+        ph, _ = _make(per_provider={"sensenova": {"min_samples": 2}})
+        ph.record("sensenova", ok=False)
+        ph.record("sensenova", ok=False)
+        assert ph.is_unhealthy("sensenova") is True
+
+    def test_recovery_timeout_override(self):
+        ph, _ = _make(per_provider={"sensenova": {"recovery_timeout": 120.0}})
+        assert ph.get_breaker("sensenova").snapshot()["recovery_timeout"] == 120.0
+        assert ph.get_breaker("ollama").snapshot()["recovery_timeout"] == DEFAULT_RECOVERY_TIMEOUT
+
+    def test_invalid_override_skipped(self):
+        """非法覆盖条目跳过不抛 — LLM 主链不因观测配置炸。"""
+        ph, _ = _make(
+            per_provider={
+                "sensenova": {"failure_threshold": 1.5, "min_samples": 0},
+                "ollama": {"recovery_timeout": -1},
+            }
+        )
+        assert ph._overrides == {}
+
+    def test_snapshot_exposes_effective_thresholds(self):
+        ph, _ = _make(per_provider={"sensenova": {"failure_threshold": 0.9}})
+        snap = ph.snapshot("sensenova")
+        assert snap["thresholds"]["failure_threshold"] == 0.9
+        assert snap["thresholds"]["min_samples"] == DEFAULT_MIN_SAMPLES
+        snap2 = ph.snapshot("ollama")
+        assert snap2["thresholds"]["failure_threshold"] == DEFAULT_FAILURE_THRESHOLD
+
+    def test_singleton_reads_yaml_overrides(self, monkeypatch):
+        """单例接线: llm.yaml providers.<name>.breaker → per_provider 覆盖。"""
+        reset_provider_health()
+
+        class _Brk:
+            failure_threshold = 0.4
+            min_samples = 6
+            recovery_timeout = 60.0
+
+        class _PC:
+            breaker = _Brk()
+
+        class _Cfg:
+            providers = {"sensenova": _PC()}
+
+        monkeypatch.setattr(
+            "backend.config.llm_schema.load_llm_config", lambda path=None: _Cfg()
+        )
+        ph = get_provider_health()
+        assert ph._overrides["sensenova"] == {
+            "failure_threshold": 0.4,
+            "min_samples": 6,
+            "recovery_timeout": 60.0,
+        }
+
+    def test_singleton_yaml_failure_falls_back(self, monkeypatch):
+        """llm.yaml 读取异常 → 空覆盖表, env 全局语义不变。"""
+        reset_provider_health()
+
+        def _boom(path=None):
+            raise RuntimeError("yaml broken")
+
+        monkeypatch.setattr("backend.config.llm_schema.load_llm_config", _boom)
+        ph = get_provider_health()
+        assert ph._overrides == {}
+        assert ph._failure_threshold == DEFAULT_FAILURE_THRESHOLD
+
+    def test_real_yaml_loads_clean(self):
+        """仓内 config/llm.yaml (带 X-B1 注释样例, 无激活值) 可加载且覆盖表为空。"""
+        from backend.config.llm_schema import load_llm_config
+
+        cfg = load_llm_config()
+        assert cfg is not None
+        assert all(pc.breaker is None for pc in cfg.providers.values())
+
+
+class TestProviderBreakerSchema:
+    """llm_schema.ProviderBreaker 校验 (X-B1)。"""
+
+    def _make(self, **kw):
+        from backend.config.llm_schema import ProviderBreaker
+
+        return ProviderBreaker(**kw)
+
+    def test_defaults_all_none(self):
+        brk = self._make()
+        assert brk.failure_threshold is None
+        assert brk.min_samples is None
+        assert brk.recovery_timeout is None
+
+    def test_valid_partial(self):
+        brk = self._make(failure_threshold=0.4)
+        assert brk.min_samples is None  # 未声明 = 沿用全局
+
+    def test_invalid_threshold_rejected(self):
+        import pydantic
+
+        with pytest.raises(pydantic.ValidationError):
+            self._make(failure_threshold=1.5)
+
+    def test_invalid_recovery_rejected(self):
+        import pydantic
+
+        with pytest.raises(pydantic.ValidationError):
+            self._make(recovery_timeout=0)
+
+    def test_provider_config_breaker_optional(self):
+        from backend.config.llm_schema import ProviderConfig, ProviderModels
+
+        pc = ProviderConfig(type="ollama", models=ProviderModels())
+        assert pc.breaker is None
+        pc2 = ProviderConfig(type="ollama", models=ProviderModels(), breaker={"min_samples": 2})
+        assert pc2.breaker is not None and pc2.breaker.min_samples == 2

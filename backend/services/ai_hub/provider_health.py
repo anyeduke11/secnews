@@ -19,6 +19,12 @@ V0.8.1_PRD v1.0 §2.2 / V0.8.1_PLAN v1.2 §2.2 定稿契约:
 - ``HOTSPOT_BREAKER_FAILURE_THRESHOLD``  5min 失败率阈值, 默认 0.5 (">50%")
 - ``HOTSPOT_BREAKER_MIN_SAMPLES``        判定最小样本数, 默认 4
 - ``HOTSPOT_BREAKER_RECOVERY_TIMEOUT``   breaker OPEN 时长秒, 默认 30
+
+per-provider 覆盖 (v0.8.2 X-B1, v0.8.1 PRD §7 推迟项偿还):
+- ``config/llm.yaml`` 的 ``providers.<name>.breaker.{failure_threshold,
+  min_samples, recovery_timeout}`` 覆盖该 provider 的全局阈值
+- 解析链: **provider yaml > env 全局 > 内建默认** (特异性优先);
+  未声明字段沿用全局; yaml 读取失败静默降级为纯 env (LLM 主链不受观测配置拖垮)
 """
 from __future__ import annotations
 
@@ -85,6 +91,7 @@ class ProviderHealth:
         min_samples: int = DEFAULT_MIN_SAMPLES,
         recovery_timeout: float = DEFAULT_RECOVERY_TIMEOUT,
         clock: Callable[[], float] | None = None,
+        per_provider: dict[str, dict[str, float]] | None = None,
     ) -> None:
         if not 0 < failure_threshold <= 1:
             raise ValueError("failure_threshold 必须在 (0, 1]")
@@ -98,6 +105,31 @@ class ProviderHealth:
         # provider -> deque[(ts, ok)]；仅保留 RETENTION_SECONDS 内样本
         self._windows: dict[str, deque] = {}
         self._breakers: dict[str, CircuitBreaker] = {}
+        # v0.8.2 X-B1: provider -> {failure_threshold/min_samples/recovery_timeout}
+        # 非法条目跳过不抛 (LLM 主链不因观测配置炸), 与 record 的防御一致
+        self._overrides: dict[str, dict[str, float]] = {}
+        for prov, ov in (per_provider or {}).items():
+            clean: dict[str, float] = {}
+            ft = ov.get("failure_threshold")
+            ms = ov.get("min_samples")
+            rt = ov.get("recovery_timeout")
+            if ft is not None:
+                if 0 < ft <= 1:
+                    clean["failure_threshold"] = float(ft)
+                else:
+                    _logger.warning(f"provider_health: {prov} failure_threshold={ft} 非法, 忽略")
+            if ms is not None:
+                if int(ms) >= 1:
+                    clean["min_samples"] = int(ms)
+                else:
+                    _logger.warning(f"provider_health: {prov} min_samples={ms} 非法, 忽略")
+            if rt is not None:
+                if rt > 0:
+                    clean["recovery_timeout"] = float(rt)
+                else:
+                    _logger.warning(f"provider_health: {prov} recovery_timeout={rt} 非法, 忽略")
+            if clean:
+                self._overrides[prov] = clean
 
     # ------------------------------------------------------------------
     # 内部 (调用方须已持锁)
@@ -116,18 +148,33 @@ class ProviderHealth:
         rate = failures / total if total else 0.0
         return total, failures, rate
 
-    def _unhealthy_locked(self, dq: deque, now: float) -> bool:
+    def _unhealthy_locked(self, dq: deque, now: float, provider: str = "") -> bool:
         total, failures, _ = self._rate_locked(dq, now, 300.0)
-        if total < self._min_samples:
+        ov = self._overrides.get(provider, {})
+        threshold = ov.get("failure_threshold", self._failure_threshold)
+        min_samples = int(ov.get("min_samples", self._min_samples))
+        if total < min_samples:
             return False
-        return failures / total > self._failure_threshold
+        return failures / total > threshold
 
     def _get_breaker_locked(self, provider: str) -> CircuitBreaker:
         breaker = self._breakers.get(provider)
         if breaker is None:
-            breaker = CircuitBreaker(recovery_timeout=self._recovery_timeout, clock=self._clock)
+            recovery = self._overrides.get(provider, {}).get(
+                "recovery_timeout", self._recovery_timeout
+            )
+            breaker = CircuitBreaker(recovery_timeout=recovery, clock=self._clock)
             self._breakers[provider] = breaker
         return breaker
+
+    def _effective_thresholds(self, provider: str) -> dict[str, float | int]:
+        """单 provider 生效阈值 (yaml 覆盖优先) — snapshot 暴露用。"""
+        ov = self._overrides.get(provider, {})
+        return {
+            "failure_threshold": ov.get("failure_threshold", self._failure_threshold),
+            "min_samples": int(ov.get("min_samples", self._min_samples)),
+            "recovery_timeout": ov.get("recovery_timeout", self._recovery_timeout),
+        }
 
     # ------------------------------------------------------------------
     # 公有 API
@@ -145,7 +192,7 @@ class ProviderHealth:
                 dq = self._windows.setdefault(provider, deque())
                 dq.append((now, ok))
                 self._evict_locked(dq, now)
-                unhealthy = self._unhealthy_locked(dq, now)
+                unhealthy = self._unhealthy_locked(dq, now, provider)
                 breaker = self._get_breaker_locked(provider)
         except Exception as exc:  # pragma: no cover - 防御性
             _logger.warning(f"provider_health record failed (ignored): {exc}")
@@ -182,7 +229,7 @@ class ProviderHealth:
             dq = self._windows.get(provider)
             if not dq:
                 return False
-            return self._unhealthy_locked(dq, now)
+            return self._unhealthy_locked(dq, now, provider)
 
     def get_breaker(self, provider: str) -> CircuitBreaker:
         """per-provider breaker (懒创建复用; gateway 调用前 allow() 检查用)。"""
@@ -204,12 +251,14 @@ class ProviderHealth:
                     "failure_rate": round(rate, 4),
                 }
             breaker = self._get_breaker_locked(provider)
-            unhealthy = self._unhealthy_locked(dq, now) if dq else False
+            unhealthy = self._unhealthy_locked(dq, now, provider) if dq else False
         return {
             "provider": provider,
             "windows": windows,
             "unhealthy": unhealthy,
             "breaker": breaker.snapshot(),
+            # v0.8.2 X-B1: 生效阈值 (yaml per-provider > env 全局 > 内建默认)
+            "thresholds": self._effective_thresholds(provider),
         }
 
     def snapshot_all(self) -> dict[str, dict]:
@@ -225,14 +274,46 @@ class ProviderHealth:
 _default: ProviderHealth | None = None
 
 
+def _load_yaml_breaker_overrides() -> dict[str, dict[str, float]]:
+    """llm.yaml per-provider breaker 阈值 (v0.8.2 X-B1)。
+
+    任何失败 (文件缺失/校验错/读盘异常) 都静默降级为空表 — 观测配置
+    永不拖垮 LLM 主链; pydantic 已挡住非法值, 这里再兜一层防御。
+    """
+    try:
+        from backend.config.llm_schema import load_llm_config
+
+        cfg = load_llm_config()
+    except Exception as exc:
+        _logger.warning(f"provider_health: llm.yaml 读取失败, per-provider 阈值降级为 env 全局 ({exc})")
+        return {}
+    if cfg is None:
+        return {}
+    out: dict[str, dict[str, float]] = {}
+    for name, pc in cfg.providers.items():
+        if pc.breaker is None:
+            continue
+        ov: dict[str, float] = {}
+        if pc.breaker.failure_threshold is not None:
+            ov["failure_threshold"] = float(pc.breaker.failure_threshold)
+        if pc.breaker.min_samples is not None:
+            ov["min_samples"] = int(pc.breaker.min_samples)
+        if pc.breaker.recovery_timeout is not None:
+            ov["recovery_timeout"] = float(pc.breaker.recovery_timeout)
+        if ov:
+            out[name] = ov
+    return out
+
+
 def get_provider_health() -> ProviderHealth:
-    """进程级单例 (懒创建, env 参数只读一次)。gateway/image 接入 (Day 3) 用此。"""
+    """进程级单例 (懒创建, env + llm.yaml 参数只读一次)。gateway/image 接入 (Day 3) 用此。"""
     global _default
     if _default is None:
         _default = ProviderHealth(
             failure_threshold=_env_float("HOTSPOT_BREAKER_FAILURE_THRESHOLD", DEFAULT_FAILURE_THRESHOLD),
             min_samples=_env_int("HOTSPOT_BREAKER_MIN_SAMPLES", DEFAULT_MIN_SAMPLES),
             recovery_timeout=_env_float("HOTSPOT_BREAKER_RECOVERY_TIMEOUT", DEFAULT_RECOVERY_TIMEOUT),
+            per_provider=_load_yaml_breaker_overrides(),
         )
     return _default
 

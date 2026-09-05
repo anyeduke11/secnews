@@ -63,6 +63,23 @@
 
 - `/api/trigger/tickets` 列表端点 (看板时间线暂 mock) / 真实 LLM evaluation engine / skill 版本管理 (仅 latest) / webhook secret 轮换 UI
 
+## v0.8 P1 (2026-09-03) — 独立资讯筛选门禁 (info_filter, 受管扩展域)
+
+### 新增
+- `backend/services/info_filter_service.py` — 规则 CRUD/校验/evaluate (deny > allow > neutral 三优先级)
+- `backend/services/info_filter_gate.py` — 5s TTL 缓存 + 2 层 hook (Layer 1 源级 + Layer 2 item 落库前);
+  Layer 3 (ai_hub chunks) 因 gateway 签名无 source 维度取消, 文档化为 out-of-scope
+- `backend/api/info_filter_api.py` — 6 端点 (GET/POST /rules, PATCH/DELETE /rules/{id}, POST /preview, GET /gate)
+- migration 090 `info_filter_rules` 表
+- 前端 `InfoFilterCard.tsx` (V2 sentinelized, gate-off fallback) + SettingsHub 17 cat + i18n 双语 ~30 key
+
+### 门禁
+- pytest 3111 passed / vitest 370 / tsc 0 错
+- `feature_gates.toml info_filter=false` 默认 fail-closed (v0.8.1 Day 0 演练通电)
+
+> commit 链: `67cb74d` service + `b1b309c` gate + `6777f4d` api + `46d89c5` frontend (2026-09-03, main)。
+> 本段为 v0.8.2 X-B4 时序修复时补记 — 该批次当时漏登 CHANGELOG。
+
 ## v0.7.x SettingsHub V2 (2026-09-02) — 哨兵化全重设计 + 5 子组件拆分
 
 > **来源**: 用户指令 "哨兵以外的 UI/UX 调整, 参考哨兵进行美化" + 四问决策 (Q1 dashboard 用途/代价/习惯, Q2 拆 5 子组件, Q3 全重设计, Q4 测试全重写)。
@@ -93,9 +110,73 @@
 
 - 设置项 schema 化动态渲染 / 暗亮主题切换 / 设置搜索 / mobile 适配 (均与桌面哨兵布局同假设)
 
-## v0.7 Batch 3 + 4 + 5 (2026-08-31) — API 观测落地 + 阈值规则引擎 + 收口落账
+## v0.7.4-image (2026-09-02) — ai_hub 三场景路由
 
-> **来源**: Observability PRD v1.0 §5.3 "业务 endpoint 观测 + 阈值告警 + 看板嵌入"。本批三段子批一气呵成, 与 Batch 2 同观测轨, 不留尾巴 (除 llm_secrets 独立批次)。
+### 新增
+- `backend/services/ai_hub/scenarios.py` — `Scenario` (deep/light/image) + `ScenarioRoute` + `resolve_scenario_model` 四级链 (env > settings.kv > router > default),与 `AIService._resolve_api_key` 同构
+- `backend/services/ai_hub/image_service.py` — `ImageGenerationService` (复用 Batch ⑥ 凭据链),`generate()` → `/v1/images/generations` + `understand()` → `/chat/completions` 携 image_url
+- `backend/api/image.py` — `POST /api/image/generate` + `POST /api/image/understand`,Pydantic 验证 + 失败模式同 `/api/llm/evaluate` (ok=false)
+- `backend/services/llm/model_router.py` — `ModelTier.IMAGE` + `TASK_TIER_MAP` 加 image_generation/understand + 兜底 (sensenova, sensenova-u1.5-lite)
+- `frontend/src/components/secnews/ImageStudio.tsx` — 文生图 + 图理解 工具页
+- QualitySettings 折叠面板 "🎯 场景模型选择" → `POST /api/settings/scenario-model`
+
+### 升级
+- `config/llm.yaml`: `t3_summary.model` 升级 `sensenova-6.8-flash-lite` → `deepseek-v4-pro` (spike 验过, deep_read 自动生效)
+- `config/llm.yaml`: `providers.sensenova.models.image` 新增 `sensenova-u1.5-lite`
+- `config/llm.yaml`: `task_overrides.image_generation` 新增 (provider=sensenova, model=u1.5-lite, size=1024x1024, watermark=false)
+- `backend/config/llm_schema.py`: `ProviderModels.image` 字段 (默认空串) + `TaskOverride.size/n/watermark` 可选字段
+
+### 兼容扩展
+- `EvaluateRequest.scenario: str | None` (deep|light|None, 默认 None 走老路径零回归)
+- `SentinelJudgePage` / `SecNewsAnalyze` evaluate 调用 body 加 `scenario: 'deep'` (S10)
+
+### 门禁
+- pytest ~3440 passed / 6 skipped / 0 failed
+- vitest ~371 passed / tsc 0 错 / vite build OK
+- generate_meta --check OK (jobs 51 / routers 68 / services 105; 本批 +1 router, services 数不变因 scenarios/image_service 在 ai_hub 子包内)
+
+### 不在本批
+- yaml task_overrides 全展开 / 图片存储 / 多模态端到端 / deepseek-v4-flash LIGHT 降级
+## v0.7.5 (2026-09-01) — Batch ⑨ i18n 全量 + secrets 主动运维 + ACL + MITRE 离线包
+
+### 新增
+- **B9-1 i18n 全量**: I18nContext 12 namespace / 120+ key + {n} 占位符; 10 高频组件接入 (Shell/Header/StatusBar/Feed×3/Knowledge×2/Pipeline/Settings×3)
+- **B9-2 轮换主动通知**: secrets_rotation_check_job (每日 09:00) 超期 90d → 告警通道全发 + audit + 24h cooldown; 前端 RotationBanner
+- **B9-3 per-secret ACL**: migration 088 llm_secrets.owner_role + role 优先级过滤 (admin>user, fail-closed) + GET /api/secrets?actor_role=
+- **B9-4 MITRE 离线包**: 本地 cache + HEAD Last-Modified 304 增量 + 网络失败兜底 + force 重灌 + GET /api/security/mitre/cache; 省 ~30MB/次
+
+### 修复
+- EncryptionKeyRow dataclass 缺 last_rotated_at 字段 (migration 085 schema/dataclass 漂移, rotation_status 潜在 AttributeError)
+- secrets_rotation_check_job 漏登 jobs/__init__.py → e2e fixture 级联 28 errors
+- test_alerts_active_lists_recent 硬编码 fired_at 跨天超窗 → 动态 now-5min
+
+### 门禁
+- pytest 3250 passed / 6 skipped / 0 failed
+- vitest 346 passed / tsc 0 错 / vite build OK
+- generate_meta --check OK (jobs 51 / routers 67 / services 105)
+
+## v0.7.4-cleanup (2026-09-01) — Batch ⑧ 观测深化 + 扩展开闸 + i18n + 历史债
+
+### 新增
+- **D1 OAuth 真身**: `services/oauth_provider.py` (CloudBase 真身 + URL 校验) + `secrets_service.unlock_with_oauth()` (双因素语义) + 前端 `routes/oauth-callback.tsx`
+- **D2 告警 5 档通道**: `services/alert_channels.py` (Webhook/Email/Slack/Feishu/Dingtalk) + `alert_dispatcher.py` (asyncio.gather 并发) + migration 087 alert_deliveries 表
+- **D3 SSE 推送**: backend `publish_event("observability.update/breach")` + frontend EventSource + polling 兜底
+- **D4 api_events 采样降级**: `services/observability_sampling.py` (success 10% / error 100% / slow 100%) + `GET/PUT /api/observability/sampling`
+- **D5 扩展域开闸**: phase2b / tech_stack / security_graph 三闸门 true, 修复 phase2b 路由错绑 codegarden 脏状态
+- **D6 前端 i18n**: 0 依赖 `contexts/I18nContext.tsx` (zh-CN / en-US) + `LocaleToggle` + ObservabilityDashboard a11y (role/aria)
+- **D7 历史债清偿**: `scripts/check_docstrings.py` (237 模块全覆盖) + 补 kl_rollback_api 1 处历史债 + CI Mimosa best-effort step
+
+### 改进
+- ARCHITECTURE.md / AGENTS.md 数字同步 (services 101→105)
+- 路由注册与 job 注册对齐, "job 不跑但端点 200" 脏状态根治
+- conftest autouse 测试环境强制 sampling=100% 锁住 "必落表" 语义
+
+### 门禁
+- pytest 3234 passed / 6 skipped / 0 failed
+- vitest 345 passed
+- generate_meta --check OK
+- check_docstrings.py 0 缺
+
 ## v0.7 Batch 7 (2026-09-01) — 修复遗留阻塞项 (5 项全清)
 
 > **来源**: 用户指令 "修复遗留阻塞项" — 关闭 Batch ⑥ "不在本批范围" 全部 5 项。
@@ -173,6 +254,11 @@
 - [x] **遗留阻塞项 ⑤ 关闭**: "加密通道接管" → llm_secrets 真正接入业务路径; key_source 三态可观测; reveal 强审计; rotate HTTP 端点就绪
 - [x] **测试**: SecretRepository 5 例 + AIService 10 例 + LLMService 4 例 + QualitySettings 5 例 + secrets API 11 audit + 4 rotate = **39 例**
 - [x] **门禁**: ruff 0 / pytest 3138 passed / 6 skipped / 0 failed (基线 3108 + 39 净增) / `generate_meta --check` OK (routers 66 / services 98 / jobs 50 — 不变) / tsc 0 / vitest 327 pass (基线 322 + 5 QualitySettings) / vite build OK
+
+## v0.7 Batch 3 + 4 + 5 (2026-08-31) — API 观测落地 + 阈值规则引擎 + 收口落账
+
+> **来源**: Observability PRD v1.0 §5.3 "业务 endpoint 观测 + 阈值告警 + 看板嵌入"。本批三段子批一气呵成, 与 Batch 2 同观测轨, 不留尾巴 (除 llm_secrets 独立批次)。
+> 本节为索引 stub — Batch ③/④/⑤ 执行内容并入 Batch 1/2 两节 (同观测轨交付), 未单独展开。
 
 ## v0.7 Batch 2 (2026-08-31) — LLM provider 切换 + settings.kv 覆盖 + audit_log 写入
 
@@ -719,6 +805,49 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
 | 前端 tsc | 零类型错 | clean (✓) |
 | 前端 vitest | 322 用例 | 322 passed (✓) |
 | vite build | 产物无错 | clean (✓) |
+
+## v0.6.2 (2026-08-28) — v0.6 Phase 6 (存量迁移 + wiki FTS5 同步层 + dsh-SecNews 归档)
+
+> **范围**: Phase 6 三批落地, wiki-first 存储哲学闭环:
+> 1. 一次性迁移脚本 (scripts/migrate_wiki.py) — 幂等 + SHA256 报告
+> 2. wiki_items_fts 完整同步层 (migration 073 + 链式 job + search_wiki_only FTS5 MATCH 旁路)
+> 3. dsh-SecNews secnews/data 离线归档 (21.6MB → 2.3MB tar.zst + MANIFEST + verify 脚本)
+>
+> **批次 commit**: 3 个 (`309a83da` / `e53790cc` / 本批 `chore(phase6-archive)`)。
+
+### 批次 ⑪：v0.6 Phase 6 — 存量迁移 CLI + wiki_items_fts 同步层 + dsh-SecNews 归档
+
+1. **`feat(phase6-migrate-cli): scripts/migrate_wiki.py CLI wrapper + 幂等执行 + 测试`** (`309a83da`)
+   - 新 `scripts/migrate_wiki.py`: argparse (`--src` / `--dest` / `--dry-run` / `--report` / `--exclude-pattern`); SHA256 清单 + 报告入仓 (`docs/data/migration-report.json`)。
+   - 强制 safety-net excludes: `*P2*` / `*Test*` / `*test*` + 保守 title 正则 (仅 P2 Import Test fixture, 不碰 \bsample\b/\bdemo\b)。
+   - 真实运行: apply `migrated=0 / skipped=4149 / errors=0` (幂等闭环); dry-run `would_migrate=0 / would_skip=4147 / excluded=2`。
+   - 新增 `backend/tests/test_migrate_cli.py` (3 用例: fresh / idempotent / dry-run 0 写盘); ruff 通过。
+
+2. **`feat(phase6-fts-sync): wiki_items_fts 完整同步层 + FTS5 MATCH 旁路`** (`e53790cc`)
+   - 新 `backend/repository/migrations/073_v0.6_wiki_items_fts_sync.sql`: DROP & 重建 `wiki_items_fts` (id UNINDEXED + contentless FTS5, 5 列: id/title/topic/tags/type, 与 `hotspots_fts` 平行); 不加 DB trigger (SQLite 禁跨 attached DB trigger) — 同步由 `wiki_items_fts_sync_job` 兜底。
+   - 新 `wiki_items_fts_sync_job()` (`backend/scheduler/jobs/maintenance.py`): drift 检测 (COUNT 不等 → 'delete-all' + 全量 rebuild + optimize); 链式触发 (`backend/scheduler/jobs/collect.py` L38, 与 `fts_rebuild_job` 平级)。
+   - `backend/services/search_service.py`: `_VALID_SOURCES += 'wiki'`; `unified_search` 新增 `wiki` source → `_search_wiki_fts` FTS5 MATCH 旁路, `LEFT JOIN warm.knowledge_items k ON k.rowid = f.rowid` 回查实体字段 (contentless 列投影为 NULL, 必须 JOIN); 新增 `search_wiki_only(q, limit)` 便捷方法; FTS5 syntax 错误 → 空结果 (不 5xx)。
+   - 新增 `backend/tests/test_wiki_items_fts.py` (5 用例: 5 列 / MATCH 命中 / entity_id 非 None / sources=['wiki'] 旁路 / drift 自愈); ruff 通过; pytest 5/5 + 周边搜索/mcp/migrate 45/45 全绿。
+
+3. **`chore(phase6-archive): dsh-SecNews secnews/data 离线归档`** (本批)
+   - 新 `archives/dsh-secs-news-2026-08-27.tar.zst` (2.3MB zstd / 21.6MB raw, 4285 文件; sha256 `f785bceb590f131104423b09c721437f8ff0f4367543056da1abbb6db5b53a67`)。
+   - 新 `archives/dsh-secs-news.MANIFEST` (per-file SHA256 + 归档元信息)。
+   - 新 `archives/ARCHIVE_NOTES.md` (归档原因 / 与 plan 偏差说明 / 还原步骤 / 与 hotspot 关系图 / 后续动作)。
+   - 新 `scripts/verify_dsh_archive.sh` (Python 包装, 跨 shell 兼容; archive-SHA + file-level 双层校验, 4285/4285 通过)。
+   - `chmod -R a-w /home/user/Documents/dsh-SecNews` (源冻结; 不删除, 保留备份 — 用户决策)。
+   - **与 plan 偏差**: 范围从 `dsh-SecNews/` 整体 (估 50MB, 实测1.8GB 含 node_modules) 缩到 `secnews/data/` (24MB), 因 node_modules 与 wiki 无关不入仓; 归档本体 2.3MB 小于 plan 估的 50MB, 优势。
+
+### Phase 6 验收数据
+
+| 维度 | 验收 | 实测 |
+|------|------|------|
+| 迁移脚本幂等 | 二次 apply 0 迁移 | `migrated=0 / skipped=4149` (✓) |
+| dry-run 0 写盘 | dest 保持空 | `would_migrate=0 / would_skip=4147 / excluded=2` (✓) |
+| FTS5 检索 | 真相关度排序 | `search_wiki_only('渗透', limit=3)` 返回 ≥1 行 (✓) |
+| sources=wiki 旁路 | unified_search 分组含 wiki | `len(grouped['wiki']) >= 1` (✓) |
+| drift 自愈 | COUNT 不等触发 rebuild | `wiki_items_fts_sync_job` 后两侧 COUNT 对齐 (✓) |
+| 归档完整性 | SHA256 全通过 | 4285/4285 文件 + archive SHA (✓) |
+| 源冻结 | chmod a-w 验证 | `dr-xr-xr-x` 权限确认 (✓) |
 
 ## v0.6.1 (2026-08-27) — v0.6 P0 清场第二批 + dsh 桥接层 + Phase 4 工作台 UI + **v0.6 Phase 5 (mastery 闭合 + 08:00 LLM 简报 + MCP 扩展 5 tool)**
 
@@ -1268,6 +1397,65 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
 - CI 修复 (v0.4.3 发布前置, 历史 CI 长期为红): requirements.lock mcp 2.0→1.28.1 (fastapi-mcp 0.4.0 兼容), fastapi-mcp pin <0.5, frontend @types/node 显式声明 + npm install, 4 处测试消除对本地 .env/真实 hotspot.db/上级 node_modules 的隐式依赖; 2026-08-19 三个 job 首次全绿
 - 测试环境默认全开 feature gates (conftest autouse), 3 处 migration 标注扩展表归属
 
+## v0.4.0 (2026-08-16) — 审计重构 Phase 0-6 全部落地
+
+> 依据 docs/audit_first_principles_plan.md 的第一性原理审计与批判性审计,
+> 修复全部发现的断裂/死代码/安全缺口, 版本 0.3.0 → 0.4.0。
+
+### 知识闭环数据流 (P1)
+- KL 状态落真相源: md 写入 lifecycle, full_sync 不再抹除 kl:* 状态; 回填 4,117 个既有 md
+- T4 触发器修复 content 列崩溃 + 评分 fallback → kl:publish 死锁解除
+- 生命周期统一为 KL 五阶段 (sag/extract/compiler 改写 kl:* 值)
+- knowledge_watcher 改单文件增量同步 (不再全目录重扫)
+- 新增 knowledge_classify_job (每 30min 500 条规则分类)
+
+### 采集管道 (P2)
+- run_one_source 真单源化 (collect 支持 only_source 过滤)
+- run_one/run_one_source 与 run_once 统一并发锁
+- 去重窗口改滚动 7 天; 指纹入库后补写 (FK 失效修复)
+- catchup since 窗口透传生效; unreachable 加入复检候选
+- 门禁语义对齐 (hard 仅 strict 拒绝; 崩溃 fail-closed)
+- 接线 6 个未注册 collector (HN/Reddit/Telegram/OSSInsight/GDELT/OpenBB)
+- 稳定 ID (可读前缀+URL 哈希); upsert 不再刷新 ingested_at; 富化摘要复检
+
+### 内化/输出闭环 (P3)
+- 注意力事件自动创建 SM-2 复习记录; DeepReadMode 埋点 view/dwell/scroll
+- ItemDetailDialog 标注 UI; 内容草稿生成 job (kl:publish/高注意力 → drafts)
+- 复利仪表盘改读真实数据 + 挂载到 /knowledge/compound
+
+### 同步与安全 (P4)
+- bundle 构建失败即中止 (表缺失=空, 真失败=raise 防误删)
+- secrets merge 排除密文字段; 冲突裁决生效; sm2 due_at 晚者胜
+- rotate_master_key 主密钥轮换; Playbook 危险命令黑名单
+- 备份纳入 knowledge/ 源文件 + restore 流程; MCP 路径穿越校验
+
+### 导航与操作流 (P5)
+- 死组件清理 (Sidebar/TopBar); Header "更多"菜单 (知识/Skill/密钥/同步)
+- ErrorBoundary 挂载; 主题状态统一; 收藏→知识库单步导入
+- 数据源健康汇总; ReviewMode 空态引导
+
+### 兼容性
+- 后端 2288+ → 2,400+ 测试全绿; 前端 292 测试全绿
+- 数据库迁移无需新增 (全部修复为代码层)
+
+### v0.4.0 收尾 (2026-08-16 补)
+
+#### Chunk + FTS5 全文检索落地 (此前 0 行)
+- `chunk_service` 段落切分生成器 (char_start/end 原文定位, 超长段落句切)
+- `knowledge_chunk_generation_job` 每 30min 处理 200 条
+- 迁移 061: FTS5 trigram 表 → 中文子串检索 (unicode61 不切 CJK)
+- 搜索端点路由: CJK≥3字→trigram / ASCII→unicode61 / 短查询→LIKE
+- 存量回填: 258 个有正文条目全部生成 chunks
+
+#### Security ↔ Knowledge 实体统一命名空间 (PRD A.3.2)
+- `security_enrichment_job` 重构为持续回填 (去掉 24h 限制 + 空结果打标)
+- 富化实体写入 `item_entities` 桥接表 (此前 0 行, 全库无写入方)
+- `security_entity_concept_sync_job`: item 实体→security_entities + 高频
+  实体→knowledge concept 互引 (external_id/external_ref)
+- 实测: 34 桥接关联 / 28 CVE 入 security 库 / 2 高频概念互引
+
+---
+
 ## v0.3.0 (2026-08-01)
 
 ### 新增功能 (Phase 8-14)
@@ -1333,172 +1521,3 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
 - Phase 9 (抓取标准化): `.trae/specs/phase9-crawl-standardize/`
 - Phase 10 (T1/T2 触发器): `.trae/specs/phase10-t1t2-triggers/`
 - Phase 11-17 (v1.7): `.trae/specs/phase17-chunks-attention/` 及对应 spec 目录
-## v0.4.0 (2026-08-16) — 审计重构 Phase 0-6 全部落地
-
-> 依据 docs/audit_first_principles_plan.md 的第一性原理审计与批判性审计,
-> 修复全部发现的断裂/死代码/安全缺口, 版本 0.3.0 → 0.4.0。
-
-### 知识闭环数据流 (P1)
-- KL 状态落真相源: md 写入 lifecycle, full_sync 不再抹除 kl:* 状态; 回填 4,117 个既有 md
-- T4 触发器修复 content 列崩溃 + 评分 fallback → kl:publish 死锁解除
-- 生命周期统一为 KL 五阶段 (sag/extract/compiler 改写 kl:* 值)
-- knowledge_watcher 改单文件增量同步 (不再全目录重扫)
-- 新增 knowledge_classify_job (每 30min 500 条规则分类)
-
-### 采集管道 (P2)
-- run_one_source 真单源化 (collect 支持 only_source 过滤)
-- run_one/run_one_source 与 run_once 统一并发锁
-- 去重窗口改滚动 7 天; 指纹入库后补写 (FK 失效修复)
-- catchup since 窗口透传生效; unreachable 加入复检候选
-- 门禁语义对齐 (hard 仅 strict 拒绝; 崩溃 fail-closed)
-- 接线 6 个未注册 collector (HN/Reddit/Telegram/OSSInsight/GDELT/OpenBB)
-- 稳定 ID (可读前缀+URL 哈希); upsert 不再刷新 ingested_at; 富化摘要复检
-
-### 内化/输出闭环 (P3)
-- 注意力事件自动创建 SM-2 复习记录; DeepReadMode 埋点 view/dwell/scroll
-- ItemDetailDialog 标注 UI; 内容草稿生成 job (kl:publish/高注意力 → drafts)
-- 复利仪表盘改读真实数据 + 挂载到 /knowledge/compound
-
-### 同步与安全 (P4)
-- bundle 构建失败即中止 (表缺失=空, 真失败=raise 防误删)
-- secrets merge 排除密文字段; 冲突裁决生效; sm2 due_at 晚者胜
-- rotate_master_key 主密钥轮换; Playbook 危险命令黑名单
-- 备份纳入 knowledge/ 源文件 + restore 流程; MCP 路径穿越校验
-
-### 导航与操作流 (P5)
-- 死组件清理 (Sidebar/TopBar); Header "更多"菜单 (知识/Skill/密钥/同步)
-- ErrorBoundary 挂载; 主题状态统一; 收藏→知识库单步导入
-- 数据源健康汇总; ReviewMode 空态引导
-
-### 兼容性
-- 后端 2288+ → 2,400+ 测试全绿; 前端 292 测试全绿
-- 数据库迁移无需新增 (全部修复为代码层)
-
-### v0.4.0 收尾 (2026-08-16 补)
-
-#### Chunk + FTS5 全文检索落地 (此前 0 行)
-- `chunk_service` 段落切分生成器 (char_start/end 原文定位, 超长段落句切)
-- `knowledge_chunk_generation_job` 每 30min 处理 200 条
-- 迁移 061: FTS5 trigram 表 → 中文子串检索 (unicode61 不切 CJK)
-- 搜索端点路由: CJK≥3字→trigram / ASCII→unicode61 / 短查询→LIKE
-- 存量回填: 258 个有正文条目全部生成 chunks
-
-#### Security ↔ Knowledge 实体统一命名空间 (PRD A.3.2)
-- `security_enrichment_job` 重构为持续回填 (去掉 24h 限制 + 空结果打标)
-- 富化实体写入 `item_entities` 桥接表 (此前 0 行, 全库无写入方)
-- `security_entity_concept_sync_job`: item 实体→security_entities + 高频
-  实体→knowledge concept 互引 (external_id/external_ref)
-- 实测: 34 桥接关联 / 28 CVE 入 security 库 / 2 高频概念互引
-
----
-
-## v0.6.2 (2026-08-28) — v0.6 Phase 6 (存量迁移 + wiki FTS5 同步层 + dsh-SecNews 归档)
-
-> **范围**: Phase 6 三批落地, wiki-first 存储哲学闭环:
-> 1. 一次性迁移脚本 (scripts/migrate_wiki.py) — 幂等 + SHA256 报告
-> 2. wiki_items_fts 完整同步层 (migration 073 + 链式 job + search_wiki_only FTS5 MATCH 旁路)
-> 3. dsh-SecNews secnews/data 离线归档 (21.6MB → 2.3MB tar.zst + MANIFEST + verify 脚本)
->
-> **批次 commit**: 3 个 (`309a83da` / `e53790cc` / 本批 `chore(phase6-archive)`)。
-
-### 批次 ⑪：v0.6 Phase 6 — 存量迁移 CLI + wiki_items_fts 同步层 + dsh-SecNews 归档
-
-1. **`feat(phase6-migrate-cli): scripts/migrate_wiki.py CLI wrapper + 幂等执行 + 测试`** (`309a83da`)
-   - 新 `scripts/migrate_wiki.py`: argparse (`--src` / `--dest` / `--dry-run` / `--report` / `--exclude-pattern`); SHA256 清单 + 报告入仓 (`docs/data/migration-report.json`)。
-   - 强制 safety-net excludes: `*P2*` / `*Test*` / `*test*` + 保守 title 正则 (仅 P2 Import Test fixture, 不碰 \bsample\b/\bdemo\b)。
-   - 真实运行: apply `migrated=0 / skipped=4149 / errors=0` (幂等闭环); dry-run `would_migrate=0 / would_skip=4147 / excluded=2`。
-   - 新增 `backend/tests/test_migrate_cli.py` (3 用例: fresh / idempotent / dry-run 0 写盘); ruff 通过。
-
-2. **`feat(phase6-fts-sync): wiki_items_fts 完整同步层 + FTS5 MATCH 旁路`** (`e53790cc`)
-   - 新 `backend/repository/migrations/073_v0.6_wiki_items_fts_sync.sql`: DROP & 重建 `wiki_items_fts` (id UNINDEXED + contentless FTS5, 5 列: id/title/topic/tags/type, 与 `hotspots_fts` 平行); 不加 DB trigger (SQLite 禁跨 attached DB trigger) — 同步由 `wiki_items_fts_sync_job` 兜底。
-   - 新 `wiki_items_fts_sync_job()` (`backend/scheduler/jobs/maintenance.py`): drift 检测 (COUNT 不等 → 'delete-all' + 全量 rebuild + optimize); 链式触发 (`backend/scheduler/jobs/collect.py` L38, 与 `fts_rebuild_job` 平级)。
-   - `backend/services/search_service.py`: `_VALID_SOURCES += 'wiki'`; `unified_search` 新增 `wiki` source → `_search_wiki_fts` FTS5 MATCH 旁路, `LEFT JOIN warm.knowledge_items k ON k.rowid = f.rowid` 回查实体字段 (contentless 列投影为 NULL, 必须 JOIN); 新增 `search_wiki_only(q, limit)` 便捷方法; FTS5 syntax 错误 → 空结果 (不 5xx)。
-   - 新增 `backend/tests/test_wiki_items_fts.py` (5 用例: 5 列 / MATCH 命中 / entity_id 非 None / sources=['wiki'] 旁路 / drift 自愈); ruff 通过; pytest 5/5 + 周边搜索/mcp/migrate 45/45 全绿。
-
-3. **`chore(phase6-archive): dsh-SecNews secnews/data 离线归档`** (本批)
-   - 新 `archives/dsh-secs-news-2026-08-27.tar.zst` (2.3MB zstd / 21.6MB raw, 4285 文件; sha256 `f785bceb590f131104423b09c721437f8ff0f4367543056da1abbb6db5b53a67`)。
-   - 新 `archives/dsh-secs-news.MANIFEST` (per-file SHA256 + 归档元信息)。
-   - 新 `archives/ARCHIVE_NOTES.md` (归档原因 / 与 plan 偏差说明 / 还原步骤 / 与 hotspot 关系图 / 后续动作)。
-   - 新 `scripts/verify_dsh_archive.sh` (Python 包装, 跨 shell 兼容; archive-SHA + file-level 双层校验, 4285/4285 通过)。
-   - `chmod -R a-w /home/user/Documents/dsh-SecNews` (源冻结; 不删除, 保留备份 — 用户决策)。
-   - **与 plan 偏差**: 范围从 `dsh-SecNews/` 整体 (估 50MB, 实测1.8GB 含 node_modules) 缩到 `secnews/data/` (24MB), 因 node_modules 与 wiki 无关不入仓; 归档本体 2.3MB 小于 plan 估的 50MB, 优势。
-
-### Phase 6 验收数据
-
-| 维度 | 验收 | 实测 |
-|------|------|------|
-| 迁移脚本幂等 | 二次 apply 0 迁移 | `migrated=0 / skipped=4149` (✓) |
-| dry-run 0 写盘 | dest 保持空 | `would_migrate=0 / would_skip=4147 / excluded=2` (✓) |
-| FTS5 检索 | 真相关度排序 | `search_wiki_only('渗透', limit=3)` 返回 ≥1 行 (✓) |
-| sources=wiki 旁路 | unified_search 分组含 wiki | `len(grouped['wiki']) >= 1` (✓) |
-| drift 自愈 | COUNT 不等触发 rebuild | `wiki_items_fts_sync_job` 后两侧 COUNT 对齐 (✓) |
-| 归档完整性 | SHA256 全通过 | 4285/4285 文件 + archive SHA (✓) |
-| 源冻结 | chmod a-w 验证 | `dr-xr-xr-x` 权限确认 (✓) |
-
-## v0.7.4-cleanup (2026-09-01) — Batch ⑧ 观测深化 + 扩展开闸 + i18n + 历史债
-
-### 新增
-- **D1 OAuth 真身**: `services/oauth_provider.py` (CloudBase 真身 + URL 校验) + `secrets_service.unlock_with_oauth()` (双因素语义) + 前端 `routes/oauth-callback.tsx`
-- **D2 告警 5 档通道**: `services/alert_channels.py` (Webhook/Email/Slack/Feishu/Dingtalk) + `alert_dispatcher.py` (asyncio.gather 并发) + migration 087 alert_deliveries 表
-- **D3 SSE 推送**: backend `publish_event("observability.update/breach")` + frontend EventSource + polling 兜底
-- **D4 api_events 采样降级**: `services/observability_sampling.py` (success 10% / error 100% / slow 100%) + `GET/PUT /api/observability/sampling`
-- **D5 扩展域开闸**: phase2b / tech_stack / security_graph 三闸门 true, 修复 phase2b 路由错绑 codegarden 脏状态
-- **D6 前端 i18n**: 0 依赖 `contexts/I18nContext.tsx` (zh-CN / en-US) + `LocaleToggle` + ObservabilityDashboard a11y (role/aria)
-- **D7 历史债清偿**: `scripts/check_docstrings.py` (237 模块全覆盖) + 补 kl_rollback_api 1 处历史债 + CI Mimosa best-effort step
-
-### 改进
-- ARCHITECTURE.md / AGENTS.md 数字同步 (services 101→105)
-- 路由注册与 job 注册对齐, "job 不跑但端点 200" 脏状态根治
-- conftest autouse 测试环境强制 sampling=100% 锁住 "必落表" 语义
-
-### 门禁
-- pytest 3234 passed / 6 skipped / 0 failed
-- vitest 345 passed
-- generate_meta --check OK
-- check_docstrings.py 0 缺
-
-## v0.7.5 (2026-09-01) — Batch ⑨ i18n 全量 + secrets 主动运维 + ACL + MITRE 离线包
-
-### 新增
-- **B9-1 i18n 全量**: I18nContext 12 namespace / 120+ key + {n} 占位符; 10 高频组件接入 (Shell/Header/StatusBar/Feed×3/Knowledge×2/Pipeline/Settings×3)
-- **B9-2 轮换主动通知**: secrets_rotation_check_job (每日 09:00) 超期 90d → 告警通道全发 + audit + 24h cooldown; 前端 RotationBanner
-- **B9-3 per-secret ACL**: migration 088 llm_secrets.owner_role + role 优先级过滤 (admin>user, fail-closed) + GET /api/secrets?actor_role=
-- **B9-4 MITRE 离线包**: 本地 cache + HEAD Last-Modified 304 增量 + 网络失败兜底 + force 重灌 + GET /api/security/mitre/cache; 省 ~30MB/次
-
-### 修复
-- EncryptionKeyRow dataclass 缺 last_rotated_at 字段 (migration 085 schema/dataclass 漂移, rotation_status 潜在 AttributeError)
-- secrets_rotation_check_job 漏登 jobs/__init__.py → e2e fixture 级联 28 errors
-- test_alerts_active_lists_recent 硬编码 fired_at 跨天超窗 → 动态 now-5min
-
-### 门禁
-- pytest 3250 passed / 6 skipped / 0 failed
-- vitest 346 passed / tsc 0 错 / vite build OK
-- generate_meta --check OK (jobs 51 / routers 67 / services 105)
-
-## v0.7.4-image (2026-09-02) — ai_hub 三场景路由
-
-### 新增
-- `backend/services/ai_hub/scenarios.py` — `Scenario` (deep/light/image) + `ScenarioRoute` + `resolve_scenario_model` 四级链 (env > settings.kv > router > default),与 `AIService._resolve_api_key` 同构
-- `backend/services/ai_hub/image_service.py` — `ImageGenerationService` (复用 Batch ⑥ 凭据链),`generate()` → `/v1/images/generations` + `understand()` → `/chat/completions` 携 image_url
-- `backend/api/image.py` — `POST /api/image/generate` + `POST /api/image/understand`,Pydantic 验证 + 失败模式同 `/api/llm/evaluate` (ok=false)
-- `backend/services/llm/model_router.py` — `ModelTier.IMAGE` + `TASK_TIER_MAP` 加 image_generation/understand + 兜底 (sensenova, sensenova-u1.5-lite)
-- `frontend/src/components/secnews/ImageStudio.tsx` — 文生图 + 图理解 工具页
-- QualitySettings 折叠面板 "🎯 场景模型选择" → `POST /api/settings/scenario-model`
-
-### 升级
-- `config/llm.yaml`: `t3_summary.model` 升级 `sensenova-6.8-flash-lite` → `deepseek-v4-pro` (spike 验过, deep_read 自动生效)
-- `config/llm.yaml`: `providers.sensenova.models.image` 新增 `sensenova-u1.5-lite`
-- `config/llm.yaml`: `task_overrides.image_generation` 新增 (provider=sensenova, model=u1.5-lite, size=1024x1024, watermark=false)
-- `backend/config/llm_schema.py`: `ProviderModels.image` 字段 (默认空串) + `TaskOverride.size/n/watermark` 可选字段
-
-### 兼容扩展
-- `EvaluateRequest.scenario: str | None` (deep|light|None, 默认 None 走老路径零回归)
-- `SentinelJudgePage` / `SecNewsAnalyze` evaluate 调用 body 加 `scenario: 'deep'` (S10)
-
-### 门禁
-- pytest ~3440 passed / 6 skipped / 0 failed
-- vitest ~371 passed / tsc 0 错 / vite build OK
-- generate_meta --check OK (jobs 51 / routers 68 / services 105; 本批 +1 router, services 数不变因 scenarios/image_service 在 ai_hub 子包内)
-
-### 不在本批
-- yaml task_overrides 全展开 / 图片存储 / 多模态端到端 / deepseek-v4-flash LIGHT 降级

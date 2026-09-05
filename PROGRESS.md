@@ -217,6 +217,13 @@
 - [x] **通电**: `feature_gates.toml` 7 个 v0.8 gate → true (info_filter/skill_registry/trigger_gate/agent_loop/playbook_engine/user_skills/skill_eval), mcp 回关; **纯 toml (零 env) 复探 4/4 = 200**。演练通过后保持全开 (PRD F5 [假设]), fail-closed 随时可回关。
 - [x] **文档**: AGENTS.md gate 数字 (15 开 1 关) / PROJECT.md 生命周期+已知问题+决策日志 / `generate_meta --check` 4/4 过。
 
+### 2026-09-05 v0.8.1 Day 1 — CircuitBreaker 薄状态机 (本批)
+
+> **来源**: PRD v1.0 §8 Day 1; PLAN v1.2 §2.3 D1。
+> **范围**: `backend/utils/circuit_breaker.py` (~110 行) + 14 测试。**无失败计数** (单一真相源, trip 由 ProviderHealth 判定驱动 — Day 2), keying = provider 级, 单把 threading.Lock (TriggerWorker 线程 × event loop 混跑)。
+> **三态语义**: closed 放行 / open 拒绝且到期后下一次 allow() 即探针 (half_open) / half_open 探针在途拒绝; **探针防死锁**: half_open 滞留 ≥ recovery_timeout (调用方失联) 自动重新授予; trip 已 OPEN 时 no-op (不延长窗口, 窗口起点 = 首次 trip); reset 幂等; clock 可注入 (测试零 sleep, 生产 monotonic 防时间回拨); recovery_timeout=0 = 每次都放探针。
+> **验收**: 14/14 全绿 (三态迁移/窗口重计/防死锁/snapshot/16 线程 Barrier 恰好 1 探针/8 线程混跑 400 ops 状态恒合法) + ruff 0 错。
+
 ### 2026-09-02 SettingsHub V2 — 哨兵化全重设计 + 5 子组件拆分 (本批)
 
 > **来源**: 用户指令 "哨兵以外的 UI/UX 调整, 参考哨兵进行美化" + 四问决策 (Q1 加 dashboard 用途/代价/习惯说明, Q2 拆 5 子组件, Q3 全重设计, Q4 测试全重写一步到位)。

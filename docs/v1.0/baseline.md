@@ -26,7 +26,9 @@
 | **备份** | `backend/backups/` | 最近 full `hotspot-20260829_200000.db` + knowledge.zip; `incremental/` 目录; 3 个 INTEGRITY_OK 标记 | `services/backup_service.py` (04:30 增量 / 周日 full) + backup_verify (周一 02:00, v0.8.2 A4)。⚠️ full 已 7 天旧 — 新鲜度缺口已录已知问题 F6 |
 | **Wiki 单根** | `llm-wiki-2.0/` (content/ concepts/ digest/ inbox/ graph.json _MAP.md) | `HOTSPOT_WIKI_ROOT` env 未设, 走默认解析 | `wiki_fs/paths.py wiki_root()` 单一源; 写入方: knowledge_watcher (双向同步) / skill_runner C/D 管线 (wiki_path) / obsidian 工具链 |
 | **知识目录别名** | `KNOWLEDGE_DIR = wiki_root()` (P4 双根合并后同 Wiki 单根) | 无独立目录 | `services/knowledge_sync.py:46` |
-| **日志** | `backend/logs/` (app.log 按 log_max_bytes 轮转; 另有历史 run_c4b.out 等手工输出) | | `logging_config.py` (loguru; stdlib logging 全仓不可见 — 红线) |
+| **日志** | `backend/logs/` (**262MB**; app.log 5.8MB 按 log_max_bytes 轮转; 另有历史 run_c4b.out 等手工输出) | | `logging_config.py` (loguru; stdlib logging 全仓不可见 — 红线) |
+| **Agent 工作区** | `codegarden/` (exports/ memory/ playbooks/ prompts/ 子目录 — dsh/pi 会话产物区) | T04/T10 隔离验证对象 | `agent_bridge.py` workspace 锁定 `codegarden/<project>/` |
+| **pi home** | `~/.pi/agent/` (auth.json **含凭据, 未读** / bin / extensions / models-store.json) | pi 0.84.4 外部 CLI | T10 受管前不继承全局凭据 (DEVELOPMENT_PLAN §4.2 环境白名单) |
 | **data/ 旧产物** | `data/`: **hotspot.db 0 字节 (08-25, 诱饵勿用)**; compliance/ export/ dsh/ stix/ migrations/(08-24 旧产物) retirement_baseline.json | 非当前写路径 (Phase 7 时代遗留) | 无活跃写入者 |
 | **dsh runtime** | settings KV: `dsh.command/endpoint/autostart` (HOT settings 表); 会话工作区 `codegarden/<project>/` | 当前未运行 | `services/dsh/supervisor.py` + `runtime.py resolve_mode` 三态 (not_configured→mock→subprocess) |
 | **pi** | 外部 CLI `~/.pi/` (0.84.4, 底层 provider 走用户配置); bridge 走 `agent_bridge.py` 子进程协议 | 未常驻 | `services/agent_bridge.py` (run_agent_task) |
@@ -35,6 +37,8 @@
 写入者全局约束: SQLite 连接线程亲和 (asyncio.to_thread 内构造) / stdlib logging 不可见 (一律 loguru) — 均为既有红线。
 
 ## 3. 架构与功能清单 (引用单一真源)
+
+- **逐域功能清单与处置 (保留/适配/后置)**: [docs/v1.0/feature-inventory.md](feature-inventory.md) (T00 补充交付 — 19 域 × 现状入口/数据根/处置/v1.0 落点)。
 
 - 计数 (2026-09-05 实测, `generate_meta --check` 4/4): **73 routers** (core 45 白名单 + 扩展域 28) / **108 services** / **52 jobs** / **14 collectors**。
   注意: `jobs/__init__.py __all__` 仅 34 个 re-export 名, 其余 job 经模块直连注册 — 以 scheduler.py `add_job` AST 计数 52 为准 (test_feature_gates 锁定)。

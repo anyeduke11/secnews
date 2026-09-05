@@ -6,7 +6,7 @@
 
 | ID | 前置 | 交付物 | 状态 | DEV | commit / 证据 |
 |---|---|---|---|---|---|
-| T00 基线与账本 | 无 | docs/v1.0/baseline.md + task-status.md + 样本故事 | **verified** | DEV-0136 | 本 commit; 只读盘点 (§2.2 证据见 DEV-0136) |
+| T00 基线与账本 | 无 | baseline.md + task-status.md + **feature-inventory.md** + 样本故事 | **verified** | DEV-0136 | f9520c2 (docs/v1.0) + 本轮补 commit; 只读盘点 |
 | T01 测试隔离 | T00 | 隔离 fixture + 路径防护 + 回归基线 | planned | — | 修复 F13 (agent_bridge 测试直写 HOT 库) |
 | T02 备份/恢复/开发副本 | T01 | manifest + 恢复报告 + 开发环境模板 | planned | — | WARM 818MB 为体量基准; full 备份 7 天旧 (F6) |
 | T03 契约与原型 | T00,T01 | docs/v1.0/contracts.md + 可生成 TS + 四入口原型 | planned | — | |

@@ -1,45 +1,50 @@
-# Critical Review — hotspot 架构 (2026-09-03)
+# Critical Review — hotspot 架构 (2026-09-03 · 状态复核 2026-09-05)
 
-> **目的**: 基于 [`hotspot-architecture.html`](../hotspot-architecture.html) 渲染的实际图 (10 components / 9 connections / 4 boundaries / 3 guided views) 与代码事实 (services 107 / routers 68 / migrations 88 / collectors 29 / jobs 51), 从 5 维做第一性原理批判。
+> **复核 (2026-09-05, main HEAD `d22bcd7`, v0.8.0-skills post-merge)**: 自本文成文以来, v0.8 Skills Phase A-D (20 commits, merge `39e3fb0`) / P0 SSRF 副作用根除 (`9911cfd`+`f9ac22a`) / 架构图 v0.8 重画 (`771d5f4`) / §4.4 dsh 真相落账 (`d22bcd7`) 已落地。本次复核逐项标注 ✅ 已落地 / ◐ 部分 / ❌ 仍开放, §〇 快照与 §六 路线图按 v0.8.0 现实重写; 复核证据均为 2026-09-05 grep/ls/generate_meta 实测。
+> **目的**: 基于 [`hotspot-architecture.html`](../hotspot-architecture.html) 渲染的实际图与代码事实 (services 107 / routers 73 / migrations 至 095 (92 .sql) / collectors 14 / jobs 51), 从 5 维做第一性原理批判。
 > **范围**: 质量/健壮性 / 灵活性/可靠性 / 前后端效率 / pi.dev 整合现状 / BS-AI-Agent 最终形态路径。
 > **方法**: 不只列问题, 每项给 (a) 代码证据, (b) 影响, (c) 推荐方案 (P0/P1/P2 分级 + 工作量估算)。
 > **性质**: 这是 audit 不是 task list, 用户裁决后转 plan.md (memory `prd-iterative` 工作流)。
 
 ---
 
-## 〇、当前架构快照 (2026-09-03, on main HEAD `e066951`)
+## 〇、当前架构快照 (2026-09-05 复核, on main HEAD `d22bcd7`, v0.8.0-skills)
 
 ```
-Frontend (React 18 + Vite :8898, 372 tests)
+Frontend (React 18 + Vite :8898, 425 vitest)
   ├─ 6-tab 工作台 (/secnews) + SettingsHub 17 cat + Sentinel + CodeGarden + CRM + Knowledge
-  └─ 数据: 直接 fetch + 全局轮询 + Toast/Confirm 兜底 (无 SWR/Query 客户端缓存)
-Backend (FastAPI + uvicorn :8000, 3111 pytest)
-  ├─ 14 collectors (含 KL refine/link/structure/publish 五阶段管线)
-  ├─ 51 jobs (APScheduler 单进程, 90% 长任务)
-  ├─ 105 services (业务编排层)
-  ├─ 68 routers (lazy include, feature gate 守卫)
-  └─ MCP server (HTTP/SSE + stdio, 19 tools)
+  ├─ v0.8 新增: /skill-store (+详情 /skill-store/:id) + /skill-store/new Builder + /dashboard 看板
+  └─ 数据: 路由全量 lazy (lazy-imports.ts 1:1 映射) + manualChunks vendor 拆分; 数据层仍 fetch+轮询 (无 SWR/Query)
+Backend (FastAPI + uvicorn :8000, 3740 pytest)
+  ├─ 14 collectors (P0 SSRF url_safety 单一真相源 + P1 信源管道 8 项根治后)
+  ├─ 51 jobs (APScheduler 单进程)
+  ├─ 107 services (v0.8 起以"包"扩张: trigger_gate/ skill_registry/ agent_loop/ agent_memory/ playbook_engine/ skill_builder/ skill_eval/ dsh/)
+  ├─ 73 routers (lazy include, feature gate 守卫; v0.8 +5: skill-registry / runs / builder / trigger-webhook / dashboard)
+  └─ MCP server (HTTP/SSE + stdio, 19 tools, gate=false)
 Data Plane (本地单机)
-  ├─ SQLite WAL+FTS5 (主库 <80MB, ATTACH warm+cold, 加密 Fernet envelope)
+  ├─ SQLite WAL+FTS5 (HOT/WARM/COLD 三库 ATTACH; migrations 至 095 · 92 .sql: 091 trigger_tickets / 093 agent_memory / 094 playbook / 095 user_skills)
   ├─ llm-wiki-2.0/ md 真源 (FTS5 trigram, watchdog 即时同步)
   └─ WebDAV 坚果云 (zip+Fernet 加密, 周一 10:30)
 External
-  ├─ 5 LLM providers (sensenova / ollama / openai / qwen / anthropic, 四级链 env>settings.kv>router>yaml)
-  ├─ dsh (DeepSeek Harness) :3210 受管子进程 + 4 CLI runners (claude-code / codex / pi / builtin)
-  └─ SSRF 防护 + URL 安全单一真相源 (url_safety.py)
+  ├─ 5 LLM providers (四级链 env>settings.kv>router>yaml + llm_secrets; 仍缺 provider_health 语义降级)
+  ├─ dsh (Brain) — ProcessSupervisor 受管子进程, :3210 (not_configured→mock→ai_hub 降级链, §4.4 已落账)
+  └─ v0.8 Skills 全家桶: trigger_gate / skill_registry (20 内置) / agent_loop / agent_memory / playbook_engine / skill_builder / skill_eval — 7 gate 全 false (fail-closed, 未实战)
 ```
 
-**关键事实:**
-- **服务数 107** (services 105→106→107 v0.8 P1 info_filter 后), **Router 数 68** (含 feature gate 受管)
-- **migrations 88** (含 090 info_filter_rules / 089 wechat 清理 / 086 secrets role 列)
-- **测试基线**: pytest 3111 / vitest 370 (基线 360 + 本批 +10)
-- **架构图完成度**: 9/9 artifact checks pass, visual-check 全视口通过
+**关键事实 (2026-09-05 实测):**
+- **服务数 107 / Router 数 73 / jobs 51 / collectors 14** (`scripts/generate_meta.py` 实测)
+- **migrations 至 095** (92 个 .sql 文件)
+- **测试基线**: pytest 3740 / vitest 425 (v0.8 Phase D 验收)
+- **feature gates 16 个**: 8 开 (codegarden / codegarden_phase2b / sync / tech_stack / security_graph / secnews / crm / dsh) / 8 关 (mcp / info_filter / skill_registry / trigger_gate / agent_loop / playbook_engine / user_skills / skill_eval)
+- **架构图**: v0.8 重画 (`771d5f4`, 5 叙事修复); 2026-09-05 archify 重梳 (11 components / 4 boundaries / 3 guided views, 9/9 artifact checks + visual-check 全视口通过)
 
 ---
 
 ## 一、质量与健壮性 (Quality & Robustness)
 
 ### 1.1 [P1] 缺统一的并发限流与背压层
+
+> **复核 2026-09-05**: ◐ 部分 — v0.8 A1 `trigger_gate/throttle.py` 落了**入口级** RateLimiter (60/min·user + 600/min 全局, 仅覆盖 trigger-gate 入口); collector / LLM 出站的并发仍零散 Semaphore, 全局 TokenBucket 单一真相源仍缺。
 
 **证据**: `grep -l "asyncio.Semaphore" backend` 仅 7 个文件零散使用 (collectors/session.py / quality/jobs.py / crawl4ai_client.py / source_scheduler_service / url_batch_check / summary_enricher), **没有全局 TokenBucket / 进程级 BoundedSemaphore**。
 
@@ -58,6 +63,8 @@ External
 ---
 
 ### 1.2 [P0] 缺断路器 (Circuit Breaker) — 单源/单 provider 失败拖垮全系统
+
+> **复核 2026-09-05**: ❌ 仍开放 — `CircuitBreaker` 类 0 命中 (grep 命中仅为注释/无关词)。**v0.8.1 推荐首选** (与 §2.1 联动, 见 §6.0 三选一)。
 
 **证据**: `grep -rE "circuit|breaker" backend` 0 命中。`tenacity` 仅在 `tools/import_cache.py` 用到。
 
@@ -83,6 +90,8 @@ class CircuitBreaker:
 
 ### 1.3 [P1] SQLite 单进程锁竞争 — 长事务持锁阻塞采集
 
+> **复核 2026-09-05**: ◐ 部分 — 卡顿根治已全链闭环 (P0 `f423af9` + P2 `d2fc1ea` + P3 `381f05f` 自执行 trigram FTS); 但 observability/audit 表拆 cold db 仍未做, 长事务拆批未系统化。
+
 **证据**: 88 个 migrations + 51 jobs + ATTACH 3 个 db → 主库写并发压力大。memory `hotspot-perf-lag-audit` 已记录 3 统计端点扫盘 4149 md (337-1176ms/次) 是 P0 卡顿主因。
 
 **影响**:
@@ -98,7 +107,9 @@ class CircuitBreaker:
 
 ### 1.4 [P0] 错误处理"宽容到掩盖问题" — `try/except: pass` 散布
 
-**证据**: 需 grep 详细统计 (估计 30+ 处), 但 `unified-error-handling` 不存在, 每个模块自定 `except Exception as e: logger.warning(...)`, 没分类/聚合/告警。
+> **复核 2026-09-05**: ❌ 仍开放 (证据修正) — 字面 `except: pass` 实测 **0 处** (原文估计 30+ 偏悲观); 真实形态是 **services 层 320 处宽泛 `except Exception`** (各自 logger.warning, 无分类/聚合/告警)。P1.7 failure_rate 三档聚合 (`1c6c6b1`) 只覆盖采集管道, error_classifier 仍缺。
+
+**证据**: `grep -c "except Exception" backend/services` = 320 (2026-09-05 实测); `unified-error-handling` 不存在, 每个模块自定 `except Exception as e: logger.warning(...)`, 没分类/聚合/告警。
 
 **影响**:
 - 用户在 PROGRESS.md 看到 "执行成功", 实际 5/10 job 静默失败 → 信任债
@@ -113,6 +124,8 @@ class CircuitBreaker:
 
 ### 1.5 [P1] 缺统一的 Schema 校验 — Pydantic 散落 router, 服务间用 dict
 
+> **复核 2026-09-05**: ❌ 仍开放 — v0.8 新包 (SkillDef dataclass 等) 是局部改进, 服务间 dict 传参主流未变。
+
 **证据**: `grep -l "BaseModel" backend/api | wc -l` 估算 60+ 文件。`backend/services` 之间传 `dict[str, Any]` 占多数, 缺乏服务级 Pydantic DTO。
 
 **影响**:
@@ -126,6 +139,8 @@ class CircuitBreaker:
 ## 二、灵活性与可靠性 (Flexibility & Reliability)
 
 ### 2.1 [P0] LLM Provider 切换是真"四级链"但缺"语义降级"
+
+> **复核 2026-09-05**: ❌ 仍开放 — ai_hub 包 11 模块 (egress/gateway/scenarios/usage/...) 无 provider_health; v0.7.4 三场景路由 (deep/light/image) 落地后场景维度更丰富, 降级决策依据更缺。**v0.8.1 推荐与 §1.2 联动** (见 §6.0)。
 
 **证据**: memory `hotspot-batch2-llm-provider-chain` 提到四级链 env > settings.kv > router > yaml, 走通。但缺:
 - **健康度感知的 fallback** (一个 provider 持续 500 → 自动切下个)
@@ -145,7 +160,9 @@ class CircuitBreaker:
 
 ### 2.2 [P1] Feature Gate 模式优秀但"开关粒度太粗"
 
-**证据**: `backend/config/feature_gates.toml` 当前 8 个总开关 (codegarden/sync/secnews/crm/dsh/mcp/tech_stack/security_graph/info_filter), `is_extension_enabled()` 二态。
+> **复核 2026-09-05**: ❌ 仍开放 — gate 总数 8→16 (v0.8 新增 7 个全 fail-closed, 模式健康), 但"同 extension 内子开关"粒度问题不变; settings.kv 逐 skill 开关 (`skill.<id>.enabled`) 是 A2b 已落的部分替代。
+
+**证据**: `backend/config/feature_gates.toml` 当前 16 个总开关, `is_extension_enabled()` 二态。
 
 **影响**:
 - 想"开 codegarden 但关 codegarden_phase2b"已支持 (嵌套)
@@ -168,6 +185,8 @@ mode = "allowlist"       # "allowlist" / "blocklist" / "hybrid"
 
 ### 2.3 [P0] 单点故障: uvicorn 单进程 + SQLite 单文件
 
+> **复核 2026-09-05**: ❌ 仍开放 — `grep "SIGTERM|graceful" backend/main.py run.py` 0 命中 (2026-09-05 实测)。
+
 **证据**: `python run.py` 单进程, 无 graceful shutdown (SIGTERM → 直接 kill, WAL 检查点可能丢)。
 
 **推荐**:
@@ -178,6 +197,8 @@ mode = "allowlist"       # "allowlist" / "blocklist" / "hybrid"
 ---
 
 ### 2.4 [P1] 备份策略粗 — 周日 full + 每日 WAL, 缺增量校验
+
+> **复核 2026-09-05**: ❌ 仍开放 — `backend/scripts/` 仅有 verify_phase13.py, 无 backup_verify。
 
 **证据**: PROGRESS 提到 "周日 full + 每日 WAL 增量", 但缺:
 - 备份完整性校验 (Fernet 解密 → 行数对比)
@@ -192,6 +213,8 @@ mode = "allowlist"       # "allowlist" / "blocklist" / "hybrid"
 
 ### 2.5 [P2] 三层 db (HOT/WARM/COLD) 设计正确但路由层混用
 
+> **复核 2026-09-05**: ❌ 仍开放 (P2 远景, 无新进展)。
+
 **证据**: 启动期 `db.get_connection()` ATTACH 3 db, 但 router/service 经常跨 db 写 (实际生产代码对 WARM 表写操作必须指 `warm.` alias, PROGRESS 已记)。
 
 **影响**: 重构期可能漏 alias → 写入主库而非 WARM → 容量失控。
@@ -202,6 +225,8 @@ mode = "allowlist"       # "allowlist" / "blocklist" / "hybrid"
 
 ### 2.6 [P1] 配置热重载缺 — 改 `feature_gates.toml` / `llm.yaml` 必须重启
 
+> **复核 2026-09-05**: ❌ 仍开放 — info_filter 5s TTL cache 是唯一局部样板 (settings.kv 写后 invalidate), 全局 watcher 未做。
+
 **证据**: memory `hotspot-env-operational-quirks` 提到 `feature gate 在 import 时读一次, conftest 注册期快照根治 404`。生产侧同样问题。
 
 **推荐**: `backend/config/watcher.py` (watchdog 监听 .toml/.yaml), reload 时调 `invalidate_*()` 系列 (info_filter 5s TTL 模式可借鉴)。
@@ -211,6 +236,8 @@ mode = "allowlist"       # "allowlist" / "blocklist" / "hybrid"
 ## 三、前后端效率 (Frontend & Backend Efficiency)
 
 ### 3.1 [P0] 前端无 SWR / React Query — 每个组件自管 fetch + setInterval
+
+> **复核 2026-09-05**: ❌ 仍开放 — `frontend/package.json` 无 @tanstack/react-query / swr (2026-09-05 实测); v0.8 新组件 (SkillStore / Dashboard) 仍 fetch+interval 模式。**v0.8.1 三选一备选③** (见 §6.0)。
 
 **证据**: `frontend/package.json` 依赖只有 react / react-dom / react-router-dom / echarts (无 `@tanstack/react-query` / `swr`)。`InfoFilterCard.tsx` 我刚写的就用了 `window.setInterval(refresh, 10_000)` —— 典型反模式:
 - 每个组件独立 poll, 同一端点被 N 个组件打 N 次
@@ -235,6 +262,8 @@ mode = "allowlist"       # "allowlist" / "blocklist" / "hybrid"
 
 ### 3.2 [P1] 后端无 HTTP 压缩 + 缓存头
 
+> **复核 2026-09-05**: ❌ 仍开放 — 全局 `GZipMiddleware` 0 命中; 仅 `export.py:129` 单端点手写 `Cache-Control: max-age=1800`。
+
 **证据**: `grep -E "Cache-Control|ETag|gzip|compress" backend/main.py` 0 命中。前端 vite build 默认 gzip 但后端 FastAPI 没配 `GZipMiddleware`。
 
 **影响**:
@@ -258,6 +287,8 @@ async def quality_rules(response: Response):
 
 ### 3.3 [P1] 后端 router 懒加载但服务级是单例
 
+> **复核 2026-09-05**: ❌ 仍开放 (P1 大改, 无新进展; v0.8 包化反而加深了模块级单例)。
+
 **证据**: `extensions/__init__.py` + `api/_registry.py` 实现 router lazy include (feature gate 关闭时不挂载), 但 service 实例通常模块级 `_instance = Service()` 单例 → 测试期 + 进程内不可热替换。
 
 **影响**: 重启即生效 (不优雅, 但单机场景可接受)。
@@ -270,16 +301,15 @@ async def quality_rules(response: Response):
 
 ### 3.4 [P1] 前端 bundle 单体 — 无路由级 lazy + 无 vendor chunk 拆分
 
-**证据**: `routes/index.tsx` 提到 `lazy` (测试), 但生产路由表未用 `React.lazy`。`vite build` 输出未拆 vendor → 首屏加载所有组件。
+> **复核 2026-09-05**: ✅ **已落地 (本文当时判断有误)** — v0.5 M1-Task3 已拆 `manualChunks` (vendor-react / vendor-echarts, 主 chunk <300KB, 拆分前基线 1.14MB); 路由全量 lazy (`routes/index.tsx` 集中声明 + `lazy-imports.ts` 1:1 映射, v0.8 /dashboard·/skill-store 均走此机制)。本项从路线图移除。
 
-**推荐**:
-- `routes` 改 lazy import
-- `vite.config.ts` 加 `manualChunks`: react / echarts / vendor 各一个 chunk
-- 首屏只加载 `App.tsx` + `Dashboard.tsx` + `SettingsHub`
+**证据 (修正)**: `frontend/vite.config.ts` manualChunks 配置 + `frontend/src/routes/lazy-imports.ts` (2026-09-05 实测)。
 
 ---
 
 ### 3.5 [P2] 实时性依赖 poll — 应转 SSE / WebSocket
+
+> **复核 2026-09-05**: ◐ 部分 — `/api/events` (events.py `publish_event` EventBus) + attention_events + codegarden_ops SSE 端点 + 观测面板接入 (Batch⑧ D3) 已有; kl_pipeline 进度 / 采集状态 / 告警激活仍 poll, 与 react-query 集成未做。
 
 **证据**: memory `v0.7 Batch ⑧ D3` 已规划 SSE 接入观测面板, 但只针对观测面板, 其他实时性需求 (kl_pipeline 进度 / 采集任务状态 / 告警激活) 仍走 poll。
 
@@ -293,6 +323,8 @@ async def quality_rules(response: Response):
 
 ### 3.6 [P1] 后端 API 无版本号 — 改 endpoint 必须前端同步
 
+> **复核 2026-09-05**: ❌ 仍开放 (无新进展)。
+
 **证据**: router prefix 全是 `/api/xxx`, 无 `/api/v1/`。
 
 **影响**: 重命名 / 字段删 → 前端 breaking change 难协调 (用户多端用)。
@@ -302,6 +334,8 @@ async def quality_rules(response: Response):
 ---
 
 ## 四、pi.dev 整合现状 (Critical)
+
+> **复核 2026-09-05**: v0.8 B4 (`d7ed96b`) 落了 dsh runtime 三态切换 (`not_configured→mock→subprocess`) — §4.1 "runtime 是占位符"的表述对 **dsh builtin** 已不成立 (mock 可跑); 但 **pi 真实 CLI 调用仍未实测** (§4.3.A Phase A 前置), agent_bridge jsonl 协议字段仍是推测。§4.3 Phase B/C 未动。
 
 ### 4.1 当前状态: **配置文件存在, 但 runtime 是占位符**
 
@@ -334,7 +368,7 @@ async def quality_rules(response: Response):
 | **持久化** | cg_events 表 (CodeGarden) | pi run 全程 transcript 入库可检索 | ❌ transcript 写入 cg_events, 检索难 |
 | **重试** | 仅 timeout kill | 断路器 (1.2) + 任务重排 | ❌ 重试逻辑缺失 |
 | **Web UI** | AgentRunnerCard (开关) | 流式进度条 + 工具调用可视化 | ❌ 仅有 启停 按钮, 无运行时 |
-| **触发** | 无 trigger-gate | 用户在 CardRunnerCard 看到 "触发" 按钮 | ❌ trigger-gate 三选一当前 0 触发 |
+| **触发** | 无 trigger-gate | 用户在 CardRunnerCard 看到 "触发" 按钮 | ◐ v0.8 A1 trigger_gate + D1 三触发源已落 (gate=false 未开闸) |
 | **Multi-agent** | 4 runner 并存 (builtin / claude / codex / pi) | 协同调度 (claude 出方案 → pi 执行) | ❌ 当前是单 runner 单 task |
 
 ### 4.3 [P1] 真正整合路径 (3 阶段)
@@ -393,6 +427,8 @@ async def quality_rules(response: Response):
 
 ### 5.2 [P0] BS-AI-Agent 三大核心组件缺口
 
+> **复核 2026-09-05**: ✅ **三大缺口全部落地 (v0.8 Skills Phase A/B)** — ① Trigger Layer = `trigger_gate/` (A1: 限流+持久化队列+三档优先级+worker 泵; D1 三触发源 webhook/KL/collector); ② Reasoning Layer = `agent_loop/` (B1: Intent→Plan→Execute→Reflect→Commit 五状态机 + checkpoint 崩溃恢复); ③ Memory Layer = `agent_memory/` (B3: recall/miner + B6 feedback_log 回灌)。**注意: 三者 gate 全 false, 未实战开闸**。
+
 | 组件 | 当前 | 缺口 | 推荐实现 |
 |------|------|------|----------|
 | **1. Trigger Layer** (触发层) | 仅手动按钮 | 自动 trigger-gate (信息源触发 / 时间触发 / 异常触发) | `backend/services/trigger_gate.py` + 三类 trigger config (TOML), 与 4.4 dsh trigger-gate 三选一打通 |
@@ -442,6 +478,8 @@ Agent Loop:
 
 ### 5.5 [P2] Agent 评估 (Eval) 与可观测
 
+> **复核 2026-09-05**: ◐ 大幅推进 — v0.8 C5 `skill_eval/` 落地 (5 黄金 fixtures × 32 assertions + judge 评分 + SQLite 报告 + markdown 渲染); 真实 LLM judge engine 留 v0.9, agent run 成功率周报仍未做。
+
 **当前**: 观测覆盖 LLM / Job / Agent / Process 4 类型 (memory `v0.7 Batch ①`), 但缺:
 - Agent transcript 检索/分析
 - Agent 成功率 (task type → runner → 成功率)
@@ -454,96 +492,113 @@ Agent Loop:
 
 ### 5.6 [P0] BS-AI-Agent 终极形态: 9 大特征
 
-| # | 特征 | 当前 | 距离 | 优先级 |
+| # | 特征 | 当前 (2026-09-05 复核) | 距离 | 优先级 |
 |---|------|------|------|--------|
-| 1 | 触发层 (自动/手动) | 手动 | trigger-gate 实现 | P0 |
-| 2 | 推理层 (多步) | 单步 | agent_loop 落地 | P0 |
-| 3 | 记忆层 (短期+长期) | 仅长期 (wiki) | agent_memory 落地 | P1 |
+| 1 | 触发层 (自动/手动) | ✅ v0.8 A1 trigger_gate + D1 三触发源 | gate=false 未实战 | 已落地 |
+| 2 | 推理层 (多步) | ✅ v0.8 B1 agent_loop 五状态机 + checkpoint | gate=false | 已落地 |
+| 3 | 记忆层 (短期+长期) | ✅ v0.8 B3 agent_memory + B6 feedback 回灌 | gate=false | 已落地 |
 | 4 | 工具调用 (MCP) | 19 tools 外部 | 全站 service 注册 MCP | P1 |
-| 5 | 协作层 (HITL) | 无 | SSE + 流式 UI | P1 |
+| 5 | 协作层 (HITL) | ◐ B6 历史回放+反馈打分 + D2 /dashboard | SSE 实时流式 UI | P1 |
 | 6 | 协同调度 (Multi-agent) | 4 runner 单跑 | orchestrator 落地 | P2 |
-| 7 | 评估层 (Eval) | 无 | agent_eval + 周报 | P2 |
-| 8 | 安全层 (sandbox) | cwd 锁定 | syscall + 出口审计 | P1 |
+| 7 | 评估层 (Eval) | ✅ v0.8 C5 skill_eval (5 fixtures) | 真实 LLM judge (v0.9) | 已落地 |
+| 8 | 安全层 (sandbox) | ◐ cwd 锁定 + playbook 危险命令黑名单 (C1) | syscall + 出口审计 | P1 |
 | 9 | 部署层 (独立网关) | uvicorn 单进程 | gunicorn + supervisor | P2 |
+
+> **复核 2026-09-05**: 9 特征中 **1/2/3/7 已落地, 5/8 部分落地** — 原计划 1 季的量, v0.8 一个 batch 干完 4 项; 剩余 4/5/6/8/9 约 1 个月量。当前瓶颈从"组件缺失"变为"**gate 未开闸 + pi 未实测**"。
 
 ---
 
-## 六、综合推荐: 短期 (1 月) 与中期 (1 季) 路线
+## 六、综合推荐: 短期 (1 月) 与中期 (1 季) 路线 (2026-09-05 复核版)
 
-### 6.1 短期 1 月 (P0 必修)
+### 6.0 v0.8.1 方向三选一 (承 v0.8.0-post Task 3, 用户待裁决)
 
-| # | 项 | 工作量 | 风险 |
-|---|----|-------|------|
-| 1.2 | 断路器 (Circuit Breaker) | 2 天 | 低 |
-| 2.3 | uvicorn graceful shutdown | 0.5 天 | 低 |
-| 3.1 | react-query 引入 (5 核心组件) | 5 天 | 中 (包增 ~5KB) |
-| 4.3.A | pi 协议实测 + E2E | 1 周 | 中 (需用户配置真实 pi CLI) |
-| 1.4 | 错误分类器 | 2 天 | 低 |
-| 5.2.1 | trigger_gate | 3 天 | 中 |
+| 选项 | 内容 | 工作量 | 理由 |
+|---|---|---|---|
+| **① (推荐)** | §1.2 断路器 + §2.1 provider_health/语义降级 **联动 batch** | ~5 天 | 两者强依赖: provider_health 滑动窗口 → 触发断路器 OPEN → 自动切下个 provider; 拆开做技术债翻倍。20 内置 skill + 4 runner 开闸后, provider 500 雪崩是第一风险 |
+| ② | §1.2 断路器 alone | ~2 天 | 最小防御, 但没有健康度数据源, 熔断阈值只能拍脑袋 |
+| ③ | §3.1 前端 react-query (SWR) | ~1 周 | 体验收益最大, 但与 provider 弹性正交, 可后置 |
 
-**预期收益**: 卡顿根治闭环 + 真实可用的 pi runner + 触发了 AI Agent 1.x 步。
+### 6.1 短期 1 月 (P0 必修, 复核后余量)
 
-### 6.2 中期 1 季 (P1 演进)
+| # | 项 | 工作量 | 风险 | 复核状态 |
+|---|----|-------|------|---|
+| 1.2+2.1 | 断路器 + provider 健康度联动 (= v0.8.1 推荐①) | 5 天 | 低 | ❌ 仍开放 |
+| 2.3 | uvicorn graceful shutdown | 0.5 天 | 低 | ❌ 仍开放 |
+| 1.4 | 错误分类器 (320 处宽泛 except 收敛 + 聚合告警) | 2 天 | 低 | ❌ 仍开放 |
+| 4.3.A | pi 协议实测 + E2E | 1 周 | 中 (需真实 pi CLI) | ❌ 仍开放 |
+| 新增 | **v0.8 七 gate 开闸演练** (skill_registry / trigger_gate / agent_loop / playbook_engine / user_skills / skill_eval / info_filter 实战验证 + ARCHITECTURE 同步) | 1 天 | 低 (fail-closed 随时回关) | 新增项 |
 
-- 1.1 全局并发限流 + 1.5 Pydantic DTO
-- 2.1 provider 健康度 + 2.2 feature flags 细化 + 2.4 备份校验 + 2.6 配置热重载
-- 3.2 HTTP 压缩 + 3.4 bundle 拆分 + 3.5 全站 SSE + 3.6 API 版本
-- 4.3.B PiRunner 类型化 + 4.3.C Multi-agent 协同
-- 5.2.2 agent_loop + 5.2.3 agent_memory + 5.3 HITL
+**已从短期清单移除 (v0.8 已落地)**: ~~5.2.1 trigger_gate~~ (A1+D1) / ~~5.2.2 agent_loop~~ (B1) / ~~5.2.3 agent_memory~~ (B3) / ~~5.5 agent_eval~~ (C5, 原 P2 提前)。
+
+### 6.2 中期 1 季 (P1 演进, 复核后)
+
+- 1.1 全局并发限流 (把 `trigger_gate/throttle.py` 升级为全局单一真相源, 借鉴 `url_safety.py` 模式) + 1.5 Pydantic DTO
+- 2.2 feature flags 细粒度 + 2.4 备份校验 + 2.6 配置热重载
+- 3.1 react-query 全站迁移 (若 6.0 选③ 则提前) + 3.2 HTTP 压缩 + 3.5 SSE↔react-query 集成 + 3.6 API 版本
+- 5.4 全站 service MCP 化 + 5.3 HITL 流式 UI (B6 已有回放/打分, 缺 SSE 实时流)
+- 1.3 observability/audit 表拆 cold db
+- 4.3.B PiRunner 类型化 + 观测增强
 
 ### 6.3 长期 (P2 远景)
 
-- 2.5 Repository 范型 + 1.3 跨 db 路由
-- 4.4 真正拆出 dsh 独立网关
-- 5.4 全站 service MCP 化 + 5.5 agent_eval + 5.6.6 协同调度 + 5.6.9 gunicorn
+- 2.5 Repository 范型 + 3.3 服务级 DI
+- 4.3.C Multi-agent orchestrator (claude 出方案 → pi 执行的 4 runner 协同)
+- 5.6.8 sandbox (syscall + 出口审计) + 5.6.9 gunicorn/supervisor
+- 4.4 选项 B: dsh 真独立网关 (仅当 multi-runner 并发成为实际瓶颈)
 
 ---
 
-## 七、结语
+## 七、结语 (2026-09-05 复核更新)
 
-hotspot 当前架构是 **"健康的中年"**:
+hotspot 当前架构是 **"健康的中年, 刚完成一次大手术"**:
 - ✅ 单一事实源清晰 (DAO / llm-wiki / agents.yaml / feature_gates.toml)
-- ✅ Feature Gate 受管扩展域优秀 (info_filter 落地为最新样板)
-- ✅ 测试基线扎实 (pytest 3111 + vitest 370)
-- ✅ 真源策略 (md + SQLite WAL + FTS5) 单机场景下优雅
+- ✅ Feature Gate 受管扩展域优秀 (16 gate, v0.8 新增 7 个全 fail-closed)
+- ✅ 测试基线扎实 (pytest 3740 + vitest 425, v0.8 Phase D 验收)
+- ✅ **BS-AI-Agent 四大件已齐**: trigger_gate (A1+D1) / agent_loop 五阶段 (B1) / agent_memory (B3) / skill_eval (C5) — 本文成文时的"三大核心组件缺口"已全部落地
+- ✅ 减法已做: P0 SSRF 单一真相源 (11 出站点) + P1 信源管道 8 项根治 + 卡顿根治 P0-P3 闭环
 
-**但距 BS-AI-Agent 终态还有 9 步路要走**, 最大的 gap 是:
-1. **trigger-gate 自动触发** (用户每次手动操作, 不算 Agent)
-2. **agent_loop 多步推理** (当前只单步 LLM 调用)
-3. **agent_memory 短期记忆** (无上下文, 每轮对话从零开始)
-4. **真实 pi 集成** (配置在但未跑通)
+**当前最大的 gap (复核后重排)**:
+1. **gate 全关未实战** — 20 skill / agent loop / playbook / eval 全部 gate=false, "建成了但没通电"; 开闸演练是 v0.8.1 的前置 (1 天)
+2. **运行时弹性缺失** — 断路器 + provider_health (§1.2+§2.1) 仍开放, 开闸后 provider 500 雪崩是第一风险 (= v0.8.1 推荐①)
+3. **真实 pi 集成未跑通** (§4.3.A) — 4 runner 中 pi 协议字段仍是推测
+4. **前端数据层原始** — 无 react-query, 轮询/SSE 割裂 (§3.1+§3.5)
 
-**第一性原理结论**:
-- **不要再扩 services 数了** (107 已逼近"上帝类"复杂度, 用户已记不清每个 service 干啥; 增 → 必重构)
-- **优先做"减法"**: 断路器 / 错误分类 / graceful shutdown 是"省时间"的事, 比"加功能"更值
-- **pi 集成是分水岭**: 4 runner (claude/codex/pi/builtin) 真实跑通 + orchestrator → hotspot 才算真"AI Agent", 否则只是"LLM 工具集"
-- **BS-AI-Agent 终态 6-12 月**: 9 特征全落地 + 多 Agent 协同 + Eval 体系 = 真"AI 安全从业者工作站"
+**第一性原理结论 (复核后)**:
+- **services 107 已到顶**: v0.8 用"包化" (trigger_gate/ agent_loop/ skill_registry/ 等 6 个新子包) 而非新增平铺 service 文件, 方向正确, 保持
+- **"建成" ≠ "通电"**: v0.8 的价值要等 gate 开闸 + 三触发源真实跑起来才能兑现; 下一步优先"通电"而非"再加件"
+- **pi 集成仍是分水岭**: 判断不变 — 4 runner 真实跑通 + orchestrator 才算真"AI Agent"
+- **BS-AI-Agent 终态时间表提前**: 9 特征中 4 项已落地 (原计划 1 季), 剩余约 1 个月量 + Eval 真实引擎 (v0.9)
 
 ---
 
-## 附录 A: 文件证据索引
+## 附录 A: 文件证据索引 (2026-09-05 复核实测)
 
-| 论点 | 文件 | 行 |
+| 论点 | 文件 | 2026-09-05 实测 |
 |------|------|-----|
-| 断路器缺失 | `grep -r "circuit" backend` | 0 命中 |
-| react-query 缺失 | `frontend/package.json` | deps 无 @tanstack/* / swr |
-| pi 协议推测 | `backend/services/agent_bridge.py:11-22` | jsonl 协议 docstring "实测校正" |
-| dsh :3210 是注释 | `grep "3210" backend -r` | 仅 docstring, 无实际端口 |
-| graceful shutdown 缺 | `grep "SIGTERM" backend/main.py` | 0 命中 |
-| 错误宽容掩盖 | memory `hotspot-2026-08-30-ux-audit` | P0 三 bug |
-| 单服务数 107 | `backend/services/` wc -l | 114 (含 __init__.py) |
-| migrations 88 | `backend/repository/migrations/` wc -l | 88 |
-| trigger-gate 0 触发 | memory `gateway-s1-s4-spike-flow` | "当前 0 触发" |
+| 断路器缺失 | `grep -r "CircuitBreaker" backend` | 0 类命中 (仅注释/无关词) — 仍缺 |
+| react-query 缺失 | `frontend/package.json` | 无 @tanstack/* / swr — 仍缺 |
+| pi 协议推测 | `backend/services/agent_bridge.py` | jsonl 字段仍推测, pi CLI 未实测 |
+| dsh :3210 真相 | `backend/services/dsh/runtime.py:resolve_mode` | B4 `d7ed96b` 三态落账; §4.4 选项 A 已执行 (`771d5f4` 图 + `d22bcd7` docs) |
+| graceful shutdown 缺 | `grep "SIGTERM" backend/main.py run.py` | 0 命中 — 仍缺 |
+| 错误宽容掩盖 | `grep -c "except Exception" backend/services` | 320 处宽泛捕获 (字面 `except: pass` 0 处) |
+| services 107 | `scripts/generate_meta.py` | 107 (2026-09-05 实测) |
+| routers 73 | `scripts/generate_meta.py` | 73 (v0.8 +5) |
+| migrations 92 | `ls backend/repository/migrations/*.sql \| wc -l` | 92 个 .sql, 最高 095 |
+| trigger-gate | `backend/services/trigger_gate/` | A1 落地 (5 模块 + migration 091), gate=false 未实战 |
+| agent_loop / memory | `backend/services/agent_loop/ agent_memory/` | B1/B3 落地, gate=false |
+| skill_eval | `backend/services/skill_eval/` | C5 落地 (5 fixtures × 32 assertions), gate=false |
+| bundle 拆分 | `frontend/vite.config.ts manualChunks` + `routes/lazy-imports.ts` | v0.5 已落地 — §3.4 原判断有误, 已移出路线图 |
+| 全局限流 | `backend/services/trigger_gate/throttle.py` | 仅入口级; 全局 TokenBucket 仍缺 |
 | MCP 19 tools | memory `hotspot-mcp-extension-pattern` | test_mcp_server 断言锁定 |
 
-## 附录 B: 优先级矩阵
+## 附录 B: 优先级矩阵 (2026-09-05 复核版)
 
 | 维度 | P0 (1 月) | P1 (1 季) | P2 (远景) |
 |------|-----------|-----------|-----------|
-| 健壮性 | 断路器 / graceful shutdown / 错误分类 | 全局限流 / Pydantic DTO | Repository 范型 |
-| 灵活性 | provider 健康度 | feature flags 细化 / 配置热重载 | 独立网关 |
-| 效率 | react-query + SSE | HTTP 压缩 / bundle 拆分 / API 版本 | — |
+| 健壮性 | 断路器+provider_health (v0.8.1①) / graceful shutdown / 错误分类 | 全局限流 / Pydantic DTO | Repository 范型 / 服务级 DI |
+| 灵活性 | ~~provider 健康度~~ (并入 v0.8.1①) | feature flags 细化 / 配置热重载 / 备份校验 | 独立网关 (仅按需) |
+| 效率 | — (react-query 降为 v0.8.1 备选③) | HTTP 压缩 / SSE↔react-query / API 版本 | — |
 | pi 集成 | 协议实测 + E2E | 类型化 / 观测 | Multi-agent 协同 |
-| Agent 终态 | trigger-gate | agent_loop / agent_memory / HITL / 全站 MCP 化 | orchestrator / Eval / gunicorn |
+| Agent 终态 | **v0.8 七 gate 开闸演练** (新增) | 全站 MCP 化 / HITL 流式 UI / sandbox | orchestrator / Eval 真实引擎 / gunicorn |
 
-> **提交策略**: 用户裁决后, 短期 P0 (断路器 / react-query / pi E2E) 转 plan.md 分批落地, 严格 pathspec (memory `parallel-session-stash-wipes`)。PROGRESS.md 加 v0.8 P2 段。
+> **提交策略**: 用户裁决后, 短期 P0 转 plan.md 分批落地, 严格 pathspec (memory `parallel-session-stash-wipes`)。PROGRESS.md 加对应段。

@@ -140,11 +140,31 @@
 
 ### 不在本批范围 (留独立段)
 
-### 不在本批范围 (留独立段)
-
 - ai_hub Layer 3 (gateway chunks source 维度过滤) — chunks 签名不匹配, 需先重构 gateway.py
 - batch import (一次创建多条规则) — API 已可单条循环, 不阻塞
 - rules 按 enabled/category 排序持久化 — list_rules 直接 ORDER BY id, 简单够用
+
+### 2026-09-05 v0.8.0-post+1 — 架构重构方案复核 (CRITICAL_REVIEW 状态同步, 0 代码)
+
+> **来源**: 用户指令 "重新熟悉整个代码仓库, 更新相关架构重构方案"。
+> **基线**: `main` HEAD `d22bcd7` (v0.8.0-skills post-merge, 工作区干净)。
+> **范围**: 0 代码变更, 仅 `docs/CRITICAL_REVIEW_2026-09-03.md` 全文状态复核 + 本台账段。
+
+- [x] **全仓重熟悉**: git log (v0.8 Skills 20 commits 已 merge `39e3fb0` + post 审计 `d22bcd7`) / feature_gates.toml 16 gate 实读 / `generate_meta.py` 实测 (jobs 51 / collectors 14 / routers 73 / services 107) / migrations 92 .sql (至 095) / stash@{0} R14.9 code-wiki 临时改在案。
+- [x] **CRITICAL_REVIEW 逐项复核** (19 finding 全部标注 ✅/◐/❌ + 当日 grep 实测证据):
+  - ✅ 已落地: §3.4 bundle 拆分 (**原文判断有误** — v0.5 M1-Task3 manualChunks + lazy-imports.ts 1:1 已在) / §5.2 三大组件缺口 (A1 trigger_gate + B1 agent_loop + B3 agent_memory) / §5.5 Eval (C5 skill_eval, 原计划 P2 提前) / §4.4 dsh 真相 (上批已落账)。
+  - ◐ 部分: §1.1 限流 (trigger_gate/throttle.py 仅入口级) / §1.3 锁竞争 (卡顿根治闭环, cold db 拆分未做) / §1.4 错误处理 (字面 except:pass 实测 0 处, 真实形态 = services 层 **320 处宽泛 except Exception**; P1.7 三档聚合是局部缓解) / §3.5 SSE (/api/events + 观测面板有, 全站未通) / §4 pi (B4 dsh runtime 三态落, pi CLI 仍未实测) / §5.6 特征 5/8。
+  - ❌ 仍开放: §1.2 断路器 / §2.1 provider_health 语义降级 / §2.3 graceful shutdown (SIGTERM 0 命中) / §2.4 备份校验 / §2.6 热重载 / §3.1 react-query / §3.2 GZip (仅 export.py 单端点手写 Cache-Control) / §3.3 DI / §3.6 API 版本 / §5.4 全站 MCP 化。
+- [x] **§〇 快照重写**: HEAD `d22bcd7` / pytest 3740 + vitest 425 / gates 16 (8 开 8 关) / v0.8 六个新服务包 (包化而非平铺, 方向正确)。
+- [x] **§六 路线图重写**: 新增 §6.0 **v0.8.1 三选一** (① §1.2+§2.1 联动 5 天 [推荐] / ② §1.2 alone 2 天 / ③ §3.1 react-query 1 周, 用户待裁决); §6.1 移除 v0.8 已落地 4 项, 新增 "七 gate 开闸演练" (1 天, v0.8.1 前置); §6.2/6.3 按复核结果重排。
+- [x] **§七 结语更新**: 最大 gap 重排为 ① gate 全关未实战 ("建成≠通电") ② 运行时弹性缺失 ③ pi 未实测 ④ 前端数据层原始; BS-AI-Agent 终态时间表提前 (9 特征 4 项已落地, 剩余约 1 个月量)。
+- [x] **附录 A/B 更新**: 证据索引全部换为 2026-09-05 实测命令 + 结果; 优先级矩阵按复核重排。
+
+### 关键事实 (v0.8.0-post+1)
+
+- **复核修正了原文 2 处失实**: ① §3.4 "生产路由表未用 React.lazy" 有误 (v0.5 已拆, 原文被移出路线图); ② §1.4 "估计 30+ 处 except:pass" 偏悲观 (实测 0 处字面, 320 处宽泛 except Exception)。
+- **v0.8.1 方向不变**: 仍推荐 §1.2+§2.1 联动 (5 天), 与 v0.8.0-post Task 3 结论一致; 新增前置项 "七 gate 开闸演练" (1 天)。
+- **grep 证据均当日实测**: 断路器 0 类命中 / SIGTERM 0 命中 / GZipMiddleware 0 命中 / react-query 无 / migrations 92 .sql / services 层 except Exception 320 处。
 
 ### 2026-09-02 SettingsHub V2 — 哨兵化全重设计 + 5 子组件拆分 (本批)
 

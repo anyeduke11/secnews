@@ -18,6 +18,7 @@ import httpx
 
 from backend.logging_config import logger
 
+from .provider_health import get_provider_health
 from .scenarios import Scenario, resolve_scenario_model
 
 
@@ -63,6 +64,13 @@ class ImageGenerationService:
 
         route = resolve_scenario_model(scenario)
         provider = "sensenova"
+        # v0.8.1 Day 3: breaker 前置检查 — OPEN 期快速失败 (拒绝不计账)。
+        # allow() 在 OPEN 到期时授予探针 → 图片路径参与熔断恢复探测 (审查 P0-2)。
+        breaker = get_provider_health().get_breaker(provider)
+        if not breaker.allow():
+            raise ImageGenerationError(
+                f"provider={provider} 熔断中 (breaker={breaker.state}), 稍后重试"
+            )
         key = self._ai._resolve_api_key(provider)
         if not key:
             raise ImageGenerationError(
@@ -136,6 +144,12 @@ class ImageGenerationService:
 
         route = resolve_scenario_model(scenario)
         provider = "sensenova"
+        # v0.8.1 Day 3: breaker 前置检查 (同 generate — 审查 P0-2 图片路径闭环)
+        breaker = get_provider_health().get_breaker(provider)
+        if not breaker.allow():
+            raise ImageGenerationError(
+                f"provider={provider} 熔断中 (breaker={breaker.state}), 稍后重试"
+            )
         key = self._ai._resolve_api_key(provider)
         if not key:
             raise ImageGenerationError(
@@ -189,7 +203,15 @@ class ImageGenerationService:
         }
 
     def _record(self, provider: str, model: str, task: str, *, ok: bool, **kw) -> None:
-        """观测写入 — 走既有 record_llm_call, scene 区分 image_generation/image_understand."""
+        """观测写入 — 走既有 record_llm_call, scene 区分 image_generation/image_understand.
+
+        v0.8.1 Day 3: 同时回写 ProviderHealth (generate/understand 两处
+        httpx 直连点的全部成败路径都经此 — 审查 P0-2 数据闭环)。
+        """
+        try:
+            get_provider_health().record(provider, ok)
+        except Exception as e:
+            logger.warning(f"provider health record failed (ignored): {e}")
         try:
             from backend.services.ai_hub.usage import record_llm_call
             record_llm_call(

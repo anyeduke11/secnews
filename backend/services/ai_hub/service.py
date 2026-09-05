@@ -153,6 +153,20 @@ class AIService:
             pass
         return "default"
 
+    @staticmethod
+    def provider_health() -> dict:
+        """v0.8.1 Day 3: 全 provider 健康度快照 (窗口 + breaker 状态)。
+
+        供 /api/llm/health (Day 4) 与运维诊断消费; 失败返回空 dict
+        (观测不可拖垮业务)。数据源自 ProviderHealth 单例 — gateway 与
+        image_service 的真实调用结果都已回写 (PRD §2.2 数据闭环)。
+        """
+        try:
+            from backend.services.ai_hub.provider_health import get_provider_health
+            return get_provider_health().snapshot_all()
+        except Exception:
+            return {}
+
     def _resolve_api_key(self, provider: str | None = None) -> str:
         """v0.7.x Batch ⑥: 四级链 ``env > secrets(provider=...) > default(fail-soft)``。
 

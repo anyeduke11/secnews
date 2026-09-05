@@ -83,19 +83,25 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 | 2026-09-05 | **v0.8.1 D1 = 方案 A 锁定** (断路器 + provider_health 单一真相源联动, 5 天); D2-D6 按默认; PRD v1.0 立项 | 雪崩防御 + 通电前置; 单一真相源避免双记账矛盾 | B (2 天, 缺健康度数据源) / C (SWR, 与弹性正交) / D-d pi 实测 (顺延次周, 非否决) |
 | 2026-09-05 | **Day 0 通电裁定**: 7 个 v0.8 gate → true (演练通过后保持全开, PRD F5 [假设]); mcp 回关 (gate 语义分裂, server 本体归 config.feature_mcp); 修复 user_skills gate 漏登记 P0 | 演练 = 通电验收; fail-closed 随时可回关 | mcp 同开 (拒绝: 调试路由扩面非本批目标) |
 
-## 已知问题 (2026-09-05, 源 = CRITICAL_REVIEW 复核 ❌/◐ + Day 0 演练发现)
+## 已知问题 (2026-09-05, 源 = CRITICAL_REVIEW 复核 ❌/◐ + Day 0 演练发现 + v0.8.2 收尾批判性审查)
 
-- ~~七 gate 全 false 未开闸~~ → **已通电 (2026-09-05 Day 0)**: 7 gate true, 演练 pytest 3755/0 fail; 20 skill 真实运行验证仍随弹性层落地观察
-- **运行时弹性缺失** — 断路器 + provider_health 缺 (V0.8.1 方案 A, Day 1-5)
-- **graceful shutdown 缺** → **已落地 (Day 0)**: drain + WAL checkpoint + 20× soak 0 损坏
-- **agent_loop / playbook_engine / skill_eval 三 gate 无消费点** (Day 0 演练发现) — toml 死配置键, 服务本体不受 gate 控制; 随未来消费点登记
-- **mcp extension gate 与 is_mcp_enabled() 语义分裂** (Day 0 发现) — 两套开关, mcp 回关 + P2 备忘
-- **stdlib logging 全仓不可见** (Day 0 发现) — 无 InterceptHandler, main.py 自身 log.info 全隐形; 新代码一律 loguru (PROJECT 红线)
-- **pi CLI 未实测** — agent_bridge jsonl 协议字段仍推测 (V0.8.1 D-d, live 测试不进 CI)
+- ~~七 gate 全 false 未开闸~~ → **已通电 (2026-09-05 Day 0)**: 7 gate true; 20 skill 真实运行验证随弹性层观察
+- ~~运行时弹性缺失~~ → **已落地 (v0.8.1 Day 1-4)**; ~~graceful shutdown 缺~~ → **已落地 (Day 0)**
+- ~~agent_loop/playbook_engine/skill_eval 死 gate 键~~ → **已移除 (v0.8.2 X-B3, 16→13)**; ~~mcp 语义分裂~~ → **已契约化 (X-B3, 双开关分工 docstring + 启动两态日志)**
+- ~~备份完整性校验缺 (§2.4)~~ → **已落地 (v0.8.2 A4)**; ~~配置热重载缺 (§2.6)~~ → **已落地 (v0.8.2 A2, 动态读数层; 注册期快照仍需重启)**
+- **[P1] provider 饱和排队尾延迟放大** (v0.8.2 A1 设计代价, 首轮审查 F1) — deep 场景 provider 缓慢故障 (未达熔断) 时 max_concurrent 之外的调用在 semaphore 排队; 熔断 trip 后每个已排队调用仍烧一轮 timeout (sensenova 90s) 才落 fallback。修复设计: `_call_provider` 获槽后重查 breaker state=="open" → 专用 skip 异常 + 循环头不计账 (拒绝≠失败); **需动 ai_hub 调用链 (D1"未裁决勿动"精神) 待裁决**
+- **[P1] CI 从未真跑** (收尾审查 F2) — 推送禁止 → GitHub Actions 未执行过 v0.7.x~v0.8.2 任何提交, "门禁绿"均为本地模拟; 首推时 pip-audit / core-only 矩阵 / classify gate 首次真跑可能爆历史问题。首推前本地预演: pip-audit (**2026-09-05 已预演: 零已知漏洞**) + core-only env 矩阵 pytest
+- **[P2] CI core-only job 语义漂移** (F3) — ci.yml env 只显式关 5 个扩展键, v0.8 七 gate TOML 通电后 core-only job 实际会注册扩展路由 (origin/main 未通电故当前 CI 无感, 推送后生效); 推送前应显式全关或重裁定
+- **[P2] restore_from_backup 零测试覆盖** (F4) — A4 验证备份完整性但恢复路径无任何测试, "verify ok ≠ 可恢复"; 建议 A4 续篇补 E2E restore 测试
+- **[P2] A1×A2 交互缺口** (F5) — max_concurrent 热更新不影响已建 semaphore (首现定容); recovery_timeout 热重载不影响已创建 breaker 实例 → /health thresholds 块可能与 breaker 实际值不一致
+- **[P2] backup_verify 无新鲜度检查** (F6) — BACKUP_RETENTION=1 下备份可 8 天旧仍 integrity ok; 应加 mtime age 检查
+- **[P2] /api/quality/rules Cache-Control 用户可感知** (F7) — PUT 后 ≤10s 浏览器缓存可能回旧规则 (前端 10s 轮询周期掩盖大半; 代码注释已声明)
+- **pi CLI message_update 流式语义未接** (v0.8.1 D6 残项) — bridge 只取最终 message_end, 流式 UI §4.3.B (D1 独立窗口)
 - **services 层 320 处宽泛 except Exception** — error_classifier 缺 (D-a, 未选)
 - **前端数据层原始** — 25 处 setInterval/15 文件, 无 react-query/swr (方案 C, 未选)
-- 备份完整性校验缺 (§2.4) / 配置热重载缺 (§2.6) — v0.8.2 候选
 - Toast 零使用 / SecretsPage 主密钥明文输入 (UX 审计遗留)
+- ~~pi CLI 未实测~~ → **已实测 (v0.8.1 D6, 0.84.4 live)**: 协议吻合 + 修 2 假阳性; soaktest 探针可重跑
+- ~~stdlib logging 全仓不可见~~ (Day 0 发现) — 无 InterceptHandler, main.py 自身 log.info 隐形; 新代码一律 loguru (红线, 持续有效)
 
 ## 生命周期
 
@@ -115,3 +121,6 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 | 交付 | 2026-09-04 | 通过 | V0.8_USER_GUIDE / MIGRATION_TO_V0.8 / CHANGELOG | — |
 | 发布 (v0.8.0) | 2026-09-04 | ◐ 部分 | tag `v0.8.0-skills` 本地已打 | 远端推送待用户授权 |
 | 需求 (v0.8.1) | 2026-09-05 | 通过 | V0.8.1_PLAN v1.1 (审查 P0×3 已修) → **D1=方案 A 用户裁决锁定**; PRD v1.0 立项 (三维审查 P1×2/P2×2 已修) | 已闭合, 转开发阶段 |
+| 需求+发布 (v0.8.2) | 2026-09-05 | 通过 (发布 ◐) | X+Y 合批推荐 (上会话收尾, 无独立 PRD, 来源已摘录 PROGRESS); tag `v0.8.2` 本地已打 | 推送用户明令禁止 |
+| 开发+测试 (v0.8.2) | 2026-09-05 | 通过 | X(5 项)+Y(3 项) 12 commits; pytest 3868/0 / vitest 425 / tsc 0 / ruff 全仓 0 / generate_meta 4/4 / vite build 0 / **pip-audit 零已知漏洞** | — |
+| 批判性审查 (v0.8.2 收尾) | 2026-09-05 | 通过 (带发现) | 第一性原理逐变更面排查: **F1-F7 = P1×2 + P2×5** (饱和排队尾延迟 / CI 从未真跑 / core-only 漂移 / restore 无测试 / A1×A2 交互 / 备份新鲜度 / Cache-Control 体感), 全部落「已知问题」 | F2 部分 (pip-audit 预演 ✅); 其余待裁决/续篇 |

@@ -18,7 +18,6 @@ skill_runs + 093 feedback_log 全 schema); 父 gate True 路径 monkeypatch gate
 from __future__ import annotations
 
 import json
-import sqlite3
 
 import pytest
 from fastapi import FastAPI
@@ -26,7 +25,6 @@ from fastapi.testclient import TestClient
 
 from backend.repository.db import get_connection
 from backend.services.agent_memory import agent_memory
-
 
 RUN_ID = "run-b6-0001"
 SKILL_ID = "source-health-scan"

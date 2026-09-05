@@ -16,7 +16,6 @@
 """
 from __future__ import annotations
 
-import json
 import textwrap
 from pathlib import Path
 from typing import Any
@@ -29,11 +28,8 @@ from backend.services.playbook_engine import (
     Playbook,
     PlaybookEngine,
     PlaybookStep,
-    StepExecutor,
-    ValidationReport,
     load_playbook,
 )
-from backend.services.playbook_engine.core import PlaybookRun
 from backend.services.playbook_engine.step import _resolve_template, _safe_eval
 
 
@@ -383,8 +379,6 @@ def test_execute_total_seconds_cap(
 
     用 mock time.monotonic 模拟时间前进, 让第二步前 deadline 已过。
     """
-    import backend.services.playbook_engine.core as core_mod
-
     # execute 内多次调用 time.monotonic:
     #   - deadline = time.monotonic() + max_total_seconds
     #   - 每步前检查 deadline
@@ -392,6 +386,8 @@ def test_execute_total_seconds_cap(
     # 简化策略: 第 1/2/3 次 (deadline 设置 + a 步 t0 + a 步 elapsed) 返回 100,
     # 之后 (b 步前的 deadline 检查) 返回 200 → 超时。
     from itertools import chain
+
+    import backend.services.playbook_engine.core as core_mod
 
     monotonic_values = list(chain.from_iterable(
         [[100.0, 100.0, 100.0], [200.0] * 50]

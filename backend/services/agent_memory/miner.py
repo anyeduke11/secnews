@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from typing import Any
 
 from backend.exceptions import InternalException
 from backend.logging_config import logger

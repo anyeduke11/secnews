@@ -104,9 +104,9 @@ def _serialize(skill: UserSkill) -> dict[str, Any]:
 
 def _to_obj(payload: SkillCreateRequest, *, created_by: str = "user") -> UserSkill:
     """Pydantic payload → UserSkill dataclass (校验由 validate_user_skill 负责)."""
-    from datetime import datetime
+    from datetime import datetime, timezone
 
-    now = datetime.now().isoformat(timespec="seconds")
+    now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
     return UserSkill(
         id=payload.id,
         name=payload.name,

@@ -22,7 +22,7 @@ from typing import Any, Literal
 from backend.logging_config import logger
 from backend.services.trigger_gate.priority import Priority
 from backend.services.trigger_gate.queue import TriggerQueue
-from backend.services.trigger_gate.throttle import ThrottleExceededError, TriggerThrottle
+from backend.services.trigger_gate.throttle import TriggerThrottle
 
 # submit 允许的触发来源 — Literal 在签名层给静态检查, 元组在运行时强校验
 VALID_SOURCES: tuple[str, ...] = (
@@ -129,4 +129,4 @@ class TriggerGate:
         return ticket
 
 
-__all__ = ["SourceName", "TriggerGate", "TriggerTicket", "VALID_SOURCES", "VALID_TARGET_TYPES"]
+__all__ = ["VALID_SOURCES", "VALID_TARGET_TYPES", "SourceName", "TriggerGate", "TriggerTicket"]

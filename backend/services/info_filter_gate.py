@@ -26,14 +26,14 @@ feature gate:
 from __future__ import annotations
 
 import time
-from typing import Any, Optional
+from typing import Any
 
 from backend.extensions import is_extension_enabled
 from backend.logging_config import logger
 
 # 进程内规则 cache — 5s TTL 足够 (用户改规则无需实时生效, 但要秒级感知)
 _CACHE_TTL_S = 5.0
-_cached_rules: Optional[list[dict]] = None
+_cached_rules: list[dict] | None = None
 _cached_at: float = 0.0
 
 
@@ -71,7 +71,7 @@ def invalidate_cache() -> None:
     _cached_at = 0.0
 
 
-def filter_source(source: dict) -> tuple[bool, Optional[str]]:
+def filter_source(source: dict) -> tuple[bool, str | None]:
     """Layer 1 — collect 入口源级过滤.
 
     Args:
@@ -182,8 +182,8 @@ def filter_prompt_chunks(chunks: list[dict]) -> list[dict]:
 
 
 __all__ = [
-    "filter_source",
     "filter_items",
     "filter_prompt_chunks",
+    "filter_source",
     "invalidate_cache",
 ]

@@ -24,7 +24,6 @@ from backend.logging_config import logger
 from backend.services.agent_loop import (
     AgentLoop,
     AgentLoopHooks,
-    AgentLoopSettings,
     LLMPort,
     LoopResult,
     LoopStatus,
@@ -34,7 +33,6 @@ from backend.services.skill_registry.core import (
     ApiTarget,
     ServiceTarget,
     SkillDef,
-    Step,
 )
 from backend.services.skill_runner.dispatch import (
     dispatch_fast,
@@ -124,7 +122,7 @@ class SkillRunner:
             if skill.skill_type in ("A", "B"):
                 return self._run_fast(skill, inputs, run_id=run_id, ticket_id=ticket_id, started=started)
             return self._run_full(skill, inputs, run_id=run_id, ticket_id=ticket_id, started=started)
-        except Exception as exc:  # noqa: BLE001 — runner 永远不向外抛
+        except Exception as exc:
             err = f"{type(exc).__name__}: {exc}"
             elapsed_ms = int((time.perf_counter() - started) * 1000)
             logger.error(

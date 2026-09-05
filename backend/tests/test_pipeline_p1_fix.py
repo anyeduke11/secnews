@@ -20,7 +20,7 @@ import sqlite3
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -170,8 +170,8 @@ class TestP17FailureRateAggregate:
     """P1.7: failed_runs/total_runs → green/yellow/red."""
 
     def test_constants_match_plan(self):
-        assert _FAILURE_GREEN == pytest.approx(0.3)
-        assert _FAILURE_YELLOW == pytest.approx(0.6)
+        assert pytest.approx(0.3) == _FAILURE_GREEN
+        assert pytest.approx(0.6) == _FAILURE_YELLOW
         assert _MIN_RUNS_FOR_SIGNAL == 3
 
     def test_no_runs_is_green(self):
@@ -282,8 +282,9 @@ def _patch_db(db_path: Path):
     - 必须 patch source_health_service 模块 (not backend.repository.db)
       — 因为它是 ``from backend.repository.db import get_connection`` 模式。
     """
-    import backend.services.source_health_service as shs
     from contextlib import contextmanager
+
+    import backend.services.source_health_service as shs
 
     @contextmanager
     def _cm():
@@ -607,9 +608,10 @@ class TestP0SsrfLayer4FetchersPy:
     def test_wechat_renderer_with_no_url_passes_through(self):
         """url 全空但 renderer=wechat → 不应触发 no_fetchable_url 守门
         (wechat 路径会自己取 account_name 抓搜狗)."""
+        from unittest.mock import AsyncMock
+
         from backend.collectors.base import BaseCollector
         from backend.domain.enums import Category
-        from unittest.mock import AsyncMock
 
         class _TestWechatCollector(BaseCollector):
             category = Category.SECURITY

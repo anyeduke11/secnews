@@ -17,9 +17,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from backend.repository.settings_repo import SettingsRepository
+
+if TYPE_CHECKING:
+    # 仅注解用 (F821); 运行时仍走 execute() 内的函数级导入防 registry↔runner 循环
+    from backend.services.skill_runner import SkillRunResult
 
 __all__ = [
     "ApiTarget",
@@ -240,8 +244,8 @@ class SkillRegistry:
         inputs: dict,
         *,
         ticket_id: str | None = None,
-        runner: "SkillRunner | None" = None,
-    ) -> "SkillRunResult":
+        runner: SkillRunner | None = None,
+    ) -> SkillRunResult:
         """按 id 跑一次 skill — gate 校验 + 委托 SkillRunner.run。
 
         - 未知 id 抛 SkillNotFoundError
@@ -254,7 +258,7 @@ class SkillRegistry:
         参数注入避免 registry ↔ runner 循环 (B5 worker 传 runner 进来时更友好)。
         """
         from backend.services.skill_registry.gate import is_skill_enabled
-        from backend.services.skill_runner import SkillRunner as _Runner, SkillRunResult as _Result
+        from backend.services.skill_runner import SkillRunner as _Runner
 
         skill = self.get(skill_id)
         if not is_skill_enabled(skill_id):

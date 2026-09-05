@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from backend.config.llm_schema import load_llm_config
 from backend.services.llm.model_router import (
-    ModelTier,
     TASK_TIER_MAP,
     TIER_TO_MODEL_ATTR,
     TIER_TO_OVERRIDE_KEY,
+    ModelTier,
     _fallback,
     get_tier,
     route_model,

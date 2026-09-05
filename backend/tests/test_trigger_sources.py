@@ -18,7 +18,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.services.trigger_gate import (
-    ThrottleExceededError,
     trigger_gate,
 )
 from backend.services.trigger_gate.priority import Priority
@@ -58,9 +57,9 @@ def fresh_gate(monkeypatch):
 def _patch_default_gate(monkeypatch, fresh_gate):
     """替换 trigger_gate.triggers.* 默认 _default 实例, 让它们用 fresh_gate."""
     import backend.services.trigger_gate as tg_mod
-    import backend.services.trigger_gate.triggers.webhook as wh_mod
-    import backend.services.trigger_gate.triggers.kl_event as kl_mod
     import backend.services.trigger_gate.triggers.collector_event as ce_mod
+    import backend.services.trigger_gate.triggers.kl_event as kl_mod
+    import backend.services.trigger_gate.triggers.webhook as wh_mod
 
     # 把 trigger_gate 单例也指向 fresh_gate, 方便 webhook 内部调用 trigger_gate.submit
     monkeypatch.setattr(tg_mod, "trigger_gate", fresh_gate)

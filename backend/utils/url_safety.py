@@ -53,10 +53,8 @@ import socket
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
-
 if TYPE_CHECKING:
     import aiohttp
-    import httpx
 
 
 class UrlSafetyError(ValueError):
@@ -217,7 +215,7 @@ def safe_aiohttp_connector(
     *,
     ssl: bool = False,
     **kwargs: object,
-) -> "aiohttp.TCPConnector":
+) -> aiohttp.TCPConnector:
     """构造 ``aiohttp.TCPConnector``, 把 host 锁到解析后的 IP 防 DNS rebinding。
 
     使用::
@@ -236,6 +234,7 @@ def safe_aiohttp_connector(
         UrlSafetyError: DNS 解析失败 / 解析结果无可用 IP。
     """
     import aiohttp
+
     # 使用 ThreadedResolver 而非 AsyncResolver: AsyncResolver 需要 aiodns C 扩展
     # (项目用 ``threading + socket.getaddrinfo`` 即可; lock-IP 实际由 ``resolve`` 覆盖)
     from aiohttp.resolver import ThreadedResolver
@@ -286,7 +285,7 @@ def safe_aiohttp_connector(
 
 
 def safe_aiohttp_get(
-    session: "aiohttp.ClientSession",
+    session: aiohttp.ClientSession,
     url: str,
     *,
     timeout: float = 30.0,

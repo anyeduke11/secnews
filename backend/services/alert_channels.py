@@ -54,7 +54,8 @@ def _validate_url(url: str, *, allow_http: bool = False) -> str:
     Raises:
         ValueError: SSRF 阻断时包装 ``UrlSafetyError``。
     """
-    from backend.utils.url_safety import UrlSafetyError, validate_url as _v
+    from backend.utils.url_safety import UrlSafetyError
+    from backend.utils.url_safety import validate_url as _v
 
     # 兼容旧语义: webhook 强制 https (除测试 allow_http)
     if not allow_http and not url.startswith("https://"):

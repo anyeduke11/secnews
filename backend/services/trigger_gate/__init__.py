@@ -30,17 +30,17 @@ from backend.services.trigger_gate.worker import Handler, TriggerWorker
 trigger_gate = TriggerGate()
 
 __all__ = [
-    "Handler",
     "PRIORITY_NAMES",
+    "VALID_SOURCES",
+    "VALID_TARGET_TYPES",
+    "Handler",
     "Priority",
     "SourceName",
     "ThrottleExceededError",
     "TriggerGate",
     "TriggerQueue",
-    "TriggerTicket",
     "TriggerThrottle",
+    "TriggerTicket",
     "TriggerWorker",
-    "VALID_SOURCES",
-    "VALID_TARGET_TYPES",
     "trigger_gate",
 ]

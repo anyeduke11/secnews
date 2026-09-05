@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -21,7 +21,6 @@ from backend.services.ai_hub.image_service import (
     ImageGenerationError,
     ImageGenerationService,
 )
-from backend.services.ai_hub.scenarios import Scenario
 
 
 def _mock_ai_resolve_key(return_value: str = "test-key", key_source: str = "env"):

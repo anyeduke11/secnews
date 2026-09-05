@@ -1,9 +1,8 @@
 """skill_builder.core — UserSkill 数据类 + UserSkillRepo (CRUD + 软删 + 上限 50)."""
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from backend.repository.db import get_connection
@@ -76,7 +75,7 @@ class UserSkillRepo:
         if self.get(skill.id, include_deleted=True) is not None:
             raise ValueError(f"skill id {skill.id!r} 已存在 (含软删)")
         conn = get_connection()
-        now = datetime.now().isoformat(timespec="seconds")
+        now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
         conn.execute(
             """
             INSERT INTO user_skills(
@@ -183,7 +182,7 @@ class UserSkillRepo:
         enabled: int | None = None,
     ) -> UserSkill:
         existing = self.get_or_raise(skill_id)
-        now = datetime.now().isoformat(timespec="seconds")
+        now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
         fields: dict[str, Any] = {"updated_at": now}
         if name is not None:
             fields["name"] = name
@@ -224,7 +223,7 @@ class UserSkillRepo:
     def soft_delete(self, skill_id: str) -> bool:
         """软删 (deleted_at 标记); 重复删返 False."""
         conn = get_connection()
-        now = datetime.now().isoformat(timespec="seconds")
+        now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
         cur = conn.execute(
             "UPDATE user_skills SET deleted_at = ?, updated_at = ? "
             "WHERE id = ? AND deleted_at IS NULL",

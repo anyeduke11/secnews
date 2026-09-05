@@ -22,9 +22,8 @@ from __future__ import annotations
 
 import importlib
 import re
-from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from backend.logging_config import logger
@@ -35,7 +34,6 @@ from backend.services.skill_registry.core import (
     SkillDef,
     Step,
 )
-
 
 # ---------------------------------------------------------------------------
 # Template rendering — args / path 模板占位
@@ -109,9 +107,9 @@ def _resolve_key(
             return step_outputs[idx].get(parts[2])
         return None
     if key == "run.date":
-        return datetime.now().strftime("%Y-%m-%d")
+        return datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d")
     if key == "run.datetime":
-        return datetime.now().isoformat()
+        return datetime.now(timezone.utc).astimezone().isoformat()
     return None
 
 
@@ -341,7 +339,7 @@ def _write_wiki(*, path: str, content: str, run_date: str) -> str:
         "id": full_path.rsplit("/", 1)[-1].rsplit(".", 1)[0],
         "created": run_date,
         "source": "skill-runner",
-        "ingested_at": _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "ingested_at": _dt.datetime.now(_dt.timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S"),
     }
     fm_str = "<!-- metadata\n" + "\n".join(f"{k}: {v}" for k, v in fm.items()) + "\n-->\n"
     try:
@@ -399,7 +397,7 @@ def dispatch_pipeline(
     if not skill.pipeline:
         raise RuntimeError(f"C/D pipeline 需 pipeline; skill={skill.id!r}")
     llm = llm or build_default_llm_port()
-    run_date = datetime.now().strftime("%Y-%m-%d")
+    run_date = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d")
 
     step_outputs: list[dict[str, Any]] = []
     wiki_path: str | None = None

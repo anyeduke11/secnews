@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
 
 # Python builtin type 名白名单 — 与 builtin SkillDef loader 同口径 (loader.load_validation
 # 不强制, 仅校验 dict 形态); 这里收紧避免用户提交 str/int/list/dict/custom 等之外的乱码.

@@ -177,7 +177,7 @@ class CodegardenOrchestrationService:
 
         新源优先 (R12-style 演进策略); 同 path 跳过 (防御性). 旧 API 字段 (name/path/content/size) 保留.
         """
-        from backend.services.playbook_engine.loader import EXAMPLES_DIR, list_examples
+        from backend.services.playbook_engine.loader import list_examples
 
         out: list[dict] = []
         seen: set[str] = set()

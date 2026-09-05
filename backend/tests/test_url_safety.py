@@ -77,7 +77,7 @@ class TestLiteralHostBlocklist:
         ],
     )
     def test_literal_localhost_blocked(self, host):
-        with pytest.raises(UrlSafetyError, match="loopback|字面"):
+        with pytest.raises(UrlSafetyError, match=r"loopback|字面"):
             validate_url(f"http://{host}/")
 
     @pytest.mark.parametrize(
@@ -89,7 +89,7 @@ class TestLiteralHostBlocklist:
         ],
     )
     def test_local_internal_suffix_blocked(self, host):
-        with pytest.raises(UrlSafetyError, match="suffix|字面"):
+        with pytest.raises(UrlSafetyError, match=r"suffix|字面"):
             validate_url(f"http://{host}/")
 
     def test_empty_url_blocked(self):
@@ -221,7 +221,7 @@ class TestSafeAiohttpConnector:
         connector = safe_aiohttp_connector("example.com")
         import aiohttp
         assert isinstance(connector, aiohttp.TCPConnector)
-        assert connector._use_dns_cache is False  # noqa: SLF001 关闭 DNS cache (锁 IP 强制)
+        assert connector._use_dns_cache is False
         await connector.close()
 
     @pytest.mark.asyncio
@@ -246,6 +246,7 @@ class TestSafeAiohttpConnector:
         不依赖 aiohttp TCPConnector 私有属性。
         """
         import socket
+
         from aiohttp.resolver import ThreadedResolver
 
         # 1) 预解析 example.com → 拿 IP 字面

@@ -26,7 +26,7 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Literal, Optional
+from typing import Literal
 
 from backend.logging_config import logger
 
@@ -131,11 +131,11 @@ def update_rule(
     conn: sqlite3.Connection,
     rule_id: int,
     *,
-    rule_type: Optional[str] = None,
-    match_kind: Optional[str] = None,
-    match_value: Optional[str] = None,
-    note: Optional[str] = None,
-    enabled: Optional[int] = None,
+    rule_type: str | None = None,
+    match_kind: str | None = None,
+    match_value: str | None = None,
+    note: str | None = None,
+    enabled: int | None = None,
 ) -> bool:
     """更新一条规则. 至少传一个 kwarg. 返回是否真改了行.
 
@@ -186,8 +186,8 @@ def delete_rule(conn: sqlite3.Connection, rule_id: int) -> bool:
 
 
 def _matches(rule: dict, *, category: str, source_name: str,
-             source_id: Optional[str] = None,
-             tag: Optional[str] = None) -> bool:
+             source_id: str | None = None,
+             tag: str | None = None) -> bool:
     """判断一条规则是否命中给定的 (category, source_name, source_id, tag)."""
     mk, mv = rule["match_kind"], rule["match_value"]
     if mk == "category":
@@ -209,9 +209,9 @@ def evaluate(
     *,
     category: str,
     source_name: str,
-    source_id: Optional[str] = None,
-    tag: Optional[str] = None,
-) -> tuple[str, Optional[dict]]:
+    source_id: str | None = None,
+    tag: str | None = None,
+) -> tuple[str, dict | None]:
     """对给定的源/项评估规则集, 返回 (verdict, matched_rule).
 
     verdict ∈ {"allow", "deny", "neutral"}:
@@ -225,8 +225,8 @@ def evaluate(
 
     rules 应当是 list_rules(enabled_only=True) 的结果 (调用方过滤).
     """
-    matched_deny: Optional[dict] = None
-    matched_allow: Optional[dict] = None
+    matched_deny: dict | None = None
+    matched_allow: dict | None = None
     for r in rules:
         if not r.get("enabled"):
             continue
@@ -248,9 +248,9 @@ def evaluate(
 
 __all__ = [
     "InfoFilterError",
-    "list_rules",
     "create_rule",
-    "update_rule",
     "delete_rule",
     "evaluate",
+    "list_rules",
+    "update_rule",
 ]

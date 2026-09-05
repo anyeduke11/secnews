@@ -4,6 +4,10 @@
 line-length = 100
 target-version = "py310"
 
+# 第三方/工具资产不属本项目代码 — vendored skill 脚本 (ui-ux-pro-max 等)
+# 随上游分发, 不修不查, 防 lint 噪音与误改
+extend-exclude = [".trae"]
+
 [lint]
 select = [
     "E4", "E7", "E9",   # pycodestyle 语法/引用类 (安全)

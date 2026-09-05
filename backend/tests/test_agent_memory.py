@@ -20,6 +20,7 @@
 """
 from __future__ import annotations
 
+import itertools
 import json
 import time
 
@@ -39,7 +40,6 @@ from backend.services.agent_memory.miner import (
     PREFER_STYLE_SCORE_THRESHOLD,
 )
 from backend.services.agent_memory.recall import (
-    SIMHASH_MAX_DISTANCE,
     extract_intent,
     hamming_distance,
     simhash64,
@@ -184,7 +184,7 @@ def test_recall_priority_path_then_similarity(temp_db):
     # {'exact': 0, 'simhash': 1, 'keyword': 2}。验证排序单调非降。
     from backend.services.agent_memory.recall import _PATH_PRIORITY
 
-    for a, b in zip(hits, hits[1:]):
+    for a, b in itertools.pairwise(hits):
         key_a = (_PATH_PRIORITY.get(a.match_path, 9), -a.similarity)
         key_b = (_PATH_PRIORITY.get(b.match_path, 9), -b.similarity)
         assert key_a <= key_b, f"排序失败: {key_a} > {key_b}"

@@ -25,18 +25,17 @@ from __future__ import annotations
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 from backend.logging_config import logger
 from backend.services.agent_loop.checkpoint import LoopCheckpointRepo
 from backend.services.agent_loop.state import (
+    PHASE_ORDER,
     LoopPhase,
     LoopResult,
     LoopStatus,
-    PHASE_ORDER,
     is_terminal,
-    next_phase,
     should_run_phase,
 )
 
@@ -111,7 +110,7 @@ class _AiHubLLMPort:
                 text = loop.run_until_complete(self._llm.summarize([prompt]))
             else:
                 text = asyncio.run(self._llm.summarize([prompt]))
-        except Exception as exc:  # noqa: BLE001 — LLM 路径容错
+        except Exception as exc:
             logger.warning(
                 "agent_loop: LLM call failed",
                 extra={"trace_id": "", "reason": str(exc)},
@@ -289,7 +288,7 @@ class AgentLoop:
                 phase_output = exec_fn(inputs, {"run_id": run_id, "ctx": ctx})
                 outputs[phase.value] = phase_output
                 llm_tokens += int(phase_output.get("llm_tokens", 0) or 0)
-            except Exception as exc:  # noqa: BLE001 — 状态机容错
+            except Exception as exc:
                 err = f"{type(exc).__name__}: {exc}"
                 self._checkpoints.mark_terminal(
                     run_id, phase, LoopStatus.FAILED, error=err
@@ -319,7 +318,7 @@ class AgentLoop:
                     retry_output = executors[phase](inputs, {"run_id": run_id, "ctx": ctx})
                     outputs[phase.value] = retry_output
                     llm_tokens += int(retry_output.get("llm_tokens", 0) or 0)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     retry_output = {"status": "failed", "error": str(exc)}
                 if retry_output.get("status") != "failed":
                     phase_output = retry_output
@@ -507,7 +506,7 @@ class AgentLoop:
             phases.append((LoopPhase.COMMIT, LoopStatus.SUCCEEDED))
             self._fire_hook(LoopPhase.COMMIT, LoopStatus.SUCCEEDED, {"outputs": commit_out})
             outputs[LoopPhase.COMMIT.value] = commit_out
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             err = f"{type(exc).__name__}: {exc}"
             self._checkpoints.mark_terminal(
                 run_id, LoopPhase.COMMIT, LoopStatus.FAILED, error=err
@@ -528,7 +527,7 @@ class AgentLoop:
             return
         try:
             hook(phase, status, payload)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning(
                 "agent_loop hook raised",
                 extra={"trace_id": "", "phase": phase.value, "error": str(exc)},
@@ -541,7 +540,7 @@ class AgentLoop:
             return
         try:
             hook(phase, err)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning(
                 "agent_loop on_error hook raised",
                 extra={"trace_id": "", "phase": phase.value, "error": str(exc)},

@@ -93,7 +93,7 @@ class EvalFixture:
     source_path: str | None = None
 
     @staticmethod
-    def from_dict(d: dict[str, Any], source_path: str | None = None) -> "EvalFixture":
+    def from_dict(d: dict[str, Any], source_path: str | None = None) -> EvalFixture:
         """从 dict 构造, 缺关键字段 → ValueError (R12 fail loud)."""
         if not isinstance(d, dict):
             raise ValueError(f"fixture 顶层必须是 mapping, got {type(d).__name__}")

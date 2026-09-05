@@ -82,9 +82,7 @@ def next_phase(current: LoopPhase, *, fast_path: bool = False) -> LoopPhase | No
 
 def should_run_phase(phase: LoopPhase, *, fast_path: bool) -> bool:
     """是否需要真正执行该阶段 (fast_path 下 PLAN/REFLECT 跳过)。"""
-    if fast_path and phase in _FAST_SKIP_PHASES:
-        return False
-    return True
+    return not (fast_path and phase in _FAST_SKIP_PHASES)
 
 
 @dataclass
@@ -116,10 +114,10 @@ def is_terminal(status: LoopStatus) -> bool:
 
 
 __all__ = [
+    "PHASE_ORDER",
     "LoopPhase",
     "LoopResult",
     "LoopStatus",
-    "PHASE_ORDER",
     "is_terminal",
     "next_phase",
     "should_run_phase",

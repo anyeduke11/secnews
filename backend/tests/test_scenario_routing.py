@@ -8,7 +8,6 @@
 """
 from __future__ import annotations
 
-import os
 from unittest.mock import patch
 
 from backend.services.ai_hub.scenarios import (

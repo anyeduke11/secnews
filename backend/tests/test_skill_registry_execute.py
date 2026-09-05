@@ -55,7 +55,7 @@ def test_registry_execute_passes_ticket_id(skill_registry_gate_open, temp_db):
     result = BUILTIN.execute(
         "source-health-scan", {}, ticket_id="ticket-b23-test"
     )
-    row = BUILTIN.execute.__self__  # noqa - 改用 repo
+    row = BUILTIN.execute.__self__
     from backend.services.skill_runner import SkillRunRepo
     row = SkillRunRepo().get(result.run_id)
     assert row is not None

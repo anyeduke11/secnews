@@ -14,7 +14,6 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -41,8 +40,8 @@ def api_db(tmp_path, monkeypatch):
     invalidate_cache()
 
     from backend import repository as repo_pkg
-    from backend.repository import db as db_mod
     from backend.api import info_filter_api as api_mod
+    from backend.repository import db as db_mod
 
     monkeypatch.setattr(db_mod, "get_connection", lambda: conn)
     monkeypatch.setattr(api_mod, "get_connection", lambda: conn)
@@ -66,6 +65,7 @@ def client():
     api_db 析构, 否则 conn.close() 后 endpoint 还会被调用 → 失败)。
     """
     from fastapi import FastAPI
+
     from backend.api.info_filter_api import router
 
     app = FastAPI()

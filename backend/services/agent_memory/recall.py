@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import re
 import sqlite3
@@ -53,7 +54,7 @@ def tokenize(text: str) -> list[str]:
         tok = m.group(0)
         out.append(tok.lower() if not _CJK_CHAR.match(tok[0]) else tok)
     chars = [c for c in text if _CJK_CHAR.match(c)]
-    out.extend(a + b for a, b in zip(chars, chars[1:]))
+    out.extend(a + b for a, b in itertools.pairwise(chars))
     return out
 
 
@@ -287,8 +288,8 @@ class MemoryRecall:
 
 
 __all__ = [
-    "MemoryRecall",
     "SIMHASH_MAX_DISTANCE",
+    "MemoryRecall",
     "extract_intent",
     "hamming_distance",
     "simhash64",

@@ -76,7 +76,7 @@ class FixtureRunner:
                 )
             else:
                 err = f"fixture kind {fixture.kind!r} 不支持"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             err = f"{type(e).__name__}: {e}"
         duration_ms = int((time.monotonic() - started) * 1000)
         return SkillRunResult(

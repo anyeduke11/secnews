@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 
 from backend.logging_config import logger
-from backend.utils.url_safety import UrlSafetyError, validate_url
+from backend.utils.url_safety import validate_url
 
 try:
     import httpx

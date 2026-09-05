@@ -368,8 +368,8 @@ def health_summary() -> dict:
 
 __all__ = [
     "check_all_health",
-    "check_health",
     "check_failure_rate_health",
+    "check_health",
     "health_summary",
     "list_all_sources",
 ]

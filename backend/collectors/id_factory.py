@@ -10,7 +10,6 @@ P1.5 (v0.7.x): 新增 ``make_readable_id_safe`` — 空 native_id 时
 
 from __future__ import annotations
 
-import hashlib
 import re
 
 __all__ = ["make_readable_id", "make_readable_id_safe"]

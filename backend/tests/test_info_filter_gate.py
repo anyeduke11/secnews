@@ -111,8 +111,8 @@ def test_filter_items_drops_deny_source(gate_db, monkeypatch):
 
 def test_filter_items_handles_hotspot_item(gate_db, monkeypatch):
     """filter_items 兼容 HotspotItem 对象 (用 .source 字段)."""
-    from backend.domain.models import HotspotItem
     from backend.domain.enums import Category
+    from backend.domain.models import HotspotItem
 
     create_rule(gate_db, "deny", "source_name", "denied")
     monkeypatch.setattr(

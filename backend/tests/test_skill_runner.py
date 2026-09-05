@@ -20,7 +20,6 @@
 """
 from __future__ import annotations
 
-import json
 import sys
 import types
 from pathlib import Path
@@ -28,7 +27,6 @@ from typing import Any
 
 import pytest
 
-from backend.services.agent_loop import build_default_llm_port
 from backend.services.skill_registry.core import (
     ApiTarget,
     ServiceTarget,
@@ -36,9 +34,9 @@ from backend.services.skill_registry.core import (
     Step,
 )
 from backend.services.skill_runner import (
+    SkillRunner,
     SkillRunRepo,
     SkillRunResult,
-    SkillRunner,
     run_skill,
 )
 from backend.services.skill_runner.dispatch import (
@@ -185,7 +183,7 @@ def test_api_target_uses_httpx_get(monkeypatch, temp_db, fake_service_module):
     class _Client:
         def __init__(self, *args, **kwargs) -> None:
             pass
-        def __enter__(self) -> "_Client":
+        def __enter__(self) -> _Client:
             return self
         def __exit__(self, *a) -> None:
             pass

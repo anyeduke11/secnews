@@ -248,12 +248,12 @@ class PlaybookScheduler:
         for entry in self.repo.list_enabled():
             try:
                 self._register(entry)
-            except Exception as e:  # noqa: BLE001 — 启动期 fail loud 但不阻断其他 schedule
+            except Exception as e:
                 _log.warning(
                     f"playbook_scheduler start: skip {entry['playbook_name']!r}: {e}"
                 )
         self.scheduler.start()
-        _log.info(f"playbook_scheduler started, loaded schedules")
+        _log.info("playbook_scheduler started, loaded schedules")
 
     def shutdown(self, *, wait: bool = False) -> None:
         """停止调度器 — wait=False 默认异步, 测试或显式等待可改 True."""
@@ -369,7 +369,7 @@ class PlaybookScheduler:
     def _persist_failure(self, playbook_name: str, *, error: str) -> None:
         now = datetime.now(timezone.utc).isoformat()
         self.run_repo.insert(
-            run_id=f"pb-fail-{int(datetime.now().timestamp())}",
+            run_id=f"pb-fail-{int(datetime.now(timezone.utc).timestamp())}",
             playbook_name=playbook_name,
             status="failed",
             inputs={},
@@ -415,7 +415,6 @@ def _find_playbook_path(playbook_name: str) -> str:
 
 
 from pathlib import Path  # 尾部 import 避免循环
-
 
 __all__ = [
     "DEFAULT_TZ",

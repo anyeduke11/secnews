@@ -31,7 +31,8 @@ from backend.cache import invalidate as cache_invalidate
 from backend.cache import warmup
 from backend.config import config
 from backend.exceptions import register_exception_handlers
-from backend.logging_config import logger, setup as setup_logging
+from backend.logging_config import logger
+from backend.logging_config import setup as setup_logging
 from backend.observability import log_event, set_start_time
 from backend.repository.db import close_db, init_db
 from backend.scheduler.jobs import set_service

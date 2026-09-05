@@ -45,7 +45,7 @@ class WebhookTrigger:
                 from backend.services.settings_kv import SettingsRepository
 
                 return SettingsRepository().get("webhook.secret")
-            except Exception:  # noqa: BLE001
+            except Exception:
                 return None
         if callable(self._secret_provider):
             return self._secret_provider()

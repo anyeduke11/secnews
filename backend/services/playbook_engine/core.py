@@ -33,10 +33,6 @@ from typing import Any, Literal
 
 from backend.logging_config import logger
 from backend.services.playbook_engine.loader import (
-    extract_inputs,
-    extract_metadata,
-    extract_steps,
-    extract_trigger,
     load_playbook as _load_playbook_from_path,
 )
 from backend.services.playbook_engine.step import StepExecutor
@@ -401,7 +397,7 @@ class PlaybookEngine:
                     ValidationReportEntry(
                         severity="error",
                         code="DANGEROUS_PATTERN",
-                        message=f"step 含危险模式 {repr(hit)}, 已拦截 (P4-7)",
+                        message=f"step 含危险模式 {hit!r}, 已拦截 (P4-7)",
                         step_id=step.id,
                     )
                 )
@@ -489,7 +485,7 @@ class PlaybookEngine:
                     executor.set_step_output(step.output, output)
                 if pb.primary_output == step.id:
                     primary_output = output
-            except Exception as e:  # noqa: BLE001 — playbook step 边界, 上层收口
+            except Exception as e:
                 elapsed = int((time.monotonic() - t0) * 1000)
                 run.steps.append(
                     StepResult(

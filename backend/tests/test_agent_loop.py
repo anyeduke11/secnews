@@ -26,7 +26,6 @@
 """
 from __future__ import annotations
 
-import json
 import time
 from collections.abc import Callable
 
@@ -34,15 +33,14 @@ import pytest
 
 from backend.repository.db import get_connection
 from backend.services.agent_loop import (
+    PHASE_ORDER,
     AgentLoop,
     AgentLoopHooks,
     AgentLoopSettings,
-    LoopCheckpoint,
     LoopCheckpointRepo,
     LoopPhase,
     LoopResult,
     LoopStatus,
-    PHASE_ORDER,
     build_default_llm_port,
     is_terminal,
     next_phase,

@@ -40,7 +40,6 @@ def client_gate_off(temp_db, monkeypatch):
         "backend.extensions.is_extension_enabled",
         lambda name: False,
     )
-    from backend.api.skill_builder_api import router
 
     app = FastAPI()
     # 故意不挂载 router, 模拟 register_routers 的 gate off 分支
@@ -152,9 +151,10 @@ def test_validate_target_method_must_exist() -> None:
 # ============================================================================
 # 2. CRUD (Repo 层)
 # ============================================================================
-def test_repo_create_and_get(temp_db) -> None:  # noqa: ARG001
-    from backend.services.skill_builder import UserSkill, UserSkillRepo
+def test_repo_create_and_get(temp_db) -> None:
     from datetime import datetime
+
+    from backend.services.skill_builder import UserSkill, UserSkillRepo
 
     now = datetime.now().isoformat(timespec="seconds")
     repo = UserSkillRepo()
@@ -190,7 +190,7 @@ def test_repo_create_and_get(temp_db) -> None:  # noqa: ARG001
     assert deleted is not None and deleted.deleted_at is not None
 
 
-def test_repo_count_active_caps_at_50(temp_db) -> None:  # noqa: ARG001
+def test_repo_count_active_caps_at_50(temp_db) -> None:
     from backend.services.skill_builder import MAX_USER_SKILLS, UserSkillRepo
 
     assert MAX_USER_SKILLS == 50

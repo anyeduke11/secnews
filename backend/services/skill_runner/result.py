@@ -28,7 +28,7 @@ from backend.repository.db import get_connection
 # ---------------------------------------------------------------------------
 def _now_localtime() -> str:
     """localtime 'YYYY-MM-DD HH:MM:SS' 形式 — 与 migration 091 默认 datetime 一致."""
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _json_dump(obj: Any) -> str:

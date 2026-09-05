@@ -17,9 +17,7 @@ Endpoints
 """
 from __future__ import annotations
 
-from typing import Any, Optional
-
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.repository.db import get_connection
@@ -52,18 +50,18 @@ class CreateRuleRequest(BaseModel):
 
 
 class UpdateRuleRequest(BaseModel):
-    rule_type: Optional[str] = None
-    match_kind: Optional[str] = None
-    match_value: Optional[str] = None
-    note: Optional[str] = None
-    enabled: Optional[int] = Field(default=None, ge=0, le=1)
+    rule_type: str | None = None
+    match_kind: str | None = None
+    match_value: str | None = None
+    note: str | None = None
+    enabled: int | None = Field(default=None, ge=0, le=1)
 
 
 class PreviewRequest(BaseModel):
     category: str = Field(..., min_length=1)
     source_name: str = Field(..., min_length=1)
-    source_id: Optional[str] = None
-    tag: Optional[str] = None
+    source_id: str | None = None
+    tag: str | None = None
 
 
 # ---------- 端点 ----------

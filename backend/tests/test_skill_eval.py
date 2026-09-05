@@ -14,16 +14,10 @@ from typing import Any
 import pytest
 
 from backend.services.skill_eval import (
-    Assertion,
-    EvalReport,
-    FIXTURES_DIR,
-    FixtureRunner,
-    JudgeResult,
     ReportFormat,
     build_report,
     judge,
     list_fixture_ids,
-    load_fixture,
     load_fixture_by_id,
     render_markdown,
     run_fixture,
@@ -256,7 +250,7 @@ def test_build_report_pass_rate_and_verdict():
         load_fixture_by_id("weekly_top5_c"),
     ]
     runs = [run_fixture(fx, FakeEngine()) for fx in fixtures]
-    judges = [judge(r, fx) for r, fx in zip(runs, fixtures)]
+    judges = [judge(r, fx) for r, fx in zip(runs, fixtures, strict=True)]
     rep = build_report(judges, threshold=0.8)
     assert rep.fixtures_total == 2
     assert rep.fixtures_passed == 2
@@ -268,7 +262,7 @@ def test_build_report_pass_rate_and_verdict():
 def test_build_report_verdict_fail_when_below_threshold():
     fixtures = [load_fixture_by_id("source_health_a")]
     runs = [run_fixture(fx, FakeEngine()) for fx in fixtures]
-    judges = [judge(r, fx) for r, fx in zip(runs, fixtures)]
+    judges = [judge(r, fx) for r, fx in zip(runs, fixtures, strict=True)]
     rep = build_report(judges, threshold=1.1)  # 永远不达
     assert rep.verdict is False
 
@@ -279,7 +273,7 @@ def test_to_dict_is_json_serializable():
         load_fixture_by_id("weekly_top5_c"),
     ]
     runs = [run_fixture(fx, FakeEngine()) for fx in fixtures]
-    judges = [judge(r, fx) for r, fx in zip(runs, fixtures)]
+    judges = [judge(r, fx) for r, fx in zip(runs, fixtures, strict=True)]
     rep = build_report(judges)
     d = to_dict(rep)
     assert d["fixtures_total"] == 2
@@ -290,7 +284,7 @@ def test_to_dict_is_json_serializable():
 def test_render_markdown_contains_summary_and_each_fixture():
     fixtures = [load_fixture_by_id("source_health_a"), load_fixture_by_id("weekly_top5_c")]
     runs = [run_fixture(fx, FakeEngine()) for fx in fixtures]
-    judges = [judge(r, fx) for r, fx in zip(runs, fixtures)]
+    judges = [judge(r, fx) for r, fx in zip(runs, fixtures, strict=True)]
     rep = build_report(judges)
     md = render_markdown(rep)
     assert "# Skill Eval Report" in md
@@ -302,7 +296,7 @@ def test_render_markdown_contains_summary_and_each_fixture():
 def test_report_render_json_is_serializable():
     fixtures = [load_fixture_by_id("source_health_a")]
     runs = [run_fixture(fx, FakeEngine()) for fx in fixtures]
-    judges = [judge(r, fx) for r, fx in zip(runs, fixtures)]
+    judges = [judge(r, fx) for r, fx in zip(runs, fixtures, strict=True)]
     rep = build_report(judges)
     import json
 

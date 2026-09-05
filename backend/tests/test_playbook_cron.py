@@ -10,8 +10,6 @@
 """
 from __future__ import annotations
 
-import json
-import time
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
@@ -21,8 +19,6 @@ from backend.services.playbook_engine import (
     Playbook,
     PlaybookEngine,
     PlaybookScheduler,
-    PlaybookStep,
-    load_playbook,
 )
 from backend.services.playbook_engine.scheduler import (
     DEFAULT_TZ,
@@ -35,19 +31,18 @@ from backend.services.playbook_engine.scheduler import (
 # fixtures
 # ---------------------------------------------------------------------------
 @pytest.fixture
-def repo(temp_db) -> PlaybookScheduleRepo:  # noqa: ARG001 — temp_db triggers init_db
+def repo(temp_db) -> PlaybookScheduleRepo:
     return PlaybookScheduleRepo()
 
 
 @pytest.fixture
-def run_repo(temp_db) -> PlaybookRunRepo:  # noqa: ARG001
+def run_repo(temp_db) -> PlaybookRunRepo:
     return PlaybookRunRepo()
 
 
 @pytest.fixture
 def fake_engine(monkeypatch) -> PlaybookEngine:
     """注入 fake engine: execute 返回成功 PlaybookRun (真实 dataclass, 供 sqlite 序列化)."""
-    from backend.services.playbook_engine import core as core_mod
 
     class FakeEngine:
         def execute(self, pb: Playbook, inputs=None):
@@ -166,7 +161,7 @@ def test_run_repo_list_for_playbook_desc_by_started(run_repo: PlaybookRunRepo) -
 # ---------------------------------------------------------------------------
 # PlaybookScheduler 生命周期 + 即时生效
 # ---------------------------------------------------------------------------
-def test_scheduler_upsert_validates_cron_spec(temp_db) -> None:  # noqa: ARG001
+def test_scheduler_upsert_validates_cron_spec(temp_db) -> None:
     """upsert 时校验 cron spec, 无效拒绝 (fail loud, 防无效 schedule 上线)."""
     sched = PlaybookScheduler(engine=MagicMock())
     with pytest.raises(Exception):
@@ -229,7 +224,6 @@ def test_scheduler_tick_executes_and_persists_audit(
 ) -> None:
     """cron tick 触发 _run_tick → 调 execute → 落 playbook_runs 表."""
     import os
-
     from pathlib import Path
 
     cwd = os.getcwd()
@@ -281,7 +275,7 @@ def test_scheduler_tick_persists_failure_when_load_fails(
         sched.shutdown()
 
 
-def test_scheduler_shutdown_is_idempotent(fake_engine, temp_db) -> None:  # noqa: ARG001
+def test_scheduler_shutdown_is_idempotent(fake_engine, temp_db) -> None:
     """shutdown 多次调用安全 (startup lifespan 重入场景)."""
     sched = PlaybookScheduler(engine=fake_engine)
     sched.start()

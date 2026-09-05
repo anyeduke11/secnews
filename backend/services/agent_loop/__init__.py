@@ -37,6 +37,7 @@ from backend.services.agent_loop.core import (
 )
 
 __all__ = [
+    "PHASE_ORDER",
     "AgentLoop",
     "AgentLoopHooks",
     "AgentLoopSettings",
@@ -46,7 +47,6 @@ __all__ = [
     "LoopPhase",
     "LoopResult",
     "LoopStatus",
-    "PHASE_ORDER",
     "build_default_llm_port",
     "is_terminal",
     "next_phase",

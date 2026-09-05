@@ -17,8 +17,6 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from backend.logging_config import logger
-
 #: id 命名: snake_case 或 kebab-case (与 builtin 20 风格兼容); 长度 3-64
 _ID_RE = re.compile(r"^[a-z][a-z0-9_-]{2,63}$")
 
@@ -127,7 +125,7 @@ def validate_user_skill(payload: dict[str, Any]) -> ValidationReport:
                 if not hasattr(obj, method):
                     target_label = f"{module}.{target_class}.{method}" if target_class else f"{module}.{method}"
                     errors.append(f"target_method {target_label} 不存在")
-            except Exception as e:  # noqa: BLE001 — 校验边界, 上层收口
+            except Exception as e:
                 errors.append(f"target 引用失败: {e}")
 
     # input/output schema shape (允许空 — 简化自定义场景)

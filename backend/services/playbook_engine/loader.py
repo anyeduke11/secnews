@@ -15,7 +15,7 @@ from typing import Any
 
 from backend.logging_config import logger
 
-__all__ = ["EXAMPLES_DIR", "load_playbook", "list_examples"]
+__all__ = ["EXAMPLES_DIR", "list_examples", "load_playbook"]
 
 
 #: 示例目录 (C1 在仓库根 playbook_engine/examples/ 留 3 个示例, 与

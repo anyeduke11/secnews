@@ -977,8 +977,8 @@ class CollectionService:
             if health_results:
                 transitioned = [
                     h for h in health_results
-                    if h.get("transition") not in ("none", "success_reset")
-                    and "incremented" in h.get("transition", "")
+                    if (h.get("transition") not in ("none", "success_reset")
+                    and "incremented" in h.get("transition", ""))
                     or "to_" in h.get("transition", "")
                 ]
                 if transitioned:

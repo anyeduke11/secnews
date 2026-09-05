@@ -130,13 +130,13 @@ def __getattr__(name: str):
 __all__ = [
     # 存量 bug 清扫补齐 (此前 import 了但 __all__ 漏登记, *-import 拿不到):
     "auto_extract_alert_job",
+    "backup_verify_job",  # v0.8.2 Y-A4: 周一备份完整性校验
     "cg_event_process_job",
     "cg_service_scan_job",
     "cg_upstream_sync_job",
     "collect_all_job",
     "consume_compile_tasks_job",
     "daily_db_backup_job",  # P1: 每日数据库自动备份
-    "backup_verify_job",  # v0.8.2 Y-A4: 周一备份完整性校验
     "daily_snapshot_job",
     "db_diet_job",
     "export_rebuild_job",

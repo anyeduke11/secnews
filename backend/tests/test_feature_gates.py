@@ -227,7 +227,7 @@ class TestJobGating:
             and isinstance(node.func, ast.Attribute)
             and node.func.attr == "add_job"
         )
-        assert n == 51  # v0.7 Batch ⑨ B9-2 (+1 secrets_rotation_check) — 前值 50 (Batch 1/③/④)
+        assert n == 52  # v0.8.2 Y-A4 (+1 backup_verify) — 前值 51 (v0.7 Batch ⑨ B9-2)
 
 
 class TestFeaturesEndpoint:

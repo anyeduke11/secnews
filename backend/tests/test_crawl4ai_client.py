@@ -63,15 +63,18 @@ def _isolated_config(tmp_path, monkeypatch):
 
     conftest autouse 已把 _config_path 指向全局 disabled yaml;这里再换
     成本文件私有的 tmp yaml, 供 _write_config 按测试改写。
+    v0.8.2 Y-A1: 信号量迁入全局注册表 — 复位走 reset_concurrency()。
     """
+    from backend.utils.concurrency import reset_concurrency
+
     crawl4ai_client._client = None
-    crawl4ai_client._concurrency_sem = None
+    reset_concurrency()
     cfg = tmp_path / "crawl_config.yaml"
     cfg.write_text("crawl4ai:\n  enabled: false\n")
     monkeypatch.setattr(crawl4ai_client, "_config_path", cfg)
     yield
     crawl4ai_client._client = None
-    crawl4ai_client._concurrency_sem = None
+    reset_concurrency()
 
 
 # ---------------------------------------------------------------------------

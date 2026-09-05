@@ -88,8 +88,18 @@ class ImageGenerationService:
         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
 
         t0 = time.monotonic()
+        # v0.8.2 Y-A1: 与 chat 出站共享 llm:<provider> 并发预算 (同一上游)。
+        # max_concurrent 容忍式提取 (测试 _ai 为 MagicMock 时 int() 失败 → env/默认)
+        from backend.utils.concurrency import get_semaphore
+
+        pcfg = self._ai._provider_cfg(provider)
         try:
-            async with httpx.AsyncClient(timeout=self.REQUEST_TIMEOUT_S) as client:
+            mc = int(pcfg.max_concurrent) if pcfg is not None else 0
+        except (TypeError, ValueError):
+            mc = 0
+        sem = get_semaphore(f"llm:{provider}", size=mc if mc >= 1 else None)
+        try:
+            async with sem, httpx.AsyncClient(timeout=self.REQUEST_TIMEOUT_S) as client:
                 resp = await client.post(url, json=payload, headers=headers)
         except httpx.TimeoutException as e:
             self._record(provider, route.model, "image_generation", ok=False,
@@ -172,8 +182,18 @@ class ImageGenerationService:
         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
 
         t0 = time.monotonic()
+        # v0.8.2 Y-A1: 与 chat 出站共享 llm:<provider> 并发预算 (同一上游)。
+        # max_concurrent 容忍式提取 (测试 _ai 为 MagicMock 时 int() 失败 → env/默认)
+        from backend.utils.concurrency import get_semaphore
+
+        pcfg = self._ai._provider_cfg(provider)
         try:
-            async with httpx.AsyncClient(timeout=self.REQUEST_TIMEOUT_S) as client:
+            mc = int(pcfg.max_concurrent) if pcfg is not None else 0
+        except (TypeError, ValueError):
+            mc = 0
+        sem = get_semaphore(f"llm:{provider}", size=mc if mc >= 1 else None)
+        try:
+            async with sem, httpx.AsyncClient(timeout=self.REQUEST_TIMEOUT_S) as client:
                 resp = await client.post(url, json=payload, headers=headers)
         except httpx.TimeoutException as e:
             self._record(provider, route.model, "image_understand", ok=False,

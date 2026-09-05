@@ -64,7 +64,10 @@ async def run_url_content_check(
     sampled = list(candidates)
 
     gate = URLContentGate(timeout=cfg.url_check_timeout)
-    sem = asyncio.Semaphore(cfg.url_check_concurrency)
+    # v0.8.2 Y-A1: 与 url_batch_check_service 共享全局 "url_check" 预算
+    from backend.utils.concurrency import get_semaphore
+
+    sem = get_semaphore("url_check", size=max(1, cfg.url_check_concurrency))
 
     verified = mismatch = failed = 0
     mode = "strict" if cfg.mode.value == "strict" else "loose"

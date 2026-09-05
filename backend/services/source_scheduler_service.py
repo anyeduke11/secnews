@@ -21,15 +21,13 @@ class SourceSchedulerService:
         repo: SourceSchedulerRepository 实例
         health_machine: SourceHealthMachine 实例
         concurrency: 并发上限
-        _semaphore: 并发控制信号量
         _running: set[str] 当前正在执行的源 ID 集合
     """
-    
+
     def __init__(self, concurrency: int = 3):
         self.repo = SourceSchedulerRepository()
         self.health_machine = SourceHealthMachine()
         self.concurrency = concurrency
-        self._semaphore = asyncio.Semaphore(concurrency)
         self._running: set[str] = set()
         self._collection_service = None  # injected later
     
@@ -68,11 +66,16 @@ class SourceSchedulerService:
             return {"scheduled": 0, "succeeded": 0, "failed": 0, "skipped": skipped, "source_results": []}
         
         # Execute in parallel with concurrency control
+        # v0.8.2 Y-A1: 全局 "source_fetch" 组预算 (惰性取, 原 __init__ 裸 Semaphore)
+        from backend.utils.concurrency import get_semaphore
+
+        sem = get_semaphore("source_fetch", size=max(1, self.concurrency))
+
         async def _run_one(source: dict) -> dict:
             source_id = source["id"]
             self._running.add(source_id)
             try:
-                async with self._semaphore:
+                async with sem:
                     _logger.info(f"scheduler tick: running source {source_id} ({source.get('name', '')})")
                     run_result = await self._collection_service.run_one_source(source_id)
                     

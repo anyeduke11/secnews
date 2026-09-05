@@ -249,8 +249,10 @@ async def batch_enrich(
         len(to_enrich), len(items),
     )
 
-    # 并发抓取
-    sem = asyncio.Semaphore(max_concurrent)
+    # 并发抓取 — v0.8.2 Y-A1: 全局 "enrich" 组预算 (N 调用方共享, 不再各自放大)
+    from backend.utils.concurrency import get_semaphore
+
+    sem = get_semaphore("enrich", size=max(1, max_concurrent))
 
     async def _enrich_one(item):
         async with sem:

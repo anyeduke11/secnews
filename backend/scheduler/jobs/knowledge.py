@@ -153,7 +153,10 @@ async def knowledge_stub_backfill_job() -> None:
             except Exception:
                 return None
 
-        sem = _asyncio.Semaphore(3)
+        # v0.8.2 Y-A1: 全局 "knowledge_sync" 组预算 (原裸 Semaphore(3))
+        from backend.utils.concurrency import get_semaphore
+
+        sem = get_semaphore("knowledge_sync", size=3)
 
         async def _limited(r):
             async with sem:

@@ -89,8 +89,7 @@ def _load_crawl4ai_config() -> dict:
 
 # 并发控制 — Playwright 单浏览器实例同时处理多 tab 会内存爆炸,
 # 限制并发渲染请求个数 (其余排队等待,避免 OOM)。
-# 大小来自 YAML ``concurrent_requests`` (默认 3), 信号量惰性创建。
-_concurrency_sem: asyncio.Semaphore | None = None
+# v0.8.2 Y-A1: 信号量迁入 backend.utils.concurrency 全局注册表 ("crawl4ai" 组)。
 
 
 # Phase 30: 真实浏览器 stealth 配置 (绕过 Playwright 自动化检测)
@@ -124,19 +123,19 @@ STEALTH_BROWSER_CONFIG: dict = {
 
 
 def _get_semaphore() -> asyncio.Semaphore:
-    """惰性创建 Semaphore (避免在模块加载时绑定错误的 event loop)。
+    """并发信号量 — v0.8.2 Y-A1 起委托全局注册表 (``crawl4ai`` 组)。
 
-    并发大小来自 YAML ``concurrent_requests`` (默认 3);信号量创建后
-    不随配置热更新,重启进程生效。
+    并发大小来自 YAML ``concurrent_requests`` (默认 3); 首次取号定容,
+    不随配置热更新, 重启进程生效。原先的本模块裸单例与 loop 键控语义
+    一并由 ``backend.utils.concurrency`` 承担。
     """
-    global _concurrency_sem
-    if _concurrency_sem is None:
-        try:
-            size = int(_load_crawl4ai_config().get("concurrent_requests", 3))
-        except (TypeError, ValueError):
-            size = 3
-        _concurrency_sem = asyncio.Semaphore(max(1, size))
-    return _concurrency_sem
+    try:
+        size = int(_load_crawl4ai_config().get("concurrent_requests", 3))
+    except (TypeError, ValueError):
+        size = 3
+    from backend.utils.concurrency import get_semaphore
+
+    return get_semaphore("crawl4ai", size=max(1, size))
 
 
 def is_available() -> bool:

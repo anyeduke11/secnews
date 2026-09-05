@@ -420,34 +420,43 @@ class LLMService:
         """
         t0 = time.monotonic()
 
-        try:
-            if cfg.type == "ollama":
-                result = await self._call_ollama(
-                    cfg, model, prompt, max_tokens=max_tokens, temperature=temperature
-                )
-            elif cfg.type == "openai":
-                result = await self._call_openai(
-                    cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
-                    provider_name=provider_name,
-                )
-            elif cfg.type == "openai_compatible":
-                result = await self._call_openai_compatible(
-                    cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
-                    provider_name=provider_name,
-                )
-            elif cfg.type == "anthropic":
-                result = await self._call_anthropic(
-                    cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
-                    provider_name=provider_name,
-                )
-            else:
-                raise ValueError(f"Unsupported provider type: {cfg.type}")
-        except Exception:
-            # v0.8.1 Day 3: 真实失败 → 健康窗口记账 (判定/breaker 驱动在
-            # ProviderHealth.record 内), 再向上抛给调用方的 fallback 循环。
-            if provider_name:
-                self._record_result(provider_name, False)
-            raise
+        # v0.8.2 Y-A1: provider 级并发背压 — llm.yaml max_concurrent 首次真实消费
+        # (此前声明但零消费)。饱和等待不超时、不计健康窗口 (饱和 ≠ 失败,
+        # 不驱动 breaker — 与熔断正交, 见 utils/concurrency.py 契约)。
+        from backend.utils.concurrency import get_semaphore
+
+        sem = get_semaphore(
+            f"llm:{provider_name or cfg.type}", size=max(1, cfg.max_concurrent)
+        )
+        async with sem:
+            try:
+                if cfg.type == "ollama":
+                    result = await self._call_ollama(
+                        cfg, model, prompt, max_tokens=max_tokens, temperature=temperature
+                    )
+                elif cfg.type == "openai":
+                    result = await self._call_openai(
+                        cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
+                        provider_name=provider_name,
+                    )
+                elif cfg.type == "openai_compatible":
+                    result = await self._call_openai_compatible(
+                        cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
+                        provider_name=provider_name,
+                    )
+                elif cfg.type == "anthropic":
+                    result = await self._call_anthropic(
+                        cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
+                        provider_name=provider_name,
+                    )
+                else:
+                    raise ValueError(f"Unsupported provider type: {cfg.type}")
+            except Exception:
+                # v0.8.1 Day 3: 真实失败 → 健康窗口记账 (判定/breaker 驱动在
+                # ProviderHealth.record 内), 再向上抛给调用方的 fallback 循环。
+                if provider_name:
+                    self._record_result(provider_name, False)
+                raise
 
         elapsed_ms = (time.monotonic() - t0) * 1000
         if provider_name:

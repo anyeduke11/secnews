@@ -97,8 +97,10 @@ class UrlBatchCheckService:
 
         results: list[tuple[str, str, int]] = []  # (item_id, url, status)
 
-        # 限并发
-        sem = asyncio.Semaphore(self.max_concurrent)
+        # 限并发 — v0.8.2 Y-A1: 与 quality jobs URL 检查共享全局 "url_check" 预算
+        from backend.utils.concurrency import get_semaphore
+
+        sem = get_semaphore("url_check", size=max(1, self.max_concurrent))
 
         async def _check_one(item: dict) -> None:
             item_id = str(item["id"])

@@ -92,7 +92,11 @@ def _make_svc(
         return fake
 
     for p in providers:
-        method_name = {"a": "_call_openai", "b": "_call_anthropic", "c": "_call_ollama"}[p]
+        method_name = {
+            "a": "_call_openai", "b": "_call_anthropic", "c": "_call_ollama",
+            "openai": "_call_openai", "anthropic": "_call_anthropic",
+            "ollama": "_call_ollama", "sensenova": "_call_openai_compatible",
+        }[p]
         monkeypatch.setattr(svc, method_name, _mk(p, behavior.get(p, "ok")))
     return svc
 

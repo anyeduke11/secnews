@@ -99,7 +99,7 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 
 ## 生命周期
 
-当前阶段：**v0.8.1 batch 完成 + D6 pi 实测闭合 (2026-09-05), tag `v0.8.1` 已打 (1963bdc)** — 全量 3818/0 fail; pi 0.84.4 live 实测协议吻合 + 修 2 假阳性缺口 (user 回显 / 429 stopReason), bridge 全链 agent_runs id=286 ok='PONG', soaktest 探针可重跑。**待办**: ① 远端推送 (用户授权, V2-C11) ② v0.8.2 候选 (llm.yaml per-provider 阈值 / error_classifier / react-query / pi 流式 UI §4.3.B)。规格 = [`docs/V0.8.1_PRD.md`](docs/V0.8.1_PRD.md) v1.2 + [`docs/V0.8.1_PLAN.md`](docs/V0.8.1_PLAN.md) v1.4。
+当前阶段：**v0.8.2 治理合批完成 (2026-09-05)** — 子批 1 快赢包 X (B1 per-provider 断路器阈值 / B2 ruff 全仓 167→0 / B3 死 gate 键+mcp 契约 / B4 PROGRESS 归档+CHANGELOG 时序 / C2 GZip+Cache-Control) + 子批 2 通电治理 Y (A1 utils/concurrency.py 全局限流单一真相源 / A2 配置 5s TTL 热重载 / A4 backup_verify 周一 job)。**待办**: ① 远端推送 (用户授权, V2-C11, 累计 v0.8.1+ v0.8.2 本地 commit) ② 留独立窗口: react-query (C1) / pi 流式 UI (D1) / error_classifier。规格 = PROGRESS.md v0.8.2 段 (本版无独立 PRD, 推荐原文见上会话收尾)。
 
 ### 阶段检查记录
 

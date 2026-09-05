@@ -1,6 +1,6 @@
 # SecNews Knowledge Dashboard — 安全从业者 AI 助手的平台看板层
 
-> **当前状态 (2026-09-05, v0.8.1)**: Sentinel Terminal 全屏页已上线 (`/` `/judge` `/action` `/garden`); data/judge/action 三层目录与 6 cognitive modes 已物理删除; `/secnews` 为统一工作台 (6 tab); dsh 内置为受管子进程 — 前端 `/secnews/settings` 一键启停 (gate dsh=true, 控制面 `/api/dsh/control/*`); ai_hub 已包化, LLM provider 四级切换链落地; v0.8 Skills 四阶段全部收口 + **v0.8.1 运行时弹性层通电** — 七 gate 开闸演练通过 (2026-09-05) 后保持全开 (mcp 回关), graceful shutdown (SIGTERM drain + WAL checkpoint), ProviderHealth 唯一判定源 + CircuitBreaker 薄状态机 + gateway/image 集中记账, `/api/observability/llm/health` + reset 端点, deep 场景权重重排 (quality/scenario_router.py), 详见 `PROGRESS.md` v0.8.1 段与 `docs/V0.8.1_PLAN.md`。
+> **当前状态 (2026-09-05, v0.8.2)**: Sentinel Terminal 全屏页已上线 (`/` `/judge` `/action` `/garden`); `/secnews` 为统一工作台 (6 tab); dsh 内置为受管子进程 — 前端 `/secnews/settings` 一键启停 (gate dsh=true, 控制面 `/api/dsh/control/*`); ai_hub 已包化, LLM provider 四级切换链 + 弹性层 (ProviderHealth/CircuitBreaker/场景权重) 落地; v0.8 Skills 全 gate 通电; **v0.8.2 治理合批** — 子批 1 快赢包 X (per-provider 断路器阈值 / ruff 全仓清零 / 死 gate 键治理 16→13 / PROGRESS 归档 + CHANGELOG 时序 / GZip+Cache-Control) + 子批 2 通电治理 Y (utils/concurrency.py 全局并发单一真相源, LLM 出站首次强制 max_concurrent / feature_gates+llm.yaml 5s TTL 热重载 / backup_verify 备份校验周一 job), 详见 `PROGRESS.md` v0.8.2 段。
 > 历史决策 (产品三层架构裁决 / wiki-first 存储哲学 / Phase 7 退役冻结) 见 `PROGRESS.md` 与 `git log`，不在此重复。
 
 ---

@@ -61,6 +61,23 @@
 - **zip strict 语义**: `zip(seq, seq[1:])` → `itertools.pairwise(seq)` (长度差恒 1, strict 会炸); 平行数组 `zip(runs, fixtures)` → `strict=True` (fixture 错位应 fail loud)。
 - **mcp 双开关不合并的理由**: gate=false (调试路由关) 与 feature_mcp=true (server 开) 同时成立是 Day 0 有意状态; 单开关无法表达, 契约化+启动两态日志替代。
 
+### 2026-09-05 v0.8.2 子批 2 — 通电治理 Y (A1/A2/A4 全绿, 版本 0.8.2)
+
+> **来源**: 同上会话推荐 — Y = A1 全局限流单一真相源 + A2 配置热重载 + A4 backup_verify (~5.5 天); P0 = A1+A2 (通电稳定运行最低配置)。
+> **范围偏离**: §1.1 推荐的 RateLimiter 令牌桶与 scheduler 全局 job 闸门未纳入 — Semaphore 背压已覆盖主要出站面 (LLM/crawl4ai/批处理), 令牌桶留 react-query/配额感知批次同做; A2 采用 5s TTL+mtime 惰性重载而非 watchdog 线程 (零新依赖, info_filter 模式)。
+
+- [x] **Y-A1 — 全局并发单一真相源** (`7cb90d7`): 新建 `utils/concurrency.py` — `get_semaphore(group, size)` 按 (group, event-loop) 键控共享 Semaphore, **WeakKeyDictionary 弱键** (loop 关闭自动清除; 防 id() 地址复用误判, 测试实测踩中); size 链 显式实参 > env `HOTSPOT_CONCURRENCY_<GROUP>` > 默认 4; **等待即背压** (不超时/不计健康窗口 — 饱和 ≠ 失败, 与熔断正交)。8 接入点: `llm:<provider>` 组 (gateway._call_provider + image generate/understand 共享, **llm.yaml max_concurrent 首次真实消费**, 此前声明但零消费) / enrich / url_check (url_batch_check + quality jobs 共享) / knowledge_sync / crawl4ai / source_fetch; N 调用方共享一份预算不再乘性放大。测试 +9。
+- [x] **Y-A2 — 配置热重载** (`13c6871`): ① feature_gates.toml — gate 动态读数 5s TTL + mtime_ns 检测热重载, 热重载失败沿用上次成功读数 (运行中配置损坏不再让扩展集体消失); **语义边界诚实声明: 路由/job 注册是启动期快照, 增删 router/job 仍需重启**。② llm.yaml — `load_llm_config` 默认路径 5s TTL 缓存 (显式 path 永不缓存, 保测试 mock 语义) + `LLMService._maybe_reload_config` 漏斗口对象身份热交换; **`_config` 手动注入 (既有测试模式) 经 property setter 自动退出热重载管理**。③ provider 阈值 — `maybe_reload_thresholds()` (record 挂钩) 只换判定参数, 窗口/breaker 状态原样保留; 仅单例开启。零新依赖零新线程。测试 +13。
+- [x] **Y-A4 — backup_verify 备份完整性校验** (`4e1b1f7`): 新建 `backup_verify_service` — ① PRAGMA integrity_check ② 核心表行数单调性 (备份 ≤ 实时, 恢复错文件即报警) ③ audit_log append-only 抽样逐字段对比 (可变表 md5 对比会假阳性, 不做) ④ knowledge.zip testzip; **§2.4 "Fernet 解密"不适用 (备份为明文 SQLite) 如实注明**。失败 → audit_log 留痕 + job ok=False; 校验器自身永不抛。`backup_verify_job` 周一 02:00 (jobs **51→52**) + `POST /api/maintenance/backup-verify` (routers 73 不变)。测试 +8。
+- [x] **收口**: 版本 **0.8.2**; 架构计数 services 107→**108** / jobs 51→**52** (ARCHITECTURE + 3 AGENTS.md); 全量回归 pytest **3868 passed / 6 skipped / 0 failed** (首轮 2 failed 根治: job 计数断言 +1 / `_try_order` 热重载冲掉测试手动注入的 `_config` → property setter 语义) / vitest 425 / tsc 0 / generate_meta 4/4 / harness 0 / ruff 全仓 0。
+
+### 关键事实 (v0.8.2 子批 2)
+
+- **并发背压与熔断正交边界**: 饱和等待不记健康窗口 (饱和 ≠ 失败), breaker 只管真实失败 — 两层语义在 `_call_provider` 内完成合流 (semaphore 包裹 dispatch, record 在其外)。
+- **`id(loop)` 地址复用陷阱**: 顺序 asyncio.run 的两个 loop 可能同址 → WeakKeyDictionary 以 loop 对象为弱键 (对象身份比较 + 死键自动清除); 哨兵 `_SyncContext` 类实例 (plain object 不支持弱引用)。
+- **热重载的三层豁免**: 显式 config_path / 手动注入 _config / 非单例 ProviderHealth — 三者都是"调用方接管"既有语义, 热重载不得越权覆盖。
+- **change-file 必跑对账**: jobs/services 计数变更会牵动 test_feature_gates AST 断言 + generate_meta 4 文档校验; generate_meta 无写模式, 计数手改 (hook 提示文本有误导)。
+
 ### 2026-09-04 v0.8 Skills — Skill/Playbook 双轨看板型 AI 智能体 (Phase A/B/C/D 全绿)
 
 > **来源**: 用户裁决 "非 chatbox, 把常用对话/prompt/skill 固化为主面板可启停功能" + 批判性审查 R1-R13 修订 (见 `docs/V0.8_REFACTOR_PLAN.md` / `docs/V0.8_DECISION_REGISTER.md` / `.trae/specs/v08-skills-agent/`)。

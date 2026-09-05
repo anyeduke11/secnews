@@ -48,6 +48,14 @@ v0.8.1 (2026-09-05): 运行时弹性层 + Skills 通电 — Day 0 graceful shutd
 breaker skip + image 双直连点接入; Day 4 /api/observability/llm/health + reset
 端点 + breaker 迁移 audit_log + quality/scenario_router.py deep 场景权重重排;
 见 docs/V0.8.1_PRD.md / docs/V0.8.1_PLAN.md。
+
+v0.8.2 (2026-09-05): 治理合批 — 子批 1 快赢包 X (B1 llm.yaml per-provider 断路器
+阈值 + B2 全仓 ruff 167→0 + B3 死 gate 键治理/mcp 双开关契约化 16→13 gate +
+B4 PROGRESS 归档/CHANGELOG 时序 + C2 GZipMiddleware/字典端点 Cache-Control);
+子批 2 通电治理 Y (A1 utils/concurrency.py 全局并发单一真相源 — LLM 出站首次
+强制执行 max_concurrent + 8 接入点; A2 feature_gates/llm.yaml/provider 阈值
+5s TTL 热重载免重启; A4 backup_verify 备份完整性校验周一 job + 按需端点,
+jobs 51→52 / services 107→108)。
 """
 
-APP_VERSION = "0.8.1"
+APP_VERSION = "0.8.2"

@@ -1,6 +1,24 @@
 # Changelog
 
-## v0.8.2 (2026-09-05) — 治理合批 (子批 1 快赢包 X; 子批 2 通电治理 Y 进行中)
+## v0.8.2 (2026-09-05) — 治理合批 (子批 1 快赢包 X + 子批 2 通电治理 Y)
+
+### Y-A1 全局并发单一真相源 (utils/concurrency.py)
+- `get_semaphore(group, size)` 按 (group, event-loop) 键控共享 Semaphore (WeakKeyDictionary 弱键)
+- **LLM 出站首次强制执行 llm.yaml max_concurrent** (此前声明但零消费): gateway._call_provider + image generate/understand 共享 `llm:<provider>` 组
+- enrich / url_check / knowledge_sync / crawl4ai / source_fetch 五组批处理信号量收敛; 等待即背压 (不驱动 breaker)
+
+### Y-A2 配置热重载 (免重启)
+- feature_gates.toml: gate 动态读数 5s TTL + mtime_ns 热重载; 失败沿用上次成功读数 (路由/job 注册仍为启动期快照)
+- llm.yaml: load_llm_config 5s TTL 缓存 + LLMService 漏斗口热交换; 手动注入 _config 自动退出热重载
+- provider 阈值: ProviderHealth.maybe_reload_thresholds (只换判定参数, 窗口/breaker 保留)
+
+### Y-A4 backup_verify 备份完整性校验
+- integrity_check + 核心表行数单调性 + audit_log append-only 抽样 + knowledge.zip 校验
+- backup_verify_job (Mon 02:00, jobs 51→52) + POST /api/maintenance/backup-verify; 失败 audit_log 留痕
+
+### 门禁 (全批)
+- pytest 3868 passed / 6 skipped (基线预存) / 0 failed; vitest 425 / tsc 0 错
+- generate_meta 4/4 (routers 73 / services 108 / jobs 52); harness 0 errors; ruff 全仓 0
 
 ### X-B1 llm.yaml per-provider 断路器阈值 (v0.8.1 PRD §7 推迟项偿还)
 - `llm_schema.ProviderBreaker` (failure_threshold/min_samples/recovery_timeout, 范围校验) + `ProviderConfig.breaker` 可选字段
@@ -26,6 +44,8 @@
 ### 门禁 (子批 1)
 - pytest 3838 passed / 6 skipped (基线预存) / 0 failed; vitest 425 / tsc 0 错
 - generate_meta 4/4 (routers 73 / services 107 不变); harness 0 errors; ruff 全仓 0
+
+(子批 1 中间门禁, 最终数字见上方 "门禁 (全批)")
 
 ## v0.8.1 (2026-09-05) — 运行时弹性层 + Skills 通电 (方案 A, Day 0-5)
 

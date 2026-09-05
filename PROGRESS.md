@@ -224,6 +224,15 @@
 > **三态语义**: closed 放行 / open 拒绝且到期后下一次 allow() 即探针 (half_open) / half_open 探针在途拒绝; **探针防死锁**: half_open 滞留 ≥ recovery_timeout (调用方失联) 自动重新授予; trip 已 OPEN 时 no-op (不延长窗口, 窗口起点 = 首次 trip); reset 幂等; clock 可注入 (测试零 sleep, 生产 monotonic 防时间回拨); recovery_timeout=0 = 每次都放探针。
 > **验收**: 14/14 全绿 (三态迁移/窗口重计/防死锁/snapshot/16 线程 Barrier 恰好 1 探针/8 线程混跑 400 ops 状态恒合法) + ruff 0 错。
 
+### 2026-09-05 v0.8.1 Day 2 — ProviderHealth 唯一判定源 (本批)
+
+> **来源**: PRD v1.0 §8 Day 2; PLAN v1.2 §2.3 D2。
+> **范围**: `backend/services/ai_hub/provider_health.py` (~200 行) + 23 测试 (37 含 Day 1)。**模块级单例** `get_provider_health()` (对齐 wh_mod._default 可测性模式) + `reset_provider_health()`。
+> **语义**: 滑动窗口 `deque[(ts, ok)]` 单队列保留 1h (1m/5m/60m 三段由同队列按时界统计, 非三队列); **判定只用 5min 窗** (1m/60m 仅 /health 展示, 审查 P2-1); **min_samples=4 防单发误熔断** (审查批判性补强 — 无此则 1 次失败=100% 即熔断); 阈值严格 > (恰 50% 不判死); 进程内不持久化。
+> **breaker 驱动** (record 内): 判定不健康 → trip; **探针失败 → 立即 trip** (写测试时发现的语义缺口: 若等窗口判定, 样本 <min_samples 时探针失败无法 trip, breaker 卡 half_open 到滞留超时 — 探针结果本身即判定, PRD F3); 探针成功 → reset; **窗口自行恢复不自动闭合** (恢复必须经探针)。
+> **env (D3)**: `HOTSPOT_BREAKER_FAILURE_THRESHOLD=0.5` / `MIN_SAMPLES=4` / `RECOVERY_TIMEOUT=30`, 非法值安全回退。
+> **验收**: 23/23 全绿 (窗口滚动/淘汰/阈值边界/隔离/8 线程×50 record 无丢账/env 覆盖) + ruff 0 错; **generate_meta services 107 不变** (包内新文件不改口径, PLAN §7 预期一致)。
+
 ### 2026-09-02 SettingsHub V2 — 哨兵化全重设计 + 5 子组件拆分 (本批)
 
 > **来源**: 用户指令 "哨兵以外的 UI/UX 调整, 参考哨兵进行美化" + 四问决策 (Q1 加 dashboard 用途/代价/习惯说明, Q2 拆 5 子组件, Q3 全重设计, Q4 测试全重写一步到位)。

@@ -564,6 +564,15 @@ class HotspotScheduler:
             name="daily db backup (04:30)",
             replace_existing=True,
         )
+        # v0.8.2 Y-A4: 备份完整性校验 (周一 02:00 Asia/Shanghai, 对齐 §2.4 推荐 —
+        # 周日 full + 每日增量之后; 校验失败 audit_log 留痕 + job ok=False)
+        self.scheduler.add_job(
+            jobs.backup_verify_job,
+            trigger=CronTrigger(day_of_week="mon", hour=2, minute=0, timezone=SHANGHAI_TZ),
+            id="backup_verify",
+            name="backup integrity verify (Mon 02:00)",
+            replace_existing=True,
+        )
         # v0.7 Batch 1: 观测表 TTL 清理 (每小时一次, 与周日 telemetry_window
         # 错峰; 5 张表均为追加, 高频清理把单次 DELETE 控制在毫秒级)
         self.scheduler.add_job(

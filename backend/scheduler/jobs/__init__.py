@@ -93,6 +93,7 @@ from backend.scheduler.jobs.digest import (
 from backend.scheduler.jobs.maintenance import (
     _force_full_backup_rotate,
     attention_aggregate_job,
+    backup_verify_job,
     bid_expiry_check_job,
     daily_db_backup_job,
     db_diet_job,
@@ -135,6 +136,7 @@ __all__ = [
     "collect_all_job",
     "consume_compile_tasks_job",
     "daily_db_backup_job",  # P1: 每日数据库自动备份
+    "backup_verify_job",  # v0.8.2 Y-A4: 周一备份完整性校验
     "daily_snapshot_job",
     "db_diet_job",
     "export_rebuild_job",

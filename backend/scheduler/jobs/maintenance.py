@@ -211,6 +211,32 @@ async def daily_db_backup_job() -> None:
         raise  # 让 instrument_job 标记 ok=False
 
 
+async def backup_verify_job() -> None:
+    """v0.8.2 Y-A4 (CRITICAL_REVIEW §2.4): 周一 02:00 备份完整性校验。
+
+    校验最新 full 备份 (integrity_check + 行数单调性 + audit_log 抽样 +
+    knowledge zip); 失败 → audit_log 留痕 + ok=False (job 运行记录/告警链
+    可见)。永不抛除标记性失败 — 灾难检查自身不能拖垮 scheduler。
+    """
+    try:
+        from backend.services.backup_verify_service import verify_latest_backup
+
+        report = await asyncio.to_thread(verify_latest_backup)
+        if report.get("ok"):
+            _logger.info(
+                f"backup_verify_job: OK — {Path(report['backup_path']).name} "
+                f"({report['duration_ms']}ms)"
+            )
+        else:
+            _logger.error(f"backup_verify_job: FAILED — {report['errors']}")
+            raise RuntimeError(f"backup verify failed: {report['errors'][:2]}")
+    except RuntimeError:
+        raise  # 校验失败 → instrument_job 标记 ok=False
+    except Exception as e:
+        _logger.error(f"backup_verify_job crashed: {e}")
+        raise
+
+
 async def fts_rebuild_job() -> None:
     """v1.7 Phase 5: FTS5 索引重建 (5min).
 

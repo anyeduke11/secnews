@@ -38,6 +38,20 @@ async def maintenance_vacuum():
     return run_vacuum()
 
 
+@router.post("/backup-verify")
+async def maintenance_backup_verify():
+    """v0.8.2 Y-A4 (§2.4): 最新 full 备份完整性校验 (integrity + 行数 + 抽样)。
+
+    周一 02:00 由 ``backup_verify_job`` 自动触发; 本端点供运维按需手跑。
+    永不抛 — 失败以 ``ok=False + errors`` 返回 (audit_log 已留痕)。
+    """
+    import asyncio
+
+    from backend.services.backup_verify_service import verify_latest_backup
+
+    return await asyncio.to_thread(verify_latest_backup)
+
+
 @router.post("/cleanup")
 async def maintenance_cleanup(
     days: int = Query(90, ge=1, le=365, description="保留最近 N 天的记录"),

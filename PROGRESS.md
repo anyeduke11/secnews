@@ -240,6 +240,14 @@
 > **测试教训 (2 个)**: ① mock `_call_provider` 本体会绕过记账路径 → 必须 mock 下层 per-type 方法让真实 `_call_provider` 执行; ② 同 type provider 的同名方法 setattr 互相覆盖 → a/b/c 三 provider 分设 openai/anthropic/ollama 三种 type。
 > **验收**: test_ai_hub_failover **12/12** (跳过不计账/成败记账/unhealthy 自动 trip 中途熔断/探针恢复/探针失败重开/三任务共用窗口/image 拒绝不发 HTTP/image 双点记账) + 定向回归 127 passed + ruff 0 错。
 
+### 2026-09-05 v0.8.1 Day 4 — /health 端点 + 迁移审计 + 场景权重 (本批)
+
+> **来源**: PRD v1.0 §8 Day 4; PLAN v1.2 §2.3 D4。
+> **范围**: ① `GET /api/observability/llm/health` + `POST /api/observability/llm/health/{provider}/reset` **并入 observability_router** (core 白名单已有, **routers 73 不变** ✓); ② breaker 状态迁移 → audit_log (`llm_breaker.transition` closed→open/open→closed 100% 留痕; no-op trip 不重复; reset 端点写 `llm_breaker.reset`); ③ **新建 `backend/quality/scenario_router.py`** (CRITICAL_REVIEW §2.1 推荐路径): `SCENARIO_FALLBACK_WEIGHTS` deep=[sensenova,anthropic,openai,qwen,ollama] / light=None / image=None; `scenario_fallback_order` 稳定重排 + 表外缀尾; **接 gateway._try_order — router 推荐的 primary 保持首位, 权重只重排 fallback 尾部; 无 router 推荐时全量重排** (light 热路径零变化)。
+> **语义修正 (测试驱动)**: 初版对整个 order 重排会动 router 首位 — 修正为只重排 tail; route_model pin 的 provider 不在 config 时被既有守卫丢弃 ✓。
+> **范围偏离 (如实记录)**: PRD §7 的 llm.yaml per-provider 阈值字段 **推迟 v0.8.2** — env 全局默认已覆盖 D3 裁决, LLMConfig schema 变更涟漪大且无差异化需求实证; 权重表暂硬编码于 scenario_router.py (5 provider 名单稳定)。
+> **验收**: test_llm_health_api 15/15 + 既有弹性 49 = **64 全绿** (含 test_api_observability 回归) + ruff 0 错 + generate_meta routers **73 不变**。
+
 ### 2026-09-02 SettingsHub V2 — 哨兵化全重设计 + 5 子组件拆分 (本批)
 
 > **来源**: 用户指令 "哨兵以外的 UI/UX 调整, 参考哨兵进行美化" + 四问决策 (Q1 加 dashboard 用途/代价/习惯说明, Q2 拆 5 子组件, Q3 全重设计, Q4 测试全重写一步到位)。

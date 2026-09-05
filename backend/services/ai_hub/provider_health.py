@@ -62,6 +62,20 @@ def _env_int(name: str, default: int) -> int:
     return v if v >= 0 else default
 
 
+def _audit_transition(provider: str, pre: str, post: str, reason: str) -> None:
+    """breaker 状态迁移 → audit_log (PRD §2.2 可观测: 迁移 100% 留痕)。"""
+    try:
+        from backend.observability_records import record_audit
+        record_audit(
+            actor="system",
+            action="llm_breaker.transition",
+            target=provider,
+            detail={"from": pre, "to": post, "reason": reason},
+        )
+    except Exception as exc:  # pragma: no cover - 防御性
+        _logger.warning(f"breaker audit failed (ignored): {exc}")
+
+
 class ProviderHealth:
     """per-provider 滑动窗口 + 唯一"不健康"判定 + breaker 驱动。"""
 
@@ -141,16 +155,23 @@ class ProviderHealth:
         try:
             if breaker is None:
                 return
+            pre = breaker.state
+            reason = ""
             if not ok:
                 if breaker.state == "half_open":
                     # 探针失败 → 立即重回 OPEN (PRD F3)。探针结果本身即判定,
                     # 不等 5min 窗口 — 否则窗口样本 < min_samples 时探针失败
                     # 无法 trip, breaker 卡 half_open 直到滞留超时。
                     breaker.trip()
+                    reason = "probe_failed"
                 elif unhealthy:
                     breaker.trip()
+                    reason = "window_verdict"
             elif ok and breaker.state == "half_open":
                 breaker.reset()  # 探针成功
+                reason = "probe_success"
+            if reason and breaker.state != pre:
+                _audit_transition(provider, pre, breaker.state, reason)
         except Exception as exc:  # pragma: no cover - 防御性
             _logger.warning(f"provider_health breaker drive failed (ignored): {exc}")
 

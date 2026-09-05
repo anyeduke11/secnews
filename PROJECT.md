@@ -99,7 +99,7 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 
 ## 生命周期
 
-当前阶段：**开发 (v0.8.1 batch)** — Day 0-2 完成 (graceful+通电 / CircuitBreaker / ProviderHealth); **Day 3 完成 (2026-09-05)**: gateway `_call_provider` 集中记账 + 4 循环 skip + image 双直连点接入 (P0-2 闭环) + `AIService.provider_health()`, failover 12 测试 + 定向回归 127; 下一 Day 4 = /api/llm/health + scenario 权重 → Day 5 回归; 规格 = [`docs/V0.8.1_PRD.md`](docs/V0.8.1_PRD.md) v1.0 + [`docs/V0.8.1_PLAN.md`](docs/V0.8.1_PLAN.md) v1.2。
+当前阶段：**开发 (v0.8.1 batch)** — Day 0-3 完成 (通电 / CircuitBreaker / ProviderHealth / gateway+image 接入); **Day 4 完成 (2026-09-05)**: `/api/observability/llm/health` + reset 端点 (routers 73 不变) + breaker 迁移 audit_log 留痕 + `quality/scenario_router.py` 场景权重 (deep 重排 fallback 尾部, light 零变化); 下一 Day 5 = 全量回归 + 文档收口; llm.yaml per-provider 阈值字段推迟 v0.8.2 (偏离已记录 PROGRESS); 规格 = [`docs/V0.8.1_PRD.md`](docs/V0.8.1_PRD.md) v1.0 + [`docs/V0.8.1_PLAN.md`](docs/V0.8.1_PLAN.md) v1.2。
 
 ### 阶段检查记录
 

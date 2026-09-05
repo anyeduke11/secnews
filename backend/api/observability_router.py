@@ -512,4 +512,40 @@ def put_sampling(body: dict):
     }
 
 
+# ── v0.8.1 Day 4: LLM provider 健康度 (弹性层观测, PLAN §2.1) ────────────
+# 并入本 router (core 白名单已有) → routers 73 不变 (PLAN §7 承诺)。
+
+@router.get("/llm/health")
+def get_llm_health():
+    """per-provider 健康度快照: 窗口 (1m/5m/60m 失败率) + breaker 三态。"""
+    try:
+        from backend.services.ai_hub.provider_health import get_provider_health
+        return {"ok": True, "providers": get_provider_health().snapshot_all()}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "providers": {}}
+
+
+@router.post("/llm/health/{provider}/reset")
+def reset_llm_breaker(provider: str):
+    """手动复位 provider breaker (运维兜底; 迁移写 audit_log)。"""
+    try:
+        from backend.services.ai_hub.provider_health import get_provider_health
+        breaker = get_provider_health().get_breaker(provider)
+        pre = breaker.state
+        breaker.reset()
+        try:
+            from backend.observability_records import record_audit
+            record_audit(
+                actor="web",
+                action="llm_breaker.reset",
+                target=provider,
+                detail={"from": pre, "to": "closed", "reason": "manual"},
+            )
+        except Exception:
+            pass
+        return {"ok": True, "provider": provider, "state": breaker.state}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 __all__ = ["router"]

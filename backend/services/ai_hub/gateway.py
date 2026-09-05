@@ -108,6 +108,10 @@ class LLMService:
 
         首位插入 router 推荐的 provider; 后续 fallback_order 元素去重保留,
         行为不变 (router 推荐失败 → fallback_order 全部仍然尝试)。
+        v0.8.1 Day 4: fallback 尾部按场景权重重排 (仅 deep_read; light 原样
+        零变化) — **router 推荐的 primary 保持首位**, 权重只作用于尾部;
+        无 router 推荐时整个列表即尾部, 全量重排。OPEN provider 由循环头
+        breaker 检查跳过 → 权重 + skip = 健康感知场景降级 (PRD §2.2)。
         """
         routed = self.resolve_provider_for_task(task_attr)
         order: list[str] = []
@@ -115,9 +119,13 @@ class LLMService:
             pname = routed[0]
             if pname in self._config.providers:
                 order.append(pname)
-        for p in self._config.fallback_order:
-            if p not in order:
-                order.append(p)
+        tail = [p for p in self._config.fallback_order if p not in order]
+        try:
+            from backend.quality.scenario_router import scenario_fallback_order
+            tail = scenario_fallback_order(task_attr, tail)
+        except Exception as e:
+            log.warning("scenario reorder failed (ignored): %s", e)
+        order = order + tail
         return order
 
     def _config_source_for(self, task_attr: str, provider_name: str) -> str:

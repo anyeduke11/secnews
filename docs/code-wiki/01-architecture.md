@@ -1,6 +1,6 @@
 # 01 — 项目整体架构
 
-> 本文描述 2026-09-01 的 **v0.7.4-cleanup (Batch ⑨)** 代码现状。数据流细节见 02/04 各章。
+> 本文描述 2026-09-05 的 **v0.8.1 (Day 0 开闸 + 运行时弹性层通电)** 代码现状。数据流细节见 02/04 各章。
 
 ## 1. 仓库布局
 
@@ -13,19 +13,27 @@ hotspot/
 │   ├── config/                # feature_gates.toml + llm_schema.py + degradation_matrix.py
 │   ├── core/routers.py        # core router 白名单 (永不消失的路由, 防重叠断言)
 │   ├── extensions/            # 扩展注册表单一来源 (EXTENSION_ROUTERS + EXTENSION_JOBS + gates 加载)
-│   ├── api/                   # 68 个注册 router (模块文件 71+; 含 obs 观测路由 + v0.7.4-image /api/image/*)
+│   ├── api/                   # 73 个注册 router (模块文件 71+; 含 obs 观测路由 + /api/image/*)
 │   │   ├── __init__.py        # 薄壳: register_routers → _registry.register_all
 │   │   ├── _registry.py       # 实际分组注册 (lazy import)
 │   │   └── middleware.py      # TraceIDMiddleware (观测写表 + 双层 swallow)
-│   ├── services/              # 105 个业务编排模块 (含 ai_hub/ subpackage)
-│   │   ├── ai_hub/            # LLM 唯一出口 (service/gateway/tasks/write_back/cache/usage/prompts/egress)
+│   ├── services/              # 107 个业务编排模块 (含 ai_hub/ 与 v0.8 Skills 8 包)
+│   │   ├── ai_hub/            # LLM 唯一出口 (service/gateway/tasks/write_back/cache/usage/prompts/egress/provider_health)
 │   │   ├── dsh/               # DSH 认知大脑受管子进程 (supervisor/bridge/session/task_router)
 │   │   ├── llm/               # model_router (router 决策)
 │   │   ├── triggers/          # KL T1-T5 触发器
+│   │   ├── trigger_gate/      # 触发门 (限流 + 队列)
+│   │   ├── skill_registry/    # 20 内置 skill 注册 + 加载
+│   │   ├── agent_loop/        # Agent 五阶段状态机
+│   │   ├── agent_memory/      # 记忆 + recall
+│   │   ├── skill_runner/      # 分流 + 执行
+│   │   ├── playbook_engine/   # Playbook YAML 编排
+│   │   ├── skill_builder/     # 自建 skill
+│   │   ├── skill_eval/        # 评测 + judge
 │   │   ├── observability_sampling.py / observability_thresholds.py  # 观测采样 + 阈值引擎
 │   │   ├── alert_channels.py / alert_dispatcher.py                  # 告警 5 通道
 │   │   └── oauth_provider.py / secrets_service.py                   # 密钥 + OAuth 解锁
-│   ├── repository/            # SQLite DAO: db.py + repo 模块 + migrations/ (85 正向迁移 001–088)
+│   ├── repository/            # SQLite DAO: db.py + repo 模块 + migrations/ (92 正向迁移 001–095)
 │   ├── collectors/            # 14 个 BaseCollector 子类 + session/id_factory/parsing/keywords
 │   ├── parsers/               # 独立解析器 (BaseSourceParser + bid 四源 + trafilatura/crawl4ai)
 │   ├── quality/               # 质量门禁 pipeline (12 同步 gate + scorer + simhash)
@@ -39,8 +47,8 @@ hotspot/
 │   └── secnews_dashboard.py   # SecNews 看板聚合
 ├── frontend/                  # React SPA (Vite + TS + Tailwind)
 │   ├── src/routes/            # 路由表 index.tsx (全量, 见 03) + lazy-imports.ts + ROUTE_REGISTRY.md
-│   ├── src/components/        # 组件: sentinel/ (哨兵首页) · secnews/ (7 tab 工作台)
-│   │                          #       settings/ · secrets/ · codegarden/ · crm/ · security/ …
+│   ├── src/components/        # 组件: sentinel/ (哨兵首页) · secnews/ (6 tab 工作台)
+│   │                          #       settings/ · secrets/ · codegarden/ · crm/ · security/ · skill-store/ · dashboard/ …
 │   ├── src/hooks/             # ~26 自定义 Hook (数据层)
 │   ├── src/lib/               # api.ts (统一 API 客户端) + crm.ts
 │   ├── src/contexts/          # ThemeContext (dark/light) + I18nContext (zh-CN/en-US)
@@ -59,7 +67,7 @@ hotspot/
 ┌──────────────────────────────────────────────────────────────────────┐
 │               Browser (React 18 SPA, :8898)                         │
 │   哨兵终端全屏首页 (v0.7.1): / /judge /action /garden …             │
-│   SecNews 统一工作台: /secnews (7 tab) · /knowledge /codegarden     │
+│   SecNews 统一工作台: /secnews (6 tab) · /knowledge /codegarden     │
 │   routes/index.tsx 全量声明 + React.lazy 分包 · hooks 数据层         │
 │   ThemeContext 令牌 · I18nContext · useSSE 订阅 /api/events          │
 └──────────────────────────────┬───────────────────────────────────────┘
@@ -67,7 +75,7 @@ hotspot/
 ┌──────────────────────────────▼───────────────────────────────────────┐
 │                  FastAPI 单进程 (uvicorn, :8000)                     │
 │  ┌────────────────┐   ┌──────────────────┐   ┌────────────────────┐ │
-│  │ api/ 68 router  │ → │ services/ 105    │ → │ repository/ DAO 层  │ │
+│  │ api/ 73 router  │ → │ services/ 107    │ → │ repository/ DAO 层  │ │
 │  │ (_registry.py  │   │ (ai_hub/ 单出口   │   │ (SQLite, 每表一 repo)│ │
 │  │  lazy 注册)     │   │  + obs 服务族)    │   └────────────────────┘ │
 │  └───────┬────────┘   └───────┬──────────┘                          │
@@ -91,7 +99,7 @@ hotspot/
   └───────────┘         └────────────────┘     └──────────────────┘
 ```
 
-### 前端信息架构 (v0.7.4)
+### 前端信息架构 (v0.8.1)
 
 **首页 = 哨兵终端全屏页** (v0.7.1 起生效, 替代 v0.7.0 的 workbench 报纸版):
 
@@ -108,10 +116,11 @@ hotspot/
 
 **业务工作台** (走 PageLayout 嵌套路由):
 
-- `/secnews` — SecNews 统一工作台 7 tab: `feed` / `pipeline` / `knowledge` / `analyze` /
-  `analytics` / `observability` (v0.7.3 新增) / `settings`
+- `/secnews` — SecNews 统一工作台 6 tab: `feed` / `pipeline` / `knowledge` / `analyze` /
+  `analytics` / `settings`
 - `/knowledge` — 4 大领域 (import/process/compile/compound) + 双主路径 (deep-read / review) + heatmap
 - `/codegarden` (M1) + `/codegarden/phase2b` (M2-M4, gate 已开) · `/crm`
+- `/skill-store` · `/dashboard` (v0.8 看板型 AI 智能体)
 - 保留旧路由: `/todos` `/history` `/skills` `/secrets` `/sync` `/settings` `/report`
   `/reviews` `/deep/:type/:id` `/quality/rejection` `/bid-alert` `/tags` `/extract` `/search` `/oauth-callback`
 
@@ -130,7 +139,9 @@ services (业务编排; 严禁 import backend.api)
   ├──▶ quality (门禁管线)
   ├──▶ kl_pipeline / wiki_fs (知识管线与文件契约)
   ├──▶ security (图谱引擎)
-  └──▶ observability_records (观测落表, 仅被 .py 模块 import, 永不 import 业务层)
+  ├──▶ observability_records (观测落表, 仅被 .py 模块 import, 永不 import 业务层)
+  ├──▶ trigger_gate / skill_registry / agent_loop / agent_memory / skill_runner / playbook_engine / skill_builder / skill_eval (v0.8 Skills)
+  └──▶ info_filter_gate / info_filter_service (v0.8 info_filter)
 ```
 
 硬性约定 (CI / review 强制):
@@ -140,7 +151,7 @@ services (业务编排; 严禁 import backend.api)
 - **`api/__init__.py` 薄壳化** — 实际注册在 `_registry.py`, import 全部 lazy (避免循环依赖)
 - **repo 单例** — 每个 repository 模块导出模块级 singleton 实例
 - **注册代码改动必须同步架构数字**: `python scripts/generate_meta.py` 重写
-  `docs/ARCHITECTURE.md` (CI `--check`; 当前代码事实 **51 jobs / 14 collectors / 68 routers / 105 services** — v0.7.4-image 加 /api/image/*)
+  `docs/ARCHITECTURE.md` (CI `--check`; 当前代码事实 **51 jobs / 14 collectors / 73 routers / 107 services**)
 - **core 白名单防重叠** — 任何新 router 不允许与 `backend/core/routers.py` 已声明路径前缀重叠
 - **观测落表 = 纯 def 同步**: `observability_records.py` 全 `def`, 任何 async 端点禁止
   `await record_*` (线程池派发); record_* 内部失败一律 swallow, 永不阻塞业务响应
@@ -158,23 +169,30 @@ feature_gates.toml ──▶ backend/extensions/__init__.py (单一来源)
 
 - **优先级**: 默认值 (全部 True) < TOML < 环境变量 `HOTSPOT_FEATURE_GATES` (JSON, CI core-only 冒烟用)
 - **保守降级**: TOML 读取失败回退"全部开启", 不阻塞启动
-- **当前开关状态** (feature_gates.toml, v0.7.4):
+- **当前开关状态** (feature_gates.toml, v0.8.1 Day 0 开闸):
 
 | 扩展 | 状态 | 说明 |
 |------|------|------|
 | `codegarden` | **true** | M1 项目生命周期 |
-| `codegarden_phase2b` | **true** (Batch ⑧ D5 开闸) | M2 服务网格 / M3 资源中枢 / M4 联动引擎 |
-| `mcp` | false | MCP Server (SSE + stdio + 9 tools) |
+| `codegarden_phase2b` | **true** | M2 服务网格 / M3 资源中枢 / M4 联动引擎 |
+| `mcp` | false | MCP Server (SSE + stdio; server 本体由 `config.feature_mcp_server` 控制, 两套开关语义分裂) |
 | `sync` | **true** | 跨端同步 |
-| `tech_stack` | **true** (Batch ⑧ D5 开闸) | 技术栈管理 + 漂移评估 |
-| `security_graph` | **true** (Batch ⑧ D5 开闸) | 控 mitre_sync / cve_sync job |
+| `tech_stack` | **true** | 技术栈管理 + 漂移评估 |
+| `security_graph` | **true** | 控 mitre_sync / cve_sync job |
 | `secnews` | **true** | KL 管线 + 安全看板 |
 | `crm` | **true** | 业绩座舱 |
 | `dsh` | **true** | dsh 认知大脑受管子进程 (前端一键启停; 未配置时如实 not_configured, 业务自动降级 LLM 直连) |
+| `info_filter` | **true** (Day 0 开闸) | 信息过滤 |
+| `skill_registry` | **true** (Day 0 开闸) | 20 内置 skill 注册 |
+| `trigger_gate` | **true** (Day 0 开闸) | 触发门 (限流 + 队列) |
+| `agent_loop` | **true** (Day 0 开闸) | Agent 五阶段状态机 |
+| `playbook_engine` | **true** (Day 0 开闸) | Playbook YAML 编排 |
+| `user_skills` | **true** (Day 0 开闸) | 用户自定义 skill |
+| `skill_eval` | **true** (Day 0 开闸) | skill 评测 + judge |
 
 - **核心永不消失**: `backend/core/routers.py` core 白名单与扩展域防重叠断言;
   扩展关闭时对应路由 404, 但 core 域永远可用
-- **前端哨兵路由不做 gate** (固定渲染); 扩展路由 (sync/codegarden/codegardenPhase2b/crm)
+- **前端哨兵路由不做 gate** (固定渲染); 扩展路由 (sync/codegarden/codegardenPhase2b/crm/skill-store/dashboard)
   由 `useFeatureFlags` 条件渲染
 
 另有 `config.feature_*` 细粒度 flag (`feature_tag` / `feature_review` / `feature_alert` /
@@ -240,7 +258,7 @@ pull: 下载 zip → manifest 校验 → 解密 → three_way_merge (base/local/
       → apply 回写各表
 ```
 
-### 5.4 观测数据流 (v0.7 新增)
+### 5.4 观测数据流 (v0.7 新增, v0.8.1 增加 LLM health)
 
 ```
 HTTP 请求 → TraceIDMiddleware (contextvar set_trace_id)
@@ -249,6 +267,8 @@ job 运行 → instrument_job 装饰器 → job_runs (30d)
 agent 运行 → agent_bridge → agent_runs (30d)
 进程事件 → process_supervisor → process_events (14d)
 LLM 调用 → ai_hub/usage.record_llm_call → llm_usage_log (+key_source/config_source)
+           → ProviderHealth 更新 (唯一健康度真相源)
+           → /api/observability/llm/health (health + CircuitBreaker 状态)
 审计动作 → record_audit → audit_log (90d)
         ▼
 observability_aggregator (60min) → api_metrics_hourly (30d, hour+path_template 主键)
@@ -265,7 +285,7 @@ observability_alerts (30d) → 告警分发 (alert_dispatcher, 5 通道: status_
 | 存储 | 角色 | 关键约定 |
 |------|------|----------|
 | SQLite (`hotspot.db`) | 运营层 + 读缓存 + 观测落库 | WAL; thread-local 连接; autocommit; FTS5 (含 CJK); 7 张观测表带 TTL |
-| `migrations/*.sql` | schema 演进 | **85 个正向迁移 (001–088, 若干编号留空)**; `apply_migrations()` 按文件名排序执行; `*_down.sql` 跳过 |
+| `migrations/*.sql` | schema 演进 | **92 个正向迁移 (001–095, 若干编号留空)**; `apply_migrations()` 按文件名排序执行; `*_down.sql` 跳过 |
 | `llm-wiki-2.0/*.md` | 知识真相源 | 唯一根 (v0.6.3 P4 已删旧 `knowledge/`); frontmatter 驱动; Watchdog 回灌 SQLite |
 | WebDAV (坚果云) | 跨端同步远端 | zip 容器; envelope.json Fernet 密文 + manifest.json 明文 |
 | OS keychain / settings.kv | secrets 持久化 | 主密钥后缀隔离 (admin=0 / user=N); llm_secrets 业务 key |
@@ -274,7 +294,7 @@ observability_alerts (30d) → 告警分发 (alert_dispatcher, 5 通道: status_
 迁移尾号速记: 074 llm_secrets · 079 llm_usage_log 观测列 · 080 job_runs/agent_runs/process_events/
 audit_log · 081 api_events/api_metrics_hourly · 082 observability_alerts · 083 feedback_events ·
 084 user_memory · 085 secrets TTL (last_rotated_at) · 086 encryption_keys.role · 087 alert_deliveries ·
-088 secrets owner_role。
+088 secrets owner_role · 089–095 v0.8.1 弹性层 / skills / observability 扩展。
 
 ## 7. 横切关注点
 
@@ -289,7 +309,10 @@ audit_log · 081 api_events/api_metrics_hourly · 082 observability_alerts · 08
 | `backend/api/middleware.py` | `TraceIDMiddleware` 请求追踪 + 观测落表 (双层 swallow; exclude `/api/health`) |
 | `backend/proxy_config.py` / `proxy_session.py` / `services/proxy_pool.py` | 代理配置 / 会话 / 池化健康度; 标讯先直连后 `127.0.0.1:7897` |
 | `backend/services/simhash.py` | 64-bit simhash + Hamming 距离标题去重 |
-| `backend/version.py` | `APP_VERSION = "0.7.0"` 单一来源 (main.py / health / 错误体共用; 批次线走 git tag) |
+| `backend/version.py` | `APP_VERSION` 单一来源 (main.py / health / 错误体共用; 批次线走 git tag) |
+| `backend/utils/shutdown.py` | v0.8.1: `drain_in_flight()` + `wal_checkpoint()` — 优雅停机 |
+| `backend/services/ai_hub/provider_health.py` | v0.8.1: ProviderHealth 唯一健康度判定源 |
+| `backend/services/ai_hub/gateway.py` | v0.8.1: CircuitBreaker 薄状态机 + gateway/image 集中记账 |
 
 ## 8. 版本演进线
 
@@ -301,7 +324,9 @@ audit_log · 081 api_events/api_metrics_hourly · 082 observability_alerts · 08
 | v0.7.1 | 2026-08-29 | **哨兵终端首页** (V2 设计稿还原, 独立全屏 + `*` fallback); 报纸版退役; scheduler 重构 (start 拆分 7 组注册) |
 | v0.7.2 | 2026-08-31 | Batch 1-6: Observability 地基 (trace_id/job_runs/audit_log) + LLM provider 四级链 + API 观测 + 阈值告警 + llm_secrets 密钥链接入 |
 | v0.7.3 | 2026-09-01 | Batch ⑦: 遗留阻塞项 5 项全清 (secrets TTL / 多用户分级 / OAuth / 全审计 / webdav 关单) |
-| **v0.7.4-cleanup** | 2026-09-01 | Batch ⑧⑨: 观测深化 (5 通道告警/SSE/采样) + 扩展开闸 (phase2b/tech_stack/security_graph) + i18n 全量 + secrets ACL + 历史债清偿 (check_docstrings 237 模块) |
+| v0.7.4-cleanup | 2026-09-01 | Batch ⑧⑨: 观测深化 (5 通道告警/SSE/采样) + 扩展开闸 (phase2b/tech_stack/security_graph) + i18n 全量 + secrets ACL + 历史债清偿 (check_docstrings 237 模块) |
+| **v0.8.0** | 2026-09-04 | v0.8 Skills 四阶段收口: trigger_gate / skill_registry / agent_loop / agent_memory / skill_runner / playbook_engine / skill_builder / skill_eval; 20 内置 skill; `/skill-store` + `/dashboard` |
+| **v0.8.1** | 2026-09-05 | Day 0 七 gate 开闸演练通过后保持全开; 运行时弹性层通电 (ProviderHealth + CircuitBreaker + LLM health); graceful shutdown (SIGTERM drain + WAL checkpoint); deep 场景权重重排; 全量 3818/0 fail |
 
 > 版本契约: `backend/version.py` 保持 "0.7.0" 为法规版本真源; 迭代批次以 git tag
-> (v0.7.1 … v0.7.4-cleanup) 与 `docs/CHANGELOG.md` 记录。本 wiki 按 v0.7.4 代码现状编写。
+> (v0.7.1 … v0.8.1) 与 `docs/CHANGELOG.md` 记录。本 wiki 按 v0.8.1 代码现状编写。

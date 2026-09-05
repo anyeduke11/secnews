@@ -2,57 +2,344 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Hotspot v0.8 — Skills + SecNews Workbench",
+    "title": "Hotspot v0.8.0 — Skills + SecNews Workbench",
+    "locale": "zh-CN",
     "output": "hotspot-architecture.html",
     "quality_profile": "showcase",
     "views": [
-      { "id": "skills-and-agent", "label": "Skills + Agent", "focus": ["users", "frontend", "api", "trigger_gate", "dsh", "runners", "services", "ai_hub"], "note": "Trigger → DSH Brain → 4 Runners (builtin·pi·claude·codex) / Services → AI Hub → 5 LLM Providers" },
-      { "id": "knowledge-and-ai", "label": "Knowledge & AI", "focus": ["services", "ai_hub", "llm", "wiki_fs", "repository"], "note": "wiki-first md truth + FTS5 双分词 (trigram+porter) + 4 存储层 (HOT/WARM/COLD/FROZEN)" },
-      { "id": "ingest-and-ops", "label": "Ingest & Ops", "focus": ["users", "frontend", "api", "services", "dsh", "webdav"], "note": "采集 → AI → WebDAV 同步 (Fernet 加密 zip)" },
-      { "id": "trigger-flow", "label": "Trigger Flow", "focus": ["api", "trigger_gate", "dsh", "runners"], "note": "3 触发源 (webhook·KL·collector) 入队 → 3-tier 队列 → DSH 大脑分发 → 4 runner" }
+      {
+        "id": "skills-and-agent",
+        "label": "Skills + Agent",
+        "focus": [
+          "frontend",
+          "api",
+          "trigger_gate",
+          "dsh",
+          "runners",
+          "services",
+          "ai_hub"
+        ],
+        "note": "Trigger → DSH 大脑 → 4 Runners / Services → AI Hub → 5 LLM Providers (四级链)"
+      },
+      {
+        "id": "knowledge-and-ai",
+        "label": "Knowledge & AI",
+        "focus": [
+          "services",
+          "ai_hub",
+          "llm",
+          "wiki_fs",
+          "repository"
+        ],
+        "note": "wiki-first md 真源 + 4 存储层 (HOT/WARM/COLD/FROZEN)"
+      },
+      {
+        "id": "ingest-and-ops",
+        "label": "Ingest & Ops",
+        "focus": [
+          "frontend",
+          "api",
+          "services",
+          "webdav"
+        ],
+        "note": "采集 → AI → WebDAV 同步 (Fernet 加密 zip)"
+      },
+      {
+        "id": "trigger-flow",
+        "label": "Trigger Flow",
+        "focus": [
+          "api",
+          "trigger_gate",
+          "dsh",
+          "runners"
+        ],
+        "note": "3 触发源入队 → 3-tier 队列 → DSH 分发 → 4 runner"
+      }
     ],
-    "viewBox": [1500, 720]
+    "viewBox": [
+      1340,
+      665
+    ]
   },
   "components": [
-    { "id": "users", "type": "external", "label": "Users", "sublabel": "Browser / Mobile", "pos": [40, 340], "size": [120, 56] },
-    { "id": "frontend", "type": "frontend", "label": "React SPA", "sublabel": "Vite + TS :8898", "pos": [200, 300], "size": [160, 64] },
-    { "id": "api", "type": "backend", "label": "FastAPI", "sublabel": "uvicorn :8000", "pos": [400, 300], "size": [160, 64] },
-
-    { "id": "trigger_gate", "type": "backend", "label": "Trigger Gate", "sublabel": "3-tier queue · webhook·KL·collector", "pos": [620, 80], "size": [240, 100] },
-
-    { "id": "dsh", "type": "backend", "label": "★ DSH (Brain)", "sublabel": "ProcessSupervisor · :3210 (not_configured→mock→ai_hub)", "pos": [620, 220], "size": [240, 100] },
-    { "id": "runners", "type": "backend", "label": "4 Runners", "sublabel": "builtin · pi · claude · codex", "pos": [620, 360], "size": [240, 60] },
-
-    { "id": "services", "type": "backend", "label": "Services", "sublabel": "108 modules · 73 router", "pos": [920, 220], "size": [220, 80] },
-    { "id": "ai_hub", "type": "backend", "label": "AI Hub", "sublabel": "LLM single-egress", "pos": [920, 340], "size": [220, 60] },
-
-    { "id": "repository", "type": "database", "label": "SQLite (HOT+WARM+COLD)", "sublabel": "WAL · ATTACH · Fernet · FROZEN md", "pos": [620, 540], "size": [240, 80] },
-    { "id": "wiki_fs", "type": "database", "label": "llm-wiki-2.0", "sublabel": "md+YAML · wiki-first · 4 存储层", "pos": [920, 540], "size": [220, 80] },
-
-    { "id": "llm", "type": "cloud", "label": "LLM Providers × 5", "sublabel": "sensenova · ollama · openai · qwen · anthropic", "pos": [1200, 340], "size": [220, 80] },
-    { "id": "webdav", "type": "cloud", "label": "WebDAV", "sublabel": "坚果云 sync", "pos": [1200, 80], "size": [200, 50] }
+    {
+      "id": "frontend",
+      "type": "frontend",
+      "label": "React SPA",
+      "sublabel": ":8898 · 53 lazy 路由",
+      "pos": [
+        40,
+        420
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "FastAPI",
+      "sublabel": ":8000 · 73 routers",
+      "pos": [
+        230,
+        420
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "trigger_gate",
+      "type": "backend",
+      "label": "Trigger Gate",
+      "sublabel": "3-tier queue · 限流 + 持久化",
+      "pos": [
+        420,
+        60
+      ],
+      "size": [
+        230,
+        70
+      ]
+    },
+    {
+      "id": "dsh",
+      "type": "backend",
+      "label": "★ DSH (Brain)",
+      "sublabel": "受管 · not_configured→mock→ai_hub",
+      "pos": [
+        420,
+        170
+      ],
+      "size": [
+        230,
+        90
+      ]
+    },
+    {
+      "id": "runners",
+      "type": "backend",
+      "label": "4 Runners",
+      "sublabel": "builtin · pi · claude · codex",
+      "pos": [
+        420,
+        300
+      ],
+      "size": [
+        230,
+        60
+      ]
+    },
+    {
+      "id": "services",
+      "type": "backend",
+      "label": "Services",
+      "sublabel": "107 services · 51 jobs",
+      "pos": [
+        690,
+        420
+      ],
+      "size": [
+        150,
+        80
+      ]
+    },
+    {
+      "id": "ai_hub",
+      "type": "backend",
+      "label": "AI Hub",
+      "sublabel": "LLM 单出口 · 四级链",
+      "pos": [
+        890,
+        420
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "repository",
+      "type": "database",
+      "label": "SQLite HOT+WARM+COLD",
+      "sublabel": "WAL · ATTACH · Fernet 加密",
+      "pos": [
+        690,
+        540
+      ],
+      "size": [
+        180,
+        70
+      ]
+    },
+    {
+      "id": "wiki_fs",
+      "type": "database",
+      "label": "llm-wiki-2.0",
+      "sublabel": "md 真源 · FROZEN · 4 存储层",
+      "pos": [
+        900,
+        540
+      ],
+      "size": [
+        160,
+        70
+      ]
+    },
+    {
+      "id": "llm",
+      "type": "cloud",
+      "label": "LLM Providers ×5",
+      "sublabel": "sensenova·ollama·openai·qwen·anthropic",
+      "pos": [
+        1090,
+        420
+      ],
+      "size": [
+        215,
+        80
+      ]
+    },
+    {
+      "id": "webdav",
+      "type": "cloud",
+      "label": "WebDAV",
+      "sublabel": "坚果云 sync · zip+Fernet",
+      "pos": [
+        1090,
+        540
+      ],
+      "size": [
+        215,
+        50
+      ]
+    }
   ],
   "boundaries": [
-    { "kind": "region", "label": "Frontend", "wraps": ["users", "frontend"] },
-    { "kind": "region", "label": "Brain / Runtime", "wraps": ["trigger_gate", "dsh", "runners"] },
-    { "kind": "region", "label": "Capability & Data", "wraps": ["services", "ai_hub", "repository", "wiki_fs"] },
-    { "kind": "region", "label": "Outbound", "wraps": ["llm", "webdav"] }
+    {
+      "kind": "region",
+      "label": "Brain / Runtime",
+      "wraps": [
+        "trigger_gate",
+        "dsh",
+        "runners"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Capability & Data",
+      "wraps": [
+        "services",
+        "ai_hub",
+        "repository",
+        "wiki_fs"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Outbound",
+      "wraps": [
+        "llm",
+        "webdav"
+      ]
+    }
   ],
   "connections": [
-    { "id": "users-to-frontend", "from": "users", "to": "frontend", "label": "HTTPS", "variant": "emphasis" },
-    { "id": "frontend-to-api", "from": "frontend", "to": "api", "label": "HTTP / JSON / SSE", "labelAt": [375, 390] },
-    { "id": "api-to-trigger", "from": "api", "to": "trigger_gate", "label": "enqueue", "labelAt": [580, 160] },
-    { "id": "trigger-to-dsh", "from": "trigger_gate", "to": "dsh", "label": "dispatch (queue→brain)", "variant": "emphasis" },
-    { "id": "dsh-to-runners", "from": "dsh", "to": "runners", "label": "agent task", "variant": "emphasis" },
-    { "id": "runners-to-dsh", "from": "runners", "to": "dsh", "label": "NDJSON result", "labelAt": [880, 290] },
-    { "id": "dsh-to-ai", "from": "dsh", "to": "ai_hub", "label": "fallback (mock)", "labelAt": [1080, 280], "variant": "dashed" },
-    { "id": "runners-to-ai", "from": "runners", "to": "ai_hub", "label": "builtin→llm", "labelAt": [880, 380] },
-    { "id": "api-to-services", "from": "api", "to": "services", "label": "HTTP", "labelAt": [850, 240] },
-    { "id": "services-to-ai", "from": "services", "to": "ai_hub", "label": "LLM (mandatory)", "variant": "emphasis" },
-    { "id": "ai-to-llm", "from": "ai_hub", "to": "llm", "label": "4-tier fallback", "variant": "emphasis" },
-    { "id": "services-to-repository", "from": "services", "to": "repository", "label": "DAO", "labelAt": [720, 480] },
-    { "id": "services-to-wiki", "from": "services", "to": "wiki_fs", "label": "wiki-first (md truth)", "variant": "emphasis" },
-    { "id": "services-to-webdav", "from": "services", "to": "webdav", "label": "sync zip + Fernet", "labelAt": [1290, 130] }
+    {
+      "id": "frontend-to-api",
+      "from": "frontend",
+      "to": "api",
+      "label": "HTTP / JSON / SSE",
+      "labelDy": -48
+    },
+    {
+      "id": "api-to-trigger",
+      "from": "api",
+      "to": "trigger_gate",
+      "label": "enqueue",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "trigger-to-dsh",
+      "from": "trigger_gate",
+      "to": "dsh",
+      "label": "dispatch",
+      "variant": "emphasis",
+      "labelAt": [
+        535,
+        144
+      ]
+    },
+    {
+      "id": "dsh-to-runners",
+      "from": "dsh",
+      "to": "runners",
+      "label": "agent task",
+      "variant": "emphasis",
+      "labelAt": [
+        535,
+        274
+      ]
+    },
+    {
+      "id": "dsh-to-ai",
+      "from": "dsh",
+      "to": "ai_hub",
+      "label": "mock fallback",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "api-to-services",
+      "from": "api",
+      "to": "services",
+      "label": "HTTP"
+    },
+    {
+      "id": "services-to-ai",
+      "from": "services",
+      "to": "ai_hub",
+      "label": "LLM 单出口",
+      "variant": "emphasis",
+      "labelDy": -46
+    },
+    {
+      "id": "ai-to-llm",
+      "from": "ai_hub",
+      "to": "llm",
+      "label": "四级链",
+      "variant": "emphasis"
+    },
+    {
+      "id": "services-to-repository",
+      "from": "services",
+      "to": "repository",
+      "label": "DAO",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDx": -40
+    },
+    {
+      "id": "services-to-wiki",
+      "from": "services",
+      "to": "wiki_fs",
+      "label": "wiki-first md 真源",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "repository-to-webdav",
+      "from": "repository",
+      "to": "webdav",
+      "label": "backup zip + Fernet",
+      "fromSide": "bottom",
+      "toSide": "bottom"
+    }
   ],
   "cards": []
 }

@@ -1,5 +1,6 @@
 # v0.5 重构执行进度（PROGRESS.md — 当前活跃段索引）
 
+> **v0.8.0 (2026-09-04)** — Skills Phase A/B/C/D 全绿 + v0.8.0-post 治理 / 架构图 / V0.8.1_PLAN 立项 (详见活跃段)。
 > **v0.8 P1 (2026-09-03)** — 独立资讯筛选门禁 (info_filter, 详见活跃段)。
 > **v0.7.0 (2026-08-28)** — workbench 报纸版 100% 接管 (Step 2 物理删除完成)。
 > **v0.6.2 (2026-08-28)** — hotspot 活跃开发中。
@@ -165,6 +166,30 @@
 - **复核修正了原文 2 处失实**: ① §3.4 "生产路由表未用 React.lazy" 有误 (v0.5 已拆, 原文被移出路线图); ② §1.4 "估计 30+ 处 except:pass" 偏悲观 (实测 0 处字面, 320 处宽泛 except Exception)。
 - **v0.8.1 方向不变**: 仍推荐 §1.2+§2.1 联动 (5 天), 与 v0.8.0-post Task 3 结论一致; 新增前置项 "七 gate 开闸演练" (1 天)。
 - **grep 证据均当日实测**: 断路器 0 类命中 / SIGTERM 0 命中 / GZipMiddleware 0 命中 / react-query 无 / migrations 92 .sql / services 层 except Exception 320 处。
+
+### 2026-09-05 v0.8.0-post+2 — 架构图重渲 (archify 首次 0-error 交付) + V0.8.1_PLAN 立项 (本批)
+
+> **来源**: 用户指令 "重新熟悉整个代码仓库, 更新相关架构重构方案 [$archify]"。
+> **基线**: `main` HEAD `5bdea00` (v0.8.0-post+1 复核版); 3 路 Explore 扫底 (后端/前端/文档) 当日实测。
+> **范围**: 架构图 candidate 全新 authoring + archify deliver; `docs/V0.8.1_PLAN.md` 新建; 2 份过期文档头部修正。
+
+- [x] **全仓 3 路扫底**: 后端 (73 router / 107 service / 12 服务包 / 43 repo / 92 迁移 / 51 job / 265 test; ai_hub 11 文件 2495 行; dsh 7 文件 779 行 `runtime.resolve_effective` 3 态 + **3 连败 unhealthy 熔断先例**; tenacity 0 命中; `retry_policy.py` 仅 KL 用; Semaphore 7 文件散落; services 层 320 处宽泛 except Exception / 86 文件) / 前端 (53 路由全 React.lazy + manualChunks 已配 — **CRITICAL_REVIEW §3.4 原文失实**; 25 处 setInterval / 15 文件; react-query/swr 0 依赖; I18nContext 767 行 ~300 key×2; skills 6 组件 2266 行; dashboard 单文件 343 行内嵌 3 组件) / 文档 (CRITICAL_REVIEW 已是 09-05 复核版; V0.8_REFACTOR_PLAN 25 验收框纯计划态未回填; DECISION_REGISTER 头部 "34 项待确认" 过期; **确缺 v0.8.1 计划文档**)。
+- [x] **架构图重渲**: candidate.json 全新 authoring (11 节点 / 3 区域 / 11 连接, 零 labelAt 起步, 实测数字修正: services "107 services · 51 jobs" 修 "108 modules" 口误) — 12 轮 validate 迭代 (列距 26px 触发渲染器崩溃 → ≥40px; context 字号 9px 上限 → viewBox 宽必须 ≤~1390 → 删 users 节点 + 压缩布局; "sync zip" 边 re-home 到 repository→webdav 解 services 底部 3 端口扇出死结)。**archify validate 0 error / 0 warning (showcase 9/9, 本图历史首次) + deliver ok + visual-check 4 视口 pass (minTextPx 9) + judge 4/4 pass (light/dark × 1440/2048, 5 叙事修复全数在图)**。
+- [x] **docs/V0.8.1_PLAN.md 新建**: 方案 A 断路器+provider_health 联动 (5 天, 推荐) / B alone (2 天) / C react-query (5-7 天) / D 备选 (error_classifier / graceful shutdown / GZip); 8 条扫底新证据表 (E1-E8) 修正 CRITICAL_REVIEW 原判断; 5 个裁决点 D1-D5 待用户拍板; 前置项 = 七 gate 开闸演练 (1 天)。
+- [x] **文档头部修正**: V0.8_REFACTOR_PLAN 加已完结横幅 (执行记录以 PROGRESS 为准, 25 验收框不回填); V0.8_DECISION_REGISTER 头部改 "35 项全部 ✅"。
+
+### 关键事实 (v0.8.0-post+2)
+
+- **viewBox 宽度硬约束**: archify context 字号上限 9px × (930/vb宽) ≥ 6px → viewBox 宽 ≤ ~1390; 本图 1340 已是 11 节点级布局的实际天花板, 加节点必先删节点
+- **小盒字号陷阱**: 盒内文字过长时 fit 会跌破 9px 上限 (llm 200→215px 才救回 8.4→9.08), 副标签长度须按盒宽预算
+- **节点 12→11**: users 节点删除 (宽度预算下牺牲度最高), frontend/api 副标签缩为 ":8898 · 53 lazy 路由" / ":8000 · 73 routers"
+- **sync 边语义微调**: "backup zip + Fernet" 从 services→webdav 改挂 repository→webdav (备份导出语义), 换取 services 底部扇出解耦
+
+### 不在本批范围 (留独立段)
+
+- 方案 A/B/C/D 实施 — 等用户裁决 `docs/V0.8.1_PLAN.md` §8 (D1-D5)
+- V0.8_REFACTOR_PLAN 25 验收框回填 — 已横幅声明以 PROGRESS 为准
+- 前端 react-query 迁移 (方案 C) — v0.8.2 候选
 
 ### 2026-09-02 SettingsHub V2 — 哨兵化全重设计 + 5 子组件拆分 (本批)
 

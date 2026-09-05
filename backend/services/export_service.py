@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
-from backend.config import BASE_DIR
+from backend.config import config
 from backend.domain.enums import Category, TimeRange
 from backend.exceptions import InvalidParamException
 from backend.repository.hotspot_repo import HotspotRepository
@@ -25,8 +25,8 @@ from backend.version import APP_VERSION
 
 _hrepo = HotspotRepository()
 
-# 缓存文件路径（位于 data/ 目录）
-_DATA_DIR = BASE_DIR / "data"
+# 缓存文件路径（data/ 目录 — v1.0 T01 起走 config.data_dir, 测试环境可隔离）
+_DATA_DIR = config.data_dir
 _CACHE_HTML = _DATA_DIR / "export_cache.html"
 _CACHE_ETAG = _DATA_DIR / "export_cache.etag"
 

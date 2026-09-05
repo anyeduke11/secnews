@@ -39,6 +39,8 @@ Markers
 from __future__ import annotations
 
 import os
+import sys
+import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -47,8 +49,122 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 # ===========================================================================
-# Fixtures
+# v1.0 T01: 会话级数据根隔离 (必须在任何 backend 模块导入 / _ENV_SNAPSHOT 之前)
 # ===========================================================================
+# 修复 F13: 此前未申请 temp_db 的测试 (agent_bridge 观测写入等) 会把记录写进
+# 真实 backend/hotspot.db (agent_runs id=315..321)。这里在 pytest collection
+# 之前强制 HOTSPOT_* 数据路径指向会话级临时根:
+# - pydantic env_prefix=HOTSPOT_ → 字段级 env 在 backend.config 导入前生效;
+# - wiki_fs.paths 的 *DIR 常量 import 时冻结 → env 必须先于其导入;
+# - 强制覆盖 (非 setdefault): 测试不得依赖用户机器 .env 的真实数据路径;
+# - 子进程自动继承 os.environ → subprocess 内的脚本同样被隔离。
+# 生产路径哨兵: audit hook 拒绝测试进程对真实数据根的连接/写入/出网。
+# 逃逸口: HOTSPOT_TEST_UNGUARDED=1 (仅 soak/live 手动场景, 普通测试禁止)。
+_ISOLATION_GUARDED = os.environ.get("HOTSPOT_TEST_UNGUARDED") != "1"
+# 单一真相源 = env 本身: conftest 可能被 pytest 与包路径 (backend.tests.conftest)
+# 双重导入, mkdtemp 只在首次执行 — 后续身份从 HOTSPOT_DB_PATH 反推根并复用。
+_existing_iso = os.environ.get("HOTSPOT_DB_PATH", "")
+if _ISOLATION_GUARDED and "hotspot-test-iso-" in _existing_iso:
+    _ISOLATION_ROOT = Path(_existing_iso).parent
+elif _ISOLATION_GUARDED:
+    _ISOLATION_ROOT = Path(tempfile.mkdtemp(prefix="hotspot-test-iso-"))
+
+if _ISOLATION_GUARDED:
+    os.environ["HOTSPOT_DB_PATH"] = str(_ISOLATION_ROOT / "hotspot.db")
+    os.environ["HOTSPOT_WARM_DB_PATH"] = str(_ISOLATION_ROOT / "hotspot-warm.db")
+    os.environ["HOTSPOT_COLD_DB_PATH"] = str(_ISOLATION_ROOT / "hotspot-cold.db")
+    os.environ["HOTSPOT_LOG_DIR"] = str(_ISOLATION_ROOT / "logs")
+    os.environ["HOTSPOT_BACKUP_DIR"] = str(_ISOLATION_ROOT / "backups")
+    os.environ["HOTSPOT_DATA_DIR"] = str(_ISOLATION_ROOT / "data")
+    os.environ["HOTSPOT_WIKI_ROOT"] = str(_ISOLATION_ROOT / "llm-wiki-2.0")
+
+# 哨兵对象 = 真实数据根 (与上方 env 无关, 永远指向仓库实际位置)。
+# 目录根: p == root 或 p 前缀 = root + sep; 文件根: p == root 或 p 前缀 = root
+# (文件根不带 sep — 否则 ".../hotspot.db/" 永远匹配不上, 且可覆盖 -wal/-shm 侧车)。
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_PROD_DIR_ROOTS = tuple(
+    str(p)
+    for p in (
+        _REPO_ROOT / "backend" / "backups",
+        _REPO_ROOT / "backend" / "logs",
+        _REPO_ROOT / "backend" / "data",
+        _REPO_ROOT / "llm-wiki-2.0",
+        _REPO_ROOT / "codegarden",
+        _REPO_ROOT / "data",
+        Path.home() / ".pi",
+    )
+)
+_PROD_FILE_ROOTS = tuple(
+    str(p)
+    for p in (
+        _REPO_ROOT / "backend" / "hotspot.db",
+        _REPO_ROOT / "backend" / "hotspot-warm.db",
+        _REPO_ROOT / "backend" / "hotspot-cold.db",
+        _REPO_ROOT / "data" / "hotspot.db",
+    )
+)
+
+
+def _t01_prod_hit(path: object) -> str | None:
+    """路径是否落在生产数据根内 (raw + abspath 双查; 只做前缀比较, 不 resolve)。"""
+    p = str(path) if path is not None else ""
+    if not p:
+        return None
+    for probe in (p, os.path.abspath(p)):
+        for root in _PROD_FILE_ROOTS:
+            if probe == root or probe.startswith(root):
+                return root
+        for root in _PROD_DIR_ROOTS:
+            if probe == root or probe.startswith(root + os.sep):
+                return root
+    return None
+
+
+def _t01_isolation_hook(event, args):
+    if not _ISOLATION_GUARDED:
+        return
+    try:
+        if event == "sqlite3.connect":
+            hit = _t01_prod_hit(args[0] if args else None)
+            if hit:
+                raise AssertionError(
+                    f"T01 隔离守卫: 测试连接生产数据库 {args[0]!r} (root={hit}); "
+                    "测试必须走会话隔离根/temp_db"
+                )
+        elif event == "open":
+            path = args[0] if args else None
+            mode = args[1] if len(args) > 1 and args[1] else ""
+            flags = args[2] if len(args) > 2 else 0
+            write_intent = any(c in mode for c in "wax+") or (
+                isinstance(flags, int)
+                and flags & (os.O_WRONLY | os.O_RDWR | os.O_APPEND | os.O_CREAT | os.O_TRUNC)
+            )
+            if write_intent:
+                hit = _t01_prod_hit(path)
+                if hit:
+                    raise AssertionError(
+                        f"T01 隔离守卫: 测试写生产数据文件 {path!r} (root={hit})"
+                    )
+        elif event == "socket.connect":
+            addr = args[1] if len(args) > 1 else None
+            host = addr[0] if isinstance(addr, tuple) and addr else None
+            if isinstance(host, bytes):
+                host = host.decode("idna")
+            if host is not None and str(host) not in ("127.0.0.1", "::1", "localhost"):
+                raise AssertionError(
+                    f"T01 隔离守卫: 普通测试默认禁止出网 ({addr!r}); "
+                    "live/soak 场景用 HOTSPOT_TEST_UNGUARDED=1 独立运行"
+                )
+    except AssertionError:
+        raise
+    except Exception:
+        pass  # 守卫自身异常不放大; AssertionError 必须穿透到调用点
+
+
+if _ISOLATION_GUARDED and os.environ.get("HOTSPOT_TEST_ISO_HOOKED") != "1":
+    sys.addaudithook(_t01_isolation_hook)
+    os.environ["HOTSPOT_TEST_ISO_HOOKED"] = "1"  # 双重导入只装一次 hook
+
 
 # 模块级快照 — 必须在 conftest import 时取值, 不能放 fixture 里。
 # 测试模块在 collection 阶段就执行顶层 import (test_crawl4ai_client →
@@ -111,6 +227,39 @@ def _protect_hotspot_env() -> Iterator[None]:
     for k, v in _ENV_SNAPSHOT.items():
         if polluted.get(k) != v:
             os.environ[k] = v
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _t01_isolated_roots() -> Iterator[Path]:
+    """T01 会话级隔离断言 + 会话根 schema 初始化。
+
+    - 断言 config 的三库/日志/备份/数据目录与 Wiki 根全部落在会话临时根
+      (来自本模块顶部强制 env; 每个测试看得到的"测试数据写到哪"就是这个目录);
+    - 对会话根跑一次 db.init_db() — 未申请 temp_db 的测试 (agent_bridge 观测
+      写入等) 由此拿到有 schema 的会话根库, 其写入落会话根而非真实库。
+    会话根不自动清理 (tempfile.mkdtemp), 作为验收证据可事后检查。
+    """
+    from backend.config import config
+    from backend.repository import db
+    from backend.wiki_fs.paths import wiki_root
+
+    if not _ISOLATION_GUARDED:
+        yield _ISOLATION_ROOT
+        return
+
+    root = str(_ISOLATION_ROOT) + os.sep
+    for name, p in (
+        ("db_path", config.db_path),
+        ("warm_db_path", config.warm_db_path),
+        ("cold_db_path", config.cold_db_path),
+        ("log_dir", config.log_dir),
+        ("backup_dir", config.backup_dir),
+        ("data_dir", config.data_dir),
+        ("wiki_root", wiki_root()),
+    ):
+        assert str(p).startswith(root), f"T01 隔离失效: {name}={p} 不在会话根 {root}"
+    db.init_db()
+    yield _ISOLATION_ROOT
 
 
 @pytest.fixture(autouse=True)

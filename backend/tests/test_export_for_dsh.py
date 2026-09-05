@@ -22,17 +22,48 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "export_for_dsh.py"
+# v1.0 T01: 隔离 — 子进程与断言统一走会话根库 (显式 --db + config 断言)
+from backend.config import config as _config
+
+DEFAULT_DB = _config.db_path
+
+
+def _seed_hotspot_with_quality_flags() -> None:
+    """T01 隔离后导出源=会话根库 (空) — 造 1 行含 quality_flags 的种子数据,
+    保住 "JSON 字符串 → 原生 list" 解析契约的测试价值 (原依赖真实库数据)。"""
+    import sqlite3
+
+    conn = sqlite3.connect(str(DEFAULT_DB))
+    try:
+        conn.execute(
+            "INSERT INTO hotspots (title, source, url, category, published_at,"
+            " fetched_at, quality_flags) VALUES (?,?,?,?,?,?,?)",
+            (
+                "T01 seed: 隔离导出样本",
+                "t01-seed",
+                "https://example.invalid/t01-seed",
+                "security",
+                "2026-09-05T00:00:00+00:00",
+                "2026-09-05T00:00:00+00:00",
+                '["low_source_weight"]',
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 @pytest.fixture(scope="module")
 def export_run() -> dict:
     """跑一次 export_for_dsh.py 拿结果 (tmp 目录避免污染 data/export)。"""
+    _seed_hotspot_with_quality_flags()
     with tempfile.TemporaryDirectory(prefix="export_test_") as tmp:
         # 只导出 2 张表 (减少 IO), 跳过 wiki
         cmd = [
             sys.executable,
             str(SCRIPT),
             "--out", tmp,
+            "--db", str(DEFAULT_DB),
             "--tables", "hotspots", "favorites",
             "--no-wiki",
         ]
@@ -111,7 +142,7 @@ def test_row_count_matches_db(export_run):
     """导出行数必须与 SELECT COUNT(*) 一致。"""
     import sqlite3
 
-    conn = sqlite3.connect(REPO_ROOT / "backend" / "hotspot.db")
+    conn = sqlite3.connect(str(DEFAULT_DB))
     for table in ("hotspots", "favorites"):
         db_count = conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
         payload_count = export_run[table]["row_count"]

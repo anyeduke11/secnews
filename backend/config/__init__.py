@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     log_dir: Path = BASE_DIR / "logs"
     db_path: Path = BASE_DIR / "hotspot.db"
     backup_dir: Path = BASE_DIR / "backups"
+    # v1.0 T01: data 目录单一配置源 (export 缓存等), 测试环境经 HOTSPOT_DATA_DIR 隔离
+    data_dir: Path = BASE_DIR / "data"
     # v0.5 M2-T6: 分类型存储 (HOT/WARM/COLD/FROZEN)
     # 默认与 hotspot.db 同目录, 启动期 ATTACH
     warm_db_path: Path = BASE_DIR / "hotspot-warm.db"

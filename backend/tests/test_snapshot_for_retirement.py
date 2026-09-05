@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
 import sqlite3
 import subprocess
 import sys
@@ -28,10 +27,15 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "snapshot_for_retirement.py"
-DEFAULT_DB = REPO_ROOT / "backend" / "hotspot.db"
-# v0.6.3 P4 双根合并: 旧 knowledge/ 根已删, 唯一真相源 = llm-wiki-2.0
-# (优先级与 backend/wiki_fs/root.py::resolve_wiki_root 一致: env 覆盖 > 新根)
-DEFAULT_WIKI = Path(os.environ.get("HOTSPOT_WIKI_ROOT") or REPO_ROOT / "llm-wiki-2.0")
+# v1.0 T01: 隔离 — 会话根库 + 会话根 wiki (config 驱动), 不再读真实库/真实 Wiki。
+# 原"生产数据地板"断言 (items>=4149 / concepts>=96 / knowledge_concepts>0 /
+# hotspots>0) 依赖真实库, 与"测试不得依赖用户机器数据"冲突; 契约价值
+# (输出形状/内部一致/双源校验) 改在隔离根上验证, 真实规模验收归 T17 SLO。
+from backend.config import config as _config
+from backend.wiki_fs.paths import wiki_root as _wiki_root
+
+DEFAULT_DB = _config.db_path
+DEFAULT_WIKI = _wiki_root()
 
 
 def _load_snapshot_module():
@@ -116,21 +120,17 @@ def test_baseline_2026_08_24_counts(snapshot_data):
     精确值断言同样陈旧 → wiki 部分改下限容忍 (基线快照 4149/96 为floor)。
     """
     tc = snapshot_data["table_counts"]
-    # 关键表存在性 + 非负数
+    # 关键表存在性 + 非负数 (隔离根上验证契约形状; 真实规模验收归 T17 SLO)
     for table in ("hotspots", "favorites", "todos", "sm2_reviews",
                   "annotations", "hotspot_tags", "knowledge_concepts",
                   "knowledge_graph"):
         assert table in tc, f"table {table} missing from snapshot"
         assert tc[table] >= 0, f"table {table} has negative count"
-    # 知识表必须有真实数据
-    assert tc["knowledge_concepts"] > 0, "knowledge_concepts should have data"
-    assert tc["hotspots"] > 0, "hotspots should have data"
 
     wf = snapshot_data["wiki_files"]
-    # 新根基线 (2026-08-30 双根合并时点): items>=4149, concepts>=96;
-    # inbox/quarantine 必须保持空 (有文件 = 流转异常)。
-    assert wf["items"] >= 4149, f"items dropped below baseline: {wf['items']}"
-    assert wf["concepts"] >= 96, f"concepts dropped below baseline: {wf['concepts']}"
+    # inbox/quarantine 必须保持空 (有文件 = 流转异常); items/concepts 在
+    # 隔离根上为 0 (无造数) — 规模地板 (4149/96) 属真实库断言, 已随 T01
+    # 隔离移除, 真实数据量校验由 backup_verify/T17 承担。
     assert wf["inbox"] == 0
     assert wf["quarantine"] == 0
 
@@ -168,6 +168,8 @@ def test_verify_subcommand_missing_baseline(tmp_path):
     cmd = [
         sys.executable,
         str(SCRIPT),
+        "--db", str(DEFAULT_DB),
+        "--wiki-src", str(DEFAULT_WIKI),
         "--out", str(tmp_path / "absent.json"),
         "--verify",
     ]
@@ -186,6 +188,8 @@ def test_verify_subcommand_writes_real_baseline_then_verifies(tmp_path):
     write_cmd = [
         sys.executable,
         str(SCRIPT),
+        "--db", str(DEFAULT_DB),
+        "--wiki-src", str(DEFAULT_WIKI),
         "--out", str(out),
         "--dry-run",  # 不真写盘, 但跑 snapshot
     ]

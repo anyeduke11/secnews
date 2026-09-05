@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import subprocess
 import sys
@@ -16,6 +17,8 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "db_diet.py"
 RETENTION = REPO_ROOT / "scripts" / "retention.json"
+# v1.0 T01: 隔离 — 涉及真实库路径的断言改走会话根 (config 驱动)
+from backend.config import config as _config
 
 
 @pytest.fixture
@@ -124,7 +127,8 @@ def _run_db_diet(db_path: Path, *extra_args: str) -> dict:
     ]
     proc = subprocess.run(
         cmd, capture_output=True, text=True, timeout=120, cwd=str(REPO_ROOT),
-        env={"PATH": "/usr/bin:/bin:/usr/local/bin", "PYTHONPATH": str(REPO_ROOT)},
+        # T01: 继承 os.environ (HOTSPOT_DB_PATH 隔离根) + 最小 PATH/PYTHONPATH
+        env={**os.environ, "PATH": "/usr/bin:/bin:/usr/local/bin", "PYTHONPATH": str(REPO_ROOT)},
     )
     if proc.returncode not in (0, 1):  # EXIT_OK=0, EXIT_PARTIAL=1
         raise RuntimeError(
@@ -159,9 +163,9 @@ def test_retention_json_referenced_tables_exist():
 
     T6.4 物理分离后, 表可能跨 db (main/warm/cold)。本测试 ATTACH warm/cold 后再扫描。
     """
-    db_path = REPO_ROOT / "backend" / "hotspot.db"
-    warm_path = REPO_ROOT / "backend" / "hotspot-warm.db"
-    cold_path = REPO_ROOT / "backend" / "hotspot-cold.db"
+    db_path = _config.db_path
+    warm_path = _config.warm_db_path
+    cold_path = _config.cold_db_path
     conn = sqlite3.connect(str(db_path))
     if warm_path.exists():
         conn.execute(f"ATTACH DATABASE '{warm_path}' AS warm")

@@ -7,7 +7,7 @@
 | ID | 前置 | 交付物 | 状态 | DEV | commit / 证据 |
 |---|---|---|---|---|---|
 | T00 基线与账本 | 无 | baseline.md + task-status.md + **feature-inventory.md** + 样本故事 | **verified** | DEV-0136 | f9520c2 (docs/v1.0) + 本轮补 commit; 只读盘点 |
-| T01 测试隔离 | T00 | 隔离 fixture + 路径防护 + 回归基线 | planned | — | 修复 F13 (agent_bridge 测试直写 HOT 库) |
+| T01 测试隔离 | T00 | 隔离 fixture + 路径防护 + 回归基线 | **verified** | DEV-0137 | 四层隔离 (env 会话根 / audit 哨兵 / 每测 fixture / mock); agent_bridge 14/14 且真实库零写入; 全量 3878/0; 策略 = docs/v1.0/test-isolation.md |
 | T02 备份/恢复/开发副本 | T01 | manifest + 恢复报告 + 开发环境模板 | planned | — | WARM 818MB 为体量基准; full 备份 7 天旧 (F6) |
 | T03 契约与原型 | T00,T01 | docs/v1.0/contracts.md + 可生成 TS + 四入口原型 | planned | — | |
 | T04 SDK 往返验证 | T01,T03 | 构建锁 + 协议报告 + live trace | planned | — | dsh SHA d347e70 / pi SHA 6f11c31 (DEVELOPMENT_PLAN §4.2); 建议 2-3 工作日退出判据 |

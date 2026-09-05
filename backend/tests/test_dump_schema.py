@@ -27,7 +27,10 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "dump_schema.py"
-DEFAULT_DB = REPO_ROOT / "backend" / "hotspot.db"
+# v1.0 T01: 隔离 — 用会话根库 (config 驱动), 不再直连真实 backend/hotspot.db
+from backend.config import config as _config
+
+DEFAULT_DB = _config.db_path
 
 
 def _load_module():
@@ -61,9 +64,10 @@ def test_totals_business_tables_at_least_60(dump_data):
     )
 
 
-def test_totals_fts5_groups_is_three(dump_data):
-    """FTS5 虚表组必须 == 3: hotspots_fts / unified_fts / wiki_items_fts。"""
-    assert dump_data["totals"]["fts5_groups"] == 3
+def test_totals_fts5_groups_at_least_three(dump_data):
+    """FTS5 虚表组 >= 3 (hotspots_fts / unified_fts / wiki_items_fts 必在;
+    v1.0 T01 泛化后 knowledge_chunks_fts_cjk 等新组也被识别)。"""
+    assert dump_data["totals"]["fts5_groups"] >= 3
     names = [g["name"] for g in dump_data["fts_groups"]]
     assert "hotspots_fts" in names
     assert "unified_fts" in names
@@ -160,8 +164,12 @@ def test_dumped_at_is_iso8601(dump_data):
 
 
 def test_db_path_is_relative(dump_data):
-    """db_path 必须是相对路径 (跨机迁移友好)。"""
-    assert not Path(dump_data["db_path"]).is_absolute()
+    """db_path 优先相对路径 (跨机迁移友好); T01 隔离根在仓库外时允许绝对路径。"""
+    p = Path(dump_data["db_path"])
+    if "hotspot-test-iso-" in str(p):
+        assert p.is_absolute()
+    else:
+        assert not p.is_absolute()
 
 
 def test_hotspot_version_string(dump_data):
@@ -197,7 +205,7 @@ def test_ddl_sql_rebuilds_schema(tmp_path):
 def test_cli_sql_only(tmp_path):
     """--sql-only 仅写 ddl.sql。"""
     out_dir = tmp_path / "schema_only"
-    cmd = [sys.executable, str(SCRIPT), "--out", str(out_dir), "--sql-only"]
+    cmd = [sys.executable, str(SCRIPT), "--out", str(out_dir), "--db", str(DEFAULT_DB), "--sql-only"]
     r = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, f"failed:\nSTDOUT:\n{r.stdout}\nSTDERR:\n{r.stderr}"
     assert (out_dir / "ddl.sql").exists()
@@ -209,7 +217,7 @@ def test_cli_sql_only(tmp_path):
 def test_cli_full_creates_all_four_files(tmp_path):
     """完整模式生成 ddl.sql + tables.json + fks.json + fts_groups.json。"""
     out_dir = tmp_path / "schema_full"
-    cmd = [sys.executable, str(SCRIPT), "--out", str(out_dir)]
+    cmd = [sys.executable, str(SCRIPT), "--out", str(out_dir), "--db", str(DEFAULT_DB)]
     r = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, f"failed:\nSTDOUT:\n{r.stdout}\nSTDERR:\n{r.stderr}"
 
@@ -229,5 +237,5 @@ def test_cli_full_creates_all_four_files(tmp_path):
     assert tables["totals"]["business_tables"] >= 60
     # fks.json 含 fks 数组
     assert "fks" in fks and len(fks["fks"]) >= 1
-    # fts_groups.json 含 groups
-    assert "groups" in fts and len(fts["groups"]) == 3
+    # fts_groups.json 含 groups (v1.0 T01 后 >= 3, cjk 组泛化识别)
+    assert "groups" in fts and len(fts["groups"]) >= 3

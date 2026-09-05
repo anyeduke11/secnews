@@ -183,6 +183,12 @@ def _fetch_table_detail(conn: sqlite3.Connection, table: str) -> dict[str, Any]:
     }
 
 
+def _is_fts5_main(name: str) -> bool:
+    """FTS5 虚表主名: 以 _fts 结尾, 或含 _fts_ 段 (如 knowledge_chunks_fts_cjk),
+    且自身不是支撑表 (v1.0 T01 泛化 — cjk 组此前漏识别导致 DDL 重建重复建表)。"""
+    return "_fts" in name and not _is_fts5_shadow(name)
+
+
 def _group_fts5(conn: sqlite3.Connection, objects: list[dict]) -> list[dict]:
     """识别 FTS5 虚表组 (xxx_fts + 5 个支撑表)。
 
@@ -190,7 +196,7 @@ def _group_fts5(conn: sqlite3.Connection, objects: list[dict]) -> list[dict]:
     例: hotspots_fts → hotspots_fts_config / _data / _docsize / _idx。
     注意: 不能用 prefix 匹配, 否则会把 hotspots_audit 等无关 trigger 表算入。
     """
-    fts_main = [o for o in objects if o["type"] == "table" and o["name"].endswith("_fts")]
+    fts_main = [o for o in objects if o["type"] == "table" and _is_fts5_main(o["name"])]
     groups = []
     table_names = {o["name"] for o in objects if o["type"] == "table"}
     for main in fts_main:
@@ -247,11 +253,17 @@ def dump(db_path: Path) -> dict[str, Any]:
     # DDL 排序: table → view → trigger → index, 按依赖拓扑 (简化: 按字母)
     ddl_objects = [o for o in objects if o["type"] in ("table", "view", "trigger", "index")]
 
+    # v1.0 T01: 测试隔离根在 REPO_ROOT 外 — 相对化失败时回退绝对路径
+    try:
+        db_path_disp = str(db_path.relative_to(REPO_ROOT))
+    except ValueError:
+        db_path_disp = str(db_path)
+
     return {
         "schema_version": 1,
         "dumped_at": datetime.now(timezone.utc).isoformat(),
         "hotspot_version": _read_version(),
-        "db_path": str(db_path.relative_to(REPO_ROOT)),
+        "db_path": db_path_disp,
         "db_size_bytes": db_path.stat().st_size,
         "totals": {
             "all_objects": len(objects),

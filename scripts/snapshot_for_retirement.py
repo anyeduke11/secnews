@@ -165,11 +165,17 @@ def snapshot(db_path: Path, wiki_src: Path) -> dict:
     for sub in WIKI_SUBDIRS:
         wiki_files[sub] = _count_wiki_subdir(wiki_src, sub)
 
+    # v1.0 T01: 测试隔离根在 REPO_ROOT 外 — 相对化失败时回退绝对路径
+    try:
+        db_path_disp = str(db_path.relative_to(REPO_ROOT))
+    except ValueError:
+        db_path_disp = str(db_path)
+
     return {
         "schema_version": 1,
         "snapshot_at": datetime.now(timezone.utc).isoformat(),
         "hotspot_version": _read_version(),
-        "db_path": str(db_path.relative_to(REPO_ROOT)),
+        "db_path": db_path_disp,
         "db_size_bytes": db_path.stat().st_size,
         "table_counts": table_counts,
         "total_db_rows": sum(v for v in table_counts.values() if v >= 0),

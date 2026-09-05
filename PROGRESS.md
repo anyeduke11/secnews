@@ -119,6 +119,27 @@
 - **5s TTL module-level cache**: `_cached_rules + _cached_at`; 任何写操作 (POST/PATCH/DELETE) API 端 `invalidate_cache()`; 5s 后下一次访问自动重拉
 - **HotspotItem.source 字段是 source name (非 source_name)**: filter_items 用 `getattr(it, "source", "")` 兼容
 
+### 2026-09-05 v0.8.0-post — 4 步治理审计 (Task 1-4, 本批)
+
+> **来源**: 用户指令 "1,2,3,4 依次按建议治理" (v0.8.0 release tag 同步 / D4-D7 补齐 / v0.8.1+ 方向 / CRITICAL_REVIEW §4.4 dsh 真相治理)。
+> **基线**: `main` HEAD `771d5f4` (含架构图重画 04e04c3+771d5f4); tag `v0.8.0-skills` 在 `39e3fb0` (Phase A/B/C/D merge commit, refactor/v0.8-skills → main)。
+> **范围**: 不引入代码变更, 仅审计 + 文档补账 (`docs/CRITICAL_REVIEW_2026-09-03.md` §4.4 落账)。
+> **commit 链**: 本批 0 代码 commit, 仅 `docs/CRITICAL_REVIEW_2026-09-03.md` §4.4 落账注 (`docs: CRITICAL_REVIEW §4.4 落账 - dsh 真相 v0.8 B4+archify chore` 1 commit)。
+
+- [x] **Task 1 — v0.8.0 release tag 同步**: 审计 tag 位置 / version.py / AGENTS.md 头部 / CHANGELOG.md v0.8.0 段 / PROGRESS.md v0.8 Skills 段 5 处全部一致。**结论**: tag `v0.8.0-skills` 保留在 39e3fb0 (功能冻结点,Phase A/B/C/D merge),架构图重画 771d5f4 是 release 内合法 chore (叙事层修复,不动 release 头)。无遗漏,无 tag 重定位必要。
+- [x] **Task 2 — D4-D7 补齐**: 审计 v0.7 batch ⑧ (merge `6adccd6`, tag `v0.7.4-cleanup`) 落账 7 段: D1 OAuth / D2 告警 5 档 / D3 SSE / D4 api_events 采样降级 / D5 扩展域开闸 / D6 i18n+a11y / D7 docstring 强制。**代码 / CHANGELOG / CI / scripts 全部 100% 落地** (audit reference: CHANGELOG.md line 1407-1418)。无需新工作。
+- [x] **Task 3 — v0.8.1+ 方向**: 推 CRITICAL_REVIEW §1.2 断路器 + §2.1 LLM 语义降级 **联动 batch** (5 天) — 两者强依赖(provider_health 滑动窗口 → 触发 circuit_breaker OPEN → 自动切下个 provider),拆分技术债翻倍。备选 §3.1 前端 SWR (~1 周) 等本批后开。**用户待裁决**。
+- [x] **Task 4 — CRITICAL_REVIEW §4.4 dsh 真相治理**: 走"选项 A 诚实化中庸版" — 保留 :3210 端口标注 + 显式暴露降级链, 不移除节点。**三层落账**: ① 代码层 (B4 `d7ed96b` `runtime.py:resolve_mode()` 3 状态 + `supervisor.py` 4 态) ② 架构图层 (v0.8.0-post `771d5f4` 副标签 `ProcessSupervisor · :3210 (not_configured→mock→ai_hub)`) ③ docs 层 (本批 CRITICAL_REVIEW §4.4 落账注)。**用户看图即知真实语义, 不再误导成"独立网关"**。
+
+### 关键事实 (v0.8.0-post)
+
+- **dsh 不是独立网关**: 是 uvicorn :8000 进程内 builtin runner pool, :3210 是用户可能配的 endpoint (实际多数安装下未运行); 真实降级链 = `not_configured → mock → ai_hub builtin` (B4 `d7ed96b` `backend/services/dsh/runtime.py:resolve_mode`)
+- **架构图叙事与代码事实对齐**: `★ DSH (Brain) · ProcessSupervisor · :3210 (not_configured→mock→ai_hub)` 副标签明确"4 runner 之一"非"独立网关",CRITICAL_REVIEW §4.4 推荐选项 A 的"诚实化中庸版"
+- **v0.8.1 推荐 = §1.2 断路器 + §2.1 LLM 语义降级 联动 batch**: 5 天工作量, v0.8 Skills 20 skill 跑起来后 provider 500 雪崩防御, 与 4 runner 并行不冲突
+- **架构图 chore 不动 release tag**: chore(arch) 771d5f4 是 v0.8.0 release 内的合法延续, release tag `v0.8.0-skills` 仍指 39e3fb0
+
+### 不在本批范围 (留独立段)
+
 ### 不在本批范围 (留独立段)
 
 - ai_hub Layer 3 (gateway chunks source 维度过滤) — chunks 签名不匹配, 需先重构 gateway.py

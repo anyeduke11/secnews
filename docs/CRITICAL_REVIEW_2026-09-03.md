@@ -367,6 +367,11 @@ async def quality_rules(response: Response):
 - 选项 A: 移除 :3210 节点, 把 dsh 改为 "internal runner pool" 框
 - 选项 B: 真正拆出独立网关 (vendor/dsh/ 子模块, gunicorn worker 模式, 端口 3210) — 大改, 1 月工作量
 
+**落账 (2026-09-05)**: 走选项 A 的"诚实化中庸版" — 保留 :3210 端口标注 (用户可能配的 endpoint) + 显式暴露降级链, 不移除节点:
+- `backend/services/dsh/runtime.py:resolve_mode()` 3 状态返回 `("mock"|"subprocess"|"not_configured", reason)` (B4 commit `d7ed96b` 已落)
+- `backend/services/dsh/supervisor.py:139` status 暴露 4 态 `connected/starting/stopped/not_configured` (CHANGELOG line 462)
+- 架构图 `★ DSH (Brain) · ProcessSupervisor · :3210 (not_configured→mock→ai_hub)` 副标签 (v0.8.0-post `771d5f4` 5 叙事修复) — 把降级链写进图, 用户看图即知真实语义, 不再误导成"独立网关"
+
 ---
 
 ## 五、未来形态: BS-AI-Agent (Browser + Server AI Agent)

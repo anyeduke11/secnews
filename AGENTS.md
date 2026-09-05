@@ -1,6 +1,6 @@
 # SecNews Knowledge Dashboard — 安全从业者 AI 助手的平台看板层
 
-> **当前状态 (2026-09-04, v0.8.0)**: Sentinel Terminal 全屏页已上线 (`/` `/judge` `/action` `/garden`); data/judge/action 三层目录与 6 cognitive modes 已物理删除; `/secnews` 为统一工作台 (6 tab); dsh 内置为受管子进程 — 前端 `/secnews/settings` 一键启停 (gate dsh=true, 控制面 `/api/dsh/control/*`); ai_hub 已包化, LLM provider 四级切换链落地; v0.8 Skills 四阶段全部收口 — Phase A 触发门 + Skill Store + 20 内置 skill / Phase B 详情页历史回放反馈打分 (B6) / Phase C Playbook 引擎 + Cron 调度 + Skill Builder + Eval 评测框架 (C1-C5) / Phase D webhook + KL 事件 + collector failure 三触发源 (D1) + /dashboard 看板 (D2) + i18n 双语补齐 (D3) + 文档迁移指南 (D5), 详见 `PROGRESS.md` v0.8 Skills 段。
+> **当前状态 (2026-09-05, v0.8.0)**: Sentinel Terminal 全屏页已上线 (`/` `/judge` `/action` `/garden`); data/judge/action 三层目录与 6 cognitive modes 已物理删除; `/secnews` 为统一工作台 (6 tab); dsh 内置为受管子进程 — 前端 `/secnews/settings` 一键启停 (gate dsh=true, 控制面 `/api/dsh/control/*`); ai_hub 已包化, LLM provider 四级切换链落地; v0.8 Skills 四阶段全部收口 — Phase A 触发门 + Skill Store + 20 内置 skill / Phase B 详情页历史回放反馈打分 (B6) / Phase C Playbook 引擎 + Cron 调度 + Skill Builder + Eval 评测框架 (C1-C5) / Phase D webhook + KL 事件 + collector failure 三触发源 (D1) + /dashboard 看板 (D2) + i18n 双语补齐 (D3) + 文档迁移指南 (D5), 详见 `PROGRESS.md` v0.8 Skills 段; v0.8.0-post 治理收口 (架构图 archify 0-error 重渲 / CRITICAL_REVIEW 09-05 全文复核 / 过期文档修正) 见 `PROGRESS.md` v0.8.0-post 段, **v0.8.1 方向已立项待裁决** — `docs/V0.8.1_PLAN.md` (推荐 A: 断路器 + provider_health 联动 5 天; 裁决点 D1-D6; 前置 = 七 gate 开闸演练 1 天)。
 > 历史决策 (产品三层架构裁决 / wiki-first 存储哲学 / Phase 7 退役冻结) 见 `PROGRESS.md` 与 `git log`，不在此重复。
 
 ---
@@ -18,13 +18,21 @@
 > **架构数字由 `scripts/generate_meta.py` AST 反推维护** (51 jobs / 14 collectors / 73 routers / 107 services),
 > 改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
 
-- **开关源**: `backend/config/feature_gates.toml` — 当前默认开启: codegarden/sync/secnews/crm/dsh;
-  默认关闭: codegarden_phase2b/mcp/tech_stack/security_graph
-- **core 永不消失**: `backend/core/routers.py` 43 个 core router 白名单, 与扩展域防重叠断言;
+- **开关源**: `backend/config/feature_gates.toml` — 当前 16 gate: 默认开启 8 (codegarden / codegarden_phase2b / sync / tech_stack / security_graph / secnews / crm / dsh);
+  默认关闭 8 (mcp / info_filter / v0.8 Skills 六 gate: skill_registry·trigger_gate·agent_loop·playbook_engine·user_skills·skill_eval — 全 fail-closed 未开闸)
+- **core 永不消失**: `backend/core/routers.py` 45 个 core router 白名单, 与扩展域防重叠断言;
   扩展 router 按 `is_extension_enabled()` 条件注册 (关闭时路由 404)
-- **job 门控**: `scheduler.py` `_is_job_enabled()` 按扩展归属过滤 7 个扩展 job
+- **job 门控**: `scheduler.py` `_is_job_enabled()` 按扩展归属过滤 8 个扩展 job
 - **env 覆盖**: `HOTSPOT_FEATURE_GATES='{"extensions": {...}}'` 优先级高于 TOML (CI core-only 用)
 - **测试约定**: conftest autouse fixture 测试环境全开 gates; 组合矩阵见 `backend/tests/test_feature_gates.py`
+
+## v0.8.0-post 治理与 v0.8.1 立项 (2026-09-05)
+
+- **审计事实源**: `docs/CRITICAL_REVIEW_2026-09-03.md` (2026-09-05 复核版, 19 finding 逐项标 ✅/◐/❌) — 动手前先查对应项状态, 勿凭旧印象; `docs/V0.8_REFACTOR_PLAN.md` 已加已完结横幅 (25 个 `[ ]` 是计划态留痕, 执行记录以 `PROGRESS.md` 为准)
+- **v0.8.1 下一 batch**: `docs/V0.8.1_PLAN.md` — 推荐 A = CRITICAL_REVIEW §1.2 断路器 + §2.1 provider_health/场景权重联动 (5 天, 复用 `retry_policy.py` 模式与 dsh runtime 3 连败先例, 不引新依赖); 备选 B (断路器 alone 2 天) / C (react-query 5-7 天) / D-a~d (error_classifier 2 天 / graceful shutdown 0.5 天 / GZip 2 天 / pi 协议实测 1 周); 裁决点 D1-D6 待用户拍板 — **未裁决前勿动 ai_hub 调用链** (`gateway._try_order` / `service._resolve_provider`)
+- **前置项**: 七 gate 开闸演练 (skill_registry/trigger_gate/agent_loop/playbook_engine/user_skills/skill_eval/info_filter 全开后全量回归 + ARCHITECTURE 同步, 1 天)
+- **架构图**: `hotspot-architecture.html` + `hotspot-architecture.candidate.json` 已入仓 — **candidate.json 是唯一编辑入口**, HTML 由 `archify deliver` 生成不手改; 硬约束: viewBox 宽 ≤~1390 (context 字号 9px 上限 × 投影 ≥6px @1440) / 列距 ≥40px (26px 以下渲染器崩溃) / 副标签长度按盒宽预算 → **加节点必先删节点**; 复跑 archify 会覆盖入仓产物
+- **dsh 真相 (叙事锚点)**: 受管子进程, :3210 降级链 `not_configured→mock→ai_hub` — 图/docs/代码 (`dsh/runtime.py:resolve_effective` 三态) 三层已对齐, 新文档沿用此口径, 勿再写"独立网关"
 
 ## Core 路径边界声明 (core.include / core.exclude)
 

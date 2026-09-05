@@ -265,6 +265,19 @@
 - **conftest autouse 复位单例是硬要求**: 任何引入模块级可变单例 (如 ProviderHealth) 的功能, 必须同步 conftest autouse 复位 fixture — 否则全量跑时跨文件污染 (单跑全过的假绿)。
 - **通电改变 toml 默认 = 改变测试前置**: 断言 "gate off 行为" 的测试必须 monkeypatch 显式自持, 不得依赖 toml 默认值 (默认值现在会随通电演进)。
 
+### 2026-09-05 v0.8.1 D6 — pi 协议 live 实测 (提前执行, 用户指令) (本批)
+
+> **来源**: 用户指令 "tag, 然后本地 commit, 进行 D6 和 pi live 实测" (D6 = pi 实测纳入, 原排次周提前)。
+> **环境**: pi CLI 0.84.4 (/opt/homebrew/bin/pi, 底层 provider = sensenova deepseek-v4-flash); tag `v0.8.1` 已打 (1963bdc)。
+> **范围**: PRD §4.3.A Phase A — 协议实测 + 修 agent_bridge 假设 + 契约测试 + live 探针脚本。
+
+- [x] **协议实测 (两轮)**: `pi -p --mode json` 真机 NDJSON — 事件序列 session/agent_start/turn_start/message_start+end×N/**message_update(流式, 失败流无)**/turn_end/agent_end/agent_settled; 文本在 `message.content[]` type=="text" 段 — **结构假设吻合**。
+- [x] **实测抓到 2 个真缺口 (均已修 `_parse_jsonl_events`)**: ① **user 消息也发 message_end 且带 text 段** → 修复前会把用户输入当结果返回 (假阳性); 修 = `role=="user"` 跳过 (无 role 旧样本保持旧行为, 既有测试兼容)。② **上游 429 时 pi rc=0** + assistant message_end 带 `stopReason:"error"`、content=[] → 修复后退化为 last JSON 行假阳性 ok=True; 修 = 无成功文本返 None → bridge 走 "stdout 无可解析输出" 失败信封。
+- [x] **契约测试 +4** (真实捕获样本精简): user 回显跳过 / 仅回显退化旧行为 / 429 流返 None / bridge 全链失败信封; 既有 jsonl 样本 (无 role) 兼容不破。
+- [x] **live 全链 PASS** (配额恢复后二轮): 21 行 NDJSON (含 message_update ×11 流式), bridge 解析 "PONG", `run_agent_task` ok=True; **transcript 落库铁证 agent_runs id=286 agent=pi status=ok duration=2691ms result_excerpt='PONG'**。
+- [x] **scripts/soaktest/pi_live_probe.py**: 可重复 live 探针 (真 pi + 解析契约 + bridge 全链 + agent_runs 落库断言; 上游失败/成功双路径判定; 仅本地手动, 不进 pytest/CI — 零 skip 硬要求)。
+- [x] **残项**: message_update 流式事件语义 (逐 chunk 增量) 未接 — bridge 只取最终 message_end, 流式 UI 反馈留 §4.3.B (P1)。
+
 ### 2026-09-02 SettingsHub V2 — 哨兵化全重设计 + 5 子组件拆分 (本批)
 
 > **来源**: 用户指令 "哨兵以外的 UI/UX 调整, 参考哨兵进行美化" + 四问决策 (Q1 加 dashboard 用途/代价/习惯说明, Q2 拆 5 子组件, Q3 全重设计, Q4 测试全重写一步到位)。

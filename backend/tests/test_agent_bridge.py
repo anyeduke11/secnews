@@ -81,6 +81,77 @@ def test_run_jsonl_parses_message_end_text(cfg):
     assert result["duration_ms"] is not None
 
 
+# ---------------------------------------------------------------------------
+# jsonl 协议 — pi 0.84.4 live 实测契约 (2026-09-05, V0.8.1 D-d)
+# 样本取自真机 `pi -p --mode json` 实捕 (精简), 见 scripts/soaktest/pi_live_probe.py
+# ---------------------------------------------------------------------------
+def test_jsonl_skips_user_echo_takes_assistant_text():
+    """实测缺口①: user 消息也发 message_end 且带 text — 必须取 assistant 的。"""
+    stdout = "\n".join([
+        '{"type":"session","version":3,"id":"x"}',
+        '{"type":"agent_start"}',
+        '{"type":"turn_start"}',
+        '{"type":"message_end","message":{"role":"user","content":'
+        '[{"type":"text","text":"Reply with exactly one word: PONG"}]}}',
+        '{"type":"message_end","message":{"role":"assistant","content":'
+        '[{"type":"text","text":"PONG"}]}}',
+        '{"type":"turn_end"}',
+    ])
+    assert agent_bridge._parse_jsonl_events(stdout) == "PONG"
+
+
+def test_jsonl_user_echo_only_returns_fallback_json():
+    """只有 user 回显 (无 assistant turn) → 退化为最后一条 JSON 行 (旧行为)。"""
+    stdout = "\n".join([
+        '{"type":"session","version":3,"id":"x"}',
+        '{"type":"message_end","message":{"role":"user","content":'
+        '[{"type":"text","text":"hi"}]}}',
+    ])
+    result = agent_bridge._parse_jsonl_events(stdout)
+    assert result is not None and '"type":"message_end"' in result
+
+
+def test_jsonl_upstream_error_returns_none_not_false_positive():
+    """实测缺口②: sensenova 429 → pi rc=0, assistant message_end 带
+    stopReason=="error" 且 content=[] → 必须 None (失败信封), 不得把
+    user 回显或 JSON 行当结果 (修复前假阳性 ok=True)。"""
+    stdout = "\n".join([
+        '{"type":"session","version":3,"id":"01a070b8"}',
+        '{"type":"agent_start"}',
+        '{"type":"turn_start"}',
+        '{"type":"message_end","message":{"role":"user","content":'
+        '[{"type":"text","text":"Reply with exactly one word: PONG"}]}}',
+        '{"type":"message_end","message":{"role":"assistant","content":[],'
+        '"provider":"sensenova","model":"deepseek-v4-flash",'
+        '"stopReason":"error","errorMessage":"429: quota exceeded"}}',
+        '{"type":"turn_end"}',
+    ])
+    assert agent_bridge._parse_jsonl_events(stdout) is None
+
+
+def test_run_jsonl_upstream_error_returns_failure_envelope():
+    """bridge 全链: 上游失败流 → ok=False 信封 (rc=0 但解析为 None)。"""
+    fake = (
+        "echo '{\"type\":\"message_end\",\"message\":{\"role\":\"user\","
+        "\"content\":[{\"type\":\"text\",\"text\":\"PONG\"}]}}'; "
+        "echo '{\"type\":\"message_end\",\"message\":{\"role\":\"assistant\","
+        "\"content\":[],\"stopReason\":\"error\"}}'"
+    )
+    cfg2 = AgentsConfig(
+        agents={
+            "builtin": AgentRunner(command=[], protocol="acp", task_types=[]),
+            "pi": AgentRunner(
+                command=["sh", "-c", fake],
+                protocol="jsonl", task_types=["execute"], timeout_seconds=30,
+            ),
+        },
+        default_agent="builtin",
+    )
+    result = agent_bridge.run_agent_task("execute", "x", config=cfg2)
+    assert result["ok"] is False
+    assert "无可解析输出" in result["error"]
+
+
 def test_run_nonzero_exit_returns_error_envelope():
     cfg2 = AgentsConfig(
         agents={

@@ -37,7 +37,7 @@ hotspot/
 │   ├── collectors/            # 14 个 BaseCollector 子类 + session/id_factory/parsing/keywords
 │   ├── parsers/               # 独立解析器 (BaseSourceParser + bid 四源 + trafilatura/crawl4ai)
 │   ├── quality/               # 质量门禁 pipeline (12 同步 gate + scorer + simhash)
-│   ├── scheduler/             # APScheduler 封装 + jobs/ 包 (51 jobs, 按域拆 7 组)
+│   ├── scheduler/             # APScheduler 封装 + jobs/ 包 (52 jobs, 按域拆 7 组)
 │   ├── kl_pipeline/           # KL 知识生命周期管线 (engine/queue/runtime/llm_adapter)
 │   ├── wiki_fs/               # llm-wiki-2.0 文件存储契约 (store/contract/linker/liveness/paths)
 │   ├── security/              # Security Graph (mitre_attack/graph/enricher/compliance)
@@ -85,7 +85,7 @@ hotspot/
 │  └───────┬────────┘   └────────────────┘   └────────────────────┘   │
 │  ┌───────▼────────┐   ┌────────────────┐   ┌────────────────────┐   │
 │  │ quality/       │   │ scheduler/     │   │ observability/     │   │
-│  │ 12 gate 管线    │   │ 51 jobs (7 组) │   │ record_* + 阈值+告警 │   │
+│  │ 12 gate 管线    │   │ 52 jobs (7 组) │   │ record_* + 阈值+告警 │   │
 │  └────────────────┘   └────────────────┘   └────────────────────┘   │
 └──────────────────────────────┬───────────────────────────────────────┘
                                │
@@ -151,7 +151,7 @@ services (业务编排; 严禁 import backend.api)
 - **`api/__init__.py` 薄壳化** — 实际注册在 `_registry.py`, import 全部 lazy (避免循环依赖)
 - **repo 单例** — 每个 repository 模块导出模块级 singleton 实例
 - **注册代码改动必须同步架构数字**: `python scripts/generate_meta.py` 重写
-  `docs/ARCHITECTURE.md` (CI `--check`; 当前代码事实 **51 jobs / 14 collectors / 73 routers / 107 services**)
+  `docs/ARCHITECTURE.md` (CI `--check`; 当前代码事实 **52 jobs / 14 collectors / 73 routers / 108 services**)
 - **core 白名单防重叠** — 任何新 router 不允许与 `backend/core/routers.py` 已声明路径前缀重叠
 - **观测落表 = 纯 def 同步**: `observability_records.py` 全 `def`, 任何 async 端点禁止
   `await record_*` (线程池派发); record_* 内部失败一律 swallow, 永不阻塞业务响应

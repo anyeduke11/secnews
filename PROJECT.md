@@ -99,7 +99,7 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 
 ## 生命周期
 
-当前阶段：**v0.8.2 治理合批完成 (2026-09-05)** — 子批 1 快赢包 X (B1 per-provider 断路器阈值 / B2 ruff 全仓 167→0 / B3 死 gate 键+mcp 契约 / B4 PROGRESS 归档+CHANGELOG 时序 / C2 GZip+Cache-Control) + 子批 2 通电治理 Y (A1 utils/concurrency.py 全局限流单一真相源 / A2 配置 5s TTL 热重载 / A4 backup_verify 周一 job)。**待办**: ① 远端推送 (用户授权, V2-C11, 累计 v0.8.1+ v0.8.2 本地 commit) ② 留独立窗口: react-query (C1) / pi 流式 UI (D1) / error_classifier。规格 = PROGRESS.md v0.8.2 段 (本版无独立 PRD, 推荐原文见上会话收尾)。
+当前阶段：**v0.8.2 治理合批完成 + 收尾对账 (2026-09-05)** — 子批 1 快赢包 X (B1 per-provider 断路器阈值 / B2 ruff 全仓 167→0 / B3 死 gate 键+mcp 契约 / B4 PROGRESS 归档+CHANGELOG 时序 / C2 GZip+Cache-Control) + 子批 2 通电治理 Y (A1 utils/concurrency.py 全局限流单一真相源 / A2 配置 5s TTL 热重载 / A4 backup_verify 周一 job) + 收尾 (README/code-wiki 计数对账)。**待办**: ① ~~远端推送~~ **用户明令禁止推送 (2026-09-05)** — 本地领先 origin/main 11+ commits + tag v0.8.1/v0.8.2, 推送须用户明确解禁 ② 留独立窗口: react-query (C1) / pi 流式 UI (D1) / error_classifier。规格 = PROGRESS.md v0.8.2 段 (本版无独立 PRD, 推荐原文见上会话收尾)。
 
 ### 阶段检查记录
 

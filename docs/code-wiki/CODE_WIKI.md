@@ -19,10 +19,10 @@
 >   **开启**; `dsh` 内置化为受管子进程 + 前端一键启停
 > - **i18n + a11y** (Batch ⑧⑨): 0 依赖 I18nContext (zh-CN / en-US) + LocaleToggle + a11y 系统化
 >
-> 架构数字 (51 jobs / 14 collectors / 68 routers / 105 services) 由
-> `scripts/generate_meta.py` AST 反推维护。⚠️ 注意: 本 wiki 生成时 `generate_meta --check` 检出
-> `docs/ARCHITECTURE.md` jobs 为 50 (代码实际 51, 差 `secrets_rotation_check`), 属文档滞后 1 项,
-> 详见 [05-running.md](05-running.md) §4 与 §8。
+> 架构数字 (52 jobs / 14 collectors / 73 routers / 108 services) 由
+> `scripts/generate_meta.py` AST 反推维护 (v0.8.2 收尾对账; 历史上 jobs 曾滞后
+> 1 项 — 差 `secrets_rotation_check`, 已于 v0.7 Batch ⑨ 对齐), 详见
+> [05-running.md](05-running.md) §4 与 §8。
 
 ## 导航
 
@@ -68,7 +68,7 @@
 ├────────────────────────────────────────────────────────────────┤
 │ Backend:  FastAPI + Uvicorn (单进程单 worker)                   │
 │           SQLite WAL (thread-local 连接, autocommit)            │
-│           APScheduler (51 jobs, 进程内) · loguru 结构化日志      │
+│           APScheduler (52 jobs, 进程内) · loguru 结构化日志      │
 │           Observability: TraceIDContextVar + record_* 落表      │
 │           Port: 8000 (CORS 白名单: 8000/8898/8899)              │
 ├────────────────────────────────────────────────────────────────┤

@@ -16,7 +16,7 @@
 | 一句话定位 | **面向 AI + 安全从业者的单机个人工作站** (资讯聚合 → 质量门禁 → 知识库 → 认知工作台) | **"The context API to search, scrape, and interact the web at scale"** (面向 AI 的网页上下文**数据基础设施**, SaaS 为主) | **LLM 友好的进程内 Python 爬虫库** (浏览器级抓取 + 结构化/语义提取) |
 | 目标用户 | 单个从业者本人 (一人一机) | 开发者 / AI 应用团队 (150k+ 公司级 API 消费者) | Python 开发者 (pip 进自己 pipeline), 77.9k⭐ (2026-08) |
 | 核心交付 | 完整产品: 采集 + 质量 + 知识 + 图谱 + 工作台 + 同步 + 观测 | REST API 产品: search/scrape/crawl/extract/interact/browser/parse | pip 库 + 可选 Docker server + 预告 Cloud API |
-| 规模 | ~105 services / 68 routers / 51 jobs / 14 collectors / SQLite 单进程 | monorepo (TypeScript ~70%), api + playwright-service + redis + rabbitmq + postgres (worker 队列) | 纯 Python 库 + Playwright 浏览器进程; 可选内存自适应调度 |
+| 规模 | ~108 services / 73 routers / 52 jobs / 14 collectors / SQLite 单进程 | monorepo (TypeScript ~70%), api + playwright-service + redis + rabbitmq + postgres (worker 队列) | 纯 Python 库 + Playwright 浏览器进程; 可选内存自适应调度 |
 | 语言 | Python (FastAPI) | 主 TS (apps/api), Playwright 服务 | Python (AsyncWebCrawler) |
 | 许可证 | — (个人项目) | **AGPL-3.0 核心 / MIT SDK** (云版付费) | **Apache-2.0 + 署名条款** |
 | 渲染 | 裸 HTTP 为主; crawl4ai/playwright 作可选 fallback (YAML `enabled` 开关) | Playwright 微服务 + 云版 Fire-engine (反爬/JS 渲染/智能等待) | Playwright 浏览器级 + 轻量 HTTP 双通道 |

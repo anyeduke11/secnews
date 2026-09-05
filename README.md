@@ -117,10 +117,10 @@ stdio 配置（粘到你的 AI Agent 配置）：
 |------|------|------|
 | Web 框架 | FastAPI | async + OpenAPI 生态成熟 |
 | 主存储 | **SQLite WAL** + `llm-wiki-2.0/` | 零部署 · FTS5 · git 友好 · LLM 可直读 · md 文件是 source of truth |
-| 调度 | APScheduler · **51 jobs** | 单进程内调度，无外部 MQ；含 cg_service_scan / cg_event_process 等 CodeGarden job |
+| 调度 | APScheduler · **52 jobs** | 单进程内调度，无外部 MQ；含 cg_service_scan / cg_event_process / backup_verify 等 job |
 | 采集器 | **14 个** BaseCollector | 8 大领域覆盖，stdin/stdout 标准化 |
 | 路由器 | **73 个** FastAPI include_router | core 45 个白名单 + 28 个扩展域（feature_gates 条件注册） |
-| 业务服务 | **107 个** services 包 | 含 ai_hub / kl_pipeline / dsh / wiki_fs / model_router / agent_bridge 等 |
+| 业务服务 | **108 个** services 包 | 含 ai_hub / kl_pipeline / dsh / wiki_fs / model_router / agent_bridge 等 |
 | MCP | fastapi-mcp | OpenAPI → MCP 自动转换 · 19 个工具 |
 | 前端 | React 18 + Vite 5 + TypeScript | 300+ 组件 · 类型安全 · 热重载 |
 | 图表 | echarts + recharts | 看板风格 |

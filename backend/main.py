@@ -17,6 +17,7 @@ from datetime import timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from backend.api import register_routers
 from backend.api.mcp_config import (
@@ -228,6 +229,9 @@ app.add_middleware(
     allow_credentials=True,
 )
 app.add_middleware(TraceIDMiddleware, exclude_paths=["/api/health"])
+# v0.8.2 X-C2 (CRITICAL_REVIEW §3.2): 全局 gzip 压缩 — >1000B 响应体才压,
+# 小 JSON 不压缩避免 CPU 浪费; SettingsHub 17 cat / quality rules 等大 payload 显著省带宽
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 register_exception_handlers(app)
 register_routers(app)
 

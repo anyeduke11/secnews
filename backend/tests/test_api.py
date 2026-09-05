@@ -597,3 +597,45 @@ def test_all_responses_have_version(client, seeded_db):
             data = r.json()
             assert "version" in data, f"{ep} 响应缺 version: {data}"
             assert data["version"] == API_VERSION
+
+
+# ---------------------------------------------------------------------------
+# X-C2 (v0.8.2): GZip 压缩 + 字典端点 Cache-Control (CRITICAL_REVIEW §3.2)
+# ---------------------------------------------------------------------------
+def test_main_app_has_gzip_middleware():
+    """真实 app 必须挂 GZipMiddleware (minimum_size=1000)。"""
+    from fastapi.middleware.gzip import GZipMiddleware
+
+    from backend.main import app as main_app
+
+    assert any(m.cls is GZipMiddleware for m in main_app.user_middleware)
+
+
+def test_gzip_compresses_large_payload_only():
+    """>1000B 响应 gzip; 小响应不压 (minimum_size 语义)。"""
+    from fastapi.middleware.gzip import GZipMiddleware
+
+    app = FastAPI()
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+    @app.get("/big")
+    async def big():
+        return {"data": "x" * 5000}
+
+    @app.get("/small")
+    async def small():
+        return {"data": "x"}
+
+    with TestClient(app) as c:
+        r_big = c.get("/big", headers={"Accept-Encoding": "gzip"})
+        assert r_big.status_code == 200
+        assert r_big.headers.get("content-encoding") == "gzip"
+        r_small = c.get("/small", headers={"Accept-Encoding": "gzip"})
+        assert r_small.headers.get("content-encoding") is None
+
+
+def test_quality_rules_cache_control(client, temp_db):
+    """字典端点 Cache-Control max-age=10 — 前端 10s 轮询打点的缓存契约。"""
+    r = client.get("/api/quality/rules")
+    assert r.status_code == 200
+    assert r.headers.get("cache-control") == "public, max-age=10"

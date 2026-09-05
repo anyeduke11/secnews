@@ -12,7 +12,7 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Response
 from pydantic import BaseModel, Field
 
 from backend.cache import invalidate as cache_invalidate
@@ -143,11 +143,14 @@ def _build_rules() -> dict:
 
 
 @router.get("/rules")
-async def quality_rules():
+async def quality_rules(response: Response):
     """返回当前生效的 quality.* 配置。
 
     Phase 9 修复：返回 array 格式 + 同步 DB query 放 thread pool。
+    v0.8.2 X-C2 (CRITICAL_REVIEW §3.2): 字典端点 Cache-Control max-age=10 —
+    前端 10s 轮询打点, 10s 内浏览器可直接复用; 规则变更经 PUT 后最多 10s 收敛。
     """
+    response.headers["Cache-Control"] = "public, max-age=10"
     cache_key = "quality:rules"
     if cache_key in static_cache:
         return static_cache[cache_key]

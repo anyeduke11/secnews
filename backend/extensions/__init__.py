@@ -11,12 +11,19 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 import tomllib
 from pathlib import Path
 
 _logger = logging.getLogger(__name__)
 
 _GATES_PATH = Path(__file__).resolve().parent.parent / "config" / "feature_gates.toml"
+
+# v0.8.2 Y-A2: gate 读数热重载 — 5s TTL + mtime 变更检测 (info_filter 5s TTL 模式)。
+# 语义边界 (诚实声明): 热重载只影响**运行时动态读数** (is_extension_enabled 的
+# per-request 判定, 如 dsh 控制面/info_filter hook/skill gate); 路由注册与
+# job 调度是**启动期快照**, 增删 router/job 仍需重启生效。
+_GATES_TTL = 5.0
 
 # 全部扩展域名称（含无 router 的 security_graph —— 只占 job）
 # P1.6: codegarden (M1 项目核心) 与 codegarden_phase2b (M2/M3/M4 服务网格等) 拆开
@@ -129,13 +136,34 @@ JOB_TO_EXTENSION: dict[str, str] = {
 _DEFAULT_GATES: dict[str, bool] = dict.fromkeys(_EXTENSION_NAMES, False)
 
 _GATES_CACHE: dict[str, bool] | None = None
+_GATES_MTIME_NS: int | None = None
+_GATES_CHECKED_AT: float = 0.0
+
+
+def _toml_mtime_ns() -> int | None:
+    try:
+        return _GATES_PATH.stat().st_mtime_ns
+    except OSError:
+        return None
 
 
 def _load_gates() -> dict[str, bool]:
-    """读取 feature_gates.toml；失败则保持 fail-closed 默认 (全关)；env 可覆盖。"""
-    global _GATES_CACHE
+    """读取 feature_gates.toml；失败则保持 fail-closed 默认 (全关)；env 可覆盖。
+
+    v0.8.2 Y-A2: TTL 窗口内直返缓存; 到期 stat 一次 mtime, 未变续期, 变了重读。
+    重读失败 (语法错/文件暂缺) 时**保留旧缓存**并告警 — 运行中配置损坏
+    不至于让全部扩展瞬间消失 (fail-closed 仅限"从未成功读过"的冷启动)。
+    """
+    global _GATES_CACHE, _GATES_MTIME_NS, _GATES_CHECKED_AT
     if _GATES_CACHE is not None:
-        return _GATES_CACHE
+        now = time.monotonic()
+        if now - _GATES_CHECKED_AT < _GATES_TTL:
+            return _GATES_CACHE
+        mtime = _toml_mtime_ns()
+        if mtime is not None and mtime == _GATES_MTIME_NS:
+            _GATES_CHECKED_AT = now
+            return _GATES_CACHE
+        _logger.info("feature_gates.toml 变更, 热重载 gate 动态读数 (路由/job 注册仍以启动期快照为准)")
 
     gates = dict(_DEFAULT_GATES)
 
@@ -144,11 +172,21 @@ def _load_gates() -> dict[str, bool]:
             raw = tomllib.load(f).get("extensions", {})
         gates.update({k: bool(v) for k, v in raw.items() if k in _DEFAULT_GATES})
     except Exception as e:
-        # 不静默: 默认已是全关, 这里只记录, 让"扩展集体消失"可被诊断而非猜测
+        if _GATES_CACHE is not None:
+            # 热重载路径: 配置损坏时保住旧读数, 不让扩展集体消失
+            _logger.error(
+                "feature_gates 热重载失败 (%s: %s); 沿用上次成功读数 (%d gate)",
+                _GATES_PATH, e, len(_GATES_CACHE),
+            )
+            _GATES_CHECKED_AT = time.monotonic()
+            return _GATES_CACHE
+        # 冷启动: 不静默, 默认全关, 让"扩展集体消失"可被诊断而非猜测
         _logger.error(
             "feature_gates 读取失败 (%s: %s); 全部扩展按默认关闭处理",
             _GATES_PATH, e,
         )
+    else:
+        _GATES_MTIME_NS = _toml_mtime_ns()
 
     # CI/测试覆盖: HOTSPOT_FEATURE_GATES='{"extensions": {"codegarden": false, ...}}'
     # 优先级: 默认 < TOML < env
@@ -162,6 +200,7 @@ def _load_gates() -> dict[str, bool]:
             pass
 
     _GATES_CACHE = gates
+    _GATES_CHECKED_AT = time.monotonic()
     return _GATES_CACHE
 
 
@@ -187,9 +226,11 @@ def get_extension_jobs(name: str) -> list[str]:
 
 
 def reset_gates() -> None:
-    """清空缓存强制重读（测试用）。"""
-    global _GATES_CACHE
+    """清空缓存强制重读（测试用; Y-A2 起同时复位 TTL/mtime 状态）。"""
+    global _GATES_CACHE, _GATES_MTIME_NS, _GATES_CHECKED_AT
     _GATES_CACHE = None
+    _GATES_MTIME_NS = None
+    _GATES_CHECKED_AT = 0.0
 
 
 __all__ = [

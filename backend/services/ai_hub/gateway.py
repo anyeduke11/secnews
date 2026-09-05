@@ -67,6 +67,7 @@ class LLMService:
         self,
         config_path: Path | None = None,
     ):
+        self._config_path = config_path  # v0.8.2 Y-A2: 显式 path (测试) 不参与热重载
         self._config: LLMConfig | None = load_llm_config(config_path)
         if self._config is None:
             log.info("LLM config not found, running in v1.7 compatibility mode")
@@ -75,6 +76,23 @@ class LLMService:
                 "LLMService initialized: default=%s, fallback=%s",
                 self._config.default_provider,
                 self._config.fallback_order,
+            )
+
+    def _maybe_reload_config(self) -> None:
+        """v0.8.2 Y-A2: llm.yaml 热重载 (5s TTL/mtime 由 schema 层缓存承担)。
+
+        每次调度漏斗口 (_try_order / resolve_provider_for_task) 调一次 —
+        load_llm_config() 命中缓存时是纯内存比较, 开销可忽略。
+        显式 config_path (测试注入) 永不热重载, 保持既有 mock 语义。
+        """
+        if self._config_path is not None:
+            return
+        fresh = load_llm_config()
+        if fresh is not None and fresh is not self._config:
+            self._config = fresh
+            log.info(
+                "llm.yaml 热重载: default=%s, fallback=%s",
+                fresh.default_provider, fresh.fallback_order,
             )
 
     # ── Public API ────────────────────────────────────────────────
@@ -113,6 +131,7 @@ class LLMService:
         无 router 推荐时整个列表即尾部, 全量重排。OPEN provider 由循环头
         breaker 检查跳过 → 权重 + skip = 健康感知场景降级 (PRD §2.2)。
         """
+        self._maybe_reload_config()  # v0.8.2 Y-A2: llm.yaml 5s TTL 热重载
         routed = self.resolve_provider_for_task(task_attr)
         order: list[str] = []
         if routed is not None:
@@ -425,8 +444,12 @@ class LLMService:
         # 不驱动 breaker — 与熔断正交, 见 utils/concurrency.py 契约)。
         from backend.utils.concurrency import get_semaphore
 
+        try:
+            mc = int(getattr(cfg, "max_concurrent", 0) or 0)
+        except (TypeError, ValueError):
+            mc = 0
         sem = get_semaphore(
-            f"llm:{provider_name or cfg.type}", size=max(1, cfg.max_concurrent)
+            f"llm:{provider_name or cfg.type}", size=mc if mc >= 1 else None
         )
         async with sem:
             try:

@@ -4,6 +4,7 @@ Phase 16 — Hybrid AI 配置文件校验。
 """
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import Any, Literal
 
@@ -116,16 +117,50 @@ class LLMConfig(BaseModel):
 
 _CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "llm.yaml"
 
+# v0.8.2 Y-A2: llm.yaml 热重载 — 5s TTL + mtime/size 变更检测 (info_filter 模式)。
+# 仅对默认路径 (path=None) 的调用生效; 显式 path (测试/特殊用途) 永不缓存。
+# 返回的 LLMConfig 是**共享对象**, 调用方勿原地修改 (改了会污染缓存)。
+_LLM_RELOAD_TTL = 5.0
+_llm_cache: dict[str, Any] = {
+    "mtime_ns": None,
+    "size": None,
+    "config": None,
+    "checked_at": 0.0,
+}
+
 
 def load_llm_config(path: Path | None = None) -> LLMConfig | None:
     """Load and validate LLM config from YAML file.
 
     Returns None if the file doesn't exist (graceful degradation).
     Raises on validation errors.
+
+    v0.8.2 Y-A2: 默认路径走 5s TTL 缓存 — TTL 窗口内直返上次解析结果,
+    到期 stat 一次 mtime/size, 未变续期, 变了重解析 (热重载)。
     """
     config_path = path or _CONFIG_PATH
+
+    global _llm_cache
+    if path is None:
+        now = time.monotonic()
+        if (
+            _llm_cache["config"] is not None
+            and now - _llm_cache["checked_at"] < _LLM_RELOAD_TTL
+        ):
+            return _llm_cache["config"]
+
     if not config_path.exists():
         return None
+
+    if path is None:
+        st = config_path.stat()
+        if (
+            _llm_cache["config"] is not None
+            and st.st_mtime_ns == _llm_cache["mtime_ns"]
+            and st.st_size == _llm_cache["size"]
+        ):
+            _llm_cache["checked_at"] = time.monotonic()
+            return _llm_cache["config"]
 
     with open(config_path) as f:
         raw = yaml.safe_load(f)
@@ -133,7 +168,20 @@ def load_llm_config(path: Path | None = None) -> LLMConfig | None:
     if not raw:
         return None
 
-    return LLMConfig(**raw)
+    cfg = LLMConfig(**raw)
+    if path is None:
+        st = config_path.stat()
+        _llm_cache.update(
+            mtime_ns=st.st_mtime_ns, size=st.st_size, config=cfg,
+            checked_at=time.monotonic(),
+        )
+    return cfg
+
+
+def reset_llm_config_cache() -> None:
+    """清空 llm.yaml 缓存 (测试/运维强制重读)。"""
+    global _llm_cache
+    _llm_cache = {"mtime_ns": None, "size": None, "config": None, "checked_at": 0.0}
 
 
 __all__ = [
@@ -146,4 +194,5 @@ __all__ = [
     "RateLimits",
     "TaskOverride",
     "load_llm_config",
+    "reset_llm_config_cache",
 ]

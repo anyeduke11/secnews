@@ -40,6 +40,7 @@ from backend.utils.circuit_breaker import CircuitBreaker
 
 _WINDOW_DISPLAY = (60.0, 300.0, 3600.0)  # 1min / 5min(判定) / 1min 展示段
 _RETENTION_SECONDS = 3600.0  # 最长保留 1h, 之外逐出
+_THRESHOLD_RELOAD_TTL = 5.0  # v0.8.2 Y-A2: 阈值热重载 TTL (info_filter 模式)
 
 DEFAULT_FAILURE_THRESHOLD = 0.5
 DEFAULT_MIN_SAMPLES = 4
@@ -92,6 +93,7 @@ class ProviderHealth:
         recovery_timeout: float = DEFAULT_RECOVERY_TIMEOUT,
         clock: Callable[[], float] | None = None,
         per_provider: dict[str, dict[str, float]] | None = None,
+        reload_thresholds: bool = False,
     ) -> None:
         if not 0 < failure_threshold <= 1:
             raise ValueError("failure_threshold 必须在 (0, 1]")
@@ -105,10 +107,20 @@ class ProviderHealth:
         # provider -> deque[(ts, ok)]；仅保留 RETENTION_SECONDS 内样本
         self._windows: dict[str, deque] = {}
         self._breakers: dict[str, CircuitBreaker] = {}
-        # v0.8.2 X-B1: provider -> {failure_threshold/min_samples/recovery_timeout}
-        # 非法条目跳过不抛 (LLM 主链不因观测配置炸), 与 record 的防御一致
-        self._overrides: dict[str, dict[str, float]] = {}
-        for prov, ov in (per_provider or {}).items():
+        # v0.8.2 Y-A2: 阈值热重载状态 (5s TTL + config 对象身份比对)。
+        # 仅单例 (yaml-backed) 开启 — 直接构造 (测试/DI) 的合成 overrides 不被覆盖。
+        self._overrides = self._normalize_overrides(per_provider or {})
+        self._reload_enabled = reload_thresholds
+        self._thresholds_checked_at: float = 0.0
+        self._last_overrides: dict[str, dict[str, float]] = dict(self._overrides)
+
+    @staticmethod
+    def _normalize_overrides(
+        per_provider: dict[str, dict[str, float]],
+    ) -> dict[str, dict[str, float]]:
+        """非法覆盖条目跳过不抛 — LLM 主链不因观测配置炸 (与 record 防御一致)。"""
+        out: dict[str, dict[str, float]] = {}
+        for prov, ov in per_provider.items():
             clean: dict[str, float] = {}
             ft = ov.get("failure_threshold")
             ms = ov.get("min_samples")
@@ -129,7 +141,29 @@ class ProviderHealth:
                 else:
                     _logger.warning(f"provider_health: {prov} recovery_timeout={rt} 非法, 忽略")
             if clean:
-                self._overrides[prov] = clean
+                out[prov] = clean
+        return out
+
+    def maybe_reload_thresholds(self) -> None:
+        """v0.8.2 Y-A2: llm.yaml per-provider 阈值热重载 (5s TTL)。
+
+        只换判定参数, **窗口与 breaker 状态原样保留** (在跑的健康历史不属于
+        配置); 判定/熔断语义立即按新阈值生效。yaml 解析在锁外, 换值在锁内
+        (record 的记账锁段会读 _overrides)。
+        仅单例 (reload_thresholds=True, yaml-backed) 生效。
+        """
+        if not self._reload_enabled:
+            return
+        now = self._clock()
+        if now - self._thresholds_checked_at < _THRESHOLD_RELOAD_TTL:
+            return
+        fresh = self._normalize_overrides(_load_yaml_breaker_overrides())
+        with self._lock:
+            self._thresholds_checked_at = now
+            if fresh != self._last_overrides:
+                self._overrides = fresh
+                self._last_overrides = dict(fresh)
+                _logger.info(f"provider 阈值热重载: {sorted(fresh) or '无 per-provider 覆盖'}")
 
     # ------------------------------------------------------------------
     # 内部 (调用方须已持锁)
@@ -184,6 +218,7 @@ class ProviderHealth:
 
         永不抛异常 — 记账失败只告警 (调用路径在 LLM 主链上, 不因观测拖垮业务)。
         """
+        self.maybe_reload_thresholds()  # v0.8.2 Y-A2: 阈值 5s TTL 热重载
         now = self._clock()
         breaker: CircuitBreaker | None = None
         unhealthy = False
@@ -314,6 +349,7 @@ def get_provider_health() -> ProviderHealth:
             min_samples=_env_int("HOTSPOT_BREAKER_MIN_SAMPLES", DEFAULT_MIN_SAMPLES),
             recovery_timeout=_env_float("HOTSPOT_BREAKER_RECOVERY_TIMEOUT", DEFAULT_RECOVERY_TIMEOUT),
             per_provider=_load_yaml_breaker_overrides(),
+            reload_thresholds=True,
         )
     return _default
 

@@ -126,8 +126,8 @@ frontend/test-results/
 frontend/playwright-report/
 
 # archify 架构图生成中间产物 (2026-09-05) — visual-check / 候选 JSON / 主 HTML, 复跑会覆盖
-hotspot-architecture.html
-hotspot-architecture.candidate.json
+# Note 2026-09-05: 当前主 hotspot-architecture.html + candidate.json 已入仓 (v0.8 narrative 修复版),
+# 复跑 archify 会被覆盖 → 下次再渲前请先确认 candidate.json 是否需要更新。
 hotspot-architecture.visual-check.*.png
 hotspot-architecture.visual-check.html
 hotspot-architecture.visual-check.json

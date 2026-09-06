@@ -17,9 +17,9 @@
  */
 
 import { useEffect, useState } from 'react';
-import type { Case, Judgment, Knowledge, Signal } from '../../domain/v1_0';
-import type { Action, Run, Artifact } from '../../api/v1';
-import { listCases, getCase, listJudgments, listActions, listRuns, listArtifacts } from '../../api/v1';
+import type { Case, Judgment, Signal } from '../../domain/v1_0';
+import type { Action, Run, Artifact, Knowledge } from '../../api/v1';
+import { listCases, getCase, listJudgments, listActions, listRuns, listArtifacts, listKnowledge, getKnowledgeReuse, type ReuseReceipt } from '../../api/v1';
 import { renderInlineMarkdown } from '../../lib/markdown';
 
 // ---------------------------------------------------------------------------
@@ -63,8 +63,8 @@ const MOCK_ARTIFACTS: Artifact[] = [
 ];
 
 const MOCK_KNOWLEDGE: Knowledge[] = [
-  { id: 'KNOW001', kind: 'playbook', title: '漏洞响应标准流程', body: '# 漏洞响应\n\n1. 确认影响范围\n2. 评估风险\n3. 制定修复计划\n4. 执行与验证', prerequisites: ['具备漏洞扫描权限'], counter_examples: [], evidence_refs: [], expiry_at: null, review_at: '2025-12-01T00:00:00+00:00', reuse_count: 3, last_reused_at: '2025-05-15T00:00:00+00:00', status: 'published', revision: 1, wiki_path: null, content_hash: 'seed_know001', published_at: '2025-01-01T00:00:00+00:00', created_at: '2025-01-01T00:00:00+00:00', updated_at: '2025-05-15T00:00:00+00:00', allowed_actions: ['create_revision', 'deprecate', 'retract'] },
-  { id: 'KNOW002', kind: 'anti_pattern', title: '补丁部署常见错误', body: '# 反例\n\n- 未在 staging 验证直接部署生产\n- 忽略回滚计划', prerequisites: [], counter_examples: ['某次未验证导致服务中断 2 小时'], evidence_refs: [], expiry_at: null, review_at: null, reuse_count: 0, last_reused_at: null, status: 'draft', revision: 1, wiki_path: null, content_hash: null, published_at: null, created_at: '2025-06-01T00:00:00+00:00', updated_at: '2025-06-01T00:00:00+00:00', allowed_actions: ['edit', 'publish', 'discard'] },
+  { id: 'KNOW001', kind: 'playbook', title: '漏洞响应标准流程', body: '# 漏洞响应\n\n1. 确认影响范围\n2. 评估风险\n3. 制定修复计划\n4. 执行与验证', prerequisites: ['具备漏洞扫描权限'], counter_examples: [], evidence_refs: [], expiry_at: null, review_at: '2025-12-01T00:00:00+00:00', status: 'published', revision: 1, wiki_path: null, content_hash: 'seed_know001', published_at: '2025-01-01T00:00:00+00:00', created_at: '2025-01-01T00:00:00+00:00', updated_at: '2025-05-15T00:00:00+00:00', allowed_actions: ['create_revision', 'deprecate', 'retract'] },
+  { id: 'KNOW002', kind: 'anti_pattern', title: '补丁部署常见错误', body: '# 反例\n\n- 未在 staging 验证直接部署生产\n- 忽略回滚计划', prerequisites: [], counter_examples: ['某次未验证导致服务中断 2 小时'], evidence_refs: [], expiry_at: null, review_at: null, status: 'draft', revision: 1, wiki_path: null, content_hash: null, published_at: null, created_at: '2025-06-01T00:00:00+00:00', updated_at: '2025-06-01T00:00:00+00:00', allowed_actions: ['edit', 'publish', 'discard'] },
 ];
 
 // ---------------------------------------------------------------------------
@@ -293,8 +293,11 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
   const [liveRuns, setLiveRuns] = useState<Run[]>([]);
   const [liveArtifacts, setLiveArtifacts] = useState<Artifact[]>([]);
   const [actionChainLoading, setActionChainLoading] = useState(false);
+  const [liveKnowledge, setLiveKnowledge] = useState<Knowledge[]>([]);
+  const [knowledgeReceipts, setKnowledgeReceipts] = useState<Record<string, ReuseReceipt>>({});
+  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
 
-  // T08 + T11 + T12: 真实数据接入 — case / judgment / action / run / artifact
+  // T08 + T11 + T12 + T13: 真实数据接入 — case / judgment / action / run / artifact / knowledge
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -314,7 +317,6 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
       .then(async (resp) => {
         if (cancelled) return;
         setLiveActions(resp.items);
-        // 拉每个 action 的 runs
         const allRuns: Run[] = [];
         const allArts: Artifact[] = [];
         for (const a of resp.items) {
@@ -336,6 +338,24 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
       })
       .catch(() => { if (!cancelled) { setLiveActions([]); setLiveRuns([]); setLiveArtifacts([]); } })
       .finally(() => { if (!cancelled) setActionChainLoading(false); });
+    // T13: 拉 knowledge 列表 (含 reuse receipt)
+    setKnowledgeLoading(true);
+    listKnowledge({ case_id: case_.id, limit: 50 })
+      .then(async (resp) => {
+        if (cancelled) return;
+        setLiveKnowledge(resp.items);
+        // 拉每个 knowledge 的 reuse receipt
+        const receipts: Record<string, ReuseReceipt> = {};
+        for (const k of resp.items) {
+          try {
+            const r = await getKnowledgeReuse(k.id);
+            receipts[k.id] = r.receipt;
+          } catch { /* 静默 */ }
+        }
+        if (!cancelled) setKnowledgeReceipts(receipts);
+      })
+      .catch(() => { if (!cancelled) { setLiveKnowledge([]); setKnowledgeReceipts({}); } })
+      .finally(() => { if (!cancelled) setKnowledgeLoading(false); });
     return () => { cancelled = true; };
   }, [case_.id]);
 
@@ -363,6 +383,14 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
   const hasFailure = runs.some(r => r.status === 'failed');
   const hasPendingAcceptance = artifacts.some(a => a.status === 'verified');
   const hasRejected = artifacts.some(a => a.status === 'rejected');
+  // T13: 优先真实 knowledge, 失败回退 mock
+  const usingLiveKnowledge = liveKnowledge.length > 0;
+  const knowledgeItems = usingLiveKnowledge
+    ? liveKnowledge
+    : MOCK_KNOWLEDGE.filter(k => k.evidence_refs?.some(r => {
+        const j = liveJudgments.find(j => j.evidence_refs?.some(e => e.material_id === r.material_id));
+        return !!j;
+      }));
 
   return (
     <div className="space-y-6">
@@ -416,6 +444,63 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
           {actions.length} 个行动 · {runs.length} 次运行 · {artifacts.length} 个产物
           {artifacts.filter(a => a.status === 'accepted').length > 0 && ` · ${artifacts.filter(a => a.status === 'accepted').length} 已业务验收`}
         </div>
+      </div>
+
+      {/* T13: 知识 (Knowledge) — 复用 + 复查 */}
+      <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+        <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+          知识 (Knowledge) {knowledgeLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
+        </h3>
+        {knowledgeItems.length === 0 ? (
+          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>暂无知识 (SK-04 publish 后出现)</div>
+        ) : (
+          <div className="space-y-3">
+            {knowledgeItems.map(k => {
+              const receipt = knowledgeReceipts[k.id];
+              return (
+                <div key={k.id} className="p-3 rounded border" style={{ borderColor: 'var(--border-muted)' }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{k.title}</span>
+                    <Badge color={k.status === 'published' ? 'green' : k.status === 'draft' ? 'yellow' : k.status === 'deprecated' ? 'gray' : 'red'}>{k.status}</Badge>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{k.kind} · rev {k.revision}</span>
+                  </div>
+                  <div className="text-xs font-mono mb-2" style={{ color: 'var(--text-muted)' }}>
+                    {k.id} · content_hash: {k.content_hash?.slice(0, 12) ?? '-'}…
+                    {k.review_at && ` · 复查: ${k.review_at.slice(0, 10)}`}
+                  </div>
+                  {/* 前提 (SK-04 必填 ≥1) + 反例 */}
+                  {k.prerequisites && k.prerequisites.length > 0 && (
+                    <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                      前提: {k.prerequisites.join('; ')}
+                    </div>
+                  )}
+                  {k.counter_examples && k.counter_examples.length > 0 && (
+                    <div className="text-xs mt-1" style={{ color: 'var(--color-warning)' }}>
+                      反例: {k.counter_examples.join('; ')}
+                    </div>
+                  )}
+                  {/* 复用记录 (SK-05 §9.4 派生) */}
+                  {receipt && (
+                    <div className="text-xs mt-2 p-2 rounded" style={{ background: 'var(--bg-muted)', color: 'var(--text-muted)' }}>
+                      复用: total={receipt.total} (judgment {receipt.by_judgment} + action {receipt.by_action}) · 近 30 天 {receipt.recent_30d}
+                    </div>
+                  )}
+                  {/* body 摘要 (Markdown 渲染) */}
+                  {k.body && (
+                    <details className="mt-2">
+                      <summary className="text-xs cursor-pointer" style={{ color: 'var(--text-muted)' }}>查看 body</summary>
+                      <div
+                        className="text-xs mt-1 p-2 rounded prose-sm"
+                        style={{ background: 'var(--bg-muted)', color: 'var(--text-primary)' }}
+                        dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(k.body.slice(0, 500)) }}
+                      />
+                    </details>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* 判断 */}
@@ -566,7 +651,7 @@ function KnowledgeView() {
             </div>
             <div className="text-sm mt-2 line-clamp-3" style={{ color: 'var(--text-primary)' }}>{k.body}</div>
             <div className="text-xs mt-2 font-mono" style={{ color: 'var(--text-muted)' }}>
-              {k.id} · reuse: {k.reuse_count}
+              {k.id}
             </div>
           </div>
         ))}

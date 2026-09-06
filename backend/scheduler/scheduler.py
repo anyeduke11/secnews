@@ -629,6 +629,14 @@ class HotspotScheduler:
             name="legacy hold reap: F01 53 pending → legacy_hold (Mon 04:30 Shanghai)",
             replace_existing=True,
         )
+        # v1.0 T13: job 55 — knowledge_review_due (每日 04:00 Asia/Shanghai, SK-06 复查扫描)
+        self.scheduler.add_job(
+            jobs.knowledge_review_due_job,
+            trigger=CronTrigger(hour=4, minute=0, timezone=SHANGHAI_TZ),
+            id="knowledge_review_due",
+            name="knowledge review due: SK-06 扫 review_at 到期, 挂 case blocker (Daily 04:00 Shanghai)",
+            replace_existing=True,
+        )
 
     def start(self) -> None:
         """启动调度器 + 立即触发 collect_all"""

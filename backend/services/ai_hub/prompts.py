@@ -495,6 +495,135 @@ def parse_inspection_materials_response(raw: str) -> dict[str, Any]:
     return obj
 
 
+# ---------------------------------------------------------------------------
+# T13 SK-04 knowledge 经验发布 专用 prompt
+# 区别于 cve_impact_brief (出判断) / inspection_materials (出行动计划):
+#   这里出"可复用经验" (Markdown + 前提/反例/证据/复查时间)
+# 喂 knowledge_service.create_with_dsh → 落 draft knowledge (T13 SK-04)
+# ---------------------------------------------------------------------------
+
+KNOWLEDGE_PUBLISH_SCHEMA_V1 = {
+    "title": "<经验标题, ≤ 200 字符>",
+    "body": "<经验正文 Markdown, ≤ 100KB; 含原理/步骤/适用边界>",
+    "prerequisites": ["<适用前提, 至少 1 个具体条件>"],
+    "counter_examples": ["<不适用场景, 反例>"],
+    "evidence_refs": [
+        {
+            "material_id": "MAT-XXX",
+            "hash": "sha256 与 material.content_hash 一致",
+            "quote": "≤ 500 字符原文片段"
+        }
+    ],
+    "review_at": "ISO 8601 (下次复查时间, SK-06 触发)",
+    "expiry_at": "ISO 8601 or null (有效期, null=长期)",
+}
+
+
+def build_knowledge_prompt(
+    *,
+    case_id: str,
+    judgment_id: str,
+    action_id: str,
+    subject_name: str,
+    cve_id: str,
+    kind: str,
+    evidence_materials: list[dict[str, Any]],
+) -> str:
+    """构造 SK-04 knowledge 经验发布的 dsh prompt.
+
+    Parameters
+    ----------
+    case_id / judgment_id / action_id:
+        上下文 ID, 用于派生 prerequisites 与 counter_examples 的具体边界.
+    subject_name / cve_id:
+        经验主题.
+    kind:
+        principle|pattern|anti_pattern|reference|playbook|checklist
+    evidence_materials:
+        [{id, title, content_hash, summary?}, ...] — 喂 LLM 出 evidence_refs.
+
+    Returns
+    -------
+    完整 prompt.
+
+    纪律
+    ----
+    - body ≤ 100KB (服务层校验, 超长 422)
+    - title ≤ 200 字符
+    - prerequisites 至少 1 个具体条件 (空 list 服务层补抛)
+    - evidence_refs 至少 1 条; hash 必须对得上 material.content_hash (服务层 enforce, 同 T11 §5.2)
+    - review_at 必填 (SK-06 触发 review_due 每日 job)
+    - counter_examples 缺失时给空 list (T13 不强制)
+    - expiry_at null = 长期; 否则 ISO 8601
+    """
+    materials_block = "\n\n".join(
+        f"### material_id={m.get('id', '?')}\n"
+        f"title: {m.get('title', '(no title)')}\n"
+        f"content_hash: {m.get('content_hash', '?')}\n"
+        f"summary: {m.get('summary', '(none)')[:300]}"
+        for m in evidence_materials
+    )
+    schema_str = json.dumps(KNOWLEDGE_PUBLISH_SCHEMA_V1, ensure_ascii=False, indent=2)
+    return (
+        f"你是一名安全应急工程师 (蓝队), 针对一个已验收的修复行动, 提炼一份可复用的经验 (knowledge). \n\n"
+        f"## 上下文\n\n"
+        f"- case_id: {case_id}\n"
+        f"- judgment_id: {judgment_id}\n"
+        f"- action_id: {action_id}\n"
+        f"- subject: {subject_name}\n"
+        f"- cve_id: {cve_id}\n"
+        f"- kind: {kind} (principle|pattern|anti_pattern|reference|playbook|checklist)\n\n"
+        f"## 已有材料 (materials)\n\n"
+        f"{materials_block or '(无 materials — 这是缺材料场景, prerequisites 必须显式列出前置资源/上下文)'}\n\n"
+        f"## 输出要求 (严格 JSON, 不允许 prose 包裹)\n\n"
+        f"```json\n{schema_str}\n```\n\n"
+        f"## 纪律\n"
+        f"1. body 长度 ≤ 100000 字符; 服务层超长 422 拒收\n"
+        f"2. title ≤ 200 字符; 服务层超长 422 拒收\n"
+        f"3. prerequisites 至少 1 条 (空 list 服务层抛); 写具体条件, 不写『一般情况』\n"
+        f"4. counter_examples 必填, 缺则空 list; 列出不适用场景\n"
+        f"5. evidence_refs 至少 1 条; hash 必须对得上 material.content_hash (服务层校验)\n"
+        f"6. review_at 必填, ISO 8601 格式 (例 2026-12-01T00:00:00+00:00); SK-06 每日 job 扫到挂 case blocker\n"
+        f"7. expiry_at null = 长期; 否则 ISO 8601\n"
+        f"8. 不写『可能有用』/『建议关注』等模糊语言; 必须可复现 / 可验证\n"
+        f"{_EVIDENCE_RULE}\n"
+    )
+
+
+def parse_knowledge_publish_response(raw: str) -> dict[str, Any]:
+    """解析 dsh 返回的 knowledge JSON; 容错 + 必填字段校验."""
+    if not raw or not raw.strip():
+        raise ValueError("empty response from dsh")
+    s = raw.strip()
+    if "```" in s:
+        for fence in ("```json", "```JSON", "```"):
+            idx = s.find(fence)
+            if idx >= 0:
+                end = s.find("```", idx + len(fence))
+                if end > idx:
+                    s = s[idx + len(fence):end].strip()
+                    break
+    if "{" in s:
+        s = s[s.find("{"):s.rfind("}") + 1]
+    try:
+        obj = json.loads(s)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"dsh response not valid JSON: {e}; raw[:200]={raw[:200]!r}")
+    for k in ("title", "body", "prerequisites", "counter_examples", "evidence_refs", "review_at"):
+        if k not in obj:
+            raise ValueError(f"missing required field: {k}")
+    if not isinstance(obj["prerequisites"], list) or len(obj["prerequisites"]) == 0:
+        raise ValueError("prerequisites must be non-empty list (SK-04 硬约束)")
+    if not isinstance(obj["counter_examples"], list):
+        raise ValueError("counter_examples must be list")
+    if not isinstance(obj["evidence_refs"], list) or len(obj["evidence_refs"]) == 0:
+        raise ValueError("evidence_refs must be non-empty list")
+    if not obj.get("review_at"):
+        raise ValueError("review_at required (SK-06 触发)")
+    obj.setdefault("expiry_at", None)
+    return obj
+
+
 __all__ = [
     "COST_PER_1M_TOKENS",
     "CVE_IMPACT_BRIEF_SCHEMA_V1",
@@ -502,9 +631,11 @@ __all__ = [
     "DEEP_READ_PROFILE_VERSION",
     "DEFAULT_SCORE",
     "INSPECTION_MATERIALS_SCHEMA_V1",
+    "KNOWLEDGE_PUBLISH_SCHEMA_V1",
     "_build_deep_read_prompt",
     "_build_extract_entities_prompt",
-    "_build_inspection_materials_prompt" if False else "build_inspection_materials_prompt",
+    "build_inspection_materials_prompt",
+    "build_knowledge_prompt",
     "_build_score_prompt",
     "_build_summary_prompt",
     "_estimate_cost",
@@ -512,9 +643,9 @@ __all__ = [
     "_parse_entity_list",
     "_parse_score",
     "build_cve_impact_brief_prompt",
-    "build_inspection_materials_prompt",
     "deep_read_profile_for",
     "deep_read_sections",
     "parse_cve_impact_brief_response",
     "parse_inspection_materials_response",
+    "parse_knowledge_publish_response",
 ]

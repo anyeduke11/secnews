@@ -10,7 +10,7 @@
 
 import type {
   Case, CasePriority, CaseStatus, CaseOwnerRole,
-  Judgment,
+  Judgment, EvidenceRef,
 } from '../domain/v1_0';
 import { getJSON, postJSON, apiFetch } from '../lib/api';
 
@@ -425,4 +425,114 @@ export function acceptArtifact(id: string, body: AcceptArtifactBody): Promise<Ap
 
 export function rejectArtifact(id: string, body: RejectArtifactBody): Promise<ApiVersioned<Artifact>> {
   return postJSON<ApiVersioned<Artifact>>(`/api/v1/artifacts/${encodeURIComponent(id)}/reject`, body);
+}
+
+// ===========================================================================
+// T13 Knowledge 端到端 (SK-04/05/06 知识发布/复用/复查)
+// ===========================================================================
+
+// Knowledge
+export type KnowledgeKind = 'principle' | 'pattern' | 'anti_pattern' | 'reference' | 'playbook' | 'checklist';
+export type KnowledgeStatus = 'draft' | 'published' | 'deprecated' | 'retracted';
+
+export interface Knowledge {
+  id: string;
+  kind: KnowledgeKind;
+  title: string;
+  body: string;
+  prerequisites?: string[];
+  counter_examples?: string[];
+  evidence_refs?: EvidenceRef[];
+  expiry_at?: string | null;
+  review_at?: string | null;
+  status: KnowledgeStatus;
+  revision: number;
+  wiki_path?: string | null;
+  content_hash?: string | null;
+  published_at?: string | null;
+  deprecation_reason?: string | null;
+  replacement_knowledge_id?: string | null;
+  retraction_reason?: string | null;
+  allowed_actions?: string[];
+  reason?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GenerateKnowledgeBody {
+  case_id: string;
+  judgment_id: string;
+  action_id: string;
+  subject_name: string;
+  cve_id: string;
+  kind: KnowledgeKind;
+  evidence_materials?: EvidenceMaterial[];
+  submitted_by?: string;
+}
+
+export interface GenerateKnowledgeResponse {
+  version: string;
+  item: Knowledge;
+  idempotent_replay: boolean;
+}
+
+export interface ListKnowledgeQuery {
+  case_id: string;
+  status?: KnowledgeStatus;
+  kind?: KnowledgeKind;
+  limit?: number;
+  offset?: number;
+}
+
+export interface DeprecateKnowledgeBody extends StateChangeBody {
+  reason: string;
+  replacement_knowledge_id?: string;
+}
+
+export interface RetractKnowledgeBody extends StateChangeBody {
+  reason: string;
+}
+
+export interface ReuseReceipt {
+  total: number;
+  by_judgment: number;
+  by_action: number;
+  recent_30d: number;
+}
+
+export interface ReuseReceiptResponse {
+  version: string;
+  knowledge_id: string;
+  receipt: ReuseReceipt;
+}
+
+export function listKnowledge(q: ListKnowledgeQuery): Promise<ApiList<Knowledge>> {
+  const { case_id, ...rest } = q;
+  return getJSON<ApiList<Knowledge>>(
+    `/api/v1/knowledge?case_id=${encodeURIComponent(case_id)}${buildQuery(rest)}`
+  );
+}
+
+export function getKnowledge(id: string): Promise<ApiVersioned<Knowledge>> {
+  return getJSON<ApiVersioned<Knowledge>>(`/api/v1/knowledge/${encodeURIComponent(id)}`);
+}
+
+export function getKnowledgeReuse(id: string): Promise<ReuseReceiptResponse> {
+  return getJSON<ReuseReceiptResponse>(`/api/v1/knowledge/${encodeURIComponent(id)}/reuse`);
+}
+
+export function generateKnowledge(body: GenerateKnowledgeBody): Promise<GenerateKnowledgeResponse> {
+  return postJSON<GenerateKnowledgeResponse>('/api/v1/knowledge/generate', body);
+}
+
+export function publishKnowledge(id: string, body: StateChangeBody): Promise<ApiVersioned<Knowledge>> {
+  return postJSON<ApiVersioned<Knowledge>>(`/api/v1/knowledge/${encodeURIComponent(id)}/publish`, body);
+}
+
+export function deprecateKnowledge(id: string, body: DeprecateKnowledgeBody): Promise<ApiVersioned<Knowledge>> {
+  return postJSON<ApiVersioned<Knowledge>>(`/api/v1/knowledge/${encodeURIComponent(id)}/deprecate`, body);
+}
+
+export function retractKnowledge(id: string, body: RetractKnowledgeBody): Promise<ApiVersioned<Knowledge>> {
+  return postJSON<ApiVersioned<Knowledge>>(`/api/v1/knowledge/${encodeURIComponent(id)}/retract`, body);
 }

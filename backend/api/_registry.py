@@ -236,6 +236,9 @@ def register_all(app: FastAPI) -> None:
     app.include_router(run_api.router, tags=["v1-runs"])
     from backend.api import artifact_api
     app.include_router(artifact_api.router, tags=["v1-artifacts"])
+    # v1.0 T13: Knowledge 端到端 (SK-04/05/06 知识发布/复用/复查)
+    from backend.api import knowledge_api
+    app.include_router(knowledge_api.router, tags=["v1-knowledge"])
 
 
 __all__ = ["register_all"]

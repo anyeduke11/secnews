@@ -117,6 +117,9 @@ from backend.scheduler.jobs.worker_pump import (
     legacy_hold_reap_job,  # v1.0 T09: F01 收口 (周一 04:30)
     worker_queue_pump_job,  # v1.0 T09: 队列消费泵 (每 60s)
 )
+from backend.scheduler.jobs.knowledge_review import (
+    knowledge_review_due_job,  # v1.0 T13: SK-06 复查扫描 (每日 04:00)
+)
 
 
 def __getattr__(name: str):

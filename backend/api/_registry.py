@@ -226,6 +226,9 @@ def register_all(app: FastAPI) -> None:
     # v1.0 T08: Case 端到端 (服务+API+UI) — 无 gate 限制, 与 codegarden 等核心域同源
     from backend.api import case_api
     app.include_router(case_api.router, tags=["v1-cases"])
+    # v1.0 T11: Judgment 端到端 (SK-02 cve-impact-brief) — 4 端点 (generate/list/get/publish)
+    from backend.api import judgment_api
+    app.include_router(judgment_api.router, tags=["v1-judgments"])
 
 
 __all__ = ["register_all"]

@@ -18,7 +18,8 @@
 
 import { useEffect, useState } from 'react';
 import type { Case, Judgment, Action, Run, Artifact, Knowledge, Signal } from '../../domain/v1_0';
-import { listCases, getCase } from '../../api/v1';
+import { listCases, getCase, listJudgments } from '../../api/v1';
+import { renderInlineMarkdown } from '../../lib/markdown';
 
 // ---------------------------------------------------------------------------
 // Mock 数据 (来自 seed.json, 脱敏后内嵌避免 fetch 依赖)
@@ -285,9 +286,11 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usingFallback, setUsingFallback] = useState(true);
+  const [liveJudgments, setLiveJudgments] = useState<Judgment[]>([]);
+  const [judgmentsLoading, setJudgmentsLoading] = useState(false);
 
-  // T08: 真实数据接入 — 拉取 case 详情 (后端 case 行 = 单一权威, judgment/action/run 仍
-  // 走 mock 占位, 等 T11/T13 批次替换); API 失败时保留 case_ (来自列表) 作为兜底。
+  // T08 + T11: 真实数据接入 — case 走 getCase; judgment 走 listJudgments (按 case_id 过滤).
+  // API 失败时保留 case_ / MOCK_JUDGMENTS 兜底.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -307,13 +310,30 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    // T11: 拉 judgment 列表
+    setJudgmentsLoading(true);
+    listJudgments({ case_id: case_.id, limit: 50 })
+      .then((resp) => {
+        if (cancelled) return;
+        setLiveJudgments(resp.items);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLiveJudgments([]);  // 失败回退到 mock
+      })
+      .finally(() => {
+        if (!cancelled) setJudgmentsLoading(false);
+      });
     return () => {
       cancelled = true;
     };
   }, [case_.id]);
 
   const display = liveCase ?? case_;
-  const judgments = MOCK_JUDGMENTS.filter(j => j.case_id === display.id);
+  // T11: 优先真实 judgment, 失败回退 mock
+  const judgments = liveJudgments.length > 0
+    ? liveJudgments
+    : MOCK_JUDGMENTS.filter(j => j.case_id === display.id);
   const actions = MOCK_ACTIONS.filter(a => a.case_id === display.id);
   const actionIds = actions.map(a => a.id);
   const runs = MOCK_RUNS.filter(r => actionIds.includes(r.action_id));
@@ -372,7 +392,9 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
 
       {/* 判断 */}
       <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
-        <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>判断 (Judgment)</h3>
+        <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+          判断 (Judgment) {judgmentsLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
+        </h3>
         {judgments.length === 0 ? (
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>暂无判断</div>
         ) : (
@@ -380,13 +402,30 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
             {judgments.map(j => (
               <div key={j.id} className="p-3 rounded border" style={{ borderColor: 'var(--border-muted)' }}>
                 <div className="flex items-center gap-2 mb-2">
-                  <Badge color={j.status === 'published' ? 'green' : 'yellow'}>{j.status}</Badge>
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{j.claim_type} · confidence: {j.confidence}</span>
+                  <Badge color={j.status === 'published' ? 'green' : j.status === 'draft' ? 'yellow' : 'gray'}>{j.status}</Badge>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {j.claim_type} · confidence: {j.confidence} · rev {j.revision}
+                  </span>
                 </div>
-                <div className="text-sm" style={{ color: 'var(--text-primary)' }}>{j.claim}</div>
-                {j.evidence_refs.length > 0 && (
+                {/* T11: claim 是 Markdown, 自实现 renderInlineMarkdown 渲染 (**bold** / 列表 / 标题) */}
+                <div
+                  className="text-sm prose-sm"
+                  style={{ color: 'var(--text-primary)' }}
+                  dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(j.claim) }}
+                />
+                {j.conditions && (
+                  <div className="text-xs mt-2 italic" style={{ color: 'var(--text-muted)' }}>
+                    适用条件: {j.conditions}
+                  </div>
+                )}
+                {j.unknowns && j.unknowns.length > 0 && (
+                  <div className="text-xs mt-1" style={{ color: 'var(--color-warning)' }}>
+                    未知项: {j.unknowns.join('; ')}
+                  </div>
+                )}
+                {j.evidence_refs && j.evidence_refs.length > 0 && (
                   <div className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
-                    证据: {j.evidence_refs.map(e => e.material_id).join(', ')}
+                    证据 ({j.evidence_refs.length} 条): {j.evidence_refs.map(e => e.material_id).join(', ')}
                   </div>
                 )}
               </div>

@@ -1,13 +1,17 @@
 /**
- * v1.0 Case 端到端 API 客户端 (T08).
+ * v1.0 Case 端到端 API 客户端 (T08) + Judgment 客户端 (T11).
  *
- * 与后端 backend/api/case_api.py 对齐 — 路径前缀 /api/v1/cases.
+ * 与后端 backend/api/case_api.py + judgment_api.py 对齐.
+ * 路径前缀 /api/v1/cases + /api/v1/judgments.
  * 复用 lib/api 统一封装 (apiFetch / getJSON / postJSON), 错误透传后端 message.
  *
- * 类型从 domain/v1_0.ts 引 (与 Pydantic Case 模型 codegen 一致).
+ * 类型从 domain/v1_0.ts 引 (与 Pydantic Case/Judgment 模型 codegen 一致).
  */
 
-import type { Case, CasePriority, CaseStatus, CaseOwnerRole } from '../domain/v1_0';
+import type {
+  Case, CasePriority, CaseStatus, CaseOwnerRole,
+  Judgment, EvidenceRef,
+} from '../domain/v1_0';
 import { getJSON, postJSON, apiFetch } from '../lib/api';
 
 // ---------------------------------------------------------------------------
@@ -111,4 +115,65 @@ export function updateCase(id: string, body: UpdateCaseBody): Promise<ApiVersion
 
 export function closeCase(id: string, body: CloseCaseBody): Promise<ApiVersioned<Case>> {
   return postJSON<ApiVersioned<Case>>(`/api/v1/cases/${encodeURIComponent(id)}/close`, body);
+}
+
+// ===========================================================================
+// T11 Judgment 端到端 (SK-02 cve-impact-brief)
+// ===========================================================================
+
+// 证据资料 (cve-impact-brief 提交方传入; service 校验 hash)
+export interface EvidenceMaterial {
+  id: string;
+  title?: string;
+  content_hash: string;
+  summary?: string;
+}
+
+export interface GenerateJudgmentBody {
+  case_id: string;
+  cve_id: string;
+  subject_name: string;
+  evidence_materials: EvidenceMaterial[];
+  submitted_by?: string;
+}
+
+export interface GenerateJudgmentResponse {
+  version: string;
+  item: Judgment;
+  idempotent_replay: boolean;
+}
+
+export interface ListJudgmentsQuery {
+  case_id: string;
+  status?: 'draft' | 'published' | 'superseded' | 'retracted';
+  claim_type?: 'finding' | 'assessment' | 'recommendation' | 'warning' | 'hypothesis';
+  limit?: number;
+  offset?: number;
+}
+
+export interface PublishJudgmentBody {
+  expected_revision: number;
+}
+
+export function listJudgments(q: ListJudgmentsQuery): Promise<ApiList<Judgment>> {
+  const { case_id, ...rest } = q;
+  return getJSON<ApiList<Judgment>>(
+    `/api/v1/judgments?case_id=${encodeURIComponent(case_id)}${buildQuery(rest)}`
+  );
+}
+
+export function getJudgment(id: string): Promise<ApiVersioned<Judgment>> {
+  return getJSON<ApiVersioned<Judgment>>(`/api/v1/judgments/${encodeURIComponent(id)}`);
+}
+
+export function generateJudgment(body: GenerateJudgmentBody): Promise<GenerateJudgmentResponse> {
+  return postJSON<GenerateJudgmentResponse>('/api/v1/judgments/generate', body);
+}
+
+export function publishJudgment(
+  id: string, body: PublishJudgmentBody
+): Promise<ApiVersioned<Judgment>> {
+  return postJSON<ApiVersioned<Judgment>>(
+    `/api/v1/judgments/${encodeURIComponent(id)}/publish`, body
+  );
 }

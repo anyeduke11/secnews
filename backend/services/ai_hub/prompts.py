@@ -264,8 +264,129 @@ def _build_deep_read_prompt(
     )
 
 
+# ---------------------------------------------------------------------------
+# T11 SK-02 cve-impact-brief 专用 prompt — 有证据的判断 (judgment) 生成
+# 区别于 deep_read (面向阅读者): 这里面向"判断 + 依据 + 未知"的
+# 结构化输出, 直接喂 judgment_service.create_with_dsh → evidence_refs.
+# ---------------------------------------------------------------------------
+
+CVE_IMPACT_BRIEF_SCHEMA_V1 = {
+    "claim_type": "finding|assessment|recommendation|warning|hypothesis",
+    "claim": "<核心断言, Markdown, ≤ 10KB>",
+    "conditions": "<适用条件, Markdown, ≤ 500 字符>",
+    "confidence": "low|medium|high|proved",
+    "evidence_refs": [
+        {
+            "material_id": "MAT-XXX",
+            "hash": "sha256 与 material.content_hash 一致",
+            "quote": "≤ 500 字符原文片段, 直接引自 evidence",
+        }
+    ],
+    "counter_evidence_refs": [],
+    "unknowns": [
+        "<未知项字符串, baseline §5 硬约束: 缺资产/版本/受影响范围时必填>"
+    ],
+}
+
+
+def build_cve_impact_brief_prompt(
+    *,
+    cve_id: str,
+    subject_name: str,
+    evidence_materials: list[dict[str, Any]],
+) -> str:
+    """构造 SK-02 cve-impact-brief 的 dsh prompt.
+
+    Parameters
+    ----------
+    cve_id:
+        例 "CVE-2026-31337" — LLM 围绕此 ID 输出影响判断.
+    subject_name:
+        例 "某 SSL VPN 网关" — 判断目标.
+    evidence_materials:
+        已收集的资料列表, 每条 {id, title, content_hash, url?, summary?}.
+        LLM 须用 material_id + content_hash 引用, 不可编造.
+
+    Returns
+    -------
+    完整 prompt 字符串, 喂给 ai_hub.generate_text.
+
+    纪律
+    ----
+    - 每条 evidence_refs.hash 必须等于 material.content_hash (服务层校验, 错就 422)
+    - evidence 不足 → unknowns 必填 (baseline §5 硬约束)
+    - claim ≤ 10KB (services 层校验, 超长 422)
+    - 不允许"未支持 claim" 走 publish (evidence_refs 至少 1)
+    """
+    materials_block = "\n\n".join(
+        f"### material_id={m.get('id', '?')}\n"
+        f"title: {m.get('title', '(no title)')}\n"
+        f"content_hash: {m.get('content_hash', '?')}\n"
+        f"summary: {m.get('summary', '(none)')[:300]}"
+        for m in evidence_materials
+    )
+    schema_str = json.dumps(CVE_IMPACT_BRIEF_SCHEMA_V1, ensure_ascii=False, indent=2)
+    return (
+        f"你是一名安全应急响应工程师 (蓝队值班).\n"
+        f"判断目标: **{cve_id}** 是否影响 **{subject_name}**.\n\n"
+        f"## 已收集证据 (materials)\n\n"
+        f"{materials_block or '(无 materials — 这是缺证据场景, 必须在 unknowns 列出未知项)'}\n\n"
+        f"## 输出要求 (严格 JSON, 不允许任何 prose 包裹)\n\n"
+        f"```json\n{schema_str}\n```\n\n"
+        f"## 纪律\n"
+        f"1. evidence_refs 至少 1 条; 若无可用 materials, 把 evidence_refs 留空数组, unknowns 必填 (≥ 1)\n"
+        f"2. 每条 evidence_refs.hash 必须等于 material.content_hash; 找不到原文引用的不要瞎写 quote\n"
+        f"3. claim 长度 ≤ 10000 字符; 超长会被服务层 422 拒收\n"
+        f"4. confidence: proved 须有可复现实验/PoC; high 有 1 条以上高质量证据; medium 缺 PoC; low 仅经验推测\n"
+        f"5. claim_type: finding=可核查事实; assessment=综合判断; recommendation=处置建议; warning=风险提示; hypothesis=待证假设\n"
+        f"6. unknowns 缺失时不允许 publish (baseline §5 硬约束)\n"
+        f"{_EVIDENCE_RULE}\n"
+    )
+
+
+def parse_cve_impact_brief_response(raw: str) -> dict[str, Any]:
+    """解析 dsh 返回的 JSON, 容错包裹 (首尾 ```json ... ``` / 前置 prose / 单引号键).
+
+    Raises
+    ------
+    ValueError
+        解析失败 (缺字段 / 类型错 / JSON 坏).
+    """
+    if not raw or not raw.strip():
+        raise ValueError("empty response from dsh")
+    s = raw.strip()
+    # 1) 剥 ```json ... ``` 包裹
+    if "```" in s:
+        for fence in ("```json", "```JSON", "```"):
+            idx = s.find(fence)
+            if idx >= 0:
+                end = s.find("```", idx + len(fence))
+                if end > idx:
+                    s = s[idx + len(fence):end].strip()
+                    break
+    # 2) 截首个 { 到末尾
+    if "{" in s:
+        s = s[s.find("{"):s.rfind("}") + 1]
+    try:
+        obj = json.loads(s)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"dsh response not valid JSON: {e}; raw[:200]={raw[:200]!r}")
+    # 3) 必填字段
+    for k in ("claim_type", "claim", "confidence", "evidence_refs", "unknowns"):
+        if k not in obj:
+            raise ValueError(f"missing required field: {k}")
+    if obj["claim_type"] not in ("finding", "assessment", "recommendation", "warning", "hypothesis"):
+        raise ValueError(f"invalid claim_type: {obj['claim_type']}")
+    if obj["confidence"] not in ("low", "medium", "high", "proved"):
+        raise ValueError(f"invalid confidence: {obj['confidence']}")
+    obj.setdefault("conditions", "")
+    obj.setdefault("counter_evidence_refs", [])
+    return obj
+
+
 __all__ = [
     "COST_PER_1M_TOKENS",
+    "CVE_IMPACT_BRIEF_SCHEMA_V1",
     "DEEP_READ_PROFILES",
     "DEEP_READ_PROFILE_VERSION",
     "DEFAULT_SCORE",
@@ -277,6 +398,8 @@ __all__ = [
     "_make_cache_key",
     "_parse_entity_list",
     "_parse_score",
+    "build_cve_impact_brief_prompt",
     "deep_read_profile_for",
     "deep_read_sections",
+    "parse_cve_impact_brief_response",
 ]

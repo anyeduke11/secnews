@@ -1,4 +1,10 @@
 
+## [DEV-0151] v1.0 T15.5 全局 listKnowledge + T16 旧数据迁移 (2026-09-06)
+- 交付: V1KnowledgeRepository.list_all + KnowledgeService.list_all + API case_id 可选 (None 走 listAll 全局) + 前端 KnowledgeView 接入 listAll 真实数据 + LegacyMigrateService (mark_legacy_20_deprecated + migrate_legacy_knowledge, 5 字段 LegacyMigrateResult) + scripts/t16_legacy_migrate.py + 黄金案例 5 步演练 + 8 测试全绿.
+- 设计关键: T15.5 list_all 复用 list_by_case 校验 (status/kind 字段验证), SQL 改 INNER JOIN 路径; T16 旧 20 SK deprecated 走 BUILTIN 末尾循环 (`_skill.__dict__["status"] = "deprecated"`) 绕过 frozen dataclass; T16 旧 15 knowledge 迁移剥离 `reuse_count`/`last_reused_at` 派生字段, content_hash 幂等检测 (重复 apply 不重复 insert); audit_log 表 T19 收口前 silent 降级 (`OperationalError → debug log`).
+- 验收: pytest 4152→4160/6/0 (基线 +8 0 回归); test_knowledge_api 1 测试同步 (case_id 缺返 200 而非 422); 黄金案例 apply 演练 5 步全过 (20 deprecated + 6 v1_active + 15 knowledge 5 published + 6 draft + content_hash 全部非空); 真实库零写入.
+- 数字: services 120→121.
+
 ## [DEV-0150] v1.0 T15 四入口真实工作台 (2026-09-06)
 - 交付: signal_service.list_recent_signals 复用 T05 v1_signals + v1_signals_api 1 端点 + V1Prototype 3 view (Workbench/Intel/Knowledge) 接真实 API + MOCK_SIGNALS 删除 + SkillStore v1_active 单独区块 (绿色 v1.0 标) + 旧 20 legacy 折叠 + SkillCard v1_highlight prop + 4 真路由 (/workbench /intel /cases /knowledge 保留 /v1-prototype 兼容) + 6 测试 + 黄金案例 7 步演练.
 - 设计关键: 4 入口路由都指向 V1Prototype (默认 workbench tab), T15 收口后逐步移除 /v1-prototype 兼容; SkillStore v1 区块按 status 分桶 (v1_active 顶部高亮, legacy_v0 折叠), T14 SkillLifecycleStatus 类型复用; WorkbenchView 走查 3 路径从真实 status 派生 (blocked/open/closed 4 统计卡片); SignalService 失败兜底 (T05 schema 未跑也返 []); case_id 过滤走 v1_case_materials (T08 已有).

@@ -12,7 +12,9 @@
 | T03 契约与原型 | T00,T01 | docs/v1.0/contracts.md + 可生成 TS + 四入口原型 | **verified** | DEV-0139 | `9478074`: 9 域对象契约 500 行 + codegen Pydantic→TS (`_collect_all_defs()` 修 v2 $defs) + seed.json 145 脱敏 + `/v1-prototype` 四入口 + tsc/vitest/build 全绿 |
 | T04 SDK 往返验证 | T01,T03 | 构建锁 + 协议报告 + live trace | **verified** | DEV-0140 | `runtime/upstreams.lock.json` 锁 dsh d347e70 / pi 6f11c31 + `scripts/t04_sdk_probe.py` mock 探测 dsh 3/4 / pi 4/4 / 35ms; 退出判据 2-3 工作日 → ai_hub+确定性协调器 (待 --live 真 vendor) |
 | T05 证据提交协议 | T02,T03 | 统一提交服务 + 故障测试 | **verified** | DEV-0140 | migration 096 5 表 (v1_subjects/v1_materials/v1_signals/v1_subject_identifiers/v1_evidence_receipts) + V1EvidenceService (intent/commit/rollback/原子 rename/超时 reap) + 9 故障测试 (幂等/CAS/超时/冲突/空内容) |
-| T06 统一源抓取 | T05 | 源级管道 + 健康 API + 7 天观察开始 | planned | — | |
+| T06 源级管道 | T05 | 源级管道 + watermark + 5 失败注入 + T05 桥接 | **verified** | DEV-0141 | `SourcePipeline` + `FetchRequest`(frozen) + `SourceLease`(TTL+并发) + `SourceWatermark`(单调) + 17 故障测试 (5 FetchOutcome 状态机 + 5 失败注入点 + 幂等) |
+| T07 准入服务 | T06 | 准入服务 + 标注集 60-80 起步 | **verified** | DEV-0141 | `V1AdmissionService` 复用 `info_filter.evaluate` (deny>allow>neutral) + `AdmissionResult` + 8 维 label 启发式 (entity_type/confidence/urgency/domain/impact/severity/audience/actionability) + 9 准入测试; admission_log migration 097 待 T07 监督批次 |
+| T08 关注对象与事项 | T03,T05 | case 服务/API/schema | planned | — | 端到端体量大 (新表+路由+UI+状态机+持久层), 本批跳过, 留 T19 收口前补; 当前 `/v1-prototype` 仍 mock |
 | T07 准入与事件流 | T06 | 准入服务 + 样本集 | planned | — | 标注集规模建议 60-80 起步 (单人可执行), 留出集纪律不变 |
 | T08 关注对象与事项 | T03,T05 | case 服务/API/schema | planned | — | |
 | T09 运行真实执行 | T01,T03,T05 | 运行协调器 (worker 消费断链接线) | planned | — | 修复 F01; 53 pending → legacy_hold |

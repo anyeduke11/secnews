@@ -1,4 +1,31 @@
 
+## [DEV-0141] v1.0 T06+T07 (A 路) + 方案B 测试发量
+- **时间**: 2026-09-06 09:50
+- **类型**: 实现
+- **关联文件**:
+  - `backend/services/source_pipeline.py` (SourcePipeline / FetchRequest / SourceLease / SourceWatermark / FetchOutcome / PipelineResult)
+  - `backend/services/v1_admission_service.py` (V1AdmissionService / AdmissionResult / AdmissionVerdict / 8 维 ANNOTATION_DIMENSIONS)
+  - `backend/tests/test_source_pipeline.py` (17 故障测试)
+  - `backend/tests/test_v1_admission_service.py` (9 准入测试)
+  - `backend/tests/test_v1_0_models.py` (24 契约测试)
+  - AGENTS.md + ARCHITECTURE.md + 3 AGENTS.md 数字 (services 109→111)
+- **问题描述**: 用户裁决方案A (T06+T07 业务) + 方案B (测试发量+契约锁定) 同时开展; A 路补 v1.0 源级管道 + 准入服务; B 路锁 contracts.md 字段约束到 Pydantic 测试。
+- **实现思路**:
+  - T06: FetchRequest frozen dataclass (含 submission_key 复用 T05); SourceLease 单机版 TTL+并发; SourceWatermark 复用 crawler_sources.etag+last_fetch_at; SourcePipeline.run 编排 fetch→parse→evidence bridge, 5 失败注入点全覆盖。
+  - T07: 复用 info_filter.evaluate 避免重造; 8 维 label 启发式 (后续 T07 监督批次接 supervision_service 替换); quarantine 兜底 (admission_log 表未建返 0)。
+  - B 路: 24 契约测试锁定 9 域对象 + EvidenceRef frozen + Step extra=forbid + 枚举值 + max_length 约束。
+- **核心变更**:
+  - SourcePipeline.run 5 失败注入点: lease/fetch/parse/evidence.create/evidence.commit, 全部单测覆盖。
+  - V1AdmissionService.evaluate 复用 info_filter 评估; AdmissionResult 含 8 维默认 labels (T07 监督批次替换点)。
+- **测试验证**:
+  - pytest test_source_pipeline.py → 17/17
+  - pytest test_v1_admission_service.py → 9/9
+  - pytest test_v1_0_models.py → 24/24
+  - pytest backend/tests/ → 3978/6/0 (基线 3887 + 50 新, 0 回归)
+  - generate_meta.py --check → services 111 一致
+- **提交**: 待 — (单 commit 显式 pathspec, 9 文件)
+- **剩余**: T08 Case 端到端 (新表+API+UI) / T09 运行协调器 / T10 dsh/pi live trace / T07 admission_log migration 097 / T07 监督批次 60-80 起步。
+
 ## [DEV-0140] v1.0 T04 + T05 — 上游 SDK 锁 + 协议探测 (mock) + 证据提交协议
 - **时间**: 2026-09-06 09:25
 - **类型**: 实现

@@ -103,7 +103,21 @@
 - **T05-C 故障测试 9/9 pass**: ①intent+commit 正常 ②同 key+body 重放 IdempotentReplay ③同 key+不同 body pending IntentExistsError ④rollback 清临时文件 ⑤投影 atomic rename 成功 ⑥target 冲突 FileExistsError + receipt 不 committed ⑦content 空 ValueError + 不 committed ⑧超时 reap → rolled_back ⑨projection_dir=None → skipped。
 - **验收证据**: T04 lock `--check` JSON `{lock_ok: true, dsh: d347e70, pi: 6f11c31}`; probe 35ms / dsh 3/4 / pi 4/4; pytest 3887/6/0 (基线 3868 + T05 9 个新测试, 0 回归); generate_meta 109 services, ARCHITECTURE.md + 3 AGENTS.md 数字同步; ruff 0 错。
 - **剩余 (T10 live trace)**: dsh 真 vendor checkout + pi 0.85.0 npm install + 真 dsh stdio JSON-RPC 闭环 + ai_hub 工具消息保留验证; 若 2-3 工作日未跑通 → 降级 ai_hub+确定性协调器 (exit_criteria 写入 lock)。
-- **下一小步 (T06)**: 统一源抓取与健康事实 (T05 已提供 subject/material/signal 落地, T06 在其上接源级管道 + watermark + 重试 + 7 天观察开始)。
+- **下一小步 (T06)**: 见下节 T06+T07 已闭合。
+
+### 2026-09-06 v1.0 T06 + T07 (A 路) + 方案B 测试发量 (verified, DEV-0141)
+
+> **来源**: 用户裁决"方案A和方案B同时开展"。A 路 = T06 源级管道 + T07 准入服务; B 路 = 测试发量 + 契约锁定。产出: `backend/services/source_pipeline.py` + `v1_admission_service.py` + 2 测试 + `v1_0_models` 契约测试 + ARCHITECTURE/AGENTS 数字同步 (services 109→111)。
+
+- **T06-A 源级管道** (`backend/services/source_pipeline.py`): `FetchRequest` frozen dataclass + `SourceLease` (TTL + extend/release, 同源并发抛 LeaseHeldError) + `SourceWatermark` (单调用不变量, 倒退抛 WatermarkRegressedError, 复用 crawler_sources.etag+last_fetch_at) + `SourcePipeline` (fetch → parse → evidence bridge, 5 失败注入点: lease/fetch/parse/evidence.create/evidence.commit) + 7 `FetchOutcome` (SUCCESS/NOT_MODIFIED/RATE_LIMITED/TIMEOUT/BAD_BODY/ERROR/SKIP)。
+- **T06-B T05 桥接**: SourcePipeline 注入 `V1EvidenceService` 后, parse 成功 body → `create_intent("material", body) + commit_intent`; IdempotentReplay 计入 `items_idempotent` (不重复 commit); IntentExistsError / FileExistsError / ValueError 计入 `items_failed`; watermark 在 commit 成功后 advance。
+- **T07 准入服务** (`backend/services/v1_admission_service.py`): `V1AdmissionService` 复用 `info_filter_service.evaluate` (deny > allow > neutral 语义) + `AdmissionResult` (verdict/reason/labels) + `default_labels` 启发式 (8 维 60-80 起步: entity_type/confidence/urgency/domain/impact/severity/audience/actionability) + `quarantine` 兜底 (admission_log 表未建时静默返 0, 等 T07 migration 097 落地)。
+- **方案B 测试发量**: `backend/tests/test_v1_0_models.py` 24 个契约测试 (锁定 contracts.md §1-§9 字段/状态机/枚举/约束); `test_source_pipeline.py` 17 个故障测试 (含 5 失败注入点全覆盖 + 5 FetchOutcome 状态机 + 幂等 + 并发); `test_v1_admission_service.py` 9 个准入测试。
+- **验收证据**: pytest **3978/6/0** (基线 3887 + 50 新测试 T06+T07+v1_0_models, 0 回归); generate_meta 111 services, ARCHITECTURE.md + 3 AGENTS.md 数字同步; ruff 0 错; T04 probe `--check` 不受影响。
+- **T08 跳过说明**: Case 服务+API+前端真实数据接入体量较大 (需新表 + 路由 + UI 状态机 + 真实持久层), 本批时间盒仅完成 T06+T07+A 路; T08 留 T19 收口前补; 当前 `/v1-prototype` 仍用 mock 数据。
+- **剩余**: T08 Case 端到端 / T09 运行协调器 / T10 dsh/pi live trace (lock.exit_criteria 兜底) / T07 admission_log migration 097 (T07 监督流程批次) / T07 标注批次 60-80 起步 (人工 + inter-annotator agreement, 不在本批)。
+
+### 2026-09-05 v1.0 T04 + T05 — 上游 SDK 锁 + 协议探测 (mock) + 证据提交协议 (verified, DEV-0140)
 
 ### 2026-09-05 v1.0 T03 — 领域契约、TS 漂移检查、脱敏样本与四入口原型 (verified, DEV-0139)
 

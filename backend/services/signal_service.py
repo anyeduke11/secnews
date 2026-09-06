@@ -60,7 +60,7 @@ def list_recent_signals(
     except sqlite3.OperationalError as e:
         # migration 096 未跑 (T15 演练 dry-run 模式)
         return []
-    return [
+    items = [
         {
             "id": r[0], "subject_id": r[1], "material_id": r[2],
             "summary": r[3], "occurred_at": r[4], "confidence": r[5],
@@ -68,3 +68,14 @@ def list_recent_signals(
         }
         for r in rows
     ]
+    # T17 SSE 5 事件源: list 走完推 v1_signal 事件 (fire-and-forget, 仅 1 条; T19 全量收口前容忍失败)
+    if items:
+        try:
+            from backend.api.events import publish_event
+            import asyncio
+            asyncio.create_task(publish_event("v1_signal", {
+                "count": len(items), "sample_id": items[0]["id"],
+            }))
+        except Exception as e:
+            logger.debug(f"v1_signal publish_event skipped: {e}")
+    return items

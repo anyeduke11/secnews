@@ -117,6 +117,7 @@ class SkillRunner:
                 status="running",
                 phase="resolve",
                 inputs=inputs,
+                version=skill.version,  # T17 E2E-10: snapshot SkillDef.version
             )
         try:
             if skill.skill_type in ("A", "B"):

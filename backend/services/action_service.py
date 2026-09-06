@@ -298,7 +298,20 @@ class ActionService:
             protocol=protocol, trigger_source=trigger_source, skill_id=skill_id,
             inputs={"action_id": action_id, "plan_hash": a["plan_hash"]},
         )
-        return {"action": self._require(action_id), "run": run["run"], "replayed": run["replayed"]}
+        out = {"action": self._require(action_id), "run": run["run"], "replayed": run["replayed"]}
+        self._publish_v1_action_event(out["action"], "running")
+        return out
+
+    def _publish_v1_action_event(self, a: dict[str, Any], new_status: str) -> None:
+        """T17: publish_event(v1_action) fire-and-forget on start/cancel/finish."""
+        try:
+            from backend.api.events import publish_event
+            import asyncio
+            asyncio.create_task(publish_event("v1_action", {
+                "id": a["id"], "case_id": a["case_id"], "status": new_status,
+            }))
+        except Exception as e:
+            logger.debug(f"v1_action publish_event skipped: {e}")
 
     def cancel(self, action_id: str, *, expected_revision: int, reason: str) -> dict[str, Any]:
         a = self._require(action_id)
@@ -314,7 +327,9 @@ class ActionService:
         )
         if rowcount == 0:
             raise ActionConflictError(f"action {action_id} CAS race")
-        return self._require(action_id)
+        a = self._require(action_id)
+        self._publish_v1_action_event(a, "cancelled")
+        return a
 
     def finish(self, action_id: str, *, expected_revision: int, succeeded: bool) -> dict[str, Any]:
         """Run 完成后被 RunService 调: action.status = succeeded / failed (CAS)."""

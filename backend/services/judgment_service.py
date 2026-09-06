@@ -413,7 +413,21 @@ class JudgmentService:
             })
         except Exception as e:
             logger.warning(f"judgment wiki write failed (publish still ok): {e}")
+        # T17 SSE 5 事件源: judgment publish 推 v1_judgment 事件
+        self._publish_v1_judgment_event(j)
         return self.repo.get(judgment_id)
+
+    def _publish_v1_judgment_event(self, j: dict[str, Any]) -> None:
+        """T17: publish_event(v1_judgment) fire-and-forget."""
+        try:
+            from backend.api.events import publish_event
+            import asyncio
+            asyncio.create_task(publish_event("v1_judgment", {
+                "id": j["id"], "case_id": j["case_id"], "status": j["status"],
+                "claim_type": j.get("claim_type"),
+            }))
+        except Exception as e:
+            logger.debug(f"v1_judgment publish_event skipped: {e}")
 
     # ------------------------------------------------------------------
     # list / get

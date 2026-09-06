@@ -300,7 +300,20 @@ class KnowledgeService:
             "content_hash": k.get("content_hash"),
             "recorded_at": now, "recorded_by": "user",
         })
-        return self._require(knowledge_id)
+        result = self._require(knowledge_id)
+        self._publish_v1_knowledge_event(result, "published")
+        return result
+
+    def _publish_v1_knowledge_event(self, k: dict, action: str) -> None:
+        """T17: publish_event(v1_knowledge) fire-and-forget on publish/deprecate/retract."""
+        try:
+            from backend.api.events import publish_event
+            import asyncio
+            asyncio.create_task(publish_event("v1_knowledge", {
+                "id": k["id"], "status": k["status"], "action": action,
+            }))
+        except Exception as e:
+            logger.debug(f"v1_knowledge publish_event skipped: {e}")
 
     def deprecate(
         self, knowledge_id: str, *, expected_revision: int, reason: str,
@@ -329,7 +342,9 @@ class KnowledgeService:
             "status": "deprecated", "reason": reason, "wiki_path": k.get("wiki_path"),
             "content_hash": k.get("content_hash"), "recorded_at": _utcnow_iso(), "recorded_by": "user",
         })
-        return self._require(knowledge_id)
+        result = self._require(knowledge_id)
+        self._publish_v1_knowledge_event(result, "deprecated")
+        return result
 
     def retract(
         self, knowledge_id: str, *, expected_revision: int, reason: str,
@@ -356,7 +371,9 @@ class KnowledgeService:
             "status": "retracted", "reason": reason, "wiki_path": k.get("wiki_path"),
             "content_hash": k.get("content_hash"), "recorded_at": _utcnow_iso(), "recorded_by": "user",
         })
-        return self._require(knowledge_id)
+        result = self._require(knowledge_id)
+        self._publish_v1_knowledge_event(result, "retracted")
+        return result
 
     def revive(
         self, knowledge_id: str, *, expected_revision: int,

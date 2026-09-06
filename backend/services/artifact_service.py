@@ -131,7 +131,10 @@ class ArtifactService:
         )
         if rowcount == 0:
             raise ArtifactConflictError(f"artifact {artifact_id} CAS race")
-        return self._require(artifact_id)
+        # T17 SSE 5 事件源: verify/accept 推 v1_artifact 事件
+        result = self._require(artifact_id)
+        self._publish_v1_artifact_event(result, "verify" if new_status == "verified" else new_status)
+        return result
 
     # ------------------------------------------------------------------
     # 业务验收 (only verified → accepted)
@@ -161,8 +164,20 @@ class ArtifactService:
         )
         if rowcount == 0:
             raise ArtifactConflictError(f"artifact {artifact_id} CAS race")
-        return self._require(artifact_id)
+        result = self._require(artifact_id)
+        self._publish_v1_artifact_event(result, "accept")
+        return result
 
+    def _publish_v1_artifact_event(self, a: dict[str, Any], action: str) -> None:
+        """T17: publish_event(v1_artifact) fire-and-forget on verify/accept."""
+        try:
+            from backend.api.events import publish_event
+            import asyncio
+            asyncio.create_task(publish_event("v1_artifact", {
+                "id": a["id"], "run_id": a.get("run_id"), "action": action,
+            }))
+        except Exception as e:
+            logger.debug(f"v1_artifact publish_event skipped: {e}")
     # ------------------------------------------------------------------
     # 拒绝 (verify 阶段或业务退回)
     # ------------------------------------------------------------------

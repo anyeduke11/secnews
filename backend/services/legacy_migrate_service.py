@@ -190,18 +190,14 @@ class LegacyMigrateService:
     # audit_log (T08 通用表)
     # ------------------------------------------------------------------
     def _audit(self, action: str, subject_id: str, details: dict[str, Any]) -> None:
-        """写 audit_log (T16 临时: 表不存在时 silent 降级, 等 T19 收口建表)."""
+        """写 audit_log (复用 observability_records.record_audit 的 schema).
+
+        T17 修复: T16 之前用错列名 (subject_id/details_json/created_at), 实际 schema 是
+        actor/action/target/detail/trace_id/occurred_at. 直接调 observability_records.record_audit.
+        """
         try:
-            conn = get_connection()
-            conn.execute(
-                "INSERT INTO audit_log (action, subject_id, details_json, created_at) "
-                "VALUES (?, ?, ?, ?)",
-                (action, subject_id, json.dumps(details, ensure_ascii=False, default=str), _now_utc_iso()),
-            )
-            conn.commit()
-        except sqlite3.OperationalError as e:
-            # audit_log 表可能尚未建 (T19 全量收口补), silent 降级
-            logger.debug(f"audit_log unavailable (T19 收口前): {e}")
+            from backend.observability_records import record_audit
+            record_audit(actor="t16_legacy_migrate", action=action, target=subject_id, detail=details)
         except Exception as e:
             logger.warning(f"audit_log write failed (action={action}): {e}")
 

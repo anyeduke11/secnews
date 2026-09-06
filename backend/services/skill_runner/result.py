@@ -107,11 +107,14 @@ class SkillRunRepo:
         metrics: dict[str, Any] | None = None,
         error: str | None = None,
         finished: bool = False,
+        version: str | None = None,  # T17 E2E-10: SkillDef.version snapshot (migration 103)
     ) -> None:
         """插入一条 run (幂等 INSERT OR REPLACE).
 
         finished=True 时自动写 finished_at; phase 通常在 status='running' 时
         设当前阶段 (B6 SSE 可按 phase 切推送), 终态时设为 'done'/'failed'.
+
+        T17 E2E-10: version 字段落库 (NULL 时为旧行, 主流程 fallback; 启停校验走 MAX(version)).
         """
         conn = get_connection()
         finished_at = _now_localtime() if finished else None
@@ -119,10 +122,10 @@ class SkillRunRepo:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO skill_runs(
-                    run_id, ticket_id, skill_id, status, phase,
+                    run_id, ticket_id, skill_id, status, phase, version,
                     inputs, result, metrics, error, created_at, finished_at
                 ) VALUES (
-                    ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?,
                     ?, ?, ?, ?,
                     COALESCE(
                         (SELECT created_at FROM skill_runs WHERE run_id = ?),
@@ -137,6 +140,7 @@ class SkillRunRepo:
                     skill_id,
                     status,
                     phase,
+                    version,
                     _json_dump(inputs) if inputs is not None else None,
                     _json_dump(result) if result is not None else None,
                     _json_dump(metrics) if metrics is not None else None,

@@ -50,11 +50,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     Phase 8: scheduler 写入 app.state.scheduler（替代模块 singleton），
     保证 /api/health 跨请求读到的总是当前 lifespan 的实例。
+    T17 E2E-10: 启动时校验 in-flight skill_runs.version 与 BUILTIN 当前 version,
+    不一致仅 warning (T19 全量收口前容忍 in-flight 旧版本).
     """
     boot_start = time.time()
     set_start_time(boot_start)
     setup_logging()
     init_db()
+    _check_skill_run_version_compatibility()  # T17 E2E-10 启停校验 (warning only)
     warmup()
     try:
         rebuild_export_cache()
@@ -255,5 +258,36 @@ if __name__ == "__main__":  # pragma: no cover
         "backend.main:app",
         host=os.getenv("HOTSPOT_HOST") or os.getenv("HOST", config.host),
         port=int(os.getenv("HOTSPOT_PORT") or os.getenv("PORT", str(config.port))),
+
+
+def _check_skill_run_version_compatibility() -> None:
+    """T17 E2E-10 启停校验 (warning only).
+
+    启动时扫 in-flight skill_runs (status='running'), 取每个 skill_id 的最新 version,
+    与 BUILTIN 当前 SkillDef.version 对比. 不一致仅 log.warning (T19 全量收口前
+    容忍 in-flight 旧版本, 严格 raise 模式留 T19).
+    """
+    try:
+        from backend.repository.db import get_connection
+        from backend.services.skill_registry.builtin import BUILTIN
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT skill_id, MAX(version) AS last_version "
+            "FROM skill_runs WHERE status = 'running' GROUP BY skill_id"
+        ).fetchall()
+        if not rows:
+            return
+        for skill_id, last_version in rows:
+            current = BUILTIN.get(skill_id)
+            if current is None:
+                continue  # 旧 SK 已不在 BUILTIN (可能 unregister)
+            if last_version and last_version != current.version:
+                log.warning(
+                    f"E2E-10 in-flight version mismatch: skill={skill_id} "
+                    f"in_flight={last_version} current={current.version} "
+                    f"(T19 收口前仅 warning)"
+                )
+    except Exception as e:
+        log.debug(f"skill_run version check skipped: {e}")
         reload=False,
     )

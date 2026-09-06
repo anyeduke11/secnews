@@ -113,6 +113,10 @@ from backend.scheduler.jobs.maintenance import (
     weekly_maintenance_job,
     wiki_items_fts_sync_job,
 )
+from backend.scheduler.jobs.worker_pump import (
+    legacy_hold_reap_job,  # v1.0 T09: F01 收口 (周一 04:30)
+    worker_queue_pump_job,  # v1.0 T09: 队列消费泵 (每 60s)
+)
 
 
 def __getattr__(name: str):
@@ -193,6 +197,7 @@ __all__.extend([
     "knowledge_chunk_generation_job",
     "knowledge_classify_job",
     "knowledge_stub_backfill_job",
+    "legacy_hold_reap_job",  # v1.0 T09: F01 53 pending → legacy_hold (周一 04:30)
     "observability_aggregator_job",  # v0.7 Batch ③: api_events → api_metrics_hourly roll-up
     "observability_threshold_check_job",  # v0.7 Batch ④: 阈值规则引擎
     "observability_ttl_job",  # v0.7 Batch 1: 观测表 TTL 清理
@@ -202,4 +207,5 @@ __all__.extend([
     "security_entity_concept_sync_job",
     "url_full_check_job",
     "wiki_archiver_job",
+    "worker_queue_pump_job",  # v1.0 T09: 队列消费泵 (每 60s)
 ])

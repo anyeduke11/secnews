@@ -215,8 +215,8 @@ class TestJobGating:
             assert _is_job_enabled(core_id), f"core job {core_id} must always run"
 
     def test_registered_job_count_matches_scheduler(self):
-        """scheduler.py 中 add_job 数 = 47 (复利驱动器 + llm-wiki-2.0 归档/衰减
-        + SECNEWS kl_pipeline_heartbeat / secnews_liveness_sweep)。"""
+        """scheduler.py 中 add_job 数 = 54 (v1.0 T09 +2 worker_queue_pump + legacy_hold_reap,
+        前值 52 — v0.8.2 Y-A4 +1 backup_verify)。"""
         import ast
         from pathlib import Path
         src = Path("backend/scheduler/scheduler.py").read_text(encoding="utf-8")
@@ -227,7 +227,7 @@ class TestJobGating:
             and isinstance(node.func, ast.Attribute)
             and node.func.attr == "add_job"
         )
-        assert n == 52  # v0.8.2 Y-A4 (+1 backup_verify) — 前值 51 (v0.7 Batch ⑨ B9-2)
+        assert n == 54  # v1.0 T09 (+2 worker_queue_pump / legacy_hold_reap)
 
 
 class TestFeaturesEndpoint:

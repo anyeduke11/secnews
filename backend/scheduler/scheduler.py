@@ -611,6 +611,24 @@ class HotspotScheduler:
             name="profile weight decay (03:00 Shanghai)",
             replace_existing=True,
         )
+        # v1.0 T09: job 53 — worker_queue_pump (每 60s 拉 trigger_gate/ai_hub/case_service 队列)
+        self.scheduler.add_job(
+            jobs.worker_queue_pump_job,
+            trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
+            id="worker_queue_pump",
+            name="worker queue pump: trigger_gate/ai_hub/case_service (every 60s)",
+            replace_existing=True,
+        )
+        # v1.0 T09: job 54 — legacy_hold_reap (周一 04:30 Asia/Shanghai, F01 收尾)
+        self.scheduler.add_job(
+            jobs.legacy_hold_reap_job,
+            trigger=CronTrigger(
+                day_of_week="mon", hour=4, minute=30, timezone=SHANGHAI_TZ
+            ),
+            id="legacy_hold_reap",
+            name="legacy hold reap: F01 53 pending → legacy_hold (Mon 04:30 Shanghai)",
+            replace_existing=True,
+        )
 
     def start(self) -> None:
         """启动调度器 + 立即触发 collect_all"""

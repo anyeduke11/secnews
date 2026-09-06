@@ -1,4 +1,66 @@
 
+## [DEV-0140] v1.0 T04 + T05 — 上游 SDK 锁 + 协议探测 (mock) + 证据提交协议
+- **时间**: 2026-09-06 09:25
+- **类型**: 实现
+- **关联文件**:
+  - `runtime/upstreams.lock.json` + `upstreams.lock.schema.json`（上游 dsh/pi 锁版本 + JSON Schema 校验）
+  - `scripts/t04_sdk_probe.py`（mock stdio JSON-RPC + AgentSession 探测, dry-run 默认）
+  - `backend/repository/migrations/096_v10_evidence_subjects.sql`（5 表: v1_subjects/v1_materials/v1_signals/v1_subject_identifiers/v1_evidence_receipts）
+  - `backend/services/v1_evidence_service.py`（V1EvidenceService: intent/commit/rollback/原子 rename/超时 reap）
+  - `backend/tests/test_v1_evidence_service.py`（9 故障测试）
+  - ARCHITECTURE.md + 3 AGENTS.md（services 108→109 同步）
+- **问题描述**: T04 需固化上游 dsh/pi commit 锁, 验证 stdio JSON-RPC 协议形状; T05 需建立 evidence 提交协议 (intent + receipt + 原子 rename) 替代直接写库, 实现 contracts.md §0.5 幂等 + §0.6 CAS。
+- **实现思路**:
+  - T04-A: 锁文件 (d347e70 + 6f11c31) + JSON Schema 校验 commit_sha 长度/必填字段; 退出判据写入 lock (2-3 工作日 → ai_hub+确定性协调器)。
+  - T04-B: probe 脚本自启 Python mock 子进程 (避免拉真 vendor), 4 帧/SDK (create/dispatch/cancel/error); `--check` 模式只校验 lock 结构。
+  - T05-A: 两阶段提交 (create_intent → commit/rollback), receipt 不可变 (UNIQUE submission_key+body_hash), 原子 rename `_atomic_rename_projection`, 超时 reap (1h) 兜底。
+  - T05-B: 5 表 schema 对齐 contracts.md §1-§3 + Pydantic v1_0_models, 含幂等唯一键 (subject source+external_id; receipt submission_key+body_hash)。
+  - T05-C: 9 故障测试覆盖正常路径 + 4 类失败 (IdempotentReplay / IntentExistsError / FileExistsError / ValueError / 超时 reap) + 1 类跳过 (no projection_dir)。
+- **核心变更**:
+  - 上游 SDK 锁: dsh `d347e70` (Python SDK stdio JSON-RPC) / pi `6f11c31` (AgentSession 事件流)。
+  - 证据提交: V1EvidenceService 落地 contracts.md §0.5 幂等 + §0.6 CAS + §0.7 提交后只发一次。
+  - Subject/Material/Signal: 5 表入 096 迁移, 主外键 + 索引齐备; service 端校验 + 业务规则。
+- **测试验证**:
+  - `.venv/bin/python scripts/t04_sdk_probe.py --check` → `{"lock_ok": true, "dsh": "d347e70", "pi": "6f11c31"}`
+  - `.venv/bin/python scripts/t04_sdk_probe.py` → dsh 3/4 / pi 4/4 / 35ms (1 帧故意 error 路径)
+  - `pytest backend/tests/test_v1_evidence_service.py` → 9/9 passed
+  - `pytest backend/tests/` → 3887/6/0 (基线 3868 + 9 新, 0 回归)
+  - `generate_meta.py --check` → services 109 一致
+- **提交**: 待 — (单 commit 显式 pathspec, 17 文件)
+- **剩余**: dsh/pi 真 vendor checkout + live trace (T10 范围); 2-3 工作日未跑通 → 降级 ai_hub+确定性协调器 (lock.exit_criteria 兜底)。
+
+## [DEV-0139] v1.0 T03 — 领域契约、TS 漂移检查、脱敏样本与四入口原型
+- **时间**: 2026-09-05 23:30
+- **类型**: 实现
+- **关联文件**:
+  - `docs/v1.0/contracts.md`（领域契约, 新增）
+  - `backend/domain/v1_0_models.py`（Pydantic v2 单一真源, 新增）
+  - `scripts/codegen_v1_ts.py`（Pydantic→TS 生成器, 新增）
+  - `frontend/src/domain/v1_0.ts`（生成产物, 268 行）
+  - `scripts/t03_seed_extract.py`（生产脱敏抽数, 新增）
+  - `dev_data/seed.json`（145 条脱敏样本, gitignore）
+  - `frontend/src/components/v1/V1Prototype.tsx`（四入口原型, 新增）
+  - `frontend/src/routes/index.tsx` + `lazy-imports.ts`（路由 wiring）
+  - `PROGRESS.md`（本文更新）
+- **问题描述**: v1.0 需要固定领域契约 + 前端类型单一真源 + 可交互原型验证 9 对象状态机与走查 3 路径。
+- **实现思路**:
+  - T03-A: 盘点旧表, 确认 9 域对象全部新建 (crm_*/todos 为空或仅作 T16 迁移源)。
+  - T03-B: 写 contracts.md 覆盖 9 对象字段、状态机、allowed_actions、跨对象约束、IO/错误/幂等/CAS/SSE schema。
+  - T03-C: 新写 codegen_v1_ts.py, 关键修复 Pydantic v2 $defs 只返回引用项的问题 (`_collect_all_defs()` 合并所有模型); 支持 `--check` 漂移检测。
+  - T03-D: 生产抽 145 条记录, 脱敏规则: URL 只留域名、文本截断 80 字符、hash 种子化、时间归一到 2025。
+  - T03-E: V1Prototype 四入口 (今日工作/情报/事项/知识) + CaseDetail 三级钻取 + 走查 3 路径 (缺资产/待验收/失败)。
+- **核心变更**:
+  - `backend/domain/v1_0_models.py`: 23 个 Enum + EvidenceRef/Step/9 domain models + `allowed_actions`/`reason` 字段 + DOMAIN_MODELS 列表。
+  - `frontend/src/domain/v1_0.ts`: 23 TS enum types + 11 interfaces (EvidenceRef/Step/Subject/Material/Signal/Case/Judgment/Action/Run/Artifact/Knowledge)。
+  - `docs/v1.0/contracts.md`: 9 对象字段定义 + 状态机 + allowed_actions 矩阵 + 错误 schema + 幂等/CAS/SSE 规范。
+  - `dev_data/seed.json`: 145 条脱敏生产样本 (gitignore, 不进入版本控制)。
+- **测试验证**:
+  - `npx tsc --noEmit` → 0 errors
+  - `npx vitest run` → 425/425 passed
+  - `npx vite build --logLevel error` → success
+  - codegen `--check` → 0 drift
+- **提交**: `9478074` feat(v1.0 T03): 契约 + codegen + 脱敏样本 + 四入口原型 (DEV-0139)
+
 ## [DEV-0132] 爬虫体系 v2 正式技术方案（第一性原理驱动的批判性重构）
 - **时间**: 2026-08-01 23:00
 - **类型**: 设计

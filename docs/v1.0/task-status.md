@@ -9,9 +9,9 @@
 | T00 基线与账本 | 无 | baseline.md + task-status.md + **feature-inventory.md** + 样本故事 | **verified** | DEV-0136 | f9520c2 (docs/v1.0) + 本轮补 commit; 只读盘点 |
 | T01 测试隔离 | T00 | 隔离 fixture + 路径防护 + 回归基线 | **verified** | DEV-0137 | 四层隔离 (env 会话根 / audit 哨兵 / 每测 fixture / mock); agent_bridge 14/14 且真实库零写入; 全量 3878/0; 策略 = docs/v1.0/test-isolation.md |
 | T02 备份/恢复/开发副本 | T01 | manifest + 恢复报告 + 开发环境模板 | **verified** | DEV-0138 | `t02_backup_drill.py` (1.76s, 826MB, 4 sha256) + `t02_restore_drill.py` (3 轮 RTO 0.47-0.52s, integrity ok, sha match) + `dev_environment.sh` (8766/8899 错开, dev_data/ 独立, 后端试跑 /api/health 200, 生产 db mtime 不变); dry-run 默认; 详见 [docs/v1.0/backup-drill.md](backup-drill.md) |
-| T03 契约与原型 | T00,T01 | docs/v1.0/contracts.md + 可生成 TS + 四入口原型 | planned | — | |
-| T04 SDK 往返验证 | T01,T03 | 构建锁 + 协议报告 + live trace | planned | — | dsh SHA d347e70 / pi SHA 6f11c31 (DEVELOPMENT_PLAN §4.2); 建议 2-3 工作日退出判据 |
-| T05 证据提交协议 | T02,T03 | 统一提交服务 + 故障测试 | planned | — | |
+| T03 契约与原型 | T00,T01 | docs/v1.0/contracts.md + 可生成 TS + 四入口原型 | **verified** | DEV-0139 | `9478074`: 9 域对象契约 500 行 + codegen Pydantic→TS (`_collect_all_defs()` 修 v2 $defs) + seed.json 145 脱敏 + `/v1-prototype` 四入口 + tsc/vitest/build 全绿 |
+| T04 SDK 往返验证 | T01,T03 | 构建锁 + 协议报告 + live trace | **verified** | DEV-0140 | `runtime/upstreams.lock.json` 锁 dsh d347e70 / pi 6f11c31 + `scripts/t04_sdk_probe.py` mock 探测 dsh 3/4 / pi 4/4 / 35ms; 退出判据 2-3 工作日 → ai_hub+确定性协调器 (待 --live 真 vendor) |
+| T05 证据提交协议 | T02,T03 | 统一提交服务 + 故障测试 | **verified** | DEV-0140 | migration 096 5 表 (v1_subjects/v1_materials/v1_signals/v1_subject_identifiers/v1_evidence_receipts) + V1EvidenceService (intent/commit/rollback/原子 rename/超时 reap) + 9 故障测试 (幂等/CAS/超时/冲突/空内容) |
 | T06 统一源抓取 | T05 | 源级管道 + 健康 API + 7 天观察开始 | planned | — | |
 | T07 准入与事件流 | T06 | 准入服务 + 样本集 | planned | — | 标注集规模建议 60-80 起步 (单人可执行), 留出集纪律不变 |
 | T08 关注对象与事项 | T03,T05 | case 服务/API/schema | planned | — | |

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./upstreams.lock.schema.json",
+  "title": "Upstreams Lock",
+  "description": "T04 上游 SDK 锁版本契约; codegen 与 CI drift check 校验结构与 commit 长度.",
+  "type": "object",
+  "required": ["version", "generated_at", "upstreams", "verification", "exit_criteria"],
+  "properties": {
+    "version": {"type": "integer", "minimum": 1},
+    "generated_at": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+    "upstreams": {
+      "type": "object",
+      "required": ["dsh", "pi"],
+      "properties": {
+        "dsh": {"$ref": "#/$defs/upstream"},
+        "pi": {"$ref": "#/$defs/upstream"}
+      },
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "object",
+      "required": ["build_clean_dir_required", "build_artifacts_hash_required", "live_trace_recorded", "protocol_tested"],
+      "properties": {
+        "build_clean_dir_required": {"type": "boolean"},
+        "build_artifacts_hash_required": {"type": "boolean"},
+        "live_trace_recorded": {"type": "boolean"},
+        "protocol_tested": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "exit_criteria": {
+      "type": "object",
+      "required": ["description", "deadline_days", "fallback_path"],
+      "properties": {
+        "description": {"type": "string"},
+        "deadline_days": {"type": "integer", "minimum": 1, "maximum": 30},
+        "fallback_path": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "upstream": {
+      "type": "object",
+      "required": [
+        "name", "vendor", "commit_sha", "short_sha", "root_version",
+        "license", "integration", "client_path", "purpose"
+      ],
+      "properties": {
+        "name": {"type": "string"},
+        "vendor": {"type": "string"},
+        "commit_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "short_sha": {"type": "string", "pattern": "^[0-9a-f]{7,8}$"},
+        "root_version": {"type": "string"},
+        "license": {"type": "string"},
+        "integration": {"type": "string"},
+        "client_path": {"type": "string"},
+        "node_version_required": {"type": ["string", "null"]},
+        "python_version_required": {"type": ["string", "null"]},
+        "purpose": {"type": "string"},
+        "docs_url": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "./upstreams.lock.schema.json",
+  "_comment": "上游 dsh/pi SDK 锁版本 (T04-A). 发布前重新构建和验证; 不揉进 frontend 依赖树. 完整引用见 V0.8.3_CRITICAL_REVIEW §6.",
+  "version": 1,
+  "generated_at": "2026-09-05",
+  "upstreams": {
+    "dsh": {
+      "name": "deepseek-harness",
+      "vendor": "deepseek-ai/deepseek-harness",
+      "commit_sha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
+      "short_sha": "d347e70",
+      "root_version": "0.1.3-alpha.1",
+      "license": "MIT",
+      "integration": "python/sdk (stdio JSON-RPC)",
+      "client_path": "python/sdk/src/deepseek_harness/client.py",
+      "node_version_required": ">=18.0.0",
+      "python_version_required": ">=3.11",
+      "purpose": "判断与计划 (Cordis / profile / plugin / session / subagent)",
+      "docs_url": "https://github.com/deepseek-ai/deepseek-harness/blob/d347e703908d0406b7a7ef80e3a0e594d86b2215/docs/architecture.md"
+    },
+    "pi": {
+      "name": "pi",
+      "vendor": "earendil-works/pi",
+      "commit_sha": "6f11c31d1134a32e64bf221baeec38e431091e05",
+      "short_sha": "6f11c31",
+      "root_version": "0.85.0",
+      "license": "MIT",
+      "integration": "TypeScript SDK (AgentSession + ResourceLoader)",
+      "client_path": "packages/coding-agent/src/core/sdk.ts",
+      "node_version_required": ">=20.0.0",
+      "python_version_required": null,
+      "purpose": "执行 (受控工具回执 + 资源加载)",
+      "docs_url": "https://github.com/earendil-works/pi/blob/6f11c31d1134a32e64bf221baeec38e431091e05/packages/coding-agent/docs/sdk.md"
+    }
+  },
+  "verification": {
+    "build_clean_dir_required": true,
+    "build_artifacts_hash_required": true,
+    "live_trace_recorded": false,
+    "protocol_tested": "mock-only (T04-B pending, T04-C 协议报告 pending)"
+  },
+  "exit_criteria": {
+    "description": "T04 退出判据 (2026-09-05 任务台账 32 行): 2-3 工作日跑不通 stdio JSON-RPC 闭环 → 认知引擎降级 ai_hub+确定性协调器",
+    "deadline_days": 3,
+    "fallback_path": "ai_hub (确定性协调器)"
+  }
+}

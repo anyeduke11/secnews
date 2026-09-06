@@ -79,7 +79,33 @@
 - **真 RPO/RTO**: RPO 演练 = 1.76s (不表真 RPO, 真 RPO = 距 daily_db_backup 04:30 窗口); RTO 演练 = 0.5s 本地, 异机经验 +10-30s。
 - **设计纪律**: dry-run 默认 + 演练目录隔离 + 不调 backup_service 全局函数 + 不打印密钥 + GitHub `feat(v1.0 T02): 备份演练 + 恢复演练 + 开发副本 (DEV-0138)` 单 commit 显式 pathspec。
 - **剩余问题 (非阻塞, 留 T17 验收)**: ①favorites 历史 url 漂移 ②真异机 RTO 演练 ③WARM 818MB 同盘 copy vs 异机 100-500MB/s 吞吐差。
-- **下一小步 (T03)**: 固定领域契约 + 最小交互原型 (Case/Subject/Judgment/Action/Run/Artifact/Knowledge + revision 状态 + allowed_actions; 标准化 IO/错误/幂等/CAS/SSE schema; 四入口原型走查缺资产/待验收/失败三路径)。
+- **下一小步 (T03)**: 见下节 T03 已闭合。
+
+### 2026-09-05 v1.0 T03 — 领域契约、TS 漂移检查、脱敏样本与四入口原型 (verified, DEV-0139)
+
+> **来源**: EXECUTION_GUIDE §4 T03 任务卡。产出: `docs/v1.0/contracts.md` + `scripts/codegen_v1_ts.py` + `frontend/src/domain/v1_0.ts` + `dev_data/seed.json` (gitignore) + `frontend/src/components/v1/V1Prototype.tsx`。commit `9478074`。
+
+- **T03-A 盘点旧表**: 9 域对象 (Subject/Material/Signal/Case/Judgment/Action/Run/Artifact/Knowledge) 全部新建; 旧表 (crm_opportunities/crm_events/bid_details/todos/crm_customers) 为空或仅作 T16 迁移源, 不复用字段。
+- **T03-B contracts.md** (~500 行): 9 对象字段 + 状态机 + `allowed_actions` 服务端推导 + 跨对象约束; §0.3 通用响应字段 (revision/allowed_actions/reason/updated_at); §0.4 错误 schema (E_VALIDATION/E_NOT_FOUND/E_CONFLICT/E_GATE_CLOSED/E_INTERNAL); §0.5 幂等 (idempotency_key + body hash); §0.6 CAS (expected_revision/expected_status); §0.7 SSE (commit 后只发一次)。
+- **T03-C codegen**: `scripts/codegen_v1_ts.py` Pydantic v2 → TS 单文件, 关键修复 `_collect_all_defs()` 合并所有模型 $defs (v2 只返回引用项); `--check` 模式 CI 漂移检测 (exit 1 + JSON report); datetime→string / Optional→T|null / dict→Record / enum→union literals。输出 `frontend/src/domain/v1_0.ts` 268 行 (23 enum + 11 interface)。
+- **T03-D 脱敏样本**: `scripts/t03_seed_extract.py` 从生产抽 145 条 (knowledge_concepts→Subject 20 / hotspots→Material 25 / todos→Case 20 / agent_runs→Run 20 + 合成 Judgment 10 / Action 10 / Artifact 15 / Knowledge 10 / Signal 15); 脱敏: URL 只留域名 / 文本截断 80 字符 / hash 种子化 / 时间归一到 2025。产物 `dev_data/seed.json` 103KB (gitignore)。
+- **T03-E 四入口原型**: `/v1-prototype` 路由 (今日工作/情报/事项/知识) + CaseDetail 三级 (Judgment → Action/Run → Artifact); 走查 3 路径: 缺资产 / 待验收 / 失败。验证: `tsc --noEmit` 0 错 / `vitest run` 425/425 / `vite build` success。
+- **验收证据**: contracts.md 9 对象全覆盖 / codegen `--check` 0 drift / seed.json 145 条可解析 / 原型 4 tab 可切换 + CaseDetail 可钻取。
+### 2026-09-06 v1.0 T04 + T05 — 上游 SDK 锁 + 协议探测 (mock) + 证据提交协议 (verified, DEV-0140)
+
+> **来源**: EXECUTION_GUIDE §4 T04+T05 任务卡。产出: `runtime/upstreams.lock.json` + `scripts/t04_sdk_probe.py` + migration `096_v10_evidence_subjects.sql` + `backend/services/v1_evidence_service.py` + `backend/tests/test_v1_evidence_service.py` + ARCHITECTURE/AGENTS 数字同步 (services 108→109)。
+
+- **T04-A 上游 SDK 锁** (`runtime/upstreams.lock.json` + `upstreams.lock.schema.json`): 固定 dsh `d347e703908d0406b7a7ef80e3a0e594d86b2215` (MIT, 0.1.3-alpha.1, Python SDK stdio JSON-RPC) + pi `6f11c31d1134a32e64bf221baeec38e431091e05` (MIT, 0.85.0, AgentSession 事件流); 含 `verification` (build_clean_dir/artifacts_hash/live_trace/protocol_tested) + `exit_criteria` (2-3 工作日 → 降级 ai_hub+确定性协调器)。
+- **T04-B 协议探测** (`scripts/t04_sdk_probe.py`, dry-run 默认): 隔离目录 `/tmp/hotspot-t04-<ts>/` + mock 子进程 (Python 自启) 模拟 dsh stdio JSON-RPC + pi AgentSession 事件流; 4 帧/SDK (create/dispatch/cancel + error); `--check` 模式只校验 lock 结构 (CI 用)。
+- **T04-C 协议兼容报告**: dsh 3/4 OK (1 帧故意走 error 路径, 验 mock error 形状) / pi 4/4 OK; dsh stdio JSON-RPC 形状 (jsonrpc 2.0 / id / method / result|error) 匹配; pi AgentSession 事件流 (event/session_id/data) 匹配; session 身份透传一致; **协议-compatible, 但 live trace 未跑** (待 --live 真 vendor checkout + dsh/pi 子进程)。
+- **T05-A 证据提交协议**: `backend/services/v1_evidence_service.py` V1EvidenceService — 两阶段 intent (create_intent → commit_intent/rollback_intent); 临时写 `.tmp/<id>` → 原子 rename 到 `committed/<path>`; receipt 不可变 (submission_key + body_hash 唯一约束); 失败/超时 reap (1h) 自动标 rolled_back。
+- **T05-B Subject/Material/Signal 后端表** (migration 096): 5 张表 — `v1_subjects` (关注对象, entity_type/canonical_name/aliases/importance) + `v1_materials` (资料, source_kind/url/content_hash/content_ref) + `v1_signals` (信号, subject_id+material_id+confidence+status+supersedes_signal_id) + `v1_subject_identifiers` (幂等唯一键 source+external_id) + `v1_evidence_receipts` (提交回执, submission_key+body_hash UNIQUE)。字段对齐 contracts.md §1-§3 + Pydantic v1_0_models。
+- **T05-C 故障测试 9/9 pass**: ①intent+commit 正常 ②同 key+body 重放 IdempotentReplay ③同 key+不同 body pending IntentExistsError ④rollback 清临时文件 ⑤投影 atomic rename 成功 ⑥target 冲突 FileExistsError + receipt 不 committed ⑦content 空 ValueError + 不 committed ⑧超时 reap → rolled_back ⑨projection_dir=None → skipped。
+- **验收证据**: T04 lock `--check` JSON `{lock_ok: true, dsh: d347e70, pi: 6f11c31}`; probe 35ms / dsh 3/4 / pi 4/4; pytest 3887/6/0 (基线 3868 + T05 9 个新测试, 0 回归); generate_meta 109 services, ARCHITECTURE.md + 3 AGENTS.md 数字同步; ruff 0 错。
+- **剩余 (T10 live trace)**: dsh 真 vendor checkout + pi 0.85.0 npm install + 真 dsh stdio JSON-RPC 闭环 + ai_hub 工具消息保留验证; 若 2-3 工作日未跑通 → 降级 ai_hub+确定性协调器 (exit_criteria 写入 lock)。
+- **下一小步 (T06)**: 统一源抓取与健康事实 (T05 已提供 subject/material/signal 落地, T06 在其上接源级管道 + watermark + 重试 + 7 天观察开始)。
+
+### 2026-09-05 v1.0 T03 — 领域契约、TS 漂移检查、脱敏样本与四入口原型 (verified, DEV-0139)
 
 ### 2026-09-05 v1.0 T00 — 基线核对与任务台账 (verified, 只读)
 

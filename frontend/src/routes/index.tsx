@@ -115,8 +115,13 @@ export function AppRoutes() {
         <Route path="/skill-store/new" element={<Suspense fallback={<PageFallback />}><SkillBuilderRoute /></Suspense>} />
         {/* v0.8 Phase D (D2): 技能看板 */}
         <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><DashboardRoute /></Suspense>} />
-        {/* T03-E: v1.0 四入口原型 (临时) */}
+        {/* T03-E: v1.0 四入口原型 (T15 收口后为正式路径) */}
         <Route path="/v1-prototype" element={<Suspense fallback={<PageFallback />}><P.V1Prototype /></Suspense>} />
+        {/* v1.0 T15: 四主入口真路径 (默认 workbench tab) */}
+        <Route path="/workbench" element={<Suspense fallback={<PageFallback />}><P.V1Prototype /></Suspense>} />
+        <Route path="/intel" element={<Suspense fallback={<PageFallback />}><P.V1Prototype /></Suspense>} />
+        <Route path="/cases" element={<Suspense fallback={<PageFallback />}><P.V1Prototype /></Suspense>} />
+        <Route path="/knowledge" element={<Suspense fallback={<PageFallback />}><P.V1Prototype /></Suspense>} />
         <Route path="/secrets" element={<Suspense fallback={<PageFallback />}><P.SecretsPage onBack={goHome} /></Suspense>} />
         {features.sync && (
           <Route path="/sync" element={<Suspense fallback={<PageFallback />}><P.SyncPage onBack={goHome} /></Suspense>} />

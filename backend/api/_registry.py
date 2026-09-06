@@ -243,6 +243,9 @@ def register_all(app: FastAPI) -> None:
     from backend.api import skill_registry_v1_api
     if is_extension_enabled("skill_registry"):
         app.include_router(skill_registry_v1_api.router, tags=["v1-skill-registry"])
+    # v1.0 T15: Signal API (Intel 入口真实化, 复用 T05 v1_signals)
+    from backend.api import v1_signals_api
+    app.include_router(v1_signals_api.router, tags=["v1-signals"])
 
 
 __all__ = ["register_all"]

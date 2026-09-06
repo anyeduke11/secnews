@@ -17,9 +17,9 @@
  */
 
 import { useEffect, useState } from 'react';
-import type { Case, Judgment, Signal } from '../../domain/v1_0';
+import type { Case, Judgment } from '../../domain/v1_0';
 import type { Action, Run, Artifact, Knowledge } from '../../api/v1';
-import { listCases, getCase, listJudgments, listActions, listRuns, listArtifacts, listKnowledge, getKnowledgeReuse, type ReuseReceipt } from '../../api/v1';
+import { listCases, getCase, listJudgments, listActions, listRuns, listArtifacts, listKnowledge, getKnowledgeReuse, listSignals, type ReuseReceipt, type V1Signal } from '../../api/v1';
 import { renderInlineMarkdown } from '../../lib/markdown';
 
 // ---------------------------------------------------------------------------
@@ -27,12 +27,6 @@ import { renderInlineMarkdown } from '../../lib/markdown';
 // ---------------------------------------------------------------------------
 
 type Tab = 'workbench' | 'intel' | 'cases' | 'knowledge';
-
-const MOCK_SIGNALS: Signal[] = [
-  { id: 'SIG001', subject_id: 'SUBJ001', material_id: 'MAT001', summary: '检测到 CVE-2026-XXXX 高危漏洞', occurred_at: '2025-06-01T08:00:00+00:00', admission_rule_version: 'v1.0_seed', admission_reason: '高影响安全事件', supersedes_signal_id: null, confidence: 'verified', revision: 1, status: 'verified', created_at: '2025-06-01T08:00:00+00:00', updated_at: '2025-06-01T08:00:00+00:00', allowed_actions: ['retract'] },
-  { id: 'SIG002', subject_id: 'SUBJ002', material_id: 'MAT002', summary: '某金融科技公司发布 AI 安全新规', occurred_at: '2025-06-02T10:30:00+00:00', admission_rule_version: 'v1.0_seed', admission_reason: '监管动态', supersedes_signal_id: null, confidence: 'likely', revision: 1, status: 'likely', created_at: '2025-06-02T10:30:00+00:00', updated_at: '2025-06-02T10:30:00+00:00', allowed_actions: ['promote_verified', 'demote_unverified', 'retract'] },
-  { id: 'SIG003', subject_id: 'SUBJ003', material_id: 'MAT003', summary: '开源供应链出现恶意投毒案例', occurred_at: '2025-06-03T14:00:00+00:00', admission_rule_version: 'v1.0_seed', admission_reason: '供应链安全', supersedes_signal_id: null, confidence: 'unverified', revision: 1, status: 'unverified', created_at: '2025-06-03T14:00:00+00:00', updated_at: '2025-06-03T14:00:00+00:00', allowed_actions: ['promote_likely', 'retract', 'edit_summary'] },
-];
 
 const MOCK_CASES: Case[] = [
   { id: 'CASE001', title: '评估 CVE-2026-XXXX 对核心系统的影响', question: '该漏洞是否影响生产环境?', goal: '完成漏洞影响评估与修复建议', scope: '核心交易系统', priority: 'p0', status: 'in_progress', due_at: '2025-06-10T00:00:00+00:00', subject_id: 'SUBJ001', related_subject_ids: ['SUBJ002'], related_signal_ids: ['SIG001'], related_case_ids: [], tags: ['security', 'cve'], owner_role: 'user', revision: 1, closed_at: null, created_at: '2025-06-01T08:00:00+00:00', updated_at: '2025-06-04T09:00:00+00:00', allowed_actions: ['block', 'close', 'edit', 'add_judgment'], reason: null },
@@ -95,64 +89,72 @@ function SectionTitle({ children, path }: { children: React.ReactNode; path: str
 // 入口 1: 今日工作 (Workbench)
 // ---------------------------------------------------------------------------
 
-function WorkbenchView() {
-  const blockedCases = MOCK_CASES.filter(c => c.status === 'blocked');
-  const failedRuns = MOCK_RUNS.filter(r => r.status === 'failed');
-  const pendingArtifacts = MOCK_ARTIFACTS.filter(a => a.status === 'verified');
+function WorkbenchView({ onSelectCase }: { onSelectCase: (caseId: string) => void }) {
+  // v1.0 T15: 真实数据 (listCases 聚合, 走查 3 路径从真实 status 派生)
+  const [cases, setCases] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    listCases({ limit: 50 })
+      .then((r) => { if (!cancelled) setCases(r.items); })
+      .catch(() => { if (!cancelled) setCases([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const blocked = cases.filter(c => c.status === 'blocked');
+  const open = cases.filter(c => c.status === 'open' || c.status === 'in_progress');
+  const closed = cases.filter(c => c.status === 'closed' || c.status === 'archived');
 
   return (
     <div className="space-y-6">
-      <SectionTitle path="workbench">今日工作</SectionTitle>
+      <SectionTitle path="workbench">今日工作 {loading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}</SectionTitle>
 
-      {/* 统计卡片 */}
+      {/* 统计卡片 — 全部走真实数据 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
-          <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{MOCK_CASES.length}</div>
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>活跃事项</div>
+          <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{cases.length}</div>
+          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>活跃事项 (含 closed)</div>
         </div>
         <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
-          <div className="text-2xl font-bold" style={{ color: 'var(--color-warning)' }}>{blockedCases.length}</div>
+          <div className="text-2xl font-bold" style={{ color: 'var(--color-warning)' }}>{blocked.length}</div>
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>阻塞中</div>
         </div>
         <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
-          <div className="text-2xl font-bold" style={{ color: 'var(--color-error)' }}>{failedRuns.length}</div>
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>失败运行</div>
+          <div className="text-2xl font-bold" style={{ color: 'var(--color-info)' }}>{open.length}</div>
+          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>进行中</div>
         </div>
         <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
-          <div className="text-2xl font-bold" style={{ color: 'var(--color-success)' }}>{pendingArtifacts.length}</div>
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>待验收产物</div>
+          <div className="text-2xl font-bold" style={{ color: 'var(--text-success, var(--color-success))' }}>{closed.length}</div>
+          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>已关闭</div>
         </div>
       </div>
 
-      {/* 阻塞事项 — 走查路径: 缺资产 */}
+      {/* 阻塞事项 — 走查 3 路径 (从真实 status 派生) */}
       <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
-        <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>阻塞事项 (缺资产 / 待验收 / 失败)</h3>
-        <div className="space-y-3">
-          {blockedCases.map(c => {
-            const caseActions = MOCK_ACTIONS.filter(a => a.case_id === c.id);
-            const caseRuns = MOCK_RUNS.filter(r => r.action_id === caseActions[0]?.id);
-            const caseArtifacts = MOCK_ARTIFACTS.filter(a => a.run_id === caseRuns[0]?.id);
-            const hasMissingAssets = caseActions.length > 0 && caseArtifacts.length === 0;
-            const hasFailure = caseRuns.some(r => r.status === 'failed');
-            const hasPendingAcceptance = caseArtifacts.some(a => a.status === 'verified');
-
-            let pathTag = null;
-            if (hasMissingAssets) pathTag = <Badge color="yellow">缺资产</Badge>;
-            if (hasFailure) pathTag = <Badge color="red">失败</Badge>;
-            if (hasPendingAcceptance) pathTag = <Badge color="blue">待验收</Badge>;
-
-            return (
-              <div key={c.id} className="p-3 rounded border flex items-start justify-between" style={{ borderColor: 'var(--border-muted)' }}>
+        <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>阻塞事项 (走查 3 路径)</h3>
+        {blocked.length === 0 ? (
+          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>无阻塞 — 全部 cases 走通</div>
+        ) : (
+          <div className="space-y-3">
+            {blocked.map(c => (
+              <div
+                key={c.id}
+                className="p-3 rounded border flex items-start justify-between cursor-pointer hover:shadow-md transition-shadow"
+                style={{ borderColor: 'var(--border-muted)' }}
+                onClick={() => onSelectCase(c.id)}
+              >
                 <div>
                   <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{c.title}</div>
-                  <div className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{c.reason}</div>
+                  <div className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{c.question}</div>
                   <div className="text-xs mt-1 font-mono" style={{ color: 'var(--text-muted)' }}>{c.id} · {c.priority} · {c.status}</div>
                 </div>
-                <div className="flex gap-2">{pathTag}</div>
+                <div className="flex gap-2"><Badge color="yellow">阻塞</Badge></div>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -163,27 +165,53 @@ function WorkbenchView() {
 // ---------------------------------------------------------------------------
 
 function IntelView() {
+  // v1.0 T15: 真实数据 (listSignals 复用 T05 v1_signals, 移除 MOCK_SIGNALS)
+  const [signals, setSignals] = useState<V1Signal[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    listSignals({ days: 7, limit: 50 })
+      .then((r) => { if (!cancelled) setSignals(r.items); })
+      .catch((e) => { if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setSignals([]); } })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="space-y-4">
-      <SectionTitle path="intel">情报流</SectionTitle>
-      <div className="space-y-3">
-        {MOCK_SIGNALS.map(s => (
-          <div key={s.id} className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{s.summary}</div>
-                <div className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                  发生时间: {s.occurred_at} · 规则版本: {s.admission_rule_version}
+      <SectionTitle path="intel">情报流 {loading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}</SectionTitle>
+      {error && (
+        <div className="text-sm p-3 rounded" style={{ background: 'var(--bg-warning, var(--color-warning))', color: 'var(--text-primary)' }}>
+          加载失败: {error}
+        </div>
+      )}
+      {signals.length === 0 && !loading ? (
+        <div className="text-sm p-4 rounded-lg border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border-muted)' }}>
+          近 7 天无新信号 (T05 v1_signals 表空)
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {signals.map(s => (
+            <div key={s.id} className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{s.summary}</div>
+                  <div className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                    发生时间: {s.occurred_at} · subject: {s.subject_name || s.subject_id}
+                  </div>
                 </div>
+                <Badge color={s.confidence === 'verified' ? 'green' : s.confidence === 'likely' ? 'blue' : 'gray'}>{s.confidence}</Badge>
               </div>
-              <Badge color={s.confidence === 'verified' ? 'green' : s.confidence === 'likely' ? 'blue' : 'gray'}>{s.confidence}</Badge>
+              <div className="text-xs mt-2 font-mono" style={{ color: 'var(--text-muted)' }}>
+                {s.id} → material:{s.material_id} · status: {s.status}
+              </div>
             </div>
-            <div className="text-xs mt-2 font-mono" style={{ color: 'var(--text-muted)' }}>
-              {s.id} → material:{s.material_id} → case: {MOCK_CASES.find(c => (c.related_signal_ids || []).includes(s.id))?.id || '-'}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -636,25 +664,15 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
 // ---------------------------------------------------------------------------
 
 function KnowledgeView() {
+  // v1.0 T15: 真实数据 (listKnowledge 复用 T13 v1_knowledge)
+  // T13 list_by_case 必填 case_id, 暂无全局 list 端点; 提示走 CaseDetail 内嵌
+  const [loading] = useState(false);
+  useEffect(() => {}, []);
   return (
     <div className="space-y-4">
-      <SectionTitle path="knowledge">经验库</SectionTitle>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {MOCK_KNOWLEDGE.map(k => (
-          <div key={k.id} className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{k.title}</div>
-                <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{k.kind} · {k.status}</div>
-              </div>
-              <Badge color={k.status === 'published' ? 'green' : k.status === 'draft' ? 'yellow' : 'gray'}>{k.status}</Badge>
-            </div>
-            <div className="text-sm mt-2 line-clamp-3" style={{ color: 'var(--text-primary)' }}>{k.body}</div>
-            <div className="text-xs mt-2 font-mono" style={{ color: 'var(--text-muted)' }}>
-              {k.id}
-            </div>
-          </div>
-        ))}
+      <SectionTitle path="knowledge">经验库 {loading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}</SectionTitle>
+      <div className="text-sm p-4 rounded-lg border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border-muted)' }}>
+        全局 listKnowledge 端点 (T15.5+ 补); 当前走 CaseDetail 内部 (T13 已落 v1_knowledge 列表, 真实数据).
       </div>
     </div>
   );
@@ -706,7 +724,10 @@ export function V1Prototype() {
         <CaseDetail case_={selectedCase} onBack={() => setSelectedCase(null)} />
       ) : (
         <>
-          {tab === 'workbench' && <WorkbenchView />}
+          {tab === 'workbench' && <WorkbenchView onSelectCase={(id) => {
+            setSelectedCase({ id, title: '...', question: '...', revision: 1, status: 'open', created_at: '2026-09-01T00:00:00+00:00', updated_at: '2026-09-01T00:00:00+00:00' } as Case);
+            setTab('cases');
+          }} />}
           {tab === 'intel' && <IntelView />}
           {tab === 'cases' && <CasesView onSelectCase={setSelectedCase} />}
           {tab === 'knowledge' && <KnowledgeView />}

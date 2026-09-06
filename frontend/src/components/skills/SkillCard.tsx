@@ -33,6 +33,8 @@ interface SkillCardProps {
   busy?: boolean;
   /** run 请求在途 (跑一次禁用) */
   running?: boolean;
+  /** v1.0 T15: v1_active 高亮 (SkillStore 父组件传) — 加 v1.0 角标 */
+  v1_highlight?: boolean;
 }
 
 export const SkillCard = React.memo(function SkillCard({
@@ -43,6 +45,7 @@ export const SkillCard = React.memo(function SkillCard({
   onHistory,
   busy = false,
   running = false,
+  v1_highlight = false,
 }: SkillCardProps) {
   const categoryColor = CATEGORY_COLOR[skill.category] ?? 'var(--line-strong)';
 
@@ -56,8 +59,13 @@ export const SkillCard = React.memo(function SkillCard({
         borderLeft: `3px solid ${categoryColor}`,
       }}
     >
-      {/* 顶部: 名称 + 启停开关 */}
+      {/* 顶部: 名称 + 启停开关 + v1_active 角标 */}
       <div className="flex items-start justify-between gap-2">
+        {v1_highlight && (
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-success, var(--accent))', color: 'white' }}>
+            v1.0
+          </span>
+        )}
         <h3
           className="text-sm font-bold truncate flex-1 min-w-0"
           style={{ color: 'var(--ink)' }}

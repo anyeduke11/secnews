@@ -583,3 +583,28 @@ export function listV1Skills(q: ListV1SkillsQuery = {}): Promise<ApiList<SkillV1
 export function getV1Skill(id: string): Promise<ApiVersioned<SkillV1>> {
   return getJSON<ApiVersioned<SkillV1>>(`/api/skill-registry/v1/${encodeURIComponent(id)}`);
 }
+
+// ===========================================================================
+// T15 Signal API (Intel 入口真实化, 复用 T05 v1_signals)
+// ===========================================================================
+
+export interface V1Signal {
+  id: string;
+  subject_id: string;
+  material_id: string;
+  summary: string;
+  occurred_at: string;
+  confidence: 'verified' | 'likely' | 'unverified' | 'retracted';
+  status: 'verified' | 'likely' | 'unverified';
+  subject_name?: string;
+}
+
+export interface ListSignalsQuery {
+  case_id?: string;
+  days?: number;
+  limit?: number;
+}
+
+export function listSignals(q: ListSignalsQuery = {}): Promise<ApiList<V1Signal>> {
+  return getJSON<ApiList<V1Signal>>(`/api/v1/signals${buildQuery(q as Record<string, unknown>)}`);
+}

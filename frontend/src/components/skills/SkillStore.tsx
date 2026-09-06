@@ -59,6 +59,16 @@ export function SkillStore({
   );
   const { toggle, busy } = useSkillToggle();
 
+  // v1.0 T15: 按 status 分桶 (v1_active 高亮区块, legacy_v0 折叠)
+  const v1ActiveSkills = useMemo(
+    () => skills.filter(s => (s as any).status === 'v1_active'),
+    [skills]
+  );
+  const legacySkills = useMemo(
+    () => skills.filter(s => (s as any).status !== 'v1_active'),
+    [skills]
+  );
+
   const visible = useMemo(() => {
     const kw = search.trim().toLowerCase();
     return skills.filter(s => {
@@ -213,20 +223,58 @@ export function SkillStore({
           {skills.length === 0 ? '暂无已注册技能' : '没有匹配的技能，请调整筛选条件'}
         </div>
       )}
-      {!loading && !error && visible.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {visible.map(skill => (
-            <SkillCard
-              key={skill.id}
-              skill={skill}
-              onToggle={handleToggle}
-              onRun={handleRun}
-              onDetail={onDetail}
-              onHistory={onHistory}
-              busy={busy}
-              running={runningId === skill.id}
-            />
-          ))}
+      {!loading && !error && (visible.length > 0 || v1ActiveSkills.length > 0) && (
+        <div className="space-y-4">
+          {/* v1.0 T15: v1_active 高亮区块 (6 SK 受管能力包) */}
+          {v1ActiveSkills.length > 0 && (
+            <div className="rounded-lg p-3" style={{ background: 'var(--surface-1, var(--bg-card))', border: '1px solid var(--accent, var(--color-success))' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-semibold" style={{ color: 'var(--accent, var(--color-success))' }}>v1.0 受管能力包</span>
+                <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-success, var(--accent))', color: 'white' }}>v1.0</span>
+                <span className="text-xs" style={{ color: 'var(--ink-3, var(--text-muted))' }}>
+                  {v1ActiveSkills.length} 个 · 旧 20 个标 legacy_v0 已折叠
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {v1ActiveSkills.map(skill => (
+                  <SkillCard
+                    key={skill.id}
+                    skill={skill}
+                    onToggle={handleToggle}
+                    onRun={handleRun}
+                    onDetail={onDetail}
+                    onHistory={onHistory}
+                    busy={busy}
+                    running={runningId === skill.id}
+                    v1_highlight
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 旧 20 ID (legacy_v0) 折叠区 */}
+          {legacySkills.length > 0 && (
+            <details>
+              <summary className="text-xs cursor-pointer py-2" style={{ color: 'var(--ink-3, var(--text-muted))' }}>
+                历史 20 个 (legacy_v0)
+              </summary>
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 opacity-70">
+                {legacySkills.map(skill => (
+                  <SkillCard
+                    key={skill.id}
+                    skill={skill}
+                    onToggle={handleToggle}
+                    onRun={handleRun}
+                    onDetail={onDetail}
+                    onHistory={onHistory}
+                    busy={busy}
+                    running={runningId === skill.id}
+                  />
+                ))}
+              </div>
+            </details>
+          )}
         </div>
       )}
     </div>

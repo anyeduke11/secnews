@@ -42,23 +42,25 @@ def client(temp_db, monkeypatch):
 # ===========================================================================
 # 1. 列表
 # ===========================================================================
-def test_list_returns_all_20(client):
-    """GET 列表返回 BUILTIN 全量 20 条 (plan §4 官方清单)。"""
+def test_list_returns_all_26(client):
+    """GET 列表返回 BUILTIN 全量 26 条 (v0.8 plan §4 旧 20 + v1.0 T14 6 v1 SK)."""
     r = client.get("/api/skill-registry")
     assert r.status_code == 200
     items = r.json()
     assert isinstance(items, list)
-    assert len(items) == 20
+    assert len(items) == 26  # 20 legacy_v0 (v0.8) + 6 v1_active (T14)
     ids = {it["id"] for it in items}
     assert "source-health-scan" in ids  # operations A 类
     assert "daily-briefing" in ids  # report C 类
+    assert "daily-priority-intel" in ids  # T14 SK-01
+    assert "cve-impact-brief" in ids  # T11/T14 SK-02
 
 
 def test_list_category_filter(client):
-    """?category=operations → 恰好 8 条且全部 operations (§6.3 分类对账)。"""
+    """?category=operations → 8 (旧) + 2 (T14 SK-01 daily-priority-intel + SK-06 knowledge-review-due) = 10 条 (T14 加 2 个 operations SK)."""
     r = client.get("/api/skill-registry", params={"category": "operations"})
     items = r.json()
-    assert len(items) == 8
+    assert len(items) == 10  # 8 (v0.8 §6.3) + 2 (T14 SK-01 / SK-06)
     assert all(it["category"] == "operations" for it in items)
 
 
@@ -264,11 +266,15 @@ def test_gate_off_route_not_registered(monkeypatch):
     """gate off → register_routers 后 /api/skill-registry* 不存在 → GET 404。
 
     fail-closed 语义: TOML 默认 false 即路由不可达, 不是注册了返回 503。
+    T14 v1 路由 /api/skill-registry/v1 也走 skill_registry gate, 故一并不可达。
     """
     app = _build_app_with_gate(monkeypatch, on=False)
-    assert not any(p.startswith("/api/skill-registry") for p in _paths(app))
+    assert not any(
+        p.startswith("/api/skill-registry") for p in _paths(app)
+    ), f"v1 routes should also be gated: {sorted(p for p in _paths(app) if p.startswith('/api/skill-registry'))}"
     with TestClient(app) as c:
         assert c.get("/api/skill-registry").status_code == 404
+        assert c.get("/api/skill-registry/v1").status_code == 404
 
 
 def test_gate_on_route_registered(monkeypatch):

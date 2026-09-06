@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import hashlib
 import sqlite3
-import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -148,11 +147,11 @@ class V1AdmissionService:
         )
 
     def quarantine(self, result: AdmissionResult, material: dict[str, Any]) -> int:
-        """落 admission_log 表 (T07 后续 migration 097 落地) — 暂用 in-memory 兜底.
+        """落 admission_log 表 — migration 097 落地后真写入 (不再静默返 0).
 
         Returns
         -------
-        row_id — admission_log 主键, 0 表示未落 (表不存在, 测试用).
+        row_id — admission_log 主键; migration 未跑 / 表缺失时返 0 (兜底)
         """
         try:
             conn = self._conn or get_connection()
@@ -177,7 +176,7 @@ class V1AdmissionService:
             conn.commit()
             return cur.lastrowid or 0
         except sqlite3.OperationalError as e:
-            # admission_log 表未建 (T07 migration 097 未跑), 静默降级
+            # admission_log 表未建 (migration 097 未跑) — 兜底返 0, 与旧版语义兼容
             logger.warning(f"admission_log table missing: {e}")
             return 0
 
@@ -212,6 +211,206 @@ class V1AdmissionService:
         labels["audience"] = "sec_team"
         labels["actionability"] = "needs_review"
         return cast(dict[str, str], labels)
+
+    # ------------------------------------------------------------------
+    # 标注 API (T07 监督批次落地)
+    # ------------------------------------------------------------------
+    # 监督批次协议:
+    #   - inter-annotator agreement (Cohen's Kappa / Krippendorff's α) 留 T07 监督批次
+    #   - 当前 60-80 起步标注集是单人标注, 后续接 2 人独立标注 + agreement 计算
+    #   - 所有 API 走 SQLite, 不引入新依赖
+
+    def label(
+        self,
+        item_id: str,
+        dimensions: dict[str, str],
+        annotator: str,
+        confidence: float = 0.9,
+    ) -> int:
+        """写入单条 material 的 8 维标注.
+
+        Parameters
+        ----------
+        item_id:
+            material_id (字符串, 与 admission_label.material_id 对齐).
+        dimensions:
+            {dimension: value} 字典; 全部 dimension 必须在 ANNOTATION_DIMENSIONS 内,
+            value 必须在对应维度值域内, 否则抛 ValueError.
+        annotator:
+            human:<name> | agent:<id> — 后续 agreement 计算按 annotator 分组.
+        confidence:
+            0.0-1.0, 入库 CHECK.
+
+        Returns
+        -------
+        label_id — admission_label 主键 (AUTOINCREMENT); 写入失败/表缺失返 0.
+
+        Notes
+        -----
+        - 一次 label() 调用写多条记录 (一维一行), 便于多标注者并行累计;
+        - 单条 material 同维度允许多行, 监督批次计算 agreement 时聚合.
+        """
+        if not 0.0 <= confidence <= 1.0:
+            raise ValueError(f"confidence 必须在 [0.0, 1.0], got {confidence}")
+        _validate_dimensions(dimensions)
+        try:
+            conn = self._conn or get_connection()
+            now = datetime.now(timezone.utc).isoformat()
+            ids: list[int] = []
+            for dim, val in dimensions.items():
+                cur = conn.execute(
+                    "INSERT INTO admission_label "
+                    "(material_id, dimension, value, annotator, confidence, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (item_id, dim, val, annotator, confidence, now),
+                )
+                ids.append(cur.lastrowid or 0)
+            conn.commit()
+            return ids[0] if ids else 0  # 单条 label 返回第一条主键 (兼容旧调用方)
+        except sqlite3.OperationalError as e:
+            logger.warning(f"admission_label table missing: {e}")
+            return 0
+
+    def create_label_set(self, name: str, schema_version: str = "v1.0") -> int:
+        """创建标注集 (一次监督批次 = 一个集).
+
+        Returns
+        -------
+        set_id — admission_set.id; 表缺失返 0.
+
+        Raises
+        ------
+        sqlite3.IntegrityError — name 重复 (UNIQUE).
+        """
+        try:
+            conn = self._conn or get_connection()
+            cur = conn.execute(
+                "INSERT INTO admission_set (name, schema_version, item_count, created_at) "
+                "VALUES (?, ?, 0, ?)",
+                (name, schema_version, datetime.now(timezone.utc).isoformat()),
+            )
+            conn.commit()
+            return cur.lastrowid or 0
+        except sqlite3.OperationalError as e:
+            logger.warning(f"admission_set table missing: {e}")
+            return 0
+
+    def add_to_set(
+        self,
+        set_id: int,
+        material_id: str,
+        labels: dict[str, str],
+    ) -> int:
+        """收录一条 material + label 到标注集.
+
+        先写 admission_label (一维一行, 拿到 label_ids), 再写 admission_set_items,
+        最后累加 admission_set.item_count.
+
+        Returns
+        -------
+        first_label_id — 写入的第一条 admission_label 主键; 表缺失/集不存在返 0.
+
+        Raises
+        ------
+        ValueError — labels 中含越界维度/值.
+        """
+        _validate_dimensions(labels)
+        try:
+            conn = self._conn or get_connection()
+            now = datetime.now(timezone.utc).isoformat()
+            cur_set = conn.execute(
+                "SELECT id FROM admission_set WHERE id = ?", (set_id,)
+            ).fetchone()
+            if cur_set is None:
+                raise ValueError(f"admission_set id={set_id} 不存在")
+            label_ids: list[int] = []
+            for dim, val in labels.items():
+                cur = conn.execute(
+                    "INSERT INTO admission_label "
+                    "(material_id, dimension, value, annotator, confidence, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (
+                        material_id,
+                        dim,
+                        val,
+                        f"set:{set_id}",  # 标注者 = set_id, 便于 agreement 计算时分组
+                        0.9,
+                        now,
+                    ),
+                )
+                label_ids.append(cur.lastrowid or 0)
+            for lid in label_ids:
+                conn.execute(
+                    "INSERT OR IGNORE INTO admission_set_items "
+                    "(set_id, material_id, label_id) VALUES (?, ?, ?)",
+                    (set_id, material_id, lid),
+                )
+            conn.execute(
+                "UPDATE admission_set SET item_count = "
+                "(SELECT COUNT(DISTINCT material_id) FROM admission_set_items WHERE set_id = ?) "
+                "WHERE id = ?",
+                (set_id, set_id),
+            )
+            conn.commit()
+            return label_ids[0] if label_ids else 0
+        except sqlite3.OperationalError as e:
+            logger.warning(f"admission_log tables missing: {e}")
+            return 0
+
+    def get_set_items(self, set_id: int) -> list[dict[str, Any]]:
+        """拉取标注集内所有 (material, label) 记录 — flat 列表.
+
+        Returns
+        -------
+        list[dict] — 每条 {set_id, material_id, label_id, dimension, value,
+                         annotator, confidence, created_at}
+        """
+        try:
+            conn = self._conn or get_connection()
+            rows = conn.execute(
+                "SELECT si.set_id, si.material_id, si.label_id, "
+                "       al.dimension, al.value, al.annotator, al.confidence, al.created_at "
+                "FROM admission_set_items si "
+                "JOIN admission_label al ON si.label_id = al.id "
+                "WHERE si.set_id = ? "
+                "ORDER BY si.material_id, al.dimension",
+                (set_id,),
+            ).fetchall()
+            return [
+                {
+                    "set_id": r[0],
+                    "material_id": r[1],
+                    "label_id": r[2],
+                    "dimension": r[3],
+                    "value": r[4],
+                    "annotator": r[5],
+                    "confidence": r[6],
+                    "created_at": r[7],
+                }
+                for r in rows
+            ]
+        except sqlite3.OperationalError as e:
+            logger.warning(f"admission_log tables missing: {e}")
+            return []
+
+
+# ---------------------------------------------------------------------------
+# 内部工具
+# ---------------------------------------------------------------------------
+def _validate_dimensions(dimensions: dict[str, str]) -> None:
+    """校验 dimensions 字典的 key/value 全部落在 ANNOTATION_DIMENSIONS 内."""
+    if not dimensions:
+        raise ValueError("dimensions 不能为空")
+    for dim, val in dimensions.items():
+        if dim not in ANNOTATION_DIMENSIONS:
+            raise ValueError(
+                f"未知维度 {dim!r}; 允许: {sorted(ANNOTATION_DIMENSIONS.keys())}"
+            )
+        allowed = ANNOTATION_DIMENSIONS[dim]
+        if val not in allowed:
+            raise ValueError(
+                f"维度 {dim!r} 的值 {val!r} 越界; 允许: {allowed}"
+            )
 
 
 def _safe_json(obj: Any) -> str:

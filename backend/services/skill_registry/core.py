@@ -157,6 +157,13 @@ class SkillDef:
     feature_gate: str = ""
     default_enabled: bool = False
     requires_gate_check: list[str] | None = None
+    # v1.0 T14: 扩 3 字段 — version / status / manifest_path
+    # - version: semver, 写 skill_runs 表 (T09 migration 091); 启动时校验"在飞 task version" 与"现注册 version" 不匹配 → raise (T17 E2E-10)
+    # - status: v1_active | legacy_v0 | deprecated (旧 20 ID 标 legacy_v0, T16 旧数据迁移后 deprecated)
+    # - manifest_path: YAML 路径占位, T14 不强求写 (避免 YAGNI, 真用 manifest 时再扩)
+    version: str = "1.0.0"
+    status: str = "legacy_v0"  # 默认 legacy 兜底, 新注册 SK 必显式标 v1_active
+    manifest_path: str | None = None
 
 
 # ---------------------------------------------------------------------------

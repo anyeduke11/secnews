@@ -624,9 +624,127 @@ def parse_knowledge_publish_response(raw: str) -> dict[str, Any]:
     return obj
 
 
+# ---------------------------------------------------------------------------
+# T14 SK-01 daily-priority-intel 专用 prompt — 今日重点情报聚合
+# 区别于 deep_read (面向阅读者): 这里出"今日 top N 重点 + 理由 + 原始来源"
+# 喂 sk01_daily_priority.compute() 拼 admission_log + signals 聚合, 调 dsh
+# ---------------------------------------------------------------------------
+
+DAILY_PRIORITY_INTEL_SCHEMA_V1 = {
+    "top_items": [
+        {
+            "rank": 1,
+            "summary": "<一句话重点, ≤ 100 字符>",
+            "subject_id": "SUBJ-XXX",
+            "reason": "<为何重要 / 关联判断 / 受影响版本, ≤ 300 字符>",
+            "source_refs": [{"material_id": "MAT-XXX", "signal_id": "SIG-XXX"}],
+            "confidence": "low|medium|high",
+        }
+    ],
+    "watchlist_changes": ["<已关注 subject 的最新状态变化, 例: SUBJ-001 从 unverified → verified>"],
+    "suggested_actions": ["<下一步建议, 例: 启动 cve-impact-brief / inspection-materials 评估>"],
+}
+
+
+def build_daily_priority_intel_prompt(
+    *,
+    subject_id: str,
+    admission_recent: list[dict[str, Any]],
+    signals_recent: list[dict[str, Any]],
+    watchlist_subjects: list[str] | None = None,
+) -> str:
+    """构造 SK-01 daily-priority-intel 的 dsh prompt.
+
+    Parameters
+    ----------
+    subject_id:
+        顶层 subject (可不传, 走全 subject).
+    admission_recent:
+        admission_log 近 7 天记录 [{action, verdict, subject_id, reason, ts}, ...]
+    signals_recent:
+        signals 近 3 天记录 [{id, summary, subject_id, confidence, occurred_at}, ...]
+    watchlist_subjects:
+        关注的 subject_id 列表 (T08 watchlist; 默认空)
+
+    Returns
+    -------
+    完整 prompt.
+    """
+    watch_block = ""
+    if watchlist_subjects:
+        watch_block = (
+            f"\n## 关注 subject (watchlist)\n\n"
+            + "\n".join(f"- {s}" for s in watchlist_subjects)
+            + "\n"
+        )
+    admission_block = "\n".join(
+        f"- ts={a.get('ts', '?')}, action={a.get('action', '?')}, "
+        f"verdict={a.get('verdict', '?')}, subject={a.get('subject_id', '?')}, "
+        f"reason={a.get('reason', '(none)')[:120]}"
+        for a in admission_recent[:20]
+    ) or "(无 admission 记录)"
+    signals_block = "\n".join(
+        f"- id={s.get('id', '?')}, ts={s.get('occurred_at', '?')}, "
+        f"subject={s.get('subject_id', '?')}, conf={s.get('confidence', '?')}, "
+        f"summary={s.get('summary', '(none)')[:200]}"
+        for s in signals_recent[:20]
+    ) or "(无 signals 记录)"
+    schema_str = json.dumps(DAILY_PRIORITY_INTEL_SCHEMA_V1, ensure_ascii=False, indent=2)
+    return (
+        f"你是一名安全应急分析师, 帮一名蓝队值班员 (30 分钟内) 看清今天到底发生了什么, "
+        f"决定先动哪条线.\n\n"
+        f"## 上下文\n\n"
+        f"- subject_id (可选): {subject_id or '(全 subject 视角)'}\n"
+        f"{watch_block}\n"
+        f"## 近 7 天 admission_log (准入决策)\n\n{admission_block}\n\n"
+        f"## 近 3 天 signals (情报事件)\n\n{signals_block}\n\n"
+        f"## 输出要求 (严格 JSON, 不允许 prose 包裹)\n\n"
+        f"```json\n{schema_str}\n```\n\n"
+        f"## 纪律\n"
+        f"1. top_items 3-5 条; 每条 rank + 一句话重点 + 关联 subject + reason + 原始来源 material/signal_id\n"
+        f"2. watchlist_changes 仅列已关注 subject 的状态变化 (空数组表示无变化)\n"
+        f"3. suggested_actions 给 1-3 条具体下一步 (例: '启动 cve-impact-brief 评估 CVE-2026-31337')\n"
+        f"4. confidence: high = 有 ≥2 独立来源; medium = 1 强来源; low = 推断\n"
+        f"5. 不写『可能有用』『建议关注』等模糊语言; 必须可复现 / 可验证\n"
+        f"{_EVIDENCE_RULE}\n"
+    )
+
+
+def parse_daily_priority_intel_response(raw: str) -> dict[str, Any]:
+    """解析 dsh 返回的 SK-01 JSON; 容错 + 必填字段校验."""
+    if not raw or not raw.strip():
+        raise ValueError("empty response from dsh")
+    s = raw.strip()
+    if "```" in s:
+        for fence in ("```json", "```JSON", "```"):
+            idx = s.find(fence)
+            if idx >= 0:
+                end = s.find("```", idx + len(fence))
+                if end > idx:
+                    s = s[idx + len(fence):end].strip()
+                    break
+    if "{" in s:
+        s = s[s.find("{"):s.rfind("}") + 1]
+    try:
+        obj = json.loads(s)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"dsh response not valid JSON: {e}; raw[:200]={raw[:200]!r}")
+    for k in ("top_items", "watchlist_changes", "suggested_actions"):
+        if k not in obj:
+            raise ValueError(f"missing required field: {k}")
+    if not isinstance(obj["top_items"], list) or len(obj["top_items"]) == 0:
+        raise ValueError("top_items must be non-empty list")
+    if not isinstance(obj["watchlist_changes"], list):
+        raise ValueError("watchlist_changes must be list")
+    if not isinstance(obj["suggested_actions"], list):
+        raise ValueError("suggested_actions must be list")
+    return obj
+
+
 __all__ = [
     "COST_PER_1M_TOKENS",
     "CVE_IMPACT_BRIEF_SCHEMA_V1",
+    "DAILY_PRIORITY_INTEL_SCHEMA_V1",
     "DEEP_READ_PROFILES",
     "DEEP_READ_PROFILE_VERSION",
     "DEFAULT_SCORE",
@@ -643,9 +761,11 @@ __all__ = [
     "_parse_entity_list",
     "_parse_score",
     "build_cve_impact_brief_prompt",
+    "build_daily_priority_intel_prompt",
     "deep_read_profile_for",
     "deep_read_sections",
     "parse_cve_impact_brief_response",
+    "parse_daily_priority_intel_response",
     "parse_inspection_materials_response",
     "parse_knowledge_publish_response",
 ]

@@ -536,3 +536,50 @@ export function deprecateKnowledge(id: string, body: DeprecateKnowledgeBody): Pr
 export function retractKnowledge(id: string, body: RetractKnowledgeBody): Promise<ApiVersioned<Knowledge>> {
   return postJSON<ApiVersioned<Knowledge>>(`/api/v1/knowledge/${encodeURIComponent(id)}/retract`, body);
 }
+
+// ===========================================================================
+// T14 Skill Registry v1 (6 SK 受管能力包 + 旧 20 ID 状态)
+// ===========================================================================
+
+export type SkillV1Status = 'v1_active' | 'legacy_v0' | 'deprecated';
+
+export interface SkillV1Target {
+  type: 'ServiceTarget' | 'ApiTarget';
+  module?: string;
+  class_name?: string | null;
+  method?: string | null;
+  path?: string | null;
+}
+
+export interface SkillV1 {
+  id: string;
+  name: string;
+  desc: string;
+  category: 'operations' | 'compliance' | 'analysis' | 'report';
+  skill_type: 'A' | 'B' | 'C' | 'D' | 'E';
+  target: SkillV1Target | null;
+  prompt_template?: string | null;
+  input_schema: Record<string, unknown>;
+  output_schema: Record<string, unknown>;
+  runner: 'builtin' | 'pi' | 'claude-code' | 'codex';
+  timeout_seconds: number;
+  feature_gate: string;
+  default_enabled: boolean;
+  requires_gate_check: string[] | null;
+  version: string;
+  status: SkillV1Status;
+  manifest_path: string | null;
+}
+
+export interface ListV1SkillsQuery {
+  status?: SkillV1Status;
+  category?: 'operations' | 'compliance' | 'analysis' | 'report';
+}
+
+export function listV1Skills(q: ListV1SkillsQuery = {}): Promise<ApiList<SkillV1>> {
+  return getJSON<ApiList<SkillV1>>(`/api/skill-registry/v1${buildQuery(q as Record<string, unknown>)}`);
+}
+
+export function getV1Skill(id: string): Promise<ApiVersioned<SkillV1>> {
+  return getJSON<ApiVersioned<SkillV1>>(`/api/skill-registry/v1/${encodeURIComponent(id)}`);
+}

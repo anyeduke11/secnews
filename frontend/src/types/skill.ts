@@ -15,6 +15,9 @@ export type SkillCategory = 'operations' | 'compliance' | 'analysis' | 'report';
 /** §2 技能分类法: A 巡检 / B 查询 / C 报告 / D 分析 (C/D 可携带 prompt) */
 export type SkillTypeCode = 'A' | 'B' | 'C' | 'D';
 
+/** v1.0 T14: 状态 (v1_active | legacy_v0 | deprecated) — 旧 20 标 legacy_v0, 6 SK 标 v1_active */
+export type SkillLifecycleStatus = 'v1_active' | 'legacy_v0' | 'deprecated';
+
 /** GET /api/skill-registry 列表项 — 后端 _summary() 一一对应 */
 export interface SkillSummary {
   id: string;
@@ -29,6 +32,10 @@ export interface SkillSummary {
   enabled: boolean;
   /** C/D 类为 true (详情接口才返回 prompt_template 全文) */
   has_prompt: boolean;
+  /** v1.0 T14: v1_active | legacy_v0 | deprecated (旧 20 标 legacy_v0) */
+  status?: SkillLifecycleStatus;
+  /** v1.0 T14: semver (v1 SK 默认 1.0.0, 旧 SK 默认 0.9.0) */
+  version?: string;
 }
 
 /** GET /api/skill-registry/{id} 详情 — 列表全字段 + schema (+ prompt) */

@@ -498,7 +498,16 @@ _REPORT: list[SkillDef] = [
 #: 20 个内置 skill (plan §4 官方清单; 顺序 = plan 编号顺序)
 BUILTIN_SKILLS: list[SkillDef] = _OPERATIONS + _COMPLIANCE + _ANALYSIS + _REPORT
 
+# v1.0 T14: 旧 20 ID 标 `status="legacy_v0"` (T16 旧数据迁移时再 deprecated)
+for _skill in BUILTIN_SKILLS:
+    _skill.__dict__["status"] = "legacy_v0"  # frozen dataclass 绕过: 直接改 __dict__
+    _skill.__dict__["version"] = "0.9.0"
+
+# v1.0 T14: 注册 6 个 v1 SK (SK-01..SK-06)
+from backend.services.skill_registry.v1_skills import _register_v1_skills  # noqa: E402
+
 #: 模块级单例 — 沿用仓库惯例 (trigger_gate.trigger_gate / ai_hub 同款);
 #: register() 内部过 loader 六条规则, 违规定义在 import 期即爆炸 (fail loud)
 BUILTIN = SkillRegistry()
 BUILTIN.register(BUILTIN_SKILLS)
+_register_v1_skills(BUILTIN)  # 6 v1 SK (status="v1_active")

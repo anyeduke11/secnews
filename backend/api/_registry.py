@@ -239,6 +239,9 @@ def register_all(app: FastAPI) -> None:
     # v1.0 T13: Knowledge 端到端 (SK-04/05/06 知识发布/复用/复查)
     from backend.api import knowledge_api
     app.include_router(knowledge_api.router, tags=["v1-knowledge"])
+    # v1.0 T14: Skill Registry v1 (SK-01..SK-06 受管能力包 + 旧 20 ID 状态)
+    from backend.api import skill_registry_v1_api
+    app.include_router(skill_registry_v1_api.router, tags=["v1-skill-registry"])
 
 
 __all__ = ["register_all"]

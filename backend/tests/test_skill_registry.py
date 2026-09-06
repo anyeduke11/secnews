@@ -108,10 +108,12 @@ _C_PIPELINE = [
 class TestRoster:
     """20 skill 名册 — 数量 / 唯一性 / 分类计数与 plan §4 官方清单对账。"""
 
-    def test_registry_has_20_skills(self):
-        """注册数量恒为 20 (plan §4: 8 运营 + 6 合规 + 4 分析 + 2 报告)。"""
-        assert len(BUILTIN_SKILLS) == 20
-        assert len(BUILTIN) == 20
+    def test_registry_has_26_skills(self):
+        """注册数量恒为 26 (v0.8 plan §4: 8 运营 + 6 合规 + 4 分析 + 2 报告 = 20 legacy_v0;
+        v1.0 T14 加 6 v1_active: daily-priority-intel / cve-impact-brief / inspection-materials /
+        action-retrospective / reuse-experience / knowledge-review-due)."""
+        assert len(BUILTIN_SKILLS) == 20  # 旧 20 不动 builtin 列表
+        assert len(BUILTIN) == 26  # 20 legacy + 6 v1 通过 _register_v1_skills 注册
 
     def test_ids_globally_unique(self):
         """id 全局唯一 — 重复 id 会让 get()/前端路由歧义 (loader 规则 ①)。"""

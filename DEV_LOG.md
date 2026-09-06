@@ -171,3 +171,125 @@
   - 测试命令: N/A（设计稿，未改业务代码）
   - 验证结果: N/A
 - **潜在风险**: 源注册表/解析器注册表落地时需迁移现有 collector；标讯官方源若无可公开接口，需以列表页+详情页解析兜底；后续实现按 Phase A-F 分步推进
+
+## [DEV-0133] v0.8.3 真实架构审查与看板型安全 Agent 重构方案
+- **时间**: 2026-09-05 20:02
+- **类型**: 重构
+- **关联模块**: `architecture:v0.8.3`, `ingestion:admission`, `agent:dsh-pi`, `knowledge:compounding`
+- **关联文件**: `docs/V0.8.3_CRITICAL_REVIEW.md`, `docs/V0.8.3_REFACTOR_PLAN.md`, `docs/V0.8.3_WORKFLOWS_AND_SKILLS.md`, `PROGRESS.md`, `PROJECT.md`, `CHECK_LOG.md`
+- **问题描述**: 用户要求基于真实代码制定 v0.8.3 重构方案，以稳定抓取、有价值收录为首要目标，形成 dsh 大脑 + pi 执行 + llm-wiki-2.0/SQLite 知识复利的 B/S 安全工作站。旧审查与现有 v0.8.2 代码存在时序漂移；源码、数据库及探针发现触发消费未接线、成功状态误判、归档绕过统一入口等问题。
+- **实现思路**: 延续 DEV-0130 的 SAG 思路与 DEV-0131/DEV-0132 的采集治理方向，重新核对真实实现。按事实/推断/目标分栏；固定 dsh、pi、SAG 上游源码 SHA；保持现有技术栈，明确控制面、认知、执行、知识提交的职责；最后进行第二轮批判性审查并收敛范围。
+- **核心变更**:
+  - `V0.8.3_CRITICAL_REVIEW.md`: 15 项发现、真实数据快照、上游固定链接、pi 解析探针及验证边界。
+  - `V0.8.3_REFACTOR_PLAN.md`: 源码 SDK/plugin 集成、稳定抓取/准入、模型工具调用契约、任务恢复、类 SAG 检索、知识事务边界、前后端一致性、A0-E 分批实施与发布门禁。
+  - `V0.8.3_WORKFLOWS_AND_SKILLS.md`: 三层业务流、全部 20 个 builtin 迁移表、岗位 Skill manifest、看板布局、状态对照和 E2E 用例。
+  - `PROGRESS.md` / `PROJECT.md`: 增加 v0.8.3 待实施入口，避免把设计写成已完成版本；当前 APP_VERSION 不变。
+  - `CHECK_LOG.md`: 按用户明确审查请求创建 CHECK-0001，覆盖五个检查维度；历史文件原本不存在。
+- **测试验证**:
+  - 测试命令: `.venv/bin/python -m pytest backend/tests/test_agent_bridge.py backend/tests/test_dsh_runtime.py backend/tests/test_trigger_gate.py backend/tests/test_skill_runner.py backend/tests/test_skill_registry_execute.py backend/tests/test_info_filter_gate.py backend/tests/test_source_scheduler_repo.py backend/tests/test_quality_hook_filter.py --tb=short -q`
+  - 验证结果: 100 passed，1 个 Starlette 弃用警告，63.61s；前两次因 source scheduler 测试文件名不存在 exit 4，纠正后执行上述命令。
+  - 检查命令: `.venv/bin/python scripts/generate_meta.py --check`；结果: 52 jobs / 14 collectors / 73 routers / 108 services，检查通过。
+  - 只读数据核验: Python sqlite URI `mode=ro` + `query_only=ON`，53 pending 票据关联 run 数为 0，启用 87 源中 active 11；仅作历史快照。
+  - pi 解析探针: session-only、先文本后 error 均仍被当前实现判非空成功，作为 F05 证据；未调用真实 pi/LLM。
+  - 文档校验: 三份文档的 23 处本地引用、20/20 builtin Skill 迁移映射、示例 YAML 和输入/输出 JSON Schema 均通过；`git diff --check` 通过。
+- **潜在风险**: 本次只交付审查与方案，没有修复业务代码或发布 v0.8.3。现有桥接测试隔离缺陷导致 `agent_runs.id=315..321` 七条模拟记录写入本地 HOT 库，已在审查 F13 明确记录，未删除历史或测试记录；后续先修隔离再全量验证。上游源码尚未构建或 live 联调，7 天抓取 SLO、筛选标注集和 UI 浏览器验收尚待实施。
+
+## [DEV-0134] 从零设计安全从业者工作台 PRD
+- **时间**: 2026-09-05 21:06
+- **类型**: 重构
+- **关联模块**: `product:workstation-prd`
+- **关联文件**: `docs/HOTSPOT_WORKSTATION_PRD_V1.0.md`, `PROJECT.md`, `PROGRESS.md`, `docs/V0.8.3_REFACTOR_PLAN.md`, `docs/V0.8.3_WORKFLOWS_AND_SKILLS.md`, `DEV_LOG.md`
+- **问题描述**: 用户在 DEV-0133 架构审查后要求先从零设计完整 PRD，需要以安全工作成果和知识复用重新组织产品，而非沿现有页面和模块数量扩建。
+- **实现思路**: 以工作事项连接资讯、证据判断、受控执行、验收和后续经验复用；保留 dsh 大脑、pi 执行及 llm-wiki-2.0/SQLite 的技术约束，以一个真实问题的两次相似任务验证闭环。
+- **核心变更**:
+  - `HOTSPOT_WORKSTATION_PRD_V1.0.md`: 新增完整产品方案，覆盖领域对象、12 项功能及验收、6 个首期岗位能力、四主入口、状态与自动化边界、知识复利、持久化、技术建议、12 项非功能需求、12 个端到端案例和 M0-M5 里程碑；包含第二轮批判性审查与待验证假设。
+  - `PROJECT.md` / `PROGRESS.md`: 登记新的产品需求基线，明确软件仍为 v0.8.2，v0.8.3 尚未实施。
+  - 两份 v0.8.3 方案: 增加文档优先级说明，保留旧方案作为技术和迁移参考，产品布局与首期范围服从新 PRD。
+- **测试验证**:
+  - 检查命令: `git diff --check`；Node 文档结构与本地引用校验。
+  - 验证结果: 12 项功能、12 项功能验收、12 个端到端案例、12 项非功能需求、6 个首期 Skill；本地链接有效、代码围栏配对、无行尾空白。
+  - 本次仅修改文档，未运行业务测试、抓取或模型调用，未访问或修改数据库。
+- **潜在风险**: 岗位假设、源数量、质量阈值与性能目标仍需试点校准；上游 SDK 兼容性与真实工具链仍待验证。PRD 完成不代表软件功能实现，后续需原型、契约和迁移任务拆解。
+
+## [DEV-0135] v1.0 开发迁移任务书与六顶思考帽设计审查
+- **时间**: 2026-09-05 21:41
+- **类型**: 重构
+- **关联模块**: `product:v1.0`, `migration:workstation`, `quality:design-review`
+- **关联文件**: `docs/HOTSPOT_V1.0_DEVELOPMENT_PLAN.md`, `docs/HOTSPOT_V1.0_EXECUTION_GUIDE.md`, `docs/HOTSPOT_V1.0_DESIGN_REVIEW.md`, `docs/HOTSPOT_WORKSTATION_PRD_V1.0.md`, `docs/V0.8.3_REFACTOR_PLAN.md`, `docs/V0.8.3_WORKFLOWS_AND_SKILLS.md`, `PROJECT.md`, `PROGRESS.md`, `CHECK_LOG.md`, `DEV_LOG.md`
+- **问题描述**: 用户要求对比 DEV-0133/0134 四份附件，将待实施重构目标转为软件 v1.0，并给新手详细开发步骤；要求以第一性原理、批判性审查和六顶思考帽深入检验功能设计。
+- **实现思路**: 区分当前软件 v0.8.2、旧 v0.8.3 方案与新目标 v1.0.0；渐进迁移，以 Case 为中心保留原资产。保留现有三库物理布局、统一事务 owner，提前验证源码 SDK；把执行/产物验证/业务验收分开，以任务和故障证据验证知识复利。
+- **核心变更**:
+  - 开发方案: 四附件对比、冲突裁决、范围、模块/契约/存储、抓取和准入、知识、UI、数据映射、单 writer 切换与三种回退、工作量及发布门槛。
+  - 执行指南: T00-T19 共 20 个任务卡，逐项前置、实现小步骤、交付/正常失败验收/新手检查/回退；20 个旧 Skill ID 全量去向，六个首发能力及可直接使用的启动提示词。
+  - 设计审查: R01-R12 风险、八个不变量、功能反例、六帽分析、D01-D10 综合修订与验证责任；明确设计吸收不等于实现通过。
+  - PRD: 按最新请求将软件目标从 v0.8.3 调整为 v1.0.0，PRD 文档版本仍 1.0；其余旧方案增加历史/当前执行入口说明，保留正文证据。
+  - PROJECT/PROGRESS: 登记新执行入口和待实施状态；CHECK_LOG 追加 CHECK-0002，未冒称达到 40 轮。
+- **测试验证**:
+  - 命令: `git rev-parse HEAD`、`git diff --stat 4c686fc33cb1fe79130785f49486398d277a6724 HEAD`、版本字段只读检索；Node 文档结构/映射校验；`git diff --check`。
+  - 结果: HEAD 为 943a31d17a4ec63b6616925b6c2a36d6e8a5b37d，相对旧审查提交仅 PROJECT.md 变化；APP_VERSION 仍 0.8.2。31 处文档本地链接、20 任务卡、20 旧 Skill 映射、12 PRD 验收映射、6 能力、6 帽、12 风险和10 决策检查通过；围栏和行尾空白检查通过。
+  - 本次只做文档，未运行 backend 测试、数据库查询、采集、模型、上游安装/构建或发布。
+- **潜在风险**: 所有开发任务仍待实施；上游兼容、旧数据完整度、源 SLO、岗位效果与真实耗时仍待验证。旧审查缺陷未因本次文档变为已修复；开发必须先完成隔离，再做业务回归和迁移。
+
+## [DEV-0136] v1.0 T00 基线核对 — 只读盘点 + 任务台账
+- **时间**: 2026-09-05 22:0x
+- **类型**: 基线盘点 (0 代码变更)
+- **关联模块**: `v1.0:T00`, `baseline:inventory`
+- **关联文件**: `docs/v1.0/baseline.md`, `docs/v1.0/task-status.md`, `DEV_LOG.md`, `PROGRESS.md`
+- **问题描述**: 按 EXECUTION_GUIDE §7 启动 T00 — 确认从什么状态迁移: 版本/启动/数据根/写入者/功能清单/20 Skill/旧审查证据有效性。
+- **实现思路**: 全程只读 (未跑测试/未出网/未写库与 Wiki/未读密钥内容); 数据库数字走 sqlite `mode=ro + query_only=ON` 单次快照; 配置路径经 `backend.config` 实际解析而非文档转抄。
+- **核心变更**:
+  - `docs/v1.0/baseline.md`: 版本 0.8.2 单一真源 / run.py 启动 (127.0.0.1:8000, WORKERS=1, 无认证回环) / 数据根表 (HOT 28MB·WARM **818MB**·COLD 28KB·backups 最近 full 2026-08-29·wiki llm-wiki-2.0·logs backend/logs·data/ 零字节诱饵+旧产物·dsh settings KV·pi ~/.pi·密钥 HOT 表+Keychain) / 写入者映射 / 13 gates (12 开, mcp 关; feature_mcp=True) / 计数 73r/108s/52j/14c / 20 Skill 注册表实测吻合 / 旧审查证据有效性对照 / 固定样本漏洞故事 (虚构 CVE-2026-31337, 隔离环境造数)。
+  - `docs/v1.0/task-status.md`: T00-T19 台账 (T00 verified, 余 planned) + 3 条待用户裁决 (标注集 60-80 起步 / T04 SDK 退出判据 / git bundle 异地备份绕推送禁令)。
+- **测试验证**:
+  - 命令: `git rev-parse`(HEAD 943a31d) / `python -c`(version+config 解析) / `lsof -iTCP:8000,8898`(无监听=无活跃写入者) / `sqlite3 ro`(tickets 53 pending·skill_runs 58·agent_runs 321·hotspots 7223·llm_secrets 1·encryption_keys 1) / `skill_registry BUILTIN` len=20 / `ls -la`(库文件大小与 mtime) / `generate_meta --check` 今日已过 4/4 (历史引用)。
+  - 结果: APP_VERSION=0.8.2; **后端/前端未运行** (盘点时零活跃写入者); 真实库为 `backend/hotspot.db` (data/hotspot.db 为 0 字节诱饵); v0.8.3 仅未跟踪文档, 版本源零痕迹; frontend package.json 0.7.0 不用于产品显示 (AboutSettings 走 /api/health)。
+  - 正常/失败: 本任务为只读核对与文档, 无失败路径可触发; 回退 = 无数据影响。
+- **潜在风险**: F01 (53 pending 无消费泵) / F05 (pi 残余假阳性) / F13 (agent_runs 315..321 测试污染混于 321 条) 在 T00 重新确认为真; F02/F06-F12 仍待核验未重放。T01 隔离修复前不得扩大测试。
+- **提交说明**: 本 DEV 条目与 PROGRESS T00 小节暂留工作树未提交 — 同文件含并行会话 DEV-0133/0134/0135 未提交 hunks, 按显式 pathspec 纪律只提交 `docs/v1.0/*`, 台账文件待归属清晰后一并提交。
+
+## [DEV-0137] v1.0 T01 — 测试隔离与虚假成功证据修复 (F13)
+- **时间**: 2026-09-05 23:5x
+- **类型**: 测试基建 (config/export 两处生产代码微改)
+- **关联模块**: `v1.0:T01`, `quality:test-isolation`
+- **关联文件**: `backend/tests/conftest.py`, `backend/tests/test_isolation_guard.py`(新), `backend/config/__init__.py`, `backend/services/export_service.py`, `scripts/dump_schema.py`, `scripts/snapshot_for_retirement.py`, `backend/tests/test_{dump_schema,export_for_dsh,db_diet,snapshot_for_retirement}.py`, `docs/v1.0/test-isolation.md`(新), `docs/v1.0/task-status.md`
+- **问题描述**: F13 — agent_bridge 等未申请 temp_db 的测试把观测记录直写真实 HOT 库 (agent_runs 315..321); 另发现 export 缓存测试期写真实 backend/data/。
+- **实现思路**: 四层隔离 — L1 conftest 导入前强制 HOTSPOT_* 数据路径 env → 会话临时根 (tempfile.mkdtemp, 不自动清理=可查证据); L2 sys.addaudithook 哨兵 (sqlite3.connect 生产库 / open 写生产数据根 / socket.connect 非回环 → AssertionError 穿透); L3 既有 temp_db/_isolate_temp_dbs/_isolate_knowledge_dirs 每测隔离保留; L4 测试自身 mock。逃逸口 HOTSPOT_TEST_UNGUARDED=1 (仅 soak/live)。
+- **核心变更**:
+  - conftest: 隔离 env 块 + 审计 hook + `_t01_isolated_roots` 会话 fixture (隔离断言 + 会话根 init_db); env 为单一真相源防 conftest 双重导入 (pytest 身份 vs backend.tests.conftest 包身份) 重复 mkdtemp/装 hook。
+  - config 新 `data_dir` 字段 (HOTSPOT_DATA_DIR); export_service 缓存改走 config (原硬编码 BASE_DIR/data)。
+  - 4 个 Phase-7 时代工具契约测试 (dump_schema/export_for_dsh/db_diet/snapshot_for_retirement) 全部改走会话根库: 显式 --db / config 断言 / 移除真实数据地板 (items>=4149 等真实规模断言移交 backup_verify + T17 SLO)。
+  - dump_schema/snapshot 脚本 `db_path.relative_to(REPO_ROOT)` 加隔离根兜底; dump_schema FTS 组识别泛化 (`_is_fts5_main`: 含 _fts_ 段即主名) — 修复 knowledge_chunks_fts_cjk 漏识别 (DDL 重建重复建表)。
+- **测试验证**:
+  - 哨兵: `pytest test_isolation_guard.py` 10/10 — 生产库连接/相对路径绕过/真实 wiki+logs 写入/出网全部被拒且未落盘; 回环放行; 隔离根路径打印。
+  - 定向回归: test_agent_bridge 14/14 通过, **真实库 agent_runs 321→321 零新增、mtime 不变**; 7 条模拟记录 (builtin/ok, slow/failed, bad/failed…) 实证落在 `hotspot-test-iso-lxtealg9/hotspot.db`。
+  - 全量: pytest backend/tests/ → (见 PROGRESS 收口行); 触及真实环境: 否 (子进程经 env 继承隔离)。
+- **潜在风险**: audit hook 只护 pytest 进程, 子进程靠 env 继承; 真实库 schema 疑似落后 migrations (隔离根建库出现 knowledge_chunks_fts_cjk 而真实库无) — 迁移漂移待核 (下次启动 init_db 自动应用, T00 基线补记)。
+- **提交**: 见本条关联 commit (显式 pathspec)。
+
+## [DEV-0138] v1.0 T02 — 备份、恢复与开发副本演练
+- **时间**: 2026-09-06 00:0x-08:1x
+- **类型**: 演练基建 (无生产代码改动, 仅脚本+文档+gitignore)
+- **关联模块**: `v1.0:T02`, `quality:backup-restore`, `quality:dev-environment`
+- **关联文件**:
+  - 新增: `scripts/t02_backup_drill.py` (240 行) / `scripts/t02_restore_drill.py` (280 行) / `scripts/dev_environment.sh` (145 行) / `docs/v1.0/backup-drill.md`
+  - 修改: `docs/v1.0/task-status.md` (T02 状态改 verified) / `PROGRESS.md` (T02 段 + 进度清单) / `.gitignore` (`dev_data/` 增量)
+- **问题描述**: 现有 backup_service 走生产 BACKUP_RETENTION=1 链, 无演练隔离; 恢复函数直接覆盖生产 db_path, 风险大; 开发环境无独立数据根, 启动会触发 catchup_on_startup 全网抓取。
+- **实现思路**:
+  - **T02-A 备份演练**: 默认 --dry-run, 产物入 `backend/backups/_drill/<ts>/` (不入生产链); 复用 `Connection.backup()` 走 WAL 一致性快照; Wiki 走 zip deflate (排除 .conflicts / __pycache__ / .DS_Store); 4 资产 sha256 落 manifest.json + RPO/RTO 演练值 + non_goals 清单 (含"不动 BACKUP_RETENTION 链 / 不推 WebDAV / 不打印密钥")。
+  - **T02-B 恢复演练**: 默认 --dry-run, 写到 `/tmp/hotspot-restore/<ts>/` 仓库外; 5 项验收: integrity_check=ok / sha256 一致 / 表数对照 (hotspots=7223 favorites=6 agent_runs=321) / favorite→hotspot url 回查 (软指标, 漂移不阻塞) / wiki md 抽查 (frontmatter 完整)。
+  - **T02-C 开发副本**: `dev_environment.sh` 提供 plan/init/start-backend/start-frontend/status/stop 子命令, init 写 `dev_data/dev.env` 模板 (HOTSPOT_DB_PATH 等 6 env + 关 CATCHUP_ON_STARTUP/PROXY_MODE/REMOTE_BACKUP); 端口 8766/8899 错开生产 8000/8898; 自动追加 `dev_data/` 到 .gitignore; 状态子命令列 4 端口占用。
+- **核心变更**:
+  - 备份脚本: dry-run 计划 (源大小 + 演练目录) / execute 真实演练 (4 步 + integrity) / manifest.json (含 digests + rpo/rto) / 不动生产 db_path (用 `Path(config.db_path)` 仅做 read)。
+  - 恢复脚本: 拷 db + 解 wiki zip + 5 verify / favorites schema 实测 (id, hotspot_id, category, title, source, url, favorited_at) / hotspots schema 实测 (id, title, source, url, published_at) / 失败判定 integrity + sha + knowledge sample, favorite 漂移仅 NOTE。
+  - dev_environment.sh: 端口冲突预先 lsof 报错 / set -a 加载 dev.env / graceful 启动 uvicorn / stop 用 lsof -t 取 pid 杀。
+- **测试验证**:
+  - T02-A 演练: 1.76s 演练 826MB 产物, 4 sha256 一致, integrity_check ok, 106 表; 生产 db mtime 不变 (Sep 5 19:39:58 / agent_runs 321)。
+  - T02-B 演练: 3 轮稳定性 RTO 0.47/0.52/0.50s, 全 PASS; favorite 抽样 (1 中 3 失, url 漂移) 与 hotspot 表回查 (url 命中 1 次 id=15→security_FreeBuf_d237b3d976a9, 标题 "Agent蜂群是如何通过社会行为学协作网络攻击HuggingFace的？"); wiki md 抽查 450 字节 frontmatter 完整。
+  - T02-C 试跑: dev backend 启动 8766 /api/health 200 (version 0.8.2 / 52 jobs scheduler 起来), migrations 1-95 应用, watchdog 因空 wiki 不启动 (设计预期), graceful drain done + wal_checkpoint truncated 干净退出; dev_data/db/hotspot.db 1.7MB + logs/app.log 100KB; **生产 db mtime Sep 5 19:39:58 不变** (完全隔离)。
+- **触及真实环境**: 否。备份演练只读生产 db + wiki, 写演练目录; 恢复演练写 /tmp; dev 启动走 dev_data 独立根, 不触生产。
+- **潜在风险**:
+  - WARM 818MB 演练是同盘 copy (1889 MB/s), 异机传输会降至 100-500 MB/s, 真 RTO 异机演练待 T17。
+  - 真 RPO = 距 daily_db_backup (04:30) 窗口, 演练值不表真 RPO。
+  - favorites 表 4 次抽 3 次 url 不在 hotspots (历史 url 漂移, 数据完整性问题, 非恢复 bug)。
+  - dev 环境 watchdog 因空 wiki 不启动 → T03+ 写入测试数据后激活, 否则部分 job (wiki_archiver/knowledge_chunk_generation) 跳过。
+- **提交**: 见本条关联 commit (显式 pathspec, 单 commit `feat(v1.0 T02): 备份演练 + 恢复演练 + 开发副本 (DEV-0138)`)。

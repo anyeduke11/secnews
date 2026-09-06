@@ -1,5 +1,7 @@
 # v0.5 重构执行进度（PROGRESS.md — 当前活跃段索引）
 
+> **当前执行入口（2026-09-05）**：目标软件 v1.0.0，当前代码 v0.8.2。按 [开发迁移方案](docs/HOTSPOT_V1.0_DEVELOPMENT_PLAN.md) 与 [逐步任务书](docs/HOTSPOT_V1.0_EXECUTION_GUIDE.md) 推进；下方 v0.5 的“唯一规格/接手顺序”属于历史阶段，不作为 v1.0 的执行指令。
+
 > **v0.8.0 (2026-09-04)** — Skills Phase A/B/C/D 全绿 + v0.8.0-post 治理 / 架构图 / V0.8.1_PLAN 立项 (详见活跃段)。
 > **v0.8 P1 (2026-09-03)** — 独立资讯筛选门禁 (info_filter, 详见活跃段)。
 > **v0.7.0 (2026-08-28)** — workbench 报纸版 100% 接管 (Step 2 物理删除完成)。
@@ -41,6 +43,73 @@
 ---
 
 ## 当前活跃段 (2026-09-03 起)
+
+### 2026-09-05 v1.0 — 附件对比、开发迁移步骤与深度设计审查
+
+- [x] 对比四份附件，核对 APP_VERSION 0.8.2 与当前 HEAD 943a31d；相对旧审查基线仅 PROJECT.md 提交变化，本次未重跑业务测试或查询数据。
+- [x] 完成 [开发方案](docs/HOTSPOT_V1.0_DEVELOPMENT_PLAN.md)、[新手 T00-T19 任务书](docs/HOTSPOT_V1.0_EXECUTION_GUIDE.md)、[第一性原理/批判性/六顶思考帽审查](docs/HOTSPOT_V1.0_DESIGN_REVIEW.md)，同步 PRD 目标为软件 v1.0.0；DEV-0135 / CHECK-0002。
+- [x] T00 基线核对 (只读, `f9520c2`+`0066668`, DEV-0136) + T01 测试隔离 + 4 真实库污染根治 (F13 闭合 `ac45f89`, DEV-0137) + T02 备份/恢复/开发副本 (本批, DEV-0138)。剩 T03-T19。
+- [ ] T00-T04 基线、隔离、恢复、契约原型和上游 SDK 验证。
+- [ ] T05-T08 可信证据、稳定抓取、准入和事项基础。
+- [ ] T09-T12 持久运行、源码 dsh/pi、判断、执行与独立验收。
+- [ ] T13-T15 经验复用、六能力及四入口一致性。
+- [ ] T16-T19 数据/路由兼容、效果故障验收、切换预演和正式发布。
+- **边界**：本次交付是待实施方案；不更新软件版本、不操作真实数据库、不运行采集/模型、不发布。20 旧 ID 全部登记兼容去向，现有数据保留；设计修订不等于缺陷已修复。
+
+### 2026-09-05 v1.0 T01 — 测试隔离与虚假成功证据修复 (F13)
+
+> **来源**: EXECUTION_GUIDE §4 T01 任务卡; 修复对象 = V0.8.3_CRITICAL_REVIEW F13。DEV-0137。
+
+- [x] **四层隔离落地** ([策略说明](docs/v1.0/test-isolation.md)): L1 conftest 导入前强制 `HOTSPOT_{DB,WARM,COLD,LOG,BACKUP,DATA,WIKI_ROOT}` env → 会话临时根 (`tempfile.mkdtemp`, 保留作验收证据); L2 `sys.addaudithook` 哨兵 (生产库连接 / 生产数据根写入 / 非回环出网 → AssertionError); L3 既有 temp_db/_isolate_temp_dbs/_isolate_knowledge_dirs 每测隔离; L4 测试自身 mock。逃逸口 `HOTSPOT_TEST_UNGUARDED=1` (仅 soak/live)。
+- [x] **config.data_dir 新字段**: export 缓存原硬编码 `backend/data` (测试期曾写真实 etag), 改走 config 单一源 (HOTSPOT_DATA_DIR 隔离)。
+- [x] **4 个 Phase-7 工具契约测试改造** (dump_schema/export_for_dsh/db_diet/snapshot_for_retirement): 全部改走会话根库 (显式 --db + config 断言); 真实数据地板断言 (items≥4149 等) 移交 backup_verify + T17 SLO, 契约形状/双源一致性保留。
+- [x] **顺带修 2 个真 bug**: ① dump_schema/snapshot `db_path.relative_to(REPO_ROOT)` 对仓库外路径抛 ValueError (隔离根触发) → 加兜底; ② dump_schema FTS 组识别漏 `knowledge_chunks_fts_cjk` (含 `_fts_` 段非 `_fts` 结尾) → `_is_fts5_main` 泛化, 修复 DDL 重建重复建表。
+- [x] **验收证据**: 哨兵 10/10 (生产库连接/相对路径绕过/真实 wiki+logs 写/出网全被拒且未落盘); test_agent_bridge 14/14 且**真实库 agent_runs 321→321 零新增、mtime 不变**, 7 条模拟记录实证落会话根 `hotspot-test-iso-*/hotspot.db`; 全量回归见下。
+- [x] **全量回归**: pytest backend/tests/ 全绿 (0 failed / 0 error, skip 仍为基线预存 6); 真实库/Wiki 零写入 (mtime 复核)。
+- **新发现 (记 T00 基线)**: 真实库 schema 疑似落后 migrations — 隔离根 (当前 migrations 全新建库) 有 `knowledge_chunks_fts_cjk` 而**真实库无此 FTS 组**; 下次 backend 启动 init_db 自动应用, 迁移漂移留 T02 前复核。
+- **下一小步 (T02)**: 备份/恢复演练 — 停写排空 + SQLite backup API + Wiki/session 快照 → 恢复副本校验 (WARM 818MB 体量), 记录实际 RPO/RTO。
+
+### 2026-09-06 v1.0 T02 — 备份、恢复与开发副本演练 (verified, DEV-0138)
+
+> **来源**: EXECUTION_GUIDE §4 T02 任务卡; 复 `backup_service.py` online backup API + `wiki_fs/root.py` 解析; 不动 BACKUP_RETENTION 链, 不推送 WebDAV。DEV-0138。
+
+- **T02-A 备份演练** (`scripts/t02_backup_drill.py`, 240 行, 默认 --dry-run): HOT 28MB online backup 0.045s / WARM 818MB copy 0.433s / COLD 28KB copy / Wiki 6486 文件 deflate 1.05s, **总演练 1.76s**, integrity_check ok, 106 表; 演练产物入 `backend/backups/_drill/<ts>/` 不入 BACKUP_RETENTION 链; 4 资产 sha256 落 manifest.json; 生产 db mtime `Sep 5 19:39:58` 未变 (agent_runs=321 不动)。
+- **T02-B 恢复演练** (`scripts/t02_restore_drill.py`, 280 行, 默认 --dry-run): 5 项验收 (integrity_check / sha256 一致 / 表数对照 / favorite → hotspot 回查 / wiki md 抽查), 写到 `/tmp/hotspot-restore/<ts>/` 仓库外; **3 轮稳定性 RTO 0.47-0.52s, 全 PASS**; 4 次抽 random favorite 1 中 3 失 — favorites 表存在历史 url 漂移 (非恢复 bug, 软指标)。
+- **T02-C 开发副本** (`scripts/dev_environment.sh`, 145 行): 数据根 `dev_data/` 独立 (gitignore 增量) / 端口 8766 (后端) + 8899 (前端) 错开生产 8000+8898 / `dev.env` 模板关 `HOTSPOT_CATCHUP_ON_STARTUP=0` `HOTSPOT_REMOTE_BACKUP=""` `HOTSPOT_PROXY_MODE=off`; 试跑 dev backend health 200, dev db 1.7MB + log 100KB 落 dev_data/, **生产 db mtime 不变** (完全隔离); keyring master_key verification failed 是 dev 无凭据正常, watchdog 因空 wiki 不启动 (设计预期)。
+- **真 RPO/RTO**: RPO 演练 = 1.76s (不表真 RPO, 真 RPO = 距 daily_db_backup 04:30 窗口); RTO 演练 = 0.5s 本地, 异机经验 +10-30s。
+- **设计纪律**: dry-run 默认 + 演练目录隔离 + 不调 backup_service 全局函数 + 不打印密钥 + GitHub `feat(v1.0 T02): 备份演练 + 恢复演练 + 开发副本 (DEV-0138)` 单 commit 显式 pathspec。
+- **剩余问题 (非阻塞, 留 T17 验收)**: ①favorites 历史 url 漂移 ②真异机 RTO 演练 ③WARM 818MB 同盘 copy vs 异机 100-500MB/s 吞吐差。
+- **下一小步 (T03)**: 固定领域契约 + 最小交互原型 (Case/Subject/Judgment/Action/Run/Artifact/Knowledge + revision 状态 + allowed_actions; 标准化 IO/错误/幂等/CAS/SSE schema; 四入口原型走查缺资产/待验收/失败三路径)。
+
+### 2026-09-05 v1.0 T00 — 基线核对与任务台账 (verified, 只读)
+
+> **来源**: EXECUTION_GUIDE §7 首轮任务。全程只读: 未跑测试 / 未出网 / 未写库与 Wiki / 未读密钥内容; 库内数字 = sqlite `mode=ro + query_only=ON` 单次快照。DEV-0136。
+
+- [x] **[基线](docs/v1.0/baseline.md)**: 版本 0.8.2 (version.py 单一真源; frontend package.json 0.7.0 不用于产品显示, AboutSettings 走 /api/health); 启动 = run.py → uvicorn 127.0.0.1:8000 (WORKERS=1, 无认证回环); **盘点时后端/前端未运行 (零活跃写入者)**。
+- [x] **数据根与写入者表**: HOT `backend/hotspot.db` 28MB (tickets 53 全 pending / skill_runs 58 / agent_runs 321 (含测试污染 315..321) / hotspots 7223) · WARM `hotspot-warm.db` **818MB** (迁移体量基准) · COLD 28KB · backups/ (最近 full **2026-08-29**, 新鲜度缺口 F6) · Wiki 单根 `llm-wiki-2.0/` (HOTSPOT_WIKI_ROOT 未设走默认) · logs `backend/logs/` · `data/hotspot.db` **0 字节诱饵** + Phase 7 旧产物 · dsh = settings KV 三态 · pi = ~/.pi 外部 CLI 0.84.4 · 密钥 = HOT 表 + Keychain (未读内容)。
+- [x] **架构与功能清单**: 73 routers / 108 services / 52 jobs (jobs `__all__` 仅 34 re-export, 以 add_job AST=52 为准) / 14 collectors / 13 gates (12 开, mcp 关; feature_mcp=True) / 20 Skill 注册表实测吻合 (去向 = EXECUTION_GUIDE §5)。
+- [x] **任务台账**: [docs/v1.0/task-status.md](docs/v1.0/task-status.md) — T00 **verified**, T01-T19 planned; 3 条待用户裁决 (标注集 60-80 起步 / T04 SDK 退出判据 / git bundle 异地备份)。
+- [x] **固定样本故事**: 虚构 CVE-2026-31337 两任务闭环 (隔离环境造数, 不进真实库); 首条完整路径 = SK-02/SK-03。
+- **通过证据**: T00 卡片五项自查全过 (baseline.md §6) — 版本/入口明确, 每个数据根+写入者可定位, v0.8.3 未标已实现, 首条真实工作可指出。
+- **提交状态**: `docs/v1.0/*` 已单独提交 (显式 pathspec); 本文件与 DEV_LOG 的 T00 条目暂留工作树 — 同文件含并行会话 DEV-0133~0135 未提交 hunks, 待归属清晰后一并提交。
+- **下一小步 (T01)**: 测试隔离 — 导入前隔离 HOT/WARM/COLD/Wiki/logs/dsh-pi home 至临时根 + 生产路径哨兵拒绝; 先修 agent_bridge 测试直写真实库 (F13); 验证后跑定向回归建基线。文件范围预计: `backend/tests/conftest.py` + agent_bridge 测试 + 新隔离 fixture 模块。
+
+### 2026-09-05 从零产品 PRD — Hotspot 安全工作台（待实施）
+
+- [x] 用户追加要求“重新设计整个体系，先出从 0 开始的 PRD”；交付 [HOTSPOT_WORKSTATION_PRD_V1.0](docs/HOTSPOT_WORKSTATION_PRD_V1.0.md)。
+- 新主线：关注对象 → 情报事件 → 工作事项 → 证据判断 → 受控行动 → 验收 → 可复用经验。产品主入口重新定义为今日工作/情报/事项/知识，首期六岗位能力；不以旧页面和既有 Skill 数量限定需求。
+- [x] 用户画像/假设、12 功能、验收标准、领域模型、UI/UX、源码 dsh/pi 分工、知识存储、指标、实施里程碑、第二轮审查和目标追踪矩阵完成。
+- [ ] M0 岗位/案例走查与原型、真实 SDK 技术验证；随后 M1-M5 分批实现。旧 v0.8.3 审查仍是事实证据，旧重构/业务文档降为技术与迁移参考。
+- 本次纯文档：未运行 pytest、未操作数据库或调用模型；记录 DEV-0134，软件版本不变。
+
+### 2026-09-05 v0.8.3 — 真实架构审查与重构设计（待实施）
+
+- 用户方向：Hotspot 是安全从业者看板型 B/S Agent，dsh 直接复用 DeepSeek-Harness 源码作为大脑，pi 直接复用 pi.dev 当前上游源码执行，llm-wiki-2.0 + SQLite 覆盖资讯/判断/行动知识复利；优先保证稳定抓取和高价值收录。
+- [x] 基于 HEAD `4c686fc` 核验代码与只读数据库快照；发现清单见 [V0.8.3_CRITICAL_REVIEW](docs/V0.8.3_CRITICAL_REVIEW.md)。旧审查中的断路器/gate/pi 过时结论以新报告为准。
+- [x] [技术方案](docs/V0.8.3_REFACTOR_PLAN.md) + [业务流/20 Skill 迁移/UI 契约](docs/V0.8.3_WORKFLOWS_AND_SKILLS.md) + 第二轮批判性复核完成，记录 DEV-0133 / CHECK-0001。
+- [ ] A0-A2 可信基线、抓取准入、任务及模型契约；B 源码 dsh/pi；C 知识与 Skill；D 工作台；E 验收发布。
+- **关键事实**：53 pending 票据无关联 run；生产未找到 TriggerWorker 实例化；pi 是 CLI 集成且已有 0.84.4 协议修正，尚未源码受管；100 项定向测试通过但发现测试隔离缺陷（本次写入七条模拟观测记录，详见 F13）。
+- **版本状态**：软件仍为 v0.8.2；本次仅审查与文档，不代表 v0.8.3 实现完成；后续先修测试隔离再运行全量。
 
 ### 2026-09-05 v0.8.2 子批 1 — 快赢包 X (低风险清债: B1/B2/B3/B4/C2 全绿)
 
@@ -314,4 +383,3 @@
 - [x] **live 全链 PASS** (配额恢复后二轮): 21 行 NDJSON (含 message_update ×11 流式), bridge 解析 "PONG", `run_agent_task` ok=True; **transcript 落库铁证 agent_runs id=286 agent=pi status=ok duration=2691ms result_excerpt='PONG'**。
 - [x] **scripts/soaktest/pi_live_probe.py**: 可重复 live 探针 (真 pi + 解析契约 + bridge 全链 + agent_runs 落库断言; 上游失败/成功双路径判定; 仅本地手动, 不进 pytest/CI — 零 skip 硬要求)。
 - [x] **残项**: message_update 流式事件语义 (逐 chunk 增量) 未接 — bridge 只取最终 message_end, 流式 UI 反馈留 §4.3.B (P1)。
-

@@ -131,3 +131,6 @@ frontend/playwright-report/
 hotspot-architecture.visual-check.*.png
 hotspot-architecture.visual-check.html
 hotspot-architecture.visual-check.json
+
+# T02-C dev environment (independent data root)
+dev_data/

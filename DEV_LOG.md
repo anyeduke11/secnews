@@ -1,4 +1,35 @@
 
+## [DEV-0142~0145] v1.0 T08+T09+T10+T07 监督批次 (并行 4 agent, 2026-09-06)
+
+### 上下文
+- 用户裁决"开始多agent完成: T08 Case 端到端 / T09 运行协调器 + F01 修复 / T10 dsh/pi live trace / T07 监督批次".
+- 4 个 agent 并行派发, 文件范围无冲突 (migration 编号 097/098/099 已分配; case_*.py 独占 T08 / worker_*.py + legacy_hold_*.py 独占 T09 / live_bridge + live_session + t10_live_trace 独占 T10 / admission_log + label_set 独占 T07 监督).
+
+### T08 Case 端到端 (commit `f29edcc`, DEV-0142)
+- 交付: migration 098 + case_repo + case_service + case_api + frontend api v1 + 改 V1Prototype.tsx + 29 测试.
+- 5 端点: POST/GET/PATCH/close + contracts §0.4 E_VALIDATION/E_NOT_FOUND/E_CONFLICT.
+- 状态机 open→[claim,close,edit,archive] / closed→[archive,reopen,edit_metadata] (任务台账 §6 字面).
+
+### T09 运行协调器 + F01 修复 (commit `3b47cc7`, DEV-0143)
+- 交付: migration 099 + worker_coordinator + legacy_hold_service + scheduler jobs worker_pump + 27 测试.
+- WorkerCoordinator 5 态机 + 重试 3 + 死信; 复用 v0.8.2 Y get_semaphore("source_fetch").
+- F01: 53 pending → legacy_hold 幂等; 不删行只改 status (T16 可反查); 真实库零写入.
+
+### T10 dsh/pi live trace (commit `a461a44`, DEV-0144)
+- 交付: runtime/upstreams/{dsh,pi}/.git/ 仅入 ref (源码 gitignore) + t10_live_trace.py + dsh/live_bridge + pi/live_session + 26 测试.
+- 真 vendor commit 复核 dsh d347e70 / pi 6f11c31 与 lock 一致; --live 模式本地 rev-parse 验证 + 离线缓存.
+- ai_hub 工具消息保留 8 测试: tool_call_id round-trip + F05 status_code + F09 cancelled (≠ timeout).
+
+### T07 监督批次 (commit `298ad4c`, DEV-0142)
+- 交付: migration 097 + 改 v1_admission_service 真落库 + 4 新方法 + dev_data/annotation_set_seed_60_80.json (60 起步) + scripts/t07_seed_label_set.py + 11+2 测试.
+- 监督流程 (inter-annotator agreement) 留 T07 后续批次, 注释明确.
+
+### 数字
+- jobs 52→**54** (+2 worker jobs)
+- routers 73→**74** (+1 case_api)
+- services 111→**114** (+3: case_service + worker_coordinator + legacy_hold_service)
+- pytest 3937→**4032** (+95, 跨 4 agent 累计新测试)
+
 ## [DEV-0141] v1.0 T06+T07 (A 路) + 方案B 测试发量
 - **时间**: 2026-09-06 09:50
 - **类型**: 实现

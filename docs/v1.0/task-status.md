@@ -14,11 +14,12 @@
 | T05 证据提交协议 | T02,T03 | 统一提交服务 + 故障测试 | **verified** | DEV-0140 | migration 096 5 表 (v1_subjects/v1_materials/v1_signals/v1_subject_identifiers/v1_evidence_receipts) + V1EvidenceService (intent/commit/rollback/原子 rename/超时 reap) + 9 故障测试 (幂等/CAS/超时/冲突/空内容) |
 | T06 源级管道 | T05 | 源级管道 + watermark + 5 失败注入 + T05 桥接 | **verified** | DEV-0141 | `SourcePipeline` + `FetchRequest`(frozen) + `SourceLease`(TTL+并发) + `SourceWatermark`(单调) + 17 故障测试 (5 FetchOutcome 状态机 + 5 失败注入点 + 幂等) |
 | T07 准入服务 | T06 | 准入服务 + 标注集 60-80 起步 | **verified** | DEV-0141 | `V1AdmissionService` 复用 `info_filter.evaluate` (deny>allow>neutral) + `AdmissionResult` + 8 维 label 启发式 (entity_type/confidence/urgency/domain/impact/severity/audience/actionability) + 9 准入测试; admission_log migration 097 待 T07 监督批次 |
-| T08 关注对象与事项 | T03,T05 | case 服务/API/schema | planned | — | 端到端体量大 (新表+路由+UI+状态机+持久层), 本批跳过, 留 T19 收口前补; 当前 `/v1-prototype` 仍 mock |
-| T07 准入与事件流 | T06 | 准入服务 + 样本集 | planned | — | 标注集规模建议 60-80 起步 (单人可执行), 留出集纪律不变 |
-| T08 关注对象与事项 | T03,T05 | case 服务/API/schema | planned | — | |
-| T09 运行真实执行 | T01,T03,T05 | 运行协调器 (worker 消费断链接线) | planned | — | 修复 F01; 53 pending → legacy_hold |
-| T10 dsh/pi 生产适配 | T04,T09 | 受管源码运行时 | planned | — | 修复 F05 (pi 失败语义) + F09 (取消/额度) |
+| T08 关注对象与事项 | T03,T05 | case 服务/API/schema | **verified** | DEV-0142 | `f29edcc`: migration 098 (v1_cases + 关联) + case_repo (CAS) + case_service (5 状态机 + allowed_actions 推导) + case_api (5 端点) + frontend api/v1.ts + 改 V1Prototype 走真实 API; 29 测试; routers 73→74 |
+| T09 运行真实执行 | T01,T03,T05 | 运行协调器 (worker 消费断链接线) | **verified** | DEV-0143 | `3b47cc7`: WorkerCoordinator 5 态机 + 重试 3 + 死信 + LegacyHoldService 53 pending→legacy_hold 幂等 + migration 099 + jobs 53/54; 27 测试; jobs 52→54; 真实库零写入 |
+| T10 dsh/pi 生产适配 | T04,T09 | 受管源码运行时 | **verified** | DEV-0144 | `a461a44`: 真 vendor clone dsh d347e70 / pi 6f11c31 (lock 一致, .git/ 入 ref 源码 gitignore) + scripts/t10_live_trace.py (mock 8 帧 31ms, --live 模式本地 rev-parse 验证) + dsh/live_bridge (stdio JSON-RPC) + pi/live_session (AgentSession 事件流) + ai_hub 工具消息保留 8 测试 (tool_call_id round-trip / F05 / F09); 26 测试 |
+| T07 监督批次 | T07 | admission_log + 60 起步标注 | **verified** | DEV-0142 | `298ad4c`: migration 097 (admission_log + admission_label + admission_set + set_items 4 表) + v1_admission_service.quarantine 真落库 + 4 新方法 + dev_data/annotation_set_seed_60_80.json (60 起步 480 label) + scripts/t07_seed_label_set.py; 11+2 测试; inter-annotator agreement 留 T07 后续批次 |
+| T11 有证据的判断 | T07,T08,T10 | 判断服务 + SK-02 主路径 | planned | — | |
+| T07 监督批次 | T07 | admission_log + 60 起步标注 | **verified** | DEV-0142 | `298ad4c`: migration 097 (admission_log + admission_label + admission_set + set_items 4 表) + v1_admission_service.quarantine 真落库 + 4 新方法 (label/create_label_set/add_to_set/get_set_items) + dev_data/annotation_set_seed_60_80.json (60 起步 480 label) + scripts/t07_seed_label_set.py; 11+2 测试; inter-annotator agreement 留 T07 后续批次 |
 | T11 有证据的判断 | T07,T08,T10 | 判断服务 + SK-02 主路径 | planned | — | |
 | T12 行动与验收 | T11,T10 | SK-03 + 验收 UI | planned | — | |
 | T13 知识发布复用 | T05,T12 | SK-04/05/06 | planned | — | |

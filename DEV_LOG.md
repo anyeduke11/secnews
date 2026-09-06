@@ -1,4 +1,10 @@
 
+## [DEV-0147] v1.0 T12 SK-03 inspection-materials 行动/运行/产物/验收 (2026-09-06)
+- 交付: migration 101 (v1_actions + v1_runs + v1_artifacts 三主表 + UNIQUE INDEX 兜底 contracts §7.4) + 3 repos + ActionService 7 态机 + plan_hash 不变量 (§6.4) + judgment_id 必引 published (§10.1) + RunService 三层幂等 (§7.4) + mock 协议同步 finish 桥接 + ArtifactService 5 态机 + 防重传蒙混 (§8.3) + build_inspection_materials_prompt 追加 + API 9 端点 (action 5 + run 2 + artifact 6) + 前端 8 client + CaseDetail Action/Run/Artifact 真实 API + 走查 3 路径强化 (含已拒绝) + 32 测试 + 黄金案例 scripts/t12_golden_inspection_materials.py 6 步续接 T11.
+- 设计关键: UNIQUE INDEX `(action_id, attempt)` 兜底 contracts §7.4 同 attempt 唯一; publish 三重守卫对齐 (status/CAS/content_hash); baseline §5 "材料已生成 ≠ 排查完成" 硬约束在 service 层 enforce; 防重传蒙混 (§8.3) rejected 后同 hash 不可再 accept.
+- 验收: pytest 4063→4095/6/0 (基线 +32 0 回归); 黄金案例 apply 真落 1 action/1 run/1 artifact (accepted) 完整链路; 真实库零写入.
+- 数字: routers 75→78, services 115→118.
+
 ## [DEV-0146] v1.0 T11 SK-02 cve-impact-brief 有证据的判断 (2026-09-06)
 - 交付: migration 100 (v1_judgments 主表 + UNIQUE PARTIAL INDEX `(case_id, claim_type) WHERE status='published'`) + judgment_repo (CRUD + CAS + 多对多关联) + judgment_service (create_with_dsh 走 dsh task_router + ai_hub 兜底; publish 三重守卫) + cve_impact_brief prompt 模板 (复用 security deep_read profile) + API 4 端点 (generate/list/get/publish) + 前端 4 client + 极简 renderInlineMarkdown (零依赖) + V1Prototype 真实 API 接入 + 31 测试 + 黄金案例脚本.
 - 设计关键: UNIQUE PARTIAL INDEX 兜底 contracts §5.3 "同 case 同一 claim_type 同时只 1 published"; publish 三重守卫 (status=draft / CAS expected_revision / content_hash 一致性); baseline §5 硬约束 (unknowns 必填) 在 service 层 enforce.

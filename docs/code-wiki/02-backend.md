@@ -1,7 +1,8 @@
 # 02 — 后端详解
 
-> 基准: **v0.7.4-cleanup (Batch ⑨, 2026-09-01) + v0.7.4-image (2026-09-02)**。数字快照: 68 router / 105 service / 51 job / 14 collector,
-> 由 `scripts/generate_meta.py` AST 反推维护 (代码真源; 注意 `docs/ARCHITECTURE.md` 此刻 jobs 仍记 50, 属滞后 1 项)。
+> 基准: **v0.7.x (2026-09-03: v0.7.4-cleanup → v0.7.4-image → v0.7.x SettingsHub/settings-v2)**。
+> 数字快照: 68 router / 105 service / 51 job / 14 collector, 由 `scripts/generate_meta.py` AST
+> 反推维护 (2026-09-03 实测 `--check` 通过, `docs/ARCHITECTURE.md` 已一致)。
 
 ## 1. 启动与生命周期
 
@@ -182,6 +183,12 @@ api/_flags.py     feature_flag 批量检查
 
 配置单一来源 `config/llm.yaml` (5 provider); AIQualityGate 的 LLM 检测走此出口,
 `quality.llm_enabled` 默认关。前端 `/settings?cat=pipeline` 可切换默认 provider (写 settings.kv + audit; v0.7.x SettingsHub 已从 `/secnews/settings` 合并)。
+
+**v0.7.4-image 增补 (三场景 + 图片)**: ① `/api/settings/ln-model` (settings.py) — 三场景模型配置,
+`POST` body `ln ∈ {deep, light, image}`, 写 `settings.kv` 键 `llm.ln.{ln}_model` + `audit_log`
+(action=`llm.ln_model.set`); 前端 `evaluate` 调用传 `scenario='deep'`。② `/api/image/*` (`api/image.py`) —
+`POST /api/image/generate` (文生图) + `/api/image/understand` (图理解), 走 `ai_hub/image_service`;
+后端面保留, 前端消费已收敛到 `/settings?cat=image_models` (见 01 §9 债-4 潜在 dead surface)。
 
 ### 3.4 观测服务族 (v0.7)
 

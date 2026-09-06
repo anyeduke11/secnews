@@ -1,6 +1,6 @@
 # 04 — 子系统详解
 
-> 基准: **v0.7.4-cleanup (Batch ⑨, 2026-09-01)**。前端收敛到哨兵终端 + SecNews 统一工作台,
+> 基准: **v0.7.x (2026-09-03)**。前端收敛到哨兵终端 + SecNews 统一工作台,
 > 后端子系统 (SecNews/KL/CodeGarden/Security/Sync/MCP/DSH/CRM) 架构不变, 观测子系统为 v0.7 新增。
 
 ## 0. 哨兵终端 (v0.7.1+, 首页)
@@ -26,7 +26,7 @@ SQLite → 趋势 / 统一搜索 / 导出 / 报告。列表排序统一 `ingeste
   - `analyze` 研判 (SecNewsAnalyze)
   - `analytics` CVE 热力图 + ATT&CK 技术映射 (STIX 子集嵌入)
   - `observability` **v0.7.3 新增**: 观测看板 (见 §9)
-  - `settings` 设置 (采集源 + 管线 + LLM provider + dsh 启停 + pi agent)
+  - `settings` 设置 (采集源 + 管线 + LLM provider + **三场景模型配置 image_models (v0.7.4-image)** + dsh 启停 + pi agent; v0.7.x SettingsHub 统一入口)
 - 后端: `kl_pipeline_api.py` + `secnews_dashboard_api.py` (配 `backend/secnews_dashboard.py`) +
   `cve_analytics.py` (S4-3) + `observability_router.py` (S4-5/v0.7)
 - 路由器 API: `kl_pipeline_heartbeat` (60s) + `secnews_liveness_sweep` (周日书签三态批扫)

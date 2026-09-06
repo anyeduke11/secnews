@@ -192,6 +192,26 @@ class V1EvidenceService:
                     self._insert_material(conn, intent_id, body_hash)
                 elif entity_type == "signal":
                     self._insert_signal(conn, intent_id, body_hash)
+                elif entity_type == "case":
+                    # T08: caller (case_service.create_case) 已先调 repo.create 写
+                    # v1_cases 行 — 这里只兜底 (若未写, 才补一条最小行, 防止外键悬空)
+                    cur = conn.execute(
+                        "SELECT 1 FROM v1_cases WHERE id = ?", (entity_id,)
+                    ).fetchone()
+                    if cur is None:
+                        # 兜底: body 必须含完整字段 (正常路径不会被触发)
+                        conn.execute(
+                            "INSERT INTO v1_cases (id, title, question, status, priority) "
+                            "VALUES (?, ?, ?, 'open', 'p2')",
+                            (
+                                entity_id,
+                                str(conn.execute(
+                                    "SELECT body_hash FROM v1_evidence_receipts "
+                                    "WHERE intent_id = ?", (intent_id,)
+                                ).fetchone()[0])[:120],
+                                "stub",
+                            ),
+                        )
                 else:
                     raise ValueError(f"unsupported entity_type={entity_type}")
 

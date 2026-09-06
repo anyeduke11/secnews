@@ -16,8 +16,9 @@
  * 路由: /v1-prototype (临时, T15 收口后移除)
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Case, Judgment, Action, Run, Artifact, Knowledge, Signal } from '../../domain/v1_0';
+import { listCases, getCase } from '../../api/v1';
 
 // ---------------------------------------------------------------------------
 // Mock 数据 (来自 seed.json, 脱敏后内嵌避免 fetch 依赖)
@@ -190,11 +191,60 @@ function IntelView() {
 // ---------------------------------------------------------------------------
 
 function CasesView({ onSelectCase }: { onSelectCase: (c: Case) => void }) {
+  const [cases, setCases] = useState<Case[]>(MOCK_CASES);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [usingFallback, setUsingFallback] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    listCases({ limit: 50 })
+      .then((resp) => {
+        if (cancelled) return;
+        if (resp.items && resp.items.length > 0) {
+          setCases(resp.items);
+          setUsingFallback(false);
+        } else {
+          // 后端空 → 用 mock 演示
+          setUsingFallback(true);
+        }
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        // API 失败 → 保留 mock (设计要求 fallback)
+        setError(e instanceof Error ? e.message : String(e));
+        setUsingFallback(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="space-y-4">
       <SectionTitle path="cases">工作事项</SectionTitle>
+      {loading && (
+        <div className="text-sm p-3 rounded" style={{ background: 'var(--bg-muted)', color: 'var(--text-muted)' }}>
+          加载中...
+        </div>
+      )}
+      {error && !loading && (
+        <div className="text-sm p-3 rounded" style={{ background: 'var(--bg-warning)', color: 'var(--color-warning)' }}>
+          API 调用失败, 显示本地示例数据: {error}
+        </div>
+      )}
+      {!loading && !error && usingFallback && cases.length === MOCK_CASES.length && (
+        <div className="text-sm p-3 rounded" style={{ background: 'var(--bg-muted)', color: 'var(--text-muted)' }}>
+          当前无后端数据, 显示本地示例 (mock fallback)。
+        </div>
+      )}
       <div className="space-y-3">
-        {MOCK_CASES.map(c => {
+        {cases.map(c => {
           const caseJudgments = MOCK_JUDGMENTS.filter(j => j.case_id === c.id);
           const caseActions = MOCK_ACTIONS.filter(a => a.case_id === c.id);
 
@@ -231,8 +281,40 @@ function CasesView({ onSelectCase }: { onSelectCase: (c: Case) => void }) {
 }
 
 function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
-  const judgments = MOCK_JUDGMENTS.filter(j => j.case_id === case_.id);
-  const actions = MOCK_ACTIONS.filter(a => a.case_id === case_.id);
+  const [liveCase, setLiveCase] = useState<Case | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [usingFallback, setUsingFallback] = useState(true);
+
+  // T08: 真实数据接入 — 拉取 case 详情 (后端 case 行 = 单一权威, judgment/action/run 仍
+  // 走 mock 占位, 等 T11/T13 批次替换); API 失败时保留 case_ (来自列表) 作为兜底。
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    getCase(case_.id)
+      .then((resp) => {
+        if (cancelled) return;
+        setLiveCase(resp.item);
+        setUsingFallback(false);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : String(e));
+        setLiveCase(null);
+        setUsingFallback(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [case_.id]);
+
+  const display = liveCase ?? case_;
+  const judgments = MOCK_JUDGMENTS.filter(j => j.case_id === display.id);
+  const actions = MOCK_ACTIONS.filter(a => a.case_id === display.id);
   const actionIds = actions.map(a => a.id);
   const runs = MOCK_RUNS.filter(r => actionIds.includes(r.action_id));
   const runIds = runs.map(r => r.id);
@@ -249,14 +331,35 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
       <div className="flex items-start justify-between">
         <div>
           <button onClick={onBack} className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>← 返回事项列表</button>
-          <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{case_.title}</h2>
-          <div className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{case_.question}</div>
+          <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{display.title}</h2>
+          <div className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{display.question}</div>
+          <div className="text-xs font-mono mt-1" style={{ color: 'var(--text-muted)' }}>
+            {display.id} · rev {display.revision}
+            {display.reason && ` · ${display.reason}`}
+          </div>
         </div>
         <div className="flex gap-2">
-          <Badge color={case_.status === 'open' ? 'blue' : case_.status === 'in_progress' ? 'green' : case_.status === 'blocked' ? 'yellow' : 'gray'}>{case_.status}</Badge>
-          <Badge color={case_.priority === 'p0' ? 'red' : case_.priority === 'p1' ? 'yellow' : 'gray'}>{case_.priority}</Badge>
+          <Badge color={display.status === 'open' ? 'blue' : display.status === 'in_progress' ? 'green' : display.status === 'blocked' ? 'yellow' : 'gray'}>{display.status}</Badge>
+          <Badge color={display.priority === 'p0' ? 'red' : display.priority === 'p1' ? 'yellow' : 'gray'}>{display.priority}</Badge>
         </div>
       </div>
+
+      {/* T08 加载 / 错误 / fallback 提示 */}
+      {loading && (
+        <div className="p-3 rounded-lg border text-sm" style={{ background: 'var(--bg-muted)', borderColor: 'var(--border-muted)', color: 'var(--text-muted)' }}>
+          加载中...
+        </div>
+      )}
+      {error && !loading && (
+        <div className="p-3 rounded-lg border text-sm" style={{ background: 'var(--bg-warning)', borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}>
+          API 调用失败, 显示列表缓存数据: {error}
+        </div>
+      )}
+      {!loading && !error && !usingFallback && (
+        <div className="p-3 rounded-lg border text-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)', color: 'var(--text-muted)' }}>
+          已加载后端数据 · revision {display.revision} · allowed_actions: {display.allowed_actions?.join(', ') || '(none)'}
+        </div>
+      )}
 
       {/* 走查 3 路径指示器 */}
       <div className="p-3 rounded-lg border flex items-center gap-3" style={{ background: 'var(--bg-muted)', borderColor: 'var(--border-muted)' }}>

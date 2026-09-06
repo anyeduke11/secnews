@@ -1,7 +1,9 @@
 # 03 — 前端详解
 
-> 基准: **v0.7.4-cleanup (Batch ⑨, 2026-09-01)**。React 18 SPA, 无 SSR, 构建产物为纯静态。
-> **v0.7.1 后首页 = 哨兵终端全屏页** (报纸版 EditorialView 已退役, 仅保留重定向)。
+> 基准: **v0.7.x (2026-09-03: v0.7.4-cleanup → v0.7.4-image → v0.7.x SettingsHub/settings-v2)**。
+> React 18 SPA, 无 SSR, 构建产物为纯静态。
+> **v0.7.1 后首页 = 哨兵终端全屏页** (报纸版 EditorialView 已退役, 仅保留重定向);
+> **v0.7.x 设置 = SettingsHub** (`/settings?cat=...` 统一入口, 3 处孤页永久 redirect)。
 
 ## 1. 技术栈与构建
 
@@ -138,6 +140,7 @@ components/
 │   │                #   + ThresholdEditor + ObservabilityTab
 │   ├── layout/      #   SecNewsShell + SecNewsHeader + StatusBar (obs 段 + 告警角标)
 │   └── settings/    #   PipelineSettings + DshControlCard + AgentRunnerCard
+│                    #   (settings-v2 迁移 V2 token; 3 处孤页已并入 /settings?cat=...)
 ├── settings/        # SettingsPage 分节: General/Source/Quality/Proxy/Sync/Knowledge/
 │                    #   Alert/Export/Database/About + MCPSettingsCard + SecretsStatusCard
 │                    #   + QualitySettings (LLM Provider 切换 + 密钥管理面板)
@@ -181,7 +184,7 @@ components/
 
 | 层 | 工具 | 入口 |
 |----|------|------|
-| 单元/组件 | Vitest + jsdom | `npx vitest run` (watch: `--watch`); **345+ passed (Batch ⑧ 验收, Batch ⑨ 续增)** |
+| 单元/组件 | Vitest + jsdom | `npx vitest run` (watch: `--watch`); **~370+ passed (v0.7.x 快照: Batch ⑧⑨ 345+ + settings-v2 新增 22)** |
 | 类型 | tsc | `npx tsc --noEmit` (0 errors) |
 | e2e 冒烟 | Playwright | `frontend/e2e/smoke.spec.ts` |
 | 路由契约 | ROUTE_REGISTRY.md | 新路由登记 (真源 = index.tsx) |

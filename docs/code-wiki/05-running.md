@@ -1,6 +1,6 @@
 # 05 — 运行与开发指南
 
-> 基准: **v0.7.0** (2026-08-28)。
+> 基准: **v0.7.x** (2026-09-03)。
 
 ## 1. 前置要求
 
@@ -44,12 +44,14 @@ HOTSPOT_HOST=0.0.0.0 python run.py               # 局域网访问 (无认证, �
 ### 3.2 前端
 
 ```bash
-cd frontend && npm run dev                       # http://localhost:8898 → 自动跳 /workbench
+cd frontend && npm run dev                       # http://localhost:8898 → 哨兵终端首页
 ```
 
 端口 8898 **严格绑定** (`--strictPort`), 被占用直接报错 (禁止自动漂移);
 `/api` 经 vite 代理到 `127.0.0.1:8000`。
-**v0.7.0 首页行为**: `/` 重定向 `/workbench` → 默认进 briefing 视图 (报纸版 5 视图工作台)。
+**v0.7.x 首页行为**: `/` 直达**哨兵终端全屏页** (v0.7.1 起; v0.7.0 的 `/workbench` 报纸版已退役,
+`/editorial` 仅重定向到 `/`)。设置入口统一为 `/settings?cat=pipeline|image_models|sentinel`
+(SettingsHub, 原 3 处孤页永久 redirect)。
 
 ### 3.3 MCP stdio (外部 Agent 接入, 需先开 mcp gate)
 
@@ -82,16 +84,16 @@ python3 -m http.server 8899 -d .ui-preview       # secnews-v4.html 真实数据 
 ## 5. 测试
 
 ```bash
-# 后端 (2938 passed / 2 failed 为 codegarden 端口预存, 与功能无关)
+# 后端 (v0.7.4 验收快照 ~3234 passed / 2 failed 为 codegarden 端口预存, 与功能无关)
 python -m pytest backend/tests/ --tb=short -q
 .venv/bin/python3 -m pytest backend/tests/test_sync_merge.py -v   # 单文件
 .venv/bin/python3 -m pytest backend/tests/ -k "merge"             # 关键字
 .venv/bin/python3 -m py_compile backend/services/ai_hub/gateway.py  # 编译检查
 
-# 前端 (304 passed, tsc 0 errors)
+# 前端 (~370+ passed, tsc 0 errors)
 cd frontend && npx tsc --noEmit && npx vitest run && npx vite build --logLevel error
 
-# 架构数字一致性 (改注册代码后必跑; 验收口径 47 jobs / 14 collectors / 63 routers / 93 services)
+# 架构数字一致性 (改注册代码后必跑; 当前验收口径 51 jobs / 14 collectors / 68 routers / 105 services)
 python scripts/generate_meta.py               # 重写 docs/ARCHITECTURE.md
 python scripts/generate_meta.py --check       # CI 同款校验
 
@@ -150,22 +152,21 @@ git diff --name-only origin/main | python scripts/generate_meta.py --classify --
 - 前端组件测试 colocated; 图表统一用 echarts (已移除 recharts)
 - Commit 前: 禁止提交敏感信息 (proxy_config.json / .env / 密钥) 到远程
 
-## 9. 首页变更说明 (v0.7.0) 与回退
+## 9. 首页演进 (v0.7.0 → v0.7.1 → v0.7.x) 与回退
 
-### 9.1 变更内容
+### 9.1 演进时间线 (首页变化是发版预期行为, 不是故障)
 
-**首页变化不是故障** — 是 v0.7.0「workbench 报纸版 100% 接管」正式发版的预期行为:
+| 版本 | 首页 | 说明 |
+|------|------|------|
+| ≤ v0.6.3 | 三层架构 / 工作台 | 旧 data/judge/action 三层 + workbench 灰度 |
+| **v0.7.0** | **报纸版工作台** | commit `370a970b` (灰度) + `795189ca` (发版): 物理删除 23 个 .tsx 与 22 个老路由; `workbench_legacy` gate 退役; `/` → `/workbench`; `APP_VERSION="0.7.0"` |
+| **v0.7.1** | **哨兵终端全屏页** | V2 设计稿还原: `/` `/judge` `/judge/graph` `/action` `/garden` 独立全屏 (不走 PageLayout); 报纸版 EditorialView 退役 (仅 `/editorial` → `/` 重定向); `*` fallback → `/` |
+| **v0.7.x** | 设置 = SettingsHub | `/secnews/settings` `/secnews/image` `/sentinel/settings` → `/settings?cat=pipeline\|image_models\|sentinel`, 永久 redirect 保留外部书签 |
 
-- commit `370a970b` (Step 1 灰度): `workbench_legacy` gate 置 false, 根路径 `/` → `/workbench`
-- commit `795189ca` (Step 2 发版): 物理删除 23 个 .tsx (data/judge/action 三层目录 16 个 +
-  4 个认知模式 + 2 个测试) 与 22 个老路由; `workbench_legacy` gate 退役;
-  `APP_VERSION = "0.7.0"`
-- 现在首页 = `/workbench` briefing 视图 (报纸版工作台);
-  旧 `/data` `/judge` `/action` 与 `/knowledge/{briefing,scan,alert,outbox}` 返回 404
-- 决策与验收记录: `PROGRESS.md` §2026-08-28、`docs/CHANGELOG.md` v0.7.0 段、
-  迁移指南 `docs/v0.7_migration_checklist.md` (22 路由功能对照表)
+决策与验收记录: `PROGRESS.md` §2026-08-28、`docs/CHANGELOG.md` v0.7.0 段、
+`docs/v0.7_migration_checklist.md` (v0.7.0 的 22 路由功能对照表)。
 
-### 9.2 若需要旧首页
+### 9.2 若需要更早的首页
 
 旧 UI 已物理删除 (非 gate 开关), 回退方式是 git 历史版本:
 
@@ -173,26 +174,27 @@ git diff --name-only origin/main | python scripts/generate_meta.py --classify --
 # 方案 A: 整体回退到 v0.7 之前 (放弃 v0.6.2~v0.7.0 全部变更)
 git revert 795189ca 370a970b          # 生成反向 commit (推荐, 保留历史)
 
-# 方案 B: 只想要灰度期行为 (老路由 404 但可恢复 gate) — 回退 Step 2:
-git revert 795189ca                   # 恢复 workbench_legacy gate 与旧文件
-# 然后编辑 backend/config/feature_gates.toml: workbench_legacy = true
+# 方案 B: 只想要灰度期行为 — 回退 v0.7.0 发版步:
+git revert 795189ca
 ```
 
-不建议 `git reset --hard` (破坏性)。若只是想临时查看旧版, 可
-`git checkout 82ed0189` (v0.7 Step 1 前) 起一套 detached dev server。
+不建议 `git reset --hard` (破坏性)。若只是想临时查看旧版, 可 `git checkout 82ed0189`
+(v0.7 Step 1 前) 起一套 detached dev server。**哨兵首页 (v0.7.1+) 无独立 gate**, 回退只能走代码。
+每次首页类变更后, 请同步更新本表与 `docs/code-wiki/` (行为文档无人肉门禁, 见 01 §9 债-5)。
 
-### 9.3 新首页功能对照
+### 9.3 功能去向对照 (当前 v0.7.x)
 
-| 想找的旧功能 | v0.7.0 去处 |
-|--------------|-------------|
-| `/data` 资料层浏览 | `/workbench/briefing` (含 `?category=` 筛选) |
-| `/judge/quality` 质量流 | `/workbench/pipeline` 或 `/quality/rejection` |
-| `/judge/trends` 趋势 | `/workbench/analyze` |
-| `/knowledge/briefing` 简报模式 | `/workbench/briefing` |
-| `/knowledge/scan` 扫描模式 | `/workbench/briefing` (报纸版信息流) |
-| `/knowledge/alert` 告警 | `/secnews/pipeline` 或 AlertCenter 组件 |
+| 想找的旧功能 | 现在去处 |
+|--------------|----------|
+| `/data` 资料层浏览 | `/secnews/feed` (信息流, `?category=` 筛选) |
+| `/judge/quality` 质量流 | `/secnews/pipeline` 或 `/quality/rejection` |
+| `/judge/trends` 趋势 / CVE | `/secnews/analytics` (CVE 热力图 + ATT&CK) |
+| 知识简报/扫描/告警 | `/secnews/feed` (DigestCard 简报) · `/secnews/pipeline` (告警) · 哨兵 `/judge` |
+| `/knowledge/briefing` 简报 | `/secnews/feed` |
 | `/knowledge/outbox` 整理 | `/knowledge/process` |
-| `/action/*` 行动层各页 | `/todos` `/skills` `/report` 等独立保留 + `/workbench` |
+| `/workbench/*` (报纸版) | 已退役: `/editorial` → 重定向到哨兵首页 `/` |
+| `/action/*` 行动层各页 | `/todos` `/skills` `/report` 独立保留 + 哨兵 `/action` |
+| `/secnews/settings` `/secnews/image` `/sentinel/settings` | `/settings?cat=pipeline\|image_models\|sentinel` (SettingsHub) |
 
 完整对照: `docs/v0.7_migration_checklist.md`。
 
@@ -206,7 +208,11 @@ git revert 795189ca                   # 恢复 workbench_legacy gate 与旧文�
   `https://github.com/anyeduke11/secnews.git`
 - 测试环境必须 `HOTSPOT_CATCHUP_ON_STARTUP=false`, 否则启动即触发追抓
 - pytest 有 2 个 codegarden 端口相关**预存失败** (v0.7 验收记录在案, 非回归)
-- **工作区当前有未提交的 ai_hub 重构中间态**: `backend/services/ai_hub/gateway.py` (修改) +
-  `ai_hub/prompts.py` (新增) + `test_codegarden_ops_api.py` (修改) — v0.7-C 后续拆分
-  (gateway 406 行超软限) 进行中, 提交前需确认完整性
-- `ai_hub/gateway.py` 406 行超 400 行软限, 官方后续工单: 拆 `gateway/` + `tasks_adapter.py`
+- **crawl4ai 渲染是可选依赖** (`backend/requirements-optional.txt`: `crawl4ai>=0.8.9` +
+  `playwright>=1.40`): 不安装则 `renderer="crawl4ai"` 的源 (新浪/东财/GitHub Trending, 36kr/雪球等)
+  静默退化裸 aiohttp (不会崩); 测试环境 conftest 把配置指到 disabled YAML, 不拉起浏览器
+- crawler-aihub-gateway 两步整合: 第 1 步 (YAML 单一开关) **已落地**,
+  第 2 步 (LLM 提取走 ai_hub OpenAI-compatible 网关) **未实施** —
+  启用 crawl4ai `LLMExtractionStrategy` 前必须先补网关, 否则绕过 ai_hub egress/观测红线
+- `/api/image/*` (v0.7.4-image) 后端面保留, 前端仅 `/settings?cat=image_models` 三场景模型配置消费;
+  属潜在 dead surface (01 §9 债-4)

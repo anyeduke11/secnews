@@ -223,5 +223,9 @@ def register_all(app: FastAPI) -> None:
         from backend.api import trigger_webhook_api
         app.include_router(trigger_webhook_api.router, tags=["trigger-webhook"])
 
+    # v1.0 T08: Case 端到端 (服务+API+UI) — 无 gate 限制, 与 codegarden 等核心域同源
+    from backend.api import case_api
+    app.include_router(case_api.router, tags=["v1-cases"])
+
 
 __all__ = ["register_all"]

@@ -52,6 +52,36 @@ def _ai_key_source(provider_name: str) -> str:
         return "none"
 
 
+def _is_cancelled(event: Any) -> bool:
+    """v1.0 T10: 检查取消信号 (兼容 asyncio.Event 与简易 .is_set() 对象)。
+
+    F09 修复契约: 取消信号 → status_code=cancelled (不算 timeout)。
+    异常时按未取消处理 (fail-open, 调用方仍能在下游拦截)。
+    """
+    try:
+        if event is None:
+            return False
+        if hasattr(event, "is_set") and callable(event.is_set):
+            return bool(event.is_set())
+        if hasattr(event, "cancelled") and callable(event.cancelled):
+            return bool(event.cancelled())
+        return bool(getattr(event, "_cancelled", False))
+    except Exception:
+        return False
+
+
+def _format_status(status_code: str, *, error: str | None = None) -> str:
+    """v1.0 T10: 失败语义统一返回 — JSON 字符串含 status_code + error。
+
+    F05 修复契约: 调用方按 status_code 判定, 不依赖文本 "failed" 关键字。
+    返回字符串 (而非 dict) 是为兼容 ``generate_text → str`` 既有签名。
+    """
+    return json.dumps(
+        {"status_code": status_code, "error": error or ""},
+        ensure_ascii=False,
+    )
+
+
 class LLMService:
     """统一 LLM 入口，支持多 provider + 降级 + 缓存.
 
@@ -430,6 +460,94 @@ class LLMService:
 
         return ""
 
+    async def chat(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        task: str = "chat",
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        cancel_event: Any | None = None,
+    ) -> str:
+        """v1.0 T10: 多消息 chat 接口 — 保留所有 role (含 tool)。
+
+        与 ``generate`` 的差异:
+          - 输入是完整 messages 列表 (system/user/assistant/tool),
+            不再被压缩成单一 prompt 字符串 — 工具回执 / 工具调用结果可往返;
+          - 接受可选 ``model`` 覆盖, 由调用方精确指定 (默认走 router);
+          - 接受可选 ``cancel_event`` (asyncio.Event 风格), 触发即终止:
+            取消信号 → status_code=cancelled (不算 timeout, F09 修复);
+          - 失败语义: 返回 ``{"status_code": str, "error": str}`` 形状的
+            JSON 字符串, status_code ∈ {ok, timeout, cancelled, error};
+            调用方按 F05 修复后的方式判定。
+
+        工具消息保留契约:
+          - messages 中 ``role="tool"`` 的项原样下发到 provider,
+            ``tool_call_id`` 字段也原样保留 (round-trip 可被引用);
+          - provider 内部截断/合并消息是 provider 行为, 本接口不擅自做;
+          - cache key 基于 messages 整体哈希 — 不同 tool_call_id 不同 cache。
+        """
+        # 取消信号优先检查 — F09: 取消不算 timeout
+        if cancel_event is not None and _is_cancelled(cancel_event):
+            return _format_status("cancelled", error="cancelled before call")
+        if not self.enabled:
+            return _format_status("error", error="ai_hub disabled")
+
+        # cache key 基于 messages 整体 (含 tool_call_id 等)
+        try:
+            messages_key = json.dumps(messages, ensure_ascii=False, sort_keys=True)
+        except (TypeError, ValueError):
+            messages_key = repr(messages)
+        cache_key = _make_cache_key(task, messages_key)
+        cached = get_llm_cache(cache_key)
+        if cached is not None:
+            return cached
+
+        last_error: str | None = None
+        for provider_name in self._try_order(task):
+            if not self._provider_allowed(provider_name):
+                log.warning("provider %s skipped (breaker open), trying next", provider_name)
+                continue
+            if cancel_event is not None and _is_cancelled(cancel_event):
+                return _format_status("cancelled", error="cancelled mid-fallback")
+            t0 = time.monotonic()
+            try:
+                cfg = self._config.providers[provider_name]
+                resolved_model = model or self._resolve_model(provider_name, task)
+                raw = await self._call_provider_chat(
+                    cfg, resolved_model, messages,
+                    max_tokens=max_tokens, temperature=temperature,
+                    provider_name=provider_name,
+                )
+                if raw:
+                    set_llm_cache(cache_key, raw)
+                record_llm_call(
+                    provider=provider_name, model=resolved_model,
+                    task=task or "chat",
+                    prompt=messages_key, response=raw, ok=True,
+                    latency_ms=(time.monotonic() - t0) * 1000,
+                    scene="chat",
+                    config_source=self._config_source_for(task, provider_name),
+                    key_source=_ai_key_source(provider_name),
+                )
+                return raw
+            except Exception as e:
+                # 取消信号在底层 httpx 抛异常前已 check, 此处归 error
+                last_error = f"{type(e).__name__}: {e}"[:300]
+                log.warning("Provider %s chat failed: %s", provider_name, e)
+                record_llm_error("chat", provider_name, str(e))
+                record_llm_call(
+                    provider=provider_name, model="", task=task or "chat",
+                    prompt=messages_key, ok=False, error=str(e),
+                    latency_ms=(time.monotonic() - t0) * 1000,
+                    scene="chat",
+                    config_source=self._config_source_for(task, provider_name),
+                    key_source=_ai_key_source(provider_name),
+                )
+                continue
+        return _format_status("error", error=last_error or "all providers failed")
+
     # ── Provider 调用 ─────────────────────────────────────────────
 
     async def _call_provider(
@@ -498,6 +616,83 @@ class LLMService:
             self._record_result(provider_name, True)
         log.debug("LLM call %s/%s: %dms", cfg.type, model, int(elapsed_ms))
         return result
+
+    async def _call_provider_chat(
+        self,
+        cfg: ProviderConfig,
+        model: str,
+        messages: list[dict[str, Any]],
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        provider_name: str | None = None,
+    ) -> str:
+        """v1.0 T10: 多消息 chat 调用 — messages 原样下发, 不压缩 tool 项。
+
+        与 :meth:`_call_provider` 的差异: 该方法只接受 prompt 字符串,
+        而本方法接受完整 messages 列表 (含 ``role=tool`` 项), 直透到
+        provider chat 端点。OpenAI / Anthropic 协议下:
+          - openai / openai_compatible / ollama → ``/chat/completions`` 或
+            ``/api/chat``, messages 字段原样;
+          - anthropic → ``/v1/messages``, messages 字段原样 (Anthropic 工具
+            协议差异此处忽略 — provider 自行处理);
+        不擅自做 role 转换或合并 — provider 端截断是 provider 行为, ai_hub
+        只承诺透传 + cache key 隔离 (避免不同 tool_call_id 撞 key)。
+        """
+        api_key = self._get_api_key(cfg.api_key_env, provider_name)
+        if cfg.type == "ollama":
+            base_url = cfg.base_url or "http://127.0.0.1:11434"
+            url = f"{base_url.rstrip('/')}/api/chat"
+            payload: dict = {
+                "model": model, "messages": messages, "stream": False,
+                "options": {
+                    "temperature": temperature if temperature is not None else 0.0,
+                    "num_predict": max_tokens if max_tokens else 500,
+                },
+            }
+            async with httpx.AsyncClient(timeout=cfg.timeout_seconds) as client:
+                resp = await client.post(url, json=payload)
+                resp.raise_for_status()
+                data = resp.json()
+            return (data.get("message") or {}).get("content", "") or ""
+        if cfg.type in ("openai", "openai_compatible"):
+            base_url = cfg.base_url or "https://api.openai.com/v1"
+            check_credential_egress(base_url)
+            url = f"{base_url.rstrip('/')}/chat/completions"
+            payload = {
+                "model": model, "messages": messages,
+                "temperature": temperature if temperature is not None else 0.0,
+            }
+            if max_tokens:
+                payload["max_tokens"] = max_tokens
+            if cfg.extra_request_body:
+                payload.update(cfg.extra_request_body)
+            headers = {
+                "Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
+            }
+            async with httpx.AsyncClient(timeout=cfg.timeout_seconds) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+            return data["choices"][0]["message"]["content"]
+        if cfg.type == "anthropic":
+            url = "https://api.anthropic.com/v1/messages"
+            payload = {
+                "model": model, "max_tokens": max_tokens if max_tokens else 500,
+                "messages": messages,
+            }
+            if temperature is not None:
+                payload["temperature"] = temperature
+            headers = {
+                "x-api-key": api_key, "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+            }
+            async with httpx.AsyncClient(timeout=cfg.timeout_seconds) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+            return data["content"][0]["text"]
+        raise ValueError(f"Unsupported provider type for chat: {cfg.type}")
 
     async def _call_ollama(
         self,

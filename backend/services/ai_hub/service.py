@@ -338,6 +338,32 @@ class AIService:
             _logger.warning("ai gate-detect failed ({}): {}: {}", p, type(e).__name__, e)
             return None
 
+    async def generate_text(
+        self,
+        messages: list[dict],
+        *,
+        task: str = "chat",
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        cancel_event=None,
+    ) -> str:
+        """v1.0 T10: AIService 多消息 chat 入口 (透传 tool 消息)。
+
+        与 ``evaluate`` (单 prompt 评分) / ``gate_detect`` (限频检测) 区别:
+          - 输入是完整 messages 列表, 含 ``role=tool`` 项原样下发;
+          - 用于 dsh/pi 上线后的 tool-capable ai_hub 路径
+            (PRD §6 A2: "tool result 可往返")。
+        实现 = 委托 ``LLMService.chat`` (gateway.py), 本方法只做签名适配
+        与 provider/timeout 解析。
+        """
+        return await llm_service.chat(
+            messages,
+            task=task, model=model,
+            max_tokens=max_tokens, temperature=temperature,
+            cancel_event=cancel_event,
+        )
+
     # ------------------------------------------------------------------
     # 商汤日日新 / ollama 调用
     # ------------------------------------------------------------------

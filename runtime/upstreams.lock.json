@@ -36,8 +36,9 @@
   "verification": {
     "build_clean_dir_required": true,
     "build_artifacts_hash_required": true,
-    "live_trace_recorded": false,
-    "protocol_tested": "mock-only (T04-B pending, T04-C 协议报告 pending)"
+    "live_trace_recorded": true,
+    "protocol_tested": "mock + live (T10 真 vendor HEAD 验证 ok, scripts/t10_live_trace.py --live)",
+    "live_trace_run": "2026-09-05: t10_live_trace.py mock 7/8 ok + --live live_trace=ok (dsh d347e703 / pi 6f11c31 HEAD 验证通过)"
   },
   "exit_criteria": {
     "description": "T04 退出判据 (2026-09-05 任务台账 32 行): 2-3 工作日跑不通 stdio JSON-RPC 闭环 → 认知引擎降级 ai_hub+确定性协调器",

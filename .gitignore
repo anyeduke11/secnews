@@ -134,3 +134,13 @@ hotspot-architecture.visual-check.json
 
 # T02-C dev environment (independent data root)
 dev_data/
+
+# T10 vendor checkouts (dsh + pi upstream source — regenerable from locked commit_sha;
+# runtime/upstreams.lock.json 是 vendored deps 的真相源).
+# 工作树 (源码) 不入仓 — 防止仓库膨胀. 真 vendor clone 通过
+# scripts/t10_live_trace.py 走 --live 模式按 lock 重建 (gitignore
+# 整目录, 含 .git); 不在仓内保留 .git 副本以避免 9k+ 文件膨胀。
+runtime/upstreams/dsh/**
+runtime/upstreams/pi/**
+# 例外 (显式 pathspec, 不会被 ``git add .`` 拉到, 但 ``git add -f`` 可入):
+# - 真实 vendor checkout 由 T10 live 模式按 lock 重新构建, 不入仓.

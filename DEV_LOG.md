@@ -1,4 +1,10 @@
 
+## [DEV-0146] v1.0 T11 SK-02 cve-impact-brief 有证据的判断 (2026-09-06)
+- 交付: migration 100 (v1_judgments 主表 + UNIQUE PARTIAL INDEX `(case_id, claim_type) WHERE status='published'`) + judgment_repo (CRUD + CAS + 多对多关联) + judgment_service (create_with_dsh 走 dsh task_router + ai_hub 兜底; publish 三重守卫) + cve_impact_brief prompt 模板 (复用 security deep_read profile) + API 4 端点 (generate/list/get/publish) + 前端 4 client + 极简 renderInlineMarkdown (零依赖) + V1Prototype 真实 API 接入 + 31 测试 + 黄金案例脚本.
+- 设计关键: UNIQUE PARTIAL INDEX 兜底 contracts §5.3 "同 case 同一 claim_type 同时只 1 published"; publish 三重守卫 (status=draft / CAS expected_revision / content_hash 一致性); baseline §5 硬约束 (unknowns 必填) 在 service 层 enforce.
+- 验收: pytest 4032→4063/6/0 (基线 +31 0 回归); cve_impact_brief 演练 apply 模式落 1 judgment; 真实库零写入.
+- 数字: routers 74→75, services 114→115.
+
 ## [DEV-0142~0145] v1.0 T08+T09+T10+T07 监督批次 (并行 4 agent, 2026-09-06)
 
 ### 上下文

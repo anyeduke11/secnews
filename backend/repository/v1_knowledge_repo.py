@@ -83,6 +83,30 @@ class V1KnowledgeRepository:
         ).fetchall()
         return [self._row_to_dict(r) for r in rows], total
 
+    def list_all(
+        self, *, status: str | None = None, kind: str | None = None,
+        limit: int = 50, offset: int = 0,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """T15.5 全局列 (无 case_id 过滤) — KnowledgeView 走真实 listAll 替换 placeholder."""
+        where: list[str] = []
+        params: list[Any] = []
+        if status:
+            where.append("k.status = ?")
+            params.append(status)
+        if kind:
+            where.append("k.kind = ?")
+            params.append(kind)
+        sql_where = (" AND ".join(where)) if where else "1=1"
+        total = self._c().execute(
+            f"SELECT COUNT(*) FROM v1_knowledge k WHERE {sql_where}", params,
+        ).fetchone()[0]
+        rows = self._c().execute(
+            f"SELECT k.* FROM v1_knowledge k WHERE {sql_where} "
+            f"ORDER BY k.published_at DESC NULLS LAST, k.created_at DESC LIMIT ? OFFSET ?",
+            (*params, limit, offset),
+        ).fetchall()
+        return [self._row_to_dict(r) for r in rows], total
+
     def list_published_due_for_review(self, now_iso: str) -> list[dict[str, Any]]:
         """SK-06: review_due job 扫 review_at <= now AND status='published'."""
         rows = self._c().execute(

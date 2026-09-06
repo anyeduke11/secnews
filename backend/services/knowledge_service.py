@@ -400,6 +400,20 @@ class KnowledgeService:
         )
         return {"items": items, "total": total}
 
+    def list_all(
+        self, *, status: str | None = None, kind: str | None = None,
+        limit: int = 50, offset: int = 0,
+    ) -> dict[str, Any]:
+        """T15.5 全局 list (KnowledgeView 走真实 listAll 替换 placeholder)."""
+        if status and status not in _VALID_STATUS:
+            raise KnowledgeValidationError(f"invalid status: {status}")
+        if kind and kind not in _VALID_KIND:
+            raise KnowledgeValidationError(f"invalid kind: {kind}")
+        items, total = self.repo.list_all(
+            status=status, kind=kind, limit=limit, offset=offset,
+        )
+        return {"items": items, "total": total}
+
     def get(self, knowledge_id: str) -> dict[str, Any]:
         return self._require(knowledge_id)
 

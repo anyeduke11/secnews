@@ -114,9 +114,13 @@ def _generate(req: GenerateKnowledgeRequest) -> dict[str, Any]:
     }
 
 
-def _list(case_id: str, status: str | None, kind: str | None, limit: int, offset: int) -> dict[str, Any]:
+def _list(case_id: str | None, status: str | None, kind: str | None, limit: int, offset: int) -> dict[str, Any]:
+    """T15.5: case_id=None 走 list_all (全局), 非 None 走 list_by_case (T13 路径)."""
     svc = KnowledgeService()
-    result = svc.list_by_case(case_id, status=status, kind=kind, limit=limit, offset=offset)
+    if case_id is None:
+        result = svc.list_all(status=status, kind=kind, limit=limit, offset=offset)
+    else:
+        result = svc.list_by_case(case_id, status=status, kind=kind, limit=limit, offset=offset)
     return _list_response(result["items"], total=result["total"])
 
 
@@ -184,12 +188,13 @@ async def generate_knowledge(req: GenerateKnowledgeRequest) -> dict[str, Any]:
 
 @router.get("", response_model=None)
 async def list_knowledge(
-    case_id: str = Query(..., min_length=1, max_length=26),
+    case_id: str | None = Query(None, max_length=26),
     status: str | None = Query(None),
     kind: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ) -> dict[str, Any]:
+    """T15.5: case_id 可选, None 走 list_all (全局)."""
     return await asyncio.to_thread(_list, case_id, status, kind, limit, offset)
 
 

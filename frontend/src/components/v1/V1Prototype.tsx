@@ -664,16 +664,49 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
 // ---------------------------------------------------------------------------
 
 function KnowledgeView() {
-  // v1.0 T15: 真实数据 (listKnowledge 复用 T13 v1_knowledge)
-  // T13 list_by_case 必填 case_id, 暂无全局 list 端点; 提示走 CaseDetail 内嵌
-  const [loading] = useState(false);
-  useEffect(() => {}, []);
+  // v1.0 T15.5: 接 listAll 真实数据 (无 case_id 走全局)
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    listKnowledge({ limit: 50 })
+      .then((r) => { if (!cancelled) setItems(r.items); })
+      .catch((e) => { if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setItems([]); } })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
   return (
     <div className="space-y-4">
       <SectionTitle path="knowledge">经验库 {loading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}</SectionTitle>
-      <div className="text-sm p-4 rounded-lg border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border-muted)' }}>
-        全局 listKnowledge 端点 (T15.5+ 补); 当前走 CaseDetail 内部 (T13 已落 v1_knowledge 列表, 真实数据).
-      </div>
+      {error && (
+        <div className="text-sm p-3 rounded" style={{ background: 'var(--bg-warning, var(--color-warning))', color: 'var(--text-primary)' }}>
+          加载失败: {error}
+        </div>
+      )}
+      {items.length === 0 && !loading ? (
+        <div className="text-sm p-4 rounded-lg border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border-muted)' }}>
+          暂无经验库条目 (T15 演练 dry-run 模式, v1_knowledge 表空)
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {items.map(k => (
+            <div key={k.id} className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{k.title}</div>
+                  <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{k.kind} · {k.status}</div>
+                </div>
+                <Badge color={k.status === 'published' ? 'green' : k.status === 'draft' ? 'yellow' : 'gray'}>{k.status}</Badge>
+              </div>
+              <div className="text-sm mt-2 line-clamp-3" style={{ color: 'var(--text-primary)' }}>{k.body}</div>
+              <div className="text-xs mt-2 font-mono" style={{ color: 'var(--text-muted)' }}>{k.id}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

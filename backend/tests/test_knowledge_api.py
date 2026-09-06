@@ -136,6 +136,6 @@ def test_publish_cas_revision_mismatch_409(client) -> None:
 
 
 def test_list_query_validation(client) -> None:
-    """query 缺 case_id → 422."""
+    """T15.5: case_id 改可选, 缺 case_id → 200 (走 listAll 全局)."""
     r = client.get("/api/v1/knowledge")
-    assert r.status_code == 422
+    assert r.status_code == 200

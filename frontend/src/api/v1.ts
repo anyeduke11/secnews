@@ -477,7 +477,7 @@ export interface GenerateKnowledgeResponse {
 }
 
 export interface ListKnowledgeQuery {
-  case_id: string;
+  case_id?: string;  // T15.5: 可选, None 走 listAll 全局
   status?: KnowledgeStatus;
   kind?: KnowledgeKind;
   limit?: number;
@@ -508,8 +508,13 @@ export interface ReuseReceiptResponse {
 
 export function listKnowledge(q: ListKnowledgeQuery): Promise<ApiList<Knowledge>> {
   const { case_id, ...rest } = q;
+  // T15.5: case_id 可选; None 走 listAll (后端路由 case_id=Query(None) 不加 case_id query)
+  const casePrefix = case_id !== undefined
+    ? `case_id=${encodeURIComponent(case_id)}`
+    : "";
+  const sep = casePrefix ? "&" : "";
   return getJSON<ApiList<Knowledge>>(
-    `/api/v1/knowledge?case_id=${encodeURIComponent(case_id)}${buildQuery(rest)}`
+    `/api/v1/knowledge${casePrefix ? "?" + casePrefix + sep + buildQuery(rest) : ""}`
   );
 }
 

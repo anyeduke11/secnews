@@ -1,5 +1,11 @@
 # PROJECT.md — 项目心智模型
 
+> **2026-09-05 v1.0 开发迁移入口**：用户最新要求将待实施的 v0.8.3 重构规格迁至软件 v1.0.0。当前开发输入为 [PRD](docs/HOTSPOT_WORKSTATION_PRD_V1.0.md) → [开发方案](docs/HOTSPOT_V1.0_DEVELOPMENT_PLAN.md) → [T00-T19 任务书](docs/HOTSPOT_V1.0_EXECUTION_GUIDE.md)，附 [第一性原理/批判性/六顶思考帽审查](docs/HOTSPOT_V1.0_DESIGN_REVIEW.md)。本次只完成文档，代码 APP_VERSION 仍 0.8.2，所有任务待实施。关键裁决：Case 中心四入口、六岗位能力；单一事务 owner，现有三库不强制合并；Run/产物验证/业务验收分离；先隔离与恢复，再源码 SDK 和逐步迁移。下文旧阶段的“唯一规格”“SQLite 全为缓存”和完工状态不能覆盖这些新目标，实际能力以验证为准。
+
+> **2026-09-05 从零产品 PRD**：用户进一步要求重新设计整个体系，先出 PRD。新产品方案为 [HOTSPOT_WORKSTATION_PRD_V1.0](docs/HOTSPOT_WORKSTATION_PRD_V1.0.md)：以工作事项连接情报、判断、行动与经验，四主入口、首期六岗位能力；旧页面/20 Skill 不作为新产品范围前提。现有代码仍为 v0.8.2，本次未开发实现。后续任务分解以新 PRD 为产品输入，旧 v0.8.3 方案保留作技术/迁移参考。
+
+> **2026-09-05 v0.8.3 审查入口**：当前软件为 v0.8.2，下一重构规格见 [V0.8.3_REFACTOR_PLAN](docs/V0.8.3_REFACTOR_PLAN.md)，真实代码/数据结论见 [V0.8.3_CRITICAL_REVIEW](docs/V0.8.3_CRITICAL_REVIEW.md)。下文早期“gate 全 false”“Skill 全部完成”等状态描述不能作为生产闭环证据；本次发现 ticket 消费未接线、源码 dsh/pi 未完整集成及测试隔离问题。新方案已设计、尚待实施，优先稳定抓取与高价值收录。
+
 > **2026-09-05 全面刷新** (project-brain 中途接入): 本文件曾冻结在 2026-08-07 "架构阶段", 描述的前端三层 (资料/判断/行动, /data/judge/action) 已于 v0.7.0 **物理删除** (历史见 git log + ~~docs/superpowers/specs/2026-08-06-second-brain-three-layer-architecture-prd.md~~ 废止)。现按 v0.8.1 现实重写; 决策日志历史行保留。
 
 ## 项目概述

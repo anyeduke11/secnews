@@ -175,3 +175,8 @@ export const UnifiedSearchPage = React.lazy(() =>
 export const OAuthCallbackPage = React.lazy(() =>
   import('./oauth-callback').then(m => ({ default: m.OAuthCallbackPage }))
 );
+
+// T03-E: v1.0 四入口原型 (临时路由, T15 收口后移除)
+export const V1Prototype = React.lazy(() =>
+  import('../components/v1/V1Prototype').then(m => ({ default: m.V1Prototype }))
+);

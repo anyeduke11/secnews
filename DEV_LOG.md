@@ -1,4 +1,10 @@
 
+## [DEV-0148] v1.0 T13 SK-04/05/06 知识发布/复用/复查 (2026-09-06)
+- 交付: migration 102 (v1_knowledge 主表 + v1_knowledge_revisions append-only + v1_knowledge_refs 引用关联) + 2 repos (独立 v1_knowledge_repo.py 避免与 v0 冲突) + KnowledgeService 4 态机 + publish/deprecate/retract/revive CAS + V1EvidenceService receipt + scan_review_due + mark_case_blocker + build_knowledge_prompt 追加 (8 纪律, SK-04 prerequisites≥1 + SK-06 review_at 必填硬约束) + API 7 端点 (含 /reuse §9.4 派生) + scheduler job 55 knowledge_review_due (Daily 04:00 Asia/Shanghai) + 前端 7 client + CaseDetail Knowledge 区块真实 API + 32 测试 + 黄金案例 scripts/t13_golden_knowledge_reuse.py 6 步续接 T12 18 步全链路.
+- 设计关键: contracts §9.4 ReuseReceipt 派生 SQL 聚合 (by_judgment + by_action + recent_30d, 不用新表); append-only v1_knowledge_revisions (wiki 不可变写 §9.1); SK-06 过期不改 status, 改挂 case blocker (v1_cases.tags_json 加 `knowledge_review_due:{knowledge_id}`).
+- 验收: pytest 4095→4127/6/0 (基线 +32 0 回归); test_feature_gates 同步 jobs 52→55; 黄金案例 apply 真落 1 knowledge + 1 case blocker 完整链路; 真实库零写入.
+- 数字: routers 78→79, services 118→119, jobs 54→55.
+
 ## [DEV-0147] v1.0 T12 SK-03 inspection-materials 行动/运行/产物/验收 (2026-09-06)
 - 交付: migration 101 (v1_actions + v1_runs + v1_artifacts 三主表 + UNIQUE INDEX 兜底 contracts §7.4) + 3 repos + ActionService 7 态机 + plan_hash 不变量 (§6.4) + judgment_id 必引 published (§10.1) + RunService 三层幂等 (§7.4) + mock 协议同步 finish 桥接 + ArtifactService 5 态机 + 防重传蒙混 (§8.3) + build_inspection_materials_prompt 追加 + API 9 端点 (action 5 + run 2 + artifact 6) + 前端 8 client + CaseDetail Action/Run/Artifact 真实 API + 走查 3 路径强化 (含已拒绝) + 32 测试 + 黄金案例 scripts/t12_golden_inspection_materials.py 6 步续接 T11.
 - 设计关键: UNIQUE INDEX `(action_id, attempt)` 兜底 contracts §7.4 同 attempt 唯一; publish 三重守卫对齐 (status/CAS/content_hash); baseline §5 "材料已生成 ≠ 排查完成" 硬约束在 service 层 enforce; 防重传蒙混 (§8.3) rejected 后同 hash 不可再 accept.

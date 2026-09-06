@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -242,16 +241,15 @@ class JudgmentService:
             return self._dsh_caller(prompt)
         # 2) 生产路径
         try:
-            from backend.services.dsh.task_router import DSHTaskRouter
-            from backend.services.ai_hub.service import ai_service
             from backend.services.ai_hub.gateway import LLMService
+            from backend.services.ai_hub.service import ai_service
+            from backend.services.dsh.task_router import DSHTaskRouter
         except ImportError as e:
             raise JudgmentValidationError(f"dsh/ai_hub import failed: {e}") from e
         # 优先 dsh task router; 失败兜底 ai_hub.generate_text
         try:
             # 尝试 dsh 真实调用; mock 模式下也走 DSHClient, settings.kv 决定 mode
             from backend.services.dsh.runtime import dsh_runtime
-            from backend.services.dsh.bridge import DSHClient
             effective, _reason = dsh_runtime.resolve_effective()
             if effective == "subprocess":
                 # 真子进程模式 — 调 stdio live_bridge
@@ -418,14 +416,23 @@ class JudgmentService:
         return self.repo.get(judgment_id)
 
     def _publish_v1_judgment_event(self, j: dict[str, Any]) -> None:
-        """T17: publish_event(v1_judgment) fire-and-forget."""
+        """T17: publish_event(v1_judgment) fire-and-forget.
+
+        sync context (普通 request handler) 无 running loop — 用 get_running_loop
+        检测, 失败 silent skip (fire-and-forget 设计: 不能阻塞主路径).
+        """
         try:
-            from backend.api.events import publish_event
             import asyncio
-            asyncio.create_task(publish_event("v1_judgment", {
-                "id": j["id"], "case_id": j["case_id"], "status": j["status"],
-                "claim_type": j.get("claim_type"),
-            }))
+
+            from backend.api.events import publish_event
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(publish_event("v1_judgment", {  # noqa: RUF006
+                    "id": j["id"], "case_id": j["case_id"], "status": j["status"],
+                    "claim_type": j.get("claim_type"),
+                }))
+            except RuntimeError:
+                pass  # 无 running loop → silent skip
         except Exception as e:
             logger.debug(f"v1_judgment publish_event skipped: {e}")
 

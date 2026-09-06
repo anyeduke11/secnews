@@ -19,7 +19,6 @@ from __future__ import annotations
 import hashlib
 import json
 import random
-import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,7 +26,6 @@ from typing import Any
 
 from backend.logging_config import logger
 from backend.repository.db import get_connection
-
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SEED_PATH = REPO_ROOT / "dev_data" / "seed.json"
@@ -226,4 +224,4 @@ class LegacyMigrateService:
         return result
 
 
-__all__ = ["LegacyMigrateService", "LegacyMigrateResult"]
+__all__ = ["LegacyMigrateResult", "LegacyMigrateService"]

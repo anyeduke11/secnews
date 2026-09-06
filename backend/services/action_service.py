@@ -12,15 +12,12 @@ from __future__ import annotations
 
 import hashlib
 import random
-import sqlite3
-import uuid
 from datetime import datetime, timezone
 from typing import Any
 
 from backend.exceptions import ConflictException, InvalidParamException, NotFoundException
 from backend.logging_config import logger
 from backend.repository.action_repo import ActionRepository
-from backend.repository.db import get_connection
 from backend.repository.judgment_repo import JudgmentRepository
 
 
@@ -303,13 +300,22 @@ class ActionService:
         return out
 
     def _publish_v1_action_event(self, a: dict[str, Any], new_status: str) -> None:
-        """T17: publish_event(v1_action) fire-and-forget on start/cancel/finish."""
+        """T17: publish_event(v1_action) fire-and-forget on start/cancel/finish.
+
+        sync context 无 running loop → get_running_loop 失败 silent skip
+        (fire-and-forget 设计: 不能阻塞主路径).
+        """
         try:
-            from backend.api.events import publish_event
             import asyncio
-            asyncio.create_task(publish_event("v1_action", {
-                "id": a["id"], "case_id": a["case_id"], "status": new_status,
-            }))
+
+            from backend.api.events import publish_event
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(publish_event("v1_action", {  # noqa: RUF006
+                    "id": a["id"], "case_id": a["case_id"], "status": new_status,
+                }))
+            except RuntimeError:
+                pass
         except Exception as e:
             logger.debug(f"v1_action publish_event skipped: {e}")
 

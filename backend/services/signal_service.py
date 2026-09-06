@@ -12,6 +12,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from backend.logging_config import logger
 from backend.repository.db import get_connection
 
 
@@ -71,11 +72,16 @@ def list_recent_signals(
     # T17 SSE 5 事件源: list 走完推 v1_signal 事件 (fire-and-forget, 仅 1 条; T19 全量收口前容忍失败)
     if items:
         try:
-            from backend.api.events import publish_event
             import asyncio
-            asyncio.create_task(publish_event("v1_signal", {
-                "count": len(items), "sample_id": items[0]["id"],
-            }))
+
+            from backend.api.events import publish_event
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(publish_event("v1_signal", {  # noqa: RUF006
+                    "count": len(items), "sample_id": items[0]["id"],
+                }))
+            except RuntimeError:
+                pass
         except Exception as e:
             logger.debug(f"v1_signal publish_event skipped: {e}")
     return items

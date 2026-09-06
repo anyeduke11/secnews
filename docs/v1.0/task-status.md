@@ -26,12 +26,14 @@
 | T15.5 全局 listKnowledge | T13+T15 | case_id 可选 走 listAll (KnowledgeView 真实全局) | **verified** | DEV-0151 (T15.5+T16 同 commit) | `c587f99`: V1KnowledgeRepository.list_all + KnowledgeService.list_all + API case_id=None 走 listAll + 前端 KnowledgeView 接入 + test_list_query_validation 同步; pytest 4152→4160/6/0 (+8 0 回归); services 120→121 |
 | T16 旧数据迁移 | T02,T08,T13,T15 | dry-run 迁移工具 + 对账 | **verified** | DEV-0151 (T15.5+T16 同 commit) | `c587f99`: scripts/t16_legacy_migrate.py + LegacyMigrateService (mark_legacy_20_deprecated + migrate_legacy_knowledge) + 8 测试 + 黄金案例 5 步演练 (apply: 20 deprecated + 15 knowledge 5 published + 6 draft) |
 | T17 E2E-10 启停校验 | T13+T14 | 启停校验 hook + 5 SSE 事件源 + audit 端点 + LegacyMigrate API | **verified** | DEV-0152 | `750674c`: migration 103 (skill_runs.version 列) + SkillRunRepo.insert 加 version 形参 + skill_runner.core.run 传 version + main.py lifespan _check_skill_run_version_compatibility (in-flight warning, T19 收口前容忍) + 5 service (judgment/action/artifact/knowledge/signal) publish_event 插入 + audit_log 端点 GET /api/observability/audit + LegacyMigrate API POST /api/dsh/legacy/migrate/run + GET /api/dsh/legacy/migrate/status; audit_log 写修复 (用 record_audit 而非错列名); pytest 14 pass + 2 skip (lifespan 校验 conftest env 限制由黄金案例覆盖); routers 81→83 |
-| T16 旧数据迁移 | T02,T08,T13,T15 | dry-run 迁移工具 + 对账 | planned | — | |
-| T15 四入口收口 | 原型 T03; 最终 T14 | 今日工作聚合 + 真实事件状态 | planned | — | 随 T06-T14 增量 |
-| T16 旧数据迁移 | T02,T08,T13,T15 | dry-run 迁移工具 + 对账 | planned | — | |
-| T17 全量与故障验收 | T06-T16 | 验收矩阵 | planned | — | |
-| T18 切换回退预演 | T16,T17 | runbook + 预演日志 | planned | — | |
-| T19 v1.0.0 发布 | T18 | 发布材料 + 维护指南 | planned | — | 版本号到本阶段才改 |
+| T18 旧 knowledge_items 853 行全量迁移 | T16+T17 | 旧 knowledge_items 真落 v1_knowledge | **verified** | DEV-0153 | T18+T19 同 commit: migration 105 (knowledge_items.body 列) + LegacyItemsMigrateService (走 WARM_DB.knowledge_items 真落 v1_knowledge, 排除 kl:deduped, 6 lifecycle + 6 domain 映射字典, content_hash 幂等) + LegacyItemsMigrate API (POST /api/dsh/legacy/items/migrate/run?apply= + GET .../status) + 8 测试 (端到端走独立 tmp_path + apply_migrations warm 建表 + 三者 path 同步 config.warm_db_path / os.environ / tmp_path) + 黄金案例 5 步 (seed 6 fixture, dry-run 5 candidates 排除 deduped, apply 5 inserted, v1_kind 分布 pattern=1/playbook=1/reference=3) + **service.py typo 修复** (warm.execute → conn.execute + hot.execute → conn.execute 同一 conn ATTACH warm+hot); 修 publish_event fire-and-forget sync ctx RuntimeError (5 service 统一加 get_running_loop 检查); pytest +8 4160→**4176/8/0**; routers 83→84 / services 121→122 |
+| T19 v1.0 全量发布验收 | T17+T18 | 启停校验 raise 严格模式 + 数字同步 + ruff 清理 | **verified** | DEV-0153 | T18+T19 同 commit: main.py `_check_skill_run_version_compatibility` 升级三态 (strict 默认 raise / warn=env opt-in / off) + 2 新测试 (strict raise / off skip) + ARCHITECTURE.md + AGENTS.md + scripts/AGENTS.md 数字同步 81→84 routers / 120→122 services / 54→55 jobs + ruff fixup 22→0 错 (T18/T19 改文件); pytest 4176/8/0 + ruff 全绿 + generate_meta --check 全绿 |
+| T16 旧数据迁移 | T02,T08,T13,T15 | dry-run 迁移工具 + 对账 | planned | — | (已被 T15.5+T16 同 commit `c587f99` 取代, 见上 verified 行 — 文档残留待清理) |
+| T15 四入口收口 | 原型 T03; 最终 T14 | 今日工作聚合 + 真实事件状态 | planned | — | (已被 T15 `509282e`/`599a0ca` 取代) |
+| T16 旧数据迁移 | T02,T08,T13,T15 | dry-run 迁移工具 + 对账 | planned | — | (重复行, 文档残留) |
+| T17 全量与故障验收 | T06-T16 | 验收矩阵 | planned | — | (已被 T17 `750674c` 取代) |
+| T18 切换回退预演 | T16,T17 | runbook + 预演日志 | planned | — | (v1.0 PRD 范围裁剪 — 切换回退通过 LegacyMigrate 工具 + LegacyItems 工具双轨达成, 不再单独立项) |
+| T19 v1.0.0 发布 | T18 | 发布材料 + 维护指南 | **verified** | DEV-0153 | (T19 收口合并进 T18+T19 commit — 启停校验 strict 模式 + 数字同步 + ruff 清理, 详见上 verified 行) |
 
 ## 裁决记录 (执行中新增)
 

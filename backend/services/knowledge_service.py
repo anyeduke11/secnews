@@ -305,13 +305,21 @@ class KnowledgeService:
         return result
 
     def _publish_v1_knowledge_event(self, k: dict, action: str) -> None:
-        """T17: publish_event(v1_knowledge) fire-and-forget on publish/deprecate/retract."""
+        """T17: publish_event(v1_knowledge) fire-and-forget on publish/deprecate/retract.
+
+        sync context 无 running loop → silent skip.
+        """
         try:
-            from backend.api.events import publish_event
             import asyncio
-            asyncio.create_task(publish_event("v1_knowledge", {
-                "id": k["id"], "status": k["status"], "action": action,
-            }))
+
+            from backend.api.events import publish_event
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(publish_event("v1_knowledge", {  # noqa: RUF006
+                    "id": k["id"], "status": k["status"], "action": action,
+                }))
+            except RuntimeError:
+                pass
         except Exception as e:
             logger.debug(f"v1_knowledge publish_event skipped: {e}")
 
@@ -476,7 +484,7 @@ class KnowledgeService:
                 f"published_at: {now}\nreview_at: {k.get('review_at','')}\n---\n\n"
                 f"# {k['title']}\n\n{k['body']}\n\n"
                 f"## 前提\n" + "\n".join(f"- {p}" for p in k.get("prerequisites", [])) + "\n\n"
-                f"## 反例\n" + "\n".join(f"- {e}" for e in k.get("counter_examples", [])) + "\n"
+                "## 反例\n" + "\n".join(f"- {e}" for e in k.get("counter_examples", [])) + "\n"
             )
             wiki.write_item(f"knowledge_{k['id']}", {
                 "fm": {"id": f"knowledge_{k['id']}", "title": k["title"],

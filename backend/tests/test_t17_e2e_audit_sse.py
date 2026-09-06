@@ -2,13 +2,8 @@
 from __future__ import annotations
 
 import importlib
-import json
 import os
 import sqlite3
-import tempfile
-import threading
-import time
-import urllib.request
 import uuid
 from typing import Any
 
@@ -109,12 +104,13 @@ def test_skill_runs_version_column_exists(temp_db) -> None:
 def test_lifespan_version_check_warns_on_mismatch(temp_db, monkeypatch, caplog) -> None:
     """T17: skill_runs 写入 in-flight run (version='0.9.0'), 启动 lifespan 校验应 log warning.
 
-    T17 校验逻辑: MAX(version) 与 BUILTIN 当前 version 对比, 不一致 warning.
-    BUILTIN 是 module-scope singleton, 测试 fixture reload 后状态可能与 run 时不同;
-    这里用 monkeypatch 直接改 BUILTIN 的版本号触发 warning.
+    T19 升级: 默认 strict 模式 raise, 设 HOTSPOT_SKILL_RUN_VERSION_CHECK=warn 才 warning.
+    本测试强制 warn 模式以覆盖 T17 旧行为.
     """
+    monkeypatch.setenv("HOTSPOT_SKILL_RUN_VERSION_CHECK", "warn")
     db.init_db()
-    conn = sqlite3.connect(os.environ["HOTSPOT_DB_PATH"])
+    from backend.config import config
+    conn = sqlite3.connect(str(config.db_path))
     run_id = uuid.uuid4().hex
     conn.execute(
         "INSERT INTO skill_runs (run_id, skill_id, status, version) "
@@ -127,6 +123,7 @@ def test_lifespan_version_check_warns_on_mismatch(temp_db, monkeypatch, caplog) 
     original = BUILTIN.get("source-health-scan")
     original.__dict__["version"] = "1.0.0"
     import logging
+
     from backend.main import _check_skill_run_version_compatibility
     with caplog.at_level(logging.WARNING, logger="hotspot.main"):
         _check_skill_run_version_compatibility()
@@ -136,13 +133,78 @@ def test_lifespan_version_check_warns_on_mismatch(temp_db, monkeypatch, caplog) 
 
 @pytest.mark.skip(reason="conftest temp_db + init_db 限制, lifespan 校验 E2E-10 由黄金案例 + 端到端覆盖")
 def test_lifespan_version_check_silent_when_no_inflight(temp_db, caplog) -> None:
-    """无 in-flight run → 不 log warning (T17 happy path)."""
+    """无 in-flight run → 不 log warning (T17 happy path).
+
+    T19: 默认 strict 模式下, silent = 不 raise + 无 warning (无 mismatch).
+    """
     db.init_db()
     import logging
+
     from backend.main import _check_skill_run_version_compatibility
     with caplog.at_level(logging.WARNING, logger="hotspot.main"):
         _check_skill_run_version_compatibility()
     assert not any("E2E-10" in r.message for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# T19 严格 raise 模式 (默认 strict + env opt-in warn/off)
+# ---------------------------------------------------------------------------
+def test_lifespan_version_check_strict_raises_on_mismatch(temp_db, monkeypatch) -> None:
+    """T19 默认 strict 模式: in-flight version mismatch → RuntimeError 阻断启动.
+
+    强制无 env (默认 strict), 写 in-flight run, 改 BUILTIN version, 期望 raise.
+    用 config.db_path (与 temp_db 一致) 而非 os.environ['HOTSPOT_DB_PATH'] (session 隔离根).
+    """
+    monkeypatch.delenv("HOTSPOT_SKILL_RUN_VERSION_CHECK", raising=False)
+    db.init_db()
+    from backend.config import config
+    conn = sqlite3.connect(str(config.db_path))
+    run_id = uuid.uuid4().hex
+    conn.execute(
+        "INSERT INTO skill_runs (run_id, skill_id, status, version) "
+        "VALUES (?, ?, 'running', ?)",
+        (run_id, "source-health-scan", "0.9.0"),
+    )
+    conn.commit()
+    conn.close()
+    from backend.services.skill_registry.builtin import BUILTIN
+    original = BUILTIN.get("source-health-scan")
+    original.__dict__["version"] = "1.0.0"
+    try:
+        from backend.main import _check_skill_run_version_compatibility
+        with pytest.raises(RuntimeError, match="E2E-10 in-flight skill_run version mismatch"):
+            _check_skill_run_version_compatibility()
+    finally:
+        original.__dict__["version"] = "0.9.0"
+
+
+def test_lifespan_version_check_off_skips_all(temp_db, monkeypatch, caplog) -> None:
+    """T19 off 模式: env HOTSPOT_SKILL_RUN_VERSION_CHECK=off → 完全跳过校验."""
+    monkeypatch.setenv("HOTSPOT_SKILL_RUN_VERSION_CHECK", "off")
+    db.init_db()
+    from backend.config import config
+    conn = sqlite3.connect(str(config.db_path))
+    run_id = uuid.uuid4().hex
+    conn.execute(
+        "INSERT INTO skill_runs (run_id, skill_id, status, version) "
+        "VALUES (?, ?, 'running', ?)",
+        (run_id, "source-health-scan", "0.9.0"),
+    )
+    conn.commit()
+    conn.close()
+    from backend.services.skill_registry.builtin import BUILTIN
+    original = BUILTIN.get("source-health-scan")
+    original.__dict__["version"] = "1.0.0"
+    try:
+        import logging
+
+        from backend.main import _check_skill_run_version_compatibility
+        with caplog.at_level(logging.WARNING, logger="hotspot.main"):
+            _check_skill_run_version_compatibility()
+        # off 模式无任何 warning 也不 raise
+        assert not any("E2E-10" in r.message for r in caplog.records)
+    finally:
+        original.__dict__["version"] = "0.9.0"
 
 
 # ---------------------------------------------------------------------------
@@ -154,8 +216,6 @@ def _sse_collect_skill_run_event() -> list[dict[str, Any]]:
     简版: 用 asyncio 调 background run, 短延迟后 query publish_event 后的 _subscribers 队列.
     """
     # 直接调 publish_event 模拟 (绕 lifespan); T17 验证 service.publish_event 已嵌入
-    import asyncio
-    from backend.api.events import publish_event
     # SSE 事件需 EventSource 消费; T17 单元测试直接验证 service 内调过 publish_event
     # (T17 真实 SSE 流验证 留黄金案例)
     return []

@@ -12,12 +12,14 @@
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import random
 from datetime import datetime, timezone
 from typing import Any
 
 from backend.exceptions import ConflictException, InvalidParamException, NotFoundException
+from backend.logging_config import logger
 from backend.repository.artifact_repo import ArtifactRepository
 
 
@@ -169,13 +171,19 @@ class ArtifactService:
         return result
 
     def _publish_v1_artifact_event(self, a: dict[str, Any], action: str) -> None:
-        """T17: publish_event(v1_artifact) fire-and-forget on verify/accept."""
+        """T17: publish_event(v1_artifact) fire-and-forget on verify/accept.
+
+        sync context 无 event loop → silent skip (fire-and-forget 设计: 不能阻塞主路径).
+        """
         try:
             from backend.api.events import publish_event
-            import asyncio
-            asyncio.create_task(publish_event("v1_artifact", {
-                "id": a["id"], "run_id": a.get("run_id"), "action": action,
-            }))
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(publish_event("v1_artifact", {  # noqa: RUF006
+                    "id": a["id"], "run_id": a.get("run_id"), "action": action,
+                }))
+            except RuntimeError:
+                pass  # 无 running loop → silent skip
         except Exception as e:
             logger.debug(f"v1_artifact publish_event skipped: {e}")
     # ------------------------------------------------------------------

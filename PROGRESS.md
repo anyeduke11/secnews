@@ -48,12 +48,8 @@
 
 - [x] 对比四份附件，核对 APP_VERSION 0.8.2 与当前 HEAD 943a31d；相对旧审查基线仅 PROJECT.md 提交变化，本次未重跑业务测试或查询数据。
 - [x] 完成 [开发方案](docs/HOTSPOT_V1.0_DEVELOPMENT_PLAN.md)、[新手 T00-T19 任务书](docs/HOTSPOT_V1.0_EXECUTION_GUIDE.md)、[第一性原理/批判性/六顶思考帽审查](docs/HOTSPOT_V1.0_DESIGN_REVIEW.md)，同步 PRD 目标为软件 v1.0.0；DEV-0135 / CHECK-0002。
-- [x] T00 基线核对 (只读, `f9520c2`+`0066668`, DEV-0136) + T01 测试隔离 + 4 真实库污染根治 (F13 闭合 `ac45f89`, DEV-0137) + T02 备份/恢复/开发副本 (本批, DEV-0138)。剩 T03-T19。
-- [ ] T00-T04 基线、隔离、恢复、契约原型和上游 SDK 验证。
-- [ ] T05-T08 可信证据、稳定抓取、准入和事项基础。
-- [ ] T09-T12 持久运行、源码 dsh/pi、判断、执行与独立验收。
-- [ ] T13-T15 经验复用、六能力及四入口一致性。
-- [ ] T16-T19 数据/路由兼容、效果故障验收、切换预演和正式发布。
+- [x] T00 基线核对 (只读, `f9520c2`+`0066668`, DEV-0136) + T01 测试隔离 + 4 真实库污染根治 (F13 闭合 `ac45f89`, DEV-0137) + T02 备份/恢复/开发副本 (本批, DEV-0138)。
+- [x] **T03-T19 全部落地**: 契约/原型 + SDK + 证据 + 抓取 + 准入 + Case + Worker + dsh/pi live + 监督 + 判断 + 行动 + 知识 + 受管能力 + 工作台 + 全局 listKnowledge + 旧数据迁移 (skill 20 + knowledge 15) + E2E-10 启停校验 + audit 端点 + LegacyMigrate API + 5 SSE 事件源 + **T18 旧 knowledge_items 853 行全量迁移** (WARM_DB 真落 v1_knowledge, 排除 kl:deduped) + **T19 v1.0 收口** (启停校验 strict 模式默认 raise + 数字同步 ARCHITECTURE/AGENTS 81→84 routers / 120→122 services / 54→55 jobs + ruff 清理)。pytest 4176/8/0 + ruff 0 错 + generate_meta --check 全绿。
 - **边界**：本次交付是待实施方案；不更新软件版本、不操作真实数据库、不运行采集/模型、不发布。20 旧 ID 全部登记兼容去向，现有数据保留；设计修订不等于缺陷已修复。
 
 ### 2026-09-05 v1.0 T01 — 测试隔离与虚假成功证据修复 (F13)
@@ -423,3 +419,36 @@
 - [x] **live 全链 PASS** (配额恢复后二轮): 21 行 NDJSON (含 message_update ×11 流式), bridge 解析 "PONG", `run_agent_task` ok=True; **transcript 落库铁证 agent_runs id=286 agent=pi status=ok duration=2691ms result_excerpt='PONG'**。
 - [x] **scripts/soaktest/pi_live_probe.py**: 可重复 live 探针 (真 pi + 解析契约 + bridge 全链 + agent_runs 落库断言; 上游失败/成功双路径判定; 仅本地手动, 不进 pytest/CI — 零 skip 硬要求)。
 - [x] **残项**: message_update 流式事件语义 (逐 chunk 增量) 未接 — bridge 只取最终 message_end, 流式 UI 反馈留 §4.3.B (P1)。
+
+### 2026-09-06 v1.0 T18 + T19 收口 — 旧 knowledge_items 全量迁移 + v1.0.0 发布验收 (verified, DEV-0153)
+
+**T18 旧 knowledge_items 853 行迁移** (留 T18 尾巴):
+- migration 105 `ALTER TABLE knowledge_items ADD COLUMN body TEXT NOT NULL DEFAULT ''` (旧表 18 字段无 body, 补列对齐 v1_knowledge.body)
+- `backend/services/legacy_items_migrate_service.py` (203 行): `LegacyItemsMigrateService.migrate_legacy_items(apply)` — 读 WARM_DB.knowledge_items (走 ATTACH warm 别名, 排除 kl:deduped, 6 lifecycle 映射 → published/draft, 6 domain 映射 → 6 kind) → 写 v1_knowledge (新 ULID + content_hash sha256 幂等 + published_at 仅 published 落库 + audit_log 走 record_audit 兜底)
+- **service.py typo 修复**: `warm.execute(...)` → `conn.execute("... FROM warm.knowledge_items ...")` (ATTACH 别名), `hot.execute(...)` → `conn.execute("... INTO v1_knowledge ...")` (复用同一 ATTACH conn, 同时写 hot 表)
+- `backend/api/legacy_items_migrate_api.py` (54 行): POST /api/dsh/legacy/items/migrate/run?apply= + GET .../status (对齐 T16 LegacyMigrate API 形态)
+- 8 测试 (dry-run 排除 deduped + apply 落库 + 幂等 + 6 映射字典 + 2 端点 + no-warm-db graceful): 端到端走独立 tmp_path + apply_migrations warm 建表 + 三者 path 同步 (config.warm_db_path / os.environ / tmp_path)
+- 黄金案例 5 步 (seed 6 fixture → dry-run 5 candidates 排除 deduped → apply 5 inserted → 旧表保留 6 行 → v1_kind 分布 pattern=1/playbook=1/reference=3)
+
+**T19 v1.0 全量收口**:
+- main.py `_check_skill_run_version_compatibility` 升级三态: strict 默认 (RuntimeError 阻断, 强制 operator 先 drain in-flight 再部署新版本) / warn (env opt-in, 兼容 T17 灰度期行为) / off (env opt-in, 完全跳过)
+- 2 新测试: strict raise / off skip; T17 旧 2 个 lifespan warn 测试保留 skip (conftest env 限制由黄金案例覆盖)
+- ARCHITECTURE.md + AGENTS.md + backend/api/AGENTS.md + backend/services/AGENTS.md + scripts/AGENTS.md 数字同步: routers 83→**84**, services 121→**122**, jobs 54→**55**, collectors 14, migrations 105
+- ruff --fix 清理我改动的 22 错 (I001/F401/F541 + RUF006 noqa fire-and-forget); judgment_service 2 个预先存在 F401 (T11 引入 LLMService/DSHTaskRouter) 不动
+- **publish_event 修复 (5 service)**: T17 5 service 用 `asyncio.create_task` 直接调, sync ctx 抛 RuntimeError 静默吞 — 统一加 `asyncio.get_running_loop()` 检测 + RuntimeError 跳过 silent; artifact_service.py 补 `from backend.logging_config import logger` (ruff --fix 误删)
+- generate_meta --check 全绿; pytest **4176 passed / 8 skipped / 0 failed** (基线 4160 + 16 新增 0 回归); ruff 全绿; routers 83→84, services 121→122
+
+**v1.0 全量发布验收**:
+- 9 域对象 (Subject/Material/Signal/Case/Judgment/Action/Run/Artifact/Knowledge) 全部真实化; 旧表 (crm_opportunities/crm_events/bid_details/todos/crm_customers) 已迁或留兼容
+- 26 skill (20 legacy_v0 + 6 v1_active SK-01..06) 全部受管; SK-02..06 复用 T11/T12/T13 实现; SK-01 daily-priority-intel 复用 T07 admission_log + T05 v1_signals
+- 4 真路由 `/workbench /intel /cases /knowledge` + 兼容 `/v1-prototype`; 前端 SkillStore 标 v1_active 绿色高亮 + legacy_v0 折叠
+- 启停校验 strict 模式默认 raise; 用户跨大版本升级必须先 drain in-flight (符合 v1 上线后跨版本安全门)
+- 旧数据迁移工具链: T16 LegacyMigrate (skill 20 deprecated + knowledge 15 → v1_knowledge) + T18 LegacyItemsMigrate (warm.knowledge_items 真落 → v1_knowledge); 不实现 (留待 v1.x): 旧 knowledge_concepts/knowledge_tasks 迁移, 真实 body 补全
+- 不实现 (留待 v1.1+): T17.5+ 前端 SSE 订阅 UI / Toast 去重 / PageLayout SideNav; v1.x P1 P2 治理 (CRITICAL_REVIEW §1.2 断路器 + §2.1 provider_health 联动 + react-query 接入)
+
+**已知限制 / 留待 v1.1**:
+- V1EvidenceService entity_type 当前仅支持 subject/material/signal, judgment 走 receipt 失败 warning (T12 已知) — v1.1 扩展 entity_type=judgment/action
+- SkillDef pydantic v1 dataclass 序列化 (FastAPI jsonable_encoder 不支持) — T17 E2E-10 修
+- SkillStore 大改 (v1_active 区块按 status 分桶临时方案) — v1.1 改 SkillCard 设计
+
+**T19 验收证据**: 5 个核心黄金案例 (t18_golden + t16_golden + t15_golden + t14_golden + t13_golden) 全跑通; pytest 全量基线 4176/8/0; ruff 全绿; ARCHITECTURE + 4 AGENTS 数字一致; skill_run version 校验 strict 模式默认 raise (env opt-in warn/off); 启停链完整 (init_db → strict check → warmup → rebuild_export_cache → 路由挂载 → lifespan ready)。

@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     set_start_time(boot_start)
     setup_logging()
     init_db()
-    _check_skill_run_version_compatibility()  # T17 E2E-10 启停校验 (warning only)
+    _check_skill_run_version_compatibility()  # T19 E2E-10 启停校验 (strict 模式)
     warmup()
     try:
         rebuild_export_cache()
@@ -258,36 +258,56 @@ if __name__ == "__main__":  # pragma: no cover
         "backend.main:app",
         host=os.getenv("HOTSPOT_HOST") or os.getenv("HOST", config.host),
         port=int(os.getenv("HOTSPOT_PORT") or os.getenv("PORT", str(config.port))),
+        reload=False,
+    )
 
 
 def _check_skill_run_version_compatibility() -> None:
-    """T17 E2E-10 启停校验 (warning only).
+    """T19 全量收口: E2E-10 启停校验 — 严格模式 (默认) + warning 模式 (env opt-in).
 
     启动时扫 in-flight skill_runs (status='running'), 取每个 skill_id 的最新 version,
-    与 BUILTIN 当前 SkillDef.version 对比. 不一致仅 log.warning (T19 全量收口前
-    容忍 in-flight 旧版本, 严格 raise 模式留 T19).
+    与 BUILTIN 当前 SkillDef.version 对比.
+
+    严格模式 (T19 默认): 不一致 → RuntimeError 阻断启动, 强制 operator 先 drain in-flight
+    再部署新版本 (避免半新半旧 skill_run 在生产并发跑两个版本的 prompt/契约).
+    Warning 模式 (T17 旧行为, 通过 env HOTSPOT_SKILL_RUN_VERSION_CHECK=warn 开启):
+    不一致 → 仅 log.warning 不阻断 (用于 in-flight 跨版本过渡期/灰度).
+
+    选择标准:
+      - 默认严格 = 1.0 上线后任何版本切换必须先 drain; 这是 v1 之后跨大版本的安全门.
+      - warning mode 留给 (1) 灰度期 (2) 测试 (3) dev (4) 用户明令保留期.
     """
+    from backend.repository.db import get_connection
+    from backend.services.skill_registry.builtin import BUILTIN
+    mode = os.getenv("HOTSPOT_SKILL_RUN_VERSION_CHECK", "strict").lower()
+    if mode not in ("strict", "warn", "off"):
+        log.warning(f"unknown HOTSPOT_SKILL_RUN_VERSION_CHECK={mode}, falling back to strict")
+        mode = "strict"
+    if mode == "off":
+        log.debug("skill_run version check disabled (HOTSPOT_SKILL_RUN_VERSION_CHECK=off)")
+        return
     try:
-        from backend.repository.db import get_connection
-        from backend.services.skill_registry.builtin import BUILTIN
         conn = get_connection()
         rows = conn.execute(
             "SELECT skill_id, MAX(version) AS last_version "
             "FROM skill_runs WHERE status = 'running' GROUP BY skill_id"
         ).fetchall()
-        if not rows:
-            return
-        for skill_id, last_version in rows:
-            current = BUILTIN.get(skill_id)
-            if current is None:
-                continue  # 旧 SK 已不在 BUILTIN (可能 unregister)
-            if last_version and last_version != current.version:
-                log.warning(
-                    f"E2E-10 in-flight version mismatch: skill={skill_id} "
-                    f"in_flight={last_version} current={current.version} "
-                    f"(T19 收口前仅 warning)"
-                )
     except Exception as e:
         log.debug(f"skill_run version check skipped: {e}")
-        reload=False,
-    )
+        return
+    mismatches: list[tuple[str, str | None, str | None]] = []
+    for skill_id, last_version in rows:
+        current = BUILTIN.get(skill_id)
+        if current is None:
+            continue  # 旧 SK 已不在 BUILTIN (可能 unregister)
+        if last_version and last_version != current.version:
+            mismatches.append((skill_id, last_version, current.version))
+    if not mismatches:
+        return
+    detail = "; ".join(f"skill={s} in_flight={inf} current={cur}" for s, inf, cur in mismatches)
+    if mode == "strict":
+        raise RuntimeError(
+            f"E2E-10 in-flight skill_run version mismatch (strict mode): {detail}. "
+            f"Drain in-flight runs first, or set HOTSPOT_SKILL_RUN_VERSION_CHECK=warn to skip."
+        )
+    log.warning(f"E2E-10 in-flight skill_run version mismatch (warn mode): {detail}")

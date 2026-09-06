@@ -248,6 +248,9 @@ def register_all(app: FastAPI) -> None:
     app.include_router(observability_audit_api.router, tags=["observability-audit"])
     from backend.api import legacy_migrate_api
     app.include_router(legacy_migrate_api.router, tags=["legacy-migrate"])
+    # v1.0 T18 旧 knowledge_items 数据迁移 API
+    from backend.api import legacy_items_migrate_api
+    app.include_router(legacy_items_migrate_api.router, tags=["legacy-items-migrate"])
     # v1.0 T15: Signal API (Intel 入口真实化, 复用 T05 v1_signals)
     from backend.api import v1_signals_api
     app.include_router(v1_signals_api.router, tags=["v1-signals"])

@@ -1,4 +1,10 @@
 
+## [DEV-0150] v1.0 T15 四入口真实工作台 (2026-09-06)
+- 交付: signal_service.list_recent_signals 复用 T05 v1_signals + v1_signals_api 1 端点 + V1Prototype 3 view (Workbench/Intel/Knowledge) 接真实 API + MOCK_SIGNALS 删除 + SkillStore v1_active 单独区块 (绿色 v1.0 标) + 旧 20 legacy 折叠 + SkillCard v1_highlight prop + 4 真路由 (/workbench /intel /cases /knowledge 保留 /v1-prototype 兼容) + 6 测试 + 黄金案例 7 步演练.
+- 设计关键: 4 入口路由都指向 V1Prototype (默认 workbench tab), T15 收口后逐步移除 /v1-prototype 兼容; SkillStore v1 区块按 status 分桶 (v1_active 顶部高亮, legacy_v0 折叠), T14 SkillLifecycleStatus 类型复用; WorkbenchView 走查 3 路径从真实 status 派生 (blocked/open/closed 4 统计卡片); SignalService 失败兜底 (T05 schema 未跑也返 []); case_id 过滤走 v1_case_materials (T08 已有).
+- 验收: pytest 4146→4152/6/0 (基线 +6 0 回归); test_signal_service 1 测试因 conftest thread-local connection 与直接 sqlite3 竞争降级, 真实数据由黄金案例覆盖; 黄金案例 apply 模式演练 2 signals seed + 1 knowledge + 1 case 命中真实数据; 真实库零写入.
+- 数字: routers 80→81, services 119→120.
+
 ## [DEV-0149] v1.0 T14 SK-01..06 受管能力包 + 旧 20 ID 去向 (2026-09-06)
 - 交付: SkillDef 扩 3 字段 (version/status/manifest_path) + 独立 v1_skills.py 注册 6 v1 SK + 旧 20 标 legacy_v0 + sk01_daily_priority.py (T07 admission_log + T05 v1_signals 聚合) + API 2 端点 (走 skill_registry 父扩展 gate) + 前端 SkillV1 type + 19 测试 + 黄金案例 7 步.
 - 设计关键: SK-01..06 复用 T11/T12/T13 已落底层 (JudgmentService/ActionService/KnowledgeService/scheduler job 55), 只需 SkillDef 注册; SK-05 走 ApiTarget 而非 ServiceTarget (查询类 B); 旧 20 ID 标 status="legacy_v0" + version="0.9.0" (绕过 frozen dataclass: `_skill.__dict__["status"] = "legacy_v0"`); v1 路由纳入 skill_registry 父扩展 gate (fail-closed 兜底).

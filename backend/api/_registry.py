@@ -229,6 +229,13 @@ def register_all(app: FastAPI) -> None:
     # v1.0 T11: Judgment 端到端 (SK-02 cve-impact-brief) — 4 端点 (generate/list/get/publish)
     from backend.api import judgment_api
     app.include_router(judgment_api.router, tags=["v1-judgments"])
+    # v1.0 T12: Action / Run / Artifact 端到端 (SK-03 inspection-materials + 验收)
+    from backend.api import action_api
+    app.include_router(action_api.router, tags=["v1-actions"])
+    from backend.api import run_api
+    app.include_router(run_api.router, tags=["v1-runs"])
+    from backend.api import artifact_api
+    app.include_router(artifact_api.router, tags=["v1-artifacts"])
 
 
 __all__ = ["register_all"]

@@ -384,14 +384,127 @@ def parse_cve_impact_brief_response(raw: str) -> dict[str, Any]:
     return obj
 
 
+# ---------------------------------------------------------------------------
+# T12 SK-03 inspection-materials 专用 prompt — 受控行动 + 材料生成
+# 区别于 cve_impact_brief (出判断): 这里出"行动计划 + 预期产物 + 验收准则"
+# 喂 action_service.create_with_dsh → 落 draft action (plan + plan_hash)
+# ---------------------------------------------------------------------------
+
+INSPECTION_MATERIALS_SCHEMA_V1 = {
+    "plan": "<行动计划 Markdown, ≤ 50KB>",
+    "expected_artifacts": ["<产物名, 如 'checklist' / 'report' / 'data_export'>"],
+    "success_criteria": "<完成判据文本, ≤ 500 字符>",
+    "tool_versions": {"<tool_name>": "<version>"},
+    "unknowns": ["<未知项 / 缺资源 / 缺文档; 必须显式呈现>"],
+}
+
+
+def build_inspection_materials_prompt(
+    *,
+    case_id: str,
+    judgment_id: str,
+    subject_name: str,
+    cve_id: str,
+    scope: str,
+    evidence_materials: list[dict[str, Any]],
+) -> str:
+    """构造 SK-03 inspection-materials 的 dsh prompt (action plan 生成).
+
+    Parameters
+    ----------
+    case_id:
+        例 "ABCDEFGHIJKLMNOPQRSTUVWXY".
+    judgment_id:
+        已发布的判断 (contracts §10.1: action.judgment_id 必引 published judgment).
+    subject_name / cve_id / scope:
+        行动目标上下文.
+    evidence_materials:
+        [{id, title, content_hash, summary?}, ...] — 喂 LLM 出计划参考.
+
+    Returns
+    -------
+    完整 prompt 字符串.
+
+    纪律
+    ----
+    - plan ≤ 50KB (服务层校验, 超长 422)
+    - expected_artifacts 是 list[str], 至少 1 (否则 "材料" 不成立)
+    - success_criteria ≤ 500 字符
+    - unknowns 缺失时 plan 标 incomplete, 服务层 enforce (对齐 T11 baseline §5)
+    - plan_hash = sha256(plan) — contracts §6.4 plan 改 = hash 改 = 重建
+    """
+    materials_block = "\n\n".join(
+        f"### material_id={m.get('id', '?')}\n"
+        f"title: {m.get('title', '(no title)')}\n"
+        f"content_hash: {m.get('content_hash', '?')}\n"
+        f"summary: {m.get('summary', '(none)')[:300]}"
+        for m in evidence_materials
+    )
+    schema_str = json.dumps(INSPECTION_MATERIALS_SCHEMA_V1, ensure_ascii=False, indent=2)
+    return (
+        f"你是一名安全应急工程师 (蓝队值守), 针对一个已发布的判断 (judgment_id={judgment_id}) "
+        f"输出受控行动的执行计划.\n\n"
+        f"## 上下文\n\n"
+        f"- case_id: {case_id}\n"
+        f"- subject: {subject_name}\n"
+        f"- cve_id: {cve_id}\n"
+        f"- scope: {scope}\n\n"
+        f"## 已有材料 (materials)\n\n"
+        f"{materials_block or '(无 materials — 这是缺材料场景, unknowns 必须显式列出)'}\n\n"
+        f"## 输出要求 (严格 JSON, 不允许 prose 包裹)\n\n"
+        f"```json\n{schema_str}\n```\n\n"
+        f"## 纪律\n"
+        f"1. plan 长度 ≤ 50000 字符; 服务层超长 422 拒收\n"
+        f"2. expected_artifacts 至少 1 条; '材料已生成' ≠ '排查已完成' (baseline §5)\n"
+        f"3. success_criteria 必须可验证 (数值 / 步骤 / 状态变化)\n"
+        f"4. unknowns 缺失时 plan 标 incomplete (baseline §5 硬约束)\n"
+        f"5. tool_versions 是 dict, 列出计划用的工具/版本 (空 dict 也允许)\n"
+        f"6. 不允许 '生成清单即完成排查' 的偷换; 验收由业务侧触发, 你只生成计划\n"
+        f"{_EVIDENCE_RULE}\n"
+    )
+
+
+def parse_inspection_materials_response(raw: str) -> dict[str, Any]:
+    """解析 dsh 返回的 inspection-materials JSON; 容错 + 必填字段校验."""
+    if not raw or not raw.strip():
+        raise ValueError("empty response from dsh")
+    s = raw.strip()
+    if "```" in s:
+        for fence in ("```json", "```JSON", "```"):
+            idx = s.find(fence)
+            if idx >= 0:
+                end = s.find("```", idx + len(fence))
+                if end > idx:
+                    s = s[idx + len(fence):end].strip()
+                    break
+    if "{" in s:
+        s = s[s.find("{"):s.rfind("}") + 1]
+    try:
+        obj = json.loads(s)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"dsh response not valid JSON: {e}; raw[:200]={raw[:200]!r}")
+    for k in ("plan", "expected_artifacts", "success_criteria", "tool_versions", "unknowns"):
+        if k not in obj:
+            raise ValueError(f"missing required field: {k}")
+    if not isinstance(obj["expected_artifacts"], list) or len(obj["expected_artifacts"]) == 0:
+        raise ValueError("expected_artifacts must be non-empty list")
+    if not isinstance(obj["tool_versions"], dict):
+        raise ValueError("tool_versions must be dict")
+    if not isinstance(obj["unknowns"], list):
+        raise ValueError("unknowns must be list")
+    return obj
+
+
 __all__ = [
     "COST_PER_1M_TOKENS",
     "CVE_IMPACT_BRIEF_SCHEMA_V1",
     "DEEP_READ_PROFILES",
     "DEEP_READ_PROFILE_VERSION",
     "DEFAULT_SCORE",
+    "INSPECTION_MATERIALS_SCHEMA_V1",
     "_build_deep_read_prompt",
     "_build_extract_entities_prompt",
+    "_build_inspection_materials_prompt" if False else "build_inspection_materials_prompt",
     "_build_score_prompt",
     "_build_summary_prompt",
     "_estimate_cost",
@@ -399,7 +512,9 @@ __all__ = [
     "_parse_entity_list",
     "_parse_score",
     "build_cve_impact_brief_prompt",
+    "build_inspection_materials_prompt",
     "deep_read_profile_for",
     "deep_read_sections",
     "parse_cve_impact_brief_response",
+    "parse_inspection_materials_response",
 ]

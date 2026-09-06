@@ -17,8 +17,9 @@
  */
 
 import { useEffect, useState } from 'react';
-import type { Case, Judgment, Action, Run, Artifact, Knowledge, Signal } from '../../domain/v1_0';
-import { listCases, getCase, listJudgments } from '../../api/v1';
+import type { Case, Judgment, Knowledge, Signal } from '../../domain/v1_0';
+import type { Action, Run, Artifact } from '../../api/v1';
+import { listCases, getCase, listJudgments, listActions, listRuns, listArtifacts } from '../../api/v1';
 import { renderInlineMarkdown } from '../../lib/markdown';
 
 // ---------------------------------------------------------------------------
@@ -288,45 +289,54 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
   const [usingFallback, setUsingFallback] = useState(true);
   const [liveJudgments, setLiveJudgments] = useState<Judgment[]>([]);
   const [judgmentsLoading, setJudgmentsLoading] = useState(false);
+  const [liveActions, setLiveActions] = useState<Action[]>([]);
+  const [liveRuns, setLiveRuns] = useState<Run[]>([]);
+  const [liveArtifacts, setLiveArtifacts] = useState<Artifact[]>([]);
+  const [actionChainLoading, setActionChainLoading] = useState(false);
 
-  // T08 + T11: 真实数据接入 — case 走 getCase; judgment 走 listJudgments (按 case_id 过滤).
-  // API 失败时保留 case_ / MOCK_JUDGMENTS 兜底.
+  // T08 + T11 + T12: 真实数据接入 — case / judgment / action / run / artifact
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
     getCase(case_.id)
-      .then((resp) => {
-        if (cancelled) return;
-        setLiveCase(resp.item);
-        setUsingFallback(false);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : String(e));
-        setLiveCase(null);
-        setUsingFallback(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    // T11: 拉 judgment 列表
+      .then((resp) => { if (!cancelled) { setLiveCase(resp.item); setUsingFallback(false); } })
+      .catch((e) => { if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setLiveCase(null); setUsingFallback(true); } })
+      .finally(() => { if (!cancelled) setLoading(false); });
     setJudgmentsLoading(true);
     listJudgments({ case_id: case_.id, limit: 50 })
-      .then((resp) => {
+      .then((resp) => { if (!cancelled) setLiveJudgments(resp.items); })
+      .catch(() => { if (!cancelled) setLiveJudgments([]); })
+      .finally(() => { if (!cancelled) setJudgmentsLoading(false); });
+    // T12: 拉 actions (含级联 runs + artifacts)
+    setActionChainLoading(true);
+    listActions({ case_id: case_.id, limit: 50 })
+      .then(async (resp) => {
         if (cancelled) return;
-        setLiveJudgments(resp.items);
+        setLiveActions(resp.items);
+        // 拉每个 action 的 runs
+        const allRuns: Run[] = [];
+        const allArts: Artifact[] = [];
+        for (const a of resp.items) {
+          try {
+            const r = await listRuns({ action_id: a.id, limit: 10 });
+            allRuns.push(...r.items);
+            for (const run of r.items) {
+              try {
+                const arts = await listArtifacts({ run_id: run.id, limit: 10 });
+                allArts.push(...arts.items);
+              } catch { /* 静默 */ }
+            }
+          } catch { /* 静默 */ }
+        }
+        if (!cancelled) {
+          setLiveRuns(allRuns);
+          setLiveArtifacts(allArts);
+        }
       })
-      .catch(() => {
-        if (cancelled) return;
-        setLiveJudgments([]);  // 失败回退到 mock
-      })
-      .finally(() => {
-        if (!cancelled) setJudgmentsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .catch(() => { if (!cancelled) { setLiveActions([]); setLiveRuns([]); setLiveArtifacts([]); } })
+      .finally(() => { if (!cancelled) setActionChainLoading(false); });
+    return () => { cancelled = true; };
   }, [case_.id]);
 
   const display = liveCase ?? case_;
@@ -334,16 +344,25 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
   const judgments = liveJudgments.length > 0
     ? liveJudgments
     : MOCK_JUDGMENTS.filter(j => j.case_id === display.id);
-  const actions = MOCK_ACTIONS.filter(a => a.case_id === display.id);
+  // T12: 优先真实 action/run/artifact, 失败回退 mock
+  const usingLiveActionChain = liveActions.length > 0;
+  const actions = usingLiveActionChain
+    ? liveActions
+    : MOCK_ACTIONS.filter(a => a.case_id === display.id);
   const actionIds = actions.map(a => a.id);
-  const runs = MOCK_RUNS.filter(r => actionIds.includes(r.action_id));
+  const runs = usingLiveActionChain
+    ? liveRuns
+    : MOCK_RUNS.filter(r => actionIds.includes(r.action_id));
   const runIds = runs.map(r => r.id);
-  const artifacts = MOCK_ARTIFACTS.filter(a => runIds.includes(a.run_id));
+  const artifacts = usingLiveActionChain
+    ? liveArtifacts
+    : MOCK_ARTIFACTS.filter(a => runIds.includes(a.run_id));
 
-  // 走查 3 路径检测
+  // 走查 3 路径检测 (T12 强化: 显式呈现 3 路径而非简单色块)
   const hasMissingAssets = actions.length > 0 && artifacts.length === 0;
   const hasFailure = runs.some(r => r.status === 'failed');
   const hasPendingAcceptance = artifacts.some(a => a.status === 'verified');
+  const hasRejected = artifacts.some(a => a.status === 'rejected');
 
   return (
     <div className="space-y-6">
@@ -381,13 +400,22 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
         </div>
       )}
 
-      {/* 走查 3 路径指示器 */}
-      <div className="p-3 rounded-lg border flex items-center gap-3" style={{ background: 'var(--bg-muted)', borderColor: 'var(--border-muted)' }}>
-        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>走查路径:</span>
-        {hasMissingAssets && <Badge color="yellow">缺资产</Badge>}
-        {hasPendingAcceptance && <Badge color="blue">待验收</Badge>}
-        {hasFailure && <Badge color="red">失败</Badge>}
-        {!hasMissingAssets && !hasPendingAcceptance && !hasFailure && <span className="text-sm" style={{ color: 'var(--text-muted)' }}>无异常</span>}
+      {/* 走查 3 路径指示器 (T12 强化: 显式呈现) */}
+      <div className="p-3 rounded-lg border" style={{ background: 'var(--bg-muted)', borderColor: 'var(--border-muted)' }}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>走查 3 路径:</span>
+          {hasMissingAssets && <Badge color="yellow">缺资产 (材料生成 ≠ 排查完成)</Badge>}
+          {hasPendingAcceptance && <Badge color="blue">待验收</Badge>}
+          {hasFailure && <Badge color="red">失败</Badge>}
+          {hasRejected && <Badge color="red">已拒绝 (防重传蒙混 §8.3)</Badge>}
+          {!hasMissingAssets && !hasPendingAcceptance && !hasFailure && !hasRejected && (
+            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>无异常</span>
+          )}
+        </div>
+        <div className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+          {actions.length} 个行动 · {runs.length} 次运行 · {artifacts.length} 个产物
+          {artifacts.filter(a => a.status === 'accepted').length > 0 && ` · ${artifacts.filter(a => a.status === 'accepted').length} 已业务验收`}
+        </div>
       </div>
 
       {/* 判断 */}
@@ -436,7 +464,9 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
 
       {/* 行动 + 运行 + 产物 */}
       <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
-        <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>行动 (Action) + 运行 (Run) + 产物 (Artifact)</h3>
+        <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+          行动 (Action) + 运行 (Run) + 产物 (Artifact) {actionChainLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
+        </h3>
         {actions.length === 0 ? (
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>暂无行动</div>
         ) : (
@@ -448,19 +478,38 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
                 <div key={a.id} className="p-3 rounded border" style={{ borderColor: 'var(--border-muted)' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{a.title}</span>
-                    <Badge color={a.status === 'succeeded' ? 'green' : a.status === 'failed' ? 'red' : a.status === 'running' ? 'blue' : 'gray'}>{a.status}</Badge>
+                    <Badge color={a.status === 'succeeded' ? 'green' : a.status === 'failed' ? 'red' : a.status === 'running' ? 'blue' : a.status === 'approved' ? 'yellow' : 'gray'}>{a.status}</Badge>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>rev {a.revision}</span>
                   </div>
-                  <div className="text-xs font-mono mb-2" style={{ color: 'var(--text-muted)' }}>{a.id}</div>
+                  <div className="text-xs font-mono mb-2" style={{ color: 'var(--text-muted)' }}>
+                    {a.id} · plan_hash: {a.plan_hash?.slice(0, 12) ?? '-'}…
+                    {a.expected_artifacts && a.expected_artifacts.length > 0 && (
+                      <> · 预期产物: {a.expected_artifacts.join(', ')}</>
+                    )}
+                  </div>
+
+                  {/* plan (T11 markdown 渲染) */}
+                  {a.plan && (
+                    <details className="mb-2">
+                      <summary className="text-xs cursor-pointer" style={{ color: 'var(--text-muted)' }}>查看 plan</summary>
+                      <div
+                        className="text-xs mt-1 p-2 rounded prose-sm"
+                        style={{ background: 'var(--bg-muted)', color: 'var(--text-primary)' }}
+                        dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(a.plan) }}
+                      />
+                    </details>
+                  )}
 
                   {/* 运行 */}
                   {actionRuns.length > 0 && (
                     <div className="mb-3">
-                      <div className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>运行:</div>
+                      <div className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>运行 ({actionRuns.length} 次):</div>
                       {actionRuns.map(r => (
                         <div key={r.id} className="flex items-center gap-2 text-xs">
-                          <Badge color={r.status === 'succeeded' ? 'green' : r.status === 'failed' ? 'red' : 'gray'}>{r.status}</Badge>
+                          <Badge color={r.status === 'succeeded' ? 'green' : r.status === 'failed' ? 'red' : r.status === 'cancelled' ? 'gray' : 'blue'}>{r.status}</Badge>
+                          <span className="font-mono" style={{ color: 'var(--text-muted)' }}>attempt #{r.attempt} · {r.protocol}</span>
                           <span style={{ color: 'var(--text-muted)' }}>{r.id}</span>
-                          {r.error && <span style={{ color: 'var(--color-error)' }}>错误: {r.error.slice(0, 50)}</span>}
+                          {r.error && <span style={{ color: 'var(--color-error)' }}>错误: {r.error.slice(0, 80)}</span>}
                         </div>
                       ))}
                     </div>
@@ -469,20 +518,22 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
                   {/* 产物 */}
                   {actionArtifacts.length > 0 ? (
                     <div>
-                      <div className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>产物:</div>
+                      <div className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>产物 ({actionArtifacts.length} 条):</div>
                       <div className="space-y-1">
                         {actionArtifacts.map(art => (
                           <div key={art.id} className="flex items-center gap-2 text-xs">
                             <span style={{ color: 'var(--text-primary)' }}>{art.title}</span>
-                            <Badge color={art.status === 'accepted' ? 'green' : art.status === 'verified' ? 'blue' : art.status === 'rejected' ? 'red' : 'gray'}>{art.status}</Badge>
+                            <Badge color={art.status === 'accepted' ? 'green' : art.status === 'verified' ? 'blue' : art.status === 'rejected' ? 'red' : art.status === 'superseded' ? 'gray' : 'yellow'}>{art.status}</Badge>
                             <span style={{ color: 'var(--text-muted)' }}>{art.format} · {(art.size_bytes / 1024).toFixed(1)}KB</span>
+                            {art.verified_result && <span style={{ color: 'var(--text-muted)' }}>· 验证: {art.verified_result}</span>}
+                            {art.accepted_by && <span style={{ color: 'var(--text-success, var(--color-success))' }}>· 验收: {art.accepted_by}</span>}
                           </div>
                         ))}
                       </div>
                     </div>
                   ) : (
                     <div className="text-xs p-2 rounded" style={{ background: 'var(--bg-muted)', color: 'var(--text-muted)' }}>
-                      缺资产: 此行动无产出产物
+                      缺资产: 此行动无产出产物 (baseline §5: 材料生成 ≠ 排查完成)
                     </div>
                   )}
                 </div>

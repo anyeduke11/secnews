@@ -21,6 +21,7 @@ import type { Case, Judgment } from '../../domain/v1_0';
 import type { Action, Run, Artifact, Knowledge } from '../../api/v1';
 import { listCases, getCase, listJudgments, listActions, listRuns, listArtifacts, listKnowledge, getKnowledgeReuse, listSignals, type ReuseReceipt, type V1Signal } from '../../api/v1';
 import { renderInlineMarkdown } from '../../lib/markdown';
+import { useSSEWithRefetch } from './useSSEWithRefetch';
 
 // ---------------------------------------------------------------------------
 // Mock 数据 (来自 seed.json, 脱敏后内嵌避免 fetch 依赖)
@@ -718,6 +719,8 @@ function KnowledgeView() {
 export function V1Prototype() {
   const [tab, setTab] = useState<Tab>('workbench');
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
+  // T17.5: 6 event_type → toast 触发 + 4 view refetch
+  useSSEWithRefetch(setTab);  // T19: 增 (caseId) => setSelectedCase(...) 占位
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'workbench', label: '今日工作', icon: '📊' },

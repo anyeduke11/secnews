@@ -28,6 +28,8 @@ interface ToastContextValue {
   show: (item: Omit<ToastItem, 'id'>) => string;
   dismiss: (id: string) => void;
   clear: () => void;
+  toggleMute: (eventType: string) => void;  // T17.5
+  isMuted: (eventType: string) => boolean;    // T17.5
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -42,6 +44,8 @@ export function useToast(): ToastContextValue {
       show: () => '',
       dismiss: () => {},
       clear: () => {},
+      toggleMute: () => {},
+      isMuted: () => false,
     };
   }
   return ctx;
@@ -65,11 +69,38 @@ interface ToastProviderProps {
   children: React.ReactNode;
   /** 同时显示上限，默认 5 */
   max?: number;
+  /** 持久化 key (T17.5: muted event_type Set 落 localStorage) */
+  storageKey?: string;
+  /** 去重时间窗 (ms, 默认 2000; T17.5: 同 type+message hash 在 2s 内合并 1 条) */
+  dedupeWindowMs?: number;
 }
 
-export function ToastProvider({ children, max = 5 }: ToastProviderProps) {
+export function ToastProvider({ children, max = 5, storageKey = "toast_muted", dedupeWindowMs = 2000 }: ToastProviderProps) {
   const [items, setItems] = useState<ToastItem[]>([]);
+  const [muted, setMuted] = useState<Set<string>>(() => {
+    // T17.5: 启动时从 localStorage 读 muted 集合
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw) as string[];
+      return new Set(arr);
+    } catch {
+      return new Set();
+    }
+  });
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const lastSeenAt = useRef<Map<string, number>>(new Map());  // dedupe 状态
+
+  // T17.5: muted 变化时持久化到 localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(Array.from(muted)));
+    } catch {
+      // silent 降级
+    }
+  }, [muted, storageKey]);
 
   const dismiss = useCallback((id: string) => {
     setItems(prev => prev.filter(t => t.id !== id));
@@ -82,6 +113,20 @@ export function ToastProvider({ children, max = 5 }: ToastProviderProps) {
 
   const show = useCallback(
     (item: Omit<ToastItem, 'id'>): string => {
+      // T17.5: 静默检查 (per-event_type muted Set)
+      if (item.type && muted.has(item.type)) {
+        return "";  // 静默直接返回空 id
+      }
+      // T17.5: dedupe_key 内容去重 (2s 时间窗内合并)
+      const dedupeKey = `${item.type}:${item.message}`;
+      const now = Date.now();
+      const lastTs = lastSeenAt.current.get(dedupeKey);
+      if (lastTs !== undefined && (now - lastTs) < dedupeWindowMs) {
+        lastSeenAt.current.set(dedupeKey, now);  // 更新时间戳
+        return "";  // 静默返回空 id (合并到最近 1 条)
+      }
+      lastSeenAt.current.set(dedupeKey, now);
+
       const id = `t_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const fullItem: ToastItem = { id, duration: 4000, ...item };
       setItems(prev => {
@@ -94,8 +139,23 @@ export function ToastProvider({ children, max = 5 }: ToastProviderProps) {
       }
       return id;
     },
-    [dismiss, max]
+    [dismiss, max, muted, dedupeWindowMs]
   );
+
+  // T17.5: 静默 toggle API
+  const toggleMute = useCallback((eventType: string) => {
+    setMuted(prev => {
+      const next = new Set(prev);
+      if (next.has(eventType)) {
+        next.delete(eventType);
+      } else {
+        next.add(eventType);
+      }
+      return next;
+    });
+  }, []);
+
+  const isMuted = useCallback((eventType: string) => muted.has(eventType), [muted]);
 
   const clear = useCallback(() => {
     timers.current.forEach(t => clearTimeout(t));
@@ -111,7 +171,7 @@ export function ToastProvider({ children, max = 5 }: ToastProviderProps) {
   }, []);
 
   return (
-    <ToastContext.Provider value={{ show, dismiss, clear }}>
+    <ToastContext.Provider value={{ show, dismiss, clear, toggleMute, isMuted }}>
       {children}
       <div
         className="fixed bottom-4 right-4 flex flex-col gap-2 pointer-events-none"

@@ -1,4 +1,10 @@
 
+## [DEV-0149] v1.0 T14 SK-01..06 受管能力包 + 旧 20 ID 去向 (2026-09-06)
+- 交付: SkillDef 扩 3 字段 (version/status/manifest_path) + 独立 v1_skills.py 注册 6 v1 SK + 旧 20 标 legacy_v0 + sk01_daily_priority.py (T07 admission_log + T05 v1_signals 聚合) + API 2 端点 (走 skill_registry 父扩展 gate) + 前端 SkillV1 type + 19 测试 + 黄金案例 7 步.
+- 设计关键: SK-01..06 复用 T11/T12/T13 已落底层 (JudgmentService/ActionService/KnowledgeService/scheduler job 55), 只需 SkillDef 注册; SK-05 走 ApiTarget 而非 ServiceTarget (查询类 B); 旧 20 ID 标 status="legacy_v0" + version="0.9.0" (绕过 frozen dataclass: `_skill.__dict__["status"] = "legacy_v0"`); v1 路由纳入 skill_registry 父扩展 gate (fail-closed 兜底).
+- 验收: pytest 4127→4146/6/0 (基线 +19 0 回归); test_skill_registry.py test_registry_has_20_skills → 26 (BUILTIN 26, BUILTIN_SKILLS 列表 20); test_skill_registry_api.py test_list_returns_all_20 → 26; test_list_category_filter operations 8→10; test_gate_off_route_not_registered 兜 v1 路由; 黄金案例 apply 真落 1 admission_log + 1 v1_signals + 26 skills 演练完整; 真实库零写入.
+- 数字: routers 79→80, services 118→119 (sk01_daily_priority).
+
 ## [DEV-0148] v1.0 T13 SK-04/05/06 知识发布/复用/复查 (2026-09-06)
 - 交付: migration 102 (v1_knowledge 主表 + v1_knowledge_revisions append-only + v1_knowledge_refs 引用关联) + 2 repos (独立 v1_knowledge_repo.py 避免与 v0 冲突) + KnowledgeService 4 态机 + publish/deprecate/retract/revive CAS + V1EvidenceService receipt + scan_review_due + mark_case_blocker + build_knowledge_prompt 追加 (8 纪律, SK-04 prerequisites≥1 + SK-06 review_at 必填硬约束) + API 7 端点 (含 /reuse §9.4 派生) + scheduler job 55 knowledge_review_due (Daily 04:00 Asia/Shanghai) + 前端 7 client + CaseDetail Knowledge 区块真实 API + 32 测试 + 黄金案例 scripts/t13_golden_knowledge_reuse.py 6 步续接 T12 18 步全链路.
 - 设计关键: contracts §9.4 ReuseReceipt 派生 SQL 聚合 (by_judgment + by_action + recent_30d, 不用新表); append-only v1_knowledge_revisions (wiki 不可变写 §9.1); SK-06 过期不改 status, 改挂 case blocker (v1_cases.tags_json 加 `knowledge_review_due:{knowledge_id}`).

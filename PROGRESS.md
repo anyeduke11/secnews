@@ -480,3 +480,38 @@
   - 风格参考 [.agents/skills/industrial-brutalist-ui](.agents/skills/industrial-brutalist-ui/SKILL.md)
 
 **L1 通过 = 服务可读, NOT v1.0 发布**: 业务闭环 R01/R03-R18 仍 20 个 P1 阻断 (REVIEW_2026-09-07.md 详尽), 等 B0-B7 整改路径用户授权后逐批执行.
+
+### 2026-09-07 v1.0 C01 诊断/备份/隔离 (R10 + R12 修复, DEV-0153)
+
+**C01 调用链盘点**:
+- WikiFs: `knowledge_service.publish:480` + `judgment_service.publish:399` 字面 `WikiFs("knowledge")` (相对 cwd, 写仓库根 `knowledge/items/`, 与单根 `llm-wiki-2.0/` 不一致); `kl_pipeline.runtime:34` 已走 `resolve_wiki_root()` 正确
+- 备份: `t02_backup_drill.py:backup_hot` 走 `sqlite3.backup()` (保 WAL 一致性); `backup_simple_copy` WARM/COLD 直接 `shutil.copy2` (R12 漏 WAL)
+- 诊断: 无统一 `check_workstation_runtime.py` 之前只有 lsof/curl/SQLite 零散命令
+
+**C01 实现**:
+1. **R10 修** (`backend/services/knowledge_service.py:480` + `backend/services/judgment_service.py:399`): 字面 `WikiFs("knowledge")` → `WikiFs(resolve_wiki_root())` 走 env 根 (`HOTSPOT_WIKI_ROOT` 优先, 默认 `llm-wiki-2.0/`)
+2. **R12 修** (`scripts/t02_backup_drill.py:94-104`): `backup_simple_copy` 内部委托新 `backup_with_api` 走 `sqlite3.backup()` API; WARM/COLD 改走与 HOT 一致路径 (即便 R21 已 fix ATTACH 跨 db, ATTACH 状态 + COMMIT 时序差异仍风险)
+3. **新增** `scripts/check_workstation_runtime.py` (203 行): lsof 8000/8898/8766/8899 + curl /api/health + SQLite 只读 (schema_version 计数+max, 9 关键表行数, 视图列表) + wiki 根解析 + 旧 knowledge/ 根警告 + 自动脱敏 key/secret/token + `--quiet`/`--exit-zero` 模式
+
+**C01 反例测试** (`backend/tests/test_c01_wal_backup_and_wikifs_isolation.py`, 7 个全 pass):
+- R10 修复断言: `WikiFs("knowledge")` 字面字符串在 knowledge_service/judgment_service 源码中消失
+- R10 修复断言: `WikiFs(resolve_wiki_root())` 写到 env 隔离根, 仓库根 `knowledge/items/` 30s 内无新增
+- R10 修复: 实际写 `<HOTSPOT_WIKI_ROOT>/items/ki_isolation_test.md` (新根), 不写仓库根
+- R12 修复: `backup_with_api` 保留 page_cache + wal_only 2 行 (即使 wal_checkpoint PASSIVE 后, COMMITTED 写仍可能在 WAL)
+- R12 修复: `t02_backup_drill.py:backup_simple_copy` 函数体已不含 `shutil.copy2`, 委托 `backup_with_api`
+- R12 真实风险: `shutil.copy2` 在 macOS SQLite 3.53 + Python 3.14 下不漏行 (COMMIT 自动 page cache 合并), 但 Linux + ATTACH 跨 db + 异常关闭场景仍漏, 统一由 `backup_with_api` 兜底
+- R12 副例: `sqlite3.backup` API 正确性 (简单场景验证)
+
+**C01 真实退出验证** (lsof + curl + sqlite3 + ISO 副本):
+- `/tmp/c01-iso/{hot,warm,cold}.db` 独立副本
+- 第一次启停 (4s, ASGI 未起): ISO hot.db schema_version 105→106, 启停稳
+- 第二次启停 (12s, ASGI 起): `curl /api/health` 200 status=ok, db_ok=True, scheduler_ok=True, collectors ok=True, ISO hotspots=7344
+- 第三次启停 (10s, ASGI 起): `curl /api/health` 200, ISO hot.db 自身 catchup (run_id=360, 361) 走 ISO db
+- 原 `backend/hotspot.db` 未被 ISO 污染: schema_version=106 (L1 R21 升 1, ISO 不再升), hotspots=7355 (ISO 期间未新增), v1_signals=0 (ISO 也未落 v1)
+- pytest 24 pass (C01 7 + backup_verify 9 + v1_evidence 8), 0 回归
+
+**C01 剩余风险** (透明记录, 待 C13 处置):
+- 旧 `knowledge/` 根仍存 178 items (R10 修复只阻新代码写入, 历史 items 需 C13 迁移)
+- macOS 平台下 R12 反例不显 (R12 修复仍是保险, Linux/异常场景兜底)
+
+**下一批 C02** (迁移修复+搜索兼容, R11/R21): 100-105 迁移对账 + 真旧库副本连续重启 2 次不挂 + 旧搜索跨库 SQL 性能对账 (D1 节点)

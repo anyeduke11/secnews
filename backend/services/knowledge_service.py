@@ -474,10 +474,16 @@ class KnowledgeService:
         return True
 
     def _write_wiki(self, wiki_path: str, k: dict[str, Any], now: str) -> None:
-        """wiki 不可变写 (T11/T12 同款路径, T13 knowledge 专属)."""
+        """wiki 不可变写 (T11/T12 同款路径, T13 knowledge 专属).
+
+        v1.0 C01 R10 修复: WikiFs 根由 env HOTSPOT_WIKI_ROOT 决定, 不写字面
+        "knowledge" (相对 cwd 写 <repo>/knowledge/items/... 污染生产仓库).
+        与 backend/kl_pipeline/runtime.py:34 一致走 resolve_wiki_root().
+        """
         try:
             from backend.wiki_fs.store import WikiFs
-            wiki = WikiFs("knowledge")
+            from backend.wiki_fs.root import resolve_wiki_root
+            wiki = WikiFs(resolve_wiki_root())
             content = (
                 f"---\nid: {k['id']}\ntitle: {k['title']}\n"
                 f"kind: {k['kind']}\nstatus: published\n"

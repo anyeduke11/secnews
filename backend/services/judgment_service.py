@@ -396,7 +396,8 @@ class JudgmentService:
         # 写 wiki (best effort)
         try:
             from backend.wiki_fs.store import WikiFs
-            wiki = WikiFs("knowledge")  # 走默认根
+            from backend.wiki_fs.root import resolve_wiki_root
+            wiki = WikiFs(resolve_wiki_root())  # C01 R10 修复: env 根, 不写字面
             content = (
                 f"---\nid: {judgment_id}\ntitle: Judgment {judgment_id}\n"
                 f"case_id: {j['case_id']}\nclaim_type: {j['claim_type']}\n"

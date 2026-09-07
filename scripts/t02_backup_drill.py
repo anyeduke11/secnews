@@ -92,15 +92,32 @@ def backup_hot(src: Path, dst: Path) -> dict:
 
 
 def backup_simple_copy(src: Path, dst: Path) -> dict:
-    """WARM/COLD 不走 SQLite backup API, 直接 copy (它们无并发写入)。"""
+    """WARM/COLD 不走 SQLite backup API, 直接 copy (它们无并发写入)。
+
+    v1.0 C01 R12 修复: 即便声明"无并发写入", ATTACH 跨 db 写入的
+    knowledge_items 可能在 WAL 还没 checkpoint 时被读到, 副本丢行.
+    改走 backup_with_api 走 SQLite backup API, 与 HOT 一致保 WAL 一致性.
+    """
+    return backup_with_api(src, dst)
+
+
+def backup_with_api(src: Path, dst: Path) -> dict:
+    """三库统一走 SQLite online backup API, 保 WAL 已 commit 未 checkpoint 行的副本完整."""
     started = time.perf_counter()
-    shutil.copy2(src, dst)
+    src_conn = sqlite3.connect(str(src))
+    dst_conn = sqlite3.connect(str(dst))
+    try:
+        src_conn.backup(dst_conn)
+        dst_conn.commit()
+    finally:
+        dst_conn.close()
+        src_conn.close()
     elapsed = time.perf_counter() - started
     return {
         "dst": str(dst),
         "size_bytes": _src_size(dst),
         "elapsed_seconds": round(elapsed, 3),
-        "throughput_mb_s": round(_src_size(src) / 1e6 / max(elapsed, 1e-3), 1),
+        "throughput_mb_s": round(_src_size(dst) / 1e6 / max(elapsed, 1e-3), 1),
     }
 
 

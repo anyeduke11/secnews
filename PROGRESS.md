@@ -728,3 +728,62 @@ SK-01 dry-run 实际验: compute() 走完不 raise, 返 top_items/watchlist_chan
 - 不动 Run/Artifact CAS (C08 范围)
 - 不动 3800 行迁移 (C13 范围)
 - 不动 ruff 全仓 165 错 (C14 范围)
+
+### 2026-09-07 v1.0 C06 — dsh/pi 真 SDK 适配 + R07 async 边界修复 + F821 Any 治理 (本批, in_progress)
+
+> **来源**: [docs/v1.0/V1.0.0_CLOSEOUT_TASKS.md §7 C06](../docs/v1.0/V1.0.0_CLOSEOUT_TASKS.md); DEV-0155。
+> **前置必读**: 根 AGENTS.md + C04 commit `f439b60` + C09 commit `137e460` + `runtime/upstreams.lock.json` (T04 锁 dsh d347e70 / pi 6f11c31)
+> **用户明令 (2026-09-05)**: 推送禁止, commit 留本地; **失败 → 触发 T04 lock.exit_criteria 显式降级到 ai_hub + 确定性协调器** (非静默); 不准 mock/noop/seed 替代生产; 显式 `git commit <path>`, 不 `git add -A`; 真 vendor clone 入 `runtime/upstreams/<vendor>/.gitignore` 隔离
+
+#### D3 节点裁决结果 — 显式降级 (T04 lock.exit_criteria 触发)
+
+> **结论**: 真 vendor clone+build+start 在本环境不可执行 → D3 节点触发, 显式降级到 ai_hub + 确定性协调器, 写 audit, **非静默**。
+
+| Vendor | commit_sha (locked) | 启动结果 | 失败根因 |
+|---|---|---|---|
+| dsh (deepseek-harness) | `d347e703908d0406b7a7ef80e3a0e594d86b2215` | ❌ runtime wheel 缺失 | `pip install file:///.../sdk-runtime` → `RuntimeError: runtime wheel macos-arm64 payload must be deepseek-harness-sdk-runtime-macos-arm64; found []` (上游 README 显式说 runtime binary 排除在 git 外) |
+| pi (earendil-works/pi) | `6f11c31d1134a32e64bf221baeec38e431091e05` | ❌ dist/cli.js 未产出 | `npm run build` → TS7006 (17 implicit any) + TS2307 (`Cannot find module '@earendil-works/pi-ai'`) + pnpm 路径下 `fs-ext@2.1.1` node-gyp 失败 (`gyp ERR! not ok`, Node 26) |
+
+**T04 exit_criteria 触发**: `runtime/upstreams.lock.json` `exit_criteria.deadline_days=3` 已超期, 走 `fallback_path="ai_hub (确定性协调器)"`。**审计路径**: `backend/services/dsh_adapter.py:probe_dsh_vendor` / `backend/services/pi_adapter.py:probe_pi_vendor` → `record_audit(kind="dsh.adapter.exit_criteria_triggered" | "pi.adapter.exit_criteria_triggered", payload={commit_sha, exit_criteria_triggered: true, fallback_path: "ai_hub"})`。
+
+#### 修复 (8 个新文件 + 4 个改文件)
+
+**新文件**:
+- `backend/services/dsh_adapter.py` (343 行) — `DSHVendorUnavailableError` 显式异常 + `DSHCaller` Protocol + `probe_dsh_vendor` (启动 dsh 子进程写 session.ping) + `adapter_call_dsh` / `adapter_call_dsh_async` / `run_dsh_sync` (sync ctx 用 `asyncio.get_running_loop()` 检测 + `asyncio.run()` 兜底)
+- `backend/services/pi_adapter.py` (镜像 dsh, AgentSession event 协议 + `dist/cli.js` 预检)
+- `backend/tests/test_c06_real_dsh_adapter.py` (9 tests) — path/commit 锁 + D3 触发 + 注入路径 + mock subprocess + 协议
+- `backend/tests/test_c06_real_pi_adapter.py` (8 tests) — 同上 + AgentSession event 协议
+- `backend/tests/test_c06_async_call_dsh.py` (14 tests) — 4 service `_call_dsh` 返 str (非 coroutine) + 4 默认路径显式 ai_hub fallback + 1 D3 不静默吞 + 4 F821 `Callable` 类型断言 (via `inspect.signature`)
+
+**改文件 (R07 async 边界)**:
+- `backend/services/judgment_service.py:106` `dsh_caller: Callable[[str], str] | None = None` (was `Any`) + `_call_dsh` 注入 → `run_dsh_sync` → 捕获 `DSHVendorUnavailableError` → `asyncio.run(ai_service.generate_text)` → 双失败 raise `JudgmentValidationError`
+- `backend/services/action_service.py:86` 同上 pattern, raise `ActionValidationError`
+- `backend/services/knowledge_service.py:119` 同上 pattern, raise `KnowledgeValidationError`
+- `backend/services/skill_registry/sk01_daily_priority.py:90` 同上 pattern, raise `RuntimeError`
+
+**改文件 (live trace)**:
+- `scripts/t10_live_trace.py` `run_live_trace` 在 vendor probe 前先调 `probe_dsh_vendor` / `probe_pi_vendor`, D3 触发时写 audit + 返 `{"mode": "live", "live_trace": "blocked", "exit_criteria_triggered": True, ...}` + render "## ⚠️ C06 D3 节点降级 (R06)" 段
+
+#### 最小退出条件 (本切片 5 天, 含真实 vendor 验证)
+
+- (a) ✅ **R06 真 SDK 适配**: dsh/pi 适配器显式尝试启 vendor 子进程, 失败抛 `*VendorUnavailableError` (非静默), 写 audit
+- (b) ✅ **R07 async 边界**: 4 service `_call_dsh` 同步 ctx 安全 (用 `asyncio.run` 兜底 async 调), 31/31 C06 反例测试 pass (含 4 service _call_dsh 返 str 非 coroutine 基线)
+- (c) ✅ **F821 Any 清理**: 4 service `dsh_caller: Any = None` 全替 `Callable[[str], str] | None`; ruff check C06 触碰 0 错
+- (d) ✅ **live trace**: `python scripts/t10_live_trace.py --live` 返真实 vendor 失败 + `exit_criteria_triggered=True` (非固定 `"ok"`)
+- (e) ✅ **3 反例测试文件**: 31 tests, 全 pass
+- (f) ✅ **D3 节点降级非静默**: dsh/pi probe 失败必写 audit, 调方必显式 catch, fallback 路径确定
+- (g) ✅ **vendor 隔离**: `runtime/upstreams/<vendor>/.gitignore` 已含 (T04 落, C06 不动 HEAD)
+
+#### 验证
+
+- C06 test suite: **31/31 pass** (`test_c06_real_dsh_adapter` 9 + `test_c06_real_pi_adapter` 8 + `test_c06_async_call_dsh` 14)
+- ruff check C06 触碰 10 文件: **0 errors** (23 auto-fix import sort / F401 / RUF022 + 4 E702 semicolon 拆行)
+- 前端 `npx tsc --noEmit`: 0 errors
+- 全 pytest 回归: **4175 passed, 31 pre-existing baseline failures** (search_service FTS, **C09 提交后已存在**, 与 C06 无关 — 已在 stash baseline 上验证) + 9 skipped
+
+#### C06 暴露的真问题 (留 C07/C13/C14)
+
+- D3 降级后 ai_hub 是唯一真实 LLM 入口, 端到端 vendor 验证需外部 CI / 容器镜像重做 (留 C07)
+- ruff 全仓 165 错 (留 C14)
+- 3800 行迁移 (留 C13)
+- runtime binary 缺失 → 跨平台构建链 (T04 跟进, 留 C07)

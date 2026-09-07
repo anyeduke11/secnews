@@ -14,11 +14,13 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from collections.abc import Callable
+from datetime import datetime, timezone
 from typing import Any
 
 from backend.logging_config import logger
 from backend.repository.db import get_connection
+from backend.services.dsh_adapter import run_dsh_sync
 
 
 def _now_utc_iso() -> str:
@@ -85,7 +87,7 @@ class DailyPriorityIntelService:
     走 dsh (mock 注入可, 默认 ai_hub.generate_text) → top_items + watchlist_changes + suggested_actions.
     """
 
-    def __init__(self, *, dsh_caller: Any = None) -> None:
+    def __init__(self, *, dsh_caller: Callable[[str], str] | None = None) -> None:
         self._dsh_caller = dsh_caller
 
     def compute(
@@ -154,13 +156,33 @@ class DailyPriorityIntelService:
         }
 
     def _call_dsh(self, prompt: str) -> str:
+        """SK-01 调 dsh (settings.kv 切换 mock/stdio/http). 失败兜底 ai_hub (显式).
+
+        C06 R07 fix + D3 节点降级: 同 judgment/action/knowledge.
+        """
         if self._dsh_caller is not None:
             return self._dsh_caller(prompt)
+        from backend.services.dsh_adapter import DSHVendorUnavailableError
         try:
+            return run_dsh_sync(
+                prompt, task="daily_priority_intel", timeout_s=30.0,
+                caller_service="sk01", dsh_caller=None,
+            )
+        except DSHVendorUnavailableError as e:
+            logger.warning(
+                "sk01._call_dsh D3 exit_criteria: 真 vendor 不可用, "
+                "fallback 到 ai_hub (确定性协调器); commit_sha=%s; err=%s",
+                e.commit_sha, e,
+            )
+        try:
+            import asyncio
+
             from backend.services.ai_hub.service import ai_service
-            return ai_service.generate_text(
+            return asyncio.run(ai_service.generate_text(
                 messages=[{"role": "user", "content": prompt}],
                 task="daily_priority_intel", max_tokens=4000, temperature=0.2,
-            )
-        except Exception as e:
-            raise RuntimeError(f"ai_hub generate_text failed: {e}") from e
+            ))
+        except Exception as e2:
+            raise RuntimeError(
+                f"dsh (D3 exit_criteria triggered) + ai_hub both failed: {e2}"
+            ) from e2

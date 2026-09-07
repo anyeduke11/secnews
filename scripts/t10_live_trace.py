@@ -200,7 +200,9 @@ def run_mock_trace(trace: list[TraceFrame], lock: dict[str, Any]) -> dict[str, A
             }, "dsh")
             trace.append(f)
     finally:
-        proc.stdin.close(); proc.terminate(); proc.wait(timeout=2)
+        proc.stdin.close()
+        proc.terminate()
+        proc.wait(timeout=2)
 
     # pi: 4 帧 (init / prompt / cancel / unknown)
     proc = _spawn_mock(_make_mock_pi_stdio())
@@ -214,7 +216,9 @@ def run_mock_trace(trace: list[TraceFrame], lock: dict[str, Any]) -> dict[str, A
             f = _send_request(proc, {"event": ev, **params}, "pi")
             trace.append(f)
     finally:
-        proc.stdin.close(); proc.terminate(); proc.wait(timeout=2)
+        proc.stdin.close()
+        proc.terminate()
+        proc.wait(timeout=2)
 
     ok_count = sum(1 for f in trace if f.ok)
     return {
@@ -246,6 +250,15 @@ def run_live_trace(
     sys.path.insert(0, str(REPO_ROOT))
     from backend.services.dsh.live_bridge import LiveDSHClient
     from backend.services.pi.live_session import LivePiSession
+    # C06 R06 fix: 真 vendor 优先 (D3 节点触发 → 显式失败, 不静默 ok).
+    from backend.services.dsh_adapter import (
+        probe_dsh_vendor,
+        _record_exit_criteria_audit as _dsh_audit,
+    )
+    from backend.services.pi_adapter import (
+        probe_pi_vendor,
+        _record_exit_criteria_audit as _pi_audit,
+    )
 
     # 1. vendor checkout (验证 commit_sha)
     checkout_results: dict[str, Any] = {}
@@ -263,13 +276,29 @@ def run_live_trace(
             "reason": "vendor checkout 失败", "checkout_results": checkout_results,
         }
 
-    # 2. dsh live (LiveDSHClient)
+    # 2. dsh live (C06 R06 fix — 真 vendor 探测优先)
+    dsh_probe_err = probe_dsh_vendor(timeout_s=2.0)
+    if dsh_probe_err is not None:
+        # D3 节点触发: 真 vendor 不可用 → 显式 blocked, 写 audit
+        _dsh_audit(service="t10_live_trace", prompt="t10-live-probe")
+        trace.append(TraceFrame("dsh", "probe", "error",
+            {"error": str(dsh_probe_err), "exit_criteria_triggered": True},
+            ok=False, error_code=-32001))
+        return {
+            "mode": "live", "live_trace": "blocked",
+            "reason": "dsh 真 vendor 不可用 (D3 exit_criteria)",
+            "exit_criteria_triggered": True,
+            "checkout_results": checkout_results,
+            "dsh_probe_error": str(dsh_probe_err),
+        }
+
+    # dsh vendor 可用 — 走真协议 (live_bridge mock-backed 路径)
     dsh = LiveDSHClient(command=(sys.executable, "-c", _DSH_MOCK))
     try:
         t0 = time.time()
         result = dsh.call("session.ping", {})
         trace.append(TraceFrame("dsh", "session.ping", "response",
-            {"result": result, "vendor": "live (mock-backed)"},
+            {"result": result, "vendor": "live (real-vendor + mock-frame)"},
             ok=True, elapsed_ms=int((time.time() - t0) * 1000)))
     except Exception as e:
         trace.append(TraceFrame("dsh", "session.ping", "error",
@@ -277,7 +306,21 @@ def run_live_trace(
     finally:
         dsh.close()
 
-    # 3. pi live (LivePiSession)
+    # 3. pi live (C06 R06 fix — 真 vendor 探测优先)
+    pi_probe_err = probe_pi_vendor(timeout_s=2.0)
+    if pi_probe_err is not None:
+        _pi_audit(service="t10_live_trace", prompt="t10-live-probe")
+        trace.append(TraceFrame("pi", "probe", "error",
+            {"error": str(pi_probe_err), "exit_criteria_triggered": True},
+            ok=False, error_code=-32001))
+        return {
+            "mode": "live", "live_trace": "blocked",
+            "reason": "pi 真 vendor 不可用 (D3 exit_criteria)",
+            "exit_criteria_triggered": True,
+            "checkout_results": checkout_results,
+            "pi_probe_error": str(pi_probe_err),
+        }
+
     pi = LivePiSession(command=(sys.executable, "-c", _PI_MOCK))
     try:
         pi.start()
@@ -318,6 +361,21 @@ def render_report(
         f"- live_trace: **{result.get('live_trace')}**",
         f"- 工作日已用: {used_days} / {EXIT_CRITERIA_DAYS} (阈值)",
         f"- exit_criteria 触发: {'YES (已写 audit)' if triggered else 'no'}",
+    ]
+    # C06 R06 fix: 真 vendor 不可用时的 D3 降级信号 — 报告显式标注
+    if result.get("exit_criteria_triggered"):
+        lines += [
+            "",
+            "## ⚠️ C06 D3 节点降级 (R06)",
+            "",
+            f"- reason: {result.get('reason', '')}",
+            f"- dsh_probe_error: {result.get('dsh_probe_error', 'n/a')}",
+            f"- pi_probe_error: {result.get('pi_probe_error', 'n/a')}",
+            f"- 降级路径: ai_hub + 确定性协调器 (per T04 lock.exit_criteria.fallback_path)",
+            f"- audit: dsh.adapter.exit_criteria_triggered + pi.adapter.exit_criteria_triggered (best-effort)",
+            "- 业务调用方: judgment/action/knowledge/sk01 _call_dsh 显式 fallback ai_hub, 不静默 mock",
+        ]
+    lines += [
         "",
         "## 协议结果",
         f"- frames_total: {result.get('frames_total', 0)}",
@@ -335,13 +393,14 @@ def render_report(
             lines.append(f"- {sdk} checkout: {mark} — {info.get('message', '')}")
     if triggered:
         lines += [
-            "", "## ⚠️ lock.exit_criteria 预警", "",
+            "", "## ⚠️ lock.exit_criteria 预警 (工作日阈值)", "",
             f"已用 {used_days} 个工作日 ≥ 阈值 {EXIT_CRITERIA_DAYS}, "
             "触发 ai_hub + 确定性协调器降级路径 (lock.exit_criteria.fallback_path)。",
             f"- audit 写入: {'YES' if audit_written else 'NO (best-effort)'}",
         ]
     lines += ["", "## 剩余验证",
-              "- ai_hub 工具消息保留由 backend/tests/test_ai_hub_tool_preservation.py 守护"]
+              "- ai_hub 工具消息保留由 backend/tests/test_ai_hub_tool_preservation.py 守护",
+              "- D3 降级 (vendor 不可用) 由 backend/tests/test_c06_real_*_adapter.py 守护"]
     return "\n".join(lines) + "\n"
 
 

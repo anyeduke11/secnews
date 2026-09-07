@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import random
+from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 
@@ -19,6 +20,7 @@ from backend.exceptions import ConflictException, InvalidParamException, NotFoun
 from backend.logging_config import logger
 from backend.repository.action_repo import ActionRepository
 from backend.repository.judgment_repo import JudgmentRepository
+from backend.services.dsh_adapter import run_dsh_sync
 
 
 # ---------------------------------------------------------------------------
@@ -81,7 +83,7 @@ class ActionService:
         self, repo: ActionRepository | None = None,
         judgment_repo: JudgmentRepository | None = None,
         run_service: Any = None,  # RunService (避免循环 import; 注入供单测)
-        *, dsh_caller: Any = None,
+        *, dsh_caller: Callable[[str], str] | None = None,
     ) -> None:
         self.repo = repo or ActionRepository()
         self.judgment_repo = judgment_repo or JudgmentRepository()
@@ -176,17 +178,37 @@ class ActionService:
         )
 
     def _call_dsh(self, prompt: str) -> str:
-        """调 dsh (mock 注入优先, 默认走 ai_hub.generate_text)."""
+        """调 dsh (settings.kv 切换 mock/stdio/http). 失败兜底 ai_hub (显式).
+
+        C06 R07 fix: ai_service.generate_text 是 async, sync ctx 必须 asyncio.run.
+        C06 D3: 真 vendor 不可用 → DSHVendorUnavailableError → 显式 fallback ai_hub.
+        """
         if self._dsh_caller is not None:
             return self._dsh_caller(prompt)
+        from backend.services.dsh_adapter import DSHVendorUnavailableError
         try:
+            return run_dsh_sync(
+                prompt, task="inspection_materials", timeout_s=30.0,
+                caller_service="action", dsh_caller=None,
+            )
+        except DSHVendorUnavailableError as e:
+            logger.warning(
+                "action._call_dsh D3 exit_criteria: 真 vendor 不可用, "
+                "fallback 到 ai_hub (确定性协调器); commit_sha=%s; err=%s",
+                e.commit_sha, e,
+            )
+        try:
+            import asyncio
+
             from backend.services.ai_hub.service import ai_service
-            return ai_service.generate_text(
+            return asyncio.run(ai_service.generate_text(
                 messages=[{"role": "user", "content": prompt}],
                 task="inspection_materials", max_tokens=6000, temperature=0.2,
-            )
-        except Exception as e:
-            raise ActionValidationError(f"ai_hub generate_text failed: {e}") from e
+            ))
+        except Exception as e2:
+            raise ActionValidationError(
+                f"dsh (D3 exit_criteria triggered) + ai_hub both failed: {e2}"
+            ) from e2
 
     def _insert_planned(
         self, *, case_id: str, judgment_id: str, title: str, scope: str | None,

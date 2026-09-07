@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 
@@ -25,6 +26,7 @@ from backend.services.ai_hub.prompts import (
     build_cve_impact_brief_prompt,
     parse_cve_impact_brief_response,
 )
+from backend.services.dsh_adapter import run_dsh_sync
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +103,7 @@ class JudgmentService:
 
     def __init__(
         self, repo: JudgmentRepository | None = None,
-        *, dsh_caller: Any = None,
+        *, dsh_caller: Callable[[str], str] | None = None,
     ) -> None:
         self.repo = repo or JudgmentRepository()
         # dsh_caller: 可注入 (test 用); 默认 None 走 _call_dsh 默认实现
@@ -235,53 +237,53 @@ class JudgmentService:
         )
 
     def _call_dsh(self, prompt: str) -> str:
-        """调 dsh (走 task_router, settings.kv 切换 mock/stdio/http). 失败兜底 ai_hub."""
-        # 1) 测试注入: 直接调 self._dsh_caller
+        """调 dsh (settings.kv 切换 mock/stdio/http). 失败兜底 ai_hub (显式).
+
+        C06 R07 fix: 真 vendor / mock 都返**字符串**, 不返 coroutine.
+        sync 路径必须 ``asyncio.run`` 强制 event loop — 否则 ``ai_service.generate_text``
+        (async) 不 await, 返回的是 coroutine 对象, 旧实现隐藏此 bug, C06 反例测试固化.
+        C06 D3: 真 vendor 启动不可执行 → ``DSHVendorUnavailableError`` 上抛;
+        业务层 (本方法) 捕获后显式 fallback 到 ai_hub 确定性协调器, 写
+        ``dsh.adapter.exit_criteria_triggered`` audit, **不静默**.
+
+        调用顺序:
+          1. 注入 ``self._dsh_caller`` (单测) → 直返注入结果;
+          2. 走 ``run_dsh_sync`` → 真 vendor 探测失败 → DSHVendorUnavailableError;
+          3. 捕获 DSHVendorUnavailableError → 走 ai_hub.generate_text (确定性协调器);
+          4. ai_hub 也失败 → 上抛 JudgmentValidationError.
+        """
+        # 1) 测试注入 (单测反例测试)
         if self._dsh_caller is not None:
             return self._dsh_caller(prompt)
-        # 2) 生产路径
+        # 2) 生产路径: 真 vendor 优先 (D3 触发时显式抛 DSHVendorUnavailableError)
+        from backend.services.dsh_adapter import DSHVendorUnavailableError
         try:
-            from backend.services.ai_hub.gateway import LLMService
+            return run_dsh_sync(
+                prompt, task="cve_impact_brief", timeout_s=30.0,
+                caller_service="judgment", dsh_caller=None,
+            )
+        except DSHVendorUnavailableError as e:
+            # D3 节点触发: 真 vendor 不可用 → 显式 fallback ai_hub
+            logger.warning(
+                "judgment._call_dsh D3 exit_criteria: 真 vendor 不可用, "
+                "fallback 到 ai_hub (确定性协调器); commit_sha=%s; err=%s",
+                e.commit_sha, e,
+            )
+        # 3) ai_hub 确定性协调器 (C06 D3 降级目标); sync→async 必须 asyncio.run
+        try:
+            import asyncio
+
             from backend.services.ai_hub.service import ai_service
-            from backend.services.dsh.task_router import DSHTaskRouter
-        except ImportError as e:
-            raise JudgmentValidationError(f"dsh/ai_hub import failed: {e}") from e
-        # 优先 dsh task router; 失败兜底 ai_hub.generate_text
-        try:
-            # 尝试 dsh 真实调用; mock 模式下也走 DSHClient, settings.kv 决定 mode
-            from backend.services.dsh.runtime import dsh_runtime
-            effective, _reason = dsh_runtime.resolve_effective()
-            if effective == "subprocess":
-                # 真子进程模式 — 调 stdio live_bridge
-                from backend.services.dsh.live_bridge import LiveDSHClient
-                # 同步调用; 短超时避免挂起
-                client = LiveDSHClient(timeout=30.0)
-                try:
-                    resp = client.send_task(
-                        "cve-impact-brief", {"prompt": prompt, "max_tokens": 4000},
-                    )
-                    return resp.get("content") or resp.get("result") or json.dumps(resp)
-                finally:
-                    client.close()
-            # 默认 mock/http 模式: 走 ai_hub.generate_text (T10 入口)
-            return ai_service.generate_text(
+            return asyncio.run(ai_service.generate_text(
                 messages=[{"role": "user", "content": prompt}],
                 task="cve_impact_brief",
                 max_tokens=4000,
                 temperature=0.2,
-            )
-        except Exception as e:
-            logger.warning(f"dsh call failed, fallback to ai_hub direct: {e}")
-            try:
-                from backend.services.ai_hub.service import ai_service
-                return ai_service.generate_text(
-                    messages=[{"role": "user", "content": prompt}],
-                    task="cve_impact_brief",
-                    max_tokens=4000,
-                    temperature=0.2,
-                )
-            except Exception as e2:
-                raise JudgmentValidationError(f"dsh + ai_hub both failed: {e}; fallback={e2}") from e2
+            ))
+        except Exception as e2:
+            raise JudgmentValidationError(
+                f"dsh (D3 exit_criteria triggered) + ai_hub both failed: {e2}"
+            ) from e2
 
     def _insert_draft(
         self, *, case_id: str, parsed: dict[str, Any], submitted_by: str,

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import random
+from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 
@@ -33,6 +34,7 @@ from backend.repository.knowledge_revision_repo import (
     KnowledgeRevisionRepository,
 )
 from backend.repository.v1_knowledge_repo import V1KnowledgeRepository as KnowledgeRepository
+from backend.services.dsh_adapter import run_dsh_sync
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +116,7 @@ class KnowledgeService:
         repo: KnowledgeRepository | None = None,
         revision_repo: KnowledgeRevisionRepository | None = None,
         ref_repo: KnowledgeRefRepository | None = None,
-        *, dsh_caller: Any = None,
+        *, dsh_caller: Callable[[str], str] | None = None,
     ) -> None:
         self.repo = repo or KnowledgeRepository()
         self.revision_repo = revision_repo or KnowledgeRevisionRepository()
@@ -215,16 +217,36 @@ class KnowledgeService:
         )
 
     def _call_dsh(self, prompt: str) -> str:
+        """调 dsh (settings.kv 切换 mock/stdio/http). 失败兜底 ai_hub (显式).
+
+        C06 R07 fix + D3 节点降级: 同 judgment/action.
+        """
         if self._dsh_caller is not None:
             return self._dsh_caller(prompt)
+        from backend.services.dsh_adapter import DSHVendorUnavailableError
         try:
+            return run_dsh_sync(
+                prompt, task="knowledge_publish", timeout_s=30.0,
+                caller_service="knowledge", dsh_caller=None,
+            )
+        except DSHVendorUnavailableError as e:
+            logger.warning(
+                "knowledge._call_dsh D3 exit_criteria: 真 vendor 不可用, "
+                "fallback 到 ai_hub (确定性协调器); commit_sha=%s; err=%s",
+                e.commit_sha, e,
+            )
+        try:
+            import asyncio
+
             from backend.services.ai_hub.service import ai_service
-            return ai_service.generate_text(
+            return asyncio.run(ai_service.generate_text(
                 messages=[{"role": "user", "content": prompt}],
                 task="knowledge_publish", max_tokens=8000, temperature=0.2,
-            )
-        except Exception as e:
-            raise KnowledgeValidationError(f"ai_hub generate_text failed: {e}") from e
+            ))
+        except Exception as e2:
+            raise KnowledgeValidationError(
+                f"dsh (D3 exit_criteria triggered) + ai_hub both failed: {e2}"
+            ) from e2
 
     def _insert_draft(
         self, *, case_id: str, kind: str, parsed: dict[str, Any],

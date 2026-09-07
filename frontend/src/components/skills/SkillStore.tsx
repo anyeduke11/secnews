@@ -59,16 +59,6 @@ export function SkillStore({
   );
   const { toggle, busy } = useSkillToggle();
 
-  // v1.0 T15: 按 status 分桶 (v1_active 高亮区块, legacy_v0 折叠)
-  const v1ActiveSkills = useMemo(
-    () => skills.filter(s => (s as any).status === 'v1_active'),
-    [skills]
-  );
-  const legacySkills = useMemo(
-    () => skills.filter(s => (s as any).status !== 'v1_active'),
-    [skills]
-  );
-
   const visible = useMemo(() => {
     const kw = search.trim().toLowerCase();
     return skills.filter(s => {
@@ -79,6 +69,17 @@ export function SkillStore({
       return true;
     });
   }, [skills, typeFilter, statusFilter, search]);
+
+  // v1.0 T15: 按 status 分桶 (v1_active 高亮区块, legacy_v0 折叠)
+  // 必须从 filtered (visible) 而非原始 skills 派生, 否则 type/search 过滤无效
+  const v1ActiveSkills = useMemo(
+    () => visible.filter(s => (s as any).status === 'v1_active'),
+    [visible]
+  );
+  const legacySkills = useMemo(
+    () => visible.filter(s => (s as any).status !== 'v1_active'),
+    [visible]
+  );
 
   const handleToggle = async (skill: SkillSummary, next: boolean) => {
     try {

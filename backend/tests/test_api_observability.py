@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi import FastAPI
@@ -169,7 +169,7 @@ def test_aggregator_rolls_up_api_events(temp_db):
         ("trace-b", "GET", "/api/foo", 200, 20, None,
          (now.replace(minute=0, second=0, microsecond=0)).isoformat()),
         ("trace-c", "GET", "/api/foo", 500, 100, "boom",
-         now.replace(hour=now.hour - 1).isoformat()),
+         (now - timedelta(hours=1)).isoformat()),
     ]
     conn = get_connection()
     for row in rows_to_insert:

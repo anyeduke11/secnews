@@ -85,7 +85,8 @@ def _client_from_mock(mock_proc: subprocess.Popen, *, timeout_s: float = 5.0) ->
     cli._proc = mock_proc
     cli._next_id = 1
     cli._id_lock = __import__("threading").Lock()
-    import queue, threading
+    import queue
+    import threading
     cli._responses = queue.Queue()
     cli._reader = threading.Thread(
         target=cli.__class__.__module__ and _reader_for_test,

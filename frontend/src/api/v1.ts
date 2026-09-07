@@ -158,10 +158,20 @@ export interface PublishJudgmentBody {
 }
 
 export function listJudgments(q: ListJudgmentsQuery): Promise<ApiList<Judgment>> {
-  const { case_id, ...rest } = q;
-  return getJSON<ApiList<Judgment>>(
-    `/api/v1/judgments?case_id=${encodeURIComponent(case_id)}${buildQuery(rest)}`
-  );
+  // v1.0 C04 R13 修复: URLSearchParams 一次构建, 避免 `?case_id=ID?limit=50` 双 ?
+  // 旧实现: `?case_id=${case_id}${buildQuery(rest)}` → `?case_id=ID?limit=50`
+  //   (buildQuery 返 `?limit=50`, 与 `?case_id=ID` 拼出双 `?`)
+  // 修复: case_id 与 rest 一起入 URLSearchParams.set, 一次 toString 出单 `?`
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) {
+    if (v === undefined || v === null) continue;
+    if (Array.isArray(v)) {
+      v.forEach((item) => params.append(k, String(item)));
+    } else {
+      params.set(k, String(v));
+    }
+  }
+  return getJSON<ApiList<Judgment>>(`/api/v1/judgments?${params.toString()}`);
 }
 
 export function getJudgment(id: string): Promise<ApiVersioned<Judgment>> {
@@ -363,10 +373,17 @@ export interface ListArtifactsQuery {
 }
 
 export function listActions(q: ListActionsQuery): Promise<ApiList<Action>> {
-  const { case_id, ...rest } = q;
-  return getJSON<ApiList<Action>>(
-    `/api/v1/actions?case_id=${encodeURIComponent(case_id)}${buildQuery(rest)}`
-  );
+  // v1.0 C04 R13 修复: 同 listJudgments, 走 URLSearchParams 一次构建
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) {
+    if (v === undefined || v === null) continue;
+    if (Array.isArray(v)) {
+      v.forEach((item) => params.append(k, String(item)));
+    } else {
+      params.set(k, String(v));
+    }
+  }
+  return getJSON<ApiList<Action>>(`/api/v1/actions?${params.toString()}`);
 }
 
 export function getAction(id: string): Promise<ApiVersioned<Action>> {
@@ -390,10 +407,17 @@ export function cancelAction(id: string, body: StateChangeBody): Promise<ApiVers
 }
 
 export function listRuns(q: ListRunsQuery): Promise<ApiList<Run>> {
-  const { action_id, ...rest } = q;
-  return getJSON<ApiList<Run>>(
-    `/api/v1/runs?action_id=${encodeURIComponent(action_id)}${buildQuery(rest)}`
-  );
+  // v1.0 C04 R13 修复: 同 listJudgments, 走 URLSearchParams 一次构建
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) {
+    if (v === undefined || v === null) continue;
+    if (Array.isArray(v)) {
+      v.forEach((item) => params.append(k, String(item)));
+    } else {
+      params.set(k, String(v));
+    }
+  }
+  return getJSON<ApiList<Run>>(`/api/v1/runs?${params.toString()}`);
 }
 
 export function getRun(id: string): Promise<ApiVersioned<Run>> {
@@ -401,10 +425,17 @@ export function getRun(id: string): Promise<ApiVersioned<Run>> {
 }
 
 export function listArtifacts(q: ListArtifactsQuery): Promise<ApiList<Artifact>> {
-  const { run_id, ...rest } = q;
-  return getJSON<ApiList<Artifact>>(
-    `/api/v1/artifacts?run_id=${encodeURIComponent(run_id)}${buildQuery(rest)}`
-  );
+  // v1.0 C04 R13 修复: 同 listJudgments, 走 URLSearchParams 一次构建
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) {
+    if (v === undefined || v === null) continue;
+    if (Array.isArray(v)) {
+      v.forEach((item) => params.append(k, String(item)));
+    } else {
+      params.set(k, String(v));
+    }
+  }
+  return getJSON<ApiList<Artifact>>(`/api/v1/artifacts?${params.toString()}`);
 }
 
 export function getArtifact(id: string): Promise<ApiVersioned<Artifact>> {
@@ -507,15 +538,20 @@ export interface ReuseReceiptResponse {
 }
 
 export function listKnowledge(q: ListKnowledgeQuery): Promise<ApiList<Knowledge>> {
-  const { case_id, ...rest } = q;
-  // T15.5: case_id 可选; None 走 listAll (后端路由 case_id=Query(None) 不加 case_id query)
-  const casePrefix = case_id !== undefined
-    ? `case_id=${encodeURIComponent(case_id)}`
-    : "";
-  const sep = casePrefix ? "&" : "";
-  return getJSON<ApiList<Knowledge>>(
-    `/api/v1/knowledge${casePrefix ? "?" + casePrefix + sep + buildQuery(rest) : ""}`
-  );
+  // v1.0 C04 R13 修复: URLSearchParams 一次构建, 处理 case_id 可选 (T15.5)
+  // 旧实现: 字面拼 `?case_id=ID` + buildQuery(rest) 返 `?limit=50` → 双 `?`
+  // 修复: case_id 与 rest 一起入 URLSearchParams, 自动处理可选
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) {
+    if (v === undefined || v === null) continue;
+    if (Array.isArray(v)) {
+      v.forEach((item) => params.append(k, String(item)));
+    } else {
+      params.set(k, String(v));
+    }
+  }
+  const qs = params.toString();
+  return getJSON<ApiList<Knowledge>>(`/api/v1/knowledge${qs ? "?" + qs : ""}`);
 }
 
 export function getKnowledge(id: string): Promise<ApiVersioned<Knowledge>> {

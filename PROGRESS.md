@@ -591,3 +591,39 @@
 - worker noop 已 raise, 但真实 Skill runner (dsh/pi 适配) 仍需 C06 + C07 完成后才接
 
 **下一批 C04** (取数修+历史可见, R13/R14/R19): `frontend/src/api/v1.ts` buildQuery 单点 + 客户端 URL 契约测试 + Case 聚合查询 (避免 N+1) + history adapter 落 V1Prototype
+
+### 2026-09-07 v1.0 C04 取数修+历史可见 (R13 buildQuery 双?, DEV-0153)
+
+**C04 调用链盘点**:
+- R13 双?: `frontend/src/api/v1.ts` 5 个 list 函数 (listJudgments:160, listActions:375, listRuns:409, listArtifacts:427, listKnowledge:540) 拼 `?case_id=${id}${buildQuery(rest)}`, buildQuery 返 `?limit=50` → 拼出 `?case_id=ID?limit=50` 双 `?`. 后端 case_id 解析成 'ID?limit=50' 整串, 26 字符 ID 触发 max_length 422 或空集
+- R14 MOCK_*: `frontend/src/components/v1/V1Prototype.tsx` 用 6 个 MOCK_* 数组 (MOCK_CASES / MOCK_JUDGMENTS / MOCK_ACTIONS / MOCK_RUNS / MOCK_ARTIFACTS / MOCK_KNOWLEDGE) 占位, 真实 v1 表空时 usingFallback 显示 mock 数据 (C09 范围删)
+- R19 N+1: V1Prototype 串行 `cases.map(c => listJudgments({case_id: c.id}))` + `actions.map(a => listRuns({action_id: a.id}))` 真事项规模下 O(Cases × Actions) 请求数 (C11 范围后端聚合端点)
+
+**C04 修复** (`frontend/src/api/v1.ts`):
+- 5 个 list 函数 (listJudgments / listActions / listRuns / listArtifacts / listKnowledge) 全部走 URLSearchParams 一次构建, 不再字面拼 `?case_id=...` + buildQuery(rest)
+- listKnowledge 处理 case_id 可选 (T15.5 兼容) — URLSearchParams 自然跳过 undefined
+- 6 处 buildQuery(q as Record<string, unknown>) 调用 (listCases / skill-registry/v1 / signals / 等) 不动 — 它们不走 ID-prefix 拼接, 不会双 ?
+
+**C04 反例测试** (`frontend/src/api/__tests__/v1_url_builder.test.ts`, 7/7 pass):
+- R13 修复 1: listJudgments 26 字符 case_id + limit → 单 `?`, case_id 纯 ID 无 `?` 无 `limit` 串
+- R13 修复 2: listActions case_id + status + offset → 单 `?` + 3 个独立 & 连接
+- R13 修复 3: listRuns action_id + limit → 单 `?`
+- R13 修复 4: listArtifacts run_id + limit → 单 `?`
+- R13 修复 5: listKnowledge 不传 case_id → URL 不含 `case_id=`, 仍传 limit
+- R14 标记: V1Prototype.tsx 仍 export MOCK_*, C04 范围标 deprecated, 真删留 C09
+- R19 标记: V1Prototype 串行 fetch 是 N+1 模式, 真修 (后端聚合端点) 留 C11 契约设计
+
+**C04 退出条件验证**:
+- ✅ R13 修复: 5 个 list 函数双? 反例测试 5/5 pass
+- ✅ 全 vitest 435/435 pass (C04 7 + 之前 428), 0 回归
+- ✅ frontend tsc 0 错
+- ✅ 前端代理业务读取仍通: /api/v1/cases 200 + /api/skill-registry 26 项
+
+**C04 暴露的真问题** (留 C09/C10/C11):
+- V1Prototype MOCK_* 仍存在 (C09 删, 因真实 v1 表空)
+- V1Prototype 仍走 MOCK_* fallback (真实事项规模仍虚)
+- N+1 串行 fetch 仍存在 (C11 后端聚合)
+- test_search_service 19 fail 仍存在 (C11 helper 改 warm.knowledge_items)
+- ruff 全仓 165 错 (C14 集中修)
+
+**下一批 C09** (路由壳+UI 收尾, R14/R23/R24): 4 真路由拆 4 页面 + 删 `/v1-prototype` + 合并重复 `/knowledge` + 删 V1Prototype 内层 tabs + AppNav 14 项 + 4 屏截图

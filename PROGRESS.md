@@ -1033,5 +1033,108 @@ SK-01 dry-run 实际验: compute() 走完不 raise, 返 top_items/watchlist_chan
 
 **下一批 C12** (知识采用+失效反馈, R16, 2 天): derived_from 与 adopted_by 分离 (新表) + 新知识 total=0 起算 + 召回条件比较 + 采用绑定新 Case+revision + 到期/反证/撤回影响活跃事项
 
+### 2026-09-07 v1.0 C12 — 知识采用+失效反馈 (R16 修, DEV-0158, in_progress → verified)
+
+**目标**: 区分 derived_from (知识建立时来源) 与 adopted_by (后续不同 case+revision 真正采用); 新知识 total 从 0 起算; 召回条件比较; 采用绑定新 Case+revision + 条件差异; 到期/反证/撤回影响活跃事项。
+
+**R16 根因 + 物理分离**
+
+旧 `v1_knowledge_refs.role='used'` 一列同时承担 derived_from (建库时的来源) + adopted_by (后续 case 真的采用) 两类语义, 数字虚高且无法分清因果。C12 物理拆出 `v1_knowledge_adoptions` 新表, 旧 refs 表只记 derived_from。
+
+**Schema 修 (migration 106)**
+
+`backend/repository/migrations/106_v10_knowledge_adoptions.sql`:
+- 列: `id INTEGER PK` / `knowledge_id` / `knowledge_revision` / `case_id` (26 字符 ULID) / `decision` (adopted/skipped/rejected) / `condition_diff_json` / `outcome` (success/failure/partial) / `outcome_note` / `adopted_at` / `adopted_by` / `decided_by`
+- 唯一约束: `UNIQUE(knowledge_id, knowledge_revision, case_id)` 幂等 (重复 adopt 自动覆盖 decision+condition_diff)
+- 3 索引: case 维度 (回查某 case 用了什么) / decision 维度 (筛 adopted 行挂 blocker) / recent (30 天回执)
+- 已 apply 至 live DB, schema_version 105 → 106
+
+**R16.1 service 修** (4 新 method, `backend/services/knowledge_service.py`)
+
+- `record_adoption(*, knowledge_id, case_id, condition_diff, decision, decided_by, adopted_by=None)` — INSERT/UPSERT 走 `ON CONFLICT(knowledge_id, knowledge_revision, case_id) DO UPDATE`, condition_diff_json 序列化, decision enum 校验; 失败 raise
+- `record_outcome(*, knowledge_id, case_id, outcome, outcome_note=None)` — UPDATE 既有 adopted 行 outcome 字段, 幂等
+- `recall_for_case(case_id, *, knowledge_id)` — 返 `{applicable: knowledge.status ∈ (published/deprecated) AND case 存在, prerequisite_match: 知识 prereq ⊆ case.tags_json 弱匹配, counter_example_conflict: case.tags_json 撞 counter, adoption_history: 其他 case 的采用历史 (排除 self), knowledge_status, prerequisites, counter_examples}`
+- `_attach_blocker_to_adopted_cases(knowledge_id, marker)` — 扫 `v1_knowledge_adoptions WHERE decision=adopted` → 给每个 case `tags_json` 追加 `knowledge_retracted:{kid}` 或 `knowledge_deprecated:{kid}` (JSON 去重不挂同 marker 两次, append-only 不写 adoption 历史)
+
+**R16.4 撤回/反证挂 blocker**
+
+`retract()` 和 `deprecate()` 流程前置调用 `_attach_blocker_to_adopted_cases`:
+- `retract()` → marker=`knowledge_retracted:{kid}` (高置信阻断, 业务级)
+- `deprecate()` → marker=`knowledge_deprecated:{kid}` (软提示, 时间窗口)
+- 撤回/反证不删旧 adoption 行 (append-only, 历史可追溯), 只追加 case blocker
+
+**R16.5 reuse 改数**
+
+`get_reuse_receipt(knowledge_id)` 旧派生 `{total: count refs WHERE role=used, by_judgment, by_action, recent_30d}` 误把 derived_from 计入 reuse → 改派生 `{total: count adoptions WHERE decision=adopted, by_decision: dict, by_outcome: dict, recent_30d: count}`。**新知识 total=0 起算**, 必须真实被某 case `decision=adopted` 才计入, 派生数与决策路径一一对应。
+
+**API 4 端点** (`backend/api/knowledge_api.py`)
+
+- `POST /api/v1/knowledge/{id}/adopt` — body `AdoptKnowledgeRequest{case_id: ^[A-Z2-7]{26}$, decision: adopted|skipped|rejected, condition_diff: list[str], decided_by, adopted_by?}`, case 必须存在 v1_cases 否则 404, 走 `record_adoption` 幂等 upsert, 返 201
+- `GET /api/v1/knowledge/{id}/adoptions?case_id=&decision=` — 列表 (case_id+decision 组合筛), 返 `{items: [Adoption], total}`
+- `POST /api/v1/knowledge/{id}/outcome` — body `OutcomeKnowledgeRequest{case_id, outcome: success|failure|partial, outcome_note?}`, 走 `record_outcome` UPDATE
+- `GET /api/v1/knowledge/{id}/recall?case_id=...` — 走 `recall_for_case` 返完整结构 (applicable + prereq/counter 条件比较 + adoption_history + knowledge_status + 原始 prereqs/counters)
+
+**前端 R16** (`frontend/src/api/v1.ts` + `frontend/src/components/v1/V1Prototype.tsx`)
+
+- `ReuseReceipt` 类型: 删 `by_judgment`/`by_action` 字段, 加 `by_decision: Record<string, number>` + `by_outcome: Record<string, number>`
+- 4 新 client: `adoptKnowledge(id, body)` / `listAdoptions(id, opts)` / `recordKnowledgeOutcome(id, body)` / `recallKnowledgeForCase(id, case_id)`
+- `KnowledgeView` UI: 顶部 receipt 改数显示 `采用: total={n} · 决策 {dict} · 结果 {dict} · 近 30 天 {n}`; 每条 knowledge 加 "采用此经验" 按钮 (开 dialog 输 case_id + condition_diff JSON textarea) + "记结果" 按钮 (success/failure/partial); knowledge status=retracted/deprecated 顶部 blocker banner 显 `该经验已撤回/已弃用, 关联 {n} 个 case 已挂 blocker`
+- 5 个 toast.show 调 `toast.show({type, message})` 对象签名 (C10/C11 迁移)
+
+**SK-05 output_schema 同步** (`backend/services/skill_registry/v1_skills.py`)
+
+- `desc` 改 "新 case 检索已有 knowledge (ReuseReceipt C12 R16.5: total=0 起算, by_decision/by_outcome/recent_30d 派生) + 条件对比 + 采用回执"
+- `output_schema.receipt.properties` 改 `by_decision: object + by_outcome: object` 替 `by_judgment: int + by_action: int`
+- `__all__` ruff RUF022 auto-fix 排序
+
+**反例测试** (`backend/tests/test_c12_knowledge_adoption.py`, 6 R16 reverse)
+
+- `test_derived_from_does_not_count_as_reuse` — R16.1 旧 v1_knowledge_refs.role='used' 数字不再影响 receipt
+- `test_record_adoption_inserts_unique_row` — R16.1 UPSERT 走 ON CONFLICT 幂等, case 必存在 v1_cases
+- `test_record_outcome_updates_existing_row` — outcome upsert 不插入新行
+- `test_recall_excludes_self_case_from_history` — R16.3 self case 排除, 召回仅看其他 case 的采用历史
+- `test_retract_attaches_blocker_to_adopted_case` — R16.4 retract 后 v1_cases.tags_json 含 `knowledge_retracted:{kid}`
+- `test_reuse_receipt_only_counts_adoptions` — R16.5 新契约 total=0/by_decision={}/by_outcome={}, 旧 by_judgment/by_action 字段不存在
+
+**API 反例** (`backend/tests/test_knowledge_api.py`, 4 new)
+
+- `test_adopt_endpoint_creates_adoption_row` — POST /adopt 返 201 + adoption row
+- `test_outcome_endpoint_updates_outcome_field` — POST /outcome 改既有行
+- `test_recall_endpoint_returns_condition_diff` — GET /recall 返 prereq/counter + history
+- `test_retract_endpoint_attaches_blocker_to_adopted_case` — 端到端走通 blocker 路径
+
+**旧 test 同步** (R10 fix side effect)
+
+- `test_knowledge_service.test_publish_draft_to_published` 断言 `wiki_path == "items/knowledge_{id}.md"` (C08 R10 fix 已改 canonical path, 旧断言 `"knowledge/{id}.md"` 失效)
+- `test_knowledge_reuse.test_reuse_receipt_derives_2_refs` 改 `test_reuse_receipt_only_counts_adoptions` 锁定 C12 R16.5 新契约
+
+**退出条件验证 (a-f)**:
+
+- (a) backend 6/6 R16 反例 pass + 4/4 API 反例 pass + 旧 reuse test 改新契约 pass
+- (b) 前端 9/9 c10 mutation mock + 8/8 c11 aggregate/SSE mock 同步 R16.5 by_decision/by_outcome 字段 (无回归)
+- (c) 全 vitest 463/463 pass (C12 0 新增前端反例, 仅 mock 同步), 0 回归
+- (d) 全 pytest 4245/4245/9 skipped/31 failed (C12 10 new + 之前 4205), 31 failed = 28 search/wiki FTS 域 + 3 conftest autouse baseline (C05/C07/C08 已记录, 与 C12 无关)
+- (e) ruff C12 触碰 7 文件 0 错 (RUF022 __all__ sort auto-fix)
+- (f) **实际入口演示** (8910 后端真跑): 8 步走通
+  1. POST /api/v1/knowledge (create + publish) → reuse receipt = 0
+  2. 插 v1_cases demo `C12LIVE000000000000000001`
+  3. POST /api/v1/knowledge/{kid}/adopt (decision=adopted, condition_diff=[cve2026-31337,nginx,prod]) → 201, receipt.total=1
+  4. GET /api/v1/knowledge/{kid}/recall?case_id=... → {applicable:true, prereq_match:true, counter_conflict:false, history:[], knowledge_status:published}
+  5. GET /api/v1/knowledge/{kid}/adoptions → 1 行 (decision=adopted, outcome=null)
+  6. POST /api/v1/knowledge/{kid}/outcome (outcome=success) → receipt.by_outcome = {success: 1}
+  7. POST /api/v1/knowledge/{kid}/retract → 200
+  8. 查 v1_cases.tags_json → `["knowledge_retracted:{kid}"]` (R16.4 验证, append-only 不改 adoption 历史)
+
+**已知限制 (留 C14)**
+
+- V1EvidenceService entity_type=knowledge 仍不支持 (T12 已知, 走 record_audit 静默降级 warning, v1_knowledge insert 仍成功)
+- KnowledgeService.retract/deprecate 不写 audit_log (C13 同步补)
+- recall history 排除 self case (R16.3 契约)
+- ruff 全仓 165 错 (C14 治理) / 3800 行迁移 (C13) / 旧 knowledge_items 853 行 T18
+
+**数字**: migration 105→**106** (新表 v1_knowledge_adoptions) / pytest 4205→**4245** (+10 C12 new: 6 service + 4 API) / vitest 463 不变 (mock 同步不计新增) / API 端点 79→**83** (adopt + adoptions + outcome + recall)
+
+**下一批 C13** (全量保真迁移, R11/R20 收口, 3 天): 3800 行真跑 + legacy_source + legacy_id + legacy_revision → new_id + new_revision 稳定映射 + 正文保真 + 分页水位 + 切换回退 runbook
+
 
 

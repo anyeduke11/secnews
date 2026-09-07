@@ -525,16 +525,70 @@ export interface RetractKnowledgeBody extends StateChangeBody {
 }
 
 export interface ReuseReceipt {
-  total: number;
-  by_judgment: number;
-  by_action: number;
-  recent_30d: number;
+  // C12 R16.5: derived_from 不计 reuse, total=0 起算; 弃用 by_judgment/by_action
+  total: number;            // decision=adopted 计数 (新知识从 0 起算)
+  by_decision: { adopted?: number; skipped?: number; rejected?: number; [k: string]: number | undefined };
+  by_outcome: { success?: number; partial?: number; failure?: number; unknown?: number; [k: string]: number | undefined };
+  recent_30d: number;       // 30 天内 adoptions 数
 }
 
 export interface ReuseReceiptResponse {
   version: string;
   knowledge_id: string;
   receipt: ReuseReceipt;
+}
+
+// C12 R16.2: 知识采用 (adopted_by 物理表 v1_knowledge_adoptions)
+export interface ConditionDiff {
+  field: string;             // 字段名 (prereq1, counter_X, 等)
+  expected: string;          // 知识建立时的预期
+  actual: string;            // 当前 case 实际条件
+  severity?: 'match' | 'mismatch' | 'partial';
+}
+
+export interface Adoption {
+  id: number;
+  knowledge_id: string;
+  knowledge_revision: number;
+  case_id: string;
+  decision: 'adopted' | 'skipped' | 'rejected';
+  condition_diff_json: ConditionDiff[];
+  outcome: 'success' | 'partial' | 'failure' | 'unknown' | null;
+  outcome_note: string | null;
+  adopted_at: string;
+  adopted_by: string | null;
+  decided_by: string;
+}
+
+export interface AdoptKnowledgeBody {
+  case_id: string;             // 26-char ULID
+  decision: 'adopted' | 'skipped' | 'rejected';
+  condition_diff: ConditionDiff[];
+  decided_by: string;          // ≤64
+  adopted_by?: string;         // ≤64, optional
+}
+
+export interface OutcomeKnowledgeBody {
+  case_id: string;
+  outcome: 'success' | 'partial' | 'failure' | 'unknown';
+  outcome_note?: string;
+}
+
+export interface RecallResponse {
+  version: string;
+  knowledge_id: string;
+  case_id: string;
+  applicable: boolean;
+  prerequisite_match: { matched: string[]; mismatched: string[] };
+  counter_example_conflict: { conflicting: string[] };
+  adoption_history: Adoption[];   // 该 case 对该知识的历史采用记录
+}
+
+export interface AdoptionsListResponse {
+  version: string;
+  knowledge_id: string;
+  items: Adoption[];
+  total: number;
 }
 
 export function listKnowledge(q: ListKnowledgeQuery): Promise<ApiList<Knowledge>> {
@@ -576,6 +630,27 @@ export function deprecateKnowledge(id: string, body: DeprecateKnowledgeBody): Pr
 
 export function retractKnowledge(id: string, body: RetractKnowledgeBody): Promise<ApiVersioned<Knowledge>> {
   return postJSON<ApiVersioned<Knowledge>>(`/api/v1/knowledge/${encodeURIComponent(id)}/retract`, body);
+}
+
+// C12 R16: 知识采用 (adopted_by) + 结果记录 + 召回
+export function adoptKnowledge(id: string, body: AdoptKnowledgeBody): Promise<ApiVersioned<Adoption>> {
+  return postJSON<ApiVersioned<Adoption>>(`/api/v1/knowledge/${encodeURIComponent(id)}/adopt`, body);
+}
+
+export function listAdoptions(id: string, opts?: { case_id?: string; decision?: 'adopted' | 'skipped' | 'rejected' }): Promise<AdoptionsListResponse> {
+  const params = new URLSearchParams();
+  if (opts?.case_id) params.set('case_id', opts.case_id);
+  if (opts?.decision) params.set('decision', opts.decision);
+  const qs = params.toString();
+  return getJSON<AdoptionsListResponse>(`/api/v1/knowledge/${encodeURIComponent(id)}/adoptions${qs ? "?" + qs : ""}`);
+}
+
+export function recordKnowledgeOutcome(id: string, body: OutcomeKnowledgeBody): Promise<ApiVersioned<Adoption>> {
+  return postJSON<ApiVersioned<Adoption>>(`/api/v1/knowledge/${encodeURIComponent(id)}/outcome`, body);
+}
+
+export function recallKnowledgeForCase(id: string, case_id: string): Promise<RecallResponse> {
+  return getJSON<RecallResponse>(`/api/v1/knowledge/${encodeURIComponent(id)}/recall?case_id=${encodeURIComponent(case_id)}`);
 }
 
 // ===========================================================================

@@ -7,9 +7,8 @@ import pytest
 
 from backend.repository.db import get_connection
 from backend.services.knowledge_service import (
-    KnowledgeService,
-    KnowledgeConflictError,
     KnowledgeNotFoundError,
+    KnowledgeService,
 )
 
 
@@ -56,14 +55,16 @@ def _seed(material_id: str = "MAT-R1", content_hash: str = "r" * 64) -> str:
 
 
 def test_reuse_receipt_derives_2_refs(temp_db) -> None:
-    """§9.4 ReuseReceipt 派生: judgment 1 + action 1 = total 2."""
+    """C12 R16.5: derived_from 不计 reuse, total=0; 无 by_judgment/by_action."""
     kid = _seed()
     svc = KnowledgeService()
     r = svc.get_reuse_receipt(kid)
-    assert r["by_judgment"] == 1
-    assert r["by_action"] == 1
-    assert r["total"] == 2
-    assert r["recent_30d"] == 2
+    assert r["total"] == 0
+    assert "by_judgment" not in r
+    assert "by_action" not in r
+    assert r["by_decision"] == {}
+    assert r["by_outcome"] == {}
+    assert r["recent_30d"] == 0
 
 
 def test_reuse_receipt_not_found_raises() -> None:

@@ -164,7 +164,7 @@ function setupMocks(over: {
   (api.listRuns as any).mockResolvedValue({ items: [r] });
   (api.listArtifacts as any).mockResolvedValue({ items: [art] });
   (api.listKnowledge as any).mockResolvedValue({ items: [] as Knowledge[] });
-  (api.getKnowledgeReuse as any).mockResolvedValue({ receipt: { total: 0, by_judgment: 0, by_action: 0, recent_30d: 0 } });
+  (api.getKnowledgeReuse as any).mockResolvedValue({ receipt: { total: 0, by_decision: {}, by_outcome: {}, recent_30d: 0 } });
   // C11 R19: 单点 aggregate mock — 走新端点, 5 类对象一次返.
   (api.getCaseAggregate as any).mockResolvedValue({
     version: '1.0.0',

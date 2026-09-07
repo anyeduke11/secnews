@@ -99,7 +99,7 @@ def test_get_knowledge_404(client) -> None:
 
 
 def test_reuse_receipt_endpoint(client) -> None:
-    """GET /api/v1/knowledge/{id}/reuse 返 §9.4 派生 {total, by_judgment, by_action, recent_30d}."""
+    """GET /api/v1/knowledge/{id}/reuse 返 C12 R16 收口: total=0 (无 adoptions)."""
     _seed_material_and_judgment_action()
     j = client.post("/api/v1/knowledge/generate", json={
         "case_id": "C" * 26, "judgment_id": "J" * 26, "action_id": "A" * 26,
@@ -108,9 +108,13 @@ def test_reuse_receipt_endpoint(client) -> None:
     r = client.get(f"/api/v1/knowledge/{j['id']}/reuse")
     assert r.status_code == 200
     receipt = r.json()["receipt"]
-    assert receipt["by_judgment"] == 1
-    assert receipt["by_action"] == 1
-    assert receipt["total"] == 2
+    # C12 R16.5 收口: 新知识 derived_from 不计 reuse, total=0
+    assert receipt["total"] == 0
+    assert "by_judgment" not in receipt
+    assert "by_action" not in receipt
+    assert "by_decision" in receipt
+    assert "by_outcome" in receipt
+    assert "recent_30d" in receipt
 
 
 def test_publish_draft_to_published(client) -> None:
@@ -122,7 +126,8 @@ def test_publish_draft_to_published(client) -> None:
     r = client.post(f"/api/v1/knowledge/{j['id']}/publish", json={"expected_revision": 1})
     assert r.status_code == 200
     assert r.json()["item"]["status"] == "published"
-    assert r.json()["item"]["wiki_path"] == f"knowledge/{j['id']}.md"
+    # R10 fix: wiki_path 用 env 根 + items/knowledge_{id}.md (非字面 knowledge/)
+    assert r.json()["item"]["wiki_path"] == f"items/knowledge_{j['id']}.md"
 
 
 def test_publish_cas_revision_mismatch_409(client) -> None:

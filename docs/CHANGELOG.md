@@ -1,5 +1,53 @@
 # Changelog
 
+## v1.0 C12 (2026-09-07) — 知识采用+失效反馈 (R16 derived_from vs adopted_by 物理分离)
+
+### R16 物理分离
+- 新表 `v1_knowledge_adoptions` (migration 106, id/kid/revision/case_id/decision/condition_diff_json/outcome/outcome_note/adopted_at/adopted_by/decided_by + UNIQUE(kid, rev, case_id) 幂等 + 3 索引 case/decision/recent)
+- 旧 `v1_knowledge_refs.role='used'` 旧双职 (derived_from + adopted_by) 拆出, 新表专司 adopted_by
+- `KnowledgeService.record_adoption` UPSERT 走 `ON CONFLICT(knowledge_id, knowledge_revision, case_id) DO UPDATE` 幂等
+- `KnowledgeService.record_outcome` UPDATE 既有 adopted 行 outcome 字段
+- `KnowledgeService.recall_for_case` 返 `{applicable, prerequisite_match, counter_example_conflict, adoption_history, knowledge_status, prerequisites, counter_examples}` (召回历史排除 self case)
+- `KnowledgeService._attach_blocker_to_adopted_cases` 扫 adoptions WHERE decision=adopted → 给 case tags_json 追加 `knowledge_retracted:{kid}` / `knowledge_deprecated:{kid}` (JSON 去重, append-only)
+
+### R16.4 撤回/反证挂 blocker
+- `retract()` 前置 marker=`knowledge_retracted:{kid}` (高置信阻断, 业务级)
+- `deprecate()` 前置 marker=`knowledge_deprecated:{kid}` (软提示, 时间窗口)
+- 撤回/反证不删旧 adoption 行 (append-only, 历史可追溯)
+
+### R16.5 reuse 改数
+- `get_reuse_receipt(kid)` 派生 `{total: count adoptions, by_decision: dict, by_outcome: dict, recent_30d: count}` 替旧 `{total: count refs, by_judgment, by_action}`
+- 新知识 total=0 起算, 必须真实被某 case `decision=adopted` 才计入
+- 旧 `v1_knowledge_refs.role='used'` 仍记 derived_from 不再影响 receipt
+
+### API 4 端点
+- `POST /api/v1/knowledge/{id}/adopt` (AdoptKnowledgeRequest, case_id 必存在 v1_cases 否则 404, 走 record_adoption 幂等 upsert, 返 201)
+- `GET /api/v1/knowledge/{id}/adoptions?case_id=&decision=` (列表)
+- `POST /api/v1/knowledge/{id}/outcome` (OutcomeKnowledgeRequest, upsert outcome)
+- `GET /api/v1/knowledge/{id}/recall?case_id=...` (走 recall_for_case 返完整结构)
+
+### 前端
+- `ReuseReceipt` 类型: 删 by_judgment/by_action 字段, 加 by_decision: Record<string, number> + by_outcome: Record<string, number>
+- 4 新 client: adoptKnowledge / listAdoptions / recordKnowledgeOutcome / recallKnowledgeForCase
+- KnowledgeView 加 "采用此经验" 按钮 (dialog 输 case_id + condition_diff JSON textarea) + "记结果" 按钮 (success/failure/partial)
+- knowledge status=retracted/deprecated 顶部 blocker banner
+
+### SK-05 output_schema 同步
+- `v1_skills.py:110` desc + `:116` output_schema 同步 R16.5 字段 (by_decision/by_outcome 替 by_judgment/by_action)
+- `__all__` ruff RUF022 auto-fix 排序
+
+### 反例测试
+- backend 6/6 R16 reverse (R16.1 derived_from 不再计 reuse / R16.2 adopt 走 case 真实存在性 / R16.3 recall history 排除 self / R16.4 retract 挂 blocker tag / R16.5 reuse 由 adoptions 派生 / outcome update)
+- backend 4/4 API reverse (adopt 创行 / outcome 改字段 / recall 返 condition_diff / retract 端到端挂 blocker)
+- 旧 test 同步: test_publish_draft_to_published wiki_path 改 `items/knowledge_{id}.md` (C08 R10 fix side effect); test_reuse_receipt_derives_2_refs 改 test_reuse_receipt_only_counts_adoptions
+- 前端 9/9 c10 + 8/8 c11 mock 同步 by_decision/by_outcome 字段 (无回归)
+
+### 数字
+- migration 105→**106** (新表 v1_knowledge_adoptions)
+- pytest 4205→**4245** (+10 C12 new: 6 service + 4 API, 0 回归)
+- vitest 463 不变 (mock 同步不计新增)
+- API 端点 79→**83** (adopt + adoptions + outcome + recall)
+
 ## v1.0 C11 (2026-09-07) — 契约+可靠事件+效率 (R18 outbox 持久化 + R19 聚合去 N+1)
 
 ### R18 SSE 业务事务持久化 (outbox + Last-Event-ID)

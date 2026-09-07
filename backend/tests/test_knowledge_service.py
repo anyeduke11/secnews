@@ -6,15 +6,12 @@ import json
 import pytest
 
 from backend.repository.db import get_connection
-from backend.services.action_service import ActionService
-from backend.services.artifact_service import ArtifactService
 from backend.services.knowledge_service import (
     KnowledgeConflictError,
     KnowledgeNotFoundError,
     KnowledgeService,
     KnowledgeValidationError,
 )
-from backend.services.run_service import RunService
 
 
 def _dsh_response() -> str:
@@ -177,14 +174,19 @@ def test_retract_published_to_retracted_terminal(temp_db) -> None:
 # ---------------------------------------------------------------------------
 # 复用 + 复查 (4 测试)
 # ---------------------------------------------------------------------------
-def test_reuse_receipt_derives_by_source_type(temp_db) -> None:
+def test_reuse_receipt_only_counts_adoptions(temp_db) -> None:
+    """C12 R16.5 收口: 新知识 receipt 必 total=0 (derived_from 不计 reuse).
+
+    原 test_reuse_receipt_derives_by_source_type 已被 R16 推翻:
+    derived_from (source refs) 不应计入 reuse — 改写为 adoptions-only 契约.
+    """
     kid = _make_draft()
     svc = KnowledgeService()
     receipt = svc.get_reuse_receipt(kid)
-    assert receipt["by_judgment"] == 1
-    assert receipt["by_action"] == 1
-    assert receipt["total"] == 2
-    assert receipt["recent_30d"] == 2
+    assert receipt["total"] == 0
+    assert receipt["by_decision"] == {} or receipt["by_decision"].get("adopted", 0) == 0
+    assert "by_judgment" not in receipt
+    assert "by_action" not in receipt
 
 
 def test_list_by_case_returns_knowledge_for_case(temp_db) -> None:

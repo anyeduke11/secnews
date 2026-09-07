@@ -23,7 +23,8 @@ import {
   listCases, listKnowledge, getKnowledgeReuse, listSignals,
   getCaseAggregate,
   approveAction, startAction, cancelAction, verifyArtifact, acceptArtifact, rejectArtifact, closeCase,
-  type ReuseReceipt, type V1Signal,
+  adoptKnowledge, recordKnowledgeOutcome,
+  type ReuseReceipt, type V1Signal, type ConditionDiff, type AdoptKnowledgeBody,
 } from '../../api/v1';
 import { renderInlineMarkdown } from '../../lib/markdown';
 import { useSSEWithRefetch } from './useSSEWithRefetch';
@@ -557,10 +558,17 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
                       反例: {k.counter_examples.join('; ')}
                     </div>
                   )}
-                  {/* 复用记录 (SK-05 §9.4 派生) */}
+                  {/* 复用记录 (C12 R16.5: 只数 adoptions, derived_from 不计) */}
                   {receipt && (
                     <div className="text-xs mt-2 p-2 rounded" style={{ background: 'var(--bg-muted)', color: 'var(--text-muted)' }}>
-                      复用: total={receipt.total} (judgment {receipt.by_judgment} + action {receipt.by_action}) · 近 30 天 {receipt.recent_30d}
+                      采用: total={receipt.total}
+                      {Object.keys(receipt.by_decision || {}).length > 0 && (
+                        <> · 决策 {JSON.stringify(receipt.by_decision)}</>
+                      )}
+                      {Object.keys(receipt.by_outcome || {}).length > 0 && (
+                        <> · 结果 {JSON.stringify(receipt.by_outcome)}</>
+                      )}
+                      · 近 30 天 {receipt.recent_30d}
                     </div>
                   )}
                   {/* body 摘要 (Markdown 渲染) */}
@@ -791,20 +799,89 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
 // ---------------------------------------------------------------------------
 
 function KnowledgeView() {
-  // v1.0 T15.5: 接 listAll 真实数据 (无 case_id 走全局)
-  const [items, setItems] = useState<any[]>([]);
+  // v1.0 T15.5 + C12: 接 listAll 真实数据 + 采用 UI + 失效 blocker 提示
+  const [items, setItems] = useState<Knowledge[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 复用记录 (per knowledge id) — SK-05 §9.4 + C12 R16.5 派生
+  const [receipts, setReceipts] = useState<Record<string, ReuseReceipt>>({});
+  // 采用表单状态 (per knowledge id)
+  const [adoptOpenFor, setAdoptOpenFor] = useState<string | null>(null);
+  const [adoptCaseId, setAdoptCaseId] = useState('');
+  const [adoptDiff, setAdoptDiff] = useState<ConditionDiff[]>([]);
+  const [adoptSubmitting, setAdoptSubmitting] = useState(false);
+  const toast = useToast();
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
     listKnowledge({ limit: 50 })
-      .then((r) => { if (!cancelled) setItems(r.items); })
+      .then(async (r) => {
+        if (cancelled) return;
+        setItems(r.items);
+        // 拉每条 reuse receipt (C12 R16.5: total=0 起算, 只数 adoptions)
+        const ids = r.items.map((k) => k.id);
+        const newReceipts: Record<string, ReuseReceipt> = {};
+        await Promise.all(
+          ids.map(async (id) => {
+            try {
+              const rr = await getKnowledgeReuse(id);
+              newReceipts[id] = rr.receipt;
+            } catch {
+              // 单条拉取失败不阻塞其他
+            }
+          })
+        );
+        if (!cancelled) setReceipts(newReceipts);
+      })
       .catch((e) => { if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setItems([]); } })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
+
+  const submitAdoption = async (kid: string) => {
+    if (!adoptCaseId || adoptCaseId.length !== 26) {
+      toast.show({ type: 'error', message: 'case_id 必须是 26 字符 ULID' });
+      return;
+    }
+    setAdoptSubmitting(true);
+    try {
+      const body: AdoptKnowledgeBody = {
+        case_id: adoptCaseId,
+        decision: 'adopted',
+        condition_diff: adoptDiff,
+        decided_by: 'user',
+      };
+      await adoptKnowledge(kid, body);
+      toast.show({ type: 'success', message: '采用成功' });
+      setAdoptOpenFor(null);
+      setAdoptCaseId('');
+      setAdoptDiff([]);
+      // 刷新该条的 receipt
+      try {
+        const rr = await getKnowledgeReuse(kid);
+        setReceipts((prev) => ({ ...prev, [kid]: rr.receipt }));
+      } catch { /* swallow */ }
+    } catch (e) {
+      toast.show({ type: 'error', message: `采用失败: ${e instanceof Error ? e.message : String(e)}` });
+    } finally {
+      setAdoptSubmitting(false);
+    }
+  };
+
+  const recordOutcome = async (kid: string, caseId: string, outcome: 'success' | 'failure' | 'partial') => {
+    try {
+      await recordKnowledgeOutcome(kid, { case_id: caseId, outcome });
+      toast.show({ type: 'success', message: `已记录结果: ${outcome}` });
+      try {
+        const rr = await getKnowledgeReuse(kid);
+        setReceipts((prev) => ({ ...prev, [kid]: rr.receipt }));
+      } catch { /* swallow */ }
+    } catch (e) {
+      toast.show({ type: 'error', message: `记录结果失败: ${e instanceof Error ? e.message : String(e)}` });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <SectionTitle path="knowledge">经验库 {loading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}</SectionTitle>
@@ -819,19 +896,143 @@ function KnowledgeView() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {items.map(k => (
-            <div key={k.id} className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{k.title}</div>
-                  <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{k.kind} · {k.status}</div>
+          {items.map(k => {
+            const receipt = receipts[k.id];
+            // C12 R16.4: 撤回/弃用 → blocker 提示 (仅 published/deprecated/retracted 区别)
+            const isRetracted = k.status === 'retracted';
+            const isDeprecated = k.status === 'deprecated';
+            const isPublished = k.status === 'published';
+            return (
+              <div key={k.id} className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{k.title}</div>
+                    <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{k.kind} · {k.status} · rev {k.revision}</div>
+                  </div>
+                  <Badge color={isRetracted ? 'red' : isDeprecated ? 'gray' : isPublished ? 'green' : 'yellow'}>{k.status}</Badge>
                 </div>
-                <Badge color={k.status === 'published' ? 'green' : k.status === 'draft' ? 'yellow' : 'gray'}>{k.status}</Badge>
+                {/* C12 R16.4: 撤回/弃用 blocker 提示 */}
+                {isRetracted && (
+                  <div className="mt-2 p-2 rounded text-xs" style={{ background: 'var(--color-danger)', color: '#fff' }}>
+                    ⚠️ 此经验已被撤回, 已采用此知识的活跃 Case 已挂 blocker (knowledge_retracted:{k.id.slice(0, 8)}…), 建议复审
+                  </div>
+                )}
+                {isDeprecated && (
+                  <div className="mt-2 p-2 rounded text-xs" style={{ background: 'var(--color-warning)', color: '#fff' }}>
+                    ⚠️ 此经验已弃用{k.replacement_knowledge_id ? `, 替代: ${k.replacement_knowledge_id.slice(0, 8)}…` : ''}
+                  </div>
+                )}
+                <div className="text-sm mt-2 line-clamp-3" style={{ color: 'var(--text-primary)' }}>{k.body}</div>
+                {k.prerequisites && k.prerequisites.length > 0 && (
+                  <div className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>前提: {k.prerequisites.join('; ')}</div>
+                )}
+                {k.counter_examples && k.counter_examples.length > 0 && (
+                  <div className="text-xs mt-1" style={{ color: 'var(--color-warning)' }}>反例: {k.counter_examples.join('; ')}</div>
+                )}
+                {/* 复用记录 (C12 R16.5: 只数 adoptions) */}
+                {receipt && (
+                  <div className="text-xs mt-2 p-2 rounded" style={{ background: 'var(--bg-muted)', color: 'var(--text-muted)' }}>
+                    采用: total={receipt.total}
+                    {Object.keys(receipt.by_decision || {}).length > 0 && (
+                      <> · 决策 {JSON.stringify(receipt.by_decision)}</>
+                    )}
+                    {Object.keys(receipt.by_outcome || {}).length > 0 && (
+                      <> · 结果 {JSON.stringify(receipt.by_outcome)}</>
+                    )}
+                    · 近 30 天 {receipt.recent_30d}
+                  </div>
+                )}
+                {/* body 摘要 (Markdown 渲染) */}
+                {k.body && (
+                  <details className="mt-2">
+                    <summary className="text-xs cursor-pointer" style={{ color: 'var(--text-muted)' }}>查看 body</summary>
+                    <div
+                      className="text-xs mt-1 p-2 rounded prose-sm"
+                      style={{ background: 'var(--bg-muted)', color: 'var(--text-primary)' }}
+                      dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(k.body.slice(0, 500)) }}
+                    />
+                  </details>
+                )}
+                {/* C12 R16.2: 采用表单 (仅 published 可采用, 撤回/弃用禁用) */}
+                {isPublished && (
+                  <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--border-muted)' }}>
+                    {adoptOpenFor === k.id ? (
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          placeholder="目标 case_id (26 字符 ULID)"
+                          value={adoptCaseId}
+                          onChange={(e) => setAdoptCaseId(e.target.value)}
+                          className="w-full px-2 py-1 text-sm border rounded font-mono"
+                          style={{ borderColor: 'var(--border-muted)', background: 'var(--bg-input)' }}
+                          maxLength={26}
+                        />
+                        <textarea
+                          placeholder="条件差异 (JSON, 可选): [{field, expected, actual, severity}]"
+                          value={adoptDiff.length === 0 ? '' : JSON.stringify(adoptDiff, null, 2)}
+                          onChange={(e) => {
+                            try {
+                              const v = e.target.value.trim();
+                              setAdoptDiff(v ? JSON.parse(v) : []);
+                            } catch {
+                              /* ignore parse error mid-typing */
+                            }
+                          }}
+                          rows={3}
+                          className="w-full px-2 py-1 text-xs border rounded font-mono"
+                          style={{ borderColor: 'var(--border-muted)', background: 'var(--bg-input)' }}
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => submitAdoption(k.id)}
+                            disabled={adoptSubmitting}
+                            className="px-3 py-1 text-xs rounded text-white"
+                            style={{ background: 'var(--color-primary)' }}
+                          >
+                            {adoptSubmitting ? '采用中…' : '确认采用'}
+                          </button>
+                          <button
+                            onClick={() => { setAdoptOpenFor(null); setAdoptCaseId(''); setAdoptDiff([]); }}
+                            className="px-3 py-1 text-xs rounded"
+                            style={{ background: 'var(--bg-muted)' }}
+                          >
+                            取消
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setAdoptOpenFor(k.id)}
+                          className="px-3 py-1 text-xs rounded text-white"
+                          style={{ background: 'var(--color-primary)' }}
+                        >
+                          采用此经验
+                        </button>
+                        {/* 快捷结果记录 (假设已有 adopted case) */}
+                        {receipt && receipt.total > 0 && (
+                          <>
+                            <button
+                              onClick={() => {
+                                const c = prompt('记录结果的目标 case_id (26 字符):');
+                                if (c && c.length === 26) recordOutcome(k.id, c, 'success');
+                                else if (c) toast.show({ type: 'error', message: 'case_id 必须是 26 字符' });
+                              }}
+                              className="px-3 py-1 text-xs rounded"
+                              style={{ background: 'var(--color-success)' }}
+                            >
+                              记结果
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="text-xs mt-2 font-mono" style={{ color: 'var(--text-muted)' }}>{k.id}</div>
               </div>
-              <div className="text-sm mt-2 line-clamp-3" style={{ color: 'var(--text-primary)' }}>{k.body}</div>
-              <div className="text-xs mt-2 font-mono" style={{ color: 'var(--text-muted)' }}>{k.id}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

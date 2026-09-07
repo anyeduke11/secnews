@@ -21,6 +21,7 @@ SK-06 复查: 每日 review_due job 扫 review_at ≤ now + published → 挂 ca
 from __future__ import annotations
 
 import hashlib
+import json
 import random
 from collections.abc import Callable
 from datetime import datetime, timezone
@@ -376,6 +377,10 @@ class KnowledgeService:
             "status": "deprecated", "reason": reason, "wiki_path": k.get("wiki_path"),
             "content_hash": k.get("content_hash"), "recorded_at": _utcnow_iso(), "recorded_by": "user",
         })
+        # C12 R16.4: 弃用后挂 blocker 到所有 adopted 该知识的活跃 case
+        self._attach_blocker_to_adopted_cases(
+            knowledge_id, f"knowledge_deprecated:{knowledge_id}",
+        )
         result = self._require(knowledge_id)
         self._publish_v1_knowledge_event(result, "deprecated")
         return result
@@ -383,7 +388,12 @@ class KnowledgeService:
     def retract(
         self, knowledge_id: str, *, expected_revision: int, reason: str,
     ) -> dict[str, Any]:
-        """published|deprecated → retracted (终态, contracts §10.3 不删 wiki)."""
+        """published|deprecated → retracted (终态, contracts §10.3 不删 wiki).
+
+        C12 R16.4: 撤回后, 扫 v1_knowledge_adoptions 决策=adopted 的活跃 case,
+        挂 'knowledge_retracted:{kid}' blocker tag; 提示用户该知识已失效.
+        append-only: 不写 adoption 历史 (保留以备审计).
+        """
         k = self._require(knowledge_id)
         if k["status"] not in ("published", "deprecated"):
             raise KnowledgeConflictError(
@@ -405,6 +415,10 @@ class KnowledgeService:
             "status": "retracted", "reason": reason, "wiki_path": k.get("wiki_path"),
             "content_hash": k.get("content_hash"), "recorded_at": _utcnow_iso(), "recorded_by": "user",
         })
+        # C12 R16.4: 挂 blocker 到所有 adopted 该知识的活跃 case
+        self._attach_blocker_to_adopted_cases(
+            knowledge_id, f"knowledge_retracted:{knowledge_id}",
+        )
         result = self._require(knowledge_id)
         self._publish_v1_knowledge_event(result, "retracted")
         return result
@@ -469,9 +483,277 @@ class KnowledgeService:
         return self._require(knowledge_id)
 
     def get_reuse_receipt(self, knowledge_id: str) -> dict[str, Any]:
-        """§9.4 ReuseReceipt 派生: {total, by_judgment, by_action, recent_30d}."""
+        """C12 R16.5: ReuseReceipt 只数 adoptions, 弃用 by_judgment/by_action.
+
+        Returns
+        -------
+        {
+            "total": int,                       # 决策=adopted 计数
+            "by_decision": {adopted, skipped, rejected},
+            "by_outcome": {success, partial, failure, unknown},
+            "recent_30d": int,                  # 30 天内 adoptions 数
+        }
+        """
         self._require(knowledge_id)
-        return self.ref_repo.count_by_knowledge(knowledge_id)
+        conn = get_connection()
+        # 决策分布
+        decision_rows = conn.execute(
+            "SELECT decision, COUNT(*) FROM v1_knowledge_adoptions "
+            "WHERE knowledge_id = ? GROUP BY decision",
+            (knowledge_id,),
+        ).fetchall()
+        by_decision: dict[str, int] = {}
+        total = 0
+        for dec, cnt in decision_rows:
+            by_decision[dec] = cnt
+            if dec == "adopted":
+                total = cnt
+        # 结果分布
+        outcome_rows = conn.execute(
+            "SELECT COALESCE(outcome,'unknown'), COUNT(*) FROM v1_knowledge_adoptions "
+            "WHERE knowledge_id = ? AND decision = 'adopted' GROUP BY outcome",
+            (knowledge_id,),
+        ).fetchall()
+        by_outcome: dict[str, int] = {}
+        for out, cnt in outcome_rows:
+            by_outcome[out] = cnt
+        # 30 天内
+        recent_30d_row = conn.execute(
+            "SELECT COUNT(*) FROM v1_knowledge_adoptions "
+            "WHERE knowledge_id = ? AND decision = 'adopted' "
+            "AND adopted_at >= datetime('now', '-30 days')",
+            (knowledge_id,),
+        ).fetchone()
+        recent_30d = int(recent_30d_row[0]) if recent_30d_row else 0
+        return {
+            "total": total,
+            "by_decision": by_decision,
+            "by_outcome": by_outcome,
+            "recent_30d": recent_30d,
+        }
+
+    # ------------------------------------------------------------------
+    # C12 R16 — knowledge adoption (derived_from vs adopted_by 物理分离)
+    # ------------------------------------------------------------------
+    def record_adoption(
+        self,
+        *,
+        knowledge_id: str,
+        case_id: str,
+        condition_diff: list[dict[str, Any]],
+        decision: str,
+        decided_by: str,
+        adopted_by: str | None = None,
+    ) -> dict[str, Any]:
+        """C12 R16.2: 记录一次知识采用 → 物理写 v1_knowledge_adoptions (新表).
+
+        Parameters
+        ----------
+        knowledge_id :  采用的知识 id
+        case_id      :  采用方 case (与原创建 case 可不同, 跨 case 复用)
+        condition_diff: 与原 conditions/counter_examples 的差异 list
+                       [{field, expected, actual, severity}, ...]
+        decision     :  adopted|skipped|rejected
+        decided_by   :  决策人 (who)
+        adopted_by   :  默认 decided_by (保留双字段, audit 区分)
+
+        Returns
+        -------
+        {id, knowledge_id, knowledge_revision, case_id, decision, ...}
+        """
+        if decision not in ("adopted", "skipped", "rejected"):
+            raise KnowledgeValidationError(
+                f"decision must be adopted|skipped|rejected, got {decision!r}"
+            )
+        k = self._require(knowledge_id)
+        if k["status"] not in ("published", "deprecated"):
+            raise KnowledgeConflictError(
+                f"knowledge {knowledge_id} status={k['status']} "
+                f"(adoption requires published/deprecated)"
+            )
+        # case 必存
+        conn = get_connection()
+        row = conn.execute("SELECT 1 FROM v1_cases WHERE id = ?", (case_id,)).fetchone()
+        if row is None:
+            raise KnowledgeValidationError(f"case {case_id} not found")
+        now = _utcnow_iso()
+        cur = conn.execute(
+            "SELECT id, decision, condition_diff_json, outcome, outcome_note, "
+            "adopted_at, adopted_by, decided_by FROM v1_knowledge_adoptions "
+            "WHERE knowledge_id = ? AND knowledge_revision = ? AND case_id = ?",
+            (knowledge_id, k["revision"], case_id),
+        ).fetchone()
+        if cur is not None:
+            # 幂等: 已有 adoption 行, update decision + diff
+            conn.execute(
+                "UPDATE v1_knowledge_adoptions SET decision = ?, "
+                "condition_diff_json = ?, decided_by = ?, adopted_by = ?, "
+                "adopted_at = ? WHERE id = ?",
+                (
+                    decision,
+                    json.dumps(condition_diff, ensure_ascii=False),
+                    decided_by,
+                    adopted_by or decided_by,
+                    now,
+                    cur[0],
+                ),
+            )
+            conn.commit()
+            return {
+                "id": cur[0], "knowledge_id": knowledge_id,
+                "knowledge_revision": k["revision"], "case_id": case_id,
+                "decision": decision, "outcome": cur[3],
+                "outcome_note": cur[4], "adopted_at": now,
+                "adopted_by": adopted_by or decided_by, "decided_by": decided_by,
+            }
+        # 全新 adoption 行
+        cur = conn.execute(
+            "INSERT INTO v1_knowledge_adoptions (knowledge_id, knowledge_revision, "
+            "case_id, decision, condition_diff_json, outcome, outcome_note, "
+            "adopted_at, adopted_by, decided_by) "
+            "VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?)",
+            (
+                knowledge_id, k["revision"], case_id, decision,
+                json.dumps(condition_diff, ensure_ascii=False),
+                now, adopted_by or decided_by, decided_by,
+            ),
+        )
+        conn.commit()
+        return {
+            "id": cur.lastrowid, "knowledge_id": knowledge_id,
+            "knowledge_revision": k["revision"], "case_id": case_id,
+            "decision": decision, "outcome": None, "outcome_note": None,
+            "adopted_at": now,
+            "adopted_by": adopted_by or decided_by, "decided_by": decided_by,
+        }
+
+    def record_outcome(
+        self,
+        *,
+        knowledge_id: str,
+        case_id: str,
+        outcome: str,
+        outcome_note: str | None = None,
+    ) -> dict[str, Any]:
+        """C12 R16.6: 记录采用结果 (success|partial|failure).
+
+        同一 case 多次 outcome 以最后一条为准 (append-only-ish: 走 UPDATE).
+        outcome 不影响 total 计数 (只改 by_outcome 分布).
+        """
+        if outcome not in ("success", "partial", "failure"):
+            raise KnowledgeValidationError(
+                f"outcome must be success|partial|failure, got {outcome!r}"
+            )
+        self._require(knowledge_id)
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT id, knowledge_revision FROM v1_knowledge_adoptions "
+            "WHERE knowledge_id = ? AND case_id = ? AND decision = 'adopted'",
+            (knowledge_id, case_id),
+        ).fetchone()
+        if row is None:
+            raise KnowledgeValidationError(
+                f"no adopted row for knowledge {knowledge_id} case {case_id} "
+                f"(record_adoption first)"
+            )
+        conn.execute(
+            "UPDATE v1_knowledge_adoptions SET outcome = ?, outcome_note = ? "
+            "WHERE id = ?",
+            (outcome, outcome_note, row[0]),
+        )
+        conn.commit()
+        return {
+            "id": row[0], "knowledge_id": knowledge_id,
+            "knowledge_revision": row[1], "case_id": case_id,
+            "outcome": outcome, "outcome_note": outcome_note,
+        }
+
+    def recall_for_case(
+        self, case_id: str, *, knowledge_id: str,
+    ) -> dict[str, Any]:
+        """C12 R16.3: 召回 — 返回 {applicable, prerequisite_match,
+        counter_example_conflict, adoption_history}.
+
+        applicable  = knowledge.status in (published, deprecated) AND case 存在
+        prerequisite_match: 本次 case 是否满足知识 prerequisites
+        counter_example_conflict: 本次 case 是否撞到 counter_examples
+        adoption_history: 同 knowledge + 其他 case 的 adoption 历史
+                          [{case_id, condition_diff, outcome, adopted_at}, ...]
+        """
+        k = self._require(knowledge_id)
+        conn = get_connection()
+        # 拿 knowledge 静态条件
+        prereqs = list(k.get("prerequisites") or [])
+        counters = list(k.get("counter_examples") or [])
+        # 拿 case 的 (T08 暂未存 prerequisites 字段, 用 tags_json 弱匹配)
+        row = conn.execute("SELECT tags_json FROM v1_cases WHERE id = ?", (case_id,)).fetchone()
+        case_tags = json.loads(row[0]) if row and row[0] else []
+        # 弱匹配: 知识 prereq 在 case tags 出现 → 满足
+        prereq_match = all(p in case_tags for p in prereqs) if prereqs else True
+        counter_conflict = any(c in case_tags for c in counters) if counters else False
+        # 召回其他 case 的 adoption 历史 (排除当前 case 本身)
+        history_rows = conn.execute(
+            "SELECT case_id, condition_diff_json, outcome, adopted_at, decision "
+            "FROM v1_knowledge_adoptions WHERE knowledge_id = ? "
+            "AND case_id != ? ORDER BY adopted_at DESC",
+            (knowledge_id, case_id),
+        ).fetchall()
+        adoption_history: list[dict[str, Any]] = []
+        for cr, cdf, out, at, dec in history_rows:
+            try:
+                cdf_parsed = json.loads(cdf) if cdf else []
+            except (json.JSONDecodeError, TypeError):
+                cdf_parsed = []
+            adoption_history.append({
+                "case_id": cr, "condition_diff": cdf_parsed,
+                "outcome": out, "adopted_at": at, "decision": dec,
+            })
+        return {
+            "knowledge_id": knowledge_id,
+            "case_id": case_id,
+            "applicable": k["status"] in ("published", "deprecated"),
+            "knowledge_status": k["status"],
+            "prerequisite_match": prereq_match,
+            "counter_example_conflict": counter_conflict,
+            "prerequisites": prereqs,
+            "counter_examples": counters,
+            "adoption_history": adoption_history,
+        }
+
+    def _attach_blocker_to_adopted_cases(
+        self, knowledge_id: str, marker: str,
+    ) -> int:
+        """C12 R16.4 辅助: 扫 v1_knowledge_adoptions WHERE decision=adopted,
+        给每个 case 挂 marker tag (无重复). 返受影响 case 数.
+
+        append-only: 不写 adoption 历史 (旧行不动).
+        """
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT DISTINCT case_id FROM v1_knowledge_adoptions "
+            "WHERE knowledge_id = ? AND decision = 'adopted'",
+            (knowledge_id,),
+        ).fetchall()
+        affected = 0
+        for (case_id,) in rows:
+            row = conn.execute(
+                "SELECT tags_json FROM v1_cases WHERE id = ?", (case_id,),
+            ).fetchone()
+            if row is None:
+                continue
+            tags = json.loads(row[0] or "[]")
+            if marker in tags:
+                continue
+            tags.append(marker)
+            conn.execute(
+                "UPDATE v1_cases SET tags_json = ?, "
+                "updated_at = datetime('now', 'localtime') WHERE id = ?",
+                (json.dumps(tags, ensure_ascii=False), case_id),
+            )
+            affected += 1
+        if affected:
+            conn.commit()
+        return affected
 
     # ------------------------------------------------------------------
     # SK-06 复查扫描 (供 scheduler job 调用)

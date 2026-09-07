@@ -107,13 +107,13 @@ def build_sk05_reuse_experience() -> SkillDef:
     return SkillDef(
         id="reuse-experience",
         name="复用既有经验",
-        desc="新 case 检索已有 knowledge (ReuseReceipt 派生 {total, by_judgment, by_action, recent_30d}) + 条件对比 + 采用回执",
+        desc="新 case 检索已有 knowledge (ReuseReceipt C12 R16.5: total=0 起算, by_decision/by_outcome/recent_30d 派生) + 条件对比 + 采用回执",
         category="report",
         skill_type="B",  # 查询类
         target=ApiTarget(path="/api/v1/knowledge/{knowledge_id}/reuse"),
         prompt_template=None,
         input_schema={"type": "object", "properties": {"knowledge_id": {"type": "string"}}, "required": ["knowledge_id"]},
-        output_schema={"type": "object", "properties": {"receipt": {"type": "object", "properties": {"total": {"type": "integer"}, "by_judgment": {"type": "integer"}, "by_action": {"type": "integer"}, "recent_30d": {"type": "integer"}}, "required": ["total"]}}, "required": ["receipt"]},
+        output_schema={"type": "object", "properties": {"receipt": {"type": "object", "properties": {"total": {"type": "integer"}, "by_decision": {"type": "object"}, "by_outcome": {"type": "object"}, "recent_30d": {"type": "integer"}}, "required": ["total"]}}, "required": ["receipt"]},
         runner="builtin",
         timeout_seconds=60,
         feature_gate="skill.reuse-experience.enabled",
@@ -160,11 +160,11 @@ def _register_v1_skills(registry: SkillRegistry) -> None:
 
 
 __all__ = [
+    "_register_v1_skills",
     "build_sk01_daily_priority_intel",
     "build_sk02_cve_impact_brief",
     "build_sk03_inspection_materials",
     "build_sk04_action_retrospective",
     "build_sk05_reuse_experience",
     "build_sk06_knowledge_review_due",
-    "_register_v1_skills",
 ]

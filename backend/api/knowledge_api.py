@@ -1,14 +1,20 @@
-"""v1.0 T13 Knowledge API (contracts §9 + §0.4).
+"""v1.0 T13 Knowledge API (contracts §9 + §0.4) + C12 R16 adoption API.
 
 路由清单 (前缀 /api/v1/knowledge)
 --------
 - ``POST /api/v1/knowledge/generate``     dsh 调 knowledge_publish 落 draft
 - ``GET  /api/v1/knowledge``              列表 (query: case_id + status/kind/limit/offset)
 - ``GET  /api/v1/knowledge/{id}``         详情
-- ``GET  /api/v1/knowledge/{id}/reuse``   §9.4 复用记录派生 {total, by_judgment, by_action, recent_30d}
+- ``GET  /api/v1/knowledge/{id}/reuse``   §9.4 复用记录派生 (C12 R16 改: by_decision/by_outcome)
 - ``POST /api/v1/knowledge/{id}/publish``   draft → published (CAS expected_revision)
 - ``POST /api/v1/knowledge/{id}/deprecate`` published → deprecated (必填 reason + 可选替代)
 - ``POST /api/v1/knowledge/{id}/retract``   published|deprecated → retracted (必填 reason)
+
+C12 R16 (知识采用 + 失效反馈):
+- ``POST /api/v1/knowledge/{id}/adopt``     记录一次采用 (decision + condition_diff)
+- ``GET  /api/v1/knowledge/{id}/adoptions`` 列出所有 adoptions
+- ``POST /api/v1/knowledge/{id}/outcome``   记录采用结果 (success|partial|failure)
+- ``GET  /api/v1/knowledge/{id}/recall``    召回 — 条件比较 + adoption history (?case_id=)
 
 错误
 ----
@@ -59,6 +65,27 @@ class DeprecateKnowledgeRequest(StateChangeRequest):
 
 class RetractKnowledgeRequest(StateChangeRequest):
     reason: str = Field(min_length=1, max_length=2000)
+
+
+# ---------------------------------------------------------------------------
+# C12 R16 — 知识采用 (adopt / outcome) + 召回 (recall)
+# ---------------------------------------------------------------------------
+class AdoptKnowledgeRequest(BaseModel):
+    """POST /api/v1/knowledge/{id}/adopt — 记录一次采用 (decision + condition_diff)."""
+
+    case_id: str = Field(min_length=1, max_length=26)
+    decision: str = Field(pattern="^(adopted|skipped|rejected)$")
+    condition_diff: list[dict[str, Any]] = Field(default_factory=list)
+    decided_by: str = Field(min_length=1, max_length=200)
+    adopted_by: str | None = None
+
+
+class OutcomeKnowledgeRequest(BaseModel):
+    """POST /api/v1/knowledge/{id}/outcome — 记录采用结果."""
+
+    case_id: str = Field(min_length=1, max_length=26)
+    outcome: str = Field(pattern="^(success|partial|failure)$")
+    outcome_note: str | None = Field(default=None, max_length=2000)
 
 
 def _knowledge_to_dict(k: dict[str, Any]) -> dict[str, Any]:
@@ -134,13 +161,99 @@ def _get(knowledge_id: str) -> dict[str, Any]:
 
 
 def _reuse(knowledge_id: str) -> dict[str, Any]:
-    """§9.4 复用记录派生: {total, by_judgment, by_action, recent_30d}."""
+    """C12 R16.5: 复用记录只数 adoptions — {total, by_decision, by_outcome, recent_30d}.
+
+    旧 {by_judgment, by_action} 字段 (derived_from 误统计) 已弃用.
+    """
     svc = KnowledgeService()
     try:
         receipt = svc.get_reuse_receipt(knowledge_id)
     except KnowledgeNotFoundError as e:
         raise HTTPException(status_code=404, detail={"code": "E_NOT_FOUND", "message": str(e)})
     return {"version": API_VERSION, "knowledge_id": knowledge_id, "receipt": receipt}
+
+
+# ---------------------------------------------------------------------------
+# C12 R16 handlers
+# ---------------------------------------------------------------------------
+def _adopt(knowledge_id: str, req: AdoptKnowledgeRequest) -> dict[str, Any]:
+    svc = KnowledgeService()
+    try:
+        adoption = svc.record_adoption(
+            knowledge_id=knowledge_id,
+            case_id=req.case_id,
+            condition_diff=req.condition_diff,
+            decision=req.decision,
+            decided_by=req.decided_by,
+            adopted_by=req.adopted_by,
+        )
+    except KnowledgeNotFoundError as e:
+        raise HTTPException(status_code=404, detail={"code": "E_NOT_FOUND", "message": str(e)})
+    except KnowledgeValidationError as e:
+        raise HTTPException(status_code=400, detail={"code": "E_VALIDATION", "message": str(e)})
+    except KnowledgeConflictError as e:
+        raise HTTPException(status_code=409, detail={"code": "E_CONFLICT", "message": str(e)})
+    return {"version": API_VERSION, "adoption": adoption}
+
+
+def _list_adoptions(knowledge_id: str) -> dict[str, Any]:
+    """GET /api/v1/knowledge/{id}/adoptions — 列出该 knowledge 的所有 adoptions."""
+    from backend.repository.db import get_connection
+    svc = KnowledgeService()
+    # 验证存在性
+    try:
+        svc.get(knowledge_id)
+    except KnowledgeNotFoundError as e:
+        raise HTTPException(status_code=404, detail={"code": "E_NOT_FOUND", "message": str(e)})
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, case_id, knowledge_revision, decision, condition_diff_json, "
+        "outcome, outcome_note, adopted_at, adopted_by, decided_by "
+        "FROM v1_knowledge_adoptions WHERE knowledge_id = ? "
+        "ORDER BY adopted_at DESC",
+        (knowledge_id,),
+    ).fetchall()
+    import json
+    items: list[dict[str, Any]] = []
+    for r in rows:
+        try:
+            diff = json.loads(r[4]) if r[4] else []
+        except (json.JSONDecodeError, TypeError):
+            diff = []
+        items.append({
+            "id": r[0], "case_id": r[1], "knowledge_revision": r[2],
+            "decision": r[3], "condition_diff": diff,
+            "outcome": r[5], "outcome_note": r[6],
+            "adopted_at": r[7], "adopted_by": r[8], "decided_by": r[9],
+        })
+    return {"version": API_VERSION, "knowledge_id": knowledge_id, "items": items, "total": len(items)}
+
+
+def _outcome(knowledge_id: str, req: OutcomeKnowledgeRequest) -> dict[str, Any]:
+    svc = KnowledgeService()
+    try:
+        outcome = svc.record_outcome(
+            knowledge_id=knowledge_id,
+            case_id=req.case_id,
+            outcome=req.outcome,
+            outcome_note=req.outcome_note,
+        )
+    except KnowledgeNotFoundError as e:
+        raise HTTPException(status_code=404, detail={"code": "E_NOT_FOUND", "message": str(e)})
+    except KnowledgeValidationError as e:
+        raise HTTPException(status_code=400, detail={"code": "E_VALIDATION", "message": str(e)})
+    return {"version": API_VERSION, "outcome": outcome}
+
+
+def _recall(knowledge_id: str, case_id: str) -> dict[str, Any]:
+    svc = KnowledgeService()
+    try:
+        result = svc.recall_for_case(case_id, knowledge_id=knowledge_id)
+    except KnowledgeNotFoundError as e:
+        raise HTTPException(status_code=404, detail={"code": "E_NOT_FOUND", "message": str(e)})
+    except KnowledgeValidationError as e:
+        raise HTTPException(status_code=400, detail={"code": "E_VALIDATION", "message": str(e)})
+    return {"version": API_VERSION, "recall": result}
 
 
 def _publish(knowledge_id: str, req: StateChangeRequest) -> dict[str, Any]:
@@ -227,3 +340,33 @@ async def retract_knowledge(
     knowledge_id: str, req: RetractKnowledgeRequest = Body(...)
 ) -> dict[str, Any]:
     return await asyncio.to_thread(_retract, knowledge_id, req)
+
+
+# ---------------------------------------------------------------------------
+# C12 R16 — 知识采用 / 结果 / 召回 路由
+# ---------------------------------------------------------------------------
+@router.post("/{knowledge_id}/adopt", response_model=None)
+async def adopt_knowledge(
+    knowledge_id: str, req: AdoptKnowledgeRequest = Body(...)
+) -> dict[str, Any]:
+    return await asyncio.to_thread(_adopt, knowledge_id, req)
+
+
+@router.get("/{knowledge_id}/adoptions", response_model=None)
+async def list_knowledge_adoptions(knowledge_id: str) -> dict[str, Any]:
+    return await asyncio.to_thread(_list_adoptions, knowledge_id)
+
+
+@router.post("/{knowledge_id}/outcome", response_model=None)
+async def outcome_knowledge(
+    knowledge_id: str, req: OutcomeKnowledgeRequest = Body(...)
+) -> dict[str, Any]:
+    return await asyncio.to_thread(_outcome, knowledge_id, req)
+
+
+@router.get("/{knowledge_id}/recall", response_model=None)
+async def recall_knowledge_for_case(
+    knowledge_id: str, case_id: str = Query(..., min_length=1, max_length=26),
+) -> dict[str, Any]:
+    """召回: 该 knowledge 对给定 case 的适用性 + 条件比较 + adoption 历史."""
+    return await asyncio.to_thread(_recall, knowledge_id, case_id)

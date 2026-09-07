@@ -217,7 +217,7 @@ function setupAggregateMock(opts: {
     artifacts,
   });
   (api.listKnowledge as any).mockResolvedValue({ items: knowledge });
-  (api.getKnowledgeReuse as any).mockResolvedValue({ receipt: { total: 0, by_judgment: 0, by_action: 0, recent_30d: 0 } });
+  (api.getKnowledgeReuse as any).mockResolvedValue({ receipt: { total: 0, by_decision: {}, by_outcome: {}, recent_30d: 0 } });
   return { case: c, actions, runs, artifacts, judgments, knowledge };
 }
 

@@ -286,7 +286,7 @@ class ActionService:
 
     def start(
         self, action_id: str, *, expected_revision: int,
-        idempotency_key: str, protocol: str = "mock",
+        idempotency_key: str, protocol: str,
         trigger_source: str = "user", skill_id: str | None = None,
     ) -> dict[str, Any]:
         """启动 action → 创建 Run (走 RunService 三层幂等) → action.status=running.

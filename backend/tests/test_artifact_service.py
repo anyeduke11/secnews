@@ -41,7 +41,7 @@ def _seed_action_run() -> tuple[str, str]:
     a_svc.approve(a["id"], expected_revision=1, approved_by="user")
     r_svc = RunService()
     run = r_svc.create_or_replay(
-        action_id=a["id"], idempotency_key="idem-r", attempt=1, protocol="mock",
+        action_id=a["id"], idempotency_key="idem-r", attempt=1, protocol="direct",
     )["run"]
     return a["id"], run["id"]
 

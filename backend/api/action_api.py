@@ -58,10 +58,14 @@ class StateChangeRequest(BaseModel):
 
 
 class StartActionRequest(StateChangeRequest):
-    """start 额外需要 idempotency_key + protocol."""
+    """start 额外需要 idempotency_key + protocol.
+
+    v1.0 C07 R05 修复: protocol 必填 (旧 default='mock' 让默认路径虚报完成).
+    pattern 限制生产协议 {dsh, pi, direct}, 不再含 'mock' (mock 走 skill_runner 演示模式).
+    """
 
     idempotency_key: str = Field(min_length=1, max_length=200)
-    protocol: str = Field(default="mock", pattern="^(dsh|pi|direct|mock)$")
+    protocol: str = Field(pattern="^(dsh|pi|direct)$")
     trigger_source: str = Field(default="user", pattern="^(user|agent|system|scheduled|webhook)$")
     skill_id: str | None = None
 

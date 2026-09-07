@@ -110,7 +110,7 @@ def build_sk05_reuse_experience() -> SkillDef:
         desc="新 case 检索已有 knowledge (ReuseReceipt 派生 {total, by_judgment, by_action, recent_30d}) + 条件对比 + 采用回执",
         category="report",
         skill_type="B",  # 查询类
-        target=ApiTarget(path="/api/v1/knowledge/{id}/reuse"),
+        target=ApiTarget(path="/api/v1/knowledge/{knowledge_id}/reuse"),
         prompt_template=None,
         input_schema={"type": "object", "properties": {"knowledge_id": {"type": "string"}}, "required": ["knowledge_id"]},
         output_schema={"type": "object", "properties": {"receipt": {"type": "object", "properties": {"total": {"type": "integer"}, "by_judgment": {"type": "integer"}, "by_action": {"type": "integer"}, "recent_30d": {"type": "integer"}}, "required": ["total"]}}, "required": ["receipt"]},
@@ -132,7 +132,7 @@ def build_sk06_knowledge_review_due() -> SkillDef:
         desc="扫描 review_at 到期 published knowledge, 挂 case blocker (v1_cases.tags_json 加 knowledge_review_due:{id}); 不改 status (§9.2 硬约束)",
         category="operations",
         skill_type="A",  # 巡检类
-        target=ServiceTarget(module="backend.scheduler.jobs.knowledge_review", class_name="knowledge_review_due_job", method=None),
+        target=ServiceTarget(module="backend.scheduler.jobs.knowledge_review", class_name=None, method="knowledge_review_due_job"),
         prompt_template=None,
         input_schema={"type": "object", "properties": {}, "required": []},
         output_schema={"type": "object", "properties": {"scanned": {"type": "integer"}, "blocked_count": {"type": "integer"}, "errors": {"type": "array"}}, "required": ["scanned"]},

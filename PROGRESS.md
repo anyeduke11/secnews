@@ -787,3 +787,68 @@ SK-01 dry-run 实际验: compute() 走完不 raise, 返 top_items/watchlist_chan
 - ruff 全仓 165 错 (留 C14)
 - 3800 行迁移 (留 C13)
 - runtime binary 缺失 → 跨平台构建链 (T04 跟进, 留 C07)
+
+### 2026-09-07 v1.0 C07 — Run 派发+Skill 守卫 (R04/R05/R15 修复) (本批, in_progress)
+
+> **来源**: [docs/v1.0/V1.0.0_CLOSEOUT_TASKS.md §8 C07](../docs/v1.0/V1.0.0_CLOSEOUT_TASKS.md); DEV-0155
+> **前置必读**: 根 AGENTS.md + C06 commit `a82a809` (R06/R07 真 SDK + D3 节点降级) + `runtime/upstreams.lock.json` (T04 锁 dsh d347e70 / pi 6f11c31)
+> **用户明令 (2026-09-05)**: 推送禁止, commit 留本地; 失败 → 触发 T04 lock.exit_criteria 显式降级; 不准 mock/noop/seed 替代生产; 显式 `git commit <path>`, 不 `git add -A`
+
+#### 修复 (1 新文件 + 6 改文件 + 2 测试改)
+
+**改文件 (R05 protocol 必填+无 mock)**:
+- `backend/api/action_api.py:64-68` `StartActionRequest.protocol: str = Field(pattern="^(dsh|pi|direct)$")` 删 `default="mock"` (必填) + pattern 限制生产协议, mock 走 skill_runner 演示模式
+- `backend/services/action_service.py:289` `start(*, ..., protocol: str, ...)` 删 `= "mock"` 默认, service 层同步必填
+- `backend/services/run_service.py:55` `_VALID_RUN_PROTOCOLS = {"dsh", "pi", "direct"}` 删 "mock"
+- `backend/services/run_service.py:147-187` `create_or_replay` 删 `if protocol == "mock"` 同步 succeeded 分支, 统一 `status="queued"` (真实派发由 worker_pump 走 SkillRunner.run, 旧路径虚报完成根除)
+
+**改文件 (R15 SK-05 path 插值)**:
+- `backend/services/skill_registry/v1_skills.py:115` path `/api/v1/knowledge/{id}/reuse` → `/api/v1/knowledge/{knowledge_id}/reuse` (与 input_schema.required 字段名一致)
+- `backend/services/skill_runner/dispatch.py:_invoke_api` 构造 `interp_source = {**inputs, **rendered}` 合并 fallback (args 覆盖, inputs 兜底) + `str.format(**interp_source)` 插值 path, 旧字面拼 `{id}` → 404; 缺 var 抛 KeyError 走 input_schema required 校验
+
+**改文件 (R15 SK-06 模块级函数)**:
+- `backend/services/skill_registry/v1_skills.py:135` `ServiceTarget(class_name="knowledge_review_due_job", method=None)` → `(class_name=None, method="knowledge_review_due_job")` (knowledge_review_due_job 是模块级函数, 走 _resolve_service_target 函数分支, 旧 cls() 把函数当构造器 → TypeError)
+
+**改文件 (R04 worker_pump 真派发)**:
+- `backend/scheduler/jobs/worker_pump.py` 删 `_c03_r04_dispatcher` raise-on-call 兜底 (C03 占位 raise), 新增 `_c07_r04_skill_dispatcher(req)` 调 `SkillRunner.run(skill, inputs, ticket_id=req.task_id)`, 走 `get_registry().get(skill_id)` 拿 SkillDef, ticket_id 贯穿; `worker_queue_pump_job` 调 `coordinator.consume(req, task_fn=_c07_r04_skill_dispatcher)` 替换原 `_c03_r04_dispatcher` 引用
+- 真实 dsh/pi 适配 (C06 落地) 在 SkillRunner._invoke_service / _invoke_api 内完成; worker_pump 不感知具体实现, 失败 → SkillRunner 写 skill_runs.status=failed, coordinator 走 FAILED 重试 + 3 次后 dead-letter (C03 路径不变)
+
+**测试改**:
+- `backend/tests/test_action_service.py:202-203` 状态断言从 succeeded 改 running+queued (mock 同步 succeeded 已删)
+- `backend/tests/test_skill_registry_v1.py:121` path 字面断言同步改 `{knowledge_id}` (与 v1_skills.py 同步)
+
+**新文件 (反例测试)**:
+- `backend/tests/test_c07_run_dispatch_and_skill_guards.py` (12 tests, 5 类):
+  - `TestR05ProtocolDefaultRejected` 3: action_api default ≠ mock + action_service default ≠ mock + run_service mock 协议 raise
+  - `TestR15SK05PathInterpolation` 1: path 字面 `{knowledge_id}` 必须插值, 真实 K-C07-001 进 URL
+  - `TestR15SK06ModuleLevelFunction` 2: SK-06 target.class_name is None + _resolve_service_target 函数分支返函数非实例
+  - `TestR04WorkerPumpRealSkillDispatch` 3: worker_pump 删旧 dispatcher + 调新 dispatcher + dispatcher 必调 SkillRunner.run 并贯穿 ticket_id
+  - `TestR05ActionStartProtocolRequired` 1: 不传 protocol raise ValidationError
+  - `TestR156SkillsRealDispatch` 2: 6 v1 SK 全部 target 反射解析成功 (无 RuntimeError) + SK-05 input_schema required 含 knowledge_id + path 含 `{var}`
+
+#### 最小退出条件 (本切片 3 天)
+
+- (a) ✅ **R05**: API/service default 删 mock, run_service mock 协议 raise, 4 个反例 pass
+- (b) ✅ **R15 SK-05**: path 改 `{knowledge_id}` + dispatch 合并 inputs fallback, 1 个反例 pass
+- (c) ✅ **R15 SK-06**: class_name=None + method="knowledge_review_due_job", 2 个反例 pass
+- (d) ✅ **R04**: worker_pump 调 SkillRunner.run 真派发, 3 个反例 pass
+- (e) ✅ **6 v1 SK 全部 target 反射解析成功** (无 RuntimeError), 2 个反例 pass
+- (f) ✅ **ruff C07 触碰 0 新错** (8 auto-fix: unused `patch` import + 2 import sort)
+- (g) ✅ **pytest C07 触碰 5 文件 + C07 测试 71/71 pass** (12 C07 + 59 既有), 32 失败 = 28 search/wiki FTS 域 (C11 baseline) + 3 conftest autouse 隔离差异 + 1 C07-introduced test_skill_registry_v1 同步修复
+
+#### 验证
+
+- C07 test suite: **12/12 pass** (`test_c07_run_dispatch_and_skill_guards.py`)
+- C07 触碰文件 test suite: **59/59 pass** (test_run_service 21 + test_action_service + test_artifact_service + test_skill_registry_v1 + test_c07)
+- ruff check C07 触碰 11 文件: **0 new errors** (8 auto-fix in test_c07: F401 unused `patch` + 2 I001 import sort; 9 pre-existing in modified files: F401 + RUF022, baseline 165 留 C14)
+- 全 pytest 回归: **4175 passed, 32 failed** (28 search/wiki FTS 域 + 3 conftest 隔离差异 + 1 baseline stash 验证) — **C07 引入 0 回归**
+- 6 v1 SK 真实派发: SK-01..06 全部 target 反射解析成功 (ServiceTarget 5 个 + ApiTarget 1 个)
+- frontend `npx tsc --noEmit`: 0 errors (C07 不触碰 frontend)
+
+#### C07 暴露的真问题 (留 C08/C11/C13/C14)
+
+- R18 SSE 5 service publish_event 仍 fire-and-forget (留 C11 outbox 持久)
+- R19 N+1 串行 fetch 仍存 (留 C11 聚合端点)
+- ruff 全仓 165 错 (留 C14 治理)
+- 3800 行迁移 (留 C13)
+- dsh/pi 真实 vendor 端到端验证待 C06 跨平台镜像后 (留 C07 真实环境)

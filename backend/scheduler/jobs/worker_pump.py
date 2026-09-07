@@ -1,4 +1,4 @@
-"""worker_pump 域 scheduler job (v1.0 T09 + C03 R04 修复).
+"""worker_pump 域 scheduler job (v1.0 T09 + C03 R04 + C07 R04 真实派发).
 
 实现 (与 jobs/maintenance.py 同款风格 — try/except 兜底, 不死循环):
 
@@ -9,8 +9,8 @@
 
 v1.0 C03 R04 修复: 显式传 task_fn 拒绝 noop 兜底 (旧 worker_pump.py:77 调
 coordinator.consume(req) 不传 task_fn, coordinator 兜底 _noop_task_fn 返空成功,
-trigger_ticket 标 done 但实际工作没做). 当前 batch C03 显式传 raise-on-call
-dispatcher (拒绝 claim 任务), 真实 dsh/pi 适配留 C06 完成后由 C07 接入.
+trigger_ticket 标 done 但实际工作没做). C03 显式传 raise-on-call dispatcher,
+C07 替换为真实 SkillRunner.run 派发 (走 dsh/pi 适配 — T04 lock.exit_criteria 兜底).
 """
 from __future__ import annotations
 
@@ -32,21 +32,49 @@ _LIMIT_GROUP = "source_fetch"
 SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
 
 
-# v1.0 C03 R04: 显式 dispatcher. 旧 _noop_task_fn 兜底取消, 当前 batch
-# raise-on-call 拒绝静默 claim 任务. C07 (统一 Run 派发) 完成后, 替换为
-# 真实 Skill runner (走 runtime/upstreams/dsh 或 pi 适配).
-def _c03_r04_dispatcher(req) -> dict:
-    """C03 R04 dispatcher: 拒绝 claim 任务, 强制 R07 真实接入.
+# v1.0 C07 R04: 真实 SkillRunner 派发. 旧 C03 兜底 _c03_r04_dispatcher (raise-on-call)
+# 已删, 替换为 _c07_r04_skill_dispatcher → 调 SkillRunner.run(skill, inputs, ticket_id).
+# ticket 走 trigger_gate.dequeue (ticket_id 唯一), runner 写 skill_runs 留全链 audit.
+# 真实 dsh/pi 适配 (C06 落地) 在 SkillRunner._invoke_service / _invoke_api 内完成;
+# worker_pump 不感知具体实现, 失败 → SkillRunner 写 skill_runs status=failed,
+# coordinator 走 FAILED 重试 + 3 次后 dead-letter (C03 路径不变).
+def _c07_r04_skill_dispatcher(req) -> dict:
+    """C07 R04 dispatcher: 把 trigger_gate ticket 真派发到 SkillRunner.
 
-    不依赖 mock/noop: 旧 _noop_task_fn 兜底会返空成功 (worker_runs succeeded),
-    trigger_ticket 标 done, 但实际工作没做. C03 强制 raise, 让 worker_run 落
-    failed + dead-letter 路径, 暴露 53 个历史 pending ticket 的真实状态.
+    链路 (与 run_service 的 create_or_replay 解耦 — worker_pump 不写 v1_runs,
+    只跑 SkillDef):
+      1. 从 req.payload / req.task_id 读 ticket (coordinator 已 decode 完)
+      2. 拿 skill_id 调 SkillRegistry.get (SkillNotFoundError → 抛回 coordinator)
+      3. SkillRunner.run(skill, inputs, ticket_id=ticket_id) — 全程同步, 失败落
+         skill_runs.status=failed (SkillRunner.run 永不抛)
+      4. 返 dict 形式结果 (coordinator consume 需 dict)
     """
-    raise NotImplementedError(
-        f"v1.0 C03 R04: trigger_gate dispatcher 未实现 (task_id={req.task_id}, "
-        f"queue={req.queue_name}). C07 完成后由真实 Skill runner (dsh/pi) 替换. "
-        f"当前 raise-on-call 拒绝 noop 兜底, 防止空成功 claim 任务."
-    )
+    from backend.services.skill_registry import get_registry
+    from backend.services.skill_runner.core import SkillRunner
+
+    # req.task_id = ticket_id (worker_queue_pump_job 构造时填)
+    ticket_id = getattr(req, "task_id", None) or "unknown"
+    payload = getattr(req, "payload", None) or {}
+    # payload 必有 skill_id (TriggerGate.enqueue 强校验), 兜底从 req 读
+    skill_id = payload.get("skill_id") or payload.get("target_id")
+    inputs = payload.get("inputs") or {}
+    if not skill_id:
+        raise RuntimeError(
+            f"v1.0 C07 R04: trigger_ticket 缺 skill_id (ticket_id={ticket_id}, "
+            f"payload_keys={list(payload.keys())})"
+        )
+    registry = get_registry()
+    skill = registry.get(skill_id)  # SkillNotFoundError 自动抛
+    runner = SkillRunner()
+    result = runner.run(skill, inputs, ticket_id=ticket_id)
+    return {
+        "status": result.status,
+        "run_id": result.run_id,
+        "elapsed_ms": result.elapsed_ms,
+        "fast_path": result.fast_path,
+        "error": result.error,
+        "outputs": result.outputs,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +123,7 @@ async def worker_queue_pump_job() -> None:
                     attempt=ticket.attempts,
                 )
                 result = await asyncio.to_thread(
-                    coordinator.consume, req, task_fn=_c03_r04_dispatcher,
+                    coordinator.consume, req, task_fn=_c07_r04_skill_dispatcher,
                 )
                 if result.dead_lettered:
                     _logger.error(

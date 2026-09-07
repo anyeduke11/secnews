@@ -186,7 +186,7 @@ def test_approve_non_planned_raises(temp_db) -> None:
 
 
 def test_start_approved_creates_run(temp_db) -> None:
-    """approved → start → running; run 走 mock 协议同步 succeeded; action 同步 succeeded."""
+    """approved → start → action=running, run=queued; 真实派发走 worker_pump C07 路径."""
     _seed_published_judgment("J" * 26)
     svc = ActionService(dsh_caller=_fake_dsh_factory([_dsh_response()]))
     a = svc.create_with_dsh(
@@ -197,10 +197,11 @@ def test_start_approved_creates_run(temp_db) -> None:
     # start 需 revision=2
     out = svc.start(
         a["id"], expected_revision=2,
-        idempotency_key="idem-key-1", protocol="mock",
+        idempotency_key="idem-key-1", protocol="direct",
     )
-    assert out["action"]["status"] == "succeeded"  # mock 协议同步 finish
-    assert out["run"]["status"] == "succeeded"
+    # v1.0 C07 R05 修复: 真实协议 (direct) 走 worker_pump 派发, action=running + run=queued
+    assert out["action"]["status"] == "running"
+    assert out["run"]["status"] == "queued"
     assert out["replayed"] is False
 
 

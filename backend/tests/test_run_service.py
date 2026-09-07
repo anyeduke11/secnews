@@ -46,10 +46,10 @@ def test_create_or_replay_creates_run(temp_db) -> None:
     aid = _make_action()
     svc = RunService()
     out = svc.create_or_replay(
-        action_id=aid, idempotency_key="idem-1", attempt=1, protocol="mock",
+        action_id=aid, idempotency_key="idem-1", attempt=1, protocol="direct",
     )
     assert out["replayed"] is False
-    assert out["run"]["status"] == "succeeded"  # mock 协议同步
+    assert out["run"]["status"] == "queued"  # v1.0 C07 R05 修复: 统一 queued (mock 协议从生产移除)
     assert out["run"]["idempotency_key"] == "idem-1"
     assert out["run"]["attempt"] == 1
 
@@ -57,8 +57,8 @@ def test_create_or_replay_creates_run(temp_db) -> None:
 def test_idempotent_replay_same_key_same_body(temp_db) -> None:
     aid = _make_action()
     svc = RunService()
-    out1 = svc.create_or_replay(action_id=aid, idempotency_key="idem-2", attempt=1, protocol="mock")
-    out2 = svc.create_or_replay(action_id=aid, idempotency_key="idem-2", attempt=1, protocol="mock")
+    out1 = svc.create_or_replay(action_id=aid, idempotency_key="idem-2", attempt=1, protocol="direct")
+    out2 = svc.create_or_replay(action_id=aid, idempotency_key="idem-2", attempt=1, protocol="direct")
     assert out1["replayed"] is False
     assert out2["replayed"] is True
     assert out1["run"]["id"] == out2["run"]["id"]  # 同一 run
@@ -71,9 +71,9 @@ def test_same_attempt_different_idem_key_raises_422(temp_db) -> None:
     """同一 (action_id, attempt=1) 已被 (idem-A) 占, 再用 idem-B 创 attempt=1 → 422."""
     aid = _make_action()
     svc = RunService()
-    svc.create_or_replay(action_id=aid, idempotency_key="idem-A", attempt=1, protocol="mock")
+    svc.create_or_replay(action_id=aid, idempotency_key="idem-A", attempt=1, protocol="direct")
     with pytest.raises(RunValidationError, match="already exists"):
-        svc.create_or_replay(action_id=aid, idempotency_key="idem-B", attempt=1, protocol="mock")
+        svc.create_or_replay(action_id=aid, idempotency_key="idem-B", attempt=1, protocol="direct")
 
 
 def test_same_key_different_body_raises_409(temp_db) -> None:
@@ -81,12 +81,12 @@ def test_same_key_different_body_raises_409(temp_db) -> None:
     aid = _make_action()
     svc = RunService()
     svc.create_or_replay(
-        action_id=aid, idempotency_key="idem-3", attempt=1, protocol="mock",
+        action_id=aid, idempotency_key="idem-3", attempt=1, protocol="direct",
         inputs={"x": 1},
     )
     with pytest.raises(RunConflictError, match="different body"):
         svc.create_or_replay(
-            action_id=aid, idempotency_key="idem-3", attempt=1, protocol="mock",
+            action_id=aid, idempotency_key="idem-3", attempt=1, protocol="direct",
             inputs={"x": 999},
         )
 
@@ -97,12 +97,12 @@ def test_same_key_different_body_raises_409(temp_db) -> None:
 def test_list_by_action_and_get(temp_db) -> None:
     aid = _make_action()
     svc = RunService()
-    r = svc.create_or_replay(action_id=aid, idempotency_key="idem-4", attempt=1, protocol="mock")["run"]
-    out = svc.list_by_action(aid, status="succeeded", limit=10)
+    r = svc.create_or_replay(action_id=aid, idempotency_key="idem-4", attempt=1, protocol="direct")["run"]
+    out = svc.list_by_action(aid, status="queued", limit=10)
     assert out["total"] == 1
     assert out["items"][0]["id"] == r["id"]
     single = svc.get(r["id"])
-    assert single["status"] == "succeeded"
+    assert single["status"] == "queued"
 
 
 def test_get_not_found_raises() -> None:

@@ -52,7 +52,9 @@ _RUN_ALLOWED_ACTIONS: dict[str, list[str]] = {
     "timed_out": ["retry", "view_only"],
 }
 _VALID_RUN_STATUS = set(_RUN_ALLOWED_ACTIONS.keys())
-_VALID_RUN_PROTOCOLS = {"dsh", "pi", "direct", "mock"}
+# v1.0 C07 R05 修复: 'mock' 协议从生产 _VALID_RUN_PROTOCOLS 移除 (旧路径虚报完成).
+# mock 走 skill_runner 演示模式, 不进 v1_runs (留 skill_runs.skill_runner.core.run 显式 mock 入参).
+_VALID_RUN_PROTOCOLS = {"dsh", "pi", "direct"}
 _VALID_TRIGGER_SOURCES = {"user", "agent", "system", "scheduled", "webhook"}
 
 
@@ -144,25 +146,23 @@ class RunService:
                     f"(action={action_id})"
                 )
             return {"run": existing_idem, "replayed": True}
-        # 全新 Run: 落库 (mock 协议同步 finish 到 succeeded 走 mock 路径)
+        # 全新 Run: 落库 (统一 queued, 真实派发由 worker_pump._c07_r04_skill_dispatcher 走 SkillRunner.run)
         rid = _run_ulid()
         now = _utcnow_iso()
-        # T12 简化: mock 协议下, 创建即 succeeded (同步 finish)
-        # 真异步派发留 T12+ (T09 worker_coordinator)
         body = {
             "id": rid, "action_id": action_id, "attempt": attempt,
             "skill_id": skill_id, "protocol": protocol, "trigger_source": trigger_source,
             "idempotency_key": idempotency_key,
-            "status": "succeeded" if protocol == "mock" else "queued",
+            "status": "queued",  # v1.0 C07 R05 修复: 永远 queued (mock 协议已从生产移除)
             "inputs": inputs, "steps": [],
             "budget_tokens": None, "budget_seconds": None,
             "started_at": now,
-            "finished_at": now if protocol == "mock" else None,
-            "duration_ms": 0 if protocol == "mock" else None,
-            "result_excerpt": "mock run (T12 同步路径)" if protocol == "mock" else None,
+            "finished_at": None,
+            "duration_ms": None,
+            "result_excerpt": None,
             "error": None, "artifact_ids": [],
             "revision": 1, "created_at": now, "updated_at": now,
-            "allowed_actions": _RUN_ALLOWED_ACTIONS["succeeded" if protocol == "mock" else "queued"],
+            "allowed_actions": _RUN_ALLOWED_ACTIONS["queued"],
             "reason": None,
         }
         try:
@@ -174,16 +174,6 @@ class RunService:
                 if existing is not None:
                     return {"run": existing, "replayed": True}
             raise
-        # mock 协议同步: action.status → succeeded
-        if protocol == "mock":
-            try:
-                if self._action_service is not None:
-                    self._action_service.finish(
-                        action_id, expected_revision=self._get_action_revision(action_id),
-                        succeeded=True,
-                    )
-            except Exception as e:
-                logger.warning(f"action.finish race (run still inserted): {e}")
         return {"run": body, "replayed": False}
 
     def _get_action_revision(self, action_id: str) -> int:

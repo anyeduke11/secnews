@@ -218,8 +218,23 @@ def _invoke_api(
     from backend.config import config
 
     rendered = _render_template(args or {}, inputs=inputs, step_outputs=step_outputs) or {}
+    # v1.0 C07 R15 SK-05 修复: target.path 含 {var} 时用 str.format(**rendered) 插值.
+    # 旧实现字面拼 → httpx 发到 '/api/v1/knowledge/{id}/reuse' 404.
+    # 合并 args (B 类查询常传 query params) + inputs (skill inputs 必填) 作为插值 source —
+    # args 优先 (覆盖), inputs 兜底 (path 必填 {var} 来自 input_schema.required).
+    interp_source = {**inputs, **rendered} if isinstance(inputs, dict) else dict(rendered)
     base_url = getattr(config, "api_base_url", "http://127.0.0.1:8000")
-    url = f"{base_url.rstrip('/')}/{target.path.lstrip('/')}"
+    # str.format 不识别的 {var} 抛 KeyError, 提示缺 input (走 input_schema required 校验).
+    try:
+        interpolated_path = (
+            target.path.format(**interp_source) if "{" in target.path else target.path
+        )
+    except KeyError as e:
+        raise RuntimeError(
+            f"ApiTarget path interpolation missing var {e} (target.path={target.path!r}, "
+            f"rendered_args={list(interp_source.keys())})"
+        ) from e
+    url = f"{base_url.rstrip('/')}/{interpolated_path.lstrip('/')}"
     method = target.http_method.upper()
     try:
         with httpx.Client(timeout=30.0) as client:

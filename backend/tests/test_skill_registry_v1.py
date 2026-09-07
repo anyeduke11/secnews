@@ -118,7 +118,7 @@ def test_sk05_registered_with_v1_active() -> None:
     # B 类走 ApiTarget
     assert s.target is not None
     assert hasattr(s.target, "path")
-    assert s.target.path == "/api/v1/knowledge/{id}/reuse"
+    assert s.target.path == "/api/v1/knowledge/{knowledge_id}/reuse"  # v1.0 C07 R15 SK-05 修复: 与 input_schema.required 字段名一致
 
 
 def test_sk06_registered_with_v1_active() -> None:

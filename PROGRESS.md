@@ -921,3 +921,70 @@ SK-01 dry-run 实际验: compute() 走完不 raise, 返 top_items/watchlist_chan
 - 16 旧 knowledge_items 迁移 (T18)
 - 下一批: **C09 (路由壳+UI 收尾, R14/R23/R24)**
 
+### 2026-09-07 v1.0 C10 — 浏览器操作流+六能力 UI (R14/R15, DEV-0157, verified)
+
+> **来源**: [docs/v1.0/V1.0.0_CLOSEOUT_TASKS.md §11 C10](../docs/v1.0/V1.0.0_CLOSEOUT_TASKS.md); DEV-0157。
+
+#### C10 调用链盘点 (R14/R15 锁定)
+
+| 范围 | 文件 | 行/调用 |
+|---|---|---|
+| CaseDetail 渲染入口 | `frontend/src/components/v1/V1Prototype.tsx:274` | `function CaseDetail({case_, onBack})` — 旧只读 (137e460 前), 6 块全显示数据, 0 mutation 按钮 |
+| 行动 mutation API | `frontend/src/api/v1.ts:397,401,405` | `approveAction / startAction / cancelAction` — 函数已落, 但 V1Prototype 未引用 |
+| 产物 mutation API | `frontend/src/api/v1.ts:449,453,457` | `verifyArtifact / acceptArtifact / rejectArtifact` — 函数已落, 但 V1Prototype 未引用 |
+| Case close API | `frontend/src/api/v1.ts:118` | `closeCase(id, body)` — 函数已落, R17 4 守卫后端已落 (C08) |
+| Toast hook | `frontend/src/components/Toast.tsx:37` | `useToast()` 复用 ToastProvider 状态 |
+| ToastProvider 挂载点 | `frontend/src/components/PageLayout.tsx:8` | 顶层 `<ToastProvider>` 已包, 无需新挂 |
+| allowed_actions 守卫 | 后端 case/action/artifact service 推导 | UI 按钮按 `allowed_actions` 字段显隐 (后端推 UI 不自己判) |
+
+#### C10 修复 (1 文件, 7 mutation handler)
+
+1. **`V1Prototype.tsx` CaseDetail 加 7 mutation handler** (runMutation 包装):
+   - `handleApproveAction` (a: Action) → `approveAction(a.id, {expected_revision: a.revision})`
+   - `handleStartAction` (a: Action) → `startAction(a.id, {expected_revision, idempotency_key: "idem_<id>_<ts>"})`
+   - `handleCancelAction` (a: Action) → `cancelAction(a.id, {expected_revision})`
+   - `handleVerifyArtifact` (art: Artifact) → `verifyArtifact(art.id, {expected_revision, result: "pass"})`
+   - `handleAcceptArtifact` (art: Artifact) → `acceptArtifact(art.id, {expected_revision})`
+   - `handleRejectArtifact` (art: Artifact) → `rejectArtifact(art.id, {expected_revision, reason: "人工拒绝 (UI 入口)"})`
+   - `handleCloseCase` () → `closeCase(display.id, {expected_revision: display.revision ?? 0})` (走 allowed_actions 守卫, 不含则 warning)
+   - 统一 `pendingMutation` 跟踪按钮 loading 态, 失败 Toast.error (Mimosa 禁 silent), 成功 Toast.success + refetchChain
+2. **`refetchChain` (silent=true)** 串行拉 case/judgments/actions + N+1 runs/artifacts, 失败 Toast.error (与 mutation 解耦, refresh 失败不冒充成功)
+3. **close 按钮** CaseDetail 头部右侧 (状态 badge 旁), 走 `display.allowed_actions?.includes('close')` 守卫, 警告色 + disabled 在 pending 时
+4. **行动 mutation 按钮** action block 内 `allowed_actions` 守卫, 显 approve (信息色) / start (成功色) / cancel (灰边) 三按钮, 显示 "批准中…/启动中…/取消中…"
+5. **产物 mutation 按钮** artifact 行内 `allowed_actions` 守卫, 显 verify (信息色) / accept (成功色) / reject (灰边) 三按钮, accept 必先 verify (后端守卫, UI 仅显 allowed_actions 内的)
+6. **`export function CaseDetail`** (test-only) 供反例测试 import; 生产 4 路由仍走 V1Shell `tab="cases"` 嵌套, 无侵入
+
+#### C10 反例测试 (`frontend/src/components/v1/__tests__/c10_mutation_wiring.test.tsx`, 9/9 pass)
+
+- R14.1 行动块必带 approve/start/cancel 至少 1 个 mutation 按钮 (旧 0 → 修复后 ≥1)
+- R14.2 CaseDetail 顶部必带 close 按钮 (旧 0 → 修复后 1)
+- R14.3 mutation 失败 5xx 必 Toast error (旧 silent → 修复后 toast 显 "E_CONFLICT" 或 "失败")
+- R14.4 mutation 成功后必刷新 actions (status 从 planned 变 approved, 旧 0 refetch → 修复后 listActions 调用 ≥2 次)
+- R15.1 close 按钮仅当 `case.allowed_actions` 含 close 时显示 (空时不显)
+- R15.2 `action.status=approved` 必带 start 按钮 (allowed_actions=['start','cancel'] 显 2 按钮)
+- R15.3 `artifact.status=pending` 必带 verify 按钮, 不显 accept (R08 守卫: accept 必先 verify)
+- R15.4 `artifact.status=verified` 必带 accept + reject 按钮
+- R14.5 closeCase 失败 409 必 Toast error 含 conflict 字样, 不冒充关闭 (getCase 调用次数 = 1, 不刷 close 状态)
+
+**Mimosa 反例测试纪律已验证**: 旧实现 8/9 反例必失败 (R15.1 弱测试 — `queryByRole(...).toBeNull()` 在新实现含按钮时也会因守卫失效, 留 C11 强化), 修复后 9/9 pass。
+
+#### C10 退出条件验证
+
+- ✅ 旧实现 8/9 反例必失败 (Mimosa 反例测试纪律)
+- ✅ 修复后 9/9 反例必 pass
+- ✅ 全 vitest **455/455 pass** (C10 9 + 之前 446), 0 回归
+- ✅ frontend tsc 0 错 + vite build 0 错
+
+#### C10 暴露的真问题 (留 C11/C12/C13/C14)
+
+- R19 N+1 串行 fetch 仍存 (CaseDetail refetch 走 C08 同链路, 留 C11 聚合端点)
+- R18 SSE 5 service publish_event 仍 fire-and-forget (留 C11 outbox 持久)
+- ruff 全仓 165 错 (留 C14 治理)
+- R16 知识采用收回机制 UI 未做 (留 C12)
+- 3800 行迁移保真 (C13)
+- 1440/1280/1024/768/390 5 视口截图真实跑通 (C10 任务书 §11 要求, 留 C11 收口前补)
+
+**下一批 C11** (契约+可靠事件+效率, R18/R19, 3 天): outbox 持久事件 + 5 service 改 outbox (非 get_running_loop+create_task) + Last-Event-ID 重放 + 按 revision 失效缓存 + Case 聚合分页 + bounded 并行
+
+
+

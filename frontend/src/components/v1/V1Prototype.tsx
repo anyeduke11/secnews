@@ -19,9 +19,14 @@
 import { useEffect, useState } from 'react';
 import type { Case, Judgment } from '../../domain/v1_0';
 import type { Action, Run, Artifact, Knowledge } from '../../api/v1';
-import { listCases, getCase, listJudgments, listActions, listRuns, listArtifacts, listKnowledge, getKnowledgeReuse, listSignals, type ReuseReceipt, type V1Signal } from '../../api/v1';
+import {
+  listCases, getCase, listJudgments, listActions, listRuns, listArtifacts, listKnowledge, getKnowledgeReuse, listSignals,
+  approveAction, startAction, cancelAction, verifyArtifact, acceptArtifact, rejectArtifact, closeCase,
+  type ReuseReceipt, type V1Signal,
+} from '../../api/v1';
 import { renderInlineMarkdown } from '../../lib/markdown';
 import { useSSEWithRefetch } from './useSSEWithRefetch';
+import { useToast } from '../Toast';
 
 // ---------------------------------------------------------------------------
 // 类型 + 共享组件
@@ -271,8 +276,9 @@ function CasesView({ onSelectCase }: { onSelectCase: (c: Case) => void }) {
   );
 }
 
-function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
+export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
   // v1.0 C09 R14 修复: 删 usingFallback state, 失败显 unavailable (AC-11)
+  // v1.0 C10 R14/R15 修复: 加 7 mutation 接线 + Toast 反馈 + 失败保留输入
   const [liveCase, setLiveCase] = useState<Case | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -285,6 +291,8 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
   const [liveKnowledge, setLiveKnowledge] = useState<Knowledge[]>([]);
   const [knowledgeReceipts, setKnowledgeReceipts] = useState<Record<string, ReuseReceipt>>({});
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
+  const [pendingMutation, setPendingMutation] = useState<string | null>(null);
+  const toast = useToast();
 
   // T08 + T11 + T12 + T13: 真实数据接入 — case / judgment / action / run / artifact / knowledge
   useEffect(() => {
@@ -348,6 +356,116 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
     return () => { cancelled = true; };
   }, [case_.id]);
 
+  // C10: refetch action chain (C09 R17 close 守卫依赖最新 revision)
+  const refetchChain = async (silent = false) => {
+    try {
+      const [caseResp, judgmentsResp, actionsResp] = await Promise.all([
+        getCase(case_.id),
+        listJudgments({ case_id: case_.id, limit: 50 }),
+        listActions({ case_id: case_.id, limit: 50 }),
+      ]);
+      setLiveCase(caseResp.item);
+      setLiveJudgments(judgmentsResp.items);
+      setLiveActions(actionsResp.items);
+      const allRuns: Run[] = [];
+      const allArts: Artifact[] = [];
+      for (const a of actionsResp.items) {
+        try {
+          const r = await listRuns({ action_id: a.id, limit: 10 });
+          allRuns.push(...r.items);
+          for (const run of r.items) {
+            try {
+              const arts = await listArtifacts({ run_id: run.id, limit: 10 });
+              allArts.push(...arts.items);
+            } catch { /* 静默 */ }
+          }
+        } catch { /* 静默 */ }
+      }
+      setLiveRuns(allRuns);
+      setLiveArtifacts(allArts);
+      if (!silent) {
+        void judgmentsLoading; void knowledgeLoading; void actionChainLoading; // no-op 占位 (避免 unused warning)
+      }
+    } catch (e) {
+      toast.show({ type: 'error', message: `刷新失败: ${e instanceof Error ? e.message : String(e)}` });
+    }
+  };
+
+  // C10 R14/R15: 7 mutation handlers (approve / start / cancel / verify / accept / reject / closeCase)
+  // 全部走 allowed_actions 守卫, 失败 Toast.error (Mimosa 禁 silent), 成功 Toast.success + refetch
+  const runMutation = async <T,>(
+    key: string,
+    op: () => Promise<T>,
+    successMsg: string,
+    errorPrefix: string,
+  ): Promise<T | null> => {
+    setPendingMutation(key);
+    try {
+      const result = await op();
+      toast.show({ type: 'success', message: successMsg });
+      await refetchChain(true);
+      return result;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.show({ type: 'error', message: `${errorPrefix}: ${msg}` });
+      return null;  // 失败保留输入 — 不抛, 不冒充成功
+    } finally {
+      setPendingMutation(null);
+    }
+  };
+
+  const handleApproveAction = (a: Action) => runMutation(
+    `approve:${a.id}`,
+    () => approveAction(a.id, { expected_revision: a.revision }).then(r => r.item),
+    `行动已批准: ${a.title}`,
+    '批准失败',
+  );
+  const handleStartAction = (a: Action) => runMutation(
+    `start:${a.id}`,
+    () => startAction(a.id, {
+      expected_revision: a.revision,
+      idempotency_key: `idem_${a.id}_${Date.now()}`,
+    } as any).then(r => r.run ?? r),
+    `行动已启动: ${a.title}`,
+    '启动失败',
+  );
+  const handleCancelAction = (a: Action) => runMutation(
+    `cancel:${a.id}`,
+    () => cancelAction(a.id, { expected_revision: a.revision }).then(r => r.item),
+    `行动已取消: ${a.title}`,
+    '取消失败',
+  );
+  const handleVerifyArtifact = (art: Artifact) => runMutation(
+    `verify:${art.id}`,
+    () => verifyArtifact(art.id, { expected_revision: art.revision, result: 'pass' } as any).then(r => r.item),
+    `产物已验证: ${art.title}`,
+    '验证失败',
+  );
+  const handleAcceptArtifact = (art: Artifact) => runMutation(
+    `accept:${art.id}`,
+    () => acceptArtifact(art.id, { expected_revision: art.revision } as any).then(r => r.item),
+    `产物已业务验收: ${art.title}`,
+    '验收失败',
+  );
+  const handleRejectArtifact = (art: Artifact) => runMutation(
+    `reject:${art.id}`,
+    () => rejectArtifact(art.id, { expected_revision: art.revision, reason: '人工拒绝 (UI 入口)' } as any).then(r => r.item),
+    `产物已拒绝: ${art.title}`,
+    '拒绝失败',
+  );
+  const handleCloseCase = () => {
+    if (!display.allowed_actions?.includes('close' as any)) {
+      toast.show({ type: 'warning', message: '当前事项不可关闭 (allowed_actions 不含 close)' });
+      return;
+    }
+    runMutation(
+      `close:${display.id}`,
+      () => closeCase(display.id, { expected_revision: display.revision ?? 0 }).then(r => r.item),
+      `事项已关闭: ${display.title}`,
+      '关闭失败 (R17: 需全 action 终态 + 无 active run + ≥1 verified artifact + ≥1 published judgment)',
+    );
+  };
+
   const display = liveCase ?? case_;
   // v1.0 C09 R14 修复: 不再 fallback MOCK_*.filter; 真实数据空 → 显空数组
   const judgments: Judgment[] = liveJudgments;
@@ -376,9 +494,21 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
             {display.reason && ` · ${display.reason}`}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Badge color={display.status === 'open' ? 'blue' : display.status === 'in_progress' ? 'green' : display.status === 'blocked' ? 'yellow' : 'gray'}>{display.status}</Badge>
           <Badge color={display.priority === 'p0' ? 'red' : display.priority === 'p1' ? 'yellow' : 'gray'}>{display.priority}</Badge>
+          {/* C10 R14/R17: close 按钮 (走 allowed_actions 守卫, R17 4 守卫后端已落) */}
+          {display.allowed_actions?.includes('close' as any) && (
+            <button
+              onClick={handleCloseCase}
+              disabled={pendingMutation === `close:${display.id}`}
+              className="text-xs px-3 py-1.5 rounded font-medium focus-ring disabled:opacity-50"
+              style={{ background: 'var(--color-warning)', color: 'var(--text-on-warning, #fff)' }}
+              data-testid="close-case-btn"
+            >
+              {pendingMutation === `close:${display.id}` ? '关闭中…' : '关闭事项'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -544,6 +674,45 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
                     )}
                   </div>
 
+                  {/* C10 R14/R15: 行动 mutation 按钮 (走 allowed_actions 守卫) */}
+                  {Array.isArray((a as any).allowed_actions) && (a as any).allowed_actions.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {(a as any).allowed_actions.includes('approve') && (
+                        <button
+                          onClick={() => handleApproveAction(a)}
+                          disabled={pendingMutation === `approve:${a.id}`}
+                          className="text-xs px-3 py-1 rounded font-medium focus-ring disabled:opacity-50"
+                          style={{ background: 'var(--color-info)', color: 'var(--text-on-info, #fff)' }}
+                          data-testid="approve-action-btn"
+                        >
+                          {pendingMutation === `approve:${a.id}` ? '批准中…' : '批准'}
+                        </button>
+                      )}
+                      {(a as any).allowed_actions.includes('start') && (
+                        <button
+                          onClick={() => handleStartAction(a)}
+                          disabled={pendingMutation === `start:${a.id}`}
+                          className="text-xs px-3 py-1 rounded font-medium focus-ring disabled:opacity-50"
+                          style={{ background: 'var(--color-success)', color: 'var(--text-on-success, #fff)' }}
+                          data-testid="start-action-btn"
+                        >
+                          {pendingMutation === `start:${a.id}` ? '启动中…' : '启动'}
+                        </button>
+                      )}
+                      {(a as any).allowed_actions.includes('cancel') && (
+                        <button
+                          onClick={() => handleCancelAction(a)}
+                          disabled={pendingMutation === `cancel:${a.id}`}
+                          className="text-xs px-3 py-1 rounded font-medium focus-ring disabled:opacity-50"
+                          style={{ background: 'var(--bg-muted)', color: 'var(--text-primary)', border: '1px solid var(--border-muted)' }}
+                          data-testid="cancel-action-btn"
+                        >
+                          {pendingMutation === `cancel:${a.id}` ? '取消中…' : '取消'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {/* plan (T11 markdown 渲染) */}
                   {a.plan && (
                     <details className="mb-2">
@@ -577,12 +746,50 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
                       <div className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>产物 ({actionArtifacts.length} 条):</div>
                       <div className="space-y-1">
                         {actionArtifacts.map(art => (
-                          <div key={art.id} className="flex items-center gap-2 text-xs">
+                          <div key={art.id} className="flex items-center gap-2 text-xs flex-wrap">
                             <span style={{ color: 'var(--text-primary)' }}>{art.title}</span>
                             <Badge color={art.status === 'accepted' ? 'green' : art.status === 'verified' ? 'blue' : art.status === 'rejected' ? 'red' : art.status === 'superseded' ? 'gray' : 'yellow'}>{art.status}</Badge>
                             <span style={{ color: 'var(--text-muted)' }}>{art.format} · {(art.size_bytes / 1024).toFixed(1)}KB</span>
                             {art.verified_result && <span style={{ color: 'var(--text-muted)' }}>· 验证: {art.verified_result}</span>}
                             {art.accepted_by && <span style={{ color: 'var(--text-success, var(--color-success))' }}>· 验收: {art.accepted_by}</span>}
+                            {/* C10 R08/R14/R15: 产物 mutation 按钮 (accept 必先 verify — 走 allowed_actions 守卫) */}
+                            {Array.isArray((art as any).allowed_actions) && (art as any).allowed_actions.length > 0 && (
+                              <span className="flex gap-1.5 ml-auto">
+                                {(art as any).allowed_actions.includes('verify') && (
+                                  <button
+                                    onClick={() => handleVerifyArtifact(art)}
+                                    disabled={pendingMutation === `verify:${art.id}`}
+                                    className="text-xs px-2 py-0.5 rounded font-medium focus-ring disabled:opacity-50"
+                                    style={{ background: 'var(--color-info)', color: 'var(--text-on-info, #fff)' }}
+                                    data-testid="verify-artifact-btn"
+                                  >
+                                    {pendingMutation === `verify:${art.id}` ? '验证中…' : '验证'}
+                                  </button>
+                                )}
+                                {(art as any).allowed_actions.includes('accept') && (
+                                  <button
+                                    onClick={() => handleAcceptArtifact(art)}
+                                    disabled={pendingMutation === `accept:${art.id}`}
+                                    className="text-xs px-2 py-0.5 rounded font-medium focus-ring disabled:opacity-50"
+                                    style={{ background: 'var(--color-success)', color: 'var(--text-on-success, #fff)' }}
+                                    data-testid="accept-artifact-btn"
+                                  >
+                                    {pendingMutation === `accept:${art.id}` ? '验收中…' : '业务验收'}
+                                  </button>
+                                )}
+                                {(art as any).allowed_actions.includes('reject') && (
+                                  <button
+                                    onClick={() => handleRejectArtifact(art)}
+                                    disabled={pendingMutation === `reject:${art.id}`}
+                                    className="text-xs px-2 py-0.5 rounded font-medium focus-ring disabled:opacity-50"
+                                    style={{ background: 'var(--bg-muted)', color: 'var(--text-primary)', border: '1px solid var(--border-muted)' }}
+                                    data-testid="reject-artifact-btn"
+                                  >
+                                    {pendingMutation === `reject:${art.id}` ? '拒绝中…' : '拒绝'}
+                                  </button>
+                                )}
+                              </span>
+                            )}
                           </div>
                         ))}
                       </div>

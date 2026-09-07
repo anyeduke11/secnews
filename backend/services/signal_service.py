@@ -72,16 +72,18 @@ def list_recent_signals(
     # T17 SSE 5 事件源: list 走完推 v1_signal 事件 (fire-and-forget, 仅 1 条; T19 全量收口前容忍失败)
     if items:
         try:
-            import asyncio
-
-            from backend.api.events import publish_event
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(publish_event("v1_signal", {  # noqa: RUF006
+            from backend.observability import get_trace_id
+            from backend.repository.outbox_repo import OutboxRepo
+            OutboxRepo().enqueue(
+                event_type="v1_signal",
+                aggregate_type="signal",
+                aggregate_id="list",  # signal 列表本身作为聚合
+                revision=0,
+                payload={
                     "count": len(items), "sample_id": items[0]["id"],
-                }))
-            except RuntimeError:
-                pass
+                },
+                trace_id=get_trace_id() or "no-trace",
+            )
         except Exception as e:
-            logger.debug(f"v1_signal publish_event skipped: {e}")
+            logger.debug(f"v1_signal outbox enqueue skipped: {e}")
     return items

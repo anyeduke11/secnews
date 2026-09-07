@@ -12,7 +12,6 @@
 """
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import random
 from datetime import datetime, timezone
@@ -218,21 +217,22 @@ class ArtifactService:
         return result
 
     def _publish_v1_artifact_event(self, a: dict[str, Any], action: str) -> None:
-        """T17: publish_event(v1_artifact) fire-and-forget on verify/accept.
-
-        sync context 无 event loop → silent skip (fire-and-forget 设计: 不能阻塞主路径).
-        """
+        """C11 R18: 业务事件写 v1_outbox 行 (enqueue), 取代 T17 fire-and-forget."""
         try:
-            from backend.api.events import publish_event
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(publish_event("v1_artifact", {  # noqa: RUF006
+            from backend.observability import get_trace_id
+            from backend.repository.outbox_repo import OutboxRepo
+            OutboxRepo().enqueue(
+                event_type="v1_artifact",
+                aggregate_type="artifact",
+                aggregate_id=a["id"],
+                revision=int(a.get("revision", 0) or 0),
+                payload={
                     "id": a["id"], "run_id": a.get("run_id"), "action": action,
-                }))
-            except RuntimeError:
-                pass  # 无 running loop → silent skip
+                },
+                trace_id=get_trace_id() or "no-trace",
+            )
         except Exception as e:
-            logger.debug(f"v1_artifact publish_event skipped: {e}")
+            logger.debug(f"v1_artifact outbox enqueue skipped: {e}")
     # ------------------------------------------------------------------
     # 拒绝 (verify 阶段或业务退回)
     # ------------------------------------------------------------------

@@ -50,6 +50,10 @@ vi.mock('../../../api/v1', async () => {
     listArtifacts: vi.fn(),
     listKnowledge: vi.fn(),
     getKnowledgeReuse: vi.fn(),
+    // C11 R19: 单点 aggregate 拉取 (替代旧 N+1 模式).
+    // C10 测试保留旧的 listRuns/listArtifacts 断言但同时 mock 新端点, 让 CaseDetail
+    // 在 aggregate 拉取成功后再走 mutation 流程.
+    getCaseAggregate: vi.fn(),
   };
 });
 import * as api from '../../../api/v1';
@@ -161,6 +165,15 @@ function setupMocks(over: {
   (api.listArtifacts as any).mockResolvedValue({ items: [art] });
   (api.listKnowledge as any).mockResolvedValue({ items: [] as Knowledge[] });
   (api.getKnowledgeReuse as any).mockResolvedValue({ receipt: { total: 0, by_judgment: 0, by_action: 0, recent_30d: 0 } });
+  // C11 R19: 单点 aggregate mock — 走新端点, 5 类对象一次返.
+  (api.getCaseAggregate as any).mockResolvedValue({
+    version: '1.0.0',
+    case: c,
+    judgments: [],
+    actions: [a],
+    runs: [r],
+    artifacts: [art],
+  });
   if (over.approveAction) (api.approveAction as any).mockImplementation(over.approveAction);
   if (over.startAction) (api.startAction as any).mockImplementation(over.startAction);
   if (over.cancelAction) (api.cancelAction as any).mockImplementation(over.cancelAction);
@@ -185,7 +198,8 @@ describe('v1.0 C10 R14/R15 mutation 接线', () => {
   it('R14.1 CaseDetail 渲染 action 块时必带 approve/start/cancel 至少 1 个 mutation 按钮', async () => {
     setupMocks();
     renderWithToast(<CaseDetail case_={makeCase()} onBack={() => {}} />);
-    await waitFor(() => expect(api.listActions).toHaveBeenCalled());
+    // C11 R19: 改走单点 /aggregate, 不再调 listActions
+    await waitFor(() => expect(api.getCaseAggregate).toHaveBeenCalled());
     // 旧实现 0 按钮 → 此断言失败
     const buttons = await screen.findAllByRole('button');
     const labels = buttons.map(b => b.textContent ?? '');
@@ -195,7 +209,8 @@ describe('v1.0 C10 R14/R15 mutation 接线', () => {
   it('R14.2 CaseDetail 顶部必带 close 按钮 (case close 4 守卫 UI 入口)', async () => {
     setupMocks({ case_: { allowed_actions: ['close'] as any } });
     renderWithToast(<CaseDetail case_={makeCase()} onBack={() => {}} />);
-    await waitFor(() => expect(api.getCase).toHaveBeenCalled());
+    // C11 R19: aggregate 替代 getCase
+    await waitFor(() => expect(api.getCaseAggregate).toHaveBeenCalled());
     // 旧实现无 close 按钮
     expect(await screen.findByRole('button', { name: /关闭事项|close|关闭/ })).toBeTruthy();
   });
@@ -205,7 +220,7 @@ describe('v1.0 C10 R14/R15 mutation 接线', () => {
       approveAction: vi.fn().mockRejectedValue(new Error('E_CONFLICT: revision mismatch')),
     });
     renderWithToast(<CaseDetail case_={makeCase()} onBack={() => {}} />);
-    await waitFor(() => expect(api.listActions).toHaveBeenCalled());
+    await waitFor(() => expect(api.getCaseAggregate).toHaveBeenCalled());
     const approveBtn = await screen.findByRole('button', { name: /approve|批准/ });
     fireEvent.click(approveBtn);
     await waitFor(() => {
@@ -219,12 +234,12 @@ describe('v1.0 C10 R14/R15 mutation 接线', () => {
       approveAction: vi.fn().mockResolvedValue({ item: updated }),
     });
     renderWithToast(<CaseDetail case_={makeCase()} onBack={() => {}} />);
-    await waitFor(() => expect(api.listActions).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(api.getCaseAggregate).toHaveBeenCalledTimes(1));
     const approveBtn = await screen.findByRole('button', { name: /approve|批准/ });
     fireEvent.click(approveBtn);
     await waitFor(() => {
-      // 成功后必触发至少第 2 次 listActions (refetch)
-      expect((api.listActions as any).mock.calls.length).toBeGreaterThanOrEqual(2);
+      // C11 R19: mutation 成功后 refetchAggregate 触发至少第 2 次 aggregate 调用
+      expect((api.getCaseAggregate as any).mock.calls.length).toBeGreaterThanOrEqual(2);
     });
   });
 
@@ -233,7 +248,7 @@ describe('v1.0 C10 R14/R15 mutation 接线', () => {
   it('R15.1 close 按钮仅当 case.allowed_actions 含 close 时显示', async () => {
     setupMocks({ case_: { allowed_actions: [] as any } });
     renderWithToast(<CaseDetail case_={makeCase({ allowed_actions: [] as any })} onBack={() => {}} />);
-    await waitFor(() => expect(api.getCase).toHaveBeenCalled());
+    await waitFor(() => expect(api.getCaseAggregate).toHaveBeenCalled());
     // 不在 allowed_actions → 不应显 close 按钮
     expect(screen.queryByRole('button', { name: /关闭事项|关闭/ })).toBeNull();
   });
@@ -243,7 +258,7 @@ describe('v1.0 C10 R14/R15 mutation 接线', () => {
       action: { status: 'approved' as any, allowed_actions: ['start', 'cancel'] as any },
     });
     renderWithToast(<CaseDetail case_={makeCase()} onBack={() => {}} />);
-    await waitFor(() => expect(api.listActions).toHaveBeenCalled());
+    await waitFor(() => expect(api.getCaseAggregate).toHaveBeenCalled());
     expect(await screen.findByRole('button', { name: /start|启动/ })).toBeTruthy();
   });
 
@@ -252,7 +267,7 @@ describe('v1.0 C10 R14/R15 mutation 接线', () => {
       artifact: { status: 'pending' as any, allowed_actions: ['verify'] as any },
     });
     renderWithToast(<CaseDetail case_={makeCase()} onBack={() => {}} />);
-    await waitFor(() => expect(api.listActions).toHaveBeenCalled());
+    await waitFor(() => expect(api.getCaseAggregate).toHaveBeenCalled());
     expect(await screen.findByRole('button', { name: /verify|验证/ })).toBeTruthy();
     // pending 状态不该有 accept 按钮 (R08 守卫)
     expect(screen.queryByRole('button', { name: /accept|验收/ })).toBeNull();
@@ -263,7 +278,7 @@ describe('v1.0 C10 R14/R15 mutation 接线', () => {
       artifact: { status: 'verified' as any, allowed_actions: ['accept', 'reject'] as any },
     });
     renderWithToast(<CaseDetail case_={makeCase()} onBack={() => {}} />);
-    await waitFor(() => expect(api.listActions).toHaveBeenCalled());
+    await waitFor(() => expect(api.getCaseAggregate).toHaveBeenCalled());
     expect(await screen.findByRole('button', { name: /accept|验收/ })).toBeTruthy();
     expect(await screen.findByRole('button', { name: /reject|拒绝/ })).toBeTruthy();
   });
@@ -278,13 +293,15 @@ describe('v1.0 C10 R14/R15 mutation 接线', () => {
       ),
     });
     renderWithToast(<CaseDetail case_={makeCase()} onBack={() => {}} />);
-    await waitFor(() => expect(api.getCase).toHaveBeenCalled());
+    await waitFor(() => expect(api.getCaseAggregate).toHaveBeenCalled());
     const closeBtn = await screen.findByRole('button', { name: /关闭事项|close|关闭/ });
     fireEvent.click(closeBtn);
     await waitFor(() => {
       expect(screen.getByText(/active runs|E_CONFLICT|失败/)).toBeTruthy();
     });
-    // 不冒充成功: 必不调 getCase 标 closed
-    expect((api.getCase as any).mock.calls.length).toBe(1);
+    // C11 R19: 不冒充成功: 必不调 getCaseAggregate 标 closed
+    // 注: 初始 mount 时 useEffect 跑 1 次 + useCallback 重算后再跑 1 次 = 2 次,
+    // failed close 不应再叠加. 验证失败 close 后仍是初始次数 2, 不 ≥ 3.
+    expect((api.getCaseAggregate as any).mock.calls.length).toBe(2);
   });
 });

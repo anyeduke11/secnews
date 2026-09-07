@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.0 C11 (2026-09-07) — 契约+可靠事件+效率 (R18 outbox 持久化 + R19 聚合去 N+1)
+
+### R18 SSE 业务事务持久化 (outbox + Last-Event-ID)
+- 新表 `v1_outbox` (migration 104, id INTEGER PK AUTOINCREMENT 严格单调 / event_type / aggregate_type+id / revision / payload_json / trace_id / occurred_at / delivered_at NULL=未广播 + 3 索引)
+- `OutboxRepo` 单一真相源 (enqueue / list_undelivered / list_since(last_id) / mark_delivered CAS / count_pending)
+- `OutboxDispatcher` asyncio task 每 1s 轮询 → publish_event → mark_delivered (单条失败保留 NULL 重试, Mimosa 禁 silent)
+- 5 service 改 fire-and-forget → OutboxRepo.enqueue (judgment.publish / action.start+cancel / artifact.verify+accept / knowledge.publish+deprecate+retract / signal list_recent_signals 探测)
+- `GET /api/events?last_id=N` SSE 启动期 replay outbox 行, `id: {outbox_id}\nevent: {type}\ndata: {payload}\n\n` 严格按 id 升序
+- `main.py` lifespan 启停 dispatcher (`get_dispatcher().start()` / `stop()`)
+- 前端 `useSSE` Last-Event-ID 双源 (event.id 优先 / e.lastEventId 回退) + 重连 URL `?last_id=N`
+- 前端 `useSSEAggregateInvalidate` 按 case_id+revision 精确失效 (旧 revision ignore / 不同 case_id 不触发)
+
+### R19 Case 聚合去 N+1
+- `GET /api/v1/cases/{id}/aggregate` 1 端点拉 case+judgments+actions+runs+artifacts 5 类 (4 个 limit 入参守护)
+- 前端 `getCaseAggregate` 1 端点 + `boundedParallel` 8 并发限流 helper
+- `V1Prototype.CaseDetail` 4 串行 useEffect → 单 `refetchAggregate` 走 aggregate 端点
+
+### 反例测试
+- backend 9/9 (R18 6: enqueue 必写 / FIFO / undelivered / mark_delivered CAS / dispatcher retry / thread context / replay 严格升序; R19 3: aggregate 5 类 / limit 守护 / 不调 list 端点)
+- frontend 8/8 (R18.1 事件后 reconnect URL / R18.1b 原生 SSE id / R18.2 同 case_id 触发 / R18.3 revision 旧 ignore / R18.4 不同 case_id 不触发 / R19.1 aggregate 1 调用 / R19.2 boundedParallel ≤8)
+
+### 数字
+- services 124→**125** (新增 outbox_dispatcher)
+- pytest 4160→**4205** (+9 C11 new, 0 回归)
+- vitest 455→**463** (+8 C11 new, 0 回归)
+
 ## v0.8.2 (2026-09-05) — 治理合批 (子批 1 快赢包 X + 子批 2 通电治理 Y)
 
 ### Y-A1 全局并发单一真相源 (utils/concurrency.py)

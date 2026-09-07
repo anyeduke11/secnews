@@ -245,6 +245,103 @@ async def create_case_endpoint(req: CreateCaseRequest = Body(...)):
         )
 
 
+# ---------------------------------------------------------------------------
+# C11 R19: 聚合端点 — 单次拉齐 case + judgments + actions + runs + artifacts
+# ---------------------------------------------------------------------------
+def _aggregate(
+    case_id: str,
+    *,
+    judgments_limit: int,
+    actions_limit: int,
+    runs_per_action: int,
+    artifacts_per_run: int,
+) -> dict[str, Any]:
+    """C11 R19: Case 聚合查询, 避免前端 N+1.
+
+    调用 1 次: case + judgments + actions + runs (per action) + artifacts (per run).
+    旧实现 (前端): 1+1+1+N+N×M 个 HTTP 请求; 修复后: 1 个聚合端点.
+    """
+    from backend.services.action_service import ActionService
+    from backend.services.artifact_service import ArtifactService
+    from backend.services.judgment_service import JudgmentService
+    from backend.services.run_service import RunService
+
+    c_svc = CaseService()
+    try:
+        case = c_svc.get_case(case_id)
+    except CaseNotFoundError as e:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "E_NOT_FOUND", "message": str(e)},
+        )
+
+    j_svc = JudgmentService()
+    judgments_resp = j_svc.list_by_case(case_id, limit=judgments_limit, offset=0)
+    judgments = judgments_resp.get("items", []) if isinstance(judgments_resp, dict) else list(judgments_resp)
+
+    a_svc = ActionService(dsh_caller=lambda _p: "{}")
+    actions_resp = a_svc.list_by_case(case_id, limit=actions_limit, offset=0)
+    actions = actions_resp.get("items", []) if isinstance(actions_resp, dict) else list(actions_resp)
+
+    r_svc = RunService()
+    art_svc = ArtifactService()
+    runs: list[dict[str, Any]] = []
+    artifacts: list[dict[str, Any]] = []
+    for a in actions:
+        a_id = a.get("id") if isinstance(a, dict) else getattr(a, "id", None)
+        if not a_id:
+            continue
+        try:
+            run_resp = r_svc.list_by_action(a_id, limit=runs_per_action, offset=0)
+            run_items = run_resp.get("items", []) if isinstance(run_resp, dict) else list(run_resp)
+        except Exception:
+            run_items = []
+        runs.extend(run_items)
+        for r in run_items:
+            r_id = r.get("id") if isinstance(r, dict) else getattr(r, "id", None)
+            if not r_id:
+                continue
+            try:
+                art_resp = art_svc.list_by_run(r_id, limit=artifacts_per_run, offset=0)
+                art_items = art_resp.get("items", []) if isinstance(art_resp, dict) else list(art_resp)
+            except Exception:
+                art_items = []
+            artifacts.extend(art_items)
+
+    return {
+        "version": API_VERSION,
+        "case": _case_to_dict(case),
+        "judgments": [j for j in judgments if isinstance(j, dict)] if judgments and isinstance(judgments[0], dict) else [
+            j.to_dict() if hasattr(j, "to_dict") else j for j in judgments
+        ],
+        "actions": [a for a in actions if isinstance(a, dict)] if actions and isinstance(actions[0], dict) else [
+            a.to_dict() if hasattr(a, "to_dict") else a for a in actions
+        ],
+        "runs": [r for r in runs if isinstance(r, dict)] if runs and isinstance(runs[0], dict) else [
+            r.to_dict() if hasattr(r, "to_dict") else r for r in runs
+        ],
+        "artifacts": [a for a in artifacts if isinstance(a, dict)] if artifacts and isinstance(artifacts[0], dict) else [
+            a.to_dict() if hasattr(a, "to_dict") else a for a in artifacts
+        ],
+    }
+
+
+@router.get("/{case_id}/aggregate")
+async def get_case_aggregate_endpoint(
+    case_id: str,
+    judgments_limit: int = Query(default=50, ge=1, le=200),
+    actions_limit: int = Query(default=50, ge=1, le=200),
+    runs_per_action: int = Query(default=10, ge=1, le=50),
+    artifacts_per_run: int = Query(default=10, ge=1, le=50),
+):
+    """C11 R19: Case 聚合查询, 1 次拉齐 5 类对象, 避免前端 N+1."""
+    return await asyncio.to_thread(
+        _aggregate, case_id,
+        judgments_limit=judgments_limit, actions_limit=actions_limit,
+        runs_per_action=runs_per_action, artifacts_per_run=artifacts_per_run,
+    )
+
+
 @router.get("")
 async def list_cases_endpoint(
     status: list[str] | None = Query(default=None),

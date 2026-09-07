@@ -322,24 +322,22 @@ class ActionService:
         return out
 
     def _publish_v1_action_event(self, a: dict[str, Any], new_status: str) -> None:
-        """T17: publish_event(v1_action) fire-and-forget on start/cancel/finish.
-
-        sync context 无 running loop → get_running_loop 失败 silent skip
-        (fire-and-forget 设计: 不能阻塞主路径).
-        """
+        """C11 R18: 业务事件写 v1_outbox 行 (enqueue), 取代 T17 fire-and-forget."""
         try:
-            import asyncio
-
-            from backend.api.events import publish_event
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(publish_event("v1_action", {  # noqa: RUF006
+            from backend.observability import get_trace_id
+            from backend.repository.outbox_repo import OutboxRepo
+            OutboxRepo().enqueue(
+                event_type="v1_action",
+                aggregate_type="action",
+                aggregate_id=a["id"],
+                revision=int(a.get("revision", 0) or 0),
+                payload={
                     "id": a["id"], "case_id": a["case_id"], "status": new_status,
-                }))
-            except RuntimeError:
-                pass
+                },
+                trace_id=get_trace_id() or "no-trace",
+            )
         except Exception as e:
-            logger.debug(f"v1_action publish_event skipped: {e}")
+            logger.debug(f"v1_action outbox enqueue skipped: {e}")
 
     def cancel(self, action_id: str, *, expected_revision: int, reason: str) -> dict[str, Any]:
         a = self._require(action_id)

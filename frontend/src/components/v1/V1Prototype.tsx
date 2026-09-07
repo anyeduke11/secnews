@@ -16,16 +16,18 @@
  * 路由: /v1-prototype 已删除 (C09 R23); /knowledge 唯一声明.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Case, Judgment } from '../../domain/v1_0';
 import type { Action, Run, Artifact, Knowledge } from '../../api/v1';
 import {
-  listCases, getCase, listJudgments, listActions, listRuns, listArtifacts, listKnowledge, getKnowledgeReuse, listSignals,
+  listCases, listKnowledge, getKnowledgeReuse, listSignals,
+  getCaseAggregate,
   approveAction, startAction, cancelAction, verifyArtifact, acceptArtifact, rejectArtifact, closeCase,
   type ReuseReceipt, type V1Signal,
 } from '../../api/v1';
 import { renderInlineMarkdown } from '../../lib/markdown';
 import { useSSEWithRefetch } from './useSSEWithRefetch';
+import { useSSEAggregateInvalidate } from './useSSEAggregateInvalidate';
 import { useToast } from '../Toast';
 
 // ---------------------------------------------------------------------------
@@ -279,6 +281,9 @@ function CasesView({ onSelectCase }: { onSelectCase: (c: Case) => void }) {
 export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
   // v1.0 C09 R14 修复: 删 usingFallback state, 失败显 unavailable (AC-11)
   // v1.0 C10 R14/R15 修复: 加 7 mutation 接线 + Toast 反馈 + 失败保留输入
+  // v1.0 C11 R18/R19 修复: 单点 GET /api/v1/cases/{id}/aggregate 拉齐 5 类对象,
+  //   替代旧 N+1 (getCase + listJudgments + listActions + N×listRuns + N×M×listArtifacts),
+  //   同 tab 多 CaseDetail 不再 O(case) 次无效重拉, 按 (case_id+revision) 精确失效.
   const [liveCase, setLiveCase] = useState<Case | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -294,102 +299,74 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
   const [pendingMutation, setPendingMutation] = useState<string | null>(null);
   const toast = useToast();
 
-  // T08 + T11 + T12 + T13: 真实数据接入 — case / judgment / action / run / artifact / knowledge
-  useEffect(() => {
-    let cancelled = false;
+  // C11 R19: 单点 aggregate 拉取 — 1 次 HTTP 拉齐 case+judgments+actions+runs+artifacts.
+  // 旧实现 4 个并行分支 (getCase+listJudgments+listActions+级联 listRuns+listArtifacts)
+  // 触发 1+1+1+N+N×M=3+N+N×M 次往返, 业务规模 (50 actions × 5 runs) 触发 300 次.
+  // 新实现固定 1 次, 服务端聚合 + 异常隔离 (单 run 拉取失败不阻断其他).
+  const refetchAggregate = useCallback(async (silent: boolean = false) => {
     setLoading(true);
     setError(null);
-    getCase(case_.id)
-      .then((resp) => { if (!cancelled) { setLiveCase(resp.item); } })
-      .catch((e) => { if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setLiveCase(null); } })
-      .finally(() => { if (!cancelled) setLoading(false); });
     setJudgmentsLoading(true);
-    listJudgments({ case_id: case_.id, limit: 50 })
-      .then((resp) => { if (!cancelled) setLiveJudgments(resp.items); })
-      .catch(() => { if (!cancelled) setLiveJudgments([]); })
-      .finally(() => { if (!cancelled) setJudgmentsLoading(false); });
-    // T12: 拉 actions (含级联 runs + artifacts)
     setActionChainLoading(true);
-    listActions({ case_id: case_.id, limit: 50 })
-      .then(async (resp) => {
-        if (cancelled) return;
-        setLiveActions(resp.items);
-        const allRuns: Run[] = [];
-        const allArts: Artifact[] = [];
-        for (const a of resp.items) {
-          try {
-            const r = await listRuns({ action_id: a.id, limit: 10 });
-            allRuns.push(...r.items);
-            for (const run of r.items) {
-              try {
-                const arts = await listArtifacts({ run_id: run.id, limit: 10 });
-                allArts.push(...arts.items);
-              } catch { /* 静默 */ }
-            }
-          } catch { /* 静默 */ }
-        }
-        if (!cancelled) {
-          setLiveRuns(allRuns);
-          setLiveArtifacts(allArts);
-        }
-      })
-      .catch(() => { if (!cancelled) { setLiveActions([]); setLiveRuns([]); setLiveArtifacts([]); } })
-      .finally(() => { if (!cancelled) setActionChainLoading(false); });
-    // T13: 拉 knowledge 列表 (含 reuse receipt)
     setKnowledgeLoading(true);
-    listKnowledge({ case_id: case_.id, limit: 50 })
-      .then(async (resp) => {
-        if (cancelled) return;
-        setLiveKnowledge(resp.items);
-        // 拉每个 knowledge 的 reuse receipt
-        const receipts: Record<string, ReuseReceipt> = {};
-        for (const k of resp.items) {
-          try {
-            const r = await getKnowledgeReuse(k.id);
-            receipts[k.id] = r.receipt;
-          } catch { /* 静默 */ }
-        }
-        if (!cancelled) setKnowledgeReceipts(receipts);
-      })
-      .catch(() => { if (!cancelled) { setLiveKnowledge([]); setKnowledgeReceipts({}); } })
-      .finally(() => { if (!cancelled) setKnowledgeLoading(false); });
-    return () => { cancelled = true; };
-  }, [case_.id]);
-
-  // C10: refetch action chain (C09 R17 close 守卫依赖最新 revision)
-  const refetchChain = async (silent = false) => {
     try {
-      const [caseResp, judgmentsResp, actionsResp] = await Promise.all([
-        getCase(case_.id),
-        listJudgments({ case_id: case_.id, limit: 50 }),
-        listActions({ case_id: case_.id, limit: 50 }),
-      ]);
-      setLiveCase(caseResp.item);
-      setLiveJudgments(judgmentsResp.items);
-      setLiveActions(actionsResp.items);
-      const allRuns: Run[] = [];
-      const allArts: Artifact[] = [];
-      for (const a of actionsResp.items) {
+      const agg = await getCaseAggregate(case_.id, {
+        judgments_limit: 50,
+        actions_limit: 50,
+        runs_per_action: 10,
+        artifacts_per_run: 10,
+      });
+      setLiveCase(agg.case);
+      setLiveJudgments(agg.judgments);
+      setLiveActions(agg.actions);
+      setLiveRuns(agg.runs);
+      setLiveArtifacts(agg.artifacts);
+      // knowledge 仍走 listKnowledge (与 reuse receipt), 不在 aggregate 范围
+      // (复用统计为派生聚合, 不在主链路 N+1 内, T13 形态保留)
+      const knResp = await listKnowledge({ case_id: case_.id, limit: 50 });
+      setLiveKnowledge(knResp.items);
+      const receipts: Record<string, ReuseReceipt> = {};
+      // 顺序拉 (复用统计非高频, ≤ 50 条)
+      for (const k of knResp.items) {
         try {
-          const r = await listRuns({ action_id: a.id, limit: 10 });
-          allRuns.push(...r.items);
-          for (const run of r.items) {
-            try {
-              const arts = await listArtifacts({ run_id: run.id, limit: 10 });
-              allArts.push(...arts.items);
-            } catch { /* 静默 */ }
-          }
-        } catch { /* 静默 */ }
+          const r = await getKnowledgeReuse(k.id);
+          receipts[k.id] = r.receipt;
+        } catch {
+          // 单条 reuse 拉取失败 → 该条不显 receipt (其他条正常)
+        }
       }
-      setLiveRuns(allRuns);
-      setLiveArtifacts(allArts);
-      if (!silent) {
-        void judgmentsLoading; void knowledgeLoading; void actionChainLoading; // no-op 占位 (避免 unused warning)
-      }
+      setKnowledgeReceipts(receipts);
     } catch (e) {
-      toast.show({ type: 'error', message: `刷新失败: ${e instanceof Error ? e.message : String(e)}` });
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      if (!silent) {
+        toast.show({ type: 'error', message: `刷新失败: ${msg}` });
+      }
+    } finally {
+      setLoading(false);
+      setJudgmentsLoading(false);
+      setActionChainLoading(false);
+      setKnowledgeLoading(false);
     }
-  };
+  }, [case_.id, toast]);
+
+  // 初次加载 + case 切换时拉取
+  useEffect(() => {
+    refetchAggregate(true);
+  }, [refetchAggregate]);
+
+  // C11 R18: 按 (case_id+revision) 精确失效 — 5 service outbox 事件触发
+  // 同 case 关联的 aggregate_type 变更才 refetch, 避免 T17.5 全局广播式 refetch.
+  useSSEAggregateInvalidate({
+    currentCaseId: case_.id,
+    currentRevision: liveCase?.revision ?? 0,
+    onRefetch: () => { void refetchAggregate(true); },
+  });
+
+  // C10: 7 mutation 完成后 refetch — 旧 refetchChain 替换为单点 aggregate.
+  const refetchChain = useCallback(async (_silent: boolean = false) => {
+    await refetchAggregate(true);
+  }, [refetchAggregate]);
 
   // C10 R14/R15: 7 mutation handlers (approve / start / cancel / verify / accept / reject / closeCase)
   // 全部走 allowed_actions 守卫, 失败 Toast.error (Mimosa 禁 silent), 成功 Toast.success + refetch

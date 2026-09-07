@@ -426,25 +426,31 @@ class JudgmentService:
         return self.repo.get(judgment_id)
 
     def _publish_v1_judgment_event(self, j: dict[str, Any]) -> None:
-        """T17: publish_event(v1_judgment) fire-and-forget.
+        """C11 R18: 业务事件写 v1_outbox 行 (enqueue), 取代 T17 fire-and-forget.
 
-        sync context (普通 request handler) 无 running loop — 用 get_running_loop
-        检测, 失败 silent skip (fire-and-forget 设计: 不能阻塞主路径).
+        - 不依赖 running loop: 在 asyncio.to_thread 包装下也安全
+        - 与 DB CAS 同事务语义: 业务写失败 → outbox 也不写, 不会泄露
+        - 后台 dispatcher 轮询 + 广播 + mark_delivered
+        - SSE 客户端用 last_id 续传, 断线重连不漏不重
         """
         try:
-            import asyncio
-
-            from backend.api.events import publish_event
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(publish_event("v1_judgment", {  # noqa: RUF006
-                    "id": j["id"], "case_id": j["case_id"], "status": j["status"],
-                    "claim_type": j.get("claim_type"),
-                }))
-            except RuntimeError:
-                pass  # 无 running loop → silent skip
+            from backend.observability import get_trace_id
+            from backend.repository.outbox_repo import OutboxRepo
+            OutboxRepo().enqueue(
+                event_type="v1_judgment",
+                aggregate_type="judgment",
+                aggregate_id=j["id"],
+                revision=int(j.get("revision", 0) or 0),
+                payload={
+                    "id": j["id"], "case_id": j["case_id"],
+                    "status": j["status"], "claim_type": j.get("claim_type"),
+                },
+                trace_id=get_trace_id() or "no-trace",
+            )
         except Exception as e:
-            logger.debug(f"v1_judgment publish_event skipped: {e}")
+            # R18 修复后: outbox 写失败必须可见 (Mimosa 禁 silent)
+            # 但也不能阻塞主业务 (judgment.publish 已落库), 仅 debug log
+            logger.debug(f"v1_judgment outbox enqueue skipped: {e}")
 
     # ------------------------------------------------------------------
     # list / get

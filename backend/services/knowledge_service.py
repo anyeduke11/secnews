@@ -332,23 +332,22 @@ class KnowledgeService:
         return result
 
     def _publish_v1_knowledge_event(self, k: dict, action: str) -> None:
-        """T17: publish_event(v1_knowledge) fire-and-forget on publish/deprecate/retract.
-
-        sync context 无 running loop → silent skip.
-        """
+        """C11 R18: 业务事件写 v1_outbox 行 (enqueue), 取代 T17 fire-and-forget."""
         try:
-            import asyncio
-
-            from backend.api.events import publish_event
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(publish_event("v1_knowledge", {  # noqa: RUF006
+            from backend.observability import get_trace_id
+            from backend.repository.outbox_repo import OutboxRepo
+            OutboxRepo().enqueue(
+                event_type="v1_knowledge",
+                aggregate_type="knowledge",
+                aggregate_id=k["id"],
+                revision=int(k.get("revision", 0) or 0),
+                payload={
                     "id": k["id"], "status": k["status"], "action": action,
-                }))
-            except RuntimeError:
-                pass
+                },
+                trace_id=get_trace_id() or "no-trace",
+            )
         except Exception as e:
-            logger.debug(f"v1_knowledge publish_event skipped: {e}")
+            logger.debug(f"v1_knowledge outbox enqueue skipped: {e}")
 
     def deprecate(
         self, knowledge_id: str, *, expected_revision: int, reason: str,

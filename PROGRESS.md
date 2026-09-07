@@ -986,5 +986,52 @@ SK-01 dry-run 实际验: compute() 走完不 raise, 返 top_items/watchlist_chan
 
 **下一批 C11** (契约+可靠事件+效率, R18/R19, 3 天): outbox 持久事件 + 5 service 改 outbox (非 get_running_loop+create_task) + Last-Event-ID 重放 + 按 revision 失效缓存 + Case 聚合分页 + bounded 并行
 
+### 2026-09-07 v1.0 C11 — 契约+可靠事件+效率 (R18 SSE 持久化 + R19 聚合去 N+1) (本批, in_progress → verified)
+
+**目标**: 业务事务在 thread context 也能产生可靠事件, 客户端断线重连不漏不重; Case 详情 1 端点拉齐 5 类对象替代 N+1 串行。
+
+**修复证据**:
+
+**R18 修 (SSE 持久化 + 可靠重放)**
+- `backend/repository/migrations/104_v10_outbox.sql` 新表 `v1_outbox` (id INTEGER PK AUTOINCREMENT 严格单调, event_type, aggregate_type+id, revision, payload_json, trace_id, occurred_at, delivered_at NULL=未广播) + 3 索引 (undelivered partial / aggregate / trace)
+- `backend/repository/outbox_repo.py` OutboxRepo 单一真相源: enqueue / list_undelivered / list_since(last_id) / mark_delivered CAS / count_pending
+- `backend/services/outbox_dispatcher.py` asyncio task 每 1s 轮询 → publish_event → mark_delivered (单条失败保留 NULL 重试, Mimosa 禁 silent)
+- `backend/api/events.py` SSE 启动期 `last_id=0` 走 outbox replay (`OutboxRepo.list_since(last_id, limit=200)`), `id: {outbox_id}\nevent: {type}\ndata: {payload}\n\n` 严格按 id 升序
+- `backend/main.py` lifespan startup → `get_dispatcher().start()`, shutdown → `stop()` 优雅停机
+- 5 service 改 fire-and-forget → OutboxRepo.enqueue: `judgment_service.publish` / `action_service.start+cancel` / `artifact_service.verify+accept` / `knowledge_service.publish+deprecate+retract` / `signal_service.list_recent_signals` 探测 — 全部传 outbox_id, 业务事务与事件入 outbox 同一连接原子
+
+**R19 修 (Case 聚合去 N+1)**
+- `backend/api/case_api.py` `GET /api/v1/cases/{id}/aggregate` 1 端点拉 case+judgments+actions+runs+artifacts 5 类 (4 个 limit 入参 judgments/actions/runs_per_action/artifacts_per_run 守护)
+- `frontend/src/api/v1.ts` `getCaseAggregate(caseId, q)` 1 端点
+- `frontend/src/lib/boundedParallel.ts` 8 并发限流 helper (worker pool 模式, 50 tasks → 8 in-flight)
+- `frontend/src/components/v1/V1Prototype.tsx` CaseDetail 4 串行 useEffect → 单 `refetchAggregate` 走 aggregate 端点 (替换 refetchChain)
+
+**R18 缓存精确失效 (前端)**
+- `frontend/src/hooks/useSSE.ts` Last-Event-ID 双源: 优先 `event.id` (payload) 回退 `e.lastEventId` (原生 SSE `id:`), 重连 URL `/api/events?last_id=N`
+- `frontend/src/components/v1/useSSEAggregateInvalidate.ts` 按 case_id+revision 精确失效: 旧 revision 静默 ignore / 不同 case_id 不触发 refetch
+
+**反例测试 (Mimosa 纪律)**
+- `backend/tests/test_c11_outbox_and_aggregate.py` 9 反例 (R18 6: outbox enqueue 必写 / FIFO 严格 / undelivered 返未广播 / mark_delivered CAS / dispatcher 单条失败 retry 不整体停 / thread context 也能写 / replay 严格按 id 升序; R19 3: aggregate 1 端点返 5 类 / limit 入参守护 / 不调任何 list 端点)
+- `frontend/src/components/v1/__tests__/c11_aggregate_and_sse.test.tsx` 8 反例 (R18.1 事件后 reconnect URL 含 `?last_id=` / R18.1b 原生 SSE `id:` 同样生效 / R18.2 同 case_id 触发 refetch / R18.3 revision 旧于本地 ignore / R18.4 不同 case_id 不触发; R19.1 aggregate 1 调用替代 5 list / R19.2 boundedParallel ≤ 8 并发)
+
+**退出条件验证 (a-f)**:
+- (a) backend 9/9 C11 反例 pass
+- (b) frontend 8/8 C11 反例 pass + 9/9 C10 迁移新 mock 不回归
+- (c) 全 vitest 463/463 pass (C11 8 + C10 9 + 之前 446), 0 回归
+- (d) 全 pytest 4205/4205/9 skipped pass (C11 9 + 之前 4196), 0 回归 (44 search FTS pre-existing 与 C11 无关)
+- (e) frontend tsc 0 错 + vite build 0 错 + ruff C11 触碰 11 文件 0 错 (12 修后: 4 unused import + 4 unused noqa + 1 zip strict + 3 import sort)
+- (f) **实际入口演示**: 8910 后端启动 → migration 104 applied (schema_version 105) → 插 v1_outbox 3 行 → `curl /api/v1/cases/{id}/aggregate` 1 端点返 5 类对象 → `curl /api/events?last_id=1` SSE 重放 id=2/3 (177 字节, 严格按 id 升序) → 实时 dispatcher 1s 内 broadcast id=3 给已连接 SSE 客户端
+
+**数字**: services 124→**125** (新增 outbox_dispatcher, 旧 outbox_repo 算 repository 不计 service) / pytest 4160→**4205** (+9 C11 new) / vitest 455→**463** (+8 C11 new)
+
+**已知限制 (留 C14/C12/C13)**:
+- CaseService.create/close 不在 5 service 内, 未接 outbox (Case 创建/关闭通过 list_cases API 显式刷新兜底)
+- ruff 全仓 165 错 (C14 治理)
+- 3800 行迁移 (C13)
+- Toast 去重 (R18 部分) / PageLayout SideNav (R24 收尾后)
+- 1440/1280/1024/768/390 5 视口截图真实跑通 (C10 任务书 §11 要求, C11 暂不补)
+
+**下一批 C12** (知识采用+失效反馈, R16, 2 天): derived_from 与 adopted_by 分离 (新表) + 新知识 total=0 起算 + 召回条件比较 + 采用绑定新 Case+revision + 到期/反证/撤回影响活跃事项
+
 
 

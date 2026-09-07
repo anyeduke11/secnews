@@ -197,6 +197,16 @@ def test_reap_expired_intents(temp_db) -> None:
 def test_projection_skipped_when_dir_not_provided(temp_db) -> None:
     """未提供 projection_dir → commit 走 skipped 路径, 不抛错."""
     svc = V1EvidenceService(projection_dir=None)
+    # v1.0 C05 R01: signal FK 要求 subject + material 已存在; 先建好
+    subj_body = {"id": "SUBJ-X", "entity_type": "cve", "canonical_name": "X",
+                 "first_seen_at": "2026-01-01T00:00:00+00:00", "last_seen_at": "2026-01-01T00:00:00+00:00"}
+    mat_body = {"id": "MAT-Y", "source_kind": "url", "title": "Y",
+                "content_hash": "y" * 64, "content_length": 10,
+                "fetched_at": "2026-01-01T00:00:00+00:00"}
+    s_intent = svc.create_intent(_submission_key("skipped-subj"), "subject", subj_body)
+    svc.commit_intent(s_intent["intent_id"], entity_id=subj_body["id"])
+    m_intent = svc.create_intent(_submission_key("skipped-mat"), "material", mat_body)
+    svc.commit_intent(m_intent["intent_id"], entity_id=mat_body["id"])
     body = {"id": "SIG-001", "subject_id": "SUBJ-X", "material_id": "MAT-Y", "summary": "x", "occurred_at": "2026-01-01T00:00:00+00:00", "admission_rule_version": "v1"}
     intent = svc.create_intent(_submission_key("sig"), "signal", body)
     res = svc.commit_intent(intent["intent_id"], entity_id=body["id"])

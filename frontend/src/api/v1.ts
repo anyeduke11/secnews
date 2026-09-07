@@ -649,3 +649,42 @@ export interface ListSignalsQuery {
 export function listSignals(q: ListSignalsQuery = {}): Promise<ApiList<V1Signal>> {
   return getJSON<ApiList<V1Signal>>(`/api/v1/signals${buildQuery(q as Record<string, unknown>)}`);
 }
+
+// ===========================================================================
+// C11 R19: Case 聚合端点 (1 次拉齐 case + judgments + actions + runs + artifacts)
+// 替代旧 N+1 模式 (getCase + listJudgments + listActions + N×listRuns + N×M×listArtifacts)
+// 旧实现每次打开 CaseDetail 触发 1+1+1+N+N×M = 3+N+N×M 次请求, 业务规模下 50 个 action + 5 runs/action
+// 触发 50+250=300 次往返. 新模式固定 1 次, 服务端聚合 + 异常隔离 (单 run 拉取失败不阻断其他).
+// ===========================================================================
+
+export interface GetCaseAggregateQuery {
+  judgments_limit?: number;
+  actions_limit?: number;
+  runs_per_action?: number;
+  artifacts_per_run?: number;
+}
+
+export interface CaseAggregate {
+  version: string;
+  case: Case;
+  judgments: Judgment[];
+  actions: Action[];
+  runs: Run[];
+  artifacts: Artifact[];
+}
+
+export function getCaseAggregate(
+  caseId: string,
+  q: GetCaseAggregateQuery = {},
+): Promise<CaseAggregate> {
+  // C11 R19: URLSearchParams 一次构建 (与 listJudgments/listActions 同模式)
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) {
+    if (v === undefined || v === null) continue;
+    params.set(k, String(v));
+  }
+  const qs = params.toString();
+  return getJSON<CaseAggregate>(
+    `/api/v1/cases/${encodeURIComponent(caseId)}/aggregate${qs ? "?" + qs : ""}`
+  );
+}

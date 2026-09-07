@@ -96,6 +96,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Phase 8: scheduler 注册到 app.state（替代模块级 singleton）
     app.state.scheduler = sched
 
+    # C11 R18: outbox dispatcher — 业务 outbox 行 → SSE 广播
+    try:
+        from backend.services.outbox_dispatcher import get_dispatcher
+        await get_dispatcher().start()
+    except Exception as e:
+        log.warning(f"outbox dispatcher start failed (ignored): {e}")
+
     # v1.3.0 Phase 5: 尝试从 OS keychain 自动恢复 unlock 状态
     try:
         from backend.services.secrets_service import try_auto_unlock
@@ -196,6 +203,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         stop_dsh()
     except Exception as e:
         log.warning(f"dsh stop error (ignored): {e}")
+    # C11 R18: outbox dispatcher 停机
+    try:
+        from backend.services.outbox_dispatcher import get_dispatcher
+        await get_dispatcher().stop()
+    except Exception as e:
+        log.warning(f"outbox dispatcher stop error: {e}")
     # Phase 8: 清理 app.state.scheduler
     try:
         app.state.scheduler = None

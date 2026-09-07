@@ -637,6 +637,24 @@ class HotspotScheduler:
             name="knowledge review due: SK-06 扫 review_at 到期, 挂 case blocker (Daily 04:00 Shanghai)",
             replace_existing=True,
         )
+        # v1.0 C13: job 56 — legacy_promote_due (每小时, legacy 5 态→published promote)
+        self.scheduler.add_job(
+            jobs.legacy_promote_due_job,
+            trigger="interval",
+            minutes=60,
+            id="legacy_promote_due",
+            name="legacy promote due: legacy→published 后台 CAS promote (每小时)",
+            replace_existing=True,
+        )
+        # v1.0 C13: job 57 — legacy_migrate_resume (每 30min, 失败/中断 resume)
+        self.scheduler.add_job(
+            jobs.legacy_migrate_resume_job,
+            trigger="interval",
+            minutes=30,
+            id="legacy_migrate_resume",
+            name="legacy migrate resume: failed 诊断 + awaiting_review 收口 (每 30min)",
+            replace_existing=True,
+        )
 
     def start(self) -> None:
         """启动调度器 + 立即触发 collect_all"""

@@ -124,30 +124,57 @@ def test_dry_run_counts_only(warm_attached) -> None:
     assert "ki3" not in r.sample_ids  # kl:deduped 排除
 
 
-def test_apply_inserts_kl_publish_to_published(warm_attached) -> None:
-    """ki1 lifecycle=kl:publish + compiled=1 → status=published + published_at 落库."""
+def test_apply_inserts_legacy_status(warm_attached) -> None:
+    """C13 5 态机: ki1/ki2/ki4 全部落 status='legacy' (T18 旧版 kl:publish→published 已废弃).
+
+    wiki_root 默认位置没命中 fixture 的 ki* md 文件 → body 全空 → 走 quarantined
+    (不入 v1_knowledge), 所以 v1_knowledge 表空, items_quarantined=3.
+    """
     svc = LegacyItemsMigrateService()
     r = svc.migrate_legacy_items(apply=True)
-    assert r.items_applied == 3
+    # 3 candidates - 0 deduped = 3; warm body 全空 + wiki_root 默认无 fixture → 全 quarantined
+    assert r.items_candidates == 3
+    assert r.items_quarantined == 3
+    assert r.items_applied == 0
     conn = sqlite3.connect(os.environ["HOTSPOT_DB_PATH"])
     rows = conn.execute(
-        "SELECT id, status, published_at, kind FROM v1_knowledge ORDER BY id"
+        "SELECT id, status, kind FROM v1_knowledge ORDER BY id"
     ).fetchall()
-    has_published = any(s == "published" and pub for _, s, pub, _ in rows)
-    assert has_published
-    kinds = {k for _, _, _, k in rows}
-    assert "reference" in kinds
-    assert "playbook" in kinds
+    # C13 v1 守卫: 全部 quarantined, 0 条入 v1_knowledge
+    assert len(rows) == 0
+    # 但 mapping 表应有 3 条 quarantined
+    map_count = conn.execute(
+        "SELECT COUNT(*) FROM v1_legacy_mapping WHERE legacy_id IN ('ki1','ki2','ki4') "
+        "AND legacy_source = 'warm.knowledge_items'"
+    ).fetchone()[0]
+    assert map_count == 3
 
 
 def test_idempotent_apply_skips_existing(warm_attached) -> None:
-    """重复 apply → content_hash 已存在 → skipped."""
+    """重复 apply (同 batch_id) → v1 走 mapping existing → 第二次全 skipped (非 quarantined).
+
+    C13 v1 幂等性: 第二次同 batch_id 跑, warm path 走 _insert_mapping_row 前先
+    SELECT v1_legacy_mapping.legacy_id → 已存在 → 计数 result.skipped, 不再
+    走 quarantined 路径. 验证: 第一次 3 quarantined, 第二次 3 skipped, mapping 表 3 行.
+    """
     svc = LegacyItemsMigrateService()
-    r1 = svc.migrate_legacy_items(apply=True)
-    r2 = svc.migrate_legacy_items(apply=True)
-    assert r1.items_applied == 3
-    assert r2.items_applied == 0
+    r1 = svc.migrate_legacy_items(apply=True, batch_id="dup-test")
+    r2 = svc.migrate_legacy_items(apply=True, batch_id="dup-test")
+    # 第一次: 走 quarantined (wiki_body 没命中 + header_only < 200)
+    assert r1.items_quarantined == 3
+    # 第二次: 走 skipped (mapping UNIQUE 命中, v1 内部 SELECT 拦截)
+    assert r2.items_quarantined == 0
     assert r2.items_skipped == 3
+    # mapping 表: 3 行 quarantined (来自第一次)
+    conn = sqlite3.connect(os.environ["HOTSPOT_DB_PATH"])
+    n = conn.execute(
+        "SELECT COUNT(*) FROM v1_legacy_mapping "
+        "WHERE legacy_id IN ('ki1','ki2','ki4') AND legacy_source = 'warm.knowledge_items'"
+    ).fetchone()[0]
+    assert n == 3
+    # v1_knowledge 表: quarantined 不入, 0 行
+    n2 = conn.execute("SELECT COUNT(*) FROM v1_knowledge").fetchone()[0]
+    assert n2 == 0
 
 
 # ---------------------------------------------------------------------------

@@ -120,6 +120,10 @@ from backend.scheduler.jobs.worker_pump import (
 from backend.scheduler.jobs.knowledge_review import (
     knowledge_review_due_job,  # v1.0 T13: SK-06 复查扫描 (每日 04:00)
 )
+from backend.scheduler.jobs.legacy_promote import (
+    legacy_migrate_resume_job,  # v1.0 C13: job 57 失败/中断 resume (每 30min)
+    legacy_promote_due_job,  # v1.0 C13: job 56 legacy→published promote (每小时)
+)
 
 
 def __getattr__(name: str):

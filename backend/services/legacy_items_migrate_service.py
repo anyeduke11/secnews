@@ -1,34 +1,33 @@
-"""v1.0 T18 旧 knowledge_items 853 行数据迁移服务 (走真实 warm.knowledge_items → v1_knowledge).
+"""v1.0 T18 旧 knowledge_items (warm) 数据迁移服务 — 薄壳委派 C13 LegacyMigrateServiceV1.
 
-T16 旧 15 knowledge 走 dev_data/seed.json (T03 已落 v1.0 形状, 含 body);
-T18 真落 853 行走 warm.knowledge_items (T00 备份演练已 attach, 18 字段无 body).
+C13 重构: 旧 knowledge_items 853+ 行的迁移逻辑 (含真实 body 补全 + 分页 + 5 态机 + mapping 4 账
++ content_hash 防撞 + 后台 promote) 全部委托给 LegacyMigrateServiceV1.migrate_warm, 本文件保留:
+  - 顶层 LegacyItemsMigrateService.migrate_legacy_items 接口 (向后兼容, 旧 API 仍可用)
+  - 公开常量 DOMAIN_TO_KIND / LIFECYCLE_TO_STATUS (其他模块引用, 不删)
+  - LegacyItemsMigrateResult dataclass (黄金案例 t18 仍用)
 
 设计:
-  - LegacyItemsMigrateService.migrate_legacy_items(apply) — SELECT warm.knowledge_items 走 WARM_DB
-  - 排除 kl:deduped (无 v1_knowledge status 4 态对应)
-  - 字段映射: title→title (≤200 截断) / domain→kind (6 域映射字典) / lifecycle→status / compiled=1 → published_at=ingested_at
-  - 剥离 mastery/news_type/tech_stack/folder/attention_score 等不迁字段
-  - tags/concepts/source_url 拼入 body header
-  - audit_log 走 record_audit(actor="t18_legacy_items_migrate")
-  - 派生 content_hash 走 sha256(body + sorted(prerequisites))
-  - 幂等: 重复 apply 不重复 (content_hash 存在检测)
+  - migrate_legacy_items(apply, batch_id, offset, limit) → 委派 v1.migrate_warm
+  - v1 走真实 WARM_DB (get_connection ATTACH) + 5 态 (kl:publish 不再直落 published)
+  - v1 走分页 (offset+limit, ASC 游标稳定) + mapping UNIQUE 防重复
+  - 写 audit_log 复用 observability_records.record_audit
+  - 幂等: mapping UNIQUE(legacy_source, legacy_id, legacy_revision) 防重 + content_hash 命中 v1_knowledge 跳过
 
-不实现 (留 T19): 旧 knowledge_concepts / knowledge_tasks 迁移; 真实 body 补全.
+历史 note (T18 原版缺陷, 全部由 v1 修复):
+  - kl:publish 直落 published → 污染 C12 R16.5 reuse 池 (C13 改 legacy 5 态)
+  - body 蒙混 (header-only 拼接) → v1 改 wiki md 匹配 + body≥200 字节门槛
+  - 无 mapping 表 → v1 加 v1_legacy_mapping 4 账分列
+  - LIMIT 4000 无游标 → v1 改 ASC + offset/limit 分页
+  - content_hash 不含 legacy_id → 撞库 (v1 加 legacy_id 字段)
 """
 from __future__ import annotations
 
-import hashlib
-import json
-import random
-import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import Any
 
 from backend.logging_config import logger
-from backend.repository.db import get_connection
 
-# lifecycle → status 映射 (旧 5 态 → v1_knowledge 4 态)
+# 公开常量 (T18 时代, 其他模块或黄金案例可能仍引用, 不删)
 LIFECYCLE_TO_STATUS: dict[str, str] = {
     "kl:publish": "published",
     "kl:structure": "draft",
@@ -38,7 +37,6 @@ LIFECYCLE_TO_STATUS: dict[str, str] = {
     # "kl:deduped" 排除 (无 v1_knowledge status 对应)
 }
 
-# domain → kind 映射 (旧 5 域 + 1 空 → v1_knowledge 6 kind)
 DOMAIN_TO_KIND: dict[str, str] = {
     "ai": "reference",
     "security": "playbook",
@@ -50,23 +48,20 @@ DOMAIN_TO_KIND: dict[str, str] = {
 }
 
 
-def _ulid26() -> str:
-    """26 字符 ULID (random.choice, T11 fix 避免 UNIQUE 撞库)."""
-    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
-    return "".join(random.choice(alphabet) for _ in range(26))
-
-
-def _now_utc_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
 @dataclass
 class LegacyItemsMigrateResult:
-    """T18 旧 knowledge_items → v1_knowledge 迁移结果 (借 T09 LegacyHoldResult 风格)."""
+    """T18 旧 knowledge_items → v1_knowledge 迁移结果 (兼容旧黄金案例 t18).
+
+    C13 扩展 (5 账分列): 旧 3 账 (candidates/applied/skipped) + 新 2 账
+    (awaiting_review / quarantined) + failed. 旧字段保留以保向后兼容.
+    """
 
     items_candidates: int = 0
     items_applied: int = 0
     items_skipped: int = 0
+    items_awaiting_review: int = 0
+    items_quarantined: int = 0
+    items_failed: int = 0
     errors: list[str] = field(default_factory=list)
     sample_ids: list[str] = field(default_factory=list)
 
@@ -75,15 +70,23 @@ class LegacyItemsMigrateResult:
             "items_candidates": self.items_candidates,
             "items_applied": self.items_applied,
             "items_skipped": self.items_skipped,
+            "items_awaiting_review": self.items_awaiting_review,
+            "items_quarantined": self.items_quarantined,
+            "items_failed": self.items_failed,
             "errors": self.errors,
             "sample_ids": self.sample_ids,
         }
 
 
 class LegacyItemsMigrateService:
-    """T18 旧 knowledge_items 数据迁移服务 (走 WARM_DB → v1_knowledge)."""
+    """T18 旧 knowledge_items 数据迁移服务 — 薄壳委派 C13 LegacyMigrateServiceV1.
+
+    向后兼容: 保留 migrate_legacy_items(apply) 接口, 旧 API 端点
+    /api/dsh/legacy/items/migrate 仍可用.
+    """
 
     def __init__(self) -> None:
+        # 历史字段保留 (黄金案例 t18_golden_legacy_items_migrate.py 仍读)
         self._warm_table = "knowledge_items"
 
     def _audit(self, action: str, subject_id: str, details: dict[str, Any]) -> None:
@@ -94,108 +97,42 @@ class LegacyItemsMigrateService:
         except Exception as e:
             logger.debug(f"audit_log write failed (action={action}): {e}")
 
-    def migrate_legacy_items(self, apply: bool = False) -> LegacyItemsMigrateResult:
-        """dry-run: counts + sample; apply: 真落 v1_knowledge (idempotent by content_hash).
+    def migrate_legacy_items(
+        self, apply: bool = False, batch_id: str | None = None,
+        offset: int = 0, limit: int = 500,
+    ) -> LegacyItemsMigrateResult:
+        """薄壳委派 LegacyMigrateServiceV1.migrate_warm (C13 5 态 + mapping 4 账 + 分页).
 
-        Returns
-        -------
-        LegacyItemsMigrateResult: counts + errors + sample_ids.
-
-        T18 走 WARM_DB (get_connection 启动期 ATTACH warm, 同 conn 查询).
+        Parameters
+        ----------
+        apply : bool
+            True 落库 + 写 audit_log; False 仅计数.
+        batch_id : str | None
+            幂等游标, 同 batch_id 重复 apply 不重复插入.
+        offset, limit : int
+            warm.knowledge_items 分页参数 (ASC by ingested_at, 游标稳定).
         """
-        result = LegacyItemsMigrateResult()
-        # 1) 读 WARM_DB.knowledge_items (get_connection 启动期已 attach)
-        try:
-            conn = get_connection()
-        except Exception as e:
-            result.errors.append(f"db connection failed: {e}")
-            return result
-
-        try:
-            rows = conn.execute(
-                "SELECT id, title, source, source_url, domain, topic, type, difficulty, "
-                "tags, concepts, mastery, compiled, ingested_at, updated_at, "
-                "lifecycle, news_type, tech_stack, attention_score "
-                f"FROM warm.{self._warm_table} WHERE lifecycle != 'kl:deduped' "
-                "ORDER BY ingested_at DESC LIMIT 4000"
-            ).fetchall()
-        except sqlite3.OperationalError as e:
-            # warm.knowledge_items 表缺失 (fresh test warm db 未建表) — graceful 空集
-            result.errors.append(f"warm_db SELECT failed (warm.knowledge_items missing?): {e}")
-            return result
-
-        result.items_candidates = len(rows)
-        result.sample_ids = [r[0] for r in rows[:3]]
-
-        if not apply:
-            return result
-
-        # 2) apply 模式: 真落 v1_knowledge (idempotent by content_hash)
-        # 复用同一 conn: ATTACH warm + main hot 在同一连接, 走 hot 写 v1_knowledge
-        for r in rows:
-            (
-                old_id, title, source, source_url, domain, topic, type_, difficulty,
-                tags, concepts, mastery, compiled, ingested_at, updated_at,
-                lifecycle, news_type, tech_stack, attention_score,
-            ) = r
-            new_id = _ulid26()
-            # 字段映射
-            kind = DOMAIN_TO_KIND.get(domain or "", "reference")
-            status = LIFECYCLE_TO_STATUS.get(lifecycle or "kl:raw", "draft")
-            title_t = (title or "")[:200]
-            # body 拼接: header + (tags/concepts/source_url summary)
-            body_parts = [f"# 类型: {type_}" if type_ else "",
-                          f"# 难度: {difficulty}" if difficulty else ""]
-            try:
-                tags_list = json.loads(tags) if tags else []
-            except (json.JSONDecodeError, TypeError):
-                tags_list = []
-            try:
-                concepts_list = json.loads(concepts) if concepts else []
-            except (json.JSONDecodeError, TypeError):
-                concepts_list = []
-            if tags_list:
-                body_parts.append(f"## Tags: {', '.join(tags_list)}")
-            if concepts_list:
-                body_parts.append(f"## Concepts: {', '.join(concepts_list)}")
-            if source_url:
-                body_parts.append(f"## Source: {source_url}")
-            body = "\n".join(p for p in body_parts if p).strip()
-            # 派生 content_hash (T16 + T18 同算法)
-            content_hash = hashlib.sha256(
-                (body + str([])).encode("utf-8")
-            ).hexdigest()
-            # 幂等: 同 content_hash 已存在 → 跳过
-            existing = conn.execute(
-                "SELECT id FROM v1_knowledge WHERE content_hash = ?", (content_hash,),
-            ).fetchone()
-            if existing:
-                result.items_skipped += 1
-                self._audit("knowledge.legacy_items_migrated.skip", existing[0], {
-                    "from": old_id, "reason": "content_hash_exists",
-                })
-                continue
-            published_at = ingested_at if status == "published" else None
-            try:
-                conn.execute(
-                    "INSERT INTO v1_knowledge "
-                    "(id, kind, title, body, status, revision, content_hash, "
-                    " published_at, allowed_actions_json, created_at, updated_at) "
-                    "VALUES (?, ?, ?, ?, ?, 1, ?, ?, '[]', ?, ?)",
-                    (
-                        new_id, kind, title_t, body, status, content_hash, published_at,
-                        ingested_at or _now_utc_iso(), updated_at or _now_utc_iso(),
-                    ),
-                )
-                result.items_applied += 1
-                self._audit("knowledge.legacy_items_migrated", new_id, {
-                    "from": old_id, "kind": kind, "status": status,
-                    "lifecycle": lifecycle, "domain": domain,
-                })
-            except Exception as e:
-                result.errors.append(f"{old_id}: {e}")
-        conn.commit()
+        from backend.services.legacy_migrate_v1 import LegacyMigrateServiceV1
+        v1 = LegacyMigrateServiceV1()
+        if batch_id is None:
+            batch_id = "t18-warm"
+        batch = v1.migrate_warm(apply=apply, batch_id=batch_id, offset=offset, limit=limit)
+        result = LegacyItemsMigrateResult(
+            items_candidates=batch.candidates,
+            items_applied=batch.applied,
+            items_skipped=batch.skipped,
+            items_awaiting_review=batch.awaiting_review,
+            items_quarantined=batch.quarantined,
+            items_failed=batch.failed,
+            errors=list(batch.errors),
+            sample_ids=batch.sample_ids,
+        )
         return result
 
 
-__all__ = ["DOMAIN_TO_KIND", "LIFECYCLE_TO_STATUS", "LegacyItemsMigrateResult", "LegacyItemsMigrateService"]
+__all__ = [
+    "DOMAIN_TO_KIND",
+    "LIFECYCLE_TO_STATUS",
+    "LegacyItemsMigrateResult",
+    "LegacyItemsMigrateService",
+]

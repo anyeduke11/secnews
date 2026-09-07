@@ -251,6 +251,9 @@ def register_all(app: FastAPI) -> None:
     # v1.0 T18 旧 knowledge_items 数据迁移 API
     from backend.api import legacy_items_migrate_api
     app.include_router(legacy_items_migrate_api.router, tags=["legacy-items-migrate"])
+    # v1.0 C13: LegacyMigrateServiceV1 API (3 源独立 + mapping 表 + promote)
+    from backend.api import legacy_migrate_v1_api
+    app.include_router(legacy_migrate_v1_api.router, tags=["legacy-migrate-v1"])
     # v1.0 T15: Signal API (Intel 入口真实化, 复用 T05 v1_signals)
     from backend.api import v1_signals_api
     app.include_router(v1_signals_api.router, tags=["v1-signals"])

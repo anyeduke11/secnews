@@ -56,12 +56,16 @@ class KnowledgeConflictError(ConflictException):
         super().__init__(message)
 
 
-# 状态机 + allowed_actions (contracts §9.3)
+# 状态机 + allowed_actions (contracts §9.3 + C13 第 5 态 'legacy')
+# legacy 状态 (C13): 旧数据迁移入 v1_knowledge 的初始态, 业务禁止
+# publish→legacy 或 legacy→published 业务直接跳; 只能由后台 promote job
+# (LegacyMigrateServiceV1._promote_legacy) 走专用守卫, allowed_actions 限定 promote/retract.
 _KNOWLEDGE_ALLOWED_ACTIONS: dict[str, list[str]] = {
     "draft": ["edit", "publish", "discard"],
     "published": ["create_revision", "deprecate", "retract"],
     "deprecated": ["revive"],
     "retracted": [],
+    "legacy": ["promote", "retract"],   # C13: 仅 promote (走后台 job) / retract
 }
 
 _VALID_KIND = {"principle", "pattern", "anti_pattern", "reference", "playbook", "checklist"}
@@ -448,6 +452,32 @@ class KnowledgeService:
             "content_hash": k.get("content_hash"), "recorded_at": _utcnow_iso(), "recorded_by": "user",
         })
         return self._require(knowledge_id)
+
+    # ------------------------------------------------------------------
+    # C13 第 5 态 'legacy' 守卫 (仅后台 promote job / admin 可跳, 业务 publish/deprecate 不允许)
+    # ------------------------------------------------------------------
+    def promote_legacy(
+        self, knowledge_id: str, *, reason: str, promoted_by: str = "system",
+    ) -> dict[str, Any]:
+        """legacy → published (C13 专用, 业务调用会被 5 态机守卫拒绝).
+
+        走 CAS + revision+1 + 写 revision_repo. 不允许业务 publish 路径调用
+        (publish() 走 _require 守卫 'draft' 起点, 不会从 legacy 进入).
+        复用 LegacyMigrateServiceV1._promote_legacy (含 v1_legacy_promote_log 持久).
+        """
+        from backend.services.legacy_migrate_v1 import LegacyMigrateServiceV1
+        migrate_svc = LegacyMigrateServiceV1()
+        migrate_svc._promote_legacy(knowledge_id, reason=reason)
+        k = self._require(knowledge_id)
+        self.revision_repo.append({
+            "knowledge_id": knowledge_id, "revision": k.get("revision", 1),
+            "status": "published", "reason": f"C13 legacy→published by {promoted_by}: {reason}",
+            "wiki_path": k.get("wiki_path"),
+            "content_hash": k.get("content_hash"),
+            "recorded_at": _utcnow_iso(), "recorded_by": promoted_by,
+        })
+        self._publish_v1_knowledge_event(k, "published")
+        return k
 
     # ------------------------------------------------------------------
     # list / get / reuse (SK-05 派生)

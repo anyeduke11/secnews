@@ -48,6 +48,75 @@
 - vitest 463 不变 (mock 同步不计新增)
 - API 端点 79→**83** (adopt + adoptions + outcome + recall)
 
+## v1.0 C13 (2026-09-07) — 全量保真迁移+切换回退 (R11 mapping 4 账 + R20 legacy 5 态机)
+
+### R11 3800 行真跑 + 稳定映射 (migration 107)
+- 新表 `v1_legacy_mapping` (C13 单一真相源): UNIQUE(legacy_source, legacy_id, legacy_revision) 防重, status 4 账分列 (applied | skipped | quarantined | failed | awaiting_review), content_hash 派 sha256(legacy_id + title + source_url + body) 防 T18 撞库, 3 索引 new_id/status/batch_id
+- 新表 `v1_legacy_promote_log` (UNIQUE(new_id, from_status, to_status) 防并发 promote)
+- `ALTER TABLE v1_knowledge ADD COLUMN promoted_at` / `promotion_reason` (后台 promote 留痕)
+- 真实库 apply 成功, schema_version 106 → 107
+
+### 统一服务 `backend/services/legacy_migrate_v1.py` (替换 T16+T18 两套分散实现)
+- `migrate_seed_knowledge(apply, batch_id)` — T16: dev_data/seed.json 15 条
+- `migrate_warm_knowledge(apply, batch_id, offset=0, limit=500)` — T18 重写: ASC 游标稳定分页, body 走 wiki md lookup, lifecycle 决定 awaiting_review vs applied vs quarantined
+- `migrate_wiki_md(apply, batch_id)` — 孤儿 md
+- `run_legacy_promote_job()` — 后台 promote (lifecycle=kl:publish + body≥200B + wiki 命中 → published, 走 _promote_legacy CAS)
+
+### R20 知识 5 态机 (`backend/services/knowledge_service.py`)
+- 5 态: draft / published / deprecated / retracted / **legacy** (新)
+- `allowed_actions: {legacy: [promote, retract]}` 守卫
+- 新方法 `_promote_legacy(kid, reason, promoted_by)` 仅 legacy→published, 业务 publish 禁止跳
+
+### T16/T18 薄壳委派
+- `legacy_migrate_service.py` + `legacy_items_migrate_service.py` 委派 v1, 公开常量保留
+- T16 seed.json silent 降级兜底保持
+- LegacyItemsMigrateResult 扩展 3 fields → 5 fields
+
+### API 5 端点 (`backend/api/legacy_migrate_v1_api.py`)
+- POST /api/dsh/legacy/migrate/v1/run?source=seed|warm|wiki|all&apply=&batch_id=&offset=&limit=
+- GET /api/dsh/legacy/migrate/v1/status?batch_id=
+- GET /api/dsh/legacy/migrate/v1/mapping?legacy_source=&legacy_id=&status=&limit=
+- POST /api/dsh/legacy/migrate/v1/promote
+- GET /api/dsh/legacy/migrate/v1/promote/log?new_id=&limit=
+
+### 后台 promote + resume
+- `backend/scheduler/jobs/legacy_promote.py` 新增
+- job 56 `legacy_promote_due` (60min) + job 57 `legacy_migrate_resume` (30min)
+- scheduler.py 注册
+
+### 3 CLI 脚本
+- `scripts/t13_legacy_migrate.py` (统一 source, 默认 dry-run)
+- `scripts/t13_legacy_promote.py`
+- `scripts/t13_switchback_drill.py` (4 子步真演练: manifest + v1 case + 模拟切回 + 验证)
+
+### Runbook (`docs/v1.0/c13-switchback-runbook.md`)
+- 切换前必备 + 单 writer 锁 + maintenance mode env flag
+- v1 新增数据保全路径 (outbox + audit_log 双写)
+- 切回 4 步骤 + 灾难恢复 + 兜底方案 (mapping 表 + 黄金案例可重放)
+- 演练脚本 `t13_switchback_drill.py --execute`
+
+### 反例测试 (16 C13 + 6 API + 4 jobs + 8 改写 = 34)
+- `test_c13_legacy_migrate_v1.py` 16 reverse (mapping 表 + seed + warm legacy 5 态 + wiki body + quarantine + hash 防撞 + 游标分页 + 幂等 + 中断 resume + promote 规则 + promote CAS + 3800 end-to-end + 切换保留 + dev seed 隔离 + NULL lifecycle + kl:deduped 排除)
+- `test_c13_legacy_migrate_v1_api.py` 6 (端点 + fixture 隔离)
+- `test_c13_legacy_promote_jobs.py` 4 (promote 0/1 + resume 0/N)
+- `test_legacy_items_migrate_service.py` 8 改写 (旧 T18 5 缺陷全修复验证, C13 5 态语义)
+
+### 黄金案例 (`scripts/t13_golden_legacy_migrate.py`, 7 步全链)
+- 真实 warm 3800 副本 → 3798 candidates (3800 - 2 deduped) → apply mapping 4 账分列 → switchback 4 子步全绿
+
+### 数字
+- migration 106→**107** (v1_legacy_mapping + v1_legacy_promote_log + ALTER v1_knowledge)
+- services 122→**126** (+4: legacy_migrate_v1 + v1_legacy_promote_log_repo + outbox_repo + 1 helper)
+- routers 84→**85** (legacy_migrate_v1_api)
+- jobs 55→**57** (+2: 56 legacy_promote_due + 57 legacy_migrate_resume)
+- pytest 4245→**4261** (+16 C13 new, 0 回归)
+- vitest 463 不变 (C13 不动 UI)
+- generate_meta --check pass
+
+### REVIEW R11/R20 标"修复于 C13"
+- R11 派生 (3800 行迁移 4 账分列 + mapping 单一真相源)
+- R20 (legacy 5 态机, kl:publish 不再直落 published, 避免污染 C12 R16.5 reuse 池)
+
 ## v1.0 C11 (2026-09-07) — 契约+可靠事件+效率 (R18 outbox 持久化 + R19 聚合去 N+1)
 
 ### R18 SSE 业务事务持久化 (outbox + Last-Event-ID)

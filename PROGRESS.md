@@ -453,3 +453,30 @@
 - SkillStore 大改 (v1_active 区块按 status 分桶临时方案) — v1.1 改 SkillCard 设计
 
 **T19 验收证据**: 5 个核心黄金案例 (t18_golden + t16_golden + t15_golden + t14_golden + t13_golden) 全跑通; pytest 全量基线 4176/8/0; ruff 全绿; ARCHITECTURE + 4 AGENTS 数字一致; skill_run version 校验 strict 模式默认 raise (env opt-in warn/off); 启停链完整 (init_db → strict check → warmup → rebuild_export_cache → 路由挂载 → lifespan ready)。
+
+### 2026-09-07 v1.0 L1 服务恢复 + UI/UX Contract 落地
+
+**L1 服务恢复** (B0 范围, R21/R22 修复):
+- **R21 根因**: hot.db 的 unified_search view 引用 knowledge_items, 但分库后 knowledge_items 在 warm.db; view "半失效" — DDL (migration 099 ALTER TABLE trigger_tickets RENAME) 触发 SQLite 重新解析 view 依赖, 撞 "no such table: main.knowledge_items", init_db 中断 → 后端 8000 起不来
+- **修复**:
+  1. `backend/repository/db.py` `_drop_dangling_views()` preflight: init_db 早期 (apply_migrations 前) 主动 SELECT FROM view LIMIT 0, 失败即 DROP, 成功保留; 走日志 warning 不抛
+  2. `backend/services/search_service.py` 重写 unified_search() 函数: 不再 SELECT FROM view, 拆两条 ATTACH 跨库 SQL (hot.hotspots + warm.knowledge_items) UNION ALL
+  3. `backend/api/health.py` `_collectors_health()` 修跨库查询: collection_runs 在 warm.db, SQL 改 `FROM warm.collection_runs` (主 conn 已 ATTACH)
+  4. `frontend/vite.config.ts` 修 R22: proxy target 改读 `HOTSPOT_BACKEND_PORT` / `HOTSPOT_BACKEND_URL` env, 兼容 dev 模式 8766 + 生产 8000
+- **验证**:
+  - 后端 8000 起来: /api/health 200, status=ok, db ok (hotspots=7267), scheduler ok (55 jobs), collectors ok (last_run 02:27:09)
+  - 前端 8898 代理 8000 通: /api/health 200, /api/v1/cases 200, /api/skill-registry 26 项 (20 legacy + 6 v1)
+  - 4 主入口 /workbench /intel /cases /knowledge + /skill-store 全部 200
+
+**UI/UX Contract 落地**:
+- `design/UI_UX_CONTRACT.md` 新建: 把 [docs/v1.0/V1.0.0_UI_UX_SPEC.md](docs/v1.0/V1.0.0_UI_UX_SPEC.md) 落实为可执行设计契约
+  - 核心定位: 安全从业者工作台, 首屏答"今天判断/补/批准/验收什么"
+  - 信息架构 12 路径 + 关键规则
+  - 布局骨架 (AppNav 56px + SideNav 240-280px) + 4 屏响应式
+  - 设计 token (industrial-brutalist 终端风): 字体/字号/字距/主色(黄红绿蓝带文字 label)/中性色/圆角/密度/边框/间距/图标
+  - 关键组件模式: StatusBadge / DataTable / ErrorBoundary / Toast / AppNav
+  - 与 V1Prototype / PageLayout / Toast / useSSEWithRefetch / AppNav 现有组件关系 (保留+扩展)
+  - R24 收尾清单: B0 必做 (删 V1Prototype 内层 tabs, / 默认 → /workbench, /knowledge 重复声明合并) + B4 留 (Case 详情 mutation) + B7 留 (AC/E2E/G1-G5 全矩阵)
+  - 风格参考 [.agents/skills/industrial-brutalist-ui](.agents/skills/industrial-brutalist-ui/SKILL.md)
+
+**L1 通过 = 服务可读, NOT v1.0 发布**: 业务闭环 R01/R03-R18 仍 20 个 P1 阻断 (REVIEW_2026-09-07.md 详尽), 等 B0-B7 整改路径用户授权后逐批执行.

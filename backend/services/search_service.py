@@ -84,22 +84,38 @@ def unified_search(
     # LIKE 兜底路径: hotspot + knowledge (entity_type 不含 'wiki')
     like_sources = [s for s in effective_sources if s != "wiki"]
 
-    if like_sources:
-        placeholders = ",".join("?" * len(like_sources))
-        where_clauses.append(f"entity_type IN ({placeholders})")
-        params.extend(like_sources)
+    # v1.0 R21 服务恢复: unified_search view 已 DROP (migration 106);
+    # 改走 service 层 ATTACH 跨 db UNION ALL — hot.hotspots ∪ warm.knowledge_items
+    # 跨 db UNION 在 SQLite 受限 (单 query 内的 db name 可引用 ATTACH 后的别名)
+    # 拆分两条 SELECT 用 ATTACH 别名 (warm.knowledge_items 在 get_connection 已挂载)
+    sql_parts: list[str] = []
+    sql_params: list = []
 
-    params.append(effective_limit)
+    if "hotspot" in like_sources:
+        sql_parts.append("""
+            SELECT 'hotspot' AS entity_type, h.id AS entity_id, h.title AS title,
+                   h.summary AS summary, h.category AS category, h.ingested_at AS ingested_at
+            FROM hotspots h
+            WHERE (LOWER(h.title) LIKE LOWER(?) ESCAPE '\\' OR LOWER(h.summary) LIKE LOWER(?) ESCAPE '\\')
+        """)
+        sql_params.extend([pattern, pattern])
 
-    sql = f"""
-        SELECT entity_type, entity_id, title, summary, category, ingested_at
-        FROM unified_search
-        WHERE {' AND '.join(where_clauses)}
-        ORDER BY ingested_at DESC
-        LIMIT ?
-    """
+    if "knowledge" in like_sources:
+        sql_parts.append("""
+            SELECT 'knowledge' AS entity_type, k.id AS entity_id, k.title AS title,
+                   k.topic AS summary, k.domain AS category, k.ingested_at AS ingested_at
+            FROM warm.knowledge_items k
+            WHERE (LOWER(k.title) LIKE LOWER(?) ESCAPE '\\' OR LOWER(k.topic) LIKE LOWER(?) ESCAPE '\\')
+        """)
+        sql_params.extend([pattern, pattern])
 
-    rows = get_connection().execute(sql, params).fetchall()
+    if not sql_parts:
+        return {"query": q or "", "items": [], "grouped": {}}
+
+    sql = " UNION ALL ".join(sql_parts) + " ORDER BY ingested_at DESC LIMIT ?"
+    sql_params.append(effective_limit)
+
+    rows = get_connection().execute(sql, sql_params).fetchall()
 
     items: list[dict] = []
     grouped: dict[str, list[dict]] = {}

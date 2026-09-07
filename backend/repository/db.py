@@ -134,6 +134,32 @@ def close_db() -> None:
 # ---------------------------------------------------------------------------
 # Migrations
 # ---------------------------------------------------------------------------
+def _drop_dangling_views(conn: sqlite3.Connection) -> None:
+    """v1.0 R21 服务恢复: 启动期主动 DROP 引用 main schema 缺表的 view.
+
+    根因: 旧 unified_search view 引用 knowledge_items, 分库后 knowledge_items 在
+    warm.db, hot.db 没有此表. SQLite 允许 SELECT FROM view 失败时 lazy validate,
+    但 DDL (如 migration 099 的 ALTER TABLE ... RENAME) 会强制重新解析 view 依赖,
+    抛 "error in view unified_search: no such table: main.knowledge_items",
+    init_db 中断 → 后端起不来.
+
+    策略: 启动 init_db 早期 (apply_migrations 之前) 主动 SELECT 1 FROM view LIMIT 0,
+    失败即 DROP, 成功保留. 由 search_service 走 ATTACH 跨库 UNION ALL 替代 view.
+    """
+    rows = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='view' AND name NOT LIKE 'sqlite_%'"
+    ).fetchall()
+    for (view_name,) in rows:
+        try:
+            conn.execute(f"SELECT 1 FROM {view_name} LIMIT 0").fetchone()
+        except sqlite3.Error as e:
+            logger.warning(
+                f"dropping dangling view {view_name!r}: {e}",
+                extra={"trace_id": ""},
+            )
+            conn.execute(f"DROP VIEW IF EXISTS {view_name}")
+
+
 def _migration_number(stem: str) -> int:
     """Extract the leading numeric prefix of a migration filename (0 if none)."""
     try:
@@ -293,6 +319,13 @@ def init_db() -> int:
             extra={"trace_id": "", "result": actual},
         )
         raise InternalException(f"db integrity check failed: {actual}")
+
+    # v1.0 R21 服务恢复: preflight — 删悬空 view (引用 ATTACH 走的 db 中不存在的表)
+    # 根因: hot.db 旧 unified_search view 引用 knowledge_items, 但分库后
+    # knowledge_items 在 warm.db; view "半失效", 任何 DDL 触发 schema reparse 都失败
+    # 修复: 启动期主动 DROP 引用 main schema 缺表的 view, 走 service 层 ATTACH 跨库
+    # 详见 [docs/v1.0/REVIEW_2026-09-07.md R10/R21]
+    _drop_dangling_views(conn)
 
     # Apply pending migrations.
     try:

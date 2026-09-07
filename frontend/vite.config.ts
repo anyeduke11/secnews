@@ -2,6 +2,12 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { configDefaults } from 'vitest/config'
 
+// v1.0 R22 服务恢复: 代理目标从 env 读 (dev 模式 8766 / 生产 8000)
+// HOTSPOT_BACKEND_PORT 在 dev_environment.sh start-backend 时 export,
+// 默认 8000 兼容生产 + 用户直接 run.py 的场景
+const backendPort = process.env.HOTSPOT_BACKEND_PORT || process.env.DEV_PORT_BACKEND || '8000'
+const backendTarget = process.env.HOTSPOT_BACKEND_URL || `http://127.0.0.1:${backendPort}`
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -11,7 +17,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: backendTarget,
         changeOrigin: true,
       }
     }

@@ -161,8 +161,10 @@ def _scheduler_health(sched=None) -> dict[str, Any]:
 def _collectors_health() -> dict[str, Any]:
     try:
         conn = get_connection()
+        # v1.0 R21 服务恢复: collection_runs 在 warm.db (M2-T6 分库后),
+        # 主 conn 走 ATTACH 跨库查询 (warm.knowledge_items 同模式)
         row = conn.execute(
-            "SELECT started_at, item_count FROM collection_runs "
+            "SELECT started_at, item_count FROM warm.collection_runs "
             "ORDER BY started_at DESC LIMIT 1"
         ).fetchone()
         # Phase 8: 暴露 watchdog 最近恢复时间戳
@@ -253,7 +255,7 @@ def _build_stats_payload() -> dict:
             "SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS ok, "
             "AVG(duration_ms) AS avg_dur, "
             "MAX(fallback_count) AS max_fallback "
-            "FROM collection_runs WHERE started_at >= ?",
+            "FROM warm.collection_runs WHERE started_at >= ?",
             (cutoff,),
         ).fetchone()
         if row and row["n"]:
@@ -268,7 +270,7 @@ def _build_stats_payload() -> dict:
     try:
         # 找最近一次任何 fallback_count > 0 的 run
         row = conn.execute(
-            "SELECT started_at FROM collection_runs "
+            "SELECT started_at FROM warm.collection_runs "
             "WHERE fallback_count > 0 "
             "ORDER BY started_at DESC LIMIT 1"
         ).fetchone()

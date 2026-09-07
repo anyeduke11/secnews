@@ -176,7 +176,16 @@ export const OAuthCallbackPage = React.lazy(() =>
   import('./oauth-callback').then(m => ({ default: m.OAuthCallbackPage }))
 );
 
-// T03-E: v1.0 四入口原型 (临时路由, T15 收口后移除)
-export const V1Prototype = React.lazy(() =>
-  import('../components/v1/V1Prototype').then(m => ({ default: m.V1Prototype }))
+// T15: v1.0 四入口真实工作台 (C09 R23 拆 4 独立 page, R24 删 /v1-prototype 兼容)
+export const WorkbenchPage = React.lazy(() =>
+  import('../components/v1/V1Prototype').then(m => ({ default: m.WorkbenchPage }))
+);
+export const IntelPage = React.lazy(() =>
+  import('../components/v1/V1Prototype').then(m => ({ default: m.IntelPage }))
+);
+export const CasesPage = React.lazy(() =>
+  import('../components/v1/V1Prototype').then(m => ({ default: m.CasesPage }))
+);
+export const KnowledgeV1Page = React.lazy(() =>
+  import('../components/v1/V1Prototype').then(m => ({ default: m.KnowledgeV1Page }))
 );

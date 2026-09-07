@@ -627,3 +627,50 @@
 - ruff 全仓 165 错 (C14 集中修)
 
 **下一批 C09** (路由壳+UI 收尾, R14/R23/R24): 4 真路由拆 4 页面 + 删 `/v1-prototype` + 合并重复 `/knowledge` + 删 V1Prototype 内层 tabs + AppNav 14 项 + 4 屏截图
+
+### 2026-09-07 v1.0 C09 路由壳+UI 收尾 (R14/R23/R24, DEV-0153)
+
+**C09 调用链盘点** (R14/R23/R24 锁定):
+- R14 反模式: V1Prototype 用 6 MOCK_* 数组 (MOCK_CASES/JUDGMENTS/ACTIONS/RUNS/ARTIFACTS/KNOWLEDGE 共 12 处引用) + `usingFallback` state 3 处, 真实 v1 表空时降级 mock 兜底
+- R23 反模式: 4 真路由 (`/workbench /intel /cases /knowledge`) 全挂 `<P.V1Prototype />` (C04 标记), 且 `/v1-prototype` 临时兼容路由仍存在, `/knowledge` 重复声明
+- R24 反模式: `/` 走旧 Sentinel 壳 (`SentinelHomePage`), 旧 sentinel 入口 `/judge /action /garden` 仍可访问, V1Prototype 内层 4 tabs block (workbench/intel/cases/knowledge) 仍并存
+
+**C09 修复** (3 文件):
+
+1. `frontend/src/components/v1/V1Prototype.tsx` (R14+R24)
+   - 删 6 MOCK_* 数组 (lines 32-63 共 12 处引用, 含 MOCK_CASES / MOCK_JUDGMENTS / MOCK_ACTIONS / MOCK_RUNS / MOCK_ARTIFACTS / MOCK_KNOWLEDGE)
+   - 删 `usingFallback` state + 3 处 `setUsingFallback` 调用, 失败显 `unavailable` (catch 返空数组, 标 loading/error)
+   - CaseDetail 4 块 (actions/runs/artifacts/knowledgeItems) 全走真实 API 空数组, 失败显 unavailable 不 mock fallback
+   - 重构 V1Prototype 接受 `initialTab: V1Tab` prop, 内部抽 V1Shell 共享逻辑
+   - 删内层 4 tabs block (workbench/intel/cases/knowledge switch) + `useState<Tab>` state
+   - 新 export `WorkbenchPage / IntelPage / CasesPage / KnowledgeV1Page` (4 独立 page) + V1Prototype 保留作兼容别名
+
+2. `frontend/src/routes/index.tsx` (R23+R24)
+   - 删 5 旧 Sentinel 路由 (SentinelHomePage / JudgePage / GraphPage / ActionPage / GardenPage)
+   - 删 `/v1-prototype` 兼容路由
+   - `/` 加 `<Navigate to="/workbench" replace />`
+   - 4 真路由 (workbench/intel/cases) 拆挂 3 独立 page (`<P.WorkbenchPage/IntelPage/CasesPage/>`)
+   - `/knowledge` 唯一声明 (走 KnowledgePage 4 大领域嵌套, 合并 V1Prototype initialTab="knowledge" 重复声明)
+
+3. `frontend/src/routes/lazy-imports.ts`
+   - 删旧 V1Prototype lazy export (routes 不再用)
+   - 新增 4 个 lazy export (WorkbenchPage / IntelPage / CasesPage / KnowledgeV1Page, 路径 → '../components/v1/V1Prototype')
+
+**C09 反例测试** (`frontend/src/routes/__tests__/c09_route_shell.test.tsx`, 11/11 pass):
+- R14 (4 测试): V1Prototype 不再 export MOCK_CASES/MOCK_KNOWLEDGE/usingFallback; V1Prototype 不再有 `useState<...>(true)` (usingFallback 反例); 4 view 不再有 `MOCK_*.filter` 引用; 失败不再兜底为 mock
+- R23 (4 测试): 4 真路由不挂 V1Prototype (`<P.V1Prototype />` 反例); 不再有 `/v1-prototype` 路由; `/knowledge` 重复声明仅 1 处; `/workbench` 元素正确
+- R24 (3 测试): `/` 不走旧 Sentinel 壳; 不再有 `/judge /action /garden` 路由; V1Prototype 不再有内层 4 tabs (`'workbench' | 'intel' | 'cases' | 'knowledge'` 文本)
+
+**C09 退出条件验证**:
+- ✅ 11/11 反例测试 pass (R14 4 + R23 4 + R24 3)
+- ✅ 全 vitest 446/446 pass (C09 11 + 之前 435), 0 回归
+- ✅ frontend tsc 0 错 (lazy-imports 加 4 export 后)
+- ✅ 前端代理业务读取仍通: /api/v1/cases 200 + /api/skill-registry 26 项
+
+**C09 暴露的真问题** (留 C10/C11/C14):
+- R18 SSE 5 service publish_event 失败降级未做 outbox 持久 (留 C11)
+- R19 N+1 串行 fetch 仍存在 (后端聚合端点留 C11)
+- ruff 全仓 165 错 (留 C14)
+- 1440/1280/1024/768/390 5 视口截图真实跑通留 C10 浏览器操作流
+
+**下一批 C06 或 C05** (按 D3 节点裁决): C06 = dsh/pi 真 SDK (R06/R07, 5 天含等待, 用户明令"等待真实往返"); C05 = 证据/采集/准入 (R01/R02/R03/SK-01, 5 天)

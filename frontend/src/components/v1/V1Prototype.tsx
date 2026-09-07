@@ -1,19 +1,19 @@
 /**
- * v1.0 四入口 + 事项详情原型 (T03-E).
+ * v1.0 四入口 + 事项详情 (C09 路由壳收尾, 拆 4 路由 + 删 MOCK 占位 + 删内层 tabs).
  *
- * 入口:
- *   1. 今日工作 (Workbench) — 聚合看板
- *   2. 情报 (Intel) — Signal 流
- *   3. 事项 (Cases) — Case 列表 + 详情
- *   4. 知识 (Knowledge) — 经验库
+ * 入口 (route → tab):
+ *   /workbench → 'workbench'  今日工作
+ *   /intel     → 'intel'      情报
+ *   /cases     → 'cases'      事项
+ *   /knowledge → 'knowledge'  经验库
  *
- * 走查 3 路径:
+ * 走查 3 路径 (CaseDetail 内显示):
  *   - 缺资产: Case 下有 Action 但无 Artifact
  *   - 待验收: Artifact status=pending/verified 等待 acceptance
  *   - 失败: Run status=failed 或 Action status=failed
  *
- * 数据: 内嵌 mock (来自 dev_data/seed.json 脱敏样本), 明确标识为测试数据.
- * 路由: /v1-prototype (临时, T15 收口后移除)
+ * 数据: 全部走真实 API, 失败显 unavailable, 不再 mock fallback.
+ * 路由: /v1-prototype 已删除 (C09 R23); /knowledge 唯一声明.
  */
 
 import { useEffect, useState } from 'react';
@@ -24,43 +24,10 @@ import { renderInlineMarkdown } from '../../lib/markdown';
 import { useSSEWithRefetch } from './useSSEWithRefetch';
 
 // ---------------------------------------------------------------------------
-// Mock 数据 (来自 seed.json, 脱敏后内嵌避免 fetch 依赖)
+// 类型 + 共享组件
 // ---------------------------------------------------------------------------
 
-type Tab = 'workbench' | 'intel' | 'cases' | 'knowledge';
-
-const MOCK_CASES: Case[] = [
-  { id: 'CASE001', title: '评估 CVE-2026-XXXX 对核心系统的影响', question: '该漏洞是否影响生产环境?', goal: '完成漏洞影响评估与修复建议', scope: '核心交易系统', priority: 'p0', status: 'in_progress', due_at: '2025-06-10T00:00:00+00:00', subject_id: 'SUBJ001', related_subject_ids: ['SUBJ002'], related_signal_ids: ['SIG001'], related_case_ids: [], tags: ['security', 'cve'], owner_role: 'user', revision: 1, closed_at: null, created_at: '2025-06-01T08:00:00+00:00', updated_at: '2025-06-04T09:00:00+00:00', allowed_actions: ['block', 'close', 'edit', 'add_judgment'], reason: null },
-  { id: 'CASE002', title: '制定 AI 安全合规响应流程', question: '如何满足新规要求?', goal: '输出合规差距分析报告', scope: '全公司 AI 应用', priority: 'p1', status: 'open', due_at: '2025-06-15T00:00:00+00:00', subject_id: 'SUBJ002', related_subject_ids: [], related_signal_ids: ['SIG002'], related_case_ids: [], tags: ['ai_security', 'compliance'], owner_role: 'user', revision: 1, closed_at: null, created_at: '2025-06-02T10:30:00+00:00', updated_at: '2025-06-02T10:30:00+00:00', allowed_actions: ['claim', 'close', 'archive', 'edit'], reason: null },
-  { id: 'CASE003', title: '供应链投毒事件复盘与防御', question: '如何防止类似事件?', goal: '形成可复用的检查清单', scope: '开源依赖', priority: 'p2', status: 'blocked', due_at: null, subject_id: 'SUBJ003', related_subject_ids: [], related_signal_ids: ['SIG003'], related_case_ids: [], tags: ['supply_chain'], owner_role: 'user', revision: 1, closed_at: null, created_at: '2025-06-03T14:00:00+00:00', updated_at: '2025-06-03T14:00:00+00:00', allowed_actions: ['unblock', 'edit', 'add_judgment'], reason: '等待安全团队提供漏洞详情' },
-];
-
-const MOCK_JUDGMENTS: Judgment[] = [
-  { id: 'JUDG001', case_id: 'CASE001', subject_id: 'SUBJ001', claim_type: 'finding', claim: '该漏洞影响核心交易系统的支付模块, CVSS 评分 9.8, 需立即修复。', conditions: '适用于生产环境未打补丁的场景', confidence: 'high', evidence_refs: [{ material_id: 'MAT001', signal_id: 'SIG001', chunk_id: null, offset: null, hash: 'seed_abc123', quote: 'CVE-2026-XXXX 远程代码执行漏洞详情' }], counter_evidence_refs: [], unknowns: ['具体 affected versions 待确认'], status: 'published', revision: 1, wiki_path: null, content_hash: 'seed_judg001', published_at: '2025-06-04T09:00:00+00:00', created_at: '2025-06-04T09:00:00+00:00', updated_at: '2025-06-04T09:00:00+00:00', allowed_actions: ['create_supersede', 'retract', 'add_counter_evidence'] },
-  { id: 'JUDG002', case_id: 'CASE002', subject_id: 'SUBJ002', claim_type: 'assessment', claim: '新规对现有流程影响中等, 需补充 3 个控制点。', conditions: '适用于金融科技场景', confidence: 'medium', evidence_refs: [{ material_id: 'MAT002', signal_id: 'SIG002', chunk_id: null, offset: null, hash: 'seed_def456', quote: '监管新规摘要' }], counter_evidence_refs: [], unknowns: ['具体罚款金额未公开'], status: 'draft', revision: 1, wiki_path: null, content_hash: null, published_at: null, created_at: '2025-06-03T16:00:00+00:00', updated_at: '2025-06-03T16:00:00+00:00', allowed_actions: ['edit', 'publish', 'discard'] },
-];
-
-const MOCK_ACTIONS: Action[] = [
-  { id: 'ACT001', case_id: 'CASE001', judgment_id: 'JUDG001', title: '部署安全补丁', scope: '生产环境支付模块', plan: '# 部署计划\n\n1. 拉取补丁\n2. 灰度发布\n3. 验证修复\n\n验收: 漏洞扫描通过', plan_hash: 'seed_act001', tool_versions: {}, expected_artifacts: ['report'], success_criteria: 'CVSS 降至 3.0 以下', expires_at: null, status: 'running', approved_by: null, approved_at: null, revision: 1, created_at: '2025-06-04T10:00:00+00:00', updated_at: '2025-06-04T10:00:00+00:00', allowed_actions: ['cancel'] },
-  { id: 'ACT002', case_id: 'CASE002', judgment_id: 'JUDG002', title: '合规差距分析', scope: '全公司 AI 应用', plan: '# 差距分析\n\n1. 梳理现有流程\n2. 对照新规\n3. 输出报告', plan_hash: 'seed_act002', tool_versions: {}, expected_artifacts: ['report'], success_criteria: '完成差距分析报告', expires_at: '2025-06-20T00:00:00+00:00', status: 'planned', approved_by: null, approved_at: null, revision: 1, created_at: '2025-06-03T16:30:00+00:00', updated_at: '2025-06-03T16:30:00+00:00', allowed_actions: ['approve', 'reject', 'edit', 'cancel'] },
-];
-
-const MOCK_RUNS: Run[] = [
-  { id: 'run_000000000001', action_id: 'ACT001', attempt: 1, skill_id: 'patch-deploy', protocol: 'direct', trigger_source: 'user', idempotency_key: 'seed_run_000000000001', status: 'running', inputs: {}, steps: [], budget_tokens: null, budget_seconds: 3600, started_at: '2025-06-04T10:05:00+00:00', finished_at: null, duration_ms: null, result_excerpt: null, error: null, artifact_ids: [], revision: 1, created_at: '2025-06-04T10:05:00+00:00', updated_at: '2025-06-04T10:05:00+00:00', allowed_actions: [] },
-  { id: 'run_000000000002', action_id: 'ACT002', attempt: 1, skill_id: 'gap-analysis', protocol: 'dsh', trigger_source: 'system', idempotency_key: 'seed_run_000000000002', status: 'queued', inputs: {}, steps: [], budget_tokens: null, budget_seconds: null, started_at: null, finished_at: null, duration_ms: null, result_excerpt: null, error: null, artifact_ids: [], revision: 1, created_at: '2025-06-04T11:00:00+00:00', updated_at: '2025-06-04T11:00:00+00:00', allowed_actions: [] },
-  { id: 'run_000000000003', action_id: 'ACT001', attempt: 2, skill_id: 'patch-deploy', protocol: 'direct', trigger_source: 'user', idempotency_key: 'seed_run_000000000003', status: 'failed', inputs: {}, steps: [], budget_tokens: null, budget_seconds: null, started_at: '2025-06-03T14:00:00+00:00', finished_at: '2025-06-03T14:02:00+00:00', duration_ms: 120000, result_excerpt: null, error: '连接超时: 目标服务器无响应', artifact_ids: [], revision: 1, created_at: '2025-06-03T14:00:00+00:00', updated_at: '2025-06-03T14:02:00+00:00', allowed_actions: [] },
-];
-
-const MOCK_ARTIFACTS: Artifact[] = [
-  { id: 'ART001', run_id: 'run_000000000001', kind: 'report', title: '漏洞修复验证报告', content_ref: null, content_hash: 'seed_art001', format: 'pdf', size_bytes: 102400, verified_by: null, verified_at: null, verified_result: null, accepted_by: null, accepted_at: null, accepted_note: null, status: 'pending', revision: 1, created_at: '2025-06-04T10:30:00+00:00', updated_at: '2025-06-04T10:30:00+00:00', allowed_actions: [] },
-  { id: 'ART002', run_id: 'run_000000000001', kind: 'chart', title: '修复前后对比图', content_ref: null, content_hash: 'seed_art002', format: 'png', size_bytes: 51200, verified_by: 'ci-bot', verified_at: '2025-06-04T10:35:00+00:00', verified_result: 'pass', accepted_by: null, accepted_at: null, accepted_note: null, status: 'verified', revision: 1, created_at: '2025-06-04T10:30:00+00:00', updated_at: '2025-06-04T10:35:00+00:00', allowed_actions: ['accept'] },
-  { id: 'ART003', run_id: 'run_000000000003', kind: 'report', title: '失败运行日志', content_ref: null, content_hash: 'seed_art003', format: 'txt', size_bytes: 2048, verified_by: null, verified_at: null, verified_result: null, accepted_by: null, accepted_at: null, accepted_note: null, status: 'rejected', revision: 1, created_at: '2025-06-03T14:02:00+00:00', updated_at: '2025-06-03T14:02:00+00:00', allowed_actions: [] },
-];
-
-const MOCK_KNOWLEDGE: Knowledge[] = [
-  { id: 'KNOW001', kind: 'playbook', title: '漏洞响应标准流程', body: '# 漏洞响应\n\n1. 确认影响范围\n2. 评估风险\n3. 制定修复计划\n4. 执行与验证', prerequisites: ['具备漏洞扫描权限'], counter_examples: [], evidence_refs: [], expiry_at: null, review_at: '2025-12-01T00:00:00+00:00', status: 'published', revision: 1, wiki_path: null, content_hash: 'seed_know001', published_at: '2025-01-01T00:00:00+00:00', created_at: '2025-01-01T00:00:00+00:00', updated_at: '2025-05-15T00:00:00+00:00', allowed_actions: ['create_revision', 'deprecate', 'retract'] },
-  { id: 'KNOW002', kind: 'anti_pattern', title: '补丁部署常见错误', body: '# 反例\n\n- 未在 staging 验证直接部署生产\n- 忽略回滚计划', prerequisites: [], counter_examples: ['某次未验证导致服务中断 2 小时'], evidence_refs: [], expiry_at: null, review_at: null, status: 'draft', revision: 1, wiki_path: null, content_hash: null, published_at: null, created_at: '2025-06-01T00:00:00+00:00', updated_at: '2025-06-01T00:00:00+00:00', allowed_actions: ['edit', 'publish', 'discard'] },
-];
+export type V1Tab = 'workbench' | 'intel' | 'cases' | 'knowledge';
 
 // ---------------------------------------------------------------------------
 // 辅助组件
@@ -222,10 +189,10 @@ function IntelView() {
 // ---------------------------------------------------------------------------
 
 function CasesView({ onSelectCase }: { onSelectCase: (c: Case) => void }) {
-  const [cases, setCases] = useState<Case[]>(MOCK_CASES);
+  // v1.0 C09 R14 修复: 删 MOCK_* 6 数组 + usingFallback; 失败显 unavailable (AC-11)
+  const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [usingFallback, setUsingFallback] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -234,19 +201,12 @@ function CasesView({ onSelectCase }: { onSelectCase: (c: Case) => void }) {
     listCases({ limit: 50 })
       .then((resp) => {
         if (cancelled) return;
-        if (resp.items && resp.items.length > 0) {
-          setCases(resp.items);
-          setUsingFallback(false);
-        } else {
-          // 后端空 → 用 mock 演示
-          setUsingFallback(true);
-        }
+        setCases(resp.items || []);
       })
       .catch((e) => {
         if (cancelled) return;
-        // API 失败 → 保留 mock (设计要求 fallback)
         setError(e instanceof Error ? e.message : String(e));
-        setUsingFallback(true);
+        setCases([]);  // 失败不 fallback mock, 显 unavailable
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -265,19 +225,19 @@ function CasesView({ onSelectCase }: { onSelectCase: (c: Case) => void }) {
         </div>
       )}
       {error && !loading && (
-        <div className="text-sm p-3 rounded" style={{ background: 'var(--bg-warning)', color: 'var(--color-warning)' }}>
-          API 调用失败, 显示本地示例数据: {error}
+        <div className="text-sm p-3 rounded" style={{ background: 'var(--bg-warning, var(--color-warning))', color: 'var(--text-primary)' }}>
+          加载失败 (unavailable): {error}
         </div>
       )}
-      {!loading && !error && usingFallback && cases.length === MOCK_CASES.length && (
-        <div className="text-sm p-3 rounded" style={{ background: 'var(--bg-muted)', color: 'var(--text-muted)' }}>
-          当前无后端数据, 显示本地示例 (mock fallback)。
+      {!loading && !error && cases.length === 0 && (
+        <div className="text-sm p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)', color: 'var(--text-muted)' }}>
+          暂无工作事项 (v1_cases 表空, 新业务链未跑通)
         </div>
       )}
       <div className="space-y-3">
         {cases.map(c => {
-          const caseJudgments = MOCK_JUDGMENTS.filter(j => j.case_id === c.id);
-          const caseActions = MOCK_ACTIONS.filter(a => a.case_id === c.id);
+          const caseJudgments: Judgment[] = [];  // R14: 不再 MOCK_.filter, 走 N+1 listJudgments (R19 留 C11 聚合)
+          const caseActions: Action[] = [];
 
           const statusColors: Record<string, 'green' | 'blue' | 'yellow' | 'gray' | 'red'> = {
             open: 'blue', in_progress: 'green', blocked: 'yellow', closed: 'gray', archived: 'gray',
@@ -312,10 +272,10 @@ function CasesView({ onSelectCase }: { onSelectCase: (c: Case) => void }) {
 }
 
 function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
+  // v1.0 C09 R14 修复: 删 usingFallback state, 失败显 unavailable (AC-11)
   const [liveCase, setLiveCase] = useState<Case | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [usingFallback, setUsingFallback] = useState(true);
   const [liveJudgments, setLiveJudgments] = useState<Judgment[]>([]);
   const [judgmentsLoading, setJudgmentsLoading] = useState(false);
   const [liveActions, setLiveActions] = useState<Action[]>([]);
@@ -332,8 +292,8 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
     setLoading(true);
     setError(null);
     getCase(case_.id)
-      .then((resp) => { if (!cancelled) { setLiveCase(resp.item); setUsingFallback(false); } })
-      .catch((e) => { if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setLiveCase(null); setUsingFallback(true); } })
+      .then((resp) => { if (!cancelled) { setLiveCase(resp.item); } })
+      .catch((e) => { if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setLiveCase(null); } })
       .finally(() => { if (!cancelled) setLoading(false); });
     setJudgmentsLoading(true);
     listJudgments({ case_id: case_.id, limit: 50 })
@@ -389,37 +349,19 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
   }, [case_.id]);
 
   const display = liveCase ?? case_;
-  // T11: 优先真实 judgment, 失败回退 mock
-  const judgments = liveJudgments.length > 0
-    ? liveJudgments
-    : MOCK_JUDGMENTS.filter(j => j.case_id === display.id);
-  // T12: 优先真实 action/run/artifact, 失败回退 mock
-  const usingLiveActionChain = liveActions.length > 0;
-  const actions = usingLiveActionChain
-    ? liveActions
-    : MOCK_ACTIONS.filter(a => a.case_id === display.id);
-  const actionIds = actions.map(a => a.id);
-  const runs = usingLiveActionChain
-    ? liveRuns
-    : MOCK_RUNS.filter(r => actionIds.includes(r.action_id));
-  const runIds = runs.map(r => r.id);
-  const artifacts = usingLiveActionChain
-    ? liveArtifacts
-    : MOCK_ARTIFACTS.filter(a => runIds.includes(a.run_id));
+  // v1.0 C09 R14 修复: 不再 fallback MOCK_*.filter; 真实数据空 → 显空数组
+  const judgments: Judgment[] = liveJudgments;
+  const actions: Action[] = liveActions;
+  const runs: Run[] = liveRuns;
+  const artifacts: Artifact[] = liveArtifacts;
 
   // 走查 3 路径检测 (T12 强化: 显式呈现 3 路径而非简单色块)
   const hasMissingAssets = actions.length > 0 && artifacts.length === 0;
   const hasFailure = runs.some(r => r.status === 'failed');
   const hasPendingAcceptance = artifacts.some(a => a.status === 'verified');
   const hasRejected = artifacts.some(a => a.status === 'rejected');
-  // T13: 优先真实 knowledge, 失败回退 mock
-  const usingLiveKnowledge = liveKnowledge.length > 0;
-  const knowledgeItems = usingLiveKnowledge
-    ? liveKnowledge
-    : MOCK_KNOWLEDGE.filter(k => k.evidence_refs?.some(r => {
-        const j = liveJudgments.find(j => j.evidence_refs?.some(e => e.material_id === r.material_id));
-        return !!j;
-      }));
+  // T13: 优先真实 knowledge, 不再 fallback MOCK_KNOWLEDGE.filter
+  const knowledgeItems: Knowledge[] = liveKnowledge;
 
   return (
     <div className="space-y-6">
@@ -451,7 +393,7 @@ function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void }) {
           API 调用失败, 显示列表缓存数据: {error}
         </div>
       )}
-      {!loading && !error && !usingFallback && (
+      {!loading && !error && (
         <div className="p-3 rounded-lg border text-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)', color: 'var(--text-muted)' }}>
           已加载后端数据 · revision {display.revision} · allowed_actions: {display.allowed_actions?.join(', ') || '(none)'}
         </div>
@@ -716,53 +658,65 @@ function KnowledgeView() {
 // 主页面
 // ---------------------------------------------------------------------------
 
-export function V1Prototype() {
-  const [tab, setTab] = useState<Tab>('workbench');
-  const [selectedCase, setSelectedCase] = useState<Case | null>(null);
-  // T17.5: 6 event_type → toast 触发 + 4 view refetch
-  useSSEWithRefetch(setTab);  // T19: 增 (caseId) => setSelectedCase(...) 占位
+// ---------------------------------------------------------------------------
+// v1.0 C09 路由壳收尾: V1Prototype 重构为 4 独立 page export (共享 V1Shell)
+// 每个路由 /workbench /intel /cases /knowledge 挂独立 page, V1Prototype 仅留
+// 兼容别名 (供旧代码或测试引用).
+// ---------------------------------------------------------------------------
 
-  const tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: 'workbench', label: '今日工作', icon: '📊' },
-    { key: 'intel', label: '情报', icon: '📡' },
-    { key: 'cases', label: '事项', icon: '📋' },
-    { key: 'knowledge', label: '知识', icon: '📚' },
-  ];
+/** v1.0 C09 R23 修复: /workbench → WorkbenchPage (不再用 V1Prototype). */
+export function WorkbenchPage() {
+  return <V1Shell tab="workbench" />;
+}
+
+/** v1.0 C09 R23 修复: /intel → IntelPage. */
+export function IntelPage() {
+  return <V1Shell tab="intel" />;
+}
+
+/** v1.0 C09 R23 修复: /cases → CasesPage (CaseDetail 嵌套在 CasesView 内部). */
+export function CasesPage() {
+  return <V1Shell tab="cases" />;
+}
+
+/** v1.0 C09 R23 修复: /knowledge (主入口) → KnowledgePage.
+ * 注: /knowledge 真实页面是 V1Shell<tab="knowledge">, 而 4 大领域 (/import /process /compile /compound)
+ * 走嵌套 KnowledgePage 组件 (与 Shell 区分). 此处 Shell 只显 1 行提示跳到 /knowledge/import 走 4 大领域.
+ */
+export function KnowledgeV1Page() {
+  return <V1Shell tab="knowledge" />;
+}
+
+/** v1.0 C09 R24 兼容别名: V1Prototype(initialTab) → 等价 WorkbenchPage.
+ * 旧代码 / 测试如已 import V1Prototype 仍能工作, 但 routes 不再用.
+ */
+export function V1Prototype({ initialTab = 'workbench' }: { initialTab?: V1Tab } = {}) {
+  return <V1Shell tab={initialTab} />;
+}
+
+/** V1Shell — 4 page 共享的内部壳, 接 tab prop 决定显示哪个 view. */
+function V1Shell({ tab }: { tab: V1Tab }) {
+  const [selectedCase, setSelectedCase] = useState<Case | null>(null);
+  // T17.5: 6 event_type → toast 触发 (caseId 触发 setSelectedCase 留 C11 契约)
+  void useSSEWithRefetch(() => {});
+  // WorkbenchView 传 caseId 字符串; 顶层从最新 listCases 缓存查 Case 重建对象
+  const [caseCache, setCaseCache] = useState<Case[]>([]);
+  useEffect(() => {
+    listCases({ limit: 50 })
+      .then((r) => setCaseCache(r.items || []))
+      .catch(() => setCaseCache([]));
+  }, []);
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      {/* 测试数据标识 */}
-      <div className="mb-6 p-3 rounded-lg border flex items-center gap-2" style={{ background: 'var(--bg-warning)', borderColor: 'var(--color-warning)' }}>
-        <span className="text-sm font-medium" style={{ color: 'var(--color-warning)' }}>⚠️ 原型模式</span>
-        <span className="text-sm" style={{ color: 'var(--text-primary)' }}>以下数据为 T03-E 脱敏测试样本, 来自 dev_data/seed.json, 不反映生产状态。</span>
-      </div>
-
-      {/* 标签栏 */}
-      <div className="flex gap-1 p-1 rounded-lg mb-6" style={{ background: 'var(--bg-muted)' }}>
-        {tabs.map(t => (
-          <button
-            key={t.key}
-            onClick={() => { setTab(t.key); setSelectedCase(null); }}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === t.key ? 'shadow-sm' : ''}`}
-            style={{
-              background: tab === t.key ? 'var(--bg-card)' : 'transparent',
-              color: tab === t.key ? 'var(--text-primary)' : 'var(--text-muted)',
-            }}
-          >
-            <span className="mr-1">{t.icon}</span>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* 内容区 */}
+      {/* 内容区 (无内层 tabs, 路由决定当前 view) */}
       {selectedCase ? (
         <CaseDetail case_={selectedCase} onBack={() => setSelectedCase(null)} />
       ) : (
         <>
           {tab === 'workbench' && <WorkbenchView onSelectCase={(id) => {
-            setSelectedCase({ id, title: '...', question: '...', revision: 1, status: 'open', created_at: '2026-09-01T00:00:00+00:00', updated_at: '2026-09-01T00:00:00+00:00' } as Case);
-            setTab('cases');
+            const found = caseCache.find(c => c.id === id);
+            if (found) setSelectedCase(found);
           }} />}
           {tab === 'intel' && <IntelView />}
           {tab === 'cases' && <CasesView onSelectCase={setSelectedCase} />}

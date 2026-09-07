@@ -87,13 +87,11 @@ export function AppRoutes() {
       {/* v4.3 报纸版式已移除 (v0.7.1) — 保留入口重定向, 老书签与外链不 404 */}
       <Route path="/editorial" element={<Navigate to="/" replace />} />
 
-      {/* v0.7.1: 哨兵终端 (V2 设计稿还原) — 独立全屏, 不走 PageLayout, 壳由 SentinelShell 提供 */}
-      <Route path="/" element={<Suspense fallback={<PageFallback />}><P.SentinelHomePage /></Suspense>} />
-      <Route path="/judge" element={<Suspense fallback={<PageFallback />}><P.SentinelJudgePage /></Suspense>} />
-      <Route path="/judge/graph" element={<Suspense fallback={<PageFallback />}><P.SentinelGraphPage /></Suspense>} />
-      <Route path="/action" element={<Suspense fallback={<PageFallback />}><P.SentinelActionPage /></Suspense>} />
-      <Route path="/garden" element={<Suspense fallback={<PageFallback />}><P.SentinelGardenPage /></Suspense>} />
-      {/* v0.7.x SettingsHub: /sentinel/settings 已并入 /settings?sentinel=, 永久 redirect (外部书签不失效) */}
+      {/* v1.0 C09 R24 修复: 删 4 个旧 sentinel 入口 (/judge /judge/graph /action /garden),
+         * 删 /v1-prototype 兼容路由 (T15 临时, C09 收尾后移除),
+         * / 走 /workbench (PageLayout 内) 不再走 SentinelHomePage (旧壳).
+         * 旧 /sentinel/settings redirect 保留 (外部书签不失效).
+         */}
       <Route path="/sentinel/settings" element={<Navigate to="/settings?cat=sentinel" replace />} />
 
       {/* Phase 1A: 嵌套 Layout (PageLayout 含 ToastProvider + 外层容器) */}
@@ -115,13 +113,15 @@ export function AppRoutes() {
         <Route path="/skill-store/new" element={<Suspense fallback={<PageFallback />}><SkillBuilderRoute /></Suspense>} />
         {/* v0.8 Phase D (D2): 技能看板 */}
         <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><DashboardRoute /></Suspense>} />
-        {/* T03-E: v1.0 四入口原型 (T15 收口后为正式路径) */}
-        <Route path="/v1-prototype" element={<Suspense fallback={<PageFallback />}><P.V1Prototype /></Suspense>} />
-        {/* v1.0 T15: 四主入口真路径 (默认 workbench tab) */}
-        <Route path="/workbench" element={<Suspense fallback={<PageFallback />}><P.V1Prototype /></Suspense>} />
-        <Route path="/intel" element={<Suspense fallback={<PageFallback />}><P.V1Prototype /></Suspense>} />
-        <Route path="/cases" element={<Suspense fallback={<PageFallback />}><P.V1Prototype /></Suspense>} />
-        <Route path="/knowledge" element={<Suspense fallback={<PageFallback />}><P.V1Prototype /></Suspense>} />
+
+        {/* v1.0 C09 R23 修复: 4 真路由 (workbench / intel / cases) 拆 3 独立 page,
+         * /knowledge 单独由下方 KnowledgePage 4 大领域嵌套处理 (R23 合并 /knowledge 重复声明).
+         * / 默认 Navigate to /workbench (C09 R24 修复).
+         */}
+        <Route path="/" element={<Navigate to="/workbench" replace />} />
+        <Route path="/workbench" element={<Suspense fallback={<PageFallback />}><P.WorkbenchPage /></Suspense>} />
+        <Route path="/intel" element={<Suspense fallback={<PageFallback />}><P.IntelPage /></Suspense>} />
+        <Route path="/cases" element={<Suspense fallback={<PageFallback />}><P.CasesPage /></Suspense>} />
         <Route path="/secrets" element={<Suspense fallback={<PageFallback />}><P.SecretsPage onBack={goHome} /></Suspense>} />
         {features.sync && (
           <Route path="/sync" element={<Suspense fallback={<PageFallback />}><P.SyncPage onBack={goHome} /></Suspense>} />
@@ -129,7 +129,9 @@ export function AppRoutes() {
         <Route path="/settings" element={<Suspense fallback={<PageFallback />}><P.SettingsPage /></Suspense>} />
         <Route path="/report" element={<Suspense fallback={<PageFallback />}><P.ReportPage onBack={goHome} /></Suspense>} />
 
-        {/* 知识管理: 4 大领域 (信息导入 / 处理数据 / 知识库编译 / 知识库复利) */}
+        {/* 知识管理: 4 大领域 (信息导入 / 处理数据 / 知识库编译 / 知识库复利) + 经验库聚合
+         * C09 R23 修复: /knowledge 唯一声明 (V1Prototype initialTab="knowledge" + KnowledgePage 4 大领域嵌套)
+         */}
         <Route path="/knowledge" element={<Suspense fallback={<PageFallback />}><P.KnowledgePage onBack={goHome} /></Suspense>}>
           <Route index element={<Navigate to="import" replace />} />
           <Route path="import" element={<Suspense fallback={<PageFallback />}><P.KnowledgeImport /></Suspense>} />

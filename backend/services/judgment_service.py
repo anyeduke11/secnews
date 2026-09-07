@@ -373,29 +373,11 @@ class JudgmentService:
                 f"judgment {judgment_id} content_hash drift; recreation required"
             )
         # 落 wiki path
-        wiki_path = f"judgments/{judgment_id}.md"
+        # R10 修复: canonical path = items/judgment_{id}.md (走 WikiFs items/, 不写字面 judgments/)
+        wiki_path = f"items/judgment_{judgment_id}.md"
         now = _utcnow_iso()
-        try:
-            rowcount = self.repo.update_status_cas(
-                judgment_id, "published",
-                expected_revision=expected_revision,
-                published_at=now,
-                wiki_path=wiki_path,
-                allowed_actions=_JUDGMENT_ALLOWED_ACTIONS["published"],
-                reason=None,
-            )
-        except Exception as e:
-            # UNIQUE PARTIAL INDEX 撞库 → ConflictException
-            if "UNIQUE" in str(e).upper() or "unique" in str(e):
-                raise JudgmentConflictError(
-                    f"judgment unique constraint hit: {e}"
-                ) from e
-            raise
-        if rowcount == 0:
-            raise JudgmentConflictError(
-                f"judgment {judgment_id} CAS update failed (race)"
-            )
-        # 写 wiki (best effort)
+        # R10 修复: wiki 写必须在 CAS 之前, 失败必须 raise, 不吞 — 避免"DB 已 published
+        # 但 wiki 未落盘"假象. wiki 写异常直接抛 JudgmentConflictError, DB 仍 draft.
         try:
             from backend.wiki_fs.root import resolve_wiki_root
             from backend.wiki_fs.store import WikiFs
@@ -413,7 +395,32 @@ class JudgmentService:
                 "body": content,
             })
         except Exception as e:
-            logger.warning(f"judgment wiki write failed (publish still ok): {e}")
+            # R10: 写失败必须 raise, 不吞. DB 仍 draft, caller 可重试.
+            raise JudgmentConflictError(
+                f"judgment {judgment_id} wiki write failed (R10: must not silently publish): {e}"
+            ) from e
+        # wiki 已落盘后再 CAS 落库 (任意步骤失败 → 状态不一致保护)
+        try:
+            rowcount = self.repo.update_status_cas(
+                judgment_id, "published",
+                expected_revision=expected_revision,
+                old_status="draft",
+                published_at=now,
+                wiki_path=wiki_path,
+                allowed_actions=_JUDGMENT_ALLOWED_ACTIONS["published"],
+                reason=None,
+            )
+        except Exception as e:
+            # UNIQUE PARTIAL INDEX 撞库 → ConflictException
+            if "UNIQUE" in str(e).upper() or "unique" in str(e):
+                raise JudgmentConflictError(
+                    f"judgment unique constraint hit: {e}"
+                ) from e
+            raise
+        if rowcount == 0:
+            raise JudgmentConflictError(
+                f"judgment {judgment_id} CAS update failed (race or stale revision/status)"
+            )
         # T17 SSE 5 事件源: judgment publish 推 v1_judgment 事件
         self._publish_v1_judgment_event(j)
         return self.repo.get(judgment_id)

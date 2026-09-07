@@ -197,7 +197,18 @@ def test_allowed_actions_full_state_machine(case_service: CaseService, temp_db) 
     expected = ALLOWED_ACTIONS_BY_STATUS["in_progress"]
     assert sorted(case.allowed_actions) == sorted(expected)
 
-    # 5) close
+    # 5) close (R17: 必须 ≥1 published judgment)
+    from backend.repository.judgment_repo import JudgmentRepository
+    JudgmentRepository().insert({
+        "id": "J" * 26, "case_id": case.id, "claim_type": "finding",
+        "claim": "test", "conditions": "", "confidence": "high",
+        "evidence_refs": [], "counter_evidence_refs": [], "unknowns": [],
+        "status": "published", "content_hash": "h" * 64, "revision": 1,
+        "published_at": "2026-09-07T00:00:00+00:00",
+        "created_at": "2026-09-07T00:00:00+00:00",
+        "updated_at": "2026-09-07T00:00:00+00:00",
+        "allowed_actions": ["view_only"], "reason": None,
+    })
     case = case_service.close_case(case.id, expected_revision=case.revision)
     assert case.status.value == "closed"
     assert case.closed_at is not None
@@ -215,6 +226,19 @@ def test_allowed_actions_full_state_machine(case_service: CaseService, temp_db) 
 # ---------------------------------------------------------------------------
 def test_close_case_success(case_service: CaseService, temp_db) -> None:
     case = case_service.create_case(title="T", question="Q")
+    # R17 fix: case.close 必须 ≥1 published judgment (研究型场景: 无 action 也可关)
+    from backend.repository.judgment_repo import JudgmentRepository
+    jrepo = JudgmentRepository()
+    jrepo.insert({
+        "id": "J" * 26, "case_id": case.id, "claim_type": "finding",
+        "claim": "test", "conditions": "", "confidence": "high",
+        "evidence_refs": [], "counter_evidence_refs": [], "unknowns": [],
+        "status": "published", "content_hash": "h" * 64, "revision": 1,
+        "published_at": "2026-09-07T00:00:00+00:00",
+        "created_at": "2026-09-07T00:00:00+00:00",
+        "updated_at": "2026-09-07T00:00:00+00:00",
+        "allowed_actions": ["view_only"], "reason": None,
+    })
     closed = case_service.close_case(case.id, expected_revision=1)
     assert closed.status.value == "closed"
     assert closed.closed_at is not None
@@ -223,19 +247,41 @@ def test_close_case_success(case_service: CaseService, temp_db) -> None:
 
 def test_close_case_blocked_by_active_action(case_service: CaseService, temp_db) -> None:
     case = case_service.create_case(title="T", question="Q")
-    # 模拟存在 action 关联 — close 必须 409
+    # R17 fix: 模拟存在 active action (planned/approved/running) → close 必须 409
     conn = get_connection()
     conn.execute(
-        "INSERT INTO v1_case_actions (case_id) VALUES (?)", (case.id,)
+        "INSERT INTO v1_actions (id, case_id, judgment_id, title, plan, plan_hash, "
+        "tool_versions_json, expected_artifacts_json, status, revision, created_at, updated_at, "
+        "allowed_actions_json, reason) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ("A" * 26, case.id, "J" * 26, "test", "p", "h" * 64, "{}", "[]",
+         "running", 1, "2026-09-07T00:00:00+00:00", "2026-09-07T00:00:00+00:00",
+         "[]", None),
+    )
+    conn.execute(
+        "INSERT INTO v1_case_actions (case_id, action_id) VALUES (?, ?)",
+        (case.id, "A" * 26),
     )
     conn.commit()
     with pytest.raises(CaseConflictError) as excinfo:
         case_service.close_case(case.id, expected_revision=1)
-    assert "active actions" in str(excinfo.value).lower()
+    assert "active action" in str(excinfo.value).lower()
 
 
 def test_close_case_idempotent_rejects_double_close(case_service: CaseService, temp_db) -> None:
     case = case_service.create_case(title="T", question="Q")
+    # R17 fix: 必须 ≥1 published judgment 才能 close
+    from backend.repository.judgment_repo import JudgmentRepository
+    JudgmentRepository().insert({
+        "id": "J" * 26, "case_id": case.id, "claim_type": "finding",
+        "claim": "test", "conditions": "", "confidence": "high",
+        "evidence_refs": [], "counter_evidence_refs": [], "unknowns": [],
+        "status": "published", "content_hash": "h" * 64, "revision": 1,
+        "published_at": "2026-09-07T00:00:00+00:00",
+        "created_at": "2026-09-07T00:00:00+00:00",
+        "updated_at": "2026-09-07T00:00:00+00:00",
+        "allowed_actions": ["view_only"], "reason": None,
+    })
     case_service.close_case(case.id, expected_revision=1)
     # 再 close 一次 (status=closed) → 409
     with pytest.raises(CaseConflictError):
@@ -386,6 +432,18 @@ def test_api_close_success(e2e_api_client: TestClient) -> None:
         "/api/v1/cases",
         json={"title": "T", "question": "Q"},
     ).json()["item"]["id"]
+    # R17 fix: 必须 ≥1 published judgment 才能 close
+    from backend.repository.judgment_repo import JudgmentRepository
+    JudgmentRepository().insert({
+        "id": "J" * 26, "case_id": case_id, "claim_type": "finding",
+        "claim": "test", "conditions": "", "confidence": "high",
+        "evidence_refs": [], "counter_evidence_refs": [], "unknowns": [],
+        "status": "published", "content_hash": "h" * 64, "revision": 1,
+        "published_at": "2026-09-07T00:00:00+00:00",
+        "created_at": "2026-09-07T00:00:00+00:00",
+        "updated_at": "2026-09-07T00:00:00+00:00",
+        "allowed_actions": ["view_only"], "reason": None,
+    })
     resp = e2e_api_client.post(
         f"/api/v1/cases/{case_id}/close",
         json={"expected_revision": 1},

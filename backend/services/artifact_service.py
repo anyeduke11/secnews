@@ -77,13 +77,19 @@ class ArtifactService:
         self.repo = repo or ArtifactRepository()
 
     # ------------------------------------------------------------------
-    # create (run_id 必引; 落库 status=pending)
+    # create (run_id 必引; content_ref 必传且文件已落盘; 落库 status=pending)
     # ------------------------------------------------------------------
     def create(
         self, *, run_id: str, kind: str, title: str, content: str,
         format: str = "md", content_ref: str | None = None,
     ) -> dict[str, Any]:
-        """创建 artifact (默认 status=pending, verified_result=None)."""
+        """创建 artifact (默认 status=pending, verified_result=None).
+
+        v1.0 C08 R08 修复: content_ref 必传 + 文件已落盘 + hash 读回一致.
+        - 不传 content_ref → raise ArtifactValidationError
+        - content_ref 文件不存在 → raise
+        - 落盘 hash 与 content hash 不一致 → raise
+        """
         if not run_id or not isinstance(run_id, str):
             raise ArtifactValidationError("run_id required")
         if kind not in _VALID_ARTIFACT_KIND:
@@ -94,9 +100,27 @@ class ArtifactService:
             raise ArtifactValidationError("title must be non-empty")
         if not content:
             raise ArtifactValidationError("content required for hash")
+        if not content_ref or not str(content_ref).strip():
+            raise ArtifactValidationError(
+                "content_ref required (R08: 产物正文必须先存盘, 不能落空 content_ref 蒙混)"
+            )
+        # R08 守卫: 落盘文件必须存在 + hash 必须与 content 一致
+        from pathlib import Path
+        ref_path = Path(content_ref)
+        if not ref_path.is_file():
+            raise ArtifactValidationError(
+                f"content_ref file not found: {content_ref}"
+            )
+        on_disk = ref_path.read_bytes()
+        on_disk_hash = hashlib.sha256(on_disk).hexdigest()
+        ch = _content_hash(content)
+        if on_disk_hash != ch:
+            raise ArtifactValidationError(
+                f"content_ref hash mismatch: disk={on_disk_hash[:16]}... "
+                f"content={ch[:16]}... (R08: 篡改或挂错文件)"
+            )
         aid = _ulid26()
         now = _utcnow_iso()
-        ch = _content_hash(content)
         size = len(content.encode("utf-8"))
         body = {
             "id": aid, "run_id": run_id, "kind": kind, "title": title,
@@ -127,6 +151,8 @@ class ArtifactService:
         new_status = "verified" if verified_result == "pass" else "rejected"
         rowcount = self.repo.update_status_cas(
             artifact_id, new_status,
+            expected_revision=a["revision"],
+            old_status="pending",
             verified_by=verified_by, verified_at=_utcnow_iso(),
             verified_result=verified_result,
             allowed_actions=_ARTIFACT_ALLOWED_ACTIONS[new_status], reason=None,
@@ -149,6 +175,25 @@ class ArtifactService:
             raise ArtifactConflictError(
                 f"artifact {artifact_id} status={a['status']} (accept requires verified)"
             )
+        # R08 守卫: 验收前从 content_ref 重读正文, 重新计算 hash 校验一致;
+        # 缺文件 / hash 不一致 → raise (防"存库 ≠ 落盘"蒙混)
+        from pathlib import Path
+        content_ref = a.get("content_ref")
+        if not content_ref:
+            raise ArtifactConflictError(
+                f"artifact {artifact_id} content_ref empty (R08: 验收必须指向真实落盘文件)"
+            )
+        ref_path = Path(content_ref)
+        if not ref_path.is_file():
+            raise ArtifactConflictError(
+                f"artifact {artifact_id} content_ref not found on disk: {content_ref}"
+            )
+        on_disk_hash = hashlib.sha256(ref_path.read_bytes()).hexdigest()
+        if on_disk_hash != a["content_hash"]:
+            raise ArtifactConflictError(
+                f"artifact {artifact_id} content tampered: disk={on_disk_hash[:16]}... "
+                f"recorded={a['content_hash'][:16]}... (R08: 落盘与记录 hash 不一致)"
+            )
         # 守卫 §8.3 防重传蒙混: 同 run + 同 content_hash 已 rejected 不可再 accept
         if self.repo.has_rejected_with_same_hash(a["run_id"], a["content_hash"]):
             # 当前 artifact 自身就是 rejected 同 hash (race); 否则历史 rejected
@@ -160,6 +205,8 @@ class ArtifactService:
             )
         rowcount = self.repo.update_status_cas(
             artifact_id, "accepted",
+            expected_revision=a["revision"],
+            old_status="verified",
             accepted_by=accepted_by, accepted_at=_utcnow_iso(),
             accepted_note=accepted_note,
             allowed_actions=_ARTIFACT_ALLOWED_ACTIONS["accepted"], reason=None,
@@ -198,7 +245,10 @@ class ArtifactService:
                 f"artifact {artifact_id} status={a['status']} (reject requires pending/verified)"
             )
         rowcount = self.repo.update_status_cas(
-            artifact_id, "rejected", reason=f"rejected_by={rejected_by}: {reason}",
+            artifact_id, "rejected",
+            expected_revision=a["revision"],
+            old_status=a["status"],
+            reason=f"rejected_by={rejected_by}: {reason}",
             allowed_actions=_ARTIFACT_ALLOWED_ACTIONS["rejected"],
         )
         if rowcount == 0:

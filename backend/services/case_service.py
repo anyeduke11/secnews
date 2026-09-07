@@ -386,9 +386,12 @@ class CaseService:
     def close_case(self, case_id: str, *, expected_revision: int) -> Case:
         """关闭 Case: 校验无 active run + 落 closed_at.
 
-        active = v1_case_actions 有未结束 action (后续 T13 action_service 扩字段;
-        本批用 judgment 关联表 v1_case_judgments 作"已完成判断"指示).
-        若 v1_case_judgments / v1_case_actions 都不存在 (骨架阶段), 视为 active (兜底关).
+        v1.0 C08 R17 修复 — 关闭 4 守卫:
+        (a) 所有 v1_actions 全终态 (succeeded/failed/cancelled/rejected)
+        (b) 任何 active v1_runs (queued/claimed/running) 不得存在
+        (c) 至少 1 个 verified/accepted v1_artifact (经 v1_runs 关联)
+        (d) 至少 1 个 published v1_judgment
+            (研究型 case 无 action 但有 published judgment 可直接关)
         """
         existing = self._repo.get(case_id)
         if existing is None:
@@ -402,18 +405,79 @@ class CaseService:
                 current_status=existing.status,
             )
 
-        # 校验: 无 active run (本批用 v1_case_actions 关联表存在行作 "尚未完成 action"
-        # 指示; 实际 active run 状态在 T13 action.run 批次判断 — 骨架阶段视为有则拦截)
         from backend.repository.db import get_connection
 
         conn = get_connection()
-        has_actions = conn.execute(
-            "SELECT 1 FROM v1_case_actions WHERE case_id = ? LIMIT 1", (case_id,)
-        ).fetchone()
-        # 骨架阶段: 有 action 行就当 active (T13 接入 run 后细化)
-        if has_actions is not None:
+
+        # (a) 所有 action 全终态
+        active_actions = conn.execute(
+            "SELECT id, status FROM v1_actions WHERE case_id = ? "
+            "AND status IN ('planned', 'approved', 'running')",
+            (case_id,),
+        ).fetchall()
+        if active_actions:
+            ids = ", ".join(r[0] for r in active_actions)
             raise CaseConflictError(
-                "case has active actions, cannot close; resolve them first",
+                f"case has {len(active_actions)} active action(s) [{ids}]; "
+                f"resolve all actions to terminal state first (R17: planned/approved/running must end)",
+                current_revision=existing.revision,
+                current_status=existing.status,
+            )
+
+        # (b) 无 active run (queued/claimed/running)
+        active_runs = conn.execute(
+            "SELECT r.id, r.status FROM v1_runs r "
+            "JOIN v1_actions a ON r.action_id = a.id "
+            "WHERE a.case_id = ? AND r.status IN ('queued', 'claimed', 'running')",
+            (case_id,),
+        ).fetchall()
+        if active_runs:
+            ids = ", ".join(r[0] for r in active_runs)
+            raise CaseConflictError(
+                f"case has {len(active_runs)} active run(s) [{ids}]; "
+                f"wait for all runs to finish (R17: queued/claimed/running must end)",
+                current_revision=existing.revision,
+                current_status=existing.status,
+            )
+
+        # (c) 至少 1 verified/accepted artifact
+        # 研究型 case (无 action) → 只要 (d) published judgment 即可, 跳过 (c)
+        any_action = conn.execute(
+            "SELECT 1 FROM v1_actions WHERE case_id = ? LIMIT 1", (case_id,),
+        ).fetchone()
+        if any_action:
+            # action 全部 cancelled/rejected (无实际 work) → 视为研究型, 不要求 artifact
+            any_succeeded_or_running = conn.execute(
+                "SELECT 1 FROM v1_actions WHERE case_id = ? "
+                "AND status IN ('succeeded', 'approved', 'running', 'planned', 'failed') LIMIT 1",
+                (case_id,),
+            ).fetchone()
+            if any_succeeded_or_running is not None:
+                # 至少 1 个真执行过的 action → 必带 verified/accepted artifact
+                verified_artifacts = conn.execute(
+                    "SELECT COUNT(*) FROM v1_artifacts ar "
+                    "JOIN v1_runs r ON ar.run_id = r.id "
+                    "JOIN v1_actions a ON r.action_id = a.id "
+                    "WHERE a.case_id = ? AND ar.status IN ('verified', 'accepted')",
+                    (case_id,),
+                ).fetchone()[0]
+                if verified_artifacts == 0:
+                    raise CaseConflictError(
+                        "case has executed actions but no verified/accepted artifact (R17: "
+                        "must have ≥1 verified artifact before close)",
+                        current_revision=existing.revision,
+                        current_status=existing.status,
+                    )
+
+        # (d) 至少 1 published judgment
+        published_judgments = conn.execute(
+            "SELECT COUNT(*) FROM v1_judgments WHERE case_id = ? AND status = 'published'",
+            (case_id,),
+        ).fetchone()[0]
+        if published_judgments == 0:
+            raise CaseConflictError(
+                "case has no published judgment (R17: "
+                "must publish ≥1 judgment before close)",
                 current_revision=existing.revision,
                 current_status=existing.status,
             )

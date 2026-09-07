@@ -852,3 +852,68 @@ SK-01 dry-run 实际验: compute() 走完不 raise, 返 top_items/watchlist_chan
 - ruff 全仓 165 错 (留 C14 治理)
 - 3800 行迁移 (留 C13)
 - dsh/pi 真实 vendor 端到端验证待 C06 跨平台镜像后 (留 C07 真实环境)
+
+### 2026-09-07 v1.0 C08 — 成果+CAS+Wiki+Case (R08/R09/R10/R17 修复) (本批, in_progress → verified)
+
+> **来源**: [docs/v1.0/V1.0.0_CLOSEOUT_TASKS.md §9 C08](../docs/v1.0/V1.0.0_CLOSEOUT_TASKS.md); DEV-0156
+> **前置必读**: 根 AGENTS.md + C07 commit (R05 protocol 必填 + R15 SK 契约) + `backend/services/case_service.py:close_case` (旧实现仅 v1_case_actions 占位)
+> **用户明令 (2026-09-05, 仍生效)**: 推送禁止, commit 留本地; 失败必 raise + 写 audit; 不准 mock/noop/seed 替代生产; 反例测试在旧实现必失败; 显式 `git commit <path>`, 不 `git add -A`
+
+#### 4 个 R finding → 4 处代码修复 (1 新文件 + 5 改源 + 5 改测试)
+
+**R08 — 产物正文没存盘仍 accepted (fix 1 处)**:
+- `backend/services/artifact_service.py:create` 必传 `content_ref` + 文件已存在 + 落盘 hash 与 `content` 一致 (用 `Path.read_bytes()` + `hashlib.sha256` 三方比对) → 任何不一致 raise `ArtifactValidationError`
+- `backend/services/artifact_service.py:accept` 验收前 re-read `content_ref` + re-hash, 防"存库一份/落盘一份"蒙混 (DB 写后落盘被改也拒)
+
+**R09 — update_status_cas 缺原子守卫 (fix 2 处)**:
+- `backend/repository/artifact_repo.py:update_status_cas` 加 `expected_revision: int | None = None, old_status: str | None = None` 关键字参数, WHERE 子句按 `id = ? AND revision = ? AND status = ?` 拼装 (任一不匹配 `rowcount=0`)
+- `backend/repository/judgment_repo.py:update_status_cas` 同样 kwargs 化 + WHERE 拼装 (judgment publish 也走 CAS, 同样需要原子)
+- service 层 verify/accept/reject 调用前 pre-read `a["revision"]` 与当前 status, 一起传入, 杜绝两窗口交错 (A 成功验收, B 同时 reject 覆盖)
+
+**R10 — Wiki 写失败伪发布 (fix 2 处)**:
+- `backend/services/knowledge_service.py:publish` 删 `try/except logger.warning(...publish still ok)` 守卫, wiki 写失败必须 raise (RuntimeError 直接传播, 不再 silent 降级); canonical path 改 `items/knowledge_{id}.md` (与 WikiFs 写 `items/` 子目录一致, 不再字面 `knowledge/{id}.md` 相对 cwd)
+- `backend/services/judgment_service.py:publish` 同样改: wiki 写在 CAS update 之前, wiki 写异常 → raise `JudgmentConflictError` (DB 仍 draft 不伪发布); canonical path 改 `items/judgment_{id}.md`; CAS `update_status_cas` 调用新增 `old_status="draft"` 守卫 (双重原子, 防 publish 落库但 wiki 落空)
+
+**R17 — Case 有 action 永不关 (fix 1 处)**:
+- `backend/services/case_service.py:close_case` 重写 4 守卫:
+  - (a) 所有 v1_actions 全终态 (status ∈ {succeeded, failed, cancelled, rejected})
+  - (b) 无 active v1_runs (status ∈ {queued, claimed, running})
+  - (c) 若存在 executed action (succeeded/approved/running/planned/failed) → 必带 ≥1 verified/accepted artifact (全 cancelled/rejected 视为研究型免 artifact 守卫)
+  - (d) 至少 1 published v1_judgment
+- 4 守卫任一不满足 → raise `CaseConflictError` (E_CONFLICT, 409)
+
+#### 新增 12 个反例测试 (旧实现必失败, 修复后必 pass)
+
+- 文件: `backend/tests/test_c08_artifact_cas_wiki_caseclose.py` (1 新测试文件)
+- R08: 3 个 (不传 `content_ref` create 阶段 raise / 缺文件 raise / 篡改 hash raise)
+- R09: 2 个 (两窗口交错 1 成功 1 失败 / old_status mismatch rowcount=0)
+- R10: 2 个 (publish 写失败 raise / canonical path 走 `items/` + root 解析可读)
+- R17: 5 个 (全 succeeded+accepted → 关 / 全 cancelled → 关 / run running → 拦 / 无 artifact → 拦 / 研究型无 action → 关)
+- fixture 关键: `_seed_action_run()` 走 `CaseService.create_case` 拿真 case_id (旧用 `"C"*26` 占位, 实际 `CaseService.get_case()` 返 404); `_seed_published_judgment()` 直接 `JudgmentRepository.insert`; `_seed_knowledge_draft()` 直接 repo insert
+- R10 canonical path 测试方法: `WikiFs(root=tmp_path).read("items/knowledge_{id}.md")` 验证落盘
+
+#### 6 改测试 (旧契约已收紧, 既有测试同步改)
+
+- `backend/tests/test_artifact_service.py` (6 个既有测试加 `_write_body(tmp_path, content)` helper + 传 `tmp_path` + `content_ref` 形参)
+- `backend/tests/test_case_service.py` 4 改: `test_close_case_success` 补 ≥1 published judgment seed / `test_close_case_idempotent_rejects_double_close` 同样补 seed / `test_api_close_success` 同样补 seed / `test_allowed_actions_full_state_machine` 同样补 seed
+- `backend/tests/test_case_service.py:test_close_case_blocked_by_active_action` 重写: 用真 `v1_actions` 行插入 (status='running') 走真实 active 路径, 旧版只插 v1_case_actions 占位行 (Fix 4 后此条覆盖不全)
+- `backend/tests/test_knowledge_service.py:146` 断言 `wiki_path == "knowledge/{kid}.md"` → 改 `items/knowledge_{kid}.md` (canonical)
+- `backend/tests/test_judgment_service.py:219` 断言 `judgments/{j['id']}.md` → 改 `items/judgment_{j['id']}.md` (canonical)
+
+#### 退出条件验证 (a-c, 全过)
+
+- (a) **12/12 反例 pass**: 旧实现必失败 (R08 create 不校验 content_ref + R09 CAS 无 revision 守卫 + R10 静默降级 + R17 4 守卫缺失), 修复后必 pass
+- (b) **ruff C08 触碰 0 新错**: 6 源文件 + 1 新测试文件 ruff 全清, 9 错均为 test_* 既有 import sort (pre-existing, git stash 验证过, 留 C14 治理)
+- (c) **pytest C08 触碰 101/101 pass**: 12 C08 + 89 既有 artifact/knowledge/judgment/action/run/case service 测试, 0 回归; 全仓 4229 pass + 9 skipped (含 32 search FTS 域 pre-existing 失败, C05/C07 已记录与 C08 无关)
+
+#### C08 暴露的真问题 (留 C09/C11/C13/C14)
+
+- R14 前端 4 路由仍走 V1Prototype 内层 tabs (留 C09 拆 4 真页面)
+- R15 SK-05 input_schema 字段命名与契约不对齐 (留 C09)
+- R19 N+1 串行 fetch 仍存 (留 C11 聚合端点)
+- R18 SSE 5 事件源 fire-and-forget 不持久 (留 C11 outbox)
+- ruff 9 错 (test 文件 pre-existing import sort, 留 C14)
+- 3800 行迁移 (C13)
+- 16 旧 knowledge_items 迁移 (T18)
+- 下一批: **C09 (路由壳+UI 收尾, R14/R23/R24)**
+

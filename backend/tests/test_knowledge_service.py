@@ -143,7 +143,7 @@ def test_publish_draft_to_published(temp_db) -> None:
     svc = KnowledgeService()
     out = svc.publish(kid, expected_revision=1)
     assert out["status"] == "published"
-    assert out["wiki_path"] == f"knowledge/{kid}.md"
+    assert out["wiki_path"] == f"items/knowledge_{kid}.md"
     assert "create_revision" in out["allowed_actions"]
     assert "deprecate" in out["allowed_actions"]
 

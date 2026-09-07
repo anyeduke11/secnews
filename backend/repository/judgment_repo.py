@@ -91,11 +91,15 @@ class JudgmentRepository:
 
     def update_status_cas(
         self, judgment_id: str, new_status: str, *,
-        expected_revision: int, published_at: str | None = None,
+        expected_revision: int, old_status: str | None = None,
+        published_at: str | None = None,
         wiki_path: str | None = None, allowed_actions: list[str] | None = None,
         reason: str | None = None,
     ) -> int:
-        """CAS update: 期望 revision 匹配才改 status; 返 rowcount (0 = 失败)."""
+        """CAS update: 期望 revision 匹配才改 status; 返 rowcount (0 = 失败).
+
+        v1.0 C08 R09 修复: 额外支持 old_status 守卫, 拒绝 stale status 覆盖.
+        """
         sets = ["status = ?", "revision = revision + 1", "updated_at = datetime('now', 'localtime')"]
         params: list[Any] = [new_status]
         if published_at is not None:
@@ -110,10 +114,14 @@ class JudgmentRepository:
         if reason is not None:
             sets.append("reason = ?")
             params.append(reason)
-        params.extend([judgment_id, expected_revision])
+        where = ["id = ?", "revision = ?"]
+        wparams: list[Any] = [judgment_id, expected_revision]
+        if old_status is not None:
+            where.append("status = ?")
+            wparams.append(old_status)
         cur = self._c().execute(
-            f"UPDATE v1_judgments SET {', '.join(sets)} WHERE id = ? AND revision = ?",
-            params,
+            f"UPDATE v1_judgments SET {', '.join(sets)} WHERE {' AND '.join(where)}",
+            (*params, *wparams),
         )
         self._c().commit()
         return cur.rowcount

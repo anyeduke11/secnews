@@ -75,12 +75,22 @@ class ArtifactRepository:
 
     def update_status_cas(
         self, artifact_id: str, new_status: str, *,
+        expected_revision: int | None = None,
+        old_status: str | None = None,
         verified_by: str | None = None, verified_at: str | None = None,
         verified_result: str | None = None,
         accepted_by: str | None = None, accepted_at: str | None = None,
         accepted_note: str | None = None,
         allowed_actions: list[str] | None = None, reason: str | None = None,
     ) -> int:
+        """v1.0 C08 R09 修复: 原子 CAS — WHERE 加 expected_revision + old_status.
+
+        旧实现仅 WHERE id=?, 任何窗口交错 (verify+verify / accept+accept) 都会
+        把后写覆盖先写, revision 连续 +2 但业务上第二次 submit 是 stale.
+
+        新实现: caller 传 expected_revision + old_status, 任何一个不匹配 → rowcount=0
+        (后写原地失败, 不抛, 由 service 解读为冲突 raise).
+        """
         sets = ["status = ?", "revision = revision + 1", "updated_at = datetime('now', 'localtime')"]
         params: list[Any] = [new_status]
         if verified_by is not None:
@@ -107,9 +117,17 @@ class ArtifactRepository:
         if reason is not None:
             sets.append("reason = ?")
             params.append(reason)
-        params.append(artifact_id)
+        where = ["id = ?"]
+        wparams: list[Any] = [artifact_id]
+        if expected_revision is not None:
+            where.append("revision = ?")
+            wparams.append(expected_revision)
+        if old_status is not None:
+            where.append("status = ?")
+            wparams.append(old_status)
         cur = self._c().execute(
-            f"UPDATE v1_artifacts SET {', '.join(sets)} WHERE id = ?", params,
+            f"UPDATE v1_artifacts SET {', '.join(sets)} WHERE {' AND '.join(where)}",
+            (*params, *wparams),
         )
         self._c().commit()
         return cur.rowcount

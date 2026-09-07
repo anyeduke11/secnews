@@ -216,7 +216,7 @@ def test_publish_draft_to_published(temp_db) -> None:
     # publish
     out = svc.publish(j["id"], expected_revision=1)
     assert out["status"] == "published"
-    assert out["wiki_path"] == f"judgments/{j['id']}.md"
+    assert out["wiki_path"] == f"items/judgment_{j['id']}.md"
     assert "create_supersede" in out["allowed_actions"]
 
 

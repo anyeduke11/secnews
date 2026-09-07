@@ -291,7 +291,14 @@ class KnowledgeService:
     # publish (CAS 守卫, §9.2)
     # ------------------------------------------------------------------
     def publish(self, knowledge_id: str, *, expected_revision: int) -> dict[str, Any]:
-        """publish draft → published; 落 wiki_path + content_hash + revision; append revision."""
+        """publish draft → published; 落 wiki_path + content_hash + revision; append revision.
+
+        v1.0 C08 R10 修复:
+        1. wiki_path 改为 `items/knowledge_{id}.md` 走 WikiFs items 目录
+           (而非字面 `knowledge/{id}.md` 相对 cwd 路径污染生产仓库)
+        2. wiki 写失败必须 raise (RuntimeError), 不吞 — 失败即 publish 失败,
+           DB 状态不会变 published (写前无 update_status_cas, 失败不影响一致性)
+        """
         k = self._require(knowledge_id)
         if k["status"] != "draft":
             raise KnowledgeConflictError(
@@ -301,13 +308,11 @@ class KnowledgeService:
             raise KnowledgeConflictError(
                 f"knowledge {knowledge_id} revision mismatch: expected={expected_revision}, actual={k['revision']}"
             )
-        wiki_path = f"knowledge/{knowledge_id}.md"
+        # R10 canonical path: WikiFs 写 items/knowledge_{id}.md (env-rooted, 不字面)
+        wiki_path = f"items/knowledge_{knowledge_id}.md"
         now = _utcnow_iso()
-        # 写 wiki 不可变 (best effort)
-        try:
-            self._write_wiki(wiki_path, k, now)
-        except Exception as e:
-            logger.warning(f"knowledge wiki write failed (publish still ok): {e}")
+        # R10 fix: wiki 写失败必须 raise, 不吞. _write_wiki 内部已 RuntimeError.
+        self._write_wiki(wiki_path, k, now)
         rowcount = self.repo.update_status_cas(
             knowledge_id, "published", expected_revision=expected_revision,
             published_at=now, wiki_path=wiki_path,

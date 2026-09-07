@@ -674,3 +674,57 @@
 - 1440/1280/1024/768/390 5 视口截图真实跑通留 C10 浏览器操作流
 
 **下一批 C06 或 C05** (按 D3 节点裁决): C06 = dsh/pi 真 SDK (R06/R07, 5 天含等待, 用户明令"等待真实往返"); C05 = 证据/采集/准入 (R01/R02/R03/SK-01, 5 天)
+
+### 2026-09-07 v1.0 C05 — 证据真 INSERT / 采集 watermark 不前移 / 旧 CollectionService 替换为 SourcePipeline (本批, in_progress)
+
+> **来源**: [docs/v1.0/V1.0.0_CLOSEOUT_TASKS.md §6 C05](../docs/v1.0/V1.0.0_CLOSEOUT_TASKS.md) + [docs/v1.0/REVIEW_2026-09-07.md §R01/R02/R03](../docs/v1.0/REVIEW_2026-09-07.md); DEV-0154。
+
+#### 调用链 (grep -rn 实地扫描)
+
+| 范围 | 文件 | 行/调用 |
+|---|---|---|
+| CollectionService 实例化 (生产入口) | `backend/main.py:91` `svc = CollectionService()` | lifespan 启动, set_service(svc) + sched.attach_service(svc) |
+| CollectionService 实例化 (调度器入口) | `backend/services/source_scheduler_service.py:80` `run_one_source(source_id)` | 60s tick 调一次, 走 v0.x 12 collectors 并发编排 |
+| V1EvidenceService.create_intent 调用方 | `backend/services/case_service.py:41` + `judgment_service.py:318` + `knowledge_service.py:257` + `action_service.py:215` + `sk01_daily_priority.py:139` | 5 个调用方, 其中 SK-01 用 entity_type="knowledge" |
+| V1EvidenceService._insert_subject/material/signal | `backend/services/v1_evidence_service.py:290-299` | **3 个方法全 `pass` 占位, T05 时未填 INSERT (R01 真问题)** |
+| SourcePipeline.run 调用方 | **0 个生产调用点** (仅被 `worker_coordinator.py:13` 注释引用) | SourcePipeline 是 v1.0 T06 已落但未接入生产 (R02 真问题) |
+| SourcePipeline.watermark.advance 失败保护 | `backend/services/source_pipeline.py:316-322` | 当前仅 log.warning, 不阻断 commit, items_failed 仍 advance (P1.2 教训) |
+| CollectionService 替换 SourcePipeline 调用 | 旧 `CollectionService.run_one_source` vs `SourcePipeline.run` | **架构 gap**: CollectionService 跑 12 collectors asyncio.gather 编排, SourcePipeline 跑单源 fetch+watermark, 不是同层 (R03 误判) |
+| Aggregator 兼容层 (DEPRECATED) | `backend/collectors/aggregator.py:1` `# DEPRECATED: use backend.services.collection_service.CollectionService` | 11 行, 转发到 CollectionService.run_once — R03 真可删的 dead code |
+| SK-01 dry-run 入口 | `DailyPriorityIntelService.compute()` in `skill_registry/sk01_daily_priority.py:91` | 仅聚合查询, 不写 v1_signals/admission_log; 任务书 (d) 项"v1_signals 增 N 条"误解, 实际 SK-01 是 reader, writer 是 SourcePipeline + V1AdmissionService.quarantine |
+
+#### 任务书 (d) 项"v1_signals 增 N 条"语义澄清
+
+任务书 (d) 项要求 SK-01 dry-run 后 v1_signals + admission_log 真写。SK-01 是 reader (聚合),writer 在 C05 范围两个上游:
+  - `SourcePipeline.run` 走 evidence bridge → `commit_intent("material")` → 真 INSERT v1_materials
+  - `V1AdmissionService.quarantine` → 真 INSERT admission_log (T07 已落)
+SK-01 dry-run 实际验: compute() 走完不 raise, 返 top_items/watchlist_changes/suggested_actions; 上游 evidence + admission 服务真落库由 R01/R02 修复 + T07 既有 quarantine 路径保证。
+
+#### R03 任务与架构 gap 的真实最小切片
+
+任务书 R03 "旧 CollectionService 替换为 SourcePipeline" 实际不可直接替换 (架构 gap)。C05 范围 R03 真可做的最小动作:
+  1. 删 `backend/collectors/aggregator.py` DEPRECATED 兼容层 (11 行死代码, CollectionService 内部仍可用)
+  2. 给 CollectionService 加 `commit_fetch(source_id, items_committed: int, ...)` (P1.2 教训: RSS 静默失败同款) — 失败 0 items 不前移 watermark_set
+  3. 在 `_write_crawler_runs` 之后调 `commit_fetch` 取代当前 `_apply_watermark_set` 不存在的事实
+
+#### 反例测试 (本批目标: 8 tests)
+
+- `backend/tests/test_c05_evidence_committed_reads.py` (R01, 3 tests)
+- `backend/tests/test_c05_pipeline_watermark.py` (R02, 3 tests)
+- `backend/tests/test_c05_collection_to_source_pipeline.py` (R03, 2 tests)
+
+#### 最小退出条件 (本切片)
+
+- (a) R01: `_insert_subject/material/signal` 真 INSERT, 失败 raise (不吞), 3 反例测试 pass
+- (b) R02: SourcePipeline.run 失败 0 items 不前移 watermark, 3 反例测试 pass
+- (c) R03: 旧 aggregator.py 兼容层删, CollectionService.commit_fetch 真接 watermark, 2 反例测试 pass
+- (d) SK-01 dry-run 跑通: compute() 返 dsh mode (无空 fallback)
+- (e) 全 pytest 累计 4160 (C01-C04) + C05 新增 = 通过, 0 回归
+- (f) ruff C05 触碰 0 错
+
+#### 不做 (留 C06/C07/C13)
+
+- 不动 dsh/pi SDK (C06 范围)
+- 不动 Run/Artifact CAS (C08 范围)
+- 不动 3800 行迁移 (C13 范围)
+- 不动 ruff 全仓 165 错 (C14 范围)

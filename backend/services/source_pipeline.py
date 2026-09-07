@@ -311,8 +311,10 @@ class SourcePipeline:
                         result.items_failed += 1
                         logger.warning(f"evidence commit failed: {e}")
 
-                # 5) watermark 推进 (单调用一次, 成功后再 advance)
-                if next_cursor is not None:
+                # 5) watermark 推进 — v1.0 C05 R02 修复: 失败 0 items 不前移
+                # (P1.2 教训: RSS 静默失败同款 — 采集失败仍 advance → 下次调度
+                # 拿新 cursor 跳过本窗口, 漏收). 仅 items_committed > 0 才推进.
+                if next_cursor is not None and result.items_committed > 0:
                     try:
                         self.watermark.advance(
                             request.source_id, next_cursor,

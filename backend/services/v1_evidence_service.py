@@ -139,6 +139,8 @@ class V1EvidenceService:
                 intent_id = f"intent-{uuid.uuid4().hex[:12]}"
                 # receipt 暂以 status=pending 落库, entity_id 占位 intent_id,
                 # commit 时 UPDATE 替换为真实 entity_id + status=committed.
+                # v1.0 C05 R01: extra_json 同时存 body 副本, commit 时 _insert_* 读回
+                # 写真实 entity 行 (不再用 pass 占位).
                 conn.execute(
                     "INSERT INTO v1_evidence_receipts "
                     "(submission_key, body_hash, entity_type, entity_id, "
@@ -146,7 +148,8 @@ class V1EvidenceService:
                     "VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)",
                     (
                         submission_key, body_hash, entity_type, intent_id,
-                        submitted_by, intent_id, json.dumps({"_intent": True}),
+                        submitted_by, intent_id,
+                        json.dumps({"_intent": True, "_body": body}),
                     ),
                 )
         return {
@@ -178,20 +181,26 @@ class V1EvidenceService:
         with self._lock:
             with self._tx() as conn:
                 row = conn.execute(
-                    "SELECT id, body_hash, entity_type, submission_key "
+                    "SELECT id, body_hash, entity_type, submission_key, extra_json "
                     "FROM v1_evidence_receipts WHERE intent_id = ? AND status = 'pending'",
                     (intent_id,),
                 ).fetchone()
                 if row is None:
                     raise ValueError(f"intent_id={intent_id} not found or not pending")
-                receipt_id, body_hash, entity_type, submission_key = row
+                receipt_id, body_hash, entity_type, submission_key = row[0], row[1], row[2], row[3]
+                # v1.0 C05 R01: 从 receipt.extra_json 读回 body (create_intent 时已存),
+                # 供 _insert_* 写真实 entity 行.
+                try:
+                    body = json.loads(row[4]).get("_body", {}) if row[4] else {}
+                except Exception:
+                    body = {}
                 # 1) 写实体表 (subject / material / signal) — entity_type 决定表名
                 if entity_type == "subject":
-                    self._insert_subject(conn, intent_id, body_hash)
+                    self._insert_subject(conn, body, intent_id, body_hash)
                 elif entity_type == "material":
-                    self._insert_material(conn, intent_id, body_hash)
+                    self._insert_material(conn, body, intent_id, body_hash)
                 elif entity_type == "signal":
-                    self._insert_signal(conn, intent_id, body_hash)
+                    self._insert_signal(conn, body, intent_id, body_hash)
                 elif entity_type == "case":
                     # T08: caller (case_service.create_case) 已先调 repo.create 写
                     # v1_cases 行 — 这里只兜底 (若未写, 才补一条最小行, 防止外键悬空)
@@ -287,16 +296,129 @@ class V1EvidenceService:
     # ------------------------------------------------------------------
     # 实体表 INSERT (按 entity_type 路由; body 必须含 entity_id 字段对齐)
     # ------------------------------------------------------------------
-    def _insert_subject(self, conn: sqlite3.Connection, entity_id: str, body_hash: str) -> None:
-        """body 形如: ``{"id": "SUBJ-X", "entity_type": "cve", "canonical_name": "...", ...}``"""
-        # entity_id 在此方法内由 body["id"] 决定; 参数名是占位对齐
-        pass  # 占位, 实际 INSERT 由 caller 在 commit_intent 前置入 — 见 admission_service
+    def _insert_subject(self, conn: sqlite3.Connection, body: dict[str, Any], entity_id: str, body_hash: str) -> None:
+        """v1.0 C05 R01 修复: 真 INSERT v1_subjects.
 
-    def _insert_material(self, conn: sqlite3.Connection, entity_id: str, body_hash: str) -> None:
-        pass
+        旧实现: pass 占位, T05 时未填 (遗留 R01 真问题).
+        修复: 按 migration 096 schema 真写入, body 必含 id/entity_type/canonical_name +
+        first_seen_at/last_seen_at (其余字段给默认值). 失败 raise 不吞, 由 record_audit
+        写 audit_log (action=v1_evidence.entity_insert_failed) 供运维追查.
+        """
+        try:
+            now_iso = _utcnow_iso()
+            conn.execute(
+                "INSERT INTO v1_subjects "
+                "(id, entity_type, canonical_name, aliases_json, importance, "
+                " tags_json, related_subject_ids_json, first_seen_at, last_seen_at, "
+                " revision, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    body.get("id", entity_id),
+                    body.get("entity_type", "other"),
+                    body.get("canonical_name", body.get("id", entity_id)),
+                    body.get("aliases_json", "[]"),
+                    body.get("importance", "normal"),
+                    body.get("tags_json", "[]"),
+                    body.get("related_subject_ids_json", "[]"),
+                    body.get("first_seen_at", now_iso),
+                    body.get("last_seen_at", now_iso),
+                    int(body.get("revision", 1)),
+                    now_iso,
+                    now_iso,
+                ),
+            )
+        except Exception as e:
+            self._audit_entity_insert_failed("subject", entity_id, body_hash, e)
+            raise
 
-    def _insert_signal(self, conn: sqlite3.Connection, entity_id: str, body_hash: str) -> None:
-        pass
+    def _insert_material(self, conn: sqlite3.Connection, body: dict[str, Any], entity_id: str, body_hash: str) -> None:
+        """v1.0 C05 R01 修复: 真 INSERT v1_materials."""
+        try:
+            now_iso = _utcnow_iso()
+            conn.execute(
+                "INSERT INTO v1_materials "
+                "(id, source_kind, url, title, content_hash, content_length, "
+                " content_ref, summary, published_at, fetched_at, fetched_by, "
+                " subject_ids_json, metadata_json, revision, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    body.get("id", entity_id),
+                    body.get("source_kind", "url"),
+                    body.get("url"),
+                    body.get("title", body.get("id", entity_id)),
+                    body.get("content_hash", body_hash),
+                    int(body.get("content_length", 0)),
+                    body.get("content_ref"),
+                    body.get("summary"),
+                    body.get("published_at"),
+                    body.get("fetched_at", now_iso),
+                    body.get("fetched_by"),
+                    body.get("subject_ids_json", "[]"),
+                    body.get("metadata_json", "{}"),
+                    int(body.get("revision", 1)),
+                    now_iso,
+                    now_iso,
+                ),
+            )
+        except Exception as e:
+            self._audit_entity_insert_failed("material", entity_id, body_hash, e)
+            raise
+
+    def _insert_signal(self, conn: sqlite3.Connection, body: dict[str, Any], entity_id: str, body_hash: str) -> None:
+        """v1.0 C05 R01 修复: 真 INSERT v1_signals (FK subject_id + material_id 必须已存在)."""
+        try:
+            now_iso = _utcnow_iso()
+            conn.execute(
+                "INSERT INTO v1_signals "
+                "(id, subject_id, material_id, summary, occurred_at, "
+                " admission_rule_version, admission_reason, supersedes_signal_id, "
+                " confidence, status, revision, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    body.get("id", entity_id),
+                    body.get("subject_id", ""),
+                    body.get("material_id", ""),
+                    body.get("summary", ""),
+                    body.get("occurred_at", now_iso),
+                    body.get("admission_rule_version", "v1"),
+                    body.get("admission_reason", ""),
+                    body.get("supersedes_signal_id"),
+                    body.get("confidence", "unverified"),
+                    body.get("status", "unverified"),
+                    int(body.get("revision", 1)),
+                    now_iso,
+                    now_iso,
+                ),
+            )
+        except Exception as e:
+            self._audit_entity_insert_failed("signal", entity_id, body_hash, e)
+            raise
+
+    def _audit_entity_insert_failed(
+        self, entity_type: str, entity_id: str, body_hash: str, err: Exception,
+    ) -> None:
+        """记录实体 INSERT 失败到 audit_log (R01 修复: 不吞异常, 留审计锚点).
+
+        失败 → record_audit (actor=system / action=v1_evidence.entity_insert_failed),
+        调用方 raise 不吞 (事务回滚 + receipt 不 committed).
+        """
+        try:
+            from backend.observability_records import record_audit
+            record_audit(
+                actor="system",
+                action="v1_evidence.entity_insert_failed",
+                target=f"{entity_type}:{entity_id}",
+                detail={
+                    "entity_type": entity_type,
+                    "entity_id": entity_id,
+                    "body_hash": body_hash,
+                    "error_type": type(err).__name__,
+                    "error": str(err)[:200],
+                },
+            )
+        except Exception:
+            # audit 写失败不应再抛 — 留给调用方的事务回滚覆盖
+            logger.debug(f"audit write failed (ignored): {err}")
 
     # ------------------------------------------------------------------
     # 恢复 (扫描超时的 pending intent)

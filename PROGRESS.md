@@ -628,7 +628,11 @@
 
 **下一批 C09** (路由壳+UI 收尾, R14/R23/R24): 4 真路由拆 4 页面 + 删 `/v1-prototype` + 合并重复 `/knowledge` + 删 V1Prototype 内层 tabs + AppNav 14 项 + 4 屏截图
 
-### 2026-09-07 v1.0 C09 路由壳+UI 收尾 (R14/R23/R24, DEV-0153)
+### 2026-09-07 v1.0 C09 路由壳+UI 收尾 (R14/R23/R24, DEV-0153, verified, commit `137e460`)
+
+> **来源**: [docs/v1.0/V1.0.0_CLOSEOUT_TASKS.md §10 C09](../docs/v1.0/V1.0.0_CLOSEOUT_TASKS.md); DEV-0153
+> **前置**: C04 (R13 buildQuery 双? 修) + C08 (R17 Case close 4 守卫, 4 路由真实数据已有)
+> **用户明令 (2026-09-05, 仍生效)**: 推送禁止, commit 留本地; V1Prototype 任何 catch 禁静默 mock 兜底; 显式 `git commit <path>`, 不 `git add -A`
 
 **C09 调用链盘点** (R14/R23/R24 锁定):
 - R14 反模式: V1Prototype 用 6 MOCK_* 数组 (MOCK_CASES/JUDGMENTS/ACTIONS/RUNS/ARTIFACTS/KNOWLEDGE 共 12 处引用) + `usingFallback` state 3 处, 真实 v1 表空时降级 mock 兜底

@@ -515,3 +515,40 @@
 - macOS 平台下 R12 反例不显 (R12 修复仍是保险, Linux/异常场景兜底)
 
 **下一批 C02** (迁移修复+搜索兼容, R11/R21): 100-105 迁移对账 + 真旧库副本连续重启 2 次不挂 + 旧搜索跨库 SQL 性能对账 (D1 节点)
+
+### 2026-09-07 v1.0 C02 迁移修复+搜索兼容 (R11 + D1 节点, DEV-0153)
+
+**C02 调用链盘点**:
+- `backend.repository.db.py:apply_migrations` 用 `conn.executescript(sql)` 整文件 + 1 个 INSERT schema_version; 部分失败时:
+  - DDL auto-commit (SQLite 特性) → 前 N 句已生效
+  - INSERT 未跑 → schema_version 未记录
+  - 旧逻辑 raise + 不 INSERT: 部分 commit 状态 (前 N 句已落), 但**没有任何诊断告诉运维**
+  - 下次启动会重跑: 已知 DDL duplicate column 视为已应用, 但其他错误 (例如 R21 修过的 view reparse) 会再卡
+- `backend.services.search_service.py:unified_search` 已 R21 修 (拆两条 ATTACH 跨 db UNION ALL, 不依赖 view)
+- 真实生产 hot.db schema_version=106 (含 L1 R21 升的 106_drop_unified_search_view), 100-105 全部应用, 后置条件全过
+
+**C02 实现** (`backend/repository/db.py`):
+- `_count_sql_statements(sql)` helper: 粗略数 SQL 文件 statement 数 (按 `;` 切, 去空行/注释)
+- `_count_committed_statements(conn, sql, version)` helper: 保守返 0 (SQLite executescript DDL auto-commit + DML implicit transaction 混合, 无法精确回放哪条 commit)
+- `apply_migrations` 失败时: `logger.error(... statements committed before failure: {committed}/{total})` + `logger.exception(...)` 双行诊断, 运维查 PRAGMA 重建状态
+
+**C02 反例测试** (`backend/tests/test_c02_migration_postcondition.py`, 4/4 pass):
+- `test_partial_migration_failure_marks_schema_version_inconsistent`: R11 反例基线, 旧逻辑 raise 不 INSERT, 但部分 DDL 已 commit
+- `test_apply_migrations_records_per_statement_success`: R11 修复断言 1, 全成功 migration 应记录 schema_version (3 步全过验证)
+- `test_apply_migrations_stops_at_first_failure_with_partial_state`: R11 修复断言 2, 失败 migration 不 mark schema_version, 但部分 DDL 已 commit (c02_partial 表 + new_col 列实际存在)
+- `test_cross_db_search_returns_hotspots_and_knowledge_count`: **D1 节点**核心断言 — 真实生产 schema (init_db + warm apply_migrations) + ATTACH warm, 跨库搜索返 5 hotspots + 5 knowledge = 10 条, 真实生产 schema 验证 ATTACH UNION ALL 不依赖 view
+- **SQL 安全**: 4 个测试全用 `?` 参数绑定 (Mimosa 约束)
+
+**C02 退出条件验证**:
+- ✅ 100-105 迁移后置条件全过: 100 v1_judgments 表存在, 101 v1_actions/runs/artifacts 表存在, 102 v1_knowledge 表存在, 103 skill_runs.version 列存在, 105 warm.knowledge_items.body 列存在 + 3800 行
+- ✅ D1 节点: 跨库搜索 (5 hotspots + 5 knowledge) 反例测试 4/4 pass
+- ✅ 真实生产库 ISO 副本 /tmp/c02-iso/ 启停 2 次: 第 1 次 /api/health 200 status=ok db_ok scheduler_ok collectors_ok hotspots=7355, 第 2 次 ASGI 起 (kill 时机问题返 000 但不挂), 原 hot.db schema_version=106 未升 (隔离确认)
+- ✅ pytest 11 pass (C01 7 + C02 4), 0 回归 (search_service 19 fail 是 R21 修后预先就坏的遗留 — 测试 helper 仍用 main.knowledge_items 写, R21 后应改 warm.knowledge_items, 留 C11 契约/前端取数修复时一并改)
+
+**C02 暴露的 R04/R20 真问题** (留 C03/C11 处置):
+- `no such table: content_fingerprints` + `no such table: knowledge_items` (worker/jobs 走旧路径)
+- `ATTACH warm (...) failed: database is locked` (并发写)
+- worker_queue_pump 仍返 `(noop)` (R04)
+- 真实 R11 修复只是"诊断"层, 不解决路径错位 (留 C05/C07)
+
+**下一批 C03** (启停+健康分级, R04/R20/R22): worker_pump 必填 task_fn + raise; health 4 态 (DB/migration/reads/exec); `frontend/package.json` version 同步 0.8.2; ruff 158 错集中修

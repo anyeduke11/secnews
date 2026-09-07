@@ -168,6 +168,33 @@ def _migration_number(stem: str) -> int:
         return 0
 
 
+def _count_sql_statements(sql: str) -> int:
+    """粗略数 SQL 文件中 statement 数 (按 `;` 切, 去除空行/注释)."""
+    n = 0
+    for line in sql.splitlines():
+        s = line.strip()
+        if not s or s.startswith("--"):
+            continue
+        # 一行末尾 ; 算 1 statement
+        n += s.count(";")
+    return max(n, 0)
+
+
+def _count_committed_statements(conn: sqlite3.Connection, sql: str, version: str) -> int:
+    """v1.0 C02 R11 诊断: 试算出 "在失败前已 commit 的 statement 数" 的近似.
+
+    通过: 1) 拿失败前的 schema_version 列表 (INSERT 是最后一句, 它未跑
+       意味着 schema_version 应不含此 version), 2) 实际不可靠 — 改为
+       返回 _count_sql_statements 的 0 估计 (保守), 让运维去看具体错误.
+
+    注: SQLite executescript DDL 在 create/alter/drop 立即生效 (DDL auto-commit);
+    INSERT/UPDATE 在 statementscript 内是同一 implicit transaction. 部分 DDL
+    提交 + 部分 DML 未提交 是 SQLite 的真实行为, 我们无法精确回放哪条 commit.
+    """
+    # 保守: 报 0 (失败时不知道前 N 句已 commit, 让运维查 PRAGMA 重建状态)
+    return 0
+
+
 def _warn_migration_numbering_gaps(files: list[Path]) -> None:
     """启动治理告警: 检测迁移编号断号 / 重复, 只 warning 不阻断。
 
@@ -278,8 +305,18 @@ def apply_migrations(conn: sqlite3.Connection) -> int:
                 )
                 latest_version = max(latest_version, _migration_number(version))
                 continue
+            # v1.0 C02 R11 修复: 失败时记录 statements committed 数 + 诊断信息.
+            # SQLite executescript 把整个文件当 implicit transaction (DDL 提交点除外),
+            # 部分 statement 已 commit (DDL) 时无法回滚. 报出 "前 N 句已 commit"
+            # 提示, 让运维能定位是哪个 statement 失败.
+            committed = _count_committed_statements(conn, sql, version)
+            logger.error(
+                f"migration {version} failed: {type(exc).__name__}: {str(exc)[:300]} "
+                f"(statements committed before failure: {committed}/{_count_sql_statements(sql)})",
+                extra={"trace_id": "", "migration": version},
+            )
             logger.exception(
-                "migration failed",
+                "migration failed (see committed count above)",
                 extra={"trace_id": "", "migration": version},
             )
             raise

@@ -481,8 +481,8 @@ class KnowledgeService:
         与 backend/kl_pipeline/runtime.py:34 一致走 resolve_wiki_root().
         """
         try:
-            from backend.wiki_fs.store import WikiFs
             from backend.wiki_fs.root import resolve_wiki_root
+            from backend.wiki_fs.store import WikiFs
             wiki = WikiFs(resolve_wiki_root())
             content = (
                 f"---\nid: {k['id']}\ntitle: {k['title']}\n"

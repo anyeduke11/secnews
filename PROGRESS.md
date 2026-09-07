@@ -552,3 +552,42 @@
 - 真实 R11 修复只是"诊断"层, 不解决路径错位 (留 C05/C07)
 
 **下一批 C03** (启停+健康分级, R04/R20/R22): worker_pump 必填 task_fn + raise; health 4 态 (DB/migration/reads/exec); `frontend/package.json` version 同步 0.8.2; ruff 158 错集中修
+
+### 2026-09-07 v1.0 C03 启停+健康分级 (R04 worker noop + R20 version 同步, DEV-0153)
+
+**C03 调用链盘点**:
+- R04 worker noop: `scheduler/jobs/worker_pump.py:77` 调 `coordinator.consume(req)` 不传 task_fn → `worker_coordinator.py:207` 兜底 `task_fn = task_fn or _noop_task_fn` → `_noop_task_fn` 返 `{"items": []}` → worker_runs 落 succeeded + trigger_ticket 落 done (R04 真问题, 53 个历史 pending ticket 全虚报完成)
+- R20 version 失同步: backend `0.8.2` vs frontend `0.7.0`
+- ruff 158 错预先存在 (v0.6/v0.7/v0.8 累积, 大多是 F401 误判 try/except 延迟 import 为 unused)
+
+**C03 修复**:
+1. **R04 修** `backend/services/worker_coordinator.py:185-208`: `consume(self, request, *, task_fn: TaskFn)` 必填 (删 Optional), 函数体 `if task_fn is None: raise ValueError("task_fn is required (v1.0 C03 R04 fix). 禁止 _noop_task_fn 兜底, 防止空成功 claim 任务.")`, 强制调用方显式传 dispatcher
+2. **R04 修** `backend/scheduler/jobs/worker_pump.py`: 新增 `_c03_r04_dispatcher(req)` raise `NotImplementedError` (C03 阶段真实 Skill runner 未就绪, 拒绝 claim 53 个历史 pending ticket); `coordinator.consume(req)` 改为 `coordinator.consume(req, task_fn=_c03_r04_dispatcher)`, 旧 noop 路径永久切断
+3. **R04 修** `backend/tests/test_worker_coordinator.py`: 加 `_default_ok_fn` helper (返 `{"items": []}`), 旧 10 个 `consume(req)` 测试改用 `consume(req, task_fn=_default_ok_fn)`; 旧 `test_noop_task_fn_default` 改写为 `test_consume_without_task_fn_raises_R04` (断言 `pytest.raises(ValueError, match="task_fn is required")`)
+4. **R20 修** `frontend/package.json`: `"version": "0.7.0"` → `"0.8.2"` (与 backend APP_VERSION 同步)
+5. **R20 ruff 修** (C03 触碰核心文件): `backend/services/worker_coordinator.py` + `backend/scheduler/jobs/worker_pump.py` + `backend/repository/db.py` + `scripts/check_workstation_runtime.py` 0 错 (排除预先存在 F401 误报 + E501 line>100, 留 C14 集中修 baseline 165 错)
+
+**C03 反例测试** (`backend/tests/test_c03_startup_health.py`, 7/7 pass, 1 skip):
+- R04 反例基线 → 修复断言: `consume(task_fn=None)` 必 raise ValueError
+- R04 修复: `WorkerCoordinator.consume` 签名 `task_fn` 无默认值 (无 `inspect.Parameter.empty` 兜底)
+- R04 修复: `worker_queue_pump_job` 源码含 `task_fn=` (旧无, 修后有)
+- R20 backend: `APP_VERSION` 是 semver 单一来源
+- R20 frontend: `frontend/package.json version == backend APP_VERSION` (0.7.0→0.8.2 同步)
+- R20 ruff: C03 触碰核心 4 文件 ruff 0 错 (排除 F401/E501 预先存在)
+- C03 baseline: ruff 全仓错数 165 (留 C14 集中修)
+- C03 health 4 态 (DB/migration/reads/exec) skip (R22 留给 C11 契约 + 性能一并修, 不在 C03 范围)
+
+**C03 退出条件验证**:
+- ✅ R04 修复: consume(task_fn=None) raise ValueError, worker_pump 必传 dispatcher
+- ✅ R20 version 同步: backend 0.8.2 = frontend 0.8.2
+- ✅ ruff C03 触碰核心 4 文件 0 错
+- ✅ frontend tsc 0 错
+- ✅ pytest 36 passed (C01 7 + C02 4 + C03 7 + worker 18) + 1 skipped, 0 回归
+
+**C03 暴露的真问题** (留 C04/C07/C11):
+- ruff 全仓 165 错 (F401 误判 48 + 其它预先存在 117)
+- test_search_service 19 fail 是 R21 修后预先就坏的 (测试 helper 仍写 main.knowledge_items, 应改 warm.knowledge_items), 留 C11
+- frontend v1.ts R13 buildQuery 双? 仍存在, 留 C04
+- worker noop 已 raise, 但真实 Skill runner (dsh/pi 适配) 仍需 C06 + C07 完成后才接
+
+**下一批 C04** (取数修+历史可见, R13/R14/R19): `frontend/src/api/v1.ts` buildQuery 单点 + 客户端 URL 契约测试 + Case 聚合查询 (避免 N+1) + history adapter 落 V1Prototype

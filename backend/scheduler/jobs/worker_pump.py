@@ -1,4 +1,4 @@
-"""worker_pump 域 scheduler job (v1.0 T09).
+"""worker_pump 域 scheduler job (v1.0 T09 + C03 R04 修复).
 
 实现 (与 jobs/maintenance.py 同款风格 — try/except 兜底, 不死循环):
 
@@ -7,7 +7,10 @@
   ``utils.concurrency.get_semaphore("source_fetch")`` 限流 (与 source_fetch 同池).
 - job 54: legacy_hold_reap — 周一 04:30 一次 (F01 收尾), 调 LegacyHoldService.
 
-不动 v0.8 trigger_gate/ 已有代码 (它是 skill runner 内部队列, T09 在其上层接 worker).
+v1.0 C03 R04 修复: 显式传 task_fn 拒绝 noop 兜底 (旧 worker_pump.py:77 调
+coordinator.consume(req) 不传 task_fn, coordinator 兜底 _noop_task_fn 返空成功,
+trigger_ticket 标 done 但实际工作没做). 当前 batch C03 显式传 raise-on-call
+dispatcher (拒绝 claim 任务), 真实 dsh/pi 适配留 C06 完成后由 C07 接入.
 """
 from __future__ import annotations
 
@@ -27,6 +30,23 @@ _LIMIT_GROUP = "source_fetch"
 
 # 每周一 04:30 Asia/Shanghai (与 backup_verify 02:00 / weekly_maintenance 周日 04:00 错峰)
 SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
+
+
+# v1.0 C03 R04: 显式 dispatcher. 旧 _noop_task_fn 兜底取消, 当前 batch
+# raise-on-call 拒绝静默 claim 任务. C07 (统一 Run 派发) 完成后, 替换为
+# 真实 Skill runner (走 runtime/upstreams/dsh 或 pi 适配).
+def _c03_r04_dispatcher(req) -> dict:
+    """C03 R04 dispatcher: 拒绝 claim 任务, 强制 R07 真实接入.
+
+    不依赖 mock/noop: 旧 _noop_task_fn 兜底会返空成功 (worker_runs succeeded),
+    trigger_ticket 标 done, 但实际工作没做. C03 强制 raise, 让 worker_run 落
+    failed + dead-letter 路径, 暴露 53 个历史 pending ticket 的真实状态.
+    """
+    raise NotImplementedError(
+        f"v1.0 C03 R04: trigger_gate dispatcher 未实现 (task_id={req.task_id}, "
+        f"queue={req.queue_name}). C07 完成后由真实 Skill runner (dsh/pi) 替换. "
+        f"当前 raise-on-call 拒绝 noop 兜底, 防止空成功 claim 任务."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +94,9 @@ async def worker_queue_pump_job() -> None:
                     requester=ticket.source,
                     attempt=ticket.attempts,
                 )
-                result = await asyncio.to_thread(coordinator.consume, req)
+                result = await asyncio.to_thread(
+                    coordinator.consume, req, task_fn=_c03_r04_dispatcher,
+                )
                 if result.dead_lettered:
                     _logger.error(
                         f"worker_queue_pump: dead-lettered ticket_id={ticket.ticket_id} "

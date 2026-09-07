@@ -186,7 +186,7 @@ class WorkerCoordinator:
         self,
         request: TaskRequest,
         *,
-        task_fn: TaskFn | None = None,
+        task_fn: TaskFn,
     ) -> ConsumptionResult:
         """执行单次任务消费.
 
@@ -195,16 +195,24 @@ class WorkerCoordinator:
         request:
             不可变 TaskRequest (含 task_type/queue_name/task_id/payload/attempt/max_retries).
         task_fn:
-            任务执行函数 (默认 noop). 签名 ``(req) → dict`` 含可选 items/error_msg.
+            任务执行函数 (v1.0 C03 R04 修复: 必填, 不再 Optional). 签名 ``(req) → dict`` 含
+            items/error_msg. 旧实现允许 None 兜底 _noop_task_fn (空成功), 导致 53 个
+            历史 trigger_ticket 全标 succeeded 但实际工作没做.
 
         Returns
         -------
         ConsumptionResult — 含最终 state (SUCCEEDED / FAILED) + dead_lettered 标志
         """
+        # v1.0 C03 R04 修复: 拒绝 noop 兜底, task_fn 必填
+        if task_fn is None:
+            raise ValueError(
+                "worker_coordinator.consume: task_fn is required (v1.0 C03 R04 fix). "
+                "禁止 _noop_task_fn 兜底, 防止空成功 claim 任务. "
+                "请在 worker_pump 或测试中显式传 dispatcher."
+            )
         started = datetime.now(timezone.utc).isoformat()
         t0 = time.time()
         run_id = f"wr-{uuid.uuid4().hex[:12]}"
-        task_fn = task_fn or _noop_task_fn
         attempts = request.attempt + 1  # 本次为第 N 次执行
 
         # 1) 落 worker_runs (queued → claimed 同步状态机)

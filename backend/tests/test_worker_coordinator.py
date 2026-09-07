@@ -12,7 +12,7 @@
   9. list_runs / get_run / list_dead_letters 查询接口
   10. 并发: 同一 task_id 不重复跑 (run_id 不同)
   11. payload 持久化 (JSON 序列化稳定)
-  12. noop_task_fn (默认 handler) 不抛错
+  12. **v1.0 C03 R04**: consume 不传 task_fn → raise ValueError, 拒绝 noop 兜底
 """
 from __future__ import annotations
 
@@ -28,6 +28,18 @@ from backend.services.worker_coordinator import (
     WorkerRunState,
     WorkerStateError,
 )
+
+
+# ---------------------------------------------------------------------------
+# 0. 通用 dispatcher (v1.0 C03 R04 修复: consume 必传 task_fn)
+# ---------------------------------------------------------------------------
+def _default_ok_fn(req) -> dict:
+    """测试用 OK dispatcher: 返空 items, 让 consume 走 SUCCEEDED 路径.
+
+    旧测试用 consume(req) 不传 task_fn, 触发 _noop_task_fn 兜底 (R04 真问题).
+    R04 修后 consume 必传 task_fn. 测试用此默认 OK fn 替代.
+    """
+    return {"items": []}
 
 
 # ---------------------------------------------------------------------------
@@ -70,7 +82,7 @@ def test_consume_success_path(temp_db) -> None:
         queue_name="trigger_gate",
         task_id="tg-ok-1",
     )
-    result = coord.consume(req)
+    result = coord.consume(req, task_fn=_default_ok_fn)
     assert result.state == WorkerRunState.SUCCEEDED
     assert result.run_id.startswith("wr-")
     assert result.attempts == 1
@@ -206,7 +218,7 @@ def test_state_machine_illegal_transition_raises(temp_db) -> None:
         task_id="tg-state-1",
     )
     # 先正常跑一次
-    result = coord.consume(req)
+    result = coord.consume(req, task_fn=_default_ok_fn)
     assert result.state == WorkerRunState.SUCCEEDED
 
     # 现在 run_id 处于 SUCCEEDED (terminal), 任何转移都非法
@@ -222,7 +234,7 @@ def test_state_machine_terminal_states(temp_db) -> None:
         queue_name="trigger_gate",
         task_id="tg-state-2",
     )
-    result = coord.consume(req)
+    result = coord.consume(req, task_fn=_default_ok_fn)
     # 验证: SUCCEEDED → FAILED 不允许
     with pytest.raises(WorkerStateError):
         coord._transition(result.run_id, WorkerRunState.FAILED)
@@ -247,7 +259,7 @@ def test_consume_lease_held_failed(temp_db) -> None:
         queue_name="trigger_gate",
         task_id="tg-lease-1",
     )
-    result = coord.consume(req)
+    result = coord.consume(req, task_fn=_default_ok_fn)
     assert result.state == WorkerRunState.FAILED
     assert "lease held" in (result.error or "")
 
@@ -263,7 +275,7 @@ def test_concurrent_consume_unique_run_ids(temp_db) -> None:
         queue_name="trigger_gate",
         task_id="tg-concurrent",
     )
-    results = [coord.consume(req) for _ in range(3)]
+    results = [coord.consume(req, task_fn=_default_ok_fn) for _ in range(3)]
     run_ids = {r.run_id for r in results}
     assert len(run_ids) == 3  # 每次 run_id 唯一
 
@@ -280,7 +292,7 @@ def test_payload_persisted_as_json(temp_db) -> None:
         task_id="ah-payload",
         payload={"key1": "val1", "key2": ["a", "b"], "中文": "ok"},
     )
-    result = coord.consume(req)
+    result = coord.consume(req, task_fn=_default_ok_fn)
     run = coord.get_run(result.run_id)
     assert run is not None
     # 持久化字段不在 get_run 投影中, 走 raw query
@@ -302,7 +314,7 @@ def test_list_runs_filter_by_status(temp_db) -> None:
     req_ok = TaskRequest(
         task_type="trigger_ticket", queue_name="trigger_gate", task_id="tg-list-1",
     )
-    coord.consume(req_ok)
+    coord.consume(req_ok, task_fn=_default_ok_fn)
 
     def fail_fn(req: TaskRequest) -> dict:
         raise ValueError("boom")
@@ -326,8 +338,8 @@ def test_list_runs_filter_by_queue(temp_db) -> None:
     coord = WorkerCoordinator()
     req1 = TaskRequest(task_type="ai_hub_call", queue_name="ai_hub", task_id="ah-q-1")
     req2 = TaskRequest(task_type="trigger_ticket", queue_name="trigger_gate", task_id="tg-q-1")
-    coord.consume(req1)
-    coord.consume(req2)
+    coord.consume(req1, task_fn=_default_ok_fn)
+    coord.consume(req2, task_fn=_default_ok_fn)
 
     ai_hub_runs = coord.list_runs(queue_name="ai_hub")
     assert len(ai_hub_runs) == 1
@@ -343,18 +355,22 @@ def test_get_run_returns_none_for_unknown(temp_db) -> None:
 # ---------------------------------------------------------------------------
 # 10. noop_task_fn (默认 handler)
 # ---------------------------------------------------------------------------
-def test_noop_task_fn_default(temp_db) -> None:
-    """不传 task_fn → 默认 noop, 跑通无错."""
+def test_consume_without_task_fn_raises_R04(temp_db) -> None:
+    """v1.0 C03 R04 修复断言: 不传 task_fn → raise ValueError, 禁止 noop 兜底.
+
+    旧实现: task_fn 默认 None 兜底 _noop_task_fn, 空成功返 {"items": []},
+    worker_runs 落 succeeded + trigger_ticket 落 done, 但实际工作没做 (53 个历史
+    pending ticket 全部虚报完成). R04 修: task_fn 必填, None 必 raise.
+    """
+    from backend.services.worker_coordinator import WorkerCoordinator, TaskRequest
     coord = WorkerCoordinator()
     req = TaskRequest(
         task_type="trigger_ticket",
         queue_name="trigger_gate",
-        task_id="tg-noop",
+        task_id="tg-r04-noop-rejected",
     )
-    result = coord.consume(req)
-    assert result.state == WorkerRunState.SUCCEEDED
-    assert result.items == []
-    assert result.error is None
+    with pytest.raises(ValueError, match="task_fn is required"):
+        coord.consume(req, task_fn=None)
 
 
 # ---------------------------------------------------------------------------

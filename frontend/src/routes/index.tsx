@@ -156,6 +156,8 @@ export function AppRoutes() {
           <Route path="compile" element={<Suspense fallback={<PageFallback />}><P.KnowledgeCompile /></Suspense>} />
           <Route path="compound" element={<Suspense fallback={<PageFallback />}><P.KnowledgeCompound /></Suspense>} />
           <Route path="imported" element={<Suspense fallback={<PageFallback />}><P.KnowledgeFavoritesView /></Suspense>} />
+          {/* v0.8.5 C4: v1 知识目录 (复盘沉淀 + 采用/复查面板, spec §5/§6.5) */}
+          <Route path="v1" element={<Suspense fallback={<PageFallback />}><P.KnowledgeV1Page /></Suspense>} />
           {/* v0.7.0 (D.9): 4 cognitive mode 物理删除 — 删 briefing/scan/alert/outbox 4 路由 */}
           {/* 保留: deep-read/:id (主路径), review (主路径 SM-2), heatmap (知识图谱) */}
           <Route path="deep-read/:id" element={<Suspense fallback={<PageFallback />}><P.DeepReadMode /></Suspense>} />

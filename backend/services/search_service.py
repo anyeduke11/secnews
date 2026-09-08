@@ -35,6 +35,20 @@ def _sanitize_query(q: str) -> str:
     return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def _knowledge_table() -> str:
+    """knowledge_items 的限定名 — 环境自适应。
+
+    生产: knowledge_items 在 warm 库 (get_connection 启动期 ATTACH)。
+    测试/单库模式: warm 文件不存在 → 不 ATTACH, schema 全在 main。
+    R21 版写死 ``warm.knowledge_items`` → 测试环境 OperationalError
+    (v085-review F11 修复默认 sources 后暴露)。
+    """
+    attached = {
+        r[1] for r in get_connection().execute("PRAGMA database_list").fetchall()
+    }
+    return "warm.knowledge_items" if "warm" in attached else "knowledge_items"
+
+
 def unified_search(
     q: str,
     sources: list[str] | None = None,
@@ -73,6 +87,14 @@ def unified_search(
             if s_norm in _VALID_SOURCES:
                 effective_sources.append(s_norm)
 
+    # v085-review F11: 恢复 pre-R21 契约 (docstring 明示 "None/空列表 = 全部")。
+    # R21 重写 (f52bf51) 后空 effective_sources → sql_parts 空 → 恒空结果,
+    # 30 个 search/FTS 测试全红 (v1.0.1 融合带入的预存回归)。
+    # 缺省 = hotspot + knowledge (与旧 unified_search 视图口径一致, 视图只含
+    # 这两层); wiki 仍需显式传入才走 FTS 旁路。
+    if not effective_sources:
+        effective_sources = ["hotspot", "knowledge"]
+
     where_clauses: list[str] = [
         ("(LOWER(title) LIKE LOWER(?) ESCAPE '\\' "
         "OR LOWER(summary) LIKE LOWER(?) ESCAPE '\\')")
@@ -101,21 +123,24 @@ def unified_search(
         sql_params.extend([pattern, pattern])
 
     if "knowledge" in like_sources:
-        sql_parts.append("""
+        ktbl = _knowledge_table()
+        sql_parts.append(f"""
             SELECT 'knowledge' AS entity_type, k.id AS entity_id, k.title AS title,
                    k.topic AS summary, k.domain AS category, k.ingested_at AS ingested_at
-            FROM warm.knowledge_items k
+            FROM {ktbl} k
             WHERE (LOWER(k.title) LIKE LOWER(?) ESCAPE '\\' OR LOWER(k.topic) LIKE LOWER(?) ESCAPE '\\')
         """)
         sql_params.extend([pattern, pattern])
 
-    if not sql_parts:
-        return {"query": q or "", "items": [], "grouped": {}}
+    if sql_parts:
+        sql = " UNION ALL ".join(sql_parts) + " ORDER BY ingested_at DESC LIMIT ?"
+        sql_params.append(effective_limit)
 
-    sql = " UNION ALL ".join(sql_parts) + " ORDER BY ingested_at DESC LIMIT ?"
-    sql_params.append(effective_limit)
-
-    rows = get_connection().execute(sql, sql_params).fetchall()
+        rows = get_connection().execute(sql, sql_params).fetchall()
+    else:
+        # F11: 仅请求 wiki 时 LIKE/UNION 不参与, 直接落到下方 FTS 旁路
+        # (R21 版在此早退空结果, wiki-only 搜索恒空)
+        rows = []
 
     items: list[dict] = []
     grouped: dict[str, list[dict]] = {}
@@ -152,7 +177,7 @@ def _search_wiki_fts(q: str, limit: int) -> list[dict]:
     conn = get_connection()
     try:
         rows = conn.execute(
-            """
+            f"""
             SELECT
                 IFNULL(k.id, f.id) AS entity_id,
                 IFNULL(k.title, '') AS title,
@@ -161,7 +186,7 @@ def _search_wiki_fts(q: str, limit: int) -> list[dict]:
                 IFNULL(k.ingested_at, '') AS ingested_at,
                 snippet(wiki_items_fts, 1, '[', ']', '...', 12) AS fts_snippet
             FROM wiki_items_fts f
-            LEFT JOIN warm.knowledge_items k ON k.rowid = f.rowid
+            LEFT JOIN {_knowledge_table()} k ON k.rowid = f.rowid
             WHERE wiki_items_fts MATCH ?
             ORDER BY rank
             LIMIT ?

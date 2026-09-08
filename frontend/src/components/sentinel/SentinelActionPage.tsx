@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SentinelShell } from './SentinelShell';
+import { ExecOverviewPanel } from '../v1/panels/ExecOverviewPanel';
 import './sentinel.css';
 import './sentinel-action.css';
 
@@ -724,6 +725,9 @@ export function SentinelActionPage() {
           <span>判读待办 {actions.length} 待推进</span>
           <span>本周达标 {rhythm.hit} / 7 天</span>
         </p>
+
+        {/* v0.8.5 能力区块: 执行与验收总览 (SK-03/04, 待批准/运行中/待验收; → /cases/:id?section=actions) */}
+        <ExecOverviewPanel />
       </section>
     </SentinelShell>
   );

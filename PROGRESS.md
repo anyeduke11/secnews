@@ -52,7 +52,7 @@
 - [x] 独立验证四门: FactCheck 9/9 · G1 codegen 0 drift · G2 端点 parity 74/74 · G3 黄金走查 13 PASS/1 DEGRADED/0 FAIL · code-review APPROVE · 视觉走查三层/深链/390 (judge 工具章程不含 web UI, 由主会话执行)。**独立验证战果: 抓到 `/api/skill-registry/v1` 被 legacy 参数路由运行时遮蔽 404 (openapi 静态门测不出, main 即坏), 已修。**
 - [x] 收尾: tag `v0.8.5` (本地) + CHANGELOG 段 + 本条留痕。已知边界 (spec §9 明示 demo 不主张): 真实源信号供给 (B1) / dsh 真实出稿 (B2) — 分别是 D1/D2 的验收项; **B0-B7 前置阻断仍有效**, 排入 D1-D4 对应批次。
 - [ ] **D1 (已开工, 开发项全部落地, 仅剩观察窗)**: **点火已贯通** — `v1_ingest_bridge.py` 编排 T06/T07/T05 (RSS→SourcePipeline→准入→v1_materials+v1_signals), job `v1_signal_intake_tick` 300s (默认 security:SecWiki), 实弹 10→10→0 失败 (`7c8f990`/`92042f4`)。**D1.2 立项携带证据**: migration 108 `v1_case_materials` + create_case 自动绑定 + aggregate `evidence_materials` + CaseDetail 证据区块 (`4217cd2`)。**D1.3 Subject 抽屉**: signals API +subject_id 过滤 + SignalPanel 抽屉下钻 (`4217cd2`)。仅剩: 准入规则观察窗 (job 自动积累 admission_log, 数日后调优, 无代码)。
-- [ ] **D2 (已完成, `ee2228c`)**: 端口固定 (`npm run dev:demo`=8899→8766 固定对; 修 dev_environment.sh 代理 env 变量 bug); R09 artifact API 级 CAS (verify/accept/reject +expected_revision, 不符 409); CaseDetail 真实出稿按钮 (生成判断 SK-02 需证据+CVE 解析 / draft 发布 / 生成行动 SK-03 需 published 判断 §10.1, 失败如实报错); P2 修复 (aggregate 竞态守卫 + V1Prototype 死代码清理 698→330 行)。R05/R07 已在 C07 修好。
+- [ ] **D2 (已完成, `ee2228c`)**: 端口固定 (`npm run dev:demo`=8898→8000 固定对; 修 dev_environment.sh 代理 env 变量 bug); R09 artifact API 级 CAS (verify/accept/reject +expected_revision, 不符 409); CaseDetail 真实出稿按钮 (生成判断 SK-02 需证据+CVE 解析 / draft 发布 / 生成行动 SK-03 需 published 判断 §10.1, 失败如实报错); P2 修复 (aggregate 竞态守卫 + V1Prototype 死代码清理 698→330 行)。R05/R07 已在 C07 修好。
 - [ ] **D3 (已完成, `d4664d9`)**: SK-05 自动召回 — `auto_recall_for_case` 已发布知识 × case 文本读时匹配 (CVE +5 / 关键词 +1 需 ≥2 分, 非 published 不参与, 候选带 reasons 诚实可解释); aggregate +recall_candidates; CaseDetail 召回区块 + 采用免手填 (case 页发起自动带 case_id)。**一等验收实弹**: 第二个同类 Case (无手动关联) 自动浮现 FastGate 处置手册, API 采用 → 回执 id=3 (total=3, adopted=3)。
 - [ ] **D4 (已完成, `410c2e4`)**: 路由对账 (ROUTE_REGISTRY v0.8.5 重写); 复利卡诚实计数 (aggregate `reuse_summary`, adoption 真实回执, 不做无基线估算); **验收矩阵 `docs/v0.8.5/ACCEPTANCE.md`** (一致性门/§13/D1-D3 逐条对真实证据); legacy 对账 (dev mapping=0, 生产 853 行迁移需授权+备份前置)。后端全量回归 4285 passed (32 failed=pre-existing search/fts 基线)。
 - **关联记录**: DEV-0162。方向固化: 改方向必须显式重写 `v085_route_shell.test.tsx` + 撤 spec 横幅, 不允许静默漂移。
@@ -93,7 +93,7 @@
 
 - **T02-A 备份演练** (`scripts/t02_backup_drill.py`, 240 行, 默认 --dry-run): HOT 28MB online backup 0.045s / WARM 818MB copy 0.433s / COLD 28KB copy / Wiki 6486 文件 deflate 1.05s, **总演练 1.76s**, integrity_check ok, 106 表; 演练产物入 `backend/backups/_drill/<ts>/` 不入 BACKUP_RETENTION 链; 4 资产 sha256 落 manifest.json; 生产 db mtime `Sep 5 19:39:58` 未变 (agent_runs=321 不动)。
 - **T02-B 恢复演练** (`scripts/t02_restore_drill.py`, 280 行, 默认 --dry-run): 5 项验收 (integrity_check / sha256 一致 / 表数对照 / favorite → hotspot 回查 / wiki md 抽查), 写到 `/tmp/hotspot-restore/<ts>/` 仓库外; **3 轮稳定性 RTO 0.47-0.52s, 全 PASS**; 4 次抽 random favorite 1 中 3 失 — favorites 表存在历史 url 漂移 (非恢复 bug, 软指标)。
-- **T02-C 开发副本** (`scripts/dev_environment.sh`, 145 行): 数据根 `dev_data/` 独立 (gitignore 增量) / 端口 8766 (后端) + 8899 (前端) 错开生产 8000+8898 / `dev.env` 模板关 `HOTSPOT_CATCHUP_ON_STARTUP=0` `HOTSPOT_REMOTE_BACKUP=""` `HOTSPOT_PROXY_MODE=off`; 试跑 dev backend health 200, dev db 1.7MB + log 100KB 落 dev_data/, **生产 db mtime 不变** (完全隔离); keyring master_key verification failed 是 dev 无凭据正常, watchdog 因空 wiki 不启动 (设计预期)。
+- **T02-C 开发副本** (`scripts/dev_environment.sh`, 145 行): 数据根 `dev_data/` 独立 (gitignore 增量) / 端口 8000 (后端) + 8898 (前端) dev/prod 共用 `--strictPort` (后端任一时刻只能跑一份, 切换前 stop) / `dev.env` 模板关 `HOTSPOT_CATCHUP_ON_STARTUP=0` `HOTSPOT_REMOTE_BACKUP=""` `HOTSPOT_PROXY_MODE=off`; 试跑 dev backend health 200, dev db 1.7MB + log 100KB 落 dev_data/, **生产 db mtime 不变** (完全隔离); keyring master_key verification failed 是 dev 无凭据正常, watchdog 因空 wiki 不启动 (设计预期)。
 - **真 RPO/RTO**: RPO 演练 = 1.76s (不表真 RPO, 真 RPO = 距 daily_db_backup 04:30 窗口); RTO 演练 = 0.5s 本地, 异机经验 +10-30s。
 - **设计纪律**: dry-run 默认 + 演练目录隔离 + 不调 backup_service 全局函数 + 不打印密钥 + GitHub `feat(v1.0 T02): 备份演练 + 恢复演练 + 开发副本 (DEV-0138)` 单 commit 显式 pathspec。
 - **剩余问题 (非阻塞, 留 T17 验收)**: ①favorites 历史 url 漂移 ②真异机 RTO 演练 ③WARM 818MB 同盘 copy vs 异机 100-500MB/s 吞吐差。
@@ -483,7 +483,7 @@
   1. `backend/repository/db.py` `_drop_dangling_views()` preflight: init_db 早期 (apply_migrations 前) 主动 SELECT FROM view LIMIT 0, 失败即 DROP, 成功保留; 走日志 warning 不抛
   2. `backend/services/search_service.py` 重写 unified_search() 函数: 不再 SELECT FROM view, 拆两条 ATTACH 跨库 SQL (hot.hotspots + warm.knowledge_items) UNION ALL
   3. `backend/api/health.py` `_collectors_health()` 修跨库查询: collection_runs 在 warm.db, SQL 改 `FROM warm.collection_runs` (主 conn 已 ATTACH)
-  4. `frontend/vite.config.ts` 修 R22: proxy target 改读 `HOTSPOT_BACKEND_PORT` / `HOTSPOT_BACKEND_URL` env, 兼容 dev 模式 8766 + 生产 8000
+  4. `frontend/vite.config.ts` 修 R22: proxy target 改读 `HOTSPOT_BACKEND_PORT` / `HOTSPOT_BACKEND_URL` env, 默认 8000 (dev/prod 统一, `--strictPort`)
 - **验证**:
   - 后端 8000 起来: /api/health 200, status=ok, db ok (hotspots=7267), scheduler ok (55 jobs), collectors ok (last_run 02:27:09)
   - 前端 8898 代理 8000 通: /api/health 200, /api/v1/cases 200, /api/skill-registry 26 项 (20 legacy + 6 v1)
@@ -512,7 +512,7 @@
 **C01 实现**:
 1. **R10 修** (`backend/services/knowledge_service.py:480` + `backend/services/judgment_service.py:399`): 字面 `WikiFs("knowledge")` → `WikiFs(resolve_wiki_root())` 走 env 根 (`HOTSPOT_WIKI_ROOT` 优先, 默认 `llm-wiki-2.0/`)
 2. **R12 修** (`scripts/t02_backup_drill.py:94-104`): `backup_simple_copy` 内部委托新 `backup_with_api` 走 `sqlite3.backup()` API; WARM/COLD 改走与 HOT 一致路径 (即便 R21 已 fix ATTACH 跨 db, ATTACH 状态 + COMMIT 时序差异仍风险)
-3. **新增** `scripts/check_workstation_runtime.py` (203 行): lsof 8000/8898/8766/8899 + curl /api/health + SQLite 只读 (schema_version 计数+max, 9 关键表行数, 视图列表) + wiki 根解析 + 旧 knowledge/ 根警告 + 自动脱敏 key/secret/token + `--quiet`/`--exit-zero` 模式
+3. **新增** `scripts/check_workstation_runtime.py` (203 行): lsof 8000/8898 (后端/前端 dev/prod 共用) + curl /api/health + SQLite 只读 (schema_version 计数+max, 9 关键表行数, 视图列表) + wiki 根解析 + 旧 knowledge/ 根警告 + 自动脱敏 key/secret/token + `--quiet`/`--exit-zero` 模式
 
 **C01 反例测试** (`backend/tests/test_c01_wal_backup_and_wikifs_isolation.py`, 7 个全 pass):
 - R10 修复断言: `WikiFs("knowledge")` 字面字符串在 knowledge_service/judgment_service 源码中消失

@@ -20,10 +20,6 @@ Mimosa 约束: SQL 全 ? 参数绑定; 禁 mock/noop 吞异常.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-import pytest
-
 from backend.repository.db import get_connection
 from backend.services.source_pipeline import (
     FetchOutcome,
@@ -230,6 +226,7 @@ def test_pipeline_source_watermark_advance_gated_on_committed() -> None:
     Mimosa 反例测试 = 源码包含断言; 不依赖运行路径, 强制修复必加守卫.
     """
     import inspect
+
     from backend.services import source_pipeline
     src = inspect.getsource(source_pipeline.SourcePipeline.run)
     # watermark.advance 调用前必须有 items_committed > 0 守卫
@@ -237,6 +234,6 @@ def test_pipeline_source_watermark_advance_gated_on_committed() -> None:
         "items_committed" in src and "watermark" in src
     )
     assert has_guard, (
-        f"R02 源码断言: source_pipeline.run 应把 watermark 推进与 items_committed 绑定, "
-        f"实际源码无关联. 修复必加 `items_committed > 0` 守卫."
+        "R02 源码断言: source_pipeline.run 应把 watermark 推进与 items_committed 绑定, "
+        "实际源码无关联. 修复必加 `items_committed > 0` 守卫."
     )

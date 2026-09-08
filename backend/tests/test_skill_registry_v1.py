@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -11,8 +12,6 @@ from backend.services.skill_registry.builtin import BUILTIN
 from backend.services.skill_registry.core import SkillRegistry
 from backend.services.skill_registry.sk01_daily_priority import (
     DailyPriorityIntelService,
-    _query_admission_recent,
-    _query_signals_recent,
 )
 from backend.services.skill_registry.v1_skills import (
     build_sk01_daily_priority_intel,
@@ -21,7 +20,6 @@ from backend.services.skill_registry.v1_skills import (
     build_sk04_action_retrospective,
     build_sk05_reuse_experience,
     build_sk06_knowledge_review_due,
-    _register_v1_skills,
 )
 
 

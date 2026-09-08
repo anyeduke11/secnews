@@ -5,13 +5,13 @@
 """
 from __future__ import annotations
 
-import string
 from datetime import datetime, timezone
 
 import pytest
 from pydantic import ValidationError
 
 from backend.domain.v1_0_models import (
+    DOMAIN_MODELS,
     Action,
     ActionStatus,
     Artifact,
@@ -23,7 +23,6 @@ from backend.domain.v1_0_models import (
     CaseStatus,
     ClaimType,
     Confidence,
-    DOMAIN_MODELS,
     EvidenceRef,
     Judgment,
     JudgmentConfidence,

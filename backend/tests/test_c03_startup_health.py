@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import inspect
 import re
-import sqlite3
 from pathlib import Path
 
 import pytest
@@ -26,7 +25,7 @@ def test_worker_coordinator_consume_requires_task_fn(monkeypatch, tmp_path: Path
     R04 修复: consume(task_fn=None) 必 raise ValueError("task_fn is required"),
     拒绝 noop 兜底, 强制调用方 (worker_pump / tests) 显式传 dispatcher.
     """
-    from backend.services.worker_coordinator import WorkerCoordinator, TaskRequest
+    from backend.services.worker_coordinator import TaskRequest, WorkerCoordinator
 
     # 真实生产模拟: 拿一个 TaskRequest (含 task_type 必填)
     req = TaskRequest(
@@ -49,8 +48,9 @@ def test_worker_coordinator_consume_rejects_none_task_fn(monkeypatch, tmp_path: 
     修复路径: consume 签名 task_fn: Callable (必填, 不再 Optional), 缺则 raise.
     强制调用方 (worker_pump / tests) 显式传 dispatcher.
     """
-    from backend.services.worker_coordinator import WorkerCoordinator, TaskRequest
     import inspect
+
+    from backend.services.worker_coordinator import WorkerCoordinator
 
     sig = inspect.signature(WorkerCoordinator.consume)
     task_fn_param = sig.parameters.get("task_fn")
@@ -81,8 +81,8 @@ def test_worker_pump_explicitly_passes_dispatcher(monkeypatch, tmp_path: Path) -
     # 必须有 task_fn= 关键字参数 (拒绝旧 noop 兜底)
     if "task_fn=" not in src:
         pytest.fail(
-            f"R04 未修: worker_queue_pump_job 调 coordinator.consume 不传 task_fn, "
-            f"无 'task_fn=' 在源码 (R04 旧 noop 路径仍存在)"
+            "R04 未修: worker_queue_pump_job 调 coordinator.consume 不传 task_fn, "
+            "无 'task_fn=' 在源码 (R04 旧 noop 路径仍存在)"
         )
 
 
@@ -200,8 +200,8 @@ def test_health_endpoint_exposes_4_state_matrix(monkeypatch, tmp_path: Path) -> 
     修复后: /api/health 应有 components.db.migration_status / components.reads / components.exec
     3 个独立状态, 1 个 overall readiness 派生.
     """
-    import urllib.request
     import os
+    import urllib.request
     os.environ.pop("HOTSPOT_DB_PATH", None)  # 用生产
     try:
         with urllib.request.urlopen("http://127.0.0.1:8000/api/health", timeout=3) as r:

@@ -216,7 +216,6 @@ def main() -> int:
             from backend.repository import db
             db.init_db()
             # 复用 T11 的 judgment (CVE-2026-31337 published) — 直接 seed (走 T11 golden 同模式)
-            from backend.services.judgment_service import JudgmentService
             from backend.repository.db import get_connection
             conn = get_connection()
             now = "2026-09-06T00:00:00+00:00"

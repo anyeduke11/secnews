@@ -16,7 +16,6 @@ Mimosa 约束: SQL 全 ? 参数绑定; 禁 mock/noop 吞异常.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -28,7 +27,6 @@ from backend.services.source_pipeline import (
     SourceLease,
     SourcePipeline,
     SourceWatermark,
-    WatermarkRegressedError,
 )
 
 

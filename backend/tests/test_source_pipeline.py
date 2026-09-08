@@ -14,8 +14,6 @@
 from __future__ import annotations
 
 import dataclasses
-import threading
-from datetime import datetime, timezone
 
 import pytest
 
@@ -24,15 +22,12 @@ from backend.services.source_pipeline import (
     FetchOutcome,
     FetchRequest,
     LeaseHeldError,
-    PipelineResult,
     SourceLease,
     SourcePipeline,
     SourceWatermark,
     WatermarkRegressedError,
 )
 from backend.services.v1_evidence_service import (
-    IdempotentReplay,
-    IntentExistsError,
     V1EvidenceService,
 )
 

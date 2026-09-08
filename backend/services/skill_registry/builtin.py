@@ -504,7 +504,7 @@ for _skill in BUILTIN_SKILLS:
     _skill.__dict__["version"] = "0.9.0"
 
 # v1.0 T14: 注册 6 个 v1 SK (SK-01..SK-06)
-from backend.services.skill_registry.v1_skills import _register_v1_skills  # noqa: E402
+from backend.services.skill_registry.v1_skills import _register_v1_skills
 
 #: 模块级单例 — 沿用仓库惯例 (trigger_gate.trigger_gate / ai_hub 同款);
 #: register() 内部过 loader 六条规则, 违规定义在 import 期即爆炸 (fail loud)

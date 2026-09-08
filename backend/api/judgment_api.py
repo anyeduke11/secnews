@@ -22,7 +22,6 @@ from typing import Any
 from fastapi import APIRouter, Body, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from backend.logging_config import logger
 from backend.services.judgment_service import (
     JudgmentConflictError,
     JudgmentNotFoundError,

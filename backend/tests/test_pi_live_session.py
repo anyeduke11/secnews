@@ -5,7 +5,6 @@
 """
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 import threading
@@ -16,7 +15,6 @@ import pytest
 from backend.repository.settings_repo import SettingsRepository
 from backend.services.pi.live_session import (
     LivePiSession,
-    PiEvent,
     get_session_mode,
 )
 

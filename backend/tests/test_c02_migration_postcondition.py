@@ -5,11 +5,8 @@ Mimosa 约束: SQL 参数绑定 (本文件全用 ? 形参).
 """
 from __future__ import annotations
 
-import os
 import sqlite3
 from pathlib import Path
-
-import pytest
 
 
 # ---------------------------------------------------------------------------
@@ -71,8 +68,8 @@ def test_partial_migration_failure_marks_schema_version_inconsistent(tmp_path: P
 
     assert has_test_table == 1, "R11 反例基线: c02_test_partial 应已建 (前 2 句执行)"
     assert has_version == 0, (
-        f"R11 反例: 旧逻辑会因 raise 不写 schema_version, 但部分 DDL 已 commit, "
-        f"下次启动会重跑失败 (no such table 不会被视为已应用)"
+        "R11 反例: 旧逻辑会因 raise 不写 schema_version, 但部分 DDL 已 commit, "
+        "下次启动会重跑失败 (no such table 不会被视为已应用)"
     )
 
 
@@ -93,7 +90,6 @@ def test_apply_migrations_records_per_statement_success(monkeypatch, tmp_path: P
     """, encoding="utf-8")
 
     # 注入到应用 MIGRATIONS_DIR (monkeypatch 替换)
-    import importlib
     from backend.repository import db
     orig_dir = db.MIGRATIONS_DIR
     monkeypatch.setattr(db, "MIGRATIONS_DIR", tmp_path)

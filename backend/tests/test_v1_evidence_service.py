@@ -20,11 +20,11 @@ import pytest
 
 from backend.repository.db import get_connection
 from backend.services.v1_evidence_service import (
+    RECEIPT_COMMITTED,
+    RECEIPT_ROLLED_BACK,
     IdempotentReplay,
     IntentExistsError,
     V1EvidenceService,
-    RECEIPT_COMMITTED,
-    RECEIPT_ROLLED_BACK,
     _hash_body,
 )
 

@@ -5,7 +5,6 @@ import pytest
 
 from backend.repository.db import get_connection
 from backend.services.action_service import ActionService
-from backend.services.judgment_service import JudgmentService
 from backend.services.run_service import (
     RunConflictError,
     RunNotFoundError,

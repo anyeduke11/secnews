@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pytest
 
+from backend.repository.db import get_connection
 from backend.services.action_service import ActionService
 from backend.services.artifact_service import (
     ArtifactConflictError,
@@ -10,9 +11,7 @@ from backend.services.artifact_service import (
     ArtifactService,
     ArtifactValidationError,
 )
-from backend.services.judgment_service import JudgmentService
 from backend.services.run_service import RunService
-from backend.repository.db import get_connection
 
 
 def _seed_published_judgment(judgment_id: str = "J" * 26) -> None:

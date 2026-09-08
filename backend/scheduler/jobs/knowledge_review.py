@@ -9,9 +9,8 @@ worker_pump 风格 job 55 (job 53=worker_queue_pump, job 54=legacy_hold_reap)
 """
 from __future__ import annotations
 
-import json
 import sqlite3
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 from backend.logging_config import logger
 from backend.repository.db import get_connection

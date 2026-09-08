@@ -362,7 +362,7 @@ def test_consume_without_task_fn_raises_R04(temp_db) -> None:
     worker_runs 落 succeeded + trigger_ticket 落 done, 但实际工作没做 (53 个历史
     pending ticket 全部虚报完成). R04 修: task_fn 必填, None 必 raise.
     """
-    from backend.services.worker_coordinator import WorkerCoordinator, TaskRequest
+    from backend.services.worker_coordinator import TaskRequest, WorkerCoordinator
     coord = WorkerCoordinator()
     req = TaskRequest(
         task_type="trigger_ticket",

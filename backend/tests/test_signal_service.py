@@ -1,14 +1,6 @@
 """T15 SignalService 单元测试 (4 个)."""
 from __future__ import annotations
 
-import json
-import os
-import sqlite3
-import tempfile
-from pathlib import Path
-
-import pytest
-
 
 def test_list_recent_signals_returns_empty_when_table_missing(temp_db) -> None:
     """v1_signals 表不存在 (T15 演练 dry-run 模式) → 返空 list 不抛."""

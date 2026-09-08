@@ -12,7 +12,6 @@ from backend.services.action_service import (
     ActionService,
     ActionValidationError,
 )
-from backend.services.judgment_service import JudgmentService
 
 
 # ---------------------------------------------------------------------------

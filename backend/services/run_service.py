@@ -20,7 +20,6 @@ from datetime import datetime, timezone
 from typing import Any
 
 from backend.exceptions import ConflictException, InvalidParamException, NotFoundException
-from backend.logging_config import logger
 from backend.repository.run_repo import RunRepository
 
 

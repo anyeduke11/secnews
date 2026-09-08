@@ -1,7 +1,6 @@
 """v1.0 T13 KnowledgeRevisionRepository — append-only revision 行."""
 from __future__ import annotations
 
-import json
 import sqlite3
 from typing import Any
 

@@ -17,14 +17,11 @@ import pytest
 from backend.repository.db import get_connection
 from backend.services.action_service import ActionService
 from backend.services.artifact_service import (
-    ArtifactConflictError,
     ArtifactService,
     ArtifactValidationError,
 )
 from backend.services.case_service import CaseConflictError, CaseService
-from backend.services.judgment_service import JudgmentService
 from backend.services.knowledge_service import (
-    KnowledgeConflictError,
     KnowledgeService,
 )
 from backend.services.run_service import RunService

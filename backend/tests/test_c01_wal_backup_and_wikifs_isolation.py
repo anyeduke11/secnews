@@ -7,13 +7,9 @@ R10 反例: `WikiFs("knowledge")` 字面字符串走 cwd 相对根, 写到仓库
 """
 from __future__ import annotations
 
-import os
 import re
 import sqlite3
-import tempfile
 from pathlib import Path
-
-import pytest
 
 
 # ---------------------------------------------------------------------------
@@ -125,6 +121,7 @@ def test_t02_backup_drill_warm_cold_uses_sqlite_backup_api(tmp_path: Path) -> No
     实际委托 backup_with_api (走 sqlite3.backup API).
     """
     import inspect
+
     from scripts import t02_backup_drill
     src = inspect.getsource(t02_backup_drill)
     # backup_simple_copy 体内应不再直接调 shutil.copy2
@@ -197,6 +194,7 @@ def test_wikifs_knowledge_service_uses_resolve_wiki_root(monkeypatch, tmp_path: 
 
     # 静态检查: knowledge_service.publish 路径的 WikiFs 调用
     import inspect
+
     from backend.services import knowledge_service
     src = inspect.getsource(knowledge_service)
     # 不应出现 WikiFs("knowledge") 字面 (是 R10 旧实现)
@@ -205,18 +203,19 @@ def test_wikifs_knowledge_service_uses_resolve_wiki_root(monkeypatch, tmp_path: 
     )
     # 应出现 WikiFs(resolve_wiki_root()) 或类似 env-based 形式
     assert "resolve_wiki_root" in src or "HOTSPOT_WIKI_ROOT" in src, (
-        f"R10 未走 env 根: knowledge_service.py 不引用 resolve_wiki_root/HOTSPOT_WIKI_ROOT"
+        "R10 未走 env 根: knowledge_service.py 不引用 resolve_wiki_root/HOTSPOT_WIKI_ROOT"
     )
 
 
 def test_wikifs_judgment_service_uses_resolve_wiki_root(monkeypatch, tmp_path: Path) -> None:
     """R10 修复断言: judgment_service.publish 同样修."""
-    from backend.services import judgment_service
     import inspect
+
+    from backend.services import judgment_service
     src = inspect.getsource(judgment_service)
     assert 'WikiFs("knowledge")' not in src, (
-        f"R10 未修: judgment_service.py 仍用 WikiFs('knowledge') 字面字符串"
+        "R10 未修: judgment_service.py 仍用 WikiFs('knowledge') 字面字符串"
     )
     assert "resolve_wiki_root" in src or "HOTSPOT_WIKI_ROOT" in src, (
-        f"R10 未走 env 根: judgment_service.py 不引用 resolve_wiki_root/HOTSPOT_WIKI_ROOT"
+        "R10 未走 env 根: judgment_service.py 不引用 resolve_wiki_root/HOTSPOT_WIKI_ROOT"
     )

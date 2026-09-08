@@ -5,17 +5,16 @@
 """
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 
 import pytest
 
+from backend.repository.settings_repo import SettingsRepository
 from backend.services.dsh.live_bridge import (
     LiveDSHClient,
     get_bridge_mode,
 )
-from backend.repository.settings_repo import SettingsRepository
 
 
 def _mock_dsh_script() -> str:

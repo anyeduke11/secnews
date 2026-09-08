@@ -10,10 +10,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-
+from pydantic import BaseModel, ConfigDict, Field
 
 # ---------------------------------------------------------------------------
 # 通用枚举 (contracts §0.1 + §1-§9)
@@ -195,11 +194,11 @@ class EvidenceRef(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     material_id: str = Field(description="Material 稳定 ID")
-    signal_id: Optional[str] = Field(default=None, description="可选 Signal 锚点")
-    chunk_id: Optional[str] = Field(default=None, description="chunk 投影 ID")
-    offset: Optional[List[int]] = Field(default=None, description="[start, end] 字符偏移")
+    signal_id: str | None = Field(default=None, description="可选 Signal 锚点")
+    chunk_id: str | None = Field(default=None, description="chunk 投影 ID")
+    offset: list[int] | None = Field(default=None, description="[start, end] 字符偏移")
     hash: str = Field(description="sha256, 须与 material.hash 一致")
-    quote: Optional[str] = Field(default=None, description="≤ 500 字符引用")
+    quote: str | None = Field(default=None, description="≤ 500 字符引用")
 
 
 class Step(BaseModel):
@@ -209,11 +208,11 @@ class Step(BaseModel):
     seq: int = Field(ge=0)
     tool: str
     started_at: datetime
-    finished_at: Optional[datetime] = None
+    finished_at: datetime | None = None
     input_hash: str
-    output_hash: Optional[str] = None
+    output_hash: str | None = None
     status: StepStatus
-    error: Optional[str] = None
+    error: str | None = None
     duration_ms: int = Field(ge=0)
 
 
@@ -228,19 +227,19 @@ class Subject(BaseModel):
     id: str = Field(pattern=r"^[A-Z2-7]{26}$", description="ULID Crockford Base32")
     entity_type: SubjectEntityType
     name: str = Field(max_length=200)
-    aliases: List[str] = Field(default_factory=list)
+    aliases: list[str] = Field(default_factory=list)
     importance: SubjectImportance = Field(default=SubjectImportance.normal)
     revision: int = Field(ge=1, default=1)
-    context_revision: Optional[int] = Field(default=None)
-    tags: List[str] = Field(default_factory=list)
-    notes: Optional[str] = None
+    context_revision: int | None = Field(default=None)
+    tags: list[str] = Field(default_factory=list)
+    notes: str | None = None
     # 时间戳 (服务端写, 客户端不传)
     created_at: datetime
     updated_at: datetime
 
     # 通用响应字段 (contracts §0.3)
-    allowed_actions: List[str] = Field(default_factory=list)
-    reason: Optional[str] = None
+    allowed_actions: list[str] = Field(default_factory=list)
+    reason: str | None = None
 
 
 class Material(BaseModel):
@@ -250,23 +249,23 @@ class Material(BaseModel):
     id: str = Field(description="sha256(source+url+first_seen_at)[:26]")
     source: str
     url: str
-    title: Optional[str] = None
-    author: Optional[str] = None
-    published_at: Optional[datetime] = None
+    title: str | None = None
+    author: str | None = None
+    published_at: datetime | None = None
     first_seen_at: datetime
     hash: str
     parser_version: str
-    snapshot_path: Optional[str] = None
+    snapshot_path: str | None = None
     revision: int = Field(ge=1, default=1)
-    extra: Dict[str, Any] = Field(default_factory=dict)
-    quality_flags: List[str] = Field(default_factory=list)
+    extra: dict[str, Any] = Field(default_factory=dict)
+    quality_flags: list[str] = Field(default_factory=list)
     is_fallback: bool = Field(default=False)
     created_at: datetime
     updated_at: datetime
 
     # 派生
-    allowed_actions: List[str] = Field(default_factory=list)
-    reason: Optional[str] = None
+    allowed_actions: list[str] = Field(default_factory=list)
+    reason: str | None = None
 
 
 class Signal(BaseModel):
@@ -274,20 +273,20 @@ class Signal(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     id: str = Field(pattern=r"^[A-Z2-7]{26}$")
-    subject_id: Optional[str] = None
+    subject_id: str | None = None
     material_id: str
     summary: str = Field(max_length=500)
     occurred_at: datetime
     admission_rule_version: str
-    admission_reason: Optional[str] = None
-    supersedes_signal_id: Optional[str] = None
+    admission_reason: str | None = None
+    supersedes_signal_id: str | None = None
     confidence: Confidence = Field(default=Confidence.unverified)
     revision: int = Field(ge=1, default=1)
     status: SignalStatus = Field(default=SignalStatus.unverified)
     created_at: datetime
     updated_at: datetime
 
-    allowed_actions: List[str] = Field(default_factory=list)
+    allowed_actions: list[str] = Field(default_factory=list)
 
 
 class Case(BaseModel):
@@ -297,25 +296,25 @@ class Case(BaseModel):
     id: str = Field(pattern=r"^[A-Z2-7]{26}$")
     title: str = Field(max_length=120)
     question: str = Field(max_length=500)
-    goal: Optional[str] = None
-    scope: Optional[str] = None
+    goal: str | None = None
+    scope: str | None = None
     priority: CasePriority = Field(default=CasePriority.p2)
     status: CaseStatus = Field(default=CaseStatus.open)
-    due_at: Optional[datetime] = None
-    subject_id: Optional[str] = None
-    related_subject_ids: List[str] = Field(default_factory=list)
-    related_signal_ids: List[str] = Field(default_factory=list)
-    related_case_ids: List[str] = Field(default_factory=list)
-    tags: List[str] = Field(default_factory=list)
+    due_at: datetime | None = None
+    subject_id: str | None = None
+    related_subject_ids: list[str] = Field(default_factory=list)
+    related_signal_ids: list[str] = Field(default_factory=list)
+    related_case_ids: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     owner_role: CaseOwnerRole = Field(default=CaseOwnerRole.user)
     revision: int = Field(ge=1, default=1)
-    closed_at: Optional[datetime] = None
+    closed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
     # 通用响应字段
-    allowed_actions: List[str] = Field(default_factory=list)
-    reason: Optional[str] = None
+    allowed_actions: list[str] = Field(default_factory=list)
+    reason: str | None = None
 
 
 class Judgment(BaseModel):
@@ -324,23 +323,23 @@ class Judgment(BaseModel):
 
     id: str = Field(pattern=r"^[A-Z2-7]{26}$")
     case_id: str
-    subject_id: Optional[str] = None
+    subject_id: str | None = None
     claim_type: ClaimType
     claim: str = Field(max_length=10_000)
-    conditions: Optional[str] = None
+    conditions: str | None = None
     confidence: JudgmentConfidence = Field(default=JudgmentConfidence.medium)
-    evidence_refs: List[EvidenceRef] = Field(min_length=1)
-    counter_evidence_refs: List[EvidenceRef] = Field(default_factory=list)
-    unknowns: List[str] = Field(default_factory=list)
+    evidence_refs: list[EvidenceRef] = Field(min_length=1)
+    counter_evidence_refs: list[EvidenceRef] = Field(default_factory=list)
+    unknowns: list[str] = Field(default_factory=list)
     status: JudgmentStatus = Field(default=JudgmentStatus.draft)
     revision: int = Field(ge=1, default=1)
-    wiki_path: Optional[str] = None
-    content_hash: Optional[str] = None
-    published_at: Optional[datetime] = None
+    wiki_path: str | None = None
+    content_hash: str | None = None
+    published_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
-    allowed_actions: List[str] = Field(default_factory=list)
+    allowed_actions: list[str] = Field(default_factory=list)
 
 
 class Action(BaseModel):
@@ -351,21 +350,21 @@ class Action(BaseModel):
     case_id: str
     judgment_id: str
     title: str = Field(max_length=200)
-    scope: Optional[str] = None
+    scope: str | None = None
     plan: str = Field(max_length=50_000)
     plan_hash: str
-    tool_versions: Dict[str, str] = Field(default_factory=dict)
-    expected_artifacts: List[str] = Field(default_factory=list)
-    success_criteria: Optional[str] = None
-    expires_at: Optional[datetime] = None
+    tool_versions: dict[str, str] = Field(default_factory=dict)
+    expected_artifacts: list[str] = Field(default_factory=list)
+    success_criteria: str | None = None
+    expires_at: datetime | None = None
     status: ActionStatus = Field(default=ActionStatus.planned)
-    approved_by: Optional[str] = None
-    approved_at: Optional[datetime] = None
+    approved_by: str | None = None
+    approved_at: datetime | None = None
     revision: int = Field(ge=1, default=1)
     created_at: datetime
     updated_at: datetime
 
-    allowed_actions: List[str] = Field(default_factory=list)
+    allowed_actions: list[str] = Field(default_factory=list)
 
 
 class Run(BaseModel):
@@ -375,26 +374,26 @@ class Run(BaseModel):
     id: str = Field(pattern=r"^run_[A-Z2-7]{26}$")
     action_id: str
     attempt: int = Field(ge=1, default=1)
-    skill_id: Optional[str] = None
+    skill_id: str | None = None
     protocol: RunProtocol
     trigger_source: RunTriggerSource
     idempotency_key: str
     status: RunStatus = Field(default=RunStatus.queued)
-    inputs: Dict[str, Any] = Field(default_factory=dict)
-    steps: List[Step] = Field(default_factory=list)
-    budget_tokens: Optional[int] = None
-    budget_seconds: Optional[int] = None
-    started_at: Optional[datetime] = None
-    finished_at: Optional[datetime] = None
-    duration_ms: Optional[int] = None
-    result_excerpt: Optional[str] = None
-    error: Optional[str] = None
-    artifact_ids: List[str] = Field(default_factory=list)
+    inputs: dict[str, Any] = Field(default_factory=dict)
+    steps: list[Step] = Field(default_factory=list)
+    budget_tokens: int | None = None
+    budget_seconds: int | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    duration_ms: int | None = None
+    result_excerpt: str | None = None
+    error: str | None = None
+    artifact_ids: list[str] = Field(default_factory=list)
     revision: int = Field(ge=1, default=1)
     created_at: datetime
     updated_at: datetime
 
-    allowed_actions: List[str] = Field(default_factory=list)
+    allowed_actions: list[str] = Field(default_factory=list)
 
 
 class Artifact(BaseModel):
@@ -405,22 +404,22 @@ class Artifact(BaseModel):
     run_id: str
     kind: ArtifactKind
     title: str = Field(max_length=200)
-    content_ref: Optional[str] = None
+    content_ref: str | None = None
     content_hash: str
     format: ArtifactFormat
     size_bytes: int = Field(ge=0)
-    verified_by: Optional[str] = None
-    verified_at: Optional[datetime] = None
-    verified_result: Optional[VerificationResult] = None
-    accepted_by: Optional[str] = None
-    accepted_at: Optional[datetime] = None
-    accepted_note: Optional[str] = None
+    verified_by: str | None = None
+    verified_at: datetime | None = None
+    verified_result: VerificationResult | None = None
+    accepted_by: str | None = None
+    accepted_at: datetime | None = None
+    accepted_note: str | None = None
     status: ArtifactStatus = Field(default=ArtifactStatus.pending)
     revision: int = Field(ge=1, default=1)
     created_at: datetime
     updated_at: datetime
 
-    allowed_actions: List[str] = Field(default_factory=list)
+    allowed_actions: list[str] = Field(default_factory=list)
 
 
 class Knowledge(BaseModel):
@@ -431,22 +430,22 @@ class Knowledge(BaseModel):
     kind: KnowledgeKind
     title: str = Field(max_length=200)
     body: str = Field(max_length=100_000)
-    prerequisites: List[str] = Field(default_factory=list)
-    counter_examples: List[str] = Field(default_factory=list)
-    evidence_refs: List[EvidenceRef] = Field(default_factory=list)
-    expiry_at: Optional[datetime] = None
-    review_at: Optional[datetime] = None
+    prerequisites: list[str] = Field(default_factory=list)
+    counter_examples: list[str] = Field(default_factory=list)
+    evidence_refs: list[EvidenceRef] = Field(default_factory=list)
+    expiry_at: datetime | None = None
+    review_at: datetime | None = None
     reuse_count: int = Field(ge=0, default=0)
-    last_reused_at: Optional[datetime] = None
+    last_reused_at: datetime | None = None
     status: KnowledgeStatus = Field(default=KnowledgeStatus.draft)
     revision: int = Field(ge=1, default=1)
-    wiki_path: Optional[str] = None
-    content_hash: Optional[str] = None
-    published_at: Optional[datetime] = None
+    wiki_path: str | None = None
+    content_hash: str | None = None
+    published_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
-    allowed_actions: List[str] = Field(default_factory=list)
+    allowed_actions: list[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------

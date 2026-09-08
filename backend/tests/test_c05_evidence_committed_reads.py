@@ -27,9 +27,8 @@ import pytest
 
 from backend.repository.db import get_connection
 from backend.services.v1_evidence_service import (
-    V1EvidenceService,
     RECEIPT_COMMITTED,
-    _hash_body,
+    V1EvidenceService,
 )
 
 

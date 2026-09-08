@@ -8,7 +8,6 @@ from fastapi.testclient import TestClient
 
 from backend.api.judgment_api import router as judgment_router
 from backend.repository.db import get_connection
-from backend.services.judgment_service import JudgmentService
 
 
 @pytest.fixture()

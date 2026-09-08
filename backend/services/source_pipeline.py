@@ -21,11 +21,12 @@ import hashlib
 import sqlite3
 import time
 import uuid
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Callable, Iterator
+from typing import Any
 
 from backend.logging_config import logger
 from backend.repository.db import get_connection

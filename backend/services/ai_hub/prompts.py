@@ -673,7 +673,7 @@ def build_daily_priority_intel_prompt(
     watch_block = ""
     if watchlist_subjects:
         watch_block = (
-            f"\n## 关注 subject (watchlist)\n\n"
+            "\n## 关注 subject (watchlist)\n\n"
             + "\n".join(f"- {s}" for s in watchlist_subjects)
             + "\n"
         )

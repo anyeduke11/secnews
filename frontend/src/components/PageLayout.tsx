@@ -28,3 +28,18 @@ export function PageLayout() {
     </ToastProvider>
   );
 }
+
+// v0.8.5: 三层 Sentinel 全屏布局 — 只提供 ToastProvider (v1 区块 mutation 提示需要),
+// 不渲染 AppNav 侧栏: 三层页由页内 SentinelShell 提供唯一导航 (spec §4.3 壳纪律).
+export function SentinelLayout() {
+  return (
+    <ToastProvider>
+      <div
+        className="min-h-[100dvh] relative"
+        style={{ backgroundColor: 'var(--bg-primary)' }}
+      >
+        <Outlet />
+      </div>
+    </ToastProvider>
+  );
+}

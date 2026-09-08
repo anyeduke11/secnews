@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSSE } from '../../hooks/useSSE';
 import { CATEGORIES, HotspotItem } from '../../types';
 import { SentinelShell, usePipeReloadOnSse } from './SentinelShell';
+import { CaseQueuePanel } from '../v1/panels/CaseQueuePanel';
 import './sentinel.css';
 import './sentinel-judge.css';
 
@@ -553,6 +554,9 @@ export function SentinelJudgePage() {
           当前待判读队列 <b>{items.length}</b> 条，本次会话已归档 <b>{archivedCount}</b> 条。
           队列随采集管线自动刷新。
         </p>
+
+        {/* v0.8.5 能力区块: Case 队列 (阻塞置顶 → /cases/:id 判断层深链) */}
+        <CaseQueuePanel />
       </section>
     </SentinelShell>
   );

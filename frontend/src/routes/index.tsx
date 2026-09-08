@@ -1,7 +1,6 @@
 import { Suspense, useCallback } from 'react';
-import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { PageLayout } from '../components/PageLayout';
-import { V1SentinelShell } from '../components/sentinel/V1SentinelShell';
+import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
+import { PageLayout, SentinelLayout } from '../components/PageLayout';
 import { useFavorites } from '../hooks/useFavorites';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import * as P from './lazy-imports';
@@ -16,11 +15,24 @@ import * as P from './lazy-imports';
 // P1-3: 跨 7 个子模块的路由速查表见 ./ROUTE_REGISTRY.md (真源 = 本文件,
 // 表漂移时以本文件为准回改; 此前声称的 "CI 校验" 从未存在, 勿再依赖)。
 
+// v0.8.5 反向收敛 (2026-09-08 裁决, spec = docs/v0.8.5/V0.8.5_PLAN.md §5):
+//  - 三层 Sentinel 恢复为唯一壳: / (资料层) → /judge (判断层) → /action (行动层),
+//    走 SentinelLayout 全屏组 (无 AppNav), 壳由各页内嵌 SentinelShell 提供 (心跳条常驻)
+//  - v1 四入口降级: /workbench /intel → /, /cases → /judge (QueryRedirect 透传 query)
+//  - V1SentinelShell 物理删除; /garden 恢复 (gate codegarden, 更多菜单死链自愈)
+//  - 守卫: routes/__tests__/v085_route_shell.test.tsx 锁定上述口径, 违反即 CI 红
+
 /** 旧路由 /category/:cat 兼容 (v0.6.3: workbench 已并入 SecNews, 跳哨兵首页) */
 function CategoryRedirect() {
   const { cat } = useParams<{ cat: string }>();
   void cat;
   return <Navigate to="/" replace />;
+}
+
+/** v0.8.5: 旧 v1 入口重定向 — 透传 query string (spec §5, FactCheck #5); 导出供守卫测试运行时断言 */
+export function QueryRedirect({ to }: { to: string }) {
+  const { search } = useLocation();
+  return <Navigate to={`${to}${search}`} replace />;
 }
 
 /** Suspense 全局加载占位 (不进行白屏) */
@@ -85,19 +97,31 @@ export function AppRoutes() {
 
   return (
     <Routes>
-      {/* v1.0 C09 R24 修复: 删 4 个旧 sentinel 入口 (/judge /judge/graph /action /garden),
-         * 删 /v1-prototype 兼容路由 (T15 临时, C09 收尾后移除),
-         * / 走 /workbench (PageLayout 内) 不再走 SentinelHomePage (旧壳).
-         * 旧 /sentinel/settings redirect 保留 (外部书签不失效).
-         */}
       <Route path="/sentinel/settings" element={<Navigate to="/settings?cat=sentinel" replace />} />
 
-      {/* Phase 1A: 嵌套 Layout (PageLayout 含 ToastProvider + 外层容器) */}
+      {/* ===== v0.8.5 三层 Sentinel 全屏壳 (唯一壳, 无 AppNav; 心跳条由页内 SentinelShell 提供) ===== */}
+      <Route element={<SentinelLayout />}>
+        {/* 资料层: 有什么新的、可信的变化影响我 */}
+        <Route path="/" element={<Suspense fallback={<PageFallback />}><P.SentinelHomePage /></Suspense>} />
+        {/* 判断层: 这些证据能形成什么结论, 还缺什么 */}
+        <Route path="/judge" element={<Suspense fallback={<PageFallback />}><P.SentinelJudgePage /></Suspense>} />
+        <Route path="/judge/graph" element={<Suspense fallback={<PageFallback />}><P.SentinelGraphPage /></Suspense>} />
+        {/* 行动层: 已接受的结论要如何执行、验收和沉淀 */}
+        <Route path="/action" element={<Suspense fallback={<PageFallback />}><P.SentinelActionPage /></Suspense>} />
+        {/* 判断层深链接: Case 详情 (URL 真相源, ?section= 定位; spec §5/§6.3) */}
+        <Route path="/cases/:caseId" element={<Suspense fallback={<PageFallback />}><P.CaseDetailPage /></Suspense>} />
+        {features.codegarden && (
+          <Route path="/garden" element={<Suspense fallback={<PageFallback />}><P.SentinelGardenPage /></Suspense>} />
+        )}
+      </Route>
+
+      {/* ===== v0.8.5: 旧 v1 四入口重定向 (透传 query; /cases/:caseId 深链见下方 PageLayout 组) ===== */}
+      <Route path="/workbench" element={<QueryRedirect to="/" />} />
+      <Route path="/intel" element={<QueryRedirect to="/" />} />
+      <Route path="/cases" element={<QueryRedirect to="/judge" />} />
+
+      {/* ===== 工具页组 (PageLayout: ToastProvider + AppNav 侧栏) ===== */}
       <Route element={<PageLayout />}>
-        {/* v1.0.1 一致性重构: 三层架构 (data/judge/action) 旧路由已物理删除,
-         * LAYER_DEFS 在 SentinelShell 重映射到 v1 三入口 (/intel /cases /knowledge),
-         * 见 components/sentinel/SentinelShell.tsx:102-115 注释.
-         * ── 旧路由兼容 (v0.7 Step 1: workbench_legacy=false 关闭老路由) ── */}
         <Route path="/category/:cat" element={<CategoryRedirect />} />
         {/* v1.0.1 一致性重构: /weekly-report 残留 redirect 删除 (无外部引用, redirect 与 /report 重复) */}
 
@@ -114,16 +138,6 @@ export function AppRoutes() {
         {/* v0.8 Phase D (D2): 技能看板 */}
         <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><DashboardRoute /></Suspense>} />
 
-        {/* v1.0 C09 R23 修复: 4 真路由 (workbench / intel / cases) 拆 3 独立 page,
-         * /knowledge 单独由下方 KnowledgePage 4 大领域嵌套处理 (R23 合并 /knowledge 重复声明).
-         * / 默认 Navigate to /workbench (C09 R24 修复).
-         * v1.0.1 一致性重构: 4 路由统一套 V1SentinelShell 顶栏 (品牌+三层导航+主题切换+时钟),
-         * 但不接管管道心跳条 + 右栏 rail-mod (这两块走 secnews/* 路由的 SentinelShell).
-         */}
-        <Route path="/" element={<Navigate to="/workbench" replace />} />
-        <Route path="/workbench" element={<V1SentinelShell layer="workbench"><Suspense fallback={<PageFallback />}><P.WorkbenchPage /></Suspense></V1SentinelShell>} />
-        <Route path="/intel" element={<V1SentinelShell layer="data"><Suspense fallback={<PageFallback />}><P.IntelPage /></Suspense></V1SentinelShell>} />
-        <Route path="/cases" element={<V1SentinelShell layer="judge"><Suspense fallback={<PageFallback />}><P.CasesPage /></Suspense></V1SentinelShell>} />
         <Route path="/secrets" element={<Suspense fallback={<PageFallback />}><P.SecretsPage onBack={goHome} /></Suspense>} />
         {features.sync && (
           <Route path="/sync" element={<Suspense fallback={<PageFallback />}><P.SyncPage onBack={goHome} /></Suspense>} />
@@ -132,16 +146,18 @@ export function AppRoutes() {
         <Route path="/report" element={<Suspense fallback={<PageFallback />}><P.ReportPage onBack={goHome} /></Suspense>} />
 
         {/* 知识管理: 4 大领域 (信息导入 / 处理数据 / 知识库编译 / 知识库复利) + 经验库聚合
-         * C09 R23 修复: /knowledge 唯一声明 (V1Prototype initialTab="knowledge" + KnowledgePage 4 大领域嵌套)
-         * v1.0.1: /knowledge 套 V1SentinelShell layer=action
+         * v0.8.5: 壳回 PageLayout (V1SentinelShell 已删); 知识不是第四层, 从「更多」进入;
+         * v1 知识目录 /knowledge/v1 由 C4 挂载 (spec §5)
          */}
-        <Route path="/knowledge" element={<V1SentinelShell layer="action"><Suspense fallback={<PageFallback />}><P.KnowledgePage onBack={goHome} /></Suspense></V1SentinelShell>}>
+        <Route path="/knowledge" element={<Suspense fallback={<PageFallback />}><P.KnowledgePage onBack={goHome} /></Suspense>}>
           <Route index element={<Navigate to="import" replace />} />
           <Route path="import" element={<Suspense fallback={<PageFallback />}><P.KnowledgeImport /></Suspense>} />
           <Route path="process" element={<Suspense fallback={<PageFallback />}><P.KnowledgeProcess /></Suspense>} />
           <Route path="compile" element={<Suspense fallback={<PageFallback />}><P.KnowledgeCompile /></Suspense>} />
           <Route path="compound" element={<Suspense fallback={<PageFallback />}><P.KnowledgeCompound /></Suspense>} />
           <Route path="imported" element={<Suspense fallback={<PageFallback />}><P.KnowledgeFavoritesView /></Suspense>} />
+          {/* v0.8.5 C4: v1 知识目录 (复盘沉淀 + 采用/复查面板, spec §5/§6.5) */}
+          <Route path="v1" element={<Suspense fallback={<PageFallback />}><P.KnowledgeV1Page /></Suspense>} />
           {/* v0.7.0 (D.9): 4 cognitive mode 物理删除 — 删 briefing/scan/alert/outbox 4 路由 */}
           {/* 保留: deep-read/:id (主路径), review (主路径 SM-2), heatmap (知识图谱) */}
           <Route path="deep-read/:id" element={<Suspense fallback={<PageFallback />}><P.DeepReadMode /></Suspense>} />

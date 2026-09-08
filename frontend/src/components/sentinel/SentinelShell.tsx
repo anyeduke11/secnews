@@ -99,23 +99,22 @@ export function usePipe() {
   return useContext(PipeContext);
 }
 
-/** v1.0.1 一致性重构: 三层架构叙事保留 + 重映射到 v1 真入口.
- *  资料层 → Intel (signal 是最原始的资料);
- *  判断层 → Cases (case 是 judgment 载体, 5 实体 case+judgment+action+run+artifact);
- *  行动层 → Knowledge (knowledge 是 case 行动沉淀, SK-04/05/06 复用闭环).
- *  旧 `/judge /action` 路由已在 C13 后物理删除, 链接全部走 v1 主入口, 无死链.
+/** v0.8.5 反向收敛 (2026-09-08): 三层导航还原 v0.8 原映射 —
+ *  资料层 → / (情报流 + SignalPanel), 判断层 → /judge (判读台 + CaseQueuePanel),
+ *  行动层 → /action (今日行动 + ExecOverviewPanel)。
+ *  spec = docs/v0.8.5/V0.8.5_PLAN.md §4/§5; 守卫 = routes/__tests__/v085_route_shell.test.tsx
  */
 const LAYER_DEFS: { layer: SentinelLayer; label: string; sub: string; to: string; icon: JSX.Element }[] = [
   {
-    layer: 'data', label: '资料层', sub: '信息采集与组织', to: '/intel',
+    layer: 'data', label: '资料层', sub: '信息采集与组织', to: '/',
     icon: <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><rect x="1.5" y="7.5" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.5" /><rect x="7.5" y="1.5" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.5" /></svg>,
   },
   {
-    layer: 'judge', label: '判断层', sub: '筛选、分析、关联', to: '/cases',
+    layer: 'judge', label: '判断层', sub: '筛选、分析、关联', to: '/judge',
     icon: <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><circle cx="5.5" cy="5.5" r="3.5" stroke="currentColor" strokeWidth="1.5" /><path d="M8.2 8.2L11 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>,
   },
   {
-    layer: 'action', label: '行动层', sub: '计划、学习、创作', to: '/knowledge',
+    layer: 'action', label: '行动层', sub: '计划、学习、创作', to: '/action',
     icon: <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 7l3 3L11 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M7.5 11h3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>,
   },
 ];
@@ -137,6 +136,8 @@ const UTILITY_GROUPS: { label: string; items: { to: string; label: string; note:
     label: '知识资产',
     items: [
       { to: '/knowledge', label: '知识库', note: 'KNOWLEDGE' },
+      { to: '/skill-store', label: '技能商店', note: 'STORE' },
+      { to: '/dashboard', label: '技能看板', note: 'BOARD' },
       { to: '/tags', label: '标签管理', note: 'TAGS' },
       { to: '/extract', label: '自动提取', note: 'EXT' },
       { to: '/skills', label: '技能库', note: 'SKILLS' },

@@ -22,6 +22,7 @@ import { useFavorites } from '../../hooks/useFavorites';
 import { CATEGORIES, HotspotItem } from '../../types';
 import { SentinelShell, usePipe, usePipeReloadOnSse } from './SentinelShell';
 import { SentinelRail } from './SentinelRail';
+import { SignalPanel } from '../v1/panels/SignalPanel';
 import './sentinel.css';
 
 type ReadMode = 'brief' | 'scan' | 'deep' | 'alert';
@@ -618,6 +619,9 @@ export function SentinelHomePage() {
           <RailWithPipe quality={quality} todos={todos} />
         </aside>
       </div>
+
+      {/* v0.8.5 能力区块: 受管信号 (SK-01 供给, 立项 → /cases/:id) */}
+      <SignalPanel />
 
       {/* 页脚状态行 */}
       <footer className="endnote">

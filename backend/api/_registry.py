@@ -209,6 +209,11 @@ def register_all(app: FastAPI) -> None:
         app.include_router(info_filter_api.router, tags=["info-filter"])
     # v0.8 Phase A A3: skill_registry Skill 商店 (默认 false, 开闸归 A5)
     if is_extension_enabled("skill_registry"):
+        # v0.8.5 修复 (流程验证 G3 发现): v1 路由必须先于 legacy /{skill_id} 参数路由注册,
+        # 否则 GET /api/skill-registry/v1 被吞成 skill_id='v1' → 404 SKILL_NOT_FOUND
+        # (useSkillRegistry / SkillStore v1_active 分桶自 v1.0.2 F4a 起走 v1 路径)。
+        from backend.api import skill_registry_v1_api
+        app.include_router(skill_registry_v1_api.router, tags=["v1-skill-registry"])
         from backend.api import skill_registry_api
         app.include_router(skill_registry_api.router, tags=["skill-registry"])
         # v0.8 Phase B B6: 运行历史 + 反馈打分 (与 A3 同 gate, 拆文件避 150 行上限)
@@ -239,10 +244,8 @@ def register_all(app: FastAPI) -> None:
     # v1.0 T13: Knowledge 端到端 (SK-04/05/06 知识发布/复用/复查)
     from backend.api import knowledge_api
     app.include_router(knowledge_api.router, tags=["v1-knowledge"])
-    # v1.0 T14: Skill Registry v1 (SK-01..SK-06 受管能力包 + 旧 20 ID 状态)
-    from backend.api import skill_registry_v1_api
-    if is_extension_enabled("skill_registry"):
-        app.include_router(skill_registry_v1_api.router, tags=["v1-skill-registry"])
+    # v1.0 T14: Skill Registry v1 — 已上移至 legacy skill-registry 之前注册
+    # (v0.8.5: 参数路由遮蔽修复, 见上方 A3 块内注释)
     # v1.0 T16 收口: audit_log 查询 + LegacyMigrate API 暴露
     from backend.api import observability_audit_api
     app.include_router(observability_audit_api.router, tags=["observability-audit"])

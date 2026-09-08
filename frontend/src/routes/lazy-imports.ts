@@ -176,16 +176,13 @@ export const OAuthCallbackPage = React.lazy(() =>
   import('./oauth-callback').then(m => ({ default: m.OAuthCallbackPage }))
 );
 
-// T15: v1.0 四入口真实工作台 (C09 R23 拆 4 独立 page, R24 删 /v1-prototype 兼容)
-export const WorkbenchPage = React.lazy(() =>
-  import('../components/v1/V1Prototype').then(m => ({ default: m.WorkbenchPage }))
-);
-export const IntelPage = React.lazy(() =>
-  import('../components/v1/V1Prototype').then(m => ({ default: m.IntelPage }))
-);
-export const CasesPage = React.lazy(() =>
-  import('../components/v1/V1Prototype').then(m => ({ default: m.CasesPage }))
-);
+// v0.8.5: v1 四入口已降级 — /workbench /intel /cases 为 QueryRedirect, 不再挂 page;
+// WorkbenchPage/IntelPage/CasesPage 懒导出已删 (组件仍留在 V1Prototype.tsx 供测试引用)。
+// KnowledgeV1Page 保留: C4 挂载 /knowledge/v1 (spec §5)。
 export const KnowledgeV1Page = React.lazy(() =>
   import('../components/v1/V1Prototype').then(m => ({ default: m.KnowledgeV1Page }))
+);
+// v0.8.5 C2: /cases/:caseId 判断层深链接 (SentinelShell layer=judge + CaseDetail)
+export const CaseDetailPage = React.lazy(() =>
+  import('../components/v1/CaseDetailPage').then(m => ({ default: m.CaseDetailPage }))
 );

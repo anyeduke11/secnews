@@ -62,7 +62,7 @@ export const SkillCard = React.memo(function SkillCard({
       {/* 顶部: 名称 + 启停开关 + v1_active 角标 */}
       <div className="flex items-start justify-between gap-2">
         {v1_highlight && (
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-success, var(--accent))', color: 'white' }}>
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-success, var(--accent))', color: 'var(--text-on-light)' }}>
             v1.0
           </span>
         )}

@@ -136,7 +136,7 @@ function NavBody({ onNav }: { onNav: () => void }) {
                   }
                   style={({ isActive }) => ({
                     background: isActive ? "var(--accent, var(--color-success))" : "transparent",
-                    color: isActive ? "white" : "var(--text-primary)",
+                    color: isActive ? "var(--text-on-light)" : "var(--text-primary)",
                     borderLeft: it.v1_active
                       ? "3px solid var(--color-success)"
                       : it.legacy
@@ -149,7 +149,7 @@ function NavBody({ onNav }: { onNav: () => void }) {
                   {it.v1_active && (
                     <span
                       className="text-[9px] px-1 rounded font-bold"
-                      style={{ background: "var(--color-success)", color: "white" }}
+                      style={{ background: "var(--color-success)", color: "var(--text-on-light)" }}
                     >
                       v1.0
                     </span>

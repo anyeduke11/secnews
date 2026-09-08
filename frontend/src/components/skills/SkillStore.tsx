@@ -231,7 +231,7 @@ export function SkillStore({
             <div className="rounded-lg p-3" style={{ background: 'var(--surface-1, var(--bg-card))', border: '1px solid var(--accent, var(--color-success))' }}>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-semibold" style={{ color: 'var(--accent, var(--color-success))' }}>v1.0 受管能力包</span>
-                <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-success, var(--accent))', color: 'white' }}>v1.0</span>
+                <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-success, var(--accent))', color: 'var(--text-on-light)' }}>v1.0</span>
                 <span className="text-xs" style={{ color: 'var(--ink-3, var(--text-muted))' }}>
                   {v1ActiveSkills.length} 个 · 旧 20 个标 legacy_v0 已折叠
                 </span>

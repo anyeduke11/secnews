@@ -27,6 +27,13 @@ export interface EmptyStateProps {
   icon?: React.ReactNode;
   /** 紧凑模式（用于卡片/抽屉） */
   compact?: boolean;
+  /**
+   * v1.0.1 一致性重构: 装饰环模式 (附件同款仪式感).
+   * 启用后顶部显示 56px dashed circle (用 CSS 变量 token + border-color,
+   * 不写死颜色), 用于大块空态 (工作台首页 / 看板首页) 给用户"非错误,是空数据"
+   * 的视觉缓冲; 紧凑模式与空态都不强制, 默认 false (零回归).
+   */
+  decorative?: boolean;
 }
 
 export function EmptyState({
@@ -36,6 +43,7 @@ export function EmptyState({
   onAction,
   icon,
   compact = false,
+  decorative = false,
 }: EmptyStateProps) {
   return (
     <div
@@ -63,6 +71,19 @@ export function EmptyState({
         >
           {icon}
         </div>
+      )}
+      {decorative && !compact && (
+        <div
+          aria-hidden="true"
+          className="empty-ring"
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: '50%',
+            border: '1.5px dashed var(--mint)',
+            marginBottom: 4,
+          }}
+        />
       )}
       <p
         className={compact ? 'text-xs' : 'text-sm font-medium'}

@@ -24,7 +24,8 @@ import {
   getCaseAggregate,
   approveAction, startAction, cancelAction, verifyArtifact, acceptArtifact, rejectArtifact, closeCase,
   adoptKnowledge, recordKnowledgeOutcome,
-  type ReuseReceipt, type V1Signal, type ConditionDiff, type AdoptKnowledgeBody,
+  publishKnowledge, deprecateKnowledge, retractKnowledge,
+  type ReuseReceipt, type V1Signal, type ConditionDiff, type AdoptKnowledgeBody, type StateChangeBody,
 } from '../../api/v1';
 import { renderInlineMarkdown } from '../../lib/markdown';
 import { useSSEWithRefetch } from './useSSEWithRefetch';
@@ -804,7 +805,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
 // ---------------------------------------------------------------------------
 
 function KnowledgeView() {
-  // v1.0 T15.5 + C12: 接 listAll 真实数据 + 采用 UI + 失效 blocker 提示
+  // v1.0 T15.5 + C12: 接 listAll 真实数据 + 采用 UI + 失效 blocker 提示 + 生命周期按钮
   const [items, setItems] = useState<Knowledge[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -815,16 +816,52 @@ function KnowledgeView() {
   const [adoptCaseId, setAdoptCaseId] = useState('');
   const [adoptDiff, setAdoptDiff] = useState<ConditionDiff[]>([]);
   const [adoptSubmitting, setAdoptSubmitting] = useState(false);
+  // F4b: 生命周期动作 loading 态
+  const [lifecycleLoading, setLifecycleLoading] = useState<string | null>(null);
   const toast = useToast();
-  useEffect(() => {
+
+  const loadKnowledge = useCallback(async () => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    listKnowledge({ limit: 50 })
-      .then(async (r) => {
+    try {
+      const r = await listKnowledge({ limit: 50 });
+      if (cancelled) return;
+      setItems(r.items);
+      // 拉每条 reuse receipt (C12 R16.5: total=0 起算, 只数 adoptions)
+      const ids = r.items.map((k) => k.id);
+      const newReceipts: Record<string, ReuseReceipt> = {};
+      await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const rr = await getKnowledgeReuse(id);
+            newReceipts[id] = rr.receipt;
+          } catch {
+            // 单条拉取失败不阻塞其他
+          }
+        })
+      );
+      if (!cancelled) setReceipts(newReceipts);
+    } catch (e) {
+      if (!cancelled) {
+        setError(e instanceof Error ? e.message : String(e));
+        setItems([]);
+      }
+    } finally {
+      if (!cancelled) setLoading(false);
+    }
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const r = await listKnowledge({ limit: 50 });
         if (cancelled) return;
         setItems(r.items);
-        // 拉每条 reuse receipt (C12 R16.5: total=0 起算, 只数 adoptions)
         const ids = r.items.map((k) => k.id);
         const newReceipts: Record<string, ReuseReceipt> = {};
         await Promise.all(
@@ -838,9 +875,15 @@ function KnowledgeView() {
           })
         );
         if (!cancelled) setReceipts(newReceipts);
-      })
-      .catch((e) => { if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setItems([]); } })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : String(e));
+          setItems([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
     return () => { cancelled = true; };
   }, []);
 
@@ -886,6 +929,24 @@ function KnowledgeView() {
       toast.show({ type: 'error', message: `记录结果失败: ${e instanceof Error ? e.message : String(e)}` });
     }
   };
+
+  // F4b: 生命周期动作 (publish/deprecate/retract) — 走 allowed_actions 守卫
+  const doLifecycle = async (kid: string, action: 'publish' | 'deprecate' | 'retract', base: StateChangeBody) => {
+    setLifecycleLoading(kid + ':' + action);
+    try {
+      if (action === 'publish') await publishKnowledge(kid, base);
+      else if (action === 'deprecate') await deprecateKnowledge(kid, { ...base, reason: '前端生命周期操作' });
+      else await retractKnowledge(kid, { ...base, reason: '前端生命周期操作' });
+      toast.show({ type: 'success', message: `${action} 成功` });
+      await loadKnowledge();
+    } catch (e) {
+      toast.show({ type: 'error', message: `${action} 失败: ${e instanceof Error ? e.message : String(e)}` });
+    } finally {
+      setLifecycleLoading(null);
+    }
+  };
+
+  const allowed = (k: Knowledge) => new Set(k.allowed_actions || []);
 
   return (
     <div className="space-y-4">
@@ -957,6 +1018,41 @@ function KnowledgeView() {
                       dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(k.body.slice(0, 500)) }}
                     />
                   </details>
+                )}
+                {/* F4b: 生命周期按钮 (publish/deprecate/retract) — 基于 allowed_actions 守卫 */}
+                {(allowed(k).has('publish') || allowed(k).has('deprecate') || allowed(k).has('retract')) && (
+                  <div className="mt-3 pt-3 border-t flex flex-wrap gap-2" style={{ borderColor: 'var(--line)' }}>
+                    {allowed(k).has('publish') && (
+                      <button
+                        onClick={() => doLifecycle(k.id, 'publish', { expected_revision: k.revision })}
+                        disabled={lifecycleLoading === k.id + ':publish'}
+                        className="px-3 py-1 text-xs rounded"
+                        style={{ background: 'var(--mint)', color: 'var(--text-on-light)' }}
+                      >
+                        {lifecycleLoading === k.id + ':publish' ? '发布中…' : '发布'}
+                      </button>
+                    )}
+                    {allowed(k).has('deprecate') && (
+                      <button
+                        onClick={() => doLifecycle(k.id, 'deprecate', { expected_revision: k.revision })}
+                        disabled={lifecycleLoading === k.id + ':deprecate'}
+                        className="px-3 py-1 text-xs rounded"
+                        style={{ background: 'var(--color-warning)', color: 'var(--text-on-light)' }}
+                      >
+                        {lifecycleLoading === k.id + ':deprecate' ? '弃用中…' : '弃用'}
+                      </button>
+                    )}
+                    {allowed(k).has('retract') && (
+                      <button
+                        onClick={() => doLifecycle(k.id, 'retract', { expected_revision: k.revision })}
+                        disabled={lifecycleLoading === k.id + ':retract'}
+                        className="px-3 py-1 text-xs rounded"
+                        style={{ background: 'var(--color-error)', color: '#fff' }}
+                      >
+                        {lifecycleLoading === k.id + ':retract' ? '撤回中…' : '撤回'}
+                      </button>
+                    )}
+                  </div>
                 )}
                 {/* C12 R16.2: 采用表单 (仅 published 可采用, 撤回/弃用禁用) */}
                 {isPublished && (

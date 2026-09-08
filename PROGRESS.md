@@ -44,6 +44,14 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-09-08 v1.0.1 — v0.8 UI/UX 基线与 v1.0.0 功能融合方案
+
+- [x] 用户裁决：产品体验以 v0.8 Sentinel 为底，v1.0.0 的领域对象、可靠执行和六项能力作为功能补充；不再继续四入口平行体验。
+- [x] 新建 [融合方案](docs/v1.0/V1.0.1_V0.8_UI_CONVERGENCE_PLAN.md)：定义资料 / 判断 / 行动三层导航，Case 的工作容器角色、Knowledge 的次级目录角色、旧 URL 兼容规则、v1 功能映射、U0-U4 实施批次与六条验收故事。
+- [x] 明确壳层收口：`SentinelShell` 是最终三层壳；`V1SentinelShell` 和 `V1Prototype` 只能作为 U0 过渡对象，禁止再扩充。管道状态条保留在全站 Sentinel 体验中。
+- [ ] **前置阻断仍有效**：先按 [v1.0 业务审查](docs/v1.0/REVIEW_2026-09-07.md) B0-B3 修复可信输入、真实运行和成果验收，再将对应功能接入三层页面；B4-B7 完成事件、知识复利、迁移和全量发布验收。本文不改变 `v1.0.0` 的业务闭环 NOT verified 状态。
+- **关联记录**：DEV-0161。本批仅改规划台账，未改应用代码、未操作数据库、未启动服务或发布。
+
 ### 2026-09-05 v1.0 — 附件对比、开发迁移步骤与深度设计审查
 
 - [x] 对比四份附件，核对 APP_VERSION 0.8.2 与当前 HEAD 943a31d；相对旧审查基线仅 PROJECT.md 提交变化，本次未重跑业务测试或查询数据。
@@ -1351,4 +1359,3 @@ git tag -a v1.0.0 c14_xxx -m "v1.0.0 — 9 域对象 + 6 SK + 3800 迁移 + C01-
 - B0-B7 业务闭环整改 (REVIEW §6) — R01 证据真落 / R02 调度 / R03 游标失败不推进 / R04 worker 真派发 / R05 mock 默认成功 / R06 live 假象 / R07 coroutine 未 await / R08 产物无正文 / R09 CAS 不原子 / R10 wiki 路径不一致 / R11 迁移失真 (C13 已修) / R12 WAL copy 漏 / R13 buildQuery 双? / R14 工作台只读 / R15 6 SK 契约错 / R16 复用计数虚假 / R17 Case 永不关 / R18 SSE 静默 / R19 多套真相 / R20 ruff 158 + version (C14 已修)
 - search_service + wiki_items_fts + search_api 32 失败根因排查 (pre-existing baseline, 不归 C14)
 - 推送解禁后 `git push origin v1.0.0`
-

@@ -455,3 +455,18 @@
   - favorites 表 4 次抽 3 次 url 不在 hotspots (历史 url 漂移, 数据完整性问题, 非恢复 bug)。
   - dev 环境 watchdog 因空 wiki 不启动 → T03+ 写入测试数据后激活, 否则部分 job (wiki_archiver/knowledge_chunk_generation) 跳过。
 - **提交**: 见本条关联 commit (显式 pathspec, 单 commit `feat(v1.0 T02): 备份演练 + 恢复演练 + 开发副本 (DEV-0138)`)。
+## [DEV-0161] v1.0.1 融合方案：以 v0.8 UI/UX 为基线补入 v1.0.0 功能
+- **时间**: 2026-09-08 10:25
+- **类型**: 重构
+- **关联模块**: `product:v1.0.1`, `ui-ux:sentinel`, `migration:v0.8-to-v1`
+- **关联文件**: `docs/v1.0/V1.0.1_V0.8_UI_CONVERGENCE_PLAN.md`, `PROJECT.md`, `PROGRESS.md`, `DEV_LOG.md`
+- **问题描述**: v0.8 Sentinel 三层工作流与 v1.0.0 四入口工作台并行，导致主导航、壳层、路由状态和产品叙事存在两套真相。用户要求以 v0.8 作为基础，将 v1.0.0 仅作为功能补充，并以 v0.8 的 UI/UX 为准。
+- **实现思路**: 保留 v1.0.0 的九个领域对象、六项能力、数据契约和 B0-B7 可靠性整改；将其映射进 v0.8 的资料 / 判断 / 行动三层。Case 降为判断层工作容器，Knowledge 改为行动沉淀与次级目录，保留旧 URL 和功能直到 B6 对账完成。
+- **核心变更**:
+  - `docs/v1.0/V1.0.1_V0.8_UI_CONVERGENCE_PLAN.md`: 新增融合规格，定义信息架构、路由兼容、页面交互、功能映射、U0-U4 批次、验收故事和非目标。
+  - `PROJECT.md`: 将 v1.0.1 融合方案登记为当前产品呈现裁决，明确不回退 v1.0.0 功能与业务整改。
+  - `PROGRESS.md`: 将融合方案及其 B0-B7 前置依赖登记到活跃段。
+- **测试验证**:
+  - 测试命令: `git diff --check`；本地 Markdown 链接和规划文件结构检查。
+  - 验证结果: `git diff --check` 通过；已核对融合方案、v1.0 业务审查、PRD、领域契约、`SentinelShell` 和 `sentinel.css` 均存在，方案的三层壳与 B0-B7 依赖引用有效。本批未改应用代码，未运行业务测试、采集、模型调用或数据库操作。
+- **潜在风险**: v0.8 当前路由与 v1 过渡壳仍存在代码层差异，U0 必须先建立兼容适配并做浏览器回归；B0-B7 未完成前不得将页面可见或单元测试通过等同于真实业务闭环。

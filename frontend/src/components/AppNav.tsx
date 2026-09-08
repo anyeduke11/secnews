@@ -40,7 +40,7 @@ const NAV_GROUPS: AppNavGroup[] = [
     ],
   },
   {
-    title: "知识管理 (legacy_v0)",
+    title: "知识管理",
     items: [
       { to: "/knowledge/import", label: "导入", icon: "📥", legacy: true },
       { to: "/knowledge/process", label: "处理", icon: "⚙️", legacy: true },

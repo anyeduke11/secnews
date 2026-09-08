@@ -40,13 +40,18 @@ describe("C09 R23: 4 真路由不应全挂 V1Prototype", () => {
   it("R23 修复 2: /intel /cases /knowledge 不应全挂 V1Prototype", () => {
     for (const path of ["/intel", "/cases", "/knowledge"]) {
       // 找首个 /intel 等路由声明 (避免 /knowledge/import 子路由)
-      const re = new RegExp(`<Route\\s+path="${path.replace(/\//g, "\\/")}"[^>]*\\/>`, "g");
+      // v1.0.1: 路由 element 可能用 <V1SentinelShell>...<P.IntelPage />...</V1SentinelShell>
+      //         等多层嵌套, 改用宽松匹配 `<Route path="${path}" element=` 起点 + 取到下一个 >,
+      //         不再依赖自闭合 />
+      const re = new RegExp(`<Route\\s+path="${path.replace(/\//g, "\\/")}"[^>]*>`, "g");
       const matches = ROUTES_TSX.match(re);
       expect(matches).toBeTruthy();
       if (matches) {
         const firstMatch = matches[0];
-        // 知识管理 4 大领域用 nested route (有 children) 应当允许, 但 element 不应是 V1Prototype
-        expect(firstMatch).not.toContain("P.V1Prototype");
+        // element 必须是独立 v1 page (P.IntelPage/P.CasesPage/P.KnowledgePage)
+        // 或 V1SentinelShell 包裹, 不能直接是 P.V1Prototype (R23 要求拆 3 独立 page)
+        expect(firstMatch).toMatch(/P\.(IntelPage|CasesPage|KnowledgePage|WorkbenchPage)|V1SentinelShell/);
+        expect(firstMatch).not.toContain("P.V1Prototype>");
       }
     }
   });

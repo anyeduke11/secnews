@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* v1.0.1 一致性重构: 全局断点 token (sm 640 / md 820 / lg 1080 / xl 1240 / 2xl 1440),
+   收敛 9 处散落断点 @media (max-width: ...) 到 5 档, 未来批量迁移 PR 直接 sed 替换 */
+@import './styles/breakpoints.css';
+
 :root {
   /* 排版: 等宽主字体, 暗色技术美学 */
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, 'Fira Code', 'Cascadia Code', monospace;

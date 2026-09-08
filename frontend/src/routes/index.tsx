@@ -85,9 +85,6 @@ export function AppRoutes() {
 
   return (
     <Routes>
-      {/* v4.3 报纸版式已移除 (v0.7.1) — 保留入口重定向, 老书签与外链不 404 */}
-      <Route path="/editorial" element={<Navigate to="/" replace />} />
-
       {/* v1.0 C09 R24 修复: 删 4 个旧 sentinel 入口 (/judge /judge/graph /action /garden),
          * 删 /v1-prototype 兼容路由 (T15 临时, C09 收尾后移除),
          * / 走 /workbench (PageLayout 内) 不再走 SentinelHomePage (旧壳).
@@ -102,7 +99,7 @@ export function AppRoutes() {
          * 见 components/sentinel/SentinelShell.tsx:102-115 注释.
          * ── 旧路由兼容 (v0.7 Step 1: workbench_legacy=false 关闭老路由) ── */}
         <Route path="/category/:cat" element={<CategoryRedirect />} />
-        <Route path="/weekly-report" element={<Navigate to="/report" replace />} />
+        {/* v1.0.1 一致性重构: /weekly-report 残留 redirect 删除 (无外部引用, redirect 与 /report 重复) */}
 
         {/* ── 保留的旧路由 (内容尚未迁移) ── */}
         <Route path="/todos" element={<Suspense fallback={<PageFallback />}><P.TodosPage /></Suspense>} />

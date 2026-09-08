@@ -1,0 +1,30 @@
+/* v1.0.1 一致性重构: 全局断点 token.
+ *
+ * 设计依据:
+ *   - 实际视口分布数据 (1440 / 1280 / 1024 / 820 / 768 / 640 / 390 七档)
+ *   - 9 处散落断点 (1240/1100/1080/900/820/767/640/600/375) 收敛到 5 档
+ *   - Tailwind 默认 sm/md/lg/xl/2xl 与 CSS 变量双轨互通 (Tailwind 内置
+ *     640/768/1024/1280/1536 与本表 sm/md/lg/xl/2xl 字段对应)
+ *   - 旧 sentinel*.css 文件保留原硬编码值, 未来批量迁移 PR 直接
+ *     sed 替换 `@media (max-width: 1240px)` → `@media (max-width: var(--bp-xl))`
+ *     等, 不阻塞本批 P0/P1 修复
+ *
+ * 使用 (CSS 文件):
+ *   @media (max-width: var(--bp-md)) { ... }   /* 820px 及以下 *\/
+ *
+ * 使用 (Tailwind 任意属性 via inline style):
+ *   style={{ '@media (min-width: 768px)': { display: 'flex' } }}   // 不推荐, 用 CSS 类
+ */
+
+:root {
+  /* 移动 */
+  --bp-sm: 640px;
+  /* 平板 */
+  --bp-md: 820px;
+  /* 桌面紧凑 (13") */
+  --bp-lg: 1080px;
+  /* 桌面标准 */
+  --bp-xl: 1240px;
+  /* 桌面宽 (15"+) */
+  --bp-2xl: 1440px;
+}

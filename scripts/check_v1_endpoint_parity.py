@@ -88,9 +88,20 @@ EXPECTED: list[tuple[str, str, str]] = [
     ("GET",   "/api/codegarden/services",                    "服务列表"),
     ("GET",   "/api/codegarden/events",                      "事件流"),
     ("GET",   "/api/codegarden/dependencies",                "依赖"),
-    # -- 工具页 (§6.6) --
-    ("GET",   "/api/skill-registry/v1",                      "技能商店 v1 分桶 (gate skill_registry)"),
-    ("GET",   "/api/skill-registry/v1/{skill_id}",           "v1 技能详情"),
+    # -- 工具页 (§6.6; 流程验证补充: SSE + dsh 健康 + 观测 + legacy skill-registry 变异端点) --
+    ("GET",   "/api/skill-registry/v1",                           "技能商店 v1 分桶 (gate skill_registry)"),
+    ("GET",   "/api/skill-registry/v1/{skill_id}",                "v1 技能详情"),
+    ("GET",   "/api/events",                                       "SSE 事件流 (last_id 重放)"),
+    ("GET",   "/api/dsh/health",                                   "dsh 健康 (secnews StatusBar)"),
+    ("GET",   "/api/observability/summary",                        "观测摘要"),
+    ("GET",   "/api/observability/alerts/active",                  "活跃告警"),
+    ("GET",   "/api/skill-registry",                               "技能列表 (legacy 全量)"),
+    ("POST",  "/api/skill-registry/{skill_id}/run",                "技能运行 (排队)"),
+    ("POST",  "/api/skill-registry/{skill_id}/enable",             "技能启用"),
+    ("POST",  "/api/skill-registry/{skill_id}/disable",            "技能停用"),
+    ("GET",   "/api/skill-registry/{skill_id}/runs",               "运行历史"),
+    ("GET",   "/api/skill-registry/runs/{run_id}",                "运行详情"),
+    ("POST",  "/api/skill-registry/runs/{run_id}/feedback",       "反馈打分"),
 ]
 
 

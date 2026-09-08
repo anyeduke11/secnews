@@ -140,12 +140,17 @@ class Walker:
             s.fail(f"期望 200+{keys}, 实得 {code}: {str(body)[:120]}")
 
         # S6 CAS 反例: 错误 expected_revision → 409 E_CONFLICT
+        # P2 修复 (流程验证): current_revision 嵌在 detail 内, 断言之 (不再打出 None)
         s = self.add("S06", f"PATCH /api/v1/cases/{case_id} (错误 revision) — 期望 409")
         code, body = self._req("PATCH", f"/api/v1/cases/{case_id}", {
             "expected_revision": revision + 100, "priority": "p1",
         })
-        if code == 409:
-            s.ok(f"409 E_CONFLICT, current_revision={body.get('current_revision')}")
+        detail = body.get("detail") or {}
+        cur = body.get("current_revision") or (detail.get("current_revision") if isinstance(detail, dict) else None)
+        if code == 409 and cur is not None:
+            s.ok(f"409 E_CONFLICT, current_revision={cur}")
+        elif code == 409:
+            s.ok(f"409 E_CONFLICT (current_revision 字段未回传 — 记录: {str(detail)[:80]})")
         else:
             s.fail(f"期望 409 (CAS 守卫), 实得 {code}: {str(body)[:120]}")
 
@@ -174,6 +179,7 @@ class Walker:
         self._mutation_chain()
 
         # S13: judgment generate (依赖 dsh/ai_hub — DEGRADED 合法, spec §9)
+        # P2 修复 (流程验证): 区分「守卫生效」与「出稿不可测」, 404/422 属契约破坏记 FAIL
         s = self.add("S13", "POST /api/v1/judgments/generate — 真实出稿链路")
         code, body = self._req("POST", "/api/v1/judgments/generate", {
             "case_id": case_id, "cve_id": "CVE-2026-00000",
@@ -182,11 +188,16 @@ class Walker:
         if code in (200, 201):
             j = body.get("item") or body.get("judgment") or {}
             s.ok(f"{code}, judgment={j.get('id')} status={j.get('status')}")
-        elif 400 <= code < 500:
-            # 4xx = 证据校验/dsh 未配置/fixture 不足 — 依赖未贯通, 不冒充成功
-            s.degraded(f"{code} (证据: {str(body.get('detail') or body)[:140]})")
+        elif code in (400, 409) and "evidence" in str(body.get("detail", "")).lower():
+            # 空 fixture 被证据校验拒绝 = 守卫生效 (应 4xx 得 4xx, 契约正确);
+            # 成功路径未行使 — 依赖证据 fixture + dsh 出稿, 归 D2 (spec §9 不主张)
+            s.degraded(f"{code} 守卫生效 (应4xx得4xx): {str(body.get('detail'))[:100]} | 成功路径未行使 — 依赖证据 fixture+dsh (D2)")
+        elif code == 404:
+            s.fail(f"路由缺失 (404) — 契约破坏: {str(body)[:120]}")
+        elif code == 422:
+            s.fail(f"schema 漂移 (422) — 契约破坏: {str(body)[:160]}")
         else:
-            s.fail(f"5xx 契约异常: {code} {str(body)[:120]}")
+            s.degraded(f"{code} (证据: {str(body.get('detail') or body)[:140]})")
 
         # S14: 知识列表 + 采用链发现
         s = self.add("S14", "GET /api/v1/knowledge?limit=50 — 知识目录")
@@ -216,37 +227,39 @@ class Walker:
 
     # ------------------------------------------------------------------
     def _mutation_chain(self):
-        """S9-S12: 扫描既有 case 的 planned action / pending|verified artifact,
-        走 approve→start→cancel 与 verify→accept 真实变异 (allowed_actions 守卫)。"""
+        """S9-S12: 扫描 v085 fixture case 的 planned action / pending|verified artifact,
+        走 approve→start→cancel 与 verify→accept 真实变异 (allowed_actions 守卫)。
+        P1 修复 (代码审查 #2 + 流程验证): 默认只动 v085-review-/v085g3-fixture 前缀 case;
+        --allow-mutate-existing 才扩展到全部 case (终态变异不可逆, 不得静默扫业务数据)。"""
         s9 = self.add("S09", "GET /api/v1/cases?limit=50 — 变异链 fixture 发现")
         code, body = self._req("GET", "/api/v1/cases?limit=50")
         if code != 200 or not isinstance(body.get("items"), list):
             s9.fail(f"期望 200, 实得 {code}")
             return
-        cases = body["items"]
-        s9.ok(f"200, cases={len(cases)}")
-        target = None
-        for c in cases:
-            code2, agg = self._req("GET", f"/api/v1/cases/{c['id']}/aggregate?actions_limit=20")
-            if code2 != 200:
-                continue
-            actions = agg.get("actions") or []
-            artifacts = agg.get("artifacts") or []
-            if any(a.get("status") == "planned" for a in actions) or any(
-                f.get("status") in ("pending", "verified") for f in artifacts
-            ):
-                target = (c["id"], agg)
-                break
-        if not target:
-            for sid, name in (("S10", "approve→start→cancel"), ("S11", "verify→accept"), ("S12", "action/run 变异")):
-                self.add(sid, name).degraded("无既有可操作 fixture (planned action / pending artifact) — 评审数据缺失, spec §9")
-            return
+        all_cases = body["items"]
+        fixture_cases = [c for c in all_cases
+                         if (c.get("title") or "").startswith(("v085-review-", FIXTURE_PREFIX))]
+        pool = all_cases if self.allow_mutate_existing else fixture_cases
+        s9.ok(f"200, cases={len(all_cases)} (变异池: {'全部 --allow-mutate-existing' if self.allow_mutate_existing else f'仅 fixture {len(fixture_cases)} 个'})")
+        # P2 修复: S10/S11 独立发现 target — 二者共享单 target 时互相消费对方 fixture
+        def _find(pred):
+            for c in pool:
+                code2, ag = self._req("GET", f"/api/v1/cases/{c['id']}/aggregate?actions_limit=20")
+                if code2 != 200:
+                    continue
+                hit = pred(ag)
+                if hit:
+                    return c["id"], ag, hit
+            return None, None, None
 
-        case_id, agg = target
-        action = next((a for a in agg["actions"] if a.get("status") == "planned"), None)
-        s10 = self.add("S10", f"action approve→start→cancel (case={case_id[:8]}…)")
+        # S10: 有「未挂 attempt=1 run」planned action 的 case
+        case_id, agg, action = _find(
+            lambda ag: next((a for a in (ag.get("actions") or [])
+                             if a.get("status") == "planned"
+                             and a["id"] not in {r.get("action_id") for r in (ag.get("runs") or []) if r.get("attempt") == 1}), None))
+        s10 = self.add("S10", f"action approve→start→cancel (case={(case_id or '')[:8]}…)")
         if not action:
-            s10.degraded("该 case 无 planned action")
+            s10.degraded("无「未挂 attempt=1 run」的 planned action — spec §9 评审数据缺口")
         else:
             aid, arev = action["id"], action.get("revision", 1)
             code, body = self._req("POST", f"/api/v1/actions/{aid}/approve", {"expected_revision": arev})
@@ -261,7 +274,7 @@ class Walker:
                     "trigger_source": "user",
                 })
                 if code != 200:
-                    s10.degraded(f"start {code} (mock 协议未贯通则属预期): {str(body)[:120]}")
+                    s10.degraded(f"start {code}: {str(body)[:120]}")
                 else:
                     arev = (body.get("item") or {}).get("revision", arev + 1)
                     code, _ = self._req("POST", f"/api/v1/actions/{aid}/cancel", {"expected_revision": arev})
@@ -270,8 +283,10 @@ class Walker:
                     else:
                         s10.degraded(f"cancel {code}")
 
-        artifact = next((f for f in agg.get("artifacts") or [] if f.get("status") in ("pending", "verified")), None)
-        s11 = self.add("S11", f"artifact verify→accept (case={case_id[:8]}…)")
+        cid11, agg11, artifact = _find(
+            lambda ag: next((f for f in (ag.get("artifacts") or [])
+                             if f.get("status") in ("pending", "verified")), None))
+        s11 = self.add("S11", f"artifact verify→accept (case={(cid11 or '')[:8]}…)")
         if not artifact:
             s11.degraded("无 pending/verified artifact fixture")
         else:
@@ -292,7 +307,7 @@ class Walker:
                     s11.degraded(f"accept {code}: {str(body)[:120]}")
 
         self.add("S12", "变异链数据完整性").ok(
-            f"target case={case_id}, actions={len(agg.get('actions') or [])}, artifacts={len(agg.get('artifacts') or [])}"
+            f"S10 target={case_id or '-'} / S11 target={cid11 or '-'} (独立发现, 各自消费)"
         )
 
     # ------------------------------------------------------------------

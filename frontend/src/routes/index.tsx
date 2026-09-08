@@ -29,8 +29,8 @@ function CategoryRedirect() {
   return <Navigate to="/" replace />;
 }
 
-/** v0.8.5: 旧 v1 入口重定向 — 透传 query string (spec §5, FactCheck #5) */
-function QueryRedirect({ to }: { to: string }) {
+/** v0.8.5: 旧 v1 入口重定向 — 透传 query string (spec §5, FactCheck #5); 导出供守卫测试运行时断言 */
+export function QueryRedirect({ to }: { to: string }) {
   const { search } = useLocation();
   return <Navigate to={`${to}${search}`} replace />;
 }

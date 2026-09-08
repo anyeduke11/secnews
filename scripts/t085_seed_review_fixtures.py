@@ -129,6 +129,9 @@ def main() -> int:
     args = parser.parse_args()
 
     _guard()
+    # P1 修复 (代码审查 #3): 与姊妹脚本同款生产端口拒绝 — HTTP 写入与直连写必须都护栏
+    if args.base_url.rstrip("/").endswith(":8000"):
+        raise SystemExit("拒绝: --base-url 指向生产端口 :8000 — 本脚本只允许写 dev 环境 (8766)。")
     if _existing_fixture():
         if args.fresh:
             _clear_fixture()

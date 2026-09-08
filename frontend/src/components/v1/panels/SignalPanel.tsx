@@ -40,13 +40,15 @@ export function SignalPanel() {
     return () => { cancelled = true; };
   }, []);
 
-  // 立项: 信号 → Case (title ≤120 / question ≤500, CreateCaseRequest 校验)
+  // 立项: 信号 → Case (title ≤120 / question ≤500, CreateCaseRequest 校验;
+  // P1 修复: question 整体截断到 500, 仅 slice summary 时前缀+id 仍可超限)
   const openCase = async (s: V1Signal) => {
     setCreatingFor(s.id);
     try {
+      const question = `信号 ${s.id} (subject: ${s.subject_name || s.subject_id}) 是否需要研判与行动? 原始摘要: ${s.summary.slice(0, 400)}`.slice(0, 500);
       const r = await createCase({
         title: s.summary.slice(0, 120),
-        question: `信号 ${s.id} (subject: ${s.subject_name || s.subject_id}) 是否需要研判与行动? 原始摘要: ${s.summary.slice(0, 400)}`,
+        question,
         priority: 'p2',
         source: 'signal',
         related_signal_ids: [s.id],

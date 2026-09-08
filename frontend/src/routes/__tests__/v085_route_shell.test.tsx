@@ -13,6 +13,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
+import { waitFor } from "@testing-library/react";
 
 const ROOT = process.cwd();
 const ROUTES_TSX = readFileSync(join(ROOT, "src/routes/index.tsx"), "utf-8");
@@ -128,5 +129,28 @@ describe("v0.8.5 继承: V1Prototype 纪律 (原 C09 R14/R24)", () => {
   it("不应有 usingFallback / 内层主 tabs (URL 是唯一导航真相源)", () => {
     expect(V1_PROTOTYPE_TSX).not.toMatch(/setUsingFallback/);
     expect(V1_PROTOTYPE_TSX).not.toMatch(/activeTab|setActiveTab|currentTab|setCurrentTab/);
+  });
+});
+
+// ── P2 修复 (代码审查 #4): query 透传是 spec §5 裁决语义, 用运行时断言锁定 ──
+describe("v0.8.5 §5: QueryRedirect 运行时透传 query", () => {
+  it("/cases?status=blocked → /judge?status=blocked (非仅字符串断言)", async () => {
+    const { MemoryRouter, Routes, Route, useLocation } = await import("react-router-dom");
+    const { render, screen } = await import("@testing-library/react");
+    const { QueryRedirect } = await import("../index");
+    function Probe() {
+      const loc = useLocation();
+      return <div data-testid="loc">{loc.pathname}{loc.search}</div>;
+    }
+    render(
+      <MemoryRouter initialEntries={["/cases?status=blocked"]}>
+        <Routes>
+          <Route path="/cases" element={<QueryRedirect to="/judge" />} />
+          <Route path="/judge" element={<Probe />} />
+          <Route path="*" element={<Probe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByTestId("loc").textContent).toBe("/judge?status=blocked"));
   });
 });

@@ -120,7 +120,8 @@ class V1IngestBridge:
         return FetchOutcome.SUCCESS, entries[: self.max_items], cursor
 
     # -- parse (entry → material body; 附带准入辅助字段) ---------------------
-    _PLACEHOLDER_MARKERS = ("暂未更新", "更多最新文章")  # SecWiki 占位条目 (非真实情报)
+    _PLACEHOLDER_MARKERS = ("今日暂未更新",)  # SecWiki 占位条目标题 (非真实情报)
+    _SUMMARY_BOILERPLATE = "更多最新文章，请访问"  # 每条 entry summary 的站点页脚, 剥离而非跳过
     _TAG_STRIP = re.compile(r"<[^>]+>")
 
     def _parse_entry(self, entry: dict[str, Any]) -> dict[str, Any] | None:
@@ -131,6 +132,11 @@ class V1IngestBridge:
         if any(m in title for m in self._PLACEHOLDER_MARKERS):
             return None  # feed 卫生: 占位/导航条目不是情报
         summary = self._TAG_STRIP.sub(" ", (entry.get("summary") or "")).strip()[:400]
+        for b in (self._SUMMARY_BOILERPLATE,):
+            summary = summary.replace(b, "").strip(" ~-\u3000")
+        combined = f"{title} {summary}"
+        if any(m in combined for m in self._PLACEHOLDER_MARKERS):
+            return None  # feed 卫生: 占位/导航条目不是情报
         published = entry.get("published_parsed") or entry.get("updated_parsed")
         published_at = (
             datetime(*published[:6], tzinfo=timezone.utc).isoformat()
@@ -199,15 +205,35 @@ class V1IngestBridge:
 
     # -- 主入口 --------------------------------------------------------------
     async def run(self) -> dict[str, Any]:
-        """单源一次点火: fetch → pipeline(material) → 准入 → signal."""
+        """单源一次点火: fetch → parse(卫生) → 已知跳过 → pipeline(material) → 准入 → signal."""
         outcome, raw_items, next_cursor = await self._fetch_rss()
+
+        # parse 提前到管线外 (同步轻量): 卫生过滤 + 已知条目跳过
+        bodies = []
+        skipped_known = 0
+        for e in raw_items:
+            b = self._parse_entry(e)
+            if b is not None:
+                bodies.append(b)
+
         request = FetchRequest(source_id=self.source_id, cursor=None, requester="v1-intake")
 
         def _sync_run() -> Any:
+            nonlocal bodies, skipped_known
+            # 已入库条目直接跳过 (内容寻址 id 相同; 避免 summary 漂移引发主键冲突噪音)
+            if bodies:
+                conn = get_connection()
+                ids = [b["id"] for b in bodies]
+                marks = ",".join("?" for _ in ids)
+                rows = {r[0] for r in conn.execute(
+                    f"SELECT id FROM v1_materials WHERE id IN ({marks})", ids).fetchall()}
+                if rows:
+                    skipped_known = len(rows)
+                    bodies = [b for b in bodies if b["id"] not in rows]
             return self.pipeline.run(
                 request,
-                fetch_fn=lambda req: (outcome, raw_items, next_cursor),
-                parse_fn=self._parse_entry,
+                fetch_fn=lambda req: (outcome, bodies, next_cursor),
+                parse_fn=lambda b: b,
                 on_item=lambda body, status: self.collected.append((body, status)),
             )
 
@@ -217,6 +243,7 @@ class V1IngestBridge:
             "source_id": self.source_id,
             "outcome": result.outcome.value,
             "items_parsed": result.items_parsed,
+            "skipped_known": skipped_known,
             "materials_committed": result.items_committed,
             "materials_idempotent": result.items_idempotent,
             "materials_failed": result.items_failed,

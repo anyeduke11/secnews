@@ -181,17 +181,19 @@ def test_partial_material_failure_is_discernible(temp_db, monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 # 反例 5: 幂等重放 — 第二轮全走 IdempotentReplay, 库不重复
 # ---------------------------------------------------------------------------
-def test_second_run_is_fully_idempotent(temp_db) -> None:
+def test_second_run_skips_known_items(temp_db) -> None:
+    """去重语义 (D1.1): parse 上提 + 内容寻址 id → 已入库条目在管线外跳过,
+    避免 summary 漂移引发主键冲突噪音; 库不重复."""
     _seed_source()
-    asyncio.run(_make_bridge().run())
-    first_signals = _counts("v1_signals")
+    s1 = asyncio.run(_make_bridge().run())
+    assert s1["materials_committed"] == 2
+    assert _counts("v1_signals") == 2
 
     summary2 = asyncio.run(_make_bridge().run())  # 新实例, 同库
-    assert summary2["materials_idempotent"] == 2
+    assert summary2["skipped_known"] == 2
     assert summary2["materials_committed"] == 0
-    assert summary2["signals_idempotent"] == 2
     assert _counts("v1_materials") == 2
-    assert _counts("v1_signals") == first_signals
+    assert _counts("v1_signals") == 2
 
 
 # ---------------------------------------------------------------------------

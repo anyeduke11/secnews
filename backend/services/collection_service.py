@@ -725,7 +725,8 @@ class CollectionService:
 
             # Fast path: exact URL match
             if url_canonical and url_canonical in existing_urls:
-                self.logger.info(
+                # 降噪 (v085-review F3): 重复 item 每轮重付, info 级每轮刷上千条
+                self.logger.debug(
                     f"Dedup skipped {item.id}: URL match {url_canonical}"
                 )
                 continue

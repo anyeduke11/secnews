@@ -250,7 +250,9 @@ class QualityGatePipeline:
 
         # 严格模式 + 拒绝 → 抛异常
         if self.mode == QualityMode.STRICT and not accepted:
-            logger.warning(
+            # 降噪 (v085-review F3): 每 item 都触发, 与 quality_hook 的
+            # "strict-mode reject" (含 id/flags 明细) 双写, 泛化行降 DEBUG
+            logger.debug(
                 "strict mode rejection",
                 extra={
                     "trace_id": "",

@@ -230,3 +230,63 @@ def test_placeholder_entry_and_html_tags_are_sanitized(temp_db) -> None:
     assert body is not None
     assert body["title"] == "正常情报标题"                    # 标签已剥离
     assert "<a" not in body["summary"] and "正文内容" in body["summary"]
+
+
+# ---------------------------------------------------------------------------
+# D1.2: 信号立项携带证据 — v1_case_materials 绑定 + aggregate 证据回读
+# ---------------------------------------------------------------------------
+def test_case_creation_binds_signal_evidence_and_aggregate_reads_it(temp_db) -> None:
+    _seed_source()
+    asyncio.run(_make_bridge().run())
+    conn = get_connection()
+    sig_id = conn.execute("SELECT id FROM v1_signals LIMIT 1").fetchone()[0]
+
+    # 立项: related_signal_ids → v1_case_materials 绑定
+    from backend.services.case_service import CaseService
+    case = CaseService().create_case(
+        title="证据链贯通测试",
+        question="立项携带证据 (D1.2)",
+        priority="p2",
+        related_signal_ids=[sig_id],
+    )
+    bound = conn.execute(
+        "SELECT material_id, signal_id FROM v1_case_materials WHERE case_id = ?",
+        (case.id,),
+    ).fetchall()
+    assert len(bound) == 1 and bound[0][1] == sig_id
+
+    # aggregate 回读证据材料 (TestClient 只挂 case router — 隔离且轻量)
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from backend.api.case_api import router as case_router
+    app = FastAPI()
+    app.include_router(case_router)
+    r = TestClient(app).get(f"/api/v1/cases/{case.id}/aggregate")
+    assert r.status_code == 200
+    evidence = r.json()["evidence_materials"]
+    assert len(evidence) == 1
+    assert evidence[0]["signal_id"] == sig_id
+    assert evidence[0]["content_hash"]
+
+
+def test_signals_api_filters_by_subject_id(temp_db) -> None:
+    _seed_source()
+    asyncio.run(_make_bridge().run())
+    conn = get_connection()
+    subject_id = conn.execute("SELECT subject_id FROM v1_signals LIMIT 1").fetchone()[0]
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from backend.api.v1_signals_api import router as signals_router
+    app = FastAPI()
+    app.include_router(signals_router)
+    client = TestClient(app)
+
+    r = client.get(f"/api/v1/signals?subject_id={subject_id}")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total"] >= 1
+    assert all(i["subject_id"] == subject_id for i in body["items"])
+
+    r404 = client.get("/api/v1/signals?subject_id=subj-not-exist-000000")
+    assert r404.json()["total"] == 0

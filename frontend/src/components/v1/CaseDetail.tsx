@@ -16,7 +16,7 @@ import {
   listKnowledge, getKnowledgeReuse,
   getCaseAggregate,
   approveAction, startAction, cancelAction, verifyArtifact, acceptArtifact, rejectArtifact, closeCase,
-  type ReuseReceipt,
+  type ReuseReceipt, type CaseEvidenceMaterial,
 } from '../../api/v1';
 import { renderInlineMarkdown } from '../../lib/markdown';
 import { useSSEAggregateInvalidate } from './useSSEAggregateInvalidate';
@@ -54,6 +54,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
   const [liveRuns, setLiveRuns] = useState<Run[]>([]);
   const [liveArtifacts, setLiveArtifacts] = useState<Artifact[]>([]);
   const [actionChainLoading, setActionChainLoading] = useState(false);
+  const [liveEvidence, setLiveEvidence] = useState<CaseEvidenceMaterial[]>([]);
   const [liveKnowledge, setLiveKnowledge] = useState<Knowledge[]>([]);
   const [knowledgeReceipts, setKnowledgeReceipts] = useState<Record<string, ReuseReceipt>>({});
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
@@ -79,6 +80,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
       setLiveActions(agg.actions);
       setLiveRuns(agg.runs);
       setLiveArtifacts(agg.artifacts);
+      setLiveEvidence(agg.evidence_materials ?? []);
       // knowledge 仍走 listKnowledge (与 reuse receipt), 不在 aggregate 范围
       // (复用统计为派生聚合, 不在主链路 N+1 内, T13 形态保留)
       const knResp = await listKnowledge({ case_id: case_.id, limit: 50 });
@@ -344,6 +346,40 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      {/* D1.2: 证据材料 (立项携带 — v1_case_materials 绑定, SK-02 evidence 输入端) */}
+      <div id="section-evidence" className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
+        <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+          证据 (Evidence){' '}
+          <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
+            {liveEvidence.length} 条 · 来自立项信号 · SK-02 evidence 输入
+          </span>
+        </h3>
+        {(liveEvidence ?? []).length === 0 ? (
+          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            暂无证据材料 (从资料层信号立项时自动携带)
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {(liveEvidence ?? []).map(m => (
+              <div key={m.id} className="flex items-start justify-between gap-3 p-3 rounded border" style={{ borderColor: 'var(--line)' }}>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">
+                    {m.url ? (
+                      <a href={m.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-primary)' }}>{m.title}</a>
+                    ) : (
+                      <span style={{ color: 'var(--text-primary)' }}>{m.title}</span>
+                    )}
+                  </div>
+                  <div className="text-xs mt-1 font-mono" style={{ color: 'var(--text-muted)' }}>
+                    {m.id} · hash: {m.content_hash?.slice(0, 12) ?? '-'}…{m.signal_id ? ` · 信号 ${m.signal_id.slice(0, 8)}…` : ''}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

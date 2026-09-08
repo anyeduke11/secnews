@@ -18,6 +18,7 @@ from backend.repository.db import get_connection
 
 def list_recent_signals(
     days: int = 7, *, case_id: str | None = None, limit: int = 50,
+    subject_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """列 v1_signals 近 N 天 + 关联 subject/material.
 
@@ -26,14 +27,27 @@ def list_recent_signals(
     days:
         时间窗口, 默认 7 天 (T15 情报入口同 SK-01 7 天).
     case_id:
-        可选 — 若提供, 走 v1_materials → v1_case_subjects → v1_subjects 关联过滤
+        可选 — 若提供, 走 v1_materials → v1_case_materials → v1_subjects 关联过滤
         (与 signal.subject_id 匹配). 用于 Case 维度下钻.
     limit:
         返回条数, 默认 50 (前 50 条按 occurred_at DESC).
+    subject_id:
+        v0.8.5 D1.3 — 可选, 按 subject 过滤 (Subject 抽屉下钻).
     """
     conn = get_connection()
     try:
-        if case_id:
+        if subject_id:
+            rows = conn.execute(
+                "SELECT s.id, s.subject_id, s.material_id, s.summary, s.occurred_at, "
+                "       s.confidence, s.status, sub.canonical_name AS subject_name "
+                "FROM v1_signals s "
+                "LEFT JOIN v1_subjects sub ON s.subject_id = sub.id "
+                "WHERE s.occurred_at >= datetime('now', ?) "
+                "AND s.subject_id = ? "
+                "ORDER BY s.occurred_at DESC LIMIT ?",
+                (f"-{days} days", subject_id, limit),
+            ).fetchall()
+        elif case_id:
             # case_id 过滤: 走 v1_actions → judgment_id → case_id 关联 (T08 case_action)
             # 当前 v1_actions 表无 case_id 字段 (T12+ 才加), 暂走 material_id 反查
             rows = conn.execute(

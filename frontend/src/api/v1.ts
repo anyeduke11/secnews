@@ -719,6 +719,7 @@ export interface ListSignalsQuery {
   case_id?: string;
   days?: number;
   limit?: number;
+  subject_id?: string;
 }
 
 export function listSignals(q: ListSignalsQuery = {}): Promise<ApiList<V1Signal>> {
@@ -739,9 +740,22 @@ export interface GetCaseAggregateQuery {
   artifacts_per_run?: number;
 }
 
+export interface CaseEvidenceMaterial {
+  id: string;
+  title: string;
+  url: string | null;
+  content_hash: string;
+  source_kind: string;
+  summary: string | null;
+  signal_id: string | null;
+  bound_at: string | null;
+}
+
 export interface CaseAggregate {
   version: string;
   case: Case;
+  /** v0.8.5 D1.2: 立项携带证据 — v1_case_materials JOIN v1_materials */
+  evidence_materials?: CaseEvidenceMaterial[];
   judgments: Judgment[];
   actions: Action[];
   runs: Run[];

@@ -254,7 +254,42 @@ class CaseService:
         rec = self._repo.get(ulid)
         if rec is None:
             raise CaseValidationError("case vanished after create")
+
+        # v0.8.5 D1.2: 立项携带证据 — related_signal_ids → signal.material_id
+        # 绑定进 v1_case_materials (best-effort: 关联失败不回滚 case 本体)
+        try:
+            bound = self._bind_case_materials(ulid, related_signal_ids or [])
+            if bound:
+                logger.info(f"case {ulid} bound {bound} evidence material(s) from signals")
+        except Exception as e:
+            logger.warning(f"case {ulid} bind_case_materials failed (best-effort): {e}")
+
         return self._record_to_case(rec)
+
+    def _bind_case_materials(self, case_id: str, signal_ids: list[str]) -> int:
+        """D1.2: 信号立项时把 signal.material_id 写入 v1_case_materials (幂等 OR IGNORE)."""
+        if not signal_ids:
+            return 0
+        from backend.repository.db import get_connection
+
+        conn = get_connection()
+        marks = ",".join("?" for _ in signal_ids)
+        rows = conn.execute(
+            f"SELECT id, material_id FROM v1_signals WHERE id IN ({marks})",
+            list(signal_ids),
+        ).fetchall()
+        bound = 0
+        for sid, mid in rows:
+            if not mid:
+                continue
+            conn.execute(
+                "INSERT OR IGNORE INTO v1_case_materials "
+                "(case_id, material_id, signal_id) VALUES (?, ?, ?)",
+                (case_id, mid, sid),
+            )
+            bound += 1
+        conn.commit()
+        return bound
 
     # ------------------------------------------------------------------
     # get / list

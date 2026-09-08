@@ -261,6 +261,28 @@ def _aggregate(
     调用 1 次: case + judgments + actions + runs (per action) + artifacts (per run).
     旧实现 (前端): 1+1+1+N+N×M 个 HTTP 请求; 修复后: 1 个聚合端点.
     """
+    from backend.repository.db import get_connection
+
+    def _case_evidence_materials(cid: str) -> list[dict[str, Any]]:
+        """v0.8.5 D1.2: 立项携带证据 — v1_case_materials JOIN v1_materials.
+
+        判断层证据链输入端: SK-02 generate 需要 evidence_materials
+        (id/title/content_hash), 此处随聚合一次性返回.
+        """
+        try:
+            conn = get_connection()
+            rows = conn.execute(
+                "SELECT m.id, m.title, m.url, m.content_hash, m.source_kind, "
+                "       m.summary, cm.signal_id, cm.created_at AS bound_at "
+                "FROM v1_case_materials cm "
+                "JOIN v1_materials m ON m.id = cm.material_id "
+                "WHERE cm.case_id = ? ORDER BY cm.created_at DESC",
+                (cid,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        except Exception:
+            return []  # migration 108 未跑 / 表缺失 — 证据区显空, 不阻断聚合
+
     from backend.services.action_service import ActionService
     from backend.services.artifact_service import ArtifactService
     from backend.services.judgment_service import JudgmentService
@@ -311,6 +333,7 @@ def _aggregate(
     return {
         "version": API_VERSION,
         "case": _case_to_dict(case),
+        "evidence_materials": _case_evidence_materials(case_id),
         "judgments": [j for j in judgments if isinstance(j, dict)] if judgments and isinstance(judgments[0], dict) else [
             j.to_dict() if hasattr(j, "to_dict") else j for j in judgments
         ],

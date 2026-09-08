@@ -202,6 +202,15 @@ class HotspotScheduler:
             name="source scheduler tick (every 60s)",
             replace_existing=True,
         )
+        # v0.8.5 D1 点火: 真实源 → SourcePipeline → 准入 → v1_signals (每 300s;
+        # 源清单 env HOTSPOT_V1_INTAKE_SOURCES, 默认 security:SecWiki)
+        self.scheduler.add_job(
+            jobs.v1_signal_intake_tick_job,
+            trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
+            id="v1_signal_intake_tick",
+            name="v1 signal intake tick (every 300s)",
+            replace_existing=True,
+        )
         # Phase 3: job — 死源探活 (每日 03:30 Asia/Shanghai)
         self.scheduler.add_job(
             jobs.source_probe_job,

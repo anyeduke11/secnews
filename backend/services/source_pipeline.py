@@ -237,6 +237,7 @@ class SourcePipeline:
         *,
         fetch_fn: Callable[[FetchRequest], tuple[FetchOutcome, list[dict[str, Any]], str | None]],
         parse_fn: Callable[[dict[str, Any]], dict[str, Any] | None],
+        on_item: Callable[[dict[str, Any], str], None] | None = None,
     ) -> PipelineResult:
         """执行单次源抓取.
 
@@ -249,6 +250,10 @@ class SourcePipeline:
             是否走 parse; raw_items 是原始 dict 列表, 由 parse_fn 转 v1_0 域对象.
         parse_fn:
             ``(raw) → body_dict | None``. 返回 None 表示丢弃 (非 fatal).
+        on_item:
+            v0.8.5 D1 新增 (可选, 向后兼容): ``(body, status)`` 逐条回调,
+            status ∈ {"committed", "idempotent", "failed"} — 供编排层
+            (v1_ingest_bridge) 知道哪些 material 真正入库, 以决定 signal 提交.
 
         Returns
         -------
@@ -304,12 +309,20 @@ class SourcePipeline:
                         )
                         self.evidence.commit_intent(intent["intent_id"], entity_id=body.get("id", ""))
                         result.items_committed += 1
+                        if on_item:
+                            on_item(body, "committed")
                     except IdempotentReplay:
                         result.items_idempotent += 1
+                        if on_item:
+                            on_item(body, "idempotent")
                     except IntentExistsError:
                         result.items_failed += 1
+                        if on_item:
+                            on_item(body, "failed")
                     except Exception as e:
                         result.items_failed += 1
+                        if on_item:
+                            on_item(body, "failed")
                         logger.warning(f"evidence commit failed: {e}")
 
                 # 5) watermark 推进 — v1.0 C05 R02 修复: 失败 0 items 不前移

@@ -46,6 +46,7 @@ from backend.scheduler.jobs.collect import (
     sync_job,
     url_content_check_job,
     url_full_check_job,
+    v1_signal_intake_tick_job,  # v0.8.5 D1 点火: 真实源 → 准入 → v1_signals
 )
 from backend.scheduler.jobs.kl import (
     _KL_SWEEP_EVERY_N_BEATS,
@@ -153,6 +154,7 @@ __all__ = [
     "export_rebuild_job",
     "instrument_job",
     "job_done_event",
+    "v1_signal_intake_tick_job",  # v0.8.5 D1 点火
     "map_rebuild_daily_job",
     "mitre_sync_job",
     "reset_service",

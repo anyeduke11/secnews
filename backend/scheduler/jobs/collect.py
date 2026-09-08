@@ -560,3 +560,26 @@ async def auto_extract_alert_job() -> None:
     """
     await _jobs_pkg.auto_extract_job()
     await alert_evaluator_job()
+
+
+async def v1_signal_intake_tick_job() -> None:
+    """v0.8.5 D1 点火 (spec docs/v0.8.5/V0.8.5_PLAN.md §11): 真实源 RSS → SourcePipeline
+    → 准入 → v1_materials + v1_signals.
+
+    源清单: env HOTSPOT_V1_INTAKE_SOURCES (逗号分隔 crawler_sources.id, 默认 security:SecWiki)。
+    编排在 V1IngestBridge.run_intake_tick (单源失败隔离, 全部走 T05 幂等键重放)。
+    失败只 log, 不抛 (与既有 job 模式一致)。
+    """
+    try:
+        from backend.services.v1_ingest_bridge import run_intake_tick
+
+        summary = await run_intake_tick()
+        if summary["sources_run"] > 0 or summary["totals"]["materials_committed"] > 0:
+            _logger.info(
+                f"v1_signal_intake_tick: run={summary['sources_run']} "
+                f"materials+{summary['totals']['materials_committed']} "
+                f"signals+{summary['totals']['signals_committed']} "
+                f"denied={summary['totals']['signals_denied']}"
+            )
+    except Exception as e:
+        _logger.error(f"v1_signal_intake_tick_job crashed: {e}")

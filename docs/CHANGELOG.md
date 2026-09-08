@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.8.5 (2026-09-08) — 反向收敛: v0.8 三层 Sentinel 唯一壳 + v1.0 能力区块 (tag v0.8.5)
+
+用户裁决: v1.0.1 (C09-C13) 删除三层路由换 v1 四入口的路线方向错误; 恢复 v0.8 Sentinel 为唯一壳, v1.0 九领域对象/三类 receipt 降级为嵌入三层的能力区块. 第一性依据: **复利的前提是日活, 日活的前提是顺手**. 唯一 spec = `docs/v0.8.5/V0.8.5_PLAN.md`; 实现与验证分离 (FactCheck/G1-G4 独立 agent 验收, 实现侧不得自评 PASS).
+
+### 路由与壳
+- 恢复 `/` (资料层) `/judge` `/judge/graph` `/action` (行动层) `/garden`; 新增 SentinelLayout (ToastProvider 无 AppNav, 页内 SentinelShell 心跳条常驻)
+- v1 四入口降级: `/workbench` `/intel` → `/`, `/cases` → `/judge` (QueryRedirect 透传 query); 新增 `/cases/:caseId` 深链 (`?section=` 定位) 与 `/knowledge/v1` v1 知识目录
+- `V1SentinelShell.tsx` 物理删除; 更多菜单 +技能商店 +技能看板 (17 项); AppNav 首组改指三层真实路径
+- 方向固化: 守卫测试反转 `v085_route_shell.test.tsx` (三层必须 SentinelShell + V1SentinelShell fs/grep 双断言不存在); AGENTS.md 壳纪律硬规则 (新能力只能以三层区块进入, 禁新壳/一级入口)
+
+### v1.0 能力区块
+- SignalPanel (资料层, GET /api/v1/signals + 立项 POST /api/v1/cases → /cases/:id)
+- CaseQueuePanel (判断层, blocked 置顶 + 重复键语义)
+- ExecOverviewPanel (行动层, limit=8 并行 aggregate, 单 case 失败隔离 unavailable)
+- CaseDetail 提取独立组件 (`/cases/:caseId` 复用, V1Prototype re-export 兼容旧测试)
+
+### 修复 (独立验证 agent 战果)
+- **P0 级运行时遮蔽**: `GET /api/skill-registry/v1` 被 legacy `/{skill_id}` 参数路由吞成 404 (openapi 静态门测不出; SkillStore v1 分桶在 main 即坏) — v1 router 上移注册序
+- SignalPanel 立项 question 整体截断 ≤500; 走查脚本默认仅动 v085- fixture; seed 补 :8000 生产门
+
+### 门禁与脚本
+- `scripts/check_v1_endpoint_parity.py` (G2, 74/74) · `scripts/t085_golden_walkthrough.py` (G3 三态矩阵 13P/1D/0F) · `t085_seed_review_fixtures.py` (评审 fixture 幂等)
+- 验证: FactCheck 9/9 · G1 codegen 0 drift · tsc 0 / vitest 476 / build 绿 / generate_meta --check 过 · 视觉走查三层/深链/390 (截图 dev_data/screenshots/v085/)
+- 已知边界 (D1/D2 验收项, spec §9 明示 demo 不主张): 真实源信号供给 (B1 点火) / dsh 真实出稿 (B2) / B0-B7 业务闭环
+
 ## v1.0 C14 (2026-09-08) — 收口+治理 (ruff 246→0 + docs 五件套 + tag v1.0.0 本地)
 
 v1.0 收口批次. 治理三个对象: (a) ruff 全仓 246 错 → 0 错; (b) docs 五件套落地; (c) 本地 tag `v1.0.0`. **不再引入业务修改** — 仅 ruff 治理与文档收口.

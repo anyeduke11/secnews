@@ -96,8 +96,10 @@ export function AppRoutes() {
 
       {/* Phase 1A: 嵌套 Layout (PageLayout 含 ToastProvider + 外层容器) */}
       <Route element={<PageLayout />}>
-        {/* v0.7.0 (D.8-D.10): 三层架构 (data/judge/action) 物理删除 — v0.6.3 起 SecNews 为统一工作台 */}
-        {/* ── 旧路由兼容 (v0.7 Step 1: workbench_legacy=false 关闭老路由) ── */}
+        {/* v1.0.1 一致性重构: 三层架构 (data/judge/action) 旧路由已物理删除,
+         * LAYER_DEFS 在 SentinelShell 重映射到 v1 三入口 (/intel /cases /knowledge),
+         * 见 components/sentinel/SentinelShell.tsx:102-115 注释.
+         * ── 旧路由兼容 (v0.7 Step 1: workbench_legacy=false 关闭老路由) ── */}
         <Route path="/category/:cat" element={<CategoryRedirect />} />
         <Route path="/weekly-report" element={<Navigate to="/report" replace />} />
 

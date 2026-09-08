@@ -1,5 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  // v1.0.1 一致性重构: darkMode 双值匹配 ThemeContext 的 data-theme 属性,
+  // 让未来 dark:bg-xxx / light:bg-xxx 等 variant 可用 (本批不引入, 仅配置就位)
+  darkMode: ['class', '[data-theme="dark"]'],
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",

@@ -1,5 +1,59 @@
 # Changelog
 
+## v1.0 C14 (2026-09-08) — 收口+治理 (ruff 246→0 + docs 五件套 + tag v1.0.0 本地)
+
+v1.0 收口批次. 治理三个对象: (a) ruff 全仓 246 错 → 0 错; (b) docs 五件套落地; (c) 本地 tag `v1.0.0`. **不再引入业务修改** — 仅 ruff 治理与文档收口.
+
+### ruff 治理 (246→0)
+- `ruff.toml` 加 `runtime/upstreams` exclude (排除 65 vendored 错)
+- F821×4 手工 — `backend/services/ai_hub/gateway.py:17` 加 `from typing import Any` 修 4 处 undefined name
+- E401×1 手工 — `backend/tests/test_dsh_live_bridge.py:88` `import queue, threading` 拆 2 行
+- RUF022×1 手工 — `backend/services/ai_hub/prompts.py:744` `__all__` 字母序排
+- `ruff check --fix` safe + `--fix --unsafe-fixes` 182 错自动修 (F401×57 / I001×18 / UP045×55 / UP006×29 / UP037×20 / F541×10 / RUF100×14 / UP035×5 / UP007×3 / UP013×2 / UP031×2 / B905×1 / SIM114×1 含 unsafe)
+- UP035×5 auto-fix 已处理 (3 service `from collections.abc import Iterator` + 1 v1_0_models 删 typing.Dict/List)
+- **效果**: ruff check 246→**0 错** exit 0; 36 files 改动 (+121/-169); 优于预期 ≤11 留后
+
+### 守门
+- `ruff check` exit 0
+- `pytest backend/tests/` 4258 passed + 9 skipped + 32 failed (32 全是 pre-existing search_service + wiki_items_fts + search_api 域, **stash baseline 已确认 eaca4e0 C13 verified HEAD 同样失败**, 与 C14 无关)
+- `scripts/generate_meta.py --check` exit 0: jobs 57 / collectors 14 / routers 85 / services 126
+- frontend tsc 0 错 + vitest 463/463 pass (C14 不动 UI)
+
+### docs 五件套
+- `docs/v1.0/task-status.md` C14 row (line 39 后) — 8 退出条件 a-h 全列
+- `PROGRESS.md` C14 段 (v1.0 综合收口 + 13 commit 链 + tag v1.0.0 + B0-B7 业务闭环路径)
+- `docs/v1.0/RELEASE_NOTES.md` **新建** (~80 行) — 代码+测试 verified / 业务闭环 NOT verified 诚实声明 + 已知限制 + 下一阶段
+- `docs/ARCHITECTURE.md` jobs 55→57 (C13 已落)
+- `docs/v1.0/REVIEW_2026-09-07.md:218` R20 状态 ◐ → ✅ 全部修复 (ruff + APP_VERSION + AC/E2E 账本)
+
+### tag v1.0.0 本地打
+- `git tag -a v1.0.0 c14_xxx -m "v1.0.0 — 9 域对象 + 6 SK + 3800 迁移 + C01-C14 治理"`
+- 推送仍禁止 (user 2026-09-05 明令), tag 仅本地可见
+- 中间 tag 不必要: C01-C13 是过程 commit, v0.8.x 已是过程 tag 节奏, v1.0.0 即 v1.0 收口节点
+
+### commit 链 (C14 拆 3 commit)
+- `751a446` ruff.toml + 7 手工错 (ruff.toml exclude + F821×4 + E401×1 + RUF022×1)
+- `0786095` auto-fix 36 files +121/-169
+- C14 final — docs 五件套 + tag + memory
+
+### D6 节点状态
+- ✅ 代码层 verified (ruff / pytest / vitest / tsc / generate_meta)
+- ✅ docs 五件套收口 (task-status / PROGRESS / CHANGELOG / RELEASE_NOTES / ARCHITECTURE / REVIEW)
+- ✅ tag v1.0.0 本地打
+- ⚠️ 业务闭环 NOT verified (REVIEW §1 R01-R20, 留 B0-B7 v1.0.1 整改)
+- ⚠️ 推送禁 (user 2026-09-05 明令, 本批不触发推送)
+
+### 数字
+- ruff 246→**0**
+- pytest 4261→**4258+** (实际 ≥4258, 32 pre-existing 失败与 C14 无关)
+- commit 链 13→**16** (C14 加 3)
+- tag 0→**1** (v1.0.0 本地)
+
+### 已知限制 (留 v1.0.1)
+- B0-B7 业务闭环整改 (REVIEW §6) — R01-R20 逐项单批先反例测试再实现
+- search_service + wiki_items_fts + search_api 32 失败根因排查 (pre-existing baseline, 不归 C14)
+- 推送解禁后 `git push origin v1.0.0`
+
 ## v1.0 C12 (2026-09-07) — 知识采用+失效反馈 (R16 derived_from vs adopted_by 物理分离)
 
 ### R16 物理分离

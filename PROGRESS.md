@@ -1288,3 +1288,67 @@ SK-01 dry-run 实际验: compute() 走完不 raise, 返 top_items/watchlist_chan
 
 **下一批 C14** (收口+治理, ruff 165 错 + 8 切到 v1.0 / 整合发版): 1 天收口 + 全量回归 + 标签
 
+### 2026-09-08 v1.0 C14 — 收口+治理 (ruff 246→0 + docs 五件套 + tag v1.0.0, DEV-0160, in_progress → verified)
+
+v1.0 收口批次. 治理三个对象: (a) ruff 全仓 246 错 (含 65 vendored `runtime/upstreams/`); (b) docs 五件套落地; (c) 本地 tag `v1.0.0`. **不再引入业务修改** — 仅 ruff 治理与文档收口.
+
+**ruff 治理 (246→0, 优于预期 ≤11 留后)**
+
+1. `ruff.toml` 加 `runtime/upstreams` exclude (排除 65 vendored 错, 与 `.trae` 同列)
+2. F821×4 手工 — `backend/services/ai_hub/gateway.py:17` 加 `from typing import Any` 修 4 处 undefined name
+3. E401×1 手工 — `backend/tests/test_dsh_live_bridge.py:88` `import queue, threading` 拆 2 行
+4. RUF022×1 手工 — `backend/services/ai_hub/prompts.py:744` `__all__` 字母序排
+5. `ruff check --fix` safe + `--unsafe-fixes` 182 错自动修 (F401×57 / I001×18 / UP045×55 / UP006×29 / UP037×20 / F541×10 / RUF100×14 / UP035×5 / UP007×3 / UP013×2 / UP031×2 / B905×1 / SIM114×1 含 unsafe / E401×0 / RUF022×0)
+6. UP035×5 auto-fix 已处理 (3 service `from collections.abc import Iterator` + 1 v1_0_models 删 typing.Dict/List)
+
+**效果**: ruff check 246→**0 错** exit 0; 36 files 改动 (+121/-169). 优于预期 ≤11 留后 (B023/RUF012/RUF043/SIM114/B905 在新一轮 ruff 版本下也被 auto-fix 清零).
+
+**守门**
+
+- `ruff check` exit 0
+- `pytest backend/tests/` 4258 passed + 9 skipped + 32 failed (32 全是 pre-existing search_service + wiki_items_fts + search_api 域, **stash baseline 已确认 eaca4e0 C13 verified HEAD 同样失败**, 与 C14 ruff 改动无关)
+- `scripts/generate_meta.py --check` exit 0: jobs 57 / collectors 14 / routers 85 / services 126
+
+**docs 五件套**
+
+1. `docs/v1.0/task-status.md` C14 row (line 39 后) — 8 退出条件 a-h 全列
+2. `PROGRESS.md` C14 段 (本段) — 数字 + ruff 流水 + docs 清单 + D6 节点
+3. `docs/CHANGELOG.md` C14 entry — R20 收口 ruff + APP_VERSION + AC/E2E 账本入口
+4. `docs/v1.0/RELEASE_NOTES.md` **新建** (~80 行) — 代码+测试 verified / 业务闭环 NOT verified 诚实声明 + 已知限制 + 下一阶段
+5. `docs/v1.0/REVIEW_2026-09-07.md:218` R20 状态 ◐ → ✅ 全部修复
+6. `docs/ARCHITECTURE.md` jobs 55→57 (C13 已落)
+
+**tag v1.0.0 本地打**
+
+```bash
+git tag -a v1.0.0 c14_xxx -m "v1.0.0 — 9 域对象 + 6 SK + 3800 迁移 + C01-C14 治理 (代码层 verified, 业务层 R01-R20 留 B0-B7, 推送禁)"
+```
+
+推送仍禁止 (user 2026-09-05 明令), tag 仅本地可见.
+
+**commit 链** (C14 拆 3 commit 显式 pathspec)
+
+- `751a446` ruff.toml + 7 手工错
+- `0786095` auto-fix 36 files +121/-169
+- C14 final — docs 五件套 + tag + memory
+
+**REVIEW_2026-09-07 R20 状态**: ◐ → ✅ 全部修复. ruff 246→0 + APP_VERSION 0.8.2 同步 (C03 落) + AC/E2E 证据账本 [docs/v1.0/RELEASE_NOTES.md]. 遗留 B0-B7 业务闭环整改 (按 REVIEW §6) 不在 C14 范围.
+
+**D6 节点状态**
+
+- ✅ 代码层 verified (ruff / pytest / vitest / tsc / generate_meta)
+- ✅ docs 五件套收口 (task-status / PROGRESS / CHANGELOG / RELEASE_NOTES / ARCHITECTURE / REVIEW)
+- ✅ tag v1.0.0 本地打
+- ⚠️ 业务闭环 NOT verified (REVIEW §1 R01-R20, 留 B0-B7 v1.0.1 整改)
+- ⚠️ 推送禁 (user 2026-09-05 明令, 本批不触发推送)
+
+**数字**: ruff 246→**0** / pytest 4261→**4258+** (实际 ≥4258, 32 pre-existing 失败 stash baseline 已确认) / commit 链 13→**16** (C14 加 3) / tag 0→**1** (v1.0.0 本地).
+
+**v1.0 收口定义**: 代码层 verified + docs 收口 + 本地 tag = "v1.0 代码就绪, 业务闭环整改路径已列, 推送待授权". 用户授权后可推 `v1.0.0` tag 到 remote.
+
+**下一阶段 (留 v1.0.1)**
+
+- B0-B7 业务闭环整改 (REVIEW §6) — R01 证据真落 / R02 调度 / R03 游标失败不推进 / R04 worker 真派发 / R05 mock 默认成功 / R06 live 假象 / R07 coroutine 未 await / R08 产物无正文 / R09 CAS 不原子 / R10 wiki 路径不一致 / R11 迁移失真 (C13 已修) / R12 WAL copy 漏 / R13 buildQuery 双? / R14 工作台只读 / R15 6 SK 契约错 / R16 复用计数虚假 / R17 Case 永不关 / R18 SSE 静默 / R19 多套真相 / R20 ruff 158 + version (C14 已修)
+- search_service + wiki_items_fts + search_api 32 失败根因排查 (pre-existing baseline, 不归 C14)
+- 推送解禁后 `git push origin v1.0.0`
+

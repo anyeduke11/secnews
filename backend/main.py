@@ -92,9 +92,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     set_service(svc)
     sched = get_scheduler() or HotspotScheduler(interval=300)
     sched.attach_service(svc)
-    sched.start()
-    # Phase 8: scheduler 注册到 app.state（替代模块级 singleton）
-    app.state.scheduler = sched
+    # v085-review F5 (P0-3): dev 与生产后端并行时, dev 实例不再起全套
+    # 采集/触发 job (实测双实例叠加会让采集背靠背连轴转 + 事件循环冻结)。
+    # env 显式关闭, API 正常可用; 不设或非 "1" 时行为不变。
+    if os.getenv("HOTSPOT_DISABLE_SCHEDULER") == "1":
+        log.warning("HOTSPOT_DISABLE_SCHEDULER=1 — scheduler NOT started (dev 并行模式)")
+        app.state.scheduler = None
+    else:
+        sched.start()
+        # Phase 8: scheduler 注册到 app.state（替代模块级 singleton）
+        app.state.scheduler = sched
 
     # C11 R18: outbox dispatcher — 业务 outbox 行 → SSE 广播
     try:
@@ -194,7 +201,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         log.warning(f"crawl4ai close_client error: {e}")
     try:
-        sched.stop(wait=False)
+        # F5: dev 并行模式 (scheduler 未启动) 时为 None, 跳过 stop
+        if app.state.scheduler is not None:
+            app.state.scheduler.stop(wait=False)
     except Exception as e:
         log.warning(f"scheduler.stop error: {e}")
     # v0.8.1 Day 0: dsh 受管子进程随主进程退出, 防孤儿 (autostart 拉起的才管)。

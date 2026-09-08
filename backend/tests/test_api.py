@@ -602,6 +602,20 @@ def test_all_responses_have_version(client, seeded_db):
 # ---------------------------------------------------------------------------
 # X-C2 (v0.8.2): GZip 压缩 + 字典端点 Cache-Control (CRITICAL_REVIEW §3.2)
 # ---------------------------------------------------------------------------
+def test_scheduler_disabled_env(monkeypatch):
+    """v085-review F5: HOTSPOT_DISABLE_SCHEDULER=1 → lifespan 不启动调度器。
+
+    dev 与生产后端并行时 dev 实例不起采集/触发 job, API 正常可用。
+    """
+    from fastapi.testclient import TestClient
+
+    from backend.main import app as main_app
+
+    monkeypatch.setenv("HOTSPOT_DISABLE_SCHEDULER", "1")
+    with TestClient(main_app):
+        assert main_app.state.scheduler is None
+
+
 def test_main_app_has_gzip_middleware():
     """真实 app 必须挂 GZipMiddleware (minimum_size=1000)。"""
     from fastapi.middleware.gzip import GZipMiddleware

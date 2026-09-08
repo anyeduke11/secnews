@@ -18,14 +18,16 @@ interface AppNavGroup {
   items: AppNavItem[];
 }
 
+// v0.8.5: 首组改指三层真实路径 (旧 /workbench /intel /cases 已重定向, spec §5)。
+// AppNav 仅服务工具页 (PageLayout); 三层页不渲染 AppNav, 壳导航由 SentinelShell 提供。
 const NAV_GROUPS: AppNavGroup[] = [
   {
-    title: "4 主入口 (v1.0)",
+    title: "三层工作流",
     items: [
-      { to: "/workbench", label: "今日工作", icon: "📊", v1_active: true },
-      { to: "/intel", label: "情报", icon: "📡", v1_active: true },
-      { to: "/cases", label: "事项", icon: "📋", v1_active: true },
-      { to: "/knowledge", label: "知识", icon: "📚", v1_active: true },
+      { to: "/", label: "资料层", icon: "📡" },
+      { to: "/judge", label: "判断层", icon: "🔍" },
+      { to: "/action", label: "行动层", icon: "🎯" },
+      { to: "/knowledge", label: "知识目录", icon: "📚" },
     ],
   },
   {

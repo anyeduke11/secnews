@@ -56,6 +56,14 @@ B4 PROGRESS 归档/CHANGELOG 时序 + C2 GZipMiddleware/字典端点 Cache-Contr
 强制执行 max_concurrent + 8 接入点; A2 feature_gates/llm.yaml/provider 阈值
 5s TTL 热重载免重启; A4 backup_verify 备份完整性校验周一 job + 按需端点,
 jobs 51→52 / services 107→108)。
+
+v0.8.5 (2026-09-08): 反向收敛 demo — v0.8 Sentinel 三层恢复为唯一壳 (资料层 /
+→ 判断层 /judge → 行动层 /action, SentinelLayout 全屏组 + 页内 SentinelShell
+心跳条常驻), v1.0 九对象/三类 receipt 降级为三层能力区块 (SignalPanel /
+CaseQueuePanel / ExecOverviewPanel); v1 四入口 /workbench /intel /cases 重定向
+(透传 query), V1SentinelShell 物理删除; 守卫 v085_route_shell.test.tsx 反转;
+spec = docs/v0.8.5/V0.8.5_PLAN.md。后端业务零改动 (仅版本号)。
 """
 
-APP_VERSION = "0.8.2"
+APP_VERSION = "0.8.5"
+

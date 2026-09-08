@@ -57,6 +57,8 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
   const [liveArtifacts, setLiveArtifacts] = useState<Artifact[]>([]);
   const [actionChainLoading, setActionChainLoading] = useState(false);
   const [liveEvidence, setLiveEvidence] = useState<CaseEvidenceMaterial[]>([]);
+  // D4: 复利卡 (诚实计数 — v1_knowledge_adoptions 真实回执, 不做无基线估算)
+  const [reuseSummary, setReuseSummary] = useState<{ adoptions_total: number; adoptions_30d: number; distinct_knowledge: number } | null>(null);
   // D3: SK-05 自动召回候选 + 本页已采用集合 (采用回执产生后标记, 不重复采用)
   const [recallCandidates, setRecallCandidates] = useState<KnowledgeRecallCandidate[]>([]);
   const [adoptedRecallIds, setAdoptedRecallIds] = useState<Set<string>>(new Set());
@@ -92,6 +94,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
       setLiveRuns(agg.runs);
       setLiveArtifacts(agg.artifacts);
       setLiveEvidence(agg.evidence_materials ?? []);
+      setReuseSummary(agg.reuse_summary ?? null);
       setRecallCandidates(agg.recall_candidates ?? []);
       // knowledge 仍走 listKnowledge (与 reuse receipt), 不在 aggregate 范围
       // (复用统计为派生聚合, 不在主链路 N+1 内, T13 形态保留)
@@ -391,9 +394,19 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
 
       {/* T13: 知识 (Knowledge) — 复用 + 复查 */}
       <div id="section-knowledge" className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
-        <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-          知识 (Knowledge) {knowledgeLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
-        </h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+            知识 (Knowledge) {knowledgeLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
+          </h3>
+        </div>
+        {/* D4: 复利卡 — 真实回执计数, 不做无基线的「节省 X」估算 */}
+        {reuseSummary && reuseSummary.adoptions_total > 0 && (
+          <div className="text-xs p-2 rounded mb-3" style={{ background: 'color-mix(in srgb, var(--color-success) 10%, transparent)', color: 'var(--text-secondary)' }} data-testid="reuse-summary-card">
+            复利 (真实回执)：本事项已采用知识 <b style={{ color: 'var(--color-success)' }}>{reuseSummary.adoptions_total}</b> 次
+            （近 30 天 {reuseSummary.adoptions_30d} · 涉及 {reuseSummary.distinct_knowledge} 个知识条目）
+            —— 计数来自 adoption 回执，非估算值
+          </div>
+        )}
         {knowledgeItems.length === 0 ? (
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>暂无知识 (SK-04 publish 后出现)</div>
         ) : (

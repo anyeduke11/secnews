@@ -361,3 +361,45 @@ def test_aggregate_includes_recall_candidates(temp_db) -> None:
     assert len(candidates) == 1
     assert candidates[0]["id"] == "KNOWAGGR01HBWXAZ2P3XQV5M8B7"
     assert candidates[0]["reasons"]
+
+
+# ---------------------------------------------------------------------------
+# D4: 复利卡 (诚实计数) — aggregate reuse_summary
+# ---------------------------------------------------------------------------
+def test_aggregate_reuse_summary_counts_real_adoptions(temp_db) -> None:
+    _seed_source()
+    asyncio.run(_make_bridge().run())
+    conn = get_connection()
+    sig_id = conn.execute("SELECT id FROM v1_signals LIMIT 1").fetchone()[0]
+    _seed_knowledge(
+        "KNOWSUM01HBWXAZ2P3XQV5M8B7",
+        "FastGate 3200 路径遍历手册",
+        "CVE-2026-31337 升级步骤",
+    )
+    from backend.services.case_service import CaseService
+    case = CaseService().create_case(
+        title="复利卡走查 (D4)",
+        question="采用回执计数",
+        related_signal_ids=[sig_id],
+    )
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from backend.api.case_api import router as case_router
+    from backend.api.knowledge_api import router as knowledge_router
+    app = FastAPI()
+    app.include_router(case_router)
+    app.include_router(knowledge_router)
+    client = TestClient(app)
+
+    # 采用前: 0 (诚实计数, 非估算)
+    body = client.get(f"/api/v1/cases/{case.id}/aggregate").json()
+    assert body["reuse_summary"] == {"adoptions_total": 0, "adoptions_30d": 0, "distinct_knowledge": 0}
+
+    # 采用后: 1/1/1 (真实回执计数)
+    r_adopt = client.post(f"/api/v1/knowledge/KNOWSUM01HBWXAZ2P3XQV5M8B7/adopt", json={
+        "case_id": case.id, "decision": "adopted", "condition_diff": [], "decided_by": "d4-test",
+    })
+    assert r_adopt.status_code in (200, 201)
+    body2 = client.get(f"/api/v1/cases/{case.id}/aggregate").json()
+    rs = body2["reuse_summary"]
+    assert rs == {"adoptions_total": 1, "adoptions_30d": 1, "distinct_knowledge": 1}

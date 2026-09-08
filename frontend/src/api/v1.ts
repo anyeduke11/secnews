@@ -771,6 +771,8 @@ export interface CaseAggregate {
   evidence_materials?: CaseEvidenceMaterial[];
   /** v0.8.5 D3: SK-05 自动召回 — 已发布知识 × case 文本匹配候选 */
   recall_candidates?: KnowledgeRecallCandidate[];
+  /** v0.8.5 D4: 复利卡 — 本 case 知识采用真实计数 (非估算) */
+  reuse_summary?: { adoptions_total: number; adoptions_30d: number; distinct_knowledge: number };
   judgments: Judgment[];
   actions: Action[];
   runs: Run[];

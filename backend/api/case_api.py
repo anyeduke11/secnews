@@ -291,6 +291,28 @@ def _aggregate(
         except Exception:
             return []
 
+    def _case_reuse_summary(cid: str) -> dict[str, Any]:
+        """v0.8.5 D4: 复利卡 (诚实计数) — 本 case 的知识采用/回执汇总.
+
+        只报真实记录数 (v1_knowledge_adoptions), 不做「节省 X 小时」类无基线估算.
+        """
+        try:
+            conn = get_connection()
+            row = conn.execute(
+                "SELECT COUNT(*), "
+                "COALESCE(SUM(CASE WHEN adopted_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END), 0), "
+                "COUNT(DISTINCT knowledge_id) "
+                "FROM v1_knowledge_adoptions WHERE case_id = ? AND decision = 'adopted'",
+                (cid,),
+            ).fetchone()
+            return {
+                "adoptions_total": row[0] or 0,
+                "adoptions_30d": row[1] or 0,
+                "distinct_knowledge": row[2] or 0,
+            }
+        except Exception:
+            return {"adoptions_total": 0, "adoptions_30d": 0, "distinct_knowledge": 0}
+
     from backend.services.action_service import ActionService
     from backend.services.artifact_service import ArtifactService
     from backend.services.judgment_service import JudgmentService
@@ -344,6 +366,8 @@ def _aggregate(
         "evidence_materials": _case_evidence_materials(case_id),
         # v0.8.5 D3 (SK-05 自动召回): 已发布知识按 case 文本自动匹配, Case 页浮现候选
         "recall_candidates": _recall_candidates(_case_to_dict(case)),
+        # v0.8.5 D4: 复利卡 (诚实计数)
+        "reuse_summary": _case_reuse_summary(case_id),
         "judgments": [j for j in judgments if isinstance(j, dict)] if judgments and isinstance(judgments[0], dict) else [
             j.to_dict() if hasattr(j, "to_dict") else j for j in judgments
         ],

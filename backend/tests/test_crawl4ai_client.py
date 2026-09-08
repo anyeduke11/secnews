@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -536,7 +537,93 @@ async def test_base_collector_uses_crawl4ai_html_when_available(monkeypatch):
         assert aiohttp_called["count"] == 0  # 关键:crawl4ai 成功时 aiohttp 不调用
 
 
+# ---------------------------------------------------------------------------
+# 连续超时退避 (v0.8.5 审查 P0-2)
+# ---------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def _reset_backoff_state():
+    """退避账本进程内共享, 每个测试前清零防串扰。"""
+    crawl4ai_client._timeout_streaks.clear()
+    yield
+    crawl4ai_client._timeout_streaks.clear()
+
+
+def test_backoff_record_timeout_sets_deadline():
+    """首次超时 → 退避 BASE (300s), 截止时间内 deadline 命中。"""
+    now = 1000.0
+    until = crawl4ai_client._backoff_record_timeout("https://x.example", now)
+    assert until == pytest.approx(now + crawl4ai_client._BACKOFF_BASE_SECONDS)
+    assert crawl4ai_client._backoff_deadline("https://x.example", now + 1) == pytest.approx(until)
+
+
+def test_backoff_deadline_expires():
+    """超过截止时间后 deadline 返回 None (重新给机会)。"""
+    now = 1000.0
+    crawl4ai_client._backoff_record_timeout("https://x.example", now)
+    assert crawl4ai_client._backoff_deadline(
+        "https://x.example", now + crawl4ai_client._BACKOFF_BASE_SECONDS + 1
+    ) is None
+
+
+def test_backoff_exponential_growth_caps():
+    """连续超时 300→600→1200→1800(封顶), 不再指数增长。"""
+    now = 1000.0
+    streaks = []
+    for _ in range(5):
+        until = crawl4ai_client._backoff_record_timeout("https://x.example", now)
+        streaks.append(until - now)
+    assert streaks == [300, 600, 1200, 1800, 1800]
+
+
+def test_backoff_clear_resets_streak():
+    """成功清零: clear 后重新从 BASE 起步。"""
+    now = 1000.0
+    crawl4ai_client._backoff_record_timeout("https://x.example", now)
+    crawl4ai_client._backoff_record_timeout("https://x.example", now)
+    crawl4ai_client._backoff_clear("https://x.example")
+    until = crawl4ai_client._backoff_record_timeout("https://x.example", now)
+    assert until == pytest.approx(now + crawl4ai_client._BACKOFF_BASE_SECONDS)
+
+
+@pytest.mark.asyncio
+async def test_fetch_html_skips_arun_while_backing_off():
+    """退避中的 URL 早退返回 None, 不再启动 client/渲染。"""
+    _write_config(True)
+    crawl4ai_client._backoff_record_timeout("https://backoff.example", time.monotonic())
+
+    async def _boom():
+        raise AssertionError("backoff 中的 URL 不应触达 get_client/arun")
+
+    with patch.object(crawl4ai_client, "HAS_CRAWL4AI", True), patch(
+        "backend.utils.crawl4ai_client.get_client", _boom
+    ):
+        assert await fetch_html("https://backoff.example") is None
+
+
+@pytest.mark.asyncio
+async def test_fetch_html_timeout_records_backoff():
+    """arun 超时 → 记账进入退避, 下一次调用直接早退。"""
+    _write_config(True)
+
+    class SlowClient:
+        async def arun(self, url, config=None):
+            await asyncio.sleep(10)
+
+    async def _slow_client():
+        return SlowClient()
+
+    with patch.object(crawl4ai_client, "HAS_CRAWL4AI", True), patch(
+        "backend.utils.crawl4ai_client.get_client", _slow_client
+    ):
+        assert await fetch_html("https://slow.example", timeout=1) is None
+        assert "https://slow.example" in crawl4ai_client._timeout_streaks
+
+
 __all__ = [
+    "test_backoff_clear_resets_streak",
+    "test_backoff_deadline_expires",
+    "test_backoff_exponential_growth_caps",
+    "test_backoff_record_timeout_sets_deadline",
     "test_base_collector_falls_back_to_aiohttp_when_crawl4ai_returns_none",
     "test_base_collector_falls_back_to_aiohttp_when_crawl4ai_unavailable",
     "test_base_collector_uses_crawl4ai_html_when_available",
@@ -547,8 +634,10 @@ __all__ = [
     "test_fetch_html_returns_html_when_success",
     "test_fetch_html_returns_none_when_module_missing",
     "test_fetch_html_returns_none_when_unavailable",
+    "test_fetch_html_skips_arun_while_backing_off",
     "test_fetch_html_success_false_returns_none",
     "test_fetch_html_timeout_defaults_from_yaml",
+    "test_fetch_html_timeout_records_backoff",
     "test_fetch_html_timeout_returns_none",
     "test_get_client_returns_none_on_init_failure",
     "test_get_client_returns_none_when_unavailable",

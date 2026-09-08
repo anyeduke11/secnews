@@ -84,6 +84,24 @@ class QualityGatesMixin:
         except Exception:
             pass
 
+        # v085-review F4 (P0-1): 门禁前 URL 预去重 — RSS 每轮返回全量 feed,
+        # 重复条目以前要付完全量门禁 (每条 2 次 to_thread 线程跳转) 才被
+        # DuplicateGate/service dedup 判死, 实测每轮数千条。这里用与
+        # DuplicateGate 同源的 canonicalize_url (quality 版, 非 simhash 版)
+        # 对 existing_urls 预筛, 命中直接跳过。不写 rejection 行 — 避免
+        # v4.4 已根治的「每轮重复写 quality_rejection_log」膨胀回潮。
+        canonicalize_url = None
+        known_urls: set[str] = set()
+        if existing_urls:
+            try:
+                from backend.quality.url_canonicalize import (
+                    canonicalize_url as _canon,
+                )
+                known_urls = {c for c in (_canon(u) for u in existing_urls) if c}
+                canonicalize_url = _canon
+            except Exception:
+                known_urls = set()
+
         # Phase 8 Addendum: 构造本批次 url/title/source 三元组，注入到
         # context.url_title_pairs，供 DuplicateGate 做"同 URL 不同 title"
         # 歧义识别。失败/字段缺失时退化为空列表（DuplicateGate 会跳过该检测）。
@@ -122,6 +140,18 @@ class QualityGatesMixin:
             if item.is_fallback:
                 out.append(item)
                 continue
+            # F4: URL 已在近 7 天库内 (canonical 同判 = DuplicateGate 的
+            # url_duplicate* 语义) → 跳过全量门禁
+            if known_urls and canonicalize_url is not None:
+                try:
+                    if canonicalize_url(str(item.url)) in known_urls:
+                        self.logger.debug(
+                            f"pre-gate url-dup skip: id={item.id} "
+                            f"url={str(item.url)[:120]}"
+                        )
+                        continue
+                except Exception:
+                    pass
             try:
                 # Phase 9.2: 放到 thread pool 跑，避免 FinalUrlGate 内
                 # 同步 urllib 阻塞 event loop
@@ -147,7 +177,9 @@ class QualityGatesMixin:
             # 纯确定性检查：DuplicateGate 已将重复场景统一映射为这些 flag。
             dup_flags = [f for f in presult.final_flags if f in self.DUPLICATE_FLAGS]
             if dup_flags:
-                self.logger.info(
+                # 降噪 (v085-review F3): 重复 item 每轮重跑门禁, info 级每轮
+                # 刷上千条 → DEBUG; 根治 (门禁前预去重) 见同批 F4
+                self.logger.debug(
                     f"duplicate skip: id={item.id} title={item.title[:40]!r} "
                     f"flags={dup_flags} score={presult.final_score}"
                 )

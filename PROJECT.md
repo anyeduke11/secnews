@@ -68,7 +68,7 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 3. **LLM 调用必经 ai_hub 单出口**; provider 配置四级链, llm_secrets 不动
 4. **feature gate fail-closed**: 新扩展默认 false; gate import 时读一次 (conftest 注册期快照)
 5. **wiki-first**: md 是真源, SQLite 是读缓存; 路径单一源 `wiki_fs/paths.py`
-6. **前端端口 8898 / 后端 8000 禁止漂移** (allocate-port 已定 8766 为 dsh 预留)
+6. **前端端口 8898 (dev/prod 统一 `--strictPort`) / 后端 8000 禁止漂移** (allocate-port 已定 8766 为 dsh/dev 后端预留)
 7. **敏感数据**: Fernet 加密, 未解锁显示 `******`; 不提交 .env/credentials; 主密钥丢失不可自助重置
 8. **API 错误格式** 统一 `{"detail": {"message": "...", ...}}`; playbook/用户命令走危险命令黑名单
 9. **架构数字同步**: 改注册代码后 `generate_meta.py --check` (CI 门), ARCHITECTURE.md + 4 个 AGENTS.md 同步

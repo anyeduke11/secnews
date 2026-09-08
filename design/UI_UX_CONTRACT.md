@@ -1,5 +1,7 @@
 # Hotspot v1.0 UI/UX Design Contract
 
+> **~~部分废止 (SUPERSEDED 2026-09-08)~~**：本文中壳层/导航条款（四入口、V1SentinelShell、移除管道状态条等）**不再作为实施依据**，由 [`docs/v0.8.5/V0.8.5_PLAN.md`](../v0.8.5/V0.8.5_PLAN.md) 取代（v0.8 SentinelShell 三层为唯一壳，管道心跳条全站常驻）。视觉 token、状态语义、组件密度等与壳无关的条款继续有效。
+
 > **状态**: v1.0.0 重构收尾,UI/UX 落地规范
 > **基线**: [docs/v1.0/V1.0.0_UI_UX_SPEC.md](docs/v1.0/V1.0.0_UI_UX_SPEC.md) 落实为可执行设计契约
 > **风格**: 参考 [.agents/skills/industrial-brutalist-ui](../.agents/skills/industrial-brutalist-ui/SKILL.md) — 安全数据密集终端,符合 Hotspot 安全工作站定位 (不套用营销页或休闲 UI 模板)

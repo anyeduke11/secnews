@@ -37,6 +37,11 @@ React 18 + TypeScript + Vite 5 + Tailwind 3 SPA(后端固定 127.0.0.1:8000,
 
 ## 进入此目录的硬约束
 
+0. **v0.8.5 壳纪律 (2026-09-08 裁决, 最高优先)** — v0.8 Sentinel 三层 (`/` `/judge` `/action`) 是唯一壳 (SentinelShell + 管道心跳条常驻, spec=`docs/v0.8.5/V0.8.5_PLAN.md`):
+   - 新能力**只能以三层区块**进入 (区块组件 + 真实 API + `allowed_actions` 守卫);
+   - **禁止**新增一级入口、新应用壳 (V1SentinelShell 已物理删除, 不得复活)、页内主导航/tab state 充当第二套导航;
+   - 新路由必须登记 `routes/ROUTE_REGISTRY.md` 并带重定向兼容; 三层页不出现 AppNav;
+   - 守卫测试 `routes/__tests__/v085_route_shell.test.tsx` 锁定上述口径, 违反即 CI 红。
 1. **不要新增未被设计技能路由过的视觉改动** — UI/样式任务必须先按根 AGENTS.md
    `Selection Precedence` 选中唯一主技能(`design-taste-frontend` 为默认,
    现有改造走 `redesign-existing-projects`)再开工。

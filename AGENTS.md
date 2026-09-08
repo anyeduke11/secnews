@@ -1,7 +1,7 @@
 # SecNews Knowledge Dashboard — 安全从业者 AI 助手的平台看板层
 
-> **当前状态 (2026-09-05, v0.8.2)**: Sentinel Terminal 全屏页已上线 (`/` `/judge` `/action` `/garden`); `/secnews` 为统一工作台 (6 tab); dsh 内置为受管子进程 — 前端 `/secnews/settings` 一键启停 (gate dsh=true, 控制面 `/api/dsh/control/*`); ai_hub 已包化, LLM provider 四级切换链 + 弹性层 (ProviderHealth/CircuitBreaker/场景权重) 落地; v0.8 Skills 全 gate 通电; **v0.8.2 治理合批** — 子批 1 快赢包 X (per-provider 断路器阈值 / ruff 全仓清零 / 死 gate 键治理 16→13 / PROGRESS 归档 + CHANGELOG 时序 / GZip+Cache-Control) + 子批 2 通电治理 Y (utils/concurrency.py 全局并发单一真相源, LLM 出站首次强制 max_concurrent / feature_gates+llm.yaml 5s TTL 热重载 / backup_verify 备份校验周一 job), 详见 `PROGRESS.md` v0.8.2 段。
-> 历史决策 (产品三层架构裁决 / wiki-first 存储哲学 / Phase 7 退役冻结) 见 `PROGRESS.md` 与 `git log`，不在此重复。
+> **当前状态 (2026-09-08, v0.8.5 demo 轨道)**: **v0.8.5 反向收敛已裁决** — v0.8 Sentinel 三层 (`/` 资料层 → `/judge` 判断层 → `/action` 行动层) 恢复为**唯一壳** (SentinelShell + 管道心跳条全站常驻), v1.0 九领域对象/三类 receipt 降级为嵌入三层的能力区块 (SignalPanel/CaseQueuePanel/ExecOverviewPanel); v1 四入口 `/workbench` `/intel` `/cases` 降级为重定向, **V1SentinelShell 物理删除**。唯一权威 spec = `docs/v0.8.5/V0.8.5_PLAN.md` (路由表 §5 / 接口消费表 §6 / 独立验收门 FactCheck+G1-G4); 实现与验证分离, 实现侧不得自评 PASS。开发在 `feat/v0.8.5-demo` 分支, 评审通过合入 main 打 tag `v0.8.5`。新能力只能以三层区块进入, 禁止新一级入口/新壳 (frontend/src/AGENTS.md 硬规则)。dsh 仍为受管子进程, ai_hub 弹性层与 v0.8 Skills 治理沿用 v0.8.2 口径。
+> 历史决策 (产品三层架构裁决 / wiki-first 存储哲学 / Phase 7 退役冻结 / v1.0 四入口弯路与回摆理由) 见 `PROGRESS.md`、`docs/v0.8.5/V0.8.5_PLAN.md` §0 与 `git log`，不在此重复。
 
 ---
 

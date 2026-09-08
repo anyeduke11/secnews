@@ -1,7 +1,7 @@
 /**
  * useSkillRegistry / useSkillToggle — v0.8 Phase A 技能注册表 hooks
  *
- * 数据源: /api/skill-registry (A3 交付, 详见 backend/api/skill_registry_api.py)。
+ * 数据源: /api/skill-registry/v1 (v1.0.2 F4a 迁移至 v1 端点, 返回 {version, items, total})。
  * 统一走 lib/api 的 apiFetch/postJSON (仓库 P0 约定, 禁裸 fetch):
  *   - apiFetch 已把 {detail:{message,...}} 解析为 Error.message, hook 只做兜底文案
  *   - POST enable/disable 成功后由调用方决定是否 refresh (hook 不自动拉列表)
@@ -18,7 +18,7 @@ export interface UseSkillRegistryReturn {
   refresh: () => void;
 }
 
-/** GET /api/skill-registry?category=&enabled_only= — 列表 (保持注册顺序) */
+/** GET /api/skill-registry/v1?category=&status= — 列表 (返回 {version, items, total}) */
 export function useSkillRegistry(category?: string): UseSkillRegistryReturn {
   const [skills, setSkills] = useState<SkillSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,13 +31,14 @@ export function useSkillRegistry(category?: string): UseSkillRegistryReturn {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    const path = category
-      ? `/api/skill-registry?category=${encodeURIComponent(category)}`
-      : '/api/skill-registry';
-    apiFetch<SkillSummary[]>(path, { skipLoading: true })
+    const params = new URLSearchParams();
+    if (category) params.set('category', category);
+    const qs = params.toString();
+    const path = `/api/skill-registry/v1${qs ? `?${qs}` : ''}`;
+    apiFetch<{ version: string; items: SkillSummary[]; total: number }>(path, { skipLoading: true })
       .then(data => {
         if (cancelled) return;
-        setSkills(Array.isArray(data) ? data : []);
+        setSkills(Array.isArray(data?.items) ? data.items : []);
       })
       .catch((err: unknown) => {
         if (cancelled) return;

@@ -54,7 +54,7 @@ function cardCount(): number {
 describe('SkillStore', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(apiFetch).mockResolvedValue(SKILLS);
+    vi.mocked(apiFetch).mockResolvedValue({ items: SKILLS, version: '1.0.0', total: SKILLS.length });
     vi.mocked(postJSON).mockResolvedValue({ enabled: true });
     window.confirm = vi.fn(() => true);
   });
@@ -62,7 +62,7 @@ describe('SkillStore', () => {
   it('renders 20 skill cards and fetches the registry list (初始 GET 无 category 参数)', async () => {
     render(<SkillStore />);
     expect(await screen.findAllByTestId(/^skill-card-/)).toHaveLength(20);
-    expect(vi.mocked(apiFetch)).toHaveBeenCalledWith('/api/skill-registry', { skipLoading: true });
+    expect(vi.mocked(apiFetch)).toHaveBeenCalledWith('/api/skill-registry/v1', { skipLoading: true });
   });
 
   it('category filter triggers server-side refetch with ?category= (类别走服务端)', async () => {
@@ -72,7 +72,7 @@ describe('SkillStore', () => {
 
     fireEvent.change(screen.getByLabelText('类别筛选'), { target: { value: 'operations' } });
     await waitFor(() => {
-      expect(vi.mocked(apiFetch)).toHaveBeenCalledWith('/api/skill-registry?category=operations', {
+      expect(vi.mocked(apiFetch)).toHaveBeenCalledWith('/api/skill-registry/v1?category=operations', {
         skipLoading: true,
       });
     });
@@ -130,7 +130,7 @@ describe('SkillStore', () => {
   });
 
   it('shows empty state when the registry returns no skills', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([]);
+    vi.mocked(apiFetch).mockResolvedValue({ items: [], version: '1.0.0', total: 0 });
     render(<SkillStore />);
     expect(await screen.findByText('暂无已注册技能')).toBeInTheDocument();
   });

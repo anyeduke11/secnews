@@ -97,6 +97,7 @@ hotspot.db-wal
 hotspot.db-shm
 
 # Backup / runtime cache
+.merkle-snapshot.json
 backend/hotspot.db.bak-*
 backend/hotspot.db.bak-dedup-*
 backend/cache_data.json

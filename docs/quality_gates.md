@@ -410,5 +410,5 @@ A:
 - 门禁基类: [base.py](file:///path/to/hotspot/backend/quality/base.py)
 - 评分工具: [scorer.py](file:///path/to/hotspot/backend/quality/scorer.py)
 - 域名注册表: [publisher_registry.py](file:///path/to/hotspot/backend/quality/publisher_registry.py)
-- 架构文档: [architecture.html](file:///path/to/hotspot/architecture.html)
-- 信源清单: [sources.html](file:///path/to/hotspot/sources.html)
+- 架构文档: [architecture.html](file:///path/to/hotspot/docs/archived/2026-09-09-sweep/architecture.html) (2026-09-09 归档; 当前主图为根目录 hotspot-architecture.html)
+- 信源清单: [sources.html](file:///path/to/hotspot/docs/archived/2026-09-09-sweep/sources.html) (2026-09-09 归档)

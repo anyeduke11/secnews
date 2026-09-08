@@ -29,8 +29,8 @@
 ## v0.8.0-post 治理与 v0.8.1 立项 (2026-09-05)
 
 - **项目心智/阶段台账**: `PROJECT.md` (2026-09-05 project-brain 刷新) — 生命周期当前阶段 + 阶段检查记录; 接手顺序 = 本文件 → PROJECT.md → `PROGRESS.md` 活跃段
-- **审计事实源**: `docs/CRITICAL_REVIEW_2026-09-03.md` (2026-09-05 复核版, 19 finding 逐项标 ✅/◐/❌) — 动手前先查对应项状态, 勿凭旧印象; `docs/V0.8_REFACTOR_PLAN.md` 已加已完结横幅 (25 个 `[ ]` 是计划态留痕, 执行记录以 `PROGRESS.md` 为准)
-- **v0.8.1 下一 batch**: `docs/V0.8.1_PLAN.md` — 推荐 A = CRITICAL_REVIEW §1.2 断路器 + §2.1 provider_health/场景权重联动 (5 天, 复用 `retry_policy.py` 模式与 dsh runtime 3 连败先例, 不引新依赖); 备选 B (断路器 alone 2 天) / C (react-query 5-7 天) / D-a~d (error_classifier 2 天 / graceful shutdown 0.5 天 / GZip 2 天 / pi 协议实测 1 周); 裁决点 D1-D6 待用户拍板 — **未裁决前勿动 ai_hub 调用链** (`gateway._try_order` / `service._resolve_provider`)
+- **审计事实源**: `docs/CRITICAL_REVIEW_2026-09-03.md` (2026-09-05 复核版, 19 finding 逐项标 ✅/◐/❌) — 动手前先查对应项状态, 勿凭旧印象; `docs/archived/2026-09-09-sweep/V0.8_REFACTOR_PLAN.md` 已完结 (2026-09-09 归档, 25 个 `[ ]` 是计划态留痕, 执行记录以 `PROGRESS.md` 为准)
+- **v0.8.1 batch (已交付)**: 方案存档 `docs/archived/2026-09-09-sweep/V0.8.1_PLAN.md` — 方案 A (断路器 + provider_health 联动) 已于 v0.8.2 落地; **未裁决前勿动 ai_hub 调用链** (`gateway._try_order` / `service._resolve_provider`)
 - **前置项**: 七 gate 开闸演练 (skill_registry/trigger_gate/agent_loop/playbook_engine/user_skills/skill_eval/info_filter 全开后全量回归 + ARCHITECTURE 同步, 1 天)
 - **架构图**: `hotspot-architecture.html` + `hotspot-architecture.candidate.json` 已入仓 — **candidate.json 是唯一编辑入口**, HTML 由 `archify deliver` 生成不手改; 硬约束: viewBox 宽 ≤~1390 (context 字号 9px 上限 × 投影 ≥6px @1440) / 列距 ≥40px (26px 以下渲染器崩溃) / 副标签长度按盒宽预算 → **加节点必先删节点**; 复跑 archify 会覆盖入仓产物
 - **dsh 真相 (叙事锚点)**: 受管子进程, :3210 降级链 `not_configured→mock→ai_hub` — 图/docs/代码 (`dsh/runtime.py:resolve_effective` 三态) 三层已对齐, 新文档沿用此口径, 勿再写"独立网关"

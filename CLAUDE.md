@@ -211,6 +211,6 @@ sync_bundle.py   →  Serialization: build_bundle, encrypt/decrypt (853 lines)
 
 ## Docs & Tooling Notes
 
-- `docs/` holds the design corpus: `ARCHITECTURE.md` (v3.0 optimization plan), `RUNBOOK.md`, `ADMIN_MANUAL.md`, `ACCEPTANCE.md`, `quality_gates.md`, `CodeGarden_PRD_v0.3.0.md`, `secnews-knowledge-design.md`, `DESIGN_GUIDE.md`. Consult these for subsystem rationale before large changes. Phase 17 spec at `.trae/specs/phase17-chunks-attention/`.
+- `docs/` holds the design corpus: `ARCHITECTURE.md` (current-state overview), `RUNBOOK.md`, `ADMIN_MANUAL.md`, `quality_gates.md`, `CodeGarden_PRD_v1.7.md`, `DESIGN_SYSTEM.md`, `DESIGN_GUIDE.md`, `V0.8_SKILLS.md`, `V0.8_USER_GUIDE.md`, plus `v0.8.5/` (current authoritative spec + acceptance). Delivered plans and one-off audits live in `docs/archived/` (2026-09-09 sweep and earlier). Consult these for subsystem rationale before large changes. Phase 17 spec at `.trae/specs/phase17-chunks-attention/`.
 - `README.md` — quick start, data-source table, proxy config walkthrough.
 - **Gortex (Cursor-only)**: `.cursor/rules/`, `.github/copilot-instructions.md`, `docs/AGENTS.md`, and `docs/CLAUDE.md` contain auto-generated Gortex code-intelligence blocks (the `/gortex-*` skill tables and "prefer graph tools" workflow). These are managed by the Gortex MCP server for Cursor — not hand-authored instructions. In Claude Code the Gortex MCP is not wired, so ignore those skill listings and use the standard search tools.

@@ -681,7 +681,7 @@ digraph Categories {
 - 详细模块说明: [CODE_WIKI.md](file:///path/to/hotspot/CODE_WIKI.md)
 - 架构设计 v3.0: [ARCHITECTURE.md](file:///path/to/hotspot/ARCHITECTURE.md)
 - 设计指南: [DESIGN_GUIDE.md](file:///path/to/hotspot/DESIGN_GUIDE.md)
-- 验收报告: [ACCEPTANCE.md](file:///path/to/hotspot/docs/ACCEPTANCE.md)
+- 验收报告: [ACCEPTANCE.md](file:///path/to/hotspot/docs/archived/2026-09-09-sweep/ACCEPTANCE.md)
 - Runbook: [RUNBOOK.md](file:///path/to/hotspot/docs/RUNBOOK.md)
 
 ### 5.4 图表渲染提示

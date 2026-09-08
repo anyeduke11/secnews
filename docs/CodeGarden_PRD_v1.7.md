@@ -4,7 +4,7 @@
 > **日期**: 2026-07-19
 > **定位**: hotspot v1.5+ 子系统 — 个人氛围编程产物 + AI 协作全生命周期管理
 > **部署**: 纯本地单机（复用 hotspot 既有栈）
-> **基线**: 整合 CodeGarden_PRD_v1.0.md 与 hotspot-codegarden.md，与 hotspot 解耦共存
+> **基线**: 整合 CodeGarden_PRD_v1.0.md 与 hotspot-codegarden.md（均移入 `archived/2026-09-09-sweep/`），与 hotspot 解耦共存
 > **开源协议**: MIT License
 
 ---

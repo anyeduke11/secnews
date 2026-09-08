@@ -1,25 +1,24 @@
 # SecNews（hotspot）· 现状架构文档
 
-> 📜 **状态标注 (2026-08-28)**: hotspot 活跃开发中 — 当前代码 v0.6.2，对应 `docs/SECNEWS_INTEGRATION_TASKS.md` Phase 4-6 已全部交付 (Phase 4 合规矩阵 `5c657d99` / Phase 6 wiki 迁移 `309a83da` + FTS5 同步 `e53790cc`)。
+> 📜 **状态标注 (2026-08-28)**: hotspot 活跃开发中 — 当前代码 v0.6.2，对应 `docs/archived/2026-09-09-sweep/SECNEWS_INTEGRATION_TASKS.md` Phase 4-6 已全部交付 (Phase 4 合规矩阵 `5c657d99` / Phase 6 wiki 迁移 `309a83da` + FTS5 同步 `e53790cc`)。
 >
-> **退役文档**: [`HOTSPOT_RETIREMENT.md`](HOTSPOT_RETIREMENT.md) (含冻结横幅, 当前为参考档案)
-> **整合 spec**: [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](docs/HOTSPOT_SECNEWS_INTEGRATION.md) + [`docs/SECNEWS_INTEGRATION_TASKS.md`](docs/SECNEWS_INTEGRATION_TASKS.md)
-> **代码审计**: [`docs/CODE_AUDIT_2026-08-28.md`](docs/CODE_AUDIT_2026-08-28.md) (架构深度分析)
+> **退役文档**: [`HOTSPOT_RETIREMENT.md`](archived/2026-09-09-sweep/HOTSPOT_RETIREMENT.md) (含冻结横幅, 当前为参考档案, 2026-09-09 归档)
+> **整合 spec**: [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](archived/2026-09-09-sweep/HOTSPOT_SECNEWS_INTEGRATION.md) + [`docs/SECNEWS_INTEGRATION_TASKS.md`](archived/2026-09-09-sweep/SECNEWS_INTEGRATION_TASKS.md) (2026-09-09 归档)
+> **代码审计**: [`docs/CODE_AUDIT_2026-08-28.md`](archived/2026-09-09-sweep/CODE_AUDIT_2026-08-28.md) (架构深度分析, 2026-09-09 归档)
 
 > 本文档描述 **2026-09-04 当前代码 (v0.8 Skills Phase A)** 的真实架构，供新开发者快速理解系统。
 > **定位**：现状导览 (≤ 200 行)；详细专题见 [docs/code-wiki/](code-wiki/CODE_WIKI.md) 5 个分章节文件。
 > 所有数字均从代码/文件核对（迁移 107、router 85、jobs 58、collectors 14、services 127、测试 4261+/463+、备份保留 7、同步上限 100k），`scripts/generate_meta.py --check` 是 CI 门禁。
 > v0.8 Skills Phase A (2026-09-04): Skill/Playbook 双轨看板 — `trigger_gate/` (限流+持久化队列+三档优先级+worker 泵, migration 091) + `skill_registry/` (20 内置 skill, 反模式 linter) + `/api/skill-registry/*` 5 端点 + 前端 `/skill-store` + gates skill_registry/trigger_gate 默认 false。设计见 [docs/V0.8_SKILLS.md](V0.8_SKILLS.md), 进度见 PROGRESS.md。
 > v0.8 P1 (2026-09-03): 独立资讯筛选门禁 — `info_filter_service` (CRUD/校验/evaluate) + `info_filter_gate` (5s TTL cache + Layer 1 源级 + Layer 2 item 级 hooks) + `/api/info-filter/{rules,preview,gate}` 6 端点 + 前端 InfoFilterCard (SettingsHub 17 cat) + feature_gates.toml `info_filter=false` 默认关闭。详见 PROGRESS.md。
-> v0.8.1 (2026-09-05): 运行时弹性层 + Skills 通电 — 七 gate 开闸演练通过后保持 true (mcp 回关); `utils/shutdown.py` graceful shutdown (drain + WAL checkpoint); `utils/circuit_breaker.py` 薄状态机 + `ai_hub/provider_health.py` 唯一判定源 (5min 滑窗 + min_samples) + gateway/image 集中记账; `/api/observability/llm/health` + reset; breaker 迁移 audit_log; `quality/scenario_router.py` deep 场景权重重排。见 [docs/V0.8.1_PLAN.md](V0.8.1_PLAN.md)。
+> v0.8.1 (2026-09-05): 运行时弹性层 + Skills 通电 — 七 gate 开闸演练通过后保持 true (mcp 回关); `utils/shutdown.py` graceful shutdown (drain + WAL checkpoint); `utils/circuit_breaker.py` 薄状态机 + `ai_hub/provider_health.py` 唯一判定源 (5min 滑窗 + min_samples) + gateway/image 集中记账; `/api/observability/llm/health` + reset; breaker 迁移 audit_log; `quality/scenario_router.py` deep 场景权重重排。见 [docs/archived/2026-09-09-sweep/V0.8.1_PLAN.md](archived/2026-09-09-sweep/V0.8.1_PLAN.md)。
 > v1.0 C12 (2026-09-07): R16 修 — `v1_knowledge_refs.role='used'` 旧双职 (derived_from + adopted_by) 物理拆出, 新表 `v1_knowledge_adoptions` (migration 106, UNIQUE(kid, rev, case_id) 幂等 + 3 索引 case/decision/recent); `KnowledgeService` 加 4 method (`record_adoption` / `record_outcome` / `recall_for_case` / `_attach_blocker_to_adopted_cases`); `get_reuse_receipt` 派生 `{total, by_decision, by_outcome, recent_30d}` 替旧 `{total, by_judgment, by_action}`, 新知识 total=0 起算; 4 API 端点 (`POST /adopt` / `GET /adoptions` / `POST /outcome` / `GET /recall`); 撤回/反证 → `tags_json` 追加 `knowledge_retracted:{kid}` / `knowledge_deprecated:{kid}` (append-only, 不改 adoption 历史); `v1_skills.py` SK-05 output_schema 同步 R16.5. 详见 [docs/v1.0/task-status.md](v1.0/task-status.md) C12 行。
 > v0.7.4 (2026-09-02): ai_hub 三场景路由 (deep/light/image) — `scenarios.py` 单点 + `image_service.py` 复用 Batch ⑥ 凭据链 + `/api/image/{generate,understand}` + QualitySettings 折叠面板 + ImageStudio 工具页 + sensenova-u1.5-lite (文生图) + deepseek-v4-pro (深度档 yaml 升级)。
 > v0.7.2 (2026-08-31): llm_secrets 接入 AIService + key_source 兑现 (Batch ⑥, 详见 PROGRESS.md)
 > v0.7.0 (2026-08-30): 观测地基 (PRD §5.1) + LLM provider 四级链 (env > settings.kv > router > yaml)
-> v0.6 (2026-08-23 → 08-28): SecNews 工作台 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings) + kl_pipeline 五阶段管线 + DSH HTTP 桥接 + CRM 业绩座舱 + wiki_items_fts 完整同步层 + dsh-SecNews 归档, 详见 `docs/CODE_AUDIT_2026-08-28.md`。
-> v0.5 (2026-08-21 → 08-23): llm-wiki-2.0 数据底座 + ai_hub LLM 单出口 + Hot/Warm/Cold 分层 + dlq retry + 性能三任务, 详见 `docs/v0.5_refactor_plan/README.md`。
-> v0.4.0 (2026-08-16): 审计重构 Phase 0-6 落地, 详见 `docs/audit_first_principles_plan.md`。
-> v0.6 (2026-08-23 → 08-28): SecNews 工作台 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings) + kl_pipeline 五阶段管线 + DSH HTTP 桥接 + CRM 业绩座舱 + wiki_items_fts 完整同步层 + dsh-SecNews 归档, 详见 `docs/CODE_AUDIT_2026-08-28.md`。
+> v0.6 (2026-08-23 → 08-28): SecNews 工作台 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings) + kl_pipeline 五阶段管线 + DSH HTTP 桥接 + CRM 业绩座舱 + wiki_items_fts 完整同步层 + dsh-SecNews 归档, 详见 `docs/archived/2026-09-09-sweep/CODE_AUDIT_2026-08-28.md`。
+> v0.5 (2026-08-21 → 08-23): llm-wiki-2.0 数据底座 + ai_hub LLM 单出口 + Hot/Warm/Cold 分层 + dlq retry + 性能三任务, 详见 `docs/archived/2026-09-09-sweep/v0.5_refactor_plan/README.md`。
+> v0.4.0 (2026-08-16): 审计重构 Phase 0-6 落地, 详见 `docs/archived/2026-09-09-sweep/audit_first_principles_plan.md`。
 > v0.5 (2026-08-21 → 08-23): llm-wiki-2.0 数据底座 + ai_hub LLM 单出口 + Hot/Warm/Cold 分层 + dlq retry + 性能三任务, 详见 `docs/v0.5_refactor_plan/README.md`。
 > v0.4.0 (2026-08-16): 审计重构 Phase 0-6 落地, 详见 `docs/audit_first_principles_plan.md`。
 

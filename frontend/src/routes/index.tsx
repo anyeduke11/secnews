@@ -108,6 +108,8 @@ export function AppRoutes() {
         <Route path="/judge/graph" element={<Suspense fallback={<PageFallback />}><P.SentinelGraphPage /></Suspense>} />
         {/* 行动层: 已接受的结论要如何执行、验收和沉淀 */}
         <Route path="/action" element={<Suspense fallback={<PageFallback />}><P.SentinelActionPage /></Suspense>} />
+        {/* 判断层深链接: Case 详情 (URL 真相源, ?section= 定位; spec §5/§6.3) */}
+        <Route path="/cases/:caseId" element={<Suspense fallback={<PageFallback />}><P.CaseDetailPage /></Suspense>} />
         {features.codegarden && (
           <Route path="/garden" element={<Suspense fallback={<PageFallback />}><P.SentinelGardenPage /></Suspense>} />
         )}

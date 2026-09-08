@@ -182,3 +182,7 @@ export const OAuthCallbackPage = React.lazy(() =>
 export const KnowledgeV1Page = React.lazy(() =>
   import('../components/v1/V1Prototype').then(m => ({ default: m.KnowledgeV1Page }))
 );
+// v0.8.5 C2: /cases/:caseId 判断层深链接 (SentinelShell layer=judge + CaseDetail)
+export const CaseDetailPage = React.lazy(() =>
+  import('../components/v1/CaseDetailPage').then(m => ({ default: m.CaseDetailPage }))
+);

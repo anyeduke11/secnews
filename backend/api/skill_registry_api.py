@@ -67,6 +67,9 @@ def _summary(skill: SkillDef) -> dict:
         "feature_gate": skill.feature_gate, "default_enabled": skill.default_enabled,
         "enabled": is_skill_enabled(skill.id),
         "has_prompt": skill.skill_type in _PROMPT_TYPES,
+        # v1.0.2 F2a: 补全前端 SkillStore 过滤依赖的 status/version
+        "status": getattr(skill, "status", "legacy_v0"),
+        "version": getattr(skill, "version", "0.9.0"),
     }
 
 

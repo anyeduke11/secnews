@@ -1,6 +1,7 @@
 import { Suspense, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { PageLayout } from '../components/PageLayout';
+import { V1SentinelShell } from '../components/sentinel/V1SentinelShell';
 import { useFavorites } from '../hooks/useFavorites';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import * as P from './lazy-imports';
@@ -119,11 +120,13 @@ export function AppRoutes() {
         {/* v1.0 C09 R23 修复: 4 真路由 (workbench / intel / cases) 拆 3 独立 page,
          * /knowledge 单独由下方 KnowledgePage 4 大领域嵌套处理 (R23 合并 /knowledge 重复声明).
          * / 默认 Navigate to /workbench (C09 R24 修复).
+         * v1.0.1 一致性重构: 4 路由统一套 V1SentinelShell 顶栏 (品牌+三层导航+主题切换+时钟),
+         * 但不接管管道心跳条 + 右栏 rail-mod (这两块走 secnews/* 路由的 SentinelShell).
          */}
         <Route path="/" element={<Navigate to="/workbench" replace />} />
-        <Route path="/workbench" element={<Suspense fallback={<PageFallback />}><P.WorkbenchPage /></Suspense>} />
-        <Route path="/intel" element={<Suspense fallback={<PageFallback />}><P.IntelPage /></Suspense>} />
-        <Route path="/cases" element={<Suspense fallback={<PageFallback />}><P.CasesPage /></Suspense>} />
+        <Route path="/workbench" element={<V1SentinelShell layer="workbench"><Suspense fallback={<PageFallback />}><P.WorkbenchPage /></Suspense></V1SentinelShell>} />
+        <Route path="/intel" element={<V1SentinelShell layer="data"><Suspense fallback={<PageFallback />}><P.IntelPage /></Suspense></V1SentinelShell>} />
+        <Route path="/cases" element={<V1SentinelShell layer="judge"><Suspense fallback={<PageFallback />}><P.CasesPage /></Suspense></V1SentinelShell>} />
         <Route path="/secrets" element={<Suspense fallback={<PageFallback />}><P.SecretsPage onBack={goHome} /></Suspense>} />
         {features.sync && (
           <Route path="/sync" element={<Suspense fallback={<PageFallback />}><P.SyncPage onBack={goHome} /></Suspense>} />
@@ -133,8 +136,9 @@ export function AppRoutes() {
 
         {/* 知识管理: 4 大领域 (信息导入 / 处理数据 / 知识库编译 / 知识库复利) + 经验库聚合
          * C09 R23 修复: /knowledge 唯一声明 (V1Prototype initialTab="knowledge" + KnowledgePage 4 大领域嵌套)
+         * v1.0.1: /knowledge 套 V1SentinelShell layer=action
          */}
-        <Route path="/knowledge" element={<Suspense fallback={<PageFallback />}><P.KnowledgePage onBack={goHome} /></Suspense>}>
+        <Route path="/knowledge" element={<V1SentinelShell layer="action"><Suspense fallback={<PageFallback />}><P.KnowledgePage onBack={goHome} /></Suspense></V1SentinelShell>}>
           <Route index element={<Navigate to="import" replace />} />
           <Route path="import" element={<Suspense fallback={<PageFallback />}><P.KnowledgeImport /></Suspense>} />
           <Route path="process" element={<Suspense fallback={<PageFallback />}><P.KnowledgeProcess /></Suspense>} />

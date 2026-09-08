@@ -172,3 +172,38 @@ def test_get_not_found_raises() -> None:
     svc = ArtifactService()
     with pytest.raises(ArtifactNotFoundError):
         svc.get("NOSUCHARTIFACT0000000000")
+
+
+# ---------------------------------------------------------------------------
+# v0.8.5 D2 (R09 API 层): 客户端 expected_revision CAS 校验
+# ---------------------------------------------------------------------------
+def test_verify_with_stale_expected_revision_conflicts(tmp_path, temp_db) -> None:
+    """D2 反例: 客户端携带过期 expected_revision → ArtifactConflictError (409 语义)."""
+    _, rid = _seed_action_run()
+    svc = ArtifactService()
+    a = svc.create(
+        run_id=rid, kind="report", title="CAS 反例报告",
+        content="# CAS", format="md",
+        content_ref=_write_body(tmp_path, "# CAS"),
+    )
+    with pytest.raises(ArtifactConflictError, match="expected_revision=999"):
+        svc.verify(a["id"], verified_by="user", verified_result="pass", expected_revision=999)
+    # 未携带 expected_revision (内部调用方) → 行为不变
+    ok = svc.verify(a["id"], verified_by="user", verified_result="pass")
+    assert ok["status"] == "verified"
+
+
+def test_accept_with_stale_expected_revision_conflicts(tmp_path, temp_db) -> None:
+    _, rid = _seed_action_run()
+    svc = ArtifactService()
+    a = svc.create(
+        run_id=rid, kind="report", title="CAS accept 反例",
+        content="# CAS accept", format="md",
+        content_ref=_write_body(tmp_path, "# CAS accept"),
+    )
+    svc.verify(a["id"], verified_by="user", verified_result="pass")
+    cur = svc._require(a["id"])
+    with pytest.raises(ArtifactConflictError, match="expected_revision=1"):
+        svc.accept(a["id"], accepted_by="user", expected_revision=1)  # verify 后 rev 已 +1
+    ok = svc.accept(a["id"], accepted_by="user", expected_revision=cur["revision"])
+    assert ok["status"] == "accepted"

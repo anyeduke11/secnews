@@ -112,7 +112,9 @@ action_start_backend() {
 action_start_frontend() {
     log "starting frontend on :${DEV_PORT_FRONTEND} (proxies 127.0.0.1:${DEV_PORT_BACKEND})"
     cd "${REPO_ROOT}/frontend"
-    HOTSPOT_PORT="${DEV_PORT_BACKEND}" .venv/bin/../npm exec -- vite --port "${DEV_PORT_FRONTEND}" --strictPort --host 127.0.0.1
+    # v0.8.5 D2 修复: vite.config.ts 读的是 HOTSPOT_BACKEND_PORT (原误设 HOTSPOT_PORT,
+    # 代理回落 8000 打到生产后端)。dev 前后端端口自此固定: 8899 → 8766。
+    HOTSPOT_BACKEND_PORT="${DEV_PORT_BACKEND}" npm exec -- vite --port "${DEV_PORT_FRONTEND}" --strictPort --host 127.0.0.1
 }
 
 action_status() {

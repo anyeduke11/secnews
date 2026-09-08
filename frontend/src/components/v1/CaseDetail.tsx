@@ -9,13 +9,14 @@
  * 数据: 真实 API (aggregate 单点拉取 + SSE 精准失效), 失败显 unavailable, 无 mock fallback。
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Case, Judgment } from '../../domain/v1_0';
 import type { Action, Run, Artifact, Knowledge } from '../../api/v1';
 import {
   listKnowledge, getKnowledgeReuse,
   getCaseAggregate,
   approveAction, startAction, cancelAction, verifyArtifact, acceptArtifact, rejectArtifact, closeCase,
+  generateJudgment, generateAction, publishJudgment,
   type ReuseReceipt, type CaseEvidenceMaterial,
 } from '../../api/v1';
 import { renderInlineMarkdown } from '../../lib/markdown';
@@ -59,10 +60,15 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
   const [knowledgeReceipts, setKnowledgeReceipts] = useState<Record<string, ReuseReceipt>>({});
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
   const [pendingMutation, setPendingMutation] = useState<string | null>(null);
+  const [generating, setGenerating] = useState<"judgment" | "action" | null>(null);
   const toast = useToast();
+  // D2 P2 修复 (code-review #5): 聚合响应竞态守卫 — case 切换/深链跳转时,
+  // 旧 case 的在途响应不得覆盖新 case 的 state (last-write-wins → 按 generation 丢弃)
+  const fetchGenRef = useRef(0);
 
   // C11 R19: 单点 aggregate 拉取 — 1 次 HTTP 拉齐 case+judgments+actions+runs+artifacts.
   const refetchAggregate = useCallback(async (silent: boolean = false) => {
+    const gen = ++fetchGenRef.current;
     setLoading(true);
     setError(null);
     setJudgmentsLoading(true);
@@ -75,6 +81,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
         runs_per_action: 10,
         artifacts_per_run: 10,
       });
+      if (gen !== fetchGenRef.current) return;  // 过期响应 — 已切换 case, 丢弃
       setLiveCase(agg.case);
       setLiveJudgments(agg.judgments);
       setLiveActions(agg.actions);
@@ -83,6 +90,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
       setLiveEvidence(agg.evidence_materials ?? []);
       // knowledge 仍走 listKnowledge (与 reuse receipt), 不在 aggregate 范围
       // (复用统计为派生聚合, 不在主链路 N+1 内, T13 形态保留)
+      if (gen !== fetchGenRef.current) return;
       const knResp = await listKnowledge({ case_id: case_.id, limit: 50 });
       setLiveKnowledge(knResp.items);
       const receipts: Record<string, ReuseReceipt> = {};
@@ -98,6 +106,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
       setKnowledgeReceipts(receipts);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      if (gen !== fetchGenRef.current) return;  // 过期响应
       setError(msg);
       if (!silent) {
         toast.show({ type: 'error', message: `刷新失败: ${msg}` });
@@ -164,7 +173,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
       idempotency_key: `idem_${a.id}_${Date.now()}`,
       protocol: 'pi',
       trigger_source: 'user',
-    } as any).then(r => r.run ?? r),
+    }).then(r => r.run ?? r),
     `行动已启动: ${a.title}`,
     '启动失败',
   );
@@ -176,19 +185,19 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
   );
   const handleVerifyArtifact = (art: Artifact) => runMutation(
     `verify:${art.id}`,
-    () => verifyArtifact(art.id, { expected_revision: art.revision, verified_result: 'pass', verified_by: 'user' } as any).then(r => r.item),
+    () => verifyArtifact(art.id, { expected_revision: art.revision, verified_result: 'pass', verified_by: 'user' }),
     `产物已验证: ${art.title}`,
     '验证失败',
   );
   const handleAcceptArtifact = (art: Artifact) => runMutation(
     `accept:${art.id}`,
-    () => acceptArtifact(art.id, { expected_revision: art.revision, accepted_by: 'user' } as any).then(r => r.item),
+    () => acceptArtifact(art.id, { expected_revision: art.revision, accepted_by: 'user' }),
     `产物已业务验收: ${art.title}`,
     '验收失败',
   );
   const handleRejectArtifact = (art: Artifact) => runMutation(
     `reject:${art.id}`,
-    () => rejectArtifact(art.id, { expected_revision: art.revision, rejected_by: 'user', reason: '人工拒绝 (UI 入口)' } as any).then(r => r.item),
+    () => rejectArtifact(art.id, { expected_revision: art.revision, rejected_by: 'user', reason: '人工拒绝 (UI 入口)' }),
     `产物已拒绝: ${art.title}`,
     '拒绝失败',
   );
@@ -211,6 +220,78 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
   const actions: Action[] = liveActions;
   const runs: Run[] = liveRuns;
   const artifacts: Artifact[] = liveArtifacts;
+
+  // ── D2: 真实出稿 (SK-02/SK-03) — 证据材料来自 D1.2 立项绑定, 失败如实 DEGRADED ──
+  const cveId = useMemo(
+    () => (/\bCVE-\d{4}-\d{4,7}\b/i.exec(`${display.title} ${display.question}`)?.[0] ?? "").toUpperCase(),
+    [display],
+  );
+
+  const handleGenerateJudgment = async () => {
+    if (liveEvidence.length === 0) {
+      toast.show({ type: 'warning', message: '暂无证据材料 — 请先从资料层信号立项携带证据 (SK-02 输入端)' });
+      return;
+    }
+    if (!cveId) {
+      toast.show({ type: 'error', message: 'case 标题/描述未解析出 CVE 编号 — SK-02 为 cve-impact-brief 能力' });
+      return;
+    }
+    setGenerating('judgment');
+    try {
+      await generateJudgment({
+        case_id: display.id,
+        cve_id: cveId,
+        subject_name: (liveEvidence[0]?.title || display.title).slice(0, 200),
+        evidence_materials: liveEvidence.map(m => ({ id: m.id, title: m.title ?? '', content_hash: m.content_hash, summary: m.summary ?? undefined })),
+        submitted_by: 'user',
+      });
+      toast.show({ type: 'success', message: '判断草稿已生成 — 人工审阅后发布' });
+      await refetchChain(true);
+    } catch (e) {
+      toast.show({ type: 'error', message: `生成失败 (真实出稿依赖 dsh/ai_hub): ${e instanceof Error ? e.message : String(e)}` });
+    } finally {
+      setGenerating(null);
+    }
+  };
+
+  const handlePublishJudgment = (j: Judgment) => runMutation(
+    `publish:${j.id}`,
+    () => publishJudgment(j.id, { expected_revision: j.revision ?? 1 }),
+    `判断已发布 (${j.claim_type})`,
+    '发布失败',
+  );
+
+  const handleGenerateAction = async () => {
+    const published = judgments.find(j => j.status === 'published');
+    if (!published) {
+      toast.show({ type: 'warning', message: '需先有 published 判断 (§10.1: 行动必须引用已发布判断)' });
+      return;
+    }
+    if (!cveId) {
+      toast.show({ type: 'error', message: 'case 未解析出 CVE 编号 — SK-03 为 inspection-materials 能力' });
+      return;
+    }
+    setGenerating('action');
+    try {
+      await generateAction({
+        case_id: display.id,
+        judgment_id: published.id,
+        title: `排查材料: ${display.title}`.slice(0, 200),
+        subject_name: (liveEvidence[0]?.title || display.title).slice(0, 200),
+        cve_id: cveId,
+        scope: display.question.slice(0, 2000),
+        evidence_materials: liveEvidence.map(m => ({ id: m.id, title: m.title ?? '', content_hash: m.content_hash })),
+        submitted_by: 'user',
+      });
+      toast.show({ type: 'success', message: '行动已生成 (planned) — 批准后执行' });
+      await refetchChain(true);
+    } catch (e) {
+      toast.show({ type: 'error', message: `生成失败 (真实出稿依赖 dsh/ai_hub): ${e instanceof Error ? e.message : String(e)}` });
+    } finally {
+      setGenerating(null);
+    }
+  };
+
 
   // 走查 3 路径检测 (T12 强化: 显式呈现 3 路径而非简单色块)
   const hasMissingAssets = actions.length > 0 && artifacts.length === 0;
@@ -386,9 +467,23 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
 
       {/* 判断 */}
       <div id="section-judgments" className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
-        <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-          判断 (Judgment) {judgmentsLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+            判断 (Judgment) {judgmentsLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
+          </h3>
+          {/* D2: SK-02 真实出稿 — 证据来自 D1.2 立项绑定, 依赖 dsh/ai_hub, 失败如实报错 */}
+          <button
+            type="button"
+            onClick={handleGenerateJudgment}
+            disabled={generating !== null || liveEvidence.length === 0}
+            title={liveEvidence.length === 0 ? '需先携带证据材料 (从信号立项)' : `SK-02 cve-impact-brief ${cveId || '(未解析到 CVE 编号)'}`}
+            className="text-xs px-3 py-1.5 rounded font-medium focus-ring disabled:opacity-50"
+            style={{ background: 'var(--color-info)', color: 'var(--text-on-info, #fff)' }}
+            data-testid="generate-judgment-btn"
+          >
+            {generating === 'judgment' ? '生成中…' : '生成判断 (SK-02)'}
+          </button>
+        </div>
         {judgments.length === 0 ? (
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>暂无判断</div>
         ) : (
@@ -400,6 +495,18 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                     {j.claim_type} · confidence: {j.confidence} · rev {j.revision}
                   </span>
+                  {/* D2: draft → 人工发布 (三重守卫, allowed_actions 守卫) */}
+                  {j.status === 'draft' && Array.isArray(j.allowed_actions) && j.allowed_actions.includes('publish') && (
+                    <button
+                      onClick={() => handlePublishJudgment(j)}
+                      disabled={pendingMutation === `publish:${j.id}`}
+                      className="text-xs px-2.5 py-0.5 rounded font-medium focus-ring disabled:opacity-50"
+                      style={{ background: 'var(--color-success)', color: 'var(--text-on-success, #fff)' }}
+                      data-testid="publish-judgment-btn"
+                    >
+                      {pendingMutation === `publish:${j.id}` ? '发布中…' : '发布'}
+                    </button>
+                  )}
                 </div>
                 {/* T11: claim 是 Markdown, 自实现 renderInlineMarkdown 渲染 (**bold** / 列表 / 标题) */}
                 <div
@@ -430,9 +537,23 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
 
       {/* 行动 + 运行 + 产物 */}
       <div id="section-actions" className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
-        <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-          行动 (Action) + 运行 (Run) + 产物 (Artifact) {actionChainLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+            行动 (Action) + 运行 (Run) + 产物 (Artifact) {actionChainLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
+          </h3>
+          {/* D2: SK-03 真实出稿 — 引用 published 判断 (§10.1) */}
+          <button
+            type="button"
+            onClick={handleGenerateAction}
+            disabled={generating !== null || !judgments.some(j => j.status === 'published')}
+            title={judgments.some(j => j.status === 'published') ? 'SK-03 inspection-materials' : '需先生成并发布判断 (§10.1)'}
+            className="text-xs px-3 py-1.5 rounded font-medium focus-ring disabled:opacity-50"
+            style={{ background: 'var(--color-info)', color: 'var(--text-on-info, #fff)' }}
+            data-testid="generate-action-btn"
+          >
+            {generating === 'action' ? '生成中…' : '生成行动 (SK-03)'}
+          </button>
+        </div>
         {actions.length === 0 ? (
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>暂无行动</div>
         ) : (

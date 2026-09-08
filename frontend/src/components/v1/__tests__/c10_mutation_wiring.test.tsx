@@ -27,7 +27,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ToastProvider } from '../../Toast';
-import { CaseDetail } from '../V1Prototype';
+import { CaseDetail } from '../CaseDetail';  // v0.8.5 D2: 被测对象已迁移至 './CaseDetail'
 import type { Case, Judgment } from '../../../domain/v1_0';
 import type { Action, Artifact, Run, Knowledge } from '../../../api/v1';
 

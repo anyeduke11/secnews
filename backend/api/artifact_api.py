@@ -33,10 +33,15 @@ class CreateArtifactRequest(BaseModel):
 
 
 class VerifyArtifactRequest(BaseModel):
-    """POST /api/v1/artifacts/{id}/verify — 验证 (pass/fail/warn)."""
+    """POST /api/v1/artifacts/{id}/verify — 验证 (pass/fail/warn).
+
+    v0.8.5 D2 (R09 API 层): expected_revision 可选透传 — 客户端聚合读到的
+    revision 与服务端当前不符时 409 E_CONFLICT (契约 §0.6 CAS)。
+    """
 
     verified_by: str = Field(min_length=1, max_length=200)
     verified_result: str = Field(default="pass", pattern="^(pass|fail|warn)$")
+    expected_revision: int | None = Field(default=None, ge=1)
 
 
 class AcceptArtifactRequest(BaseModel):
@@ -44,6 +49,7 @@ class AcceptArtifactRequest(BaseModel):
 
     accepted_by: str = Field(min_length=1, max_length=200)
     accepted_note: str | None = None
+    expected_revision: int | None = Field(default=None, ge=1)
 
 
 class RejectArtifactRequest(BaseModel):
@@ -51,6 +57,7 @@ class RejectArtifactRequest(BaseModel):
 
     rejected_by: str = Field(min_length=1, max_length=200)
     reason: str = Field(min_length=1, max_length=2000)
+    expected_revision: int | None = Field(default=None, ge=1)
 
 
 def _artifact_to_dict(a: dict[str, Any]) -> dict[str, Any]:
@@ -116,7 +123,8 @@ def _get(artifact_id: str) -> dict[str, Any]:
 def _verify(artifact_id: str, req: VerifyArtifactRequest) -> dict[str, Any]:
     svc = ArtifactService()
     try:
-        a = svc.verify(artifact_id, verified_by=req.verified_by, verified_result=req.verified_result)
+        a = svc.verify(artifact_id, verified_by=req.verified_by, verified_result=req.verified_result,
+                       expected_revision=req.expected_revision)
     except ArtifactNotFoundError as e:
         raise HTTPException(status_code=404, detail={"code": "E_NOT_FOUND", "message": str(e)})
     except ArtifactConflictError as e:
@@ -127,7 +135,8 @@ def _verify(artifact_id: str, req: VerifyArtifactRequest) -> dict[str, Any]:
 def _accept(artifact_id: str, req: AcceptArtifactRequest) -> dict[str, Any]:
     svc = ArtifactService()
     try:
-        a = svc.accept(artifact_id, accepted_by=req.accepted_by, accepted_note=req.accepted_note)
+        a = svc.accept(artifact_id, accepted_by=req.accepted_by, accepted_note=req.accepted_note,
+                       expected_revision=req.expected_revision)
     except ArtifactNotFoundError as e:
         raise HTTPException(status_code=404, detail={"code": "E_NOT_FOUND", "message": str(e)})
     except ArtifactConflictError as e:
@@ -138,7 +147,8 @@ def _accept(artifact_id: str, req: AcceptArtifactRequest) -> dict[str, Any]:
 def _reject(artifact_id: str, req: RejectArtifactRequest) -> dict[str, Any]:
     svc = ArtifactService()
     try:
-        a = svc.reject(artifact_id, rejected_by=req.rejected_by, reason=req.reason)
+        a = svc.reject(artifact_id, rejected_by=req.rejected_by, reason=req.reason,
+                       expected_revision=req.expected_revision)
     except ArtifactNotFoundError as e:
         raise HTTPException(status_code=404, detail={"code": "E_NOT_FOUND", "message": str(e)})
     except ArtifactConflictError as e:

@@ -128,15 +128,13 @@ describe("C04 R13: listXxx URL 不应拼出双 ?", () => {
  */
 describe("C04 R14: V1Prototype 不应仅靠 MOCK_* 占位 (R14 标记)", () => {
   it("V1Prototype 不应导出 MOCK_CASES / MOCK_JUDGMENTS / MOCK_ACTIONS 等占位 (C09 删)", async () => {
-    // 静态源码检查: V1Prototype.tsx 不应再 export MOCK_* 占位数组
+    // 静态源码检查: V1Prototype.tsx 不应再含 MOCK_* (v0.8.5 D2 清理后终态断言,
+    // 原 C04 过渡标记 'toContain(MOCK_)' 已由 v085_route_shell 继承断言取代)
     const fs = await import("fs");
     const path = await import("path");
     const prototypePath = path.join(process.cwd(), "src/components/v1/V1Prototype.tsx");
     const src = fs.readFileSync(prototypePath, "utf-8");
-    // 标记 MOCK_* 数组已 deprecated, C09 范围删
-    expect(src).toContain("MOCK_");
-    // 修复路径 (C04 完成, C09 删除): source 注释 MOCK_* 待删
-    // 本测试不 fail, 留 C09 删 MOCK_*
+    expect(src).not.toContain("MOCK_");
   });
 });
 

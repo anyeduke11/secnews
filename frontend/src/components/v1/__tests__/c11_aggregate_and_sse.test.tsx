@@ -21,7 +21,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, waitFor, act } from '@testing-library/react';
 import { ToastProvider } from '../../Toast';
-import { CaseDetail } from '../V1Prototype';
+import { CaseDetail } from '../CaseDetail';  // v0.8.5 D2: 被测对象已迁移至 './CaseDetail'
 import { useSSEAggregateInvalidate } from '../useSSEAggregateInvalidate';
 import { useSSE } from '../../../hooks/useSSE';
 import { boundedParallel } from '../../../lib/boundedParallel';

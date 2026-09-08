@@ -353,16 +353,20 @@ export interface CreateArtifactBody {
 export interface VerifyArtifactBody {
   verified_by: string;
   verified_result?: VerificationResult;
+  /** v0.8.5 D2 (R09 API 层): 客户端 CAS — 不符 409 E_CONFLICT */
+  expected_revision?: number;
 }
 
 export interface AcceptArtifactBody {
   accepted_by: string;
   accepted_note?: string;
+  expected_revision?: number;
 }
 
 export interface RejectArtifactBody {
   rejected_by: string;
   reason: string;
+  expected_revision?: number;
 }
 
 export interface ListArtifactsQuery {

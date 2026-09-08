@@ -139,8 +139,15 @@ class ArtifactService:
     # ------------------------------------------------------------------
     def verify(
         self, artifact_id: str, *, verified_by: str, verified_result: str = "pass",
+        expected_revision: int | None = None,
     ) -> dict[str, Any]:
         a = self._require(artifact_id)
+        # v0.8.5 D2 (R09 API 层): 客户端 expected_revision 与服务端当前不符 → 409
+        if expected_revision is not None and int(expected_revision) != int(a["revision"]):
+            raise ArtifactConflictError(
+                f"artifact {artifact_id} CAS: expected_revision={expected_revision} "
+                f"current={a['revision']} (contract §0.6)"
+            )
         if a["status"] != "pending":
             raise ArtifactConflictError(
                 f"artifact {artifact_id} status={a['status']} (verify requires pending)"
@@ -168,8 +175,15 @@ class ArtifactService:
     # ------------------------------------------------------------------
     def accept(
         self, artifact_id: str, *, accepted_by: str, accepted_note: str | None = None,
+        expected_revision: int | None = None,
     ) -> dict[str, Any]:
         a = self._require(artifact_id)
+        # D2 (R09 API 层): 客户端 CAS 校验 (同 verify)
+        if expected_revision is not None and int(expected_revision) != int(a["revision"]):
+            raise ArtifactConflictError(
+                f"artifact {artifact_id} CAS: expected_revision={expected_revision} "
+                f"current={a['revision']} (contract §0.6)"
+            )
         if a["status"] != "verified":
             raise ArtifactConflictError(
                 f"artifact {artifact_id} status={a['status']} (accept requires verified)"
@@ -238,8 +252,15 @@ class ArtifactService:
     # ------------------------------------------------------------------
     def reject(
         self, artifact_id: str, *, rejected_by: str, reason: str,
+        expected_revision: int | None = None,
     ) -> dict[str, Any]:
         a = self._require(artifact_id)
+        # D2 (R09 API 层): 客户端 CAS 校验 (同 verify)
+        if expected_revision is not None and int(expected_revision) != int(a["revision"]):
+            raise ArtifactConflictError(
+                f"artifact {artifact_id} CAS: expected_revision={expected_revision} "
+                f"current={a['revision']} (contract §0.6)"
+            )
         if a["status"] in ("accepted", "rejected", "superseded"):
             raise ArtifactConflictError(
                 f"artifact {artifact_id} status={a['status']} (reject requires pending/verified)"

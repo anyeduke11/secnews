@@ -411,6 +411,8 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
     () => startAction(a.id, {
       expected_revision: a.revision,
       idempotency_key: `idem_${a.id}_${Date.now()}`,
+      protocol: 'pi',
+      trigger_source: 'user',
     } as any).then(r => r.run ?? r),
     `行动已启动: ${a.title}`,
     '启动失败',
@@ -423,19 +425,19 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
   );
   const handleVerifyArtifact = (art: Artifact) => runMutation(
     `verify:${art.id}`,
-    () => verifyArtifact(art.id, { expected_revision: art.revision, result: 'pass' } as any).then(r => r.item),
+    () => verifyArtifact(art.id, { expected_revision: art.revision, verified_result: 'pass', verified_by: 'user' } as any).then(r => r.item),
     `产物已验证: ${art.title}`,
     '验证失败',
   );
   const handleAcceptArtifact = (art: Artifact) => runMutation(
     `accept:${art.id}`,
-    () => acceptArtifact(art.id, { expected_revision: art.revision } as any).then(r => r.item),
+    () => acceptArtifact(art.id, { expected_revision: art.revision, accepted_by: 'user' } as any).then(r => r.item),
     `产物已业务验收: ${art.title}`,
     '验收失败',
   );
   const handleRejectArtifact = (art: Artifact) => runMutation(
     `reject:${art.id}`,
-    () => rejectArtifact(art.id, { expected_revision: art.revision, reason: '人工拒绝 (UI 入口)' } as any).then(r => r.item),
+    () => rejectArtifact(art.id, { expected_revision: art.revision, rejected_by: 'user', reason: '人工拒绝 (UI 入口)' } as any).then(r => r.item),
     `产物已拒绝: ${art.title}`,
     '拒绝失败',
   );
@@ -446,7 +448,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
     }
     runMutation(
       `close:${display.id}`,
-      () => closeCase(display.id, { expected_revision: display.revision ?? 0 }).then(r => r.item),
+      () => closeCase(display.id, { expected_revision: display.revision ?? 1 }).then(r => r.item),
       `事项已关闭: ${display.title}`,
       '关闭失败 (R17: 需全 action 终态 + 无 active run + ≥1 verified artifact + ≥1 published judgment)',
     );

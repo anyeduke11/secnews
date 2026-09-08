@@ -252,9 +252,6 @@ function CasesView({ onSelectCase }: { onSelectCase: (c: Case) => void }) {
       )}
       <div className="space-y-3">
         {cases.map(c => {
-          const caseJudgments: Judgment[] = [];  // R14: 不再 MOCK_.filter, 走 N+1 listJudgments (R19 留 C11 聚合)
-          const caseActions: Action[] = [];
-
           const statusColors: Record<string, 'green' | 'blue' | 'yellow' | 'gray' | 'red'> = {
             open: 'blue', in_progress: 'green', blocked: 'yellow', closed: 'gray', archived: 'gray',
           };
@@ -273,8 +270,6 @@ function CasesView({ onSelectCase }: { onSelectCase: (c: Case) => void }) {
                   <div className="flex gap-2 mt-2">
                     <Badge color={statusColors[c.status || 'open'] || 'gray'}>{c.status}</Badge>
                     <Badge color={c.priority === 'p0' ? 'red' : c.priority === 'p1' ? 'yellow' : 'gray'}>{c.priority}</Badge>
-                    {caseJudgments.length > 0 && <Badge color="blue">判断 {caseJudgments.length}</Badge>}
-                    {caseActions.length > 0 && <Badge color="green">行动 {caseActions.length}</Badge>}
                   </div>
                 </div>
                 <div className="text-xs font-mono ml-4" style={{ color: 'var(--text-muted)' }}>{c.id}</div>

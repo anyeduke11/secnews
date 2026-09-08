@@ -17,7 +17,8 @@ import {
   getCaseAggregate,
   approveAction, startAction, cancelAction, verifyArtifact, acceptArtifact, rejectArtifact, closeCase,
   generateJudgment, generateAction, publishJudgment,
-  type ReuseReceipt, type CaseEvidenceMaterial,
+  adoptKnowledge,
+  type ReuseReceipt, type CaseEvidenceMaterial, type KnowledgeRecallCandidate,
 } from '../../api/v1';
 import { renderInlineMarkdown } from '../../lib/markdown';
 import { useSSEAggregateInvalidate } from './useSSEAggregateInvalidate';
@@ -56,6 +57,9 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
   const [liveArtifacts, setLiveArtifacts] = useState<Artifact[]>([]);
   const [actionChainLoading, setActionChainLoading] = useState(false);
   const [liveEvidence, setLiveEvidence] = useState<CaseEvidenceMaterial[]>([]);
+  // D3: SK-05 自动召回候选 + 本页已采用集合 (采用回执产生后标记, 不重复采用)
+  const [recallCandidates, setRecallCandidates] = useState<KnowledgeRecallCandidate[]>([]);
+  const [adoptedRecallIds, setAdoptedRecallIds] = useState<Set<string>>(new Set());
   const [liveKnowledge, setLiveKnowledge] = useState<Knowledge[]>([]);
   const [knowledgeReceipts, setKnowledgeReceipts] = useState<Record<string, ReuseReceipt>>({});
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
@@ -88,6 +92,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
       setLiveRuns(agg.runs);
       setLiveArtifacts(agg.artifacts);
       setLiveEvidence(agg.evidence_materials ?? []);
+      setRecallCandidates(agg.recall_candidates ?? []);
       // knowledge 仍走 listKnowledge (与 reuse receipt), 不在 aggregate 范围
       // (复用统计为派生聚合, 不在主链路 N+1 内, T13 形态保留)
       if (gen !== fetchGenRef.current) return;
@@ -292,6 +297,23 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
     }
   };
 
+  // D3: SK-05 采用 — case 页发起, case_id 自动携带 (免手填 ULID), 产生真实采用回执
+  const handleAdoptRecall = async (k: KnowledgeRecallCandidate) => {
+    try {
+      await adoptKnowledge(k.id, {
+        case_id: display.id,
+        decision: 'adopted',
+        condition_diff: [],
+        decided_by: 'user',
+      });
+      toast.show({ type: 'success', message: '已采用 — 采用回执已记录' });
+      setAdoptedRecallIds(prev => new Set(prev).add(k.id));
+      await refetchChain(true);
+    } catch (e) {
+      toast.show({ type: 'error', message: `采用失败: ${e instanceof Error ? e.message : String(e)}` });
+    }
+  };
+
 
   // 走查 3 路径检测 (T12 强化: 显式呈现 3 路径而非简单色块)
   const hasMissingAssets = actions.length > 0 && artifacts.length === 0;
@@ -464,6 +486,48 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
           </div>
         )}
       </div>
+
+      {/* D3: SK-05 自动召回 — 同类经验自动浮现, 采用免手填 (复利飞轮传动) */}
+      {recallCandidates.length > 0 && (
+        <div className="p-4 rounded-lg border" style={{ background: 'color-mix(in srgb, var(--color-info) 6%, transparent)', borderColor: 'var(--line)' }}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+              召回知识 (SK-05 自动){' '}
+              <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
+                {recallCandidates.length} 条 · 按本事项文本匹配 · 采用后产生回执
+              </span>
+            </h3>
+          </div>
+          <ul className="space-y-2">
+            {recallCandidates.map(k => {
+              const adopted = adoptedRecallIds.has(k.id);
+              return (
+                <li key={k.id} className="flex items-start justify-between gap-3 p-3 rounded border" style={{ borderColor: 'var(--line)' }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{k.title}</div>
+                    <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                      {k.kind} · {k.reasons.join('；')}
+                    </div>
+                  </div>
+                  {adopted ? (
+                    <Badge color="green">已采用 ✓</Badge>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleAdoptRecall(k)}
+                      className="text-xs px-2.5 py-1 rounded font-medium focus-ring shrink-0"
+                      style={{ background: 'var(--color-success)', color: 'var(--text-on-success, #fff)' }}
+                      data-testid="recall-adopt-btn"
+                    >
+                      采用
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {/* 判断 */}
       <div id="section-judgments" className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>

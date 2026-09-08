@@ -755,11 +755,22 @@ export interface CaseEvidenceMaterial {
   bound_at: string | null;
 }
 
+export interface KnowledgeRecallCandidate {
+  id: string;
+  title: string;
+  kind: string;
+  revision: number;
+  score: number;
+  reasons: string[];
+}
+
 export interface CaseAggregate {
   version: string;
   case: Case;
   /** v0.8.5 D1.2: 立项携带证据 — v1_case_materials JOIN v1_materials */
   evidence_materials?: CaseEvidenceMaterial[];
+  /** v0.8.5 D3: SK-05 自动召回 — 已发布知识 × case 文本匹配候选 */
+  recall_candidates?: KnowledgeRecallCandidate[];
   judgments: Judgment[];
   actions: Action[];
   runs: Run[];

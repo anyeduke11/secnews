@@ -23,6 +23,8 @@ from __future__ import annotations
 import hashlib
 import json
 import random
+import re
+import sqlite3
 from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
@@ -843,3 +845,58 @@ class KnowledgeService:
         if k is None:
             raise KnowledgeNotFoundError(f"knowledge {knowledge_id} not found")
         return k
+
+
+# ---------------------------------------------------------------------------
+# v0.8.5 D3 (SK-05 升级): Case 创建时自动召回 — 复利飞轮的「传动」
+# ---------------------------------------------------------------------------
+_CVE_RE = re.compile(r"CVE-\d{4}-\d{4,7}", re.IGNORECASE)
+_WORD_RE = re.compile(r"[\w\u4e00-\u9fff]{2,}")
+
+
+def auto_recall_for_case(case: dict[str, Any], *, limit: int = 3) -> list[dict[str, Any]]:
+    """已发布知识 × Case 文本 自动匹配 (读时召回, 无写入).
+
+    匹配语义 (诚实可解释 — 每条候选带 reasons, 不做黑盒打分):
+      - CVE 编号命中 (标题/正文) → +5, 单独即可入选
+      - 关键词 (case 标题+问题切词, ≥2 字) 命中 → +1/词 (上限 5), 需 ≥2 分入选
+    仅 published 参与召回; deprecated/retracted/draft 不出现 (失效知识不作依据).
+
+    Returns
+    -------
+    [{id, title, kind, revision, score, reasons}] — 按 score DESC, top limit.
+    """
+    text = f"{case.get('title', '')} {case.get('question', '')}"
+    cves = {c.upper() for c in _CVE_RE.findall(text)}
+    words = {w.lower() for w in _WORD_RE.findall(text)}
+    if not cves and not words:
+        return []
+    try:
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT id, title, body, kind, revision FROM v1_knowledge WHERE status = 'published'"
+        ).fetchall()
+    except sqlite3.OperationalError as e:
+        logger.warning(f"auto_recall: v1_knowledge unavailable: {e}")
+        return []
+    scored: list[dict[str, Any]] = []
+    for kid, title, body, kind, revision in rows:
+        blob = f"{title or ''} {body or ''}".lower()
+        score = 0
+        reasons: list[str] = []
+        for c in cves:
+            if c.lower() in blob:
+                score += 5
+                reasons.append(f"CVE {c} 命中")
+        hits = sorted(w for w in words if w in blob)
+        if hits:
+            score += min(len(hits), 5)
+            shown = "、".join(hits[:4]) + ("…" if len(hits) > 4 else "")
+            reasons.append(f"关键词 {len(hits)} 命中 ({shown})")
+        if score >= (5 if cves else 2):
+            scored.append({
+                "id": kid, "title": title, "kind": kind,
+                "revision": revision, "score": score, "reasons": reasons,
+            })
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return scored[:limit]

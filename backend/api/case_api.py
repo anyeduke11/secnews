@@ -283,6 +283,14 @@ def _aggregate(
         except Exception:
             return []  # migration 108 未跑 / 表缺失 — 证据区显空, 不阻断聚合
 
+    def _recall_candidates(case_dict: dict[str, Any]) -> list[dict[str, Any]]:
+        """v0.8.5 D3 (SK-05 自动召回): 已发布知识 × case 文本匹配, 失败显空不阻断."""
+        try:
+            from backend.services.knowledge_service import auto_recall_for_case
+            return auto_recall_for_case(case_dict)
+        except Exception:
+            return []
+
     from backend.services.action_service import ActionService
     from backend.services.artifact_service import ArtifactService
     from backend.services.judgment_service import JudgmentService
@@ -334,6 +342,8 @@ def _aggregate(
         "version": API_VERSION,
         "case": _case_to_dict(case),
         "evidence_materials": _case_evidence_materials(case_id),
+        # v0.8.5 D3 (SK-05 自动召回): 已发布知识按 case 文本自动匹配, Case 页浮现候选
+        "recall_candidates": _recall_candidates(_case_to_dict(case)),
         "judgments": [j for j in judgments if isinstance(j, dict)] if judgments and isinstance(judgments[0], dict) else [
             j.to_dict() if hasattr(j, "to_dict") else j for j in judgments
         ],

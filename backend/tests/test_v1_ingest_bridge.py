@@ -258,6 +258,7 @@ def test_case_creation_binds_signal_evidence_and_aggregate_reads_it(temp_db) -> 
     # aggregate 回读证据材料 (TestClient 只挂 case router — 隔离且轻量)
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from backend.api.case_api import router as case_router
     app = FastAPI()
     app.include_router(case_router)
@@ -277,6 +278,7 @@ def test_signals_api_filters_by_subject_id(temp_db) -> None:
 
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from backend.api.v1_signals_api import router as signals_router
     app = FastAPI()
     app.include_router(signals_router)
@@ -290,3 +292,72 @@ def test_signals_api_filters_by_subject_id(temp_db) -> None:
 
     r404 = client.get("/api/v1/signals?subject_id=subj-not-exist-000000")
     assert r404.json()["total"] == 0
+
+
+# ---------------------------------------------------------------------------
+# D3 (SK-05 自动召回): 已发布知识 × case 文本匹配 — 复利飞轮「传动」
+# ---------------------------------------------------------------------------
+def _seed_knowledge(kid: str, title: str, body: str, status: str = "published") -> None:
+    conn = get_connection()
+    now = "2026-09-08T00:00:00+00:00"
+    conn.execute(
+        "INSERT OR REPLACE INTO v1_knowledge "
+        "(id, kind, title, body, status, revision, "
+        " prerequisites_json, counter_examples_json, evidence_refs_json, review_at, "
+        " content_hash, created_at, updated_at) VALUES "
+        "(?, 'playbook', ?, ?, ?, 1, '[]', '[]', '[]', ?, 'h', ?, ?)",
+        (kid, title, body, status, now, now, now),
+    )
+    conn.commit()
+
+
+def test_auto_recall_matches_published_knowledge(temp_db) -> None:
+    from backend.services.knowledge_service import auto_recall_for_case
+    _seed_knowledge(
+        "KNOW01HBWXAZ2P3XQV5M8B7CDE",
+        "FastGate 3200 路径遍历应急处置手册",
+        "固件 <7.2.0 升级步骤…",
+    )
+    hits = auto_recall_for_case({"title": "FastGate 3200 漏洞研判", "question": "升级与排查"})
+    assert len(hits) == 1
+    assert hits[0]["id"] == "KNOW01HBWXAZ2P3XQV5M8B7CDE"
+    assert hits[0]["reasons"]
+    # 无关 case → 不浮现
+    assert auto_recall_for_case({"title": "CRM 业绩季度回顾", "question": "统计口径"}) == []
+
+
+def test_auto_recall_ignores_non_published(temp_db) -> None:
+    from backend.services.knowledge_service import auto_recall_for_case
+    _seed_knowledge("KNOWDRAFT01HBWXAZ2P3XQV5MB", "FastGate 3200 手册", "正文", status="draft")
+    _seed_knowledge("KNOWRETRA01HBWXAZ2P3XQV5M", "FastGate 3200 手册二", "正文", status="retracted")
+    assert auto_recall_for_case({"title": "FastGate 3200 研判", "question": ""}) == []
+
+
+def test_aggregate_includes_recall_candidates(temp_db) -> None:
+    _seed_source()
+    asyncio.run(_make_bridge().run())
+    conn = get_connection()
+    sig_id = conn.execute("SELECT id FROM v1_signals LIMIT 1").fetchone()[0]
+    _seed_knowledge(
+        "KNOWAGGR01HBWXAZ2P3XQV5M8B7",
+        "FastGate 3200 路径遍历手册",
+        "CVE-2026-31337 升级步骤",
+    )
+    from backend.services.case_service import CaseService
+    case = CaseService().create_case(
+        title="FastGate 3200 漏洞研判 (召回走查)",
+        question="CVE-2026-31337 排查",
+        related_signal_ids=[sig_id],
+    )
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from backend.api.case_api import router as case_router
+    app = FastAPI()
+    app.include_router(case_router)
+    r = TestClient(app).get(f"/api/v1/cases/{case.id}/aggregate")
+    assert r.status_code == 200
+    candidates = r.json()["recall_candidates"]
+    assert len(candidates) == 1
+    assert candidates[0]["id"] == "KNOWAGGR01HBWXAZ2P3XQV5M8B7"
+    assert candidates[0]["reasons"]

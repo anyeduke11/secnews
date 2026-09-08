@@ -41,15 +41,23 @@ export type V1Tab = 'workbench' | 'intel' | 'cases' | 'knowledge';
 // 辅助组件
 // ---------------------------------------------------------------------------
 
+// v1.0.1 一致性重构: Badge 改用 CSS 变量 token (light/dark 双值), 背景用 color-mix 表达 dim 透明层.
+// 旧实现走 Tailwind 默认调色板 (bg-green-100 text-green-800), dark 主题下视觉断层; token + color-mix 与 index.css:746-758
+// (warning/success/error chip) 风格一致.
 function Badge({ children, color }: { children: React.ReactNode; color: 'green' | 'red' | 'yellow' | 'gray' | 'blue' }) {
-  const colors: Record<string, string> = {
-    green: 'bg-green-100 text-green-800',
-    red: 'bg-red-100 text-red-800',
-    yellow: 'bg-yellow-100 text-yellow-800',
-    gray: 'bg-gray-100 text-gray-800',
-    blue: 'bg-blue-100 text-blue-800',
+  const styles: Record<string, { bg: string; fg: string }> = {
+    green:  { bg: 'color-mix(in srgb, var(--color-success) 14%, transparent)', fg: 'var(--color-success)' },
+    red:    { bg: 'color-mix(in srgb, var(--color-error)   14%, transparent)', fg: 'var(--color-error)' },
+    yellow: { bg: 'color-mix(in srgb, var(--color-warning) 14%, transparent)', fg: 'var(--color-warning)' },
+    gray:   { bg: 'color-mix(in srgb, var(--text-muted)   14%, transparent)', fg: 'var(--text-secondary)' },
+    blue:   { bg: 'color-mix(in srgb, var(--color-info)    14%, transparent)', fg: 'var(--color-info)' },
   };
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors[color] || colors.gray}`}>{children}</span>;
+  const s = styles[color] || styles.gray;
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" style={{ background: s.bg, color: s.fg }}>
+      {children}
+    </span>
+  );
 }
 
 function SectionTitle({ children, path }: { children: React.ReactNode; path: string }) {
@@ -89,26 +97,26 @@ function WorkbenchView({ onSelectCase }: { onSelectCase: (caseId: string) => voi
 
       {/* 统计卡片 — 全部走真实数据 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+        <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
           <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{cases.length}</div>
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>活跃事项 (含 closed)</div>
         </div>
-        <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+        <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
           <div className="text-2xl font-bold" style={{ color: 'var(--color-warning)' }}>{blocked.length}</div>
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>阻塞中</div>
         </div>
-        <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+        <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
           <div className="text-2xl font-bold" style={{ color: 'var(--color-info)' }}>{open.length}</div>
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>进行中</div>
         </div>
-        <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+        <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
           <div className="text-2xl font-bold" style={{ color: 'var(--text-success, var(--color-success))' }}>{closed.length}</div>
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>已关闭</div>
         </div>
       </div>
 
       {/* 阻塞事项 — 走查 3 路径 (从真实 status 派生) */}
-      <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+      <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
         <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>阻塞事项 (走查 3 路径)</h3>
         {blocked.length === 0 ? (
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>无阻塞 — 全部 cases 走通</div>
@@ -118,7 +126,7 @@ function WorkbenchView({ onSelectCase }: { onSelectCase: (caseId: string) => voi
               <div
                 key={c.id}
                 className="p-3 rounded border flex items-start justify-between cursor-pointer hover:shadow-md transition-shadow"
-                style={{ borderColor: 'var(--border-muted)' }}
+                style={{ borderColor: 'var(--line)' }}
                 onClick={() => onSelectCase(c.id)}
               >
                 <div>
@@ -165,13 +173,13 @@ function IntelView() {
         </div>
       )}
       {signals.length === 0 && !loading ? (
-        <div className="text-sm p-4 rounded-lg border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border-muted)' }}>
+        <div className="text-sm p-4 rounded-lg border" style={{ color: 'var(--text-muted)', borderColor: 'var(--line)' }}>
           近 7 天无新信号 (T05 v1_signals 表空)
         </div>
       ) : (
         <div className="space-y-3">
           {signals.map(s => (
-            <div key={s.id} className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+            <div key={s.id} className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{s.summary}</div>
@@ -238,7 +246,7 @@ function CasesView({ onSelectCase }: { onSelectCase: (c: Case) => void }) {
         </div>
       )}
       {!loading && !error && cases.length === 0 && (
-        <div className="text-sm p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)', color: 'var(--text-muted)' }}>
+        <div className="text-sm p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)', color: 'var(--text-muted)' }}>
           暂无工作事项 (v1_cases 表空, 新业务链未跑通)
         </div>
       )}
@@ -255,7 +263,7 @@ function CasesView({ onSelectCase }: { onSelectCase: (c: Case) => void }) {
             <div
               key={c.id}
               className="p-4 rounded-lg border cursor-pointer hover:shadow-md transition-shadow"
-              style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}
+              style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}
               onClick={() => onSelectCase(c)}
             >
               <div className="flex items-start justify-between">
@@ -492,7 +500,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
 
       {/* T08 加载 / 错误 / fallback 提示 */}
       {loading && (
-        <div className="p-3 rounded-lg border text-sm" style={{ background: 'var(--bg-muted)', borderColor: 'var(--border-muted)', color: 'var(--text-muted)' }}>
+        <div className="p-3 rounded-lg border text-sm" style={{ background: 'var(--bg-muted)', borderColor: 'var(--line)', color: 'var(--text-muted)' }}>
           加载中...
         </div>
       )}
@@ -502,13 +510,13 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
         </div>
       )}
       {!loading && !error && (
-        <div className="p-3 rounded-lg border text-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)', color: 'var(--text-muted)' }}>
+        <div className="p-3 rounded-lg border text-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)', color: 'var(--text-muted)' }}>
           已加载后端数据 · revision {display.revision} · allowed_actions: {display.allowed_actions?.join(', ') || '(none)'}
         </div>
       )}
 
       {/* 走查 3 路径指示器 (T12 强化: 显式呈现) */}
-      <div className="p-3 rounded-lg border" style={{ background: 'var(--bg-muted)', borderColor: 'var(--border-muted)' }}>
+      <div className="p-3 rounded-lg border" style={{ background: 'var(--bg-muted)', borderColor: 'var(--line)' }}>
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>走查 3 路径:</span>
           {hasMissingAssets && <Badge color="yellow">缺资产 (材料生成 ≠ 排查完成)</Badge>}
@@ -526,7 +534,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
       </div>
 
       {/* T13: 知识 (Knowledge) — 复用 + 复查 */}
-      <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+      <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
         <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
           知识 (Knowledge) {knowledgeLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
         </h3>
@@ -537,7 +545,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
             {knowledgeItems.map(k => {
               const receipt = knowledgeReceipts[k.id];
               return (
-                <div key={k.id} className="p-3 rounded border" style={{ borderColor: 'var(--border-muted)' }}>
+                <div key={k.id} className="p-3 rounded border" style={{ borderColor: 'var(--line)' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{k.title}</span>
                     <Badge color={k.status === 'published' ? 'green' : k.status === 'draft' ? 'yellow' : k.status === 'deprecated' ? 'gray' : 'red'}>{k.status}</Badge>
@@ -590,7 +598,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
       </div>
 
       {/* 判断 */}
-      <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+      <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
         <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
           判断 (Judgment) {judgmentsLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
         </h3>
@@ -599,7 +607,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
         ) : (
           <div className="space-y-3">
             {judgments.map(j => (
-              <div key={j.id} className="p-3 rounded border" style={{ borderColor: 'var(--border-muted)' }}>
+              <div key={j.id} className="p-3 rounded border" style={{ borderColor: 'var(--line)' }}>
                 <div className="flex items-center gap-2 mb-2">
                   <Badge color={j.status === 'published' ? 'green' : j.status === 'draft' ? 'yellow' : 'gray'}>{j.status}</Badge>
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -634,7 +642,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
       </div>
 
       {/* 行动 + 运行 + 产物 */}
-      <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+      <div className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
         <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
           行动 (Action) + 运行 (Run) + 产物 (Artifact) {actionChainLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
         </h3>
@@ -646,7 +654,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
               const actionRuns = runs.filter(r => r.action_id === a.id);
               const actionArtifacts = artifacts.filter(art => actionRuns.some(r => r.id === art.run_id));
               return (
-                <div key={a.id} className="p-3 rounded border" style={{ borderColor: 'var(--border-muted)' }}>
+                <div key={a.id} className="p-3 rounded border" style={{ borderColor: 'var(--line)' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{a.title}</span>
                     <Badge color={a.status === 'succeeded' ? 'green' : a.status === 'failed' ? 'red' : a.status === 'running' ? 'blue' : a.status === 'approved' ? 'yellow' : 'gray'}>{a.status}</Badge>
@@ -689,7 +697,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
                           onClick={() => handleCancelAction(a)}
                           disabled={pendingMutation === `cancel:${a.id}`}
                           className="text-xs px-3 py-1 rounded font-medium focus-ring disabled:opacity-50"
-                          style={{ background: 'var(--bg-muted)', color: 'var(--text-primary)', border: '1px solid var(--border-muted)' }}
+                          style={{ background: 'var(--bg-muted)', color: 'var(--text-primary)', border: '1px solid var(--line)' }}
                           data-testid="cancel-action-btn"
                         >
                           {pendingMutation === `cancel:${a.id}` ? '取消中…' : '取消'}
@@ -767,7 +775,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
                                     onClick={() => handleRejectArtifact(art)}
                                     disabled={pendingMutation === `reject:${art.id}`}
                                     className="text-xs px-2 py-0.5 rounded font-medium focus-ring disabled:opacity-50"
-                                    style={{ background: 'var(--bg-muted)', color: 'var(--text-primary)', border: '1px solid var(--border-muted)' }}
+                                    style={{ background: 'var(--bg-muted)', color: 'var(--text-primary)', border: '1px solid var(--line)' }}
                                     data-testid="reject-artifact-btn"
                                   >
                                     {pendingMutation === `reject:${art.id}` ? '拒绝中…' : '拒绝'}
@@ -891,7 +899,7 @@ function KnowledgeView() {
         </div>
       )}
       {items.length === 0 && !loading ? (
-        <div className="text-sm p-4 rounded-lg border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border-muted)' }}>
+        <div className="text-sm p-4 rounded-lg border" style={{ color: 'var(--text-muted)', borderColor: 'var(--line)' }}>
           暂无经验库条目 (T15 演练 dry-run 模式, v1_knowledge 表空)
         </div>
       ) : (
@@ -903,7 +911,7 @@ function KnowledgeView() {
             const isDeprecated = k.status === 'deprecated';
             const isPublished = k.status === 'published';
             return (
-              <div key={k.id} className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+              <div key={k.id} className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{k.title}</div>
@@ -955,7 +963,7 @@ function KnowledgeView() {
                 )}
                 {/* C12 R16.2: 采用表单 (仅 published 可采用, 撤回/弃用禁用) */}
                 {isPublished && (
-                  <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--border-muted)' }}>
+                  <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--line)' }}>
                     {adoptOpenFor === k.id ? (
                       <div className="space-y-2">
                         <input
@@ -964,7 +972,7 @@ function KnowledgeView() {
                           value={adoptCaseId}
                           onChange={(e) => setAdoptCaseId(e.target.value)}
                           className="w-full px-2 py-1 text-sm border rounded font-mono"
-                          style={{ borderColor: 'var(--border-muted)', background: 'var(--bg-input)' }}
+                          style={{ borderColor: 'var(--line)', background: 'var(--bg-input)' }}
                           maxLength={26}
                         />
                         <textarea
@@ -980,14 +988,14 @@ function KnowledgeView() {
                           }}
                           rows={3}
                           className="w-full px-2 py-1 text-xs border rounded font-mono"
-                          style={{ borderColor: 'var(--border-muted)', background: 'var(--bg-input)' }}
+                          style={{ borderColor: 'var(--line)', background: 'var(--bg-input)' }}
                         />
                         <div className="flex gap-2">
                           <button
                             onClick={() => submitAdoption(k.id)}
                             disabled={adoptSubmitting}
-                            className="px-3 py-1 text-xs rounded text-white"
-                            style={{ background: 'var(--color-primary)' }}
+                            className="px-3 py-1 text-xs rounded"
+                            style={{ background: 'var(--mint)', color: 'var(--text-on-light)' }}
                           >
                             {adoptSubmitting ? '采用中…' : '确认采用'}
                           </button>
@@ -1004,8 +1012,8 @@ function KnowledgeView() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => setAdoptOpenFor(k.id)}
-                          className="px-3 py-1 text-xs rounded text-white"
-                          style={{ background: 'var(--color-primary)' }}
+                          className="px-3 py-1 text-xs rounded"
+                          style={{ background: 'var(--mint)', color: 'var(--text-on-light)' }}
                         >
                           采用此经验
                         </button>
@@ -1110,7 +1118,7 @@ function V1Shell({ tab }: { tab: V1Tab }) {
       )}
 
       {/* 走查说明 */}
-      <div className="mt-8 p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-muted)' }}>
+      <div className="mt-8 p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
         <h3 className="font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>走查 3 路径说明</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
           <div>

@@ -179,14 +179,18 @@ class TestRepoSelfCheck:
             )
 
     def test_two_known_drafts_have_frontmatter(self, gm):
-        """2 个活跃规划文档必须都含 status: draft frontmatter。"""
+        """v085 整理批后: 原 2 个 draft 已归档 — 归档件必须保留 draft frontmatter
+        (出处可追溯), 且 docs/ 顶层不再有副本。"""
         docs_dir = REPO_ROOT / "docs"
+        sweep = docs_dir / "archived" / "2026-09-09-sweep"
         for fname in (
             "HOTSPOT_SECNEWS_INTEGRATION.md",
             "SECNEWS_INTEGRATION_TASKS.md",
         ):
-            path = docs_dir / fname
-            assert gm.is_draft_planning_doc(path), f"{fname} 缺少 'status: draft' frontmatter"
+            assert not (docs_dir / fname).exists(), f"{fname} 应已归档, docs/ 顶层不应再有副本"
+            archived = sweep / fname
+            assert archived.exists(), f"{fname} 归档件缺失"
+            assert gm.is_draft_planning_doc(archived), f"归档件 {fname} 丢失 'status: draft' frontmatter"
 
     def test_archived_plan_not_counted_as_draft(self, gm):
         """归档到 docs/archived/ 的规划不再被顶层扫描计入 draft。"""
@@ -195,7 +199,10 @@ class TestRepoSelfCheck:
         assert "docs/v0.6_workstation_plan.md" not in rels
 
     def test_drafts_only_outputs_two_known_drafts(self, gm, capsys):
-        """--drafts-only 应正好列出 2 个已知活跃 draft 文档（以 relpath 校验）。"""
+        """v085 整理批后 docs/ 顶层 0 个活跃 draft → --drafts-only 应返回空表。
+
+        本测试同时是绊线: 若未来有人在 docs/ 顶层新增规划 draft, 此处会失败,
+        提醒同步登记 (原 2 个 draft 已随 2026-09-09 整理批归档)。"""
         from generate_meta import main as gm_main
 
         old_argv = sys.argv
@@ -208,7 +215,4 @@ class TestRepoSelfCheck:
         captured = capsys.readouterr()
         data = json.loads(captured.out)
         rels = sorted(d["relpath"] for d in data)
-        assert rels == [
-            "docs/HOTSPOT_SECNEWS_INTEGRATION.md",
-            "docs/SECNEWS_INTEGRATION_TASKS.md",
-        ]
+        assert rels == [], f"docs/ 顶层出现未登记的 draft: {rels}"

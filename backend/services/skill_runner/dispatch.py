@@ -337,16 +337,33 @@ def _write_wiki(*, path: str, content: str, run_date: str) -> str:
     """落 wiki 文件 — frontmatter 最小三字段 (id/created/source).
 
     path 支持两种形态:
-      - 绝对路径 → 直接写
+      - 绝对路径 → 写前做 wiki root 包含性校验
       - 相对路径 → 拼到 llm-wiki-2.0/ 根 (env HOTSPOT_WIKI_ROOT 可覆盖, 测试用)
+
+    v085-review F1 (Mimosa HIGH 路径穿越收口): step.path 经模板渲染可混入
+    用户/LLM 数据, ``..`` 与绝对路径都构成任意文件写。两种形态最终都收敛到
+    wiki root 子树内 (wiki-first: llm-wiki-2.0 是唯一知识存档), 越界拒绝。
     """
+    import os as _os
+
     from backend.wiki_fs.root import resolve_wiki_root
 
+    root = resolve_wiki_root()
     if path.startswith("/") or (len(path) > 1 and path[1] == ":"):
         full_path = path
     else:
-        root = resolve_wiki_root()
         full_path = f"{root.rstrip('/')}/{path.lstrip('/')}"
+
+    root_real = _os.path.realpath(root)
+    target_real = _os.path.realpath(full_path)
+    if target_real != root_real and not target_real.startswith(root_real + _os.sep):
+        logger.warning(
+            "skill_runner wiki write rejected (escape)",
+            extra={"trace_id": "", "path": path, "resolved": target_real},
+        )
+        raise RuntimeError(
+            f"wiki write 拒绝越界路径 (wiki root 包含性): {path!r}"
+        )
 
     # 渲染 frontmatter — 简化: id 取 path basename, created=run_date, source=skill-runner
     import datetime as _dt
@@ -358,8 +375,7 @@ def _write_wiki(*, path: str, content: str, run_date: str) -> str:
     }
     fm_str = "<!-- metadata\n" + "\n".join(f"{k}: {v}" for k, v in fm.items()) + "\n-->\n"
     try:
-        import os
-        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        _os.makedirs(_os.path.dirname(full_path), exist_ok=True)
         with open(full_path, "w", encoding="utf-8") as f:
             f.write(fm_str + content)
     except OSError as e:

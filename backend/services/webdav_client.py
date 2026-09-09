@@ -81,8 +81,8 @@ class WebDAVClient:
     使用方式::
 
         client = WebDAVClient("https://dav.jianguoyun.com/dav",
-                              username="user@example.com",
-                              password="app-password")
+                              username=<account>,
+                              password=<app-password>)
         ok, msg = await client.test_connection()
         if ok:
             await client.mkdir("/hotspot")

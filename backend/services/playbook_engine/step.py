@@ -10,8 +10,8 @@
   替换走 _resolve_template (轻量正则 + 安全访问, 不支持函数调用, 防 RCE)
 - api 白名单: 只允许本机 base_url; 测试可注入 ``base_url`` 走临时 HTTP server
 - condition 表达式: 极简实现 — 支持 ``steps.x.output.a > 0`` / ``inputs.flag == true``
-  / ``steps.x.output.items | length > 0`` 三类; 用 ast 不执行 (compile 仅校验),
-  实际求值用受限 eval (literal_eval + dict.get); 防 RCE 由白名单 token + 拒绝函数调用
+  / ``steps.x.output.items | length > 0`` 三类; 全程 ast 白名单解释器
+  (_eval_node 逐节点求值, 拒绝函数调用/任意属性), 不使用 builtin eval, 防 RCE
 """
 from __future__ import annotations
 

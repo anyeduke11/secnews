@@ -268,13 +268,17 @@ def test_is_relevant_filters_unrelated():
 
 
 def test_parse_html_filters_unrelated_items():
-    """_parse_html 模拟招标页面,过滤无关条目。"""
+    """招标页面: 候选全保留 (存活口径), 无关条目在 _build_items 过滤 (有用口径)。
+
+    cadence 修正批 (存活/有用分离): _parse_html 只做解析+去重, 让 raw_count 真实
+    反映 "页面可达且可解析"; 安全相关性过滤统一在 _build_items 执行, 最终产出不变。
+    """
     c = BidCollector()
     source = {
         "name": "测试",
         "url": "https://example.com",
     }
-    # Phase 47: _parse_html 会拒收无 published_at 的条目;注入当前时间的
+    # Phase 47: _build_items 会拒收无 published_at 的条目;注入当前时间的
     # 页面级 meta 让 stub 条目通过时效门禁 (与日期无关, 不随周次过期)。
     from datetime import datetime, timezone
     _now_iso = datetime.now(timezone.utc).isoformat()
@@ -291,9 +295,17 @@ def test_parse_html_filters_unrelated_items():
     <a href="https://example.com/bid/7">零信任安全架构改造</a>
     </body></html>
     """
-    items = c._parse_html(html, source)
-    urls = [it.get("url", "") for it in items]
-    titles = [it.get("title", "") for it in items]
+    raw = c._parse_html(html, source)
+    raw_urls = [it.get("url", "") for it in raw]
+    # 基类解析器自带噪声过滤可能去掉个别条目 (与相关性无关); 关键是无关采购仍在候选里
+    assert len(raw) >= 6, f"_parse_html 应保留候选 (存活口径), 实际 {len(raw)}"
+    assert any(u.endswith(("/bid/3", "/bid/4", "/bid/6")) for u in raw_urls), (
+        "_parse_html 不应再做安全相关性过滤 (raw_count 需反映页面可解析候选数)"
+    )
+
+    built = c._build_items(raw, source)
+    urls = [str(it.url) for it in built]
+    titles = [it.title for it in built]
 
     # 网安相关应保留（1, 2, 5, 7）
     assert any("1" in u for u in urls), "网安项目 1 应保留"

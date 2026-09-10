@@ -26,6 +26,7 @@ import aiohttp
 
 from backend.domain.collection import SourceResult
 from backend.domain.models import HotspotItem
+from backend.utils.http_text import read_text_lenient
 from backend.utils.url_safety import UrlSafetyError, validate_url
 
 # 2026-08-03: 搜狗微信搜索反爬限流缓解 — 串行化 + 随机延迟
@@ -64,7 +65,7 @@ async def _proxy_retry(source: dict, timeout: int) -> str | None:
             timeout=aiohttp.ClientTimeout(total=timeout),
         ) as session, session.get(target_url, ssl=False) as resp:
             if resp.status == 200:
-                html = await resp.text()
+                html = await read_text_lenient(resp)
                 if html and len(html.strip()) >= 100:
                     return html
     except Exception:
@@ -156,12 +157,43 @@ class FetchersMixin:
             )
 
         # feedparser 是同步库;用 asyncio.to_thread 跑,避免阻塞事件循环
+        # cadence 修正批 T2.2: feedparser 自带 UA 是 "feedparser/6.x +https://..." 机器人
+        # 签名, Cloudflare/WAF 前置的 feed (嘶吼 4hou / HackRead / 36氪) 直接给挑战页
+        # → entries=0 bozo=True; 探测证实同 URL 换浏览器 UA 即拿到 entries。改用与
+        # HTML 路径一致的浏览器 UA + Accept 头。另: feedparser 内部 urlopen 无超时,
+        # 用 wait_for 兜底, 防挂死的 feed 占满 to_thread 线程池。
+        from backend.collectors import base as _base  # 惰性导入 (patch 兼容, 与其余路径一致)
+
         def _parse() -> dict[str, Any]:
             import feedparser  # type: ignore
-            return feedparser.parse(rss_url)
+            return feedparser.parse(
+                rss_url,
+                agent=_base.UA,
+                request_headers={
+                    "Accept": (
+                        "application/rss+xml, application/atom+xml, "
+                        "application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5"
+                    ),
+                    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                },
+            )
 
         try:
-            d = await asyncio.to_thread(_parse)
+            d = await asyncio.wait_for(asyncio.to_thread(_parse), timeout=self.timeout)
+        except asyncio.TimeoutError:
+            duration = int(
+                (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            )
+            self.logger.warning(
+                f"rss fetch timeout ({self.timeout}s) for {source_name}"
+            )
+            return [], SourceResult(
+                source_name=source_name,
+                source_url=source_url,
+                item_count=0,
+                error_msg=f"rss_timeout: {self.timeout}s",
+                duration_ms=duration,
+            )
         except Exception as e:
             duration = int(
                 (datetime.now(timezone.utc) - start).total_seconds() * 1000
@@ -235,6 +267,7 @@ class FetchersMixin:
             source_name=source_name,
             source_url=source_url,
             item_count=len(items),
+            raw_count=len(raw_items),
             duration_ms=duration,
         )
 
@@ -373,7 +406,9 @@ class FetchersMixin:
                 ) as resp:
                     if resp.status != 200:
                         raise aiohttp.ClientError(f"HTTP {resp.status}")
-                    html = await resp.text()
+                    # cadence 修正批 T2.2: 宽容解码 (GB2312 声明 + GBK 扩展字会让
+                    # resp.text() 抛 UnicodeDecodeError, 整页被当成抓取失败)
+                    html = await read_text_lenient(resp)
                     crawler_used = "aiohttp"
             except Exception as e:
                 # aiohttp 直连失败 → 尝试代理兜底（仅国外源）
@@ -427,6 +462,7 @@ class FetchersMixin:
             source_name=source["name"],
             source_url=source["url"],
             item_count=len(items),
+            raw_count=len(raw_items),
             duration_ms=duration,
         )
 

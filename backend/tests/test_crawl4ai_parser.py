@@ -208,6 +208,8 @@ async def test_crawl_success(tmp_path):
     # 模拟 crawl4ai 单例 client 返回结果
     mock_crawl_result = MagicMock()
     mock_crawl_result.success = True
+    # cadence 修正批: content 取渲染后 HTML (bid 链喂给 _parse_html), markdown 单独保留
+    mock_crawl_result.html = '<html><body><a href="https://example.com/a">Hello</a></body></html>'
     mock_crawl_result.markdown = "# Hello World\n\nThis is content."
     mock_crawl_result.metadata = {"title": "Test Page"}
 
@@ -233,7 +235,7 @@ async def test_crawl_success(tmp_path):
 
     assert result.success is True
     assert result.title == "Test Page"
-    assert result.content == "# Hello World\n\nThis is content."
+    assert result.content == '<html><body><a href="https://example.com/a">Hello</a></body></html>'
     assert result.markdown == "# Hello World\n\nThis is content."
     assert result.metadata == {"title": "Test Page"}
     mock_client.arun.assert_awaited_once()

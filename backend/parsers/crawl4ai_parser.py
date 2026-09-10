@@ -107,11 +107,22 @@ class Crawl4aiParser:
         result = await client.arun(url=url, config=run_cfg)
 
         if result.success:
+            # cadence 修正批 (T2.2): ``content`` 必须是渲染后的 HTML — 唯一消费方
+            # bid_collector 把它直接喂给 ``_parse_html`` 锚点解析器。此前
+            # ``content=result.markdown``: crawl4ai 一旦"成功", 招标源必然解析出
+            # 0 条 (存量 bug; 招标类唯二存活的采招网/晨歌恰是 crawl4ai 被反爬拦下、
+            # 退回 aiohttp 拿到真 HTML 的两个)。markdown 单独保留在 ``markdown``。
+            md = result.markdown
+            md_str = md if isinstance(md, str) else (str(md) if md else "")
+            html = getattr(result, "html", None)
+            if not isinstance(html, str) or not html:
+                cleaned = getattr(result, "cleaned_html", None)
+                html = cleaned if isinstance(cleaned, str) else ""
             return CrawlResult(
                 url=url,
                 title=result.metadata.get("title", "") if result.metadata else "",
-                content=result.markdown or "",
-                markdown=result.markdown or "",
+                content=html or md_str,
+                markdown=md_str,
                 success=True,
                 metadata=result.metadata or {},
             )

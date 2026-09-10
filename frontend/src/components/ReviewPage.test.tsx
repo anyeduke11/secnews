@@ -4,9 +4,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ReviewPage } from './ReviewPage';
 
-// Mock useGoHome (避免 react-router 依赖)
-vi.mock('../hooks/useGoHome', () => ({
-  useGoHome: () => vi.fn(),
+// Mock useGoBack (避免 react-router 依赖)
+vi.mock('../hooks/useGoBack', () => ({
+  useGoBack: () => vi.fn(),
 }));
 
 // Mock Icon (避免 SVG 依赖)

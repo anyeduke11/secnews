@@ -35,14 +35,14 @@ export function CodegardenPhase2bPage({ onBack }: CodegardenPhase2bPageProps) {
           <button
             onClick={onBack}
             className="btn-ghost px-2.5 py-1.5 text-xs"
-            title="返回首页"
-            aria-label="返回首页"
+            title="返回"
+            aria-label="返回"
           >
             <Icon>
               <line x1="19" y1="12" x2="5" y2="12" />
               <polyline points="12 19 5 12 12 5" />
             </Icon>
-            返回首页
+            返回
           </button>
           <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
             🌐 CodeGarden Phase 2b

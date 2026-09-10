@@ -18,7 +18,7 @@ export function PageLayout() {
       <SentinelShell layer={null}>
         <div
           id="main-content"
-          className="max-w-[1320px] mx-auto px-4 sm:px-8 lg:px-10 py-4 sm:py-6"
+          className="tool-main max-w-[1320px] mx-auto px-4 sm:px-8 lg:px-10 py-4 sm:py-6"
         >
           <Outlet />
         </div>

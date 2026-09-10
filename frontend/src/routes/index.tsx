@@ -1,8 +1,9 @@
-import { Suspense, useCallback } from 'react';
+import { Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { PageLayout, SentinelLayout } from '../components/PageLayout';
 import { useFavorites } from '../hooks/useFavorites';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
+import { useGoBack } from '../hooks/useGoBack';
 import * as P from './lazy-imports';
 
 // Stage1 拆分: 路由声明 = 应用结构图, 所有 <Route> 集中于此, 与 lazy-imports.ts 1:1 映射。
@@ -54,11 +55,13 @@ function HistoryPageRoute() {
 }
 
 // v0.8 Phase B (B6): /skill-store 路由包装 — 导航回调在此收敛, 页面组件保持 router-free
+// 2026-09-10: onBack 统一为智能返回 (useGoBack: 有来路回上一页, 否则回 fallback), 壳已提供回首页
 function SkillStoreRoute() {
   const navigate = useNavigate();
+  const goBack = useGoBack();
   return (
     <P.SkillStore
-      onBack={() => navigate('/')}
+      onBack={goBack}
       onDetail={id => navigate(`/skill-store/${encodeURIComponent(id)}`)}
       onHistory={id => navigate(`/skill-store/${encodeURIComponent(id)}?focus=history`)}
     />
@@ -68,16 +71,17 @@ function SkillStoreRoute() {
 // v0.8 Phase B (B6): /skill-store/:skillId 详情页包装 — 路由参数注入 + 返回商店
 // skillId 从 useParams 注入已不需要, SkillDetail 自己 fallback 到路由
 function SkillDetailRoute() {
-  const navigate = useNavigate();
-  return <P.SkillDetail onBack={() => navigate('/skill-store')} />;
+  const goBack = useGoBack('/skill-store');
+  return <P.SkillDetail onBack={goBack} />;
 }
 
 // v0.8 Phase C (C4): /skill-store/new 包装 — 4 步创建向导
 function SkillBuilderRoute() {
   const navigate = useNavigate();
+  const goBack = useGoBack('/skill-store');
   return (
     <P.SkillBuilder
-      onBack={() => navigate('/skill-store')}
+      onBack={goBack}
       onCreated={id => navigate(`/skill-store/${encodeURIComponent(id)}`)}
     />
   );
@@ -85,15 +89,14 @@ function SkillBuilderRoute() {
 
 // v0.8 Phase D (D2): /dashboard 包装 — 技能看板
 function DashboardRoute() {
-  const navigate = useNavigate();
-  return <P.Dashboard onBack={() => navigate('/skill-store')} />;
+  const goBack = useGoBack('/skill-store');
+  return <P.Dashboard onBack={goBack} />;
 }
 
 export function AppRoutes() {
-  const navigate = useNavigate();
   // v0.4.3: 扩展路由按 feature flag 条件渲染 (core 路由永远注册)
   const features = useFeatureFlags();
-  const goHome = useCallback(() => navigate('/'), [navigate]);
+  const goBack = useGoBack();
 
   return (
     <Routes>
@@ -128,7 +131,7 @@ export function AppRoutes() {
         {/* ── 保留的旧路由 (内容尚未迁移) ── */}
         <Route path="/todos" element={<Suspense fallback={<PageFallback />}><P.TodosPage /></Suspense>} />
         <Route path="/history" element={<Suspense fallback={<PageFallback />}><HistoryPageRoute /></Suspense>} />
-        <Route path="/skills" element={<Suspense fallback={<PageFallback />}><P.SkillsPage onBack={goHome} /></Suspense>} />
+        <Route path="/skills" element={<Suspense fallback={<PageFallback />}><P.SkillsPage onBack={goBack} /></Suspense>} />
         {/* v0.8 Phase A (A4): 技能商店 (/skill-registry) — /skills 已被 Phase 41 技能库占用, 故用 /skill-store */}
         <Route path="/skill-store" element={<Suspense fallback={<PageFallback />}><SkillStoreRoute /></Suspense>} />
         {/* v0.8 Phase B (B6): 详情页 + 运行历史回放 + 反馈打分 */}
@@ -138,18 +141,18 @@ export function AppRoutes() {
         {/* v0.8 Phase D (D2): 技能看板 */}
         <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><DashboardRoute /></Suspense>} />
 
-        <Route path="/secrets" element={<Suspense fallback={<PageFallback />}><P.SecretsPage onBack={goHome} /></Suspense>} />
+        <Route path="/secrets" element={<Suspense fallback={<PageFallback />}><P.SecretsPage onBack={goBack} /></Suspense>} />
         {features.sync && (
-          <Route path="/sync" element={<Suspense fallback={<PageFallback />}><P.SyncPage onBack={goHome} /></Suspense>} />
+          <Route path="/sync" element={<Suspense fallback={<PageFallback />}><P.SyncPage onBack={goBack} /></Suspense>} />
         )}
         <Route path="/settings" element={<Suspense fallback={<PageFallback />}><P.SettingsPage /></Suspense>} />
-        <Route path="/report" element={<Suspense fallback={<PageFallback />}><P.ReportPage onBack={goHome} /></Suspense>} />
+        <Route path="/report" element={<Suspense fallback={<PageFallback />}><P.ReportPage onBack={goBack} /></Suspense>} />
 
         {/* 知识管理: 4 大领域 (信息导入 / 处理数据 / 知识库编译 / 知识库复利) + 经验库聚合
          * v0.8.5: 壳回 PageLayout (V1SentinelShell 已删); 知识不是第四层, 从「更多」进入;
          * v1 知识目录 /knowledge/v1 由 C4 挂载 (spec §5)
          */}
-        <Route path="/knowledge" element={<Suspense fallback={<PageFallback />}><P.KnowledgePage onBack={goHome} /></Suspense>}>
+        <Route path="/knowledge" element={<Suspense fallback={<PageFallback />}><P.KnowledgePage onBack={goBack} /></Suspense>}>
           <Route index element={<Navigate to="import" replace />} />
           <Route path="import" element={<Suspense fallback={<PageFallback />}><P.KnowledgeImport /></Suspense>} />
           <Route path="process" element={<Suspense fallback={<PageFallback />}><P.KnowledgeProcess /></Suspense>} />
@@ -172,9 +175,9 @@ export function AppRoutes() {
         <Route path="/quality/rejection" element={<Suspense fallback={<PageFallback />}><P.QualityRejectionPage /></Suspense>} />
         {features.codegarden && (
           <>
-            <Route path="/codegarden" element={<Suspense fallback={<PageFallback />}><P.CodegardenPage onBack={goHome} /></Suspense>} />
+            <Route path="/codegarden" element={<Suspense fallback={<PageFallback />}><P.CodegardenPage onBack={goBack} /></Suspense>} />
             {features.codegardenPhase2b && (
-              <Route path="/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><P.CodegardenPhase2bPage onBack={goHome} /></Suspense>} />
+              <Route path="/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><P.CodegardenPhase2bPage onBack={goBack} /></Suspense>} />
             )}
           </>
         )}
@@ -194,14 +197,14 @@ export function AppRoutes() {
 
         {/* CRM 业绩座舱 (v0.6 security-cockpit 方案 C, feature gate: crm) */}
         {features.crm && (
-          <Route path="/crm" element={<Suspense fallback={<PageFallback />}><P.CrmPage onBack={goHome} /></Suspense>} />
+          <Route path="/crm" element={<Suspense fallback={<PageFallback />}><P.CrmPage onBack={goBack} /></Suspense>} />
         )}
 
         {/* 找回丢失前端入口 (v0.6.3): 后端路由已存在, 前端从未接入的 4 域 */}
-        <Route path="/bid-alert" element={<Suspense fallback={<PageFallback />}><P.BidAlertPage onBack={goHome} /></Suspense>} />
-        <Route path="/tags" element={<Suspense fallback={<PageFallback />}><P.TagsPage onBack={goHome} /></Suspense>} />
-        <Route path="/extract" element={<Suspense fallback={<PageFallback />}><P.ExtractPage onBack={goHome} /></Suspense>} />
-        <Route path="/search" element={<Suspense fallback={<PageFallback />}><P.UnifiedSearchPage onBack={goHome} /></Suspense>} />
+        <Route path="/bid-alert" element={<Suspense fallback={<PageFallback />}><P.BidAlertPage onBack={goBack} /></Suspense>} />
+        <Route path="/tags" element={<Suspense fallback={<PageFallback />}><P.TagsPage onBack={goBack} /></Suspense>} />
+        <Route path="/extract" element={<Suspense fallback={<PageFallback />}><P.ExtractPage onBack={goBack} /></Suspense>} />
+        <Route path="/search" element={<Suspense fallback={<PageFallback />}><P.UnifiedSearchPage onBack={goBack} /></Suspense>} />
 
         {/* D1 (Batch ⑧): OAuth 授权回调页 (无 PageLayout, 全屏显示状态) */}
         <Route path="/oauth-callback" element={<Suspense fallback={<PageFallback />}><P.OAuthCallbackPage /></Suspense>} />

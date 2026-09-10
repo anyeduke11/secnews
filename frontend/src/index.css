@@ -247,6 +247,10 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 
+/* 正文基础排版抽成变量: 工具页在 SentinelShell 壳内 (.sentinel 15px/无衬线) 需按 body 口径复位,
+   见 sentinel.css 的 .sentinel .tool-main */
+:root { --body-fs: 13px; --body-lh: 1.65; }
+
 body {
   font-family: var(--font-mono);
   background-color: var(--bg-primary);
@@ -255,23 +259,23 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-size: 13px;
-  line-height: 1.65;
+  font-size: var(--body-fs);
+  line-height: var(--body-lh);
 }
 
 @media (max-width: 767px) {
   /* 手机: 触摸缩放场景, 基础字号放大 */
-  body { font-size: 14px; }
+  :root { --body-fs: 14px; }
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
   /* 平板: 此前直接复用桌面 13px, 触摸距离下偏小, 升 1px 兜底 */
-  body { font-size: 14px; }
+  :root { --body-fs: 14px; }
 }
 
 @media (min-width: 1536px) {
   /* 宽屏(>=2xl): 此前与笔记本同字号, 视距更远下偏小, 升 1px 补偿 */
-  body { font-size: 14px; }
+  :root { --body-fs: 14px; }
 }
 
 ::selection { background-color: var(--accent-soft); color: var(--text-primary); }

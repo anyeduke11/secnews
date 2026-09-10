@@ -48,7 +48,7 @@ export function ReportPage({ onBack }: ReportPageProps) {
     <div className="space-y-4">
       {/* 头部 */}
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="btn-ghost px-2 py-1.5 text-xs" aria-label="返回首页">
+        <button onClick={onBack} className="btn-ghost px-2 py-1.5 text-xs" aria-label="返回">
           <Icon><polyline points="15 18 9 12 15 6" /></Icon>
         </button>
         <div>

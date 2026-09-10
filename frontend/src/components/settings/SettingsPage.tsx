@@ -14,7 +14,7 @@
  *       v0.8 P1 新增 info_filter (独立资讯筛选门禁) → 17 cat.
  */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '../../hooks/useGoBack';
 import { Icon } from '../Icon';
 import { SECTIONS } from './sections';
 import type { SectionKey } from './sections';
@@ -42,7 +42,8 @@ import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import './settings-shell.css';
 
 export function SettingsPage() {
-  const navigate = useNavigate();
+  // 壳品牌 / 资料层 tab 已能回首页, 页级按钮做智能返回 (有来路回上一页)
+  const goBack = useGoBack();
   // v0.7.x SettingsHub V2: 默认 cat=dashboard (体检面板) — 哨兵式首屏
   // 旧路由 /secnews/settings /secnews/image /sentinel/settings 携带 cat 跳转
   const search = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
@@ -157,14 +158,14 @@ export function SettingsPage() {
           <button
             type="button"
             className="st-btn ghost"
-            onClick={() => navigate('/')}
-            aria-label="返回首页"
+            onClick={goBack}
+            aria-label="返回"
           >
             <Icon size={11}>
               <line x1="19" y1="12" x2="5" y2="12" />
               <polyline points="12 19 5 12 12 5" />
             </Icon>
-            返回首页
+            返回
           </button>
         </div>
       </header>

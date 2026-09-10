@@ -1,5 +1,5 @@
 // HistoryPage — 历史资讯 (按自然周边界 7 天分批)
-// Phase 5A: 移除 onBack prop (用 useGoHome), 错误色走 --color-error, 收藏数用 --color-finance, 空态走 EmptyState
+// Phase 5A: 移除 onBack prop (用 useGoBack), 错误色走 --color-error, 收藏数用 --color-finance, 空态走 EmptyState
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Batch,
@@ -10,7 +10,7 @@ import {
   CATEGORIES,
 } from '../types';
 import { HotspotCard } from './HotspotCard';
-import { useGoHome } from '../hooks/useGoHome';
+import { useGoBack } from '../hooks/useGoBack';
 import { Icon } from './Icon';
 import { EmptyState } from './EmptyState';
 
@@ -30,7 +30,7 @@ function formatBatchRange(start: string, end: string): string {
 }
 
 export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps) {
-  const goHome = useGoHome();
+  const goBack = useGoBack();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [batchesLoading, setBatchesLoading] = useState(true);
   const [batchesError, setBatchesError] = useState<string | null>(null);
@@ -163,16 +163,16 @@ export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
         <div className="flex items-center gap-3">
           <button
-            onClick={goHome}
+            onClick={goBack}
             className="btn-ghost px-2.5 py-1.5 text-xs"
-            title="返回首页"
-            aria-label="返回首页"
+            title="返回"
+            aria-label="返回"
           >
             <Icon>
               <line x1="19" y1="12" x2="5" y2="12" />
               <polyline points="12 19 5 12 12 5" />
             </Icon>
-            返回首页
+            返回
           </button>
           <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
             <Icon size={16}>

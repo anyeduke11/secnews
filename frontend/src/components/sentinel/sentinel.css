@@ -38,6 +38,9 @@
    border 不能用简写 (border:0 会连 border-style 一起重置为 none, Tailwind .border 只设宽度、样式靠 preflight 的 *{border-style:solid}) */
 :where(.sentinel) a{color:inherit;text-decoration:none}
 :where(.sentinel) button{font-family:inherit;color:inherit;background:none;border-width:0;cursor:pointer}
+/* 工具页内容区 (PageLayout #main-content) 复位到 body 口径: 这些页面按 body 的等宽 13/14px 设计,
+   不吃壳的 15px 无衬线终端排版; 壳自身 appbar / pipeline 不受影响 */
+.sentinel .tool-main{font-family:var(--font-mono);font-size:var(--body-fs,13px);line-height:var(--body-lh,1.65)}
 .sentinel :focus-visible{outline:2px solid var(--sn-mint);outline-offset:2px;border-radius:2px}
 .sentinel .mono{font-family:var(--sn-mono)}
 .sentinel .num{font-family:var(--sn-mono);font-feature-settings:'tnum'}

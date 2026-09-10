@@ -102,23 +102,46 @@ class BackendSession:
         validate_url(url)
 
         # 延迟导入避免循环依赖
-        from backend.proxy_config import get_proxy_url, should_use_proxy
+        from backend.proxy_config import (
+            get_proxy_url,
+            mark_proxy_failure,
+            mark_proxy_success,
+            should_use_proxy,
+        )
 
         last_exc: Exception | None = None
+        # cadence 修正批 T5: 代理链路失败后, 本次调用余下的尝试一律直连
+        # (此前同一代理会被重试 3 次打到死, 代理失效等于源失效)。
+        force_direct = False
+
+        async def _once(proxies: dict[str, str] | None):
+            return await self._client.get(url, proxies=proxies, **kwargs)
 
         for attempt in range(len(RETRY_DELAYS) + 1):
             async with self._semaphore:
+                # 按 URL 决定是否走代理 (熔断期 should_use_proxy 直接 False)
+                proxies: dict[str, str] | None = None
+                if not force_direct and should_use_proxy(url):
+                    proxy_url = get_proxy_url(url)
+                    if proxy_url:
+                        proxies = {"all://": proxy_url}
                 try:
-                    # 按 URL 决定是否走代理
-                    proxies: dict[str, str] | None = None
-                    if should_use_proxy(url):
-                        proxy_url = get_proxy_url(url)
-                        if proxy_url:
-                            proxies = {"all://": proxy_url}
-
-                    resp = await self._client.get(
-                        url, proxies=proxies, **kwargs
-                    )
+                    try:
+                        resp = await _once(proxies)
+                    except (httpx.TimeoutException, httpx.NetworkError, httpx.ProxyError) as e:
+                        if proxies is None:
+                            raise
+                        # 代理链路失败 → 回写熔断器, 同一轮内立刻直连重试 (不等退避)
+                        opened = mark_proxy_failure(e)
+                        force_direct = True
+                        logger.warning(
+                            f"proxy request failed for {url}: {type(e).__name__}, "
+                            f"retrying direct" + (" [proxy circuit OPENED]" if opened else "")
+                        )
+                        resp = await _once(None)
+                    else:
+                        if proxies is not None:
+                            mark_proxy_success()
 
                     # 5xx / 429 → 重试
                     if resp.status_code in (429,) or 500 <= resp.status_code < 600:
@@ -135,7 +158,7 @@ class BackendSession:
 
                     return resp.text
 
-                except (httpx.TimeoutException, httpx.NetworkError) as e:
+                except (httpx.TimeoutException, httpx.NetworkError, httpx.ProxyError) as e:
                     last_exc = e
                     if attempt < len(RETRY_DELAYS):
                         delay = RETRY_DELAYS[attempt]

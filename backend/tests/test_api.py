@@ -486,10 +486,17 @@ def test_proxy_settings_get(client):
     assert "mode" in data["settings"]
 
 
-def test_proxy_settings_put(client, monkeypatch):
-    """PUT 应返回成功, 但不应破坏真实文件。"""
+def test_proxy_settings_put(client, monkeypatch, tmp_path):
+    """PUT 应返回成功, 且真实 proxy_config.json 不被触碰。
+
+    cadence 修正批 T5: 曾因 api 层按值导入 save_proxy_settings 使 wraps 保护失灵,
+    全量套件每跑一次都会把生产配置写回 off (实测踩坑)。现在 api 层走模块属性调用 +
+    本测试把 PROXY_CONFIG_FILE 指到 tmp, 双保险。
+    """
     import backend.proxy_config as pc
 
+    monkeypatch.setattr(pc, "PROXY_CONFIG_FILE", str(tmp_path / "proxy_config.json"))
+    pc.invalidate_settings_cache()
     real_load = pc.load_proxy_settings
     real_save = pc.save_proxy_settings
 
@@ -506,9 +513,15 @@ def test_proxy_settings_put(client, monkeypatch):
                     "whitelist": [],
                 },
             )
+    pc.invalidate_settings_cache()
     assert r.status_code == 200
     data = r.json()
     assert data["status"] == "ok"
+    # 写入落在 tmp 化的配置文件里, 内容与 PUT body 一致
+    import json as _json
+
+    written = _json.loads((tmp_path / "proxy_config.json").read_text(encoding="utf-8"))
+    assert written["mode"] == "off" and written["no_proxy"] == "localhost"
 
 
 # ---------------------------------------------------------------------------

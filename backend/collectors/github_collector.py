@@ -333,21 +333,26 @@ class GitHubCollector(BaseCollector):
         seen_urls: set[str] = set()
 
         # 策略 1：从 article 卡片提取（GitHub Trending 页面结构）
-        # 匹配 <article>...<h1><a href="/owner/repo">...</a></h1>...</article>
+        # 2026-09 实测新版 markup: repo 链接不再包在 <h1>/<h2> 里, 而是 article 内
+        # 普通锚点 `<a href="/owner/repo">owner / repo</a>`, 另有 /login (Star)、
+        # /stargazers、/forks 卫星链接 — 旧正则 13 条全漏 (代理修复后仍 0 条的根因)。
+        # 改为遍历 article 内全部锚点, 交给 _is_repo_url 严格过滤 (段数/查询参数/
+        # 非项目路径规则自动排除卫星链接)。
         article_pattern = re.compile(
             r'<article[^>]*>(.*?)</article>',
             re.DOTALL | re.IGNORECASE,
         )
         repo_link_pattern = re.compile(
-            r'<h[12][^>]*>\s*<a[^>]*href="(/[^"]+)"[^>]*>([^<]+)</a>',
-            re.IGNORECASE,
+            r'<a[^>]*href="(/[^"]+)"[^>]*>(.*?)</a>',
+            re.DOTALL | re.IGNORECASE,
         )
 
         for article_match in article_pattern.finditer(html):
             article_html = article_match.group(1)
             for link_match in repo_link_pattern.finditer(article_html):
                 href = link_match.group(1)
-                text = link_match.group(2).strip()
+                text = re.sub(r"<[^>]+>", " ", link_match.group(2))
+                text = re.sub(r"\s+", " ", text).strip()
                 if not text or len(text) < 2:
                     continue
                 full_url = self._resolve_url(href, source["url"])

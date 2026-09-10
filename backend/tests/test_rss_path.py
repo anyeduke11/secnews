@@ -1,9 +1,15 @@
-"""Phase 22: BaseCollector._fetch_rss RSS 抓取路径测试"""
+"""Phase 22: BaseCollector._fetch_rss RSS 抓取路径测试。
+
+cadence 修正批 T2.2+T5: 取字节与解析分离 — ``_fetch_rss_bytes`` (代理感知 HTTP 层)
++ ``feedparser.parse(bytes)`` (线程内解析)。测试统一把 ``_fetch_rss_bytes`` 桩掉以
+隔离网络; feedparser.parse 的 patch 保持原有 status/bozo/entries 语义。
+"""
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from backend.collectors.security_collector import SecurityCollector
 from backend.utils.business_days import current_week_start
@@ -17,6 +23,16 @@ def _make_feedparser_mock(entries: list[dict[str, Any]], status: int = 200, bozo
         "entries": entries,
     }
     return d
+
+
+def _stub_fetch_bytes(collector: SecurityCollector, status: int = 200):
+    """隔离 HTTP 层: _fetch_rss_bytes 桩为返回 (status, {}, 字节占位)。"""
+    collector._fetch_rss_bytes = AsyncMock(return_value=(status, {}, b"<rss>stub</rss>"))  # type: ignore[method-assign]
+    return collector
+
+
+def _run(coro):
+    return asyncio.run(coro)
 
 
 def _recent_dt(hour: int = 12) -> datetime:
@@ -56,12 +72,26 @@ def test_rss_path_http_error_returns_error_result():
         "url": "https://example.com/",
         "rss_url": "https://example.com/feed",
     }
-    collector = SecurityCollector()
+    collector = _stub_fetch_bytes(SecurityCollector())
     with patch("feedparser.parse", return_value=_make_feedparser_mock([], status=404, bozo=True)):
-        items, sr = __import__("asyncio").run(collector._fetch_rss(src))
+        items, sr = _run(collector._fetch_rss(src))
     assert items == []
     assert sr.error_msg.startswith("rss_http_404")
     assert sr.item_count == 0
+
+
+def test_rss_path_real_bytes_http_status_injected():
+    """字节解析时 feedparser 无 status → 注入 HTTP 层状态码 (≥400 判定仍生效)。"""
+    src = {
+        "name": "MockRSS",
+        "url": "https://example.com/",
+        "rss_url": "https://example.com/feed",
+    }
+    collector = _stub_fetch_bytes(SecurityCollector(), status=500)
+    # 不 patch feedparser.parse — 真 feedparser 解析 stub 字节 (非 feed → 0 entries)
+    items, sr = _run(collector._fetch_rss(src))
+    assert items == []
+    assert sr.error_msg.startswith("rss_http_500"), sr.error_msg
 
 
 def test_rss_path_empty_entries_returns_error():
@@ -71,9 +101,9 @@ def test_rss_path_empty_entries_returns_error():
         "url": "https://example.com/",
         "rss_url": "https://example.com/feed",
     }
-    collector = SecurityCollector()
+    collector = _stub_fetch_bytes(SecurityCollector())
     with patch("feedparser.parse", return_value=_make_feedparser_mock([], status=200, bozo=False)):
-        items, sr = __import__("asyncio").run(collector._fetch_rss(src))
+        items, sr = _run(collector._fetch_rss(src))
     assert items == []
     assert sr.error_msg.startswith("rss_empty")
 
@@ -103,9 +133,9 @@ def test_rss_path_happy_path():
         # 缺 link → 跳过
         {"title": "X", "link": "", "summary": "x"},
     ]
-    collector = SecurityCollector()
+    collector = _stub_fetch_bytes(SecurityCollector())
     with patch("feedparser.parse", return_value=_make_feedparser_mock(entries)):
-        items, sr = __import__("asyncio").run(collector._fetch_rss(src))
+        items, sr = _run(collector._fetch_rss(src))
     assert len(items) == 2
     assert items[0].title == "First Article"
     assert str(items[0].url) == "https://example.com/a/1"
@@ -121,7 +151,7 @@ def test_rss_path_routes_before_html():
         "url": "https://www.sec-wiki.com/",
         "rss_url": "https://www.sec-wiki.com/news/rss",
     }
-    collector = SecurityCollector()
+    collector = _stub_fetch_bytes(SecurityCollector())
     entries = [
         {
             "title": "SecWiki News 2026-07-06",
@@ -131,7 +161,7 @@ def test_rss_path_routes_before_html():
         }
     ]
     with patch("feedparser.parse", return_value=_make_feedparser_mock(entries)):
-        items, sr = __import__("asyncio").run(collector.fetch_source(src))
+        items, sr = _run(collector.fetch_source(src))
     assert sr.error_msg is None or sr.error_msg == ""
     assert sr.item_count == 1
     assert items[0].title == "SecWiki News 2026-07-06"
@@ -145,9 +175,9 @@ def test_rss_path_crash_handled():
         "url": "https://example.com/",
         "rss_url": "https://example.com/feed",
     }
-    collector = SecurityCollector()
+    collector = _stub_fetch_bytes(SecurityCollector())
     with patch("feedparser.parse", side_effect=RuntimeError("boom")):
-        items, sr = __import__("asyncio").run(collector._fetch_rss(src))
+        items, sr = _run(collector._fetch_rss(src))
     assert items == []
     assert sr.error_msg.startswith("rss_crash:")
     assert "boom" in sr.error_msg

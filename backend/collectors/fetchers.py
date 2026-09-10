@@ -113,6 +113,32 @@ class FetchersMixin:
     ``logger`` / ``timeout`` / ``max_items`` / ``_parse_html`` /
     ``_parse_json`` / ``_build_items``）。"""
 
+    async def _fetch_rss_bytes(self, rss_url: str) -> tuple[int, dict, bytes]:
+        """cadence 修正批 T2.2+T5: 代理感知地取回 feed 字节 (直连优先, 代理兜底).
+
+        浏览器 UA + Accept 头在此层注入 (feedparser 自取 URL 的机器人 UA 是
+        Cloudflare 挑战页的根因)。测试缝隙: patch 本方法返回
+        ``(status, headers, bytes)`` 即可隔离网络。
+        """
+        from backend.collectors import base as _base
+        from backend.proxy_session import ProxySession
+
+        timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
+        async with ProxySession(timeout=timeout_obj) as ps, ps.get(
+            rss_url,
+            headers={
+                "User-Agent": _base.UA,
+                "Accept": (
+                    "application/rss+xml, application/atom+xml, "
+                    "application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5"
+                ),
+                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+            },
+            ssl=False,
+        ) as resp:
+            body = await resp.read()
+            return int(resp.status), dict(resp.headers), body
+
     # ------------------------------------------------------------------
     # Phase 22: RSS 抓取 (feedparser) — 用于源 dict 含 ``rss_url`` 字段时
     # ------------------------------------------------------------------
@@ -156,30 +182,17 @@ class FetchersMixin:
                 duration_ms=duration,
             )
 
-        # feedparser 是同步库;用 asyncio.to_thread 跑,避免阻塞事件循环
-        # cadence 修正批 T2.2: feedparser 自带 UA 是 "feedparser/6.x +https://..." 机器人
-        # 签名, Cloudflare/WAF 前置的 feed (嘶吼 4hou / HackRead / 36氪) 直接给挑战页
-        # → entries=0 bozo=True; 探测证实同 URL 换浏览器 UA 即拿到 entries。改用与
-        # HTML 路径一致的浏览器 UA + Accept 头。另: feedparser 内部 urlopen 无超时,
-        # 用 wait_for 兜底, 防挂死的 feed 占满 to_thread 线程池。
-        from backend.collectors import base as _base  # 惰性导入 (patch 兼容, 与其余路径一致)
-
-        def _parse() -> dict[str, Any]:
-            import feedparser  # type: ignore
-            return feedparser.parse(
-                rss_url,
-                agent=_base.UA,
-                request_headers={
-                    "Accept": (
-                        "application/rss+xml, application/atom+xml, "
-                        "application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5"
-                    ),
-                    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-                },
-            )
+        # cadence 修正批 T2.2+T5: 取字节走代理感知通道 (ProxySession, 直连优先·代理兜底),
+        # feedparser 只负责解析字节 — 此前 feedparser 自取 URL 有两宗罪: 自带
+        # "feedparser/6.x" 机器人 UA 被 Cloudflare 挑战页拦下 (entries=0 bozo), 且
+        # 完全不认代理 (TheHackerNews 等被墙 feed 直连超时)。浏览器 UA + Accept 头
+        # 移到 HTTP 请求头上; feedparser 内部 urlopen 无超时的问题也随之消失
+        # (wait_for 仍兜底, 防慢 feed 占满 to_thread 线程池)。
 
         try:
-            d = await asyncio.wait_for(asyncio.to_thread(_parse), timeout=self.timeout)
+            http_status, resp_headers, body = await asyncio.wait_for(
+                self._fetch_rss_bytes(rss_url), timeout=self.timeout
+            )
         except asyncio.TimeoutError:
             duration = int(
                 (datetime.now(timezone.utc) - start).total_seconds() * 1000
@@ -200,6 +213,35 @@ class FetchersMixin:
             )
             self.logger.warning(
                 f"rss fetch crashed for {source_name}: "
+                f"{type(e).__name__}: {str(e)[:50]}"
+            )
+            return [], SourceResult(
+                source_name=source_name,
+                source_url=source_url,
+                item_count=0,
+                error_msg=f"rss_crash: {type(e).__name__}: {str(e)[:100]}",
+                duration_ms=duration,
+            )
+
+        def _parse() -> dict[str, Any]:
+            import feedparser  # type: ignore
+            d = feedparser.parse(body, response_headers=resp_headers)
+            # 字节解析时 feedparser 不带 status, 注入 HTTP 层状态码供下游 ≥400 判定
+            if d.get("status") is None:
+                try:
+                    d["status"] = http_status
+                except (TypeError, KeyError):
+                    pass
+            return d
+
+        try:
+            d = await asyncio.to_thread(_parse)
+        except Exception as e:
+            duration = int(
+                (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            )
+            self.logger.warning(
+                f"rss parse crashed for {source_name}: "
                 f"{type(e).__name__}: {str(e)[:50]}"
             )
             return [], SourceResult(

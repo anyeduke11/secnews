@@ -15,9 +15,8 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -97,18 +96,39 @@ def _feed(entries):
 
 
 @pytest.mark.asyncio
-async def test_fetch_rss_sends_browser_ua_and_accept_headers():
+async def test_fetch_rss_bytes_sends_browser_ua_via_proxy_aware_layer():
+    """T5: 浏览器 UA + Accept 头在 _fetch_rss_bytes 的 HTTP 层注入 (经 ProxySession)。"""
+    captured: dict = {}
+
+    ok = MagicMock(status=200)
+    ok.read = AsyncMock(return_value=b"<rss><channel><item><title>t</title></item></channel></rss>")
+    resp = _FakeResp(200, b"<rss><channel/></rss>")
+    resp.read = AsyncMock(return_value=b"<rss><channel><item><title>t</title></item></channel></rss>")
+    resp.headers = {"Content-Type": "application/rss+xml"}
+
+    class _FakePS:
+        def __init__(self, headers=None, timeout=None):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        def get(self, url, **kwargs):
+            captured["url"] = url
+            captured.update(kwargs)
+            return resp
+
     c = _rss_collector()
-    src = {"name": "嘶吼", "url": "https://www.4hou.com/", "rss_url": "https://www.4hou.com/feed"}
-    entries = [{"title": "t", "link": "https://www.4hou.com/a", "published": "Wed, 10 Sep 2026 00:00:00 GMT"}]
-    with patch("feedparser.parse", return_value=_feed(entries)) as fp:
-        await c._fetch_rss(src)
-    assert fp.call_count == 1
-    args, kwargs = fp.call_args
-    assert args[0] == "https://www.4hou.com/feed"
-    assert kwargs["agent"] == _base.UA, "RSS 必须用浏览器 UA (feedparser 默认 UA 被 Cloudflare 拦)"
-    assert "rss+xml" in kwargs["request_headers"]["Accept"]
-    assert "Accept-Language" in kwargs["request_headers"]
+    with patch("backend.proxy_session.ProxySession", _FakePS):
+        status, headers, body = await c._fetch_rss_bytes("https://www.4hou.com/feed")
+    assert captured["url"] == "https://www.4hou.com/feed"
+    assert captured["headers"]["User-Agent"] == _base.UA, "RSS 必须用浏览器 UA (feedparser 默认 UA 被 Cloudflare 拦)"
+    assert "rss+xml" in captured["headers"]["Accept"]
+    assert "Accept-Language" in captured["headers"]
+    assert status == 200 and b"<rss>" in body
 
 
 @pytest.mark.asyncio
@@ -117,12 +137,12 @@ async def test_fetch_rss_timeout_returns_rss_timeout_error():
     c.timeout = 0.2
     src = {"name": "slow", "url": "https://example.com/", "rss_url": "https://example.com/feed"}
 
-    def _hang(*_a, **_k):
-        time.sleep(1.0)
-        return _feed([])
+    async def _hang(*_a, **_k):
+        await asyncio.sleep(1.0)
+        return 200, {}, b""
 
-    with patch("feedparser.parse", side_effect=_hang):
-        items, result = await c._fetch_rss(src)
+    c._fetch_rss_bytes = _hang  # type: ignore[method-assign]
+    items, result = await c._fetch_rss(src)
     assert items == []
     assert result.error_msg.startswith("rss_timeout")
 

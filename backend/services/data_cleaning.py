@@ -116,18 +116,14 @@ def validate_url(url: str, timeout: int = 5) -> bool:
     """Check if URL is reachable via proxy.
 
     Returns True if reachable, False otherwise.
-    """
-    import requests
 
-    from backend.config import config
-    try:
-        proxies = None
-        if config.proxy_mode == "manual":
-            proxies = {"http": "http://127.0.0.1:7897", "https": "http://127.0.0.1:7897"}
-        resp = requests.head(url, timeout=timeout, proxies=proxies, allow_redirects=True)
-        return resp.status_code < 500
-    except Exception:
-        return False
+    cadence 修正批 T6: 实现体移至 :mod:`backend.utils.proxy_probe` (代理感知 +
+    SSRF 门, 与连通性测试同通道)。此前本函数引用不存在的 ``config.proxy_mode``
+    (AttributeError 被 except 吞掉 → 代理分支从未生效, 硬编码 7897 是死代码)。
+    """
+    from backend.utils.proxy_probe import is_reachable_sync
+
+    return is_reachable_sync(url, timeout)
 
 
 def clean_and_dedupe(items: list[dict]) -> list[dict]:

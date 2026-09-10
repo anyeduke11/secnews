@@ -13,8 +13,6 @@ from typing import Any
 
 import yaml
 
-from backend.services.proxy_pool import ProxyPool, proxy_pool
-
 logger = logging.getLogger("hotspot.crawl4ai")
 
 DEFAULT_CRAWL_CONFIG_PATH = (
@@ -40,14 +38,9 @@ class Crawl4aiParser:
     注意：crawl4ai 和 playwright 是可选依赖，未安装时 crawl() 返回空结果。
     """
 
-    def __init__(
-        self,
-        crawl_config_path: Path | None = None,
-        proxy_pool_instance: ProxyPool | None = None,
-    ):
+    def __init__(self, crawl_config_path: Path | None = None):
         cfg_path = crawl_config_path or DEFAULT_CRAWL_CONFIG_PATH
         self._config = self._load_config(cfg_path)
-        self._proxy_pool = proxy_pool_instance or proxy_pool
         self._enabled = self._config.get("crawl4ai", {}).get("enabled", False)
 
     @staticmethod
@@ -82,7 +75,7 @@ class Crawl4aiParser:
         进程级单例, 删除每次 ``async with AsyncWebCrawler()`` 新建浏览器
         (Playwright 启动 5-10s)。浏览器生命周期与并发信号量统一由 client
         层管理; 每请求级代理轮换随单例架构移除（BrowserConfig 在启动时
-        固定），``_proxy_pool`` 属性保留以兼容既有构造调用方。
+        固定）。死代码 proxy_pool 已随 DEV-0165 清理移除。
         """
         # 延迟导入 crawl4ai
         from crawl4ai.async_configs import CrawlerRunConfig

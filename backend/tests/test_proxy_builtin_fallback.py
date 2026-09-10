@@ -21,6 +21,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend import proxy_config as pc
+from backend.collectors import base as _base
 
 
 @pytest.fixture
@@ -436,3 +437,175 @@ def test_health_component_has_circuit_fields(cfg_file):
     h = _proxy_health()
     assert h["ok"] and h["mode"] == "builtin" and h["enabled"] is True
     assert h["effective_proxy"] == pc.BUILTIN_PROXY_URL and h["circuit_open"] is False
+
+
+# ---------------------------------------------------------------------------
+# T6: prefer_proxy (国际/国内归属, crawler_sources.network_zone)
+# ---------------------------------------------------------------------------
+def _insert_zone(conn, sid: str, name: str, url: str, *, zone: str, enabled: int = 1):
+    conn.execute(
+        "INSERT INTO crawler_sources (id, category, name, kind, url, priority, enabled, status, network_zone) VALUES (?, 'security', ?, 'html', ?, 50, ?, 'active', ?)",
+        (sid, name, url, enabled, zone),
+    )
+    conn.commit()
+
+
+@pytest.fixture
+def zone_db(cfg_file, temp_db):
+    """cfg_file (代理配置 tmp 化) + temp_db (真 migration 含 network_zone 列)。"""
+    from backend.repository.db import get_connection
+
+    yield get_connection()
+    pc.invalidate_international_hosts()
+
+
+class TestPreferProxy:
+    def test_registered_international_true(self, zone_db):
+        _insert_zone(zone_db, "security:gh", "gh", "https://github.com/trending", zone="international")
+        _insert_zone(zone_db, "security:thn", "thn", "https://thehackernews.com/", zone="international")
+        pc.invalidate_international_hosts()
+        assert pc.prefer_proxy("https://github.com/trending") is True
+        assert pc.prefer_proxy("https://thehackernews.com/feeds/posts/default") is True
+        # feed host (hnrss.org) 未注册 → 未注册 host 不代理优先 (只认注册表 host)
+        assert pc.prefer_proxy("https://hnrss.org/front-page") is False
+
+    def test_domestic_and_unregistered_false(self, zone_db):
+        _insert_zone(zone_db, "security:ccgp", "ccgp", "https://www.ccgp.gov.cn/", zone="domestic")
+        _insert_zone(zone_db, "security:4hou", "4hou", "https://www.4hou.com/", zone="international")
+        pc.invalidate_international_hosts()
+        assert pc.prefer_proxy("https://www.ccgp.gov.cn/cggg/") is False
+        assert pc.prefer_proxy("https://news.ycombinator.com/") is False, "未注册 host 不代理优先"
+        # 4hou.com 不在绕行清单 → 标 international 后代理优先生效
+        assert pc.prefer_proxy("https://www.4hou.com/") is True
+
+    def test_disabled_international_not_counted(self, zone_db):
+        _insert_zone(zone_db, "security:dead-gh", "dead-gh", "https://github.com/x", zone="international", enabled=0)
+        pc.invalidate_international_hosts()
+        assert pc.prefer_proxy("https://github.com/x") is False
+
+    def test_db_error_degrades_to_direct_first(self, zone_db, monkeypatch):
+        import backend.repository.db as db_mod
+
+        def _boom():
+            raise RuntimeError("db gone")
+
+        monkeypatch.setattr(db_mod, "get_connection", _boom)
+        pc.invalidate_international_hosts()
+        assert pc.prefer_proxy("https://github.com/trending") is False
+
+    def test_migration_column_exists(self, temp_db):
+        from backend.repository.db import get_connection
+
+        cols = {r[1] for r in get_connection().execute("PRAGMA table_info(crawler_sources)")}
+        assert "network_zone" in cols
+
+
+# ---------------------------------------------------------------------------
+# T6: 消费点代理优先 (fetchers / github collector)
+# ---------------------------------------------------------------------------
+class _ProxyFakeResp:
+    def __init__(self, status: int, html: str):
+        self.status = status
+        self._html = html
+        self.charset = "utf-8"
+        self.headers = {"Content-Type": "text/html"}
+
+    async def read(self):
+        return self._html.encode()
+
+    async def text(self):
+        return self._html
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+class _ProxyFakeSession:
+    def __init__(self, resp: _ProxyFakeResp):
+        self.resp = resp
+        self.calls: list[dict] = []
+
+    def get(self, url, **kwargs):
+        self.calls.append({"url": url, **kwargs})
+        return self.resp
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+def _page(title: str) -> str:
+    now_iso = "2026-09-10T08:00:00+00:00"
+    return (
+        f'<html><head><meta property="article:published_time" content="{now_iso}">'
+        f"<title>{title}</title></head><body>"
+        f'<a href="https://www.anquanke.com/post/1">{title} 正文一</a>'
+        f'<a href="https://www.anquanke.com/post/2">{title} 正文二</a>'
+        "</body></html>"
+    )
+
+
+@pytest.mark.asyncio
+async def test_fetchers_international_source_goes_proxy_first(builtin_env, monkeypatch):
+    from backend.collectors.security_collector import SecurityCollector
+
+    fake = _ProxyFakeSession(_ProxyFakeResp(200, _page("安全客热文")))
+    monkeypatch.setattr("backend.proxy_config.prefer_proxy", lambda url: True)
+    monkeypatch.setattr("backend.proxy_session.ProxySession", lambda headers=None, timeout=None: fake)
+    c = SecurityCollector()
+    items, sr = await c.fetch_source({"name": "安全客", "url": "https://www.anquanke.com/", "renderer": "aiohttp"})
+    # 路由断言: 国际源第一跳走 ProxySession (proxy 注入是 ProxySession 内部职责,
+    # 已由 test_proxy_session_* 覆盖; 此处只验证 fetchers 的代理优先分流)
+    assert fake.calls and fake.calls[0]["url"] == "https://www.anquanke.com/"
+    assert sr.error_msg is None and sr.item_count >= 1
+
+
+@pytest.mark.asyncio
+async def test_fetchers_domestic_source_stays_direct(builtin_env, monkeypatch):
+    from backend.collectors.security_collector import SecurityCollector
+
+    fake = _ProxyFakeSession(_ProxyFakeResp(200, _page("x")))
+    resp = _ProxyFakeResp(200, _page("x"))
+    plain = MagicMock()
+    cm = MagicMock()
+    cm.__aenter__ = AsyncMock(return_value=resp)
+    cm.__aexit__ = AsyncMock(return_value=False)
+    plain.get = MagicMock(return_value=cm)
+    plain.__aenter__ = AsyncMock(return_value=plain)
+    plain.__aexit__ = AsyncMock(return_value=False)
+    monkeypatch.setattr("backend.proxy_config.prefer_proxy", lambda url: False)
+    monkeypatch.setattr("backend.proxy_session.ProxySession", lambda headers=None, timeout=None: fake)
+    monkeypatch.setattr(_base, "_session_factory", lambda: lambda: plain)
+    c = SecurityCollector()
+    await c.fetch_source({"name": "安全客", "url": "https://www.anquanke.com/", "renderer": "aiohttp"})
+    assert fake.calls == [], "国内源不得触碰 ProxySession"
+    assert plain.get.called
+
+
+@pytest.mark.asyncio
+async def test_github_collector_proxy_first_skips_direct_timeout(builtin_env, monkeypatch):
+    from backend.collectors.github_collector import GitHubCollector
+
+    filler = "x" * 600  # >500 字符, 避免 github 链路的 <500 二次代理兜底
+    html = (
+        f'<html><body>{filler}<article><a href="/owner/repo">owner / repo</a>'
+        '<a href="/login?return_to=x">Star</a>'
+        '<a href="/owner/repo/stargazers">1,000</a></article></body></html>'
+    )
+    fake = _ProxyFakeSession(_ProxyFakeResp(200, html))
+    monkeypatch.setattr("backend.proxy_config.prefer_proxy", lambda url: True)
+    monkeypatch.setattr("backend.proxy_session.ProxySession", lambda headers=None, timeout=None: fake)
+    c = GitHubCollector()
+    c.timeout = 3
+    items, sr = await c.fetch_source({"name": "GitHub Trending", "url": "https://github.com/trending", "renderer": "crawl4ai", "keywords": []})
+    # 第一跳即代理 (代理成功拿到 >500B 页面后, 直连与 crawl4ai 分支不再执行)
+    assert fake.calls and fake.calls[0]["url"] == "https://github.com/trending"
+    assert sr.error_msg is None
+    urls = [str(it.url) for it in items]
+    assert any(u.endswith("/owner/repo") for u in urls), "新版 trending 结构必须解析出 repo"
+    assert not any("login" in u or "stargazers" in u for u in urls), "卫星链接必须被 _is_repo_url 排除"

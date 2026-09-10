@@ -34,6 +34,7 @@ from urllib.parse import urlparse
 from backend.collectors.base import BaseCollector
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
+from backend.utils.http_text import read_text_lenient
 from backend.utils.url_safety import UrlSafetyError, validate_url
 
 GITHUB_SOURCES: list[dict] = [
@@ -203,29 +204,57 @@ class GitHubCollector(BaseCollector):
         # used_proxy / used_crawl4ai 在 P2-1 已删除赋值路径 — 改用 self.logger.debug 直出
         # 此处不需要任何状态标志位
 
-        # ---- 第 1 步: aiohttp 直连 ----
-        try:
-            timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
-            async with aiohttp.ClientSession(timeout=timeout_obj) as session:
-                async with session.get(
-                    source_url,
-                    headers={"User-Agent": _base.UA},
-                    ssl=False,
-                ) as resp:
+        # ---- 第 1 步: aiohttp 直连 (国内) / 代理优先 (国际源, cadence T6) ----
+        # prefer_proxy=True 时第一跳走 ProxySession (注入代理, 代理链路失败自动切
+        # 直连重试) — github.com 直连 15s 黑洞, 此前每轮先烧满直连超时才轮到代理。
+        from backend.proxy_config import prefer_proxy
+
+        if prefer_proxy(source_url):
+            try:
+                from backend.proxy_session import ProxySession
+
+                timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
+                async with ProxySession(
+                    headers={"User-Agent": _base.UA}, timeout=timeout_obj
+                ) as session, session.get(source_url, ssl=False) as resp:
                     if resp.status == 200:
-                        html = await resp.text()
+                        html = await read_text_lenient(resp)
                     else:
                         self.logger.debug(
-                            f"github direct {source_name!r} HTTP {resp.status}"
+                            f"github proxy-first {source_name!r} HTTP {resp.status}"
                         )
-            if html:
-                self.logger.debug(f"github direct OK {source_name!r}")
-        except Exception as e:
-            self.logger.debug(
-                f"github direct failed {source_name!r}: "
-                f"{type(e).__name__}: {str(e)[:60]}"
-            )
-            html = None
+                if html:
+                    self.logger.debug(f"github proxy-first OK {source_name!r}")
+            except Exception as e:
+                self.logger.debug(
+                    f"github proxy-first failed {source_name!r}: "
+                    f"{type(e).__name__}: {str(e)[:60]}"
+                )
+                html = None
+
+        if html is None:
+            try:
+                timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
+                async with aiohttp.ClientSession(timeout=timeout_obj) as session:
+                    async with session.get(
+                        source_url,
+                        headers={"User-Agent": _base.UA},
+                        ssl=False,
+                    ) as resp:
+                        if resp.status == 200:
+                            html = await resp.text()
+                        else:
+                            self.logger.debug(
+                                f"github direct {source_name!r} HTTP {resp.status}"
+                            )
+                if html:
+                    self.logger.debug(f"github direct OK {source_name!r}")
+            except Exception as e:
+                self.logger.debug(
+                    f"github direct failed {source_name!r}: "
+                    f"{type(e).__name__}: {str(e)[:60]}"
+                )
+                html = None
 
         # ---- 第 2 步: 直连失败, 走 ProxySession 代理兜底 ----
         if html is None or len(html.strip()) < 500:

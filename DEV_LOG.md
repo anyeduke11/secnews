@@ -506,6 +506,27 @@
   - 首轮重启后 `catchup_on_startup` 会做本周回填 (设计行为, 负载一次性); 前端设置页尚未消费新的 GET `/api/settings/refresh-interval` (仍读 localStorage 默认 30 分钟, 与后端新默认一致)。
   - 生产 `source_stats` 里已退役源的历史行保留 (心跳分母走 `JOIN crawler_sources WHERE enabled=1`, 自动排除)。
 
+## [DEV-0165] 国际/国内源归属落库 + 国外源代理优先 + 代理子系统死代码清理
+- **时间**: 2026-09-10 17:20
+- **类型**: 功能开发 + 重构
+- **关联模块**: `proxy:prefer-proxy`, `sources:network-zone`, `collectors:fetch-chain`, `cleanup:dead-code`
+- **关联文件**: `backend/repository/migrations/110_network_zone.sql` (新), `backend/proxy_config.py`, `backend/collectors/fetchers.py`, `backend/collectors/github_collector.py`, `backend/api/sources.py`, `backend/utils/proxy_probe.py`, `backend/services/data_cleaning.py`, `backend/parsers/crawl4ai_parser.py`, `backend/services/proxy_pool.py` (删除), `scripts/audit_network_paths.py` (新), `docs/V0.8_USER_GUIDE.md`, `docs/ARCHITECTURE.md` + 3 份 AGENTS.md (services 127→126), 测试 2 文件更新
+- **问题描述**: DEV-0164 遗留两项待办: ①国际源每轮仍先烧一次直连超时才轮到代理 (github.com 直连 15-30s 黑洞), 且"哪些是国外站"没有权威落库口径 ②代理子系统死代码 (proxy_pool / data_cleaning 硬编码 / USER_GUIDE 幽灵 job)。owner 指示: 建立国际源与国内源归属, 国外源直接用代理, 明确热点源抓取网络路径, 清理死代码。
+- **实现思路**: 归属显式落库 (`crawler_sources.network_zone`, migration 110, 人工核定) 而非 TLD 猜测; `prefer_proxy()` 以注册表为单一事实源 (仅 enabled=1, DB 异常安全降级为直连优先); 消费点只改"第一跳用什么 session", 代理注入/回退仍由 ProxySession 统一负责。
+- **核心变更**:
+  - **migration 110**: `crawler_sources` 新增 `network_zone TEXT NOT NULL DEFAULT 'domestic'`; 按实测核定 6 个国际主机 (github.com / news.ycombinator.com / hnrss.org / thehackernews.com / hackread.com / schneier.com) 标 international; 其余全部 domestic (含 Cloudflare 托管的 4hou.com — 直连实测正常)。
+  - `proxy_config.py`: 新增 `prefer_proxy(url)` + `_international_hosts()` (60s TTL 缓存, `invalidate_international_hosts()`; 表/列缺失或 DB 异常 → 空集安全降级)。
+  - 消费点接线: `fetchers.py` aiohttp 兜底步 + `github_collector.py` 第 1 步 — `prefer_proxy=True` 的源第一跳直接走 `ProxySession` (注入代理, 代理链路失败自动切直连), 国内源路径完全不变。
+  - `api/sources.py /health/v2`: 逐源暴露 `network_zone`。
+  - **死代码清理**: 删除 `services/proxy_pool.py` (Phase 16 死代码, health score/startup_health_check 零调用方) 及 `crawl4ai_parser` 的 import/构造参数/兼容属性 + 对应 2 个测试; 删除 `data_cleaning.validate_url` 的死代理分支 — **修正一个误判**: 该函数原以为无调用方, 实际 `bookmark_sync` 多行导入在用 (grep 漏检), 故恢复为薄委托 (`utils/proxy_probe.is_reachable_sync`, 代理感知 + SSRF 门), 网络实现收敛到 proxy_probe; 删除 `docs/V0.8_USER_GUIDE.md` 幽灵 job `proxy-health-probe` 行。
+  - `scripts/audit_network_paths.py` (新, 只读): 逐启用源输出 zone × renderer × cadence × 抓取路径 (代理优先→直连回退→crawl4ai 等推导), 附采集器级路径注记 (HN/GDELT=BackendSession 已代理优先; OpenBB/OSSInsight/Telegram/Reddit=直连优先), 产出 `reports/network_paths.{md,json}`。
+  - 文档数字: services 127→126 (ARCHITECTURE.md + 根/services/scripts 三份 AGENTS.md; generate_meta 写模式不落盘, 需手改 — 与既有记忆一致)。
+- **测试验证**:
+  - `test_proxy_builtin_fallback.py` 新增 9 例 (prefer_proxy 注册/国内/未注册/停用/DB 异常降级/迁移列存在 + fetchers 代理优先/国内不触代理 + github 代理优先跳过直连黑洞); `test_crawl4ai_parser.py` 移除 2 个 proxy_pool 构造测试 (含 `__all__` 同步)。
+  - ruff 触碰文件 0 错; 受影响测试文件全绿 (44+111+…); `generate_meta --check` OK (58 jobs / 14 collectors / 85 routers / **126 services**)。
+  - **生产实测** (重启 pid 95188, migration 110 应用): `audit_network_paths` 输出 **国际 4 / 国内 52** (HackRead/Schneier 已于 DEV-0163 退役故不在启用列); 代理优先耗时收益: **GitHub Trending 34.9s→2.1s (13 条)、TheHackerNews 30s 超时→2.1s (34 条)、Star History 31.8s→1.4s (1 条)**, 三源全部 ok。
+- **潜在风险**: ①国际清单是人工核定快照, 新增国外源须手工标 `network_zone='international'` (否则保持直连优先, 行为安全但不省时) ②`prefer_proxy` 有 60s TTL 缓存, 改 zone 后最多 1 分钟生效 ③熔断期 prefer_proxy 随 should_use_proxy 一并降级为直连 (设计如此) ④爬虫级 GDELT/OpenBB 等未注册采集器仍按各自原路径 (BackendSession 类已代理优先, 自建 session 类直连优先), 如需统一可后续迁入注册表 ⑤`data_cleaning.validate_url` 语义从"永远直连 HEAD"变为"代理感知 HEAD", bookmark_sync 的可达性结论可能变化 (更准确)。
+
 ## [DEV-0164] 网络代理内置可选项 (默认开启) + 代理失效自动切回直连
 - **时间**: 2026-09-10 16:30
 - **类型**: 功能开发 + Bug修复

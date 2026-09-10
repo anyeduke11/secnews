@@ -388,6 +388,73 @@ def should_use_proxy(target_url: str) -> bool:
     return True
 
 
+# ---------------------------------------------------------------------------
+# 国际/国内归属 (crawler_sources.network_zone, migration 110) → 代理优先判定
+# ---------------------------------------------------------------------------
+_INTL_TTL_S = 60.0
+_intl_cache: dict = {"at": 0.0, "hosts": frozenset()}
+_intl_lock = threading.Lock()
+
+
+def _international_hosts() -> frozenset:
+    """enabled=1 且 network_zone='international' 的 host 集合 (60s TTL)。
+
+    表缺失 / 列缺失 (migration 未跑) / 任何 DB 异常 → 空集 (直连优先, 安全降级)。
+    """
+    now = _now()
+    with _intl_lock:
+        if now - _intl_cache["at"] < _INTL_TTL_S:
+            return _intl_cache["hosts"]
+    hosts: set[str] = set()
+    try:
+        from urllib.parse import urlparse
+
+        from backend.repository.db import get_connection
+
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT url, feed_url, api_url FROM crawler_sources WHERE enabled = 1 AND network_zone = 'international'"
+        ).fetchall()
+        for r in rows:
+            for u in (r["url"], r["feed_url"], r["api_url"]):
+                if not u:
+                    continue
+                host = (urlparse(str(u)).hostname or "").lower()
+                if host:
+                    hosts.add(host)
+    except Exception:
+        hosts = set()
+    with _intl_lock:
+        _intl_cache["at"] = now
+        _intl_cache["hosts"] = frozenset(hosts)
+    return _intl_cache["hosts"]
+
+
+def invalidate_international_hosts() -> None:
+    """源注册表 zone 变更后调用 (设置页/退役脚本), 下次判定强制重读。"""
+    with _intl_lock:
+        _intl_cache["at"] = 0.0
+
+
+def prefer_proxy(target_url: str) -> bool:
+    """该 URL 是否应**代理优先** (第一跳就走代理, 失败仍回直连)。
+
+    仅当同时满足: 策略允许代理 (should_use_proxy) 且 host 在注册表被显式标注
+    international (migration 110)。国内源 / 未注册 host → False (直连优先, 现状不变)。
+    消费点: fetchers aiohttp 步 / github collector 第 1 步 — 用 ProxySession 发起
+    第一跳, 省掉国外源每轮先烧一次直连超时。
+    """
+    if not should_use_proxy(target_url):
+        return False
+    from urllib.parse import urlparse
+
+    try:
+        host = (urlparse(target_url).hostname or "").lower()
+    except Exception:
+        return False
+    return host in _international_hosts()
+
+
 __all__ = [
     "BUILTIN_NO_PROXY",
     "BUILTIN_PROXY_URL",
@@ -401,10 +468,12 @@ __all__ = [
     "detect_system_proxy",
     "detect_system_proxy_windows",
     "get_proxy_url",
+    "invalidate_international_hosts",
     "invalidate_settings_cache",
     "load_proxy_settings",
     "mark_proxy_failure",
     "mark_proxy_success",
+    "prefer_proxy",
     "proxy_circuit_open",
     "proxy_health_snapshot",
     "reset_proxy_health",

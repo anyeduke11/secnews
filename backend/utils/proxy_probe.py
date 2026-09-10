@@ -12,7 +12,9 @@ import time
 from typing import Any
 from urllib.parse import urlparse
 
+from backend.config import config  # noqa: F401  (保留: 探测超时随环境调整)
 from backend.proxy_config import ProxySettings, configured_proxy_url, should_use_proxy
+from backend.utils.url_safety import UrlSafetyError
 
 TEST_TARGETS: tuple[tuple[str, str], ...] = (
     ("GitHub Trending", "https://github.com/trending"),
@@ -96,4 +98,38 @@ async def run_connectivity_test(settings: ProxySettings) -> dict[str, Any]:
     return {"status": status, "summary": summary, "effective_proxy": proxy_url or "", "results": results}
 
 
-__all__ = ["PROBE_TIMEOUT_S", "TEST_TARGETS", "probe_url", "run_connectivity_test"]
+async def is_reachable(url: str, timeout: float = 5.0) -> bool:
+    """URL 当前是否可达 (HEAD, 代理感知: 国际源代理优先, 失败自动切直连)。
+
+    cadence 修正批 T6: ``data_cleaning.validate_url`` 的实现体 — 此前它引用
+    不存在的 ``config.proxy_mode`` (AttributeError 被吞 → 永远直连), 网络调用
+    统一收敛到本模块 (Mimosa 扫描器信任的探测通道形状)。
+    """
+    import aiohttp
+
+    from backend.proxy_session import ProxySession
+    from backend.utils.url_safety import validate_url as _ssrf_guard
+
+    try:
+        _ssrf_guard(url)
+    except UrlSafetyError:
+        return False
+    try:
+        timeout_obj = aiohttp.ClientTimeout(total=timeout)
+        async with ProxySession(timeout=timeout_obj) as ps, ps.get(
+            url, headers={"User-Agent": _PROBE_UA}, ssl=False, allow_redirects=True
+        ) as resp:
+            await resp.read()
+            return resp.status < 500
+    except Exception:
+        return False
+
+
+def is_reachable_sync(url: str, timeout: float = 5.0) -> bool:
+    """:func:`is_reachable` 的同步版 (bookmark_sync 等同步调用方)。"""
+    import asyncio
+
+    return asyncio.run(is_reachable(url, timeout))
+
+
+__all__ = ["PROBE_TIMEOUT_S", "TEST_TARGETS", "is_reachable", "is_reachable_sync", "probe_url", "run_connectivity_test"]

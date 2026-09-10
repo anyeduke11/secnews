@@ -438,6 +438,32 @@ class FetchersMixin:
 
         # ---- fallback 到 aiohttp (crawl4ai 不可用 / 失败 / 未配置) ----
         if html is None:
+            # cadence 修正批 T6: 国际注册源代理优先 — 第一跳走 ProxySession
+            # (注入代理, 代理链路失败自动切直连), 省掉每轮先烧一次直连超时
+            from backend.proxy_config import prefer_proxy
+
+            if prefer_proxy(source["url"]):
+                try:
+                    from backend.proxy_session import ProxySession
+
+                    timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
+                    async with ProxySession(
+                        headers={"User-Agent": _base.UA}, timeout=timeout_obj
+                    ) as session, session.get(source["url"], ssl=False) as resp:
+                        if resp.status == 200:
+                            html = await read_text_lenient(resp)
+                            crawler_used = "aiohttp"
+                        else:
+                            self.logger.debug(
+                                f"proxy-first {source['name']} HTTP {resp.status}"
+                            )
+                except Exception as e:
+                    self.logger.debug(
+                        f"proxy-first failed {source['name']}: {type(e).__name__}: {str(e)[:60]}"
+                    )
+                    html = None
+
+        if html is None:
             session_cls = _base._session_factory()
             try:
                 async with session_cls() as session, session.get(

@@ -7,7 +7,6 @@ crawl4ai 是可选依赖，所有测试均通过 mock 隔离，无需安装 craw
 """
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -93,26 +92,8 @@ def test_load_config_empty_yaml(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 3. 构造函数与默认代理池
+# 3. 构造函数 (proxy_pool 死代码已随 DEV-0165 移除, 原 2 个构造测试一并删除)
 # ---------------------------------------------------------------------------
-
-
-def test_constructor_default_proxy_pool():
-    """未传入 proxy_pool_instance 时使用全局 proxy_pool 单例。"""
-    from backend.parsers.crawl4ai_parser import proxy_pool as default_pool
-
-    parser = Crawl4aiParser(crawl_config_path=Path("/nonexistent"))
-    assert parser._proxy_pool is default_pool
-
-
-def test_constructor_custom_proxy_pool():
-    """传入自定义 proxy_pool_instance 后优先使用。"""
-    mock_pool = MagicMock()
-    parser = Crawl4aiParser(
-        crawl_config_path=Path("/nonexistent"),
-        proxy_pool_instance=mock_pool,
-    )
-    assert parser._proxy_pool is mock_pool
 
 
 # ---------------------------------------------------------------------------
@@ -422,8 +403,6 @@ async def test_crawl_reuses_client_singleton(tmp_path, monkeypatch):
 
 
 __all__ = [
-    "test_constructor_custom_proxy_pool",
-    "test_constructor_default_proxy_pool",
     "test_crawl_client_unavailable",
     "test_crawl_disabled",
     "test_crawl_failure_unknown_error",

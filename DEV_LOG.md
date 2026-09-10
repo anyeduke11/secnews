@@ -549,3 +549,18 @@
   - ruff 触碰文件 0 错; `tsc --noEmit` 0 错; vitest 480/480 (63 文件); `vite build` 通过; `generate_meta --check` OK (58/14/85/127 不变, utils 不计数)。
   - **生产实测**: ①死代理演练 (7897→关闭端口): 每轮秒切直连 (schneier 3×200/74KB), 第 3 次连续失败熔断开启 `[proxy circuit OPENED → all direct]`, 国内站不受影响 ②`/api/proxy/test` 真实对照: **经代理 5/5, 直连 3/5** (THN/HN 直连超时·代理 200; 国内 2 站策略=直连) ③生产抓取链: **GitHub Trending 13 raw/13 条** (Tencent/teamai-cli 等真实热榜)、**TheHackerNews 50 raw/32 条** (真实标题入库)、Star History 1 条、千里马招标网 alive 不受影响。
 - **潜在风险**: ①代理是兜底, 被墙源每轮仍先烧一次直连超时 (30 分钟节奏下可接受; "已知被墙域名代理优先"名单留作增强) ②crawl4ai (Playwright) 不走代理 (BrowserConfig 启动时固定, per-request bypass 做不到), 靠渲染的国外站不受益 ③熔断按"代理链路失败"计数, 目标站自身故障 (经代理 502) 也会计数, 极端情况可能把好代理误熔断 5 分钟 (半开自愈, 可接受) ④生产 `proxy_config.json` 是 gitignored 本地文件, 换机器需按 example 重建 (builtin 默认已兜底) ⑤`/api/proxy/test` 真实出网, 5 站 × 2 通道最多 ~80s (前端有 loading 态) ⑥死代码 `services/proxy_pool.py` + migration 053 `proxy_health_log` 表仍无消费方, 留清理工单; `data_cleaning.py:114` 硬编码 7897 引用不存在的 `config.proxy_mode` (AttributeError 被吞) 同留。
+
+## [DEV-0166] PageLayout 工具页内容区滑入 fixed 侧栏底下 (/settings 双侧栏叠印"乱码")
+- **时间**: 2026-09-10 17:44
+- **类型**: Bug修复
+- **关联模块**: `frontend:page-layout`, `frontend:settings-hub`
+- **关联文件**: `frontend/src/components/PageLayout.tsx`
+- **问题描述**: owner 报 `/settings` 布局异常、显示"乱码"、与首页 UI 不一致。浏览器实测 (1440×900): AppNav 为 `fixed` 左侧 256px, `#main-content` 计算 `padding-left` 却只有 **40px** (期望 256px), 内容区从 x=57.5 开始, SettingsHub 自己的 210px 分类导航落在 x=97.5 — 整块压在 AppNav 上; 且 `#main-content z-10` 高于导航 `z-auto`, 两层文字叠印在同一片像素 = 所谓"乱码" (并非编码问题)。影响范围: **全部 PageLayout 工具页在 ≥1024px 桌面宽度** (`/todos` `/knowledge/*` `/skill-store` `/settings` `/report` `/secnews/*` 等), 只是 owner 在 /settings 首先撞到; 首页/判断层/行动层走 SentinelLayout 无 AppNav 所以正常, 故显得"不一致"。
+- **根因**: T17.5 (`bdac95f`, 2026-09-07) 给 PageLayout 加 `<AppNav />` fixed 侧栏时, 把让位类 `sm:pl-64` 追加到已含 `px-4 sm:px-8 lg:px-10` 的同一 class 串。Tailwind 按断点顺序输出 responsive 变体, `lg:px-10` 在样式表中位于 `sm:pl-64` 之后, ≥1024px 时 `padding-left` 被覆盖回 40px; 640–1023px 反而正常 (同断点内 pl 排在 px 之后), 所以只有桌面复现。
+- **实现思路**: 按 Tailwind 侧栏布局标准做法, "给侧栏让位"和"内容 gutter"拆到两层: 外层 `<div className="sm:pl-64">` 独占让位, 内层 `#main-content` 保留原 `max-w-[1320px] mx-auto px-* py-* relative z-10`。不动 AppNav、不动 settings-shell.css、不改 spec §5 的壳归属 (`/settings` 仍 PageLayout "不变")。
+- **核心变更**:
+  - `PageLayout.tsx`: `#main-content` 外包一层 `sm:pl-64` wrapper, 移除原串上的 `sm:pl-64`; 加一行注释说明"让位必须独占一层"的约束 (防再合并)。SentinelLayout 不动。
+- **测试验证**:
+  - 浏览器实测修复后 (1440 宽): wrapper `padding-left=256px`, `#main-content x=256` (= 侧栏右缘), settings 头部/分类导航 x=296, `overlapWithNav=false`; 抽查 `/todos` `/knowledge/import` `/skill-store` 三页 `mainX=256` 全部无重叠; /settings 截图目视干净 (左 AppNav / 中 分类导航 / 右 内容卡片)。
+  - `npx tsc --noEmit` 0 错; 定向 vitest (PageLayout 5 + AppNav 3 + v085_route_shell 15) 23/23; 全量 vitest **480/480 (63 文件)** 与 DEV-0164 基线一致, 零回归。
+- **潜在风险**: ①`max-w-[1320px] mx-auto` 现在在让位层内居中 (≥1576px 宽时内容在侧栏右侧区域居中, 而非整屏居中) — 视觉上更合理, 但与 T17.5 前的"整屏 1320 居中"不同 ②AppNav 桌面 nav 仍无 z-index (`z-auto`), 页面内 sticky/overflow 元素理论上可绘到侧栏上方, 本批未加 z 以保持最小改动 ③"与首页 UI 不一致"另一半是**设计如此** (spec §5: 工具页 PageLayout+AppNav, 三层页 SentinelShell), 若 owner 想让 /settings 进 Sentinel 壳属 spec 级裁决 (AGENTS 硬规则禁新壳), 本批不越权。

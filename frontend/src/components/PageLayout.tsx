@@ -18,11 +18,14 @@ export function PageLayout() {
           跳转到主内容
         </a>
         <AppNav />
-        <div
-          id="main-content"
-          className="max-w-[1320px] mx-auto px-4 sm:px-8 lg:px-10 py-4 sm:py-6 sm:pl-64 relative z-10"
-        >
-          <Outlet />
+        {/* 侧栏让位必须独占一层: 与 px-* 同串时 lg:px-10 会在 ≥1024px 覆盖 sm:pl-64 (Tailwind 按断点排序输出) */}
+        <div className="sm:pl-64">
+          <div
+            id="main-content"
+            className="max-w-[1320px] mx-auto px-4 sm:px-8 lg:px-10 py-4 sm:py-6 relative z-10"
+          >
+            <Outlet />
+          </div>
         </div>
       </div>
     </ToastProvider>

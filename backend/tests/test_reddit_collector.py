@@ -91,7 +91,7 @@ async def test_reddit_returns_empty_when_sources_fail(monkeypatch):
     """
     c = RedditCollector()
     monkeypatch.setattr(c, "sources", [])
-    monkeypatch.setattr(c, "_load_sources_from_registry", lambda: None)
+    monkeypatch.setattr(c, "_load_sources_from_registry", lambda **_: None)
 
     items = await c.collect()
     assert items == [], (

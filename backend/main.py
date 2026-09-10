@@ -44,6 +44,30 @@ from backend.version import APP_VERSION
 log = logging.getLogger("hotspot.main")
 
 
+def _apply_persisted_refresh_interval() -> None:
+    """cadence 修正批: 启动时回读 settings 表持久化的采集间隔。
+
+    POST /api/settings/refresh-interval 此前只改内存 config, 重启即回默认;
+    现在该 API 同步写 ``collection.refresh_interval_seconds``, 此处在
+    scheduler 构造前应用, 让前端改的间隔重启后仍生效。env 优先级不变
+    (pydantic Settings 先读 env, 此处只是把持久值覆盖到同一起点)。
+    读取失败静默走 config 默认 (settings 表缺失/损坏不阻断启动)。
+    """
+    try:
+        from backend.repository.settings_repo import SettingsRepository
+
+        persisted = SettingsRepository().get("collection.refresh_interval_seconds")
+        if isinstance(persisted, int) and 60 <= persisted <= 86400:
+            from backend.config import config
+
+            config.collect_interval_seconds = persisted
+            log.info(
+                "refresh interval restored from settings: %ss", persisted
+            )
+    except Exception as e:  # pragma: no cover
+        log.warning(f"persisted refresh interval restore failed (ignored): {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """启动: log → db → cache + export → scheduler; 关闭: scheduler → cache → db。
@@ -90,7 +114,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     svc = CollectionService()
     set_service(svc)
-    sched = get_scheduler() or HotspotScheduler(interval=300)
+    # cadence 修正批: interval=300 硬编码曾压过 env/config 链 (调 HOTSPOT_
+    # COLLECT_INTERVAL_SECONDS 无效的根因); 现回落构造器默认 → config →
+    # settings 表持久值 (API 改间隔重启后不丢)。
+    _apply_persisted_refresh_interval()
+    sched = get_scheduler() or HotspotScheduler()
     sched.attach_service(svc)
     # v085-review F5 (P0-3): dev 与生产后端并行时, dev 实例不再起全套
     # 采集/触发 job (实测双实例叠加会让采集背靠背连轴转 + 事件循环冻结)。

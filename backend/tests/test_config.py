@@ -18,7 +18,8 @@ def test_default_values():
     assert s.port == 8000
     assert s.cache_ttl_seconds == 300
     assert s.cache_maxsize == 64
-    assert s.collect_interval_seconds == 300
+    # cadence 修正批: 采集默认 5 分钟 → 30 分钟 (准确/稳定优先)
+    assert s.collect_interval_seconds == 1800
     assert s.log_level == "INFO"
 
 

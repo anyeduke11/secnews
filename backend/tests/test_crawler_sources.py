@@ -30,7 +30,10 @@ def crawler_db(tmp_path, monkeypatch):
             feed_url TEXT DEFAULT '',
             api_url TEXT DEFAULT '',
             priority INTEGER DEFAULT 50,
-            enabled INTEGER DEFAULT 1
+            enabled INTEGER DEFAULT 1,
+            status TEXT DEFAULT 'active',
+            cadence_seconds INTEGER DEFAULT 1800,
+            last_fetch_at TEXT
         );
         """
     )

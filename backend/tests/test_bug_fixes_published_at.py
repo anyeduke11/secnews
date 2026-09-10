@@ -105,7 +105,7 @@ class TestCollectReturnsEmptyOnAllSourcesFailed:
 
         # P1 切流: 禁用源注册表驱动 (本测试只测无源路径)
         col = EmptyCollector()
-        col._load_sources_from_registry = lambda: None
+        col._load_sources_from_registry = lambda **_: None
         items = await col.collect()
         assert items == []
 

@@ -55,7 +55,10 @@ class Settings(BaseSettings):
     cache_maxsize: int = 64
 
     # Collection
-    collect_interval_seconds: int = 300
+    # cadence 修正批: 300→1800。5 分钟全量轮询 87 源(含 62 个敌对性政企站)
+    # 是 crawler_runs 噪声与封禁风险的根源; 资讯时效目标 30 分钟。
+    # per-source 差异节奏走 crawler_sources.cadence_seconds (migration 109)。
+    collect_interval_seconds: int = 1800
     # v0.4.0 注: collect_timeout_seconds / collect_single_source_timeout 为预留 —
     # 抓取超时目前在 fetchers.py 内按路径各自设置, 待统一 BackendSession 接线后启用
     collect_timeout_seconds: int = 60

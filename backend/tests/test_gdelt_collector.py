@@ -87,7 +87,7 @@ async def test_gdelt_returns_empty_when_sources_fail(monkeypatch):
     c = GDELTCollector()
     monkeypatch.setattr(c, "sources", [])
     # P1 切流: 禁用源注册表驱动 (本测试只测常量路径)
-    monkeypatch.setattr(c, "_load_sources_from_registry", lambda: None)
+    monkeypatch.setattr(c, "_load_sources_from_registry", lambda **_: None)
 
     items = await c.collect()
     assert items == [], (

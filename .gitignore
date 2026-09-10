@@ -147,3 +147,6 @@ dev_data/
 runtime/upstreams/
 # 例外 (显式 pathspec, 不会被 ``git add .`` 拉到, 但 ``git add -f`` 可入):
 # - 真实 vendor checkout 由 T10 live 模式按 lock 重新构建, 不入仓.
+
+# cadence 修正批: 离线源诊断/退役清单等本地产出 (含域名与错误明文, 不入仓)
+reports/

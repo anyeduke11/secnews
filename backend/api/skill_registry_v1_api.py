@@ -22,6 +22,11 @@ from backend.version import APP_VERSION as API_VERSION
 router = APIRouter(prefix="/api/skill-registry/v1", tags=["v1-skill-registry"])
 
 
+def _json_schema(schema: dict[str, Any]) -> dict[str, str]:
+    """SkillDef 契约里 schema 值是 Python type 对象, jsonable_encoder 遇到会 ValueError → 转类型名 (与 legacy API 同口径)."""
+    return {k: getattr(v, "__name__", str(v)) for k, v in schema.items()}
+
+
 def _skill_to_dict(s: Any) -> dict[str, Any]:
     """SkillDef → JSON (v1 字段展开)."""
     target = None
@@ -46,8 +51,8 @@ def _skill_to_dict(s: Any) -> dict[str, Any]:
         "skill_type": s.skill_type,
         "target": target,
         "prompt_template": s.prompt_template,
-        "input_schema": s.input_schema,
-        "output_schema": s.output_schema,
+        "input_schema": _json_schema(s.input_schema),
+        "output_schema": _json_schema(s.output_schema),
         "runner": s.runner,
         "timeout_seconds": s.timeout_seconds,
         "feature_gate": s.feature_gate,

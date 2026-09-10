@@ -179,11 +179,24 @@ def test_api_list_v1_returns_6_v1_active(client) -> None:
 
 
 def test_api_list_legacy_returns_20(client) -> None:
-    """API 在 legacy_v0 过滤时绕开 pydantic 序列化 (直接调 BUILTIN 验证)."""
-    items = BUILTIN.list()
-    legacy = [s for s in items if getattr(s, "status", "legacy_v0") == "legacy_v0"]
-    assert len(legacy) == 20
-    assert all(s.id != "daily-priority-intel" for s in legacy)  # 不混入 v1
+    """legacy 20 条经真实端点序列化 (schema 里的 Python type 已转类型名, 不再 500)."""
+    r = client.get("/api/skill-registry/v1?status=legacy_v0")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total"] == 20
+    assert all(item["status"] == "legacy_v0" for item in body["items"])
+    assert all(item["id"] != "daily-priority-intel" for item in body["items"])  # 不混入 v1
+
+
+def test_api_list_all_26_serializes(client) -> None:
+    """无过滤全量列表 (SkillStore 页面实际调用) — 2026-09-10 前因 input_schema 含 type 对象 500."""
+    r = client.get("/api/skill-registry/v1")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total"] == 26
+    for item in body["items"]:
+        assert all(isinstance(v, str) for v in item["input_schema"].values())
+        assert all(isinstance(v, str) for v in item["output_schema"].values())
 
 
 def test_api_get_v1_skill_detail_includes_version_and_status(client) -> None:
@@ -197,10 +210,13 @@ def test_api_get_v1_skill_detail_includes_version_and_status(client) -> None:
 
 
 def test_api_get_legacy_skill_status_legacy_v0(client) -> None:
-    """API 详情走 pydantic 序列化会因 SkillDef v1 字段过 type check, 直接 service 验证."""
-    s = BUILTIN.get("source-health-scan")
-    assert getattr(s, "status", None) == "legacy_v0"
-    assert getattr(s, "version", None) == "0.9.0"
+    """legacy 详情经真实端点 (曾因 SkillDef schema type 对象无法序列化而只验 service)."""
+    r = client.get("/api/skill-registry/v1/source-health-scan")
+    assert r.status_code == 200
+    item = r.json()["item"]
+    assert item["status"] == "legacy_v0"
+    assert item["version"] == "0.9.0"
+    assert all(isinstance(v, str) for v in item["input_schema"].values())
 
 
 def test_api_get_unknown_skill_404(client) -> None:

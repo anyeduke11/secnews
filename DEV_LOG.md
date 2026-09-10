@@ -611,3 +611,16 @@
   - `tsc --noEmit` 0 错; vitest **62 文件 487/487** (AppNav 3 用例随文件删除, 守卫 +3); `vite build --logLevel error` 通过。
   - 浏览器实测 (1440×900, 数值优先): `/settings` → `.sentinel` 根 1 / `header.appbar` 1 / `section.pipeline` 1 / 无 `nav[aria-label=主导航]` / 更多按钮 active / 今日收录 "443 篇" (壳自取生效) / 分类导航单列 x=97.5; `/settings?cat=sentinel` → appbar 1 + pipeline 1 (页中页消除) + READ-ONLY pill + 12 行源清单来自外层壳 context; `/skill-store` → 26/26 项 + "v1.0 受管能力包"区块 + 100+ 个 `.border` 按钮全部 1px solid; `/knowledge/import` → 四领域 nav + 快捷模式 `复习 | 知识目录 v1`(href `/knowledge/v1`) + 更多 active。截图: /settings 与 /knowledge 目视与首页同壳。
 - **潜在风险**: ①工具页内容现在继承 `.sentinel` 基础排版 (15px/1.6, 原 body 13px) — Tailwind `text-*` 为 rem 不受影响, 但未显式设字号的文本会变大 ~15%, 本批只抽查了 settings/skill-store/knowledge 三页, `/secnews` `/todos` `/report` 等密集页建议 owner 过目 ②移动端 (<640px) 原 AppNav 汉堡抽屉随之消失, SentinelShell appbar 无响应式折叠 (与首页现状一致), 手机宽度可能横向溢出 ③`lazy-imports.ts` 仍导出未路由的 `SentinelSettingsPage` (死出口, 未清) ④各工具页自带的 "返回首页"/onBack 按钮与壳品牌/资料层 tab 功能重复, 本批未删 (可后续统一收敛) ⑤`max-w-[1320px]` 现在在壳内整屏居中 (无侧栏), 与 DEV-0166 说明的 "侧栏右侧居中" 不同 — 这是回到 T17.5 之前的状态。
+
+## [DEV-0169] GET /api/skill-registry/v1 全量列表 500 (技能商店页 "Internal Server Error")
+- **时间**: 2026-09-10 19:06
+- **类型**: Bug修复
+- **关联模块**: `api:skill-registry-v1`, `frontend:skill-store`
+- **关联文件**: `backend/api/skill_registry_v1_api.py`, `backend/tests/test_skill_registry_v1.py`
+- **问题描述**: DEV-0168 把 SK 能力包归位到 `/skill-store` 页内, 验收时页面显示 "Internal Server Error / 重试", 后端日志 `api_response status=500 error=ValueError`。复现: `_list()` 26 条里 20 条 legacy skill 的 `input_schema`/`output_schema` 值是 Python type 对象 (`{'top_n': int}`), v1 API `_skill_to_dict` 原样透传, FastAPI `jsonable_encoder` 遇 type 对象抛 ValueError; `?status=v1_active` 过滤时恰好只剩 6 条 schema 为字符串的 v1 SK 所以测试没红 — T14 当时的两个测试为此**特意绕开端点直接查 service** (docstring 自述)。
+- **实现思路**: 与 legacy `skill_registry_api._json_schema` 同口径 — 类型对象 → `__name__`, 在 v1 API 内联 3 行 (不跨模块 import 私有函数)。
+- **核心变更**:
+  - `skill_registry_v1_api.py`: 新增 `_json_schema()`, `_skill_to_dict` 的 `input_schema`/`output_schema` 经其转换。
+  - `test_skill_registry_v1.py`: 两个"绕开端点"的测试改回真实端点断言 (`?status=legacy_v0` → 200/20 条; `/source-health-scan` 详情 → 200 + status/version + schema 值全为 str), 新增 `test_api_list_all_26_serializes` 锁定无过滤全量列表 (页面实际调用)。
+- **测试验证**: `pytest test_skill_registry_v1.py test_skill_registry_api.py` **37 passed**; ruff 触碰文件 0 错; 生产后端重启 (pid 95188 → 26603, `python run.py` 无热重载) 后 `curl /api/skill-registry/v1` → 200 / total 26 / `input_schema {'top_n': 'int'}`; 浏览器 `/skill-store` → 26/26 项 + "v1.0 受管能力包" 区块 + 无报错。
+- **潜在风险**: ①`generate_meta --check` 未跑 (无新增 router/service, 计数不变) ②重启是本机开发后端, 并行会话若正依赖旧进程会有数秒中断 (已通过 /api/health 200 确认恢复) ③legacy skill 详情端点此前从未被真实调用过, 其它字段 (`target`/`prompt_template`) 序列化本批仅经列表用例覆盖。

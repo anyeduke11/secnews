@@ -12,6 +12,10 @@ interface SSEEvent {
 
 interface UseSSEOptions {
   onEvent?: (type: string, data: any) => void;
+  // 只响应声明的事件类型 (如 ['collect_done']); outbox 里的其他事件
+  // (埋点 view/scroll/dwell、extract_done、alert、job_done …) 不进入 onEvent,
+  // 避免无关事件触发页面重拉。lastId/lastEvent 仍对所有事件更新 (断线续传坐标)。
+  types?: string[];
   autoReconnect?: boolean;
   reconnectDelay?: number;
   // C11 R18: 从外部注入 last_id (例如与 V1Prototype 共享, 跨断线续传).
@@ -51,6 +55,7 @@ interface UseSSEResult {
 export function useSSE(options: UseSSEOptions = {}): UseSSEResult {
   const {
     onEvent,
+    types,
     autoReconnect = true,
     reconnectDelay = 3000,
     initialLastId = 0,
@@ -64,6 +69,8 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEResult {
   const lastIdRef = useRef<number>(initialLastId);
   const onEventRef = useRef(onEvent);
   const onLastIdRef = useRef(onLastId);
+  // types 走 ref: connect 闭包只创建一次, 数组引用变化不应触发重连
+  const typesRef = useRef(types);
   const reconnectTimerRef = useRef<number | null>(null);
   const esRef = useRef<EventSource | null>(null);
 
@@ -74,6 +81,7 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEResult {
   // 保持 callback 引用最新
   onEventRef.current = onEvent;
   onLastIdRef.current = onLastId;
+  typesRef.current = types;
 
   const connect = useCallback(() => {
     // 清理旧连接
@@ -116,8 +124,11 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEResult {
           lastIdRef.current = Math.max(lastIdRef.current, eid);
           onLastIdRef.current?.(eid);
         }
-        // P0.3: onEvent 立即执行 (业务逻辑不延迟)
-        onEventRef.current?.(event.type, event.data);
+        // P0.3: onEvent 立即执行 (业务逻辑不延迟); 声明了 types 时只放行命中的类型
+        const wanted = typesRef.current;
+        if (!wanted || wanted.includes(event.type)) {
+          onEventRef.current?.(event.type, event.data);
+        }
         // P0.3: lastEvent 更新分帧 — 缓存到 ref, 下一帧只 setState 最后一条
         pendingEventRef.current = event;
         if (rafRef.current === null) {

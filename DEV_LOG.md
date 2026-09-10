@@ -564,3 +564,30 @@
   - 浏览器实测修复后 (1440 宽): wrapper `padding-left=256px`, `#main-content x=256` (= 侧栏右缘), settings 头部/分类导航 x=296, `overlapWithNav=false`; 抽查 `/todos` `/knowledge/import` `/skill-store` 三页 `mainX=256` 全部无重叠; /settings 截图目视干净 (左 AppNav / 中 分类导航 / 右 内容卡片)。
   - `npx tsc --noEmit` 0 错; 定向 vitest (PageLayout 5 + AppNav 3 + v085_route_shell 15) 23/23; 全量 vitest **480/480 (63 文件)** 与 DEV-0164 基线一致, 零回归。
 - **潜在风险**: ①`max-w-[1320px] mx-auto` 现在在让位层内居中 (≥1576px 宽时内容在侧栏右侧区域居中, 而非整屏居中) — 视觉上更合理, 但与 T17.5 前的"整屏 1320 居中"不同 ②AppNav 桌面 nav 仍无 z-index (`z-auto`), 页面内 sticky/overflow 元素理论上可绘到侧栏上方, 本批未加 z 以保持最小改动 ③"与首页 UI 不一致"另一半是**设计如此** (spec §5: 工具页 PageLayout+AppNav, 三层页 SentinelShell), 若 owner 想让 /settings 进 Sentinel 壳属 spec 级裁决 (AGENTS 硬规则禁新壳), 本批不越权。
+
+## [DEV-0167] 首页 SSE 回调回触 POST /api/refresh 形成"采集→事件→再采集"自激循环 (30 分钟节奏被打成连续抓取)
+- **时间**: 2026-09-10 18:45
+- **类型**: Bug修复
+- **关联模块**: `frontend:sentinel-home`, `frontend:sentinel-judge`, `frontend:hooks/useSSE`, `frontend:hooks/useHotspotData`
+- **关联文件**: `frontend/src/hooks/useSSE.ts`, `frontend/src/hooks/useHotspotData.ts`, `frontend/src/components/sentinel/SentinelHomePage.tsx`, `frontend/src/components/sentinel/SentinelJudgePage.tsx` (+ 同名 test ×3)
+- **问题描述**: owner 报首页 (localhost:8898/) 刷新频率过高, 存在多次页面刷新与抓取, 要求前后端节奏一致 (选 30 分钟就 30 分钟, 手动刷新除外)。生产日志实测 (`backend/logs/app.log`, 2026-09-10): 页面未打开时调度器严格 30 分钟一轮 (17:10:51 → 17:40:51 → 18:10:51, 期间 0 次 `POST /api/refresh`); **首页打开的 17:26–18:10 这 44 分钟里, 采集启动 88 次、前端发出 `POST /api/refresh` 172 次**, 峰值单分钟 9 轮采集。DEV-0163 把后端节奏 5→30 分钟改对了, 但前端仍在回触采集, 所以 owner 感知不到任何变化。
+- **根因** (三层叠加):
+  1. `SentinelHomePage` 的 `useSSE({ onEvent })` **无事件类型过滤** — `/api/events` 推送 outbox 全部类型 (`collect_done` / `job_done` / `extract_done` / `alert` / `task_done` / `review_due` / 埋点 `view` `scroll` `dwell` …), 任意一条都触发首页三连: `reloadPipe()` + `loadSide()` (无节流, 2 请求) + 3s 后 `refresh()`。
+  2. `useHotspotData.refresh()` = **`POST /api/refresh` (同步跑一轮完整 `run_once()`) + 重拉第 1 页** — 它被当成"刷新数据"用在 SSE 路径, 实际是"触发采集"。一轮采集结束发 `job_done` + `collect_done` 两个事件 → 3s 后再 POST → 再采集 → 无限自激, 周期 ≈ 3s + 采集耗时。
+  3. `SentinelJudgePage` 同样无类型过滤且 `load()` 无节流 (只读, 不触发采集, 但每个无关事件都重拉 3 个接口)。
+- **实现思路**: 把"拿新数据"与"触发采集"在 hook 层分离, SSE 路径只允许前者; 事件订阅收口到 `collect_done`; 过期文案改读后端真实间隔。不动后端 (调度/设置链路 `POST /api/settings/refresh-interval` → config + settings 持久化 + reschedule 本就完整), 不动 `SentinelShell.tsx` (并行会话正在做壳统一, 工作区有其半成品 diff)。
+- **核心变更**:
+  - `useSSE.ts`: 新增 `types?: string[]` 选项 (走 ref, 不触发重连); 声明后只有命中类型进 `onEvent`; `lastId` / `lastEvent` 仍对所有事件推进 (断线续传坐标不能因过滤而倒退)。
+  - `useHotspotData.ts`: 新增只读 `refetch()` (清缓存 + 重拉第 1 页, 零 POST); `refresh()` 改为 `POST /api/refresh` 后复用 `refetch()`, 接口注释明确"仅供用户显式点击"。
+  - `SentinelHomePage.tsx`: `useSSE({ types: ['collect_done'] })`; SSE 路径 3s 合并后调 `refetch()` (原 `refresh()`); 右栏 `loadSide` 加 10s 节流 (`SIDE_RELOAD_GATE_MS`, 与心跳条同频); 错误重试按钮与 URL 导入完成后改 `refetch()` (二者都不该起采集); 空态「立即采集」保留 `refresh()` = 手动刷新唯一入口; 页脚与空态的硬编码「每 5 分钟」改为挂载时 GET `/api/settings/refresh-interval` 的 `interval_minutes` (兜底 30); 文件头补"刷新节奏契约"说明。
+  - `SentinelJudgePage.tsx`: `types: ['collect_done']` + 30s 节流 (与 SentinelGraphPage 同频)。Garden/Graph 页本就有 15s/30s 节流且需要非采集事件 (代码推送/编译), 不动。
+- **测试验证**:
+  - 新增回归 7 条: `useSSE.test` types 过滤 (4 事件只放行 1 条, lastId 推进 4 次, lastEvent 仍是被过滤的最后一条); `useHotspotData.test` refetch 全程 GET 零 POST / refresh 先 POST 后紧跟 GET; `SentinelHomePage.test` 新 describe 4 条 (collect_done 三连发 → 主列 1 次只读重拉 + 右栏 1 次 + **0 次 POST /api/refresh**; 8 种非采集事件 → 主列/右栏/心跳 0 次重拉 0 次 POST; 空态「立即采集」恰 1 次 POST; 页脚/空态显示接口返回的 60 分钟且不再出现"每 5 分钟")。用 `vi.useFakeTimers({ shouldAdvanceTime: true })` 瞬时跨过 3s 合并窗口, waitFor 仍可用。
+  - `npx tsc --noEmit`: 本批文件 0 错 (工作区唯一错误 `SentinelShell.tsx` 未使用 `useLocation` 属并行会话半成品, 非本批); 全量 vitest **487/487 (63 文件)** = DEV-0166 基线 480 + 7 新增, 零回归; `vite build` exit 0。
+  - **生产活体验证** (IAB 浏览器打开新代码首页, 页内挂 fetch 计数器 + 独立 EventSource 探针, 再 curl `POST /api/refresh` 模拟手动采集): 18:37:36 后端发 `collect_done` → 页面 18:37:36 右栏 quality/todos 各 1 次 → 18:37:39 (3s 合并后) `GET /api/hotspots` 1 次 → 快讯头更新为"刚刚"; **页面发出的 `POST /api/refresh` = 0**; 后端日志观察窗口内除手动那 1 轮外零新增采集。页脚实测显示"每 30 分钟自动采集 · 采集完成即刷新" (值来自接口)。旧代码下同一场景 3s 后必再起一轮。
+- **潜在风险 / 遗留**:
+  1. **既有 bug (本批发现未修)**: 首页/判断页的 `usePipeReloadOnSse()` 在 `SentinelShell` 的 `PipeContext.Provider` **之外**调用 (页面是壳的父组件; 文件内 `RailWithPipe` 注释已自述此坑), 拿到默认空 `reload`, 所以心跳条 (源在线/漏斗/队列) 在采集完成后**不会刷新**, 探针里也确实没有 `/api/sources/health` 请求。属"刷新不足"与本批"刷新过频"方向相反, 修法是把 collect_done 订阅挪进壳内自刷; 因 `SentinelShell.tsx` 正被并行会话改动, 留下一批。
+  2. 手动 `POST /api/refresh` 走 `service.run_once()` 直调, 不经 `collect_all_job` 的 `@instrument_job`, 所以只发 `collect_done` 不发 `job_done`, 也不写 `job_runs`; 调度轮次两者都发。前端已只认 `collect_done`, 不受影响, 但观测面板的 job 计数会少算手动轮。
+  3. 未做「前端按选定间隔自轮询」: 现在首页数据变化的唯一来源是 `collect_done` 事件与手动刷新, 若 SSE 长期断连 (自动重连 3s) 页面不会自行到点重拉——这是刻意选择 (再加轮询就又是两个时钟), 节奏由后端调度器单一持有。
+  4. `/api/settings/refresh-interval` 的 `persisted_seconds` 当前为 null (owner 未在设置页改过), 生效值是 config 默认 1800s; 一旦在设置页选择新值会同时写 settings 表并 reschedule, 页脚下次加载即显示新值。
+  5. 生产 dev server (8898) 已通过 HMR 提供新代码, 但 owner 已打开的旧标签页需**手动刷新一次**才脱离旧回调; 18:05 后日志已无风暴 (标签页当时已关)。

@@ -12,7 +12,7 @@
  * 全部网络请求由 mock fetch 承接 (含 /api/favorites), 测试内不发真实请求。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 // Mock EventSource (useSSE 依赖)
@@ -449,5 +449,139 @@ describe('SentinelHomePage — 哨兵终端首页', () => {
     fireEvent.click(secondaryChip);
     await waitFor(() => expect(screen.getByText('DEEP_ROUTE_MARKER')).toBeInTheDocument());
     expect(chips.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+/**
+ * cadence 修正批 (2026-09-10) — 首页刷新节奏契约
+ *
+ * owner 反馈: 首页刷新频率过高, 存在多次页面刷新与抓取。根因是 SSE 路径对任意事件
+ * 都在 3s 后调 refresh() → POST /api/refresh (= 同步跑一轮完整采集), 于是
+ * "采集 → collect_done → 再采集" 自激, 30 分钟节奏被打成连续抓取。
+ *
+ * 契约:
+ *  1. 只有 collect_done 触发首页重拉, 且是只读 GET /api/hotspots, 全程 0 次 POST /api/refresh
+ *  2. 埋点 / extract_done / alert / job_done 等事件不刷首页、不刷右栏
+ *  3. 用户显式点「立即采集」才会 POST /api/refresh (手动刷新是唯一例外)
+ *  4. 页脚 / 空态展示 /api/settings/refresh-interval 的真实间隔, 不再硬编码 "每 5 分钟"
+ */
+describe('SentinelHomePage — SSE 刷新节奏契约 (cadence 修正批)', () => {
+  class TrackingEventSource extends MockEventSource {
+    static last: TrackingEventSource | null = null;
+    constructor(url: string) { super(url); TrackingEventSource.last = this; }
+  }
+
+  let fetchMock: ReturnType<typeof mockFetch>;
+  let originalEventSource: typeof EventSource;
+
+  /** 在基础 mock 之上补 /api/settings/refresh-interval (真实后端口径) */
+  function mockFetchWithInterval(minutes: number, hotspotBody: FixtureBody = HOTSPOT_FIXTURE) {
+    const base = mockFetch(hotspotBody);
+    return vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).startsWith('/api/settings/refresh-interval')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({
+          interval_seconds: minutes * 60, interval_minutes: minutes, persisted_seconds: minutes * 60,
+        }) } as Response);
+      }
+      return base(input, init);
+    }) as unknown as ReturnType<typeof mockFetch>;
+  }
+
+  function pushSse(type: string, data: Record<string, unknown> = {}) {
+    const es = TrackingEventSource.last;
+    expect(es, 'EventSource 应已由 useSSE 创建').not.toBeNull();
+    act(() => {
+      es!.onmessage?.({ data: JSON.stringify({ type, data, ts: nowIso() }) } as MessageEvent);
+    });
+  }
+
+  beforeEach(() => {
+    // shouldAdvanceTime: waitFor 靠真实时间推进仍可用, 同时能瞬时跳过 3s 合并窗口
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    fetchMock = mockFetchWithInterval(30);
+    vi.stubGlobal('fetch', fetchMock);
+    originalEventSource = globalThis.EventSource;
+    TrackingEventSource.last = null;
+    (globalThis as any).EventSource = TrackingEventSource;
+    try { localStorage.removeItem('hotspot-theme'); } catch {}
+    resetFavoritesStore();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    (globalThis as any).EventSource = originalEventSource;
+    resetFavoritesStore();
+    vi.restoreAllMocks();
+  });
+
+  it('collect_done → 3s 合并后只读重拉 /api/hotspots + 右栏各 1 次, 全程 0 次 POST /api/refresh', async () => {
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+
+    const hotspotsBefore = hotspotCalls(fetchMock).length;
+    const qualityBefore = callsWith(fetchMock, '/api/quality/summary', 'GET').length;
+    expect(callsWith(fetchMock, '/api/refresh', 'POST')).toHaveLength(0);
+
+    // 重连回放可能连发多条 collect_done → 只该合并成一次重拉
+    pushSse('collect_done', { total: 10 });
+    pushSse('collect_done', { total: 11 });
+    pushSse('collect_done', { total: 12 });
+
+    // 右栏走 10s 节流: 三连发只重拉 1 次
+    await waitFor(() => expect(callsWith(fetchMock, '/api/quality/summary', 'GET').length).toBe(qualityBefore + 1));
+    // 3s 内主列还不该动
+    expect(hotspotCalls(fetchMock).length).toBe(hotspotsBefore);
+
+    await act(async () => { vi.advanceTimersByTime(3100); });
+    await waitFor(() => expect(hotspotCalls(fetchMock).length).toBe(hotspotsBefore + 1));
+
+    // 核心断言: SSE 路径绝不回触后端采集
+    expect(callsWith(fetchMock, '/api/refresh', 'POST')).toHaveLength(0);
+  });
+
+  it('非采集事件 (extract_done / alert / job_done / 埋点) 不刷首页、不刷右栏、不触发采集', async () => {
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+
+    const hotspotsBefore = hotspotCalls(fetchMock).length;
+    const qualityBefore = callsWith(fetchMock, '/api/quality/summary', 'GET').length;
+    const healthBefore = fetchMock.mock.calls.filter(c => String(c[0]).startsWith('/api/sources/health')).length;
+
+    for (const t of ['extract_done', 'alert', 'job_done', 'task_done', 'view', 'scroll', 'dwell', 'review_due']) {
+      pushSse(t, { any: 1 });
+    }
+    await act(async () => { vi.advanceTimersByTime(15_000); });
+
+    expect(hotspotCalls(fetchMock).length).toBe(hotspotsBefore);
+    expect(callsWith(fetchMock, '/api/quality/summary', 'GET').length).toBe(qualityBefore);
+    expect(fetchMock.mock.calls.filter(c => String(c[0]).startsWith('/api/sources/health')).length).toBe(healthBefore);
+    expect(callsWith(fetchMock, '/api/refresh', 'POST')).toHaveLength(0);
+  });
+
+  it('空态「立即采集」是唯一会 POST /api/refresh 的入口 (手动刷新例外)', async () => {
+    fetchMock = mockFetchWithInterval(30, { ...HOTSPOT_FIXTURE, items: [], total: 0, category_counts: {} });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    const cta = await screen.findByRole('button', { name: /立即采集/ });
+    expect(callsWith(fetchMock, '/api/refresh', 'POST')).toHaveLength(0);
+    const hotspotsBefore = hotspotCalls(fetchMock).length;
+
+    fireEvent.click(cta);
+
+    await waitFor(() => expect(callsWith(fetchMock, '/api/refresh', 'POST')).toHaveLength(1));
+    await waitFor(() => expect(hotspotCalls(fetchMock).length).toBe(hotspotsBefore + 1));
+  });
+
+  it('页脚 / 空态文案读取真实采集间隔 (/api/settings/refresh-interval), 不再硬编码 5 分钟', async () => {
+    fetchMock = mockFetchWithInterval(60, { ...HOTSPOT_FIXTURE, items: [], total: 0, category_counts: {} });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+
+    await waitFor(() => expect(screen.getByText(/每 60 分钟自动采集/)).toBeInTheDocument());
+    expect(screen.getByText(/采集管线每 60 分钟自动运行一轮/)).toBeInTheDocument();
+    expect(screen.queryByText(/每 5 分钟/)).toBeNull();
   });
 });

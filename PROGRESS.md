@@ -17,6 +17,13 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-09-10 首页刷新自激循环根治 (同分支, dev server HMR 已生效) — DEV-0167
+
+- **起因**: owner 报首页刷新频率过高、多次页面刷新与抓取, 要求前后端节奏一致 (选 30 分钟就 30 分钟, 手动刷新除外)。生产日志实测: 页面未打开时调度器严格 30 分钟一轮; **首页打开的 44 分钟里采集启动 88 次、前端 `POST /api/refresh` 172 次** (峰值单分钟 9 轮)。DEV-0163 改对了后端节奏, 但前端 SSE 回调对**任意**事件都在 3s 后调 `refresh()` = `POST /api/refresh` (同步跑完整采集) → 一轮结束发 `job_done`+`collect_done` → 再 POST → 无限自激。
+- **落地** (4 文件, 后端零改动, 不碰并行会话在改的 `SentinelShell.tsx`): ①`useSSE` 新增 `types` 过滤 (lastId 仍对全部事件推进) ②`useHotspotData` 分离只读 `refetch()` 与触发采集的 `refresh()` ③首页只订阅 `collect_done`, SSE 路径改只读重拉 + 右栏 10s 节流, 错误重试/URL 导入也改只读, 「立即采集」是唯一手动采集入口, 页脚/空态「每 5 分钟」改读 `GET /api/settings/refresh-interval` ④判断页同样过滤 + 30s 节流。
+- **验证**: 新增 7 回归; 全量 vitest 487/487 (基线 480+7); tsc 本批 0 错; build 通过。**活体**: IAB 打开新代码首页挂 fetch 探针 → curl 手动采集 → `collect_done` 后页面只做 1 次 `GET /api/hotspots` + 右栏 1 次, **`POST /api/refresh` 0 次**, 后端无新增轮次; 页脚实测"每 30 分钟自动采集"。
+- **遗留**: ①既有 bug — 首页/判断页 `usePipeReloadOnSse()` 在 Provider 外调用拿到空 reload, 心跳条采集后不刷新 (修法要动 SentinelShell, 待并行会话收口后做) ②手动 POST 走 `run_once()` 直调不发 `job_done` 不写 `job_runs`, 观测面板少算手动轮 ③owner 已打开的旧标签页需手动刷新一次脱离旧回调。
+
 ### 2026-09-10 国际/国内源归属 + 代理优先 + 死代码清理 (同分支, 已上线生产) — DEV-0165
 
 - **归属落库**: migration 110 `crawler_sources.network_zone` (人工核定 6 国际主机: github.com / news.ycombinator.com / hnrss.org / thehackernews.com / hackread.com / schneier.com; 其余含 Cloudflare 托管的 4hou.com 均 domestic)。`prefer_proxy()` 以注册表为单一事实源 (enabled=1, DB 异常安全降级直连优先, 60s TTL)。

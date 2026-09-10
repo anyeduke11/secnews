@@ -30,8 +30,6 @@ dead 是相对当前 collector 配置/网络/反爬策略的快照判断; 几周
 """
 from __future__ import annotations
 
-import urllib.error
-import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -132,21 +130,36 @@ def _check_url(url: str, timeout_s: float) -> tuple[int, str | None]:
     200/3xx → 视为可达
     4xx/5xx → 不可达, 记录 error
     异常 (timeout / DNS / connection) → error_msg 非空
+
+    cadence 修正批 T3.2: 委托 ``source_prober._head_status`` (P0 批已带 SSRF 门 +
+    DNS 预解析, 返回语义完全一致) — 此前这里是全仓唯一未校验的探测出口, 且与
+    prober 重复维护一份 HEAD 实现。
+    """
+    from backend.services.source_prober import _head_status
+
+    return _head_status(url, int(max(1.0, timeout_s)))
+
+
+def _bridge_phase3_grace(category: str, source_name: str) -> None:
+    """cadence 修正批 T3.2: Phase 9 复活后同步 Phase 3 状态机 dead → grace.
+
+    此前两套状态机各自为政: 03:00 revival 把 source_stats 置 active, 但
+    crawler_sources 仍是 dead → 批量/tick 两条路径都不再抓它 (dead 退出轮转),
+    只能等 03:30 source_probe 再探一次; 若 probe 与 revival 结论不一致就形成
+    "复活→再死" 抖动。这里用与 source_prober 相同的语义 (grace, 计数归零),
+    让复活源立刻回到漏斗里靠真实产出转 active。失败静默 (不影响复活主流程)。
     """
     try:
-        req = urllib.request.Request(url, method="HEAD")
-        # 设 UA 避免被部分站点 403
-        req.add_header("User-Agent", "hotspot/1.8 source-revival")
-        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-            code = int(resp.status)
-            return code, None
-    except urllib.error.HTTPError as e:
-        # 4xx/5xx 也是"可达但返回错误", 仍算 reachable
-        return int(e.code), None
-    except (urllib.error.URLError, TimeoutError) as e:
-        return 0, f"{type(e).__name__}: {str(e)[:200]}"
-    except Exception as e:
-        return 0, f"{type(e).__name__}: {str(e)[:200]}"
+        from backend.repository.db import get_connection
+
+        conn = get_connection()
+        conn.execute(
+            "UPDATE crawler_sources SET status = 'grace', consecutive_failures = 0, grace_rounds = 0, cooldown_until = NULL, updated_at = datetime('now') WHERE category = ? AND name = ? AND status = 'dead' AND enabled = 1",
+            (category, source_name),
+        )
+        conn.commit()
+    except Exception as e:  # pragma: no cover - 桥接失败不阻断复活
+        logger.debug(f"phase3 grace bridge skipped for {category}:{source_name}: {e}")
 
 
 def try_revive_one(
@@ -170,6 +183,7 @@ def try_revive_one(
         # 复活: reset
         try:
             repo.reset(category, source_name)
+            _bridge_phase3_grace(category, source_name)
             return RevivalResult(
                 category=category,
                 source_name=source_name,

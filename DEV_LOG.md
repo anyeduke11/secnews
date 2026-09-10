@@ -525,7 +525,7 @@
   - `test_proxy_builtin_fallback.py` 新增 9 例 (prefer_proxy 注册/国内/未注册/停用/DB 异常降级/迁移列存在 + fetchers 代理优先/国内不触代理 + github 代理优先跳过直连黑洞); `test_crawl4ai_parser.py` 移除 2 个 proxy_pool 构造测试 (含 `__all__` 同步)。
   - ruff 触碰文件 0 错; 受影响测试文件全绿 (44+111+…); `generate_meta --check` OK (58 jobs / 14 collectors / 85 routers / **126 services**)。
   - **生产实测** (重启 pid 95188, migration 110 应用): `audit_network_paths` 输出 **国际 4 / 国内 52** (HackRead/Schneier 已于 DEV-0163 退役故不在启用列); 代理优先耗时收益: **GitHub Trending 34.9s→2.1s (13 条)、TheHackerNews 30s 超时→2.1s (34 条)、Star History 31.8s→1.4s (1 条)**, 三源全部 ok。
-- **潜在风险**: ①国际清单是人工核定快照, 新增国外源须手工标 `network_zone='international'` (否则保持直连优先, 行为安全但不省时) ②`prefer_proxy` 有 60s TTL 缓存, 改 zone 后最多 1 分钟生效 ③熔断期 prefer_proxy 随 should_use_proxy 一并降级为直连 (设计如此) ④爬虫级 GDELT/OpenBB 等未注册采集器仍按各自原路径 (BackendSession 类已代理优先, 自建 session 类直连优先), 如需统一可后续迁入注册表 ⑤`data_cleaning.validate_url` 语义从"永远直连 HEAD"变为"代理感知 HEAD", bookmark_sync 的可达性结论可能变化 (更准确)。
+- **潜在风险**: ①国际清单是人工核定快照, 新增国外源须手工标 `network_zone='international'` (否则保持直连优先, 行为安全但不省时) ②`prefer_proxy` 有 5s TTL 缓存 (原 60s, owner 反馈延迟过长后下调; 全表 ~101 行单查微秒级, 缓存只省同轮重复查询; 任何 zone 写法最多 5s 自愈, 需即时的写路径可主动调 `invalidate_international_hosts()`) ③熔断期 prefer_proxy 随 should_use_proxy 一并降级为直连 (设计如此) ④爬虫级 GDELT/OpenBB 等未注册采集器仍按各自原路径 (BackendSession 类已代理优先, 自建 session 类直连优先), 如需统一可后续迁入注册表 ⑤`data_cleaning.validate_url` 语义从"永远直连 HEAD"变为"代理感知 HEAD", bookmark_sync 的可达性结论可能变化 (更准确)。
 
 ## [DEV-0164] 网络代理内置可选项 (默认开启) + 代理失效自动切回直连
 - **时间**: 2026-09-10 16:30

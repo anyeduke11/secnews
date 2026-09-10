@@ -493,6 +493,22 @@ class TestPreferProxy:
         pc.invalidate_international_hosts()
         assert pc.prefer_proxy("https://github.com/trending") is False
 
+    def test_zone_change_self_heals_within_ttl(self, zone_db, monkeypatch):
+        """改 zone 后无需手动失效: TTL (5s) 过期即读到新归属 (owner 反馈 60s 过长的优化)。"""
+        clock = {"t": 1000.0}
+        monkeypatch.setattr(pc, "_now", lambda: clock["t"])
+        _insert_zone(zone_db, "security:gh", "gh", "https://github.com/trending", zone="domestic")
+        pc.invalidate_international_hosts()
+        assert pc.prefer_proxy("https://github.com/trending") is False
+        # TTL 内: 即使 DB 已改为 international, 仍读缓存旧值
+        zone_db.execute("UPDATE crawler_sources SET network_zone = 'international' WHERE id = 'security:gh'")
+        zone_db.commit()
+        clock["t"] += 3
+        assert pc.prefer_proxy("https://github.com/trending") is False
+        # TTL (5s) 过期: 自动读到新值
+        clock["t"] += 3
+        assert pc.prefer_proxy("https://github.com/trending") is True
+
     def test_migration_column_exists(self, temp_db):
         from backend.repository.db import get_connection
 

@@ -391,7 +391,12 @@ def should_use_proxy(target_url: str) -> bool:
 # ---------------------------------------------------------------------------
 # 国际/国内归属 (crawler_sources.network_zone, migration 110) → 代理优先判定
 # ---------------------------------------------------------------------------
-_INTL_TTL_S = 60.0
+# 5s (原 60s, owner 反馈改 zone 后延迟过长): crawler_sources 全表仅 ~101 行,
+# 单次 SELECT 微秒级, prefer_proxy 每采集周期调用 ~百次 — 缓存只是省掉同一轮
+# 内的重复查询。5s TTL 使任何 zone 写法 (手工 SQL / 脚本 / 将来设置页) 最多
+# 5s 自愈, 无需依赖写方记得调 invalidate_international_hosts() (需要即时生效
+# 的写路径仍可主动调它)。
+_INTL_TTL_S = 5.0
 _intl_cache: dict = {"at": 0.0, "hosts": frozenset()}
 _intl_lock = threading.Lock()
 

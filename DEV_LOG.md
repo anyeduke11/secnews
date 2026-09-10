@@ -642,3 +642,20 @@
   - 浏览器实测 (1440×900, DOM 级点击 — 本 IAB 的 Playwright 可点击性等待整会话超时): /judge → 齿轮 → `/settings?cat=sentinel` (`history.state.idx=1`) → `#main-content` 计算样式 **13px / "JetBrains Mono" / line-height 21.45px (=13×1.65)**, `.sentinel` 根仍 15px, 按钮文案「返回」, 全页无「返回首页」→ 点返回落 **`/judge`** (idx 0); 直接落地 `/settings` (idx 0) → 返回 → `/`; 直接落地 `/skill-store/cve-impact-brief` → 「返回商店」→ `/skill-store`, 内容区 13px。
   - 验收前发现前后端进程均已不在 (非本会话操作, 疑并行会话/owner 停止), 以会话初始同款方式重新拉起 (`.venv/bin/python run.py` / `npm run dev`), 后端 200 前端 200。
 - **潜在风险**: ①`history.state.idx` 是 React Router BrowserRouter 的实现细节 (v6 起稳定, 非公开 API), 若升级 v7 需回归 `useGoBack.test` 第 4 例 ②同 tab 内从外站链接进入某工具页时 idx=0 → 回 fallback (设计如此); 但用户在本应用内用地址栏手动输 URL 也会 push 一条 idx>0 的记录, 此时「返回」会回到输入前的页面 (符合浏览器直觉) ③SkillDetail 自带文案「返回商店」未改 (来路是商店时同样正确) ④`--body-fs` 变量新增于 `:root`, 与 `[data-theme]` 等其它 :root 块并存无冲突, 但第三方样式若依赖 `body{font-size:13px}` 字面值 (grep 无) 会失配 ⑤三层页 (SentinelHomePage 等) 内嵌的 v1 区块若曾在 PageLayout 下设计, 现在仍吃 15px 壳排版 — 本批只复位 PageLayout 工具页, 三层页排版是 spec 认定的终端风格未动。
+
+## [DEV-0171] 壳窄屏适配 (三层导航不再隐藏) + 心跳条 SSE 刷新断链修复 + 设置页手机布局
+- **时间**: 2026-09-10 22:29
+- **类型**: 功能开发 (响应式) + Bug修复
+- **关联模块**: `frontend:sentinel-shell`, `frontend:settings-hub`
+- **关联文件**: `frontend/src/components/sentinel/sentinel.css`, `frontend/src/components/sentinel/SentinelShell.tsx` + `SentinelShell.test.tsx` (新), `frontend/src/components/settings/SettingsPage.tsx`, `frontend/src/components/settings/settings-shell.css`
+- **问题描述**: owner 要求把 DEV-0168/0170 报告里"需补充考虑和增强"落地。①DEV-0168 未实现项: AppNav 汉堡抽屉删除后, 壳在 ≤820px 直接 `.layers{display:none}` 把三层导航整条隐藏, 窄屏只剩品牌 (回首页) 和更多菜单 (无判断层/行动层), 工具页也一样 — 判断层/行动层在手机上不可达。②并行会话记忆里的待修项 (树已干净、无人在改): 4 个三层页 (Home/Judge/Graph/Garden) 在组件体内调 `usePipeReloadOnSse()`, 但壳是它们自己渲染的子节点, hook 跑在 `PipeContext.Provider` 之外只拿到默认 `reload: () => {}` — SSE `collect_done` 后心跳条从未真正刷新过 (DEV-0167 只修了自激循环, 这条断链仍在)。③验收时发现 SettingsPage 自身在 <640px 仍是分类导航+内容左右并排, 内容被挤成 ~80px 宽的竖字列。
+- **实现思路**: ①响应式改"隐藏"为"折叠": ≤820px 紧凑态 (去箭头/副标签、缩 padding、隐藏品牌副标), ≤640px 顶栏 `flex-wrap` 折成两行 (品牌+右侧操作 / 三层导航独占一行三等分)。②不改 4 个页面 (并行会话领域): 壳挂载时把 `reload` 登记到模块级 `mountedReload`, `usePipeReloadOnSse` 用 `(mountedReload ?? reload)()` — Provider 内 (工具页) 二者相同, Provider 外 (三层页) 走登记值; 卸载时若仍是自己则清空 (路由切换时新壳覆盖)。③设置页主区 `flex-col sm:flex-row`, <640px 分类导航横滚一行 (隐藏描述、nowrap)。
+- **核心变更**:
+  - `sentinel.css`: ≤820 块 `.layers{display:none}` → 紧凑态 6 条规则; 新增 ≤640 块 (appbar 换行、layers order:3 占满、layer-link 三等分居中、pipeline/pipe-block 缩边距)。
+  - `SentinelShell.tsx`: 模块级 `mountedReload` + 登记/清理 effect + `usePipeReloadOnSse` 兜底; `usePipe` docstring 注明 pipe 只在壳子树内可读。
+  - `SentinelShell.test.tsx` (新, 4 例): 页面渲染壳结构下 hook 在 Provider 外触发 `/api/sources/health` 第二次请求 / layer=null 无 tab 高亮 + 更多按钮 active + 菜单项 `aria-current=page` / layer=judge 时判断层高亮更多不高亮 / ingested 未传显示 "7 篇"、传 null 保持 "…"。
+  - `SettingsPage.tsx` 主区 `flex-col sm:flex-row`; `settings-shell.css` 新增 <640 媒体查询 (sidenav row + overflow-x + item nowrap + desc 隐藏)。
+- **测试验证**:
+  - `tsc --noEmit` 0 错; vitest **63 文件 491/491** (+4); `vite build --logLevel error` 通过。
+  - 浏览器实测: **390×844** `/settings` → appbar 92px 两行、三层链接 3 个可见各 118px、品牌副标隐藏、`documentElement.scrollWidth 385 ≤ 390` 无横向溢出、分类导航 `flex-direction:row` 高 41px、内容全宽 353px、正文 14px (body 手机档经 `--body-fs`); **768×1024** `/judge` → appbar 60px 单行紧凑、3 链接可见、无溢出; **390** `/judge` → 92px 两行、无溢出。截图 390 设置页目视: 壳两行 / 心跳条 2 列 / 分类横滚 / 体检卡片可读。
+- **潜在风险**: ①`mountedReload` 是模块级单例, 同一页面树同时挂两个壳时以后挂的为准 (当前架构每路由只有一个壳, 测试里 unmount 后再 render 亦正常) ②`usePipe().pipe` 在 Provider 外仍为 null (只修了 reload 断链); 三层页读 pipe 的地方均在壳子树内 (RailWithPipe 等), 若将来在页面组件体直接读 pipe 会拿到 null — 根治仍是「SentinelLayout 从布局层提供壳」, 涉及并行会话正在动的 4 个页面, 本批不越界 ③≤640 两行顶栏使壳增高 32px, 三层页首屏可视区相应减少 ④设置页横滚分类导航无滚动提示 (依赖系统滚动条/手势), 17 项需左右滑动才能全部看到。

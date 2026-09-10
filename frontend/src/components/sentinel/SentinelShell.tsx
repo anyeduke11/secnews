@@ -108,7 +108,11 @@ const PipeContext = createContext<{ pipe: PipeSnapshot | null; reload: () => voi
   reload: () => {},
 });
 
-/** 子页消费心跳数据 (避免重复拉取 /api/sources/health) */
+/** 已挂载壳的 reload 登记 — 三层页是「页面渲染壳」结构, 页面组件体内的 hook 永远在 Provider 之外,
+ *  经 context 只能拿到默认 no-op (2026-09-10 前 SSE 事件从未真正刷新过心跳条); usePipeReloadOnSse 优先走这里 */
+let mountedReload: (() => void) | null = null;
+
+/** 子页消费心跳数据 (避免重复拉取 /api/sources/health); 注意 pipe 只在壳的子树内可读 */
 export function usePipe() {
   return useContext(PipeContext);
 }
@@ -250,6 +254,10 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
 
   useEffect(() => { reload(); }, [reload]);
   useEffect(() => {
+    mountedReload = reload;
+    return () => { if (mountedReload === reload) mountedReload = null; };
+  }, [reload]);
+  useEffect(() => {
     if (ingested !== undefined) return;
     let alive = true;
     fetchIngested24h().then(n => { if (alive) setSelfIngested(n); });
@@ -371,7 +379,7 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
   );
 }
 
-/** 心跳条节流刷新 hook (子页 SSE 事件驱动时复用) */
+/** 心跳条节流刷新 hook (子页 SSE 事件驱动时复用) — Provider 内外均可调用 */
 export function usePipeReloadOnSse() {
   const { reload } = usePipe();
   const lastRef = useRef(0);
@@ -379,6 +387,6 @@ export function usePipeReloadOnSse() {
     const now = Date.now();
     if (now - lastRef.current < 10000) return;
     lastRef.current = now;
-    reload();
+    (mountedReload ?? reload)();
   }, [reload]);
 }

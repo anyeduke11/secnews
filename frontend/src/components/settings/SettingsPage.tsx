@@ -170,8 +170,8 @@ export function SettingsPage() {
         </div>
       </header>
 
-      {/* 主区域: sidebar + 可滚动内容 — 填满剩余高度 */}
-      <div className="flex flex-1 gap-3 min-h-0">
+      {/* 主区域: sidebar + 可滚动内容 — 填满剩余高度; <640px 上下堆叠 (分类导航横滚一行, 见 settings-shell.css) */}
+      <div className="flex flex-col sm:flex-row flex-1 gap-3 min-h-0">
         {/* V2 sidebar — st-sidenav-item: 图标 + 标签 + 描述 + 状态点 */}
         <nav
           className="settings-shell st-sidenav shrink-0 sm:w-[210px] sm:max-h-full"

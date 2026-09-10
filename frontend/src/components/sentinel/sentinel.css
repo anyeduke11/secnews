@@ -385,7 +385,13 @@ html[data-theme="light"] .sentinel .tb-sun{display:none}
   .sentinel .endnote{padding:0 20px 40px}
 }
 @media (max-width:820px){
-  .sentinel .layers{display:none}
+  /* 壳统一后工具页也靠这条三层导航 (AppNav 汉堡抽屉已删), 窄屏改紧凑图标态而非原来的 display:none */
+  .sentinel .brand small{display:none}
+  .sentinel .layers{gap:2px;margin-left:0}
+  .sentinel .layer-flow{display:none}
+  .sentinel .layer-link{padding:6px 8px}
+  .sentinel .layer-link b{font-size:12px;gap:5px}
+  .sentinel .appbar-right{gap:10px}
   .sentinel .clock{display:none}
   .sentinel .pipeline{flex-wrap:wrap}
   .sentinel .pipe-block{flex:1 1 40%;border-bottom:1px solid var(--sn-line)}
@@ -400,6 +406,16 @@ html[data-theme="light"] .sentinel .tb-sun{display:none}
   .sentinel .controlbar{height:auto;padding-top:10px;padding-bottom:10px;flex-wrap:wrap;row-gap:8px}
   .sentinel .head-foot{gap:14px}
   .sentinel .rail{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  /* 手机: 顶栏折成两行 — 品牌 + 右侧操作 / 三层导航独占一行三等分 */
+  .sentinel .appbar{height:auto;flex-wrap:wrap;padding:8px 12px;row-gap:6px;column-gap:10px}
+  .sentinel .brand{font-size:15px}
+  .sentinel .layers{order:3;flex:1 1 100%;gap:4px;border-top:1px solid var(--sn-line);padding-top:6px}
+  .sentinel .layer-link{flex:1 1 0;align-items:center;padding:6px 4px}
+  .sentinel .layer-link b{justify-content:center}
+  .sentinel .pipeline{margin:12px 12px 0}
+  .sentinel .pipe-block{padding:10px 12px}
 }
 
 /* ===== 溢出菜单: 报纸版删除后承接 12 项能力的唯一入口 ===== */

@@ -9,9 +9,11 @@
  *  - pipeline 心跳条: 采集管道生命体征, 全站常驻 (设计契约:
  *    "32 个源的活/病/死一屏可见" 不只属于首页)
  *  - 子页通过 children 注入; SSE collect 事件由各页自行订阅
+ *  - 2026-09-10 壳统一: 工具页 (PageLayout) 也走本壳, layer=null 表示无高亮层,
+ *    更多菜单按当前路径高亮; 未传 ingested 时壳自取 24h 收录数 (左侧 AppNav 已删除)
  */
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import './sentinel.css';
 
@@ -65,6 +67,18 @@ async function fetchPipelineStats(): Promise<Pick<PipeSnapshot, 'funnel' | 'queu
 function clockText(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} · ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** 今日收录兜底口径 (与 SentinelGraphPage / SentinelGardenPage 同源): 只取 24h total */
+async function fetchIngested24h(): Promise<number | null> {
+  try {
+    const r = await fetch('/api/hotspots?category=all&time_range=24h&limit=1', { headers: { Accept: 'application/json' } });
+    if (!r.ok) return null;
+    const data = (await r.json()) as { total?: number };
+    return typeof data.total === 'number' ? data.total : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchPipe(): Promise<PipeSnapshot> {
@@ -158,6 +172,11 @@ const UTILITY_GROUPS: { label: string; items: { to: string; label: string; note:
 function SentinelMoreMenu() {
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const { pathname } = useLocation();
+  // 工具页没有三层 tab 可高亮, 由更多菜单承担"当前位置"指示; /knowledge 前缀覆盖其子路由
+  const currentTo = UTILITY_GROUPS
+    .flatMap(g => g.items)
+    .find(it => pathname === it.to || pathname.startsWith(`${it.to}/`))?.to;
 
   useEffect(() => {
     if (!open) return;
@@ -177,7 +196,7 @@ function SentinelMoreMenu() {
     <div className="sn-more" ref={boxRef}>
       <button
         type="button"
-        className="iconbtn sn-more-btn"
+        className={`iconbtn sn-more-btn${currentTo ? ' active' : ''}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
@@ -191,7 +210,14 @@ function SentinelMoreMenu() {
             <div className="sn-menu-grp" key={g.label}>
               <p className="sn-menu-kick num">{g.label}</p>
               {g.items.map(it => (
-                <Link key={it.to} className="sn-menu-item" role="menuitem" to={it.to} onClick={() => setOpen(false)}>
+                <Link
+                  key={it.to}
+                  className={`sn-menu-item${it.to === currentTo ? ' active' : ''}`}
+                  role="menuitem"
+                  to={it.to}
+                  aria-current={it.to === currentTo ? 'page' : undefined}
+                  onClick={() => setOpen(false)}
+                >
                   <span>{it.label}</span>
                   <span className="sn-menu-note num">{it.note}</span>
                 </Link>
@@ -205,8 +231,10 @@ function SentinelMoreMenu() {
 }
 
 export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
-  layer: SentinelLayer;
+  /** 三层高亮; null = 工具页 (由更多菜单指示当前位置) */
+  layer: SentinelLayer | null;
   mode?: string;
+  /** 今日收录: 页面自算则传值 (null = 该页无此口径显示 …); 不传则壳自取 24h total */
   ingested?: number | null;
   children: React.ReactNode;
 }) {
@@ -215,10 +243,18 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
 
   const [pipe, setPipe] = useState<PipeSnapshot | null>(null);
   const [clock, setClock] = useState(() => clockText(new Date()));
+  const [selfIngested, setSelfIngested] = useState<number | null>(null);
+  const shownIngested = ingested === undefined ? selfIngested : ingested;
 
   const reload = useCallback(() => { fetchPipe().then(setPipe); }, []);
 
   useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    if (ingested !== undefined) return;
+    let alive = true;
+    fetchIngested24h().then(n => { if (alive) setSelfIngested(n); });
+    return () => { alive = false; };
+  }, [ingested]);
   useEffect(() => {
     const t = setInterval(() => setClock(clockText(new Date())), 30000);
     return () => clearInterval(t);
@@ -288,7 +324,7 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
           </div>
           <div className="pipe-block">
             <span className="pipe-k">今日收录</span>
-            <span className="pipe-v">{ingested != null ? `${ingested} 篇` : '…'}</span>
+            <span className="pipe-v">{shownIngested != null ? `${shownIngested} 篇` : '…'}</span>
           </div>
           <div className="pipe-block">
             <span className="pipe-k" title="统计对象 = wiki md frontmatter（llm-wiki-2.0 归档）；管线推进实际读写 DB knowledge_items.lifecycle，两者数字本就不同">管线漏斗</span>

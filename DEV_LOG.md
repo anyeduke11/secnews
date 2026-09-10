@@ -591,3 +591,23 @@
   3. 未做「前端按选定间隔自轮询」: 现在首页数据变化的唯一来源是 `collect_done` 事件与手动刷新, 若 SSE 长期断连 (自动重连 3s) 页面不会自行到点重拉——这是刻意选择 (再加轮询就又是两个时钟), 节奏由后端调度器单一持有。
   4. `/api/settings/refresh-interval` 的 `persisted_seconds` 当前为 null (owner 未在设置页改过), 生效值是 config 默认 1800s; 一旦在设置页选择新值会同时写 settings 表并 reschedule, 页脚下次加载即显示新值。
   5. 生产 dev server (8898) 已通过 HMR 提供新代码, 但 owner 已打开的旧标签页需**手动刷新一次**才脱离旧回调; 18:05 后日志已无风暴 (标签页当时已关)。
+
+## [DEV-0168] 壳统一: 打散左侧 AppNav → 工具页走 SentinelShell 顶部横向导航, 左侧栏能力归位页内
+- **时间**: 2026-09-10 18:59
+- **类型**: 重构 (UI 一致性) + Bug修复
+- **关联模块**: `frontend:page-layout`, `frontend:sentinel-shell`, `frontend:settings-hub`, `frontend:knowledge-tabs`
+- **关联文件**: `frontend/src/components/PageLayout.tsx` + `.test.tsx`, `frontend/src/components/AppNav.tsx` + `.test.tsx` (删除), `frontend/src/components/sentinel/SentinelShell.tsx`, `frontend/src/components/sentinel/sentinel.css`, `frontend/src/components/sentinel/SentinelSettingsPage.tsx` + `.test.tsx`, `frontend/src/components/knowledge/KnowledgeTabs.tsx`, `frontend/src/routes/__tests__/v085_route_shell.test.tsx`, `frontend/src/routes/ROUTE_REGISTRY.md`, `frontend/src/AGENTS.md`, `AGENTS.md`, `docs/v0.8.5/V0.8.5_PLAN.md`
+- **问题描述**: DEV-0166 修掉叠印后 owner 仍指出 `/settings` "存在双重前端、与首页不一致", 并裁决 "打散左侧菜单, 改横向菜单, 左侧菜单能力整合进各页面对应位置"。事实: 首页/判断层/行动层用 SentinelShell (顶部 appbar 三层导航 + 更多菜单 + 心跳条), 所有工具页却套 PageLayout + 左侧 fixed AppNav (v1.0 T17.5 遗留) — 两套壳并存; AppNav 的 14 项入口与壳内三层导航 / 更多菜单 / 各页内导航全量重复。另发现 `/settings` 的"哨兵"分类嵌入的 `SentinelSettingsPage` 自己又渲染一个 `<SentinelShell>` (页中页双 appbar), 以及 v0.8.5 C4 的 `/knowledge/v1` 知识目录在整个 UI 无任何入口 (注释写"更多→知识库→v1 目录"但从未实现)。
+- **实现思路**: 遵 spec "唯一壳" 与 AGENTS "SentinelShell + 心跳条全站常驻": `PageLayout` 改为 `<SentinelShell layer={null}>` (三层 tab 不高亮, 更多菜单按当前路径高亮指示位置), AppNav 物理删除并加守卫双断言 (仿 V1SentinelShell 先例); 左侧栏能力去向逐项核对 — 三层入口=壳 tabs, SK 商店/SK-01..05=`/skill-store` 页内 v1 区块 (T15 已有), 知识管理导入/处理/编译/复利=`/knowledge` KnowledgeTabs (已有), 已导入=KnowledgeLayout 入口卡 (已有), 仅 `/knowledge/v1` 缺入口 → KnowledgeTabs 快捷模式补 `知识目录 v1`。设计技能按 AGENTS 硬约束 1 路由 `redesign-existing-projects` (Scan→Diagnose→Fix, 复用现有栈, 不引新视觉语言)。
+- **核心变更**:
+  - `SentinelShell.tsx`: `layer: SentinelLayer | null`; `ingested` 未传时壳自取 `GET /api/hotspots?category=all&time_range=24h&limit=1` total (与 Graph/Garden 页同口径, 避免工具页心跳条永远 "…"); `SentinelMoreMenu` 用 `useLocation` 计算当前工具页 → 按钮 `.active` + 菜单项 `aria-current="page"`。
+  - `sentinel.css`: **元素级重置降特异度** `.sentinel a/button` → `:where(.sentinel) a/button` (0,0,1) — 否则 (0,1,1) 压过工具页 Tailwind 工具类; **`border:0` 改 `border-width:0`** — 简写会把 `border-style` 一起重置为 none, 而 Tailwind `.border` 只设宽度、样式靠 preflight `*{border-style:solid}`, 结果按钮边框全部消失 (实测 /skill-store 2 个按钮 0px 才发现); 新增 `.sn-more-btn.active` / `.sn-menu-item.active` (沿用 `.layer-link.active` 视觉)。
+  - `PageLayout.tsx`: 去 AppNav 与 DEV-0166 的让位层, skip-link 前置于壳外, `#main-content` 保留 1320 居中容器 (去掉只为压 AppNav 的 `relative z-10`)。
+  - `SentinelSettingsPage.tsx`: 去自嵌壳 (265 行回退 2 格缩进, `git diff -w` 仅 7 行), 心跳数据改由外层壳 `usePipe()` 供给; 测试改为真实组合渲染 (`<SentinelShell layer={null}><SentinelSettingsPage/></SentinelShell>`), 7 用例原断言 (含 `/api/sources/health` 只请求一次、`1 / 3`、FreeBuf 行) 全部保留。
+  - `KnowledgeTabs.tsx`: MODE_ITEMS 增 `{ key: 'v1', label: '知识目录 v1', path: '/knowledge/v1' }`。
+  - 守卫 `v085_route_shell.test.tsx` +3: AppNav fs 不存在 / grep 无引用 / PageLayout 含 `<SentinelShell layer={null}>`; `PageLayout.test.tsx` 改断言 `.sentinel` + `三层工作流导航` + `section.pipeline` + 无 `主导航`。
+  - 文档: ROUTE_REGISTRY 工具页节 / frontend AGENTS 硬约束 0 (含 CSS 重置特异度约束) / 根 AGENTS 状态行 / spec §5 附 2026-09-10 修订注 (不改史)。
+- **测试验证**:
+  - `tsc --noEmit` 0 错; vitest **62 文件 487/487** (AppNav 3 用例随文件删除, 守卫 +3); `vite build --logLevel error` 通过。
+  - 浏览器实测 (1440×900, 数值优先): `/settings` → `.sentinel` 根 1 / `header.appbar` 1 / `section.pipeline` 1 / 无 `nav[aria-label=主导航]` / 更多按钮 active / 今日收录 "443 篇" (壳自取生效) / 分类导航单列 x=97.5; `/settings?cat=sentinel` → appbar 1 + pipeline 1 (页中页消除) + READ-ONLY pill + 12 行源清单来自外层壳 context; `/skill-store` → 26/26 项 + "v1.0 受管能力包"区块 + 100+ 个 `.border` 按钮全部 1px solid; `/knowledge/import` → 四领域 nav + 快捷模式 `复习 | 知识目录 v1`(href `/knowledge/v1`) + 更多 active。截图: /settings 与 /knowledge 目视与首页同壳。
+- **潜在风险**: ①工具页内容现在继承 `.sentinel` 基础排版 (15px/1.6, 原 body 13px) — Tailwind `text-*` 为 rem 不受影响, 但未显式设字号的文本会变大 ~15%, 本批只抽查了 settings/skill-store/knowledge 三页, `/secnews` `/todos` `/report` 等密集页建议 owner 过目 ②移动端 (<640px) 原 AppNav 汉堡抽屉随之消失, SentinelShell appbar 无响应式折叠 (与首页现状一致), 手机宽度可能横向溢出 ③`lazy-imports.ts` 仍导出未路由的 `SentinelSettingsPage` (死出口, 未清) ④各工具页自带的 "返回首页"/onBack 按钮与壳品牌/资料层 tab 功能重复, 本批未删 (可后续统一收敛) ⑤`max-w-[1320px]` 现在在壳内整屏居中 (无侧栏), 与 DEV-0166 说明的 "侧栏右侧居中" 不同 — 这是回到 T17.5 之前的状态。

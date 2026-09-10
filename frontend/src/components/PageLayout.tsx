@@ -1,33 +1,28 @@
 import { Outlet } from 'react-router-dom';
 import { ToastProvider } from './Toast';
-// T17.5: AppNav 14 项 nav (4 主入口 + 6 SK + 4 知识管理 域)
-import { AppNav } from './AppNav';
+import { SentinelShell } from './sentinel/SentinelShell';
 
+// 工具页壳 = SentinelShell (layer=null: 三层 tab 不高亮, 更多菜单指示当前位置) + 居中内容容器。
+// 2026-09-10 壳统一: 左侧 AppNav 侧栏删除 — 其 14 项入口与壳内三层导航 / 更多菜单 / 各页内导航全量重复
+// (SK 能力包 → /skill-store 页内 v1 区块, 知识管理 → /knowledge 页内 KnowledgeTabs)。
 export function PageLayout() {
   return (
     <ToastProvider>
-      <div
-        className="min-h-[100dvh] relative"
-        style={{ backgroundColor: 'var(--bg-primary)' }}
+      <a
+        href="#main-content"
+        className="skip-link"
+        aria-label="跳转到主内容"
       >
-        <a
-          href="#main-content"
-          className="skip-link"
-          aria-label="跳转到主内容"
+        跳转到主内容
+      </a>
+      <SentinelShell layer={null}>
+        <div
+          id="main-content"
+          className="max-w-[1320px] mx-auto px-4 sm:px-8 lg:px-10 py-4 sm:py-6"
         >
-          跳转到主内容
-        </a>
-        <AppNav />
-        {/* 侧栏让位必须独占一层: 与 px-* 同串时 lg:px-10 会在 ≥1024px 覆盖 sm:pl-64 (Tailwind 按断点排序输出) */}
-        <div className="sm:pl-64">
-          <div
-            id="main-content"
-            className="max-w-[1320px] mx-auto px-4 sm:px-8 lg:px-10 py-4 sm:py-6 relative z-10"
-          >
-            <Outlet />
-          </div>
+          <Outlet />
         </div>
-      </div>
+      </SentinelShell>
     </ToastProvider>
   );
 }

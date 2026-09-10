@@ -33,8 +33,11 @@
   overflow-x:hidden;
 }
 .sentinel ::selection{background:var(--sn-mint-dim);color:var(--sn-ink)}
-.sentinel a{color:inherit;text-decoration:none}
-.sentinel button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer}
+/* 元素级重置必须保持 (0,0,1) 特异度: 壳已包住工具页 (PageLayout), 写成 .sentinel a / .sentinel button
+   会以 (0,1,1) 压过工具页里的 Tailwind 工具类 (bg-* / border / text-*), 剥掉按钮背景与边框。
+   border 不能用简写 (border:0 会连 border-style 一起重置为 none, Tailwind .border 只设宽度、样式靠 preflight 的 *{border-style:solid}) */
+:where(.sentinel) a{color:inherit;text-decoration:none}
+:where(.sentinel) button{font-family:inherit;color:inherit;background:none;border-width:0;cursor:pointer}
 .sentinel :focus-visible{outline:2px solid var(--sn-mint);outline-offset:2px;border-radius:2px}
 .sentinel .mono{font-family:var(--sn-mono)}
 .sentinel .num{font-family:var(--sn-mono);font-feature-settings:'tnum'}
@@ -399,6 +402,8 @@ html[data-theme="light"] .sentinel .tb-sun{display:none}
 /* ===== 溢出菜单: 报纸版删除后承接 12 项能力的唯一入口 ===== */
 .sentinel .sn-more{position:relative;display:flex}
 .sentinel .sn-more-btn{gap:6px;font-family:var(--sn-mono);font-size:12px;letter-spacing:.02em}
+/* 工具页当前位置指示 (与 .layer-link.active 同一视觉语言) */
+.sentinel .sn-more-btn.active{background:var(--sn-mint-dim);color:var(--sn-mint)}
 .sentinel .sn-menu{
   position:absolute;top:calc(100% + 8px);right:0;z-index:var(--z-dropdown,100);
   min-width:268px;padding:6px;
@@ -415,6 +420,8 @@ html[data-theme="light"] .sentinel .tb-sun{display:none}
   font-size:13px;color:var(--sn-ink);transition:background 120ms var(--ease-out);
 }
 .sentinel .sn-menu-item:hover{background:var(--sn-bg-hover)}
+.sentinel .sn-menu-item.active{background:var(--sn-mint-dim);color:var(--sn-mint)}
+.sentinel .sn-menu-item.active .sn-menu-note{color:var(--sn-mint)}
 .sentinel .sn-menu-note{margin-left:auto;font-size:11px;letter-spacing:.08em;color:var(--sn-ink-3)}
 @media (prefers-reduced-motion: reduce){
   .sentinel .sn-menu{animation:none}

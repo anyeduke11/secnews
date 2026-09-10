@@ -52,7 +52,7 @@ describe('PageLayout', () => {
     expect(screen.queryByText('Home')).not.toBeInTheDocument();
   });
 
-  it('wraps content in a styled container (bg-primary token)', () => {
+  it('wraps content in SentinelShell (唯一壳: 顶部横向导航 + 心跳条, 无左侧 AppNav)', () => {
     const { container } = render(
       <MemoryRouter initialEntries={['/']}>
         <Routes>
@@ -62,10 +62,13 @@ describe('PageLayout', () => {
         </Routes>
       </MemoryRouter>
     );
-    // 外层容器是 <div class="min-h-[100dvh]" style="background-color: var(--bg-primary)">
-    const wrapper = container.querySelector('div.min-h-\\[100dvh\\]') as HTMLElement | null;
-    expect(wrapper).toBeInTheDocument();
-    expect(wrapper?.style.backgroundColor).toBe('var(--bg-primary)');
+    // 2026-09-10 壳统一: 工具页与三层页共用 SentinelShell 顶部横向导航 (唯一壳)
+    expect(container.querySelector('div.sentinel')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: '三层工作流导航' })).toBeInTheDocument();
+    expect(container.querySelector('section.pipeline')).toBeInTheDocument();
+    // 左侧 AppNav 已物理删除, 不得再出现第二套导航
+    expect(screen.queryByRole('navigation', { name: '主导航' })).not.toBeInTheDocument();
+    expect(container.querySelector('#main-content')).toBeInTheDocument();
   });
 
   it('supports Toast by mounting ToastProvider (Toast API surface)', () => {
@@ -80,6 +83,6 @@ describe('PageLayout', () => {
       </MemoryRouter>
     );
     // 渲染成功即代表 ToastProvider 已挂载 (无异常)
-    expect(container.querySelector('div.min-h-\\[100dvh\\]')).toBeInTheDocument();
+    expect(container.querySelector('div.sentinel')).toBeInTheDocument();
   });
 });

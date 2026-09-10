@@ -23,11 +23,12 @@
  *  - /api/health              采集间隔 collect_interval_seconds / 调度器 job / 版本 / proxy 模式
  *  - /api/llm/status          模型就绪态 (scenario / default_provider / providers)
  *  - /api/secrets/status      主密钥状态 (setup / unlocked / remaining_seconds) — 非敏感
- *  - /api/sources/health      源健康, 复用 SentinelShell 的 usePipe(), 本页不重复请求
+ *  - /api/sources/health      源健康, 复用外层 SentinelShell (PageLayout 提供) 的 usePipe(), 本页不重复请求;
+ *    2026-09-10 壳统一后本页不再自嵌壳 (嵌入 /settings 分类时曾出现页中页双 appbar)
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SentinelShell, usePipe } from './SentinelShell';
+import { usePipe } from './SentinelShell';
 import './sentinel.css';
 import './sentinel-settings.css';
 
@@ -319,272 +320,270 @@ export function SentinelSettingsPage() {
   };
 
   return (
-    <SentinelShell layer="data" ingested={null}>
-      <section className="st-scr scr" aria-label="系统设置 · 只读控制台">
-        <div className="st-head">
-          <div>
-            <h2 className="st-title">设置</h2>
-            <p className="st-sub2">
-              这台工作站怎么配置的：采集节奏、能力开关、模型就绪度与危险区清单。
-              {offline ? '后端未响应, 以下均为占位。' : '全部为只读读取, 本页不写入任何状态。'}
-            </p>
-          </div>
-          <div className="st-headops">
-            <span className="st-readonlypill"><i aria-hidden="true" />READ-ONLY CONSOLE</span>
-            <button type="button" className="st-btn" onClick={load} disabled={loading}>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M10 6a4 4 0 1 1-1.2-2.85M10 1.5V4H7.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              {loading ? '读取中' : '刷新状态'}
-            </button>
-            <button type="button" className="st-btn" onClick={() => navigate('/')}>回到资料层</button>
-          </div>
+    <section className="st-scr scr" aria-label="系统设置 · 只读控制台">
+      <div className="st-head">
+        <div>
+          <h2 className="st-title">设置</h2>
+          <p className="st-sub2">
+            这台工作站怎么配置的：采集节奏、能力开关、模型就绪度与危险区清单。
+            {offline ? '后端未响应, 以下均为占位。' : '全部为只读读取, 本页不写入任何状态。'}
+          </p>
         </div>
+        <div className="st-headops">
+          <span className="st-readonlypill"><i aria-hidden="true" />READ-ONLY CONSOLE</span>
+          <button type="button" className="st-btn" onClick={load} disabled={loading}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M10 6a4 4 0 1 1-1.2-2.85M10 1.5V4H7.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            {loading ? '读取中' : '刷新状态'}
+          </button>
+          <button type="button" className="st-btn" onClick={() => navigate('/')}>回到资料层</button>
+        </div>
+      </div>
 
-        <div className="st-grid">
-          <div className="st-main">
-            <div className="st-tabs" role="tablist" aria-label="设置分区" onKeyDown={onTabKey}>
-              {TABS.map(t => (
-                <button
-                  key={t.key}
-                  type="button"
-                  role="tab"
-                  id={`st-tab-${t.key}`}
-                  className="st-tab"
-                  aria-selected={tab === t.key}
-                  aria-controls={t.panelId}
-                  tabIndex={tab === t.key ? 0 : -1}
-                  onClick={() => setTab(t.key)}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
+      <div className="st-grid">
+        <div className="st-main">
+          <div className="st-tabs" role="tablist" aria-label="设置分区" onKeyDown={onTabKey}>
+            {TABS.map(t => (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                id={`st-tab-${t.key}`}
+                className="st-tab"
+                aria-selected={tab === t.key}
+                aria-controls={t.panelId}
+                tabIndex={tab === t.key ? 0 : -1}
+                onClick={() => setTab(t.key)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
 
-            {loading && (
-              <section className="st-panel" id={TABS.find(t => t.key === tab)?.panelId ?? 'st-panel-collect'} role="tabpanel" aria-labelledby={`st-tab-${tab}`} aria-busy="true">
-                <div className="skel-line w1" /><div className="skel-line w2" /><div className="skel-line w3" />
-              </section>
-            )}
+          {loading && (
+            <section className="st-panel" id={TABS.find(t => t.key === tab)?.panelId ?? 'st-panel-collect'} role="tabpanel" aria-labelledby={`st-tab-${tab}`} aria-busy="true">
+              <div className="skel-line w1" /><div className="skel-line w2" /><div className="skel-line w3" />
+            </section>
+          )}
 
-            {/* ===== Tab 1 采集与调度 ===== */}
-            {!loading && tab === 'collect' && (
-              <section className="st-panel" id="st-panel-collect" role="tabpanel" aria-labelledby="st-tab-collect">
-                <h2 className="st-ph">采集节奏与源状态</h2>
-                <p className="st-tblmeta">
-                  <b>{health?.components?.scheduler?.ok ? '调度器在线' : '调度器状态未知'}</b>
-                  {' · '}间隔改法：编辑 <code className="st-code">.env</code> 的
-                  <code className="st-code"> COLLECT_INTERVAL_SECONDS</code> 后重启后端
-                  （<code className="st-code">POST /api/settings/refresh-interval</code> 为写接口, 本屏不接线）
-                </p>
-                <div className="st-cellgrid">
-                  <div className="st-cell"><span className="st-cellk">采集间隔</span><span className="st-cellv">{schedCell(intervalSec)}</span><span className="st-cellnote">{minsOf(intervalSec)} / 轮 · collect_all + trend_rebuild 同频</span></div>
-                  <div className="st-cell"><span className="st-cellk">下一轮</span><span className="st-cellv sm">{collectJob ? nextRunText(collectJob.next) : '--'}</span><span className="st-cellnote">取自 /api/health scheduler.details</span></div>
-                  <div className="st-cell"><span className="st-cellk">注册 job</span><span className="st-cellv">{jobDetails.length || '--'}</span><span className="st-cellnote">调度器当前载入的定时任务数</span></div>
-                  <div className="st-cell"><span className="st-cellk">已运行</span><span className="st-cellv sm">{uptimeCell(health?.uptime_s)}</span><span className="st-cellnote">服务进程存活时长</span></div>
-                </div>
-                <SourceTable intervalSec={intervalSec} />
-                <p className="st-fnote">源启停、探测与删除均需写接口；本屏只显示后端已聚合出的只读健康视图。</p>
-              </section>
-            )}
+          {/* ===== Tab 1 采集与调度 ===== */}
+          {!loading && tab === 'collect' && (
+            <section className="st-panel" id="st-panel-collect" role="tabpanel" aria-labelledby="st-tab-collect">
+              <h2 className="st-ph">采集节奏与源状态</h2>
+              <p className="st-tblmeta">
+                <b>{health?.components?.scheduler?.ok ? '调度器在线' : '调度器状态未知'}</b>
+                {' · '}间隔改法：编辑 <code className="st-code">.env</code> 的
+                <code className="st-code"> COLLECT_INTERVAL_SECONDS</code> 后重启后端
+                （<code className="st-code">POST /api/settings/refresh-interval</code> 为写接口, 本屏不接线）
+              </p>
+              <div className="st-cellgrid">
+                <div className="st-cell"><span className="st-cellk">采集间隔</span><span className="st-cellv">{schedCell(intervalSec)}</span><span className="st-cellnote">{minsOf(intervalSec)} / 轮 · collect_all + trend_rebuild 同频</span></div>
+                <div className="st-cell"><span className="st-cellk">下一轮</span><span className="st-cellv sm">{collectJob ? nextRunText(collectJob.next) : '--'}</span><span className="st-cellnote">取自 /api/health scheduler.details</span></div>
+                <div className="st-cell"><span className="st-cellk">注册 job</span><span className="st-cellv">{jobDetails.length || '--'}</span><span className="st-cellnote">调度器当前载入的定时任务数</span></div>
+                <div className="st-cell"><span className="st-cellk">已运行</span><span className="st-cellv sm">{uptimeCell(health?.uptime_s)}</span><span className="st-cellnote">服务进程存活时长</span></div>
+              </div>
+              <SourceTable intervalSec={intervalSec} />
+              <p className="st-fnote">源启停、探测与删除均需写接口；本屏只显示后端已聚合出的只读健康视图。</p>
+            </section>
+          )}
 
-            {/* ===== Tab 2 能力开关 ===== */}
-            {!loading && tab === 'features' && (
-              <section className="st-panel" id="st-panel-features" role="tabpanel" aria-labelledby="st-tab-features">
-                <h2 className="st-ph">扩展域开关</h2>
-                <p className="st-tblmeta">
-                  源：<code className="st-code">backend/config/feature_gates.toml</code>；
-                  改法：编辑该文件或设 <code className="st-code">HOTSPOT_FEATURE_GATES</code> 环境变量后重启（无写接口, 本屏只读）
-                </p>
-                {features
-                  ? FEATURE_DEFS.map(def => {
-                    const on = Boolean(features[def.key]);
-                    return (
-                      <div className="st-rule" key={String(def.key)}>
-                        <div>
-                          <p className="st-flabel">{def.label}</p>
-                          <p className="st-fcode">{String(def.key)}</p>
-                        </div>
-                        <div>
-                          <div className="st-ctrlrow">
-                            <button
-                              type="button"
-                              className="st-switch"
-                              role="switch"
-                              aria-checked={on}
-                              disabled
-                              title="只读展示 — 该开关由配置文件驱动, 需重启后端"
-                              aria-label={`${def.label}${on ? '已启用' : '已停用'}（只读）`}
-                            />
-                            <span className={`st-chip${on ? ' ok' : ''}`}><i aria-hidden="true" />{on ? '已注册' : '未注册'}</span>
-                            <span className="st-when">{on ? '路由与 job 均已挂载' : '路由 404 / job 不注册'}</span>
-                          </div>
-                          <p className="st-fdesc">{def.desc}</p>
-                        </div>
+          {/* ===== Tab 2 能力开关 ===== */}
+          {!loading && tab === 'features' && (
+            <section className="st-panel" id="st-panel-features" role="tabpanel" aria-labelledby="st-tab-features">
+              <h2 className="st-ph">扩展域开关</h2>
+              <p className="st-tblmeta">
+                源：<code className="st-code">backend/config/feature_gates.toml</code>；
+                改法：编辑该文件或设 <code className="st-code">HOTSPOT_FEATURE_GATES</code> 环境变量后重启（无写接口, 本屏只读）
+              </p>
+              {features
+                ? FEATURE_DEFS.map(def => {
+                  const on = Boolean(features[def.key]);
+                  return (
+                    <div className="st-rule" key={String(def.key)}>
+                      <div>
+                        <p className="st-flabel">{def.label}</p>
+                        <p className="st-fcode">{String(def.key)}</p>
                       </div>
-                    );
-                  })
-                  : <p className="st-empty">未能读取 /api/settings/features — 后端不可达时不显示默认值, 以免误判。</p>}
-                {enabledExt.length > 0 && (
-                  <p className="st-tblfoot">enabled_extensions · <span className="mono">{enabledExt.join(' · ')}</span></p>
-                )}
-              </section>
-            )}
-
-            {/* ===== Tab 3 模型与密钥 ===== */}
-            {!loading && tab === 'model' && (
-              <section className="st-panel" id="st-panel-model" role="tabpanel" aria-labelledby="st-tab-model">
-                <h2 className="st-ph">判读模型与密钥就绪度</h2>
-                <p className="st-tblmeta">
-                  来源 <code className="st-code">GET /api/llm/status</code> 与 <code className="st-code">GET /api/secrets/status</code>
-                  {' · '}仅非敏感状态；本页不读取也不缓存任何密钥明文
-                </p>
-                <div className="st-rule">
-                  <div><p className="st-flabel">降级场景</p><p className="st-fcode">scenario</p></div>
-                  <div>
-                    <div className="st-ctrlrow">
-                      <span className={`st-chip${llm?.llm_enabled ? ' ok' : ' warn'}`}><i aria-hidden="true" />{llm?.scenario ?? '--'}</span>
-                      <span className="st-when">{llm?.description ?? '未获取到场景描述'}</span>
+                      <div>
+                        <div className="st-ctrlrow">
+                          <button
+                            type="button"
+                            className="st-switch"
+                            role="switch"
+                            aria-checked={on}
+                            disabled
+                            title="只读展示 — 该开关由配置文件驱动, 需重启后端"
+                            aria-label={`${def.label}${on ? '已启用' : '已停用'}（只读）`}
+                          />
+                          <span className={`st-chip${on ? ' ok' : ''}`}><i aria-hidden="true" />{on ? '已注册' : '未注册'}</span>
+                          <span className="st-when">{on ? '路由与 job 均已挂载' : '路由 404 / job 不注册'}</span>
+                        </div>
+                        <p className="st-fdesc">{def.desc}</p>
+                      </div>
                     </div>
-                    <p className="st-fdesc">
-                      T1 评分链 {llm?.t1_available ? '可用' : '不可用'} · T3 生成链 {llm?.t3_available ? '可用' : '不可用'} ·
-                      需外部 agent {llm?.requires_external_agent ? '是' : '否'}
-                    </p>
+                  );
+                })
+                : <p className="st-empty">未能读取 /api/settings/features — 后端不可达时不显示默认值, 以免误判。</p>}
+              {enabledExt.length > 0 && (
+                <p className="st-tblfoot">enabled_extensions · <span className="mono">{enabledExt.join(' · ')}</span></p>
+              )}
+            </section>
+          )}
+
+          {/* ===== Tab 3 模型与密钥 ===== */}
+          {!loading && tab === 'model' && (
+            <section className="st-panel" id="st-panel-model" role="tabpanel" aria-labelledby="st-tab-model">
+              <h2 className="st-ph">判读模型与密钥就绪度</h2>
+              <p className="st-tblmeta">
+                来源 <code className="st-code">GET /api/llm/status</code> 与 <code className="st-code">GET /api/secrets/status</code>
+                {' · '}仅非敏感状态；本页不读取也不缓存任何密钥明文
+              </p>
+              <div className="st-rule">
+                <div><p className="st-flabel">降级场景</p><p className="st-fcode">scenario</p></div>
+                <div>
+                  <div className="st-ctrlrow">
+                    <span className={`st-chip${llm?.llm_enabled ? ' ok' : ' warn'}`}><i aria-hidden="true" />{llm?.scenario ?? '--'}</span>
+                    <span className="st-when">{llm?.description ?? '未获取到场景描述'}</span>
                   </div>
+                  <p className="st-fdesc">
+                    T1 评分链 {llm?.t1_available ? '可用' : '不可用'} · T3 生成链 {llm?.t3_available ? '可用' : '不可用'} ·
+                    需外部 agent {llm?.requires_external_agent ? '是' : '否'}
+                  </p>
                 </div>
-                <div className="st-rule">
-                  <div><p className="st-flabel">默认 provider</p><p className="st-fcode">default_provider</p></div>
-                  <div>
-                    <div className="st-ctrlrow">
-                      <span className="st-provider">{llm?.default_provider ?? '--'}</span>
-                      <span className="st-when">回退序 {llm?.fallback_order?.length ? llm.fallback_order.join(' → ') : '--'}</span>
-                    </div>
-                    {providerRows.length > 0 && (
-                      <ul className="st-provs">
-                        {providerRows.map(p => (
-                          <li key={p.name}>
-                            <span className={`st-secdot${p.configured ? ' ok' : ' warn'}`} aria-hidden="true" />
-                            <span className="st-provname">{p.name}</span>
-                            <span className="st-provmodel mono">{p.type ?? '--'}</span>
-                            <span className="st-provmodel mono">{p.model_score ?? '--'} / {p.model_summary ?? '--'}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <p className="st-fnote">模型名与供应商来自后端配置视图；切换 provider 需改 config/llm.yaml 或密钥库, 均为写操作。</p>
+              </div>
+              <div className="st-rule">
+                <div><p className="st-flabel">默认 provider</p><p className="st-fcode">default_provider</p></div>
+                <div>
+                  <div className="st-ctrlrow">
+                    <span className="st-provider">{llm?.default_provider ?? '--'}</span>
+                    <span className="st-when">回退序 {llm?.fallback_order?.length ? llm.fallback_order.join(' → ') : '--'}</span>
                   </div>
+                  {providerRows.length > 0 && (
+                    <ul className="st-provs">
+                      {providerRows.map(p => (
+                        <li key={p.name}>
+                          <span className={`st-secdot${p.configured ? ' ok' : ' warn'}`} aria-hidden="true" />
+                          <span className="st-provname">{p.name}</span>
+                          <span className="st-provmodel mono">{p.type ?? '--'}</span>
+                          <span className="st-provmodel mono">{p.model_score ?? '--'} / {p.model_summary ?? '--'}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="st-fnote">模型名与供应商来自后端配置视图；切换 provider 需改 config/llm.yaml 或密钥库, 均为写操作。</p>
                 </div>
-                <div className="st-rule last">
-                  <div><p className="st-flabel">主密钥</p><p className="st-fcode">fernet / keychain</p></div>
-                  <div>
-                    <div className="st-ctrlrow">
-                      <span className={`st-chip${keyReady ? ' ok' : ' warn'}`}><i aria-hidden="true" />{keyReady ? 'KEY READY' : 'KEY NOT SETUP'}</span>
-                      <span className="st-chip">{secrets?.unlocked ? '解锁窗口内' : '已锁定'}</span>
-                      {secrets?.unlocked && <span className="st-when mono">剩余 {ttlCell(secrets.remaining_seconds)}</span>}
-                      <span className="st-when">{secrets?.keychain_persisted ? '系统钥匙串已持久化' : '未持久化到钥匙串'}</span>
-                    </div>
-                    <p className="st-fdesc">
-                      密钥条目内容、明文与主密钥一律不在本屏出现, 也不写入 sessionStorage / localStorage。
-                      新增、轮换或导出请到密钥管理页, 或直接在本地终端完成。
-                    </p>
+              </div>
+              <div className="st-rule last">
+                <div><p className="st-flabel">主密钥</p><p className="st-fcode">fernet / keychain</p></div>
+                <div>
+                  <div className="st-ctrlrow">
+                    <span className={`st-chip${keyReady ? ' ok' : ' warn'}`}><i aria-hidden="true" />{keyReady ? 'KEY READY' : 'KEY NOT SETUP'}</span>
+                    <span className="st-chip">{secrets?.unlocked ? '解锁窗口内' : '已锁定'}</span>
+                    {secrets?.unlocked && <span className="st-when mono">剩余 {ttlCell(secrets.remaining_seconds)}</span>}
+                    <span className="st-when">{secrets?.keychain_persisted ? '系统钥匙串已持久化' : '未持久化到钥匙串'}</span>
                   </div>
+                  <p className="st-fdesc">
+                    密钥条目内容、明文与主密钥一律不在本屏出现, 也不写入 sessionStorage / localStorage。
+                    新增、轮换或导出请到密钥管理页, 或直接在本地终端完成。
+                  </p>
                 </div>
-              </section>
-            )}
-
-            {/* ===== Tab 4 危险区 (只读盘点) ===== */}
-            {!loading && tab === 'danger' && (
-              <section className="st-panel" id="st-panel-danger" role="tabpanel" aria-labelledby="st-tab-danger">
-                <h2 className="st-ph">危险区</h2>
-                <div className="st-dangerline"><span>DANGER ZONE</span></div>
-                <p className="st-dangerhint">
-                  以下能力会不可逆地改写数据或密钥库。本屏<b>只盘点不接线</b>：不渲染任何触发按钮,
-                  也不会在测试或交互中调用写接口。需要执行时请在<b>本地终端</b>完成,
-                  并先把后端监听收回 <code className="st-code">127.0.0.1</code>。
-                </p>
-                <table className="st-table">
-                  <colgroup><col /><col className="st-c-ep" /><col className="st-c-reach" /></colgroup>
-                  <thead>
-                    <tr><th scope="col">能力</th><th scope="col">端点</th><th scope="col">本屏可达</th></tr>
-                  </thead>
-                  <tbody>
-                    {DANGER_ITEMS.map(d => (
-                      <tr className="st-row" key={d.ep}>
-                        <td>
-                          <span className="st-nm">{d.cap}</span>
-                          <span className="st-sub">{d.note}</span>
-                        </td>
-                        <td className="st-ep">{d.ep}</td>
-                        <td><span className="st-chip bad"><i aria-hidden="true" />否</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className="st-fnote">
-                  审计口径：后端 174 条状态变更路由中 167 条零凭证, 且 <code className="st-code">HOTSPOT_HOST=0.0.0.0</code> 时整个局域网可达。
-                  这是「设置屏不做破坏性 UI」的直接原因, 不是假设。
-                </p>
-              </section>
-            )}
-          </div>
-
-          {/* ===== 右栏 ===== */}
-          <aside className="st-rail" aria-label="设置辅助面板">
-            <PipeCard />
-
-            <div className="st-card">
-              <h3>
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M6.5 1.5l4.5 1.6v3.1c0 2.6-1.8 4.6-4.5 5.3C3.8 10.8 2 8.8 2 6.2V3.1L6.5 1.5z" stroke="currentColor" strokeWidth="1.5" stroke-linejoin="round" /></svg>
-                安全姿态
-              </h3>
-              <div className="st-secrow">
-                <span className={`st-secdot${keyReady ? ' ok' : ' warn'}`} aria-hidden="true" />
-                <span>
-                  <span className="st-secname">主密钥{keyReady ? '已派生（Fernet）' : '尚未初始化'}</span>
-                  <span className="st-secsub">{keyReady ? 'KEY READY' : 'KEY NOT SETUP'}</span>
-                </span>
               </div>
-              <div className="st-secrow">
-                <span className={`st-secdot${proxyRouted ? ' ok' : ' warn'}`} aria-hidden="true" />
-                <span>
-                  <span className="st-secname">出网代理{proxyMode ? `当前 ${proxyMode}` : '状态未知'}</span>
-                  <span className="st-secsub">{proxyRouted ? 'VIA PROXY' : 'DIRECT CONNECT'}</span>
-                </span>
-              </div>
-              <div className="st-secrow">
-                <span className="st-secdot warn" aria-hidden="true" />
-                <span>
-                  <span className="st-secname">服务暴露面需自查</span>
-                  <span className="st-secsub">CHECK BIND HOST</span>
-                </span>
-              </div>
-              <p className="st-railnote">后端鉴权当前 fail-open, 请确认 <code className="st-code">.env</code> 的 HOST 取值后再判断是否可放在共享网络。</p>
-            </div>
+            </section>
+          )}
 
-            <div className="st-card">
-              <h3>
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.5" /><path d="M6.5 4v3l2 1.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-                本机与版本
-              </h3>
-              <div className="st-abouthead">
-                <span className="st-ver mono">v{health?.version ?? '--'}</span>
-                <span className="st-localpill"><i aria-hidden="true" />本地运行 · 无云端依赖</span>
-              </div>
-              <ul className="st-facts">
-                <li><span>后端状态</span><span className="mono">{health?.status ?? '--'}</span></li>
-                <li><span>DB 完整</span><span className="mono">{health?.components?.db?.ok == null ? '--' : health.components.db.ok ? 'yes' : 'no'}</span></li>
-                <li><span>采集器在线</span><span className="mono">{health?.components?.collectors?.ok == null ? '--' : health.components.collectors.ok ? 'yes' : 'no'}</span></li>
-                <li><span>采集间隔</span><span className="mono">{schedCell(intervalSec)}</span></li>
-                <li><span>本页写请求</span><span className="mono mint">0</span></li>
-              </ul>
-            </div>
-          </aside>
+          {/* ===== Tab 4 危险区 (只读盘点) ===== */}
+          {!loading && tab === 'danger' && (
+            <section className="st-panel" id="st-panel-danger" role="tabpanel" aria-labelledby="st-tab-danger">
+              <h2 className="st-ph">危险区</h2>
+              <div className="st-dangerline"><span>DANGER ZONE</span></div>
+              <p className="st-dangerhint">
+                以下能力会不可逆地改写数据或密钥库。本屏<b>只盘点不接线</b>：不渲染任何触发按钮,
+                也不会在测试或交互中调用写接口。需要执行时请在<b>本地终端</b>完成,
+                并先把后端监听收回 <code className="st-code">127.0.0.1</code>。
+              </p>
+              <table className="st-table">
+                <colgroup><col /><col className="st-c-ep" /><col className="st-c-reach" /></colgroup>
+                <thead>
+                  <tr><th scope="col">能力</th><th scope="col">端点</th><th scope="col">本屏可达</th></tr>
+                </thead>
+                <tbody>
+                  {DANGER_ITEMS.map(d => (
+                    <tr className="st-row" key={d.ep}>
+                      <td>
+                        <span className="st-nm">{d.cap}</span>
+                        <span className="st-sub">{d.note}</span>
+                      </td>
+                      <td className="st-ep">{d.ep}</td>
+                      <td><span className="st-chip bad"><i aria-hidden="true" />否</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="st-fnote">
+                审计口径：后端 174 条状态变更路由中 167 条零凭证, 且 <code className="st-code">HOTSPOT_HOST=0.0.0.0</code> 时整个局域网可达。
+                这是「设置屏不做破坏性 UI」的直接原因, 不是假设。
+              </p>
+            </section>
+          )}
         </div>
 
-        <footer className="endnote">
-          <span>SECNEWS SENTINEL TERMINAL · 设置</span>
-          <span>只读视图 · 零写请求 · 零本地缓存</span>
-          <span>破坏性操作请在本地终端完成</span>
-        </footer>
-      </section>
-    </SentinelShell>
+        {/* ===== 右栏 ===== */}
+        <aside className="st-rail" aria-label="设置辅助面板">
+          <PipeCard />
+
+          <div className="st-card">
+            <h3>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M6.5 1.5l4.5 1.6v3.1c0 2.6-1.8 4.6-4.5 5.3C3.8 10.8 2 8.8 2 6.2V3.1L6.5 1.5z" stroke="currentColor" strokeWidth="1.5" stroke-linejoin="round" /></svg>
+              安全姿态
+            </h3>
+            <div className="st-secrow">
+              <span className={`st-secdot${keyReady ? ' ok' : ' warn'}`} aria-hidden="true" />
+              <span>
+                <span className="st-secname">主密钥{keyReady ? '已派生（Fernet）' : '尚未初始化'}</span>
+                <span className="st-secsub">{keyReady ? 'KEY READY' : 'KEY NOT SETUP'}</span>
+              </span>
+            </div>
+            <div className="st-secrow">
+              <span className={`st-secdot${proxyRouted ? ' ok' : ' warn'}`} aria-hidden="true" />
+              <span>
+                <span className="st-secname">出网代理{proxyMode ? `当前 ${proxyMode}` : '状态未知'}</span>
+                <span className="st-secsub">{proxyRouted ? 'VIA PROXY' : 'DIRECT CONNECT'}</span>
+              </span>
+            </div>
+            <div className="st-secrow">
+              <span className="st-secdot warn" aria-hidden="true" />
+              <span>
+                <span className="st-secname">服务暴露面需自查</span>
+                <span className="st-secsub">CHECK BIND HOST</span>
+              </span>
+            </div>
+            <p className="st-railnote">后端鉴权当前 fail-open, 请确认 <code className="st-code">.env</code> 的 HOST 取值后再判断是否可放在共享网络。</p>
+          </div>
+
+          <div className="st-card">
+            <h3>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.5" /><path d="M6.5 4v3l2 1.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+              本机与版本
+            </h3>
+            <div className="st-abouthead">
+              <span className="st-ver mono">v{health?.version ?? '--'}</span>
+              <span className="st-localpill"><i aria-hidden="true" />本地运行 · 无云端依赖</span>
+            </div>
+            <ul className="st-facts">
+              <li><span>后端状态</span><span className="mono">{health?.status ?? '--'}</span></li>
+              <li><span>DB 完整</span><span className="mono">{health?.components?.db?.ok == null ? '--' : health.components.db.ok ? 'yes' : 'no'}</span></li>
+              <li><span>采集器在线</span><span className="mono">{health?.components?.collectors?.ok == null ? '--' : health.components.collectors.ok ? 'yes' : 'no'}</span></li>
+              <li><span>采集间隔</span><span className="mono">{schedCell(intervalSec)}</span></li>
+              <li><span>本页写请求</span><span className="mono mint">0</span></li>
+            </ul>
+          </div>
+        </aside>
+      </div>
+
+      <footer className="endnote">
+        <span>SECNEWS SENTINEL TERMINAL · 设置</span>
+        <span>只读视图 · 零写请求 · 零本地缓存</span>
+        <span>破坏性操作请在本地终端完成</span>
+      </footer>
+    </section>
   );
 }

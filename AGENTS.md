@@ -1,6 +1,6 @@
 # SecNews Knowledge Dashboard — 安全从业者 AI 助手的平台看板层
 
-> **当前状态 (2026-09-09, v0.8.5)**: v0.8 Sentinel 三层 (`/` 资料层 → `/judge` 判断层 → `/action` 行动层) 是**唯一壳** (SentinelShell + 管道心跳条全站常驻), v1.0 九领域对象/三类 receipt 只能以嵌入三层的能力区块进入 (SignalPanel/CaseQueuePanel/ExecOverviewPanel); v1 四入口 `/workbench` `/intel` `/cases` 仅为重定向兼容 (透传 query)。唯一权威 spec = `docs/v0.8.5/V0.8.5_PLAN.md` (§5 路由表 / §6 接口消费表 / §10 一致性门); 实现与验证分离, 实现侧不得自评 PASS。新能力只能以三层区块进入, 禁止新一级入口/新壳 (frontend/src/AGENTS.md 硬规则)。dsh 为受管子进程, :3210 降级链 `not_configured→mock→ai_hub`, 新文档勿再写"独立网关"。
+> **当前状态 (2026-09-09, v0.8.5)**: v0.8 Sentinel 三层 (`/` 资料层 → `/judge` 判断层 → `/action` 行动层) 是**唯一壳** (SentinelShell + 管道心跳条全站常驻), v1.0 九领域对象/三类 receipt 只能以嵌入三层的能力区块进入 (SignalPanel/CaseQueuePanel/ExecOverviewPanel); v1 四入口 `/workbench` `/intel` `/cases` 仅为重定向兼容 (透传 query)。唯一权威 spec = `docs/v0.8.5/V0.8.5_PLAN.md` (§5 路由表 / §6 接口消费表 / §10 一致性门); 实现与验证分离, 实现侧不得自评 PASS。新能力只能以三层区块进入, 禁止新一级入口/新壳 (frontend/src/AGENTS.md 硬规则)。**2026-09-10 壳统一 (DEV-0168)**: 工具页 `PageLayout` 亦以 `<SentinelShell layer={null}>` 为壳 (顶部横向导航 + 更多菜单高亮当前页), 左侧 AppNav 物理删除, SK 能力包 / 知识管理能力归位 `/skill-store` `/knowledge` 页内; spec §5 已附修订注。dsh 为受管子进程, :3210 降级链 `not_configured→mock→ai_hub`, 新文档勿再写"独立网关"。
 > 历史决策 (三层架构裁决 / wiki-first 存储哲学 / Phase 7 退役冻结 / v1.0 四入口弯路与回摆) 见 `PROJECT.md`、`PROGRESS.md`、`docs/README.md` 与 `git log`, 不在此重复。
 
 ## 文档地图

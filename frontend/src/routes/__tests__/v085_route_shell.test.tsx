@@ -118,6 +118,31 @@ describe("v0.8.5 §4.1: V1SentinelShell 物理删除 (双断言)", () => {
   });
 });
 
+// ── 2026-09-10 壳统一 (owner 裁决: 打散左侧菜单, 横向导航, 能力归位各页): 工具页 PageLayout 亦走 SentinelShell ──
+describe("2026-09-10 壳统一: AppNav 左侧栏物理删除 (双断言) + PageLayout 走 SentinelShell", () => {
+  it("fs 断言: AppNav.tsx 不存在 (SK 能力包 → /skill-store 页内区块, 知识管理 → KnowledgeTabs)", () => {
+    expect(existsSync(join(ROOT, "src/components/AppNav.tsx"))).toBe(false);
+  });
+
+  it("grep 断言: 全 src 无 AppNav import / JSX 用法", () => {
+    let out = "";
+    try {
+      out = execSync(
+        'grep -rnE --exclude-dir=.mimosa --exclude=v085_route_shell.test.tsx "(import .*\\bAppNav\\b|from .*/AppNav|<AppNav)" src',
+        { encoding: "utf-8", cwd: ROOT },
+      );
+    } catch {
+      // grep exit 1 = 无匹配, 正是期望
+    }
+    expect(out.trim()).toBe("");
+  });
+
+  it("PageLayout 必须以 SentinelShell layer={null} 为壳 (一个路由只渲染一个壳)", () => {
+    const layout = readFileSync(join(ROOT, "src/components/PageLayout.tsx"), "utf-8");
+    expect(layout).toContain("<SentinelShell layer={null}>");
+  });
+});
+
 // ── 继承 C09 R14/R24 的有效纪律 (真实 API, 无 mock 回退, 无内层导航) ──
 describe("v0.8.5 继承: V1Prototype 纪律 (原 C09 R14/R24)", () => {
   it("不应再有 MOCK_* 占位 (真实 API, 失败显 unavailable)", () => {

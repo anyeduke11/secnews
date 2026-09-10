@@ -98,6 +98,7 @@ function makeFetch() {
 }
 
 import { SentinelSettingsPage } from './SentinelSettingsPage';
+import { SentinelShell } from './SentinelShell';
 
 describe('SentinelSettingsPage — 哨兵终端设置屏 (只读)', () => {
   let fetchMock: ReturnType<typeof makeFetch>;
@@ -106,6 +107,15 @@ describe('SentinelSettingsPage — 哨兵终端设置屏 (只读)', () => {
   let ssSpy: ReturnType<typeof vi.spyOn>;
 
   const openTab = (label: string) => fireEvent.click(screen.getByRole('tab', { name: label }));
+  // 2026-09-10 壳统一: 页面不再自嵌 SentinelShell (嵌入 /settings 时会出现页中页双 appbar),
+  // 心跳数据由外层壳 (PageLayout → SentinelShell layer=null) 经 usePipe 提供 — 测试按真实组合渲染
+  const renderPage = () => render(
+    <MemoryRouter>
+      <SentinelShell layer={null}>
+        <SentinelSettingsPage />
+      </SentinelShell>
+    </MemoryRouter>,
+  );
 
   beforeEach(() => {
     fetchMock = makeFetch();
@@ -123,7 +133,7 @@ describe('SentinelSettingsPage — 哨兵终端设置屏 (只读)', () => {
   });
 
   it('渲染骨架: 只读徽标 + 四个分区 tab + 右栏三卡', async () => {
-    render(<MemoryRouter><SentinelSettingsPage /></MemoryRouter>);
+    renderPage();
 
     expect(screen.getByText('SecNews')).toBeInTheDocument();
     expect(screen.getByText('PIPELINE LIVE')).toBeInTheDocument();
@@ -142,7 +152,7 @@ describe('SentinelSettingsPage — 哨兵终端设置屏 (只读)', () => {
   });
 
   it('采集间隔与调度来自 /api/health 真实字段, 源健康复用壳的 usePipe', async () => {
-    render(<MemoryRouter><SentinelSettingsPage /></MemoryRouter>);
+    renderPage();
     await waitFor(() => expect(screen.getAllByText('*/300s').length).toBeGreaterThan(1));
 
     // 四格调度数据
@@ -158,7 +168,7 @@ describe('SentinelSettingsPage — 哨兵终端设置屏 (只读)', () => {
   });
 
   it('能力开关标签页: features 真实态映射为 chip, 且全部开关为 disabled 只读', async () => {
-    render(<MemoryRouter><SentinelSettingsPage /></MemoryRouter>);
+    renderPage();
     await waitFor(() => expect(screen.getByRole('tab', { name: '能力开关' })).toBeInTheDocument());
     openTab('能力开关');
 
@@ -175,7 +185,7 @@ describe('SentinelSettingsPage — 哨兵终端设置屏 (只读)', () => {
   });
 
   it('模型与密钥标签页: KEY READY 与场景来自非敏感状态字段', async () => {
-    render(<MemoryRouter><SentinelSettingsPage /></MemoryRouter>);
+    renderPage();
     await waitFor(() => expect(screen.getByRole('tab', { name: '模型与密钥' })).toBeInTheDocument());
     openTab('模型与密钥');
 
@@ -189,7 +199,7 @@ describe('SentinelSettingsPage — 哨兵终端设置屏 (只读)', () => {
   });
 
   it('危险区只做只读盘点: 列端点与「本屏可达=否」, 无任何触发按钮', async () => {
-    render(<MemoryRouter><SentinelSettingsPage /></MemoryRouter>);
+    renderPage();
     await waitFor(() => expect(screen.getByRole('tab', { name: '危险区' })).toBeInTheDocument());
     openTab('危险区');
 
@@ -208,7 +218,7 @@ describe('SentinelSettingsPage — 哨兵终端设置屏 (只读)', () => {
   });
 
   it('安全硬约束: 全程只发 GET, 不写 localStorage/sessionStorage, 无密钥输入框', async () => {
-    render(<MemoryRouter><SentinelSettingsPage /></MemoryRouter>);
+    renderPage();
     await waitFor(() => expect(screen.getAllByText('*/300s').length).toBeGreaterThan(1));
     openTab('能力开关');
     openTab('模型与密钥');
@@ -232,7 +242,7 @@ describe('SentinelSettingsPage — 哨兵终端设置屏 (只读)', () => {
 
   it('后端不可达 → 全部降级为占位且不崩溃', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))));
-    render(<MemoryRouter><SentinelSettingsPage /></MemoryRouter>);
+    renderPage();
 
     await waitFor(() => expect(screen.getByText('采集节奏与源状态')).toBeInTheDocument());
     expect(screen.getByText(/后端未响应/)).toBeInTheDocument();

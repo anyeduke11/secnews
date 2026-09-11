@@ -769,3 +769,20 @@
   - `pytest test_practice_domain_corpus.py`: **4 passed**
   - `t07_seed_label_set.py` dry-run: annotation rows 60 (loader 兼容)
 - **潜在风险**: ①20 条全打准是同源护栏的预期结果, **不代表真实语料准确率**——无偏评估待 P1 词表运营机制 ②"总量 80"的 60 侧为本地不入仓资产, 裁决关闭的完整证据链 = 本条 DEV_LOG + fixture _meta.notes ③fixture 与词表同源, 改词表必须同步改语料并保持 --check 100%, 否则 CI 护栏会正确地拦下
+
+## [DEV-0176c] T0.3 兴趣画像 — interests API + 设置页"我的方向"卡片 (Workbench Focus P0.3)
+- **时间**: 2026-09-12 07:40
+- **类型**: 功能开发
+- **关联模块**: `backend:api/settings`, `frontend:settings`
+- **关联文件**: `backend/api/settings.py`, `backend/tests/test_settings_interests.py` (新建), `frontend/src/components/settings/PracticeDomainsCard.tsx` (新建), `frontend/src/components/settings/PracticeDomainsCard.test.tsx` (新建), `frontend/src/components/settings/SettingsPage.tsx`
+- **问题描述**: PRD P0.3 要求前端可勾选实践域画像并持久化, 供 T0.4 排序加权与 T0.5 摘要分区消费。
+- **实现思路**: 完全复用 settings.py 既有 kv+audit 先例 (llm.provider 模式): `GET /api/settings/interests` 读 settings.kv `interest.practice_domains` (服务端按词表过滤脏值, 空=无画像), `PATCH` 全量提交 (服务端校验域合法 + 去重保序 + 空数组清空 + `record_audit(action=workbench.interests.set)`)。前端 `PracticeDomainsCard` 走 st-section/st-chip 设计体系, 点击即 PATCH (乐观更新 + 失败回滚 + 已保存闪示), 挂 SettingsPage `general` 分区 (ModeSwitcher/GeneralSettings 之下)。组件走 `lib/api.ts` 统一请求层。
+- **核心变更**:
+  - backend/api/settings.py: +InterestsRequest model + GET/PATCH /api/settings/interests (审计 action=`workbench.interests.set`, target=`interest.practice_domains`)
+  - frontend PracticeDomainsCard: 8 域 chips + aria-pressed + 保存中/已保存/失败还原三态
+  - SettingsPage: general 分区挂载
+- **测试验证**:
+  - `pytest test_settings_interests.py`: **6 passed** (默认空/回读/未知域 400/去重保序/清空/audit 落账经 `/api/observability/audit` 只读端点断言——初版裸 SQL 断言被 Mimosa 拦, 改走审计查询端点)
+  - `vitest PracticeDomainsCard.test.tsx`: **4 passed** (渲染+选中态/PATCH 载荷+已保存/空态提示/失败回滚); 首轮 3 例失败系 mock labels 用了 id 而组件显示中文标签, mock 改为与后端 LABELS 同源后全绿
+  - `npx tsc --noEmit`: 0 错
+- **潜在风险**: ①PATCH 为全量提交, 多端并发勾选会互相覆盖 (单人工作站可接受, 多用户需改增量协议) ②保存中 disabled 全部按钮, 网络慢时体感顿 (P2 可改乐观并发) ③审计 detail 记录 from/to 全量数组, 画像变更全可追溯

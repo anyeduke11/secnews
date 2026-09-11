@@ -228,3 +228,70 @@ async def set_scenario_model(body: ScenarioModelRequest):
         "old_model": old,
         "new_model": body.model,
     }
+
+
+# ── DEV-0176: 兴趣画像 (Workbench Focus PRD P0.3) ─────────────
+
+_INTEREST_KEY = "interest.practice_domains"
+
+
+class InterestsRequest(BaseModel):
+    """实践域兴趣画像 (DEV-0176)。
+
+    ``domains`` 为空数组 = 清空画像 (资讯流回到无偏好行为)。
+    值域 = ``auto_classifier.PRACTICE_DOMAINS`` 8 域, 服务端校验防 typo。
+    """
+
+    domains: list[str] = Field(default_factory=list, max_length=8)
+    actor: str = Field("web")
+
+
+@router.get("/interests")
+async def get_interests() -> dict:
+    """读取实践域兴趣画像 (settings.kv ``interest.practice_domains``)。"""
+    from backend.services.auto_classifier import PRACTICE_DOMAIN_LABELS, PRACTICE_DOMAINS
+
+    raw = SettingsRepository().get(_INTEREST_KEY, [])
+    domains = [d for d in raw if d in PRACTICE_DOMAINS] if isinstance(raw, list) else []
+    return {
+        "domains": domains,
+        "valid_domains": list(PRACTICE_DOMAINS),
+        "labels": PRACTICE_DOMAIN_LABELS,
+    }
+
+
+@router.patch("/interests")
+async def set_interests(body: InterestsRequest):
+    """写入实践域兴趣画像 (settings.kv 持久化 + audit_log 写入)。
+
+    校验: 每个域必须在 ``PRACTICE_DOMAINS`` 内 (与 T0.1 词表同源, 防 typo)。
+    重复域自动去重 (保序)。空数组 = 清空画像。
+    消费方: ``/api/hotspots`` 排序加权 (T0.4, 降权不删) 与 SK-01 摘要分区 (T0.5)。
+    """
+    from backend.services.auto_classifier import PRACTICE_DOMAINS
+
+    invalid = [d for d in body.domains if d not in PRACTICE_DOMAINS]
+    if invalid:
+        raise InvalidParamException(
+            f"unknown practice domains {invalid}; valid: {list(PRACTICE_DOMAINS)}"
+        )
+
+    # 去重保序
+    seen: set[str] = set()
+    domains = [d for d in body.domains if not (d in seen or seen.add(d))]
+
+    repo = SettingsRepository()
+    old = repo.get(_INTEREST_KEY, [])
+    repo.set(_INTEREST_KEY, domains)
+
+    from backend.observability_records import record_audit
+    record_audit(
+        actor=body.actor,
+        action="workbench.interests.set",
+        target=_INTEREST_KEY,
+        detail={"from": old, "to": domains},
+    )
+
+    logger.info("interests set: {} -> {} (actor={})", old, domains, body.actor)
+
+    return {"status": "ok", "old_domains": old, "domains": domains}

@@ -23,6 +23,7 @@ import { SourceSettings } from './SourceSettings';
 import { ProxySettings } from './ProxySettings';
 import { MCPSettingsCard } from './MCPSettingsCard';
 import { GeneralSettings } from './GeneralSettings';
+import { PracticeDomainsCard } from './PracticeDomainsCard';
 import { SyncSettings } from './SyncSettings';
 import { SecretsStatusCard } from './SecretsStatusCard';
 import { AlertSettings } from './AlertSettings';
@@ -81,6 +82,8 @@ export function SettingsPage() {
           <div className="space-y-2">
             <ModeSwitcher />
             <GeneralSettings onThemeToggle={toggleTheme} theme={theme} />
+            {/* Workbench Focus P0.3 (DEV-0176): 实践域兴趣画像 */}
+            <PracticeDomainsCard />
           </div>
         );
       case 'collection':

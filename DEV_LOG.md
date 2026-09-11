@@ -736,3 +736,18 @@
   - `pytest test_hotspots_api + test_api + test_cache`: **80 passed** (列表/缓存相邻域无回归)
   - `npx tsc --noEmit`: 0 错; `npx vitest run`: **491 passed** (types/index.test.ts 2 个 bid 断言按剔除裁决同步更新为兜底行为断言); `npx vite build`: OK
 - **潜在风险**: ①bid 采集器仍在采集入库 (数据层未动), 若 owner 确认彻底停采, 需在 `scheduler.py` job 门控或 collector 注册层处理并同步 feature_gates ②历史收藏/浏览历史/统一搜索中残留的 bid 条目仍可见 (数据非功能), HotspotCard 的 bid_status 徽标保留以正确渲染存量 ③`/api/hotspots` 不传新参数的第三方消费者 (MCP 工具等) 完全不受影响
+
+## [DEV-0176] T0.1 实践域词表 — auto_classifier 二级 8 域打标 (Workbench Focus P0.1)
+- **时间**: 2026-09-12 07:20
+- **类型**: 功能开发
+- **关联模块**: `backend:services/auto_classifier`
+- **关联文件**: `backend/services/auto_classifier.py`, `backend/tests/test_auto_classifier_practice_domain.py` (新建)
+- **问题描述**: 质量门禁只管"信息好不好", 缺"对安全从业者是否有用"的实践域层。PRD P0.1 要求在既有三级粗粒度打标 (tag→title→URL) 之上新增面向安全从业者的实践域词表。
+- **实现思路**: 纯规则、零 LLM、零 schema 变更。新增 `PRACTICE_DOMAINS` 8 域常量 (enterprise_security 企业安全建设 / vuln_research 漏洞研究 / threat_hunting 威胁狩猎 / incident_response 应急响应 / ai_security AI 安全 / appsec 应用安全 / cloud_data_security 云与数据安全 / compliance 合规监管) + `PRACTICE_DOMAIN_LABELS` 中文标签 + `TAG_PRACTICE_MAP` (键序即优先级, 具体 tag 先于泛化) + `TITLE_PRACTICE_RULES` (数组序即优先级, AI安全→漏洞→狩猎→应急→应用→云数据→合规→建设); 新增 `classify_practice_domain(tags, title)` (仅两级: tag→title, 不用 URL 级——URL 域只能判粗类), `classify_item`/`batch_classify` 透出 `practice_domain` 键。**设计取舍**: ①非安全内容 (finance/dev/startup) 返回 None——相关性门禁靠"命中加权/未命中降权"消费, 不要求全量覆盖; ②消费方 (collect/knowledge jobs) 按白名单字段落库, `practice_domain` 不进 knowledge_items 表, 资讯流在 T0.4 查询时即时打标, 存储零迁移; ③"漏洞管理"tag 映射 enterprise_security (管理流程属建设), 具体漏洞研究靠标题关键词。
+- **核心变更**:
+  - auto_classifier.py: +PRACTICE_DOMAINS/PRACTICE_DOMAIN_LABELS/TAG_PRACTICE_MAP (44 键)/TITLE_PRACTICE_RULES (8 pattern) + classify_practice_domain() + classify_item/batch_classify 透传 practice_domain + __all__ 扩 3 项
+  - 既有 classify_domain/TAG_DOMAIN_MAP 零改动 (回归保障)
+- **测试验证**:
+  - 新建 `test_auto_classifier_practice_domain.py`: **46 用例全绿** (14 tag 正例 + 16 标题正例覆盖 8 域各 2 + 4 非安全反例 + 空输入 + 词表完整性 3 + 集成透传 3); 首轮 1 例失败 (Kubernetes 带空格), 正则加 `\s*` 修复
+  - 既有 `test_auto_classifier.py` 回归: 全绿 (61 total passed)
+- **潜在风险**: ①规则词表对真实语料的覆盖率未验证, T0.2 标注集扩展 (60→80) 是首轮人评验证, 抽样准确率 <80% 则按 DEV_PLAN 升级 P1 LLM 分类 ②TITLE_PRACTICE_RULES 顺序敏感 (如"SQL注入"命中 vuln_research 而非 appsec), 调整顺序会改变结果, 词表变更须跑全量测试

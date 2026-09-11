@@ -160,6 +160,135 @@ URL_DOMAIN_MAP: dict[str, str] = {
 }
 
 # ═══════════════════════════════════════════════════════════════
+# Practice domain classification (DEV-0176 — Workbench Focus PRD P0.1)
+#
+# 二级实践域: 面向安全从业者的工作方向, 与上面的粗粒度 domain 正交。
+# 覆盖范围: 仅安全相关内容会有实践域; 非安全内容 (finance/dev/startup)
+# 返回 None —— 相关性门禁靠"命中加权、未命中降权"消费, 不要求全量覆盖。
+# 词表为数据驱动常量, P1 运营化时再考虑外置。
+# ═══════════════════════════════════════════════════════════════
+
+PRACTICE_DOMAINS: tuple[str, ...] = (
+    "enterprise_security",   # 企业安全建设
+    "vuln_research",         # 漏洞研究
+    "threat_hunting",        # 威胁狩猎
+    "incident_response",     # 应急响应
+    "ai_security",           # AI 安全
+    "appsec",                # 应用安全
+    "cloud_data_security",   # 云与数据安全
+    "compliance",            # 合规监管
+)
+
+PRACTICE_DOMAIN_LABELS: dict[str, str] = {
+    "enterprise_security": "企业安全建设",
+    "vuln_research": "漏洞研究",
+    "threat_hunting": "威胁狩猎",
+    "incident_response": "应急响应",
+    "ai_security": "AI 安全",
+    "appsec": "应用安全",
+    "cloud_data_security": "云与数据安全",
+    "compliance": "合规监管",
+}
+
+# Tag → practice domain (primary)。键顺序即优先级: 具体 tag 先于泛化 tag。
+TAG_PRACTICE_MAP: dict[str, str] = {
+    # AI 安全 (先于泛化 AI/安全 tag 命中)
+    "大模型安全": "ai_security",
+    "AI安全": "ai_security",
+    "AI 安全": "ai_security",
+    "模型安全": "ai_security",
+    "提示注入": "ai_security",
+    "Prompt注入": "ai_security",
+    # 威胁狩猎
+    "威胁情报": "threat_hunting",
+    "威胁狩猎": "threat_hunting",
+    "APT": "threat_hunting",
+    "溯源": "threat_hunting",
+    # 应急响应
+    "应急响应": "incident_response",
+    "安全事件": "incident_response",
+    "勒索软件": "incident_response",
+    # 漏洞研究
+    "漏洞管理": "enterprise_security",  # 漏洞管理流程属安全建设; 具体漏洞研究靠标题关键词
+    "漏洞": "vuln_research",
+    "CVE": "vuln_research",
+    "0day": "vuln_research",
+    # 应用安全
+    "渗透测试": "appsec",
+    "代码审计": "appsec",
+    "SDL": "appsec",
+    "DevSecOps": "appsec",
+    "Web安全": "appsec",
+    "供应链安全": "appsec",
+    # 云与数据安全
+    "数据安全": "cloud_data_security",
+    "云安全": "cloud_data_security",
+    "隐私": "cloud_data_security",
+    "加密": "cloud_data_security",
+    # 合规监管
+    "合规": "compliance",
+    "等保": "compliance",
+    "国标": "compliance",
+    "标准规范": "compliance",
+    "安全审计": "compliance",
+    # 企业安全建设 (泛化 tag 放最后兜底)
+    "安全管理": "enterprise_security",
+    "安全运营": "enterprise_security",
+    "安全架构": "enterprise_security",
+    "安全建设": "enterprise_security",
+    "零信任": "enterprise_security",
+    "攻防演练": "enterprise_security",
+    "红队攻防": "enterprise_security",
+    "CISO": "enterprise_security",
+    "防火墙": "enterprise_security",
+}
+
+# Title keyword → practice domain (secondary)。数组顺序即优先级, 具体 pattern 在前。
+TITLE_PRACTICE_RULES: list[tuple[re.Pattern, str]] = [
+    # AI 安全
+    (re.compile(r"大模型安全|AI安全|AI 安全|模型安全|提示注入|[Pp]rompt\s*[Ii]njection|越狱|数据投毒|对抗样本|AI红队|Agent安全"), "ai_security"),
+    # 漏洞研究
+    (re.compile(r"CVE-\d{4}|0day|0-day|漏洞|POC|EXP|提权|反序列化|栈溢出|堆溢出|命令注入|SQL注入|复现"), "vuln_research"),
+    # 威胁狩猎
+    (re.compile(r"威胁狩猎|威胁情报|ATT&CK|APT|IOC|溯源|恶意样本|黑客组织|沙箱逃逸|TTP"), "threat_hunting"),
+    # 应急响应
+    (re.compile(r"应急响应|事件响应|勒索|入侵事件|安全事件处置|取证|隔离处置"), "incident_response"),
+    # 应用安全
+    (re.compile(r"应用安全|代码审计|SDL|DevSecOps|Web安全|渗透测试|移动安全|APP安全|供应链安全|SSRF|XSS|CSRF"), "appsec"),
+    # 云与数据安全
+    (re.compile(r"云安全|数据安全|容器安全|K8s\s*安全|Kubernetes\s*安全|云原生安全|隐私计算|数据泄露|数据出境|数据分类分级|密钥管理"), "cloud_data_security"),
+    # 合规监管
+    (re.compile(r"等保|关基|数安法|个保法|网络安全法|合规|监管|网信办|工信部|征求意见|安全测评|安全标准"), "compliance"),
+    # 企业安全建设 (泛化兜底)
+    (re.compile(r"安全建设|安全运营|安全体系|SOC|零信任|安全架构|安全意识|安全规划|成熟度|安全团队|防护体系|安全治理"), "enterprise_security"),
+]
+
+
+def classify_practice_domain(
+    tags: list[str],
+    title: str = "",
+) -> str | None:
+    """Classify the security practitioner practice domain (DEV-0176).
+
+    Priority: tags → title keywords. Returns None for non-security content
+    or when no rule matches — the relevance gate consumes None as
+    "no boost, no filter" (降权不删).
+    """
+    # 1. Tag-based
+    for tag in tags:
+        domain = TAG_PRACTICE_MAP.get(tag)
+        if domain:
+            return domain
+
+    # 2. Title-based
+    for pattern, domain in TITLE_PRACTICE_RULES:
+        if pattern.search(title):
+            return domain
+
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════
 # Type classification rules
 # ═══════════════════════════════════════════════════════════════
 
@@ -291,15 +420,17 @@ def classify_item(
     title: str = "",
     source_url: str = "",
 ) -> dict:
-    """Full classification of a single item: domain, type, difficulty.
+    """Full classification of a single item: domain, type, difficulty, practice_domain.
 
     Returns:
-        {"domain": str|None, "type": str|None, "difficulty": str|None}
+        {"domain": str|None, "type": str|None, "difficulty": str|None,
+         "practice_domain": str|None}   # practice_domain since DEV-0176
     """
     return {
         "domain": classify_domain(tags, title, source_url),
         "type": classify_type(tags, title),
         "difficulty": classify_difficulty(tags, title),
+        "practice_domain": classify_practice_domain(tags, title),
     }
 
 
@@ -328,6 +459,7 @@ def batch_classify(items: list[dict]) -> list[dict]:
         item["domain"] = classification["domain"]
         item["type"] = classification["type"]
         item["difficulty"] = classification["difficulty"]
+        item["practice_domain"] = classification["practice_domain"]
         # Derive topic from domain (simple fallback)
         if classification["domain"] and not item.get("topic"):
             item["topic"] = classification["domain"]
@@ -363,10 +495,13 @@ def batch_classify_with_terminology(
 
 
 __all__ = [
+    "PRACTICE_DOMAINS",
+    "PRACTICE_DOMAIN_LABELS",
     "batch_classify",
     "batch_classify_with_terminology",
     "classify_difficulty",
     "classify_domain",
     "classify_item",
+    "classify_practice_domain",
     "classify_type",
 ]

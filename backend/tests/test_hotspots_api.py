@@ -149,3 +149,68 @@ class TestHotspotDetailTags:
         assert "tags" in body
         ids = {t["id"] for t in body["tags"]}
         assert "cve" in ids
+
+
+# ===========================================================================
+# 5. exclude_category (DEV-0175: 工作台聚焦裁决, 前端默认排除 bid)
+# ===========================================================================
+def _make_bid_hotspot(hid: str, title: str = "bid item") -> HotspotItem:
+    now = datetime.now(timezone.utc)
+    return HotspotItem(
+        id=hid,
+        title=title,
+        source="test",
+        url=f"https://example.com/{hid}",
+        category=Category.BID,
+        published_at=now - timedelta(hours=1),
+        fetched_at=now,
+        quality_flags=[],
+    )
+
+
+class TestExcludeCategory:
+    @pytest.fixture(autouse=True)
+    def _clear_list_cache(self):
+        """list_cache 是模块级共享 TTL 缓存, 同 key 跨测试会命中脏结果。"""
+        from backend.cache import list_cache as _list_cache
+
+        _list_cache.clear()
+        yield
+        _list_cache.clear()
+
+    def test_exclude_category_filters_out_bid(self, client, temp_db):
+        """exclude_category=bid 时, bid 条目不出现在列表, 其他分类正常。"""
+        HotspotRepository().upsert_many([
+            _make_hotspot("h-ai", "ai news"),
+            _make_bid_hotspot("h-bid", "procurement notice"),
+        ])
+        r = client.get("/api/hotspots?exclude_category=bid")
+        assert r.status_code == 200
+        items = r.json()["items"]
+        ids = {it["id"] for it in items}
+        assert "h-bid" not in ids
+        assert "h-ai" in ids
+
+    def test_no_exclude_keeps_bid(self, client, temp_db):
+        """不传 exclude_category 时行为与既有版本一致 (bid 条目正常返回)。"""
+        HotspotRepository().upsert_many([
+            _make_hotspot("h-ai2", "ai news"),
+            _make_bid_hotspot("h-bid2", "procurement notice"),
+        ])
+        r = client.get("/api/hotspots")
+        assert r.status_code == 200
+        ids = {it["id"] for it in r.json()["items"]}
+        assert "h-bid2" in ids
+        assert "h-ai2" in ids
+
+    def test_exclude_category_total_consistent(self, client, temp_db):
+        """exclude_category 时 total (去重 url 数) 与 items 口径一致 (不含被排除分类)。"""
+        HotspotRepository().upsert_many([
+            _make_hotspot("h-ai3", "ai news"),
+            _make_bid_hotspot("h-bid3", "procurement notice"),
+        ])
+        r = client.get("/api/hotspots?exclude_category=bid")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["total"] >= 1
+        assert all(it["category"] != "bid" for it in body["items"])

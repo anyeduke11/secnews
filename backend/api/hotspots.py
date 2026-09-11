@@ -20,6 +20,7 @@ async def list_hotspots(
     keyword: str = Query("", description="关键词搜索"),
     region: str = Query("", description="标讯地区筛选（仅 category=bid 有效）"),
     source: str = Query("", description="v1.9.1: 来源筛选（精确匹配 source 字段）"),
+    exclude_category: str = Query("", description="DEV-0175: 排除单一分类（工作台聚焦裁决，前端默认传 bid）"),
     tags: str = Query("", description="v1.7: 逗号分隔 tag id, 触发标签筛选"),
     tag_mode: str = Query("or", pattern="^(and|or)$", description="v1.7: 标签筛选模式"),
 ):
@@ -28,6 +29,8 @@ async def list_hotspots(
     Phase 9 修复：同步 DB query 放 thread pool，避免 cache miss 时阻塞 event loop。
     Phase 8: 新增 region 参数，仅对 category=bid 生效。
     v1.7 Phase 1: 新增 tags/tag_mode 标签筛选 (AND/OR), 传入 tags 时走 list_by_tags。
+    DEV-0175: 新增 exclude_category (工作台聚焦, 前端默认排除 bid; 不传时行为与
+    既有版本完全一致)。
     """
     tag_ids = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
     if tag_ids:
@@ -43,6 +46,7 @@ async def list_hotspots(
         keyword=keyword,
         region=region or None,
         source=source or None,
+        exclude_category=exclude_category or None,
     )
 
 

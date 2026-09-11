@@ -144,7 +144,6 @@ const UTILITY_GROUPS: { label: string; items: { to: string; label: string; note:
     items: [
       { to: '/report', label: '周报 / 月报', note: 'REPORT' },
       { to: '/search', label: '统一搜索', note: 'FIND' },
-      { to: '/bid-alert', label: '标书提醒', note: 'BID' },
       { to: '/history', label: '浏览历史', note: 'HISTORY' },
       { to: '/reviews', label: '间隔复习', note: 'SRS' },
       { to: '/secnews', label: 'SecNews 看板', note: 'BOARD' },

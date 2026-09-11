@@ -201,7 +201,7 @@ export function AppRoutes() {
         )}
 
         {/* 找回丢失前端入口 (v0.6.3): 后端路由已存在, 前端从未接入的 4 域 */}
-        <Route path="/bid-alert" element={<Suspense fallback={<PageFallback />}><P.BidAlertPage onBack={goBack} /></Suspense>} />
+        {/* DEV-0175: /bid-alert 已随工作台聚焦裁决剔除 (标讯不再属于安全从业者工作台) */}
         <Route path="/tags" element={<Suspense fallback={<PageFallback />}><P.TagsPage onBack={goBack} /></Suspense>} />
         <Route path="/extract" element={<Suspense fallback={<PageFallback />}><P.ExtractPage onBack={goBack} /></Suspense>} />
         <Route path="/search" element={<Suspense fallback={<PageFallback />}><P.UnifiedSearchPage onBack={goBack} /></Suspense>} />

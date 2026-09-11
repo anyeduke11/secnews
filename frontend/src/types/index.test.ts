@@ -13,7 +13,8 @@ describe('getCategoryColor', () => {
     expect(getCategoryColor('security')).toBe('#e85d5d');
     expect(getCategoryColor('finance')).toBe('#f0c929');
     expect(getCategoryColor('startup')).toBe('#7c6aff');
-    expect(getCategoryColor('bid')).toBe('#e8891a');
+    // DEV-0175: bid 已从展示枚举剔除, 走 unknown 兜底色
+    expect(getCategoryColor('bid')).toBe('#7A6F5C');
     expect(getCategoryColor('github')).toBe('#9b8bff');
   });
 
@@ -29,7 +30,8 @@ describe('getCategoryLabel', () => {
     expect(getCategoryLabel('security')).toBe('网络安全');
     expect(getCategoryLabel('finance')).toBe('金融 / 投资');
     expect(getCategoryLabel('startup')).toBe('独立开发 / 创业');
-    expect(getCategoryLabel('bid')).toBe('招标资讯');
+    // DEV-0175: bid 已从展示枚举剔除, 回退原始字符串
+    expect(getCategoryLabel('bid')).toBe('bid');
     expect(getCategoryLabel('github')).toBe('GitHub 项目');
   });
 

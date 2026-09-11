@@ -225,7 +225,7 @@ export const CATEGORIES: CategoryInfo[] = [
   { id: 'security', label: '网络安全', color: '#e85d5d' },
   { id: 'finance', label: '金融 / 投资', color: '#f0c929' },
   { id: 'startup', label: '独立开发 / 创业', color: '#7c6aff' },
-  { id: 'bid', label: '招标资讯', color: '#e8891a' },
+  // DEV-0175: bid (招标资讯) 已随工作台聚焦裁决从展示枚举剔除 (类型联合保留以兼容存量数据)
   { id: 'github', label: 'GitHub 项目', color: '#9b8bff' },
   { id: 'tech', label: 'IT / 科技', color: '#4ecdc4' },
 ];

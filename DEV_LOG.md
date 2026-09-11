@@ -715,3 +715,24 @@
   - `docs/README.md`: 当前权威表登记两份新文档。
 - **测试验证**: 纯文档批, 无代码门禁可跑; 事实核对均在本会话完成: `auto_classifier.py` 三级打标结构与消费方 (collect/knowledge jobs + knowledge API + compiler; digest.py 经 compiler 间接)、`Category` 8 枚举值、settings.py:142 kv+audit 先例、`/api/v1/knowledge/{id}/reuse`、`knowledge_review.py` 每日 job、`/bid-alert` 路由接线。**独立 agent 文档审计已完成** (code-reviewer, 非作者会话): 13 检查项 **13 PASS / 0 FAIL, 0 P0 / 0 P1 / 6 P2**, 报告 `.ua/tmp/audit-workbench-focus-docs.md`; 4 条事实性 P2 已当场修正 (①先例端点实为 `POST /api/settings/llm-provider` 非 PATCH ②`bid_region` 字段不存在, 实为共享 `region` 字段由 `_extract_region` 填充 ③digest.py 为间接消费 ④"每周人工审计"改为 P1 新建机制非既有能力); 其余 2 条 P2 (词表运营细节、`backend/quality/pipeline.py` docstring 陈旧写"9 道"——非本批引入) 留待后续批次。
 - **潜在风险**: ①PRD 中 P0 排序加权"向后兼容断言"依赖固定种子 fixture, 现有 content API 测试未必有该基建, T0.4 开工时可能需先补 fixture ②实践域词表 8 域划分为本方案新设, 未经真实语料验证, T0.2 标注集扩展即首轮验证, 不准则按 DEV_PLAN 风险表升级 P1 LLM 分类 ③本批只落规划, 双视角方案 若未来重启须新立 PRD 不得直接复活本文被否决条款。
+
+## [DEV-0175] T0.0 剔除工作台标讯功能 (owner 追加裁决 R2' 取代 R2) — /bid-alert 全链下线 + 资讯流默认排除 bid
+- **时间**: 2026-09-12 07:15
+- **类型**: 功能开发 (功能剔除) + 配置变更 (PRD R2 裁决更新)
+- **关联模块**: `frontend:routes`, `frontend:sentinel-shell`, `frontend:feed`, `backend:api/hotspots`, `backend:services/hotspot_service`, `backend:repository/hotspot_repo`
+- **关联文件**: `frontend/src/routes/index.tsx`, `frontend/src/routes/lazy-imports.ts`, `frontend/src/components/bid/BidAlertPage.tsx` (删除), `frontend/src/components/sentinel/SentinelShell.tsx`, `frontend/src/components/sentinel/SentinelHomePage.tsx`, `frontend/src/components/sentinel/SentinelJudgePage.tsx`, `frontend/src/components/secnews/feed/FeedFilters.tsx`, `frontend/src/types/index.ts`, `frontend/src/types/index.test.ts`, `frontend/src/contexts/I18nContext.tsx`, `frontend/src/hooks/useHotspotData.ts`, `frontend/src/routes/ROUTE_REGISTRY.md`, `backend/api/hotspots.py`, `backend/services/hotspot_service.py`, `backend/repository/hotspot_repo.py`, `backend/tests/test_hotspots_api.py`, `docs/WORKBENCH_FOCUS_PRD_v1.0.md`
+- **问题描述**: owner 裁决"剔除和安全从业者 AI 工作台中标讯相关的功能"，取代 PRD 初版 R2"标讯维持现状"。标讯触点 11 处 (路由/懒加载/组件/壳菜单/Feed chip/i18n 双语/首页与判断页分类数组/共享 CATEGORIES 枚举/资讯流数据)。
+- **实现思路**: 分层剔除——①UI 功能面全删 (路由+懒加载+组件+菜单入口+chip+枚举+双语 key); ②数据面用新增的 `exclude_category` 查询参数在资讯流默认排除 bid (repo WHERE `category != ?` → service 透传 + 缓存键 + balanced 整桶跳过 + total 同口径 → router Query 参数), **不传参数时行为与既有版本逐字节一致** (向后兼容, API 契约不变); ③后端 `/api/bid-alert/*` 与 bid 采集器暂保留 (数据层不动, 是否停采待 owner 另行裁决); ④TS 类型联合保留 `'bid'` (存量 bid 数据反序列化兼容), 仅从展示枚举/筛选档移除。修复过程发现: `list_cache` 模块级 TTL 缓存跨测试污染 (先跑的用例缓存空结果, 后用例同 key 命中脏数据), 新增 autouse fixture 清缓存。
+- **核心变更**:
+  - backend/api/hotspots.py: `list_hotspots` 新增 `exclude_category` Query 参数, 透传 service; 不传=行为不变
+  - backend/services/hotspot_service.py: `list_hotspots`/`_query_balanced` 新增参数; 缓存键纳入该参数; balanced 模式命中分类整桶跳过; total 走 `count_unique_urls_in_range(exclude_category=...)` 保持 "X / Y" 分母同口径
+  - backend/repository/hotspot_repo.py: `query`/`count_unique_urls_in_range` 新增 `exclude_category` WHERE 条件
+  - frontend: 路由 `/bid-alert` 删除 (index.tsx:204), lazy-imports BidAlertPage 导出删除, `components/bid/BidAlertPage.tsx` git rm, SentinelShell 溢出菜单"标书提醒"项删除, FeedFilters bid 档删除, I18nContext `feed.filter_bidding` 双语 key 删除, SentinelHomePage CHANNEL_DEFS/SentinelJudgePage SIGNAL_DEFS bid 项删除, types/index.ts CATEGORIES bid 项删除 (类型联合保留)
+  - frontend/src/hooks/useHotspotData.ts: 请求参数固定追加 `exclude_category=bid` (全站资讯流默认排除标讯)
+  - ROUTE_REGISTRY.md: 移除 /bid-alert 行 + 剔除留痕注
+  - docs/WORKBENCH_FOCUS_PRD_v1.0.md §0: R2 → R2' (剔除裁决)
+- **测试验证**:
+  - `pytest backend/tests/test_hotspots_api.py`: **9 passed** (新增 TestExcludeCategory 3 用例: 排除生效/不传兼容/total 同口径; 首轮暴露 list_cache 跨测试污染, autouse fixture 清缓存后全绿)
+  - `pytest test_hotspots_api + test_api + test_cache`: **80 passed** (列表/缓存相邻域无回归)
+  - `npx tsc --noEmit`: 0 错; `npx vitest run`: **491 passed** (types/index.test.ts 2 个 bid 断言按剔除裁决同步更新为兜底行为断言); `npx vite build`: OK
+- **潜在风险**: ①bid 采集器仍在采集入库 (数据层未动), 若 owner 确认彻底停采, 需在 `scheduler.py` job 门控或 collector 注册层处理并同步 feature_gates ②历史收藏/浏览历史/统一搜索中残留的 bid 条目仍可见 (数据非功能), HotspotCard 的 bid_status 徽标保留以正确渲染存量 ③`/api/hotspots` 不传新参数的第三方消费者 (MCP 工具等) 完全不受影响

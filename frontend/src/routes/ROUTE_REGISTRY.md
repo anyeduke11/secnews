@@ -58,7 +58,9 @@
 |---|---|---|
 | `/codegarden` (+`/phase2b`) | CodegardenPage / Phase2b | `codegarden` (+`codegarden_phase2b`) |
 | `/crm` | CrmPage | `crm` |
-| `/bid-alert` `/tags` `/extract` `/search` | BidAlertPage / TagsPage / ExtractPage / UnifiedSearchPage | - |
+| `/tags` `/extract` `/search` | TagsPage / ExtractPage / UnifiedSearchPage | - |
+
+> DEV-0175 (2026-09-12): `/bid-alert` (BidAlertPage) 已随「工作台聚焦」裁决剔除——路由/懒加载/壳菜单入口全部移除, 后端 `/api/bid-alert/*` 与 bid 采集器暂保留 (数据层不动, 是否停采待 owner 裁决)。
 
 ## 二、后端 API 域 → 前端消费关系
 

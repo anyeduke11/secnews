@@ -17,7 +17,7 @@ const CATEGORY_KEYS = [
   { value: 'general', i18n: 'feed.filter_general' },
   { value: 'finance', i18n: 'feed.filter_finance' },
   { value: 'ai', i18n: 'feed.filter_all' },       // 复用 All 占位 — 实际可加 feed.filter_ai
-  { value: 'bid', i18n: 'feed.filter_bidding' },
+  // DEV-0175: bid 档已随工作台聚焦裁决剔除 (标讯不再属于安全从业者工作台)
 ];
 
 export function FeedFilters({ category, keyword, onCategoryChange, onKeywordChange }: FeedFiltersProps) {

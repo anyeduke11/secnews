@@ -158,9 +158,7 @@ export const CrmPage = React.lazy(() =>
 );
 
 // 找回丢失前端入口 (v0.6.3: 后端路由已存在, 前端从未接入)
-export const BidAlertPage = React.lazy(() =>
-  import('../components/bid/BidAlertPage').then(m => ({ default: m.BidAlertPage }))
-);
+// DEV-0175: BidAlertPage 已随工作台聚焦裁决移除 (路由/入口一并剔除)
 export const TagsPage = React.lazy(() =>
   import('../components/tags/TagsPage').then(m => ({ default: m.TagsPage }))
 );

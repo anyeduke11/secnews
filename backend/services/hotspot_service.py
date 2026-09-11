@@ -103,6 +103,7 @@ class HotspotService:
         keyword: str = "",
         region: str | None = None,  # Phase 8: 标讯地区筛选
         source: str | None = None,  # v1.9.1: 来源筛选
+        exclude_category: str | None = None,  # DEV-0175: 工作台聚焦裁决 (前端默认排除 bid)
     ) -> dict:
         """列表查询。
 
@@ -137,6 +138,7 @@ class HotspotService:
         cache_key = (
             f"hotspots:list:{category}:{tr.value}"
             f":{cursor or ''}:{limit}:{keyword}:{source or ''}"
+            f":{exclude_category or ''}"
             f":{'bal' if balanced else 'raw'}"
         )
         if cache_key in list_cache:
@@ -147,7 +149,7 @@ class HotspotService:
 
         cat_enum = None if category == "all" else Category(category)
         if balanced:
-            items, next_cursor_raw = self._query_balanced(tr, limit)
+            items, next_cursor_raw = self._query_balanced(tr, limit, exclude_category)
         else:
             items, next_cursor_raw = _hrepo.query(
                 category=cat_enum,
@@ -157,6 +159,7 @@ class HotspotService:
                 limit=limit,
                 region=region,
                 source=source,
+                exclude_category=exclude_category,
             )
 
         # Phase 9 修复:同 url 多条 → 保留 winner
@@ -174,7 +177,9 @@ class HotspotService:
         # 之前用 count_in_range 返回行数 (同 url 多次入库会算多次),
         # 导致 "X / 841" 而 X 远小于 841, 分页器提前显示 "已是最后一页"
         cat_for_count = None if category == "all" else category
-        true_total = _hrepo.count_unique_urls_in_range(tr, category=cat_for_count, keyword=keyword)
+        true_total = _hrepo.count_unique_urls_in_range(
+            tr, category=cat_for_count, keyword=keyword, exclude_category=exclude_category
+        )
 
         # Phase 39: 最近一次采集的产出
         from backend.services.collection_service import get_latest_run as _get_latest_run
@@ -199,7 +204,7 @@ class HotspotService:
         return result
 
     @staticmethod
-    def _query_balanced(tr, limit: int) -> tuple[list[HotspotItem], bool]:
+    def _query_balanced(tr, limit: int, exclude_category: str | None = None) -> tuple[list[HotspotItem], bool]:
         """分类均衡查询: 6 分类各取 N 条, 混合按 ingested_at DESC 排, **先 dedupe 再 take**。
 
         解决 security 排前挤掉其他 5 分类的问题。
@@ -209,6 +214,9 @@ class HotspotService:
 
         Phase 35: 移除 ``Category.TECH``(ai query 已合并 tech), 避免 tech 重复
         入桶导致均衡后 tech 条目翻倍挤掉其他分类。
+
+        DEV-0175: ``exclude_category`` 命中的分类整桶跳过 (工作台聚焦裁决,
+        前端默认排除 bid), 其余分类配额不变。
 
         Phase 42 修复:
         - ``per_cat = max(limit, 20)`` (Phase 24 用 limit//6=16, dedupe 后 < 100, 用户报
@@ -228,6 +236,8 @@ class HotspotService:
             Category.BID,
             Category.GITHUB,
         ):
+            if exclude_category and cat.value == exclude_category:
+                continue
             try:
                 items, _ = _hrepo.query(
                     category=cat,

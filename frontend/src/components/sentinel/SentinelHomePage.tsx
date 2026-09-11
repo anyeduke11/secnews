@@ -57,7 +57,7 @@ const CHANNEL_DEFS: { id: string; label: string; color: string }[] = [
   { id: 'security', label: '网络安全', color: 'var(--sn-cat-sec)' },
   { id: 'finance', label: '金融科技', color: 'var(--sn-cat-fin)' },
   { id: 'startup', label: '创投', color: 'var(--sn-cat-vc)' },
-  { id: 'bid', label: '招投标', color: 'var(--sn-cat-bid)' },
+  // DEV-0175: bid (招投标) 已随工作台聚焦裁决剔除
   { id: 'github', label: 'GitHub', color: 'var(--sn-cat-git)' },
   { id: 'tech', label: '技术圈', color: 'var(--sn-cat-tech)' },
 ];

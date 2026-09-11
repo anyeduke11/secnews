@@ -46,7 +46,7 @@ const SIGNAL_DEFS: { key: keyof TrendPoint; label: string; color: string }[] = [
   { key: 'github', label: 'GitHub', color: 'var(--sn-cat-git)' },
   { key: 'tech', label: '技术圈', color: 'var(--sn-cat-tech)' },
   { key: 'finance', label: '金融', color: 'var(--sn-cat-fin)' },
-  { key: 'bid', label: '招标', color: 'var(--sn-cat-bid)' },
+  // DEV-0175: bid (招标) 已随工作台聚焦裁决剔除
   { key: 'startup', label: '创投', color: 'var(--sn-cat-vc)' },
 ];
 

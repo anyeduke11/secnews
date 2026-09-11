@@ -260,6 +260,7 @@ class HotspotRepository:
         limit: int = _DEFAULT_LIMIT,
         region: str | None = None,  # Phase 8: 标讯地区筛选
         source: str | None = None,  # v1.9.1: 来源筛选 (头条/条目行来源可点击)
+        exclude_category: str | None = None,  # DEV-0175: 工作台聚焦裁决, 排除单一分类 (前端默认排除 bid)
     ) -> tuple[list[HotspotItem], str | None]:
         """List hotspots with category / time / keyword / cursor / region
         / source filters.
@@ -306,6 +307,10 @@ class HotspotRepository:
         if source:
             where_clauses.append("source = ?")
             params.append(source)
+
+        if exclude_category:
+            where_clauses.append("category != ?")
+            params.append(exclude_category)
 
         kw_sql, kw_params = self._keyword_condition(keyword)
         if kw_sql:
@@ -600,6 +605,7 @@ class HotspotRepository:
         time_range: TimeRange,
         category: str | None = None,
         keyword: str = "",
+        exclude_category: str | None = None,
     ) -> int:
         """Phase 42 修复: 统计时间窗口内的 **去重 url 数** (供 list 翻页 total)。
 
@@ -611,7 +617,8 @@ class HotspotRepository:
           重复 url, 真正唯一 url 只有 83 条)
 
         ``keyword`` 必须与 :meth:`query` 同口径, 否则搜索时 "X / Y" 的分母会
-        退回全窗口总数。
+        退回全窗口总数。``exclude_category`` 同理 (DEV-0175), 与 query 的排除
+        条件保持同口径, 否则分页分母会偏大。
         """
         if not isinstance(time_range, TimeRange):
             raise InternalException(f"time_range must be TimeRange, got {type(time_range).__name__}")
@@ -622,6 +629,9 @@ class HotspotRepository:
             "is_hidden = 0",
         ]
         params: list = [start_iso]
+        if exclude_category:
+            where_clauses.append("category != ?")
+            params.append(exclude_category)
         if category and category != "all":
             if category == "ai":
                 where_clauses.append("category IN ('ai', 'tech')")

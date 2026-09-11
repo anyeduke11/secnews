@@ -39,6 +39,12 @@ class SourceResult(BaseModel):
     item_count:
         How many ``HotspotItem`` records were produced from this source.
         ``0`` on failure or empty page.
+    raw_count:
+        cadence 修正批 (存活/有用分离): 相关性 / 质量过滤 **之前** 解析到的候选
+        条目数 (通用锚点数 / RSS entries 数)。``raw_count > 0 and item_count == 0``
+        = 源可达且可解析、只是本轮没有业务相关内容 (招标源常态); 健康机与覆盖
+        统计用它判存活, ``item_count`` 只表达有用性。未接线的路径保持 0,
+        消费方一律取 ``fetched_count`` (= max) 向后兼容。
     fallback_used:
         True if the source required a fallback (e.g. the request failed
         and we returned a hard-coded item). Currently informational;
@@ -52,9 +58,15 @@ class SourceResult(BaseModel):
     source_name: str
     source_url: str
     item_count: int = 0
+    raw_count: int = 0
     fallback_used: bool = False
     error_msg: str | None = None
     duration_ms: int = 0
+
+    @property
+    def fetched_count(self) -> int:
+        """存活口径: 过滤前候选数, 未接线路径回落 item_count。"""
+        return max(self.raw_count, self.item_count)
 
 
 class CollectionResult(BaseModel):

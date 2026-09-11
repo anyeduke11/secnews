@@ -78,6 +78,7 @@ class SourceStatsRepository:
         source_url: str,
         item_count: int,
         error_msg: str | None = None,
+        produced: bool | None = None,
     ) -> None:
         """collect 完一条 source 后调用，累加统计并按阈值升级 status。
 
@@ -90,19 +91,24 @@ class SourceStatsRepository:
         source_url:
             源 URL.
         item_count:
-            本次 collect 产出的 item 数。>= 1 视为有产出。
+            本次 collect 产出的 item 数 (有用口径, 累加进 ``total_items``)。
         error_msg:
             本次 collect 的错误信息 (无错为 ``None``).
+        produced:
+            cadence 修正批 (存活/有用分离): 显式的 "本轮源是否有产出" 判定。
+            调用方传 ``SourceResult.fetched_count >= 1`` (过滤前候选数), 让
+            "40 条锚点 / 0 条相关" 的招标源保持 active; 不传时沿用
+            ``item_count >= 1`` 旧语义。
 
         副作用
         ------
-        ``zero_yield_runs`` 在 item_count == 0 时 +1，否则归零。
+        ``zero_yield_runs`` 在未产出时 +1，否则归零。
         ``status`` 在 ``zero_yield_runs`` 跨过阈值时升级 (``active`` → ``stale`` → ``dead``)。
         """
         if not category or not source_name:
             return
         now = _now_iso()
-        produced = item_count >= 1
+        produced = (item_count >= 1) if produced is None else bool(produced)
         conn = get_connection()
         # 读当前 row（如果存在）
         cur = conn.execute(

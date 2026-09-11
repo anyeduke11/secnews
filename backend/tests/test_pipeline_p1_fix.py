@@ -459,18 +459,21 @@ class TestP0SsrfLayer3BasePy:
               feed_url TEXT,
               api_url TEXT,
               priority INTEGER DEFAULT 50,
-              enabled INTEGER DEFAULT 1
+              enabled INTEGER DEFAULT 1,
+              status TEXT DEFAULT 'active',
+              cadence_seconds INTEGER DEFAULT 1800,
+              last_fetch_at TEXT
             )
             """
         )
         # 插两行: 一行 null url, 一行正常
         conn.execute(
-            "INSERT INTO crawler_sources VALUES (?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO crawler_sources (id, category, name, kind, url, feed_url, api_url, priority, enabled) VALUES (?,?,?,?,?,?,?,?,?)",
             ("sec:wechat_null", "security", "微步在线", "html",
              "", "", "", 80, 1),
         )
         conn.execute(
-            "INSERT INTO crawler_sources VALUES (?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO crawler_sources (id, category, name, kind, url, feed_url, api_url, priority, enabled) VALUES (?,?,?,?,?,?,?,?,?)",
             ("sec:rss_ok", "security", "freebuf", "rss",
              "", "https://www.freebuf.com/feed/", "", 80, 1),
         )
@@ -515,19 +518,21 @@ class TestP0SsrfLayer3BasePy:
             CREATE TABLE crawler_sources (
               id TEXT PRIMARY KEY, category TEXT NOT NULL, name TEXT NOT NULL,
               kind TEXT, url TEXT, feed_url TEXT, api_url TEXT,
-              priority INTEGER DEFAULT 50, enabled INTEGER DEFAULT 1
+              priority INTEGER DEFAULT 50, enabled INTEGER DEFAULT 1,
+              status TEXT DEFAULT 'active', cadence_seconds INTEGER DEFAULT 1800,
+              last_fetch_at TEXT
             )
             """
         )
         # url=NULL 但实际是 wechat 源 (历史脏数据, Layer 1 漏过)
         conn.execute(
-            "INSERT INTO crawler_sources VALUES (?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO crawler_sources (id, category, name, kind, url, feed_url, api_url, priority, enabled) VALUES (?,?,?,?,?,?,?,?,?)",
             ("sec:wechat_dirty", "security", "微步在线", "html",
              "", "", "", 80, 1),
         )
         # 但仍有一个真 wechat 源在 security category, 不该被 Layer 3 误吞
         conn.execute(
-            "INSERT INTO crawler_sources VALUES (?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO crawler_sources (id, category, name, kind, url, feed_url, api_url, priority, enabled) VALUES (?,?,?,?,?,?,?,?,?)",
             ("sec:wechat_with_url", "security", "看雪学院", "html",
              "https://www.kanxue.com/", "", "", 75, 1),
         )

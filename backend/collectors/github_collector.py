@@ -34,6 +34,7 @@ from urllib.parse import urlparse
 from backend.collectors.base import BaseCollector
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
+from backend.utils.http_text import read_text_lenient
 from backend.utils.url_safety import UrlSafetyError, validate_url
 
 GITHUB_SOURCES: list[dict] = [
@@ -203,29 +204,57 @@ class GitHubCollector(BaseCollector):
         # used_proxy / used_crawl4ai 在 P2-1 已删除赋值路径 — 改用 self.logger.debug 直出
         # 此处不需要任何状态标志位
 
-        # ---- 第 1 步: aiohttp 直连 ----
-        try:
-            timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
-            async with aiohttp.ClientSession(timeout=timeout_obj) as session:
-                async with session.get(
-                    source_url,
-                    headers={"User-Agent": _base.UA},
-                    ssl=False,
-                ) as resp:
+        # ---- 第 1 步: aiohttp 直连 (国内) / 代理优先 (国际源, cadence T6) ----
+        # prefer_proxy=True 时第一跳走 ProxySession (注入代理, 代理链路失败自动切
+        # 直连重试) — github.com 直连 15s 黑洞, 此前每轮先烧满直连超时才轮到代理。
+        from backend.proxy_config import prefer_proxy
+
+        if prefer_proxy(source_url):
+            try:
+                from backend.proxy_session import ProxySession
+
+                timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
+                async with ProxySession(
+                    headers={"User-Agent": _base.UA}, timeout=timeout_obj
+                ) as session, session.get(source_url, ssl=False) as resp:
                     if resp.status == 200:
-                        html = await resp.text()
+                        html = await read_text_lenient(resp)
                     else:
                         self.logger.debug(
-                            f"github direct {source_name!r} HTTP {resp.status}"
+                            f"github proxy-first {source_name!r} HTTP {resp.status}"
                         )
-            if html:
-                self.logger.debug(f"github direct OK {source_name!r}")
-        except Exception as e:
-            self.logger.debug(
-                f"github direct failed {source_name!r}: "
-                f"{type(e).__name__}: {str(e)[:60]}"
-            )
-            html = None
+                if html:
+                    self.logger.debug(f"github proxy-first OK {source_name!r}")
+            except Exception as e:
+                self.logger.debug(
+                    f"github proxy-first failed {source_name!r}: "
+                    f"{type(e).__name__}: {str(e)[:60]}"
+                )
+                html = None
+
+        if html is None:
+            try:
+                timeout_obj = aiohttp.ClientTimeout(total=self.timeout)
+                async with aiohttp.ClientSession(timeout=timeout_obj) as session:
+                    async with session.get(
+                        source_url,
+                        headers={"User-Agent": _base.UA},
+                        ssl=False,
+                    ) as resp:
+                        if resp.status == 200:
+                            html = await resp.text()
+                        else:
+                            self.logger.debug(
+                                f"github direct {source_name!r} HTTP {resp.status}"
+                            )
+                if html:
+                    self.logger.debug(f"github direct OK {source_name!r}")
+            except Exception as e:
+                self.logger.debug(
+                    f"github direct failed {source_name!r}: "
+                    f"{type(e).__name__}: {str(e)[:60]}"
+                )
+                html = None
 
         # ---- 第 2 步: 直连失败, 走 ProxySession 代理兜底 ----
         if html is None or len(html.strip()) < 500:
@@ -333,21 +362,26 @@ class GitHubCollector(BaseCollector):
         seen_urls: set[str] = set()
 
         # 策略 1：从 article 卡片提取（GitHub Trending 页面结构）
-        # 匹配 <article>...<h1><a href="/owner/repo">...</a></h1>...</article>
+        # 2026-09 实测新版 markup: repo 链接不再包在 <h1>/<h2> 里, 而是 article 内
+        # 普通锚点 `<a href="/owner/repo">owner / repo</a>`, 另有 /login (Star)、
+        # /stargazers、/forks 卫星链接 — 旧正则 13 条全漏 (代理修复后仍 0 条的根因)。
+        # 改为遍历 article 内全部锚点, 交给 _is_repo_url 严格过滤 (段数/查询参数/
+        # 非项目路径规则自动排除卫星链接)。
         article_pattern = re.compile(
             r'<article[^>]*>(.*?)</article>',
             re.DOTALL | re.IGNORECASE,
         )
         repo_link_pattern = re.compile(
-            r'<h[12][^>]*>\s*<a[^>]*href="(/[^"]+)"[^>]*>([^<]+)</a>',
-            re.IGNORECASE,
+            r'<a[^>]*href="(/[^"]+)"[^>]*>(.*?)</a>',
+            re.DOTALL | re.IGNORECASE,
         )
 
         for article_match in article_pattern.finditer(html):
             article_html = article_match.group(1)
             for link_match in repo_link_pattern.finditer(article_html):
                 href = link_match.group(1)
-                text = link_match.group(2).strip()
+                text = re.sub(r"<[^>]+>", " ", link_match.group(2))
+                text = re.sub(r"\s+", " ", text).strip()
                 if not text or len(text) < 2:
                     continue
                 full_url = self._resolve_url(href, source["url"])

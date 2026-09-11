@@ -16,7 +16,7 @@ import { KnowledgeLayout } from './knowledge/KnowledgeLayout';
 import type { KnowledgeAreaKey } from './knowledge/KnowledgeTabs';
 
 interface KnowledgePageProps {
-  onBack?: () => void; // 兼容旧 props, 实际由 KnowledgeLayout 内部 useGoHome 处理
+  onBack?: () => void; // 兼容旧 props, 实际由 KnowledgeLayout 内部 useGoBack 处理
 }
 
 export function KnowledgePage(_props: KnowledgePageProps) {

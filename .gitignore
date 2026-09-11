@@ -97,6 +97,7 @@ hotspot.db-wal
 hotspot.db-shm
 
 # Backup / runtime cache
+.merkle-snapshot.json
 backend/hotspot.db.bak-*
 backend/hotspot.db.bak-dedup-*
 backend/cache_data.json
@@ -140,7 +141,12 @@ dev_data/
 # 工作树 (源码) 不入仓 — 防止仓库膨胀. 真 vendor clone 通过
 # scripts/t10_live_trace.py 走 --live 模式按 lock 重建 (gitignore
 # 整目录, 含 .git); 不在仓内保留 .git 副本以避免 9k+ 文件膨胀。
-runtime/upstreams/dsh/**
-runtime/upstreams/pi/**
+# v085-review F9: 从按子目录 (dsh/**/pi/**) 收紧为整目录 — 探测/重建脚本
+# 可能在目录根部落 lock 副本等临时文件 (实测出现过 upstreams/ 嵌套目录),
+# 顶层 lock 真相源在 runtime/upstreams.lock.json, 不受影响。
+runtime/upstreams/
 # 例外 (显式 pathspec, 不会被 ``git add .`` 拉到, 但 ``git add -f`` 可入):
 # - 真实 vendor checkout 由 T10 live 模式按 lock 重新构建, 不入仓.
+
+# cadence 修正批: 离线源诊断/退役清单等本地产出 (含域名与错误明文, 不入仓)
+reports/

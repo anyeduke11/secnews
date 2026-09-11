@@ -97,7 +97,7 @@ async def test_telegram_returns_empty_when_sources_fail(monkeypatch):
     """
     c = TelegramCollector()
     monkeypatch.setattr(c, "sources", [])
-    monkeypatch.setattr(c, "_load_sources_from_registry", lambda: None)
+    monkeypatch.setattr(c, "_load_sources_from_registry", lambda **_: None)
 
     items = await c.collect()
     assert items == [], (

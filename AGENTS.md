@@ -1,39 +1,28 @@
 # SecNews Knowledge Dashboard — 安全从业者 AI 助手的平台看板层
 
-> **当前状态 (2026-09-08, v0.8.5 demo 轨道)**: **v0.8.5 反向收敛已裁决** — v0.8 Sentinel 三层 (`/` 资料层 → `/judge` 判断层 → `/action` 行动层) 恢复为**唯一壳** (SentinelShell + 管道心跳条全站常驻), v1.0 九领域对象/三类 receipt 降级为嵌入三层的能力区块 (SignalPanel/CaseQueuePanel/ExecOverviewPanel); v1 四入口 `/workbench` `/intel` `/cases` 降级为重定向, **V1SentinelShell 物理删除**。唯一权威 spec = `docs/v0.8.5/V0.8.5_PLAN.md` (路由表 §5 / 接口消费表 §6 / 独立验收门 FactCheck+G1-G4); 实现与验证分离, 实现侧不得自评 PASS。开发在 `feat/v0.8.5-demo` 分支, 评审通过合入 main 打 tag `v0.8.5`。新能力只能以三层区块进入, 禁止新一级入口/新壳 (frontend/src/AGENTS.md 硬规则)。dsh 仍为受管子进程, ai_hub 弹性层与 v0.8 Skills 治理沿用 v0.8.2 口径。
-> 历史决策 (产品三层架构裁决 / wiki-first 存储哲学 / Phase 7 退役冻结 / v1.0 四入口弯路与回摆理由) 见 `PROGRESS.md`、`docs/v0.8.5/V0.8.5_PLAN.md` §0 与 `git log`，不在此重复。
+> **当前状态 (2026-09-09, v0.8.5)**: v0.8 Sentinel 三层 (`/` 资料层 → `/judge` 判断层 → `/action` 行动层) 是**唯一壳** (SentinelShell + 管道心跳条全站常驻), v1.0 九领域对象/三类 receipt 只能以嵌入三层的能力区块进入 (SignalPanel/CaseQueuePanel/ExecOverviewPanel); v1 四入口 `/workbench` `/intel` `/cases` 仅为重定向兼容 (透传 query)。唯一权威 spec = `docs/v0.8.5/V0.8.5_PLAN.md` (§5 路由表 / §6 接口消费表 / §10 一致性门); 实现与验证分离, 实现侧不得自评 PASS。新能力只能以三层区块进入, 禁止新一级入口/新壳 (frontend/src/AGENTS.md 硬规则)。**2026-09-10 壳统一 (DEV-0168)**: 工具页 `PageLayout` 亦以 `<SentinelShell layer={null}>` 为壳 (顶部横向导航 + 更多菜单高亮当前页), 左侧 AppNav 物理删除, SK 能力包 / 知识管理能力归位 `/skill-store` `/knowledge` 页内; spec §5 已附修订注。dsh 为受管子进程, :3210 降级链 `not_configured→mock→ai_hub`, 新文档勿再写"独立网关"。
+> 历史决策 (三层架构裁决 / wiki-first 存储哲学 / Phase 7 退役冻结 / v1.0 四入口弯路与回摆) 见 `PROJECT.md`、`PROGRESS.md`、`docs/README.md` 与 `git log`, 不在此重复。
 
----
+## 文档地图
 
-## CodeGarden Phase 2b — Service Mesh / Resource Hub / Orchestration Engine (v0.3.0)
+- 接手顺序: 本文件 → `PROJECT.md` → `PROGRESS.md` 活跃段
+- **审计事实源**: `docs/CRITICAL_REVIEW_2026-09-03.md` (19 finding 逐项标 ✅/◐/❌) — 动手前先查对应项状态, 勿凭旧印象
+- **ai_hub 红线**: 未裁决前勿动 ai_hub 调用链 (`gateway._try_order` / `service._resolve_provider`)
+- 归档: 已交付版本族/一次性审计在 `docs/archived/` (2026-09-09 整理批 = `2026-09-09-sweep/`), 台账中的旧路径以归档目录同名文件为准
+- **架构图**: `hotspot-architecture.html` + `hotspot-architecture.candidate.json` 已入仓 — **candidate.json 是唯一编辑入口**, HTML 由 `archify deliver` 生成不手改; 硬约束: viewBox 宽 ≤~1390 (context 字号 9px 上限 × 投影 ≥6px @1440) / 列距 ≥40px (26px 以下渲染器崩溃) / 副标签长度按盒宽预算 → **加节点必先删节点**; 复跑 archify 会覆盖入仓产物
 
-- M2 `cg_services` 表 + 自动发现 (lsof/docker/pm2) + 拓扑图 SVG + 日志/指标/重启
-- M3 `cg_resources` 表 (port/domain/env_template/volume) + 8898 端口保护 + Fernet 加密
-- M4 `cg_dependencies` 表 + `cg_events` 表 + Playbook YAML 执行 + BFS 影响分析
-- 调度器: job 16 `cg_service_scan` (300s) + job 17 `cg_event_process` (60s)
-- 详细设计: [`docs/CodeGarden_PRD_v1.7.md`](docs/CodeGarden_PRD_v1.7.md)
+## 架构数字门禁
 
-## v0.4.3 — Core/Extension 软分层 + Feature Gates (2026-08-18)
+架构数字由 `scripts/generate_meta.py` AST 反推维护 (58 jobs / 14 collectors / 85 routers / 126 services)。改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
 
-> **架构数字由 `scripts/generate_meta.py` AST 反推维护** (58 jobs / 14 collectors / 85 routers / 127 services),
-> 改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
+## v0.4.3 — Core/Extension 软分层 + Feature Gates
 
-- **开关源**: `backend/config/feature_gates.toml` — 当前 13 gate: 默认开启 12 (codegarden / codegarden_phase2b / sync / tech_stack / security_graph / secnews / crm / dsh + v0.8 四 gate info_filter·skill_registry·trigger_gate·user_skills, 2026-09-05 Day 0 开闸演练通电);
-  默认关闭 1 (mcp — extension gate 只管 /api/mcp/* 调试路由, server 本体由 is_mcp_enabled() 读 config.feature_mcp, 双开关契约见 mcp_config.py docstring)。agent_loop/playbook_engine/skill_eval 三个无消费点死键已移除 (v0.8.2 X-B3), gate 化须随消费点同时登记 (user_skills 先例)
-- **core 永不消失**: `backend/core/routers.py` 45 个 core router 白名单, 与扩展域防重叠断言;
-  扩展 router 按 `is_extension_enabled()` 条件注册 (关闭时路由 404)
+- **开关源**: `backend/config/feature_gates.toml` — 13 gate: 默认开启 12 (codegarden / codegarden_phase2b / sync / tech_stack / security_graph / secnews / crm / dsh + v0.8 四 gate info_filter·skill_registry·trigger_gate·user_skills); 默认关闭 1 (mcp — extension gate 只管 /api/mcp/* 调试路由, server 本体由 is_mcp_enabled() 读 config.feature_mcp, 双开关契约见 mcp_config.py docstring)。gate 化须随消费点同时登记 (user_skills 先例)
+- **core 永不消失**: `backend/core/routers.py` core router 白名单, 与扩展域防重叠断言; 扩展 router 按 `is_extension_enabled()` 条件注册 (关闭时路由 404)
 - **job 门控**: `scheduler.py` `_is_job_enabled()` 按扩展归属过滤 8 个扩展 job
 - **env 覆盖**: `HOTSPOT_FEATURE_GATES='{"extensions": {...}}'` 优先级高于 TOML (CI core-only 用)
 - **测试约定**: conftest autouse fixture 测试环境全开 gates; 组合矩阵见 `backend/tests/test_feature_gates.py`
-
-## v0.8.0-post 治理与 v0.8.1 立项 (2026-09-05)
-
-- **项目心智/阶段台账**: `PROJECT.md` (2026-09-05 project-brain 刷新) — 生命周期当前阶段 + 阶段检查记录; 接手顺序 = 本文件 → PROJECT.md → `PROGRESS.md` 活跃段
-- **审计事实源**: `docs/CRITICAL_REVIEW_2026-09-03.md` (2026-09-05 复核版, 19 finding 逐项标 ✅/◐/❌) — 动手前先查对应项状态, 勿凭旧印象; `docs/V0.8_REFACTOR_PLAN.md` 已加已完结横幅 (25 个 `[ ]` 是计划态留痕, 执行记录以 `PROGRESS.md` 为准)
-- **v0.8.1 下一 batch**: `docs/V0.8.1_PLAN.md` — 推荐 A = CRITICAL_REVIEW §1.2 断路器 + §2.1 provider_health/场景权重联动 (5 天, 复用 `retry_policy.py` 模式与 dsh runtime 3 连败先例, 不引新依赖); 备选 B (断路器 alone 2 天) / C (react-query 5-7 天) / D-a~d (error_classifier 2 天 / graceful shutdown 0.5 天 / GZip 2 天 / pi 协议实测 1 周); 裁决点 D1-D6 待用户拍板 — **未裁决前勿动 ai_hub 调用链** (`gateway._try_order` / `service._resolve_provider`)
-- **前置项**: 七 gate 开闸演练 (skill_registry/trigger_gate/agent_loop/playbook_engine/user_skills/skill_eval/info_filter 全开后全量回归 + ARCHITECTURE 同步, 1 天)
-- **架构图**: `hotspot-architecture.html` + `hotspot-architecture.candidate.json` 已入仓 — **candidate.json 是唯一编辑入口**, HTML 由 `archify deliver` 生成不手改; 硬约束: viewBox 宽 ≤~1390 (context 字号 9px 上限 × 投影 ≥6px @1440) / 列距 ≥40px (26px 以下渲染器崩溃) / 副标签长度按盒宽预算 → **加节点必先删节点**; 复跑 archify 会覆盖入仓产物
-- **dsh 真相 (叙事锚点)**: 受管子进程, :3210 降级链 `not_configured→mock→ai_hub` — 图/docs/代码 (`dsh/runtime.py:resolve_effective` 三态) 三层已对齐, 新文档沿用此口径, 勿再写"独立网关"
+- 详细设计: [`docs/CodeGarden_PRD_v1.7.md`](docs/CodeGarden_PRD_v1.7.md) (CodeGarden 域唯一设计入口; cg_resources 端口保护 + Fernet 加密)
 
 ## Core 路径边界声明 (core.include / core.exclude)
 
@@ -69,74 +58,25 @@ git diff --name-only origin/main | python scripts/generate_meta.py --classify --
 
 机械执行:
 
-- **CI**: `.github/workflows/ci.yml` 的 `backend` job 追加
-  `python scripts/harness_analyze.py --check` 步骤, errors 非零 → job 失败; warnings 通过 reviewer 备注保留。
+- **CI**: `.github/workflows/ci.yml` 的 `backend` job 追加 `python scripts/harness_analyze.py --check` 步骤, errors 非零 → job 失败; warnings 通过 reviewer 备注保留。
 - **本地**: `python scripts/harness_analyze.py` (默认人类可读) 或 `--format json` (脚本消费)。CI 与本地两条路径均执行同一脚本同一规则, 避免声明与验证漂移。
 - **豁免收紧**: 在 `scripts/harness_baseline.json` 删除某 skill 条目 = 立刻对该 skill 强制 ERROR (用于逐步清理历史债)。
 
-## 安全扫描插件职责分工 — `codex-security` vs `security-scan`
+## 安全扫描插件消歧 — `codex-security` vs `security-scan`
 
-两条名称家族相似的安全插件均为本工作区**并存(complementary)**关系,不互为 rename 或 replacement。两者触发关键词均含 "security scan / 安全扫描",需要靠本节文档 + description 关键词消歧。
+两条名称相似的安全插件为**并存 (complementary)** 关系, 不互为 rename/disable。触发关键词均含 "security scan", 按以下规则**首命中即停**路由:
 
-### Capability Fingerprint 对比
-
-| 维度 | `codex-security`(local, OpenAI `0.1.14`) | `security-scan`(qoder-bundler, CodeSec `0.8.1`) |
-|---|---|---|
-| 入口 | MCP STDIO `codex-security` 服务 | `~/.qodersec/bin/qodersec` 二进制 + Qoder 云端后端 |
-| hooks | **无**(不自动触发) | `SessionStart`(ensure-deps)+ `PostToolUse: Edit\|Write\|MultiEdit\|NotebookEdit`(每次编辑后自动 review) |
-| 默认启用 | 否(用户本地加装) | 是(`defaultEnabled: true`) |
-| 触发关键词 | "Codex Security"、"OpenAI Codex security"、"Codex 安全工作流" | "Qoder security scan"、"L2 lightweight"、"L3 deep"、"cloud scan" |
-| 适用场景 | 完整安全生命周期(扫+验证+攻击路径+追踪+修复+加固+报告) | 编辑即时轻量 review + 显式三档扫描 |
-| 不适用场景 | 即时轻量 edit-time warning(无 hook) | 漏洞验证 / 攻击路径 / 修复建议 / 报告生成(无对应子技能) |
-
-### 路由规则(首命中即停)
-
-1. 用户显式调用 `$codex-security:<skill>` 或声明 "Codex Security" / "OpenAI Codex security" / "Codex 安全工作流" → 走 `codex-security:*` 全套工作流。
-2. 用户显式调用 `/security-scan` / "Qoder 安全扫描" / "L2 轻量扫描" / "L3 深度扫描" / "cloud scan" / "扫描这个项目/文件/目录" → 走 `security-scan` 单技能 + 三档 picker。
-3. 用户在 Edit/Write 后未显式调用,但 `security-scan` hooks 已自动触发 edit-time review → 由 `security-scan` 静默处理;**不**反向触发 `codex-security`。
-4. 用户请求 "验证/追踪/修复这个 finding"、"攻击路径分析"、"漏洞 write-up"、"威胁建模"、"架构加固方案"、"SECURITY.md 政策" → **必须**走 `codex-security:*`(另一插件无对应子技能)。
-
-### 显式消歧调用
-
-同名 `security-scan` 子技能必须按插件名前缀调用:
+1. 显式调用 `$codex-security:<skill>` 或声明 "Codex Security / OpenAI Codex security / Codex 安全工作流" → 走 `codex-security:*` 完整生命周期 (扫描+验证+攻击路径+追踪+修复+加固+报告)。
+2. 显式调用 `/security-scan` / "Qoder 安全扫描 / L2 轻量 / L3 深度 / cloud scan / 扫描这个项目" → 走 Qoder `security-scan` 单技能三档。
+3. Edit/Write 后未显式调用但 Qoder hooks 已自动触发 edit-time review → 由 `security-scan` 静默处理, **不**反向触发 `codex-security`。
+4. "验证/追踪/修复 finding、攻击路径分析、漏洞 write-up、威胁建模、架构加固、SECURITY.md 政策" → **必须** `codex-security:*` (另一插件无对应子技能)。
 
 ```text
-# Codex Security 完整工作流(单遍扫 + 验证 + 攻击路径 + 报告)
-$codex-security:security-scan <repo-or-path>
-$codex-security:deep-security-scan <repo-or-path>     # 深度多遍
-$codex-security:security-diff-scan <diff-target>      # PR/commit/branch
-$codex-security:fix-finding <finding-id>
-$codex-security:vulnerability-writeup <finding-id>
-
-# Qoder 内置 — 三档 picker + cloud scan
-/security-scan                       # bare → picker(L3/L2/Project-file)
-/security-scan --layer=l2            # 显式 L2
-/security-scan --layer=l3            # 显式 L3
-/security-scan backend/api/          # cloud scan,具体路径
-/security-scan backend/ frontend/    # 多路径
+$codex-security:security-scan <path>     # 单遍扫+验证+攻击路径+报告
+$codex-security:deep-security-scan <path> / :security-diff-scan <diff>
+$codex-security:fix-finding <id> / :vulnerability-writeup <id>
+/security-scan [--layer=l2|l3] [paths...]  # bare → picker
 ```
-
-### Trigger 关键词补全建议
-
-> **注意**:`~/.qoder/plugins/cache/` 下两个插件目录当前为**只读**(Qoder bundler 自动管理缓存),无法就地 patch SKILL.md。需要重新打包插件或通过 Qoder 插件管理面板下发。下面是建议值,作为 patch 参考。
-
-`codex-security/skills/security-scan/SKILL.md` description 字段建议在首句加 "OpenAI Codex Security" + 排除规则:
-
-```yaml
-description: "OpenAI Codex Security standard single-pass audit. Use ONLY when the user invokes Codex Security explicitly or via the '$codex-security:' prefix. Do NOT use for Edit-time review, L2 lightweight, L3 deep, or Qoder cloud scan; route those to the Qoder security-scan plugin instead."
-```
-
-`security-scan/skills/security-scan/SKILL.md` description 首句已含 "Qoder" + L2/L3/picker 关键词,无需调整;若需进一步消歧,可在末尾追加反指语句:
-
-```yaml
-description: "... Prefer this skill for Qoder Edit-time review and cloud/L2/L3 scans. For full Codex Security lifecycle (validation, attack-path, fix-finding, vulnerability write-up, hardening, threat modeling), use the '$codex-security:' prefix instead."
-```
-
-### 替换关系
-
-无。两条插件均保留活跃状态,不互相 disable。`codex-security/README.md` 上游已显式承认并存:
-
-> "If another installed plugin also ships a `security-scan` skill (e.g. Qoder's built-in security-scan plugin), disambiguate by plugin when invoking."
 
 ## Available Design Skills (`.agents/skills/`)
 
@@ -180,13 +120,15 @@ pip install -r backend/requirements.txt
 python run.py                        # 默认 127.0.0.1:8000
 # 或: python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 
+# dev 并行模式 (与生产后端共存时禁用本实例调度器, API 正常可用)
+HOTSPOT_DISABLE_SCHEDULER=1 python run.py
+
 # Test
 python -m pytest backend/tests/ --tb=short -q
 
-# Agent assets lint gate (warning/error 分离, error 阻断 CI; 见上文 *Agent Assets Lint Policy*)
-python scripts/harness_analyze.py --check        # CI 同款: --format json + errors 非零 exit 1
-python scripts/harness_analyze.py --format json  # JSON 输出 (脚本消费 / 报告归档)
-python scripts/harness_analyze.py                # 本地预览, 人类可读
+# Agent assets lint gate (warning/error 分离, error 阻断 CI)
+python scripts/harness_analyze.py --check        # CI 同款
+python scripts/harness_analyze.py                # 本地预览
 ```
 
 ### Frontend (React / Vite / Tailwind)
@@ -195,7 +137,7 @@ python scripts/harness_analyze.py                # 本地预览, 人类可读
 # Setup
 cd frontend && npm install
 
-# Run (dev server, port 8898)
+# Run (dev server)
 cd frontend && npm run dev
 
 # Type-check + Test + Build
@@ -204,9 +146,7 @@ cd frontend && npx tsc --noEmit && npx vitest run && npx vite build --logLevel e
 
 ## Scoped AGENTS.md — Near-Context Index
 
-> 代理进入高频源目录时,**根 AGENTS.md + 就近 scoped AGENTS.md 在两次加载内
-> 即可定位 owner 与测试入口**,不再依赖命名约定或外部工具推断。
-> 每个 scoped 文件只承载该子树的 always-needed 约束,不重复根级内容。
+> 代理进入高频源目录时, 根 AGENTS.md + 就近 scoped AGENTS.md 在两次加载内即可定位 owner 与测试入口。
 
 | 路径 | 何时加载 | 单一职责 |
 |------|----------|----------|
@@ -215,23 +155,15 @@ cd frontend && npx tsc --noEmit && npx vitest run && npx vite build --logLevel e
 | [`backend/api/AGENTS.md`](backend/api/AGENTS.md) | 进入 `backend/api/` 任何路由文件 | 路由 ≤150 行、lazy import 协议、Feature Gate 注册、core 白名单防重叠断言 |
 | [`scripts/AGENTS.md`](scripts/AGENTS.md) | 进入 `scripts/` 任何自动化脚本 | 审计/检查/清理/修复/生成 类别前缀、破坏性脚本 `--dry-run`、generate_meta `--check` 是 CI |
 
-### 加载协议(避免重复加载)
-
-1. 根 AGENTS.md 始终作为项目级入口与命令清单(本文) — 必读。
-2. 进入 `frontend/src/` / `backend/services/` / `backend/api/` / `scripts/`
-   **其中任一目录前**,先加载对应 scoped AGENTS.md(只读一次,不必每次返回重读)。
-3. 不进入上述四个目录时,不要主动加载 scoped 文件(避免 token 浪费)。
-4. `docs/AGENTS.md` 已退化为只读自动产物,不再承担跨项目路由职责。
+加载协议: 根文件必读; 进入上表四目录前加载对应 scoped 文件 (只读一次); 不进入则不加载。`docs/AGENTS.md` 已退化为只读自动产物。
 
 ## ZCode Hooks (workspace-level, 2026-09-02 起)
 
-> **目的**: 跨事件注入 `additionalContext` 形式的备忘,镜像 CI 阻断门 + MEMORY.md 高频失误模式。
-> **策略**: 全部 **warn-only**(exit 0/1),永不阻断 — 与 Mimosa `MIMOSA_HOOK_PROJECT=1` 模式一致。
+> 跨事件注入 `additionalContext` 备忘, 镜像 CI 阻断门 + MEMORY.md 高频失误模式。全部 **warn-only**, 永不阻断。
 
-- **配置源**: `.zcode/config.json`(`hooks.enabled: true`),事件 = `PreToolUse(Bash)` / `PostToolUse(Edit|Write|MultiEdit)` / `UserPromptSubmit` / `Stop`
-- **Dispatcher**: `scripts/hook_runner.py` (单文件派发,≤250 行),通过子进程复用既有 CI 脚本 — **不 fork** `check_docstrings.py` / `harness_analyze.py` / `generate_meta.py`
-- **Check 模块**: `scripts/hooks/bash_risk.py` (Bash 风险) + `scripts/hooks/post_edit_quality.py` (编辑后质量门)
-- **状态日志**: `.zcode/hook-status/<sessionId>.json` (per-session 覆写, 0600, gitignored)
-- **回滚**: 删除 `.zcode/config.json` 即关闭全部钩子(configuration hooks 默认禁用,一行回滚)
-- **与现有钩子关系**: `.gemini/settings.json` / `.claude/settings.local.json` 里的 gortex 钩子独立 runner,**互不干扰**(schema 不同)
-
+- **配置源**: `.zcode/config.json`; 事件 = `PreToolUse(Bash)` / `PostToolUse(Edit|Write|MultiEdit)` / `UserPromptSubmit` / `Stop`
+- **Dispatcher**: `scripts/hook_runner.py` (单文件派发, ≤250 行), 子进程复用既有 CI 脚本, 不 fork
+- **Check 模块**: `scripts/hooks/bash_risk.py` + `scripts/hooks/post_edit_quality.py`
+- **状态日志**: `.zcode/hook-status/<sessionId>.json` (0600, gitignored)
+- **回滚**: 删除 `.zcode/config.json` 即全部关闭
+- 与 `.gemini/settings.json` / `.claude/settings.local.json` 的 gortex 钩子独立 runner, 互不干扰

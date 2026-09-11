@@ -638,7 +638,7 @@ draft ──publish──> published ──deprecate──> deprecated
 
 ## 12. 引用
 
-- [HOTSPOT_WORKSTATION_PRD_V1.0.md §4](../HOTSPOT_WORKSTATION_PRD_V1.0.md) — 9 域对象
-- [HOTSPOT_V1.0_DEVELOPMENT_PLAN.md §5](../HOTSPOT_V1.0_DEVELOPMENT_PLAN.md) — 5.1/5.2/5.4 约束
+- [HOTSPOT_WORKSTATION_PRD_V1.0.md §4](../archived/2026-09-09-sweep/HOTSPOT_WORKSTATION_PRD_V1.0.md) — 9 域对象
+- [HOTSPOT_V1.0_DEVELOPMENT_PLAN.md §5](../archived/2026-09-09-sweep/HOTSPOT_V1.0_DEVELOPMENT_PLAN.md) — 5.1/5.2/5.4 约束
 - [task-status.md](task-status.md) — T03 任务台账
 - [backup-drill.md](backup-drill.md) — T02 备份/恢复/开发副本

@@ -41,6 +41,7 @@ Usage
 from __future__ import annotations
 
 import asyncio
+import time
 from pathlib import Path
 
 from backend.logging_config import logger
@@ -85,6 +86,40 @@ def _load_crawl4ai_config() -> dict:
         return cfg if isinstance(cfg, dict) else {}
     except Exception:
         return {}
+
+
+# ----------------------------------------------------------------------
+# 连续超时退避 (v0.8.5 审查 P0-2)
+# ----------------------------------------------------------------------
+# 同一 URL 连续超时说明该目标当前不可渲染 (反爬/资源枯竭), 每轮照常重试
+# 只会白付 60s×N 的 Chromium 渲染 (实测 github.com/trending 每轮 2×60s)。
+# 退避: 第 n 次连续超时后跳过 min(BASE × 2^(n-1), CAP) 秒; 任何一次成功
+# 即清零。进程内状态即可 — 重启等于重新给机会, 语义正确。
+_BACKOFF_BASE_SECONDS = 300  # 与 collect_all 间隔对齐: 首次超时即跳过一整轮
+_BACKOFF_CAP_SECONDS = 1800
+_timeout_streaks: dict[str, tuple[int, float]] = {}  # url → (连续超时次数, 退避截止 monotonic ts)
+
+
+def _backoff_deadline(url: str, now: float) -> float | None:
+    """该 url 当前退避截止时间; 未在退避中返回 None。"""
+    entry = _timeout_streaks.get(url)
+    if entry is None:
+        return None
+    _streak, until = entry
+    return until if now < until else None
+
+
+def _backoff_record_timeout(url: str, now: float) -> float:
+    """记录一次超时, 返回新的退避截止时间。"""
+    streak = _timeout_streaks.get(url, (0, 0.0))[0] + 1
+    delay = min(_BACKOFF_BASE_SECONDS * (2 ** (streak - 1)), _BACKOFF_CAP_SECONDS)
+    until = now + delay
+    _timeout_streaks[url] = (streak, until)
+    return until
+
+
+def _backoff_clear(url: str) -> None:
+    _timeout_streaks.pop(url, None)
 
 
 # 并发控制 — Playwright 单浏览器实例同时处理多 tab 会内存爆炸,
@@ -232,6 +267,14 @@ async def fetch_html(
             timeout = int(_load_crawl4ai_config().get("timeout_seconds", 30))
         except (TypeError, ValueError):
             timeout = 30
+
+    # 退避中的 URL 直接早退, 不再排队 semaphore / 启动渲染
+    now_mono = time.monotonic()
+    backoff_until = _backoff_deadline(url, now_mono)
+    if backoff_until is not None:
+        logger.debug(f"crawl4ai backoff skip ({backoff_until - now_mono:.0f}s left): {url}")
+        return None
+
     client = await get_client()
     if client is None:
         return None
@@ -265,7 +308,10 @@ async def fetch_html(
                 coro = client.arun(url=url, config=config) if config else client.arun(url=url)
                 result = await asyncio.wait_for(coro, timeout=timeout)
             except asyncio.TimeoutError:
-                logger.warning(f"crawl4ai fetch timeout ({timeout}s): {url}")
+                until = _backoff_record_timeout(url, time.monotonic())
+                logger.warning(
+                    f"crawl4ai fetch timeout ({timeout}s), backoff {until - time.monotonic():.0f}s: {url}"
+                )
                 return None
             except Exception as e:
                 logger.warning(
@@ -286,6 +332,7 @@ async def fetch_html(
             if not html:
                 logger.warning(f"crawl4ai returned empty content for {url}")
                 return None
+            _backoff_clear(url)
             return str(html)
         except Exception as e:
             # 任何未预期的异常,统一降级

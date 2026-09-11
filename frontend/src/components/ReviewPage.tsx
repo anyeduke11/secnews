@@ -14,11 +14,11 @@ import { useReviews } from '../hooks/useReviews';
 import { useAnnotations } from '../hooks/useAnnotations';
 import { ReviewCard } from './shared/ReviewCard';
 import { NoteEditor } from './shared/NoteEditor';
-import { useGoHome } from '../hooks/useGoHome';
+import { useGoBack } from '../hooks/useGoBack';
 import { Icon } from './Icon';
 
 export function ReviewPage() {
-  const goHome = useGoHome();
+  const goBack = useGoBack();
   const { items, stats, loading, error, refresh, submitGrade } = useReviews();
   const {
     items: notes,
@@ -62,7 +62,7 @@ export function ReviewPage() {
     <div style={pageStyle}>
       {/* 顶部栏 */}
       <div style={topBarStyle}>
-        <button type="button" style={backBtnStyle} onClick={goHome} aria-label="返回首页">
+        <button type="button" style={backBtnStyle} onClick={goBack} aria-label="返回">
           <Icon>
             <line x1="19" y1="12" x2="5" y2="12" />
             <polyline points="12 19 5 12 12 5" />

@@ -248,6 +248,12 @@
   display:flex;flex-direction:column;gap:2px;overflow-y:auto;
   scrollbar-width:thin;
 }
+/* <640px: 与内容上下堆叠时分类导航改为横滚一行 (17 个分类竖排会把内容挤成竖字) */
+@media (max-width:639px){
+  .settings-shell .st-sidenav{flex-direction:row;overflow-x:auto;overflow-y:hidden;max-height:none;gap:6px;padding-bottom:6px}
+  .settings-shell .st-sidenav-item{width:auto;flex:none;white-space:nowrap;padding:6px 10px}
+  .settings-shell .st-sidenav-item .st-snav-desc{display:none}
+}
 .settings-shell .st-sidenav-item{
   display:flex;flex-direction:column;gap:2px;
   padding:8px 10px;border-radius:var(--sn-radius-sm);

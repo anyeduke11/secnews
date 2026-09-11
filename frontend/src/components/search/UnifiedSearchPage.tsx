@@ -82,12 +82,12 @@ export function UnifiedSearchPage({ onBack }: { onBack?: () => void }) {
         <h1 className="text-sm font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
           <span className="font-mono mr-2">FIND</span>统一搜索
         </h1>
-        <button onClick={goBack} className="btn-ghost gap-1.5 px-2 py-1 text-[10px]" aria-label="返回首页">
+        <button onClick={goBack} className="btn-ghost gap-1.5 px-2 py-1 text-[10px]" aria-label="返回">
           <Icon size={11}>
             <line x1="19" y1="12" x2="5" y2="12" />
             <polyline points="12 19 5 12 12 5" />
           </Icon>
-          <span className="hidden sm:inline">返回首页</span>
+          <span className="hidden sm:inline">返回</span>
         </button>
       </div>
 

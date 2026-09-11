@@ -1,6 +1,7 @@
 """运行时设置 API — 刷新间隔等热配置端点。
 
-- ``POST /api/settings/refresh-interval`` — 更新采集间隔（分钟）
+- ``GET  /api/settings/refresh-interval`` — 当前采集间隔 + 持久化状态 (cadence 修正批)
+- ``POST /api/settings/refresh-interval`` — 更新采集间隔（分钟; 同步持久化 settings 表）
 - ``GET  /api/settings/features`` — 扩展 feature flag（前端 useFeatureFlags 数据源）
 - ``POST /api/settings/llm-provider`` — 切换运行时默认 LLM provider (v0.7 Batch 2)
 - ``POST /api/settings/scenario-model`` — 设置三场景模型 (v0.7.4-image)
@@ -53,18 +54,41 @@ class RefreshIntervalRequest(BaseModel):
     minutes: int = Field(..., ge=1, le=1440, description="采集间隔（分钟，1-1440）")
 
 
+_REFRESH_INTERVAL_KEY = "collection.refresh_interval_seconds"
+
+
+@router.get("/refresh-interval")
+async def get_refresh_interval() -> dict:
+    """当前生效的采集间隔 + 持久化状态 (cadence 修正批)。"""
+    persisted = SettingsRepository().get(_REFRESH_INTERVAL_KEY)
+    return {
+        "interval_seconds": config.collect_interval_seconds,
+        "interval_minutes": config.collect_interval_seconds // 60,
+        "persisted_seconds": persisted if isinstance(persisted, int) else None,
+    }
+
+
 @router.post("/refresh-interval")
 async def set_refresh_interval(body: RefreshIntervalRequest, request: Request):
     """动态调整 collect_all 采集间隔。
 
     1. 更新 ``config.collect_interval_seconds``（运行时生效）
-    2. 调用 ``scheduler.reschedule()`` 更新 APScheduler 定时器
+    2. 持久化到 settings 表 ``collection.refresh_interval_seconds``
+       (cadence 修正批: 此前只改内存, 重启回默认; main 启动时回读)
+    3. 调用 ``scheduler.reschedule()`` 更新 APScheduler 定时器
     """
     interval_seconds = body.minutes * 60
 
     # 更新 config（运行时生效）
     old = config.collect_interval_seconds
     config.collect_interval_seconds = interval_seconds
+
+    persisted = True
+    try:
+        SettingsRepository().set(_REFRESH_INTERVAL_KEY, interval_seconds)
+    except Exception as e:
+        persisted = False
+        logger.warning(f"refresh interval persist failed (runtime value kept): {e}")
 
     # 更新调度器
     sched = getattr(request.app.state, "scheduler", None)
@@ -82,6 +106,7 @@ async def set_refresh_interval(body: RefreshIntervalRequest, request: Request):
                 "message": f"config updated but scheduler reschedule failed: {e}",
                 "interval_minutes": body.minutes,
                 "interval_seconds": interval_seconds,
+                "persisted": persisted,
             }
 
     return {
@@ -89,6 +114,7 @@ async def set_refresh_interval(body: RefreshIntervalRequest, request: Request):
         "message": f"采集间隔已更新为 {body.minutes} 分钟",
         "interval_minutes": body.minutes,
         "interval_seconds": interval_seconds,
+        "persisted": persisted,
     }
 
 

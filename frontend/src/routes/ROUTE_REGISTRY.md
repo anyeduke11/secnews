@@ -25,7 +25,9 @@
 | `/cases` | → `/judge` |
 | `/v1-prototype` | 已物理删除（组件仅存测试引用） |
 
-### 工具页（PageLayout + AppNav; AppNav 首组=三层真实路径）
+### 工具页（PageLayout = SentinelShell layer=null 顶部横向导航 + 心跳条; 2026-09-10 壳统一, 左侧 AppNav 已物理删除）
+
+> 更多菜单是工具页唯一全局入口并高亮当前页; 左侧栏原有能力归位页内: SK 能力包 → `/skill-store` v1 区块, 知识管理四域/已导入/`知识目录 v1` → `/knowledge` 页内 KnowledgeTabs。
 
 | 路径 | 组件 | Gate |
 |---|---|---|

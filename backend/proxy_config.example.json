@@ -1,8 +1,8 @@
 {
-  "_comment": "Template for proxy_config.json. Copy this file to backend/proxy_config.json and edit with your real proxy settings. The real file is gitignored. Default mode=off means collectors run direct (no proxy).",
-  "mode": "off",
+  "_comment": "Template for proxy_config.json. The real file is gitignored and overrides nothing else. cadence T5: default mode=builtin (built-in http://127.0.0.1:7897 + domestic bypass list); direct-first architecture means proxy is only a fallback for foreign sources; 3 consecutive proxy failures trip a 300s circuit breaker that forces all-direct. HOTSPOT_PROXY_* env vars override this file.",
+  "mode": "builtin",
   "http_proxy": "",
   "https_proxy": "",
   "socks_proxy": "",
-  "no_proxy": "localhost,127.0.0.1,::1,.local"
+  "no_proxy": ""
 }

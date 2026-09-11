@@ -486,10 +486,17 @@ def test_proxy_settings_get(client):
     assert "mode" in data["settings"]
 
 
-def test_proxy_settings_put(client, monkeypatch):
-    """PUT 应返回成功, 但不应破坏真实文件。"""
+def test_proxy_settings_put(client, monkeypatch, tmp_path):
+    """PUT 应返回成功, 且真实 proxy_config.json 不被触碰。
+
+    cadence 修正批 T5: 曾因 api 层按值导入 save_proxy_settings 使 wraps 保护失灵,
+    全量套件每跑一次都会把生产配置写回 off (实测踩坑)。现在 api 层走模块属性调用 +
+    本测试把 PROXY_CONFIG_FILE 指到 tmp, 双保险。
+    """
     import backend.proxy_config as pc
 
+    monkeypatch.setattr(pc, "PROXY_CONFIG_FILE", str(tmp_path / "proxy_config.json"))
+    pc.invalidate_settings_cache()
     real_load = pc.load_proxy_settings
     real_save = pc.save_proxy_settings
 
@@ -506,9 +513,15 @@ def test_proxy_settings_put(client, monkeypatch):
                     "whitelist": [],
                 },
             )
+    pc.invalidate_settings_cache()
     assert r.status_code == 200
     data = r.json()
     assert data["status"] == "ok"
+    # 写入落在 tmp 化的配置文件里, 内容与 PUT body 一致
+    import json as _json
+
+    written = _json.loads((tmp_path / "proxy_config.json").read_text(encoding="utf-8"))
+    assert written["mode"] == "off" and written["no_proxy"] == "localhost"
 
 
 # ---------------------------------------------------------------------------
@@ -602,6 +615,20 @@ def test_all_responses_have_version(client, seeded_db):
 # ---------------------------------------------------------------------------
 # X-C2 (v0.8.2): GZip 压缩 + 字典端点 Cache-Control (CRITICAL_REVIEW §3.2)
 # ---------------------------------------------------------------------------
+def test_scheduler_disabled_env(monkeypatch):
+    """v085-review F5: HOTSPOT_DISABLE_SCHEDULER=1 → lifespan 不启动调度器。
+
+    dev 与生产后端并行时 dev 实例不起采集/触发 job, API 正常可用。
+    """
+    from fastapi.testclient import TestClient
+
+    from backend.main import app as main_app
+
+    monkeypatch.setenv("HOTSPOT_DISABLE_SCHEDULER", "1")
+    with TestClient(main_app):
+        assert main_app.state.scheduler is None
+
+
 def test_main_app_has_gzip_middleware():
     """真实 app 必须挂 GZipMiddleware (minimum_size=1000)。"""
     from fastapi.middleware.gzip import GZipMiddleware

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --port 8898 --strictPort --host 0.0.0.0",
     "dev:8898": "vite --port 8898 --strictPort --host 0.0.0.0",
-    "dev:demo": "HOTSPOT_BACKEND_PORT=8766 vite --port 8899 --strictPort --host 127.0.0.1",
+    "dev:demo": "vite --port 8898 --strictPort --host 127.0.0.1",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest",

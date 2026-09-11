@@ -63,7 +63,7 @@
 
 **当前 backup**：`backup/stage-1-infra-20260819-094211` @ `f5d841cd`（历史：`stage-0-init-20260818-165119` @ `b9306a90`）
 
-**Stage 1 完成摘要**（详见 docs/UI_DESIGN_SPEC.md §6）：
+**Stage 1 完成摘要**（详见 docs/archived/2026-09-09-sweep/UI_DESIGN_SPEC.md §6）：
 - legacy 卡片类全量收编为 `card-base`（34 处引用 / 16 文件），legacy CSS 块删除
 - 主题双轨修正：`:root` 默认亮色（用户选定亮色优先），`:root[data-theme="dark"]` 覆盖，闪色消除
 - App.tsx 306 行 → 15 行：`contexts/ThemeContext` + `routes/lazy-imports` + `routes/index`

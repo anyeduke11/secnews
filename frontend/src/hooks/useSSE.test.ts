@@ -191,4 +191,38 @@ describe('useSSE — P0.3 节流 + 分帧', () => {
       expect(result.current.connected).toBe(true);
     });
   });
+
+  it('types 过滤: 只放行声明的事件类型, lastId 仍对所有事件推进 (cadence 修正批)', async () => {
+    /**
+     * 首页只关心 collect_done; outbox 里的埋点 (view/scroll/dwell)、extract_done、
+     * alert、job_done 不该触发资料层重拉。但 lastId 是断线续传坐标, 必须对
+     * 所有事件推进, 否则重连时会把已看过的无关事件再回放一遍。
+     */
+    const onEvent = vi.fn();
+    const onLastId = vi.fn();
+    const { useSSE } = await import('./useSSE');
+    const { result } = renderHook(() => useSSE({ onEvent, onLastId, types: ['collect_done'] }));
+
+    await waitFor(() => {
+      expect(MockEventSource.instances.length).toBe(1);
+    });
+    const es = MockEventSource.instances[0];
+    es.simulateOpen();
+
+    es.simulateMessage({ id: 11, type: 'extract_done', data: {}, ts: '2026-01-01T00:00:00Z' });
+    es.simulateMessage({ id: 12, type: 'view', data: {}, ts: '2026-01-01T00:00:00Z' });
+    es.simulateMessage({ id: 13, type: 'collect_done', data: { total: 5 }, ts: '2026-01-01T00:00:00Z' });
+    es.simulateMessage({ id: 14, type: 'alert', data: {}, ts: '2026-01-01T00:00:00Z' });
+
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(onEvent).toHaveBeenCalledWith('collect_done', { total: 5 });
+    // 续传坐标对 4 条全部推进
+    expect(onLastId).toHaveBeenCalledTimes(4);
+    expect(onLastId).toHaveBeenLastCalledWith(14);
+
+    // 最后一条 (被过滤的 alert) 仍反映到 lastEvent — 过滤只作用于业务回调
+    await waitFor(() => {
+      expect(result.current.lastEvent?.type).toBe('alert');
+    });
+  });
 });

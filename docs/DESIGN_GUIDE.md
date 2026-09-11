@@ -390,7 +390,7 @@ delay-4: 160ms | delay-5: 200ms | ...
 ## 参考文档
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
-- [SPEC.md](./docs/SPEC.md)
-- [CHECKLIST.md](./docs/CHECKLIST.md)
-- [TASKS.md](./docs/TASKS.md)
+- [SPEC.md](./archived/2026-09-09-sweep/SPEC.md)
+- [CHECKLIST.md](./archived/2026-09-09-sweep/CHECKLIST.md)
+- [TASKS.md](./archived/2026-09-09-sweep/TASKS.md)
 - [DESIGN_GUIDE.md](./DESIGN_GUIDE.md)

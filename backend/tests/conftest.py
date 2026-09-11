@@ -229,6 +229,26 @@ def _protect_hotspot_env() -> Iterator[None]:
             os.environ[k] = v
 
 
+@pytest.fixture(autouse=True)
+def _proxy_off_for_tests(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """cadence 修正批 T5: 代理默认开启 (builtin 127.0.0.1:7897) 后, 测试环境必须
+    显式关闭, 否则触达 ProxySession / BackendSession 的用例会真的往本机代理出网。
+
+    通过 env 覆盖 (proxy_config 的最高优先级) 而非 monkeypatch 函数, 让全部消费点
+    (fetchers._proxy_retry / bid 第 3 步 / github / sogou / BackendSession) 一致直连。
+    需要验证代理行为的测试自行 ``monkeypatch.setenv("HOTSPOT_PROXY_MODE", ...)``
+    或 patch ``should_use_proxy`` / ``get_proxy_url``。熔断器状态每测试归零。
+    """
+    from backend import proxy_config as _pc
+
+    monkeypatch.setenv("HOTSPOT_PROXY_MODE", "off")
+    _pc.invalidate_settings_cache()
+    _pc.reset_proxy_health()
+    yield
+    _pc.invalidate_settings_cache()
+    _pc.reset_proxy_health()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _t01_isolated_roots() -> Iterator[Path]:
     """T01 会话级隔离断言 + 会话根 schema 初始化。

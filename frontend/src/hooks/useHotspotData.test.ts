@@ -152,3 +152,80 @@ describe('useHotspotData — P0.2 useEffect 依赖修复', () => {
     expect(result.current.page).toBe(1);
   });
 });
+
+/**
+ * cadence 修正批 (2026-09-10): refetch / refresh 语义分离
+ *
+ * 意图: SSE collect_done 到达时首页只该"拿新数据", 绝不能再回触后端采集 —
+ * 否则 "采集 → collect_done → POST /api/refresh → 再采集" 自激, 30 分钟节奏
+ * 被打成连续抓取。refresh() 保留给用户显式点击「立即采集」。
+ */
+describe('useHotspotData — refetch(只读) vs refresh(触发采集)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetch.mockReset();
+    global.fetch = mockFetch;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const page = (title: string) => ({
+    ok: true,
+    json: async () => ({
+      items: [{ id: title, title }],
+      next_cursor: null,
+      total: 1,
+      category_counts: {},
+      fetched_at: '2026-01-01T00:00:00Z',
+    }),
+  });
+
+  const urls = () => mockFetch.mock.calls.map((c: any[]) => String(c[0]));
+  const methods = () => mockFetch.mock.calls.map((c: any[]) => ((c[1]?.method ?? 'GET') as string).toUpperCase());
+
+  it('refetch(): 清缓存重拉第 1 页, 全程不出现 POST /api/refresh', async () => {
+    mockFetch.mockImplementation(async (input: any) => {
+      const url = String(input);
+      if (url.startsWith('/api/hotspots')) return page(urls().length === 1 ? 'first' : 'second');
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const { useHotspotData } = await import('./useHotspotData');
+    const { result } = renderHook(() => useHotspotData('all', '24h', ''));
+
+    await waitFor(() => expect(result.current.items[0]?.id).toBe('first'));
+
+    await act(async () => { await result.current.refetch(); });
+
+    await waitFor(() => expect(result.current.items[0]?.id).toBe('second'));
+    expect(urls().filter(u => u === '/api/refresh')).toHaveLength(0);
+    expect(urls().filter(u => u.startsWith('/api/hotspots'))).toHaveLength(2);
+    expect(methods().every(m => m === 'GET')).toBe(true);
+  });
+
+  it('refresh(): 先 POST /api/refresh 同步采集, 再重拉第 1 页', async () => {
+    mockFetch.mockImplementation(async (input: any, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/refresh' && (init?.method ?? 'GET').toUpperCase() === 'POST') {
+        return { ok: true, json: async () => ({ ok: true, total: 3 }) };
+      }
+      if (url.startsWith('/api/hotspots')) return page('after-collect');
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const { useHotspotData } = await import('./useHotspotData');
+    const { result } = renderHook(() => useHotspotData('all', '24h', ''));
+    await waitFor(() => expect(result.current.items.length).toBe(1));
+
+    await act(async () => { await result.current.refresh(); });
+
+    const seq = urls();
+    const refreshIdx = seq.indexOf('/api/refresh');
+    expect(refreshIdx).toBeGreaterThan(0);
+    // 采集之后紧跟一次只读重拉
+    expect(seq[refreshIdx + 1]).toMatch(/^\/api\/hotspots/);
+    expect(seq.filter(u => u === '/api/refresh')).toHaveLength(1);
+  });
+});

@@ -96,6 +96,8 @@ export function KnowledgeTabs({ counts }: KnowledgeTabsProps) {
   // 简报能力在 SecNews feed (digest)。
   const MODE_ITEMS = [
     { key: 'review', label: '复习', path: '/knowledge/review' },
+    // 2026-09-10 壳统一: v0.8.5 C4 的 v1 知识目录 (采用/复查面板) 此前无任何 UI 入口, 归位到知识页内
+    { key: 'v1', label: '知识目录 v1', path: '/knowledge/v1' },
   ] as const;
 
   return (

@@ -117,7 +117,7 @@ async def test_ai_collector_returns_empty_when_sources_fail(monkeypatch):
     # 强制 sources=[] 走空
     monkeypatch.setattr(c, "sources", [])
     # P1 切流: 禁用源注册表驱动 (本测试只测常量路径)
-    monkeypatch.setattr(c, "_load_sources_from_registry", lambda: None)
+    monkeypatch.setattr(c, "_load_sources_from_registry", lambda **_: None)
 
     items = await c.collect()
     assert items == [], (
@@ -150,7 +150,7 @@ async def test_security_collector_returns_empty_when_sources_fail(monkeypatch):
     c = SecurityCollector()
     monkeypatch.setattr(c, "sources", [])
     # P1 切流: 禁用源注册表驱动 (本测试只测常量路径)
-    monkeypatch.setattr(c, "_load_sources_from_registry", lambda: None)
+    monkeypatch.setattr(c, "_load_sources_from_registry", lambda **_: None)
 
     items = await c.collect()
     assert items == [], (
@@ -182,7 +182,7 @@ async def test_finance_collector_returns_empty_when_sources_fail(monkeypatch):
     c = FinanceCollector()
     monkeypatch.setattr(c, "sources", [])
     # P1 切流: 禁用源注册表驱动 (本测试只测常量路径)
-    monkeypatch.setattr(c, "_load_sources_from_registry", lambda: None)
+    monkeypatch.setattr(c, "_load_sources_from_registry", lambda **_: None)
 
     items = await c.collect()
     assert items == [], (
@@ -214,7 +214,7 @@ async def test_startup_collector_returns_empty_when_sources_fail(monkeypatch):
     c = StartupCollector()
     monkeypatch.setattr(c, "sources", [])
     # P1 切流: 禁用源注册表驱动 (本测试只测常量路径)
-    monkeypatch.setattr(c, "_load_sources_from_registry", lambda: None)
+    monkeypatch.setattr(c, "_load_sources_from_registry", lambda **_: None)
 
     items = await c.collect()
     assert items == [], (
@@ -246,7 +246,7 @@ async def test_bid_collector_returns_empty_when_sources_fail(monkeypatch):
     c = BidCollector()
     monkeypatch.setattr(c, "sources", [])
     # P1 切流: 禁用源注册表驱动 (本测试只测常量路径)
-    monkeypatch.setattr(c, "_load_sources_from_registry", lambda: None)
+    monkeypatch.setattr(c, "_load_sources_from_registry", lambda **_: None)
 
     items = await c.collect()
     assert items == [], (
@@ -279,7 +279,7 @@ async def test_github_collector_returns_empty_when_sources_fail(monkeypatch):
     c = GitHubCollector()
     monkeypatch.setattr(c, "sources", [])
     # P1 切流: 禁用源注册表驱动 (本测试只测常量路径)
-    monkeypatch.setattr(c, "_load_sources_from_registry", lambda: None)
+    monkeypatch.setattr(c, "_load_sources_from_registry", lambda **_: None)
 
     items = await c.collect()
     assert items == [], (

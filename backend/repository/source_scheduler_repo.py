@@ -16,9 +16,16 @@ class SourceSchedulerRepository:
     ) -> list[dict]:
         """查询当前可调度的源列表。
 
+        cadence 修正批: 接线 ``cadence_seconds`` (此前是死列, tick 每 60s
+        取 3 个源轮转, 无"距上次抓取不足 N 秒则跳过"门控)。条件与
+        ``BaseCollector._load_sources_from_registry`` 同语义: last_fetch_at
+        为空/不可解析 → 到期; 否则 julianday 比较 (ISO 带时区后缀 SQLite
+        可解析, 避免 'T' vs ' ' 文本比较陷阱)。
+
         Args:
             limit: 最大返回条数
-            now_iso: 当前时间 (ISO 格式)，用于冷却判断；为 None 时使用 SQLite datetime('now')
+            now_iso: 当前时间 (ISO 格式)，用于冷却/节奏判断；为 None 时使用
+                SQLite datetime('now') / julianday('now')
 
         Returns:
             list of dict，每行一条可调度源
@@ -31,10 +38,14 @@ class SourceSchedulerRepository:
                 WHERE enabled = 1
                   AND status NOT IN ('dead', 'disabled')
                   AND (cooldown_until IS NULL OR cooldown_until < ?)
+                  AND (last_fetch_at IS NULL OR last_fetch_at = ''
+                       OR julianday(last_fetch_at) IS NULL
+                       OR julianday(last_fetch_at)
+                          + COALESCE(cadence_seconds, 1800) / 86400.0 <= julianday(?))
                 ORDER BY priority DESC, last_fetch_at ASC
                 LIMIT ?
                 """,
-                (now_iso, limit),
+                (now_iso, now_iso, limit),
             ).fetchall()
         else:
             rows = conn.execute(
@@ -43,6 +54,10 @@ class SourceSchedulerRepository:
                 WHERE enabled = 1
                   AND status NOT IN ('dead', 'disabled')
                   AND (cooldown_until IS NULL OR cooldown_until < datetime('now'))
+                  AND (last_fetch_at IS NULL OR last_fetch_at = ''
+                       OR julianday(last_fetch_at) IS NULL
+                       OR julianday(last_fetch_at)
+                          + COALESCE(cadence_seconds, 1800) / 86400.0 <= julianday('now'))
                 ORDER BY priority DESC, last_fetch_at ASC
                 LIMIT ?
                 """,

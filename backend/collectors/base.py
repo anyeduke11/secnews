@@ -337,7 +337,7 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
         cls._RENDERER_BY_NAME = out
         return out
 
-    def _load_sources_from_registry(self) -> list[dict] | None:
+    def _load_sources_from_registry(self, only_source: str | None = None) -> list[dict] | None:
         """P1 crawler-v2 Phase 1 切流: 从 crawler_sources 表读本分类源.
 
         Strangler 迁移的「切流」阶段: 源注册表 (055 建表, seed_crawler_
@@ -355,6 +355,16 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
           _get_renderer_by_name 查表 (跨 collector 共享); 都查不到再
           fallback 到 "aiohttp" (有 url 的普通 HTML 源)
 
+        cadence 修正批 (死源退出轮转 + per-source 节奏单一闸口):
+        - status='dead' 的源跳过: 此前只按 enabled=1 过滤, 死源每 5 分钟
+          照抓, 与每日 03:00 复活探测形成"复活→再死"全天抖动; 恢复只走
+          每日 03:30 source_probe → grace → 3 轮产出 → active 漏斗。
+        - last_fetch_at 距今不足 cadence_seconds 的源跳过 (cadence_seconds
+          列此前是死列; 与 get_schedulable 同语义, last_fetch_at 由健康机
+          apply_run_result 在批量/tick 两条路径无条件写入)。
+        - ``only_source`` 命中的源绕过上述两闸 (tick 引擎 / 手动 / 恢复
+          走查的强刷语义, 其自身节奏由 get_schedulable 把关)。
+
         返回语义:
         - 表无本 category 记录 (未 seed / 非主分类如 ai_security) → None,
           调用方回退类常量 (渐进切流, 未注册分类不受影响)。
@@ -364,8 +374,7 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
             from backend.repository.db import get_connection
             conn = get_connection()
             rows = conn.execute(
-                "SELECT name, url, feed_url, api_url, priority FROM crawler_sources "
-                "WHERE category = ? AND enabled = 1 ORDER BY priority DESC",
+                "SELECT name, url, feed_url, api_url, priority, status, cadence_seconds, last_fetch_at FROM crawler_sources WHERE category = ? AND enabled = 1 ORDER BY priority DESC",
                 (self.category.value,),
             ).fetchall()
             has_cat = conn.execute(
@@ -400,6 +409,13 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
                 )
                 continue
 
+            # cadence 闸口: dead 源 / 节奏未到期的源不进本轮批量抓取。
+            if name != only_source:
+                if (r["status"] or "") == "dead":
+                    continue
+                if not self._cadence_due(r["last_fetch_at"], r["cadence_seconds"]):
+                    continue
+
             # renderer 解析: const (本 collector SOURCES) > 全局查表 > aiohttp
             const = next(
                 (s for s in self.sources
@@ -421,6 +437,34 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
                 "keywords": (const or by_name.get(name, {})).get("keywords", []),
             })
         return out
+
+    @staticmethod
+    def _cadence_due(last_fetch_at: Any, cadence_seconds: Any) -> bool:
+        """last_fetch_at 距今是否已超过 cadence_seconds (到期可抓).
+
+        - last_fetch_at 为空 (从未抓过) → 到期
+        - cadence_seconds 非法/≤0 → 视为 1800 (与 config 默认一致)
+        - ISO 解析失败 → 到期 (宁可多抓不可漏抓)
+        """
+        from datetime import datetime, timedelta, timezone
+
+        if not last_fetch_at:
+            return True
+        try:
+            cadence = int(cadence_seconds)
+        except (TypeError, ValueError):
+            cadence = 1800
+        if cadence <= 0:
+            cadence = 1800
+        raw = str(last_fetch_at).strip().replace("Z", "+00:00")
+        try:
+            dt = datetime.fromisoformat(raw)
+        except ValueError:
+            return True
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        elapsed = datetime.now(timezone.utc) - dt.astimezone(timezone.utc)
+        return elapsed >= timedelta(seconds=cadence)
 
     async def collect(self, only_source: str | None = None, since: str | None = None) -> list[HotspotItem]:
         """默认编排：
@@ -448,7 +492,8 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
         from uuid import uuid4 as _uuid4
 
         # P1 crawler-v2 Phase 1: 源注册表驱动 (strangler 切流)
-        registry = self._load_sources_from_registry()
+        # cadence 修正批: only_source 下传, 命中源绕过 dead/节奏闸口 (强刷语义)
+        registry = self._load_sources_from_registry(only_source=only_source)
         if registry is not None:
             self.sources = registry
         if only_source is not None:

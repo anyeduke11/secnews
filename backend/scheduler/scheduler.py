@@ -186,12 +186,13 @@ class HotspotScheduler:
             name="bid expiry check (every 1800s)",
             replace_existing=True,
         )
-        # Phase 2.2 (Crawler v2): job — URL 全量校验 (每 5 分钟)
+        # Phase 2.2 (Crawler v2): job — URL 全量校验 (每 15 分钟; cadence 修正批
+        # 300→900: 5 分钟 HEAD 全量与 30 分钟采集节奏不匹配, 纯噪声源)
         self.scheduler.add_job(
             jobs.url_full_check_job,
-            trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
+            trigger=IntervalTrigger(seconds=900, start_date=_now_utc),
             id="url_full_check",
-            name="URL full check (every 300s)",
+            name="URL full check (every 900s)",
             replace_existing=True,
         )
         # Phase 3: job — 源级调度器 tick (每 60s)
@@ -202,13 +203,16 @@ class HotspotScheduler:
             name="source scheduler tick (every 60s)",
             replace_existing=True,
         )
-        # v0.8.5 D1 点火: 真实源 → SourcePipeline → 准入 → v1_signals (每 300s;
-        # 源清单 env HOTSPOT_V1_INTAKE_SOURCES, 默认 security:SecWiki)
+        # v0.8.5 D1 点火: 真实源 → SourcePipeline → 准入 → v1_signals (跟随
+        # collect_all 主节奏; cadence 修正批 300 硬编码 → config, 源清单
+        # env HOTSPOT_V1_INTAKE_SOURCES, 默认 security:SecWiki)
         self.scheduler.add_job(
             jobs.v1_signal_intake_tick_job,
-            trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
+            trigger=IntervalTrigger(
+                seconds=config.collect_interval_seconds, start_date=_now_utc
+            ),
             id="v1_signal_intake_tick",
-            name="v1 signal intake tick (every 300s)",
+            name="v1 signal intake tick (follows collect interval)",
             replace_existing=True,
         )
         # Phase 3: job — 死源探活 (每日 03:30 Asia/Shanghai)

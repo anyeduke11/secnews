@@ -13,7 +13,7 @@
  *
  * API 保持向后兼容: export function SyncPage({ onBack })
  */
-import { useGoHome } from '../../hooks/useGoHome';
+import { useGoBack } from '../../hooks/useGoBack';
 import { SyncHeader } from './SyncHeader';
 import { SyncStatusPanel } from './SyncStatusPanel';
 import { SyncConfigForm } from './SyncConfigForm';
@@ -22,19 +22,19 @@ import { SyncHistory } from './SyncHistory';
 import { useSyncPage } from './useSyncPage';
 
 interface SyncPageProps {
-  /** 兼容旧 onBack 模式, 新代码优先 useGoHome hook */
+  /** 兼容旧 onBack 模式, 新代码优先 useGoBack hook */
   onBack?: () => void;
 }
 
 export function SyncPage({ onBack }: SyncPageProps) {
-  const goHomeHook = useGoHome();
-  const goHome = onBack ?? goHomeHook;
+  const goBackHook = useGoBack();
+  const goBack = onBack ?? goBackHook;
 
   const c = useSyncPage();
 
   return (
     <div className="sync-page">
-      <SyncHeader configured={c.configured} onBack={goHome} />
+      <SyncHeader configured={c.configured} onBack={goBack} />
 
       <SyncStatusPanel status={c.statusForPanel} />
 

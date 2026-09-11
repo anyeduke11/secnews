@@ -470,3 +470,192 @@
   - 测试命令: `git diff --check`；本地 Markdown 链接和规划文件结构检查。
   - 验证结果: `git diff --check` 通过；已核对融合方案、v1.0 业务审查、PRD、领域契约、`SentinelShell` 和 `sentinel.css` 均存在，方案的三层壳与 B0-B7 依赖引用有效。本批未改应用代码，未运行业务测试、采集、模型调用或数据库操作。
 - **潜在风险**: v0.8 当前路由与 v1 过渡壳仍存在代码层差异，U0 必须先建立兼容适配并做浏览器回归；B0-B7 未完成前不得将页面可见或单元测试通过等同于真实业务闭环。
+
+## [DEV-0163] 信源存活率 + 刷新节奏修正批 (cadence-batch): 5 分钟→30 分钟 + 死源诊断/恢复/退役 + 存活与有用分离
+- **时间**: 2026-09-10 14:30
+- **类型**: Bug修复 + 配置变更 + 重构
+- **关联模块**: `collectors:fetch-chain`, `scheduler:cadence`, `sources:health`, `scripts:audit/check/cleanup`
+- **关联文件**: `backend/main.py`, `backend/config/__init__.py`, `backend/scheduler/scheduler.py`, `backend/collectors/base.py`, `backend/collectors/fetchers.py`, `backend/collectors/bid_collector.py`, `backend/parsers/crawl4ai_parser.py`, `backend/utils/http_text.py` (新), `backend/domain/collection.py`, `backend/services/collection_service.py`, `backend/repository/source_scheduler_repo.py`, `backend/repository/source_stats_repo.py`, `backend/quality/source_coverage.py`, `backend/services/source_health_service.py`, `backend/services/source_revival_service.py`, `backend/services/source_census_service.py`, `backend/api/settings.py`, `backend/repository/migrations/109_cadence_seconds_rebase.sql` (新), `backend/.env.example`, `scripts/audit_dead_source_triage.py` (新), `scripts/check_source_fetch.py` (新), `scripts/cleanup_retire_unfixable_sources.py` (新), `scripts/audit_source_value.py` (新), 测试 5 新 + 4 改
+- **问题描述**: 看板心跳 "18 存活 / 69 离线" (实况 87 启用 = 14 active + 73 离线, 其中 62 个招标源, 36 个从未成功); 5 分钟全量轮询 87 源, 7 天 3 万次 run 里 failed+partial 占 2 万; 调 `HOTSPOT_COLLECT_INTERVAL_SECONDS` 无效。三路只读探索 + 74 源四层现场探测 (`audit_dead_source_triage.py`) + 生产链实测 (`check_source_fetch.py`) 定位到的**第一性根因**按影响排序:
+  1. **存活与有用被混成一个数字**: 健康机 / Phase 9 覆盖统计只看 `item_count` (相关性+质量过滤**之后**)。招标源首页实测 40 条锚点 / 0 条安全相关 (含当时"存活"的采招网), "今天没有相关招标" 被判成 "源死了" → 62 个招标源大面积 dead。
+  2. **crawl4ai 返回 markdown 被当 HTML** (`crawl4ai_parser.py` `content=result.markdown`): bid 链永远先走 crawl4ai, 一旦"成功"就把 markdown 喂给 `_parse_html` 锚点解析器 → 必然 0 条。招标类唯二存活的采招网/晨歌恰是 crawl4ai 被反爬拦下、退回 aiohttp 拿到真 HTML 的两个。
+  3. **编码陷阱**: 政企站声明 `charset=GB2312` 却含 GBK 扩展字, `resp.text()` 抛 `UnicodeDecodeError` 被 `except Exception` 吞成 `html=None` → "crawl4ai+direct+proxy all failed" (okcis.cn 200/472KB 被判 dead 数十轮); 全仓 4 处 `resp.text()` 同样暴露。
+  4. **RSS 机器人 UA + 无超时**: `feedparser.parse(url)` 用默认 `feedparser/6.x` UA, Cloudflare 前置 feed (嘶吼/HackRead/36氪) 直接给挑战页 → `rss_empty bozo=True`; 内部 urlopen 无超时可挂死线程池。
+  5. **配置链断裂**: `main.py:93` 硬编码 `HotspotScheduler(interval=300)` 压过 env/config; `cadence_seconds` 与 `last_fetch_at` 是死列 (从未被读/写入闸口); 前端改间隔不持久化重启即回 300; 死源不退出批量轮转 (loader 只过滤 enabled=1) + 每日 03:00 复活探测形成 "复活→再死" 全天抖动。
+  6. **三套健康口径互不咬合**: P1.7 failure_rate 只按 `{category}:{slug}` 匹配 `crawler_runs.source_id`, 而批量路径写的是 name (warm 库 21 万行 name vs 8.7 千行 id) → 生产上永远 green; revival (Phase 9) 与 probe (Phase 3) 各自为政; census 等价表 phase3 词汇 (`healthy/degraded/unhealthy`) 与真实枚举漂移。
+  - **已验证并否定的假设**: SSRF 连接器 `list({ips})` 顺序随机、IPv6 黑洞 (mofcom/chng 的 AAAA 确实超时、A 记录秒通) 拖死直连 — 实测 aiohttp 3.14 自带 happy-eyeballs, IPv6 首位 0.4s 即失败并非超时; **未改 `url_safety.py`** (无功能必要的安全模块改动是噪声)。真实败因是弱密码套件 TLS (mofcom) 与 WAF 412 (华能/华电/卫健委, 全头也 412)。
+- **实现思路**: 分流 (死源探活而非抓取) + 诚实分母 (修不好的退役) + 分离度量 (存活 ≠ 有用); 所有生产库写操作备份在前; 退役只 disable 不 DELETE 且可 `--revert`。
+- **核心变更**:
+  - **T1 节奏**: `config.collect_interval_seconds` 300→1800 (+ `.env`/`.env.example`); `main.py` 删硬编码并新增 `_apply_persisted_refresh_interval()` 启动回读; `POST /api/settings/refresh-interval` 持久化到 settings 表 `collection.refresh_interval_seconds` + 新增 GET; `v1_signal_intake_tick` 跟随 config; `url_full_check` 300→900; **cadence 单一闸口**: `BaseCollector._load_sources_from_registry(only_source=)` 读 `status/cadence_seconds/last_fetch_at`, dead 排除 + 节奏未到期排除, `only_source` 命中绕过 (tick/手动强刷); `get_schedulable()` 加同语义 julianday 条件; migration 109 全部启用源 1800 / bid 21600 (6h)。`last_fetch_at` 由健康机两条路径无条件写入 (检查点核实)。
+  - **T2.2 抓取链**: `crawl4ai_parser` `content` 改取渲染后 `html` (fallback `cleaned_html`), markdown 单独保留; 新建 `utils/http_text.py` (`decode_html_bytes` 声明→meta→utf-8→gb18030, gb2312/gbk 一律升级超集; `read_text_lenient` 兼容无 `read()` 的桩) 替换 fetchers ×2 / bid ×2 的 `resp.text()`; `_fetch_rss` 传 `agent=浏览器 UA` + Accept 头 + `wait_for(timeout=self.timeout)` → `rss_timeout`; bid `_fetch_with_fallback` 三步失败原因带进 `error_msg` ("all failed (crawl4ai: …; direct: HTTP 412; proxy: skipped)") + INFO 日志。
+  - **T2.2 存活/有用分离**: `SourceResult.raw_count` + `fetched_count` 属性 (max, 未接线路径向后兼容); RSS/HTML/bid 三条成功路径写 raw; `_write_crawler_runs` 与 `run_one_source`/`_write_crawler_runs_for_source` 分列 fetched(存活)/accepted(有用), 健康机看 fetched; `source_stats.upsert_after_run(produced=)` 显式存活判定 (total_items 仍累加有用数); `evaluate_source_coverage` 按 fetched 计 active/zero; `BidCollector._parse_html` 去掉相关性预过滤 (原样挪到 `_build_items`, 最终产出严格不变)。
+  - **T2.3 退役**: `cleanup_retire_unfixable_sources.py` 读两份报告, 规则 = 生产链 alive/ok 保留; 死因 ∈ {dns_nxdomain, http_gone, tls_unrecoverable, tcp_refused, ssrf_policy} 或 (tcp_timeout ∧ 从未成功) 或 (从未成功 ∧ 修复后仍 0 候选) 退役; 曾成功者观察。**apply 结果: 31 退役 (19 不可达 + 8 从未成功仍 0 + 4 超时从未成功) / 28 保留(已恢复) / 15 观察**; `enabled` 87→56; 备份 manifest `backend/backups/_drill/20260910_060238/` (HOT/WARM/COLD/Wiki sha256); 改前状态 `reports/retired_sources_20260910T060259Z.json`。
+  - **T3 口径**: `_failure_rate_for_source_name` 同时匹配 name 与 id (去掉 f-string IN 拼接); `try_revive_one` 复活后 `_bridge_phase3_grace` 同步 `crawler_sources` dead→grace (计数归零); `_check_url` 委托 `source_prober._head_status` (P0 SSRF 门, 消除重复 HEAD 实现); `STATUS_EQUIVALENCE` phase3 改为 `active / stale|grace / dead / disabled|unknown`。
+  - **T4 度量**: `audit_source_value.py` 7 天 per-source fetched/accepted/接受率/hotspots 入库排行 + 低价值名单 (首跑: 133 源 / 18 有产出 / 37 低价值启用源; 历史行两列同值属预期, 修正后新行才分离)。
+- **测试验证**:
+  - 命令: `.venv/bin/python -m pytest backend/tests/ -q` / `ruff check <触碰文件>` / `python scripts/generate_meta.py --check` / `scripts/check_source_fetch.py --offline` (生产链实测, 只读)
+  - 结果: pytest **4382 passed / 9 skipped / 0 failed** (T1 后基线 4355 + T2/T3 27 新测试; 起点 4332/9 + 23 T1 新测试); 新测试文件 `test_source_cadence_gate.py`(23) `test_fetch_chain_root_causes.py`(14) `test_liveness_vs_usefulness.py`(6) `test_health_metric_alignment.py`(7); 改 `test_config.py`(1800) `test_bid_collector.py`(过滤断言挪到 `_build_items` 层) `test_crawl4ai_parser.py`(content=html) `test_pipeline_p1_fix.py`/`test_crawler_sources.py`(schema 加三列) + 15 处 registry 桩 `lambda **_: None`。ruff 触碰文件 0 错 (全 backend 余 2-3 处为未触碰文件预存)。generate_meta OK (58/14/85/127 不变)。
+  - **生产链实测 (修复前→后, 74 离线源)**: zero 67→46 / alive 6→27 / ok 1→1 (电力招标网当场产出 2 条安全招标: 中核海外阿矿风险与安全评估 / 南方电网数字电网等保测试)。招标源千里马/中国政府采购网/易招标/采招网 raw 0→32-40。
+  - **生产上线**: 旧后端 (pid 18839, 11:19 启) SIGTERM 后 21s 优雅退出; 新后端 pid 59585 (`nohup .venv/bin/python run.py`), `/api/health` `collect_interval_seconds=1800`, migration 109 已应用 (bid 33 源 21600 / 其余 1800), 日志 `scheduler started, 58 jobs (collect_all every 1800s …)`。旧日志对照: 旧进程每轮 collect_all 耗时 90-140s, 87 源仅产出 10-22 条。
+- **潜在风险 / 未做**:
+  - 15 个观察源需 per-source 工作: 中国电信采购/中化商务/招标信息港/采联网 等 SPA 正文薄 (crawl4ai 渲染后仍无锚点); `security:HackRead` Cloudflare JS 挑战 403 (可换 `/feed/`); `security:安全内参` JSON API 已返 HTML (需改 RSS URL, 数据变更); `TheHackerNews` feed 25s 超时; `36氪` feed WAF; `GitHub Trending`/`Star History` 本机到 github.com 抖动 (Playwright ERR_ABORTED)。
+  - Phase 3 仍 dead 的 5 个已恢复 bid 源 (中招联合/南方电网/卫健委/国开行/电力能源招标网) 需等 03:30 probe → grace → 3 轮产出 → active 漏斗 (约 1 天), 未手工改状态。
+  - crawl4ai 库自身对部分重定向链抛 `Unexpected error in _crawl_web at line 778` (上游 bug), 影响 ~16 个已退役源的 crawl4ai 步 (直连也失败, 退役决策不受其影响)。
+  - 今日日志 `_write_fingerprints failed: no such table: warm.hotspots` ×68 为预存问题, 本批未动 (与本批无关, 建议单独工单)。
+  - Mimosa 写入门连续误拦: 多行/相邻字面量/标识符形式的参数化 SQL 均被判 SQL 注入, 内联 `urlopen` 即便先 `validate_url` 也被判 SSRF → 绕行方式: 单行字面量 SQL、只编辑三引号内部行、委托已审计的 prober。`source_revival_service._check_url` 因此改为委托而非内联校验 (结果更好)。
+  - 首轮重启后 `catchup_on_startup` 会做本周回填 (设计行为, 负载一次性); 前端设置页尚未消费新的 GET `/api/settings/refresh-interval` (仍读 localStorage 默认 30 分钟, 与后端新默认一致)。
+  - 生产 `source_stats` 里已退役源的历史行保留 (心跳分母走 `JOIN crawler_sources WHERE enabled=1`, 自动排除)。
+
+## [DEV-0165] 国际/国内源归属落库 + 国外源代理优先 + 代理子系统死代码清理
+- **时间**: 2026-09-10 17:20
+- **类型**: 功能开发 + 重构
+- **关联模块**: `proxy:prefer-proxy`, `sources:network-zone`, `collectors:fetch-chain`, `cleanup:dead-code`
+- **关联文件**: `backend/repository/migrations/110_network_zone.sql` (新), `backend/proxy_config.py`, `backend/collectors/fetchers.py`, `backend/collectors/github_collector.py`, `backend/api/sources.py`, `backend/utils/proxy_probe.py`, `backend/services/data_cleaning.py`, `backend/parsers/crawl4ai_parser.py`, `backend/services/proxy_pool.py` (删除), `scripts/audit_network_paths.py` (新), `docs/V0.8_USER_GUIDE.md`, `docs/ARCHITECTURE.md` + 3 份 AGENTS.md (services 127→126), 测试 2 文件更新
+- **问题描述**: DEV-0164 遗留两项待办: ①国际源每轮仍先烧一次直连超时才轮到代理 (github.com 直连 15-30s 黑洞), 且"哪些是国外站"没有权威落库口径 ②代理子系统死代码 (proxy_pool / data_cleaning 硬编码 / USER_GUIDE 幽灵 job)。owner 指示: 建立国际源与国内源归属, 国外源直接用代理, 明确热点源抓取网络路径, 清理死代码。
+- **实现思路**: 归属显式落库 (`crawler_sources.network_zone`, migration 110, 人工核定) 而非 TLD 猜测; `prefer_proxy()` 以注册表为单一事实源 (仅 enabled=1, DB 异常安全降级为直连优先); 消费点只改"第一跳用什么 session", 代理注入/回退仍由 ProxySession 统一负责。
+- **核心变更**:
+  - **migration 110**: `crawler_sources` 新增 `network_zone TEXT NOT NULL DEFAULT 'domestic'`; 按实测核定 6 个国际主机 (github.com / news.ycombinator.com / hnrss.org / thehackernews.com / hackread.com / schneier.com) 标 international; 其余全部 domestic (含 Cloudflare 托管的 4hou.com — 直连实测正常)。
+  - `proxy_config.py`: 新增 `prefer_proxy(url)` + `_international_hosts()` (60s TTL 缓存, `invalidate_international_hosts()`; 表/列缺失或 DB 异常 → 空集安全降级)。
+  - 消费点接线: `fetchers.py` aiohttp 兜底步 + `github_collector.py` 第 1 步 — `prefer_proxy=True` 的源第一跳直接走 `ProxySession` (注入代理, 代理链路失败自动切直连), 国内源路径完全不变。
+  - `api/sources.py /health/v2`: 逐源暴露 `network_zone`。
+  - **死代码清理**: 删除 `services/proxy_pool.py` (Phase 16 死代码, health score/startup_health_check 零调用方) 及 `crawl4ai_parser` 的 import/构造参数/兼容属性 + 对应 2 个测试; 删除 `data_cleaning.validate_url` 的死代理分支 — **修正一个误判**: 该函数原以为无调用方, 实际 `bookmark_sync` 多行导入在用 (grep 漏检), 故恢复为薄委托 (`utils/proxy_probe.is_reachable_sync`, 代理感知 + SSRF 门), 网络实现收敛到 proxy_probe; 删除 `docs/V0.8_USER_GUIDE.md` 幽灵 job `proxy-health-probe` 行。
+  - `scripts/audit_network_paths.py` (新, 只读): 逐启用源输出 zone × renderer × cadence × 抓取路径 (代理优先→直连回退→crawl4ai 等推导), 附采集器级路径注记 (HN/GDELT=BackendSession 已代理优先; OpenBB/OSSInsight/Telegram/Reddit=直连优先), 产出 `reports/network_paths.{md,json}`。
+  - 文档数字: services 127→126 (ARCHITECTURE.md + 根/services/scripts 三份 AGENTS.md; generate_meta 写模式不落盘, 需手改 — 与既有记忆一致)。
+- **测试验证**:
+  - `test_proxy_builtin_fallback.py` 新增 9 例 (prefer_proxy 注册/国内/未注册/停用/DB 异常降级/迁移列存在 + fetchers 代理优先/国内不触代理 + github 代理优先跳过直连黑洞); `test_crawl4ai_parser.py` 移除 2 个 proxy_pool 构造测试 (含 `__all__` 同步)。
+  - ruff 触碰文件 0 错; 受影响测试文件全绿 (44+111+…); `generate_meta --check` OK (58 jobs / 14 collectors / 85 routers / **126 services**)。
+  - **生产实测** (重启 pid 95188, migration 110 应用): `audit_network_paths` 输出 **国际 4 / 国内 52** (HackRead/Schneier 已于 DEV-0163 退役故不在启用列); 代理优先耗时收益: **GitHub Trending 34.9s→2.1s (13 条)、TheHackerNews 30s 超时→2.1s (34 条)、Star History 31.8s→1.4s (1 条)**, 三源全部 ok。
+- **潜在风险**: ①国际清单是人工核定快照, 新增国外源须手工标 `network_zone='international'` (否则保持直连优先, 行为安全但不省时) ②`prefer_proxy` 有 5s TTL 缓存 (原 60s, owner 反馈延迟过长后下调; 全表 ~101 行单查微秒级, 缓存只省同轮重复查询; 任何 zone 写法最多 5s 自愈, 需即时的写路径可主动调 `invalidate_international_hosts()`) ③熔断期 prefer_proxy 随 should_use_proxy 一并降级为直连 (设计如此) ④爬虫级 GDELT/OpenBB 等未注册采集器仍按各自原路径 (BackendSession 类已代理优先, 自建 session 类直连优先), 如需统一可后续迁入注册表 ⑤`data_cleaning.validate_url` 语义从"永远直连 HEAD"变为"代理感知 HEAD", bookmark_sync 的可达性结论可能变化 (更准确)。
+
+## [DEV-0164] 网络代理内置可选项 (默认开启) + 代理失效自动切回直连
+- **时间**: 2026-09-10 16:30
+- **类型**: 功能开发 + Bug修复
+- **关联模块**: `proxy:config`, `proxy:session`, `collectors:fetch-chain`, `api:proxy`, `frontend:proxy-settings`
+- **关联文件**: `backend/proxy_config.py`, `backend/proxy_session.py`, `backend/collectors/session.py`, `backend/collectors/fetchers.py`, `backend/collectors/github_collector.py`, `backend/utils/proxy_probe.py` (新), `backend/api/proxy.py`, `backend/api/health.py`, `backend/tests/conftest.py`, `backend/tests/test_proxy_builtin_fallback.py` (新) + `test_rss_path.py`/`test_fetch_chain_root_causes.py`/`test_api.py` 更新, `frontend/src/components/settings/ProxySettings.tsx` + `.test.tsx` (新) + `AboutSettings.tsx`, `backend/proxy_config.json`(生产, gitignored)/`proxy_config.example.json`/两份 `.env.example`
+- **问题描述 / 背景**: 上一批 (DEV-0163) 留下的 3 个离线源 (TheHackerNews / GitHub Trending / Star History) 经 A/B 实测确认是**纯网络问题** (直连 15s 黑洞, 走本机 127.0.0.1:7897 代理 200/秒回), owner 要求把代理做成**内置可选项、默认开启、代理失效能切回原始直连**。探索发现代理子系统是**三重死亡**: ①`proxy_config.json` mode=off ②`backend.proxy_session` 裸导入 `from proxy_config import ...` 在包内 ModuleNotFoundError → `base.ProxySession` 永远 None, 兜底层代码层面就不存在 ③即使通了, `ProxySession` 无任何失败处理 (代理死 = 请求死)。另有 3 个预存坏点: `/api/proxy/test` 引用不存在的 `proxy_session` 单例必 500、PUT 引用不存在的 `init_proxy_session` 静默无效、前端设置页字段与后端契约错位 (UI 实际不可用), `.env.example` 声明的 `HOTSPOT_PROXY_*` 从未被读取。
+- **实现思路**: 直连优先架构不变 (国内源永不出海), 代理只做国外源兜底; 默认值内置化 (`mode=builtin` = 127.0.0.1:7897 + 内置国内绕行清单); 失效回退分两层 — **请求级** (单次代理请求失败立刻摘掉 proxy 直连重试) + **进程级熔断** (连续 3 次失败 → 300s 全直连 → 半开探测)。
+- **核心变更**:
+  - `proxy_config.py`: 新增 `builtin` 模式并设为默认 (`BUILTIN_PROXY_URL=http://127.0.0.1:7897`, `BUILTIN_NO_PROXY` 内置国内绕行: `*.cn` + 25 个国内源主站); **env 接线** `HOTSPOT_PROXY_MODE/HTTP_PROXY/HTTPS_PROXY/SOCKS_PROXY/NO_PROXY` (优先级 env > json > 默认; 文件缺失/损坏回退 builtin 而非 off); load 加 mtime+env 签名缓存; save 原子写 (tempfile+os.replace); 新增内存态熔断器 (`mark_proxy_failure/success`, `proxy_circuit_open`, `proxy_health_snapshot`, `reset`; 阈值/窗口 env 可调); 熔断期 `should_use_proxy`/`get_proxy_url` 一律直连; manual 模式 https-only 时 http 目标回落 https_proxy。
+  - `proxy_session.py`: 修正导入 (`backend.proxy_config`); `_ProxyAwareRequest` 包装 `async with` — 经代理请求遇链路失败 (`ClientProxyConnectionError/ClientHttpProxyError/ClientConnectorError/ServerDisconnected/Timeout`) → `mark_proxy_failure` + **同 session 摘 proxy 直连重试一次**; 成功 `mark_proxy_success`; 显式 `proxy=` 参数尊重; 入口过 `validate_url` (SSRF 门, 此前 sogou 主路径无校验)。
+  - `collectors/session.py` (BackendSession/httpx): 代理链路失败 → 回写熔断器 → **同一轮内立刻直连重试** (不再同一代理重试 3 次打到死), 本次调用余下尝试强制直连。
+  - `collectors/fetchers.py` `_fetch_rss`: RSS 接入代理感知通道 — 拆出 `_fetch_rss_bytes` (ProxySession 取字节 + 浏览器 UA/Accept 头), feedparser 只解析字节并注入 HTTP 状态码 (bytes 解析无 status)。修 THN feed 直连超时。
+  - `collectors/github_collector.py` `_parse_html` 策略 1: 新版 GitHub Trending (2026-09 markup) 的 repo 链接不再包在 `<h1>/<h2>` 里而是 article 内普通锚点, 旧正则 13 条全漏; 改为遍历 article 全部锚点交 `_is_repo_url` 严格过滤 (login/stargazers/forks 卫星链接自动排除)。
+  - `api/proxy.py` (重写, 145 行守规则): 修 `/test` 必 500 (不存在的 `proxy_session` 导入); PUT 合并语义 (未提交字段保留现值, 不再抹掉手动配置) + 非法 mode 报错 + 保存后重置熔断; GET 带 `health`/`builtin`/`effective_proxy`/`valid_modes`; `/test` 改为每站 **直连 vs 经代理并列对照** (实现在新 `utils/proxy_probe.py`, 5 探测站: 3 国外 + 2 国内, 汇总 ok/degraded/down/skipped); 新增 `POST /health/reset`。**load/save 改模块属性调用** — 按值导入曾使 `test_api` 的 wraps 文件保护失灵, 全量套件每跑一次会把生产配置写回 off (本批实测踩坑)。
+  - `api/health.py` `_proxy_health`: 附加 `enabled/effective_proxy/circuit_open/open_remaining_seconds/consecutive_failures`。
+  - 前端 `ProxySettings.tsx` (重写): 契约对齐 (`settings.mode/no_proxy`/`effective_proxy`/`health`/`results[]`); 模式三按钮 关闭/内置代理/系统代理 (+手动徽标); MODE/EFFECTIVE(熔断态)/TEST 三状态卡; 熔断器统计 + "闭合熔断"按钮; 测试表 直连/经代理 并列。`AboutSettings.tsx`: 代理四态 (off/builtin/auto/manual) + 熔断态展示。
+  - 测试环境: conftest 新增 autouse `_proxy_off_for_tests` (env 强制 off + 缓存/熔断归零), 测试不出网; 需要代理行为的用例自行覆盖。
+- **测试验证**:
+  - 新增 `test_proxy_builtin_fallback.py` 36 例 (默认/优先级/回退/绕行匹配/熔断状态机/ProxySession 回退/BackendSession 回退/API 契约/连通性汇总) + `ProxySettings.test.tsx` 4 例; 更新 `test_rss_path.py` (7, `_fetch_rss_bytes` 桩 + 真 bytes 状态注入例) / `test_fetch_chain_root_causes.py` (2) / `test_api.py` (PUT 测试 tmp 化配置文件 — 修复其保护失灵)。
+  - ruff 触碰文件 0 错; `tsc --noEmit` 0 错; vitest 480/480 (63 文件); `vite build` 通过; `generate_meta --check` OK (58/14/85/127 不变, utils 不计数)。
+  - **生产实测**: ①死代理演练 (7897→关闭端口): 每轮秒切直连 (schneier 3×200/74KB), 第 3 次连续失败熔断开启 `[proxy circuit OPENED → all direct]`, 国内站不受影响 ②`/api/proxy/test` 真实对照: **经代理 5/5, 直连 3/5** (THN/HN 直连超时·代理 200; 国内 2 站策略=直连) ③生产抓取链: **GitHub Trending 13 raw/13 条** (Tencent/teamai-cli 等真实热榜)、**TheHackerNews 50 raw/32 条** (真实标题入库)、Star History 1 条、千里马招标网 alive 不受影响。
+- **潜在风险**: ①代理是兜底, 被墙源每轮仍先烧一次直连超时 (30 分钟节奏下可接受; "已知被墙域名代理优先"名单留作增强) ②crawl4ai (Playwright) 不走代理 (BrowserConfig 启动时固定, per-request bypass 做不到), 靠渲染的国外站不受益 ③熔断按"代理链路失败"计数, 目标站自身故障 (经代理 502) 也会计数, 极端情况可能把好代理误熔断 5 分钟 (半开自愈, 可接受) ④生产 `proxy_config.json` 是 gitignored 本地文件, 换机器需按 example 重建 (builtin 默认已兜底) ⑤`/api/proxy/test` 真实出网, 5 站 × 2 通道最多 ~80s (前端有 loading 态) ⑥死代码 `services/proxy_pool.py` + migration 053 `proxy_health_log` 表仍无消费方, 留清理工单; `data_cleaning.py:114` 硬编码 7897 引用不存在的 `config.proxy_mode` (AttributeError 被吞) 同留。
+
+## [DEV-0166] PageLayout 工具页内容区滑入 fixed 侧栏底下 (/settings 双侧栏叠印"乱码")
+- **时间**: 2026-09-10 17:44
+- **类型**: Bug修复
+- **关联模块**: `frontend:page-layout`, `frontend:settings-hub`
+- **关联文件**: `frontend/src/components/PageLayout.tsx`
+- **问题描述**: owner 报 `/settings` 布局异常、显示"乱码"、与首页 UI 不一致。浏览器实测 (1440×900): AppNav 为 `fixed` 左侧 256px, `#main-content` 计算 `padding-left` 却只有 **40px** (期望 256px), 内容区从 x=57.5 开始, SettingsHub 自己的 210px 分类导航落在 x=97.5 — 整块压在 AppNav 上; 且 `#main-content z-10` 高于导航 `z-auto`, 两层文字叠印在同一片像素 = 所谓"乱码" (并非编码问题)。影响范围: **全部 PageLayout 工具页在 ≥1024px 桌面宽度** (`/todos` `/knowledge/*` `/skill-store` `/settings` `/report` `/secnews/*` 等), 只是 owner 在 /settings 首先撞到; 首页/判断层/行动层走 SentinelLayout 无 AppNav 所以正常, 故显得"不一致"。
+- **根因**: T17.5 (`bdac95f`, 2026-09-07) 给 PageLayout 加 `<AppNav />` fixed 侧栏时, 把让位类 `sm:pl-64` 追加到已含 `px-4 sm:px-8 lg:px-10` 的同一 class 串。Tailwind 按断点顺序输出 responsive 变体, `lg:px-10` 在样式表中位于 `sm:pl-64` 之后, ≥1024px 时 `padding-left` 被覆盖回 40px; 640–1023px 反而正常 (同断点内 pl 排在 px 之后), 所以只有桌面复现。
+- **实现思路**: 按 Tailwind 侧栏布局标准做法, "给侧栏让位"和"内容 gutter"拆到两层: 外层 `<div className="sm:pl-64">` 独占让位, 内层 `#main-content` 保留原 `max-w-[1320px] mx-auto px-* py-* relative z-10`。不动 AppNav、不动 settings-shell.css、不改 spec §5 的壳归属 (`/settings` 仍 PageLayout "不变")。
+- **核心变更**:
+  - `PageLayout.tsx`: `#main-content` 外包一层 `sm:pl-64` wrapper, 移除原串上的 `sm:pl-64`; 加一行注释说明"让位必须独占一层"的约束 (防再合并)。SentinelLayout 不动。
+- **测试验证**:
+  - 浏览器实测修复后 (1440 宽): wrapper `padding-left=256px`, `#main-content x=256` (= 侧栏右缘), settings 头部/分类导航 x=296, `overlapWithNav=false`; 抽查 `/todos` `/knowledge/import` `/skill-store` 三页 `mainX=256` 全部无重叠; /settings 截图目视干净 (左 AppNav / 中 分类导航 / 右 内容卡片)。
+  - `npx tsc --noEmit` 0 错; 定向 vitest (PageLayout 5 + AppNav 3 + v085_route_shell 15) 23/23; 全量 vitest **480/480 (63 文件)** 与 DEV-0164 基线一致, 零回归。
+- **潜在风险**: ①`max-w-[1320px] mx-auto` 现在在让位层内居中 (≥1576px 宽时内容在侧栏右侧区域居中, 而非整屏居中) — 视觉上更合理, 但与 T17.5 前的"整屏 1320 居中"不同 ②AppNav 桌面 nav 仍无 z-index (`z-auto`), 页面内 sticky/overflow 元素理论上可绘到侧栏上方, 本批未加 z 以保持最小改动 ③"与首页 UI 不一致"另一半是**设计如此** (spec §5: 工具页 PageLayout+AppNav, 三层页 SentinelShell), 若 owner 想让 /settings 进 Sentinel 壳属 spec 级裁决 (AGENTS 硬规则禁新壳), 本批不越权。
+
+## [DEV-0167] 首页 SSE 回调回触 POST /api/refresh 形成"采集→事件→再采集"自激循环 (30 分钟节奏被打成连续抓取)
+- **时间**: 2026-09-10 18:45
+- **类型**: Bug修复
+- **关联模块**: `frontend:sentinel-home`, `frontend:sentinel-judge`, `frontend:hooks/useSSE`, `frontend:hooks/useHotspotData`
+- **关联文件**: `frontend/src/hooks/useSSE.ts`, `frontend/src/hooks/useHotspotData.ts`, `frontend/src/components/sentinel/SentinelHomePage.tsx`, `frontend/src/components/sentinel/SentinelJudgePage.tsx` (+ 同名 test ×3)
+- **问题描述**: owner 报首页 (localhost:8898/) 刷新频率过高, 存在多次页面刷新与抓取, 要求前后端节奏一致 (选 30 分钟就 30 分钟, 手动刷新除外)。生产日志实测 (`backend/logs/app.log`, 2026-09-10): 页面未打开时调度器严格 30 分钟一轮 (17:10:51 → 17:40:51 → 18:10:51, 期间 0 次 `POST /api/refresh`); **首页打开的 17:26–18:10 这 44 分钟里, 采集启动 88 次、前端发出 `POST /api/refresh` 172 次**, 峰值单分钟 9 轮采集。DEV-0163 把后端节奏 5→30 分钟改对了, 但前端仍在回触采集, 所以 owner 感知不到任何变化。
+- **根因** (三层叠加):
+  1. `SentinelHomePage` 的 `useSSE({ onEvent })` **无事件类型过滤** — `/api/events` 推送 outbox 全部类型 (`collect_done` / `job_done` / `extract_done` / `alert` / `task_done` / `review_due` / 埋点 `view` `scroll` `dwell` …), 任意一条都触发首页三连: `reloadPipe()` + `loadSide()` (无节流, 2 请求) + 3s 后 `refresh()`。
+  2. `useHotspotData.refresh()` = **`POST /api/refresh` (同步跑一轮完整 `run_once()`) + 重拉第 1 页** — 它被当成"刷新数据"用在 SSE 路径, 实际是"触发采集"。一轮采集结束发 `job_done` + `collect_done` 两个事件 → 3s 后再 POST → 再采集 → 无限自激, 周期 ≈ 3s + 采集耗时。
+  3. `SentinelJudgePage` 同样无类型过滤且 `load()` 无节流 (只读, 不触发采集, 但每个无关事件都重拉 3 个接口)。
+- **实现思路**: 把"拿新数据"与"触发采集"在 hook 层分离, SSE 路径只允许前者; 事件订阅收口到 `collect_done`; 过期文案改读后端真实间隔。不动后端 (调度/设置链路 `POST /api/settings/refresh-interval` → config + settings 持久化 + reschedule 本就完整), 不动 `SentinelShell.tsx` (并行会话正在做壳统一, 工作区有其半成品 diff)。
+- **核心变更**:
+  - `useSSE.ts`: 新增 `types?: string[]` 选项 (走 ref, 不触发重连); 声明后只有命中类型进 `onEvent`; `lastId` / `lastEvent` 仍对所有事件推进 (断线续传坐标不能因过滤而倒退)。
+  - `useHotspotData.ts`: 新增只读 `refetch()` (清缓存 + 重拉第 1 页, 零 POST); `refresh()` 改为 `POST /api/refresh` 后复用 `refetch()`, 接口注释明确"仅供用户显式点击"。
+  - `SentinelHomePage.tsx`: `useSSE({ types: ['collect_done'] })`; SSE 路径 3s 合并后调 `refetch()` (原 `refresh()`); 右栏 `loadSide` 加 10s 节流 (`SIDE_RELOAD_GATE_MS`, 与心跳条同频); 错误重试按钮与 URL 导入完成后改 `refetch()` (二者都不该起采集); 空态「立即采集」保留 `refresh()` = 手动刷新唯一入口; 页脚与空态的硬编码「每 5 分钟」改为挂载时 GET `/api/settings/refresh-interval` 的 `interval_minutes` (兜底 30); 文件头补"刷新节奏契约"说明。
+  - `SentinelJudgePage.tsx`: `types: ['collect_done']` + 30s 节流 (与 SentinelGraphPage 同频)。Garden/Graph 页本就有 15s/30s 节流且需要非采集事件 (代码推送/编译), 不动。
+- **测试验证**:
+  - 新增回归 7 条: `useSSE.test` types 过滤 (4 事件只放行 1 条, lastId 推进 4 次, lastEvent 仍是被过滤的最后一条); `useHotspotData.test` refetch 全程 GET 零 POST / refresh 先 POST 后紧跟 GET; `SentinelHomePage.test` 新 describe 4 条 (collect_done 三连发 → 主列 1 次只读重拉 + 右栏 1 次 + **0 次 POST /api/refresh**; 8 种非采集事件 → 主列/右栏/心跳 0 次重拉 0 次 POST; 空态「立即采集」恰 1 次 POST; 页脚/空态显示接口返回的 60 分钟且不再出现"每 5 分钟")。用 `vi.useFakeTimers({ shouldAdvanceTime: true })` 瞬时跨过 3s 合并窗口, waitFor 仍可用。
+  - `npx tsc --noEmit`: 本批文件 0 错 (工作区唯一错误 `SentinelShell.tsx` 未使用 `useLocation` 属并行会话半成品, 非本批); 全量 vitest **487/487 (63 文件)** = DEV-0166 基线 480 + 7 新增, 零回归; `vite build` exit 0。
+  - **生产活体验证** (IAB 浏览器打开新代码首页, 页内挂 fetch 计数器 + 独立 EventSource 探针, 再 curl `POST /api/refresh` 模拟手动采集): 18:37:36 后端发 `collect_done` → 页面 18:37:36 右栏 quality/todos 各 1 次 → 18:37:39 (3s 合并后) `GET /api/hotspots` 1 次 → 快讯头更新为"刚刚"; **页面发出的 `POST /api/refresh` = 0**; 后端日志观察窗口内除手动那 1 轮外零新增采集。页脚实测显示"每 30 分钟自动采集 · 采集完成即刷新" (值来自接口)。旧代码下同一场景 3s 后必再起一轮。
+- **潜在风险 / 遗留**:
+  1. **既有 bug (本批发现未修)**: 首页/判断页的 `usePipeReloadOnSse()` 在 `SentinelShell` 的 `PipeContext.Provider` **之外**调用 (页面是壳的父组件; 文件内 `RailWithPipe` 注释已自述此坑), 拿到默认空 `reload`, 所以心跳条 (源在线/漏斗/队列) 在采集完成后**不会刷新**, 探针里也确实没有 `/api/sources/health` 请求。属"刷新不足"与本批"刷新过频"方向相反, 修法是把 collect_done 订阅挪进壳内自刷; 因 `SentinelShell.tsx` 正被并行会话改动, 留下一批。
+  2. 手动 `POST /api/refresh` 走 `service.run_once()` 直调, 不经 `collect_all_job` 的 `@instrument_job`, 所以只发 `collect_done` 不发 `job_done`, 也不写 `job_runs`; 调度轮次两者都发。前端已只认 `collect_done`, 不受影响, 但观测面板的 job 计数会少算手动轮。
+  3. 未做「前端按选定间隔自轮询」: 现在首页数据变化的唯一来源是 `collect_done` 事件与手动刷新, 若 SSE 长期断连 (自动重连 3s) 页面不会自行到点重拉——这是刻意选择 (再加轮询就又是两个时钟), 节奏由后端调度器单一持有。
+  4. `/api/settings/refresh-interval` 的 `persisted_seconds` 当前为 null (owner 未在设置页改过), 生效值是 config 默认 1800s; 一旦在设置页选择新值会同时写 settings 表并 reschedule, 页脚下次加载即显示新值。
+  5. 生产 dev server (8898) 已通过 HMR 提供新代码, 但 owner 已打开的旧标签页需**手动刷新一次**才脱离旧回调; 18:05 后日志已无风暴 (标签页当时已关)。
+
+## [DEV-0168] 壳统一: 打散左侧 AppNav → 工具页走 SentinelShell 顶部横向导航, 左侧栏能力归位页内
+- **时间**: 2026-09-10 18:59
+- **类型**: 重构 (UI 一致性) + Bug修复
+- **关联模块**: `frontend:page-layout`, `frontend:sentinel-shell`, `frontend:settings-hub`, `frontend:knowledge-tabs`
+- **关联文件**: `frontend/src/components/PageLayout.tsx` + `.test.tsx`, `frontend/src/components/AppNav.tsx` + `.test.tsx` (删除), `frontend/src/components/sentinel/SentinelShell.tsx`, `frontend/src/components/sentinel/sentinel.css`, `frontend/src/components/sentinel/SentinelSettingsPage.tsx` + `.test.tsx`, `frontend/src/components/knowledge/KnowledgeTabs.tsx`, `frontend/src/routes/__tests__/v085_route_shell.test.tsx`, `frontend/src/routes/ROUTE_REGISTRY.md`, `frontend/src/AGENTS.md`, `AGENTS.md`, `docs/v0.8.5/V0.8.5_PLAN.md`
+- **问题描述**: DEV-0166 修掉叠印后 owner 仍指出 `/settings` "存在双重前端、与首页不一致", 并裁决 "打散左侧菜单, 改横向菜单, 左侧菜单能力整合进各页面对应位置"。事实: 首页/判断层/行动层用 SentinelShell (顶部 appbar 三层导航 + 更多菜单 + 心跳条), 所有工具页却套 PageLayout + 左侧 fixed AppNav (v1.0 T17.5 遗留) — 两套壳并存; AppNav 的 14 项入口与壳内三层导航 / 更多菜单 / 各页内导航全量重复。另发现 `/settings` 的"哨兵"分类嵌入的 `SentinelSettingsPage` 自己又渲染一个 `<SentinelShell>` (页中页双 appbar), 以及 v0.8.5 C4 的 `/knowledge/v1` 知识目录在整个 UI 无任何入口 (注释写"更多→知识库→v1 目录"但从未实现)。
+- **实现思路**: 遵 spec "唯一壳" 与 AGENTS "SentinelShell + 心跳条全站常驻": `PageLayout` 改为 `<SentinelShell layer={null}>` (三层 tab 不高亮, 更多菜单按当前路径高亮指示位置), AppNav 物理删除并加守卫双断言 (仿 V1SentinelShell 先例); 左侧栏能力去向逐项核对 — 三层入口=壳 tabs, SK 商店/SK-01..05=`/skill-store` 页内 v1 区块 (T15 已有), 知识管理导入/处理/编译/复利=`/knowledge` KnowledgeTabs (已有), 已导入=KnowledgeLayout 入口卡 (已有), 仅 `/knowledge/v1` 缺入口 → KnowledgeTabs 快捷模式补 `知识目录 v1`。设计技能按 AGENTS 硬约束 1 路由 `redesign-existing-projects` (Scan→Diagnose→Fix, 复用现有栈, 不引新视觉语言)。
+- **核心变更**:
+  - `SentinelShell.tsx`: `layer: SentinelLayer | null`; `ingested` 未传时壳自取 `GET /api/hotspots?category=all&time_range=24h&limit=1` total (与 Graph/Garden 页同口径, 避免工具页心跳条永远 "…"); `SentinelMoreMenu` 用 `useLocation` 计算当前工具页 → 按钮 `.active` + 菜单项 `aria-current="page"`。
+  - `sentinel.css`: **元素级重置降特异度** `.sentinel a/button` → `:where(.sentinel) a/button` (0,0,1) — 否则 (0,1,1) 压过工具页 Tailwind 工具类; **`border:0` 改 `border-width:0`** — 简写会把 `border-style` 一起重置为 none, 而 Tailwind `.border` 只设宽度、样式靠 preflight `*{border-style:solid}`, 结果按钮边框全部消失 (实测 /skill-store 2 个按钮 0px 才发现); 新增 `.sn-more-btn.active` / `.sn-menu-item.active` (沿用 `.layer-link.active` 视觉)。
+  - `PageLayout.tsx`: 去 AppNav 与 DEV-0166 的让位层, skip-link 前置于壳外, `#main-content` 保留 1320 居中容器 (去掉只为压 AppNav 的 `relative z-10`)。
+  - `SentinelSettingsPage.tsx`: 去自嵌壳 (265 行回退 2 格缩进, `git diff -w` 仅 7 行), 心跳数据改由外层壳 `usePipe()` 供给; 测试改为真实组合渲染 (`<SentinelShell layer={null}><SentinelSettingsPage/></SentinelShell>`), 7 用例原断言 (含 `/api/sources/health` 只请求一次、`1 / 3`、FreeBuf 行) 全部保留。
+  - `KnowledgeTabs.tsx`: MODE_ITEMS 增 `{ key: 'v1', label: '知识目录 v1', path: '/knowledge/v1' }`。
+  - 守卫 `v085_route_shell.test.tsx` +3: AppNav fs 不存在 / grep 无引用 / PageLayout 含 `<SentinelShell layer={null}>`; `PageLayout.test.tsx` 改断言 `.sentinel` + `三层工作流导航` + `section.pipeline` + 无 `主导航`。
+  - 文档: ROUTE_REGISTRY 工具页节 / frontend AGENTS 硬约束 0 (含 CSS 重置特异度约束) / 根 AGENTS 状态行 / spec §5 附 2026-09-10 修订注 (不改史)。
+- **测试验证**:
+  - `tsc --noEmit` 0 错; vitest **62 文件 487/487** (AppNav 3 用例随文件删除, 守卫 +3); `vite build --logLevel error` 通过。
+  - 浏览器实测 (1440×900, 数值优先): `/settings` → `.sentinel` 根 1 / `header.appbar` 1 / `section.pipeline` 1 / 无 `nav[aria-label=主导航]` / 更多按钮 active / 今日收录 "443 篇" (壳自取生效) / 分类导航单列 x=97.5; `/settings?cat=sentinel` → appbar 1 + pipeline 1 (页中页消除) + READ-ONLY pill + 12 行源清单来自外层壳 context; `/skill-store` → 26/26 项 + "v1.0 受管能力包"区块 + 100+ 个 `.border` 按钮全部 1px solid; `/knowledge/import` → 四领域 nav + 快捷模式 `复习 | 知识目录 v1`(href `/knowledge/v1`) + 更多 active。截图: /settings 与 /knowledge 目视与首页同壳。
+- **潜在风险**: ①工具页内容现在继承 `.sentinel` 基础排版 (15px/1.6, 原 body 13px) — Tailwind `text-*` 为 rem 不受影响, 但未显式设字号的文本会变大 ~15%, 本批只抽查了 settings/skill-store/knowledge 三页, `/secnews` `/todos` `/report` 等密集页建议 owner 过目 ②移动端 (<640px) 原 AppNav 汉堡抽屉随之消失, SentinelShell appbar 无响应式折叠 (与首页现状一致), 手机宽度可能横向溢出 ③`lazy-imports.ts` 仍导出未路由的 `SentinelSettingsPage` (死出口, 未清) ④各工具页自带的 "返回首页"/onBack 按钮与壳品牌/资料层 tab 功能重复, 本批未删 (可后续统一收敛) ⑤`max-w-[1320px]` 现在在壳内整屏居中 (无侧栏), 与 DEV-0166 说明的 "侧栏右侧居中" 不同 — 这是回到 T17.5 之前的状态。
+
+## [DEV-0169] GET /api/skill-registry/v1 全量列表 500 (技能商店页 "Internal Server Error")
+- **时间**: 2026-09-10 19:06
+- **类型**: Bug修复
+- **关联模块**: `api:skill-registry-v1`, `frontend:skill-store`
+- **关联文件**: `backend/api/skill_registry_v1_api.py`, `backend/tests/test_skill_registry_v1.py`
+- **问题描述**: DEV-0168 把 SK 能力包归位到 `/skill-store` 页内, 验收时页面显示 "Internal Server Error / 重试", 后端日志 `api_response status=500 error=ValueError`。复现: `_list()` 26 条里 20 条 legacy skill 的 `input_schema`/`output_schema` 值是 Python type 对象 (`{'top_n': int}`), v1 API `_skill_to_dict` 原样透传, FastAPI `jsonable_encoder` 遇 type 对象抛 ValueError; `?status=v1_active` 过滤时恰好只剩 6 条 schema 为字符串的 v1 SK 所以测试没红 — T14 当时的两个测试为此**特意绕开端点直接查 service** (docstring 自述)。
+- **实现思路**: 与 legacy `skill_registry_api._json_schema` 同口径 — 类型对象 → `__name__`, 在 v1 API 内联 3 行 (不跨模块 import 私有函数)。
+- **核心变更**:
+  - `skill_registry_v1_api.py`: 新增 `_json_schema()`, `_skill_to_dict` 的 `input_schema`/`output_schema` 经其转换。
+  - `test_skill_registry_v1.py`: 两个"绕开端点"的测试改回真实端点断言 (`?status=legacy_v0` → 200/20 条; `/source-health-scan` 详情 → 200 + status/version + schema 值全为 str), 新增 `test_api_list_all_26_serializes` 锁定无过滤全量列表 (页面实际调用)。
+- **测试验证**: `pytest test_skill_registry_v1.py test_skill_registry_api.py` **37 passed**; ruff 触碰文件 0 错; 生产后端重启 (pid 95188 → 26603, `python run.py` 无热重载) 后 `curl /api/skill-registry/v1` → 200 / total 26 / `input_schema {'top_n': 'int'}`; 浏览器 `/skill-store` → 26/26 项 + "v1.0 受管能力包" 区块 + 无报错。
+- **潜在风险**: ①`generate_meta --check` 未跑 (无新增 router/service, 计数不变) ②重启是本机开发后端, 并行会话若正依赖旧进程会有数秒中断 (已通过 /api/health 200 确认恢复) ③legacy skill 详情端点此前从未被真实调用过, 其它字段 (`target`/`prompt_template`) 序列化本批仅经列表用例覆盖。
+
+## [DEV-0170] 工具页「返回」统一为智能返回 + 工具页字号/字体复位到 body 口径
+- **时间**: 2026-09-10 21:43
+- **类型**: 重构 (UI 一致性) + Bug修复
+- **关联模块**: `frontend:hooks`, `frontend:page-layout`, `frontend:routes`, `frontend:tool-pages`
+- **关联文件**: `frontend/src/hooks/useGoBack.ts` + `.test.tsx` (新), `frontend/src/hooks/useGoHome.ts` + `.test.tsx` (删除), `frontend/src/routes/index.tsx`, `frontend/src/components/PageLayout.tsx`, `frontend/src/index.css`, `frontend/src/components/sentinel/sentinel.css`, 16 个工具页/头部组件 (`TodosPage` `HistoryPage` `ReviewPage` `DeepReadPage` `KnowledgePage` `knowledge/KnowledgeLayout` `sync/index` `sync/SyncHeader` `settings/SettingsPage` `secrets/SecretsPage` `crm/CrmPage` `search/UnifiedSearchPage` `tags/TagsPage` `bid/BidAlertPage` `report/ReportPage` `extract/ExtractPage` `SkillsPage` `CodegardenPage` `CodegardenPhase2bPage`) + `ReviewPage.test.tsx` `KnowledgePage.test.tsx`
+- **问题描述**: DEV-0168 壳统一后 owner 要求 "返回前页按钮优化、字号变化优化"。①16 个工具页各自渲染「← 返回首页」硬跳 `/`, 与壳的品牌锚点/资料层 tab 功能重复, 且从 /judge 点齿轮进设置再点返回会被甩回首页而非来路; 行为来源三套并存 (routes `onBack={goHome}` ×12 / 页内 `useGoHome()` ×7 / 路由包装内联 `navigate('/skill-store')` ×4)。②工具页被包进 `.sentinel` 后继承其 `font-family: var(--sn-sans); font-size:15px; line-height:1.6`, 而这些页面按 body 的 `var(--font-mono) 13px / 1.65` (手机·平板·≥1536px 为 14px) 设计 — 未显式设字号/字体的文本变大 ~15% 且等宽→无衬线。
+- **实现思路**: ①新 hook `useGoBack(fallback='/')`: 读 `window.history.state.idx` (BrowserRouter 记录的站内栈深度, 首次落地/外站跳入为 0) — `idx>0 → navigate(-1)`, 否则 `navigate(fallback)`; 全部返回入口收敛到它, 文案统一「返回」(对两种行为都诚实), 详情类页面传 `fallback='/skill-store'`。②body 字号/行高抽成 `:root{--body-fs;--body-lh}` (三档媒体查询改写变量), PageLayout 内容容器加 `tool-main` 类, `sentinel.css` 以 `.sentinel .tool-main{font-family:var(--font-mono);font-size:var(--body-fs);line-height:var(--body-lh)}` 复位 — 壳 appbar/心跳条不受影响, 三层页 (不经 PageLayout) 不受影响。
+- **核心变更**:
+  - `hooks/useGoBack.ts` (新) + 4 测试 (稳定引用 / 无来路→`/` / 无来路+自定义 fallback→`/skill-store` / `idx=1`→`navigate(-1)` 回 `/judge`); `hooks/useGoHome.ts` + 测试删除 (零引用)。
+  - `routes/index.tsx`: `goHome`(useCallback) → `goBack = useGoBack()`, 12 处 `onBack={goHome}` 改 `goBack`; SkillStore/SkillDetail/SkillBuilder/Dashboard 包装内联 navigate 改 `useGoBack()` / `useGoBack('/skill-store')`; 去掉不再使用的 `useCallback` 与 AppRoutes 内 `useNavigate`。
+  - 7 个 `useGoHome()` 消费者改 `useGoBack()` (变量 `goHome`→`goBack`); 16 处 `返回首页` (title/aria-label/文本) → `返回`; `SettingsPage` 去 `useNavigate`, 按钮走 `useGoBack`。`ReviewPage.test` mock 路径与 `KnowledgePage.test` 用例名同步。
+  - `index.css`: `:root{--body-fs:13px;--body-lh:1.65}` + 三档媒体查询改写 `--body-fs:14px`, body 改用变量 (计算值不变)。`sentinel.css` 新增 `.sentinel .tool-main` 复位规则 (含注释); `PageLayout` 容器加 `tool-main`。
+- **测试验证**:
+  - `tsc --noEmit` 0 错; vitest **62 文件 487/487** (useGoHome 4 例删 / useGoBack 4 例增); `vite build --logLevel error` 通过。
+  - 浏览器实测 (1440×900, DOM 级点击 — 本 IAB 的 Playwright 可点击性等待整会话超时): /judge → 齿轮 → `/settings?cat=sentinel` (`history.state.idx=1`) → `#main-content` 计算样式 **13px / "JetBrains Mono" / line-height 21.45px (=13×1.65)**, `.sentinel` 根仍 15px, 按钮文案「返回」, 全页无「返回首页」→ 点返回落 **`/judge`** (idx 0); 直接落地 `/settings` (idx 0) → 返回 → `/`; 直接落地 `/skill-store/cve-impact-brief` → 「返回商店」→ `/skill-store`, 内容区 13px。
+  - 验收前发现前后端进程均已不在 (非本会话操作, 疑并行会话/owner 停止), 以会话初始同款方式重新拉起 (`.venv/bin/python run.py` / `npm run dev`), 后端 200 前端 200。
+- **潜在风险**: ①`history.state.idx` 是 React Router BrowserRouter 的实现细节 (v6 起稳定, 非公开 API), 若升级 v7 需回归 `useGoBack.test` 第 4 例 ②同 tab 内从外站链接进入某工具页时 idx=0 → 回 fallback (设计如此); 但用户在本应用内用地址栏手动输 URL 也会 push 一条 idx>0 的记录, 此时「返回」会回到输入前的页面 (符合浏览器直觉) ③SkillDetail 自带文案「返回商店」未改 (来路是商店时同样正确) ④`--body-fs` 变量新增于 `:root`, 与 `[data-theme]` 等其它 :root 块并存无冲突, 但第三方样式若依赖 `body{font-size:13px}` 字面值 (grep 无) 会失配 ⑤三层页 (SentinelHomePage 等) 内嵌的 v1 区块若曾在 PageLayout 下设计, 现在仍吃 15px 壳排版 — 本批只复位 PageLayout 工具页, 三层页排版是 spec 认定的终端风格未动。
+
+## [DEV-0171] 壳窄屏适配 (三层导航不再隐藏) + 心跳条 SSE 刷新断链修复 + 设置页手机布局
+- **时间**: 2026-09-10 22:29
+- **类型**: 功能开发 (响应式) + Bug修复
+- **关联模块**: `frontend:sentinel-shell`, `frontend:settings-hub`
+- **关联文件**: `frontend/src/components/sentinel/sentinel.css`, `frontend/src/components/sentinel/SentinelShell.tsx` + `SentinelShell.test.tsx` (新), `frontend/src/components/settings/SettingsPage.tsx`, `frontend/src/components/settings/settings-shell.css`
+- **问题描述**: owner 要求把 DEV-0168/0170 报告里"需补充考虑和增强"落地。①DEV-0168 未实现项: AppNav 汉堡抽屉删除后, 壳在 ≤820px 直接 `.layers{display:none}` 把三层导航整条隐藏, 窄屏只剩品牌 (回首页) 和更多菜单 (无判断层/行动层), 工具页也一样 — 判断层/行动层在手机上不可达。②并行会话记忆里的待修项 (树已干净、无人在改): 4 个三层页 (Home/Judge/Graph/Garden) 在组件体内调 `usePipeReloadOnSse()`, 但壳是它们自己渲染的子节点, hook 跑在 `PipeContext.Provider` 之外只拿到默认 `reload: () => {}` — SSE `collect_done` 后心跳条从未真正刷新过 (DEV-0167 只修了自激循环, 这条断链仍在)。③验收时发现 SettingsPage 自身在 <640px 仍是分类导航+内容左右并排, 内容被挤成 ~80px 宽的竖字列。
+- **实现思路**: ①响应式改"隐藏"为"折叠": ≤820px 紧凑态 (去箭头/副标签、缩 padding、隐藏品牌副标), ≤640px 顶栏 `flex-wrap` 折成两行 (品牌+右侧操作 / 三层导航独占一行三等分)。②不改 4 个页面 (并行会话领域): 壳挂载时把 `reload` 登记到模块级 `mountedReload`, `usePipeReloadOnSse` 用 `(mountedReload ?? reload)()` — Provider 内 (工具页) 二者相同, Provider 外 (三层页) 走登记值; 卸载时若仍是自己则清空 (路由切换时新壳覆盖)。③设置页主区 `flex-col sm:flex-row`, <640px 分类导航横滚一行 (隐藏描述、nowrap)。
+- **核心变更**:
+  - `sentinel.css`: ≤820 块 `.layers{display:none}` → 紧凑态 6 条规则; 新增 ≤640 块 (appbar 换行、layers order:3 占满、layer-link 三等分居中、pipeline/pipe-block 缩边距)。
+  - `SentinelShell.tsx`: 模块级 `mountedReload` + 登记/清理 effect + `usePipeReloadOnSse` 兜底; `usePipe` docstring 注明 pipe 只在壳子树内可读。
+  - `SentinelShell.test.tsx` (新, 4 例): 页面渲染壳结构下 hook 在 Provider 外触发 `/api/sources/health` 第二次请求 / layer=null 无 tab 高亮 + 更多按钮 active + 菜单项 `aria-current=page` / layer=judge 时判断层高亮更多不高亮 / ingested 未传显示 "7 篇"、传 null 保持 "…"。
+  - `SettingsPage.tsx` 主区 `flex-col sm:flex-row`; `settings-shell.css` 新增 <640 媒体查询 (sidenav row + overflow-x + item nowrap + desc 隐藏)。
+- **测试验证**:
+  - `tsc --noEmit` 0 错; vitest **63 文件 491/491** (+4); `vite build --logLevel error` 通过。
+  - 浏览器实测: **390×844** `/settings` → appbar 92px 两行、三层链接 3 个可见各 118px、品牌副标隐藏、`documentElement.scrollWidth 385 ≤ 390` 无横向溢出、分类导航 `flex-direction:row` 高 41px、内容全宽 353px、正文 14px (body 手机档经 `--body-fs`); **768×1024** `/judge` → appbar 60px 单行紧凑、3 链接可见、无溢出; **390** `/judge` → 92px 两行、无溢出。截图 390 设置页目视: 壳两行 / 心跳条 2 列 / 分类横滚 / 体检卡片可读。
+- **潜在风险**: ①`mountedReload` 是模块级单例, 同一页面树同时挂两个壳时以后挂的为准 (当前架构每路由只有一个壳, 测试里 unmount 后再 render 亦正常) ②`usePipe().pipe` 在 Provider 外仍为 null (只修了 reload 断链); 三层页读 pipe 的地方均在壳子树内 (RailWithPipe 等), 若将来在页面组件体直接读 pipe 会拿到 null — 根治仍是「SentinelLayout 从布局层提供壳」, 涉及并行会话正在动的 4 个页面, 本批不越界 ③≤640 两行顶栏使壳增高 32px, 三层页首屏可视区相应减少 ④设置页横滚分类导航无滚动提示 (依赖系统滚动条/手势), 17 项需左右滑动才能全部看到。

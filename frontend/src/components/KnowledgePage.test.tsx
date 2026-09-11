@@ -110,7 +110,7 @@ describe('KnowledgePage (shell)', () => {
     expect(screen.getByText('信息导入 · 多源采集入口')).toBeInTheDocument();
   });
 
-  it('ignores onBack prop for backward compatibility (uses internal useGoHome)', () => {
+  it('ignores onBack prop for backward compatibility (uses internal useGoBack)', () => {
     const onBack = vi.fn();
     expect(() =>
       render(

@@ -58,6 +58,7 @@ def _make_host(monkeypatch, result: PipelineResult) -> QualityGatesMixin:
             def info(self, *a, **k): pass
             def warning(self, *a, **k): pass
             def error(self, *a, **k): pass
+            def debug(self, *a, **k): pass
         @property
         def logger(self):
             return self._L()
@@ -112,4 +113,67 @@ def test_fallback_passthrough(monkeypatch):
     monkeypatch.setattr(QualityGatePipeline, "run_all", boom)
     out = asyncio.run(host._run_quality_gates([item]))
     assert out == [item]
+    assert host.rejects == []
+
+
+# ---------------------------------------------------------------------------
+# v085-review F4 (P0-1): 门禁前 URL 预去重
+# ---------------------------------------------------------------------------
+def _db_item(url: str) -> HotspotItem:
+    """伪造 hotspots 库内已有行 (只用到 url/title 字段)。"""
+    return HotspotItem(
+        id="db-row",
+        title="库里已有的一条",
+        summary="s",
+        source="test",
+        url=url,
+        category="ai",
+        published_at="2026-08-20T00:00:00Z",
+        fetched_at="2026-08-20T00:00:00Z",
+        is_fallback=False,
+    )
+
+
+def _stub_db(monkeypatch, urls: list[str]) -> None:
+    from backend.repository.hotspot_repo import HotspotRepository
+
+    monkeypatch.setattr(
+        HotspotRepository,
+        "query_in_range",
+        lambda self, start=None, end=None, limit=None: ([_db_item(u) for u in urls], []),
+    )
+
+
+def test_pregate_url_dup_skips_gate_pipeline(monkeypatch):
+    """F4: URL 与库内已有行完全一致 → 门禁 pipeline 不应被调用。"""
+    _stub_db(monkeypatch, ["https://example.com/i1"])
+    def boom(self, *a, **k):
+        raise AssertionError("重复 URL 不应再跑全量门禁")
+    monkeypatch.setattr(QualityGatePipeline, "run_all", boom)
+    host = _make_host(monkeypatch, _result(0, [], True))
+    monkeypatch.setattr(QualityGatePipeline, "run_all", boom)
+    out = asyncio.run(host._run_quality_gates([_item("i1")]))
+    assert out == []
+    assert host.rejects == []  # 预筛不写 rejection 行 (避免每轮写库膨胀)
+
+
+def test_pregate_canonical_match_skips(monkeypatch):
+    """F4: canonical 同判 — query/www 尾斜杠差异也应命中预筛。"""
+    _stub_db(monkeypatch, ["https://www.example.com/i1/?utm_source=rss"])
+    def boom(self, *a, **k):
+        raise AssertionError("canonical 等价 URL 不应再跑全量门禁")
+    monkeypatch.setattr(QualityGatePipeline, "run_all", boom)
+    host = _make_host(monkeypatch, _result(0, [], True))
+    monkeypatch.setattr(QualityGatePipeline, "run_all", boom)
+    out = asyncio.run(host._run_quality_gates([_item("i1")]))
+    assert out == []
+
+
+def test_pregate_new_url_passes_through(monkeypatch):
+    """F4: 库内没有的新 URL → 照常走门禁并保留。"""
+    _stub_db(monkeypatch, ["https://other.example/old"])
+    host = _make_host(monkeypatch, _result(85, [], accepted=True))
+    out = asyncio.run(host._run_quality_gates([_item("i1")]))
+    assert len(out) == 1
+    assert out[0].id == "i1"
     assert host.rejects == []

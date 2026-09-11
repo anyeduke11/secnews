@@ -266,6 +266,42 @@ def test_wiki_content_template_renders_step_output(temp_db, fake_service_module,
 
 
 # ---------------------------------------------------------------------------
+# 7.5 v085-review F1: wiki 写包含性 — 越界路径拒绝 (任意文件写收口)
+# ---------------------------------------------------------------------------
+def test_wiki_write_rejects_parent_escape(temp_db, tmp_path, monkeypatch):
+    """相对路径含 ``..`` 逃出 wiki root → RuntimeError, 不落盘。"""
+    from backend.services.skill_runner import dispatch as sr_dispatch
+
+    monkeypatch.setenv("HOTSPOT_WIKI_ROOT", str(tmp_path / "wiki"))
+    with pytest.raises(RuntimeError, match="越界"):
+        sr_dispatch._write_wiki(
+            path="../escape.md", content="x", run_date="2026-09-09"
+        )
+    assert not (tmp_path / "escape.md").exists()
+
+
+def test_wiki_write_rejects_absolute_outside_root(temp_db, tmp_path, monkeypatch):
+    """绝对路径在 wiki root 之外 → RuntimeError (v085-review F1 收口前可直接写)。"""
+    from backend.services.skill_runner import dispatch as sr_dispatch
+
+    monkeypatch.setenv("HOTSPOT_WIKI_ROOT", str(tmp_path / "wiki"))
+    outside = tmp_path / "elsewhere" / "x.md"
+    with pytest.raises(RuntimeError, match="越界"):
+        sr_dispatch._write_wiki(path=str(outside), content="x", run_date="2026-09-09")
+    assert not outside.exists()
+
+
+def test_wiki_write_allows_absolute_inside_root(temp_db, tmp_path, monkeypatch):
+    """绝对路径在 wiki root 子树内 → 照常落盘 (合法用法不回归)。"""
+    from backend.services.skill_runner import dispatch as sr_dispatch
+
+    monkeypatch.setenv("HOTSPOT_WIKI_ROOT", str(tmp_path / "wiki"))
+    inside = tmp_path / "wiki" / "notes" / "ok.md"
+    out = sr_dispatch._write_wiki(path=str(inside), content="x", run_date="2026-09-09")
+    assert Path(out).exists()
+
+
+# ---------------------------------------------------------------------------
 # 8. args 模板渲染: {{ input.X }} + {{ run.date }}
 # ---------------------------------------------------------------------------
 def test_args_template_renders_input_and_run_date(temp_db, fake_service_module):

@@ -45,7 +45,15 @@ export function AboutSettings() {
   const collectTone: 'mint' | 'amber' | 'red' = collectLast ? 'mint' : 'amber';
 
   const proxyMode = health?.components?.proxy?.mode;
-  const proxyTone: 'mint' | 'amber' | 'red' = proxyMode === 'auto' ? 'mint' : 'amber';
+  // cadence 修正批 T5: 代理有 off/builtin/auto/manual 四态 + 熔断器; 非 off 即开启 (直连优先 · 代理兜底)
+  const proxyOn = !!proxyMode && proxyMode !== 'off';
+  const proxyCircuitOpen = !!health?.components?.proxy?.circuit_open;
+  const proxyTone: 'mint' | 'amber' | 'red' = proxyCircuitOpen ? 'amber' : proxyOn ? 'mint' : 'amber';
+  const proxyNote = proxyCircuitOpen ? '熔断 → 直连'
+    : proxyMode === 'builtin' ? '内置代理 · 兜底'
+    : proxyMode === 'auto' ? '系统接管'
+    : proxyMode === 'manual' ? '手动代理 · 兜底'
+    : '直连';
 
   const statusText = health?.status === 'ok' ? '正常运行'
     : health?.status === 'degraded' ? '部分降级'
@@ -112,7 +120,7 @@ export function AboutSettings() {
           <span className={`st-cellv ${proxyTone === 'mint' ? '' : proxyTone}`}>
             {proxyMode || '—'}
           </span>
-          <span className="st-cellnote">{proxyMode === 'auto' ? '系统接管' : '直连'}</span>
+          <span className="st-cellnote">{proxyNote}</span>
         </div>
       </div>
 
@@ -168,11 +176,11 @@ export function AboutSettings() {
                 <td>代理</td>
                 <td>
                   <span className={`st-chip ${proxyTone === 'mint' ? 'ok' : 'mute'}`}>
-                    <i /> {proxyMode === 'auto' ? 'ON' : 'OFF'}
+                    <i /> {proxyOn ? 'ON' : 'OFF'}
                   </span>
                 </td>
                 <td style={{ fontFamily: 'var(--sn-mono)', fontSize: 11, color: 'var(--sn-ink-2)' }}>
-                  {proxyMode === 'auto' ? '系统接管' : '直连'}
+                  {proxyNote}
                 </td>
               </tr>
             </tbody>

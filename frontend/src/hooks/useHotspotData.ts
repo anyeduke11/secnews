@@ -26,7 +26,10 @@ interface UseHotspotDataReturn {
   totalPages: number;
   setPage: (p: number) => void;
   setPageSize: (s: number) => void;
+  /** 手动采集: POST /api/refresh 同步跑一轮 run_once() 再重拉第 1 页。仅供用户显式点击。 */
   refresh: () => Promise<void>;
+  /** 只读重拉第 1 页 (清缓存, 不触发后端采集)。SSE collect_done / 错误重试 / 导入后用它。 */
+  refetch: () => Promise<void>;
   // Phase 39: 最近一轮 run_once() 的产出 (供 Header "新增 X 条" 显示)
   latestIngestionCount: number;
   latestIngestionAt: string | null;
@@ -188,6 +191,12 @@ export function useHotspotData(
   const hasMore = currentEntry?.nextCursor != null;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  const refetch = useCallback(async () => {
+    setPageData({});
+    _setPage(1);
+    await fetchPageRef.current(1);
+  }, []);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -200,12 +209,8 @@ export function useHotspotData(
     } catch (e) {
       console.error('refresh network error:', e);
     }
-    setPageData({});
-    _setPage(1);
-    // P0.2: useEffect for [page] 会触发 fetchPageRef.current(1)
-    // 但保险起见, 显式 await, 让 UI 立即反映 loading 状态
-    await fetchPageRef.current(1);
-  }, []);
+    await refetch();
+  }, [refetch]);
 
   return {
     items,
@@ -222,6 +227,7 @@ export function useHotspotData(
     setPage,
     setPageSize,
     refresh,
+    refetch,
     // Phase 39
     latestIngestionCount,
     latestIngestionAt,

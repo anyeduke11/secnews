@@ -30,11 +30,13 @@ from backend.repository.db import get_connection
 
 # 三套状态词汇的等价关系 (用于跨端点比较, 不改变任何一侧的判定算法)。
 # key = 语义档位, value = 各体系里落在该档位的取值名。
+# cadence 修正批 T3.3: phase3 实际枚举是 active/grace/stale/dead/disabled(+seed 遗留 unknown),
+# 此前写成 healthy/degraded/unhealthy 是文档漂移 (源码 source_health_machine._VALID_STATUSES)。
 STATUS_EQUIVALENCE: dict[str, dict[str, str]] = {
-    "ok":       {"phase9_liveness": "active", "phase3_scheduler": "healthy",  "phase4_trend": "green"},
-    "watch":    {"phase9_liveness": "stale",  "phase3_scheduler": "degraded", "phase4_trend": "yellow"},
-    "failing":  {"phase9_liveness": "dead",   "phase3_scheduler": "unhealthy","phase4_trend": "red"},
-    "no_signal": {"phase9_liveness": "-",     "phase3_scheduler": "unknown",  "phase4_trend": "-"},
+    "ok":       {"phase9_liveness": "active", "phase3_scheduler": "active",       "phase4_trend": "green"},
+    "watch":    {"phase9_liveness": "stale",  "phase3_scheduler": "stale|grace",  "phase4_trend": "yellow"},
+    "failing":  {"phase9_liveness": "dead",   "phase3_scheduler": "dead",         "phase4_trend": "red"},
+    "no_signal": {"phase9_liveness": "-",     "phase3_scheduler": "disabled|unknown", "phase4_trend": "-"},
 }
 
 

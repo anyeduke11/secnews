@@ -23,6 +23,13 @@ def _to_score(val: float | None) -> float:
     return round(val, 4) if val is not None else 0.0
 
 
+# v085-review F6 (P2): 30s TTL 缓存 — 判断层 rail 常驻消费本端点,
+# 每次全量跑 5 组聚合 (top_concepts 还是 CROSS JOIN json_each 全表展开)。
+# 当前 knowledge_items ~3800 行便宜, 行数增长后是稳定热点。
+_CACHE_TTL_SECONDS = 30
+_cache: tuple[float, dict] | None = None  # (monotonic ts, payload)
+
+
 @router.get("/compounding")
 def get_compounding() -> dict:
     """Return compounding metrics for the knowledge dashboard.
@@ -42,6 +49,14 @@ def get_compounding() -> dict:
     stage_distribution
         count of items per lifecycle stage
     """
+    global _cache
+
+    import time
+
+    now = time.monotonic()
+    if _cache is not None and now - _cache[0] < _CACHE_TTL_SECONDS:
+        return _cache[1]
+
     conn = get_connection()
 
     # ── Daily trend (last 30 days) ──────────────────────────────
@@ -125,7 +140,7 @@ def get_compounding() -> dict:
         "GROUP BY lifecycle ORDER BY COUNT(*) DESC"
     ).fetchall()
 
-    return {
+    payload = {
         "daily_trend": [
             {"day": r[0], "count": r[1], "avg_score": _to_score(r[2])}
             for r in daily
@@ -144,6 +159,9 @@ def get_compounding() -> dict:
         "trigger_health": trigger_health,
         "stage_distribution": {r[0]: r[1] for r in stage_rows},
     }
+    # 并发首算可能双写 — last-wins, payload 幂等, 无需加锁
+    _cache = (now, payload)
+    return payload
 
 
 __all__ = ["router"]

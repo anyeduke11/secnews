@@ -41,6 +41,7 @@ from backend.collectors.bid_utils import (
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
 from backend.parsers.crawl4ai_parser import CrawlResult
+from backend.utils.http_text import read_text_lenient
 
 # ---------------------------------------------------------------------------
 # 30+ 招标渠道（覆盖 skillhub 推荐 50+ 渠道的关键子集）
@@ -592,6 +593,11 @@ class BidCollector(BaseCollector):
         # used_crawl4ai 仍被后续 (crawler='crawl4ai' if used_crawl4ai else 'aiohttp') 消费
         # used_proxy 在 P2-1 已删除 (crawl4ai 成功路径直接走 self.logger.debug)
         used_crawl4ai = False
+        # cadence 修正批 T2.2: 逐步记录失败原因, 最终 error_msg 携带
+        # (此前三步失败只留 DEBUG 日志, last_error 永远是无信息量的 "all failed";
+        # 实测 okcis.cn 是 200/472KB 但 GB2312 声明 + GBK 扩展字让 resp.text()
+        # 抛 UnicodeDecodeError 被吞, 源被判 dead 数十轮)
+        reasons: list[str] = []
 
         # ---- 第 1 步: Crawl4ai (Playwright) 模拟正常用户 ----
         # 标讯网站需要 JS 渲染 + 真实浏览器指纹绕过反爬
@@ -600,6 +606,8 @@ class BidCollector(BaseCollector):
             used_crawl4ai = True
             html = crawl4ai_result.content
             self.logger.debug(f"bid crawl4ai OK {source_name!r}")
+        else:
+            reasons.append(f"crawl4ai: {(crawl4ai_result.error or 'no content')[:60]}")
 
         # ---- 第 2 步: Crawl4ai 失败, 走 aiohttp 直连 ----
         if html is None:
@@ -608,14 +616,16 @@ class BidCollector(BaseCollector):
                 async with aiohttp.ClientSession(timeout=timeout_obj) as session:
                     async with session.get(source_url, headers=headers, ssl=False) as resp:
                         if resp.status == 200:
-                            html = await resp.text()
+                            html = await read_text_lenient(resp)
                         else:
+                            reasons.append(f"direct: HTTP {resp.status}")
                             self.logger.debug(
                                 f"bid direct {source_name!r} HTTP {resp.status}"
                             )
                 if html:
                     self.logger.debug(f"bid direct OK {source_name!r}")
             except Exception as e:
+                reasons.append(f"direct: {type(e).__name__}: {str(e)[:40]}")
                 self.logger.debug(
                     f"bid direct failed {source_name!r}: "
                     f"{type(e).__name__}: {str(e)[:60]}"
@@ -627,6 +637,7 @@ class BidCollector(BaseCollector):
             try:
                 from backend.proxy_config import should_use_proxy
                 if not should_use_proxy(source_url):
+                    reasons.append("proxy: skipped")
                     self.logger.debug(
                         f"bid proxy skipped {source_name!r} (no proxy needed)"
                     )
@@ -636,15 +647,17 @@ class BidCollector(BaseCollector):
                     async with ProxySession(headers=headers, timeout=timeout_obj) as session:
                         async with session.get(source_url, ssl=False) as resp:
                             if resp.status == 200:
-                                html = await resp.text()
+                                html = await read_text_lenient(resp)
                                 self.logger.debug(f"bid proxy OK {source_name!r}")
                             else:
+                                reasons.append(f"proxy: HTTP {resp.status}")
                                 self.logger.debug(
                                     f"bid proxy {source_name!r} HTTP {resp.status}"
                                 )
                     if html:
                         self.logger.debug(f"bid proxy OK {source_name!r}")
             except Exception as e:
+                reasons.append(f"proxy: {type(e).__name__}: {str(e)[:40]}")
                 self.logger.warning(
                     f"bid proxy failed {source_name!r}: "
                     f"{type(e).__name__}: {str(e)[:60]}"
@@ -655,11 +668,13 @@ class BidCollector(BaseCollector):
             duration = int(
                 (datetime.now(_tz.utc) - start).total_seconds() * 1000
             )
+            detail = "; ".join(reasons)[:300]
+            self.logger.info(f"bid all paths failed {source_name!r}: {detail}")
             return [], SourceResult(
                 source_name=source_name,
                 source_url=source_url,
                 item_count=0,
-                error_msg="crawl4ai+direct+proxy all failed",
+                error_msg=f"crawl4ai+direct+proxy all failed ({detail})",
                 duration_ms=duration,
             )
 
@@ -698,24 +713,23 @@ class BidCollector(BaseCollector):
             source_name=source_name,
             source_url=source_url,
             item_count=len(items),
+            raw_count=len(raw_items),
             duration_ms=duration,
         )
 
     def _parse_html(self, html: str, source: dict) -> list[dict]:
-        """解析招标页面 HTML，过滤无关采购信息。
+        """解析招标页面 HTML → 去重后的候选条目 (不做相关性过滤).
 
-        Phase 9 增强：
-        1. 优先从招标页面常见结构中提取 title + url
-        2. 关键词过滤：只保留网络安全/AI安全相关条目
+        Phase 9 原实现在此处按 ``_is_relevant`` 预过滤; cadence 修正批 (存活/有用
+        分离) 把过滤统一收到 ``_build_items._title_relevant`` (同一 ``is_security_bid``
+        判定, 原本就是双重门禁), 使 ``raw_items`` 真实反映 "页面可达且可解析"
+        的候选数 — 实测 中国政府采购网/千里马/采招网 首页 40 条锚点 / 0 条安全相关,
+        旧口径下 0 条 = 源死, 62 个招标源因此被判 dead。最终产出不变。
         """
         raw_items = super()._parse_html(html, source)
         out: list[dict] = []
         seen: set[str] = set()
         for it in raw_items:
-            title = it.get("title", "") or ""
-            summary = it.get("summary", "") or ""
-            if not self._is_relevant(title, summary):
-                continue
             url = it.get("url", "") or ""
             if url in seen:
                 continue
@@ -777,6 +791,11 @@ class BidCollector(BaseCollector):
                 skipped += 1
                 continue
             if not self._title_relevant(title, url, source):
+                skipped += 1
+                continue
+            # cadence 修正批: 原 _parse_html 的安全相关性预过滤原样挪到此处
+            # (raw_items 保留候选数用于存活判定, 最终产出严格不变)
+            if not self._is_relevant(title, raw.get("summary", "") or ""):
                 skipped += 1
                 continue
 

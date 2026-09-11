@@ -114,6 +114,19 @@ async def list_quarantine() -> dict:
     return {"files": _get_wiki_fs().list_quarantine()}
 
 
+def _pipeline_live_stats(pipeline: KLPipeline) -> tuple[dict, list[dict], list[dict]]:
+    """队列/错误/token 台账同步快照。
+
+    连接线程亲和: ``get_connection`` 必须在 worker 线程内调用
+    (与 funnel_from_db 同一纪律, 见 v0.6.3 P0-1 卡顿根治), 不在事件循环上直跑。
+    """
+    return (
+        pipeline.queue.stats(),
+        pipeline.queue.errors(limit=10),
+        TokenLedger(get_connection()).summary(),
+    )
+
+
 @router.get("/pipeline/stats")
 async def pipeline_stats() -> dict:
     """Funnel + queue + dead-letter + alive + token ledger stats.
@@ -134,9 +147,7 @@ async def pipeline_stats() -> dict:
     pipeline = _get_pipeline()
     wiki_fs = _get_wiki_fs()
     funnel = await asyncio.to_thread(funnel_from_db)
-    queue_stats = pipeline.queue.stats()
-    errors = pipeline.queue.errors(limit=10)
-    ledger = TokenLedger(get_connection()).summary()
+    queue_stats, errors, ledger = await asyncio.to_thread(_pipeline_live_stats, pipeline)
     alive = await asyncio.to_thread(liveness_from_md_cached, wiki_fs)
     return {
         "funnel": funnel,

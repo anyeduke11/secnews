@@ -33,8 +33,14 @@
   overflow-x:hidden;
 }
 .sentinel ::selection{background:var(--sn-mint-dim);color:var(--sn-ink)}
-.sentinel a{color:inherit;text-decoration:none}
-.sentinel button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer}
+/* 元素级重置必须保持 (0,0,1) 特异度: 壳已包住工具页 (PageLayout), 写成 .sentinel a / .sentinel button
+   会以 (0,1,1) 压过工具页里的 Tailwind 工具类 (bg-* / border / text-*), 剥掉按钮背景与边框。
+   border 不能用简写 (border:0 会连 border-style 一起重置为 none, Tailwind .border 只设宽度、样式靠 preflight 的 *{border-style:solid}) */
+:where(.sentinel) a{color:inherit;text-decoration:none}
+:where(.sentinel) button{font-family:inherit;color:inherit;background:none;border-width:0;cursor:pointer}
+/* 工具页内容区 (PageLayout #main-content) 复位到 body 口径: 这些页面按 body 的等宽 13/14px 设计,
+   不吃壳的 15px 无衬线终端排版; 壳自身 appbar / pipeline 不受影响 */
+.sentinel .tool-main{font-family:var(--font-mono);font-size:var(--body-fs,13px);line-height:var(--body-lh,1.65)}
 .sentinel :focus-visible{outline:2px solid var(--sn-mint);outline-offset:2px;border-radius:2px}
 .sentinel .mono{font-family:var(--sn-mono)}
 .sentinel .num{font-family:var(--sn-mono);font-feature-settings:'tnum'}
@@ -379,7 +385,13 @@ html[data-theme="light"] .sentinel .tb-sun{display:none}
   .sentinel .endnote{padding:0 20px 40px}
 }
 @media (max-width:820px){
-  .sentinel .layers{display:none}
+  /* 壳统一后工具页也靠这条三层导航 (AppNav 汉堡抽屉已删), 窄屏改紧凑图标态而非原来的 display:none */
+  .sentinel .brand small{display:none}
+  .sentinel .layers{gap:2px;margin-left:0}
+  .sentinel .layer-flow{display:none}
+  .sentinel .layer-link{padding:6px 8px}
+  .sentinel .layer-link b{font-size:12px;gap:5px}
+  .sentinel .appbar-right{gap:10px}
   .sentinel .clock{display:none}
   .sentinel .pipeline{flex-wrap:wrap}
   .sentinel .pipe-block{flex:1 1 40%;border-bottom:1px solid var(--sn-line)}
@@ -395,10 +407,22 @@ html[data-theme="light"] .sentinel .tb-sun{display:none}
   .sentinel .head-foot{gap:14px}
   .sentinel .rail{grid-template-columns:1fr}
 }
+@media (max-width:640px){
+  /* 手机: 顶栏折成两行 — 品牌 + 右侧操作 / 三层导航独占一行三等分 */
+  .sentinel .appbar{height:auto;flex-wrap:wrap;padding:8px 12px;row-gap:6px;column-gap:10px}
+  .sentinel .brand{font-size:15px}
+  .sentinel .layers{order:3;flex:1 1 100%;gap:4px;border-top:1px solid var(--sn-line);padding-top:6px}
+  .sentinel .layer-link{flex:1 1 0;align-items:center;padding:6px 4px}
+  .sentinel .layer-link b{justify-content:center}
+  .sentinel .pipeline{margin:12px 12px 0}
+  .sentinel .pipe-block{padding:10px 12px}
+}
 
 /* ===== 溢出菜单: 报纸版删除后承接 12 项能力的唯一入口 ===== */
 .sentinel .sn-more{position:relative;display:flex}
 .sentinel .sn-more-btn{gap:6px;font-family:var(--sn-mono);font-size:12px;letter-spacing:.02em}
+/* 工具页当前位置指示 (与 .layer-link.active 同一视觉语言) */
+.sentinel .sn-more-btn.active{background:var(--sn-mint-dim);color:var(--sn-mint)}
 .sentinel .sn-menu{
   position:absolute;top:calc(100% + 8px);right:0;z-index:var(--z-dropdown,100);
   min-width:268px;padding:6px;
@@ -415,6 +439,8 @@ html[data-theme="light"] .sentinel .tb-sun{display:none}
   font-size:13px;color:var(--sn-ink);transition:background 120ms var(--ease-out);
 }
 .sentinel .sn-menu-item:hover{background:var(--sn-bg-hover)}
+.sentinel .sn-menu-item.active{background:var(--sn-mint-dim);color:var(--sn-mint)}
+.sentinel .sn-menu-item.active .sn-menu-note{color:var(--sn-mint)}
 .sentinel .sn-menu-note{margin-left:auto;font-size:11px;letter-spacing:.08em;color:var(--sn-ink-3)}
 @media (prefers-reduced-motion: reduce){
   .sentinel .sn-menu{animation:none}

@@ -205,7 +205,10 @@ def evaluate_source_coverage(
                 error=sr.error_msg,
             )
             details.append(sc)
-            if sr.item_count >= 1:
+            # cadence 修正批 (存活/有用分离): 覆盖/存活按过滤前候选数判, 招标源
+            # "40 条锚点 / 0 条安全相关" 不再算零产出; total_items 仍累加有用条目数
+            produced = sr.fetched_count >= 1
+            if produced:
                 active_n += 1
             else:
                 zero_n += 1
@@ -218,6 +221,7 @@ def evaluate_source_coverage(
                     source_url=sr.source_url,
                     item_count=sr.item_count,
                     error_msg=sr.error_msg,
+                    produced=produced,
                 )
                 # 读回最新状态
                 row = stats_repo.get_one(cat_value, sr.source_name)

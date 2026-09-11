@@ -49,7 +49,7 @@ export function CrmPage({ onBack }: { onBack?: () => void }) {
       <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
         <div className="flex items-center gap-3">
           {onBack && (
-            <button onClick={onBack} className="nav-btn" aria-label="返回首页">←</button>
+            <button onClick={onBack} className="nav-btn" aria-label="返回">←</button>
           )}
           <h1 className="font-mono text-base font-bold" style={{ color: 'var(--text-primary)' }}>CRM 业绩座舱</h1>
         </div>

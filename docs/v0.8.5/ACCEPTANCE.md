@@ -43,4 +43,4 @@
 2. **B2 出稿 provider**: dev 环境未配 LLM provider, 生成按钮点击返回真实失败原因（D2 语义=失败可观测）; 生产出稿质量验收需配 provider 后进行。
 3. **B6 生产数据迁移**: 工具链就绪（C13）, 对生产 warm 库 853 行执行需改库授权 + 备份前置（T02 备份链已验证）。
 4. **可访问性**: 390 断点响应式已验证; WCAG 深度审计未做（记录为后续治理项）。
-5. code-review P2: CaseDetail 竞态已在 D2 修复; V1Prototype 死代码已在 D2 删除; verify 死载荷已在 D2 转真实 CAS。
+5. code-review P2: CaseDetail 竞态已在 D2 修复; V1Prototype 四入口懒导出已删（组件文件保留供测试引用 + KnowledgeV1Page 仍由其导出, 见 `routes/lazy-imports.ts` 注释; 全量物理删除留待后续治理）; verify 死载荷已在 D2 转真实 CAS。

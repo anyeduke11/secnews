@@ -508,6 +508,7 @@ async def get_source_health_v2():
                 "last_error": s.get("last_error"),
                 "grace_rounds": int(s.get("grace_rounds", 0)),
                 "priority": int(s.get("priority", 50)),
+                "network_zone": str(s.get("network_zone") or "domestic"),
                 "enabled": bool(s.get("enabled", 1)),
             }
             for s in sources

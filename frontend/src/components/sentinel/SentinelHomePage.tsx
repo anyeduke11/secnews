@@ -12,7 +12,14 @@
  *  - GET /api/hotspots?category&time_range&keyword&limit&cursor —— 经 useHotspotData
  *  - GET/POST/DELETE /api/favorites —— 经 useFavorites (模块级单例 store)
  *  - GET /api/quality/summary · GET /api/todos (右栏)
- *  - SSE /api/events (collect 完成后节流刷新)
+ *  - GET /api/settings/refresh-interval (页脚/空态展示真实采集间隔)
+ *  - SSE /api/events (只订阅 collect_done: 采集完成后只读重拉, 不再回触 POST /api/refresh)
+ *
+ * 刷新节奏契约 (cadence 修正批, 2026-09-10):
+ *  - 后端按 settings 里的采集间隔跑 collect_all; 一轮结束发一次 collect_done
+ *  - 首页只在 collect_done 或用户手动点「立即采集」时变化; SSE 路径绝不触发采集,
+ *    否则 "采集 → collect_done → POST /api/refresh → 再采集" 会形成自激循环,
+ *    把 30 分钟节奏打成连续抓取 (owner 反馈"首页刷新频率过高"的根因)
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -69,6 +76,12 @@ const TIME_RANGE_DEFS: { id: string; label: string; hint: string }[] = [
 
 /** 关键词防抖 (ms): 避免每次按键都打一次 /api/hotspots */
 const KEYWORD_DEBOUNCE_MS = 300;
+
+/** 后端默认采集间隔 (分钟), 与 useRefreshInterval.DEFAULT_MINUTES / config 默认值一致; 仅在接口不可达时兜底展示 */
+const DEFAULT_COLLECT_MINUTES = 30;
+
+/** SSE collect_done 后右栏 (质量门禁 / 待办) 的重拉节流窗口 (ms) — 与心跳条 usePipeReloadOnSse 同频 */
+const SIDE_RELOAD_GATE_MS = 10_000;
 
 /** 分类 → tag 颜色 (story-top / 次级 / 快讯标签) */
 function tagColorOf(category: string): string {
@@ -249,26 +262,30 @@ export function SentinelHomePage() {
 
   const [quality, setQuality] = useState<QualitySummaryRaw | null>(null);
   const [todos, setTodos] = useState<TodoRow[]>([]);
+  const [collectMinutes, setCollectMinutes] = useState<number>(DEFAULT_COLLECT_MINUTES);
 
   const reloadPipe = usePipeReloadOnSse();
 
-  // SSE 事件可能高频, 对 refresh() 做一层节流, 避免翻页缓存被反复清空。
+  // SSE collect_done 可能在重连回放时连续到达, 对只读重拉做一层合并 (3s),
+  // 避免翻页缓存被反复清空。
   // ref 必须在 useSSE 之前声明 (回调在渲染期即被持有), 具体实现见下方赋值。
   const refreshTimerRef = useRef<number | null>(null);
   const refreshDebouncedRef = useRef<() => void>(() => {});
+  const sideGateRef = useRef(0);
 
   // ── 资料层主数据: 全文搜索 + 时间窗 + cursor 分页统一由 hook 负责 ──
   const {
     items, total, categoryCounts, loading, loadingPage, error,
-    hasMore, page, pageSize, totalPages, setPage, refresh,
+    hasMore, page, pageSize, totalPages, setPage, refresh, refetch,
     latestIngestionCount, latestIngestionAt,
   } = useHotspotData(channel, timeRange, keyword);
 
+  // 只读重拉: 采集已由后端完成, 前端只需拿新数据, 绝不再回触 POST /api/refresh
   refreshDebouncedRef.current = () => {
     if (refreshTimerRef.current !== null) return;
     refreshTimerRef.current = window.setTimeout(() => {
       refreshTimerRef.current = null;
-      void refresh();
+      void refetch();
     }, 3000);
   };
   useEffect(() => () => {
@@ -300,11 +317,31 @@ export function SentinelHomePage() {
     loadSide();
   }, [loadSide]);
 
-  // SSE: collect 相关事件 → 节流刷新 (10s)
+  // 真实采集间隔 (分钟): 供页脚 / 空态文案, 与 /settings 里的选择保持一致
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/settings/refresh-interval', { headers: { Accept: 'application/json' } })
+      .then(r => (r.ok ? r.json() : null))
+      .then((d: { interval_minutes?: number } | null) => {
+        if (alive && d && typeof d.interval_minutes === 'number' && d.interval_minutes > 0) {
+          setCollectMinutes(d.interval_minutes);
+        }
+      })
+      .catch(() => { /* 接口不可达时保留默认值展示 */ });
+    return () => { alive = false; };
+  }, []);
+
+  // SSE: 只响应 collect_done (一轮采集只发一次)。其余事件 (埋点 / extract_done / alert /
+  // job_done …) 与资料层无关, 不刷页面。右栏 10s 节流兜底重连回放多条的情况。
   useSSE({
+    types: ['collect_done'],
     onEvent: () => {
       reloadPipe();
-      loadSide();
+      const now = Date.now();
+      if (now - sideGateRef.current >= SIDE_RELOAD_GATE_MS) {
+        sideGateRef.current = now;
+        void loadSide();
+      }
       refreshDebouncedRef.current();
     },
   });
@@ -402,7 +439,7 @@ export function SentinelHomePage() {
           ))}
         </span>
 
-        <UrlImport onDone={refresh} />
+        <UrlImport onDone={() => { void refetch(); }} />
 
         <span className="flash-count num" style={{ marginLeft: 'auto' }} title="时间窗语义以后端 TimeRange 为准；收藏数取自 /api/favorites（上限 1000 条）">
           {scopeLabel} {total} 篇 · 第 {page}/{totalPages} 页 · 收藏 ≤{favoriteCount}
@@ -424,7 +461,7 @@ export function SentinelHomePage() {
               </div>
               <h3>数据加载失败</h3>
               <p>{error} — 请确认后端服务运行在 127.0.0.1:8000。</p>
-              <button className="empty-cta" onClick={() => void refresh()}>重试
+              <button className="empty-cta" onClick={() => void refetch()}>重试
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2.5 7a4.5 4.5 0 1 1 1.3 3.2M2.5 7V4M2.5 7h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
             </div>
@@ -436,8 +473,8 @@ export function SentinelHomePage() {
               <h3>{keyword ? '没有匹配的条目' : '该范围暂无收录'}</h3>
               <p>{keyword
                 ? `关键词「${keyword}」在当前频道与时间窗内没有命中，换个说法或放宽时间范围试试。`
-                : '采集管线每 5 分钟自动运行一轮，也可手动触发一轮立即补采。'}</p>
-              <button className="empty-cta" onClick={async () => { await refresh(); loadSide(); reloadPipe(); }}>立即采集
+                : `采集管线每 ${collectMinutes} 分钟自动运行一轮，也可手动触发一轮立即补采。`}</p>
+              <button className="empty-cta" onClick={async () => { await refresh(); void loadSide(); reloadPipe(); }}>立即采集
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2.5 7h8M7.5 3.5L11 7l-3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
             </div>
@@ -627,7 +664,7 @@ export function SentinelHomePage() {
       <footer className="endnote">
         <span>SECNEWS SENTINEL TERMINAL · 资料层</span>
         <span>本地运行 · 无云端依赖</span>
-        <span>SSE 已连接 · 每 5 分钟自动采集</span>
+        <span>SSE 已连接 · 每 {collectMinutes} 分钟自动采集 · 采集完成即刷新</span>
         <span>{scopeLabel} {total} 篇 · 每页 {pageSize}</span>
       </footer>
     </SentinelShell>

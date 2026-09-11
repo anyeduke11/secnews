@@ -44,6 +44,30 @@ from backend.version import APP_VERSION
 log = logging.getLogger("hotspot.main")
 
 
+def _apply_persisted_refresh_interval() -> None:
+    """cadence 修正批: 启动时回读 settings 表持久化的采集间隔。
+
+    POST /api/settings/refresh-interval 此前只改内存 config, 重启即回默认;
+    现在该 API 同步写 ``collection.refresh_interval_seconds``, 此处在
+    scheduler 构造前应用, 让前端改的间隔重启后仍生效。env 优先级不变
+    (pydantic Settings 先读 env, 此处只是把持久值覆盖到同一起点)。
+    读取失败静默走 config 默认 (settings 表缺失/损坏不阻断启动)。
+    """
+    try:
+        from backend.repository.settings_repo import SettingsRepository
+
+        persisted = SettingsRepository().get("collection.refresh_interval_seconds")
+        if isinstance(persisted, int) and 60 <= persisted <= 86400:
+            from backend.config import config
+
+            config.collect_interval_seconds = persisted
+            log.info(
+                "refresh interval restored from settings: %ss", persisted
+            )
+    except Exception as e:  # pragma: no cover
+        log.warning(f"persisted refresh interval restore failed (ignored): {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """启动: log → db → cache + export → scheduler; 关闭: scheduler → cache → db。
@@ -90,11 +114,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     svc = CollectionService()
     set_service(svc)
-    sched = get_scheduler() or HotspotScheduler(interval=300)
+    # cadence 修正批: interval=300 硬编码曾压过 env/config 链 (调 HOTSPOT_
+    # COLLECT_INTERVAL_SECONDS 无效的根因); 现回落构造器默认 → config →
+    # settings 表持久值 (API 改间隔重启后不丢)。
+    _apply_persisted_refresh_interval()
+    sched = get_scheduler() or HotspotScheduler()
     sched.attach_service(svc)
-    sched.start()
-    # Phase 8: scheduler 注册到 app.state（替代模块级 singleton）
-    app.state.scheduler = sched
+    # v085-review F5 (P0-3): dev 与生产后端并行时, dev 实例不再起全套
+    # 采集/触发 job (实测双实例叠加会让采集背靠背连轴转 + 事件循环冻结)。
+    # env 显式关闭, API 正常可用; 不设或非 "1" 时行为不变。
+    if os.getenv("HOTSPOT_DISABLE_SCHEDULER") == "1":
+        log.warning("HOTSPOT_DISABLE_SCHEDULER=1 — scheduler NOT started (dev 并行模式)")
+        app.state.scheduler = None
+    else:
+        sched.start()
+        # Phase 8: scheduler 注册到 app.state（替代模块级 singleton）
+        app.state.scheduler = sched
 
     # C11 R18: outbox dispatcher — 业务 outbox 行 → SSE 广播
     try:
@@ -194,7 +229,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         log.warning(f"crawl4ai close_client error: {e}")
     try:
-        sched.stop(wait=False)
+        # F5: dev 并行模式 (scheduler 未启动) 时为 None, 跳过 stop
+        if app.state.scheduler is not None:
+            app.state.scheduler.stop(wait=False)
     except Exception as e:
         log.warning(f"scheduler.stop error: {e}")
     # v0.8.1 Day 0: dsh 受管子进程随主进程退出, 防孤儿 (autostart 拉起的才管)。

@@ -525,8 +525,18 @@ class CollectionService:
             # P2-0: 传目标源名 — 只抓该源, 不再整分类采集
             items = await collector.collect(only_source=source_name)
             duration_ms = int((time.time() - start_ms) * 1000)
-            fetched_count = len(items) if items else 0
-            accepted_count = fetched_count
+            accepted_count = len(items) if items else 0
+            # cadence 修正批 (存活/有用分离): collect() 把每源 SourceResult 暴露在
+            # last_source_results, 取过滤前候选数作存活口径 (未接线路径回落 accepted)
+            raw_count = max(
+                (
+                    sr.fetched_count
+                    for sr in getattr(collector, "last_source_results", []) or []
+                    if sr.source_name == source_name
+                ),
+                default=0,
+            )
+            fetched_count = max(raw_count, accepted_count)
 
             # Write raw_items directly
             if items:
@@ -543,7 +553,7 @@ class CollectionService:
                 await asyncio.to_thread(
                     self._write_crawler_runs_for_source,
                     source_id, source.get("category", ""),
-                    fetched_count, duration_ms, None,
+                    fetched_count, duration_ms, None, accepted_count,
                 )
             except Exception as e:
                 self.logger.warning(f"run_one_source crawler_runs write failed: {e}")
@@ -553,7 +563,7 @@ class CollectionService:
                 "fetched_count": fetched_count,
                 "accepted_count": accepted_count,
                 "duration_ms": duration_ms,
-                "status": "success" if fetched_count > 0 else "partial",
+                "status": "success" if accepted_count > 0 else "partial",
                 "error_msg": None,
             }
         except Exception as e:
@@ -725,7 +735,8 @@ class CollectionService:
 
             # Fast path: exact URL match
             if url_canonical and url_canonical in existing_urls:
-                self.logger.info(
+                # 降噪 (v085-review F3): 重复 item 每轮重付, info 级每轮刷上千条
+                self.logger.debug(
                     f"Dedup skipped {item.id}: URL match {url_canonical}"
                 )
                 continue
@@ -921,6 +932,11 @@ class CollectionService:
                 status = "failed" if sr.error_msg else (
                     "partial" if sr.item_count == 0 else "success"
                 )
+                # cadence 修正批 (存活/有用分离): fetched = 过滤前候选数 (存活口径),
+                # accepted = 最终条目数 (有用口径)。此前两列同写 item_count, 招标源
+                # "40 条锚点 / 0 条安全相关" 被健康机当成 0 抓取 → dead。
+                fetched_count = sr.fetched_count
+                accepted_count = sr.item_count
                 duration_ms = sr.duration_ms
                 started_at = result.started_at.isoformat()
                 finished_at = (
@@ -937,7 +953,7 @@ class CollectionService:
                     """,
                     (source_name, result.category.value,
                      started_at, finished_at, status,
-                     sr.item_count, sr.item_count,
+                     fetched_count, accepted_count,
                      sr.error_msg or "", duration_ms),
                 )
                 written += 1
@@ -961,8 +977,8 @@ class CollectionService:
                     health = hm.apply_run_result(
                         source_id,
                         {
-                            "fetched_count": sr.item_count,
-                            "accepted_count": sr.item_count,
+                            "fetched_count": fetched_count,
+                            "accepted_count": accepted_count,
                             "status": status,
                             "duration_ms": duration_ms,
                             "error_msg": sr.error_msg or "",
@@ -1000,11 +1016,18 @@ class CollectionService:
         fetched_count: int,
         duration_ms: int,
         error_msg: str | None,
+        accepted_count: int | None = None,
     ) -> None:
-        """Write a single crawler_runs row for a source run."""
+        """Write a single crawler_runs row for a source run.
+
+        cadence 修正批: ``accepted_count`` 可与 ``fetched_count`` 分离 (存活/有用);
+        不传时沿用旧语义 (两列同值)。status 按 accepted 判 success/partial。
+        """
         now = datetime.now(timezone.utc).isoformat()
+        if accepted_count is None:
+            accepted_count = fetched_count
         status = "failed" if error_msg else (
-            "partial" if fetched_count == 0 else "success"
+            "partial" if accepted_count == 0 else "success"
         )
         conn = get_connection()
         conn.execute(
@@ -1016,7 +1039,7 @@ class CollectionService:
             """,
             (
                 source_id, category, now, now, status,
-                fetched_count, fetched_count, error_msg or "", duration_ms,
+                fetched_count, accepted_count, error_msg or "", duration_ms,
             ),
         )
 

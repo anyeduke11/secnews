@@ -236,21 +236,25 @@ def _failure_rate_for_source_name(source_name: str) -> dict:
             "total_runs": 0,
             "failure_rate": 0.0,
         }
-    ids = [r["id"] for r in rows]
-    placeholders = ",".join("?" for _ in ids)
-    row = conn.execute(
-        f"""
-        SELECT
-          COUNT(*) AS total_runs,
-          COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) AS failed_runs
-        FROM crawler_runs
-        WHERE source_id IN ({placeholders})
-          AND started_at >= datetime('now', '-24 hours')
-        """,
-        ids,
-    ).fetchone()
-    total_runs = int(row["total_runs"])
-    failed_runs = int(row["failed_runs"])
+    # cadence 修正批 T3.1: crawler_runs.source_id 有两种口径并存 — run_once 批量路径
+    # 写 source_name, tick 路径写 crawler_sources.id ({category}:{slug})。此前只按 id
+    # 匹配, 实测 warm 库 21 万行是 name / 8.7 千行是 id, 绝大多数源 total_runs<3 →
+    # 永远 green, P1.7 三档聚合在生产上从未生效。改为两种口径都匹配。
+    keys: list[str] = []
+    for r in rows:
+        if r["id"] not in keys:
+            keys.append(str(r["id"]))
+    if source_name not in keys:
+        keys.append(source_name)
+    total_runs = 0
+    failed_runs = 0
+    for key in keys:
+        row = conn.execute(
+            "SELECT COUNT(*) AS total_runs, COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) AS failed_runs FROM crawler_runs WHERE source_id = ? AND started_at >= datetime('now', '-24 hours')",
+            (key,),
+        ).fetchone()
+        total_runs += int(row["total_runs"])
+        failed_runs += int(row["failed_runs"])
     if total_runs < _MIN_RUNS_FOR_SIGNAL:
         # 样本不足: 无信号 → green (避免 1/1=100% 误判)
         return {

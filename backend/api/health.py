@@ -191,11 +191,26 @@ def _collectors_health() -> dict[str, Any]:
 
 
 def _proxy_health() -> dict[str, Any]:
+    """代理组件: 模式 + 生效代理 + 熔断器状态 (cadence 修正批 T5 附加字段)。"""
     try:
-        from backend.proxy_config import load_proxy_settings
+        from backend.proxy_config import (
+            configured_proxy_url,
+            load_proxy_settings,
+            proxy_health_snapshot,
+        )
 
         settings = load_proxy_settings()
-        return {"ok": True, "mode": settings.mode}
+        snap = proxy_health_snapshot()
+        effective = configured_proxy_url("https://example.com/", settings) or ""
+        return {
+            "ok": True,
+            "mode": settings.mode,
+            "enabled": settings.mode != "off" and bool(effective),
+            "effective_proxy": effective,
+            "circuit_open": snap["circuit_open"],
+            "open_remaining_seconds": snap["open_remaining_seconds"],
+            "consecutive_failures": snap["consecutive_failures"],
+        }
     except Exception as e:
         return {"ok": False, "error": str(e)[:200]}
 

@@ -176,7 +176,7 @@ def test_collect_events_in_collect_method():
 
     col = MockCol()
     # P1 切流: 禁用源注册表驱动 (本测试只测事件触发)
-    col._load_sources_from_registry = lambda: None
+    col._load_sources_from_registry = lambda **_: None
     with patch("backend.collectors.base.log_event") as mock:
         asyncio.run(col.collect())
         events = [_event_name(c) for c in mock.call_args_list]

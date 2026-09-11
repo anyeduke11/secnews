@@ -5,14 +5,16 @@
 #   bash scripts/dev_environment.sh plan                  # 仅打印计划
 #   bash scripts/dev_environment.sh init                  # 创建开发数据根 (dry-run 默认)
 #   bash scripts/dev_environment.sh init --execute        # 真创建
-#   bash scripts/dev_environment.sh start-backend         # 启动开发后端 (8766 端口)
+#   bash scripts/dev_environment.sh start-backend         # 启动开发后端 (8000 端口, dev/prod 共用)
 #   bash scripts/dev_environment.sh start-frontend        # 启动开发前端 (8899 端口)
 #   bash scripts/dev_environment.sh status                # 查端口 / 进程 / 路径
 #   bash scripts/dev_environment.sh stop                  # 停掉开发服务
 #
 # 设计原则 (EXECUTION_GUIDE §2.1, T02 段):
 #   - 数据根独立: dev_data/ 在仓库内但 gitignored, 不与生产 backend/data 混淆
-#   - 端口错开: 后端 8766 (生产 8000), 前端 8899 (生产 8898)
+#   - 端口统一: 后端 8000 (dev/prod 共用, --strictPort), 前端 8898 (dev/prod 统一)
+#     ⇒ 任一时刻只能跑一份后端 (dev 或 prod), 切换前需 stop 另一份
+#     ⇒ 数据根仍隔离 (dev 走 dev_data/, prod 走仓库根 backend/data)
 #   - 自动出站默认关: catchup_on_startup=0, collect_interval 不调
 #   - 不改生产 db_path / wiki_root, 不调 BACKUP_RETENTION 链
 #   - 远程同步 (WebDAV/git bundle) 默认不动, 等用户裁决
@@ -24,7 +26,7 @@ DEV_DB_DIR="${DEV_ROOT}/db"
 DEV_WIKI_DIR="${DEV_ROOT}/llm-wiki-2.0"
 DEV_LOG_DIR="${DEV_ROOT}/logs"
 DEV_BACKUP_DIR="${DEV_ROOT}/backups"
-DEV_PORT_BACKEND="${DEV_PORT_BACKEND:-8766}"
+DEV_PORT_BACKEND="${DEV_PORT_BACKEND:-8000}"
 DEV_PORT_FRONTEND="${DEV_PORT_FRONTEND:-8899}"
 
 DRY_RUN=1
@@ -44,8 +46,8 @@ action_init() {
     log "DEV_WIKI_DIR   = ${DEV_WIKI_DIR}"
     log "DEV_LOG_DIR    = ${DEV_LOG_DIR}"
     log "DEV_BACKUP_DIR = ${DEV_BACKUP_DIR}"
-    log "BACKEND port   = ${DEV_PORT_BACKEND} (生产 8000)"
-    log "FRONTEND port  = ${DEV_PORT_FRONTEND} (生产 8898)"
+    log "BACKEND port   = ${DEV_PORT_BACKEND} (dev/prod 共用, --strictPort)"
+    log "FRONTEND port  = ${DEV_PORT_FRONTEND} (dev/prod 统一, --strictPort)"
     log "mode           = $([[ $DRY_RUN -eq 1 ]] && echo DRY-RUN || echo EXECUTE)"
 
     if [[ $DRY_RUN -eq 1 ]]; then
@@ -113,7 +115,9 @@ action_start_frontend() {
     log "starting frontend on :${DEV_PORT_FRONTEND} (proxies 127.0.0.1:${DEV_PORT_BACKEND})"
     cd "${REPO_ROOT}/frontend"
     # v0.8.5 D2 修复: vite.config.ts 读的是 HOTSPOT_BACKEND_PORT (原误设 HOTSPOT_PORT,
-    # 代理回落 8000 打到生产后端)。dev 前后端端口自此固定: 8899 → 8766。
+    # 代理回落 8000 打到生产后端)。
+    # v0.8.5 端口统一: dev/prod 前后端都固定 (后端 8000, 前端 8898, --strictPort)。
+    # ⇒ 后端共用 8000 = 任一时刻只能跑一份, dev 切 prod 前必须 stop
     HOTSPOT_BACKEND_PORT="${DEV_PORT_BACKEND}" npm exec -- vite --port "${DEV_PORT_FRONTEND}" --strictPort --host 127.0.0.1
 }
 
@@ -125,7 +129,7 @@ action_status() {
     lsof -nP -iTCP:"${DEV_PORT_BACKEND}" -sTCP:LISTEN 2>/dev/null || echo "  (free)"
     log "frontend port ${DEV_PORT_FRONTEND} LISTEN:"
     lsof -nP -iTCP:"${DEV_PORT_FRONTEND}" -sTCP:LISTEN 2>/dev/null || echo "  (free)"
-    log "production backend 8000 LISTEN:"
+    log "backend 8000 LISTEN (dev/prod 共用, --strictPort):"
     lsof -nP -iTCP:8000 -sTCP:LISTEN 2>/dev/null || echo "  (free)"
     log "production frontend 8898 LISTEN:"
     lsof -nP -iTCP:8898 -sTCP:LISTEN 2>/dev/null || echo "  (free)"

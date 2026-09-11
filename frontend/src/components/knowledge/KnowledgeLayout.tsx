@@ -2,7 +2,7 @@
  * KnowledgeLayout — 知识管理页面统一布局
  *
  * 4 大领域共享的页面骨架:
- *  - 顶部 Header: 返回首页 + 标题 + 副标题 + 全局联邦搜索
+ *  - 顶部 Header: 返回 + 标题 + 副标题 + 全局联邦搜索
  *  - 4 Tab 导航卡片: KnowledgeTabs
  *  - 子页面 Outlet
  *
@@ -10,7 +10,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { useGoHome } from '../../hooks/useGoHome';
+import { useGoBack } from '../../hooks/useGoBack';
 import { Icon } from '../Icon';
 import KnowledgeSearchBar from '../KnowledgeSearchBar';
 import { KnowledgeTabs, KnowledgeAreaKey, findAreaByPath } from './KnowledgeTabs';
@@ -22,7 +22,7 @@ interface KnowledgeLayoutProps {
 }
 
 export function KnowledgeLayout({ areaCounts }: KnowledgeLayoutProps) {
-  const goHome = useGoHome();
+  const goBack = useGoBack();
   const navigate = useNavigate();
   const [activeTitle, setActiveTitle] = useState<string>('导入');
 
@@ -45,16 +45,16 @@ export function KnowledgeLayout({ areaCounts }: KnowledgeLayoutProps) {
       >
         <div className="flex items-center gap-3 min-w-0">
           <button
-            onClick={goHome}
+            onClick={goBack}
             className="btn-ghost px-2.5 py-1.5 text-xs"
-            title="返回首页"
-            aria-label="返回首页"
+            title="返回"
+            aria-label="返回"
           >
             <Icon>
               <line x1="19" y1="12" x2="5" y2="12" />
               <polyline points="12 19 5 12 12 5" />
             </Icon>
-            返回首页
+            返回
           </button>
           <h2
             className="font-mono text-lg font-bold flex items-center gap-2 min-w-0"

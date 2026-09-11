@@ -13,7 +13,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDeepRead } from '../hooks/useDeepRead';
-import { useGoHome } from '../hooks/useGoHome';
+import { useGoBack } from '../hooks/useGoBack';
 import { DeepReadSection, DeepReadTone } from '../types';
 
 /** 语义三色锁 → 图标描边色 */
@@ -172,7 +172,7 @@ function SectionCard({ section }: { section: DeepReadSection }) {
 
 export function DeepReadPage() {
   const { type, id } = useParams<{ type: string; id: string }>();
-  const goHome = useGoHome();
+  const goBack = useGoBack();
   const { data, sections, loading, error, regenerate, clear } = useDeepRead();
 
   // 进入即分析: force=false 命中后端缓存则瞬时返回, 无缓存则直接调 LLM 生成
@@ -271,7 +271,7 @@ export function DeepReadPage() {
           {loading ? '生成中…' : '重新生成'}
         </button>
         <button
-          onClick={goHome}
+          onClick={goBack}
           style={{
             padding: '4px 12px',
             borderRadius: 'var(--radius-sm, 4px)',

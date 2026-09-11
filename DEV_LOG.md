@@ -804,3 +804,17 @@
   - `pytest test_hotspots_api.py`: **12 passed** (新增 3: 打标字段存在/boost 置顶且不删/空画像原始时序=既有行为)
   - `npx tsc --noEmit`: 0 错 (修 FeedCard 相对导入少一级); `npx vitest run`: **495 passed 全绿** (64 文件)
 - **潜在风险**: ①加权是**页内重排**——命中条目仅在本页前置, 跨页召回靠既有分类/搜索; 真正的全库兴趣优先检索属 P1 (需评分索引) ②`/api/secnews/feed` (报纸风 FeedView, secnews 看板页) 未接线打标, 属 P1 顺延 ③打标逐请求计算, 高频列表请求有正则开销 (有 TTL 缓存兜底, 页内 200 条实测无感; 后续可加 LRU)
+
+## [DEV-0176e] T0.5 SK-01 摘要实践域分区 — 后端聚合 + 兴趣回显 (Workbench Focus P0.5)
+- **时间**: 2026-09-12 08:00
+- **类型**: 功能开发
+- **关联模块**: `backend:services/skill_registry/sk01_daily_priority`
+- **关联文件**: `backend/services/skill_registry/sk01_daily_priority.py`, `backend/tests/test_sk01_practice_partitions.py` (新建)
+- **问题描述**: PRD P0.5 要求 SK-01 每日优先级摘要按兴趣域分区。**执行中发现范围修正**: SK-01 在 v0.8.5 壳中没有活的 API 端点与前端消费面 (仅 C05/C06/C07 测试与 prompt 引用; "每日优先级摘要卡"属 P1 动线强化), 前端分区渲染无处可挂。
+- **实现思路**: 本轮交付后端分区能力: compute() 读取兴趣画像 (`interest.practice_domains`), 对 top_items 就地附加 practice_domain (title 即时打标), 有画像时输出 `practice_partitions` ({命中域: [...], "other": [未命中...]} 降权不删), 无画像时 `practice_partitions=None` (消费方单组渲染 = 现状); 所有返回路径 (dsh/fallback_dsh_failed/fallback_no_data) 统一回显 `interest_domains`。纯增量字段, 既有消费者零破坏。**前端分区渲染顺延 P1** (与"摘要卡上首页动线"同批, 见 DEV_PLAN P1)。
+- **核心变更**:
+  - sk01_daily_priority.py: +_query_interest_domains() / +_partition_by_practice() / compute 三条返回路径 +interest_domains +practice_partitions
+- **测试验证**:
+  - 新建 `test_sk01_practice_partitions.py`: **3 passed** (无画像单组+域附加 / 画像分区+other 不删 / fallback 回显)。纯单元: monkeypatch 查询函数, 不依赖 DB/dsh/ai_hub——初版 DB seed 写法 (内联 INSERT) 两度被 Mimosa 拦, 改 monkeypatch 后通过
+  - 既有回归 `test_c05 + test_c06 + test_c07 + test_v1_0_models`: **53 passed** (增量返回键零破坏)
+- **潜在风险**: ①**预存漂移发现 (非本批引入)**: `_query_admission_recent` SELECT 的 `action`/`subject_id` 列在 migration 097 实际 schema 中不存在 (实为 `material_id`/`body_hash`), 真实库上 admission 聚合自 T14 起一直静默降级为空——已留给独立审计定级, 修复属 T00/T14 域 ②SK-01 无 API 端点, 前端展示链路待 P1 (届时若发现分区结构不合用再调)

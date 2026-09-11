@@ -81,6 +81,46 @@ def _query_watchlist() -> list[str]:
         return []
 
 
+def _query_interest_domains() -> list[str]:
+    """DEV-0176 T0.5: 兴趣画像 (settings.kv 'interest.practice_domains'), 空 = 无画像."""
+    try:
+        from backend.repository.settings_repo import SettingsRepository
+        v = SettingsRepository().get("interest.practice_domains", [])
+        if isinstance(v, list):
+            return [str(x) for x in v if x]
+        return []
+    except Exception as e:
+        logger.warning(f"interest domains fetch failed: {e}")
+        return []
+
+
+def _partition_by_practice(
+    top_items: list[Any], interest_domains: list[str],
+) -> dict[str, list[Any]] | None:
+    """DEV-0176 T0.5: top_items 附加 practice_domain 并按域分区.
+
+    - 无画像 (interest_domains 空) → 返回 None (消费方单组渲染 = 现状)
+    - 有画像 → {命中域: [item...], ..., "other": [其余 item...]}
+      (降权不删: 未命中不丢弃, 归入 other)
+    - 每个 item 就地附加 practice_domain 字段 (即时打标, title 纯函数)
+    """
+    from backend.services.auto_classifier import classify_practice_domain
+
+    for item in top_items:
+        if isinstance(item, dict):
+            item["practice_domain"] = classify_practice_domain(
+                [], title=str(item.get("title") or item.get("summary") or ""),
+            )
+    if not interest_domains:
+        return None
+    partitions: dict[str, list[Any]] = {}
+    for item in top_items:
+        pd = item.get("practice_domain") if isinstance(item, dict) else None
+        key = pd if (pd and pd in interest_domains) else "other"
+        partitions.setdefault(key, []).append(item)
+    return partitions
+
+
 class DailyPriorityIntelService:
     """SK-01 daily-priority-intel service.
 
@@ -102,6 +142,7 @@ class DailyPriorityIntelService:
         dict 含 top_items (≥1) / watchlist_changes (list) / suggested_actions (list) / generated_at / mode.
         """
         watchlist = watchlist if watchlist is not None else _query_watchlist()
+        interest_domains = _query_interest_domains()
         admission_recent = _query_admission_recent(admission_days)
         signals_recent = _query_signals_recent(signals_days)
         # 缺依赖 (无 admission / 无 signals): 返 fallback (仅 raw 聚合, 不出 dsh 摘要)
@@ -112,6 +153,9 @@ class DailyPriorityIntelService:
                 "suggested_actions": ["无可用 admission_log / v1_signals 数据 (依赖未就绪)"],
                 "generated_at": _now_utc_iso(),
                 "mode": "fallback_no_data",
+                # DEV-0176 T0.5
+                "interest_domains": interest_domains,
+                "practice_partitions": None,
             }
         # 调 dsh
         from backend.services.ai_hub.prompts import (
@@ -135,6 +179,9 @@ class DailyPriorityIntelService:
                 "suggested_actions": [f"dsh 调用失败 ({type(e).__name__}), 待 fallback 重试"],
                 "generated_at": _now_utc_iso(),
                 "mode": "fallback_dsh_failed",
+                # DEV-0176 T0.5
+                "interest_domains": interest_domains,
+                "practice_partitions": None,
             }
         # 走 V1EvidenceService receipt (best-effort, T05 模式)
         try:
@@ -147,12 +194,17 @@ class DailyPriorityIntelService:
             V1EvidenceService().commit_intent(intent["intent_id"], entity_id="sk01", projection=None)
         except Exception as e:
             logger.warning(f"V1EvidenceService trace failed (SK-01 still inserts): {e}")
+        # DEV-0176 T0.5: 实践域打标 + 兴趣域分区 (无画像 = None, 单组渲染等于现状)
+        top_items = parsed["top_items"]
+        practice_partitions = _partition_by_practice(top_items, interest_domains)
         return {
-            "top_items": parsed["top_items"],
+            "top_items": top_items,
             "watchlist_changes": parsed["watchlist_changes"],
             "suggested_actions": parsed["suggested_actions"],
             "generated_at": _now_utc_iso(),
             "mode": "dsh",
+            "interest_domains": interest_domains,
+            "practice_partitions": practice_partitions,
         }
 
     def _call_dsh(self, prompt: str) -> str:

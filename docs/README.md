@@ -17,6 +17,7 @@
 | `CodeGarden_PRD_v1.7.md` | CodeGarden 域当前 PRD（feature gate `codegarden*`） |
 | `Observability_PRD_v1.0.md` | 可观测性 PRD（Batch 1+2 已交付，③④⑤ 排期中） |
 | `SECURITY_KNOWLEDGE_GRAPH{,_PRD,_DEV_PLAN}.md` | 安全图谱域（feature gate `security_graph`） |
+| `WORKBENCH_FOCUS_PRD_v1.0.md` / `WORKBENCH_FOCUS_DEV_PLAN.md` | 工作台聚焦方案（2026-09-12 裁决立项：内容相关性门禁/实践域兴趣体系；双视角方案已否决，见 PRD §0） |
 | `V0.8_SKILLS.md` / `V0.8_USER_GUIDE.md` | Skills 双轨体系 / 用户指南 |
 | `DESIGN_SYSTEM.md` / `DESIGN_GUIDE.md` / `DIAGRAMS.md` | 设计契约 / 设计规范 / 图表集 |
 | `v1.0/contracts.md` | v1.0 九领域对象契约（§5 状态机 / §6.4 幂等 / receipt，v0.8.5 能力区块的底层契约） |

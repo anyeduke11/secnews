@@ -700,3 +700,18 @@
   - 感知复核 (本人目视 1440×900 + 2048×1320 截图): 无边交叉 / 无标签遮挡 / 卡片一行 / 大屏无空白下带; 标题单行。
   - 旁证 `hotspot-architecture.visual-check.*` 已在 `.gitignore` 129-134 行, 不入仓。
 - **潜在风险**: ①WebDAV 从拓扑节点降为卡片一句, 备份链在图上不再有边; 若 owner 要恢复节点, 右上 (x 690..1040, y 60..150) 仍有空位但需先解决 `dsh→ai_hub` 虚线走廊 (y≈215) 的穿越 ②`ingest` 只有一条出边, 调度触发关系靠副标签隐含 ③frontend 副标签投影 6.25px 已贴地板, 再加任何字符即破 6px 门 ④卡片文案为压缩版, 长文事实见本条与 PROGRESS; 复跑 `archify deliver` 会覆盖入仓 HTML, 改图只改 candidate。
+
+## [DEV-0174] 工作台聚焦裁决落账: 双视角方案否决 + 内容相关性门禁立项 (PRD/DEV_PLAN/spec 修订注)
+- **时间**: 2026-09-12 00:35
+- **类型**: 配置变更 (方案文档族 + spec 修订注, 零代码改动)
+- **关联模块**: `docs:workbench-focus`
+- **关联文件**: `docs/WORKBENCH_FOCUS_PRD_v1.0.md` (新建), `docs/WORKBENCH_FOCUS_DEV_PLAN.md` (新建), `docs/v0.8.5/V0.8.5_PLAN.md` (§5 后追加 2026-09-12 修订注), `docs/README.md` (当前权威表登记)
+- **问题描述**: owner 在知识复利评审后先提出「安全研究/标讯跟踪双视角切换」需求并要求落 docs 方案 + goal; 随后改裁决: **去掉标讯部分, 专注安全从业者 AI 工作台**。需按仓库惯例落正式方案文档 + v0.8.5 spec 修订注 + 开发目标 (含收尾独立 agent 验收/审计要求), 且不得残留已否决方案的执行项。
+- **实现思路**: 方案内容整体换血——双视角(研究/标讯)的视角轴/双业务流/双画像全部否决, 标讯维持现状 (Feed `bid` 分类档 + `/bid-alert` 工具页, 均为 spec §5 现有条目, 本轮核实过 `/bid-alert` 已在 `routes/index.tsx:204` + lazy-imports + ROUTE_REGISTRY 登记, 此前"孤儿组件"判断有误已更正); 立项内容改为知识复利评审识别的真缺口: **内容相关性门禁/实践域兴趣体系** (12 道质量门禁管"好不好", 新增实践域层管"对你是否有用", 落点 `backend/services/auto_classifier.py` 三级打标已有 + info_filter 管噪音正交)。文档按 SKG 先例 PRD+DEV_PLAN 成对; 修订注按 DEV-0168 引用块先例; 被否决方案以裁决表 (PRD §0 R1-R3) 留痕防回摆。
+- **核心变更**:
+  - `docs/WORKBENCH_FOCUS_PRD_v1.0.md`: 裁决记录 R1 (否决双视角) / R2 (标讯维持现状) / R3 (聚焦立项); 问题定义 (质量门禁 vs 内容门禁正交, 现状仅源级 Category 8 域 + info_filter 关键词两粒度); P0 = 实践域词表 (auto_classifier 二级 8 域) + 标注集 60→80 (顺带关闭 v1.0 T00 悬置裁决) + 兴趣画像 (settings.kv + GET/PATCH /api/settings/interests) + Feed 排序接线 (降权不删) + SK-01 摘要分区; P1 标签统一/动线强化; P2 行为反馈; 非目标显式排除标讯视角/契约变更/向量检索; 红线 = 零新路由 + ai_hub 不动 + 不动 13 gate。
+  - `docs/WORKBENCH_FOCUS_DEV_PLAN.md`: GOAL 声明 + DoD (tsc/vitest/pytest/generate_meta --check + 向后兼容断言 + **独立 agent 功能验收与 code-reviewer 审计双门, 实现会话不得自评 PASS**) + T0.1-T0.5 任务分解 (各带退出判据) + 收尾流程 + 风险表。
+  - `docs/v0.8.5/V0.8.5_PLAN.md`: §5 路由表后追加 2026-09-12 修订注 (双视角否决, spec §5/§6/§10 不受影响, 指向新 PRD/DEV_PLAN)。
+  - `docs/README.md`: 当前权威表登记两份新文档。
+- **测试验证**: 纯文档批, 无代码门禁可跑; 事实核对均在本会话完成: `auto_classifier.py` 三级打标结构与消费方 (collect/knowledge jobs + knowledge API + compiler; digest.py 经 compiler 间接)、`Category` 8 枚举值、settings.py:142 kv+audit 先例、`/api/v1/knowledge/{id}/reuse`、`knowledge_review.py` 每日 job、`/bid-alert` 路由接线。**独立 agent 文档审计已完成** (code-reviewer, 非作者会话): 13 检查项 **13 PASS / 0 FAIL, 0 P0 / 0 P1 / 6 P2**, 报告 `.ua/tmp/audit-workbench-focus-docs.md`; 4 条事实性 P2 已当场修正 (①先例端点实为 `POST /api/settings/llm-provider` 非 PATCH ②`bid_region` 字段不存在, 实为共享 `region` 字段由 `_extract_region` 填充 ③digest.py 为间接消费 ④"每周人工审计"改为 P1 新建机制非既有能力); 其余 2 条 P2 (词表运营细节、`backend/quality/pipeline.py` docstring 陈旧写"9 道"——非本批引入) 留待后续批次。
+- **潜在风险**: ①PRD 中 P0 排序加权"向后兼容断言"依赖固定种子 fixture, 现有 content API 测试未必有该基建, T0.4 开工时可能需先补 fixture ②实践域词表 8 域划分为本方案新设, 未经真实语料验证, T0.2 标注集扩展即首轮验证, 不准则按 DEV_PLAN 风险表升级 P1 LLM 分类 ③本批只落规划, 双视角方案 若未来重启须新立 PRD 不得直接复活本文被否决条款。

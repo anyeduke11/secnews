@@ -659,3 +659,23 @@
   - `tsc --noEmit` 0 错; vitest **63 文件 491/491** (+4); `vite build --logLevel error` 通过。
   - 浏览器实测: **390×844** `/settings` → appbar 92px 两行、三层链接 3 个可见各 118px、品牌副标隐藏、`documentElement.scrollWidth 385 ≤ 390` 无横向溢出、分类导航 `flex-direction:row` 高 41px、内容全宽 353px、正文 14px (body 手机档经 `--body-fs`); **768×1024** `/judge` → appbar 60px 单行紧凑、3 链接可见、无溢出; **390** `/judge` → 92px 两行、无溢出。截图 390 设置页目视: 壳两行 / 心跳条 2 列 / 分类横滚 / 体检卡片可读。
 - **潜在风险**: ①`mountedReload` 是模块级单例, 同一页面树同时挂两个壳时以后挂的为准 (当前架构每路由只有一个壳, 测试里 unmount 后再 render 亦正常) ②`usePipe().pipe` 在 Provider 外仍为 null (只修了 reload 断链); 三层页读 pipe 的地方均在壳子树内 (RailWithPipe 等), 若将来在页面组件体直接读 pipe 会拿到 null — 根治仍是「SentinelLayout 从布局层提供壳」, 涉及并行会话正在动的 4 个页面, 本批不越界 ③≤640 两行顶栏使壳增高 32px, 三层页首屏可视区相应减少 ④设置页横滚分类导航无滚动提示 (依赖系统滚动条/手势), 17 项需左右滑动才能全部看到。
+
+## [DEV-0172] 全部分支收敛合入 main + 端口冲突裁决 + 设置页测试竞态修复
+- **时间**: 2026-09-11 10:50
+- **类型**: 配置变更 (分支合并) + Bug修复 (测试竞态)
+- **关联模块**: `repo:branches`, `scripts:dev-environment`, `frontend:settings-hub`
+- **关联文件**: `scripts/dev_environment.sh`, `frontend/package.json`, `PROGRESS.md`, `PROJECT.md`, `frontend/src/components/sentinel/SentinelSettingsPage.test.tsx`
+- **问题描述**: owner 要求把所有分支合并到 main。盘点 21 个本地分支: 16 个已在 main 祖先链上; 4 个未合 — `fix/source-cadence-health` (领先 32, 含 `fix/v085-review-p0` 全部 18 提交) / `chore/port-frontend-8898-20260908-1925` (领先 2, 含 `layout-opt-20260908-1920` 唯一提交 ac1311d)。合并第二笔时 4 文件冲突, 根因是**两个并行会话前后 8 分钟各做了一版端口统一**: `6e17722` (23:07, chore/port: 后端 dev 8766 错开 / 前端 8898) 与 `7397c59` (23:15, 已随 v085-review 入 fix/source-cadence-health: 后端 dev/prod 共用 8000 / 前端 8898)。后者是终版策略, 但其 `dev_environment.sh` 漏改了 `DEV_PORT_FRONTEND:-8899` 与两处注释 (与自身设计原则段写的 8898 自相矛盾, 且与 `package.json dev` 的 `--port 8898 --strictPort` 不一致)。
+- **实现思路**: 全部 `--no-ff` 保留分支拓扑证据; 冲突以后合入的终版策略 (HEAD) 为准, 唯 `dev_environment.sh` 做混合裁决 — 后端口径取 HEAD (8000 共用), 前端默认值取分支侧 8898 (7397c59 的漏改项), 使脚本/package.json/status 探测三处口径完全一致。剩余 2 分支补合并确认 (Already up to date)。合并后跑三门验证; vitest 唯一失败为 DEV-0171 自带的竞态 (文件与分支顶点 88b29e5 逐字节一致, 非合并引入), 按同文件 L192 同款 `waitFor` 修复。
+- **核心变更**:
+  - 合并提交: `df11910` (fix/source-cadence-health, 224 文件 +7765/−3536) / `237a1e6` (chore/port-frontend-8898, 9 文件)。`fix/v085-review-p0` 与 `layout-opt-20260908-1920` 为已包含分支, 无新提交。
+  - `scripts/dev_environment.sh`: 5 处冲突 → `DEV_PORT_FRONTEND` 默认 8899→**8898**, 用法注释 start-frontend 8899→8898, 其余 4 处取 HEAD (8000 共用 + 两条 ⇒ 说明 + 状态日志措辞 + start-frontend 段注释)。`bash -n` 通过。
+  - `frontend/package.json` `dev:demo`: 取 HEAD, 去掉分支侧 `HOTSPOT_BACKEND_PORT=8766` (后端已共用 8000, `vite.config.ts` 默认回落 8000)。
+  - `PROGRESS.md` D2 行 / `PROJECT.md` 铁律 6: 取 HEAD (8898→8000 固定对措辞)。
+  - `SentinelSettingsPage.test.tsx` L149: `KEY READY` 断言由同步 `getByText` 改 `waitFor` — `keyReady` 来自 `/api/secrets/status` 异步回包, 前置 `waitFor(tabpanel)` 不保证该请求已回, 未回时渲染 `KEY NOT SETUP`。本机修前 3/3 失败, 修后 3/3 通过。
+- **测试验证**:
+  - `git branch --no-merged main` → 空 (21/21 全部已合)。
+  - 前端: `tsc --noEmit` 0 错; vitest **63 文件 491/491** (修前 490/491); `vite build --logLevel error` exit 0。
+  - 后端: `pytest backend/tests/` **4426 passed / 9 skipped / 1 failed** (9m17s)。唯一失败 `test_ai_hub_failover.py::TestGatewayWiring::test_unhealthy_verdict_auto_trips_mid_stream` — 单测重跑 PASSED (0.58s), 整文件 12/12 PASSED (1.37s): 全量高负载下的时序 flaky (依赖 `RECOVERY_TIMEOUT=0.05s` 级时间窗), ai_hub 相关文件本次合并未触碰; 位于 ai_hub 红线区 (AGENTS.md 未裁决前勿动), **本批不修, 仅标注**。
+  - 未推送远端 (owner 2026-09-05 禁令仍有效)。
+- **潜在风险**: ①HEAD 由 `fix/source-cadence-health` 切到 `main`, 若并行会话仍在该特性分支上工作, 其后续提交需再次合入 main ②`chore/port` 分支设想的 "dev 后端 8766 与生产 8000 并存" 用法随本次裁决失效 — dev/prod 后端任一时刻只能跑一份, 切换前必须 `dev_environment.sh stop` (脚本注释已写明); 若 owner 仍需双后端并存, 需重新裁决端口策略 ③ai_hub failover 时序 flaky 在 CI 全量跑时可能复现, 建议单独立项收敛 (放宽时间窗或注入时钟), 不应在合并批里顺手改 ④Mimosa 本次提交前未给出完整扫描结论 (scanner_enobufs), 不宣称安全。

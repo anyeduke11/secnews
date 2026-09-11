@@ -146,7 +146,8 @@ describe('SentinelSettingsPage — 哨兵终端设置屏 (只读)', () => {
     expect(screen.getByText('安全姿态')).toBeInTheDocument();
     expect(screen.getByText('本机与版本')).toBeInTheDocument();
     // 安全姿态三条: 密钥就绪 / 直连 / 绑定地址需自查
-    expect(screen.getByText('KEY READY')).toBeInTheDocument();
+    // KEY READY 依赖 /api/secrets/status 异步回包 (未回包前渲染 KEY NOT SETUP), 必须 waitFor
+    await waitFor(() => expect(screen.getByText('KEY READY')).toBeInTheDocument());
     expect(screen.getByText('DIRECT CONNECT')).toBeInTheDocument();
     expect(screen.getByText('CHECK BIND HOST')).toBeInTheDocument();
   });

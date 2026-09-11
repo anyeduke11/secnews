@@ -751,3 +751,21 @@
   - 新建 `test_auto_classifier_practice_domain.py`: **46 用例全绿** (14 tag 正例 + 16 标题正例覆盖 8 域各 2 + 4 非安全反例 + 空输入 + 词表完整性 3 + 集成透传 3); 首轮 1 例失败 (Kubernetes 带空格), 正则加 `\s*` 修复
   - 既有 `test_auto_classifier.py` 回归: 全绿 (61 total passed)
 - **潜在风险**: ①规则词表对真实语料的覆盖率未验证, T0.2 标注集扩展 (60→80) 是首轮人评验证, 抽样准确率 <80% 则按 DEV_PLAN 升级 P1 LLM 分类 ②TITLE_PRACTICE_RULES 顺序敏感 (如"SQL注入"命中 vuln_research 而非 appsec), 调整顺序会改变结果, 词表变更须跑全量测试
+
+## [DEV-0176b] T0.2 标注集 60→80 — practice_domain 评测语料 (Workbench Focus P0.2, 关闭 T00 悬置裁决)
+- **时间**: 2026-09-12 07:40
+- **类型**: 功能开发 (数据语料) + 配置变更 (关闭 v1.0 T00 悬置裁决"标注集 60-80")
+- **关联模块**: `backend:tests`, `scripts:check`
+- **关联文件**: `backend/tests/fixtures/practice_domain_eval.json` (新建), `scripts/check_practice_domain_lexicon.py` (新建), `backend/tests/test_practice_domain_corpus.py` (新建)
+- **问题描述**: DEV_PLAN T0.2 要求标注集 60→80 且覆盖 8 实践域。原 60 条 admission 8 维标注在 `dev_data/` (gitignored 本地资产, 生产脱敏数据不入仓), 且其 material 标题已脱敏为无意义串, 无法承载实践域真值。**执行中纠偏**: 初版把评测段写进 dev_data seed 文件, 提交时发现该文件从未入仓 (此前误读 check-ignore 输出), 且依赖它的测试会在 CI/新 clone 失败——已还原本地文件, 语料改为入仓 fixture。
+- **实现思路**: **总量 80 = 60 admission 标注 (dev_data 本地, 维持不入仓) + 20 practice_domain 评测条目 (入仓 fixture)**。fixture 20 条纯合成中文标题 (无生产数据), 每条带真值 practice_domain (8 域每域 ≥2: ai_security 3 / cloud 3 / compliance 3 / enterprise 3 / 其余各 2)。配套: ①`check_practice_domain_lexicon.py` 检查脚本 (只读, --check CI 模式: 语料 20 条/每域 ≥2/真值合法/词表重打标 100% 四项), **诚实口径: 语料与词表同源, 是回归护栏而非无偏准确率评估**, 无偏人评属 P1 运营机制; ②结构测试 4 用例。t07 loader 只读 dev_data 文件的 annotations 键, dry-run 实测 60 条不受影响。
+- **核心变更**:
+  - backend/tests/fixtures/practice_domain_eval.json: 20 条评测语料 + _meta (同源护栏口径声明)
+  - scripts/check_practice_domain_lexicon.py: 评测 + 回归护栏脚本
+  - backend/tests/test_practice_domain_corpus.py: 4 用例 (20 条/每域 ≥2/真值合法字段齐/id 唯一)
+  - dev_data/annotation_set_seed_60_80.json: 短暂修改后已还原 v1.0 (未入仓, 不在提交内)
+- **测试验证**:
+  - `check_practice_domain_lexicon.py --check`: **20/20 = 100%, 8 域全 OK, exit 0**
+  - `pytest test_practice_domain_corpus.py`: **4 passed**
+  - `t07_seed_label_set.py` dry-run: annotation rows 60 (loader 兼容)
+- **潜在风险**: ①20 条全打准是同源护栏的预期结果, **不代表真实语料准确率**——无偏评估待 P1 词表运营机制 ②"总量 80"的 60 侧为本地不入仓资产, 裁决关闭的完整证据链 = 本条 DEV_LOG + fixture _meta.notes ③fixture 与词表同源, 改词表必须同步改语料并保持 --check 100%, 否则 CI 护栏会正确地拦下

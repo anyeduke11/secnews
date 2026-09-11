@@ -26,7 +26,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSSE } from '../../hooks/useSSE';
 import { useHotspotData } from '../../hooks/useHotspotData';
 import { useFavorites } from '../../hooks/useFavorites';
-import { CATEGORIES, HotspotItem } from '../../types';
+import { CATEGORIES, HotspotItem, PRACTICE_DOMAIN_LABELS } from '../../types';
 import { SentinelShell, usePipe, usePipeReloadOnSse } from './SentinelShell';
 import { SentinelRail } from './SentinelRail';
 import { SignalPanel } from '../v1/panels/SignalPanel';
@@ -277,7 +277,7 @@ export function SentinelHomePage() {
   const {
     items, total, categoryCounts, loading, loadingPage, error,
     hasMore, page, pageSize, totalPages, setPage, refresh, refetch,
-    latestIngestionCount, latestIngestionAt,
+    latestIngestionCount, latestIngestionAt, interestDomains,
   } = useHotspotData(channel, timeRange, keyword);
 
   // 只读重拉: 采集已由后端完成, 前端只需拿新数据, 绝不再回触 POST /api/refresh
@@ -529,6 +529,17 @@ export function SentinelHomePage() {
                             {heatCells(heatOf(item)).map((on, i) => <b key={i} className={on ? 'on' : undefined} />)}
                           </span>
                           <span className="ftag" style={{ color: tagColorOf(item.category), background: 'transparent', border: '1px solid var(--sn-line)' }}>{labelOf(item.category)}</span>
+                          {item.practice_domain && (
+                            <span
+                              className="ftag"
+                              title={interestDomains.includes(item.practice_domain) ? '命中你的兴趣方向, 已优先展示' : '实践域'}
+                              style={interestDomains.includes(item.practice_domain)
+                                ? { color: 'var(--sn-mint, #00e5a0)', background: 'transparent', border: '1px solid var(--sn-mint, #00e5a0)' }
+                                : { color: 'var(--sn-text-dim)', background: 'transparent', border: '1px solid var(--sn-line)' }}
+                            >
+                              {PRACTICE_DOMAIN_LABELS[item.practice_domain] || item.practice_domain}
+                            </span>
+                          )}
                           <DeepReadChip id={item.id} itemTitle={item.title} />
                           <StarButton item={item} fav={isFavorite(item.id)} onToggle={star} />
                         </div>
@@ -604,7 +615,21 @@ export function SentinelHomePage() {
                           ) : (
                             <span className="flash-title">{item.title}</span>
                           )}
-                          <span className="flash-tags"><span className="ftag" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span><DeepReadChip id={item.id} itemTitle={item.title} /></span>
+                          <span className="flash-tags">
+                            <span className="ftag" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span>
+                            {item.practice_domain && (
+                              <span
+                                className="ftag"
+                                title={interestDomains.includes(item.practice_domain) ? '命中你的兴趣方向, 已优先展示' : '实践域'}
+                                style={interestDomains.includes(item.practice_domain)
+                                  ? { color: 'var(--sn-mint, #00e5a0)', border: '1px solid var(--sn-mint, #00e5a0)' }
+                                  : undefined}
+                              >
+                                {PRACTICE_DOMAIN_LABELS[item.practice_domain] || item.practice_domain}
+                              </span>
+                            )}
+                            <DeepReadChip id={item.id} itemTitle={item.title} />
+                          </span>
                         </div>
                         <div className="flash-side">
                           <span className="flash-src">{item.source}</span>

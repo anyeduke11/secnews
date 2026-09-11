@@ -786,3 +786,21 @@
   - `vitest PracticeDomainsCard.test.tsx`: **4 passed** (渲染+选中态/PATCH 载荷+已保存/空态提示/失败回滚); 首轮 3 例失败系 mock labels 用了 id 而组件显示中文标签, mock 改为与后端 LABELS 同源后全绿
   - `npx tsc --noEmit`: 0 错
 - **潜在风险**: ①PATCH 为全量提交, 多端并发勾选会互相覆盖 (单人工作站可接受, 多用户需改增量协议) ②保存中 disabled 全部按钮, 网络慢时体感顿 (P2 可改乐观并发) ③审计 detail 记录 from/to 全量数组, 画像变更全可追溯
+
+## [DEV-0176d] T0.4 Feed 接线 — 实践域即时打标 + 兴趣域置顶 (降权不删) + 徽标 (Workbench Focus P0.4)
+- **时间**: 2026-09-12 07:50
+- **类型**: 功能开发
+- **关联模块**: `backend:services/hotspot_service`, `backend:api/hotspots`, `frontend:hooks/useHotspotData`, `frontend:sentinel-home`, `frontend:feed`
+- **关联文件**: `backend/services/hotspot_service.py`, `backend/api/hotspots.py`, `backend/tests/test_hotspots_api.py`, `frontend/src/hooks/useHotspotData.ts`, `frontend/src/components/sentinel/SentinelHomePage.tsx`, `frontend/src/components/secnews/feed/FeedCard.tsx`, `frontend/src/types/index.ts`
+- **问题描述**: PRD P0.4 要求资讯流按兴趣画像加权排序并展示命中徽标。约束: 降权不删 (未命中不消失)、分页游标时序不被打乱、零 schema 变更、空画像行为与既有版本一致。
+- **实现思路**: **查询时即时打标**——`list_hotspots` 对页内 item 用 `classify_practice_domain(title)` 纯函数打标 (页内 ≤200 条, 正则成本可忽略), 不落库不加列; **加权 = 稳定分区**: 命中兴趣域的条目整体排到本页前面, 页内相对时序保持; **游标保护**: next_cursor 在重排前从原始时序最后一条计算, 翻页连续性不受置顶影响; **单一来源**: router 从 settings.kv 读兴趣画像传 boost (前端不回传); 缓存键纳入 boost 集合 (空画像与 boost 命中不同 key)。响应新增 item.`practice_domain` 与顶层 `interest_domains` (纯增量字段)。
+- **核心变更**:
+  - hotspot_service.py: `list_hotspots` +boost_practice_domains; 缓存键含 boost; 打标+稳定分区; interest_domains 回显
+  - hotspots.py router: 读 `interest.practice_domains` → boost 传参
+  - useHotspotData: +interestDomains state 透出
+  - SentinelHomePage: 次级重点/快讯流行内 +实践域徽标 (命中 mint 高亮 + title 提示); FeedCard: 徽标 + 命中描边
+  - types/index.ts: HotspotItem.practice_domain / HotspotResponse.interest_domains / PRACTICE_DOMAIN_LABELS (与后端同源)
+- **测试验证**:
+  - `pytest test_hotspots_api.py`: **12 passed** (新增 3: 打标字段存在/boost 置顶且不删/空画像原始时序=既有行为)
+  - `npx tsc --noEmit`: 0 错 (修 FeedCard 相对导入少一级); `npx vitest run`: **495 passed 全绿** (64 文件)
+- **潜在风险**: ①加权是**页内重排**——命中条目仅在本页前置, 跨页召回靠既有分类/搜索; 真正的全库兴趣优先检索属 P1 (需评分索引) ②`/api/secnews/feed` (报纸风 FeedView, secnews 看板页) 未接线打标, 属 P1 顺延 ③打标逐请求计算, 高频列表请求有正则开销 (有 TTL 缓存兜底, 页内 200 条实测无感; 后续可加 LRU)

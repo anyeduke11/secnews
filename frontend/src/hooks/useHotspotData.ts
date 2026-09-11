@@ -33,6 +33,8 @@ interface UseHotspotDataReturn {
   // Phase 39: 最近一轮 run_once() 的产出 (供 Header "新增 X 条" 显示)
   latestIngestionCount: number;
   latestIngestionAt: string | null;
+  /** DEV-0176 T0.4: 本次排序加权所用的兴趣域 (来自响应 interest_domains; 空数组 = 无画像) */
+  interestDomains: string[];
 }
 
 /**
@@ -62,6 +64,8 @@ export function useHotspotData(
   // Phase 39: 最新一轮 run_once() 的产出
   const [latestIngestionCount, setLatestIngestionCount] = useState(0);
   const [latestIngestionAt, setLatestIngestionAt] = useState<string | null>(null);
+  // DEV-0176 T0.4: 本次排序加权的兴趣域 (空数组 = 无画像)
+  const [interestDomains, setInterestDomains] = useState<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
   // 同步缓存到 ref, 让 fetchPage 闭包能拿到最新的 page-1 数据
@@ -132,6 +136,7 @@ export function useHotspotData(
         if (targetPage === 1) {
           setTotal(data.total || 0);
           setCategoryCounts(data.category_counts || {});
+          setInterestDomains(data.interest_domains || []);
           setLastUpdated(data.fetched_at);
           // Phase 39: 最新一轮 run_once() 的产出
           setLatestIngestionCount(data.latest_ingestion_count ?? 0);
@@ -233,5 +238,7 @@ export function useHotspotData(
     // Phase 39
     latestIngestionCount,
     latestIngestionAt,
+    // DEV-0176 T0.4
+    interestDomains,
   };
 }

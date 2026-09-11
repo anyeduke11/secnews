@@ -37,6 +37,12 @@ async def list_hotspots(
         return await asyncio.to_thread(
             _service.list_by_tags, tag_ids, tag_mode, limit
         )
+    # DEV-0176 T0.4: 兴趣画像从 settings.kv 单一来源读取 (前端不必回传)。
+    # 空画像 → boost=None, 排序行为与既有版本完全一致。
+    from backend.repository.settings_repo import SettingsRepository
+
+    interests = SettingsRepository().get("interest.practice_domains", [])
+    boost = [d for d in interests if isinstance(d, str)] if isinstance(interests, list) else None
     return await asyncio.to_thread(
         _service.list_hotspots,
         category=category,
@@ -47,6 +53,7 @@ async def list_hotspots(
         region=region or None,
         source=source or None,
         exclude_category=exclude_category or None,
+        boost_practice_domains=boost or None,
     )
 
 

@@ -27,7 +27,21 @@ export interface HotspotItem {
   // Phase 20+: 标讯状态(仅 category=bid 有效)
   // 可选值: 招标中 / 中标 / 变更 / 终止 / 成交 / 询价 / 比选 / 其他
   bid_status?: string;
+  // DEV-0176 T0.4: 实践域即时打标 (Workbench Focus P0; 非安全内容为 null)
+  practice_domain?: string | null;
 }
+
+/** DEV-0176: 实践域中文标签 — 与 backend/services/auto_classifier.py PRACTICE_DOMAIN_LABELS 同源 */
+export const PRACTICE_DOMAIN_LABELS: Record<string, string> = {
+  enterprise_security: '企业安全建设',
+  vuln_research: '漏洞研究',
+  threat_hunting: '威胁狩猎',
+  incident_response: '应急响应',
+  ai_security: 'AI 安全',
+  appsec: '应用安全',
+  cloud_data_security: '云与数据安全',
+  compliance: '合规监管',
+};
 
 export interface HotspotTag {
   /** v1.7 Phase 1: 自动提取的标签 */
@@ -79,6 +93,8 @@ export interface HotspotResponse {
   // - latest_ingestion_at: 本轮 finished_at (ISO), 后端未跑过则为 null
   latest_ingestion_count?: number;
   latest_ingestion_at?: string | null;
+  // DEV-0176 T0.4: 本次排序加权所用的兴趣域 (空数组 = 无画像)
+  interest_domains?: string[];
 }
 
 export interface TrendResponse {

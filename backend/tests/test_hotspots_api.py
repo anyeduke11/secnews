@@ -214,3 +214,74 @@ class TestExcludeCategory:
         body = r.json()
         assert body["total"] >= 1
         assert all(it["category"] != "bid" for it in body["items"])
+
+
+# ===========================================================================
+# 6. 实践域打标 + 兴趣域加权 (DEV-0176 T0.4: 降权不删, 游标时序不变)
+# ===========================================================================
+def _make_titled_hotspot(hid: str, title: str, hours_ago: int) -> HotspotItem:
+    now = datetime.now(timezone.utc)
+    return HotspotItem(
+        id=hid,
+        title=title,
+        source="test",
+        url=f"https://example.com/{hid}",
+        category=Category.AI,
+        published_at=now - timedelta(hours=hours_ago),
+        fetched_at=now,
+        ingested_at=now - timedelta(hours=hours_ago),
+        quality_flags=[],
+    )
+
+
+def _seed_three_practice_items():
+    """原始时序 (新→旧): 央行(无实践域) → 等保(compliance) → CVE(vuln_research)。"""
+    HotspotRepository().upsert_many([
+        _make_titled_hotspot("h-fin", "央行发布年度支付体系报告", 1),
+        _make_titled_hotspot("h-cmp", "等保 2.0 三级测评要点解读", 2),
+        _make_titled_hotspot("h-vul", "CVE-2026-9999 漏洞复现与分析", 3),
+    ])
+
+
+class TestPracticeDomainBoost:
+    @pytest.fixture(autouse=True)
+    def _clear_list_cache(self):
+        from backend.cache import list_cache as _list_cache
+
+        _list_cache.clear()
+        yield
+        _list_cache.clear()
+
+    def test_items_carry_practice_domain(self, client, temp_db):
+        """每个 item 附带 practice_domain 即时打标 (无 boost 也返回 — 加字段向后兼容)。"""
+        _seed_three_practice_items()
+        r = client.get("/api/hotspots")
+        assert r.status_code == 200
+        items = r.json()["items"]
+        by_id = {it["id"]: it for it in items}
+        assert by_id["h-vul"]["practice_domain"] == "vuln_research"
+        assert by_id["h-cmp"]["practice_domain"] == "compliance"
+        assert by_id["h-fin"]["practice_domain"] is None
+        assert r.json()["interest_domains"] == []
+
+    def test_boost_ranks_matching_first_without_dropping(self, client, temp_db):
+        """兴趣域命中置顶, 但未命中条目不删除 (降权不删)。"""
+        _seed_three_practice_items()
+        # 预置兴趣画像 (router 从 settings.kv 读取)
+        from backend.repository.settings_repo import SettingsRepository
+
+        SettingsRepository().set("interest.practice_domains", ["vuln_research"])
+        r = client.get("/api/hotspots")
+        assert r.status_code == 200
+        body = r.json()
+        ids = [it["id"] for it in body["items"]]
+        assert set(ids) == {"h-fin", "h-cmp", "h-vul"}, "未命中条目不得被删除"
+        assert ids[0] == "h-vul", "命中兴趣域的条目应置顶"
+        assert body["interest_domains"] == ["vuln_research"]
+
+    def test_no_interest_keeps_raw_order(self, client, temp_db):
+        """空画像时排序行为与既有版本一致 (原始时序)。"""
+        _seed_three_practice_items()
+        r = client.get("/api/hotspots")
+        ids = [it["id"] for it in r.json()["items"]]
+        assert ids == ["h-fin", "h-cmp", "h-vul"]

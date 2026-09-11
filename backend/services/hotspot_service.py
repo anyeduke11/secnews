@@ -104,6 +104,7 @@ class HotspotService:
         region: str | None = None,  # Phase 8: 标讯地区筛选
         source: str | None = None,  # v1.9.1: 来源筛选
         exclude_category: str | None = None,  # DEV-0175: 工作台聚焦裁决 (前端默认排除 bid)
+        boost_practice_domains: list[str] | None = None,  # DEV-0176 T0.4: 兴趣域加权 (降权不删)
     ) -> dict:
         """列表查询。
 
@@ -139,6 +140,7 @@ class HotspotService:
             f"hotspots:list:{category}:{tr.value}"
             f":{cursor or ''}:{limit}:{keyword}:{source or ''}"
             f":{exclude_category or ''}"
+            f":{','.join(sorted(boost_practice_domains)) if boost_practice_domains else ''}"
             f":{'bal' if balanced else 'raw'}"
         )
         if cache_key in list_cache:
@@ -166,9 +168,31 @@ class HotspotService:
         items = self._dedupe_by_url(items)
 
         # next_cursor 基于过滤后的最后一条
+        # (DEV-0176 T0.4: cursor 必须取 **加权重排前** 的原始时序最后一条,
+        #  否则兴趣域置顶会破坏翻页游标的时序连续性)
         next_cursor = (
             encode_cursor(items[-1]) if (next_cursor_raw and items) else None
         )
+
+        # DEV-0176 T0.4: 实践域即时打标 + 兴趣域置顶 (降权不删)
+        # 打标为纯函数 (title 正则), 页内 ≤200 条成本可忽略; 不落库、零 schema 变更。
+        # 加权 = 稳定分区: 命中兴趣域的条目排到本页前面, 相对时序保持不变;
+        # 未命中的条目仍在结果里, 仅排后 —— 搜索/翻页永远可达。
+        boost_set = {d for d in (boost_practice_domains or []) if d}
+        item_dicts = [item.model_dump(mode="json") for item in items]
+        if item_dicts:
+            from backend.services.auto_classifier import classify_practice_domain
+
+            practice_of: list[str | None] = []
+            for d in item_dicts:
+                pd = classify_practice_domain([], title=d.get("title") or "")
+                d["practice_domain"] = pd
+                practice_of.append(pd)
+            if boost_set:
+                paired = list(zip(item_dicts, practice_of))
+                hit = [p for p in paired if p[1] in boost_set]
+                miss = [p for p in paired if p[1] not in boost_set]
+                item_dicts = [p[0] for p in hit + miss]
 
         # Phase 40: StatsPanel/TopNav 跟随当前 time_range (与 Grid 口径一致)
         cat_counts = self.count_by_category(tr)
@@ -188,13 +212,15 @@ class HotspotService:
 
         result = {
             "version": API_VERSION,
-            "items": [item.model_dump(mode="json") for item in items],
+            "items": item_dicts,
             "next_cursor": next_cursor,
             "total": true_total,  # 真实总数 (用于分页 "X / Y")
             "category": category,
             "time_range": tr.value,
             "keyword": keyword,
             "category_counts": cat_counts,  # 本周 (D7) — 与 Grid time_range 解耦
+            # DEV-0176 T0.4: 本次加权所用的兴趣域 (前端徽标高亮用)
+            "interest_domains": sorted(boost_set),
             "fetched_at": datetime.now(timezone.utc).isoformat(),
             # Phase 39: 新增 — 最近一轮 run_once() 的产出
             "latest_ingestion_count": int(latest["count"]),

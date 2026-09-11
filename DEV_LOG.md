@@ -679,3 +679,24 @@
   - 后端: `pytest backend/tests/` **4426 passed / 9 skipped / 1 failed** (9m17s)。唯一失败 `test_ai_hub_failover.py::TestGatewayWiring::test_unhealthy_verdict_auto_trips_mid_stream` — 单测重跑 PASSED (0.58s), 整文件 12/12 PASSED (1.37s): 全量高负载下的时序 flaky (依赖 `RECOVERY_TIMEOUT=0.05s` 级时间窗), ai_hub 相关文件本次合并未触碰; 位于 ai_hub 红线区 (AGENTS.md 未裁决前勿动), **本批不修, 仅标注**。
   - 未推送远端 (owner 2026-09-05 禁令仍有效)。
 - **潜在风险**: ①HEAD 由 `fix/source-cadence-health` 切到 `main`, 若并行会话仍在该特性分支上工作, 其后续提交需再次合入 main ②`chore/port` 分支设想的 "dev 后端 8766 与生产 8000 并存" 用法随本次裁决失效 — dev/prod 后端任一时刻只能跑一份, 切换前必须 `dev_environment.sh stop` (脚本注释已写明); 若 owner 仍需双后端并存, 需重新裁决端口策略 ③ai_hub failover 时序 flaky 在 CI 全量跑时可能复现, 建议单独立项收敛 (放宽时间窗或注入时钟), 不应在合并批里顺手改 ④Mimosa 本次提交前未给出完整扫描结论 (scanner_enobufs), 不宣称安全。
+
+## [DEV-0173] 架构图重梳 v0.8.0 → v0.8.5 (archify) — 补信源采集侧 + 数字刷新 + 结论卡片
+- **时间**: 2026-09-11 11:15
+- **类型**: 配置变更 (架构图产物, `hotspot-architecture.candidate.json` 唯一编辑入口)
+- **关联模块**: `docs:architecture-diagram`
+- **关联文件**: `hotspot-architecture.candidate.json`, `hotspot-architecture.html` (archify deliver 生成, 不手改)
+- **问题描述**: owner 指令 "$archify 梳理当前整个代码仓库的架构情况"。入仓 candidate 停在 v0.8.0 (2026-09-04): 数字全部过时 (53 路由 / 73 routers / 107 services / 51 jobs vs 权威 `generate_meta.py` **85 routers / 126 services / 58 jobs / 14 collectors**); runner 名 `claude` 与代码枚举 `SkillRunner = Literal["builtin","pi","claude-code","codex"]` 不符; **整条信源采集侧没有任何节点** — 而 DEV-0163~0167 (采集节奏 / 存活有用分离 / 代理内置 / 国际国内归属) 恰是本轮合并的主体, 且 14 collectors 是仓内最大的代码域之一。
+- **实现思路**: 遵守 AGENTS.md 硬约束 (viewBox 宽 ≤~1390 / 列距 ≥40 / 副标签按盒宽预算 / **加节点必先删节点**): 删 `webdav` 节点 (事实迁入卡片), 加 `ingest` 节点置于左下空位 (x 40..380, y 540..610, 不新增列, 宽度保持 1340), 一条强调边 `ingest → repository` "入库 hotspots · source_stats" 表达资料层落库; 调度关系写进副标签 (`collect_all 30min 单闸口`) 不再加边, 避免 services 出边 ≥4 触发 super-hub 陷阱 (memory 已记)。拓扑之外的架构事实 (数字门禁 / 三层壳 + v1.0 域 / 信源管道 + 数据备份) 用 3 张结论卡承载。所有写入图中的数字逐项核实: 57 Route (`grep -c "<Route " routes/index.tsx`), 13 gates (`feature_gates.toml`), MCP 19 tools (`test_mcp_server.py` 断言), 5 providers (`config/llm.yaml`), 101 信源 (`sqlite3 -readonly backend/hotspot.db`), HOT 36MB / WARM 865MB, dsh :3210 (`services/dsh/supervisor.py`)。
+- **核心变更**:
+  - components 11 → 11: `-webdav` `+ingest` (type backend, 340×70); 副标签刷新: frontend ":8898 · 三层壳 · 57 Route" / api ":8000 · 85 routers" / runners "4 Runners · 26 Skills" + `claude-code` 正名 / services "126 services · 58 jobs" / repository "WAL · ATTACH · FTS5 · Fernet"。
+  - boundaries 3 → 4: 新增 region "Ingest (信源采集)" 包 `ingest`; "Outbound" 仅剩 `llm`。
+  - connections 11 → 11: `-repository→webdav` `+ingest→repository` (emphasis, right→left)。
+  - cards 0 → 3 (每卡 2 条短句); views 4 条 note 刷新 (ingest-and-ops 改为 "101 信源 → 14 collectors → 门禁/去重/评分 → HOT 库 → SSE 心跳条")。
+  - 标题 "Hotspot v0.8.5 — 三层壳 · Skills · 信源管道" (去掉 "Sentinel" 避免 1440 下换行成孤立 "· 信源管道")。
+- **测试验证** (实现与验证分离, 以下均为工具回执非自评):
+  - `archify validate --quality showcase`: 修复 3 轮后 **9/9 artifact checks, composition errors 0 / warnings 0**。修复链: ①api 副标签 ":8000 · 85 routers · 13 gates" 被压至 8.1px → @1440 投影 5.62px < 6px 下限 → 缩回原长; ②ai_hub "· 断路器" 同样 8.4px → 5.83px → 缩回; 两条正是 AGENTS.md 写明的 "context 字号 9px 上限 × 投影 ≥6px @1440" 约束。
+  - `archify deliver`: spec sha256 `86635baac9d1…` 7,778 B → HTML sha256 `846d0d3178b4…` 718,930 B, exit 0。
+  - `archify visual-check` (真实浏览器): 首轮 **fail** — 4 卡 12 条长文致 1440×900 scrollHeight 1209 / 1600×1000 1291 / 1920×1080 1291 纵向溢出 (2048×1320 才容下); 压成 3 卡 6 短句后 **4 视口全 pass** (scrollH == innerH), 可读性 pass (最小投影 6.25px = frontend 副标签)。
+  - 感知复核 (本人目视 1440×900 + 2048×1320 截图): 无边交叉 / 无标签遮挡 / 卡片一行 / 大屏无空白下带; 标题单行。
+  - 旁证 `hotspot-architecture.visual-check.*` 已在 `.gitignore` 129-134 行, 不入仓。
+- **潜在风险**: ①WebDAV 从拓扑节点降为卡片一句, 备份链在图上不再有边; 若 owner 要恢复节点, 右上 (x 690..1040, y 60..150) 仍有空位但需先解决 `dsh→ai_hub` 虚线走廊 (y≈215) 的穿越 ②`ingest` 只有一条出边, 调度触发关系靠副标签隐含 ③frontend 副标签投影 6.25px 已贴地板, 再加任何字符即破 6px 门 ④卡片文案为压缩版, 长文事实见本条与 PROGRESS; 复跑 `archify deliver` 会覆盖入仓 HTML, 改图只改 candidate。

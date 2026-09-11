@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Hotspot v0.8.0 — Skills + SecNews Workbench",
+    "title": "Hotspot v0.8.5 — 三层壳 · Skills · 信源管道",
     "locale": "zh-CN",
     "output": "hotspot-architecture.html",
     "quality_profile": "showcase",
@@ -19,7 +19,7 @@
           "services",
           "ai_hub"
         ],
-        "note": "Trigger → DSH 大脑 → 4 Runners / Services → AI Hub → 5 LLM Providers (四级链)"
+        "note": "Trigger Gate → ★ DSH 受管子进程 (:3210) → 4 Runners / Services → AI Hub → 5 Providers (四级链 + 断路器)"
       },
       {
         "id": "knowledge-and-ai",
@@ -31,18 +31,19 @@
           "wiki_fs",
           "repository"
         ],
-        "note": "wiki-first md 真源 + 4 存储层 (HOT/WARM/COLD/FROZEN)"
+        "note": "wiki-first md 真源 + HOT / WARM / COLD / FROZEN 四层存储"
       },
       {
         "id": "ingest-and-ops",
         "label": "Ingest & Ops",
         "focus": [
-          "frontend",
-          "api",
+          "ingest",
+          "repository",
           "services",
-          "webdav"
+          "api",
+          "frontend"
         ],
-        "note": "采集 → AI → WebDAV 同步 (Fernet 加密 zip)"
+        "note": "101 信源 → 14 collectors (30min 单闸口 · 国外源代理优先) → 门禁 / 去重 / 评分 → HOT 库 → SSE 心跳条"
       },
       {
         "id": "trigger-flow",
@@ -66,7 +67,7 @@
       "id": "frontend",
       "type": "frontend",
       "label": "React SPA",
-      "sublabel": ":8898 · 53 lazy 路由",
+      "sublabel": ":8898 · 三层壳 · 57 Route",
       "pos": [
         40,
         420
@@ -80,7 +81,7 @@
       "id": "api",
       "type": "backend",
       "label": "FastAPI",
-      "sublabel": ":8000 · 73 routers",
+      "sublabel": ":8000 · 85 routers",
       "pos": [
         230,
         420
@@ -94,7 +95,7 @@
       "id": "trigger_gate",
       "type": "backend",
       "label": "Trigger Gate",
-      "sublabel": "3-tier queue · 限流 + 持久化",
+      "sublabel": "3 触发源 · 3-tier 队列 · 限流 + 持久化",
       "pos": [
         420,
         60
@@ -108,7 +109,7 @@
       "id": "dsh",
       "type": "backend",
       "label": "★ DSH (Brain)",
-      "sublabel": "受管 · not_configured→mock→ai_hub",
+      "sublabel": "受管 :3210 · not_configured→mock→ai_hub",
       "pos": [
         420,
         170
@@ -121,8 +122,8 @@
     {
       "id": "runners",
       "type": "backend",
-      "label": "4 Runners",
-      "sublabel": "builtin · pi · claude · codex",
+      "label": "4 Runners · 26 Skills",
+      "sublabel": "builtin · pi · claude-code · codex",
       "pos": [
         420,
         300
@@ -136,7 +137,7 @@
       "id": "services",
       "type": "backend",
       "label": "Services",
-      "sublabel": "107 services · 51 jobs",
+      "sublabel": "126 services · 58 jobs",
       "pos": [
         690,
         420
@@ -164,7 +165,7 @@
       "id": "repository",
       "type": "database",
       "label": "SQLite HOT+WARM+COLD",
-      "sublabel": "WAL · ATTACH · Fernet 加密",
+      "sublabel": "WAL · ATTACH · FTS5 · Fernet",
       "pos": [
         690,
         540
@@ -203,17 +204,17 @@
       ]
     },
     {
-      "id": "webdav",
-      "type": "cloud",
-      "label": "WebDAV",
-      "sublabel": "坚果云 sync · zip+Fernet",
+      "id": "ingest",
+      "type": "backend",
+      "label": "Ingest — 14 Collectors",
+      "sublabel": "101 信源 · collect_all 30min 单闸口 · 国外源代理优先",
       "pos": [
-        1090,
+        40,
         540
       ],
       "size": [
-        215,
-        50
+        340,
+        70
       ]
     }
   ],
@@ -241,8 +242,14 @@
       "kind": "region",
       "label": "Outbound",
       "wraps": [
-        "llm",
-        "webdav"
+        "llm"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Ingest (信源采集)",
+      "wraps": [
+        "ingest"
       ]
     }
   ],
@@ -333,13 +340,39 @@
       "toSide": "top"
     },
     {
-      "id": "repository-to-webdav",
-      "from": "repository",
-      "to": "webdav",
-      "label": "backup zip + Fernet",
-      "fromSide": "bottom",
-      "toSide": "bottom"
+      "id": "ingest-to-repository",
+      "from": "ingest",
+      "to": "repository",
+      "label": "入库 hotspots · source_stats",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
     }
   ],
-  "cards": []
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "数字门禁 · 2026-09-11",
+      "items": [
+        "58 jobs · 14 collectors · 85 routers · 126 services",
+        "13 gates (mcp 关) · pytest 4426 · vitest 491 · tsc 0"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "三层壳 + v1.0 领域",
+      "items": [
+        "/ 资料 → /judge 判断 → /action 行动 = 唯一壳, 心跳条 SSE 常驻",
+        "v1.0 九领域对象仅以三层内区块嵌入; 旧四入口仅重定向"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "信源管道 · 数据 · 备份",
+      "items": [
+        "30min 单闸口 · 存活/有用分离 · 国外源代理优先 · 双层门禁",
+        "HOT 36MB / WARM 865MB + wiki md 真源 · zip+Fernet → WebDAV"
+      ]
+    }
+  ]
 }

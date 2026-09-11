@@ -503,7 +503,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
       {/* D3: SK-05 自动召回 — 同类经验自动浮现, 采用免手填 (复利飞轮传动) */}
       {recallCandidates.length > 0 && (
         <div className="p-4 rounded-lg border" style={{ background: 'color-mix(in srgb, var(--color-info) 6%, transparent)', borderColor: 'var(--line)' }}>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
               召回知识 (SK-05 自动){' '}
               <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
@@ -544,7 +544,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
 
       {/* 判断 */}
       <div id="section-judgments" className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
             判断 (Judgment) {judgmentsLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
           </h3>
@@ -614,7 +614,7 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
 
       {/* 行动 + 运行 + 产物 */}
       <div id="section-actions" className="p-4 rounded-lg border" style={{ background: 'var(--bg-card)', borderColor: 'var(--line)' }}>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
             行动 (Action) + 运行 (Run) + 产物 (Artifact) {actionChainLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
           </h3>

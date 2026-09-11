@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listSignals, createCase, type V1Signal } from '../../../api/v1';
+import { PANEL_SHELL } from './panelShell';
 import { useToast } from '../../Toast';
 
 function PanelBadge({ children, tone }: { children: React.ReactNode; tone: 'green' | 'blue' | 'gray' | 'red' }) {
@@ -39,7 +40,7 @@ function SubjectDrawer({ subjectId, name, onClose }: { subjectId: string; name: 
   }, [subjectId]);
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end" role="dialog" aria-label={`Subject 抽屉: ${name}`} data-testid="subject-drawer">
+    <div className="fixed inset-0 flex justify-end" style={{ zIndex: 'var(--z-modal)' }} role="dialog" aria-label={`Subject 抽屉: ${name}`} data-testid="subject-drawer">
       <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={onClose} aria-label="关闭抽屉" />
       <aside className="relative w-full max-w-md h-full overflow-y-auto p-5"
         style={{ background: 'var(--bg-card)', borderLeft: '1px solid var(--line)' }}>
@@ -118,7 +119,7 @@ export function SignalPanel() {
 
   return (
     <section aria-label="受管信号 (v1.0 能力区块)" data-testid="signal-panel"
-      style={{ marginTop: 22, padding: '14px 16px', borderRadius: 10, border: '1px solid var(--sn-line, var(--line))', background: 'var(--sn-bg-panel, var(--bg-card))' }}>
+      style={PANEL_SHELL}>
       <header className="flex items-center gap-2 mb-3">
         <span className="text-xs font-bold uppercase tracking-wider num" style={{ color: 'var(--sn-mint, var(--color-success))' }}>受管信号</span>
         <span className="text-xs num" style={{ color: 'var(--sn-ink-3, var(--text-muted))' }}>SIGNALS · 近 7 天 · SK-01 供给</span>

@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listCases } from '../../../api/v1';
+import { PANEL_SHELL } from './panelShell';
 import type { Case } from '../../../domain/v1_0';
 
 const ACTIVE: Case['status'][] = ['blocked', 'in_progress', 'open'];
@@ -43,7 +44,7 @@ export function CaseQueuePanel() {
 
   return (
     <section aria-label="Case 队列 (v1.0 能力区块)" data-testid="case-queue-panel"
-      style={{ marginTop: 26, padding: '14px 16px', borderRadius: 10, border: '1px solid var(--sn-line, var(--line))', background: 'var(--sn-bg-panel, var(--bg-card))' }}>
+      style={PANEL_SHELL}>
       <header className="flex items-center gap-2 mb-3">
         <span className="text-xs font-bold uppercase tracking-wider num" style={{ color: 'var(--sn-amber, var(--color-warning))' }}>Case 队列</span>
         <span className="text-xs num" style={{ color: 'var(--sn-ink-3, var(--text-muted))' }}>CASES · 阻塞置顶 · 点击进入研判</span>

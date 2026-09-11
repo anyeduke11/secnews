@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listCases, getCaseAggregate, type CaseAggregate } from '../../../api/v1';
+import { PANEL_SHELL } from './panelShell';
 
 interface Slot {
   caseId: string;
@@ -57,7 +58,7 @@ export function ExecOverviewPanel() {
 
   return (
     <section aria-label="执行与验收总览 (v1.0 能力区块)" data-testid="exec-overview-panel"
-      style={{ marginTop: 26, padding: '14px 16px', borderRadius: 10, border: '1px solid var(--sn-line, var(--line))', background: 'var(--sn-bg-panel, var(--bg-card))' }}>
+      style={PANEL_SHELL}>
       <header className="flex items-center gap-2 mb-3">
         <span className="text-xs font-bold uppercase tracking-wider num" style={{ color: 'var(--sn-mint, var(--color-success))' }}>执行与验收总览</span>
         <span className="text-xs num" style={{ color: 'var(--sn-ink-3, var(--text-muted))' }}>EXEC · SK-03/04 · 前 8 个活跃事项</span>

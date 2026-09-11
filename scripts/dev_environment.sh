@@ -6,7 +6,7 @@
 #   bash scripts/dev_environment.sh init                  # 创建开发数据根 (dry-run 默认)
 #   bash scripts/dev_environment.sh init --execute        # 真创建
 #   bash scripts/dev_environment.sh start-backend         # 启动开发后端 (8000 端口, dev/prod 共用)
-#   bash scripts/dev_environment.sh start-frontend        # 启动开发前端 (8899 端口)
+#   bash scripts/dev_environment.sh start-frontend        # 启动开发前端 (8898 端口)
 #   bash scripts/dev_environment.sh status                # 查端口 / 进程 / 路径
 #   bash scripts/dev_environment.sh stop                  # 停掉开发服务
 #
@@ -27,7 +27,7 @@ DEV_WIKI_DIR="${DEV_ROOT}/llm-wiki-2.0"
 DEV_LOG_DIR="${DEV_ROOT}/logs"
 DEV_BACKUP_DIR="${DEV_ROOT}/backups"
 DEV_PORT_BACKEND="${DEV_PORT_BACKEND:-8000}"
-DEV_PORT_FRONTEND="${DEV_PORT_FRONTEND:-8899}"
+DEV_PORT_FRONTEND="${DEV_PORT_FRONTEND:-8898}"
 
 DRY_RUN=1
 for arg in "$@"; do
@@ -131,7 +131,7 @@ action_status() {
     lsof -nP -iTCP:"${DEV_PORT_FRONTEND}" -sTCP:LISTEN 2>/dev/null || echo "  (free)"
     log "backend 8000 LISTEN (dev/prod 共用, --strictPort):"
     lsof -nP -iTCP:8000 -sTCP:LISTEN 2>/dev/null || echo "  (free)"
-    log "production frontend 8898 LISTEN:"
+    log "production frontend 8898 (与 dev 同端口):"
     lsof -nP -iTCP:8898 -sTCP:LISTEN 2>/dev/null || echo "  (free)"
 }
 

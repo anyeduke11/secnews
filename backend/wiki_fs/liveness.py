@@ -55,14 +55,17 @@ def check_url(url: str, timeout: float = 10.0) -> str:
 
 
 def _probe(url: str, timeout: float) -> str:
+    from backend.utils.url_safety import UrlSafetyError, safe_urlopen
+
     for method in ("HEAD", "GET"):
-        req = urllib.request.Request(
-            url, method=method, headers={"User-Agent": _UA}
-        )
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            # Mimosa triage T1: 走 url_safety 中央防护 (wiki 文档外链属用户内容);
+            # 私网/环回被拒收 → 语义 = dead (非公开可达页面)
+            with safe_urlopen(url, method=method, timeout=timeout, headers={"User-Agent": _UA}) as resp:
                 status = getattr(resp, "status", resp.getcode())
                 return "alive" if status < 400 else "dead"
+        except UrlSafetyError:
+            return "dead"
         except urllib.error.HTTPError as e:
             # 405/501 = 服务器不支持 HEAD → 换 GET 再试; 其余 4xx/5xx 即 dead
             if e.code in (405, 501) and method == "HEAD":

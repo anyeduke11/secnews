@@ -22,7 +22,11 @@ from backend.exceptions import register_exception_handlers
 from backend.repository import db
 from backend.repository.hotspot_repo import HotspotRepository
 from backend.repository.settings_repo import SettingsRepository
-from backend.services.interest_engine_service import SIGNAL_WEIGHTS, InterestEngineService
+from backend.services.interest_engine_service import (
+    SIGNAL_WEIGHTS,
+    InterestEngineService,
+    evaluate_recalibration_rules,
+)
 
 
 @pytest.fixture
@@ -318,3 +322,55 @@ class TestRepoAuditFunctions:
         assert interest_audit_w30_weight_sum(cutoff) == 0.0
         assert interest_audit_stored_weights() == {}
         assert interest_audit_recent_titles(5) == []
+
+
+class TestRecalibrationRules:
+    """T3 重校判定规则 — 纯函数, 合成分布覆盖正反例。"""
+
+    def test_no_evidence_no_suggestions(self):
+        assert evaluate_recalibration_rules({}, {}, 0.0, 0.0) == []
+
+    def test_r1_deviation_triggers(self):
+        # 锚 9:14≈0.64; 实际 favorite:deep = 20:5 = 4.0 → 偏离远超 30%
+        out = evaluate_recalibration_rules(
+            {"favorite": 20, "deep_read": 5, "view": 10}, {}, 5.0, 20.0,
+        )
+        r1 = [s for s in out if s["rule"] == "R1_deep_read_anchor"]
+        assert r1 and r1[0]["proposed"] == round(3.0 * 4.0, 1)
+
+    def test_r1_within_anchor_no_suggestion(self):
+        # 实际比 9/14 ≈ 锚 → 不建议
+        out = evaluate_recalibration_rules(
+            {"favorite": 9, "deep_read": 14, "view": 30}, {}, 5.0, 20.0,
+        )
+        assert not [s for s in out if s["rule"] == "R1_deep_read_anchor"]
+
+    def test_r2_view_flood_triggers(self):
+        # view 占 100/150=67% (>60%), 独立条目/信号 30/100=30% (<50%) → 降权
+        out = evaluate_recalibration_rules(
+            {"view": 100, "favorite": 30, "deep_read": 20},
+            {"view": 30}, 40.0, 20.0,
+        )
+        r2 = [s for s in out if s["rule"] == "R2_view_damp"]
+        assert r2 and r2[0]["proposed"] == 0.3
+
+    def test_r2_healthy_view_no_suggestion(self):
+        # view 占比 40% → 不触发
+        out = evaluate_recalibration_rules(
+            {"view": 40, "favorite": 30, "deep_read": 30},
+            {"view": 35}, 40.0, 20.0,
+        )
+        assert not [s for s in out if s["rule"] == "R2_view_damp"]
+
+    def test_r3_slow_evidence_triggers(self):
+        # 满 14 天 W30=5 (<10) → C 降半
+        out = evaluate_recalibration_rules(
+            {"view": 5, "favorite": 2, "deep_read": 2}, {}, 5.0, 20.0,
+        )
+        r3 = [s for s in out if s["rule"] == "R3_c_constant"]
+        assert r3 and r3[0]["proposed"] == 15.0
+
+    def test_r3_within_window_no_suggestion(self):
+        # 未满 14 天 → 不建议 (即便 W30 低)
+        out = evaluate_recalibration_rules({"view": 5}, {}, 5.0, 7.0)
+        assert not [s for s in out if s["rule"] == "R3_c_constant"]

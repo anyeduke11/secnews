@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -157,7 +158,8 @@ def record_audit(actor: str, action: str, *, target: str | None = None,
         # 若连接在 autocommit (isolation_level=None), 直接 INSERT 即可;
         # 若调用方已 BEGIN, 用 SAVEPOINT 隔离: 失败 ROLLBACK TO 仅回滚本审计行。
         iso = getattr(conn, "isolation_level", None)
-        sp_name = "sp_audit_" + action.replace(".", "_")[:40]
+        # savepoint 名是标识符插值, 白名单化字符 ( Mimosa triage T1: 防 action 携带特殊字符)
+        sp_name = "sp_audit_" + re.sub(r"[^A-Za-z0-9_]", "_", action)[:40]
         in_tx = iso is not None  # isolation_level=None 表示 autocommit
         if in_tx:
             try:

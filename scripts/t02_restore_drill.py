@@ -52,6 +52,22 @@ def restore_hot(src_db: Path, dst_db: Path) -> dict:
     }
 
 
+def scrub_legacy_bid(hot_db: Path, warm_db: Path | None = None) -> dict:
+    """恢复副本 legacy bid 行清扫 (POST_R2 设计包 T5, 幂等)。
+
+    SQL 实现在 backend/repository/hotspot_repo.scrub_legacy_bid_rows
+    (本脚本零 SQL, 对齐"SQL 集中 repo 层"约定)。备份本体不动 —
+    scrub 只作用于恢复出的工作副本; 无 bid 行 = no-op。
+    """
+    from backend.repository.hotspot_repo import scrub_legacy_bid_rows
+
+    conn = sqlite3.connect(str(hot_db))
+    try:
+        return scrub_legacy_bid_rows(conn, str(warm_db) if warm_db else None)
+    finally:
+        conn.close()
+
+
 def restore_wiki_zip(zip_path: Path, dst_root: Path) -> dict:
     """解压 wiki zip 到恢复目录。"""
     started = time.perf_counter()
@@ -219,6 +235,18 @@ def main() -> int:
     hot_r = restore_hot(drill_dir / "hotspot.db", hot_restored)
     print(f"  → {hot_r['dst']} ({hot_r['size_bytes']/1e6:.1f} MB in {hot_r['elapsed_seconds']}s)")
 
+    # 1b) legacy bid 行清扫 (POST_R2 设计包 T5 — 幂等, 无 bid 行 = no-op)
+    print("[1b/4] scrub legacy bid rows ...")
+    warm_src = drill_dir / "hotspot-warm.db"
+    warm_restored = out_root / "hotspot-warm.db"
+    if warm_src.exists():
+        restore_hot(warm_src, warm_restored)
+    scrub_r = scrub_legacy_bid(hot_restored, warm_restored if warm_src.exists() else None)
+    print(
+        f"  → bid 行 {scrub_r['bid_rows_found']} / 删 hotspots {scrub_r['hotspots_deleted']} "
+        f"/ 删 fingerprints {scrub_r['fingerprints_deleted']}"
+    )
+
     # 2) extract wiki zip
     print("[2/4] extract wiki zip ...")
     wiki_restored = out_root / "llm-wiki-2.0"
@@ -264,6 +292,7 @@ def main() -> int:
             "wiki": wiki_r,
         },
         "db_verify": db_v,
+        "legacy_bid_scrub": scrub_r,
         "favorite_sample": fav_v,
         "knowledge_sample": kw_v,
         "non_goals": [

@@ -836,7 +836,8 @@ _SQL_INTEREST_INSERT_SIGNAL = (
     "VALUES (?, ?, ?, ?, ?)"
 )
 _SQL_INTEREST_SIGNALS_SINCE = (
-    "SELECT domain, weight, created_at FROM interest_signals WHERE created_at >= ?"
+    "SELECT domain, signal_type, item_id, weight, created_at "
+    "FROM interest_signals WHERE created_at >= ?"
 )
 _SQL_INTEREST_UPSERT_WEIGHTS = (
     "INSERT INTO interest_domain_weights (domain, explicit_selected, behavioral_score, "
@@ -878,7 +879,13 @@ def interest_signals_since(cutoff_iso: str) -> list[dict]:
         conn = get_connection()
         rows = conn.execute(_SQL_INTEREST_SIGNALS_SINCE, (cutoff_iso,)).fetchall()
         return [
-            {"domain": r["domain"], "weight": r["weight"], "created_at": r["created_at"]}
+            {
+                "domain": r["domain"],
+                "signal_type": r["signal_type"],
+                "item_id": r["item_id"],
+                "weight": r["weight"],
+                "created_at": r["created_at"],
+            }
             for r in rows
         ]
     except Exception as e:
@@ -1002,6 +1009,62 @@ def interest_audit_recent_titles(limit: int) -> list[str]:
     except Exception as e:
         logger.warning(f"interest_audit_recent_titles failed: {e}")
         return []
+
+
+def scrub_legacy_bid_rows(conn: sqlite3.Connection, warm_db_path: str | None = None) -> dict[str, Any]:
+    """恢复副本 legacy bid 行清扫 (POST_R2 设计包 T5; 幂等, 全静态 SQL)。
+
+    背景: Category 枚举已删 BID (DEV-0185), 历史备份恢复出的副本若含
+    category='bid' 行, pydantic 校验会让列表查询 500。处置对齐 migration 112
+    先例 (owner: "直接清理"): 删子表关联再删 hotspots。备份本体不动。
+    conn: 调用方打开并管理生命周期的 hot 库连接; warm 路径可选
+    (content_fingerprints 在 warm 库)。无 bid 行 = no-op。
+    """
+    result: dict[str, Any] = {
+        "bid_rows_found": 0,
+        "hotspots_deleted": 0,
+        "fingerprints_deleted": 0,
+        "warm_attached": False,
+    }
+    conn.execute("PRAGMA foreign_keys = OFF")
+    result["bid_rows_found"] = conn.execute(
+        "SELECT COUNT(*) FROM hotspots WHERE category = 'bid'"
+    ).fetchone()[0]
+    if warm_db_path:
+        conn.execute("ATTACH DATABASE ? AS warmrestore", (warm_db_path,))
+        result["warm_attached"] = True
+        has_cf = conn.execute(
+            "SELECT COUNT(*) FROM warmrestore.sqlite_master "
+            "WHERE type = 'table' AND name = 'content_fingerprints'"
+        ).fetchone()[0]
+        if has_cf and result["bid_rows_found"]:
+            cur = conn.execute(
+                "DELETE FROM warmrestore.content_fingerprints "
+                "WHERE hotspot_id IN "
+                "(SELECT id FROM main.hotspots WHERE category = 'bid')"
+            )
+            result["fingerprints_deleted"] = cur.rowcount
+    if result["bid_rows_found"]:
+        conn.execute(
+            "DELETE FROM ai_scores WHERE hotspot_id IN "
+            "(SELECT id FROM hotspots WHERE category = 'bid')"
+        )
+        conn.execute(
+            "DELETE FROM hotspot_tags WHERE hotspot_id IN "
+            "(SELECT id FROM hotspots WHERE category = 'bid')"
+        )
+        conn.execute(
+            "DELETE FROM favorites WHERE hotspot_id IN "
+            "(SELECT id FROM hotspots WHERE category = 'bid')"
+        )
+        conn.execute(
+            "DELETE FROM favorites_snapshot WHERE hotspot_id IN "
+            "(SELECT id FROM hotspots WHERE category = 'bid')"
+        )
+        cur = conn.execute("DELETE FROM hotspots WHERE category = 'bid'")
+        result["hotspots_deleted"] = cur.rowcount
+    conn.commit()
+    return result
 
 
 __all__ = ["HotspotRepository"]

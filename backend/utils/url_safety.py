@@ -361,11 +361,31 @@ def safe_urllib_request(
     return urllib.request.Request(url, method=method, headers=headers or {})
 
 
+def safe_urlopen(
+    url: str,
+    *,
+    method: str = "GET",
+    timeout: float = 10.0,
+    headers: dict[str, str] | None = None,
+):
+    """带 SSRF 防护的一体化 ``urlopen``: validate + DNS 预解析 + 打开连接。
+
+    Mimosa triage T1 收口: 探测/抓取类调用点不再自行构造 Request + urlopen,
+    统一走本函数 (校验失败抛 UrlSafetyError, 调用方按各自失败语义映射)。
+    返回值与 ``urllib.request.urlopen`` 一致 (context manager)。
+    """
+    import urllib.request
+
+    req = safe_urllib_request(url, method=method, timeout=timeout, headers=headers)
+    return urllib.request.urlopen(req, timeout=timeout)
+
+
 __all__ = [
     "UrlSafetyError",
     "pre_resolve_ip",
     "safe_aiohttp_connector",
     "safe_aiohttp_get",
+    "safe_urlopen",
     "safe_urllib_request",
     "validate_url",
 ]

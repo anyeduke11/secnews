@@ -946,3 +946,14 @@
 - **核心变更**: 新建设计文档 (T1 triage 三层漏斗 / T2 migration 114 设计 / T3 重校脚本规则 R1-R3 / T4 桶口径 A vs B / T5 scrub / T6 RUNBOOK 周审计四步表); docs/README.md 索引 +1 行。
 - **测试验证**: 纯文档批, 无代码变更; 事实性内容均经只读核查 (扫描 findings.json 透视 / 生产三库 PRAGMA / migration 017 源码)。
 - **潜在风险**: 设计与实施间存在时间差, 届时须复核事实是否漂移 (尤其 T2 的索引清单与 T1 的 finding anchor)。
+
+## [DEV-0187] POST-R2 设计包实施 — T1~T6 六项全部落地
+- **时间**: 2026-09-12 16:50
+- **类型**: 功能开发 (设计包实施批)
+- **关联模块**: `backend:utils/url_safety`, `backend:quality/*`, `backend:wiki_fs/liveness`, `backend:services/url_batch_check`, `backend:observability_records`, `backend:services/interest_engine_service`, `backend:repository/hotspot_repo`, `backend:repository/migrations/114` (新建), `scripts:audit_interest_recalibration` (新建), `scripts:t02_restore_drill`, `docs:security/MIMOSA_TRIAGE_LEDGER` (新建), `docs:decisions/ADR-0001` (新建), `docs:RUNBOOK`
+- **关联文件**: `backend/quality/final_url_resolver.py`, `backend/quality/url_validity_gate.py`, `backend/services/url_batch_check_service.py`, `backend/wiki_fs/liveness.py`, `backend/tests/test_liveness.py`, `backend/tests/test_interest_engine.py`, `scripts/audit_interest_hit_rate.py` (无改动核对), 设计包 docs
+- **问题描述**: owner 指令按 `docs/POST_R2_ENHANCEMENTS_DESIGN_2026-09-12.md` 完成开发; 六项 = Mimosa triage / 死列 DROP / 权重重校 / ai-tech 桶 ADR / 恢复 scrub / RUNBOOK 周期审计。5 项裁决按设计包推荐选项执行 (vendor 豁免 / 删 spike / 执行 114 / 方案 A / DELETE scrub), 已在各工件中如实记录采纳方式。
+- **实现思路**: T1 三层漏斗实做 — vendor 147 + 故障注入工具 18 整体豁免, backend 33 条逐条核对源码: **A-修复 9** (SSRF ×6: 四文件出站统一改走新增的 `url_safety.safe_urlopen` 单收口, UrlSafetyError 按调用方语义映射 None/url_unreachable/0/dead; savepoint 名 re.sub 白名单化 ×3) + **B 22** (逐条依据入台账, 如 source_prober 已防护/mitre 固定源/dispatch 有 realpath 围栏/mcp 有白名单正则/ULID 非加密); spike_gateway_s1_s3.py 删除 (凭据实为 dummy + spike 约定)。台账 `docs/security/MIMOSA_TRIAGE_LEDGER.md` 覆盖 270/270 (33 条逐条 + 三类批量处置)。T2: migration 114 (先 DROP idx_hotspot_region 再 DROP region/bid_status; weekly_reports.bid_summary 在 warm 有历史数据保留), 改库前三库一致性备份 + sha256 manifest 落 backups/pre-migration-114/, 三库副本演练通过后重启上产。T3: `evaluate_recalibration_rules` 纯函数 (R1 deep_read 锚偏移/R2 view 灌水/R3 C 常数) 入 service 可单测, 脚本 audit_interest_recalibration.py 零 SQL 只呈现。T4: ADR-0001 记录 tech 并入 ai 桶为既定设计。T5: `scrub_legacy_bid_rows` SQL 下沉 hotspot_repo (脚本零 SQL), restore_drill 恢复后自动清扫+计数入 report, 演练注入 bid 行验证 1→0。T6: RUNBOOK 增"兴趣引擎周审计"四步表。
+- **核心变更**: 见关联文件; 新增 safe_urlopen (validate+pre_resolve+urlopen 一体); interest_signals_since 补 signal_type/item_id 字段 (聚合消费方兼容)。
+- **测试验证**: 全量 pytest **4466/0** (+8 重校规则正反例, test_liveness 重写为 safe_urlopen 边界打桩并新增环回拒收→dead 语义测试); vitest 494 / tsc 0 / meta --check OK; migration 114 副本演练 (version=114, 两列+索引消失) → 生产应用后 PRAGMA 复核无残留, health 200; restore drill 演练 bid 1→0; 重校脚本空库跑通。
+- **潜在风险**: ①safe_urlopen 对探测类场景不做连接级 IP 锁 (DNS rebinding 残余风险, 与 source_prober 同水位, 文档已注明) ②db.py 悬空 view 清理的标识符插值按扫描器策略维持原状 (B 豁免: sqlite_master 自省+DDL 无绑定), 若未来 Mimosa 支持标识符白名单写法可再加固 ③T1 台账对 vendor 的豁免以上游不进生产路径为前提 (ADR/台账均有失效条款)。

@@ -26,21 +26,19 @@ _UA = "hotspot-quality/1.0"
 
 
 def _head_status(url: str, timeout: int) -> int:
-    """同步 HEAD 请求, 返回 HTTP status。"""
-    req = urllib.request.Request(
-        url, method="HEAD", headers={"User-Agent": _UA}
-    )
-    resp = urllib.request.urlopen(req, timeout=timeout)
-    return resp.status
+    """同步 HEAD 请求, 返回 HTTP status (Mimosa triage T1: 走 url_safety 中央防护)。"""
+    from backend.utils.url_safety import safe_urlopen
+
+    with safe_urlopen(url, method="HEAD", timeout=timeout, headers={"User-Agent": _UA}) as resp:
+        return resp.status
 
 
 def _get_status(url: str, timeout: int) -> int:
-    """同步 GET 请求, 返回 HTTP status。"""
-    req = urllib.request.Request(
-        url, method="GET", headers={"User-Agent": _UA}
-    )
-    resp = urllib.request.urlopen(req, timeout=timeout)
-    return resp.status
+    """同步 GET 请求, 返回 HTTP status (Mimosa triage T1: 走 url_safety 中央防护)。"""
+    from backend.utils.url_safety import safe_urlopen
+
+    with safe_urlopen(url, method="GET", timeout=timeout, headers={"User-Agent": _UA}) as resp:
+        return resp.status
 
 
 class URLValidityGate(BaseGate):

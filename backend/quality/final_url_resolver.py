@@ -170,13 +170,18 @@ def _extract_first_article_url(html: str, host: str) -> str | None:
 
 
 def _fetch_html(url: str, timeout: float = _FETCH_TIMEOUT) -> str | None:
-    """同步抓取 HTML（最多 timeout 秒），出错返回 None。"""
+    """同步抓取 HTML（最多 timeout 秒），出错返回 None。
+
+    Mimosa triage T1: 出站走 url_safety 中央防护 (landing 页为外部可控 URL);
+    私网/环回目标拒收返 None (语义 = 解析失败, 与网络失败同路)。
+    """
     try:
-        req = urllib.request.Request(
-            url, method="GET",
+        from backend.utils.url_safety import safe_urlopen
+
+        with safe_urlopen(
+            url, method="GET", timeout=timeout,
             headers={"User-Agent": _UA, "Accept": "text/html"},
-        )
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        ) as resp:
             if resp.status != 200:
                 return None
             return resp.read().decode("utf-8", errors="ignore")

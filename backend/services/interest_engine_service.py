@@ -58,6 +58,72 @@ DRIFT_OVERLAP_MIN = 2        # R2 漂移检测: 与勾选重合下限 (低于即
 
 _INTEREST_KEY = "interest.practice_domains"
 
+# ── T3 重校判定常数 (DEV_PLAN 两周判据; evaluate_recalibration_rules 消费) ──
+_CAL_FAV_DEEP_RATIO = 9.0 / 14.0   # 校准锚: favorite:deep_read 信号条数比 (2026-09-12 存量)
+_R1_DEVIATION = 0.30               # R1: 实际比偏离锚超 30% → 建议调 deep_read 权重
+_R2_VIEW_SHARE = 0.60              # R2: view 占总信号比上限
+_R2_VIEW_DISTINCT = 0.50           # R2: view 独立条目/信号数下限 (低于 = 重复灌水)
+_R3_MIN_W30 = 10.0                 # R3: 满 14 天 W30 低于此 → C 降半加速收敛
+_R3_MIN_DAYS = 14.0
+
+
+def evaluate_recalibration_rules(
+    counts_by_type: dict[str, int],
+    distinct_items_by_type: dict[str, int],
+    w30: float,
+    days_observed: float,
+) -> list[dict[str, Any]]:
+    """T3 重校判定规则 (纯函数, 只读统计 → 建议列表)。
+
+    PRD §1: 权重常数留代码单一真相源, 本函数只产出建议 (空列表 = 不动),
+    由 owner 裁决后手改 SIGNAL_WEIGHTS / EVIDENCE_C 并走 commit。
+    规则: R1 deep_read 锚偏移 / R2 view 灌水降权 / R3 收敛进度 C 调整。
+    """
+    suggestions: list[dict[str, Any]] = []
+    fav = counts_by_type.get("favorite", 0)
+    deep = counts_by_type.get("deep_read", 0)
+
+    # R1: deep_read 权重按新存量比重导 (锚: favorite=3.0 固定)
+    if fav >= 5 and deep >= 5:
+        actual = fav / deep
+        if abs(actual - _CAL_FAV_DEEP_RATIO) / _CAL_FAV_DEEP_RATIO > _R1_DEVIATION:
+            proposed = round(SIGNAL_WEIGHTS["favorite"] * actual, 1)
+            suggestions.append({
+                "rule": "R1_deep_read_anchor",
+                "current": SIGNAL_WEIGHTS["deep_read"],
+                "proposed": proposed,
+                "reason": (
+                    f"favorite:deep_read 实际条数比 {actual:.2f} 偏离校准锚 "
+                    f"{_CAL_FAV_DEEP_RATIO:.2f} 超 {int(_R1_DEVIATION * 100)}%"
+                ),
+            })
+
+    # R2: view 灌水降权 (占比高 + 独立条目占比低)
+    total = sum(counts_by_type.values())
+    view = counts_by_type.get("view", 0)
+    view_distinct = distinct_items_by_type.get("view", 0)
+    if total >= 20 and view / total > _R2_VIEW_SHARE and view > 0:
+        if view_distinct / view < _R2_VIEW_DISTINCT:
+            suggestions.append({
+                "rule": "R2_view_damp",
+                "current": SIGNAL_WEIGHTS["view"],
+                "proposed": 0.3,
+                "reason": (
+                    f"view 占比 {view / total:.0%} 且独立条目/信号 "
+                    f"{view_distinct / view:.0%} — 重复浏览稀释信号质量"
+                ),
+            })
+
+    # R3: 收敛进度 — 证据长期不足则降 C 加速 β 接管
+    if days_observed >= _R3_MIN_DAYS and w30 < _R3_MIN_W30:
+        suggestions.append({
+            "rule": "R3_c_constant",
+            "current": EVIDENCE_C,
+            "proposed": EVIDENCE_C / 2,
+            "reason": f"满 {days_observed:.0f} 天 W30={w30:.1f} < {_R3_MIN_W30:.0f} — 证据积累过慢, 降 C 加速收敛",
+        })
+    return suggestions
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()

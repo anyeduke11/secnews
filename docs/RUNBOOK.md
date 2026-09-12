@@ -206,6 +206,22 @@ python scripts/audit_practice_domain_sample.py --grade reports/practice_domain_r
 - 同时抽查 `GET /api/observability/audit` 与 info_filter 拒绝样本（Settings → 资讯筛选门禁），
   防止关键词误杀关键信息。
 
+## 兴趣引擎周审计 (Interest PRD R2, DEV-0184/0187)
+
+与词表周审计同周期执行; 四步全部 DB 只读:
+
+| 步骤 | 命令 | 判据 |
+|---|---|---|
+| 1. 词表回归 | `python scripts/check_practice_domain_lexicon.py --check` | 100% 过, 否则先修词表 |
+| 2. 引擎健康 | `python scripts/audit_interest_hit_rate.py --json > reports/interest_audit_<日期>.json` | 人工浏览信号分布 / 漂移状态 / Feed 覆盖率 |
+| 3. 重校触发判断 | 看步骤 2 输出的 W30 饱和度 | 信号 ≥100 条或上线满 14 天 → 跑步骤 4 |
+| 4. 权重重校判定 | `python scripts/audit_interest_recalibration.py` | 有建议项 → owner 裁决后手改 `interest_engine_service.py` 常数并 commit |
+
+- 漂移提示阈值 (`DRIFT_TOP_N=3` / `DRIFT_OVERLAP_MIN=2`) 与步骤 4 同窗口调整, 变更走 commit。
+- 审计是"人看"的动作, 不做调度自动化; 机器只产只读报告。
+- 月度附加: 跑一次无偏人评采样 (`audit_practice_domain_sample.py --sample 40`),
+  准确率 <80% 时优先修词表再动引擎。
+
 ## 测试
 
 ```bash

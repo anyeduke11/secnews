@@ -1,6 +1,6 @@
 # Workbench Focus 开发目标与执行计划（GOAL）
 
-- 日期：2026-09-12；状态：**已立项待开工**
+- 日期：2026-09-12；状态：**P0 已交付**（T0.0-T0.5, commits `1546dfe..a31d31d` + 审计修复；独立验收 A1-A10 全 PASS、审计 P0=0/P1=4 已修/详情见 DEV-0176f）
 - 产品口径：[`WORKBENCH_FOCUS_PRD_v1.0.md`](WORKBENCH_FOCUS_PRD_v1.0.md)（P0/P1/P2 范围以 PRD 为准，本文只管执行）
 - 执行纪律：沿用仓库既有规则——一次一小步、每步 DEV_LOG 落账（DEV-NNNN 递增）、提交必须 `git commit <显式路径>`、并行会话编号先查 DEV_LOG 再领号。
 
@@ -32,11 +32,10 @@
 - 退出判据：`tests/test_auto_classifier*.py` 新增 ≥16 用例（每域 ≥2 正例 + 1 反例），全绿；既有 `classify_domain` 行为不变（回归断言）
 - 关联：`backend/scheduler/jobs/collect.py` 等消费者零改动即可受益（batch_classify 透传）
 
-### T0.2 标注集扩展 60 → 80（后端 + 数据）
+### T0.2 实践域评测语料（20 条, 关闭悬置裁决）
 
-- 改动点：v1 起步标注数据（T07 admission_log 标注，迁移/种子脚本定位以 `backend/repository/migrations/097*.sql` 现状为准）
-- 新增 20 条标注覆盖 8 实践域（每域 ≥2 条），标注格式与既有 60 条一致
-- 退出判据：标注总数 80；实践域覆盖检查脚本断言每域 ≥2；**关闭 v1.0 T00 悬置裁决"标注集 60-80"**（在 PROGRESS.md 记裁决关闭）
+- **口径修正（审计 P1-2）**：交付物为 20 条带真值域的入仓 fixture（`backend/tests/fixtures/practice_domain_eval.json`，纯合成标题），与词表同源，作用是**回归护栏**而非无偏人评语料；60 条本地 admission 标注不入仓（生产脱敏资产），总量 80 记账并关闭 T00 悬置裁决。
+- 退出判据：`scripts/check_practice_domain_lexicon.py --check` 20/20=100% + 语料结构测试全绿；无偏人评移入 P1 运营机制。
 
 ### T0.3 兴趣画像（后端 + 前端）
 

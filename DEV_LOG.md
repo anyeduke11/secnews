@@ -818,3 +818,21 @@
   - 新建 `test_sk01_practice_partitions.py`: **3 passed** (无画像单组+域附加 / 画像分区+other 不删 / fallback 回显)。纯单元: monkeypatch 查询函数, 不依赖 DB/dsh/ai_hub——初版 DB seed 写法 (内联 INSERT) 两度被 Mimosa 拦, 改 monkeypatch 后通过
   - 既有回归 `test_c05 + test_c06 + test_c07 + test_v1_0_models`: **53 passed** (增量返回键零破坏)
 - **潜在风险**: ①**预存漂移发现 (非本批引入)**: `_query_admission_recent` SELECT 的 `action`/`subject_id` 列在 migration 097 实际 schema 中不存在 (实为 `material_id`/`body_hash`), 真实库上 admission 聚合自 T14 起一直静默降级为空——已留给独立审计定级, 修复属 T00/T14 域 ②SK-01 无 API 端点, 前端展示链路待 P1 (届时若发现分区结构不合用再调)
+
+## [DEV-0176f] Workbench Focus P0 收尾 — 独立验收+审计双门通过, P1×4 修复, 裁决关闭
+- **时间**: 2026-09-12 08:30
+- **类型**: Bug修复 (审计修复) + 配置变更 (口径修正/裁决关闭)
+- **关联模块**: `backend:api/hotspots`, `frontend:settings`, `docs:workbench-focus`
+- **关联文件**: `backend/api/hotspots.py`, `frontend/src/components/settings/PracticeDomainsCard.tsx`, `frontend/src/components/settings/PracticeDomainsCard.test.tsx`, `frontend/src/contexts/I18nContext.tsx`, `docs/WORKBENCH_FOCUS_PRD_v1.0.md`, `docs/WORKBENCH_FOCUS_DEV_PLAN.md`, `PROGRESS.md`, `frontend/src/components/bid/BidAlertPage.tsx` (补交删除)
+- **问题描述**: 按实现与验证分离纪律, 派两个独立 agent 做收尾双门。**功能验收**: 隔离库 (tmp, `HOTSPOT_DB_PATH` + 真实三库 0 句柄核验) 起真实后端走查 A1-A10 → **全 PASS, P0=0, P1=0**; 隔离教训: fresh DB 启动默认触发 catchup 真实采集, 须显式 `HOTSPOT_CATCHUP_ON_STARTUP=0` + warm/cold 路径一并隔离。**代码审计**: P0=0 / **P1=4** / P2=11。
+- **P1 修复明细** (本条):
+  - **P1-1** hotspots.py 兴趣画像读取无防御 (同步 sqlite 读阻塞事件循环 + settings 异常致主 feed 500) → `_load_interest_domains()` try/except 降级无画像 + `asyncio.to_thread` 调用, 与同批 SK-01 防御对齐
+  - **P1-4** PracticeDomainsCard 全中文硬编码违背 PRD §5 双语红线 → 静态文案全部 i18n 化 (`settings.practice_domains.*` 9 key × zh/en), 域标签保持后端 labels 数据; 测试断言改 key 名 (无 Provider 回退行为, 仓库已知口径)
+  - **P1-2** "标注集 60→80"口径名不副实 → PRD P0.2/DEV_PLAN T0.2 如实化: 20 条同源合成 fixture = 回归护栏 (非无偏人评语料, 人评属 P1), 60 条本地 admission 不入仓, 总量 80 记账; **待 owner 追认**
+  - **P1-3** T0.5 前端分区渲染缺位 (SK-01 无活消费面) → PRD P0.5/DEV_PLAN T0.5 范围收缩注记: 后端分区已交付, 前端渲染随 P1 动线批; **待 owner 追认**
+  - 另修: DoD"逐字节一致"改为精确口径 (结构一致除增量字段 + 无画像排序一致); **补交 BidAlertPage staged 删除** (T0.0 pathspec 提交漏掉已删除文件的登记, 审计 P2 发现)
+- **核心变更**: 见上; P2 11 条 (词表边界规则/labels 三份手工拷贝防漂/actor 可控沿袭先例/cursor×boost 测试空白/全仓 4 个预存 ruff error 非 本批/预存 admission schema 漂移确认属实归 T00/T14 域等) 全文见 `.ua/tmp/p0-code-audit-report.md` 与 `.ua/tmp/p0-acceptance-report.md`, 已在 P1 批次清单与 PRD P1 运营机制中认领去向
+- **测试验证** (修复后复跑):
+  - `pytest test_hotspots_api.py + test_settings_interests.py`: **18 passed**; `vitest PracticeDomainsCard`: **4 passed**; `tsc`: 0 错; ruff 触碰文件 0 错
+  - 独立审计人自己复跑过全量: pytest **4488/9skipped** + vitest **495** + build + meta --check 全绿 (与本会话门禁结果一致)
+- **潜在风险**: ①P1-2/P1-3 的口径修正需 owner 追认 (在交付报告中显式列出) ②全仓 ruff 4 个预存 error 会让 CI 全仓口径 backend job 变红 (非本批引入, 触碰文件 0 错) ③词表"政务云安全"类子串误命中 (验收 P2 观察) 待 P1 词表运营化加边界规则

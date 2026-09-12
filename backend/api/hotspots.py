@@ -5,10 +5,29 @@ import asyncio
 
 from fastapi import APIRouter, Query
 
+from backend.logging_config import logger
 from backend.services.hotspot_service import HotspotService
 
 router = APIRouter(prefix="/api/hotspots", tags=["hotspots"])
 _service = HotspotService()
+
+
+def _load_interest_domains() -> list[str]:
+    """DEV-0176 T0.4: 读兴趣画像 (settings.kv)。审计 P1-1 修复:
+
+    同步 sqlite 读放 thread pool 调用; settings 表异常时降级为无画像
+    (boost=None), 绝不让主 feed 端点因画像读取失败而 500。
+    """
+    try:
+        from backend.repository.settings_repo import SettingsRepository
+
+        interests = SettingsRepository().get("interest.practice_domains", [])
+        if isinstance(interests, list):
+            return [d for d in interests if isinstance(d, str)]
+        return []
+    except Exception as e:
+        logger.warning(f"interest.practice_domains read failed, boost disabled: {e}")
+        return []
 
 
 @router.get("")
@@ -38,11 +57,8 @@ async def list_hotspots(
             _service.list_by_tags, tag_ids, tag_mode, limit
         )
     # DEV-0176 T0.4: 兴趣画像从 settings.kv 单一来源读取 (前端不必回传)。
-    # 空画像 → boost=None, 排序行为与既有版本完全一致。
-    from backend.repository.settings_repo import SettingsRepository
-
-    interests = SettingsRepository().get("interest.practice_domains", [])
-    boost = [d for d in interests if isinstance(d, str)] if isinstance(interests, list) else None
+    # 空画像/读取失败 → boost=None, 排序行为与既有版本完全一致。
+    boost = await asyncio.to_thread(_load_interest_domains)
     return await asyncio.to_thread(
         _service.list_hotspots,
         category=category,

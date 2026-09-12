@@ -88,8 +88,9 @@ describe('PracticeDomainsCard', () => {
         }),
       );
     });
+    // 无 I18nProvider 时 useI18n 回退 key 字符串 (仓库已知行为)
     await waitFor(() => {
-      expect(screen.getByText('已保存')).toBeInTheDocument();
+      expect(screen.getByText('settings.practice_domains.saved')).toBeInTheDocument();
     });
   });
 
@@ -98,7 +99,7 @@ describe('PracticeDomainsCard', () => {
     render(<PracticeDomainsCard />);
 
     await waitFor(() => {
-      expect(screen.getByText(/未选择/)).toBeInTheDocument();
+      expect(screen.getByText('settings.practice_domains.empty')).toBeInTheDocument();
     });
   });
 
@@ -129,7 +130,7 @@ describe('PracticeDomainsCard', () => {
     fireEvent.click(screen.getByRole('button', { name: '应用安全' }));
 
     await waitFor(() => {
-      expect(screen.getByText('保存失败, 已还原')).toBeInTheDocument();
+      expect(screen.getByText('settings.practice_domains.save_failed')).toBeInTheDocument();
     });
     expect(screen.getByRole('button', { name: '应用安全' })).toHaveAttribute('aria-pressed', 'false');
   });

@@ -17,6 +17,13 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-09-12 工作台聚焦 P0 交付: 标讯剔除 + 内容相关性门禁/实践域兴趣体系 — DEV-0174~0176f
+
+- **裁决** (owner, 方案文档 `docs/WORKBENCH_FOCUS_PRD_v1.0.md` §0): ①否决「安全研究/标讯跟踪双视角切换」②**剔除工作台标讯功能** (取代初版 R2"维持现状": `/bid-alert` 路由+组件+壳菜单+Feed bid 档全删, 资讯流默认 `exclude_category=bid`; 后端 bid_alert API 与采集器暂保留, 停采待裁决) ③立项内容相关性门禁/实践域兴趣体系。**悬置裁决关闭**: v1.0 T00 "标注集 60-80" = 60 本地 admission (不入仓) + 20 入仓评测语料 (`backend/tests/fixtures/practice_domain_eval.json`)。
+- **交付** (7+1 commits `1546dfe..a31d31d`+收尾): T0.0 标讯剔除 / T0.1 实践域词表 8 域 (`auto_classifier` 二级打标, 纯规则零 schema) / T0.2 评测语料 20 条+回归护栏脚本 / T0.3 `GET/PATCH /api/settings/interests` (kv+audit) + 设置页"我的方向"卡片 / T0.4 资讯流即时打标+兴趣域页内置顶 (降权不删, 游标时序保护) + 首页/FeedCard 命中徽标 / T0.5 SK-01 聚合分区 (后端; 前端渲染随 P1 动线, SK-01 无活消费面)。
+- **验证** (实现与验证分离): 全量 pytest **4488/9skipped 0 失败** (+31 新用例) / vitest **495** / tsc 0 / build OK / meta --check OK / ruff 触碰文件 0。**独立双门**: 功能验收隔离库真实后端走查 **A1-A10 全 PASS** (真实三库 0 句柄零写入); code-reviewer 审计 **P0=0 / P1=4 已修** (画像读取防御 / 卡片 i18n / 两处 PRD 口径如实化待 owner 追认) / P2=11 已认领去向。报告: `.ua/tmp/p0-{acceptance,code-audit}-report.md`。
+- **遗留**: ①`/api/secnews/feed` (报纸风页) 打标与 SK-01 前端摘要卡随 **P1 动线批** ②词表无偏人评属 **P1 运营机制** (同源护栏 100% ≠ 真实准确率) ③预存漂移 (非本批): SK-01 admission 查询列与 097 schema 不符静默降级、全仓 4 个预存 ruff error、bid 采集仍在跑 (停采待裁决)。
+
 ### 2026-09-10 首页刷新自激循环根治 (同分支, dev server HMR 已生效) — DEV-0167
 
 - **起因**: owner 报首页刷新频率过高、多次页面刷新与抓取, 要求前后端节奏一致 (选 30 分钟就 30 分钟, 手动刷新除外)。生产日志实测: 页面未打开时调度器严格 30 分钟一轮; **首页打开的 44 分钟里采集启动 88 次、前端 `POST /api/refresh` 172 次** (峰值单分钟 9 轮)。DEV-0163 改对了后端节奏, 但前端 SSE 回调对**任意**事件都在 3s 后调 `refresh()` = `POST /api/refresh` (同步跑完整采集) → 一轮结束发 `job_done`+`collect_done` → 再 POST → 无限自激。

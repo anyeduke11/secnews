@@ -44,10 +44,10 @@
 | # | 交付 | 说明 |
 |---|------|------|
 | P0.1 | 实践域词表 | `auto_classifier` 新增二级实践域：企业安全建设 / 漏洞研究 / 威胁狩猎 / 应急响应 / AI 安全 / 应用安全 / 云与数据安全 / 合规监管（8 域起步，词表数据驱动可运营）；新增 `classify_practice_domain()`，`classify_item`/`batch_classify` 透出，**不改 `Category` 枚举** |
-| P0.2 | 标注集扩展 | admission_log 标注集 60 → 80 条，覆盖 8 实践域（**关闭 v1.0 T00 悬置裁决"标注集 60-80"**） |
+| P0.2 | 实践域评测语料 | **口径修正（审计 P1-2，待 owner 追认）**：新增 20 条带真值域的评测条目（入仓 fixture，纯合成标题），与词表同源——作用是**回归护栏**（词表改动后 --check 必须 100%），不是无偏准确率评估；无偏人评属 P1 运营机制。原"标注集 60→80"按 60 条本地 admission 标注（不入仓）+ 20 条评测语料 = 总量 80 记账，**关闭 v1.0 T00 悬置裁决"标注集 60-80"** |
 | P0.3 | 兴趣画像 | settings.kv `interest.practice_domains`（数组）+ `GET/PATCH /api/settings/interests`（沿用 llm provider 的 kv + audit_log 先例）；前端 Settings 新增"我的方向"多选卡 |
-| P0.4 | Feed 接线 | content 查询链路加 `practice_domain` 参数（`useHotspotData` 已有 category/region 参数模式）；兴趣命中 → attention 排序加权；未命中 → 降权 |
-| P0.5 | 摘要接线 | SK-01 每日优先级摘要按兴趣域分区展示 |
+| P0.4 | Feed 接线 | 资讯流查询时即时打标（纯函数，零 schema 变更）；兴趣命中 → 页内加权置顶；未命中 → 降权不删；每条回传 `practice_domain` + 顶层 `interest_domains` 供徽标展示 |
+| P0.5 | SK-01 摘要分区 | **范围修正（审计 P1-3，待 owner 追认）**：后端聚合分区已交付（top_items 附加 practice_domain + practice_partitions 分组 + interest_domains 回显）；**前端分区渲染顺延 P1**——SK-01 在 v0.8.5 壳无活的前端消费面（无 API 端点），"优先级摘要卡上首页"本就是 P1 动线任务，届时一并接线 |
 
 ### P1 —— 标签统一 + 动线强化
 
@@ -79,6 +79,6 @@
 
 1. `npx tsc --noEmit` 0 错、`npx vitest run` 全绿（新增选择器/接线测试）、`pytest backend/tests/` 0 回归（classifier/词表/端点新测试全绿）；
 2. `python scripts/generate_meta.py --check` 通过（services/routers 数字与 ARCHITECTURE.md 一致）；
-3. 兴趣未勾选时 Feed 行为与现状逐字节一致（向后兼容断言）；
+3. 兴趣未勾选时 Feed 行为与现状一致（**口径修正（审计 P1-2）**：响应结构一致——除新增增量字段 `practice_domain`/`interest_domains` 外，且无画像时排序与旧版相同；"逐字节一致"表述废弃）；
 4. 每条摘要可解释命中域；
 5. **实现与验证分离**：收尾由独立 agent 做功能验收 + 代码审计（`code-reviewer`），实现会话不得自评 PASS；审计发现 P0 级问题必须修复后复验。

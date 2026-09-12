@@ -17,6 +17,13 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-09-13 解耦工程 P0-0 + 五批全落地: 止血/API 收口/repo 收敛/解环拆上帝服务/前端域客户端 — DEV-0191~0203
+
+- **执行** (6 commits `a45e22c..184b592` on main, 未 push, 方案 `docs/FEATURE_DECOMPOSITION_2026-09-12.md` 最终版): **P0-0** (`60acba0`) 止血十项 — dsh 命令白名单三层 enforce + token 鉴权(默认关) + 回环 guard 共用 + vite host 127.0.0.1 + kl 路径穿越封堵 + **备份链根治** (WAL 帧累积 checksum/v2 格式/三库全量/原子恢复, 生产端到端 checker 27/27 integrity ok) + 证据收据三类 entity_type 白名单 (恒 pending→committed) + crypto 参数修正 + 明文 key 清扫(迁移 115) + 错误契约 8 码扁平 envelope (前端 10 组件同步)。**Batch 2** (`7a2b8fa`) api/knowledge.py 711→39 + api 层 52 处直连 SQL 清零 + R3 守卫。**Batch 3** (`756e569`) v1 五表补 repo + R2 守卫 (54 表豁免冻结增量) + knowledge_items_table() 单一真相源。**Batch 4** (`e257baa`) action⇄run 解环 (run_orchestrator) + R4 守卫 (Tarjan) + knowledge_service 974→150 / collection_service 1071→296 facade 拆分。**Batch 5** (`184b592`) 5 前端域客户端 + ~85 组件/hook 迁移 (**裸 fetch 280→11, 网络调用归零**) + SSE 失效统一 (realtime.ts, v1 迁移/sentinel 登记保留)。
+- **守卫族** (4 个新机器断言, 规则机器化): R1 分层 (禁 services→api) / R3 api 零 SQL+行数豁免 36 / R2 写路径唯一 (表豁免 54 收缩制) / R4 零环 (白名单 1: skill_registry⇄skill_runner)。架构数字 85→86 routers / 127→141 services。
+- **验证** (每批双独立 agent, 实现与验证分离): 全量 pytest **4600/9sk/0 失败** (基线 4466→+134 用例) / vitest **509** / tsc 0 / build OK / meta --check OK / 每批 code-reviewer 审计 **P0=0** (P1 累计 8 条全修: 备份 checksum 撕裂帧/恢复原子性/守卫绕过面×2/前端信封同步等); 报告 `.ua/tmp/{p0,batch2..5}-code-audit-report.md`。
+- **遗留** (豁免收缩路线, 非阻断, 见方案 §4): R3 行数豁免 36 文件 (knowledge_api/case_api/sources/secrets 为目标) / R2 表豁免 54 条 (maintenance 动态 SQL 文件级/v1_admission 四表) / ai_hub write_back 外移待授权 / 裸读 knowledge_items ~20 文件 / sentinel SSE 5 处迁移 / P1-0 执行器 (产品决策待 owner)。
+
 ### 2026-09-12 解耦 Batch 1: SSE 事件总线下沉 + 分层守卫上线 — DEV-0191
 
 - **背景**: owner 指令"熟悉仓库 + 功能拆解 + 关键功能独立 API + 解耦 (高内聚低耦合)"。盘点结论: 85 router 已按功能分文件 (`api/_registry.py`), "独立 API"骨架已在; 真正的债是四类耦合 — 反向依赖 8 处 / 层穿透 (api 直连 SQL 50 + services 绕 repo 239) / 上帝模块 (`api/knowledge.py` 711 行、`collection_service` 1071 行等) / `action↔run` 环。完整方案 = `docs/FEATURE_DECOMPOSITION_2026-09-12.md` (13 域拆解总表 + R1~R6 机械规则 + 五批路线图, Batch 2~5 待裁决)。

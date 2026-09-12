@@ -1,7 +1,9 @@
-# hotspot 功能拆解与解耦方案（高内聚低耦合）
+# hotspot 功能拆解与解耦方案（最终版 · 已执行完毕）
 
-- 日期：2026-09-12
-- 状态：**执行中** — Batch 1 已落地（DEV-0191），Batch 2~5 待 owner 裁决排期
+- 日期：2026-09-12 立项 / 2026-09-13 收口
+- 状态：**已执行** — P0-0 + Batch 1~5 全部落地（commit `a45e22c` → `184b592`，6 commits on main，未 push）
+- 裁决记录（owner 批准执行书）：P0-0 止血先行 / Batch 2~5 全做 / Batch 3 档 A 冻结增量 / **ai_hub 红线不碰**（域级环登记为已知债）/ P1-0 执行器不做（产品决策待 owner）
+- 验证机制：每批双独立 agent（功能验收 + code-reviewer 审计，与实现隔离），报告在 `.ua/tmp/{p0,batch2..5}-code-audit-report.md`
 - 定位：`docs/FIRST_PRINCIPLES_ANALYSIS_2026-09-11.md` §5.7「SSE 下沉」+ §6 D14（分层名存实亡）的**执行方案**；不替代 `docs/v0.8.5/V0.8.5_PLAN.md`（唯一实现 spec），不动三层壳 / 导航 / 视觉 token，全部变化在壳背后
 - 方法：数字全部为本轮实测（3 个只读调研 pass + 主会话复核），与第一性原理分析 §3/附录 A 数字交叉一致处不重复取证
 
@@ -101,57 +103,37 @@
 
 ---
 
-## 4. 五批路线图
+## 4. 五批路线图（✅ 全部执行完毕，落点见括号）
 
-> 排序原则：**先立规则（守卫），再做重构**——每批结束时该批对应的守卫上线，防止回潮。所有批次均要求：pytest 全量 0 回归 + `generate_meta.py --check` + 触碰文件 ruff 0 错 + git 显式 pathspec 小步提交。
+> 执行结果摘要（详证见 DEV_LOG DEV-0191~0203 与各批审计报告）：
 
-### Batch 1（✅ 2026-09-12 已落地，DEV-0191）：SSE 事件总线下沉
+- **Batch 1（`a45e22c`）**：SSE 总线下沉 core/events，8 处反向依赖清零，R1 守卫上线。
+- **Batch 2（`7a2b8fa`）**：api/knowledge.py 711→39（8 子文件全 ≤150）+ api 层 52 处直连 SQL 清零（新 5 service + 1 repo）+ R3 守卫（AST 零直连 + 行数豁免清单 36 文件）。
+- **Batch 3（`756e569`）**：v1 五表补 V1EvidenceRepository（写路径唯一化）+ R2 守卫（全 backend 写语句扫描，54 表豁免冻结增量）+ `db.knowledge_items_table()` 单一真相源（写侧 19 处接入，裸写归零）。
+- **Batch 4（`e257baa`）**：action↔run 硬环解开（run_orchestrator，run 侧死引用删除）+ R4 守卫（迭代 Tarjan SCC，白名单仅 skill_registry⇄skill_runner 一条文档化反依赖）+ knowledge_service 974→150 facade（6 mixin）+ collection_service 1071→296 facade（2 模块）。
+- **Batch 5（`184b592`）**：5 个前端域客户端（~90 域函数）+ ~85 组件/hook 迁移，裸 fetch 280→11（真实网络调用 0，目标 <100）+ SSE 失效统一（realtime.ts 注册器，v1 域迁移、sentinel 5 处保守保留登记）。
+- **P0-0（`60acba0`）**：止血十项全落地 — dsh 命令白名单（三层）、token 鉴权（默认关）、回环 guard（run/main 共用）、vite host 127.0.0.1、kl 路径穿越封堵、备份链根治（WAL 帧 checksum + v2 格式 + 三库全量 + 原子恢复，checker 27/27）、证据收据白名单（judgment/action/knowledge 恒 pending→committed）、crypto 参数修正、明文 key 清扫（migration 115）、错误契约统一（8 码扁平 envelope + 前端同步）。
+- **架构数字演进**：85→86 routers / 127→141 services / 57 jobs / 13 collectors（ARCHITECTURE.md 已同步）。
+- **守卫族**（新增 4 个机器断言，环环相扣）：R1 分层（services/scheduler/collectors/repository 禁 import api）→ R3 api 零 SQL+行数 → R2 写路径唯一（豁免收缩）→ R4 零环（白名单收缩）。
 
-| 项 | 内容 |
-|---|---|
-| 动作 | 新建 `backend/core/events.py`（订阅池 + publish_event + subscribe/unsubscribe）；`api/events.py` 瘦身为纯 SSE 端点（HTTP + outbox 重放）；9 个发布点改 import；3 个测试改打桩位置；新增 `test_layering_guard.py`（R1 断言） |
-| 效果 | **8 处 services→api 反向依赖清零**；R1 从"文档约定"变为"机器断言"；api/events.py 122→~110 行且不再被业务层 import |
-| 验收 | 定向 51 用例通过（含新守卫 2 条）；`generate_meta --check` OK（85/127/57/13 不变）；ruff 触碰文件 0 错；全量回归结果见 DEV_LOG DEV-0191 |
-| 风险 | 日志从 stdlib logging 换 loguru（debug 级，符合全仓规则）；SSE payload/重放语义逐行照搬，行为不变 |
+### 剩余收缩目标（豁免清单单调收缩路线，非阻断）
 
-### Batch 2：API 层收口（预计 2~3 天）
-
-1. **拆 `api/knowledge.py`（711 行 → 按资源 4~5 个子 router）**：items / chunks / concepts+graph / stats+import 各自成文件，`prefix` 与全部 URL **不变**（前端零感知），`_registry.py` 挂载点不变。拆完该文件族全部 ≤150 行。
-2. **api 层直连 SQL 清零（50 处/21 文件）**：每处下沉到对应 service 或 repo；observability_router(550 行) 是最大单点，顺带拆分。
-3. **R3 守卫上线**：api 层行数 + 零 get_connection 断言（存量清零后开启，一次性还清）。
-- 验收：`GET /api/knowledge/*` 等 URL 行为逐条等价（契约测试先行）；api 层 `get_connection` 命中 = 0。
-
-### Batch 3：services 绕 repo 收敛 + 无 repo 表补齐（预计 3~5 天，可选两档）
-
-- **档 A（冻结增量，推荐先行）**：新代码/新表强制走 repo（R2 守卫以"豁免清单"模式上线——存量命中白名单，新表不在白名单即失败）；`data/migrations/` 腐化副本删除或同步。
-- **档 B（全量还清 239 处）**：按域分小批下沉，顺序 = 重灾区优先：maintenance_service(41) → sync_bundle(15) → knowledge_service(18) → collection_service(11) → trigger_gate/queue(11) → 其余；同时给 † 清单 ~25 张表补 repo（v1_* 四表优先——它们是证据引擎的写路径）。
-- 附带：`search_service` 运行时探测表名改为显式声明（消"写路由靠环境"）。
-- 验收：R2 守卫豁免清单单调收缩至 0（档 B），或冻结清单入档（档 A）。
-
-### Batch 4：解环 + 上帝服务拆分（预计 3~5 天）
-
-1. **action↔run 解环**：提取共享编排接口（如 `run_orchestrator`），action_service 不再 import run_service；R4 环检测守卫上线。⚠️ 时序上应与第一性原理 **P1-0 执行器**（run 永远 queued 的产品决策）合并考虑——执行器形状定了再动这两个文件，避免二次重构。
-2. **knowledge_service(902) 拆分**：按既有 import 边界切四块——dsh 适配 / ai 深读改写 / v1 evidence 桥 / legacy migrate，各自独立模块，knowledge_service 只留编排。
-3. **collection_service(1071) 拆分**：采集编排 / 去重与准入 / 源健康状态机三块（source_health_machine 已是独立 import，物理搬出即可）。
-4. **ai_hub write_back 外移**（解知识↔ai_hub 域级环）——**R6 红线内，需 owner 显式授权**。
-
-### Batch 5：前端域客户端收敛（预计 1 周）
-
-1. 在 `lib/api.ts` 之上建域客户端：`api/hotspots.ts`、`api/knowledge.ts`、`api/sources.ts`、`api/codegarden.ts`（样板 = 现成 `api/v1.ts` 38 函数模式）。
-2. 15 个裸 fetch hook 换域客户端 + 端点常量化（组件零改动即可完成大头）。
-3. 立 R5"同一端点唯一 hook owner"：`/api/knowledge/items` 6 文件→1、`/api/hotspots` 5 文件→1。
-4. SSE 失效统一：把 v1 的精确失效（useSSEAggregateInvalidate）与 sentinel 的节流重拉收敛为"事件→按端点失效"一等能力，防第三套实现。
-- 验收：裸 fetch 计数单调下降（守卫脚本报告基线 280→目标 <100）；重复端点调用归零。
+1. R3 行数豁免 36 文件：已知目标 knowledge_api(352)/case_api(390)/sources(582)/secrets(557)。
+2. R2 表豁免 54 条：重灾区 maintenance_service（动态 SQL 文件级豁免）/v1_admission_service（admission_* 四表）/collection_pipeline（raw_items/crawler_runs）。
+3. R4 白名单 1 条：skill_registry⇄skill_runner（收缩 = execute() 改强制注入 runner）。
+4. 裸读 knowledge_items ~20 文件（分库下潜在故障点）→ 逐批接 `knowledge_items_table()`。
+5. sentinel 域 SSE 5 处消费方迁移 realtime.ts（已登记待迁移清单）。
 
 ---
 
-## 5. 需 owner 裁决
+## 5. 裁决与遗留（原"需 owner 裁决"项处置记录）
 
-1. **与 P0-0 止血批的排序**：第一性原理 §0.1 的七个 P0（RCE / 备份空产出 / 明文密钥…）与本方案正交但更紧急。**建议 P0-0 先行**，本方案 Batch 2+ 在其后排期（Batch 1 因风险极低已先落地）。
-2. **ai_hub 包拆分**（R6 红线）：write_back 外移可解知识域↔ai_hub 域级环，但触碰红线包结构，需显式授权。
-3. **Batch 3 档 A（冻结增量）vs 档 B（全量还清 239 处）**：第一性原理 §7 倾向冻结；本方案给两档，档 A 半天可上线守卫、档 B 需 3~5 天。
-4. **WARM/COLD 显式前缀策略**（D12 关联）：retention.json(103 表) 是温度层真相源，但写语句 0 显式前缀。建议与 P0-0 备份批合并处理（同一批停机窗口），不单独排期。
-5. **CodeGarden / CRM 冻结范围**：两域内聚度已是 ✓ 高（无耦合债），但全 0 数据（第一性原理 D19）。本方案不拆不动；是否按减法清单移出核心动线属产品决策。
+1. **P0-0 排序** → ✅ 已先行执行（`60acba0`），十项全落地。
+2. **ai_hub 包拆分**（R6 红线）→ **未授权不动**；知识域↔ai_hub 域级环（`ai_hub/write_back.py:81`）登记为已知债，R4 守卫将 ai_hub.* 归并单节点，待 owner 显式授权。
+3. **Batch 3 档 A/B** → ✅ 档 A（冻结增量）执行，R2 守卫 + 54 表豁免上线；档 B 收缩目标见 §4。
+4. **WARM/COLD 显式前缀** → 部分兑现：`knowledge_items_table()` 单一真相源已立（写侧归零），其余表的前缀化未做，与 P0-0 备份批同窗口处理的建议保留待裁决。
+5. **CodeGarden / CRM 冻结** → 维持不动（内聚度 ✓ 高，无耦合债）；移出核心动线属产品决策，未裁决。
+6. **P1-0 执行器**（run 永远 queued 的产品决策）→ 未做（不在本工程范围）；run_orchestrator.py docstring 已注明为后续执行编排落点。
 
 ---
 

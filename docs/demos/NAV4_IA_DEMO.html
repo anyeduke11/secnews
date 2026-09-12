@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAV4 四大菜单 · 交互设计 Demo</title>
+<style>
+  /* ── 设计令牌: 与 frontend/src/index.css 对齐 ── */
+  :root {
+    --bg-primary: #0a1628;
+    --bg-lift: #0d1c33;
+    --bg-card: #0f2140;
+    --bg-hover: #13294d;
+    --bg-elevated: #16304f;
+    --border-color: rgba(148, 180, 220, 0.14);
+    --border-light: rgba(148, 180, 220, 0.2);
+    --border-subtle: rgba(148, 180, 220, 0.08);
+    --text-primary: #eef3fa;
+    --text-secondary: #9db0c9;
+    --text-muted: #5f7492;
+    --accent: #00e5a0;
+    --accent-soft: rgba(0, 229, 160, 0.13);
+    --accent-dim: rgba(0, 229, 160, 0.35);
+    --color-success: #00e5a0;
+    --color-warning: #ffab5e;
+    --color-error: #ff6470;
+    --color-info: #4dd6e2;
+    --color-ai: #4dd6e2;
+    --color-security: #ff8093;
+    --color-finance: #ffd257;
+    --color-startup: #a48bff;
+    --shadow-popover: 0 4px 20px rgba(4, 12, 24, 0.5);
+    --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.55;
+    min-height: 100vh;
+  }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; }
+
+  /* ── 顶部壳: 4 tab + 心跳 ── */
+  .shell-top {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 18px;
+    padding: 0 20px; height: 46px;
+    background: var(--bg-lift);
+    border-bottom: 1px solid var(--border-color);
+  }
+  .brand { font-weight: 700; font-size: 13px; letter-spacing: 0.5px; white-space: nowrap; }
+  .brand .v { color: var(--text-muted); font-weight: 400; font-size: 10px; margin-left: 6px; }
+  .tabs { display: flex; gap: 4px; flex: 1; }
+  .tab {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border: 1px solid transparent; border-radius: 6px;
+    background: transparent; color: var(--text-secondary);
+    font-size: 12.5px;
+  }
+  .tab:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .tab.active {
+    background: var(--accent-soft); border-color: var(--accent-dim);
+    color: var(--accent); font-weight: 600;
+  }
+  .tab .ic { font-size: 13px; }
+  .heartbeat {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 10.5px; color: var(--text-secondary); white-space: nowrap;
+  }
+  .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  .demo-badge {
+    font-size: 10px; padding: 2px 8px; border-radius: 4px;
+    background: var(--color-warning); color: #06281c; font-weight: 700;
+  }
+  .ia-btn {
+    font-size: 10.5px; padding: 4px 10px; border-radius: 4px;
+    border: 1px solid var(--border-light); background: transparent; color: var(--text-secondary);
+  }
+  .ia-btn:hover { color: var(--accent); border-color: var(--accent-dim); }
+
+  /* ── 路径面包屑 ── */
+  .crumb {
+    padding: 8px 20px; font-size: 10.5px; color: var(--text-muted);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .crumb b { color: var(--text-secondary); font-weight: 500; }
+  .crumb .path { color: var(--accent); }
+
+  /* ── 次级导航 chips ── */
+  .subnav { display: flex; gap: 6px; padding: 12px 20px 0; flex-wrap: wrap; }
+  .chip {
+    padding: 4px 12px; border-radius: 999px; font-size: 11.5px;
+    border: 1px solid var(--border-color); background: var(--bg-card);
+    color: var(--text-secondary);
+  }
+  .chip:hover { border-color: var(--border-light); color: var(--text-primary); }
+  .chip.active { background: var(--accent-soft); border-color: var(--accent-dim); color: var(--accent); }
+  .chip .n { color: var(--text-muted); font-size: 10px; margin-left: 3px; }
+
+  /* ── 页面容器 ── */
+  .page { display: none; padding: 14px 20px 40px; max-width: 1280px; }
+  .page.active { display: block; }
+  .sub { display: none; }
+  .sub.active { display: block; animation: fadein 0.15s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+  /* ── 通用卡片 ── */
+  .grid { display: grid; gap: 10px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border-color);
+    border-radius: 8px; padding: 12px 14px;
+  }
+  .card.clickable { cursor: pointer; transition: border-color 0.12s; }
+  .card.clickable:hover { border-color: var(--accent-dim); }
+  .card h4 { font-size: 12px; color: var(--text-secondary); font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .card h4 .tag { font-size: 9px; color: var(--text-muted); border: 1px solid var(--border-color); padding: 1px 5px; border-radius: 3px; }
+  .muted { color: var(--text-muted); }
+  .small { font-size: 11px; }
+  .stat-num { font-size: 20px; font-weight: 700; color: var(--accent); }
+  .stat-num.warn { color: var(--color-warning); }
+
+  /* IA 归位标注 */
+  .moved {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 9.5px; color: var(--color-info);
+    border: 1px dashed rgba(77, 214, 226, 0.4);
+    padding: 1px 7px; border-radius: 3px; margin-left: 8px; vertical-align: 1px;
+  }
+
+  /* ── 资讯流 ── */
+  .hero { border-left: 3px solid var(--accent); }
+  .hero h3 { font-size: 15px; margin: 4px 0 6px; }
+  .feed-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 9px 12px; background: var(--bg-card);
+    border: 1px solid var(--border-color); border-radius: 7px;
+  }
+  .feed-item:hover { border-color: var(--border-light); }
+  .fd-main { flex: 1; }
+  .fd-title { font-size: 12.5px; font-weight: 600; }
+  .fd-meta { font-size: 10px; color: var(--text-muted); margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .cat-chip { font-size: 9px; padding: 1px 6px; border-radius: 3px; color: #06281c; font-weight: 700; }
+  .pd-tag { font-size: 9px; padding: 1px 6px; border-radius: 3px; border: 1px solid var(--accent-dim); color: var(--accent); }
+  .mult {
+    font-size: 10px; color: var(--accent); cursor: help;
+    border-bottom: 1px dotted var(--accent-dim); white-space: nowrap;
+  }
+  .mult .tip {
+    display: none; position: absolute; right: 0; top: 22px; z-index: 20; width: 250px;
+    background: var(--bg-elevated); border: 1px solid var(--border-light);
+    border-radius: 6px; padding: 8px 10px; font-size: 10.5px; color: var(--text-secondary);
+    box-shadow: var(--shadow-popover); text-align: left; line-height: 1.5;
+  }
+  .fd-right { position: relative; }
+  .fd-right:hover .tip { display: block; }
+
+  /* ── 质量漏斗 ── */
+  .gate-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: 11px; }
+  .gate-row .gn { width: 150px; color: var(--text-secondary); }
+  .gate-bar { flex: 1; height: 8px; background: var(--bg-hover); border-radius: 4px; overflow: hidden; }
+  .gate-bar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+  .gate-bar i.warn { background: var(--color-warning); }
+  .gate-pct { width: 40px; text-align: right; color: var(--text-muted); }
+
+  /* ── 知识图谱 ── */
+  .graph-wrap { background: var(--bg-lift); border-radius: 8px; border: 1px solid var(--border-color); }
+  .node { cursor: pointer; }
+  .node:hover circle { stroke: var(--accent); stroke-width: 2; }
+  .node text { fill: var(--text-secondary); font-size: 9px; font-family: var(--font-mono); }
+  .edge { stroke: var(--border-light); stroke-width: 1; }
+
+  /* ── 案件 ── */
+  .case-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; background: var(--bg-card);
+    border: 1px solid var(--border-color); border-radius: 7px; cursor: pointer;
+  }
+  .case-row:hover { border-color: var(--accent-dim); }
+  .case-id { color: var(--accent); font-size: 11px; white-space: nowrap; }
+  .status { font-size: 9px; padding: 2px 7px; border-radius: 999px; font-weight: 700; }
+  .st-triage { background: rgba(255, 171, 94, 0.15); color: var(--color-warning); }
+  .st-active { background: var(--accent-soft); color: var(--accent); }
+  .st-blocked { background: rgba(255, 100, 112, 0.15); color: var(--color-error); }
+
+  /* ── 泳道 ── */
+  .kanban { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .kcol { background: var(--bg-lift); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 8px; }
+  .kcol h5 { font-size: 10px; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+  .kcard { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 5px; padding: 6px 9px; font-size: 11px; margin-bottom: 6px; }
+
+  /* ── 设置 ── */
+  .settings-wrap { display: grid; grid-template-columns: 210px 1fr; gap: 14px; }
+  .cat-list { display: flex; flex-direction: column; gap: 2px; }
+  .cat-group { font-size: 9.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; padding: 10px 8px 4px; }
+  .cat-item {
+    text-align: left; padding: 6px 10px; border-radius: 5px; font-size: 11.5px;
+    background: transparent; border: none; color: var(--text-secondary);
+  }
+  .cat-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .cat-item.active { background: var(--accent-soft); color: var(--accent); }
+
+  /* 兴趣权重条 */
+  .wrow { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 11px; }
+  .wrow .wn { width: 84px; color: var(--text-secondary); }
+  .wbar { flex: 1; height: 6px; background: var(--bg-hover); border-radius: 3px; overflow: hidden; }
+  .wbar i { display: block; height: 100%; background: var(--accent); }
+
+  /* ── 抽屉 (IA 说明 / 案件详情) ── */
+  .overlay {
+    display: none; position: fixed; inset: 0; z-index: 90;
+    background: rgba(4, 12, 24, 0.66);
+  }
+  .overlay.open { display: block; }
+  .drawer {
+    position: fixed; top: 0; right: -560px; z-index: 100;
+    width: 540px; max-width: 92vw; height: 100vh; overflow-y: auto;
+    background: var(--bg-lift); border-left: 1px solid var(--border-light);
+    padding: 20px 22px 40px; transition: right 0.22s ease;
+  }
+  .drawer.open { right: 0; }
+  .drawer h3 { font-size: 14px; margin-bottom: 4px; }
+  .drawer .sub-t { font-size: 11px; color: var(--text-muted); margin-bottom: 14px; }
+  .close-x { position: absolute; top: 14px; right: 16px; background: none; border: none; color: var(--text-muted); font-size: 16px; }
+  .close-x:hover { color: var(--text-primary); }
+  table.map { width: 100%; border-collapse: collapse; font-size: 11px; margin: 10px 0; }
+  table.map th { text-align: left; color: var(--text-muted); font-weight: 500; padding: 5px 8px; border-bottom: 1px solid var(--border-light); font-size: 10px; }
+  table.map td { padding: 6px 8px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); }
+  table.map td:first-child { color: var(--text-primary); }
+  .arrow { color: var(--accent); }
+
+  .note {
+    margin: 14px 0; padding: 10px 12px; border-radius: 6px; font-size: 11px;
+    background: var(--accent-highlight); border: 1px solid var(--accent-dim); color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .note b { color: var(--accent); }
+
+  .footer-note { text-align: center; color: var(--text-muted); font-size: 10px; padding: 20px 0 30px; }
+
+  @media (max-width: 860px) {
+    .g2, .g3, .kanban { grid-template-columns: 1fr; }
+    .settings-wrap { grid-template-columns: 1fr; }
+    .heartbeat span.d { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ 唯一全局壳: 4 tab + 心跳条 ═══ -->
+<header class="shell-top">
+  <div class="brand">◉ SecNews<span class="v">NAV4 DEMO</span></div>
+  <nav class="tabs" aria-label="四大菜单">
+    <button class="tab active" data-menu="news"><span class="ic">📰</span>资讯</button>
+    <button class="tab" data-menu="knowledge"><span class="ic">📚</span>知识</button>
+    <button class="tab" data-menu="action"><span class="ic">⚡</span>行动</button>
+    <button class="tab" data-menu="settings"><span class="ic">⚙</span>设置</button>
+  </nav>
+  <div class="heartbeat"><span class="pulse"></span><span class="d">管道 126/85 · 队列 3 · 今日 214 条</span></div>
+  <button class="ia-btn" onclick="openDrawer('ia')">IA 变更说明</button>
+  <span class="demo-badge">DESIGN DEMO</span>
+</header>
+<div class="crumb" id="crumb"><b>资讯</b> <span class="path">/</span> · 情报流</div>
+
+<!-- ═══════════ 资讯 / ═══════════ -->
+<main class="page active" id="page-news">
+  <div class="subnav" data-subgroup="news">
+    <button class="chip active" data-sub="news-feed">情报流</button>
+    <button class="chip" data-sub="news-quality">质量 <span class="n">原判断层</span></button>
+    <button class="chip" data-sub="news-pipeline">采集管道</button>
+    <button class="chip" data-sub="news-deep">深读 · 历史</button>
+  </div>
+
+  <!-- 情报流 -->
+  <section class="sub active" id="sub-news-feed">
+    <div class="note" style="margin-top:12px">
+      <b>兴趣引擎</b>: 30d 行为信号 12 条 · W30=8.4 → β_eff=0.11 (渐进收敛中) · 显式勾选 3 域。排序 = 质量分 × 兴趣乘子 m(d) ∈ [0.79, 1.30],<b>降权不删</b>。
+    </div>
+    <div class="card hero" style="margin-bottom:10px">
+      <div class="fd-meta"><span class="cat-chip" style="background:var(--color-security)">SECURITY</span> FreeBuf · 2h前</div>
+      <h3>大模型提示注入的新型攻击面:从间接注入到 Agent 工具链劫持</h3>
+      <div class="small muted">deep_read 完成度 68% · 命中实践域:ai_security · 兴趣乘子 ×1.24</div>
+    </div>
+    <div class="grid">
+      <div class="feed-item"><div class="fd-main">
+        <div class="fd-title">威胁狩猎方法论:从 MITRE ATT gaps 到检测工程 backlog</div>
+        <div class="fd-meta"><span class="cat-chip" style="background:var(--color-security)">SECURITY</span> Detection.sh · 4h前 <span class="pd-tag">threat_hunting</span></div>
+      </div><div class="fd-right"><span class="mult">×1.18<span class="tip">为何推荐:你勾选了「威胁狩猎」(E=1.0) 且近 7 天 3 次 deep_read 命中该域 (B'=0.42)。S=0.6×1.0+0.11×0.42≈0.65 → m=0.7+0.6×0.65≈1.09,叠加质量分排序后置顶。</span></span></div></div>
+      <div class="feed-item"><div class="fd-main">
+        <div class="fd-title">等保 2.0 测评新规解读:AI 系统首次纳入定级范围</div>
+        <div class="fd-meta"><span class="cat-chip" style="background:var(--color-finance)">FINANCE</span> 安全内参 · 6h前 <span class="pd-tag">compliance</span></div>
+      </div><div class="fd-right"><span class="mult">×1.06<span class="tip">为何推荐:显式勾选「合规管理」,无行为信号 — 显式权重主导 (S=0.6×1.0=0.6 → m≈1.06)。</span></span></div></div>
+      <div class="feed-item"><div class="fd-main">
+        <div class="fd-title">CVE-2026-31337 概念验证公开:影响主流 Java 反序列化组件</div>
+        <div class="fd-meta"><span class="cat-chip" style="background:var(--color-security)">SECURITY</span> NVD · 8h前 <span class="pd-tag">vuln_research</span></div>
+      </div><div class="fd-right"><span class="mult">×0.92<span class="tip">为何推荐:未勾选「漏洞挖掘」且行为分低 (E=0.15 温和发现,不给 0)。降权但保留在流内 — 搜索/分类永远可达。</span></span></div></div>
+      <div class="feed-item"><div class="fd-main">
+        <div class="fd-title">GitHub 热榜:llm-guard v3 发布 — LLM 应用输入过滤框架</div>
+        <div class="fd-meta"><span class="cat-chip" style="background:var(--color-ai)">AI</span> GitHub · 10h前 <span class="pd-tag">ai_security</span></div>
+      </div><div class="fd-right"><span class="mult">×1.12<span class="tip">为何推荐:行为信号主导 — 近 3 天 2 次 favorite 命中 ai_security 域。</span></span></div></div>
+      <div class="feed-item"><div class="fd-main">
+        <div class="fd-title">数据出境安全评估申报指南更新:金融行业落地要点</div>
+        <div class="fd-meta"><span class="cat-chip" style="background:var(--color-finance)">FINANCE</span> 数安观察 · 12h前 <span class="pd-tag">data_security</span></div>
+      </div><div class="fd-right"><span class="mult">×0.85<span class="tip">未勾选域 + 无行为 → 底分 E=0.15 → m≈0.79 (下限),温和沉底不删除。</span></span></div></div>
+      <div class="feed-item"><div class="fd-main">
+        <div class="fd-title">内网渗透实战复盘:从边界 Web 到域控的 48 小时</div>
+        <div class="fd-meta"><span class="cat-chip" style="background:var(--color-security)">SECURITY</span> 先知社区 · 14h前 <span class="pd-tag">pentest</span></div>
+      </div><div class="fd-right"><span class="mult">×0.95<span class="tip">温和发现:未勾选「渗透攻防」,浏览行为 1 次 → 轻微抬升。</span></span></div></div>
+    </div>
+  </section>
+
+  <!-- 质量 (原判读台) -->
+  <section class="sub" id="sub-news-quality">
+    <div class="note" style="margin-top:12px"><b>IA 归位</b>: 原判断层「判读台」主体 → 此处。筛选与研判在资讯流内完成 — <b>判断是动词,不是房间</b>。案件队列已归「行动」。</div>
+    <div class="grid g3" style="margin:12px 0">
+      <div class="card"><h4>今日收录</h4><div class="stat-num">214</div><div class="small muted">48 源 · 拒绝 37 (质量门)</div></div>
+      <div class="card"><h4>质量通过率</h4><div class="stat-num">85.3%</div><div class="small muted">近 7 日均值 83.9%</div></div>
+      <div class="card"><h4>重复拦截</h4><div class="stat-num warn">12</div><div class="small muted">duplicate 门 · URL 去重另计 41</div></div>
+    </div>
+    <div class="card">
+      <h4>11 道质量门 · 近 24h 通过率 <span class="tag">L0 质量门禁</span></h4>
+      <div class="gate-row"><span class="gn">schema</span><div class="gate-bar"><i style="width:99%"></i></div><span class="gate-pct">99%</span></div>
+      <div class="gate-row"><span class="gn">recency (本周一锚)</span><div class="gate-bar"><i style="width:96%"></i></div><span class="gate-pct">96%</span></div>
+      <div class="gate-row"><span class="gn">content</span><div class="gate-bar"><i style="width:94%"></i></div><span class="gate-pct">94%</span></div>
+      <div class="gate-row"><span class="gn">noise</span><div class="gate-bar"><i style="width:91%"></i></div><span class="gate-pct">91%</span></div>
+      <div class="gate-row"><span class="gn">category_match</span><div class="gate-bar"><i style="width:89%"></i></div><span class="gate-pct">89%</span></div>
+      <div class="gate-row"><span class="gn">title_summary</span><div class="gate-bar"><i style="width:87%"></i></div><span class="gate-pct">87%</span></div>
+      <div class="gate-row"><span class="gn">source_reputation</span><div class="gate-bar"><i style="width:97%"></i></div><span class="gate-pct">97%</span></div>
+      <div class="gate-row"><span class="gn">AuthorVerification</span><div class="gate-bar"><i style="width:93%"></i></div><span class="gate-pct">93%</span></div>
+      <div class="gate-row"><span class="gn">FinalUrl</span><div class="gate-bar"><i style="width:82%"></i></div><span class="gate-pct">82%</span></div>
+      <div class="gate-row"><span class="gn">duplicate</span><div class="gate-bar"><i class="warn" style="width:74%"></i></div><span class="gate-pct">74%</span></div>
+      <div class="gate-row"><span class="gn">ai_quality</span><div class="gate-bar"><i style="width:90%"></i></div><span class="gate-pct">90%</span></div>
+    </div>
+    <div class="grid g2" style="margin-top:10px">
+      <div class="card"><h4>分类分布 · 24h</h4>
+        <div class="gate-row"><span class="gn" style="width:90px">security</span><div class="gate-bar"><i style="width:42%;background:var(--color-security)"></i></div><span class="gate-pct">89</span></div>
+        <div class="gate-row"><span class="gn" style="width:90px">ai / tech</span><div class="gate-bar"><i style="width:31%;background:var(--color-ai)"></i></div><span class="gate-pct">66</span></div>
+        <div class="gate-row"><span class="gn" style="width:90px">finance</span><div class="gate-bar"><i style="width:18%;background:var(--color-finance)"></i></div><span class="gate-pct">38</span></div>
+        <div class="gate-row"><span class="gn" style="width:90px">github</span><div class="gate-bar"><i style="width:10%;background:var(--color-startup)"></i></div><span class="gate-pct">21</span></div>
+      </div>
+      <div class="card clickable" onclick="toast('演示: 跳转 /quality/rejection (路径保留, 高亮资讯菜单)')">
+        <h4>质量拒绝样本 <span class="tag">/quality/rejection</span></h4>
+        <div class="small muted">近 24h 拒绝 37 条 · 逐条可查门禁命中原因与原文快照。<br>点击模拟跳转 (真实实现保留原路径)。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 管道 -->
+  <section class="sub" id="sub-news-pipeline">
+    <div class="grid g3" style="margin:12px 0">
+      <div class="card"><h4>源健康</h4><div class="stat-num">126<span class="small muted">/148</span></div><div class="small muted">active · 11 skipped · 67 dead</div></div>
+      <div class="card"><h4>采集队列</h4><div class="stat-num">3</div><div class="small muted">抓取中 · 平均 1.2s/源</div></div>
+      <div class="card"><h4>KL 管线</h4><div class="stat-num">96.8%</div><div class="small muted">raw → refine → link 通过率</div></div>
+    </div>
+    <div class="card">
+      <h4>最近采集 runs <span class="tag">原 secnews/pipeline · 路径保留</span></h4>
+      <div class="small muted" style="line-height:2">
+        freebuf · html · 40 raw / 31 accept · 1.8s <span style="color:var(--color-success)">●</span><br>
+       安全内参 · rss · 22 raw / 20 accept · 0.9s <span style="color:var(--color-success)">●</span><br>
+        hnrss · rss · 15 raw / 0 accept (recency) · 0.4s <span style="color:var(--color-warning)">●</span><br>
+        newsapi_finance · api · 88 raw / 12 accept · 2.3s <span style="color:var(--color-success)">●</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 深读与历史 -->
+  <section class="sub" id="sub-news-deep">
+    <div class="grid g2" style="margin:12px 0">
+      <div class="card clickable" onclick="toast('演示: 跳转 /deep/hotspot/h-1 (路径保留, 高亮资讯)')">
+        <h4>四节深读 <span class="tag">/deep/:type/:id</span></h4>
+        <div class="small muted">要点速读 / 专属分节 / 我的动作 / 存疑与未证实 — LLM 深读入口保留原路径,归位资讯菜单。</div>
+      </div>
+      <div class="card clickable" onclick="toast('演示: 跳转 /history (路径保留, 高亮资讯)')">
+        <h4>浏览历史 <span class="tag">/history</span></h4>
+        <div class="small muted">近 7 天已读 96 条 · 与兴趣信号联动 (view/deep_read 埋点来源)。</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ═══════════ 知识 /knowledge ═══════════ -->
+<main class="page" id="page-knowledge">
+  <div class="subnav" data-subgroup="knowledge">
+    <button class="chip active" data-sub="kn-lib">知识库</button>
+    <button class="chip" data-sub="kn-graph">图谱 <span class="n">原判断层</span></button>
+    <button class="chip" data-sub="kn-cap">能力资产</button>
+    <button class="chip" data-sub="kn-tools">加工工具</button>
+    <button class="chip" data-sub="kn-review">复习</button>
+  </div>
+
+  <section class="sub active" id="sub-kn-lib">
+    <div class="grid g3" style="margin:12px 0">
+      <div class="card"><h4>知识条目</h4><div class="stat-num">1,847</div><div class="small muted">853 v0 条目 + 994 v1 目录</div></div>
+      <div class="card"><h4>本周新增</h4><div class="stat-num">23</div><div class="small muted">concept 18 · link 5</div></div>
+      <div class="card"><h4>采用次数</h4><div class="stat-num">64</div><div class="small muted">v1 adoption · 近 30d</div></div>
+    </div>
+    <div class="grid g2">
+      <div class="card clickable" onclick="toast('演示: /knowledge (9 个嵌套子路由零改动)')">
+        <h4>知识管理四域 <span class="tag">import / process / compile / compound</span></h4>
+        <div class="small muted">导入 → 加工 → 编译 → 复利,子路由全保留;本菜单主页 = KnowledgeTabs 扩展外壳,库区组件零改动。</div>
+      </div>
+      <div class="card clickable" onclick="toast('演示: /knowledge/v1 (v1 知识目录 + 采用/生命周期)')">
+        <h4>知识目录 v1 <span class="tag">/knowledge/v1</span></h4>
+        <div class="small muted">九领域对象 · 采用/生命周期/复查面板 · draft/published/deprecated/retracted 状态机。</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sub" id="sub-kn-graph">
+    <div class="note" style="margin-top:12px"><b>IA 归位</b>: 原 /judge/graph → <b>/knowledge/graph</b> (旧路径 redirect,组件零改动)。知识图谱是知识资产的可视化,归知识菜单。</div>
+    <div class="graph-wrap" style="margin-top:12px">
+      <svg viewBox="0 0 760 300" width="100%" height="300">
+        <line class="edge" x1="120" y1="80" x2="320" y2="150"/>
+        <line class="edge" x1="320" y1="150" x2="560" y2="90"/>
+        <line class="edge" x1="320" y1="150" x2="250" y2="240"/>
+        <line class="edge" x1="560" y1="90" x2="660" y2="210"/>
+        <line class="edge" x1="120" y1="80" x2="250" y2="240"/>
+        <g class="node"><circle cx="120" cy="80" r="16" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="100" y="55">提示注入</text></g>
+        <g class="node"><circle cx="320" cy="150" r="22" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="298" y="122">LLM 安全</text></g>
+        <g class="node"><circle cx="560" cy="90" r="14" fill="var(--bg-elevated)" stroke="var(--border-light)"/><text x="536" y="65">Agent 框架</text></g>
+        <g class="node"><circle cx="250" cy="240" r="13" fill="var(--bg-elevated)" stroke="var(--border-light)"/><text x="228" y="268">输入过滤</text></g>
+        <g class="node"><circle cx="660" cy="210" r="12" fill="var(--bg-elevated)" stroke="var(--border-light)"/><text x="638" y="238">工具链劫持</text></g>
+      </svg>
+    </div>
+    <div class="small muted" style="margin-top:8px">74 concepts · 128 edges · 复利驱动: 采集 → 编译 → 地图重建 (map_rebuild_daily 02:00)</div>
+  </section>
+
+  <section class="sub" id="sub-kn-cap">
+    <div class="grid g3" style="margin:12px 0">
+      <div class="card"><h4>v1 受管能力包</h4><div class="stat-num">6</div><div class="small muted">SK-01~06 active · 旧 20 legacy_v0</div></div>
+      <div class="card"><h4>技能执行 (7d)</h4><div class="stat-num">38</div><div class="small muted">成功率 89% · agent_loop 五阶段</div></div>
+      <div class="card"><h4>Playbook</h4><div class="stat-num">12</div><div class="small muted">C2 引擎 · 触发源 webhook/KL/collector</div></div>
+    </div>
+    <div class="grid g2">
+      <div class="card clickable" onclick="toast('演示: /skill-store (路径保留, 高亮知识菜单)')">
+        <h4>技能商店 <span class="tag">/skill-store</span></h4>
+        <div class="small muted">v1_active 绿标置顶 + 旧技能折叠 + SkillBuilder 四步向导。</div>
+      </div>
+      <div class="card clickable" onclick="toast('演示: /dashboard (路径保留, 高亮知识菜单)')">
+        <h4>技能看板 <span class="tag">/dashboard</span></h4>
+        <div class="small muted">执行历史 / 反馈 / 成功率视图。</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sub" id="sub-kn-tools">
+    <div class="grid g3" style="margin:12px 0">
+      <div class="card clickable" onclick="toast('演示: /tags (路径保留)')"><h4>标签管理 <span class="tag">/tags</span></h4><div class="small muted">42 标签 · 318 关联</div></div>
+      <div class="card clickable" onclick="toast('演示: /extract (路径保留)')"><h4>自动提取 <span class="tag">/extract</span></h4><div class="small muted">实体/IOC 抽取管线</div></div>
+      <div class="card clickable" onclick="toast('演示: /search (路径保留)')"><h4>统一搜索 <span class="tag">/search</span></h4><div class="small muted">FTS + trigram 中文 + 跨库 UNION</div></div>
+    </div>
+  </section>
+
+  <section class="sub" id="sub-kn-review">
+    <div class="card" style="margin-top:12px">
+      <h4>间隔复习 (SM-2) <span class="tag">/reviews</span></h4>
+      <div class="grid g3" style="margin-top:8px">
+        <div><div class="stat-num">14</div><div class="small muted">今日到期</div></div>
+        <div><div class="stat-num">132</div><div class="small muted">复习中</div></div>
+        <div><div class="stat-num">7d</div><div class="small muted">平均间隔</div></div>
+      </div>
+      <div class="small muted" style="margin-top:8px">知识复利的记忆侧: deep_read → 卡片 → SRS 间隔重现。</div>
+    </div>
+  </section>
+</main>
+
+<!-- ═══════════ 行动 /action ═══════════ -->
+<main class="page" id="page-action">
+  <div class="subnav" data-subgroup="action">
+    <button class="chip active" data-sub="ac-today">今日行动</button>
+    <button class="chip" data-sub="ac-cases">案件 <span class="n">原判断层</span></button>
+    <button class="chip" data-sub="ac-todos">待办</button>
+    <button class="chip" data-sub="ac-report">报告</button>
+    <button class="chip" data-sub="ac-garden">泳道</button>
+  </div>
+
+  <section class="sub active" id="sub-ac-today">
+    <div class="grid g3" style="margin:12px 0">
+      <div class="card"><h4>今日优先</h4><div class="stat-num">5</div><div class="small muted">SK-01 daily-priority 产出</div></div>
+      <div class="card"><h4>执行完成 (7d)</h4><div class="stat-num">18</div><div class="small muted">grade A 11 · B 5 · C 2</div></div>
+      <div class="card"><h4>阻塞案件</h4><div class="stat-num warn">1</div><div class="small muted">知识复查到期 blocker</div></div>
+    </div>
+    <div class="card">
+      <h4>今日行动清单</h4>
+      <div class="small" style="line-height:2.1">
+        <span style="color:var(--accent)">▸</span> 深读: 大模型提示注入攻击面 (14h 内, 兴趣乘子 ×1.24)<br>
+        <span style="color:var(--accent)">▸</span> 复盘: CVE-2026-31337 PoC — 更新内网组件台账<br>
+        <span style="color:var(--color-warning)">▸</span> 复习到期 14 张卡片 (SM-2)<br>
+        <span style="color:var(--text-muted)">▸</span> 周报草稿: 自动聚合已就绪, 待人工润色<br>
+        <span style="color:var(--text-muted)">▸</span> 知识复查: SK-06 review_at 到期 → 案件 CASE-7F2A blocker
+      </div>
+    </div>
+  </section>
+
+  <section class="sub" id="sub-ac-cases">
+    <div class="note" style="margin-top:12px"><b>IA 归位</b>: CaseQueuePanel + 案件深链 → 此处。研判发生在案件里 — 归行动。<b>/cases/:id 深链路径保留不变</b>。</div>
+    <div class="grid" style="margin-top:12px">
+      <div class="case-row" onclick="openDrawer('case')">
+        <span class="case-id">CASE-7F2A</span>
+        <span style="flex:1" class="small">某 Java 反序列化组件 0day 影响面排查</span>
+        <span class="status st-active">active</span>
+        <span class="small muted">3 judgments · 2 runs</span>
+      </div>
+      <div class="case-row" onclick="openDrawer('case')">
+        <span class="case-id">CASE-91C3</span>
+        <span style="flex:1" class="small">LLM Agent 工具链劫持 — 内部试点评估</span>
+        <span class="status st-triage">triage</span>
+        <span class="small muted">1 judgment</span>
+      </div>
+      <div class="case-row" onclick="openDrawer('case')">
+        <span class="case-id">CASE-55D8</span>
+        <span style="flex:1" class="small">数据出境新规 — 客户合规差距分析</span>
+        <span class="status st-blocked">blocked</span>
+        <span class="small muted">知识复查 blocker (SK-06)</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="sub" id="sub-ac-todos">
+    <div class="card" style="margin-top:12px">
+      <h4>待办 <span class="tag">/todos · 路径保留</span></h4>
+      <div class="small" style="line-height:2.1">
+        ☐ 更新组件台账 (关联 CASE-7F2A) — 紧急+重要<br>
+        ☐ 输出 LLM 安全试点评估 v0.1 — 本周<br>
+        ☐ 复核 freebuf 抓取失败源 — 低优
+      </div>
+    </div>
+  </section>
+
+  <section class="sub" id="sub-ac-report">
+    <div class="grid g2" style="margin:12px 0">
+      <div class="card clickable" onclick="toast('演示: /report (路径保留, 高亮行动)')">
+        <h4>周报 / 月报 <span class="tag">/report</span></h4>
+        <div class="small muted">自动聚合 + 人工润色; 已读/摘要/趋势周报三件套。</div>
+      </div>
+      <div class="card"><h4>本周输出</h4><div class="small muted">周报 1 (草稿) · 检测规则 2 · 知识发布 3 · 客户材料 1</div></div>
+    </div>
+  </section>
+
+  <section class="sub" id="sub-ac-garden">
+    <div class="note" style="margin-top:12px"><b>IA 归位</b>: 泳道 = 工作流操作视图, 归行动; CodeGarden <b>配置</b>页归设置·扩展域。gate <code>codegarden</code> 语义不变。</div>
+    <div class="kanban" style="margin-top:12px">
+      <div class="kcol"><h5>backlog</h5><div class="kcard">组件台账更新</div><div class="kcard">PoC 复盘</div></div>
+      <div class="kcol"><h5>doing</h5><div class="kcard">LLM 试点评估</div></div>
+      <div class="kcol"><h5>done</h5><div class="kcard">等保解读笔记</div><div class="kcard">检测规则 ×2</div></div>
+    </div>
+  </section>
+</main>
+
+<!-- ═══════════ 设置 /settings ═══════════ -->
+<main class="page" id="page-settings">
+  <div class="settings-wrap" style="margin-top:12px">
+    <div class="cat-list" id="catList">
+      <div class="cat-group">通用</div>
+      <button class="cat-item active" data-cat="general">常规</button>
+      <button class="cat-item" data-cat="collection">采集与源</button>
+      <button class="cat-item" data-cat="network">网络与代理</button>
+      <button class="cat-item" data-cat="export">导出</button>
+      <div class="cat-group">内容与门禁</div>
+      <button class="cat-item" data-cat="quality">质量门禁 (11 道)</button>
+      <button class="cat-item" data-cat="info_filter">资讯筛选 (info_filter)</button>
+      <button class="cat-item" data-cat="interests">我的方向 · 兴趣引擎</button>
+      <button class="cat-item" data-cat="knowledge">知识库</button>
+      <div class="cat-group">AI 与集成</div>
+      <button class="cat-item" data-cat="llm">LLM 提供商</button>
+      <button class="cat-item" data-cat="image_models">图像模型</button>
+      <button class="cat-item" data-cat="sentinel">Sentinel</button>
+      <button class="cat-item" data-cat="integration">MCP / 集成</button>
+      <div class="cat-group">运维</div>
+      <button class="cat-item" data-cat="secrets">密钥管理</button>
+      <button class="cat-item" data-cat="sync">同步与备份</button>
+      <button class="cat-item" data-cat="maintenance">数据库维护</button>
+      <button class="cat-item" data-cat="alerts">告警</button>
+      <div class="cat-group">扩展域</div>
+      <button class="cat-item" data-cat="codegarden">CodeGarden 配置</button>
+      <button class="cat-item" data-cat="crm">CRM</button>
+    </div>
+    <div class="card" id="catPanel" style="min-height:380px"></div>
+  </div>
+</main>
+
+<div class="footer-note">设计 DEMO · 全部数据为 mock · 单文件无后端 · 对应设计稿 docs/NAV4_IA_REDESIGN_2026-09-12.md · 提案 IA 以 owner 裁决为准</div>
+
+<!-- ═══ 抽屉: IA 变更说明 ═══ -->
+<div class="overlay" id="overlay" onclick="closeDrawer(event)"></div>
+<aside class="drawer" id="drawer-ia">
+  <button class="close-x" onclick="closeDrawer(event)">✕</button>
+  <h3>IA 变更说明 — 三层壳 → 四大菜单</h3>
+  <div class="sub-t">docs/NAV4_IA_REDESIGN_2026-09-12.md · 2026-09-12</div>
+  <div class="note"><b>核心理念</b>: 「判断是动词不是房间」— 筛选在资讯流里做, 研判在案件里做。复利叙事升级为 <b>资讯 → 知识 → 行动</b> 闭环 (知识首次一级化) + 设置横切。</div>
+  <table class="map">
+    <tr><th>现三层/工具页</th><th></th><th>四大菜单</th></tr>
+    <tr><td>资料层 / (Feed+SignalPanel)</td><td class="arrow">→</td><td>资讯 · 情报流</td></tr>
+    <tr><td>判断层判读台 (质量漏斗)</td><td class="arrow">→</td><td>资讯 · 质量</td></tr>
+    <tr><td>/judge/graph 知识图谱</td><td class="arrow">→</td><td>知识 · 图谱 (/knowledge/graph)</td></tr>
+    <tr><td>知识库 / 技能商店 / 标签 / 复习</td><td class="arrow">→</td><td>知识 (能力资产/工具/复习)</td></tr>
+    <tr><td>行动层 + CaseQueuePanel + /cases</td><td class="arrow">→</td><td>行动 (今日行动 + 案件)</td></tr>
+    <tr><td>待办 / 周报 / 泳道 /garden</td><td class="arrow">→</td><td>行动</td></tr>
+    <tr><td>SettingsHub 17 cat + 密钥 + 同步 + /skills</td><td class="arrow">→</td><td>设置 (+扩展域)</td></tr>
+    <tr><td>SecNewsShell 6 tab (双壳遗留)</td><td class="arrow">→</td><td>P1 拆归四菜单, 双壳退役</td></tr>
+  </table>
+  <div class="small muted" style="line-height:1.9">
+    路径稳定性: 4 tab 全部复用现有顶级路径 (/ /knowledge /action /settings);<br>
+    /judge → redirect / · /cases → redirect /action (透传 query);<br>
+    /cases/:id 深链 / /deep/:type/:id / /knowledge/* 9 子路由全部保留;<br>
+    更多菜单 17 项 P1 归位后物理删除; 心跳条全站常驻不动。
+  </div>
+  <div class="note">分期: <b>P0</b> 壳+redirect (半天~1天, 页面零改动) → <b>P1</b> 归位+双壳收敛 (1~2天) → <b>P2</b> 死代码清理 (0.5天)。</div>
+</aside>
+
+<!-- ═══ 抽屉: 案件详情 ═══ -->
+<aside class="drawer" id="drawer-case">
+  <button class="close-x" onclick="closeDrawer(event)">✕</button>
+  <h3>CASE-7F2A · 某 Java 反序列化组件 0day 影响面排查</h3>
+  <div class="sub-t">status: active · opened 2026-09-11 · shell 高亮「行动」· 深链 /cases/case_7F2A... 保留</div>
+  <div class="card" style="margin-bottom:10px"><h4>Judgments (3)</h4><div class="small muted">
+    ① 影响面判定: 内网 3 台中间件命中版本窗口 (published, rev 2)<br>
+    ② PoC 可行性: 公开 exp 需特定 header, 风险中 (draft)<br>
+    ③ 修复优先级建议: 与等保测评窗口冲突, 建议 P1 (draft)</div></div>
+  <div class="card" style="margin-bottom:10px"><h4>Runs / Artifacts</h4><div class="small muted">
+    run_01 inspection-materials · success · 材料 4 件 (验收 accepted)<br>
+    run_02 dsh 深扫 · running · 已 12min</div></div>
+  <div class="card"><h4>Materials 证据材料</h4><div class="small muted">
+    资产清单 (来自 cg_projects) · 组件 BOM · PoC 摘录 (evidence_hash 锚定) · 排查手册 SK-03</div></div>
+</aside>
+
+<div id="toast" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:200;background:var(--bg-elevated);border:1px solid var(--accent-dim);color:var(--text-primary);font-size:11.5px;padding:8px 16px;border-radius:6px;box-shadow:var(--shadow-popover)"></div>
+
+<script>
+  // ── 4 菜单切换 ──
+  const CRUMB = {
+    news:    ['资讯', '/', {'news-feed':'情报流','news-quality':'质量 (原判断层)','news-pipeline':'采集管道','news-deep':'深读 · 历史'}],
+    knowledge:['知识', '/knowledge', {'kn-lib':'知识库','kn-graph':'图谱 (原判断层)','kn-cap':'能力资产','kn-tools':'加工工具','kn-review':'复习'}],
+    action:  ['行动', '/action', {'ac-today':'今日行动','ac-cases':'案件 (原判断层)','ac-todos':'待办','ac-report':'报告','ac-garden':'泳道'}],
+    settings:['设置', '/settings', {}],
+  };
+  let curMenu = 'news', curSub = {};
+
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      curMenu = t.dataset.menu;
+      document.getElementById('page-' + curMenu).classList.add('active');
+      // 恢复该菜单上次的次级选中 (默认第一个)
+      const subs = document.querySelectorAll('[data-subgroup="' + curMenu + '"] .chip');
+      const active = document.querySelector('[data-subgroup="' + curMenu + '"] .chip.active') || subs[0];
+      showSub(curMenu, active.dataset.sub);
+    });
+  });
+
+  // ── 次级导航 ──
+  document.querySelectorAll('.subnav .chip').forEach(c => {
+    c.addEventListener('click', () => showSub(c.closest('.subnav').dataset.subgroup, c.dataset.sub));
+  });
+
+  function showSub(menu, sub) {
+    const group = document.querySelector('[data-subgroup="' + menu + '"]');
+    if (!group) return;
+    group.querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x.dataset.sub === sub));
+    document.querySelectorAll('#page-' + menu + ' > .sub').forEach(x => x.classList.remove('active'));
+    const el = document.getElementById('sub-' + sub);
+    if (el) el.classList.add('active');
+    curSub[menu] = sub;
+    const [name, path, subs] = CRUMB[menu];
+    document.getElementById('crumb').innerHTML =
+      '<b>' + name + '</b> <span class="path">' + path + '</span>' + (subs[sub] ? ' · ' + subs[sub] : '');
+  }
+
+  // ── 设置分区 ──
+  const CAT_PANEL = {
+    interests: '<h4>我的方向 · 兴趣引擎 <span class="tag">/settings?cat=interests</span></h4>' +
+      '<p class="small muted" style="margin:6px 0">勾选实践方向 + 行为权重可视化 (10 域, 与 auto_classifier 词表同源)。</p>' +
+      [['威胁狩猎', 72], ['AI 安全', 64], ['合规管理', 41], ['应急响应', 18], ['漏洞挖掘', 9]].map(([n, w]) =>
+        '<div class="wrow"><span class="wn">' + n + '</span><div class="wbar"><i style="width:' + w + '%"></i></div><span class="small muted">' + w + '%</span></div>'
+      ).join('') +
+      '<div class="note" style="margin-top:10px"><b>漂移提示</b>: 行为信号与勾选方向出现偏离: 近期偏好「AI 安全、漏洞挖掘」。画像不会被自动修改, 可调整勾选或清除行为学习。</div>' +
+      '<button class="ia-btn" style="margin-top:6px" onclick="toast(\'演示: POST /api/interest/reset + audit_log\')">清除行为学习</button>',
+    codegarden: '<h4>CodeGarden 配置 <span class="tag">扩展域 · gate: codegarden</span></h4><p class="small muted" style="margin-top:8px">资源端口保护 / Fernet 加密 / cg_resources 配置。泳道操作视图在「行动 · 泳道」。</p>',
+    default: (cat) => '<h4>' + cat + '</h4><p class="small muted" style="margin-top:8px">分区面板占位 — 真实实现复用既有 SettingsHub 卡片组件, 本 demo 不逐一复刻。</p><p class="small muted">路径: /settings?cat=' + cat + ' (保持不变)</p>',
+  };
+  document.querySelectorAll('.cat-item').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.cat-item').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      const cat = b.dataset.cat;
+      document.getElementById('catPanel').innerHTML = (CAT_PANEL[cat] || CAT_PANEL.default)(cat);
+    });
+  });
+  document.getElementById('catPanel').innerHTML = CAT_PANEL.default('general');
+
+  // ── 抽屉 ──
+  function openDrawer(kind) {
+    document.getElementById('overlay').classList.add('open');
+    document.getElementById('drawer-' + kind).classList.add('open');
+  }
+  function closeDrawer(e) {
+    document.querySelectorAll('.drawer').forEach(d => d.classList.remove('open'));
+    document.getElementById('overlay').classList.remove('open');
+    e && e.stopPropagation();
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+  // ── toast ──
+  let toastTimer;
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.display = 'block';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.style.display = 'none', 2400);
+  }
+</script>
+</body>
+</html>

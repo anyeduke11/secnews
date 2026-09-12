@@ -957,3 +957,14 @@
 - **核心变更**: 见关联文件; 新增 safe_urlopen (validate+pre_resolve+urlopen 一体); interest_signals_since 补 signal_type/item_id 字段 (聚合消费方兼容)。
 - **测试验证**: 全量 pytest **4466/0** (+8 重校规则正反例, test_liveness 重写为 safe_urlopen 边界打桩并新增环回拒收→dead 语义测试); vitest 494 / tsc 0 / meta --check OK; migration 114 副本演练 (version=114, 两列+索引消失) → 生产应用后 PRAGMA 复核无残留, health 200; restore drill 演练 bid 1→0; 重校脚本空库跑通。
 - **潜在风险**: ①safe_urlopen 对探测类场景不做连接级 IP 锁 (DNS rebinding 残余风险, 与 source_prober 同水位, 文档已注明) ②db.py 悬空 view 清理的标识符插值按扫描器策略维持原状 (B 豁免: sqlite_master 自省+DDL 无绑定), 若未来 Mimosa 支持标识符白名单写法可再加固 ③T1 台账对 vendor 的豁免以上游不进生产路径为前提 (ADR/台账均有失效条款)。
+
+## [DEV-0188] 四大菜单 IA 重设计 — 设计方案 (待裁决, 未动代码)
+- **时间**: 2026-09-12 17:10
+- **类型**: 功能开发 (设计批)
+- **关联模块**: `docs:NAV4_IA_REDESIGN_2026-09-12` (新建)
+- **关联文件**: `docs/NAV4_IA_REDESIGN_2026-09-12.md` (新建), `docs/README.md` (索引)
+- **问题描述**: owner 指令「将整个系统调整成 4 大菜单: 资讯/知识/行动/设置」— 对 v0.8.5「Sentinel 三层唯一壳」裁决的一级 IA 重构, 按惯例先设计后实施。
+- **实现思路**: 全部映射基于代码事实侦察 (ROUTE_REGISTRY 第三版 / SentinelShell LAYER_DEFS+UTILITY_GROUPS 17 项 / v0.8.5 §5 权威表 / SecNewsShell 6 tab)。核心决策: ①4 tab 复用既有顶级路径 (//knowledge/action/settings), 变更面最小; ②「判断层」拆解 — 判读台主体归资讯质量区 / CaseQueue 归行动 / graph 归知识 (/judge 与 /cases redirect), 概念表述「判断是动词不是房间」; ③复利叙事升级为 资讯→知识→行动 闭环 (知识首次一级化) + 设置横切; ④SecNewsShell 双壳 P1 拆归退役, 更多菜单 P0 过渡 P1 删除; ⑤27 路由逐一归属映射表; ⑥P0(壳+redirect, 半天)/P1(归位+双壳收敛, 1-2 天)/P2(清理) 三期; ⑦spec 修订注③ + AGENTS 硬规则改写 + 守卫测试重写 (v085_route_shell → nav4_shell) 同 commit 防漂移。
+- **核心变更**: 纯文档批; 7 项裁决点附推荐 (判读台归资讯 / skill-store 归知识 / todos+report 归行动 / secnews 拆归 / garden 归行动+codegarden 配置归设置扩展域 / 路径全复用 / skills 配置归设置)。
+- **测试验证**: 无代码变更; 事实性内容均经源码侦察 (grep 路由表/导航定义/spec)。
+- **潜在风险**: 实施时已知坑 — /judge redirect 须透传 query; 心跳条 SSE Provider 范围 (DEV-0167 遗留) 迁移必检; /knowledge 9 嵌套子路由零改动约束; 更多菜单先过渡后删除防入口真空。

@@ -1152,3 +1152,24 @@
 - **关联文件**: frontend/src/hooks/realtime.ts (P1 修复: unmount 清理读 slotsRef.current + 重建前 cancel 旧 slots), 5 个域客户端 + ~85 组件/hook 改造 (DEV-0199/0201/0202)
 - **测试验证 (权威口径)**: tsc 0 错 / vitest **509/509** / vite build 成功 / **裸 fetch 280→11** (11 处 = 回调 prop 命名 + 3 处有意保留的 status-aware helper, 真实裸网络调用 0; 原方案目标 <100) / 独立审计 P0=0 / P1×1 已修 / P2×7 认领 (报告 .ua/tmp/batch5-code-audit-report.md)。
 - **潜在风险**: ①错误文案统一经 getApiErrorMessage 有轻微 UI 文案变化 (非 ok 一律有友好报错, 不再静默) ②ItemDetailDialog loadNotes 网络失败由"保留旧值"变"清空" (唯一明确微退化, P2 登记) ③useDigest 404 判定经 message 正则与后端文案隐式契约 (P2, 建议后续改 ApiError.status) ④knowledgeItemPath 未 encodeURIComponent (与客户端其余 54 处不一致)。
+
+## [DEV-0204] R2 豁免收缩: v1_admission 四表补 repo — 豁免清单 50→46
+- **时间**: 2026-09-13 09:30
+- **类型**: 重构 (解耦收缩路线, owner 授权执行)
+- **关联模块**: `repository:admission_repo` (新), `services:v1-admission`, `tests:repo_write_guard`
+- **关联文件**: backend/repository/admission_repo.py (新 181 行), backend/services/v1_admission_service.py, backend/tests/test_admission_repo.py (新 10 用例), backend/tests/test_repo_write_guard.py (-4 豁免条目)
+- **问题描述**: admission_log/admission_label/admission_set/admission_set_items 四表由 v1_admission_service 裸 SQL 直写 (R2 豁免条目 ×4, 5 处 get_connection), 写路径不唯一。
+- **实现思路**: AdmissionRepository 风格对齐 v1_evidence_repo (conn 注入 + _c() 回退 thread-local, 写方法不 commit, commit 点保留在 service 原位置); 7 方法与原 SQL 逐字一致 (INSERT 列集/默认值/INSERT OR IGNORE rowcount/JOIN 排序与 dict 键名); OperationalError 兜底与 IntegrityError 上抛语义原样。
+- **测试验证**: test_admission_repo 10 用例 + -k "admission or repo_write" 38 passed; R2 守卫实测四表 governed=True、非 repo 写残留 0, 豁免 50→46; 全量回归 4610/9sk/0 (与 DEV-0205 合并口径); ruff 触碰 0。
+- **潜在风险**: repo 不吞 OperationalError (上抛由 service 兜底) — 与原层级一致; service 共享注入连接的 autocommit 语义未变。
+
+## [DEV-0205] ai_hub write_back 外移 — 知识域↔ai_hub 域级环解开 (owner 授权, 红线调用链未触碰)
+- **时间**: 2026-09-13 09:35
+- **类型**: 重构 (解耦收缩路线, owner 显式授权 R6 红线内 write_back 单点外移)
+- **关联模块**: `services:ai_write_back` (新), `services:ai_hub`, `api:write_item-consumers`
+- **关联文件**: backend/services/ai_write_back.py (新, 自 ai_hub/write_back.py 逐字外移), backend/services/ai_hub/__init__.py (移除再导出+get_connection 兼容 re-export), 13 消费方 import 更新 (api/knowledge_items|knowledge_import|knowledge_concepts|extract|wiki_tools|mcp_agent_tools, services/sag|compiler|federation, triggers/t4|t1, scheduler/jobs/knowledge), backend/tests/test_ai_hub.py (patch 目标修正 + 新增 FK 降级用例), docs/ARCHITECTURE.md (services 142 + repository 53 失真修正, 审计 P2)
+- **问题描述**: ai_hub/write_back.py:81 import knowledge_sync 构成 ai_hub 包→知识域的边, 与知识域→ai_hub (prompts/service) 合成域级环; R4 守卫靠把 ai_hub.* 归并单节点绕开, 包级依赖方向不可断言。
+- **实现思路**: write_item/write_score/update_frontmatter facade 外移 backend/services/ai_write_back.py (代码逐字, 仅 docstring 改写); ai_hub/__init__ 再导出全部移除 (保留兼容 re-export 会保留依赖边, 故消费方必须迁移); 13 消费方 import 改新位置; gateway._try_order/_resolve_provider/llm/ 调用链 git diff 零改动 (红线遵守)。
+- **核心变更**: ai_hub 包对知识域 import 边归零 (grep 代码零命中, 残留 10 处均为 docstring/符号名); 知识域→ai_hub 单向依赖成立; test_ai_hub patch 目标 ai_hub.get_connection→ai_write_back.get_connection — 原目标实为失效 patch (替换 re-export 属性不影响模块内绑定), 旧用例靠 FK 违规降级巧合通过, 现按真实解析路径生效并补不 patch 的真实 FK 降级用例 (审计 P2-2)。
+- **测试验证**: -k "write_back or ai_hub or t4 or sag or knowledge" 207 passed; R4 守卫 7 passed; 全量 pytest **4610 passed / 9 skipped / 0 失败**; meta --check OK (142 services); ruff 触碰 0; 独立审计 **P0=0 / P1=0** / P2×2 全修 (报告 .ua/tmp/batch6-code-audit-report.md)。
+- **潜在风险**: ①prompts.py SK-04 符号名 build_knowledge_prompt 等为命名级耦合残留 (改公开 API 名超出授权, 未动) ②ai_write_back 沿用 stdlib logging (逐字外移原则; services 层两种日志风格并存为已知状态) ③13 消费方 import 变更为破坏性路径变更, 仓外本地脚本若引用 ai_hub.write_item 需改 ai_write_back。

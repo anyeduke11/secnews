@@ -7,7 +7,7 @@
 - GET  /api/wiki/read      wiki_read    — 读单个 .md 全文
 - GET  /api/wiki/graph     wiki_graph   — 概念邻接 (graph.json BFS k=1)
 - GET  /api/wiki/trace     db_trace     — 反查事件对应 (wiki_events)
-- POST /api/wiki/write     wiki_write   — agent 持久产物写回 (经 ai_hub 单写路径)
+- POST /api/wiki/write     wiki_write   — agent 持久产物写回 (经 ai_write_back 单写路径)
 """
 from __future__ import annotations
 
@@ -187,13 +187,13 @@ class WikiWriteInput(BaseModel):
 
 @router.post("/write")
 async def wiki_write(req: WikiWriteInput):
-    """agent 持久产物写回 llm-wiki-2.0 — 经 ai_hub 单一写路径。
+    """agent 持久产物写回 llm-wiki-2.0 — 经 ai_write_back 单一写路径。
 
     md 是真相源: 写 items/{item_id}.md 成功后同步 SQLite 索引,
     并在 wiki_events 留 kind=agent_write 痕 (db_trace 可反查)。
     """
     from backend.repository.knowledge_repo import knowledge_repo
-    from backend.services import ai_hub
+    from backend.services import ai_write_back
 
     # item_id 白名单校验 (同 _PATH_RE 字符集, 防穿越/防非法文件名)
     if not re.fullmatch(r"[a-z0-9][a-z0-9\-_]*", req.item_id):
@@ -211,7 +211,7 @@ async def wiki_write(req: WikiWriteInput):
         "updated_at": now,
     }
     try:
-        ai_hub.write_item(item, content=req.content, agent="mcp:wiki_write")
+        ai_write_back.write_item(item, content=req.content, agent="mcp:wiki_write")
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"md 写入失败: {exc}")
 

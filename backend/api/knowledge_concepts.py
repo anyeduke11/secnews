@@ -9,7 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.repository.knowledge_repo import knowledge_repo
-from backend.services import ai_hub
+from backend.services import ai_write_back
 from backend.wiki_fs.paths import CONCEPTS_DIR
 
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
@@ -95,7 +95,7 @@ async def link_concepts_batch():
                 item.concepts = concepts
                 item.updated_at = now_iso()
                 knowledge_repo.upsert_item(item)
-                ai_hub.write_item(item_dict, agent="api:link_concepts_batch")
+                ai_write_back.write_item(item_dict, agent="api:link_concepts_batch")
                 count += 1
 
     # Sync newly created concept .md files to SQLite

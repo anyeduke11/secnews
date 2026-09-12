@@ -2,7 +2,8 @@
 
 v0.7 拆分: 原 tasks.py (412 行) 拆为:
 - ``service.py`` — ``AIService`` 整个类 (评价/门禁/限频/缓存/用量) + ``_DETECT_SYSTEM`` 常量
-- ``write_back.py`` — 知识写回门面 (write_score / write_item / update_frontmatter)
+- 知识写回门面 (write_score / write_item / update_frontmatter) 已外移至
+  ``backend/services/ai_write_back.py`` (解知识域 ↔ ai_hub 域级环)
 - ``tasks.py`` (本文件) — 评价辅助 + ``evaluate_article`` 入口
 
 向后兼容: 所有原有 ``from backend.services.ai_hub import ...`` 仍可解析
@@ -16,7 +17,7 @@ import logging
 
 log = logging.getLogger("hotspot.ai_hub")
 
-# 默认评分兜底 (score 0-10 / confidence 用 0.5 见 write_item 侧)
+# 默认评分兜底 (score 0-10 / confidence 用 0.5 见 ai_write_back.write_item 侧)
 DEFAULT_SCORE = 5.0
 
 

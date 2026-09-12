@@ -72,10 +72,10 @@ class TriggerDriftRequest(BaseModel):
 async def score_item(req: ScoreItemRequest):
     """写入 ai_scores 表（MCP tool: score_item）。
 
-    写路径经 ``ai_hub.write_score``（SPEC §1 Task19: ai_scores 写路径仅 ai_hub 命中）。
+    写路径经 ``ai_write_back.write_score``（SPEC §1 Task19: ai_scores 写路径仅此门面命中）。
     """
     def _run() -> dict:
-        from backend.services.ai_hub import write_score
+        from backend.services.ai_write_back import write_score
 
         score_id = write_score(
             req.hotspot_id, req.score,

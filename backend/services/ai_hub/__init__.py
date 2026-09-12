@@ -1,4 +1,4 @@
-"""ai_hub — LLM 单出口 + 知识写回唯一门面 (v0.5 M5 Task19)。
+"""ai_hub — LLM 单出口 (v0.5 M5 Task19)。
 
 重构说明 (v0.7.0-step1)
 ------------------------
@@ -9,10 +9,16 @@
 - ``usage.py``      — LLM/AI 用量日志统一操作 (``llm_usage_log`` 表)
 - ``service.py``    — v0.7 拆分: ``AIService`` (evaluate/gate_detect/限频/缓存/用量) + ``_DETECT_SYSTEM``
 - ``tasks.py``      — 评价辅助 (``_cache_key/_eval_prompt/_parse_*``) + ``evaluate_article`` 入口
-- ``write_back.py`` — 知识写回唯一门面 (v0.5 §18.2 强约束 1):
-                      ``write_score`` / ``write_item`` / ``update_frontmatter``
 
-向后兼容: 所有原有 ``from backend.services.ai_hub import ...`` 保持不变。
+外移说明 (2026-09-13)
+---------------------
+知识写回唯一门面 (v0.5 §18.2 强约束 1: ``write_score`` / ``write_item`` /
+``update_frontmatter``) 已外移至 ``backend/services/ai_write_back.py``。
+它是本包内唯一指向知识域 (knowledge_sync) 的 import 边 — 外移后
+「知识域 ↔ ai_hub 包」域级环解开, 消费方 import 已同步迁移, 本包不再
+re-export 写回符号。
+
+向后兼容: 其余原有 ``from backend.services.ai_hub import ...`` 保持不变。
 """
 
 from __future__ import annotations
@@ -28,8 +34,6 @@ from .gateway import (
     load_llm_config,
     httpx,
 )
-from backend.repository.db import get_connection  # 显式 re-export 以兼容 monkeypatch(ai_hub, "get_connection", ...)
-
 # ── AIService (v0.7 拆分到 .service) + 评价辅助 ─────────────────
 from .service import (
     AIService,
@@ -42,13 +46,6 @@ from .tasks import (
     _parse_eval_json,
     _parse_score01,
     _est_tokens,
-)
-
-# ── 知识写回门面 (v0.5 §18.2 强约束 1) ───────────────────────────
-from .write_back import (
-    write_score,
-    write_item,
-    update_frontmatter,
 )
 
 # ── v0.7.4-image: 三场景路由 (deep/light/image) ──────────────────
@@ -86,7 +83,4 @@ __all__ = [
     "get_tier_for",
     "llm_service",
     "resolve_scenario_model",
-    "update_frontmatter",
-    "write_item",
-    "write_score",
 ]

@@ -1,11 +1,22 @@
-"""ai_hub/write_back.py — 知识写回唯一门面 (v0.5 §18.2 强约束 1)。
+"""ai_write_back.py — 知识写回唯一门面 (v0.5 §18.2 强约束 1)。
+
+外移说明 (2026-09-13)
+---------------------
+原位于 ``backend/services/ai_hub/write_back.py``。外移动机: 本模块经函数内
+``from backend.services import knowledge_sync`` 反调知识域, 与知识域多个模块
+(knowledge_service / triggers / sag_service / api/knowledge_* 等) 对写回门面
+的正向依赖合流, 构成「知识域 ↔ ai_hub 包」域级循环依赖 (模块粒度无环,
+R4 守卫不可见)。它是 ai_hub 包内唯一指向知识域的 import 边 — 外移到
+services 顶层后, ai_hub 收敛为纯 AI 调用域 (LLM 单出口), 写回门面成为
+知识域的下游模块, 环解开。
 
 本模块封装 SPEC §18.2 强约束 1 的两个写路径:
 
 - ``write_score`` — ``ai_scores`` 表唯一 INSERT 入口
 - ``write_item`` / ``update_frontmatter`` — 知识 md 写回 + wiki_events 留痕
 
-与 ``tasks.py`` (AIService 评价链路) 分离: 本模块只负责"写", 评价是 tasks。
+与 ai_hub ``tasks.py`` (AIService 评价链路) 分离: 本模块只负责"写", 评价是
+tasks。公开函数名/签名/行为与外移前逐字一致。
 """
 
 from __future__ import annotations

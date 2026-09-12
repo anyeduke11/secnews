@@ -119,7 +119,7 @@
 ### 剩余收缩目标（豁免清单单调收缩路线，非阻断）
 
 1. R3 行数豁免 36 文件：已知目标 knowledge_api(352)/case_api(390)/sources(582)/secrets(557)。
-2. R2 表豁免 54 条：重灾区 maintenance_service（动态 SQL 文件级豁免）/v1_admission_service（admission_* 四表）/collection_pipeline（raw_items/crawler_runs）。
+2. R2 表豁免 46 条（2026-09-13 收缩 4 条：v1_admission 四表已 repo 化）：剩余重灾区 maintenance_service（动态 SQL 文件级豁免）/collection_pipeline（raw_items/crawler_runs）。
 3. R4 白名单 1 条：skill_registry⇄skill_runner（收缩 = execute() 改强制注入 runner）。
 4. 裸读 knowledge_items ~20 文件（分库下潜在故障点）→ 逐批接 `knowledge_items_table()`。
 5. sentinel 域 SSE 5 处消费方迁移 realtime.ts（已登记待迁移清单）。
@@ -129,7 +129,7 @@
 ## 5. 裁决与遗留（原"需 owner 裁决"项处置记录）
 
 1. **P0-0 排序** → ✅ 已先行执行（`60acba0`），十项全落地。
-2. **ai_hub 包拆分**（R6 红线）→ **未授权不动**；知识域↔ai_hub 域级环（`ai_hub/write_back.py:81`）登记为已知债，R4 守卫将 ai_hub.* 归并单节点，待 owner 显式授权。
+2. **ai_hub 包拆分**（R6 红线）→ ✅ **2026-09-13 owner 授权后执行**（DEV-0205）：write_back 外移 `services/ai_write_back.py`，ai_hub 包对知识域 import 边归零，域级环解开；红线调用链（_try_order/_resolve_provider）未触碰。残留：prompts.py SK-04 符号命名级耦合（改公开 API 名未授权）。
 3. **Batch 3 档 A/B** → ✅ 档 A（冻结增量）执行，R2 守卫 + 54 表豁免上线；档 B 收缩目标见 §4。
 4. **WARM/COLD 显式前缀** → 部分兑现：`knowledge_items_table()` 单一真相源已立（写侧归零），其余表的前缀化未做，与 P0-0 备份批同窗口处理的建议保留待裁决。
 5. **CodeGarden / CRM 冻结** → 维持不动（内聚度 ✓ 高，无耦合债）；移出核心动线属产品决策，未裁决。

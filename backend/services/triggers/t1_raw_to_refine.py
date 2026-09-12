@@ -44,7 +44,8 @@ from typing import Any
 
 from backend.metrics.kl_metrics import kl_metrics
 from backend.repository.db import get_connection, knowledge_items_table
-from backend.services.ai_hub import llm_service, write_score
+from backend.services.ai_hub import llm_service
+from backend.services.ai_write_back import write_score
 from backend.services.kl_state_machine import (
     LEGACY_RAW_LIKE,
     LIFECYCLE_DEDUPED,

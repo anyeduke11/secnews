@@ -484,7 +484,7 @@ def _execute_compile_task(task, item_ids: list[str]) -> dict:
 
     # 2. 批量规则分类 (纯函数, 无 LLM / 无网络)
     if loaded:
-        from backend.services import ai_hub
+        from backend.services import ai_write_back
         from backend.services.auto_classifier import batch_classify
         from backend.services.concept_linker import link_tags_to_concepts
 
@@ -519,7 +519,7 @@ def _execute_compile_task(task, item_ids: list[str]) -> dict:
 
                 # md 是真相源: 先回写 md, 再同步 DB (回写失败则跳过 DB,
                 # 避免 DB 领先于 md 被下次 full_sync 回滚)
-                ai_hub.write_item(item.to_dict(), agent="kl:compiler")
+                ai_write_back.write_item(item.to_dict(), agent="kl:compiler")
                 knowledge_repo.upsert_item(item)
             except Exception as e:
                 result["errors"] += 1

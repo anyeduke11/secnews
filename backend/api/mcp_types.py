@@ -121,7 +121,7 @@ class DbTraceInputModel(BaseModel):
 
 
 class WikiWriteInputModel(BaseModel):
-    """wiki_write — agent 持久产物写回 llm-wiki-2.0 (经 ai_hub 单写路径)。"""
+    """wiki_write — agent 持久产物写回 llm-wiki-2.0 (经 ai_write_back 单写路径)。"""
 
     item_id: str = Field(..., min_length=1, max_length=120,
                          description="条目 ID (即文件名 stem)")

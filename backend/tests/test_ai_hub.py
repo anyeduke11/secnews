@@ -1,4 +1,8 @@
-"""ai_hub — 知识写回唯一门面 (v0.5 §18.2 强约束 1)。
+"""ai_write_back — 知识写回唯一门面 (v0.5 §18.2 强约束 1)。
+
+(2026-09-13 门面自 backend/services/ai_hub/write_back.py 外移至
+backend/services/ai_write_back.py, 解知识域 ↔ ai_hub 域级环; 本测试
+随迁, 断言语义不变。)
 
 覆盖:
 - write_item: md 落盘 + wiki_events 留痕 (kind=agent_write)
@@ -16,7 +20,7 @@ import pytest
 from backend.config import config
 from backend.domain.knowledge_models import now_iso
 from backend.repository import db
-from backend.services import ai_hub, knowledge_sync
+from backend.services import ai_write_back, knowledge_sync
 
 
 @pytest.fixture
@@ -30,7 +34,7 @@ def temp_env(monkeypatch: pytest.MonkeyPatch, tmp_path):
     concepts_dir.mkdir()
     monkeypatch.setattr(knowledge_sync, "ITEMS_DIR", items_dir)
     monkeypatch.setattr(knowledge_sync, "CONCEPTS_DIR", concepts_dir)
-    # ai_hub.update_frontmatter 用 KNOWLEDGE_DIR 拼路径 — 一并重定向
+    # ai_write_back.update_frontmatter 用 KNOWLEDGE_DIR 拼路径 — 一并重定向
     monkeypatch.setattr(knowledge_sync, "KNOWLEDGE_DIR", tmp_path)
     db.close_db()
     db.init_db()
@@ -48,7 +52,7 @@ def _events(conn, wiki_path: str | None = None) -> list:
 class TestWriteItem:
     def test_writes_md_and_logs_event(self, temp_env):
         """write_item 落盘 items/{id}.md 并在 wiki_events 留 agent_write 痕。"""
-        ai_hub.write_item(
+        ai_write_back.write_item(
             {"id": "a1", "title": "T", "source": "test",
              "ingested_at": now_iso(), "updated_at": now_iso()},
             agent="api:patch_item",
@@ -72,7 +76,7 @@ class TestWriteItem:
             raise RuntimeError("db locked")
 
         monkeypatch.setattr(wiki_event_repo.WikiEventRepo, "log", _boom)
-        ai_hub.write_item(
+        ai_write_back.write_item(
             {"id": "a2", "title": "T", "source": "test",
              "ingested_at": now_iso(), "updated_at": now_iso()},
         )
@@ -85,7 +89,7 @@ class TestUpdateFrontmatter:
         p = temp_env["concepts"] / "c1.md"
         p.write_text("---\nslug: \"c1\"\ntitle: \"C\"\n---\n\nbody\n",
                      encoding="utf-8")
-        ok = ai_hub.update_frontmatter(
+        ok = ai_write_back.update_frontmatter(
             "concepts/c1.md", "local_wiki_ref", "wiki:local:concepts/c1",
             agent="svc:federation_backfill",
         )
@@ -98,7 +102,7 @@ class TestUpdateFrontmatter:
 
     def test_md_failure_returns_false_no_event(self, temp_env):
         """md 更新失败返回 False 且不留痕 (事件与事实一致)。"""
-        ok = ai_hub.update_frontmatter("concepts/ghost.md", "k", "v")
+        ok = ai_write_back.update_frontmatter("concepts/ghost.md", "k", "v")
         assert ok is False
 
         from backend.repository.db import get_connection
@@ -129,7 +133,7 @@ class TestSyncEvents:
 
 
 class TestWriteScore:
-    """ai_scores 写路径唯一入口 (SPEC §1 Task19: 仅 ai_hub 命中)。"""
+    """ai_scores 写路径唯一入口 (SPEC §1 Task19: 仅 ai_write_back 命中)。"""
 
     @staticmethod
     def _insert_hotspot(hid: str) -> None:
@@ -150,7 +154,7 @@ class TestWriteScore:
         from backend.repository.db import get_connection
 
         self._insert_hotspot("h-1")
-        score_id = ai_hub.write_score("h-1", 8.5, reason="llm_service")
+        score_id = ai_write_back.write_score("h-1", 8.5, reason="llm_service")
         assert score_id is not None
         row = get_connection().execute(
             "SELECT hotspot_id, score, reason, scorer FROM ai_scores WHERE id = ?",
@@ -166,7 +170,7 @@ class TestWriteScore:
         from backend.repository.db import get_connection
 
         self._insert_hotspot("h-2")
-        score_id = ai_hub.write_score(
+        score_id = ai_write_back.write_score(
             "h-2", 7.0, reason="agent", scorer="agent:claude-desktop",
         )
         row = get_connection().execute(
@@ -179,6 +183,14 @@ class TestWriteScore:
         def _boom(*a, **kw):
             raise RuntimeError("no such table: ai_scores")
 
-        # ai_hub 在模块顶层绑定 get_connection, 需直接 patch 该引用
-        monkeypatch.setattr(ai_hub, "get_connection", _boom)
-        assert ai_hub.write_score("h-3", 1.0) is None
+        # ai_write_back 在模块顶层绑定 get_connection, 需直接 patch 该引用
+        monkeypatch.setattr(ai_write_back, "get_connection", _boom)
+        assert ai_write_back.write_score("h-3", 1.0) is None
+
+    def test_fk_violation_degrades_to_none(self, temp_env):
+        """真实 FK 违规 (hotspot 不存在) → 降级返 None, 不抛错。
+
+        audit P2: patch 修正后原"巧合通过"用例转真实, 该降级路径需直接覆盖
+        (依赖 migration 043 的 ai_scores.hotspot_id FK + foreign_keys=ON)。
+        """
+        assert ai_write_back.write_score("h-no-such-hotspot", 1.0) is None

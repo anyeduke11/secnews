@@ -99,8 +99,8 @@ def _extract_knowledge(item_id: str) -> dict:
     knowledge_repo.upsert_item(item)
     # 回写 .md (非关键, 失败不阻塞)
     try:
-        from backend.services import ai_hub
-        ai_hub.write_item(item.to_dict(), agent="api:extract")
+        from backend.services import ai_write_back
+        ai_write_back.write_item(item.to_dict(), agent="api:extract")
     except Exception:
         pass
     return {

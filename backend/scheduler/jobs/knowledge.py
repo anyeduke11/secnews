@@ -102,7 +102,7 @@ async def knowledge_stub_backfill_job() -> None:
 
         from backend.repository.db import get_connection
         from backend.repository.knowledge_repo import knowledge_repo
-        from backend.services import ai_hub
+        from backend.services import ai_write_back
         from backend.services.knowledge_sync import ITEMS_DIR
 
         _BATCH = 20
@@ -194,7 +194,7 @@ async def knowledge_stub_backfill_job() -> None:
                                 m = _re.match(r"^---\s*\n.*?\n---\s*\n", text, _re.DOTALL)
                                 body = text[m.end():].strip() if m else text.strip()
                                 if len(body) < 40:
-                                    ai_hub.write_item(
+                                    ai_write_back.write_item(
                                         db_item.to_dict(),
                                         content=(f"# {real_title}\n\n{snippet}\n" if snippet else None),
                                         agent="job:stub_backfill",

@@ -109,8 +109,8 @@ def promote_favorite_to_knowledge(title: str, url: str) -> str:
 
     # md 先写且必须成功 (真相源); 失败直接抛出, 调用方 (favorites API)
     # 已有 try/except 非关键兜底。
-    from backend.services import ai_hub
-    ai_hub.write_item(item.to_dict(), agent="api:promote_favorite")
+    from backend.services import ai_write_back
+    ai_write_back.write_item(item.to_dict(), agent="api:promote_favorite")
 
     knowledge_repo.upsert_item(item)
 

@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from backend.domain.knowledge_models import now_iso
 from backend.repository.knowledge_repo import knowledge_repo
-from backend.services import ai_hub
+from backend.services import ai_write_back
 from backend.wiki_fs.paths import ITEMS_DIR
 
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
@@ -80,7 +80,7 @@ async def update_item(item_id: str, data: dict):
 
     item.updated_at = now_iso()
     knowledge_repo.upsert_item(item)
-    ai_hub.write_item(item.to_dict(), agent="api:patch_item")
+    ai_write_back.write_item(item.to_dict(), agent="api:patch_item")
     return item.to_dict()
 
 

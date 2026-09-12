@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query
 
-from backend.services import ai_hub
+from backend.services import ai_write_back
 
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
 
@@ -115,7 +115,7 @@ async def classify_items_batch():
                 item.updated_at = now_iso()
                 knowledge_repo.upsert_item(item)
                 # Update .md
-                ai_hub.write_item(item_dict, agent="api:classify_batch")
+                ai_write_back.write_item(item_dict, agent="api:classify_batch")
                 count += 1
 
     return {

@@ -1,59 +1,26 @@
-"""SSE 事件总线 — 采集完成后推送实时通知 + C11 R18 outbox 持久重放。
+"""SSE 端点 — 事件总线已下沉 ``backend/core/events.py`` (DEV-0191)。
+
+本模块只保留 HTTP 关注点: ``GET /api/events?last_id=N`` 订阅流 +
+C11 R18 outbox 断线重放。进程内广播 (publish_event / 订阅池) 见
+``backend/core/events.py`` — services 与 scheduler 从那里导入,
+禁止再 import 本模块发布事件 (test_layering_guard.py 机械断言)。
 
 Phase 6 (v1.3.0): 采集完成后推送到前端，替代轮询。
 C11 R18: SSE 事件双源 (in-process queue + v1_outbox 重放) — 前端断线重连用
 ``?last_id=N`` 续传, 不漏不重; 每条事件带 ``id: <outbox.id>``.
-
-用法
-----
-- 前端连接 ``GET /api/events?last_id=N`` 获取 SSE 流
-- 后端调用 ``publish_event("collect_done", data)`` 进程内广播
-- 业务写 outbox 行 → 后台 dispatcher 轮询 → 同样通过 publish_event 广播
-- 客户端断线重连时, 传 last_id=上次最后一条 SSE id, 自动重放未确认段
 """
 from __future__ import annotations
 
 import asyncio
 import json
-import logging
-from datetime import datetime, timezone
-from typing import Any
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
 
-logger = logging.getLogger("hotspot.api.events")
+from backend.core.events import subscribe, unsubscribe
+from backend.logging_config import logger
+
 router = APIRouter(prefix="/api", tags=["events"])
-
-# 订阅者队列池
-_subscribers: list[asyncio.Queue] = []
-_MAX_SUBSCRIBERS = 50
-_QUEUE_MAXSIZE = 100
-
-
-async def publish_event(event_type: str, data: dict[str, Any], *, outbox_id: int | None = None) -> None:
-    """向所有订阅者广播事件。
-
-    C11 R18: 每条事件可附带 outbox 行 id, 客户端断线重连用 last_id 续传.
-    """
-    payload = json.dumps(
-        {
-            "id": outbox_id,  # C11 R18: SSE id 字段供 Last-Event-ID
-            "type": event_type,
-            "data": data,
-            "ts": datetime.now(timezone.utc).isoformat(),
-        },
-        ensure_ascii=False,
-    )
-    dead: list[asyncio.Queue] = []
-    for q in _subscribers:
-        try:
-            q.put_nowait(payload)
-        except asyncio.QueueFull:
-            dead.append(q)
-    for q in dead:
-        _subscribers.remove(q)
-    logger.debug(f"published event {event_type!r} (id={outbox_id}) to {len(_subscribers)} subscribers")
 
 
 @router.get("/events")
@@ -63,14 +30,11 @@ async def sse_events(
 ):
     """SSE 事件流端点。
 
-    - 进程内事件实时推送 (publish_event 调度的)
+    - 进程内事件实时推送 (core.events.publish_event 调度的)
     - 启动时 (C11 R18): 先用 last_id 重放 outbox 历史, 再进入 live 模式
     - 自动超时: 30 秒无事件时发送 keepalive
     """
-    queue: asyncio.Queue = asyncio.Queue(maxsize=_QUEUE_MAXSIZE)
-    _subscribers.append(queue)
-    if len(_subscribers) > _MAX_SUBSCRIBERS:
-        _subscribers.pop(0)
+    queue = subscribe()
 
     async def event_stream():
         try:
@@ -113,10 +77,9 @@ async def sse_events(
         except asyncio.CancelledError:
             pass
         finally:
-            if queue in _subscribers:
-                _subscribers.remove(queue)
+            unsubscribe(queue)
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
-__all__ = ["publish_event", "router"]
+__all__ = ["router"]

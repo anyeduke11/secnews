@@ -126,7 +126,7 @@ class TestClassifyNewItems:
 class TestSm2DailyPush:
     def test_pushes_review_due_event(self, temp_db, monkeypatch):
         """驱动器②: 有待复习条目 → publish review_due."""
-        from backend.api import events
+        from backend.core import events
         from backend.repository.db import get_connection
 
         conn = get_connection()
@@ -147,7 +147,7 @@ class TestSm2DailyPush:
 
     def test_no_due_no_event(self, temp_db, monkeypatch):
         """无到期条目 → 不推送."""
-        from backend.api import events
+        from backend.core import events
         from backend.repository.db import get_connection
 
         conn = get_connection()
@@ -198,7 +198,7 @@ class TestDriverExceptionIsolation:
 
     def test_sm2_push_crash_does_not_raise(self, temp_db, monkeypatch):
         """异常隔离: publish_event 崩溃 → sm2_daily_push_job 捕获不抛出."""
-        from backend.api import events
+        from backend.core import events
         from backend.repository.db import get_connection
 
         _insert_review(get_connection(), "r-3", "concept-gamma", due_days_ago=1)

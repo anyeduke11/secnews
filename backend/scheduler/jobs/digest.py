@@ -13,7 +13,7 @@ _logger = logger.bind(component="jobs")
 async def sm2_daily_push_job() -> None:
     """复利驱动器②: 每天 08:00 推送待复习条目到前端通知栏 (SSE review_due)。"""
     try:
-        from backend.api.events import publish_event
+        from backend.core.events import publish_event
         from backend.services.review_service import list_due
 
         due = list_due(limit=20)

@@ -53,7 +53,7 @@ class OutboxDispatcher:
 
         测试与 main 启动收口时调用, 不阻塞主路径.
         """
-        from backend.api.events import publish_event
+        from backend.core.events import publish_event
         from backend.repository.outbox_repo import OutboxRepo
 
         repo = OutboxRepo()

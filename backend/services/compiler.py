@@ -542,7 +542,7 @@ def _execute_compile_task(task, item_ids: list[str]) -> dict:
     try:
         import asyncio
 
-        from backend.api.events import publish_event
+        from backend.core.events import publish_event
         asyncio.get_event_loop().create_task(
             publish_event("task_done", {
                 "task_id": task.id,

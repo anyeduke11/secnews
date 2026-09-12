@@ -990,3 +990,23 @@
 - **核心变更**: demo HTML 全量重写 (~560 行, 数据驱动); 启动器脚本; v1 的纯 mock 面板全部移除 (兴趣权重/漂移提示等改为真实接口渲染)。
 - **测试验证**: JS node --check 通过; 启动器静态页 HTTP 200; 反代 /api/interest/weights 与 /api/v1/cases 返回真实数据; 每面板独立 try/catch, 后端未启动时显示启动提示。
 - **潜在风险**: ①demo 依赖本机后端运行 (run.py), 未启动时面板显示 502 提示 ②热点列表的兴趣乘子已生效于真实顺序, 但单条乘子 badge 需 items 携带乘子字段 (当前 API 不返回单条 m 值, v2 未展示单条 badge) ③案件/信号数据量少 (生产刚清洗), 面板可能显示空态 — 属真实状态。
+
+## [DEV-0191] 解耦 Batch 1: SSE 事件总线下沉 core/events — services→api 反向依赖 8 处清零 + 分层守卫
+- **时间**: 2026-09-12 21:30
+- **类型**: 重构 (解耦方案 Batch 1, 零行为变更)
+- **关联模块**: `core:events` (新建), `api:events`, `services:sse-publish`, `scheduler:jobs`, `tests:layering_guard`
+- **关联文件**: `backend/core/events.py` (新), `backend/api/events.py`, `backend/api/extract.py`, `backend/services/compiler.py`, `backend/services/collection_service.py`, `backend/services/outbox_dispatcher.py`, `backend/services/alert_service.py`, `backend/scheduler/jobs/digest.py`, `backend/scheduler/jobs/maintenance.py`, `backend/scheduler/jobs/_runtime.py`, `backend/tests/test_layering_guard.py` (新), `backend/tests/test_phase3_acceptance.py`, `backend/tests/test_compound_drivers.py`, `backend/tests/test_sse_events_v05.py`, `docs/FEATURE_DECOMPOSITION_2026-09-12.md` (新)
+- **问题描述**: services/scheduler 层 8 处 `from backend.api.events import publish_event` 反向依赖 API 层 (compiler.py:545 / collection_service.py:286 / outbox_dispatcher.py:56 / alert_service.py:189 / jobs/digest.py:16 / jobs/maintenance.py:541,677 / jobs/_runtime.py:45), 根因单一: 进程内事件总线与 SSE 路由同居 `api/events.py`。分层禁令「service 层禁 import backend.api」(backend/services/AGENTS.md) 因此无法机械执行。
+- **实现思路**: 基础设施下沉 — 总线 (订阅池 + publish_event + subscribe/unsubscribe) 移至 `backend/core/events.py` (core=基础设施语义, scheduler 可依赖而不触碰 api); `api/events.py` 瘦身为纯 HTTP 关注点 (GET /api/events + C11 R18 outbox 重放), 经 subscribe()/unsubscribe() 接入; SSE payload 形状/池容量/满队列剔除逐行照搬, 行为零变更。新增 AST 分层守卫 (services/scheduler/collectors/repository 四层禁 import backend.api), 规则从文档约定升级为机器断言。配套交付《功能拆解与解耦方案》: 13 域拆解总表 + 四类耦合病灶分级 + R1~R6 规则 + 五批路线图 (Batch 2~5 待裁决)。
+- **核心变更**: 
+  - backend/core/events.py: 新建事件总线 (publish_event/subscribe/unsubscribe; 日志 stdlib logging→loguru, 符合全仓规则)
+  - backend/api/events.py: 122→110 行, 只留 SSE 端点; 不再导出 publish_event (堵反向依赖回潮口)
+  - 9 个发布点 import 路径 backend.api.events→backend.core.events (含 api/extract.py 模块级)
+  - 3 个测试同步改 import/打桩位置 (test_compound_drivers 的 monkeypatch 目标改 backend.core.events)
+  - backend/tests/test_layering_guard.py: 新守卫 (AST 全量扫描注释/文档不误报; + 总线真相源断言)
+- **测试验证**: 
+  - 定向: 51 passed (layering_guard×2 + sse_v05 + compound_drivers + phase3_acceptance + c11_outbox + extract_service)
+  - 全量: `.venv/bin/python -m pytest backend/tests/ -q` → **4468 passed / 9 skipped / 0 失败** (main 基线 4466 + 新守卫 2; PROGRESS 记录的 4488 为 fix/source-cadence-health 分支 +31 用例口径, 该批未合 main)
+  - `python scripts/generate_meta.py --check` OK (85 routers / 127 services / 57 jobs / 13 collectors 不变, ARCHITECTURE.md 无需动)
+  - ruff 触碰 11 文件 0 错; `import backend.main` 冒烟 OK (无循环依赖)
+- **潜在风险**: ①publish_event 日志从 stderr (stdlib lastResort) 改走 loguru app.log — debug 级, 观测面只会更全 ②api/events.py 不再导出 publish_event — 仓库内已 0 调用方 (全仓 grep 含 scripts/ 复核), 未入仓的本地脚本若引用需改 backend.core.events ③守卫 AST 扫描 ~700 文件, 单测耗时 <1s, 无 CI 负担。

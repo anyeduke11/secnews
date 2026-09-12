@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from backend.api import events
+from backend.core import events
 
 
 @pytest.fixture(autouse=True)

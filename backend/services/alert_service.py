@@ -186,7 +186,7 @@ def _fire(rule: dict, hotspot: dict) -> dict:
     try:
         import asyncio
 
-        from backend.api.events import publish_event
+        from backend.core.events import publish_event
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:

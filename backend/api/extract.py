@@ -23,7 +23,7 @@ import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from backend.api.events import publish_event
+from backend.core.events import publish_event
 from backend.repository.hotspot_repo import HotspotRepository
 from backend.repository.knowledge_repo import knowledge_repo
 from backend.repository.tags_repo import TagRepository

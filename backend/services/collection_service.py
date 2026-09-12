@@ -283,7 +283,7 @@ class CollectionService:
 
         # Phase 6: SSE 推送采集完成事件
         try:
-            from backend.api.events import publish_event
+            from backend.core.events import publish_event
             categories_done = [r.category.value for r in results]
             _spawn(asyncio.ensure_future(
                 publish_event("collect_done", {

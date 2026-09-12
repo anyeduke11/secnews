@@ -538,7 +538,7 @@ async def observability_aggregator_job() -> None:
         _logger.info(f"observability_aggregator_job: upserted={n} buckets (since {cutoff})")
         # D3 (Batch ⑧): SSE 推送到前端, 替代 polling
         try:
-            from backend.api.events import publish_event
+            from backend.core.events import publish_event
 
             await publish_event(
                 "observability.update",
@@ -674,7 +674,7 @@ async def observability_threshold_check_job() -> None:
 
             # D3 (Batch ⑧): SSE 推送 breach, 前端可立即高亮 (替代 polling 5s 延迟)
             try:
-                from backend.api.events import publish_event
+                from backend.core.events import publish_event
 
                 await publish_event(
                     "observability.breach",

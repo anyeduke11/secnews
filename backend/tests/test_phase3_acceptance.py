@@ -21,7 +21,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api import register_routers
-from backend.api.events import _subscribers
+from backend.core.events import _subscribers
 from backend.api.middleware import TraceIDMiddleware
 from backend.config import config
 from backend.exceptions import register_exception_handlers

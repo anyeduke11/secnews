@@ -17,6 +17,13 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-09-12 解耦 Batch 1: SSE 事件总线下沉 + 分层守卫上线 — DEV-0191
+
+- **背景**: owner 指令"熟悉仓库 + 功能拆解 + 关键功能独立 API + 解耦 (高内聚低耦合)"。盘点结论: 85 router 已按功能分文件 (`api/_registry.py`), "独立 API"骨架已在; 真正的债是四类耦合 — 反向依赖 8 处 / 层穿透 (api 直连 SQL 50 + services 绕 repo 239) / 上帝模块 (`api/knowledge.py` 711 行、`collection_service` 1071 行等) / `action↔run` 环。完整方案 = `docs/FEATURE_DECOMPOSITION_2026-09-12.md` (13 域拆解总表 + R1~R6 机械规则 + 五批路线图, Batch 2~5 待裁决)。
+- **交付** (Batch 1, 零行为变更): 事件总线 `publish_event` 自 `api/events.py` 下沉 `backend/core/events.py`, **8 处 services/scheduler→api 反向依赖清零**; `api/events.py` 只留 SSE 端点 (C11 R18 outbox 重放不变); 新增 `backend/tests/test_layering_guard.py` AST 守卫 (services/scheduler/collectors/repository 四层禁 import backend.api — 分层规则首次机器化)。
+- **验证**: 定向 51 passed; 全量 **4468/9sk/0 失败** (main 基线 4466 + 守卫 2; 与上条 4488 差 = fix/source-cadence-health 分支 +31 用例未合 main); meta --check OK (85/127/57/13 不变); ruff 触碰 11 文件 0; `import backend.main` 冒烟 OK。
+- **遗留**: Batch 2 (api/knowledge.py 拆分 + api 直连 SQL 清零) ~ Batch 5 (前端域客户端收敛) 待 owner 排期; 与第一性原理 P0-0 止血批建议 P0-0 先行 (方案 §5); ai_hub write_back 外移属红线需显式授权。
+
 ### 2026-09-12 工作台聚焦 P0 交付: 标讯剔除 + 内容相关性门禁/实践域兴趣体系 — DEV-0174~0176f
 
 - **裁决** (owner, 方案文档 `docs/WORKBENCH_FOCUS_PRD_v1.0.md` §0): ①否决「安全研究/标讯跟踪双视角切换」②**剔除工作台标讯功能** (取代初版 R2"维持现状": `/bid-alert` 路由+组件+壳菜单+Feed bid 档全删, 资讯流默认 `exclude_category=bid`; 后端 bid_alert API 与采集器暂保留, 停采待裁决) ③立项内容相关性门禁/实践域兴趣体系。**悬置裁决关闭**: v1.0 T00 "标注集 60-80" = 60 本地 admission (不入仓) + 20 入仓评测语料 (`backend/tests/fixtures/practice_domain_eval.json`)。

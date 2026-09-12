@@ -42,7 +42,7 @@ def job_done_event(job_type: str, job_id: str, duration_ms: int, ok: bool) -> No
     失败只 log.warning, 避免污染业务流。
     """
     try:
-        from backend.api.events import publish_event
+        from backend.core.events import publish_event
         loop = asyncio.get_event_loop()
         task = loop.create_task(
             publish_event("job_done", {

@@ -104,6 +104,7 @@ class HotspotService:
         source: str | None = None,  # v1.9.1: 来源筛选
         exclude_category: str | None = None,  # DEV-0175: 工作台聚焦裁决 (前端默认排除 bid)
         boost_practice_domains: list[str] | None = None,  # DEV-0176 T0.4: 兴趣域加权 (降权不删)
+        practice_multiplier: dict[str, float] | None = None,  # DEV-0182: 兴趣引擎连续乘子 (优先于 boost)
     ) -> dict:
         """列表查询。
 
@@ -135,11 +136,16 @@ class HotspotService:
             and category == "all"
         )
 
+        mult_key = (
+            ",".join(f"{d}:{m}" for d, m in sorted(practice_multiplier.items()))
+            if practice_multiplier else ""
+        )
         cache_key = (
             f"hotspots:list:{category}:{tr.value}"
             f":{cursor or ''}:{limit}:{keyword}:{source or ''}"
             f":{exclude_category or ''}"
             f":{','.join(sorted(boost_practice_domains)) if boost_practice_domains else ''}"
+            f":{mult_key}"
             f":{'bal' if balanced else 'raw'}"
         )
         if cache_key in list_cache:
@@ -176,6 +182,8 @@ class HotspotService:
         # 打标为纯函数 (title 正则), 页内 ≤200 条成本可忽略; 不落库、零 schema 变更。
         # 加权 = 稳定分区: 命中兴趣域的条目排到本页前面, 相对时序保持不变;
         # 未命中的条目仍在结果里, 仅排后 —— 搜索/翻页永远可达。
+        # DEV-0182: practice_multiplier (兴趣引擎 S(d) 连续乘子) 优先于显式二值
+        # boost — 页内按 (m·presence desc, 原序) 稳定重排; 表为空时退回显式 boost。
         boost_set = {d for d in (boost_practice_domains or []) if d}
         item_dicts = [item.model_dump(mode="json") for item in items]
         if item_dicts:
@@ -186,7 +194,16 @@ class HotspotService:
                 pd = classify_practice_domain([], title=d.get("title") or "")
                 d["practice_domain"] = pd
                 practice_of.append(pd)
-            if boost_set:
+
+            if practice_multiplier:
+                paired = list(zip(item_dicts, practice_of, strict=True))
+
+                def _mult(pd: str | None) -> float:
+                    return practice_multiplier.get(pd or "", 1.0)
+
+                paired.sort(key=lambda p: _mult(p[1]), reverse=True)  # 稳定: 同乘子保持时序
+                item_dicts = [p[0] for p in paired]
+            elif boost_set:
                 paired = list(zip(item_dicts, practice_of, strict=True))
                 hit = [p for p in paired if p[1] in boost_set]
                 miss = [p for p in paired if p[1] not in boost_set]

@@ -245,12 +245,15 @@ def _seed_three_practice_items():
 
 class TestPracticeDomainBoost:
     @pytest.fixture(autouse=True)
-    def _clear_list_cache(self):
+    def _clear_caches(self):
         from backend.cache import list_cache as _list_cache
+        from backend.services.interest_engine_service import InterestEngineService
 
         _list_cache.clear()
+        InterestEngineService.invalidate_cache()
         yield
         _list_cache.clear()
+        InterestEngineService.invalidate_cache()
 
     def test_items_carry_practice_domain(self, client, temp_db):
         """每个 item 附带 practice_domain 即时打标 (无 boost 也返回 — 加字段向后兼容)。"""

@@ -222,6 +222,10 @@ def register_all(app: FastAPI) -> None:
     if is_extension_enabled("user_skills"):
         from backend.api import skill_builder_api
         app.include_router(skill_builder_api.router, tags=["skill-builder"])
+    # DEV-0182 Workbench Focus: 兴趣引擎 (行为信号 + 域权重 + reset)
+    if is_extension_enabled("interest_engine"):
+        from backend.api import interest_api
+        app.include_router(interest_api.router, tags=["interest"])
     # v0.8 Phase D D1: webhook + KL + collector 触发源适配 (webhook 端点需暴露, 沿用 trigger_gate gate)
     if is_extension_enabled("trigger_gate"):
         from backend.api import trigger_webhook_api

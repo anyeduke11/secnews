@@ -189,7 +189,7 @@ class HotspotService:
                 d["practice_domain"] = pd
                 practice_of.append(pd)
             if boost_set:
-                paired = list(zip(item_dicts, practice_of))
+                paired = list(zip(item_dicts, practice_of, strict=True))
                 hit = [p for p in paired if p[1] in boost_set]
                 miss = [p for p in paired if p[1] not in boost_set]
                 item_dicts = [p[0] for p in hit + miss]

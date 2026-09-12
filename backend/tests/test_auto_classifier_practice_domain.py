@@ -12,8 +12,8 @@ from __future__ import annotations
 import pytest
 
 from backend.services.auto_classifier import (
-    PRACTICE_DOMAINS,
     PRACTICE_DOMAIN_LABELS,
+    PRACTICE_DOMAINS,
     batch_classify,
     classify_domain,
     classify_item,

@@ -73,7 +73,7 @@ def _run_enrichment_sync() -> None:
         import json as _json
 
         from backend.domain.security_models import _now_iso
-        from backend.repository.db import get_connection
+        from backend.repository.db import get_connection, knowledge_items_table
         from backend.security.enricher import enrich_batch
 
         conn = get_connection()
@@ -148,7 +148,7 @@ def _run_enrichment_sync() -> None:
             for r in rows:
                 try:
                     conn.execute(
-                        "UPDATE knowledge_items SET cve_ids = '[]', updated_at = ? WHERE id = ?",
+                        f"UPDATE {knowledge_items_table()} SET cve_ids = '[]', updated_at = ? WHERE id = ?",
                         (now0, r["id"]),
                     )
                 except Exception:
@@ -215,7 +215,7 @@ def _run_enrichment_sync() -> None:
                     updates["updated_at"] = now
                     set_sql = ", ".join(f"{f} = ?" for f in updates)
                     conn.execute(
-                        f"UPDATE knowledge_items SET {set_sql} WHERE id = ?",
+                        f"UPDATE {knowledge_items_table()} SET {set_sql} WHERE id = ?",
                         (*updates.values(), eid),
                     )
                     count += 1

@@ -9,6 +9,12 @@ Design notes
   but every method here issues a single SQL statement.
 - SQL column ``mastery`` maps to model field ``KnowledgeItem.mastery``
   (see ``from_row`` in ``knowledge_models.py``).
+- The ``knowledge_items`` table is addressed **exclusively** via
+  ``knowledge_items_table()`` (single source of truth — R2/P1-3). In
+  production it resolves to ``warm.knowledge_items`` (warm.db ATTACHed);
+  in tests / single-db mode it is the bare ``knowledge_items``. Never
+  hardcode either form. FTS derivative tables (``knowledge_items_fts``)
+  are NOT covered by this and keep their literal names.
 """
 from __future__ import annotations
 
@@ -20,7 +26,7 @@ from backend.domain.knowledge_models import (
     KnowledgeTask,
     now_iso,
 )
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 
 
 class KnowledgeRepo:
@@ -31,8 +37,8 @@ class KnowledgeRepo:
     def upsert_item(self, item: KnowledgeItem) -> None:
         conn = get_connection()
         conn.execute(
-            """
-            INSERT INTO knowledge_items (id, title, source, source_url, domain,
+            f"""
+            INSERT INTO {knowledge_items_table()} (id, title, source, source_url, domain,
                 topic, type, difficulty, tags, concepts, mastery,
                 lifecycle, news_type, tech_stack,
                 ingested_at, updated_at)
@@ -76,7 +82,7 @@ class KnowledgeRepo:
     def get_item(self, item_id: str) -> KnowledgeItem | None:
         conn = get_connection()
         row = conn.execute(
-            "SELECT id, title, source, source_url, domain, topic, type, difficulty, tags, concepts, mastery, compiled, ingested_at, updated_at, lifecycle, news_type, tech_stack FROM knowledge_items WHERE id = ?", (item_id,)
+            f"SELECT id, title, source, source_url, domain, topic, type, difficulty, tags, concepts, mastery, compiled, ingested_at, updated_at, lifecycle, news_type, tech_stack FROM {knowledge_items_table()} WHERE id = ?", (item_id,)
         ).fetchone()
         return KnowledgeItem.from_row(dict(row)) if row else None
 
@@ -142,7 +148,7 @@ class KnowledgeRepo:
             where.append(f"source_url NOT IN ({placeholders})")
             params.extend(exclude_urls)
         sql = (
-            "SELECT id, title, source, source_url, domain, topic, type, difficulty, tags, concepts, mastery, compiled, ingested_at, updated_at, lifecycle, news_type, tech_stack FROM knowledge_items WHERE "
+            f"SELECT id, title, source, source_url, domain, topic, type, difficulty, tags, concepts, mastery, compiled, ingested_at, updated_at, lifecycle, news_type, tech_stack FROM {knowledge_items_table()} WHERE "
             + " AND ".join(where)
             + " ORDER BY ingested_at DESC LIMIT ? OFFSET ?"
         )
@@ -155,12 +161,12 @@ class KnowledgeRepo:
         conn = get_connection()
         if domain:
             rows = conn.execute(
-                "SELECT DISTINCT topic FROM knowledge_items WHERE domain = ? AND topic IS NOT NULL",
+                f"SELECT DISTINCT topic FROM {knowledge_items_table()} WHERE domain = ? AND topic IS NOT NULL",
                 (domain,),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT DISTINCT topic FROM knowledge_items WHERE topic IS NOT NULL"
+                f"SELECT DISTINCT topic FROM {knowledge_items_table()} WHERE topic IS NOT NULL"
             ).fetchall()
         return [r[0] for r in rows]
 
@@ -182,7 +188,7 @@ class KnowledgeRepo:
             params.append(lifecycle)
         elif compiled is not None:
             where.append("lifecycle = 'kl:publish'" if compiled else "lifecycle != 'kl:publish'")
-        sql = f"SELECT COUNT(*) FROM knowledge_items WHERE {' AND '.join(where)}"
+        sql = f"SELECT COUNT(*) FROM {knowledge_items_table()} WHERE {' AND '.join(where)}"
         row = conn.execute(sql, params).fetchone()
         return row[0] if row else 0
 
@@ -190,7 +196,7 @@ class KnowledgeRepo:
         """无 concepts 关联的 items 数量。"""
         conn = get_connection()
         row = conn.execute(
-            "SELECT COUNT(*) FROM knowledge_items WHERE concepts IS NULL OR concepts = '[]'"
+            f"SELECT COUNT(*) FROM {knowledge_items_table()} WHERE concepts IS NULL OR concepts = '[]'"
         ).fetchone()
         return row[0] if row else 0
 
@@ -217,13 +223,13 @@ class KnowledgeRepo:
         compiled 字段), 返回 dict 同时输出 compiled 和 generate (kl:publish) 两个键.
         """
         conn = get_connection()
-        rows = conn.execute("""
+        rows = conn.execute(f"""
             SELECT
                 COALESCE(domain, 'unknown') as domain,
                 COUNT(*) as total,
                 SUM(CASE WHEN lifecycle = 'kl:publish' THEN 1 ELSE 0 END) as compiled,
                 SUM(CASE WHEN lifecycle = 'kl:publish' THEN 1 ELSE 0 END) as generate
-            FROM knowledge_items
+            FROM {knowledge_items_table()}
             GROUP BY COALESCE(domain, 'unknown')
         """).fetchall()
         return [
@@ -235,12 +241,12 @@ class KnowledgeRepo:
 
     def delete_item(self, item_id: str) -> None:
         conn = get_connection()
-        conn.execute("DELETE FROM knowledge_items WHERE id = ?", (item_id,))
+        conn.execute(f"DELETE FROM {knowledge_items_table()} WHERE id = ?", (item_id,))
 
     def list_item_ids(self) -> list[str]:
         """全部 item id (供 full_sync 孤儿行对账)."""
         conn = get_connection()
-        rows = conn.execute("SELECT id FROM knowledge_items").fetchall()
+        rows = conn.execute(f"SELECT id FROM {knowledge_items_table()}").fetchall()
         return [r[0] for r in rows]
 
     # ── v0.5 M3.5 wiki_archiver ─────────────────────────────────
@@ -256,12 +262,12 @@ class KnowledgeRepo:
         """
         conn = get_connection()
         rows = conn.execute(
-            """
+            f"""
             SELECT ki.id, ki.title, ki.source, ki.source_url, ki.domain,
                    ki.topic, ki.type, ki.difficulty, ki.tags, ki.concepts,
                    ki.mastery, ki.compiled, ki.ingested_at, ki.updated_at,
                    ki.lifecycle, ki.news_type, ki.tech_stack
-              FROM knowledge_items ki
+              FROM {knowledge_items_table()} ki
               LEFT JOIN favorites f ON f.hotspot_id = ki.id
              WHERE ki.ingested_at < ?
                AND f.hotspot_id IS NULL

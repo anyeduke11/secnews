@@ -121,6 +121,26 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
+def knowledge_items_table() -> str:
+    """Qualified table name for ``knowledge_items`` — single source of truth.
+
+    knowledge_items logically lives in the WARM tier: in production
+    ``get_connection()`` ATTACHes ``warm.db`` at startup and the table is
+    addressed as ``warm.knowledge_items``. In tests / single-db mode the
+    warm file does not exist, so it is not ATTACHed and the whole schema
+    lives in ``main``. Writers must therefore never hardcode either form —
+    call this function and let it resolve the prefix from the set of
+    databases actually ATTACHed on the calling thread's connection.
+
+    (Extracted from search_service's runtime PRAGMA probe — R2/P2: the
+    write route should be declared, not "detected from the environment".)
+    """
+    attached = {
+        r[1] for r in get_connection().execute("PRAGMA database_list").fetchall()
+    }
+    return "warm.knowledge_items" if "warm" in attached else "knowledge_items"
+
+
 def close_db() -> None:
     """Close the calling thread's connection (if any). Idempotent."""
     conn: sqlite3.Connection | None = getattr(_tls, "conn", None)
@@ -393,4 +413,5 @@ __all__ = [
     "close_db",
     "get_connection",
     "init_db",
+    "knowledge_items_table",
 ]

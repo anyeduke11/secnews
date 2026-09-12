@@ -38,6 +38,7 @@ from typing import Any
 
 from backend.logging_config import logger
 from backend.repository.db import get_connection
+from backend.repository.v1_evidence_repo import V1EvidenceRepository
 
 # 收据状态 (与 v1_evidence_receipts.status 字段对齐)
 RECEIPT_COMMITTED = "committed"
@@ -90,6 +91,10 @@ class V1EvidenceService:
     def __init__(self, conn: sqlite3.Connection | None = None, projection_dir: Path | None = None) -> None:
         # 让 T01 的 conftest temp_db fixture 注入; 默认走 process-wide conn.
         self._conn = conn
+        # Batch 3 任务 A: 五表 (receipts/subjects/materials/signals/identifiers)
+        # 的 SQL 全部下沉 v1_evidence_repo; 本类只保留事务 (_tx) + 幂等判定 +
+        # 审计 + 投影 rename。repo 复用同一连接, 事务边界不变。
+        self._repo = V1EvidenceRepository(conn)
         self._projection_dir = projection_dir  # 投影临时目录 (commit 时原子 rename 进)
         self._lock = threading.Lock()
 
@@ -130,12 +135,7 @@ class V1EvidenceService:
         body_hash = _hash_body(body)
         with self._lock:
             with self._tx() as conn:
-                row = conn.execute(
-                    "SELECT id, body_hash, status, entity_id, intent_id "
-                    "FROM v1_evidence_receipts WHERE submission_key = ? "
-                    "ORDER BY id DESC LIMIT 1",
-                    (submission_key,),
-                ).fetchone()
+                row = self._repo.find_latest_receipt(submission_key)
                 if row is not None:
                     existing_hash, existing_status = row[1], row[2]
                     if existing_status == RECEIPT_COMMITTED and existing_hash == body_hash:
@@ -152,16 +152,10 @@ class V1EvidenceService:
                 # commit 时 UPDATE 替换为真实 entity_id + status=committed.
                 # v1.0 C05 R01: extra_json 同时存 body 副本, commit 时 _insert_* 读回
                 # 写真实 entity 行 (不再用 pass 占位).
-                conn.execute(
-                    "INSERT INTO v1_evidence_receipts "
-                    "(submission_key, body_hash, entity_type, entity_id, "
-                    " submitted_by, intent_id, status, extra_json) "
-                    "VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)",
-                    (
-                        submission_key, body_hash, entity_type, intent_id,
-                        submitted_by, intent_id,
-                        json.dumps({"_intent": True, "_body": body}),
-                    ),
+                self._repo.insert_pending_receipt(
+                    submission_key, body_hash, entity_type, intent_id,
+                    submitted_by,
+                    json.dumps({"_intent": True, "_body": body}),
                 )
         return {
             "intent_id": intent_id,
@@ -191,11 +185,7 @@ class V1EvidenceService:
         """
         with self._lock:
             with self._tx() as conn:
-                row = conn.execute(
-                    "SELECT id, body_hash, entity_type, submission_key, extra_json "
-                    "FROM v1_evidence_receipts WHERE intent_id = ? AND status = 'pending'",
-                    (intent_id,),
-                ).fetchone()
+                row = self._repo.find_pending_receipt(intent_id)
                 if row is None:
                     raise ValueError(f"intent_id={intent_id} not found or not pending")
                 receipt_id, body_hash, entity_type, submission_key = row[0], row[1], row[2], row[3]
@@ -215,6 +205,7 @@ class V1EvidenceService:
                 elif entity_type == "case":
                     # T08: caller (case_service.create_case) 已先调 repo.create 写
                     # v1_cases 行 — 这里只兜底 (若未写, 才补一条最小行, 防止外键悬空)
+                    # (v1_cases 属 case_repo 域, 不在本批五表下沉范围)
                     cur = conn.execute(
                         "SELECT 1 FROM v1_cases WHERE id = ?", (entity_id,)
                     ).fetchone()
@@ -225,10 +216,7 @@ class V1EvidenceService:
                             "VALUES (?, ?, ?, 'open', 'p2')",
                             (
                                 entity_id,
-                                str(conn.execute(
-                                    "SELECT body_hash FROM v1_evidence_receipts "
-                                    "WHERE intent_id = ?", (intent_id,)
-                                ).fetchone()[0])[:120],
+                                str(self._repo.get_receipt_body_hash(intent_id))[:120],
                                 "stub",
                             ),
                         )
@@ -236,6 +224,8 @@ class V1EvidenceService:
                     # P0-E: judgment / action / knowledge — caller 已先写实体行,
                     # 这里只校验行存在 (旧行为: 白名单外直接 ValueError → receipt
                     # 永远 pending 的死信根因)
+                    # (v1_judgments / v1_actions / v1_knowledge 属各自 repo 域,
+                    # 不在本批五表下沉范围)
                     table = _RECEIPT_ONLY_ENTITY_TYPES[entity_type]
                     cur = conn.execute(
                         f"SELECT 1 FROM {table} WHERE id = ?", (entity_id,)
@@ -261,10 +251,8 @@ class V1EvidenceService:
                     "projection_status": projection_status,
                     "committed_at": _utcnow_iso(),
                 }
-                conn.execute(
-                    "UPDATE v1_evidence_receipts SET entity_id = ?, status = ?, "
-                    "extra_json = ? WHERE id = ?",
-                    (entity_id, RECEIPT_COMMITTED, json.dumps(extra), receipt_id),
+                self._repo.update_receipt_committed(
+                    receipt_id, entity_id, json.dumps(extra),
                 )
         return {
             "receipt_id": receipt_id,
@@ -278,12 +266,11 @@ class V1EvidenceService:
         """回滚 — receipt 标 rolled_back, 清理临时投影文件."""
         with self._lock:
             with self._tx() as conn:
-                cur = conn.execute(
-                    "UPDATE v1_evidence_receipts SET status = ?, extra_json = ? "
-                    "WHERE intent_id = ? AND status = 'pending'",
-                    (RECEIPT_ROLLED_BACK, json.dumps({"reason": reason, "rolled_back_at": _utcnow_iso()}), intent_id),
+                rowcount = self._repo.update_receipt_rolled_back_by_intent(
+                    intent_id,
+                    json.dumps({"reason": reason, "rolled_back_at": _utcnow_iso()}),
                 )
-                if cur.rowcount == 0:
+                if rowcount == 0:
                     raise ValueError(f"intent_id={intent_id} not pending or not found")
         # 清理临时文件 (即使投影目录无此 intent_id, 也不报错 — best effort)
         if self._projection_dir is not None:
@@ -324,96 +311,29 @@ class V1EvidenceService:
         """v1.0 C05 R01 修复: 真 INSERT v1_subjects.
 
         旧实现: pass 占位, T05 时未填 (遗留 R01 真问题).
-        修复: 按 migration 096 schema 真写入, body 必含 id/entity_type/canonical_name +
+        修复: 按 migration 096 schema 真写入 (SQL 在 v1_evidence_repo.insert_subject),
+        body 必含 id/entity_type/canonical_name +
         first_seen_at/last_seen_at (其余字段给默认值). 失败 raise 不吞, 由 record_audit
         写 audit_log (action=v1_evidence.entity_insert_failed) 供运维追查.
         """
         try:
-            now_iso = _utcnow_iso()
-            conn.execute(
-                "INSERT INTO v1_subjects "
-                "(id, entity_type, canonical_name, aliases_json, importance, "
-                " tags_json, related_subject_ids_json, first_seen_at, last_seen_at, "
-                " revision, created_at, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    body.get("id", entity_id),
-                    body.get("entity_type", "other"),
-                    body.get("canonical_name", body.get("id", entity_id)),
-                    body.get("aliases_json", "[]"),
-                    body.get("importance", "normal"),
-                    body.get("tags_json", "[]"),
-                    body.get("related_subject_ids_json", "[]"),
-                    body.get("first_seen_at", now_iso),
-                    body.get("last_seen_at", now_iso),
-                    int(body.get("revision", 1)),
-                    now_iso,
-                    now_iso,
-                ),
-            )
+            self._repo.insert_subject(body, entity_id, body_hash)
         except Exception as e:
             self._audit_entity_insert_failed("subject", entity_id, body_hash, e)
             raise
 
     def _insert_material(self, conn: sqlite3.Connection, body: dict[str, Any], entity_id: str, body_hash: str) -> None:
-        """v1.0 C05 R01 修复: 真 INSERT v1_materials."""
+        """v1.0 C05 R01 修复: 真 INSERT v1_materials (SQL 在 v1_evidence_repo)."""
         try:
-            now_iso = _utcnow_iso()
-            conn.execute(
-                "INSERT INTO v1_materials "
-                "(id, source_kind, url, title, content_hash, content_length, "
-                " content_ref, summary, published_at, fetched_at, fetched_by, "
-                " subject_ids_json, metadata_json, revision, created_at, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    body.get("id", entity_id),
-                    body.get("source_kind", "url"),
-                    body.get("url"),
-                    body.get("title", body.get("id", entity_id)),
-                    body.get("content_hash", body_hash),
-                    int(body.get("content_length", 0)),
-                    body.get("content_ref"),
-                    body.get("summary"),
-                    body.get("published_at"),
-                    body.get("fetched_at", now_iso),
-                    body.get("fetched_by"),
-                    body.get("subject_ids_json", "[]"),
-                    body.get("metadata_json", "{}"),
-                    int(body.get("revision", 1)),
-                    now_iso,
-                    now_iso,
-                ),
-            )
+            self._repo.insert_material(body, entity_id, body_hash)
         except Exception as e:
             self._audit_entity_insert_failed("material", entity_id, body_hash, e)
             raise
 
     def _insert_signal(self, conn: sqlite3.Connection, body: dict[str, Any], entity_id: str, body_hash: str) -> None:
-        """v1.0 C05 R01 修复: 真 INSERT v1_signals (FK subject_id + material_id 必须已存在)."""
+        """v1.0 C05 R01 修复: 真 INSERT v1_signals (FK subject_id + material_id 必须已存在; SQL 在 v1_evidence_repo)."""
         try:
-            now_iso = _utcnow_iso()
-            conn.execute(
-                "INSERT INTO v1_signals "
-                "(id, subject_id, material_id, summary, occurred_at, "
-                " admission_rule_version, admission_reason, supersedes_signal_id, "
-                " confidence, status, revision, created_at, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    body.get("id", entity_id),
-                    body.get("subject_id", ""),
-                    body.get("material_id", ""),
-                    body.get("summary", ""),
-                    body.get("occurred_at", now_iso),
-                    body.get("admission_rule_version", "v1"),
-                    body.get("admission_reason", ""),
-                    body.get("supersedes_signal_id"),
-                    body.get("confidence", "unverified"),
-                    body.get("status", "unverified"),
-                    int(body.get("revision", 1)),
-                    now_iso,
-                    now_iso,
-                ),
-            )
+            self._repo.insert_signal(body, entity_id, body_hash)
         except Exception as e:
             self._audit_entity_insert_failed("signal", entity_id, body_hash, e)
             raise
@@ -455,16 +375,7 @@ class V1EvidenceService:
         migration 108 未跑 / 表缺失时显空不阻断聚合 (与原 api 行为一致)。
         """
         try:
-            with self._tx() as conn:
-                rows = conn.execute(
-                    "SELECT m.id, m.title, m.url, m.content_hash, m.source_kind, "
-                    "       m.summary, cm.signal_id, cm.created_at AS bound_at "
-                    "FROM v1_case_materials cm "
-                    "JOIN v1_materials m ON m.id = cm.material_id "
-                    "WHERE cm.case_id = ? ORDER BY cm.created_at DESC",
-                    (case_id,),
-                ).fetchall()
-                return [dict(r) for r in rows]
+            return self._repo.case_evidence_materials(case_id)
         except Exception:
             return []
 
@@ -475,25 +386,14 @@ class V1EvidenceService:
         """扫描超时未 commit 的 intent → 标 rolled_back. 返回被回滚的 intent_ids."""
         now_ts = now_ts or time.time()
         with self._tx() as conn:
-            rows = conn.execute(
-                "SELECT id, intent_id, entity_type, submission_key, submitted_at "
-                "FROM v1_evidence_receipts "
-                "WHERE status = 'pending' "
-                "AND (julianday('now') - julianday(submitted_at)) * 86400 > ?",
-                (INTENT_TIMEOUT_SEC,),
-            ).fetchall()
+            rows = self._repo.list_expired_pending_intents(INTENT_TIMEOUT_SEC)
             if not rows:
                 return []
             reap_ids: list[dict[str, Any]] = []
             for r in rows:
-                conn.execute(
-                    "UPDATE v1_evidence_receipts SET status = ?, extra_json = ? "
-                    "WHERE id = ?",
-                    (
-                        RECEIPT_ROLLED_BACK,
-                        json.dumps({"reason": "timeout", "reaped_at": _utcnow_iso()}),
-                        r[0],
-                    ),
+                self._repo.update_receipt_rolled_back_by_id(
+                    r[0],
+                    json.dumps({"reason": "timeout", "reaped_at": _utcnow_iso()}),
                 )
                 reap_ids.append({"intent_id": r[1], "entity_type": r[2], "submission_key": r[3]})
         return reap_ids

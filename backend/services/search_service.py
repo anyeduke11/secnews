@@ -17,7 +17,7 @@
 """
 from __future__ import annotations
 
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 
 # 限制单次返回上限，防止全表扫描型查询拖垮响应时间。
 _MAX_LIMIT = 100
@@ -33,20 +33,6 @@ def _sanitize_query(q: str) -> str:
     保留搜索词的字面语义: 用户输入 ``100%`` 应匹配 ``100%`` 而非 ``100X``。
     """
     return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-
-
-def _knowledge_table() -> str:
-    """knowledge_items 的限定名 — 环境自适应。
-
-    生产: knowledge_items 在 warm 库 (get_connection 启动期 ATTACH)。
-    测试/单库模式: warm 文件不存在 → 不 ATTACH, schema 全在 main。
-    R21 版写死 ``warm.knowledge_items`` → 测试环境 OperationalError
-    (v085-review F11 修复默认 sources 后暴露)。
-    """
-    attached = {
-        r[1] for r in get_connection().execute("PRAGMA database_list").fetchall()
-    }
-    return "warm.knowledge_items" if "warm" in attached else "knowledge_items"
 
 
 def unified_search(
@@ -123,7 +109,7 @@ def unified_search(
         sql_params.extend([pattern, pattern])
 
     if "knowledge" in like_sources:
-        ktbl = _knowledge_table()
+        ktbl = knowledge_items_table()
         sql_parts.append(f"""
             SELECT 'knowledge' AS entity_type, k.id AS entity_id, k.title AS title,
                    k.topic AS summary, k.domain AS category, k.ingested_at AS ingested_at
@@ -186,7 +172,7 @@ def _search_wiki_fts(q: str, limit: int) -> list[dict]:
                 IFNULL(k.ingested_at, '') AS ingested_at,
                 snippet(wiki_items_fts, 1, '[', ']', '...', 12) AS fts_snippet
             FROM wiki_items_fts f
-            LEFT JOIN {_knowledge_table()} k ON k.rowid = f.rowid
+            LEFT JOIN {knowledge_items_table()} k ON k.rowid = f.rowid
             WHERE wiki_items_fts MATCH ?
             ORDER BY rank
             LIMIT ?

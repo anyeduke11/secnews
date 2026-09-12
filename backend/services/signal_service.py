@@ -14,6 +14,7 @@ from typing import Any
 
 from backend.logging_config import logger
 from backend.repository.db import get_connection
+from backend.repository.v1_evidence_repo import V1EvidenceRepository
 
 
 def list_recent_signals(
@@ -36,42 +37,11 @@ def list_recent_signals(
     """
     conn = get_connection()
     try:
-        if subject_id:
-            rows = conn.execute(
-                "SELECT s.id, s.subject_id, s.material_id, s.summary, s.occurred_at, "
-                "       s.confidence, s.status, sub.canonical_name AS subject_name "
-                "FROM v1_signals s "
-                "LEFT JOIN v1_subjects sub ON s.subject_id = sub.id "
-                "WHERE s.occurred_at >= datetime('now', ?) "
-                "AND s.subject_id = ? "
-                "ORDER BY s.occurred_at DESC LIMIT ?",
-                (f"-{days} days", subject_id, limit),
-            ).fetchall()
-        elif case_id:
-            # case_id 过滤: 走 v1_actions → judgment_id → case_id 关联 (T08 case_action)
-            # 当前 v1_actions 表无 case_id 字段 (T12+ 才加), 暂走 material_id 反查
-            rows = conn.execute(
-                "SELECT s.id, s.subject_id, s.material_id, s.summary, s.occurred_at, "
-                "       s.confidence, s.status, sub.canonical_name AS subject_name "
-                "FROM v1_signals s "
-                "LEFT JOIN v1_subjects sub ON s.subject_id = sub.id "
-                "WHERE s.occurred_at >= datetime('now', ?) "
-                "AND s.material_id IN ( "
-                "  SELECT DISTINCT material_id FROM v1_case_materials WHERE case_id = ? "
-                ") "
-                "ORDER BY s.occurred_at DESC LIMIT ?",
-                (f"-{days} days", case_id, limit),
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT s.id, s.subject_id, s.material_id, s.summary, s.occurred_at, "
-                "       s.confidence, s.status, sub.canonical_name AS subject_name "
-                "FROM v1_signals s "
-                "LEFT JOIN v1_subjects sub ON s.subject_id = sub.id "
-                "WHERE s.occurred_at >= datetime('now', ?) "
-                "ORDER BY s.occurred_at DESC LIMIT ?",
-                (f"-{days} days", limit),
-            ).fetchall()
+        # Batch 3 任务 A: SQL 下沉 v1_evidence_repo.list_recent_signals
+        # (subject_id / case_id / 默认三分支逐字对齐原实现)
+        rows = V1EvidenceRepository(conn).list_recent_signals(
+            days, case_id=case_id, limit=limit, subject_id=subject_id,
+        )
     except sqlite3.OperationalError as e:
         # migration 096 未跑 (T15 演练 dry-run 模式)
         return []

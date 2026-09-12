@@ -11,7 +11,7 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 from backend.services.kl_state_machine import (
     LIFECYCLE_PUBLISH,
     LIFECYCLE_REFINE,
@@ -125,7 +125,7 @@ class T5Trigger:
             return
         now_iso = datetime.now(timezone.utc).isoformat()
         conn.execute(
-            "UPDATE knowledge_items SET stale_at = ? WHERE id = ?",
+            f"UPDATE {knowledge_items_table()} SET stale_at = ? WHERE id = ?",
             (now_iso, item_id),
         )
 
@@ -149,7 +149,7 @@ class T5Trigger:
         conn = get_connection()
         now_iso = datetime.now(timezone.utc).isoformat()
         conn.execute(
-            "UPDATE knowledge_items SET lifecycle = ?, updated_at = ? WHERE id = ?",
+            f"UPDATE {knowledge_items_table()} SET lifecycle = ?, updated_at = ? WHERE id = ?",
             (stage, now_iso, item_id),
         )
 

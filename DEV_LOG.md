@@ -1084,3 +1084,14 @@
 - **核心变更**: api/knowledge.py 711→39; api 层 SQL 直连 52→0; observability_router 550→296; health.py 369→135 (/api/stats 迁 health_stats.py, URL 不变); history.py 归档裸 SQL (含 history.py:133,154 两处此前 grep 漏检的 conn.execute) 下沉 batch_service。
 - **测试验证**: 全量 pytest **4575 passed / 9 skipped / 0 失败** (基线 4534 + 新 41 用例); 契约测试 19 拆分前后全绿; meta --check OK (86 routers / 132 services, ARCHITECTURE + 4 处 AGENTS.md 已同步); ruff 触碰文件 0 错; 独立审计 (code-reviewer) **P0=0** / P1=1 (守卫绕过面) 已修 (AST+rglob 强化) / P2=6 认领; 报告 .ua/tmp/batch2-code-audit-report.md。
 - **潜在风险**: ①豁免清单 36 文件为存量超限, 单调收缩靠守卫 assert 锁定 (3 文件仅 1 行余量) ②恢复路径 staging 多一次拷贝 (P0-0 遗留设计代价) ③info_filter_api 158→159 行仍超 150 (存量) ④mcp_config 复用 repo 私有 _row_to_tool (同包内, 可接受) ⑤batch_service archive 异常捕获收窄为 sqlite3.Error (行为更严格, 原 except Exception 语义由 R3 下沉顺带收紧)。
+
+## [DEV-0197] 解耦 Batch 3: repo 收敛档 A — v1 五表补 repo + R2 守卫冻结增量 + 表名单一真相源
+- **时间**: 2026-09-13 01:10
+- **类型**: 重构 (解耦方案 Batch 3, 档 A 冻结增量)
+- **关联模块**: `repository:v1_evidence_repo` (新), `services:v1-evidence`, `repository:db`, `tests:repo_write_guard` (新)
+- **关联文件**: backend/repository/v1_evidence_repo.py (新, 357 行), backend/repository/db.py (+knowledge_items_table), backend/services/{v1_evidence_service(499→399), signal_service(103→88), search_service, knowledge_repo, attention_scorer, triggers/t1~t5, scheduler/jobs/{security,maintenance}}; backend/tests/{test_v1_evidence_repo(新10), test_repo_write_guard(新)}; 修改 core.include 无需 (repository 已含)
+- **问题描述**: services 层 75 文件 239 处绕过 repo 直写 SQL, ~25 表无 repo (写路径不唯一); search_service 运行时探测表名 ("warm" in attached), knowledge_items 裸名散布 (生产事实在 warm.db)。
+- **实现思路**: 档 A 冻结增量 — R2 守卫 AST 扫全 backend/** (排除 api/tests/migrations/repository) 的写语句, 表名 ∈ repo 治理表 ∪ 41+13 豁免集合, 新表直写即失败; f-string 动态表名须登记 _DYNAMIC_SQL_FILES (含 blessed 模式: {knowledge_items_table()} 插值视为静态); v1 五表 (subjects/materials/signals/subject_identifiers/evidence_receipts) 补 V1EvidenceRepository (357 行, 写方法不 commit、事务边界归 service _tx), 三个 service 改调 repo 语义逐字不变; db.knowledge_items_table() 为 knowledge_items 唯一表名真相源, knowledge_repo 11 处 + triggers/jobs 8 处写语句全部接入 (裸写归零)。
+- **核心变更**: v1_evidence_service 全部裸 SQL 归零; search_service 探测函数删除; R2 守卫含反例测试 (动态写被标记) + blessed 模式锁定测试。
+- **测试验证**: 全量 pytest **4589 passed / 9 skipped / 0 失败** (基线 4575 + 新 14); 守卫族 8 passed; -k "knowledge or search" 208 passed; meta --check OK (services 132 不变, repo 不计入); ruff 触碰文件 0 错; 独立审计 P0=0 / P1×3 已修 / P2×6 认领 (报告 .ua/tmp/batch3-code-audit-report.md)。
+- **潜在风险**: ①豁免集合 54 条为存量快照 (含 1 条 regex 误报已标注), 收缩 = 后续逐表补 repo ②裸读 knowledge_items ~20 文件保留 (生产分库下潜在故障点, 列 Batch 4+ 候选) ③显式 "+" 拼接动态 SQL 为扫描盲区 (批前既有) ④knowledge_items_table() 每语句一次 PRAGMA (线程内连接复用, 开销极小) ⑤v1_admission_service 的 admission_* 四表仍在豁免 (宿主标注已修正)。

@@ -23,7 +23,7 @@
 from __future__ import annotations
 
 from backend.logging_config import logger
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 
 
 def score(item_id: str) -> int:
@@ -169,7 +169,7 @@ def batch_score() -> dict:
     if updates:
         try:
             conn.executemany(
-                "UPDATE knowledge_items SET attention_score = ? WHERE id = ?",
+                f"UPDATE {knowledge_items_table()} SET attention_score = ? WHERE id = ?",
                 updates,
             )
         except Exception as e:

@@ -26,7 +26,7 @@ import time
 from typing import Any
 
 from backend.metrics.kl_metrics import kl_metrics
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 from backend.services.kl_state_machine import (
     LEGACY_REFINE_LIKE,
     LIFECYCLE_LINK,
@@ -263,7 +263,7 @@ class T2Trigger:
         from datetime import datetime, timezone
         now_iso = datetime.now(timezone.utc).isoformat()
         conn.execute(
-            "UPDATE knowledge_items "
+            f"UPDATE {knowledge_items_table()} "
             "SET lifecycle = ?, updated_at = ? "
             "WHERE id = ?",
             (new_stage, now_iso, item_id),

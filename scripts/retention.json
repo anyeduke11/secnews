@@ -112,17 +112,6 @@
       "notes": ""
     },
     {
-      "table": "bid_details",
-      "temp": "HOT",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "state",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
       "table": "catchup_checkpoints",
       "temp": "WARM",
       "ts_column": "started_at",

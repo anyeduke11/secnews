@@ -227,7 +227,6 @@ class BatchService:
                     "score": it.score,
                     "quality_score": it.quality_score,
                     "quality_flags": it.quality_flags,
-                    "bid_status": it.bid_status,
                 }
             )
         return {

@@ -101,7 +101,6 @@ class HotspotService:
         cursor: str | None = None,
         limit: int = DEFAULT_LIMIT,
         keyword: str = "",
-        region: str | None = None,  # Phase 8: 标讯地区筛选
         source: str | None = None,  # v1.9.1: 来源筛选
         exclude_category: str | None = None,  # DEV-0175: 工作台聚焦裁决 (前端默认排除 bid)
         boost_practice_domains: list[str] | None = None,  # DEV-0176 T0.4: 兴趣域加权 (降权不删)
@@ -159,7 +158,6 @@ class HotspotService:
                 keyword=keyword,
                 cursor=repo_cursor,
                 limit=limit,
-                region=region,
                 source=source,
                 exclude_category=exclude_category,
             )

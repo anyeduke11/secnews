@@ -853,3 +853,18 @@
   - 全量 pytest: **4440 passed / 9 skipped / 0 失败** (bid 删除后; 删除过程发现并修复: ①e2e temp_db fixture 缺 close_db 的顺序相关隐疾被暴露, 已修 ②7 个断言 BID 在场的测试按新事实修正); vitest **499** (含 PriorityDigestCard 4) / tsc 0 / build OK; generate_meta --check OK (57/13/84/126); ruff 触碰文件 0 (含修掉 jobs/__init__ 预存 __all__ 排序错)
   - `audit_practice_domain_sample.py --sample 40`: 真库只读采样成功; `--grade` 合成回读: 67% 正确 exit 1 (门槛逻辑生效)
 - **潜在风险**: ①crawl4ai_parser.py 注释仍提 bid_collector (纯注释残留) ②`/api/hotspots/regions` 端点 (bid-only) 暂保留, 前端已无调用方, 下批可删 ③采样报告含真实标题入仓 reports/ (公开新闻标题, 与 dead_source_triage 同级先例) ④P1.2 首页动线 (摘要卡成为第一屏) 部分达成: 卡片已挂首页顶部, "默认折叠 Feed"交互未做
+
+## [DEV-0180] 标讯数据层最终清理 — owner 裁决"不需要有意保留, 直接清理"
+- **时间**: 2026-09-12 10:55
+- **类型**: 功能开发 (清理) + 配置变更
+- **关联模块**: `backend:domain/models`, `backend:repository/hotspot_repo`, `backend:api/hotspots`, `backend:services/hotspot_service`, `backend:services/batch_service`, `frontend:types`, `frontend:HotspotCard`, `backend:repository/migrations`
+- **关联文件**: `backend/domain/models.py`, `backend/repository/hotspot_repo.py`, `backend/api/hotspots.py`, `backend/api/categories.py`, `backend/api/export.py`, `backend/api/favorites.py`, `backend/services/hotspot_service.py`, `backend/services/batch_service.py`, `backend/collectors/item_builder.py`, `backend/collectors/telegram_collector.py`, `backend/repository/migrations/112_remove_bid_data.sql` (新建), `scripts/retention.json`, `frontend/src/types/index.ts`, `frontend/src/types/index.test.ts`, `frontend/src/hooks/useHotspotData.ts`, `frontend/src/hooks/useHooks.test.ts`, `frontend/src/components/HotspotCard.tsx`, `frontend/src/components/HotspotCard.test.tsx`, `backend/tests/` 5 文件
+- **问题描述**: DEV-0175 曾裁决"历史 bid 数据只读保留", owner 本轮改裁决: "不需要有意保留, 直接清理"。清理面: ①HotspotItem 模型的 bid_status/region 字段 ②repo 全部读写引用 (INSERT/upsert 列/SELECT 列/row 映射/region 筛选参数/list_regions) ③`/api/hotspots/regions` 端点 + region 查询参数 ④前端 'bid' 类型联合/bid_status 字段/getBidStatusColor/HotspotCard 徽标/region hook 参数/相关测试 ⑤标签映射 (categories/export/favorites) 的 bid 条目 ⑥历史数据 (30 条 bid hotspots + bid_details 表 + reputation 种子行)。
+- **实现思路**: 数据行删除走 migration 112 (子表先删: content_fingerprints/ai_scores/hotspot_tags 有 CASCADE, favorites/favorites_snapshot 逻辑外键显式删; bid_details DROP; source_reputation 种子行 DELETE)。**DB 列策略**: hotspots.bid_status/region 列保留为死列 (SQLite DROP COLUMN 受索引/部分索引约束风险高且无收益), 代码层 0 读写; todos.source_id 悬空链接是 011 的设计内行为 (todo 带快照字段)。模型字段删除后暴露 3 处隐藏消费点 (batch_service bid_status 导出 / repo SELECT 列 / 测试), 逐个修正。
+- **核心变更**: 见关联文件; 另 scripts/retention.json 去 bid_details 条目 (104→103 表)。
+- **测试验证**:
+  - 全量 pytest: **4437 passed / 9 skipped / 0 失败** (修正 9 个断言 bid 在场的测试: favorites 导出中文映射改 github、history/batch 服务去 bid_status 字段、hotspot_repo 3 个 bid 专属测试删除、legacy_bug_sweep 2 个 d2 region 测试删除、db_diet retention 台账)
+  - 前端: tsc 0 错 / vitest **494** / build OK
+  - migration 112 临时库全量应用验证: bid hotspots=0 / bid_details 已 DROP / reputation 种子=0 / 核心表完好
+  - generate_meta --check OK (57/13/84/126 不变); ruff 触碰文件 0
+- **潜在风险**: ①migration 112 需后端重启才应用 (应用后 30 条历史 bid 条目**不可恢复**, 已有 git/migration 台账可审计) ②favorites 中若有 owner 收藏的 bid 条目将一并删除 (本轮统计生产库 favorites 无 bid 行, 风险实测为零) ③trend 网格仍按 8 分类全枚举建列 (bid 列恒 0), 属展示层历史口径

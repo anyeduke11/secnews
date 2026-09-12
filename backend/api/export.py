@@ -64,7 +64,6 @@ async def export_hotspots_xlsx(category: str | None = None):
         "security": "网络安全",
         "finance": "金融/投资",
         "startup": "独立开发/创业",
-        "bid": "招标资讯",
         "github": "GitHub 项目",
         "tech": "科技",
         "ai_security": "AI 安全",

@@ -37,7 +37,6 @@ async def list_hotspots(
     cursor: str = Query("", description="游标分页（首次为空）"),
     limit: int = Query(50, ge=1, le=200, description="每页条数"),
     keyword: str = Query("", description="关键词搜索"),
-    region: str = Query("", description="标讯地区筛选（仅 category=bid 有效）"),
     source: str = Query("", description="v1.9.1: 来源筛选（精确匹配 source 字段）"),
     exclude_category: str = Query("", description="DEV-0175: 排除单一分类（工作台聚焦裁决，前端默认传 bid）"),
     tags: str = Query("", description="v1.7: 逗号分隔 tag id, 触发标签筛选"),
@@ -46,10 +45,10 @@ async def list_hotspots(
     """列表查询（cursor 分页）。
 
     Phase 9 修复：同步 DB query 放 thread pool，避免 cache miss 时阻塞 event loop。
-    Phase 8: 新增 region 参数，仅对 category=bid 生效。
     v1.7 Phase 1: 新增 tags/tag_mode 标签筛选 (AND/OR), 传入 tags 时走 list_by_tags。
     DEV-0175: 新增 exclude_category (工作台聚焦, 前端默认排除 bid; 不传时行为与
     既有版本完全一致)。
+    DEV-0178: 移除 region 参数与 /regions 端点 (标讯剔除, DB 列保留只读)。
     """
     tag_ids = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
     if tag_ids:
@@ -66,19 +65,10 @@ async def list_hotspots(
         cursor=cursor or None,
         limit=limit,
         keyword=keyword,
-        region=region or None,
         source=source or None,
         exclude_category=exclude_category or None,
         boost_practice_domains=boost or None,
     )
-
-
-@router.get("/regions")
-async def list_regions():
-    """列出所有标讯地区（仅 category=bid 且 region 非空）。"""
-    from backend.repository.hotspot_repo import HotspotRepository
-    regions = await asyncio.to_thread(HotspotRepository().list_regions)
-    return {"regions": regions}
 
 
 @router.get("/{item_id}")

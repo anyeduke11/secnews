@@ -62,7 +62,6 @@ function tagColorOf(category: string): string {
     case 'security': return 'var(--sn-cat-sec)';
     case 'finance': return 'var(--sn-cat-fin)';
     case 'startup': return 'var(--sn-cat-vc)';
-    case 'bid': return 'var(--sn-cat-bid)';
     case 'github': return 'var(--sn-cat-git)';
     case 'tech': return 'var(--sn-cat-tech)';
     default: return 'var(--sn-cat-ai)';

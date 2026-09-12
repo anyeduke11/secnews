@@ -3,7 +3,6 @@ import {
   HotspotItem,
   getCategoryColorVar,
   getCategoryLabel,
-  getBidStatusColor,
   formatRelativeTime,
 } from '../types';
 
@@ -65,18 +64,6 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
 
       <div className="px-3.5 pb-3 flex items-center justify-between gap-2" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 8 }}>
         <div className="flex flex-wrap items-center gap-1.5">
-          {item.category === 'bid' && item.bid_status && item.bid_status !== '其他' && (
-            <span
-              className="editorial-badge"
-              style={{
-                backgroundColor: `color-mix(in srgb, ${getBidStatusColor(item.bid_status)} 9%, transparent)`,
-                color: getBidStatusColor(item.bid_status),
-              }}
-            >
-              {item.bid_status}
-            </span>
-          )}
-
           {hasQualityNote && (
             <span className="status-icon warning" title="同 URL 存在多条记录, 详情页 <title> 验证后以另一条标题为准">
               !

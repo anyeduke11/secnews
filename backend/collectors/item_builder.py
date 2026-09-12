@@ -141,7 +141,6 @@ class ItemBuilderMixin:
                         published_at=published_at,
                         fetched_at=now,
                         ingested_at=now,
-                        region=raw.get("region"),  # Phase 8: 标讯地区 (存量列兼容)
                         published_at_tz_assumed=bool(
                             raw.get("published_at_tz_assumed", False)
                         ),

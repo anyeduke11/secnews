@@ -4,7 +4,6 @@ import {
   getCategoryLabel,
   formatRelativeTime,
   getQualityColor,
-  getBidStatusColor,
 } from '../types';
 
 describe('getCategoryColor', () => {
@@ -13,8 +12,7 @@ describe('getCategoryColor', () => {
     expect(getCategoryColor('security')).toBe('#e85d5d');
     expect(getCategoryColor('finance')).toBe('#f0c929');
     expect(getCategoryColor('startup')).toBe('#7c6aff');
-    // DEV-0175: bid 已从展示枚举剔除, 走 unknown 兜底色
-    expect(getCategoryColor('bid')).toBe('#7A6F5C');
+    // DEV-0178: bid 已全线下线
     expect(getCategoryColor('github')).toBe('#9b8bff');
   });
 
@@ -30,8 +28,7 @@ describe('getCategoryLabel', () => {
     expect(getCategoryLabel('security')).toBe('网络安全');
     expect(getCategoryLabel('finance')).toBe('金融 / 投资');
     expect(getCategoryLabel('startup')).toBe('独立开发 / 创业');
-    // DEV-0175: bid 已从展示枚举剔除, 回退原始字符串
-    expect(getCategoryLabel('bid')).toBe('bid');
+    // DEV-0178: bid 已全线下线
     expect(getCategoryLabel('github')).toBe('GitHub 项目');
   });
 
@@ -87,23 +84,5 @@ describe('getQualityColor', () => {
   it('returns fallback for null/undefined', () => {
     expect(getQualityColor(null)).toBe('#7A6F5C');
     expect(getQualityColor(undefined)).toBe('#7A6F5C');
-  });
-});
-
-describe('getBidStatusColor', () => {
-  it('returns correct colors for known statuses', () => {
-    expect(getBidStatusColor('招标中')).toBe('#2C5F8A');
-    expect(getBidStatusColor('中标')).toBe('#2F7D4F');
-    expect(getBidStatusColor('成交')).toBe('#2F7D4F');
-    expect(getBidStatusColor('变更')).toBe('#8A6400');
-    expect(getBidStatusColor('终止')).toBe('#A32014');
-    expect(getBidStatusColor('询价')).toBe('#0B6E6E');
-    expect(getBidStatusColor('比选')).toBe('#0B6E6E');
-  });
-
-  it('returns fallback for null/undefined/unknown', () => {
-    expect(getBidStatusColor(null)).toBe('#7A6F5C');
-    expect(getBidStatusColor(undefined)).toBe('#7A6F5C');
-    expect(getBidStatusColor('未知状态')).toBe('#7A6F5C');
   });
 });

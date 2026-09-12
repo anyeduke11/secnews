@@ -48,7 +48,7 @@ class AddFavoriteRequest(BaseModel):
     """添加收藏请求体。"""
 
     hotspot_id: str = Field(..., min_length=1, max_length=128, description="hotspot 唯一 ID")
-    category: str = Field(..., description="6 大分类之一: ai/security/finance/startup/bid/github")
+    category: str = Field(..., description="分类: ai/security/finance/startup/github")
     title: str = Field(..., min_length=1, max_length=500, description="卡片标题")
     source: str = Field(..., min_length=1, max_length=200, description="信源名")
     url: str = Field(..., min_length=1, max_length=2000, description="原文链接")
@@ -108,7 +108,6 @@ async def list_favorites(
     """按收藏时间倒序列出收藏项。支持按 category 筛选。
 
     - ``category=ai`` → 只返回科技/AI 类
-    - ``category=bid`` → 只返回招标资讯
     - ``category=all`` 或不传 → 全部
     """
     return await asyncio.to_thread(_build_list_payload, category, limit)
@@ -230,7 +229,6 @@ def _build_xlsx(category: str | None) -> tuple[bytes, str, int]:
             "security": "网络安全",
             "finance": "金融/投资",
             "startup": "独立开发/创业",
-            "bid": "招标资讯",
             "github": "GitHub 项目",
         }.get(it.category, it.category)
         a = ws.cell(row=idx, column=1, value=cat_cn)

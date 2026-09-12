@@ -89,7 +89,7 @@ def test_migration_seeds_source_reputation(temp_db):
     assert "security_collector_default" in sources
     assert "finance_collector_default" in sources
     assert "startup_collector_default" in sources
-    assert "bid_collector_default" in sources
+    # DEV-0178: bid_collector_default 种子行已由 migration 112 清理
 
 
 def test_migration_seeds_quality_settings(temp_db):

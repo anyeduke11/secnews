@@ -49,7 +49,6 @@ export function useHotspotData(
   category: string,
   timeRange: string,
   keyword: string,
-  region?: string,
   source?: string,  // v1.9.1: 来源精确筛选 (点击条目来源触发)
 ): UseHotspotDataReturn {
   const [pageSize, _setPageSize] = useState<number>(100);
@@ -113,7 +112,6 @@ export function useHotspotData(
         });
         if (keyword) params.set('keyword', keyword);
         if (cursor) params.set('cursor', cursor);
-        if (region) params.set('region', region);
         if (source) params.set('source', source);
 
         const response = await fetch(`/api/hotspots?${params}`, {
@@ -150,7 +148,7 @@ export function useHotspotData(
         else setLoadingPage(false);
       }
     },
-    [category, timeRange, keyword, region, source, pageSize]
+    [category, timeRange, keyword, source, pageSize]
   );
 
   // P0.2: 同步 fetchPage 到 ref (每次渲染都更新, 无需 effect)
@@ -171,7 +169,7 @@ export function useHotspotData(
     _setPage(1);
     // P0.2: 显式触发第 1 页请求 (因为 page 可能没变, useEffect [page] 不会触发)
     fetchPageRef.current(1);
-  }, [category, timeRange, keyword, region, source, pageSize]);
+  }, [category, timeRange, keyword, source, pageSize]);
 
   // P0.2 修复: useEffect 依赖只保留 [page]
   // - 用 pageDataRef.current 读缓存 (不触发 effect)

@@ -63,26 +63,6 @@ describe('CATEGORIES helpers', () => {
   });
 });
 
-// ── getBidStatusColor ────────────────────────────────────────
-
-describe('getBidStatusColor', () => {
-  it('returns valid hex for all known statuses', async () => {
-    const { getBidStatusColor } = await import('../types');
-    const statuses = ['招标中', '中标', '成交', '变更', '终止', '询价', '比选'];
-    for (const s of statuses) {
-      const color = getBidStatusColor(s);
-      expect(color).toMatch(/^#[0-9a-fA-F]{6}$/);
-    }
-  });
-
-  it('returns fallback for null/undefined/unknown', async () => {
-    const { getBidStatusColor } = await import('../types');
-    expect(getBidStatusColor(null)).toBe('#7A6F5C');
-    expect(getBidStatusColor(undefined)).toBe('#7A6F5C');
-    expect(getBidStatusColor('未知状态')).toBe('#7A6F5C');
-  });
-});
-
 // ── getQualityColor ──────────────────────────────────────────
 
 describe('getQualityColor', () => {

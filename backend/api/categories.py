@@ -22,7 +22,6 @@ _LABELS: dict[str, str] = {
     "security": "网络安全",
     "finance": "金融 / 投资",
     "startup": "独立开发 / 创业",
-    "bid": "招标资讯",
     "github": "GitHub / 开源",
 }
 _COLORS: dict[str, str] = {
@@ -31,7 +30,6 @@ _COLORS: dict[str, str] = {
     "security": "#e85d5d",
     "finance": "#f0c929",
     "startup": "#7c6aff",
-    "bid": "#e8891a",
     "github": "#8b5cf6",
 }
 

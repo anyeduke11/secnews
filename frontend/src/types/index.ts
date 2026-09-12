@@ -11,7 +11,7 @@ export interface HotspotItem {
   summary?: string;
   source: string;
   url: string;
-  category: 'ai' | 'ai_security' | 'security' | 'finance' | 'startup' | 'bid' | 'github' | 'tech';
+  category: 'ai' | 'ai_security' | 'security' | 'finance' | 'startup' | 'github' | 'tech';
   published_at: string;
   fetched_at?: string;
   // Phase 15: 录入时间(列表排序字段),缺失时回退 fetched_at/published_at
@@ -24,9 +24,6 @@ export interface HotspotItem {
   is_fallback?: boolean;
   // URL 标题验证状态
   url_check_status?: 'verified' | 'mismatch' | 'pending' | string;
-  // Phase 20+: 标讯状态(仅 category=bid 有效)
-  // 可选值: 招标中 / 中标 / 变更 / 终止 / 成交 / 询价 / 比选 / 其他
-  bid_status?: string;
   // DEV-0176 T0.4: 实践域即时打标 (Workbench Focus P0; 非安全内容为 null)
   practice_domain?: string | null;
 }
@@ -147,7 +144,7 @@ export interface ConsistencyDrift {
 export interface FavoriteItem {
   id: number;
   hotspot_id: string;
-  category: 'ai' | 'ai_security' | 'security' | 'finance' | 'startup' | 'bid' | 'github' | 'tech';
+  category: 'ai' | 'ai_security' | 'security' | 'finance' | 'startup' | 'github' | 'tech';
   title: string;
   source: string;
   url: string;
@@ -241,7 +238,7 @@ export const CATEGORIES: CategoryInfo[] = [
   { id: 'security', label: '网络安全', color: '#e85d5d' },
   { id: 'finance', label: '金融 / 投资', color: '#f0c929' },
   { id: 'startup', label: '独立开发 / 创业', color: '#7c6aff' },
-  // DEV-0175: bid (招标资讯) 已随工作台聚焦裁决从展示枚举剔除 (类型联合保留以兼容存量数据)
+  // DEV-0178: bid (招标资讯) 已从展示枚举与类型联合剔除 (标讯全线下线)
   { id: 'github', label: 'GitHub 项目', color: '#9b8bff' },
   { id: 'tech', label: 'IT / 科技', color: '#4ecdc4' },
 ];
@@ -620,16 +617,6 @@ export interface SyncBundlePreview {
   record_counts: Record<string, number>;
 }
 
-/**
- * Phase 20+ 标讯状态色值映射（与后端 backend/collectors/bid_status.py
- * STATUS_COLOR_MAP 保持一致）：
- *  - 招标中 → 蓝
- *  - 中标/成交 → 绿
- *  - 变更 → 黄
- *  - 终止 → 红
- *  - 询价/比选 → 浅蓝
- *  - 其他 → 灰
- */
 // ----- v1.3.0 Phase 4: 周报 -----
 export interface WeeklyReport {
   id: number;
@@ -644,20 +631,6 @@ export interface WeeklyReport {
   ai_insight: any | string | null;
   generated_at: string;
   version: string;
-}
-
-export function getBidStatusColor(status?: string | null): string {
-  if (!status) return '#7A6F5C';
-  switch (status) {
-    case '招标中': return '#2C5F8A';   // 蓝墨
-    case '中标':   return '#2F7D4F';   // 绿墨
-    case '成交':   return '#2F7D4F';   // 绿墨
-    case '变更':   return '#8A6400';   // 赭金
-    case '终止':   return '#A32014';   // 砖红
-    case '询价':   return '#0B6E6E';   // 青墨
-    case '比选':   return '#0B6E6E';   // 青墨
-    default:       return '#7A6F5C';   // 灰墨
-  }
 }
 
 // ----- v1.4: 知识管理 (Knowledge Dashboard) -----

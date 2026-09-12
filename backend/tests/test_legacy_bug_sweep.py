@@ -45,68 +45,6 @@ def test_d6_setup_returns_last_rotated_at(temp_db):
 # ── D2: hotspots.region 写入链 ──────────────────────────────────────
 
 
-def test_d2_region_roundtrip_via_upsert(temp_db):
-    """upsert_many 写入 region → query 读出 region (修复前 INSERT 漏列恒 NULL)."""
-    from datetime import datetime, timezone
-
-    from backend.domain.models import Category, HotspotItem
-    from backend.repository.hotspot_repo import HotspotRepository
-
-    now = datetime.now(timezone.utc)
-    item = HotspotItem(
-        id="h-region-1",
-        title="标讯条目",
-        summary="",
-        source="bid-src",
-        url="https://example.com/bid/1",
-        category=Category.BID,
-        published_at=now,
-        score=10,
-        fetched_at=now,
-        ingested_at=now,
-        region="华东",
-    )
-    repo = HotspotRepository()
-    repo.upsert_many([item])
-
-    got = repo.get_by_id("h-region-1")
-    assert got is not None
-    assert got.region == "华东"
-
-
-def test_d2_region_filter_finds_rows(temp_db):
-    """region=? 筛选在写入链修复后应能命中."""
-    from datetime import datetime, timedelta, timezone
-
-    from backend.domain.models import Category, HotspotItem
-    from backend.repository.hotspot_repo import HotspotRepository
-
-    now = datetime.now(timezone.utc)
-    items = [
-        HotspotItem(
-            id=f"h-{i}",
-            title=f"标讯 {i}",
-            summary="",
-            source="bid-src",
-            url=f"https://example.com/bid/{i}",
-            category=Category.BID,
-            published_at=now - timedelta(hours=i),
-            score=10,
-            fetched_at=now,
-            ingested_at=now,
-            region="华北" if i % 2 == 0 else "华南",
-        )
-        for i in range(4)
-    ]
-    repo = HotspotRepository()
-    repo.upsert_many(items)
-
-    found = repo.query(Category.BID, region="华北")
-    assert len(found) == 2
-
-
-# ── D3: sync_history.table_conflicts 写入 ───────────────────────────
-
 
 def test_d3_table_conflicts_roundtrip(temp_db):
     """write(table_conflicts=...) → list_recent 读出 JSON (修复前恒 NULL)."""

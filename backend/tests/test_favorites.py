@@ -414,8 +414,8 @@ class TestFavoritesAPIExport:
             url="https://example.com/ai-news",
         ))
         client.post("/api/favorites", json=_make_fav(
-            hid="h-bid", category="bid", title="招标标题", source="src2",
-            url="https://example.com/bid-news",
+            hid="h-github", category="github", title="GitHub 资讯标题", source="src2",
+            url="https://example.com/github-news",
         ))
 
     def test_export_returns_xlsx_bytes(self, client):
@@ -440,19 +440,19 @@ class TestFavoritesAPIExport:
         ws = wb.active
         # 收集所有信息类型列的值
         cats = [ws.cell(row=r, column=1).value for r in range(2, ws.max_row + 1)]
-        # 中文映射: ai→科技/AI, bid→招标资讯
+        # 中文映射: ai→科技/AI, github→GitHub 项目
         assert "科技/AI" in cats
-        assert "招标资讯" in cats
+        assert "GitHub 项目" in cats
 
     def test_export_filter_by_category(self, client):
         self._seed_two(client)
-        resp = client.get("/api/favorites/export", params={"category": "bid"})
+        resp = client.get("/api/favorites/export", params={"category": "github"})
         assert resp.status_code == 200
         wb = load_workbook(io.BytesIO(resp.content))
         ws = wb.active
         # 只有 1 行数据
         assert ws.max_row == 2  # 表头 + 1 行
-        assert ws.cell(row=2, column=1).value == "招标资讯"
+        assert ws.cell(row=2, column=1).value == "GitHub 项目"
         assert "X-Favorite-Count" in resp.headers
         assert resp.headers["X-Favorite-Count"] == "1"
 

@@ -61,7 +61,6 @@ def _make_item(
     is_fallback: bool = False,
     source: str = "unit-test",
     quality_flags: list[str] | None = None,
-    bid_status: str | None = None,
 ) -> HotspotItem:
     """构造一个 tz-aware 时间戳的 HotspotItem；默认时间 = now - 1h
     (经 :func:`_recent_ts` 钳制, 见其 docstring)。"""
@@ -77,7 +76,6 @@ def _make_item(
         fetched_at=published_at,
         is_fallback=is_fallback,
         quality_flags=quality_flags or [],
-        bid_status=bid_status,
     )
 
 
@@ -412,98 +410,6 @@ def test_cleanup_older_than(repo):
 
 
 # ---------------------------------------------------------------------------
-# Phase 21: historical_bid 过滤 + bid_status 字段 (Phase 20+)
+# Phase 21 historical_bid / bid_status 测试 — DEV-0178 已随标讯剔除移除
 # ---------------------------------------------------------------------------
-def test_query_excludes_historical_bid(repo):
-    """quality_flags 含 historical_bid 的标讯不应出现在 query 结果中。
 
-    原因: bid_recency_gate 已识别为历史标讯(标题含历史年份/published_at
-    超过 180d),即使 loose 模式仍入库,query 时也不应展示给用户。
-    """
-    repo.upsert_many(
-        [
-            # 标讯 A: 正常招标中 → 应出现
-            _make_item(
-                "bid-normal",
-                category=Category.BID,
-                title="X 项目等保 2.0 采购公告",
-                source="test",
-                quality_flags=[],
-                bid_status="招标中",
-            ),
-            # 标讯 B: historical_bid flag → 不应出现
-            _make_item(
-                "bid-historical",
-                category=Category.BID,
-                title="X 项目 2022-2023 年设备采购",
-                source="test",
-                quality_flags=["historical_bid"],
-                bid_status="其他",
-            ),
-            # 标讯 C: historical_bid flag + 其他 flag 混在一起 → 不应出现
-            _make_item(
-                "bid-historical-mixed",
-                category=Category.BID,
-                title="X 项目 2021 年服务采购",
-                source="test",
-                quality_flags=["author_unknown", "historical_bid", "url_duplicate"],
-                bid_status="其他",
-            ),
-        ]
-    )
-    items, _ = repo.query(Category.BID, time_range=TimeRange.D7, limit=10)
-    ids = {it.id for it in items}
-    assert "bid-normal" in ids
-    assert "bid-historical" not in ids, "historical_bid flag 应该过滤掉"
-    assert "bid-historical-mixed" not in ids, "含 historical_bid 的混合 flag 也应过滤掉"
-
-
-def test_query_returns_bid_status(repo):
-    """query 应返回 bid_status 字段(Phase 20+)。"""
-    repo.upsert_many(
-        [
-            _make_item(
-                "bid-status-1",
-                category=Category.BID,
-                title="X 项目中标候选人公示",
-                source="test",
-                quality_flags=[],
-                bid_status="中标",
-            ),
-        ]
-    )
-    items, _ = repo.query(Category.BID, time_range=TimeRange.D7, limit=10)
-    assert len(items) == 1
-    assert items[0].bid_status == "中标"
-
-
-def test_search_excludes_historical_bid(repo):
-    """search() 走 FTS5 路径,同样应排除 historical_bid。
-
-    注: FTS5 unicode61 tokenizer 对中文按字分词,phrase 查询需要带
-    引号匹配具体字面量。这里用英文短串验证过滤器逻辑。
-    """
-    repo.upsert_many(
-        [
-            _make_item(
-                "s-normal",
-                category=Category.BID,
-                title="WAF procurement announcement for X project",
-                source="test",
-                quality_flags=[],
-                bid_status="招标中",
-            ),
-            _make_item(
-                "s-historical",
-                category=Category.BID,
-                title="WAF 2022 historical procurement announcement",
-                source="test",
-                quality_flags=["historical_bid"],
-                bid_status="其他",
-            ),
-        ]
-    )
-    results = repo.search("WAF procurement", limit=10)
-    ids = {it.id for it in results}
-    assert "s-normal" in ids, "正常标讯应被搜索到"
-    assert "s-historical" not in ids, "search 路径也应过滤 historical_bid"

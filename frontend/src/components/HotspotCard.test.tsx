@@ -87,10 +87,4 @@ describe('HotspotCard', () => {
     render(<HotspotCard item={baseItem} index={0} />);
     expect(screen.getByText(/前$|刚刚|\d+\/\d+/)).toBeInTheDocument();
   });
-
-  it('renders bid_status badge for bid category', () => {
-    const item = { ...baseItem, category: 'bid' as const, bid_status: '招标中' };
-    render(<HotspotCard item={item} index={0} />);
-    expect(screen.getByText('招标中')).toBeInTheDocument();
-  });
 });

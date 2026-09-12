@@ -119,8 +119,6 @@ class HotspotRepository:
             quality_checked_at=quality_checked_at,
             url_check_status=row["url_check_status"],
             ingested_at=ingested_at,
-            bid_status=row["bid_status"] if "bid_status" in row.keys() else None,
-            region=row["region"] if "region" in row.keys() else None,
         )
 
     @staticmethod
@@ -144,13 +142,8 @@ class HotspotRepository:
             # Phase 15: ingested_at 缺失时回退到 fetched_at(防御性,正常路径
             # collector 会显式设置 ingested_at = now())
             (item.ingested_at or item.fetched_at).isoformat(),
-            # Phase 20: 标讯状态
-            item.bid_status,
             # v0.5: is_hidden 由 quality_flags 推导(μ工艺与迁移 064 一致)
             _derive_is_hidden(item.quality_flags),
-            # Phase 8 标讯地区 (migration 023) — 此前 INSERT 漏列导致 region 恒 NULL,
-            # 地区筛选 / list_regions() 整条链静默失效
-            getattr(item, "region", None),
         )
 
     @staticmethod
@@ -195,13 +188,14 @@ class HotspotRepository:
             return 0
 
         conn = get_connection()
+        # DEV-0178: bid_status / region 列已停止写入 (DB 列保留为死列, 历史 NULL)
         sql = """
             INSERT INTO hotspots (
                 id, title, summary, source, url, category,
                 published_at, score, fetched_at, is_fallback,
                 quality_score, quality_flags, quality_checked_at, url_check_status,
-                ingested_at, bid_status, is_hidden, region
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ingested_at, is_hidden
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 title            = excluded.title,
                 summary          = excluded.summary,
@@ -218,10 +212,8 @@ class HotspotRepository:
                 url_check_status = excluded.url_check_status,
                 -- P2-7: 不再刷新 ingested_at — 保留首次入库时间,
                 -- 重采同 ID 条目不再"浮顶"并虚增"新增 X 条"计数。
-                bid_status       = excluded.bid_status,
                 -- v0.5: 最新 quality_flags 决定最新隐藏状态
-                is_hidden        = excluded.is_hidden,
-                region           = excluded.region
+                is_hidden        = excluded.is_hidden
         """
 
         total_affected = 0
@@ -258,11 +250,10 @@ class HotspotRepository:
         keyword: str = "",
         cursor: str | None = None,
         limit: int = _DEFAULT_LIMIT,
-        region: str | None = None,  # Phase 8: 标讯地区筛选
         source: str | None = None,  # v1.9.1: 来源筛选 (头条/条目行来源可点击)
         exclude_category: str | None = None,  # DEV-0175: 工作台聚焦裁决, 排除单一分类 (前端默认排除 bid)
     ) -> tuple[list[HotspotItem], str | None]:
-        """List hotspots with category / time / keyword / cursor / region
+        """List hotspots with category / time / keyword / cursor
         / source filters.
 
         Returns ``(items, next_cursor)``. ``next_cursor`` is ``None`` when
@@ -300,10 +291,6 @@ class HotspotRepository:
                 where_clauses.append("category = ?")
                 params.append(category.value)
 
-        if region:
-            where_clauses.append("region = ?")
-            params.append(region)
-
         if source:
             where_clauses.append("source = ?")
             params.append(source)
@@ -338,8 +325,7 @@ class HotspotRepository:
         sql = (
             "SELECT id, title, summary, source, url, category, "
             "published_at, score, fetched_at, is_fallback, quality_score, "
-            "quality_flags, quality_checked_at, url_check_status, ingested_at, "
-            "bid_status "
+            "quality_flags, quality_checked_at, url_check_status, ingested_at "
             "FROM hotspots "
             f"WHERE {' AND '.join(where_clauses)} "
             "ORDER BY ingested_at DESC, rowid DESC "
@@ -427,8 +413,7 @@ class HotspotRepository:
         sql = (
             "SELECT id, title, summary, source, url, category, "
             "published_at, score, fetched_at, is_fallback, quality_score, "
-            "quality_flags, quality_checked_at, url_check_status, ingested_at, "
-            "bid_status "
+            "quality_flags, quality_checked_at, url_check_status, ingested_at "
             "FROM hotspots "
             f"WHERE {' AND '.join(where_clauses)} "
             "ORDER BY ingested_at DESC, rowid DESC "
@@ -487,7 +472,7 @@ class HotspotRepository:
             "SELECT h.id, h.title, h.summary, h.source, h.url, h.category, "
             "h.published_at, h.score, h.fetched_at, h.is_fallback, "
             "h.quality_score, h.quality_flags, h.quality_checked_at, "
-            "h.url_check_status, h.ingested_at, h.bid_status "
+            "h.url_check_status, h.ingested_at "
             "FROM hotspots h "
             "JOIN hotspots_fts f ON f.rowid = h.rowid "
             "WHERE hotspots_fts MATCH ? "
@@ -512,8 +497,7 @@ class HotspotRepository:
         sql = (
             "SELECT id, title, summary, source, url, category, "
             "published_at, score, fetched_at, is_fallback, quality_score, "
-            "quality_flags, quality_checked_at, url_check_status, ingested_at, "
-            "bid_status, region "
+            "quality_flags, quality_checked_at, url_check_status, ingested_at "
             "FROM hotspots WHERE id = ?"
         )
         try:
@@ -786,14 +770,6 @@ class HotspotRepository:
         )
         return deleted
 
-    def list_regions(self) -> list[str]:
-        """列出所有标讯地区（仅 category=bid 且 region 非空）。"""
-        conn = get_connection()
-        rows = conn.execute(
-            "SELECT DISTINCT region FROM hotspots WHERE category = 'bid' AND region IS NOT NULL AND region != '' ORDER BY region ASC"
-        ).fetchall()
-        return [str(r["region"]) for r in rows]
-
     def list_by_tags(
         self,
         tag_ids: list[str],
@@ -818,7 +794,7 @@ class HotspotRepository:
                 SELECT h.id, h.title, h.summary, h.source, h.url, h.category,
                        h.published_at, h.score, h.fetched_at, h.is_fallback,
                        h.quality_score, h.quality_flags, h.quality_checked_at,
-                       h.url_check_status, h.ingested_at, h.bid_status
+                       h.url_check_status, h.ingested_at
                 FROM hotspots h
                 JOIN hotspot_tags ht ON h.id = ht.hotspot_id
                 WHERE ht.tag_id IN ({placeholders})
@@ -833,7 +809,7 @@ class HotspotRepository:
                 SELECT DISTINCT h.id, h.title, h.summary, h.source, h.url, h.category,
                        h.published_at, h.score, h.fetched_at, h.is_fallback,
                        h.quality_score, h.quality_flags, h.quality_checked_at,
-                       h.url_check_status, h.ingested_at, h.bid_status
+                       h.url_check_status, h.ingested_at
                 FROM hotspots h
                 JOIN hotspot_tags ht ON h.id = ht.hotspot_id
                 WHERE ht.tag_id IN ({placeholders})

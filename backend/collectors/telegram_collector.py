@@ -167,7 +167,6 @@ class TelegramCollector(BaseCollector):
                         published_at=published_at,
                         fetched_at=now,
                         ingested_at=now,
-                        region=raw.get("region"),
                         score=source.get("score", 75),
                         is_fallback=False,
                         quality_score=100,

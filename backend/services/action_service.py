@@ -82,7 +82,7 @@ class ActionService:
     def __init__(
         self, repo: ActionRepository | None = None,
         judgment_repo: JudgmentRepository | None = None,
-        run_service: Any = None,  # RunService (避免循环 import; 注入供单测)
+        run_service: Any = None,  # RunService (经 run_orchestrator 桥接; 注入供单测)
         *, dsh_caller: Callable[[str], str] | None = None,
     ) -> None:
         self.repo = repo or ActionRepository()
@@ -309,13 +309,14 @@ class ActionService:
         )
         if rowcount == 0:
             raise ActionConflictError(f"action {action_id} CAS race")
-        # 创建 Run (走 RunService 注入)
-        from backend.services.run_service import RunService
-        run_svc = self._run_service or RunService()
-        run = run_svc.create_or_replay(
-            action_id=action_id, idempotency_key=idempotency_key, attempt=1,
-            protocol=protocol, trigger_source=trigger_source, skill_id=skill_id,
-            inputs={"action_id": action_id, "plan_hash": a["plan_hash"]},
+        # 创建 Run (走 run_orchestrator 桥接 — 解 action↔run 模块级环;
+        # 注入优先 / attempt=1 / inputs 形状语义不变, 见 run_orchestrator docstring)
+        from backend.services.run_orchestrator import create_run_for_action_start
+        run = create_run_for_action_start(
+            action_id=action_id, plan_hash=a["plan_hash"],
+            idempotency_key=idempotency_key, protocol=protocol,
+            trigger_source=trigger_source, skill_id=skill_id,
+            run_service=self._run_service,
         )
         out = {"action": self._require(action_id), "run": run["run"], "replayed": run["replayed"]}
         self._publish_v1_action_event(out["action"], "running")

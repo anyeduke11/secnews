@@ -407,18 +407,22 @@ class TestP14QualityGateIsolated:
 # P1.2 — RSS 静默失败 (crawler_runs 写入 + apply_run_result)
 # ===========================================================================
 class TestP12CrawlerRunsWiring:
-    """P1.2: collection_service._write_crawler_runs 源码层包含 apply_run_result 调用."""
+    """P1.2: collection_pipeline.write_crawler_runs 源码层包含 apply_run_result 调用.
+
+    (Batch 4 Task C: 实现从 CollectionService._write_crawler_runs 物理搬至
+    backend/services/collection_pipeline.py, 行为零变更, 扫描目标同步。)
+    """
 
     def test_write_crawler_runs_includes_apply_run_result_call(self):
-        """源码静态扫描: _write_crawler_runs 必须含 apply_run_result 调用。"""
+        """源码静态扫描: write_crawler_runs 必须含 apply_run_result 调用。"""
         import inspect
 
-        from backend.services.collection_service import CollectionService
+        from backend.services.collection_pipeline import write_crawler_runs
 
-        src = inspect.getsource(CollectionService._write_crawler_runs)
+        src = inspect.getsource(write_crawler_runs)
         # 关键调用必须存在
         assert "apply_run_result" in src, (
-            "P1.2: collection_service._write_crawler_runs 必须调用 "
+            "P1.2: collection_pipeline.write_crawler_runs 必须调用 "
             "SourceHealthMachine.apply_run_result"
         )
         assert "SourceHealthMachine" in src
@@ -428,9 +432,9 @@ class TestP12CrawlerRunsWiring:
         """docstring 留 P1.2 标记, 防止后续回归."""
         import inspect
 
-        from backend.services.collection_service import CollectionService
+        from backend.services.collection_pipeline import write_crawler_runs
 
-        src = inspect.getsource(CollectionService._write_crawler_runs)
+        src = inspect.getsource(write_crawler_runs)
         assert "P1.2" in src
 
 

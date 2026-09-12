@@ -92,7 +92,7 @@ class TestFingerprintInsertion:
             _make_item("a2", title="New Quantum Computing Breakthrough"),
         ]
         with patch(
-            "backend.services.collection_service.get_connection"
+            "backend.services.collection_dedup.get_connection"
         ) as mock_get:
             mock_conn = _make_mock_conn()
             mock_get.return_value = mock_conn
@@ -116,7 +116,7 @@ class TestFingerprintInsertion:
         fp2 = simhash("New Quantum Computing Breakthrough")
 
         with patch(
-            "backend.services.collection_service.get_connection"
+            "backend.services.collection_dedup.get_connection"
         ) as mock_get:
             mock_conn = _make_mock_conn()
             mock_get.return_value = mock_conn
@@ -145,7 +145,7 @@ class TestFingerprintInsertion:
         fp_with_summary = simhash("Title Body content")
 
         with patch(
-            "backend.services.collection_service.get_connection"
+            "backend.services.collection_dedup.get_connection"
         ) as mock_get:
             mock_conn = _make_mock_conn()
             mock_get.return_value = mock_conn
@@ -175,7 +175,7 @@ class TestDedupDetection:
         fp = simhash(title_text)
 
         with patch(
-            "backend.services.collection_service.get_connection"
+            "backend.services.collection_dedup.get_connection"
         ) as mock_get:
             mock_conn = _make_mock_conn(
                 simhash_rows=[("existing_1", fp)],
@@ -192,7 +192,7 @@ class TestDedupDetection:
         url_canonical = canonicalize_url("https://example.com/url_dup")
 
         with patch(
-            "backend.services.collection_service.get_connection"
+            "backend.services.collection_dedup.get_connection"
         ) as mock_get:
             mock_conn = _make_mock_conn(
                 url_rows=[(url_canonical,)],
@@ -214,7 +214,7 @@ class TestDedupDetection:
         assert hamming_distance(fp, close_fp) == 2
 
         with patch(
-            "backend.services.collection_service.get_connection"
+            "backend.services.collection_dedup.get_connection"
         ) as mock_get:
             mock_conn = _make_mock_conn(
                 simhash_rows=[("existing_1", close_fp)],
@@ -242,7 +242,7 @@ class TestBatchDedup:
         ]
 
         with patch(
-            "backend.services.collection_service.get_connection"
+            "backend.services.collection_dedup.get_connection"
         ) as mock_get:
             # First call: no existing fingerprints
             cursor = MagicMock()
@@ -280,7 +280,7 @@ class TestBatchDedup:
         ]
 
         with patch(
-            "backend.services.collection_service.get_connection"
+            "backend.services.collection_dedup.get_connection"
         ) as mock_get:
             mock_conn = _make_mock_conn()
             mock_get.return_value = mock_conn
@@ -317,7 +317,7 @@ class TestIndexPerformance:
         existing_rows.append(("close_one", fp ^ 0b111111))  # Hamming dist = 6 → not duplicate
 
         with patch(
-            "backend.services.collection_service.get_connection"
+            "backend.services.collection_dedup.get_connection"
         ) as mock_get:
             mock_conn = _make_mock_conn(
                 simhash_rows=existing_rows,
@@ -338,7 +338,7 @@ class TestIndexPerformance:
         ]
 
         with patch(
-            "backend.services.collection_service.get_connection"
+            "backend.services.collection_dedup.get_connection"
         ) as mock_get:
             mock_conn = _make_mock_conn()
             mock_get.return_value = mock_conn
@@ -363,7 +363,7 @@ class TestEdgeCases:
     def test_empty_list(self, svc):
         """Empty input returns empty list."""
         with patch(
-            "backend.services.collection_service.get_connection"
+            "backend.services.collection_dedup.get_connection"
         ) as mock_get:
             mock_conn = _make_mock_conn()
             mock_get.return_value = mock_conn
@@ -379,7 +379,7 @@ class TestEdgeCases:
         item = _make_item("ws_title", title="   ")
 
         with patch(
-            "backend.services.collection_service.get_connection"
+            "backend.services.collection_dedup.get_connection"
         ) as mock_get:
             mock_conn = _make_mock_conn()
             mock_get.return_value = mock_conn
@@ -394,7 +394,7 @@ class TestEdgeCases:
         item = _make_item("no_summary", title="Title Only", summary=None)
 
         with patch(
-            "backend.services.collection_service.get_connection"
+            "backend.services.collection_dedup.get_connection"
         ) as mock_get:
             mock_conn = _make_mock_conn()
             mock_get.return_value = mock_conn
@@ -411,7 +411,7 @@ class TestEdgeCases:
         )
 
         with patch(
-            "backend.services.collection_service.get_connection"
+            "backend.services.collection_dedup.get_connection"
         ) as mock_get:
             mock_conn = _make_mock_conn()
             mock_get.return_value = mock_conn

@@ -81,19 +81,13 @@ def _body_hash(inputs: dict[str, Any]) -> str:
 class RunService:
     """Run 服务 — 三层幂等 + 状态机 + 桥接 action."""
 
-    def __init__(
-        self, repo: RunRepository | None = None,
-        action_service: Any = None,  # ActionService (避免循环)
-    ) -> None:
+    def __init__(self, repo: RunRepository | None = None) -> None:
         self.repo = repo or RunRepository()
-        self._action_service = action_service
-        # 默认懒加载 ActionService (mock 协议 finish 路径用)
-        if self._action_service is None:
-            try:
-                from backend.services.action_service import ActionService
-                self._action_service = ActionService()
-            except Exception:
-                pass  # 避免循环 import, 走 best-effort
+        # Batch 4 解环注: 原 __init__ 曾惰性 import ActionService 存入
+        # self._action_service (注释称 "mock 协议 finish 路径用"), 但该属性
+        # 自 C07 R05 移除 mock 协议后全仓无任何读取方, 属死代码 — 已整体
+        # 移除。run_service 现不依赖 action_service, action→run 桥接统一走
+        # backend.services.run_orchestrator (R4 守卫: test_service_cycle_guard.py)。
 
     # ------------------------------------------------------------------
     # create_or_replay (contracts §7.4 三层幂等)

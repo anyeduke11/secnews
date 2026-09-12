@@ -1095,3 +1095,14 @@
 - **核心变更**: v1_evidence_service 全部裸 SQL 归零; search_service 探测函数删除; R2 守卫含反例测试 (动态写被标记) + blessed 模式锁定测试。
 - **测试验证**: 全量 pytest **4589 passed / 9 skipped / 0 失败** (基线 4575 + 新 14); 守卫族 8 passed; -k "knowledge or search" 208 passed; meta --check OK (services 132 不变, repo 不计入); ruff 触碰文件 0 错; 独立审计 P0=0 / P1×3 已修 / P2×6 认领 (报告 .ua/tmp/batch3-code-audit-report.md)。
 - **潜在风险**: ①豁免集合 54 条为存量快照 (含 1 条 regex 误报已标注), 收缩 = 后续逐表补 repo ②裸读 knowledge_items ~20 文件保留 (生产分库下潜在故障点, 列 Batch 4+ 候选) ③显式 "+" 拼接动态 SQL 为扫描盲区 (批前既有) ④knowledge_items_table() 每语句一次 PRAGMA (线程内连接复用, 开销极小) ⑤v1_admission_service 的 admission_* 四表仍在豁免 (宿主标注已修正)。
+
+## [DEV-0198] 解耦 Batch 4: 解环 + R4 守卫 + knowledge/collection 上帝服务拆分
+- **时间**: 2026-09-13 02:00
+- **类型**: 重构 (解耦方案 Batch 4)
+- **关联模块**: `services:run_orchestrator` (新), `services:knowledge-split`, `services:collection-split`, `tests:service_cycle_guard` (新)
+- **关联文件**: backend/services/run_orchestrator.py (新), knowledge_{common,ai,evidence_bridge,legacy_bridge,lifecycle,reuse}.py (新), collection_{dedup,pipeline}.py (新); action_service/run_service/knowledge_service(974→150)/collection_service(1071→296); test_service_cycle_guard.py (新); 2 个测试接缝机械更新 (test_fingerprint patch 目标 / test_pipeline_p1_fix getsource 目标)
+- **问题描述**: action_service.py:313 ⇄ run_service.py:93 惰性互 import (全 services 唯一模块级硬环; run 侧实测为死引用, 全仓零读取方); knowledge_service 902 行横跨 dsh/ai_hub/evidence/migrate 四域; collection_service 1071 行。
+- **实现思路**: ①解环走"接口提取不改语义"——run_orchestrator 承载 action→run 启动桥接 (注入优先/attempt=1/三层幂等/异常全保留), run 侧死引用直接删除, import 图变单向; run 永远 queued 的 P1-0 产品决策未做, 不实现执行体。②R4 守卫 AST 扫全 services (含惰性+TYPE_CHECKING), ai_hub.* 归并为单节点 (R6 红线), 手写迭代 Tarjan; 新发现 skill_registry⇄skill_runner 为文档化反依赖设计, 入白名单并注明收缩路径。③两个上帝服务走 facade+mixin 拆分, 公开 API 逐字不变消费方零改动; collection 的 R2 豁免宿主标注同步。
+- **核心变更**: services 计数 132→141 (+9 新模块); skill 白名单 1 条为唯一已知环。
+- **测试验证**: 全量 pytest **4600 passed / 9 skipped / 0 失败** (基线 4589 + 新 11); meta --check OK (141); ruff 触碰文件 0 错; 独立审计 **P0=0 / P1=0** / P2×5 (2 个一行级已修: logger 必填化+注释, 其余认领; Tarjan 经 300 组随机图 vs Kosaraju 参照 0 mismatch); 报告 .ua/tmp/batch4-code-audit-report.md。
+- **潜在风险**: ①skill_registry⇄skill_runner 白名单为登记债 (收缩 = execute() 改强制注入) ②mixin 防遮蔽无机化门 (P2-3, 建议后续 MRO 守卫测试) ③collection_pipeline 部分惰性 import 保留原位 (外部 patch 目标不受影响) ④audit 确认拆分方法 AST token 级等价, 唯一非逐字项 create_with_dsh 为纯提取重构。

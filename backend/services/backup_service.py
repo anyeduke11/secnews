@@ -7,10 +7,13 @@
 P4-8 (2026-08-16): 备份完整性 — 除 DB 快照外, 同时打包 ``knowledge/``
 源文件 (知识库 .md 是本机真相源, 此前仅靠 git, 无独立备份/恢复流程)。
 备份目录结构:
-  backups/hotspot-{ts}.db              ← SQLite 快照
+  backups/hotspot-{ts}.db              ← HOT SQLite 快照
+  backups/hotspot-warm-{ts}.db         ← WARM SQLite 快照 (P0-C 新增)
+  backups/hotspot-cold-{ts}.db         ← COLD SQLite 快照 (P0-C 新增)
   backups/hotspot-{ts}.knowledge.zip   ← knowledge/ 源文件归档
+  backups/backup-manifest-{ts}.json    ← 三库 manifest (path/size/sha256)
 
-保留策略: 默认保留最近 ``BACKUP_RETENTION`` (1) 份, 超龄自动删除。
+保留策略: 默认每族保留最近 ``BACKUP_RETENTION`` (3) 份, 超龄自动删除。
 
 v0.5 增量备份
 ------------
@@ -27,8 +30,12 @@ v0.5 增量备份
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import shutil
 import sqlite3
+import struct
+import time
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,15 +43,24 @@ from pathlib import Path
 from backend.config import config
 from backend.logging_config import logger
 
-# v0.5: BACKUP_RETENTION=1 (单盘只留最新一份); 7 天一次 full snapshot
-BACKUP_RETENTION = 1
+# P0-C: 1 → 3 (单份保留 = 任何一次写坏/删错即丢全部备份); 每族 (hot/warm/cold)
+# 独立计数, 7 天一次 full snapshot 轮转不变。
+BACKUP_RETENTION = 3
 BACKUP_PREFIX = "hotspot-"
+MANIFEST_PREFIX = "backup-manifest-"
+MANIFEST_KEEP = 14                # manifest JSON 保留份数 (约两周)
 
 # 增量备份参数
 INCREMENTAL_PAGE_SIZE = 4096      # SQLite 默认 page size
 INCREMENTAL_DIR = "incremental"   # backups/{INCREMENTAL_DIR}/ 存增量
 MAX_INCREMENTAL_PAGES = 8192      # 32MB 上限 (足够容下一次完整日采集)
 INCREMENTAL_CHAIN_PREFIX = "wal-" # wal-{ts}-{seq}.bin 命名
+# 增量 .bin 格式 (P0-C v2, 自描述):
+#   header: magic b"WIB1" (4B) + page_size (4B big-endian)
+#   record: page_no (4B big-endian, 1-based) + page data (page_size 字节)
+# 旧格式 (纯 page 拼接, 无页号) 无法定位写入 offset, 且历史产物全为 0 字节,
+# 不做兼容读取。
+INCREMENTAL_BIN_MAGIC = b"WIB1"
 
 
 def _backup_knowledge(ts: str) -> Path | None:
@@ -121,6 +137,90 @@ def _maybe_remote_push(db_path: Path, knowledge_zip_name: str) -> None:
         logger.warning(f"remote backup hook failed (non-fatal): {e}")
 
 
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _write_sha_sidecar(path: Path) -> str:
+    """写旁车 .sha256 (格式 `sha  filename`, sha256sum 兼容), 返回 sha。"""
+    sha = _sha256_file(path)
+    path.with_suffix(path.suffix + ".sha256").write_text(f"{sha}  {path.name}\n")
+    return sha
+
+
+def _snapshot_db(src: Path, dst: Path) -> int:
+    """SQLite online backup API 一致性快照, 返回 dst 字节数。
+
+    P0-C: 产物 0 字节 = 备份失败 (源损坏/未写页), 必须 raise 而非静默成功 —
+    此前 job 每天 "成功" 但 warm 库 899MB 从未被备份。
+    P2: 0 字节失败路径先清理残留目标文件再 raise, 避免空文件被后续
+    保留策略/校验当作有效备份产物。
+    """
+    src_conn = sqlite3.connect(str(src))
+    dst_conn = sqlite3.connect(str(dst))
+    try:
+        src_conn.backup(dst_conn)
+        dst_conn.commit()
+    finally:
+        dst_conn.close()
+        src_conn.close()
+    size = dst.stat().st_size
+    if size == 0:
+        dst.unlink(missing_ok=True)
+        logger.error(f"backup artifact is 0 bytes: {dst} (src={src})")
+        raise RuntimeError(f"backup artifact is 0 bytes: {dst.name} (src={src})")
+    return size
+
+
+def backup_side_dbs(ts: str, extra_entries: list[dict] | None = None) -> list[dict]:
+    """P0-C: WARM/COLD 库备份 — 此前 daily job 只覆盖主库, warm 库零策略备份。
+
+    每库走 SQLite Connection.backup() + sha256 旁车 + 汇总 manifest JSON;
+    源库不存在则跳过 (info); 产物 0 字节直接 raise (不静默成功)。
+    保留策略: 每族 (warm/cold) 各留 BACKUP_RETENTION 份, manifest 留 MANIFEST_KEEP 份。
+    """
+    backups_dir: Path = config.backup_dir
+    backups_dir.mkdir(parents=True, exist_ok=True)
+    entries: list[dict] = list(extra_entries or [])
+    for kind, src_path in (("warm", Path(config.warm_db_path)), ("cold", Path(config.cold_db_path))):
+        if not src_path.exists():
+            logger.info(f"side db backup skip: {kind} not present ({src_path})")
+            continue
+        dst = backups_dir / f"{BACKUP_PREFIX}{kind}-{ts}.db"
+        size = _snapshot_db(src_path, dst)  # 0 字节时 raise
+        sha = _write_sha_sidecar(dst)
+        entries.append({"kind": kind, "path": str(dst), "size": size, "sha256": sha})
+        logger.info(f"side db backup: {dst.name} ({size / 1e6:.1f} MB)")
+
+    manifest_path = backups_dir / f"{MANIFEST_PREFIX}{ts}.json"
+    manifest_path.write_text(
+        json.dumps({"ts": ts, "dbs": entries}, ensure_ascii=False, indent=2)
+    )
+
+    # 每族独立保留策略 (hot 全量走 backup_database 自己的清理, 不在此处)
+    for kind in ("warm", "cold"):
+        family = sorted(
+            backups_dir.glob(f"{BACKUP_PREFIX}{kind}-*.db"),
+            key=lambda p: p.stat().st_mtime,
+        )
+        for stale in family[:-BACKUP_RETENTION] if len(family) > BACKUP_RETENTION else []:
+            try:
+                stale.unlink(missing_ok=True)
+                stale.with_suffix(stale.suffix + ".sha256").unlink(missing_ok=True)
+            except OSError as e:
+                logger.warning(f"side db backup cleanup failed for {stale.name}: {e}")
+    manifests = sorted(
+        backups_dir.glob(f"{MANIFEST_PREFIX}*.json"), key=lambda p: p.stat().st_mtime
+    )
+    for stale in manifests[:-MANIFEST_KEEP] if len(manifests) > MANIFEST_KEEP else []:
+        stale.unlink(missing_ok=True)
+    return entries
+
+
 def restore_from_backup(db_file: Path, knowledge_zip: Path | None = None) -> dict:
     """P4-8: 恢复流程 — 从备份还原 DB (和可选 knowledge/ 源文件)。
 
@@ -167,30 +267,33 @@ def backup_database() -> dict:
     dst = backups_dir / f"{BACKUP_PREFIX}{ts}.db"
 
     src = Path(config.db_path)
-    src_conn = sqlite3.connect(str(src))
-    dst_conn = sqlite3.connect(str(dst))
-    try:
-        # online backup API — 源库可继续读写 (WAL 一致性快照)
-        src_conn.backup(dst_conn)
-        # Python sqlite3 默认 deferred, 必须 commit 才能落盘 (否则 close 时 rollback)
-        dst_conn.commit()
-    finally:
-        dst_conn.close()
-        src_conn.close()
+    # P0-C: 走 _snapshot_db — 0 字节产物 raise, 不再静默成功
+    size = _snapshot_db(src, dst)
+    hot_sha = _write_sha_sidecar(dst)
 
     # P4-8: knowledge/ 源文件归档
     _backup_knowledge(ts)
+
+    # P0-C: WARM/COLD 同批备份 + 三库 manifest (0 字节 / 缺失行为见 backup_side_dbs)
+    # full 的 checkpoint_seq 入 manifest — 供 checker 校验链是否至少不早于 full
+    hot_entry = {
+        "kind": "hot",
+        "path": str(dst),
+        "size": size,
+        "sha256": hot_sha,
+        "checkpoint_seq": _read_wal_header_seq(src.with_suffix(".db-wal")),
+    }
+    side_entries = backup_side_dbs(ts, extra_entries=[hot_entry])
 
     # T6.9: remote backup hook (env 默认关)
     # 仅在周日 full + HOTSPOT_REMOTE_BACKUP=webdav 启用时推送
     _maybe_remote_push(dst, f"{BACKUP_PREFIX}{ts}.knowledge.zip")
 
-    # 保留策略: 按文件名排序保留最新 N 份 (db + knowledge.zip 同 ts 成对清理)
-    # v0.5 BACKUP_RETENTION=1: 严格按 glob `hotspot-*.db` 匹配, 排除 diet-vacuum-* 等残留;
-    # 按 mtime 排序取最新 N 份; 配对删除 knowledge.zip。
+    # 保留策略: 每族保留最新 BACKUP_RETENTION 份。
+    # P0-C: glob 收紧为 `hotspot-[0-9]*.db` (ts 以数字开头) — 旧的 `hotspot-*.db`
+    # 会把新增的 hotspot-warm-*/hotspot-cold-* 混进 hot 族误删。
     all_backups = sorted(
-        [f for f in backups_dir.glob(f"{BACKUP_PREFIX}*.db")
-         if not f.name.startswith(f"{BACKUP_PREFIX}diet-")],
+        backups_dir.glob(f"{BACKUP_PREFIX}[0-9]*.db"),
         key=lambda p: p.stat().st_mtime,  # 按修改时间而非字典序
     )
     if len(all_backups) > BACKUP_RETENTION:
@@ -199,7 +302,7 @@ def backup_database() -> dict:
     else:
         keep = all_backups
         stale = []
-    # 配对: 删除 .db 同时删同 ts 的 .knowledge.zip
+    # 配对: 删除 .db 同时删同 ts 的 .knowledge.zip 与 .sha256
     removed = 0
     for f in stale:
         try:
@@ -208,61 +311,157 @@ def backup_database() -> dict:
             zip_sibling = f.with_suffix(".knowledge.zip")
             if zip_sibling.exists():
                 zip_sibling.unlink(missing_ok=True)
+            f.with_suffix(f.suffix + ".sha256").unlink(missing_ok=True)
         except OSError as e:
             logger.warning(f"backup cleanup failed for {f.name}: {e}")
 
-    size = dst.stat().st_size
     retained = len(all_backups) - removed
     logger.info(
         f"db backup: {dst.name} ({size / 1e6:.1f} MB), "
-        f"retained={retained} removed={removed}"
+        f"retained={retained} removed={removed}, side_dbs={len(side_entries)}"
     )
-    return {"path": str(dst), "size": size, "retained": retained, "removed": removed, "mode": "full"}
+    return {
+        "path": str(dst),
+        "size": size,
+        "retained": retained,
+        "removed": removed,
+        "mode": "full",
+        # side_entries 已含 hot (extra_entries 原样带回)
+        "dbs": list(side_entries),
+    }
 
 
 # ---------------------------------------------------------------------------
 # v0.5 增量备份
 # ---------------------------------------------------------------------------
-def _read_wal_pages_since(checkpoint_seq: int) -> tuple[int, list[bytes]]:
-    """读 WAL 中自 checkpoint_seq 之后所有新增 page 帧。
+def _wal_checksum(data: bytes, s0: int, s1: int, big_endian: bool) -> tuple[int, int]:
+    """SQLite WAL 累积 checksum (wal.c walChecksumBytes 的 Python 等价实现)。
 
-    Returns: (new_checkpoint_seq, list[page_bytes])
-    注意: 这是简化版 — 真实 SQLite WAL 含 frame header + page checksum,
-    本设计假定 WAL 仅追加 write-ahead log (Checkpoint=TRUNCATE 时整段丢弃,
-    重建基础 snapshot 后只追加新 page)。生产环境应换 ``sqlite3_wal`` API。
+    - data 长度必须是 8 的倍数 (每次吞两个 u32 word);
+    - word 字序由 WAL magic 决定 (0x377f0682 = little-endian / 0x377f0615 =
+      big-endian), 与宿主机字节序无关;
+    - 存储 (header 24-31 / frame header 16-23) 恒为 big-endian u32;
+    - 算法: s0 += x[i] + s1; s1 += x[i+1] + s0 (mod 2^32), 累积值跨帧传递。
+    已对真实 SQLite 3.53 写出的 WAL 帧序列验证 (生产库副本实测 6/6 帧全验)。
+    """
+    n = len(data) // 4
+    words = struct.unpack((">" if big_endian else "<") + str(n) + "I", data)
+    for i in range(0, n, 2):
+        s0 = (s0 + words[i] + s1) & 0xFFFFFFFF
+        s1 = (s1 + words[i + 1] + s0) & 0xFFFFFFFF
+    return s0, s1
+
+
+def _read_wal_header_seq(wal_path: Path) -> int:
+    """读 WAL header 的 checkpoint_seq (offset 12, 4B big-endian); 无/坏 WAL 返 0。"""
+    try:
+        header = wal_path.read_bytes()[:32]
+        if len(header) < 32:
+            return 0
+        return int.from_bytes(header[12:16], "big")
+    except OSError:
+        return 0
+
+
+def _read_wal_pages_since(
+    checkpoint_seq: int,
+) -> tuple[int, list[tuple[int, bytes]], int]:
+    """读 WAL 中所有有效 (valid) 的已 commit page 帧。
+
+    P0-C 修复:
+    - WAL magic 只取前 3 字节 (``37 7f 06``); 第 4 字节是 checksum 字节序标志
+      (0x82 = little-endian words / 0x15 = big-endian words), 本机实测为 0x82 —
+      旧代码硬编码 ``\\x37\\x7f\\x06\\x15`` 导致判断恒假, 增量备份永远产出空链。
+    - checkpoint_seq 按 WAL header offset 12 的 4 字节 big-endian 读 (旧代码
+      误按 8 字节小端); page_size 同理是 offset 8 的 4 字节大端。
+    - 帧 = 24B frame header + page_size 字节页数据 (旧代码按 4096-24 切帧,
+      第 2 帧起错位)。
+    - **逐帧累积 checksum 校验** (P0-C 残余修复): 先验 WAL header 校验和
+      (seed 0,0, 覆盖 header 前 24 字节), 之后每帧累积 frame header 前 8 字节
+      + 页数据, 与帧头 16-23 存储值 (big-endian) 比对; 读到**第一个无效帧即停**
+      (标准 SQLite 读取器行为)。无此校验时, 热读 live WAL 会把"被新事务覆写中
+      的旧帧"(同代 salt 相同, 只有 checksum 能识别) 或半写入撕裂帧当有效页写进
+      .bin, 应用后 b-tree 结构破坏 (integrity: malformed)。salt 校验保留为快速预筛。
+    - 只保留最后一个 commit 帧及之前的内容 (未 commit 的事务不进备份)。
+    - 不按 checkpoint_seq 闸门跳过: 全新 WAL 的 seq 从 0 开始, 与 last_seq=0
+      相等会被误判 "无新增" 而产出空链 (P0-C 实测); 且未 checkpoint 只追加帧时
+      seq 根本不变。WAL 全量重放幂等 (每页的最后一帧 = 最新已 commit 版本),
+      重复页无害, checkpoint_seq 仅作元数据记账。
+
+    Returns: (new_checkpoint_seq, [(page_no, page_bytes)], page_size)
     """
     src = Path(config.db_path)
     wal_path = src.with_suffix(".db-wal")
     if not wal_path.exists():
-        return checkpoint_seq, []
+        return checkpoint_seq, [], INCREMENTAL_PAGE_SIZE
 
-    pages: list[bytes] = []
+    frames: list[tuple[int, bytes, int]] = []  # (pgno, page, commit_size)
+    stop_reason = "eof"
     with open(wal_path, "rb") as f:
-        # WAL header (32 bytes): magic, version, page_size, checkpoint_seq, ...
+        # WAL header (32 bytes): magic(4) version(4) page_size(4) checkpoint_seq(4)
+        #                        salt1(4) salt2(4) checksum1(4) checksum2(4)
         header = f.read(32)
-        if len(header) < 32 or header[:4] != b"\x37\x7f\x06\x15":
-            return checkpoint_seq, []  # 无效 WAL
-        # page_size 在 offset 8 (2 bytes big-endian)
-        page_size = int.from_bytes(header[8:10], "big") or 4096
-        # checkpoint_seq 在 offset 12
-        current_seq = int.from_bytes(header[12:20], "little")
-        if current_seq <= checkpoint_seq:
-            return current_seq, []
+        if len(header) < 32:
+            return checkpoint_seq, [], INCREMENTAL_PAGE_SIZE
+        if header[:3] != b"\x37\x7f\x06" or header[3] not in (0x15, 0x82):
+            logger.warning(f"invalid WAL magic {header[:4].hex()}: {wal_path}")
+            return checkpoint_seq, [], INCREMENTAL_PAGE_SIZE
+        big_endian_ck = header[3] == 0x15
+        version = int.from_bytes(header[4:8], "big")
+        if version != 3007000:
+            logger.warning(f"unsupported WAL format version {version}: {wal_path}")
+            return checkpoint_seq, [], INCREMENTAL_PAGE_SIZE
+        page_size = int.from_bytes(header[8:12], "big")
+        if page_size < 512 or page_size > 65536 or page_size & (page_size - 1):
+            logger.warning(f"invalid WAL page_size {page_size}: {wal_path}")
+            return checkpoint_seq, [], INCREMENTAL_PAGE_SIZE
+        current_seq = int.from_bytes(header[12:16], "big")
+        salt = header[16:24]
 
-        # 跳到 checkpoint 之后, 按 page_size 切 frame
-        f.seek(32)  # 跳 WAL header
-        seq = 0
+        # header 自身 checksum 不过 → 整个 WAL 视为空 (标准读取器行为)
+        s0, s1 = _wal_checksum(header[:24], 0, 0, big_endian_ck)
+        if s0 != int.from_bytes(header[24:28], "big") or s1 != int.from_bytes(
+            header[28:32], "big"
+        ):
+            logger.warning(f"WAL header checksum mismatch, treat as empty: {wal_path}")
+            return checkpoint_seq, [], page_size
+
+        f.seek(32)
         while True:
             frame_header = f.read(24)
             if len(frame_header) < 24:
                 break
-            page_data = f.read(page_size - 24)
-            if len(page_data) < page_size - 24:
+            pgno = int.from_bytes(frame_header[0:4], "big")
+            commit_size = int.from_bytes(frame_header[4:8], "big")
+            if frame_header[8:16] != salt:
+                stop_reason = f"salt mismatch at frame {len(frames)}"
                 break
-            seq += 1
-            pages.append(page_data)
+            page = f.read(page_size)
+            if len(page) < page_size:
+                stop_reason = f"truncated page at frame {len(frames)}"
+                break
+            c0, c1 = _wal_checksum(frame_header[:8] + page, s0, s1, big_endian_ck)
+            if (
+                pgno == 0
+                or c0 != int.from_bytes(frame_header[16:20], "big")
+                or c1 != int.from_bytes(frame_header[20:24], "big")
+            ):
+                # 首个无效帧 = WAL 有效结尾 (覆写中 / 撕裂 / 回滚残留帧)
+                stop_reason = f"checksum invalid at frame {len(frames)}"
+                break
+            s0, s1 = c0, c1
+            frames.append((pgno, page, commit_size))
 
-    return checkpoint_seq + seq, pages
+    if stop_reason != "eof":
+        logger.info(f"wal scan: {len(frames)} valid frames, stopped early: {stop_reason}")
+
+    # 只保留到最后一个 commit 帧 (其后的帧属于未 commit 事务)
+    last_commit = -1
+    for i, (_, _, commit_size) in enumerate(frames):
+        if commit_size:
+            last_commit = i
+    pages = [(pgno, page) for pgno, page, _ in frames[: last_commit + 1]]
+    return current_seq, pages, page_size
 
 
 def backup_incremental(force_full: bool = False) -> dict:
@@ -280,39 +479,56 @@ def backup_incremental(force_full: bool = False) -> dict:
     inc_dir.mkdir(parents=True, exist_ok=True)
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    seq = sum(1 for _ in inc_dir.glob(f"{INCREMENTAL_CHAIN_PREFIX}*"))
+    # P0-C: 只数 .bin (旧 glob `wal-*` 会把 .sha256 旁车也计入, 序号虚高)
+    seq = sum(1 for _ in inc_dir.glob(f"{INCREMENTAL_CHAIN_PREFIX}*.bin"))
     inc_path = inc_dir / f"{INCREMENTAL_CHAIN_PREFIX}{ts}-{seq:04d}.bin"
 
     # 读上一份 chain 元数据 (checkpoint_seq)
+    # P0-C: meta 实际格式为 `seq sha ts [pages]`, 旧代码 int(整行) 恒抛异常
+    # 被吞掉, last_seq 永远回退为 0
     meta_path = inc_dir / "chain.meta"
     last_seq = 0
     if meta_path.exists():
         try:
-            last_seq = int(meta_path.read_text().strip())
-        except Exception:
+            last_seq = int(meta_path.read_text().split()[0])
+        except (ValueError, IndexError):
             last_seq = 0
 
-    current_seq, pages = _read_wal_pages_since(last_seq)
+    current_seq, pages, page_size = _read_wal_pages_since(last_seq)
 
     # 累积太多 / 强制 full → 升级
     if force_full or len(pages) > MAX_INCREMENTAL_PAGES:
         logger.info(f"incremental→full upgrade: pages={len(pages)} force={force_full}")
-        # 升级: 走 backup_database full path, 然后清空增量链
+        # 升级: 走 backup_database full path (含 WARM/COLD), 然后清空增量链
         full_result = backup_database()
         # 清空 incremental 目录 (保留链元数据)
-        for f in inc_dir.glob(f"{INCREMENTAL_CHAIN_PREFIX}*"):
+        for f in inc_dir.glob(f"{INCREMENTAL_CHAIN_PREFIX}*.bin"):
             f.unlink(missing_ok=True)
+            f.with_suffix(f.suffix + ".sha256").unlink(missing_ok=True)
         meta_path.write_text("0")
         return {**full_result, "mode": "full", "promoted_from": "incremental"}
 
-    # 写增量 binary 帧 + checksum (T6.8: 旁车 .sha256 文件)
-    payload = b"".join(pages)
+    # P0-C: WARM/COLD 库每日备份 (HOT 走增量链, warm/cold 无增量机制只能全量)
+    side_entries = backup_side_dbs(ts)
+
+    # 写增量 binary: header (magic + page_size) + records (pgno + page data)
+    # T6.8: 旁车 .sha256 文件
+    payload = INCREMENTAL_BIN_MAGIC + page_size.to_bytes(4, "big")
+    payload += b"".join(
+        pgno.to_bytes(4, "big") + page for pgno, page in pages
+    )
     sha = hashlib.sha256(payload).hexdigest()
     inc_path.write_bytes(payload)
     inc_path.with_suffix(inc_path.suffix + ".sha256").write_text(f"{sha}  {inc_path.name}\n")
 
-    # 更新 chain 元数据 (含 sha256 + 时间戳, 便于 restore 校验)
-    meta_path.write_text(f"{current_seq} {sha} {ts}\n")
+    if not pages:
+        # P0-C: 不再静默 "成功" — WAL 存在但没读到帧时告警留痕
+        logger.warning(
+            f"incremental backup has 0 pages (wal_seq={current_seq}, last_seq={last_seq})"
+        )
+
+    # 更新 chain 元数据 (seq + sha256 + 时间戳 + 页数, 便于 restore/checker 校验)
+    meta_path.write_text(f"{current_seq} {sha} {ts} {len(pages)}\n")
 
     # 知识库增量 (同 full 路径, 但只 zip 自上次以来的 md)
     try:
@@ -332,14 +548,16 @@ def backup_incremental(force_full: bool = False) -> dict:
     size = inc_path.stat().st_size
     logger.info(
         f"incremental backup: {inc_path.name} ({size} bytes, "
-        f"{len(pages)} pages, sha={sha[:8]}, knowledge={zf_size} bytes)"
+        f"{len(pages)} pages, sha={sha[:8]}, knowledge={zf_size} bytes, "
+        f"side_dbs={len(side_entries)})"
     )
-    # 保留策略: incremental 链最多保留 7 份
-    all_inc = sorted(inc_dir.glob(f"{INCREMENTAL_CHAIN_PREFIX}*"))
+    # 保留策略: incremental 链最多保留 7 份 (.bin 计数, 配对删 .sha256)
+    all_inc = sorted(inc_dir.glob(f"{INCREMENTAL_CHAIN_PREFIX}*.bin"))
     removed = 0
     if len(all_inc) > 7:
         for f in all_inc[:-7]:
             f.unlink(missing_ok=True)
+            f.with_suffix(f.suffix + ".sha256").unlink(missing_ok=True)
             removed += 1
 
     return {
@@ -352,59 +570,208 @@ def backup_incremental(force_full: bool = False) -> dict:
         "knowledge_size": zf_size,
         "incremental_kept": len(all_inc) - removed,
         "incremental_removed": removed,
+        "side_dbs": side_entries,
     }
 
 
+def parse_incremental_bin(data: bytes) -> tuple[int, list[tuple[int, bytes]]]:
+    """解析增量 .bin (P0-C v2 自描述格式), 返回 (page_size, [(pgno, page)])。
+
+    校验: magic / page_size 合法 (512..65536 且为 2 的幂) / 记录长度整除。
+    不合法直接 raise ValueError (宁可恢复失败, 不可写坏目标库)。
+    """
+    if len(data) < 8:
+        raise ValueError(f"incremental file too small: {len(data)} bytes")
+    if data[:4] != INCREMENTAL_BIN_MAGIC:
+        raise ValueError(f"bad incremental magic: {data[:4].hex()}")
+    page_size = int.from_bytes(data[4:8], "big")
+    if page_size < 512 or page_size > 65536 or page_size & (page_size - 1):
+        raise ValueError(f"invalid page_size in incremental file: {page_size}")
+    body = data[8:]
+    if len(body) % (4 + page_size):
+        raise ValueError(
+            f"truncated incremental file: body={len(body)} not multiple of {4 + page_size}"
+        )
+    pages: list[tuple[int, bytes]] = []
+    off = 0
+    while off < len(body):
+        pgno = int.from_bytes(body[off:off + 4], "big")
+        page = body[off + 4:off + 4 + page_size]
+        if pgno == 0:
+            raise ValueError("invalid page number 0 in incremental file")
+        pages.append((pgno, page))
+        off += 4 + page_size
+    return page_size, pages
+
+
+def apply_incremental_chain(target_db: Path, chain_files: list[Path]) -> dict:
+    """把增量链原子写入目标 db 文件 (P0-C: 旧实现零写操作假报成功)。
+
+    P1 恢复原子性: 先整体预校验 (magic/长度/sha256 旁车), 然后把目标复制到
+    同目录 ``.restore-tmp-<ts>`` 临时文件, 在临时文件上逐页写入并跑
+    PRAGMA integrity_check; 全部通过后才清掉目标残留 -wal/-shm 并
+    ``os.replace`` 原子替换。任何一步失败: 删临时文件, 目标库零接触,
+    返回 ok=False — 不会把目标库 (含 live config.db_path 恢复路径) 改写
+    成损坏状态。checker 对 scratch 副本的调用同样走此逻辑, 无需特判。
+    """
+    # pass 1: 全链预校验 (任一文件坏 → 不写任何字节)
+    parsed: list[tuple[int, list[tuple[int, bytes]]]] = []
+    for cf in chain_files:
+        data = cf.read_bytes()
+        sha_file = cf.with_suffix(cf.suffix + ".sha256")
+        if sha_file.exists():
+            expected = sha_file.read_text().split()[0]
+            actual = hashlib.sha256(data).hexdigest()
+            if expected != actual:
+                return {
+                    "ok": False,
+                    "error": f"sha256 mismatch for {cf.name}: "
+                             f"expected={expected[:8]} actual={actual[:8]}",
+                }
+        try:
+            parsed.append(parse_incremental_bin(data))
+        except ValueError as e:
+            return {"ok": False, "error": f"{cf.name}: {e}"}
+
+    # pass 2: 在临时副本上逐页写入 (目标库零接触)
+    applied_pages = 0
+    tmp = target_db.with_name(f".restore-tmp-{int(time.time() * 1000)}-{os.getpid()}")
+    integrity = "unknown"
+    integrity_warn: str | None = None
+    try:
+        shutil.copy2(target_db, tmp)
+        with open(tmp, "r+b") as f:
+            for page_size, pages in parsed:
+                for pgno, page in pages:
+                    f.seek((pgno - 1) * page_size)
+                    f.write(page)
+                    applied_pages += 1
+            f.flush()
+            # 不做 truncate: 逻辑页数由 page 1 header 的 size-in-pages 字段决定,
+            # 链外残尾 (仅当库自 base 后收缩过才存在) 会被 SQLite 忽略;
+            # 盲 truncate 到最后写入位置会砍掉未在链中的尾页。
+
+        conn = sqlite3.connect(str(tmp))
+        try:
+            row = conn.execute("PRAGMA integrity_check").fetchone()
+            integrity = row[0] if row else "unknown"
+        except sqlite3.Error as e:
+            # DatabaseError ("database disk image is malformed") 与 OperationalError
+            # 都要接住 — 增量页破坏 b-tree 时必须返回 ok=False, 不能 traceback
+            if "vtable constructor failed" in str(e):
+                # 已知: standalone 环境缺 FTS5 module, 库文件本身可能完好
+                integrity = "warn"
+                integrity_warn = str(e)
+            else:
+                return {"ok": False, "applied_pages": applied_pages,
+                        "integrity_check": "error", "error": str(e)}
+        finally:
+            conn.close()
+
+        if integrity not in ("ok", "warn"):
+            return {"ok": False, "db_path": str(target_db),
+                    "applied_pages": applied_pages, "integrity_check": integrity,
+                    "chain_files": len(chain_files),
+                    "error": f"integrity_check failed: {integrity}"}
+
+        # 全部通过: 清掉目标残留 sidecar (旧 -wal 里是 live 库的帧,
+        # 混入被改写的 db 会直接判 corrupt) 后原子替换
+        for suffix in ("-wal", "-shm"):
+            stale = target_db.with_name(target_db.name + suffix)
+            if stale.exists():
+                logger.warning(f"restore: removing stale sidecar {stale.name}")
+                stale.unlink(missing_ok=True)
+        os.replace(tmp, target_db)
+    except Exception as e:
+        tmp.unlink(missing_ok=True)
+        return {"ok": False, "applied_pages": applied_pages,
+                "error": f"apply failed: {e}"}
+    finally:
+        tmp.unlink(missing_ok=True)  # 成功路径已被 replace, 失败路径兜底清理
+
+    result: dict = {
+        "ok": True,
+        "db_path": str(target_db),
+        "applied_pages": applied_pages,
+        "integrity_check": integrity,
+        "chain_files": len(chain_files),
+    }
+    if integrity_warn:
+        result["integrity_warn"] = integrity_warn
+    return result
+
+
 def restore_from_incremental_chain(base_backup: Path, chain_dir: Path | None = None) -> dict:
-    """从全量备份 + 增量链恢复。
+    """从全量备份 + 增量链恢复 (P0-C: 真实页写入 + integrity 校验)。
 
     算法:
-    1. 拷贝 base_backup → dst_db
-    2. 顺序读取 chain_dir/wal-*.bin 按序应用 page 字节
-       (注意: 本设计简化了 WAL frame header 校验, 生产应解 WAL frame header)
-    3. REINDEX + ANALYZE
+    1. 拷贝 base_backup → 同目录 ``.restore-tmp-<ts>`` staging 文件
+       (目标库零接触, 失败路径不留半成品)
+    2. apply_incremental_chain: 预校验 (magic/sha256/长度) → 临时副本上
+       按 (pgno-1)*page_size seek 写入每页 → PRAGMA integrity_check →
+       通过后 os.replace 回 staging
+    3. staging 替换目标库前清掉残留 -wal/-shm (旧 -wal 里是 live 库的帧,
+       混入被改写的 db 会直接判 corrupt)
+    4. 失败 (任一链文件非法 / integrity != ok) 返回 ok=False, 删 staging,
+       目标库零接触, 不假报成功
 
-    Returns: {ok, db_path, applied_pages, base_size, total_size}
+    Returns: {ok, db_path, applied_pages, integrity_check, base_size, chain_files}
     """
+    if not base_backup.exists():
+        return {"ok": False, "error": f"base backup not found: {base_backup}"}
     if chain_dir is None:
         chain_dir = base_backup.parent / INCREMENTAL_DIR
 
-    chain_files = sorted(chain_dir.glob(f"{INCREMENTAL_CHAIN_PREFIX}*"))
+    # 只取 .bin (旧 glob `wal-*` 会把 .sha256 旁车当链文件读)
+    chain_files = sorted(chain_dir.glob(f"{INCREMENTAL_CHAIN_PREFIX}*.bin"))
     if not chain_files:
         return {"ok": False, "error": "no incremental chain found"}
 
     dst = Path(config.db_path)
     dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(base_backup, dst)
 
-    # 拼接所有增量 page 字节 (简化模型: 链 = 顺序 page 追加)
-    applied_pages = 0
-    for cf in chain_files:
-        data = cf.read_bytes()
-        # page 大小固定 4096
-        page_size = INCREMENTAL_PAGE_SIZE
-        pages = [data[i:i + page_size] for i in range(0, len(data), page_size)]
-        applied_pages += len(pages)
+    # 恢复原子性: base 先落 staging, 链全部应用且 integrity 通过后才替换目标
+    # (前缀与 apply 的 .restore-tmp- 区分, 避免同毫秒命名碰撞)
+    staging = dst.with_name(f".restore-base-{int(time.time() * 1000)}-{os.getpid()}")
+    try:
+        shutil.copy2(base_backup, staging)
+    except OSError as e:
+        staging.unlink(missing_ok=True)
+        return {"ok": False, "error": f"copy base backup failed: {e}"}
 
-    logger.info(
-        f"restore incremental: base={base_backup.name} "
-        f"chain_files={len(chain_files)} applied_pages={applied_pages}"
-    )
-    return {
-        "ok": True,
-        "db_path": str(dst),
-        "base_size": base_backup.stat().st_size,
-        "applied_pages": applied_pages,
-        "chain_files": len(chain_files),
-    }
+    result = apply_incremental_chain(staging, chain_files)
+    if result.get("ok"):
+        try:
+            os.replace(staging, dst)
+        except OSError as e:
+            staging.unlink(missing_ok=True)
+            return {"ok": False, "error": f"atomic replace failed: {e}",
+                    "base_size": base_backup.stat().st_size}
+    else:
+        staging.unlink(missing_ok=True)
+
+    result["base_size"] = base_backup.stat().st_size
+    if result.get("ok"):
+        logger.info(
+            f"restore incremental: base={base_backup.name} "
+            f"chain_files={result['chain_files']} "
+            f"applied_pages={result['applied_pages']} integrity={result['integrity_check']}"
+        )
+    else:
+        logger.error(f"restore incremental failed: {result.get('error')}")
+    return result
 
 
 __all__ = [
     "BACKUP_RETENTION",
+    "INCREMENTAL_BIN_MAGIC",
     "INCREMENTAL_DIR",
     "MAX_INCREMENTAL_PAGES",
+    "apply_incremental_chain",
     "backup_database",
     "backup_incremental",
+    "backup_side_dbs",
+    "parse_incremental_bin",
     "restore_from_backup",
     "restore_from_incremental_chain",
 ]

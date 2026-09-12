@@ -5,6 +5,7 @@
  * PUT /api/observability/thresholds (整块替换); 校验失败显示 400 错误.
  */
 import { useEffect, useState } from 'react';
+import { getApiErrorMessage } from '../../../lib/api';
 
 interface MetricSpec {
   warn?: number;
@@ -89,7 +90,7 @@ export function ThresholdEditor() {
       });
       if (!r.ok) {
         const body = await r.json().catch(() => ({}));
-        throw new Error(body.detail ?? `HTTP ${r.status}`);
+        throw new Error(getApiErrorMessage(body) || `HTTP ${r.status}`);
       }
       setMessage('已保存');
     } catch (e) {

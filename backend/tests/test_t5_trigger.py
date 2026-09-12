@@ -313,7 +313,8 @@ def test_t5_api_endpoint_not_found(api_client):
     response = api_client.post("/api/kl/rollback/ghost-item")
     assert response.status_code == 400
     data = response.json()
-    assert "detail" in data
+    # D13: 扁平 envelope
+    assert data["code"] == "E_VALIDATION"
 
 
 def test_t5_api_endpoint_wrong_state(api_client, temp_db, knowledge_dir):

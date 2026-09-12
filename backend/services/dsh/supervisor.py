@@ -32,14 +32,91 @@ supervisor = ProcessSupervisor(max_restarts=3)
 # ---------------------------------------------------------------------------
 # 配置 (settings KV 持久化; env 仅作首次默认)
 # ---------------------------------------------------------------------------
-def _parse_command(raw: str | None) -> list[str]:
-    """把 settings 里的命令字符串解析为 argv; 空串/None → []。"""
+# P0-A RCE 加固 (FIRST_PRINCIPLES_ANALYSIS_2026-09-11 §0.1): dsh.command
+# 曾可填任意 shell 字符串并经 shlex + subprocess.Popen 执行 (等价 RCE)。
+# 现强制 argv[0] 白名单; env HOTSPOT_DSH_COMMAND_ALLOWLIST (逗号分隔) 可追加
+# basename 或绝对路径条目。
+_DEFAULT_COMMAND_ALLOWLIST = ("dsh", "pi", "python", "python3", "node", "npx")
+_ALLOWLIST_ENV = "HOTSPOT_DSH_COMMAND_ALLOWLIST"
+
+
+class DshCommandNotAllowedError(ValueError):
+    """dsh 启动命令 argv[0] 未命中白名单 (拒绝执行/写入)。"""
+
+
+def _command_allowlist() -> tuple[set[str], set[str]]:
+    """返回 (允许的 basename 集合, 允许的绝对路径集合)。
+
+    env 条目以 ``/`` 开头视为绝对路径白名单, 否则视为可执行文件 basename。
+    """
+    basenames = set(_DEFAULT_COMMAND_ALLOWLIST)
+    abspaths: set[str] = set()
+    for entry in os.getenv(_ALLOWLIST_ENV, "").split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        if entry.startswith("/"):
+            abspaths.add(os.path.normpath(entry))
+        else:
+            basenames.add(entry)
+    return basenames, abspaths
+
+
+def _basename_allowed(exe: str, basenames: set[str]) -> bool:
+    """basename 精确匹配; python 族 (python3.12 等) 按去版本号 stem 匹配。"""
+    base = os.path.basename(exe)
+    if base in basenames:
+        return True
+    stem = base.split(".")[0]
+    return stem in ("python", "python3") and stem in basenames
+
+
+def validate_command_argv(argv: list[str]) -> list[str]:
+    """校验 argv[0] 命中白名单; 未命中抛 DshCommandNotAllowedError (空 argv 直通)。"""
+    if not argv:
+        return argv
+    exe = argv[0]
+    basenames, abspaths = _command_allowlist()
+    if os.path.isabs(exe) and os.path.normpath(exe) in abspaths:
+        return argv
+    if _basename_allowed(exe, basenames):
+        return argv
+    raise DshCommandNotAllowedError(
+        f"dsh 启动命令被拒绝: 可执行文件 {exe!r} 不在白名单 "
+        f"{sorted(basenames)} 内 (绝对路径白名单 {sorted(abspaths)}); "
+        f"如确需放行, 设置 env {_ALLOWLIST_ENV} 追加。"
+    )
+
+
+def validate_command_string(raw: str) -> list[str]:
+    """shlex 解析 + 白名单校验命令字符串; 非法抛 DshCommandNotAllowedError。"""
+    return validate_command_argv(_shlex_argv(raw))
+
+
+def _shlex_argv(raw: str | None) -> list[str]:
+    """把命令字符串解析为 argv; 空串/None → []; shlex 失败 → [] + warning。"""
     if not raw or not raw.strip():
         return []
     try:
         return shlex.split(raw.strip())
     except ValueError as e:
         logger.warning("dsh command parse failed (%s): %s", raw, e)
+        return []
+
+
+def _parse_command(raw: str | None) -> list[str]:
+    """把 settings 里的命令字符串解析为 argv; 空串/None → []。
+
+    白名单校验失败 (含存量 KV 里的历史脏值) → 回退默认 (空 = 不启动) 并
+    warning, 不抛异常、不炸读取方。
+    """
+    argv = _shlex_argv(raw)
+    try:
+        return validate_command_argv(argv)
+    except DshCommandNotAllowedError as e:
+        logger.warning(
+            "settings KV dsh.command 含白名单外命令, 已回退默认 (视为未配置): %s", e
+        )
         return []
 
 
@@ -65,11 +142,17 @@ def set_dsh_config(
     command: str | None = None,
     autostart: bool | None = None,
 ) -> dict[str, Any]:
-    """写 dsh 配置并返回合并后的新配置。endpoint 空串 = 恢复 env 默认。"""
+    """写 dsh 配置并返回合并后的新配置。endpoint 空串 = 恢复 env 默认。
+
+    command 空串 = 清除 (合法); 非空命令 argv[0] 未命中白名单 →
+    DshCommandNotAllowedError (API 层转 400), 拒绝写入 settings KV。
+    """
     repo = SettingsRepository()
     if endpoint is not None:
         repo.set(f"{_SETTINGS_PREFIX}endpoint", endpoint.strip())
     if command is not None:
+        if command.strip():
+            validate_command_string(command)
         repo.set(f"{_SETTINGS_PREFIX}command", command.strip())
     if autostart is not None:
         repo.set(f"{_SETTINGS_PREFIX}autostart", bool(autostart))
@@ -166,6 +249,7 @@ def autostart_if_configured() -> None:
 
 
 __all__ = [
+    "DshCommandNotAllowedError",
     "autostart_if_configured",
     "dsh_full_status",
     "get_dsh_config",
@@ -175,4 +259,5 @@ __all__ = [
     "start_dsh",
     "stop_dsh",
     "supervisor",
+    "validate_command_string",
 ]

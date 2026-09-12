@@ -255,5 +255,6 @@ class TestWikiWrite:
         resp = e2e_api_client.post("/api/wiki/write", json={
             "item_id": "fail-case", "title": "t"})
         assert resp.status_code == 500
-        assert "disk full" in resp.json()["detail"]
+        # D13: 扁平 envelope
+        assert "disk full" in resp.json()["message"]
         assert not (wiki_env["items"] / "fail-case.md").exists()

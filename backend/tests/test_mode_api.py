@@ -81,9 +81,10 @@ class TestSwitchMode:
     def test_invalid_mode_rejected_400(self, client):
         r = client.put("/api/mode/switch", params={"mode": "invalid"})
         assert r.status_code == 400
-        detail = r.json()["detail"]
-        assert "invalid mode" in detail["message"]
-        assert "brief" in detail["valid_modes"]
+        # D13: 扁平 envelope — detail dict 的附加字段平铺到顶层
+        body = r.json()
+        assert "invalid mode" in body["message"]
+        assert "brief" in body["valid_modes"]
 
     def test_switch_marks_digest_read(self, client):
         """切换模式后, 后续 /current 应返回 scan (简报标记已读)。"""

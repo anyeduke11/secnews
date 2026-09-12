@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
+import { getApiErrorMessage } from '../../lib/api';
 
 interface TagItem {
   id: string;
@@ -69,8 +70,9 @@ export function TagsPage({ onBack }: { onBack?: () => void }) {
         body: JSON.stringify({ id: newId.trim(), label: newLabel.trim(), type: newType }),
       });
       if (!r.ok) {
-        const detail = await r.json().catch(() => null);
-        setMsg({ kind: 'err', text: `创建失败 (${r.status})${detail?.detail?.message ? `: ${detail.detail.message}` : ''}` });
+        const body = await r.json().catch(() => null);
+        const errMsg = getApiErrorMessage(body);
+        setMsg({ kind: 'err', text: `创建失败 (${r.status})${errMsg ? `: ${errMsg}` : ''}` });
         return;
       }
       setMsg({ kind: 'ok', text: `已创建 ${newLabel.trim()}` });

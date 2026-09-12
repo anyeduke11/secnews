@@ -424,6 +424,19 @@ async def scheduled_stats_job() -> None:
         _logger.error(f"scheduled_stats_job crashed: {e}")
 
 
+def _reap_expired_v1_intents() -> int:
+    """P0-E (FIRST_PRINCIPLES_ANALYSIS 2026-09-11): 回收超时未 commit 的 v1 evidence intent。
+
+    INTENT_TIMEOUT_SEC=3600 → 频率匹配小时级 observability_ttl_job (不新增 job
+    注册, 避免架构数字 churn)。失败由调用方 try/except 降级为 warning, 不影响
+    TTL 清理主链。
+    """
+    from backend.services.v1_evidence_service import V1EvidenceService
+
+    reaped = V1EvidenceService().reap_expired_intents()
+    return len(reaped)
+
+
 @instrument_job("observability_ttl")
 async def observability_ttl_job() -> None:
     """v0.7 Batch 1+③+④: 观测表 TTL 清理 — 按迁移 080/081/082 的 retention 注释执行。
@@ -468,6 +481,18 @@ async def observability_ttl_job() -> None:
             n = cur.rowcount
             per_table[table] = n
             deleted_total += n
+        # P0-E: 顺路回收超时 evidence intent (小时级周期与 INTENT_TIMEOUT_SEC
+        # 匹配)。失败只 warning — intent 回收是尽力而为, 不拖垮 TTL 清理主链。
+        try:
+            reaped = await asyncio.to_thread(_reap_expired_v1_intents)
+            if reaped:
+                _logger.info(
+                    f"observability_ttl_job: reaped {reaped} expired v1 evidence intents"
+                )
+        except Exception as reap_err:
+            _logger.warning(
+                f"observability_ttl_job: reap_expired_v1_intents failed (ignored): {reap_err}"
+            )
         _logger.info(
             f"observability_ttl_job: deleted={deleted_total} per_table={per_table}"
         )

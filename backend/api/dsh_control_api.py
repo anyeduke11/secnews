@@ -8,7 +8,7 @@
 - POST /start    拉起 dsh 进程 (幂等; 未配置命令时 409)
 - POST /stop     终止 dsh 进程
 - POST /restart  重启
-- PUT  /config   写 endpoint / 启动命令 / autostart (settings KV 持久化)
+- PUT  /config   写 endpoint / 启动命令 (argv[0] 白名单, 拒绝→400) / autostart
 """
 from __future__ import annotations
 
@@ -62,8 +62,20 @@ def restart_process() -> Any:
 
 
 @router.put("/config")
-def update_config(body: DshConfigUpdate) -> dict[str, Any]:
-    """持久化 dsh 配置 (settings KV), 返回合并后的新配置与状态。"""
+def update_config(body: DshConfigUpdate) -> Any:
+    """持久化 dsh 配置 (settings KV), 返回合并后的新配置与状态。
+
+    P0-A: 命令 argv[0] 未命中白名单 → 400 (service 层 set_dsh_config 亦
+    强制校验, 双层防御)。
+    """
+    if body.command is not None and body.command.strip():
+        try:
+            dsh_sup.validate_command_string(body.command)
+        except dsh_sup.DshCommandNotAllowedError as e:
+            return JSONResponse(
+                status_code=400,
+                content={"code": "E_VALIDATION", "message": str(e)},
+            )
     cfg = dsh_sup.set_dsh_config(
         endpoint=body.endpoint,
         command=body.command,

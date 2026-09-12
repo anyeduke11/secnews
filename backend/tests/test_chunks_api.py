@@ -173,7 +173,7 @@ class TestGenerateChunks:
 
         resp = client.post("/api/knowledge/chunks/generate/k-gen-dup")
         assert resp.status_code == 409
-        assert "already exist" in resp.json()["detail"]
+        assert "already exist" in resp.json()["message"]
 
         # Cleanup
         md_path.unlink(missing_ok=True)
@@ -181,4 +181,4 @@ class TestGenerateChunks:
     def test_generate_returns_404_for_nonexistent_item(self, client):
         resp = client.post("/api/knowledge/chunks/generate/no-such-item")
         assert resp.status_code == 404
-        assert "not found" in resp.json()["detail"].lower()
+        assert "not found" in resp.json()["message"].lower()

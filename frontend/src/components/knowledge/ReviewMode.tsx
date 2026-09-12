@@ -9,6 +9,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '../Icon';
+import { getApiErrorMessage } from '../../lib/api';
 import { OnboardingHint } from '../layout/OnboardingHint';
 
 // ── 类型定义 ──────────────────────────────────────────────────
@@ -156,7 +157,7 @@ export function ReviewMode() {
       );
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
-        throw new Error(errData?.detail?.message || `评分提交失败 (${res.status})`);
+        throw new Error(getApiErrorMessage(errData) || `评分提交失败 (${res.status})`);
       }
       const data: GradeResponse = await res.json();
       if (data.status !== 'ok') throw new Error('评分提交失败');

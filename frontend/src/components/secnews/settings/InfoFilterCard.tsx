@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../../../contexts/I18nContext';
+import { getApiErrorMessage } from '../../../lib/api';
 
 interface FilterRule {
   id: number;
@@ -109,7 +110,7 @@ export function InfoFilterCard() {
       });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
-        setOpMsg({ kind: 'err', text: `${t('info_filter.create_failed')}: ${d.detail ?? r.status}` });
+        setOpMsg({ kind: 'err', text: `${t('info_filter.create_failed')}: ${getApiErrorMessage(d) || r.status}` });
         return;
       }
       setOpMsg({ kind: 'ok', text: t('info_filter.created') });

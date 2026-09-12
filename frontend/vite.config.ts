@@ -11,7 +11,9 @@ const backendTarget = process.env.HOTSPOT_BACKEND_URL || `http://127.0.0.1:${bac
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: '0.0.0.0',
+    // P0-B (FIRST_PRINCIPLES §0.1): 只绑回环 — 0.0.0.0 会把 /api 反代暴露给
+    // 整个局域网, 绕过后端 run.py 的回环 guard (经 8898 进来的请求源是 127.0.0.1)
+    host: '127.0.0.1',
     port: 8898,
     // Phase 50: 禁止端口漂移 — 8898 被占用直接报错, 不自动切到 5173/5174
     strictPort: true,

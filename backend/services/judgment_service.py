@@ -314,6 +314,9 @@ class JudgmentService:
             "created_at": now,
             "updated_at": now,
         }
+        # 实体行先行落库 (P0-E: commit_intent 会校验 v1_judgments 行存在,
+        # 与 action/knowledge_service 的 insert → intent 顺序对齐)
+        self.repo.insert(body)
         # 走 V1EvidenceService.create_intent 拿 receipt (T05 单一提交入口契约)
         idempotency_key = f"v1-judgment-{case_id}-{parsed['claim_type']}-{body['content_hash'][:16]}"
         try:
@@ -324,9 +327,8 @@ class JudgmentService:
             )
             evidence.commit_intent(intent["intent_id"], entity_id=jid, projection=None)
         except Exception as e:
-            # V1EvidenceService 失败不阻断 (judgment 主体落 v1_judgments 表)
+            # V1EvidenceService 失败不阻断 (judgment 主体已落 v1_judgments 表)
             logger.warning(f"V1EvidenceService trace failed (judgment still inserts): {e}")
-        self.repo.insert(body)
         # 关联 case
         self.repo.link_to_case(case_id, jid)
         return {"judgment": body, "idempotent_replay": False}

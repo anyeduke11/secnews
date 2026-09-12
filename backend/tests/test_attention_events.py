@@ -80,11 +80,8 @@ class TestCreateAttentionEvent:
             json={"item_id": "k-1", "event_type": "invalid_type"},
         )
         assert resp.status_code == 400
-        detail = resp.json()["detail"]
-        if isinstance(detail, dict):
-            assert "event_type" in detail["message"]
-        else:
-            assert "event_type" in detail
+        # D13: 扁平 envelope (无嵌套 detail)
+        assert "event_type" in resp.json()["message"]
 
     def test_all_six_event_types_accepted(self, client):
         _insert_knowledge_item("k-all")

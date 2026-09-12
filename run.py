@@ -24,7 +24,7 @@ import os
 
 import uvicorn
 
-from backend.config import config
+from backend.config import config, resolve_bind_host
 
 
 def main() -> None:
@@ -32,17 +32,9 @@ def main() -> None:
     host = os.getenv("HOTSPOT_HOST") or os.getenv("HOST", config.host)
     port = int(os.getenv("HOTSPOT_PORT") or os.getenv("PORT", str(config.port)))
 
-    # SecNews 定位是单人本地工作站, 而全 API 无认证 —— 绑非回环等于把写接口开放
-    # 给整个局域网。历史实况是启动器导出了 HOTSPOT_HOST=0.0.0.0 (注意: 代码不加载
-    # .env, 所以那是环境覆盖而非 .env 生效)。默认收紧到回环, 确需局域网访问时
-    # 必须显式 HOTSPOT_ALLOW_LAN=1。
-    if host not in ("127.0.0.1", "localhost", "::1") and os.getenv("HOTSPOT_ALLOW_LAN") != "1":
-        print(
-            f"[warn] 忽略 HOTSPOT_HOST={host!r}: 个人工作站默认仅监听回环; "
-            "确需局域网访问请设 HOTSPOT_ALLOW_LAN=1 (并先给 API 加鉴权)。",
-            flush=True,
-        )
-        host = "127.0.0.1"
+    # P0-B: 回环守卫抽到 backend.config.resolve_bind_host, 与
+    # backend.main.__main__ 共用同一实现 (勿在此复制逻辑)。
+    host = resolve_bind_host(host)
 
     workers = int(os.getenv("WORKERS", "1"))
     uvicorn.run(

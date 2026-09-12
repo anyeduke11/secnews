@@ -9,6 +9,7 @@
  */
 import { useState, useRef } from 'react';
 import { Icon } from '../Icon';
+import { getApiErrorMessage } from '../../lib/api';
 import { BookmarkImport } from '../BookmarkImport';
 import { KNOWLEDGE_AREAS } from './KnowledgeTabs';
 
@@ -62,7 +63,7 @@ export function KnowledgeImport() {
     fetch('/api/knowledge/sync?source=cubox', { method: 'POST' })
       .then(async r => {
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data?.detail || `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(getApiErrorMessage(data) || `HTTP ${r.status}`);
         return data;
       })
       .then(data => {

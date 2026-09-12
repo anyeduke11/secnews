@@ -204,58 +204,86 @@ class CodegardenResourceService:
     def _encrypt_env_template(self, env_vars: dict) -> dict:
         """对 env_vars 中敏感 key 的 value 做 Fernet 加密.
 
-        Returns: {"KEY": {"ciphertext": "...", "encrypted": true} | "plain_value"}
+        P0-G 修复 (FIRST_PRINCIPLES_ANALYSIS 2026-09-11): ``encrypt_api_key``
+        签名是 ``(fernet_key, api_key)`` — 旧实现传 ``(明文, ek_row.id)``,
+        两参均错, 恒抛异常被 except 吞掉 → 敏感字段静默明文落库。现改为从
+        secrets_service 解锁态取 fernet_key; 未解锁直接 fail-fast (拒绝明文
+        落库, 语义对齐 sync_fernet_mixin._assert_secrets_sync_safe)。
+        ciphertext 以 hex 字符串存储 (metadata 走 JSON 序列化, bytes 不可存)。
+
+        Returns: {"KEY": {"ciphertext": "<hex>", "encrypted": true} | "plain_value"}
         """
         from backend.crypto import encrypt_api_key
         from backend.repository.encryption_keys_repo import EncryptionKeyRepository
+        from backend.services.secrets_service import _is_unlocked, _unlock_state
 
         ek_row = EncryptionKeyRepository().get_default()
         if ek_row is None:
-            # 无加密密钥, 全部以明文保存 (开发模式)
+            # 无加密密钥 (vault 未初始化的开发模式): 保持明文
             logger.warning("save_env_template: 无 encryption_key, 明文保存")
             return dict(env_vars.items())
+
+        fernet_key = None
+        if _is_unlocked(ek_row.id):
+            fernet_key = _unlock_state[ek_row.id].get("fernet_key")
+        if fernet_key is None:
+            raise InternalException(
+                "secrets vault 未解锁, 无法加密环境变量模板的敏感字段 "
+                "(拒绝明文落库); 请先在「密钥管理」解锁后重试"
+            )
 
         result: dict[str, Any] = {}
         for k, v in env_vars.items():
             if _SENSITIVE_KEY_PATTERNS.search(k):
-                try:
-                    cipher = encrypt_api_key(str(v), ek_row.id)
-                    result[k] = {"ciphertext": cipher, "encrypted": True}
-                except Exception as e:
-                    logger.warning(f"encrypt env var {k} failed: {e}, 明文保存")
-                    result[k] = v
+                plain = str(v)
+                if not plain:
+                    result[k] = ""  # 空值无秘密可言, 避免 encrypt fail-fast 阻断保存
+                else:
+                    result[k] = {
+                        "ciphertext": encrypt_api_key(fernet_key, plain).hex(),
+                        "encrypted": True,
+                    }
             else:
                 result[k] = v
         return result
 
     def _decrypt_env_template(self, encrypted_vars: dict) -> dict:
-        """解密 env_template 中的敏感字段."""
+        """解密 env_template 中的敏感字段.
+
+        P0-G 修复: ``decrypt_api_key`` 签名是 ``(fernet_key, ciphertext)`` —
+        旧实现传反恒解密失败; 且未解锁分支对非 dict 值 (明文/旧格式残留) 直接
+        回传原值, 是 GET env-templates 泄明文的根因, 现一律返回掩码 (fail-closed)。
+        """
         from backend.crypto import decrypt_api_key
         from backend.repository.encryption_keys_repo import EncryptionKeyRepository
         from backend.services.secrets_service import _is_unlocked, _unlock_state
 
         ek_row = EncryptionKeyRepository().get_default()
         if ek_row is None:
-            return encrypted_vars  # 无加密
+            # 无加密密钥: 值必然是明文/无加密残留 — 同样 fail-closed 掩码
+            return {
+                k: ("******" if not isinstance(v, dict) or v.get("encrypted") else v)
+                for k, v in encrypted_vars.items()
+            }
 
         fernet_key = None
         if _is_unlocked(ek_row.id):
-            fernet_key = _unlock_state[ek_row.id]["fernet_key"]
+            fernet_key = _unlock_state[ek_row.id].get("fernet_key")
         if fernet_key is None:
-            # 未解锁, 返回脱敏值
+            # 未解锁, fail-closed: 加密值与非 dict 明文/旧格式残留一律掩码
             result: dict[str, Any] = {}
             for k, v in encrypted_vars.items():
-                if isinstance(v, dict) and v.get("encrypted"):
-                    result[k] = "******"  # 脱敏
+                if isinstance(v, dict) and not v.get("encrypted"):
+                    result[k] = v  # 显式未加密的结构化值, 原样返回
                 else:
-                    result[k] = v
+                    result[k] = "******"  # 加密值 / 明文残留一律脱敏
             return result
 
         result = {}
         for k, v in encrypted_vars.items():
             if isinstance(v, dict) and v.get("encrypted"):
                 try:
-                    plain = decrypt_api_key(v["ciphertext"], fernet_key)
+                    plain = decrypt_api_key(fernet_key, bytes.fromhex(v["ciphertext"]))
                     result[k] = plain
                 except Exception as e:
                     logger.warning(f"decrypt env var {k} failed: {e}")

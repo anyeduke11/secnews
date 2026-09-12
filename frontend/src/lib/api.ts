@@ -5,7 +5,7 @@
  *
  * 能力:
  *   - 默认 JSON 请求头 (Content-Type: application/json, 可被调用方覆盖)
- *   - 后端 {detail} 错误解析为友好 message (detail.message / detail 字符串 / statusText / HTTP xx)
+ *   - 后端错误信封解析为友好 message (优先扁平 {message}, 兼容旧 detail 字符串/嵌套 / statusText / HTTP xx)
  *   - 非 2xx 一律抛带 message 的 Error
  *   - 可选 loading 回调 (onLoadingChange), 配合 skipLoading 跳过
  *   - AbortController 透传 (调用方持有 signal, 自行管理取消)
@@ -23,18 +23,32 @@ export interface ApiFetchOptions extends Omit<RequestInit, 'body'> {
   parse?: 'json' | 'blob';
 }
 
-/** 从 FastAPI 风格响应体提取友好错误信息 */
-function extractErrorDetail(detail: unknown): string | null {
+/**
+ * 从后端错误响应体提取友好 message (统一入口, 供组件直读响应体时复用)。
+ *
+ * 优先读扁平信封 {code, message} 的 message; 兼容旧 FastAPI detail
+ * (字符串或嵌套 {message}); 读不到返回空串, 调用方自行兜底
+ * (statusText / HTTP xx)。
+ */
+export function getApiErrorMessage(body: unknown): string {
+  if (typeof body === 'string' && body) return body;
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return '';
+  const obj = body as Record<string, unknown>;
+  // 扁平信封: {code, message, ...}
+  if (typeof obj.message === 'string' && obj.message) return obj.message;
+  // 兼容旧 FastAPI 风格: {detail: "..."} 或 {detail: {message: "..."}}
+  const detail = obj.detail;
   if (typeof detail === 'string' && detail) return detail;
   if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
-    const inner = (detail as { detail?: unknown }).detail;
-    if (typeof inner === 'string' && inner) return inner;
-    if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
-      const msg = (inner as { message?: unknown }).message;
-      if (typeof msg === 'string' && msg) return msg;
-    }
+    const msg = (detail as { message?: unknown }).message;
+    if (typeof msg === 'string' && msg) return msg;
   }
-  return null;
+  return '';
+}
+
+/** 从错误响应体提取友好信息, 读不到返回 null (apiFetch 内部用) */
+function extractErrorDetail(body: unknown): string | null {
+  return getApiErrorMessage(body) || null;
 }
 
 /**

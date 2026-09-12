@@ -415,15 +415,16 @@ def test_api_update_cas_conflict(e2e_api_client: TestClient) -> None:
         json={"expected_revision": 999, "title": "wrong"},
     )
     assert resp.status_code == 409
-    detail = resp.json()["detail"]
-    assert detail["code"] == "E_CONFLICT"
-    assert detail["current_revision"] == 1
+    # D13: 扁平 envelope — detail dict 的附加字段平铺到顶层
+    body = resp.json()
+    assert body["code"] == "E_CONFLICT"
+    assert body["current_revision"] == 1
 
 
 def test_api_get_not_found(e2e_api_client: TestClient) -> None:
     resp = e2e_api_client.get(f"/api/v1/cases/{_ulid_like()}")
     assert resp.status_code == 404
-    assert resp.json()["detail"]["code"] == "E_NOT_FOUND"
+    assert resp.json()["code"] == "E_NOT_FOUND"
 
 
 def test_api_close_success(e2e_api_client: TestClient) -> None:
@@ -467,8 +468,9 @@ def test_api_validation_error_returns_400(e2e_api_client: TestClient) -> None:
     )
     assert resp.status_code in (400, 422)
     body = resp.json()
-    # Pydantic 422 把错误放在 "detail" (list 形式); 我们关注顶层有 detail 即可
-    assert "detail" in body
+    # D13: 扁平 envelope — Pydantic 422 → E_VALIDATION
+    assert body["code"] == "E_VALIDATION"
+    assert body["message"]
 
 
 def test_api_validation_error_business_returns_400(e2e_api_client: TestClient) -> None:

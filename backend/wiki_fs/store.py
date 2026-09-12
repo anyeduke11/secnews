@@ -14,6 +14,26 @@ from pathlib import Path
 from backend.logging_config import logger
 from backend.wiki_fs.contract import parse_frontmatter, serialize_frontmatter
 
+# P0-F (2026-09-12): id 白名单 — 对齐 wiki_tools.py _PATH_RE 字符集语义
+# (字母开头, 仅 [A-Za-z0-9._-])。URL 编码 %2e%2e%2f 类穿越在路径拼装处统一拒绝。
+_SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+
+def _safe_md_path(base_dir: Path, name: str) -> Path:
+    """拼装 ``base_dir/{name}.md``, 白名单 + resolve 前缀双校验。
+
+    非法 id (含 ``/`` ``\\`` ``..`` 穿越或空字节) 抛 ValueError,
+    不产生任何文件系统访问。read_item / write_item / import_bookmarks /
+    create_concept 共用, 单点堵住所有路径拼装入口。
+    """
+    if not name or not _SLUG_RE.fullmatch(name):
+        raise ValueError(f"invalid id (charset whitelist): {name!r}")
+    path = (base_dir / f"{name}.md").resolve()
+    root = base_dir.resolve()
+    if not path.is_relative_to(root):
+        raise ValueError(f"path traversal rejected: {name!r}")
+    return path
+
 
 class WikiFs:
     """Filesystem-backed wiki store rooted at ``knowledge/``."""
@@ -51,7 +71,7 @@ class WikiFs:
         v0.6.3 P2-2a: mtime+size 校验缓存。stat 一次 (~10µs) 命中即免
         read_text+YAML 解析 (~130µs); 外部改写因 mtime/size 变化自动失效。
         """
-        path = self._items_dir / f"{item_id}.md"
+        path = _safe_md_path(self._items_dir, item_id)
         try:
             stat = path.stat()
         except OSError:
@@ -81,7 +101,7 @@ class WikiFs:
         直接覆盖缓存条目, 后续 read_item 免 stat 后重解析)。
         """
         self._ensure_dirs()
-        path = self._items_dir / f"{item_id}.md"
+        path = _safe_md_path(self._items_dir, item_id)
         fm = doc.get("fm", {})
         body = doc.get("body", "")
 
@@ -171,7 +191,7 @@ class WikiFs:
             if not url:
                 continue
             item_id = _slug_from_url(url)
-            if (self._items_dir / f"{item_id}.md").exists():
+            if _safe_md_path(self._items_dir, item_id).exists():
                 dup += 1
                 continue
             now = datetime.now(timezone.utc).isoformat()
@@ -270,7 +290,7 @@ class WikiFs:
         """Create a concept card."""
         self._ensure_dirs()
         fm = {"id": concept_id, "name": name, "tags": tags}
-        path = self._concepts_dir / f"{concept_id}.md"
+        path = _safe_md_path(self._concepts_dir, concept_id)
         content = f"{serialize_frontmatter(fm)}\n"
         path.write_text(content, encoding="utf-8")
 

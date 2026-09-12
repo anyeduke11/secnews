@@ -8,6 +8,7 @@ Note: This file was merged from ``backend/config.py`` to resolve a
 conflict between the ``backend/config`` module and the
 ``backend/config/`` package (Phase 16 Hybrid AI).
 """
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -129,4 +130,23 @@ class Settings(BaseSettings):
 config = Settings()
 
 
-__all__ = ["BASE_DIR", "Settings", "config"]
+def resolve_bind_host(host: str) -> str:
+    """回环绑定守卫 (P0-B) — ``run.py`` 与 ``backend.main.__main__`` 共用。
+
+    SecNews 定位是单人本地工作站, 而全 API 默认无 token —— 绑非回环等于把
+    写接口开放给整个局域网。非回环 host 在未显式设置 ``HOTSPOT_ALLOW_LAN=1``
+    时强制改回 ``127.0.0.1``。
+    """
+    if host in ("127.0.0.1", "localhost", "::1"):
+        return host
+    if os.getenv("HOTSPOT_ALLOW_LAN") == "1":
+        return host
+    print(
+        f"[warn] 忽略 HOTSPOT_HOST={host!r}: 个人工作站默认仅监听回环; "
+        "确需局域网访问请设 HOTSPOT_ALLOW_LAN=1 (并先给 API 加鉴权)。",
+        flush=True,
+    )
+    return "127.0.0.1"
+
+
+__all__ = ["BASE_DIR", "Settings", "config", "resolve_bind_host"]

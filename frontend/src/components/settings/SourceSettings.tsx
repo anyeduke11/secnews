@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { REFRESH_INTERVAL_OPTIONS } from '../../hooks/useRefreshInterval';
 import { SourceItem, SourceItemData } from './SourceItem';
+import { getApiErrorMessage } from '../../lib/api';
 
 interface SourceSettingsProps {
   open: boolean;
@@ -113,7 +114,7 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
         setNewName('');
         refreshSources();
       } else {
-        const msg = d.detail?.message || d.message || '添加失败';
+        const msg = getApiErrorMessage(d) || '添加失败';
         setSourceMessage({ type: 'error', text: msg });
       }
     } catch {

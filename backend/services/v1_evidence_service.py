@@ -47,6 +47,17 @@ RECEIPT_SUPERSEDED = "superseded"
 # Intent 超时 (秒) — 超时未 commit 的 intent 视为 rollback
 INTENT_TIMEOUT_SEC = 3600
 
+# P0-E 白名单扩展 (FIRST_PRINCIPLES_ANALYSIS 2026-09-11): receipt-only 实体类型。
+# judgment / action / knowledge 的实体行由调用方 (judgment_service /
+# action_service / knowledge_service) 通过各自 repo.insert 先行落库,
+# commit 只做存在性校验 (防外键悬空), 不重复插入 — 语义同 "case" 分支,
+# 但这三类 schema 复杂无最小行兜底, 行缺失直接 raise 由调用方 try/except 记 warning。
+_RECEIPT_ONLY_ENTITY_TYPES: dict[str, str] = {
+    "judgment": "v1_judgments",
+    "action": "v1_actions",
+    "knowledge": "v1_knowledge",
+}
+
 
 def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -220,6 +231,19 @@ class V1EvidenceService:
                                 ).fetchone()[0])[:120],
                                 "stub",
                             ),
+                        )
+                elif entity_type in _RECEIPT_ONLY_ENTITY_TYPES:
+                    # P0-E: judgment / action / knowledge — caller 已先写实体行,
+                    # 这里只校验行存在 (旧行为: 白名单外直接 ValueError → receipt
+                    # 永远 pending 的死信根因)
+                    table = _RECEIPT_ONLY_ENTITY_TYPES[entity_type]
+                    cur = conn.execute(
+                        f"SELECT 1 FROM {table} WHERE id = ?", (entity_id,)
+                    ).fetchone()
+                    if cur is None:
+                        raise ValueError(
+                            f"entity_type={entity_type} entity_id={entity_id} "
+                            f"not found in {table} (caller must insert before commit)"
                         )
                 else:
                     raise ValueError(f"unsupported entity_type={entity_type}")

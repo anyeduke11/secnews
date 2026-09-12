@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
+import { getApiErrorMessage } from '../../lib/api';
 
 interface TagSuggestion {
   id?: string;
@@ -68,8 +69,9 @@ export function ExtractPage({ onBack }: { onBack?: () => void }) {
     try {
       const r = await fetch(`/api/extract/${kind}/${encodeURIComponent(id)}`, { method: 'POST' });
       if (!r.ok) {
-        const detail = await r.json().catch(() => null);
-        setExtractMsg({ kind: 'err', text: `提取失败 (${r.status})${detail?.detail?.message ? `: ${detail.detail.message}` : ''}` });
+        const body = await r.json().catch(() => null);
+        const errMsg = getApiErrorMessage(body);
+        setExtractMsg({ kind: 'err', text: `提取失败 (${r.status})${errMsg ? `: ${errMsg}` : ''}` });
         return;
       }
       const d = await r.json();

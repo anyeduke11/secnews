@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import type { BookmarkImportResult } from '../types';
+import { getApiErrorMessage } from '../lib/api';
 
 interface BookmarkImportProps {
   onImported?: () => void;
@@ -66,7 +67,7 @@ export function BookmarkImport({ onImported }: BookmarkImportProps) {
     })
       .then(async r => {
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data?.detail || `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(getApiErrorMessage(data) || `HTTP ${r.status}`);
         return data as BookmarkImportResult;
       })
       .then(result => {

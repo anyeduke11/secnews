@@ -1010,3 +1010,66 @@
   - `python scripts/generate_meta.py --check` OK (85 routers / 127 services / 57 jobs / 13 collectors 不变, ARCHITECTURE.md 无需动)
   - ruff 触碰 11 文件 0 错; `import backend.main` 冒烟 OK (无循环依赖)
 - **潜在风险**: ①publish_event 日志从 stderr (stdlib lastResort) 改走 loguru app.log — debug 级, 观测面只会更全 ②api/events.py 不再导出 publish_event — 仓库内已 0 调用方 (全仓 grep 含 scripts/ 复核), 未入仓的本地脚本若引用需改 backend.core.events ③守卫 AST 扫描 ~700 文件, 单测耗时 <1s, 无 CI 负担。
+
+## [DEV-0192] P0-E/P0-G 修复: 证据收据死信 + codegarden 假加密 + 明文 key 清扫
+- **时间**: 2026-09-12 22:50
+- **类型**: Bug修复 (FIRST_PRINCIPLES_ANALYSIS_2026-09-11 P0-E / P0-G)
+- **关联模块**: `v1_evidence:receipt`, `judgment:commit`, `codegarden:env_template`, `scheduler:maintenance`, `migrations:settings`
+- **关联文件**: `backend/services/v1_evidence_service.py`, `backend/services/judgment_service.py`, `backend/services/codegarden_resource_service.py`, `backend/scheduler/jobs/maintenance.py`, `backend/repository/migrations/115_scrub_plaintext_llm_key.sql` (新), `backend/tests/test_p0_evidence_crypto.py` (新)
+- **问题描述**: P0-E: judgment/action/knowledge 三类 entity_type 在 `commit_intent` 白名单外 → 恒抛 ValueError 被调用方吞成 warning → 三类 receipt 永远 pending; `reap_expired_intents()` 零调用者。P0-G: `encrypt_api_key(str(v), ek_row.id)` 两参均错 (签名是 `(fernet_key, api_key)`) → 恒抛被吞 → 敏感字段明文落库且解密恒失败; `_decrypt_env_template` 未解锁分支对非 dict 值回传原值 → GET env-templates 泄明文; 生产库 settings 表 `quality.llm_api_key` 行是 37 字符明文 key。
+- **实现思路**: P0-E: commit_intent 增 receipt-only 分支 (judgment→v1_judgments / action→v1_actions / knowledge→v1_knowledge, 只做存在性校验防外键悬空, 行缺失 fail-fast); judgment_service 的 repo.insert 提前到 evidence 块前 (与 action/knowledge 顺序对齐, 否则 commit 校验必失败); reap 挂进小时级 `observability_ttl_job` (频率与 INTENT_TIMEOUT_SEC=3600 匹配, 不新增 job 注册避免架构数字 churn), 失败只 warning。P0-G: 加解密统一从 secrets_service 解锁态取 fernet_key, vault 锁定时保存敏感字段 fail-fast 拒绝明文落库 (对齐 `_assert_secrets_sync_safe` 语义), ciphertext 以 hex 存 (metadata 走 JSON, bytes 不可序列化); 读取侧 fail-closed: 未解锁/无密钥态一律 `******` 掩码 (含非 dict 明文残留)。
+- **核心变更**: 
+  - v1_evidence_service.py: 新增 `_RECEIPT_ONLY_ENTITY_TYPES` 常量 + commit_intent receipt-only 分支 (SELECT 1 校验)
+  - judgment_service.py: `_insert_draft` 中 repo.insert 提前至 evidence try 块之前
+  - codegarden_resource_service.py: `_encrypt_env_template`/`_decrypt_env_template` 参数修正 + 解锁态解析 + hex 编解码 + 未解锁/无密钥掩码 + 锁定保存 raise InternalException
+  - maintenance.py: 新增 `_reap_expired_v1_intents()` + observability_ttl_job 末尾顺路调用 (独立 try/except)
+  - migrations/115: `DELETE FROM settings WHERE key='quality.llm_api_key'` (代码 0 读取方, GateContext.llm_api_key 是 v4.4 起死字段, provider 密钥走 env > settings.kv(llm.default_provider) > router > yaml 链)
+- **测试验证**: 
+  - 新增: `backend/tests/test_p0_evidence_crypto.py` 12 passed (三类 commit 链路参数化 + judgment_service 全链路 + 行缺失 fail-fast + reap 钩子 + ttl job wiring + 往返/锁定掩码/历史明文掩码/锁定保存拒绝 + 115 迁移)
+  - 回归: test_v1_evidence/c05/judgment/action/knowledge/case_service + codegarden (resource/ops/e2e) + scheduler_jobs_v1_7 + crypto/冷库 共 177 passed / 2 skipped; 3 个 case_service API 失败为 exceptions.py D13 未提交改动 (resp envelope 变形) 所致, 与本批无关
+  - `generate_meta.py --check` OK (57/13/85/127 不变); ruff 触碰 py 文件 0 错
+- **潜在风险**: ①无密钥开发模式 (encryption_keys 空表) 保存 env_template 仍明文 (metadata.encrypted=True 标记失真, 遗留行为) — 读取侧已掩码兜底 ②解锁态下历史明文敏感值 (key 行后写入的旧行) 仍会回传原值, 新写入路径已不可能产生 ③`GET /api/codegarden/resources/env-templates` 列表端点直接回 repo 原始 metadata (dev 模式明文仍暴露), 与 detail 端点掩码行为不一致, 待后续统一 ④judgment insert→intent 顺序调换: evidence 失败时 judgment 主体照旧落库, receipt 留 pending 由 reap 兜底, 语义不变。
+
+## [DEV-0193] P0 三连: KL 路径穿越封堵 + D13 错误响应体统一 + D12 迁移副本删除
+- **时间**: 2026-09-12 22:48
+- **类型**: Bug修复 + 重构
+- **关联文件**: `backend/wiki_fs/store.py`, `backend/api/kl_pipeline_api.py`, `backend/exceptions.py`, `data/migrations/`(删除), `backend/tests/test_kl_path_traversal.py`(新增), `backend/tests/test_exceptions.py` 等 9 个测试文件
+- **问题描述**:
+  - P0-F: `GET/PUT /api/kl/items/{item_id}` 直传 `wiki_fs.read_item/write_item`, 裸 `self._items_dir / f"{item_id}.md"` 拼装, URL 编码 `%2e%2e%2f` 可任意读/覆写 .md (对照 wiki_tools.py 已有 `_PATH_RE` 白名单, kl 侧漏做)
+  - D13: exceptions.py 只注册 `HotspotException`+`Exception` 两个 handler, FastAPI 默认嵌套 `{detail:{...}}` 与自定义扁平 `{code,message,trace_id,version}` 两套响应体并存
+  - D12: `data/migrations/` 停在 070 (67 个 .sql), `backend/repository/migrations/` 已 111 个, 过期副本制造第二真相假象
+- **实现思路**: 路径校验放 wiki_fs 层单点 (store.py, 非 api 层, 避开 150 行规则); HTTPException handler 按 D13 契约映射 8 错误码, detail dict 附加字段 (current_revision/valid_modes 等) 平铺到 envelope 顶层避免信息丢失; 删除前 grep 全仓确认无代码读 `data/migrations` 作为输入 (export_migrations_for_dsh.py 仅把它当输出目录, DEFAULT_SRC 才是 repository 真相源)
+- **核心变更**:
+  - `backend/wiki_fs/store.py`: 新增 `_SLUG_RE` (`^[A-Za-z0-9][A-Za-z0-9._-]*$`, 对齐 wiki_tools 语义) + `_safe_md_path(base_dir, name)` 白名单 + resolve 前缀双校验, 非法抛 ValueError; read_item/write_item/import_bookmarks 存在性检查/create_concept 四处入口统一改走该 helper (scan_inbox 经 write_item 间接受益, 坏 id 会被既有 except 送 quarantine)
+  - `backend/api/kl_pipeline_api.py`: get_item/update_item 捕获 ValueError → HTTPException(400, {"message": "invalid item_id"}), GET/PUT 两侧同样生效 (+11 行, 文件 273 行为既有超标, 本批未加剧)
+  - `backend/exceptions.py`: ①日志 stdlib logging → loguru ②新增 StarletteHTTPException handler (FastAPI HTTPException 是其子类, 一网打尽): 状态码映射 401→E_AUTH/403→E_FORBIDDEN/404→E_NOT_FOUND/409→E_CONFLICT/400·422→E_VALIDATION/429→E_RATE_LIMIT/其余→E_INTERNAL; detail 为 dict 时优先取其 code, 其余键平铺顶层; HTTPException headers (WWW-Authenticate 等) 透传 ③新增 RequestValidationError handler → 扁平 E_VALIDATION; 既有 HotspotException 行为不变
+  - `data/migrations/`: 整目录删除 (gitignored 未跟踪产物, 无代码/脚本/测试以其为输入), 唯一真相源 = `backend/repository/migrations/`
+  - 测试: 新增 `test_kl_path_traversal.py` (15 用例: _safe_md_path 字符集矩阵 + WikiFs 直调读写穿越拒绝 + 正常往返不受影响 + API 层单段/含段穿越 400 direct-call — 注: TestClient 会把 %2f 解码归一化成路由 404, 含段分隔符 id 用 endpoint 函数直调断言); `test_exceptions.py` 扩 10 用例 (HTTPException 401/403/404/409/422/429/503 扁平 envelope + dict detail code 优先 + extras 平铺 + pydantic 422 扁平)
+  - 9 个既有测试文件的 13 处 `["detail"]` 断言迁移到扁平 envelope (attention_events/case_service/catchup/chunks/knowledge_imported/mode/t5/wiki_tools 等)
+- **测试验证**:
+  - 定向: `pytest backend/tests/test_exceptions.py backend/tests/test_kl_path_traversal.py` → 30 passed
+  - 回归: `pytest backend/tests/` 全量 → 4503 passed, 9 skipped, 0 failed (首轮 11 处 detail 断言回归, 全部为预期 envelope 变形, 逐一迁移后全绿)
+  - ruff: 触碰的 13 个 py 文件 0 错
+- **潜在风险**: ①前端 5+ 组件仍读 `errData.detail` (PublishDialog/BookmarkImport/TaskSubmitDialog/SourceSettings/InfoFilterCard/ThresholdEditor/CustomerManager), 扁平化后这些位置会退化为 "HTTP 4xx" 提示, 需前端侧跟进读 `message` ②`HTTPException(503)` 等未映射状态码兜底 E_INTERNAL, 若后续接入 503 SOURCE_UNAVAILABLE 语义需补映射 ③kl_pipeline_api.py 273 行仍超 api/ 150 行规则 (本批 +11 行, 既有债务) ④error envelope 新增 extras 键 (current_revision 等) 为 additive 变更, 严格消费端若做 key 白名单需注意 ⑤export_migrations_for_dsh.py 的 DEFAULT_OUT 仍指 data/migrations, 下次运行会重新生成副本目录 (生成物 gitignored, 但"第二真相"假象可能复现, 建议后续改输出到 /tmp 或 dsh 仓内)
+
+## [DEV-0194] P0 安全三连: dsh 命令白名单 + 最小 token 鉴权 + main 回环 guard + vite host 收回环
+- **时间**: 2026-09-12 23:18
+- **类型**: Bug修复 (FIRST_PRINCIPLES_ANALYSIS_2026-09-11 P0-A / P0-B)
+- **关联模块**: `dsh:supervisor`, `api:middleware`, `config:bind_host`, `frontend:vite`
+- **关联文件**: `backend/services/dsh/supervisor.py`, `backend/api/dsh_control_api.py`, `backend/api/middleware.py`, `backend/main.py`, `backend/config/__init__.py`, `run.py`, `frontend/vite.config.ts`, `frontend/package.json`, `backend/tests/test_p0_security.py` (新)
+- **问题描述**: P0-A: `PUT /api/dsh/control/config` 接受自由 command 经 shlex.split 直达 subprocess.Popen (等价任意命令执行) 且全站零鉴权; P0-B: vite dev server 绑 0.0.0.0 把 /api 反代暴露给局域网 (绕过后端回环 guard), 且 main.py `__main__` 分支缺同一 guard。
+- **实现思路**: 纵深三层 — ①service 层 `validate_command_argv` 白名单 enforce (basename: dsh/pi/python/python3/node/npx, python 族按去版本号 stem; env `HOTSPOT_DSH_COMMAND_ALLOWLIST` 可追加), 写入侧拒绝不落 KV, 读取侧存量脏 KV 安全回退默认 (不炸启动); ②API 层 PUT 预检提前 400; ③新增 `TokenAuthMiddleware` (env `HOTSPOT_API_TOKEN` 设置时启用, 常量时间比较, 默认关闭零破坏, /api/health 豁免); 回环 guard 抽 `config.resolve_bind_host()` 供 run.py 与 main.py `__main__` 共用; vite host + package.json dev 脚本改 127.0.0.1。
+- **核心变更**: supervisor.py 白名单+脏 KV 回退 / dsh_control_api.py 预检 400 / middleware.py TokenAuthMiddleware / main.py 注册中间件+复用 guard / config 新 resolve_bind_host / run.py 删内联副本 / vite host 回环。
+- **测试验证**: 新增 test_p0_security.py 15 用例 (白名单合法/非法/存量回退/env 覆盖; token 有无 env 四态; resolve_bind_host 三态) 全绿; 全量回归 4529 passed / 9 skipped / 0 失败 (本批后权威口径); core-only (14 扩展全闭) 启动冒烟 /api/health 200; meta --check OK; ruff 触碰 7 文件 0 错; frontend tsc 0 错。
+- **潜在风险**: ①basename 白名单不校验绝对路径目录 (如 /tmp/evil/python3 仍命中) — 攻击面已大幅收窄, 更强约束需 env 白名单命中绝对路径, 留后续 ②token 不覆盖 /docs 与 /openapi.json (非 /api/ 前缀) ③启用 HOTSPOT_API_TOKEN 后前端需配 header (当前默认关闭无影响) ④dsh.command Pydantic 层仍是自由字符串, 语义校验在运行时双层。
+
+## [DEV-0195] P0-C 备份链根治: WAL 帧累积 checksum + 三库全量 + 真实恢复演练 + checker 真校验
+- **时间**: 2026-09-12 23:40
+- **类型**: Bug修复 (FIRST_PRINCIPLES_ANALYSIS_2026-09-11 P0-C — 备份/恢复/校验三层空壳)
+- **关联模块**: `backup:service`, `scripts:check_backup_chain`, `scheduler:maintenance`
+- **关联文件**: `backend/services/backup_service.py`, `scripts/check_backup_chain.py`, `backend/tests/test_backup_service.py` (新)
+- **问题描述**: 三层全空壳且全报成功 — ①增量读取 WAL magic 硬编码 `377f0615` 但本机为 `377f0682` → 判定恒假 → .bin 全 0 字节; checkpoint_seq 按错字节序读; 帧切帧错位 (按 page_size-24 切, 第 2 帧起全错位) ②restore_from_incremental_chain 零写操作却返回 ok ③checker 空校验永远 PASS; warm 库 920MB 零策略备份, 生产无全量快照。
+- **实现思路**: ①WAL 头按 SQLite 规范解析 (前 3 字节 magic + 字节序标志, page_size/checkpoint_seq 4B 大端) ②**逐帧累积 checksum 校验** (wal.c walChecksumBytes 等价; 首个无效帧即停 — salt 挡不住同代原地覆写的半写入帧, 只有累积 checksum 能识别; 算法先在生产库真实 WAL 上实证 6/6 帧全验再落码) ③.bin 升级自描述 v2 格式 (WIB1 + page_size + 页号+页数据, 旧格式无页号物理上无法定位写入) ④恢复真写页 (seek 偏移写入 + integrity_check 回传, 坏链 ok=False) ⑤三库全量 (Connection.backup() + sha256 旁车 + manifest, 0 字节 raise), BACKUP_RETENTION 1→3 每族独立 ⑥checker 真校验 (bin 非空/格式/sha 复算/meta 对账/应用链只取 mtime ≥ full 的 bin/每项独立 try-except FAIL 不 traceback)。
+- **核心变更**: backup_service.py 重写 WAL 读取/恢复/三库备份; check_backup_chain.py 真校验; 新增 16 测试 (双字节序/撕裂帧/截断帧/坏头/pgno=0 拒收/真写页恢复)。
+- **测试验证**: 定向 16 passed + 相邻 24 passed; **生产端到端**: full 三库全非空 (hot 41.7MB/warm 920.6MB/cold) → incremental 294 页 1.2MB 非空 → 连续两次增量后 checker 25/25 passed exit 0, full+chain 应用 980 页 integrity_check ok; 全量回归见 DEV-0194 口径 (backup 终版后复跑); ruff 触碰文件 0 错。
+- **潜在风险**: ①增量固有局限: 两备份间发生 checkpoint 则期间页变更丢失 (7 天强制 full 兜底; 根治需 full 内嵌 WAL 序, 列后续) ②full_vs_chain_seq 为弱一致性信号 (checkpoint_seq 仅 RESTART 递增) ③旧格式 bin 已清, 历史增量链作废属预期 (本就全 0 字节) ④生产曾处于"无全量+断链"状态 — 本批当日已产出三库全量 + 可恢复增量链。

@@ -6,7 +6,7 @@
   - 响应中包含 trace_id
 """
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from backend.exceptions import (
@@ -48,6 +48,35 @@ def client():
     @app.get("/raise/general")
     def raise_general():
         raise RuntimeError("unexpected")
+
+    @app.get("/raise/http/{status}")
+    def raise_http(status: int):
+        raise HTTPException(status_code=status, detail="http detail msg")
+
+    @app.get("/raise/http-dict")
+    def raise_http_dict():
+        raise HTTPException(
+            status_code=404, detail={"code": "E_NOT_FOUND", "message": "dict detail"}
+        )
+
+    @app.get("/raise/http-conflict")
+    def raise_http_conflict():
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "E_CONFLICT",
+                "message": "stale revision",
+                "current_revision": 3,
+            },
+        )
+
+    @app.get("/raise/http-no-detail")
+    def raise_http_no_detail():
+        raise HTTPException(status_code=404)
+
+    @app.post("/validate")
+    def validate(q: int):
+        return {"q": q}
 
     # raise_server_exceptions=False 让 unhandled exception 被 exception handler 捕获
     return TestClient(app, raise_server_exceptions=False)
@@ -106,3 +135,70 @@ def test_exception_classes_fields():
     assert e.code == "MY_CODE"
     assert e.http_status == 418
     assert isinstance(e, Exception)
+
+
+# ---------------------------------------------------------------------------
+# D13: HTTPException / RequestValidationError → 扁平 envelope
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    ("status", "expected_code"),
+    [
+        (401, "E_AUTH"),
+        (403, "E_FORBIDDEN"),
+        (404, "E_NOT_FOUND"),
+        (409, "E_CONFLICT"),
+        (422, "E_VALIDATION"),
+        (429, "E_RATE_LIMIT"),
+        (503, "E_INTERNAL"),  # 未映射状态码兜底
+    ],
+)
+def test_http_exception_flat_envelope(client, status, expected_code):
+    r = client.get(f"/raise/http/{status}")
+    assert r.status_code == status
+    data = r.json()
+    # 扁平结构: 无嵌套 detail
+    assert "detail" not in data
+    assert data["code"] == expected_code
+    assert data["message"] == "http detail msg"
+    assert data["trace_id"]
+    assert data["version"]
+
+
+def test_http_exception_dict_detail_prefers_code(client):
+    """detail 为 dict 且含 code 时优先用其值。"""
+    r = client.get("/raise/http-dict")
+    assert r.status_code == 404
+    data = r.json()
+    assert data["code"] == "E_NOT_FOUND"
+    assert data["message"] == "dict detail"
+    assert "detail" not in data
+
+
+def test_http_exception_dict_detail_merges_extras(client):
+    """detail dict 的附加结构化字段平铺到顶层 (信息不丢失)。"""
+    r = client.get("/raise/http-conflict")
+    assert r.status_code == 409
+    data = r.json()
+    assert data["code"] == "E_CONFLICT"
+    assert data["message"] == "stale revision"
+    assert data["current_revision"] == 3
+    assert "detail" not in data
+
+
+def test_http_exception_no_detail(client):
+    r = client.get("/raise/http-no-detail")
+    assert r.status_code == 404
+    data = r.json()
+    assert data["code"] == "E_NOT_FOUND"
+    assert data["message"]  # 兜底非空 (回退为 code 本身)
+
+
+def test_request_validation_flat_envelope(client):
+    """pydantic 422 校验错误同样输出扁平 E_VALIDATION envelope。"""
+    r = client.post("/validate", json={"q": "not-an-int"})
+    assert r.status_code == 422
+    data = r.json()
+    assert "detail" not in data
+    assert data["code"] == "E_VALIDATION"
+    assert data["trace_id"]
+    assert data["version"]

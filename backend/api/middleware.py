@@ -16,13 +16,21 @@ v0.7 Observability Batch 1 (PRD §5.3): 在 dispatch 入口 set_trace_id,
 v0.7 Observability Batch ③ (PRD §5.3): 在响应收尾调 record_api_call,
 把每次 API 调用的 trace_id / method / path_template / status / duration_ms
  写到 api_events 表 — 供 dashboard 查询与阈值扫. 失败 swallow, 永不阻塞响应.
+
+P0 安全项 (FIRST_PRINCIPLES_ANALYSIS_2026-09-11 §0.1): :class:`TokenAuthMiddleware`
+最小 token 鉴权 — env ``HOTSPOT_API_TOKEN`` 设置时对所有 ``/api/*`` 请求校验
+``X-Hotspot-Token`` 头 (常量时间比较), 不匹配 401; env 未设置时完全关闭
+(默认关闭, 不破坏现有前端/测试)。豁免路径默认含 ``/api/health``。
 """
 from __future__ import annotations
 
+import os
+import secrets
 import time
 import uuid
 
 from fastapi import Request, Response
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
@@ -32,6 +40,11 @@ from backend.services.observability_sampling import should_record_api_event
 
 # Header that clients can pass to participate in distributed tracing
 TRACE_HEADER = "X-Trace-Id"
+
+# Token 鉴权 (P0): 头名 / env 键名 / 默认豁免路径
+API_TOKEN_HEADER = "X-Hotspot-Token"
+API_TOKEN_ENV = "HOTSPOT_API_TOKEN"
+API_TOKEN_EXEMPT_PATHS = ["/api/health"]
 
 
 class TraceIDMiddleware(BaseHTTPMiddleware):
@@ -134,4 +147,55 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
         return response
 
 
-__all__ = ["TRACE_HEADER", "TraceIDMiddleware"]
+class TokenAuthMiddleware(BaseHTTPMiddleware):
+    """P0 最小 token 鉴权 — env 启用, ``/api/*`` 校验 ``X-Hotspot-Token``。
+
+    - ``HOTSPOT_API_TOKEN`` 未设置/为空 → 完全关闭 (直通, 默认状态)
+    - 已设置: ``/api/*`` 必须带匹配 token 头, 否则 401; 豁免路径直通
+    - 非 ``/api/`` 前缀 (首页/docs/static) 不校验
+    - env 每请求读取, 便于测试 monkeypatch 与运行期热切换
+    """
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        *,
+        header: str = API_TOKEN_HEADER,
+        exempt_paths: list[str] | None = None,
+    ):
+        super().__init__(app)
+        self.header = header
+        self.exempt_paths = set(exempt_paths if exempt_paths is not None else API_TOKEN_EXEMPT_PATHS)
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        expected = os.getenv(API_TOKEN_ENV, "")
+        if not expected:
+            return await call_next(request)
+        path = request.url.path
+        if path in self.exempt_paths or not path.startswith("/api/"):
+            return await call_next(request)
+        supplied = request.headers.get(self.header, "")
+        # encode 为 bytes 再比较: compare_digest 对非 ASCII str 抛 TypeError → 500
+        if supplied and secrets.compare_digest(
+            supplied.encode("utf-8"), expected.encode("utf-8")
+        ):
+            return await call_next(request)
+        log_event(
+            "api_auth_rejected",
+            method=request.method,
+            path=path,
+        )
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "missing or invalid API token"},
+        )
+
+
+__all__ = [
+    "API_TOKEN_ENV",
+    "API_TOKEN_EXEMPT_PATHS",
+    "API_TOKEN_HEADER",
+    "TRACE_HEADER",
+    "TokenAuthMiddleware",
+    "TraceIDMiddleware",
+]

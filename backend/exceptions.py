@@ -3,16 +3,18 @@
 - 定义业务异常基类 HotspotException 及常用子类
 - register_exception_handlers(app) 把所有异常统一为
     {code, message, trace_id, version} 响应体（Phase 4 加 version）
+- D13 (2026-09-12): 补注册 StarletteHTTPException (覆盖 FastAPI HTTPException)
+    与 RequestValidationError handler, 消灭 FastAPI 默认嵌套 {detail:{...}}
+    与扁平 envelope 并存的"两套错误响应体"
 - trace_id 优先从 ``request.state.trace_id`` 读（由 TraceIDMiddleware 注入）
 """
-import logging
 import uuid
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-
-# 使用 stdlib logging 作为底层接收器（loguru 在 logging_config.setup() 中接管）
-logger = logging.getLogger(__name__)
+from loguru import logger
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # API 版本号: 单一来源 backend/version.py (main.py FastAPI(version=...) 同源)
 from backend.version import APP_VERSION as API_VERSION
@@ -92,17 +94,35 @@ def _err_response(
     code: str,
     message: str,
     status: int,
+    headers: dict[str, str] | None = None,
+    extras: dict | None = None,
 ) -> JSONResponse:
-    """统一构造错误响应：{code, message, trace_id, version}。"""
-    return JSONResponse(
-        status_code=status,
-        content={
-            "code": code,
-            "message": message,
-            "trace_id": _get_trace_id(request),
-            "version": API_VERSION,
-        },
-    )
+    """统一构造错误响应：{code, message, trace_id, version[, ...extras]}。
+
+    extras: HTTPException detail dict 中的附加结构化字段 (如
+    current_revision / valid_modes), 平铺到顶层避免信息丢失。
+    """
+    content: dict = {
+        "code": code,
+        "message": message,
+        "trace_id": _get_trace_id(request),
+        "version": API_VERSION,
+    }
+    if extras:
+        content.update(extras)
+    return JSONResponse(status_code=status, content=content, headers=headers)
+
+
+# D13: HTTP 状态码 → 契约错误码映射 (契约 8 错误码; 400 归 E_VALIDATION)
+_STATUS_TO_CODE: dict[int, str] = {
+    400: "E_VALIDATION",
+    401: "E_AUTH",
+    403: "E_FORBIDDEN",
+    404: "E_NOT_FOUND",
+    409: "E_CONFLICT",
+    422: "E_VALIDATION",
+    429: "E_RATE_LIMIT",
+}
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -110,26 +130,65 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(HotspotException)
     async def hotspot_exception_handler(request: Request, exc: HotspotException):
-        trace_id = _get_trace_id(request)
         logger.warning(
-            "hotspot exception: %s - %s",
+            "hotspot exception: {} - {}",
             exc.code,
             exc.message,
-            extra={"trace_id": trace_id},
         )
         return _err_response(
             request, code=exc.code, message=exc.message, status=exc.http_status
         )
 
+    @app.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+        """D13: HTTPException 统一为扁平 envelope (FastAPI HTTPException 是其子类)。
+
+        detail 为 dict 且含 code 时优先用其值 (既有的
+        HTTPException(404, detail={"message": ...}) 调用点平滑迁移)。
+        """
+        code = _STATUS_TO_CODE.get(exc.status_code, "E_INTERNAL")
+        message = code
+        extras: dict = {}
+        if isinstance(exc.detail, dict):
+            extras = {
+                k: v for k, v in exc.detail.items() if k not in ("code", "message")
+            }
+            if exc.detail.get("code"):
+                code = str(exc.detail["code"])
+            message = str(exc.detail.get("message") or code)
+        elif exc.detail:
+            message = str(exc.detail)
+        logger.warning(
+            "http exception: {} {} - {}",
+            exc.status_code,
+            code,
+            message,
+        )
+        return _err_response(
+            request,
+            code=code,
+            message=message,
+            status=exc.status_code,
+            headers=exc.headers,
+            extras=extras,
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ):
+        """D13: pydantic 422 校验错误同样输出扁平 envelope (E_VALIDATION)。"""
+        first = exc.errors()[0] if exc.errors() else {}
+        loc = ".".join(str(p) for p in first.get("loc", []) if p != "body")
+        message = f"validation failed: {loc}: {first.get('msg', 'invalid')}" if loc else "validation failed"
+        logger.warning("validation error: {}", message)
+        return _err_response(
+            request, code="E_VALIDATION", message=message, status=422
+        )
+
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
-        trace_id = _get_trace_id(request)
-        logger.error(
-            "unhandled exception: %s",
-            exc,
-            extra={"trace_id": trace_id},
-            exc_info=True,
-        )
+        logger.opt(exception=exc).error("unhandled exception: {}", exc)
         return _err_response(
             request,
             code="INTERNAL",

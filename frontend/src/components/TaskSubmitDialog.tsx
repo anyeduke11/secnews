@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { TaskSubmitParams } from '../types';
+import { getApiErrorMessage } from '../lib/api';
 import { Icon } from './Icon';
 
 interface TaskSubmitDialogProps {
@@ -85,7 +86,7 @@ export function TaskSubmitDialog({ open, onClose, onSubmitted }: TaskSubmitDialo
     })
       .then(async r => {
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data?.detail || `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(getApiErrorMessage(data) || `HTTP ${r.status}`);
         return data;
       })
       .then(data => {

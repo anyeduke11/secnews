@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { SkillValidation, PublishTask } from '../types';
+import { getApiErrorMessage } from '../lib/api';
 import { Icon } from './Icon';
 
 interface PublishDialogProps {
@@ -84,7 +85,7 @@ export function PublishDialog({ draft_id, draft_title, onClose, onPublished }: P
 
       if (!publishRes.ok) {
         const errData = await publishRes.json().catch(() => ({}));
-        showToast('err', errData.detail || `HTTP ${publishRes.status}`);
+        showToast('err', getApiErrorMessage(errData) || `HTTP ${publishRes.status}`);
         setSubmitting(false);
         return;
       }

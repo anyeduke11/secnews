@@ -142,10 +142,8 @@ def test_post_run_conflict_when_manual_active(client):
         )
     assert resp.status_code == 409
     body = resp.json()
-    # detail 可能是 dict 或直接 message
-    detail = body.get("detail", {})
-    if isinstance(detail, dict):
-        assert "active_run_id" in detail or "message" in detail
+    # D13: 扁平 envelope — detail dict 的附加字段平铺到顶层
+    assert "active_run_id" in body or "message" in body
 
 
 # ---------------------------------------------------------------------------

@@ -219,7 +219,11 @@ async def retry_errors(req: RetryRequest) -> dict:
 async def get_item(item_id: str) -> dict:
     """Get a wiki item's frontmatter + body."""
     wiki_fs = _get_wiki_fs()
-    doc = wiki_fs.read_item(item_id)
+    try:
+        doc = wiki_fs.read_item(item_id)
+    except ValueError:
+        # P0-F: 非法 item_id (穿越/白名单外) → 400, 校验在 wiki_fs.store 单点
+        raise HTTPException(status_code=400, detail={"message": "invalid item_id"})
     if doc is None:
         raise HTTPException(status_code=404, detail={"message": "item not found", "missing": item_id})
     return doc
@@ -229,14 +233,20 @@ async def get_item(item_id: str) -> dict:
 async def update_item(item_id: str, req: UpdateItemRequest) -> dict:
     """Update a wiki item's frontmatter (one-way projection)."""
     wiki_fs = _get_wiki_fs()
-    doc = wiki_fs.read_item(item_id)
+    try:
+        doc = wiki_fs.read_item(item_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail={"message": "invalid item_id"})
     if doc is None:
         raise HTTPException(status_code=404, detail={"message": "item not found", "missing": item_id})
     if req.fm is not None:
         doc["fm"].update(req.fm)
     if req.body is not None:
         doc["body"] = req.body
-    wiki_fs.write_item(item_id, doc)
+    try:
+        wiki_fs.write_item(item_id, doc)
+    except ValueError:
+        raise HTTPException(status_code=400, detail={"message": "invalid item_id"})
     return {"status": "ok"}
 
 

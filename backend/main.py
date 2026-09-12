@@ -26,7 +26,7 @@ from backend.api.mcp_config import (
     mcp_tool_registry_seed,
     mount_sse_endpoint,
 )
-from backend.api.middleware import TraceIDMiddleware
+from backend.api.middleware import TokenAuthMiddleware, TraceIDMiddleware
 from backend.cache import invalidate as cache_invalidate
 from backend.cache import warmup
 from backend.config import config
@@ -286,6 +286,9 @@ app.add_middleware(TraceIDMiddleware, exclude_paths=["/api/health"])
 # v0.8.2 X-C2 (CRITICAL_REVIEW §3.2): 全局 gzip 压缩 — >1000B 响应体才压,
 # 小 JSON 不压缩避免 CPU 浪费; SettingsHub 17 cat / quality rules 等大 payload 显著省带宽
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+# P0-A 配套 (FIRST_PRINCIPLES_ANALYSIS §0.1): 最小 token 鉴权 — env
+# HOTSPOT_API_TOKEN 设置时对 /api/* 校验 X-Hotspot-Token, 未设置时完全关闭。
+app.add_middleware(TokenAuthMiddleware, exempt_paths=["/api/health"])
 register_exception_handlers(app)
 register_routers(app)
 
@@ -303,10 +306,13 @@ async def root():
 if __name__ == "__main__":  # pragma: no cover
     import uvicorn
 
-    from backend.config import config
+    from backend.config import config, resolve_bind_host
+    host = os.getenv("HOTSPOT_HOST") or os.getenv("HOST", config.host)
     uvicorn.run(
         "backend.main:app",
-        host=os.getenv("HOTSPOT_HOST") or os.getenv("HOST", config.host),
+        # P0-B: 复用 run.py 的回环守卫 (backend.config.resolve_bind_host),
+        # 修复此前 __main__ 分支绕过守卫直接绑 config.host 的问题。
+        host=resolve_bind_host(host),
         port=int(os.getenv("HOTSPOT_PORT") or os.getenv("PORT", str(config.port))),
         reload=False,
     )

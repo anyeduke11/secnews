@@ -224,6 +224,6 @@ def test_list_imported_error(client):
 
     assert resp.status_code == 500
     body = resp.json()
-    detail = body.get("detail", {})
-    if isinstance(detail, dict):
-        assert "message" in detail
+    # D13: 扁平 envelope — HTTPException(500) → E_INTERNAL + message
+    assert body["code"] == "E_INTERNAL"
+    assert body["message"] == "Failed to get imported items"

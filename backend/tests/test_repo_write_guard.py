@@ -66,11 +66,6 @@ _WRITER_SCAN_EXCLUDE_TOP = {"api", "tests", "migrations", "repository"}
 # 每张表标注宿主文件（多个宿主全部列出）。
 # ---------------------------------------------------------------------------
 _EXEMPT_TABLES: dict[str, str] = {
-    # admission_*: v1 准入域 (Batch 3+ 计划并入 repo 化 v1_evidence 域)
-    "admission_label": "services/v1_admission_service.py",
-    "admission_log": "services/v1_admission_service.py",
-    "admission_set": "services/v1_admission_service.py",
-    "admission_set_items": "services/v1_admission_service.py",
     # agent_memory 子包
     "agent_preferences": "services/agent_memory/miner.py",
     "feedback_log": "services/agent_memory/memory.py",

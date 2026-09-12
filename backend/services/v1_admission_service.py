@@ -13,6 +13,8 @@
   - 不写 Signal 表 (T05 evidence 已提供单一入口; 本服务只输出 verdict + reason)
   - 调用方 (T06 源级管道) 拿 verdict 决定走 create_intent (allow) 还是 quarantine (deny)
   - quarantine 数据走 admission_log 表 (T07 migration 097 落地)
+  - admission 四表 SQL 下沉 backend/repository/admission_repo.py (R2 收缩:
+    一表一 repo 一 writer), 本文件只保留事务边界 (commit) + 表缺失兜底
 
 后续 T07 标注批次: 引入 supervision_service / golden set / inter-annotator
 agreement, 不在本批范围 (本批只把准入框架 + 8 维标签常量 落地).
@@ -27,6 +29,7 @@ from enum import Enum
 from typing import Any
 
 from backend.logging_config import logger
+from backend.repository.admission_repo import AdmissionRepository
 from backend.repository.db import get_connection
 
 
@@ -104,6 +107,9 @@ class V1AdmissionService:
 
     def __init__(self, conn: sqlite3.Connection | None = None) -> None:
         self._conn = conn
+        # admission 四表写路径唯一化 (R2 收缩): SQL 全部下沉 admission_repo,
+        # 本服务只保留事务边界 (commit 在原位置) + OperationalError 兜底
+        self._repo = AdmissionRepository(conn)
 
     def evaluate(
         self,
@@ -158,23 +164,17 @@ class V1AdmissionService:
             body_hash = hashlib.sha256(
                 ((material.get("url") or "") + "|" + material.get("id", "")).encode("utf-8")
             ).hexdigest()
-            cur = conn.execute(
-                "INSERT INTO admission_log "
-                "(material_id, body_hash, verdict, reason, matched_rule_id, "
-                " raw_material_json, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (
-                    result.material_id,
-                    body_hash,
-                    result.verdict.value,
-                    result.reason,
-                    result.matched_rule["id"] if result.matched_rule else None,
-                    _safe_json(material),
-                    datetime.now(timezone.utc).isoformat(),
-                ),
+            row_id = self._repo.insert_log(
+                material_id=result.material_id,
+                body_hash=body_hash,
+                verdict=result.verdict.value,
+                reason=result.reason,
+                matched_rule_id=result.matched_rule["id"] if result.matched_rule else None,
+                raw_material_json=_safe_json(material),
+                created_at=datetime.now(timezone.utc).isoformat(),
             )
             conn.commit()
-            return cur.lastrowid or 0
+            return row_id
         except sqlite3.OperationalError as e:
             # admission_log 表未建 (migration 097 未跑) — 兜底返 0, 与旧版语义兼容
             logger.warning(f"admission_log table missing: {e}")
@@ -272,13 +272,9 @@ class V1AdmissionService:
             now = datetime.now(timezone.utc).isoformat()
             ids: list[int] = []
             for dim, val in dimensions.items():
-                cur = conn.execute(
-                    "INSERT INTO admission_label "
-                    "(material_id, dimension, value, annotator, confidence, created_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (item_id, dim, val, annotator, confidence, now),
+                ids.append(
+                    self._repo.insert_label(item_id, dim, val, annotator, confidence, now)
                 )
-                ids.append(cur.lastrowid or 0)
             conn.commit()
             return ids[0] if ids else 0  # 单条 label 返回第一条主键 (兼容旧调用方)
         except sqlite3.OperationalError as e:
@@ -298,13 +294,11 @@ class V1AdmissionService:
         """
         try:
             conn = self._conn or get_connection()
-            cur = conn.execute(
-                "INSERT INTO admission_set (name, schema_version, item_count, created_at) "
-                "VALUES (?, ?, 0, ?)",
-                (name, schema_version, datetime.now(timezone.utc).isoformat()),
+            set_id = self._repo.insert_set(
+                name, schema_version, datetime.now(timezone.utc).isoformat(),
             )
             conn.commit()
-            return cur.lastrowid or 0
+            return set_id
         except sqlite3.OperationalError as e:
             logger.warning(f"admission_set table missing: {e}")
             return 0
@@ -332,39 +326,24 @@ class V1AdmissionService:
         try:
             conn = self._conn or get_connection()
             now = datetime.now(timezone.utc).isoformat()
-            cur_set = conn.execute(
-                "SELECT id FROM admission_set WHERE id = ?", (set_id,)
-            ).fetchone()
+            cur_set = self._repo.find_set(set_id)
             if cur_set is None:
                 raise ValueError(f"admission_set id={set_id} 不存在")
             label_ids: list[int] = []
             for dim, val in labels.items():
-                cur = conn.execute(
-                    "INSERT INTO admission_label "
-                    "(material_id, dimension, value, annotator, confidence, created_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (
+                label_ids.append(
+                    self._repo.insert_label(
                         material_id,
                         dim,
                         val,
                         f"set:{set_id}",  # 标注者 = set_id, 便于 agreement 计算时分组
                         0.9,
                         now,
-                    ),
+                    )
                 )
-                label_ids.append(cur.lastrowid or 0)
             for lid in label_ids:
-                conn.execute(
-                    "INSERT OR IGNORE INTO admission_set_items "
-                    "(set_id, material_id, label_id) VALUES (?, ?, ?)",
-                    (set_id, material_id, lid),
-                )
-            conn.execute(
-                "UPDATE admission_set SET item_count = "
-                "(SELECT COUNT(DISTINCT material_id) FROM admission_set_items WHERE set_id = ?) "
-                "WHERE id = ?",
-                (set_id, set_id),
-            )
+                self._repo.insert_set_item(set_id, material_id, lid)
+            self._repo.refresh_set_item_count(set_id)
             conn.commit()
             return label_ids[0] if label_ids else 0
         except sqlite3.OperationalError as e:
@@ -380,29 +359,7 @@ class V1AdmissionService:
                          annotator, confidence, created_at}
         """
         try:
-            conn = self._conn or get_connection()
-            rows = conn.execute(
-                "SELECT si.set_id, si.material_id, si.label_id, "
-                "       al.dimension, al.value, al.annotator, al.confidence, al.created_at "
-                "FROM admission_set_items si "
-                "JOIN admission_label al ON si.label_id = al.id "
-                "WHERE si.set_id = ? "
-                "ORDER BY si.material_id, al.dimension",
-                (set_id,),
-            ).fetchall()
-            return [
-                {
-                    "set_id": r[0],
-                    "material_id": r[1],
-                    "label_id": r[2],
-                    "dimension": r[3],
-                    "value": r[4],
-                    "annotator": r[5],
-                    "confidence": r[6],
-                    "created_at": r[7],
-                }
-                for r in rows
-            ]
+            return self._repo.list_set_items(set_id)
         except sqlite3.OperationalError as e:
             logger.warning(f"admission_log tables missing: {e}")
             return []

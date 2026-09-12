@@ -935,3 +935,14 @@
 - **核心变更**: 见关联文件; 测试适配 12 文件——删除 BID 专属测试 (quality_gates 7 个/alert 2 个/custom_source 1 个), 计数断言 192→168/48→42/8→7 类/12→11 门/rules 3→2, 夹具类目 bid→tech/security; 新增 `scripts/audit_interest_hit_rate.py` 入 scripts/AGENTS.md 审计清单。
 - **测试验证**: 全量 pytest **4458/0 fail** (+R2 净 -2, 删 BID 用例 10 个/新增 R2 用例 12 个), vitest **494**, tsc 0, meta --check OK (57 jobs/13 collectors/85 routers/127 services), generate_meta AGENTS 一致性 4/4。
 - **潜在风险**: ①`from_str("bid")` 现在抛 InvalidParamException——若从历史备份恢复数据且走 API 重放会拒收 (数据层不受影响) ②deep_read "bid" profile 删除后未知类目回落 general profile (测试改用 finance 验证同类语义) ③`historical_bid` 隐藏标记名保留, 语义为"历史数据标记"而非活跃类目 ④weekly_reports.bid_summary DB 列保留 (恒 None), 彻底删列需单独 PR 评估。
+
+## [DEV-0186] POST-R2 收尾设计包 — 六项未实现/增强项设计 (待裁决)
+- **时间**: 2026-09-12 16:20
+- **类型**: 功能开发 (设计批, 未动代码)
+- **关联模块**: `docs:POST_R2_ENHANCEMENTS_DESIGN_2026-09-12` (新建)
+- **关联文件**: `docs/POST_R2_ENHANCEMENTS_DESIGN_2026-09-12.md` (新建), `docs/README.md` (索引行)
+- **问题描述**: DEV-0184/0185 收尾报告的未实现 (Mimosa triage / 死列 DROP / 权重重校) 与增强 (ai-tech 桶口径 / from_str 拒收恢复场景 / 漂移阈值+审计周期) 六项需先设计后裁决再实施。
+- **实现思路**: 设计全部落在只读事实上——①Mimosa 封存扫描透视: 270 条中 vendor 上游 147 (54%) 可整体豁免, 本仓生产代码仅 33 条 (sql 10/ssrf 10/random 8/其他 5), 唯一实锤修复项为 spike_gateway_s1_s3.py:77 硬编码凭据; ②死列约束核查: SQLite 3.53.3 支持 DROP COLUMN, 但 region 被 idx_hotspot_region 索引引用须先删索引; weekly_reports.bid_summary 在 warm 库有 7 行历史数据建议保留——期间发现单文件 PRAGMA 检查会漏 ATTACH 库 (hot.db 无 weekly_reports 表), 演练必须走 get_connection 全链; ③恢复链路: from_str 拒收 + pydantic 枚举校验 → 恢复含 bid 行的历史备份会 500, 设计 restore 后幂等 scrub 步骤。六项各含 事实/设计/验收/裁决点, 尾部 5 项裁决清单。
+- **核心变更**: 新建设计文档 (T1 triage 三层漏斗 / T2 migration 114 设计 / T3 重校脚本规则 R1-R3 / T4 桶口径 A vs B / T5 scrub / T6 RUNBOOK 周审计四步表); docs/README.md 索引 +1 行。
+- **测试验证**: 纯文档批, 无代码变更; 事实性内容均经只读核查 (扫描 findings.json 透视 / 生产三库 PRAGMA / migration 017 源码)。
+- **潜在风险**: 设计与实施间存在时间差, 届时须复核事实是否漂移 (尤其 T2 的索引清单与 T1 的 finding anchor)。

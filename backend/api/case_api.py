@@ -260,29 +260,9 @@ def _aggregate(
 
     调用 1 次: case + judgments + actions + runs (per action) + artifacts (per run).
     旧实现 (前端): 1+1+1+N+N×M 个 HTTP 请求; 修复后: 1 个聚合端点.
+    v0.8.5 证据/复利只读 SQL 在 v1_evidence_service / knowledge_service
+    (Batch 2 D 下沉); 本函数只做聚合编排。
     """
-    from backend.repository.db import get_connection
-
-    def _case_evidence_materials(cid: str) -> list[dict[str, Any]]:
-        """v0.8.5 D1.2: 立项携带证据 — v1_case_materials JOIN v1_materials.
-
-        判断层证据链输入端: SK-02 generate 需要 evidence_materials
-        (id/title/content_hash), 此处随聚合一次性返回.
-        """
-        try:
-            conn = get_connection()
-            rows = conn.execute(
-                "SELECT m.id, m.title, m.url, m.content_hash, m.source_kind, "
-                "       m.summary, cm.signal_id, cm.created_at AS bound_at "
-                "FROM v1_case_materials cm "
-                "JOIN v1_materials m ON m.id = cm.material_id "
-                "WHERE cm.case_id = ? ORDER BY cm.created_at DESC",
-                (cid,),
-            ).fetchall()
-            return [dict(r) for r in rows]
-        except Exception:
-            return []  # migration 108 未跑 / 表缺失 — 证据区显空, 不阻断聚合
-
     def _recall_candidates(case_dict: dict[str, Any]) -> list[dict[str, Any]]:
         """v0.8.5 D3 (SK-05 自动召回): 已发布知识 × case 文本匹配, 失败显空不阻断."""
         try:
@@ -291,32 +271,12 @@ def _aggregate(
         except Exception:
             return []
 
-    def _case_reuse_summary(cid: str) -> dict[str, Any]:
-        """v0.8.5 D4: 复利卡 (诚实计数) — 本 case 的知识采用/回执汇总.
-
-        只报真实记录数 (v1_knowledge_adoptions), 不做「节省 X 小时」类无基线估算.
-        """
-        try:
-            conn = get_connection()
-            row = conn.execute(
-                "SELECT COUNT(*), "
-                "COALESCE(SUM(CASE WHEN adopted_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END), 0), "
-                "COUNT(DISTINCT knowledge_id) "
-                "FROM v1_knowledge_adoptions WHERE case_id = ? AND decision = 'adopted'",
-                (cid,),
-            ).fetchone()
-            return {
-                "adoptions_total": row[0] or 0,
-                "adoptions_30d": row[1] or 0,
-                "distinct_knowledge": row[2] or 0,
-            }
-        except Exception:
-            return {"adoptions_total": 0, "adoptions_30d": 0, "distinct_knowledge": 0}
-
     from backend.services.action_service import ActionService
     from backend.services.artifact_service import ArtifactService
     from backend.services.judgment_service import JudgmentService
+    from backend.services.knowledge_service import KnowledgeService
     from backend.services.run_service import RunService
+    from backend.services.v1_evidence_service import V1EvidenceService
 
     c_svc = CaseService()
     try:
@@ -363,11 +323,11 @@ def _aggregate(
     return {
         "version": API_VERSION,
         "case": _case_to_dict(case),
-        "evidence_materials": _case_evidence_materials(case_id),
+        "evidence_materials": V1EvidenceService().case_evidence_materials(case_id),
         # v0.8.5 D3 (SK-05 自动召回): 已发布知识按 case 文本自动匹配, Case 页浮现候选
         "recall_candidates": _recall_candidates(_case_to_dict(case)),
         # v0.8.5 D4: 复利卡 (诚实计数)
-        "reuse_summary": _case_reuse_summary(case_id),
+        "reuse_summary": KnowledgeService().case_reuse_summary(case_id),
         "judgments": [j for j in judgments if isinstance(j, dict)] if judgments and isinstance(judgments[0], dict) else [
             j.to_dict() if hasattr(j, "to_dict") else j for j in judgments
         ],

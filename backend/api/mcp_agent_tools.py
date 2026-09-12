@@ -16,8 +16,6 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from backend.repository.db import get_connection
-
 logger = logging.getLogger("hotspot.api.mcp_agent_tools")
 
 # URL 前缀保持 /api/mcp/phase8 不变: 外部 MCP agent (claude-desktop/cursor) 的 HTTP 契约
@@ -135,16 +133,12 @@ async def enrich_concept(req: EnrichConceptRequest):
 # ---------------------------------------------------------------------------
 @router.post("/link-items")
 async def link_items(req: LinkItemsRequest):
-    """写入 knowledge_links 表（MCP tool: link_items）。"""
+    """写入 knowledge_links 表（MCP tool: link_items；SQL 下沉 knowledge_service）。"""
+    from backend.services.knowledge_service import add_agent_link
+
     def _run() -> dict:
-        conn = get_connection()
-        cur = conn.execute(
-            "INSERT INTO knowledge_links "
-            "(from_item_id, to_item_id, link_type, confidence, created_by) "
-            "VALUES (?, ?, ?, ?, 'agent')",
-            (req.from_id, req.to_id, req.link_type, req.confidence),
-        )
-        return {"status": "ok", "link_id": cur.lastrowid}
+        link_id = add_agent_link(req.from_id, req.to_id, req.link_type, req.confidence)
+        return {"status": "ok", "link_id": link_id}
 
     try:
         return await asyncio.to_thread(_run)

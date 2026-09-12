@@ -9,30 +9,21 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from backend.metrics.kl_metrics import kl_metrics
-from backend.repository.db import get_connection
-from backend.services.kl_state_machine import ALL_STAGES
 
 router = APIRouter(prefix="/api/kl", tags=["kl"])
 
 
 def _refresh_stage_counts() -> None:
-    """Read the live count of items per lifecycle stage into the gauge."""
-    try:
-        conn = get_connection()
-        rows = conn.execute(
-            "SELECT lifecycle, COUNT(*) FROM knowledge_items "
-            "WHERE lifecycle IN ({}) "
-            "GROUP BY lifecycle".format(",".join("?" for _ in ALL_STAGES)),
-            tuple(ALL_STAGES),
-        ).fetchall()
-        counts = dict.fromkeys(ALL_STAGES, 0)
-        for stage, n in rows:
-            if stage in counts:
-                counts[stage] = int(n)
+    """Read the live count of items per lifecycle stage into the gauge.
+
+    SQL 在 wiki_stats_service.kl_stage_counts (Batch 2 D 下沉);
+    查询失败时 service 返回 None, gauge 保持旧值 (best-effort, 不阻断快照)。
+    """
+    from backend.services.wiki_stats_service import kl_stage_counts
+
+    counts = kl_stage_counts()
+    if counts is not None:
         kl_metrics.set_stage_counts(counts)
-    except Exception:
-        # The gauge is best-effort; never fail the snapshot.
-        pass
 
 
 @router.get("/metrics")

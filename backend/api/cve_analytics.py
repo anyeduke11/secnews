@@ -12,10 +12,9 @@ from typing import Any
 
 from fastapi import APIRouter, Query
 
-from backend.repository.db import get_connection
 from backend.services.attack_loader import load_attack_data
 from backend.services.cve_attack_service import cves_to_attack_techniques
-from backend.services.cve_heatmap_service import weekly_heatmap
+from backend.services.cve_heatmap_service import recent_cves, weekly_heatmap
 
 router = APIRouter()
 
@@ -32,21 +31,9 @@ def get_recent_cves(
 ) -> dict[str, Any]:
     """最近入库的 CVE 实体 id 清单 (security_entities, entity_type='cve')。
 
-    id 形态原样返回 (CVE-xxx 与 cve:CVE-xxx 并存) — /cve/attack-mapping
-    按 id 精确 IN 匹配, 前端直接透传即可。
+    SQL 在 cve_heatmap_service.recent_cves (Batch 2 D 下沉)。
     """
-    rows = get_connection().execute(
-        """
-        SELECT id, name, created_at
-        FROM security_entities
-        WHERE entity_type = 'cve'
-        ORDER BY created_at DESC
-        LIMIT ?
-        """,
-        (int(limit),),
-    ).fetchall()
-    items = [{"id": r["id"], "name": r["name"], "created_at": r["created_at"]} for r in rows]
-    return {"items": items, "total": len(items)}
+    return recent_cves(limit=limit)
 
 
 @router.get("/cve/attack-mapping")

@@ -9,9 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from backend.kl_pipeline import KLPipeline
-from backend.kl_pipeline.obs.ledger import TokenLedger
 from backend.logging_config import logger
-from backend.repository.db import get_connection
 from backend.wiki_fs import WikiFs
 
 router = APIRouter(prefix="/api/kl", tags=["kl-pipeline"])
@@ -117,13 +115,16 @@ async def list_quarantine() -> dict:
 def _pipeline_live_stats(pipeline: KLPipeline) -> tuple[dict, list[dict], list[dict]]:
     """队列/错误/token 台账同步快照。
 
-    连接线程亲和: ``get_connection`` 必须在 worker 线程内调用
+    连接线程亲和: token 台账的 ``get_connection`` 在 wiki_stats_service
+    内执行, 本函数整体必须在 worker 线程内调用
     (与 funnel_from_db 同一纪律, 见 v0.6.3 P0-1 卡顿根治), 不在事件循环上直跑。
     """
+    from backend.services.wiki_stats_service import token_ledger_summary
+
     return (
         pipeline.queue.stats(),
         pipeline.queue.errors(limit=10),
-        TokenLedger(get_connection()).summary(),
+        token_ledger_summary(),
     )
 
 

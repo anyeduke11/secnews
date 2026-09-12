@@ -198,34 +198,13 @@ def _adopt(knowledge_id: str, req: AdoptKnowledgeRequest) -> dict[str, Any]:
 
 def _list_adoptions(knowledge_id: str) -> dict[str, Any]:
     """GET /api/v1/knowledge/{id}/adoptions — 列出该 knowledge 的所有 adoptions."""
-    from backend.repository.db import get_connection
     svc = KnowledgeService()
     # 验证存在性
     try:
         svc.get(knowledge_id)
     except KnowledgeNotFoundError as e:
         raise HTTPException(status_code=404, detail={"code": "E_NOT_FOUND", "message": str(e)})
-    conn = get_connection()
-    rows = conn.execute(
-        "SELECT id, case_id, knowledge_revision, decision, condition_diff_json, "
-        "outcome, outcome_note, adopted_at, adopted_by, decided_by "
-        "FROM v1_knowledge_adoptions WHERE knowledge_id = ? "
-        "ORDER BY adopted_at DESC",
-        (knowledge_id,),
-    ).fetchall()
-    import json
-    items: list[dict[str, Any]] = []
-    for r in rows:
-        try:
-            diff = json.loads(r[4]) if r[4] else []
-        except (json.JSONDecodeError, TypeError):
-            diff = []
-        items.append({
-            "id": r[0], "case_id": r[1], "knowledge_revision": r[2],
-            "decision": r[3], "condition_diff": diff,
-            "outcome": r[5], "outcome_note": r[6],
-            "adopted_at": r[7], "adopted_by": r[8], "decided_by": r[9],
-        })
+    items = svc.list_adoptions(knowledge_id)
     return {"version": API_VERSION, "knowledge_id": knowledge_id, "items": items, "total": len(items)}
 
 

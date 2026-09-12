@@ -5,6 +5,10 @@ All delegate to SecNewsDashboard for data aggregation.
 
 v0.6.3 P0-1 卡顿根治: 所有 handler 一律 asyncio.to_thread 包同步聚合
 (此前 async def 里直接跑同步 SQLite/文件扫描, 阻塞事件循环拖垮全站)。
+
+Batch 2 D (api 层 SQL 下沉): 连接/聚合器装配在
+``backend/services/secnews_dashboard_service.build_dashboard`` —
+get_connection 是 thread-local, 必须在 to_thread 工作线程内调用。
 """
 from __future__ import annotations
 
@@ -12,27 +16,13 @@ import asyncio
 
 from fastapi import APIRouter, Query
 
-from backend.repository.db import get_connection
-from backend.secnews_dashboard import SecNewsDashboard
-
 router = APIRouter(prefix="/api/secnews", tags=["secnews"])
 
-_wiki_fs = None
 
+def _get_dashboard():
+    from backend.services.secnews_dashboard_service import build_dashboard
 
-def _get_dashboard() -> SecNewsDashboard:
-    """每次调用新建聚合器 (轻量, 无状态)。
-
-    db 必须在**当前线程**取 (get_connection 是 thread-local, SQLite 连接
-    默认 check_same_thread=True); P0-1 起 handler 跑在 to_thread 工作线程,
-    缓存整个 dashboard 会把首个线程的连接带进别的线程 → ProgrammingError。
-    wiki_fs 是进程级单例, 只取一次。
-    """
-    global _wiki_fs
-    if _wiki_fs is None:
-        from backend.kl_pipeline.runtime import get_production_wiki_fs
-        _wiki_fs = get_production_wiki_fs()
-    return SecNewsDashboard(db=get_connection(), wiki_fs=_wiki_fs)
+    return build_dashboard()
 
 
 @router.get("/feed")

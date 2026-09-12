@@ -256,3 +256,147 @@ def test_timeseries_endpoint_returns_hourly_aggregates(client, temp_db):
     assert len(points) >= 1
     assert points[-1]["path_template"] == "/api/z"
     assert points[-1]["total"] == 100
+
+
+# ── 8. observability_query_service 直接单测 (Batch 2 SQL 下沉) ──────────
+
+
+def test_query_api_summary_shape(temp_db):
+    """service 层 summary: total/errors/error_rate_pct/top_slow_paths 齐全."""
+    from backend.services.observability_query_service import query_api_summary
+
+    now = datetime.now(timezone.utc)
+    conn = get_connection()
+    for i, status in enumerate([200, 500]):
+        conn.execute(
+            "INSERT INTO api_events "
+            "(trace_id, method, path_template, status, duration_ms, occurred_at) "
+            "VALUES (?, 'GET', '/api/s', ?, ?, ?)",
+            (f"svc-{i}", status, 40 + i, now.isoformat()),
+        )
+    data = query_api_summary(hours=1)
+    assert data["window_minutes"] == 60
+    assert data["total"] == 2
+    assert data["errors"] == 1
+    assert data["error_rate_pct"] == 50.0
+    assert isinstance(data["p95_latency_ms"], int)
+    assert data["top_slow_paths"][0]["path_template"] == "/api/s"
+
+
+def test_query_recent_api_events_desc_limit(temp_db):
+    from backend.services.observability_query_service import query_recent_api_events
+
+    now = datetime.now(timezone.utc)
+    conn = get_connection()
+    for i in range(3):
+        conn.execute(
+            "INSERT INTO api_events "
+            "(trace_id, method, path_template, status, duration_ms, occurred_at) "
+            "VALUES (?, 'GET', '/api/r', 200, 10, ?)",
+            (f"qr-{i}", now.isoformat()),
+        )
+    items = query_recent_api_events(limit=2)
+    assert len(items) == 2
+    assert set(items[0].keys()) == {
+        "id", "trace_id", "method", "path_template", "status",
+        "duration_ms", "error", "occurred_at",
+    }
+
+
+def test_query_hourly_timeseries_with_and_without_filter(temp_db):
+    from backend.services.observability_query_service import query_hourly_timeseries
+
+    hour_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H")
+    conn = get_connection()
+    conn.execute(
+        "INSERT OR REPLACE INTO api_metrics_hourly "
+        "(hour, path_template, total, errors, p50_ms, p95_ms, max_ms) "
+        "VALUES (?, '/api/t1', 10, 1, 5, 9, 20)",
+        (hour_str,),
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO api_metrics_hourly "
+        "(hour, path_template, total, errors, p50_ms, p95_ms, max_ms) "
+        "VALUES (?, '/api/t2', 20, 2, 6, 10, 30)",
+        (hour_str,),
+    )
+    filtered = query_hourly_timeseries(hours=24, path_template="/api/t1")
+    assert len(filtered) == 1
+    # 过滤分支下 path_template 用查询参数回填 (原 api 层行为)
+    assert filtered[0]["path_template"] == "/api/t1"
+    assert filtered[0]["total"] == 10
+    unfiltered = query_hourly_timeseries(hours=24)
+    assert {p["path_template"] for p in unfiltered} == {"/api/t1", "/api/t2"}
+
+
+def test_query_recent_llm_usage_missing_table_returns_empty(temp_db):
+    """llm_usage_log 表不存在 → 降级返空 (与原 api 层 try/except 行为一致)."""
+    from backend.services.observability_query_service import query_recent_llm_usage
+
+    assert query_recent_llm_usage(limit=5) == []
+
+
+def test_query_active_alerts_and_ack_roundtrip(temp_db):
+    from backend.services.observability_query_service import (
+        ack_alert,
+        query_active_alerts,
+    )
+
+    now = datetime.now(timezone.utc).isoformat()
+    conn = get_connection()
+    cur = conn.execute(
+        "INSERT INTO observability_alerts "
+        "(level, metric, value, threshold, window_minutes, detail, "
+        "fired_at, cooldown_until, acked) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
+        ("warn", "api.p95_latency_ms", 900.0, 800.0, 60, "{}",
+         now, now),
+    )
+    alert_id = cur.lastrowid
+
+    active = query_active_alerts()
+    assert active["warn_count"] == 1
+    assert active["critical_count"] == 0
+
+    first = ack_alert(alert_id)
+    assert "acked_at" in first
+    second = ack_alert(alert_id)
+    assert second == {"already": True}
+    assert not any(
+        it["id"] == alert_id for it in query_active_alerts()["items"]
+    )
+
+
+def test_query_recent_deliveries_shape(temp_db):
+    from backend.services.observability_query_service import query_recent_deliveries
+
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO alert_deliveries (alert_id, channel, ok, status_code, delivered_at) "
+        "VALUES (1, 'status_bar', 1, 200, '2026-01-01T00:00:00')"
+    )
+    rows = query_recent_deliveries(limit=10)
+    assert len(rows) == 1
+    assert rows[0]["channel"] == "status_bar"
+    assert rows[0]["ok"] is True
+
+
+def test_query_audit_log_items_detail_parse(temp_db):
+    from backend.services.observability_query_service import query_audit_log_items
+
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO audit_log (actor, action, target, detail, occurred_at) "
+        "VALUES ('web', 'test.act', 't1', '{\"k\": 1}', '2026-01-01T00:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO audit_log (actor, action, target, detail, occurred_at) "
+        "VALUES ('web', 'test.act2', 't2', 'not-json', '2026-01-01T00:00:01')"
+    )
+    items = query_audit_log_items(action="test.act", limit=10)
+    assert len(items) == 1
+    assert items[0]["detail"] == {"k": 1}
+    items_all = query_audit_log_items(limit=10)
+    assert len(items_all) == 2
+    assert items_all[0]["detail"] == "not-json"  # 坏 JSON 原样保留
+    assert items_all[0]["occurred_at"] == "2026-01-01T00:00:01"

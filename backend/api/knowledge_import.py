@@ -1,0 +1,146 @@
+"""Knowledge API — imports + SOUL.md + compile + auto-classification.
+
+拆自 ``backend/api/knowledge.py`` (Batch 2 任务 A): handler 逻辑原样搬移,
+路径相对聚合层 (聚合层带 ``/api/knowledge`` prefix), URL 逐字不变。
+"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Query
+
+from backend.services import ai_hub
+
+router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
+
+
+@router.post("/bookmarks/import")
+async def import_bookmarks(data: dict, validate: bool = Query(False)):
+    """Import Chrome/Edge bookmarks into knowledge base.
+
+    Supports two payload formats (Phase 1i Task 9.12):
+    - JSON: ``{"bookmarks": <chrome roots dict>}`` → parse_chrome_bookmarks
+    - HTML: ``{"html": "<Chrome export string>"}`` → parse_chrome_html
+    """
+    from backend.services.bookmark_sync import (
+        import_bookmarks as do_import,
+    )
+    from backend.services.bookmark_sync import (
+        parse_chrome_bookmarks,
+        parse_chrome_html,
+    )
+    html = data.get("html")
+    if isinstance(html, str) and html.strip():
+        items = parse_chrome_html(html)
+    else:
+        bookmarks = data.get("bookmarks", data)
+        items = parse_chrome_bookmarks(bookmarks)
+    result = do_import(items, validate=validate)
+    return result
+
+
+@router.post("/import-from-history")
+async def import_from_history(data: dict):
+    """Import archived hotspot items into knowledge base.
+
+    item_ids 是 hotspots 表的 TEXT 主键 (如 "ai_量子位_0").
+    """
+    from backend.services.history_import import import_from_history as do_import
+    item_ids = data.get("item_ids", [])
+    return do_import(item_ids)
+
+
+@router.get("/soul")
+async def get_soul():
+    """Get SOUL.md role profile content."""
+    from backend.services.soul_service import get_soul
+    return get_soul()
+
+@router.post("/soul/regenerate")
+async def regenerate_soul():
+    """Trigger SOUL.md regeneration (creates task for Agent)."""
+    from backend.services.soul_service import create_soul_task
+    return create_soul_task()
+
+
+@router.get("/compile/preview")
+async def compile_preview():
+    """Preview items that need recompilation (stale items)."""
+    from backend.services.compiler import detect_stale_items
+    result = detect_stale_items()
+    return {
+        "stale_items": result["stale_items"],
+        "count": len(result["stale_items"]),
+        "reasons": result["reasons"],
+    }
+
+
+@router.post("/compile")
+async def compile_items(data: dict):
+    """Trigger knowledge compilation (creates task for Agent)."""
+    from backend.services.compiler import create_compile_task
+    item_ids = data.get("item_ids")
+    return create_compile_task(item_ids)
+
+
+@router.post("/classify/batch")
+async def classify_items_batch():
+    """Run auto-classification on all items without domain assigned.
+
+    Classifies domain/type/difficulty from tags, title, and source URL.
+    Updates both .md files and SQLite.
+    Returns count of items classified.
+    """
+    from backend.domain.knowledge_models import now_iso
+    from backend.repository.knowledge_repo import knowledge_repo
+    from backend.services.auto_classifier import batch_classify
+
+    # Get all items without domain
+    items = knowledge_repo.list_items(limit=10000)
+    to_classify = [i.to_dict() for i in items if not i.domain]
+
+    if not to_classify:
+        return {"classified": 0, "message": "No items need classification"}
+
+    classified = batch_classify(to_classify)
+    count = 0
+    for item_dict in classified:
+        if item_dict.get("domain"):
+            # Update SQLite
+            item = knowledge_repo.get_item(item_dict["id"])
+            if item:
+                item.domain = item_dict["domain"]
+                item.type = item_dict.get("type")
+                item.difficulty = item_dict.get("difficulty")
+                item.topic = item_dict.get("topic")
+                item.updated_at = now_iso()
+                knowledge_repo.upsert_item(item)
+                # Update .md
+                ai_hub.write_item(item_dict, agent="api:classify_batch")
+                count += 1
+
+    return {
+        "classified": count,
+        "total_unclassified": len(to_classify),
+        "message": f"Classified {count} items",
+    }
+
+
+@router.get("/classify/stats")
+async def classify_stats():
+    """Show classification summary statistics."""
+    from backend.repository.knowledge_repo import knowledge_repo
+    items = knowledge_repo.list_items(limit=10000)
+    domain_counts: dict[str, int] = {}
+    compiled_count = 0
+    for item in items:
+        d = item.domain or "unclassified"
+        domain_counts[d] = domain_counts.get(d, 0) + 1
+        if item.compiled:
+            compiled_count += 1
+    return {
+        "total": len(items),
+        "classified": len(items) - domain_counts.get("unclassified", 0),
+        "unclassified": domain_counts.get("unclassified", 0),
+        "compiled": compiled_count,
+        "by_domain": dict(sorted(domain_counts.items(), key=lambda x: -x[1])),
+    }

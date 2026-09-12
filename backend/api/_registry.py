@@ -50,6 +50,7 @@ def register_all(app: FastAPI) -> None:
         extract,  # v1.7 Phase 1: 标签自动提取
         favorites,
         health,
+        health_stats,  # Batch 2: /api/stats 自 health.py 拆出 (URL 不变)
         history,
         hotspots,
         kl_metrics_api,  # v1.7 Phase 10: KL 触发器指标 (/api/kl/metrics)
@@ -88,6 +89,7 @@ def register_all(app: FastAPI) -> None:
     app.include_router(trends.router, tags=["trends"])
     app.include_router(categories.router, tags=["categories"])
     app.include_router(health.router, tags=["health"])
+    app.include_router(health_stats.router, tags=["health"])
     app.include_router(export.router, tags=["export"])
     app.include_router(proxy.router, tags=["proxy"])
     app.include_router(quality.router, tags=["quality"])

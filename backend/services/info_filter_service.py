@@ -84,11 +84,24 @@ def _validate(rule_type: str, match_kind: str, match_value: str) -> None:
             )
 
 
+def _conn(conn: sqlite3.Connection | None) -> sqlite3.Connection:
+    """连接下沉: 传入 conn 用传入的, 否则当前线程自取 (API 层不再持连接)."""
+    if conn is not None:
+        return conn
+    from backend.repository.db import get_connection
+
+    return get_connection()
+
+
 def list_rules(
-    conn: sqlite3.Connection,
+    conn: sqlite3.Connection | None = None,
     enabled_only: bool = False,
 ) -> list[dict]:
-    """列出全部规则 (含 disabled). 顺序: rule_type DESC (deny 先), id ASC."""
+    """列出全部规则 (含 disabled). 顺序: rule_type DESC (deny 先), id ASC.
+
+    conn 可省略 — 省略时服务内部自取当前线程连接 (Batch 2 SQL 下沉).
+    """
+    conn = _conn(conn)
     sql = (
         "SELECT id, rule_type, match_kind, match_value, enabled, "
         "note, created_at, updated_at "
@@ -102,14 +115,18 @@ def list_rules(
 
 
 def create_rule(
-    conn: sqlite3.Connection,
-    rule_type: str,
-    match_kind: str,
-    match_value: str,
+    conn: sqlite3.Connection | None = None,
+    rule_type: str = "",
+    match_kind: str = "",
+    match_value: str = "",
     note: str = "",
     enabled: int = 1,
 ) -> int:
-    """创建一条规则, 返回新 id. 校验失败抛 InfoFilterError."""
+    """创建一条规则, 返回新 id. 校验失败抛 InfoFilterError.
+
+    conn 可省略 (传 None) — 服务内部自取当前线程连接 (Batch 2 SQL 下沉).
+    """
+    conn = _conn(conn)
     _validate(rule_type, match_kind, match_value)
     cur = conn.execute(
         "INSERT INTO info_filter_rules "
@@ -128,7 +145,7 @@ def create_rule(
 
 
 def update_rule(
-    conn: sqlite3.Connection,
+    conn: sqlite3.Connection | None,
     rule_id: int,
     *,
     rule_type: str | None = None,
@@ -137,11 +154,13 @@ def update_rule(
     note: str | None = None,
     enabled: int | None = None,
 ) -> bool:
-    """更新一条规则. 至少传一个 kwarg. 返回是否真改了行.
+    """更新一条规则. 至少传一个字段 kwarg. 返回是否真改了行.
 
     校验: 当改 rule_type / match_kind / match_value 之一时, 必须三者都校验
     (用现有行的另外两个字段补齐, 因为 schema 整体合法才能存).
+    conn 可传 None — 服务内部自取当前线程连接 (Batch 2 SQL 下沉).
     """
+    conn = _conn(conn)
     if rule_id is None:
         raise InfoFilterError("rule_id is required")
     existing = conn.execute(
@@ -172,8 +191,12 @@ def update_rule(
     return changed
 
 
-def delete_rule(conn: sqlite3.Connection, rule_id: int) -> bool:
-    """删除一条规则. 返回是否真删了行."""
+def delete_rule(conn: sqlite3.Connection | None, rule_id: int) -> bool:
+    """删除一条规则. 返回是否真删了行.
+
+    conn 可传 None — 服务内部自取当前线程连接 (Batch 2 SQL 下沉).
+    """
+    conn = _conn(conn)
     cur = conn.execute(
         "DELETE FROM info_filter_rules WHERE id = ?",
         (rule_id,),

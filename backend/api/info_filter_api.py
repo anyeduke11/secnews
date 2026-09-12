@@ -20,7 +20,6 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from backend.repository.db import get_connection
 from backend.services.info_filter_gate import (
     invalidate_cache,
 )
@@ -70,18 +69,16 @@ class PreviewRequest(BaseModel):
 @router.get("/rules")
 def list_rules_endpoint(enabled_only: bool = False) -> dict:
     """列出全部规则. 默认含 disabled; ?enabled_only=true 只看启用."""
-    conn = get_connection()
-    rules = list_rules(conn, enabled_only=enabled_only)
+    rules = list_rules(enabled_only=enabled_only)
     return {"rules": rules, "count": len(rules)}
 
 
 @router.post("/rules", status_code=201)
 def create_rule_endpoint(req: CreateRuleRequest) -> dict:
     """创建规则. 校验失败返 400."""
-    conn = get_connection()
     try:
         new_id = create_rule(
-            conn,
+            None,  # SQL 下沉: 连接由 service 自取
             rule_type=req.rule_type,
             match_kind=req.match_kind,
             match_value=req.match_value,
@@ -97,12 +94,11 @@ def create_rule_endpoint(req: CreateRuleRequest) -> dict:
 @router.patch("/rules/{rule_id}")
 def update_rule_endpoint(rule_id: int, req: UpdateRuleRequest) -> dict:
     """更新规则 (PATCH 语义: 仅改传入字段)."""
-    conn = get_connection()
     payload = req.model_dump(exclude_unset=True)
     if not payload:
         raise HTTPException(status_code=400, detail="no fields to update")
     try:
-        changed = update_rule(conn, rule_id, **payload)
+        changed = update_rule(None, rule_id, **payload)  # SQL 下沉: conn 由 service 自取
     except InfoFilterError as e:
         msg = str(e)
         if "not found" in msg:
@@ -115,9 +111,8 @@ def update_rule_endpoint(rule_id: int, req: UpdateRuleRequest) -> dict:
 @router.delete("/rules/{rule_id}")
 def delete_rule_endpoint(rule_id: int) -> dict:
     """删除规则. 不存在返 404."""
-    conn = get_connection()
     try:
-        changed = delete_rule(conn, rule_id)
+        changed = delete_rule(None, rule_id)  # SQL 下沉: conn 由 service 自取
     except InfoFilterError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if not changed:
@@ -132,8 +127,7 @@ def preview_endpoint(req: PreviewRequest) -> dict:
 
     不依赖 DB 写, 只读现有规则 + 调 evaluate. 用于前端"如果现在启会怎样".
     """
-    conn = get_connection()
-    rules = list_rules(conn, enabled_only=True)
+    rules = list_rules(enabled_only=True)
     verdict, matched = evaluate(
         rules,
         category=req.category,

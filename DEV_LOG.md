@@ -1073,3 +1073,14 @@
 - **核心变更**: backup_service.py 重写 WAL 读取/恢复/三库备份; check_backup_chain.py 真校验; 新增 16 测试 (双字节序/撕裂帧/截断帧/坏头/pgno=0 拒收/真写页恢复)。
 - **测试验证**: 定向 16 passed + 相邻 24 passed; **生产端到端**: full 三库全非空 (hot 41.7MB/warm 920.6MB/cold) → incremental 294 页 1.2MB 非空 → 连续两次增量后 checker 25/25 passed exit 0, full+chain 应用 980 页 integrity_check ok; 全量回归见 DEV-0194 口径 (backup 终版后复跑); ruff 触碰文件 0 错。
 - **潜在风险**: ①增量固有局限: 两备份间发生 checkpoint 则期间页变更丢失 (7 天强制 full 兜底; 根治需 full 内嵌 WAL 序, 列后续) ②full_vs_chain_seq 为弱一致性信号 (checkpoint_seq 仅 RESTART 递增) ③旧格式 bin 已清, 历史增量链作废属预期 (本就全 0 字节) ④生产曾处于"无全量+断链"状态 — 本批当日已产出三库全量 + 可恢复增量链。
+
+## [DEV-0196] 解耦 Batch 2: API 层收口 — knowledge.py 拆分 + api 层直连 SQL 50 处清零 + R3 守卫
+- **时间**: 2026-09-13 00:30
+- **类型**: 重构 (解耦方案 Batch 2)
+- **关联模块**: `api:knowledge-split`, `api:sql-sink`, `services:query-services`, `tests:api_layer_guard`
+- **关联文件**: 新 api 子文件 knowledge_{items,concepts,ops,import,skills,obsidian,plans,health_stats,observability_metrics}.py; 新 services observability_query/health_query/quality_query/attention_events/secnews_dashboard(+repo mcp_tool_registry_repo); 既有 service 扩展 alert/info_filter/chunk/v1_evidence/knowledge/wiki_stats/legacy_migrate_v1/cve_heatmap/batch; api 瘦身 20 文件; 新测试 test_knowledge_api_contract/test_api_layer_guard/test_{health_query,quality_query,attention_events}_service
+- **问题描述**: `api/knowledge.py` 711 行/46 handler (超规格 4.7 倍); api 层 21 文件 50 处 get_connection + 2 处 conn.execute 直连 SQL, "数据访问只有 repository 一层"规格不成立, schema 单一真相无从建立。
+- **实现思路**: 4 个并行实施 agent (文件簇互不相交) + 主会话收口。拆分走"薄聚合 + 自带 prefix 子 router"模式 (本仓 include 惰性展开与 test_feature_gates 静态遍历约束, 偏差点已验证并留档); SQL 下沉优先既有 service 宿主, 响应 JSON 形状逐字不变 (46 路由 method+path 机械比对 diff 为空 + 19 契约用例拆分前后同断言); R3 守卫 AST 级检测 (get_connection/直接建连接/execute 类调用, 别名不漏, rglob 覆盖子包) + 行数 ≤150 硬断言 + 36 文件豁免清单单调收缩 (knowledge_api/case_api/sources/secrets 为 Batch 3+ 收缩目标)。
+- **核心变更**: api/knowledge.py 711→39; api 层 SQL 直连 52→0; observability_router 550→296; health.py 369→135 (/api/stats 迁 health_stats.py, URL 不变); history.py 归档裸 SQL (含 history.py:133,154 两处此前 grep 漏检的 conn.execute) 下沉 batch_service。
+- **测试验证**: 全量 pytest **4575 passed / 9 skipped / 0 失败** (基线 4534 + 新 41 用例); 契约测试 19 拆分前后全绿; meta --check OK (86 routers / 132 services, ARCHITECTURE + 4 处 AGENTS.md 已同步); ruff 触碰文件 0 错; 独立审计 (code-reviewer) **P0=0** / P1=1 (守卫绕过面) 已修 (AST+rglob 强化) / P2=6 认领; 报告 .ua/tmp/batch2-code-audit-report.md。
+- **潜在风险**: ①豁免清单 36 文件为存量超限, 单调收缩靠守卫 assert 锁定 (3 文件仅 1 行余量) ②恢复路径 staging 多一次拷贝 (P0-0 遗留设计代价) ③info_filter_api 158→159 行仍超 150 (存量) ④mcp_config 复用 repo 私有 _row_to_tool (同包内, 可接受) ⑤batch_service archive 异常捕获收窄为 sqlite3.Error (行为更严格, 原 except Exception 语义由 R3 下沉顺带收紧)。

@@ -445,6 +445,30 @@ class V1EvidenceService:
             logger.debug(f"audit write failed (ignored): {err}")
 
     # ------------------------------------------------------------------
+    # 只读查询 (Batch 2 D: api 层 SQL 下沉落点 — case_api aggregate)
+    # ------------------------------------------------------------------
+    def case_evidence_materials(self, case_id: str) -> list[dict[str, Any]]:
+        """v0.8.5 D1.2: 立项携带证据 — v1_case_materials JOIN v1_materials.
+
+        判断层证据链输入端: SK-02 generate 需要 evidence_materials
+        (id/title/content_hash), 随 case 聚合一次性返回。
+        migration 108 未跑 / 表缺失时显空不阻断聚合 (与原 api 行为一致)。
+        """
+        try:
+            with self._tx() as conn:
+                rows = conn.execute(
+                    "SELECT m.id, m.title, m.url, m.content_hash, m.source_kind, "
+                    "       m.summary, cm.signal_id, cm.created_at AS bound_at "
+                    "FROM v1_case_materials cm "
+                    "JOIN v1_materials m ON m.id = cm.material_id "
+                    "WHERE cm.case_id = ? ORDER BY cm.created_at DESC",
+                    (case_id,),
+                ).fetchall()
+                return [dict(r) for r in rows]
+        except Exception:
+            return []
+
+    # ------------------------------------------------------------------
     # 恢复 (扫描超时的 pending intent)
     # ------------------------------------------------------------------
     def reap_expired_intents(self, now_ts: float | None = None) -> list[dict[str, Any]]:

@@ -536,12 +536,13 @@ def test_compounding_api(client, temp_db):
 @pytest.fixture(autouse=True)
 def _reset_compounding_cache():
     """F6 缓存进程内共享 — 每测试前清零, 防止前序测试的 payload
-    让本文件的插数→断言读到脏缓存。"""
-    from backend.api import kl_compounding_api
+    让本文件的插数→断言读到脏缓存。(Batch 2 D 下沉后缓存在
+    wiki_stats_service, api 路由只是透传。)"""
+    from backend.services import wiki_stats_service
 
-    kl_compounding_api._cache = None
+    wiki_stats_service._compounding_cache = None
     yield
-    kl_compounding_api._cache = None
+    wiki_stats_service._compounding_cache = None
 
 
 def test_compounding_ttl_cache_hits_within_ttl(temp_db):
@@ -556,11 +557,12 @@ def test_compounding_ttl_cache_hits_within_ttl(temp_db):
 def test_compounding_ttl_cache_recomputes_after_expiry(temp_db):
     """缓存过期 (时钟拨过 TTL) → 重算并产生新对象。"""
     from backend.api import kl_compounding_api
+    from backend.services import wiki_stats_service
 
     a = kl_compounding_api.get_compounding()
-    ts, payload = kl_compounding_api._cache
-    kl_compounding_api._cache = (
-        ts - kl_compounding_api._CACHE_TTL_SECONDS - 1,
+    ts, payload = wiki_stats_service._compounding_cache
+    wiki_stats_service._compounding_cache = (
+        ts - wiki_stats_service._COMPOUNDING_TTL_S - 1,
         payload,
     )
     c = kl_compounding_api.get_compounding()

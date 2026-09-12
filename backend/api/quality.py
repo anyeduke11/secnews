@@ -219,27 +219,11 @@ async def quality_logs(
 # ---------------------------------------------------------------------------
 def _build_source_reputation() -> dict:
     """同步构建 source-reputation payload（在 thread pool 中执行）。"""
-    from backend.repository.db import get_connection
+    from backend.services.quality_query_service import list_source_reputation
 
-    conn = get_connection()
-    rows = conn.execute(
-        "SELECT source, score, blacklist, pass_count, fail_count, last_updated "
-        "FROM source_reputation ORDER BY score DESC"
-    ).fetchall()
-    sources = [
-        {
-            "source": r["source"],
-            "score": r["score"],
-            "blacklist": bool(r["blacklist"]),
-            "pass_count": r["pass_count"],
-            "fail_count": r["fail_count"],
-            "last_updated": r["last_updated"],
-        }
-        for r in rows
-    ]
     return {
         "version": API_VERSION,
-        "sources": sources,
+        "sources": list_source_reputation(),
         "fetched_at": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -265,47 +249,16 @@ def _build_rejection_log(
     page_size: int = 50,
 ) -> dict:
     """同步构建 rejection-log payload（在 thread pool 中执行）。"""
-    from backend.repository.db import get_connection
+    from backend.services.quality_query_service import query_rejection_log
 
-    conn = get_connection()
-    where_clauses: list[str] = ["1=1"]
-    params: list = []
-
-    if gate_name:
-        where_clauses.append("rejected_by = ?")
-        params.append(gate_name)
-    if source_id:
-        where_clauses.append("source_id LIKE ?")
-        params.append(f"%{source_id}%")
-    if date_from:
-        where_clauses.append("created_at >= ?")
-        params.append(date_from)
-    if date_to:
-        where_clauses.append("created_at <= ?")
-        params.append(date_to)
-
-    where = " AND ".join(where_clauses)
-    offset = (page - 1) * page_size
-
-    # 查询总数
-    count_row = conn.execute(
-        f"SELECT COUNT(*) as cnt FROM quality_rejection_log WHERE {where}",
-        params,
-    ).fetchone()
-    total = count_row["cnt"] if count_row else 0
-
-    # 查询分页数据
-    rows = conn.execute(
-        f"SELECT * FROM quality_rejection_log WHERE {where} ORDER BY created_at DESC LIMIT ? OFFSET ?",
-        [*params, page_size, offset],
-    ).fetchall()
-
-    return {
-        "items": [dict(r) for r in rows],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-    }
+    return query_rejection_log(
+        gate_name=gate_name,
+        source_id=source_id,
+        date_from=date_from,
+        date_to=date_to,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.get("/rejection-log")
@@ -332,45 +285,9 @@ def _build_rejection_stats(
     date_to: str | None = None,
 ) -> dict:
     """同步构建 rejection-stats payload（在 thread pool 中执行）。"""
-    from backend.repository.db import get_connection
+    from backend.services.quality_query_service import rejection_stats
 
-    conn = get_connection()
-    where_clauses: list[str] = ["1=1"]
-    params: list = []
-
-    if date_from:
-        where_clauses.append("created_at >= ?")
-        params.append(date_from)
-    if date_to:
-        where_clauses.append("created_at <= ?")
-        params.append(date_to)
-
-    where = " AND ".join(where_clauses)
-
-    # 按 gate 聚合
-    rows = conn.execute(
-        f"""SELECT rejected_by as gate_name, COUNT(*) as count
-            FROM quality_rejection_log
-            WHERE {where}
-            GROUP BY rejected_by
-            ORDER BY count DESC""",
-        params,
-    ).fetchall()
-
-    # 按日期趋势
-    trend_rows = conn.execute(
-        f"""SELECT DATE(created_at) as day, COUNT(*) as count
-            FROM quality_rejection_log
-            WHERE {where}
-            GROUP BY DATE(created_at)
-            ORDER BY day ASC""",
-        params,
-    ).fetchall()
-
-    return {
-        "by_gate": [dict(r) for r in rows],
-        "trend": [dict(r) for r in trend_rows],
-    }
+    return rejection_stats(date_from=date_from, date_to=date_to)
 
 
 @router.get("/rejection-stats")

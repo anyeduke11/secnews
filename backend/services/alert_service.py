@@ -267,3 +267,69 @@ def _load_hotspot(hotspot_id: str) -> dict | None:
         "url": str(item.url) if item.url else "",
         "tags": tags,
     }
+
+
+# ---------------------------------------------------------------------------
+# alert_events CRUD (Phase 12 /api/alerts/v2 SQL 下沉, Batch 2)
+# ---------------------------------------------------------------------------
+# alert_events 表暂无 repo (AlertEngine 直写), Batch 2 先把 API 直连 SQL
+# 收敛到本服务; Batch 3 补 AlertEventRepository 后可再迁移.
+def list_alert_events(
+    status: str | None = None,
+    severity: str | None = None,
+    limit: int = 50,
+) -> list[dict]:
+    """列出告警事件, 支持 status/severity 筛选, created_at 倒序."""
+    sql = "SELECT * FROM alert_events WHERE 1=1"
+    params: list = []
+    if status:
+        sql += " AND status = ?"
+        params.append(status)
+    if severity:
+        sql += " AND severity = ?"
+        params.append(severity)
+    sql += " ORDER BY created_at DESC LIMIT ?"
+    params.append(limit)
+
+    rows = get_connection().execute(sql, params).fetchall()
+    return [dict(r) for r in rows]
+
+
+def unread_alert_count() -> int:
+    """未读告警数."""
+    row = get_connection().execute(
+        "SELECT COUNT(*) AS c FROM alert_events WHERE status = 'unread'"
+    ).fetchone()
+    return int(row["c"])
+
+
+def mark_alert_read(alert_id: int) -> bool:
+    """标记单条告警已读. 返回是否真更新了行."""
+    now = datetime.now(timezone.utc).isoformat()
+    cur = get_connection().execute(
+        "UPDATE alert_events SET status = 'read', read_at = ? "
+        "WHERE id = ? AND status = 'unread'",
+        (now, alert_id),
+    )
+    return cur.rowcount > 0
+
+
+def mark_all_alerts_read() -> int:
+    """全部未读标记已读. 返回更新行数."""
+    now = datetime.now(timezone.utc).isoformat()
+    cur = get_connection().execute(
+        "UPDATE alert_events SET status = 'read', read_at = ? "
+        "WHERE status = 'unread'",
+        (now,),
+    )
+    return cur.rowcount
+
+
+def resolve_alert_event(alert_id: int) -> bool:
+    """标记单条告警已解决. 返回是否真更新了行."""
+    now = datetime.now(timezone.utc).isoformat()
+    cur = get_connection().execute(
+        "UPDATE alert_events SET status = 'resolved', read_at = ? WHERE id = ?",
+        (now, alert_id),
+    )
+    return cur.rowcount > 0

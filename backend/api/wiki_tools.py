@@ -20,7 +20,6 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.logging_config import logger
-from backend.repository.db import get_connection
 
 router = APIRouter(prefix="/api/wiki", tags=["wiki-tools"])
 
@@ -46,55 +45,16 @@ class WikiSearchInput(BaseModel):
 
 @router.post("/search")
 def wiki_search(req: WikiSearchInput):
-    """FTS5 全文搜索知识条目 chunks (中文 trigram / ASCII unicode61 / LIKE 回退)。"""
+    """FTS5 全文搜索知识条目 chunks (中文 trigram / ASCII unicode61 / LIKE 回退)。
+
+    SQL 在 chunk_service.wiki_search_chunks (Batch 2 D 下沉);
+    wiki_path 由本层追加 (wiki 命名空间映射)。
+    """
+    from backend.services.chunk_service import wiki_search_chunks
+
     q = req.q.strip()
-    conn = get_connection()
-    sanitized = q.replace('"', '""')
-    has_cjk = bool(re.search(r"[\u4e00-\u9fff]", q))
-    rows: list = []
-
-    if has_cjk and len(q) >= 3:
-        try:
-            rows = conn.execute(
-                """
-                SELECT c.item_id, c.chunk_index,
-                       substr(c.content, 1, 160) AS snippet
-                FROM knowledge_chunks_fts_cjk
-                JOIN knowledge_chunks c ON knowledge_chunks_fts_cjk.rowid = c.id
-                WHERE knowledge_chunks_fts_cjk MATCH ?
-                ORDER BY rank LIMIT ?
-                """,
-                (sanitized, req.limit),
-            ).fetchall()
-        except Exception as exc:
-            logger.warning(f"wiki_search CJK FTS failed: {exc}")
-            rows = []
-    if not rows:
-        try:
-            rows = conn.execute(
-                """
-                SELECT c.item_id, c.chunk_index,
-                       snippet(knowledge_chunks_fts, 0, '<b>', '</b>', '...', 48) AS snippet
-                FROM knowledge_chunks_fts
-                JOIN knowledge_chunks c ON knowledge_chunks_fts.rowid = c.id
-                WHERE knowledge_chunks_fts MATCH ?
-                ORDER BY rank LIMIT ?
-                """,
-                (sanitized, req.limit),
-            ).fetchall()
-        except Exception:
-            rows = []
-    if not rows:  # LIKE 回退 (短查询/无命中)
-        like = f"%{q}%"
-        rows = conn.execute(
-            "SELECT item_id, chunk_index, substr(content, 1, 160) AS snippet "
-            "FROM knowledge_chunks WHERE content LIKE ? OR summary LIKE ? LIMIT ?",
-            (like, like, req.limit),
-        ).fetchall()
-
     results = []
-    for r in rows:
-        d = dict(r)
+    for d in wiki_search_chunks(q, req.limit):
         d["wiki_path"] = f"items/{d['item_id']}.md"
         results.append(d)
     return {"results": results, "total": len(results)}

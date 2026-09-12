@@ -137,46 +137,34 @@ def mcp_tool_registry_seed() -> int:
 
     幂等: 重启不会重复插入 (用 PRIMARY KEY name 保证)。
     Returns: 实际写入的条数 (首次启动 = 9, 后续 = 0)。
+    SQL 在 mcp_tool_registry_repo (Batch 2 D 下沉); 此处只做
+    MCP_TOOLS 元数据 → 行的序列化。
     """
     from backend.api.mcp_types import MCP_TOOLS
-    from backend.repository.db import get_connection
+    from backend.repository.mcp_tool_registry_repo import mcp_tool_registry_repo
 
-    conn = get_connection()
     now = datetime.now(timezone.utc).isoformat()
-    inserted = 0
 
+    rows: list[tuple[str, str, str, str, str, str]] = []
     for tool in MCP_TOOLS:
-        name = tool["name"]
-        input_model = tool["input_model"]
         # 序列化 Pydantic schema 为 JSON Schema
         try:
             input_schema_json = json.dumps(
-                input_model.model_json_schema(),
+                tool["input_model"].model_json_schema(),
                 ensure_ascii=False,
             )
         except Exception:
             input_schema_json = "{}"
+        rows.append((
+            tool["name"],
+            tool["category"],
+            tool["description"],
+            input_schema_json,
+            "2025-06-18",
+            now,
+        ))
 
-        # INSERT OR IGNORE 幂等
-        cur = conn.execute(
-            """
-            INSERT OR IGNORE INTO mcp_tool_registry
-                (name, category, description, input_schema, enabled, version, created_at)
-            VALUES (?, ?, ?, ?, 1, ?, ?)
-            """,
-            (
-                name,
-                tool["category"],
-                tool["description"],
-                input_schema_json,
-                "2025-06-18",
-                now,
-            ),
-        )
-        if cur.rowcount > 0:
-            inserted += 1
-
-    conn.commit()
+    inserted = mcp_tool_registry_repo.seed(rows)
     logger.info(
         f"mcp_tool_registry_seed: {inserted}/{len(MCP_TOOLS)} tools inserted"
     )
@@ -184,32 +172,13 @@ def mcp_tool_registry_seed() -> int:
 
 
 def list_mcp_tools_from_db(enabled_only: bool = False) -> list[dict]:
-    """从 mcp_tool_registry 表读 tool 元数据。"""
-    from backend.repository.db import get_connection
+    """从 mcp_tool_registry 表读 tool 元数据 (SQL 在 mcp_tool_registry_repo)。"""
+    from backend.repository.mcp_tool_registry_repo import (
+        _row_to_tool,
+        mcp_tool_registry_repo,
+    )
 
-    conn = get_connection()
-    sql = "SELECT name, category, description, input_schema, enabled, version, created_at FROM mcp_tool_registry"
-    if enabled_only:
-        sql += " WHERE enabled = 1"
-    sql += " ORDER BY category, name"
-    rows = conn.execute(sql).fetchall()
-
-    tools = []
-    for r in rows:
-        try:
-            schema = json.loads(r["input_schema"]) if r["input_schema"] else {}
-        except Exception:
-            schema = {}
-        tools.append({
-            "name": r["name"],
-            "category": r["category"],
-            "description": r["description"],
-            "input_schema": schema,
-            "enabled": bool(r["enabled"]),
-            "version": r["version"],
-            "created_at": r["created_at"],
-        })
-    return tools
+    return [_row_to_tool(r) for r in mcp_tool_registry_repo.list_tools(enabled_only)]
 
 
 __all__ = [

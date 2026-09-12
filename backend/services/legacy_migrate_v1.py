@@ -556,6 +556,100 @@ class LegacyMigrateServiceV1:
         })
 
     # ------------------------------------------------------------------
+    # 只读查询 (Batch 2 D: api 层 SQL 下沉落点)
+    # ------------------------------------------------------------------
+    def mapping_status(self, batch_id: str | None) -> dict[str, Any]:
+        """GET /status 数据面 — v1_legacy_mapping 按 (legacy_source, status) 分组计数.
+
+        Returns: ``{"mapping_total": int, "breakdown": {src: {status: n}},
+        "v1_knowledge_legacy": int}`` (version/batch_id 由 api 层包装).
+        """
+        conn = get_connection()
+        params: tuple = ()
+        where = ""
+        if batch_id:
+            where = "WHERE batch_id = ?"
+            params = (batch_id,)
+        rows = conn.execute(
+            f"SELECT legacy_source, status, COUNT(*) AS n "
+            f"FROM v1_legacy_mapping {where} "
+            f"GROUP BY legacy_source, status "
+            f"ORDER BY legacy_source, status",
+            params,
+        ).fetchall()
+        breakdown: dict[str, dict[str, int]] = {}
+        total = 0
+        for src, st, n in rows:
+            breakdown.setdefault(src, {})[st] = n
+            total += n
+        # v1_knowledge status='legacy' 计数
+        legacy_k = conn.execute(
+            "SELECT COUNT(*) FROM v1_knowledge WHERE status = 'legacy'",
+        ).fetchone()[0]
+        return {
+            "mapping_total": total,
+            "breakdown": breakdown,
+            "v1_knowledge_legacy": legacy_k,
+        }
+
+    def query_mapping(
+        self,
+        legacy_source: str | None,
+        legacy_id: str | None,
+        status: str | None,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        """GET /mapping 数据面 — v1_legacy_mapping 条件查询 (按 migrated_at 倒序)."""
+        conn = get_connection()
+        where_parts: list[str] = []
+        params: list[Any] = []
+        if legacy_source:
+            where_parts.append("legacy_source = ?")
+            params.append(legacy_source)
+        if legacy_id:
+            where_parts.append("legacy_id = ?")
+            params.append(legacy_id)
+        if status:
+            where_parts.append("status = ?")
+            params.append(status)
+        where = "WHERE " + " AND ".join(where_parts) if where_parts else ""
+        rows = conn.execute(
+            f"SELECT legacy_source, legacy_id, legacy_revision, new_id, "
+            f"new_revision, status, error, batch_id, migrated_at "
+            f"FROM v1_legacy_mapping {where} "
+            f"ORDER BY migrated_at DESC LIMIT ?",
+            (*params, limit),
+        ).fetchall()
+        return [
+            {
+                "legacy_source": r[0], "legacy_id": r[1], "legacy_revision": r[2],
+                "new_id": r[3], "new_revision": r[4], "status": r[5],
+                "error": r[6], "batch_id": r[7], "migrated_at": r[8],
+            } for r in rows
+        ]
+
+    def promote_log(self, new_id: str | None, limit: int) -> list[dict[str, Any]]:
+        """GET /promote/log 数据面 — v1_legacy_promote_log 查询 (按 promoted_at 倒序)."""
+        conn = get_connection()
+        where = ""
+        params: tuple = ()
+        if new_id:
+            where = "WHERE new_id = ?"
+            params = (new_id,)
+        rows = conn.execute(
+            f"SELECT new_id, from_status, to_status, reason, promoted_at, promoted_by "
+            f"FROM v1_legacy_promote_log {where} "
+            f"ORDER BY promoted_at DESC LIMIT ?",
+            (*params, limit),
+        ).fetchall()
+        return [
+            {
+                "new_id": r[0], "from_status": r[1], "to_status": r[2],
+                "reason": r[3], "promoted_at": r[4], "promoted_by": r[5],
+            } for r in rows
+        ]
+
+    # ------------------------------------------------------------------
     # helpers
     # ------------------------------------------------------------------
     def _lookup_wiki_body(self, legacy_id: str) -> str | None:

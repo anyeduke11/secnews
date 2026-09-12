@@ -700,6 +700,59 @@ class KnowledgeService:
             "outcome": outcome, "outcome_note": outcome_note,
         }
 
+    # ------------------------------------------------------------------
+    # 只读查询 (Batch 2 D: api 层 SQL 下沉落点 — case_api / knowledge_api)
+    # ------------------------------------------------------------------
+    def case_reuse_summary(self, case_id: str) -> dict[str, Any]:
+        """v0.8.5 D4: 复利卡 (诚实计数) — 本 case 的知识采用/回执汇总.
+
+        只报真实记录数 (v1_knowledge_adoptions), 不做「节省 X 小时」类
+        无基线估算。表缺失等异常显零值不阻断聚合 (与原 api 行为一致)。
+        """
+        try:
+            conn = get_connection()
+            row = conn.execute(
+                "SELECT COUNT(*), "
+                "COALESCE(SUM(CASE WHEN adopted_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END), 0), "
+                "COUNT(DISTINCT knowledge_id) "
+                "FROM v1_knowledge_adoptions WHERE case_id = ? AND decision = 'adopted'",
+                (case_id,),
+            ).fetchone()
+            return {
+                "adoptions_total": row[0] or 0,
+                "adoptions_30d": row[1] or 0,
+                "distinct_knowledge": row[2] or 0,
+            }
+        except Exception:
+            return {"adoptions_total": 0, "adoptions_30d": 0, "distinct_knowledge": 0}
+
+    def list_adoptions(self, knowledge_id: str) -> list[dict[str, Any]]:
+        """C12 R16: 列出该 knowledge 的所有 adoptions (按 adopted_at 倒序).
+
+        condition_diff JSON 反序列化在 service 内完成, api 只包装 version。
+        """
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT id, case_id, knowledge_revision, decision, condition_diff_json, "
+            "outcome, outcome_note, adopted_at, adopted_by, decided_by "
+            "FROM v1_knowledge_adoptions WHERE knowledge_id = ? "
+            "ORDER BY adopted_at DESC",
+            (knowledge_id,),
+        ).fetchall()
+        items: list[dict[str, Any]] = []
+        for r in rows:
+            try:
+                diff = json.loads(r[4]) if r[4] else []
+            except (json.JSONDecodeError, TypeError):
+                diff = []
+            items.append({
+                "id": r[0], "case_id": r[1], "knowledge_revision": r[2],
+                "decision": r[3], "condition_diff": diff,
+                "outcome": r[5], "outcome_note": r[6],
+                "adopted_at": r[7], "adopted_by": r[8], "decided_by": r[9],
+            })
+        return items
+
     def recall_for_case(
         self, case_id: str, *, knowledge_id: str,
     ) -> dict[str, Any]:
@@ -900,3 +953,22 @@ def auto_recall_for_case(case: dict[str, Any], *, limit: int = 3) -> list[dict[s
             })
     scored.sort(key=lambda x: x["score"], reverse=True)
     return scored[:limit]
+
+
+def add_agent_link(
+    from_id: str, to_id: str, link_type: str, confidence: float,
+) -> int:
+    """MCP tool link_items 写路径 — agent 持久化 item 间关系 (knowledge_links).
+
+    Batch 2 D: 自 mcp_agent_tools 下沉; created_by 固定 'agent',
+    返回新行 link_id。连接为 autocommit (isolation_level=None),
+    与原 api 直写行为逐字一致。
+    """
+    conn = get_connection()
+    cur = conn.execute(
+        "INSERT INTO knowledge_links "
+        "(from_item_id, to_item_id, link_type, confidence, created_by) "
+        "VALUES (?, ?, ?, ?, 'agent')",
+        (from_id, to_id, link_type, confidence),
+    )
+    return cur.lastrowid

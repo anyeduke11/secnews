@@ -8,18 +8,17 @@
 from __future__ import annotations
 
 import asyncio
-import sqlite3
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from backend.config import config
 from backend.domain.enums import Category
 from backend.exceptions import InvalidParamException
 from backend.logging_config import logger
 from backend.services.batch_service import (
     BatchService,
+    archive_hotspots,
     get_batch_range,
 )
 
@@ -126,41 +125,13 @@ class ArchiveRequest(BaseModel):
     item_ids: list[str]
 
 
-def _has_archived_column() -> bool:
-    """Check if hotspots table has an 'archived' column."""
-    try:
-        conn = sqlite3.connect(str(config.db_path))
-        cursor = conn.execute("PRAGMA table_info(hotspots)")
-        columns = {row[1] for row in cursor.fetchall()}
-        conn.close()
-        return "archived" in columns
-    except Exception:
-        return False
-
-
 def _archive_hotspots(item_ids: list[str]) -> int:
     """Mark hotspots as archived. Returns count archived.
 
     If the hotspots table has no 'archived' column, skips SQL and returns 0.
+    (SQL 归宿: batch_service.archive_hotspots, R3 — api 层零直连 SQL)
     """
-    if not item_ids:
-        return 0
-    if not _has_archived_column():
-        logger.info("hotspots table has no 'archived' column, skipping SQL archive")
-        return 0
-    try:
-        conn = sqlite3.connect(str(config.db_path))
-        placeholders = ",".join("?" * len(item_ids))
-        cursor = conn.execute(
-            f"UPDATE hotspots SET archived = 1 WHERE id IN ({placeholders})",
-            item_ids,
-        )
-        archived = cursor.rowcount
-        conn.close()
-        return archived
-    except Exception as e:
-        logger.error(f"archive SQL failed: {e}")
-        return 0
+    return archive_hotspots(item_ids)
 
 
 @router.post("/archive")

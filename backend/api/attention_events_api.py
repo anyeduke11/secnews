@@ -4,28 +4,24 @@
 ----
 - ``POST /api/attention/events``  记录注意力事件 (view/dwell/scroll/...)
 - ``GET  /api/attention/events``  最近 N 天按 天×小时 聚合 (热力图数据源)
+
+Batch 2 SQL 下沉: 读写全部经 backend.services.attention_events_service,
+本路由仅保留 HTTP 语义 (校验/状态码映射).
 """
 from __future__ import annotations
-
-import json
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.logging_config import logger
-from backend.repository.db import get_connection
+from backend.services.attention_events_service import (
+    VALID_EVENT_TYPES,
+    heatmap_by_day_hour,
+    maybe_create_sm2_review,
+    record_event,
+)
 
 router = APIRouter(prefix="/api", tags=["attention"])
-
-VALID_EVENT_TYPES = frozenset({
-    "view",
-    "dwell",
-    "scroll",
-    "favorite",
-    "annotation",
-    "share",
-})
 
 
 class AttentionEventRequest(BaseModel):
@@ -58,18 +54,8 @@ def create_attention_event(req: AttentionEventRequest) -> dict:
             },
         )
 
-    detail_text = json.dumps(req.detail_json, ensure_ascii=False)
-    created_at = datetime.now(timezone.utc).isoformat()
-
-    conn = get_connection()
     try:
-        cursor = conn.execute(
-            "INSERT INTO attention_events "
-            "(item_id, event_type, detail_json, created_at) "
-            "VALUES (?, ?, ?, ?)",
-            (req.item_id, req.event_type, detail_text, created_at),
-        )
-        event_id = cursor.lastrowid
+        event_id = record_event(req.item_id, req.event_type, req.detail_json)
     except Exception as e:
         logger.error(f"insert attention_event failed: {e}")
         raise HTTPException(
@@ -77,25 +63,9 @@ def create_attention_event(req: AttentionEventRequest) -> dict:
             detail={"message": f"写入注意力事件失败: {e}"},
         )
 
-    # P3-1: 知识条目的 view/dwell/favorite 事件 → 自动创建 SM-2 复习记录
-    # (此前 create_review 无任何调用点, sm2_reviews 恒 0 → 复习功能死代码)
-    # v0.4.3 复利驱动器④: dwell 事件需 dwell_seconds > 30 才转化 (深度阅读判定),
-    # view/favorite 保持原有即时转化; create_review 内部幂等 (已存在则返回现有)。
-    dwell_seconds = int(req.detail_json.get("dwell_seconds", 0) or 0)
-    if req.event_type == "dwell" and dwell_seconds <= 30:
-        return {"success": True, "event_id": event_id}
-    if req.event_type in ("view", "dwell", "favorite"):
-        try:
-            _c = get_connection()
-            exists = _c.execute(
-                "SELECT 1 FROM knowledge_items WHERE id = ?",
-                (req.item_id,),
-            ).fetchone()
-            if exists:
-                from backend.services.review_service import create_review
-                create_review(entity_type="knowledge_item", entity_id=req.item_id)
-        except Exception as e:
-            logger.warning(f"auto-create sm2 review failed: {e}")
+    # P3-1: view/dwell/favorite 事件 → 自动创建 SM-2 复习记录 (幂等);
+    # dwell 需 dwell_seconds > 30 才转化 — 转化判定在 service 内.
+    maybe_create_sm2_review(req.event_type, req.item_id, req.detail_json)
 
     return {"success": True, "event_id": event_id}
 
@@ -110,31 +80,10 @@ def list_attention_events(
 
     Phase 17 热力图数据源: 前端 ``AttentionHeatmap.tsx`` 请求
     ``GET /api/attention/events?days=30``, 期望结构
-    ``{ events: [{date: "YYYY-MM-DD", hour: 0-23, count: N}] }``
-    (也兼容直接返回数组)。按 ``created_at`` 的日期 + 小时分组计数,
-    表为空时返回空列表 ``{"events": []}``。
+    ``{events: [{date: "YYYY-MM-DD", hour: 0-23, count: N}]}``
+    (也兼容直接返回数组)。表为空时返回空列表 ``{"events": []}``。
     """
-    from datetime import timedelta
-
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-    conn = get_connection()
-    rows = conn.execute(
-        """
-        SELECT substr(created_at, 1, 10) AS date,
-               CAST(substr(created_at, 12, 2) AS INTEGER) AS hour,
-               COUNT(*) AS count
-        FROM attention_events
-        WHERE created_at >= ?
-        GROUP BY date, hour
-        ORDER BY date, hour
-        """,
-        (cutoff,),
-    ).fetchall()
-    events = [
-        {"date": r["date"], "hour": r["hour"], "count": r["count"]}
-        for r in rows
-    ]
-    return {"events": events}
+    return {"events": heatmap_by_day_hour(days)}
 
 
 __all__ = ["router"]

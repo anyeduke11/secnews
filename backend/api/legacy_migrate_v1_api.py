@@ -17,7 +17,6 @@ from typing import Any
 
 from fastapi import APIRouter, Query
 
-from backend.repository.db import get_connection
 from backend.services.legacy_migrate_v1 import LegacyMigrateServiceV1
 from backend.version import APP_VERSION as API_VERSION
 
@@ -84,34 +83,11 @@ async def run_migration(
 # 2) status — 走 v1_legacy_mapping 真实查询 (替换 T18 in-memory)
 # ---------------------------------------------------------------------------
 def _status(batch_id: str | None) -> dict[str, Any]:
-    conn = get_connection()
-    params: tuple = ()
-    where = ""
-    if batch_id:
-        where = "WHERE batch_id = ?"
-        params = (batch_id,)
-    rows = conn.execute(
-        f"SELECT legacy_source, status, COUNT(*) AS n "
-        f"FROM v1_legacy_mapping {where} "
-        f"GROUP BY legacy_source, status "
-        f"ORDER BY legacy_source, status",
-        params,
-    ).fetchall()
-    breakdown: dict[str, dict[str, int]] = {}
-    total = 0
-    for src, st, n in rows:
-        breakdown.setdefault(src, {})[st] = n
-        total += n
-    # v1_knowledge status='legacy' 计数
-    legacy_k = conn.execute(
-        "SELECT COUNT(*) FROM v1_knowledge WHERE status = 'legacy'",
-    ).fetchone()[0]
+    data = LegacyMigrateServiceV1().mapping_status(batch_id)
     return {
         "version": API_VERSION,
         "batch_id": batch_id,
-        "mapping_total": total,
-        "breakdown": breakdown,
-        "v1_knowledge_legacy": legacy_k,
+        **data,
     }
 
 
@@ -129,35 +105,10 @@ def _mapping(
     legacy_source: str | None, legacy_id: str | None,
     status: str | None, limit: int,
 ) -> dict[str, Any]:
-    conn = get_connection()
-    where_parts: list[str] = []
-    params: list[Any] = []
-    if legacy_source:
-        where_parts.append("legacy_source = ?")
-        params.append(legacy_source)
-    if legacy_id:
-        where_parts.append("legacy_id = ?")
-        params.append(legacy_id)
-    if status:
-        where_parts.append("status = ?")
-        params.append(status)
-    where = "WHERE " + " AND ".join(where_parts) if where_parts else ""
-    rows = conn.execute(
-        f"SELECT legacy_source, legacy_id, legacy_revision, new_id, "
-        f"new_revision, status, error, batch_id, migrated_at "
-        f"FROM v1_legacy_mapping {where} "
-        f"ORDER BY migrated_at DESC LIMIT ?",
-        (*params, limit),
-    ).fetchall()
+    rows = LegacyMigrateServiceV1().query_mapping(legacy_source, legacy_id, status, limit)
     return {
         "version": API_VERSION,
-        "rows": [
-            {
-                "legacy_source": r[0], "legacy_id": r[1], "legacy_revision": r[2],
-                "new_id": r[3], "new_revision": r[4], "status": r[5],
-                "error": r[6], "batch_id": r[7], "migrated_at": r[8],
-            } for r in rows
-        ],
+        "rows": rows,
     }
 
 
@@ -192,26 +143,10 @@ async def trigger_promote() -> dict[str, Any]:
 # 5) promote/log — promote 日志
 # ---------------------------------------------------------------------------
 def _promote_log(new_id: str | None, limit: int) -> dict[str, Any]:
-    conn = get_connection()
-    where = ""
-    params: tuple = ()
-    if new_id:
-        where = "WHERE new_id = ?"
-        params = (new_id,)
-    rows = conn.execute(
-        f"SELECT new_id, from_status, to_status, reason, promoted_at, promoted_by "
-        f"FROM v1_legacy_promote_log {where} "
-        f"ORDER BY promoted_at DESC LIMIT ?",
-        (*params, limit),
-    ).fetchall()
+    rows = LegacyMigrateServiceV1().promote_log(new_id, limit)
     return {
         "version": API_VERSION,
-        "rows": [
-            {
-                "new_id": r[0], "from_status": r[1], "to_status": r[2],
-                "reason": r[3], "promoted_at": r[4], "promoted_by": r[5],
-            } for r in rows
-        ],
+        "rows": rows,
     }
 
 

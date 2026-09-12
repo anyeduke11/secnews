@@ -40,11 +40,11 @@ def api_db(tmp_path, monkeypatch):
     invalidate_cache()
 
     from backend import repository as repo_pkg
-    from backend.api import info_filter_api as api_mod
     from backend.repository import db as db_mod
 
+    # Batch 2 SQL 下沉: API 层不再持有 get_connection, 连接统一经
+    # backend.repository.db.get_connection 由 service 自取.
     monkeypatch.setattr(db_mod, "get_connection", lambda: conn)
-    monkeypatch.setattr(api_mod, "get_connection", lambda: conn)
     for name in list(repo_pkg.__dict__.keys()):
         m = getattr(repo_pkg, name)
         if hasattr(m, "get_connection"):

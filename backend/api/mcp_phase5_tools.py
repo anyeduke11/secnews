@@ -92,12 +92,11 @@ def kl_status() -> dict[str, Any]:
     """返回漏斗 + 队列 + 错误 + 计数 (与 /api/kl/pipeline/stats 等价)."""
     try:
         from backend.kl_pipeline.obs.funnel import funnel_stats
-        from backend.kl_pipeline.obs.ledger import TokenLedger
         from backend.kl_pipeline.runtime import (
             get_production_pipeline,
             get_production_wiki_fs,
         )
-        from backend.repository.db import get_connection
+        from backend.services.wiki_stats_service import token_ledger_summary
         from backend.wiki_fs.liveness import liveness_counts
         pipeline = get_production_pipeline()
         wiki_fs = get_production_wiki_fs()
@@ -106,7 +105,7 @@ def kl_status() -> dict[str, Any]:
             "queue": pipeline.queue.stats(),
             "errors": pipeline.queue.errors(limit=10),
             "alive": liveness_counts(wiki_fs),
-            "ledger": TokenLedger(get_connection()).summary(),
+            "ledger": token_ledger_summary(),
         }
     except Exception as e:
         logger.warning("kl_status: stats failed: %s", e)

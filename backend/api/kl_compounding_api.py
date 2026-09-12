@@ -1,6 +1,9 @@
 """GET /api/kl/compounding — 复利仪表盘聚合指标 (Phase 13, P3-5 修复)。
 
-P3-5 (2026-08-16): 修复三处空转数据源 —
+Batch 2 D (api 层 SQL 下沉): 全部聚合 SQL + 30s TTL 缓存在
+``backend/services/wiki_stats_service.compounding_snapshot``; 本文件只留路由。
+
+P3-5 (2026-08-16) 修复的三处空转数据源 (口径记录, 实现在 service):
 1. avg_score 原取 AVG(mastery) (全 0) → 改为 AVG(attention_score)
    (注意力事件经 P3-2 前端埋点流入, attention_aggregate job 聚合)
 2. trigger_health 原读进程内内存计数器 (重启清零) → 改为读 kl_dead_letters
@@ -12,22 +15,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from backend.metrics.kl_metrics import kl_metrics
-from backend.repository.db import get_connection
-
 router = APIRouter(prefix="/api/kl", tags=["kl"])
-
-
-def _to_score(val: float | None) -> float:
-    """Convert nullable AVG result to float."""
-    return round(val, 4) if val is not None else 0.0
-
-
-# v085-review F6 (P2): 30s TTL 缓存 — 判断层 rail 常驻消费本端点,
-# 每次全量跑 5 组聚合 (top_concepts 还是 CROSS JOIN json_each 全表展开)。
-# 当前 knowledge_items ~3800 行便宜, 行数增长后是稳定热点。
-_CACHE_TTL_SECONDS = 30
-_cache: tuple[float, dict] | None = None  # (monotonic ts, payload)
 
 
 @router.get("/compounding")
@@ -49,119 +37,9 @@ def get_compounding() -> dict:
     stage_distribution
         count of items per lifecycle stage
     """
-    global _cache
+    from backend.services.wiki_stats_service import compounding_snapshot
 
-    import time
-
-    now = time.monotonic()
-    if _cache is not None and now - _cache[0] < _CACHE_TTL_SECONDS:
-        return _cache[1]
-
-    conn = get_connection()
-
-    # ── Daily trend (last 30 days) ──────────────────────────────
-    # P3-5: avg_score 改用 attention_score (真实注意力数据), 不再用 mastery (全 0)
-    daily = conn.execute(
-        """
-        SELECT DATE(ingested_at) AS day,
-               COUNT(*) AS count,
-               AVG(CAST(attention_score AS REAL)) AS avg_score
-        FROM knowledge_items
-        WHERE ingested_at >= DATE('now', '-30 days')
-        GROUP BY day
-        ORDER BY day ASC
-        """
-    ).fetchall()
-
-    # ── Weekly trend (last 12 weeks) ────────────────────────────
-    weekly = conn.execute(
-        """
-        SELECT strftime('%Y-W%W', ingested_at) AS week,
-               COUNT(*) AS count,
-               AVG(CAST(attention_score AS REAL)) AS avg_score
-        FROM knowledge_items
-        WHERE ingested_at >= DATE('now', '-84 days')
-        GROUP BY week
-        ORDER BY week ASC
-        """
-    ).fetchall()
-
-    # ── Monthly trend (last 6 months) ───────────────────────────
-    monthly = conn.execute(
-        """
-        SELECT strftime('%Y-%m', ingested_at) AS month,
-               COUNT(*) AS count,
-               AVG(CAST(attention_score AS REAL)) AS avg_score
-        FROM knowledge_items
-        WHERE ingested_at >= DATE('now', '-6 months')
-        GROUP BY month
-        ORDER BY month ASC
-        """
-    ).fetchall()
-
-    # ── Top 10 concepts by item participation ───────────────────
-    # P3-5: 直接聚合 knowledge_items.concepts (不再依赖稀疏的 knowledge_links)
-    top_concepts = conn.execute(
-        """
-        SELECT c.value AS name, COUNT(*) AS score
-        FROM knowledge_items ki
-        CROSS JOIN json_each(ki.concepts) c
-        WHERE c.value IS NOT NULL AND c.value != ''
-        GROUP BY c.value
-        ORDER BY score DESC
-        LIMIT 10
-        """
-    ).fetchall()
-
-    # ── Trigger health ──────────────────────────────────────────
-    # P3-5: 死信从 kl_dead_letters 表读 (持久化, 重启不丢), 进程内计数仅补充
-    try:
-        dl_rows = conn.execute(
-            "SELECT trigger_name, COUNT(*) AS n FROM kl_dead_letters "
-            "WHERE status = 'active' GROUP BY trigger_name"
-        ).fetchall()
-        dead_letter_db = {r[0]: r[1] for r in dl_rows}
-    except Exception:
-        dead_letter_db = {}
-    counters = kl_metrics.snapshot()["counters"]
-    trigger_health = {
-        "t1_failed": counters.get("t1_failed", 0),
-        "t2_failed": counters.get("t2_failed", 0),
-        "t3_failed": counters.get("t3_failed", 0),
-        "t4_failed": counters.get("t4_failed", 0),
-        "dead_letter_count": sum(dead_letter_db.values()),
-        "dead_letter_by_trigger": dead_letter_db,
-    }
-
-    # ── Stage distribution ──────────────────────────────────────
-    stage_rows = conn.execute(
-        "SELECT lifecycle, COUNT(*) FROM knowledge_items "
-        "WHERE lifecycle IS NOT NULL AND lifecycle != '' "
-        "GROUP BY lifecycle ORDER BY COUNT(*) DESC"
-    ).fetchall()
-
-    payload = {
-        "daily_trend": [
-            {"day": r[0], "count": r[1], "avg_score": _to_score(r[2])}
-            for r in daily
-        ],
-        "weekly_trend": [
-            {"week": r[0], "count": r[1], "avg_score": _to_score(r[2])}
-            for r in weekly
-        ],
-        "monthly_trend": [
-            {"month": r[0], "count": r[1], "avg_score": _to_score(r[2])}
-            for r in monthly
-        ],
-        "top_concepts": [
-            {"name": r[0], "score": r[1]} for r in top_concepts
-        ],
-        "trigger_health": trigger_health,
-        "stage_distribution": {r[0]: r[1] for r in stage_rows},
-    }
-    # 并发首算可能双写 — last-wins, payload 幂等, 无需加锁
-    _cache = (now, payload)
-    return payload
+    return compounding_snapshot()
 
 
 __all__ = ["router"]

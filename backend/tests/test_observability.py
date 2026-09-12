@@ -261,12 +261,18 @@ def test_health_db_truncate_detected(monkeypatch, tmp_path):
     直接调用 _db_health() 避免 TestClient 跨线程的连接共享问题：
     构造一个有数据的 DB → DELETE 所有行 → _db_health 应返回 ok=False。
     """
-    from backend.api.health import _INTEGRITY_CACHE, _db_health
+    # Batch 2 SQL 下沉: _db_health 与 integrity 缓存迁至 health_query_service
     from backend.config import config
     from backend.domain.enums import Category
     from backend.domain.models import HotspotItem
     from backend.repository import db
     from backend.repository.hotspot_repo import HotspotRepository
+    from backend.services.health_query_service import (
+        _INTEGRITY_CACHE,
+    )
+    from backend.services.health_query_service import (
+        db_health as _db_health,
+    )
 
     monkeypatch.setattr(config, "db_path", tmp_path / "test_truncate.db")
     db.close_db()  # 清掉前序测试的 thread-local 连接 (指向旧 DB)

@@ -105,4 +105,25 @@ def weekly_heatmap(weeks: int = 12) -> dict[str, Any]:
     }
 
 
-__all__ = ["weekly_heatmap"]
+def recent_cves(limit: int = 50) -> dict[str, Any]:
+    """最近入库的 CVE 实体 id 清单 (security_entities, entity_type='cve')。
+
+    Batch 2 D: 自 api/cve_analytics.py 下沉。id 形态原样返回 (CVE-xxx 与
+    cve:CVE-xxx 并存) — /cve/attack-mapping 按 id 精确 IN 匹配, 前端直接透传。
+    """
+    conn = get_connection()
+    rows = conn.execute(
+        """
+        SELECT id, name, created_at
+        FROM security_entities
+        WHERE entity_type = 'cve'
+        ORDER BY created_at DESC
+        LIMIT ?
+        """,
+        (int(limit),),
+    ).fetchall()
+    items = [{"id": r["id"], "name": r["name"], "created_at": r["created_at"]} for r in rows]
+    return {"items": items, "total": len(items)}
+
+
+__all__ = ["recent_cves", "weekly_heatmap"]

@@ -317,10 +317,46 @@ class BatchService:
             return 0
 
 
+def has_archived_column() -> bool:
+    """hotspots 表是否有 archived 列 (旧库迁移前无该列, 归档需优雅跳过)."""
+    try:
+        conn = get_connection()
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(hotspots)").fetchall()}
+        return "archived" in columns
+    except sqlite3.Error as e:
+        logger.warning(f"has_archived_column probe failed: {e}")
+        return False
+
+
+def archive_hotspots(item_ids: list[str]) -> int:
+    """按 id 批量归档 hotspots (archived=1), 返回归档条数.
+
+    表无 archived 列或 SQL 失败时返回 0 (与 api 层旧行为逐字一致).
+    """
+    if not item_ids:
+        return 0
+    if not has_archived_column():
+        logger.info("hotspots table has no 'archived' column, skipping SQL archive")
+        return 0
+    try:
+        conn = get_connection()
+        placeholders = ",".join("?" * len(item_ids))
+        cursor = conn.execute(
+            f"UPDATE hotspots SET archived = 1 WHERE id IN ({placeholders})",
+            item_ids,
+        )
+        return cursor.rowcount
+    except sqlite3.Error as e:
+        logger.error(f"archive SQL failed: {e}")
+        return 0
+
+
 __all__ = [
     "HISTORY_START_DATE",
     "BatchService",
+    "archive_hotspots",
     "get_batch_no",
     "get_batch_range",
     "get_current_batch_no",
+    "has_archived_column",
 ]

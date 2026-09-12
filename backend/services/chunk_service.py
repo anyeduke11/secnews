@@ -126,4 +126,157 @@ def generate_chunks_for_item(item_id: str) -> dict:
     return {"item_id": item_id, "created": len(segments), "skipped": False, "reason": None}
 
 
-__all__ = ["MIN_CONTENT_LEN", "generate_chunks_for_item"]
+# ---------------------------------------------------------------------------
+# 只读查询 (Batch 2 D: api 层 SQL 下沉落点 — knowledge_chunks_api / wiki_tools)
+# ---------------------------------------------------------------------------
+_CHUNK_COLS = "id, item_id, chunk_index, content, char_start, char_end, summary"
+
+
+def list_chunks(item_id: str, *, include_created_at: bool = True) -> list[dict]:
+    """某条目全部 chunks, 按 chunk_index 升序.
+
+    Args:
+        item_id: 知识条目 id。
+        include_created_at: GET 列表端点含 created_at; generate 后的兼容
+            返回不含 (JSON 形状逐字保持, 故用开关区分两种列集)。
+    """
+    conn = get_connection()
+    cols = _CHUNK_COLS + (", created_at" if include_created_at else "")
+    rows = conn.execute(
+        f"SELECT {cols} FROM knowledge_chunks WHERE item_id = ? ORDER BY chunk_index",
+        (item_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def search_chunks(q: str) -> dict:
+    """knowledge chunks FTS5 检索 (v0.4.0: 中文路由) — GET /api/knowledge/chunks/search.
+
+    - 含中文且长度 ≥3 → trigram 表 (knowledge_chunks_fts_cjk), 支持 CJK 子串
+    - 纯 ASCII → unicode61 表 (knowledge_chunks_fts)
+    - FTS 无命中或 2 字短查询 → LIKE 回退 (chunks 规模小, LIKE 足够)
+
+    Returns: ``{"results": [...], "total": n}``
+    """
+    conn = get_connection()
+    sanitized = q.replace('"', '""')
+    has_cjk = bool(_re.search(r"[\u4e00-\u9fff]", q))
+
+    def _search_fts() -> list:
+        if has_cjk and len(q) >= 3:
+            # trigram 表 (FTS5 trigram 要求查询 ≥3 字符)
+            try:
+                return conn.execute(
+                    """
+                    SELECT c.item_id, c.chunk_index,
+                           substr(c.content, 1, 120) AS content_snippet,
+                           c.summary
+                    FROM knowledge_chunks_fts_cjk
+                    JOIN knowledge_chunks c ON knowledge_chunks_fts_cjk.rowid = c.id
+                    WHERE knowledge_chunks_fts_cjk MATCH ?
+                    ORDER BY rank
+                    LIMIT 50
+                    """,
+                    (sanitized,),
+                ).fetchall()
+            except Exception as exc:
+                log.warning("CJK FTS5 query failed: %s — %r", exc, q)
+                return []
+        # unicode61 (ASCII)
+        try:
+            return conn.execute(
+                """
+                SELECT c.item_id, c.chunk_index,
+                       snippet(knowledge_chunks_fts, 0, '<b>', '</b>', '...', 64) AS content_snippet,
+                       c.summary
+                FROM knowledge_chunks_fts
+                JOIN knowledge_chunks c ON knowledge_chunks_fts.rowid = c.id
+                WHERE knowledge_chunks_fts MATCH ?
+                ORDER BY rank
+                LIMIT 50
+                """,
+                (sanitized,),
+            ).fetchall()
+        except Exception as exc:
+            log.warning("FTS5 query failed: %s — query=%r", exc, q)
+            return []
+
+    rows = _search_fts()
+    # 回退: FTS 无命中 (或 2 字短查询) → LIKE 全文模糊匹配
+    if not rows:
+        like = f"%{q}%"
+        try:
+            rows = conn.execute(
+                "SELECT id AS item_id, chunk_index, "
+                "substr(content, 1, 120) AS content_snippet, summary "
+                "FROM knowledge_chunks "
+                "WHERE content LIKE ? OR summary LIKE ? LIMIT 50",
+                (like, like),
+            ).fetchall()
+        except Exception:
+            rows = []
+
+    results = [dict(r) for r in rows]
+    return {"results": results, "total": len(results)}
+
+
+def wiki_search_chunks(q: str, limit: int) -> list[dict]:
+    """wiki_search 数据面 — FTS5 全文搜 chunks (llm-wiki-2.0 消费, /api/wiki/search).
+
+    与 :func:`search_chunks` 的差异: snippet 截断 160 字符、无 summary 列、
+    CJK <3 字符时仍先试 unicode61 表。返回原始行 dict 列表,
+    wiki_path 由 api 层追加。
+    """
+    conn = get_connection()
+    sanitized = q.replace('"', '""')
+    has_cjk = bool(_re.search(r"[\u4e00-\u9fff]", q))
+    rows: list = []
+
+    if has_cjk and len(q) >= 3:
+        try:
+            rows = conn.execute(
+                """
+                SELECT c.item_id, c.chunk_index,
+                       substr(c.content, 1, 160) AS snippet
+                FROM knowledge_chunks_fts_cjk
+                JOIN knowledge_chunks c ON knowledge_chunks_fts_cjk.rowid = c.id
+                WHERE knowledge_chunks_fts_cjk MATCH ?
+                ORDER BY rank LIMIT ?
+                """,
+                (sanitized, limit),
+            ).fetchall()
+        except Exception as exc:
+            log.warning("wiki_search CJK FTS failed: %s", exc)
+            rows = []
+    if not rows:
+        try:
+            rows = conn.execute(
+                """
+                SELECT c.item_id, c.chunk_index,
+                       snippet(knowledge_chunks_fts, 0, '<b>', '</b>', '...', 48) AS snippet
+                FROM knowledge_chunks_fts
+                JOIN knowledge_chunks c ON knowledge_chunks_fts.rowid = c.id
+                WHERE knowledge_chunks_fts MATCH ?
+                ORDER BY rank LIMIT ?
+                """,
+                (sanitized, limit),
+            ).fetchall()
+        except Exception:
+            rows = []
+    if not rows:  # LIKE 回退 (短查询/无命中)
+        like = f"%{q}%"
+        rows = conn.execute(
+            "SELECT item_id, chunk_index, substr(content, 1, 160) AS snippet "
+            "FROM knowledge_chunks WHERE content LIKE ? OR summary LIKE ? LIMIT ?",
+            (like, like, limit),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+__all__ = [
+    "MIN_CONTENT_LEN",
+    "generate_chunks_for_item",
+    "list_chunks",
+    "search_chunks",
+    "wiki_search_chunks",
+]

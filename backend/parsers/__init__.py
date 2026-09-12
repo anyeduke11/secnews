@@ -49,18 +49,8 @@ def _register_builtin() -> None:
     register_parser(CLSD_ID, ClsdParser)
     register_parser(HTML_GENERIC_ID, HtmlGenericParser)
 
-    # Phase 1.2: P0 标讯解析器
-    from backend.parsers.bid.ccgp import CcgpParser, SOURCE_ID as CCGP_ID
-    from backend.parsers.bid.cebpub import CebpubParser, SOURCE_ID as CEBPUB_ID
-    from backend.parsers.bid.ggzy import GgzyParser, SOURCE_ID as GGZY_ID
-    from backend.parsers.bid.zycg import ZycgParser, SOURCE_ID as ZYCG_ID
-    from backend.parsers.bid.chinabidding import ChinabiddingParser, SOURCE_ID as CHINABIDDING_ID
-
-    register_parser(CCGP_ID, CcgpParser)
-    register_parser(CEBPUB_ID, CebpubParser)
-    register_parser(GGZY_ID, GgzyParser)
-    register_parser(ZYCG_ID, ZycgParser)
-    register_parser(CHINABIDDING_ID, ChinabiddingParser)
+    # DEV-0178: 标讯解析器 (parsers/bid, 5 站) 已随工作台聚焦裁决移除
+    # (bid 采集链全线下线; 历史 bid 条目仍在库, 展示兼容保留)
 
 
 _register_builtin()

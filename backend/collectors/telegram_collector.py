@@ -110,13 +110,7 @@ class TelegramCollector(BaseCollector):
         ``telegram:post:{id}``),此方法直接使用该字段作为
         ``HotspotItem.id``。
         """
-        from backend.domain.enums import Category as _Cat
         from backend.utils.business_days import current_week_start
-
-        _extract_bid_status = None
-        if self.category == _Cat.BID:
-            from backend.collectors.bid_status import extract_bid_status
-            _extract_bid_status = extract_bid_status
 
         _NAV_CTA = re.compile(
             r"查看更多|更多\s*>>|更多\s*>|立即查看|立即申请|"
@@ -159,12 +153,6 @@ class TelegramCollector(BaseCollector):
             if published_at < week_start:
                 skipped += 1
                 continue
-            bid_status_val = None
-            if _extract_bid_status is not None:
-                bid_status_val = _extract_bid_status(
-                    title,
-                    raw.get("summary", "") or "",
-                )
             try:
                 # 使用 raw dict 中的 id (可读 ID),否则使用默认格式
                 item_id = raw.get("id") or f"{self.name}_{source['name']}_{i}"
@@ -179,7 +167,6 @@ class TelegramCollector(BaseCollector):
                         published_at=published_at,
                         fetched_at=now,
                         ingested_at=now,
-                        bid_status=bid_status_val,
                         region=raw.get("region"),
                         score=source.get("score", 75),
                         is_fallback=False,

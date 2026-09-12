@@ -95,7 +95,6 @@ from backend.scheduler.jobs.maintenance import (
     _force_full_backup_rotate,
     attention_aggregate_job,
     backup_verify_job,
-    bid_expiry_check_job,
     daily_db_backup_job,
     db_diet_job,
     export_rebuild_job,
@@ -154,7 +153,6 @@ __all__ = [
     "export_rebuild_job",
     "instrument_job",
     "job_done_event",
-    "v1_signal_intake_tick_job",  # v0.8.5 D1 点火
     "map_rebuild_daily_job",
     "mitre_sync_job",
     "reset_service",
@@ -173,6 +171,7 @@ __all__ = [
     "telemetry_window_job",  # v0.5 §18: 7 天遥测窗口
     "trend_rebuild_job",
     "url_content_check_job",
+    "v1_signal_intake_tick_job",  # v0.8.5 D1 点火
     "weekly_maintenance_job",
     "weekly_report_job",
     "wiki_items_fts_sync_job",
@@ -192,7 +191,6 @@ __all__.extend([
 ])
 __all__.extend([
     "attention_aggregate_job",
-    "bid_expiry_check_job",
     "catchup_watchdog_job",
     "cg_drift_assess_job",
     "content_draft_generation_job",

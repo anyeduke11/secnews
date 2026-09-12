@@ -15,7 +15,8 @@ CORE_ROUTERS: frozenset[str] = frozenset({
     "knowledge", "knowledge_chunks_api", "knowledge_imported",
     "search", "extract", "tags", "mode", "recommend",
     # 行动层
-    "content", "todos", "secrets", "skills", "bid_alert",
+    # DEV-0178: "bid_alert" 已随标讯剔除移除 (core 白名单同步)
+    "content", "todos", "secrets", "skills",
     "reports", "weekly_report", "maintenance",
     # 复利引擎 (kl_* core 域)
     "kl_compounding_api", "kl_metrics_api", "kl_rollback_api", "kl_planning_api",

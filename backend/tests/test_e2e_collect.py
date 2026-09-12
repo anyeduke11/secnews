@@ -1,9 +1,10 @@
 """采集层端到端测试
 
 端到端跑一次 ``CollectionService.run_once()``，验证：
-  - DB 8 个分类都有数据
-  - collection_runs 表 8 行（每分类一行）
-  - trend_snapshots 表 192 行（24h × 8 分类）
+  - DB 7 个分类都有数据 (DEV-0178: BID 移除)
+  - collection_runs 表 7 行（每分类一行）
+  - trend_snapshots 表 192 行（24h × 8 分类; trend 网格按 Category 全枚举建列,
+    DEV-0178 移除 bid 采集后仍为 8）
 
 实现说明
 --------
@@ -37,6 +38,10 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
     """重定向 config.db_path 到 tmp_path 下的临时文件，初始化 schema。"""
     test_db = tmp_path / "test.db"
     monkeypatch.setattr(config, "db_path", test_db)
+    # DEV-0178 修复: 必须先关掉主线程残留的会话级连接, 否则 init_db 的
+    # get_connection 拿到旧库连接, 迁移全部空跑在旧库上, 本测试的 tmp 库
+    # 永远没有表 → worker 线程 "no such table" 全员崩溃 (顺序相关的隐疾)。
+    db.close_db()
     db.init_db()
     yield test_db
     db.close_db()
@@ -114,13 +119,12 @@ async def test_e2e_full_run_6_collectors_to_db(temp_db):
         "security",
         "finance",
         "startup",
-        "bid",
         "github",
         "tech",
     }
 
     # 每分类应至少有 1 条数据 (v1.9 加 ai_security)
-    for cat_value in ("ai", "ai_security", "security", "finance", "startup", "bid", "github", "tech"):
+    for cat_value in ("ai", "ai_security", "security", "finance", "startup", "github", "tech"):
         count_row = conn.execute(
             "SELECT COUNT(*) FROM hotspots WHERE category = ?",
             (cat_value,),
@@ -155,7 +159,6 @@ async def test_e2e_collection_runs_records_each_category(temp_db):
         "security",
         "finance",
         "startup",
-        "bid",
         "github",
         "tech",
     }
@@ -166,6 +169,7 @@ async def test_e2e_collection_runs_records_each_category(temp_db):
 
 # ---------------------------------------------------------------------------
 # 3. 端到端：trend_rebuild 后 trend_snapshots 有 192 行 (v1.9)
+# trend 网格按 Category 全枚举建列 (8 分类), 与采集器下线无关 (DEV-0178)
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_e2e_trend_rebuild_after_collect(temp_db):
@@ -179,7 +183,7 @@ async def test_e2e_trend_rebuild_after_collect(temp_db):
     rows = conn.execute("SELECT COUNT(*) FROM trend_snapshots").fetchall()
     assert int(rows[0][0]) == 192
 
-    # 8 个分类都应在 trend grid 中
+    # 8 个分类都应在 trend grid 中 (trend 按全枚举建列, 与采集器下线无关)
     cat_rows = conn.execute(
         "SELECT DISTINCT category FROM trend_snapshots"
     ).fetchall()

@@ -1,6 +1,6 @@
 """Bug 1 + Bug 2 修复回归测试 (2026-07-05), Phase 13 硬约束重写。
 
-Phase 12 修 Bug 1 时,bid fallback URL 从 ``example.com`` 改为 Google
+Phase 12 修 Bug 1 (bid fallback 已随标讯剔除移除)
 搜索 URL,看似"真实可访问"。
 
 Phase 13 复盘后撤销该方案。用户明确反对"把搜索工作推给用户":
@@ -26,7 +26,6 @@ from datetime import datetime, timezone
 import pytest
 
 from backend.collectors.ai_collector import AICollector
-from backend.collectors.bid_collector import BidCollector
 from backend.collectors.finance_collector import FinanceCollector
 from backend.collectors.github_collector import GitHubCollector
 from backend.collectors.parsing import (
@@ -50,7 +49,6 @@ class TestFallbackReturnsEmpty:
         SecurityCollector,
         FinanceCollector,
         StartupCollector,
-        BidCollector,
         GitHubCollector,
     ])
     def test_fallback_returns_empty_list(self, collector_cls):
@@ -66,7 +64,6 @@ class TestFallbackReturnsEmpty:
         SecurityCollector,
         FinanceCollector,
         StartupCollector,
-        BidCollector,
         GitHubCollector,
     ])
     def test_fallback_no_synthetic_urls(self, collector_cls):

@@ -31,7 +31,7 @@ def register_all(app: FastAPI) -> None:
     from backend.api import (
         alerts,  # v1.7 Phase 3: 告警规则与告警
         attention_events_api,  # v1.7: 注意力事件追踪
-        bid_alert,  # Phase 4: 标书提醒与竞品分析
+        # DEV-0178: bid_alert (标书提醒) 已随标讯剔除移除
         cache,  # v1.9: 缓存管理 (clear/stats)
         catchup,  # v1.8 Phase 8: 追抓资讯 (manual + watchdog auto)
         categories,
@@ -186,8 +186,7 @@ def register_all(app: FastAPI) -> None:
     # v0.7 Batch ③: 观测面 query API (无条件注册, 是基础设施)
     from backend.api import observability_router
     app.include_router(observability_router.router, tags=["observability"])
-    # Phase 4: 标书提醒与竞品分析
-    app.include_router(bid_alert.router, tags=["bid-alert"])
+    # DEV-0178: bid_alert router 已随标讯剔除移除
     # SecNews 整合 Phase 0: KL 管线 + 安全看板 (按 feature_gates 注册)
     if is_extension_enabled("secnews"):
         from backend.api import feedback_api, kl_pipeline_api, secnews_dashboard_api

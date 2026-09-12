@@ -27,6 +27,7 @@ import { useSSE } from '../../hooks/useSSE';
 import { useHotspotData } from '../../hooks/useHotspotData';
 import { useFavorites } from '../../hooks/useFavorites';
 import { CATEGORIES, HotspotItem, PRACTICE_DOMAIN_LABELS } from '../../types';
+import { PriorityDigestCard } from './PriorityDigestCard';
 import { SentinelShell, usePipe, usePipeReloadOnSse } from './SentinelShell';
 import { SentinelRail } from './SentinelRail';
 import { SignalPanel } from '../v1/panels/SignalPanel';
@@ -480,6 +481,8 @@ export function SentinelHomePage() {
             </div>
           ) : (
             <>
+              {/* DEV-0177 T0.5 收敛: SK-01 今日重点情报 (实践域分区) */}
+              <PriorityDigestCard />
               {/* 头条 */}
               {lead && safeHref(lead.url) && (
                 <article className="story-top">

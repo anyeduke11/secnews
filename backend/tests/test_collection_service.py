@@ -98,12 +98,16 @@ def _patch_all_collectors(
 # ---------------------------------------------------------------------------
 # 1. service 包含 6 个 collector
 # ---------------------------------------------------------------------------
-def test_service_has_6_collectors(temp_db):
-    """service.collectors 应包含全部 8 个 Category (v1.9 加 ai_security)。"""
+def test_service_has_7_collectors(temp_db):
+    """service.collectors 应包含除 BID 外的全部 Category
+    (DEV-0178: BID 采集链已随标讯剔除移除)。"""
     svc = CollectionService()
-    assert len(svc.collectors) == 8
+    assert len(svc.collectors) == 7
     for cat in Category:
-        assert cat in svc.collectors
+        if cat is Category.BID:
+            assert cat not in svc.collectors
+        else:
+            assert cat in svc.collectors
 
 
 # ---------------------------------------------------------------------------
@@ -126,9 +130,9 @@ async def test_run_once_returns_collection_report(temp_db):
     assert report.started_at is not None
     assert report.finished_at is not None
     assert len(report.results) == n_collectors
-    # 全部结果应覆盖全部 category
+    # 全部结果应覆盖除 BID 外的全部 category (DEV-0178)
     cats = {r.category for r in report.results}
-    assert cats == set(Category)
+    assert cats == set(Category) - {Category.BID}
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +147,6 @@ async def test_run_once_calls_upsert(temp_db, monkeypatch):
         Category.SECURITY: 3,
         Category.FINANCE: 5,
         Category.STARTUP: 2,
-        Category.BID: 6,
     })
 
     captured: dict[str, object] = {}
@@ -215,7 +218,6 @@ async def test_run_once_writes_collection_runs(temp_db):
         "security",
         "finance",
         "startup",
-        "bid",
         "github",
         "tech",
     }

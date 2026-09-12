@@ -836,3 +836,20 @@
   - `pytest test_hotspots_api.py + test_settings_interests.py`: **18 passed**; `vitest PracticeDomainsCard`: **4 passed**; `tsc`: 0 错; ruff 触碰文件 0 错
   - 独立审计人自己复跑过全量: pytest **4488/9skipped** + vitest **495** + build + meta --check 全绿 (与本会话门禁结果一致)
 - **潜在风险**: ①P1-2/P1-3 的口径修正需 owner 追认 (在交付报告中显式列出) ②全仓 ruff 4 个预存 error 会让 CI 全仓口径 backend job 变红 (非本批引入, 触碰文件 0 错) ③词表"政务云安全"类子串误命中 (验收 P2 观察) 待 P1 词表运营化加边界规则
+
+## [DEV-0179] T0.5/T0.2 收敛 + bid 采集链删除 + P1 落地 (owner 指令批次)
+- **时间**: 2026-09-12 09:40
+- **类型**: 功能开发 + Bug修复 (清理) + 配置变更
+- **关联模块**: `backend:api/digests`, `backend:services/collection_service`, `backend:services/v1_admission_service`, `frontend:sentinel-home`, `scripts:audit`, `backend:repository/migrations`
+- **关联文件**: `backend/api/digests.py`, `backend/tests/test_digests_priority_api.py` (新建), `frontend/src/components/sentinel/PriorityDigestCard.tsx` (新建), `frontend/src/components/sentinel/PriorityDigestCard.test.tsx` (新建), `frontend/src/components/sentinel/SentinelHomePage.tsx`, `frontend/src/contexts/I18nContext.tsx`, `scripts/audit_practice_domain_sample.py` (新建), `reports/practice_domain_review_20260912T084119.md` (新建), `backend/services/v1_admission_service.py`, `docs/RUNBOOK.md`, migration `111_remove_bid_sources.sql` (新建), bid 全链删除 10 文件, 测试修正 5 文件, 架构数字 4 文档
+- **问题描述**: owner 三连指令: ①T0.5/T0.2 收敛 (消除"待追认"悬置) ②bid 采集器删除并清理 ③进行 P1 开发。
+- **实现思路与核心变更**:
+  - **T0.5 收敛**: SK-01 此前无 API/前端消费面 → 新增 `GET /api/digests/priority` (包装 DailyPriorityIntelService, 5min TTL 缓存, compute 异常优雅降级 200+fallback_error 不 500) + 首页 `PriorityDigestCard` (有画像按兴趣域分组渲染/无画像单组/空态, i18n 双语, 走 lib/api)。至此 practice_partitions 有真实消费方, T0.5 实质达成。
+  - **T0.2 收敛**: 新增 `scripts/audit_practice_domain_sample.py` 无偏人评两段式工具 (采样: 真库只读 40 条+词表预打标+truth 列留空 → reports/; 评分: 回读算准确率, <80% exit 1)。已对真实库采样生成首批报告 `reports/practice_domain_review_20260912T084119.md` 待 owner 标注。同源护栏 (lexicon --check) 与无偏人评 (sample/grade) 至此双轨齐备。
+  - **bid 采集链删除** (owner 裁决 R2' 延伸, 取代"采集器暂保留"): 删 `collectors/bid_collector.py`+`bid_status.py`+`bid_utils.py`+`parsers/bid/`(5 站)+`parsers/bid_extractor.py`+`api/bid_alert.py`+`repository/bid_detail_repo.py`+`jobs/maintenance.bid_expiry_check_job`+`tests/test_bid_collector.py`+`test_rca_bid_github_p0_fixes.py`; 清接线: collection_service (import/BID 映射/bid_details 旁路), crawler_seed+seed_crawler_sources (bid 源组), parsers/__init__ (5 parser 注册), api/_registry (router), core/routers (core 白名单), scheduler (job 注册+__all__), item_builder/telegram_collector (bid_status 惰性分支); migration `111_remove_bid_sources.sql` DELETE crawler_sources 64 条 bid 源; 保留: Category.BID 枚举/历史 bid 条目/bid_details 表/展示 label 映射 (只读兼容)。**架构数字 14→13 collectors / 58→57 jobs / 85→84 routers**, ARCHITECTURE.md+AGENTS.md×3 已同步。
+  - **P1.1 标签统一**: v1 `default_labels` domain 推断改为优先走共享 `classify_domain` (值域钳制在标注维度白名单内, 失败回退 category 映射) — v0/v1 单一分类事实源。
+  - **P1.3 周审计机制**: RUNBOOK 新增"实践域词表周审计"章节 (采样→人评→评分→<80% 修订词表闭环, 周一执行)。
+- **测试验证**:
+  - 全量 pytest: **4440 passed / 9 skipped / 0 失败** (bid 删除后; 删除过程发现并修复: ①e2e temp_db fixture 缺 close_db 的顺序相关隐疾被暴露, 已修 ②7 个断言 BID 在场的测试按新事实修正); vitest **499** (含 PriorityDigestCard 4) / tsc 0 / build OK; generate_meta --check OK (57/13/84/126); ruff 触碰文件 0 (含修掉 jobs/__init__ 预存 __all__ 排序错)
+  - `audit_practice_domain_sample.py --sample 40`: 真库只读采样成功; `--grade` 合成回读: 67% 正确 exit 1 (门槛逻辑生效)
+- **潜在风险**: ①crawl4ai_parser.py 注释仍提 bid_collector (纯注释残留) ②`/api/hotspots/regions` 端点 (bid-only) 暂保留, 前端已无调用方, 下批可删 ③采样报告含真实标题入仓 reports/ (公开新闻标题, 与 dead_source_triage 同级先例) ④P1.2 首页动线 (摘要卡成为第一屏) 部分达成: 卡片已挂首页顶部, "默认折叠 Feed"交互未做

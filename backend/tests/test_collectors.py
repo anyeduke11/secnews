@@ -23,10 +23,7 @@ import pytest
 
 from backend.collectors.ai_collector import AI_SOURCES, AICollector
 from backend.collectors.base import BaseCollector
-from backend.collectors.bid_collector import (
-    BID_SOURCES,
-    BidCollector,
-)
+# DEV-0178: BidCollector 已随标讯剔除移除, 相关用例一并删除
 from backend.collectors.finance_collector import (
     FINANCE_SOURCES,
     FinanceCollector,
@@ -223,38 +220,8 @@ async def test_startup_collector_returns_empty_when_sources_fail(monkeypatch):
 
 
 # ===========================================================================
-# BidCollector
+# BidCollector — DEV-0178: 已随标讯剔除移除 (用例一并删除)
 # ===========================================================================
-@pytest.mark.asyncio
-async def test_bid_collector_returns_hotspot_items(monkeypatch):
-    c = BidCollector()
-    monkeypatch.setattr(
-        c, "fetch_source",
-        _make_fake_fetch(items_per_source=3, category=Category.BID),
-    )
-
-    items = await c.collect()
-    assert len(items) > 0
-    assert all(isinstance(it, HotspotItem) for it in items)
-    assert all(it.category is Category.BID for it in items)
-    assert not any(it.is_fallback for it in items)
-
-
-@pytest.mark.asyncio
-async def test_bid_collector_returns_empty_when_sources_fail(monkeypatch):
-    """Phase 13: sources=[] → collect() 返回 [],不调 _fallback() (Phase 12 撤销的 Google 搜索 fallback)。"""
-    c = BidCollector()
-    monkeypatch.setattr(c, "sources", [])
-    # P1 切流: 禁用源注册表驱动 (本测试只测常量路径)
-    monkeypatch.setattr(c, "_load_sources_from_registry", lambda **_: None)
-
-    items = await c.collect()
-    assert items == [], (
-        "Phase 13 硬约束 (SPEC §3): sources=[] 时 collect() 必须返回 [],"
-        "**不**得返回 Google 搜索 URL 兜底 (Phase 12 方案已撤销)"
-    )
-
-
 # ===========================================================================
 # GitHubCollector
 # ===========================================================================
@@ -288,16 +255,8 @@ async def test_github_collector_returns_empty_when_sources_fail(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# 招标采集器特殊检查:sources 长度 ≥ 30 (Phase 9 扩充)
+# 招标采集器检查 — DEV-0178: 已随标讯剔除移除
 # ---------------------------------------------------------------------------
-def test_bid_collector_has_30_plus_sources():
-    """招标采集器应配置 30+ 源 (Phase 9 扩充:覆盖 skillhub 50+ 渠道)。"""
-    c = BidCollector()
-    assert len(c.sources) >= 30
-    # 同样应等于模块级常量 BID_SOURCES
-    assert len(c.sources) == len(BID_SOURCES)
-
-
 # ---------------------------------------------------------------------------
 # 其它 collector 的 sources 数量 sanity check
 # ---------------------------------------------------------------------------
@@ -426,7 +385,7 @@ def test_all_collectors_inherit_base():
     assert issubclass(SecurityCollector, BaseCollector)
     assert issubclass(FinanceCollector, BaseCollector)
     assert issubclass(StartupCollector, BaseCollector)
-    assert issubclass(BidCollector, BaseCollector)
+    # DEV-0178: BidCollector 已移除
     assert issubclass(GitHubCollector, BaseCollector)
 
 
@@ -440,7 +399,7 @@ def test_collectors_do_not_implement_fallback():
     验证方法: 检查 cls.__dict__ 中**没有** '_fallback'。
     """
     for cls in (AICollector, SecurityCollector, FinanceCollector,
-                StartupCollector, BidCollector, GitHubCollector):
+                StartupCollector, GitHubCollector):
         assert "_fallback" not in cls.__dict__, (
             f"{cls.__name__} 重写了 _fallback(),违反 Phase 13 硬约束。"
             f"删除该方法,BaseCollector 默认 _fallback() 已返回 []。"

@@ -13,8 +13,7 @@ from backend.collectors.ai_collector import AI_SOURCES
 # AI 安全
 from backend.collectors.ai_security_collector import AI_SECURITY_SOURCES
 
-# 标讯
-from backend.collectors.bid_collector import BID_SOURCES
+# DEV-0178: 标讯 BID_SOURCES 已随工作台聚焦裁决移除
 
 # 金融
 from backend.collectors.finance_collector import FINANCE_SOURCES
@@ -63,7 +62,7 @@ _SOURCE_GROUPS: list[tuple[str, str, list[dict]]] = [
     ("ai", "ai", AI_SOURCES),
     ("finance", "finance", FINANCE_SOURCES),
     ("startup", "startup", STARTUP_SOURCES),
-    ("bid", "bid", BID_SOURCES),
+    # DEV-0178: ("bid", "bid", BID_SOURCES) 已随标讯剔除移除
     ("github", "github", GITHUB_SOURCES),
     ("tech", "tech", TECH_SOURCES),
     ("tech", "hn", HN_SOURCES),

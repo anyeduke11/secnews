@@ -27,7 +27,7 @@ _COLLECTOR_CLASSES: list[tuple[str, str, str]] = [
     ("startup", "backend.collectors.startup_collector", "StartupCollector"),
     ("tech", "backend.collectors.tech_collector", "TechCollector"),
     ("github", "backend.collectors.github_collector", "GitHubCollector"),
-    ("bid", "backend.collectors.bid_collector", "BidCollector"),
+    # DEV-0178: bid_collector 已随标讯剔除移除
 ]
 
 

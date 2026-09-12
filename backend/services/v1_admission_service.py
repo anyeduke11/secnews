@@ -180,9 +180,17 @@ class V1AdmissionService:
             logger.warning(f"admission_log table missing: {e}")
             return 0
 
-    def default_labels(self, material: dict[str, Any]) -> dict[str, str]:
-        """从 material 推 8 维默认 label (后续 T07 标注批次替换为人工)."""
+    def default_labels(self, material: dict[str, str]) -> dict[str, str]:
+        """从 material 推 8 维默认 label (后续 T07 标注批次替换为人工).
+
+        DEV-0179 (Workbench Focus P1.1 标签统一): domain 推断优先走
+        ``auto_classifier.classify_domain`` (v0/v1 共享的单一分类事实源),
+        命中失败再回退到既有 category 映射。
+        """
         from typing import cast
+
+        from backend.services.auto_classifier import classify_domain
+
         labels: dict[str, str] = {}
         # entity_type: cve / regulation / ...
         url = (material.get("url") or "").lower()
@@ -199,14 +207,22 @@ class V1AdmissionService:
         # impact/severity: 默认 medium/exploitable 待人工
         labels["impact"] = "medium"
         labels["severity"] = "theoretical"
-        # domain: 从 category 推
-        cat = (material.get("category") or "").lower()
-        if "ai" in cat:
-            labels["domain"] = "ai"
-        elif "bid" in cat:
-            labels["domain"] = "compliance"
+        # domain: 共享分类器优先 (P1.1 标签统一), 值域必须在标注维度内,
+        # 命中失败回退 category 映射
+        shared = classify_domain(
+            tags=[], title=material.get("title") or "", source_url=material.get("url") or "",
+        )
+        allowed_domains = set(ANNOTATION_DIMENSIONS["domain"])
+        if shared in allowed_domains:
+            labels["domain"] = shared
         else:
-            labels["domain"] = "security"
+            cat = (material.get("category") or "").lower()
+            if "ai" in cat:
+                labels["domain"] = "ai"
+            elif "bid" in cat:
+                labels["domain"] = "compliance"
+            else:
+                labels["domain"] = "security"
         # audience/actionability: 默认
         labels["audience"] = "sec_team"
         labels["actionability"] = "needs_review"

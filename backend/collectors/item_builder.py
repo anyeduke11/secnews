@@ -2,8 +2,7 @@
 
 ``ItemBuilderMixin`` 承载 raw dict → ``HotspotItem`` 的构建链：
 
-- ``_build_items``     — NAV/CTA 黑名单、长度过滤、Phase 47 时效硬门禁、
-  Phase 20 bid_status 提取
+- ``_build_items``     — NAV/CTA 黑名单、长度过滤、Phase 47 时效硬门禁
 - ``_title_relevant``  — Phase 25 分类相关度过滤（委托 keywords 模块）
 - ``_mark_fallback``   — fallback 标记工具（Phase 13 后不再自动调用）
 """
@@ -33,20 +32,10 @@ class ItemBuilderMixin:
         ``published_at`` 保留为文章真实发布时间(可能比 ingested_at 早很多,
         当源页面显示历史内容时)。
 
-        Phase 20: ``bid_status`` 字段(仅 category=bid)从标题正则提取。
-
         Phase 25: title 通用过滤 (导航 CTA / 超短标题 / 纯标点)
         — 修复部门信源(如投资界、新浪财经)抓到"查看更多 >" / "入驻创投号>>>"
         / "今年暑期旅行社" 等与分类无关的标题。
         """
-        from backend.domain.enums import Category as _Cat
-
-        # Phase 20: 标讯状态提取器(惰性导入,避免循环)
-        _extract_bid_status = None
-        if self.category == _Cat.BID:
-            from backend.collectors.bid_status import extract_bid_status
-            _extract_bid_status = extract_bid_status
-
         # Phase 25: 通用 title 导航/CTA 黑名单 (所有 category 共用)
         # 防止投资界 / 新浪财经 / 36kr 等综合媒体把侧栏链接误当标题
         _NAV_CTA = re.compile(
@@ -124,13 +113,6 @@ class ItemBuilderMixin:
                     f"threshold={recency_threshold.isoformat()}"
                 )
                 continue
-            # Phase 20: 标讯状态提取
-            bid_status_val = None
-            if _extract_bid_status is not None:
-                bid_status_val = _extract_bid_status(
-                    title,
-                    raw.get("summary", "") or "",
-                )
             try:
                 # P2-7: ID 稳定化 — 原方案 `f"{name}_{source}_{i}"` 中 i 是
                 # 抓取列表枚举下标: 源顺序变化 → 同 URL 变新 ID → 重复入库;
@@ -159,8 +141,7 @@ class ItemBuilderMixin:
                         published_at=published_at,
                         fetched_at=now,
                         ingested_at=now,
-                        bid_status=bid_status_val,
-                        region=raw.get("region"),  # Phase 8: 标讯地区
+                        region=raw.get("region"),  # Phase 8: 标讯地区 (存量列兼容)
                         published_at_tz_assumed=bool(
                             raw.get("published_at_tz_assumed", False)
                         ),
@@ -202,7 +183,7 @@ class ItemBuilderMixin:
         默认实现: 走 ``_CAT_KEYWORDS`` 关键词白名单。
         - ai / finance / startup: 必须命中至少一个关键词才放行
           (阻挡 "查看更多 >" / "演唱会" / "旅行社" 等无关内容)
-        - security / bid / github: 默认放行(这些分类用领域专用关键词
+        - security / github: 默认放行(这些分类用领域专用关键词
           在 collector 内部或 quality gate 里处理)
         """
         return _is_title_relevant_to_category(title, self.category.value)

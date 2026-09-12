@@ -178,14 +178,7 @@ class HotspotScheduler:
             name="collect validations cleanup (daily 04:00 Shanghai)",
             replace_existing=True,
         )
-        # Phase 1.4 (Crawler v2): job — 标讯过期检查 (每 30 分钟)
-        self.scheduler.add_job(
-            jobs.bid_expiry_check_job,
-            trigger=IntervalTrigger(seconds=1800, start_date=_now_utc),
-            id="bid_expiry_check",
-            name="bid expiry check (every 1800s)",
-            replace_existing=True,
-        )
+        # DEV-0178: bid_expiry_check job 已随标讯剔除移除
         # Phase 2.2 (Crawler v2): job — URL 全量校验 (每 15 分钟; cadence 修正批
         # 300→900: 5 分钟 HEAD 全量与 30 分钟采集节奏不匹配, 纯噪声源)
         self.scheduler.add_job(

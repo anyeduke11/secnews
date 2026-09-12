@@ -376,37 +376,6 @@ async def attention_aggregate_job() -> None:
         _logger.error(f"attention_aggregate_job crashed: {e}")
 
 
-async def bid_expiry_check_job() -> None:
-    """Phase 1.4: 每 30 分钟检查过期标讯并标记。
-
-    查询 bid_details 中 deadline < now() 且尚未标记的条目，
-    更新 bid_status = '已过期'。
-    失败只 log.warning，不抛异常。
-    """
-    try:
-        from backend.repository.bid_detail_repo import BidDetailRepo
-
-        repo = BidDetailRepo()
-        expired = await asyncio.to_thread(repo.get_expired)
-        if not expired:
-            return
-
-        marked = 0
-        for row in expired:
-            try:
-                ok = await asyncio.to_thread(repo.mark_expired, row["item_id"])
-                if ok:
-                    marked += 1
-            except Exception:
-                continue
-
-        _logger.info(
-            f"bid_expiry_check_job: found {len(expired)} expired, marked {marked}"
-        )
-    except Exception as e:
-        _logger.warning(f"bid_expiry_check_job: {e}")
-
-
 async def planning_action_check_job() -> None:
     """Phase 13: 每 600s 生成规划动作."""
     from backend.services.planning_service import PlanningService

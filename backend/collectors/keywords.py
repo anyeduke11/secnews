@@ -4,7 +4,7 @@
 - ``_is_title_relevant_to_category(title, category_value)`` — relevance check
 
 Phase 25+: 防止综合媒体把无关内容误归类到某个分类。
-没列在关键词白名单的 category (security / bid / github) 默认放行。
+没列在关键词白名单的 category 默认放行。
 """
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ from __future__ import annotations
 # 防止综合媒体 (投资界/新浪/36kr) 把无关内容 (旅行社/演唱会/餐饮) 误归类
 # 没命中关键词的标题直接 drop, 避免噪声入库
 #
-# 没列的 category (security / bid / github) 默认放行——它们用领域专用
-# 关键词过滤 (security_collector / bid_collector 内部已处理),
+# 没列的 category 默认放行——它们用领域专用
+# 关键词过滤 (security_collector 内部已处理),
 # 不需要通用白名单。
 _CAT_KEYWORDS: dict[str, list[str]] = {
     "ai": [
@@ -92,7 +92,7 @@ def _is_title_relevant_to_category(title: str, category_value: str) -> bool:
     """Phase 25: 分类相关度过滤 (module-level helper)。
 
     检查 ``title`` 是否命中 ``category_value`` 对应的关键词白名单。
-    没在白名单的 category (security/bid/github/ai_security) 一律放行。
+    没在白名单的 category 一律放行。
     """
     keywords = _CAT_KEYWORDS.get(category_value)
     if not keywords:

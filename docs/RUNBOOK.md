@@ -186,6 +186,26 @@ FROM dbstat GROUP BY name ORDER BY size_bytes DESC LIMIT 20;"
 cp backend/hotspot.db backend/hotspot.db.backup
 ```
 
+## 实践域词表周审计 (Workbench Focus P1, DEV-0179)
+
+每周一次（建议周一早上），对词表打标做人工抽检，防漂移:
+
+```bash
+# 1. 采样近一周资讯 40 条, 词表预打标, 生成待标注报告 (DB 只读)
+python scripts/audit_practice_domain_sample.py --sample 40 --window 7d
+#    → reports/practice_domain_review_<时间戳>.md
+
+# 2. 人工把报告里 truth 列填上真值 (8 域 id 或 none)
+
+# 3. 回读计算真实准确率 (门槛 80%)
+python scripts/audit_practice_domain_sample.py --grade reports/practice_domain_review_<时间戳>.md
+```
+
+- 低于 80%: 按 PRD 修订 `TAG_PRACTICE_MAP`/`TITLE_PRACTICE_RULES` 词表，改完必须跑
+  `python scripts/check_practice_domain_lexicon.py --check`（同源回归护栏，须保持 100%）。
+- 同时抽查 `GET /api/observability/audit` 与 info_filter 拒绝样本（Settings → 资讯筛选门禁），
+  防止关键词误杀关键信息。
+
 ## 测试
 
 ```bash

@@ -148,7 +148,8 @@ async def test_fetch_rss_timeout_returns_rss_timeout_error():
 
 
 # ---------------------------------------------------------------------------
-# BidCollector._fetch_with_fallback
+# BidCollector._fetch_with_fallback — DEV-0178: 已随标讯剔除移除
+# (_FakeResp 类仍被上方 RSS UA 用例使用, 保留)
 # ---------------------------------------------------------------------------
 class _FakeResp:
     def __init__(self, status: int, raw: bytes = b"", charset: str | None = None):
@@ -167,93 +168,6 @@ class _FakeResp:
 
     async def __aexit__(self, *exc):
         return False
-
-
-class _FakeSession:
-    resp: _FakeResp = _FakeResp(200)
-
-    def __init__(self, *a, **k):
-        pass
-
-    def get(self, *a, **k):
-        return type(self).resp
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *exc):
-        return False
-
-
-def _failed_crawl(url: str):
-    from backend.parsers.crawl4ai_parser import CrawlResult
-
-    return CrawlResult(url=url, success=False, error="page timeout 30s")
-
-
-@pytest.fixture
-def bid(monkeypatch):
-    import aiohttp
-
-    from backend.collectors.bid_collector import BidCollector
-
-    c = BidCollector()
-    c.timeout = 3
-
-    async def _c4(url):
-        return _failed_crawl(url)
-
-    monkeypatch.setattr(c, "_fetch_with_crawl4ai", _c4)
-    monkeypatch.setattr(aiohttp, "ClientSession", _FakeSession)
-    # 代理步骤: 国内站不走代理
-    import backend.proxy_config as pc
-
-    monkeypatch.setattr(pc, "should_use_proxy", lambda url: False)
-    return c
-
-
-@pytest.mark.asyncio
-async def test_bid_direct_gb2312_declared_gbk_body_no_longer_all_failed(bid):
-    page = (
-        "<html><head><title>招标</title></head><body>"
-        + "".join(f'<a href="https://www.okcis.cn/n/{i}">{_GBK_ONLY_TEXT}{i}</a>' for i in range(12))
-        + "</body></html>"
-    )
-    _FakeSession.resp = _FakeResp(200, page.encode("gb18030"), charset="gb2312")
-    with pytest.raises(UnicodeDecodeError):
-        await _FakeSession.resp.text()  # 旧实现 resp.text() 在此处炸 → 被吞成 all failed
-    items, result = await bid._fetch_with_fallback(
-        {"name": "招标采购导航网", "url": "https://www.okcis.cn/", "keywords": []}
-    )
-    assert "all failed" not in (result.error_msg or ""), result.error_msg
-
-
-@pytest.mark.asyncio
-async def test_bid_all_failed_error_carries_step_reasons(bid):
-    _FakeSession.resp = _FakeResp(412, b"<html>precondition</html>", charset="utf-8")
-    items, result = await bid._fetch_with_fallback(
-        {"name": "华能电子商务平台", "url": "https://ec.chng.com.cn/", "keywords": []}
-    )
-    assert items == []
-    assert result.error_msg.startswith("crawl4ai+direct+proxy all failed (")
-    assert "crawl4ai: page timeout" in result.error_msg
-    assert "direct: HTTP 412" in result.error_msg
-    assert "proxy: skipped" in result.error_msg
-
-
-@pytest.mark.asyncio
-async def test_bid_direct_exception_reason_recorded(bid):
-    class _Boom(_FakeSession):
-        def get(self, *a, **k):
-            raise ConnectionResetError("peer reset")
-
-    import aiohttp
-
-    aiohttp.ClientSession = _Boom  # fixture 已 monkeypatch 到 _FakeSession, 此处覆盖同一属性
-    items, result = await bid._fetch_with_fallback(
-        {"name": "x", "url": "https://example.test/", "keywords": []}
-    )
-    assert "direct: ConnectionResetError" in result.error_msg
 
 
 def test_asyncio_marker_sanity():

@@ -45,7 +45,6 @@ CORE_PATHS = [
     "/api/settings/features",
     "/api/secrets/status",
     "/api/skills",
-    "/api/bid-alert/summary",
     "/api/weekly-report",
     "/api/tags",
     "/api/annotations",
@@ -218,7 +217,7 @@ class TestJobGating:
         """scheduler.py 中 add_job 数 = 58 (v1.0 T09 +2 worker_queue_pump + legacy_hold_reap,
         T13 +1 knowledge_review_due, C13 +2 legacy_promote_due + legacy_migrate_resume,
         v0.8.5 D1 +1 v1_signal_intake_tick; 前值 52 — v0.8.2 Y-A4 +1 backup_verify)。
-        v085-review F10: C13/D1 两批未回写本断言 (55→58, 全量 pytest 预存失败)。"""
+        v085-review F10: C13/D1 两批未回写本断言 (DEV-0178: bid_expiry_check 移除 58→57)。"""
         import ast
         from pathlib import Path
         src = Path("backend/scheduler/scheduler.py").read_text(encoding="utf-8")
@@ -229,7 +228,7 @@ class TestJobGating:
             and isinstance(node.func, ast.Attribute)
             and node.func.attr == "add_job"
         )
-        assert n == 58
+        assert n == 57
 
 
 class TestFeaturesEndpoint:

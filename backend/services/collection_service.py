@@ -29,7 +29,6 @@ from backend.cache import invalidate as cache_invalidate
 from backend.collectors.ai_collector import AICollector
 from backend.collectors.ai_security_collector import AISecurityCollector
 from backend.collectors.base import BaseCollector
-from backend.collectors.bid_collector import BidCollector
 from backend.collectors.finance_collector import FinanceCollector
 from backend.collectors.gdelt_collector import GDELTCollector  # P2-6
 from backend.collectors.github_collector import GitHubCollector
@@ -66,8 +65,6 @@ def _from_signed_64(val: int) -> int:
 from backend.domain.enums import Category, CollectorStatus
 from backend.domain.models import HotspotItem
 from backend.logging_config import logger
-from backend.parsers.bid_extractor import extract_all as extract_bid_fields
-from backend.repository.bid_detail_repo import BidDetailRepo
 from backend.repository.custom_source_repo import CustomSourceRepository
 from backend.repository.db import get_connection
 from backend.repository.hotspot_repo import HotspotRepository
@@ -105,7 +102,7 @@ class CollectionService:
             Category.SECURITY: [SecurityCollector(), GDELTCollector()],
             Category.FINANCE: [FinanceCollector(), OpenBBCollector()],
             Category.STARTUP: [StartupCollector()],
-            Category.BID: [BidCollector()],
+            # DEV-0178: Category.BID 采集链已随工作台聚焦裁决移除 (历史 bid 条目保留)
             Category.GITHUB: [GitHubCollector()],
             Category.TECH: [
                 TechCollector(),  # Phase 25 P1
@@ -235,11 +232,7 @@ class CollectionService:
             except Exception as e:
                 self.logger.warning(f"raw_items write skipped: {e}")
 
-            # Phase 1.3: 标讯结构化字段写入 bid_details（不阻塞主流程）
-            try:
-                await asyncio.to_thread(self._write_bid_details, all_items)
-            except Exception as e:
-                self.logger.warning(f"bid_details write skipped: {e}")
+            # DEV-0178: bid_details 旁路写入已随标讯剔除移除 (bid 采集链下线)
 
         # 重建趋势 — Phase 9 修复：trend.rebuild 是同步 sqlite3 操作，放 thread pool
         try:
@@ -628,7 +621,8 @@ class CollectionService:
                 run_id=run_id,
             )
         except Exception as e:
-            self.logger.error(f"{category.value} collector crashed: {e}")
+            import traceback
+            self.logger.error(f"{category.value} collector crashed: {e}\n{traceback.format_exc()}")
             return CollectionResult(
                 category=category,
                 items=[],
@@ -871,42 +865,6 @@ class CollectionService:
                 continue
 
         self.logger.debug(f"raw_items written: {written}")
-
-    def _write_bid_details(self, items: list[Any]) -> None:
-        """Phase 1.3 (Crawler v2): 旁路写入 bid_details 表。
-
-        从标讯类别 items 中提取结构化字段，写入 bid_details。
-        只处理 category=bid 的条目，其他类别的条目跳过。
-        不阻塞主流程，失败只打 warning。
-        """
-        bid_items = [it for it in items if getattr(it, "category", None) == Category.BID]
-        if not bid_items:
-            return
-
-        repo = BidDetailRepo()
-        batch: list[tuple[str, dict]] = []
-        for it in bid_items:
-            item_id = str(it.id) if hasattr(it, "id") else ""
-            title = str(it.title) if hasattr(it, "title") else ""
-            if not item_id or not title:
-                continue
-
-            fields = extract_bid_fields(title)
-            # 补充 published_at
-            published_at = (
-                str(it.published_at) if hasattr(it, "published_at")
-                and it.published_at else None
-            )
-            if published_at:
-                fields["published_at"] = published_at
-
-            batch.append((item_id, fields))
-
-        if not batch:
-            return
-
-        written = repo.upsert_many(batch)
-        self.logger.debug(f"bid_details written: {written}/{len(batch)}")
 
     def _write_crawler_runs(self, result: CollectionResult) -> None:
         """Phase 0 (Crawler v2): 旁路写入 crawler_runs 表。

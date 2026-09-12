@@ -1,6 +1,6 @@
 # Workbench Focus 开发目标与执行计划（GOAL）
 
-- 日期：2026-09-12；状态：**P0 已交付**（T0.0-T0.5, commits `1546dfe..a31d31d` + 审计修复；独立验收 A1-A10 全 PASS、审计 P0=0/P1=4 已修/详情见 DEV-0176f）
+- 日期：2026-09-12；状态：**P0 已交付并收敛；P1 核心项已落地**（T0.0-T0.5 + T0.5/T0.2 收敛 + P1.1 标签统一 + P1.3 周审计 RUNBOOK + bid 采集链删除（migration 111，架构数字 13/57/84）；独立验收 A1-A10 全 PASS、审计 P0=0/P1=4 已修）
 - 产品口径：[`WORKBENCH_FOCUS_PRD_v1.0.md`](WORKBENCH_FOCUS_PRD_v1.0.md)（P0/P1/P2 范围以 PRD 为准，本文只管执行）
 - 执行纪律：沿用仓库既有规则——一次一小步、每步 DEV_LOG 落账（DEV-NNNN 递增）、提交必须 `git commit <显式路径>`、并行会话编号先查 DEV_LOG 再领号。
 

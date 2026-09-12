@@ -31,7 +31,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 DEFAULT_SEED = REPO_ROOT / "backend" / "tests" / "fixtures" / "practice_domain_eval.json"
-EXPECTED_EVAL_COUNT = 20
+EXPECTED_EVAL_COUNT = 24
 MIN_PER_DOMAIN = 2
 
 

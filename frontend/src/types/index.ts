@@ -28,16 +28,18 @@ export interface HotspotItem {
   practice_domain?: string | null;
 }
 
-/** DEV-0176: 实践域中文标签 — 与 backend/services/auto_classifier.py PRACTICE_DOMAIN_LABELS 同源 */
+/** DEV-0176/0181: 实践域中文标签 — 与 backend/services/auto_classifier.py PRACTICE_DOMAIN_LABELS 同源 */
 export const PRACTICE_DOMAIN_LABELS: Record<string, string> = {
-  enterprise_security: '企业安全建设',
-  vuln_research: '漏洞研究',
-  threat_hunting: '威胁狩猎',
+  network_security: '网络安全',
+  pentest: '渗透攻防',
+  vuln_research: '漏洞挖掘',
   incident_response: '应急响应',
-  ai_security: 'AI 安全',
   appsec: '应用安全',
-  cloud_data_security: '云与数据安全',
-  compliance: '合规监管',
+  crypto_security: '密码安全',
+  data_security: '数据安全',
+  compliance: '合规管理',
+  ai_security: 'AI 安全',
+  threat_hunting: '威胁狩猎',
 };
 
 export interface HotspotTag {

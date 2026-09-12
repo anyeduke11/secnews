@@ -166,28 +166,38 @@ URL_DOMAIN_MAP: dict[str, str] = {
 # 覆盖范围: 仅安全相关内容会有实践域; 非安全内容 (finance/dev/startup)
 # 返回 None —— 相关性门禁靠"命中加权、未命中降权"消费, 不要求全量覆盖。
 # 词表为数据驱动常量, P1 运营化时再考虑外置。
+#
+# DEV-0181 领域口径对齐 (owner 定义): 网络安全 / 渗透攻防 / 漏洞挖掘 /
+# 应急响应 / 应用安全 / 密码安全 / 数据安全 / 合规管理 / AI 安全 等多领域。
+# 旧 8 域映射: enterprise_security→network_security (建设/运营并入防御侧),
+# cloud_data_security 拆分为 data_security + crypto_security,
+# appsec 中渗透类关键词移至 pentest, threat_hunting 保留 (owner"等多领域")。
 # ═══════════════════════════════════════════════════════════════
 
 PRACTICE_DOMAINS: tuple[str, ...] = (
-    "enterprise_security",   # 企业安全建设
-    "vuln_research",         # 漏洞研究
-    "threat_hunting",        # 威胁狩猎
-    "incident_response",     # 应急响应
-    "ai_security",           # AI 安全
-    "appsec",                # 应用安全
-    "cloud_data_security",   # 云与数据安全
-    "compliance",            # 合规监管
+    "network_security",     # 网络安全 (含防御运营/安全建设/云基础设施)
+    "pentest",              # 渗透攻防
+    "vuln_research",        # 漏洞挖掘
+    "incident_response",    # 应急响应
+    "appsec",               # 应用安全
+    "crypto_security",      # 密码安全
+    "data_security",        # 数据安全
+    "compliance",           # 合规管理
+    "ai_security",          # AI 安全
+    "threat_hunting",       # 威胁狩猎
 )
 
 PRACTICE_DOMAIN_LABELS: dict[str, str] = {
-    "enterprise_security": "企业安全建设",
-    "vuln_research": "漏洞研究",
-    "threat_hunting": "威胁狩猎",
+    "network_security": "网络安全",
+    "pentest": "渗透攻防",
+    "vuln_research": "漏洞挖掘",
     "incident_response": "应急响应",
-    "ai_security": "AI 安全",
     "appsec": "应用安全",
-    "cloud_data_security": "云与数据安全",
-    "compliance": "合规监管",
+    "crypto_security": "密码安全",
+    "data_security": "数据安全",
+    "compliance": "合规管理",
+    "ai_security": "AI 安全",
+    "threat_hunting": "威胁狩猎",
 }
 
 # Tag → practice domain (primary)。键顺序即优先级: 具体 tag 先于泛化 tag。
@@ -199,6 +209,12 @@ TAG_PRACTICE_MAP: dict[str, str] = {
     "模型安全": "ai_security",
     "提示注入": "ai_security",
     "Prompt注入": "ai_security",
+    # 密码安全
+    "密码学": "crypto_security",
+    "密码安全": "crypto_security",
+    "国密": "crypto_security",
+    "加密": "crypto_security",
+    "密钥管理": "crypto_security",
     # 威胁狩猎
     "威胁情报": "threat_hunting",
     "威胁狩猎": "threat_hunting",
@@ -208,39 +224,41 @@ TAG_PRACTICE_MAP: dict[str, str] = {
     "应急响应": "incident_response",
     "安全事件": "incident_response",
     "勒索软件": "incident_response",
-    # 漏洞研究
-    "漏洞管理": "enterprise_security",  # 漏洞管理流程属安全建设; 具体漏洞研究靠标题关键词
+    # 漏洞挖掘
+    "漏洞管理": "network_security",  # 漏洞管理流程属防御运营; 具体漏洞挖掘靠标题关键词
     "漏洞": "vuln_research",
     "CVE": "vuln_research",
     "0day": "vuln_research",
+    # 渗透攻防
+    "渗透测试": "pentest",
+    "红队攻防": "pentest",
+    "攻防演练": "pentest",
+    "护网": "pentest",
+    "CTF": "pentest",
     # 应用安全
-    "渗透测试": "appsec",
     "代码审计": "appsec",
     "SDL": "appsec",
     "DevSecOps": "appsec",
     "Web安全": "appsec",
     "供应链安全": "appsec",
-    # 云与数据安全
-    "数据安全": "cloud_data_security",
-    "云安全": "cloud_data_security",
-    "隐私": "cloud_data_security",
-    "加密": "cloud_data_security",
-    # 合规监管
+    # 数据安全
+    "数据安全": "data_security",
+    "隐私": "data_security",
+    # 合规管理
     "合规": "compliance",
     "等保": "compliance",
     "国标": "compliance",
     "标准规范": "compliance",
     "安全审计": "compliance",
-    # 企业安全建设 (泛化 tag 放最后兜底)
-    "安全管理": "enterprise_security",
-    "安全运营": "enterprise_security",
-    "安全架构": "enterprise_security",
-    "安全建设": "enterprise_security",
-    "零信任": "enterprise_security",
-    "攻防演练": "enterprise_security",
-    "红队攻防": "enterprise_security",
-    "CISO": "enterprise_security",
-    "防火墙": "enterprise_security",
+    # 网络安全 (防御运营/安全建设/云基础设施, 泛化 tag 兜底)
+    "安全管理": "network_security",
+    "安全运营": "network_security",
+    "安全架构": "network_security",
+    "安全建设": "network_security",
+    "零信任": "network_security",
+    "云安全": "network_security",
+    "CISO": "network_security",
+    "防火墙": "network_security",
 }
 
 # Title keyword → practice domain (secondary)。数组顺序即优先级, 具体 pattern 在前。
@@ -248,20 +266,24 @@ TITLE_PRACTICE_RULES: list[tuple[re.Pattern, str]] = [
     # AI 安全 (DEV-0179: 无偏人评发现缺口 — 真实语料常用攻击动词而非"AI安全"标签
     # 表述 Agent 攻击, 如 "Agent 再爆新攻击/智能体协作入侵/窃取 API 密钥", 补攻击动词系)
     (re.compile(r"大模型安全|AI安全|AI 安全|模型安全|提示注入|[Pp]rompt\s*[Ii]njection|越狱|数据投毒|对抗样本|AI红队|Agent安全|智能体.{0,8}(入侵|攻击)|Agent.{0,8}(攻击|入侵)|窃取\s*(API\s*)?密钥"), "ai_security"),
-    # 漏洞研究
+    # 密码安全 (DEV-0181: 从云与数据安全拆出; 标题层用具体词避免裸"加密"遮蔽漏洞类)
+    (re.compile(r"密码学|密码安全|国密|SM[2349]|商用密码|密钥管理|加密算法|密码破解|哈希碰撞|量子密钥"), "crypto_security"),
+    # 漏洞挖掘
     (re.compile(r"CVE-\d{4}|0day|0-day|漏洞|POC|EXP|提权|反序列化|栈溢出|堆溢出|命令注入|SQL注入|复现"), "vuln_research"),
+    # 渗透攻防 (DEV-0181: 从 appsec 独立)
+    (re.compile(r"渗透测试|红队|蓝队|攻防演练|护网|CTF|靶场|Cobalt\s*Strike|Metasploit|内网渗透|横向移动|钓鱼攻击"), "pentest"),
     # 威胁狩猎
     (re.compile(r"威胁狩猎|威胁情报|ATT&CK|APT|IOC|溯源|恶意样本|黑客组织|沙箱逃逸|TTP"), "threat_hunting"),
     # 应急响应
     (re.compile(r"应急响应|事件响应|勒索|入侵事件|安全事件处置|取证|隔离处置"), "incident_response"),
     # 应用安全
-    (re.compile(r"应用安全|代码审计|SDL|DevSecOps|Web安全|渗透测试|移动安全|APP安全|供应链安全|SSRF|XSS|CSRF"), "appsec"),
-    # 云与数据安全
-    (re.compile(r"云安全|数据安全|容器安全|K8s\s*安全|Kubernetes\s*安全|云原生安全|隐私计算|数据泄露|数据出境|数据分类分级|密钥管理"), "cloud_data_security"),
-    # 合规监管 (DEV-0179: +立法 — AI 立法监管动态是合规从业者的日常输入)
+    (re.compile(r"应用安全|代码审计|SDL|DevSecOps|Web安全|移动安全|APP安全|供应链安全|SSRF|XSS|CSRF"), "appsec"),
+    # 数据安全 (DEV-0181: 独立; 密钥管理归密码安全)
+    (re.compile(r"数据安全|隐私计算|数据泄露|数据出境|数据分类分级|个人信息保护|数据合规治理"), "data_security"),
+    # 网络安全 (防御运营/建设/云基础设施 — 泛化兜底)
+    (re.compile(r"网络安全|防火墙|DDoS|入侵检测|IDS|IPS|云安全|容器安全|K8s\s*安全|Kubernetes\s*安全|云原生安全|零信任|SOC|安全运营|安全建设|安全体系|安全架构|安全意识|安全规划|成熟度|安全团队|防护体系|安全治理"), "network_security"),
+    # 合规管理 (DEV-0179: +立法 — AI 立法监管动态是合规从业者的日常输入)
     (re.compile(r"等保|关基|数安法|个保法|网络安全法|合规|监管|网信办|工信部|征求意见|安全测评|安全标准|立法"), "compliance"),
-    # 企业安全建设 (泛化兜底)
-    (re.compile(r"安全建设|安全运营|安全体系|SOC|零信任|安全架构|安全意识|安全规划|成熟度|安全团队|防护体系|安全治理"), "enterprise_security"),
 ]
 
 

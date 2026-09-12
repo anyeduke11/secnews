@@ -50,8 +50,8 @@ describe('PriorityDigestCard', () => {
     await waitFor(() => {
       expect(screen.getByText(/CVE 漏洞复现/)).toBeInTheDocument();
     });
-    expect(screen.getByText('漏洞研究')).toBeInTheDocument();
-    expect(screen.getByText('合规监管')).toBeInTheDocument();
+    expect(screen.getByText('漏洞挖掘')).toBeInTheDocument();
+    expect(screen.getByText('合规管理')).toBeInTheDocument();
     expect(screen.getByText('feed.priority.other')).toBeInTheDocument();
     expect(screen.getByText(/某基金走势/)).toBeInTheDocument();
   });

@@ -24,8 +24,8 @@ def corpus() -> list[dict]:
 
 
 class TestPracticeDomainEvalCorpus:
-    def test_exactly_20_entries(self, corpus: list[dict]):
-        assert len(corpus) == 20
+    def test_exactly_24_entries(self, corpus: list[dict]):
+        assert len(corpus) == 24
 
     def test_every_domain_covered_at_least_twice(self, corpus: list[dict]):
         coverage = Counter(e["practice_domain"] for e in corpus)

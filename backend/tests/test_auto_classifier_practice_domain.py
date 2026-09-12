@@ -33,14 +33,21 @@ class TestPracticeDomainTagHits:
             ("应急响应", "incident_response"),
             ("漏洞", "vuln_research"),
             ("CVE", "vuln_research"),
-            ("渗透测试", "appsec"),
+            # DEV-0181: owner 10 域口径
+            ("渗透测试", "pentest"),
+            ("红队攻防", "pentest"),
+            ("护网", "pentest"),
             ("代码审计", "appsec"),
-            ("数据安全", "cloud_data_security"),
-            ("云安全", "cloud_data_security"),
+            ("数据安全", "data_security"),
+            ("隐私", "data_security"),
+            ("国密", "crypto_security"),
+            ("密钥管理", "crypto_security"),
+            ("密码学", "crypto_security"),
             ("等保", "compliance"),
             ("合规", "compliance"),
-            ("零信任", "enterprise_security"),
-            ("安全运营", "enterprise_security"),
+            ("零信任", "network_security"),
+            ("安全运营", "network_security"),
+            ("云安全", "network_security"),
         ],
     )
     def test_tag_hit(self, tag: str, expected: str):
@@ -70,13 +77,21 @@ class TestPracticeDomainTitleHits:
             ("一次入侵事件的取证与处置", "incident_response"),
             ("Java 代码审计入门指南", "appsec"),
             ("DevSecOps 流水线落地实践", "appsec"),
-            ("2026 数据泄露事件年报", "cloud_data_security"),
-            ("Kubernetes 安全加固清单", "cloud_data_security"),
+            # DEV-0181: 渗透攻防独立
+            ("某金融单位红队攻防演练复盘：从外网到域控", "pentest"),
+            ("内网渗透实战：横向移动路径与规避", "pentest"),
+            ("密码学基础：哈希碰撞与签名方案", "crypto_security"),
+            ("国密 SM4 改造中的常见坑", "crypto_security"),
+            # DEV-0181: 数据安全独立 / 密钥归密码安全
+            ("2026 数据泄露事件年报", "data_security"),
+            ("数据分类分级建设指南解读", "data_security"),
+            # DEV-0181: 网络安全 (防御运营/建设/云)
+            ("Kubernetes 安全加固清单", "network_security"),
+            ("企业安全建设的五年规划方法", "network_security"),
+            ("SOC 运营中心成熟度评估", "network_security"),
             ("等保 2.0 三级测评要点解读", "compliance"),
             ("网信办就新规公开征求意见", "compliance"),
             ("70余名英国议员联名呼吁立法禁止开发超级智能AI", "compliance"),
-            ("企业安全建设的五年规划方法", "enterprise_security"),
-            ("SOC 运营中心成熟度评估", "enterprise_security"),
         ],
     )
     def test_title_hit(self, title: str, expected: str):
@@ -105,7 +120,7 @@ class TestPracticeDomainNegatives:
 class TestTaxonomyIntegrity:
     def test_all_domains_have_labels(self):
         assert set(PRACTICE_DOMAINS) == set(PRACTICE_DOMAIN_LABELS.keys())
-        assert len(PRACTICE_DOMAINS) == 8
+        assert len(PRACTICE_DOMAINS) == 10
 
     def test_title_rules_only_target_known_domains(self):
         from backend.services.auto_classifier import TITLE_PRACTICE_RULES

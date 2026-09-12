@@ -1,215 +1,36 @@
 {
   "_meta": {
-    "version": "v1.0_workbench_focus",
+    "version": "v1.1_dev0181_taxonomy",
     "generated_at": "2026-09-12",
-    "entry_count": 20,
+    "entry_count": 24,
     "annotator": "human:workbench-focus-p0",
     "confidence": 0.9,
-    "notes": "实践域词表评测语料 (Workbench Focus PRD P0.2, DEV-0176b)。与 backend/services/auto_classifier.py 词表同源 —— 作用是回归护栏 (词表改动后 check_practice_domain_lexicon.py --check 必须保持 100%), 不是无偏准确率评估; 无偏人评属 PRD P1 词表运营机制。纯合成标题, 无生产数据。配对: dev_data/annotation_set_seed_60_80.json 本地 admission 标注 60 条不入仓, 总量 80 关闭 v1.0 T00 悬置裁决。"
+    "notes": "实践域词表评测语料 (Workbench Focus PRD P0.2, DEV-0176b; DEV-0181 领域口径对齐 owner 10 域清单后重映射+扩充)。与 backend/services/auto_classifier.py 词表同源 —— 作用是回归护栏 (词表改动后 check_practice_domain_lexicon.py --check 必须保持 100%), 不是无偏准确率评估; 无偏人评属 PRD P1 词表运营机制 (audit_practice_domain_sample.py)。纯合成标题, 无生产数据。旧域映射: enterprise_security→network_security, cloud_data_security→data_security(K8s条→network_security), appsec 渗透类→pentest。"
   },
   "entries": [
-    {
-      "material_id": "PRAC-AIS-001",
-      "title": "大模型提示注入攻防实战：从越狱到数据外带",
-      "tags": [
-        "AI安全",
-        "大模型安全"
-      ],
-      "practice_domain": "ai_security",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-AIS-002",
-      "title": "LLM Agent 安全：工具调用链的提示注入风险",
-      "tags": [
-        "AI安全"
-      ],
-      "practice_domain": "ai_security",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-AIS-003",
-      "title": "对抗样本攻击在图像识别模型上的复现",
-      "tags": [
-        "AI安全",
-        "深度学习"
-      ],
-      "practice_domain": "ai_security",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-VUL-001",
-      "title": "CVE-2026-24881 WebLogic 反序列化漏洞分析与 EXP 构造",
-      "tags": [
-        "漏洞"
-      ],
-      "practice_domain": "vuln_research",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-VUL-002",
-      "title": "某路由器栈溢出 0day 从发现到 POC 编写",
-      "tags": [
-        "漏洞"
-      ],
-      "practice_domain": "vuln_research",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-THR-001",
-      "title": "基于 ATT&CK TTP 的威胁狩猎体系搭建",
-      "tags": [
-        "威胁情报"
-      ],
-      "practice_domain": "threat_hunting",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-THR-002",
-      "title": "APT 组织利用供应链事件的溯源复盘",
-      "tags": [
-        "威胁情报",
-        "安全事件"
-      ],
-      "practice_domain": "threat_hunting",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-INC-001",
-      "title": "某金融机构勒索软件应急响应实录",
-      "tags": [
-        "应急响应"
-      ],
-      "practice_domain": "incident_response",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-INC-002",
-      "title": "入侵事件响应：从告警到取证闭环",
-      "tags": [
-        "安全事件"
-      ],
-      "practice_domain": "incident_response",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-APP-001",
-      "title": "Java Web 应用代码审计实战指南",
-      "tags": [
-        "代码审计"
-      ],
-      "practice_domain": "appsec",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-APP-002",
-      "title": "DevSecOps 流水线中 SCA 的落地实践",
-      "tags": [
-        "DevSecOps"
-      ],
-      "practice_domain": "appsec",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-CLD-001",
-      "title": "数据分类分级建设指南解读",
-      "tags": [
-        "数据安全"
-      ],
-      "practice_domain": "cloud_data_security",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-CLD-002",
-      "title": "K8s 安全基线：容器逃逸防护清单",
-      "tags": [
-        "云安全"
-      ],
-      "practice_domain": "cloud_data_security",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-CLD-003",
-      "title": "隐私计算在金融数据合作中的应用",
-      "tags": [
-        "隐私"
-      ],
-      "practice_domain": "cloud_data_security",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-CMP-001",
-      "title": "等保 2.0 三级测评常见问题清单",
-      "tags": [
-        "等保"
-      ],
-      "practice_domain": "compliance",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-CMP-002",
-      "title": "《数安法》下数据出境安全评估申报实操",
-      "tags": [
-        "合规"
-      ],
-      "practice_domain": "compliance",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-CMP-003",
-      "title": "网信办算法备案新规要点解读",
-      "tags": [
-        "合规"
-      ],
-      "practice_domain": "compliance",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-ENT-001",
-      "title": "零信任架构在企业的落地路线图",
-      "tags": [
-        "零信任"
-      ],
-      "practice_domain": "enterprise_security",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-ENT-002",
-      "title": "安全运营中心 (SOC) 建设的三年规划",
-      "tags": [
-        "安全运营"
-      ],
-      "practice_domain": "enterprise_security",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    },
-    {
-      "material_id": "PRAC-ENT-003",
-      "title": "安全意识培训体系设计与效果度量",
-      "tags": [
-        "安全管理"
-      ],
-      "practice_domain": "enterprise_security",
-      "annotator": "human:workbench-focus-p0",
-      "confidence": 0.9
-    }
+    {"material_id": "PRAC-AIS-001", "title": "大模型提示注入攻防实战：从越狱到数据外带", "tags": ["AI安全", "大模型安全"], "practice_domain": "ai_security", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-AIS-002", "title": "LLM Agent 安全：工具调用链的提示注入风险", "tags": ["AI安全"], "practice_domain": "ai_security", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-AIS-003", "title": "对抗样本攻击在图像识别模型上的复现", "tags": ["AI安全", "深度学习"], "practice_domain": "ai_security", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-VUL-001", "title": "CVE-2026-24881 WebLogic 反序列化漏洞分析与 EXP 构造", "tags": ["漏洞"], "practice_domain": "vuln_research", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-VUL-002", "title": "某路由器栈溢出 0day 从发现到 POC 编写", "tags": ["漏洞"], "practice_domain": "vuln_research", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-THR-001", "title": "基于 ATT&CK TTP 的威胁狩猎体系搭建", "tags": ["威胁情报"], "practice_domain": "threat_hunting", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-THR-002", "title": "APT 组织利用供应链事件的溯源复盘", "tags": ["威胁情报", "安全事件"], "practice_domain": "threat_hunting", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-INC-001", "title": "某金融机构勒索软件应急响应实录", "tags": ["应急响应"], "practice_domain": "incident_response", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-INC-002", "title": "入侵事件响应：从告警到取证闭环", "tags": ["安全事件"], "practice_domain": "incident_response", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-APP-001", "title": "Java Web 应用代码审计实战指南", "tags": ["代码审计"], "practice_domain": "appsec", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-APP-002", "title": "DevSecOps 流水线中 SCA 的落地实践", "tags": ["DevSecOps"], "practice_domain": "appsec", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-DAT-001", "title": "数据分类分级建设指南解读", "tags": ["数据安全"], "practice_domain": "data_security", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-DAT-002", "title": "隐私计算在金融数据合作中的应用", "tags": ["隐私"], "practice_domain": "data_security", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-CMP-001", "title": "等保 2.0 三级测评常见问题清单", "tags": ["等保"], "practice_domain": "compliance", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-CMP-002", "title": "《数安法》下数据出境安全评估申报实操", "tags": ["合规"], "practice_domain": "compliance", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-CMP-003", "title": "网信办算法备案新规要点解读", "tags": ["合规"], "practice_domain": "compliance", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-NET-001", "title": "零信任架构在企业的落地路线图", "tags": ["零信任"], "practice_domain": "network_security", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-NET-002", "title": "安全运营中心 (SOC) 建设的三年规划", "tags": ["安全运营"], "practice_domain": "network_security", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-NET-003", "title": "K8s 安全基线：容器逃逸防护清单", "tags": ["云安全"], "practice_domain": "network_security", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-PEN-001", "title": "某央企红队攻防演练复盘：从钓鱼邮件到域控", "tags": ["红队攻防"], "practice_domain": "pentest", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-PEN-002", "title": "内网渗透实战：横向移动路径与检测规避", "tags": ["渗透测试"], "practice_domain": "pentest", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-CRY-001", "title": "国密 SM4 在金融核心系统的落地改造", "tags": ["国密"], "practice_domain": "crypto_security", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-CRY-002", "title": "密钥管理体系建设与轮换机制实践", "tags": ["密钥管理"], "practice_domain": "crypto_security", "annotator": "human:workbench-focus-p0", "confidence": 0.9},
+    {"material_id": "PRAC-CRY-003", "title": "密码学基础：哈希碰撞攻击与签名方案选型", "tags": ["密码学"], "practice_domain": "crypto_security", "annotator": "human:workbench-focus-p0", "confidence": 0.9}
   ]
 }

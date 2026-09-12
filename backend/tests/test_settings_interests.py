@@ -47,7 +47,7 @@ class TestInterestsAPI:
         assert r.status_code == 200
         body = r.json()
         assert body["domains"] == []
-        assert len(body["valid_domains"]) == 8
+        assert len(body["valid_domains"]) == 10
         assert set(body["labels"].keys()) == set(body["valid_domains"])
 
     def test_patch_then_get_roundtrip(self, client):

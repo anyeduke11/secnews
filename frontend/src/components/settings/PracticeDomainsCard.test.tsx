@@ -12,26 +12,30 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch as unknown as typeof fetch;
 
 const VALID_DOMAINS = [
-  'enterprise_security',
+  'network_security',
+  'pentest',
   'vuln_research',
-  'threat_hunting',
   'incident_response',
-  'ai_security',
   'appsec',
-  'cloud_data_security',
+  'crypto_security',
+  'data_security',
   'compliance',
+  'ai_security',
+  'threat_hunting',
 ];
 
 // 与后端 PRACTICE_DOMAIN_LABELS 同源
 const LABELS: Record<string, string> = {
-  enterprise_security: '企业安全建设',
-  vuln_research: '漏洞研究',
-  threat_hunting: '威胁狩猎',
+  network_security: '网络安全',
+  pentest: '渗透攻防',
+  vuln_research: '漏洞挖掘',
   incident_response: '应急响应',
-  ai_security: 'AI 安全',
   appsec: '应用安全',
-  cloud_data_security: '云与数据安全',
-  compliance: '合规监管',
+  crypto_security: '密码安全',
+  data_security: '数据安全',
+  compliance: '合规管理',
+  ai_security: 'AI 安全',
+  threat_hunting: '威胁狩猎',
 };
 
 function mockGet(domains: string[] = []) {
@@ -59,15 +63,15 @@ describe('PracticeDomainsCard', () => {
     mockFetch.mockReset();
   });
 
-  it('渲染 8 个实践域 chip (aria-pressed 反映选中态)', async () => {
+  it('渲染 10 个实践域 chip (aria-pressed 反映选中态)', async () => {
     mockGet(['ai_security']);
     render(<PracticeDomainsCard />);
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'AI 安全' })).toHaveAttribute('aria-pressed', 'true');
     });
-    expect(screen.getByRole('button', { name: '漏洞研究' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getAllByRole('button')).toHaveLength(8);
+    expect(screen.getByRole('button', { name: '漏洞挖掘' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getAllByRole('button')).toHaveLength(10);
   });
 
   it('点击未选中的域立即 PATCH 保存并显示已保存', async () => {

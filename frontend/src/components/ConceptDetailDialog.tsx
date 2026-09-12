@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ConceptDetail } from '../types';
+import { getJSON } from '../lib/api';
 import { Icon } from './Icon';
 
 interface ConceptDetailDialogProps {
@@ -16,11 +17,7 @@ export function ConceptDetailDialog({ slug, onClose, onSelectItem }: ConceptDeta
   const loadConcept = useCallback((s: string) => {
     setLoading(true);
     setError(null);
-    fetch(`/api/knowledge/concepts/${encodeURIComponent(s)}`)
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    getJSON<ConceptDetail>(`/api/knowledge/concepts/${encodeURIComponent(s)}`)
       .then(data => {
         setConcept(data as ConceptDetail);
         setLoading(false);

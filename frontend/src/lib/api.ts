@@ -36,6 +36,8 @@ export function getApiErrorMessage(body: unknown): string {
   const obj = body as Record<string, unknown>;
   // 扁平信封: {code, message, ...}
   if (typeof obj.message === 'string' && obj.message) return obj.message;
+  // 部分端点 (如 dsh control 409) 用 {error: "..."} 信封
+  if (typeof obj.error === 'string' && obj.error) return obj.error;
   // 兼容旧 FastAPI 风格: {detail: "..."} 或 {detail: {message: "..."}}
   const detail = obj.detail;
   if (typeof detail === 'string' && detail) return detail;
@@ -44,6 +46,20 @@ export function getApiErrorMessage(body: unknown): string {
     if (typeof msg === 'string' && msg) return msg;
   }
   return '';
+}
+
+/**
+ * 携带 HTTP status 的错误 — apiFetch 非 2xx 时抛出。
+ * 供调用方区分 404 (feature gate off / 条目不存在) / 409 (冲突) / 424 等分支。
+ * 仍是 Error 子类, 只关心 message 的调用方不受影响。
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
 }
 
 /** 从错误响应体提取友好信息, 读不到返回 null (apiFetch 内部用) */
@@ -81,7 +97,7 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
       }
       const detailMsg = extractErrorDetail(detail);
       const msg = detailMsg || resp.statusText || `HTTP ${resp.status}`;
-      throw new Error(msg);
+      throw new ApiError(resp.status, msg);
     }
 
     // 204 No Content 无响应体

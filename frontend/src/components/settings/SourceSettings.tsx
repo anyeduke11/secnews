@@ -9,7 +9,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { REFRESH_INTERVAL_OPTIONS } from '../../hooks/useRefreshInterval';
 import { SourceItem, SourceItemData } from './SourceItem';
-import { getApiErrorMessage } from '../../lib/api';
+import { getApiErrorMessage, postJSON } from '../../lib/api';
+import {
+  addCustomSource,
+  deleteCustomSource,
+  getSourceHealthV2,
+  getSourceStats,
+  listCustomSources,
+  resetSourceHealth,
+  toggleCustomSource,
+} from '../../api/sources';
 
 interface SourceSettingsProps {
   open: boolean;
@@ -37,14 +46,12 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
 
   useEffect(() => {
     if (!open) return;
-    fetch('/api/sources/stats')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => setHealthStats(d))
+    getSourceStats()
+      .then(d => setHealthStats(d as NonNullable<typeof healthStats>))
       .catch(() => {});
-    fetch('/api/sources/health/v2')
-      .then(r => r.ok ? r.json() : null)
+    getSourceHealthV2()
       .then(d => {
-        const all = d?.sources ?? [];
+        const all = (d as { sources?: any[] })?.sources ?? [];
         setDeadSources(all.filter((s: any) => s.status === 'dead' || s.status === 'stale'));
       })
       .catch(() => {});
@@ -52,13 +59,10 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
 
   const resetSource = useCallback(async (cat: string, name: string) => {
     try {
-      const r = await fetch(
-        `/api/sources/health/by-source/${encodeURIComponent(cat)}/${encodeURIComponent(name)}/reset`,
-        { method: 'POST' },
-      );
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const d = await (await fetch('/api/sources/health/v2')).json();
-      setDeadSources((d?.sources ?? []).filter((s: any) => s.status === 'dead' || s.status === 'stale'));
+      await resetSourceHealth(cat, name);
+      const d = await getSourceHealthV2();
+      const all = (d as { sources?: any[] })?.sources ?? [];
+      setDeadSources(all.filter((s: any) => s.status === 'dead' || s.status === 'stale'));
     } catch (e: any) {
       setSourceMessage({ type: 'error', text: `重置失败: ${e?.message || e}` });
     }
@@ -69,9 +73,8 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
 
   const refreshSources = useCallback(async () => {
     try {
-      const r = await fetch('/api/sources/custom');
-      const d = await r.json();
-      setSources(d.sources || []);
+      const d = await listCustomSources();
+      setSources((d.sources as unknown as SourceItemData[]) || []);
     } catch { /* 静默 */ }
   }, []);
 
@@ -99,26 +102,17 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
     setAddingSource(true);
     setSourceMessage(null);
     try {
-      const r = await fetch('/api/sources/custom', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: newUrl.trim(), name: newName.trim() }),
+      // apiFetch 非 ok 时抛错 (message 经 getApiErrorMessage 友好化) → 统一走 catch
+      const d = await addCustomSource({ url: newUrl.trim(), name: newName.trim() });
+      setSourceMessage({
+        type: 'ok',
+        text: `已添加 (分类=${d.category}, 延迟=${String(d.probe.latency_ms)}ms)`,
       });
-      const d = await r.json();
-      if (r.ok && d.status === 'ok') {
-        setSourceMessage({
-          type: 'ok',
-          text: `已添加 (分类=${d.category}, 延迟=${d.probe.latency_ms}ms)`,
-        });
-        setNewUrl('');
-        setNewName('');
-        refreshSources();
-      } else {
-        const msg = getApiErrorMessage(d) || '添加失败';
-        setSourceMessage({ type: 'error', text: msg });
-      }
-    } catch {
-      setSourceMessage({ type: 'error', text: '请求失败' });
+      setNewUrl('');
+      setNewName('');
+      refreshSources();
+    } catch (e: any) {
+      setSourceMessage({ type: 'error', text: getApiErrorMessage(e) || e?.message || '添加失败' });
     } finally {
       setAddingSource(false);
     }
@@ -127,24 +121,26 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
   const deleteSource = useCallback(async (id: number) => {
     if (!confirm(`确定删除 source #${id}?`)) return;
     try {
-      await fetch(`/api/sources/custom/${id}`, { method: 'DELETE' });
+      await deleteCustomSource(id);
     } catch {}
     refreshSources();
   }, [refreshSources]);
 
   const toggleSource = useCallback(async (id: number, enabled: boolean) => {
     try {
-      await fetch(`/api/sources/custom/${id}/toggle?enabled=${enabled}`, { method: 'POST' });
+      await toggleCustomSource(id, enabled);
     } catch {}
     refreshSources();
   }, [refreshSources]);
 
   const probeSource = useCallback(async (id: number) => {
     try {
-      const r = await fetch(`/api/sources/custom/${id}/probe`, { method: 'POST' });
-      const d = await r.json();
+      const d = await postJSON<{ status?: string; probe?: { error?: string; latency_ms?: number } }>(
+        `/api/sources/custom/${id}/probe`,
+        undefined,
+      );
       if (d.status === 'ok') {
-        setSourceMessage({ type: 'ok', text: `探测成功: ${d.probe.latency_ms}ms` });
+        setSourceMessage({ type: 'ok', text: `探测成功: ${d.probe?.latency_ms}ms` });
       } else {
         setSourceMessage({ type: 'error', text: `探测失败: ${d.probe?.error || 'unknown'}` });
       }

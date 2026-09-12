@@ -10,6 +10,7 @@
  * 历史: v0.6.x 原 SettingsPanel.tsx 1065 行; v0.7.0 拆 12 文件; V2 拆 5 子组件 + 哨兵化
  */
 import { useState, useEffect } from 'react';
+import { getJSON } from '../../lib/api';
 import { ProviderPanel } from './quality/ProviderPanel';
 import { SecretsPanel } from './quality/SecretsPanel';
 import { LlmDetectionPanel } from './quality/LlmDetectionPanel';
@@ -35,8 +36,7 @@ export function QualitySettings({ open }: QualitySettingsProps) {
   // 拉 /api/quality/rules — 同时给 QualityRulesPanel + LlmDetectionPanel 喂初值
   useEffect(() => {
     if (!open) return;
-    fetch('/api/quality/rules')
-      .then(r => r.json())
+    getJSON<{ rules?: QualityRule[] }>('/api/quality/rules')
       .then(data => {
         const list = (data.rules || []) as QualityRule[];
         setRules(list);
@@ -51,8 +51,12 @@ export function QualitySettings({ open }: QualitySettingsProps) {
   // 拉 /api/llm/status — 给 ProviderPanel 喂 providerOptions / defaultProvider / source
   useEffect(() => {
     if (!open) return;
-    fetch('/api/llm/status')
-      .then(r => r.json())
+    getJSON<{
+      providers?: Record<string, unknown>;
+      effective_provider?: unknown;
+      config_source?: unknown;
+      key_source?: unknown;
+    }>('/api/llm/status')
       .then(data => {
         const ps = data.providers ? Object.keys(data.providers) : [];
         if (ps.length > 0) setProviderOptions(ps);

@@ -15,6 +15,7 @@ import { KnowledgeFilters, FilterState } from '../KnowledgeFilters';
 import { ItemDetailDialog } from '../ItemDetailDialog';
 import { ConceptDetailDialog } from '../ConceptDetailDialog';
 import { Icon } from '../Icon';
+import { listKnowledgeItems } from '../../api/knowledge';
 import { KNOWLEDGE_AREAS } from './KnowledgeTabs';
 
 type GraphView = 'concepts' | 'attack' | 'cve' | 'compliance';
@@ -35,23 +36,22 @@ export function KnowledgeProcess() {
   const loadItems = useCallback(() => {
     setLoading(true);
     setError(null);
-    const params = new URLSearchParams({ limit: '50' });
-    if (filters.domain) params.set('domain', filters.domain);
-    if (filters.topic) params.set('topic', filters.topic);
-    if (filters.type) params.set('type', filters.type);
-    if (filters.difficulty) params.set('difficulty', filters.difficulty);
+    // Batch 5: /api/knowledge/items 收敛到 api/knowledge.listKnowledgeItems
+    let since: string | undefined;
     if (filters.timeRange === 'week' || filters.timeRange === 'month') {
-      const now = new Date();
       const start = new Date();
-      if (filters.timeRange === 'week') start.setDate(now.getDate() - 7);
-      else start.setMonth(now.getMonth() - 1);
-      params.set('since', start.toISOString().split('T')[0]);
+      if (filters.timeRange === 'week') start.setDate(start.getDate() - 7);
+      else start.setMonth(start.getMonth() - 1);
+      since = start.toISOString().split('T')[0];
     }
-    fetch(`/api/knowledge/items?${params}`)
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    listKnowledgeItems({
+      limit: 50,
+      domain: filters.domain || undefined,
+      topic: filters.topic || undefined,
+      type: filters.type || undefined,
+      difficulty: filters.difficulty || undefined,
+      since,
+    })
       .then(data => {
         setItems(data.items || []);
         setLoading(false);

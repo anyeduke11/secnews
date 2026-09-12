@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
+import { ApiError, getJSON } from '../../lib/api';
 
 interface SearchItem {
   entity_type: string;
@@ -46,16 +47,13 @@ export function UnifiedSearchPage({ onBack }: { onBack?: () => void }) {
       params.set('q', trimmed);
       if (srcs.length > 0) params.set('sources', srcs.join(','));
       params.set('limit', '50');
-      const r = await fetch(`/api/search?${params}`);
-      if (!r.ok) {
-        setError(`搜索失败 (${r.status})`);
-        return;
-      }
-      const d = await r.json();
+      const d = await getJSON<{ result?: { items?: SearchItem[]; grouped?: Record<string, SearchItem[]> } }>(`/api/search?${params}`);
       setItems(d.result?.items ?? []);
       setGrouped(d.result?.grouped ?? {});
-    } catch {
-      setError('搜索失败: 网络或后端不可达');
+    } catch (e) {
+      setError(e instanceof ApiError
+        ? `搜索失败 (${e.status})`
+        : '搜索失败: 网络或后端不可达');
     } finally {
       setLoading(false);
     }

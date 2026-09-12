@@ -5,7 +5,10 @@
  * PUT /api/observability/thresholds (整块替换); 校验失败显示 400 错误.
  */
 import { useEffect, useState } from 'react';
-import { getApiErrorMessage } from '../../../lib/api';
+import { getJSON, apiFetch } from '../../../lib/api';
+
+// 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
+const THRESHOLDS_URL = '/api/observability/thresholds';
 
 interface MetricSpec {
   warn?: number;
@@ -51,10 +54,10 @@ export function ThresholdEditor() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/observability/thresholds')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: ThresholdsResp | null) => {
-        if (d) setRules(d.thresholds);
+    // 非 2xx 由 apiFetch 抛错 → 与原 `r.ok ? json : null` 同为静默不设 rules
+    getJSON<ThresholdsResp>(THRESHOLDS_URL)
+      .then((d) => {
+        setRules(d.thresholds);
       })
       .catch(() => {})
         .finally(() => setLoading(false));
@@ -83,15 +86,11 @@ export function ThresholdEditor() {
     setSaving(true);
     setMessage(null);
     try {
-      const r = await fetch('/api/observability/thresholds', {
+      // 校验失败 (400) 由 apiFetch 抛 ApiError, message 经 getApiErrorMessage 友好化
+      await apiFetch(THRESHOLDS_URL, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ thresholds: rules }),
       });
-      if (!r.ok) {
-        const body = await r.json().catch(() => ({}));
-        throw new Error(getApiErrorMessage(body) || `HTTP ${r.status}`);
-      }
       setMessage('已保存');
     } catch (e) {
       setMessage(`保存失败: ${e instanceof Error ? e.message : String(e)}`);

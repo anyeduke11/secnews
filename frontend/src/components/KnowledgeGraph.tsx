@@ -7,6 +7,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { GraphData } from '../types';
+import { getKnowledgeGraph } from '../api/knowledge';
 import { useThemeColors, ThemeColorKey } from '../hooks/useThemeColors';
 import { EmptyState } from './EmptyState';
 
@@ -33,9 +34,7 @@ export function KnowledgeGraph({ domain, onSelectConcept }: KnowledgeGraphProps)
 
   useEffect(() => {
     setLoading(true);
-    const params = domain ? `?domain=${encodeURIComponent(domain)}` : '';
-    fetch(`/api/knowledge/graph${params}`)
-      .then(r => r.json())
+    getKnowledgeGraph(domain || undefined)
       .then(d => {
         setData(d || { nodes: [], edges: [] });
         setLoading(false);

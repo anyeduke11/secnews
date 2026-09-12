@@ -19,6 +19,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch, getJSON, postJSON } from '../../lib/api';
 import { SentinelShell } from './SentinelShell';
 import { ExecOverviewPanel } from '../v1/panels/ExecOverviewPanel';
 import './sentinel.css';
@@ -209,16 +210,12 @@ export function SentinelActionPage() {
     setLoading(true);
     setNotice(null);
     const [td, pa, rv, rs, st] = await Promise.all([
-      fetch('/api/todos?limit=200', { headers: { Accept: 'application/json' } })
-        .then(r => (r.ok ? r.json() : null)).catch(() => null),
-      fetch('/api/kl/planning-actions?status=pending', { headers: { Accept: 'application/json' } })
-        .then(r => (r.ok ? r.json() : null)).catch(() => null),
-      fetch('/api/reviews/due?limit=20', { headers: { Accept: 'application/json' } })
-        .then(r => (r.ok ? r.json() : null)).catch(() => null),
-      fetch('/api/reviews/stats', { headers: { Accept: 'application/json' } })
-        .then(r => (r.ok ? r.json() : null)).catch(() => null),
-      fetch('/api/secnews/stats', { headers: { Accept: 'application/json' } })
-        .then(r => (r.ok ? r.json() : null)).catch(() => null),
+      // apiFetch 非 ok / 网络失败抛错 → null (对应原 r.ok 分支检查 + .catch(() => null))
+      getJSON<{ items?: TodoRow[]; total?: number } | null>('/api/todos?limit=200').catch(() => null),
+      getJSON<PlanningAction[] | null>('/api/kl/planning-actions?status=pending').catch(() => null),
+      getJSON<{ items?: ReviewRow[] } | null>('/api/reviews/due?limit=20').catch(() => null),
+      getJSON<{ stats?: ReviewStats } | null>('/api/reviews/stats').catch(() => null),
+      getJSON<{ new_today?: number } | null>('/api/secnews/stats').catch(() => null),
     ]);
 
     if (td) {
@@ -299,13 +296,10 @@ export function SentinelActionPage() {
       : t)));
 
     try {
-      const r = await fetch(`/api/todos/${todo.id}`, {
+      const data = await apiFetch<{ item?: Partial<TodoRow> }>(`/api/todos/${todo.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ status: next }),
       });
-      if (!r.ok) throw new Error(String(r.status));
-      const data = await r.json();
       if (data?.item) setTodos(list => list.map(t => (t.id === todo.id ? { ...t, ...data.item } : t)));
       setTodoState(s => ({ ...s, [todo.id]: 'ok' }));
     } catch {
@@ -320,15 +314,14 @@ export function SentinelActionPage() {
     if (!title) return;
     setTodoState(s => ({ ...s, [CAPTURE_KEY]: 'saving' }));
     try {
-      const r = await fetch('/api/todos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ source_type: 'manual', title, important: 0 }),
+      const data = await postJSON<{ item?: TodoRow }>('/api/todos', {
+        source_type: 'manual',
+        title,
+        important: 0,
       });
-      if (!r.ok) throw new Error(String(r.status));
-      const data = await r.json();
-      if (data?.item) {
-        setTodos(list => [data.item, ...list]);
+      if (data.item) {
+        const created = data.item;
+        setTodos(list => [created, ...list]);
         setTodoTotal(n => n + 1);
       }
       setDraft('');
@@ -354,12 +347,11 @@ export function SentinelActionPage() {
 
     for (const step of steps) {
       try {
-        const r = await fetch(`/api/kl/planning-actions/${action.id}/status`, {
+        // apiFetch 非 ok 抛错 → 就地 catch 回滚到已确认步骤 (原实现 throw 后由同一 catch 接住)
+        await apiFetch(`/api/kl/planning-actions/${action.id}/status`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({ status: step }),
         });
-        if (!r.ok) throw new Error(String(r.status));
       } catch {
         setActions(list => list.map(a => (a.id === action.id ? { ...a, status: settled } : a)));
         setActionState(s => ({ ...s, [action.id]: 'fail' }));
@@ -381,16 +373,10 @@ export function SentinelActionPage() {
     if (reviewState[row.id] === 'saving') return;
     setReviewState(s => ({ ...s, [row.id]: 'saving' }));
     try {
-      const r = await fetch(
+      const data = await postJSON<{ item?: ReviewRow }>(
         `/api/reviews/${encodeURIComponent(row.entity_type)}/${encodeURIComponent(row.entity_id)}/grade`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ grade }),
-        },
+        { grade },
       );
-      if (!r.ok) throw new Error(String(r.status));
-      const data = await r.json();
       const next: ReviewRow | undefined = data?.item;
       const stillDue = !!next && new Date(next.due_at).getTime() <= Date.now();
       if (next && stillDue) {

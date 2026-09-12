@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '../Icon';
+import { apiFetch, getJSON } from '../../lib/api';
 import { STAGE_COLORS, STAGE_LABELS } from './LifecycleProgress';
 
 // ---------------------------------------------------------------------------
@@ -92,6 +93,12 @@ function ActionTypeIcon({ type }: { type: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// Endpoints (本组件专用, 常量化)
+// ---------------------------------------------------------------------------
+
+const PLANNING_ACTIONS_URL = '/api/kl/planning-actions';
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -106,11 +113,7 @@ export function KnowledgePlanningPanel() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/kl/planning-actions?status=pending');
-      if (!res.ok) {
-        throw new Error(`请求失败: ${res.status} ${res.statusText}`);
-      }
-      const data: PlanningAction[] = await res.json();
+      const data = await getJSON<PlanningAction[]>(`${PLANNING_ACTIONS_URL}?status=pending`);
       // API 已按 priority DESC 排序，但本地再确保一次
       data.sort((a, b) => b.priority - a.priority);
       setActions(data);
@@ -129,20 +132,14 @@ export function KnowledgePlanningPanel() {
   const updateStatus = useCallback(async (id: number, status: string) => {
     setUpdatingIds(prev => new Set(prev).add(id));
     try {
-      const res = await fetch(`/api/kl/planning-actions/${id}/status`, {
+      await apiFetch(`${PLANNING_ACTIONS_URL}/${id}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
-      if (!res.ok) {
-        const detail = await res.json().catch(() => ({}));
-        console.error('状态更新失败:', detail);
-        return;
-      }
       // 从列表中移除
       setActions(prev => prev.filter(a => a.id !== id));
     } catch (e) {
-      console.error('状态更新请求异常:', e);
+      console.error('状态更新失败:', e);
     } finally {
       setUpdatingIds(prev => {
         const next = new Set(prev);

@@ -7,7 +7,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
-import { getApiErrorMessage } from '../../lib/api';
+import { ApiError, postJSON } from '../../lib/api';
+
+// 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
+const EXTRACT_PREVIEW_URL = '/api/extract/preview';
 
 interface TagSuggestion {
   id?: string;
@@ -43,19 +46,16 @@ export function ExtractPage({ onBack }: { onBack?: () => void }) {
     setPreviewError(null);
     setPreviewTags(null);
     try {
-      const r = await fetch('/api/extract/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), text: text.trim(), category: category.trim() }),
+      const d = await postJSON<{ items?: TagSuggestion[] }>(EXTRACT_PREVIEW_URL, {
+        title: title.trim(),
+        text: text.trim(),
+        category: category.trim(),
       });
-      if (!r.ok) {
-        setPreviewError(`预览失败 (${r.status})`);
-        return;
-      }
-      const d = await r.json();
       setPreviewTags(d.items ?? []);
-    } catch {
-      setPreviewError('预览失败: 网络或后端不可达');
+    } catch (e) {
+      setPreviewError(e instanceof ApiError
+        ? `预览失败 (${e.status})`
+        : '预览失败: 网络或后端不可达');
     } finally {
       setPreviewing(false);
     }
@@ -67,18 +67,20 @@ export function ExtractPage({ onBack }: { onBack?: () => void }) {
     setExtracting(kind);
     setExtractMsg(null);
     try {
-      const r = await fetch(`/api/extract/${kind}/${encodeURIComponent(id)}`, { method: 'POST' });
-      if (!r.ok) {
-        const body = await r.json().catch(() => null);
-        const errMsg = getApiErrorMessage(body);
-        setExtractMsg({ kind: 'err', text: `提取失败 (${r.status})${errMsg ? `: ${errMsg}` : ''}` });
-        return;
-      }
-      const d = await r.json();
+      const d = await postJSON<{ attached?: TagSuggestion[]; tags?: TagSuggestion[] }>(
+        `/api/extract/${kind}/${encodeURIComponent(id)}`,
+        undefined,
+      );
       const tags: string[] = (d.attached ?? d.tags ?? []).map(tagLabel);
       setExtractMsg({ kind: 'ok', text: `已提取并关联 ${tags.length} 个标签: ${tags.slice(0, 8).join(', ')}${tags.length > 8 ? '…' : ''}` });
-    } catch {
-      setExtractMsg({ kind: 'err', text: '提取失败: 网络或后端不可达' });
+    } catch (e) {
+      // 错误文案经 ApiError.message (getApiErrorMessage 兜底); 附着失败信息随 status 呈现
+      setExtractMsg({
+        kind: 'err',
+        text: e instanceof ApiError
+          ? `提取失败 (${e.status}): ${e.message}`
+          : '提取失败: 网络或后端不可达',
+      });
     } finally {
       setExtracting(null);
     }

@@ -10,6 +10,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Icon } from '../Icon';
+import { getJSON } from '../../lib/api';
 import { STAGE_LABELS, STAGE_COLORS } from './LifecycleProgress';
 import { useThemeColors } from '../../hooks/useThemeColors';
 
@@ -83,11 +84,8 @@ export function KnowledgeCompoundingDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/kl/compounding');
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
-      const json: CompoundingData = await res.json();
+      // 非 2xx 由 apiFetch 抛错 (message 经 getApiErrorMessage 兜底)
+      const json = await getJSON<CompoundingData>('/api/kl/compounding');
       setData(json);
     } catch (e: any) {
       setError(e.message || '获取复利数据失败');

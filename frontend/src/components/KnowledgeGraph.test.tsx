@@ -42,6 +42,7 @@ describe('KnowledgeGraph', () => {
     const emptyData: GraphData = { nodes: [], edges: [] };
     globalThis.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(emptyData),
       } as any)
     ) as any;
@@ -63,6 +64,7 @@ describe('KnowledgeGraph', () => {
     };
     globalThis.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(data),
       } as any)
     ) as any;
@@ -82,13 +84,15 @@ describe('KnowledgeGraph', () => {
     const data: GraphData = { nodes: [], edges: [] };
     const fetchMock = vi.fn(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(data),
       } as any)
     ) as any;
     globalThis.fetch = fetchMock;
     render(<KnowledgeGraph domain="security" />);
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/knowledge/graph?domain=security');
+      // 经 lib/api apiFetch 统一封装后, fetch 会带上 headers 选项参数
+      expect(fetchMock).toHaveBeenCalledWith('/api/knowledge/graph?domain=security', expect.anything());
     });
   });
 
@@ -104,6 +108,7 @@ describe('KnowledgeGraph', () => {
   it('handles non-200 response (json returns null/undefined)', async () => {
     globalThis.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(null),
       } as any)
     ) as any;

@@ -6,6 +6,7 @@
  * 改为引用 utils, 文章行改为共享 HighlightArticleCard。
  */
 import { useState, useEffect } from 'react';
+import { ApiError, getJSON } from '../../lib/api';
 import { catColors, renderFormatted } from './utils';
 import { HighlightArticleCard } from './shared';
 import type { DailyOverview } from './types';
@@ -22,15 +23,12 @@ export function DailyReport() {
       setLoading(true);
       setError(null);
       try {
-        const r = await fetch('/api/reports/daily/overview');
-        if (!cancelled && r.ok) {
-          const data = await r.json();
-          setOverview(data);
-        } else if (!cancelled) {
-          setError(`加载失败 (${r.status})`);
-        }
+        const data = await getJSON<DailyOverview>('/api/reports/daily/overview');
+        if (!cancelled) setOverview(data);
       } catch (e: any) {
-        if (!cancelled) setError(e?.message || '加载失败');
+        if (!cancelled) {
+          setError(e instanceof ApiError ? `加载失败 (${e.status})` : (e?.message || '加载失败'));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

@@ -4,13 +4,13 @@
  * v0.7.x SettingsHub V2: st-cellgrid 替换原 grid-cols-3 + cellnote 行
  */
 import { useState, useEffect } from 'react';
+import { getJSON } from '../../lib/api';
 
 export function CollectionScheduleInfo() {
   const [health, setHealth] = useState<{ collect_interval_seconds?: number; components?: { collectors?: any; scheduler?: any } } | null>(null);
 
   useEffect(() => {
-    fetch('/api/health')
-      .then(r => r.json())
+    getJSON<NonNullable<typeof health>>('/api/health')
       .then(d => setHealth(d))
       .catch(() => {});
   }, []);

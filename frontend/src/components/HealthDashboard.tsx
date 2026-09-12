@@ -2,13 +2,13 @@
 // Phase 5A: coverage <50% 改用 --color-error token (替换硬编码 var(--color-error))
 import { useState, useEffect } from 'react';
 import type { KnowledgeHealth } from '../types';
+import { getKnowledgeHealth } from '../api/knowledge';
 
 export function HealthDashboard() {
   const [health, setHealth] = useState<KnowledgeHealth | null>(null);
 
   useEffect(() => {
-    fetch('/api/knowledge/health')
-      .then(r => r.json())
+    getKnowledgeHealth()
       .then(setHealth)
       .catch(() => {});
   }, []);

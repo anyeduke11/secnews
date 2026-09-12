@@ -10,6 +10,8 @@
  * Batch ④ 落 alerts/thresholds 后, 顶部加告警横幅 + 阈值编辑折叠面板。
  */
 import { useEffect, useState } from 'react';
+import { getObservabilitySummary } from '../../../api/secnews';
+import { getJSON } from '../../../lib/api';
 import { useI18n } from '../../../contexts/I18nContext';
 
 interface SummaryResp {
@@ -54,19 +56,20 @@ export function ObservabilityDashboard() {
 
     const refresh = async () => {
       try {
-        const [sRes, rRes] = await Promise.all([
-          fetch('/api/observability/summary'),
-          fetch('/api/observability/recent?limit=20'),
+        // allSettled: 单端点失败不再拖垮另一端点已取到的数据
+        const [s, r] = await Promise.allSettled([
+          getObservabilitySummary<SummaryResp>(),
+          getJSON<{ items?: RecentEvent[] }>('/api/observability/recent?limit=20'),
         ]);
         if (cancelled) return;
-        if (sRes.ok) setSummary(await sRes.json());
-        if (rRes.ok) {
-          const data = await rRes.json();
-          setRecent(data.items ?? []);
+        if (s.status === 'fulfilled') setSummary(s.value);
+        if (r.status === 'fulfilled') setRecent(r.value.items ?? []);
+        const failure = [s, r].find(x => x.status === 'rejected');
+        if (failure && failure.status === 'rejected') {
+          setError(`观测数据获取失败: ${failure.reason instanceof Error ? failure.reason.message : String(failure.reason)}`);
+        } else {
+          setError(null);
         }
-        setError(null);
-      } catch (e) {
-        if (!cancelled) setError(`观测数据获取失败: ${e instanceof Error ? e.message : String(e)}`);
       } finally {
         if (!cancelled) setLoading(false);
       }

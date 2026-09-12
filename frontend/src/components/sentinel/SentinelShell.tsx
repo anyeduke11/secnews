@@ -15,6 +15,9 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
+import { listHotspots } from '../../api/hotspots';
+import { getSourceHealth, type SourceHealthPayload } from '../../api/sources';
+import { getJSON } from '../../lib/api';
 import './sentinel.css';
 
 export type SentinelLayer = 'data' | 'judge' | 'action';
@@ -49,9 +52,8 @@ interface PipelineStats {
 
 async function fetchPipelineStats(): Promise<Pick<PipeSnapshot, 'funnel' | 'queue'>> {
   try {
-    const r = await fetch('/api/kl/pipeline/stats', { headers: { Accept: 'application/json' } });
-    if (!r.ok) return { funnel: null, queue: null };
-    const data = (await r.json()) as PipelineStats;
+    // apiFetch 非 ok / 网络失败抛错 → 降级为 null, 不影响源健康展示
+    const data = await getJSON<PipelineStats>('/api/kl/pipeline/stats');
     return {
       funnel: Array.isArray(data.funnel) ? data.funnel : null,
       queue: data.queue
@@ -72,9 +74,7 @@ function clockText(d: Date): string {
 /** 今日收录兜底口径 (与 SentinelGraphPage / SentinelGardenPage 同源): 只取 24h total */
 async function fetchIngested24h(): Promise<number | null> {
   try {
-    const r = await fetch('/api/hotspots?category=all&time_range=24h&limit=1', { headers: { Accept: 'application/json' } });
-    if (!r.ok) return null;
-    const data = (await r.json()) as { total?: number };
+    const data = await listHotspots({ category: 'all', time_range: '24h', limit: 1 });
     return typeof data.total === 'number' ? data.total : null;
   } catch {
     return null;
@@ -83,11 +83,19 @@ async function fetchIngested24h(): Promise<number | null> {
 
 export async function fetchPipe(): Promise<PipeSnapshot> {
   const [res, stats] = await Promise.all([
-    fetch('/api/sources/health', { headers: { Accept: 'application/json' } })
-      .then(r => (r.ok ? r.json() : null)).catch(() => null),
+    // apiFetch 非 ok / 网络失败抛错 → null (对应原 r.ok 分支检查 + .catch(() => null))
+    getSourceHealth()
+      .then(row => row as SourceHealthPayload & {
+        sources?: SourceHealthRow[];
+        registered_total: number;
+        registered_active: number;
+        registered_stale: number;
+        registered_dead: number;
+      })
+      .catch(() => null),
     fetchPipelineStats(),
   ]);
-  const rows: SourceHealthRow[] = (res && res.sources) || [];
+  const rows: SourceHealthRow[] = res?.sources || [];
   // 优先用后端"注册且启用"口径: source_stats 历史行含已无 collector 抓取的孤儿源
   // (旧分母 152 含 22 个孤儿行, 若干还显示 active), 拿它当分母会让"源在线 x/y"
   // 与管道状态一起失真。后端未升级缺字段时回落逐行统计, 保持兼容。

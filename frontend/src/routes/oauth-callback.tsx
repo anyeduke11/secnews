@@ -11,6 +11,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { apiFetch } from '../lib/api';
 
 export function OAuthCallbackPage() {
   const [params] = useSearchParams();
@@ -39,23 +40,17 @@ export function OAuthCallbackPage() {
       // mock 模式: code 直接是 token; 真身模式需要后端交换
       // 把 code 当 token 传给后端 /api/secrets/unlock-with-oauth
       try {
-        const r = await fetch('/api/secrets/unlock-with-oauth', {
+        // apiFetch 非 ok 抛错 (message = 后端 detail / HTTP 状态; 原实现拼接 status + 原始响应体文本)
+        await apiFetch('/api/secrets/unlock-with-oauth', {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ token: code, role: 'admin' }),
         });
-        if (!r.ok) {
-          const t = await r.text();
-          setStatus('fail');
-          setErr(`OAuth 解锁失败: ${r.status} ${t}`);
-          return;
-        }
         setStatus('ok');
         // 短暂显示成功信息后跳转
         setTimeout(() => navigate('/secnews/settings', { replace: true }), 1500);
       } catch (e: any) {
         setStatus('fail');
-        setErr(`网络错误: ${e?.message || e}`);
+        setErr(`OAuth 解锁失败: ${e?.message || e}`);
       }
     })();
   }, [params, navigate]);

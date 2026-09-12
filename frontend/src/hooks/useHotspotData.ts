@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { HotspotItem, HotspotResponse } from '../types';
+import { HotspotItem } from '../types';
+import { listHotspots, triggerRefresh } from '../api/hotspots';
 
 // Phase 38: 页大小可调 (100/200), 居中显示在网格尾部
 // 上限来自后端 Query(50, ge=1, le=200) —— 300/400 会被 API 拒 422。
@@ -103,26 +104,19 @@ export function useHotspotData(
       setError(null);
 
       try {
-        const params = new URLSearchParams({
-          category,
-          time_range: timeRange,
-          limit: String(pageSize),
-          // DEV-0183: exclude_category 'bid' 已随标讯全线下线移除 (生产库无 bid 行)
-        });
-        if (keyword) params.set('keyword', keyword);
-        if (cursor) params.set('cursor', cursor);
-        if (source) params.set('source', source);
-
-        const response = await fetch(`/api/hotspots?${params}`, {
-          signal: controller.signal,
-          headers: { Accept: 'application/json' },
-        });
-
-        if (!response.ok) {
-          throw new Error(`请求失败 (${response.status})`);
-        }
-
-        const data: HotspotResponse = await response.json();
+        // Batch 5: /api/hotspots 调用面收敛到 api/hotspots.listHotspots
+        // (query 构建移入客户端; undefined 参数自动跳过, 与原条件 set 等价)
+        const data = await listHotspots(
+          {
+            category,
+            time_range: timeRange,
+            limit: pageSize,
+            keyword: keyword || undefined,
+            cursor: cursor || undefined,
+            source: source || undefined,
+          },
+          { signal: controller.signal },
+        );
         setPageData(prev => ({
           ...prev,
           [targetPage]: {
@@ -205,10 +199,10 @@ export function useHotspotData(
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch('/api/refresh', { method: 'POST' });
-      const data = await r.json();
-      if (!data?.ok) {
-        console.warn('refresh endpoint returned error:', data?.error);
+      // triggerRefresh = POST /api/refresh 触发采集 (DEV-0167: 与 refetch 只读语义严格区分)
+      const r = await triggerRefresh();
+      if (!r?.ok) {
+        console.warn('refresh endpoint returned error:', r?.error);
       }
     } catch (e) {
       console.error('refresh network error:', e);

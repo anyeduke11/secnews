@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ContentCalendarEntry } from '../types';
+import { apiFetch, getJSON, postJSON } from '../lib/api';
+
+const CALENDAR_URL = '/api/content/calendar';
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -25,11 +28,7 @@ export function ContentCalendar() {
   const loadEntries = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetch(`/api/content/calendar?month=${fmtMonth(month)}`)
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    getJSON<{ entries?: ContentCalendarEntry[] }>(`${CALENDAR_URL}?month=${fmtMonth(month)}`)
       .then(data => {
         setEntries(data.entries || []);
         setLoading(false);
@@ -46,20 +45,12 @@ export function ContentCalendar() {
 
   const handleCreate = () => {
     if (!selectedDate || !form.topic.trim()) return;
-    fetch('/api/content/calendar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        date: selectedDate,
-        topic: form.topic.trim(),
-        type: form.type,
-        platform: form.platform,
-      }),
+    postJSON(CALENDAR_URL, {
+      date: selectedDate,
+      topic: form.topic.trim(),
+      type: form.type,
+      platform: form.platform,
     })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
       .then(() => {
         setForm({ topic: '', type: '文章', platform: '微信' });
         setSelectedDate(null);
@@ -69,9 +60,8 @@ export function ContentCalendar() {
   };
 
   const handleDelete = (id: number) => {
-    fetch(`/api/content/calendar/${id}`, { method: 'DELETE' })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    apiFetch<void>(`/api/content/calendar/${id}`, { method: 'DELETE' })
+      .then(() => {
         loadEntries();
       })
       .catch(e => setError(e?.message || String(e)));

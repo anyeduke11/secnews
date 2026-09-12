@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { ConceptProgress } from '../types';
+import { getJSON } from '../lib/api';
 
 export function MasteryGauge() {
   const [progress, setProgress] = useState<ConceptProgress[]>([]);
@@ -8,11 +9,7 @@ export function MasteryGauge() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/knowledge/progress')
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    getJSON<{ progress?: ConceptProgress[] }>('/api/knowledge/progress')
       .then(data => {
         setProgress(data.progress || []);
         setLoading(false);

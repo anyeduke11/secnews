@@ -1,4 +1,11 @@
 import { useCallback } from 'react';
+import { getJSON } from '../lib/api';
+
+/**
+ * CVE 热力图 Hook — 端点为单一 hook 专用 → 常量化于此。
+ */
+
+const CVE_HEATMAP_URL = '/api/cve/heatmap';
 
 export interface HeatmapData {
   weeks: string[];
@@ -8,9 +15,7 @@ export interface HeatmapData {
 
 export function useCveHeatmap() {
   const fetchHeatmap = useCallback(async (weeks = 12): Promise<HeatmapData> => {
-    const res = await fetch(`/api/cve/heatmap?weeks=${weeks}`);
-    if (!res.ok) throw new Error('Failed to fetch CVE heatmap');
-    return res.json();
+    return getJSON<HeatmapData>(`${CVE_HEATMAP_URL}?weeks=${weeks}`);
   }, []);
 
   return { fetchHeatmap };

@@ -91,7 +91,8 @@ describe('KnowledgePage (shell)', () => {
   it('fetches /api/knowledge/health for area counts', async () => {
     renderAt('/knowledge/import');
     await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/knowledge/health');
+      // 经 lib/api apiFetch 统一封装后, fetch 会带上 headers 选项参数
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/knowledge/health', expect.anything());
     });
   });
 

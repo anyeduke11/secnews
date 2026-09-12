@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getJSON, postJSON, apiFetch } from '../lib/api';
 
 /**
  * v1.7 Phase 4 — 简报 Hook
  *
  * 对接后端:
- *  - GET /api/digests/latest                最新简报 (Phase 4 新增)
+ *  - GET /api/digests/latest                最新简报 (Phase 4 新增; 无简报时 404)
  *  - POST /api/digests/generate             手动触发生成
  *  - PUT  /api/digests/read                 标记已读
  *
@@ -16,7 +17,12 @@ import { useState, useEffect, useCallback } from 'react';
  *  - markRead:   标记已读
  *
  * 验收 4: 每日 08:00 生成简报 — 后端 scheduler 触发, 前端展示最新简报.
+ *
+ * 端点为单一 hook 专用 → 常量化于此, 走 lib/api 统一封装。
  */
+
+const DIGESTS_URL = '/api/digests';
+
 export interface Digest {
   id: string;
   period: string;
@@ -40,6 +46,16 @@ export interface UseDigestReturn {
   markRead: () => Promise<void>;
 }
 
+/**
+ * 404 (暂无简报) 判定: lib/api 的 apiFetch 把非 2xx 统一转为 Error(message),
+ * message 优先取后端 detail.message ("暂无简报"), 兜底 statusText ("Not Found")
+ * 或 "HTTP 404"。与原实现的 `r.status === 404` 分支等价。
+ */
+function isDigestNotFound(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : '';
+  return /暂无简报|HTTP 404|Not Found/i.test(msg);
+}
+
 export function useDigest(): UseDigestReturn {
   const [digest, setDigest] = useState<Digest | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,17 +65,15 @@ export function useDigest(): UseDigestReturn {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch('/api/digests/latest', {
-        headers: { Accept: 'application/json' },
-      });
-      if (r.status === 404) {
+      const data = await getJSON<{ item?: Digest | null; digest?: Digest | null }>(
+        `${DIGESTS_URL}/latest`,
+      );
+      setDigest(data.item || data.digest || null);
+    } catch (e: any) {
+      if (isDigestNotFound(e)) {
         setDigest(null);
         return;
       }
-      if (!r.ok) throw new Error(`请求失败 (${r.status})`);
-      const data = await r.json();
-      setDigest(data.item || data.digest || null);
-    } catch (e: any) {
       setError(e?.message || '简报加载失败');
     } finally {
       setLoading(false);
@@ -69,13 +83,8 @@ export function useDigest(): UseDigestReturn {
   const generate = useCallback(async (): Promise<Digest | null> => {
     setError(null);
     try {
-      const r = await fetch('/api/digests/generate', {
-        method: 'POST',
-        headers: { Accept: 'application/json' },
-      });
-      if (!r.ok) throw new Error(`生成失败 (${r.status})`);
-      const data = await r.json();
-      const newDigest: Digest = data.item || data;
+      const data = await postJSON<Digest | { item: Digest }>(`${DIGESTS_URL}/generate`, undefined);
+      const newDigest: Digest = (data as { item?: Digest }).item || (data as Digest);
       setDigest(newDigest);
       return newDigest;
     } catch (e: any) {
@@ -86,10 +95,7 @@ export function useDigest(): UseDigestReturn {
 
   const markRead = useCallback(async () => {
     try {
-      await fetch('/api/digests/read', {
-        method: 'PUT',
-        headers: { Accept: 'application/json' },
-      });
+      await apiFetch(`${DIGESTS_URL}/read`, { method: 'PUT' });
     } catch {
       // 静默
     }

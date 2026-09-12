@@ -6,6 +6,7 @@
  * v0.7 Batch ⑨ B9-1: 接入 i18n (dsh.* namespace)
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ApiError, apiFetch, getJSON } from '../../../lib/api';
 import { useI18n } from '../../../contexts/I18nContext';
 
 interface ProcessSnapshot {
@@ -56,16 +57,7 @@ export function DshControlCard() {
 
   const refresh = useCallback(async () => {
     try {
-      const r = await fetch('/api/dsh/control/status');
-      if (r.status === 404) {
-        setGateOff(true);
-        return;
-      }
-      if (!r.ok) {
-        setError(`${t('dsh.status_load_failed')} (${r.status})`);
-        return;
-      }
-      const d: DshStatus = await r.json();
+      const d = await getJSON<DshStatus>('/api/dsh/control/status');
       setGateOff(false);
       setError(null);
       setStatus(d);
@@ -74,8 +66,15 @@ export function DshControlCard() {
         setCommand(d.command_raw ?? '');
         setAutostart(d.autostart ?? false);
       }
-    } catch {
-      setError(t('dsh.status_load_failed_network'));
+    } catch (e) {
+      // 404 = feature gate 关闭 (原 r.status === 404 分支); 其余按网络/后端失败呈现
+      if (e instanceof ApiError && e.status === 404) {
+        setGateOff(true);
+        return;
+      }
+      setError(e instanceof ApiError
+        ? `${t('dsh.status_load_failed')} (${e.status})`
+        : t('dsh.status_load_failed_network'));
     }
   }, [t]);
 
@@ -89,22 +88,22 @@ export function DshControlCard() {
     setOpBusy(op);
     setOpMsg(null);
     try {
-      const r = await fetch(`/api/dsh/control/${op}`, { method: 'POST' });
-      const d = await r.json().catch(() => ({}));
-      if (r.status === 409) {
-        setOpMsg({ kind: 'err', text: d.error ?? t('dsh.op_rejected') });
-      } else if (!r.ok) {
-        setOpMsg({ kind: 'err', text: `${t('dsh.op_failed')} (${r.status})` });
+      await apiFetch(`/api/dsh/control/${op}`, { method: 'POST' });
+      const okI18n: Record<typeof op, string> = {
+        start: 'dsh.started',
+        stop: 'dsh.stopped_action',
+        restart: 'dsh.restarted',
+      };
+      setOpMsg({ kind: 'ok', text: t(okI18n[op]) });
+    } catch (e) {
+      // 409 冲突: 后端 {error} 信封经 getApiErrorMessage 兜底进 e.message
+      if (e instanceof ApiError && e.status === 409) {
+        setOpMsg({ kind: 'err', text: e.message || t('dsh.op_rejected') });
+      } else if (e instanceof ApiError) {
+        setOpMsg({ kind: 'err', text: `${t('dsh.op_failed')} (${e.status})` });
       } else {
-        const okI18n: Record<typeof op, string> = {
-          start: 'dsh.started',
-          stop: 'dsh.stopped_action',
-          restart: 'dsh.restarted',
-        };
-        setOpMsg({ kind: 'ok', text: t(okI18n[op]) });
+        setOpMsg({ kind: 'err', text: t('dsh.op_failed_network') });
       }
-    } catch {
-      setOpMsg({ kind: 'err', text: t('dsh.op_failed_network') });
     } finally {
       setOpBusy(null);
       await refresh();
@@ -115,19 +114,19 @@ export function DshControlCard() {
     setOpBusy('save');
     setOpMsg(null);
     try {
-      const r = await fetch('/api/dsh/control/config', {
+      await apiFetch('/api/dsh/control/config', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ endpoint, command, autostart }),
       });
-      if (!r.ok) {
-        setOpMsg({ kind: 'err', text: `${t('dsh.save_failed')} (${r.status})` });
-        return;
-      }
       setOpMsg({ kind: 'ok', text: t('dsh.saved') });
       dirtyRef.current = false;
-    } catch {
-      setOpMsg({ kind: 'err', text: t('dsh.save_failed_network') });
+    } catch (e) {
+      setOpMsg({
+        kind: 'err',
+        text: e instanceof ApiError
+          ? `${t('dsh.save_failed')} (${e.status})`
+          : t('dsh.save_failed_network'),
+      });
     } finally {
       setOpBusy(null);
       await refresh();

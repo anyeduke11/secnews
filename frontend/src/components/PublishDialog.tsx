@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { SkillValidation, PublishTask } from '../types';
-import { getApiErrorMessage } from '../lib/api';
+import { getJSON, postJSON } from '../lib/api';
 import { Icon } from './Icon';
 
 interface PublishDialogProps {
@@ -56,9 +56,10 @@ export function PublishDialog({ draft_id, draft_title, onClose, onPublished }: P
     setToast(null);
 
     try {
-      // Step 1: validate skill
-      const validateRes = await fetch(`/api/knowledge/skills/${encodeURIComponent(skill_name)}/validate`);
-      const validateData: SkillValidation = await validateRes.json();
+      // Step 1: validate skill (非 ok 时 apiFetch 抛错 → 统一走 catch toast)
+      const validateData: SkillValidation = await getJSON<SkillValidation>(
+        `/api/knowledge/skills/${encodeURIComponent(skill_name)}/validate`,
+      );
 
       if (!validateData.valid) {
         const reason = validateData.reason || '';
@@ -67,30 +68,21 @@ export function PublishDialog({ draft_id, draft_title, onClose, onPublished }: P
         return;
       }
 
-      // Step 2: create publish task
+      // Step 2: create publish task (非 ok 时 apiFetch 抛错, message 经 getApiErrorMessage 友好化)
       const tagsArray = tagsText
         .split(',')
         .map(t => t.trim())
         .filter(t => t.length > 0);
 
-      const publishRes = await fetch(`/api/content/drafts/${draft_id}/publish`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const data: PublishTask = await postJSON<PublishTask>(
+        `/api/content/drafts/${draft_id}/publish`,
+        {
           platform,
           skill_name,
           options: { dry_run: dryRun, tags: tagsArray },
-        }),
-      });
+        },
+      );
 
-      if (!publishRes.ok) {
-        const errData = await publishRes.json().catch(() => ({}));
-        showToast('err', getApiErrorMessage(errData) || `HTTP ${publishRes.status}`);
-        setSubmitting(false);
-        return;
-      }
-
-      const data: PublishTask = await publishRes.json();
       showToast('ok', `发布任务已创建 (task_id: ${data.task_id})`);
       onPublished?.(data.task_id);
       setTimeout(() => onClose(), 800);

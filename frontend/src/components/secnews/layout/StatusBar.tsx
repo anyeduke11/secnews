@@ -6,6 +6,12 @@
  * dsh gate 关闭时 /api/dsh/health 404 → 指示灯显示 unknown, 属如实降级。
  */
 import { useEffect, useState } from 'react';
+import {
+  getActiveAlerts,
+  getKlPipelineStats,
+  getObservabilitySummary,
+} from '../../../api/secnews';
+import { getJSON } from '../../../lib/api';
 import { useI18n } from '../../../contexts/I18nContext';
 
 interface DshHealth {
@@ -43,25 +49,24 @@ export function StatusBar() {
     let cancelled = false;
     const refresh = async () => {
       try {
-        const [dRes, pRes, oRes, aRes] = await Promise.all([
-          fetch('/api/dsh/health'),
-          fetch('/api/kl/pipeline/stats'),
-          fetch('/api/observability/summary'),
-          fetch('/api/observability/alerts/active'),
+        // allSettled + fulfilled 守卫: 与原 `res.ok` 静默分支同效 (失败保持上次值, 指示灯 unknown)
+        const [d, p, o, a] = await Promise.allSettled([
+          getJSON<DshHealth>('/api/dsh/health'),
+          getKlPipelineStats<{ queue?: PipelineStats['queue']; ledger?: PipelineStats['ledger'] }>(),
+          getObservabilitySummary<ObsSummary>(),
+          getActiveAlerts<ActiveAlertsMini>(),
         ]);
         if (cancelled) return;
-        if (dRes.ok) setDsh(await dRes.json());
-        if (pRes.ok) {
-          const data = await pRes.json();
-          setPipeline({
-            queue: data.queue,
-            ledger: data.ledger,
-          });
+        if (d.status === 'fulfilled') setDsh(d.value);
+        if (p.status === 'fulfilled') {
+          setPipeline({ queue: p.value.queue, ledger: p.value.ledger });
         }
-        if (oRes.ok) setObs(await oRes.json());
-        if (aRes.ok) {
-          const a = await aRes.json();
-          setAlerts({ critical_count: a.critical_count ?? 0, warn_count: a.warn_count ?? 0 });
+        if (o.status === 'fulfilled') setObs(o.value);
+        if (a.status === 'fulfilled') {
+          setAlerts({
+            critical_count: a.value.critical_count ?? 0,
+            warn_count: a.value.warn_count ?? 0,
+          });
         }
       } catch { /* 状态栏轮询失败保持上次值, 指示灯显示 unknown */ }
     };

@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { HotspotCard } from './HotspotCard';
 import { useGoBack } from '../hooks/useGoBack';
+import { getJSON, postJSON } from '../lib/api';
 import { Icon } from './Icon';
 import { EmptyState } from './EmptyState';
 
@@ -51,15 +52,12 @@ export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps
   const handleArchive = useCallback(async (item: HotspotItem) => {
     setArchivingIds(prev => { const n = new Set(prev); n.add(item.id); return n; });
     try {
-      const r = await fetch('/api/knowledge/import-from-history', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_ids: [item.id] }),
+      const data = await postJSON<{ errors?: { error: string }[] }>('/api/knowledge/import-from-history', {
+        item_ids: [item.id],
       });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const data = await r.json();
-      if (data.errors?.length > 0) {
-        alert(`归档失败: ${data.errors[0].error}`);
+      const errors = data.errors;
+      if (errors && errors.length > 0) {
+        alert(`归档失败: ${errors[0].error}`);
       } else {
         setArchivedIds(prev => { const n = new Set(prev); n.add(item.id); return n; });
       }
@@ -75,9 +73,7 @@ export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps
     let cancelled = false;
     const load = async () => {
       try {
-        const r = await fetch('/api/history/batches?limit=100');
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data: BatchListResponse = await r.json();
+        const data: BatchListResponse = await getJSON<BatchListResponse>('/api/history/batches?limit=100');
         if (cancelled) return;
         setBatches(data.batches || []);
         if (data.batches.length > 0) {
@@ -112,9 +108,9 @@ export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps
       });
       if (keyword.trim()) params.set('keyword', keyword.trim());
       if (cursorRef.current) params.set('cursor', cursorRef.current);
-      const r = await fetch(`/api/history/batches/${batchNo}/items?${params}`);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const data: BatchItemsResponse = await r.json();
+      const data: BatchItemsResponse = await getJSON<BatchItemsResponse>(
+        `/api/history/batches/${batchNo}/items?${params}`,
+      );
       setItems(prev => reset ? data.items : [...prev, ...data.items]);
       cursorRef.current = data.cursor;
       hasMoreRef.current = data.has_more;
@@ -128,11 +124,12 @@ export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps
 
   const loadBatchSummary = useCallback(async (batchNo: number) => {
     try {
-      const r = await fetch(`/api/history/batches/${batchNo}/summary`);
-      if (!r.ok) return;
-      const data: BatchSummaryResponse = await r.json();
+      const data: BatchSummaryResponse = await getJSON<BatchSummaryResponse>(
+        `/api/history/batches/${batchNo}/summary`,
+      );
       setSummary(data);
     } catch {
+      // 与原实现语义一致: 失败时回退空 summary (apiFetch 将非 ok 也归一为 throw)
       setSummary(null);
     }
   }, []);

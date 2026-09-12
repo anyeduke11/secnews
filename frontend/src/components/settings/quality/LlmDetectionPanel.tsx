@@ -10,6 +10,7 @@
  * 设计: st-rule 布局 + st-switch + 状态 chip; 主密钥路径已禁用, 提示跳 SecretsPanel
  */
 import { useState, useCallback } from 'react';
+import { apiFetch } from '../../../lib/api';
 
 export interface LlmDetectionPanelProps {
   initialEnabled: boolean;
@@ -35,13 +36,11 @@ export function LlmDetectionPanel({
         'quality.llm_enabled': enabled,
         'quality.llm_provider': provider,
       };
-      const r = await fetch('/api/quality/rules', {
+      const d = await apiFetch<{ status?: string; message?: string }>('/api/quality/rules', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rules }),
       });
-      const d = await r.json();
-      if (r.ok && d.status === 'ok') {
+      if (d.status === 'ok') {
         setMsg({ type: 'ok', text: 'LLM 检测配置已保存 (密钥请到下方加密保险箱配置)' });
       } else {
         setMsg({ type: 'error', text: d.message || '保存失败' });

@@ -9,9 +9,14 @@
  */
 import { useState, useRef } from 'react';
 import { Icon } from '../Icon';
-import { getApiErrorMessage } from '../../lib/api';
+import { getJSON, postJSON } from '../../lib/api';
 import { BookmarkImport } from '../BookmarkImport';
 import { KNOWLEDGE_AREAS } from './KnowledgeTabs';
+
+// 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
+const SYNC_URL = '/api/knowledge/sync?source=cubox';
+const OBSIDIAN_OPEN_URL = '/api/knowledge/obsidian/open';
+const OBSIDIAN_CONFLICTS_URL = '/api/knowledge/obsidian/conflicts';
 
 const PHASE_LABELS: Record<string, string> = {
   pending: '等待执行 ...',
@@ -60,18 +65,22 @@ export function KnowledgeImport() {
       setSyncElapsed(Math.round((Date.now() - syncStartRef.current) / 1000));
     }, 1000);
 
-    fetch('/api/knowledge/sync?source=cubox', { method: 'POST' })
-      .then(async r => {
-        const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(getApiErrorMessage(data) || `HTTP ${r.status}`);
-        return data;
-      })
+    // 非 2xx 由 apiFetch 抛错 (message 经 getApiErrorMessage 兜底), 网络异常走 catch
+    postJSON<{ task_id?: string }>(SYNC_URL, undefined)
       .then(data => {
         const taskId = data?.task_id;
         if (!taskId) throw new Error('no task_id returned');
         syncPollRef.current = setInterval(() => {
-          fetch(`/api/knowledge/tasks/${taskId}`)
-            .then(r => r.json())
+          getJSON<{
+            status?: string;
+            error_message?: string;
+            params?: {
+              phase?: string;
+              current?: number;
+              total?: number;
+              result?: { new?: number; merged?: number };
+            };
+          }>(`/api/knowledge/tasks/${taskId}`)
             .then(task => {
               const params = task?.params || {};
               const phase = params?.phase || task?.status || 'pending';
@@ -114,8 +123,7 @@ export function KnowledgeImport() {
   };
 
   const handleOpenObsidian = () => {
-    fetch('/api/knowledge/obsidian/open', { method: 'POST' })
-      .then(r => r.json())
+    postJSON<{ url?: string }>(OBSIDIAN_OPEN_URL, undefined)
       .then(data => {
         if (data?.url) {
           window.location.href = data.url;
@@ -133,8 +141,7 @@ export function KnowledgeImport() {
       setConflicts(null);
       return;
     }
-    fetch('/api/knowledge/obsidian/conflicts')
-      .then(r => r.json())
+    getJSON<{ conflicts?: Array<{ filename: string; size: number; mtime: number }> }>(OBSIDIAN_CONFLICTS_URL)
       .then(data => {
         setConflicts(Array.isArray(data?.conflicts) ? data.conflicts : []);
       })

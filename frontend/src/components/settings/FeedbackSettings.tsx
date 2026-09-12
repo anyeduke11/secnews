@@ -4,6 +4,7 @@
  * v0.7.x SettingsHub V2: st-section + st-cellgrid + st-chip + st-table
  */
 import { useState, useEffect } from 'react';
+import { getJSON } from '../../lib/api';
 
 interface FeedbackEvent {
   id: number;
@@ -46,17 +47,12 @@ export function FeedbackSettings() {
       setLoading(true);
       setError(null);
       try {
-        const [profileRes, historyRes, roleRes] = await Promise.all([
-          fetch('/api/feedback/profile?limit=50'),
-          fetch('/api/feedback/history?limit=100'),
-          fetch('/api/feedback/role-summary'),
+        // apiFetch 统一封装: 任一请求非 ok 即抛错 → 走下方 catch (原实现为 ok 汇总检查)
+        const [profileData, historyData, roleData] = await Promise.all([
+          getJSON<FeedbackProfile>('/api/feedback/profile?limit=50'),
+          getJSON<{ items?: FeedbackEvent[] }>('/api/feedback/history?limit=100'),
+          getJSON<{ summary?: RoleSummary | null }>('/api/feedback/role-summary'),
         ]);
-        if (!profileRes.ok || !historyRes.ok || !roleRes.ok) {
-          throw new Error(`加载失败 (${profileRes.status}/${historyRes.status}/${roleRes.status})`);
-        }
-        const profileData = await profileRes.json();
-        const historyData = await historyRes.json();
-        const roleData = await roleRes.json();
         if (!cancelled) {
           setProfile(profileData);
           setHistory(historyData.items ?? []);

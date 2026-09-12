@@ -11,6 +11,7 @@
  * - Sentinel 5 disciplines: zero-neon / semantic-3-color / mono-data / mute-text / reduced-motion
  */
 import { useState, useCallback, useEffect } from 'react';
+import { getJSON, postJSON } from '../../lib/api';
 import '../settings/settings-shell.css';
 
 export function DatabaseMaintenance() {
@@ -38,10 +39,10 @@ export function DatabaseMaintenance() {
   const loadData = useCallback(async () => {
     try {
       const [h, t, d, dup] = await Promise.all([
-        fetch('/api/maintenance/health').then(r => r.json()),
-        fetch('/api/maintenance/table-stats').then(r => r.json()),
-        fetch('/api/maintenance/dirty-report').then(r => r.json()),
-        fetch('/api/maintenance/duplicates').then(r => r.json()),
+        getJSON<{ size_mb?: number; fragmentation_pct?: number; journal_mode?: string }>('/api/maintenance/health'),
+        getJSON<{ tables?: any[] }>('/api/maintenance/table-stats'),
+        getJSON<Record<string, any>>('/api/maintenance/dirty-report'),
+        getJSON<{ hotspots?: any[]; knowledge_items?: any[] } | null>('/api/maintenance/duplicates'),
       ]);
       setDbHealth(h);
       setTableStats(t.tables || []);
@@ -56,8 +57,7 @@ export function DatabaseMaintenance() {
     setVacuuming(true);
     setVacuumMsg(null);
     try {
-      const r = await fetch('/api/maintenance/vacuum', { method: 'POST' });
-      const d = await r.json();
+      const d = await postJSON<{ status?: string; total_seconds?: number }>('/api/maintenance/vacuum', undefined);
       setVacuumMsg(d.status === 'ok'
         ? { kind: 'ok', text: `VACUUM 完成 (${d.total_seconds}s)` }
         : { kind: 'bad', text: 'VACUUM 失败' });
@@ -70,8 +70,10 @@ export function DatabaseMaintenance() {
     setCleaningLogs(true);
     setCleanLogsMsg(null);
     try {
-      const r = await fetch(`/api/maintenance/cleanup-quality-logs?days=${qualityLogDays}&dry_run=false`, { method: 'POST' });
-      const d = await r.json();
+      const d = await postJSON<{ rows_to_delete?: number; rows_remaining_after?: number }>(
+        `/api/maintenance/cleanup-quality-logs?days=${qualityLogDays}&dry_run=false`,
+        undefined,
+      );
       setCleanLogsMsg({
         kind: 'ok',
         text: `已清理 ${d.rows_to_delete} 条 quality 日志, 剩余 ${d.rows_remaining_after} 条`,
@@ -85,8 +87,11 @@ export function DatabaseMaintenance() {
     setDeduping(true);
     setDedupMsg(null);
     try {
-      const r = await fetch('/api/maintenance/cleanup-duplicates?dry_run=false', { method: 'POST' });
-      const d = await r.json();
+      const d = await postJSON<{
+        total_deleted?: number;
+        hotspots?: { total_deleted?: number };
+        knowledge_items?: { total_deleted?: number };
+      }>('/api/maintenance/cleanup-duplicates?dry_run=false', undefined);
       setDedupMsg({
         kind: 'ok',
         text: `已删除 ${d.total_deleted} 条重复 (hotspots ${d.hotspots?.total_deleted || 0} + 知识库 ${d.knowledge_items?.total_deleted || 0})`,
@@ -100,8 +105,10 @@ export function DatabaseMaintenance() {
     setCleaning(true);
     setCleanMsg(null);
     try {
-      const r = await fetch(`/api/maintenance/cleanup?days=${retentionDays}&dry_run=false`, { method: 'POST' });
-      const d = await r.json();
+      const d = await postJSON<{ total_rows?: number }>(
+        `/api/maintenance/cleanup?days=${retentionDays}&dry_run=false`,
+        undefined,
+      );
       setCleanMsg({ kind: 'ok', text: `历史清理完成: ${d.total_rows || 0} 条` });
       await loadData();
     } catch { setCleanMsg({ kind: 'bad', text: '清理请求失败' }); }
@@ -112,8 +119,7 @@ export function DatabaseMaintenance() {
     setCacheClearing(true);
     setCacheMsg(null);
     try {
-      const r = await fetch('/api/cache/clear', { method: 'POST' });
-      const d = await r.json();
+      const d = await postJSON<{ status?: string }>('/api/cache/clear', undefined);
       setCacheMsg(d.status === 'ok' ? { kind: 'ok', text: '缓存已清除' } : { kind: 'bad', text: '清除失败' });
     } catch { setCacheMsg({ kind: 'bad', text: '清除请求失败' }); }
     finally { setCacheClearing(false); }

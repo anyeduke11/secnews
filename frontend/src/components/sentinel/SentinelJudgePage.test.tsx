@@ -110,7 +110,8 @@ function makeFetch() {
     }
     if (url.startsWith('/api/favorites') && init?.method === 'POST') {
       const ok = favoriteResponses.length > 0 ? favoriteResponses.shift() === true : true;
-      return Promise.resolve({ ok } as Response);
+      // apiFetch 统一封装: ok 响应会尝试解析 JSON 体 (204 直接返回 undefined), 失败请求抛错
+      return Promise.resolve({ ok, status: ok ? 204 : 401, json: () => Promise.resolve({}) } as Response);
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
   });

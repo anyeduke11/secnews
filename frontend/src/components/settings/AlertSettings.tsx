@@ -4,6 +4,7 @@
  * v0.7.x SettingsHub V2: st-section + st-table + st-switch 替换原 card-base
  */
 import { useState, useEffect } from 'react';
+import { apiFetch, getJSON } from '../../lib/api';
 
 export function AlertSettings() {
   const [rules, setRules] = useState<any[]>([]);
@@ -11,8 +12,7 @@ export function AlertSettings() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/alerts/rules')
-      .then(r => r.json())
+    getJSON<{ items?: any[]; count?: number }>('/api/alerts/rules')
       .then(d => {
         setRules(d.items || []);
         setCount(d.count || 0);
@@ -23,9 +23,8 @@ export function AlertSettings() {
 
   const handleToggle = async (rule: any) => {
     try {
-      await fetch(`/api/alerts/rules/${rule.id}`, {
+      await apiFetch(`/api/alerts/rules/${rule.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: !rule.enabled }),
       });
       setRules(prev => prev.map(r => r.id === rule.id ? { ...r, enabled: !r.enabled } : r));

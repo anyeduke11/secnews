@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ContentDraft } from '../types';
+import { apiFetch, getJSON, postJSON } from '../lib/api';
 import { PublishDialog } from './PublishDialog';
 import { PublishHistory } from './PublishHistory';
 
@@ -19,11 +20,7 @@ export function ContentDraftList() {
   const loadDrafts = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetch('/api/content/drafts')
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    getJSON<{ drafts?: ContentDraft[] }>('/api/content/drafts')
       .then(data => {
         setDrafts(data.drafts || []);
         setLoading(false);
@@ -45,11 +42,7 @@ export function ContentDraftList() {
     }
     setExpandedId(id);
     setLoadingContent(true);
-    fetch(`/api/content/drafts/${id}`)
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    getJSON<{ content?: string }>(`/api/content/drafts/${id}`)
       .then(data => {
         setExpandedContent(data.content || '');
         setLoadingContent(false);
@@ -62,15 +55,7 @@ export function ContentDraftList() {
 
   const handleCreate = () => {
     if (!form.title.trim()) return;
-    fetch('/api/content/drafts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: form.title.trim(), content: form.content }),
-    })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    postJSON('/api/content/drafts', { title: form.title.trim(), content: form.content })
       .then(() => {
         setForm({ title: '', content: '' });
         setShowForm(false);
@@ -80,9 +65,8 @@ export function ContentDraftList() {
   };
 
   const handleDelete = (id: number) => {
-    fetch(`/api/content/drafts/${id}`, { method: 'DELETE' })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    apiFetch<void>(`/api/content/drafts/${id}`, { method: 'DELETE' })
+      .then(() => {
         if (expandedId === id) setExpandedId(null);
         loadDrafts();
       })

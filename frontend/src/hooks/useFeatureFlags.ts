@@ -4,8 +4,11 @@
  * 从后端 /api/settings/features 拉取扩展状态（feature_gates.toml 派生的
  * 运行时视图），缓存 5 分钟到 localStorage；拉取失败回退 DEFAULT_FLAGS。
  * 模块级共享：多个消费者（App/Header/LayerHeader/SettingsPage）只发一次请求。
+ *
+ * 端点为单一 hook 专用 → 常量化于此, 走 lib/api 统一封装。
  */
 import { useEffect, useState } from 'react';
+import { getJSON } from '../lib/api';
 
 export interface FeatureFlags {
   codegarden: boolean;
@@ -37,6 +40,7 @@ export const DEFAULT_FLAGS: FeatureFlags = {
 
 const CACHE_KEY = 'hotspot-feature-flags';
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const FEATURES_URL = '/api/settings/features';
 
 interface CachedFlags {
   fetchedAt: number;
@@ -66,23 +70,22 @@ function writeCache(flags: FeatureFlags): void {
 
 async function fetchFlags(): Promise<FeatureFlags> {
   try {
-    const r = await fetch('/api/settings/features');
-    if (!r.ok) return DEFAULT_FLAGS;
-    const data = await r.json();
+    const data = await getJSON<Record<string, unknown>>(FEATURES_URL);
     const flags: FeatureFlags = {
       codegarden: !!data.codegarden,
-      codegardenPhase2b: !!(data.codegarden_phase2b ?? data.codegardenPhase2b),
+      codegardenPhase2b: !!((data.codegarden_phase2b as boolean | undefined) ?? data.codegardenPhase2b),
       mcp: !!data.mcp,
       sync: !!data.sync,
-      techStack: !!(data.techStack ?? data.tech_stack),
-      securityGraph: !!(data.securityGraph ?? data.security_graph),
-      secnews: !!(data.secnews ?? true),
+      techStack: !!((data.techStack as boolean | undefined) ?? data.tech_stack),
+      securityGraph: !!((data.securityGraph as boolean | undefined) ?? data.security_graph),
+      secnews: !!((data.secnews as boolean | undefined) ?? true),
       crm: !!data.crm,
       dsh: !!data.dsh,
     };
     writeCache(flags);
     return flags;
   } catch {
+    // 非 2xx (apiFetch 抛错) 或网络失败 → 回退默认 flags
     return DEFAULT_FLAGS;
   }
 }

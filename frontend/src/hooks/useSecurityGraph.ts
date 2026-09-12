@@ -1,4 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getJSON } from '../lib/api';
+
+/**
+ * 安全知识图谱 Hook — 端点为单一 hook 专用 → 常量化于此。
+ */
+
+const SECURITY_GRAPH_URL = '/api/security/graph';
 
 export interface SecurityEntity {
   id: string;
@@ -37,12 +44,9 @@ export function useSecurityGraph(view: 'full' | 'attack' | 'cve' | 'compliance' 
     setError(null);
 
     try {
-      const res = await fetch(`/api/security/graph?view=${view}`, {
+      const json = await getJSON<SecurityGraphResponse>(`${SECURITY_GRAPH_URL}?view=${view}`, {
         signal: controller.signal,
-        headers: { Accept: 'application/json' },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json: SecurityGraphResponse = await res.json();
       setData(json);
     } catch (err: any) {
       if (err.name === 'AbortError') return;

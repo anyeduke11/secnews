@@ -12,7 +12,12 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../../../contexts/I18nContext';
-import { getApiErrorMessage } from '../../../lib/api';
+import { ApiError, getJSON, postJSON, apiFetch } from '../../../lib/api';
+
+// 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
+const GATE_URL = '/api/info-filter/gate';
+const RULES_URL = '/api/info-filter/rules';
+const PREVIEW_URL = '/api/info-filter/preview';
 
 interface FilterRule {
   id: number;
@@ -60,30 +65,29 @@ export function InfoFilterCard() {
     setLoading(true);
     setError(null);
     try {
-      const gateR = await fetch('/api/info-filter/gate');
-      if (gateR.status === 404) {
-        setGateOff(true);
+      let gate: GateStatus;
+      try {
+        gate = await getJSON<GateStatus>(GATE_URL);
+      } catch (e) {
+        // 404 = feature gate 关闭 (原 r.status === 404 分支)
+        if (e instanceof ApiError && e.status === 404) {
+          setGateOff(true);
+          return;
+        }
+        setError(e instanceof ApiError ? t('info_filter.gate_load_failed') : t('info_filter.network_error'));
         return;
       }
-      if (!gateR.ok) {
-        setError(t('info_filter.gate_load_failed'));
-        return;
-      }
-      const gate: GateStatus = await gateR.json();
       if (!gate.is_enabled) {
         setGateOff(true);
         return;
       }
       setGateOff(false);
-      const rulesR = await fetch('/api/info-filter/rules');
-      if (!rulesR.ok) {
+      try {
+        const d = await getJSON<{ rules?: FilterRule[] }>(RULES_URL);
+        setRules(d.rules || []);
+      } catch {
         setError(t('info_filter.rules_load_failed'));
-        return;
       }
-      const d = await rulesR.json();
-      setRules(d.rules || []);
-    } catch {
-      setError(t('info_filter.network_error'));
     } finally {
       setLoading(false);
     }
@@ -98,35 +102,31 @@ export function InfoFilterCard() {
     }
     setOpMsg(null);
     try {
-      const r = await fetch('/api/info-filter/rules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rule_type: newRuleType,
-          match_kind: newMatchKind,
-          match_value: newMatchValue.trim(),
-          note: newNote,
-        }),
+      // 非 2xx 由 apiFetch 抛 ApiError (message 经 getApiErrorMessage/{error} 兜底)
+      await postJSON(RULES_URL, {
+        rule_type: newRuleType,
+        match_kind: newMatchKind,
+        match_value: newMatchValue.trim(),
+        note: newNote,
       });
-      if (!r.ok) {
-        const d = await r.json().catch(() => ({}));
-        setOpMsg({ kind: 'err', text: `${t('info_filter.create_failed')}: ${getApiErrorMessage(d) || r.status}` });
-        return;
-      }
       setOpMsg({ kind: 'ok', text: t('info_filter.created') });
       setNewMatchValue('');
       setNewNote('');
       await refresh();
-    } catch {
-      setOpMsg({ kind: 'err', text: t('info_filter.network_error') });
+    } catch (e) {
+      setOpMsg({
+        kind: 'err',
+        text: e instanceof ApiError
+          ? `${t('info_filter.create_failed')}: ${e.message}`
+          : t('info_filter.network_error'),
+      });
     }
   };
 
   const toggleRule = async (rule: FilterRule) => {
     try {
-      await fetch(`/api/info-filter/rules/${rule.id}`, {
+      await apiFetch(`${RULES_URL}/${rule.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: rule.enabled ? 0 : 1 }),
       });
       await refresh();
@@ -138,7 +138,7 @@ export function InfoFilterCard() {
   const deleteRule = async (id: number) => {
     if (!window.confirm(t('info_filter.delete_confirm'))) return;
     try {
-      await fetch(`/api/info-filter/rules/${id}`, { method: 'DELETE' });
+      await apiFetch(`${RULES_URL}/${id}`, { method: 'DELETE' });
       setOpMsg({ kind: 'ok', text: t('info_filter.deleted') });
       await refresh();
     } catch {
@@ -149,18 +149,11 @@ export function InfoFilterCard() {
   const runPreview = async () => {
     if (!previewName.trim()) return;
     try {
-      const r = await fetch('/api/info-filter/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          category: previewCat.trim(),
-          source_name: previewName.trim(),
-        }),
+      const d = await postJSON<PreviewResult>(PREVIEW_URL, {
+        category: previewCat.trim(),
+        source_name: previewName.trim(),
       });
-      if (r.ok) {
-        const d = await r.json();
-        setPreviewResult(d);
-      }
+      setPreviewResult(d);
     } catch {
       setOpMsg({ kind: 'err', text: t('info_filter.network_error') });
     }

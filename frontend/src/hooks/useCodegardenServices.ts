@@ -2,13 +2,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   CgService,
-  CgServiceListResponse,
   CgServiceTopology,
   ServiceScanResponse,
   ServiceRuntime,
   ServiceStatus,
   ServiceType,
 } from '../types/codegarden';
+import {
+  listServices,
+  scanServices,
+  restartService,
+  getServiceLogs,
+  getServiceMetrics,
+  getServiceTopology,
+} from '../api/codegarden';
 
 export interface UseCodegardenServicesReturn {
   items: CgService[];
@@ -51,18 +58,16 @@ export function useCodegardenServices(): UseCodegardenServicesReturn {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ limit: '500' });
-      if (runtime !== 'all') params.set('runtime', runtime);
-      if (status !== 'all') params.set('status', status);
-      if (serviceType !== 'all') params.set('type', serviceType);
-      if (keyword.trim()) params.set('keyword', keyword.trim());
-
-      const r = await fetch(`/api/codegarden/services?${params}`, {
-        signal: ctrl.signal,
-        headers: { Accept: 'application/json' },
-      });
-      if (!r.ok) throw new Error(`请求失败 (${r.status})`);
-      const data: CgServiceListResponse = await r.json();
+      const data = await listServices(
+        {
+          limit: 500,
+          runtime: runtime !== 'all' ? runtime : undefined,
+          status: status !== 'all' ? status : undefined,
+          type: serviceType !== 'all' ? serviceType : undefined,
+          keyword: keyword.trim() || undefined,
+        },
+        { signal: ctrl.signal },
+      );
       setItems(data.items || []);
       setTotal(data.total || 0);
     } catch (e: any) {
@@ -87,37 +92,27 @@ export function useCodegardenServices(): UseCodegardenServicesReturn {
   const refresh = useCallback(async () => { await fetchList(); }, [fetchList]);
 
   const scan = useCallback(async (): Promise<ServiceScanResponse> => {
-    const r = await fetch('/api/codegarden/services/scan', { method: 'POST' });
-    if (!r.ok) throw new Error(`扫描失败 (${r.status})`);
-    const data: ServiceScanResponse = await r.json();
+    const data = await scanServices();
     await fetchList();
     return data;
   }, [fetchList]);
 
   const restart = useCallback(async (id: string): Promise<{ task_id: number }> => {
-    const r = await fetch(`/api/codegarden/services/${id}/restart`, { method: 'POST' });
-    if (!r.ok) throw new Error(`重启失败 (${r.status})`);
-    const data = await r.json();
+    const data = await restartService(id);
     return { task_id: data.task_id };
   }, []);
 
   const getLogs = useCallback(async (id: string, tail = 200): Promise<string> => {
-    const r = await fetch(`/api/codegarden/services/${id}/logs?tail=${tail}`);
-    if (!r.ok) throw new Error(`日志获取失败 (${r.status})`);
-    const data = await r.json();
+    const data = await getServiceLogs(id, tail);
     return data.logs || '';
   }, []);
 
   const getMetrics = useCallback(async (id: string): Promise<Record<string, unknown>> => {
-    const r = await fetch(`/api/codegarden/services/${id}/metrics`);
-    if (!r.ok) throw new Error(`指标获取失败 (${r.status})`);
-    return await r.json();
+    return await getServiceMetrics(id);
   }, []);
 
   const getTopology = useCallback(async (): Promise<CgServiceTopology> => {
-    const r = await fetch('/api/codegarden/services/topology');
-    if (!r.ok) throw new Error(`拓扑图获取失败 (${r.status})`);
-    return await r.json();
+    return await getServiceTopology();
   }, []);
 
   return {

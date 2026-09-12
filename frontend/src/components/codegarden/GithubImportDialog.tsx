@@ -8,6 +8,7 @@ import {
   SourceTypeDetail,
 } from '../../types/codegarden';
 import { Icon } from '../Icon';
+import { ApiError, getJSON } from '../../lib/api';
 
 interface GithubImportDialogProps {
   open: boolean;
@@ -53,17 +54,20 @@ export function GithubImportDialog({ open, onClose, onImported, importFn }: Gith
   const handlePreview = async () => {
     if (!repoUrl.trim()) { flash('err', '请输入 GitHub repo URL'); return; }
     try {
-      const r = await fetch(`/api/codegarden/github/metadata?url=${encodeURIComponent(repoUrl.trim())}`);
-      if (r.status === 424) { flash('err', '未配置 github_token'); return; }
-      if (!r.ok) { flash('err', `获取元数据失败 (${r.status})`); return; }
-      const data: GithubRepoMetadata = await r.json();
+      const data = await getJSON<GithubRepoMetadata>(
+        `/api/codegarden/github/metadata?url=${encodeURIComponent(repoUrl.trim())}`,
+      );
       // 修复 spec bug: API 实际返回 {owner, repo, description, language, ...}
       // 不存在 full_name / stars 字段
       if (data.language) setTechStack(prev => prev || data.language!);
       const desc = data.description ? ` | ${data.description.slice(0, 60)}` : '';
       flash('ok', `✓ ${data.owner}/${data.repo} | ${data.default_branch}${desc}`);
     } catch (e: any) {
-      flash('err', `预览失败: ${e?.message || e}`);
+      // 424 = 未配置 github_token (原 r.status === 424 分支, 经 ApiError.status 保留)
+      if (e instanceof ApiError && e.status === 424) { flash('err', '未配置 github_token'); return; }
+      flash('err', e instanceof ApiError
+        ? `获取元数据失败 (${e.status})`
+        : `预览失败: ${e?.message || e}`);
     }
   };
 

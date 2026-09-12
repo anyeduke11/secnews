@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { KnowledgeItem } from '../types';
+import { deleteKnowledgeItem, getKnowledgeItem, updateKnowledgeItem } from '../api/knowledge';
+import type { KnowledgeItemPatch } from '../api/knowledge';
+import { getJSON, postJSON } from '../lib/api';
+import { importFromKnowledgeWithStatus } from '../api/codegarden';
 import { Icon } from './Icon';
 
 interface ItemDetailDialogProps {
@@ -34,13 +38,15 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
   const [noteSaving, setNoteSaving] = useState(false);
 
   const loadNotes = useCallback((id: string) => {
-    fetch(`/api/annotations?entity_type=knowledge_item&entity_id=${encodeURIComponent(id)}`)
-      .then(r => r.ok ? r.json() : null)
+    // 原 r.ok ? json : null 语义经 apiFetch 归一: 非 ok 也走 catch → null → 清空 notes
+    getJSON<{ items?: Array<{ id: number; content: string; created_at?: string }>; annotations?: Array<{ id: number; content: string; created_at?: string }> }>(
+      `/api/annotations?entity_type=knowledge_item&entity_id=${encodeURIComponent(id)}`,
+    )
+      .catch(() => null)
       .then(data => {
         const items = data?.items ?? data?.annotations ?? [];
         setNotes(Array.isArray(items) ? items : []);
-      })
-      .catch(() => {});
+      });
   }, []);
 
   // 编辑字段
@@ -54,13 +60,8 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
   const loadItem = useCallback((id: string) => {
     setLoading(true);
     setError(null);
-    fetch(`/api/knowledge/items/${encodeURIComponent(id)}`)
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then(data => {
-        const it = data as KnowledgeItem & { content?: string };
+    getKnowledgeItem(id)
+      .then(it => {
         setItem(it);
         setContent(it.content || '');
         setDomain(it.domain || '');
@@ -95,17 +96,12 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
   const handleAddNote = () => {
     if (!item_id || !noteText.trim()) return;
     setNoteSaving(true);
-    fetch('/api/annotations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        entity_type: 'knowledge_item',
-        entity_id: item_id,
-        content: noteText.trim(),
-      }),
+    postJSON('/api/annotations', {
+      entity_type: 'knowledge_item',
+      entity_id: item_id,
+      content: noteText.trim(),
     })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      .then(() => {
         setNoteText('');
         loadNotes(item_id);
       })
@@ -124,7 +120,7 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
       .split(',')
       .map(t => t.trim())
       .filter(t => t.length > 0);
-    const body: Record<string, unknown> = {
+    const body: KnowledgeItemPatch = {
       domain: domain || null,
       topic: topic || null,
       type: type || null,
@@ -133,15 +129,7 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
       mastery,
     };
     setSaving(true);
-    fetch(`/api/knowledge/items/${encodeURIComponent(item_id)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    updateKnowledgeItem(item_id, body)
       .then(() => {
         setToast('✓ 保存成功');
         setTimeout(() => setToast(null), 2500);
@@ -158,9 +146,8 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
   const handleDelete = () => {
     if (!item_id) return;
     setDeleting(true);
-    fetch(`/api/knowledge/items/${encodeURIComponent(item_id)}`, { method: 'DELETE' })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    deleteKnowledgeItem(item_id)
+      .then(() => {
         onClose();
       })
       .catch(e => {
@@ -175,19 +162,11 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
   const handleAddToCodegarden = async () => {
     if (!item?.id) return;
     try {
-      const r = await fetch('/api/codegarden/from-knowledge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          item_id: item.id,
-          source_type: 'reference',
-        }),
+      const { status } = await importFromKnowledgeWithStatus({
+        item_id: item.id,
+        source_type: 'reference',
       });
-      if (!r.ok) {
-        const body = await r.text().catch(() => '');
-        throw new Error(`HTTP ${r.status}${body ? `: ${body}` : ''}`);
-      }
-      if (r.status === 201) {
+      if (status === 201) {
         window.alert('✓ 已加入 CodeGarden');
       } else {
         window.alert('ℹ 该项目已在 CodeGarden 中');

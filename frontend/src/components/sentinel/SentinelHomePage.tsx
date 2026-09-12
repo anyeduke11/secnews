@@ -27,6 +27,7 @@ import { useSSE } from '../../hooks/useSSE';
 import { useHotspotData } from '../../hooks/useHotspotData';
 import { useFavorites } from '../../hooks/useFavorites';
 import { CATEGORIES, HotspotItem, PRACTICE_DOMAIN_LABELS } from '../../types';
+import { getJSON, postJSON } from '../../lib/api';
 import { PriorityDigestCard } from './PriorityDigestCard';
 import { SentinelShell, usePipe, usePipeReloadOnSse } from './SentinelShell';
 import { SentinelRail } from './SentinelRail';
@@ -159,16 +160,8 @@ function UrlImport({ onDone }: { onDone: () => void }) {
     setBusy(true);
     setMsg(null);
     try {
-      const r = await fetch('/api/kl/import/url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-      if (!r.ok) {
-        setMsg({ kind: 'err', text: `导入失败 (${r.status})` });
-        return;
-      }
-      const data = (await r.json()) as { id?: string };
+      // apiFetch 非 ok 抛错 → catch 显式报错 (message 为后端 detail; 原实现拼接 HTTP 状态)
+      const data = await postJSON<{ id?: string }>('/api/kl/import/url', { url: url.trim() });
       setMsg({ kind: 'ok', text: `已入库 ${data.id ?? ''} · kl:raw` });
       setUrl('');
       onDone();
@@ -304,9 +297,10 @@ export function SentinelHomePage() {
   // 右栏数据 (一次性 + SSE 刷新时重拉)
   const loadSide = useCallback(async () => {
     try {
+      // apiFetch 非 ok 抛错 → 失败的一路置 null / 空 (对应原 r.ok 分支检查)
       const [qs, ts] = await Promise.all([
-        fetch('/api/quality/summary').then(r => (r.ok ? r.json() : null)).catch(() => null),
-        fetch('/api/todos').then(r => (r.ok ? r.json() : { items: [] })).catch(() => ({ items: [] })),
+        getJSON<QualitySummaryRaw>('/api/quality/summary').catch(() => null),
+        getJSON<{ items?: TodoRow[] }>('/api/todos').catch(() => ({ items: [] as TodoRow[] })),
       ]);
       setQuality(qs);
       setTodos(((ts.items || []) as TodoRow[]).filter(i => i.status !== 'done').slice(0, 6));
@@ -320,9 +314,8 @@ export function SentinelHomePage() {
   // 真实采集间隔 (分钟): 供页脚 / 空态文案, 与 /settings 里的选择保持一致
   useEffect(() => {
     let alive = true;
-    fetch('/api/settings/refresh-interval', { headers: { Accept: 'application/json' } })
-      .then(r => (r.ok ? r.json() : null))
-      .then((d: { interval_minutes?: number } | null) => {
+    getJSON<{ interval_minutes?: number } | null>('/api/settings/refresh-interval')
+      .then(d => {
         if (alive && d && typeof d.interval_minutes === 'number' && d.interval_minutes > 0) {
           setCollectMinutes(d.interval_minutes);
         }

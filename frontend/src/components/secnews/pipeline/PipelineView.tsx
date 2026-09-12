@@ -5,6 +5,8 @@
  * v0.7 Batch ⑨ B9-1: 接入 i18n (pipeline.* namespace)
  */
 import { useState, useEffect } from 'react';
+import { ApiError } from '../../../lib/api';
+import { getSecNewsPipeline } from '../../../api/secnews';
 import { SecNewsHeader } from '../layout/SecNewsHeader';
 import { AliveCard } from './AliveCard';
 import { FunnelBar } from './FunnelBar';
@@ -37,14 +39,12 @@ export function PipelineView() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/secnews/pipeline');
-      if (!res.ok) {
-        setError(`${t('pipeline.data_load_failed')} (${res.status})`);
-        return;
-      }
-      setStats(await res.json());
-    } catch {
-      setError(t('pipeline.data_load_failed_network'));
+      const data = await getSecNewsPipeline<PipelineStats>();
+      setStats(data);
+    } catch (e) {
+      setError(e instanceof ApiError
+        ? `${t('pipeline.data_load_failed')} (${e.status})`
+        : t('pipeline.data_load_failed_network'));
     } finally {
       setLoading(false);
     }

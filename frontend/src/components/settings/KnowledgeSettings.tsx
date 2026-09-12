@@ -9,6 +9,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getKnowledgeHealth } from '../../api/knowledge';
 import '../settings/settings-shell.css';
 
 export function KnowledgeSettings() {
@@ -16,12 +17,12 @@ export function KnowledgeSettings() {
   const [stats, setStats] = useState<{ items?: number; concepts?: number; last_sync?: string } | null>(null);
 
   useEffect(() => {
-    fetch('/api/knowledge/health')
-      .then(r => r.json())
+    getKnowledgeHealth()
       .then(d => setStats({
         items: d.total_items || 0,
         concepts: d.total_concepts || 0,
-        last_sync: d.last_sync,
+        // last_sync 为后端附加字段, 不在 KnowledgeHealth 契约内 (原实现为 any 直读)
+        last_sync: (d as { last_sync?: string }).last_sync,
       }))
       .catch(() => {});
   }, []);

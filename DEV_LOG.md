@@ -1106,3 +1106,49 @@
 - **核心变更**: services 计数 132→141 (+9 新模块); skill 白名单 1 条为唯一已知环。
 - **测试验证**: 全量 pytest **4600 passed / 9 skipped / 0 失败** (基线 4589 + 新 11); meta --check OK (141); ruff 触碰文件 0 错; 独立审计 **P0=0 / P1=0** / P2×5 (2 个一行级已修: logger 必填化+注释, 其余认领; Tarjan 经 300 组随机图 vs Kosaraju 参照 0 mismatch); 报告 .ua/tmp/batch4-code-audit-report.md。
 - **潜在风险**: ①skill_registry⇄skill_runner 白名单为登记债 (收缩 = execute() 改强制注入) ②mixin 防遮蔽无机化门 (P2-3, 建议后续 MRO 守卫测试) ③collection_pipeline 部分惰性 import 保留原位 (外部 patch 目标不受影响) ④audit 确认拆分方法 AST token 级等价, 唯一非逐字项 create_with_dsh 为纯提取重构。
+
+## [DEV-0199] 解耦 Batch 5 任务 A: 前端域客户端 (hotspots + knowledge 簇)
+- **时间**: 2026-09-13 02:50
+- **类型**: 重构 (解耦方案 Batch 5, 前端 API 调用面收敛)
+- **关联模块**: `api:hotspots-client` (新), `api:knowledge-client` (新), `hooks:useHotspotData`, `components:sentinel`, `components:knowledge`
+- **关联文件**: frontend/src/api/hotspots.ts (新), frontend/src/api/knowledge.ts (新); 消费方 11 文件: hooks/useHotspotData.ts, components/sentinel/{SentinelShell,SentinelGardenPage,SentinelGraphPage,SentinelJudgePage}.tsx, components/ItemDetailDialog.tsx, components/secnews/knowledge/WikiItemBrowser.tsx, components/codegarden/ProjectDetail.tsx, components/knowledge/{DeepReadMode,ReviewMode,KnowledgeProcess}.tsx
+- **问题描述**: 280 处裸 fetch 中 /api/hotspots 被 5 文件重复调用、/api/knowledge/items 被 6 文件重复调用, 违反 R5 "同一端点唯一 hook owner"; 错误处理/头/query 拼接各自为政。
+- **实现思路**: 以 api/v1.ts 为样板新建两个域客户端 (零新依赖, 不引 react-query/SWR), 复用 lib/api (apiFetch/getJSON/postJSON/getApiErrorMessage)。hotspots.ts: listHotspots(cursor 分页+筛选+AbortSignal)/getHotspot/triggerRefresh — 命名按 DEV-0167 纪律区分 refetch(只读, 留在 hook 层)与 triggerRefresh(触发采集)。knowledge.ts: listKnowledgeItems/getKnowledgeItem/updateKnowledgeItem/deleteKnowledgeItem/listKnowledgeConcepts/getKnowledgeItemChunks/knowledgeItemPath; getKnowledgeItem 走 getJSONWithStatus 抛 KnowledgeApiError(status), 保住 DeepReadMode 的 404→「条目未找到」语义。消费方仅换数据来源, 非 ok→兜底/错误路径语义逐条对齐; 11 文件对其他端点 (sources/health, annotations, favorites 等) 的 fetch 未动 (并行 agent 范围)。
+- **测试验证**: `npx tsc --noEmit` 0 错; `npx vitest run` 65 文件 494 用例全绿 (useHotspotData refetch/refresh 语义测试、4 个 sentinel 页测试原断言不动通过); `npx vite build --logLevel error` 成功。改造后 src 生产代码 /api/hotspots、/api/refresh、/api/knowledge/items 裸 fetch 均为 0。
+- **潜在风险**: ①非 ok 错误文案由 "HTTP xxx" 统一为后端 message (getApiErrorMessage), 展示文案略变 ②WikiItemBrowser 网络(非 HTTP)错误原先经外层 catch 显示错误条, 现被逐 promise 兜底吞掉 (外层 catch 保留为防御) ③/api/knowledge/concepts 及 concepts/{slug} 在 ConceptDetailDialog / SentinelGraphPage 仍有裸 fetch (不在本批 11 文件指定端点清单内, 留待图谱簇批次) ④tests 内 '/api/hotspots' 字符串为 mock 断言, 非真实调用。
+
+## [DEV-0201] 解耦 Batch 5 任务 E: 裸 fetch 清扫 (集群 2 — knowledge/secnews/report/codegarden/security/extract/search + lib)
+- **时间**: 2026-09-13 03:18
+- **类型**: 重构
+- **关联文件**: frontend/src/lib/api.ts, frontend/src/lib/interest.ts, frontend/src/api/secnews.ts (新), frontend/src/api/knowledge.ts; 组件 28 文件: components/knowledge/{KnowledgePlanningPanel,ReviewMode,DeepReadMode,KnowledgeImport,AttentionHeatmap,KnowledgeCompoundingDashboard,KnowledgeActionBar}.tsx, components/secnews/{settings/{PipelineSettings,AgentRunnerCard,DshControlCard,InfoFilterCard},pipeline/{AliveCard,TokenLedger,PipelineView},observability/{ObservabilityDashboard,ThresholdEditor,ActiveAlertsBanner},knowledge/{InboxScanner,WikiBrowser},feed/FeedView,analytics/SecNewsAnalytics,layout/StatusBar,analyze/SecNewsAnalyze}, components/report/{Weekly,Monthly,Daily}Report.tsx, components/codegarden/{ProjectDetail,GithubImportDialog}.tsx, components/security/SecurityEntityDetail.tsx, components/extract/ExtractPage.tsx, components/search/UnifiedSearchPage.tsx; 测试 mock 对齐 3 文件 (Batch4.test.tsx, KnowledgeActionBar.test.tsx, scenario_deep_snapshot.test.ts)
+- **实现思路**: 全部裸 fetch 改经 lib/api (apiFetch/getJSON/postJSON)。≥2 文件共用端点收敛进域客户端: 新建 api/secnews.ts (getSecNewsPipeline/getKlPipelineStats/getObservabilitySummary/getActiveAlerts — PipelineView+PipelineSettings、TokenLedger+StatusBar、ObservabilityDashboard+StatusBar、ActiveAlertsBanner+StatusBar 两两共用); api/knowledge.ts 追加 postAttentionEvent/listAttentionEvents (DeepReadMode ×3 POST + AttentionHeatmap GET 共用)。单文件专用端点在组件内常量化 (URL const + apiFetch/getJSON/postJSON)。apiFetch 升级为抛 ApiError(status) (Error 子类, 对既有调用方透明), getApiErrorMessage 增 {error} 信封兜底 (dsh 409 d.error) — 404 gate (DshControlCard/InfoFilterCard)、424 (GithubImportDialog) 等 status 分支语义保留。
+- **测试验证**: `npx tsc --noEmit` 本批范围 0 错; `npx vitest run` 507/509 (仅 settings/ProxySettings + settings/QualitySettings 两失败, 属并行 agent 正在改的 settings/ 簇, 与本批无关); `npx vite build --logLevel error` 成功。本范围组件裸 fetch 残留 0 (lib/api.ts 内部 fetch 为唯一统一出口)。
+- **潜在风险**: ①非 ok 错误文案统一经 getApiErrorMessage (如 "请求失败 (500)"→"HTTP 500"), 展示文案略变 ②原 `res.ok` 静默分支与网络 catch 合并 (TokenLedger 非 ok 由"保持旧值"变"清空"、ObservabilityDashboard/SecNewsAnalytics/InfoFilterCard 非 ok 现走 catch 呈现既有错误条), 轮询类组件失败仍保持上次数据 ③apiFetch 对 GET/无 body POST 附带 Content-Type 头 (服务端无感) ④测试 mock 三处因 apiFetch 恒传 init/解析 json 而对齐 (GET 判定 `!init?.method`、mock 补 json()、scenario 快照正则放行 postJSON 形态, 契约本体未放松)。
+
+## [DEV-0202] Batch 5 任务 D — 裸 fetch 清扫集群 1 (root components + settings/secrets/tags/sync/sentinel/routes)
+- **时间**: 2026-09-13 03:32
+- **类型**: 重构
+- **关联文件**: 组件 54 文件 — src/components 根级 23 (BookmarkImport/CompileTrigger/ConceptDetailDialog/ContentCalendar/ContentDraftList/FederationStatus/HealthDashboard/HistoryPage/ItemDetailDialog/KnowledgeFilters/KnowledgeGraph/KnowledgePage/KnowledgeSearchBar/LearningPanel/MasteryGauge/PublishDialog/PublishHistory/QualityRejectionPage/SkillConfigDialog/SkillEntryGrid/SoulViewer/TaskMonitor/TaskSubmitDialog), settings 19 (含 quality/ 4), secrets 2, sentinel 7, tags 1, sync 1, routes 1 (oauth-callback); 域客户端 2 (api/knowledge.ts, api/codegarden.ts); 测试对齐 5 (KnowledgePage.test, KnowledgeGraph.test, KnowledgeFilters.test, SentinelJudgePage.test, scenario_deep_snapshot.test)
+- **实现思路**: 全部裸 fetch 改经 lib/api (apiFetch/getJSON/postJSON)。≥2 文件共用端点收敛进域客户端: api/knowledge.ts 追加 getKnowledgeHealth (HealthDashboard+KnowledgePage+KnowledgeSettings)、listKnowledgeTasks/createKnowledgeTask (TaskMonitor+TaskSubmitDialog)、listKnowledgeSkills (SkillEntryGrid+SkillConfigDialog)、getKnowledgeConceptDetail (404 需区分, 复用既有 getJSONWithStatus→KnowledgeApiError)、getKnowledgeGraph (KnowledgeGraph+SentinelGraphPage); api/codegarden.ts 追加 importFromKnowledgeWithStatus (201/200 幂等提示需原始 status)、fetchCodegardenPanel+CgPanel (门控 404/405 需与普通失败区分)。单文件专用端点组件内 inline apiFetch/getJSON/postJSON。/api/sources/* 复用既有 sources.ts 客户端 (SourceSettings 6 端点)。
+- **核心变更**:
+  - 根级/settings 等组件: fetch→apiFetch 系列, loading/轮询/乐观更新/回滚逻辑原样保留
+  - SentinelShell: fetchPipe 改用 sources.ts getSourceHealth (保留 registered_total 口径分支)
+  - SentinelActionPage: 5 GET load + 4 写操作 (PATCH/POST/PUT×2) 改 apiFetch/postJSON, 乐观更新+失败回滚不变
+  - SentinelGraphPage pick(): 404 判定由 r.status 改 KnowledgeApiError.status
+- **测试验证**: `npx tsc --noEmit` 0 错 (全仓); `npx vitest run` 509/509 全绿; `npx vite build --logLevel error` 成功。本范围 (settings/secrets/sentinel/tags/sync/routes + components 根级) 非 mock 文件裸 fetch 残留 0; api 客户端内 3 处显式 Response 处理 (getJSONWithStatus 既有 + 新增 2 个 status-aware helper) 为唯一低层出口。
+- **潜在风险**: ①非 ok 错误文案统一经 getApiErrorMessage/statusText (如 `HTTP ${status}`/`加载失败 (a/b/c)`/`INVALID_MASTER_KEY` 等字面量不再出现), 展示文案略变 ②原 `r.ok` 静默分支与网络 catch 合并的语义漂移: HistoryPage loadBatchSummary 非 ok 由"保留旧 summary"变"清空"、RotationBanner/UnlockModal oauth-config 非 ok 由"跳过"并入静默 catch (净效果一致)、MCPSettingsCard/ModeSwitcher 非 ok 由"单路跳过"变"该路置 null 跳过" ③apiFetch 恒传 init 且 ok 响应解析 json → 5 处测试 mock 对齐 (补 ok:true/json()/status:204、toHaveBeenCalledWith 放行 expect.anything()、scenario 快照正则放行 postJSON<...> 形态), 断言语义本体未放松 ④api/codegarden.ts 与 api/knowledge.ts 内新增 status-aware helper 仍持显式 fetch (需要原始 Response, 与既有 getJSONWithStatus 同模式)。
+
+## [DEV-0200] 解耦 Batch 5 任务 C: SSE 失效统一 — realtime.ts 注册器 + v1 域迁移
+- **时间**: 2026-09-13 03:40
+- **类型**: 重构 (解耦方案 Batch 5, 保守统一)
+- **关联文件**: frontend/src/hooks/realtime.ts (新), frontend/src/hooks/realtime.test.tsx (新 15 用例), frontend/src/components/v1/useSSEAggregateInvalidate.ts, frontend/src/components/v1/useSSEWithRefetch.ts
+- **实现思路**: 新统一注册器 realtime.ts — SSE_EVENTS 事件常量收敛 + registerInvalidate (模块级注册/多 hub 去重/无 hub 休眠) + useRealtimeInvalidation (types 路由 + throttle/debounce + unmount 清理, 底座复用 useSSE 的重连与 last_id 续传)。v1 域两 hook 内部迁移 (导出签名不变, 消费方与 c11 反例测试零改动; revision 防回退语义逐字保留)。sentinel 域 5 处消费方保守保留 (DEV-0167 刚修且节流窗口各异, 迁移风险不对称), 文件头登记为待迁移消费方形成单一入口事实标准。
+- **测试验证**: tsc 0 错; vitest 509/509 (含新增 15: types 路由/节流窗口/重渲染不重置/unmount 清理/lastId 续传/多 hub); build 成功。
+- **潜在风险**: 主 hub 卸载后 registry 分发暂停至下一 hub 挂载 (单壳架构无影响); debounce 期间 unmount 丢最后一条事件 (失效重拉语义可接受)。
+
+## [DEV-0203] 解耦 Batch 5 收口: 裸 fetch 280→11 (网络调用归零) + 审计 P1 修复 — 五批解耦工程全流程完成
+- **时间**: 2026-09-13 03:50
+- **类型**: 重构收口
+- **关联文件**: frontend/src/hooks/realtime.ts (P1 修复: unmount 清理读 slotsRef.current + 重建前 cancel 旧 slots), 5 个域客户端 + ~85 组件/hook 改造 (DEV-0199/0201/0202)
+- **测试验证 (权威口径)**: tsc 0 错 / vitest **509/509** / vite build 成功 / **裸 fetch 280→11** (11 处 = 回调 prop 命名 + 3 处有意保留的 status-aware helper, 真实裸网络调用 0; 原方案目标 <100) / 独立审计 P0=0 / P1×1 已修 / P2×7 认领 (报告 .ua/tmp/batch5-code-audit-report.md)。
+- **潜在风险**: ①错误文案统一经 getApiErrorMessage 有轻微 UI 文案变化 (非 ok 一律有友好报错, 不再静默) ②ItemDetailDialog loadNotes 网络失败由"保留旧值"变"清空" (唯一明确微退化, P2 登记) ③useDigest 404 判定经 message 正则与后端文案隐式契约 (P2, 建议后续改 ApiError.status) ④knowledgeItemPath 未 encodeURIComponent (与客户端其余 54 处不一致)。

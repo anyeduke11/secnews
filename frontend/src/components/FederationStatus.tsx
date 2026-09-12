@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { FederationStatus as FederationStatusData } from '../types';
+import { getJSON } from '../lib/api';
 
 export function FederationStatus() {
   const [status, setStatus] = useState<FederationStatusData | null>(null);
@@ -7,11 +8,7 @@ export function FederationStatus() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/knowledge/federation')
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    getJSON<FederationStatusData>('/api/knowledge/federation')
       .then(data => {
         setStatus(data);
         setLoading(false);

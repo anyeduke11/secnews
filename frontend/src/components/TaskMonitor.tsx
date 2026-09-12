@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { TaskItem } from '../types';
+import { listKnowledgeTasks } from '../api/knowledge';
 
 interface TaskMonitorProps {
   refreshKey?: number;
@@ -23,14 +24,11 @@ export function TaskMonitor({ refreshKey }: TaskMonitorProps) {
   const loadTasks = () => {
     setLoading(true);
     setError(null);
-    fetch('/api/knowledge/tasks?limit=20')
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    listKnowledgeTasks(20)
       .then(data => {
         // 后端可能返回 { items: [...] } 或 [...] 两种格式
-        const list: TaskItem[] = data.items || data.tasks || data || [];
+        const envelope = data as { items?: TaskItem[]; tasks?: TaskItem[] };
+        const list: TaskItem[] = envelope.items || envelope.tasks || (data as TaskItem[]) || [];
         setTasks(Array.isArray(list) ? list : []);
         setLoading(false);
       })

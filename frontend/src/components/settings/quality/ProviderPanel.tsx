@@ -8,6 +8,7 @@
  *       chip 徽章显示 config_source (env > settings.kv > router > yaml) 三档
  */
 import { useState, useCallback } from 'react';
+import { getJSON, postJSON } from '../../../lib/api';
 
 export interface ProviderPanelProps {
   providerOptions: string[];
@@ -31,24 +32,25 @@ export function ProviderPanel({
     setSaving(true);
     setMsg(null);
     try {
-      const resp = await fetch('/api/settings/llm-provider', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: defaultProvider, actor: 'web' }),
-      });
-      const data = await resp.json();
-      if (resp.ok && data.status === 'ok') {
+      const data = await postJSON<{ status?: string; old_provider?: string; new_provider?: string; message?: string }>(
+        '/api/settings/llm-provider',
+        { provider: defaultProvider, actor: 'web' },
+      );
+      if (data.status === 'ok') {
         setMsg({ type: 'ok', text: `已切换: ${data.old_provider ?? '(无)'} → ${data.new_provider}` });
         // 重拉确认
-        const r2 = await fetch('/api/llm/status');
-        const d2 = await r2.json();
+        const d2 = await getJSON<{
+          effective_provider?: unknown;
+          config_source?: unknown;
+        }>('/api/llm/status');
         if (typeof d2.effective_provider === 'string') onChange(d2.effective_provider);
         if (typeof d2.config_source === 'string') onSource(d2.config_source);
       } else {
         setMsg({ type: 'error', text: data.message || '切换失败' });
       }
-    } catch {
-      setMsg({ type: 'error', text: '切换失败 (网络错误)' });
+    } catch (e) {
+      // apiFetch 非 ok 抛错, message 即后端 detail — 原实现同样展示 data.message
+      setMsg({ type: 'error', text: e instanceof Error && e.message ? e.message : '切换失败 (网络错误)' });
     } finally {
       setSaving(false);
     }

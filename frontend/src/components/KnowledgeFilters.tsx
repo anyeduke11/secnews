@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getJSON } from '../lib/api';
 
 interface KnowledgeFiltersProps {
   onFilterChange: (filters: FilterState) => void;
@@ -28,8 +29,7 @@ export function KnowledgeFilters({ onFilterChange }: KnowledgeFiltersProps) {
       setTopics([]);
       return;
     }
-    fetch(`/api/knowledge/topics?domain=${encodeURIComponent(filters.domain)}`)
-      .then(r => r.json())
+    getJSON<{ topics?: string[] }>(`/api/knowledge/topics?domain=${encodeURIComponent(filters.domain)}`)
       .then(d => setTopics(d.topics || []))
       .catch(() => setTopics([]));
   }, [filters.domain]);

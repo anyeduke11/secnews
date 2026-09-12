@@ -15,6 +15,7 @@
  * - Sentinel 5 disciplines: zero-neon / semantic-3-color / mono-data / mute-text / reduced-motion
  */
 import { useEffect, useState, useCallback } from 'react';
+import { apiFetch, getJSON } from '../../lib/api';
 import { Icon } from '../Icon';
 import '../settings/settings-shell.css';
 
@@ -43,18 +44,17 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
     const load = async () => {
       setLoading(true);
       try {
-        const [statusRes, toolsRes] = await Promise.all([
-          fetch('/api/mcp/status'),
-          fetch('/api/mcp/tools'),
+        // apiFetch 统一封装: 非 ok 抛错 → 失败的一路置 null 跳过 (对应原 res.ok 分支检查)
+        const [statusData, toolsData] = await Promise.all([
+          getJSON<{ enabled?: boolean }>('/api/mcp/status').catch(() => null),
+          getJSON<{ tools?: MCPTool[] }>('/api/mcp/tools').catch(() => null),
         ]);
         if (cancelled) return;
-        if (statusRes.ok) {
-          const s = await statusRes.json();
-          setEnabled(Boolean(s.enabled));
+        if (statusData) {
+          setEnabled(Boolean(statusData.enabled));
         }
-        if (toolsRes.ok) {
-          const t = await toolsRes.json();
-          setTools(t.tools || []);
+        if (toolsData) {
+          setTools(toolsData.tools || []);
         }
       } catch (err) {
         console.warn('MCPSettingsCard load failed', err);
@@ -73,16 +73,13 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
     async (next: boolean) => {
       setLoading(true);
       try {
-        const res = await fetch('/api/settings/mcp/enabled', {
+        await apiFetch('/api/settings/mcp/enabled', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ enabled: next }),
         });
-        if (res.ok) {
-          setEnabled(next);
-          setSaved(true);
-          setTimeout(() => setSaved(false), 2000);
-        }
+        setEnabled(next);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
       } catch (err) {
         console.warn('toggle failed', err);
       } finally {

@@ -6,9 +6,13 @@
  * 改为引用 utils, 文章行改为共享 MonthlyArticleRow。
  */
 import React, { useState, useEffect } from 'react';
+import { ApiError, getJSON } from '../../lib/api';
 import { catColors, renderFormatted } from './utils';
 import { MonthlyArticleRow } from './shared';
 import type { MonthlyOverview } from './types';
+
+// 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
+const MONTHLY_AVAILABLE_URL = '/api/reports/monthly/available';
 
 export function MonthlyReport() {
   const [overview, setOverview] = useState<MonthlyOverview | null>(null);
@@ -21,8 +25,8 @@ export function MonthlyReport() {
   // Load available months
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/reports/monthly/available')
-      .then(r => r.ok ? r.json() : { months: [] })
+    // 非 2xx 由 apiFetch 抛错 → 与原 `r.ok ? json : {months: []}` 同为空列表降级
+    getJSON<{ months?: Array<{ value: string; label: string }> }>(MONTHLY_AVAILABLE_URL)
       .then(data => { if (!cancelled) setMonths(data.months || []); })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -35,15 +39,12 @@ export function MonthlyReport() {
       setLoading(true);
       setError(null);
       try {
-        const r = await fetch(`/api/reports/monthly/overview?offset=${selectedOffset}`);
-        if (!cancelled && r.ok) {
-          const data = await r.json();
-          setOverview(data);
-        } else if (!cancelled) {
-          setError(`加载失败 (${r.status})`);
-        }
+        const data = await getJSON<MonthlyOverview>(`/api/reports/monthly/overview?offset=${selectedOffset}`);
+        if (!cancelled) setOverview(data);
       } catch (e: any) {
-        if (!cancelled) setError(e?.message || '加载失败');
+        if (!cancelled) {
+          setError(e instanceof ApiError ? `加载失败 (${e.status})` : (e?.message || '加载失败'));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

@@ -18,10 +18,14 @@
  *   v1_artifact (artifact_id / run_id / case_id / revision)
  *   v1_knowledge (knowledge_id / case_id / revision)
  *   v1_signal (signal_id / case_id / revision)
+ *
+ * Batch 5 任务 C: 连接层已迁移到统一注册器 useRealtimeInvalidation
+ * (src/hooks/realtime.ts, 底座仍为 useSSE), 失效语义逐字保留:
+ * case_id 匹配 + revision 防回退 + revision 缺失降级 refetch。
  */
 
 import { useCallback, useRef } from "react";
-import { useSSE } from "../../hooks/useSSE";
+import { useRealtimeInvalidation, V1_AGGREGATE_EVENT_TYPES } from "../../hooks/realtime";
 
 export interface AggregateEventData {
   id?: number;
@@ -46,7 +50,7 @@ export interface UseSSEAggregateInvalidateOptions {
 
 export function useSSEAggregateInvalidate(opts: UseSSEAggregateInvalidateOptions): { connected: boolean } {
   const { currentCaseId, currentRevision, onRefetch, onLastId } = opts;
-  // ref 持有, 避免 useSSE 重连时 stale closure
+  // ref 持有, 避免重连时 stale closure
   const ctxRef = useRef({ currentCaseId, currentRevision, onRefetch });
   ctxRef.current = { currentCaseId, currentRevision, onRefetch };
 
@@ -71,6 +75,11 @@ export function useSSEAggregateInvalidate(opts: UseSSEAggregateInvalidateOptions
     [],
   );
 
-  const { connected } = useSSE({ onEvent, autoReconnect: true, reconnectDelay: 3000, onLastId });
+  // types 过滤上移到注册器 entry 层: 只有 5 个 v1_* aggregate 事件携带
+  // case_id/revision payload, 其余 (埋点 / collect_done / alert …) 无需进入 handler。
+  const { connected } = useRealtimeInvalidation(
+    [{ types: V1_AGGREGATE_EVENT_TYPES, handler: onEvent }],
+    { onLastId },
+  );
   return { connected };
 }

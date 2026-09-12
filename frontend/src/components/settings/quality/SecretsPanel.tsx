@@ -10,6 +10,7 @@
  *       主密钥 prompt / reveal / upsert 三个 modal 集中在本组件内。
  */
 import { useState, useCallback, useEffect } from 'react';
+import { apiFetch, getJSON } from '../../../lib/api';
 
 export interface SecretsPanelProps {
   providerOptions: string[];
@@ -37,9 +38,10 @@ export function SecretsPanel({ providerOptions, initialKeySource = 'none' }: Sec
     setLoading(true);
     try {
       try {
+        // apiFetch 非 ok 抛错 → 置 null 跳过 (原实现为 json 解析失败走 catch)
         const [lr, sr] = await Promise.all([
-          fetch('/api/secrets').then(r => r.json()),
-          fetch('/api/secrets/status').then(r => r.json()),
+          getJSON<{ items?: Array<Record<string, any>> }>('/api/secrets').catch(() => null),
+          getJSON<{ unlocked?: boolean }>('/api/secrets/status').catch(() => null),
         ]);
         setList(Array.isArray(lr?.items) ? lr.items : []);
         setUnlocked(Boolean(sr?.unlocked));
@@ -61,50 +63,55 @@ export function SecretsPanel({ providerOptions, initialKeySource = 'none' }: Sec
   }, [initialKeySource]);
 
   const unlock = useCallback(async (mk: string) => {
-    const r = await fetch('/api/secrets/unlock', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+    // apiFetch 非 ok 抛错 (message 为后端 detail / HTTP 状态; 原实现抛 INVALID_MASTER_KEY 字面量)
+    await apiFetch('/api/secrets/unlock', {
+      method: 'POST',
       body: JSON.stringify({ master_key: mk }),
     });
-    if (!r.ok) throw new Error('INVALID_MASTER_KEY');
     setUnlocked(true);
     await load();
   }, [load]);
 
   const lock = useCallback(async () => {
-    await fetch('/api/secrets/lock', { method: 'POST' });
+    try {
+      await apiFetch('/api/secrets/lock', { method: 'POST' });
+    } catch {
+      // 原实现对非 ok 响应静默继续
+    }
     setUnlocked(false);
   }, []);
 
   const reveal = useCallback(async (id: number, mk: string) => {
-    const r = await fetch(`/api/secrets/${id}/reveal`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+    const d = await apiFetch<{ api_key: string }>(`/api/secrets/${id}/reveal`, {
+      method: 'POST',
       body: JSON.stringify({ master_key: mk }),
     });
-    if (!r.ok) throw new Error('REVEAL_FAILED');
-    const d = await r.json();
-    return d.api_key as string;
+    return d.api_key;
   }, []);
 
   const testConn = useCallback(async (id: number) => {
-    const r = await fetch(`/api/secrets/${id}/test`, { method: 'POST' });
-    return await r.json();
+    try {
+      return await apiFetch<{ ok?: boolean; error?: string }>(`/api/secrets/${id}/test`, { method: 'POST' });
+    } catch (e: any) {
+      // 原 testConn 不看 r.ok, 消费方读 r.ok / r.error — 保持该契约
+      return { ok: false, error: e?.message || '失败' };
+    }
   }, []);
 
   const upsert = useCallback(async (body: Record<string, any>) => {
     const isUpd = Boolean(body.id);
     const url = isUpd ? `/api/secrets/${body.id}` : '/api/secrets';
-    const r = await fetch(url, {
+    // apiFetch 非 ok 抛错 (message 为后端 detail; 原实现抛 UPSERT_FAILED 字面量)
+    await apiFetch(url, {
       method: isUpd ? 'PATCH' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    if (!r.ok) throw new Error('UPSERT_FAILED');
     await load();
   }, [load]);
 
   const remove = useCallback(async (id: number) => {
-    const r = await fetch(`/api/secrets/${id}`, { method: 'DELETE' });
-    if (!r.ok) throw new Error('DELETE_FAILED');
+    // DELETE 204 时 apiFetch 返回 undefined; 非 ok 抛错 (原实现抛 DELETE_FAILED 字面量)
+    await apiFetch(`/api/secrets/${id}`, { method: 'DELETE' });
     await load();
   }, [load]);
 

@@ -6,6 +6,7 @@
  * 回调后 /oauth-callback 路由用 token 调 unlockWithOAuth。
  */
 import React, { useEffect, useState } from 'react';
+import { getJSON } from '../../lib/api';
 import { Icon } from '../Icon';
 import { Modal } from './Modal';
 
@@ -33,9 +34,8 @@ export function UnlockModal({
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch('/api/secrets/oauth-config');
-        if (!r.ok) return;
-        const cfg: OAuthConfig = await r.json();
+        // apiFetch 非 ok 抛错 → catch 静默降级 (对应原 if (!r.ok) return)
+        const cfg = await getJSON<OAuthConfig>('/api/secrets/oauth-config');
         if (!cancelled) setOauthCfg(cfg);
       } catch {
         // 网络/解析失败 → 不显示 OAuth 按钮 (静默降级)

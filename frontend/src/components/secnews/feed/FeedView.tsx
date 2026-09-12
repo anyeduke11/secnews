@@ -6,6 +6,7 @@
  * v0.7 Batch ⑨ B9-1: 接入 i18n (feed.* namespace)
  */
 import { useState, useEffect, useCallback } from 'react';
+import { ApiError, getJSON } from '../../../lib/api';
 import { SecNewsHeader } from '../layout/SecNewsHeader';
 import { DigestCard } from './DigestCard';
 import { FeedCard } from './FeedCard';
@@ -39,16 +40,13 @@ export function FeedView() {
       if (category) params.set('category', category);
       if (keyword) params.set('keyword', keyword);
       params.set('limit', '30');
-      const res = await fetch(`/api/secnews/feed?${params}`);
-      if (!res.ok) {
-        setError(`${t('feed.load_failed_status', { status: res.status })}`);
-        return;
-      }
-      const data = await res.json();
+      const data = await getJSON<{ items?: FeedItem[]; total?: number }>(`/api/secnews/feed?${params}`);
       setItems(data.items ?? []);
       setTotal(data.total ?? 0);
-    } catch {
-      setError(t('feed.load_failed_network'));
+    } catch (e) {
+      setError(e instanceof ApiError
+        ? t('feed.load_failed_status', { status: e.status })
+        : t('feed.load_failed_network'));
     } finally {
       setLoading(false);
     }

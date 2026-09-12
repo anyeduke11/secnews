@@ -5,6 +5,10 @@
  * (POST /api/kl/liveness/sweep), 完成后回调刷新观测台。
  */
 import { useState } from 'react';
+import { postJSON } from '../../../lib/api';
+
+// 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
+const LIVENESS_SWEEP_URL = '/api/kl/liveness/sweep';
 
 interface AliveCardProps {
   alive: { total: number; alive: number; dead: number; unknown: number };
@@ -23,11 +27,14 @@ export function AliveCard({ alive, onSwept }: AliveCardProps) {
   const runSweep = async () => {
     setSweeping(true);
     try {
-      await fetch('/api/kl/liveness/sweep', { method: 'POST' });
-      onSwept?.();
+      // 原语义: 非 ok 也回调 onSwept (fetch 不抛错) — apiFetch 非 2xx 抛错, 此处吞掉保持一致
+      await postJSON(LIVENESS_SWEEP_URL, undefined);
+    } catch {
+      /* 非 ok / 网络失败静默, 仍回调 onSwept 刷新观测台 */
     } finally {
       setSweeping(false);
     }
+    onSwept?.();
   };
 
   return (

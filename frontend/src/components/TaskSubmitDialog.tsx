@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { TaskSubmitParams } from '../types';
-import { getApiErrorMessage } from '../lib/api';
+import { createKnowledgeTask } from '../api/knowledge';
 import { Icon } from './Icon';
 
 interface TaskSubmitDialogProps {
@@ -79,16 +79,7 @@ export function TaskSubmitDialog({ open, onClose, onSubmitted }: TaskSubmitDialo
       task_type: taskType,
       params: buildParams(),
     };
-    fetch('/api/knowledge/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-      .then(async r => {
-        const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(getApiErrorMessage(data) || `HTTP ${r.status}`);
-        return data;
-      })
+    createKnowledgeTask(body)
       .then(data => {
         const taskId = data?.task_id ?? data?.id ?? '';
         flashToast(`✓ 任务已创建 (task_id: ${taskId})`);

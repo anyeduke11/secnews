@@ -12,6 +12,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
 import { LifecycleProgress } from './LifecycleProgress';
 import type { KnowledgeItem } from '../../types';
+import { getKnowledgeItem, getKnowledgeItemChunks, KnowledgeApiError, postAttentionEvent } from '../../api/knowledge';
+import { getJSON } from '../../lib/api';
 import { OnboardingHint } from '../layout/OnboardingHint';
 
 interface RecommendResult {
@@ -60,19 +62,17 @@ export function DeepReadMode() {
     setItem(null);
     setContent('');
 
-    fetch(`/api/knowledge/items/${encodeURIComponent(id)}`)
-      .then(async r => {
-        if (!r.ok) {
-          if (r.status === 404) throw new Error('条目未找到');
-          throw new Error(`请求失败 (${r.status})`);
-        }
-        const data = await r.json();
+    getKnowledgeItem(id)
+      .then(data => {
         if (cancelled) return;
         setItem(data);
         setContent(data.content || '');
       })
       .catch(e => {
-        if (!cancelled) setError(e?.message || '加载失败');
+        // 404 语义保留: 条目不存在 (客户端 KnowledgeApiError.status) 与请求失败区分展示
+        if (!cancelled) {
+          setError(e instanceof KnowledgeApiError && e.status === 404 ? '条目未找到' : (e?.message || '加载失败'));
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -82,11 +82,7 @@ export function DeepReadMode() {
     // 注意力数据此前为 0 (前端从未 POST /api/attention/events → 热力图/评分空转)
     // 字段契约见 attention_scorer: dwell_seconds / depth_pct
     const startTs = Date.now();
-    fetch('/api/attention/events', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ item_id: id, event_type: 'view', detail_json: { source: 'deep-read' } }),
-    }).catch(() => {});
+    postAttentionEvent({ item_id: id, event_type: 'view', detail_json: { source: 'deep-read' } }).catch(() => {});
 
     let lastScrollSent = 0;
     const onScroll = () => {
@@ -97,11 +93,7 @@ export function DeepReadMode() {
       const maxScroll = el.scrollHeight - el.clientHeight;
       const depthPct = maxScroll > 0 ? Math.round((el.scrollTop / maxScroll) * 100) : 0;
       if (depthPct >= 10) {
-        fetch('/api/attention/events', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ item_id: id, event_type: 'scroll', detail_json: { depth_pct: depthPct } }),
-        }).catch(() => {});
+        postAttentionEvent({ item_id: id, event_type: 'scroll', detail_json: { depth_pct: depthPct } }).catch(() => {});
       }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -111,10 +103,10 @@ export function DeepReadMode() {
       window.removeEventListener('scroll', onScroll);
       const dwellMs = Date.now() - startTs;
       if (dwellMs > 3000) {
-        fetch('/api/attention/events', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ item_id: id, event_type: 'dwell', detail_json: { dwell_seconds: Math.round(dwellMs / 1000) } }),
+        postAttentionEvent({
+          item_id: id,
+          event_type: 'dwell',
+          detail_json: { dwell_seconds: Math.round(dwellMs / 1000) },
         }).catch(() => {});
       }
     };
@@ -126,10 +118,9 @@ export function DeepReadMode() {
     let cancelled = false;
     setRecommendLoading(true);
 
-    fetch(`/api/recommend/knowledge/${encodeURIComponent(id)}?limit=5`)
-      .then(async r => {
-        if (!r.ok) return;
-        const data: RecommendResponse = await r.json();
+    // 非 2xx 由 apiFetch 抛错 → 与原 `if (!r.ok) return` 同为静默放弃推荐
+    getJSON<RecommendResponse>(`/api/recommend/knowledge/${encodeURIComponent(id)}?limit=5`)
+      .then(data => {
         if (!cancelled) setRecommendations(data.items || []);
       })
       .catch(() => { /* 推荐失败静默忽略 */ })
@@ -147,10 +138,8 @@ export function DeepReadMode() {
     setChunksLoading(true);
     setChunks([]);
 
-    fetch(`/api/knowledge/chunks/${encodeURIComponent(id)}`)
-      .then(async r => {
-        if (!r.ok) return;
-        const data = await r.json();
+    getKnowledgeItemChunks(id)
+      .then(data => {
         if (!cancelled) setChunks(data.chunks || []);
       })
       .catch(() => { /* chunks 加载失败静默忽略 */ })

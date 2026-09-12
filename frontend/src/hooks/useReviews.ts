@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getJSON, postJSON, apiFetch } from '../lib/api';
 
 /**
  * v1.7 Phase 2 — 复习队列 Hook (SM-2 间隔复习)
@@ -16,7 +17,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
  *  - refresh:        重新拉取队列 + 统计
  *  - submitGrade:    提交评分后自动刷新
  *  - createReview:   为实体创建首条复习
+ *
+ * 端点为单一 hook 专用 → 常量化于此, 走 lib/api 统一封装。
  */
+
+const REVIEWS_URL = '/api/reviews';
 
 export interface ReviewItem {
   id: string;
@@ -62,12 +67,9 @@ export function useReviews(): UseReviewsReturn {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch('/api/reviews/due?limit=50', {
+      const data = await getJSON<{ items?: ReviewItem[] }>(`${REVIEWS_URL}/due?limit=50`, {
         signal: controller.signal,
-        headers: { Accept: 'application/json' },
       });
-      if (!r.ok) throw new Error(`请求失败 (${r.status})`);
-      const data = await r.json();
       setItems(data.items || []);
     } catch (e: any) {
       if (e?.name === 'AbortError') return;
@@ -79,11 +81,7 @@ export function useReviews(): UseReviewsReturn {
 
   const fetchStats = useCallback(async () => {
     try {
-      const r = await fetch('/api/reviews/stats', {
-        headers: { Accept: 'application/json' },
-      });
-      if (!r.ok) return;
-      const data = await r.json();
+      const data = await getJSON<{ stats?: ReviewStats | null }>(`${REVIEWS_URL}/stats`);
       setStats(data.stats || null);
     } catch {
       // 静默
@@ -104,18 +102,10 @@ export function useReviews(): UseReviewsReturn {
 
   const submitGrade = useCallback(
     async (entityType: string, entityId: string, grade: number) => {
-      const r = await fetch(
-        `/api/reviews/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/grade`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ grade }),
-        }
+      await postJSON(
+        `${REVIEWS_URL}/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/grade`,
+        { grade },
       );
-      if (!r.ok) {
-        const errBody = await r.text().catch(() => '');
-        throw new Error(`评分失败 (${r.status})${errBody ? `: ${errBody}` : ''}`);
-      }
       // 评分后刷新队列 (该项因 due_at 推后会离开队列)
       await refresh();
     },
@@ -124,22 +114,21 @@ export function useReviews(): UseReviewsReturn {
 
   const createReview = useCallback(
     async (entityType: string, entityId: string, intervalDays: number = 1) => {
-      const r = await fetch(
-        `/api/reviews/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}?interval_days=${intervalDays}`,
-        {
-          method: 'POST',
-          headers: { Accept: 'application/json' },
-        }
-      );
-      if (!r.ok && r.status !== 409) {
-        // 409 = 已存在, 视为成功
-        const errBody = await r.text().catch(() => '');
-        throw new Error(`创建复习失败 (${r.status})${errBody ? `: ${errBody}` : ''}`);
+      try {
+        await apiFetch(
+          `${REVIEWS_URL}/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}?interval_days=${intervalDays}`,
+          { method: 'POST' },
+        );
+      } catch (e: any) {
+        // 409 = 已存在, 视为成功; 其余错误抛出
+        if (!/409|conflict/i.test(e?.message || '')) throw e;
       }
       await refresh();
     },
     [refresh]
   );
+  // 409 容忍说明: 后端返回 409 时 detail.message 为 "已存在" 类文案;
+  // apiFetch 统一抛 Error(message), 此处按 message 判定与原 `r.status !== 409` 等价。
 
   return { items, stats, loading, error, refresh, submitGrade, createReview };
 }

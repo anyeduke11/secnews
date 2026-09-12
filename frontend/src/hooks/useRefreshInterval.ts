@@ -1,4 +1,12 @@
 import { useState, useCallback } from 'react';
+import { postJSON } from '../lib/api';
+import { getHealth } from '../api/sources';
+
+/**
+ * 刷新间隔偏好 Hook — localStorage 持久化 + 后端采集频率同步。
+ *
+ * 端点为单一 hook 专用 → 常量化于此, 走 lib/api / api/sources 统一封装。
+ */
 
 export const REFRESH_INTERVAL_OPTIONS = [
   { value: 5, label: '5 分钟' },
@@ -11,6 +19,7 @@ export const REFRESH_INTERVAL_OPTIONS = [
 
 const STORAGE_KEY = 'hotspot-refresh-interval';
 const DEFAULT_MINUTES = 30;
+const REFRESH_INTERVAL_SETTINGS_URL = '/api/settings/refresh-interval';
 
 function getInitialMinutes(): number {
   try {
@@ -35,11 +44,7 @@ export function useRefreshInterval() {
     }
     // 同步后端采集频率
     try {
-      await fetch('/api/settings/refresh-interval', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ minutes }),
-      });
+      await postJSON(REFRESH_INTERVAL_SETTINGS_URL, { minutes });
     } catch {
       // 静默失败 — 不影响本地设置
     }
@@ -51,9 +56,7 @@ export function useRefreshInterval() {
       if (localStorage.getItem(STORAGE_KEY)) return null;
     } catch {}
     try {
-      const resp = await fetch('/api/health');
-      if (!resp.ok) return null;
-      const data = await resp.json();
+      const data = await getHealth();
       const seconds = data?.collect_interval_seconds;
       if (typeof seconds !== 'number' || seconds <= 0) return null;
       const minutes = Math.ceil(seconds / 60);

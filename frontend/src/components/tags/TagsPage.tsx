@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
-import { getApiErrorMessage } from '../../lib/api';
+import { apiFetch, getJSON, postJSON } from '../../lib/api';
 
 interface TagItem {
   id: string;
@@ -43,12 +43,7 @@ export function TagsPage({ onBack }: { onBack?: () => void }) {
     try {
       const params = new URLSearchParams();
       if (typeFilter) params.set('type', typeFilter);
-      const r = await fetch(`/api/tags?${params}`);
-      if (!r.ok) {
-        setError(`标签加载失败 (${r.status})`);
-        return;
-      }
-      const d = await r.json();
+      const d = await getJSON<{ items?: TagItem[] }>(`/api/tags?${params}`);
       setTags(d.items ?? []);
     } catch {
       setError('标签加载失败: 网络或后端不可达');
@@ -64,23 +59,15 @@ export function TagsPage({ onBack }: { onBack?: () => void }) {
     setCreating(true);
     setMsg(null);
     try {
-      const r = await fetch('/api/tags', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: newId.trim(), label: newLabel.trim(), type: newType }),
-      });
-      if (!r.ok) {
-        const body = await r.json().catch(() => null);
-        const errMsg = getApiErrorMessage(body);
-        setMsg({ kind: 'err', text: `创建失败 (${r.status})${errMsg ? `: ${errMsg}` : ''}` });
-        return;
-      }
+      await postJSON('/api/tags', { id: newId.trim(), label: newLabel.trim(), type: newType });
       setMsg({ kind: 'ok', text: `已创建 ${newLabel.trim()}` });
       setNewId('');
       setNewLabel('');
       await load();
-    } catch {
-      setMsg({ kind: 'err', text: '创建失败: 网络或后端不可达' });
+    } catch (e: any) {
+      // apiFetch 非 ok 抛错, message 经 getApiErrorMessage 提取 (原实现拼接 HTTP 状态)
+      const errMsg = e?.message || '';
+      setMsg({ kind: 'err', text: errMsg ? `创建失败: ${errMsg}` : '创建失败: 网络或后端不可达' });
     } finally {
       setCreating(false);
     }
@@ -90,11 +77,7 @@ export function TagsPage({ onBack }: { onBack?: () => void }) {
     if (!window.confirm(`删除标签「${tag.label}」(${tag.id})?`)) return;
     setMsg(null);
     try {
-      const r = await fetch(`/api/tags/${encodeURIComponent(tag.id)}`, { method: 'DELETE' });
-      if (!r.ok) {
-        setMsg({ kind: 'err', text: `删除失败 (${r.status})` });
-        return;
-      }
+      await apiFetch(`/api/tags/${encodeURIComponent(tag.id)}`, { method: 'DELETE' });
       setMsg({ kind: 'ok', text: `已删除 ${tag.label}` });
       await load();
     } catch {
@@ -108,10 +91,9 @@ export function TagsPage({ onBack }: { onBack?: () => void }) {
     const q = suggest.trim();
     if (!q) { setSuggestions([]); return; }
     let cancelled = false;
-    fetch(`/api/tags/suggest?q=${encodeURIComponent(q)}`)
-      .then(r => r.ok ? r.json() : { items: [] })
-      .then(d => { if (!cancelled) setSuggestions(d.items ?? []); })
-      .catch(() => {});
+    getJSON<{ items?: TagItem[] }>(`/api/tags/suggest?q=${encodeURIComponent(q)}`)
+      .catch(() => ({ items: [] as TagItem[] }))
+      .then(d => { if (!cancelled) setSuggestions(d?.items ?? []); });
     return () => { cancelled = true; };
   }, [suggest]);
 

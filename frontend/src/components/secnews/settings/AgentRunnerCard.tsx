@@ -5,6 +5,7 @@
  * 数据源: GET /api/agents/available · POST /api/agents/run
  */
 import { useCallback, useEffect, useState } from 'react';
+import { ApiError, getJSON, postJSON } from '../../../lib/api';
 import { useI18n } from '../../../contexts/I18nContext';
 
 interface AgentInfo {
@@ -40,17 +41,14 @@ export function AgentRunnerCard() {
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch('/api/agents/available');
-      if (!r.ok) {
-        setLoadError(`${t('runner.load_failed')} (${r.status})`);
-        return;
-      }
-      const d = await r.json();
+      const d = await getJSON<{ agents?: AgentInfo[]; default_agent?: string }>('/api/agents/available');
       setAgents(d.agents ?? []);
       setDefaultAgent(d.default_agent ?? 'builtin');
       setAgent(prev => prev || d.default_agent || 'builtin');
-    } catch {
-      setLoadError(t('runner.load_failed_network'));
+    } catch (e) {
+      setLoadError(e instanceof ApiError
+        ? `${t('runner.load_failed')} (${e.status})`
+        : t('runner.load_failed_network'));
     }
   }, [t]);
 
@@ -61,23 +59,21 @@ export function AgentRunnerCard() {
     setRunning(true);
     setResult(null);
     try {
-      const r = await fetch('/api/agents/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          task_type: taskType.trim(),
-          input: input,
-          preferred_agent: agent || null,
-          workspace: workspace.trim() || null,
-        }),
+      const d = await postJSON<RunResult>('/api/agents/run', {
+        task_type: taskType.trim(),
+        input: input,
+        preferred_agent: agent || null,
+        workspace: workspace.trim() || null,
       });
-      if (!r.ok) {
-        setResult({ ok: false, agent: null, error: `${t('runner.execute_failed')} (${r.status})` });
-        return;
-      }
-      setResult(await r.json());
-    } catch {
-      setResult({ ok: false, agent: null, error: t('runner.execute_failed_network') });
+      setResult(d);
+    } catch (e) {
+      setResult({
+        ok: false,
+        agent: null,
+        error: e instanceof ApiError
+          ? `${t('runner.execute_failed')} (${e.status})`
+          : t('runner.execute_failed_network'),
+      });
     } finally {
       setRunning(false);
     }

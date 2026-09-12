@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { SkillConfig, SecretItem } from '../types';
+import { apiFetch } from '../lib/api';
+import { listKnowledgeSkills } from '../api/knowledge';
 import { Icon } from './Icon';
 
 interface SkillConfigDialogProps {
@@ -60,14 +62,8 @@ export function SkillConfigDialog({ skill_id, onClose, onSaved }: SkillConfigDia
     setToast(null);
 
     Promise.all([
-      fetch('/api/knowledge/skills').then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      }),
-      fetch('/api/secrets').then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      }),
+      listKnowledgeSkills(),
+      apiFetch<{ items?: SecretItem[] }>('/api/secrets'),
     ])
       .then(([skillsData, secretsData]) => {
         const found: SkillConfig | undefined = (skillsData.skills || []).find(
@@ -106,15 +102,10 @@ export function SkillConfigDialog({ skill_id, onClose, onSaved }: SkillConfigDia
       model_override: modelOverride.trim() || null,
       enabled,
     };
-    fetch(`/api/knowledge/skills/${skill_id}`, {
+    apiFetch(`/api/knowledge/skills/${skill_id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
       .then(() => {
         showToast('ok', '已保存');
         onSaved?.();

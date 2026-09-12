@@ -9,6 +9,7 @@
  *       sample_rate → range slider, 其余 → st-input text
  */
 import { useState, useCallback } from 'react';
+import { apiFetch, getJSON } from '../../../lib/api';
 
 export interface QualityRule {
   key: string;
@@ -45,16 +46,13 @@ export function QualityRulesPanel({ initialRules }: QualityRulesPanelProps) {
         setSaving(false);
         return;
       }
-      const r = await fetch('/api/quality/rules', {
+      const d = await apiFetch<{ status?: string; updated?: string[]; message?: string }>('/api/quality/rules', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rules: changed }),
       });
-      const d = await r.json();
-      if (r.ok && d.status === 'ok') {
+      if (d.status === 'ok') {
         setMsg({ type: 'ok', text: `已更新: ${d.updated?.join(', ') || 'OK'}` });
-        const r2 = await fetch('/api/quality/rules');
-        const d2 = await r2.json();
+        const d2 = await getJSON<{ rules?: QualityRule[] }>('/api/quality/rules');
         const refreshed = (d2.rules || []) as QualityRule[];
         setRules(refreshed);
         const init: Record<string, any> = {};

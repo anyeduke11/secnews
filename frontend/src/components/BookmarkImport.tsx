@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import type { BookmarkImportResult } from '../types';
-import { getApiErrorMessage } from '../lib/api';
+import { apiFetch } from '../lib/api';
 
 interface BookmarkImportProps {
   onImported?: () => void;
@@ -60,16 +60,10 @@ export function BookmarkImport({ onImported }: BookmarkImportProps) {
     setBusy(true);
     const url = new URL('/api/knowledge/bookmarks/import', window.location.origin);
     url.searchParams.set('validate', validate ? 'true' : 'false');
-    fetch(url.toString(), {
+    apiFetch<BookmarkImportResult>(url.toString(), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-      .then(async r => {
-        const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(getApiErrorMessage(data) || `HTTP ${r.status}`);
-        return data as BookmarkImportResult;
-      })
       .then(result => {
         const parts: string[] = [`导入 ${result.imported ?? 0}`];
         if (result.skipped_duplicates) parts.push(`重复 ${result.skipped_duplicates}`);

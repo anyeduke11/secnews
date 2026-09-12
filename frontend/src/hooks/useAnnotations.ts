@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { getJSON, postJSON, apiFetch } from '../lib/api';
 
 /**
  * v1.7 Phase 2 — 笔记 CRUD Hook
@@ -12,7 +13,11 @@ import { useState, useCallback, useRef } from 'react';
  *
  * 按 entity (entity_type + entity_id) 加载笔记列表;
  * 提供 add / update / remove 操作, 操作后自动重载列表.
+ *
+ * 端点为单一 hook 专用 → 常量化于此, 走 lib/api 统一封装。
  */
+
+const ANNOTATIONS_URL = '/api/annotations';
 
 export interface Annotation {
   id: string;
@@ -58,11 +63,7 @@ export function useAnnotations(): UseAnnotationsReturn {
     setError(null);
     try {
       const params = new URLSearchParams({ entity_type: entityType, entity_id: entityId });
-      const r = await fetch(`/api/annotations?${params}`, {
-        headers: { Accept: 'application/json' },
-      });
-      if (!r.ok) throw new Error(`请求失败 (${r.status})`);
-      const data = await r.json();
+      const data = await getJSON<{ items?: Annotation[] }>(`${ANNOTATIONS_URL}?${params}`);
       // 仅当仍为当前 entity 时才更新 (避免竞态)
       if (
         currentEntityRef.current?.type === entityType &&
@@ -90,23 +91,14 @@ export function useAnnotations(): UseAnnotationsReturn {
       rangeStart?: number,
       rangeEnd?: number
     ): Promise<Annotation> => {
-      const r = await fetch('/api/annotations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({
-          entity_type: entityType,
-          entity_id: entityId,
-          content,
-          range_start: rangeStart ?? null,
-          range_end: rangeEnd ?? null,
-        }),
+      const data = await postJSON<{ item: Annotation }>(ANNOTATIONS_URL, {
+        entity_type: entityType,
+        entity_id: entityId,
+        content,
+        range_start: rangeStart ?? null,
+        range_end: rangeEnd ?? null,
       });
-      if (!r.ok) {
-        const errBody = await r.text().catch(() => '');
-        throw new Error(`新建笔记失败 (${r.status})${errBody ? `: ${errBody}` : ''}`);
-      }
-      const data = await r.json();
-      const item: Annotation = data.item;
+      const item = data.item;
       await reload();
       return item;
     },
@@ -123,17 +115,11 @@ export function useAnnotations(): UseAnnotationsReturn {
       const body: Record<string, unknown> = { content };
       if (rangeStart !== undefined) body.range_start = rangeStart;
       if (rangeEnd !== undefined) body.range_end = rangeEnd;
-      const r = await fetch(`/api/annotations/${encodeURIComponent(annotationId)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (!r.ok) {
-        const errBody = await r.text().catch(() => '');
-        throw new Error(`更新笔记失败 (${r.status})${errBody ? `: ${errBody}` : ''}`);
-      }
-      const data = await r.json();
-      const item: Annotation = data.item;
+      const data = await apiFetch<{ item: Annotation }>(
+        `${ANNOTATIONS_URL}/${encodeURIComponent(annotationId)}`,
+        { method: 'PUT', body: JSON.stringify(body) },
+      );
+      const item = data.item;
       await reload();
       return item;
     },
@@ -142,14 +128,9 @@ export function useAnnotations(): UseAnnotationsReturn {
 
   const remove = useCallback(
     async (annotationId: string): Promise<void> => {
-      const r = await fetch(`/api/annotations/${encodeURIComponent(annotationId)}`, {
+      await apiFetch<void>(`${ANNOTATIONS_URL}/${encodeURIComponent(annotationId)}`, {
         method: 'DELETE',
-        headers: { Accept: 'application/json' },
       });
-      if (!r.ok) {
-        const errBody = await r.text().catch(() => '');
-        throw new Error(`删除笔记失败 (${r.status})${errBody ? `: ${errBody}` : ''}`);
-      }
       await reload();
     },
     [reload]

@@ -6,6 +6,8 @@
  * 30s 自动刷新 (与 StatusBar 同频).
  */
 import { useEffect, useState } from 'react';
+import { getActiveAlerts } from '../../../api/secnews';
+import { apiFetch } from '../../../lib/api';
 
 interface AlertItem {
   id: number;
@@ -45,8 +47,9 @@ export function ActiveAlertsBanner() {
 
   const refresh = async () => {
     try {
-      const r = await fetch('/api/observability/alerts/active');
-      if (r.ok) setData(await r.json());
+      // 非 2xx 由 apiFetch 抛错 → 与原 `r.ok` 静默分支同效: 保持上次数据
+      const d = await getActiveAlerts<ActiveAlertsResp>();
+      setData(d);
     } catch { /* 静默降级 */ }
   };
 
@@ -63,8 +66,7 @@ export function ActiveAlertsBanner() {
     setAckingId(id);
     setAckError(null);
     try {
-      const r = await fetch(`/api/observability/alerts/${id}/ack`, { method: 'POST' });
-      if (!r.ok) throw new Error(`ack failed: ${r.status}`);
+      await apiFetch(`/api/observability/alerts/${id}/ack`, { method: 'POST' });
       await refresh();
     } catch (e) {
       setAckError(e instanceof Error ? e.message : String(e));

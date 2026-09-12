@@ -9,7 +9,8 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '../Icon';
-import { getApiErrorMessage } from '../../lib/api';
+import { getJSON, postJSON } from '../../lib/api';
+import { getKnowledgeItem } from '../../api/knowledge';
 import { OnboardingHint } from '../layout/OnboardingHint';
 
 // ── 类型定义 ──────────────────────────────────────────────────
@@ -100,9 +101,7 @@ export function ReviewMode() {
     setCompleted(false);
 
     try {
-      const dueRes = await fetch('/api/reviews/due?limit=50');
-      if (!dueRes.ok) throw new Error(`请求失败 (${dueRes.status})`);
-      const dueData: DueResponse = await dueRes.json();
+      const dueData = await getJSON<DueResponse>('/api/reviews/due?limit=50');
       const items = dueData.items || [];
       setReviews(items);
 
@@ -112,14 +111,14 @@ export function ReviewMode() {
       }
 
       // 并行获取每条复习记录对应的知识条目详情
+      // Batch 5: /api/knowledge/items/{id} 收敛到 api/knowledge.getKnowledgeItem
+      // (失败兜底语义与原 `res.ok ? json : null` 一致: 失败条目跳过, 不阻断其余)
       const detailMap = new Map<string, KnowledgeDetail>();
       const results = await Promise.allSettled(
         items.map(r =>
-          fetch(`/api/knowledge/items/${encodeURIComponent(r.entity_id)}`)
-            .then(async res => {
-              if (!res.ok) return null;
-              return (await res.json()) as KnowledgeDetail;
-            })
+          getKnowledgeItem(r.entity_id)
+            .then(d => d as unknown as KnowledgeDetail)
+            .catch(() => null),
         ),
       );
       results.forEach((result) => {
@@ -147,19 +146,11 @@ export function ReviewMode() {
 
     setSubmitting(true);
     try {
-      const res = await fetch(
+      // 非 2xx 由 apiFetch 抛 ApiError, message 经 getApiErrorMessage 友好化
+      const data = await postJSON<GradeResponse>(
         `/api/reviews/${encodeURIComponent(review.entity_type)}/${encodeURIComponent(review.entity_id)}/grade`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ grade }),
-        },
+        { grade },
       );
-      if (!res.ok) {
-        const errData = await res.json().catch(() => null);
-        throw new Error(getApiErrorMessage(errData) || `评分提交失败 (${res.status})`);
-      }
-      const data: GradeResponse = await res.json();
       if (data.status !== 'ok') throw new Error('评分提交失败');
 
       // 记录评分

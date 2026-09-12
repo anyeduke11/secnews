@@ -19,6 +19,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSSE } from '../../hooks/useSSE';
+import { listHotspots } from '../../api/hotspots';
+import { getJSON } from '../../lib/api';
+import { getKnowledgeConceptDetail, getKnowledgeGraph, KnowledgeApiError } from '../../api/knowledge';
 import { SentinelShell, usePipeReloadOnSse } from './SentinelShell';
 import './sentinel.css';
 import './sentinel-graph.css';
@@ -222,15 +225,13 @@ export function SentinelGraphPage() {
     setError(null);
     try {
       const [g, c, h] = await Promise.all([
-        fetch('/api/knowledge/graph', { headers: { Accept: 'application/json' } })
-          .then(r => (r.ok ? (r.json() as Promise<GraphPayload>) : Promise.reject(new Error(`图谱请求失败 (${r.status})`)))),
-        fetch('/api/knowledge/concepts', { headers: { Accept: 'application/json' } })
-          .then(r => (r.ok ? (r.json() as Promise<{ concepts?: ConceptMeta[] }>) : { concepts: [] }))
+        // apiFetch 非 ok 抛错 (message 经 getApiErrorMessage 友好化; 原实现为「图谱请求失败 (status)」)
+        getKnowledgeGraph(),
+        getJSON<{ concepts?: ConceptMeta[] }>('/api/knowledge/concepts')
           .catch(() => ({ concepts: [] as ConceptMeta[] })),
         // 今日收录口径: 只取 total, 给心跳条用
-        fetch('/api/hotspots?category=all&time_range=24h&limit=1')
-          .then(r => (r.ok ? (r.json() as Promise<{ total?: number }>) : ({ total: undefined } as { total?: number })))
-          .catch(() => ({ total: undefined } as { total?: number })),
+        listHotspots({ category: 'all', time_range: '24h', limit: 1 })
+          .catch(() => null),
       ]);
       const nodes: GraphNode[] = Array.isArray(g?.nodes) ? g.nodes : [];
       const edges: GraphEdge[] = Array.isArray(g?.edges) ? g.edges : [];
@@ -238,7 +239,7 @@ export function SentinelGraphPage() {
       const map = new Map<string, ConceptMeta>();
       for (const row of (c.concepts ?? [])) map.set(row.slug, row);
       setMetaBySlug(map);
-      setIngested(typeof h.total === 'number' ? h.total : null);
+      setIngested(h && typeof h.total === 'number' ? h.total : null);
     } catch (e) {
       setError(e instanceof Error ? e.message : '图谱数据加载失败');
     } finally {
@@ -265,16 +266,17 @@ export function SentinelGraphPage() {
     setDetailError(null);
     const token = ++detailReq.current;
     try {
-      const r = await fetch(`/api/knowledge/concepts/${encodeURIComponent(node.id)}`, { headers: { Accept: 'application/json' } });
-      if (r.status === 404) {
-        if (token === detailReq.current) setDetailError('后端无该概念的详情');
-        return;
+      const data = await getKnowledgeConceptDetail(node.id);
+      if (token === detailReq.current) setDetail(data as unknown as ConceptDetail);
+    } catch (e) {
+      if (token === detailReq.current) {
+        // apiFetch 统一封装后 404 需经 KnowledgeApiError.status 判别 (原实现读 r.status)
+        if (e instanceof KnowledgeApiError && e.status === 404) {
+          setDetailError('后端无该概念的详情');
+        } else {
+          setDetailError('关联条目加载失败 — 稍后重试或回判读台查看该概念');
+        }
       }
-      if (!r.ok) throw new Error(String(r.status));
-      const data = await r.json();
-      if (token === detailReq.current) setDetail(data as ConceptDetail);
-    } catch {
-      if (token === detailReq.current) setDetailError('关联条目加载失败 — 稍后重试或回判读台查看该概念');
     }
   }, []);
 

@@ -5,6 +5,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch, getJSON } from '../../lib/api';
 
 export function SecretsStatusCard() {
   const navigate = useNavigate();
@@ -12,12 +13,10 @@ export function SecretsStatusCard() {
   const [items, setItems] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/secrets/status')
-      .then(r => r.json())
+    getJSON<{ setup?: boolean; unlocked?: boolean; remaining_seconds?: number; total?: number }>('/api/secrets/status')
       .then(d => setStatus(d))
       .catch(() => {});
-    fetch('/api/secrets?limit=5')
-      .then(r => r.json())
+    getJSON<{ items?: any[] }>('/api/secrets?limit=5')
       .then(d => setItems(d.items || []))
       .catch(() => {});
   }, []);
@@ -88,7 +87,7 @@ export function SecretsStatusCard() {
           </button>
           {status?.unlocked && (
             <button type="button" className="st-btn danger" onClick={async () => {
-              try { await fetch('/api/secrets/lock', { method: 'POST' }); } catch {}
+              try { await apiFetch('/api/secrets/lock', { method: 'POST' }); } catch {}
               window.location.reload();
             }} aria-label="立即锁定">
               立即锁定

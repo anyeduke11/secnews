@@ -9,6 +9,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../Icon';
+import { listAttentionEvents } from '../../api/knowledge';
 
 // ── 类型 ────────────────────────────────────────────────────
 
@@ -25,6 +26,9 @@ interface TooltipState {
   x: number;
   y: number;
 }
+
+/** GET /api/attention/events 响应: 裸数组或 {events|data} 包裹 */
+type AttentionEventsResponse = AttentionDataPoint[] | { events?: AttentionDataPoint[]; data?: AttentionDataPoint[] };
 
 // ── 常量 ────────────────────────────────────────────────────
 
@@ -100,11 +104,8 @@ export function AttentionHeatmap({ compact = false }: AttentionHeatmapProps) {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch('/api/attention/events?days=30')
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    // 非 2xx 由 apiFetch 抛错 → 降级展示空网格 (与原 `HTTP ${status}` 抛错同路径)
+    listAttentionEvents<AttentionEventsResponse>(30)
       .then(json => {
         const points: AttentionDataPoint[] = Array.isArray(json)
           ? json

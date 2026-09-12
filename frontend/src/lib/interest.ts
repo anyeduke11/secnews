@@ -5,6 +5,7 @@
  * 域归因在服务端写入时完成, 前端只传 item_id + signal_type。
  * 失败静默 — 埋点绝不阻塞用户交互。
  */
+import { apiFetch } from './api';
 
 export type InterestSignalType = 'view' | 'read' | 'dwell' | 'favorite';
 
@@ -23,11 +24,12 @@ export function trackInterest(
       const blob = new Blob([body], { type: 'application/json' });
       if (navigator.sendBeacon('/api/interest/signals', blob)) return;
     }
-    fetch('/api/interest/signals', {
+    // keepalive 透传 (ApiFetchOptions extends RequestInit); 埋点失败静默
+    apiFetch('/api/interest/signals', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body,
       keepalive: true,
+      skipLoading: true,
     }).catch(() => {});
   } catch {
     // 埋点失败静默 — 不影响用户交互

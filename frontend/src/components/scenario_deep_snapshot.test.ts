@@ -21,7 +21,9 @@ describe('v0.7.4-image scenario=deep 注入契约', () => {
       resolve(REPO, 'src/components/sentinel/SentinelJudgePage.tsx'),
       'utf-8',
     );
-    expect(src).toMatch(/JSON\.stringify\(\s*\{[^}]*scenario:\s*'deep'[^}]*\}\s*\)/);
+    // Batch 5 裸 fetch 清扫: 该调用改走 postJSON<...> (内部仍 JSON.stringify),
+    // 契约不变 — 断言 scenario: 'deep' 字面量仍在 evaluate 调用 body 对象里
+    expect(src).toMatch(/JSON\.stringify\(\s*\{[^}]*scenario:\s*'deep'[^}]*\}\s*\)|postJSON(<[^>]*>)?\(\s*'\/api\/llm\/evaluate'\s*,\s*\{[^}]*scenario:\s*'deep'[^}]*\}/);
   });
 
   it('SecNewsAnalyze evaluate 调用 body 含 scenario: \'deep\'', () => {
@@ -29,6 +31,8 @@ describe('v0.7.4-image scenario=deep 注入契约', () => {
       resolve(REPO, 'src/components/secnews/analyze/SecNewsAnalyze.tsx'),
       'utf-8',
     );
-    expect(src).toMatch(/JSON\.stringify\(\s*\{[^}]*scenario:\s*'deep'[^}]*\}\s*\)/);
+    // Batch 5 裸 fetch 清扫: 该调用改走 postJSON (内部仍 JSON.stringify),
+    // 契约不变 — 断言 scenario: 'deep' 字面量仍在 evaluate 调用 body 对象里
+    expect(src).toMatch(/JSON\.stringify\(\s*\{[^}]*scenario:\s*'deep'[^}]*\}\s*\)|postJSON\(\s*'\/api\/llm\/evaluate'\s*,\s*\{[^}]*scenario:\s*'deep'[^}]*\}/);
   });
 });

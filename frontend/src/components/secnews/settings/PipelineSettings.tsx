@@ -11,6 +11,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DshControlCard } from './DshControlCard';
 import { AgentRunnerCard } from './AgentRunnerCard';
+import { getSecNewsPipeline } from '../../../api/secnews';
+import { getSourceHealth } from '../../../api/sources';
+import { getJSON, ApiError } from '../../../lib/api';
 import { useI18n } from '../../../contexts/I18nContext';
 
 interface PipelineStats {
@@ -41,26 +44,23 @@ export function PipelineSettings() {
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const [pRes, lRes, sRes] = await Promise.all([
-        fetch('/api/secnews/pipeline'),
-        fetch('/api/llm/status'),
-        fetch('/api/sources/health'),
-      ]);
-      if (pRes.ok) setPipeline(await pRes.json());
-      if (lRes.ok) setLlm(await lRes.json());
-      if (sRes.ok) {
-        const s = await sRes.json();
-        setSources(s.sources || []);
-      }
-      if (!pRes.ok && !lRes.ok) {
-        setError(t('settings.load_failed'));
-      }
-    } catch {
+    // allSettled: 单个端点失败不再拖垮其余面板数据 (原 Promise.all + raw fetch 网络失败会整体丢弃)
+    const [p, l, s] = await Promise.allSettled([
+      getSecNewsPipeline<PipelineStats>(),
+      getJSON<LLMStatus>('/api/llm/status'),
+      getSourceHealth() as Promise<{ sources?: SourceHealth[] }>,
+    ]);
+    if (p.status === 'fulfilled') setPipeline(p.value);
+    if (l.status === 'fulfilled') setLlm(l.value);
+    if (s.status === 'fulfilled') setSources(s.value.sources || []);
+    // 区分网络失败 (非 ApiError, 原 catch 分支) 与后端非 ok (原 load_failed 分支)
+    const settled = [p, l, s];
+    if (settled.some(r => r.status === 'rejected' && !(r.reason instanceof ApiError))) {
       setError(t('settings.load_failed_network'));
-    } finally {
-      setLoading(false);
+    } else if (p.status === 'rejected' && l.status === 'rejected') {
+      setError(t('settings.load_failed'));
     }
+    setLoading(false);
   }, [t]);
 
   useEffect(() => { refresh(); }, [refresh]);

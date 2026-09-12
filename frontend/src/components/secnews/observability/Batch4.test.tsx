@@ -107,7 +107,7 @@ describe('ActiveAlertsBanner', () => {
 describe('ThresholdEditor', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn(async (url: string, init?: { method?: string }) => {
-      if (url.endsWith('/api/observability/thresholds') && (!init || init.method === 'GET')) {
+      if (url.endsWith('/api/observability/thresholds') && (!init?.method || init.method === 'GET')) {
         return new Response(JSON.stringify(thresholdsMock), { status: 200 });
       }
       if (init?.method === 'PUT') {
@@ -134,7 +134,7 @@ describe('ThresholdEditor', () => {
   it('saves thresholds via PUT and shows success message', async () => {
     let putCount = 0;
     vi.stubGlobal('fetch', vi.fn(async (url: string, init?: { method?: string }) => {
-      if (url.endsWith('/api/observability/thresholds') && (!init || init.method === 'GET')) {
+      if (url.endsWith('/api/observability/thresholds') && (!init?.method || init.method === 'GET')) {
         return new Response(JSON.stringify(thresholdsMock), { status: 200 });
       }
       if (init?.method === 'PUT') {

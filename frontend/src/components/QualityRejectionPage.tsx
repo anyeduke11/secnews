@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getJSON } from '../lib/api';
 import { LayerCard } from './layout/LayerCard';
 import { LayerTable, type LayerTableColumn } from './layout/LayerTable';
 import { LayerBadge } from './layout/LayerBadge';
@@ -42,13 +43,10 @@ export default function QualityRejectionPage() {
       params.set('page', String(page));
       params.set('page_size', String(pageSize));
 
-      const [logRes, statsRes] = await Promise.all([
-        fetch(`/api/quality/rejection-log?${params}`),
-        fetch(`/api/quality/rejection-stats?${params}`),
+      const [logData, statsData] = await Promise.all([
+        getJSON<{ items?: RejectionLogItem[]; total?: number }>(`/api/quality/rejection-log?${params}`),
+        getJSON<RejectionStats>(`/api/quality/rejection-stats?${params}`),
       ]);
-
-      const logData = await logRes.json();
-      const statsData = await statsRes.json();
 
       setItems(logData.items || []);
       setTotal(logData.total || 0);

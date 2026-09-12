@@ -5,13 +5,14 @@
  * 数据源: GET /api/knowledge/items · GET /api/knowledge/concepts
  */
 import { useEffect, useMemo, useState } from 'react';
+import { listKnowledgeConcepts, listKnowledgeItems } from '../../../api/knowledge';
 
 interface KnowledgeItem {
   id: string;
   title: string;
   source: string;
-  lifecycle: string;
-  topic?: string;
+  lifecycle?: string;
+  topic?: string | null;
   mastery?: number;
   concepts?: string[];
   ingested_at?: string;
@@ -32,9 +33,11 @@ export function WikiItemBrowser() {
 
   useEffect(() => {
     let cancelled = false;
+    // Batch 5: /api/knowledge/items + /api/knowledge/concepts 收敛到 api/knowledge 客户端
+    // (失败兜底语义与原 `r.ok ? r.json() : fallback` 一致)
     Promise.all([
-      fetch('/api/knowledge/items?limit=50').then(r => r.ok ? r.json() : { items: [] }),
-      fetch('/api/knowledge/concepts').then(r => r.ok ? r.json() : { concepts: [] }),
+      listKnowledgeItems({ limit: 50 }).catch(() => ({ items: [], total: 0 })),
+      listKnowledgeConcepts().catch(() => ({ concepts: [] })),
     ]).then(([kb, cs]) => {
       if (cancelled) return;
       setItems(kb.items || []);

@@ -6,9 +6,10 @@ import { KnowledgeFilters } from './KnowledgeFilters';
 
 describe('KnowledgeFilters', () => {
   beforeEach(() => {
-    // Mock fetch with sensible defaults
+    // Mock fetch with sensible defaults (apiFetch 统一封装依赖 Response.ok 语义)
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve({ topics: [] }),
       })
     ) as any;
@@ -61,6 +62,7 @@ describe('KnowledgeFilters', () => {
   it('topic select is enabled after topics loaded', async () => {
     (global.fetch as any) = vi.fn(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve({ topics: ['llm', 'agent'] }),
       })
     );

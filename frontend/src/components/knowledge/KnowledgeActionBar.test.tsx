@@ -25,8 +25,9 @@ vi.mock('react-router-dom', async () => {
 describe('KnowledgeActionBar', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
+    // apiFetch 成功路径会解析 resp.json(), mock 需提供 json()
     global.fetch = vi.fn(() =>
-      Promise.resolve({ ok: true, status: 200 } as Response)
+      Promise.resolve({ ok: true, status: 200, json: async () => ({}) } as Response)
     );
   });
 

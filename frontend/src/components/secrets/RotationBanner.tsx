@@ -7,6 +7,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useI18n } from '../../contexts/I18nContext';
+import { getJSON } from '../../lib/api';
 
 interface RotationStatus {
   setup: boolean;
@@ -24,9 +25,8 @@ export function RotationBanner() {
     let cancelled = false;
     const fetchStatus = async () => {
       try {
-        const r = await fetch('/api/secrets/rotation-status');
-        if (!r.ok) return;
-        const d: RotationStatus = await r.json();
+        // apiFetch 非 ok 抛错 → catch 静默 (对应原 if (!r.ok) return)
+        const d = await getJSON<RotationStatus>('/api/secrets/rotation-status');
         if (!cancelled) setStatus(d);
       } catch { /* silent */ }
     };

@@ -9,6 +9,8 @@ import {
   LIFECYCLE_LABELS,
 } from '../../types/codegarden';
 import { Icon } from '../Icon';
+import { knowledgeItemPath } from '../../api/knowledge';
+import { getJSON } from '../../lib/api';
 import { UpstreamStatus } from './UpstreamStatus';
 
 interface ProjectDetailProps {
@@ -36,9 +38,12 @@ export function ProjectDetail({ project, onClose, onTransition, onSync }: Projec
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    // 本组件专用端点 (常量化); 非 2xx 由 apiFetch 抛错 → 走 catch toast
+    const activitiesUrl = `/api/codegarden/projects/${project.id}/activities`;
+    const timelineUrl = `/api/codegarden/projects/${project.id}/timeline`;
     Promise.all([
-      fetch(`/api/codegarden/projects/${project.id}/activities`).then(r => r.json()),
-      fetch(`/api/codegarden/projects/${project.id}/timeline`).then(r => r.json()),
+      getJSON<{ activities?: CgProjectActivity[] }>(activitiesUrl),
+      getJSON<{ stages?: CgProjectStage[] }>(timelineUrl),
     ])
       .then(([a, s]) => {
         if (cancelled) return;
@@ -121,7 +126,7 @@ export function ProjectDetail({ project, onClose, onTransition, onSync }: Projec
           {project.local_path && <Field label="local_path" value={project.local_path} />}
           {project.source_item_id && (
             <Field label="源资讯" value={
-              <a href={`/api/knowledge/items/${project.source_item_id}`} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: 'var(--color-ai)' }}>
+              <a href={knowledgeItemPath(project.source_item_id)} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: 'var(--color-ai)' }}>
                 {project.source_item_id.slice(0, 8)}…
               </a>
             } />

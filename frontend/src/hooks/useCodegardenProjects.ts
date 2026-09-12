@@ -2,17 +2,28 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   CgProject,
-  CgProjectListResponse,
   CgProjectCreateRequest,
   CgProjectUpdateRequest,
   GithubImportRequest,
   FromKnowledgeRequest,
   CandidateItem,
-  CandidatesResponse,
   LifecycleStage,
   ProjectSourceType,
   ProjectType,
 } from '../types/codegarden';
+import {
+  listProjects,
+  createProject,
+  updateProject,
+  deleteProject,
+  archiveProject,
+  restoreProject,
+  transitionProject,
+  syncProjectUpstream,
+  importFromGithub as apiImportFromGithub,
+  importFromKnowledge as apiImportFromKnowledge,
+  listCandidates as apiListCandidates,
+} from '../api/codegarden';
 
 export interface UseCodegardenProjectsReturn {
   items: CgProject[];
@@ -65,18 +76,16 @@ export function useCodegardenProjects(): UseCodegardenProjectsReturn {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ limit: '200' });
-      if (lifecycle !== 'all') params.set('lifecycle_stage', lifecycle);
-      if (sourceType !== 'all') params.set('source_type', sourceType);
-      if (projectType !== 'all') params.set('type', projectType);
-      if (keyword.trim()) params.set('keyword', keyword.trim());
-
-      const r = await fetch(`/api/codegarden/projects?${params}`, {
-        signal: ctrl.signal,
-        headers: { Accept: 'application/json' },
-      });
-      if (!r.ok) throw new Error(`请求失败 (${r.status})`);
-      const data: CgProjectListResponse = await r.json();
+      const data = await listProjects(
+        {
+          limit: 200,
+          lifecycle_stage: lifecycle !== 'all' ? lifecycle : undefined,
+          source_type: sourceType !== 'all' ? sourceType : undefined,
+          type: projectType !== 'all' ? projectType : undefined,
+          keyword: keyword.trim() || undefined,
+        },
+        { signal: ctrl.signal },
+      );
       setItems(data.items || []);
       setTotal(data.total || 0);
     } catch (e: any) {
@@ -103,115 +112,57 @@ export function useCodegardenProjects(): UseCodegardenProjectsReturn {
   }, [fetchList]);
 
   const create = useCallback(async (req: CgProjectCreateRequest): Promise<CgProject> => {
-    const r = await fetch('/api/codegarden/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(req),
-    });
-    if (!r.ok) {
-      const body = await r.text().catch(() => '');
-      throw new Error(`新建失败 (${r.status})${body ? `: ${body}` : ''}`);
-    }
-    const item: CgProject = await r.json();
+    const item: CgProject = await createProject(req);
     setItems(prev => [item, ...prev]);
     setTotal(prev => prev + 1);
     return item;
   }, []);
 
   const update = useCallback(async (id: string, req: CgProjectUpdateRequest): Promise<CgProject> => {
-    const r = await fetch(`/api/codegarden/projects/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(req),
-    });
-    if (!r.ok) {
-      const body = await r.text().catch(() => '');
-      throw new Error(`更新失败 (${r.status})${body ? `: ${body}` : ''}`);
-    }
-    const item: CgProject = await r.json();
+    const item: CgProject = await updateProject(id, req);
     setItems(prev => prev.map(p => (p.id === id ? item : p)));
     return item;
   }, []);
 
   const remove = useCallback(async (id: string): Promise<void> => {
-    const r = await fetch(`/api/codegarden/projects/${id}`, { method: 'DELETE' });
-    if (!r.ok && r.status !== 204) throw new Error(`删除失败 (${r.status})`);
+    await deleteProject(id);
     setItems(prev => prev.filter(p => p.id !== id));
     setTotal(prev => Math.max(0, prev - 1));
   }, []);
 
   const archive = useCallback(async (id: string): Promise<CgProject> => {
-    const r = await fetch(`/api/codegarden/projects/${id}/archive`, { method: 'POST' });
-    if (!r.ok) throw new Error(`归档失败 (${r.status})`);
-    const item: CgProject = await r.json();
+    const item: CgProject = await archiveProject(id);
     setItems(prev => prev.map(p => (p.id === id ? item : p)));
     return item;
   }, []);
 
   const restore = useCallback(async (id: string): Promise<CgProject> => {
-    const r = await fetch(`/api/codegarden/projects/${id}/restore`, { method: 'POST' });
-    if (!r.ok) throw new Error(`恢复失败 (${r.status})`);
-    const item: CgProject = await r.json();
+    const item: CgProject = await restoreProject(id);
     setItems(prev => prev.map(p => (p.id === id ? item : p)));
     return item;
   }, []);
 
   const transition = useCallback(async (id: string, to: LifecycleStage): Promise<CgProject> => {
-    const r = await fetch(`/api/codegarden/projects/${id}/lifecycle`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to }),
-    });
-    if (!r.ok) {
-      const body = await r.text().catch(() => '');
-      throw new Error(`状态切换失败 (${r.status})${body ? `: ${body}` : ''}`);
-    }
-    const item: CgProject = await r.json();
+    const item: CgProject = await transitionProject(id, to);
     setItems(prev => prev.map(p => (p.id === id ? item : p)));
     return item;
   }, []);
 
   const syncUpstream = useCallback(async (id: string): Promise<{ task_id: number }> => {
-    const r = await fetch(`/api/codegarden/projects/${id}/sync`, { method: 'POST' });
-    if (r.status === 424) {
-      throw new Error('未配置 github_token，请到 Secrets 页面添加');
-    }
-    if (!r.ok) throw new Error(`触发同步失败 (${r.status})`);
-    const data = await r.json();
+    const data = await syncProjectUpstream(id);
     return { task_id: data.task_id };
   }, []);
 
   const importFromGithub = useCallback(async (req: GithubImportRequest): Promise<CgProject> => {
-    const r = await fetch('/api/codegarden/github/import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-    if (r.status === 424) {
-      throw new Error('未配置 github_token，请到 Secrets 页面添加');
-    }
-    if (!r.ok) {
-      const body = await r.text().catch(() => '');
-      throw new Error(`GitHub 导入失败 (${r.status})${body ? `: ${body}` : ''}`);
-    }
-    const item: CgProject = await r.json();
+    const item: CgProject = await apiImportFromGithub(req);
     setItems(prev => [item, ...prev]);
     setTotal(prev => prev + 1);
     return item;
   }, []);
 
   const importFromKnowledge = useCallback(async (req: FromKnowledgeRequest): Promise<CgProject> => {
-    const r = await fetch('/api/codegarden/from-knowledge', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-    if (!r.ok) {
-      const body = await r.text().catch(() => '');
-      throw new Error(`从知识库导入失败 (${r.status})${body ? `: ${body}` : ''}`);
-    }
     // 201 = 首次转化; 200 = 幂等 (已存在)
-    const item: CgProject = await r.json();
+    const item: CgProject = await apiImportFromKnowledge(req);
     setItems(prev => {
       const exists = prev.some(p => p.id === item.id);
       return exists ? prev.map(p => (p.id === item.id ? item : p)) : [item, ...prev];
@@ -221,9 +172,7 @@ export function useCodegardenProjects(): UseCodegardenProjectsReturn {
   }, []);
 
   const listCandidates = useCallback(async (): Promise<CandidateItem[]> => {
-    const r = await fetch('/api/codegarden/candidates');
-    if (!r.ok) throw new Error(`候选列表加载失败 (${r.status})`);
-    const data: CandidatesResponse = await r.json();
+    const data = await apiListCandidates();
     return data.items || [];
   }, []);
 

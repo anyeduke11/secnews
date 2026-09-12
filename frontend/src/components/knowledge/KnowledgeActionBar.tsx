@@ -22,6 +22,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
+import { apiFetch } from '../../lib/api';
 
 export interface ActionButton {
   key: string;
@@ -151,18 +152,18 @@ export function KnowledgeActionBar({ buttons = KNOWLEDGE_ACTION_BUTTONS, compact
     if (btn.apiEndpoint) {
       setBusyKey(btn.key);
       try {
-        const res = await fetch(btn.apiEndpoint, {
+        // 非 2xx 由 apiFetch 抛错 → 与原非 ok 分支同样以 toast 呈现
+        await apiFetch(btn.apiEndpoint, {
           method: btn.apiMethod ?? 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: btn.apiBody ? JSON.stringify(btn.apiBody) : undefined,
         });
         if (btn.showToast) {
-          setToast(res.ok ? `${btn.label} 已触发` : `${btn.label} 失败 (${res.status})`);
+          setToast(`${btn.label} 已触发`);
           setTimeout(() => setToast(null), 2500);
         }
       } catch (e) {
-        setToast(`${btn.label} 异常: ${(e as Error).message}`);
-        setTimeout(() => setToast(null), 3000);
+        setToast(`${btn.label} 失败: ${(e as Error).message}`);
+        setTimeout(() => setToast(null), 2500);
       } finally {
         setBusyKey(null);
       }

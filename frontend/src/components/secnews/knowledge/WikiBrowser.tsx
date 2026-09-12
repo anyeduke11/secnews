@@ -4,6 +4,7 @@
  * 展示知识库条目统计 + 生命周期分布 + Inbox 扫描入库 (S1-5)。
  */
 import { useState, useEffect, useCallback } from 'react';
+import { ApiError, getJSON } from '../../../lib/api';
 import { SecNewsHeader } from '../layout/SecNewsHeader';
 import { InboxScanner } from './InboxScanner';
 import { WikiItemBrowser } from './WikiItemBrowser';
@@ -25,15 +26,12 @@ export function WikiBrowser() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/secnews/knowledge');
-      if (!res.ok) {
-        setError(`${t('kb.stats_load_failed')} (${res.status})`);
-        return;
-      }
-      const data = await res.json();
+      const data = await getJSON<KnowledgeStats>('/api/secnews/knowledge');
       setStats(data);
-    } catch {
-      setError(t('kb.stats_load_failed_network'));
+    } catch (e) {
+      setError(e instanceof ApiError
+        ? `${t('kb.stats_load_failed')} (${e.status})`
+        : t('kb.stats_load_failed_network'));
     } finally {
       setLoading(false);
     }

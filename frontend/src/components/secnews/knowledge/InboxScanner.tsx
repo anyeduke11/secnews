@@ -5,7 +5,13 @@
  * 数据源: GET /api/kl/inbox/list · POST /api/kl/inbox/scan · GET /api/kl/quarantine/list
  */
 import { useCallback, useEffect, useState } from 'react';
+import { getJSON, postJSON } from '../../../lib/api';
 import { useI18n } from '../../../contexts/I18nContext';
+
+// 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
+const INBOX_LIST_URL = '/api/kl/inbox/list';
+const INBOX_SCAN_URL = '/api/kl/inbox/scan';
+const QUARANTINE_LIST_URL = '/api/kl/quarantine/list';
 
 interface FileEntry {
   name: string;
@@ -23,12 +29,13 @@ export function InboxScanner({ onScanned }: { onScanned?: () => void }) {
 
   const refresh = useCallback(async () => {
     try {
-      const [inRes, qRes] = await Promise.all([
-        fetch('/api/kl/inbox/list'),
-        fetch('/api/kl/quarantine/list'),
+      // allSettled + fulfilled 守卫: 与原 `res.ok` 静默分支同效 (失败保持上次值)
+      const [inRes, qRes] = await Promise.allSettled([
+        getJSON<{ files?: FileEntry[] }>(INBOX_LIST_URL),
+        getJSON<{ files?: FileEntry[] }>(QUARANTINE_LIST_URL),
       ]);
-      if (inRes.ok) setInbox((await inRes.json()).files ?? []);
-      if (qRes.ok) setQuarantine((await qRes.json()).files ?? []);
+      if (inRes.status === 'fulfilled') setInbox(inRes.value.files ?? []);
+      if (qRes.status === 'fulfilled') setQuarantine(qRes.value.files ?? []);
     } catch { /* silent */ }
   }, []);
 
@@ -38,14 +45,11 @@ export function InboxScanner({ onScanned }: { onScanned?: () => void }) {
     setScanning(true);
     setResult(null);
     try {
-      const res = await fetch('/api/kl/inbox/scan', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        setResult(data);
-        setQuarantine(data.quarantine_files ?? []);
-        setInbox([]);
-        onScanned?.();
-      }
+      const data = await postJSON<{ moved: number; quarantined: number; quarantine_files?: FileEntry[] }>(INBOX_SCAN_URL, undefined);
+      setResult(data);
+      setQuarantine(data.quarantine_files ?? []);
+      setInbox([]);
+      onScanned?.();
     } catch { /* silent */ } finally {
       setScanning(false);
     }

@@ -4,6 +4,7 @@
  * 自获取模式：调用 /api/kl/pipeline/stats 获取 ledger 数据。
  */
 import { useState, useEffect } from 'react';
+import { getKlPipelineStats } from '../../../api/secnews';
 import { SecNewsHeader } from '../layout/SecNewsHeader';
 
 interface LedgerRow {
@@ -22,12 +23,10 @@ export function TokenLedger() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/kl/pipeline/stats');
-      if (res.ok) {
-        const data = await res.json();
-        setLedger(data.ledger ?? []);
-      }
+      const data = await getKlPipelineStats<{ ledger?: LedgerRow[] }>();
+      setLedger(data.ledger ?? []);
     } catch {
+      // 原: 非 ok 静默保持 / 网络失败清空 — apiFetch 合并两路, 统一清空
       setLedger([]);
     } finally {
       setLoading(false);

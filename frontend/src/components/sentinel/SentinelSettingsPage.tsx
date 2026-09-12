@@ -28,6 +28,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getJSON } from '../../lib/api';
 import { usePipe } from './SentinelShell';
 import './sentinel.css';
 import './sentinel-settings.css';
@@ -280,15 +281,13 @@ export function SentinelSettingsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const get = (path: string) =>
-      fetch(path, { headers: { Accept: 'application/json' } })
-        .then(r => (r.ok ? r.json() : null))
-        .catch(() => null);
+    // apiFetch 非 ok / 网络失败抛错 → null (对应原 r.ok 分支检查 + .catch(() => null))
+    const get = (path: string) => getJSON<unknown>(path).catch(() => null);
     const [f, l, h, s] = await Promise.all([
-      get('/api/settings/features'),
-      get('/api/llm/status'),
-      get('/api/health'),
-      get('/api/secrets/status'),
+      get('/api/settings/features') as Promise<FeaturesPayload | null>,
+      get('/api/llm/status') as Promise<LlmStatus | null>,
+      get('/api/health') as Promise<HealthPayload | null>,
+      get('/api/secrets/status') as Promise<SecretsStatus | null>,
     ]);
     setFeatures(f); setLlm(l); setHealth(h); setSecrets(s);
     setOffline(f === null && l === null && h === null && s === null);

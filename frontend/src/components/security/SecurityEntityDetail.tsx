@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getJSON } from '../../lib/api';
 import { SecurityEntity } from '../../hooks/useSecurityGraph';
 
 interface DetailProps {
@@ -12,8 +13,10 @@ export function SecurityEntityDetail({ entity, onClose }: DetailProps) {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/security/entities/${encodeURIComponent(entity.id)}/related?depth=1`)
-      .then(r => r.json())
+    // 本组件专用端点 (常量化); 非 2xx / 网络失败均与原 catch 同效: 仅复位 loading
+    getJSON<{ nodes?: any[] }>(
+      `/api/security/entities/${encodeURIComponent(entity.id)}/related?depth=1`,
+    )
       .then(d => {
         setRelated(d.nodes || []);
         setLoading(false);

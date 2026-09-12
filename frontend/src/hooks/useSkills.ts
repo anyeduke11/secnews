@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getJSON, postJSON, apiFetch } from '../lib/api';
 import {
   SkillItem,
   SkillListResponse,
@@ -7,6 +8,19 @@ import {
   SkillCreateRequest,
   SkillUpdateRequest,
 } from '../types';
+
+/**
+ * Phase 41: Skill 管理 Hook
+ *
+ * 负责:
+ *  - 列表 (source / tag / keyword 过滤)
+ *  - count_by_source 统计
+ *  - CRUD: add / update / remove
+ *
+ * 端点为单一 hook 专用 → 常量化于此, 走 lib/api 统一封装。
+ */
+
+const SKILLS_URL = '/api/skills';
 
 export interface UseSkillsReturn {
   items: SkillItem[];
@@ -30,14 +44,6 @@ export interface UseSkillsReturn {
   remove: (id: number) => Promise<void>;
 }
 
-/**
- * Phase 41: Skill 管理 Hook
- *
- * 负责:
- *  - 列表 (source / tag / keyword 过滤)
- *  - count_by_source 统计
- *  - CRUD: add / update / remove
- */
 export function useSkills(): UseSkillsReturn {
   const [items, setItems] = useState<SkillItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -67,13 +73,9 @@ export function useSkills(): UseSkillsReturn {
         if (currentTag) params.set('tag', currentTag);
         if (currentKeyword.trim()) params.set('keyword', currentKeyword.trim());
 
-        const r = await fetch(`/api/skills?${params}`, {
+        const data: SkillListResponse = await getJSON<SkillListResponse>(`${SKILLS_URL}?${params}`, {
           signal: controller.signal,
-          headers: { Accept: 'application/json' },
         });
-        if (!r.ok) throw new Error(`请求失败 (${r.status})`);
-
-        const data: SkillListResponse = await r.json();
         setItems(data.items || []);
         setTotal(data.total || 0);
       } catch (e: any) {
@@ -90,11 +92,7 @@ export function useSkills(): UseSkillsReturn {
 
   const fetchCounts = useCallback(async () => {
     try {
-      const r = await fetch('/api/skills/count_by_source', {
-        headers: { Accept: 'application/json' },
-      });
-      if (!r.ok) return;
-      const data: SkillCountBySourceResponse = await r.json();
+      const data = await getJSON<SkillCountBySourceResponse>(`${SKILLS_URL}/count_by_source`);
       setCountsBySource(data.counts || {});
     } catch {
       // 静默
@@ -126,17 +124,8 @@ export function useSkills(): UseSkillsReturn {
 
   const add = useCallback(
     async (req: SkillCreateRequest): Promise<SkillItem> => {
-      const r = await fetch('/api/skills', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(req),
-      });
-      if (!r.ok) {
-        const errBody = await r.text().catch(() => '');
-        throw new Error(`新建失败 (${r.status})${errBody ? `: ${errBody}` : ''}`);
-      }
-      const data = await r.json();
-      const item: SkillItem = data.item;
+      const data = await postJSON<{ item: SkillItem }>(SKILLS_URL, req);
+      const item = data.item;
       setItems(prev => [item, ...prev]);
       setTotal(prev => prev + 1);
       await fetchCounts();
@@ -147,17 +136,11 @@ export function useSkills(): UseSkillsReturn {
 
   const update = useCallback(
     async (id: number, req: SkillUpdateRequest): Promise<SkillItem> => {
-      const r = await fetch(`/api/skills/${id}`, {
+      const data = await apiFetch<{ item: SkillItem }>(`${SKILLS_URL}/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(req),
       });
-      if (!r.ok) {
-        const errBody = await r.text().catch(() => '');
-        throw new Error(`更新失败 (${r.status})${errBody ? `: ${errBody}` : ''}`);
-      }
-      const data = await r.json();
-      const item: SkillItem = data.item;
+      const item = data.item;
       setItems(prev => prev.map(p => (p.id === id ? item : p)));
       await fetchCounts();
       return item;
@@ -167,10 +150,7 @@ export function useSkills(): UseSkillsReturn {
 
   const remove = useCallback(
     async (id: number): Promise<void> => {
-      const r = await fetch(`/api/skills/${id}`, { method: 'DELETE' });
-      if (!r.ok && r.status !== 204) {
-        throw new Error(`删除失败 (${r.status})`);
-      }
+      await apiFetch<void>(`${SKILLS_URL}/${id}`, { method: 'DELETE' });
       setItems(prev => prev.filter(p => p.id !== id));
       setTotal(prev => Math.max(0, prev - 1));
       await fetchCounts();

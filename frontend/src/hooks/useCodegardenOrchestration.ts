@@ -10,6 +10,16 @@ import {
   DepEntityType,
   DepType,
 } from '../types/codegarden';
+import {
+  listDependencies,
+  addDependency as apiAddDependency,
+  removeDependency as apiRemoveDependency,
+  analyzeDependencyImpact,
+  listEvents,
+  publishEvent as apiPublishEvent,
+  listPlaybooks,
+  runPlaybook as apiRunPlaybook,
+} from '../api/codegarden';
 
 export interface UseCodegardenOrchestrationReturn {
   dependencies: CgDependency[];
@@ -62,9 +72,7 @@ export function useCodegardenOrchestration(): UseCodegardenOrchestrationReturn {
   const refreshDeps = useCallback(async () => {
     setLoadingDeps(true);
     try {
-      const r = await fetch('/api/codegarden/dependencies?limit=500');
-      if (!r.ok) throw new Error(`请求失败 (${r.status})`);
-      const data = await r.json();
+      const data = await listDependencies(500);
       setDependencies(data.items || []);
     } catch (e: any) {
       setError(e?.message || '加载依赖失败');
@@ -79,12 +87,14 @@ export function useCodegardenOrchestration(): UseCodegardenOrchestrationReturn {
     abortRef.current = ctrl;
     setLoadingEvents(true);
     try {
-      const params = new URLSearchParams({ limit: '200' });
-      if (eventType !== 'all') params.set('event_type', eventType);
-      if (eventStatus !== 'all') params.set('status', eventStatus);
-      const r = await fetch(`/api/codegarden/events?${params}`, { signal: ctrl.signal });
-      if (!r.ok) throw new Error(`请求失败 (${r.status})`);
-      const data = await r.json();
+      const data = await listEvents(
+        {
+          limit: 200,
+          event_type: eventType !== 'all' ? eventType : undefined,
+          status: eventStatus !== 'all' ? eventStatus : undefined,
+        },
+        { signal: ctrl.signal },
+      );
       setEvents(data.items || []);
     } catch (e: any) {
       if (e?.name === 'AbortError') return;
@@ -97,9 +107,7 @@ export function useCodegardenOrchestration(): UseCodegardenOrchestrationReturn {
   const refreshPlaybooks = useCallback(async () => {
     setLoadingPlaybooks(true);
     try {
-      const r = await fetch('/api/codegarden/playbooks');
-      if (!r.ok) throw new Error(`请求失败 (${r.status})`);
-      const data = await r.json();
+      const data = await listPlaybooks();
       setPlaybooks(data.items || []);
     } catch (e: any) {
       setError(e?.message || '加载 Playbook 失败');
@@ -128,23 +136,13 @@ export function useCodegardenOrchestration(): UseCodegardenOrchestrationReturn {
     dep_type: DepType;
     metadata?: Record<string, unknown>;
   }): Promise<CgDependency> => {
-    const r = await fetch('/api/codegarden/dependencies', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-    if (!r.ok) {
-      const body = await r.text().catch(() => '');
-      throw new Error(`添加依赖失败 (${r.status})${body ? `: ${body}` : ''}`);
-    }
-    const item: CgDependency = await r.json();
+    const item: CgDependency = await apiAddDependency(req);
     setDependencies(prev => [item, ...prev]);
     return item;
   }, []);
 
   const removeDependency = useCallback(async (id: string): Promise<void> => {
-    const r = await fetch(`/api/codegarden/dependencies/${id}`, { method: 'DELETE' });
-    if (!r.ok && r.status !== 204) throw new Error(`删除依赖失败 (${r.status})`);
+    await apiRemoveDependency(id);
     setDependencies(prev => prev.filter(d => d.id !== id));
   }, []);
 
@@ -153,11 +151,7 @@ export function useCodegardenOrchestration(): UseCodegardenOrchestrationReturn {
     targetId: string,
     maxDepth = 5,
   ): Promise<CgDependency[]> => {
-    const r = await fetch(
-      `/api/codegarden/dependencies/impact?target_type=${targetType}&target_id=${targetId}&max_depth=${maxDepth}`,
-    );
-    if (!r.ok) throw new Error(`影响分析失败 (${r.status})`);
-    const data = await r.json();
+    const data = await analyzeDependencyImpact(targetType, targetId, maxDepth);
     return data.impacts || [];
   }, []);
 
@@ -167,25 +161,13 @@ export function useCodegardenOrchestration(): UseCodegardenOrchestrationReturn {
     source_id: string;
     payload?: Record<string, unknown>;
   }): Promise<CgEvent> => {
-    const r = await fetch('/api/codegarden/events', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-    if (!r.ok) throw new Error(`事件发布失败 (${r.status})`);
-    const item: CgEvent = await r.json();
+    const item: CgEvent = await apiPublishEvent(req);
     setEvents(prev => [item, ...prev]);
     return item;
   }, []);
 
   const runPlaybook = useCallback(async (name: string, params?: Record<string, unknown>): Promise<RunPlaybookResponse> => {
-    const r = await fetch(`/api/codegarden/playbooks/${encodeURIComponent(name)}/run`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ params: params || {} }),
-    });
-    if (!r.ok) throw new Error(`Playbook 执行失败 (${r.status})`);
-    return await r.json();
+    return await apiRunPlaybook(name, params);
   }, []);
 
   return {

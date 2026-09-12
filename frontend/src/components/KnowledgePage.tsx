@@ -12,6 +12,7 @@
  *  - /knowledge/compound → 知识复利 (KnowledgeCompound)
  */
 import { useEffect, useState } from 'react';
+import { getKnowledgeHealth } from '../api/knowledge';
 import { KnowledgeLayout } from './knowledge/KnowledgeLayout';
 import type { KnowledgeAreaKey } from './knowledge/KnowledgeTabs';
 
@@ -25,8 +26,7 @@ export function KnowledgePage(_props: KnowledgePageProps) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/knowledge/health')
-      .then(r => r.ok ? r.json() : null)
+    getKnowledgeHealth()
       .then(data => {
         if (cancelled || !data) return;
         // 健康度接口给的是 total_items, process 标签显示

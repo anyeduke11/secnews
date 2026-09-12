@@ -6,6 +6,7 @@
  * 按钮禁用并说明原因 (feature flag 由 /api/settings/features 派生)。
  */
 import { useState } from 'react';
+import { ApiError, postJSON } from '../../../lib/api';
 import { useFeatureFlags } from '../../../hooks/useFeatureFlags';
 
 interface ImportResult {
@@ -49,18 +50,12 @@ export function SecNewsAnalyze() {
     setImportResult(null);
     setImportError(null);
     try {
-      const r = await fetch('/api/kl/import/url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-      if (!r.ok) {
-        setImportError(`导入失败 (${r.status})`);
-        return;
-      }
-      setImportResult(await r.json());
-    } catch {
-      setImportError('导入失败: 网络或后端不可达');
+      const d = await postJSON<ImportResult>('/api/kl/import/url', { url: url.trim() });
+      setImportResult(d);
+    } catch (e) {
+      setImportError(e instanceof ApiError
+        ? `导入失败 (${e.status})`
+        : '导入失败: 网络或后端不可达');
     } finally {
       setImporting(false);
     }
@@ -76,32 +71,39 @@ export function SecNewsAnalyze() {
     try {
       // dsh gate 关闭时不发请求, 直接呈现禁用原因
       if (flags.dsh) {
-        const dshR = await fetch('/api/dsh/task', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ task_type: 'classify', payload: { content: analyzeInput } }),
-        });
-        if (!dshR.ok) {
-          setDshError(`dsh 研判失败 (${dshR.status})`);
-        } else {
-          setDshResult(await dshR.json());
+        try {
+          setDshResult(await postJSON<DshTaskResult>('/api/dsh/task', {
+            task_type: 'classify',
+            payload: { content: analyzeInput },
+          }));
+        } catch (e) {
+          if (e instanceof ApiError) {
+            // 非 ok → 呈现 dsh 失败, 继续走 LLM 单轨 (与原分支一致)
+            setDshError(`dsh 研判失败 (${e.status})`);
+          } else {
+            // 网络失败 → 与原 Promise 语义一致, 走外层统一 catch
+            throw e;
+          }
         }
       }
 
-      const evalR = await fetch('/api/llm/evaluate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: analyzeInput, scenario: 'deep' }),
-      });
-      if (!evalR.ok) {
-        setEvalError(`LLM 评测失败 (${evalR.status})`);
-      } else {
-        const d = await evalR.json();
-        if (d.ok === false) {
-          setEvalError(String(d.error || 'LLM 调用失败'));
-        } else {
-          setEvalResult(d);
+      let d: EvalResult & { ok?: boolean };
+      try {
+        d = await postJSON('/api/llm/evaluate', {
+          content: analyzeInput,
+          scenario: 'deep',
+        });
+      } catch (e) {
+        if (e instanceof ApiError) {
+          setEvalError(`LLM 评测失败 (${e.status})`);
+          return; // finally 仍会复位 analyzing
         }
+        throw e; // 网络失败 → 外层统一 '研判失败: 网络或后端不可达'
+      }
+      if (d.ok === false) {
+        setEvalError(String(d.error || 'LLM 调用失败'));
+      } else {
+        setEvalResult(d);
       }
     } catch {
       setEvalError('研判失败: 网络或后端不可达');

@@ -8,6 +8,7 @@
  * - Sentinel 5 disciplines: zero-neon / semantic-3-color / mono-data / mute-text / reduced-motion
  */
 import { useState, useEffect } from 'react';
+import { getJSON } from '../../lib/api';
 import '../settings/settings-shell.css';
 
 export function AboutSettings() {
@@ -19,8 +20,7 @@ export function AboutSettings() {
   } | null>(null);
 
   useEffect(() => {
-    fetch('/api/health')
-      .then(r => r.json())
+    getJSON<NonNullable<typeof health>>('/api/health')
       .then(d => setHealth(d))
       .catch(() => {});
   }, []);

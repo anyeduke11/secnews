@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { SkillConfig } from '../types';
+import { listKnowledgeSkills } from '../api/knowledge';
 import { SkillConfigDialog } from './SkillConfigDialog';
 
 const SKILL_NAMES: Record<string, string> = {
@@ -41,11 +42,7 @@ export function SkillEntryGrid() {
   const [configSkillId, setConfigSkillId] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch('/api/knowledge/skills')
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    listKnowledgeSkills()
       .then(data => {
         setSkills(data.skills || []);
         setLoading(false);
@@ -103,8 +100,7 @@ export function SkillEntryGrid() {
         skill_id={configSkillId}
         onClose={() => setConfigSkillId(null)}
         onSaved={() => {
-          fetch('/api/knowledge/skills')
-            .then(r => r.json())
+          listKnowledgeSkills()
             .then(data => setSkills(data.skills || []))
             .catch(() => {});
         }}

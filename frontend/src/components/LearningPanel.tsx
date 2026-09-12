@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { LearningPlan } from '../types';
+import { getJSON, postJSON } from '../lib/api';
 import { EmptyState } from './EmptyState';
 
 export function LearningPanel() {
@@ -21,11 +22,7 @@ export function LearningPanel() {
   const loadPlans = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetch('/api/knowledge/plans?status=active')
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    getJSON<{ plans?: LearningPlan[] }>('/api/knowledge/plans?status=active')
       .then(data => {
         setPlans(data.plans || []);
         setLoading(false);
@@ -56,15 +53,10 @@ export function LearningPanel() {
       setGenElapsed(Math.round((Date.now() - startTime) / 1000));
     }, 1000);
 
-    fetch('/api/knowledge/plans/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ domains: [] }),
-    })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    postJSON<{ task_id?: number; task?: { id?: number }; status?: string }>(
+      '/api/knowledge/plans/generate',
+      { domains: [] },
+    )
       .then(data => {
         const taskId = data?.task_id ?? data?.task?.id;
         if (!taskId) {
@@ -96,8 +88,7 @@ export function LearningPanel() {
         let polls = 0;
         genPollRef.current = setInterval(() => {
           polls++;
-          fetch(`/api/knowledge/tasks/${taskId}`)
-            .then(r => r.json())
+          getJSON<{ status?: string; error_message?: string }>(`/api/knowledge/tasks/${taskId}`)
             .then(task => {
               const status = task?.status;
               if (status === 'done') {

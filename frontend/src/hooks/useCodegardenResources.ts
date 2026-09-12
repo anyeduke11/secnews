@@ -2,12 +2,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   CgResource,
-  CgResourceListResponse,
   ResourceType,
   ResourceStatus,
   AllocatePortRequest,
   SaveEnvTemplateRequest,
 } from '../types/codegarden';
+import {
+  listResources,
+  allocatePort as apiAllocatePort,
+  releasePort as apiReleasePort,
+  saveEnvTemplate as apiSaveEnvTemplate,
+  loadEnvTemplate,
+  deleteResource,
+} from '../api/codegarden';
 
 export interface UseCodegardenResourcesReturn {
   items: CgResource[];
@@ -44,16 +51,14 @@ export function useCodegardenResources(): UseCodegardenResourcesReturn {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ limit: '500' });
-      if (resourceType !== 'all') params.set('type', resourceType);
-      if (resourceStatus !== 'all') params.set('status', resourceStatus);
-
-      const r = await fetch(`/api/codegarden/resources?${params}`, {
-        signal: ctrl.signal,
-        headers: { Accept: 'application/json' },
-      });
-      if (!r.ok) throw new Error(`请求失败 (${r.status})`);
-      const data: CgResourceListResponse = await r.json();
+      const data = await listResources(
+        {
+          limit: 500,
+          type: resourceType !== 'all' ? resourceType : undefined,
+          status: resourceStatus !== 'all' ? resourceStatus : undefined,
+        },
+        { signal: ctrl.signal },
+      );
       setItems(data.items || []);
       setTotal(data.total || 0);
     } catch (e: any) {
@@ -78,48 +83,27 @@ export function useCodegardenResources(): UseCodegardenResourcesReturn {
   const refresh = useCallback(async () => { await fetchList(); }, [fetchList]);
 
   const allocatePort = useCallback(async (req: AllocatePortRequest): Promise<CgResource> => {
-    const r = await fetch('/api/codegarden/resources/allocate-port', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-    if (!r.ok) {
-      const body = await r.text().catch(() => '');
-      throw new Error(`端口分配失败 (${r.status})${body ? `: ${body}` : ''}`);
-    }
-    const item: CgResource = await r.json();
+    const item: CgResource = await apiAllocatePort(req);
     await fetchList();
     return item;
   }, [fetchList]);
 
   const releasePort = useCallback(async (port: number): Promise<void> => {
-    const r = await fetch(`/api/codegarden/resources/release-port?port=${port}`, { method: 'POST' });
-    if (!r.ok) {
-      const body = await r.text().catch(() => '');
-      throw new Error(`端口释放失败 (${r.status})${body ? `: ${body}` : ''}`);
-    }
+    await apiReleasePort(port);
     await fetchList();
   }, [fetchList]);
 
   const saveEnvTemplate = useCallback(async (req: SaveEnvTemplateRequest): Promise<void> => {
-    const r = await fetch('/api/codegarden/resources/env-templates', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-    if (!r.ok) throw new Error(`环境模板保存失败 (${r.status})`);
+    await apiSaveEnvTemplate(req);
   }, []);
 
-  const loadEnvTemplate = useCallback(async (name: string): Promise<Record<string, unknown>> => {
-    const r = await fetch(`/api/codegarden/resources/env-templates?name=${encodeURIComponent(name)}`);
-    if (!r.ok) throw new Error(`环境模板加载失败 (${r.status})`);
-    const data = await r.json();
+  const loadEnvTemplateByName = useCallback(async (name: string): Promise<Record<string, unknown>> => {
+    const data = await loadEnvTemplate(name);
     return data.env_vars || {};
   }, []);
 
   const remove = useCallback(async (id: string): Promise<void> => {
-    const r = await fetch(`/api/codegarden/resources/${id}`, { method: 'DELETE' });
-    if (!r.ok && r.status !== 204) throw new Error(`删除失败 (${r.status})`);
+    await deleteResource(id);
     setItems(prev => prev.filter(p => p.id !== id));
     setTotal(prev => Math.max(0, prev - 1));
   }, []);
@@ -129,6 +113,6 @@ export function useCodegardenResources(): UseCodegardenResourcesReturn {
     resourceType, resourceStatus,
     setResourceType, setResourceStatus,
     refresh, allocatePort, releasePort,
-    saveEnvTemplate, loadEnvTemplate, remove,
+    saveEnvTemplate, loadEnvTemplate: loadEnvTemplateByName, remove,
   };
 }

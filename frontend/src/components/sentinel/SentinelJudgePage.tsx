@@ -13,6 +13,8 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSSE } from '../../hooks/useSSE';
+import { listHotspots } from '../../api/hotspots';
+import { getJSON, postJSON } from '../../lib/api';
 import { CATEGORIES, HotspotItem } from '../../types';
 import { SentinelShell, usePipeReloadOnSse } from './SentinelShell';
 import { CaseQueuePanel } from '../v1/panels/CaseQueuePanel';
@@ -160,16 +162,15 @@ export function SentinelJudgePage() {
     }
     setEvalMap(m => ({ ...m, [item.id]: { busy: true } }));
     try {
-      const r = await fetch('/api/llm/evaluate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ content, title: item.title, scenario: 'deep' }),
-      });
-      if (!r.ok) {
-        setEvalMap(m => ({ ...m, [item.id]: { error: `评测失败 (${r.status})` } }));
-        return;
-      }
-      const d = await r.json();
+      // apiFetch 非 ok 抛错 → catch 显式报错 (message 为后端 detail; 原实现拼接 HTTP 状态)
+      const d = await postJSON<{
+        ok?: boolean;
+        error?: unknown;
+        quality_score?: number;
+        verdict?: string;
+        key_points?: string[];
+        provider?: string;
+      }>('/api/llm/evaluate', { content, title: item.title, scenario: 'deep' });
       // 后端严格模式: 失败返回 ok=False + error, 不静默降级 —— 原样呈现
       if (d.ok === false) {
         setEvalMap(m => ({ ...m, [item.id]: { error: String(d.error || 'LLM 调用失败') } }));
@@ -197,23 +198,21 @@ export function SentinelJudgePage() {
     setLoading(true);
     try {
       const [hp, tr, qs, ki] = await Promise.all([
-        fetch('/api/hotspots?category=all&time_range=24h&limit=15').then(r => r.ok ? r.json() : { items: [], total: 0 }),
-        fetch('/api/trends?hours=168').then(r => r.ok ? r.json() : { trends: [] }).catch(() => ({ trends: [] })),
-        fetch('/api/quality/summary').then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch('/api/kl/compounding')
-          .then(r => (r.ok
-            ? r.json()
-            : { stage_distribution: {} }) as Promise<{ stage_distribution?: Record<string, number> }>)
+        listHotspots({ category: 'all', time_range: '24h', limit: 15 }).catch(() => null),
+        // apiFetch 非 ok / 网络失败抛错 → 失败的一路置兜底值 (对应原 r.ok 分支检查 + .catch)
+        getJSON<{ trends?: TrendPoint[] }>('/api/trends?hours=168').catch(() => ({ trends: [] as TrendPoint[] })),
+        getJSON<{ summary?: Record<string, QualityGateStat> } | null>('/api/quality/summary').catch(() => null),
+        getJSON<{ stage_distribution?: Record<string, number> }>('/api/kl/compounding')
           .catch(() => ({ stage_distribution: {} })),
       ]);
       // 队列按评分降序 (判读优先级 = 信号强度)
-      setItems([...(hp.items || [])].sort((a, b) => (b.score ?? b.quality_score ?? 0) - (a.score ?? a.quality_score ?? 0)));
+      setItems([...(hp?.items || [])].sort((a, b) => (b.score ?? b.quality_score ?? 0) - (a.score ?? a.quality_score ?? 0)));
       setTrends(tr.trends || []);
       setQuality(qs?.summary ?? null);
       // stage_distribution = 服务端 GROUP BY lifecycle 的全量聚合 (非样本)
       const dist = (ki && ki.stage_distribution) || {};
       setKnowledge(dist);
-      setSettled({ ingested: hp.total ?? 0, rejected: 0 });
+      setSettled({ ingested: hp?.total ?? 0, rejected: 0 });
     } finally {
       setLoading(false);
     }
@@ -306,18 +305,14 @@ export function SentinelJudgePage() {
     if (archiving[item.id] || archived[item.id] === 'ok') return;
     setArchiving(prev => ({ ...prev, [item.id]: true }));
     try {
-      const r = await fetch('/api/favorites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          hotspot_id: item.id,
-          category: item.category,
-          title: item.title,
-          source: item.source,
-          url: item.url,
-        }),
+      await postJSON('/api/favorites', {
+        hotspot_id: item.id,
+        category: item.category,
+        title: item.title,
+        source: item.source,
+        url: item.url,
       });
-      setArchived(prev => ({ ...prev, [item.id]: r.ok ? 'ok' : 'fail' }));
+      setArchived(prev => ({ ...prev, [item.id]: 'ok' }));
     } catch {
       setArchived(prev => ({ ...prev, [item.id]: 'fail' }));
     } finally {

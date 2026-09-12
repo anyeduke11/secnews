@@ -1,4 +1,11 @@
 import { useCallback } from 'react';
+import { getJSON } from '../lib/api';
+
+/**
+ * CVE → ATT&CK 技术映射 Hook — 端点为单一 hook 专用 → 常量化于此。
+ */
+
+const CVE_ATTACK_MAPPING_URL = '/api/cve/attack-mapping';
 
 export interface AttackTechnique {
   technique_id: string;
@@ -16,9 +23,9 @@ export interface AttackMappingResult {
 export function useAttackMapping() {
   const fetchMapping = useCallback(async (cveIds: string[]): Promise<AttackMappingResult> => {
     if (!cveIds.length) return { techniques: [], total_cves: 0, matched_cves: 0 };
-    const res = await fetch(`/api/cve/attack-mapping?cve_ids=${encodeURIComponent(cveIds.join(','))}`);
-    if (!res.ok) throw new Error('Failed to fetch attack mapping');
-    return res.json();
+    return getJSON<AttackMappingResult>(
+      `${CVE_ATTACK_MAPPING_URL}?cve_ids=${encodeURIComponent(cveIds.join(','))}`,
+    );
   }, []);
 
   return { fetchMapping };

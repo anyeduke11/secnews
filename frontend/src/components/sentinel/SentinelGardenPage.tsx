@@ -36,6 +36,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSSE } from '../../hooks/useSSE';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
+import { listHotspots } from '../../api/hotspots';
+import { fetchCodegardenPanel, type CgPanel } from '../../api/codegarden';
 import { SentinelShell, usePipeReloadOnSse } from './SentinelShell';
 import './sentinel.css';
 import './sentinel-garden.css';
@@ -115,11 +117,7 @@ interface CgDependency {
   dep_type: string;
 }
 
-type Panel<T> =
-  | { state: 'loading' }
-  | { state: 'absent'; status: number }
-  | { state: 'failed' }
-  | { state: 'ready'; data: T };
+type Panel<T> = CgPanel<T>;
 
 /* ===================== 常量词表 (来自后端枚举, 不自造) ===================== */
 
@@ -215,15 +213,8 @@ function hhmm(iso?: string | null): string {
 }
 
 async function getPanel<T>(url: string): Promise<Panel<T>> {
-  try {
-    const r = await fetch(url, { headers: { Accept: 'application/json' } });
-    // 扩展门控关闭时路由不注册 → FastAPI 404; 如实呈现为「端点未注册」而非 0 条
-    if (r.status === 404 || r.status === 405) return { state: 'absent', status: r.status };
-    if (!r.ok) return { state: 'failed' };
-    return { state: 'ready', data: (await r.json()) as T };
-  } catch {
-    return { state: 'failed' };
-  }
+  // 经 codegarden 域客户端的面板级 getter — 保留 404/405 (门控关闭) 与其他失败的区分
+  return fetchCodegardenPanel<T>(url);
 }
 
 /* ===================== 子视图 ===================== */
@@ -322,8 +313,7 @@ export function SentinelGardenPage() {
       getPanel<{ nodes?: CgTopoNode[]; edges?: { id: string }[] }>('/api/codegarden/services/topology'),
       getPanel<{ total?: number; items?: CgEvent[] }>('/api/codegarden/events?limit=20'),
       getPanel<{ total?: number; items?: CgDependency[] }>('/api/codegarden/dependencies?limit=200'),
-      fetch('/api/hotspots?category=all&time_range=24h&limit=1', { headers: { Accept: 'application/json' } })
-        .then(r => (r.ok ? r.json() : null))
+      listHotspots({ category: 'all', time_range: '24h', limit: 1 })
         .catch(() => null),
     ]);
     setProjects(pr);

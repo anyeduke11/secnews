@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { PublishHistoryItem } from '../types';
+import { getJSON } from '../lib/api';
 
 interface PublishHistoryProps {
   draft_id: number | null;
@@ -27,11 +28,7 @@ export function PublishHistory({ draft_id, onClose }: PublishHistoryProps) {
   const loadHistory = useCallback((id: number) => {
     setLoading(true);
     setError(null);
-    fetch(`/api/content/drafts/${id}/publish-history`)
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+    getJSON<{ history?: PublishHistoryItem[] }>(`/api/content/drafts/${id}/publish-history`)
       .then(data => {
         setHistory(data.history || []);
         setLoading(false);

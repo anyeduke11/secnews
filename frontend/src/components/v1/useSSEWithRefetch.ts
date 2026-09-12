@@ -6,21 +6,29 @@
 //
 // 触发:
 //   - onEvent: refetch 对应 view (setter) + toast.show (走 dedupe + muted, 2s 合并 + localStorage 静默)
-//   - useSSE 自动重连 + 3s 延时 (P0.3)
+//   - SSE 自动重连 + 3s 延时 (P0.3)
+//
+// Batch 5 任务 C: 连接层已迁移到统一注册器 useRealtimeInvalidation
+// (src/hooks/realtime.ts, 底座仍为 useSSE), 全局 refetch + toast 语义逐字保留;
+// 事件类型魔法字符串收敛为 SSE_EVENTS 常量。
 import { useCallback } from "react";
 
-import { useSSE } from "../../hooks/useSSE";
+import {
+  useRealtimeInvalidation,
+  SSE_EVENTS,
+  V1_AGGREGATE_EVENT_TYPES,
+} from "../../hooks/realtime";
 import { useToast } from "../Toast";
 
 type Tab = "workbench" | "intel" | "cases" | "knowledge";
 
 // event_type → (Tab, toast message, toast type) 映射
 const EVENT_TAB_MAP: Record<string, { tab: Tab | null; message: string; type: "info" | "success" | "warning" }> = {
-  v1_judgment: { tab: "cases", message: "新判断已发布", type: "info" },
-  v1_action: { tab: "cases", message: "新行动已启动", type: "info" },
-  v1_artifact: { tab: "cases", message: "产物状态已更新", type: "success" },
-  v1_knowledge: { tab: "knowledge", message: "知识状态已更新", type: "info" },
-  v1_signal: { tab: "intel", message: "新信号已录入", type: "info" },
+  [SSE_EVENTS.V1_JUDGMENT]: { tab: "cases", message: "新判断已发布", type: "info" },
+  [SSE_EVENTS.V1_ACTION]: { tab: "cases", message: "新行动已启动", type: "info" },
+  [SSE_EVENTS.V1_ARTIFACT]: { tab: "cases", message: "产物状态已更新", type: "success" },
+  [SSE_EVENTS.V1_KNOWLEDGE]: { tab: "knowledge", message: "知识状态已更新", type: "info" },
+  [SSE_EVENTS.V1_SIGNAL]: { tab: "intel", message: "新信号已录入", type: "info" },
 };
 
 // T19 case-level refetch 占位: 不直接传 setter, 由 V1Prototype 内调用 setSelectedCase (避开类型冲突)
@@ -44,5 +52,7 @@ export function useSSEWithRefetch(
     [setTab, onCaseRefetch, show]
   );
 
-  useSSE({ onEvent, autoReconnect: true, reconnectDelay: 3000 });
+  // types 收敛到注册器 entry 层 (原实现无 types 过滤、handler 内自行 ignore,
+  // 两者对 EVENT_TAB_MAP 之外的事件行为等价: 均不产生任何副作用)。
+  useRealtimeInvalidation([{ types: V1_AGGREGATE_EVENT_TYPES, handler: onEvent }]);
 }

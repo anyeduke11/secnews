@@ -7,6 +7,7 @@
  * (此前硬编码 [] 使 ATT&CK tab 恒空)。
  */
 import { useEffect, useState } from 'react';
+import { getJSON } from '../../../lib/api';
 import { CveHeatmap } from '../CveHeatmap';
 import { AttackNavigator } from '../AttackNavigator';
 import { ComplianceMatrix } from '../ComplianceMatrix';
@@ -34,19 +35,15 @@ export function SecNewsAnalytics() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/cve/recent?limit=50')
-      .then((r) => (r.ok ? r.json() : null))
+    // 非 2xx 由 apiFetch 抛错 → 原 `r.ok ? json : null` 分支合并进 catch 呈现
+    getJSON<{ items?: RecentCve[]; total?: number }>('/api/cve/recent?limit=50')
       .then((d) => {
         if (cancelled) return;
-        if (d) {
-          setCveIds((d.items ?? []).map((x: RecentCve) => x.id));
-          setCveTotal(d.total ?? 0);
-        } else {
-          setCveError('CVE 清单加载失败');
-        }
+        setCveIds((d.items ?? []).map((x: RecentCve) => x.id));
+        setCveTotal(d.total ?? 0);
       })
-      .catch(() => {
-        if (!cancelled) setCveError('CVE 清单加载失败: 网络或后端不可达');
+      .catch((e) => {
+        if (!cancelled) setCveError(`CVE 清单加载失败: ${e instanceof Error ? e.message : String(e)}`);
       });
     return () => {
       cancelled = true;

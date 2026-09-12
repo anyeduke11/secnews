@@ -59,6 +59,9 @@ class TestPracticeDomainTitleHits:
         [
             ("提示注入攻击大模型的十种姿势", "ai_security"),
             ("ChatGPT 越狱手法汇总", "ai_security"),
+            # DEV-0179: 无偏人评发现的攻击动词词系
+            ("OpenAI 内部 Agent 再爆新攻击：入侵 rubydoc 窃取 API 密钥", "ai_security"),
+            ("调查披露 Hugging Face 遭 1200 个 AI 智能体协作入侵", "ai_security"),
             ("CVE-2026-31337 漏洞分析与复现", "vuln_research"),
             ("某 CMS 0day 在野利用披露", "vuln_research"),
             ("基于 ATT&CK 的威胁狩猎实战", "threat_hunting"),
@@ -71,6 +74,7 @@ class TestPracticeDomainTitleHits:
             ("Kubernetes 安全加固清单", "cloud_data_security"),
             ("等保 2.0 三级测评要点解读", "compliance"),
             ("网信办就新规公开征求意见", "compliance"),
+            ("70余名英国议员联名呼吁立法禁止开发超级智能AI", "compliance"),
             ("企业安全建设的五年规划方法", "enterprise_security"),
             ("SOC 运营中心成熟度评估", "enterprise_security"),
         ],

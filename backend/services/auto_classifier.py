@@ -245,8 +245,9 @@ TAG_PRACTICE_MAP: dict[str, str] = {
 
 # Title keyword → practice domain (secondary)。数组顺序即优先级, 具体 pattern 在前。
 TITLE_PRACTICE_RULES: list[tuple[re.Pattern, str]] = [
-    # AI 安全
-    (re.compile(r"大模型安全|AI安全|AI 安全|模型安全|提示注入|[Pp]rompt\s*[Ii]njection|越狱|数据投毒|对抗样本|AI红队|Agent安全"), "ai_security"),
+    # AI 安全 (DEV-0179: 无偏人评发现缺口 — 真实语料常用攻击动词而非"AI安全"标签
+    # 表述 Agent 攻击, 如 "Agent 再爆新攻击/智能体协作入侵/窃取 API 密钥", 补攻击动词系)
+    (re.compile(r"大模型安全|AI安全|AI 安全|模型安全|提示注入|[Pp]rompt\s*[Ii]njection|越狱|数据投毒|对抗样本|AI红队|Agent安全|智能体.{0,8}(入侵|攻击)|Agent.{0,8}(攻击|入侵)|窃取\s*(API\s*)?密钥"), "ai_security"),
     # 漏洞研究
     (re.compile(r"CVE-\d{4}|0day|0-day|漏洞|POC|EXP|提权|反序列化|栈溢出|堆溢出|命令注入|SQL注入|复现"), "vuln_research"),
     # 威胁狩猎
@@ -257,8 +258,8 @@ TITLE_PRACTICE_RULES: list[tuple[re.Pattern, str]] = [
     (re.compile(r"应用安全|代码审计|SDL|DevSecOps|Web安全|渗透测试|移动安全|APP安全|供应链安全|SSRF|XSS|CSRF"), "appsec"),
     # 云与数据安全
     (re.compile(r"云安全|数据安全|容器安全|K8s\s*安全|Kubernetes\s*安全|云原生安全|隐私计算|数据泄露|数据出境|数据分类分级|密钥管理"), "cloud_data_security"),
-    # 合规监管
-    (re.compile(r"等保|关基|数安法|个保法|网络安全法|合规|监管|网信办|工信部|征求意见|安全测评|安全标准"), "compliance"),
+    # 合规监管 (DEV-0179: +立法 — AI 立法监管动态是合规从业者的日常输入)
+    (re.compile(r"等保|关基|数安法|个保法|网络安全法|合规|监管|网信办|工信部|征求意见|安全测评|安全标准|立法"), "compliance"),
     # 企业安全建设 (泛化兜底)
     (re.compile(r"安全建设|安全运营|安全体系|SOC|零信任|安全架构|安全意识|安全规划|成熟度|安全团队|防护体系|安全治理"), "enterprise_security"),
 ]

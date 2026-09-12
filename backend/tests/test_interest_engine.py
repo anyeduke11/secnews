@@ -168,3 +168,153 @@ class TestInterestAPI:
 
 def test_weights_table_covers_all_domains():
     assert set(SIGNAL_WEIGHTS) == {"view", "read", "dwell", "deep_read", "favorite"}
+
+
+# ---------------------------------------------------------------------------
+# R2 (DEV-0183): 漂移检测 / 摘要 composite / repo 审计函数
+# ---------------------------------------------------------------------------
+from backend.domain.enums import Category as _Cat  # noqa: E402
+from backend.repository.hotspot_repo import (  # noqa: E402
+    interest_audit_recent_titles,
+    interest_audit_signal_stats,
+    interest_audit_stored_weights,
+    interest_audit_w30_weight_sum,
+)
+from backend.services.digest_service import _sort_by_composite  # noqa: E402
+
+
+def _seed_domains_with_signals() -> InterestEngineService:
+    """3 个域各产行为证据 (favorite)。
+
+    注意: 同 item+type 有 30min 去重 — 每 item 多次 favorite 只落 1 条,
+    故每域恰好 1 条信号、独立条目 3 个。
+    """
+    svc = InterestEngineService()
+    seeds = [
+        ("h-ai-1", "大模型提示注入攻防实战"),
+        ("h-th-1", "威胁狩猎方法论入门"),
+        ("h-ir-1", "应急响应演练实战复盘"),
+    ]
+    for hid, title in seeds:
+        _seed_ai_item(item_id=hid, title=title)
+        svc.record_signal(hid, "favorite")
+    return svc
+
+
+class TestDriftDetection:
+    def test_full_overlap_not_detected(self, temp_db, monkeypatch):
+        _seed_domains_with_signals()
+        monkeypatch.setattr(
+            SettingsRepository, "get",
+            lambda self, key, default=None: (
+                ["ai_security", "threat_hunting", "incident_response"]
+                if key == "interest.practice_domains" else default
+            ),
+        )
+        drift = InterestEngineService().detect_drift()
+        assert drift["detected"] is False
+        assert drift["overlap"] == 3
+
+    def test_overlap_below_min_detected(self, temp_db, monkeypatch):
+        _seed_domains_with_signals()
+        monkeypatch.setattr(
+            SettingsRepository, "get",
+            lambda self, key, default=None: (
+                ["ai_security"] if key == "interest.practice_domains" else default
+            ),
+        )
+        drift = InterestEngineService().detect_drift()
+        assert drift["detected"] is True
+        assert drift["overlap"] == 1
+        assert len(drift["behavioral_top"]) == 3
+
+    def test_insufficient_evidence_no_drift(self, temp_db):
+        """行为域不足 3 个不构成 top3 — 单一已勾选域集中行为不算偏离。"""
+        _seed_ai_item(item_id="h-ai-9", title="大模型提示注入攻防实战")
+        svc = InterestEngineService()
+        svc.record_signal("h-ai-9", "favorite")
+        drift = svc.detect_drift()
+        assert len(drift["behavioral_top"]) == 1
+        assert drift["detected"] is False
+
+    def test_no_explicit_no_drift(self, temp_db):
+        _seed_domains_with_signals()
+        drift = InterestEngineService().detect_drift()
+        assert drift["explicit_domains"] == []
+        assert drift["detected"] is False
+
+    def test_weights_api_includes_drift(self, client, temp_db):
+        r = client.get("/api/interest/weights")
+        assert r.status_code == 200
+        drift = r.json()["drift"]
+        assert drift["detected"] is False
+        assert drift["overlap_min"] == 2
+
+
+def _mk_item(hid: str, title: str, score: int | None) -> HotspotItem:
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    return HotspotItem(
+        id=hid, title=title, source="test", url=f"https://example.com/{hid}",
+        category=_Cat.AI, published_at=now - timedelta(hours=2), fetched_at=now,
+        ingested_at=now, quality_flags=[], score=score,
+    )
+
+
+class TestDigestComposite:
+    def test_empty_map_pure_score_desc(self, temp_db, monkeypatch):
+        """乘子表空 (gate 关/引擎异常) → 纯 score DESC, 与现状逐序一致。"""
+        monkeypatch.setattr(
+            "backend.extensions.is_extension_enabled", lambda _g: False,
+        )
+        a = _mk_item("d-a", "大模型提示注入攻防实战", 9)     # ai_security
+        b = _mk_item("d-b", "威胁狩猎方法论入门", 12)        # threat_hunting
+        assert _sort_by_composite([a, b])[0].id == "d-b"
+        assert _sort_by_composite([b, a])[0].id == "d-b"
+
+    def test_multiplier_reorders_by_composite(self, temp_db, monkeypatch):
+        """勾选 ai_security: A(9 分, ai) 反超 B(12 分, threat) — 温和重排不删。"""
+        monkeypatch.setattr(
+            SettingsRepository, "get",
+            lambda self, key, default=None: (
+                ["ai_security"] if key == "interest.practice_domains" else default
+            ),
+        )
+        a = _mk_item("d-a", "大模型提示注入攻防实战", 9)     # m≈1.06 → 9.54
+        b = _mk_item("d-b", "威胁狩猎方法论入门", 12)        # m≈0.754 → 9.05
+        assert _sort_by_composite([a, b])[0].id == "d-a"
+        assert _sort_by_composite([b, a])[0].id == "d-a", "与输入顺序无关"
+        out = _sort_by_composite([a, b])
+        assert [i.id for i in out] == ["d-a", "d-b"], "两条都保留 (降权不删)"
+
+
+class TestRepoAuditFunctions:
+    def test_shapes_after_signals(self, temp_db):
+        _seed_domains_with_signals()
+        from datetime import datetime, timedelta, timezone
+
+        # repo 语义: cutoff = 窗口起点 (过去), 统计 created_at >= cutoff 的信号
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        stats = interest_audit_signal_stats(cutoff)
+        assert stats["total"] == 3
+        assert stats["distinct_items"] == 3
+        assert stats["by_type"] == {"favorite": 3}
+        assert stats["by_domain"]["ai_security"] == 1
+        assert interest_audit_w30_weight_sum(cutoff) == 9.0  # 3 条 × 3.0
+        InterestEngineService().aggregate(force=True)  # 权重表是聚合快照, 先触发聚合落盘
+        stored = interest_audit_stored_weights()
+        assert "ai_security" in stored
+        assert stored["ai_security"]["behavioral_score"] > 0
+        titles = interest_audit_recent_titles(10)
+        assert any("大模型提示注入攻防实战" in t for t in titles)
+
+    def test_empty_db_zero_shapes(self, temp_db):
+        from datetime import datetime, timedelta, timezone
+
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        stats = interest_audit_signal_stats(cutoff)
+        assert stats == {"total": 0, "distinct_items": 0, "by_type": {}, "by_domain": {}}
+        assert interest_audit_w30_weight_sum(cutoff) == 0.0
+        assert interest_audit_stored_weights() == {}
+        assert interest_audit_recent_titles(5) == []

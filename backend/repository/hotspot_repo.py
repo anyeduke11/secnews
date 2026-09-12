@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import datetime, timezone
+from typing import Any
 
 from pydantic import HttpUrl
 
@@ -920,6 +921,87 @@ def interest_purge_expired(cutoff_iso: str) -> int:
     except Exception as e:
         logger.warning(f"interest_purge_expired failed: {e}")
         return 0
+
+
+# R2 (DEV-0183) 周审计只读统计 — audit_interest_hit_rate.py 消费; SQL 集中本
+# 模块同因 (新脚本文件含 SQL 会被扫描器整文件拦截), 脚本侧保持纯逻辑。
+_SQL_INTEREST_AUDIT_STATS = (
+    "SELECT COUNT(*) AS total, COUNT(DISTINCT item_id) AS distinct_items "
+    "FROM interest_signals WHERE created_at >= ?"
+)
+_SQL_INTEREST_AUDIT_BY_TYPE = (
+    "SELECT signal_type, COUNT(*) FROM interest_signals "
+    "WHERE created_at >= ? GROUP BY signal_type"
+)
+_SQL_INTEREST_AUDIT_BY_DOMAIN = (
+    "SELECT domain, COUNT(*) FROM interest_signals "
+    "WHERE created_at >= ? GROUP BY domain"
+)
+_SQL_INTEREST_AUDIT_W30 = (
+    "SELECT COALESCE(SUM(weight), 0.0) FROM interest_signals WHERE created_at >= ?"
+)
+_SQL_INTEREST_AUDIT_STORED_WEIGHTS = (
+    "SELECT domain, explicit_selected, behavioral_score, blended_score, "
+    "events_30d, last_event_at FROM interest_domain_weights"
+)
+_SQL_INTEREST_AUDIT_RECENT_TITLES = (
+    "SELECT title FROM hotspots ORDER BY ingested_at DESC"
+)
+
+
+def interest_audit_signal_stats(cutoff_iso: str) -> dict[str, Any]:
+    """窗口内信号统计 {total, distinct_items, by_type, by_domain} (只读)。"""
+    try:
+        conn = get_connection()
+        row = conn.execute(_SQL_INTEREST_AUDIT_STATS, (cutoff_iso,)).fetchone()
+        by_type = dict(conn.execute(_SQL_INTEREST_AUDIT_BY_TYPE, (cutoff_iso,)).fetchall())
+        by_domain = dict(conn.execute(_SQL_INTEREST_AUDIT_BY_DOMAIN, (cutoff_iso,)).fetchall())
+        return {
+            "total": row["total"],
+            "distinct_items": row["distinct_items"],
+            "by_type": by_type,
+            "by_domain": by_domain,
+        }
+    except Exception as e:
+        logger.warning(f"interest_audit_signal_stats failed: {e}")
+        return {"total": 0, "distinct_items": 0, "by_type": {}, "by_domain": {}}
+
+
+def interest_audit_w30_weight_sum(cutoff_iso: str) -> float:
+    """窗口内信号权重和 (β 收敛进度的 W30)。"""
+    try:
+        conn = get_connection()
+        row = conn.execute(_SQL_INTEREST_AUDIT_W30, (cutoff_iso,)).fetchone()
+        return float(row[0] or 0.0)
+    except Exception as e:
+        logger.warning(f"interest_audit_w30_weight_sum failed: {e}")
+        return 0.0
+
+
+def interest_audit_stored_weights() -> dict[str, dict[str, Any]]:
+    """读 interest_domain_weights 快照 {domain: 行字典} (只读, 不触发聚合)。"""
+    try:
+        conn = get_connection()
+        rows = conn.execute(_SQL_INTEREST_AUDIT_STORED_WEIGHTS).fetchall()
+        return {r["domain"]: dict(r) for r in rows}
+    except Exception as e:
+        logger.warning(f"interest_audit_stored_weights failed: {e}")
+        return {}
+
+
+def interest_audit_recent_titles(limit: int) -> list[str]:
+    """近 N 条资讯标题 (惰性截断在调用侧循环里做, SQL 无动态 LIMIT)。"""
+    try:
+        conn = get_connection()
+        titles: list[str] = []
+        for row in conn.execute(_SQL_INTEREST_AUDIT_RECENT_TITLES):
+            titles.append(row["title"] or "")
+            if len(titles) >= limit:
+                break
+        return titles
+    except Exception as e:
+        logger.warning(f"interest_audit_recent_titles failed: {e}")
+        return []
 
 
 __all__ = ["HotspotRepository"]

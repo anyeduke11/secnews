@@ -145,6 +145,21 @@ async def db_diet_job() -> None:
         raise  # 让 instrument_job 捕获并记 ok=False
 
 
+async def interest_signals_purge() -> None:
+    """R2 (DEV-0183): interest_signals 90 天清理 (Interest PRD §3 挂 maintenance)。
+
+    行为信号属可弃数据 (显式勾选在 settings.kv), 清理失败不影响维护链。
+    """
+    try:
+        from backend.services.interest_engine_service import InterestEngineService
+
+        n = await asyncio.to_thread(InterestEngineService().purge_expired)
+        if n:
+            _logger.info(f"interest_signals_purge: removed {n} expired signals")
+    except Exception as e:
+        _logger.error(f"interest_signals_purge crashed: {e}")
+
+
 async def weekly_maintenance_job() -> None:
     """v1.8 R3: 周日维护链 — SOUL 重生成 → 掌握度迁移 → 周回顾 → db_diet。
 
@@ -159,6 +174,7 @@ async def weekly_maintenance_job() -> None:
     await _jobs_pkg.scheduled_migrate_job()
     await _jobs_pkg.scheduled_summary_job()
     await db_diet_job()
+    await interest_signals_purge()
     # v0.5: 周日轮转 — 强制 full backup, 重置增量链
     await _force_full_backup_rotate()
 

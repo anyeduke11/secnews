@@ -25,9 +25,18 @@ interface WeightEntry {
   last_event_at: string | null;
 }
 
+interface DriftInfo {
+  detected: boolean;
+  behavioral_top: string[];
+  explicit_domains: string[];
+  overlap: number;
+  overlap_min: number;
+}
+
 interface WeightsResponse {
   weights: Record<string, WeightEntry>;
   domains: string[];
+  drift?: DriftInfo;
 }
 
 export function PracticeDomainsCard() {
@@ -35,6 +44,7 @@ export function PracticeDomainsCard() {
   const [domains, setDomains] = useState<string[]>([]);
   const [options, setOptions] = useState<{ id: string; label: string }[]>([]);
   const [weights, setWeights] = useState<Record<string, WeightEntry>>({});
+  const [drift, setDrift] = useState<DriftInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
@@ -42,7 +52,10 @@ export function PracticeDomainsCard() {
 
   const loadWeights = useCallback(() => {
     apiFetch<WeightsResponse>('/api/interest/weights')
-      .then((w) => setWeights(w.weights || {}))
+      .then((w) => {
+        setWeights(w.weights || {});
+        setDrift(w.drift || null);
+      })
       .catch(() => {});
   }, []);
 
@@ -131,6 +144,21 @@ export function PracticeDomainsCard() {
         )}
         {!loading && domains.length === 0 && (
           <p className="st-key" style={{ marginTop: 8 }}>{t('settings.practice_domains.empty')}</p>
+        )}
+        {/* R2 漂移提示: 行为 top 与勾选重合不足 — 只提示, 绝不自动改画像 */}
+        {drift?.detected && (
+          <p
+            className="st-key"
+            role="status"
+            data-testid="interest-drift-hint"
+            style={{ marginTop: 8, color: 'var(--color-warning, #b58900)' }}
+          >
+            {t('settings.practice_domains.drift_hint', {
+              domains: drift.behavioral_top
+                .map((id) => options.find((o) => o.id === id)?.label || id)
+                .join('、'),
+            })}
+          </p>
         )}
         {/* R1 权重条: 行为贡献可视化 (可解释性闭环) */}
         {hasBehavior && (

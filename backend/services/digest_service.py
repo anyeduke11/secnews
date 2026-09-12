@@ -203,6 +203,43 @@ def _yesterday_window_shanghai(now: datetime | None = None) -> tuple[datetime, d
     )
 
 
+def _interest_multiplier_map() -> dict[str, float]:
+    """R2: 兴趣引擎排序乘子表; gate 关 / 引擎异常 → {} (退回纯 score)。"""
+    try:
+        from backend.extensions import is_extension_enabled
+
+        if not is_extension_enabled("interest_engine"):
+            return {}
+        from backend.services.interest_engine_service import InterestEngineService
+
+        return InterestEngineService().get_boost_map()
+    except Exception as e:
+        from backend.logging_config import logger
+
+        logger.warning(f"digest composite: interest multiplier unavailable: {e}")
+        return {}
+
+
+def _sort_by_composite(items: list) -> list:
+    """R2: composite = score × m(practice_domain) DESC; 乘子表空 → 纯 score DESC。
+
+    域归因复用 classify_practice_domain(title) (与信号写入同一归因函数);
+    未归因条目乘子按 1.0 — 温和降权不删, 摘要同样只重排不剔除。
+    """
+    mult = _interest_multiplier_map()
+    if not mult:
+        return sorted(items, key=lambda x: x.score or 0, reverse=True)
+
+    from backend.services.auto_classifier import classify_practice_domain
+
+    def _composite(item) -> float:
+        base = item.score or 0
+        domain = classify_practice_domain([], title=getattr(item, "title", "") or "")
+        return base * mult.get(domain or "", 1.0)
+
+    return sorted(items, key=_composite, reverse=True)
+
+
 def generate_daily_digest(
     top_n: int = 3,
     repo: DigestRepository | None = None,
@@ -250,8 +287,9 @@ def generate_daily_digest(
         limit=50,
     )
 
-    # 按 score DESC 取 Top N (score 为 None 视为 0)
-    sorted_items = sorted(items, key=lambda x: x.score or 0, reverse=True)
+    # R2 (DEV-0183): 兴趣引擎 composite 排序 — score × m(practice_domain)。
+    # gate 关 / 引擎不可用 / 乘子表空 → 纯 score DESC (与现状逐序一致)。
+    sorted_items = _sort_by_composite(items)
     top = sorted_items[:effective_top_n]
     top_titles = ", ".join(i.title for i in top) if top else "(无)"
     summary = (

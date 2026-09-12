@@ -53,6 +53,8 @@ MULT_SPAN = 0.6
 DEDUP_WINDOW_MIN = 30        # 同 item+type 去重窗口 (分钟)
 SIGNAL_TTL_DAYS = 90         # signals 保留期 (maintenance job 清理)
 _AGG_TTL_S = 300.0           # 聚合缓存 TTL
+DRIFT_TOP_N = 3              # R2 漂移检测: 行为分 top N
+DRIFT_OVERLAP_MIN = 2        # R2 漂移检测: 与勾选重合下限 (低于即提示)
 
 _INTEREST_KEY = "interest.practice_domains"
 
@@ -186,6 +188,30 @@ class InterestEngineService:
         return set()
 
     # ── 消费接口 ────────────────────────────────────────────────
+    def detect_drift(self) -> dict[str, Any]:
+        """漂移检测 (R2): 行为分 top-N 与显式勾选重合 < 2 → 提示。
+
+        PRD §6 红线: 只提示, **绝不自动改画像** — 勾选只由用户在前端改。
+        判据前提: 行为证据须覆盖满 DRIFT_TOP_N 个域 (不足 3 个域不构成
+        "top3", 单一已勾选域集中行为不算偏离); 无勾选亦不判 (无基准)。
+        """
+        agg = self.aggregate()
+        explicit = sorted(d for d, v in agg.items() if v["explicit_selected"])
+        ranked = sorted(
+            ((d, v["behavioral_score"]) for d, v in agg.items() if v["behavioral_score"] > 0),
+            key=lambda p: p[1], reverse=True,
+        )
+        top = [d for d, _ in ranked[:DRIFT_TOP_N]]
+        overlap = len(set(top) & set(explicit))
+        detected = bool(explicit) and len(top) == DRIFT_TOP_N and overlap < DRIFT_OVERLAP_MIN
+        return {
+            "detected": detected,
+            "behavioral_top": top,
+            "explicit_domains": explicit,
+            "overlap": overlap,
+            "overlap_min": DRIFT_OVERLAP_MIN,
+        }
+
     def get_boost_map(self, *, force: bool = False) -> dict[str, float]:
         """排序乘子表 {domain: m}, m = 0.7 + 0.6·S ∈ [0.79, 1.30]。
 

@@ -88,6 +88,7 @@ const messages_zhCN: Messages = {
   'settings.practice_domains.section_aria': '我的方向',
   'settings.practice_domains.events_30d': '近30天 {n} 条',
   'settings.practice_domains.reset_behavior': '清除行为学习',
+  'settings.practice_domains.drift_hint': '行为信号与勾选方向出现偏离：近期偏好 {domains}。画像不会被自动修改，可按需调整勾选或清除行为学习。',
   // DEV-0177 T0.5 收敛: SK-01 今日重点情报卡
   'feed.priority.title': '今日重点',
   'feed.priority.loading': '生成中…',
@@ -426,6 +427,7 @@ const messages_enUS: Messages = {
   'settings.practice_domains.section_aria': 'My Focus',
   'settings.practice_domains.events_30d': '{n} in 30d',
   'settings.practice_domains.reset_behavior': 'Clear learned behavior',
+  'settings.practice_domains.drift_hint': 'Behavioral signals drift from your selections: recent preference is {domains}. Your profile is never modified automatically — adjust selections or clear learned behavior as needed.',
   // DEV-0177 T0.5 收敛: SK-01 priority digest card
   'feed.priority.title': "Today's Priorities",
   'feed.priority.loading': 'Generating…',

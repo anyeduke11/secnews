@@ -902,3 +902,36 @@
   - 全量: pytest **4460/0** (+13), vitest **494**, tsc 0, build OK, meta --check OK (85 routers/127 services/57 jobs), ruff 触碰文件 0
   - migration 113 临时库端到端: seed→signal→aggregate→boost 全链正确 (S=0.13, m=0.778)
 - **潜在风险**: ①乘子重排为**页内**排序 (跨页召回仍靠分类/搜索), 全库兴趣优先检索属 R2 ②sendBeacon Blob Content-Type 为 text/plain 兜底路径可能 422 (fetch keepalive 已兜底; 实测主路径 JSON 正常) ③C=30/E=0.15/β=0.4 为首批常数, 两周真实数据后重校 (DEV_PLAN 判据) ④attention_events (知识层) 与 interest_signals (资讯层) 是两套并行信号, 未来可统一归因层
+
+## [DEV-0183] hotfix — migration 112 生产三库 FK 解析失败修复 (PRAGMA 包裹)
+- **时间**: 2026-09-12 14:50
+- **类型**: Bug修复
+- **关联模块**: `backend:repository/migrations/112_remove_bid_data`
+- **关联文件**: `backend/repository/migrations/112_remove_bid_data.sql`, `backend/services/hotspot_service.py`, `backend/api/_registry.py`, `backend/tests/test_hotspots_api.py`
+- **问题描述**: 生产重启失败 (8000 无监听, /api/health 000): migration 112 报 `no such table: warm.hotspots`。根因——生产是 HOT/WARM/COLD 三库 ATTACH, `content_fingerprints` 在 warm 库, 其 FK `REFERENCES hotspots` 按 SQLite 同库解析规则指向 `warm.hotspots` (不存在); 单库 dev/test 无此问题, 属分库架构专属失败。
+- **实现思路**: 迁移首尾加 `PRAGMA foreign_keys = OFF/ON` 包裹 (连接级 PRAGMA, 仅影响本迁移执行); 数据销毁型迁移无需 FK 保护, 顺序先删子表再删 hotspots。在生产三库完整副本 (`/tmp/hotfix-verify-*`, backup API 一致性拷贝) 上 `init_db()` 全链验证: schema_version 记录 112+113, bid 数据 0 行, bid_details 已 DROP, interest 两表建成。
+- **核心变更**: migration 112 加 PRAGMA 包裹 + 表分布事实注释; 同批补交 DEV-0182 遗漏的 `hotspot_service.py` practice_multiplier / `_registry.py` interest_api 注册 / `test_hotspots_api.py` 缓存清理。
+- **测试验证**: 生产三库副本 init_db 全链 OK; 服务重启后 /api/health 200, /api/interest/weights 200 (10 域), /api/settings/interests 200; 生产 hot.db schema_version 含 112+113, interest_domain_weights 10 行。
+- **潜在风险**: PRAGMA OFF/ON 模式仅适用于销毁型清理迁移; 后续新分库迁移若涉跨库 FK 应改显式跨库语句, 勿复制本模式。
+
+## [DEV-0184] Interest Engine R2 — 漂移检测 × 摘要 composite × 周审计命中率代理
+- **时间**: 2026-09-12 15:55
+- **类型**: 功能开发
+- **关联模块**: `backend:services/interest_engine_service`, `backend:services/digest_service`, `backend:repository/hotspot_repo`, `backend:api/interest_api`, `backend:scheduler/jobs/maintenance`, `scripts:audit_interest_hit_rate` (新建), `frontend:settings/PracticeDomainsCard`
+- **关联文件**: `backend/api/interest_api.py`, `backend/scheduler/jobs/maintenance.py`, `backend/tests/test_interest_engine.py`, `frontend/src/contexts/I18nContext.tsx`
+- **问题描述**: PRD §6 R2 三项 + R1 遗留: ①漂移检测 (行为 top3 vs 勾选重合 <2 提示, 绝不自动改画像) 未做 ②摘要仍按纯 score 选 top-N, 兴趣引擎不参与 ③周审计缺命中率代理指标 ④R1 的 `purge_expired` (signals 90d 清理) 未挂任何调度 job。
+- **实现思路**: 漂移=service `detect_drift()` 复用聚合缓存, 判据加严——行为域不足 3 个不构成 top3 不判 (避免"行为集中于单一已勾选域"误报), 挂 GET /api/interest/weights 响应 `drift` 字段, 前端设置卡渲染提示 (i18n 双语), 只提示不改画像; 摘要=digest_service `_sort_by_composite` (score × m(practice_domain), gate 关/表空回退纯 score DESC 与现状逐序一致, 未归因条目 m=1.0); 周审计=新建 `scripts/audit_interest_hit_rate.py` (信号健康 7/30/90d + W30/C β 饱和度 + 漂移复算 + Feed 增强域覆盖率), 全脚本零 SQL (repo 层 4 个 `interest_audit_*` 只读函数挂靠 hotspot_repo——新脚本文件含 SQL 会被 Mimosa 一刀切拦截, 本批再证), 绝不调 aggregate() (会写库); purge 挂 `weekly_maintenance_job` 链 (db_diet 之后, 失败不阻断)。
+- **核心变更**: interest_engine_service: +DRIFT_TOP_N/OVERLAP_MIN 常数 + detect_drift(); interest_api: weights 响应 +drift; digest_service: +_interest_multiplier_map/_sort_by_composite, generate_daily_digest 改走 composite; hotspot_repo: +interest_audit_signal_stats/w30_weight_sum/stored_weights/recent_titles; maintenance.py: +interest_signals_purge 挂周维护链; scripts/audit_interest_hit_rate.py (人类可读/--json 双输出); 前端 PracticeDomainsCard 漂移提示条 (role=status) + drift_hint i18n ×2。
+- **测试验证**: test_interest_engine.py +10 (漂移: 满重合不报/重合<2 报/证据不足不报/无勾选不报/API drift 字段; composite: 表空纯 score 逐序一致/乘子反超与输入序无关/降权不删; repo 审计函数: 形状+空库零值); 涉及文件 pytest 全绿; 审计脚本真跑生产库 (只读) 输出正常; 全量 pytest **4458/0**, vitest **494**, tsc 0, meta --check OK。
+- **潜在风险**: ①composite 仅影响摘要 top-N 选择, LLM 叙事输入随之变化, 短期摘要观感可能与历史不可比 ②Feed 覆盖率为代理指标 (归因函数口径), 非用户真值, 两周重校时与词表准确率联合解读 ③审计脚本 `_explicit_profile` 依赖 settings_repo 可读, 异常静默返空 (已注释)。
+
+## [DEV-0185] bid 全链残留清扫 — Category 枚举删除 + quality 门 12→11 + 前后端联动
+- **时间**: 2026-09-12 15:55
+- **类型**: 重构
+- **关联模块**: `backend:domain/enums`, `backend:quality/pipeline`, `backend:services/alert_engine`, `backend:services/export_service`, `frontend:types`, `frontend:hooks/useHotspotData`
+- **关联文件**: `backend/quality/bid_recency_gate.py` (删除), `backend/quality/config.py`, `backend/quality/recency_gate.py`, `backend/repository/quality_repo.py`, `backend/services/quality_gate_map.py`, `backend/api/sources.py`, `backend/services/hotspot_service.py`, `backend/services/{weekly,monthly,daily_report_overview,weekly_report_overview}_service.py`, `backend/services/v1_admission_service.py`, `backend/services/extract_service.py`, `backend/services/ai_hub/prompts.py`, `backend/repository/source_stats_repo.py`, `frontend/src/types/index.ts`, `frontend/src/components/{sentinel/SentinelJudgePage,DeepReadPage.test}.tsx`, 测试 12 文件, `scripts/audit_bid_sources.py` (删除), `docs/INTEREST_ENGINE_PRD_v1.0.md`
+- **问题描述**: DEV-0180/0178 清了采集器/数据/入口, 但 `Category.BID` 枚举成员与 17 处后端引用、前端 4 处残留仍在——catchup 日志打印 bid 死类、bid_recency 质量门空转、alert bid_match 规则永空转、export bid 类型永空、报表服务 bid 标签/兜底文案死代码。收尾报告曾估"1 行改动", 实际盘点远大于此 (诚实修正)。
+- **实现思路**: 枚举成员删除为根, 全部下游引用逐一清理或适配; `from_str("bid")` 变为未知类目拒收 (生产库经 migration 112 已无 bid 行); `historical_bid` 质量标记**保留** (属隐藏标记数据兼容, 与类目解耦); quality 门链 12→11 (BidRecencyGate 文件删除 + pipeline 注册移除); alert bid_match 规则删除 (存量 bid 规则走 unknown 分支告警); export "bid" 类型 token 删除 (legacy 请求 422 显式报错); 前端 TrendPoint/TrendCounts 删 bid 字段 (后端 trend 网格按枚举生成自动 7 列), useHotspotData 删 exclude_category 'bid' 传参 (API 参数保留, 机制通用); SentinelGraphPage 的 bid 为图谱 domain 命名空间非类目, 保留。
+- **核心变更**: 见关联文件; 测试适配 12 文件——删除 BID 专属测试 (quality_gates 7 个/alert 2 个/custom_source 1 个), 计数断言 192→168/48→42/8→7 类/12→11 门/rules 3→2, 夹具类目 bid→tech/security; 新增 `scripts/audit_interest_hit_rate.py` 入 scripts/AGENTS.md 审计清单。
+- **测试验证**: 全量 pytest **4458/0 fail** (+R2 净 -2, 删 BID 用例 10 个/新增 R2 用例 12 个), vitest **494**, tsc 0, meta --check OK (57 jobs/13 collectors/85 routers/127 services), generate_meta AGENTS 一致性 4/4。
+- **潜在风险**: ①`from_str("bid")` 现在抛 InvalidParamException——若从历史备份恢复数据且走 API 重放会拒收 (数据层不受影响) ②deep_read "bid" profile 删除后未知类目回落 general profile (测试改用 finance 验证同类语义) ③`historical_bid` 隐藏标记名保留, 语义为"历史数据标记"而非活跃类目 ④weekly_reports.bid_summary DB 列保留 (恒 None), 彻底删列需单独 PR 评估。

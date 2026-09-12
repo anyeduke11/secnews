@@ -45,11 +45,13 @@ async def record_signal(req: InterestSignalRequest) -> dict:
 
 @router.get("/weights")
 async def get_weights() -> dict:
-    """10 域三层分 (explicit/behavioral/blended) + 近 30d 事件数。"""
+    """10 域三层分 (explicit/behavioral/blended) + 近 30d 事件数 + R2 漂移检测。"""
     agg = _service.aggregate()
+    drift = _service.detect_drift()
     return {
         "weights": agg,
         "domains": sorted(agg.keys()),
+        "drift": drift,
     }
 
 

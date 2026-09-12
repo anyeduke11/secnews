@@ -868,3 +868,14 @@
   - migration 112 临时库全量应用验证: bid hotspots=0 / bid_details 已 DROP / reputation 种子=0 / 核心表完好
   - generate_meta --check OK (57/13/84/126 不变); ruff 触碰文件 0
 - **潜在风险**: ①migration 112 需后端重启才应用 (应用后 30 条历史 bid 条目**不可恢复**, 已有 git/migration 台账可审计) ②favorites 中若有 owner 收藏的 bid 条目将一并删除 (本轮统计生产库 favorites 无 bid 行, 风险实测为零) ③trend 网格仍按 8 分类全枚举建列 (bid 列恒 0), 属展示层历史口径
+
+## [DEV-0181] 实践域词表口径对齐 — owner 定义 10 域 (网络安全/渗透攻防/漏洞挖掘/应急响应/应用安全/密码安全/数据安全/合规管理/AI安全/威胁狩猎)
+- **时间**: 2026-09-12 11:30
+- **类型**: 功能开发 (词表口径修订)
+- **关联模块**: `backend:services/auto_classifier`, `frontend:types`, `backend:tests`
+- **关联文件**: `backend/services/auto_classifier.py`, `frontend/src/types/index.ts`, `backend/tests/fixtures/practice_domain_eval.json` (20→24), `scripts/check_practice_domain_lexicon.py` (期望 20→24), `backend/tests/test_auto_classifier_practice_domain.py`, `backend/tests/test_practice_domain_corpus.py`, `backend/tests/test_settings_interests.py`, `frontend/src/components/settings/PracticeDomainsCard.test.tsx`, `frontend/src/components/sentinel/PriorityDigestCard.test.tsx`
+- **问题描述**: owner 明确内容门禁的领域口径: 网络安全/渗透攻防/漏洞挖掘/应急响应/应用安全/密码安全/数据安全/合规管理/AI安全 等多领域。原 8 域为方案期自设 (DEV-0176 已声明"未经真实语料验证"), 与 owner 口径有 4 处差异。
+- **实现思路**: 旧→新映射——enterprise_security(企业安全建设)→network_security(网络安全, 吸收 安全运营/SOC/零信任/云安全/K8s/防火墙/DDoS); cloud_data_security 拆分为 data_security(数据分类分级/出境/泄露/隐私) + crypto_security(密码学/国密/SM2-4/密钥管理/加密算法); appsec 中渗透类关键词 (渗透测试/红队/护网/CTF/内网渗透/横向移动) 独立为 pentest(渗透攻防); threat_hunting 保留 (owner"等多领域"授权); vuln_research 更名漏洞挖掘 (id 不变)、compliance 更名合规管理 (id 不变)、其余 id 不变。标题规则优先级: ai→crypto(具体词防裸"加密"遮蔽漏洞)→vuln→pentest→threat→incident→appsec→data→network(泛化兜底)→compliance。
+- **核心变更**: PRACTICE_DOMAINS/LABELS 10 域; TAG_PRACTICE_MAP 重排; TITLE_PRACTICE_RULES 10 pattern; 前端 PRACTICE_DOMAIN_LABELS 同源更新; 评测语料 20→24 (旧条目按新域重映射 + 新增 pentest×2/crypto×3, 每域 ≥2); 卡片/摘要测试断言同步。
+- **测试验证**: 全量 pytest **4448/0**; vitest **494**; tsc 0; lexicon --check **24/24 = 100%** (10 域全 OK); ruff 触碰文件 0。
+- **潜在风险**: ①已存画像 (settings.kv) 中的旧域 id (enterprise_security/cloud_data_security) 在 GET 时被服务端白名单过滤 → 用户需在设置页重选一次 (优雅降级, 不报错) ②首轮无偏人评报告 (reports/practice_domain_review_20260912T084119.md) 的 truth 用旧域 id, 属历史工件; 下轮周审计用新口径采样 ③10 域词表未经真实语料无偏验证, 首个周审计周期 (RUNBOOK) 将给出真实准确率

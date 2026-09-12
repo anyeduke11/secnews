@@ -1,17 +1,15 @@
 """Phase 12 — AlertEngine 单元测试.
 
-覆盖 15 个测试用例:
+覆盖测试用例:
 1.  test_alert_engine_load_rules       — 加载启用的规则
 2.  test_tech_stack_cve_trigger        — CVE 命中 tech_stack 触发告警
 3.  test_tech_stack_cve_no_match       — CVE 未命中不触发
 4.  test_critical_cve_trigger          — CVSS ≥ 9.0 触发告警
 5.  test_critical_cve_below_threshold  — CVSS < 9.0 不触发
-6.  test_bid_match_trigger             — 标讯关键词命中 tech_stack 触发
-7.  test_bid_match_no_match            — 关键词未命中不触发
-8.  test_alert_event_stored            — 告警写入 alert_events 表
-9.  test_alert_event_api_get           — GET /api/alerts/v2 返回列表
-10. test_alert_event_mark_read         — PUT /api/alerts/v2/{id}/read 标记已读
-11. test_alert_event_read_all          — PUT /api/alerts/v2/read-all 全部标记已读
+6.  test_alert_event_stored            — 告警写入 alert_events 表
+7.  test_alert_event_api_get           — GET /api/alerts/v2 返回列表
+8.  test_alert_event_mark_read         — PUT /api/alerts/v2/{id}/read 标记已读
+9.  test_alert_event_read_all          — PUT /api/alerts/v2/read-all 全部标记已读
 12. test_alert_unread_count            — GET /api/alerts/v2/unread-count 返回计数
 13. test_alert_rule_disabled           — 禁用规则不被评估
 14. test_alert_concurrent_triggers     — 重复触发不创建重复事件
@@ -84,12 +82,6 @@ def _seed_rules(conn) -> None:
            VALUES (2, '关键 CVE 告警', 'CVSS >= 9.0',
                    'critical_cve', 1, '{"min_cvss": 9.0}')"""
     )
-    conn.execute(
-        """INSERT INTO alert_rule_definitions
-               (id, name, description, rule_type, enabled, config)
-           VALUES (3, '标讯技术栈匹配', '标讯命中 tech_stack',
-                   'bid_match', 1, '{"window_hours": 24}')"""
-    )
     conn.commit()
 
 
@@ -134,20 +126,6 @@ def _insert_security_entity_cve(conn, cve_id: str, cvss: float, created_seconds_
          json.dumps({"cvss": cvss}), created, created),
     )
 
-
-def _insert_bid_hotspot(conn, hid: str, title: str, ingested_seconds_ago: int = 3600) -> None:
-    now = datetime.now(timezone.utc)
-    ingested = (now - timedelta(seconds=ingested_seconds_ago)).isoformat()
-    conn.execute(
-        """INSERT OR REPLACE INTO hotspots
-               (id, title, summary, source, url, category, published_at, score,
-                fetched_at, ingested_at)
-           VALUES (?, ?, ?, 'bid-source', ?, 'bid', ?, 50, ?, ?)""",
-        (hid, title, f"Summary of {title}", f"https://example.com/{hid}",
-         ingested, ingested, ingested),
-    )
-
-
 def _count_alerts(conn) -> int:
     return conn.execute("SELECT COUNT(*) AS c FROM alert_events").fetchone()["c"]
 
@@ -164,17 +142,16 @@ def _get_alert_count(conn, rule_type: str) -> int:
 # ===========================================================================
 
 def test_alert_engine_load_rules(temp_db):
-    """加载启用的规则: 3 条种子规则全部加载."""
+    """加载启用的规则: 2 条种子规则全部加载 (DEV-0183: bid_match 已移除)."""
     conn = get_connection()
     _seed_rules(conn)
 
     engine = AlertEngine()
 
-    assert len(engine.rules) == 3
+    assert len(engine.rules) == 2
     rule_names = {r["name"] for r in engine.rules}
     assert "技术栈 CVE 影响" in rule_names
     assert "关键 CVE 告警" in rule_names
-    assert "标讯技术栈匹配" in rule_names
     for r in engine.rules:
         assert r["enabled"] == 1
 
@@ -273,53 +250,6 @@ def test_critical_cve_below_threshold(temp_db):
     assert results.get("关键 CVE 告警", -1) == 0
     assert _count_alerts(conn) == 0
 
-
-# ===========================================================================
-# 6. test_bid_match_trigger
-# ===========================================================================
-
-def test_bid_match_trigger(temp_db):
-    """标讯关键词命中 tech_stack → 触发告警."""
-    conn = get_connection()
-    _seed_rules(conn)
-    _ensure_status_column(conn)
-    _insert_project(conn, "proj-3", "Project", ["fastapi"])
-    _insert_bid_hotspot(conn, "bid-1", "FastAPI 框架招标公告")
-    conn.commit()
-
-    engine = AlertEngine()
-    results = engine.evaluate_all()
-
-    assert results.get("标讯技术栈匹配", -1) == 1
-    assert _get_alert_count(conn, "bid_match") == 1
-    alert = conn.execute(
-        "SELECT * FROM alert_events WHERE rule_type = 'bid_match'"
-    ).fetchone()
-    assert alert is not None
-    assert alert["severity"] == "medium"
-
-
-# ===========================================================================
-# 7. test_bid_match_no_match
-# ===========================================================================
-
-def test_bid_match_no_match(temp_db):
-    """关键词未命中 → 不触发."""
-    conn = get_connection()
-    _seed_rules(conn)
-    _ensure_status_column(conn)
-    _insert_project(conn, "proj-4", "Project", ["fastapi"])
-    _insert_bid_hotspot(conn, "bid-2", "普通道路施工招标")
-    conn.commit()
-
-    engine = AlertEngine()
-    results = engine.evaluate_all()
-
-    assert results.get("标讯技术栈匹配", -1) == 0
-    assert _count_alerts(conn) == 0
-
-
-# ===========================================================================
 # 8. test_alert_event_stored
 # ===========================================================================
 
@@ -508,7 +438,7 @@ def test_alert_rule_disabled(temp_db):
     conn.commit()
 
     engine = AlertEngine()
-    assert len(engine.rules) == 2  # 只有 2 条启用规则
+    assert len(engine.rules) == 1  # 3 条种子禁用 1 条 → 1 条启用 (DEV-0183 后共 2 条种子)
 
     results = engine.evaluate_all()
 
@@ -568,16 +498,13 @@ def test_alert_evaluate_all(temp_db):
 
     # 返回 dict
     assert isinstance(results, dict)
-    # 包含所有 3 条规则名称
+    # 包含所有规则名称 (DEV-0183: bid_match 规则已移除, 共 2 条)
     assert "技术栈 CVE 影响" in results
     assert "关键 CVE 告警" in results
-    assert "标讯技术栈匹配" in results
     # tech_stack_cve 应触发 (2 个 CVE 都命中)
     assert results["技术栈 CVE 影响"] == 2
     # 关键 CVE 告警 二次路径: 2 个 knowledge_items 都含 CVE ID
     assert results["关键 CVE 告警"] == 2
-    # 标讯技术栈匹配 未触发
-    assert results["标讯技术栈匹配"] == 0
     # 总告警数 = tech_stack_cve + critical_cve
     total = _count_alerts(conn)
     assert total == results["技术栈 CVE 影响"] + results["关键 CVE 告警"]

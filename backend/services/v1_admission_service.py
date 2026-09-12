@@ -219,8 +219,6 @@ class V1AdmissionService:
             cat = (material.get("category") or "").lower()
             if "ai" in cat:
                 labels["domain"] = "ai"
-            elif "bid" in cat:
-                labels["domain"] = "compliance"
             else:
                 labels["domain"] = "security"
         # audience/actionability: 默认

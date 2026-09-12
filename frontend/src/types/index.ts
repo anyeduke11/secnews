@@ -72,9 +72,9 @@ export interface TrendPoint {
   security: number;
   finance: number;
   startup: number;
-  bid: number;
   github: number;
   total: number;
+  // DEV-0183: bid 字段已随标讯全线下线移除 (后端 trend 网格按 Category 枚举生成)
 }
 
 export interface HotspotResponse {

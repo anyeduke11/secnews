@@ -43,7 +43,7 @@ def test_fetched_count_prefers_raw_and_falls_back_to_items():
 # ---------------------------------------------------------------------------
 # DB 侧 (temp_db: 全 migration, crawler_sources + crawler_runs + source_stats)
 # ---------------------------------------------------------------------------
-def _insert_source(conn, sid: str, name: str, category: str = "bid", status: str = "active"):
+def _insert_source(conn, sid: str, name: str, category: str = "tech", status: str = "active"):
     conn.execute(
         "INSERT INTO crawler_sources (id, category, name, kind, url, priority, enabled, status, consecutive_failures) VALUES (?, ?, ?, 'html', 'https://example.com/', 50, 1, ?, 0)",
         (sid, category, name, status),
@@ -60,7 +60,7 @@ def svc(temp_db):
 
 def _result(name: str, raw: int, items: int) -> CollectionResult:
     return CollectionResult(
-        category=Category.BID,
+        category=Category.TECH,
         started_at=_now(),
         finished_at=_now(),
         source_results=[SourceResult(source_name=name, source_url="https://example.com/", raw_count=raw, item_count=items)],
@@ -71,7 +71,7 @@ def test_write_crawler_runs_splits_fetched_and_accepted_and_keeps_source_active(
     from backend.repository.db import get_connection
 
     conn = get_connection()
-    _insert_source(conn, "bid:采招网", "采招网")
+    _insert_source(conn, "tech:采招网", "采招网")
 
     svc._write_crawler_runs(_result("采招网", raw=40, items=0))
 
@@ -81,7 +81,7 @@ def test_write_crawler_runs_splits_fetched_and_accepted_and_keeps_source_active(
     assert (run["fetched_count"], run["accepted_count"]) == (40, 0)
     assert run["status"] == "partial"  # 有用口径: 0 条相关 → partial (不是 failed)
 
-    src = conn.execute("SELECT status, consecutive_failures FROM crawler_sources WHERE id = 'bid:采招网'").fetchone()
+    src = conn.execute("SELECT status, consecutive_failures FROM crawler_sources WHERE id = 'tech:采招网'").fetchone()
     assert src["status"] == "active", "40 条锚点 / 0 条相关的源必须保持 active"
     assert src["consecutive_failures"] == 0
 
@@ -90,10 +90,10 @@ def test_write_crawler_runs_zero_raw_still_counts_as_failure_for_health(svc):
     from backend.repository.db import get_connection
 
     conn = get_connection()
-    _insert_source(conn, "bid:空页", "空页")
+    _insert_source(conn, "tech:空页", "空页")
     for _ in range(3):
         svc._write_crawler_runs(_result("空页", raw=0, items=0))
-    src = conn.execute("SELECT status, consecutive_failures FROM crawler_sources WHERE id = 'bid:空页'").fetchone()
+    src = conn.execute("SELECT status, consecutive_failures FROM crawler_sources WHERE id = 'tech:空页'").fetchone()
     assert src["consecutive_failures"] == 3
     assert src["status"] == "stale", "真正 0 候选连续 3 轮 → stale (存活口径未放水)"
 
@@ -103,7 +103,7 @@ async def test_run_one_source_reads_raw_from_last_source_results(svc, monkeypatc
     from backend.repository.db import get_connection
 
     conn = get_connection()
-    _insert_source(conn, "bid:千里马招标网", "千里马招标网")
+    _insert_source(conn, "tech:千里马招标网", "千里马招标网")
 
     class _Fake:
         sources = [{"name": "千里马招标网", "url": "https://example.com/"}]
@@ -115,11 +115,11 @@ async def test_run_one_source_reads_raw_from_last_source_results(svc, monkeypatc
             ]
             return []
 
-    monkeypatch.setitem(svc.collectors, Category.BID, [_Fake()])
-    out = await svc.run_one_source("bid:千里马招标网")
+    monkeypatch.setitem(svc.collectors, Category.TECH, [_Fake()])
+    out = await svc.run_one_source("tech:千里马招标网")
     assert (out["fetched_count"], out["accepted_count"], out["status"]) == (40, 0, "partial")
     run = conn.execute(
-        "SELECT fetched_count, accepted_count, status FROM crawler_runs WHERE source_id = 'bid:千里马招标网' ORDER BY id DESC LIMIT 1"
+        "SELECT fetched_count, accepted_count, status FROM crawler_runs WHERE source_id = 'tech:千里马招标网' ORDER BY id DESC LIMIT 1"
     ).fetchone()
     assert (run["fetched_count"], run["accepted_count"], run["status"]) == (40, 0, "partial")
 
@@ -129,8 +129,8 @@ def test_upsert_after_run_produced_override_keeps_active_and_items_metric(temp_d
 
     repo = SourceStatsRepository()
     for _ in range(8):  # 远超 dead_threshold=6
-        repo.upsert_after_run("bid", "中国政府采购网", "https://example.com/", 0, None, produced=True)
-    row = repo.get_one("bid", "中国政府采购网")
+        repo.upsert_after_run("tech", "中国政府采购网", "https://example.com/", 0, None, produced=True)
+    row = repo.get_one("tech", "中国政府采购网")
     assert row["status"] == "active"
     assert int(row["zero_yield_runs"]) == 0
     assert int(row["total_items"]) == 0, "total_items 是有用口径, 不因存活判定而虚增"
@@ -138,8 +138,8 @@ def test_upsert_after_run_produced_override_keeps_active_and_items_metric(temp_d
 
     # 未传 produced → 旧语义 (item_count>=1 才算产出)
     for _ in range(3):
-        repo.upsert_after_run("bid", "老口径源", "https://example.com/", 0, None)
-    assert int(repo.get_one("bid", "老口径源")["zero_yield_runs"]) == 3
+        repo.upsert_after_run("tech", "老口径源", "https://example.com/", 0, None)
+    assert int(repo.get_one("tech", "老口径源")["zero_yield_runs"]) == 3
 
 
 def test_evaluate_source_coverage_counts_raw_only_source_as_active(temp_db):
@@ -148,7 +148,7 @@ def test_evaluate_source_coverage_counts_raw_only_source_as_active(temp_db):
     report = CollectionReport(
         results=[
             CollectionResult(
-                category=Category.BID,
+                category=Category.TECH,
                 started_at=_now(),
                 finished_at=_now(),
                 source_results=[
@@ -163,6 +163,6 @@ def test_evaluate_source_coverage_counts_raw_only_source_as_active(temp_db):
         finished_at=_now(),
     )
     cov = evaluate_source_coverage(report)
-    cat = next(c for c in cov.categories if c.category == "bid")
+    cat = next(c for c in cov.categories if c.category == "tech")
     assert cat.active_sources == 2, cat
     assert cat.zero_sources == 1, cat

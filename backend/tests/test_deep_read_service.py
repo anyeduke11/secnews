@@ -192,7 +192,7 @@ def test_parse_sections_extra_keys_are_dropped():
     from backend.services.ai_hub.prompts import deep_read_sections
     from backend.services.deep_read_service import _parse_sections
 
-    defs = deep_read_sections("bid")
+    defs = deep_read_sections("finance")  # DEV-0183: bid profile 已随标讯下线移除
     raw = json.dumps(
         {**{d["key"]: "x" for d in defs[:-1]}, "bonus_hallucinated": "y"},
         ensure_ascii=False,
@@ -230,18 +230,17 @@ def test_different_category_different_sections():
     )
 
     sec_keys = [s["key"] for s in deep_read_sections("security")]
-    bid_keys = [s["key"] for s in deep_read_sections("bid")]
-    assert sec_keys != bid_keys
-    assert "impact_ioc" in sec_keys and "qualification" in bid_keys
+    fin_keys = [s["key"] for s in deep_read_sections("finance")]
+    assert sec_keys != fin_keys
+    assert "impact_ioc" in sec_keys and "regulation_points" in fin_keys
     # 跨类别可比的固定骨架
-    assert sec_keys[0] == bid_keys[0] == "key_takeaways"
-    assert sec_keys[-2:] == bid_keys[-2:] == ["next_actions", "evidence_gaps"]
+    assert sec_keys[0] == fin_keys[0] == "key_takeaways"
+    assert sec_keys[-2:] == fin_keys[-2:] == ["next_actions", "evidence_gaps"]
 
     p_sec = _build_deep_read_prompt("security", {"title": "T"}, "正文")
-    p_bid = _build_deep_read_prompt("bid", {"title": "T"}, "正文")
+    p_fin = _build_deep_read_prompt("finance", {"title": "T"}, "正文")
     assert "应急响应工程师" in p_sec
-    assert "投标负责人" in p_bid
-    assert '"impact_ioc"' in p_sec and '"qualification"' in p_bid
+    assert '"impact_ioc"' in p_sec and '"regulation_points"' in p_fin
 
 
 def test_unknown_category_falls_back_to_general():
@@ -268,7 +267,7 @@ def test_security_profile_marks_vuln_section_red_only():
     assert tones["next_actions"] == "mint"
     assert tones["evidence_gaps"] == "amber"
     # 非漏洞类不应出现 red
-    for cat in ("bid", "finance", "startup", "github", "tech", "ai"):
+    for cat in ("finance", "startup", "github", "tech", "ai"):
         assert all(
             s["tone"] != "red" for s in deep_read_sections(cat)
         ), f"{cat} 视角不该占用 red (red 专属漏洞告警)"

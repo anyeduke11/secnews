@@ -103,15 +103,12 @@ class WeeklyReportService:
         trend_repo = TrendDailyRepository()
         trend_data = trend_repo.get_range(week_start[:10], week_end[:10])
 
-        bid_summary = None
-        if category_summary.get("bid", 0) > 0:
-            bid_summary = {"total": category_summary["bid"]}
-
         report = {
             "week_start": week_start,
             "week_end": week_end,
             "category_summary": json.dumps(category_summary, ensure_ascii=False),
-            "bid_summary": json.dumps(bid_summary, ensure_ascii=False) if bid_summary else None,
+            # DEV-0183: 标讯已全线下线, bid_summary 恒 None (DB 列保留兼容历史行)
+            "bid_summary": None,
             "trend_weekly": json.dumps(trend_data, ensure_ascii=False),
             "top_items": json.dumps(top_items, ensure_ascii=False),
             "source_health": json.dumps(source_health, ensure_ascii=False),

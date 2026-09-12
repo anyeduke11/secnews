@@ -1,12 +1,12 @@
-"""质量门禁边界用例 — 资讯类（ai/security）与标讯类（bid）严格测试。
+"""质量门禁边界用例 — 资讯类（ai/security）严格测试。
 
 覆盖现有测试缺口：
 - 资讯类（AI/Security）严格模式拒绝边界
-- 标讯类（BID）完整 pipeline 集成
 - AuthorVerificationGate 修改 item.source 副作用
 - FinalUrlGate 修改 item.url 副作用
 - URLContentGate 异步门正向匹配
-- 完整 9 门禁 pipeline 集成
+- 完整 pipeline 集成
+(DEV-0183: 标讯 BID 用例已随标讯全线下线移除)
 """
 from __future__ import annotations
 
@@ -72,7 +72,6 @@ def _ctx(**kw) -> GateContext:
             "security": ["漏洞", "CVE", "hack", "安全", "勒索"],
             "finance": ["股票", "Fed", "利率"],
             "startup": ["融资", "startup"],
-            "bid": ["招标", "投标", "采购", "中标", "bid"],
             "github": ["github", "repo", "star"],
         }),
         source_reputation=kw.pop("source_reputation", {}),
@@ -225,104 +224,6 @@ def test_security_strict_rejects_non_security():
     assert r.passed is False
     assert "category_mismatch" in r.flags
     assert r.score_deduction == 20
-
-
-# ===========================================================================
-# 1.3 标讯类（BID）质量门禁集成
-# ===========================================================================
-def test_bid_item_passes_pipeline_with_security_keywords():
-    """网安标讯（"防火墙采购"）通过完整 pipeline（6 门禁子集）。"""
-    p = _make_pipeline(mode=QualityMode.LOOSE)
-    item = _make_item(
-        id_="bid-1",
-        title="国家电网防火墙设备采购招标公告",
-        summary="采购下一代防火墙设备用于网络安全建设",
-        source="ccgp.gov.cn",
-        category=Category.BID,
-        url="https://www.ccgp.gov.cn/bid/1",
-    )
-    result = p.run_all(item, _ctx())
-    assert result.accepted is True
-    # 标讯关键词命中 + 内容正常 → 高分
-    assert result.final_score >= 80
-
-
-def test_bid_item_rejected_by_category_match_if_no_bid_keyword():
-    """无招标关键词的 item 被 CategoryMatchGate 扣分。"""
-    g = CategoryMatchGate()
-    item = _make_item(
-        title="今天天气真好",
-        summary="出去散步",
-        category=Category.BID,
-    )
-    r = g.check(item, _ctx())
-    assert r.passed is False
-    assert "category_mismatch" in r.flags
-    assert r.score_deduction == 20
-
-
-def test_bid_item_with_low_reputation_source():
-    """低信誉源标讯被 SourceReputationGate 扣分。"""
-    g = SourceReputationGate()
-    rep = {"unknown_bid_src": {"score": 40, "blacklist": 0, "pass_count": 1, "fail_count": 5}}
-    item = _make_item(
-        title="防火墙采购招标公告",
-        source="unknown_bid_src",
-        category=Category.BID,
-    )
-    r = g.check(item, _ctx(source_reputation=rep))
-    assert r.passed is False
-    assert "low_reputation_source" in r.flags
-    assert r.score_deduction == 15
-
-
-def test_bid_duplicate_url_across_categories():
-    """同 URL 在 bid 与 ai 之间的去重 winner 选择。"""
-    url = "https://example.com/news-shared"
-    now = datetime.now(timezone.utc)
-    items = [
-        HotspotItem(
-            id="bid-1",
-            title="防火墙采购招标公告",
-            summary="",
-            source="ccgp",
-            url=url,
-            category=Category.BID,
-            published_at=now,
-            fetched_at=now,
-        ),
-        HotspotItem(
-            id="ai-1",
-            title="AI 安全防火墙技术解读",
-            summary="",
-            source="qbitai",
-            url=url,
-            category=Category.AI,
-            published_at=now,
-            fetched_at=now,
-        ),
-    ]
-    url_title_pairs = [
-        {"url": url, "title": it.title, "source": it.source, "id": it.id,
-         "is_fallback": it.is_fallback, "fetched_at": it.fetched_at}
-        for it in items
-    ]
-    ctx = _ctx(source_reputation={
-        "ccgp": {"score": 0.9},
-        "qbitai": {"score": 0.7},
-    })
-    ctx.__dict__["url_title_pairs"] = url_title_pairs
-
-    gate = DuplicateGate()
-    # ccgp (0.9) > qbitai (0.7) → ccgp 是 winner
-    r_bid = gate.check(items[0], ctx)
-    assert r_bid.passed is True
-    assert "duplicate_link_real_title" in r_bid.flags
-
-    r_ai = gate.check(items[1], ctx)
-    assert r_ai.passed is False
-    assert "title_replaced" in r_ai.flags
-    assert r_ai.score_deduction == 60
 
 
 # ===========================================================================
@@ -540,90 +441,16 @@ def test_full_9_gate_pipeline_ai_item():
     assert result.final_score == 100
 
 
-def test_full_9_gate_pipeline_bid_item():
-    """BID item 跑完整 9 门禁，验证网安标讯通过。"""
-    cfg = QualityConfig()
-    cfg._cache["strict_mode"] = False
-    cfg._cache["min_score"] = 30
-    pipe = QualityGatePipeline(cfg, log_repo=_NoopLogRepo())
-
-    item = _make_item(
-        id_="full-bid-1",
-        title="国家电网防火墙设备采购招标公告",
-        summary="采购下一代防火墙设备用于网络安全建设招标",
-        source="ccgp.gov.cn",
-        url="https://www.ccgp.gov.cn/bid/2026/001",
-        category=Category.BID,
-    )
-
-    with patch("backend.quality.url_validity_gate.URLValidityGate.check") as mock_url_valid, \
-         patch("backend.quality.author_verification_gate.resolve_publisher") as mock_author, \
-         patch("backend.quality.final_url_gate.is_landing_page", return_value=False):
-        mock_url_valid.return_value = GateResult(
-            gate_name="url_validity", passed=True, score_deduction=0, flags=[], reason="mocked"
-        )
-        mock_author.return_value = ("ccgp.gov.cn", True, "domain matches source")
-        result = pipe.run_all(item, _ctx())
-
-    assert isinstance(result, PipelineResult)
-    assert result.accepted is True
-    # 所有门禁通过 → score 100
-    assert result.final_score == 100
-
-
-def test_full_12_gate_pipeline_count():
-    """完整 pipeline 注册了 12 个门禁 (v4.4 新增 ai_quality)。"""
+def test_full_11_gate_pipeline_count():
+    """完整 pipeline 注册了 11 个门禁 (v4.4 ai_quality; DEV-0183 移除 bid_recency)。"""
     cfg = QualityConfig()
     pipe = QualityGatePipeline(cfg, log_repo=_NoopLogRepo())
-    assert len(pipe.gates) == 12
+    assert len(pipe.gates) == 11
     names = {g.name for g in pipe.gates}
     assert names == {
         "schema", "recency", "content", "noise", "category_match", "title_summary",
-        "source_reputation", "AuthorVerification", "FinalUrl", "duplicate", "bid_recency",
+        "source_reputation", "AuthorVerification", "FinalUrl", "duplicate",
         "ai_quality",
     }
 
 
-# ===========================================================================
-# 1.8 资讯 vs 标讯跨分类对比
-# ===========================================================================
-def test_ai_and_bid_items_both_pass_in_loose_mode():
-    """资讯类 AI 与标讯类 BID 的 item 都能在 loose 模式下通过。"""
-    p = _make_pipeline(mode=QualityMode.LOOSE)
-    ai_item = _make_item(
-        id_="ai-mix",
-        title="OpenAI 发布 GPT-5 人工智能大模型",
-        summary="OpenAI 发布新一代 AI 大模型",
-        category=Category.AI,
-    )
-    bid_item = _make_item(
-        id_="bid-mix",
-        title="公安部网络安全运维招标公告",
-        summary="采购网络安全运维服务招标",
-        source="ccgp",
-        category=Category.BID,
-        url="https://example.com/bid/1",
-    )
-    ai_result = p.run_all(ai_item, _ctx())
-    bid_result = p.run_all(bid_item, _ctx())
-    assert ai_result.accepted is True
-    assert bid_result.accepted is True
-    assert ai_result.final_score >= 80
-    assert bid_result.final_score >= 80
-
-
-def test_strict_mode_rejects_bid_with_low_score():
-    """严格模式下低分标讯被拒绝。"""
-    p = _make_pipeline(mode=QualityMode.STRICT)
-    p.gates = [
-        SchemaGate(),
-        CategoryMatchGate(),  # 扣 20（如果无标讯关键词）
-        _FailGate("extra", 60),  # 再扣 60 → score 20 < 30
-    ]
-    item = _make_item(
-        title="今天天气好",
-        summary="散步",
-        category=Category.BID,
-    )
-    with pytest.raises(QualityGateFailed):
-        p.run_all(item, _ctx())

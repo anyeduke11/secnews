@@ -107,8 +107,7 @@ export function useHotspotData(
           category,
           time_range: timeRange,
           limit: String(pageSize),
-          // DEV-0175 工作台聚焦裁决: 标讯从资讯工作台剔除, 全站资讯流默认排除 bid 分类
-          exclude_category: 'bid',
+          // DEV-0183: exclude_category 'bid' 已随标讯全线下线移除 (生产库无 bid 行)
         });
         if (keyword) params.set('keyword', keyword);
         if (cursor) params.set('cursor', cursor);

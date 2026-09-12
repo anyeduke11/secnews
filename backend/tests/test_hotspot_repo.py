@@ -147,20 +147,20 @@ def test_count_unique_urls_vs_count_in_range(repo):
     实际场景: security 采集器入库 841 行 (重复 url 200+), 列表去重后只 83 条 unique。
     total 字段之前用 count_in_range → 841, 改用 count_unique_urls_in_range → 实际 unique 数。
     """
-    # 1 个 url 在 ai/security/finance 各 1 行 → 3 行
-    # 2 个独立 url 在 bid 各 1 行 → 2 行
+    # 1 个 url 在 ai/finance/github 各 1 行 → 3 行
+    # 2 个独立 url 在 security 各 1 行 → 2 行
     # 共 5 行, 但 unique url = 3
     now = _recent_ts(hours=1)
     items = [
         _make_item("dup-a-ai", category=Category.AI, source="x",
                    published_at=now),
-        _make_item("dup-a-sec", category=Category.SECURITY, source="y",
+        _make_item("dup-a-fin", category=Category.FINANCE, source="y",
                    published_at=now),
-        _make_item("dup-a-fin", category=Category.FINANCE, source="z",
+        _make_item("dup-a-gh", category=Category.GITHUB, source="z",
                    published_at=now),
-        _make_item("bid-only-1", category=Category.BID, source="w",
+        _make_item("sec-only-1", category=Category.SECURITY, source="w",
                    published_at=now),
-        _make_item("bid-only-2", category=Category.BID, source="w",
+        _make_item("sec-only-2", category=Category.SECURITY, source="w",
                    published_at=now),
     ]
     # 改 url 让前 3 条相同
@@ -173,29 +173,29 @@ def test_count_unique_urls_vs_count_in_range(repo):
     n_rows = repo.count_in_range(TimeRange.D7, category="all")
     assert n_rows == 5
 
-    # unique url = 3 (https://shared.example.com/a + 2 个 bid)
+    # unique url = 3 (https://shared.example.com/a + 2 个 security)
     n_unique = repo.count_unique_urls_in_range(TimeRange.D7, category="all")
     assert n_unique == 3
 
-    # 按分类
+    # 按分类 (注意: ai 桶查询含 IN ('ai','tech') 合并口径, 故用 security 验证)
     n_unique_ai = repo.count_unique_urls_in_range(TimeRange.D7, category="ai")
     assert n_unique_ai == 1
-    n_unique_bid = repo.count_unique_urls_in_range(TimeRange.D7, category="bid")
-    assert n_unique_bid == 2
+    n_unique_sec = repo.count_unique_urls_in_range(TimeRange.D7, category="security")
+    assert n_unique_sec == 2
 
 
-def test_count_unique_urls_excludes_historical_bid(repo):
-    """historical_bid 标记的行不计入 unique (与 query 口径一致)。"""
+def test_count_unique_urls_excludes_historical_hidden_flag(repo):
+    """historical_bid 隐藏标记的行不计入 unique (与 query 口径一致; 标记名保留兼容历史数据)。"""
     now = _recent_ts(hours=1)
     items = [
-        _make_item("real-1", category=Category.BID, source="x",
+        _make_item("real-1", category=Category.TECH, source="x",
                    published_at=now, quality_flags=[]),
-        _make_item("hist-1", category=Category.BID, source="x",
+        _make_item("hist-1", category=Category.TECH, source="x",
                    published_at=now, quality_flags=["historical_bid"]),
     ]
     repo.upsert_many(items)
-    assert repo.count_in_range(TimeRange.D7, category="bid") == 1
-    assert repo.count_unique_urls_in_range(TimeRange.D7, category="bid") == 1
+    assert repo.count_in_range(TimeRange.D7, category="tech") == 1
+    assert repo.count_unique_urls_in_range(TimeRange.D7, category="tech") == 1
 
 
 def test_query_by_keyword_fts(repo):
@@ -380,7 +380,6 @@ def test_count_by_category(repo):
         "security": 3,
         "finance": 0,
         "startup": 0,
-        "bid": 0,
         "github": 0,
     }
 

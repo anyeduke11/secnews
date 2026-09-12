@@ -56,11 +56,11 @@ def _make_item(
 # rebuild
 # ---------------------------------------------------------------------------
 def test_rebuild_returns_168(repo):
-    """空表上 rebuild(24) 仍应写入 24 * 8 = 192 行（每桶 count=0）。"""
+    """空表上 rebuild(24) 仍应写入 24 * 7 = 168 行（每桶 count=0; DEV-0183 移除 bid）。"""
     n = repo.rebuild(24)
-    assert n == 192
+    assert n == 168
     points = repo.get_current()
-    assert len(points) == 192
+    assert len(points) == 168
 
 
 def test_rebuild_excludes_fallback(repo):
@@ -85,10 +85,10 @@ def test_rebuild_excludes_fallback(repo):
 
 
 def test_get_current_returns_168_points(repo):
-    """rebuild 后 get_current 应返回 192 个 TrendPoint。"""
+    """rebuild 后 get_current 应返回 168 个 TrendPoint (24h × 7 分类)。"""
     repo.rebuild(24)
     points = repo.get_current()
-    assert len(points) == 192
+    assert len(points) == 168
     # 所有 TrendPoint 都有 hours_ago / category / count
     for p in points:
         assert 0 <= p.hours_ago < 24
@@ -103,11 +103,11 @@ def test_get_current_returns_168_points(repo):
 
 
 def test_rebuild_window_hours_6(repo):
-    """rebuild(6) 应写入 6 * 8 = 48 行。"""
+    """rebuild(6) 应写入 6 * 7 = 42 行 (DEV-0183 移除 bid 后 7 分类)。"""
     n = repo.rebuild(6)
-    assert n == 48
+    assert n == 42
     points = repo.get_current()
-    assert len(points) == 48
+    assert len(points) == 42
     # hours_ago 取值仅为 0..5
     assert {p.hours_ago for p in points} == {0, 1, 2, 3, 4, 5}
 
@@ -129,7 +129,7 @@ def test_rebuild_bucket_placement_and_wide_window(repo):
         _make_item("future", Category.AI, published_at=now + timedelta(hours=5)),  # 未来 → 排除
     ])
 
-    assert repo.rebuild(168) == 168 * 8
+    assert repo.rebuild(168) == 168 * 7
 
     def _count(category: Category, hours_ago: int) -> int:
         return sum(

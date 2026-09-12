@@ -38,15 +38,9 @@ def test_classify_by_url_and_title_finance_chinese():
     assert classify_by_url_and_title("https://finance.sina.com.cn", "新浪财经") == "finance"
 
 
-def test_classify_by_url_and_title_bid():
-    """政府采购/招标关键词命中 bid。"""
-    assert classify_by_url_and_title(
-        "https://www.tender.gov.cn", "中国政府采购网"
-    ) == "bid"
-
-
 # ---------------------------------------------------------------------------
 # v0.7.x P0: SSRF 防护 — _probe_url 应拒收 localhost / 私网 / 保留 IP
+# (DEV-0183: test_classify_by_url_and_title_bid 已随 bid 关键词映射移除)
 # ---------------------------------------------------------------------------
 class TestProbeUrlSSRFDefense:
     """``_probe_url`` 拒绝命中 SSRF 黑名单的 URL, 返回 ok=False + ssrf_block error。

@@ -79,12 +79,12 @@ class TestSourceStatsRepository:
     def test_upsert_first_time_with_yield(self, temp_db):
         repo = SourceStatsRepository()
         repo.upsert_after_run(
-            category="bid",
+            category="tech",
             source_name="中国政府采购网",
             source_url="https://www.ccgp.gov.cn/",
             item_count=5,
         )
-        row = repo.get_one("bid", "中国政府采购网")
+        row = repo.get_one("tech", "中国政府采购网")
         assert row is not None
         assert row["total_runs"] == 1
         assert row["zero_yield_runs"] == 0
@@ -96,13 +96,13 @@ class TestSourceStatsRepository:
     def test_upsert_first_time_zero_yield(self, temp_db):
         repo = SourceStatsRepository()
         repo.upsert_after_run(
-            category="bid",
+            category="tech",
             source_name="中国政府采购网",
             source_url="https://www.ccgp.gov.cn/",
             item_count=0,
             error_msg="HTTP 503",
         )
-        row = repo.get_one("bid", "中国政府采购网")
+        row = repo.get_one("tech", "中国政府采购网")
         assert row["zero_yield_runs"] == 1
         assert row["status"] == "active"  # 首次连 0 不升级
         assert row["last_error"] == "HTTP 503"
@@ -111,8 +111,8 @@ class TestSourceStatsRepository:
         repo = SourceStatsRepository()
         # 跑 3 次 0 → status 升级 stale (threshold=3)
         for _ in range(3):
-            repo.upsert_after_run("bid", "源A", "https://a/", 0, "err")
-        row = repo.get_one("bid", "源A")
+            repo.upsert_after_run("tech", "源A", "https://a/", 0, "err")
+        row = repo.get_one("tech", "源A")
         assert row["zero_yield_runs"] == 3
         assert row["status"] == "stale"
 
@@ -120,8 +120,8 @@ class TestSourceStatsRepository:
         repo = SourceStatsRepository()
         # 跑 6 次 0 → status 升级 dead
         for _ in range(6):
-            repo.upsert_after_run("bid", "源B", "https://b/", 0, "err")
-        row = repo.get_one("bid", "源B")
+            repo.upsert_after_run("tech", "源B", "https://b/", 0, "err")
+        row = repo.get_one("tech", "源B")
         assert row["zero_yield_runs"] == 6
         assert row["status"] == "dead"
 
@@ -129,11 +129,11 @@ class TestSourceStatsRepository:
         repo = SourceStatsRepository()
         # 2 次 0
         for _ in range(2):
-            repo.upsert_after_run("bid", "源C", "https://c/", 0, "err")
-        assert repo.get_one("bid", "源C")["zero_yield_runs"] == 2
+            repo.upsert_after_run("tech", "源C", "https://c/", 0, "err")
+        assert repo.get_one("tech", "源C")["zero_yield_runs"] == 2
         # 1 次有产出
-        repo.upsert_after_run("bid", "源C", "https://c/", 3, None)
-        row = repo.get_one("bid", "源C")
+        repo.upsert_after_run("tech", "源C", "https://c/", 3, None)
+        row = repo.get_one("tech", "源C")
         assert row["zero_yield_runs"] == 0
         assert row["status"] == "active"  # 不主动降级 stale → active
         assert row["total_items"] == 3
@@ -149,55 +149,55 @@ class TestSourceStatsRepository:
         """
         repo = SourceStatsRepository()
         for _ in range(6):
-            repo.upsert_after_run("bid", "源D", "https://d/", 0, "err")
-        assert repo.get_one("bid", "源D")["status"] == "dead"
-        repo.upsert_after_run("bid", "源D", "https://d/", 1, None)
-        row = repo.get_one("bid", "源D")
+            repo.upsert_after_run("tech", "源D", "https://d/", 0, "err")
+        assert repo.get_one("tech", "源D")["status"] == "dead"
+        repo.upsert_after_run("tech", "源D", "https://d/", 1, None)
+        row = repo.get_one("tech", "源D")
         assert row["status"] == "active"
         assert row["zero_yield_runs"] == 0
 
     def test_mark_dead_manual(self, temp_db):
         repo = SourceStatsRepository()
-        repo.upsert_after_run("bid", "源E", "https://e/", 5)
-        repo.mark_dead("bid", "源E")
-        assert repo.get_one("bid", "源E")["status"] == "dead"
+        repo.upsert_after_run("tech", "源E", "https://e/", 5)
+        repo.mark_dead("tech", "源E")
+        assert repo.get_one("tech", "源E")["status"] == "dead"
 
     def test_reset_clears_zero_yield(self, temp_db):
         repo = SourceStatsRepository()
         for _ in range(5):
-            repo.upsert_after_run("bid", "源F", "https://f/", 0, "err")
-        assert repo.get_one("bid", "源F")["status"] == "stale"
-        repo.reset("bid", "源F")
-        row = repo.get_one("bid", "源F")
+            repo.upsert_after_run("tech", "源F", "https://f/", 0, "err")
+        assert repo.get_one("tech", "源F")["status"] == "stale"
+        repo.reset("tech", "源F")
+        row = repo.get_one("tech", "源F")
         assert row["zero_yield_runs"] == 0
         assert row["status"] == "active"
 
     def test_list_by_category(self, temp_db):
         repo = SourceStatsRepository()
         for cat, name in [
-            ("bid", "A"), ("bid", "B"), ("ai", "C"),
+            ("tech", "A"), ("tech", "B"), ("ai", "C"),
         ]:
             repo.upsert_after_run(cat, name, f"https://{name}", 3)
-        rows = repo.list_by_category("bid")
+        rows = repo.list_by_category("tech")
         assert len(rows) == 2
         assert {r["source_name"] for r in rows} == {"A", "B"}
 
     def test_list_by_status(self, temp_db):
         repo = SourceStatsRepository()
         for _ in range(6):
-            repo.upsert_after_run("bid", "Z", "https://z/", 0, "err")
+            repo.upsert_after_run("tech", "Z", "https://z/", 0, "err")
         assert len(repo.list_by_status("dead")) == 1
         assert len(repo.list_by_status("stale")) == 0
 
     def test_summary_by_category(self, temp_db):
         repo = SourceStatsRepository()
         for name in ["X", "Y"]:
-            repo.upsert_after_run("bid", name, f"https://{name}", 3)
+            repo.upsert_after_run("tech", name, f"https://{name}", 3)
         for _ in range(6):
             repo.upsert_after_run("ai", "Z", "https://z/", 0, "err")
         summary = repo.summary_by_category()
-        assert summary["bid"]["active"] == 2
-        assert summary["bid"]["total"] == 2
+        assert summary["tech"]["active"] == 2
+        assert summary["tech"]["total"] == 2
         assert summary["ai"]["dead"] == 1
         assert summary["ai"]["total"] == 1
 
@@ -210,14 +210,14 @@ class TestCoverageRunRepository:
         repo = CoverageRunRepository()
         rid = repo.write_run(
             run_id="run-001",
-            category="bid",
+            category="tech",
             total_sources=10,
             active_sources=7,
             zero_sources=3,
             details=[{"source_name": "A", "item_count": 5}],
         )
         assert rid > 0
-        latest = repo.latest_for_category("bid", limit=5)
+        latest = repo.latest_for_category("tech", limit=5)
         assert len(latest) == 1
         assert latest[0]["run_id"] == "run-001"
         assert latest[0]["total_sources"] == 10
@@ -229,13 +229,13 @@ class TestCoverageRunRepository:
         repo = CoverageRunRepository()
         repo.write_run(
             run_id="run-002",
-            category="bid",
+            category="tech",
             total_sources=0,
             active_sources=0,
             zero_sources=0,
             details=[],
         )
-        latest = repo.latest_for_category("bid", limit=5)
+        latest = repo.latest_for_category("tech", limit=5)
         assert latest[0]["coverage_ratio"] == 0.0
 
     def test_latest_orders_by_created_at(self, temp_db):
@@ -243,13 +243,13 @@ class TestCoverageRunRepository:
         for i in range(3):
             repo.write_run(
                 run_id=f"run-{i:03d}",
-                category="bid",
+                category="tech",
                 total_sources=5,
                 active_sources=i + 1,
                 zero_sources=5 - (i + 1),
                 details=[],
             )
-        latest = repo.latest_for_category("bid", limit=5)
+        latest = repo.latest_for_category("tech", limit=5)
         assert len(latest) == 3
 
 
@@ -261,7 +261,7 @@ class TestEvaluateSourceCoverage:
         report = _make_report(
             [
                 _make_result(
-                    Category.BID,
+                    Category.TECH,
                     [
                         ("A", "https://a/", 5, None),
                         ("B", "https://b/", 3, None),
@@ -280,7 +280,7 @@ class TestEvaluateSourceCoverage:
         # DB 写入
         repo = SourceStatsRepository()
         for name in ["A", "B", "C"]:
-            row = repo.get_one("bid", name)
+            row = repo.get_one("tech", name)
             assert row is not None
             assert row["status"] == "active"
 
@@ -288,7 +288,7 @@ class TestEvaluateSourceCoverage:
         report = _make_report(
             [
                 _make_result(
-                    Category.BID,
+                    Category.TECH,
                     [
                         ("A", "https://a/", 5, None),
                         ("B", "https://b/", 0, "timeout"),
@@ -312,7 +312,7 @@ class TestEvaluateSourceCoverage:
             report = _make_report(
                 [
                     _make_result(
-                        Category.BID,
+                        Category.TECH,
                         [
                             ("A", "https://a/", 5, None),
                             ("B", "https://b/", 0, "err"),
@@ -324,7 +324,7 @@ class TestEvaluateSourceCoverage:
         # B 源应升级 dead
         assert any(d.source_name == "B" for d in cov.dead_sources)
         repo = SourceStatsRepository()
-        row = repo.get_one("bid", "B")
+        row = repo.get_one("tech", "B")
         assert row["status"] == "dead"
         assert row["zero_yield_runs"] == 6
 
@@ -334,7 +334,7 @@ class TestEvaluateSourceCoverage:
             report = _make_report(
                 [
                     _make_result(
-                        Category.BID,
+                        Category.TECH,
                         [
                             ("X", "https://x/", 0, "err"),
                             ("Y", "https://y/", 3, None),
@@ -350,7 +350,7 @@ class TestEvaluateSourceCoverage:
             report = _make_report(
                 [
                     _make_result(
-                        Category.BID,
+                        Category.TECH,
                         [
                             ("X", "https://x/", 0, "err"),
                             ("Y", "https://y/", 3, None),
@@ -367,7 +367,7 @@ class TestEvaluateSourceCoverage:
         report = _make_report(
             [
                 _make_result(
-                    Category.BID,
+                    Category.TECH,
                     [
                         ("BA", "https://ba/", 5, None),
                         ("BB", "https://bb/", 0, "err"),
@@ -385,8 +385,8 @@ class TestEvaluateSourceCoverage:
         )
         cov = evaluate_source_coverage(report, run_id="run-multi")
         cats = {c.category: c for c in cov.categories}
-        assert cats["bid"].active_sources == 1
-        assert cats["bid"].alert is True
+        assert cats["tech"].active_sources == 1
+        assert cats["tech"].alert is True
         assert cats["ai"].active_sources == 3
         assert cats["ai"].alert is False
 
@@ -394,7 +394,7 @@ class TestEvaluateSourceCoverage:
         report = _make_report(
             [
                 _make_result(
-                    Category.BID,
+                    Category.TECH,
                     [("B1", "https://b1/", 5, None)],
                 ),
                 _make_result(
@@ -405,14 +405,14 @@ class TestEvaluateSourceCoverage:
         )
         evaluate_source_coverage(report, run_id="run-cov")
         cov_repo = CoverageRunRepository()
-        assert len(cov_repo.latest_for_category("bid")) == 1
+        assert len(cov_repo.latest_for_category("tech")) == 1
         assert len(cov_repo.latest_for_category("ai")) == 1
 
     def test_to_dict_shape(self, temp_db):
         report = _make_report(
             [
                 _make_result(
-                    Category.BID,
+                    Category.TECH,
                     [
                         ("A", "https://a/", 5, None),
                         ("B", "https://b/", 0, "err"),
@@ -425,7 +425,7 @@ class TestEvaluateSourceCoverage:
         assert d["run_id"] == "run-dict"
         assert len(d["categories"]) == 1
         c0 = d["categories"][0]
-        assert c0["category"] == "bid"
+        assert c0["category"] == "tech"
         assert c0["total_sources"] == 2
         assert c0["active_sources"] == 1
         assert c0["min_active_sources"] == 3
@@ -442,7 +442,7 @@ class TestEvaluateSourceCoverage:
         report = _make_report(
             [
                 CollectionResult(
-                    category=Category.BID,
+                    category=Category.TECH,
                     items=[],
                     item_count=0,
                     source_results=[],
@@ -466,7 +466,7 @@ class TestEvaluateSourceCoverage:
             report = _make_report(
                 [
                     _make_result(
-                        Category.BID,
+                        Category.TECH,
                         [("Z", "https://z/", 0, "err")],
                     ),
                 ]
@@ -476,13 +476,13 @@ class TestEvaluateSourceCoverage:
         report = _make_report(
             [
                 _make_result(
-                    Category.BID,
+                    Category.TECH,
                     [("Z", "https://z/", 5, None)],
                 ),
             ]
         )
         evaluate_source_coverage(report, run_id="r-yield")
         repo = SourceStatsRepository()
-        row = repo.get_one("bid", "Z")
+        row = repo.get_one("tech", "Z")
         assert row["zero_yield_runs"] == 0
         assert row["status"] == "active"

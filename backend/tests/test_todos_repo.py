@@ -506,14 +506,14 @@ class TestTodoRepoListAvailableFavorites:
 
     def test_includes_metadata(self, todo_repo, fav_repo):
         fav_repo.add(
-            hotspot_id="h-meta", category="bid",
-            title="招标标题", source="招标网",
+            hotspot_id="h-meta", category="tech",
+            title="科技标题", source="科技日报",
             url="https://e.com/meta",
         )
         items = todo_repo.list_available_favorites()
         assert len(items) == 1
         assert items[0]["hotspot_id"] == "h-meta"
-        assert items[0]["title"] == "招标标题"
+        assert items[0]["title"] == "科技标题"
         assert items[0]["url"] == "https://e.com/meta"
-        assert items[0]["source"] == "招标网"
-        assert items[0]["category"] == "bid"
+        assert items[0]["source"] == "科技日报"
+        assert items[0]["category"] == "tech"

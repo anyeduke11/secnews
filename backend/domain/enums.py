@@ -22,14 +22,17 @@ SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
 
 
 class Category(str, Enum):
-    """Top-level hotspot domain categories."""
+    """Top-level hotspot domain categories.
+
+    DEV-0183: BID ("bid") 已随标讯全线下线移除 (源 111 / 数据 112 迁移清理);
+    from_str 对历史 "bid" 字符串将按未知类目拒收 (生产库已无 bid 行)。
+    """
 
     AI = "ai"
     AI_SECURITY = "ai_security"
     SECURITY = "security"
     FINANCE = "finance"
     STARTUP = "startup"
-    BID = "bid"
     GITHUB = "github"
     # Phase 25 P1: IT/科技 分类 (Solidot/IT之家/稀土掘金/酷安 等)
     TECH = "tech"

@@ -115,7 +115,7 @@ class TestFavoriteRepoAdd:
             )
 
     def test_add_each_category_accepted(self, repo):
-        for cat in ["ai", "security", "finance", "startup", "bid", "github"]:
+        for cat in ["ai", "security", "finance", "startup", "github"]:
             created, item = repo.add(
                 hotspot_id=f"h-{cat}",
                 category=cat,
@@ -160,7 +160,7 @@ class TestFavoriteRepoList:
         assert items[2].hotspot_id == "h-0"
 
     def test_list_by_category(self, repo):
-        for cat in ["ai", "security", "bid"]:
+        for cat in ["ai", "security", "github"]:
             repo.add(
                 hotspot_id=f"h-{cat}", category=cat, title="T",
                 source="s", url=f"https://e.com/{cat}",
@@ -169,9 +169,9 @@ class TestFavoriteRepoList:
         assert len(ai_items) == 1
         assert ai_items[0].category == "ai"
 
-        bid_items = repo.list(category="bid")
-        assert len(bid_items) == 1
-        assert bid_items[0].category == "bid"
+        gh_items = repo.list(category="github")
+        assert len(gh_items) == 1
+        assert gh_items[0].category == "github"
 
     def test_list_invalid_category_returns_empty(self, repo):
         repo.add(
@@ -218,26 +218,26 @@ class TestFavoriteRepoHelpers:
             hotspot_id="h-1", category="ai", title="A", source="s", url="https://e.com/1"
         )
         repo.add(
-            hotspot_id="h-2", category="bid", title="B", source="s", url="https://e.com/2"
+            hotspot_id="h-2", category="tech", title="B", source="s", url="https://e.com/2"
         )
         ids = repo.list_favorited_ids()
         assert ids == {"h-1", "h-2"}
 
     def test_count_by_category_all_six_present(self, repo):
-        for cat in ["ai", "ai_security", "security", "finance", "startup", "bid", "github", "tech"]:
+        for cat in ["ai", "ai_security", "security", "finance", "startup", "github", "tech"]:
             repo.add(
                 hotspot_id=f"h-{cat}", category=cat, title="T", source="s", url=f"https://e.com/{cat}"
             )
         counts = repo.count_by_category()
-        # 全 8 分类都存在 (v1.9 加 ai_security)
-        assert set(counts.keys()) == {"ai", "ai_security", "security", "finance", "startup", "bid", "github", "tech"}
+        # 全 7 分类都存在 (v1.9 加 ai_security; DEV-0183 移除 bid)
+        assert set(counts.keys()) == {"ai", "ai_security", "security", "finance", "startup", "github", "tech"}
         assert counts["ai"] == 1
-        assert counts["bid"] == 1
+        assert counts["tech"] == 1
 
     def test_count_by_category_zeros_for_empty(self, repo):
         counts = repo.count_by_category()
-        # 即使没数据,8 分类都返回 0 (v1.9 加 ai_security)
-        for cat in ["ai", "ai_security", "security", "finance", "startup", "bid", "github", "tech"]:
+        # 即使没数据,7 分类都返回 0 (v1.9 加 ai_security; DEV-0183 移除 bid)
+        for cat in ["ai", "ai_security", "security", "finance", "startup", "github", "tech"]:
             assert counts[cat] == 0
 
     def test_total(self, repo):
@@ -253,7 +253,7 @@ class TestFavoriteRepoStats:
     def test_stats_bump_on_add(self, repo):
         conn = db.get_connection()
         # 用循环 index 保证 hotspot_id 不同 (id() 对同一字符串返回相同值)
-        for i, cat in enumerate(["ai", "ai", "bid"]):
+        for i, cat in enumerate(["ai", "ai", "tech"]):
             repo.add(
                 hotspot_id=f"h-{cat}-{i}", category=cat, title="T", source="s",
                 url=f"https://e.com/{cat}-{i}",
@@ -263,7 +263,7 @@ class TestFavoriteRepoStats:
         ).fetchall()
         d = {r["category"]: r["total_favorites"] for r in rows}
         assert d["ai"] == 2
-        assert d["bid"] == 1
+        assert d["tech"] == 1
 
     def test_stats_refresh_on_remove(self, repo):
         for i in range(3):
@@ -314,7 +314,7 @@ class TestFavoritesAPIAdd:
         assert resp.status_code == 422
 
     def test_add_each_category_works(self, client):
-        for cat in ["ai", "security", "finance", "startup", "bid", "github"]:
+        for cat in ["ai", "security", "finance", "startup", "github"]:
             body = _make_fav(hid=f"h-{cat}", category=cat)
             resp = client.post("/api/favorites", json=body)
             assert resp.status_code == 200
@@ -324,7 +324,7 @@ class TestFavoritesAPIAdd:
 class TestFavoritesAPIList:
     def _seed(self, client):
         items = []
-        for cat in ["ai", "security", "bid", "github"]:
+        for cat in ["ai", "security", "tech", "github"]:
             body = _make_fav(
                 hid=f"h-{cat}", category=cat, title=f"T-{cat}",
                 url=f"https://e.com/{cat}",
@@ -346,12 +346,12 @@ class TestFavoritesAPIList:
 
     def test_list_by_category(self, client):
         self._seed(client)
-        resp = client.get("/api/favorites", params={"category": "bid"})
+        resp = client.get("/api/favorites", params={"category": "tech"})
         assert resp.status_code == 200
         data = resp.json()
-        assert data["category"] == "bid"
+        assert data["category"] == "tech"
         assert data["count"] == 1
-        assert data["items"][0]["category"] == "bid"
+        assert data["items"][0]["category"] == "tech"
 
     def test_list_invalid_category_empty(self, client):
         self._seed(client)
@@ -387,14 +387,14 @@ class TestFavoritesAPIRemove:
 
 class TestFavoritesAPICount:
     def test_count_all_six_present(self, client):
-        for cat in ["ai", "ai_security", "security", "finance", "startup", "bid", "github", "tech"]:
+        for cat in ["ai", "ai_security", "security", "finance", "startup", "github", "tech"]:
             client.post("/api/favorites", json=_make_fav(hid=f"h-{cat}", category=cat))
         resp = client.get("/api/favorites/count")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["total"] == 8
+        assert data["total"] == 7
         assert set(data["by_category"].keys()) == {
-            "ai", "ai_security", "security", "finance", "startup", "bid", "github", "tech",
+            "ai", "ai_security", "security", "finance", "startup", "github", "tech",
         }
 
     def test_count_empty(self, client):
@@ -517,7 +517,7 @@ class TestFavoritesIntegration:
         assert r.json()["total"] == 0
 
         # 2. 加 3 条不同分类
-        for cat in ["ai", "security", "bid"]:
+        for cat in ["ai", "security", "github"]:
             client.post("/api/favorites", json=_make_fav(
                 hid=f"h-{cat}", category=cat,
                 title=f"Title {cat}", source=f"src-{cat}",
@@ -533,13 +533,13 @@ class TestFavoritesIntegration:
         assert r.json()["total"] == 3
         assert r.json()["by_category"]["ai"] == 1
         assert r.json()["by_category"]["security"] == 1
-        assert r.json()["by_category"]["bid"] == 1
+        assert r.json()["by_category"]["github"] == 1
 
-        # 5. 删 bid
-        client.delete("/api/favorites/h-bid")
+        # 5. 删 github
+        client.delete("/api/favorites/h-github")
         r = client.get("/api/favorites/count")
         assert r.json()["total"] == 2
-        assert r.json()["by_category"]["bid"] == 0
+        assert r.json()["by_category"]["github"] == 0
 
         # 6. 导出剩余 2 条
         resp = client.get("/api/favorites/export")

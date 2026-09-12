@@ -24,13 +24,12 @@
    - 例子: 2026-07-05 (Sun) → week_start = 2026-06-29 00:00:00+08:00 (上周一)
    - ``published_at < week_start`` → flag ``historical_published``, 扣 100 分
 
-与 :class:`BidRecencyGate` 的区别
----------------------------------
-- ``BidRecencyGate`` (Phase 20) **仅作用于 bid category**, 用 180 天阈值
-  + 标题年份段过滤; 已被本门禁覆盖的 180 天部分会在 Phase 47 重构中
-  移除 (避免双扣分), 仅保留「标题年份段 < current_year - 1」专项过滤。
-- 本门禁作用于 **所有 category** (security / bid / ai / tech / finance /
-  startup / github), 是「资讯/标讯都不能早于本周一」的硬约束。
+历史说明
+--------
+- 曾有的 ``BidRecencyGate`` (Phase 20) 仅作用于 bid category (180 天阈值
+  + 标题年份段过滤); 已随标讯全线下线移除 (DEV-0183), 本门禁覆盖全部类目。
+- 本门禁作用于 **所有 category** (security / ai / tech / finance /
+  startup / github / ai_security), 是「资讯不能早于本周一」的硬约束。
 
 行为
 ----

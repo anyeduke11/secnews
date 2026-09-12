@@ -36,7 +36,6 @@ _CAT_LABELS: dict[str, str] = {
     "security": "网络安全",
     "finance": "金融 / 投资",
     "startup": "独立开发 / 创业",
-    "bid": "招标资讯",
     "github": "GitHub 项目",
     "tech": "科技 / IT",
 }
@@ -45,7 +44,6 @@ _CAT_COLORS: dict[str, str] = {
     "security": "#e85d5d",
     "finance": "#f0c929",
     "startup": "#7c6aff",
-    "bid": "#e8891a",
     "github": "#7c6aff",
     "tech": "#00bcd4",
 }
@@ -55,7 +53,8 @@ _CAT_COLORS: dict[str, str] = {
 # ---------------------------------------------------------------------------
 # 仅暴露给 /api/export 筛选 UI 的窗口, 避免 30d 之类的边角情况
 _EXPORT_TIME_RANGES: tuple[str, ...] = ("24h", "3d", "7d")
-_EXPORT_TYPE_TOKENS: tuple[str, ...] = ("hotspot", "bid")
+# DEV-0183: "bid" 导出类型已随标讯下线移除
+_EXPORT_TYPE_TOKENS: tuple[str, ...] = ("hotspot",)
 
 # type token → 该 type 涵盖的 category 集合
 _TYPE_TO_CATEGORIES: dict[str, tuple[Category, ...]] = {
@@ -63,19 +62,16 @@ _TYPE_TO_CATEGORIES: dict[str, tuple[Category, ...]] = {
         Category.AI, Category.SECURITY, Category.FINANCE,
         Category.STARTUP, Category.TECH, Category.GITHUB,
     ),
-    "bid": (Category.BID,),
 }
 
 # type token → 中文标签 (UI 显示)
 _TYPE_LABELS: dict[str, str] = {
     "hotspot": "资讯",
-    "bid": "标讯",
 }
 
 # type token → 简称 (紧凑显示, 用于复选框右侧)
 _TYPE_LABELS_SHORT: dict[str, str] = {
     "hotspot": "资讯 (科技/AI / 安全 / 金融 / 创业 / GitHub)",
-    "bid": "标讯 (招标)",
 }
 
 # Light 主题色值 (与 frontend/src/index.css [data-theme="light"] 保持一致)
@@ -110,7 +106,7 @@ def _esc(s: str) -> str:
 # ---------------------------------------------------------------------------
 def parse_export_filters(
     time_range: str = "7d",
-    types: str = "hotspot,bid",
+    types: str = "hotspot",
 ) -> tuple[TimeRange, set[str]]:
     """解析 /api/export 筛选参数。
 
@@ -124,7 +120,7 @@ def parse_export_filters(
     # 解析 type tokens
     tokens = [t.strip() for t in (types or "").split(",") if t.strip()]
     if not tokens:
-        raise InvalidParamException("types 不能为空 (至少选择 'hotspot' 或 'bid')")
+        raise InvalidParamException("types 不能为空 (至少选择 'hotspot')")
     invalid = [t for t in tokens if t not in _EXPORT_TYPE_TOKENS]
     if invalid:
         raise InvalidParamException(
@@ -253,7 +249,6 @@ body {{ font-family:'JetBrains Mono','Fira Code',monospace; background:#0a0a0f; 
         <div class="stat-card"><div class="stat-title">网络安全</div><div class="stat-value" style="color:#e85d5d">{cat_counts.get('security', 0)}</div></div>
         <div class="stat-card"><div class="stat-title">金融/投资</div><div class="stat-value" style="color:#f0c929">{cat_counts.get('finance', 0)}</div></div>
         <div class="stat-card"><div class="stat-title">独立开发/创业</div><div class="stat-value" style="color:#7c6aff">{cat_counts.get('startup', 0)}</div></div>
-        <div class="stat-card"><div class="stat-title">招标资讯</div><div class="stat-value" style="color:#e8891a">{cat_counts.get('bid', 0)}</div></div>
     </div>
 
     <div class="grid">{cards_html}</div>
@@ -507,11 +502,6 @@ def build_export_html(
         <input type="checkbox" name="types" value="hotspot" {"checked" if type_checked["hotspot"] else ""}>
         <span class="opt-label">资讯</span>
         <span class="opt-hint">(科技/AI · 安全 · 金融 · 创业 · GitHub)</span>
-      </label>
-      <label class="opt">
-        <input type="checkbox" name="types" value="bid" {"checked" if type_checked["bid"] else ""}>
-        <span class="opt-label">标讯</span>
-        <span class="opt-hint">(招标)</span>
       </label>
     </div>
 

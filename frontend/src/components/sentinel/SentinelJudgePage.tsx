@@ -28,7 +28,6 @@ interface TrendPoint {
   security: number;
   finance: number;
   startup: number;
-  bid: number;
   github: number;
   tech: number;
 }

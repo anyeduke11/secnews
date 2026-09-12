@@ -62,7 +62,6 @@ def _ctx(
             "security": ["漏洞", "hack"],
             "finance": ["股票", "Fed"],
             "startup": ["融资", "startup"],
-            "bid": ["招标", "bid"],
         },
         source_reputation=source_reputation or {},
         existing_urls=set(existing_urls or []),
@@ -103,15 +102,15 @@ def _make_pipeline(
 # ---------------------------------------------------------------------------
 # 注册
 # ---------------------------------------------------------------------------
-def test_pipeline_default_gates_12():
-    """默认注册的同步门禁应有 12 个 (v4.4 新增 ai_quality)。"""
+def test_pipeline_default_gates_11():
+    """默认注册的同步门禁应有 11 个 (v4.4 ai_quality; DEV-0183 移除 bid_recency)。"""
     cfg = QualityConfig()
     p = QualityGatePipeline(cfg, log_repo=_NoopLogRepo())
-    assert len(p.gates) == 12
+    assert len(p.gates) == 11  # DEV-0183: bid_recency 门随标讯下线移除
     names = {g.name for g in p.gates}
     assert names == {
         "schema", "recency", "content", "noise", "category_match", "title_summary",
-        "source_reputation", "AuthorVerification", "FinalUrl", "duplicate", "bid_recency",
+        "source_reputation", "AuthorVerification", "FinalUrl", "duplicate",
         "ai_quality",
     }
 

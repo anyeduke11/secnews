@@ -18,14 +18,13 @@ CATEGORY_LABELS: dict[str, str] = {
     "ai_security": "AI安全",
     "finance": "金融",
     "startup": "创业",
-    "bid": "招标",
     "github": "GitHub",
     "tech": "科技",
 }
 
 CATEGORY_ORDER = [
     "ai", "security", "ai_security", "tech", "finance",
-    "startup", "github", "bid",
+    "startup", "github",
 ]
 
 CATEGORY_SUMMARIES: dict[str, str] = {
@@ -36,7 +35,6 @@ CATEGORY_SUMMARIES: dict[str, str] = {
     "finance": "金融领域关注市场动态、政策变化和行业趋势。",
     "startup": "创业领域融资事件和新兴项目活跃。",
     "github": "GitHub领域热门开源项目和新版本发布密集。",
-    "bid": "招标领域发布多个重要项目。",
 }
 
 

@@ -274,7 +274,6 @@ class HotspotService:
             Category.SECURITY,
             Category.FINANCE,
             Category.STARTUP,
-            Category.BID,
             Category.GITHUB,
         ):
             if exclude_category and cat.value == exclude_category:

@@ -38,8 +38,8 @@
   `include_router`、`*_service.py` 文件,CI 会 fail,必须重跑无 `--check` 让它更新数字。
 - **审计脚本入口**:
   ```bash
-  python scripts/audit_quality_gates.py        # 扫 DB,统计 6 大分类质量门禁覆盖
-  python scripts/audit_bid_sources.py          # 标讯源覆盖审计
+  python scripts/audit_quality_gates.py        # 扫 DB,统计各大分类质量门禁覆盖
+  python scripts/audit_interest_hit_rate.py    # 兴趣引擎周审计·命中率代理 (DEV-0183)
   python scripts/check_endpoints.py            # 端点可达性
   python scripts/check_graph_schema.py         # 图谱 schema 漂移
   python scripts/check_retention_decay.py      # 留存衰减

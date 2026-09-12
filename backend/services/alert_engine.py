@@ -1,11 +1,10 @@
-"""v1.7 Phase 12 — 告警引擎: 3 种规则类型评估 + 重复检测.
+"""v1.7 Phase 12 — 告警引擎: 规则类型评估 + 重复检测.
 
 AlertEngine 是一个独立引擎, 不替代 Phase 3 的 alert_service.py.
-它评估 3 种规则类型, 将结果写入 alert_events 表:
+它评估规则 (DEV-0183: 原 bid_match 已随标讯下线移除), 将结果写入 alert_events 表:
 
 - tech_stack_cve: 新 CVE 命中 cg_projects.tech_stack
 - critical_cve:   NVD CVSS ≥ 9.0 的 CVE
-- bid_match:      标讯关键词命中 tech_stack
 
 设计决策:
 - 使用 knowledge_items.cve_ids (JSON 数组) 作为 CVE 信息来源
@@ -85,8 +84,7 @@ class AlertEngine:
             return self._evaluate_tech_stack_cve(rule)
         elif rule_type == "critical_cve":
             return self._evaluate_critical_cve(rule)
-        elif rule_type == "bid_match":
-            return self._evaluate_bid_match(rule)
+        # DEV-0183: "bid_match" 规则已随标讯下线移除 (存量 bid 规则走 unknown 分支)
         logger.warning("unknown rule_type", extra={"trace_id": "", "rule_type": rule_type})
         return 0
 
@@ -232,83 +230,6 @@ class AlertEngine:
                     item_id=r.get("id"),
                 )
                 triggered += 1
-
-        return triggered
-
-    # ------------------------------------------------------------------
-    # Rule 3: bid_match
-    # ------------------------------------------------------------------
-    def _evaluate_bid_match(self, rule: dict[str, Any]) -> int:
-        """Rule 3: Bid/procurement keywords hit tech_stack.
-
-        Queries hotspots with category='bid', matches against
-        non-archived cg_projects.tech_stack.
-        """
-        config = self._parse_config(rule)
-        window_hours = int(config.get("window_hours", 24))
-
-        cutoff = (datetime.now(timezone.utc) - timedelta(hours=window_hours)).isoformat()
-        conn = get_connection()
-
-        # 1. Load project tech stacks
-        project_rows = conn.execute(
-            "SELECT id, name, tech_stack FROM cg_projects "
-            "WHERE status NOT IN ('archived', 'deprecated')"
-        ).fetchall()
-
-        tech_stacks: set[str] = set()
-        project_map: dict[str, list[int]] = {}
-        for row in project_rows:
-            r = dict(row)
-            ts_raw = r.get("tech_stack")
-            if ts_raw:
-                stacks = self._parse_json_array(ts_raw)
-                for s in stacks:
-                    s_lower = str(s).lower().strip()
-                    if s_lower:
-                        tech_stacks.add(s_lower)
-                        project_map.setdefault(s_lower, []).append(r["id"])
-
-        if not tech_stacks:
-            return 0
-
-        # 2. Query recent bid items from hotspots
-        bid_rows = conn.execute(
-            "SELECT id, title, summary, url FROM hotspots "
-            "WHERE category = 'bid' AND ingested_at >= ? "
-            "ORDER BY ingested_at DESC LIMIT 200",
-            (cutoff,),
-        ).fetchall()
-
-        triggered = 0
-        for row in bid_rows:
-            r = dict(row)
-            title = (r.get("title") or "").lower()
-            summary = (r.get("summary") or "").lower()
-            text = f"{title} {summary}"
-
-            matched_stacks = [s for s in tech_stacks if s in text]
-            if not matched_stacks:
-                continue
-
-            project_ids: set[int] = set()
-            for s in matched_stacks:
-                project_ids.update(project_map.get(s, []))
-
-            self._trigger_alert(
-                rule_type="bid_match",
-                title=f"标讯技术栈匹配: {', '.join(matched_stacks[:3])}",
-                description=(
-                    f"标讯 '{r.get('title', '')[:80]}' 命中技术栈: "
-                    f"{', '.join(matched_stacks)}"
-                ),
-                severity="medium",
-                source=r.get("title", ""),
-                source_url=r.get("url"),
-                item_id=r.get("id"),
-                project_id=next(iter(project_ids)) if project_ids else None,
-            )
-            triggered += 1
 
         return triggered
 

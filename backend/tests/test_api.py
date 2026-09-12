@@ -191,9 +191,10 @@ def test_categories_returns_6(client, seeded_db):
     cats = data["categories"]
     # Phase 35: tech 合并到 ai, 主分类 6 个
     # Phase X:  新增 ai_security (AI 安全交叉) → 总数 7
-    assert len(cats) == 7
+    # DEV-0183: bid 移除 → 总数 6
+    assert len(cats) == 6
     ids = {c["id"] for c in cats}
-    assert ids == {"ai", "ai_security", "security", "finance", "startup", "bid", "github"}
+    assert ids == {"ai", "ai_security", "security", "finance", "startup", "github"}
     assert "tech" not in ids
     for c in cats:
         assert "label" in c
@@ -372,8 +373,8 @@ def test_trends_by_category(client, temp_db):
     data = r.json()
     assert "data" in data  # category -> points
     assert isinstance(data["data"], dict)
-    # v1.9: 8 个分类 (加 ai_security)
-    assert len(data["data"]) == 8
+    # v1.9: 加 ai_security; DEV-0183: 移除 bid → 7 个分类
+    assert len(data["data"]) == 7
 
 
 def test_trends_invalid_hours(client):
@@ -407,13 +408,13 @@ def test_quality_rules_get_array_format(client, temp_db):
     data = r.json()
     rules = data["rules"]
     assert isinstance(rules, list), f"rules must be array, got {type(rules)}"
-    assert len(rules) >= 14  # 6 scalar + 8 category_keywords (P0 收尾: 断言与 RULE_METADATA 实际条目数对齐)
+    assert len(rules) >= 13  # 6 scalar + 7 category_keywords (DEV-0183: 移除 bid_keywords)
     # 第一条必须是标量规则
     r0 = rules[0]
     assert {"key", "value", "default", "type", "description"}.issubset(r0.keys())
-    # category_keywords.* 8 条 (v1.9 加 ai_security)
+    # category_keywords.* 7 条 (v1.9 加 ai_security; DEV-0183 移除 bid)
     kw_rules = [x for x in rules if x["key"].startswith("quality.category_keywords.")]
-    assert len(kw_rules) == 8
+    assert len(kw_rules) == 7
     for kw in kw_rules:
         assert kw["type"] == "list"
         assert isinstance(kw["value"], list) and isinstance(kw["default"], list)

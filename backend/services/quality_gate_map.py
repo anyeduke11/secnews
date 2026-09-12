@@ -20,7 +20,7 @@ dsh-SecNews → Hotspot 映射：
 | url-valid            | FinalUrlGate           | ✅   |
 
 Hotspot 独有（dsh 无对应）：SchemaGate / NoiseContentGate /
-AuthorVerificationGate / BidRecencyGate。
+AuthorVerificationGate。(BidRecencyGate 已随标讯下线移除, DEV-0183)
 """
 from __future__ import annotations
 

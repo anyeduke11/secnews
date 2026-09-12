@@ -85,9 +85,9 @@ class SourceStatsRepository:
         Parameters
         ----------
         category:
-            Category enum value (e.g. ``"bid"``).
+            Category enum value (e.g. ``"security"``).
         source_name:
-            源名 (例如 ``"中国政府采购网"``).
+            源名 (例如 ``"FreeBuf"``).
         source_url:
             源 URL.
         item_count:

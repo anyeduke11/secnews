@@ -27,7 +27,6 @@ CATEGORY_DOMAIN_MAP: dict[str, list[str]] = {
     "security": ["cve", "vulnerability", "network-security"],
     "finance": ["finance"],
     "startup": ["startup"],
-    "bid": ["bid"],
     "tech": ["tech"],
     "github": ["github", "tech"],
 }

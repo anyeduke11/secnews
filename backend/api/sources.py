@@ -58,10 +58,6 @@ CATEGORY_KEYWORDS = {
         "startup", "vc", "venture", "yc", "ycombinator",
         "hackernews", "techcrunch", "创业", "孵化", "创新",
     ],
-    "bid": [
-        "bid", "procurement", "tender", "tender.gov",
-        "政府采购", "招标", "投标", "采购",
-    ],
     "github": ["github.com", "github"],
 }
 

@@ -19,7 +19,7 @@ const response = (overrides: Record<string, unknown> = {}) => ({
   entity_type: 'hotspot',
   entity_id: 'h-1',
   content_md: '',
-  category: 'bid',
+  category: 'security',
   sections: [],
   sections_json: '{}',
   provider: 'sensenova',

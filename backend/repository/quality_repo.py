@@ -219,8 +219,9 @@ class SourceReputationRepository:
 
         vs 旧实现 (2026-08-20):
           - 只统计「质量型 gate」: schema / noise / duplicate / content_hash /
-            recency / bid_recency 属"结构性信号"(重复与否不反映源质量),
+            recency 属"结构性信号"(重复与否不反映源质量),
             不再计入 source 声誉 —— 否则 duplicate 高的源被错误降分。
+            (bid_recency 门已随标讯下线移除, DEV-0183)
           - 统计 gate: title_summary / category_match / source_reputation /
             AuthorVerification / FinalUrl / content / url_content /
             url_validity (真正反映"这条素材好不好")。

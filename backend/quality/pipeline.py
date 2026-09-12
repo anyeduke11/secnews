@@ -20,7 +20,6 @@ from backend.logging_config import logger
 from backend.quality.ai_quality_gate import AIQualityGate  # v4.4
 from backend.quality.author_verification_gate import AuthorVerificationGate
 from backend.quality.base import BaseGate, GateContext
-from backend.quality.bid_recency_gate import BidRecencyGate
 from backend.quality.category_match_gate import CategoryMatchGate
 from backend.quality.config import QualityConfig, QualityMode
 from backend.quality.content_quality_gate import ContentQualityGate
@@ -107,7 +106,7 @@ class QualityGatePipeline:
         AuthorVerificationGate,
         FinalUrlGate,  # Phase 9.2 新增 - 下钻 tag/landing 页到真实文章 URL
         DuplicateGate,
-        BidRecencyGate,  # Phase 20 新增 - 标讯时效性门禁 (标题年份段)
+        # DEV-0183: BidRecencyGate (Phase 20 标讯时效门) 已随标讯全线下线移除
     )
 
     def __init__(

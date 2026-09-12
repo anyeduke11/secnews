@@ -60,11 +60,11 @@ function trendsFixture() {
     label: `-${h}h`, hours_ago: h,
     total: h === 0 ? 30 : h === 1 ? 10 : h === 2 ? 5 : 0,
     ai: h === 0 ? 20 : 0, ai_security: h === 1 ? 4 : 0, security: h === 0 ? 10 : 0,
-    finance: 0, startup: 0, bid: 0, github: 0, tech: 0,
+    finance: 0, startup: 0, github: 0, tech: 0,
   }));
 }
 
-/** 12 道门禁真实形状; duplicate/AuthorVerification 有明显拦截 */
+/** 11 道门禁真实形状; duplicate/AuthorVerification 有明显拦截 */
 const QUALITY = {
   AuthorVerification: { pass: 60, total: 100, avg_deduction: 0.92 },
   duplicate: { pass: 30, total: 100, avg_deduction: 4.1 },

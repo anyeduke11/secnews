@@ -294,7 +294,6 @@ def test_default_category_keywords_contains_all_7():
         "security",
         "finance",
         "startup",
-        "bid",
         "github",
         "tech",
     }

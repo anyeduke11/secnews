@@ -85,10 +85,6 @@ DEFAULT_CATEGORY_KEYWORDS: dict[str, list[str]] = {
         "回报", "国资", "敲锣", "下线", "智能体", "创始人", "CEO",
         "B轮", "C轮", "D轮", "估值", "独角兽", "并购", "M&A",
     ],
-    Category.BID.value: [
-        "招标", "投标", "中标", "采购", "公告", "政府采购",
-        "tender", "bid", "procurement", "工程", "标段", "竞标",
-    ],
     Category.GITHUB.value: [
         "github", "trending", "star-history", "repo", "awesome",
         "llm", "cursor", "claude", "openai", "langchain", "rust", "agent",

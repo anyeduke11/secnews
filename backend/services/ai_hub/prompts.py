@@ -162,17 +162,6 @@ DEEP_READ_PROFILES: dict[str, dict[str, Any]] = {
         "budget": 8000,
         "evidence": "禁止推测监管意图；只写原文出现的发文机关、条款、日期与罚则。",
     },
-    "bid": {
-        "persona": "你是一名投标负责人，要从公告里抠出资格硬门槛、评分规则和不能错过的时间点",
-        "extra_sections": (
-            {"key": "tender_card", "title": "项目卡", "tone": "mint"},
-            {"key": "qualification", "title": "资格硬门槛", "tone": "amber"},
-            {"key": "scoring", "title": "评分与商务项", "tone": "mint"},
-            {"key": "key_dates", "title": "时间节点", "tone": "amber"},
-        ),
-        "budget": 12000,
-        "evidence": "尽量引用原文条款号；预算、资质、截止时间这类字段缺失时必须写进 evidence_gaps。",
-    },
     "github": {
         "persona": "你是一名开源选型工程师，判断这个项目能不能进自己的技术栈、替换成本多大",
         "extra_sections": (

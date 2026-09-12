@@ -87,22 +87,22 @@ def test_get_returns_sections_as_ordered_array(client):
     assert body["category"] == "security"
 
 
-def test_security_and_bid_categories_yield_different_section_sets(client):
-    """A2: 同一套路由, 不同文章类型必须给出不同分节集合。"""
+def test_security_and_finance_categories_yield_different_section_sets(client):
+    """A2: 同一套路由, 不同文章类型必须给出不同分节集合 (DEV-0183: bid→finance)。"""
     _seed("h-sec", "security", "security")
-    _seed("h-bid", "bid", "bid")
+    _seed("h-fin", "finance", "finance")
 
     sec = client.get("/api/deep-read/hotspot/h-sec").json()
-    bid = client.get("/api/deep-read/hotspot/h-bid").json()
+    fin = client.get("/api/deep-read/hotspot/h-fin").json()
 
-    assert "impact_ioc" in _keys(sec) and "qualification" not in _keys(sec)
-    assert "qualification" in _keys(bid) and "impact_ioc" not in _keys(bid)
+    assert "impact_ioc" in _keys(sec) and "regulation_points" not in _keys(sec)
+    assert "regulation_points" in _keys(fin) and "impact_ioc" not in _keys(fin)
     # 跨类可比的固定骨架
-    assert _keys(sec)[0] == _keys(bid)[0] == "key_takeaways"
-    assert _keys(sec)[-2:] == _keys(bid)[-2:] == ["next_actions", "evidence_gaps"]
+    assert _keys(sec)[0] == _keys(fin)[0] == "key_takeaways"
+    assert _keys(sec)[-2:] == _keys(fin)[-2:] == ["next_actions", "evidence_gaps"]
     # red 只出现在漏洞语境
     assert any(s["tone"] == "red" for s in sec["sections"])
-    assert not any(s["tone"] == "red" for s in bid["sections"])
+    assert not any(s["tone"] == "red" for s in fin["sections"])
 
 
 def test_missing_entity_is_404_not_500(client):

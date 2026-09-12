@@ -152,16 +152,17 @@ class TestHotspotDetailTags:
 
 
 # ===========================================================================
-# 5. exclude_category (DEV-0175: 工作台聚焦裁决, 前端默认排除 bid)
+# 5. exclude_category (机制通用; DEV-0183 前默认排除 bid, 现以 security 验证
+#    同一机制 — 不用 tech, 因 ai 桶查询含 IN ('ai','tech') 合并口径)
 # ===========================================================================
-def _make_bid_hotspot(hid: str, title: str = "bid item") -> HotspotItem:
+def _make_excluded_hotspot(hid: str, title: str = "security item") -> HotspotItem:
     now = datetime.now(timezone.utc)
     return HotspotItem(
         id=hid,
         title=title,
         source="test",
         url=f"https://example.com/{hid}",
-        category=Category.BID,
+        category=Category.SECURITY,
         published_at=now - timedelta(hours=1),
         fetched_at=now,
         quality_flags=[],
@@ -178,42 +179,42 @@ class TestExcludeCategory:
         yield
         _list_cache.clear()
 
-    def test_exclude_category_filters_out_bid(self, client, temp_db):
-        """exclude_category=bid 时, bid 条目不出现在列表, 其他分类正常。"""
+    def test_exclude_category_filters_out_target(self, client, temp_db):
+        """exclude_category=security 时, security 条目不出现在列表, 其他分类正常。"""
         HotspotRepository().upsert_many([
             _make_hotspot("h-ai", "ai news"),
-            _make_bid_hotspot("h-bid", "procurement notice"),
+            _make_excluded_hotspot("h-ex", "vuln disclosure"),
         ])
-        r = client.get("/api/hotspots?exclude_category=bid")
+        r = client.get("/api/hotspots?exclude_category=security")
         assert r.status_code == 200
         items = r.json()["items"]
         ids = {it["id"] for it in items}
-        assert "h-bid" not in ids
+        assert "h-ex" not in ids
         assert "h-ai" in ids
 
-    def test_no_exclude_keeps_bid(self, client, temp_db):
-        """不传 exclude_category 时行为与既有版本一致 (bid 条目正常返回)。"""
+    def test_no_exclude_keeps_all(self, client, temp_db):
+        """不传 exclude_category 时行为与既有版本一致 (全部条目正常返回)。"""
         HotspotRepository().upsert_many([
             _make_hotspot("h-ai2", "ai news"),
-            _make_bid_hotspot("h-bid2", "procurement notice"),
+            _make_excluded_hotspot("h-ex2", "vuln disclosure"),
         ])
         r = client.get("/api/hotspots")
         assert r.status_code == 200
         ids = {it["id"] for it in r.json()["items"]}
-        assert "h-bid2" in ids
+        assert "h-ex2" in ids
         assert "h-ai2" in ids
 
     def test_exclude_category_total_consistent(self, client, temp_db):
         """exclude_category 时 total (去重 url 数) 与 items 口径一致 (不含被排除分类)。"""
         HotspotRepository().upsert_many([
             _make_hotspot("h-ai3", "ai news"),
-            _make_bid_hotspot("h-bid3", "procurement notice"),
+            _make_excluded_hotspot("h-ex3", "vuln disclosure"),
         ])
-        r = client.get("/api/hotspots?exclude_category=bid")
+        r = client.get("/api/hotspots?exclude_category=security")
         assert r.status_code == 200
         body = r.json()
         assert body["total"] >= 1
-        assert all(it["category"] != "bid" for it in body["items"])
+        assert all(it["category"] != "security" for it in body["items"])
 
 
 # ===========================================================================

@@ -49,6 +49,9 @@ _EXTENSION_NAMES = (
     # (v0.8.2 X-B3 治理: agent_loop / playbook_engine / skill_eval 三个无消费点
     # 死键已从 TOML 移除; gate 化须随消费点同时登记, 勿再留无效配置键。)
     "user_skills",
+    # DEV-0182 Workbench Focus: 兴趣引擎 (行为信号 + 域权重 + Feed 排序乘子)。
+    # 内容门禁 L3, 与质量门禁 (info_filter) 分离; owner 裁决新建独立 gate。
+    "interest_engine",
 )
 
 # 扩展→router 映射（每个 router 是 backend.api 中的模块名）
@@ -87,6 +90,9 @@ EXTENSION_ROUTERS: dict[str, list[str]] = {
     ],
     "info_filter": [              # v0.8 P1 独立资讯筛选门禁
         "info_filter_api",        #   /api/info-filter/* (CRUD + preview + gate)
+    ],
+    "interest_engine": [          # DEV-0182 Workbench Focus: 兴趣引擎
+        "interest_api",           #   /api/interest/* (信号 + 权重 + reset)
     ],
     "user_skills": [              # v0.8 C3 Skill Builder (v0.8.1 Day 0 补登记)
         "skill_builder_api",      #   /api/skill-builder/* (6 端点)

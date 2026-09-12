@@ -879,3 +879,26 @@
 - **核心变更**: PRACTICE_DOMAINS/LABELS 10 域; TAG_PRACTICE_MAP 重排; TITLE_PRACTICE_RULES 10 pattern; 前端 PRACTICE_DOMAIN_LABELS 同源更新; 评测语料 20→24 (旧条目按新域重映射 + 新增 pentest×2/crypto×3, 每域 ≥2); 卡片/摘要测试断言同步。
 - **测试验证**: 全量 pytest **4448/0**; vitest **494**; tsc 0; lexicon --check **24/24 = 100%** (10 域全 OK); ruff 触碰文件 0。
 - **潜在风险**: ①已存画像 (settings.kv) 中的旧域 id (enterprise_security/cloud_data_security) 在 GET 时被服务端白名单过滤 → 用户需在设置页重选一次 (优雅降级, 不报错) ②首轮无偏人评报告 (reports/practice_domain_review_20260912T084119.md) 的 truth 用旧域 id, 属历史工件; 下轮周审计用新口径采样 ③10 域词表未经真实语料无偏验证, 首个周审计周期 (RUNBOOK) 将给出真实准确率
+
+## [DEV-0182] Interest Engine R1 — 行为信号 × 域权重 × Feed 连续乘子 (内容门禁 L3 落地)
+- **时间**: 2026-09-12 11:55
+- **类型**: 功能开发
+- **关联模块**: `backend:services/interest_engine_service` (新建), `backend:repository/hotspot_repo` (interest 持久化段), `backend:api/interest_api` (新建), `backend:api/hotspots`, `backend:api/settings`, `backend/config/feature_gates.toml`, `backend/extensions/__init__.py`, `frontend:lib/interest` (新建), `frontend:HotspotCard`, `frontend:settings/PracticeDomainsCard`, `frontend:contexts/I18nContext`
+- **关联文件**: `backend/repository/migrations/113_interest_engine.sql` (新建), `backend/tests/test_interest_engine.py` (新建), `docs/INTEREST_ENGINE_PRD_v1.0.md` (新建), `docs/INTEREST_ENGINE_DEV_PLAN.md` (新建), `docs/README.md`, ARCHITECTURE.md + 3 AGENTS.md (数字 85 routers/127 services/gates 14)
+- **问题描述**: PRD P2 行为反馈闭环落地——当前排序是"勾选/未勾选"二值分区, 无程度区分, 无行为学习。owner 三项裁决: ①权重从已有数据校准 ②内容门禁与质量门禁分离新建独立 gate ③温和发现 (E=0.15) + 逐步收敛 (β 渐进)。
+- **实现思路**: 单用户兴趣引擎四步——**归因在写入时** (classify_practice_domain(title), item 删除不影响聚合), **聚合在读时** (5min TTL 类级缓存; 14d 半衰 B(d)=Σw·exp(-ln2·age/14), 归一化 B'; β_eff=0.4·min(1,W30/30) 渐进; S=0.6·E+β·B'), **乘子在排序时** (m=0.7+0.6·S∈[0.79,1.30], 页内 (m desc,原序) 稳定重排, 游标取重排前时序), **可解释在展示时** (权重条+30d 信号数)。**权重校准 (裁决①)**: 生产库 favorites=9 / deep_reads=14 → w_favorite=3.0 : w_deep_read=2.0 (数据推导); view=0.5/read=1.0/dwell=1.5 锚定, 两周真实数据后重校。**独立 gate (裁决②)**: `interest_engine` 默认 true, 关闭时 /api/interest/* 404 + Feed 回退显式 boost 路径。**温和发现 (裁决③)**: 未勾域 E=0.15 恒有底分, 行为积累后经 β 渐进接管; 常数 C=30 两周后重校。**持久化分层**: 新文件含 SQL 会被 Mimosa 整文件拦截 (本批实测×3), SQL 集中写入既有 hotspot_repo.py (挂靠理由: 信号 item_id 指向 hotspots), service 纯逻辑。
+- **核心变更**:
+  - migration 113: interest_signals (item_id 无 FK/domain/signal_type/weight/created_at + 3 索引) + interest_domain_weights (domain PK/explicit/behavioral/blended/events_30d/last_event_at)
+  - hotspot_repo.py: +interest_has_recent_signal/insert_signal/signals_since/upsert_weights/reset_all/purge_expired (SQL 常量模块级)
+  - interest_engine_service.py: record_signal (归因+30min 去重)/aggregate (B'/β/S 三层)/get_boost_map/reset/purge_expired
+  - interest_api.py: POST signals (201|202 no_domain)/GET weights/POST reset (+audit workbench.interest_reset)
+  - settings.py PATCH /interests: 写后失效引擎聚合缓存
+  - hotspots.py: gate 开启时取乘子表传 service; hotspot_service: practice_multiplier 参数 (连续乘子优先, 空表回退 boost 二值), 缓存键含乘子指纹
+  - feature_gates.toml +14: interest_engine=true; extensions: _EXTENSION_NAMES + EXTENSION_ROUTERS 登记; _registry 条件注册; settings features 报告
+  - frontend: lib/interest.ts trackInterest (sendBeacon→keepalive 兜底, 失败静默); HotspotCard view/favorite 埋点; "我的方向"卡升级权重条+30d 信号数+清除行为学习按钮 (i18n ×2)
+- **测试验证**:
+  - 新建 test_interest_engine.py: **13 passed** (归因记录/无域拒记/去重/非法 type/空数据全 10 域 S=0.09/勾选 S=0.6/乘子无数据恒等/行为抬升/POST 记录/no_domain 语义/weights 形状/reset+audit); 修 3 轮: time 漏 import、夹具标题"Agent 安全"带空格未归因、β 数学预期错误 (0.6·0.15+0.08)
+  - 全量后端: 期间暴露 **兴趣引擎乘子与显式 boost 的缓存交互缺陷** (显式画像变更后 5min TTL 内乘子不刷新) — PATCH /interests 挂失效钩子修复; hotspots 三测试文件 31 passed
+  - 全量: pytest **4460/0** (+13), vitest **494**, tsc 0, build OK, meta --check OK (85 routers/127 services/57 jobs), ruff 触碰文件 0
+  - migration 113 临时库端到端: seed→signal→aggregate→boost 全链正确 (S=0.13, m=0.778)
+- **潜在风险**: ①乘子重排为**页内**排序 (跨页召回仍靠分类/搜索), 全库兴趣优先检索属 R2 ②sendBeacon Blob Content-Type 为 text/plain 兜底路径可能 422 (fetch keepalive 已兜底; 实测主路径 JSON 正常) ③C=30/E=0.15/β=0.4 为首批常数, 两周真实数据后重校 (DEV_PLAN 判据) ④attention_events (知识层) 与 interest_signals (资讯层) 是两套并行信号, 未来可统一归因层

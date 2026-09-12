@@ -86,6 +86,8 @@ const messages_zhCN: Messages = {
   'settings.practice_domains.empty': '未选择 — 资讯流按默认排序展示全部内容。',
   'settings.practice_domains.group_aria': '实践域选择',
   'settings.practice_domains.section_aria': '我的方向',
+  'settings.practice_domains.events_30d': '近30天 {n} 条',
+  'settings.practice_domains.reset_behavior': '清除行为学习',
   // DEV-0177 T0.5 收敛: SK-01 今日重点情报卡
   'feed.priority.title': '今日重点',
   'feed.priority.loading': '生成中…',
@@ -422,6 +424,8 @@ const messages_enUS: Messages = {
   'settings.practice_domains.empty': 'Nothing selected — the feed shows all items with default ranking.',
   'settings.practice_domains.group_aria': 'Practice domains',
   'settings.practice_domains.section_aria': 'My Focus',
+  'settings.practice_domains.events_30d': '{n} in 30d',
+  'settings.practice_domains.reset_behavior': 'Clear learned behavior',
   // DEV-0177 T0.5 收敛: SK-01 priority digest card
   'feed.priority.title': "Today's Priorities",
   'feed.priority.loading': 'Generating…',

@@ -18,6 +18,7 @@
 | `Observability_PRD_v1.0.md` | 可观测性 PRD（Batch 1+2 已交付，③④⑤ 排期中） |
 | `SECURITY_KNOWLEDGE_GRAPH{,_PRD,_DEV_PLAN}.md` | 安全图谱域（feature gate `security_graph`） |
 | `WORKBENCH_FOCUS_PRD_v1.0.md` / `WORKBENCH_FOCUS_DEV_PLAN.md` | 工作台聚焦方案（2026-09-12 裁决立项：内容相关性门禁/实践域兴趣体系；双视角方案已否决，见 PRD §0） |
+| `INTEREST_ENGINE_PRD_v1.0.md` / `INTEREST_ENGINE_DEV_PLAN.md` | 兴趣引擎（内容门禁 L3 × 单用户推荐：信号权重数据校准 + 温和发现渐进收敛；feature gate `interest_engine`） |
 | `V0.8_SKILLS.md` / `V0.8_USER_GUIDE.md` | Skills 双轨体系 / 用户指南 |
 | `DESIGN_SYSTEM.md` / `DESIGN_GUIDE.md` / `DIAGRAMS.md` | 设计契约 / 设计规范 / 图表集 |
 | `v1.0/contracts.md` | v1.0 九领域对象契约（§5 状态机 / §6.4 幂等 / receipt，v0.8.5 能力区块的底层契约） |

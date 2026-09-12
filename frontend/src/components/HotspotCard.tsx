@@ -5,6 +5,7 @@ import {
   getCategoryLabel,
   formatRelativeTime,
 } from '../types';
+import { trackInterest } from '../lib/interest';
 
 interface HotspotCardProps {
   item: HotspotItem;
@@ -21,6 +22,7 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
   const handleStarClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    trackInterest(item.id, 'favorite');
     onToggleFavorite?.(item);
   };
 
@@ -50,6 +52,7 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
             target="_blank"
             rel="noopener noreferrer"
             className="hover:underline decoration-from-font"
+            onClick={() => trackInterest(item.id, 'view')}
             style={{ textDecorationColor: `color-mix(in srgb, ${color} 35%, transparent)`, textUnderlineOffset: '2px' }}
           >
             {item.title}

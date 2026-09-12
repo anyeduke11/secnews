@@ -58,6 +58,20 @@ async def list_hotspots(
     # DEV-0176 T0.4: 兴趣画像从 settings.kv 单一来源读取 (前端不必回传)。
     # 空画像/读取失败 → boost=None, 排序行为与既有版本完全一致。
     boost = await asyncio.to_thread(_load_interest_domains)
+    # DEV-0182: 兴趣引擎连续乘子 (gate 开启且有行为/勾选信号时非空)。
+    # 乘子表非空时优先于显式 boost (S 已融合 E, 是 boost 的超集); 空表时
+    # 回退显式 boost 二值路径, 两种路径都保证无信号时排序 = 现状。
+    boost_map: dict[str, float] | None = None
+    try:
+        from backend.extensions import is_extension_enabled
+
+        if is_extension_enabled("interest_engine"):
+            from backend.services.interest_engine_service import InterestEngineService
+
+            boost_map = await asyncio.to_thread(InterestEngineService().get_boost_map)
+    except Exception as e:
+        logger.warning(f"interest boost map unavailable, fallback to explicit profile: {e}")
+        boost_map = None
     return await asyncio.to_thread(
         _service.list_hotspots,
         category=category,
@@ -68,6 +82,7 @@ async def list_hotspots(
         source=source or None,
         exclude_category=exclude_category or None,
         boost_practice_domains=boost or None,
+        practice_multiplier=boost_map,
     )
 
 

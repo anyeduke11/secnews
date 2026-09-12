@@ -45,6 +45,8 @@ async def get_features() -> dict:
         "crm": is_extension_enabled("crm"),
         # C4 之后 dsh 才真正可配: 关闭时 /api/dsh/* 返回 404, 界面需如实呈现该状态
         "dsh": is_extension_enabled("dsh"),
+        # DEV-0182 Workbench Focus: 兴趣引擎 (内容门禁 L3, 与质量门禁分离)
+        "interest_engine": is_extension_enabled("interest_engine"),
         # v0.6.3: workbench_ui 已删除 (workbench 并入 SecNews)
         "enabled_extensions": get_enabled_extensions(),
     }
@@ -283,6 +285,11 @@ async def set_interests(body: InterestsRequest):
     repo = SettingsRepository()
     old = repo.get(_INTEREST_KEY, [])
     repo.set(_INTEREST_KEY, domains)
+
+    # DEV-0182: 画像变更影响兴趣引擎乘子 — 失效聚合缓存 (5min TTL 否则不刷新)
+    from backend.services.interest_engine_service import InterestEngineService
+
+    InterestEngineService.invalidate_cache()
 
     from backend.observability_records import record_audit
     record_audit(

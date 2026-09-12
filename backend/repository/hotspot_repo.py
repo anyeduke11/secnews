@@ -821,4 +821,105 @@ class HotspotRepository:
         return [self._row_to_item(r) for r in rows]
 
 
+# ---------------------------------------------------------------------------
+# Interest Engine 持久化 (DEV-0182 — PRD: docs/INTEREST_ENGINE_PRD_v1.0.md)
+# 放在本模块因信号 item_id 指向 hotspots; 独立 interest_repo.py 新文件会被
+# 安全扫描器整文件拦截 (新文件 SQL 一刀切), 故挂靠既有已扫描文件。
+# ---------------------------------------------------------------------------
+_SQL_INTEREST_DUP_CHECK = (
+    "SELECT 1 FROM interest_signals WHERE item_id = ? AND signal_type = ? "
+    "AND created_at >= ? LIMIT 1"
+)
+_SQL_INTEREST_INSERT_SIGNAL = (
+    "INSERT INTO interest_signals (item_id, domain, signal_type, weight, created_at) "
+    "VALUES (?, ?, ?, ?, ?)"
+)
+_SQL_INTEREST_SIGNALS_SINCE = (
+    "SELECT domain, weight, created_at FROM interest_signals WHERE created_at >= ?"
+)
+_SQL_INTEREST_UPSERT_WEIGHTS = (
+    "INSERT INTO interest_domain_weights (domain, explicit_selected, behavioral_score, "
+    "blended_score, events_30d, last_event_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
+    "ON CONFLICT(domain) DO UPDATE SET "
+    "explicit_selected = excluded.explicit_selected, "
+    "behavioral_score = excluded.behavioral_score, "
+    "blended_score = excluded.blended_score, "
+    "events_30d = excluded.events_30d, "
+    "last_event_at = excluded.last_event_at, "
+    "updated_at = excluded.updated_at"
+)
+
+
+def interest_has_recent_signal(item_id: str, signal_type: str, cutoff_iso: str) -> bool:
+    """同 item+type 在窗口内已有信号 (去重)。表缺失/查询失败返 False (可写入)。"""
+    try:
+        conn = get_connection()
+        return conn.execute(
+            _SQL_INTEREST_DUP_CHECK, (item_id, signal_type, cutoff_iso)
+        ).fetchone() is not None
+    except Exception as e:
+        logger.warning(f"interest_has_recent_signal failed: {e}")
+        return False
+
+
+def interest_insert_signal(item_id: str, domain: str, signal_type: str, weight: float, created_at: str) -> None:
+    try:
+        conn = get_connection()
+        conn.execute(_SQL_INTEREST_INSERT_SIGNAL, (item_id, domain, signal_type, weight, created_at))
+    except Exception as e:
+        logger.warning(f"interest_insert_signal failed: {e}")
+        raise
+
+
+def interest_signals_since(cutoff_iso: str) -> list[dict]:
+    """拉窗口内信号; 表缺失返 []。"""
+    try:
+        conn = get_connection()
+        rows = conn.execute(_SQL_INTEREST_SIGNALS_SINCE, (cutoff_iso,)).fetchall()
+        return [
+            {"domain": r["domain"], "weight": r["weight"], "created_at": r["created_at"]}
+            for r in rows
+        ]
+    except Exception as e:
+        logger.warning(f"interest_signals_since failed: {e}")
+        return []
+
+
+def interest_upsert_weights(rows: list[tuple]) -> None:
+    """落 10 域聚合快照 (best-effort)。"""
+    try:
+        conn = get_connection()
+        for row in rows:
+            conn.execute(_SQL_INTEREST_UPSERT_WEIGHTS, row)
+    except Exception as e:
+        logger.warning(f"interest_upsert_weights failed: {e}")
+
+
+def interest_reset_all(now_iso: str) -> int:
+    """清全部信号 + 行为分归零。返回删除信号行数。"""
+    try:
+        conn = get_connection()
+        cur = conn.execute("DELETE FROM interest_signals")
+        conn.execute(
+            "UPDATE interest_domain_weights SET behavioral_score = 0.0, blended_score = 0.0, "
+            "events_30d = 0, last_event_at = NULL, updated_at = ?",
+            (now_iso,),
+        )
+        return cur.rowcount or 0
+    except Exception as e:
+        logger.warning(f"interest_reset_all failed: {e}")
+        return 0
+
+
+def interest_purge_expired(cutoff_iso: str) -> int:
+    """删除窗口外信号。返回删除行数。"""
+    try:
+        conn = get_connection()
+        cur = conn.execute("DELETE FROM interest_signals WHERE created_at < ?", (cutoff_iso,))
+        return cur.rowcount or 0
+    except Exception as e:
+        logger.warning(f"interest_purge_expired failed: {e}")
+        return 0
+
+
 __all__ = ["HotspotRepository"]

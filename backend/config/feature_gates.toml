@@ -30,6 +30,10 @@ user_skills = true     # v0.8 Phase C C3 — Skill Builder (用户自建 skill)
                    # (user_skills 表 50 上限 + 软删 + dry-run + importlib.find_spec 校验);
                    # v0.8.1 Day 0 修复: gate 名此前漏登记 (_EXTENSION_NAMES) 恒 False,
                    # /api/skill-builder 从未注册 — 补登记后演练实测 200 (2026-09-05).
+interest_engine = true # DEV-0182 Workbench Focus — 内容门禁 L3 × 兴趣引擎
+                   # 行为信号 (/api/interest/signals) + 域权重聚合 + Feed 排序乘子。
+                   # 与质量门禁 (L0-L2 info_filter) 分离: 本 gate 只关相关性排序,
+                   # 关闭时 /api/interest/* 404 且 Feed 回退显式二值分区 (P0 行为)。
 # agent_loop / playbook_engine / skill_eval 三个死配置键已移除 (v0.8.2 X-B3 治理):
 # 三者服务本体不受 gate 控制 (无 router / 无 job / 无 API 消费点), TOML 键被
 # _load_gates 过滤属无效配置。gate 化须随消费点同时登记 (user_skills 先例)。

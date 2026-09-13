@@ -100,7 +100,9 @@ def test_census_accepts_preloaded_registry(temp_db):
 
 # ── C2 /health 新旧字段并存 ────────────────────────────────
 def test_health_payload_exposes_both_scopes(temp_db):
-    from backend.api.sources import _build_health_payload
+    # Batch 3 R3: _build_health_payload 自 backend/api/sources.py 迁至
+    # source_health_api.py (拆分), 断言零改动, 仅同步 import 路径。
+    from backend.api.source_health_api import _build_health_payload
 
     _seed(db.get_connection())
     payload = _build_health_payload(None)

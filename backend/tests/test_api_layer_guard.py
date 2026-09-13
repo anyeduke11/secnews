@@ -16,14 +16,13 @@ API_DIR = Path(__file__).resolve().parent.parent / "api"
 LINE_LIMIT = 150
 
 # 存量超限豁免清单 (实测行数 @ 2026-09-12 Batch 2 收口, 供单调收缩跟踪) —
-# 新文件禁止加入; 已知拆分目标: knowledge_api/case_api/sources/secrets (Batch 3+)。
+# 新文件禁止加入; knowledge_api/case_api/sources/secrets 均已于 Batch 3 R3 拆分, 本清单相应收缩。
 # 收缩到 0 后本守卫的行数检查转为无条件生效。
 _LINE_EXEMPTIONS: dict[str, int] = {
     "_registry.py": 271,
     "action_api.py": 236,
     "alerts.py": 156,
     "artifact_api.py": 198,
-    "case_api.py": 390,
     "catchup.py": 353,
     "codegarden.py": 464,
     "codegarden_ops.py": 534,
@@ -35,7 +34,6 @@ _LINE_EXEMPTIONS: dict[str, int] = {
     "info_filter_api.py": 159,
     "judgment_api.py": 184,
     "kl_pipeline_api.py": 275,
-    "knowledge_api.py": 352,
     "legacy_migrate_v1_api.py": 159,
     "mcp_adapters.py": 234,
     "mcp_agent_tools.py": 162,
@@ -45,13 +43,11 @@ _LINE_EXEMPTIONS: dict[str, int] = {
     "middleware.py": 202,
     "observability_router.py": 296,
     "quality.py": 300,
-    "secrets.py": 557,
     "security.py": 214,
     "settings.py": 304,
     "skill_builder_api.py": 230,
     "skill_registry_api.py": 154,
     "skills.py": 177,
-    "sources.py": 582,
     "sync.py": 364,
     "todos.py": 332,
     "wiki_tools.py": 233,

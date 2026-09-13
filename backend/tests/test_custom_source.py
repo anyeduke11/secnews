@@ -2,7 +2,7 @@
 
 测试范围
 --------
-- :func:`backend.api.sources.classify_by_url_and_title` 五种典型场景
+- :func:`backend.api.source_probe_api.classify_by_url_and_title` 五种典型场景
 - v0.7.x P0: ``_probe_url`` SSRF 防御 (localhost / 私网 IP 拒收)
 - 用例聚焦分类逻辑（纯函数）+ 防御性测试，不触网
 """
@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import pytest
 
-from backend.api.sources import classify_by_url_and_title
+# Batch 3 R3: 符号自 backend/api/sources.py 迁至 source_probe_api.py (拆分),
+# 断言零改动, 仅同步 import 路径。
+from backend.api.source_probe_api import classify_by_url_and_title
 
 
 def test_classify_by_url_and_title_ai():
@@ -63,7 +65,7 @@ class TestProbeUrlSSRFDefense:
     )
     async def test_ssrf_blocked(self, bad_url):
         """私网 / loopback IP / 域名应被拒收 (ok=False, error 含 ssrf_block)。"""
-        from backend.api.sources import _probe_url
+        from backend.api.source_probe_api import _probe_url
         result = await _probe_url(bad_url)
         assert result["ok"] is False
         assert "ssrf_block" in result.get("error", "")
@@ -71,7 +73,7 @@ class TestProbeUrlSSRFDefense:
     @pytest.mark.asyncio
     async def test_public_url_passes_ssrf_check(self):
         """公网域名应通过 SSRF 校验 (实际 probe 仍可能 HTTP 失败, 但不应是 ssrf_block)。"""
-        from backend.api.sources import _probe_url
+        from backend.api.source_probe_api import _probe_url
         # example.com 解析到公网 IP, 应通过 SSRF check
         # 即使实际 HTTP 失败 (mock 无), 错误也不应是 ssrf_block
         result = await _probe_url("https://example.com/feed")

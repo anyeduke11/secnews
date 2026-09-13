@@ -4,7 +4,9 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 
-from backend.api.secrets import _require_local_or_admin
+# Batch 3 R3: _require_local_or_admin 自 backend/api/secrets.py 迁至
+# secrets_reset_api.py (拆分), 断言零改动, 仅同步 import 路径。
+from backend.api.secrets_reset_api import _require_local_or_admin
 
 
 class _Client:

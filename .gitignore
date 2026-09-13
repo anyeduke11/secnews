@@ -150,3 +150,5 @@ runtime/upstreams/
 
 # cadence 修正批: 离线源诊断/退役清单等本地产出 (含域名与错误明文, 不入仓)
 reports/
+backend/data/mitre/enterprise-attack.json
+backend/data/mitre/enterprise-attack.meta.json

@@ -209,6 +209,32 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         collectors_ready=True,
     )
     log.info(f"startup complete in {startup_duration_ms}ms")
+
+    # MP-1 DEV-0217: 图谱点火 — 启动期同步 attack 静态数据 + MITRE STIX bundle
+    # 1) attack_techniques + attack_cwe_map (data/stix/ 静态子集, ~200/700 行)
+    # 2) security_entities + security_edges (完整 STIX bundle, ~1000+/5000+ 行)
+    # 两步均幂等 (attack_loader 用 COUNT==0, MitreAttackClient.upsert 用 ON CONFLICT),
+    # 失败仅 warning 不阻断 startup (graph 端点允许空数据回退)。
+    try:
+        from backend.services.attack_loader import load_attack_data as _load_attack
+        _loaded = _load_attack()
+        log.info(
+            f"attack_loader: techniques={_loaded.get('techniques', 0)} "
+            f"cwe_mappings={_loaded.get('cwe_mappings', 0)}"
+        )
+    except Exception as e:
+        log.warning(f"attack_loader startup hook failed (ignored): {e}")
+
+    try:
+        from backend.security.mitre_attack import MitreAttackClient as _MitreClient
+        _sync_result = _MitreClient().sync_to_db(force=True)
+        log.info(
+            f"mitre_attack sync: entities={_sync_result.get('entities', 0)} "
+            f"edges={_sync_result.get('edges', 0)} from_cache={_sync_result.get('from_cache', False)}"
+        )
+    except Exception as e:
+        log.warning(f"mitre_attack sync startup hook failed (ignored): {e}")
+
     yield
 
     # v0.8.1 Day 0 (PRD F5/D-b): drain 必须在 sched.stop() 之前 —

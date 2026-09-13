@@ -23,6 +23,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import ClassVar
 
 from backend.domain.security_models import SecurityEdge, SecurityEntity, _now_iso
 from backend.repository.db import get_connection
@@ -42,6 +43,29 @@ CACHE_META_NAME = "enterprise-attack.meta.json"  # { last_modified, etag, fetche
 
 SETTINGS_KEY_LAST_SYNC = "mitre.last_synced_at"
 SETTINGS_KEY_MTIME = "mitre.stix_modified"  # 远端 Last-Modified header
+
+# MP-1 DEV-0217: enterprise ATT&CK 标准 14 tactic (TA0001-TA0011 + TA0040/TA0042/TA0043)。
+# 注: STIX bundle 现包含 15 个 enterprise tactic (含 TA0112 Defense Impairment, 2024+
+# 新增), MP-1 阶段过滤该新增项以匹配 SPEC (security_entities.tactic COUNT == 14)。
+# 后续 MP (例如 MP-4) 若需补 Defense Impairment, 走独立战术表 + 兼容性 migration。
+_MP1_ENTERPRISE_TACTIC_IDS = frozenset(
+    {
+        "TA0001",  # Initial Access
+        "TA0002",  # Execution
+        "TA0003",  # Persistence
+        "TA0004",  # Privilege Escalation
+        "TA0005",  # Defense Evasion
+        "TA0006",  # Credential Access
+        "TA0007",  # Discovery
+        "TA0008",  # Lateral Movement
+        "TA0009",  # Collection
+        "TA0010",  # Exfiltration
+        "TA0011",  # Command and Control
+        "TA0040",  # Impact
+        "TA0042",  # Resource Development
+        "TA0043",  # Reconnaissance
+    }
+)
 
 
 def cache_dir() -> Path:
@@ -169,23 +193,63 @@ class MitreAttackClient:
 
         entity_count = 0
         edge_count = 0
+        # MP-1 DEV-0217: STIX 中 tactic 的 type 是 "x-mitre-tactic" (而非 "tactic"),
+        # 此前 _parse_tactic 永远空命中, security_entities.tactic 仅 1 行 (默认行)。
+        # 用 STIX 实际类型 + 从 attack-pattern.kill_chain_phases 聚合双路提取。
+        seen_tactic_ids: set[str] = set()
+        # 记录所有已 upsert 的 entity.id (含 tactic/technique/malware/intrusion-set),
+        # edges 仅 upsert 端点都在集合内的 relationship。STIX 中 uses 关系主要连接
+        # intrusion-set / malware / tool → attack-pattern, 不加载这三种 STIX object
+        # 会导致 _load_attack_edges 返空, 图谱 view=attack 死。
+        known_entity_ids: set[str] = set()
         for obj in objects:
             stix_type = obj.get("type", "")
             if stix_type == "attack-pattern":
                 entity = self._parse_technique(obj)
                 if entity:
                     self._repo.upsert_entity(entity)
+                    known_entity_ids.add(entity.id)
                     entity_count += 1
-            elif stix_type == "tactic":
+            elif stix_type == "x-mitre-tactic":
                 entity = self._parse_tactic(obj)
+                if entity and entity.id not in seen_tactic_ids:
+                    self._repo.upsert_entity(entity)
+                    seen_tactic_ids.add(entity.id)
+                    known_entity_ids.add(entity.id)
+                    entity_count += 1
+            elif stix_type in ("malware", "intrusion-set", "tool"):
+                entity = self._parse_threat_actor_or_tool(obj, stix_type)
                 if entity:
                     self._repo.upsert_entity(entity)
+                    known_entity_ids.add(entity.id)
                     entity_count += 1
             elif stix_type == "relationship":
                 edge = self._parse_relationship(obj)
-                if edge:
-                    self._repo.upsert_edge(edge)
-                    edge_count += 1
+                if edge is None:
+                    continue
+                # 仅当两端都已 upsert 才写边; 否则记入 skipped 统计
+                if edge.source_id in known_entity_ids and edge.target_id in known_entity_ids:
+                    try:
+                        self._repo.upsert_edge(edge)
+                        edge_count += 1
+                    except Exception as e:
+                        self._log.debug(f"skip edge {edge.source_id}->{edge.target_id}: {e}")
+
+        # 兜底: 若 STIX 包里没 x-mitre-tactic 对象, 从 attack-pattern.kill_chain_phases
+        # 聚合出 tactic (TA0001~TA0014 标准命名映射)。仅在 tactic_count==0 时触发。
+        if not seen_tactic_ids:
+            synthetic = self._synthesize_tactics_from_phases(objects)
+            for entity in synthetic:
+                if entity.id not in seen_tactic_ids:
+                    self._repo.upsert_entity(entity)
+                    seen_tactic_ids.add(entity.id)
+                    known_entity_ids.add(entity.id)
+                    entity_count += 1
+
+        self._log.info(
+            f"mitre sync: kept {edge_count} edges (dropped those with endpoints outside "
+            f"tactic/technique scope)"
+        )
 
         # 写 settings.kv 落审计/调度用时间戳
         self._write_sync_meta(new_modified or "")
@@ -267,24 +331,132 @@ class MitreAttackClient:
         )
 
     def _parse_tactic(self, obj: dict) -> SecurityEntity | None:
-        """Parse a STIX tactic into SecurityEntity."""
+        """Parse a STIX x-mitre-tactic into SecurityEntity.
+
+        MP-1 DEV-0217: STIX 实际类型为 ``x-mitre-tactic``, STIX ``id`` 形如
+        ``x-mitre-tactic--<uuid>``。为与 ``attack_techniques.tactic`` 字段对齐,
+        取 ``external_references[source_name=mitre-attack].external_id`` (TAxxxx)
+        作为 entity.id; 同 STIX id 写入 metadata 供反向追溯。
+        """
+        ext_refs = obj.get("external_references", [])
+        external_ref = ""
+        short_id = ""
+        for ref in ext_refs:
+            if ref.get("source_name") == "mitre-attack":
+                external_ref = ref.get("url", "")
+                short_id = ref.get("external_id", "") or ""
+                break
+        # 跳过被 revoked / deprecated 的 tactic (避免污染图谱)
+        if obj.get("revoked") or obj.get("x_mitre_deprecated"):
+            return None
+
+        entity_id = short_id or obj.get("id", "")
+        # MP-1 DEV-0217: MP-1 规格要求 security_entities.tactic COUNT == 14 (TA0001~TA0014)。
+        # STIX 14 是 enterprise 标准 14 tactic; 后续 MITRE 引入 TA0112 Defense Impairment
+        # 等新 tactic (2024+), 在 MP-1 范围内过滤以保持图谱与 attack_techniques.tactic
+        # 字段对得上; 后续 tactic 拓展走独立 MP。
+        if short_id and short_id not in _MP1_ENTERPRISE_TACTIC_IDS:
+            return None
+        return SecurityEntity(
+            id=entity_id,
+            entity_type="tactic",
+            name=obj.get("name", ""),
+            description=obj.get("description", "")[:500] if obj.get("description") else None,
+            external_ref=external_ref,
+            metadata={
+                "stix_type": "x-mitre-tactic",
+                "stix_id": obj.get("id", ""),
+                "short_id": short_id,
+            },
+            created_at=_now_iso(),
+            updated_at=_now_iso(),
+        )
+
+    def _parse_threat_actor_or_tool(self, obj: dict, stix_type: str) -> SecurityEntity | None:
+        """Parse a STIX malware / intrusion-set / tool into a lightweight SecurityEntity.
+
+        MP-1 DEV-0217: STIX ``uses`` 关系主连接这三种 object → attack-pattern,
+        不加载会导致 _load_attack_edges 返空。VALID_ENTITY_TYPES 无 malware /
+        intrusion-set / tool, 统一映射为 'product' (合规且语义接近) 写入
+        security_entities; 图谱边 endpoint 不变 (STIX id) 即可让 _load_attack_edges
+        拿到 uses 边。
+        """
+        if obj.get("revoked") or obj.get("x_mitre_deprecated"):
+            return None
         ext_refs = obj.get("external_references", [])
         external_ref = ""
         for ref in ext_refs:
             if ref.get("source_name") == "mitre-attack":
                 external_ref = ref.get("url", "")
                 break
-
         return SecurityEntity(
             id=obj.get("id", ""),
-            entity_type="tactic",
+            entity_type="product",
             name=obj.get("name", ""),
-            description=obj.get("description", "")[:500] if obj.get("description") else None,
+            description=(obj.get("description", "") or "")[:500] or None,
             external_ref=external_ref,
-            metadata={"stix_type": "tactic"},
+            metadata={
+                "stix_type": stix_type,
+                "stix_id": obj.get("id", ""),
+            },
             created_at=_now_iso(),
             updated_at=_now_iso(),
         )
+
+    # MP-1 DEV-0217: kill_chain_phases → tactic 兜底。
+    # 早期 MITRE STIX 包用 x-mitre-tactic 之前, tactic 概念仅体现在
+    # attack-pattern.kill_chain_phases[].phase_name。phase_name 与 TAxxxx 不一一对应
+    # (TA0001~TA0014 是 STIX 引入后才统一编号), 因此本兜底仅在 x-mitre-tactic 缺失时
+    # 触发, 写入 entity.id = phase_name (例如 'initial-access') 作为稳定键。
+    _PHASE_TACTIC_NAMES: ClassVar[dict[str, str]] = {
+        "reconnaissance": "Reconnaissance",
+        "resource-development": "Resource Development",
+        "initial-access": "Initial Access",
+        "execution": "Execution",
+        "persistence": "Persistence",
+        "privilege-escalation": "Privilege Escalation",
+        "defense-evasion": "Defense Evasion",
+        "credential-access": "Credential Access",
+        "discovery": "Discovery",
+        "lateral-movement": "Lateral Movement",
+        "collection": "Collection",
+        "command-and-control": "Command and Control",
+        "exfiltration": "Exfiltration",
+        "impact": "Impact",
+    }
+
+    def _synthesize_tactics_from_phases(self, objects: list[dict]) -> list[SecurityEntity]:
+        """Aggregate distinct kill_chain_phases across attack-patterns into tactic entities."""
+        phases: set[str] = set()
+        for obj in objects:
+            if obj.get("type") != "attack-pattern":
+                continue
+            if obj.get("revoked") or obj.get("x_mitre_deprecated"):
+                continue
+            for kp in obj.get("kill_chain_phases", []) or []:
+                name = kp.get("phase_name")
+                if name:
+                    phases.add(name)
+        result: list[SecurityEntity] = []
+        now = _now_iso()
+        for phase in sorted(phases):
+            tactic_name = self._PHASE_TACTIC_NAMES.get(phase, phase.replace("-", " ").title())
+            result.append(
+                SecurityEntity(
+                    id=f"phase::{phase}",
+                    entity_type="tactic",
+                    name=tactic_name,
+                    description=None,
+                    external_ref=f"https://attack.mitre.org/tactics/{phase}",
+                    metadata={
+                        "stix_type": "synthesized-from-kill-chain-phase",
+                        "phase_name": phase,
+                    },
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+        return result
 
     def _parse_relationship(self, obj: dict) -> SecurityEdge | None:
         """Parse a STIX relationship into SecurityEdge."""

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSecurityGraph, SecurityEntity } from '../../hooks/useSecurityGraph';
 import { SecurityEntityDetail } from './SecurityEntityDetail';
+import { ComplianceEmpty } from './ComplianceEmpty';
 
 interface SecurityGraphProps {
   view: 'attack' | 'cve' | 'compliance';
@@ -27,6 +28,12 @@ const ENTITY_LABELS: Record<string, string> = {
 export function SecurityGraph({ view }: SecurityGraphProps) {
   const { data, loading, error } = useSecurityGraph(view);
   const [selectedEntity, setSelectedEntity] = useState<SecurityEntity | null>(null);
+
+  // MP-1 DEV-0217: 合规视图 (view=compliance) 后端无种子, 走占位组件
+  // 而非硬编码空字符串, 避免"图谱坏了"误判。MP-4 灌入合规数据后此处移除。
+  if (view === 'compliance') {
+    return <ComplianceEmpty />;
+  }
 
   if (loading) {
     return (

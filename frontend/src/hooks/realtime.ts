@@ -2,8 +2,8 @@
  * realtime.ts — 统一的 "SSE 事件 → 失效动作" 注册器 (Batch 5 任务 C)
  *
  * 背景: 前端此前并存两套 SSE 失效实现 —
- *   1. sentinel 域 "事件 → 节流重拉" (useSSE 直接调用, 见下方"待迁移消费方")
- *   2. v1 域 "事件 → 精确失效" (useSSEAggregateInvalidate / useSSEWithRefetch)
+ *   1. sentinel 域 "事件 → 节流重拉" (原 useSSE 直接调用, 2026-09-13 已全部迁移至本模块)
+ *   2. v1 域 "事件 → 精确失效" (useSSEAggregateInvalidate / useSSEWithRefetch, Batch 5 已迁移)
  * 本模块是第三套的"防波堤": 今后任何新的 SSE 失效消费方都从这里注册,
  * 不得再直接 new useSSE 自建连接 (useSSE 底座本身保持不动)。
  *
@@ -23,12 +23,14 @@
  * onEvent), 且支持 registry 动态注册 — 连接期固定的 types 数组无法覆盖后注册的
  * handler。
  *
- * 待迁移消费方 (当前仍直接调用 useSSE, "事件→节流重拉"模式, 工作正常, 迁移属低优):
- *   - src/components/sentinel/SentinelHomePage.tsx  (collect_done → 3s 合并重拉 + 右栏 10s 节流)
- *   - src/components/sentinel/SentinelJudgePage.tsx (collect_done → reloadPipe + 30s 节流 load)
- *   - src/components/sentinel/SentinelGraphPage.tsx (全量事件 → reloadPipe + 30s 节流 load)
+ * 迁移状态 (2026-09-13): 全部消费方已收尾, 全仓 useSSE 唯一调用点 = 本文件内部底座。
+ * 已完成的 sentinel 域迁移 (节流窗口 / 事件过滤 / 只读重拉语义逐字等价):
+ *   - src/components/sentinel/SentinelHomePage.tsx  (collect_done → 心跳条 + 右栏 10s 节流 + 主列 3s 合并)
+ *   - src/components/sentinel/SentinelJudgePage.tsx (collect_done → 心跳条 + 30s 节流 load)
+ *   - src/components/sentinel/SentinelGraphPage.tsx (全量事件 → 心跳条 + 30s 节流 load)
  *   - src/components/sentinel/SentinelGardenPage.tsx (全量事件 → 15s 节流 reloadPipe + load)
- *   - src/components/sentinel/SentinelShell.tsx usePipeReloadOnSse (10s 节流心跳条, DEV-0167 修复)
+ *   - src/components/sentinel/SentinelShell.tsx usePipeReloadOnSse: 非 SSE 消费方 (不带连接),
+ *     10s 节流 + 模块级 mountedReload 优先 (DEV-0167) 原样保留, 由各页 realtime handler 调用。
  */
 import { useCallback, useEffect, useRef } from 'react';
 import { useSSE } from './useSSE';

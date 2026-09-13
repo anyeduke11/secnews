@@ -20,7 +20,7 @@ ALL_OFF = {
     "codegarden": False, "codegarden_phase2b": False,
     "mcp": False, "sync": False,
     "tech_stack": False, "security_graph": False,
-    "secnews": False, "crm": False, "dsh": False,
+    "secnews": False, "dsh": False,
 }
 ALL_ON = dict.fromkeys(ALL_OFF, True)
 
@@ -80,11 +80,7 @@ EXTENSION_PATHS = {
         "/api/dsh/control/status",
         "/api/agents/available",
     ],
-    "crm": [
-        "/api/crm/customers",
-        "/api/crm/opportunities",
-        "/api/crm/stats",
-    ],
+    # crm 域已随 migration 116 整体删除, 不再列入扩展矩阵
 }
 
 # P1-1 (v0.6.2): job→扩展 派生自 backend.extensions.EXTENSION_JOBS (单一来源),
@@ -254,7 +250,7 @@ class TestFeaturesEndpoint:
         # 漏报 dsh, 该断言把错误输出固化。现在补齐后应含 dsh。
         assert data["enabled_extensions"] == [
             "codegarden", "codegarden_phase2b", "mcp", "sync", "tech_stack",
-            "secnews", "crm", "dsh",
+            "secnews", "dsh",
         ]
 
 

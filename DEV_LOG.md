@@ -1236,3 +1236,17 @@
 - **复议结果**: ①P1-0 执行器**通过** (4 开放问题按推荐项执行: 逐 plan 审批/本机+降权/人工 plan 兜底/只读试点; 分期 0a 人工回执止血可先行) ②CodeGarden 设计通过, 修订 S1: 信号提取对**全部资讯**识别 (不限 category, 分类在候选层不在来源层; 规则先行存量 9872 条可一次跑完), 选题口味开放问题随之关闭 ③mitre 按新理念重写 v2: **MITRE 实例化标签体系** — 三类标签对象 L1 漏洞 (attack_cwe_map 桥+LLM 辅助, 与 P1-5 CVE 语料联动约束如实标注) / L2 安全事件类型词表+典型技战法链 (主推, security taxonomy 新 event_type 实体承载, event_technique_map 新表) / L3 应急响应 (系统无 incident 对象, 本期以 v1_knowledge 响应条目承载, P2-3 再建); M1 图谱点火降为基础设施前提; 实施分期 MP-1~4 (MP-2 用户价值最高)。
 - **验证**: 纯文档。
 - **风险**: P1-0 已批准可实施但本期未动代码 (等 owner 令); mitre v2 的 4 个开放问题 (词表覆盖面/数据来源/CVE 联动排期/技战法卡进判断层) 待确认后 MP 批次才动。
+
+## [DEV-0214] mitre v3 设计稿定稿: 4 开放问题全关 + 抽审规约 + 知识↔判断层双向关联
+- **时间**: 2026-09-13 14:10
+- **类型**: 功能开发 (设计文档 v3, 未动代码)
+- **关联文件**: docs/DISCUSSION_MITRE_KNOWLEDGE_2026-09-13.md (v3 整版重写), docs/FEATURE_DECOMPOSITION_2026-09-12.md (§5 裁决记录更新), PROGRESS.md (活跃段设计稿状态)
+- **4 项决议落设计稿**:
+  1. **词表 11 类 = 8 通用 + 3 金融特有** (反诈/数据泄露/监管通报 — owner 加的金融行业特有, 与通用 8 类并列)
+  2. **数据来源 = LLM 抽取 → owner 人审落库** (v3 §7 抽审规约: 输入侧公开报告语料 11 类×5=55+ 份; LLM 候选侧强约束 3 条—ATT&CK 字典 FK/evidence_quote 逐字 substring 校验/confidence<0.5 不入; 候选池表 event_technique_candidates (event_type_id, technique_id, stage, confidence, evidence_quote, source_report_id, llm_model, llm_run_at, owner_status); owner 审核三态 approve/edit/reject + 批量便利 + 进度指标 + 完整追溯链; 金融语料边界=仅脱敏公开通报不接客户内部; 节奏=MP-2 头一周先 3 类端到端验证流程无误, 第二周扩展到 11 类全覆盖每类≥3 条审定)
+  3. **L1 漏洞绑 CVE, NVD 为权威源** (与 P1-5 联动排期, MP-3 启动条件=P1-5 已有可对接的 NVD 增量流)
+  4. **技战法卡放知识层 (v1_knowledge), 判断层做调用, 两边做关联设计** (v3 §8: 方向 A 知识→技战法新增 knowledge_technique_ref 表 (knowledge_id, technique_id, relation_type∈{addresses,detects,mitigates}); 方向 B 判断→知识通过 v1_judgments 扩 1 列 attack_technique_refs (JSON 数组); judgment 上下文装配流程 JudgmentContextBuilder.build 读 technique_refs → attack_label_service.list_knowledge_for_techniques → 拼 "## 相关响应知识" 段; 反向 SSE 通知不自动重生成已发布判断, 仅前端标注 "该判断引用的响应知识已更新" 由 owner 决定是否重审; 复用 attack_label_service 多语义入口, 不动 v1_judgments/v1_knowledge 主结构只加 1 列+1 表)
+- **数据模型新增/扩**: attack_techniques/attack_cwe_map (M1 落数据); security_entities 新 entity_type=event_type 11 类; **event_technique_map** (L2/L3 核心); **event_technique_candidates** (MP-2 自带); **knowledge_technique_ref** (MP-4); v1_judgments 扩 1 列 attack_technique_refs。
+- **分期**: MP-1 图谱点火 1~2 天 (地基, 无依赖) / MP-2 L2 事件类型 3~4 天 (词表+抽审+技战法卡) / MP-3 L1 漏洞 2~3 天 (与 P1-5 联动) / MP-4 L3 响应+双向关联 2~3 天。
+- **验证**: 纯文档 (4 决议 + 数据模型 + 抽审规约 + 双向关联设计)。
+- **风险**: MP-1 / MP-2 抽审侧等待 owner 令下开工; MP-3 与 P1-5 排期挂钩不阻塞 MP-1/2; MP-4 judgment 扩列与 v1 既有 CAS/状态机兼容性已分析通过 (老数据 attack_technique_refs=NULL 行为不变)。

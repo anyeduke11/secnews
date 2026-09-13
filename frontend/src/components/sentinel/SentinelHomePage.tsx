@@ -13,7 +13,7 @@
  *  - GET/POST/DELETE /api/favorites —— 经 useFavorites (模块级单例 store)
  *  - GET /api/quality/summary · GET /api/todos (右栏)
  *  - GET /api/settings/refresh-interval (页脚/空态展示真实采集间隔)
- *  - SSE /api/events (只订阅 collect_done: 采集完成后只读重拉, 不再回触 POST /api/refresh)
+ *  - SSE /api/events (经 src/hooks/realtime.ts 统一注册, 只订阅 collect_done: 采集完成后只读重拉, 不再回触 POST /api/refresh)
  *
  * 刷新节奏契约 (cadence 修正批, 2026-09-10):
  *  - 后端按 settings 里的采集间隔跑 collect_all; 一轮结束发一次 collect_done
@@ -21,9 +21,9 @@
  *    否则 "采集 → collect_done → POST /api/refresh → 再采集" 会形成自激循环,
  *    把 30 分钟节奏打成连续抓取 (owner 反馈"首页刷新频率过高"的根因)
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSSE } from '../../hooks/useSSE';
+import { SSE_EVENTS, useRealtimeInvalidation } from '../../hooks/realtime';
 import { useHotspotData } from '../../hooks/useHotspotData';
 import { useFavorites } from '../../hooks/useFavorites';
 import { CATEGORIES, HotspotItem, PRACTICE_DOMAIN_LABELS } from '../../types';
@@ -259,31 +259,12 @@ export function SentinelHomePage() {
 
   const reloadPipe = usePipeReloadOnSse();
 
-  // SSE collect_done 可能在重连回放时连续到达, 对只读重拉做一层合并 (3s),
-  // 避免翻页缓存被反复清空。
-  // ref 必须在 useSSE 之前声明 (回调在渲染期即被持有), 具体实现见下方赋值。
-  const refreshTimerRef = useRef<number | null>(null);
-  const refreshDebouncedRef = useRef<() => void>(() => {});
-  const sideGateRef = useRef(0);
-
   // ── 资料层主数据: 全文搜索 + 时间窗 + cursor 分页统一由 hook 负责 ──
   const {
     items, total, categoryCounts, loading, loadingPage, error,
     hasMore, page, pageSize, totalPages, setPage, refresh, refetch,
     latestIngestionCount, latestIngestionAt, interestDomains,
   } = useHotspotData(channel, timeRange, keyword);
-
-  // 只读重拉: 采集已由后端完成, 前端只需拿新数据, 绝不再回触 POST /api/refresh
-  refreshDebouncedRef.current = () => {
-    if (refreshTimerRef.current !== null) return;
-    refreshTimerRef.current = window.setTimeout(() => {
-      refreshTimerRef.current = null;
-      void refetch();
-    }, 3000);
-  };
-  useEffect(() => () => {
-    if (refreshTimerRef.current !== null) window.clearTimeout(refreshTimerRef.current);
-  }, []);
 
   // ── 收藏: 模块级单例 store, 乐观更新 + 失败回滚 ──
   const { count: favoriteCount, isFavorite, toggleFavorite } = useFavorites();
@@ -325,19 +306,16 @@ export function SentinelHomePage() {
   }, []);
 
   // SSE: 只响应 collect_done (一轮采集只发一次)。其余事件 (埋点 / extract_done / alert /
-  // job_done …) 与资料层无关, 不刷页面。右栏 10s 节流兜底重连回放多条的情况。
-  useSSE({
-    types: ['collect_done'],
-    onEvent: () => {
-      reloadPipe();
-      const now = Date.now();
-      if (now - sideGateRef.current >= SIDE_RELOAD_GATE_MS) {
-        sideGateRef.current = now;
-        void loadSide();
-      }
-      refreshDebouncedRef.current();
-    },
-  });
+  // job_done …) 与资料层无关, 不刷页面。三条动作沿用 cadence 修正批 (2026-09-10) 的窗口,
+  // 经 src/hooks/realtime.ts 统一注册器路由, 全部只读重拉:
+  //  - 心跳条: usePipeReloadOnSse 内部自带 10s 节流 + mountedReload 优先 (DEV-0167)
+  //  - 右栏 (质量门禁 / 待办): 10s 节流, 兜底重连回放多条的情况
+  //  - 主列: 3s 合并 (重连回放可能连发多条 collect_done), 避免翻页缓存被反复清空
+  useRealtimeInvalidation([
+    { types: SSE_EVENTS.COLLECT_DONE, handler: () => reloadPipe() },
+    { types: SSE_EVENTS.COLLECT_DONE, handler: () => void loadSide(), throttleMs: SIDE_RELOAD_GATE_MS },
+    { types: SSE_EVENTS.COLLECT_DONE, handler: () => void refetch(), debounceMs: 3000 },
+  ]);
 
   // 告警条目: 快讯池 (头条/次级之后) 中安全类目评分最高的一条
   const alertItem = useMemo(() => {

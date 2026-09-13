@@ -32,9 +32,9 @@
  *  - 本屏把它们当**原始数据**看待: 不参与任何着色, 只按 node.data.status / .runtime
  *    用哨兵令牌重映射为 ok/warn/idle 三档 (红色留给漏洞告警语境, 服务停止/异常不上红)。
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSSE } from '../../hooks/useSSE';
+import { useRealtimeInvalidation } from '../../hooks/realtime';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import { listHotspots } from '../../api/hotspots';
 import { fetchCodegardenPanel, type CgPanel } from '../../api/codegarden';
@@ -326,17 +326,18 @@ export function SentinelGardenPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // SSE: cg_event_process job 每 60s 消费事件总线 → 15s 节流刷新 (只读刷新, 不触发任何运维端点)
-  const gateRef = useRef(0);
-  useSSE({
-    onEvent: () => {
-      const now = Date.now();
-      if (now - gateRef.current < 15000) return;
-      gateRef.current = now;
-      reloadPipe();
-      load();
+  // SSE: cg_event_process job 每 60s 消费事件总线 → 订阅全量事件 (不设 types 过滤,
+  // 语义与原 useSSE 无 types 一致), 15s 节流后同时刷心跳条 + 面板 (与原 gateRef 闸门同序)。
+  // 经 src/hooks/realtime.ts 统一注册器路由, 只读刷新, 不触发任何运维端点。
+  useRealtimeInvalidation([
+    {
+      handler: () => {
+        reloadPipe();
+        void load();
+      },
+      throttleMs: 15_000,
     },
-  });
+  ]);
 
   /* ---- 泳道分组 ---- */
   const projRows = projects.state === 'ready' ? (projects.data.items ?? []) : [];

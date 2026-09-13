@@ -18,7 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSSE } from '../../hooks/useSSE';
+import { useRealtimeInvalidation } from '../../hooks/realtime';
 import { listHotspots } from '../../api/hotspots';
 import { getJSON } from '../../lib/api';
 import { getKnowledgeConceptDetail, getKnowledgeGraph, KnowledgeApiError } from '../../api/knowledge';
@@ -217,7 +217,6 @@ export function SentinelGraphPage() {
   const [error, setError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const detailReq = useRef(0);
-  const lastSse = useRef(0);
 
   const reloadPipe = usePipeReloadOnSse();
 
@@ -249,16 +248,13 @@ export function SentinelGraphPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // SSE: 采集/编译后图谱会变, 30s 节流重拉 (概念图重建成本高, 不逐事件刷新)
-  useSSE({
-    onEvent: () => {
-      reloadPipe();
-      const now = Date.now();
-      if (now - lastSse.current < 30000) return;
-      lastSse.current = now;
-      load();
-    },
-  });
+  // SSE: 采集/编译后图谱都会变, 订阅全量事件 (不设 types 过滤, 语义与原 useSSE 无 types 一致);
+  // 心跳条走 usePipeReloadOnSse 的 10s 节流 + mountedReload 优先 (DEV-0167), 图谱 30s 节流重拉
+  // (概念图重建成本高, 不逐事件刷新)。经 src/hooks/realtime.ts 统一注册器路由, 全部只读重拉。
+  useRealtimeInvalidation([
+    { handler: () => reloadPipe() },
+    { handler: () => void load(), throttleMs: 30_000 },
+  ]);
 
   const pick = useCallback(async (node: GraphNode) => {
     setSelected(node);

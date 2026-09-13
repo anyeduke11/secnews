@@ -10,9 +10,9 @@
  * 数据源: /api/hotspots (24h) · /api/trends (168h) · /api/quality/summary ·
  *         /api/kl/compounding (stage_distribution 全量聚合)
  */
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSSE } from '../../hooks/useSSE';
+import { SSE_EVENTS, useRealtimeInvalidation } from '../../hooks/realtime';
 import { listHotspots } from '../../api/hotspots';
 import { getJSON, postJSON } from '../../lib/api';
 import { CATEGORIES, HotspotItem } from '../../types';
@@ -221,18 +221,13 @@ export function SentinelJudgePage() {
   useEffect(() => { load(); }, [load]);
 
   // SSE: 判断层数据 (hotspots 统计 + knowledge 分布) 只在采集完成后变化, 只订阅 collect_done;
-  // 30s 节流兜底重连回放 (与 SentinelGraphPage 同频), 埋点 / extract / alert 等事件不刷页
-  const sseGateRef = useRef(0);
-  useSSE({
-    types: ['collect_done'],
-    onEvent: () => {
-      reloadPipe();
-      const now = Date.now();
-      if (now - sseGateRef.current < 30000) return;
-      sseGateRef.current = now;
-      load();
-    },
-  });
+  // 心跳条走 usePipeReloadOnSse 的 10s 节流 + mountedReload 优先 (DEV-0167), 主列 30s 节流
+  // 兜底重连回放 (与 SentinelGraphPage 同频), 埋点 / extract / alert 等事件不刷页。
+  // 经 src/hooks/realtime.ts 统一注册器路由, 全部只读重拉。
+  useRealtimeInvalidation([
+    { types: SSE_EVENTS.COLLECT_DONE, handler: () => reloadPipe() },
+    { types: SSE_EVENTS.COLLECT_DONE, handler: () => void load(), throttleMs: 30_000 },
+  ]);
 
   // 本周信号 bars: 168h 各分类汇总
   const signals = useMemo(() => {

@@ -386,7 +386,9 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
   );
 }
 
-/** 心跳条节流刷新 hook (子页 SSE 事件驱动时复用) — Provider 内外均可调用 */
+/** 心跳条节流刷新 hook — 由各页的 useRealtimeInvalidation (src/hooks/realtime.ts) handler
+ *  在 SSE 事件到达时调用。本 hook 本身不订阅 SSE (迁移后也不是 useSSE 消费方), 只提供
+ *  10s 节流 + mountedReload 优先于 context reload 的 DEV-0167 语义, 迁移时逐字保留 */
 export function usePipeReloadOnSse() {
   const { reload } = usePipe();
   const lastRef = useRef(0);

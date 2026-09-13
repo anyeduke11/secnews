@@ -195,10 +195,7 @@ export function AppRoutes() {
           <Route path="settings" element={<Navigate to="/settings?cat=pipeline" replace />} />
         </Route>
 
-        {/* CRM 业绩座舱 (v0.6 security-cockpit 方案 C, feature gate: crm) */}
-        {features.crm && (
-          <Route path="/crm" element={<Suspense fallback={<PageFallback />}><P.CrmPage onBack={goBack} /></Suspense>} />
-        )}
+        {/* crm (/crm) 已随 CRM 域整体删除 (migration 116), 路由与入口一并移除 */}
 
         {/* 找回丢失前端入口 (v0.6.3): 后端路由已存在, 前端从未接入的 4 域 */}
         {/* DEV-0175: /bid-alert 已随工作台聚焦裁决剔除 (标讯不再属于安全从业者工作台) */}

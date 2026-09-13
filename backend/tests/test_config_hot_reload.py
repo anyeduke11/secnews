@@ -19,10 +19,11 @@ from backend.extensions import (
 # ---------------------------------------------------------------------------
 # feature_gates.toml — gate 动态读数热重载
 # ---------------------------------------------------------------------------
-# 用 "crm": conftest 的 HOTSPOT_FEATURE_GATES env 覆盖不含此键,
-# toml 翻转不会被 env 压住 (env > toml 优先级由 test_env_override_still_wins 单独验证)。
-TOML_VALID_FALSE = '[extensions]\n  crm = false\n'
-TOML_VALID_TRUE = '[extensions]\n  crm = true\n'
+# 用 "secnews"（原用 "crm", 该域已删除）: conftest 的 HOTSPOT_FEATURE_GATES env
+# 覆盖不含此键, toml 翻转不会被 env 压住 (env > toml 优先级由
+# test_env_override_still_wins 单独验证)。
+TOML_VALID_FALSE = '[extensions]\n  secnews = false\n'
+TOML_VALID_TRUE = '[extensions]\n  secnews = true\n'
 
 
 @pytest.fixture
@@ -40,39 +41,39 @@ def gates_env(tmp_path, monkeypatch):
 class TestGatesHotReload:
     def test_flip_takes_effect(self, gates_env):
         """toml sync=false -> true: TTL 到期后动态读数翻转。"""
-        assert is_extension_enabled("crm") is False
+        assert is_extension_enabled("secnews") is False
         gates_env.write_text(TOML_VALID_TRUE)
-        assert is_extension_enabled("crm") is True
+        assert is_extension_enabled("secnews") is True
 
     def test_ttl_window_keeps_cache(self, gates_env, monkeypatch):
         """TTL 窗口内 (未到期) 文件变更不生效 — 防 stat 风暴。"""
         monkeypatch.setattr("backend.extensions._GATES_TTL", 999.0)
-        assert is_extension_enabled("crm") is False
+        assert is_extension_enabled("secnews") is False
         gates_env.write_text(TOML_VALID_TRUE)
-        assert is_extension_enabled("crm") is False  # 窗口内读旧缓存
+        assert is_extension_enabled("secnews") is False  # 窗口内读旧缓存
 
     def test_broken_toml_keeps_last_good(self, gates_env):
         """热重载路径遇语法错: 沿用上次成功读数, 不让扩展集体消失。"""
-        assert is_extension_enabled("crm") is False
+        assert is_extension_enabled("secnews") is False
         gates_env.write_text("not [valid toml ===")
-        assert is_extension_enabled("crm") is False  # 旧读数保留 (非 fail-closed 全空)
+        assert is_extension_enabled("secnews") is False  # 旧读数保留 (非 fail-closed 全空)
         gates_env.write_text(TOML_VALID_TRUE)
-        assert is_extension_enabled("crm") is True  # 修复后恢复热重载
+        assert is_extension_enabled("secnews") is True  # 修复后恢复热重载
 
     def test_missing_file_keeps_last_good(self, gates_env):
-        assert is_extension_enabled("crm") is False
+        assert is_extension_enabled("secnews") is False
         gates_env.unlink()
-        assert is_extension_enabled("crm") is False
+        assert is_extension_enabled("secnews") is False
         gates_env.write_text(TOML_VALID_TRUE)
-        assert is_extension_enabled("crm") is True
+        assert is_extension_enabled("secnews") is True
 
     def test_env_override_still_wins(self, gates_env, monkeypatch):
         """热重载不改优先级: 默认 < TOML < env。"""
         monkeypatch.setenv(
-            "HOTSPOT_FEATURE_GATES", '{"extensions": {"crm": true}}'
+            "HOTSPOT_FEATURE_GATES", '{"extensions": {"secnews": true}}'
         )
         reset_gates()
-        assert is_extension_enabled("crm") is True  # env 压过 toml false
+        assert is_extension_enabled("secnews") is True  # env 压过 toml false
         assert _GATES_PATH is not None  # import 契约 (符号存在)
 
 

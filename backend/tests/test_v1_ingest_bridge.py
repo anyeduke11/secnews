@@ -323,7 +323,7 @@ def test_auto_recall_matches_published_knowledge(temp_db) -> None:
     assert hits[0]["id"] == "KNOW01HBWXAZ2P3XQV5M8B7CDE"
     assert hits[0]["reasons"]
     # 无关 case → 不浮现
-    assert auto_recall_for_case({"title": "CRM 业绩季度回顾", "question": "统计口径"}) == []
+    assert auto_recall_for_case({"title": "季度业绩回顾会议纪要", "question": "统计口径"}) == []
 
 
 def test_auto_recall_ignores_non_published(temp_db) -> None:
@@ -384,6 +384,7 @@ def test_aggregate_reuse_summary_counts_real_adoptions(temp_db) -> None:
     )
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from backend.api.case_api import router as case_router
     from backend.api.knowledge_api import router as knowledge_router
     app = FastAPI()
@@ -396,7 +397,7 @@ def test_aggregate_reuse_summary_counts_real_adoptions(temp_db) -> None:
     assert body["reuse_summary"] == {"adoptions_total": 0, "adoptions_30d": 0, "distinct_knowledge": 0}
 
     # 采用后: 1/1/1 (真实回执计数)
-    r_adopt = client.post(f"/api/v1/knowledge/KNOWSUM01HBWXAZ2P3XQV5M8B7/adopt", json={
+    r_adopt = client.post("/api/v1/knowledge/KNOWSUM01HBWXAZ2P3XQV5M8B7/adopt", json={
         "case_id": case.id, "decision": "adopted", "condition_diff": [], "decided_by": "d4-test",
     })
     assert r_adopt.status_code in (200, 201)

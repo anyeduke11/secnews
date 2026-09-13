@@ -43,7 +43,6 @@ interface FeaturesPayload {
   tech_stack?: boolean;
   security_graph?: boolean;
   secnews?: boolean;
-  crm?: boolean;
   dsh?: boolean;
   enabled_extensions?: string[];
 }
@@ -106,7 +105,6 @@ const FEATURE_DEFS: { key: keyof FeaturesPayload; label: string; desc: string }[
   { key: 'sync', label: '跨设备同步', desc: 'WebDAV 加密同步通道 (唯一默认开启的扩展域)。' },
   { key: 'tech_stack', label: '技术栈图谱', desc: '技术栈关联分析与图谱视图。' },
   { key: 'security_graph', label: '安全图谱', desc: 'ATT&CK / CVE 安全关联图谱。' },
-  { key: 'crm', label: 'CRM 业绩座舱', desc: '客户与商机状态机视图。' },
   {
     key: 'dsh',
     label: 'dsh 认知层',

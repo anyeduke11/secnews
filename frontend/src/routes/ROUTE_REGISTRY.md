@@ -57,10 +57,11 @@
 | 路径 | 组件 | Gate |
 |---|---|---|
 | `/codegarden` (+`/phase2b`) | CodegardenPage / Phase2b | `codegarden` (+`codegarden_phase2b`) |
-| `/crm` | CrmPage | `crm` |
 | `/tags` `/extract` `/search` | TagsPage / ExtractPage / UnifiedSearchPage | - |
 
 > DEV-0175 (2026-09-12): `/bid-alert` (BidAlertPage) 已随「工作台聚焦」裁决剔除——路由/懒加载/壳菜单入口全部移除, 后端 `/api/bid-alert/*` 与 bid 采集器暂保留 (数据层不动, 是否停采待 owner 裁决)。
+>
+> 2026-09-13: `/crm` (CrmPage) 已随 CRM 业绩座舱域整体删除 (migration 116)——路由/懒加载/设置入口/feature flag 全部移除, `/api/crm/*` 与 crm_* 三表同步删除。
 
 ## 二、后端 API 域 → 前端消费关系
 
@@ -74,6 +75,5 @@
 | ai_hub | `/api/llm/*` | 有 (判读台 AI 评测, D2 出稿链路依赖) | |
 | dsh + agents | `/api/dsh/*` `/api/agents/*` | 有 (含 legacy migrate API) | `dsh` gate |
 | codegarden | `/api/codegarden*` | 有 (/garden /codegarden) | `codegarden` (+`codegarden_phase2b`) |
-| crm | `/api/crm/*` | 有 (/crm) | `crm` gate |
 | **v1 领域对象** | `/api/v1/signals` `/cases` `/judgments` `/actions` `/runs` `/artifacts` `/knowledge` `/skill-registry/v1` | 有 (三层区块 + /cases/:id + /knowledge/v1 + /skill-store 分桶) | demo 零 gate (skill_registry/v1 挂 skill_registry gate); 74 端点 parity 门 |
 | MCP 专用 | `/api/mcp/*` `/api/wiki/*` `/api/profile` `/api/cubox/sync` 等 | 无 (外部 AI Agent 经 MCP 消费) | `mcp` gate; 19 tools 见 `backend/api/mcp_types.py` |

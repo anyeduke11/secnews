@@ -75,7 +75,7 @@ function mockFetch(opts: { opsUnavailable?: boolean } = {}) {
     if (url.startsWith('/api/codegarden/dependencies')) return opts.opsUnavailable ? notFound() : json({ items: [], total: 0 });
     if (url.startsWith('/api/sources/health')) return json(SOURCES_FIXTURE);
     if (url.startsWith('/api/hotspots')) return json({ total: 186, items: [] });
-    if (url.startsWith('/api/settings/features')) return json({ codegarden: true, codegarden_phase2b: false, sync: true, secnews: true, crm: true });
+    if (url.startsWith('/api/settings/features')) return json({ codegarden: true, codegarden_phase2b: false, sync: true, secnews: true });
     return json({});
   });
 }

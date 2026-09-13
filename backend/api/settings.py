@@ -42,7 +42,7 @@ async def get_features() -> dict:
         "tech_stack": is_extension_enabled("tech_stack"),
         "security_graph": is_extension_enabled("security_graph"),
         "secnews": is_extension_enabled("secnews"),
-        "crm": is_extension_enabled("crm"),
+        # crm 域已删除 (migration 116), features 视图不再返回该键
         # C4 之后 dsh 才真正可配: 关闭时 /api/dsh/* 返回 404, 界面需如实呈现该状态
         "dsh": is_extension_enabled("dsh"),
         # DEV-0182 Workbench Focus: 兴趣引擎 (内容门禁 L3, 与质量门禁分离)

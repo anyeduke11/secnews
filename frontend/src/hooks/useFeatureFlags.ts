@@ -20,8 +20,6 @@ export interface FeatureFlags {
   securityGraph: boolean;
   /** v0.6: SecNews 安全看板 */
   secnews: boolean;
-  /** v0.6: CRM 业绩座舱 (security-cockpit 方案 C) */
-  crm: boolean;
   /** v0.6: dsh 桥接层 (关闭时 /api/dsh/* 404, 界面需如实呈现) */
   dsh: boolean;
 }
@@ -34,7 +32,6 @@ export const DEFAULT_FLAGS: FeatureFlags = {
   techStack: false,
   securityGraph: false,
   secnews: true,
-  crm: false,
   dsh: false,
 };
 
@@ -79,7 +76,6 @@ async function fetchFlags(): Promise<FeatureFlags> {
       techStack: !!((data.techStack as boolean | undefined) ?? data.tech_stack),
       securityGraph: !!((data.securityGraph as boolean | undefined) ?? data.security_graph),
       secnews: !!((data.secnews as boolean | undefined) ?? true),
-      crm: !!data.crm,
       dsh: !!data.dsh,
     };
     writeCache(flags);

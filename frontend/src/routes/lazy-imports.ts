@@ -152,10 +152,7 @@ export const SecNewsObservability = React.lazy(() =>
   import('../components/secnews/observability/ObservabilityTab').then(m => ({ default: m.ObservabilityTab }))
 );
 
-// CRM 业绩座舱 (v0.6 security-cockpit 方案 C)
-export const CrmPage = React.lazy(() =>
-  import('../components/crm/CrmPage').then(m => ({ default: m.CrmPage }))
-);
+// CRM (/crm, CrmPage) 已随 CRM 域整体删除 (migration 116)
 
 // 找回丢失前端入口 (v0.6.3: 后端路由已存在, 前端从未接入)
 // DEV-0175: BidAlertPage 已随工作台聚焦裁决移除 (路由/入口一并剔除)

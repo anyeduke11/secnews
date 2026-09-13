@@ -39,9 +39,6 @@ def register_all(app: FastAPI) -> None:
         codegarden_ops,  # v1.5+: CodeGarden 运维层 — 服务网格/资源中枢/联动引擎 (原 phase2b)
         compliance,  # v0.6 Phase 4 S4-4: 合规矩阵 (等保 2.0 + GDPR + ISO 27001)
         content,  # v1.4: 内容创作 (calendar/drafts/templates)
-        crm_customers_api,  # v0.6: CRM 业绩座舱 — 客户 CRUD
-        crm_opportunities_api,  # v0.6: CRM 业绩座舱 — 商机状态机
-        crm_stats_api,  # v0.6: CRM 业绩座舱 — KPI/图表聚合
         cve_analytics,  # v0.6 Phase 4 S4-3: CVE 热力图 + ATT&CK 映射
         deep_read,  # v0.6 Phase 4 S4-2: DeepRead 4 节深度分析
         digests,  # v1.7 Phase 4: 简报
@@ -123,10 +120,7 @@ def register_all(app: FastAPI) -> None:
         # D5 Batch ⑧: M2/M3/M4 服务网格/资源中枢/编排引擎 — 独立 gate,
         # 之前错绑 codegarden 导致 phase2b=false 时路由仍在 (job 不跑但端点 200)
         app.include_router(codegarden_ops.router, tags=["codegarden-ops"])
-    if is_extension_enabled("crm"):
-        app.include_router(crm_customers_api.router, tags=["crm"])
-        app.include_router(crm_opportunities_api.router, tags=["crm"])
-        app.include_router(crm_stats_api.router, tags=["crm"])
+        # crm 域 (CRM 业绩座舱) 已随 migration 116 整体删除, 不再注册
     # ---- feature flag 接线区: flag=False 时对应 API 不注册 ----
     if config.feature_tag:
         app.include_router(tags.router, tags=["tags"])

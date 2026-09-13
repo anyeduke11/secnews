@@ -29,7 +29,8 @@ _GATES_TTL = 5.0
 # P1.6: codegarden (M1 项目核心) 与 codegarden_phase2b (M2/M3/M4 服务网格等) 拆开
 _EXTENSION_NAMES = (
     "codegarden", "codegarden_phase2b", "mcp", "sync",
-    "tech_stack", "security_graph", "secnews", "crm",
+    "tech_stack", "security_graph", "secnews",
+    # crm 域已整体删除 (migration 116), 不再登记
     # dsh 桥接: _registry.py 以 is_extension_enabled("dsh") 守卫 dsh_api。
     # 此前漏登记 → feature_gates.toml 的 dsh=false 被过滤掉, 端点意外在线。
     "dsh",
@@ -78,11 +79,7 @@ EXTENSION_ROUTERS: dict[str, list[str]] = {
         "secnews_dashboard_api",
         "feedback_api",         # 用户反馈 (/api/feedback/*)
     ],
-    "crm": [                      # CRM 业绩座舱 (security-cockpit 方案 C)
-        "crm_customers_api",
-        "crm_opportunities_api",
-        "crm_stats_api",
-    ],
+    # crm 块已随 CRM 域整体删除 (migration 116)
     "dsh": [                      # dsh 桥接 + pi 执行 agent (此前整键缺失 →
         "dsh_api",                #  /api/settings/features enabled_extensions 漏报)
         "dsh_control_api",

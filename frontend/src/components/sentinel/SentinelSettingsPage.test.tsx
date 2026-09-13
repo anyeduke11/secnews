@@ -32,8 +32,7 @@ const FEATURES_FIXTURE = {
   tech_stack: false,
   security_graph: false,
   secnews: true,
-  crm: true,
-  enabled_extensions: ['sync', 'secnews', 'crm'],
+  enabled_extensions: ['sync', 'secnews'],
 };
 
 const LLM_FIXTURE = {
@@ -174,7 +173,7 @@ describe('SentinelSettingsPage — 哨兵终端设置屏 (只读)', () => {
     openTab('能力开关');
 
     await waitFor(() => expect(screen.getByText('SecNews 情报核心')).toBeInTheDocument());
-    expect(document.querySelector('.st-tblfoot')?.textContent).toBe('enabled_extensions · sync · secnews · crm');
+    expect(document.querySelector('.st-tblfoot')?.textContent).toBe('enabled_extensions · sync · secnews');
     expect(screen.getByText('backend/config/feature_gates.toml')).toBeInTheDocument();
 
     const switches = document.querySelectorAll<HTMLButtonElement>('.st-switch');

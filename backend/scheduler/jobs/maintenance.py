@@ -281,12 +281,12 @@ async def wiki_items_fts_sync_job() -> None:
     (FTS5 的增量 rebuild 自愈命令).
     """
     try:
-        from backend.repository.db import get_connection
+        from backend.repository.db import get_connection, knowledge_items_table
 
         def _sync():
             conn = get_connection()
             cur = conn.execute(
-                "SELECT (SELECT COUNT(*) FROM warm.knowledge_items),"
+                f"SELECT (SELECT COUNT(*) FROM {knowledge_items_table()}),"
                 " (SELECT COUNT(*) FROM wiki_items_fts)"
             )
             src_count, fts_count = cur.fetchone()
@@ -304,11 +304,11 @@ async def wiki_items_fts_sync_job() -> None:
                     "INSERT INTO wiki_items_fts(wiki_items_fts) VALUES('delete-all')"
                 )
                 conn.execute(
-                    """
+                    f"""
                     INSERT INTO wiki_items_fts(rowid, id, title, topic, tags, type)
                     SELECT rowid, id, IFNULL(title, ''), IFNULL(topic, ''),
                            IFNULL(tags, ''), IFNULL(type, '')
-                    FROM warm.knowledge_items
+                    FROM {knowledge_items_table()}
                     """
                 )
                 conn.execute(

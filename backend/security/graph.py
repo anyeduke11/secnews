@@ -12,7 +12,7 @@ import json
 import logging
 import re
 
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 from backend.repository.security_repo import SecurityRepository
 
 _CVE_RE = re.compile(r"CVE-\d{4}-\d{4,}")
@@ -137,7 +137,7 @@ class SecurityGraphEngine:
         conn = get_connection()
         rows = conn.execute(
             "SELECT id, title, source, domain, type, cve_ids, attack_techniques, compliance_refs "
-            "FROM knowledge_items "
+            f"FROM {knowledge_items_table()} "
             "WHERE cve_ids IS NOT NULL OR attack_techniques IS NOT NULL OR compliance_refs IS NOT NULL "
             "LIMIT 200"
         ).fetchall()

@@ -14,7 +14,7 @@ from __future__ import annotations
 from backend.exceptions import InternalException
 from backend.logging_config import logger
 from backend.repository.codegarden_repo import CodegardenProjectRepository
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 from backend.services.knowledge_sync import ITEMS_DIR
 
 
@@ -34,10 +34,10 @@ class CodegardenKnowledgeBridge:
         """
         conn = get_connection()
         rows = conn.execute(
-            """
+            f"""
             SELECT k.id, k.title, k.source_url, k.domain, k.topic,
                    k.ingested_at, k.updated_at
-            FROM knowledge_items k
+            FROM {knowledge_items_table()} k
             WHERE k.type = 'github'
               AND k.id NOT IN (SELECT source_item_id FROM cg_projects
                                WHERE source_item_id IS NOT NULL)
@@ -104,7 +104,7 @@ class CodegardenKnowledgeBridge:
         # 1. 读 knowledge_item (注: knowledge_items 表无 description 列, 用 title 兜底)
         conn = get_connection()
         row = conn.execute(
-            "SELECT id, title, source_url, domain FROM knowledge_items WHERE id = ?",
+            f"SELECT id, title, source_url, domain FROM {knowledge_items_table()} WHERE id = ?",
             (item_id,),
         ).fetchone()
         if row is None:

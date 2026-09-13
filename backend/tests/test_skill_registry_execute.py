@@ -1,7 +1,8 @@
 """v0.8 B2.3 — SkillRegistry.execute 接线测试 (skill_registry → skill_runner).
 
 设计:
-- registry.execute(skill_id, inputs, ticket_id=...) 是 B5 worker 派发的统一入口
+- registry.execute(skill_id, inputs, ticket_id=..., runner=...) 是 B5 worker
+  派发的统一入口 (R4 解环后 runner 必填注入, registry 对 skill_runner 零 import)
 - 必须: 1) 未知 id 抛 SkillNotFoundError  2) gate 关抛 PermissionError
         3) gate 开委托 SkillRunner.run 透传结果
 - 不依赖真实 backend 起动; gate 用 monkeypatch 模拟开
@@ -12,7 +13,7 @@ import pytest
 
 from backend.services.skill_registry import BUILTIN
 from backend.services.skill_registry.core import SkillNotFoundError
-from backend.services.skill_runner import SkillRunResult
+from backend.services.skill_runner import SkillRunner, SkillRunResult
 
 
 @pytest.fixture
@@ -39,7 +40,7 @@ def test_registry_execute_dispatches_to_runner(skill_registry_gate_open, temp_db
     用 builtin 里的真实 A 类 (source-health-scan) — target 是真 service
     (SourceSchedulerService.get_status), 不调 LLM, 不需要 mock.
     """
-    result = BUILTIN.execute("source-health-scan", {})
+    result = BUILTIN.execute("source-health-scan", {}, runner=SkillRunner())
     assert isinstance(result, SkillRunResult)
     assert result.status == "succeeded"
     assert result.fast_path is True
@@ -53,7 +54,7 @@ def test_registry_execute_dispatches_to_runner(skill_registry_gate_open, temp_db
 def test_registry_execute_passes_ticket_id(skill_registry_gate_open, temp_db):
     """ticket_id 经 registry → runner → skill_runs 落库."""
     result = BUILTIN.execute(
-        "source-health-scan", {}, ticket_id="ticket-b23-test"
+        "source-health-scan", {}, ticket_id="ticket-b23-test", runner=SkillRunner()
     )
     row = BUILTIN.execute.__self__
     from backend.services.skill_runner import SkillRunRepo
@@ -68,7 +69,7 @@ def test_registry_execute_passes_ticket_id(skill_registry_gate_open, temp_db):
 def test_registry_execute_unknown_skill_raises(skill_registry_gate_open, temp_db):
     """get() 找不到 id → SkillNotFoundError, 不应调到 gate 检查."""
     with pytest.raises(SkillNotFoundError):
-        BUILTIN.execute("nonexistent-skill-xyz", {})
+        BUILTIN.execute("nonexistent-skill-xyz", {}, runner=SkillRunner())
 
 
 # ---------------------------------------------------------------------------
@@ -77,8 +78,9 @@ def test_registry_execute_unknown_skill_raises(skill_registry_gate_open, temp_db
 def test_registry_execute_gate_closed_raises(temp_db):
     """is_skill_enabled=False → PermissionError (gate 真实状态, 默认全关)."""
     # 不开 gate, builtin 20 个全部 default_enabled=False → 读数全关
+    # (runner 必填传参, 但 gate 拦截在前, 永远不会被触达)
     with pytest.raises(PermissionError) as exc_info:
-        BUILTIN.execute("source-health-scan", {})
+        BUILTIN.execute("source-health-scan", {}, runner=SkillRunner())
     assert "source-health-scan" in str(exc_info.value)
     assert "停用" in str(exc_info.value) or "未注册" in str(exc_info.value)
 

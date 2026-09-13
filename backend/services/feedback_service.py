@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 from backend.repository.feedback_repo import FeedbackRepository
 from backend.services import profile_service
 
@@ -248,7 +248,7 @@ class FeedbackService:
             get_connection()
             .execute(
                 "SELECT id, title, source, category, tags "
-                "FROM knowledge_items WHERE id = ?",
+                f"FROM {knowledge_items_table()} WHERE id = ?",
                 (item_id,),
             )
             .fetchone()

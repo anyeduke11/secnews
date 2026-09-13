@@ -17,13 +17,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import Any, Literal, Protocol
 
 from backend.repository.settings_repo import SettingsRepository
-
-if TYPE_CHECKING:
-    # 仅注解用 (F821); 运行时仍走 execute() 内的函数级导入防 registry↔runner 循环
-    from backend.services.skill_runner import SkillRunResult
 
 __all__ = [
     "ApiTarget",
@@ -33,6 +29,7 @@ __all__ = [
     "SkillNotFoundError",
     "SkillRegistry",
     "SkillRegistryValidationError",
+    "SkillRunnerProtocol",
     "Step",
 ]
 
@@ -167,6 +164,26 @@ class SkillDef:
 
 
 # ---------------------------------------------------------------------------
+# SkillRunnerProtocol — execute() 的 runner 注入契约 (R4 解环)
+# ---------------------------------------------------------------------------
+class SkillRunnerProtocol(Protocol):
+    """结构化匹配 ``backend.services.skill_runner.SkillRunner`` 的注入契约。
+
+    R4 守卫解环 (test_service_cycle_guard): 本模块对 skill_runner 保持
+    **零 import** — 顶层 / 函数内惰性 / TYPE_CHECKING 均被守卫计入依赖边,
+    故注解由本 Protocol 承载; 真实 SkillRunner.run 签名结构化满足之。
+    """
+
+    def run(
+        self,
+        skill: SkillDef,
+        inputs: dict,
+        *,
+        ticket_id: str | None = None,
+    ) -> Any: ...
+
+
+# ---------------------------------------------------------------------------
 # SkillRegistry — 注册 + 查询 + 启停
 # ---------------------------------------------------------------------------
 class SkillRegistry:
@@ -244,28 +261,31 @@ class SkillRegistry:
         """注册数量 — 测试与启动冒烟用。"""
         return len(self._skills)
 
-    # -- 执行接线 (B2.3) -----------------------------------------------------
+    # -- 执行接线 (B2.3; R4 解环后 runner 必填注入) ---------------------------
     def execute(
         self,
         skill_id: str,
         inputs: dict,
         *,
         ticket_id: str | None = None,
-        runner: SkillRunner | None = None,
-    ) -> SkillRunResult:
-        """按 id 跑一次 skill — gate 校验 + 委托 SkillRunner.run。
+        runner: SkillRunnerProtocol,
+    ) -> Any:
+        """按 id 跑一次 skill — gate 校验 + 委托调用方注入的 runner.run。
 
+        - runner **必填** (R4 守卫解环): 调用方自行构造
+          ``backend.services.skill_runner.SkillRunner`` 传入; 本模块对
+          skill_runner 零 import (顶层/惰性/TYPE_CHECKING 均计入守卫边),
+          依赖方向恒为 runner → registry 单向。返回值为 runner 产出的
+          ``SkillRunResult`` (精确类型见 skill_runner.result, 注解由
+          SkillRunnerProtocol 承载)
         - 未知 id 抛 SkillNotFoundError
         - gate 关 (is_skill_enabled=False) 抛 PermissionError (fail loud,
           调用方 B5 worker 应在派发前就过滤; 此处是二次保险)
-        - runner 缺省时懒构造 SkillRunner(), 走 process-singleton 默认路径
-        - 返回 SkillRunResult, 不抛异常 (skill_runner 内部已兜底 → failed)
+        - 不抛异常 (skill_runner 内部已兜底 → failed)
 
-        反向依赖禁令: 顶层不 import backend.services.skill_runner, 走函数
-        参数注入避免 registry ↔ runner 循环 (B5 worker 传 runner 进来时更友好)。
+        反向依赖禁令: 本模块任何位置不得 import backend.services.skill_runner。
         """
         from backend.services.skill_registry.gate import is_skill_enabled
-        from backend.services.skill_runner import SkillRunner as _Runner
 
         skill = self.get(skill_id)
         if not is_skill_enabled(skill_id):
@@ -273,5 +293,4 @@ class SkillRegistry:
                 f"skill 已停用或扩展未注册: {skill_id!r} "
                 f"(检查 kv {skill.feature_gate} AND 父扩展 skill_registry)"
             )
-        r = runner or _Runner()
-        return r.run(skill, inputs, ticket_id=ticket_id)
+        return runner.run(skill, inputs, ticket_id=ticket_id)

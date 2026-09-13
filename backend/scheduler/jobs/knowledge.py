@@ -28,7 +28,7 @@ async def knowledge_classify_job() -> None:
     def _run() -> None:
         from datetime import datetime, timezone
 
-        from backend.repository.db import get_connection
+        from backend.repository.db import get_connection, knowledge_items_table
         from backend.repository.knowledge_repo import knowledge_repo
         from backend.services.auto_classifier import batch_classify
 
@@ -36,7 +36,7 @@ async def knowledge_classify_job() -> None:
         conn = get_connection()
         rows = conn.execute(
             "SELECT id, title, tags, source_url, domain, type, difficulty "
-            "FROM knowledge_items "
+            f"FROM {knowledge_items_table()} "
             "WHERE domain IS NULL OR type IS NULL OR difficulty IS NULL "
             "ORDER BY ingested_at ASC LIMIT ?",
             (_CLASSIFY_BATCH,),
@@ -100,7 +100,7 @@ async def knowledge_stub_backfill_job() -> None:
         import asyncio as _asyncio
         import re as _re
 
-        from backend.repository.db import get_connection
+        from backend.repository.db import get_connection, knowledge_items_table
         from backend.repository.knowledge_repo import knowledge_repo
         from backend.services import ai_write_back
         from backend.services.knowledge_sync import ITEMS_DIR
@@ -110,7 +110,7 @@ async def knowledge_stub_backfill_job() -> None:
         def _select_candidates():
             conn = get_connection()
             return conn.execute(
-                "SELECT id, title, source_url FROM knowledge_items "
+                f"SELECT id, title, source_url FROM {knowledge_items_table()} "
                 "WHERE (title LIKE 'http%' OR title = 'Untitled' OR title = '') "
                 "   AND source_url IS NOT NULL AND source_url != '' "
                 "ORDER BY ingested_at ASC LIMIT ?",
@@ -222,13 +222,13 @@ async def knowledge_chunk_generation_job() -> None:
     (FTS5) 从未有数据。本 job 每 30min 处理 200 条无 chunks 条目。
     """
     try:
-        from backend.repository.db import get_connection
+        from backend.repository.db import get_connection, knowledge_items_table
         from backend.services.chunk_service import generate_chunks_for_item
 
         _BATCH = 200
         conn = get_connection()
         rows = conn.execute(
-            "SELECT id FROM knowledge_items ki "
+            f"SELECT id FROM {knowledge_items_table()} ki "
             "WHERE NOT EXISTS (SELECT 1 FROM knowledge_chunks c WHERE c.item_id = ki.id) "
             "ORDER BY ki.ingested_at ASC LIMIT ?",
             (_BATCH,),
@@ -356,7 +356,7 @@ async def content_draft_generation_job() -> None:
     def _run() -> None:
         from datetime import datetime, timezone
 
-        from backend.repository.db import get_connection
+        from backend.repository.db import get_connection, knowledge_items_table
         from backend.repository.knowledge_repo import knowledge_repo
         from backend.services.content_service import create_draft
         from backend.services.knowledge_sync import ITEMS_DIR
@@ -364,7 +364,7 @@ async def content_draft_generation_job() -> None:
         _DRAFT_BATCH = 10
         conn = get_connection()
         rows = conn.execute(
-            "SELECT id, title FROM knowledge_items "
+            f"SELECT id, title FROM {knowledge_items_table()} "
             "WHERE lifecycle = 'kl:publish' "
             "   OR (lifecycle = 'kl:structure' AND COALESCE(attention_score, 0) >= 20) "
             "ORDER BY COALESCE(attention_score, 0) DESC, ingested_at DESC "

@@ -30,20 +30,12 @@ from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # 白名单 — 只许收缩, 不许扩张; 新增条目必须在注释里写明解不了的原因
+# 当前为空 (R4, 2026-09-13): 最后一条 skill_registry⇄skill_runner 环已解 —
+# SkillRegistry.execute() 改为 runner 必填注入 (core.SkillRunnerProtocol 承载
+# 注解), skill_registry 对 skill_runner 顶层/惰性/TYPE_CHECKING 全零 import。
+# 机制保留: 未来出现确属解不掉的环, 在此登记并注明原因。
 # ---------------------------------------------------------------------------
-_ALLOWED_CYCLES: set[frozenset[str]] = {
-    # skill_registry ⇄ skill_runner (登记于 Batch 4 R4 首扫):
-    # runner→registry 方向是模块级契约消费 (dispatch.py/core.py 顶层 import
-    # SkillDef/ServiceTarget/Step 类型, 方向正确); registry→runner 方向是
-    # SkillRegistry.execute() (core.py, B2.3) 内**函数级惰性** import
-    # SkillRunner 供缺省执行 + TYPE_CHECKING 注解引用 SkillRunResult —
-    # 这是 v0.8 SK 域文档化的反依赖设计 ("反向依赖禁令: 顶层不 import
-    # backend.services.skill_runner", core.py docstring), 解环需反转 execute()
-    # 的缺省 runner 注入接口 (涉及 SK 域公共接口与 B5 worker 调用方),
-    # 非纯 import 方向梳理, 登记为已知债。收缩路径: execute() 改强制注入
-    # runner 后删除本条目。
-    frozenset({"backend.services.skill_registry", "backend.services.skill_runner"}),
-}
+_ALLOWED_CYCLES: set[frozenset[str]] = set()
 
 #: 守卫明确禁止回潮的历史环 — 即便有人误加白名单也必须失败 (白名单收缩哨兵)
 _FORBIDDEN_CYCLES: set[frozenset[str]] = {
@@ -222,13 +214,20 @@ def test_action_run_cycle_does_not_reappear() -> None:
     assert _FORBIDDEN_CYCLES.isdisjoint(_ALLOWED_CYCLES)
 
 
-def test_skill_cycle_is_the_only_whitelisted_entry() -> None:
-    """当前白名单应恰为 skill_registry⇄skill_runner 一条 (收缩哨兵)."""
+def test_whitelist_is_empty_and_graph_has_zero_cycles() -> None:
+    """白名单收缩哨兵 — 机制保留, 当前**零条目** (全域必须零环)。
+
+    R4 (2026-09-13) 解开最后一条白名单环 skill_registry⇄skill_runner:
+    SkillRegistry.execute() 改为 runner 必填注入 (skill_registry 对
+    skill_runner 零 import), 白名单收缩归零。等式断言保留: 实际环集合
+    必须等于白名单 (当前为空集) — 出现新环请先解环; 确属解不掉的环
+    才允许登记 (白名单只许收缩, 不许扩张)。
+    """
     graph = build_services_graph(_SERVICES_DIR)
     cycles = find_cycles(graph)
     assert set(cycles) == _ALLOWED_CYCLES, (
         f"实际环 {sorted(sorted(c) for c in cycles)} 与白名单 "
-        f"{sorted(sorted(c) for c in _ALLOWED_CYCLES)} 不一致 — "
+        f"{sorted(sorted(c) for c in _ALLOWED_CYCLES)} (当前为空) 不一致 — "
         "环被解掉请同步收缩白名单; 出现新环请先解环"
     )
 

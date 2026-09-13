@@ -84,7 +84,7 @@ def _run_enrichment_sync() -> None:
             backfilled = 0
             rows_with_ent = conn.execute(
                 "SELECT id, cve_ids, attack_techniques, compliance_refs "
-                "FROM knowledge_items "
+                f"FROM {knowledge_items_table()} "
                 "WHERE (cve_ids IS NOT NULL AND cve_ids != '[]') "
                 "   OR (attack_techniques IS NOT NULL AND attack_techniques != '[]') "
                 "   OR (compliance_refs IS NOT NULL AND compliance_refs != '[]')"
@@ -124,7 +124,7 @@ def _run_enrichment_sync() -> None:
         # (knowledge_items 无 summary 列 — 正文在 .md 文件; 富化文本用
         # title + tags 拼接, enricher 的 CVE/ATT&CK/合规正则主要匹配标题)
         rows = conn.execute(
-            "SELECT id, title, tags FROM knowledge_items "
+            f"SELECT id, title, tags FROM {knowledge_items_table()} "
             "WHERE (cve_ids IS NULL AND attack_techniques IS NULL AND compliance_refs IS NULL) "
             "ORDER BY "
             "  (title LIKE '%CVE%' OR title LIKE '%漏洞%' OR title LIKE '%ATT%CK%' "
@@ -168,7 +168,7 @@ def _run_enrichment_sync() -> None:
             try:
                 row = conn.execute(
                     "SELECT cve_ids, attack_techniques, compliance_refs "
-                    "FROM knowledge_items WHERE id = ?",
+                    f"FROM {knowledge_items_table()} WHERE id = ?",
                     (eid,),
                 ).fetchone()
                 if row is None:

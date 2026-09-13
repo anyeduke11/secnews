@@ -59,7 +59,7 @@ def score(item_id: str) -> int:
         # 4. is_favorited — 通过 url 匹配 favorites 表
         row = conn.execute(
             "SELECT 1 FROM favorites f "
-            "JOIN knowledge_items k ON f.url = k.source_url "
+            f"JOIN {knowledge_items_table()} k ON f.url = k.source_url "
             "WHERE k.id = ? LIMIT 1",
             (item_id,),
         ).fetchone()
@@ -105,7 +105,7 @@ def batch_score() -> dict:
 
     try:
         rows = conn.execute(
-            """
+            f"""
             SELECT
                 k.id AS id,
                 COALESCE(v.view_n, 0)      AS view_n,
@@ -115,7 +115,7 @@ def batch_score() -> dict:
                     SELECT 1 FROM favorites f WHERE f.url = k.source_url
                 ) THEN 1.0 ELSE 0.0 END    AS fav,
                 COALESCE(a.ann_n, 0)       AS ann_n
-            FROM knowledge_items k
+            FROM {knowledge_items_table()} k
             LEFT JOIN (
                 SELECT item_id, COUNT(*) AS view_n FROM attention_events
                 WHERE event_type = 'view' GROUP BY item_id

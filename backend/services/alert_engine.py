@@ -19,7 +19,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 
 logger = logging.getLogger("hotspot.alert_engine")
 
@@ -109,7 +109,7 @@ class AlertEngine:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=window_hours)).isoformat()
         conn = get_connection()
         cve_rows = conn.execute(
-            "SELECT id, title, cve_ids, source_url FROM knowledge_items "
+            f"SELECT id, title, cve_ids, source_url FROM {knowledge_items_table()} "
             "WHERE cve_ids IS NOT NULL AND cve_ids != '[]' AND ingested_at >= ? "
             "ORDER BY ingested_at DESC LIMIT 200",
             (cutoff,),
@@ -205,7 +205,7 @@ class AlertEngine:
 
         # Secondary path: knowledge_items with CVE IDs (no security_entity CVSS)
         ki_rows = conn.execute(
-            "SELECT id, title, cve_ids, source_url FROM knowledge_items "
+            f"SELECT id, title, cve_ids, source_url FROM {knowledge_items_table()} "
             "WHERE cve_ids IS NOT NULL AND cve_ids != '[]' AND ingested_at >= ? "
             "ORDER BY ingested_at DESC LIMIT 200",
             (cutoff,),

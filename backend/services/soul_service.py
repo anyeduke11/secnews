@@ -42,7 +42,7 @@ def _generate_soul_content() -> str:
     """Generate SOUL.md content from current knowledge item statistics."""
     import sqlite3
 
-    from backend.repository.db import get_connection
+    from backend.repository.db import get_connection, knowledge_items_table
     from backend.repository.knowledge_repo import knowledge_repo
 
     items = knowledge_repo.list_items(limit=10000)
@@ -143,7 +143,7 @@ def _generate_soul_content() -> str:
     try:
         conn = get_connection()
         recent_rows = conn.execute(
-            "SELECT domain, COUNT(*) FROM knowledge_items "
+            f"SELECT domain, COUNT(*) FROM {knowledge_items_table()} "
             "WHERE datetime(ingested_at) > datetime('now', '-7 days') "
             "GROUP BY domain ORDER BY COUNT(*) DESC"
         ).fetchall()

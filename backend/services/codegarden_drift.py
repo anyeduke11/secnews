@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 from backend.logging_config import logger
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 
 # 有效 status 枚举
 VALID_DRIFT_STATUSES = ("pending", "reviewed", "applied", "dismissed")
@@ -48,10 +48,10 @@ def assess_drift(limit: int = 500) -> dict:
 
     # 1. 按 entity_name 分组统计
     rows = conn.execute(
-        """
+        f"""
         SELECT ie.entity_name, ie.item_id AS source_item_id, ki.domain
         FROM item_entities ie
-        JOIN knowledge_items ki ON ki.id = ie.item_id
+        JOIN {knowledge_items_table()} ki ON ki.id = ie.item_id
         WHERE ie.entity_type = 'tool'
         ORDER BY ie.entity_name
         LIMIT ?

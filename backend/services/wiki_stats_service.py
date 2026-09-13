@@ -24,13 +24,22 @@ from typing import Any
 from backend.kl_pipeline.obs.funnel import _LEGACY_TO_STAGE, UNKNOWN_STAGE
 from backend.kl_pipeline.queue import STAGES
 from backend.logging_config import logger
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 from backend.services.kl_state_machine import LIFECYCLE_DEDUPED
 
-_LIFECYCLE_SQL = (
-    "SELECT COALESCE(lifecycle, '') AS lifecycle, COUNT(*) AS c "
-    "FROM warm.knowledge_items GROUP BY lifecycle"
-)
+
+def _lifecycle_sql() -> str:
+    """lifecycle 分布 SQL — 运行时经 knowledge_items_table() 解析表名。
+
+    (原为模块级常量 ``_LIFECYCLE_SQL`` 硬编码 ``warm.`` 前缀; 常量在 import
+    期求值无法走 accessor — accessor 需按调用线程已 ATTACH 的 schema 判定,
+    且 import 期开连接是副作用。改函数后 SQL 文本运行期逐字不变, 单库
+    (未 ATTACH warm) 模式下由裸名正确解析到 main。)
+    """
+    return (
+        "SELECT COALESCE(lifecycle, '') AS lifecycle, COUNT(*) AS c "
+        f"FROM {knowledge_items_table()} GROUP BY lifecycle"
+    )
 
 # liveness md 扫描的 TTL 缓存 (秒): 30s 内所有调用共享一次全量扫描
 _LIVENESS_TTL_S = 30.0
@@ -60,7 +69,7 @@ def funnel_from_db(conn: Any = None) -> list[dict[str, Any]]:
     counts[LIFECYCLE_DEDUPED] = 0
     counts[UNKNOWN_STAGE] = 0
     try:
-        rows = (conn or get_connection()).execute(_LIFECYCLE_SQL).fetchall()
+        rows = (conn or get_connection()).execute(_lifecycle_sql()).fetchall()
     except Exception as e:
         logger.warning(f"funnel_from_db query failed: {e}")
         return [{"stage": s, "count": c} for s, c in counts.items()]
@@ -81,7 +90,7 @@ def stage_distribution_from_db(conn: Any = None) -> dict[str, int]:
     """知识库 tab 的 lifecycle 分布 (同 funnel 数据源, dict 形态)。"""
     dist: dict[str, int] = {}
     try:
-        rows = (conn or get_connection()).execute(_LIFECYCLE_SQL).fetchall()
+        rows = (conn or get_connection()).execute(_lifecycle_sql()).fetchall()
     except Exception as e:
         logger.warning(f"stage_distribution_from_db query failed: {e}")
         return dist
@@ -98,7 +107,7 @@ def knowledge_stats_from_db(conn: Any = None) -> dict[str, Any]:
     conn = conn or get_connection()
     try:
         items = conn.execute(
-            "SELECT COUNT(*) FROM warm.knowledge_items"
+            f"SELECT COUNT(*) FROM {knowledge_items_table()}"
         ).fetchone()[0]
         concepts = conn.execute(
             "SELECT COUNT(*) FROM knowledge_concepts"
@@ -172,7 +181,7 @@ def kl_stage_counts() -> dict[str, int] | None:
     try:
         conn = get_connection()
         rows = conn.execute(
-            "SELECT lifecycle, COUNT(*) FROM knowledge_items "
+            f"SELECT lifecycle, COUNT(*) FROM {knowledge_items_table()} "
             "WHERE lifecycle IN ({}) "
             "GROUP BY lifecycle".format(",".join("?" for _ in ALL_STAGES)),
             tuple(ALL_STAGES),
@@ -219,11 +228,11 @@ def compounding_snapshot() -> dict[str, Any]:
     # ── Daily trend (last 30 days) ──────────────────────────────
     # P3-5: avg_score 改用 attention_score (真实注意力数据), 不再用 mastery (全 0)
     daily = conn.execute(
-        """
+        f"""
         SELECT DATE(ingested_at) AS day,
                COUNT(*) AS count,
                AVG(CAST(attention_score AS REAL)) AS avg_score
-        FROM knowledge_items
+        FROM {knowledge_items_table()}
         WHERE ingested_at >= DATE('now', '-30 days')
         GROUP BY day
         ORDER BY day ASC
@@ -232,11 +241,11 @@ def compounding_snapshot() -> dict[str, Any]:
 
     # ── Weekly trend (last 12 weeks) ────────────────────────────
     weekly = conn.execute(
-        """
+        f"""
         SELECT strftime('%Y-W%W', ingested_at) AS week,
                COUNT(*) AS count,
                AVG(CAST(attention_score AS REAL)) AS avg_score
-        FROM knowledge_items
+        FROM {knowledge_items_table()}
         WHERE ingested_at >= DATE('now', '-84 days')
         GROUP BY week
         ORDER BY week ASC
@@ -245,11 +254,11 @@ def compounding_snapshot() -> dict[str, Any]:
 
     # ── Monthly trend (last 6 months) ───────────────────────────
     monthly = conn.execute(
-        """
+        f"""
         SELECT strftime('%Y-%m', ingested_at) AS month,
                COUNT(*) AS count,
                AVG(CAST(attention_score AS REAL)) AS avg_score
-        FROM knowledge_items
+        FROM {knowledge_items_table()}
         WHERE ingested_at >= DATE('now', '-6 months')
         GROUP BY month
         ORDER BY month ASC
@@ -259,9 +268,9 @@ def compounding_snapshot() -> dict[str, Any]:
     # ── Top 10 concepts by item participation ───────────────────
     # P3-5: 直接聚合 knowledge_items.concepts (不再依赖稀疏的 knowledge_links)
     top_concepts = conn.execute(
-        """
+        f"""
         SELECT c.value AS name, COUNT(*) AS score
-        FROM knowledge_items ki
+        FROM {knowledge_items_table()} ki
         CROSS JOIN json_each(ki.concepts) c
         WHERE c.value IS NOT NULL AND c.value != ''
         GROUP BY c.value
@@ -294,7 +303,7 @@ def compounding_snapshot() -> dict[str, Any]:
 
     # ── Stage distribution ──────────────────────────────────────
     stage_rows = conn.execute(
-        "SELECT lifecycle, COUNT(*) FROM knowledge_items "
+        f"SELECT lifecycle, COUNT(*) FROM {knowledge_items_table()} "
         "WHERE lifecycle IS NOT NULL AND lifecycle != '' "
         "GROUP BY lifecycle ORDER BY COUNT(*) DESC"
     ).fetchall()

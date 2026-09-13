@@ -22,7 +22,7 @@ import os
 import time
 from pathlib import Path
 
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 
 log = logging.getLogger("hotspot.maintenance")
 
@@ -419,7 +419,7 @@ def detect_duplicate_hotspots() -> list[dict]:
 def detect_duplicate_knowledge_items() -> list[dict]:
     """Find duplicate knowledge items by title."""
     conn = get_connection()
-    ki = "knowledge_items"
+    ki = knowledge_items_table()
     results = []
     rows = conn.execute(
         f"SELECT title, COUNT(*) as cnt, GROUP_CONCAT(id) as ids "
@@ -509,7 +509,7 @@ def cleanup_duplicate_knowledge_items(dry_run: bool = True) -> dict:
     Deletes all but the first (lowest rowid) entry for each duplicate title.
     """
     conn = get_connection()
-    ki = "knowledge_items"
+    ki = knowledge_items_table()
     results: dict[str, int] = {}
 
     dupes = conn.execute(
@@ -552,7 +552,7 @@ def dirty_data_report() -> dict:
     """Generate a comprehensive report of all detected dirty / invalid data."""
     conn = get_connection()
     qcl = "quality_check_logs"
-    ki = "knowledge_items"
+    ki = knowledge_items_table()
     ri = "raw_items"
 
     # quality_check_logs

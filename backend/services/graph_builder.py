@@ -11,7 +11,7 @@ import json
 import logging
 from datetime import datetime, timedelta, timezone
 
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 from backend.repository.knowledge_repo import knowledge_repo
 
 log = logging.getLogger("hotspot.graph_builder")
@@ -73,12 +73,12 @@ def _build_edges(domain: str | None = None) -> list[dict]:
     conn = get_connection()
     if domain:
         rows = conn.execute(
-            "SELECT concepts FROM knowledge_items WHERE domain = ?",
+            f"SELECT concepts FROM {knowledge_items_table()} WHERE domain = ?",
             (domain,),
         ).fetchall()
     else:
         rows = conn.execute(
-            "SELECT concepts FROM knowledge_items"
+            f"SELECT concepts FROM {knowledge_items_table()}"
         ).fetchall()
 
     edge_map: dict[tuple[str, str], int] = {}

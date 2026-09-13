@@ -179,7 +179,7 @@ class T1Trigger:
         sql = (
             f"SELECT id, title, source_url, concepts, tags, lifecycle, "
             f"ingested_at, updated_at "
-            f"FROM knowledge_items "
+            f"FROM {knowledge_items_table()} "
             f"WHERE lifecycle IN ({placeholders}) "
             f"AND ingested_at < ? "
             f"ORDER BY ingested_at ASC "

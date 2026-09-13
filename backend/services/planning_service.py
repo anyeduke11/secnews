@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from backend.logging_config import logger
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 
 
 class PlanningService:
@@ -42,9 +42,9 @@ class PlanningService:
 
         # ── Rule 1: kl:raw → read ──────────────────────────────────
         rows = conn.execute(
-            """
+            f"""
             SELECT ki.id, ki.title
-            FROM knowledge_items ki
+            FROM {knowledge_items_table()} ki
             WHERE ki.lifecycle = 'kl:raw'
               AND NOT EXISTS (
                   SELECT 1 FROM reading_states rs
@@ -67,11 +67,11 @@ class PlanningService:
 
         # ── Rule 2: kl:refine → link (关联数 < 3) ──────────────────
         rows = conn.execute(
-            """
+            f"""
             SELECT ki.id, ki.title,
                    (SELECT COUNT(*) FROM knowledge_links kl
                     WHERE kl.from_item_id = ki.id OR kl.to_item_id = ki.id) AS link_cnt
-            FROM knowledge_items ki
+            FROM {knowledge_items_table()} ki
             WHERE ki.lifecycle = 'kl:refine'
             """
         ).fetchall()
@@ -91,11 +91,11 @@ class PlanningService:
 
         # ── Rule 3: kl:link → refine (评分 < 8.0) ──────────────────
         rows = conn.execute(
-            """
+            f"""
             SELECT ki.id, ki.title,
                    COALESCE((SELECT MAX(a.score) FROM ai_scores a
                              WHERE a.hotspot_id = ki.id), 0) AS score
-            FROM knowledge_items ki
+            FROM {knowledge_items_table()} ki
             WHERE ki.lifecycle = 'kl:link'
             """
         ).fetchall()
@@ -116,9 +116,9 @@ class PlanningService:
 
         # ── Rule 4: kl:structure → publish (已稳定 24h) ────────────
         rows = conn.execute(
-            """
+            f"""
             SELECT ki.id, ki.title
-            FROM knowledge_items ki
+            FROM {knowledge_items_table()} ki
             WHERE ki.lifecycle = 'kl:structure'
               AND ki.updated_at <= datetime('now', '-1 day')
             """
@@ -137,9 +137,9 @@ class PlanningService:
 
         # ── Rule 5: kl:publish → review (已发布 7 天) ──────────────
         rows = conn.execute(
-            """
+            f"""
             SELECT ki.id, ki.title
-            FROM knowledge_items ki
+            FROM {knowledge_items_table()} ki
             WHERE ki.lifecycle = 'kl:publish'
               AND ki.updated_at <= datetime('now', '-7 days')
             """

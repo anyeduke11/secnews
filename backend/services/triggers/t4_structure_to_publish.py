@@ -164,7 +164,7 @@ class T4Trigger:
         """
         sql = (
             "SELECT id, title, lifecycle, ingested_at, updated_at "
-            "FROM knowledge_items "
+            f"FROM {knowledge_items_table()} "
             "WHERE lifecycle = ? "
             "ORDER BY ingested_at ASC "
             "LIMIT ?"

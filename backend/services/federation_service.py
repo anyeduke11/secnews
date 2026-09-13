@@ -258,7 +258,7 @@ def migrate_high_mastery_items() -> dict:
     """
     import shutil
 
-    from backend.repository.db import get_connection
+    from backend.repository.db import get_connection, knowledge_items_table
 
     raw_path = config.local_wiki_path or ""
     if not raw_path:
@@ -279,7 +279,7 @@ def migrate_high_mastery_items() -> dict:
 
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id FROM knowledge_items WHERE mastery > 80"
+        f"SELECT id FROM {knowledge_items_table()} WHERE mastery > 80"
     ).fetchall()
 
     migrated = 0

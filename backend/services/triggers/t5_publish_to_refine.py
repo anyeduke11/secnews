@@ -112,9 +112,18 @@ class T5Trigger:
         因此缺列时降级为 no-op, 而不是让主流程失败。
         """
         conn = get_connection()
+        # 表名经 accessor 解析后可能带 schema 前缀 (warm.) — PRAGMA 的 schema
+        # 须放在 pragma 名之前 (PRAGMA warm.table_info(knowledge_items)),
+        # 否则裸名固定探测 main schema, 生产分库下恒得空集。
+        _qualified = knowledge_items_table()
+        _schema, _dot, _bare = _qualified.partition(".")
+        _pragma_sql = (
+            f"PRAGMA {_schema}.table_info({_bare})" if _dot
+            else f"PRAGMA table_info({_schema})"
+        )
         cols = {
             str(r["name"])
-            for r in conn.execute("PRAGMA table_info(knowledge_items)").fetchall()
+            for r in conn.execute(_pragma_sql).fetchall()
         }
         if "stale_at" not in cols:
             logger.debug(
@@ -158,7 +167,7 @@ class T5Trigger:
         """Return the current lifecycle for the item, or None if not found."""
         conn = get_connection()
         row = conn.execute(
-            "SELECT lifecycle FROM knowledge_items WHERE id = ?",
+            f"SELECT lifecycle FROM {knowledge_items_table()} WHERE id = ?",
             (item_id,),
         ).fetchone()
         if row is None:

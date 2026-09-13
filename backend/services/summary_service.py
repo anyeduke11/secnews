@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from datetime import date, datetime, timedelta, timezone
 
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 from backend.services.knowledge_sync import KNOWLEDGE_DIR
 
 log = logging.getLogger("hotspot.summary_service")
@@ -56,10 +56,10 @@ def _query_items_in_range(start: date, end: date) -> list[dict]:
     end_iso = (end + timedelta(days=1)).strftime("%Y-%m-%d")
     conn = get_connection()
     rows = conn.execute(
-        """
+        f"""
         SELECT id, title, source, domain, topic, type, difficulty, compiled,
                ingested_at, source_url
-        FROM knowledge_items
+        FROM {knowledge_items_table()}
         WHERE ingested_at >= ? AND ingested_at < ?
         ORDER BY ingested_at DESC
         """,

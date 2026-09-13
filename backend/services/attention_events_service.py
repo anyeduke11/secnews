@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.logging_config import logger
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 
 # 与 API 层共享的合法事件类型 (API 保留 400 校验, 此处为单一事实源)
 VALID_EVENT_TYPES = frozenset({
@@ -72,7 +72,7 @@ def maybe_create_sm2_review(
 def knowledge_item_exists(item_id: str) -> bool:
     """知识条目是否存在 (SM-2 复习转化的前置检查)."""
     row = get_connection().execute(
-        "SELECT 1 FROM knowledge_items WHERE id = ?",
+        f"SELECT 1 FROM {knowledge_items_table()} WHERE id = ?",
         (item_id,),
     ).fetchone()
     return row is not None

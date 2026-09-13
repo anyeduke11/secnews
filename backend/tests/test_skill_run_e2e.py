@@ -1,7 +1,8 @@
 """v0.8 B5 — skill_registry → skill_runner 端到端 e2e (skill_runs 历史可查).
 
 设计:
-- 入口: registry.execute(skill_id, inputs, ticket_id=...)
+- 入口: registry.execute(skill_id, inputs, ticket_id=..., runner=...)
+  (R4 解环后 runner 必填注入, registry 对 skill_runner 零 import)
 - 覆盖: 真实 run_id / skill_runs 落库 / C 类产物落 wiki / 历史列表 / 失败兜底
 - 不依赖真实 LLM / 后端服务; A/B 类 zero-LLM, C 类用 builtin mock wiki target
 """
@@ -11,7 +12,7 @@ import pytest
 
 from backend.services.skill_registry import BUILTIN
 from backend.services.skill_registry.core import SkillNotFoundError
-from backend.services.skill_runner import SkillRunRepo
+from backend.services.skill_runner import SkillRunner, SkillRunRepo
 
 
 @pytest.fixture
@@ -37,7 +38,7 @@ def e2e_gate_open(monkeypatch, tmp_path):
 # 1. A 类 fast-path 写 skill_runs, 结果可查
 # ---------------------------------------------------------------------------
 def test_e2e_a_class_run_persists_to_skill_runs(e2e_gate_open):
-    result = BUILTIN.execute("source-health-scan", {})
+    result = BUILTIN.execute("source-health-scan", {}, runner=SkillRunner())
     assert result.status == "succeeded", result.error
     assert result.run_id
 
@@ -52,8 +53,8 @@ def test_e2e_a_class_run_persists_to_skill_runs(e2e_gate_open):
 # 2. ticket_id 透传 + 列表按 skill 可查
 # ---------------------------------------------------------------------------
 def test_e2e_ticket_id_and_list_by_skill(e2e_gate_open):
-    BUILTIN.execute("source-health-scan", {}, ticket_id="ticket-e2e-1")
-    BUILTIN.execute("source-health-scan", {}, ticket_id="ticket-e2e-2")
+    BUILTIN.execute("source-health-scan", {}, ticket_id="ticket-e2e-1", runner=SkillRunner())
+    BUILTIN.execute("source-health-scan", {}, ticket_id="ticket-e2e-2", runner=SkillRunner())
 
     rows = SkillRunRepo().list_for_skill("source-health-scan")
     tickets = [r["ticket_id"] for r in rows if r["ticket_id"]]
@@ -65,7 +66,7 @@ def test_e2e_ticket_id_and_list_by_skill(e2e_gate_open):
 # 3. C 类 pipeline 产物落 wiki (write_content target → tmp wiki fs)
 # ---------------------------------------------------------------------------
 def test_e2e_c_class_writes_wiki_artifact(e2e_gate_open, tmp_path):
-    result = BUILTIN.execute("weekly-top-events", {"top_n": 3})
+    result = BUILTIN.execute("weekly-top-events", {"top_n": 3}, runner=SkillRunner())
     assert result.status == "succeeded"
 
     # builtin weekly-top-events pipeline 最后一个 step 是 wiki write_content
@@ -104,8 +105,8 @@ def test_e2e_missing_target_succeeds_as_failed_run(e2e_gate_open):
 # 5. 同 skill 多次执行隔离 (run_id 唯一)
 # ---------------------------------------------------------------------------
 def test_e2e_multiple_runs_isolated(e2e_gate_open):
-    r1 = BUILTIN.execute("source-health-scan", {})
-    r2 = BUILTIN.execute("source-health-scan", {})
+    r1 = BUILTIN.execute("source-health-scan", {}, runner=SkillRunner())
+    r2 = BUILTIN.execute("source-health-scan", {}, runner=SkillRunner())
     assert r1.run_id != r2.run_id
     assert SkillRunRepo().get(r1.run_id) is not None
     assert SkillRunRepo().get(r2.run_id) is not None
@@ -116,15 +117,15 @@ def test_e2e_multiple_runs_isolated(e2e_gate_open):
 # ---------------------------------------------------------------------------
 def test_e2e_unknown_skill_raises(e2e_gate_open):
     with pytest.raises(SkillNotFoundError):
-        BUILTIN.execute("nonexistent-e2e-skill", {})
+        BUILTIN.execute("nonexistent-e2e-skill", {}, runner=SkillRunner())
 
 
 # ---------------------------------------------------------------------------
 # 7. 不同 skill 历史互不干扰 (list_for_skill 维度隔离)
 # ---------------------------------------------------------------------------
 def test_e2e_history_isolated_per_skill(e2e_gate_open):
-    BUILTIN.execute("source-health-scan", {}, ticket_id="ticket-a")
-    BUILTIN.execute("weekly-top-events", {"top_n": 1}, ticket_id="ticket-c")
+    BUILTIN.execute("source-health-scan", {}, ticket_id="ticket-a", runner=SkillRunner())
+    BUILTIN.execute("weekly-top-events", {"top_n": 1}, ticket_id="ticket-c", runner=SkillRunner())
 
     a_rows = SkillRunRepo().list_for_skill("source-health-scan")
     c_rows = SkillRunRepo().list_for_skill("secnews-daily-digest")
@@ -136,7 +137,7 @@ def test_e2e_history_isolated_per_skill(e2e_gate_open):
 # 8. A 类 fast_path 阶段计数=3 (INTENT→EXECUTE→COMMIT, PLAN/REFLECT SKIPPED)
 # ---------------------------------------------------------------------------
 def test_e2e_a_class_phase_count_is_3(e2e_gate_open):
-    result = BUILTIN.execute("source-health-scan", {})
+    result = BUILTIN.execute("source-health-scan", {}, runner=SkillRunner())
     assert result.fast_path is True
     assert result.metrics.get("phase_count") == 3
 
@@ -145,7 +146,7 @@ def test_e2e_a_class_phase_count_is_3(e2e_gate_open):
 # 9. SkillRunResult 持久化 result JSON 可反序列化
 # ---------------------------------------------------------------------------
 def test_e2e_run_result_json_round_trip(e2e_gate_open):
-    result = BUILTIN.execute("source-health-scan", {})
+    result = BUILTIN.execute("source-health-scan", {}, runner=SkillRunner())
     row = SkillRunRepo().get(result.run_id)
     stored = row.get("result")
     assert stored is not None, "succeeded run 必须写 result"

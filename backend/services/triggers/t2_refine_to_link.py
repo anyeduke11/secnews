@@ -128,7 +128,7 @@ class T2Trigger:
         sql = (
             f"SELECT id, title, source_url, concepts, tags, lifecycle, "
             f"ingested_at, updated_at "
-            f"FROM knowledge_items "
+            f"FROM {knowledge_items_table()} "
             f"WHERE lifecycle IN ({placeholders}) "
             f"ORDER BY ingested_at ASC "
             f"LIMIT ?"
@@ -197,7 +197,7 @@ class T2Trigger:
         )
         placeholders = ",".join("?" for _ in all_peer_stages)
         sql = (
-            f"SELECT id, concepts, tags FROM knowledge_items "
+            f"SELECT id, concepts, tags FROM {knowledge_items_table()} "
             f"WHERE lifecycle IN ({placeholders}) AND id != ? "
             f"LIMIT 500"
         )

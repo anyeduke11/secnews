@@ -51,7 +51,7 @@ async def _classify_new_items() -> None:
     避免阻塞 event loop; 异常隔离不影响采集。
     """
     try:
-        from backend.repository.db import get_connection
+        from backend.repository.db import get_connection, knowledge_items_table
         from backend.repository.knowledge_repo import knowledge_repo
         from backend.services.auto_classifier import batch_classify
 
@@ -59,7 +59,7 @@ async def _classify_new_items() -> None:
             conn = get_connection()
             rows = conn.execute(
                 "SELECT id, title, tags, source_url, domain, type, difficulty "
-                "FROM knowledge_items "
+                f"FROM {knowledge_items_table()} "
                 "WHERE (domain IS NULL OR type IS NULL OR difficulty IS NULL) "
                 "AND ingested_at > datetime('now', '-5 minutes', 'utc') "
                 "ORDER BY ingested_at ASC LIMIT 50"
@@ -417,8 +417,10 @@ async def catchup_watchdog_job() -> None:
 
     def _scan_and_mark_orphans():
         """同步段: 查孤儿 + 标 failed。返回 (earliest, now_iso, n) 或 None。"""
+        from backend.repository.collection_repo import CollectionRepository
         from backend.repository.db import get_connection
 
+        repo = CollectionRepository()
         conn = get_connection()
         cutoff_iso = (
             datetime.now(timezone.utc) - timedelta(seconds=600)
@@ -436,16 +438,7 @@ async def catchup_watchdog_job() -> None:
         now_iso = datetime.now(timezone.utc).isoformat()
         stuck_ids = [int(r["id"]) for r in stuck_rows]
         for sid in stuck_ids:
-            conn.execute(
-                """
-                UPDATE collection_runs
-                SET finished_at = ?,
-                    status = 'failed',
-                    error_msg = 'watchdog: timeout after 600s'
-                WHERE id = ? AND finished_at IS NULL
-                """,
-                (now_iso, sid),
-            )
+            repo.mark_run_failed_watchdog(sid, now_iso)
         earliest = min(r["started_at"] for r in stuck_rows)
         logger.info(
             f"catchup_watchdog_job: marked {len(stuck_ids)} orphan runs as failed"

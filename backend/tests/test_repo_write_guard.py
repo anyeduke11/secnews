@@ -89,15 +89,11 @@ _EXEMPT_TABLES: dict[str, str] = {
     "worker_runs": "services/worker_coordinator.py",
     # CodeGarden drift (P1 病灶, 见规格 §2)
     "cg_drift_assessments": "services/codegarden_drift.py",
-    # 采集域 (P1-2 扩面补登宿主 scheduler/jobs/collect.py)
-    # Batch 4 Task C (2026-09-12): collection_service 拆 facade, 写语句随宿主
-    # 搬至 collection_dedup (content_fingerprints) / collection_pipeline
-    # (collection_runs/crawler_runs/raw_items); 表集合不变, 仅宿主标注同步。
+    # 采集域
+    # collect_validations 之外的四表 (collection_runs/crawler_runs/raw_items/
+    # content_fingerprints) 已于 R2 收缩批 (2026-09-13) 补
+    # backend/repository/collection_repo.py, 豁免条目删除。
     "collect_validations": "services/collect_validator.py",
-    "collection_runs": "services/collection_pipeline.py, scheduler/jobs/collect.py",
-    "content_fingerprints": "services/collection_dedup.py",
-    "crawler_runs": "services/collection_pipeline.py",
-    "raw_items": "services/collection_pipeline.py",
     # info_filter gate
     "info_filter_rules": "services/info_filter_service.py",
     # 知识域

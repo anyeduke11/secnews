@@ -5,8 +5,9 @@ Batch 4 Task C 从 ``collection_service.py`` 物理搬出 (行为零变更, SQL 
 
 - **旁路写入** — ``write_raw_items`` / ``write_crawler_runs`` /
   ``write_crawler_runs_for_source`` / ``write_collection_run`` /
-  ``insert_running_row`` (collection_runs / crawler_runs / raw_items 表,
-  R2 豁免宿主已同步标注到本模块)。
+  ``insert_running_row`` (collection_runs / crawler_runs / raw_items 表;
+  R2 收缩批后写语句统一走 ``CollectionRepository``, 本模块只保留值
+  计算 / 逐条异常隔离 / 日志)。
 - **去重指纹** 见 ``collection_dedup`` (content_fingerprints)。
 - **run 内步骤** — ``inject_custom_sources`` / ``enrich_and_recheck`` /
   ``rebuild_trend_and_log`` / ``invalidate_caches`` /
@@ -32,6 +33,7 @@ from backend.cache import invalidate as cache_invalidate
 from backend.domain.collection import CollectionReport, CollectionResult
 from backend.domain.enums import Category, CollectorStatus
 from backend.domain.models import HotspotItem
+from backend.repository.collection_repo import CollectionRepository
 from backend.repository.custom_source_repo import CustomSourceRepository
 from backend.repository.db import get_connection
 from backend.repository.hotspot_repo import HotspotRepository
@@ -483,16 +485,9 @@ def insert_running_row(category: Category, started_at, logger) -> int | None:
     Returns: 新行 id, 或 None (INSERT 失败时).
     """
     try:
-        conn = get_connection()
-        cur = conn.execute(
-            """
-            INSERT INTO collection_runs
-                (category, started_at, status, item_count, fallback_count)
-            VALUES (?, ?, 'running', 0, 0)
-            """,
-            (category.value, started_at.isoformat()),
+        return CollectionRepository().insert_running_run(
+            category.value, started_at.isoformat()
         )
-        return int(cur.lastrowid)
     except Exception as e:
         # 迁移未跑 / DB lock / 其它错误 — 不阻塞采集
         logger.warning(
@@ -520,7 +515,7 @@ def write_raw_items(
         for it in r.items:
             item_source_map[str(it.id)] = str(getattr(it, "source", ""))
 
-    conn = get_connection()
+    repo = CollectionRepository()
     written = 0
     for item in items:
         try:
@@ -540,15 +535,9 @@ def write_raw_items(
                 (title + url + summary).encode("utf-8")
             ).hexdigest()[:16]
 
-            conn.execute(
-                """
-                INSERT INTO raw_items
-                    (item_id, source_id, title, url, summary,
-                     content_hash, published_at, fetched_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-                """,
-                (item_id, source_id, title, url, summary,
-                 content_hash, published_at),
+            repo.insert_raw_item(
+                item_id, source_id, title, url, summary,
+                content_hash, published_at,
             )
             written += 1
         except Exception:
@@ -574,7 +563,9 @@ def write_crawler_runs(result: CollectionResult, logger) -> None:
         if not source_results:
             return
 
+        # conn 注入 repo: crawler_runs 写入与健康机反查 SELECT 落在同一连接。
         conn = get_connection()
+        repo = CollectionRepository(conn)
         written = 0
         health_results: list[dict] = []
         for sr in source_results:
@@ -594,17 +585,11 @@ def write_crawler_runs(result: CollectionResult, logger) -> None:
                 if result.finished_at else ""
             )
 
-            conn.execute(
-                """
-                INSERT INTO crawler_runs
-                    (source_id, category, started_at, finished_at, status,
-                     fetched_count, accepted_count, error_msg, duration_ms)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (source_name, result.category.value,
-                 started_at, finished_at, status,
-                 fetched_count, accepted_count,
-                 sr.error_msg or "", duration_ms),
+            repo.insert_crawler_run(
+                source_name, result.category.value,
+                started_at, finished_at, status,
+                fetched_count, accepted_count,
+                sr.error_msg or "", duration_ms,
             )
             written += 1
 
@@ -679,25 +664,16 @@ def write_crawler_runs_for_source(
     status = "failed" if error_msg else (
         "partial" if accepted_count == 0 else "success"
     )
-    conn = get_connection()
-    conn.execute(
-        """
-        INSERT INTO crawler_runs
-            (source_id, category, started_at, finished_at, status,
-             fetched_count, accepted_count, error_msg, duration_ms)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            source_id, category, now, now, status,
-            fetched_count, accepted_count, error_msg or "", duration_ms,
-        ),
+    CollectionRepository().insert_crawler_run(
+        source_id, category, now, now, status,
+        fetched_count, accepted_count, error_msg or "", duration_ms,
     )
 
 
 def write_collection_run(result: CollectionResult, logger) -> None:
     """写入 collection_runs 表 (Phase 8: UPDATE 起始行, 老路径 fallback INSERT)"""
     try:
-        conn = get_connection()
+        repo = CollectionRepository()
         status = CollectorStatus.FAILED if result.error else (
             CollectorStatus.PARTIAL if result.fallback_count > 0 else CollectorStatus.SUCCESS
         )
@@ -706,40 +682,24 @@ def write_collection_run(result: CollectionResult, logger) -> None:
         )
         if result.run_id is not None:
             # Phase 8: UPDATE 起始 'running' 行
-            conn.execute(
-                """
-                UPDATE collection_runs SET
-                    finished_at = ?,
-                    status = ?,
-                    item_count = ?,
-                    fallback_count = ?,
-                    error_msg = ?
-                WHERE id = ?
-                """,
-                (
-                    finished_at_iso,
-                    status.value,
-                    result.item_count,
-                    result.fallback_count,
-                    result.error,
-                    int(result.run_id),
-                ),
+            repo.update_run_finished(
+                int(result.run_id),
+                finished_at_iso,
+                status.value,
+                result.item_count,
+                result.fallback_count,
+                result.error,
             )
         else:
             # 老路径: 直接 INSERT (起始行 INSERT 失败时)
-            conn.execute(
-                """INSERT INTO collection_runs
-                (category, started_at, finished_at, status, item_count, fallback_count, error_msg)
-                VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    result.category.value,
-                    result.started_at.isoformat(),
-                    finished_at_iso,
-                    status.value,
-                    result.item_count,
-                    result.fallback_count,
-                    result.error,
-                ),
+            repo.insert_run(
+                result.category.value,
+                result.started_at.isoformat(),
+                finished_at_iso,
+                status.value,
+                result.item_count,
+                result.fallback_count,
+                result.error,
             )
     except Exception as e:
         logger.error(f"write collection_run failed: {e}")

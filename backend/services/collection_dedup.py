@@ -1,6 +1,9 @@
 """去重与指纹 — simhash 去重判定 + content_fingerprints 指纹写入。
 
-Batch 4 Task C 从 ``collection_service.py`` 物理搬出 (行为零变更, SQL 原样):
+Batch 4 Task C 从 ``collection_service.py`` 物理搬出 (行为零变更);
+R2 收缩批 (2026-09-13) 后 ``write_fingerprints`` 的写语句下沉到
+``CollectionRepository.insert_fingerprint`` (SQL 逐字一致), 本模块
+保留值计算 (canonicalize/simhash/signed-64) / 逐条累加 / commit 点 / 日志:
 
 - ``dedup_items``        — 原 ``CollectionService._dedup_items``: 采集结果
                            upsert 前的 simhash 去重 (URL 精确匹配 + 汉明距离
@@ -17,6 +20,7 @@ thread-local 语义依赖这一点。
 """
 from collections import defaultdict
 
+from backend.repository.collection_repo import CollectionRepository
 from backend.repository.db import get_connection
 from backend.services.simhash import (
     canonicalize_url,
@@ -163,6 +167,10 @@ def write_fingerprints(items: list, logger) -> int:
     if not items:
         return 0
     conn = get_connection()
+    # conn 注入 repo (而非 repo 回退 get_connection): 宿主/单测可在
+    # collection_dedup 命名空间 patch get_connection, 注入保证写语句
+    # 与 commit 落在同一连接 (含测试 mock)。
+    repo = CollectionRepository(conn)
     written = 0
     try:
         for item in items:
@@ -172,18 +180,12 @@ def write_fingerprints(items: list, logger) -> int:
             if item.summary:
                 text += " " + item.summary
             fp = simhash(text)
-            cur = conn.execute(
-                """INSERT OR IGNORE INTO content_fingerprints
-                   (hotspot_id, simhash, url_canonical, title_norm)
-                   VALUES (?, ?, ?, ?)""",
-                (
-                    item.id,
-                    _to_signed_64(fp),
-                    url_canonical or "",
-                    title_norm or "",
-                ),
+            written += repo.insert_fingerprint(
+                item.id,
+                _to_signed_64(fp),
+                url_canonical or "",
+                title_norm or "",
             )
-            written += cur.rowcount
         conn.commit()
     except Exception as e:
         # 指纹补写失败不阻塞主流程 (去重是尽力而为, 下次采集会再判重)

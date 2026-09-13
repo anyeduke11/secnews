@@ -1,0 +1,169 @@
+{
+  "threshold": 0.7,
+  "suggest": {
+    "evt_ransomware": [
+      {
+        "id": "etc_2026091304223892646912de8a0713ecfdc9",
+        "technique_id": "T1021",
+        "stage": "Initial Access",
+        "confidence": 0.85,
+        "evidence_quote": "FBI 与 CISA 联合发布 LockBit 2"
+      },
+      {
+        "id": "etc_20260913042238927757405eb81eafd007fa",
+        "technique_id": "T1133",
+        "stage": "Initial Access",
+        "confidence": 0.85,
+        "evidence_quote": "CrowdStrike 2024 年度报告 ransomware 章节指出: eCrime 组织普遍采用 access "
+      },
+      {
+        "id": "etc_20260913042238926518d749fe60a82516f5",
+        "technique_id": "T1490",
+        "stage": "Execution",
+        "confidence": 0.7,
+        "evidence_quote": "FBI 与 CISA 联合发布 LockBit 2"
+      },
+      {
+        "id": "etc_202609130422389265504b911932ed057236",
+        "technique_id": "T1133",
+        "stage": "Lateral Movement",
+        "confidence": 0.7,
+        "evidence_quote": "FBI 与 CISA 联合发布 LockBit 2"
+      },
+      {
+        "id": "etc_2026091304223892718864bfee03c74002f6",
+        "technique_id": "T1003",
+        "stage": "Exfiltration",
+        "confidence": 0.7,
+        "evidence_quote": "FBI 与 CISA 联合发布 LockBit 2"
+      },
+      {
+        "id": "etc_20260913042238927790b87d6ecb1e73ad19",
+        "technique_id": "T1021",
+        "stage": "Execution",
+        "confidence": 0.7,
+        "evidence_quote": "CrowdStrike 2024 年度报告 ransomware 章节指出: eCrime 组织普遍采用 access "
+      },
+      {
+        "id": "etc_202609130422389283040706677224a4330f",
+        "technique_id": "T1566",
+        "stage": "Initial Access",
+        "confidence": 0.7,
+        "evidence_quote": "Verizon 2024 DBIR 显示 ransomware 出现在 32% 的全部 breach 中, 且 92% "
+      },
+      {
+        "id": "etc_20260913042238928906c64edd257820feac",
+        "technique_id": "T1078",
+        "stage": "Initial Access",
+        "confidence": 0.7,
+        "evidence_quote": "MITRE ATT&CK G0050 FIN6 案例记录: 该组织早期针对 POS 系统窃取支付卡数据, 后转向大规模 "
+      },
+      {
+        "id": "etc_20260913042238928957de6b5b3f6d7b8651",
+        "technique_id": "T1021",
+        "stage": "Execution",
+        "confidence": 0.7,
+        "evidence_quote": "MITRE ATT&CK G0050 FIN6 案例记录: 该组织早期针对 POS 系统窃取支付卡数据, 后转向大规模 "
+      }
+    ],
+    "evt_phishing_social": [
+      {
+        "id": "etc_20260913042238932518bb7c4c8a89cb1f59",
+        "technique_id": "T1566",
+        "stage": "Reconnaissance",
+        "confidence": 0.85,
+        "evidence_quote": "典型链路: 攻击者先通过钓鱼或购买泄露凭据接管高管邮箱 (email account compromise), 利用 m"
+      },
+      {
+        "id": "etc_20260913042238932015898282f6647d2954",
+        "technique_id": "T1566",
+        "stage": "Reconnaissance",
+        "confidence": 0.7,
+        "evidence_quote": "初始访问以 spear phishing 邮件携带恶意附件为主, 收件人打开后用户执行伪装成文档的 dropper, 建"
+      },
+      {
+        "id": "etc_202609130422389320481667c5c95d4197a1",
+        "technique_id": "T1204",
+        "stage": "Resource Development",
+        "confidence": 0.7,
+        "evidence_quote": "初始访问以 spear phishing 邮件携带恶意附件为主, 收件人打开后用户执行伪装成文档的 dropper, 建"
+      },
+      {
+        "id": "etc_202609130422389320774cc774898a399a48",
+        "technique_id": "T1027",
+        "stage": "Initial Access",
+        "confidence": 0.7,
+        "evidence_quote": "初始访问以 spear phishing 邮件携带恶意附件为主, 收件人打开后用户执行伪装成文档的 dropper, 建"
+      },
+      {
+        "id": "etc_20260913042238932854497740535c967f34",
+        "technique_id": "T1566",
+        "stage": "Reconnaissance",
+        "confidence": 0.7,
+        "evidence_quote": "APWG 季度趋势报告显示钓鱼活动持续产业化: phishing kit 让攻击者低成本克隆银行与 SaaS 登录页, "
+      }
+    ],
+    "evt_web_app_intrusion": [
+      {
+        "id": "etc_20260913042238936519f367e8a759ea906e",
+        "technique_id": "T1190",
+        "stage": "Initial Access",
+        "confidence": 0.85,
+        "evidence_quote": "CISA 关于 Progress MOVEit Transfer 漏洞 (CVE-2023-34362) 的 advis"
+      },
+      {
+        "id": "etc_20260913042238935239b9037e642494d90d",
+        "technique_id": "T1190",
+        "stage": "Initial Access",
+        "confidence": 0.7,
+        "evidence_quote": "整个链路覆盖 initial access (exploit public-facing application) → "
+      }
+    ],
+    "evt_supply_chain": [
+      {
+        "id": "etc_20260913042238938271e30afdde915d3eaf",
+        "technique_id": "T1027",
+        "stage": "Resource Development",
+        "confidence": 0.7,
+        "evidence_quote": "m4) 中注入混淆 payload, 仅影响分发 tarball 而隐藏于 git 历史; 后门劫持 liblzma 链"
+      }
+    ],
+    "evt_brute_force": [
+      {
+        "id": "etc_202609130422389421641dab0da0eefad633",
+        "technique_id": "T1078",
+        "stage": "Credential Access",
+        "confidence": 0.85,
+        "evidence_quote": "CISA 与合作机构 advisory 描述: 攻击者对未打补丁的 Fortinet/F5/Pulse VPN 设备实施"
+      },
+      {
+        "id": "etc_202609130422389408260a70fdac5b06eb15",
+        "technique_id": "T1078",
+        "stage": "Credential Access",
+        "confidence": 0.7,
+        "evidence_quote": "Microsoft 数字防御报告凭据章节: 每秒遭到超过 4000 次凭据攻击, password spray 与 cr"
+      },
+      {
+        "id": "etc_20260913042238940860982dd0058229c06d",
+        "technique_id": "T1110",
+        "stage": "Initial Access",
+        "confidence": 0.7,
+        "evidence_quote": "Microsoft 数字防御报告凭据章节: 每秒遭到超过 4000 次凭据攻击, password spray 与 cr"
+      },
+      {
+        "id": "etc_2026091304223894088927ab49775e1d3c08",
+        "technique_id": "T1133",
+        "stage": "Credential Access",
+        "confidence": 0.7,
+        "evidence_quote": "Microsoft 数字防御报告凭据章节: 每秒遭到超过 4000 次凭据攻击, password spray 与 cr"
+      },
+      {
+        "id": "etc_202609130422389413513194c658ddb26d43",
+        "technique_id": "T1110",
+        "stage": "Credential Access",
+        "confidence": 0.7,
+        "evidence_quote": "Akamai SOTI 报告统计: 零售与金融 API 流量中 credential stuffing 攻击占比超过 3"
+      }
+    ]
+  }
+}

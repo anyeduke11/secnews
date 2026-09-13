@@ -1250,3 +1250,34 @@
 - **分期**: MP-1 图谱点火 1~2 天 (地基, 无依赖) / MP-2 L2 事件类型 3~4 天 (词表+抽审+技战法卡) / MP-3 L1 漏洞 2~3 天 (与 P1-5 联动) / MP-4 L3 响应+双向关联 2~3 天。
 - **验证**: 纯文档 (4 决议 + 数据模型 + 抽审规约 + 双向关联设计)。
 - **风险**: MP-1 / MP-2 抽审侧等待 owner 令下开工; MP-3 与 P1-5 排期挂钩不阻塞 MP-1/2; MP-4 judgment 扩列与 v1 既有 CAS/状态机兼容性已分析通过 (老数据 attack_technique_refs=NULL 行为不变)。
+
+## [DEV-0215] MP-2 安全事件类型实例化方案立项: 5 agent 并行 + 抽审编排 + 金融三阶
+- **时间**: 2026-09-13 14:30
+- **类型**: 功能开发 (执行方案文档)
+- **关联文件**: docs/PLAN_MP2_EVENT_TYPE_2026-09-13.md (新建, 270+ 行), docs/FEATURE_DECOMPOSITION_2026-09-12.md (§5 裁决追加), PROGRESS.md (活跃段设计稿状态)
+- **方案核心**: 11 类事件类型 (8 通用 + 3 金融) 通过 **5 个独立 agent** 并行覆盖, 突破历史的 2-agent 串行上限 — 每个 agent 独立 worktree, 互不阻塞
+- **5 agent 编排**:
+  - agent-A: 通用 8 类高优先级 5 类 (勒索/钓鱼/Web 入侵/供应链/云泄露)
+  - agent-B: 通用 8 类次优先级 3 类 (爆破/内部威胁/AI 模型投毒)
+  - agent-C: 反诈 (agent-A 完成端到端流程后启动)
+  - agent-D: 数据泄露 (语料稀, 第三批启动)
+  - agent-E: 监管通报 (金融第一批, 口径明确, 抽取质量高)
+- **金融三类递进 (owner 决策 2026-09-13)**:
+  - 第 1 批 监管通报: 银保监/网信办/央行口径本身结构化好 → agent-E T+2 启动
+  - 第 2 批 反诈: 公安部公开宣传 + 银行业协会 → agent-C T+2 启动
+  - 第 3 批 数据泄露: 央行/银行业协会语料稀 → agent-D T+2.5 启动, 备降级 (Verizon DBIR 金融分册 + 普华永道报告; 仍不足则接受该类 event_technique_map < 3 条审定, 不降级事件类型本身, 在收口报告如实标注)
+- **owner 人审是关键路径瓶颈**: 11 类 × ~30 分钟/类 = ~5.5h, 分 2~3 天; 第一批 3 类 (agent-A 高优) 端到端验证流程无误后批量审后续; 进度指标 + 三态审核 (approve/edit/reject) + 批量便利 + 完整追溯链 (candidate→report→source_url)
+- **数据模型 5 表** (迁移 117_mp2_event_technique.sql):
+  - security_entities 新增 11 行 event_type 实体 (owner 直接给, 不走 LLM)
+  - event_technique_candidates (LLM 候选池, pending→approved/edited/rejected)
+  - event_technique_map (终态, 含 candidate_id/source_report_id 追溯链, owner_audit_chain JSON)
+  - incident_reports (语料库, source_url UNIQUE, checksum sha256 去重)
+  - attack_techniques (M1 已落数据, FK 校验目标)
+- **代码侧**: 4 服务 (IncidentReportService / EventTechniqueExtractService / EventTechniqueReviewService / AttackLabelService 多语义入口) + 4 repo + 6 API 端点 + 2 前端组件 (EventTypeCard + EventTypeReviewPage) + 6 守卫测试 (FK/evidence_quote substring/confidence 阈值/owner 权限/audit_log)
+- **端到端 6 步**: 词表播种 → 报告入库 → LLM 抽取 → 自审脚本 → owner 人审 → worktree merge (A→B→C→D→E 顺序, 每 merge 后 pytest+meta --check)
+- **验收门**: 11 类全覆盖每类 ≥3 条审定 / 完整追溯链 / API 6 端点通 / 前端路由可访问 / 6 守卫全绿 / pytest ≥4650 (基线 +50) / meta --check (services +5, routers +1, migrations +1) / P0=0 P1≤2
+- **边界**: 不动三层壳/ai_hub/CRM/R1~R4 守卫; mp2 子域独立, 不污染主 security 域 (MP-4 再决定是否合并); 金融行业仅取脱敏公开通报, audit_log 必落 actor=owner 外部分类
+- **风险降级**: LLM 质量不达标切便宜模型重抽 / owner 吞吐瓶颈启用批量便利延长工期 / 金融三类语料稀备降级 / 5 agent 并行冲突 UNIQUE constraint 兜底 / evidence_quote 校验改 normalized form C
+- **后续期衔接**: MP-3 走 attack_cwe_map 关联查询 (不动 event_technique_map) / MP-4 复用本方案 event_technique_map + attack_label_service 多语义入口 + 新增 knowledge_technique_ref
+- **同步**: 方案文档定稿 (§1~§7: 输入前置/数据模型/service+repo+API+前端/端到端/验收门/风险降级/后续期衔接); 待 owner 令开工; **未动代码** (与上批一致, 等令)
+- **风险**: 5 个独立 worktree merge 顺序需主会话严格按 A→B→C→D→E (避免跨 agent 改 attack_label_service 共享文件冲突); owner 人审环节是工期决定项, 需在开工前确认 owner 在线窗口

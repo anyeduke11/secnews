@@ -1173,3 +1173,58 @@
 - **核心变更**: ai_hub 包对知识域 import 边归零 (grep 代码零命中, 残留 10 处均为 docstring/符号名); 知识域→ai_hub 单向依赖成立; test_ai_hub patch 目标 ai_hub.get_connection→ai_write_back.get_connection — 原目标实为失效 patch (替换 re-export 属性不影响模块内绑定), 旧用例靠 FK 违规降级巧合通过, 现按真实解析路径生效并补不 patch 的真实 FK 降级用例 (审计 P2-2)。
 - **测试验证**: -k "write_back or ai_hub or t4 or sag or knowledge" 207 passed; R4 守卫 7 passed; 全量 pytest **4610 passed / 9 skipped / 0 失败**; meta --check OK (142 services); ruff 触碰 0; 独立审计 **P0=0 / P1=0** / P2×2 全修 (报告 .ua/tmp/batch6-code-audit-report.md)。
 - **潜在风险**: ①prompts.py SK-04 符号名 build_knowledge_prompt 等为命名级耦合残留 (改公开 API 名超出授权, 未动) ②ai_write_back 沿用 stdlib logging (逐字外移原则; services 层两种日志风格并存为已知状态) ③13 消费方 import 变更为破坏性路径变更, 仓外本地脚本若引用 ai_hub.write_item 需改 ai_write_back。
+
+## [DEV-0206] R2 豁免收缩: collection 域四表补 repo — 豁免 46→42
+- **时间**: 2026-09-13 11:00
+- **类型**: 重构 (决策 2 收缩批)
+- **关联文件**: backend/repository/collection_repo.py (新 7 方法), backend/services/collection_pipeline.py, collection_dedup.py, backend/scheduler/jobs/collect.py, backend/tests/test_collection_repo.py (新 13 用例), test_repo_write_guard.py (-4)
+- **实现**: CollectionRepository 覆盖 collection_runs/raw_items/crawler_runs/content_fingerprints 全部写语句 (SQL 逐字, autocommit 即时落库语义经 db.py isolation_level=None 核实), 三宿主改调 repo; R2 守卫实测残留 0, 豁免收缩 4 条。
+- **验证**: -k collection 178+52 passed; 全量 4589/9sk/0 (合并口径); 审计 R2 逐字等价确认。
+- **风险**: scripts/db_diet.py 的参数化 DELETE (retention 台账路径) 在守卫范围外, 列后续收编候选。
+
+## [DEV-0207] CRM 业绩座舱域整体删除 (owner 裁决 4) — 含 security-cockpit 设计稿连带
+- **时间**: 2026-09-13 11:05
+- **类型**: 配置变更/删除 (owner 授权)
+- **关联文件**: 删 backend api×4 + crm_stats_service + repo×2 + tests×3 + 前端 crm 组件×7 + lib/types + security-cockpit/ (6 文件 2497 行, v0.6 CRM 座舱静态设计稿, 纯 CRM 资产); 编辑 _registry/extensions/feature_gates (gate 13→12)/settings features/useFeatureFlags/routes×3/SentinelSettingsPage; 新迁移 116_drop_crm.sql (DROP 三表 FK 序, 幂等双验证)
+- **验证**: 代码侧 crm 残留 grep 0; import 冒烟 OK; -k crm/feature_gates/registry 218 passed; tsc 0; vitest 496 全绿; env 旧 crm 键经 _load_gates 白名单过滤静默忽略 (不崩不误开)。
+- **风险**: 历史文档 (baseline/PLAN/CHANGELOG) 的 CRM 引用未改 (无运行时影响, 留 spec 修订批); retention.json 本就未登记 crm 表, 无需动。
+
+## [DEV-0208] R3 收缩: 四大 api 文件拆分 — 行数豁免 36→32
+- **时间**: 2026-09-13 11:10
+- **类型**: 重构 (决策 2 收缩批)
+- **关联文件**: knowledge_api 352→28 聚合+4 子文件; case_api 390→31+5; sources 582→35+5; secrets 557→38+6 (全部 ≤150); test_api_layer_guard -4 豁免; 3 个测试 import 机械同步
+- **实现**: 聚合层照搬 Batch 2 惯例 (子 router 自带 prefix 供静态遍历); URL 等价性程序化证明 (递归展开惰性 include 比对 method+path+status_code, knowledge/case 11+6 条、sources/secrets 33 条逐字节相同; 审计 AST 全量 50 路由+80 函数体 dump 全等); secrets 安全门禁 (_require_local_or_admin/常数时间比较/RESET_CONFIRM_STRING) 逐字搬移。
+- **验证**: -k source 363 / secret 79 / knowledge_api 27 / case 12 拆分前后同数; 守卫+feature_gates 71 passed; ruff 0。
+- **风险**: 聚合层 include 顺序 = 子文件声明顺序, 未来新增与 /{id} 前缀包含关系的新路由需关注注册顺序 (各聚合层已留警告注释)。
+
+## [DEV-0209] R4 收缩: skill_registry⇄skill_runner 环解开 — 环白名单归零
+- **时间**: 2026-09-13 11:15
+- **类型**: 重构 (决策 2 收缩批)
+- **关联文件**: backend/services/skill_registry/core.py (execute 改 runner 必填注入, TYPE_CHECKING import 一并移除, SkillRunnerProtocol 承载类型), test_service_cycle_guard (白名单 set() + 哨兵更新), test_skill_registry_execute/test_skill_run_e2e (17 处调用机械补参)
+- **关键事实**: execute() 生产调用方 = 0 (api 层走 trigger_gate 入队, worker_pump 直接构造 SkillRunner.run) — 该环边唯一消费者是测试。环解开后全 services 域 import 图**零环**, R4 白名单机制保留、当前为空。
+- **验证**: 守卫 7 passed (归零哨兵+回潮哨兵); -k skill 210 passed; ruff 0。
+- **风险**: execute 返回注解 Any 化 (守卫把 TYPE_CHECKING 计入边的必然取舍, docstring 记载精确类型); 若 SkillRunResult 迁中立模块可恢复。
+
+## [DEV-0210] 决策 3 执行: knowledge_items 裸读归零 — 43 处/21 文件→0
+- **时间**: 2026-09-13 11:20
+- **类型**: 重构 (决策 3, accessor 模式扩展)
+- **关联文件**: 23 文件 ~48 处注入 (scheduler/jobs×4, services×12, triggers t1~t5, security/graph); maintenance_service ki= 变量参数化路径; wiki_stats _LIFECYCLE_SQL 模块级常量改运行时函数 (import 期求值不能开连接); t5 PRAGMA 探测 schema 化 (warm. 前缀+单库回退)
+- **实现**: 全部走 db.knowledge_items_table() f-string blessed 模式 (R2 守卫认可); 保留 2 项: legacy_migrate_v1 的 warm.knowledge_items (迁移源契约, fail-closed 正确) + legacy_items_migrate_service 死字段。
+- **验证**: grep 裸名 SQL 0 残留; -k 大集合 567 passed; 守卫 8 passed; ruff 0。过程中发现并修复自引入 t5 回退分支 bug (PRAGMA 变量取错, 7 失败→11 passed)。
+- **风险**: 生产 ATTACH warm 下裸名读现在统一解析 warm.knowledge_items (单一事实源的既定目标, 部署侧需知悉); attention_scorer/security 曾呈"写侧接读侧漏"半接状态, 教训=后续验收用文件级全查。
+
+## [DEV-0211] 决策 2 收尾: sentinel 域 SSE 5 处迁移 realtime.ts — 失效统一完成
+- **时间**: 2026-09-13 11:25
+- **类型**: 重构 (前端)
+- **关联文件**: frontend/src/components/sentinel/{SentinelHomePage,JudgePage,GraphPage,GardenPage}.tsx (4 页迁 useRealtimeInvalidation), SentinelShell.tsx (usePipeReloadOnSse 实现零改动, 仅注释更新)
+- **实现**: 节流窗口逐字对照 (首页 10s/3s debounce、Judge 30s、Graph 30s 全量、Garden 15s 捆绑闸); 事件常量 SSE_EVENTS 消灭魔法字符串; DEV-0167 纪律保持 (SSE 路径只读 refetch, 0 次 POST /api/refresh — cadence 契约套件验证)。usePipeReloadOnSse 保守保留: 4 页触发口径不同 (collect_done only vs 全量), 全局注册无法逐字复刻组合。
+- **验证**: tsc 0; vitest 496/496 (含 3 连发合并/10s 节流/非采集事件 0 刷新); build OK。
+- **风险**: 首页 3s 由手写尾沿合并改 debounce (每条重置), 持续 >3s 不断流时推迟到流停后拉取 — 事件源每采集轮一次, 饿死形态不可达。
+
+## [DEV-0212] 三份设计稿落地 (决策 1/4/6 的讨论交付物)
+- **时间**: 2026-09-13 11:30
+- **类型**: 功能开发 (设计文档, 未动代码)
+- **关联文件**: docs/DESIGN_P10_EXECUTOR_2026-09-13.md, docs/DESIGN_CODEGARDEN_PRACTICE_2026-09-13.md, docs/DISCUSSION_MITRE_KNOWLEDGE_2026-09-13.md
+- **内容**: ①P1-0 执行器按 owner 裁决展开: dsh=边界设计者 (生成 ExecutionPlan: 命令/路径/网络/超时/产物声明), 代码=enforcer (四层防线 L1 审批默认拒/L2 进程约束/L3 系统降权/L4 审计比对), pi=边界内执行者; 分期 P1-0a 人工回执止血 (1~2 天) → 0b 边界协议 → 0c pi 执行 → 0d 加固; 4 个开放问题待确认。②CodeGarden 转型安全实践域: 资讯信号提取→四阶段立项 (research/setup/exercise/retro)→产物沉淀→知识复利闭环; 复用 from-knowledge 桥/cg_projects/v1 Artifact; phase2b 列删除候选; 4 个开放问题。③mitre ATT&CK 知识梳理 6 场景: M1 图谱点火 (复活 D18 三个死视图, 推荐首发) / M2 战术打标 / M3 知识卡 / M4 合规映射 / M5 实践域联动 (与 CodeGarden 合流) / M6 全量生成 (不建议); 4 个开放问题。
+- **验证**: 纯文档, 无代码。
+- **风险**: 三稿均待 owner 复议后才进入实施。

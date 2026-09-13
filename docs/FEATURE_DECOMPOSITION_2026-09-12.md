@@ -116,13 +116,16 @@
 - **架构数字演进**：85→86 routers / 127→141 services / 57 jobs / 13 collectors（ARCHITECTURE.md 已同步）。
 - **守卫族**（新增 4 个机器断言，环环相扣）：R1 分层（services/scheduler/collectors/repository 禁 import api）→ R3 api 零 SQL+行数 → R2 写路径唯一（豁免收缩）→ R4 零环（白名单收缩）。
 
-### 剩余收缩目标（豁免清单单调收缩路线，非阻断）
+### 剩余收缩目标（2026-09-13 收缩批后更新）
 
-1. R3 行数豁免 36 文件：已知目标 knowledge_api(352)/case_api(390)/sources(582)/secrets(557)。
-2. R2 表豁免 46 条（2026-09-13 收缩 4 条：v1_admission 四表已 repo 化）：剩余重灾区 maintenance_service（动态 SQL 文件级豁免）/collection_pipeline（raw_items/crawler_runs）。
-3. R4 白名单 1 条：skill_registry⇄skill_runner（收缩 = execute() 改强制注入 runner）。
-4. 裸读 knowledge_items ~20 文件（分库下潜在故障点）→ 逐批接 `knowledge_items_table()`。
-5. sentinel 域 SSE 5 处消费方迁移 realtime.ts（已登记待迁移清单）。
+**已归零**：R4 环白名单（skill_registry⇄skill_runner 已解，execute 改 runner 必填注入，生产调用方实为 0）；knowledge_items 裸读（43 处/21 文件→accessor 全接入）；sentinel SSE 5 处（已迁 realtime.ts，useSSE 直调仅剩底座内部）；v1_admission 四表、collection 四表（R2 豁免收缩至 42）；R3 四大文件（knowledge_api/case_api/sources/secrets 全拆 ≤150 聚合层，行数豁免 32）；CRM 域整体删除（含 security-cockpit 设计稿，迁移 116）。
+
+**剩余收缩目标（非阻断，守卫锁定不回潮）**：
+
+1. R3 行数豁免 32 文件：不再有指定大目标，随触碰顺手收缩即可。
+2. R2 表豁免 42 条：剩余宿主为 maintenance_service（动态 SQL 文件级豁免）、trigger_gate/queue、skill_runner、agent_loop 等；collect_validations、attack/compliance 等表随 M1 图谱点火批一并治理。
+3. 裸读残余：仅 legacy_migrate_v1 的迁移源契约（有意保留，fail-closed）。
+4. SSE 统一：usePipeReloadOnSse 保守保留（4 页触发口径不同，全局注册无法逐字复刻）；新消费方一律走 realtime.ts。
 
 ---
 
@@ -133,7 +136,10 @@
 3. **Batch 3 档 A/B** → ✅ 档 A（冻结增量）执行，R2 守卫 + 54 表豁免上线；档 B 收缩目标见 §4。
 4. **WARM/COLD 显式前缀** → 部分兑现：`knowledge_items_table()` 单一真相源已立（写侧归零），其余表的前缀化未做，与 P0-0 备份批同窗口处理的建议保留待裁决。
 5. **CodeGarden / CRM 冻结** → 维持不动（内聚度 ✓ 高，无耦合债）；移出核心动线属产品决策，未裁决。
-6. **P1-0 执行器**（run 永远 queued 的产品决策）→ 未做（不在本工程范围）；run_orchestrator.py docstring 已注明为后续执行编排落点。
+6. **P1-0 执行器** → ✅ **2026-09-13 owner 裁决**：dsh 设计边界控制 + pi 负责执行。设计稿 `docs/DESIGN_P10_EXECUTOR_2026-09-13.md`（dsh 生成 ExecutionPlan→人审批默认拒→代码 enforce→pi 边界内执行；分期 0a 人工回执止血→0b 边界协议→0c pi 执行→0d 加固），待复议后实施。
+7. **CodeGarden 定位** → ✅ **2026-09-13 owner 裁决**：转型安全实践域（行动侧，开源工具研究实践，选题提取自资讯流）；CRM 整体删除（含 security-cockpit 设计稿连带，迁移 116 落库）。转型设计稿 `docs/DESIGN_CODEGARDEN_PRACTICE_2026-09-13.md` 待复议。
+8. **mitre ATT&CK 数据** → ✅ **2026-09-13 owner 裁决**：用于知识梳理，场景需设计讨论。讨论稿 `docs/DISCUSSION_MITRE_KNOWLEDGE_2026-09-13.md`（M1 图谱点火推荐首发，复活 D18 三个死视图）。
+9. **push** → 维持禁令（2026-09-13 重申）；已做本地 git bundle 代码备份。
 
 ---
 

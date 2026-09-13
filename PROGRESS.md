@@ -17,6 +17,15 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-09-13 七项决策落地: 收缩批全清 + CRM 删除 + 三份设计稿 — DEV-0204~0212
+
+- **裁决** (owner, 7 项): ①P1-0 = dsh 设计边界控制 + pi 执行 (设计稿待复议) ②继续收缩解耦 ③前缀化走 accessor 模式 ④CodeGarden 转型安全实践域 (行动侧, 开源工具实践, 选题提取自资讯流) + **CRM 整体删除** ⑤prompts 命名不改 ⑥mitre 数据做知识梳理 (场景讨论稿) ⑦push 维持禁令 (已做本地 bundle)。
+- **收缩批交付** (全部守卫验证): **R2** v1_admission 四表 + collection 四表补 repo (豁免 50→**42**); **R3** knowledge_api/case_api/sources/secrets 四大文件拆 ≤150 聚合层 (豁免 36→**32**, URL 等价性程序化证明 50 路由 AST 全等); **R4** skill_registry⇄skill_runner 环解开 (execute 改 runner 必填注入, 生产调用方实为 0), **环白名单归零** — 全 services import 图零环; **accessor** knowledge_items 裸读 43 处/21 文件→**0** (含 maintenance 参数化/wiki_stats 模块常量运行时化/t5 PRAGMA schema 化); **SSE** sentinel 4 页迁 realtime.ts (节流窗口逐字对照, DEV-0167 纪律 cadence 套件验证), useSSE 直调仅剩底座。
+- **删除批**: CRM 全域 (后端 10 文件+前端 9 文件+gate+settings 入口+security-cockpit 设计稿 2497 行, -5040 行), 迁移 116 幂等 drop 三表; 实际构成以 grep 引用图谱为准 (crm 组件实为 7 文件)。
+- **设计稿** (待复议): `docs/DESIGN_P10_EXECUTOR_2026-09-13.md` (dsh 生成 ExecutionPlan→人审批默认拒→代码 enforce 四层防线→pi 边界内执行, 分期 0a 人工回执止血→0d 加固) / `docs/DESIGN_CODEGARDEN_PRACTICE_2026-09-13.md` (信号提取→四阶段立项→产物沉淀闭环, 复用 from-knowledge 桥, phase2b 列删除候选) / `docs/DISCUSSION_MITRE_KNOWLEDGE_2026-09-13.md` (M1 图谱点火推荐首发, 复活 D18 死视图; M5 与 CodeGarden 实践域合流)。各含 4 个开放问题待 owner 确认。
+- **验证** (实现与验证分离): 全量 pytest **4589/9sk/0** (-21 为 CRM 测试删除) / vitest **496** / tsc 0 / build OK / meta --check 0 MISMATCH (**83 routers / 141 services / 116 migrations**) / 审计 **P0=0 P1=0** P2×6 记录性 (报告 .ua/tmp/shrink-batch-code-audit-report.md; R3 AST 全量 50 路由全等、R2 逐字比对、CRM 残留 grep 0 独立复核)。
+- **遗留**: 设计稿三项待复议后实施 (P1-0a 止血可先行); R2 豁免 42 条剩余 (maintenance 动态 SQL/trigger_gate/skill_runner 等随触碰收缩); R3 豁免 32 随手收缩; scripts/db_diet.py 参数化 DELETE 在守卫外 (retention 台账路径); 文档历史 CRM/旧数字引用留 spec 修订批。
+
 ### 2026-09-13 解耦工程 P0-0 + 五批全落地: 止血/API 收口/repo 收敛/解环拆上帝服务/前端域客户端 — DEV-0191~0203
 
 - **执行** (6 commits `a45e22c..184b592` on main, 未 push, 方案 `docs/FEATURE_DECOMPOSITION_2026-09-12.md` 最终版): **P0-0** (`60acba0`) 止血十项 — dsh 命令白名单三层 enforce + token 鉴权(默认关) + 回环 guard 共用 + vite host 127.0.0.1 + kl 路径穿越封堵 + **备份链根治** (WAL 帧累积 checksum/v2 格式/三库全量/原子恢复, 生产端到端 checker 27/27 integrity ok) + 证据收据三类 entity_type 白名单 (恒 pending→committed) + crypto 参数修正 + 明文 key 清扫(迁移 115) + 错误契约 8 码扁平 envelope (前端 10 组件同步)。**Batch 2** (`7a2b8fa`) api/knowledge.py 711→39 + api 层 52 处直连 SQL 清零 + R3 守卫。**Batch 3** (`756e569`) v1 五表补 repo + R2 守卫 (54 表豁免冻结增量) + knowledge_items_table() 单一真相源。**Batch 4** (`e257baa`) action⇄run 解环 (run_orchestrator) + R4 守卫 (Tarjan) + knowledge_service 974→150 / collection_service 1071→296 facade 拆分。**Batch 5** (`184b592`) 5 前端域客户端 + ~85 组件/hook 迁移 (**裸 fetch 280→11, 网络调用归零**) + SSE 失效统一 (realtime.ts, v1 迁移/sentinel 登记保留)。

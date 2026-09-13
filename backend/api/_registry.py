@@ -259,9 +259,11 @@ def register_all(app: FastAPI) -> None:
     # v1.0 T15: Signal API (Intel 入口真实化, 复用 T05 v1_signals)
     from backend.api import v1_signals_api
     app.include_router(v1_signals_api.router, tags=["v1-signals"])
-    # MP-2 (DEV-0218): 事件类型实例化 — 技战法候选/人审/技战法链 6 端点
+    # MP-2 (DEV-0218): 事件类型实例化 — 候选 2 文件拆分 (≤150 行守卫)
     from backend.api import event_technique_api
+    from backend.api import event_types_api
     app.include_router(event_technique_api.router, tags=["event-technique"])
+    app.include_router(event_types_api.router, tags=["event-technique"])
 
 
 __all__ = ["register_all"]

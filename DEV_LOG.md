@@ -1228,3 +1228,11 @@
 - **内容**: ①P1-0 执行器按 owner 裁决展开: dsh=边界设计者 (生成 ExecutionPlan: 命令/路径/网络/超时/产物声明), 代码=enforcer (四层防线 L1 审批默认拒/L2 进程约束/L3 系统降权/L4 审计比对), pi=边界内执行者; 分期 P1-0a 人工回执止血 (1~2 天) → 0b 边界协议 → 0c pi 执行 → 0d 加固; 4 个开放问题待确认。②CodeGarden 转型安全实践域: 资讯信号提取→四阶段立项 (research/setup/exercise/retro)→产物沉淀→知识复利闭环; 复用 from-knowledge 桥/cg_projects/v1 Artifact; phase2b 列删除候选; 4 个开放问题。③mitre ATT&CK 知识梳理 6 场景: M1 图谱点火 (复活 D18 三个死视图, 推荐首发) / M2 战术打标 / M3 知识卡 / M4 合规映射 / M5 实践域联动 (与 CodeGarden 合流) / M6 全量生成 (不建议); 4 个开放问题。
 - **验证**: 纯文档, 无代码。
 - **风险**: 三稿均待 owner 复议后才进入实施。
+
+## [DEV-0213] 设计稿复议落账: P1-0 批准 + CodeGarden 全量识别修订 + mitre 实例化标签体系重写
+- **时间**: 2026-09-13 14:00
+- **类型**: 功能开发 (设计文档修订, 未动代码)
+- **关联文件**: docs/DESIGN_P10_EXECUTOR_2026-09-13.md (状态→已批准), docs/DESIGN_CODEGARDEN_PRACTICE_2026-09-13.md (v2), docs/DISCUSSION_MITRE_KNOWLEDGE_2026-09-13.md (v2 重写), docs/FEATURE_DECOMPOSITION_2026-09-12.md (§5 裁决更新)
+- **复议结果**: ①P1-0 执行器**通过** (4 开放问题按推荐项执行: 逐 plan 审批/本机+降权/人工 plan 兜底/只读试点; 分期 0a 人工回执止血可先行) ②CodeGarden 设计通过, 修订 S1: 信号提取对**全部资讯**识别 (不限 category, 分类在候选层不在来源层; 规则先行存量 9872 条可一次跑完), 选题口味开放问题随之关闭 ③mitre 按新理念重写 v2: **MITRE 实例化标签体系** — 三类标签对象 L1 漏洞 (attack_cwe_map 桥+LLM 辅助, 与 P1-5 CVE 语料联动约束如实标注) / L2 安全事件类型词表+典型技战法链 (主推, security taxonomy 新 event_type 实体承载, event_technique_map 新表) / L3 应急响应 (系统无 incident 对象, 本期以 v1_knowledge 响应条目承载, P2-3 再建); M1 图谱点火降为基础设施前提; 实施分期 MP-1~4 (MP-2 用户价值最高)。
+- **验证**: 纯文档。
+- **风险**: P1-0 已批准可实施但本期未动代码 (等 owner 令); mitre v2 的 4 个开放问题 (词表覆盖面/数据来源/CVE 联动排期/技战法卡进判断层) 待确认后 MP 批次才动。

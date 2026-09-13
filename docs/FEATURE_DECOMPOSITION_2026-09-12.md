@@ -136,9 +136,9 @@
 3. **Batch 3 档 A/B** → ✅ 档 A（冻结增量）执行，R2 守卫 + 54 表豁免上线；档 B 收缩目标见 §4。
 4. **WARM/COLD 显式前缀** → 部分兑现：`knowledge_items_table()` 单一真相源已立（写侧归零），其余表的前缀化未做，与 P0-0 备份批同窗口处理的建议保留待裁决。
 5. **CodeGarden / CRM 冻结** → 维持不动（内聚度 ✓ 高，无耦合债）；移出核心动线属产品决策，未裁决。
-6. **P1-0 执行器** → ✅ **2026-09-13 owner 裁决**：dsh 设计边界控制 + pi 负责执行。设计稿 `docs/DESIGN_P10_EXECUTOR_2026-09-13.md`（dsh 生成 ExecutionPlan→人审批默认拒→代码 enforce→pi 边界内执行；分期 0a 人工回执止血→0b 边界协议→0c pi 执行→0d 加固），待复议后实施。
-7. **CodeGarden 定位** → ✅ **2026-09-13 owner 裁决**：转型安全实践域（行动侧，开源工具研究实践，选题提取自资讯流）；CRM 整体删除（含 security-cockpit 设计稿连带，迁移 116 落库）。转型设计稿 `docs/DESIGN_CODEGARDEN_PRACTICE_2026-09-13.md` 待复议。
-8. **mitre ATT&CK 数据** → ✅ **2026-09-13 owner 裁决**：用于知识梳理，场景需设计讨论。讨论稿 `docs/DISCUSSION_MITRE_KNOWLEDGE_2026-09-13.md`（M1 图谱点火推荐首发，复活 D18 三个死视图）。
+6. **P1-0 执行器** → ✅ **已批准**（2026-09-13 复议通过，4 开放问题按推荐项执行）：dsh 生成 ExecutionPlan→人审批默认拒→代码 enforce 四层防线→pi 边界内执行；分期 0a 人工回执止血（可先行）→0b 边界协议→0c pi 执行→0d 加固。见 `docs/DESIGN_P10_EXECUTOR_2026-09-13.md`。
+7. **CodeGarden 定位** → ✅ **已批准（含修订）**（2026-09-13 复议）：转型安全实践域（行动侧，开源工具研究实践）；**修订：S1 信号提取对全部资讯识别（不限域），候选层再分类排序**；phase2b 列删除候选。见 `docs/DESIGN_CODEGARDEN_PRACTICE_2026-09-13.md`（v2）。CRM 整体删除已落地（含 security-cockpit 设计稿连带，迁移 116）。
+8. **mitre ATT&CK 数据** → ✅ **方向已批准（v2 重写）**（2026-09-13 复议）：MITRE 作为**标签体系**，对漏洞/应急响应/安全事件类型三类对象做技战法关联 = **实例化**（用户通过真实事件理解 MITRE）。三落点：L1 漏洞（attack_cwe_map 桥，与 P1-5 语料联动）/ L2 事件类型词表+技战法链（主推，用户感知最直接）/ L3 应急响应（以 v1_knowledge 响应条目承载）；M1 图谱点火为地基。见 `docs/DISCUSSION_MITRE_KNOWLEDGE_2026-09-13.md`（v2，4 开放问题待确认）。
 9. **push** → 维持禁令（2026-09-13 重申）；已做本地 git bundle 代码备份。
 
 ---

@@ -1,26 +1,27 @@
 /**
  * SentinelShell — 哨兵终端全站共享壳
  *
- * 信息架构核心 (V2 设计稿): 三层工作流
- *   资料层 / (采集与浏览) → 判断层 /judge (筛选与关联) → 行动层 /action (计划与输出)
+ * 信息架构核心 (V2 → NAV4 设计稿): 四菜单工作流
+ *   资讯 / (采集与浏览) → 知识 /knowledge (沉淀与关联) → 行动 /action (计划与输出) → 设置 /settings (配置与扩展)
  *
  * 职责:
- *  - appbar: 品牌 + 三层导航 (active 态) + 主题切换/时钟/设置
+ *  - appbar: 品牌 + 四菜单导航 (active 态) + 主题切换/时钟/设置
  *  - pipeline 心跳条: 采集管道生命体征, 全站常驻 (设计契约:
  *    "32 个源的活/病/死一屏可见" 不只属于首页)
  *  - 子页通过 children 注入; SSE collect 事件由各页自行订阅
  *  - 2026-09-10 壳统一: 工具页 (PageLayout) 也走本壳, layer=null 表示无高亮层,
- *    更多菜单按当前路径高亮; 未传 ingested 时壳自取 24h 收录数 (左侧 AppNav 已删除)
+ *    未传 ingested 时壳自取 24h 收录数 (左侧 AppNav 已删除)
+ *  - 2026-09-13 NAV4: 三层→四菜单, layer 语义改为 menu key; menuOf() 判定工具页归属
  */
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { listHotspots } from '../../api/hotspots';
 import { getSourceHealth, type SourceHealthPayload } from '../../api/sources';
 import { getJSON } from '../../lib/api';
 import './sentinel.css';
 
-export type SentinelLayer = 'data' | 'judge' | 'action';
+export type SentinelLayer = 'data' | 'judge' | 'action' | 'knowledge' | 'settings';
 
 /** 心跳条数据 — shell 拉一次, 供子页复用 (管道口径统一) */
 export interface PipeSnapshot {
@@ -125,124 +126,60 @@ export function usePipe() {
   return useContext(PipeContext);
 }
 
-/** v0.8.5 反向收敛 (2026-09-08): 三层导航还原 v0.8 原映射 —
- *  资料层 → / (情报流 + SignalPanel), 判断层 → /judge (判读台 + CaseQueuePanel),
- *  行动层 → /action (今日行动 + ExecOverviewPanel)。
- *  spec = docs/v0.8.5/V0.8.5_PLAN.md §4/§5; 守卫 = routes/__tests__/v085_route_shell.test.tsx
+/** NAV4 (2026-09-13): 四菜单壳 — 资讯 / 知识 / 行动 / 设置
+ *  - 资讯 → / (情报流 + 质量区 + 深读 + 历史)
+ *  - 知识 → /knowledge (知识库 + 图谱 + 能力资产 + 加工工具 + 复习)
+ *  - 行动 → /action (今日行动 + 案件队列 + 待办 + 报告 + 泳道)
+ *  - 设置 → /settings (17 配置 + 密钥/同步/技能库配置 + 扩展域)
+ *  守卫 = routes/__tests__/nav4_shell.test.tsx
  */
 const LAYER_DEFS: { layer: SentinelLayer; label: string; sub: string; to: string; icon: JSX.Element }[] = [
   {
-    layer: 'data', label: '资料层', sub: '信息采集与组织', to: '/',
-    icon: <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><rect x="1.5" y="7.5" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.5" /><rect x="7.5" y="1.5" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.5" /></svg>,
+    layer: 'data', label: '资讯', sub: '看什么 — 情报流、质量筛选、采集管道', to: '/',
+    icon: <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><path d="M4.5 4.5h4M4.5 7h4M4.5 9.5h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>,
   },
   {
-    layer: 'judge', label: '判断层', sub: '筛选、分析、关联', to: '/judge',
-    icon: <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><circle cx="5.5" cy="5.5" r="3.5" stroke="currentColor" strokeWidth="1.5" /><path d="M8.2 8.2L11 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>,
+    layer: 'knowledge', label: '知识', sub: '沉淀什么 — 知识库、图谱、能力资产', to: '/knowledge',
+    icon: <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.5" /><path d="M6.5 4v4M4.5 6.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>,
   },
   {
-    layer: 'action', label: '行动层', sub: '计划、学习、创作', to: '/action',
+    layer: 'action', label: '行动', sub: '做什么 — 案件、待办、今日行动、产出', to: '/action',
     icon: <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 7l3 3L11 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M7.5 11h3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>,
   },
-];
-
-/** 报纸版删除后, 这些能力失去了唯一点击入口 — 由壳层溢出菜单统一承接 */
-const UTILITY_GROUPS: { label: string; items: { to: string; label: string; note: string }[] }[] = [
   {
-    label: '情报输出',
-    items: [
-      { to: '/report', label: '周报 / 月报', note: 'REPORT' },
-      { to: '/search', label: '统一搜索', note: 'FIND' },
-      { to: '/history', label: '浏览历史', note: 'HISTORY' },
-      { to: '/reviews', label: '间隔复习', note: 'SRS' },
-      { to: '/secnews', label: 'SecNews 看板', note: 'BOARD' },
-    ],
-  },
-  {
-    label: '知识资产',
-    items: [
-      { to: '/knowledge', label: '知识库', note: 'KNOWLEDGE' },
-      { to: '/skill-store', label: '技能商店', note: 'STORE' },
-      { to: '/dashboard', label: '技能看板', note: 'BOARD' },
-      { to: '/tags', label: '标签管理', note: 'TAGS' },
-      { to: '/extract', label: '自动提取', note: 'EXT' },
-      { to: '/skills', label: '技能库', note: 'SKILLS' },
-      { to: '/todos', label: '待办', note: 'TODOS' },
-    ],
-  },
-  {
-    label: '运维与配置',
-    items: [
-      { to: '/garden', label: 'CodeGarden', note: 'GARDEN' },
-      { to: '/secrets', label: '密钥管理', note: 'SECRETS' },
-      { to: '/sync', label: '同步与备份', note: 'SYNC' },
-      { to: '/settings', label: '全局设置', note: 'SETTINGS' },
-    ],
+    layer: 'settings', label: '设置', sub: '怎么配 — 全局配置、密钥、同步、扩展域', to: '/settings',
+    icon: <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><circle cx="6.5" cy="6.5" r="2.2" stroke="currentColor" strokeWidth="1.5" /><path d="M6.5 1.8v2M6.5 9.2v2M1.8 6.5h2M9.2 6.5h2M3.7 3.7l1.4 1.4M8.9 8.9l1.4 1.4M9.3 3.7l-1.4 1.4M4.1 8.9l-1.4 1.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>,
   },
 ];
 
-function SentinelMoreMenu() {
-  const [open, setOpen] = useState(false);
-  const boxRef = useRef<HTMLDivElement>(null);
-  const { pathname } = useLocation();
-  // 工具页没有三层 tab 可高亮, 由更多菜单承担"当前位置"指示; /knowledge 前缀覆盖其子路由
-  const currentTo = UTILITY_GROUPS
-    .flatMap(g => g.items)
-    .find(it => pathname === it.to || pathname.startsWith(`${it.to}/`))?.to;
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  return (
-    <div className="sn-more" ref={boxRef}>
-      <button
-        type="button"
-        className={`iconbtn sn-more-btn${currentTo ? ' active' : ''}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen(o => !o)}
-      >
-        更多
-        <svg width="9" height="9" viewBox="0 0 9 9" aria-hidden="true"><path d="M1.5 3l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
-      </button>
-      {open && (
-        <div className="sn-menu" role="menu" aria-label="功能入口">
-          {UTILITY_GROUPS.map(g => (
-            <div className="sn-menu-grp" key={g.label}>
-              <p className="sn-menu-kick num">{g.label}</p>
-              {g.items.map(it => (
-                <Link
-                  key={it.to}
-                  className={`sn-menu-item${it.to === currentTo ? ' active' : ''}`}
-                  role="menuitem"
-                  to={it.to}
-                  aria-current={it.to === currentTo ? 'page' : undefined}
-                  onClick={() => setOpen(false)}
-                >
-                  <span>{it.label}</span>
-                  <span className="sn-menu-note num">{it.note}</span>
-                </Link>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+/**
+ * 路径 → 菜单归属 (NAV4: 四菜单壳 active 态判定).
+ * 优先级: 精确匹配 > 前缀匹配; 未命中返回 null.
+ */
+export function menuOf(pathname: string): SentinelLayer | null {
+  // 精确匹配 / action / knowledge / settings → 直接归属
+  if (pathname === '/' || pathname.startsWith('/judge') || pathname.startsWith('/cases')) return 'data';
+  if (pathname.startsWith('/knowledge') || pathname.startsWith('/deep') || pathname.startsWith('/reviews')) return 'knowledge';
+  if (pathname.startsWith('/action') || pathname.startsWith('/garden') || pathname.startsWith('/biz')) return 'action';
+  if (pathname.startsWith('/settings') || pathname.startsWith('/secrets') || pathname.startsWith('/sync') || pathname.startsWith('/skills') || pathname.startsWith('/codegarden') || pathname.startsWith('/maint')) return 'settings';
+  // 工具页按语义归属
+  if (pathname.startsWith('/report') || pathname.startsWith('/todos')) return 'action';
+  if (pathname.startsWith('/tags') || pathname.startsWith('/extract') || pathname.startsWith('/search') || pathname.startsWith('/dashboard') || pathname.startsWith('/skill-store')) return 'knowledge';
+  if (pathname.startsWith('/quality') || pathname.startsWith('/history')) return 'data';
+  if (pathname.startsWith('/secnews')) {
+    // secnews 子视图按内容归属: feed/pipeline/analytics→data, knowledge→knowledge, analyze→action, observability→settings
+    const sub = pathname.replace(/^\/secnews\/?/, '') || 'feed';
+    if (sub === 'feed' || sub === 'pipeline' || sub === 'analytics') return 'data';
+    if (sub === 'knowledge') return 'knowledge';
+    if (sub === 'analyze') return 'action';
+    if (sub === 'observability') return 'settings';
+    return 'data'; // 默认归资讯
+  }
+  return null;
 }
 
 export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
-  /** 三层高亮; null = 工具页 (由更多菜单指示当前位置) */
+  /** 四菜单高亮; null = 工具页 (由 menuOf(pathname) 自动推断归属) */
   layer: SentinelLayer | null;
   mode?: string;
   /** 今日收录: 页面自算则传值 (null = 该页无此口径显示 …); 不传则壳自取 24h total */
@@ -250,12 +187,16 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
   children: React.ReactNode;
 }) {
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, cycleTheme } = useTheme();
+  const { pathname } = useLocation();
 
   const [pipe, setPipe] = useState<PipeSnapshot | null>(null);
   const [clock, setClock] = useState(() => clockText(new Date()));
   const [selfIngested, setSelfIngested] = useState<number | null>(null);
   const shownIngested = ingested === undefined ? selfIngested : ingested;
+
+  // 菜单 active 态: 优先用显式 layer, 否则按路径推断 (tool 页自动高亮归属菜单)
+  const activeLayer = layer ?? menuOf(pathname);
 
   const reload = useCallback(() => { fetchPipe().then(setPipe); }, []);
 
@@ -278,7 +219,7 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
   return (
     <PipeContext.Provider value={{ pipe, reload }}>
       <div className="sentinel" data-mode={mode}>
-        {/* ===== 顶栏: 三层工作流导航 ===== */}
+        {/* ===== 顶栏: 四菜单导航 ===== */}
         <header className="appbar">
           <a className="brand" href="/" onClick={e => { e.preventDefault(); navigate('/'); }}>
             <span className="brand-mark" aria-hidden="true">
@@ -287,7 +228,7 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
             SecNews <small>SECURITY INTEL STATION</small>
           </a>
 
-          <nav className="layers" aria-label="三层工作流导航">
+          <nav className="layers" aria-label="四菜单导航">
             {LAYER_DEFS.map((def, i) => (
               <span key={def.layer} style={{ display: 'contents' }}>
                 {i > 0 && (
@@ -296,9 +237,9 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
                   </span>
                 )}
                 <a
-                  className={`layer-link${layer === def.layer ? ' active' : ''}`}
+                  className={`layer-link${activeLayer === def.layer ? ' active' : ''}`}
                   href={def.to}
-                  aria-current={layer === def.layer ? 'page' : undefined}
+                  aria-current={activeLayer === def.layer ? 'page' : undefined}
                   onClick={e => { e.preventDefault(); navigate(def.to); }}
                 >
                   <b>{def.icon}{def.label}</b>
@@ -309,13 +250,13 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
           </nav>
 
           <div className="appbar-right">
-            <SentinelMoreMenu />
-            <button type="button" className="iconbtn" onClick={toggleTheme} aria-label={theme === 'dark' ? '切换到晨间亮色' : '切换到夜航暗色'}>
+            <button type="button" className="iconbtn" onClick={cycleTheme} aria-label={theme === 'dark' ? '切换到晨间亮色' : theme === 'paper' ? '切换到夜航暗色' : '切换到纸面版'}>
               <svg className="tb-sun" viewBox="0 0 18 18" width="17" height="17" aria-hidden="true" focusable="false"><circle cx="9" cy="9" r="3.6" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M9 1.2v2.1M9 14.7v2.1M1.2 9h2.1M14.7 9h2.1M3.7 3.7l1.5 1.5M12.8 12.8l1.5 1.5M14.3 3.7l-1.5 1.5M5.2 12.8l-1.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
               <svg className="tb-moon" viewBox="0 0 18 18" width="17" height="17" aria-hidden="true" focusable="false"><path d="M15.2 11.2A6.6 6.6 0 0 1 6.8 2.8a6.6 6.6 0 1 0 8.4 8.4Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+              <svg className="tb-paper" viewBox="0 0 18 18" width="17" height="17" aria-hidden="true" focusable="false"><rect x="3.5" y="2.5" width="11" height="13" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M5.5 5.5h7M5.5 8.5h7M5.5 11.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
             </button>
             <span className="clock num">{clock}</span>
-            <button className="iconbtn" aria-label="设置" onClick={() => navigate('/sentinel/settings')}>
+            <button className="iconbtn" aria-label="设置" onClick={() => navigate('/settings')}>
               <svg width="17" height="17" viewBox="0 0 17 17" fill="none"><circle cx="8.5" cy="8.5" r="2.2" stroke="currentColor" strokeWidth="1.5" /><path d="M8.5 1.8v2M8.5 13.2v2M1.8 8.5h2M13.2 8.5h2M3.7 3.7l1.4 1.4M11.9 11.9l1.4 1.4M13.3 3.7l-1.4 1.4M5.1 11.9l-1.4 1.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
             </button>
           </div>

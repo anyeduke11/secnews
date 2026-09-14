@@ -22,6 +22,12 @@ import * as P from './lazy-imports';
 //  - v1 四入口降级: /workbench /intel → /, /cases → /judge (QueryRedirect 透传 query)
 //  - V1SentinelShell 物理删除; /garden 恢复 (gate codegarden, 更多菜单死链自愈)
 //  - 守卫: routes/__tests__/v085_route_shell.test.tsx 锁定上述口径, 违反即 CI 红
+// NAV4 (2026-09-13): 四菜单壳 — 资讯 / 知识 / 行动 / 设置
+//  - /judge → / (透传 query); /cases → /action; /judge/graph → /knowledge/graph; /secnews → /secnews/feed
+//  - SecNewsShell 已物理删除 (P2): 6 视图直挂 PageLayout, 由 menuOf() 按内容归属四菜单
+//    (feed/pipeline/analytics→资讯, knowledge→知识, analyze→行动, observability→设置);
+//    StatusBar 由 SentinelShell 心跳条接管
+//  - 守卫: routes/__tests__/nav4_shell.test.tsx
 
 /** 旧路由 /category/:cat 兼容 (v0.6.3: workbench 已并入 SecNews, 跳哨兵首页) */
 function CategoryRedirect() {
@@ -102,6 +108,11 @@ export function AppRoutes() {
     <Routes>
       <Route path="/sentinel/settings" element={<Navigate to="/settings?cat=sentinel" replace />} />
 
+      {/* ===== NAV4 旧路径重定向 (透传 query; 2026-09-13) ===== */}
+      <Route path="/judge" element={<QueryRedirect to="/" />} />
+      <Route path="/cases" element={<QueryRedirect to="/action" />} />
+      <Route path="/judge/graph" element={<Navigate to="/knowledge/graph" replace />} />
+
       {/* ===== v0.8.5 三层 Sentinel 全屏壳 (唯一壳, 无 AppNav; 心跳条由页内 SentinelShell 提供) ===== */}
       <Route element={<SentinelLayout />}>
         {/* 资料层: 有什么新的、可信的变化影响我 */}
@@ -121,7 +132,8 @@ export function AppRoutes() {
       {/* ===== v0.8.5: 旧 v1 四入口重定向 (透传 query; /cases/:caseId 深链见下方 PageLayout 组) ===== */}
       <Route path="/workbench" element={<QueryRedirect to="/" />} />
       <Route path="/intel" element={<QueryRedirect to="/" />} />
-      <Route path="/cases" element={<QueryRedirect to="/judge" />} />
+      {/* NAV4 (2026-09-13): /cases → /action (案件队列归行动菜单) */}
+      <Route path="/cases" element={<QueryRedirect to="/action" />} />
 
       {/* ===== 工具页组 (PageLayout: ToastProvider + AppNav 侧栏) ===== */}
       <Route element={<PageLayout />}>
@@ -147,6 +159,10 @@ export function AppRoutes() {
         )}
         <Route path="/settings" element={<Suspense fallback={<PageFallback />}><P.SettingsPage /></Suspense>} />
         <Route path="/report" element={<Suspense fallback={<PageFallback />}><P.ReportPage onBack={goBack} /></Suspense>} />
+        {/* NAV4 P3 (2026-09-13, DEV-0178): 业务座舱 /biz (行动菜单「扩展域」段; CRM 域已删, mock 兜底) */}
+        <Route path="/biz" element={<Suspense fallback={<PageFallback />}><P.BizPage /></Suspense>} />
+        {/* NAV4 P3 (2026-09-13, DEV-0178): 维护诊断 /maint (设置菜单「扩展域」段; 走 /api/maintenance/* 已注册端点) */}
+        <Route path="/maint" element={<Suspense fallback={<PageFallback />}><P.MaintPage /></Suspense>} />
 
         {/* 知识管理: 4 大领域 (信息导入 / 处理数据 / 知识库编译 / 知识库复利) + 经验库聚合
          * v0.8.5: 壳回 PageLayout (V1SentinelShell 已删); 知识不是第四层, 从「更多」进入;
@@ -167,6 +183,10 @@ export function AppRoutes() {
           <Route path="review" element={<Suspense fallback={<PageFallback />}><P.ReviewMode /></Suspense>} />
           <Route path="heatmap" element={<Suspense fallback={<PageFallback />}><P.AttentionHeatmap /></Suspense>} />
         </Route>
+        {/* NAV4 (2026-09-13): 图谱从 /judge/graph 迁入知识菜单 */}
+        <Route path="/knowledge/graph" element={<Suspense fallback={<PageFallback />}><P.SentinelGraphPage /></Suspense>} />
+        {/* NAV4 P3 (2026-09-13, DEV-0178): 无限画布 demo (ECharts roam + draggable) — 知识菜单附加视图 */}
+        <Route path="/knowledge/canvas" element={<Suspense fallback={<PageFallback />}><P.KnowledgeCanvasPage /></Suspense>} />
 
         <Route path="/reviews" element={<Suspense fallback={<PageFallback />}><P.ReviewPage /></Suspense>} />
         {/* /deep/:type/:id 跨实体深读视图, 与知识库 /knowledge/deep-read/:id 并存 (不同组件) */}
@@ -181,19 +201,23 @@ export function AppRoutes() {
             )}
           </>
         )}
-        {/* SecNews 安全看板 (S0-8) — v0.6.3 workbench 5 视图并入 (研判 tab + 状态栏) */}
-        <Route path="/secnews" element={<Suspense fallback={<PageFallback />}><P.SecNewsShell /></Suspense>}>
-          <Route index element={<Navigate to="feed" replace />} />
-          <Route path="feed" element={<Suspense fallback={<PageFallback />}><P.SecNewsFeed /></Suspense>} />
-          <Route path="pipeline" element={<Suspense fallback={<PageFallback />}><P.SecNewsPipeline /></Suspense>} />
-          <Route path="knowledge" element={<Suspense fallback={<PageFallback />}><P.SecNewsKnowledge /></Suspense>} />
-          <Route path="analyze" element={<Suspense fallback={<PageFallback />}><P.SecNewsAnalyze /></Suspense>} />
-          {/* v0.7.x SettingsHub: /secnews/image 与 /secnews/settings 已并入 /settings, 永久 redirect */}
-          <Route path="image" element={<Navigate to="/settings?cat=image_models" replace />} />
-          <Route path="analytics" element={<Suspense fallback={<PageFallback />}><P.SecNewsAnalytics /></Suspense>} />
-          <Route path="observability" element={<Suspense fallback={<PageFallback />}><P.SecNewsObservability /></Suspense>} />
-          <Route path="settings" element={<Navigate to="/settings?cat=pipeline" replace />} />
-        </Route>
+        {/* SecNews 安全看板 6 视图 — NAV4 (2026-09-13) 拆挂 PageLayout, 由 menuOf() 自动归属四菜单
+         * - feed / pipeline / analytics → 资讯菜单 (data)
+         * - knowledge → 知识菜单
+         * - analyze → 行动菜单
+         * - observability → 设置菜单
+         * /secnews index 保留 redirect → /secnews/feed; /secnews/image 与 /secnews/settings 已并入 /settings
+         * SecNewsShell + StatusBar 已物理删除 (P2), 心跳条由 SentinelShell pipeline bar 提供
+         */}
+        <Route path="/secnews" element={<Navigate to="/secnews/feed" replace />} />
+        <Route path="/secnews/feed" element={<Suspense fallback={<PageFallback />}><P.SecNewsFeed /></Suspense>} />
+        <Route path="/secnews/pipeline" element={<Suspense fallback={<PageFallback />}><P.SecNewsPipeline /></Suspense>} />
+        <Route path="/secnews/knowledge" element={<Suspense fallback={<PageFallback />}><P.SecNewsKnowledge /></Suspense>} />
+        <Route path="/secnews/analyze" element={<Suspense fallback={<PageFallback />}><P.SecNewsAnalyze /></Suspense>} />
+        <Route path="/secnews/image" element={<Navigate to="/settings?cat=image_models" replace />} />
+        <Route path="/secnews/analytics" element={<Suspense fallback={<PageFallback />}><P.SecNewsAnalytics /></Suspense>} />
+        <Route path="/secnews/observability" element={<Suspense fallback={<PageFallback />}><P.SecNewsObservability /></Suspense>} />
+        <Route path="/secnews/settings" element={<Navigate to="/settings?cat=pipeline" replace />} />
 
         {/* crm (/crm) 已随 CRM 域整体删除 (migration 116), 路由与入口一并移除 */}
 

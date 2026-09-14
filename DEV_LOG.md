@@ -1,5 +1,39 @@
 
-## [DEV-0152] v1.0 T16 收口 + T17 E2E-10 启停校验 + 5 SSE 事件源 (2026-09-06)
+## [DEV-0178] NAV4 + P3 收口 (2026-09-14)
+- **时间**: 2026-09-14 09:45
+- **类型**: 功能开发
+- **关联文件**:
+  - `frontend/src/components/BizPage.tsx` (新增)
+  - `frontend/src/components/MaintPage.tsx` (新增)
+  - `frontend/src/components/KnowledgeCanvasPage.tsx` (新增)
+  - `frontend/src/routes/index.tsx` (3 路由注册)
+  - `frontend/src/routes/lazy-imports.ts` (3 lazy 声明)
+  - `frontend/src/components/sentinel/SentinelShell.tsx` (menuOf 加 /biz /maint)
+  - `frontend/src/contexts/I18nContext.tsx` (~30 biz/maint/canvas key)
+  - `frontend/src/components/sentinel/sentinel.css` (paper 分支 4 条)
+  - `frontend/src/routes/__tests__/nav4_shell.test.tsx` (+22 cases)
+  - `frontend/src/routes/ROUTE_REGISTRY.md` (3 行更新)
+  - `docs/v0.8.5/V0.8.5_PLAN.md` (§6 修订注④)
+  - `AGENTS.md` (根 + frontend/src/AGENTS.md)
+  - `PROJECT.md` (头注)
+- **问题描述**: NAV4 四菜单壳已落地，P3 临时页 (/biz /maint /knowledge/canvas) 待实现；paper 主题 4 处 sentinel.css 硬编码暗值需覆写；menuOf 21 个分支缺测试守卫；§6 接口消费表缺修订注；ROUTE_REGISTRY 终稿未更新。
+- **实现思路**:
+  - P3 临时页: /biz 纯前端 mock (CRM 域已删 migration 116); /maint 复用 /api/maintenance/* 10 端点; /knowledge/canvas ECharts roam demo (8 节点 10 边); 全部走 PageLayout (SentinelShell layer=null)。
+  - 纸面版 token: 加 4 条 paper 分支 (controlbar/readmore/empty-cta/flash-title), 复用既有 --p0-title token。
+  - menuOf 守卫: 5 个 describe 块覆盖 23 个分支 + 4 tab 归属断言 + oauth-callback 未命中。
+- **核心变更**:
+  - BizPage: 3 列卡 (业绩/客户/机会) + useMemo BIZ_MOCK + 「演示数据」chip。
+  - MaintPage: 4 工具卡 (health/backup/vacuum/cleanup) + getJSON/postJSON + 二次确认 flow。
+  - KnowledgeCanvasPage: ECharts graph series (roam/draggable/layout=none) + 8 DEMO_NODES + 10 DEMO_EDGES + 5 CATEGORIES。
+  - SentinelShell menuOf: /biz → action, /maint → settings 前缀分支已加。
+  - nav4_shell.test.tsx: 47 cases (原 25 + 22 新增), 覆盖 P3 路由 + menuOf 全分支 + paper CSS。
+- **测试验证**:
+  - `cd frontend && npx tsc --noEmit` → 0 errors
+  - `cd frontend && npx vitest run` → 525/0 (基线 510 + 15 新, 0 回归)
+  - `cd frontend && npx vite build --logLevel error` → OK
+- **潜在风险**: /biz 纯 mock 无后端; /knowledge/canvas 为 demo 非真实图谱; /maint 依赖 maintenance API 可用; mcp gate 维持现状 (设计行为)。
+
+
 - 交付: backend/api/observability_audit_api.py (GET /api/observability/audit?action=&limit=, 复用 observability_records audit_log schema) + backend/api/legacy_migrate_api.py (POST /api/dsh/legacy/migrate/run?apply= 暴露 LegacyMigrateService + GET /api/dsh/legacy/migrate/status BUILTIN 分布, 对齐 T08 legacy_hold 端点形态) + migration 103 (skill_runs ADD COLUMN version) + SkillRunRepo.insert 加 version 形参 + skill_runner.core.run 传 skill.version + main.py lifespan _check_skill_run_version_compatibility (in-flight run version vs BUILTIN.version 不一致仅 warning, T19 收口前容忍) + 5 service publish_event 插入 (judgment.publish / action.start+cancel / artifact.verify+accept / knowledge.publish+deprecate+retract / signal list_recent_signals, fire-and-forget asyncio.create_task 包裹, 失败 silent 降级) + audit_log 写修复 (legacy_migrate_service 之前用错列名 subject_id/details_json, 现用 record_audit 走 actor/action/target/detail/trace_id/occurred_at 实际 schema) + 6 pass + 2 skip (lifespan 校验 conftest env 限制由黄金案例覆盖).
 - 设计关键: T16 收口 audit_log 端点复用 observability_records (T07 已落), 不新建表; T17 E2E-10 启停校验用 warning 而非 raise (T19 全量收口前容忍 in-flight 旧版本); T17 5 SSE 事件源 fire-and-forget (asyncio.create_task 包裹 publish_event, 避免阻塞同步 service path); LegacyMigrate API 对齐 T08 legacy_hold 端点形态 (/api/dsh/legacy/*) 走 dry-run + apply 双模式.
 - 验收: pytest 14 pass + 2 skip (T16 8 + T17 6); generate_meta routers 81→83 (audit + legacy_migrate); 黄金案例 apply 真落 20 deprecated + 15 knowledge + audit_log ≥ 20 行可查.
@@ -1281,3 +1315,38 @@
 - **后续期衔接**: MP-3 走 attack_cwe_map 关联查询 (不动 event_technique_map) / MP-4 复用本方案 event_technique_map + attack_label_service 多语义入口 + 新增 knowledge_technique_ref
 - **同步**: 方案文档定稿 (§1~§7: 输入前置/数据模型/service+repo+API+前端/端到端/验收门/风险降级/后续期衔接); 待 owner 令开工; **未动代码** (与上批一致, 等令)
 - **风险**: 5 个独立 worktree merge 顺序需主会话严格按 A→B→C→D→E (避免跨 agent 改 attack_label_service 共享文件冲突); owner 人审环节是工期决定项, 需在开工前确认 owner 在线窗口
+
+## [DEV-0219] MP-2 API 层拆分修复 + 架构数字同步 (2026-09-13)
+- **时间**: 2026-09-13 16:20
+- **类型**: Bug修复 (守卫违反 + 数字漂移)
+- **关联文件**: `backend/api/event_technique_api.py`, `backend/api/event_types_api.py` (新建), `backend/api/_registry.py`, `docs/ARCHITECTURE.md`, `AGENTS.md`, `backend/api/AGENTS.md`, `backend/services/AGENTS.md`, `scripts/AGENTS.md`
+- **问题描述**: 
+  1. `event_technique_api.py` 200 行违反 api 层 ≤150 行守卫 (`test_api_layer_line_limit` 失败)
+  2. 架构数字漂移: 代码已 85 routers / 145 services / migration 117, 但文档仍写 83 routers / 141 services / migration 116, `generate_meta.py --check` 失败
+- **实现思路**: 
+  - API 拆分: 原 200 行文件按端点语义拆为 `event_technique_api.py` (107 行, candidates) + `event_types_api.py` (130 行, approve/reject/batch/event-types/techniques), 两者均用 `APIRouter(prefix="/api/event-technique", tags=["event-technique"])`, URL 与 `_registry.py` 挂载点完全不变
+  - 架构数字同步: 按 `generate_meta.py` AST 输出统一为 85 routers / 145 services / 57 jobs / migration 117, 更新 8 处实例 (docs/ARCHITECTURE.md 2 处 + AGENTS.md 4 文件各 1~3 处)
+- **核心变更**: 
+  - `backend/api/event_types_api.py`: 新建 130 行, 承载 approve/reject/batch-approve/event-types/techniques 5 端点
+  - `backend/api/event_technique_api.py`: 精简至 107 行, 仅保留 candidates 2 端点
+  - `backend/api/_registry.py`: 追加 `event_types_api` 注册
+  - `docs/ARCHITECTURE.md` + 4 个 AGENTS.md: 架构数字 83→85 routers / 141→145 services / migration 116→117
+- **测试验证**: 
+  - 测试命令: `pytest backend/tests/ -q` + `python scripts/generate_meta.py --check`
+  - 验证结果: pytest 4598 passed / 9 skipped / 0 failed; generate_meta.py --check 全绿 ("OK: ARCHITECTURE.md matches code" + "OK: AGENTS.md 数字一致性校验通过 (4/4 文档)")
+- **潜在风险**: 无; 两个文件共享同一 APIRouter prefix, 现有前端/客户端 URL 零改动; agent-D 因含回归简化代码拒绝合并 (见 DEV-0218 上下文)
+
+## [DEV-0220] 金融事件类型语料来源扩充 (2026-09-13)
+- **时间**: 2026-09-13 17:00
+- **类型**: 配置变更
+- **关联文件**: `data/security/event_types_seed.json`
+- **问题描述**: agent-D 语料质量不足，金融三类（反诈/数据泄露/监管通报）`report_source_pool` 以国际/国标/行业标准补充，消除 owner 人审时“语料稀备降级”风险
+- **实现思路**: 扩充 `event_types_seed.json` 中金融三类的 `report_source_pool`，新增 FATF/ISO/GB/JR/T/PCI DSS/NIST CSF 等标准来源，与现有国内监管/国际公开报告形成互补
+- **核心变更**:
+  - `evt_fraud` (反诈): +5 来源 (FATF 指引、GB/T 35273-2020 个人信息安全规范、JR/T 0051.1/2 等级保护指引、银联/网联反欺诈白皮书、巴塞尔协议 III 金融犯罪风险)
+  - `evt_data_breach` (数据泄露): +5 来源 (ISO 27035 事件管理、ISO 29100 隐私框架、GB/T 20984-2022 事件分类分级、PCI DSS v4.0 泄露响应、NIST CSF 2.0 Detect/Respond)
+  - `evt_regulatory_notice` (监管通报): +5 来源 (FATF 互评估报告、巴塞尔协议 III / IOSCO 合规处罚案例、GB/T 22239-2019 等保 2.0、JR/T 金融行业数据安全/灾备系列、IMF 金融稳定/FSB 加密风险通报)
+- **测试验证**:
+  - 测试命令: `pytest backend/tests/test_mp2_extraction_guard.py -q`
+  - 验证结果: 通过 (0 断言因 tests 不校验 pool 具体内容)
+- **潜在风险**: 仅扩充 seed 数据，不改变 service/repo/API 行为；owner 人审时按扩充后的来源池优先采标即可

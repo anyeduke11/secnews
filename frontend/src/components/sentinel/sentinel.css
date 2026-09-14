@@ -59,7 +59,7 @@
 .sentinel .brand-mark svg{display:block}
 .sentinel .brand small{font-family:var(--sn-mono);font-size:11px;font-weight:400;color:var(--sn-ink-3);letter-spacing:.08em;margin-top:3px}
 
-/* 三层导航 */
+/* 四菜单导航 */
 .sentinel .layers{display:flex;align-items:center;gap:6px;margin-left:8px}
 .sentinel .layer-link{
   display:flex;flex-direction:column;gap:1px;
@@ -364,10 +364,17 @@ html[data-theme="light"] .sentinel .readmore{border-color:rgba(4,120,92,.35)}
 html[data-theme="light"] .sentinel .empty-cta{border-color:rgba(4,120,92,.35)}
 html[data-theme="light"] .sentinel .alert-item .flash-title{color:var(--p0-title)}
 
-/* 主题按钮图标显隐 */
-.sentinel .tb-sun,.sentinel .tb-moon{display:block}
-html[data-theme="dark"] .sentinel .tb-moon{display:none}
-html[data-theme="light"] .sentinel .tb-sun{display:none}
+/* ===== 主题: 纸面版 (P2 修订注③: 控制栏/链接/CTA/告警标题覆写, 与暖米黄协调) ===== */
+html[data-theme="paper"] .sentinel .controlbar{background:rgba(253,248,236,.92)}
+html[data-theme="paper"] .sentinel .readmore{border-color:rgba(45,36,26,.35)}
+html[data-theme="paper"] .sentinel .empty-cta{border-color:rgba(45,36,26,.35)}
+html[data-theme="paper"] .sentinel .alert-item .flash-title{color:#7e1d2e}
+
+/* 主题按钮图标显隐 (P2: 扩展三态 — light/dark/paper) */
+.sentinel .tb-sun,.sentinel .tb-moon,.sentinel .tb-paper{display:none}
+html[data-theme="dark"] .sentinel .tb-moon{display:block}
+html[data-theme="light"] .sentinel .tb-sun{display:block}
+html[data-theme="paper"] .sentinel .tb-paper{display:block}
 
 /* ===== 响应式 ===== */
 @media (max-width:1240px){
@@ -408,7 +415,7 @@ html[data-theme="light"] .sentinel .tb-sun{display:none}
   .sentinel .rail{grid-template-columns:1fr}
 }
 @media (max-width:640px){
-  /* 手机: 顶栏折成两行 — 品牌 + 右侧操作 / 三层导航独占一行三等分 */
+  /* 手机: 顶栏折成两行 — 品牌 + 右侧操作 / 四菜单导航独占一行四等分 */
   .sentinel .appbar{height:auto;flex-wrap:wrap;padding:8px 12px;row-gap:6px;column-gap:10px}
   .sentinel .brand{font-size:15px}
   .sentinel .layers{order:3;flex:1 1 100%;gap:4px;border-top:1px solid var(--sn-line);padding-top:6px}
@@ -416,35 +423,6 @@ html[data-theme="light"] .sentinel .tb-sun{display:none}
   .sentinel .layer-link b{justify-content:center}
   .sentinel .pipeline{margin:12px 12px 0}
   .sentinel .pipe-block{padding:10px 12px}
-}
-
-/* ===== 溢出菜单: 报纸版删除后承接 12 项能力的唯一入口 ===== */
-.sentinel .sn-more{position:relative;display:flex}
-.sentinel .sn-more-btn{gap:6px;font-family:var(--sn-mono);font-size:12px;letter-spacing:.02em}
-/* 工具页当前位置指示 (与 .layer-link.active 同一视觉语言) */
-.sentinel .sn-more-btn.active{background:var(--sn-mint-dim);color:var(--sn-mint)}
-.sentinel .sn-menu{
-  position:absolute;top:calc(100% + 8px);right:0;z-index:var(--z-dropdown,100);
-  min-width:268px;padding:6px;
-  background:var(--sn-bg-panel);border:1px solid var(--sn-line-strong);border-radius:8px;
-  display:grid;grid-template-columns:1fr;gap:2px;
-  animation:fade-in 120ms var(--ease-out) both;
-}
-.sentinel .sn-menu-kick{
-  margin:10px 10px 4px;font-size:11px;letter-spacing:.12em;text-transform:none;
-  color:var(--sn-ink-3);font-family:var(--sn-mono);
-}
-.sentinel .sn-menu-item{
-  display:flex;align-items:baseline;gap:10px;padding:7px 10px;border-radius:6px;
-  font-size:13px;color:var(--sn-ink);transition:background 120ms var(--ease-out);
-}
-.sentinel .sn-menu-item:hover{background:var(--sn-bg-hover)}
-.sentinel .sn-menu-item.active{background:var(--sn-mint-dim);color:var(--sn-mint)}
-.sentinel .sn-menu-item.active .sn-menu-note{color:var(--sn-mint)}
-.sentinel .sn-menu-note{margin-left:auto;font-size:11px;letter-spacing:.08em;color:var(--sn-ink-3)}
-@media (prefers-reduced-motion: reduce){
-  .sentinel .sn-menu{animation:none}
-  .sentinel .sn-menu-item{transition:none}
 }
 
 /* ===== 心跳条 · 生命周期漏斗 (吸收自 workbench StatusBar / PipelineView) ===== */

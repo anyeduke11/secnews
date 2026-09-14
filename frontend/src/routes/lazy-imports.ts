@@ -123,12 +123,10 @@ export const QualityRejectionPage = React.lazy(() =>
 
 // v4.3 报纸版式 (Editorial) 已于 v0.7.1 移除, /editorial 重定向到哨兵终端资料层首页
 
-// SecNews 安全看板 (S0-7) — v0.6.3 起为统一工作台
+// SecNews 安全看板 (S0-7) — v0.6.3 起为统一工作台; NAV4 (2026-09-13) 6 视图直挂 PageLayout,
+// SecNewsShell 物理删除 (P2), 由 menuOf() 按子路由内容归属四菜单
 // (/secnews/inbox 与 /secnews/ledger 独立路由已删: InboxScanner 内嵌知识库,
 //  TokenLedger 内嵌管线观测, 无独立入口需求)
-export const SecNewsShell = React.lazy(() =>
-  import('../components/secnews/layout/SecNewsShell').then(m => ({ default: m.SecNewsShell }))
-);
 export const SecNewsFeed = React.lazy(() =>
   import('../components/secnews/feed/FeedView').then(m => ({ default: m.FeedView }))
 );
@@ -169,6 +167,20 @@ export const UnifiedSearchPage = React.lazy(() =>
 // D1 (Batch ⑧): OAuth 授权回调页 — OAuth 解锁跳转回此页处理 code
 export const OAuthCallbackPage = React.lazy(() =>
   import('./oauth-callback').then(m => ({ default: m.OAuthCallbackPage }))
+);
+
+// NAV4 P3 (2026-09-13, DEV-0178): 临时页面 — /biz /maint /knowledge/canvas
+// /biz: 业务座舱 (mock 兜底, CRM 域已删 migration 116)
+// /maint: 维护诊断 (走 /api/maintenance/* 已注册端点)
+// /knowledge/canvas: 无限画布 demo (纯前端 ECharts roam)
+export const BizPage = React.lazy(() =>
+  import('../components/BizPage').then(m => ({ default: m.BizPage }))
+);
+export const MaintPage = React.lazy(() =>
+  import('../components/MaintPage').then(m => ({ default: m.MaintPage }))
+);
+export const KnowledgeCanvasPage = React.lazy(() =>
+  import('../components/KnowledgeCanvasPage').then(m => ({ default: m.KnowledgeCanvasPage }))
 );
 
 // v0.8.5: v1 四入口已降级 — /workbench /intel /cases 为 QueryRedirect, 不再挂 page;

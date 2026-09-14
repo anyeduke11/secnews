@@ -37,12 +37,14 @@ React 18 + TypeScript + Vite 5 + Tailwind 3 SPA(后端固定 127.0.0.1:8000,
 
 ## 进入此目录的硬约束
 
-0. **v0.8.5 壳纪律 (2026-09-08 裁决, 最高优先)** — v0.8 Sentinel 三层 (`/` `/judge` `/action`) 是唯一壳 (SentinelShell + 管道心跳条常驻, spec=`docs/v0.8.5/V0.8.5_PLAN.md`):
-   - 新能力**只能以三层区块**进入 (区块组件 + 真实 API + `allowed_actions` 守卫);
+0. **v0.8.5 壳纪律 (2026-09-14 裁决, NAV4 + P3 收口, 最高优先)** — v0.8 Sentinel **四菜单** (`/` 资讯 / `/knowledge` 知识 / `/action` 行动 / `/settings` 设置) 是唯一壳 (SentinelShell 4-tab + 管道心跳条常驻, spec=`docs/v0.8.5/V0.8.5_PLAN.md`):
+   - 新能力**只能以四菜单区块**进入 (区块组件 + 真实 API + `allowed_actions` 守卫);
    - **禁止**新增一级入口、新应用壳 (V1SentinelShell 已物理删除, 不得复活)、页内主导航/tab state 充当第二套导航;
-   - 新路由必须登记 `routes/ROUTE_REGISTRY.md` 并带重定向兼容; **全站不再有 AppNav** (2026-09-10 owner 裁决壳统一: 工具页 `PageLayout` 亦以 `<SentinelShell layer={null}>` 为壳, 顶部横向导航 + 更多菜单高亮当前页, 左侧 AppNav 物理删除不得复活; 左侧栏能力归位页内 — SK 能力包在 `/skill-store`, 知识管理在 `/knowledge` KnowledgeTabs);
+   - 新路由必须登记 `routes/ROUTE_REGISTRY.md` 并带重定向兼容; **全站不再有 AppNav** (2026-09-10 owner 裁决壳统一: 工具页 `PageLayout` 亦以 `<SentinelShell layer={null}>` 为壳, 顶部 4-tab + `menuOf(pathname)` 自动归属当前页归属四菜单; 左侧 AppNav 物理删除不得复活; 左侧栏能力归位页内 — SK 能力包在 `/skill-store`, 知识管理在 `/knowledge` KnowledgeTabs);
+   - **2026-09-13 NAV4 + P2 死代码清理**: 三层→四菜单; `SentinelMoreMenu` + `UTILITY_GROUPS` (17 项) 已物理删除, 工具页"我在哪"指示由 `menuOf()` 自动归属四菜单 (menu key = `data`/`knowledge`/`action`/`settings`); `SecNewsShell` 6 视图 (feed/pipeline/knowledge/analyze/analytics/observability) 改挂 `PageLayout`, 由子路由内容自动归属四菜单 (例 `/secnews/feed`→data, `/secnews/knowledge`→knowledge, `/secnews/analyze`→action, `/secnews/observability`→settings);
+   - **2026-09-14 P3 临时页收口**: `/biz` (mock) `/maint` (复用 maintenance API) `/knowledge/canvas` (ECharts demo) 已落账, 路由归属 `menuOf()` 已覆盖;
    - `sentinel.css` 元素级重置 (`:where(.sentinel) a/button`) 必须保持 (0,0,1) 特异度且 border 不用简写 — 壳包住了 Tailwind 工具页, 写高一级就会剥掉按钮背景/边框;
-   - 守卫测试 `routes/__tests__/v085_route_shell.test.tsx` 锁定上述口径, 违反即 CI 红。
+   - 守卫测试 `routes/__tests__/nav4_shell.test.tsx` (2026-09-13 取代 `v085_route_shell.test.tsx`) 锁定上述口径, 违反即 CI 红。
 1. **不要新增未被设计技能路由过的视觉改动** — UI/样式任务必须先按根 AGENTS.md
    `Selection Precedence` 选中唯一主技能(`design-taste-frontend` 为默认,
    现有改造走 `redesign-existing-projects`)再开工。

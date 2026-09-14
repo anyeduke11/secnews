@@ -199,12 +199,7 @@ describe("P2 纸面版 theme 入口接入", () => {
   });
 });
 
-describe("NAV4 P3 (2026-09-13): 临时页面 /biz /maint /knowledge/canvas 注册与归属", () => {
-  it("/biz 路由声明存在 (行动菜单「扩展域」段)", () => {
-    const line = ROUTES_TSX.split("\n").find(l => l.includes('path="/biz"'));
-    expect(line).toBeTruthy();
-  });
-
+describe("NAV4 P3 (2026-09-13): 临时页面 /maint /knowledge/canvas 注册与归属", () => {
   it("/maint 路由声明存在 (设置菜单「扩展域」段)", () => {
     const line = ROUTES_TSX.split("\n").find(l => l.includes('path="/maint"'));
     expect(line).toBeTruthy();
@@ -215,18 +210,8 @@ describe("NAV4 P3 (2026-09-13): 临时页面 /biz /maint /knowledge/canvas 注�
     expect(line).toBeTruthy();
   });
 
-  it("menuOf() 识别 /biz → action", () => {
-    expect(SHELL_TSX).toMatch(/startsWith\(['"]\/biz['"]\)/);
-  });
-
   it("menuOf() 识别 /maint → settings", () => {
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/maint['"]\)/);
-  });
-
-  it("BizPage 组件标记「演示数据」chip (mock 兜底契约)", () => {
-    const biz = readFileSync(join(ROOT, "src/components/BizPage.tsx"), "utf-8");
-    expect(biz).toMatch(/演示数据|biz\.demoNote/);
-    expect(biz).toMatch(/BIZ_MOCK|useMemo/);
   });
 
   it("MaintPage 走 /api/maintenance/* 真实端点 (4 工具卡映射)", () => {
@@ -262,10 +247,9 @@ describe("NAV4 §5: menuOf 全分支归属守卫 (21 个未测分支)", () => {
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/skill-store['"]\)/);
   });
 
-  it("action 分支覆盖 /action /garden /biz /report /todos", () => {
+  it("action 分支覆盖 /action /garden /report /todos", () => {
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/action['"]\)/);
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/garden['"]\)/);
-    expect(SHELL_TSX).toMatch(/startsWith\(['"]\/biz['"]\)/);
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/report['"]\)/);
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/todos['"]\)/);
   });

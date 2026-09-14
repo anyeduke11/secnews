@@ -42,7 +42,6 @@
 | `/todos` | TodosPage | 待办 |
 | `/report` | ReportPage | 周报/月报（产出物） |
 | `/garden` | SentinelGardenPage | 泳道（gate `codegarden`） |
-| `/biz` | BizPage | P3 业务座舱（mock 兜底，CRM 域已删除） |
 | `/secnews/analyze` | SecNewsAnalyze | P1 拆挂 PageLayout（SecNewsShell 退役） |
 
 ### 设置 `/settings`

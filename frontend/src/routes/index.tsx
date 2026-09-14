@@ -159,8 +159,6 @@ export function AppRoutes() {
         )}
         <Route path="/settings" element={<Suspense fallback={<PageFallback />}><P.SettingsPage /></Suspense>} />
         <Route path="/report" element={<Suspense fallback={<PageFallback />}><P.ReportPage onBack={goBack} /></Suspense>} />
-        {/* NAV4 P3 (2026-09-13, DEV-0178): 业务座舱 /biz (行动菜单「扩展域」段; CRM 域已删, mock 兜底) */}
-        <Route path="/biz" element={<Suspense fallback={<PageFallback />}><P.BizPage /></Suspense>} />
         {/* NAV4 P3 (2026-09-13, DEV-0178): 维护诊断 /maint (设置菜单「扩展域」段; 走 /api/maintenance/* 已注册端点) */}
         <Route path="/maint" element={<Suspense fallback={<PageFallback />}><P.MaintPage /></Suspense>} />
 

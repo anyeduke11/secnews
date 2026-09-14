@@ -169,13 +169,9 @@ export const OAuthCallbackPage = React.lazy(() =>
   import('./oauth-callback').then(m => ({ default: m.OAuthCallbackPage }))
 );
 
-// NAV4 P3 (2026-09-13, DEV-0178): 临时页面 — /biz /maint /knowledge/canvas
-// /biz: 业务座舱 (mock 兜底, CRM 域已删 migration 116)
+// NAV4 P3 (2026-09-13, DEV-0178): 临时页面 — /maint /knowledge/canvas
 // /maint: 维护诊断 (走 /api/maintenance/* 已注册端点)
 // /knowledge/canvas: 无限画布 demo (纯前端 ECharts roam)
-export const BizPage = React.lazy(() =>
-  import('../components/BizPage').then(m => ({ default: m.BizPage }))
-);
 export const MaintPage = React.lazy(() =>
   import('../components/MaintPage').then(m => ({ default: m.MaintPage }))
 );

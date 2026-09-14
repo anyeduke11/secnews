@@ -3,35 +3,33 @@
 - **时间**: 2026-09-14 09:45
 - **类型**: 功能开发
 - **关联文件**:
-  - `frontend/src/components/BizPage.tsx` (新增)
   - `frontend/src/components/MaintPage.tsx` (新增)
   - `frontend/src/components/KnowledgeCanvasPage.tsx` (新增)
   - `frontend/src/routes/index.tsx` (3 路由注册)
   - `frontend/src/routes/lazy-imports.ts` (3 lazy 声明)
-  - `frontend/src/components/sentinel/SentinelShell.tsx` (menuOf 加 /biz /maint)
-  - `frontend/src/contexts/I18nContext.tsx` (~30 biz/maint/canvas key)
+  - `frontend/src/components/sentinel/SentinelShell.tsx` (menuOf 加 /maint)
+  - `frontend/src/contexts/I18nContext.tsx` (~20 maint/canvas key)
   - `frontend/src/components/sentinel/sentinel.css` (paper 分支 4 条)
   - `frontend/src/routes/__tests__/nav4_shell.test.tsx` (+22 cases)
   - `frontend/src/routes/ROUTE_REGISTRY.md` (3 行更新)
   - `docs/v0.8.5/V0.8.5_PLAN.md` (§6 修订注④)
   - `AGENTS.md` (根 + frontend/src/AGENTS.md)
   - `PROJECT.md` (头注)
-- **问题描述**: NAV4 四菜单壳已落地，P3 临时页 (/biz /maint /knowledge/canvas) 待实现；paper 主题 4 处 sentinel.css 硬编码暗值需覆写；menuOf 21 个分支缺测试守卫；§6 接口消费表缺修订注；ROUTE_REGISTRY 终稿未更新。
+- **问题描述**: NAV4 四菜单壳已落地，P3 临时页 (/maint /knowledge/canvas) 待实现；paper 主题 4 处 sentinel.css 硬编码暗值需覆写；menuOf 21 个分支缺测试守卫；§6 接口消费表缺修订注；ROUTE_REGISTRY 终稿未更新。
 - **实现思路**:
-  - P3 临时页: /biz 纯前端 mock (CRM 域已删 migration 116); /maint 复用 /api/maintenance/* 10 端点; /knowledge/canvas ECharts roam demo (8 节点 10 边); 全部走 PageLayout (SentinelShell layer=null)。
+  - P3 临时页: /maint 复用 /api/maintenance/* 10 端点; /knowledge/canvas ECharts roam demo (8 节点 10 边); 全部走 PageLayout (SentinelShell layer=null)。
   - 纸面版 token: 加 4 条 paper 分支 (controlbar/readmore/empty-cta/flash-title), 复用既有 --p0-title token。
   - menuOf 守卫: 5 个 describe 块覆盖 23 个分支 + 4 tab 归属断言 + oauth-callback 未命中。
 - **核心变更**:
-  - BizPage: 3 列卡 (业绩/客户/机会) + useMemo BIZ_MOCK + 「演示数据」chip。
   - MaintPage: 4 工具卡 (health/backup/vacuum/cleanup) + getJSON/postJSON + 二次确认 flow。
   - KnowledgeCanvasPage: ECharts graph series (roam/draggable/layout=none) + 8 DEMO_NODES + 10 DEMO_EDGES + 5 CATEGORIES。
-  - SentinelShell menuOf: /biz → action, /maint → settings 前缀分支已加。
+  - SentinelShell menuOf: /maint → settings 前缀分支已加。
   - nav4_shell.test.tsx: 47 cases (原 25 + 22 新增), 覆盖 P3 路由 + menuOf 全分支 + paper CSS。
 - **测试验证**:
   - `cd frontend && npx tsc --noEmit` → 0 errors
   - `cd frontend && npx vitest run` → 525/0 (基线 510 + 15 新, 0 回归)
   - `cd frontend && npx vite build --logLevel error` → OK
-- **潜在风险**: /biz 纯 mock 无后端; /knowledge/canvas 为 demo 非真实图谱; /maint 依赖 maintenance API 可用; mcp gate 维持现状 (设计行为)。
+- **潜在风险**: /knowledge/canvas 为 demo 非真实图谱; /maint 依赖 maintenance API 可用; mcp gate 维持现状 (设计行为)。
 
 
 - 交付: backend/api/observability_audit_api.py (GET /api/observability/audit?action=&limit=, 复用 observability_records audit_log schema) + backend/api/legacy_migrate_api.py (POST /api/dsh/legacy/migrate/run?apply= 暴露 LegacyMigrateService + GET /api/dsh/legacy/migrate/status BUILTIN 分布, 对齐 T08 legacy_hold 端点形态) + migration 103 (skill_runs ADD COLUMN version) + SkillRunRepo.insert 加 version 形参 + skill_runner.core.run 传 skill.version + main.py lifespan _check_skill_run_version_compatibility (in-flight run version vs BUILTIN.version 不一致仅 warning, T19 收口前容忍) + 5 service publish_event 插入 (judgment.publish / action.start+cancel / artifact.verify+accept / knowledge.publish+deprecate+retract / signal list_recent_signals, fire-and-forget asyncio.create_task 包裹, 失败 silent 降级) + audit_log 写修复 (legacy_migrate_service 之前用错列名 subject_id/details_json, 现用 record_audit 走 actor/action/target/detail/trace_id/occurred_at 实际 schema) + 6 pass + 2 skip (lifespan 校验 conftest env 限制由黄金案例覆盖).

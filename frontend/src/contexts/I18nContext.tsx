@@ -373,20 +373,7 @@ const messages_zhCN: Messages = {
   // ── rotation banner (B9-2) ──
   'rotation_banner.title': 'Secrets 主密钥已使用 {age} 天 (>= {remind} 天阈值), 建议轮换以保 LLM 凭据安全',
   'rotation_banner.howto': '如何轮换 →',
-  // ── NAV4 P3 (2026-09-13, DEV-0178): 临时页面 /biz /maint /knowledge/canvas ──
-  'biz.demoNote': '演示数据',
-  'biz.title': '业务座舱',
-  'biz.subtitle': '业绩 / 客户 / 机会 — 临时占位, CRM 域已下线',
-  'biz.performance.title': '业绩',
-  'biz.performance.alerts': '当月告警量',
-  'biz.performance.handled': '处理率',
-  'biz.performance.mttd': '平均响应',
-  'biz.customers.title': '客户活跃度',
-  'biz.opportunities.title': '待跟进机会',
-  'biz.opportunities.priority.high': '高优',
-  'biz.opportunities.priority.mid': '中优',
-  'biz.opportunities.priority.low': '低优',
-  'maint.title': '维护诊断',
+  // ── NAV4 P3 (2026-09-13, DEV-0178): 临时页面 /maint /knowledge/canvas ──
   'maint.subtitle': '备份 / 索引 / 清理 / 健康 — 走 /api/maintenance/* 真实端点',
   'maint.refresh': '刷新',
   'maint.health.title': '健康',
@@ -762,20 +749,7 @@ const messages_enUS: Messages = {
   // ── rotation banner (B9-2) ──
   'rotation_banner.title': 'Secrets master key is {age} days old (>= {remind}-day threshold); rotate to keep LLM credentials safe',
   'rotation_banner.howto': 'How to rotate →',
-  // ── NAV4 P3 (2026-09-13, DEV-0178): temporary pages /biz /maint /knowledge/canvas ──
-  'biz.demoNote': 'Demo data',
-  'biz.title': 'Biz Cockpit',
-  'biz.subtitle': 'Performance / Customers / Opportunities — placeholder, CRM domain offline',
-  'biz.performance.title': 'Performance',
-  'biz.performance.alerts': 'Monthly alerts',
-  'biz.performance.handled': 'Handled',
-  'biz.performance.mttd': 'MTTD',
-  'biz.customers.title': 'Customer activity',
-  'biz.opportunities.title': 'Opportunities',
-  'biz.opportunities.priority.high': 'High',
-  'biz.opportunities.priority.mid': 'Mid',
-  'biz.opportunities.priority.low': 'Low',
-  'maint.title': 'Maintenance',
+  // ── NAV4 P3 (2026-09-13, DEV-0178): temporary pages /maint /knowledge/canvas ──
   'maint.subtitle': 'Backup / Vacuum / Cleanup / Health — backed by /api/maintenance/*',
   'maint.refresh': 'Refresh',
   'maint.health.title': 'Health',

@@ -160,7 +160,7 @@ export function menuOf(pathname: string): SentinelLayer | null {
   // 精确匹配 / action / knowledge / settings → 直接归属
   if (pathname === '/' || pathname.startsWith('/judge') || pathname.startsWith('/cases')) return 'data';
   if (pathname.startsWith('/knowledge') || pathname.startsWith('/deep') || pathname.startsWith('/reviews')) return 'knowledge';
-  if (pathname.startsWith('/action') || pathname.startsWith('/garden') || pathname.startsWith('/biz')) return 'action';
+  if (pathname.startsWith('/action') || pathname.startsWith('/garden')) return 'action';
   if (pathname.startsWith('/settings') || pathname.startsWith('/secrets') || pathname.startsWith('/sync') || pathname.startsWith('/skills') || pathname.startsWith('/codegarden') || pathname.startsWith('/maint')) return 'settings';
   // 工具页按语义归属
   if (pathname.startsWith('/report') || pathname.startsWith('/todos')) return 'action';

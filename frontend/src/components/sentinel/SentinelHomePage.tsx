@@ -373,7 +373,7 @@ export function SentinelHomePage() {
       {/* ===== 检索条: 全文搜索 + 时间窗 ===== */}
       <div
         className="controlbar"
-        style={{ top: 52, zIndex: 49, height: 'auto', minHeight: 52, padding: '10px 32px', gap: 12, flexWrap: 'wrap' }}
+        style={{ top: 'calc(var(--sn-bandnav-h) + 52px)', zIndex: 49, height: 'auto', minHeight: 52, padding: '10px 32px', gap: 12, flexWrap: 'wrap' }}
       >
         <div className="search-box" style={{ maxWidth: 320, width: 'auto', flex: '1 1 220px', minWidth: 180 }}>
           <span className="search-icon" aria-hidden="true" style={{ display: 'flex', alignItems: 'center' }}>
@@ -660,7 +660,7 @@ export function SentinelHomePage() {
 
       {/* 页脚状态行 */}
       <footer className="endnote">
-        <span>SECNEWS SENTINEL TERMINAL · 资料层</span>
+        <span>SECNEWS EDITORIAL DESK · 资料层</span>
         <span>本地运行 · 无云端依赖</span>
         <span>SSE 已连接 · 每 {collectMinutes} 分钟自动采集 · 采集完成即刷新</span>
         <span>{scopeLabel} {total} 篇 · 每页 {pageSize}</span>

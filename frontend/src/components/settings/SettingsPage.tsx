@@ -14,6 +14,7 @@
  *       v0.8 P1 新增 info_filter (独立资讯筛选门禁) → 17 cat.
  */
 import { useState } from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useGoBack } from '../../hooks/useGoBack';
 import { Icon } from '../Icon';
 import { SECTIONS } from './sections';
@@ -56,22 +57,8 @@ export function SettingsPage() {
   // v0.4.3: mcp 扩展关闭时隐藏集成区段 (后端 /api/mcp/* 已 404)
   const features = useFeatureFlags();
 
-  const { theme, toggleTheme } = (() => {
-    try {
-      const saved = localStorage.getItem('hotspot-theme');
-      return {
-        theme: (saved === 'dark' ? 'dark' : 'light') as 'dark' | 'light',
-        toggleTheme: () => {
-          const next = saved === 'dark' ? 'light' : 'dark';
-          localStorage.setItem('hotspot-theme', next);
-          document.documentElement.setAttribute('data-theme', next);
-          window.dispatchEvent(new Event('theme-changed'));
-        },
-      };
-    } catch {
-      return { theme: 'light' as const, toggleTheme: () => {} };
-    }
-  })();
+  // P2 (2026-09-13): ThemeContext 已扩展 3 态 (light/dark/paper), 直接用 setTheme
+  const { theme, setTheme: setThemeMode } = useTheme();
 
   const renderContent = () => {
     switch (activeSection) {
@@ -81,7 +68,7 @@ export function SettingsPage() {
         return (
           <div className="space-y-2">
             <ModeSwitcher />
-            <GeneralSettings onThemeToggle={toggleTheme} theme={theme} />
+            <GeneralSettings theme={theme} onThemeChange={setThemeMode} />
             {/* Workbench Focus P0.3 (DEV-0176): 实践域兴趣画像 */}
             <PracticeDomainsCard />
           </div>
@@ -204,9 +191,11 @@ export function SettingsPage() {
           })}
         </nav>
 
-        {/* 内容区 — 独立滚动 */}
+        {/* 内容区 — 独立滚动; B1 (DEV-0192): mixed 版式多卡并排 (宽屏 ≥2 列, 窄屏自动单列) */}
         <div className="flex-1 min-w-0 overflow-y-auto pr-0.5" style={{ scrollbarWidth: 'thin' }}>
-          {renderContent()}
+          <div className={`set-content${active?.layout === 'mixed' ? ' set-content-mixed' : ''}`}>
+            {renderContent()}
+          </div>
         </div>
       </div>
     </div>

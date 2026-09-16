@@ -264,6 +264,8 @@ def register_all(app: FastAPI) -> None:
     from backend.api import event_types_api
     app.include_router(event_technique_api.router, tags=["event-technique"])
     app.include_router(event_types_api.router, tags=["event-technique"])
+    from backend.api import cubox_import_api  # UI 收尾批 C2 (DEV-0195): cubox 导入兜底
+    app.include_router(cubox_import_api.router, tags=["knowledge"])
 
 
 __all__ = ["register_all"]

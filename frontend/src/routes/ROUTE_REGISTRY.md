@@ -13,8 +13,9 @@
 |---|---|---|
 | `/` | SentinelHomePage | **情报流**（+ SignalPanel 受管信号区块） |
 | `/judge` | → `/` (QueryRedirect 透传 query) | 判断层拆解：判读台主体归资讯「质量」区 |
-| `/quality/rejection` | QualityRejectionPage | 质量拒绝样本 |
-| `/deep/:type/:id` | DeepReadPage | 深读（跨实体） |
+| `/quality` | QualityDashboardPage | **校对室全貌**（门禁统计 + 信息过滤规则 + 拒绝样本子标签; Phase 4） |
+| `/quality/rejection` | → `/quality?tab=rejection` | 旧深链重定向（子标签兼容） |
+| `/deep/:type/:id` | DeepReadPage | 深读（跨实体, AI 判读流） |
 | `/history` | HistoryPage | 浏览历史 |
 | `/secnews/feed` `/pipeline` `/analytics` | SecNewsFeed / PipelineView / AnalyticsView | P1 拆挂 PageLayout（SecNewsShell 退役） |
 
@@ -25,6 +26,9 @@
 | `/knowledge` (+ 9 子路由) | KnowledgePage 嵌套 | **知识库主页**（import/process/compile/compound/imported/v1/deep-read/review/heatmap） |
 | `/knowledge/graph` | SentinelGraphPage | 知识图谱（自 `/judge/graph` 迁入） |
 | `/knowledge/canvas` | KnowledgeCanvasPage | P3 知识画布（ECharts roam demo） |
+| `/knowledge/khub` | KnowledgeHubPage | 资料库前厅（派生统计 + 六域入口; Phase 4, hub-stats 未实现见 UNIMPLEMENTED.md） |
+| `/knowledge/library` | KnowledgeLibraryPage | 编目室（占位 + 链路自检; Phase 4, 清单端点未实现见 UNIMPLEMENTED.md） |
+| `/reader/:id` | DeepReaderPage | 清样深读（wiki 条目纯阅读流; 批注未实现见 UNIMPLEMENTED.md） |
 | `/judge/graph` | → `/knowledge/graph` (301) | 旧路径保留 |
 | `/skill-store` (+`/:skillId` `/new`) | SkillStore / SkillDetail / SkillBuilder | 能力资产 |
 | `/dashboard` | Dashboard 技能看板 | 能力资产 |
@@ -37,6 +41,7 @@
 | 路径 | 组件 | 说明 |
 |---|---|---|
 | `/action` | SentinelActionPage | **今日行动**（+ ExecOverviewPanel） |
+| `/action/events` | EventsReviewPage | 通稿审核（MP-2 候选人工审定, 全真实端点; Phase 4） |
 | `/cases/:caseId` | CaseDetailPage | 案件详情（壳改 action 高亮） |
 | `/cases` | → `/action` (QueryRedirect 透传 query) | 案件列表归行动 |
 | `/todos` | TodosPage | 待办 |

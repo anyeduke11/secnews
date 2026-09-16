@@ -19,6 +19,9 @@
   --sn-mint:var(--mint); --sn-mint-dim:var(--mint-dim);
   --sn-amber:var(--amber); --sn-amber-dim:var(--amber-dim);
   --sn-red:var(--red); --sn-red-dim:var(--red-dim);
+  --sn-accent:var(--accent); --sn-serif:var(--font-serif);
+  /* A1 (DEV-0188): 版面条高度变量 — sticky 控件条偏移随收起态联动 */
+  --sn-bandnav-h:33px;
   --sn-cat-ai:var(--color-ai); --sn-cat-sec:var(--color-security); --sn-cat-fin:var(--color-finance);
   --sn-cat-vc:var(--color-startup); --sn-cat-bid:var(--color-bid); --sn-cat-git:var(--color-github); --sn-cat-tech:var(--color-tech);
   --sn-mono:var(--font-mono);
@@ -39,40 +42,56 @@
 :where(.sentinel) a{color:inherit;text-decoration:none}
 :where(.sentinel) button{font-family:inherit;color:inherit;background:none;border-width:0;cursor:pointer}
 /* 工具页内容区 (PageLayout #main-content) 复位到 body 口径: 这些页面按 body 的等宽 13/14px 设计,
-   不吃壳的 15px 无衬线终端排版; 壳自身 appbar / pipeline 不受影响 */
+   不吃壳的 15px 无衬线终端排版; 壳自身 masthead / pressbar 不受影响 */
 .sentinel .tool-main{font-family:var(--font-mono);font-size:var(--body-fs,13px);line-height:var(--body-lh,1.65)}
 .sentinel :focus-visible{outline:2px solid var(--sn-mint);outline-offset:2px;border-radius:2px}
 .sentinel .mono{font-family:var(--sn-mono)}
 .sentinel .num{font-family:var(--sn-mono);font-feature-settings:'tnum'}
 
-/* ===== 顶栏 ===== */
-.sentinel .appbar{
-  display:flex;align-items:center;gap:28px;
-  padding:0 32px;height:60px;
-  border-bottom:1px solid var(--sn-line);
+/* ===== 报头 masthead (Phase 2 编辑部形态, 对齐方案A 原型) =====
+   衬线品牌字 + 四菜单排版式导航 (active = accent 下划线) + 控制 (主题/时钟/设置)。
+   色板全部走 --sn-* 转发: 亮/暗主题保持哨兵色相, paper 主题自动获得编辑部暖色。 */
+.sentinel .masthead{
+  position:relative;z-index:5;
+  display:flex;align-items:stretch;gap:26px;
+  padding:10px 32px 0;
+  background:var(--sn-bg-lift);
+  border-bottom:1px solid var(--sn-line-strong);
 }
-.sentinel .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:.01em}
-.sentinel .brand-mark{
-  width:22px;height:22px;border:1.5px solid var(--sn-mint);border-radius:4px;
-  display:grid;place-items:center;flex:none;
+.sentinel .mh-brand{
+  display:flex;align-items:baseline;gap:10px;min-width:0;
+  align-self:center;text-decoration:none;
 }
-.sentinel .brand-mark svg{display:block}
-.sentinel .brand small{font-family:var(--sn-mono);font-size:11px;font-weight:400;color:var(--sn-ink-3);letter-spacing:.08em;margin-top:3px}
+.sentinel .mh-title{
+  font-family:var(--sn-serif);font-weight:900;font-size:22px;line-height:1.15;
+  letter-spacing:-.01em;transition:color .15s ease;
+}
+.sentinel .mh-brand:hover .mh-title{color:var(--sn-accent)}
+.sentinel .mh-sub{font-family:var(--sn-mono);font-size:10px;letter-spacing:.22em;color:var(--sn-ink-3)}
 
-/* 四菜单导航 */
-.sentinel .layers{display:flex;align-items:center;gap:6px;margin-left:8px}
-.sentinel .layer-link{
-  display:flex;flex-direction:column;gap:1px;
-  padding:6px 14px;border-radius:6px;line-height:1.35;
-  transition:background .15s ease,color .15s ease;
+/* 四菜单导航 (排版式 nv, 替代旧 icon chip) */
+.sentinel .mh-nav{display:flex;align-items:stretch;min-width:0}
+.sentinel .nv{
+  position:relative;display:flex;align-items:baseline;gap:7px;
+  padding:9px 0 10px;text-decoration:none;
 }
-.sentinel .layer-link:hover{background:var(--sn-bg-hover)}
-.sentinel .layer-link b{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
-.sentinel .layer-link span{font-size:11px;color:var(--sn-ink-3)}
-.sentinel .layer-link.active{background:var(--sn-mint-dim)}
-.sentinel .layer-link.active b{color:var(--sn-mint)}
-.sentinel .layer-flow{color:var(--sn-ink-3);display:flex;flex:none}
-.sentinel .appbar-right{margin-left:auto;display:flex;align-items:center;gap:18px}
+.sentinel .nv + .nv{margin-left:20px;padding-left:20px;border-left:1px solid var(--sn-line)}
+.sentinel .nv-main{font-family:var(--sn-serif);font-size:16px;font-weight:700;color:var(--sn-ink-2);transition:color .15s ease}
+.sentinel .nv-sub{font-size:10px;letter-spacing:.1em;color:var(--sn-ink-3);white-space:nowrap}
+.sentinel .nv::after{
+  content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--sn-accent);
+  transform:scaleX(0);transform-origin:left;transition:transform .16s ease;
+}
+.sentinel .nv:hover .nv-main{color:var(--sn-ink)}
+.sentinel .nv:hover::after{transform:scaleX(1);background:var(--sn-ink)}
+.sentinel .nv.active .nv-main{color:var(--sn-ink)}
+.sentinel .nv.active::after{transform:scaleX(1);background:var(--sn-accent)}
+.sentinel .nv + .nv::after,
+.sentinel .nv + .nv:hover::after{left:20px}
+.sentinel .mh-meta{
+  margin-left:auto;display:flex;align-items:center;gap:14px;align-self:center;
+  border-left:1px solid var(--sn-line);padding-left:16px;
+}
 .sentinel .clock{font-family:var(--sn-mono);font-size:12px;color:var(--sn-ink-2)}
 .sentinel .iconbtn{
   width:34px;height:34px;border-radius:6px;display:grid;place-items:center;
@@ -80,21 +99,62 @@
 }
 .sentinel .iconbtn:hover{background:var(--sn-bg-hover);color:var(--sn-ink)}
 
-/* ===== 管道心跳条 ===== */
-.sentinel .pipeline{
-  display:flex;align-items:stretch;gap:0;flex-wrap:wrap;
-  margin:20px 32px 0;
-  border:1px solid var(--sn-line);border-radius:10px;
-  background:var(--sn-bg-lift);
-  overflow:hidden;
+/* ===== 版面条 bandnav (二级域 chip, 对齐方案A 原型) =====
+   当前菜单的子域入口; sticky 吸顶; current = accent 下划线。 */
+.sentinel .bandnav{
+  position:sticky;top:0;z-index:4;
+  display:flex;align-items:center;flex-wrap:wrap;
+  padding:0 32px;
+  background:var(--sn-bg);
+  border-bottom:1px solid var(--sn-line-strong);
 }
-.sentinel .pipe-block{padding:14px 22px;display:flex;flex-direction:column;gap:5px;border-right:1px solid var(--sn-line);flex:0 0 auto;white-space:nowrap}
+.sentinel .bn-chip{
+  position:relative;display:inline-flex;align-items:baseline;gap:6px;
+  padding:8px 6px 9px;font-size:12px;color:var(--sn-ink-2);
+  text-decoration:none;white-space:nowrap;
+  transition:color .12s ease,background .12s ease;
+}
+.sentinel .bn-chip:hover{color:var(--sn-ink);background:var(--sn-bg-lift)}
+.sentinel .bn-chip::after{
+  content:'';position:absolute;left:6px;right:6px;bottom:0;height:2px;background:transparent;
+}
+.sentinel .bn-chip.current{color:var(--sn-ink);font-weight:600}
+.sentinel .bn-chip.current::after{background:var(--sn-accent)}
+
+/* A7 (DEV-0188): 版面条收起态 — 高度联动 --sn-bandnav-h, 保留单按钮可再展开 */
+.sentinel.bandnav-collapsed{--sn-bandnav-h:24px}
+.sentinel .bandnav.collapsed{min-height:24px;padding-top:0;padding-bottom:0}
+.sentinel .bn-collapse{
+  margin-left:auto;flex:none;
+  width:24px;height:20px;border-radius:4px;border:none;background:transparent;
+  display:inline-flex;align-items:center;justify-content:center;
+  color:var(--sn-ink-3);cursor:pointer;transition:color .12s ease,background .12s ease;
+}
+.sentinel .bn-collapse:hover{color:var(--sn-ink);background:var(--sn-bg-hover)}
+.sentinel .bn-expand{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:2px 8px;border-radius:4px;border:none;background:transparent;
+  font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3);
+  cursor:pointer;transition:color .12s ease,background .12s ease;
+}
+.sentinel .bn-expand:hover{color:var(--sn-ink);background:var(--sn-bg-hover)}
+
+/* ===== 印务条 pressbar (管道心跳, 语义不变) =====
+   旧 .pipeline 浮卡改编辑部通栏细条: 满宽、hairline 分隔、单行基线排版。 */
+.sentinel .pressbar{
+  position:relative;z-index:3;
+  display:flex;align-items:stretch;gap:0;flex-wrap:wrap;
+  padding:7px 32px;
+  background:var(--sn-bg-lift);
+  border-bottom:1px solid var(--sn-line);
+}
+.sentinel .pipe-block{display:flex;align-items:baseline;gap:8px;padding:3px 20px 3px 0;margin-right:20px;border-right:1px solid var(--sn-line);flex:0 0 auto;white-space:nowrap}
 .sentinel .pipe-block:last-child{border-right:0}
 .sentinel .pipe-k{font-size:11px;color:var(--sn-ink-3);letter-spacing:.05em;white-space:nowrap}
-.sentinel .pipe-v{font-family:var(--sn-mono);font-size:15px;font-weight:500;display:flex;align-items:baseline;gap:8px;white-space:nowrap}
+.sentinel .pipe-v{font-family:var(--sn-mono);font-size:14px;font-weight:500;display:flex;align-items:baseline;gap:8px;white-space:nowrap}
 .sentinel .pipe-v .delta{font-size:11px;color:var(--sn-mint);font-weight:400}
-.sentinel .pipe-live{margin-left:auto;padding:14px 22px;display:flex;flex-direction:column;justify-content:center;gap:8px;min-width:0}
-.sentinel .pulse{width:8px;height:8px;border-radius:50%;background:var(--sn-mint);position:relative;flex:none}
+.sentinel .pipe-live{margin-left:auto;padding:3px 0 3px 20px;border-left:1px solid var(--sn-line);display:flex;align-items:center;gap:14px;min-width:0}
+.sentinel .pulse{width:7px;height:7px;border-radius:50%;background:var(--sn-mint);position:relative;flex:none}
 .sentinel .pulse::after{
   content:'';position:absolute;inset:-4px;border-radius:50%;
   border:1px solid var(--sn-mint);opacity:0;
@@ -103,8 +163,9 @@
 @keyframes sn-pulse{0%{transform:scale(.4);opacity:.7}70%{transform:scale(1.4);opacity:0}100%{opacity:0}}
 .sentinel .beat-row{display:flex;align-items:center;gap:10px}
 .sentinel .beat-label{font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3);white-space:nowrap}
-.sentinel .beat-lights{display:flex;gap:3px;flex-wrap:wrap}
-.sentinel .beat-lights i{width:7px;height:12px;border-radius:2px;background:var(--sn-mint);opacity:.85}
+/* B 收尾 (DEV-0194): 灯条压缩 (16 灯 ≈128px), 配合灯数缩减保证与队列同行 */
+.sentinel .beat-lights{display:flex;gap:2px;flex-wrap:nowrap}
+.sentinel .beat-lights i{width:6px;height:10px;border-radius:2px;background:var(--sn-mint);opacity:.85;flex:none}
 .sentinel .beat-lights i.warm{background:var(--sn-amber)}
 .sentinel .beat-lights i.dead{background:var(--sn-red);opacity:.55}
 @media (prefers-reduced-motion: reduce){
@@ -112,11 +173,12 @@
 }
 
 /* ===== 阅读模式 & 频道条 ===== */
+/* A1: sticky 偏移让出版面条高度; 背景实底 (半透明会透出下层 sticky 条) */
 .sentinel .controlbar{
-  position:sticky;top:0;z-index:50;
+  position:sticky;top:var(--sn-bandnav-h);z-index:50;
   display:flex;align-items:center;gap:16px;
   padding:0 32px;height:52px;
-  background:rgba(10,22,40,.92);
+  background:var(--sn-bg);
   backdrop-filter:blur(8px);
   border-bottom:1px solid var(--sn-line);
 }
@@ -148,8 +210,8 @@
 /* ===== 主布局 ===== */
 .sentinel .layout{
   display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:36px;
-  max-width:1440px;margin:0 auto;
-  padding:30px 32px 64px;
+  max-width:1580px;margin:0 auto;
+  padding:24px 32px 64px;
 }
 .sentinel .maincol{min-width:0}
 
@@ -336,7 +398,7 @@
 
 /* 页脚状态行 */
 .sentinel .endnote{
-  max-width:1440px;margin:0 auto;padding:0 32px 40px;
+  max-width:1580px;margin:0 auto;padding:0 32px 40px;
   font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3);
   display:flex;gap:18px;flex-wrap:wrap;
 }
@@ -359,13 +421,13 @@
 .sentinel[data-mode="alert"] .story-top{opacity:.5}
 
 /* ===== 主题: 晨间亮色 (色板已统一走全局 token, 此处只留结构差异) ===== */
-html[data-theme="light"] .sentinel .controlbar{background:rgba(247,250,253,.92)}
+html[data-theme="light"] .sentinel .controlbar{background:var(--sn-bg)}
 html[data-theme="light"] .sentinel .readmore{border-color:rgba(4,120,92,.35)}
 html[data-theme="light"] .sentinel .empty-cta{border-color:rgba(4,120,92,.35)}
 html[data-theme="light"] .sentinel .alert-item .flash-title{color:var(--p0-title)}
 
 /* ===== 主题: 纸面版 (P2 修订注③: 控制栏/链接/CTA/告警标题覆写, 与暖米黄协调) ===== */
-html[data-theme="paper"] .sentinel .controlbar{background:rgba(253,248,236,.92)}
+html[data-theme="paper"] .sentinel .controlbar{background:var(--sn-bg)}
 html[data-theme="paper"] .sentinel .readmore{border-color:rgba(45,36,26,.35)}
 html[data-theme="paper"] .sentinel .empty-cta{border-color:rgba(45,36,26,.35)}
 html[data-theme="paper"] .sentinel .alert-item .flash-title{color:#7e1d2e}
@@ -379,31 +441,27 @@ html[data-theme="paper"] .sentinel .tb-paper{display:block}
 /* ===== 响应式 ===== */
 @media (max-width:1240px){
   .sentinel .layout{grid-template-columns:minmax(0,1fr) 300px}
-  .sentinel .layer-link span{display:none}
+  .sentinel .nv-sub{display:none}
 }
 @media (max-width:1080px){
   .sentinel .layout{grid-template-columns:minmax(0,1fr)}
   .sentinel .rail{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:28px}
   .sentinel .rail-mod + .rail-mod{margin-top:0}
-  .sentinel .appbar{padding:0 20px;gap:16px}
-  .sentinel .pipeline,.sentinel .controlbar{padding-left:20px;padding-right:20px}
-  .sentinel .pipeline{margin:16px 20px 0}
+  .sentinel .masthead{padding-left:20px;padding-right:20px;gap:16px}
+  .sentinel .pressbar,.sentinel .controlbar,.sentinel .bandnav{padding-left:20px;padding-right:20px}
   .sentinel .layout{padding:24px 20px 56px}
   .sentinel .endnote{padding:0 20px 40px}
 }
 @media (max-width:820px){
-  /* 壳统一后工具页也靠这条三层导航 (AppNav 汉堡抽屉已删), 窄屏改紧凑图标态而非原来的 display:none */
-  .sentinel .brand small{display:none}
-  .sentinel .layers{gap:2px;margin-left:0}
-  .sentinel .layer-flow{display:none}
-  .sentinel .layer-link{padding:6px 8px}
-  .sentinel .layer-link b{font-size:12px;gap:5px}
-  .sentinel .appbar-right{gap:10px}
+  /* 壳统一后工具页也靠这条四菜单导航 (AppNav 汉堡抽屉已删), 窄屏改紧凑态而非原来的 display:none */
+  .sentinel .mh-sub{display:none}
+  .sentinel .nv + .nv{margin-left:12px;padding-left:12px}
+  .sentinel .nv-main{font-size:13px}
+  .sentinel .mh-meta{gap:10px}
   .sentinel .clock{display:none}
-  .sentinel .pipeline{flex-wrap:wrap}
-  .sentinel .pipe-block{flex:1 1 40%;border-bottom:1px solid var(--sn-line)}
+  .sentinel .pressbar{flex-wrap:wrap;row-gap:2px}
+  .sentinel .pipe-block{flex:1 1 40%;border-bottom:1px solid var(--sn-line);padding:6px 12px 6px 0}
   .sentinel .pipe-block:nth-child(n+3){border-bottom:0}
-  .sentinel .pipe-block{padding:12px 16px}
   .sentinel .pipe-live{display:none}
   .sentinel .flash-item{grid-template-columns:72px minmax(0,1fr)}
   .sentinel .flash-side{display:none}
@@ -415,14 +473,16 @@ html[data-theme="paper"] .sentinel .tb-paper{display:block}
   .sentinel .rail{grid-template-columns:1fr}
 }
 @media (max-width:640px){
-  /* 手机: 顶栏折成两行 — 品牌 + 右侧操作 / 四菜单导航独占一行四等分 */
-  .sentinel .appbar{height:auto;flex-wrap:wrap;padding:8px 12px;row-gap:6px;column-gap:10px}
-  .sentinel .brand{font-size:15px}
-  .sentinel .layers{order:3;flex:1 1 100%;gap:4px;border-top:1px solid var(--sn-line);padding-top:6px}
-  .sentinel .layer-link{flex:1 1 0;align-items:center;padding:6px 4px}
-  .sentinel .layer-link b{justify-content:center}
-  .sentinel .pipeline{margin:12px 12px 0}
-  .sentinel .pipe-block{padding:10px 12px}
+  /* 手机: 报头折两行 — 品牌 + 控制 / 四菜单独占一行四等分 */
+  .sentinel .masthead{flex-wrap:wrap;padding:8px 12px 0;gap:10px}
+  .sentinel .mh-title{font-size:17px}
+  .sentinel .mh-nav{order:3;flex:1 1 100%;border-top:1px solid var(--sn-line)}
+  .sentinel .nv{flex:1 1 0;justify-content:center}
+  .sentinel .nv + .nv{margin-left:0;padding-left:0}
+  .sentinel .nv.active::after,
+  .sentinel .nv + .nv::after,
+  .sentinel .nv:hover::after{left:6px;right:6px}
+  .sentinel .pipe-block{padding:6px 10px 6px 0}
 }
 
 /* ===== 心跳条 · 生命周期漏斗 (吸收自 workbench StatusBar / PipelineView) ===== */
@@ -450,3 +510,27 @@ html[data-theme="paper"] .sentinel .tb-paper{display:block}
 .sentinel .jd-eval.err{color:var(--sn-amber)}
 .sentinel .jd-eval-kps{display:inline-flex;flex-wrap:wrap;gap:6px}
 .sentinel .jd-eval-src{margin-left:auto;font-size:11px;letter-spacing:.06em;color:var(--sn-ink-3)}
+
+/* ===== Phase 3 编辑部排版 (DEV-0182, 对齐方案A 原型) =====
+   层级契约: 显示级标题 (衬线 900, 收紧字距) / 栏头 (衬线 700) / 内容题 (衬线 600);
+   元数据/数字保持等宽 tnum; 语义三色 (mint/amber/red) 不参与排版改造, 只做状态标记。 */
+.sentinel .headline{
+  font-family:var(--sn-serif);font-weight:900;letter-spacing:-.015em;
+}
+.sentinel .sub-title{
+  font-family:var(--sn-serif);font-weight:600;letter-spacing:-.005em;
+}
+.sentinel .flash-head h2{font-family:var(--sn-serif);font-weight:700;font-size:17px;letter-spacing:-.005em}
+.sentinel .rail-mod h3{font-family:var(--sn-serif);font-weight:700;font-size:14px;letter-spacing:.01em}
+/* 头条区: 编辑部「 lead story」双细线收尾 + 摘要行高放宽 */
+.sentinel .story-top{border-bottom:3px double var(--sn-line-strong)}
+.sentinel .standfirst{line-height:1.75}
+/* 快讯行 hover 保持 paper-2 色阶 (编辑部稿签行), 悬停标题转 accent 而非 mint:
+   mint 保留给「正常/新增」信号语义, 导航悬停统一用主题 accent (亮/暗=mint, paper=编辑红) */
+.sentinel .flash-item a:hover .flash-title{color:var(--sn-accent)}
+.sentinel .sub-item a:hover .sub-title{color:var(--sn-ink)}
+.sentinel .flash-head{border-bottom-color:var(--sn-line-strong)}
+/* CaseDetail (唯一 .sentinel-main 消费方) 编辑部标题: 全 token 驱动的 Tailwind 页,
+   色彩随主题自动切换, 这里只接管标题排版层级 */
+.sentinel .sentinel-main h2{font-family:var(--sn-serif);font-weight:900;letter-spacing:-.01em}
+.sentinel .sentinel-main h3{font-family:var(--sn-serif);font-weight:700}

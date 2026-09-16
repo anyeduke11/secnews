@@ -142,7 +142,7 @@ export default function QualityRejectionPage() {
               {total}
             </div>
           </LayerCard>
-          {stats.by_gate.slice(0, 3).map((g) => (
+          {(stats.by_gate ?? []).slice(0, 3).map((g) => (
             <LayerCard key={g.gate_name} variant="compact" titleStyle="none">
               <div className="text-[10px] font-mono uppercase tracking-[0.06em] truncate" style={{ color: 'var(--text-muted)' }}>
                 {g.gate_name}

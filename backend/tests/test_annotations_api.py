@@ -146,3 +146,44 @@ class TestAnnotationCRUDFlow:
         # Delete
         assert client.delete(f"/api/annotations/{aid}").status_code == 200
         assert client.get(f"/api/annotations/{aid}").status_code == 404
+
+
+class TestAnnotationQuoteBPlus:
+    """C2 (DEV-0190): B+ 锚点 quote 列 (migration 118) + 审计。"""
+
+    def test_create_with_quote_roundtrip(self, client):
+        r = client.post("/api/annotations", json={**_create_payload("此结论存疑"), "quote": "边界不可信"})
+        assert r.status_code == 201
+        item = r.json()["item"]
+        assert item["quote"] == "边界不可信"
+        # 列表回读亦含 quote (SELECT * 全列)
+        lst = client.get(
+            "/api/annotations",
+            params={"entity_type": "knowledge", "entity_id": "k-1"},
+        )
+        assert lst.json()["items"][0]["quote"] == "边界不可信"
+
+    def test_quote_length_limit_422(self, client):
+        r = client.post(
+            "/api/annotations",
+            json={**_create_payload("n"), "quote": "q" * 501},
+        )
+        assert r.status_code == 422
+
+    def test_update_quote(self, client):
+        item = client.post("/api/annotations", json=_create_payload()).json()["item"]
+        assert item["quote"] is None
+        r = client.put(f"/api/annotations/{item['id']}", json={"quote": "新引文"})
+        assert r.status_code == 200
+        assert r.json()["item"]["quote"] == "新引文"
+
+    def test_audit_create_and_delete(self, client, monkeypatch):
+        calls: list[str] = []
+        monkeypatch.setattr(
+            "backend.observability_records.record_audit",
+            lambda actor, action, **kwargs: calls.append(action),
+        )
+        item = client.post("/api/annotations", json=_create_payload("audit note")).json()["item"]
+        client.delete(f"/api/annotations/{item['id']}")
+        assert "annotation.create" in calls
+        assert "annotation.delete" in calls

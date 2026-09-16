@@ -233,7 +233,10 @@ describe('SentinelSettingsPage — 哨兵终端设置屏 (只读)', () => {
     expect(urls.every(u => u.startsWith('/api/'))).toBe(true);
     expect(urls.some(u => /master_key|reveal|export|unlock|password/i.test(u))).toBe(false);
 
-    expect(lsSpy).not.toHaveBeenCalled();
+    // DEV-0181 唯一豁免: 壳 useFeatureFlags 的 gate 布尔缓存 (非敏感路由元数据, 全站每页都会写)。
+    // 除该 key 外 localStorage 与 sessionStorage 仍然一个字节都不许写。
+    const lsKeys = lsSpy.mock.calls.map(call => String(call[0]));
+    expect(lsKeys.every(k => k === 'hotspot-feature-flags')).toBe(true);
     expect(ssSpy).not.toHaveBeenCalled();
     expect(document.querySelector('input[type="password"]')).toBeNull();
     expect(document.querySelector('input[name*="key" i]')).toBeNull();

@@ -21,12 +21,19 @@ export function SecNewsHeader({ title = '安全看板', onRefresh, refreshing }:
   });
 
   return (
-    <header className="flex items-center justify-between mb-4">
+    // Phase 3 编辑部形态 (DEV-0182): 栏题衬线 + 日期等宽 + hairline 收底, 对齐方案A 原型栏头
+    <header
+      className="flex items-center justify-between mb-4 pb-3"
+      style={{ borderBottom: '1px solid var(--line)' }}
+    >
       <div>
-        <h1 className="text-lg font-semibold font-mono" style={{ color: 'var(--text-primary)' }}>
+        <h1
+          className="text-xl font-bold"
+          style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}
+        >
           {title}
         </h1>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{today}</p>
+        <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--text-muted)' }}>{today}</p>
       </div>
       {onRefresh && (
         <button

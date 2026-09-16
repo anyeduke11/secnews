@@ -13,9 +13,10 @@ export interface FilterState {
   timeRange: 'week' | 'month' | 'all';
 }
 
-const DOMAINS = ['security', 'ai', 'finance', 'product', 'engineering', 'business', 'design', 'other'];
-const TYPES = ['news', 'analysis', 'paper', 'tutorial', 'tool', 'opinion', 'case-study', 'report'];
-const DIFFICULTIES = ['beginner', 'intermediate', 'advanced', 'expert'];
+// C1 (DEV-0189): 导出供编目室 (KnowledgeLibraryPage) 复用 — 筛选枚举单一来源
+export const DOMAINS = ['security', 'ai', 'finance', 'product', 'engineering', 'business', 'design', 'other'];
+export const TYPES = ['news', 'analysis', 'paper', 'tutorial', 'tool', 'opinion', 'case-study', 'report'];
+export const DIFFICULTIES = ['beginner', 'intermediate', 'advanced', 'expert'];
 
 export function KnowledgeFilters({ onFilterChange }: KnowledgeFiltersProps) {
   const [filters, setFilters] = useState<FilterState>({

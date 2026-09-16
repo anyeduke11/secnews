@@ -17,6 +17,9 @@ import { KNOWLEDGE_AREAS } from './KnowledgeTabs';
 const SYNC_URL = '/api/knowledge/sync?source=cubox';
 const OBSIDIAN_OPEN_URL = '/api/knowledge/obsidian/open';
 const OBSIDIAN_CONFLICTS_URL = '/api/knowledge/obsidian/conflicts';
+// C2 (DEV-0195): cubox CLI 导出 / 本地目录导入 (同步异常的人工兜底)
+const CUBOX_IMPORT_CARDS_URL = '/api/knowledge/cubox/import-cards';
+const CUBOX_IMPORT_DIR_URL = '/api/knowledge/cubox/import-dir';
 
 const PHASE_LABELS: Record<string, string> = {
   pending: '等待执行 ...',
@@ -37,6 +40,11 @@ export function KnowledgeImport() {
   const syncPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  // C2 (DEV-0195): cubox CLI 导出导入 + 本地目录导入
+  const [cliBusy, setCliBusy] = useState(false);
+  const [dirPath, setDirPath] = useState('');
+  const [dirBusy, setDirBusy] = useState(false);
+  const cliFileRef = useRef<HTMLInputElement | null>(null);
   const [conflicts, setConflicts] = useState<Array<{ filename: string; size: number; mtime: number }> | null>(null);
 
   const area = KNOWLEDGE_AREAS.find(a => a.key === 'import')!;
@@ -310,6 +318,89 @@ export function KnowledgeImport() {
               '同步 Cubox'
             )}
           </button>
+
+          {/* C2 (DEV-0195): 同步异常的人工兜底 — CLI 导出导入 + 本地目录导入 */}
+          <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--border-color)' }}>
+            <p className="text-[10px] mb-2" style={{ color: 'var(--text-muted)' }}>
+              同步异常时的人工兜底：用 cubox-cli 导出 JSON 上传，或导入本地导出目录。
+            </p>
+            <div className="flex flex-col gap-2">
+              <input
+                ref={cliFileRef}
+                type="file"
+                accept=".json,application/json"
+                className="hidden"
+                data-testid="cubox-cli-file"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = async () => {
+                    try {
+                      const parsed = JSON.parse(String(reader.result));
+                      const cards = Array.isArray(parsed) ? parsed : parsed?.cards;
+                      if (!Array.isArray(cards) || cards.length === 0) {
+                        flashToast({ kind: 'err', msg: '文件形状不符：期望卡片数组或 {cards: [...]}' });
+                        return;
+                      }
+                      setCliBusy(true);
+                      const r = await postJSON<{ imported?: number; new?: number; merged?: number }>(
+                        CUBOX_IMPORT_CARDS_URL,
+                        { cards },
+                      );
+                      flashToast({ kind: 'ok', msg: `已导入 ${r.imported ?? 0} 条（新建 ${r.new ?? 0} · 合并 ${r.merged ?? 0}）` });
+                    } catch (err) {
+                      flashToast({ kind: 'err', msg: `导入失败: ${err instanceof Error ? err.message : String(err)}` });
+                    } finally {
+                      setCliBusy(false);
+                    }
+                  };
+                  reader.readAsText(file);
+                }}
+              />
+              <button
+                onClick={() => cliFileRef.current?.click()}
+                disabled={cliBusy}
+                className="btn-ghost px-3 py-1.5 text-xs w-full"
+                data-testid="cubox-cli-import"
+              >
+                {cliBusy ? '导入中…' : '导入 CLI 导出 JSON'}
+              </button>
+              <div className="flex gap-2">
+                <input
+                  className="editorial-input flex-1 text-xs"
+                  style={{ minWidth: 0 }}
+                  placeholder="本地导出目录绝对路径, 如 /Users/me/cubox-export"
+                  aria-label="cubox 导出目录路径"
+                  value={dirPath}
+                  onChange={e => setDirPath(e.target.value)}
+                />
+                <button
+                  onClick={async () => {
+                    if (!dirPath.trim() || dirBusy) return;
+                    setDirBusy(true);
+                    try {
+                      const r = await postJSON<{ imported?: number; cards?: number; files?: number }>(
+                        CUBOX_IMPORT_DIR_URL,
+                        { path: dirPath.trim() },
+                      );
+                      flashToast({ kind: 'ok', msg: `目录导入完成: ${r.files ?? 0} 文件 ${r.cards ?? 0} 卡 → 入库 ${r.imported ?? 0} 条` });
+                    } catch (err) {
+                      flashToast({ kind: 'err', msg: `目录导入失败: ${err instanceof Error ? err.message : String(err)}` });
+                    } finally {
+                      setDirBusy(false);
+                    }
+                  }}
+                  disabled={dirBusy || !dirPath.trim()}
+                  className="btn-ghost px-3 py-1.5 text-xs whitespace-nowrap"
+                  data-testid="cubox-dir-import"
+                >
+                  {dirBusy ? '导入中…' : '导入目录'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* 书签导入 */}

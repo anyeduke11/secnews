@@ -11,6 +11,7 @@ import { getJSON } from '../../../lib/api';
 import { CveHeatmap } from '../CveHeatmap';
 import { AttackNavigator } from '../AttackNavigator';
 import { ComplianceMatrix } from '../ComplianceMatrix';
+import { StatCard, StatStrip } from '../../shared/editorial/StatCard';
 import type { FrameworkOption } from '../FrameworkFilter';
 
 type Tab = 'heatmap' | 'attack' | 'compliance';
@@ -58,6 +59,19 @@ export function SecNewsAnalytics() {
 
   return (
     <div className="space-y-4">
+      {/* B3 (DEV-0192): 编辑部统计条 — CVE 收录 / 框架覆盖 (真实数据) */}
+      <StatStrip>
+        <StatCard
+          k="CVE 收录 (近期)"
+          v={cveError ? '…' : cveTotal ?? '…'}
+          d={cveError ? cveError : '数据源: /api/cve/recent'}
+        />
+        <StatCard
+          k="合规框架覆盖"
+          v={FRAMEWORKS.length}
+          d={FRAMEWORKS.map(f => f.name).join(' · ')}
+        />
+      </StatStrip>
       <div className="flex items-center gap-1 border-b" style={{ borderColor: 'var(--border-color)' }}>
         {tabs.map((t) => (
           <button

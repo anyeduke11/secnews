@@ -37,6 +37,9 @@ export interface SectionDef {
   label: string;
   icon: React.ReactNode;
   desc?: string;
+  /** B1 (DEV-0192): 内容版式提示 — form=单列全宽 (默认, 表格/表单类);
+   *  mixed=多卡并排网格 (宽屏 ≥2 列, 窄屏自动回落单列, 见 settings-shell.css .set-content-mixed) */
+  layout?: 'form' | 'mixed';
 }
 
 export const SECTIONS: SectionDef[] = [
@@ -54,12 +57,14 @@ export const SECTIONS: SectionDef[] = [
     label: '通用',
     icon: <Icon size={12}><circle cx="12" cy="12" r="3" /><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" /></Icon>,
     desc: '主题 / 刷新 / 维护',
+    layout: 'mixed',
   },
   {
     key: 'collection',
     label: '采集',
     icon: <Icon size={12}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></Icon>,
     desc: '质量 / 信源 / 调度',
+    layout: 'mixed',
   },
   {
     key: 'network',
@@ -129,6 +134,7 @@ export const SECTIONS: SectionDef[] = [
     label: '图片模型',
     icon: <Icon size={12}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></Icon>,
     desc: '深度/轻度/图片 三场景模型选择',
+    layout: 'mixed',
   },
   // v0.8 P1: 独立资讯筛选门禁 (扩展域, 受 feature_gates.info_filter 控制)
   {

@@ -365,3 +365,14 @@
   .settings-shell .st-tilegrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
   .settings-shell .st-head{align-items:flex-start}
 }
+/* ===== B1 (DEV-0192): mixed 版式 — 多卡区段并排网格 =====
+   宽屏 auto-fit ≥400px 列 (1580px 容器下 2-3 列), 窄屏自动回落单列;
+   仅套在 layout='mixed' 的区段 (general/collection/image_models), 表格类区段保持单列。 */
+.settings-shell .set-content{min-width:0}
+.settings-shell .set-content-mixed{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(400px,1fr));
+  gap:12px;
+  align-items:start;
+}
+.settings-shell .set-content-mixed>*{min-width:0}

@@ -363,27 +363,16 @@ describe('SentinelHomePage — 哨兵终端首页', () => {
     expect(screen.getByText(/每页 100/)).toBeInTheDocument();
   });
 
-  it('壳层溢出菜单: 展开可达报纸版删除后失去入口的 11 项能力, Esc 收起', async () => {
+  it('P2 壳层: 更多菜单已物理删除 (工具页高亮改由 menuOf 接管)', async () => {
     render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
 
-    const btn = screen.getByRole('button', { name: /更多/ });
-    expect(btn).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    // P2: 「更多」按钮 + 溢出菜单物理删除 — 工具页由四菜单 tab 高亮代替
+    expect(screen.queryByRole('button', { name: /更多/ })).toBeNull();
+    expect(screen.queryByRole('menu', { name: '功能入口' })).toBeNull();
 
-    fireEvent.click(btn);
-    const menu = screen.getByRole('menu');
-    expect(btn).toHaveAttribute('aria-expanded', 'true');
-
-    const hrefs = [...menu.querySelectorAll('a')].map(a => a.getAttribute('href'));
-    for (const to of ['/report', '/history', '/reviews', '/secnews', '/knowledge',
-                      '/skills', '/todos', '/garden', '/secrets', '/sync', '/settings']) {
-      expect(hrefs, `菜单缺少 ${to}`).toContain(to);
-    }
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-    expect(btn).toHaveAttribute('aria-expanded', 'false');
+    // 四菜单 tab 由 menuOf 自动归属当前首页 (/ → data=资讯); ^锚定避免命中版面条「情报流」chip
+    expect(screen.getByRole('link', { name: /^资讯/ }).className).toContain('active');
   });
 
   it('心跳条: 渲染生命周期漏斗与队列三态 (吸收自 workbench StatusBar)', async () => {
@@ -583,5 +572,15 @@ describe('SentinelHomePage — SSE 刷新节奏契约 (cadence 修正批)', () =
     await waitFor(() => expect(screen.getByText(/每 60 分钟自动采集/)).toBeInTheDocument());
     expect(screen.getByText(/采集管线每 60 分钟自动运行一轮/)).toBeInTheDocument();
     expect(screen.queryByText(/每 5 分钟/)).toBeNull();
+  });
+});
+
+describe('SentinelHomePage — A1 sticky 层叠修整 (DEV-0188)', () => {
+  it('两条 controlbar: 检索条 sticky 偏移联动版面条高度变量 (controlbar 不依赖数据加载, 始终渲染)', () => {
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    const bars = document.querySelectorAll<HTMLElement>('.controlbar');
+    expect(bars.length).toBe(2);
+    // 第二条 (检索条) 的 sticky top 让出 bandnav 高度 + 第一条高度, 随收起态联动
+    expect(bars[1].style.top).toBe('calc(var(--sn-bandnav-h) + 52px)');
   });
 });

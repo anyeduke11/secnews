@@ -251,3 +251,17 @@
   .sentinel .ac-head{align-items:flex-start}
   .sentinel .ac-scr{padding:22px 20px 48px}
 }
+
+/* ===== Phase 3 编辑部排版覆盖 (DEV-0182, 对齐方案A 原型) =====
+   显示级标题/栏头/内容题切衬线; 导航悬停统一走主题 accent (mint 保留给完成/激活语义);
+   屏头双细线与资料层 story-top 同语言。其余布局/间距/语义色不动。 */
+.sentinel .ac-h1{font-family:var(--sn-serif);letter-spacing:-.015em}
+.sentinel .ac-h1 b{font-weight:900}
+.sentinel .ac-head{border-bottom:3px double var(--sn-line-strong)}
+.sentinel .ac-ph h2{font-family:var(--sn-serif);font-size:14.5px;letter-spacing:-.005em}
+.sentinel .ac-tt{font-family:var(--sn-serif);font-weight:600;font-size:13.5px}
+.sentinel .ac-tt a:hover{color:var(--sn-accent)}
+.sentinel .ac-dt{font-family:var(--sn-serif)}
+.sentinel .ac-empty h3{font-family:var(--sn-serif)}
+.sentinel .ac-link{color:var(--sn-accent)}
+.sentinel .ac-link:hover{color:var(--sn-accent)}

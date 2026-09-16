@@ -192,8 +192,8 @@ describe('SentinelActionPage — 行动层今日行动', () => {
     expect(container.querySelector('.ac-days')).toBeInTheDocument();
     expect(screen.getByText('复习栈')).toBeInTheDocument();
     screen.getByText('判读待办');
-    // 壳: 行动层 active
-    expect(container.querySelector('.layer-link.active')).toHaveTextContent('行动层');
+    // 壳: 行动菜单 active (Phase 2 编辑部导航 .nv, active = accent 下划线)
+    expect(container.querySelector('.nv.active')).toHaveTextContent('行动');
   });
 
   it('真实数据驱动: 待办/判读队列/复习卡片与今日收录均来自接口', async () => {

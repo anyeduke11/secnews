@@ -1,0 +1,24 @@
+-- ============================================================================
+-- 118_annotations_quote.sql — C2 批注 B+ 锚点: annotations 表加 quote 引文列
+--
+-- 背景
+-- ----
+-- UI 重构收尾批 C2 (DEV-0190): 清样深读 (/reader/:id) 批注能力落地。
+-- migration 027 已建 annotations 表 (entity_type/entity_id/content/range_start/
+-- range_end/created_at/updated_at), 本迁移按 B+ 锚点设计 (收尾批方案 DD-7,
+-- owner 2026-09-16 已批) 追加 quote 列——存高亮原文引文 (≤500 字)。
+--
+-- B+ 四步解析 (渲染时, 前端执行)
+-- ----
+--   1) 快路径: content.slice(range_start, range_end) == quote → 定位
+--   2) 原偏移 ±2000 字符窗内搜引文, 取最近出现 → 重锚定 (自愈)
+--   3) 全文搜引文兜底
+--   4) 找不到 → 标 stale (右栏「未定位」展示), 永不静默错放
+--
+-- 向后兼容
+-- --------
+-- 加列不改既有行: 旧行 quote=NULL → 解析降级为纯偏移行为 (与 027 语义一致)。
+-- 不新建表、不动 wiki md 单写路径 (批注是阅读层元数据, DB 侧车)。
+-- ============================================================================
+
+ALTER TABLE annotations ADD COLUMN quote TEXT;

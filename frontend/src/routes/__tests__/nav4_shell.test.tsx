@@ -42,10 +42,10 @@ describe("NAV4 §5: 四菜单 SentinelShell", () => {
     const block = /const LAYER_DEFS[\s\S]*?^\];/m.exec(SHELL_TSX);
     expect(block).toBeTruthy();
     if (block) {
-      expect(block[0]).toMatch(/layer: 'data',[^\n]*to: '\/',/);
-      expect(block[0]).toMatch(/layer: 'knowledge',[^\n]*to: '\/knowledge',/);
-      expect(block[0]).toMatch(/layer: 'action',[^\n]*to: '\/action',/);
-      expect(block[0]).toMatch(/layer: 'settings',[^\n]*to: '\/settings',/);
+      expect(block[0]).toMatch(/layer: 'data',[^\n]*to: '\/'/);
+      expect(block[0]).toMatch(/layer: 'knowledge',[^\n]*to: '\/knowledge'/);
+      expect(block[0]).toMatch(/layer: 'action',[^\n]*to: '\/action'/);
+      expect(block[0]).toMatch(/layer: 'settings',[^\n]*to: '\/settings'/);
       // 旧三层映射必须消失
       expect(block[0]).not.toMatch(/to: '\/judge'/);
     }
@@ -284,5 +284,144 @@ describe("NAV4 §5: menuOf 全分支归属守卫 (21 个未测分支)", () => {
   it("/oauth-callback 等未命中路径 → menuOf 返回 null (兜底分支)", () => {
     // menuOf 末尾必须是 `return null;` 而不是 `return undefined;` 或 `return 'data';`
     expect(SHELL_TSX).toMatch(/return\s+null\s*;?\s*\n\s*\}\s*\n/);
+  });
+});
+
+describe("Phase 2 编辑部形态: masthead + bandnav + pressbar (DEV-0181)", () => {
+  it("壳三段用编辑部类名, 旧哨兵顶栏/浮卡心跳类名清空", () => {
+    expect(SHELL_TSX).toMatch(/className="masthead"/);
+    expect(SHELL_TSX).toMatch(/className=\{`bandnav\$\{bandnavCollapsed/);
+    expect(SHELL_TSX).toMatch(/className="pressbar"/);
+    expect(SHELL_TSX).not.toMatch(/className="appbar"/);
+    expect(SHELL_TSX).not.toMatch(/layer-link/);
+    expect(SHELL_TSX).not.toMatch(/className="pipeline"/);
+  });
+
+  it("sentinel.css 落编辑部样式 (报头/版面条/印务条/nv 下划线), 旧选择器清空", () => {
+    expect(SENTINEL_CSS).toMatch(/\.sentinel \.masthead\{/);
+    expect(SENTINEL_CSS).toMatch(/\.sentinel \.bandnav\{/);
+    expect(SENTINEL_CSS).toMatch(/\.sentinel \.pressbar\{/);
+    expect(SENTINEL_CSS).toMatch(/\.sentinel \.nv\.active::after/);
+    expect(SENTINEL_CSS).not.toMatch(/\.sentinel \.appbar\b/);
+    expect(SENTINEL_CSS).not.toMatch(/\.sentinel \.layer-link\b/);
+    expect(SENTINEL_CSS).not.toMatch(/\.sentinel \.pipeline\b/);
+  });
+
+  it("BANDNAV_DEFS 覆盖四菜单, gate chip 与路由 features.* 条件同源", () => {
+    expect(SHELL_TSX).toMatch(/const BANDNAV_DEFS: Record<SentinelLayer, BandItem\[\]>/);
+    for (const key of ["data", "knowledge", "action", "settings"]) {
+      const block = new RegExp(`${key}: \\[[\\s\\S]*?\\],`).exec(SHELL_TSX);
+      expect(block, `BANDNAV_DEFS.${key} 缺失`).toBeTruthy();
+    }
+    expect(SHELL_TSX).toMatch(/gate: 'secnews'/);
+    expect(SHELL_TSX).toMatch(/gate: 'codegarden'/);
+    expect(SHELL_TSX).toMatch(/gate: 'sync'/);
+  });
+
+  it("bandnav current 判定走 chipIsCurrent 前缀匹配; 归属复用 menuOf (工具页自动高亮)", () => {
+    expect(SHELL_TSX).toMatch(/function chipIsCurrent/);
+    expect(SHELL_TSX).toMatch(/const activeLayer = layer \?\? menuOf\(pathname\)/);
+  });
+
+  it("PageLayout 内容容器 vwrap 化: max-width 1580 + 编辑留白 (底部 64px)", () => {
+    expect(LAYOUT_TSX).toMatch(/max-w-\[1580px\]/);
+  });
+});
+
+describe("Phase 4 新增视图: 5 路由注册 + menuOf 归属 + 未实现登记 (DEV-0183)", () => {
+  it("5 条新路由声明存在 (均在现有四菜单下, 无新一级入口)", () => {
+    for (const p of ["/knowledge/khub", "/knowledge/library", "/action/events", "/reader/:id", "/quality"]) {
+      const line = routeLine(p);
+      expect(line, `路由 ${p} 缺失`).toBeTruthy();
+    }
+  });
+
+  it("/quality/rejection 升格为子标签, 旧深链重定向 (A5: QueryMergeRedirect 合并透传)", () => {
+    const line = routeLine("/quality/rejection");
+    expect(line).toBeTruthy();
+    expect(line).toContain("QueryMergeRedirect");
+    expect(line).toContain("tab: 'rejection'");
+    expect(line).not.toMatch(/QualityRejectionPage/);
+  });
+
+  it("menuOf 覆盖 /reader → knowledge (清样深读归知识菜单)", () => {
+    expect(SHELL_TSX).toMatch(/startsWith\(['"]\/reader['"]\)/);
+  });
+
+  it("bandnav chips 指向新视图 (前厅/编目室/通稿审核/质量校对)", () => {
+    for (const chip of ["/knowledge/khub", "/knowledge/library", "/action/events"]) {
+      expect(SHELL_TSX).toContain(`to: '${chip}'`);
+    }
+    expect(SHELL_TSX).toMatch(/label: '质量校对', to: '\/quality'/);
+  });
+
+  it("5 个视图组件文件存在且带 colocated test", () => {
+    const files = [
+      "src/components/knowledge/KnowledgeHubPage.tsx",
+      "src/components/knowledge/KnowledgeLibraryPage.tsx",
+      "src/components/events/EventsReviewPage.tsx",
+      "src/components/reader/DeepReaderPage.tsx",
+      "src/components/quality/QualityDashboardPage.tsx",
+    ];
+    for (const f of files) {
+      expect(() => readFileSync(join(ROOT, f), "utf-8"), `${f} 缺失`).not.toThrow();
+      expect(() => readFileSync(join(ROOT, f.replace(/\.tsx$/, ".test.tsx")), "utf-8")).not.toThrow();
+    }
+  });
+
+  it("未实现端点 TODO 全部闭环 (C1/C2/C3 后 khub/library/reader 均接真实数据)", () => {
+    // C3 (DEV-0191): hub-stats 聚合端点落地, khub 摘除最后的 TODO 印章
+    const hub = readFileSync(join(ROOT, "src/components/knowledge/KnowledgeHubPage.tsx"), "utf-8");
+    expect(hub).not.toContain("backend not implemented");
+    expect(hub).toContain("/api/knowledge/hub-stats");
+    const reader = readFileSync(join(ROOT, "src/components/reader/DeepReaderPage.tsx"), "utf-8");
+    expect(reader).not.toContain("backend not implemented");
+    const library = readFileSync(join(ROOT, "src/components/knowledge/KnowledgeLibraryPage.tsx"), "utf-8");
+    expect(library).not.toContain("backend not implemented");
+  });
+
+  it("C 收口回归 (DEV-0193): 5 视图不得自嵌 SentinelShell — PageLayout 已提供壳, 自嵌=用户可见的报头/版面条/印务条双份", () => {
+    const files = [
+      "src/components/knowledge/KnowledgeHubPage.tsx",
+      "src/components/knowledge/KnowledgeLibraryPage.tsx",
+      "src/components/events/EventsReviewPage.tsx",
+      "src/components/reader/DeepReaderPage.tsx",
+      "src/components/quality/QualityDashboardPage.tsx",
+    ];
+    for (const f of files) {
+      const src = readFileSync(join(ROOT, f), "utf-8");
+      expect(src, `${f} 自嵌了 SentinelShell (双壳回归)`).not.toContain("SentinelShell");
+    }
+  });
+
+  it("UNIMPLEMENTED 台账存在且覆盖 5 视图", () => {
+    const ledger = readFileSync(join(ROOT, "../docs/UNIMPLEMENTED.md"), "utf-8");
+    for (const key of ["khub", "library", "events", "reader", "quality"]) {
+      expect(ledger).toContain(key);
+    }
+  });
+});
+
+describe("Phase 5 无限画布: graph/kcanvas 双模式 (DEV-0184)", () => {
+  it("KnowledgeCanvasPage 双模式: 画布模式默认 + ECharts 印厂 demo 降级保留 (roam/draggable 源串不丢)", () => {
+    const canvas = readFileSync(join(ROOT, "src/components/KnowledgeCanvasPage.tsx"), "utf-8");
+    expect(canvas).toMatch(/from ['"][./]*shared\/editorial\/InfiniteCanvas['"]/);
+    expect(canvas).toMatch(/useState<['"]dom['"] \| ['"]echarts['"]>\(['"]dom['"]\)/);
+    expect(canvas).toMatch(/roam:\s*true/);
+    expect(canvas).toMatch(/draggable:\s*true/);
+  });
+
+  it("SentinelGraphPage 画布模式开关: SVG 直排保留为默认 (降级路径)", () => {
+    const graph = readFileSync(join(ROOT, "src/components/sentinel/SentinelGraphPage.tsx"), "utf-8");
+    expect(graph).toMatch(/const \[canvasMode, setCanvasMode\] = useState\(false\)/);
+    expect(graph).toMatch(/画布模式/);
+    expect(graph).toMatch(/from ['"][./]*shared\/editorial\/InfiniteCanvas['"]/);
+  });
+
+  it("共享 InfiniteCanvas 提供画布坐标 context (节点拖拽换算) 与重置交互", () => {
+    const comp = readFileSync(join(ROOT, "src/components/shared/editorial/InfiniteCanvas.tsx"), "utf-8");
+    expect(comp).toMatch(/export function useCanvasCoords/);
+    expect(comp).toMatch(/onDoubleClick/);
+    expect(comp).toMatch(/data-canvas-node/);
   });
 });

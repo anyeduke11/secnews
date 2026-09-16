@@ -57,7 +57,7 @@ export function SkillsPage({ onBack }: SkillsPageProps) {
   ).sort();
 
   return (
-    <div className="skills-page">
+    <div className="skills-page ed-typo">
       {/* 顶部标题区 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
         <div className="flex items-center gap-3">

@@ -26,3 +26,14 @@ router = APIRouter()
 router.include_router(write_router)
 router.include_router(query_router)
 router.include_router(reuse_router)
+
+
+# UI 收尾批 C3 (DEV-0191): 资料库前厅聚合统计 — 挂既有聚合 router (routers 计数不变)
+@router.get("/api/knowledge/hub-stats")
+async def knowledge_hub_stats() -> dict:
+    """前厅六源聚合 (只读, 逐源容错; DD-6 不落缓存, 单请求直算)。"""
+    import asyncio
+
+    from backend.services.hub_stats_service import hub_stats
+
+    return await asyncio.to_thread(hub_stats)

@@ -216,7 +216,8 @@ describe('SentinelGardenPage — 哨兵终端 · 05 CodeGarden', () => {
     const { container } = await renderGarden();
     await waitFor(() => expect(screen.getByText('6 PROJECTS')).toBeInTheDocument());
 
-    // 壳层 appbar 自带主题/设置/更多三个按钮; 本页自身不得新增任何可操作按钮
+    // 壳层自带主题/设置两个按钮 (P2: 更多菜单物理删除) + 版面条收起按钮 (A7, DEV-0188, 只写 localStorage);
+    // 本页自身不得新增任何可操作按钮
     expect(container.querySelectorAll('.scr-codegarden button')).toHaveLength(0);
     expect(container.querySelectorAll('button')).toHaveLength(3);
     expect(container.querySelectorAll('[role="button"]')).toHaveLength(0);

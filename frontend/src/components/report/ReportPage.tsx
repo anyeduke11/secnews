@@ -45,7 +45,7 @@ export function ReportPage({ onBack }: ReportPageProps) {
   }, []);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 ed-typo">
       {/* 头部 */}
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="btn-ghost px-2 py-1.5 text-xs" aria-label="返回">

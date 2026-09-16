@@ -12,6 +12,7 @@ import { AliveCard } from './AliveCard';
 import { FunnelBar } from './FunnelBar';
 import { QueueCard } from './QueueCard';
 import { TokenLedger } from './TokenLedger';
+import { SourceMatrixCard } from './SourceMatrixCard';
 import { useI18n } from '../../../contexts/I18nContext';
 
 interface PipelineStats {
@@ -71,6 +72,7 @@ export function PipelineView() {
       {stats && (
         <div className="flex flex-col gap-4">
           <FunnelBar funnel={stats.funnel} />
+          <SourceMatrixCard />
           <AliveCard alive={stats.alive} onSwept={fetchStats} />
           <QueueCard queue={stats.queue} errors={stats.errors} />
           <TokenLedger />

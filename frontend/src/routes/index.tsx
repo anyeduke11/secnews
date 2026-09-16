@@ -42,6 +42,15 @@ export function QueryRedirect({ to }: { to: string }) {
   return <Navigate to={`${to}${search}`} replace />;
 }
 
+/** A5 (DEV-0188): 重定向 + 合并 query — 旧深链上的附加参数不丢弃 (导出供运行时测试) */
+export function QueryMergeRedirect({ to, merge }: { to: string; merge: Record<string, string> }) {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  for (const [k, v] of Object.entries(merge)) params.set(k, v);
+  const qs = params.toString();
+  return <Navigate to={qs ? `${to}?${qs}` : to} replace />;
+}
+
 /** Suspense 全局加载占位 (不进行白屏) */
 function PageFallback() {
   return (
@@ -185,12 +194,22 @@ export function AppRoutes() {
         <Route path="/knowledge/graph" element={<Suspense fallback={<PageFallback />}><P.SentinelGraphPage /></Suspense>} />
         {/* NAV4 P3 (2026-09-13, DEV-0178): 无限画布 demo (ECharts roam + draggable) — 知识菜单附加视图 */}
         <Route path="/knowledge/canvas" element={<Suspense fallback={<PageFallback />}><P.KnowledgeCanvasPage /></Suspense>} />
+        {/* Phase 4 (DEV-0183): 资料库前厅 + 编目室 (知识菜单附加视图; 未实现端点见 docs/UNIMPLEMENTED.md) */}
+        <Route path="/knowledge/khub" element={<Suspense fallback={<PageFallback />}><P.KnowledgeHubPage /></Suspense>} />
+        <Route path="/knowledge/library" element={<Suspense fallback={<PageFallback />}><P.KnowledgeLibraryPage /></Suspense>} />
 
         <Route path="/reviews" element={<Suspense fallback={<PageFallback />}><P.ReviewPage /></Suspense>} />
         {/* /deep/:type/:id 跨实体深读视图, 与知识库 /knowledge/deep-read/:id 并存 (不同组件) */}
         <Route path="/deep/:type/:id" element={<Suspense fallback={<PageFallback />}><P.DeepReadView /></Suspense>} />
         {/* P1.4: /brief (官方每日简报) 已合并进 /knowledge/briefing, 旧路径重定向 */}
-        <Route path="/quality/rejection" element={<Suspense fallback={<PageFallback />}><P.QualityRejectionPage /></Suspense>} />
+        {/* Phase 4 (DEV-0183): 清样深读 — wiki 条目纯阅读流 (/deep/:type/:id 为 AI 判读流) */}
+        <Route path="/reader/:id" element={<Suspense fallback={<PageFallback />}><P.DeepReaderPage /></Suspense>} />
+        {/* Phase 4 (DEV-0183): 校对室全貌 — /quality/rejection 升格为子标签 (旧深链重定向兼容; A5: query 合并透传) */}
+        <Route path="/quality" element={<Suspense fallback={<PageFallback />}><P.QualityDashboardPage /></Suspense>} />
+        <Route path="/quality/rejection" element={<QueryMergeRedirect to="/quality" merge={{ tab: 'rejection' }} />} />
+
+        {/* Phase 4 (DEV-0183): 通稿审核 — MP-2 事件类型候选人工审定 (真实 /api/event-technique 端点) */}
+        <Route path="/action/events" element={<Suspense fallback={<PageFallback />}><P.EventsReviewPage /></Suspense>} />
         {features.codegarden && (
           <>
             <Route path="/codegarden" element={<Suspense fallback={<PageFallback />}><P.CodegardenPage onBack={goBack} /></Suspense>} />

@@ -1,10 +1,11 @@
 /**
- * SentinelGraphPage — 哨兵终端 · 判断层知识图谱 (V2 设计稿 knowledge-graph 屏)
+ * SentinelGraphPage — 哨兵终端 · 知识菜单图谱 (NAV4 2026-09-13)
  *
- * 信息架构: 判断层第二屏 — 把孤立条目织成概念网。
+ * 信息架构: 知识 — 把孤立条目织成概念网。
  *  - 主区: 零依赖手写 SVG 图谱 (确定性域扇区布局, 无 physics 抖动) + 图例 + 分布说明 + 节点索引
  *  - 右栏: 选中节点详情 / 关联条目 / 本周增长
  *
+ * 壳: SentinelShell layer=knowledge (四菜单壳)
  * 数据面现实 (2026-08-29 实测, 界面按真实口径标注, 不伪造):
  *  - GET /api/knowledge/graph → {nodes:[98], edges:[107]}; 节点 type 恒为 concept,
  *    边 type 恒为 related (graph_builder 由 concepts 同现统计生成), weight 为同现次数
@@ -23,6 +24,7 @@ import { listHotspots } from '../../api/hotspots';
 import { getJSON } from '../../lib/api';
 import { getKnowledgeConceptDetail, getKnowledgeGraph, KnowledgeApiError } from '../../api/knowledge';
 import { SentinelShell, usePipeReloadOnSse } from './SentinelShell';
+import { InfiniteCanvas } from '../shared/editorial/InfiniteCanvas';
 import './sentinel.css';
 import './sentinel-graph.css';
 
@@ -212,6 +214,14 @@ export function SentinelGraphPage() {
   const [selected, setSelected] = useState<GraphNode | null>(null);
   const [domain, setDomain] = useState('all');
   const [hidden, setHidden] = useState<string[]>([]);
+  // Phase 5 (DEV-0184): 画布模式开关 — 同一 SVG 挂入无限画布 (pan/zoom); SVG 直排模式保留为默认降级
+  const [canvasMode, setCanvasMode] = useState(false);
+  // A4 (DEV-0188): 画布模式 zoom 感知命中补偿 — zoom 量化到 0.1 档, 避免每帧重渲染整页
+  const [canvasHitZoom, setCanvasHitZoom] = useState(1);
+  const handleCanvasTransform = useCallback((t: { x: number; y: number; zoom: number }) => {
+    const q = Math.max(0.1, Math.round(t.zoom * 10) / 10);
+    setCanvasHitZoom(prev => (prev === q ? prev : q));
+  }, []);
   const [ingested, setIngested] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -380,7 +390,7 @@ export function SentinelGraphPage() {
   const selectedDeg = selected ? degrees.get(selected.id) ?? 0 : 0;
 
   return (
-    <SentinelShell layer="judge" ingested={ingested}>
+    <SentinelShell layer="knowledge" ingested={ingested}>
       <section className="scr kg-scr" aria-label="判断层 · 知识图谱">
         <div className="kg-headrow">
           <div>
@@ -420,6 +430,15 @@ export function SentinelGraphPage() {
               显示已隐藏的 {hidden.length} 个
             </button>
           )}
+          <button
+            type="button"
+            className={`kg-chip${canvasMode ? ' is-on' : ''}`}
+            aria-pressed={canvasMode}
+            title="同一图谱挂入无限画布: 拖拽平移 / 滚轮缩放 / 双击重置"
+            onClick={() => setCanvasMode(c => !c)}
+          >
+            画布模式
+          </button>
           <button type="button" className="kg-chip kg-chip-nav" onClick={() => navigate('/judge')}>回判读台</button>
         </div>
 
@@ -449,12 +468,15 @@ export function SentinelGraphPage() {
               </div>
             ) : (
               <>
-                <svg
-                  className="kg-graphsvg"
-                  viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-                  role="img"
-                  aria-label={svgLabel}
-                >
+                {(() => {
+                  const svg = (
+                    <svg
+                      className="kg-graphsvg"
+                      viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+                      role="img"
+                      aria-label={svgLabel}
+                      style={canvasMode ? { width: VIEW_W, height: VIEW_H } : undefined}
+                    >
                   <g className="kg-layer-edges" aria-hidden="true">
                     {visibleEdges.map((e, i) => {
                       const a = posOf.get(e.source)!;
@@ -491,6 +513,18 @@ export function SentinelGraphPage() {
                           onClick={() => pick(n)}
                         >
                           <title>{`${n.id} · ${n.label}（${domainLabel(n.dom)} · 关联 ${n.deg} 条边 · ${n.count} 条来源条目）`}</title>
+                          {/* A4: 画布模式下放大透明命中圆 (fill=none 不参与绘制, 仅扩大点击热区);
+                              r 随画布 zoom 反向补偿, 极小 zoom 下节点仍可点中 */}
+                          {canvasMode && (
+                            <circle
+                              className="kg-hit"
+                              cx={n.x}
+                              cy={n.y}
+                              r={Math.max(n.r, Math.min(48, 14 / canvasHitZoom))}
+                              fill="none"
+                              pointerEvents="all"
+                            />
+                          )}
                           {isSel && (
                             <>
                               <circle className="kg-sel-halo" cx={n.x} cy={n.y} r={n.r + 11} />
@@ -514,7 +548,25 @@ export function SentinelGraphPage() {
                       </text>
                     ))}
                   </g>
-                </svg>
+                    </svg>
+                  );
+                  // Phase 5: 画布模式 — 同一 SVG (固定像素尺寸) 挂入无限画布; 直排模式原样返回
+                  return canvasMode ? (
+                    <InfiniteCanvas
+                      height={640}
+                      worldWidth={VIEW_W * 2}
+                      worldHeight={VIEW_H * 2}
+                      ariaLabel="知识图谱画布 (拖拽空白平移, 滚轮缩放, 双击重置)"
+                      onTransformChange={handleCanvasTransform}
+                    >
+                      <div style={{ position: 'absolute', left: VIEW_W / 2, top: VIEW_H / 2 }}>
+                        {svg}
+                      </div>
+                    </InfiniteCanvas>
+                  ) : (
+                    svg
+                  );
+                })()}
 
                 <div className="kg-legend" aria-hidden="true">
                   {stats.cve > 0 && (

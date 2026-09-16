@@ -30,9 +30,28 @@
       "agent_owner": "A",
       "priority": "high",
       "description": "通过加密/窃取数据索要赎金的攻击, 通常伴随双阶段勒索 (窃取+公开)",
-      "typical_signals": ["ransom", "encrypt", "lockbit", "blackcat", "cl0p", "双重勒索", "数据公开"],
-      "kill_chain_stages": ["Initial Access", "Execution", "Lateral Movement", "Exfiltration", "Impact"],
-      "report_source_pool": ["MITRE Case Studies G0050 (FIN6)", "CrowdStrike 2024 Global Threat Report", "Verizon DBIR 2024", "CISA #StopRansomware advisories"]
+      "typical_signals": [
+        "ransom",
+        "encrypt",
+        "lockbit",
+        "blackcat",
+        "cl0p",
+        "双重勒索",
+        "数据公开"
+      ],
+      "kill_chain_stages": [
+        "Initial Access",
+        "Execution",
+        "Lateral Movement",
+        "Exfiltration",
+        "Impact"
+      ],
+      "report_source_pool": [
+        "MITRE Case Studies G0050 (FIN6)",
+        "CrowdStrike 2024 Global Threat Report",
+        "Verizon DBIR 2024",
+        "CISA #StopRansomware advisories"
+      ]
     },
     {
       "id": "evt_phishing_social",
@@ -42,9 +61,28 @@
       "agent_owner": "A",
       "priority": "high",
       "description": "通过邮件/IM/语音伪装身份诱导用户泄露凭据/执行恶意附件/转账",
-      "typical_signals": ["phishing", "spear phishing", "vishing", "smishing", "BEC", "business email compromise", "钓鱼", "冒充"],
-      "kill_chain_stages": ["Reconnaissance", "Resource Development", "Initial Access", "Credential Access"],
-      "report_source_pool": ["MITRE G0001 ( Axiom ) / G0046 (FIN7)", "Anti-Phishing Working Group reports", "Verizon DBIR social engineering section", "FBI IC3 BEC reports"]
+      "typical_signals": [
+        "phishing",
+        "spear phishing",
+        "vishing",
+        "smishing",
+        "BEC",
+        "business email compromise",
+        "钓鱼",
+        "冒充"
+      ],
+      "kill_chain_stages": [
+        "Reconnaissance",
+        "Resource Development",
+        "Initial Access",
+        "Credential Access"
+      ],
+      "report_source_pool": [
+        "MITRE G0001 ( Axiom ) / G0046 (FIN7)",
+        "Anti-Phishing Working Group reports",
+        "Verizon DBIR social engineering section",
+        "FBI IC3 BEC reports"
+      ]
     },
     {
       "id": "evt_web_app_intrusion",
@@ -54,9 +92,31 @@
       "agent_owner": "A",
       "priority": "high",
       "description": "针对 Web 应用漏洞 (注入/反序列化/越权/SSRF) 的入侵, 通常导致数据泄露或后门植入",
-      "typical_signals": ["sql injection", "rce", "ssrf", "xxe", "deserialization", "auth bypass", "IDOR", "Web 入侵", "SQL 注入", "SSRF"],
-      "kill_chain_stages": ["Initial Access", "Execution", "Persistence", "Collection", "Exfiltration"],
-      "report_source_pool": ["OWASP Top 10 case studies", "HackerOne disclosed reports", "PortSwigger Web Security Academy", "Cloudflare 2024 AppSec report"]
+      "typical_signals": [
+        "sql injection",
+        "rce",
+        "ssrf",
+        "xxe",
+        "deserialization",
+        "auth bypass",
+        "IDOR",
+        "Web 入侵",
+        "SQL 注入",
+        "SSRF"
+      ],
+      "kill_chain_stages": [
+        "Initial Access",
+        "Execution",
+        "Persistence",
+        "Collection",
+        "Exfiltration"
+      ],
+      "report_source_pool": [
+        "OWASP Top 10 case studies",
+        "HackerOne disclosed reports",
+        "PortSwigger Web Security Academy",
+        "Cloudflare 2024 AppSec report"
+      ]
     },
     {
       "id": "evt_supply_chain",
@@ -66,9 +126,28 @@
       "agent_owner": "A",
       "priority": "high",
       "description": "通过污染上游依赖 (代码包/构建工具/更新通道/供应商远程访问) 实现下游批量入侵",
-      "typical_signals": ["supply chain", "dependency confusion", "typosquatting", "build compromise", "update hijack", "供应链", "投毒", "依赖混淆"],
-      "kill_chain_stages": ["Resource Development", "Initial Access", "Execution", "Persistence"],
-      "report_source_pool": ["MITRE G0118 ( SolarWinds )", "Sonatype State of Software Supply Chain 2024", "ENISA Threat Landscape Supply Chain", "XZ Utils backdoor (CVE-2024-3094) postmortems"]
+      "typical_signals": [
+        "supply chain",
+        "dependency confusion",
+        "typosquatting",
+        "build compromise",
+        "update hijack",
+        "供应链",
+        "投毒",
+        "依赖混淆"
+      ],
+      "kill_chain_stages": [
+        "Resource Development",
+        "Initial Access",
+        "Execution",
+        "Persistence"
+      ],
+      "report_source_pool": [
+        "MITRE G0118 ( SolarWinds )",
+        "Sonatype State of Software Supply Chain 2024",
+        "ENISA Threat Landscape Supply Chain",
+        "XZ Utils backdoor (CVE-2024-3094) postmortems"
+      ]
     },
     {
       "id": "evt_brute_force",
@@ -78,9 +157,25 @@
       "agent_owner": "A",
       "priority": "high",
       "description": "针对凭据 (账号密码/口令/MFA bypass) 的规模化尝试, 包括字典/撞库/OTP 劫持",
-      "typical_signals": ["brute force", "credential stuffing", "password spray", "MFA bypass", "暴力破解", "撞库", "口令喷洒"],
-      "kill_chain_stages": ["Credential Access", "Initial Access"],
-      "report_source_pool": ["Microsoft Digital Defense Report", "Akamai State of the Internet Security", "Shape AI Threat Report", "F5 Labs credential stuffing"]
+      "typical_signals": [
+        "brute force",
+        "credential stuffing",
+        "password spray",
+        "MFA bypass",
+        "暴力破解",
+        "撞库",
+        "口令喷洒"
+      ],
+      "kill_chain_stages": [
+        "Credential Access",
+        "Initial Access"
+      ],
+      "report_source_pool": [
+        "Microsoft Digital Defense Report",
+        "Akamai State of the Internet Security",
+        "Shape AI Threat Report",
+        "F5 Labs credential stuffing"
+      ]
     },
     {
       "id": "evt_insider_threat",
@@ -90,9 +185,25 @@
       "agent_owner": "B",
       "priority": "mid",
       "description": "拥有合法权限的内部人员 (员工/合同方/离职未撤权) 的滥用或无意泄露",
-      "typical_signals": ["insider", "malicious insider", "data exfil by employee", "离职未撤权", "内部威胁", "数据外发"],
-      "kill_chain_stages": ["Collection", "Exfiltration", "Impact"],
-      "report_source_pool": ["CERT Insider Threat Center", "Ponemon Cost of Insider Threats", "MITRE G0007 ( Hidden Lynx ) / G0009 ( Deep Panda )", "Dtex 2024 Insider Risk Report"]
+      "typical_signals": [
+        "insider",
+        "malicious insider",
+        "data exfil by employee",
+        "离职未撤权",
+        "内部威胁",
+        "数据外发"
+      ],
+      "kill_chain_stages": [
+        "Collection",
+        "Exfiltration",
+        "Impact"
+      ],
+      "report_source_pool": [
+        "CERT Insider Threat Center",
+        "Ponemon Cost of Insider Threats",
+        "MITRE G0007 ( Hidden Lynx ) / G0009 ( Deep Panda )",
+        "Dtex 2024 Insider Risk Report"
+      ]
     },
     {
       "id": "evt_cloud_misconfig",
@@ -102,9 +213,26 @@
       "agent_owner": "B",
       "priority": "mid",
       "description": "云上存储/计算/网络/IAM 因配置错误导致的公开暴露或越权访问, 通常非主动攻击",
-      "typical_signals": ["S3 bucket public", "blob exposed", "IAM wildcard", "security group open", "云存储公开", "IAM 越权", "kubeconfig 暴露"],
-      "kill_chain_stages": ["Reconnaissance", "Initial Access", "Collection"],
-      "report_source_pool": ["AWS Security Bulletins", "Wiz Cloud Security Reports", "Palo Alto Unit 42 cloud threat reports", "Netskope Cloud Threat Report"]
+      "typical_signals": [
+        "S3 bucket public",
+        "blob exposed",
+        "IAM wildcard",
+        "security group open",
+        "云存储公开",
+        "IAM 越权",
+        "kubeconfig 暴露"
+      ],
+      "kill_chain_stages": [
+        "Reconnaissance",
+        "Initial Access",
+        "Collection"
+      ],
+      "report_source_pool": [
+        "AWS Security Bulletins",
+        "Wiz Cloud Security Reports",
+        "Palo Alto Unit 42 cloud threat reports",
+        "Netskope Cloud Threat Report"
+      ]
     },
     {
       "id": "evt_ai_model_poison",
@@ -114,9 +242,28 @@
       "agent_owner": "B",
       "priority": "mid",
       "description": "针对 AI/ML 模型供应链 (训练数据/权重/微调/推理 prompt) 的污染、投毒或越狱, 含 LLM 提示注入",
-      "typical_signals": ["data poisoning", "model poisoning", "backdoor attack", "prompt injection", "jailbreak", "模型投毒", "提示注入", "越狱"],
-      "kill_chain_stages": ["Resource Development", "Initial Access", "Defense Evasion", "Impact"],
-      "report_source_pool": ["MITRE ATLAS (Adversarial Threat Landscape for AI Systems)", "OWASP LLM Top 10", "NIST AI 100-2 Adversarial ML", "Microsoft AI Bug Bounty reports"]
+      "typical_signals": [
+        "data poisoning",
+        "model poisoning",
+        "backdoor attack",
+        "prompt injection",
+        "jailbreak",
+        "模型投毒",
+        "提示注入",
+        "越狱"
+      ],
+      "kill_chain_stages": [
+        "Resource Development",
+        "Initial Access",
+        "Defense Evasion",
+        "Impact"
+      ],
+      "report_source_pool": [
+        "MITRE ATLAS (Adversarial Threat Landscape for AI Systems)",
+        "OWASP LLM Top 10",
+        "NIST AI 100-2 Adversarial ML",
+        "Microsoft AI Bug Bounty reports"
+      ]
     },
     {
       "id": "evt_fraud",
@@ -126,9 +273,40 @@
       "agent_owner": "C",
       "priority": "high",
       "description": "针对金融客户的诈骗: 杀猪盘/虚假投资/冒充客服/虚假贷款/信用卡盗刷/账户接管 (ATO), 强调受害者侧链路而非系统侧",
-      "typical_signals": ["杀猪盘", "虚假投资", "冒充客服", "虚假贷款", "信用卡盗刷", "ATO", "account takeover", "romance scam", "pig butchering", "pig-butchering", "investment scam", "技术支持诈骗"],
-      "kill_chain_stages": ["Reconnaissance", "Resource Development", "Initial Access (受害者)", "Credential Access", "Impact (财务损失)"],
-      "report_source_pool": ["央行支付结算司通报", "中国银行业协会反诈报告", "银保监反诈通报", "FBI IC3 Elder Fraud & Romance", "Interpol Financial Crimes", "Chainalysis Crypto Crime Report"]
+      "typical_signals": [
+        "杀猪盘",
+        "虚假投资",
+        "冒充客服",
+        "虚假贷款",
+        "信用卡盗刷",
+        "ATO",
+        "account takeover",
+        "romance scam",
+        "pig butchering",
+        "pig-butchering",
+        "investment scam",
+        "技术支持诈骗"
+      ],
+      "kill_chain_stages": [
+        "Reconnaissance",
+        "Resource Development",
+        "Initial Access (受害者)",
+        "Credential Access",
+        "Impact (财务损失)"
+      ],
+      "report_source_pool": [
+        "央行支付结算司通报",
+        "中国银行业协会反诈报告",
+        "银保监反诈通报",
+        "FBI IC3 Elder Fraud & Romance",
+        "Interpol Financial Crimes",
+        "Chainalysis Crypto Crime Report",
+        "FATF 指引: 虚拟资产/VASP 反洗钱与反诈骗 (2021/2023)",
+        "GB/T 35273-2020 信息安全技术 个人信息安全规范",
+        "JR/T 0051.1/2 金融行业信息安全等级保护实施指引",
+        "银联/网联反欺诈规则白皮书与风控年报",
+        "巴塞尔协议 III  Operatinal risk / 金融犯罪风险指引"
+      ]
     },
     {
       "id": "evt_data_breach",
@@ -138,9 +316,33 @@
       "agent_owner": "D",
       "priority": "high",
       "description": "客户 PII/账户/交易数据/内部敏感数据的外泄、倒卖或公开, 含员工批量查询与第三方共享失控",
-      "typical_signals": ["data breach", "data leak", "PII exposure", "员工批量查询", "第三方共享失控", "客户数据泄露", "拖库", "撞库拖库"],
-      "kill_chain_stages": ["Collection", "Exfiltration", "Impact (合规/声誉)"],
-      "report_source_pool": ["央行/银保监数据安全通报", "网信办违法违规处置公告", "Verizon DBIR data breach section", "Have I Been Pwned postmortems", "Privacy Affairs breach reports"]
+      "typical_signals": [
+        "data breach",
+        "data leak",
+        "PII exposure",
+        "员工批量查询",
+        "第三方共享失控",
+        "客户数据泄露",
+        "拖库",
+        "撞库拖库"
+      ],
+      "kill_chain_stages": [
+        "Collection",
+        "Exfiltration",
+        "Impact (合规/声誉)"
+      ],
+      "report_source_pool": [
+        "央行/银保监数据安全通报",
+        "网信办违法违规处置公告",
+        "Verizon DBIR data breach section",
+        "Have I Been Pwned postmortems",
+        "Privacy Affairs breach reports",
+        "ISO 27035 信息安全事件管理 (数据泄露响应)",
+        "ISO 29100 隐私框架 (PII 处理与泄露通知)",
+        "GB/T 20984-2022 信息安全技术 信息安全事件分类分级指南",
+        "PCI DSS v4.0 数据泄露响应与 PAN 泄露处置",
+        "NIST CSF 2.0 Detect/Respond 事件响应流程"
+      ]
     },
     {
       "id": "evt_regulatory_notice",
@@ -150,9 +352,36 @@
       "agent_owner": "E",
       "priority": "high",
       "description": "人民银行/银保监/网信办/证监会/公安网安/工信部等监管口径下发的通报、罚单、风险提示、合规整改要求",
-      "typical_signals": ["监管通报", "风险提示", "行政处罚", "合规整改", "约谈", "通报批评", "regulatory notice", "enforcement action", "PBOC notice", "NFRA notice", "CAC notice"],
-      "kill_chain_stages": ["Impact (合规/制度)", "Recovery (整改)"],
-      "report_source_pool": ["中国人民银行公告 (支付结算司/金融稳定局)", "国家金融监督管理总局 (NFRA) 通报", "中央网信办 (CAC) 通报", "中国证监会处罚决定", "公安部网安局通报", "工信部网安局通报"]
+      "typical_signals": [
+        "监管通报",
+        "风险提示",
+        "行政处罚",
+        "合规整改",
+        "约谈",
+        "通报批评",
+        "regulatory notice",
+        "enforcement action",
+        "PBOC notice",
+        "NFRA notice",
+        "CAC notice"
+      ],
+      "kill_chain_stages": [
+        "Impact (合规/制度)",
+        "Recovery (整改)"
+      ],
+      "report_source_pool": [
+        "中国人民银行公告 (支付结算司/金融稳定局)",
+        "国家金融监督管理总局 (NFRA) 通报",
+        "中央网信办 (CAC) 通报",
+        "中国证监会处罚决定",
+        "公安部网安局通报",
+        "工信部网安局通报",
+        "FATF 互评估报告 (中国/香港/新加坡等司法管辖区)",
+        "巴塞尔协议 III / IOSCO 合规监管与处罚案例库",
+        "GB/T 22239-2019 信息安全技术 网络安全等级保护基本要求 (等保 2.0)",
+        "JR/T 金融行业系列标准 (数据安全/网络安全/信息系统灾难恢复)",
+        "IMF 金融稳定报告 (FSB  Crypto/Fintech 风险通报)"
+      ]
     }
   ]
 }

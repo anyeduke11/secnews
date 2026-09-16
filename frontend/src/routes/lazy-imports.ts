@@ -179,6 +179,23 @@ export const KnowledgeCanvasPage = React.lazy(() =>
   import('../components/KnowledgeCanvasPage').then(m => ({ default: m.KnowledgeCanvasPage }))
 );
 
+// Phase 4 (DEV-0183): 新增视图 5 件套 — 有壳有占位, 未实现端点见 docs/UNIMPLEMENTED.md
+export const KnowledgeHubPage = React.lazy(() =>
+  import('../components/knowledge/KnowledgeHubPage').then(m => ({ default: m.KnowledgeHubPage }))
+);
+export const KnowledgeLibraryPage = React.lazy(() =>
+  import('../components/knowledge/KnowledgeLibraryPage').then(m => ({ default: m.KnowledgeLibraryPage }))
+);
+export const EventsReviewPage = React.lazy(() =>
+  import('../components/events/EventsReviewPage').then(m => ({ default: m.EventsReviewPage }))
+);
+export const DeepReaderPage = React.lazy(() =>
+  import('../components/reader/DeepReaderPage').then(m => ({ default: m.DeepReaderPage }))
+);
+export const QualityDashboardPage = React.lazy(() =>
+  import('../components/quality/QualityDashboardPage').then(m => ({ default: m.QualityDashboardPage }))
+);
+
 // v0.8.5: v1 四入口已降级 — /workbench /intel /cases 为 QueryRedirect, 不再挂 page;
 // WorkbenchPage/IntelPage/CasesPage 懒导出已删 (组件仍留在 V1Prototype.tsx 供测试引用)。
 // KnowledgeV1Page 保留: C4 挂载 /knowledge/v1 (spec §5)。

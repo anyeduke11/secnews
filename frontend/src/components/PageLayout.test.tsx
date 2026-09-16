@@ -62,10 +62,12 @@ describe('PageLayout', () => {
         </Routes>
       </MemoryRouter>
     );
-    // 2026-09-10 壳统一: 工具页与三层页共用 SentinelShell 顶部横向导航 (唯一壳)
+    // 2026-09-13 NAV4: 工具页与四菜单页共用 SentinelShell 顶部横向导航 (唯一壳)
     expect(container.querySelector('div.sentinel')).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: '三层工作流导航' })).toBeInTheDocument();
-    expect(container.querySelector('section.pipeline')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: '四菜单导航' })).toBeInTheDocument();
+    // Phase 2 (DEV-0181): 心跳条改编辑部印务条 pressbar, 版面条 bandnav 上线
+    expect(container.querySelector('section.pressbar')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: '版面条' })).toBeInTheDocument();
     // 左侧 AppNav 已物理删除, 不得再出现第二套导航
     expect(screen.queryByRole('navigation', { name: '主导航' })).not.toBeInTheDocument();
     expect(container.querySelector('#main-content')).toBeInTheDocument();

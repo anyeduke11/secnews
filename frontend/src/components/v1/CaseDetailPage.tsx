@@ -1,7 +1,7 @@
 /**
- * CaseDetailPage — /cases/:caseId 判断层深链接页 (v0.8.5 C2, spec = docs/v0.8.5/V0.8.5_PLAN.md §5)
+ * CaseDetailPage — /cases/:caseId 行动菜单深链接页 (NAV4 2026-09-13)
  *
- * 壳: SentinelShell layer=judge (三层唯一壳, 无 AppNav); 内容: CaseDetail (V1Prototype 提取)。
+ * 壳: SentinelShell layer=action (四菜单壳); 内容: CaseDetail (V1Prototype 提取)。
  * URL 真相源: caseId = 路径参数; ?section= 可选定位 (judgments/actions/artifacts/knowledge
  * → 对应区块滚动锚点, spec §6.3)。
  * 数据: getCase 单点拉取; 失败显 unavailable, 不伪造数据。
@@ -51,7 +51,7 @@ export function CaseDetailPage() {
   }, [case_, searchParams]);
 
   return (
-    <SentinelShell layer="judge">
+    <SentinelShell layer="action">
       <main className="sentinel-main">
         <div className="max-w-6xl mx-auto p-6" data-testid="case-detail-page">
           {!caseId && (

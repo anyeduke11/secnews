@@ -153,17 +153,18 @@ describe('SentinelGraphPage — 哨兵终端 · 知识图谱', () => {
     await waitFor(() => expect(document.querySelector('svg.kg-graphsvg')).toBeTruthy());
   }
 
-  it('复用 SentinelShell 且标记判断层 active', async () => {
+  it('复用 SentinelShell 且标记知识菜单 active', async () => {
     const { container } = render(<MemoryRouter><SentinelGraphPage /></MemoryRouter>);
     await rendered();
     expect(screen.getByText('SecNews')).toBeInTheDocument();
     expect(screen.getByText('PIPELINE LIVE')).toBeInTheDocument();
-    const judge = screen.getByRole('link', { name: /判断层/ });
-    expect(judge.closest('.layer-link')).toHaveClass('active');
-    expect(judge).toHaveAttribute('aria-current', 'page');
+    // 知识菜单 tab (layer=knowledge 高亮)
+    const knowledgeLinks = screen.getAllByRole('link', { name: /知识/ });
+    expect(knowledgeLinks.length).toBeGreaterThanOrEqual(1);
+    expect(knowledgeLinks[0].closest('.nv')).toHaveClass('active');
+    expect(knowledgeLinks[0]).toHaveAttribute('aria-current', 'page');
     // 今日收录口径由 /api/hotspots total 提供, 不自造数字
-    expect(container.textContent).toContain('106 篇');
-  });
+    expect(container.textContent).toContain('106 篇');  });
 
   it('真实数据驱动: 节点/边计数与今日更新时间出现在界面上', async () => {
     render(<MemoryRouter><SentinelGraphPage /></MemoryRouter>);
@@ -320,5 +321,69 @@ describe('SentinelGraphPage — 哨兵终端 · 知识图谱', () => {
     render(<MemoryRouter><SentinelGraphPage /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText('图谱暂无节点')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /返回判读台/ })).toBeInTheDocument();
+  });
+});
+
+describe('SentinelGraphPage — 画布模式 (Phase 5, DEV-0184)', () => {
+  let fetchMock: ReturnType<typeof makeFetch>;
+  let originalEventSource: typeof EventSource;
+
+  beforeEach(() => {
+    fetchMock = makeFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    originalEventSource = globalThis.EventSource;
+    (globalThis as unknown as { EventSource: unknown }).EventSource = MockEventSource;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
+    vi.restoreAllMocks();
+  });
+
+  it('默认 SVG 直排; 开启画布模式后同一 SVG 挂入 InfiniteCanvas (固定像素尺寸)', async () => {
+    const { container } = render(<MemoryRouter><SentinelGraphPage /></MemoryRouter>);
+    await waitFor(() => expect(document.querySelector('svg.kg-graphsvg')).toBeTruthy());
+    // 默认: 无画布视口, SVG 直排 (响应式宽度, 无固定像素覆盖)
+    expect(document.querySelector('[data-testid="infinite-canvas"]')).toBeNull();
+    const plain = container.querySelector('svg.kg-graphsvg') as SVGElement | null;
+    expect(plain).not.toBeNull();
+    expect(plain?.getAttribute('style')).toBeNull();
+
+    // 开启画布模式: 同一 svg 挂入画布世界, 并带固定像素尺寸 (world 坐标)
+    fireEvent.click(screen.getByRole('button', { name: '画布模式' }));
+    await waitFor(() => expect(document.querySelector('[data-testid="infinite-canvas"]')).not.toBeNull());
+    const inCanvas = document.querySelector('[data-testid="infinite-canvas"] svg.kg-graphsvg') as SVGElement | null;
+    expect(inCanvas).not.toBeNull();
+    expect(inCanvas?.getAttribute('style')).toContain('width: 760px');
+    // aria-label (无障碍描述) 在两种模式下保持一致
+    expect(inCanvas?.getAttribute('aria-label')).toBe(plain?.getAttribute('aria-label'));
+    // 缩放控件可用
+    expect(screen.getByRole('button', { name: '放大' })).toBeInTheDocument();
+
+    // 关闭画布模式 → 回到直排
+    fireEvent.click(screen.getByRole('button', { name: '画布模式' }));
+    await waitFor(() => expect(document.querySelector('[data-testid="infinite-canvas"]')).toBeNull());
+    expect(container.querySelector('svg.kg-graphsvg')).not.toBeNull();
+  });
+
+  it('A4: 画布模式渲染 zoom 感知命中圆 (直排无); 放大后补偿半径收缩', async () => {
+    const { container } = render(<MemoryRouter><SentinelGraphPage /></MemoryRouter>);
+    await waitFor(() => expect(document.querySelector('svg.kg-graphsvg')).toBeTruthy());
+    // 直排: 无命中圆
+    expect(container.querySelectorAll('circle.kg-hit').length).toBe(0);
+
+    fireEvent.click(screen.getByRole('button', { name: '画布模式' }));
+    await waitFor(() => expect(document.querySelector('[data-testid="infinite-canvas"]')).not.toBeNull());
+    expect(container.querySelectorAll('circle.kg-hit').length).toBeGreaterThan(0);
+    // zoom=1 → 最小补偿半径 14 (取所有节点 max(n.r, 14) 的最小值)
+    const minR = () => Math.min(
+      ...Array.from(container.querySelectorAll('circle.kg-hit')).map(c => Number(c.getAttribute('r'))),
+    );
+    expect(minR()).toBeCloseTo(14, 0);
+
+    // 放大 → 补偿半径收缩 (zoom 1.25 → 量化 1.3 → 14/1.3 ≈ 10.8)
+    fireEvent.click(screen.getByRole('button', { name: '放大' }));
+    await waitFor(() => expect(minR()).toBeLessThan(14));
   });
 });

@@ -10,6 +10,9 @@
   /* 排版: 等宽主字体, 暗色技术美学 */
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, 'Fira Code', 'Cascadia Code', monospace;
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  /* P2 (2026-09-13) 纸面版衬线字体 — 暖米黄纸底配衬线更接近编辑感;
+     系统 Georgia/思源宋体 fallback 保证跨平台可读 */
+  --font-serif: 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', Georgia, 'Times New Roman', serif;
 
   /* 圆角统一三档 6/8/10 (哨兵终端纪律) / 徽标 full */
   --radius-sm: 6px;
@@ -242,6 +245,140 @@
   --text-on-info: #ffffff;
   --bg-input: #ffffff;
 }
+
+/* ===== 纸面版主题 (P2 2026-09-13) — 编辑部暖色映射 (方案A 原型直接移植)
+   最小侵入: 仅覆写 bg/ink/font 6 个核心 token; 语义三色 (mint/amber/red)、
+   分类色、图表色沿用亮色值不动, 保留信号语义识别。
+   适配 demo `--marker`/`--serif` 的视觉语言但保留本仓库纪律 (hairline + 零霓虹 + 圆角统一)。*/
+:root[data-theme="paper"] {
+  color-scheme: light;
+  /* 编辑部暖色映射 (方案A 原型直接移植) */
+  --bg-primary: #F7F4EE;          /* 原生纸色 --paper */
+  --bg-lift: #f0ebe0;             /* --paper-2 */
+  --bg-secondary: #f5f0e6;
+  --bg-card: #fdf8ec;             /* --card */
+  --bg-panel: #fdf8ec;
+  --bg-hover: #f5f0e6;
+  --bg-elevated: #efe9dd;
+  --surface-raised: rgba(28, 25, 23, 0.03);
+  --surface-glass: rgba(247, 244, 238, 0.92);
+  /* 深褐墨 — 接近打印油墨, AA 对比度 11.7:1 达标 */
+  --ink: #1C1917;
+  --ink-2: #5a4a36;
+  --ink-3: #8a7659;
+  --text-primary: #1C1917;
+  --text-secondary: #5a4a36;
+  --text-muted: #8a7659;
+  --text-disabled: rgba(138, 118, 89, 0.5);
+  /* 语义三色锁 (编辑部): ok/warn/err/info */
+  --mint: #2E6B4F;                /* --ok */
+  --amber: #A0691F;               /* --warn */
+  --red: #BE3426;                 /* --err / --accent */
+  --mint-dim: rgba(46, 107, 79, 0.1);
+  --amber-dim: rgba(160, 105, 31, 0.12);
+  --red-dim: rgba(190, 52, 38, 0.1);
+  --accent: #BE3426;              /* 编辑红 */
+  --accent-2: #8a281d;
+  --accent-soft: rgba(190, 52, 38, 0.1);
+  --accent-dim: rgba(190, 52, 38, 0.35);
+  --accent-line: rgba(190, 52, 38, 0.25);
+  --accent-highlight: rgba(190, 52, 38, 0.06);
+  --accent-glow: rgba(190, 52, 38, 0.1);
+  --color-success: #2E6B4F;
+  --color-warning: #A0691F;
+  --color-error: #BE3426;
+  --color-info: #3B5B78;
+  /* 分类色 (纸底编辑部版) */
+  --color-ai: #3B5B78;
+  --color-ai_security: #be185d;
+  --color-security: #be185d;
+  --color-finance: #8a6508;
+  --color-startup: #6d28d9;
+  --color-bid: #b45309;
+  --color-general: #2E6B4F;
+  --color-github: #4338ca;
+  --color-tech: #0f766e;
+  /* hairline — 轻触即见的编辑细线 */
+  --line: #E4DED2;                /* --hairline */
+  --line-strong: #d6cfc2;         /* --hairline-2 */
+  --border-color: #E4DED2;
+  --border-light: #d6cfc2;
+  --border-subtle: rgba(28, 25, 23, 0.07);
+  /* 字体 — 编辑部衬线主视觉 */
+  --font-serif: 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', Georgia, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  /* 零霓虹 + 轻阴影 */
+  --shadow-card: none;
+  --shadow-elevated: none;
+  --shadow-popover: 0 4px 20px rgba(28, 25, 23, 0.08);
+  --shadow-modal: 0 12px 40px rgba(28, 25, 23, 0.1);
+  --shadow-toast: 0 4px 20px rgba(28, 25, 23, 0.08);
+  --shadow-glow: none;
+  --shadow-pop: 0 4px 12px rgba(28, 25, 23, 0.08);
+  --highlight: #FFF9C4;
+  --text-on-light: #ffffff;
+  --text-on-color: #ffffff;
+  --bg-overlay: rgba(28, 25, 23, 0.4);
+  --transition-card: all 200ms var(--ease-out);
+  --transition-btn: all 120ms var(--ease-out);
+  --bg-muted: #f0ebe0;
+  --bg-warning: #fef3c7;
+  --text-success: var(--color-success);
+  --text-on-warning: #78350f;
+  --text-on-success: #ffffff;
+  --text-on-info: #ffffff;
+  --bg-input: #fdf8ec;
+}
+
+/* ===== 编辑部设计系统 (方案A) =====
+   来源: V2 Hotspot 工作站-方案A-编辑部-可交互原型.html
+   约定:
+   - 本区块为 alias 层, 只引入原型里有而本仓没有的新名字 (--paper/--card/--muted/--ok/--warn/--err/--info/--ff-* 等),
+     严禁重声明 --ink/--accent/--hairline 等既有 token (自引用会成 CSS 环, 覆写会破坏原语义)
+   - 值全部转发全局 token → 亮/暗主题走哨兵色板, paper 主题自动获得编辑部暖色 (见上方 paper 块)
+   - 组件侧细线一律用 var(--line) (颜色), var(--hairline) 保留为 `1px solid var(--line)` 边框简写语义
+*/
+:root {
+  --paper: var(--bg-primary);
+  --paper-2: var(--bg-lift);
+  --card: var(--bg-card);
+  --muted: var(--ink-3);
+  --hairline-2: var(--line-strong);
+  --accent-2: var(--accent);
+  --accent-line: color-mix(in srgb, var(--accent) 25%, transparent);
+  --ok: var(--mint);
+  --warn: var(--amber);
+  --err: var(--red);
+  --info: var(--color-info);
+  --highlight: var(--accent-highlight);
+  --shadow-pop: var(--shadow-popover);
+  --ff-serif: var(--font-serif);
+  --ff-sans: var(--font-sans);
+  --ff-mono: var(--font-mono);
+}
+
+/* ===== 编辑部工具类映射 (.pgx-*) =====
+   来源: 方案A 原型 .pgx 作用域
+   用途: 渐进迁移桥梁, 允许老页面在 html 上加 .pgx 即可获得编辑部排版,
+         不必一次性重构所有组件。
+   注: --pgx-ink/--pgx-ink-2/--pgx-accent 转发全局既有 token (亮/暗=哨兵色, paper=编辑部色);
+       --pgx-hairline 转发 var(--line) 颜色值 (工具类里自拼 `1px solid` 前缀)。
+*/
+.pgx { --pgx-paper: var(--paper); --pgx-card: var(--card); --pgx-ink: var(--ink); --pgx-ink-2: var(--ink-2); --pgx-muted: var(--muted); --pgx-hairline: var(--line); --pgx-accent: var(--accent); --pgx-ok: var(--ok); --pgx-warn: var(--warn); --pgx-err: var(--err); --pgx-info: var(--info); --pgx-highlight: var(--highlight); --pgx-ff-serif: var(--ff-serif); --pgx-ff-mono: var(--ff-mono); }
+.pgx { color: var(--pgx-ink); font-family: var(--pgx-ff-serif); background: var(--pgx-paper); }
+.pgx a { color: var(--pgx-accent); text-decoration: none; }
+.pgx a:hover { text-decoration: underline; }
+.pgx .pgx-card { background: var(--pgx-card); border: 1px solid var(--pgx-hairline); border-radius: var(--radius-md); padding: 16px; box-shadow: var(--shadow-pop); }
+.pgx .pgx-hairline { border-bottom: 1px solid var(--pgx-hairline); }
+.pgx .pgx-muted { color: var(--pgx-muted); }
+.pgx .pgx-ok { color: var(--pgx-ok); }
+.pgx .pgx-warn { color: var(--pgx-warn); }
+.pgx .pgx-err { color: var(--pgx-err); }
+.pgx .pgx-info { color: var(--pgx-info); }
+.pgx .pgx-accent { color: var(--pgx-accent); }
+.pgx .pgx-serif { font-family: var(--pgx-ff-serif); }
+.pgx .pgx-mono { font-family: var(--pgx-ff-mono); }
+.pgx .pgx-highlight { background: var(--pgx-highlight); padding: 0 2px; border-radius: 2px; }
 
 /* ===== Base ===== */
 * { margin: 0; padding: 0; box-sizing: border-box; }

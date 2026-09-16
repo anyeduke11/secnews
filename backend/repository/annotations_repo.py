@@ -1,13 +1,14 @@
 """v1.7 Phase 2 — Annotations (笔记) 仓库。
 
-对应 migration ``027_v1.7_annotations.sql``:
+对应 migration ``027_v1.7_annotations.sql`` (+ ``118_annotations_quote.sql`` B+ 引文列):
     annotations(id, entity_type, entity_id, content,
-                range_start, range_end, created_at, updated_at)
+                range_start, range_end, quote, created_at, updated_at)
 
 设计
 ----
-- ``entity_type`` / ``entity_id`` 标注被笔记的对象 (concept/knowledge/hotspot/...)。
-- ``range_start`` / ``range_end`` 可选, 用于标注正文内的字符区间 (未来前端高亮)。
+- ``entity_type`` / ``entity_id`` 标注被笔记的对象 (concept/knowledge/wiki_item/...)。
+- ``range_start`` / ``range_end`` 可选, 正文内字符区间 (前端高亮)。
+- ``quote`` 可选 (C2 B+ 锚点): 高亮原文引文, 渲染时前端四步解析抗漂移。
 - id 用 uuid4 派生, 不复用 entity 派生 (一条 entity 可有多条笔记)。
 """
 from __future__ import annotations
@@ -28,18 +29,24 @@ class AnnotationRepository:
         content: str,
         range_start: int | None = None,
         range_end: int | None = None,
+        quote: str | None = None,
     ) -> dict:
-        """新增一条笔记, 返回创建后的完整记录。"""
+        """新增一条笔记, 返回创建后的完整记录。
+
+        quote (C2 B+ 锚点, migration 118): 高亮原文引文 (≤500 字)。
+        渲染时前端按「快路径校验 → 窗内重锚 → 全文兜底 → stale」四步解析,
+        抗 wiki 正文重写导致的偏移漂移 (收尾批方案 DD-7)。
+        """
         aid = f"{entity_type}-{entity_id}-{uuid4().hex[:8]}"
         now = datetime.now(timezone.utc).isoformat()
         conn = get_connection()
         conn.execute(
             """
             INSERT INTO annotations (id, entity_type, entity_id, content,
-                range_start, range_end, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                range_start, range_end, quote, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (aid, entity_type, entity_id, content, range_start, range_end, now, now),
+            (aid, entity_type, entity_id, content, range_start, range_end, quote, now, now),
         )
         return self.get(aid)
 

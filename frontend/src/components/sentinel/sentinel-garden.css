@@ -241,3 +241,11 @@
   .sentinel .cg-n a,
   .sentinel .cg-lane-empty{transition:none}
 }
+
+/* ===== B4 (DEV-0192): 编辑部排版覆盖 — 屏头/泳道头/服务名衬线化 (方案A 原型) =====
+   与 sentinel-action.css 覆盖块同模式: 标题层级切衬线, 布局与语义色不动。 */
+.sentinel .cg-h1{font-family:var(--sn-serif);letter-spacing:-.015em}
+.sentinel .cg-laneh,
+.sentinel .cg-svcn,
+.sentinel .cg-topoh,
+.sentinel .cg-blkh{font-family:var(--sn-serif);letter-spacing:-.005em}

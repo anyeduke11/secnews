@@ -418,7 +418,7 @@ export function ReviewMode() {
   const hasDetail = currentDetail !== null;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 ed-typo">
       <OnboardingHint storageKey="kb-review" title="复习模式">
         <p>按间隔复习已学概念，巩固掌握度。</p>
       </OnboardingHint>

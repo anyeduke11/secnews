@@ -1,0 +1,107 @@
+/* ============================================================
+ * canvas.css — InfiniteCanvas 无限画布 (Phase 5, DEV-0184, 方案B 原型移植)
+ *
+ * 令牌化: 方案B 的 --bg/--surface 深色画布在本仓 = 全局 token 随主题翻转
+ *  (dark=深色画布 / paper=暖纸画布 / light=冷白画布), 本文件不写字面色板。
+ * ============================================================ */
+
+.sentinel .ic-root,
+.ic-root {
+  position: relative;
+}
+
+.sentinel .ic-viewport,
+.ic-viewport {
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  background: var(--bg-primary);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  --ic-grid: rgba(128, 128, 128, 0.22);
+}
+
+.sentinel .ic-viewport.panning,
+.ic-viewport.panning {
+  cursor: grabbing;
+}
+
+.sentinel .ic-world,
+.ic-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+/* 画布内节点 (页面侧标记 data-canvas-node) */
+.sentinel [data-canvas-node],
+[data-canvas-node] {
+  position: absolute;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.sentinel [data-canvas-node]:active,
+[data-canvas-node]:active {
+  cursor: grabbing;
+  z-index: 30;
+}
+
+/* 缩放控件 (右下角, 方案B zoom-controls 令牌化) */
+.sentinel .ic-controls,
+.ic-controls {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  z-index: 10;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.sentinel .ic-zbtn,
+.ic-zbtn {
+  width: 34px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  color: var(--ink-2);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, color 120ms ease;
+  padding: 0;
+}
+
+.sentinel .ic-zbtn:hover,
+.ic-zbtn:hover {
+  background: var(--bg-hover);
+  color: var(--ink);
+}
+
+.sentinel .ic-zlabel,
+.ic-zlabel {
+  min-width: 48px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+}
+
+.sentinel .ic-zreset,
+.ic-zreset {
+  font-size: 13px;
+}

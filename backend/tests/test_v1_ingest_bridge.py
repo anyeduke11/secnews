@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import asyncio
+from time import gmtime, struct_time
 
 from backend.repository.db import get_connection
 from backend.services.source_pipeline import FetchOutcome
@@ -19,18 +20,34 @@ from backend.services.v1_ingest_bridge import V1IngestBridge
 # fixture helpers
 # ---------------------------------------------------------------------------
 
+
+def _recent_published(utc_offset_hours: int = 0) -> struct_time:
+    """动态「近期」发布时间 (UTC now - 24h, 可加小时偏移错开两条).
+
+    曾经写死 (2026, 9, 8, ...) — v1_signals 查询窗口是
+    `occurred_at >= datetime('now', '-7 days')` (UTC 口径), 固定种子在
+    2026-09-16 00:00 UTC 起必然落窗 (total=0), 属时间炸弹; 改为相对当前
+    时间注入 (环境性测试根治纪律: 时间注入, 不用固定日期).
+    """
+    import calendar
+    import datetime as _dt
+
+    base = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=24 - utc_offset_hours)
+    return gmtime(calendar.timegm(base.timetuple()))
+
+
 ENTRIES = [
     {
         "title": "FastGate 3200 路径遍历漏洞通告",
         "link": "https://example.com/advisory-1",
         "summary": "认证前路径遍历, CVSS 9.8",
-        "published_parsed": (2026, 9, 8, 0, 0, 0, 0, 0, 0),
+        "published_parsed": _recent_published(0),
     },
     {
         "title": "某 VPN 网关在野利用情报",
         "link": "https://example.com/intel-2",
         "summary": "WAF 观测到探测",
-        "published_parsed": (2026, 9, 8, 1, 0, 0, 0, 0, 0),
+        "published_parsed": _recent_published(1),
     },
 ]
 

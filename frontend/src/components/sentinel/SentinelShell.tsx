@@ -1,13 +1,15 @@
 /**
- * SentinelShell — 哨兵终端全站共享壳
+ * SentinelShell — 全站共享壳 (方案A 编辑部形态)
  *
  * 信息架构核心 (V2 → NAV4 设计稿): 四菜单工作流
  *   资讯 / (采集与浏览) → 知识 /knowledge (沉淀与关联) → 行动 /action (计划与输出) → 设置 /settings (配置与扩展)
  *
+ * 壳三段 (Phase 2, DEV-0181, 对齐方案A 原型 masthead/bandnav/pressbar):
+ *  - masthead 报头: 衬线品牌字 + 四菜单排版式导航 (active = accent 下划线) + 主题切换/时钟/设置
+ *  - bandnav 版面条: 当前菜单的二级域 chip (sticky), 工具页经 menuOf 自动归属; gate 关闭不渲染
+ *  - pressbar 印务条: 采集管道心跳 (语义/数据不变), 全站常驻
+ *
  * 职责:
- *  - appbar: 品牌 + 四菜单导航 (active 态) + 主题切换/时钟/设置
- *  - pipeline 心跳条: 采集管道生命体征, 全站常驻 (设计契约:
- *    "32 个源的活/病/死一屏可见" 不只属于首页)
  *  - 子页通过 children 注入; SSE collect 事件由各页自行订阅
  *  - 2026-09-10 壳统一: 工具页 (PageLayout) 也走本壳, layer=null 表示无高亮层,
  *    未传 ingested 时壳自取 24h 收录数 (左侧 AppNav 已删除)
@@ -16,6 +18,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useFeatureFlags, type FeatureFlags } from '../../hooks/useFeatureFlags';
 import { listHotspots } from '../../api/hotspots';
 import { getSourceHealth, type SourceHealthPayload } from '../../api/sources';
 import { getJSON } from '../../lib/api';
@@ -132,25 +135,80 @@ export function usePipe() {
  *  - 行动 → /action (今日行动 + 案件队列 + 待办 + 报告 + 泳道)
  *  - 设置 → /settings (17 配置 + 密钥/同步/技能库配置 + 扩展域)
  *  守卫 = routes/__tests__/nav4_shell.test.tsx
+ *  Phase 2 编辑部形态 (DEV-0181): 导航改排版式 nv (衬线 + accent 下划线), 不再用图标
  */
-const LAYER_DEFS: { layer: SentinelLayer; label: string; sub: string; to: string; icon: JSX.Element }[] = [
-  {
-    layer: 'data', label: '资讯', sub: '看什么 — 情报流、质量筛选、采集管道', to: '/',
-    icon: <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><path d="M4.5 4.5h4M4.5 7h4M4.5 9.5h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>,
-  },
-  {
-    layer: 'knowledge', label: '知识', sub: '沉淀什么 — 知识库、图谱、能力资产', to: '/knowledge',
-    icon: <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.5" /><path d="M6.5 4v4M4.5 6.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>,
-  },
-  {
-    layer: 'action', label: '行动', sub: '做什么 — 案件、待办、今日行动、产出', to: '/action',
-    icon: <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 7l3 3L11 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M7.5 11h3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>,
-  },
-  {
-    layer: 'settings', label: '设置', sub: '怎么配 — 全局配置、密钥、同步、扩展域', to: '/settings',
-    icon: <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><circle cx="6.5" cy="6.5" r="2.2" stroke="currentColor" strokeWidth="1.5" /><path d="M6.5 1.8v2M6.5 9.2v2M1.8 6.5h2M9.2 6.5h2M3.7 3.7l1.4 1.4M8.9 8.9l1.4 1.4M9.3 3.7l-1.4 1.4M4.1 8.9l-1.4 1.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>,
-  },
+const LAYER_DEFS: { layer: SentinelLayer; label: string; sub: string; to: string }[] = [
+  { layer: 'data', label: '资讯', sub: '看什么 — 情报流、质量筛选、采集管道', to: '/' },
+  { layer: 'knowledge', label: '知识', sub: '沉淀什么 — 知识库、图谱、能力资产', to: '/knowledge' },
+  { layer: 'action', label: '行动', sub: '做什么 — 案件、待办、今日行动、产出', to: '/action' },
+  { layer: 'settings', label: '设置', sub: '怎么配 — 全局配置、密钥、同步、扩展域', to: '/settings' },
 ];
+
+/** 版面条 (bandnav, 方案A 原型) — 当前菜单的二级域 chip。
+ *  gate 项与 routes/index.tsx 的 features.* 条件注册同源: gate 关闭的 chip 不渲染。 */
+type BandItem = { label: string; to: string; gate?: keyof FeatureFlags };
+
+const BANDNAV_DEFS: Record<SentinelLayer, BandItem[]> = {
+  // 'judge' 是三层时代遗留 union 成员 (menuOf 已不返回, 路由已重定向) — 无二级域
+  judge: [],
+  data: [
+    { label: '情报流', to: '/' },
+    { label: '采集管道', to: '/secnews/pipeline', gate: 'secnews' },
+    { label: '发行统计', to: '/secnews/analytics', gate: 'secnews' },
+    { label: '质量校对', to: '/quality' },
+    { label: '历史', to: '/history' },
+  ],
+  knowledge: [
+    { label: '知识库', to: '/knowledge' },
+    { label: '前厅', to: '/knowledge/khub' },
+    { label: '编目室', to: '/knowledge/library' },
+    { label: '图谱', to: '/knowledge/graph' },
+    { label: '画布', to: '/knowledge/canvas' },
+    { label: '复习', to: '/knowledge/review' },
+    { label: '检索', to: '/search' },
+    { label: '技能商店', to: '/skill-store' },
+  ],
+  action: [
+    { label: '今日行动', to: '/action' },
+    { label: '通稿审核', to: '/action/events' },
+    { label: '待办', to: '/todos' },
+    { label: '报告', to: '/report' },
+    { label: '泳道', to: '/garden', gate: 'codegarden' },
+  ],
+  settings: [
+    { label: '全局配置', to: '/settings' },
+    { label: '密钥', to: '/secrets' },
+    { label: '同步', to: '/sync', gate: 'sync' },
+    { label: '技能库', to: '/skills' },
+    { label: '维护诊断', to: '/maint' },
+    { label: '工坊', to: '/codegarden', gate: 'codegarden' },
+  ],
+};
+
+/** chip current 判定: '/' 只精确匹配, 其余前缀匹配 (到下一段为止) */
+function chipIsCurrent(pathname: string, to: string): boolean {
+  if (to === '/') return pathname === '/';
+  return pathname === to || pathname.startsWith(`${to}/`);
+}
+
+/** A7 (DEV-0188): 版面条收起态持久化 key — jsdom/隐私模式无 localStorage 时静默降级 */
+const BANDNAV_COLLAPSED_KEY = 'bandnav-collapsed';
+
+function readBandnavCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(BANDNAV_COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeBandnavCollapsed(v: boolean): void {
+  try {
+    window.localStorage.setItem(BANDNAV_COLLAPSED_KEY, v ? '1' : '0');
+  } catch {
+    /* 无 storage 环境 — 仅会话内生效 */
+  }
+}
 
 /**
  * 路径 → 菜单归属 (NAV4: 四菜单壳 active 态判定).
@@ -159,7 +217,7 @@ const LAYER_DEFS: { layer: SentinelLayer; label: string; sub: string; to: string
 export function menuOf(pathname: string): SentinelLayer | null {
   // 精确匹配 / action / knowledge / settings → 直接归属
   if (pathname === '/' || pathname.startsWith('/judge') || pathname.startsWith('/cases')) return 'data';
-  if (pathname.startsWith('/knowledge') || pathname.startsWith('/deep') || pathname.startsWith('/reviews')) return 'knowledge';
+  if (pathname.startsWith('/knowledge') || pathname.startsWith('/deep') || pathname.startsWith('/reviews') || pathname.startsWith('/reader')) return 'knowledge';
   if (pathname.startsWith('/action') || pathname.startsWith('/garden')) return 'action';
   if (pathname.startsWith('/settings') || pathname.startsWith('/secrets') || pathname.startsWith('/sync') || pathname.startsWith('/skills') || pathname.startsWith('/codegarden') || pathname.startsWith('/maint')) return 'settings';
   // 工具页按语义归属
@@ -189,14 +247,25 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
   const navigate = useNavigate();
   const { theme, cycleTheme } = useTheme();
   const { pathname } = useLocation();
+  const features = useFeatureFlags();
 
   const [pipe, setPipe] = useState<PipeSnapshot | null>(null);
   const [clock, setClock] = useState(() => clockText(new Date()));
   const [selfIngested, setSelfIngested] = useState<number | null>(null);
+  const [bandnavCollapsed, setBandnavCollapsed] = useState(readBandnavCollapsed);
   const shownIngested = ingested === undefined ? selfIngested : ingested;
+
+  const toggleBandnav = useCallback((next: boolean) => {
+    setBandnavCollapsed(next);
+    writeBandnavCollapsed(next);
+  }, []);
 
   // 菜单 active 态: 优先用显式 layer, 否则按路径推断 (tool 页自动高亮归属菜单)
   const activeLayer = layer ?? menuOf(pathname);
+  // 版面条: 当前菜单的二级域 chip (gate 关闭不渲染); 未归属菜单 (如 oauth-callback) 不显示
+  const bandItems = activeLayer
+    ? BANDNAV_DEFS[activeLayer].filter(it => !it.gate || features[it.gate])
+    : [];
 
   const reload = useCallback(() => { fetchPipe().then(setPipe); }, []);
 
@@ -218,38 +287,30 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
 
   return (
     <PipeContext.Provider value={{ pipe, reload }}>
-      <div className="sentinel" data-mode={mode}>
-        {/* ===== 顶栏: 四菜单导航 ===== */}
-        <header className="appbar">
-          <a className="brand" href="/" onClick={e => { e.preventDefault(); navigate('/'); }}>
-            <span className="brand-mark" aria-hidden="true">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l2.5 2.5L10 3" stroke="var(--sn-mint)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </span>
-            SecNews <small>SECURITY INTEL STATION</small>
+      <div className={`sentinel${bandnavCollapsed ? ' bandnav-collapsed' : ''}`} data-mode={mode}>
+        {/* ===== 报头 masthead: 品牌 (左) + 四菜单 (中) + 控制 (右) ===== */}
+        <header className="masthead">
+          <a className="mh-brand" href="/" onClick={e => { e.preventDefault(); navigate('/'); }}>
+            <span className="mh-title">SecNews</span>
+            <span className="mh-sub">SECURITY INTEL STATION</span>
           </a>
 
-          <nav className="layers" aria-label="四菜单导航">
-            {LAYER_DEFS.map((def, i) => (
-              <span key={def.layer} style={{ display: 'contents' }}>
-                {i > 0 && (
-                  <span className="layer-flow" aria-hidden="true">
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6h6M6 3.5L8.5 6 6 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  </span>
-                )}
-                <a
-                  className={`layer-link${activeLayer === def.layer ? ' active' : ''}`}
-                  href={def.to}
-                  aria-current={activeLayer === def.layer ? 'page' : undefined}
-                  onClick={e => { e.preventDefault(); navigate(def.to); }}
-                >
-                  <b>{def.icon}{def.label}</b>
-                  <span>{def.sub}</span>
-                </a>
-              </span>
+          <nav className="mh-nav" aria-label="四菜单导航">
+            {LAYER_DEFS.map(def => (
+              <a
+                key={def.layer}
+                className={`nv${activeLayer === def.layer ? ' active' : ''}`}
+                href={def.to}
+                aria-current={activeLayer === def.layer ? 'page' : undefined}
+                onClick={e => { e.preventDefault(); navigate(def.to); }}
+              >
+                <span className="nv-main">{def.label}</span>
+                <span className="nv-sub">{def.sub}</span>
+              </a>
             ))}
           </nav>
 
-          <div className="appbar-right">
+          <div className="mh-meta">
             <button type="button" className="iconbtn" onClick={cycleTheme} aria-label={theme === 'dark' ? '切换到晨间亮色' : theme === 'paper' ? '切换到夜航暗色' : '切换到纸面版'}>
               <svg className="tb-sun" viewBox="0 0 18 18" width="17" height="17" aria-hidden="true" focusable="false"><circle cx="9" cy="9" r="3.6" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M9 1.2v2.1M9 14.7v2.1M1.2 9h2.1M14.7 9h2.1M3.7 3.7l1.5 1.5M12.8 12.8l1.5 1.5M14.3 3.7l-1.5 1.5M5.2 12.8l-1.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
               <svg className="tb-moon" viewBox="0 0 18 18" width="17" height="17" aria-hidden="true" focusable="false"><path d="M15.2 11.2A6.6 6.6 0 0 1 6.8 2.8a6.6 6.6 0 1 0 8.4 8.4Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
@@ -262,8 +323,51 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
           </div>
         </header>
 
-        {/* ===== 管道心跳条: 全站常驻 ===== */}
-        <section className="pipeline" aria-label="采集管道状态">
+        {/* ===== 版面条 bandnav: 当前菜单二级域 chip (工具页经 menuOf 自动归属); A7 支持收起 ===== */}
+        {bandItems.length > 0 && (
+          <nav className={`bandnav${bandnavCollapsed ? ' collapsed' : ''}`} aria-label="版面条">
+            {bandnavCollapsed ? (
+              <button
+                type="button"
+                className="bn-expand"
+                aria-expanded={false}
+                aria-label="展开版面条"
+                title="展开二级导航"
+                onClick={() => toggleBandnav(false)}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 6.5 5 3.5 8 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                版面条
+              </button>
+            ) : (
+              <>
+                {bandItems.map(it => (
+                  <a
+                    key={it.to}
+                    className={`bn-chip${chipIsCurrent(pathname, it.to) ? ' current' : ''}`}
+                    href={it.to}
+                    aria-current={chipIsCurrent(pathname, it.to) ? 'true' : undefined}
+                    onClick={e => { e.preventDefault(); navigate(it.to); }}
+                  >
+                    {it.label}
+                  </a>
+                ))}
+                <button
+                  type="button"
+                  className="bn-collapse"
+                  aria-expanded={true}
+                  aria-label="收起版面条"
+                  title="收起二级导航"
+                  onClick={() => toggleBandnav(true)}
+                >
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </button>
+              </>
+            )}
+          </nav>
+        )}
+
+        {/* ===== 印务条 pressbar (管道心跳): 语义不变, 全站常驻 ===== */}
+        <section className="pressbar" aria-label="采集管道状态">
           <div className="pipe-block">
             <span className="pipe-k">管道状态</span>
             <span className="pipe-v" style={{ color: pipe?.health === '良好' ? 'var(--sn-mint)' : pipe?.health === '--' ? undefined : pipe?.health === '一般' ? 'var(--sn-amber)' : 'var(--sn-red)' }}>
@@ -313,8 +417,14 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
               <span className="pulse" aria-hidden="true" />
               <span className="beat-label">PIPELINE LIVE</span>
             </div>
-            <div className="beat-lights" role="img" aria-label={pipe ? `${pipe.total} 个采集源: ${pipe.active} 正常, ${pipe.stale} 重试中, ${pipe.dead} 离线` : '加载中'}>
-              {pipe?.sources.slice(0, 40).map((s, idx) => (
+            {/* B 批收尾 (DEV-0194): 灯数 40→16 缩减宽度, 让「队列 + PIPELINE LIVE」保持同行
+                (超出部分省略; 完整分布见 aria-label 与 /secnews/pipeline 源矩阵) */}
+            <div
+              className="beat-lights"
+              role="img"
+              aria-label={pipe ? `${pipe.total} 个采集源: ${pipe.active} 正常, ${pipe.stale} 重试中, ${pipe.dead} 离线 (图示前 ${Math.min(16, pipe.sources.length)} 个)` : '加载中'}
+            >
+              {pipe?.sources.slice(0, 16).map((s, idx) => (
                 <i key={`${s.category}-${s.source_name}-${idx}`} className={s.status === 'stale' ? 'warm' : s.status === 'dead' ? 'dead' : undefined} />
               ))}
             </div>

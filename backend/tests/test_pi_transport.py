@@ -5,6 +5,7 @@ import subprocess
 import pytest
 from pydantic import ValidationError
 
+from backend.config.agent_runner_schema import load_agents_config
 from backend.config.llm_schema import LLMConfig, ProviderConfig, ProviderModels
 from backend.services.ai_hub.gateway import LLMService
 from backend.services.ai_hub.pi_transport import parse_pi_jsonl_events, run_pi_print
@@ -161,3 +162,10 @@ def test_gateway_chat_unsupported_pi():
         asyncio.run(LLMService()._call_provider_chat(
             _pi_cfg(), "", [{"role": "user", "content": "x"}],
         ))
+
+
+def test_agents_yaml_pi_registers_pipeline_task_types():
+    cfg = load_agents_config()
+    assert cfg is not None
+    pi = cfg.agents["pi"]
+    assert set(pi.task_types) >= {"execute", "score", "classify", "ner"}

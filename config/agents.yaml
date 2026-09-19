@@ -48,7 +48,9 @@ agents:
     command: ["pi", "-p", "--mode", "json"]
     protocol: jsonl
     cwd: "{workspace}"
-    task_types: [execute]
+    # 2026-09-18 方案 B: +score/classify/ner — dsh / 手动任务可路由;
+    # 管线内消费仍走 ai_hub (LLM 单出口), 本通道只服务 agent 任务面
+    task_types: [execute, score, classify, ner]
     timeout_seconds: 600
 
 default_agent: builtin

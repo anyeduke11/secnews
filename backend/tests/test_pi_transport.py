@@ -1,10 +1,12 @@
 """pi_transport 单测 — NDJSON 解析契约 (与 agent_bridge 2026-09-05 实测对齐) + print 子进程。"""
+import asyncio
 import subprocess
 
 import pytest
 from pydantic import ValidationError
 
 from backend.config.llm_schema import LLMConfig, ProviderConfig, ProviderModels
+from backend.services.ai_hub.gateway import LLMService
 from backend.services.ai_hub.pi_transport import parse_pi_jsonl_events, run_pi_print
 
 
@@ -113,3 +115,49 @@ providers:
     )
     assert cfg.providers["pi"].type == "pi"
     assert cfg.providers["pi"].max_concurrent == 2
+
+
+def _pi_cfg():
+    return ProviderConfig(
+        type="pi", models=ProviderModels(score="", ner="", summary=""),
+        timeout_seconds=15, max_concurrent=1,
+    )
+
+
+def test_gateway_call_provider_pi(monkeypatch):
+    calls = {}
+
+    def fake_run_pi_print(prompt, model, timeout_seconds):
+        calls.update(prompt=prompt, model=model, timeout_seconds=timeout_seconds)
+        return "pi 回答"
+
+    monkeypatch.setattr(
+        "backend.services.ai_hub.pi_transport.run_pi_print", fake_run_pi_print
+    )
+    out = asyncio.run(LLMService()._call_provider(
+        _pi_cfg(), "", "你好", provider_name="pi_test",
+    ))
+    assert out == "pi 回答"
+    assert calls == {"prompt": "你好", "model": "", "timeout_seconds": 15}
+
+
+def test_gateway_call_provider_pi_error_propagates(monkeypatch):
+    """pi 失败必须上抛 — _call_provider 异常路径记健康窗口后抛给 fallback 循环。"""
+    def fake_fail(prompt, model, timeout_seconds):
+        raise RuntimeError("pi exit rc=1: boom")
+
+    monkeypatch.setattr(
+        "backend.services.ai_hub.pi_transport.run_pi_print", fake_fail
+    )
+    with pytest.raises(RuntimeError, match="boom"):
+        asyncio.run(LLMService()._call_provider(
+            _pi_cfg(), "", "你好", provider_name="pi_test",
+        ))
+
+
+def test_gateway_chat_unsupported_pi():
+    """_call_provider_chat 不支持 pi → ValueError → fallback 链跳下一 provider (spec §3.2 明确不做)。"""
+    with pytest.raises(ValueError, match="Unsupported provider type for chat: pi"):
+        asyncio.run(LLMService()._call_provider_chat(
+            _pi_cfg(), "", [{"role": "user", "content": "x"}],
+        ))

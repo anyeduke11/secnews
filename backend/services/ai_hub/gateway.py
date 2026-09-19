@@ -11,6 +11,7 @@ COST_PER_1M_TOKENS`` 仍可解析 (由 ``__init__.py`` re-export).
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -602,6 +603,15 @@ class LLMService:
                     result = await self._call_anthropic(
                         cfg, model, prompt, max_tokens=max_tokens, temperature=temperature,
                         provider_name=provider_name,
+                    )
+                elif cfg.type == "pi":
+                    # 2026-09-18 方案 B: pi provider — 子进程 pi -p --mode json,
+                    # NDJSON 解析与 agent_bridge 共享 (pi_transport 单点)。
+                    # 失败抛异常 → 上方 except 记健康窗口 → fallback 下一 provider。
+                    from backend.services.ai_hub.pi_transport import run_pi_print
+
+                    result = await asyncio.to_thread(
+                        run_pi_print, prompt, model, cfg.timeout_seconds
                     )
                 else:
                     raise ValueError(f"Unsupported provider type: {cfg.type}")

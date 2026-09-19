@@ -77,6 +77,22 @@ TO_STAGE = LIFECYCLE_REFINE
 _RAW_LIKE_STAGES: tuple[str, ...] = (LIFECYCLE_RAW, LEGACY_RAW_LIKE)
 
 
+def write_entities(item_id: str, entities: list[str]) -> None:
+    """pipeline_ner: 实体 JSON 落 knowledge_items.entities (空列表不写)。"""
+    if not entities:
+        return
+    conn = get_connection()
+    conn.execute(
+        f"UPDATE {knowledge_items_table()} SET entities = ? WHERE id = ?",
+        (json.dumps(entities, ensure_ascii=False), item_id),
+    )
+
+
+def _ner_enabled() -> bool:
+    from backend.extensions import is_extension_enabled
+    return is_extension_enabled("pipeline_ner")
+
+
 class T1Trigger:
     """Advance ``kl:raw`` items to ``kl:refine`` with simhash + scoring.
 
@@ -279,6 +295,14 @@ class T1Trigger:
                     # Write LLM score to ai_scores table for audit
                     self._write_llm_score(item.get("id", ""), score)
                     self.metrics.observe("t1_llm_score_ms", 0)
+                    # 2026-09-18 方案 B: NER 增援 (gate pipeline_ner, 默认关) —
+                    # 复用打分 content, 失败不影响打分主链路。
+                    if _ner_enabled():
+                        try:
+                            ents = asyncio.run(llm_service.extract_entities(content))
+                            write_entities(item.get("id", ""), ents)
+                        except Exception as ner_exc:
+                            logger.warning(f"t1 NER enrichment failed (non-fatal): {ner_exc}")
                     return score
             except Exception:
                 pass

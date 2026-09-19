@@ -525,6 +525,84 @@ __all__ = [
     "classify_difficulty",
     "classify_domain",
     "classify_item",
+    "classify_item_with_ai",
     "classify_practice_domain",
     "classify_type",
 ]
+
+
+# ═══════════════════════════════════════════════════════════════
+# AI 分类增援 (2026-09-18 方案 B, gate ai_classify — 默认关)
+# 纯规则 classify_item 契约不动 (本文件以上部分保持 deterministic)。
+# ═══════════════════════════════════════════════════════════════
+
+_DOMAIN_VOCAB: frozenset[str] = frozenset(set(TAG_DOMAIN_MAP.values()))
+
+
+def _ai_classify_enabled() -> bool:
+    from backend.extensions import is_extension_enabled
+    return is_extension_enabled("ai_classify")
+
+
+def _build_ai_classify_prompt(title: str, tags: list[str], source_url: str) -> str:
+    domains = ", ".join(sorted(_DOMAIN_VOCAB))
+    return (
+        "为以下资讯条目分类。domain 必须从候选列表中选一个, 无法判断填 null。\n"
+        f"候选 domain: {domains}\n"
+        f"标题: {title}\n"
+        f"标签: {', '.join(tags) if tags else '(无)'}\n"
+        f"来源: {source_url or '(无)'}\n"
+        '只输出 JSON: {"domain": "...", "type": "...", "difficulty": "..."}'
+    )
+
+
+def _parse_classify_json(raw: str) -> dict | None:
+    import json as _json
+    import re as _re
+    try:
+        m = _re.search(r"\{.*\}", raw or "", _re.DOTALL)
+        if not m:
+            return None
+        data = _json.loads(m.group(0))
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def classify_item_with_ai(
+    tags: list[str],
+    title: str = "",
+    source_url: str = "",
+) -> dict:
+    """classify_item 的 gate 化包装: 纯规则优先, domain miss 时 LLM 增援。
+
+    - gate ai_classify 关 → 等价 classify_item (零 LLM 调用);
+    - 仅规则结果 domain=None 时触发一次 LLM; domain 结果必须落在
+      ``_DOMAIN_VOCAB`` 内才采纳, type/difficulty 仅补 None 槽位;
+    - LLM 失败 / 解析失败 → 兜底纯规则结果 (增援永不伤害原行为)。
+    """
+    result = classify_item(tags, title, source_url)
+    if not _ai_classify_enabled():
+        return result
+    if result.get("domain"):
+        return result  # 规则命中 → 零 LLM
+    try:
+        import asyncio
+
+        from backend.services.ai_hub.gateway import llm_service
+
+        raw = asyncio.run(llm_service.generate(
+            _build_ai_classify_prompt(title, list(tags), source_url),
+            task="ai_classify",
+        ))
+        parsed = _parse_classify_json(raw or "")
+        if parsed:
+            llm_domain = parsed.get("domain")
+            if not result.get("domain") and llm_domain in _DOMAIN_VOCAB:
+                result["domain"] = llm_domain
+            for key in ("type", "difficulty"):
+                if not result.get(key) and parsed.get(key):
+                    result[key] = str(parsed[key])
+    except Exception:
+        pass  # 兜底: 任何失败返回纯规则结果
+    return result

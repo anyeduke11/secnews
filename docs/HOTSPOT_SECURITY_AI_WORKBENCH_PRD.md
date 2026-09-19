@@ -331,10 +331,10 @@
 | 指标 | 数值 | 说明 |
 |---|---|---|
 | **Routers** | 86 | 含 7 个 v1 前缀模块 |
-| **Services** | 145 | 12 包 + v1 域服务 |
+| **Services** | 146 | 12 包 + v1 域服务 |
 | **Migrations** | 119 | v1.0: 096-108；后续: 109-119 |
-| **Jobs** | 51 | APScheduler |
-| **Collectors** | 14 | SSRF 防护走 url_safety |
+| **Jobs** | 57 | APScheduler |
+| **Collectors** | 13 | SSRF 防护走 url_safety |
 | **Feature Gates** | 16 | 开 12 / 关 4 (mcp + 管线 LLM 三 gate: semantic_filter / ai_classify / pipeline_ner 默认关) |
 | **Tests** | 历史 4,598 | PROGRESS 记录 9 skipped；本轮定向 51 passed，不代替全量 |
 | **MCP Tools** | 19 | 12 读 + 7 写 |

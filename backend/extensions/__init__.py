@@ -53,6 +53,12 @@ _EXTENSION_NAMES = (
     # DEV-0182 Workbench Focus: 兴趣引擎 (行为信号 + 域权重 + Feed 排序乘子)。
     # 内容门禁 L3, 与质量门禁 (info_filter) 分离; owner 裁决新建独立 gate。
     "interest_engine",
+    # 2026-09-18 方案 B: 管线 LLM 三能力 — 语义门禁 / 分类增援 / NER 实体抽取。
+    # 全部默认关; 消费点: info_filter_gate.filter_items / auto_classifier /
+    # t1_raw_to_refine (spec: docs/superpowers/specs/2026-09-18-*.md)
+    "semantic_filter",
+    "ai_classify",
+    "pipeline_ner",
 )
 
 # 扩展→router 映射（每个 router 是 backend.api 中的模块名）

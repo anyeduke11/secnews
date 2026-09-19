@@ -34,6 +34,9 @@ interest_engine = true # DEV-0182 Workbench Focus — 内容门禁 L3 × 兴趣�
                    # 行为信号 (/api/interest/signals) + 域权重聚合 + Feed 排序乘子。
                    # 与质量门禁 (L0-L2 info_filter) 分离: 本 gate 只关相关性排序,
                    # 关闭时 /api/interest/* 404 且 Feed 回退显式二值分区 (P0 行为)。
+semantic_filter = false  # 2026-09-18 方案 B — 采集语义门禁 (info_filter 规则 neutral 时 LLM verdict-only 判别)
+ai_classify = false      # 2026-09-18 方案 B — 智能分类增援 (auto_classifier 规则 miss 时 LLM 补 domain)
+pipeline_ner = false     # 2026-09-18 方案 B — NER 实体抽取 (t1 score 成功后 extract_entities 落库)
 # agent_loop / playbook_engine / skill_eval 三个死配置键已移除 (v0.8.2 X-B3 治理):
 # 三者服务本体不受 gate 控制 (无 router / 无 job / 无 API 消费点), TOML 键被
 # _load_gates 过滤属无效配置。gate 化须随消费点同时登记 (user_skills 先例)。

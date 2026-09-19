@@ -78,6 +78,60 @@ def _parse_score01(raw: str) -> float:
     return max(0.0, min(1.0, float(m.group(0))))
 
 
+# ── 语义门禁 (2026-09-18 方案 B, gate semantic_filter) ─────────────
+_SEMANTIC_VERDICT_PROMPT = """你是资讯质量门禁。判断以下条目是否值得保留进入知识管线。
+判定标准:
+- allow: 与安全 / AI / 技术资讯相关, 或对从业者有信息量
+- reject: 广告、软文、招聘、活动宣传、与主题无关的噪声
+
+条目内容:
+{content}
+
+只输出 JSON, 不要输出其他文字:
+{{"verdict": "allow" 或 "reject", "reason": "一句话理由"}}"""
+
+
+def _build_semantic_verdict_prompt(content: str) -> str:
+    return _SEMANTIC_VERDICT_PROMPT.format(content=content[:2000])
+
+
+def _parse_verdict_json(raw: str) -> dict:
+    """容错解析 verdict JSON; 解析失败 → allow (fail-open, 门禁故障不丢内容)。"""
+    import json as _json
+    import re as _re
+    try:
+        m = _re.search(r"\{.*\}", raw or "", _re.DOTALL)
+        if not m:
+            return {"verdict": "allow", "reason": "parse_failed_empty"}
+        data = _json.loads(m.group(0))
+        verdict = data.get("verdict")
+        if verdict == "reject":
+            return {"verdict": "reject", "reason": str(data.get("reason", ""))}
+        return {"verdict": "allow", "reason": str(data.get("reason", ""))}
+    except Exception:
+        return {"verdict": "allow", "reason": "parse_failed_exception"}
+
+
+def semantic_verdict(content: str) -> dict:
+    """LLM verdict-only 判别 (同步入口, 链路内 asyncio.run 包裹 — t1 同款模式)。
+
+    走 gateway.generate 通用漏斗 (task="semantic_filter"); 全链失败
+    generate 返回 "" → _parse_verdict_json fail-open allow。
+    """
+    import asyncio
+
+    from .gateway import llm_service
+
+    try:
+        raw = asyncio.run(llm_service.generate(
+            _build_semantic_verdict_prompt(content), task="semantic_filter",
+        ))
+    except Exception:
+        # fail-open: LLM 链路故障 (provider 全挂/超时) 不丢内容。
+        return {"verdict": "allow", "reason": "llm_failed_fail_open"}
+    return _parse_verdict_json(raw or "")
+
+
 def _est_tokens(text: str) -> int:
     return len(text) // 4
 

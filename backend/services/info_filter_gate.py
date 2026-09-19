@@ -45,6 +45,21 @@ def _is_enabled() -> bool:
         return False
 
 
+def _semantic_enabled() -> bool:
+    from backend.extensions import is_extension_enabled
+    return is_extension_enabled("semantic_filter")
+
+
+def _item_text(it: Any) -> str:
+    """Layer 2 item → 判别文本 (title + summary, 兼容 dict / HotspotItem)。"""
+    def _get(obj, key: str) -> str:
+        if isinstance(obj, dict):
+            return str(obj.get(key, "") or "")
+        return str(getattr(obj, key, "") or "")
+    parts = [_get(it, "title"), _get(it, "summary")]
+    return " ".join(p for p in parts if p.strip())
+
+
 def _load_rules_cached() -> list[dict]:
     """读 DB 拿 enabled 规则列表, 进程内缓存."""
     global _cached_rules, _cached_at
@@ -138,6 +153,23 @@ def filter_items(items: list[Any]) -> list[Any]:
         if verdict == "deny":
             dropped += 1
             continue
+        # 2026-09-18 方案 B: 语义门禁层 — 仅规则 neutral 时 LLM 判别
+        # (gate semantic_filter, 默认关; 失败 fail-open 保留)。
+        if verdict == "neutral" and _semantic_enabled():
+            text = _item_text(it)
+            if text:
+                try:
+                    from backend.services.ai_hub.tasks import semantic_verdict
+                    sv = semantic_verdict(text)
+                    if sv.get("verdict") == "reject":
+                        dropped += 1
+                        logger.info(
+                            f"info_filter: semantic reject item "
+                            f"{name!r} reason={sv.get('reason', '')!r}"
+                        )
+                        continue
+                except Exception as e:  # fail-open
+                    logger.warning(f"info_filter: semantic layer error (fail-open): {e}")
         kept.append(it)
     if dropped:
         logger.info(f"info_filter: dropped {dropped} items at Layer 2")

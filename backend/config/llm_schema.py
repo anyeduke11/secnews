@@ -47,7 +47,9 @@ class ProviderBreaker(BaseModel):
 
 
 class ProviderConfig(BaseModel):
-    type: Literal["ollama", "openai", "openai_compatible", "anthropic"]
+    # 2026-09-18 方案 B: +pi (pi.dev agent harness, 认证自管 ~/.pi/agent/auth.json,
+    # 无 base_url / api_key_env 语义; 传输见 ai_hub/pi_transport.py)
+    type: Literal["ollama", "openai", "openai_compatible", "anthropic", "pi"]
     base_url: str | None = None
     api_key_env: str | None = None
     models: ProviderModels

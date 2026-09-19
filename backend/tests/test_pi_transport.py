@@ -2,7 +2,9 @@
 import subprocess
 
 import pytest
+from pydantic import ValidationError
 
+from backend.config.llm_schema import LLMConfig, ProviderConfig, ProviderModels
 from backend.services.ai_hub.pi_transport import parse_pi_jsonl_events, run_pi_print
 
 
@@ -78,3 +80,36 @@ class TestRunPiPrint:
         )
         with pytest.raises(RuntimeError, match="无有效输出"):
             run_pi_print("p", "", 10)
+
+
+def test_llm_schema_accepts_pi_type():
+    cfg = ProviderConfig(type="pi", models=ProviderModels(score="", ner="", summary=""))
+    assert cfg.type == "pi"
+
+
+def test_llm_schema_rejects_unknown_type():
+    with pytest.raises(ValidationError):
+        ProviderConfig(type="pi_dev", models=ProviderModels())
+
+
+def test_llm_config_full_yaml_pi(tmp_path):
+    yaml_file = tmp_path / "llm.yaml"
+    yaml_file.write_text(
+        """
+enabled: true
+default_provider: pi
+fallback_order: [pi]
+providers:
+  pi:
+    type: pi
+    models: {score: "", ner: "", summary: ""}
+    timeout_seconds: 60
+    max_concurrent: 2
+""",
+        encoding="utf-8",
+    )
+    cfg = LLMConfig.model_validate(
+        __import__("yaml").safe_load(yaml_file.read_text(encoding="utf-8"))
+    )
+    assert cfg.providers["pi"].type == "pi"
+    assert cfg.providers["pi"].max_concurrent == 2

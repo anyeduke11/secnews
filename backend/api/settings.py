@@ -155,6 +155,7 @@ async def set_llm_provider(body: LLMProviderRequest):
         body.provider,
         actor=body.actor,
         action="llm_config.update",
+        target="default_provider",
         detail={"from": old, "to": body.provider, "source": "user_switch"},
     )
 

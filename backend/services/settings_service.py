@@ -27,6 +27,7 @@ class SettingsService:
         *,
         actor: str = "web",
         action: str = "settings.set",
+        target: str | None = None,
         detail: dict[str, Any] | None = None,
     ) -> None:
         # 调用方未传 detail 时补 from/to 语义; 传了则尊重调用方 (省一次读)。
@@ -35,9 +36,9 @@ class SettingsService:
         from backend.observability_records import record_audit
 
         record_audit(
-            actor,
-            action,
-            target=key,
+            actor=actor,
+            action=action,
+            target=target if target is not None else key,
             detail=detail if detail is not None else {"from": old, "to": value},
         )
 

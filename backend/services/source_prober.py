@@ -13,6 +13,7 @@ v0.7.x P0: SSRF 防护 — ``_head_status`` / ``_get_status`` 在出站前
 """
 from __future__ import annotations
 
+import json
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -154,9 +155,9 @@ def _write_retire_alert(source: dict, death_days: float) -> None:
             f"源 {source.get('name', source['id'])} 死亡 {death_days:.0f} 天"
             f"仍未复活, 已自动退役 (retired)"
         ),
-        "detail": (
-            f'{{"death_days": {death_days:.1f}, '
-            f'"last_success_at": "{source.get("last_success_at") or ""}"}}'
+        "detail": json.dumps(
+            {"death_days": round(death_days, 1), "last_success_at": source.get("last_success_at") or ""},
+            ensure_ascii=False,
         ),
     })
 
@@ -181,13 +182,16 @@ def list_dead_sources() -> list[dict]:
     - status='dead' AND enabled=1: 每日探测;
     - status='retired': 降频复探 — 仅当 cooldown_until (下次可复探时刻)
       为空或已过期时纳入, 实现每周一次而非每日。
+      仅复探曾服役源 (last_success_at 非空): 从未成功抓取的归档残留
+      (cleanup 脚本产物) 不得被探测自动复活启用。
     """
     conn = get_connection()
     rows = conn.execute(
         "SELECT * FROM crawler_sources "
         "WHERE (status = 'dead' AND enabled = 1) "
-        "   OR (status = 'retired' AND (cooldown_until IS NULL "
-        "       OR julianday(cooldown_until) < julianday('now')))"
+        "   OR (status = 'retired' AND last_success_at IS NOT NULL "
+        "       AND (cooldown_until IS NULL "
+        "           OR julianday(cooldown_until) < julianday('now')))"
     ).fetchall()
     return [dict(r) for r in rows]
 

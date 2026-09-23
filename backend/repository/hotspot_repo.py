@@ -702,7 +702,7 @@ class HotspotRepository:
             )
             SELECT source,
                    AVG(quality_score) AS avg_quality,
-                   COUNT(*)           AS cnt
+                   COUNT(quality_score) AS cnt
             FROM ranked
             WHERE rn <= ?
             GROUP BY source

@@ -79,8 +79,11 @@ def apply_plan(conn, plan: dict) -> dict:
     zombie_rows = conn.execute(
         f"SELECT id, name FROM crawler_sources WHERE {ZOMBIE_WHERE}"
     ).fetchall()
+    # cooldown 置一周后: 与 prober 的 retired 低频复探口径一致,
+    # 且 last_success_at IS NULL 的归档行本就不满足复探条件 (双保险)
     cur_z = conn.execute(
         f"UPDATE crawler_sources SET status = 'retired', "
+        f"cooldown_until = datetime('now', '+7 days'), "
         f"updated_at = datetime('now') WHERE {ZOMBIE_WHERE}"
     )
     alerts = SourceAlertRepository()

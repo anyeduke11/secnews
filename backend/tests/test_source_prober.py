@@ -290,14 +290,26 @@ class TestRetiredLowFrequency:
         assert "lf-2" in ids
 
     def test_retired_due_included(self, temp_db):
-        """retired 且复探冷却已过 → 重新纳入探测清单。"""
+        """retired 且复探冷却已过 → 重新纳入探测清单 (曾服役源)。"""
         _insert_source(
             "lf-3", status="retired", enabled=0,
             cooldown_until=_days_ago_iso(1),
+            last_success_at=_days_ago_iso(20),
         )
         from backend.services.source_prober import list_dead_sources
 
         assert "lf-3" in {s["id"] for s in list_dead_sources()}
+
+    def test_retired_never_served_not_probed(self, temp_db):
+        """归档残留 (retired 但从未成功抓取, last_success_at NULL) 不得被
+        复探自动复活 — 终审 Important 修复: 探测只复活曾服役源。"""
+        _insert_source(
+            "lf-5", status="retired", enabled=0,
+            cooldown_until=_days_ago_iso(1),
+        )
+        from backend.services.source_prober import list_dead_sources
+
+        assert "lf-5" not in {s["id"] for s in list_dead_sources()}
 
     def test_probe_all_dead_skips_fresh_retired(self, temp_db, head_status):
         """端到端: 退役当轮 → probe_all_dead 立即重跑不再触碰该源 (低频生效)。"""

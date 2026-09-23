@@ -19,7 +19,7 @@ class SourceSchedulerRepository:
         SELECT cs.* FROM crawler_sources cs
         {overrides_join}
         WHERE cs.enabled = 1
-          AND cs.status NOT IN ('dead', 'disabled')
+          AND cs.status NOT IN ('dead', 'disabled', 'retired')
           AND (cs.cooldown_until IS NULL OR cs.cooldown_until < {now})
           AND (cs.last_fetch_at IS NULL OR cs.last_fetch_at = ''
                OR julianday(cs.last_fetch_at) IS NULL
@@ -217,6 +217,7 @@ class SourceSchedulerRepository:
         dead = counts.get("dead", 0)
         unknown = counts.get("unknown", 0)
         disabled = counts.get("disabled", 0)
+        retired = counts.get("retired", 0)
         active_rate = round(active / total, 4) if total > 0 else 0.0
 
         return {
@@ -227,6 +228,7 @@ class SourceSchedulerRepository:
             "dead": dead,
             "unknown": unknown,
             "disabled": disabled,
+            "retired": retired,
             "active_rate": active_rate,
         }
 

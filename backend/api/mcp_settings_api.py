@@ -3,7 +3,7 @@
 路由清单
 --------
 - ``GET /api/settings/mcp/config``    stdio/SSE 配置 (依赖 server 本体, feature_mcp=false 时 404)
-- ``PUT /api/settings/mcp/enabled``   切换 feature.mcp_server — 立即生效 + settings kv 持久化
+- ``PUT /api/settings/mcp/enabled``   切换 server 本体旗标 (kv 键 feature.mcp) — 立即生效 + 持久化
 
 背景: 原两端点住在 gated mcp.py (extensions.mcp TOML 默认 false → 404),
 UI 永远无法开启 MCP 的自锁; toggle 且只改进程内单例重启即丢。本文件双修。
@@ -52,7 +52,7 @@ async def get_mcp_config():
 
 @router.put("/mcp/enabled")
 async def toggle_mcp_enabled(req: ToggleEnabledRequest):
-    """切换 feature.mcp_server (立即生效 + 持久化)。"""
+    """切换 server 本体旗标 kv 键 feature.mcp (立即生效 + 持久化)。"""
     return await asyncio.to_thread(_toggle, req.enabled)
 
 

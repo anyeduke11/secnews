@@ -152,3 +152,6 @@ runtime/upstreams/
 reports/
 backend/data/mitre/enterprise-attack.json
 backend/data/mitre/enterprise-attack.meta.json
+
+# feature_gates TOML 原位替换的编辑器备份 (set_toml_gate 副产物)
+backend/config/*.bak

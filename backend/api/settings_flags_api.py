@@ -23,7 +23,7 @@ router = APIRouter(prefix="/api/settings", tags=["feature-gates"])
 _STARTUP_SCOPED = {
     "codegarden", "codegarden_phase2b", "mcp", "sync", "dsh",
     "secnews", "info_filter", "skill_registry", "user_skills",
-    "trigger_gate", "tech_stack",
+    "trigger_gate", "tech_stack", "security_graph", "interest_engine",
 }
 
 

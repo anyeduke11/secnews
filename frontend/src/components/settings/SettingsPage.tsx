@@ -11,7 +11,7 @@
  * 历史: v0.6.x 原 SettingsPage.tsx 1065 行; v0.7.0 拆 12 文件;
  *       v0.7.x SettingsHub 合并采集/哨兵设置与图片模型三页;
  *       V2 引入 dashboard 首屏 + 全页面哨兵化;
- *       v0.8 P1 新增 info_filter (独立资讯筛选门禁) → 7 cat.
+ *       v0.8 P1 新增 info_filter (独立资讯筛选门禁, 归 collection 区).
  */
 import { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';

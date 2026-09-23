@@ -286,8 +286,27 @@ def set_toml_gate(name: str, enabled: bool) -> None:
     if pattern.search(text):
         new_text = pattern.sub(lambda m: f"{m.group(1)}{new_line}{m.group(2) or ''}", text)
     else:
-        tail = text if "[extensions]" in text else text.rstrip("\n") + "\n\n[extensions]\n"
-        new_text = tail.rstrip("\n") + "\n" + new_line + "\n"
+        # 键行未命中 — 必须落进 [extensions] 节内, 而非盲目 append 文件尾
+        # (多节 TOML 时文件尾属于最后一个节, 如 [jobs], 键会写错节)。
+        lines = text.splitlines()
+        ext_idx = None       # 最后一次出现的 [extensions] 节头行号
+        next_section = None  # 该节之后第一个节头行号 (None = [extensions] 是最后一节)
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped == "[extensions]":
+                ext_idx = i
+                next_section = None
+            elif ext_idx is not None and stripped.startswith("[") and stripped.endswith("]"):
+                next_section = i
+                break
+        if ext_idx is None:
+            # 无 [extensions] 节 — 追加节头再插键
+            new_text = text.rstrip("\n") + "\n\n[extensions]\n" + new_line + "\n"
+        elif next_section is not None:
+            lines.insert(next_section, new_line)
+            new_text = "\n".join(lines) + "\n"
+        else:
+            new_text = text.rstrip("\n") + "\n" + new_line + "\n"
     _GATES_PATH.write_text(new_text, encoding="utf-8")
     reset_gates()
 

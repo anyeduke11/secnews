@@ -45,13 +45,26 @@ class TestMcpSettingsUngated:
         body = r.json()
         assert body["enabled"] is False
         assert body["persisted"] is True
-        assert "重启" not in body["note"]  # server 开关立即生效, note 不再误导
+        # note 如实: 旗标/kv 即时生效, 但 /mcp/sse transport 挂载启动期 — 重启后完整生效
+        assert "transport" in body["note"]
+        assert "重启后完整生效" in body["note"]
 
     def test_toggle_persists_to_settings_kv(self, client, monkeypatch):
         monkeypatch.setattr(config, "feature_mcp", True)
         client.put("/api/settings/mcp/enabled", json={"enabled": False})
         from backend.repository.settings_repo import SettingsRepository
         assert SettingsRepository().get("feature.mcp") is False
+
+    def test_toggle_writes_audit_log(self, client, monkeypatch):
+        """_persist 经 SettingsService — 写入即审计 (终审修复: 直连 repo 曾绕过 audit_log)。"""
+        monkeypatch.setattr(config, "feature_mcp", True)
+        client.put("/api/settings/mcp/enabled", json={"enabled": False})
+        from backend.repository import db
+        row = db.get_connection().execute(
+            "SELECT action, detail FROM audit_log WHERE target = 'feature.mcp'"
+        ).fetchone()
+        assert row is not None, "feature.mcp toggle must leave an audit row"
+        assert row["action"] == "settings.set"
 
     def test_get_config_still_gated_404(self, client, monkeypatch):
         # 读配置依赖 MCP server 本体, feature_mcp=false → 404 (与旧契约一致)

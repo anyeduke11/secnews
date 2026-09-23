@@ -46,7 +46,7 @@
 | # | 验收项 | 状态 | 证据 |
 |---|---|---|---|
 | 8.1 | `/settings` 侧栏 7 cat / 5 组，无只读监控/数据浏览/纯动作区块混入 | ✅ | §1.1-1.3（8 组件物理删除 + grep 清零） |
-| 8.2 | 能力开关卡可切换任一 TOML gate，运行时读数 5s 内跟随；需重启项明示；MCP 关闭态可 UI 重开且重启不丢 | ✅ | §2.3-2.4（TOML 写 + 5s TTL 热重载既有机制）+ §2.2（kv `feature.mcp` 持久化） |
+| 8.2 | 能力开关卡可切换任一 TOML gate，运行时读数 5s 内跟随；需重启项明示；MCP 关闭态可 UI 重开且重启不丢 | ✅ | §2.3-2.4（TOML 写 + 5s TTL 热重载既有机制）+ §2.2（kv `feature.mcp` 持久化）；终审修复批 2026-09-23 补齐前端证据：`FeatureGatesCard` toggle 接通 `PUT /api/settings/feature-gates/{name}`（成功更新行状态 + note；409 env 覆盖/404 行内展示；source=env 禁用），`set_toml_gate` 多节 TOML 键错插节同步修复；测试 `FeatureGatesCard.test.tsx`（成功/409/env 禁用）+ `test_feature_gates.py::TestSetTomlGate` + `test_mcp_settings_api.py::test_toggle_writes_audit_log` |
 | 8.3 | LLM 模型配置唯一入口在「模型配置」cat | ✅ | §1.5（image_models/pipeline 模型入口消亡） |
 | 8.4 | `webhook.secret` 不再存 settings 明文 KV；跨端 bundle 不含非 config key | ✅ | §3.2-3.4（迁移 + 白名单测试锚定） |
 | 8.5 | 后端新增测试全绿、全量回归 0 失败、generate_meta --check / ruff / 行数门 / nav4 守卫全过 | ✅ | 见 §5 |

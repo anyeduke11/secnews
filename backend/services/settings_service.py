@@ -52,6 +52,8 @@ class SettingsService:
                 f"新 key 须先在本契约登记 (设计稿 §5)"
             )
         # 调用方未传 detail 时补 from/to 语义; 传了则尊重调用方 (省一次读)。
+        # 注意: detail 明文入库 audit_log — 未来登记新前缀时须确保键值非敏感
+        # (敏感配置走 llm_secrets vault, 先例: webhook.secret 迁移)。
         old = self.get(key) if detail is None else None
         SettingsRepository().set(key, value)
         from backend.observability_records import record_audit

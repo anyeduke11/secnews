@@ -89,12 +89,14 @@ def enable(name: str) -> bool:
 def _persist(name: str, value: bool) -> None:
     """写 settings kv ``feature.<name>`` (config.feature_<name> 的 kv 镜像, main.py 启动回读)。
 
+    经 SettingsService().set — 写入即审计 (audit_log) + namespace 契约
+    (``feature.`` 前缀已在 _ALLOWED_PREFIXES), 不直连 repo 绕过审计。
     失败仅告警 — 即时生效不因持久化失败回滚。
     """
     try:
-        from backend.repository.settings_repo import SettingsRepository
+        from backend.services.settings_service import SettingsService
 
-        SettingsRepository().set(f"feature.{name}", value)
+        SettingsService().set(f"feature.{name}", value)
     except Exception as e:  # pragma: no cover
         logger.warning("feature flag persist failed for %s: %s", name, e)
 

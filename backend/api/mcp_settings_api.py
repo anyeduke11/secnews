@@ -3,7 +3,11 @@
 路由清单
 --------
 - ``GET /api/settings/mcp/config``    stdio/SSE 配置 (依赖 server 本体, feature_mcp=false 时 404)
-- ``PUT /api/settings/mcp/enabled``   切换 server 本体旗标 (kv 键 feature.mcp) — 立即生效 + 持久化
+- ``PUT /api/settings/mcp/enabled``   切换 server 本体旗标 (kv 键 feature.mcp)
+
+生效语义 (如实): kv 持久化 (经 SettingsService, 写入即审计) + ``config.feature_mcp``
+旗标进程内立即生效; 但 ``/mcp/sse`` transport 挂载在启动期 (lifespan) —
+重启后完整生效。
 
 背景: 原两端点住在 gated mcp.py (extensions.mcp TOML 默认 false → 404),
 UI 永远无法开启 MCP 的自锁; toggle 且只改进程内单例重启即丢。本文件双修。
@@ -36,7 +40,8 @@ def _toggle(enabled: bool) -> dict:
         "enabled": enabled,
         "applied": ok,
         "persisted": True,
-        "note": "MCP server 开关已立即生效并持久化; /api/mcp/* 调试路由随 extensions.mcp TOML gate 下次启动生效",
+        "note": "kv 已持久化 (重启回读), config.feature_mcp 旗标即时生效; "
+                "/mcp/sse transport 挂载在启动期 — 重启后完整生效",
     }
 
 
@@ -52,7 +57,7 @@ async def get_mcp_config():
 
 @router.put("/mcp/enabled")
 async def toggle_mcp_enabled(req: ToggleEnabledRequest):
-    """切换 server 本体旗标 kv 键 feature.mcp (立即生效 + 持久化)。"""
+    """切换 server 本体旗标 kv 键 feature.mcp (旗标即时生效 + kv 持久化; transport 重启后完整生效)。"""
     return await asyncio.to_thread(_toggle, req.enabled)
 
 

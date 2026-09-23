@@ -74,6 +74,10 @@ def _apply_persisted_feature_flags() -> None:
 
     settings kv ``feature.<name>`` ↔ ``config.feature_<name>`` 一一对应;
     仅覆盖显式写入过的 key (kv 存在才 setattr), 读取失败静默走默认。
+
+    已知取舍: kv 回读会覆盖 env ``HOTSPOT_FEATURE_MCP`` — 与 feature_gates
+    env>TOML 惯例相反 (kv 是 UI toggle 的持久层, 优先级高于 env 才能保证
+    重启不丢)。勿与 extensions gate (feature_gates.toml) 的 env 语义混淆。
     """
     try:
         from backend.repository.settings_repo import SettingsRepository

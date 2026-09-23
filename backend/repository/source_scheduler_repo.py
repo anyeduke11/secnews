@@ -11,8 +11,29 @@ from backend.repository.db import get_connection
 class SourceSchedulerRepository:
     """crawler_sources 调度 + crawler_runs 统计查询。"""
 
+    # due 过滤条件模板 ({now} = 占位参数 "?" 或 SQLite datetime('now');
+    # {eff_cadence} = 生效 cadence 表达式)。采集闭环 T4: 倍率只在 due
+    # 计算处生效 — override 未命中的源回落 COALESCE(cadence_seconds, 1800)。
+    _SCHEDULABLE_SQL = """
+        {prefix}
+        SELECT cs.* FROM crawler_sources cs
+        {overrides_join}
+        WHERE cs.enabled = 1
+          AND cs.status NOT IN ('dead', 'disabled')
+          AND (cs.cooldown_until IS NULL OR cs.cooldown_until < {now})
+          AND (cs.last_fetch_at IS NULL OR cs.last_fetch_at = ''
+               OR julianday(cs.last_fetch_at) IS NULL
+               OR julianday(cs.last_fetch_at)
+                  + {eff_cadence} / 86400.0 <= julianday({now}))
+        ORDER BY cs.priority DESC, cs.last_fetch_at ASC
+        LIMIT ?
+    """
+
     def get_schedulable(
-        self, limit: int = 3, now_iso: str | None = None
+        self,
+        limit: int = 3,
+        now_iso: str | None = None,
+        cadence_overrides: dict[str, float] | None = None,
     ) -> list[dict]:
         """查询当前可调度的源列表。
 
@@ -22,47 +43,52 @@ class SourceSchedulerRepository:
         为空/不可解析 → 到期; 否则 julianday 比较 (ISO 带时区后缀 SQLite
         可解析, 避免 'T' vs ' ' 文本比较陷阱)。
 
+        采集闭环 T4: ``cadence_overrides`` (crawler_sources.id → 调整后
+        cadence 秒) 由 ``SourceSchedulerService`` 按每源质量信号计算后
+        传入, 仅影响本次 due 判定, 不回写 ``cadence_seconds`` 静态配置
+        (可回退)。未命中 override 的源按 base cadence 判定。
+
         Args:
             limit: 最大返回条数
             now_iso: 当前时间 (ISO 格式)，用于冷却/节奏判断；为 None 时使用
                 SQLite datetime('now') / julianday('now')
+            cadence_overrides: 源 ID → 生效 cadence 秒 (None = 全部 base)
 
         Returns:
             list of dict，每行一条可调度源
         """
         conn = get_connection()
-        if now_iso is not None:
-            rows = conn.execute(
-                """
-                SELECT * FROM crawler_sources
-                WHERE enabled = 1
-                  AND status NOT IN ('dead', 'disabled')
-                  AND (cooldown_until IS NULL OR cooldown_until < ?)
-                  AND (last_fetch_at IS NULL OR last_fetch_at = ''
-                       OR julianday(last_fetch_at) IS NULL
-                       OR julianday(last_fetch_at)
-                          + COALESCE(cadence_seconds, 1800) / 86400.0 <= julianday(?))
-                ORDER BY priority DESC, last_fetch_at ASC
-                LIMIT ?
-                """,
-                (now_iso, now_iso, limit),
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                """
-                SELECT * FROM crawler_sources
-                WHERE enabled = 1
-                  AND status NOT IN ('dead', 'disabled')
-                  AND (cooldown_until IS NULL OR cooldown_until < datetime('now'))
-                  AND (last_fetch_at IS NULL OR last_fetch_at = ''
-                       OR julianday(last_fetch_at) IS NULL
-                       OR julianday(last_fetch_at)
-                          + COALESCE(cadence_seconds, 1800) / 86400.0 <= julianday('now'))
-                ORDER BY priority DESC, last_fetch_at ASC
-                LIMIT ?
-                """,
-                (limit,),
-            ).fetchall()
+        use_now_param = now_iso is not None
+        overrides = cadence_overrides or None
+        sql = self._SCHEDULABLE_SQL.format(
+            prefix=(
+                "WITH cadence_ov(source_id, cadence) AS (VALUES "
+                + ", ".join(["(?, ?)"] * len(overrides))
+                + ")"
+                if overrides
+                else ""
+            ),
+            overrides_join=(
+                "LEFT JOIN cadence_ov ov ON ov.source_id = cs.id"
+                if overrides
+                else ""
+            ),
+            now="?" if use_now_param else "datetime('now')",
+            eff_cadence=(
+                "COALESCE(ov.cadence, COALESCE(cs.cadence_seconds, 1800))"
+                if overrides
+                else "COALESCE(cs.cadence_seconds, 1800)"
+            ),
+        )
+        params: list = []
+        if overrides:
+            params.extend(
+                v for pair in overrides.items() for v in pair
+            )
+        if use_now_param:
+            params.extend([now_iso, now_iso])
+        params.append(limit)
+        rows = conn.execute(sql, params).fetchall()
         return [dict(r) for r in rows]
 
     def update_health_state(self, source_id: str, **fields) -> bool:

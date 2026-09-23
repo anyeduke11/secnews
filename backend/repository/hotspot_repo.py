@@ -679,6 +679,44 @@ class HotspotRepository:
             ) from e
         return {str(r["url"]) for r in rows if r["url"]}
 
+    def get_recent_quality_stats(self, window: int = 20) -> dict[str, dict]:
+        """每源最近 ``window`` 条的质量分均值 (采集闭环 T4 质量自适应 cadence 信号源).
+
+        按 ``COALESCE(published_at, ingested_at) DESC`` 取每源最近
+        ``window`` 条, 返回 ``{source_name: {"avg_quality": float,
+        "count": int}}``。key 与 ``hotspots.source`` 列同域 (源名称, 即
+        ``crawler_sources.name``)。窗口条数不足最小样本数的无信号判定
+        (``count < 5``) 由调用方负责, 本方法如实返回 count。
+        """
+        conn = get_connection()
+        rows = conn.execute(
+            """
+            WITH ranked AS (
+                SELECT source, quality_score,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY source
+                           ORDER BY COALESCE(published_at, ingested_at) DESC
+                       ) AS rn
+                FROM hotspots
+                WHERE source IS NOT NULL AND source != ''
+            )
+            SELECT source,
+                   AVG(quality_score) AS avg_quality,
+                   COUNT(*)           AS cnt
+            FROM ranked
+            WHERE rn <= ?
+            GROUP BY source
+            """,
+            (window,),
+        ).fetchall()
+        return {
+            r["source"]: {
+                "avg_quality": float(r["avg_quality"]),
+                "count": int(r["cnt"]),
+            }
+            for r in rows
+        }
+
     def count_by_category(
         self,
         time_range: TimeRange | None = None,

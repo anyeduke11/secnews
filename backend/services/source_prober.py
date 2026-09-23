@@ -156,7 +156,7 @@ def _write_retire_alert(source: dict, death_days: float) -> None:
         ),
         "detail": (
             f'{{"death_days": {death_days:.1f}, '
-            f'"last_success_at": {str(source.get("last_success_at"))!r}}}'
+            f'"last_success_at": "{source.get("last_success_at") or ""}"}}'
         ),
     })
 

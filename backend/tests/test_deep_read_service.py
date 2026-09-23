@@ -232,7 +232,7 @@ def test_different_category_different_sections():
     sec_keys = [s["key"] for s in deep_read_sections("security")]
     fin_keys = [s["key"] for s in deep_read_sections("finance")]
     assert sec_keys != fin_keys
-    assert "impact_ioc" in sec_keys and "regulation_points" in fin_keys
+    assert "impact_ioc" in sec_keys and "penalty" in fin_keys
     # 跨类别可比的固定骨架
     assert sec_keys[0] == fin_keys[0] == "key_takeaways"
     assert sec_keys[-2:] == fin_keys[-2:] == ["next_actions", "evidence_gaps"]
@@ -240,7 +240,7 @@ def test_different_category_different_sections():
     p_sec = _build_deep_read_prompt("security", {"title": "T"}, "正文")
     p_fin = _build_deep_read_prompt("finance", {"title": "T"}, "正文")
     assert "应急响应工程师" in p_sec
-    assert '"impact_ioc"' in p_sec and '"regulation_points"' in p_fin
+    assert '"impact_ioc"' in p_sec and '"penalty"' in p_fin
 
 
 def test_unknown_category_falls_back_to_general():
@@ -253,7 +253,7 @@ def test_unknown_category_falls_back_to_general():
     unknown = [s["key"] for s in deep_read_sections("not-a-real-category")]
     general = [s["key"] for s in deep_read_sections(None)]
     assert unknown == general
-    assert "context" in unknown
+    assert "what" in unknown
     prompt = _build_deep_read_prompt("not-a-real-category", {}, "正文")
     assert "研判员" in prompt
 
@@ -271,3 +271,35 @@ def test_security_profile_marks_vuln_section_red_only():
         assert all(
             s["tone"] != "red" for s in deep_read_sections(cat)
         ), f"{cat} 视角不该占用 red (red 专属漏洞告警)"
+
+
+def test_framework_auto_selected_by_category():
+    """v2 框架机制: 解读框架必须随文章类型自动适配 —
+    情报研判类走 What/Why/How, 选型/商业类走轻量 SWOT, 监管类走 5W;
+    lens 提示语注入 prompt, 引导模型按框架组织各节而非散写。"""
+    from backend.services.ai_hub.prompts import (
+        _build_deep_read_prompt,
+        deep_read_framework_lens,
+        deep_read_sections,
+    )
+
+    def keys(cat: str) -> list[str]:
+        return [s["key"] for s in deep_read_sections(cat)]
+
+    # what/why/how 框架: 资讯研判类 (security/tech/ai/ai_security/通用兜底)
+    for cat in ("security", "tech", "ai", "ai_security", None):
+        ks = keys(cat or "not-a-real-category")
+        assert {"what", "why_matters", "how_react"} <= set(ks), f"{cat} 应含 what_why_how 框架节"
+
+    # swot 框架: 选型与商业判断类
+    for cat in ("github", "startup"):
+        assert {"strengths_opp", "weak_threat"} <= set(keys(cat)), f"{cat} 应含 swot_lite 框架节"
+
+    # 5W 框架: 监管合规类
+    assert {"who_when", "scope_bound"} <= set(keys("finance"))
+
+    # lens 注入: prompt 必须携带框架组织指令
+    assert "What/Why/How" in _build_deep_read_prompt("security", {"title": "T"}, "正文")
+    assert "SWOT" in _build_deep_read_prompt("github", {"title": "T"}, "正文")
+    assert "5W" in _build_deep_read_prompt("finance", {"title": "T"}, "正文")
+    assert deep_read_framework_lens("security"), "lens 不得为空"

@@ -110,7 +110,7 @@ def _build_extract_entities_prompt(content: str) -> str:
 # —— 那套证据要求只对漏洞类成立, 对招标/创投/金融监管类文章会诱导模型编造。
 # tone 只允许 mint / amber / red: 哨兵终端语义三色锁, red 专属漏洞告警语境。
 
-DEEP_READ_PROFILE_VERSION = "v1"
+DEEP_READ_PROFILE_VERSION = "v2"
 
 _HEAD_SECTION = {"key": "key_takeaways", "title": "要点速读", "tone": "mint"}
 _TAIL_SECTIONS = (
@@ -121,86 +121,106 @@ _TAIL_SECTIONS = (
 # 通用证据约束: 每条判断都要能对应原文, 否则进 evidence_gaps 而不是硬编。
 _EVIDENCE_RULE = "每条判断须能对应原文片段; 无法对应的写进 evidence_gaps, 不要编造。"
 
+# ── 分析框架库 (v2): 按文章类型自动选用的解读框架 ─────────────
+# 框架 = 一组有组织视角的分节 + lens 提示语; profile 声明适用的框架,
+# 与领域专属节组合 (语义重叠的通用节被框架节吸收, 领域独特节保留)。
+_FRAMEWORKS: dict[str, dict[str, Any]] = {
+    "what_why_how": {
+        "lens": "What/Why/How 认知框架 — what 只写事实与定义 (是什么), why 只写影响与动因 (为什么现在重要), how 只写行动与应对 (该怎么做)",
+        "sections": (
+            {"key": "what", "title": "这是什么", "tone": "mint"},
+            {"key": "why_matters", "title": "为什么重要", "tone": "amber"},
+            {"key": "how_react", "title": "如何应对", "tone": "mint"},
+        ),
+    },
+    "swot_lite": {
+        "lens": "轻量 SWOT 框架 — strengths_opp 只写机会与优势面, weak_threat 只写短板与威胁面, 两条都要落到「对我的决策意味着什么」",
+        "sections": (
+            {"key": "strengths_opp", "title": "机会与优势", "tone": "mint"},
+            {"key": "weak_threat", "title": "短板与威胁", "tone": "amber"},
+        ),
+    },
+    "five_w": {
+        "lens": "5W 要素框架 — who_when 回答谁发布/何时生效/约束谁, scope_bound 回答适用范围与边界条件, 禁止把范围外主体写进来",
+        "sections": (
+            {"key": "who_when", "title": "主体与时点", "tone": "mint"},
+            {"key": "scope_bound", "title": "范围与约束", "tone": "amber"},
+        ),
+    },
+}
+
 DEEP_READ_PROFILES: dict[str, dict[str, Any]] = {
     "security": {
         "persona": "你是一名安全应急响应工程师（蓝队值班），需要在几分钟内判断这条情报要不要现在就动手",
+        "frameworks": ("what_why_how",),
         "extra_sections": (
             {"key": "impact_ioc", "title": "影响面与指标", "tone": "red"},
-            {"key": "exploit_conditions", "title": "利用条件", "tone": "amber"},
-            {"key": "remediation", "title": "处置清单", "tone": "mint"},
         ),
         "budget": 10000,
-        "evidence": "尽量给出可核对的编号/受影响版本/组件名与具体缓解动作（补丁版本、配置项、检测规则）。",
+        "evidence": "尽量给出可核对的编号/受影响版本/组件名与具体缓解动作（补丁版本、配置项、检测规则）。利用条件写进 why_matters, 处置动作写进 how_react。",
     },
     "ai_security": {
         "persona": "你是一名 AI 安全研究员，关注模型与 Agent 系统的攻击面和可落地的加固手段",
+        "frameworks": ("what_why_how",),
         "extra_sections": (
             {"key": "attack_surface", "title": "攻击面与绕过", "tone": "red"},
-            {"key": "mitigation", "title": "缓解与加固", "tone": "mint"},
             {"key": "detection", "title": "监测信号", "tone": "amber"},
         ),
         "budget": 10000,
-        "evidence": "区分「论文/厂商自述」与「独立复现」；给出可监测的信号而不只是风险名词。",
+        "evidence": "区分「论文/厂商自述」与「独立复现」；缓解与加固手段写进 how_react, 可监测信号单列。",
     },
     "ai": {
         "persona": "你是一名 AI 平台负责人，判断这项能力对自己的产品是可用、可替代还是无关",
+        "frameworks": ("what_why_how",),
         "extra_sections": (
             {"key": "capability_boundary", "title": "能力边界", "tone": "mint"},
-            {"key": "cost_alternatives", "title": "成本与替代", "tone": "amber"},
         ),
         "budget": 8000,
-        "evidence": "基准分数须注明评测方与条件；区分宣传口径与可验证结果。",
+        "evidence": "基准分数须注明评测方与条件；区分宣传口径与可验证结果。成本与替代方案写进 how_react。",
     },
     "finance": {
         "persona": "你是一名金融机构合规负责人 / CISO，只关心这条监管信息约束了谁、何时生效、违反的后果",
+        "frameworks": ("five_w",),
         "extra_sections": (
-            {"key": "regulation_points", "title": "监管要点", "tone": "mint"},
-            {"key": "applicability", "title": "适用主体", "tone": "amber"},
-            {"key": "obligations_timeline", "title": "义务与时限", "tone": "amber"},
             {"key": "penalty", "title": "罚则与追责", "tone": "amber"},
         ),
         "budget": 8000,
-        "evidence": "禁止推测监管意图；只写原文出现的发文机关、条款、日期与罚则。",
+        "evidence": "禁止推测监管意图；只写原文出现的发文机关、条款、日期与罚则。监管要点并入 who_when, 义务与时限并入 scope_bound。",
     },
     "github": {
         "persona": "你是一名开源选型工程师，判断这个项目能不能进自己的技术栈、替换成本多大",
+        "frameworks": ("swot_lite",),
         "extra_sections": (
-            {"key": "positioning", "title": "定位与成熟度", "tone": "mint"},
-            {"key": "adoption_cost", "title": "接入成本", "tone": "amber"},
             {"key": "license_risk", "title": "许可与合规", "tone": "amber"},
         ),
         "budget": 6000,
-        "evidence": "区分 README 自述与实际能力；许可证结论须给出具体协议名与条款影响。",
+        "evidence": "区分 README 自述与实际能力；许可证结论须给出具体协议名与条款影响。定位与接入成本分别并入优势/短板两节。",
     },
     "startup": {
         "persona": "你是一名独立开发者 / 一人公司经营者，从别人的融资与失败里找可复制的做法与要避的坑",
+        "frameworks": ("swot_lite",),
         "extra_sections": (
             {"key": "biz_signal", "title": "商业信号", "tone": "mint"},
-            {"key": "playbook", "title": "可复制做法", "tone": "mint"},
-            {"key": "pitfalls", "title": "踩坑与风险", "tone": "amber"},
         ),
         "budget": 6000,
-        "evidence": "融资金额/轮次/投资方只写原文出现的；不要外推估值与赛道趋势。",
+        "evidence": "融资金额/轮次/投资方只写原文出现的；不要外推估值与赛道趋势。可复制做法写进 strengths_opp, 踩坑写进 weak_threat。",
     },
     "tech": {
         "persona": "你是一名 IT 架构师，梳理事实并判断这条技术动态对自己既有系统的实际影响",
+        "frameworks": ("what_why_how",),
         "extra_sections": (
-            {"key": "facts", "title": "事实梳理", "tone": "mint"},
             {"key": "system_impact", "title": "对既有系统影响", "tone": "amber"},
-            {"key": "watch", "title": "后续看点", "tone": "mint"},
         ),
         "budget": 6000,
-        "evidence": "把「已发布 / 已宣布 / 传闻」分开陈述，不混为既成事实。",
+        "evidence": "把「已发布 / 已宣布 / 传闻」分开陈述，不混为既成事实。后续看点写进 how_react。",
     },
 }
 
 # 未识别分类的兜底视角（不抛错，保证深度阅读总能出结果）
 _GENERAL_PROFILE: dict[str, Any] = {
     "persona": "你是一名安全资讯研判员，为这条内容做结构化摘要与要点提炼",
-    "extra_sections": (
-        {"key": "context", "title": "背景与来龙去脉", "tone": "mint"},
-        {"key": "significance", "title": "为什么值得注意", "tone": "amber"},
-    ),
+    "frameworks": ("what_why_how",),
+    "extra_sections": (),
     "budget": 8000,
     "evidence": _EVIDENCE_RULE,
 }
@@ -211,10 +231,22 @@ def deep_read_profile_for(category: str | None) -> dict[str, Any]:
     return DEEP_READ_PROFILES.get(str(category or ""), _GENERAL_PROFILE)
 
 
-def deep_read_sections(category: str | None) -> list[dict[str, str]]:
-    """该分类的有序分节定义: 要点速读 + 专属节 + 我的动作 + 存疑与未证实。"""
+def deep_read_framework_lens(category: str | None) -> str:
+    """该分类所选框架的 lens 提示语 (多框架以「；」连接), 注入 prompt 约束各节写法。"""
     profile = deep_read_profile_for(category)
-    return [_HEAD_SECTION, *profile["extra_sections"], *_TAIL_SECTIONS]
+    lenses = [_FRAMEWORKS[f]["lens"] for f in profile.get("frameworks", ()) if f in _FRAMEWORKS]
+    return "；".join(lenses)
+
+
+def deep_read_sections(category: str | None) -> list[dict[str, str]]:
+    """该分类的有序分节定义: 要点速读 + 框架节 + 领域专属节 + 我的动作 + 存疑与未证实。"""
+    profile = deep_read_profile_for(category)
+    fw_sections: list[dict[str, str]] = []
+    for f in profile.get("frameworks", ()):
+        fw = _FRAMEWORKS.get(f)
+        if fw:
+            fw_sections.extend(fw["sections"])
+    return [_HEAD_SECTION, *fw_sections, *profile["extra_sections"], *_TAIL_SECTIONS]
 
 
 def _build_deep_read_prompt(
@@ -229,6 +261,7 @@ def _build_deep_read_prompt(
     """
     profile = deep_read_profile_for(category)
     sections = deep_read_sections(category)
+    lens = deep_read_framework_lens(category)
     schema = json.dumps(
         {s["key"]: "<本节内容, markdown, 60~120 字>" for s in sections},
         ensure_ascii=False,
@@ -246,7 +279,8 @@ def _build_deep_read_prompt(
         "2. 每节用 markdown (可用列表/粗体/代码), 不要套外层 ```json 围栏。\n"
         "3. 每节 60~120 字, 直接给结论与信息点, 禁止空话、复述原文、无信息量总结。\n"
         f"4. 证据约束: {profile['evidence']} {_EVIDENCE_RULE}\n"
-        f"5. 各节含义: {titles}\n\n"
+        f"5. 分析框架: {lens}\n"
+        f"6. 各节含义: {titles}\n\n"
         f"JSON schema:\n{schema}\n\n"
         f"来源元信息:\n{meta_lines or '(无)'}\n\n"
         f"待分析内容 (最多 {budget} 字符):\n{content[:budget]}"
@@ -751,6 +785,7 @@ __all__ = [
     "build_daily_priority_intel_prompt",
     "build_inspection_materials_prompt",
     "build_knowledge_prompt",
+    "deep_read_framework_lens",
     "deep_read_profile_for",
     "deep_read_sections",
     "parse_cve_impact_brief_response",

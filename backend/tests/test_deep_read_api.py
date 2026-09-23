@@ -95,8 +95,8 @@ def test_security_and_finance_categories_yield_different_section_sets(client):
     sec = client.get("/api/deep-read/hotspot/h-sec").json()
     fin = client.get("/api/deep-read/hotspot/h-fin").json()
 
-    assert "impact_ioc" in _keys(sec) and "regulation_points" not in _keys(sec)
-    assert "regulation_points" in _keys(fin) and "impact_ioc" not in _keys(fin)
+    assert "impact_ioc" in _keys(sec) and "penalty" not in _keys(sec)
+    assert "penalty" in _keys(fin) and "impact_ioc" not in _keys(fin)
     # 跨类可比的固定骨架
     assert _keys(sec)[0] == _keys(fin)[0] == "key_takeaways"
     assert _keys(sec)[-2:] == _keys(fin)[-2:] == ["next_actions", "evidence_gaps"]

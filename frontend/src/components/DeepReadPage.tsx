@@ -55,6 +55,14 @@ const ICON_BY_KEY: Record<string, string> = {
   watch: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zm11 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   context: 'M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10zM12 16v-4m0-4h.01',
   significance: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+  // v2 分析框架节 (what_why_how / swot_lite / five_w)
+  what: 'M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10zM12 16v-4m0-4h.01',
+  why_matters: 'M22 12h-4l-3 9L9 3l-3 9H2',
+  how_react: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
+  strengths_opp: 'M23 6l-9.5 9.5-5-5L1 18M17 6h6v6',
+  weak_threat: 'M23 18l-9.5-9.5-5 5L1 6M17 18h6v-6',
+  who_when: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm14 14v-2a4 4 0 0 0-3-3.87M12 6v6l4 2',
+  scope_bound: 'M12 2v4M12 18v4M2 12h4M18 12h4M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20',
   // 历史遗留键 (旧行 sections_json 是扁平 4 键)
   summary: 'M4 6h16M4 10h16M4 14h16M4 18h16',
   impact: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',

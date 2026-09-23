@@ -41,6 +41,10 @@ describe('ModelsSettings — 模型配置区', () => {
     await waitFor(() => expect(screen.getByText('模型池')).toBeInTheDocument());
     expect(screen.getByText(/deepseek-v4-pro/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId('secrets-panel')).toBeInTheDocument());
+    // 四卡之 provider 卡: st-section aria-label 即可访问名
+    expect(screen.getByRole('region', { name: '默认 LLM Provider' })).toBeInTheDocument();
+    // 四卡之三场景卡: ScenarioModelsPanel data-testid = `${scope}-panel`, scope="settings-models"
+    expect(screen.getByTestId('settings-models-panel')).toBeInTheDocument();
   });
 
   it('llm 不可达 → 模型池如实空态', async () => {

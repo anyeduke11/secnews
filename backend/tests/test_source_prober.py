@@ -167,3 +167,206 @@ class TestProbeYieldSemantics:
         row = _get_source("p-dead")
         assert row["status"] == "dead"
         assert "conn refused" in (row["last_error"] or "")
+
+
+# ===================================================================
+# T3 — 失效源自动退役闭环 (owner 裁决②)
+# ===================================================================
+
+
+def _alert_count(source_id: str, alert_type: str) -> int:
+    row = get_connection().execute(
+        "SELECT COUNT(*) AS cnt FROM source_alerts "
+        "WHERE source_id = ? AND alert_type = ?",
+        (source_id, alert_type),
+    ).fetchone()
+    return int(row["cnt"])
+
+
+def _get_alert(source_id: str, alert_type: str) -> dict:
+    row = get_connection().execute(
+        "SELECT * FROM source_alerts "
+        "WHERE source_id = ? AND alert_type = ? "
+        "ORDER BY created_at DESC LIMIT 1",
+        (source_id, alert_type),
+    ).fetchone()
+    assert row is not None, f"no {alert_type} alert for {source_id}"
+    return dict(row)
+
+
+class TestAutoRetirement:
+    def test_dead_13d_not_retired(self, temp_db, head_status):
+        """13d (< 14d) 死亡 + 探测失败 → 保持 dead, 不退役无告警。"""
+        _insert_source("r-13d", status="dead", last_success_at=_days_ago_iso(13))
+        head_status.set("r-13d", 0, "URLError: refused")
+        result = _probe("r-13d")
+        row = _get_source("r-13d")
+        assert result.new_status == "dead"
+        assert row["status"] == "dead"
+        assert row["enabled"] == 1
+        assert _alert_count("r-13d", "source_retired") == 0
+
+    def test_dead_15d_probe_fail_retires(self, temp_db, head_status):
+        """15d (> 14d) 死亡 + 探测失败 → enabled=0, status='retired' + P1 告警。"""
+        _insert_source(
+            "r-15d", status="dead", name="僵尸源",
+            last_success_at=_days_ago_iso(15),
+        )
+        head_status.set("r-15d", 0, "URLError: refused")
+        result = _probe("r-15d")
+        assert result.new_status == "retired"
+        row = _get_source("r-15d")
+        assert row["status"] == "retired"
+        assert row["enabled"] == 0
+        assert row["cooldown_until"] is not None  # 下次可复探时刻已武装
+        alert = _get_alert("r-15d", "source_retired")
+        assert alert["level"] == "P1"
+        assert "僵尸源" in alert["message"]
+        assert "15" in alert["message"]  # 死亡时长入 message
+
+    def test_dead_never_succeeded_falls_back_to_created_at(self, temp_db, head_status):
+        """从未产出 (last_success_at NULL) → 死亡起点回退 created_at 口径。"""
+        conn = get_connection()
+        _insert_source("r-never", status="dead")
+        # created_at 设为 30 天前 (覆盖 INSERT 的 datetime('now'))
+        conn.execute(
+            "UPDATE crawler_sources "
+            "SET created_at = datetime('now', '-30 days') WHERE id = 'r-never'"
+        )
+        head_status.set("r-never", 0, "URLError: refused")
+        result = _probe("r-never")
+        assert result.new_status == "retired"
+        assert _get_source("r-never")["status"] == "retired"
+
+
+class TestRetiredRevival:
+    def test_retired_probe_success_revives(self, temp_db, head_status):
+        """retired 探测成功 → enabled=1, 回 grace, 冷却清空 + source_revived。"""
+        _insert_source(
+            "rev-1", status="retired", enabled=0,
+            last_success_at=_days_ago_iso(30),
+            cooldown_until=_days_ago_iso(1),  # 复探期已到
+        )
+        head_status.set("rev-1", 200, None)
+        result = _probe("rev-1")
+        assert result.status == "alive"
+        row = _get_source("rev-1")
+        assert row["status"] == "grace"
+        assert row["enabled"] == 1
+        assert row["cooldown_until"] is None
+        alert = _get_alert("rev-1", "source_revived")
+        assert alert["source_id"] == "rev-1"
+
+    def test_retired_reprobe_fail_rearms_cooldown(self, temp_db, head_status):
+        """retired 复探仍失败 → 保持退役 + 重新武装 7 天冷却。"""
+        _insert_source(
+            "rev-2", status="retired", enabled=0,
+            last_success_at=_days_ago_iso(30),
+            cooldown_until=_days_ago_iso(1),
+        )
+        head_status.set("rev-2", 0, "URLError: refused")
+        result = _probe("rev-2")
+        assert result.new_status == "retired"
+        row = _get_source("rev-2")
+        assert row["status"] == "retired"
+        assert row["enabled"] == 0
+        # 冷却被重新武装到未来 (≈ +7d)
+        due = datetime.fromisoformat(row["cooldown_until"])
+        assert due > datetime.now(timezone.utc) + timedelta(days=6)
+
+
+class TestRetiredLowFrequency:
+    def test_retired_within_reprobe_window_excluded(self, temp_db):
+        """retired 且复探冷却未到 → 不在探测清单 (每周一次而非每日)。"""
+        _insert_source(
+            "lf-1", status="retired", enabled=0,
+            cooldown_until=_days_ago_iso(-3),  # 未来 3 天
+        )
+        _insert_source("lf-2", status="dead", enabled=1)
+        from backend.services.source_prober import list_dead_sources
+
+        ids = {s["id"] for s in list_dead_sources()}
+        assert "lf-1" not in ids
+        assert "lf-2" in ids
+
+    def test_retired_due_included(self, temp_db):
+        """retired 且复探冷却已过 → 重新纳入探测清单。"""
+        _insert_source(
+            "lf-3", status="retired", enabled=0,
+            cooldown_until=_days_ago_iso(1),
+        )
+        from backend.services.source_prober import list_dead_sources
+
+        assert "lf-3" in {s["id"] for s in list_dead_sources()}
+
+    def test_probe_all_dead_skips_fresh_retired(self, temp_db, head_status):
+        """端到端: 退役当轮 → probe_all_dead 立即重跑不再触碰该源 (低频生效)。"""
+        _insert_source(
+            "lf-4", status="dead", last_success_at=_days_ago_iso(20),
+        )
+        head_status.set("lf-4", 0, "URLError: refused")
+        from backend.services.source_prober import probe_all_dead
+
+        first = probe_all_dead()
+        assert any(r["source_id"] == "lf-4" and r["new_status"] == "retired"
+                   for r in first)
+        error_after_retire = _get_source("lf-4")["last_error"]
+        second = probe_all_dead()
+        assert all(r["source_id"] != "lf-4" for r in second)
+        assert _get_source("lf-4")["last_error"] == error_after_retire
+
+
+# ===================================================================
+# T3 — 告警去重 (upsert_dedup)
+# ===================================================================
+
+
+class TestAlertDedup:
+    def test_dedup_bumps_existing_instead_of_insert(self, temp_db):
+        """同 source_id+alert_type 存在 → 不新插, bump detail/created_at。"""
+        from backend.repository.source_alert_repo import SourceAlertRepository
+
+        repo = SourceAlertRepository()
+        action, id1 = repo.upsert_dedup({
+            "source_id": "dup-1", "alert_type": "source_retired",
+            "level": "P1", "message": "第一次", "detail": '{"n": 1}',
+        })
+        assert action == "inserted"
+        action, id2 = repo.upsert_dedup({
+            "source_id": "dup-1", "alert_type": "source_retired",
+            "level": "P1", "message": "第二次", "detail": '{"n": 2}',
+        })
+        assert action == "bumped"
+        assert id1 == id2
+        assert _alert_count("dup-1", "source_retired") == 1
+        alert = _get_alert("dup-1", "source_retired")
+        assert alert["message"] == "第二次"
+        assert alert["detail"] == '{"n": 2}'
+
+    def test_dedup_different_type_inserts_separately(self, temp_db):
+        from backend.repository.source_alert_repo import SourceAlertRepository
+
+        repo = SourceAlertRepository()
+        repo.upsert_dedup({
+            "source_id": "dup-2", "alert_type": "source_retired",
+            "message": "retired",
+        })
+        action, _ = repo.upsert_dedup({
+            "source_id": "dup-2", "alert_type": "source_revived",
+            "message": "revived",
+        })
+        assert action == "inserted"
+        assert _alert_count("dup-2", "source_retired") == 1
+        assert _alert_count("dup-2", "source_revived") == 1
+
+    def test_repeated_probe_failure_keeps_single_alert(self, temp_db, head_status):
+        """端到端: retired 源两轮复探失败 → source_retired 仅 1 行 (bump)。"""
+        _insert_source(
+            "dup-3", status="retired", enabled=0,
+            last_success_at=_days_ago_iso(30),
+            cooldown_until=_days_ago_iso(1),
+        )
+        head_status.set("dup-3", 0, "URLError: refused")
+        _probe("dup-3")
+        _probe("dup-3")
+        assert _alert_count("dup-3", "source_retired") == 1

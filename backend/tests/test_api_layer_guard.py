@@ -44,7 +44,7 @@ _LINE_EXEMPTIONS: dict[str, int] = {
     "observability_router.py": 296,
     "quality.py": 300,
     "security.py": 214,
-    "settings.py": 304,
+    "settings.py": 291,
     "skill_builder_api.py": 230,
     "skill_registry_api.py": 154,
     "skills.py": 177,

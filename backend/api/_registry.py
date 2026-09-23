@@ -4,7 +4,6 @@
 
 - ``__init__.py``        — 薄壳, 仅暴露 ``register_routers`` 公开 API (≤ 30 行)
 - ``_registry.py`` (本文) — 实际分组与 ``app.include_router`` 调用
-- ``_flags.py``           — feature_flag 批量检查, 减少 register_routers 内的 ``if config.feature_xxx`` 块
 
 约束: 任何 ``from backend.api import register_routers`` / ``backend.api.register_routers`` 仍可解析。
 """
@@ -71,6 +70,7 @@ def register_all(app: FastAPI) -> None:
         secrets,  # Phase 41: 密钥管理 (LLM API Keys)
         security,  # Phase 2: Security Knowledge Graph + Terminology
         settings,  # 运行时设置 (刷新间隔等)
+        settings_flags_api,  # 能力开关读写 (feature-gates, ungated 基础设施; P2 Task 11)
         skills,  # Phase 41: Skill 管理
         sources,
         sync,  # Phase 42: 跨端配置同步 (WebDAV)
@@ -101,6 +101,7 @@ def register_all(app: FastAPI) -> None:
     app.include_router(security.router, tags=["security"])
     app.include_router(settings.router, tags=["settings"])
     app.include_router(mcp_settings_api.router, tags=["mcp-settings"])  # ungated: extensions.mcp=false 仍可达
+    app.include_router(settings_flags_api.router, tags=["feature-gates"])  # ungated: gate 管理面自身不受 gate 限制
     if is_extension_enabled("sync"):
         app.include_router(sync.router, tags=["sync"])
     app.include_router(reports.router, tags=["reports"])
@@ -122,7 +123,6 @@ def register_all(app: FastAPI) -> None:
         # D5 Batch ⑧: M2/M3/M4 服务网格/资源中枢/编排引擎 — 独立 gate,
         # 之前错绑 codegarden 导致 phase2b=false 时路由仍在 (job 不跑但端点 200)
         app.include_router(codegarden_ops.router, tags=["codegarden-ops"])
-        # crm 域 (CRM 业绩座舱) 已随 migration 116 整体删除, 不再注册
     # ---- feature flag 接线区: flag=False 时对应 API 不注册 ----
     if config.feature_tag:
         app.include_router(tags.router, tags=["tags"])

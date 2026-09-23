@@ -24,7 +24,6 @@ from pydantic import BaseModel, Field
 
 from backend.config import config
 from backend.exceptions import InvalidParamException
-from backend.extensions import get_enabled_extensions, is_extension_enabled
 from backend.logging_config import logger
 from backend.repository.settings_repo import SettingsRepository
 
@@ -33,23 +32,11 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 @router.get("/features")
 async def get_features() -> dict:
-    """返回全部扩展域的启停状态（feature_gates.toml 派生的运行时视图）。"""
-    return {
-        "codegarden": is_extension_enabled("codegarden"),
-        "codegarden_phase2b": is_extension_enabled("codegarden_phase2b"),
-        "mcp": is_extension_enabled("mcp"),
-        "sync": is_extension_enabled("sync"),
-        "tech_stack": is_extension_enabled("tech_stack"),
-        "security_graph": is_extension_enabled("security_graph"),
-        "secnews": is_extension_enabled("secnews"),
-        # crm 域已删除 (migration 116), features 视图不再返回该键
-        # C4 之后 dsh 才真正可配: 关闭时 /api/dsh/* 返回 404, 界面需如实呈现该状态
-        "dsh": is_extension_enabled("dsh"),
-        # DEV-0182 Workbench Focus: 兴趣引擎 (内容门禁 L3, 与质量门禁分离)
-        "interest_engine": is_extension_enabled("interest_engine"),
-        # v0.6.3: workbench_ui 已删除 (workbench 并入 SecNews)
-        "enabled_extensions": get_enabled_extensions(),
-    }
+    """扩展域启停运行时视图 — 键从 extensions 16-gate 白名单单源派生 (P2 §4.3)。"""
+    import backend.extensions as ext
+
+    gates = {name: ext.is_extension_enabled(name) for name in ext.extension_names()}
+    return {**gates, "enabled_extensions": ext.get_enabled_extensions()}
 
 
 class RefreshIntervalRequest(BaseModel):

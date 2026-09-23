@@ -117,4 +117,4 @@ def build_mcp_config_payload() -> dict:
     }
 
 
-__all__ = ["router", "build_mcp_config_payload"]
+__all__ = ["build_mcp_config_payload", "router"]

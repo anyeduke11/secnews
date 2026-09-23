@@ -563,17 +563,19 @@ export function SentinelHomePage() {
                       </div>
                       <div className={`alert-detail${mode === 'alert' ? ' show' : ''}`} onClick={e => e.stopPropagation()}>
                         <div className="alert-summary">{alertItem.summary || '详见原文。'}</div>
-                        <div className="alert-meta">
-                          <span><b>分类</b>{labelOf(alertItem.category)}</span>
-                          <span><b>来源</b>{alertItem.source}</span>
-                          <span><b>评分</b>{Math.round(alertItem.score ?? alertItem.quality_score ?? 0)}</span>
-                        </div>
-                        <div className="alert-actions">
-                          <button className="abtn" onClick={() => navigate(`/deep/hotspot/${alertItem.id}`)}>进入深读</button>
-                          {safeHref(alertItem.url) && (
-                            <button className="abtn" onClick={() => window.open(safeHref(alertItem.url)!, '_blank', 'noopener')}>查看原文</button>
-                          )}
-                          <StarButton item={alertItem} fav={isFavorite(alertItem.id)} onToggle={star} />
+                        <div className="alert-side">
+                          <div className="alert-meta">
+                            <span><b>分类</b>{labelOf(alertItem.category)}</span>
+                            <span><b>来源</b>{alertItem.source}</span>
+                            <span><b>评分</b>{Math.round(alertItem.score ?? alertItem.quality_score ?? 0)}</span>
+                          </div>
+                          <div className="alert-actions">
+                            <button className="abtn" onClick={() => navigate(`/deep/hotspot/${alertItem.id}`)}>进入深读</button>
+                            {safeHref(alertItem.url) && (
+                              <button className="abtn" onClick={() => window.open(safeHref(alertItem.url)!, '_blank', 'noopener')}>查看原文</button>
+                            )}
+                            <StarButton item={alertItem} fav={isFavorite(alertItem.id)} onToggle={star} />
+                          </div>
                         </div>
                       </div>
                     </li>

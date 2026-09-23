@@ -4,8 +4,9 @@
 - 转发 SettingsRepository: get miss 默认值 / set-get 回读 / delete / list_all
 - set 成功写 audit_log (默认 action=settings.set; 可定制 actor/action/detail)
 - R3: backend/api/settings.py 不再 import settings_repo (api 层禁直连 repository)
-- P3 前行为锚点: 未注册前缀 (webhook.subject) 当前放行 —
-  Task 14 prefix 契约 (_ALLOWED_PREFIXES) 落地后本用例应翻转为 raises。
+- P3 namespace 契约 (设计稿 §5): 未注册前缀写入 fail-loud; state.* 例外清单
+  与精确键 (secrets.oauth_allowlist) 放行; webhook.secret 迁移完成前过渡放行
+  (Task 15 落地 _DISALLOWED_EXACT 后翻转为 raises)。
 """
 from __future__ import annotations
 
@@ -118,10 +119,53 @@ class TestR3NoDirectRepoInApi:
         assert "settings_service" in source
 
 
-class TestPreP3PrefixAnchor:
-    """P3 前放行锚点 — Task 14 加 _ALLOWED_PREFIXES 后翻转为 pytest.raises。"""
+class TestNamespacePrefixContract:
+    """P3 Task 14 (设计稿 §5): 写入必须落在注册前缀内, 未注册 fail-loud。
 
-    def test_unregistered_prefix_allowed_before_p3(self, temp_db):
+    - 未注册前缀 (webhook.subject) → InvalidParamException (Task 12 放行锚点已翻转)
+    - state.* 例外清单 (mitre 位点/dsh 模式等既有运行状态 key) → 放行
+    - 精确键 secrets.oauth_allowlist → 放行 (OAuth 白名单既有存储位)
+    - webhook.secret → 迁移完成前过渡放行; Task 15 迁 vault 后经
+      _DISALLOWED_EXACT 禁止明文回写 (见 test_webhook_secret_exact_key)。
+    """
+
+    def test_unregistered_prefix_raises(self, temp_db):
+        from backend.exceptions import InvalidParamException
+
         svc = SettingsService()
-        svc.set("webhook.subject", "build")
-        assert svc.get("webhook.subject") == "build"
+        with pytest.raises(InvalidParamException, match=r"webhook\.subject"):
+            svc.set("webhook.subject", "build")
+        assert svc.get("webhook.subject") is None
+
+    def test_unregistered_prefix_writes_no_audit(self, temp_db):
+        """契约拒绝发生在 repo.set 之前 — 不应留下任何审计行。"""
+        from backend.exceptions import InvalidParamException
+
+        with pytest.raises(InvalidParamException):
+            SettingsService().set("random.unknown_key", 1)
+        assert _audit_rows("settings.set") == []
+
+    def test_state_exception_prefix_allowed(self, temp_db):
+        svc = SettingsService()
+        svc.set("state.mitre.synced_at", "2026-09-23T00:00:00Z")
+        assert svc.get("state.mitre.synced_at") == "2026-09-23T00:00:00Z"
+
+    def test_oauth_allowlist_exact_key_allowed(self, temp_db):
+        svc = SettingsService()
+        svc.set("secrets.oauth_allowlist", "a@x.com,b@x.com")
+        assert svc.get("secrets.oauth_allowlist") == "a@x.com,b@x.com"
+
+    def test_registered_config_prefixes_allowed(self, temp_db):
+        """4 个用户偏好/配置 namespace (Task 16 sync 白名单同源) 正常写入。"""
+        svc = SettingsService()
+        svc.set("collection.refresh_interval_seconds", 300)
+        svc.set("llm.default_provider", "deepseek")
+        svc.set("interest.practice_domains", ["sec"])
+        svc.set("quality.threshold", 0.8)
+
+    def test_webhook_secret_allowed_before_vault_migration(self, temp_db):
+        """P3 两步走锚点: Task 14 立契约时 webhook.secret 仍是合法明文存储位
+        (迁移未完成, 须保持可写); Task 15 迁 vault 后翻转为 raises。"""
+        svc = SettingsService()
+        svc.set("webhook.secret", "legacy-plaintext")
+        assert svc.get("webhook.secret") == "legacy-plaintext"

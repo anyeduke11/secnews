@@ -51,12 +51,17 @@ def test_constants_centralized():
     from backend.services.sync_service_constants import (
         BUNDLE_VERSION,
         SECRET_MERGE_FIELDS,
-        SETTINGS_BLOCKLIST,
+        SETTINGS_SYNC_PREFIXES,
+        settings_sync_allowed,
     )
 
     assert BUNDLE_VERSION == "1.0"
     assert isinstance(SECRET_MERGE_FIELDS, tuple)
-    assert "scheduler.last_run" in SETTINGS_BLOCKLIST
+    # P3 Task 16: settings 跨端同步白名单化 (blocklist 反转), 防未来敏感键误同步
+    assert SETTINGS_SYNC_PREFIXES == ("collection.", "llm.", "interest.", "quality.")
+    assert settings_sync_allowed("llm.model")
+    assert not settings_sync_allowed("scheduler.last_run")
+    assert not settings_sync_allowed("webhook.secret")
 
 
 def test_mixin_imports_without_circular():

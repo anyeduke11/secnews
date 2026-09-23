@@ -4,7 +4,7 @@ Covers:
 - three_way_merge: all 5 merge scenarios (noop, remote-only, local-only, conflict, both-new)
 - validate_bundle: valid/invalid edge cases
 - MergeResult data class
-- SETTINGS_BLOCKLIST integration
+- settings 跨端同步白名单 (P3 Task 16, blocklist 反转)
 """
 
 from __future__ import annotations
@@ -169,26 +169,33 @@ def test_merge_deletion_in_local():
 # Settings merge
 # ---------------------------------------------------------------------------
 
-def test_merge_settings_blocklist_filtered():
-    """SETTINGS_BLOCKLIST keys filtered out."""
+def test_merge_settings_whitelist_filtered():
+    """P3 Task 16: 白名单外 key (运行状态/敏感键/杂键) 不进入 merged。"""
     base = _empty_bundle()
     local = _empty_bundle("a", "t1")
-    local["records"]["settings"] = {"keep": "x", "scheduler.last_run": "should-not-sync"}
+    local["records"]["settings"] = {
+        "llm.model": "x",
+        "scheduler.last_run": "should-not-sync",
+        "webhook.secret": "legacy-plaintext",
+        "theme": "dark",
+    }
     remote = _empty_bundle()
 
     result = three_way_merge(base, local, remote)
-    assert "keep" in result.merged_bundle["records"]["settings"]
+    assert "llm.model" in result.merged_bundle["records"]["settings"]
     assert "scheduler.last_run" not in result.merged_bundle["records"]["settings"]
+    assert "webhook.secret" not in result.merged_bundle["records"]["settings"]
+    assert "theme" not in result.merged_bundle["records"]["settings"]
 
 
 def test_merge_settings_conflict():
     """Settings conflict counted correctly."""
     base = _empty_bundle()
-    base["records"]["settings"] = {"k": "v0"}
+    base["records"]["settings"] = {"llm.model": "v0"}
     local = _empty_bundle("a", "t1")
-    local["records"]["settings"] = {"k": "v-local"}
+    local["records"]["settings"] = {"llm.model": "v-local"}
     remote = _empty_bundle("b", "t1")
-    remote["records"]["settings"] = {"k": "v-remote"}
+    remote["records"]["settings"] = {"llm.model": "v-remote"}
 
     result = three_way_merge(base, local, remote)
     assert result.table_conflicts["settings"] == 1
@@ -197,11 +204,11 @@ def test_merge_settings_conflict():
 def test_merge_settings_two_keys_no_conflict():
     """Two settings keys changed in parallel, no conflict."""
     base = _empty_bundle()
-    base["records"]["settings"] = {"a": "1", "b": "1"}
+    base["records"]["settings"] = {"llm.model": "1", "quality.threshold": "1"}
     local = _empty_bundle("a", "t1")
-    local["records"]["settings"] = {"a": "new-a", "b": "1"}
+    local["records"]["settings"] = {"llm.model": "new-a", "quality.threshold": "1"}
     remote = _empty_bundle("b", "t1")
-    remote["records"]["settings"] = {"a": "1", "b": "new-b"}
+    remote["records"]["settings"] = {"llm.model": "1", "quality.threshold": "new-b"}
 
     result = three_way_merge(base, local, remote)
     # No conflict because each key was only changed by one side
@@ -221,7 +228,7 @@ def test_merge_all_tables():
     local["records"]["skills"] = [{"name": "skill1", "url": "https://example.com", "install_command": "echo"}]
     local["records"]["custom_sources"] = [{"url": "https://source.example.com", "name": "src"}]
     local["records"]["secrets"] = [{"name": "secret1", "model": "gpt-4", "base_url": "https://api.example.com"}]
-    local["records"]["settings"] = {"theme": "dark"}
+    local["records"]["settings"] = {"llm.model": "dark"}
     remote = _empty_bundle("b", "t1")
 
     result = three_way_merge(base, local, remote)
@@ -232,7 +239,7 @@ def test_merge_all_tables():
     assert len(merged["skills"]) == 1
     assert len(merged["custom_sources"]) == 1
     assert len(merged["secrets"]) == 1
-    assert merged["settings"]["theme"] == "dark"
+    assert merged["settings"]["llm.model"] == "dark"
 
 
 # ---------------------------------------------------------------------------

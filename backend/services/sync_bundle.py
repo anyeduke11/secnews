@@ -32,10 +32,10 @@ _SYNC_BUNDLE_MAX_ROWS = 100_000  # P1: 全量同步上限 — 消除 LIMIT 1000 
 
 from backend.services.sync_merge import (
     BUNDLE_VERSION,
-    SETTINGS_BLOCKLIST,
     _now_iso,
     validate_bundle,
 )
+from backend.services.sync_service_constants import settings_sync_allowed
 
 # -- secrets 元数据字段 (用于 3-way merge 比对, 不含加密密文) --
 SECRET_MERGE_FIELDS = (
@@ -552,7 +552,7 @@ def build_bundle(*, device_id: str | None = None) -> dict:
         "sm2_reviews": _read_sm2_reviews_for_sync(),
         "settings": {
             k: v for k, v in SettingsRepository().list_all().items()
-            if k not in SETTINGS_BLOCKLIST
+            if settings_sync_allowed(k)
         },
         "secrets": [],
     }
@@ -862,7 +862,7 @@ def apply_bundle(bundle: dict, *, master_key: str | None = None) -> dict:
     sr_repo = SettingsRepository()
     settings_stats = {"written": 0, "skipped": 0}
     for k, v in records.get("settings", {}).items():
-        if k in SETTINGS_BLOCKLIST:
+        if not settings_sync_allowed(k):
             settings_stats["skipped"] += 1
             continue
         try:

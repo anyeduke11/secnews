@@ -77,15 +77,8 @@ BUNDLE_VERSION = "1.0"
 SECRET_MERGE_FIELDS = (
     "name", "model", "base_url", "updated_at",
 )
-
-# settings 黑名单: 永不跨端同步的 key
-# - session / runtime flags / 服务端临时状态
-SETTINGS_BLOCKLIST = {
-    "scheduler.last_run",
-    "collector.last_run",
-    "trend.last_rebuild",
-    "sync_runtime_lock",  # sync 自己的运行锁
-}
+# P3 Task 16: settings 跨端同步过滤统一走
+# sync_service_constants.settings_sync_allowed (白名单), 本文件不再持有副本。
 
 
 # ---------------------------------------------------------------------------
@@ -517,7 +510,6 @@ class SyncService(FernetKeySyncMixin):
 
 __all__ = [
     "BUNDLE_VERSION",
-    "SETTINGS_BLOCKLIST",
     "MergeResult",
     "SyncService",
 ]

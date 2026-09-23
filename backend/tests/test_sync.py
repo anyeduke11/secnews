@@ -190,34 +190,39 @@ def test_merge_addition_on_both_sides():
     assert titles == ["L", "R"]
 
 
-def test_merge_settings_blocklist_filtered():
-    """SETTINGS_BLOCKLIST 里的 key 不进入 merged。"""
+def test_merge_settings_whitelist_filtered():
+    """P3 Task 16: 白名单外 key (运行状态/敏感键/杂键) 不进入 merged。"""
     base = {"version": BUNDLE_VERSION, "device_id": "a", "merged_at": "t0",
             "records": {"favorites": [], "todos": [], "skills": [], "custom_sources": [],
                         "secrets": [], "settings": {}}}
     local = {"version": BUNDLE_VERSION, "device_id": "a", "merged_at": "t1",
              "records": {"favorites": [], "todos": [], "skills": [], "custom_sources": [],
                          "secrets": [],
-                         "settings": {"keep": "x", "scheduler.last_run": "should-not-sync"}}}
+                         "settings": {"llm.model": "x",
+                                      "scheduler.last_run": "should-not-sync",
+                                      "webhook.secret": "legacy-plaintext",
+                                      "theme": "dark"}}}
     remote = {"version": BUNDLE_VERSION, "device_id": "b", "merged_at": "t1",
               "records": {"favorites": [], "todos": [], "skills": [], "custom_sources": [],
                           "secrets": [], "settings": {}}}
     result = three_way_merge(base, local, remote)
-    assert "keep" in result.merged_bundle["records"]["settings"]
+    assert "llm.model" in result.merged_bundle["records"]["settings"]
     assert "scheduler.last_run" not in result.merged_bundle["records"]["settings"]
+    assert "webhook.secret" not in result.merged_bundle["records"]["settings"]
+    assert "theme" not in result.merged_bundle["records"]["settings"]
 
 
 def test_merge_settings_conflict_counted():
     """settings 字段冲突计入 conflict_count。"""
     base = {"version": BUNDLE_VERSION, "device_id": "a", "merged_at": "t0",
             "records": {"favorites": [], "todos": [], "skills": [], "custom_sources": [],
-                        "secrets": [], "settings": {"k": "v0"}}}
+                        "secrets": [], "settings": {"llm.model": "v0"}}}
     local = {"version": BUNDLE_VERSION, "device_id": "a", "merged_at": "t1",
              "records": {"favorites": [], "todos": [], "skills": [], "custom_sources": [],
-                         "secrets": [], "settings": {"k": "v-local"}}}
+                         "secrets": [], "settings": {"llm.model": "v-local"}}}
     remote = {"version": BUNDLE_VERSION, "device_id": "b", "merged_at": "t1",
               "records": {"favorites": [], "todos": [], "skills": [], "custom_sources": [],
-                          "secrets": [], "settings": {"k": "v-remote"}}}
+                          "secrets": [], "settings": {"llm.model": "v-remote"}}}
     result = three_way_merge(base, local, remote)
     assert result.table_conflicts["settings"] == 1
 

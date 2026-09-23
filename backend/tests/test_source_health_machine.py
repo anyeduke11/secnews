@@ -69,7 +69,8 @@ def db_conn(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> sqlite3.Connecti
 
 
 @pytest.fixture
-def machine() -> SourceHealthMachine:
+def machine(db_conn: sqlite3.Connection) -> SourceHealthMachine:
+    """依赖 db_conn — 保证 __init__ 里的存量清洗命中已打补丁的测试连接."""
     return SourceHealthMachine()
 
 
@@ -548,3 +549,128 @@ class TestHealthScorePersistence:
         after = machine.get_health("score-recover")
         assert after["health_score"] == 1.0
         assert after["consecutive_failures"] == 0
+
+
+# ===================================================================
+# 采集闭环 T1 — last_error 口径 (None 不落字符串 'None')
+# ===================================================================
+
+
+class TestLastErrorNullPath:
+    """error_msg=None/空 时 last_error 必须保持 NULL, 不得写 'None' 字符串.
+
+    病灶: run_single_source 成功路径返回 error_msg=None, 旧实现
+    str(None)='None' 落库 (实测 13 个 dead 源 last_error='None')。
+    """
+
+    def test_error_msg_none_stays_null(self, db_conn, machine: SourceHealthMachine):
+        _insert_source(db_conn, "err-none")
+        machine.apply_run_result(
+            "err-none",
+            {**_run_result(fetched_count=4, status="success"), "error_msg": None},
+        )
+        row = machine.get_health("err-none")
+        assert row["last_error"] is None
+
+    def test_error_msg_empty_not_written(self, db_conn, machine: SourceHealthMachine):
+        _insert_source(db_conn, "err-empty")
+        machine.apply_run_result("err-empty", _run_result(fetched_count=2, status="success"))
+        row = machine.get_health("err-empty")
+        assert row["last_error"] is None
+
+    def test_real_error_still_written(self, db_conn, machine: SourceHealthMachine):
+        _insert_source(db_conn, "err-real")
+        machine.apply_run_result(
+            "err-real",
+            {**_run_result(fetched_count=0, status="failed"), "error_msg": "HTTP 503"},
+        )
+        row = machine.get_health("err-real")
+        assert row["last_error"] == "HTTP 503"
+
+    def test_none_error_does_not_overwrite_real_error(
+        self, db_conn, machine: SourceHealthMachine
+    ):
+        """None/空错误只跳过写入, 不清除也不覆盖真实错误。"""
+        _insert_source(db_conn, "err-keep")
+        machine.apply_run_result(
+            "err-keep",
+            {**_run_result(fetched_count=0, status="failed"), "error_msg": "timeout"},
+        )
+        machine.apply_run_result(
+            "err-keep",
+            {**_run_result(fetched_count=1, status="partial"), "error_msg": None},
+        )
+        row = machine.get_health("err-keep")
+        assert row["last_error"] == "timeout"
+
+
+# ===================================================================
+# 采集闭环 T1 — 存量 'None' 脏数据幂等清洗
+# ===================================================================
+
+
+class TestLegacyNoneCleanup:
+    def test_cleanup_replaces_none_and_empty_with_null(
+        self, db_conn, monkeypatch: pytest.MonkeyPatch
+    ):
+        from backend.services import source_health_machine as shm_mod
+
+        monkeypatch.setattr(shm_mod, "get_connection", lambda: db_conn)
+        db_conn.execute(
+            "INSERT INTO crawler_sources (id, name, status, last_error) "
+            "VALUES ('dirty-1', '脏1', 'dead', 'None')"
+        )
+        db_conn.execute(
+            "INSERT INTO crawler_sources (id, name, status, last_error) "
+            "VALUES ('dirty-2', '脏2', 'dead', '')"
+        )
+        n = shm_mod.cleanup_legacy_none_last_error()
+        rows = {
+            r["id"]: r["last_error"]
+            for r in db_conn.execute(
+                "SELECT id, last_error FROM crawler_sources WHERE id LIKE 'dirty-%'"
+            ).fetchall()
+        }
+        assert rows["dirty-1"] is None
+        assert rows["dirty-2"] is None
+        assert n >= 2
+
+    def test_cleanup_preserves_real_error_and_idempotent(
+        self, db_conn, monkeypatch: pytest.MonkeyPatch
+    ):
+        from backend.services import source_health_machine as shm_mod
+
+        monkeypatch.setattr(shm_mod, "get_connection", lambda: db_conn)
+        db_conn.execute(
+            "INSERT INTO crawler_sources (id, name, status, last_error) "
+            "VALUES ('real-1', '真实错误', 'dead', 'HTTP 503')"
+        )
+        first = shm_mod.cleanup_legacy_none_last_error()
+        second = shm_mod.cleanup_legacy_none_last_error()
+        row = db_conn.execute(
+            "SELECT last_error FROM crawler_sources WHERE id = 'real-1'"
+        ).fetchone()
+        assert row["last_error"] == "HTTP 503"
+        assert second == 0  # 幂等: 第二轮无行可清洗 (first≥0 因同库可含其他行)
+        assert first >= 0
+
+
+# ===================================================================
+# 采集闭环 T1 — yield 口径: 只有真实条目入库才抬 last_yield_at
+# ===================================================================
+
+
+class TestYieldOnlyOnRealItems:
+    def test_zero_fetch_does_not_bump_yield(self, db_conn, machine: SourceHealthMachine):
+        _insert_source(db_conn, "yield-zero")
+        machine.apply_run_result("yield-zero", _run_result(fetched_count=0, status="failed"))
+        row = machine.get_health("yield-zero")
+        assert row["last_yield_at"] is None
+
+    def test_fetched_items_bump_yield(self, db_conn, machine: SourceHealthMachine):
+        """有产出 (fetched_count>0) → 抬 last_yield_at/last_success_at。"""
+        _insert_source(db_conn, "yield-real")
+        machine.apply_run_result("yield-real", _run_result(fetched_count=3, status="success"))
+        row = machine.get_health("yield-real")
+        assert row["last_yield_at"] is not None
+        assert row["last_success_at"] is not None

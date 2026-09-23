@@ -27,6 +27,9 @@ BACKOFF_MAX_EXPONENT = 6          # 最大指数
 # 有效状态集
 _VALID_STATUSES = frozenset({"active", "stale", "dead", "grace", "disabled"})
 
+# 存量清洗进程内只跑一次 (幂等 UPDATE, 重复执行无害, 省一次连接开销)
+_CLEANUP_DONE = False
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -34,6 +37,35 @@ def _now_iso() -> str:
 
 def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _normalize_error_msg(raw: Any) -> str:
+    """归一化 run_result.error_msg.
+
+    采集闭环 T1: 历史实现 ``str(run_result.get("error_msg", ""))`` 在
+    error_msg 键存在且值为 None 时产出字符串 'None' 落库 (实测 13 个
+    dead 源 last_error='None'), 这里显式归一 None/空 → ''.
+    """
+    if raw is None:
+        return ""
+    return str(raw)
+
+
+def cleanup_legacy_none_last_error() -> int:
+    """一次性幂等清洗: 历史脏数据 last_error='None'/'' → NULL.
+
+    采集闭环 T1: 修复写入点后, 存量 13 行 'None' 字符串仍会污染观测面
+    (前端/告警把字符串 'None' 当真实错误展示)。此处统一清洗为 NULL,
+    WHERE 条件保证幂等, 可安全重复执行。返回清洗行数。
+    """
+    global _CLEANUP_DONE
+    conn = get_connection()
+    cur = conn.execute(
+        "UPDATE crawler_sources SET last_error = NULL "
+        "WHERE last_error = 'None' OR last_error = ''"
+    )
+    _CLEANUP_DONE = True
+    return cur.rowcount
 
 
 def _calculate_cooldown(consecutive_failures: int) -> str:
@@ -53,6 +85,20 @@ class SourceHealthMachine:
     管理 5 状态 (active/stale/dead/grace/disabled) 之间的转换逻辑,
     所有 DB 操作通过 ``get_connection()`` 直接执行.
     """
+
+    def __init__(self) -> None:
+        # 采集闭环 T1: 进程内首个实例触发一次存量 'None' 脏数据清洗
+        # (幂等 UPDATE; 失败静默, 不影响状态机主流程)。
+        global _CLEANUP_DONE
+        if not _CLEANUP_DONE:
+            try:
+                n = cleanup_legacy_none_last_error()
+                if n:
+                    logger.info(
+                        f"cleanup_legacy_none_last_error: cleaned {n} rows"
+                    )
+            except Exception as e:  # pragma: no cover - 表不存在等场景
+                logger.debug(f"cleanup_legacy_none_last_error skipped: {e}")
 
     # ------------------------------------------------------------------
     # 健康评分
@@ -152,7 +198,7 @@ class SourceHealthMachine:
 
         fetched_count = int(run_result.get("fetched_count", 0))
         run_status = str(run_result.get("status", "success"))
-        error_msg = str(run_result.get("error_msg", ""))
+        error_msg = _normalize_error_msg(run_result.get("error_msg"))
 
         # 状态字段准备
         new_status = prev_status
@@ -295,4 +341,5 @@ __all__ = [
     "GRACE_SUCCESS_THRESHOLD",
     "STALE_THRESHOLD",
     "SourceHealthMachine",
+    "cleanup_legacy_none_last_error",
 ]

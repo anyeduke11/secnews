@@ -107,16 +107,32 @@ def _get_probe_url(source: dict) -> str:
     return source.get("feed_url") or source.get("url") or source.get("api_url") or ""
 
 
-def probe_one(source_id: str, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> ProbeResult:
+def probe_one(
+    source_id: str,
+    *,
+    timeout_s: float = DEFAULT_TIMEOUT_S,
+    produced_items: int = 0,
+) -> ProbeResult:
     """探测单个 dead 源。
-    
+
     1. 查找 crawler_sources 行
     2. 获取探测 URL（feed_url > url > api_url）
     3. HEAD 请求，超时 10s
     4. HEAD 405/501 → fallback 到 GET
     5. 2xx/3xx → status='grace', consecutive_failures=0
     6. 4xx/5xx → 保留 dead, 更新 last_error
-    
+
+    采集闭环 T1 (yield 口径): 探测只是连通性检查, 本身零产出 — 默认
+    **不抬** ``last_yield_at``/``last_success_at`` (历史实现在 alive 路径
+    无条件刷新两时间戳, hotspots 无新行, yield 口径被探测污染)。仅当调用
+    方确认本次探测运行有真实条目入库 (``produced_items > 0``) 时才抬。
+
+    Args:
+        source_id: crawler_sources.id
+        timeout_s: 探测超时秒数
+        produced_items: 本次探测运行真实入库的 hotspots 新行数 (HEAD
+            连通性探测恒为 0; 探测后附带真实抓取时由调用方传入)
+
     Returns:
         ProbeResult
     """
@@ -146,19 +162,24 @@ def probe_one(source_id: str, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> ProbeR
         code, err = _get_status(url, int(timeout_s))
     
     if err is None and 200 <= code < 400:
-        # Alive → grace
-        repo.update_health_state(
-            source_id,
-            status="grace",
-            consecutive_failures=0,
-            last_success_at=_now_iso(),
-            last_yield_at=_now_iso(),
-            last_error="",
-            grace_rounds=0,
-        )
+        # Alive → grace。零产出不抬 yield/success 时间戳 (采集闭环 T1);
+        # last_error 成功路径存 NULL 清空旧错误。
+        alive_fields: dict = {
+            "status": "grace",
+            "consecutive_failures": 0,
+            "last_error": None,
+            "grace_rounds": 0,
+            "cooldown_until": None,
+        }
+        if produced_items > 0:
+            now = _now_iso()
+            alive_fields["last_yield_at"] = now
+            alive_fields["last_success_at"] = now
+        repo.update_health_state(source_id, **alive_fields)
         logger.info(
             f"source {source_id} ({source.get('name', '')}) probed alive "
-            f"(HTTP {code}), moving to grace"
+            f"(HTTP {code}), moving to grace "
+            f"(yield_bumped={produced_items > 0})"
         )
         return ProbeResult(
             source_id=source_id,

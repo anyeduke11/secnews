@@ -317,15 +317,27 @@
 .sentinel .alert-chev{transition:transform .2s ease;color:var(--sn-ink-3)}
 .sentinel .alert-item.open .alert-chev{transform:rotate(90deg)}
 .sentinel .alert-detail{
-  display:none;margin-top:12px;
-  border-left:1px solid rgba(255,100,112,.4);
-  padding:2px 0 2px 16px;
+  display:none;margin-top:10px;
+  border:1px solid rgba(255,100,112,.35);
+  border-radius:8px;
+  background:linear-gradient(180deg, rgba(255,71,87,.12), rgba(255,71,87,.05));
+  padding:12px 14px;
   font-size:13px;color:var(--sn-ink-2);line-height:1.7;
+  box-shadow:0 6px 18px rgba(0,0,0,.22);
 }
 .sentinel .alert-item.open + .alert-detail,
-.sentinel .alert-detail.show{display:block}
+.sentinel .alert-detail.show{display:block;animation:alertDetailIn .18s ease}
+@keyframes alertDetailIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 .sentinel .alert-detail b{color:var(--sn-amber);font-weight:600}
-.sentinel .alert-actions{display:flex;gap:10px;margin-top:10px}
+.sentinel .alert-summary{color:var(--sn-ink);margin-bottom:9px}
+.sentinel .alert-meta{
+  display:flex;flex-wrap:wrap;gap:4px 16px;
+  padding-top:8px;
+  border-top:1px dashed rgba(255,100,112,.28);
+  font-family:var(--sn-mono);font-size:11.5px;color:var(--sn-ink-3);
+}
+.sentinel .alert-meta b{margin-right:5px;letter-spacing:.04em}
+.sentinel .alert-actions{display:flex;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,100,112,.18)}
 .sentinel .abtn{
   font-family:var(--sn-mono);font-size:11.5px;padding:4px 10px;border-radius:5px;
   border:1px solid var(--sn-line-strong);color:var(--sn-ink-2);
@@ -426,12 +438,20 @@ html[data-theme="light"] .sentinel .controlbar{background:var(--sn-bg)}
 html[data-theme="light"] .sentinel .readmore{border-color:rgba(4,120,92,.35)}
 html[data-theme="light"] .sentinel .empty-cta{border-color:rgba(4,120,92,.35)}
 html[data-theme="light"] .sentinel .alert-item .flash-title{color:var(--p0-title)}
+html[data-theme="light"] .sentinel .alert-detail{
+  background:linear-gradient(180deg, rgba(255,71,87,.07), rgba(255,71,87,.03));
+  box-shadow:0 4px 14px rgba(126,29,46,.12);
+}
 
 /* ===== 主题: 纸面版 (P2 修订注③: 控制栏/链接/CTA/告警标题覆写, 与暖米黄协调) ===== */
 html[data-theme="paper"] .sentinel .controlbar{background:var(--sn-bg)}
 html[data-theme="paper"] .sentinel .readmore{border-color:rgba(45,36,26,.35)}
 html[data-theme="paper"] .sentinel .empty-cta{border-color:rgba(45,36,26,.35)}
 html[data-theme="paper"] .sentinel .alert-item .flash-title{color:#7e1d2e}
+html[data-theme="paper"] .sentinel .alert-detail{
+  background:linear-gradient(180deg, rgba(178,58,74,.07), rgba(178,58,74,.03));
+  box-shadow:0 4px 14px rgba(94,58,36,.14);
+}
 
 /* 主题按钮图标显隐 (P2: 扩展三态 — light/dark/paper) */
 .sentinel .tb-sun,.sentinel .tb-moon,.sentinel .tb-paper{display:none}

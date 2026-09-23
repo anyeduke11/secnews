@@ -326,23 +326,23 @@
   box-shadow:0 6px 18px rgba(0,0,0,.22);
 }
 .sentinel .alert-item.open + .alert-detail,
-.sentinel .alert-detail.show{display:flex;gap:14px;animation:alertDetailIn .18s ease}
+.sentinel .alert-detail.show{display:flex;align-items:center;gap:14px;animation:alertDetailIn .18s ease}
 @keyframes alertDetailIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 .sentinel .alert-detail b{color:var(--sn-amber);font-weight:600}
 .sentinel .alert-summary{flex:1;min-width:0;color:var(--sn-ink)}
 .sentinel .alert-side{
-  display:flex;flex-direction:column;justify-content:space-between;gap:10px;
+  display:flex;align-items:center;gap:12px;
   flex-shrink:0;border-left:1px dashed rgba(255,100,112,.28);padding-left:14px;
 }
 .sentinel .alert-meta{
-  display:flex;flex-direction:column;gap:4px;
+  display:flex;align-items:center;gap:12px;
   font-family:var(--sn-mono);font-size:11.5px;color:var(--sn-ink-3);white-space:nowrap;
 }
 .sentinel .alert-meta b{margin-right:5px;letter-spacing:.04em}
 .sentinel .alert-actions{display:flex;gap:8px}
-@media (max-width:900px){
-  .sentinel .alert-detail.show{flex-direction:column;gap:10px}
-  .sentinel .alert-side{border-left:0;padding-left:0;border-top:1px dashed rgba(255,100,112,.28);padding-top:10px}
+@media (max-width:1100px){
+  .sentinel .alert-detail.show{flex-wrap:wrap;align-items:flex-start}
+  .sentinel .alert-side{width:100%;border-left:0;padding-left:0;border-top:1px dashed rgba(255,100,112,.28);padding-top:10px}
 }
 .sentinel .abtn{
   font-family:var(--sn-mono);font-size:11.5px;padding:4px 10px;border-radius:5px;

@@ -209,7 +209,9 @@ class SecNewsDashboard:
         TTL 缓存。调用方必须以 asyncio.to_thread 包本方法 (liveness 缓存
         miss 时仍有一次全量 md 扫描)。
         """
-        funnel = funnel_from_db(self.db)
+        # wiki_fs 透传: 显式 None (测试/降级注入) → 投影缺失时保持归零契约,
+        # 不抓 production 单例; 生产经 build_dashboard() 注入单例 → 回退 md 可读。
+        funnel = funnel_from_db(self.db, wiki_fs=self.wiki_fs)
 
         queue_stats = {"pending": 0, "running": 0, "error": 0}
         errors: list[dict] = []
@@ -236,7 +238,7 @@ class SecNewsDashboard:
 
         v0.6.3 P0-1: 全量 md 扫描 (4149 read_text+YAML) → DB 投影单查询。
         """
-        return knowledge_stats_from_db(self.db)
+        return knowledge_stats_from_db(self.db, wiki_fs=self.wiki_fs)
 
     def get_dashboard_stats(self) -> dict:
         """Dashboard overview: today's new items, pipeline health, top categories."""

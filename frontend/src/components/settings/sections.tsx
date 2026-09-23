@@ -40,7 +40,21 @@ export interface SectionDef {
   /** B1 (DEV-0192): 内容版式提示 — form=单列全宽 (默认, 表格/表单类);
    *  mixed=多卡并排网格 (宽屏 ≥2 列, 窄屏自动回落单列, 见 settings-shell.css .set-content-mixed) */
   layout?: 'form' | 'mixed';
+  /** c8: 侧边栏分组 — 仅影响导航展示, 不改 SECTIONS 顺序与内容区行为 */
+  group: SectionGroup;
 }
+
+// c8: 侧边栏 17 项按 6 组归组 (dashboard 单独一组, 标签留空不渲染组标题)
+export type SectionGroup = 'overview' | 'general' | 'pipeline' | 'knowledge' | 'connectivity' | 'ops';
+
+export const SECTION_GROUP_LABELS: Array<{ group: SectionGroup; label: string }> = [
+  { group: 'overview', label: '' },
+  { group: 'general', label: '通用偏好' },
+  { group: 'pipeline', label: '采集与管线' },
+  { group: 'knowledge', label: '知识与导出' },
+  { group: 'connectivity', label: '连接与凭据' },
+  { group: 'ops', label: '运维与告警' },
+];
 
 export const SECTIONS: SectionDef[] = [
   // v0.7.x SettingsHub V2: 首屏体检面板 — 默认 cat=dashboard
@@ -51,6 +65,7 @@ export const SECTIONS: SectionDef[] = [
     label: '总览',
     icon: <Icon size={12}><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></Icon>,
     desc: '首屏体检 · 8 区段快速跳转',
+    group: 'overview',
   },
   {
     key: 'general',
@@ -58,6 +73,7 @@ export const SECTIONS: SectionDef[] = [
     icon: <Icon size={12}><circle cx="12" cy="12" r="3" /><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" /></Icon>,
     desc: '主题 / 刷新 / 维护',
     layout: 'mixed',
+    group: 'general',
   },
   {
     key: 'collection',
@@ -65,54 +81,63 @@ export const SECTIONS: SectionDef[] = [
     icon: <Icon size={12}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></Icon>,
     desc: '质量 / 信源 / 调度',
     layout: 'mixed',
+    group: 'pipeline',
   },
   {
     key: 'network',
     label: '网络',
     icon: <Icon size={12}><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><circle cx="12" cy="20" r="1" /></Icon>,
     desc: '代理 / 连接',
+    group: 'connectivity',
   },
   {
     key: 'sync',
     label: '同步',
     icon: <Icon size={12}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></Icon>,
     desc: 'WebDAV / 跨设备',
+    group: 'connectivity',
   },
   {
     key: 'integration',
     label: '集成',
     icon: <Icon size={12}><path d="M4 17l6-6-4-4" /><path d="M12 19h8" /></Icon>,
     desc: 'MCP / 外部工具',
+    group: 'connectivity',
   },
   {
     key: 'secrets',
     label: '密钥',
     icon: <Icon size={12}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></Icon>,
     desc: 'API Key / 凭据',
+    group: 'connectivity',
   },
   {
     key: 'alerts',
     label: '告警',
     icon: <Icon size={12}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></Icon>,
     desc: '规则 / 通知',
+    group: 'ops',
   },
   {
     key: 'knowledge',
     label: '知识库',
     icon: <Icon size={12}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></Icon>,
     desc: '同步 / 导入',
+    group: 'knowledge',
   },
   {
     key: 'export',
     label: '导出',
     icon: <Icon size={12}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></Icon>,
     desc: '报告 / 格式',
+    group: 'knowledge',
   },
   {
     key: 'maintenance',
     label: '维护',
     icon: <Icon size={12}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></Icon>,
     desc: 'VACUUM / 清理 / 去重',
+    group: 'ops',
   },
   // v0.7.x SettingsHub: 取代 /secnews/settings 独立路由
   {
@@ -120,6 +145,7 @@ export const SECTIONS: SectionDef[] = [
     label: '管线',
     icon: <Icon size={12}><path d="M3 3h18v4H3zM3 10h18v4H3zM3 17h18v4H3z" /></Icon>,
     desc: 'KL 队列 / 模型档位 / dsh / Agent / 源健康 / token 预算',
+    group: 'pipeline',
   },
   // v0.7.x SettingsHub: 取代 /sentinel/settings 独立路由 (只读, 保留 st-* 视觉)
   {
@@ -127,6 +153,7 @@ export const SECTIONS: SectionDef[] = [
     label: '哨兵',
     icon: <Icon size={12}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /></Icon>,
     desc: '只读控制台: 采集 / 能力 / 模型 / 危险区',
+    group: 'ops',
   },
   // v0.7.x SettingsHub: 取代 /secnews/image 独立路由 (ScenarioModelsPanel 同源)
   {
@@ -135,6 +162,7 @@ export const SECTIONS: SectionDef[] = [
     icon: <Icon size={12}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></Icon>,
     desc: '深度/轻度/图片 三场景模型选择',
     layout: 'mixed',
+    group: 'pipeline',
   },
   // v0.8 P1: 独立资讯筛选门禁 (扩展域, 受 feature_gates.info_filter 控制)
   {
@@ -142,17 +170,20 @@ export const SECTIONS: SectionDef[] = [
     label: '资讯门禁',
     icon: <Icon size={12}><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></Icon>,
     desc: 'allow/deny 规则 · 实时预览 · 闸门启停',
+    group: 'pipeline',
   },
   {
     key: 'about',
     label: '关于',
     icon: <Icon size={12}><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></Icon>,
     desc: '版本 / 运行状态',
+    group: 'general',
   },
   {
     key: 'feedback',
     label: '反馈画像',
     icon: <Icon size={12}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></Icon>,
     desc: '点赞/点踩记录 + 角色倾向总结',
+    group: 'general',
   },
 ];

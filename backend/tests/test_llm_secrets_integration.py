@@ -81,6 +81,10 @@ def test_env_unset_secrets_unlocked(monkeypatch, temp_db):
     """2. env 未设 + secrets 配 + unlock → 返 secrets 明文。"""
     from backend.services.ai_hub.service import AIService
     _clear_env(monkeypatch)
+    # t1_score→pi 接线 (DEV-0180) 后 _resolve_provider 返 pi; 本测试契约是
+    # secrets 链, 与 provider 解析无关, 钉 sensenova 隔离 llm.yaml 演进
+    # (同 test_multi_provider_takes_latest_updated 先例)
+    monkeypatch.setattr(AIService, "_resolve_provider", staticmethod(lambda: "sensenova"))
     _make_secret("sensenova", api_key="from-db-key")
     assert AIService()._resolve_api_key() == "from-db-key"
 
@@ -128,6 +132,8 @@ def test_key_source_secrets(monkeypatch, temp_db):
     """6. env 未设 + secrets + unlock → "secrets"。"""
     from backend.services.ai_hub.service import AIService
     _clear_env(monkeypatch)
+    # 钉 sensenova: 契约是 key_source 三态, 不随 t1_score→pi 漂移 (同上)
+    monkeypatch.setattr(AIService, "_resolve_provider", staticmethod(lambda: "sensenova"))
     _make_secret("sensenova")
     assert AIService()._key_source() == "secrets"
 
@@ -186,6 +192,9 @@ def test_evaluate_writes_key_source_secrets(monkeypatch, temp_db):
     """9. evaluate 走 secrets → llm_usage_log.key_source = "secrets"。"""
     from backend.services.ai_hub.service import AIService
     _clear_env(monkeypatch)
+    # 钉 sensenova: mock 的是 _call_sensenova_eval 分支, evaluate 内部
+    # _resolve_provider 须返回 sensenova 才命中 (不随 t1_score→pi 漂移)
+    monkeypatch.setattr(AIService, "_resolve_provider", staticmethod(lambda: "sensenova"))
     _make_secret("sensenova")
     monkeypatch.setattr(
         "backend.services.ai_hub.service.AIService._call_sensenova_eval",

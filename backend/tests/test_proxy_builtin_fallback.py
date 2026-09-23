@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
@@ -556,7 +557,9 @@ class _ProxyFakeSession:
 
 
 def _page(title: str) -> str:
-    now_iso = "2026-09-10T08:00:00+00:00"
+    # 动态生成: 硬编码日期会随时间撞 RecencyGate 的 "早于本周一 → 拒收 hot"
+    # 规则 (2026-09-10 于 09-14 起必然 item_count=0, 时间炸弹)。
+    now_iso = datetime.now(timezone.utc).isoformat()
     return (
         f'<html><head><meta property="article:published_time" content="{now_iso}">'
         f"<title>{title}</title></head><body>"

@@ -12,7 +12,8 @@ from fastapi import APIRouter, Query
 
 from backend.services.compliance_service import controls_for_event, list_frameworks, matrix
 
-router = APIRouter()
+# prefix="/api": 同 cve_analytics.py — 漏 prefix 曾致 /api/compliance/* 全 404
+router = APIRouter(prefix="/api")
 
 
 @router.get("/compliance/frameworks")

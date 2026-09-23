@@ -84,7 +84,7 @@ async def mcp_tools():
 # ---------------------------------------------------------------------------
 def _build_stdio_config() -> dict:
     """构造 stdio transport 配置 (Claude Desktop / Trae / Cursor / Workbuddy 用)。"""
-    cwd = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    cwd = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     return {
         "mcpServers": {
             "hotspot": {

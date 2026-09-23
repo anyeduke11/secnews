@@ -36,6 +36,9 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState<string>('');
+  // 后端构造的 stdio 配置 (含服务端推导的 cwd), 拉取失败时 copyConfig 走无 cwd 兜底
+  const [stdioConfig, setStdioConfig] = useState<string | null>(null);
+  const [sseUrl, setSseUrl] = useState<string>('http://127.0.0.1:8000/mcp/sse');
 
   // Load MCP status + tools on mount
   useEffect(() => {
@@ -45,9 +48,12 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
       setLoading(true);
       try {
         // apiFetch 统一封装: 非 ok 抛错 → 失败的一路置 null 跳过 (对应原 res.ok 分支检查)
-        const [statusData, toolsData] = await Promise.all([
+        const [statusData, toolsData, configData] = await Promise.all([
           getJSON<{ enabled?: boolean }>('/api/mcp/status').catch(() => null),
           getJSON<{ tools?: MCPTool[] }>('/api/mcp/tools').catch(() => null),
+          getJSON<{ stdio?: { mcpServers?: Record<string, unknown> }; sse?: { mcpServers?: Record<string, { url?: string }> } }>(
+            '/api/settings/mcp/config',
+          ).catch(() => null),
         ]);
         if (cancelled) return;
         if (statusData) {
@@ -55,6 +61,13 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
         }
         if (toolsData) {
           setTools(toolsData.tools || []);
+        }
+        if (configData) {
+          if (configData.stdio?.mcpServers) {
+            setStdioConfig(JSON.stringify(configData.stdio, null, 2));
+          }
+          const url = configData.sse?.mcpServers?.hotspot?.url;
+          if (url) setSseUrl(url);
         }
       } catch (err) {
         console.warn('MCPSettingsCard load failed', err);
@@ -91,16 +104,13 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
 
   // Copy stdio config to clipboard
   const copyConfig = useCallback(async () => {
-    const config = {
-      mcpServers: {
-        hotspot: {
-          command: 'python',
-          args: ['-m', 'backend.mcp_stdio_main'],
-          cwd: '/path/to/hotspot',
-        },
-      },
-    };
-    const text = JSON.stringify(config, null, 2);
+    // 优先用后端 /api/settings/mcp/config 构造的配置 (cwd 由服务端推导, 随部署位置自适应);
+    // 拉取失败时兜底为无 cwd 版本 (需用户自行在项目根目录启动)。
+    const text = stdioConfig ?? JSON.stringify(
+      { mcpServers: { hotspot: { command: 'python', args: ['-m', 'backend.mcp_stdio_main'] } } },
+      null,
+      2,
+    );
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(text);
@@ -120,7 +130,7 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
       setToast('复制失败');
       setTimeout(() => setToast(''), 2500);
     }
-  }, []);
+  }, [stdioConfig]);
 
   const readTools = tools.filter((t) => t.category === 'read');
   const writeTools = tools.filter((t) => t.category === 'write');
@@ -178,7 +188,7 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
                 stdio: <code style={{ color: 'var(--sn-mint)' }}>python -m backend.mcp_stdio_main</code>
               </span>
               <span style={{ fontFamily: 'var(--sn-mono)', fontSize: 11, color: 'var(--sn-ink-2)' }}>
-                sse: <code style={{ color: 'var(--sn-mint)' }}>http://127.0.0.1:8000/mcp/sse</code>
+                sse: <code style={{ color: 'var(--sn-mint)' }}>{sseUrl}</code>
               </span>
             </div>
           </div>

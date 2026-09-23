@@ -70,7 +70,10 @@ class TestSemanticVerdict:
 
 class TestFilterItemsSemanticLayer:
     def test_gate_off_no_llm(self, monkeypatch):
-        monkeypatch.delenv("HOTSPOT_FEATURE_GATES", raising=False)
+        # 2026-09-19 开闸后 TOML 默认 true, 关 gate 须走 env 覆盖 (优先级高于 TOML)
+        monkeypatch.setenv(
+            "HOTSPOT_FEATURE_GATES", '{"extensions": {"semantic_filter": false}}'
+        )
         reset_gates()
         _neutral_rules(monkeypatch)
         called = {"n": 0}

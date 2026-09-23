@@ -31,7 +31,6 @@ def register_all(app: FastAPI) -> None:
     from backend.api import (
         alerts,  # v1.7 Phase 3: 告警规则与告警
         attention_events_api,  # v1.7: 注意力事件追踪
-        # DEV-0178: bid_alert (标书提醒) 已随标讯剔除移除
         cache,  # v1.9: 缓存管理 (clear/stats)
         catchup,  # v1.8 Phase 8: 追抓资讯 (manual + watchdog auto)
         categories,
@@ -65,7 +64,8 @@ def register_all(app: FastAPI) -> None:
         recommend,  # v1.7 Phase 4: 上下文推荐
         refresh,  # Phase 32: POST /api/refresh 手动触发采集
         reports,  # v1.9 Editorial: 日报/月报独立 API
-        reviews,  # v1.7 Phase 2: SM-2 间隔复习
+        reviews,  # v1.7 Phase 2: SM-2 间隔复习 + migration 120 管理面
+        reviews_manage,
         search,  # v1.7 Phase 3: 统一跨层搜索
         secrets,  # Phase 41: 密钥管理 (LLM API Keys)
         security,  # Phase 2: Security Knowledge Graph + Terminology
@@ -128,6 +128,8 @@ def register_all(app: FastAPI) -> None:
         app.include_router(extract.router, tags=["extract"])
     if config.feature_review:
         app.include_router(reviews.router, tags=["review"])
+        # migration 120: 管理面端点 (forecast/undo/PATCH/DELETE/history/cards)
+        app.include_router(reviews_manage.router, tags=["review"])
     if config.feature_annotation:
         app.include_router(annotations_api.router, tags=["annotation"])
     if config.feature_tech_stack and is_extension_enabled("tech_stack"):
@@ -182,7 +184,6 @@ def register_all(app: FastAPI) -> None:
     # v0.7 Batch ③: 观测面 query API (无条件注册, 是基础设施)
     from backend.api import observability_router
     app.include_router(observability_router.router, tags=["observability"])
-    # DEV-0178: bid_alert router 已随标讯剔除移除
     # SecNews 整合 Phase 0: KL 管线 + 安全看板 (按 feature_gates 注册)
     if is_extension_enabled("secnews"):
         from backend.api import feedback_api, kl_pipeline_api, secnews_dashboard_api
@@ -260,8 +261,7 @@ def register_all(app: FastAPI) -> None:
     from backend.api import v1_signals_api
     app.include_router(v1_signals_api.router, tags=["v1-signals"])
     # MP-2 (DEV-0218): 事件类型实例化 — 候选 2 文件拆分 (≤150 行守卫)
-    from backend.api import event_technique_api
-    from backend.api import event_types_api
+    from backend.api import event_technique_api, event_types_api
     app.include_router(event_technique_api.router, tags=["event-technique"])
     app.include_router(event_types_api.router, tags=["event-technique"])
     from backend.api import cubox_import_api  # UI 收尾批 C2 (DEV-0195): cubox 导入兜底

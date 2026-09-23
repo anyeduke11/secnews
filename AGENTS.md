@@ -1,6 +1,6 @@
 # SecNews Knowledge Dashboard — 安全从业者 AI 助手的平台看板层
 
-> **当前状态 (2026-09-14, v0.8.5 + NAV4 + P3)**: v0.8 Sentinel **四菜单** (`/` 资讯 → `/knowledge` 知识 → `/action` 行动 → `/settings` 设置) 是**唯一壳** (SentinelShell 4-tab + 管道心跳条全站常驻), v1.0 九领域对象/三类 receipt 只能以嵌入四菜单的能力区块进入 (SignalPanel/CaseQueuePanel/ExecOverviewPanel); v1 四入口 `/workbench` `/intel` `/cases` 仅为重定向兼容 (透传 query)。唯一权威 spec = `docs/v0.8.5/V0.8.5_PLAN.md` (§5 路由表 / §6 接口消费表 / §10 一致性门); 实现与验证分离, 实现侧不得自评 PASS。新能力只能以四菜单区块进入, 禁止新一级入口/新壳 (frontend/src/AGENTS.md 硬规则)。**2026-09-10 壳统一 (DEV-0168)**: 工具页 `PageLayout` 亦以 `<SentinelShell layer={null}>` 为壳 (顶部 4-tab + `menuOf(pathname)` 自动归属); 左侧 AppNav 物理删除, SK 能力包 / 知识管理能力归位 `/skill-store` `/knowledge` 页内。**2026-09-13 NAV4 + P2 死代码清理 (DEV-0175)**: 三层→四菜单; `SentinelMoreMenu` + `UTILITY_GROUPS` (17 项) 物理删除, 工具页"我在哪"指示改由 `menuOf()` 接管; `SecNewsShell` 6 视图 (feed/pipeline/knowledge/analyze/analytics/observability) 拆挂 `PageLayout`, 由子路由内容归属四菜单; 主题模式扩 3 态 (`light`/`dark`/`paper`), 纸面版暖米黄纸底 + 衬线字体, 最小侵入仅覆写 6 个核心 token。spec §5 已附 2026-09-13 修订注③。**2026-09-14 NAV4 + P3 收口 (DEV-0178)**: 临时页 `/maint` (复用 maintenance API) `/knowledge/canvas` (ECharts demo) 全量落账; ROUTE_REGISTRY 终稿; §6 补修订注④ (新增 0 端点); dsh 为受管子进程, :3210 降级链 `not_configured→mock→ai_hub`, 新文档勿再写"独立网关"。
+> **当前状态 (2026-09-14, v0.8.5 + NAV4 + P3)**: v0.8 Sentinel **四菜单** (`/` 资讯 → `/knowledge` 知识 → `/action` 行动 → `/settings` 设置) 是**唯一壳** (SentinelShell 4-tab + 管道心跳条全站常驻), v1.0 九领域对象/三类 receipt 只能以嵌入四菜单的能力区块进入 (SignalPanel/CaseQueuePanel/ExecOverviewPanel); v1 四入口 `/workbench` `/intel` `/cases` 仅为重定向兼容 (透传 query)。**唯一权威产品文档 = `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`**；唯一权威 spec = `docs/v0.8.5/V0.8.5_PLAN.md` (§5 路由表 / §6 接口消费表 / §10 一致性门); 实现与验证分离, 实现侧不得自评 PASS。新能力只能以四菜单区块进入, 禁止新一级入口/新壳 (frontend/src/AGENTS.md 硬规则)。**2026-09-10 壳统一 (DEV-0168)**: 工具页 `PageLayout` 亦以 `<SentinelShell layer={null}>` 为壳 (顶部 4-tab + `menuOf(pathname)` 自动归属); 左侧 AppNav 物理删除, SK 能力包 / 知识管理能力归位 `/skill-store` `/knowledge` 页内。**2026-09-13 NAV4 + P2 死代码清理 (DEV-0175)**: 三层→四菜单; `SentinelMoreMenu` + `UTILITY_GROUPS` (17 项) 物理删除, 工具页"我在哪"指示改由 `menuOf()` 接管; `SecNewsShell` 6 视图 (feed/pipeline/knowledge/analyze/analytics/observability) 拆挂 `PageLayout`, 由子路由内容归属四菜单; 主题模式扩 3 态 (`light`/`dark`/`paper`), 纸面版暖米黄纸底 + 衬线字体, 最小侵入仅覆写 6 个核心 token。spec §5 已附 2026-09-13 修订注③。**2026-09-14 NAV4 + P3 收口 (DEV-0178)**: 临时页 `/maint` (复用 maintenance API) `/knowledge/canvas` (ECharts demo) 全量落账; ROUTE_REGISTRY 终稿; §6 补修订注④ (新增 0 端点); dsh 为受管子进程, :3210 降级链 `not_configured→mock→ai_hub`, 新文档勿再写"独立网关"。**2026-09-14 PRD 收敛 (DEV-0179)**: 7+ 份交叉文档收敛为单一权威 PRD (`docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`) + 审计报告 (`docs/audit/PRD_ALIGNMENT_AUDIT_2026-09-14.md`)；V0.8.5_PLAN.md 路由漂移已回写（layer=action、/cases→/action）；单一权威 PRD 维护纪律已入 AGENTS.md。
 > 历史决策 (三层架构裁决 / wiki-first 存储哲学 / Phase 7 退役冻结 / v1.0 四入口弯路与回摆) 见 `PROJECT.md`、`PROGRESS.md`、`docs/README.md` 与 `git log`, 不在此重复。
 
 ## 文档地图
@@ -13,11 +13,19 @@
 
 ## 架构数字门禁
 
-架构数字由 `scripts/generate_meta.py` AST 反推维护 (57 jobs / 13 collectors / 85 routers / 145 services)。改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
+架构数字由 `scripts/generate_meta.py` AST 反推维护 (57 jobs / 13 collectors / 87 routers / 147 services)。改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
 
-## v0.4.3 — Core/Extension 软分层 + Feature Gates
+## 单一权威 PRD 维护纪律
 
-- **开关源**: `backend/config/feature_gates.toml` — 13 gate: 默认开启 12 (codegarden / codegarden_phase2b / sync / tech_stack / security_graph / secnews / crm / dsh + v0.8 四 gate info_filter·skill_registry·trigger_gate·user_skills); 默认关闭 1 (mcp — extension gate 只管 /api/mcp/* 调试路由, server 本体由 is_mcp_enabled() 读 config.feature_mcp, 双开关契约见 mcp_config.py docstring)。gate 化须随消费点同时登记 (user_skills 先例)
+**唯一权威产品文档**: `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`
+
+- **所有设计/计划/PRD 变更必须同步更新本文档**：新建或修改能力、分期、路由、API、验收条件时，先更新 `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`，再更新其他文档。
+- **旧文档标注 superseded**：被本文档取代的旧文档（v1.0 CLOSEOUT_PLAN、WORKBENCH_FOCUS_PRD、FIRST_PRINCIPLES_ANALYSIS 等；注意 V0.8.5_PLAN 仍是唯一权威 spec，**不在**废止名单）必须在文件头加 `# 已废止` 横幅，指向单一权威 PRD。
+- **spec 漂移禁止**：实现与 spec 冲突时，同 commit 修正文档或代码，不允许静默漂移（V0.8.5_PLAN.md 历史教训：layer=judge vs layer=action、/cases→/judge vs /cases→/action）。
+- **审计留痕**：重大设计/计划变更须在 `docs/audit/` 留痕，文件名格式 `PRD_ALIGNMENT_AUDIT_YYYY-MM-DD.md`。
+- **DEV_LOG 联动**：PRD/spec 变更须在 DEV_LOG 追加记录（关联文件包含被修改的 PRD 文档）。
+
+- **开关源**: `backend/config/feature_gates.toml` — 16 gate: 默认开启 15 (codegarden / codegarden_phase2b / sync / tech_stack / security_graph / secnews / dsh + v0.8 四 gate info_filter·skill_registry·trigger_gate·user_skills + interest_engine·semantic_filter·ai_classify·pipeline_ner); 默认关闭 1 (mcp — extension gate 只管 /api/mcp/* 调试路由, server 本体由 is_mcp_enabled() 读 config.feature_mcp, 双开关契约见 mcp_config.py docstring; crm 键已随 migration 116 整体删除)。gate 化须随消费点同时登记 (user_skills 先例)
 - **core 永不消失**: `backend/core/routers.py` core router 白名单, 与扩展域防重叠断言; 扩展 router 按 `is_extension_enabled()` 条件注册 (关闭时路由 404)
 - **job 门控**: `scheduler.py` `_is_job_enabled()` 按扩展归属过滤 8 个扩展 job
 - **env 覆盖**: `HOTSPOT_FEATURE_GATES='{"extensions": {...}}'` 优先级高于 TOML (CI core-only 用)

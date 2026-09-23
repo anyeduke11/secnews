@@ -58,7 +58,7 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 | **行动** | `/action` | 执行总览 · CodeGarden 联动 · 项目 · 服务 · 资源 · 事件 |
 | **设置** | `/settings` | dsh 受管子进程 / pi agent / 同步策略 / MCP / 观测 |
 
-工具页经 `PageLayout` + `menuOf()` 自动归属四菜单：`/skill-store`（SK 能力包）· `/crm`（业绩座舱）· `/knowledge/canvas`（画布 demo）· `/maint`（维护）等。
+工具页经 `PageLayout` + `menuOf()` 自动归属四菜单：`/skill-store`（SK 能力包）· `/knowledge/canvas`（画布 demo）· `/maint`（维护）等。
 
 旧路由全部重定向兼容（透传 query）：`/secnews` `/judge` `/judge/graph` `/garden` → 对应四菜单；v1 四入口 `/workbench` `/intel` → `/`，`/cases` → `/action`。
 

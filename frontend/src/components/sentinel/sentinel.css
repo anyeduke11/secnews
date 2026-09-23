@@ -283,9 +283,9 @@
 .sentinel .flash-count{font-family:var(--sn-mono);font-size:11.5px;color:var(--sn-ink-3)}
 .sentinel .flash-list{list-style:none;padding:0;margin:0}
 .sentinel .flash-item{
-  display:grid;grid-template-columns:88px minmax(0,1fr) auto;
-  gap:16px;align-items:baseline;
-  padding:13px 8px;border-bottom:1px solid var(--sn-line);
+  display:grid;grid-template-columns:88px minmax(0,1fr) auto auto;
+  gap:12px;align-items:baseline;
+  padding:8px 8px;border-bottom:1px solid var(--sn-line);
   transition:background .15s ease;
 }
 .sentinel .flash-item:hover{background:var(--sn-bg-lift)}
@@ -297,6 +297,7 @@
 .sentinel .ftag{font-size:11px;padding:1px 7px;border-radius:3px;font-family:var(--sn-mono)}
 .sentinel .flash-side{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .sentinel .flash-src{font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3)}
+.sentinel .flash-item .agihunt-card-star{align-self:center}
 
 /* 告警条目 */
 .sentinel .alert-item{
@@ -407,13 +408,13 @@
 .sentinel[data-mode="scan"] .standfirst,
 .sentinel[data-mode="scan"] .sub-item,
 .sentinel[data-mode="scan"] .secondary{display:none}
-.sentinel[data-mode="scan"] .flash-item{grid-template-columns:76px minmax(0,1fr) auto;padding:9px 8px}
+.sentinel[data-mode="scan"] .flash-item{grid-template-columns:76px minmax(0,1fr) auto auto;padding:6px 8px}
 .sentinel[data-mode="scan"] .flash-side{display:none}
 .sentinel[data-mode="scan"] .story-top{padding-bottom:16px}
 .sentinel[data-mode="scan"] .headline{font-size:clamp(20px,2vw,25px)}
 .sentinel[data-mode="deep"] .headline{font-weight:700;letter-spacing:0;font-size:clamp(26px,2.8vw,36px);max-width:19em}
 .sentinel[data-mode="deep"] .standfirst{font-size:16px;line-height:1.85;max-width:56ch}
-.sentinel[data-mode="deep"] .flash-item{grid-template-columns:96px minmax(0,1fr) auto;padding:17px 8px}
+.sentinel[data-mode="deep"] .flash-item{grid-template-columns:96px minmax(0,1fr) auto auto;padding:13px 8px}
 .sentinel[data-mode="deep"] .flash-title{font-size:15.5px;line-height:1.7}
 .sentinel[data-mode="alert"] .flash-item:not(.alert-wrap),
 .sentinel[data-mode="alert"] .sub-item{opacity:.32;filter:saturate(.4)}
@@ -463,7 +464,7 @@ html[data-theme="paper"] .sentinel .tb-paper{display:block}
   .sentinel .pipe-block{flex:1 1 40%;border-bottom:1px solid var(--sn-line);padding:6px 12px 6px 0}
   .sentinel .pipe-block:nth-child(n+3){border-bottom:0}
   .sentinel .pipe-live{display:none}
-  .sentinel .flash-item{grid-template-columns:72px minmax(0,1fr)}
+  .sentinel .flash-item{grid-template-columns:72px minmax(0,1fr) auto}
   .sentinel .flash-side{display:none}
   .sentinel .sub-index{display:none}
   .sentinel .modes{order:2;margin-left:auto}

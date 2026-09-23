@@ -17,7 +17,7 @@ import { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useGoBack } from '../../hooks/useGoBack';
 import { Icon } from '../Icon';
-import { SECTIONS } from './sections';
+import { SECTIONS, SECTION_GROUP_LABELS } from './sections';
 import type { SectionKey } from './sections';
 import { QualitySettings } from './QualitySettings';
 import { SourceSettings } from './SourceSettings';
@@ -167,26 +167,38 @@ export function SettingsPage() {
           className="settings-shell st-sidenav shrink-0 sm:w-[210px] sm:max-h-full"
           aria-label="设置分类"
         >
-          {SECTIONS.filter(s => s.key !== 'integration' || features.mcp).map(s => {
-            const isActive = activeSection === s.key;
+          {/* c8: 6 组归组渲染 — integration 仍受 mcp gate 隐藏; 组内序 = SECTIONS 声明序 */}
+          {SECTION_GROUP_LABELS.map(({ group, label }) => {
+            const items = SECTIONS.filter(
+              s => s.group === group && (s.key !== 'integration' || features.mcp),
+            );
+            if (items.length === 0) return null;
             return (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => setActiveSection(s.key)}
-                className={`st-sidenav-item${isActive ? ' active' : ''}`}
-                title={s.desc}
-                aria-current={isActive ? 'page' : undefined}
-              >
-                <span className="st-snav-row">
-                  <span className="st-snav-icon" aria-hidden>{s.icon}</span>
-                  <span className="st-snav-label">{s.label}</span>
-                  <span className="st-snav-state" aria-hidden>
-                    {isActive ? '●' : '○'}
-                  </span>
-                </span>
-                {s.desc && <span className="st-snav-desc">{s.desc}</span>}
-              </button>
+              <div className="st-snav-group" key={group}>
+                {label && <span className="st-snav-grouplabel" aria-hidden>{label}</span>}
+                {items.map(s => {
+                  const isActive = activeSection === s.key;
+                  return (
+                    <button
+                      key={s.key}
+                      type="button"
+                      onClick={() => setActiveSection(s.key)}
+                      className={`st-sidenav-item${isActive ? ' active' : ''}`}
+                      title={s.desc}
+                      aria-current={isActive ? 'page' : undefined}
+                    >
+                      <span className="st-snav-row">
+                        <span className="st-snav-icon" aria-hidden>{s.icon}</span>
+                        <span className="st-snav-label">{s.label}</span>
+                        <span className="st-snav-state" aria-hidden>
+                          {isActive ? '●' : '○'}
+                        </span>
+                      </span>
+                      {s.desc && <span className="st-snav-desc">{s.desc}</span>}
+                    </button>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>

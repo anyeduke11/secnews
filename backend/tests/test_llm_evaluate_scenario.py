@@ -83,7 +83,7 @@ def test_evaluate_with_scenario_deep_picks_deepseek(client, monkeypatch):
 
 
 def test_evaluate_with_scenario_light_picks_flash_lite(client, monkeypatch):
-    """scenario=light → model 走 yaml t1_score = sensenova-6.8-flash-lite."""
+    """scenario=light → model 走 yaml t1_score (DEV-0180 接线后为 pi/claude-sonnet-4-5)。"""
     fake = {
         "ok": True, "provider": "sensenova", "quality_score": 7.0,
         "verdict": "ok", "key_points": ["a"], "summary": "ok",
@@ -100,7 +100,18 @@ def test_evaluate_with_scenario_light_picks_flash_lite(client, monkeypatch):
         )
     assert r.status_code == 200
     d = r.json()
-    assert d["model"] == "sensenova-6.8-flash-lite"
+    # 期望值动态取自 llm.yaml t1_score.model — 契约是 "light 跟随 t1_score
+    # override", 模型名随 llm.yaml 演进, 写死会随配置切换碎掉
+    from pathlib import Path
+
+    import yaml
+    yaml_path = Path(__file__).resolve().parents[2] / "config" / "llm.yaml"
+    expected = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))[
+        "task_overrides"
+    ]["t1_score"]["model"]
+    assert d["model"] == expected, (
+        f"scenario=light 应得 yaml t1_score.model={expected!r}, 实际 {d.get('model')!r}"
+    )
 
 
 def test_evaluate_with_invalid_scenario_returns_ok_false(client):

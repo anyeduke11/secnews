@@ -850,6 +850,17 @@
       "notes": ""
     },
     {
+      "table": "review_log",
+      "temp": "HOT",
+      "ts_column": "created_at",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "scheduled_in": "none",
+      "notes": "migration 120: SM-2 评分流水 (旧→新全量快照), undo 撤销与保留率/评分分布统计的唯一真数据源"
+    },
+    {
       "table": "schema_version",
       "temp": "HOT",
       "ts_column": "",

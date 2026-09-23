@@ -4,18 +4,19 @@
  * Phase 1B 拆自原 SettingsPanel.tsx; V2 三个 st-section:
  *   1. 数据源健康 (healthStats + deadSources 明细)
  *   2. 信源管理 (新增/启用/禁用/探测/删除) — SourceItem 嵌入保留
- *   3. 自动刷新 (localStorage + 回调)
+ *   3. 自动刷新 (useRefreshInterval hook 单一写入口 + 回调)
  */
 import { useState, useEffect, useCallback } from 'react';
-import { REFRESH_INTERVAL_OPTIONS } from '../../hooks/useRefreshInterval';
+import { REFRESH_INTERVAL_OPTIONS, useRefreshInterval } from '../../hooks/useRefreshInterval';
 import { SourceItem, SourceItemData } from './SourceItem';
-import { getApiErrorMessage, postJSON } from '../../lib/api';
+import { getApiErrorMessage } from '../../lib/api';
 import {
   addCustomSource,
   deleteCustomSource,
   getSourceHealthV2,
   getSourceStats,
   listCustomSources,
+  reprobeCustomSource,
   resetSourceHealth,
   toggleCustomSource,
 } from '../../api/sources';
@@ -68,7 +69,8 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
     }
   }, []);
 
-  const [currentInterval, setCurrentInterval] = useState<number>(30);
+  // c6 收敛: 刷新间隔单一写入口 = useRefreshInterval hook (setState + localStorage + 后端同步)
+  const { interval: currentInterval, setInterval: setRefreshInterval } = useRefreshInterval();
   const [refreshMessage, setRefreshMessage] = useState<SourceMessage>(null);
 
   const refreshSources = useCallback(async () => {
@@ -81,16 +83,6 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
   useEffect(() => {
     if (!open) return;
     refreshSources();
-    try {
-      const stored = localStorage.getItem('hotspot-refresh-interval');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        const v = Number(parsed?.value);
-        if (REFRESH_INTERVAL_OPTIONS.some(o => o.value === v)) {
-          setCurrentInterval(v);
-        }
-      }
-    } catch {}
     setRefreshMessage(null);
   }, [open, refreshSources]);
 
@@ -135,14 +127,13 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
 
   const probeSource = useCallback(async (id: number) => {
     try {
-      const d = await postJSON<{ status?: string; probe?: { error?: string; latency_ms?: number } }>(
-        `/api/sources/custom/${id}/probe`,
-        undefined,
-      );
+      // 统一走 api/sources.ts 收敛端点 (不再裸拼 URL)
+      const d = await reprobeCustomSource(id);
+      const probe = d.probe as { error?: string; latency_ms?: number } | undefined;
       if (d.status === 'ok') {
-        setSourceMessage({ type: 'ok', text: `探测成功: ${d.probe?.latency_ms}ms` });
+        setSourceMessage({ type: 'ok', text: `探测成功: ${probe?.latency_ms}ms` });
       } else {
-        setSourceMessage({ type: 'error', text: `探测失败: ${d.probe?.error || 'unknown'}` });
+        setSourceMessage({ type: 'error', text: `探测失败: ${probe?.error || 'unknown'}` });
       }
     } catch {
       setSourceMessage({ type: 'error', text: '探测请求失败' });
@@ -256,7 +247,7 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
       <section className="st-section" aria-label="自动刷新">
         <h3>自动刷新</h3>
         <p className="st-section-desc">
-          设置后立即生效, 下次自动刷新按新间隔进行 (写入 localStorage `hotspot-refresh-interval`)。
+          设置后立即生效, 下次自动刷新按新间隔进行 (经 useRefreshInterval 写入 localStorage 并同步后端采集频率)。
         </p>
         <div className="st-section-body">
           <div className="st-cellgrid">
@@ -268,9 +259,7 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
                   type="button"
                   className={active ? 'st-btn primary' : 'st-btn'}
                   onClick={() => {
-                    setCurrentInterval(opt.value);
-                    const fullOpt = { value: opt.value, label: opt.label };
-                    try { localStorage.setItem('hotspot-refresh-interval', JSON.stringify(fullOpt)); } catch {}
+                    setRefreshInterval(opt.value);
                     onRefreshIntervalChange?.(opt.value);
                     setRefreshMessage({ type: 'ok', text: `已选择: ${opt.label}` });
                   }}

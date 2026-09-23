@@ -176,12 +176,6 @@ export function PipelineSettings() {
           )}
         </div>
       </section>
-
-      {/* token 预算 */}
-      <section className="st-section" aria-label={t('settings.token_budget')}>
-        <h3>{t('settings.token_budget')}</h3>
-        <p className="st-cellnote">{t('settings.no_budget')}</p>
-      </section>
     </div>
   );
 }

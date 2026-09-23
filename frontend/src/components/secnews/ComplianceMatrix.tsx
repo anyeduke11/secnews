@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useCompliance } from '../../hooks/useCompliance';
 import { FrameworkFilter, type FrameworkOption } from './FrameworkFilter';
+
+// 模块级常量: 默认参数若内联数组, 每次渲染产生新引用会反复触发加载 effect
+const DEFAULT_EVENT_TYPES = ['data_breach', 'unauthorized_access', 'malware', 'phishing', 'ddos', 'insider_threat', 'misconfiguration'];
 
 const FRAMEWORK_COLORS: Record<string, string> = {
   dengbao: 'var(--chart-compliance-dengbao)',
@@ -14,22 +17,37 @@ interface ComplianceMatrixProps {
   eventTypes?: string[];
 }
 
-export function ComplianceMatrix({ frameworks, eventTypes = ['data_breach', 'unauthorized_access', 'malware', 'phishing', 'ddos', 'insider_threat', 'misconfiguration'] }: ComplianceMatrixProps) {
+export function ComplianceMatrix({ frameworks, eventTypes = DEFAULT_EVENT_TYPES }: ComplianceMatrixProps) {
   const { fetchMatrix } = useCompliance();
   const [selectedFrameworks, setSelectedFrameworks] = useState<string[]>([]);
   const [expandedCell, setExpandedCell] = useState<{ row: number; col: number } | null>(null);
   const [data, setData] = useState<{ rows: { event_type: string; controls: { framework: string; control_id: string; name: string }[] }[]; columns: { framework: string; control_id: string; name: string }[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load matrix on mount / when event types change
-  if (!data && eventTypes.length) {
-    fetchMatrix(eventTypes).then(setData).catch(() => {});
-  }
+  // Load matrix on mount / when event types change — 迁入 useEffect (渲染期副作用会在
+  // StrictMode 双渲染下重复请求); 失败呈现错误, 不再永久停留在 "加载合规矩阵…"
+  useEffect(() => {
+    if (!eventTypes.length) return;
+    let cancelled = false;
+    fetchMatrix(eventTypes)
+      .then((d) => { if (!cancelled) { setData(d); setError(null); } })
+      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+    return () => { cancelled = true; };
+  }, [fetchMatrix, eventTypes]);
 
   const visibleColumns = useMemo(() => {
     if (!data) return [];
     if (!selectedFrameworks.length) return data.columns;
     return data.columns.filter(c => selectedFrameworks.includes(c.framework));
   }, [data, selectedFrameworks]);
+
+  if (error) {
+    return (
+      <div className="text-xs p-2 rounded" style={{ color: 'var(--color-error)', border: '1px solid var(--color-error)' }}>
+        合规矩阵加载失败: {error}
+      </div>
+    );
+  }
 
   if (!data) {
     return <div className="text-xs" style={{ color: 'var(--text-muted)' }}>加载合规矩阵…</div>;

@@ -8,6 +8,7 @@ Phase 7: 集成 MCP server (Option A) — 启动时 seeding 9 tool 元数据,
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import time
@@ -214,26 +215,35 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 1) attack_techniques + attack_cwe_map (data/stix/ 静态子集, ~200/700 行)
     # 2) security_entities + security_edges (完整 STIX bundle, ~1000+/5000+ 行)
     # 两步均幂等 (attack_loader 用 COUNT==0, MitreAttackClient.upsert 用 ON CONFLICT),
-    # 失败仅 warning 不阻断 startup (graph 端点允许空数据回退)。
-    try:
-        from backend.services.attack_loader import load_attack_data as _load_attack
-        _loaded = _load_attack()
-        log.info(
-            f"attack_loader: techniques={_loaded.get('techniques', 0)} "
-            f"cwe_mappings={_loaded.get('cwe_mappings', 0)}"
-        )
-    except Exception as e:
-        log.warning(f"attack_loader startup hook failed (ignored): {e}")
+    # 失败仅 warning (graph 端点允许空数据回退)。
+    # DEV-0226 根因③: sync_to_db 是同步网络调用 (STIX bundle 下载/HEAD 超时可达
+    # 分钟级), 直接跑在 lifespan 里会阻塞 event loop → uvicorn 永不 bind 端口 →
+    # API 不可达、前端全挂。改为线程池后台执行, lifespan 立即返回。
+    # SQLite 走 repository.db thread-local 连接, 线程池执行安全。
+    def _graph_ignition() -> None:
+        try:
+            from backend.services.attack_loader import load_attack_data as _load_attack
+            _loaded = _load_attack()
+            log.info(
+                f"attack_loader: techniques={_loaded.get('techniques', 0)} "
+                f"cwe_mappings={_loaded.get('cwe_mappings', 0)} "
+                f"(background)"
+            )
+        except Exception as e:
+            log.warning(f"attack_loader startup hook failed (ignored): {e}")
 
-    try:
-        from backend.security.mitre_attack import MitreAttackClient as _MitreClient
-        _sync_result = _MitreClient().sync_to_db(force=True)
-        log.info(
-            f"mitre_attack sync: entities={_sync_result.get('entities', 0)} "
-            f"edges={_sync_result.get('edges', 0)} from_cache={_sync_result.get('from_cache', False)}"
-        )
-    except Exception as e:
-        log.warning(f"mitre_attack sync startup hook failed (ignored): {e}")
+        try:
+            from backend.security.mitre_attack import MitreAttackClient as _MitreClient
+            _sync_result = _MitreClient().sync_to_db(force=True)
+            log.info(
+                f"mitre_attack sync: entities={_sync_result.get('entities', 0)} "
+                f"edges={_sync_result.get('edges', 0)} from_cache={_sync_result.get('from_cache', False)} "
+                f"(background)"
+            )
+        except Exception as e:
+            log.warning(f"mitre_attack sync startup hook failed (ignored): {e}")
+
+    asyncio.get_running_loop().run_in_executor(None, _graph_ignition)
 
     yield
 

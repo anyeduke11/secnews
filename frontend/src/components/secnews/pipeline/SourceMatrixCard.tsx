@@ -4,6 +4,7 @@
  * 数据: GET /api/sources/health (壳心跳同源接口, 无新端点)。
  * 呈现: .ed-table 编辑部表格 — 源 / 类目 / 状态 (ok/warn/err 着色) / 累计产出 / 最近活动;
  * 排序 dead → stale → active (故障源置顶); >100 行截断 + 计数提示。
+ * bid (招投标) 类目与 *(搜狗) 镜像源不参与本矩阵展示 (用户裁决 2026-09-18: 与本看板无关)。
  */
 import { useEffect, useMemo, useState } from 'react';
 import { getJSON } from '../../../lib/api';
@@ -47,7 +48,9 @@ export function SourceMatrixCard() {
 
   const sorted = useMemo(() => {
     if (!rows) return [];
-    return [...rows].sort((a, b) =>
+    return [...rows]
+      .filter(s => s.category !== 'bid' && !s.source_name.includes('(搜狗)'))
+      .sort((a, b) =>
       (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3)
       || (b.total_items ?? 0) - (a.total_items ?? 0)
       || a.source_name.localeCompare(b.source_name, 'zh-CN'),

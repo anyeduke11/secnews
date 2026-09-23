@@ -114,8 +114,6 @@ const messages_zhCN: Messages = {
   'settings.heavy_tier': 'heavy 档（点击触发）',
   'settings.sources_count': '采集源 · {n}',
   'settings.no_sources': '暂无源数据',
-  'settings.token_budget': 'token 预算',
-  'settings.no_budget': '暂无预算配置（Phase 5 实装; 当前用量见底部状态栏 token 日用量）',
   // ── dsh / agent runner ──
   'dsh.connected': '已连接',
   'dsh.running_no_endpoint': '运行中 (endpoint 未响应)',
@@ -490,8 +488,6 @@ const messages_enUS: Messages = {
   'settings.heavy_tier': 'heavy tier (click to trigger)',
   'settings.sources_count': 'Sources · {n}',
   'settings.no_sources': 'No source data',
-  'settings.token_budget': 'Token budget',
-  'settings.no_budget': 'No budget configured (Phase 5 TBD; see bottom status bar for daily token usage)',
   // ── dsh / agent runner ──
   'dsh.connected': 'Connected',
   'dsh.running_no_endpoint': 'Running (endpoint unresponsive)',

@@ -16,7 +16,9 @@ from backend.services.attack_loader import load_attack_data
 from backend.services.cve_attack_service import cves_to_attack_techniques
 from backend.services.cve_heatmap_service import recent_cves, weekly_heatmap
 
-router = APIRouter()
+# prefix="/api": 本仓 leaf router 自带完整前缀惯例 (见 hotspots.py) —
+# 此前漏 prefix 导致路由暴露在 /cve/* 而前端请求 /api/cve/* 全部 404
+router = APIRouter(prefix="/api")
 
 
 @router.get("/cve/heatmap")

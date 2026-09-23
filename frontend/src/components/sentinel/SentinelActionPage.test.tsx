@@ -149,6 +149,22 @@ function makeFetch(opts: {
     if (url.startsWith('/api/reviews/stats')) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(opts.reviewStats ?? REVIEW_STATS) } as Response);
     }
+    // ReviewOverlay (复习栈能力丰富): 数据/管理视图数据源
+    if (url.startsWith('/api/reviews/forecast')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ items: [{ date: '2026-01-01', count: 0 }] }),
+      } as Response);
+    }
+    if (url.startsWith('/api/reviews/history')) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [] }) } as Response);
+    }
+    if (url.startsWith('/api/reviews/cards')) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(opts.reviews ?? REVIEWS_FIXTURE) } as Response);
+    }
+    if (url.startsWith('/api/search')) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ result: { items: [] } }) } as Response);
+    }
     if (url.startsWith('/api/secnews/stats')) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(SECNEWS_STATS) } as Response);
     }
@@ -394,6 +410,98 @@ describe('SentinelActionPage — 行动层今日行动', () => {
       expect(banner!.textContent).toContain('个数据源本次未返回');
     });
     expect(screen.getByText('待办清单')).toBeInTheDocument();
+  });
+
+  /* ============ 复习栈能力丰富 (migration 120) ============ */
+
+  const ENRICHED_REVIEWS = {
+    version: 'test',
+    count: 1,
+    items: [{
+      ...REVIEWS_FIXTURE.items[0],
+      title: 'AI 安全周报：供应链攻击抬头',
+      url: 'https://example.com/weekly',
+      category: 'security',
+      excerpt: '三家供应商遭投毒',
+    }],
+  };
+
+  it('enrich 命中 → 卡片显示真实标题, entity_id 降为副行, 查看原文外链', async () => {
+    vi.stubGlobal('fetch', makeFetch({ reviews: ENRICHED_REVIEWS }).fn);
+    const { container } = render_();
+    await waitFor(() => expect(screen.getByText('AI 安全周报：供应链攻击抬头')).toBeInTheDocument());
+
+    // 主行 = 标题; 副行 = 裸 entity_id; 外链走 safeHref 白名单
+    expect(container.querySelector('.ac-card.top .ac-chint.num')?.textContent)
+      .toBe('ai_小互AI_1b8d52a1396d');
+    const link = container.querySelector('.ac-card.top a[href="https://example.com/weekly"]');
+    expect(link).not.toBeNull();
+    expect(link).toHaveTextContent('查看原文');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('评分后出现 "下次 N 天后见" 反馈与 5 秒撤销窗, 撤销触发 POST undo', async () => {
+    render_();
+    await waitFor(() => expect(screen.getByText('ai_小互AI_1b8d52a1396d')).toBeInTheDocument());
+
+    const topRow = document.querySelector('.ac-card.top') as HTMLElement;
+    fireEvent.click(within(topRow).getByRole('button', { name: /记得牢/ }));
+
+    // 反馈条: grade 响应无 item → 无 "下次" 文案, 但撤销窗必须出现
+    await waitFor(() => expect(document.querySelector('.ac-gfeedback')).not.toBeNull());
+    expect(document.querySelector('.ac-gfeedback')!.textContent).toContain('已评「');
+
+    fireEvent.click(screen.getByRole('button', { name: '撤销' }));
+    await waitFor(() => {
+      const call = api.calls.find(c => c.url.includes('/undo') && c.init?.method === 'POST');
+      expect(call).toBeTruthy();
+    });
+    expect(api.calls.find(c => c.url.includes('/undo'))!.url)
+      .toBe(`/api/reviews/hotspot/${encodeURIComponent('ai_小互AI_1b8d52a1396d')}/undo`);
+  });
+
+  it('键盘 1/3/5 快捷评分 (面板态, 非输入框聚焦)', async () => {
+    render_();
+    await waitFor(() => expect(screen.getByText('ai_小互AI_1b8d52a1396d')).toBeInTheDocument());
+
+    fireEvent.keyDown(window, { key: '3' });
+    await waitFor(() => {
+      const call = api.calls.find(c => c.url.includes('/grade') && c.init?.method === 'POST');
+      expect(call).toBeTruthy();
+    });
+    const gradeCall = api.calls.find(c => c.url.includes('/grade') && c.init?.method === 'POST')!;
+    expect(JSON.parse(String(gradeCall.init!.body))).toEqual({ grade: 3 });
+  });
+
+  it('输入框内按键不触发快捷评分', async () => {
+    render_();
+    await waitFor(() => expect(screen.getByText('ai_小互AI_1b8d52a1396d')).toBeInTheDocument());
+
+    const input = screen.getByLabelText('快速捕获新待办');
+    fireEvent.keyDown(input, { key: '5' });
+    expect(api.calls.some(c => c.url.includes('/grade'))).toBe(false);
+  });
+
+  it('复习栈底部入口 → 打开 ReviewOverlay 三视图弹层 (零新增路由)', async () => {
+    render_();
+    await waitFor(() => expect(screen.getByText('ai_小互AI_1b8d52a1396d')).toBeInTheDocument());
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '专注复习' }));
+    const dialog = await screen.findByRole('dialog', { name: '复习栈工作台' });
+    expect(dialog).toBeInTheDocument();
+    // 会话视图消费同一 due 数据源 (enrich): 标题主行 + entity_id 副行各一处
+    const hits = await within(dialog).findAllByText('ai_小互AI_1b8d52a1396d');
+    expect(hits.length).toBeGreaterThanOrEqual(1);
+
+    fireEvent.click(within(dialog).getByRole('tab', { name: '管理' }));
+    // 管理视图拉 /api/reviews/cards
+    await waitFor(() => {
+      expect(api.calls.some(c => c.url.startsWith('/api/reviews/cards'))).toBe(true);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭复习栈' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 });
 

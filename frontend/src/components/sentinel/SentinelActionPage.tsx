@@ -13,15 +13,20 @@
  * 数据源 (全部真实 API, 单一入口 load()):
  *  - GET /api/todos?limit=200            {version,total,items[]}
  *  - GET /api/kl/planning-actions?status=pending   顶层数组 (接口固定上限 50 条)
- *  - GET /api/reviews/due?limit=20       {version,count,items[]}
- *  - GET /api/reviews/stats              {version,stats:{total,due,avg_easiness}}
+ *  - GET /api/reviews/due?limit=20&enrich=1   {version,count,items[]}(migration 120 enrich)
+ *  - GET /api/reviews/stats              {version,stats:{total,due,avg_easiness,...}}
  *  - GET /api/secnews/stats              {new_today,...} → 心跳条「今日收录」
+ *
+ * 复习栈能力丰富 (2026-09-21 设计稿 §4.1): 卡片标题化 / 评分即时反馈
+ * ("下次 N 天后见") / 5 秒撤销窗 / 键盘 1·3·5 快捷评分 / 页内全屏
+ * ReviewOverlay (会话·数据·管理三视图, 零新增路由)。
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch, getJSON, postJSON } from '../../lib/api';
 import { SentinelShell } from './SentinelShell';
 import { ExecOverviewPanel } from '../v1/panels/ExecOverviewPanel';
+import { ReviewOverlay, type RvView } from './review/ReviewOverlay';
 import './sentinel.css';
 import './sentinel-action.css';
 
@@ -74,6 +79,25 @@ interface ReviewRow {
   due_at: string;
   last_grade: number | null;
   last_reviewed_at: string | null;
+  /** migration 120 enrich 字段 (未命中/未 enrich 时为 undefined) */
+  title?: string | null;
+  url?: string | null;
+  category?: string | null;
+  excerpt?: string | null;
+}
+
+/** 卡片主行: enrich 命中显示真实标题, 否则如实渲染裸 entity_id */
+function reviewTitle(row: ReviewRow): string {
+  return row.title || row.entity_id;
+}
+
+/** 评分即时反馈态: 显示 "下次 N 天后见" + 5 秒撤销窗 */
+interface JustGraded {
+  key: string;
+  entityType: string;
+  entityId: string;
+  title: string;
+  interval: number | null;
 }
 
 interface ReviewStats {
@@ -200,6 +224,11 @@ export function SentinelActionPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [graded, setGraded] = useState(0);
+  /** ReviewOverlay 当前视图 (null = 关闭) */
+  const [overlayView, setOverlayView] = useState<RvView | null>(null);
+  /** 评分即时反馈 + 5 秒撤销窗 */
+  const [justGraded, setJustGraded] = useState<JustGraded | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** 行级写入态: key 为 todo id / planning action id / review id */
   const [todoState, setTodoState] = useState<Record<number, WriteState>>({});
@@ -213,7 +242,7 @@ export function SentinelActionPage() {
       // apiFetch 非 ok / 网络失败抛错 → null (对应原 r.ok 分支检查 + .catch(() => null))
       getJSON<{ items?: TodoRow[]; total?: number } | null>('/api/todos?limit=200').catch(() => null),
       getJSON<PlanningAction[] | null>('/api/kl/planning-actions?status=pending').catch(() => null),
-      getJSON<{ items?: ReviewRow[] } | null>('/api/reviews/due?limit=20').catch(() => null),
+      getJSON<{ items?: ReviewRow[] } | null>('/api/reviews/due?limit=20&enrich=1').catch(() => null),
       getJSON<{ stats?: ReviewStats } | null>('/api/reviews/stats').catch(() => null),
       getJSON<{ new_today?: number } | null>('/api/secnews/stats').catch(() => null),
     ]);
@@ -368,7 +397,8 @@ export function SentinelActionPage() {
     setActionState(s => ({ ...s, [action.id]: target === 'completed' ? 'done' : 'dismissed' }));
   }, [actionState]);
 
-  /** 复习评分 → POST /api/reviews/{entity_type}/{entity_id}/grade {grade:0-5} */
+  /** 复习评分 → POST /api/reviews/{entity_type}/{entity_id}/grade {grade:0-5}
+   *  成功后开启 "下次 N 天后见" 反馈与 5 秒撤销窗 (migration 120)。 */
   const gradeReview = useCallback(async (row: ReviewRow, grade: number) => {
     if (reviewState[row.id] === 'saving') return;
     setReviewState(s => ({ ...s, [row.id]: 'saving' }));
@@ -387,10 +417,57 @@ export function SentinelActionPage() {
       }
       setGraded(n => n + 1);
       setReviewState(s => ({ ...s, [row.id]: 'ok' }));
+      // 即时反馈 + 5s 撤销窗 (新评分会重置窗口)
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+      setJustGraded({
+        key: row.id,
+        entityType: row.entity_type,
+        entityId: row.entity_id,
+        title: reviewTitle(row),
+        interval: typeof next?.interval === 'number' ? next.interval : null,
+      });
+      undoTimer.current = setTimeout(() => setJustGraded(null), 5000);
     } catch {
       setReviewState(s => ({ ...s, [row.id]: 'fail' }));
     }
   }, [reviewState]);
+
+  /** 撤销刚才的评分 → POST undo; 成功后重拉队列; 409 (无活跃 log) 静默收窗。 */
+  const undoJustGraded = useCallback(async () => {
+    const jg = justGraded;
+    if (!jg) return;
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    undoTimer.current = null;
+    setJustGraded(null);
+    try {
+      await postJSON(
+        `/api/reviews/${encodeURIComponent(jg.entityType)}/${encodeURIComponent(jg.entityId)}/undo`,
+        {},
+      );
+      await load();
+    } catch {
+      /* 409 等: 窗口已收起, 不打扰 */
+    }
+  }, [justGraded, load]);
+
+  // 卸载清理撤销窗定时器
+  useEffect(() => () => {
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+  }, []);
+
+  // 键盘 1/3/5 快捷评分 (面板聚焦场景; overlay 打开时由 overlay 接管按键)
+  useEffect(() => {
+    if (overlayView !== null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!top) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable)) return;
+      const hit = GRADE_DEFS.find(g => String(g.grade) === e.key);
+      if (hit) gradeReview(top, hit.grade);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [overlayView, top, gradeReview]);
 
   /* ---------------- 渲染 ---------------- */
   const addState = todoState[CAPTURE_KEY];
@@ -471,21 +548,26 @@ export function SentinelActionPage() {
                           <span className="ac-cdeck">{row.entity_type.toUpperCase()}</span>
                           <span>往后第 {depth} 张</span>
                         </div>
-                        <p className="ac-ct" title={row.entity_id}>{row.entity_id}</p>
+                        <p className="ac-ct" title={reviewTitle(row)}>{reviewTitle(row)}</p>
                       </article>
                     );
                   })}
                   {top && (() => {
                     const state = reviewState[top.id];
+                    const href = safeHref(top.url);
                     return (
                       <article className="ac-card top">
                         <div className="ac-cmeta">
                           <span className="ac-cdeck">{top.entity_type.toUpperCase()}</span>
                           <span>本次已评 {graded} 张</span>
                         </div>
-                        <p className="ac-ct" title={top.entity_id}>{top.entity_id}</p>
+                        <p className="ac-ct" title={reviewTitle(top)}>{reviewTitle(top)}</p>
+                        {top.title && <p className="ac-chint num" title={top.entity_id}>{top.entity_id}</p>}
                         <p className="ac-chint">
-                          接口只提供实体标识（无标题字段）。{relTime(top.last_reviewed_at)}评过一次。
+                          {relTime(top.last_reviewed_at)}评过一次。
+                          {href && (
+                            <> <a href={href} target="_blank" rel="noopener noreferrer">查看原文</a></>
+                          )}
                         </p>
                         <div className="ac-sm2">
                           <span>EF <b className="num">{Number(top.easiness).toFixed(2)}</b></span>
@@ -527,6 +609,27 @@ export function SentinelActionPage() {
                 </a>
               </>
             )}
+            {justGraded && (
+              <div className="ac-gfeedback" role="status">
+                <span>
+                  已评「{justGraded.title}」
+                  {justGraded.interval != null && (
+                    <> · <b className="is-next num">下次 {justGraded.interval} 天后见</b></>
+                  )}
+                </span>
+                <button type="button" className="ac-undobtn" onClick={() => { void undoJustGraded(); }}>
+                  撤销
+                </button>
+              </div>
+            )}
+            <div className="ac-rentry" aria-label="复习栈扩展入口">
+              <button type="button" className="ac-dbtn" onClick={() => setOverlayView('session')}>
+                专注复习
+              </button>
+              <button type="button" className="ac-dbtn" onClick={() => setOverlayView('manage')}>
+                卡片管理
+              </button>
+            </div>
           </section>
 
           {/* ===== 待办清单 · /api/todos ===== */}
@@ -714,6 +817,15 @@ export function SentinelActionPage() {
 
         {/* v0.8.5 能力区块: 执行与验收总览 (SK-03/04, 待批准/运行中/待验收; → /cases/:id?section=actions) */}
         <ExecOverviewPanel />
+
+        {/* 复习栈页内全屏弹层 (会话/数据/管理三视图, 零新增路由) */}
+        <ReviewOverlay
+          open={overlayView !== null}
+          view={overlayView ?? 'session'}
+          onViewChange={setOverlayView}
+          onClose={() => setOverlayView(null)}
+          onDataChanged={() => { void load(); }}
+        />
       </section>
     </SentinelShell>
   );

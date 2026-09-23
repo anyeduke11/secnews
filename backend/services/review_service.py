@@ -8,15 +8,18 @@ SM-2 算法 (SuperMemo 2):
 
 对外暴露:
     - ``sm2_schedule``: 纯函数, 给定当前状态返回新状态 (easiness, interval, repetitions)
-    - ``submit_grade``: 评分 → 更新 sm2_reviews 记录
-    - ``list_due``: 到期复习队列
-    - ``stats``: 复习统计 (总数/到期数/平均 easiness)
+    - ``submit_grade``: 评分 → 更新 sm2_reviews 记录 + 写 review_log (旧→新快照)
+    - ``list_due``: 到期复习队列 (排除 suspended)
+    - ``stats``: 复习统计 (总数/到期数/平均 EF + 保留率/评分分布/暂停数)
     - ``create_review``: 为新学概念创建首条复习记录 (验收 1: 24h 内进入队列)
+    - ``undo_grade``: 撤销最近一次评分 (恢复 review_log prev 状态)
+    - ``set_suspended`` / ``forecast``: 卡片管理面 (migration 120)
 """
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+from backend.repository.reviews_log_repo import ReviewLogRepository
 from backend.repository.reviews_repo import ReviewRepository
 
 # 默认初始参数
@@ -61,6 +64,8 @@ def submit_grade(entity_type: str, entity_id: str, grade: int) -> dict:
 
     - grade ∈ [0, 5], 超范围抛 ValueError。
     - 首次评分 (无记录) 用默认参数 (easiness=2.5, interval=0, repetitions=0)。
+    - 每次评分原子地写一条 review_log 旧→新快照 (migration 120),
+      undo 与统计以 log 为唯一真数据源。
     - 返回更新后的记录 dict。
     """
     if not 0 <= grade <= 5:
@@ -89,7 +94,50 @@ def submit_grade(entity_type: str, entity_id: str, grade: int) -> dict:
         new_easiness, new_interval, new_repetitions,
         due_at, grade,
     )
+    # 评分与 log 在同一写路径内先后落库; undo 无活跃 log 的状态不存在
+    # (故 manage API 的 undo 缺 log 契约是 409, 不可能 "有评分无 log")。
+    ReviewLogRepository().insert(
+        entity_type, entity_id, grade,
+        prev=row,
+        new_easiness=new_easiness,
+        new_interval=new_interval,
+        new_repetitions=new_repetitions,
+        new_due_at=due_at,
+    )
     return repo.get(entity_type, entity_id)
+
+
+def undo_grade(entity_type: str, entity_id: str) -> dict | None:
+    """撤销最近一次评分 (migration 120)。
+
+    恢复最新一条 ``reverted=0`` log 的 prev 状态 (含 last_grade /
+    last_reviewed_at) 并标记 reverted; 首评 (prev 为空) = 删除记录;
+    链式可重复调用逐级回退。无活跃 log → KeyError (API 层转 409)。
+    返回恢复后的记录 (首评撤销返回 None)。
+    """
+    repo = ReviewRepository()
+    log_repo = ReviewLogRepository()
+    log = log_repo.latest_active(entity_type, entity_id)
+    if log is None:
+        raise KeyError(f"无可撤销评分: {entity_type}/{entity_id}")
+
+    if log["prev_due_at"] is None:
+        # 首评撤销: 评分前无记录 → 删除复习记录
+        repo.delete(entity_type, entity_id)
+        restored = None
+    else:
+        repo.restore_state(
+            entity_type, entity_id,
+            easiness=log["prev_easiness"],
+            interval=log["prev_interval"],
+            repetitions=log["prev_repetitions"],
+            due_at=log["prev_due_at"],
+            last_grade=log["prev_last_grade"],
+            last_reviewed_at=log["prev_last_reviewed_at"],
+        )
+        restored = repo.get(entity_type, entity_id)
+    log_repo.mark_reverted(log["id"])
+    return restored
 
 
 def create_review(
@@ -121,25 +169,49 @@ def list_due(limit: int = 20) -> list[dict]:
     return ReviewRepository().list_due(limit=limit)
 
 
+def set_suspended(entity_type: str, entity_id: str, suspended: bool) -> int:
+    """暂停/恢复一张卡 (migration 120), 返回更新行数 (0 = 卡不存在)。"""
+    return ReviewRepository().set_suspended(entity_type, entity_id, suspended)
+
+
+def forecast(days: int = 7) -> list[dict]:
+    """未来 N 天逐日到期计数 (排除 suspended, 含今日), 恒返回 N 条。"""
+    return ReviewRepository().forecast(days=days)
+
+
 def stats() -> dict:
-    """复习统计: 总数 / 到期数 / 平均 easiness。"""
+    """复习统计: 总数 / 到期数 / 平均 easiness + 扩展字段 (migration 120)。
+
+    - ``retention_30d``: review_log 近 30 天 grade>=3 占比, 无数据 None。
+    - ``grade_distribution``: 近 30 天各 grade 次数 (键为字符串 grade)。
+    - ``suspended_count``: 暂停中的卡片数。
+    """
     repo = ReviewRepository()
+    log_repo = ReviewLogRepository()
     all_rows = repo.list_all(limit=10000)
     due = repo.list_due(limit=10000)
     avg_easiness = (
         sum(r["easiness"] for r in all_rows) / len(all_rows) if all_rows else 0.0
     )
+    retention_30d = log_repo.retention(days=30)
+    distribution = log_repo.grade_distribution(days=30)
     return {
         "total": len(all_rows),
         "due": len(due),
         "avg_easiness": round(avg_easiness, 3),
+        "retention_30d": round(retention_30d, 4) if retention_30d is not None else None,
+        "grade_distribution": {str(k): v for k, v in distribution.items()},
+        "suspended_count": repo.count_suspended(),
     }
 
 
 __all__ = [
     "create_review",
+    "forecast",
     "list_due",
+    "set_suspended",
     "sm2_schedule",
     "stats",
     "submit_grade",
+    "undo_grade",
 ]

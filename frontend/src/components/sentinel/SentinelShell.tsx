@@ -317,9 +317,6 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
               <svg className="tb-paper" viewBox="0 0 18 18" width="17" height="17" aria-hidden="true" focusable="false"><rect x="3.5" y="2.5" width="11" height="13" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M5.5 5.5h7M5.5 8.5h7M5.5 11.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
             </button>
             <span className="clock num">{clock}</span>
-            <button className="iconbtn" aria-label="设置" onClick={() => navigate('/settings')}>
-              <svg width="17" height="17" viewBox="0 0 17 17" fill="none"><circle cx="8.5" cy="8.5" r="2.2" stroke="currentColor" strokeWidth="1.5" /><path d="M8.5 1.8v2M8.5 13.2v2M1.8 8.5h2M13.2 8.5h2M3.7 3.7l1.4 1.4M11.9 11.9l1.4 1.4M13.3 3.7l-1.4 1.4M5.1 11.9l-1.4 1.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-            </button>
           </div>
         </header>
 

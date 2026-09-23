@@ -248,11 +248,21 @@
   display:flex;flex-direction:column;gap:2px;overflow-y:auto;
   scrollbar-width:thin;
 }
+/* c8: 侧边栏 6 组归组 — 组标题 (mono 小字) + 组间留白 */
+.settings-shell .st-snav-group{display:flex;flex-direction:column;gap:2px;margin-top:8px}
+.settings-shell .st-sidenav > .st-snav-group:first-child{margin-top:0}
+.settings-shell .st-snav-grouplabel{
+  font-family:var(--sn-mono);font-size:9.5px;letter-spacing:.08em;
+  color:var(--sn-ink-3);padding:0 10px 2px;
+}
 /* <640px: 与内容上下堆叠时分类导航改为横滚一行 (17 个分类竖排会把内容挤成竖字) */
 @media (max-width:639px){
   .settings-shell .st-sidenav{flex-direction:row;overflow-x:auto;overflow-y:hidden;max-height:none;gap:6px;padding-bottom:6px}
   .settings-shell .st-sidenav-item{width:auto;flex:none;white-space:nowrap;padding:6px 10px}
   .settings-shell .st-sidenav-item .st-snav-desc{display:none}
+  /* c8: 横滚模式下组容器摊平 (display:contents), 组标题隐藏, 保持单行滚动 */
+  .settings-shell .st-snav-group{display:contents}
+  .settings-shell .st-snav-grouplabel{display:none}
 }
 .settings-shell .st-sidenav-item{
   display:flex;flex-direction:column;gap:2px;

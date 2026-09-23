@@ -18,12 +18,23 @@ def test_three_gates_registered():
         assert name in _EXTENSION_NAMES, f"{name} 未登记 — TOML 键会被过滤恒 False"
 
 
-def test_default_off_in_toml(monkeypatch):
-    """生产默认关: 不设 env 时三 gate 读 TOML false。"""
+def test_toml_default_on(monkeypatch):
+    """2026-09-19 开闸: 不设 env 时三 gate 读 TOML true (生产默认开)。"""
     monkeypatch.delenv("HOTSPOT_FEATURE_GATES", raising=False)
     reset_gates()
     for name in PIPELINE_GATES:
-        assert is_extension_enabled(name) is False
+        assert is_extension_enabled(name) is True
+    reset_gates()
+
+
+@pytest.mark.parametrize("gate", PIPELINE_GATES)
+def test_env_override_off(monkeypatch, gate):
+    """env 可关闭已默认开的 gate (应急回退通道, 优先级高于 TOML)。"""
+    monkeypatch.setenv(
+        "HOTSPOT_FEATURE_GATES", f'{{"extensions": {{"{gate}": false}}}}'
+    )
+    reset_gates()
+    assert is_extension_enabled(gate) is False
     reset_gates()
 
 

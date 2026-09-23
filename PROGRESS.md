@@ -17,6 +17,21 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-09-21 main 采集能力异常三层根因修复 — DEV-0226
+
+- **现象**: 前端首页空态 "该范围暂无收录"。第一性逐环排查 (服务→数据→调度→采集→API→前端) 实锤三层独立根因叠加。
+- **根因① 进程残留**: 服务带 `HOTSPOT_DISABLE_SCHEDULER=1` 启动, 57 jobs 全不点火 → `env -u` 干净重启。
+- **根因② main 库 schema 漂移** (核心): 历史修复脚本 CREATE-only 幂等重放把 ~30 张 WARM 表误建到 main — 裸名 SQL 解析 temp→main→attached, main 同名表劫持本应写 warm 的全部读写; `collection_runs` 停在 001 老版 (status CHECK 缺 'running') = 采集写入链结构性断点。修复: 以 `scripts/retention.json` 为权威, 五相搬迁 (备份 175 表 → warm 79 对象就位含 041 最终版 → 3 张有数据表显式列名迁移 → main 45 对象 DROP + wal_checkpoint → 验证全绿), 备份留 `/tmp/hotspot_pre_warm_migrate_20260921.db`。
+- **根因③ lifespan 阻塞** (新发现): `mitre_attack sync_to_db` 同步网络调用直接跑在 async lifespan, STIX 下载超时分钟级冻结 event loop → uvicorn 永不 bind 端口, 日志仍显示 startup_complete (强误导)。修复: `backend/main.py` 图点火 hook 改 `run_in_executor` 线程池后台化。**纪律确立: async lifespan 内禁止直接调用同步网络函数**。
+- **验证**: `/api/health` status ok / 7d total=84 (空态消除) / catchup ingested=27 / warm 写入落点健康 (collection_runs 0→52) / 定向回归 40 passed; 服务干净环境运行 pid 6787。遵 owner 裁决未提交。
+
+### 2026-09-21 服务启动修复 + 测试假设过期清零 — DEV-0225
+
+- **服务异常修复**: migration 119 在生产 hot.db 崩溃 (knowledge_items 表缺失, warm.db 2026-09-18 遗失) → 前插 `CREATE TABLE IF NOT EXISTS` 幂等修复 (DEV-0182/112 先例), 服务恢复启动。
+- **全量回归 6 failed 清零**: 均为 DEV-0196 (gate 开闸 + t1_score→pi) 后测试写死假设过期 — ai_classify/semantic_filter 两处 gate-off 改 env 覆盖; secrets 3 测钉 sensenova (pi 无 secrets 槽); model_router/scenario 两处期望动态对齐 router/llm.yaml 真源。两条修复模式已写入 DEV-0225 (复发时照抄)。
+- **验证**: 全量 pytest **4666 passed / 9 skipped / 0 failed** (7m00s); 3 处残留 delenv 复核为"测 TOML 默认开"正确语义。
+- **附带**: 全仓库接口梳理 (86 routers / 146 services / 57 jobs / 13 collectors, 与 ARCHITECTURE.md 数字一致, 无漂移)。
+
 ### 2026-09-13 七项决策落地: 收缩批全清 + CRM 删除 + 三份设计稿 — DEV-0204~0212
 
 - **裁决** (owner, 7 项): ①P1-0 = dsh 设计边界控制 + pi 执行 (设计稿待复议) ②继续收缩解耦 ③前缀化走 accessor 模式 ④CodeGarden 转型安全实践域 (行动侧, 开源工具实践, 选题提取自资讯流) + **CRM 整体删除** ⑤prompts 命名不改 ⑥mitre 数据做知识梳理 (场景讨论稿) ⑦push 维持禁令 (已做本地 bundle)。
@@ -27,8 +42,21 @@
   - `docs/DESIGN_CODEGARDEN_PRACTICE_2026-09-13.md` → ✅ **已批准 (含修订)** — 修订: **S1 信号提取对全部资讯识别** (不限域, 候选层再分类排序), phase2b 列删除候选
   - `docs/DISCUSSION_MITRE_KNOWLEDGE_2026-09-13.md` → ✅ **v3 已批准 (4 开放问题全关)** — 词表 **11 类 (8 通用+3 金融特有: 反诈/数据泄露/监管通报)** / 数据来源 **LLM 抽取→owner 人审落库** (详见 §7 抽审规约: 候选池表/三态审核/追溯链/金融语料边界) / **L1 漏洞绑 CVE, NVD 为权威源** (与 P1-5 联动) / **技战法卡放知识层 (v1_knowledge), 判断层做调用** (详见 §8 双向关联: v1_judgments 扩 1 列 + knowledge_technique_ref 新表 + judgment 上下文装配 + 反向 SSE 通知不自动重生成); 分期 MP-1 图谱点火 1~2 天 (地基, 无依赖) / MP-2 L2 事件类型 3~4 天 / MP-3 L1 漏洞 2~3 天 (与 P1-5 联动) / MP-4 L3 响应+双向关联 2~3 天
   - `docs/PLAN_MP2_EVENT_TYPE_2026-09-13.md` → ✅ **方案立项** — **5 agent 并行覆盖 11 类** (agent-A 通用高优 5 类勒索/钓鱼/Web 入侵/供应链/云泄露 / agent-B 通用次优 3 类爆破/内部威胁/AI 模型投毒 / agent-C 反诈 / agent-D 数据泄露 / agent-E 监管通报; 5 个独立 worktree 互不阻塞); **金融三类按建议递进**: 监管通报 → 反诈 → 数据泄露 (第 3 批语料稀备降级); owner 人审是关键路径瓶颈 (~5.5h 分 2~3 天); 数据模型 5 表 (event_type 实体播种/event_technique_candidates/event_technique_map/incident_reports + 索引); 6 守卫测试; 验收门 11 类全覆盖每类 ≥3 条审定
-- **验证** (实现与验证分离): 全量 pytest **4589/9sk/0** (-21 为 CRM 测试删除) / vitest **496** / tsc 0 / build OK / meta --check 0 MISMATCH (**83 routers / 141 services / 116 migrations**) / 审计 **P0=0 P1=0** P2×6 记录性 (报告 .ua/tmp/shrink-batch-code-audit-report.md; R3 AST 全量 50 路由全等、R2 逐字比对、CRM 残留 grep 0 独立复核)。
+
+### 2026-09-13 MITRE ATT&CK 知识图谱实例化: MP-1 图谱点火 + MP-2 事件类型 5-agent 并行 — DEV-0216~0219
+
+- **MP-1 图谱点火** (commit `5060b24` on main): `load_attack_data()` + `MitreAttackClient.sync_to_db()` 接入启动流程, `attack_techniques` / `attack_cwe_map` / `security_edges` 表落数据; tactic=1 bug 修复为 14; 死视图 `view=attack` / `view=compliance` / `view=full` 复活; 5 守卫全绿 + pytest 5/5 通过。
+- **MP-2 事件类型实例化** (3 commits on main): 
+  - agent-A 共享基建 (commit `150efa2`): migration 117 (5 表: event_type 实体 + candidates + map + incident_reports + attack_techniques FK) + 4 service (IncidentReportService / EventTechniqueExtractService / EventTechniqueReviewService / AttackLabelService 多语义入口) + 4 repo + 6 API 端点 (candidates 2 + approve/reject/batch/event-types/techniques 4) + 5 守卫测试 + 25 语料。
+  - B/C/D/E 语料合并 (commit `0ff0d13`): agent-B/C/D/E 语料 + 脚本合并到 main (agent-D 因含回归简化代码拒绝合并, 其语料已由其他 agent 覆盖); seed 文件安全落地 `dev_data/event_types_seed.json` (gitignore)。
+  - API 拆分修复 (DEV-0219, commit `a2d4c68`): `event_technique_api.py` 200 行违反 ≤150 行守卫 → 拆分为 `event_technique_api.py` (107 行, candidates) + `event_types_api.py` (130 行, approve/reject/batch/event-types/techniques); URL 与 `_registry.py` 挂载点不变; 架构数字同步 83→85 routers / 141→145 services / migration 117。
+- **验证**: 全量 pytest **4598 passed / 9 skipped / 0 failed** / vitest **496** / tsc 0 / build OK / `generate_meta.py --check` 全绿 ("OK: ARCHITECTURE.md matches code" + "OK: AGENTS.md 数字一致性校验通过 (4/4 文档)")。
+- **当前状态**: MP-1/MP-2 基础设施已落地 main (4 commits: `5060b24` / `150efa2` / `0ff0d13` / `a2d4c68`); **11 类事件类型候选池待 owner 人审** (首批 3 类: 勒索/钓鱼/Web 入侵, ~5.5h 分 2~3 天); 金融三类递进 (监管通报 → 反诈 → 数据泄露); agent-D 语料质量不足 → **金融三类语料来源已按金融国际/国标/行业标准扩充** (`data/security/event_types_seed.json`, FATF/ISO/GB/JR/T/PCI DSS/NIST CSF/巴塞尔协议等); 待令开工 MP-3 (L1 漏洞绑 CVE, 与 P1-5 联动) / MP-4 (L3 响应 + 双向关联)。
+- **风险**: owner 人审是关键路径瓶颈; agent-D 分支含回归代码拒绝合并 (event_technique_extract_service.py 218 行简化版, 移除 LLM 调用代码); 金融三类来源池已从原始监管通报/国际报告扩展为“国内监管 + 国际标准 + 行业标准”三层来源, 人审时可优先按国标/行业标准采标, 降低语料稀备降级概率。
+
+- **验证** (实现与验证分离): 全量 pytest **4598/9sk/0** / vitest **496** / tsc 0 / build OK / meta --check 0 MISMATCH (**85 routers / 145 services / 117 migrations**) / 审计 **P0=0 P1=0** P2×6 记录性 (报告 .ua/tmp/shrink-batch-code-audit-report.md; R3 AST 全量 50 路由全等、R2 逐字比对、CRM 残留 grep 0 独立复核)。
 - **遗留**: 设计稿三项待复议后实施 (P1-0a 止血可先行); R2 豁免 42 条剩余 (maintenance 动态 SQL/trigger_gate/skill_runner 等随触碰收缩); R3 豁免 32 随手收缩; scripts/db_diet.py 参数化 DELETE 在守卫外 (retention 台账路径); 文档历史 CRM/旧数字引用留 spec 修订批。
+- **MITRE 实例化当前态** (DEV-0216~0219): MP-1 图谱点火已合入 (commit `5060b24`); MP-2 共享基建 + B/C/D/E 语料已合入 (commit `150efa2` + `0ff0d13`); API 层拆分修复已合入 (DEV-0219, commit `a2d4c68`); **11 类事件类型候选池已就绪, 待 owner 人审窗口开启** (首批 3 类高优: 勒索/钓鱼/Web 入侵; 金融三类递进: 监管通报→反诈→数据泄露)。
 
 ### 2026-09-13 解耦工程 P0-0 + 五批全落地: 止血/API 收口/repo 收敛/解环拆上帝服务/前端域客户端 — DEV-0191~0203
 
@@ -102,3 +130,17 @@
 - [ ] **D3 (已完成, `d4664d9`)**: SK-05 自动召回 — `auto_recall_for_case` 已发布知识 × case 文本读时匹配 (CVE +5 / 关键词 +1 需 ≥2 分, 非 published 不参与, 候选带 reasons 诚实可解释); aggregate +recall_candidates; CaseDetail 召回区块 + 采用免手填 (case 页发起自动带 case_id)。**一等验收实弹**: 第二个同类 Case (无手动关联) 自动浮现 FastGate 处置手册, API 采用 → 回执 id=3 (total=3, adopted=3)。
 - [ ] **D4 (已完成, `410c2e4`)**: 路由对账 (ROUTE_REGISTRY v0.8.5 重写); 复利卡诚实计数 (aggregate `reuse_summary`, adoption 真实回执, 不做无基线估算); **验收矩阵 `docs/v0.8.5/ACCEPTANCE.md`** (一致性门/§13/D1-D3 逐条对真实证据); legacy 对账 (dev mapping=0, 生产 853 行迁移需授权+备份前置)。后端全量回归 4285 passed (32 failed=pre-existing search/fts 基线)。
 - **关联记录**: DEV-0162。方向固化: 改方向必须显式重写 `v085_route_shell.test.tsx` + 撤 spec 横幅, 不允许静默漂移。
+
+### 2026-09-13 NAV4 四菜单壳重构 (本地待评审合入) — DEV-0174
+
+- **起因**: Plan B demo「案头 The Desk」信息架构, owner 裁决按其 IA 重构 (资讯/知识/行动/设置 四菜单), 路径全复用既有路由、零新一级入口。核心判断: **「判断是动词不是房间」** — 判读台 (judge) 拆为质量区挂资讯 + CaseQueue 挂行动 + 图谱挂知识, `/judge`/`/cases`/`/judge/graph` 三层壳整体退役。
+- **P0 (完成, 当日)**: SentinelShell 4-tab 化 (`LAYER_DEFS` 3→4, `SentinelLayer` 类型扩展, `layer` prop 改 menu key) + `menuOf(pathname)` 27 条路由自动归属 + 4 条 redirect (`/judge→/`, `/cases→/action`, `/judge/graph→/knowledge/graph`, `/secnews→/secnews/feed`) + i18n 4 键 (`nav.news/knowledge/action/settings`) + 窄屏适配 (640px 四菜单折叠) + `nav4_shell.test.tsx` 重写守卫 (v085_route_shell 删) + ROUTE_REGISTRY.md 第四次重写 + CaseDetailPage/SentinelGraphPage 壳高亮归位 (judge→action / judge→knowledge)。
+- **P1 (完成, 当日)**:
+  - 判读台主体拆入 `/` 质量区 (SentinelJudgePage 嵌入 SentinelHomePage) + CaseQueuePanel 拆入 `/action` (ExecOverviewPanel 旁)
+  - SentinelGraphPage 壳改 `knowledge` + `/knowledge/graph` 路由验证
+  - **SecNewsShell 拆挂**: 6 视图 (feed/pipeline/knowledge/analyze/analytics/observability) 从 SecNewsShell 子路由改为 PageLayout 直挂; /secnews index→feed redirect + image/settings→/settings redirect; `SecNewsShell` 组件退役过渡保留文件 (P2 物理删除) + StatusBar 由 SentinelShell 心跳条接管
+  - 更多菜单 (UTILITY_GROUPS 17 项) 保留过渡, P2 评估物理删除
+  - nav4_shell.test.tsx 加 10 条 SecNewsShell 拆挂断言 (6 直挂 + 2 redirect + 1 index redirect + 1 引用清零)
+- **验证**: vitest **501/501 passed** (基线 491 + 新增 10) · tsc 0 错 · 7 路由 curl 走查 200 OK · dev server pid 健康。
+- **未实现**: 死代码物理删除 (SecNewsShell.tsx 退役保留) + UTILITY_GROUPS 删除 + 纸面风 theme 入口接入 ThemeContext (P2 任务) + spec 修订 (V0.8.5_PLAN §5 修订注③、AGENTS.md ×2、PROJECT 改写)。
+- **下号**: P2 清理批 + DEV-0175 立项 (待 owner 触发)。

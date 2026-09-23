@@ -151,6 +151,40 @@ describe('MCPSettingsCard — Sentinel V2', () => {
     });
   });
 
+  it('复制配置消费后端 /api/settings/mcp/config (cwd 服务端推导, 不硬编码本机路径)', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/mcp/status') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ enabled: true }) });
+      }
+      if (url === '/api/mcp/tools') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ tools: [] }) });
+      }
+      if (url === '/api/settings/mcp/config') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            stdio: { mcpServers: { hotspot: { command: 'python', args: ['-m', 'backend.mcp_stdio_main'], cwd: '/srv/hotspot' } } },
+            sse: { mcpServers: { hotspot: { url: 'http://10.0.0.5:8000/mcp/sse' } } },
+          }),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    const { container } = render(<MCPSettingsCard open={true} />);
+    // sse hint 用后端返回的 url → 证明 config 已加载并触发重渲染
+    await waitFor(() => {
+      expect(container.textContent).toContain('http://10.0.0.5:8000/mcp/sse');
+    });
+
+    fireEvent.click(screen.getByText(/复制 stdio 配置/i));
+    await waitFor(() => {
+      const text = mockWriteText.mock.calls[0][0] as string;
+      expect(text).toContain('/srv/hotspot');
+      expect(text).not.toContain('/home/user');
+    });
+  });
+
   it('open=false 时不触发 fetch', async () => {
     mockStatusTools([]);
     const { rerender } = render(<MCPSettingsCard open={false} />);

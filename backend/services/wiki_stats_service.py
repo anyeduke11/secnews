@@ -45,17 +45,83 @@ def _lifecycle_sql() -> str:
 _LIVENESS_TTL_S = 30.0
 _liveness_cache: dict[str, tuple[float, dict]] = {}
 _liveness_lock = threading.Lock()
+# md 回退漏斗的 TTL 缓存 (2026-09-18): warm.db 遗失后 knowledge_items 投影
+# 表不存在, funnel_from_db 对 "no such table" 回退 md 真源; 全量扫描 ~4200
+# 文件不能随 30s 轮询每次重扫, 与 liveness 同款 TTL。
+_md_funnel_cache: dict[str, tuple[float, list]] = {}
+
+# 区分 "未传 wiki_fs" (缺省抓 production 单例回退) 与 "显式传 None"
+# (调用方声明无 md 源 → 保持归零契约, 见 SecNewsDashboard.wiki_fs 注入语义)。
+_WIKI_UNSET = object()
+
+
+def _funnel_counts_from_md(wiki_fs: Any) -> dict[str, int]:
+    """md 真源口径的漏斗计数 — 与 DB 口径同归一 (legacy 映射 + deduped 单列)。
+
+    (不复用 kl_pipeline.obs.funnel.funnel_stats: 其 counts 无 kl:deduped 键,
+    终态 "已判定重复" 会被错归进 unknown, 恰好掩盖可审计性 — 见
+    funnel_from_db 的 deduped 单列注释。)
+    """
+    from backend.wiki_fs.contract import get_lifecycle
+
+    counts: dict[str, int] = dict.fromkeys(STAGES, 0)
+    counts[LIFECYCLE_DEDUPED] = 0
+    counts[UNKNOWN_STAGE] = 0
+    for item_id in wiki_fs.list_ids():
+        doc = wiki_fs.read_item(item_id)
+        if doc is None:
+            counts[UNKNOWN_STAGE] += 1
+            continue
+        stage = get_lifecycle(doc["fm"])
+        stage = _LEGACY_TO_STAGE.get(stage, stage)
+        counts[stage if stage in counts else UNKNOWN_STAGE] += 1
+    return counts
+
+
+def funnel_from_md_cached(
+    wiki_fs: Any = None, *, ttl_s: float = _LIVENESS_TTL_S
+) -> list[dict[str, Any]]:
+    """md 真源漏斗 (DB 投影不可用时的回退), 30s TTL 进程内缓存。
+
+    必须在 worker 线程调用 (与 funnel_from_db 同纪律); wiki_fs 缺省取
+    生产单例 (kl_pipeline.runtime.get_production_wiki_fs)。
+    """
+    now = time.monotonic()
+    with _liveness_lock:
+        hit = _md_funnel_cache.get("funnel")
+        if hit and now - hit[0] < ttl_s:
+            return hit[1]
+
+    if wiki_fs is None:
+        from backend.kl_pipeline.runtime import get_production_wiki_fs
+
+        wiki_fs = get_production_wiki_fs()
+    try:
+        counts = _funnel_counts_from_md(wiki_fs)
+    except Exception as e:
+        logger.warning(f"funnel md fallback failed: {e}")
+        counts = dict.fromkeys(STAGES, 0)
+        counts[LIFECYCLE_DEDUPED] = 0
+        counts[UNKNOWN_STAGE] = 0
+    result = [{"stage": s, "count": c} for s, c in counts.items()]
+    with _liveness_lock:
+        _md_funnel_cache["funnel"] = (time.monotonic(), result)
+    return result
 
 
 # ---------------------------------------------------------------------------
 # funnel / stage 分布 — DB 投影 (warm.knowledge_items.lifecycle)
 # ---------------------------------------------------------------------------
-def funnel_from_db(conn: Any = None) -> list[dict[str, Any]]:
+def funnel_from_db(conn: Any = None, *, wiki_fs: Any = _WIKI_UNSET) -> list[dict[str, Any]]:
     """管线漏斗 — 从 DB 投影统计, 与 md 归档口径的差异见模块 docstring。
 
     Args:
         conn: 可注入连接 (测试/调用方持有 thread-local 连接时传 self.db);
             缺省用 get_connection()。
+        wiki_fs: 投影查询失败时的 md 回退源。未传 → 缺省抓 production 单例
+            (独立调用方如 kl_pipeline_api 的缺省行为); **显式传 None → 禁用
+            回退**, 返回全 0 (SecNewsDashboard(wiki_fs=None) 的注入契约:
+            调用方声明无 md 源, 与 liveness 降级语义一致)。
 
     Returns:
         ``[{"stage": "kl:raw", "count": n}, ..., {"stage": "kl:deduped", "count": d},
@@ -71,8 +137,14 @@ def funnel_from_db(conn: Any = None) -> list[dict[str, Any]]:
     try:
         rows = (conn or get_connection()).execute(_lifecycle_sql()).fetchall()
     except Exception as e:
-        logger.warning(f"funnel_from_db query failed: {e}")
-        return [{"stage": s, "count": c} for s, c in counts.items()]
+        # DB 投影缺失 (2026-09-18 warm.db 遗失 → knowledge_items 表不存在)
+        # 不再静默返回全 0 — 回退 md 归档口径让漏斗保持可读 (注意: md 数字
+        # 与 DB 管线口径本就不同, 此为降级展示而非口径替换, 日志留痕)。
+        # 显式注入 wiki_fs=None 时调用方已声明无 md 源 → 保持归零契约。
+        logger.warning(f"funnel_from_db query failed, falling back to md source: {e}")
+        if wiki_fs is None:
+            return [{"stage": s, "count": 0} for s in counts]
+        return funnel_from_md_cached(None if wiki_fs is _WIKI_UNSET else wiki_fs)
 
     for row in rows:
         stage = (row["lifecycle"] or "").strip()
@@ -86,38 +158,68 @@ def funnel_from_db(conn: Any = None) -> list[dict[str, Any]]:
     return [{"stage": s, "count": c} for s, c in counts.items()]
 
 
-def stage_distribution_from_db(conn: Any = None) -> dict[str, int]:
-    """知识库 tab 的 lifecycle 分布 (同 funnel 数据源, dict 形态)。"""
+def stage_distribution_from_db(
+    conn: Any = None, *, wiki_fs: Any = _WIKI_UNSET
+) -> dict[str, int]:
+    """知识库 tab 的 lifecycle 分布 (同 funnel 数据源, dict 形态)。
+
+    wiki_fs 参数语义同 funnel_from_db: 未传 → 回退抓 production 单例;
+    显式 None → 禁用回退, 投影缺失时保持原 ``{}`` 归零契约。
+    """
     dist: dict[str, int] = {}
     try:
         rows = (conn or get_connection()).execute(_lifecycle_sql()).fetchall()
     except Exception as e:
-        logger.warning(f"stage_distribution_from_db query failed: {e}")
-        return dist
+        logger.warning(
+            f"stage_distribution_from_db query failed, falling back to md source: {e}"
+        )
+        if wiki_fs is None:
+            return dist
+        return {
+            f["stage"]: f["count"]
+            for f in funnel_from_md_cached(None if wiki_fs is _WIKI_UNSET else wiki_fs)
+        }
     for row in rows:
         stage = (row["lifecycle"] or "").strip() or "unknown"
         dist[stage] = dist.get(stage, 0) + row["c"]
     return dist
 
 
-def knowledge_stats_from_db(conn: Any = None) -> dict[str, Any]:
-    """知识库统计 (条目数/概念数/生命周期分布) — 全部走 DB, 零文件 IO。"""
+def knowledge_stats_from_db(
+    conn: Any = None, *, wiki_fs: Any = _WIKI_UNSET
+) -> dict[str, Any]:
+    """知识库统计 (条目数/概念数/生命周期分布) — 全部走 DB, 零文件 IO。
+
+    wiki_fs 透传给 stage_distribution_from_db (投影缺失时的 md 回退源;
+    SecNewsDashboard 按自身注入传 self.wiki_fs, None 即禁用回退)。
+    """
     items = 0
     concepts = 0
     conn = conn or get_connection()
+    # items 与 concepts 分开容错: warm.knowledge_items (投影, 2026-09-18 遗失)
+    # 缺失不应连坐 main.knowledge_concepts (HOT 本地表, warm 遗失时仍健在)。
     try:
         items = conn.execute(
             f"SELECT COUNT(*) FROM {knowledge_items_table()}"
         ).fetchone()[0]
+    except Exception as e:
+        logger.warning(f"knowledge_stats_from_db items query failed: {e}")
+        # 投影缺失回退 md 条目总数 (与漏斗回退共享 30s TTL 缓存, 零额外扫描)
+        if wiki_fs is not None:
+            funnel = funnel_from_md_cached(
+                None if wiki_fs is _WIKI_UNSET else wiki_fs
+            )
+            items = sum(f["count"] for f in funnel)
+    try:
         concepts = conn.execute(
             "SELECT COUNT(*) FROM knowledge_concepts"
         ).fetchone()[0]
     except Exception as e:
-        logger.warning(f"knowledge_stats_from_db query failed: {e}")
+        logger.warning(f"knowledge_stats_from_db concepts query failed: {e}")
     return {
         "items": items,
         "concepts": concepts,
-        "stage_distribution": stage_distribution_from_db(conn),
+        "stage_distribution": stage_distribution_from_db(conn, wiki_fs=wiki_fs),
     }
 
 
@@ -150,9 +252,10 @@ def liveness_from_md_cached(wiki_fs: Any, *, ttl_s: float = _LIVENESS_TTL_S) -> 
 
 
 def invalidate_stats_cache() -> None:
-    """wiki 写入方 (kl管线/导入) 可调用: 清掉 liveness 缓存让下一请求重扫。"""
+    """wiki 写入方 (kl管线/导入) 可调用: 清掉 liveness/md 漏斗缓存让下一请求重扫。"""
     with _liveness_lock:
         _liveness_cache.clear()
+        _md_funnel_cache.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -334,6 +437,7 @@ def compounding_snapshot() -> dict[str, Any]:
 __all__ = [
     "compounding_snapshot",
     "funnel_from_db",
+    "funnel_from_md_cached",
     "invalidate_stats_cache",
     "kl_stage_counts",
     "knowledge_stats_from_db",

@@ -1,3 +1,7 @@
+# 已废止
+
+> 本文档已被单一权威 PRD 取代: [`docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`](HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md) (DEV-0179 收敛纪律)。以下内容仅作历史参考, 路由/接口一致性以 [`v0.8.5/V0.8.5_PLAN.md`](v0.8.5/V0.8.5_PLAN.md) 为唯一权威 spec。
+
 # 安全从业者 AI 工作台聚焦方案（Workbench Focus PRD v1.0）
 
 - 日期：2026-09-12；状态：**已裁决立项**（开发目标与任务分解见 [`WORKBENCH_FOCUS_DEV_PLAN.md`](WORKBENCH_FOCUS_DEV_PLAN.md)）

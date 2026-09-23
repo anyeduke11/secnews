@@ -54,7 +54,10 @@ class TestClassifyItemWithAi:
         assert called["n"] == 0  # 规则命中 → 零 LLM
 
     def test_gate_off_equals_pure(self, monkeypatch):
-        monkeypatch.delenv("HOTSPOT_FEATURE_GATES", raising=False)
+        # 2026-09-19 开闸后 TOML 默认 true, 关 gate 须走 env 覆盖 (优先级高于 TOML)
+        monkeypatch.setenv(
+            "HOTSPOT_FEATURE_GATES", '{"extensions": {"ai_classify": false}}'
+        )
         reset_gates()
         _mock_llm(monkeypatch, '{"domain":"ai"}')
         r = ac.classify_item_with_ai(*NO_MATCH)

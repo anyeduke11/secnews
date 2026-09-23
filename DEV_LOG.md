@@ -1,4 +1,62 @@
 
+## [DEV-0226] main 采集能力异常三层根因修复: 进程残留 + main 库 schema 漂移 + lifespan 阻塞
+- **时间**: 2026-09-21
+- **类型**: bug 修复 (第一性原理排查)
+- **问题描述**: 前端首页空态 "该范围暂无收录"。第一性逐环排查 (服务→数据→调度→采集→API→前端) 实锤三层独立根因叠加: ①进程带 `HOTSPOT_DISABLE_SCHEDULER=1` 残留启动, 57 jobs 全部不点火; ②历史修复脚本 CREATE-only 幂等重放把 ~30 张 retention.json 归属 WARM 的表误建到 main 库 — 裸名 SQL 解析顺序 temp→main→attached, main 同名表劫持本应写 warm 的全部读写 (含 `collection_runs` 停留在 001 老版, status CHECK 缺 'running', 采集器写 running 状态直接被拒 = 写入链结构性断点; 另 digests 缺 last_read_at/summary_md、sync_history 缺 table_conflicts); ③lifespan 内 `mitre_attack sync_to_db(force=True)` 是同步网络调用 (STIX bundle 下载/HEAD 超时分钟级), 阻塞 event loop → uvicorn 永不 bind 端口 → API 不可达但日志仍有 startup_complete (强误导)。
+- **关联文件**:
+  - `backend/main.py` (修改: 两个图点火 hook attack_loader + mitre_attack sync 从 lifespan 直接执行改 `asyncio.get_running_loop().run_in_executor(None, _graph_ignition)` 线程池后台化, lifespan 立即返回; repository.db thread-local 连接, 线程池执行安全)
+  - 生产库三件套数据操作 (非代码): main `backend/hotspot.db` 45 对象清除 (26 业务表 + FTS 家族 + 6 触发器 + 24 显式索引) / warm 79 对象就位 (35 表 + 38 索引 + 6 触发器, collection_runs 用 041 最终版含 'running') / 3 张有数据表显式列名迁移 (crawler_runs 9 / collection_runs 348 归位 / quality_check_logs) / kv_cache 按 migration 051 裁决 DROP 不搬迁 / pre-repair 备份 main 已有的 hotspots_fts/unified_fts/knowledge_items 保留 main (历史实况优先)
+  - 备份: `/tmp/hotspot_pre_warm_migrate_20260921.db` (175 表搬迁前全量)
+- **实现思路**: ①schema 修复以 `scripts/retention.json` 为表温度归属唯一权威, 五相脚本 (备份→warm 建对象→迁数据→cold 建表→main DROP + wal_checkpoint→验证) 一次性完成, 搬迁脚本跑完即删; ②lifespan 纪律确立: **async lifespan 内禁止直接调用同步网络函数**, 需要点火的启动任务一律 run_in_executor 后台化 — 同步网络调用的分钟级超时会冻结整个 event loop, 呈现为 "进程活着但端口永不 bind" 的最难排查形态; ③CREATE-only 幂等重放的缺口认知: 跳过 ALTER/REMOVE 意味着重放永远停在首次建表版本, schema 演进 (如 041 加 'running') 无法通过重放到达。
+- **测试验证**: 搬迁五相验证全绿 (warm 35 表/38 索引/6 触发器, 数据行数精确匹配 33/9/348, 双库 integrity ok, main 零残留, hotspots 20408 完好); 重启后 `/api/health` 立即响应 status ok + scheduler ok, 端口 8000 LISTEN; catchup run_id=2 完成 ingested=27 (49 源 13 秒, partial 正常); `/api/hotspots?time_range=7d` total=84 (前端空态消除); 运行时写入落点健康增长 (warm: crawler_runs 9→20 / collection_runs 0→52 / quality_check_logs 348→1304); py_compile OK; 定向回归 40 passed / 3 skipped。服务以 `env -u HOTSPOT_DISABLE_SCHEDULER` 干净环境运行 (pid 6787)。
+- **潜在风险**: ①既往带 `HOTSPOT_DISABLE_SCHEDULER=1` 的 dev 启动习惯仍在, 若再残留会复发根因① (属预期行为, 非缺陷); ②历史遗留: knowledge_items 在 main 为 workaround 保留 (前会话裁决), knowledge_chunks_fts 若未来在 warm 重建需带完整影子表家族; ③graph 点火后台化后, 其失败仅 warning 不阻塞启动 — 符合预期, 但 ATT&CK 图谱首建时间不再可从 startup 日志顺序推断。
+
+## [DEV-0225] migration 119 启动崩溃修复 + 全量回归 6 失败清零 + 全仓库接口梳理
+- **时间**: 2026-09-21
+- **类型**: bug 修复 + 测试修复
+- **问题描述**: ① 生产服务启动即崩 — `119_item_entities.sql` 末行 `ALTER TABLE knowledge_items ADD COLUMN entities` 在生产 hot.db 报 "no such table" (knowledge_items 表缺失, warm.db 2026-09-18 遗失后仅剩 0 字节空文件), 迁移链中断; ② 全量回归 6 failed — 根因同源: DEV-0196 三 gate 开闸 + t1_score→pi 接线后, 一批测试仍写死旧 provider/模型/gate 默认值, 假设过期。
+- **关联文件**:
+  - `backend/repository/migrations/119_item_entities.sql` (修改: 前插 `CREATE TABLE IF NOT EXISTS knowledge_items` 25 列, 列序与 018+105 完整迁移路径产物一致; 已建表环境为 no-op — DEV-0182/migration 112 同款先例)
+  - `backend/tests/test_ai_classify.py` (`test_gate_off_equals_pure`: delenv → env 覆盖强制关 gate, TOML 已默认 true)
+  - `backend/tests/test_semantic_filter_gate.py` (`test_gate_off_no_llm`: 同上, env 覆盖 `semantic_filter: false`)
+  - `backend/tests/test_s4_1_model_router.py` (`test_ai_service_resolve_provider_three_levels` 第 2 级断言由写死集合改为动态对齐 `route_model("evaluate")` 推荐 — t1_score 现指 pi)
+  - `backend/tests/test_llm_secrets_integration.py` (3 个 secrets 链测试各钉 `AIService._resolve_provider → sensenova`: pi 无 llm_secrets 槽位, 契约测的是 secrets 链本身不随路由漂移; 同文件 L155 先例)
+  - `backend/tests/test_llm_evaluate_scenario.py` (`test_evaluate_with_scenario_light_picks_flash_lite` 期望模型由写死改为动态读 `config/llm.yaml` `task_overrides.t1_score.model`)
+- **实现思路**: 两条修复模式确立 — ①gate-off 测试: `monkeypatch.setenv('HOTSPOT_FEATURE_GATES', '{"extensions": {...: false}}')` (env 优先级高于 TOML, delenv 仅适用于"测 TOML 默认开"场景); ②provider/模型期望: 要么动态对齐 router/yaml 真源, 要么钉死 `_resolve_provider` 隔离路由漂移。回归全绿后复核 3 处残留 delenv (test_pipeline_ner/test_feature_gates/test_pipeline_llm_gates) 均属"测 TOML 默认开"正确语义, 不动。
+- **测试验证**: 定向 14+18 passed; 最终全量回归 **4666 passed / 9 skipped / 0 failed** (7m00s); 迁移幂等性经生产库启动验证。附带产出: 全仓库接口梳理清单 (86 routers / 146 services / 57 jobs / 13 collectors, 与 ARCHITECTURE.md 一致)。
+- **潜在风险**: `ALTER TABLE ADD COLUMN entities` 对"119 曾完整跑过"的库仍非幂等, 但该状态当前不存在 (生产表此前缺失即崩, 新库走 CREATE); 若未来出现需补 IF NOT EXISTS 等价守卫。
+
+## [DEV-0197] CVE 分析/合规矩阵路由 404 修复 + 前端加载反模式治理
+- **时间**: 2026-09-19
+- **类型**: bug 修复
+- **问题描述**: SecNews Analytics 三区块全挂 — ① CVE 热力图空白; ② ATT&CK 映射 tab 显 "CVE 清单加载失败: Not Found" 且刷新按钮恒 disabled; ③ 合规矩阵永久 "加载合规矩阵…"。第一性诊断: 前端统一请求 `/api/cve/*` `/api/compliance/*`, 但 `cve_analytics.py` `compliance.py` 两个 leaf router 漏 `/api` prefix (本仓惯例 leaf 自带完整前缀, 见 hotspots.py), 路由暴露在 `/cve/*` `/compliance/*` → 全部 404; 前端三组件又吞错 (`catch(() => {})` / console.error) 使 404 呈现为空白/永久 loading。
+- **关联文件**:
+  - `backend/api/cve_analytics.py` (修改, `APIRouter()` → `APIRouter(prefix="/api")`)
+  - `backend/api/compliance.py` (修改, 同上加 prefix)
+  - `frontend/src/components/secnews/CveHeatmap.tsx` (修改, error state + useEffect cancelled 标志 + 错误边界 UI)
+  - `frontend/src/components/secnews/AttackNavigator.tsx` (修改, cveIds 到位自动加载 (此前需手动点刷新, 业务流断裂) + useCallback load + error UI 替代 console.error)
+  - `frontend/src/components/secnews/ComplianceMatrix.tsx` (修改, 渲染期副作用迁 useEffect (StrictMode 双渲染防重复请求) + 默认 eventTypes 提模块常量防引用抖动 + error UI)
+  - `backend/tests/test_cve_compliance_routes.py` (新增, 静态断言 7 条 `/api/cve/*` `/api/compliance/*` 注册路径, 防同类回归)
+- **实现思路**: 后端修根因 (prefix), 前端修共病 (吞错/渲染期副作用/无自动加载) — 失败必须可见, 数据到位即加载。全库清扫 7 处裸 `APIRouter()`: knowledge/secrets/sources 为合法聚合壳 (docstring 明示惯例), knowledge_api/codegarden_phase14 装饰器自带完整路径, observability_metrics 挂 `/api/observability` 父 prefix — 漏 prefix 仅此两处, 无残留。
+- **测试验证**: test_cve_compliance_routes + test_pipeline_llm_gates 9 passed; test_feature_gates 69 passed (路由矩阵全绿); `generate_meta.py --check` OK (86 routers 不变); 前端 `tsc --noEmit` 0 错误; vitest 82 files / 620 tests 全绿。
+- **潜在风险**: 无 — 纯路径修复 + 加载健壮性, 无调用方依赖裸 `/cve/*` 路径 (已全库核实)。
+
+## [DEV-0196] 管线 LLM 三 gate 开闸 + pi provider 配置接线
+- **时间**: 2026-09-19
+- **类型**: 配置变更 (DEV-0180 的通电收尾)
+- **关联文件**:
+  - `backend/config/feature_gates.toml` (三 gate false→true: semantic_filter / ai_classify / pipeline_ner; env HOTSPOT_FEATURE_GATES 可应急回关)
+  - `config/llm.yaml` (providers +pi 条目: type pi, 模型 claude-sonnet-4-5, timeout 90s / max_concurrent 2, 无需 base_url/api_key_env; task_overrides.t1_score 改指 pi + max_tokens 50→512)
+  - `backend/api/mcp.py` (预存 cwd 修复保留: 上溯项目根而非 backend/, 压回 150 行达 api 层守卫; 按 owner 要求**不提交**)
+  - `backend/tests/test_pipeline_llm_gates.py` (default_off 断言改 default_on + 新增 env_override_off ×3)
+  - `backend/tests/test_llm_settings_override.py` (router 推荐 provider 集合 +pi ×2)
+  - `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` (§6.1 Feature Gates 行: 开12/关4 → 开15/关1)
+- **实现思路**:
+  - 路由接线: STANDARD 档是统一锚点 — score / ner (TASK_TIER_MAP 显式) 与 semantic_filter / ai_classify (未知任务 get_tier 默认 STANDARD) 四任务经 `TIER_TO_OVERRIDE_KEY` 同锚 t1_score override; 改 t1_score → pi 即四任务 pi 首选, 失败落 fallback_order (ollama→sensenova→qwen→openai)。
+  - max_tokens 50→512: 该档现承载 NER 实体 JSON / verdict JSON, 50 必截断; score 本身输出极短无副作用。注意 AIService evaluate/gate_detect 同锚 t1_score, 一并切到 pi 首选 (继承既有 override 语义)。
+- **测试验证**: `load_llm_config()` schema 加载 OK (pi 条目 + override 如预期); gates 实测 semantic_filter/ai_classify/pipeline_ner = True, mcp 保持 False; 定向 pytest 57 passed (gates + llm_service + settings_override + yaml_image)。
+- **潜在风险**: pi 依赖本机 CLI + `~/.pi/agent/auth.json`, 429 时 rc=0 但 stopReason=error 计失败走 fallback; t1_score 全档切 pi 后 AIService 打分链路对 pi 可用性敏感 (fallback 兜底, 但延迟特征从 HTTP 变子进程冷启动)。
+
 ## [DEV-0180] 管线 LLM pi 化 + 三能力补齐（方案 B）
 - **时间**: 2026-09-19
 - **类型**: 功能开发

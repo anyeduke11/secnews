@@ -66,8 +66,8 @@ def test_router_wins_when_env_and_settings_unset(temp_db):
 
     result = AIService._resolve_provider()
     # llm.yaml 默认 sensenova + fallback_order [ollama, sensenova, qwen, openai];
-    # router 推荐顺序不固定, 但应在 yaml 注册的 5 个 provider 之内
-    assert result in ("sensenova", "ollama", "openai", "qwen", "anthropic")
+    # router 推荐顺序不固定, 但应在 yaml 注册的 6 个 provider 之内
+    assert result in ("sensenova", "ollama", "openai", "qwen", "anthropic", "pi")
     assert AIService._config_source() in ("router", "default")
 
 
@@ -101,7 +101,7 @@ def test_settings_kv_non_string_value_is_skipped(temp_db):
     SettingsRepository().set("llm.default_provider", ["ollama", "sensenova"])
 
     result = AIService._resolve_provider()
-    assert result in ("sensenova", "ollama", "openai", "qwen", "anthropic")
+    assert result in ("sensenova", "ollama", "openai", "qwen", "anthropic", "pi")
     # 跳过非字符串后, 应该走 router/default 路径
     assert AIService._config_source() in ("router", "default")
 

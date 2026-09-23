@@ -36,8 +36,13 @@ class GradeRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def _list_due(limit: int) -> dict:
+def _list_due(limit: int, enrich: bool) -> dict:
     items = list_due(limit=limit)
+    if enrich:
+        # migration 120: enrich=1 → 附加 title/url/category/excerpt (未命中置 None)
+        from backend.services.review_enrich import enrich_rows
+
+        items = enrich_rows(items)
     return {"version": API_VERSION, "count": len(items), "items": items}
 
 
@@ -97,9 +102,10 @@ def _stats() -> dict:
 @router.get("/due")
 async def due_reviews(
     limit: int = Query(20, ge=1, le=200, description="最多返回条数"),
+    enrich: int = Query(0, ge=0, le=1, description="1=附加 title/url/category/excerpt"),
 ):
-    """列出到期复习记录 (due_at <= now)。"""
-    return await asyncio.to_thread(_list_due, limit)
+    """列出到期复习记录 (due_at <= now)。enrich=1 时卡片可读。"""
+    return await asyncio.to_thread(_list_due, limit, bool(enrich))
 
 
 @router.post("/{entity_type}/{entity_id}/grade")

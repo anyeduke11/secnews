@@ -302,9 +302,10 @@ export function SentinelSettingsPage() {
     [llm],
   );
   const keyReady = Boolean(secrets?.setup);
-  /** proxy.mode ∈ {off, auto, manual} (backend/proxy_config.py); off = 直连 */
+  /** proxy.mode ∈ {off, builtin, auto, manual} (backend/proxy_config.py 四态); off = 直连
+   *  口径与 AboutSettings (cadence 修正批 T5) 一致: builtin 也是代理 (内置兜底), 非 off 即 routed */
   const proxyMode = health?.components?.proxy?.mode;
-  const proxyRouted = proxyMode === 'auto' || proxyMode === 'manual';
+  const proxyRouted = proxyMode === 'builtin' || proxyMode === 'auto' || proxyMode === 'manual';
   const enabledExt = useMemo(() => features?.enabled_extensions ?? [], [features]);
 
   const onTabKey = (e: React.KeyboardEvent) => {

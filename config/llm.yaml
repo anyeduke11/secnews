@@ -43,6 +43,21 @@ providers:
     #   min_samples: 6           # >=1 判定最小样本数 (防单发误熔断)
     #   recovery_timeout: 60     # >0  breaker OPEN 时长秒
 
+  # 2026-09-18 方案 B: pi provider (第 5 种 type) — earendil-works agent harness
+  # 子进程通道 (pi -p --mode json, NDJSON 输出), 认证自管 ~/.pi/agent/auth.json,
+  # 无需 base_url / api_key_env。上游 429 时 rc=0 但 stopReason=="error" → 计失败,
+  # 由 fallback_order 兜底 (gateway _call_provider pi 分支)。
+  pi:
+    type: pi
+    models:
+      score: "claude-sonnet-4-5"
+      tag: "claude-sonnet-4-5"
+      ner: "claude-sonnet-4-5"
+      summary: "claude-sonnet-4-5"
+      chunk_summary: "claude-sonnet-4-5"
+    timeout_seconds: 90   # 子进程含模型冷启动, 默认 30s 偏紧
+    max_concurrent: 2     # 子进程型 provider, 并发宜低
+
   # v0.6.3 P0-3: 以下两个示例 provider (sensenova_prod / dots_ai) 已删除 —
   # sensenova_prod 与 sensenova 同 key 却无任何路由指向 (死配置), dots_ai 无
   # 凭据且仅作占位。二者在 /api/llm/status 里制造 "多模型矩阵" 的完成错觉。
@@ -101,11 +116,17 @@ task_overrides:
   # (无 fallback 链), 指向未运行的 ollama = evaluate/gate_detect 必败
   # (审计发现 #3: t1_score override 劫持 AIService)。ollama 可用时如需
   # 切回本地, 改回 provider: ollama 即可。
+  # 2026-09-19: 改指 pi —— STANDARD 档路由锚点, score / ner 以及未知任务
+  # semantic_filter / ai_classify (get_tier 默认 STANDARD) 四任务统一首选 pi,
+  # 失败自动落 fallback_order (ollama→sensenova→qwen→openai)。
+  # 注意: AIService evaluate/gate_detect 同锚此 override, 一并 pi 首选。
+  # max_tokens 50→512: 此档现承载 NER 实体 JSON / 语义 verdict JSON,
+  # 50 tokens 必截断 (score 本身输出极短, 上调无副作用)。
   t1_score:
-    provider: sensenova
-    model: sensenova-6.8-flash-lite
+    provider: pi
+    model: claude-sonnet-4-5
     temperature: 0.0
-    max_tokens: 50
+    max_tokens: 512
   # HEAVY 档入口 (当前唯一生产调用方 = 深度阅读)。
   # 原为 openai/gpt-4o, 但实测 OPENAI_API_KEY 未配置 → 该链必然失败,
   # deep_reads 表因此长期 0 行。sensenova 是唯一持凭据且实测可达的通道。

@@ -24,12 +24,25 @@ export function CveHeatmap() {
     severities: SEVERITIES,
     matrix: [],
   });
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchHeatmap().then(setData).catch(() => {});
+    let cancelled = false;
+    fetchHeatmap()
+      .then((d) => { if (!cancelled) { setData(d); setError(null); } })
+      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+    return () => { cancelled = true; };
   }, [fetchHeatmap]);
 
   const { weeks, severities, matrix } = data;
+
+  if (error) {
+    return (
+      <div className="text-xs p-2 rounded" style={{ color: 'var(--color-error)', border: '1px solid var(--color-error)' }}>
+        热力图加载失败: {error}
+      </div>
+    );
+  }
 
   const cellSize = 28;
   const gap = 2;

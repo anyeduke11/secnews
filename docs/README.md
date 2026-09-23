@@ -20,6 +20,7 @@
 | `WORKBENCH_FOCUS_PRD_v1.0.md` / `WORKBENCH_FOCUS_DEV_PLAN.md` | 工作台聚焦方案（2026-09-12 裁决立项：内容相关性门禁/实践域兴趣体系；双视角方案已否决，见 PRD §0） |
 | `INTEREST_ENGINE_PRD_v1.0.md` / `INTEREST_ENGINE_DEV_PLAN.md` | 兴趣引擎（内容门禁 L3 × 单用户推荐：信号权重数据校准 + 温和发现渐进收敛；feature gate `interest_engine`） |
 | `POST_R2_ENHANCEMENTS_DESIGN_2026-09-12.md` | R2 收尾设计包（Mimosa triage 流水线 / 死列 DROP / 权重重校 / ai-tech 桶口径 / 恢复 scrub / 周审计 RUNBOOK；5 项裁决待 owner） |
+| `UI_REFACTOR_FOLLOWUP_PLAN_2026-09-16.md` / `UNIMPLEMENTED.md` | UI 重构收尾批方案（DEV-0185）/ 未实现功能台账（五视图已闭环，占位登记口径档案） |
 | `NAV4_IA_REDESIGN_2026-09-12.md` | 四大菜单 IA 重设计（资讯/知识/行动/设置；owner 2026-09-12 指令；三层壳→四菜单壳，判断层拆解归位；7 项裁决待 owner） |
 | `V0.8_SKILLS.md` / `V0.8_USER_GUIDE.md` | Skills 双轨体系 / 用户指南 |
 | `DESIGN_SYSTEM.md` / `DESIGN_GUIDE.md` / `DIAGRAMS.md` | 设计契约 / 设计规范 / 图表集 |

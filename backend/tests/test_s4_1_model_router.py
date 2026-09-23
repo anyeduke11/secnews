@@ -167,14 +167,17 @@ def test_ai_service_resolve_provider_three_levels():
     with patch.dict(os.environ, {"AI_PROVIDER": "dots_ai"}, clear=False):
         assert AIService._resolve_provider() == "dots_ai"
 
-    # 2) env 未设, router 推荐 → llm.yaml fallback_order[0]=ollama, _route_from_yaml 应返回 ("ollama", "qwen2.5:7b")
+    # 2) env 未设, router 命中 → 与 route_model("evaluate") 的推荐一致
     with patch.dict(os.environ, {}, clear=False):
         os.environ.pop("AI_PROVIDER", None)
-        # 默认 config 是 llm_service.config (LLMService 全局), 加载真实 llm.yaml
-        # 此时 _resolve_provider 走 router; router 推荐 ollama (yaml fallback_order[0])
-        result = AIService._resolve_provider()
-        # router 推荐可能等于 cfg.default_provider; 若 cfg.default_provider=openai, router 也应=openai
-        assert result in ("ollama", "openai", "sensenova")
+        # _resolve_provider 内部即调 route_model("evaluate", config=llm_service.config);
+        # STANDARD 档命中 t1_score override, 其 provider 随 llm.yaml 演进 (当前 pi),
+        # 故断言对齐 router 实际推荐而非写死 provider 名
+        from backend.services.ai_hub.gateway import llm_service
+        from backend.services.llm.model_router import route_model
+
+        expected = route_model("evaluate", config=llm_service.config)[0]
+        assert AIService._resolve_provider() == expected
 
     # 3) router 抛异常时, 兜底 cfg.default_provider (sensenova)
     # 真实环境中 llm_service.config 是 property (无 setter), 不能直接 patch.object;

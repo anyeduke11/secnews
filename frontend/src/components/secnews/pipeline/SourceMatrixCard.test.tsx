@@ -62,4 +62,27 @@ describe('SourceMatrixCard — 印厂源健康矩阵 (B2)', () => {
     render(<SourceMatrixCard />);
     await waitFor(() => expect(screen.getByText('暂无注册源')).toBeInTheDocument());
   });
+
+  it('bid (招投标) 类目与 *(搜狗) 镜像源不进矩阵', async () => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/sources/health')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            sources: [
+              ...sourcesFixture(2),
+              { category: 'bid', source_name: '采联网', status: 'active', total_items: 9, last_seen_at: '2026-09-16T08:00:00+00:00' },
+              { category: 'security', source_name: '安全内参(搜狗)', status: 'dead', total_items: 1377, last_seen_at: '2026-08-03T09:53:00+00:00' },
+            ],
+          }),
+        } as Response);
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
+    }));
+    render(<SourceMatrixCard />);
+    await waitFor(() => expect(screen.getByText(/2 源 · 故障置顶/)).toBeInTheDocument());
+    expect(screen.queryByText('采联网')).not.toBeInTheDocument();
+    expect(screen.queryByText('安全内参(搜狗)')).not.toBeInTheDocument();
+  });
 });

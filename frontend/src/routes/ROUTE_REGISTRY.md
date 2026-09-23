@@ -53,7 +53,7 @@
 
 | 路径 | 组件 | 说明 |
 |---|---|---|
-| `/settings` | SettingsPage | **17 配置分区**（+ 扩展域分组） |
+| `/settings` | SettingsPage | **7 配置分区**（overview/general/models/collection/network/connectivity/ops） |
 | `/sentinel/settings` | → `/settings?cat=general` | 兼容重定向 |
 | `/secrets` | SecretsPage | 密钥管理 |
 | `/sync` | SyncPage | 同步与备份（gate `sync`） |

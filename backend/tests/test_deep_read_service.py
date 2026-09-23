@@ -303,3 +303,81 @@ def test_framework_auto_selected_by_category():
     assert "SWOT" in _build_deep_read_prompt("github", {"title": "T"}, "正文")
     assert "5W" in _build_deep_read_prompt("finance", {"title": "T"}, "正文")
     assert deep_read_framework_lens("security"), "lens 不得为空"
+
+
+def test_framework_config_integrity():
+    """配置完整性防呆: 所有 profile 声明的框架必须存在于框架库;
+    组合后的分节键不得重复 (框架节与领域节撞键会让 JSON schema 静默丢节);
+    单分类分节数 ≤9 防止 prompt 膨胀稀释每节质量。"""
+    from backend.services.ai_hub.prompts import (
+        _FRAMEWORKS,
+        DEEP_READ_PROFILES,
+        _GENERAL_PROFILE,
+        deep_read_sections,
+    )
+
+    all_profiles: dict[str, dict] = {**DEEP_READ_PROFILES, "general": _GENERAL_PROFILE}
+    for cat, profile in all_profiles.items():
+        for f in profile.get("frameworks", ()):
+            assert f in _FRAMEWORKS, f"{cat} 声明了未知框架 {f}"
+        ks = [s["key"] for s in deep_read_sections(cat)]
+        assert len(ks) == len(set(ks)), f"{cat} 分节键重复: {ks}"
+        assert len(ks) <= 9, f"{cat} 分节数 {len(ks)} 超预算 (≤9)"
+
+
+def test_framework_sections_never_red_and_skeleton_invariant():
+    """框架节不占用 red (red 专属漏洞语境的三色锁对 v2 新节同样生效);
+    全部分类固定骨架不变: 首节要点速读, 尾两节我的动作+存疑与未证实 —
+    前端折叠顺序与跨类对比都依赖该不变式。"""
+    from backend.services.ai_hub.prompts import DEEP_READ_PROFILES, deep_read_sections
+
+    fw_keys = {"what", "why_matters", "how_react", "strengths_opp", "weak_threat", "who_when", "scope_bound"}
+    for cat in (*DEEP_READ_PROFILES, None):
+        secs = deep_read_sections(cat or "not-a-real-category")
+        for s in secs:
+            if s["key"] in fw_keys:
+                assert s["tone"] != "red", f"{cat}/{s['key']} 框架节不得染红"
+        assert secs[0]["key"] == "key_takeaways", f"{cat} 首节漂移"
+        assert [s["key"] for s in secs[-2:]] == ["next_actions", "evidence_gaps"], f"{cat} 尾节漂移"
+
+
+def test_prompt_schema_matches_sections_exactly():
+    """prompt 内嵌 JSON schema 的键必须与 deep_read_sections 逐键一致 —
+    service 用同一函数解析, schema 与分节定义漂移 = 分节键错乱/丢节。
+    同时验证 v2 的「分析框架」段落在每个分类的 prompt 中都存在。"""
+    import json as _json
+
+    from backend.services.ai_hub.prompts import (
+        _build_deep_read_prompt,
+        deep_read_sections,
+    )
+
+    for cat in ("security", "github", "finance", None):
+        prompt = _build_deep_read_prompt(cat, {"title": "T"}, "正文")
+        schema_block = prompt.split("JSON schema:\n", 1)[1].split("\n\n来源元信息")[0]
+        assert set(_json.loads(schema_block)) == {s["key"] for s in deep_read_sections(cat)}, f"{cat} schema 漂移"
+        assert "分析框架" in prompt, f"{cat} prompt 缺框架 lens 段"
+
+
+def test_profile_version_bumped_to_v2():
+    """模板结构变更加 profile_version 锚点: 落库记录据此识别模板代际,
+    旧 v1 报告渲染不回归, 新报告可审计。"""
+    from backend.services.ai_hub.prompts import DEEP_READ_PROFILE_VERSION
+
+    assert DEEP_READ_PROFILE_VERSION == "v2"
+
+
+def test_framework_lens_tolerates_unknown_framework(monkeypatch):
+    """防御性: profile 引用不存在的框架键时 lens 跳过该框架返回空串,
+    不抛错阻断深读 (与未知分类回落通用视角同一韧性原则)。"""
+    from backend.services.ai_hub import prompts
+
+    monkeypatch.setitem(
+        prompts.DEEP_READ_PROFILES,
+        "tech",
+        {**prompts.DEEP_READ_PROFILES["tech"], "frameworks": ("ghost_framework",)},
+    )
+    assert prompts.deep_read_framework_lens("tech") == ""
+    # 分节装配同样跳过: 只剩头尾与领域节, 不炸
+    ks = [s["key"] for s in prompts.deep_read_sections("tech")]
+    assert ks[0] == "key_takeaways" and ks[-2:] == ["next_actions", "evidence_gaps"]

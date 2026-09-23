@@ -1,8 +1,8 @@
 /* ============================================================
  * settings-shell.css — /settings v2 设计系统 (V2 设计稿 settings 屏)
  *
- * 来源: 哨兵终端 V2 设计稿 settings 屏 (st-* 命名族) + SentinelSettingsPage
- *       哨兵 CSS 提炼而来;扩展 .st-input / .st-textarea / .st-select /
+ * 来源: 哨兵终端 V2 设计稿 settings 屏 (st-* 命名族),
+ *       由哨兵 CSS 提炼而来;扩展 .st-input / .st-textarea / .st-select /
  *       .st-checkbox / .st-radio / .st-progress / .st-action-bar 等
  *       让"读写模式"与哨兵"只读模式"可共存 (保留可写)。
  * 作用域: 全部选择器以 `.settings-shell` 双级前缀锁定 —
@@ -377,7 +377,7 @@
 }
 /* ===== B1 (DEV-0192): mixed 版式 — 多卡区段并排网格 =====
    宽屏 auto-fit ≥400px 列 (1580px 容器下 2-3 列), 窄屏自动回落单列;
-   仅套在 layout='mixed' 的区段 (general/collection/image_models), 表格类区段保持单列。 */
+   仅套在 layout='mixed' 的区段 (general/models/collection), 表格类区段保持单列。 */
 .settings-shell .set-content{min-width:0}
 .settings-shell .set-content-mixed{
   display:grid;

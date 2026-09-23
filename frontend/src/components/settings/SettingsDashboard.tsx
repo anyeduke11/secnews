@@ -2,12 +2,12 @@
  * settings/SettingsDashboard — 设置首屏 · 哨兵式体检面板 (V2)
  *
  * 用途:
- *  - 默认 cat=dashboard, 不点进各分类也能看到"系统还好吗"
- *  - 4 张系统子状态卡 (DB / 采集 / 凭据 / 调度) + 8 张区段跳转 tile + 最近 24h 统计
+ *  - 默认 cat=overview, 不点进各分类也能看到"系统还好吗"
+ *  - 4 张系统子状态卡 (DB / 采集 / 凭据 / 调度) + 6 张区段跳转 tile + 版本/运行状态卡 + 最近 24h 统计
  *  - 借 settings-shell.css 的 st-card / st-cellgrid / st-tilegrid / st-chip
  *
  * 数据源 (与哨兵面板一致, 直接 fetch 而非 usePipe):
- *  - GET /api/health        → db.ok / scheduler.jobs / collectors
+ *  - GET /api/health        → db.ok / scheduler.jobs / collectors / version / status
  *  - GET /api/secrets/status → master_key 初始化 + unlock 状态
  *  - GET /api/sources/health → 源健康概览
  *  - GET /api/stats         → 24h collect_runs / hotspots 总数 / 平均耗时
@@ -26,6 +26,8 @@ interface Props {
 
 interface HealthPayload {
   ok?: boolean;
+  version?: string;
+  status?: string;
   uptime_s?: number;
   db?: {
     ok: boolean;
@@ -68,14 +70,12 @@ interface SourcesHealth {
 }
 
 const QUICK_JUMPS: Array<{ cat: SectionKey; label: string; key: string; note: string }> = [
-  { cat: 'collection', label: '采集', key: 'collection', note: '质量/信源/调度' },
-  { cat: 'secrets', label: '密钥', key: 'secrets', note: 'LLM 凭据状态' },
-  { cat: 'alerts', label: '告警', key: 'alerts', note: '规则与通道' },
-  { cat: 'sync', label: '同步', key: 'sync', note: 'WebDAV/跨设备' },
-  { cat: 'pipeline', label: '管线', key: 'pipeline', note: 'KL/dsh/Agent' },
-  { cat: 'sentinel', label: '哨兵', key: 'sentinel', note: '只读控制台' },
-  { cat: 'maintenance', label: '维护', key: 'maintenance', note: 'VACUUM/去重' },
-  { cat: 'feedback', label: '反馈画像', key: 'feedback', note: '角色倾向总结' },
+  { cat: 'general', label: '通用', key: 'general', note: '主题/模式/能力开关' },
+  { cat: 'models', label: '模型配置', key: 'models', note: 'Provider/密钥/场景模型' },
+  { cat: 'collection', label: '采集与管线', key: 'collection', note: '信源/质量/KL 队列/门禁' },
+  { cat: 'network', label: '网络', key: 'network', note: '代理/连接' },
+  { cat: 'connectivity', label: '集成与凭据', key: 'connectivity', note: '同步/MCP/主密钥' },
+  { cat: 'ops', label: '运维', key: 'ops', note: '维护/导出/dsh' },
 ];
 
 function fmtUptime(s?: number): string {
@@ -151,7 +151,7 @@ export function SettingsDashboard({ onJump }: Props) {
           <div className="st-info">
             <p style={{ marginBottom: 6 }}>
               <strong>用途</strong> · 这是 /settings 的首屏, 不点进任何分类也能回答"系统还好吗":
-              4 张子状态卡 (DB / 采集 / 凭据 / 调度) + 8 张区段跳转 + 信源健康, 共 13 个一眼可读的体检项。
+              4 张子状态卡 (DB / 采集 / 凭据 / 调度) + 6 张区段跳转 + 版本/运行状态卡 + 信源健康, 共 12 个一眼可读的体检项。
             </p>
             <p style={{ marginBottom: 6 }}>
               <strong>不打开会怎样</strong> · 想确认状态必须进 5+ 个分类; 凭据 LOCKED 看不见, 直到跑管线失败才意识到;
@@ -215,7 +215,7 @@ export function SettingsDashboard({ onJump }: Props) {
         </article>
       </section>
 
-      {/* 8 区段快速跳转 — st-tilegrid */}
+      {/* 6 区段快速跳转 — st-tilegrid */}
       <section aria-label="区段跳转">
         <h3 style={{ fontFamily: 'var(--sn-mono)', fontSize: 'var(--sn-fs-h3)', fontWeight: 500, margin: '4px 0 8px', color: 'var(--sn-ink)' }}>
           快速跳转
@@ -235,6 +235,33 @@ export function SettingsDashboard({ onJump }: Props) {
               <span className="st-tile-note">{t.note}</span>
             </button>
           ))}
+        </div>
+      </section>
+
+      {/* 版本与运行状态 — 吸收自原 About 区块 (口径: GET /api/health 的 version / status / uptime_s) */}
+      <section className="st-section" aria-label="版本与运行状态" data-testid="dash-version">
+        <h3>版本与运行状态</h3>
+        <p className="st-section-desc">
+          口径来源 GET /api/health (version / status / uptime_s), 原系统信息区块吸收至此, 故障上报时截图附上。
+        </p>
+        <div className="st-section-body">
+          <div className="st-cellgrid">
+            <div className="st-cell" data-testid="dash-version-tag">
+              <span className="st-cellk">版本</span>
+              <span className="st-cellv sm">{health?.version ?? '--'}</span>
+              <span className="st-cellnote">git tag · commit short</span>
+            </div>
+            <div className="st-cell" data-testid="dash-version-status">
+              <span className="st-cellk">运行状态</span>
+              <span className={`st-chip ${health?.ok ? 'ok' : 'warn'}`}>
+                <i /> {health?.ok ? '在线' : '状态未知'}
+              </span>
+            </div>
+            <div className="st-cell" data-testid="dash-version-uptime">
+              <span className="st-cellk">已运行</span>
+              <span className="st-cellv sm">{fmtUptime(health?.uptime_s)}</span>
+            </div>
+          </div>
         </div>
       </section>
 

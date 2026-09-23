@@ -3,13 +3,15 @@
 契约:
 - :func:`submit_webhook(path, payload, *, signature, target_type, target_id,
   user_id)` 内部调 ``trigger_gate.submit(source="webhook", ...)``
-- 签名: SHA-256 HMAC over ``path|payload_bytes``; secret 从 settings.kv 取
-  (``webhook.secret``), 缺 secret 时跳过签名校验 (fail-open 仅 v0.8 dev 期)
+- 签名: SHA-256 HMAC over ``path|payload_bytes``; secret 从加密存储
+  (llm_secrets, ``SecretsService.find_internal_by_name("webhook.secret")``)
+  取, 缺 secret / vault 未解锁时跳过签名校验并落 warning (fail-open dev 期)
 - 未知 path → ValueError (R12 fail loud, 不静默路由到 default skill)
 
 signature 校验逻辑 (R7):
-- 当 settings.kv 中存在 ``webhook.secret`` 时, 缺签名 / 签名错一律拒
-  (R7 fail-closed); 当 secret 未配置时, 校验放行 (R7 fail-open dev 期)
+- 当 vault 中存在 ``webhook.secret`` 且已解锁时, 缺签名 / 签名错一律拒
+  (R7 fail-closed); 当 secret 未配置/未解锁时, 校验放行 + warning
+  (R7 fail-open dev 期)
 """
 from __future__ import annotations
 
@@ -30,23 +32,34 @@ class SignatureInvalidError(ValueError):
 class WebhookTrigger:
     """HTTP webhook 触发器 — 适配层.
 
-    - 测试时构造空 ``secret_provider`` 注入; 生产默认 settings.kv 读
+    - 测试时构造空 ``secret_provider`` 注入; 生产默认加密存储读
     - 公开 :meth:`submit` 调底层 ``trigger_gate.submit(source="webhook", ...)``
     """
 
     def __init__(self, secret_provider: Any | None = None) -> None:
-        # 默认从 settings.kv 读 (Repository 模式, 见 backend/services/settings_kv.py);
+        # 默认从加密存储读 (SecretsService vault, 见 backend/services/secrets_service.py);
         # 测试可注入 lambda / 字典 / Repository 实现
         self._secret_provider = secret_provider
 
     def _get_secret(self) -> str | None:
         if self._secret_provider is None:
             try:
-                from backend.services.settings_kv import SettingsRepository
+                from backend.services.secrets_service import SecretsService
 
-                return SettingsRepository().get("webhook.secret")
-            except Exception:
+                secret = SecretsService().find_internal_by_name("webhook.secret")
+            except Exception as e:
+                logger.warning(
+                    "webhook secret vault lookup failed, signature check disabled (fail-open)",
+                    extra={"trace_id": "", "error": str(e)},
+                )
                 return None
+            if secret is None:
+                logger.warning(
+                    "webhook.secret not configured or vault locked, "
+                    "signature check disabled (fail-open)",
+                    extra={"trace_id": ""},
+                )
+            return secret
         if callable(self._secret_provider):
             return self._secret_provider()
         if isinstance(self._secret_provider, dict):

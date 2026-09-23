@@ -103,9 +103,10 @@ describe('useRealtimeInvalidation — entries 路由', () => {
 
   it('重渲染重建 entries 字面量不重置 throttle 计时窗口', async () => {
     // 真实场景: entries 是内联字面量, 每轮渲染新数组 — 计时状态必须跨渲染存活
+    // 窗口取 800ms (sleep 900): 全量并发下调度抖动可 >80ms, 窄窗会被负载击穿致 msg2 未被节流
     const handler = vi.fn();
     const { rerender } = renderHook(
-      ({ h }) => useRealtimeInvalidation([{ types: ['e'], handler: h, throttleMs: 80 }]),
+      ({ h }) => useRealtimeInvalidation([{ types: ['e'], handler: h, throttleMs: 800 }]),
       { initialProps: { h: handler } },
     );
     const es = getES();
@@ -113,7 +114,7 @@ describe('useRealtimeInvalidation — entries 路由', () => {
     rerender({ h: handler }); // 重渲染 → 新 entries 数组 / 新 wrapper 链
     act(() => { es.simulateMessage({ type: 'e', data: 2 }); });
     expect(handler).toHaveBeenCalledTimes(1); // 窗口内第二条被节流掉
-    await sleep(100);
+    await sleep(900);
     act(() => { es.simulateMessage({ type: 'e', data: 3 }); });
     expect(handler).toHaveBeenCalledTimes(2);
   });

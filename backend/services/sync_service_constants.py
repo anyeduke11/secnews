@@ -11,14 +11,17 @@ SECRET_MERGE_FIELDS = (
     "name", "model", "base_url", "updated_at",
 )
 
-# settings 黑名单: 永不跨端同步的 key
-# - session / runtime flags / 服务端临时状态
-SETTINGS_BLOCKLIST = {
-    "scheduler.last_run",
-    "collector.last_run",
-    "trend.last_rebuild",
-    "sync_runtime_lock",  # sync 自己的运行锁
-}
+# settings 跨端同步白名单 (2026-09-22 P3, settings-refactor Task 16): 仅用户
+# 偏好/配置 namespace 进 bundle。密钥 (webhook.secret 已迁 vault) / 运行状态
+# (state.*) / 服务端锁 永不跨端。与 settings_service._ALLOWED_PREFIXES (写入
+# 契约) 语义对齐但更窄: state.*/feature.*/secrets.* 不跨端, 两处勿混用。
+SETTINGS_SYNC_PREFIXES = (
+    "collection.", "llm.", "interest.", "quality.",
+)
+
+
+def settings_sync_allowed(key: str) -> bool:
+    return key.startswith(SETTINGS_SYNC_PREFIXES)
 
 
 def now_iso() -> str:
@@ -33,7 +36,8 @@ def new_device_id() -> str:
 __all__ = [
     "BUNDLE_VERSION",
     "SECRET_MERGE_FIELDS",
-    "SETTINGS_BLOCKLIST",
+    "SETTINGS_SYNC_PREFIXES",
     "new_device_id",
     "now_iso",
+    "settings_sync_allowed",
 ]

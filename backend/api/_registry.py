@@ -4,7 +4,6 @@
 
 - ``__init__.py``        — 薄壳, 仅暴露 ``register_routers`` 公开 API (≤ 30 行)
 - ``_registry.py`` (本文) — 实际分组与 ``app.include_router`` 调用
-- ``_flags.py``           — feature_flag 批量检查, 减少 register_routers 内的 ``if config.feature_xxx`` 块
 
 约束: 任何 ``from backend.api import register_routers`` / ``backend.api.register_routers`` 仍可解析。
 """
@@ -55,9 +54,10 @@ def register_all(app: FastAPI) -> None:
         knowledge_chunks_api,  # Phase 17: 知识库 chunks
         knowledge_imported,  # v1.8 Phase 8: 资讯收藏聚合视图
         maintenance,  # v1.4: DB 维护 (vacuum/cleanup)
-        mcp,  # v1.7 Phase 7: MCP 调试端点 (/api/mcp/* + /api/settings/mcp/*)
+        mcp,  # v1.7 Phase 7: MCP 调试端点 (/api/mcp/*; settings/mcp 两端点已迁 mcp_settings_api)
         mcp_adapters,  # v1.7 Phase 7: MCP 适配端点 (/api/profile, /api/cubox/sync, /api/extract/auto)
         mcp_agent_tools,  # v1.8: 4 个 Agent 侧写 tool (score_item/enrich_concept/link_items/trigger_codegarden_drift)
+        mcp_settings_api,  # MCP 设置端点 (ungated, 解 extensions.mcp 自锁; P2 Task 10)
         mode,  # v1.7 Phase 3: 模式切换 (brief/scan/deep/...)
         proxy,
         quality,
@@ -70,6 +70,7 @@ def register_all(app: FastAPI) -> None:
         secrets,  # Phase 41: 密钥管理 (LLM API Keys)
         security,  # Phase 2: Security Knowledge Graph + Terminology
         settings,  # 运行时设置 (刷新间隔等)
+        settings_flags_api,  # 能力开关读写 (feature-gates, ungated 基础设施; P2 Task 11)
         skills,  # Phase 41: Skill 管理
         sources,
         sync,  # Phase 42: 跨端配置同步 (WebDAV)
@@ -99,6 +100,8 @@ def register_all(app: FastAPI) -> None:
     app.include_router(secrets.router, tags=["secrets"])
     app.include_router(security.router, tags=["security"])
     app.include_router(settings.router, tags=["settings"])
+    app.include_router(mcp_settings_api.router, tags=["mcp-settings"])  # ungated: extensions.mcp=false 仍可达
+    app.include_router(settings_flags_api.router, tags=["feature-gates"])  # ungated: gate 管理面自身不受 gate 限制
     if is_extension_enabled("sync"):
         app.include_router(sync.router, tags=["sync"])
     app.include_router(reports.router, tags=["reports"])
@@ -120,7 +123,6 @@ def register_all(app: FastAPI) -> None:
         # D5 Batch ⑧: M2/M3/M4 服务网格/资源中枢/编排引擎 — 独立 gate,
         # 之前错绑 codegarden 导致 phase2b=false 时路由仍在 (job 不跑但端点 200)
         app.include_router(codegarden_ops.router, tags=["codegarden-ops"])
-        # crm 域 (CRM 业绩座舱) 已随 migration 116 整体删除, 不再注册
     # ---- feature flag 接线区: flag=False 时对应 API 不注册 ----
     if config.feature_tag:
         app.include_router(tags.router, tags=["tags"])
@@ -170,8 +172,7 @@ def register_all(app: FastAPI) -> None:
     # v0.5 §18.4: wiki_* MCP 工具族 (llm-wiki-2.0 消费面)
     from backend.api import wiki_tools
     app.include_router(wiki_tools.router, tags=["wiki-tools"])
-    # Phase 14: 子系统联动 — 技术栈漂移评估 + CVE 同步
-    # D5 Batch ⑧: phase14 是 M4 联动引擎, 跟随 codegarden_phase2b gate
+    # Phase 14: 子系统联动 — 跟随 codegarden_phase2b gate (D5 Batch ⑧: M4 联动引擎)
     from backend.api import codegarden_phase14
     if is_extension_enabled("codegarden_phase2b"):
         app.include_router(codegarden_phase14.router, tags=["codegarden-phase14"])
@@ -244,8 +245,6 @@ def register_all(app: FastAPI) -> None:
     # v1.0 T13: Knowledge 端到端 (SK-04/05/06 知识发布/复用/复查)
     from backend.api import knowledge_api
     app.include_router(knowledge_api.router, tags=["v1-knowledge"])
-    # v1.0 T14: Skill Registry v1 — 已上移至 legacy skill-registry 之前注册
-    # (v0.8.5: 参数路由遮蔽修复, 见上方 A3 块内注释)
     # v1.0 T16 收口: audit_log 查询 + LegacyMigrate API 暴露
     from backend.api import observability_audit_api
     app.include_router(observability_audit_api.router, tags=["observability-audit"])

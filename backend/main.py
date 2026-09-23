@@ -69,6 +69,30 @@ def _apply_persisted_refresh_interval() -> None:
         log.warning(f"persisted refresh interval restore failed (ignored): {e}")
 
 
+def _apply_persisted_feature_flags() -> None:
+    """设置重构 P2: 回读 API 写入的 feature flag 持久值, 覆盖 config 单例。
+
+    settings kv ``feature.<name>`` ↔ ``config.feature_<name>`` 一一对应;
+    仅覆盖显式写入过的 key (kv 存在才 setattr), 读取失败静默走默认。
+
+    已知取舍: kv 回读会覆盖 env ``HOTSPOT_FEATURE_MCP`` — 与 feature_gates
+    env>TOML 惯例相反 (kv 是 UI toggle 的持久层, 优先级高于 env 才能保证
+    重启不丢)。勿与 extensions gate (feature_gates.toml) 的 env 语义混淆。
+    """
+    try:
+        from backend.repository.settings_repo import SettingsRepository
+
+        repo = SettingsRepository()
+        for key, value in repo.list_all().items():
+            if key.startswith("feature.") and isinstance(value, bool):
+                attr = f"feature_{key.removeprefix('feature.')}"
+                if hasattr(config, attr):
+                    setattr(config, attr, value)
+                    log.info("feature flag restored: %s=%s", key, value)
+    except Exception as e:  # pragma: no cover
+        log.warning(f"persisted feature flags restore failed (ignored): {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """启动: log → db → cache + export → scheduler; 关闭: scheduler → cache → db。
@@ -119,6 +143,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # COLLECT_INTERVAL_SECONDS 无效的根因); 现回落构造器默认 → config →
     # settings 表持久值 (API 改间隔重启后不丢)。
     _apply_persisted_refresh_interval()
+    _apply_persisted_feature_flags()  # 设置重构 P2: feature.<name> kv 回读 (MCP toggle 重启不丢)
     sched = get_scheduler() or HotspotScheduler()
     sched.attach_service(svc)
     # v085-review F5 (P0-3): dev 与生产后端并行时, dev 实例不再起全套

@@ -53,8 +53,8 @@
 
 | 路径 | 组件 | 说明 |
 |---|---|---|
-| `/settings` | SettingsPage | **17 配置分区**（+ 扩展域分组） |
-| `/sentinel/settings` | → `/settings?cat=sentinel` | 兼容重定向 |
+| `/settings` | SettingsPage | **7 配置分区**（overview/general/models/collection/network/connectivity/ops） |
+| `/sentinel/settings` | → `/settings?cat=general` | 兼容重定向 |
 | `/secrets` | SecretsPage | 密钥管理 |
 | `/sync` | SyncPage | 同步与备份（gate `sync`） |
 | `/skills` | SkillsPage | 技能库配置（与 skill-store 内容库区分） |
@@ -71,6 +71,8 @@
 | `/judge` | → `/` | NAV4 判断层拆解，透传 query |
 | `/judge/graph` | → `/knowledge/graph` | NAV4 图谱迁知识菜单 |
 | `/secnews` (index) | → `/secnews/feed` | 兼容 |
+| `/secnews/image` | → `/settings?cat=models` | 模型配置并入设置页 |
+| `/secnews/settings` | → `/settings?cat=collection` | 采集配置并入设置页 |
 | `/category/:cat` | → `/` | 兼容 |
 | `*` | → `/` | 兜底 |
 

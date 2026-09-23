@@ -18,19 +18,12 @@ from datetime import datetime, timezone
 from typing import Any
 
 from backend.exceptions import InternalException
+from backend.services.sync_service_constants import settings_sync_allowed
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 BUNDLE_VERSION = "1.0"
-
-# settings 黑名单: 永不跨端同步的 key
-SETTINGS_BLOCKLIST = {
-    "scheduler.last_run",
-    "collector.last_run",
-    "trend.last_rebuild",
-    "sync_runtime_lock",
-}
 
 
 # ---------------------------------------------------------------------------
@@ -289,7 +282,7 @@ def _merge_settings(base: dict, local: dict, remote: dict) -> tuple[dict, int]:
     merged: dict = {}
     conflicts = 0
     for k in all_keys:
-        if k in SETTINGS_BLOCKLIST:
+        if not settings_sync_allowed(k):
             continue
         lv = local.get(k)
         rv = remote.get(k)
@@ -462,7 +455,6 @@ def _merge_sm2_reviews(base: list, local: list, remote: list) -> tuple[list, int
 
 __all__ = [
     "BUNDLE_VERSION",
-    "SETTINGS_BLOCKLIST",
     "MergeResult",
     "_merge_cascade",          # v1.7 Phase 6
     "_merge_sm2_reviews",      # v1.7 Phase 6

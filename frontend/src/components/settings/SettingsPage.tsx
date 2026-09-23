@@ -4,14 +4,14 @@
  * v0.7.x SettingsHub V2:
  *  - 头部双列 st-head (标题 / 副标题 / 状态徽章 / 操作)
  *  - sidebar 改 st-sidenav-item (图标 + 标签 + 描述 + 状态点)
- *  - 默认 cat=dashboard (哨兵式首屏体检: 8 张 st-tile 跳转 + 4 系统子状态)
- *  - 各区段 (17 个 cat) 共享 .settings-shell 作用域, 借 settings-shell.css 的
+ *  - 默认 cat=overview (哨兵式首屏体检: 6 张 st-tile 跳转 + 系统子状态)
+ *  - 各区段 (7 cat) 共享 .settings-shell 作用域, 借 settings-shell.css 的
  *    --sn-* token 与 st-rule / st-card / st-chip 等原子样式
  *
  * 历史: v0.6.x 原 SettingsPage.tsx 1065 行; v0.7.0 拆 12 文件;
- *       v0.7.x SettingsHub 合并 PipelineSettings / SentinelSettingsPage / ImageStudio;
+ *       v0.7.x SettingsHub 合并采集/哨兵设置与图片模型三页;
  *       V2 引入 dashboard 首屏 + 全页面哨兵化;
- *       v0.8 P1 新增 info_filter (独立资讯筛选门禁) → 17 cat.
+ *       v0.8 P1 新增 info_filter (独立资讯筛选门禁, 归 collection 区).
  */
 import { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -19,39 +19,36 @@ import { useGoBack } from '../../hooks/useGoBack';
 import { Icon } from '../Icon';
 import { SECTIONS, SECTION_GROUP_LABELS } from './sections';
 import type { SectionKey } from './sections';
-import { QualitySettings } from './QualitySettings';
-import { SourceSettings } from './SourceSettings';
-import { ProxySettings } from './ProxySettings';
-import { MCPSettingsCard } from './MCPSettingsCard';
+import { ModeSwitcher } from './ModeSwitcher';
 import { GeneralSettings } from './GeneralSettings';
 import { PracticeDomainsCard } from './PracticeDomainsCard';
-import { SyncSettings } from './SyncSettings';
-import { SecretsStatusCard } from './SecretsStatusCard';
-import { AlertSettings } from './AlertSettings';
+import { FeatureGatesCard } from './FeatureGatesCard';
+import { ModelsSettings } from './ModelsSettings';
 import { CollectionScheduleInfo } from './CollectionScheduleInfo';
-import { KnowledgeSettings } from './KnowledgeSettings';
-import { ExportSettings } from './ExportSettings';
-import { DatabaseMaintenance } from './DatabaseMaintenance';
-import { AboutSettings } from './AboutSettings';
-import { ModeSwitcher } from './ModeSwitcher';
-import { FeedbackSettings } from './FeedbackSettings';
-import { ScenarioModelsPanel } from './ScenarioModelsPanel';
-import { SettingsDashboard } from './SettingsDashboard';
-import { PipelineSettings } from '../secnews/settings/PipelineSettings';
-import { SentinelSettingsPage } from '../sentinel/SentinelSettingsPage';
+import { QualitySettings } from './QualitySettings';
+import { SourceSettings } from './SourceSettings';
+import { KLQueueCard } from './KLQueueCard';
 import { InfoFilterCard } from '../secnews/settings/InfoFilterCard';
+import { ProxySettings } from './ProxySettings';
+import { SyncSettings } from './SyncSettings';
+import { MCPSettingsCard } from './MCPSettingsCard';
+import { SecretsStatusCard } from './SecretsStatusCard';
+import { DatabaseMaintenance } from './DatabaseMaintenance';
+import { ExportActionsCard } from './ExportActionsCard';
+import { DshControlCard } from '../secnews/settings/DshControlCard';
+import { SettingsDashboard } from './SettingsDashboard';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import './settings-shell.css';
 
 export function SettingsPage() {
   // 壳品牌 / 资料层 tab 已能回首页, 页级按钮做智能返回 (有来路回上一页)
   const goBack = useGoBack();
-  // v0.7.x SettingsHub V2: 默认 cat=dashboard (体检面板) — 哨兵式首屏
+  // v0.7.x SettingsHub V2: 默认 cat=overview (体检面板) — 哨兵式首屏
   // 旧路由 /secnews/settings /secnews/image /sentinel/settings 携带 cat 跳转
   const search = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const catParam = search?.get('cat') as SectionKey | null;
   const [activeSection, setActiveSection] = useState<SectionKey>(
-    catParam && SECTIONS.some(s => s.key === catParam) ? catParam : 'dashboard',
+    catParam && SECTIONS.some(s => s.key === catParam) ? catParam : 'overview',
   );
   const [open] = useState(true);
   // v0.4.3: mcp 扩展关闭时隐藏集成区段 (后端 /api/mcp/* 已 404)
@@ -62,66 +59,49 @@ export function SettingsPage() {
 
   const renderContent = () => {
     switch (activeSection) {
-      case 'dashboard':
+      case 'overview':
         return <SettingsDashboard onJump={setActiveSection} />;
       case 'general':
         return (
           <div className="space-y-2">
             <ModeSwitcher />
             <GeneralSettings theme={theme} onThemeChange={setThemeMode} />
-            {/* Workbench Focus P0.3 (DEV-0176): 实践域兴趣画像 */}
             <PracticeDomainsCard />
+            <FeatureGatesCard />
           </div>
         );
+      case 'models':
+        return <ModelsSettings />;
       case 'collection':
         return (
           <div className="space-y-2">
             <CollectionScheduleInfo />
             <QualitySettings open={open} />
             <SourceSettings open={open} />
+            <KLQueueCard />
+            <InfoFilterCard />
           </div>
         );
       case 'network':
         return <ProxySettings open={open} />;
-      case 'sync':
-        return <SyncSettings />;
-      case 'integration':
-        return features.mcp ? <MCPSettingsCard open={open} /> : (
-          <div className="st-info">MCP 扩展未启用</div>
-        );
-      case 'secrets':
-        return <SecretsStatusCard />;
-      case 'alerts':
-        return <AlertSettings />;
-      case 'knowledge':
-        return <KnowledgeSettings />;
-      case 'export':
-        return <ExportSettings />;
-      case 'maintenance':
-        return <DatabaseMaintenance />;
-      case 'pipeline':
-        return <PipelineSettings />;
-      case 'sentinel':
-        return <SentinelSettingsPage />;
-      case 'image_models':
+      case 'connectivity':
         return (
-          <div className="space-y-3">
-            <div className="st-card">
-              <h3>🖼️ 图片工具 · 模型配置</h3>
-              <p className="st-section-desc">
-                深度 / 轻度 / 图片 三场景的模型选择在这里配置; 文生图与图理解功能已下线 (用户裁决 2026-09-02)
-              </p>
-            </div>
-            <ScenarioModelsPanel scope="settings-image-models" compact />
+          <div className="space-y-2">
+            <SyncSettings />
+            {features.mcp ? <MCPSettingsCard open={open} /> : (
+              <div className="st-info">MCP 扩展未启用（可在「通用 → 能力开关」开启后重启生效）</div>
+            )}
+            <SecretsStatusCard />
           </div>
         );
-      // v0.8 P1: 独立资讯筛选门禁 (扩展域, 受 feature_gates.info_filter 控制)
-      case 'info_filter':
-        return <InfoFilterCard />;
-      case 'about':
-        return <AboutSettings />;
-      case 'feedback':
-        return <FeedbackSettings />;
+      case 'ops':
+        return (
+          <div className="space-y-2">
+            <DatabaseMaintenance />
+            <ExportActionsCard />
+            <DshControlCard />
+          </div>
+        );
     }
   };
 
@@ -129,7 +109,7 @@ export function SettingsPage() {
   const active = SECTIONS.find(s => s.key === activeSection);
 
   return (
-    // v0.7.x SettingsHub V2: 全部 16 cat 共享 .settings-shell 作用域
+    // v0.7.x SettingsHub V2: 全部 7 cat 共享 .settings-shell 作用域
     // settings-shell.css 提供 --sn-* token 与 st-rule / st-card / st-chip 等原子样式
     <div className="settings-shell w-full flex flex-col" style={{ minHeight: 'calc(100dvh - 1.5rem)' }}>
       {/* V2 头部 — st-head 双列: 标题 + 副标题 / 状态徽章 + 操作 */}
@@ -139,7 +119,7 @@ export function SettingsPage() {
             <span style={{ marginRight: 10, color: 'var(--sn-mint)' }}>⚙</span>
             {active?.label ?? '设置'}
           </h1>
-          <p className="st-sub2">{active?.desc ?? '系统设置 · 哨兵化首屏'}</p>
+          <p className="st-sub2">{active?.desc ?? '系统设置 · 配置中心'}</p>
         </div>
         <div className="st-headops">
           <span className="st-chip ok" aria-label="设置已就绪">
@@ -167,11 +147,9 @@ export function SettingsPage() {
           className="settings-shell st-sidenav shrink-0 sm:w-[210px] sm:max-h-full"
           aria-label="设置分类"
         >
-          {/* c8: 6 组归组渲染 — integration 仍受 mcp gate 隐藏; 组内序 = SECTIONS 声明序 */}
+          {/* c8: 组归组渲染 — 组内序 = SECTIONS 声明序 (7 cat 收窄后无 gate 隐藏项) */}
           {SECTION_GROUP_LABELS.map(({ group, label }) => {
-            const items = SECTIONS.filter(
-              s => s.group === group && (s.key !== 'integration' || features.mcp),
-            );
+            const items = SECTIONS.filter(s => s.group === group);
             if (items.length === 0) return null;
             return (
               <div className="st-snav-group" key={group}>

@@ -682,6 +682,21 @@ class SecretsService:
         except InvalidMasterKeyError as e:
             raise InternalException(f"解密失败: {e}") from e
 
+    def find_internal_by_name(self, name: str) -> str | None:
+        """按 name 取明文 (依赖 unlock 窗口), 仅供后端服务间调用; 未解锁/不存在返回 None。
+
+        与 decrypt_for_internal_use 的区别: 按 name (webhook.secret 等基础设施凭据)
+        而非数字 id 定位; 不得暴露为 HTTP 端点。
+        """
+        items, _total = SecretRepository().list()
+        item = next((i for i in items if i.name == name), None)
+        if item is None:
+            return None
+        try:
+            return self.decrypt_for_internal_use(item.id)
+        except ConflictException:
+            return None
+
     # ------------------------------------------------------------------
     # Test connection (Phase 41 Q4)
     # ------------------------------------------------------------------

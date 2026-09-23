@@ -115,7 +115,7 @@ export function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/sentinel/settings" element={<Navigate to="/settings?cat=sentinel" replace />} />
+      <Route path="/sentinel/settings" element={<Navigate to="/settings?cat=general" replace />} />
 
       {/* ===== NAV4 旧路径重定向 (透传 query; 2026-09-13) ===== */}
       <Route path="/judge" element={<QueryRedirect to="/" />} />
@@ -231,10 +231,10 @@ export function AppRoutes() {
         <Route path="/secnews/pipeline" element={<Suspense fallback={<PageFallback />}><P.SecNewsPipeline /></Suspense>} />
         <Route path="/secnews/knowledge" element={<Suspense fallback={<PageFallback />}><P.SecNewsKnowledge /></Suspense>} />
         <Route path="/secnews/analyze" element={<Suspense fallback={<PageFallback />}><P.SecNewsAnalyze /></Suspense>} />
-        <Route path="/secnews/image" element={<Navigate to="/settings?cat=image_models" replace />} />
+        <Route path="/secnews/image" element={<Navigate to="/settings?cat=models" replace />} />
         <Route path="/secnews/analytics" element={<Suspense fallback={<PageFallback />}><P.SecNewsAnalytics /></Suspense>} />
         <Route path="/secnews/observability" element={<Suspense fallback={<PageFallback />}><P.SecNewsObservability /></Suspense>} />
-        <Route path="/secnews/settings" element={<Navigate to="/settings?cat=pipeline" replace />} />
+        <Route path="/secnews/settings" element={<Navigate to="/settings?cat=collection" replace />} />
 
         {/* crm (/crm) 已随 CRM 域整体删除 (migration 116), 路由与入口一并移除 */}
 

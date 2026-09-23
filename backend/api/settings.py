@@ -24,32 +24,19 @@ from pydantic import BaseModel, Field
 
 from backend.config import config
 from backend.exceptions import InvalidParamException
-from backend.extensions import get_enabled_extensions, is_extension_enabled
 from backend.logging_config import logger
-from backend.repository.settings_repo import SettingsRepository
+from backend.services.settings_service import SettingsService
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
 @router.get("/features")
 async def get_features() -> dict:
-    """返回全部扩展域的启停状态（feature_gates.toml 派生的运行时视图）。"""
-    return {
-        "codegarden": is_extension_enabled("codegarden"),
-        "codegarden_phase2b": is_extension_enabled("codegarden_phase2b"),
-        "mcp": is_extension_enabled("mcp"),
-        "sync": is_extension_enabled("sync"),
-        "tech_stack": is_extension_enabled("tech_stack"),
-        "security_graph": is_extension_enabled("security_graph"),
-        "secnews": is_extension_enabled("secnews"),
-        # crm 域已删除 (migration 116), features 视图不再返回该键
-        # C4 之后 dsh 才真正可配: 关闭时 /api/dsh/* 返回 404, 界面需如实呈现该状态
-        "dsh": is_extension_enabled("dsh"),
-        # DEV-0182 Workbench Focus: 兴趣引擎 (内容门禁 L3, 与质量门禁分离)
-        "interest_engine": is_extension_enabled("interest_engine"),
-        # v0.6.3: workbench_ui 已删除 (workbench 并入 SecNews)
-        "enabled_extensions": get_enabled_extensions(),
-    }
+    """扩展域启停运行时视图 — 键从 extensions 16-gate 白名单单源派生 (P2 §4.3)。"""
+    import backend.extensions as ext
+
+    gates = {name: ext.is_extension_enabled(name) for name in ext.extension_names()}
+    return {**gates, "enabled_extensions": ext.get_enabled_extensions()}
 
 
 class RefreshIntervalRequest(BaseModel):
@@ -62,7 +49,7 @@ _REFRESH_INTERVAL_KEY = "collection.refresh_interval_seconds"
 @router.get("/refresh-interval")
 async def get_refresh_interval() -> dict:
     """当前生效的采集间隔 + 持久化状态 (cadence 修正批)。"""
-    persisted = SettingsRepository().get(_REFRESH_INTERVAL_KEY)
+    persisted = SettingsService().get(_REFRESH_INTERVAL_KEY)
     return {
         "interval_seconds": config.collect_interval_seconds,
         "interval_minutes": config.collect_interval_seconds // 60,
@@ -87,7 +74,7 @@ async def set_refresh_interval(body: RefreshIntervalRequest, request: Request):
 
     persisted = True
     try:
-        SettingsRepository().set(_REFRESH_INTERVAL_KEY, interval_seconds)
+        SettingsService().set(_REFRESH_INTERVAL_KEY, interval_seconds)
     except Exception as e:
         persisted = False
         logger.warning(f"refresh interval persist failed (runtime value kept): {e}")
@@ -161,12 +148,11 @@ async def set_llm_provider(body: LLMProviderRequest):
             f"provider '{body.provider}' not in llm.yaml registry {valid}"
         )
 
-    repo = SettingsRepository()
-    old = repo.get("llm.default_provider")
-    repo.set("llm.default_provider", body.provider)
-
-    from backend.observability_records import record_audit
-    record_audit(
+    svc = SettingsService()
+    old = svc.get("llm.default_provider")
+    svc.set(
+        "llm.default_provider",
+        body.provider,
         actor=body.actor,
         action="llm_config.update",
         target="default_provider",
@@ -206,16 +192,14 @@ async def set_scenario_model(body: ScenarioModelRequest):
 
     不传 model 时 (留空) 不合法 — 校验由 Pydantic pattern + min_length 兜底。
     """
-    repo = SettingsRepository()
+    svc = SettingsService()
     key = f"llm.scenario.{body.scenario}_model"
-    old = repo.get(key)
-    repo.set(key, body.model)
-
-    from backend.observability_records import record_audit
-    record_audit(
+    old = svc.get(key)
+    svc.set(
+        key,
+        body.model,
         actor=body.actor,
         action="llm.scenario_model.set",
-        target=key,
         detail={"scenario": body.scenario, "from": old, "to": body.model},
     )
 
@@ -253,7 +237,7 @@ async def get_interests() -> dict:
     """读取实践域兴趣画像 (settings.kv ``interest.practice_domains``)。"""
     from backend.services.auto_classifier import PRACTICE_DOMAIN_LABELS, PRACTICE_DOMAINS
 
-    raw = SettingsRepository().get(_INTEREST_KEY, [])
+    raw = SettingsService().get(_INTEREST_KEY, [])
     domains = [d for d in raw if d in PRACTICE_DOMAINS] if isinstance(raw, list) else []
     return {
         "domains": domains,
@@ -282,22 +266,20 @@ async def set_interests(body: InterestsRequest):
     seen: set[str] = set()
     domains = [d for d in body.domains if not (d in seen or seen.add(d))]
 
-    repo = SettingsRepository()
-    old = repo.get(_INTEREST_KEY, [])
-    repo.set(_INTEREST_KEY, domains)
+    svc = SettingsService()
+    old = svc.get(_INTEREST_KEY, [])
+    svc.set(
+        _INTEREST_KEY,
+        domains,
+        actor=body.actor,
+        action="workbench.interests.set",
+        detail={"from": old, "to": domains},
+    )
 
     # DEV-0182: 画像变更影响兴趣引擎乘子 — 失效聚合缓存 (5min TTL 否则不刷新)
     from backend.services.interest_engine_service import InterestEngineService
 
     InterestEngineService.invalidate_cache()
-
-    from backend.observability_records import record_audit
-    record_audit(
-        actor=body.actor,
-        action="workbench.interests.set",
-        target=_INTEREST_KEY,
-        detail={"from": old, "to": domains},
-    )
 
     logger.info("interests set: {} -> {} (actor={})", old, domains, body.actor)
 

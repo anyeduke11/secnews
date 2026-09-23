@@ -511,6 +511,12 @@ Hotspot 是面向安全从业者的本地优先 AI 工作台，将经过门禁�
 
 没有通过门禁的资讯不能推荐事项；没有用户确认的草案不能成为 Case；没有证据或规定成果的事项不能宣称完成；执行器只能消费审批时冻结的策略快照。
 
+### 3.4 设置页能力（2026-09-22 IA 重构落账，DEV-0227）
+
+设置页 = 用户对系统可持久化偏好的低频写入口，纯配置心智（只读监控/数据浏览/一次性动作不混入）。侧栏 **7 cat / 5 组**：`overview`（总览）· `general`（通用：主题/模式/刷新/兴趣画像/能力开关）· `models`（模型配置唯一入口：Provider/密钥/模型池/三场景）· `collection`（采集与管线）· `network`（代理）· `connectivity`（同步/MCP/密钥状态）· `ops`（维护/导出/dsh 启停）。
+
+接口消费：GET `/api/settings/features`（16 gate 单源）、GET/PUT `/api/settings/mcp/*`（ungated 开关 + 配置）、GET/PUT `/api/settings/feature-gates*`（TOML 写入 + audit，env 覆盖 409）、settings kv 读写走 `SettingsService` 前缀契约（`collection./llm./interest./quality./feature./feature-gates./state./secrets.oauth_allowlist`，未注册前缀 fail-loud）。`webhook.secret` 已迁加密存储不入明文 KV；跨端 sync bundle 仅打包 config namespace（`settings_sync_allowed` 白名单）。详见 `docs/audit/PRD_ALIGNMENT_AUDIT_2026-09-23.md`。
+
 ## 第4章 系统架构设计
 
 ### 4.1 架构

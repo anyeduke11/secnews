@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 import tomllib
 from pathlib import Path
@@ -234,6 +235,82 @@ def get_extension_jobs(name: str) -> list[str]:
     return EXTENSION_JOBS.get(name, [])
 
 
+def extension_names() -> list[str]:
+    """全部扩展域名称 (含无 router 的 security_graph — 只占 job)。"""
+    return list(_EXTENSION_NAMES)
+
+
+def toml_explicit_keys() -> set[str]:
+    """feature_gates.toml 中显式声明过的扩展键集合 (source=toml 判定用)。"""
+    try:
+        with open(_GATES_PATH, "rb") as f:
+            raw = tomllib.load(f).get("extensions", {})
+    except Exception:
+        return set()
+    return {k for k in raw if k in _DEFAULT_GATES}
+
+
+def env_overrides() -> dict:
+    """解析 HOTSPOT_FEATURE_GATES env (JSON)。非法/缺失返回 {} (不走 TTL 缓存)。"""
+    env_json = os.environ.get("HOTSPOT_FEATURE_GATES")
+    if not env_json:
+        return {}
+    try:
+        data = json.loads(env_json)
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def set_toml_gate(name: str, enabled: bool) -> None:
+    """把某 gate 写回 feature_gates.toml — 文本级替换目标键行, 保留其余键与注释。
+
+    写前 ``.bak`` 备份一次; 成功后 reset_gates() 使热重载缓存立即失效。
+    未知 gate 抛 ValueError (调用方应先用 extension_names() 校验)。
+    """
+    if name not in _DEFAULT_GATES:
+        raise ValueError(f"unknown gate: {name}")
+    try:
+        text = _GATES_PATH.read_text(encoding="utf-8")
+    except OSError:
+        text = "[extensions]\n"
+    try:
+        _GATES_PATH.with_suffix(_GATES_PATH.suffix + ".bak").write_text(text, encoding="utf-8")
+    except OSError:  # pragma: no cover
+        _logger.warning("feature_gates.toml 备份失败, 继续写入")
+    new_line = f"{name} = {str(enabled).lower()}"
+    # 目标键行 (容忍缩进与行内注释) — 命中则原位替换, 未命中追加到 [extensions] 节尾
+    pattern = re.compile(
+        rf"^(\s*){re.escape(name)}\s*=\s*(?:true|false)(\s*#.*)?$", re.MULTILINE
+    )
+    if pattern.search(text):
+        new_text = pattern.sub(lambda m: f"{m.group(1)}{new_line}{m.group(2) or ''}", text)
+    else:
+        # 键行未命中 — 必须落进 [extensions] 节内, 而非盲目 append 文件尾
+        # (多节 TOML 时文件尾属于最后一个节, 如 [jobs], 键会写错节)。
+        lines = text.splitlines()
+        ext_idx = None       # 最后一次出现的 [extensions] 节头行号
+        next_section = None  # 该节之后第一个节头行号 (None = [extensions] 是最后一节)
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped == "[extensions]":
+                ext_idx = i
+                next_section = None
+            elif ext_idx is not None and stripped.startswith("[") and stripped.endswith("]"):
+                next_section = i
+                break
+        if ext_idx is None:
+            # 无 [extensions] 节 — 追加节头再插键
+            new_text = text.rstrip("\n") + "\n\n[extensions]\n" + new_line + "\n"
+        elif next_section is not None:
+            lines.insert(next_section, new_line)
+            new_text = "\n".join(lines) + "\n"
+        else:
+            new_text = text.rstrip("\n") + "\n" + new_line + "\n"
+    _GATES_PATH.write_text(new_text, encoding="utf-8")
+    reset_gates()
+
+
 def reset_gates() -> None:
     """清空缓存强制重读（测试用; Y-A2 起同时复位 TTL/mtime 状态）。"""
     global _GATES_CACHE, _GATES_MTIME_NS, _GATES_CHECKED_AT
@@ -246,9 +323,13 @@ __all__ = [
     "EXTENSION_JOBS",
     "EXTENSION_ROUTERS",
     "JOB_TO_EXTENSION",
+    "env_overrides",
+    "extension_names",
     "get_enabled_extensions",
     "get_extension_jobs",
     "get_extension_routers",
     "is_extension_enabled",
     "reset_gates",
+    "set_toml_gate",
+    "toml_explicit_keys",
 ]

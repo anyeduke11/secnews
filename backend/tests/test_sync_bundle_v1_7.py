@@ -584,3 +584,90 @@ def test_apply_deletions_removes_remote_deleted_records(db):
     assert not any(f.hotspot_id == "del-fav" for f in FavoriteRepository().list(limit=10))
     local_todos_after, _ = TodoRepository().list(limit=10)
     assert not any(getattr(t, "title", None) == "todo-to-delete" for t in local_todos_after)
+
+
+# ---------------------------------------------------------------------------
+# P3 Task 16 (settings-refactor): settings 跨端同步白名单化
+# ---------------------------------------------------------------------------
+def test_build_bundle_settings_whitelist(db):
+    """白名单语义: bundle 只含 collection./llm./interest./quality. 前缀 key。
+
+    运行状态 (state.* / scheduler.last_run 等旧 blocklist 键) 与敏感键
+    (webhook.secret, T15 前历史遗留) 永不进 bundle; 非 config 杂键同样排除。
+    """
+    from backend.repository.settings_repo import SettingsRepository
+    from backend.services.sync_bundle import build_bundle
+
+    sr = SettingsRepository()
+    sr.set("collection.refresh_interval_seconds", 300)
+    sr.set("llm.model", "gpt-x")
+    sr.set("interest.keywords", ["ai"])
+    sr.set("quality.threshold", 0.8)
+    # 旧 blocklist 4 键 + state.* + 敏感键 + 非 config 杂键
+    sr.set("scheduler.last_run", "t0")
+    sr.set("collector.last_run", "t0")
+    sr.set("trend.last_rebuild", "t0")
+    sr.set("sync_runtime_lock", "locked")
+    sr.set("state.mitre.synced_at", "t0")
+    sr.set("webhook.secret", "legacy-plaintext")
+    sr.set("theme", "dark")
+
+    bundle = build_bundle()["records"]["settings"]
+    assert bundle["collection.refresh_interval_seconds"] == 300
+    assert bundle["llm.model"] == "gpt-x"
+    assert bundle["interest.keywords"] == ["ai"]
+    assert bundle["quality.threshold"] == 0.8
+    for excluded in ("scheduler.last_run", "collector.last_run", "trend.last_rebuild",
+                     "sync_runtime_lock", "state.mitre.synced_at", "webhook.secret",
+                     "theme"):
+        assert excluded not in bundle, f"bundle 不应包含白名单外 key: {excluded}"
+
+
+def test_apply_bundle_skips_non_whitelisted_settings(db):
+    """合并侧: 旧设备 bundle 携带白名单外 key → skipped, 不落库 (pull 不被误覆盖)。"""
+    from backend.repository.settings_repo import SettingsRepository
+    from backend.services.sync_bundle import apply_bundle
+
+    now = "2026-09-23T00:00:00+00:00"
+    bundle = {
+        "version": BUNDLE_VERSION, "device_id": "legacy", "merged_at": now,
+        "records": {
+            "settings": {
+                "llm.model": "remote-model",
+                "webhook.secret": "stale-plaintext",
+                "scheduler.last_run": "stale",
+                "state.mitre.synced_at": "stale",
+                "theme": "remote-theme",
+            },
+        },
+    }
+    stats = apply_bundle(bundle)
+    assert stats["settings"]["written"] == 1
+    assert stats["settings"]["skipped"] == 4
+    sr = SettingsRepository()
+    assert sr.get("llm.model") == "remote-model"
+    assert sr.get("webhook.secret") is None
+    assert sr.get("scheduler.last_run") is None
+    assert sr.get("state.mitre.synced_at") is None
+    assert sr.get("theme") is None
+
+
+def test_apply_bundle_legacy_local_keys_not_cleared(db):
+    """升级设备 pull 时不被误清: bundle settings 缺席 ≠ 删除, 本地白名单外 key 原样保留。"""
+    from backend.repository.settings_repo import SettingsRepository
+    from backend.services.sync_bundle import apply_bundle
+
+    sr = SettingsRepository()
+    sr.set("webhook.secret", "local-legacy")
+    sr.set("scheduler.last_run", "local-run")
+    sr.set("state.mitre.synced_at", "local-state")
+
+    now = "2026-09-23T00:00:00+00:00"
+    bundle = {
+        "version": BUNDLE_VERSION, "device_id": "new", "merged_at": now,
+        "records": {"settings": {}},
+    }
+    apply_bundle(bundle)
+    assert sr.get("webhook.secret") == "local-legacy"
+    assert sr.get("scheduler.last_run") == "local-run"
+    assert sr.get("state.mitre.synced_at") == "local-state"

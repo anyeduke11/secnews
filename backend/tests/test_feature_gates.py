@@ -291,3 +291,51 @@ class TestExtensionsModule:
             assert extensions.is_extension_enabled("sync") is True  # TOML 值保留
         finally:
             extensions.reset_gates()
+
+
+class TestSetTomlGate:
+    """set_toml_gate 键行未命中时的插入位置 — 必须落 [extensions] 节内。"""
+
+    def test_appends_inside_extensions_section_not_file_tail(self, tmp_path, monkeypatch):
+        """多节 TOML ([extensions] + [jobs]): 新键落 [extensions] 节尾, 而非文件尾
+        (文件尾属于 [jobs] 节 — 盲目 append 曾把 gate 键写进别的节, TOML 语义错位)。"""
+        import backend.extensions as ext
+
+        toml_path = tmp_path / "feature_gates.toml"
+        toml_path.write_text(
+            "[extensions]\nsecnews = true\n\n[jobs]\nfoo = 1\n", encoding="utf-8"
+        )
+        monkeypatch.setattr(ext, "_GATES_PATH", toml_path)
+        ext.set_toml_gate("mcp", True)
+        text = toml_path.read_text(encoding="utf-8")
+        jobs_idx = text.index("[jobs]")
+        assert "mcp = true" in text[:jobs_idx], f"gate key leaked past [jobs]:\n{text}"
+        assert "foo = 1" in text[jobs_idx:]  # [jobs] 节原样保留
+        # 写回内容是合法 TOML 且读数生效 (清 conftest 全开 env, 隔离出 TOML 通路)
+        monkeypatch.delenv("HOTSPOT_FEATURE_GATES", raising=False)
+        ext.reset_gates()
+        assert ext.is_extension_enabled("mcp") is True
+
+    def test_creates_extensions_section_when_missing(self, tmp_path, monkeypatch):
+        """文件无 [extensions] 节时追加节头再插键 (不盲插文件尾)。"""
+        import backend.extensions as ext
+
+        toml_path = tmp_path / "feature_gates.toml"
+        toml_path.write_text("# empty config\n", encoding="utf-8")
+        monkeypatch.setattr(ext, "_GATES_PATH", toml_path)
+        ext.set_toml_gate("sync", False)
+        text = toml_path.read_text(encoding="utf-8")
+        assert "[extensions]" in text
+        assert "sync = false" in text
+
+    def test_appends_to_file_tail_when_extensions_is_last_section(self, tmp_path, monkeypatch):
+        """[extensions] 为最后一节时仍插文件尾 (行为不变, 显式锚定)。"""
+        import backend.extensions as ext
+
+        toml_path = tmp_path / "feature_gates.toml"
+        toml_path.write_text("[extensions]\nmcp = false\n", encoding="utf-8")
+        monkeypatch.setattr(ext, "_GATES_PATH", toml_path)
+        ext.set_toml_gate("info_filter", True)
+        text = toml_path.read_text(encoding="utf-8")
+        assert "mcp = false" in text
+        assert "info_filter = true" in text

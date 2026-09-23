@@ -8,14 +8,12 @@
  *  - 全部走 settings-shell.css 的 st-* 原子样式
  *
  * 历史: v0.6.x 原 SettingsPanel.tsx 1065 行; v0.7.0 拆 12 文件; V2 拆 5 子组件 + 哨兵化
+ * 2026-09-22 IA 重构: Provider/密钥/场景模型面板迁出至 ModelsSettings (模型配置唯一入口), 本组件只留质量规则与 LLM 检测。
  */
 import { useState, useEffect } from 'react';
 import { getJSON } from '../../lib/api';
-import { ProviderPanel } from './quality/ProviderPanel';
-import { SecretsPanel } from './quality/SecretsPanel';
 import { LlmDetectionPanel } from './quality/LlmDetectionPanel';
 import { QualityRulesPanel } from './quality/QualityRulesPanel';
-import { ScenarioModelsPanel } from './ScenarioModelsPanel';
 import type { QualityRule } from './quality/QualityRulesPanel';
 
 interface QualitySettingsProps {
@@ -26,9 +24,6 @@ const FALLBACK_PROVIDERS = ['sensenova', 'ollama'];
 
 export function QualitySettings({ open }: QualitySettingsProps) {
   const [providerOptions, setProviderOptions] = useState<string[]>(FALLBACK_PROVIDERS);
-  const [defaultProvider, setDefaultProvider] = useState('sensenova');
-  const [providerSource, setProviderSource] = useState<string>('default');
-  const [keySource, setKeySource] = useState<string>('none');
   const [rules, setRules] = useState<QualityRule[]>([]);
   const [llmEnabled, setLlmEnabled] = useState(false);
   const [llmProvider, setLlmProvider] = useState('sensenova');
@@ -48,42 +43,21 @@ export function QualitySettings({ open }: QualitySettingsProps) {
       .catch(() => { /* 子组件自己 fallback */ });
   }, [open]);
 
-  // 拉 /api/llm/status — 给 ProviderPanel 喂 providerOptions / defaultProvider / source
+  // 拉 /api/llm/status — 给 LlmDetectionPanel 喂 providerOptions
   useEffect(() => {
     if (!open) return;
     getJSON<{
       providers?: Record<string, unknown>;
-      effective_provider?: unknown;
-      config_source?: unknown;
-      key_source?: unknown;
     }>('/api/llm/status')
       .then(data => {
         const ps = data.providers ? Object.keys(data.providers) : [];
         if (ps.length > 0) setProviderOptions(ps);
-        if (typeof data.effective_provider === 'string' && data.effective_provider) {
-          setDefaultProvider(data.effective_provider);
-        }
-        if (typeof data.config_source === 'string') setProviderSource(data.config_source);
-        if (typeof data.key_source === 'string') setKeySource(data.key_source);
       })
       .catch(() => { /* keep fallback */ });
   }, [open]);
 
   return (
     <div className="space-y-3" data-testid="quality-settings">
-      <ProviderPanel
-        providerOptions={providerOptions}
-        defaultProvider={defaultProvider}
-        providerSource={providerSource}
-        onChange={setDefaultProvider}
-        onSource={setProviderSource}
-      />
-      <SecretsPanel providerOptions={providerOptions} initialKeySource={keySource} />
-      <section className="st-section" aria-label="场景模型选择" data-testid="scenario-models-section">
-        <h3>🎯 场景模型选择 (深度 / 轻度 / 图片)</h3>
-        <p className="st-section-desc">三场景模型选择 — 与 /settings?cat=image_models 同源。</p>
-        <ScenarioModelsPanel scope="settings-scenario" />
-      </section>
       <LlmDetectionPanel
         initialEnabled={llmEnabled}
         initialProvider={llmProvider}

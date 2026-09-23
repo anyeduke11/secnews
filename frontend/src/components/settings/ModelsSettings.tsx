@@ -3,7 +3,7 @@
  *
  * 装配: ProviderPanel (provider 切换) + SecretsPanel (LLM 密钥 CRUD)
  *      + LlmPoolCard (模型池状态, /api/llm/status) + ScenarioModelsPanel (三场景)。
- * 来源: 原 collection 内嵌 Provider/Secrets 面板 + pipeline 模型档位 + image_models cat, 按裁决归一。
+ * 来源: 原采集分区 Provider/Secrets 面板 + 采集模型档位 + 旧图片模型 cat, 按裁决归一。
  * 数据流与原 QualitySettings 相同: 本组件拉 /api/llm/status 后以 props 喂 ProviderPanel/SecretsPanel。
  */
 import { useEffect, useState } from 'react';

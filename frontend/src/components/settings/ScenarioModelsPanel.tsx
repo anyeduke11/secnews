@@ -1,10 +1,9 @@
 /**
  * ScenarioModelsPanel — 三场景模型配置面板 (V2 哨兵化)
  *
- * 单一来源 UI 组件,被两个入口复用:
- *   1. /settings?cat=image_models → SettingsPage 主区 (image 场景一等入口)
- *   2. /settings?cat=collection   → QualitySettings 子面板
- *   (ImageStudio 路由已下线, lazy-imports 已 unexport — 历史薄壳仅存注释层)
+ * 单一来源 UI 组件, 挂载于:
+ *   /settings?cat=models → ModelsSettings 主区 (image 场景一等入口)
+ *   (旧图片工作室路由与质量设置双入口已随 2026-09-22 IA 重构收敛)
  *
  * 数据契约: POST /api/settings/scenario-model {scenario, model, actor}
  *   → 响应 {status, scenario, old_model, new_model}
@@ -31,7 +30,7 @@ export interface ScenarioModelsPanelProps {
   scope?: string;
   /** 保存成功回调 (用于跨页同步提示) */
   onSaved?: (scenario: Scenario, oldModel: string | null, newModel: string) => void;
-  /** 紧凑模式: 不显示标题/描述, 仅输入行 (供 ImageStudio 嵌入复用) */
+  /** 紧凑模式: 不显示标题/描述, 仅输入行 (供嵌入复用) */
   compact?: boolean;
 }
 

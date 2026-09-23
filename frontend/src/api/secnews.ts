@@ -4,7 +4,7 @@
  * 只收录 ≥2 个组件共用的端点; 单组件专用的 URL 在组件内常量化。
  * 复用 lib/api 统一封装, 非 2xx 抛 ApiError (含 status, 供 404 gate 分支)。
  *
- *   - GET /api/secnews/pipeline            → getSecNewsPipeline   (PipelineSettings · PipelineView)
+ *   - GET /api/secnews/pipeline            → getSecNewsPipeline   (PipelineView · KLQueueCard)
  *   - GET /api/kl/pipeline/stats           → getKlPipelineStats   (TokenLedger · StatusBar)
  *   - GET /api/observability/summary       → getObservabilitySummary (ObservabilityDashboard · StatusBar)
  *   - GET /api/observability/alerts/active → getActiveAlerts      (ActiveAlertsBanner · StatusBar)

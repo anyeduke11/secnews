@@ -20,9 +20,6 @@ export const SentinelActionPage = React.lazy(() =>
 export const SentinelGardenPage = React.lazy(() =>
   import('../components/sentinel/SentinelGardenPage').then(m => ({ default: m.SentinelGardenPage }))
 );
-export const SentinelSettingsPage = React.lazy(() =>
-  import('../components/sentinel/SentinelSettingsPage').then(m => ({ default: m.SentinelSettingsPage }))
-);
 
 // 全局工具页
 export const SettingsPage = React.lazy(() =>
@@ -139,9 +136,9 @@ export const SecNewsKnowledge = React.lazy(() =>
 export const SecNewsAnalyze = React.lazy(() =>
   import('../components/secnews/analyze/SecNewsAnalyze').then(m => ({ default: m.SecNewsAnalyze }))
 );
-// v0.7.x SettingsHub: SecNewsImage + SecNewsSettings 已删除 (功能并入 /settings)
+// v0.7.x SettingsHub: 图片模型页与采集设置页已并入 /settings;
 // 旧路由 /secnews/image 与 /secnews/settings 在 index.tsx 用 Navigate 永久 redirect,
-// 此处不再 export。ImageStudio.tsx 文件保留为 deprecated 标记, 但路由层不可达。
+// 对应源文件已物理删除, 此处无 lazy export。
 export const SecNewsAnalytics = React.lazy(() =>
   import('../components/secnews/analytics/SecNewsAnalytics').then(m => ({ default: m.SecNewsAnalytics }))
 );

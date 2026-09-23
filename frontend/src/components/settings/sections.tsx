@@ -6,13 +6,13 @@
  *
  * overview   — 总览: 体检 + 版本/运行状态 + 跳转 (原 dashboard+about)
  * general    — 通用: 主题/模式/刷新/兴趣画像/能力开关 (原 general + sentinel tab2)
- * models     — 模型配置: LLM Provider/密钥/模型池/三场景 (新, 收 image_models+pipeline 模型部分)
+ * models     — 模型配置: LLM Provider/密钥/模型池/三场景 (新, 收旧图片模型+采集模型档位)
  * collection — 采集与管线: 信源/质量规则/调度/KL 队列/资讯门禁
  * network    — 网络: 代理
  * connectivity — 集成与凭据: 同步/MCP/密钥状态
  * ops        — 运维: 维护/导出动作/dsh 启停
  *
- * 旧 cat 映射: dashboard→overview · image_models/pipeline(模型)→models · pipeline(队列)→collection
+ * 旧 cat 映射: dashboard→overview · 旧图片模型/采集(模型部分)→models · 采集(队列)→collection
  *             sync/integration/secrets→connectivity · maintenance/export→ops · about→overview
  *             sentinel→general(能力开关) · feedback/knowledge/alerts→已删除
  */

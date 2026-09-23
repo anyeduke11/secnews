@@ -2,7 +2,7 @@
  * SourceItem — 单条自定义信源渲染 (Sentinel V2)。
  *
  * V2 token: --sn-ink / --sn-ink-3 / --sn-mint / --sn-red / --sn-bg-hover
- * 嵌入 SourceSettings (PipelineSettings 信源管理) 中使用.
+ * 嵌入 SourceSettings (采集信源管理) 中使用.
  */
 export interface SourceItemData {
   id: number;

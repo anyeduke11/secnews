@@ -1,4 +1,4 @@
-/** KLQueueCard — KL 队列只读卡 (自 PipelineSettings 拆出) */
+/** KLQueueCard — KL 队列只读卡 (自采集配置拆出) */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { KLQueueCard } from './KLQueueCard';

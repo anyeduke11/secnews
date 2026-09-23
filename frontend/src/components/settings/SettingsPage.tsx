@@ -4,12 +4,12 @@
  * v0.7.x SettingsHub V2:
  *  - 头部双列 st-head (标题 / 副标题 / 状态徽章 / 操作)
  *  - sidebar 改 st-sidenav-item (图标 + 标签 + 描述 + 状态点)
- *  - 默认 cat=overview (哨兵式首屏体检: 8 张 st-tile 跳转 + 4 系统子状态)
+ *  - 默认 cat=overview (哨兵式首屏体检: 6 张 st-tile 跳转 + 系统子状态)
  *  - 各区段 (7 cat) 共享 .settings-shell 作用域, 借 settings-shell.css 的
  *    --sn-* token 与 st-rule / st-card / st-chip 等原子样式
  *
  * 历史: v0.6.x 原 SettingsPage.tsx 1065 行; v0.7.0 拆 12 文件;
- *       v0.7.x SettingsHub 合并 PipelineSettings / SentinelSettingsPage / ImageStudio;
+ *       v0.7.x SettingsHub 合并采集/哨兵设置与图片模型三页;
  *       V2 引入 dashboard 首屏 + 全页面哨兵化;
  *       v0.8 P1 新增 info_filter (独立资讯筛选门禁) → 7 cat.
  */

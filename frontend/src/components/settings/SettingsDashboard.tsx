@@ -215,7 +215,7 @@ export function SettingsDashboard({ onJump }: Props) {
         </article>
       </section>
 
-      {/* 8 区段快速跳转 — st-tilegrid */}
+      {/* 6 区段快速跳转 — st-tilegrid */}
       <section aria-label="区段跳转">
         <h3 style={{ fontFamily: 'var(--sn-mono)', fontSize: 'var(--sn-fs-h3)', fontWeight: 500, margin: '4px 0 8px', color: 'var(--sn-ink)' }}>
           快速跳转

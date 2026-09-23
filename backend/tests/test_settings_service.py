@@ -5,8 +5,8 @@
 - set 成功写 audit_log (默认 action=settings.set; 可定制 actor/action/detail)
 - R3: backend/api/settings.py 不再 import settings_repo (api 层禁直连 repository)
 - P3 namespace 契约 (设计稿 §5): 未注册前缀写入 fail-loud; state.* 例外清单
-  与精确键 (secrets.oauth_allowlist) 放行; webhook.secret 迁移完成前过渡放行
-  (Task 15 落地 _DISALLOWED_EXACT 后翻转为 raises)。
+  与精确键 (secrets.oauth_allowlist) 放行; webhook.secret 已迁 vault 后经
+  _DISALLOWED_EXACT 禁止明文回写 (Task 15)。
 """
 from __future__ import annotations
 
@@ -125,8 +125,7 @@ class TestNamespacePrefixContract:
     - 未注册前缀 (webhook.subject) → InvalidParamException (Task 12 放行锚点已翻转)
     - state.* 例外清单 (mitre 位点/dsh 模式等既有运行状态 key) → 放行
     - 精确键 secrets.oauth_allowlist → 放行 (OAuth 白名单既有存储位)
-    - webhook.secret → 迁移完成前过渡放行; Task 15 迁 vault 后经
-      _DISALLOWED_EXACT 禁止明文回写 (见 test_webhook_secret_exact_key)。
+    - webhook.secret → 已迁 vault (Task 15), 经 _DISALLOWED_EXACT 禁止明文回写
     """
 
     def test_unregistered_prefix_raises(self, temp_db):
@@ -163,9 +162,16 @@ class TestNamespacePrefixContract:
         svc.set("interest.practice_domains", ["sec"])
         svc.set("quality.threshold", 0.8)
 
-    def test_webhook_secret_allowed_before_vault_migration(self, temp_db):
-        """P3 两步走锚点: Task 14 立契约时 webhook.secret 仍是合法明文存储位
-        (迁移未完成, 须保持可写); Task 15 迁 vault 后翻转为 raises。"""
+    def test_webhook_secret_exact_key_disallowed(self, temp_db):
+        """P3 两步走收口: webhook.secret 已迁 llm_secrets 加密存储 (Task 15),
+        settings 明文回写通道永久关闭。
+
+        webhook. 前缀本就未注册 (会被 startswith 检查拒绝), _DISALLOWED_EXACT
+        为防御性双保险 — 防未来有人把 webhook. 登记进前缀后明文键复活。
+        """
+        from backend.exceptions import InvalidParamException
+
         svc = SettingsService()
-        svc.set("webhook.secret", "legacy-plaintext")
-        assert svc.get("webhook.secret") == "legacy-plaintext"
+        with pytest.raises(InvalidParamException, match=r"webhook\.secret"):
+            svc.set("webhook.secret", "should-not-persist")
+        assert svc.get("webhook.secret") is None

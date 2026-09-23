@@ -16,14 +16,14 @@ from backend.repository.settings_repo import SettingsRepository
 
 # settings 表 namespace 契约 (2026-09-22 P3, 设计稿 §5): 写入必须落在已注册前缀内。
 # state.* = 运行状态例外清单 (mitre 同步位点/dsh 模式等既有 key, 只读迁移不硬改)。
-# secrets.oauth_allowlist / webhook.secret = 精确键混入 (前者 OAuth 白名单既有存储位;
-# 后者 vault 迁移完成前过渡放行, Task 15 落地后移入 _DISALLOWED_EXACT)。
+# secrets.oauth_allowlist = 精确键混入 (OAuth 白名单既有存储位)。
 _ALLOWED_PREFIXES = (
     "collection.", "llm.", "interest.", "quality.", "feature.",
-    "feature-gates.", "state.", "secrets.oauth_allowlist", "webhook.secret",
+    "feature-gates.", "state.", "secrets.oauth_allowlist",
 )
-# Task 15 迁移 webhook.secret 后填 {"webhook.secret"} — 明文回写通道永久关闭。
-_DISALLOWED_EXACT: set[str] = set()
+# Task 15 (设计稿 §5): webhook.secret 已迁 llm_secrets 加密存储, 明文回写通道
+# 永久关闭。webhook. 前缀本就未注册, 此处为防御性双保险 (防未来前缀登记复活)。
+_DISALLOWED_EXACT: set[str] = {"webhook.secret"}
 
 
 class SettingsService:

@@ -67,3 +67,17 @@
 4. `backend/api/quality.py` 直连 repo 病灶**记遗留未动**。
 5. Feature Gates 无路由级热生效（TOML 5s TTL 影响运行时读数；路由/job 注册保持启动快照，UI 明示）。
 6. sync 白名单为行为变更：白名单外既有自定义 key（如有）自此不再跨端同步——属裁决意图（仅 config namespace 跨端），升级侧无数据丢失（本地键保留，见 §3.4）。
+
+### 终审 parked minors (2026-09-23)
+
+全分支终审与批次审查 parked 的遗留项（均非缺陷或既有行为，留痕备查）:
+
+1. `README.md:70` / `PROJECT.md` 存量架构数字陈旧（86/146），待 meta 收口批。
+2. `backend/api/settings.py` 文件末尾无换行符（pre-existing）。
+3. settings_service 前缀契约：`secrets.oauth_allowlist` 以 startswith 实现放行变体键（无写点无实害）。
+4. `scripts/fix_webhook_secret_to_vault.py`：`_vault_has_entry` 只查存在性不比对值；无专门自动化测试。
+5. `extensions.env_overrides` 只认 `{"extensions":{...}}` 包装，顶层裸键时 409 判定失明。
+6. settings kv toggle 覆盖写入后永久优先于 env 且无清除路径（与 refresh-interval 先例同款，有意设计已在 main.py 注释）。
+7. `SettingsService.set` 默认 detail `{from,to}` 明文入 audit_log——现有键集安全，登记新前缀时需防敏感键旁路（settings_service.py 已有警示注释）。
+8. `set_toml_gate` 对 `[ extensions ]` 空格变体节头会误建重复节（既有行为，仓库 TOML 规范格式不触发）。
+9. `webhook.secret` 迁移：存量部署需跑 `scripts/fix_webhook_secret_to_vault.py --execute` 完成真实迁移（本机无旧键，脚本幂等）。

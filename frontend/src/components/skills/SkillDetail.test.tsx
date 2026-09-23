@@ -122,9 +122,12 @@ describe('SkillDetail', () => {
     expect(apiFetch).toHaveBeenCalledWith('/api/skill-registry/weekly-top-events', {
       skipLoading: true,
     });
-    expect(apiFetch).toHaveBeenCalledWith(
-      '/api/skill-registry/weekly-top-events/runs?limit=20',
-      { skipLoading: true }
+    // runs 是 detail 渲染后的二级异步请求 — waitFor 等它发出 (全量并发下裸断言会时序 flake)
+    await waitFor(() =>
+      expect(apiFetch).toHaveBeenCalledWith(
+        '/api/skill-registry/weekly-top-events/runs?limit=20',
+        { skipLoading: true }
+      )
     );
   });
 

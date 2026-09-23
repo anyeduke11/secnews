@@ -39,7 +39,8 @@ describe('ModelsSettings — 模型配置区', () => {
   it('装配: 密钥面板 + 模型池 + provider 状态可见', async () => {
     render(<ModelsSettings />);
     await waitFor(() => expect(screen.getByText('模型池')).toBeInTheDocument());
-    expect(screen.getByText(/deepseek-v4-pro/)).toBeInTheDocument();
+    // 模型池标题先渲染, 池内容 (deepseek 模型) 异步到达 — 需 waitFor (全量并发下裸断言会时序 flake)
+    await waitFor(() => expect(screen.getByText(/deepseek-v4-pro/)).toBeInTheDocument());
     await waitFor(() => expect(screen.getByTestId('secrets-panel')).toBeInTheDocument());
     // 四卡之 provider 卡: st-section aria-label 即可访问名
     expect(screen.getByRole('region', { name: '默认 LLM Provider' })).toBeInTheDocument();

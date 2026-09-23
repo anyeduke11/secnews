@@ -1,4 +1,18 @@
 
+## [DEV-0227] 设置页 IA 重构收口 (P1-P3): 17→7 cat + settings namespace 治理 + sync bundle 白名单化
+- **时间**: 2026-09-23
+- **类型**: 重构收口 (设置页信息架构 + 后端病灶修正 + 表治理)
+- **关联模块**: `frontend:settings`, `backend:settings-api`, `backend:sync`, `backend:mcp`
+- **关联文件**:
+  - 计划/设计: `docs/superpowers/plans/2026-09-22-settings-refactor.md` (Task 1-17) + `docs/superpowers/specs/2026-09-22-settings-refactor-design.md`
+  - 文档落账 (本条): `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` (§3.4 设置页能力段) + `docs/v0.8.5/V0.8.5_PLAN.md` (§6.6 settings 端点行 + 修订注⑤, 修正"17 分区"漂移) + `docs/audit/PRD_ALIGNMENT_AUDIT_2026-09-23.md` (新建审计留痕)
+  - 前端 (P1): `settings/sections.tsx` 重写 17 cat→7 cat/5 组; SettingsPage 装配; FeatureGatesCard / ModelsSettings / ExportActionsCard / SettingsDashboard 新或改造; 删除 8 定位不符组件 12 文件 (FeedbackSettings/KnowledgeSettings/AlertSettings/AboutSettings/ExportSettings/PipelineSettings/AgentRunnerCard/SentinelSettingsPage/ImageStudio); redirect 3 条 (/sentinel/settings→general, /secnews/image→models, /secnews/settings→collection); ROUTE_REGISTRY.md 分区数对齐
+  - 后端 (P2): `mcp_settings_api.py` (新, GET mcp/config + PUT mcp/enabled, ungated, kv feature.mcp 持久化) + `settings_flags_api.py` (新, GET/PUT feature-gates, TOML 写 + audit + env 覆盖 409) + `settings.py` 走 settings_service (写审计 target 契约) + features 16 键单源; mcp.py 旧内嵌 toggle 端点删除; routers 87→89 / services 147→148 (generate_meta 同步)
+  - 后端 (P3): `settings_service.py` prefix 契约 fail-loud (_ALLOWED_PREFIXES 8 前缀 / _DISALLOWED_EXACT=webhook.secret) + `webhook.secret` 迁 SecretsService 加密存储 (trigger 读点 find_internal_by_name + fix 脚本 --dry-run) + **sync bundle settings 白名单化** (`sync_service_constants.settings_sync_allowed` 前缀 collection./llm./interest./quality.; SETTINGS_BLOCKLIST 4 键黑名单反转; sync_bundle 读取/合并侧 + sync_merge 三处副本收敛, sync_service 死副本删除)
+- **实现思路**: 三期独立交付 (P1 前端 IA → P2 后端端点 → P3 表治理), 每期独立回归; sync 白名单与 settings_service 写入契约语义对齐但更窄 (state.*/feature.*/secrets.* 不跨端), 防未来敏感键误同步; 旧 bundle 白名单外键 apply 侧 skip 不落库、bundle settings 缺席 ≠ 删除 (升级设备 pull 不被误覆盖/误清, 测试锚定); WebDAV zip 容器 + Fernet 信封格式未动, ai_hub 调用链未动
+- **测试验证**: T16 定向 `pytest -k "sync or settings" -q` **365 passed / 0 failed**; 后端全量 `pytest backend/tests/ -q` **4715 passed / 9 skipped / 0 failed** (29m21s); 前端 `tsc --noEmit` 0 错 / `vitest run` **85 文件全绿** / `vite build --logLevel error` OK; `generate_meta --check` OK (89 routers / 148 services); ruff 触碰文件 0 告警。收口顺带修复 3 处负载敏感 flake (均为异步断言竞态, 非产品缺陷): ModelsSettings 模型池内容裸断言→waitFor / SkillDetail 二级 runs 请求裸断言→waitFor / realtime 真实定时器 80ms 节流窗负载击穿→800ms 窗 + 900ms sleep 裕度
+- **潜在风险**: ①sync 白名单为行为变更——白名单外既有自定义 kv (如有) 自此不再跨端, 属"仅 config namespace 跨端"裁决意图, 本地键保留无丢失; ②feature-gates PUT 写 TOML 依赖文件可写, 只读部署场景 409/500 需 UI 提示兜底; ③`/settings` redirect 旧链 (sentinel/secnews) 已覆盖, 若存在站外书签到更细旧 cat (如 ?cat=feedback) 落到 7 cat 默认视图, 无功能损失
+
 ## [DEV-0226] main 采集能力异常三层根因修复: 进程残留 + main 库 schema 漂移 + lifespan 阻塞
 - **时间**: 2026-09-21
 - **类型**: bug 修复 (第一性原理排查)

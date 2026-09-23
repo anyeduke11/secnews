@@ -101,14 +101,14 @@ def test_mcp_tools_endpoint(temp_db):
 
 
 def test_toggle_mcp_enabled(temp_db):
-    """PUT /api/settings/mcp/enabled 切换 feature.mcp_server."""
+    """PUT /api/settings/mcp/enabled 切换 feature.mcp_server (P2: 端点迁 mcp_settings_api)."""
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
-    from backend.api.mcp import router as mcp_router
+    from backend.api.mcp_settings_api import router as mcp_settings_router
 
     app = FastAPI()
-    app.include_router(mcp_router)
+    app.include_router(mcp_settings_router)
     client = TestClient(app)
 
     # 关闭

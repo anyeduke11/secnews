@@ -67,24 +67,36 @@ def enabled_names(names: Iterable[str] | None = None) -> list[str]:
 
 
 def disable(name: str) -> bool:
-    """运行时关闭某 flag (返回是否成功, 仅影响本进程的 config 单例).
-
-    注意: 这是单进程行为, 不会持久化到 .env.
-    """
+    """运行时关闭某 flag: config 单例立即生效 + settings kv 持久化 (重启回读)。"""
     attr = f"feature_{name}"
     if not hasattr(config, attr):
         return False
     setattr(config, attr, False)
+    _persist(name, False)
     return True
 
 
 def enable(name: str) -> bool:
-    """运行时启用某 flag (返回是否成功, 仅影响本进程的 config 单例)."""
+    """运行时启用某 flag: config 单例立即生效 + settings kv 持久化 (重启回读)。"""
     attr = f"feature_{name}"
     if not hasattr(config, attr):
         return False
     setattr(config, attr, True)
+    _persist(name, True)
     return True
+
+
+def _persist(name: str, value: bool) -> None:
+    """写 settings kv ``feature.<name>`` (config.feature_<name> 的 kv 镜像, main.py 启动回读)。
+
+    失败仅告警 — 即时生效不因持久化失败回滚。
+    """
+    try:
+        from backend.repository.settings_repo import SettingsRepository
+
+        SettingsRepository().set(f"feature.{name}", value)
+    except Exception as e:  # pragma: no cover
+        logger.warning("feature flag persist failed for %s: %s", name, e)
 
 
 __all__ = ["disable", "enable", "enabled_names", "is_enabled"]

@@ -1,9 +1,11 @@
-"""v1.7 Phase 7 — MCP Server 调试端点 + Settings 端点.
+"""v1.7 Phase 7 — MCP Server 调试端点.
 
 - GET  /api/mcp/status               MCP server 状态 (enabled/transport/tools_count)
 - GET  /api/mcp/tools                列出全部 tool 元数据 (数量以 MCP_TOOLS 为准, 当前 19)
-- GET  /api/settings/mcp/config      返回 MCP 端点 + 复制配置 JSON
-- PUT  /api/settings/mcp/enabled     切换 feature.mcp_server 开关
+
+历史注记 (2026-09-22 设置重构 P2): 原 GET /api/settings/mcp/config 与
+PUT /api/settings/mcp/enabled 两设置端点已迁往 ungated 的 mcp_settings_api.py
+(extensions.mcp=false 时仍可达, 解自锁); 本文件仅余 /api/mcp/* 调试端点。
 """
 from __future__ import annotations
 
@@ -11,28 +13,17 @@ import logging
 import os
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 
 from backend.api.mcp_config import (
     is_mcp_enabled,
     is_sse_mounted,
     list_mcp_tools_from_db,
 )
-from backend.services.feature_flag_service import disable, enable
 from backend.version import APP_VERSION as API_VERSION
 
 log = logging.getLogger("hotspot.api.mcp")
 
 router = APIRouter(prefix="/api", tags=["mcp"])
-
-
-# ---------------------------------------------------------------------------
-# 响应模型
-# ---------------------------------------------------------------------------
-class ToggleEnabledRequest(BaseModel):
-    """切换 feature.mcp_server。"""
-
-    enabled: bool
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +71,7 @@ async def mcp_tools():
 
 
 # ---------------------------------------------------------------------------
-# /api/settings/mcp/config — 返回给前端 MCPSettingsCard 用
+# build_mcp_config_payload — mcp_settings_api.get_mcp_config 的组装体
 # ---------------------------------------------------------------------------
 def _build_stdio_config() -> dict:
     """构造 stdio transport 配置 (Claude Desktop / Trae / Cursor / Workbuddy 用)。"""
@@ -107,14 +98,8 @@ def _build_sse_config(host: str = "127.0.0.1", port: int = 8000) -> dict:
     }
 
 
-@router.get("/settings/mcp/config")
-async def get_mcp_config():
-    """返回 MCP 端点 + 4 个 AI Agent 的 settings.json 示例 (复制用)。"""
-    if not is_mcp_enabled():
-        raise HTTPException(
-            status_code=404,
-            detail={"message": "MCP server is disabled"},
-        )
+def build_mcp_config_payload() -> dict:
+    """MCP 端点 + 4 个 AI Agent 的 settings.json 示例 (复制用)。"""
     tools = list_mcp_tools_from_db(enabled_only=False)
     read_tools = [t["name"] for t in tools if t["category"] == "read"]
     write_tools = [t["name"] for t in tools if t["category"] == "write"]
@@ -132,19 +117,4 @@ async def get_mcp_config():
     }
 
 
-# ---------------------------------------------------------------------------
-# /api/settings/mcp/enabled — 切换 feature.mcp_server
-# ---------------------------------------------------------------------------
-@router.put("/settings/mcp/enabled")
-async def toggle_mcp_enabled(req: ToggleEnabledRequest):
-    """切换 feature.mcp_server 开关 (重启后生效)。"""
-    ok = enable("mcp") if req.enabled else disable("mcp")
-    return {
-        "version": API_VERSION,
-        "enabled": req.enabled,
-        "applied": ok,
-        "note": "重启 hotspot 后生效",
-    }
-
-
-__all__ = ["router"]
+__all__ = ["router", "build_mcp_config_payload"]

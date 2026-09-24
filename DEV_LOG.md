@@ -1,4 +1,19 @@
 
+## [DEV-0228] 采集闭环优化: 观测修复 + 失效源自动退役 + 僵尸清理脚本 + 质量自适应 cadence
+- **时间**: 2026-09-24
+- **类型**: 功能增强 + 观测修复 (源生命周期闭环)
+- **问题描述**: 第一性诊断 (采集 = 最低成本持续供给过质量门的时效资讯): ① last_error 空错误存 'None' 字符串污染观测; ② 复活探测零产出污染 yield 口径; ③ dead 源无退役出口, P2 告警无动作; ④ cadence 与质量分脱钩; ⑤ 14 行从未 fetch 的僵尸注册行 + hotspots 测试残留。
+- **关联文件**:
+  - 计划: `docs/superpowers/plans/2026-09-24-collector-closedloop.md` (Task 1-5)
+  - 观测修复: `backend/services/source_health_machine.py` + `backend/services/source_prober.py` (last_error 空错误存 NULL; 探测零产出只重置 consecutive_failures 不抬 yield)
+  - 自动退役: `backend/services/source_revival_service.py` + `backend/repository/source_alert_repo.py` (dead>14d 且当日复活探测失败 → enabled=0/status='retired' + source_alerts P1 告警去重 (未解决不重复插行, bump created_at/detail); revival 候选排除 retired)
+  - 僵尸清理: `scripts/fix_source_registry_cleanup.py` (新, --dry-run 默认, 幂等) — 垃圾 hotspots 行 + unknown 僵尸注册行归档语义
+  - 质量自适应: `backend/repository/hotspot_repo.py` (get_recent_quality_stats 滑动窗口 avg(quality_score)) + `backend/repository/source_scheduler_repo.py` (get_schedulable 倍率 override) + `backend/services/source_scheduler_service.py` (avg≥75→0.5× / 40-75→1× / <40→2×, 夹取 [max(600s, base×0.25), base×4])
+  - 测试: `backend/tests/test_source_health_machine.py` / `test_source_prober.py` / `test_source_quality_cadence.py` / `test_fix_source_registry_cleanup.py`
+- **实现思路**: 只动调度/健康/闭环层, 不碰 13 collector 抓取本体与 ai_hub 调用链; 退役走归档语义 (retired + 可追溯告警) 不物理删; 倍率只作用于调度间隔, cadence 静态配置保持 base 可回退, stale/dead 判定口径不受倍率影响。
+- **测试验证**: 全量 `pytest backend/tests/ -q` **4773 passed / 9 skipped / 0 failed** (12m01s, 含本分支新增 58 用例); `generate_meta --check` OK (57 jobs / 13 collectors / 89 routers / 148 services 不变); ruff 触碰 12 文件 0 告警; `harness_analyze --check` 0 errors。
+- **潜在风险**: ①retired 重启路径实现为"可达即回 grace (零产出也算)", 与计划"可达+有产出"口径存在偏差 (parked minor); ②清理脚本未对生产库执行, 待 owner `--execute`; ③退役清单/倍率生效面待 03:00 job 自然周期后回填。
+
 ## [DEV-0227] 设置页 IA 重构收口 (P1-P3): 17→7 cat + settings namespace 治理 + sync bundle 白名单化
 - **时间**: 2026-09-23
 - **类型**: 重构收口 (设置页信息架构 + 后端病灶修正 + 表治理)

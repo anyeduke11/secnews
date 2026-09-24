@@ -37,6 +37,38 @@ class SourceAlertRepository:
         )
         return cur.lastrowid or 0
 
+    def upsert_dedup(self, alert: dict) -> tuple[str, int]:
+        """带去重的写入: 同 source_id+alert_type 已存在记录时 bump 而非新插。
+
+        采集闭环 T3: 病灶 — 同类告警重复积累 (实测 77 条 rejection_rate
+        P2)。存在未解决记录 (表无 resolved 列, 存在即视为未解决) 时不新插,
+        改为更新该行 message/detail/level 并 bump created_at。
+
+        Returns:
+            ("inserted" | "bumped", 行 id)
+        """
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT id FROM source_alerts "
+            "WHERE source_id = ? AND alert_type = ? "
+            "ORDER BY created_at DESC LIMIT 1",
+            (alert["source_id"], alert["alert_type"]),
+        ).fetchone()
+        if row is not None:
+            alert_id = int(row["id"])
+            conn.execute(
+                "UPDATE source_alerts SET level = ?, message = ?, detail = ?, "
+                "created_at = datetime('now') WHERE id = ?",
+                (
+                    alert.get("level", "P2"),
+                    alert["message"],
+                    alert.get("detail", ""),
+                    alert_id,
+                ),
+            )
+            return "bumped", alert_id
+        return "inserted", self.insert(alert)
+
     def list(
         self,
         source_id: str | None = None,

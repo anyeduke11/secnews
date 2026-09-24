@@ -8,10 +8,67 @@ import asyncio
 from datetime import datetime, timezone
 
 from backend.logging_config import logger
+from backend.repository.hotspot_repo import HotspotRepository
 from backend.repository.source_scheduler_repo import SourceSchedulerRepository
 from backend.services.source_health_machine import SourceHealthMachine
 
 _logger = logger.bind(component="source_scheduler_service")
+
+# ---------------------------------------------------------------------------
+# 采集闭环 T4: 质量自适应 cadence (纯函数, 便于测试)
+# ---------------------------------------------------------------------------
+QUALITY_WINDOW = 20        # 质量信号滑动窗口 (每源最近 N 条)
+QUALITY_MIN_SAMPLES = 5    # 窗口条数 < 5 → 无信号, 不调倍率
+QUALITY_FAST_AT = 75.0     # avg ≥ 75 → 0.5× (加密采集)
+QUALITY_SLOW_AT = 40.0     # avg < 40 → 2.0× (降频); 中间档 1.0×
+CADENCE_FLOOR_S = 600.0    # 调整后下限 (防打爆), 夹取区间下界分量
+
+
+def quality_cadence_multiplier(avg_quality: float | None, sample_count: int) -> float:
+    """质量分 → cadence 倍率映射 (纯函数)。
+
+    avg ≥ 75 → 0.5× (高质量加密采集); 40 ≤ avg < 75 → 1.0×;
+    avg < 40 → 2.0× (低质量降频)。窗口样本 < ``QUALITY_MIN_SAMPLES``
+    视为无信号, 恒 1.0×。
+    """
+    if avg_quality is None or sample_count < QUALITY_MIN_SAMPLES:
+        return 1.0
+    if avg_quality >= QUALITY_FAST_AT:
+        return 0.5
+    if avg_quality >= QUALITY_SLOW_AT:
+        return 1.0
+    return 2.0
+
+
+def clamp_adjusted_cadence(base_seconds: float, adjusted_seconds: float) -> float:
+    """倍率乘后夹取 [max(600, base×0.25), base×4] (纯函数, 防御性)。"""
+    low = max(CADENCE_FLOOR_S, base_seconds * 0.25)
+    high = base_seconds * 4.0
+    return min(high, max(low, adjusted_seconds))
+
+
+def build_cadence_overrides(
+    sources: list[dict], quality_stats: dict[str, dict]
+) -> dict[str, float]:
+    """由全量源行 + 每源质量信号构建 cadence override 表 (纯函数)。
+
+    key 对齐: ``quality_stats`` 以 ``hotspots.source`` (源名称) 为 key,
+    与 ``crawler_sources.name`` 匹配 (hotspots 入库口径); 返回表以
+    ``crawler_sources.id`` 为 key (调度口径)。无信号或倍率 1.0× 的源
+    不入表 → 调度回落 base cadence。
+    """
+    overrides: dict[str, float] = {}
+    for s in sources:
+        stat = quality_stats.get(str(s.get("name") or ""))
+        mult = quality_cadence_multiplier(
+            stat["avg_quality"] if stat else None,
+            stat["count"] if stat else 0,
+        )
+        if mult == 1.0:
+            continue
+        base = float(s.get("cadence_seconds") or 1800)
+        overrides[str(s["id"])] = clamp_adjusted_cadence(base, base * mult)
+    return overrides
 
 
 class SourceSchedulerService:
@@ -26,6 +83,7 @@ class SourceSchedulerService:
 
     def __init__(self, concurrency: int = 3):
         self.repo = SourceSchedulerRepository()
+        self.hotspot_repo = HotspotRepository()
         self.health_machine = SourceHealthMachine()
         self.concurrency = concurrency
         self._running: set[str] = set()
@@ -53,7 +111,19 @@ class SourceSchedulerService:
             return {"scheduled": 0, "succeeded": 0, "failed": 0, "skipped": 0, "source_results": []}
         
         now_iso = datetime.now(timezone.utc).isoformat()
-        candidates = self.repo.get_schedulable(limit=self.concurrency, now_iso=now_iso)
+        # 采集闭环 T4: 每源质量信号 → cadence 倍率, 仅作用于本次 due 计算
+        # (不回写 cadence_seconds 静态配置, 可回退)。
+        quality_stats = self.hotspot_repo.get_recent_quality_stats(
+            window=QUALITY_WINDOW
+        )
+        cadence_overrides = build_cadence_overrides(
+            self.repo.list_all(), quality_stats
+        )
+        candidates = self.repo.get_schedulable(
+            limit=self.concurrency,
+            now_iso=now_iso,
+            cadence_overrides=cadence_overrides,
+        )
         
         if not candidates:
             return {"scheduled": 0, "succeeded": 0, "failed": 0, "skipped": 0, "source_results": []}
@@ -153,7 +223,15 @@ def set_scheduler_service(svc: SourceSchedulerService) -> None:
 
 
 __all__ = [
+    "CADENCE_FLOOR_S",
+    "QUALITY_FAST_AT",
+    "QUALITY_MIN_SAMPLES",
+    "QUALITY_SLOW_AT",
+    "QUALITY_WINDOW",
     "SourceSchedulerService",
+    "build_cadence_overrides",
+    "clamp_adjusted_cadence",
     "get_scheduler_service",
+    "quality_cadence_multiplier",
     "set_scheduler_service",
 ]

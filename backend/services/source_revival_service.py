@@ -105,10 +105,26 @@ def list_dead_sources(dead_for_days: int = DEFAULT_DEAD_FOR_DAYS) -> list[dict]:
 
     repo = SourceStatsRepository()
     rows = repo.list_all()
+    # 已退役源 (T3 自动退役, crawler_sources 侧标记) 不再进入复活候选:
+    # 避免双轨脱节 — URL 恢复时 source_stats 被置 active 而 crawler 侧仍
+    # retired+enabled=0, 真正复活被 7d 探测冷却拖住。
+    retired_urls: set[str] = set()
+    try:
+        from backend.repository.crawler_source_repo import CrawlerSourceRepository
+
+        retired_urls = {
+            str(r["url"])
+            for r in CrawlerSourceRepository().list_all()
+            if str(r.get("status", "")) == "retired"
+        }
+    except Exception as e:  # registry 缺表/异常时退回旧行为, 不阻断复活轨
+        logger.debug(f"list retired urls skipped: {e}")
     cutoff = (datetime.now(timezone.utc) - timedelta(days=dead_for_days)).isoformat()
     out: list[dict] = []
     for r in rows:
         if str(r.get("status", "")) != "dead":
+            continue
+        if str(r.get("source_url", "")) in retired_urls:
             continue
         last_active = r.get("last_seen_at") or r.get("last_checked_at")
         if not last_active or str(last_active) > cutoff:

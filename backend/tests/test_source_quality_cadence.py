@@ -10,6 +10,10 @@
    不回写 cadence_seconds 静态配置 (可回退); 未命中 override 回落 base。
 5. stale 对齐: 健康机 stale 判定是连续失败次数口径, 无时间型阈值 —
    倍率拉长的抓取间隔 (最大 4×cadence) 不会误触 stale, 无需动态对齐。
+6. density T2 三信号复合: 倍率 = M_q × M_r × M_i 后仍夹取
+   [max(600, base×0.25), base×4]; 零命中×高质量 = 1.4×0.5 = 0.7 仍加密
+   (裁决②质量豁免由复合结构自然给出); 各信号样本不足恒 1.0×;
+   未配置关注域 M_i 恒 1.0; 既有 T4 单乘子用例零回归。
 
 执行:
     python -m pytest backend/tests/test_source_quality_cadence.py -v
@@ -25,14 +29,19 @@ from backend.config import config
 from backend.repository import db
 from backend.repository.db import get_connection
 from backend.repository.hotspot_repo import HotspotRepository
+from backend.repository.settings_repo import SettingsRepository
 from backend.repository.source_scheduler_repo import SourceSchedulerRepository
 from backend.services.source_health_machine import STALE_THRESHOLD, SourceHealthMachine
 from backend.services.source_scheduler_service import (
+    INTEREST_MIN_SAMPLES,
     QUALITY_WINDOW,
+    REJECTION_MIN_ATTEMPTS,
     SourceSchedulerService,
     build_cadence_overrides,
     clamp_adjusted_cadence,
+    interest_cadence_multiplier,
     quality_cadence_multiplier,
+    rejection_cadence_multiplier,
 )
 
 
@@ -77,6 +86,7 @@ def _insert_hotspot(
     hid: str,
     source: str,
     *,
+    title: str | None = None,
     quality_score: int = 100,
     published_at: str | None = None,
     ingested_at: str | None = None,
@@ -93,7 +103,7 @@ def _insert_hotspot(
         """,
         (
             hid,
-            f"item {hid}",
+            title or f"item {hid}",
             "",
             source,
             f"https://example.com/{hid}",
@@ -105,6 +115,27 @@ def _insert_hotspot(
             quality_score,
             "[]",
             ingested_at or now.isoformat(),
+        ),
+    )
+
+
+def _insert_rejection(source_name: str, created_at: str | None = None) -> None:
+    """quality_rejection_log.source_id 列实存源名称 (quality_hook 口径)。"""
+    now = datetime.now(timezone.utc)
+    conn = get_connection()
+    conn.execute(
+        """
+        INSERT INTO quality_rejection_log
+            (source_id, item_title, item_url, rejected_by, reason, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            source_name,
+            "rejected item",
+            "https://example.com/x",
+            "recency",
+            "old",
+            created_at or now.strftime("%Y-%m-%d %H:%M:%S"),
         ),
     )
 
@@ -342,6 +373,200 @@ class _FakeCollection:
 
 class TestTickWiring:
     def test_tick_passes_quality_overrides_to_schedulable(self, temp_db, monkeypatch):
+        now = datetime.now(timezone.utc)
+        _insert_cs(
+            "ai:fast",
+            name="fast",
+            cadence_seconds=3600,
+            last_fetch_at=_iso(now - timedelta(seconds=1801)),
+        )
+        for i in range(5):
+            _insert_hotspot(f"fast-{i}", "fast", quality_score=100)
+
+        svc = SourceSchedulerService(concurrency=3)
+        captured: dict = {}
+        orig = svc.repo.get_schedulable
+
+        def spy(*args, **kwargs):
+            captured.update(kwargs)
+            return orig(*args, **kwargs)
+
+        monkeypatch.setattr(svc.repo, "get_schedulable", spy)
+        svc.attach_collection_service(_FakeCollection())
+        result = asyncio.run(svc.tick())
+
+        assert captured.get("cadence_overrides") == {"ai:fast": 1800.0}
+        assert result["scheduled"] == 1
+
+
+# ---------------------------------------------------------------------------
+# 7. density T2: 拒收率乘子 M_r / 关注命中乘子 M_i
+# ---------------------------------------------------------------------------
+class TestRejectionCadenceMultiplier:
+    def test_three_tiers(self):
+        assert rejection_cadence_multiplier(0.2, 50) == 1.0, "健康源不降频"
+        assert rejection_cadence_multiplier(0.3, 50) == 1.3, "0.3 归警示档 (≥0.3)"
+        assert rejection_cadence_multiplier(0.59, 50) == 1.3
+        assert rejection_cadence_multiplier(0.6, 50) == 1.8, "0.6 归高危档 (≥0.6)"
+
+    def test_few_attempts_means_no_signal(self):
+        assert rejection_cadence_multiplier(0.9, 9) == 1.0, "attempts<10 无信号"
+        assert rejection_cadence_multiplier(0.9, 0) == 1.0
+        assert rejection_cadence_multiplier(None, 50) == 1.0
+
+    def test_min_attempts_boundary(self):
+        assert rejection_cadence_multiplier(0.9, 10) == 1.8, "恰好 10 次有信号"
+
+
+class TestInterestCadenceMultiplier:
+    def test_not_configured_is_neutral(self):
+        assert interest_cadence_multiplier(0.9, 20, configured=False) == 1.0
+        assert interest_cadence_multiplier(0.0, 20, configured=False) == 1.0, (
+            "未配置域 = 用户未表态, M_i 恒中性"
+        )
+
+    def test_few_samples_means_no_signal(self):
+        assert interest_cadence_multiplier(1.0, 9, configured=True) == 1.0
+        assert interest_cadence_multiplier(0.0, 9, configured=True) == 1.0
+
+    def test_tiers(self):
+        assert interest_cadence_multiplier(0.5, 20, configured=True) == 0.7, (
+            "h≥0.5 加密"
+        )
+        assert interest_cadence_multiplier(0.49, 20, configured=True) == 1.0
+        assert interest_cadence_multiplier(0.2, 20, configured=True) == 1.0, (
+            "0<h<0.5 中性"
+        )
+
+    def test_zero_hit_defers(self):
+        assert interest_cadence_multiplier(0.0, INTEREST_MIN_SAMPLES, configured=True) == 1.4
+
+
+# ---------------------------------------------------------------------------
+# 8. density T2: build_cadence_overrides 三信号复合
+# ---------------------------------------------------------------------------
+class TestBuildCadenceOverridesComposite:
+    def _sources(self) -> list[dict]:
+        return [
+            {"id": "ai:a", "name": "a", "cadence_seconds": 3600},
+            {"id": "ai:b", "name": "b", "cadence_seconds": 3600},
+            {"id": "ai:c", "name": "c", "cadence_seconds": 1800},
+            {"id": "ai:d", "name": "d", "cadence_seconds": 800},
+            {"id": "ai:e", "name": "e", "cadence_seconds": 1800},
+        ]
+
+    def test_three_multiplier_matrix(self):
+        # M_q=0.5 (avg90) × M_r=1.8 (9拒/6入, r=0.6) × M_i=0.7 (h=0.6) = 0.63
+        quality = {"a": {"avg_quality": 90.0, "count": 20, "hit_count": 12}}
+        rejection = {"a": {"rejections": 9, "accepted": 6}}
+        overrides = build_cadence_overrides(
+            self._sources(), quality, rejection, ["vuln_research"]
+        )
+        assert overrides["ai:a"] == pytest.approx(3600 * 0.63)
+
+    def test_zero_hit_high_quality_exemption(self):
+        """裁决②: 零命中 1.4 × 高质量 0.5 = 0.7 仍加密 — 复合结构自然给出。"""
+        quality = {"b": {"avg_quality": 90.0, "count": 20, "hit_count": 0}}
+        overrides = build_cadence_overrides(
+            self._sources(), quality, None, ["pentest"]
+        )
+        assert overrides["ai:b"] == pytest.approx(3600 * 0.7)
+        assert overrides["ai:b"] < 3600, "质量豁免后仍加密采集"
+
+    def test_high_rejection_defers(self):
+        # M_q=1.0 × M_r=1.8 (12拒/3入, r=0.8) × M_i=1.0 (未配置) = 1.8
+        quality = {"c": {"avg_quality": 60.0, "count": 20}}
+        rejection = {"c": {"rejections": 12, "accepted": 3}}
+        overrides = build_cadence_overrides(self._sources(), quality, rejection)
+        assert overrides["ai:c"] == pytest.approx(1800 * 1.8)
+
+    def test_clamp_floor_still_applies(self):
+        # M_q=0.5 × M_i=0.7 (h=1.0) = 0.35 → 800×0.35=280 → 夹下限 600
+        quality = {"d": {"avg_quality": 90.0, "count": 20, "hit_count": 20}}
+        overrides = build_cadence_overrides(
+            self._sources(), quality, None, ["vuln_research"]
+        )
+        assert overrides["ai:d"] == 600.0
+
+    def test_insufficient_samples_all_neutral_absent(self):
+        # M_q 无信号 (count=4) + M_r 无信号 (attempts=9) + M_i 无信号 (count<10)
+        quality = {"e": {"avg_quality": 10.0, "count": 4, "hit_count": 0}}
+        rejection = {"e": {"rejections": 5, "accepted": 4}}
+        assert (
+            build_cadence_overrides(
+                self._sources(), quality, rejection, ["vuln_research"]
+            )
+            == {}
+        )
+
+    def test_unconfigured_domains_mi_neutral(self):
+        # stats 带 hit_count 但未配置域 → M_i=1.0, 仅 M_q 生效 (T4 行为)
+        quality = {"a": {"avg_quality": 90.0, "count": 20, "hit_count": 0}}
+        assert build_cadence_overrides(self._sources(), quality) == {"ai:a": 1800.0}
+        assert (
+            build_cadence_overrides(self._sources(), quality, None, [])
+            == {"ai:a": 1800.0}
+        )
+
+    def test_stats_without_hit_count_configured_is_neutral(self):
+        # 配置了域但 stats 无 hit_count 键 (repo 未传 domains) → M_i=1.0
+        quality = {"a": {"avg_quality": 90.0, "count": 20}}
+        assert build_cadence_overrides(
+            self._sources(), quality, None, ["vuln_research"]
+        ) == {"ai:a": 1800.0}
+
+    def test_rejection_boundary_at_min_attempts(self):
+        # attempts 恰好 10 且 r≥0.6 → M_r 生效
+        quality = {"a": {"avg_quality": 60.0, "count": 20}}
+        rejection = {"a": {"rejections": REJECTION_MIN_ATTEMPTS, "accepted": 0}}
+        overrides = build_cadence_overrides(self._sources(), quality, rejection)
+        assert overrides["ai:a"] == pytest.approx(3600 * 1.8)
+
+
+class TestTickWiringDensity:
+    def test_tick_composes_three_signals(self, temp_db, monkeypatch):
+        """tick 三路信号接线: kv 关注域 + 拒收日志 + 质量窗口 → 复合 override。"""
+        now = datetime.now(timezone.utc)
+        _insert_cs(
+            "ai:fast",
+            name="fast",
+            cadence_seconds=3600,
+            last_fetch_at=_iso(now - timedelta(seconds=3000)),
+        )
+        # M_q: 10 条 100 分 → 0.5×; M_i: 全命中 vuln_research → h=1.0 → 0.7×
+        for i in range(10):
+            _insert_hotspot(
+                f"fast-{i}",
+                "fast",
+                quality_score=100,
+                title="CVE-2026-1234 漏洞复现",
+            )
+        # M_r: 15 拒 + 10 入 = 25 attempts, r=0.6 → 1.8×
+        for _ in range(15):
+            _insert_rejection("fast")
+        SettingsRepository().set("interest.practice_domains", ["vuln_research"])
+
+        svc = SourceSchedulerService(concurrency=3)
+        captured: dict = {}
+        orig = svc.repo.get_schedulable
+
+        def spy(*args, **kwargs):
+            captured.update(kwargs)
+            return orig(*args, **kwargs)
+
+        monkeypatch.setattr(svc.repo, "get_schedulable", spy)
+        svc.attach_collection_service(_FakeCollection())
+        asyncio.run(svc.tick())
+
+        # 0.5 × 1.8 × 0.7 = 0.63 → 3600×0.63
+        assert captured.get("cadence_overrides") == {
+            "ai:fast": pytest.approx(2268.0)
+        }
+
+    def test_tick_without_configured_domains_keeps_t4_behavior(
+        self, temp_db, monkeypatch
+    ):
+        """kv 未配置关注域 → tick 仍拉 hit 信号为空, M_i 中性 (T4 零回归)。"""
         now = datetime.now(timezone.utc)
         _insert_cs(
             "ai:fast",

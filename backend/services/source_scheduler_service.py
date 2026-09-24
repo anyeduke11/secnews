@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 
 from backend.logging_config import logger
 from backend.repository.hotspot_repo import HotspotRepository
+from backend.repository.settings_repo import SettingsRepository
 from backend.repository.source_scheduler_repo import SourceSchedulerRepository
 from backend.services.source_health_machine import SourceHealthMachine
 
@@ -22,6 +23,18 @@ QUALITY_MIN_SAMPLES = 5    # 窗口条数 < 5 → 无信号, 不调倍率
 QUALITY_FAST_AT = 75.0     # avg ≥ 75 → 0.5× (加密采集)
 QUALITY_SLOW_AT = 40.0     # avg < 40 → 2.0× (降频); 中间档 1.0×
 CADENCE_FLOOR_S = 600.0    # 调整后下限 (防打爆), 夹取区间下界分量
+
+# ---------------------------------------------------------------------------
+# 密度门禁 T2 (2026-09-24): 三信号复合乘子 — M_r 拒收健康 / M_i 关注命中。
+# 阈值集中在此常量区 (设计稿 §3 乘子表单一真相源)。
+# ---------------------------------------------------------------------------
+REJECTION_WINDOW_DAYS = 7    # 拒收/入库聚合窗口 (天)
+REJECTION_MIN_ATTEMPTS = 10  # attempts (拒收+入库) < 10 → 无信号, 不调倍率
+REJECTION_WARN_AT = 0.3      # 拒收率 r ≥ 0.3 → 1.3× (轻度降频)
+REJECTION_BAD_AT = 0.6       # 拒收率 r ≥ 0.6 → 1.8× (白跑大户强降频)
+INTEREST_HIT_AT = 0.5        # 命中比 h ≥ 0.5 → 0.7× (关注域加密)
+INTEREST_MISS_MULT = 1.4     # h = 0 且样本足 → 1.4× (零命中降频)
+INTEREST_MIN_SAMPLES = 10    # 窗口条数 < 10 → 无信号
 
 
 def quality_cadence_multiplier(avg_quality: float | None, sample_count: int) -> float:
@@ -40,6 +53,45 @@ def quality_cadence_multiplier(avg_quality: float | None, sample_count: int) -> 
     return 2.0
 
 
+def rejection_cadence_multiplier(
+    rejection_rate: float | None, attempts: int
+) -> float:
+    """拒收率 → cadence 倍率映射 M_r (纯函数, density T2)。
+
+    r < 0.3 → 1.0×; 0.3 ≤ r < 0.6 → 1.3×; r ≥ 0.6 → 1.8×。
+    attempts (近窗口拒收+入库) < ``REJECTION_MIN_ATTEMPTS`` 视为无信号,
+    恒 1.0×。
+    """
+    if rejection_rate is None or attempts < REJECTION_MIN_ATTEMPTS:
+        return 1.0
+    if rejection_rate >= REJECTION_BAD_AT:
+        return 1.8
+    if rejection_rate >= REJECTION_WARN_AT:
+        return 1.3
+    return 1.0
+
+
+def interest_cadence_multiplier(
+    hit_ratio: float | None, count: int, configured: bool
+) -> float:
+    """关注域命中比 → cadence 倍率映射 M_i (纯函数, density T2)。
+
+    未配置关注域 (``configured=False``) 或窗口样本 < ``INTEREST_MIN_SAMPLES``
+    → 恒 1.0× (用户显式意图是唯一开关); h ≥ 0.5 → 0.7×; 0 < h < 0.5 →
+    1.0×; h = 0 → 1.4× (零命中降频 — 与高质量 M_q=0.5 复合得 0.7 仍加密,
+    裁决②质量豁免由复合结构自然给出, 不特判)。
+    """
+    if not configured or count < INTEREST_MIN_SAMPLES:
+        return 1.0
+    if hit_ratio is None:
+        return 1.0
+    if hit_ratio >= INTEREST_HIT_AT:
+        return 0.7
+    if hit_ratio > 0:
+        return 1.0
+    return INTEREST_MISS_MULT
+
+
 def clamp_adjusted_cadence(base_seconds: float, adjusted_seconds: float) -> float:
     """倍率乘后夹取 [max(600, base×0.25), base×4] (纯函数, 防御性)。"""
     low = max(CADENCE_FLOOR_S, base_seconds * 0.25)
@@ -48,22 +100,48 @@ def clamp_adjusted_cadence(base_seconds: float, adjusted_seconds: float) -> floa
 
 
 def build_cadence_overrides(
-    sources: list[dict], quality_stats: dict[str, dict]
+    sources: list[dict],
+    quality_stats: dict[str, dict],
+    rejection_stats: dict[str, dict] | None = None,
+    practice_domains: list[str] | None = None,
 ) -> dict[str, float]:
-    """由全量源行 + 每源质量信号构建 cadence override 表 (纯函数)。
+    """由全量源行 + 三路信号构建 cadence override 表 (纯函数, density T2 复合)。
 
-    key 对齐: ``quality_stats`` 以 ``hotspots.source`` (源名称) 为 key,
-    与 ``crawler_sources.name`` 匹配 (hotspots 入库口径); 返回表以
-    ``crawler_sources.id`` 为 key (调度口径)。无信号或倍率 1.0× 的源
-    不入表 → 调度回落 base cadence。
+    key 对齐: ``quality_stats`` / ``rejection_stats`` 以
+    ``hotspots.source`` (源名称) 为 key, 与 ``crawler_sources.name`` 匹配
+    (hotspots 入库口径); 返回表以 ``crawler_sources.id`` 为 key (调度口径)。
+    倍率 = M_q × M_r × M_i 后夹取 [max(600, base×0.25), base×4]
+    (夹取与 T4 一致); 倍率 1.0× 的源不入表 → 调度回落 base cadence。
+
+    - M_r: ``rejection_stats`` 每源 ``{"rejections", "accepted"}``;
+      attempts = rejections + accepted, r = rejections/attempts;
+      缺源 / None → 1.0×。
+    - M_i: 仅当 ``practice_domains`` 非空 (已配置) 且 ``quality_stats``
+      每源含 ``hit_count`` (repo 传入关注域时才有) 时生效; 否则 1.0×。
     """
+    configured = bool(practice_domains)
     overrides: dict[str, float] = {}
     for s in sources:
-        stat = quality_stats.get(str(s.get("name") or ""))
-        mult = quality_cadence_multiplier(
-            stat["avg_quality"] if stat else None,
-            stat["count"] if stat else 0,
+        name = str(s.get("name") or "")
+        stat = quality_stats.get(name)
+        mult_q = quality_cadence_multiplier(
+            stat.get("avg_quality") if stat else None,
+            stat.get("count", 0) if stat else 0,
         )
+        rstat = (rejection_stats or {}).get(name)
+        attempts = (
+            int(rstat["rejections"]) + int(rstat["accepted"]) if rstat else 0
+        )
+        rate = rstat["rejections"] / attempts if rstat and attempts > 0 else None
+        mult_r = rejection_cadence_multiplier(rate, attempts)
+        count = stat.get("count", 0) if stat else 0
+        hit_ratio = (
+            stat["hit_count"] / count
+            if configured and stat and "hit_count" in stat and count > 0
+            else None
+        )
+        mult_i = interest_cadence_multiplier(hit_ratio, count, configured)
+        mult = mult_q * mult_r * mult_i
         if mult == 1.0:
             continue
         base = float(s.get("cadence_seconds") or 1800)
@@ -111,13 +189,30 @@ class SourceSchedulerService:
             return {"scheduled": 0, "succeeded": 0, "failed": 0, "skipped": 0, "source_results": []}
         
         now_iso = datetime.now(timezone.utc).isoformat()
-        # 采集闭环 T4: 每源质量信号 → cadence 倍率, 仅作用于本次 due 计算
+        # 密度门禁 T2: 三路信号 → cadence 复合倍率, 仅作用于本次 due 计算
         # (不回写 cadence_seconds 静态配置, 可回退)。
+        # - M_q: 近窗口质量分 (T4);
+        # - M_r: 近 7d 拒收率 (rejections/(rejections+accepted));
+        # - M_i: 关注域命中比 — 关注域从 settings.kv 读, 空 = 未配置 →
+        #   M_i 恒 1.0 (用户显式意图是唯一开关, advisor/行为信号不进调度)。
+        try:
+            practice_domains = (
+                SettingsRepository().get("interest.practice_domains", []) or []
+            )
+        except Exception:
+            practice_domains = []
         quality_stats = self.hotspot_repo.get_recent_quality_stats(
-            window=QUALITY_WINDOW
+            window=QUALITY_WINDOW,
+            practice_domains=practice_domains or None,
+        )
+        rejection_stats = self.hotspot_repo.get_recent_rejection_stats(
+            days=REJECTION_WINDOW_DAYS
         )
         cadence_overrides = build_cadence_overrides(
-            self.repo.list_all(), quality_stats
+            self.repo.list_all(),
+            quality_stats,
+            rejection_stats,
+            practice_domains,
         )
         candidates = self.repo.get_schedulable(
             limit=self.concurrency,
@@ -224,14 +319,23 @@ def set_scheduler_service(svc: SourceSchedulerService) -> None:
 
 __all__ = [
     "CADENCE_FLOOR_S",
+    "INTEREST_HIT_AT",
+    "INTEREST_MIN_SAMPLES",
+    "INTEREST_MISS_MULT",
     "QUALITY_FAST_AT",
     "QUALITY_MIN_SAMPLES",
     "QUALITY_SLOW_AT",
     "QUALITY_WINDOW",
+    "REJECTION_BAD_AT",
+    "REJECTION_MIN_ATTEMPTS",
+    "REJECTION_WARN_AT",
+    "REJECTION_WINDOW_DAYS",
     "SourceSchedulerService",
     "build_cadence_overrides",
     "clamp_adjusted_cadence",
     "get_scheduler_service",
+    "interest_cadence_multiplier",
     "quality_cadence_multiplier",
+    "rejection_cadence_multiplier",
     "set_scheduler_service",
 ]

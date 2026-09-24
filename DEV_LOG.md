@@ -1,4 +1,20 @@
 
+## [DEV-0229] 采集密度门禁: 三信号复合乘子 M_q×M_r×M_i + 拒收聚合 + 域命中 + 关注域 AI 推荐
+- **时间**: 2026-09-24
+- **类型**: 功能开发 (density-gating 分支, 设计稿 §4 owner 三裁决)
+- **问题描述**: cadence 倍率此前只随质量分 (M_q) 自适应 — 拒收率与用户关注域命中两路信号未进门禁 (高拒收源不被加密, 关注域高产源不被提频); 关注域勾选是 10 域枚举裸多选, 无推荐入口。
+- **关联文件**:
+  - 计划/设计: `docs/superpowers/plans/2026-09-24-density-gating.md` (Task 1-4 全勾 + 实施记录) + `docs/superpowers/specs/2026-09-24-density-gating-design.md` (§4.2 每日 job 兜底 parked 注记)
+  - T1 信号层: `backend/repository/hotspot_repo.py` (`get_recent_quality_stats` 增 `practice_domains` 可选参 → hit_count, 不传 None 向后兼容; 拒收聚合 = hotspots 入库 count + quality_rejection_log 拒收 count 双窗近 7d; 域命中判定 lazy import `classify_practice_domain`) + `backend/tests/test_density_signals.py` (新)
+  - T2 乘子层: `backend/services/source_scheduler_service.py` (`rejection_cadence_multiplier` / `interest_cadence_multiplier` 纯函数; `build_cadence_overrides` 倍率改 **M_q×M_r×M_i 复合**, 夹取 [max(600, base×0.25), base×4] 不变; tick 拉三信号, 关注域读 settings.kv `interest.practice_domains`) + `backend/tests/test_source_quality_cadence.py` (扩展)
+  - T3 advisor: `backend/services/interest_domain_advisor.py` (新, **149th service** — 聚合统计三通道输入 → `llm_service.generate(task=interest_advisor)` → JSON 解析 → 域枚举校验越界丢弃 → kv `interest.advisor_cache` 24h TTL, 失败返缓存/空不抛错) + `backend/api/interest_api.py` (新, GET `/api/interest/domains/recommendations` `?force=1` 手动刷新, interest_engine gate 关闭 404) + `backend/services/llm/model_router.py` (TASK_TIER_MAP 增 interest_advisor→FLASH) + `backend/services/ai_hub/prompts.py` (`build_interest_advisor_prompt`, 域枚举**参数注入**) + `backend/tests/test_interest_domain_advisor.py` (新)
+  - 前端: `frontend/src/components/settings/PracticeDomainsCard.tsx` + test (AI 推荐域区: chips+一句话理由+采纳=合并勾选, 手动刷新入口) + `frontend/src/contexts/I18nContext.tsx` (文案)
+  - 数字/文档同步: `docs/ARCHITECTURE.md` + 根 `AGENTS.md` + `CLAUDE.md` + `backend/services/AGENTS.md` + `scripts/AGENTS.md` (148→149 services); `docs/v0.8.5/V0.8.5_PLAN.md` (§6.6 端点行 + 修订注⑥)
+- **实现思路**: 三信号只作用于调度间隔, 静态 cadence 配置保持 base 可回退; M_i 消费只读用户勾选域, AI 推荐**不自动生效** (用户采纳合并进勾选才影响 M_i); advisor 经 ai_hub 单出口 (task 路由 FLASH/light 档), prompt 输入全部为聚合统计无原始 URL; PRD 判断: 设置页无新分区, advisor 属采集配置增强, 单权威 PRD 无需补 (spec 侧按 DEV-0227 先例回写 V0.8.5_PLAN §6.6+修订注⑥)。
+- **裁决落账 (repository 层首例 repo→service 反向依赖)**: `hotspot_repo → auto_classifier` lazy import (`classify_practice_domain`, 域命中口径单一事实源) — 审查裁决**接受**: auto_classifier 为纯函数模块零 repo 依赖零环, 上移该函数到 repository 方案复杂度更高; 例外已补 `backend/services/AGENTS.md` 依赖方向节 (repo→service lazy import 仅限纯函数模块 service)。
+- **测试验证**: 后端全量 `pytest backend/tests/ -q` **4815 passed / 9 skipped / 0 failed** (21m00s, 基线 4773 + 本分支 42 例); 前端 `tsc --noEmit` 0 错 / `vitest run` **85 文件 627 passed**; `generate_meta --check` OK (89 routers / 149 services, 4/4 文档一致); `harness_analyze --check` 0 errors; ruff 触碰文件 0 告警。**收口期修复 1 处本分支引入的失败**: 首跑 2 failed — `test_service_cycle_guard` 检出 `ai_hub ⇄ auto_classifier` 惰性环 (T3 prompts.py lazy import PRACTICE_DOMAIN_LABELS ⇄ auto_classifier:592 惰性 import ai_hub.gateway); 解环 = `build_interest_advisor_prompt` 域枚举改**参数注入** (advisor 调用方传入, prompts 层零业务 import), 白名单保持零条目不扩张, 复跑全量零失败。
+- **潜在风险**: ① M_r 拒收窗口双 7d 口径与"近 50 次尝试"计划表述有偏差 (7d 窗内计数, 注释已写清); ② advisor 缓存无每日 job 兜底刷新 (parked — controller 裁决边际价值低, 手动 ?force=1 已覆盖); ③ fence 正则对病态嵌套代码块取首个闭合, 无害 (parked); ④ M_i 超集打标口径: hit = 勾选域直接命中, 不含子域超集 (parked, docstring 已标)。
+
 ## [DEV-0228] 采集闭环优化: 观测修复 + 失效源自动退役 + 僵尸清理脚本 + 质量自适应 cadence
 - **时间**: 2026-09-24
 - **类型**: 功能增强 + 观测修复 (源生命周期闭环)

@@ -764,6 +764,52 @@ def parse_daily_priority_intel_response(raw: str) -> dict[str, Any]:
     return obj
 
 
+def build_interest_advisor_prompt(
+    *,
+    ingest_7d: list[dict[str, Any]],
+    behavior_30d: list[dict[str, Any]],
+    current_selected: list[str],
+    domain_labels: dict[str, str],
+) -> str:
+    """构造关注域 AI 推荐 prompt (density T3, 设计稿 §4.2).
+
+    输入全部为聚合统计 (域计数/占比/行为分), 无原始 URL 与标题 —
+    advisor 分析的是分布, 不是具体条目。严格域枚举约束写入 prompt,
+    解析侧 (interest_domain_advisor) 仍做枚举校验双保险。
+
+    域枚举经 ``domain_labels`` 由调用方注入 (advisor 传
+    ``auto_classifier.PRACTICE_DOMAIN_LABELS``) — 本模块不 import
+    业务模块: auto_classifier 惰性 import ai_hub.gateway, prompts
+    若反向 import 它即成 R4 守卫拦截的 services 域惰性环。
+    """
+    enum_lines = "\n".join(f"- {d}: {label}" for d, label in domain_labels.items())
+    ingest_lines = "\n".join(
+        f"- {e['domain']}: {e['count']} 条 (占比 {e['share']:.0%})"
+        for e in ingest_7d
+    ) or "(近 7 天无命中条目)"
+    behavior_lines = "\n".join(
+        f"- {e['domain']}: 行为分 {e['score']}, 近 30 天事件 {e['events_30d']} 次"
+        for e in behavior_30d
+    ) or "(近 30 天无行为信号)"
+    selected_block = ", ".join(current_selected) or "(未勾选)"
+    return (
+        "你是一名安全从业者的关注域顾问。根据以下聚合统计, 推荐最多 5 个值得"
+        "关注的实践域 (可为已勾选域之外的新方向, 也可建议保留现有勾选)。\n\n"
+        "## 合法域枚举 (recommended 只能取以下键, 之外的任何值都会被丢弃)\n\n"
+        f"{enum_lines}\n\n"
+        f"## 近 7 天各域入库分布\n\n{ingest_lines}\n\n"
+        f"## 近 30 天各域行为聚合 (interest_signals)\n\n{behavior_lines}\n\n"
+        f"## 当前勾选域\n\n{selected_block}\n\n"
+        "## 输出要求 (严格 JSON, 不允许 prose 包裹)\n\n"
+        '```json\n{"recommended": ["<合法域键, ≤5 个>"], '
+        '"reasons": {"<合法域键>": "<一句话理由>"}}\n```\n\n'
+        "## 纪律\n"
+        "1. recommended 最多 5 个, 每个都必须在合法域枚举内\n"
+        "2. reasons 只为 recommended 中的域各给一句话理由 (≤60 字)\n"
+        "3. 依据入库占比与行为分偏离勾选的方向给出, 不编造枚举外的域\n"
+    )
+
+
 __all__ = [
     "COST_PER_1M_TOKENS",
     "CVE_IMPACT_BRIEF_SCHEMA_V1",
@@ -784,6 +830,7 @@ __all__ = [
     "build_cve_impact_brief_prompt",
     "build_daily_priority_intel_prompt",
     "build_inspection_materials_prompt",
+    "build_interest_advisor_prompt",
     "build_knowledge_prompt",
     "deep_read_framework_lens",
     "deep_read_profile_for",

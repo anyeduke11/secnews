@@ -1,10 +1,13 @@
-"""Interest Engine API — 行为信号 / 域权重 (DEV-0182, gate: interest_engine).
+"""Interest Engine API — 行为信号 / 域权重 / 关注域 AI 推荐 (DEV-0182, gate: interest_engine).
 
 端点
 ----
 - ``POST /api/interest/signals``  记录行为信号 (item_id + signal_type; 域归因服务端做)
 - ``GET  /api/interest/weights``  10 域三层分 + 近 30d 事件数 (权重条数据源)
 - ``POST /api/interest/reset``    清行为信号 (显式勾选保留) + audit_log
+- ``GET  /api/interest/domains/recommendations``  关注域 AI 推荐 (density T3;
+  ``?force=1`` 刷新缓存; 失败 200 + 空列表 + note; 采纳走既有
+  ``PATCH /api/settings/interests``, 不新做写入端点 — 推荐不自动生效)
 """
 from __future__ import annotations
 
@@ -72,3 +75,14 @@ async def reset_weights(req: InterestResetRequest) -> dict:
         logger.warning(f"interest reset audit failed (reset succeeded): {e}")
     logger.info(f"interest behavioral signals reset: deleted={deleted} (actor={req.actor})")
     return {"status": "ok", "deleted_signals": deleted}
+
+
+@router.get("/domains/recommendations")
+async def get_domain_recommendations(force: int = 0) -> dict:
+    """关注域 AI 推荐 (density T3, 设计稿 §4.2) — 只读展示, 不自动生效。
+
+    R3: 只调 advisor service; 缓存/LLM/枚举校验/兜底全在 service 层。
+    """
+    from backend.services.interest_domain_advisor import get_recommendations
+
+    return await get_recommendations(force=bool(force))

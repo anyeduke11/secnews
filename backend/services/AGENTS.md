@@ -2,11 +2,11 @@
 
 > **就近作用域**:此文件仅承载 `backend/services/` 子树进入时即时需要的约束。
 > 跨项目路由、设计技能选择、根级命令、Feature Gates 总览见根 `AGENTS.md`。
-> 架构数字(`148 services`)由 `scripts/generate_meta.py` AST 反推维护,不要手改。
+> 架构数字(`149 services`)由 `scripts/generate_meta.py` AST 反推维护,不要手改。
 
 ## 子树身份
 
-Python 3 服务编排层(148 services,`*_service.py` + `triggers/` 子目录)。
+Python 3 服务编排层(149 services,`*_service.py` + `triggers/` 子目录)。
 位于 `collectors/`(采集)与 `repository/`(数据访问)之上、`api/`(路由)之下,
 **严禁反向依赖**(service → api 反向 import 会触发循环导入)。
 
@@ -38,6 +38,8 @@ Python 3 服务编排层(148 services,`*_service.py` + `triggers/` 子目录)。
 1. **依赖方向固定**: service 可 `import backend.repository.*`、
    `import backend.collectors.*`、`import backend.core.*`,**严禁**
    `import backend.api.*`(反向会触发循环导入,违反现有 `__init__.py` 的 lazy import 协议)。
+   例外: repo→service lazy import 仅在 service 为纯函数模块(无 repo 依赖)时允许,
+   首例 = hotspot_repo→auto_classifier (DEV-0229)。
 2. **新服务必须在 `__init__.py` 显式登记或被 router/job 引用** — 否则
    `scripts/generate_meta.py` AST 扫描不到,但服务本身仍是死的;CI 不会拦,
    但 review 会拦。

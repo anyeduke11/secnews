@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from pydantic import HttpUrl
@@ -65,6 +65,23 @@ _HIDDEN_FLAGS: frozenset[str] = frozenset(
 def _derive_is_hidden(quality_flags: list[str]) -> int:
     """由 quality_flags 推导 is_hidden(1=隐藏)。与迁移 064 / 回填脚本口径一致。"""
     return 1 if any(f in _HIDDEN_FLAGS for f in (quality_flags or [])) else 0
+
+
+def _hotspot_tags(raw_tags: Any) -> list[str]:
+    """``hotspots.tags`` JSON 字符串 → 非空字符串 tag 列表 (容错, density T1)。
+
+    解析口径与 ``auto_classifier.batch_classify`` 一致: 空值/坏 JSON/
+    非 list → ``[]``。
+    """
+    if not raw_tags:
+        return []
+    try:
+        parsed = json.loads(raw_tags)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return [t for t in parsed if isinstance(t, str) and t]
 
 
 # ---------------------------------------------------------------------------
@@ -679,7 +696,9 @@ class HotspotRepository:
             ) from e
         return {str(r["url"]) for r in rows if r["url"]}
 
-    def get_recent_quality_stats(self, window: int = 20) -> dict[str, dict]:
+    def get_recent_quality_stats(
+        self, window: int = 20, practice_domains: list[str] | None = None
+    ) -> dict[str, dict]:
         """每源最近 ``window`` 条的质量分均值 (采集闭环 T4 质量自适应 cadence 信号源).
 
         按 ``COALESCE(published_at, ingested_at) DESC`` 取每源最近
@@ -687,6 +706,13 @@ class HotspotRepository:
         "count": int}}``。key 与 ``hotspots.source`` 列同域 (源名称, 即
         ``crawler_sources.name``)。窗口条数不足最小样本数的无信号判定
         (``count < 5``) 由调用方负责, 本方法如实返回 count。
+
+        density T1 (2026-09-24): 传入非空 ``practice_domains`` 时每源附
+        ``hit_count`` — 窗口内条目即时打标 practice_domain ∈ 关注域的条数
+        (含显式 0, 供 M_i 零命中档消费)。hotspots 表无 practice_domain
+        列, 打标用 ``classify_practice_domain(tags, title)`` (tags 优先,
+        较 hotspot_service 读路径的 title-only 属超集口径)。未传或传空
+        → 返回结构与 T4 完全一致 (无 hit_count 键)。
         """
         conn = get_connection()
         rows = conn.execute(
@@ -709,13 +735,94 @@ class HotspotRepository:
             """,
             (window,),
         ).fetchall()
-        return {
+        stats = {
             r["source"]: {
                 "avg_quality": float(r["avg_quality"]),
                 "count": int(r["cnt"]),
             }
             for r in rows
         }
+        if practice_domains:
+            hits = self._count_practice_domain_hits(
+                conn, window, set(practice_domains)
+            )
+            for src, stat in stats.items():
+                stat["hit_count"] = hits.get(src, 0)
+        return stats
+
+    def _count_practice_domain_hits(
+        self, conn: sqlite3.Connection, window: int, domain_set: set[str]
+    ) -> dict[str, int]:
+        """窗口内每源 practice_domain 命中条数 (即时打标, density T1)。"""
+        # lazy import: repo 层不反向依赖 services 模块加载
+        # (auto_classifier 为纯函数模块, 无 repo 依赖, 无循环风险)。
+        from backend.services.auto_classifier import classify_practice_domain
+
+        rows = conn.execute(
+            """
+            WITH ranked AS (
+                SELECT source, title, tags,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY source
+                           ORDER BY COALESCE(published_at, ingested_at) DESC
+                       ) AS rn
+                FROM hotspots
+                WHERE source IS NOT NULL AND source != ''
+            )
+            SELECT source, title, tags FROM ranked WHERE rn <= ?
+            """,
+            (window,),
+        ).fetchall()
+        hits: dict[str, int] = {}
+        for r in rows:
+            domain = classify_practice_domain(
+                _hotspot_tags(r["tags"]), r["title"] or ""
+            )
+            if domain in domain_set:
+                hits[r["source"]] = hits.get(r["source"], 0) + 1
+        return hits
+
+    def get_recent_rejection_stats(self, days: int = 7) -> dict[str, dict]:
+        """近 ``days`` 天每源拒收/入库计数 (density T1, M_r 信号源).
+
+        返回 ``{source_name: {"rejections": int, "accepted": int}}``;
+        attempts 口径 = rejections + accepted (调用方组合), 样本不足判定
+        (attempts < 10 → 无信号) 由调用方负责。
+
+        口径说明:
+        - rejections: ``quality_rejection_log`` 按 ``source_id`` GROUP BY —
+          该列虽名 source_id, 实际由 quality_hook
+          ``_write_quality_rejection`` 写入 ``item.source`` (源名称), 与
+          ``hotspots.source`` 同域, 无需 url 域名近似。
+        - accepted: ``hotspots`` 按 ``ingested_at`` 窗口每源入库计数。
+        - 时间格式: ``created_at`` 为 sqlite ``datetime('now')`` 空格格式,
+          ``ingested_at`` 为 ISO-8601 T 格式 — 两窗口参数分别按各自列
+          格式生成, 避免跨格式字符串比较在同日边界漏计。
+        """
+        now = datetime.now(timezone.utc)
+        since_rej = (now - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+        since_acc = (now - timedelta(days=days)).isoformat()
+        conn = get_connection()
+        rej_rows = conn.execute(
+            "SELECT source_id, COUNT(*) AS n FROM quality_rejection_log "
+            "WHERE source_id != '' AND created_at >= ? GROUP BY source_id",
+            (since_rej,),
+        ).fetchall()
+        acc_rows = conn.execute(
+            "SELECT source, COUNT(*) AS n FROM hotspots "
+            "WHERE source IS NOT NULL AND source != '' AND ingested_at >= ? "
+            "GROUP BY source",
+            (since_acc,),
+        ).fetchall()
+        stats: dict[str, dict] = {}
+        for r in rej_rows:
+            stats[str(r["source_id"])] = {"rejections": int(r["n"]), "accepted": 0}
+        for r in acc_rows:
+            stat = stats.setdefault(
+                str(r["source"]), {"rejections": 0, "accepted": 0}
+            )
+            stat["accepted"] = int(r["n"])
+        return stats
 
     def count_by_category(
         self,
@@ -966,6 +1073,37 @@ def interest_purge_expired(cutoff_iso: str) -> int:
     except Exception as e:
         logger.warning(f"interest_purge_expired failed: {e}")
         return 0
+
+
+_SQL_DOMAIN_DIST_TITLES = (
+    "SELECT title, tags FROM hotspots WHERE ingested_at >= ?"
+)
+
+
+def interest_domain_distribution(days: int = 7) -> dict[str, int]:
+    """近 ``days`` 天各 practice_domain 入库条数 (density T3 advisor 输入).
+
+    hotspots 表无 practice_domain 列, 与 T1 ``_count_practice_domain_hits``
+    同口径即时打标 ``classify_practice_domain(tags, title)`` (tags 优先);
+    仅返回命中域 (无域条目不计)。advisor 输入是统计不是精确值。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from backend.services.auto_classifier import classify_practice_domain
+
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    try:
+        conn = get_connection()
+        rows = conn.execute(_SQL_DOMAIN_DIST_TITLES, (since,)).fetchall()
+    except Exception as e:
+        logger.warning(f"interest_domain_distribution failed: {e}")
+        return {}
+    dist: dict[str, int] = {}
+    for r in rows:
+        domain = classify_practice_domain(_hotspot_tags(r["tags"]), r["title"] or "")
+        if domain:
+            dist[domain] = dist.get(domain, 0) + 1
+    return dist
 
 
 # R2 (DEV-0183) 周审计只读统计 — audit_interest_hit_rate.py 消费; SQL 集中本

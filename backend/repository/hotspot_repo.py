@@ -1075,6 +1075,37 @@ def interest_purge_expired(cutoff_iso: str) -> int:
         return 0
 
 
+_SQL_DOMAIN_DIST_TITLES = (
+    "SELECT title, tags FROM hotspots WHERE ingested_at >= ?"
+)
+
+
+def interest_domain_distribution(days: int = 7) -> dict[str, int]:
+    """近 ``days`` 天各 practice_domain 入库条数 (density T3 advisor 输入).
+
+    hotspots 表无 practice_domain 列, 与 T1 ``_count_practice_domain_hits``
+    同口径即时打标 ``classify_practice_domain(tags, title)`` (tags 优先);
+    仅返回命中域 (无域条目不计)。advisor 输入是统计不是精确值。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from backend.services.auto_classifier import classify_practice_domain
+
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    try:
+        conn = get_connection()
+        rows = conn.execute(_SQL_DOMAIN_DIST_TITLES, (since,)).fetchall()
+    except Exception as e:
+        logger.warning(f"interest_domain_distribution failed: {e}")
+        return {}
+    dist: dict[str, int] = {}
+    for r in rows:
+        domain = classify_practice_domain(_hotspot_tags(r["tags"]), r["title"] or "")
+        if domain:
+            dist[domain] = dist.get(domain, 0) + 1
+    return dist
+
+
 # R2 (DEV-0183) 周审计只读统计 — audit_interest_hit_rate.py 消费; SQL 集中本
 # 模块同因 (新脚本文件含 SQL 会被扫描器整文件拦截), 脚本侧保持纯逻辑。
 _SQL_INTEREST_AUDIT_STATS = (

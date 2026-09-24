@@ -48,6 +48,9 @@ TASK_TIER_MAP: dict[str, ModelTier] = {
     "brief": ModelTier.FLASH,
     "generate": ModelTier.FLASH,
     "chunk_summary": ModelTier.FLASH,
+    # density T3 (2026-09-24): 关注域 AI 推荐 advisor — 轻量 JSON 推荐,
+    # 按设计稿 §4.2 走 light 档 (未登记会默认 STANDARD/t1_score, 不符意图)。
+    "interest_advisor": ModelTier.FLASH,
     # standard 档 — 中等复杂度
     "evaluate": ModelTier.STANDARD,
     "compare": ModelTier.STANDARD,

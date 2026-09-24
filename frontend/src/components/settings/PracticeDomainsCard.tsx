@@ -4,6 +4,9 @@
  * 勾选安全从业者的实践方向 (10 域, 与 auto_classifier 词表同源);
  * 点击即 PATCH 全量保存 (settings.kv interest.practice_domains + audit_log)。
  * R1 升级: 权重条展示行为分 (interest/weights), 重置按钮清行为信号。
+ * density T3 (2026-09-24): AI 推荐域区 — 挂载拉 /api/interest/domains/
+ * recommendations, 推荐 chips + 一句话理由 + 采纳按钮; 采纳 = 合并进勾选
+ * 走既有 PATCH 通道 (推荐不自动生效, 设计稿 §4.3)。
  * 消费方: /api/hotspots 排序乘子 (降权不删) 与 SK-01 每日优先级摘要分区。
  * 空画像 + 无行为 = 不过滤 (资讯流保持无偏好默认行为)。
  */
@@ -15,6 +18,13 @@ interface InterestsResponse {
   domains: string[];
   valid_domains: string[];
   labels: Record<string, string>;
+}
+
+interface RecommendationsResponse {
+  recommended: string[];
+  reasons: Record<string, string>;
+  cached_at: string | null;
+  note: string;
 }
 
 interface WeightEntry {
@@ -45,6 +55,7 @@ export function PracticeDomainsCard() {
   const [options, setOptions] = useState<{ id: string; label: string }[]>([]);
   const [weights, setWeights] = useState<Record<string, WeightEntry>>({});
   const [drift, setDrift] = useState<DriftInfo | null>(null);
+  const [recs, setRecs] = useState<RecommendationsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
@@ -73,6 +84,13 @@ export function PracticeDomainsCard() {
     loadWeights();
     return () => controller.abort();
   }, [loadWeights]);
+
+  // density T3: AI 推荐域 — 失败静默空态 (gate 关闭/后端不可用不阻塞卡片)
+  useEffect(() => {
+    apiFetch<RecommendationsResponse>('/api/interest/domains/recommendations')
+      .then((data) => setRecs(data))
+      .catch(() => {});
+  }, []);
 
   const toggle = useCallback(
     (id: string) => {
@@ -110,6 +128,8 @@ export function PracticeDomainsCard() {
   }, [saving, loadWeights]);
 
   const hasBehavior = Object.values(weights).some((w) => w.events_30d > 0);
+  // 推荐域与已勾选去重 (已采纳的自动退出推荐区)
+  const pendingRecs = recs ? recs.recommended.filter((d) => !domains.includes(d)) : [];
 
   return (
     <section className="st-section" aria-label={t('settings.practice_domains.section_aria')} data-testid="practice-domains-card">
@@ -144,6 +164,26 @@ export function PracticeDomainsCard() {
         )}
         {!loading && domains.length === 0 && (
           <p className="st-key" style={{ marginTop: 8 }}>{t('settings.practice_domains.empty')}</p>
+        )}
+        {/* density T3: AI 推荐域 — 只展示, 采纳 (= toggle 合并进勾选) 才写画像 */}
+        {!loading && pendingRecs.length > 0 && recs && (
+          <div data-testid="interest-advisor" style={{ marginTop: 10 }}>
+            <p className="st-key">{t('settings.practice_domains.advisor_title')}</p>
+            {pendingRecs.map((d) => (
+              <div key={d} className="flex items-center gap-2" style={{ marginBottom: 4 }}>
+                <span className="st-chip"><i aria-hidden />{options.find((o) => o.id === d)?.label || d}</span>
+                <span className="st-key" style={{ flex: 1 }}>{recs.reasons[d] || ''}</span>
+                <button
+                  type="button"
+                  className="st-btn"
+                  disabled={saving}
+                  onClick={() => toggle(d)}
+                >
+                  {t('settings.practice_domains.adopt')}
+                </button>
+              </div>
+            ))}
+          </div>
         )}
         {/* R2 漂移提示: 行为 top 与勾选重合不足 — 只提示, 绝不自动改画像 */}
         {drift?.detected && (

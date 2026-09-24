@@ -246,4 +246,21 @@ describe('PracticeDomainsCard', () => {
     });
     expect(screen.queryByTestId('interest-advisor')).not.toBeInTheDocument();
   });
+
+  it('点刷新推荐走 force=1 重新拉取 (设计稿 §4.2 手动刷新入口)', async () => {
+    mockRecs(RECS);
+    render(<PracticeDomainsCard />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('interest-advisor')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('interest-advisor-refresh'));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/interest/domains/recommendations?force=1',
+        expect.anything(),
+      );
+    });
+  });
 });

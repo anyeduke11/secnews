@@ -86,11 +86,15 @@ export function PracticeDomainsCard() {
   }, [loadWeights]);
 
   // density T3: AI 推荐域 — 失败静默空态 (gate 关闭/后端不可用不阻塞卡片)
-  useEffect(() => {
-    apiFetch<RecommendationsResponse>('/api/interest/domains/recommendations')
+  const [recsRefreshing, setRecsRefreshing] = useState(false);
+  const loadRecs = useCallback((force: boolean) => {
+    if (force) setRecsRefreshing(true);
+    apiFetch<RecommendationsResponse>(`/api/interest/domains/recommendations${force ? '?force=1' : ''}`)
       .then((data) => setRecs(data))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { if (force) setRecsRefreshing(false); });
   }, []);
+  useEffect(() => { loadRecs(false); }, [loadRecs]);
 
   const toggle = useCallback(
     (id: string) => {
@@ -168,7 +172,17 @@ export function PracticeDomainsCard() {
         {/* density T3: AI 推荐域 — 只展示, 采纳 (= toggle 合并进勾选) 才写画像 */}
         {!loading && pendingRecs.length > 0 && recs && (
           <div data-testid="interest-advisor" style={{ marginTop: 10 }}>
-            <p className="st-key">{t('settings.practice_domains.advisor_title')}</p>
+            <p className="st-key" style={{ display: 'inline' }}>{t('settings.practice_domains.advisor_title')}</p>
+            <button
+              type="button"
+              className="st-btn"
+              style={{ marginLeft: 8, padding: '1px 8px' }}
+              disabled={recsRefreshing}
+              onClick={() => loadRecs(true)}
+              data-testid="interest-advisor-refresh"
+            >
+              {t('settings.practice_domains.advisor_refresh')}
+            </button>
             {pendingRecs.map((d) => (
               <div key={d} className="flex items-center gap-2" style={{ marginBottom: 4 }}>
                 <span className="st-chip"><i aria-hidden />{options.find((o) => o.id === d)?.label || d}</span>

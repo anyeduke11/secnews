@@ -95,6 +95,7 @@ const messages_zhCN: Messages = {
   'settings.practice_domains.drift_hint': '行为信号与勾选方向出现偏离：近期偏好 {domains}。画像不会被自动修改，可按需调整勾选或清除行为学习。',
   'settings.practice_domains.advisor_title': 'AI 推荐域（仅展示，点采纳才写入画像）',
   'settings.practice_domains.adopt': '采纳',
+  'settings.practice_domains.advisor_refresh': '刷新推荐',
   // DEV-0177 T0.5 收敛: SK-01 今日重点情报卡
   'feed.priority.title': '今日重点',
   'feed.priority.loading': '生成中…',
@@ -471,6 +472,7 @@ const messages_enUS: Messages = {
   'settings.practice_domains.drift_hint': 'Behavioral signals drift from your selections: recent preference is {domains}. Your profile is never modified automatically — adjust selections or clear learned behavior as needed.',
   'settings.practice_domains.advisor_title': 'AI suggested domains (display only; adopt to apply)',
   'settings.practice_domains.adopt': 'Adopt',
+  'settings.practice_domains.advisor_refresh': 'Refresh',
   // DEV-0177 T0.5 收敛: SK-01 priority digest card
   'feed.priority.title': "Today's Priorities",
   'feed.priority.loading': 'Generating…',

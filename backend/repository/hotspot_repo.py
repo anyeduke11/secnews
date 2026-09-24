@@ -710,8 +710,8 @@ class HotspotRepository:
         density T1 (2026-09-24): 传入非空 ``practice_domains`` 时每源附
         ``hit_count`` — 窗口内条目即时打标 practice_domain ∈ 关注域的条数
         (含显式 0, 供 M_i 零命中档消费)。hotspots 表无 practice_domain
-        列, 打标口径与 ``hotspot_service`` 读路径一致
-        (``classify_practice_domain(tags, title)``, tags 优先)。未传或传空
+        列, 打标用 ``classify_practice_domain(tags, title)`` (tags 优先,
+        较 hotspot_service 读路径的 title-only 属超集口径)。未传或传空
         → 返回结构与 T4 完全一致 (无 hit_count 键)。
         """
         conn = get_connection()

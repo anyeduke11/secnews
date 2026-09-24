@@ -38,6 +38,8 @@ Python 3 服务编排层(149 services,`*_service.py` + `triggers/` 子目录)。
 1. **依赖方向固定**: service 可 `import backend.repository.*`、
    `import backend.collectors.*`、`import backend.core.*`,**严禁**
    `import backend.api.*`(反向会触发循环导入,违反现有 `__init__.py` 的 lazy import 协议)。
+   例外: repo→service lazy import 仅在 service 为纯函数模块(无 repo 依赖)时允许,
+   首例 = hotspot_repo→auto_classifier (DEV-0229)。
 2. **新服务必须在 `__init__.py` 显式登记或被 router/job 引用** — 否则
    `scripts/generate_meta.py` AST 扫描不到,但服务本身仍是死的;CI 不会拦,
    但 review 会拦。

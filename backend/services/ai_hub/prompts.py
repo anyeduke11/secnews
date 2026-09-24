@@ -769,16 +769,20 @@ def build_interest_advisor_prompt(
     ingest_7d: list[dict[str, Any]],
     behavior_30d: list[dict[str, Any]],
     current_selected: list[str],
+    domain_labels: dict[str, str],
 ) -> str:
     """构造关注域 AI 推荐 prompt (density T3, 设计稿 §4.2).
 
     输入全部为聚合统计 (域计数/占比/行为分), 无原始 URL 与标题 —
     advisor 分析的是分布, 不是具体条目。严格域枚举约束写入 prompt,
     解析侧 (interest_domain_advisor) 仍做枚举校验双保险。
-    """
-    from backend.services.auto_classifier import PRACTICE_DOMAIN_LABELS
 
-    enum_lines = "\n".join(f"- {d}: {label}" for d, label in PRACTICE_DOMAIN_LABELS.items())
+    域枚举经 ``domain_labels`` 由调用方注入 (advisor 传
+    ``auto_classifier.PRACTICE_DOMAIN_LABELS``) — 本模块不 import
+    业务模块: auto_classifier 惰性 import ai_hub.gateway, prompts
+    若反向 import 它即成 R4 守卫拦截的 services 域惰性环。
+    """
+    enum_lines = "\n".join(f"- {d}: {label}" for d, label in domain_labels.items())
     ingest_lines = "\n".join(
         f"- {e['domain']}: {e['count']} 条 (占比 {e['share']:.0%})"
         for e in ingest_7d

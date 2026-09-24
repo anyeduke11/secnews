@@ -40,7 +40,7 @@ settings.kv `interest.practice_domains` 保持唯一真源; PracticeDomainsCard 
 - 服务: `backend/services/interest_domain_advisor.py`, 经 ai_hub 单出口调默认 LLM (task=interest_advisor, 走 scenario light 档)。
 - 输入 (确定性组装, 不含原始 URL): ①近 7d 各 practice_domain 入库分布 (top N + 占比); ②interest_signals 近 30d 各域行为聚合分 (复用 interest_engine_service 聚合); ③当前勾选域。
 - 输出契约: JSON {recommended: [≤5 合法域], reasons: {域: 一句话}} — **域枚举校验**: 推荐域 ∉ 合法集合 → 丢弃该项; 解析失败 → 返回上次缓存/空推荐, 不抛错。
-- 触发: 手动为主 (前端"获取推荐"按钮) + 每日 job 兜底缓存 (失败静默)。**推荐不自动生效** — 用户在卡片上一键采纳 (合并进勾选) 后才影响 M_i。
+- 触发: 手动为主 (前端"获取推荐"按钮) + 每日 job 兜底缓存 (失败静默; parked — controller 裁决边际价值低, 手动刷新入口已覆盖)。**推荐不自动生效** — 用户在卡片上一键采纳 (合并进勾选) 后才影响 M_i。
 - 缓存: settings.kv `interest.advisor_cache` (含时间戳), 24h 内复用。
 
 ### 4.3 M_i 消费的"关注域"

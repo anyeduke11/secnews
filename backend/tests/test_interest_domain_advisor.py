@@ -249,6 +249,7 @@ class TestPrompt:
             ingest_7d=[{"domain": "ai_security", "count": 3, "share": 0.75}],
             behavior_30d=[{"domain": "ai_security", "score": 1.0, "events_30d": 2}],
             current_selected=["compliance"],
+            domain_labels=PRACTICE_DOMAIN_LABELS,
         )
         for domain in PRACTICE_DOMAIN_LABELS:
             assert domain in prompt

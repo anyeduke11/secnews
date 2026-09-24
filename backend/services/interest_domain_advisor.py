@@ -145,7 +145,9 @@ async def get_recommendations(force: bool = False) -> dict[str, Any]:
 
     note = ""
     try:
-        prompt = build_interest_advisor_prompt(**build_recommendation_input())
+        prompt = build_interest_advisor_prompt(
+            **build_recommendation_input(), domain_labels=PRACTICE_DOMAIN_LABELS
+        )
         raw = await _ai_hub_mod.llm_service.generate(
             prompt,
             task=ADVISOR_TASK,

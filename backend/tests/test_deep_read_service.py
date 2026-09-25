@@ -174,15 +174,15 @@ def test_run_llm_empty_raises_and_no_write(temp_db):
 
 
 def test_parse_sections_normal_json():
-    """合法 JSON 直接解析, 按传入的分类节集合逐键落地。"""
+    """合法 JSON 直接解析, 按传入的分类节集合逐键落地 (v3 走 _parse_sections_v3)。"""
     from backend.services.ai_hub.prompts import deep_read_sections
-    from backend.services.deep_read_service import _parse_sections
+    from backend.services.deep_read_service import _parse_sections_v3
 
     defs = deep_read_sections("security")
     raw = json.dumps(
         {d["key"]: f"内容-{d['key']}" for d in defs}, ensure_ascii=False,
     )
-    out = _parse_sections(raw, defs)
+    out, _fw, _hl = _parse_sections_v3(raw, "security")
     assert set(out) == {d["key"] for d in defs}
     assert out[defs[0]["key"]] == f"内容-{defs[0]['key']}"
 
@@ -190,14 +190,14 @@ def test_parse_sections_normal_json():
 def test_parse_sections_extra_keys_are_dropped():
     """LLM 多吐的键被丢弃, 缺的键补空 —— 不能让脏键流到前端渲染。"""
     from backend.services.ai_hub.prompts import deep_read_sections
-    from backend.services.deep_read_service import _parse_sections
+    from backend.services.deep_read_service import _parse_sections_v3
 
     defs = deep_read_sections("finance")  # DEV-0183: bid profile 已随标讯下线移除
     raw = json.dumps(
         {**{d["key"]: "x" for d in defs[:-1]}, "bonus_hallucinated": "y"},
         ensure_ascii=False,
     )
-    out = _parse_sections(raw, defs)
+    out, _fw, _hl = _parse_sections_v3(raw, "finance")
     assert set(out) == {d["key"] for d in defs}
     assert "bonus_hallucinated" not in out
     assert out[defs[-1]["key"]] == ""
@@ -209,12 +209,12 @@ def test_parse_sections_extra_keys_are_dropped():
 def test_parse_sections_fallback_to_whole_text():
     """非 JSON 输入 → 原文落进首节, 其余空 (不抛错)。"""
     from backend.services.ai_hub.prompts import deep_read_sections
-    from backend.services.deep_read_service import _parse_sections
+    from backend.services.deep_read_service import _parse_sections_v3
 
     defs = deep_read_sections("security")
     first = defs[0]["key"]
     raw = "我只是一段分析文字, 不是 JSON, 应该被 fallback。"
-    out = _parse_sections(raw, defs)
+    out, _fw, _hl = _parse_sections_v3(raw, "security")
     assert "我只是一段分析文字" in out[first]
     assert all(out[d["key"]] == "" for d in defs[1:])
 
@@ -311,8 +311,8 @@ def test_framework_config_integrity():
     单分类分节数 ≤9 防止 prompt 膨胀稀释每节质量。"""
     from backend.services.ai_hub.prompts import (
         _FRAMEWORKS,
-        DEEP_READ_PROFILES,
         _GENERAL_PROFILE,
+        DEEP_READ_PROFILES,
         deep_read_sections,
     )
 
@@ -342,9 +342,10 @@ def test_framework_sections_never_red_and_skeleton_invariant():
 
 
 def test_prompt_schema_matches_sections_exactly():
-    """prompt 内嵌 JSON schema 的键必须与 deep_read_sections 逐键一致 —
-    service 用同一函数解析, schema 与分节定义漂移 = 分节键错乱/丢节。
-    同时验证 v2 的「分析框架」段落在每个分类的 prompt 中都存在。"""
+    """prompt 内嵌默认分节示例的键必须与 deep_read_sections 逐键一致 —
+    service 用同一函数解析, 示例与分节定义漂移 = 分节键错乱/丢节。
+    同时验证 v3 的「框架菜单」段与 framework/headline 契约键在每个分类的
+    prompt 中都存在。"""
     import json as _json
 
     from backend.services.ai_hub.prompts import (
@@ -354,17 +355,46 @@ def test_prompt_schema_matches_sections_exactly():
 
     for cat in ("security", "github", "finance", None):
         prompt = _build_deep_read_prompt(cat, {"title": "T"}, "正文")
-        schema_block = prompt.split("JSON schema:\n", 1)[1].split("\n\n来源元信息")[0]
+        schema_block = prompt.split("默认分节示例 (所选框架不同时节键相应替换):\n", 1)[1].split("\n\n来源元信息")[0]
         assert set(_json.loads(schema_block)) == {s["key"] for s in deep_read_sections(cat)}, f"{cat} schema 漂移"
-        assert "分析框架" in prompt, f"{cat} prompt 缺框架 lens 段"
+        assert "框架菜单" in prompt, f"{cat} prompt 缺框架菜单段"
+        assert '"framework"' in prompt and '"headline"' in prompt, f"{cat} prompt 缺 v3 契约键"
+        assert "安全从业者视角" in prompt, f"{cat} prompt 缺 next_actions 视角约束"
 
 
-def test_profile_version_bumped_to_v2():
+def test_profile_version_bumped_to_v3():
     """模板结构变更加 profile_version 锚点: 落库记录据此识别模板代际,
-    旧 v1 报告渲染不回归, 新报告可审计。"""
+    旧 v1/v2 报告渲染不回归, 新报告可审计。"""
     from backend.services.ai_hub.prompts import DEEP_READ_PROFILE_VERSION
 
-    assert DEEP_READ_PROFILE_VERSION == "v2"
+    assert DEEP_READ_PROFILE_VERSION == "v3"
+
+
+def test_parse_sections_v3_framework_self_select():
+    """v3 框架自选解析: LLM 返回 framework 键 → 节集合按所选框架组装;
+    headline 透传; 非法 framework 回落 profile 默认 (v2 行为)。"""
+    from backend.services.deep_read_service import _parse_sections_v3
+
+    # security 默认 what_why_how; LLM 改选 swot_lite → 节键应含 strengths_opp
+    raw = '{"framework": "swot_lite", "headline": "测试标题", "key_takeaways": "K", "strengths_opp": "S", "weak_threat": "W", "impact_ioc": "I", "next_actions": "N", "evidence_gaps": "E"}'
+    sections, fw, headline = _parse_sections_v3(raw, "security")
+    assert fw == "swot_lite"
+    assert headline == "测试标题"
+    assert sections["strengths_opp"] == "S" and sections["weak_threat"] == "W"
+    assert "impact_ioc" in sections, "security 领域专属节须保留"
+    assert "what" not in sections, "未选框架的节不得出现"
+
+    # 非法 framework → 回落默认 (security = what_why_how)
+    raw2 = '{"framework": "ghost", "key_takeaways": "K", "what": "A", "why_matters": "B", "how_react": "C", "impact_ioc": "I", "next_actions": "N", "evidence_gaps": "E"}'
+    sections2, fw2, hl2 = _parse_sections_v3(raw2, "security")
+    assert fw2 == "ghost"  # 原样透传 (envelope 如实记录 LLM 声明)
+    assert "what" in sections2, "非法框架回落默认框架节集合"
+    assert hl2 == ""
+
+    # 非 JSON → 整段塞首节 fallback, framework/headline 空
+    sections3, fw3, hl3 = _parse_sections_v3("纯文本垃圾输出", "security")
+    assert fw3 == "" and hl3 == ""
+    assert sections3["key_takeaways"].startswith("纯文本")
 
 
 def test_framework_lens_tolerates_unknown_framework(monkeypatch):

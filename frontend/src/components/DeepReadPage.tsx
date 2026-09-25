@@ -208,7 +208,7 @@ export function DeepReadPage() {
   return (
     <div
       style={{
-        maxWidth: '72ch',
+        maxWidth: 'min(1080px, 100%)',
         margin: '0 auto',
         padding: 'var(--space-4, 16px)',
         display: 'flex',
@@ -216,6 +216,45 @@ export function DeepReadPage() {
         gap: 'var(--space-3, 12px)',
       }}
     >
+      {/* v3 标题区: AI 解读标题 (大字) + 框架徽标; 旧报告无 headline 时隐藏 */}
+      {data?.headline && !loading && (
+        <div
+          style={{
+            padding: 'var(--space-4, 16px) var(--space-4, 16px)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-md, 8px)',
+            background: 'var(--bg-card)',
+          }}
+        >
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 20,
+              fontWeight: 700,
+              lineHeight: 1.5,
+              color: 'var(--text-primary)',
+            }}
+          >
+            {data.headline}
+          </h1>
+          {data.framework && (
+            <span
+              style={{
+                display: 'inline-block',
+                marginTop: 'var(--space-2, 8px)',
+                fontSize: 11,
+                fontFamily: 'monospace',
+                color: 'var(--color-ai)',
+                padding: '2px 8px',
+                borderRadius: 'var(--radius-sm, 4px)',
+                background: 'color-mix(in srgb, var(--border-color) 40%, transparent)',
+              }}
+            >
+              框架 {data.framework}
+            </span>
+          )}
+        </div>
+      )}
       {/* 顶部元信息条 */}
       <div
         style={{

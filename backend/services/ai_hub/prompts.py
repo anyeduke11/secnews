@@ -110,7 +110,7 @@ def _build_extract_entities_prompt(content: str) -> str:
 # —— 那套证据要求只对漏洞类成立, 对招标/创投/金融监管类文章会诱导模型编造。
 # tone 只允许 mint / amber / red: 哨兵终端语义三色锁, red 专属漏洞告警语境。
 
-DEEP_READ_PROFILE_VERSION = "v2"
+DEEP_READ_PROFILE_VERSION = "v3"
 
 _HEAD_SECTION = {"key": "key_takeaways", "title": "要点速读", "tone": "mint"}
 _TAIL_SECTIONS = (
@@ -238,15 +238,33 @@ def deep_read_framework_lens(category: str | None) -> str:
     return "；".join(lenses)
 
 
-def deep_read_sections(category: str | None) -> list[dict[str, str]]:
-    """该分类的有序分节定义: 要点速读 + 框架节 + 领域专属节 + 我的动作 + 存疑与未证实。"""
+def deep_read_sections(category: str | None, framework: str | None = None) -> list[dict[str, str]]:
+    """该分类的有序分节定义: 要点速读 + 框架节 + 领域专属节 + 我的动作 + 存疑与未证实。
+
+    v3: ``framework`` 可显式指定 (LLM 自选框架的返回值); None/非法值回落
+    profile 默认声明的框架集合 —— 调用方解析 LLM 响应时先取 framework 键
+    再用本函数取节定义, 两处必须同源。
+    """
     profile = deep_read_profile_for(category)
+    frameworks = profile.get("frameworks", ())
+    if framework is not None and framework in _FRAMEWORKS:
+        frameworks = (framework,)
     fw_sections: list[dict[str, str]] = []
-    for f in profile.get("frameworks", ()):
+    for f in frameworks:
         fw = _FRAMEWORKS.get(f)
         if fw:
             fw_sections.extend(fw["sections"])
     return [_HEAD_SECTION, *fw_sections, *profile["extra_sections"], *_TAIL_SECTIONS]
+
+
+def _framework_menu(default_fw: tuple[str, ...]) -> str:
+    """v3 框架菜单: 全部可选框架的键与节定义, 供 LLM 按内容自选。"""
+    lines = []
+    for name, fw in _FRAMEWORKS.items():
+        secs = "、".join(f"{s['key']}({s['title']})" for s in fw["sections"])
+        mark = " ← 默认推荐" if name in default_fw else ""
+        lines.append(f"- {name}: {secs}{mark} — {fw['lens'].split(' — ')[0]}")
+    return "\n".join(lines)
 
 
 def _build_deep_read_prompt(
@@ -254,20 +272,20 @@ def _build_deep_read_prompt(
     entity_meta: dict[str, str],
     content: str,
 ) -> str:
-    """构建分类型深度解读 prompt。
+    """构建分类型深度解读 prompt (v3 框架自选)。
 
-    返回的 JSON schema 由 ``deep_read_sections(category)`` 的 key 决定 —— 调用方
-    必须用同一函数解析, 否则分节键会漂移。
+    - LLM 从框架菜单按内容自选 1 个 (默认推荐 profile 声明的), 首键 ``framework``
+      声明所选; 解析端用 ``deep_read_sections(category, framework)`` 同源取节定义。
+    - ``headline``: 一句话解读标题 (≤40 字, 概括这条资讯的核心判断)。
+    - 字数按语义: 要点速读 100~250 字完整总结, 其余节 60~150 字按语义需要。
     """
     profile = deep_read_profile_for(category)
-    sections = deep_read_sections(category)
-    lens = deep_read_framework_lens(category)
+    default_fw = tuple(f for f in profile.get("frameworks", ()) if f in _FRAMEWORKS)
     schema = json.dumps(
-        {s["key"]: "<本节内容, markdown, 60~120 字>" for s in sections},
+        {s["key"]: "<本节内容, markdown>" for s in deep_read_sections(category)},
         ensure_ascii=False,
         indent=2,
     )
-    titles = "；".join(f"{s['key']}={s['title']}" for s in sections)
     budget = int(profile["budget"])
     meta_lines = "".join(
         f"[{k}] {v}\n" for k, v in entity_meta.items() if v and k != "entity_type"
@@ -275,13 +293,19 @@ def _build_deep_read_prompt(
     return (
         f"{profile['persona']}。请分析下面这条资讯, 生成结构化深度解读。\n\n"
         "严格要求:\n"
-        "1. 必须返回合法 JSON, 键严格匹配下方 schema, 不得省略或新增键。\n"
-        "2. 每节用 markdown (可用列表/粗体/代码), 不要套外层 ```json 围栏。\n"
-        "3. 每节 60~120 字, 直接给结论与信息点, 禁止空话、复述原文、无信息量总结。\n"
-        f"4. 证据约束: {profile['evidence']} {_EVIDENCE_RULE}\n"
-        f"5. 分析框架: {lens}\n"
-        f"6. 各节含义: {titles}\n\n"
-        f"JSON schema:\n{schema}\n\n"
+        "1. 必须返回合法 JSON, 不要套外层 ```json 围栏。\n"
+        "2. 首键 \"framework\": 从下方框架菜单中选 1 个最契合本文内容的框架键"
+        f" (默认推荐: {'、'.join(default_fw) or 'what_why_how'}; 内容明显更适合其他框架时可改选)。\n"
+        "3. 次键 \"headline\": 一句话解读标题, ≤40 字, 给出核心判断而非复述标题。\n"
+        "4. 然后只返回所选框架对应的节键 (加该分类专属节与头尾节), 每节 markdown"
+        " (可用列表/粗体), 不得返回未选框架的节键。\n"
+        "5. 字数按语义需要, 禁止注水与复述原文: key_takeaways 100~250 字完整总结;"
+        " 其余节 60~150 字, 信息密度优先。\n"
+        f"6. 证据约束: {profile['evidence']} {_EVIDENCE_RULE}\n"
+        "7. next_actions 必须站在安全从业者视角给可落地动作 (检测/加固/评估/跟踪,"
+        " 注明优先级), 不写泛泛的\"持续关注\"。\n\n"
+        f"框架菜单:\n{_framework_menu(default_fw)}\n\n"
+        f"默认分节示例 (所选框架不同时节键相应替换):\n{schema}\n\n"
         f"来源元信息:\n{meta_lines or '(无)'}\n\n"
         f"待分析内容 (最多 {budget} 字符):\n{content[:budget]}"
     )

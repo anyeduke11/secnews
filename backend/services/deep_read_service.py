@@ -32,9 +32,9 @@ from backend.services.ai_hub.prompts import (
 # 历史上本服务不传 task, 被 generate() 内部写死成 "summary" → FLASH 档 →
 # 未运行的 ollama, 导致 deep_reads 表长期 0 行。
 DEEP_READ_TASK = "deep_read"
-# 输出上限: sensenova 实测约 80ms/token (推理已关) × provider 超时 90s 反推,
-# 再高会在到达前被截断。配合 prompt 里"每节 60~120 字"约束。
-DEEP_READ_MAX_TOKENS = 1100
+# 输出上限: sensenova 实测约 80ms/token (推理已关) × provider 超时 90s 反推。
+# v3 字数语义化 (要点速读 100~250 字) 后上调, 再高会在到达前被截断。
+DEEP_READ_MAX_TOKENS = 1800
 DEEP_READ_TEMPERATURE = 0.3
 
 
@@ -45,47 +45,67 @@ class DeepReadError(Exception):
 # ── 分节解析 (按分类的动态节集合) ─────────────────────────
 
 
-def _parse_sections(raw: str, section_defs: list[dict[str, str]]) -> dict[str, str]:
-    """从 LLM 原始输出抽取分节 JSON, 容错 markdown fence + 文本包裹。"""
+def _parse_raw_dict(raw: str) -> dict[str, Any] | None:
+    """从 LLM 原始输出抽取 JSON dict (framework/headline/节键同居一层), 容错 fence。"""
     import re
 
     text = raw.strip()
-    keys = [s["key"] for s in section_defs]
 
-    def _try(candidate: str) -> dict[str, str] | None:
+    def _try(candidate: str) -> dict[str, Any] | None:
         try:
             data = json.loads(candidate)
         except json.JSONDecodeError:
             return None
-        return _normalize_sections(data, keys) if isinstance(data, dict) else None
+        return data if isinstance(data, dict) else None
 
-    # 1) 直接 JSON 解析
     parsed = _try(text)
     if parsed is not None:
         return parsed
-
-    # 2) 去掉 ```json ... ``` 包裹
     fence_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
     if fence_match:
         parsed = _try(fence_match.group(1))
         if parsed is not None:
             return parsed
-
-    # 3) 截取首个 { 到最后一个 } 之间
     if "{" in text and "}" in text:
-        parsed = _try(text[text.index("{"): text.rindex("}") + 1])
-        if parsed is not None:
-            return parsed
+        return _try(text[text.index("{"): text.rindex("}") + 1])
+    return None
 
-    # 4) 全失败 — 整段塞首节, 其余空
+
+def _parse_sections_v3(
+    raw: str, category: str | None
+) -> tuple[dict[str, str], str, str]:
+    """v3 解析: raw → (sections, framework, headline)。
+
+    - framework 键合法 → 用 ``deep_read_sections(category, framework)`` 取节定义;
+      非法/缺失 → 回落 profile 默认框架 (v2 行为), headline 空串。
+    - 全部 JSON 解析失败 → 整段塞首节 (v2 fallback 语义保留)。
+    """
+    data = _parse_raw_dict(raw)
+    framework = ""
+    headline = ""
+    if data is not None:
+        fw_val = data.get("framework")
+        if isinstance(fw_val, str) and fw_val.strip():
+            framework = fw_val.strip()
+        hl_val = data.get("headline")
+        if isinstance(hl_val, str):
+            headline = hl_val.strip()[:80]
+
+    # framework 合法性由 deep_read_sections 内部回落保证 (非法值 → 默认框架)
+    section_defs = deep_read_sections(category, framework or None)
+    keys = [s["key"] for s in section_defs]
+
+    if data is not None:
+        return _normalize_sections(data, keys), framework, headline
+
     logger.warning(
         "DeepRead JSON 解析失败, fallback 到整段首节 (raw=%d 字符, 期望 %d 节)",
-        len(text), len(keys),
+        len(raw), len(keys),
     )
     fallback = dict.fromkeys(keys, "")
     if keys:
-        fallback[keys[0]] = text[:1000]
-    return fallback
+        fallback[keys[0]] = raw[:1000]
+    return fallback, framework, headline
 
 
 def _normalize_sections(data: dict[str, Any], keys: list[str]) -> dict[str, str]:
@@ -106,28 +126,34 @@ def _normalize_sections(data: dict[str, Any], keys: list[str]) -> dict[str, str]
 def _build_payload(
     category: str | None,
     sections: dict[str, str],
+    framework: str = "",
+    headline: str = "",
 ) -> tuple[str, str]:
     """分节 → (sections_json, content_md)。
 
-    ``sections_json`` 自描述 (schema / category / profile_version / 有序 sections),
-    因此新增或调整分节**不需要数据库迁移** —— 迁移 075 当初选 JSON 串就是为了这个。
+    ``sections_json`` 自描述 (schema / category / profile_version / framework /
+    headline / 有序 sections), 因此新增或调整分节**不需要数据库迁移** —— 迁移 075
+    当初选 JSON 串就是为了这个。
     """
-    defs = deep_read_sections(category)
+    defs = deep_read_sections(category, framework or None)
     ordered = [{**d, "body": sections.get(d["key"], "")} for d in defs]
     sections_json = json.dumps(
         {
             "schema": 1,
             "category": category or "general",
             "profile_version": DEEP_READ_PROFILE_VERSION,
+            "framework": framework,
+            "headline": headline,
             "sections": ordered,
         },
         ensure_ascii=False,
     )
+    head = f"# {headline}\n\n" if headline else ""
     lines = [
         f"## {d['title']}\n\n{sections.get(d['key'], '').strip() or '_(本节暂无内容)_'}\n"
         for d in defs
     ]
-    return sections_json, "\n".join(lines)
+    return sections_json, head + "\n".join(lines)
 
 
 # ── 原文拉取 ──────────────────────────────────────────────────
@@ -209,7 +235,6 @@ class DeepReadService:
 
         # 视角由文章分类决定; 取不到分类回落通用视角而不是失败。
         category = metadata.get("category") or None
-        section_defs = deep_read_sections(category)
         content = body if body else "(原文为空, 仅依据 ID 与类型生成)"
         prompt = _build_deep_read_prompt(category, metadata, content)
 
@@ -237,8 +262,8 @@ class DeepReadService:
                 f"LLM 返回空 (entity={entity_type}/{entity_id}); 可能所有 provider 不可用"
             )
 
-        sections = _parse_sections(raw, section_defs)
-        sections_json, content_md = _build_payload(category, sections)
+        sections, framework, headline = _parse_sections_v3(raw, category)
+        sections_json, content_md = _build_payload(category, sections, framework, headline)
 
         # provider/model 记账: generate() 内部不暴露, 用 router 推荐 + 当前 model 推导。
         # 必须用**同一个** DEEP_READ_TASK 查询, 否则记下来的 provider/model 与实际

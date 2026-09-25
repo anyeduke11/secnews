@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -47,6 +48,8 @@ class DeepReadResponse(BaseModel):
     entity_id: str
     content_md: str
     category: str = ""
+    headline: str = ""
+    framework: str = ""
     sections: list[DeepReadSectionItem]
     sections_json: str
     provider: str
@@ -91,12 +94,29 @@ def _build_sections(item_dict: dict[str, Any]) -> list[DeepReadSectionItem]:
     ]
 
 
+def _extract_envelope_meta(item_dict: dict[str, Any]) -> tuple[str, str]:
+    """从 sections_json 提取 v3 envelope 元 (headline/framework); 旧报告返空串。"""
+    try:
+        data = json.loads(item_dict.get("sections_json") or "{}")
+    except (json.JSONDecodeError, TypeError):
+        return "", ""
+    if not isinstance(data, dict):
+        return "", ""
+    return (
+        str(data.get("headline") or "")[:80],
+        str(data.get("framework") or ""),
+    )
+
+
 def _to_response(item_dict: dict[str, Any]) -> DeepReadResponse:
+    headline, framework = _extract_envelope_meta(item_dict)
     return DeepReadResponse(
         entity_type=item_dict.get("entity_type", ""),
         entity_id=item_dict.get("entity_id", ""),
         content_md=item_dict.get("content_md", ""),
         category=str(item_dict.get("category") or ""),
+        headline=headline,
+        framework=framework,
         sections=_build_sections(item_dict),
         sections_json=item_dict.get("sections_json", "{}"),
         provider=str(item_dict.get("provider", "")),

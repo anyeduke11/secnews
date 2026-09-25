@@ -871,6 +871,10 @@ export interface DeepReadResponse {
   content_md: string;
   /** 本次解读所用的视角分类 (旧行可能为空) */
   category: string;
+  /** v3: AI 生成的一句话解读标题 (旧报告为空) */
+  headline?: string;
+  /** v3: LLM 自选的分析框架键 what_why_how/swot_lite/five_w (旧报告为空) */
+  framework?: string;
   sections: DeepReadSection[];
   sections_json: string;
   provider: string;

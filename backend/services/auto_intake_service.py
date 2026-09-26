@@ -166,9 +166,12 @@ def run_auto_intake() -> dict[str, object]:
                 result["intaken"] += 1
             except Exception as e:
                 log.warning(f"auto_intake: promote failed for {cand['id']}: {e}")
-        # 步骤 6: 游标推进到本轮 max(ingested_at) (含跳过条目 — 不重扫)
+        # 步骤 6: 游标推进到本轮 max(ingested_at) (含跳过条目 — 不重扫)。
+        # min(..., now) 钳制: 脏数据未来时间戳会把游标顶到未来, 合法新条目
+        # 在追上之前被静默跳过 — 钳到当前时刻封顶。
+        now_iso = datetime.now(timezone.utc).isoformat()
         SettingsRepository().set(
-            CURSOR_KEY, max(c["ingested_at"] for c in candidates)
+            CURSOR_KEY, min(max(c["ingested_at"] for c in candidates), now_iso)
         )
     except Exception as e:
         log.error(f"run_auto_intake crashed: {e}")

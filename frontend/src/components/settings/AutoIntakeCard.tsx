@@ -23,6 +23,7 @@ export function AutoIntakeCard() {
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
   const load = useCallback(() => {
     apiFetch<AutoIntakeConfig>('/api/settings/auto-intake')
@@ -51,9 +52,14 @@ export function AutoIntakeCard() {
       .then((d) => {
         setCfg(d);
         setSavedFlash(true);
+        setSaveMsg(null);
         window.setTimeout(() => setSavedFlash(false), 1500);
       })
-      .catch(() => {
+      .catch(async (e) => {
+        // 422 = 校验拒绝 (如 daily_limit 越界) — 展示服务端原因而非笼统失败
+        let reason: string | null = null;
+        try { reason = (await e?.response?.text?.()) || null; } catch { /* ignore */ }
+        setSaveMsg(reason ? `保存被拒绝: ${reason}` : null);
         setSaveError(true);
         load(); // 失败回滚到服务端真值
       })
@@ -67,7 +73,12 @@ export function AutoIntakeCard() {
         高质量资讯自动进入 KL 管线 (每日限量防风暴); 收藏通道不受上限约束。
         {saving && <span className="st-chip"><i aria-hidden />保存中…</span>}
         {savedFlash && !saving && <span className="st-chip ok"><i aria-hidden />已保存</span>}
-        {saveError && <span className="st-chip warn"><i aria-hidden />保存失败</span>}
+        {saveError && (
+          <span className="st-chip warn">
+            <i aria-hidden />
+            {saveMsg || '保存失败'}
+          </span>
+        )}
       </p>
       {loadError ? (
         <p className="st-cellnote">配置不可用。</p>

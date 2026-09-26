@@ -381,6 +381,7 @@ def test_count_by_category(repo):
         "finance": 0,
         "startup": 0,
         "github": 0,
+        "paper": 0,
     }
 
 

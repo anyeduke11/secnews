@@ -1,0 +1,26 @@
+-- 126_foreign_keys_off_note.sql — 销毁型 migration FK OFF 先例锚点
+-- (2026-09-26 migration 124 FK 级联事故终审 Critical 修复; 本文件为纯注释,
+--  无执行语义 — apply_migrations() 走 executescript, 纯注释可正常落账
+--  schema_version, 用于占住 126 编号并承载教训。)
+--
+-- 事故: 124_paper_category.sql 于 2026-09-26 22:29 在生产库执行时,
+-- 连接级 PRAGMA foreign_keys=ON (db.py get_connection) 生效, 其
+-- "DROP TABLE hotspots" 触发声明了 REFERENCES hotspots(id)
+-- ON DELETE CASCADE 的子表级联删除:
+--   - hotspot_tags (024): 数千行热点↔标签打标关联被清空
+--     (auto_extract_job 以 60s×20 条自动重建, 无需人工恢复);
+--   - ai_scores (043): 同声明, 幸为空表, 无实损。
+--
+-- 根因: 重建表模式 (009/047/114/124) 中 DROP 被引用表时, FK ON 会把
+-- "删父行" 语义扩散成子表 CASCADE, 销毁范围远超迁移预期。
+--
+-- 规约 (后续一切销毁型 migration 必须沿用, 先例 = 112_remove_bid_data):
+--   PRAGMA foreign_keys = OFF;   -- 脚本首行附近, 阻断 CASCADE 扩散
+--   ... DROP/TRUNCATE/DELETE ... -- 销毁操作
+--   PRAGMA foreign_keys = ON;    -- 脚本末尾恢复, 不依赖 runner
+-- PRAGMA 是连接级状态, 仅影响本迁移执行窗口; 由迁移脚本自身成对
+-- 关闭/恢复, 不改 db.py 的连接默认 (foreign_keys=ON)。
+--
+-- 为何不能回改 124: apply_migrations 按 schema_version 顺序执行,
+-- 已应用实例不会重跑, 改 124 执行语义无意义且违反 append-only;
+-- 124 文件头已附事故记录, 本文件为 FK OFF 模式的可检索锚点。

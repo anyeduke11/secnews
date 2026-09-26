@@ -192,9 +192,10 @@ def test_categories_returns_6(client, seeded_db):
     # Phase 35: tech 合并到 ai, 主分类 6 个
     # Phase X:  新增 ai_security (AI 安全交叉) → 总数 7
     # DEV-0183: bid 移除 → 总数 6
-    assert len(cats) == 6
+    # 2026-09-26: paper 论文分类加入 → 总数 7
+    assert len(cats) == 7
     ids = {c["id"] for c in cats}
-    assert ids == {"ai", "ai_security", "security", "finance", "startup", "github"}
+    assert ids == {"ai", "ai_security", "security", "finance", "startup", "github", "paper"}
     assert "tech" not in ids
     for c in cats:
         assert "label" in c
@@ -373,8 +374,8 @@ def test_trends_by_category(client, temp_db):
     data = r.json()
     assert "data" in data  # category -> points
     assert isinstance(data["data"], dict)
-    # v1.9: 加 ai_security; DEV-0183: 移除 bid → 7 个分类
-    assert len(data["data"]) == 7
+    # v1.9: 加 ai_security; DEV-0183: 移除 bid; 2026-09-26: 加 paper → 8 个分类
+    assert len(data["data"]) == 8
 
 
 def test_trends_invalid_hours(client):

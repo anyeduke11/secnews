@@ -62,6 +62,9 @@ def _seed(conn) -> None:
             " VALUES (?, ?, ?, ?, 10, 0, ?, datetime('now'), datetime('now'))",
             (cat, name, f"https://{name}.example.com", status, items),
         )
+    # 2026-09-26 论文抓取 (migration 123) 种子了 14 行 paper 源 (enabled=1);
+    # 本文件锁定受控 seed 口径, 清掉种子行 (migration 121 multimedia 同款先例)。
+    conn.execute("DELETE FROM crawler_sources WHERE category='paper'")
     conn.commit()
 
 

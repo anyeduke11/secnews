@@ -334,7 +334,7 @@
 | **Services** | 146 | 12 包 + v1 域服务 |
 | **Migrations** | 119 | v1.0: 096-108；后续: 109-119 |
 | **Jobs** | 57 | APScheduler |
-| **Collectors** | 13 | SSRF 防护走 url_safety |
+| **Collectors** | 14 | SSRF 防护走 url_safety; 14 号为 arXiv 论文单源 (category=paper, 2026-09-26) |
 | **Feature Gates** | 16 | 开 15 / 关 1 (mcp；管线 LLM 三 gate semantic_filter / ai_classify / pipeline_ner 2026-09-19 开闸, env HOTSPOT_FEATURE_GATES 可应急回关) |
 | **Tests** | 历史 4,598 | PROGRESS 记录 9 skipped；本轮定向 51 passed，不代替全量 |
 | **MCP Tools** | 19 | 12 读 + 7 写 |

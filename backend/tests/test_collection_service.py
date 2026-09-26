@@ -100,9 +100,10 @@ def _patch_all_collectors(
 # ---------------------------------------------------------------------------
 def test_service_has_7_collectors(temp_db):
     """service.collectors 应覆盖全部 Category
-    (DEV-0178: BID 采集链移除; DEV-0183: BID 枚举成员删除, 现为 7 类)。"""
+    (DEV-0178: BID 采集链移除; DEV-0183: BID 枚举成员删除;
+    2026-09-26: PAPER 论文分类加入, 现为 8 类)。"""
     svc = CollectionService()
-    assert len(svc.collectors) == 7
+    assert len(svc.collectors) == 8
     for cat in Category:
         assert cat in svc.collectors
 
@@ -217,22 +218,23 @@ async def test_run_once_writes_collection_runs(temp_db):
         "startup",
         "github",
         "tech",
+        "paper",
     }
 
 
 # ---------------------------------------------------------------------------
-# 5. run_once 重建 trend_snapshots（168 行 = 24h × 7 分类, Phase 25 P1）
+# 5. run_once 重建 trend_snapshots (192 行 = 24h × 8 分类; 2026-09-26 +paper)
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_run_once_calls_trend_rebuild(temp_db):
-    """run_once 完成后 trend_snapshots 应有 24 × 7 = 168 行 (DEV-0183 移除 bid)。"""
+    """run_once 完成后 trend_snapshots 应有 24 × 8 = 192 行。"""
     svc = CollectionService()
     _patch_all_collectors(svc)
     await svc.run_once()
 
     conn = get_connection()
     rows = conn.execute("SELECT COUNT(*) FROM trend_snapshots").fetchall()
-    assert int(rows[0][0]) == 168
+    assert int(rows[0][0]) == 192
 
 
 # ---------------------------------------------------------------------------

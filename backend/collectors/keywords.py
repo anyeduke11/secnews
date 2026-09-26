@@ -85,6 +85,35 @@ _CAT_KEYWORDS: dict[str, list[str]] = {
         "robustness", "AI 监管", "AI 治理",
         "AI 风险", "AI 安全", "AI security",
     ],
+    # 2026-09-26: 论文分类 (ArxivPaperCollector) — arXiv 标题以英文为主,
+    # 子串匹配大小写敏感, 高频词需同时列 Title Case / 小写两种形态。
+    # 作用点: _title_relevant 预过滤 (category_match gate 读的是
+    # quality/config.py 的 DEFAULT_CATEGORY_KEYWORDS, paper 未列 → gate 放行)。
+    # 词表覆盖 14 领域检索词的标题特征: 安全论文标题必含
+    # security / vulnerability / adversarial / attack 类词之一。
+    "paper": [
+        # 学术/预印本通用
+        "arXiv", "论文", "预印本", "Survey", "survey", "Benchmark",
+        "benchmark", "Empirical Study", "empirical study", "Towards",
+        # 安全主词 (网络安全/应用安全/漏洞治理/攻击面 等标题特征)
+        "security", "Security", "secure", "vulnerability", "Vulnerability",
+        "vulnerabilities", "adversarial", "Adversarial", "attack", "Attack",
+        "attacks", "Attacks", "attack surface", "defense", "Defense",
+        "malware", "Malware", "threat", "Threat", "threat intelligence",
+        "privacy", "Privacy", "exploit", "Exploit", "backdoor", "Backdoor",
+        "intrusion", "Intrusion", "phishing", "ransomware", "jailbreak",
+        "prompt injection", "red team", "penetration", "incident response",
+        "situational awareness", "authentication", "cryptography",
+        "Cryptography", "cryptographic", "encryption", "watermarking",
+        # AI/模型词 (AI 领域论文标题特征)
+        "LLM", "GPT", "AI", "machine learning", "deep learning",
+        "neural network", "reinforcement learning", "large language model",
+        "foundation model", "diffusion model", "detection", "Detection",
+        "robustness", "Robustness", "anomaly", "federated",
+        "differential privacy", "agent", "Agent", "transformer", "Transformer",
+        # 中文兜底
+        "安全", "漏洞", "攻防", "大模型", "人工智能",
+    ],
 }
 
 

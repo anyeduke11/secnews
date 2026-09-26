@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 产品定位
 
-hotspot 是面向 **AI + 安全从业者** 的单机本地工作站（v0.8.5 + NAV4 + P3）。知识域以 `llm-wiki-2.0/` md 文件为唯一真相源（wiki-first 哲学），SQLite 仅做投影索引；AI 调用经 `backend/services/ai_hub/` 包单出口；SecNews 壳为 **SentinelShell 四菜单**（`/` 资讯 → `/knowledge` 知识 → `/action` 行动 → `/settings` 设置，唯一壳，工具页经 `PageLayout` 挂入）；dsh 认知大脑为受管子进程（前端 `/settings` 一键启停），pi 执行 agent 经 `/api/agents/*`。架构数字由 `scripts/generate_meta.py` AST 反推维护（当前 57 jobs / 13 collectors / 90 routers / 150 services）。唯一权威 PRD 见 `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`，详细机制见 `docs/ARCHITECTURE.md`，跑测试与生成迁移见 `backend/requirements*.txt` 与 `backend/repository/migrations/`。历史设计见 `docs/archived/`。
+hotspot 是面向 **AI + 安全从业者** 的单机本地工作站（v0.8.5 + NAV4 + P3）。知识域以 `llm-wiki-2.0/` md 文件为唯一真相源（wiki-first 哲学），SQLite 仅做投影索引；AI 调用经 `backend/services/ai_hub/` 包单出口；SecNews 壳为 **SentinelShell 四菜单**（`/` 资讯 → `/knowledge` 知识 → `/action` 行动 → `/settings` 设置，唯一壳，工具页经 `PageLayout` 挂入）；dsh 认知大脑为受管子进程（前端 `/settings` 一键启停），pi 执行 agent 经 `/api/agents/*`。架构数字由 `scripts/generate_meta.py` AST 反推维护（当前 57 jobs / 14 collectors / 90 routers / 150 services）。唯一权威 PRD 见 `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`，详细机制见 `docs/ARCHITECTURE.md`，跑测试与生成迁移见 `backend/requirements*.txt` 与 `backend/repository/migrations/`。历史设计见 `docs/archived/`。
 
 ## Commands
 
@@ -40,7 +40,7 @@ cd frontend && npx tsc --noEmit           # 类型检查
 
 | # | Subsystem | 入口 | 说明 |
 |---|-----------|------|------|
-| 01 | **SecNews 热点聚合** | `/` | 13 采集器 · 13 质量门禁 · 趋势/搜索/导出 · 信号面板 |
+| 01 | **SecNews 热点聚合** | `/` | 14 采集器 · 13 质量门禁 · 趋势/搜索/导出 · 信号面板 |
 | 02 | **Knowledge LLM-Wiki** | `/knowledge` | `llm-wiki-2.0/` md 真源 · kl_pipeline 五阶段 · FTS5 · 案件队列 |
 | 03 | **CodeGarden** | `/codegarden` | 项目生命周期 + 服务网格 + 资源中枢 + 联动引擎 |
 | 04 | **Security Graph** | `/knowledge/process` | MITRE ATT&CK · NVD CVE · 等保 / 关基 / 数安法 |
@@ -58,7 +58,7 @@ backend/
 │   ├── events.py        # SSE 实时推送 (Phase 6)
 │   ├── knowledge.py, maintenance.py, security.py  # Security Knowledge Graph
 │   └── ...
-├── collectors/     # 13 collectors extending BaseCollector + support modules
+├── collectors/     # 14 collectors extending BaseCollector + support modules
 │   ├── base.py     # BaseCollector(ABC) — 已提取 parsing/keywords 模块
 │   ├── parsing.py, keywords.py  # 从 base.py 提取的解析/关键词模块
 │   ├── ai_security_collector.py  # AI 安全分类 (Phase 2)

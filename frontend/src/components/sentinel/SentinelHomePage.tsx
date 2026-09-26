@@ -95,6 +95,8 @@ function tagColorOf(category: string): string {
     case 'startup': return 'var(--sn-cat-vc)';
     case 'github': return 'var(--sn-cat-git)';
     case 'tech': return 'var(--sn-cat-tech)';
+    // 论文: 紫色系复用现有 token (startup 紫), 不新造 CSS 变量
+    case 'paper': return 'var(--sn-cat-vc)';
     default: return 'var(--sn-cat-ai)';
   }
 }

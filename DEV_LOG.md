@@ -1,4 +1,20 @@
 
+## [DEV-0233] 论文抓取能力收口: arXiv 真实拉取验证揪出 sortBy 非法值 + Fastly 限流节拍锁 (paper-collector)
+- **时间**: 2026-09-26
+- **类型**: Bug修复 (真实验证发现的致命缺陷) + 功能收口
+- **关联模块**: `backend:paper-collector`
+- **关联文件**:
+  - `backend/collectors/arxiv_paper_collector.py` (sortBy=submitted→submittedDate + 3s 礼貌节拍锁 fetch_source 覆写: 按 loop 弱引用惰性锁 WeakKeyDictionary, 规避 asyncio.Lock 绑定首次 acquire loop 的跨 asyncio.run 崩溃; 共享 fetchers 基建零改动)
+  - `backend/repository/migrations/125_paper_sortby_fix.sql` (新 — append-only 修复 123 已应用的 28 条种子 URL, replace 幂等)
+  - `backend/tests/test_arxiv_paper_collector.py` (sortBy 精确断言 + `sortBy=submitted&` 负向断言防前缀误匹配; rotation fake 改按 rss_url 查表 — 旧 `_current_source_name` 实例属性在节拍串行化下有跨任务清空竞态)
+  - `docs/superpowers/plans/2026-09-26-paper-collector.md` (Task 1-2 全勾 + 实施记录 + parked minors)
+  - `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` (第 6 章 Collectors 13→14, 注明 arXiv 单源)
+- **问题描述**: Task 2 收口要求真实拉取验证 (非 mock)。curl 验证直连可达 (http 301→https 无需代理) 的同时揪出两个 07c1e46 审查未发现的致命缺陷: ① `sortBy=submitted` 是 arXiv API 非法值 (合法: relevance/lastUpdatedDate/submittedDate), 且误值**不报错**——返回仅含 1 条 Error entry 的 Atom feed, 3 领域轮转恰凑满 min_items_threshold=3, 垃圾条目会静默入 feed; ② base.collect() 对 3 域 asyncio.gather 并发出网, 实测必触发 arXiv (Fastly 边缘) IP 级瞬态 406 (空 body/X-Cache MISS/分钟级自愈), 采集器在生产节奏下也大概率颗粒无收。
+- **实现思路**: ① 参数修正三处同步 (类常量为注册 URL 单一真源; 123 在本机已应用且 schema_version 无内容校验, 改文件不重跑, 故按 append-only 纪律追加 125 做字符串替换, 新库 123→125 顺序执行 replace 无命中为幂等 no-op); ② 节拍锁收在 ArxivPaperCollector.fetch_source 覆写内 (3s 间隔 = arXiv 官方上限 1req/3s, 生产 cadence=3600s 每小时仅 3 请求余量充足), 其他 collector 不经过此处; ③ 测试断言从 `"sortBy=submitted" in url` ( submittedDate 前缀误匹配, 修后仍假绿) 改为精确+负向双断言。
+- **真实拉取样例 (tmp DB 隔离, 非 mock)**: 单轮 collect() 产出 27 条 (AI 5 / AI安全 12 / 网络安全 10), 字段完整 (id=arxiv:2609.29126v1 / source=领域键 / category=paper / 标题压平 / abs 链接 / published_at); 样例: 《The Fly That Stopped: Mushroom-Body-Inspired Habituation as a Reward-Free Scheduling Prior for Autonomous Penetration Testing》 https://arxiv.org/abs/2609.29126v1 、《AERIAL: Adversarial Evaluation of Robustness in Accuracy-Preserving Low-Precision EEG Decoders》 https://arxiv.org/abs/2609.30037v1 。
+- **测试验证**: 定向 12 passed; 后端全量 `pytest backend/tests/ -q` **4895 passed / 9 skipped / 1 failed** (唯一失败 = test_check_temp_db_sizes::test_hot_violation_when_over_limit, pre-existing 环境性失败, 与本分支无关; 锁修复+测试重写后完整重跑); 前端 `tsc --noEmit` 0 错 / `vitest run` **646 passed** (观测到 1 例偶发 flake, 重跑全绿, 本会话零前端改动); `generate_meta --check` OK (collectors 14, 4/4 文档一致); ruff 触碰文件 0 告警; `harness_analyze --check` 0 errors (5 warnings 均 pre-policy 豁免)。PRD 判断: paper 为新资讯类目 (非设置能力), 单权威 PRD 无类目清单段落, 仅第 6 章 Collectors 计数行已同步 13→14。
+- **潜在风险 (parked)**: ① 预过滤词表大小写敏感召回偏紧 (论文标题首字母大写专有名词漏匹配); ② `_paper_tags` 仅 tags[0] 被消费, 本体近似死代码 (保留作设计稿 §3.2 契约锚); ③ 设计稿写"类属性 _domain_cursor"与实现 (实例属性) 偏差, 以实现为准; ④ arXiv 边缘对 >1req/3s 持续活动分钟级拉黑 IP (本收口连续测试期间反复触发, 单轮 3 请求/小时远低于阈值; 若未来加大每轮领域数需同步放宽节拍); ⑤ migration 123 文件内 URL 仍为误值 (已应用迁移不改写历史), 以 125 修复为准。
+
 ## [DEV-0232] 数据源体系治理: media_kind 介质维度 + 统计层空壳清理工具链 + 系统源手动管理 + 前端矩阵介质分组
 - **时间**: 2026-09-26
 - **类型**: 数据源治理 (source-governance 分支, 第一性原理三层结构诊断 + owner 三裁决)

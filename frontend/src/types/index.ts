@@ -243,6 +243,9 @@ export const CATEGORIES: CategoryInfo[] = [
   // DEV-0178: bid (招标资讯) 已从展示枚举与类型联合剔除 (标讯全线下线)
   { id: 'github', label: 'GitHub 项目', color: '#9b8bff' },
   { id: 'tech', label: 'IT / 科技', color: '#4ecdc4' },
+  // 2026-09-26 论文抓取: arXiv 预印本 (紫色系; DOM 内联走 tagColorOf → var(--sn-cat-vc),
+  // hex 供 canvas 消费方)
+  { id: 'paper', label: '论文', color: '#a48bff' },
 ];
 
 export const CATEGORY_MAP: Record<string, CategoryInfo> = Object.fromEntries(

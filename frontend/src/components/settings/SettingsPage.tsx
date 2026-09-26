@@ -28,6 +28,7 @@ import { CollectionScheduleInfo } from './CollectionScheduleInfo';
 import { QualitySettings } from './QualitySettings';
 import { SourceSettings } from './SourceSettings';
 import { KLQueueCard } from './KLQueueCard';
+import { AutoIntakeCard } from './AutoIntakeCard';
 import { InfoFilterCard } from '../secnews/settings/InfoFilterCard';
 import { ProxySettings } from './ProxySettings';
 import { SyncSettings } from './SyncSettings';
@@ -79,6 +80,7 @@ export function SettingsPage() {
             <QualitySettings open={open} />
             <SourceSettings open={open} />
             <KLQueueCard />
+            <AutoIntakeCard />
             <InfoFilterCard />
           </div>
         );

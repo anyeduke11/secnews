@@ -81,13 +81,24 @@ def transition(item_id: str, to_state: str) -> bool:
     return True
 
 
-def promote_favorite_to_knowledge(title: str, url: str) -> str:
-    """收藏文章 → 创建 lifecycle='kl:raw' 的知识条目 (P1-3 统一为 KL 规范).
+def promote_favorite_to_knowledge(
+    title: str,
+    url: str,
+    *,
+    content: str | None = None,
+    category: str | None = None,
+    source: str = "secnews",
+) -> str:
+    """收藏/自动入管 → 创建 lifecycle='kl:raw' 的知识条目 (P1-3 统一为 KL 规范).
 
     - id 由 url 派生 (``item_id_from_url``), 保证同 url 幂等。
     - 已存在则直接返回 id (不覆盖已有 lifecycle/tags)。
     - md 是真相源: 先写 ``knowledge/items/{id}.md`` (失败则抛错, 由调用方
       兜底), 再写 SQLite 索引。
+    - 2026-09-26 自动入管扩展 (keyword-only, 收藏调用零变化):
+      ``content`` = md 正文 (None=不写正文, 与旧行为一致);
+      ``category`` = 来源 hotspot 类目, 仅入 frontmatter (None=不写该字段);
+      ``source`` = 通道标识 ('secnews'=收藏 / 'secnews_auto'=自动入管)。
     返回 item_id。
     """
     from backend.services.data_cleaning import item_id_from_url
@@ -100,7 +111,7 @@ def promote_favorite_to_knowledge(title: str, url: str) -> str:
     item = KnowledgeItem(
         id=item_id,
         title=title or "Untitled",
-        source="secnews",
+        source=source,
         source_url=url,
         lifecycle="kl:raw",
         ingested_at=now_iso(),
@@ -110,11 +121,16 @@ def promote_favorite_to_knowledge(title: str, url: str) -> str:
     # md 先写且必须成功 (真相源); 失败直接抛出, 调用方 (favorites API)
     # 已有 try/except 非关键兜底。
     from backend.services import ai_write_back
-    ai_write_back.write_item(item.to_dict(), agent="api:promote_favorite")
+    ai_write_back.write_item(item.to_dict(), content=content, agent="api:promote_favorite")
+    if category:
+        # category 仅入 frontmatter (md 真相源); knowledge_items 表无此列
+        ai_write_back.update_frontmatter(
+            f"items/{item_id}.md", "category", category, agent="api:promote_favorite"
+        )
 
     knowledge_repo.upsert_item(item)
 
-    log.info(f"promote: created knowledge item {item_id} from favorite")
+    log.info(f"promote: created knowledge item {item_id} (source={source})")
     return item_id
 
 

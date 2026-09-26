@@ -19,8 +19,10 @@ from backend.repository.settings_repo import SettingsRepository
 # secrets.oauth_allowlist = 精确键混入 (OAuth 白名单既有存储位)。
 _ALLOWED_PREFIXES = (
     "collection.", "llm.", "interest.", "quality.", "feature.",
-    "feature-gates.", "state.", "secrets.oauth_allowlist",
+    "feature-gates.", "knowledge.", "state.", "secrets.oauth_allowlist",
 )
+# "knowledge." (2026-09-26): 自动入管配置/游标 (knowledge.auto_intake.*) 登记,
+# 消费方 = auto_intake_service (设计稿 docs/superpowers/specs/2026-09-26-auto-intake-design.md §3.1)。
 # Task 15 (设计稿 §5): webhook.secret 已迁 llm_secrets 加密存储, 明文回写通道
 # 永久关闭。webhook. 前缀本就未注册, 此处为防御性双保险 (防未来前缀登记复活)。
 _DISALLOWED_EXACT: set[str] = {"webhook.secret"}

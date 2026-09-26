@@ -531,6 +531,40 @@ class HotspotRepository:
             return None
         return self._row_to_item(row)
 
+    def candidates_for_auto_intake(
+        self,
+        *,
+        since: str,
+        min_quality_score: int,
+        limit: int,
+    ) -> list[dict]:
+        """自动入管候选查询 (2026-09-26, design §3.2 步骤 3)。
+
+        - ``ingested_at > since``: kv 游标防重扫 (首跑游标 = now, 不回填历史)。
+        - ``quality_score >= min_quality_score`` + ``summary`` 非空 (入管带正文)。
+        - ``is_hidden = 0``: 与 query() 口径一致 (迁移 064 隐藏行不参与)。
+        - 按 quality_score DESC 截断 LIMIT (每日上限余量)。
+        返回原始行 dict (id/title/summary/url/category/quality_score/ingested_at/tags)。
+        """
+        conn = get_connection()
+        sql = (
+            "SELECT id, title, summary, url, category, quality_score, ingested_at, tags "
+            "FROM hotspots "
+            "WHERE ingested_at > ? AND quality_score >= ? "
+            "AND summary IS NOT NULL AND TRIM(summary) != '' "
+            "AND is_hidden = 0 "
+            "ORDER BY quality_score DESC, ingested_at DESC LIMIT ?"
+        )
+        try:
+            rows = conn.execute(sql, (since, min_quality_score, limit)).fetchall()
+        except Exception as e:
+            logger.error(
+                "candidates_for_auto_intake failed",
+                extra={"trace_id": "", "error": str(e)},
+            )
+            raise InternalException(f"candidates_for_auto_intake failed: {e}") from e
+        return [dict(r) for r in rows]
+
     def count_in_range(
         self,
         time_range: TimeRange,

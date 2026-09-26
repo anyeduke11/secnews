@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 产品定位
 
-hotspot 是面向 **AI + 安全从业者** 的单机本地工作站（v0.8.5 + NAV4 + P3）。知识域以 `llm-wiki-2.0/` md 文件为唯一真相源（wiki-first 哲学），SQLite 仅做投影索引；AI 调用经 `backend/services/ai_hub/` 包单出口；SecNews 壳为 **SentinelShell 四菜单**（`/` 资讯 → `/knowledge` 知识 → `/action` 行动 → `/settings` 设置，唯一壳，工具页经 `PageLayout` 挂入）；dsh 认知大脑为受管子进程（前端 `/settings` 一键启停），pi 执行 agent 经 `/api/agents/*`。架构数字由 `scripts/generate_meta.py` AST 反推维护（当前 57 jobs / 13 collectors / 89 routers / 149 services）。唯一权威 PRD 见 `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`，详细机制见 `docs/ARCHITECTURE.md`，跑测试与生成迁移见 `backend/requirements*.txt` 与 `backend/repository/migrations/`。历史设计见 `docs/archived/`。
+hotspot 是面向 **AI + 安全从业者** 的单机本地工作站（v0.8.5 + NAV4 + P3）。知识域以 `llm-wiki-2.0/` md 文件为唯一真相源（wiki-first 哲学），SQLite 仅做投影索引；AI 调用经 `backend/services/ai_hub/` 包单出口；SecNews 壳为 **SentinelShell 四菜单**（`/` 资讯 → `/knowledge` 知识 → `/action` 行动 → `/settings` 设置，唯一壳，工具页经 `PageLayout` 挂入）；dsh 认知大脑为受管子进程（前端 `/settings` 一键启停），pi 执行 agent 经 `/api/agents/*`。架构数字由 `scripts/generate_meta.py` AST 反推维护（当前 57 jobs / 13 collectors / 89 routers / 150 services）。唯一权威 PRD 见 `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`，详细机制见 `docs/ARCHITECTURE.md`，跑测试与生成迁移见 `backend/requirements*.txt` 与 `backend/repository/migrations/`。历史设计见 `docs/archived/`。
 
 ## Commands
 
@@ -88,7 +88,7 @@ backend/
 │   ├── graph.py         # SecurityGraphEngine
 │   ├── enricher.py      # CVE/ATT&CK/合规提取
 │   └── compliance.py    # 合规种子数据
-├── services/       # Business logic (149 services / 13 包, 含 ai_hub/llm/pi/dsh/triggers/trigger_gate/skill_* 等)
+├── services/       # Business logic (150 services / 13 包, 含 ai_hub/llm/pi/dsh/triggers/trigger_gate/skill_* 等)
 │   ├── sync_service.py     # Orchestration (921 lines)
 │   ├── sync_merge.py       # 3-way merge engine (extracted)
 │   ├── sync_bundle.py      # Build/encrypt/decrypt bundles (extracted)

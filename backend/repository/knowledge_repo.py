@@ -192,6 +192,20 @@ class KnowledgeRepo:
         row = conn.execute(sql, params).fetchone()
         return row[0] if row else 0
 
+    def count_by_source_since(self, source: str, since_iso: str) -> int:
+        """某来源通道自 ``since_iso`` (UTC ISO 字符串) 起的条数。
+
+        2026-09-26 自动入管每日上限用 (source='secnews_auto' + 今日 0 点):
+        实时 COUNT, 不维护独立计数键 — 实现简且重启安全。
+        """
+        conn = get_connection()
+        row = conn.execute(
+            f"SELECT COUNT(*) FROM {knowledge_items_table()} "
+            "WHERE source = ? AND ingested_at >= ?",
+            (source, since_iso),
+        ).fetchone()
+        return row[0] if row else 0
+
     def count_orphan_items(self) -> int:
         """无 concepts 关联的 items 数量。"""
         conn = get_connection()

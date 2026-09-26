@@ -17,6 +17,15 @@ Design notes
 - **Failure mode**: any DB-level failure during ``init_db`` /
   ``apply_migrations`` raises a ``HotspotException`` subclass (never a
   raw ``sqlite3.Error``), per the project-wide error contract.
+- **Destructive migrations**: any migration that DROPs (or bulk-DELETEs
+  from) a referenced parent table MUST wrap its statements in an
+  explicit ``PRAGMA foreign_keys=OFF;`` ... ``PRAGMA foreign_keys=ON;``
+  pair inside the script (precedent: 112_remove_bid_data.sql). With the
+  connection-level ``foreign_keys=ON`` default, dropping a parent table
+  fires child-side ``ON DELETE CASCADE`` — migration 124
+  (2026-09-26 22:29) lost thousands of hotspot_tags rows this way; see
+  the incident note in 124_paper_category.sql and the rule anchor
+  126_foreign_keys_off_note.sql.
 """
 from __future__ import annotations
 

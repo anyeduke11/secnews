@@ -15,6 +15,17 @@
 --
 -- 幂等性: hotspots_new 表名 + CREATE IF NOT EXISTS 幂等,
 -- apply_migrations() 记录 schema_version 防止重复执行。
+--
+-- ⚠️ 已应用实例的事故记录 (2026-09-26 22:29):
+-- 本迁移在生产库执行时, 连接级 PRAGMA foreign_keys=ON (db.py get_connection),
+-- 第 3 步 DROP TABLE hotspots 触发子表 ON DELETE CASCADE —
+-- hotspot_tags (024, REFERENCES hotspots(id) ON DELETE CASCADE) 数千行
+-- 打标关联被级联清空 (ai_scores 043 同声明, 幸为空表无实损)。
+-- auto_extract_job 此后自动重建打标 (覆盖约 1913/25333 热点起步, 逐步追平),
+-- 未做数据恢复。修复先例: migration 126 为 FK-on 场景提供
+-- `PRAGMA foreign_keys=OFF` 包裹锚点 (模式源自 112_remove_bid_data);
+-- 后续一切销毁型 migration (DROP/TRUNCATE 被引用表) 必须在脚本内
+-- 显式 OFF 包裹、末尾恢复 ON, 不得依赖 runner。
 
 -- 1. 新表 (含 paper 分类, 列集合与 114 之后的 hotspots 完全一致)
 CREATE TABLE IF NOT EXISTS hotspots_new (

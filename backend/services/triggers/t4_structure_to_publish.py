@@ -52,6 +52,7 @@ from backend.services.kl_state_machine import (
     can_transition,
 )
 from backend.services.retry_policy import RetryPolicy
+from backend.services.triggers.events import log_stage_transition
 
 logger = logging.getLogger("hotspot.trigger.t4")
 
@@ -131,6 +132,9 @@ class T4Trigger:
 
                 # Validate transition; raises on stale / illegal data.
                 can_transition(item["lifecycle"], LIFECYCLE_PUBLISH)
+                # 治理 T4: md 真源必须落终态 — write 先于 DB update, item 行
+                # 携带的是 kl:structure, 不修正则 md frontmatter 滞后一拍。
+                item["lifecycle"] = LIFECYCLE_PUBLISH
                 self._write_to_md(item)
                 self._update_lifecycle(item_id, LIFECYCLE_PUBLISH)
                 advanced += 1
@@ -237,6 +241,9 @@ class T4Trigger:
             "WHERE id = ?",
             (new_stage, now_iso, item_id),
         )
+        # 治理 T4 review fix: 复活链补写 kl_transition (与 kl_queue drain 同语义,
+        # payload.stage=到达阶段) — 否则吞吐/停摆判定对生产链恒 0。
+        log_stage_transition(TRIGGER_NAME, item_id, new_stage)
 
 
 __all__ = [

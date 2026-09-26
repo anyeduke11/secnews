@@ -9,7 +9,7 @@ import { ApiError } from '../../../lib/api';
 import { getSecNewsPipeline } from '../../../api/secnews';
 import { SecNewsHeader } from '../layout/SecNewsHeader';
 import { AliveCard } from './AliveCard';
-import { FunnelBar } from './FunnelBar';
+import { FunnelBar, type StageThroughput } from './FunnelBar';
 import { QueueCard } from './QueueCard';
 import { TokenLedger } from './TokenLedger';
 import { SourceMatrixCard } from './SourceMatrixCard';
@@ -17,6 +17,8 @@ import { useI18n } from '../../../contexts/I18nContext';
 
 interface PipelineStats {
   funnel: Array<{ stage: string; count: number }>;
+  /** 治理 T3 吞吐口径 (近 7d kl_transition 事件流) — 旧后端缺省, 可选 */
+  throughput?: StageThroughput | null;
   queue: { pending: number; running: number; error: number };
   errors: Array<{
     id: number;
@@ -71,7 +73,7 @@ export function PipelineView() {
       )}
       {stats && (
         <div className="flex flex-col gap-4">
-          <FunnelBar funnel={stats.funnel} />
+          <FunnelBar funnel={stats.funnel} throughput={stats.throughput ?? null} />
           <SourceMatrixCard />
           <AliveCard alive={stats.alive} onSwept={fetchStats} />
           <QueueCard queue={stats.queue} errors={stats.errors} />

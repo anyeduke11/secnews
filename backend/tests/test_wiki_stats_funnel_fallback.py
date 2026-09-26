@@ -2,7 +2,8 @@
 
 为什么需要这个文件 (第一性原理: 漏斗必须说真话)
 ------------------------------------------------
-warm.db (923MB, knowledge_items 投影表所在地) 于 2026-09-12/13 之间遗失,
+warm.db (923MB, knowledge_items 投影表所在地) 于 2026-09-18 遗失
+(migration 119 注释同口径),
 仓库备份只剩 .sha256 校验文件。此后 ``/api/secnews/pipeline`` 的漏斗每 30s
 打一条 "no such table: knowledge_items" warning 并**静默返回全 0** ——
 UI 呈现的 "管线为空" 是假象, md 真源里明明有 ~4200 条带 lifecycle 的条目。
@@ -19,6 +20,7 @@ import sqlite3
 
 import pytest
 
+from backend.kl_pipeline.obs.funnel import UNKNOWN_STAGE
 from backend.services import wiki_stats_service
 from backend.services.wiki_stats_service import (
     funnel_from_db,
@@ -26,8 +28,6 @@ from backend.services.wiki_stats_service import (
     knowledge_stats_from_db,
     stage_distribution_from_db,
 )
-
-from backend.kl_pipeline.obs.funnel import UNKNOWN_STAGE
 
 
 class _FakeWikiFs:
@@ -53,8 +53,8 @@ def fake_fs(monkeypatch):
     """注入假 wiki_fs 生产单例 + 清空模块级缓存 (防跨测试污染)。"""
     wiki_stats_service._md_funnel_cache.clear()
     fs = _FakeWikiFs({
-        "a": "signal",            # → kl:raw
-        "b": "generate",          # → kl:structure
+        "a": "signal",            # → kl:publish (T2 值域收敛读路径兜底)
+        "b": "generate",          # → kl:publish (T2 值域收敛读路径兜底)
         "c": "kl:publish",
         "d": "kl:deduped",        # 终态单列, 不许混进 unknown
         "e": "kl:bogus",          # 值域外
@@ -84,9 +84,9 @@ def test_db_projection_missing_falls_back_to_md(fake_fs, tmp_path):
     funnel = funnel_from_db(_conn_without_knowledge_items(tmp_path))
     counts = _as_map(funnel)
 
-    assert counts["kl:raw"] == 1
-    assert counts["kl:structure"] == 1
-    assert counts["kl:publish"] == 1
+    assert counts["kl:raw"] == 0
+    assert counts["kl:structure"] == 0
+    assert counts["kl:publish"] == 3, "signal/generate 经 T2 兜底也读作 kl:publish"
     assert sum(counts.values()) == 6, "重新分桶不丢数据"
 
 
@@ -102,7 +102,7 @@ def test_stage_distribution_fallback_same_source(fake_fs, tmp_path):
     """stage_distribution (知识库 tab) 与漏斗同源同回退。"""
     dist = stage_distribution_from_db(_conn_without_knowledge_items(tmp_path))
 
-    assert dist["kl:publish"] == 1
+    assert dist["kl:publish"] == 3, "signal/generate 经 T2 兜底也读作 kl:publish"
     assert dist["kl:deduped"] == 1
 
 
@@ -137,7 +137,7 @@ def test_knowledge_stats_items_fallback_concepts_survive(fake_fs, tmp_path):
 
     assert ks["items"] == 6, "md 回退条目总数 (fake_fs 共 6 条)"
     assert ks["concepts"] == 2, "concepts 查询独立容错, 不随 items 缺失归零"
-    assert ks["stage_distribution"]["kl:publish"] == 1
+    assert ks["stage_distribution"]["kl:publish"] == 3
 
 
 def test_explicit_none_wiki_fs_disables_fallback(tmp_path):
@@ -150,6 +150,51 @@ def test_explicit_none_wiki_fs_disables_fallback(tmp_path):
 
     dist = stage_distribution_from_db(conn, wiki_fs=None)
     assert dist == {}, "显式 None 保持原 {} 归零契约 (dashboard 测试依赖)"
+
+
+def _conn_with_empty_knowledge_items(tmp_path) -> sqlite3.Connection:
+    """投影表存在但 0 行 — 复刻 db.py 自愈建空壳后的库态。"""
+    conn = sqlite3.connect(str(tmp_path / "empty_projection.db"), isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    conn.execute("CREATE TABLE knowledge_items (lifecycle TEXT)")
+    return conn
+
+
+def test_empty_projection_falls_back_to_md(fake_fs, tmp_path):
+    """空投影 (自愈建空壳后 0 行) ≠ 真实存量 — 必须回退 md 口径。
+
+    2026-09-26 终审 Important: 自愈后查询成功返回空集不再抛异常, 静默返回
+    全 0 会把看板存量从 4179 断层成 0 (缺表走 except 分支反而显示真实数)。
+    """
+    conn = _conn_with_empty_knowledge_items(tmp_path)
+
+    counts = _as_map(funnel_from_db(conn))
+
+    assert counts["kl:publish"] == 3, "空投影必须回退 md, 不许报 0 断层"
+    assert counts["kl:deduped"] == 1
+
+    dist = stage_distribution_from_db(conn)
+    assert dist["kl:publish"] == 3, "知识库 tab 分布与漏斗同回退"
+
+    ks = knowledge_stats_from_db(conn)
+    assert ks["items"] == 6, "items 计数同样回退 md 总数, 不许断层为 0"
+
+
+def test_empty_projection_warns_suggesting_backfill(fake_fs, tmp_path):
+    """空集回退必须 warning 留痕并提示跑回填 — 静默降级无从发现投影未回填。"""
+    from backend.logging_config import logger as loguru_logger
+
+    conn = _conn_with_empty_knowledge_items(tmp_path)
+    messages: list[str] = []
+    handler_id = loguru_logger.add(
+        messages.append, level="WARNING", format="{message}"
+    )
+    try:
+        funnel_from_db(conn)
+    finally:
+        loguru_logger.remove(handler_id)
+
+    assert any("回退 md" in m and "回填" in m for m in messages)
 
 
 def test_ttl_cache_avoids_rescan(fake_fs):

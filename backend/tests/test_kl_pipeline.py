@@ -335,3 +335,73 @@ class TestPipelineLifecycleAndEvents:
             ("items/ghost-item.md",),
         )]
         assert any(r["kind"] == "kl_error" for r in rows)
+
+    def test_kickoff_rejects_nonexistent_item(self, tmp_db, tmp_wiki):
+        """ghost-item 治理 T1 防再犯断言: 入队口对不存在的 item 直接拒收。
+
+        生产 wiki_events 曾累计 ``item not found: ghost-item`` ×138 — 根因链是
+        不存在的 item 被反复入队。kickoff 现在先 read_item 校验存在性,
+        ghost 根本进不了队列 (下游 drain/重试/死信都只为真实条目服务)。
+        """
+        pipeline = KLPipeline(wiki_fs=tmp_wiki, db_session=tmp_db)
+        pipeline.kickoff("ghost-item")
+        rows = tmp_db.execute(
+            "SELECT id FROM kl_queue WHERE item_id = 'ghost-item'"
+        ).fetchall()
+        assert rows == []
+
+    def test_ghost_item_retries_finitely_then_dead_letters(self, tmp_db, tmp_wiki):
+        """ghost-item 治理 T1 防死循环断言: 重试有上限, 耗尽即终态+死信。
+
+        直接向队列塞一条 ghost (绕过 kickoff, 模拟历史写点), 连续 drain 直到
+        耗尽 max_attempts: 每轮恰好写一条 kl_error 事件, 耗尽后队列 error 终态
+        + 落死信, 此后无论退避如何到期都不再产生任何动作。
+        """
+        from backend.repository.db import get_connection
+
+        self._enqueue_due(tmp_db, "ghost-item", "kl:refine")
+        pipeline = KLPipeline(wiki_fs=tmp_wiki, db_session=tmp_db)
+
+        # 会话级隔离 db 跨用例共享 wiki_events → 以基线增量精确断言本用例写入量
+        n_err_base = get_connection().execute(
+            "SELECT COUNT(*) FROM wiki_events "
+            "WHERE kind = 'kl_error' AND wiki_path = 'items/ghost-item.md'"
+        ).fetchone()[0]
+
+        max_attempts = 5
+        for _ in range(max_attempts):
+            assert pipeline.drain_due() == {"done": 0, "failed": 1}
+            # 模拟指数退避到期, 允许下一轮重试
+            tmp_db.execute(
+                "UPDATE kl_queue SET next_run_at = ?",
+                (datetime.now(timezone.utc).isoformat(),),
+            )
+
+        row = tmp_db.execute(
+            "SELECT status, attempts FROM kl_queue WHERE item_id = 'ghost-item'"
+        ).fetchone()
+        assert row["status"] == "error", "耗尽重试后必须是 error 终态"
+        assert row["attempts"] == max_attempts
+
+        dl = get_connection().execute(
+            "SELECT trigger_name, payload FROM kl_dead_letters "
+            "WHERE item_id = 'ghost-item' AND resolved = 0"
+        ).fetchall()
+        assert len(dl) == 1
+        # trigger_name 受 044 CHECK 约束只认 t1-t5 → 归属管线触发器 t1;
+        # 阶段留在 payload 精确归因
+        assert dl[0]["trigger_name"] == "t1"
+        assert '"stage": "kl:refine"' in (dl[0]["payload"] or "")
+
+        n_err = get_connection().execute(
+            "SELECT COUNT(*) FROM wiki_events "
+            "WHERE kind = 'kl_error' AND wiki_path = 'items/ghost-item.md'"
+        ).fetchone()[0]
+        assert n_err - n_err_base == max_attempts, "kl_error 事件必须与尝试次数同界"
+
+        # 终态后彻底安静: 退避再到期也不产生 due 任务 (死循环根除)
+        tmp_db.execute(
+            "UPDATE kl_queue SET next_run_at = ?",
+            (datetime.now(timezone.utc).isoformat(),),
+        )
+        assert pipeline.drain_due() == {"done": 0, "failed": 0}

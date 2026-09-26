@@ -34,6 +34,7 @@ from backend.services.kl_state_machine import (
     can_transition,
 )
 from backend.services.retry_policy import RetryPolicy
+from backend.services.triggers.events import log_stage_transition
 
 logger = logging.getLogger("hotspot.trigger.t2")
 
@@ -268,6 +269,9 @@ class T2Trigger:
             "WHERE id = ?",
             (new_stage, now_iso, item_id),
         )
+        # 治理 T4 review fix: 复活链补写 kl_transition (与 kl_queue drain 同语义,
+        # payload.stage=到达阶段) — 否则吞吐/停摆判定对生产链恒 0。
+        log_stage_transition(TRIGGER_NAME, item_id, new_stage)
 
 
 __all__ = [

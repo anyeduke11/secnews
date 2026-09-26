@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.kl_pipeline.obs.funnel import _LEGACY_TO_STAGE, UNKNOWN_STAGE
@@ -146,6 +147,16 @@ def funnel_from_db(conn: Any = None, *, wiki_fs: Any = _WIKI_UNSET) -> list[dict
             return [{"stage": s, "count": 0} for s in counts]
         return funnel_from_md_cached(None if wiki_fs is _WIKI_UNSET else wiki_fs)
 
+    if not rows:
+        # 终审 Important 修复 (2026-09-26): db.py 自愈建空 knowledge_items 后
+        # 查询成功返回 0 行不再抛异常 — 静默返回全 0 会把看板存量从 4179 断层
+        # 成 0 (缺表走上方 except 反而显示 md 真实数)。空集视为投影未回填,
+        # 与缺表同回退 md 口径 (降级展示, 回填后自动恢复 DB 口径)。
+        logger.warning("warm 投影空 (knowledge_items 0 行), 已回退 md 口径, 建议跑回填")
+        if wiki_fs is None:
+            return [{"stage": s, "count": 0} for s in counts]
+        return funnel_from_md_cached(None if wiki_fs is _WIKI_UNSET else wiki_fs)
+
     for row in rows:
         stage = (row["lifecycle"] or "").strip()
         if not stage:
@@ -179,6 +190,17 @@ def stage_distribution_from_db(
             f["stage"]: f["count"]
             for f in funnel_from_md_cached(None if wiki_fs is _WIKI_UNSET else wiki_fs)
         }
+    if not rows:
+        # 终审 Important 修复 (2026-09-26): 空投影同 funnel_from_db 回退 md
+        # (knowledge_stats 的 stage_distribution 依赖本函数, 不回退则知识库
+        # tab 分布在空表下断层为空 dict)。
+        logger.warning("warm 投影空 (knowledge_items 0 行), 已回退 md 口径, 建议跑回填")
+        if wiki_fs is None:
+            return dist
+        return {
+            f["stage"]: f["count"]
+            for f in funnel_from_md_cached(None if wiki_fs is _WIKI_UNSET else wiki_fs)
+        }
     for row in rows:
         stage = (row["lifecycle"] or "").strip() or "unknown"
         dist[stage] = dist.get(stage, 0) + row["c"]
@@ -204,12 +226,13 @@ def knowledge_stats_from_db(
         ).fetchone()[0]
     except Exception as e:
         logger.warning(f"knowledge_stats_from_db items query failed: {e}")
-        # 投影缺失回退 md 条目总数 (与漏斗回退共享 30s TTL 缓存, 零额外扫描)
-        if wiki_fs is not None:
-            funnel = funnel_from_md_cached(
-                None if wiki_fs is _WIKI_UNSET else wiki_fs
-            )
-            items = sum(f["count"] for f in funnel)
+        items = 0
+    if not items and wiki_fs is not None:
+        # 投影缺失或空表 (终审 Important 修复: 自愈建空壳后 COUNT=0 不抛异常)
+        # → 回退 md 条目总数 (与漏斗回退共享 30s TTL 缓存, 零额外扫描)。
+        logger.warning("warm 投影空 (knowledge_items 0 行), 已回退 md 口径, 建议跑回填")
+        funnel = funnel_from_md_cached(None if wiki_fs is _WIKI_UNSET else wiki_fs)
+        items = sum(f["count"] for f in funnel)
     try:
         concepts = conn.execute(
             "SELECT COUNT(*) FROM knowledge_concepts"
@@ -256,6 +279,128 @@ def invalidate_stats_cache() -> None:
     with _liveness_lock:
         _liveness_cache.clear()
         _md_funnel_cache.clear()
+
+
+# ---------------------------------------------------------------------------
+# KL 吞吐 — wiki_events kl_transition 事件流聚合 (治理 T3 漏斗改吞吐视图)
+# ---------------------------------------------------------------------------
+_THROUGHPUT_WINDOW_DAYS = 7
+
+# kl_transition 生产写点 = T1-T4 触发器 + kl_queue drain, 但两来源 payload.stage
+# 语义不同: engine drain 写**刚完成阶段**, trigger 写**到达阶段** — 各来源内
+# 自洽, 混合聚合是近似吞吐 (更精确需按 item 对齐前后沿, 当前 payload 无 item_id,
+# 接受近似)。
+# kl:raw 无任何写点 (kickoff 直接入队 kl:refine, 不写事件) — 保留恒 0 键会让
+# 前端 raw 行永久显示 0 流量 (停摆黄条误报帮凶), 吞吐值域 = STAGES 去 kl:raw。
+_THROUGHPUT_STAGES = STAGES[1:]
+
+# kl_transition payload.stage 的到达配对 (进阶转化率), 首跳 kl:raw 无写点故无配对
+_CONVERSION_PAIRS = (
+    ("refine", "link"),
+    ("link", "structure"),
+    ("structure", "publish"),
+)
+
+
+def kl_transition_throughput(
+    conn: Any = None, *, days: int = _THROUGHPUT_WINDOW_DAYS
+) -> dict[str, Any]:
+    """近 N 天管线吞吐 — wiki_events ``kl_transition`` 事件流聚合 (治理 T3)。
+
+    与 :func:`funnel_from_db` (存量快照) 的口径区别: 快照回答"现在各阶段
+    躺了多少条", 吞吐回答"最近流动了多少"。2026-09 实测 publish 存量
+    4179 条 vs 近 7 天流动 0 条 — 管线停摆 13 天, 快照却依然"看起来健康",
+    唯有流量口径能暴露停摆 (前端停摆黄条的数据面)。
+
+    事件写点 (治理 T4 review fix 起齐全): T1-T4 触发器推进 (payload.stage=
+    到达阶段) + kl_queue drain — 生产复活链从此计入吞吐与 last_transition_at。
+
+    Args:
+        conn: 可注入连接 (测试); 缺省 get_connection()。
+        days: 吞吐统计窗口 (默认 7 天); last_transition_at 不受窗口限制。
+
+    Returns:
+        ``{"throughput_7d": {stage: count}, "conversion": {prev_to_next: rate|None},
+        "last_transition_at": iso|None}``
+        throughput_7d 值域 = STAGES 去 kl:raw (kl:raw 无事件写点, 恒 0 键已移除);
+        last_transition_at 同排除 kl:deduped 判重心跳 (上游喂重复不算知识流动);
+        conversion 前项到达量为 0 时该比率为 None (除零不编造);
+        wiki_events 查询失败 (表缺失等) → 归零结构, 不炸看板。
+    """
+    conn = conn or get_connection()
+    out: dict[str, Any] = {
+        "throughput_7d": dict.fromkeys(_THROUGHPUT_STAGES, 0),
+        "conversion": {},
+        "last_transition_at": None,
+    }
+    cutoff = (
+        datetime.now(timezone.utc) - timedelta(days=days)
+    ).isoformat()
+    try:
+        rows = conn.execute(
+            "SELECT json_extract(payload, '$.stage') AS stage, COUNT(*) AS c "
+            "FROM wiki_events "
+            "WHERE kind = 'kl_transition' AND ts >= ? "
+            "GROUP BY stage",
+            (cutoff,),
+        ).fetchall()
+        last = conn.execute(
+            "SELECT MAX(ts) FROM wiki_events WHERE kind = 'kl_transition' "
+            # 终审 Minor 修复: 排除 kl:deduped 心跳 — T1 判重落终态也写
+            # kl_transition, 上游持续喂重复 item 会不断刷新最后心跳,
+            # 停摆黄条把 "喂重复" 误判成 "知识在流动"。
+            "AND COALESCE(json_extract(payload, '$.stage'), '') != 'kl:deduped'"
+        ).fetchone()
+    except Exception as e:
+        logger.warning(f"kl_transition_throughput query failed: {e}")
+        return out
+    for row in rows:
+        stage = (row["stage"] or "").strip()
+        if stage in out["throughput_7d"]:
+            out["throughput_7d"][stage] = int(row["c"])
+    out["last_transition_at"] = last[0] if last is not None else None
+    tp: dict[str, int] = out["throughput_7d"]
+    out["conversion"] = {
+        f"{prev}_to_{nxt}": (
+            round(tp[f"kl:{nxt}"] / tp[f"kl:{prev}"], 4) if tp[f"kl:{prev}"] else None
+        )
+        for prev, nxt in _CONVERSION_PAIRS
+    }
+    return out
+
+
+# ---------------------------------------------------------------------------
+# pipeline/stats 组装 (治理 T3 review fix: api 层只留薄转发, 组装下沉 service)
+# ---------------------------------------------------------------------------
+def pipeline_stats_snapshot(pipeline: Any, wiki_fs: Any) -> dict[str, Any]:
+    """GET /api/kl/pipeline/stats 的完整数据面 (漏斗 + 吞吐 + 队列 + 台账)。
+
+    连接线程亲和: funnel/throughput/queue/ledger 的 ``get_connection`` 均在
+    本函数内执行, 调用方必须在 worker 线程内调用 (端点侧 ``asyncio.to_thread``,
+    与 funnel_from_db 同纪律, 见 v0.6.3 P0-1 卡顿根治), 不在事件循环上直跑。
+    """
+    funnel = funnel_from_db()
+    throughput = kl_transition_throughput()
+    queue_stats = pipeline.queue.stats()
+    errors = pipeline.queue.errors(limit=10)
+    ledger = token_ledger_summary()
+    alive = liveness_from_md_cached(wiki_fs)
+    return {
+        "funnel": funnel,
+        "funnel_source": "db_knowledge_items_lifecycle",
+        "funnel_counts_items": sum(int(f.get("count") or 0) for f in funnel),
+        "funnel_note": "按 DB warm.knowledge_items.lifecycle 统计 (T1-T5 管线真实口径, 与 md 归档数字不同)",
+        # 治理 T3: 吞吐口径 (近 7d kl_transition 事件流 + 转化率 + 最后心跳) —
+        # 存量快照被 T4 直灌污染时只有流量能暴露停摆; funnel 为存量语义, 向后兼容保留。
+        "throughput": throughput,
+        "throughput_note": "throughput_7d=近7天各阶段 kl_transition 到达量 (流量口径); last_transition_at 供停摆判定",
+        "queue": queue_stats,
+        "queue_source": "kl_queue_table",
+        "queue_note": "待处理任务队列, 非全量条目数",
+        "errors": errors,
+        "alive": alive,
+        "ledger": ledger,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -440,8 +585,10 @@ __all__ = [
     "funnel_from_md_cached",
     "invalidate_stats_cache",
     "kl_stage_counts",
+    "kl_transition_throughput",
     "knowledge_stats_from_db",
     "liveness_from_md_cached",
+    "pipeline_stats_snapshot",
     "stage_distribution_from_db",
     "token_ledger_summary",
 ]

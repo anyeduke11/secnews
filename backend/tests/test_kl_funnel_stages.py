@@ -37,21 +37,23 @@ def _as_map(rows: list[dict]) -> dict[str, int]:
 
 
 def test_legacy_lifecycle_maps_to_v17_stage():
-    """pre-v1.7 值必须按迁移 046 的同一张表归位, 而不是堆进 kl:raw。"""
+    """值域收敛后 (治理 T2): generate/signal 由 contract.get_lifecycle 兜底读作
+    kl:publish (funnel._LEGACY_TO_STAGE 的旧值条目自然失效); amplify:* 仍按
+    046 同表归位, 不堆进 kl:raw。"""
     fs = _FakeWikiFs({
-        "a": "signal",            # → kl:raw
-        "b": "amplify:tagged",    # → kl:refine
-        "c": "generate",          # → kl:structure
+        "a": "signal",            # → kl:publish (T2 兜底)
+        "b": "amplify:tagged",    # → kl:refine (046 表)
+        "c": "generate",          # → kl:publish (T2 兜底)
         "d": "kl:publish",
         "e": "kl:link",
     })
 
     counts = _as_map(funnel_stats(fs))
 
-    assert counts["kl:raw"] == 1, "signal 才是 raw；旧实现会把 3 个 legacy 值全算成 raw"
+    assert counts["kl:raw"] == 0
     assert counts["kl:refine"] == 1
-    assert counts["kl:structure"] == 1
-    assert counts["kl:publish"] == 1
+    assert counts["kl:structure"] == 0
+    assert counts["kl:publish"] == 3, "signal/generate 均为已发布语义 (T2 裁决)"
     assert counts["kl:link"] == 1
     assert counts[UNKNOWN_STAGE] == 0
 
@@ -62,7 +64,7 @@ def test_real_wiki_drift_counts_are_preserved():
 
     counts = _as_map(funnel_stats(fs))
 
-    assert counts["kl:raw"] + counts["kl:structure"] == 20
+    assert counts["kl:publish"] == 20, "generate/signal 全部读作已发布 (T2)"
     assert sum(counts.values()) == 20
 
 

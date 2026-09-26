@@ -156,6 +156,66 @@ def _build_payload(
     return sections_json, head + "\n".join(lines)
 
 
+# ── DB 行 → 响应渲染 (治理 T3 review fix: 自 api 层下沉的纯逻辑) ──
+
+
+# 旧行 (v1 envelope 之前的扁平 4 键) 的标题兜底, 保证历史缓存仍渲染出小标题
+_LEGACY_SECTION_TITLES: dict[str, str] = {
+    "summary": "摘要",
+    "impact": "影响",
+    "relations": "关联",
+    "risks": "风险",
+}
+
+
+def build_sections(item_dict: dict[str, Any]) -> list[dict[str, str]]:
+    """分节渲染源: 优先 v1 有序定义, 旧行回落扁平键 + 中文标题表。
+
+    返回纯 dict 列表 (key/title/tone/body); pydantic response model 映射
+    留在 api 层 — service 严禁反向 import backend.api。
+    """
+    defs = item_dict.get("section_defs") or []
+    if isinstance(defs, list) and defs:
+        out = []
+        for d in defs:
+            if not isinstance(d, dict) or not d.get("key"):
+                continue
+            out.append({
+                "key": str(d["key"]),
+                "title": str(d.get("title") or d["key"]),
+                "tone": str(d.get("tone") or "mint"),
+                "body": str(d.get("body") or ""),
+            })
+        if out:
+            return out
+
+    sections_raw = item_dict.get("sections") or {}
+    if not isinstance(sections_raw, dict):
+        return []
+    return [
+        {
+            "key": str(k),
+            "title": _LEGACY_SECTION_TITLES.get(str(k), str(k)),
+            "body": str(v or ""),
+        }
+        for k, v in sections_raw.items()
+    ]
+
+
+def extract_envelope_meta(item_dict: dict[str, Any]) -> tuple[str, str]:
+    """从 sections_json 提取 v3 envelope 元 (headline/framework); 旧报告返空串。"""
+    try:
+        data = json.loads(item_dict.get("sections_json") or "{}")
+    except (json.JSONDecodeError, TypeError):
+        return "", ""
+    if not isinstance(data, dict):
+        return "", ""
+    return (
+        str(data.get("headline") or "")[:80],
+        str(data.get("framework") or ""),
+    )
+
+
 # ── 原文拉取 ──────────────────────────────────────────────────
 
 
@@ -311,4 +371,4 @@ class DeepReadService:
         return [it.to_dict() for it in self.repo.list_recent(limit)]
 
 
-__all__ = ["DeepReadError", "DeepReadService"]
+__all__ = ["DeepReadError", "DeepReadService", "build_sections", "extract_envelope_meta"]

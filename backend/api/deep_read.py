@@ -130,7 +130,7 @@ async def run(
     force: bool = Query(False, description="force=true 时覆盖已有分析"),
     framework: str = Query("", description="显式指定分析框架 (what_why_how/swot_lite/five_w); 空=LLM 按内容自选"),
 ) -> DeepReadResponse:
-    """触发或复用 4 节 LLM 分析。
+    """触发或复用 LLM 分析。
 
     - 表里有且 force=false → 直接返回 (cache 命中, 不调 LLM)
     - 否则 → 拉原文 → LLM → 分节 JSON → UPSERT

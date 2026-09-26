@@ -23,6 +23,8 @@ _LABELS: dict[str, str] = {
     "finance": "金融 / 投资",
     "startup": "独立开发 / 创业",
     "github": "GitHub / 开源",
+    # 2026-09-26 论文抓取: arXiv 预印本
+    "paper": "论文",
 }
 _COLORS: dict[str, str] = {
     "ai": "#00bcd4",
@@ -31,6 +33,7 @@ _COLORS: dict[str, str] = {
     "finance": "#f0c929",
     "startup": "#7c6aff",
     "github": "#8b5cf6",
+    "paper": "#a48bff",
 }
 
 

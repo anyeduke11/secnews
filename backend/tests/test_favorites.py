@@ -224,20 +224,20 @@ class TestFavoriteRepoHelpers:
         assert ids == {"h-1", "h-2"}
 
     def test_count_by_category_all_six_present(self, repo):
-        for cat in ["ai", "ai_security", "security", "finance", "startup", "github", "tech"]:
+        for cat in ["ai", "ai_security", "security", "finance", "startup", "github", "tech", "paper"]:
             repo.add(
                 hotspot_id=f"h-{cat}", category=cat, title="T", source="s", url=f"https://e.com/{cat}"
             )
         counts = repo.count_by_category()
-        # 全 7 分类都存在 (v1.9 加 ai_security; DEV-0183 移除 bid)
-        assert set(counts.keys()) == {"ai", "ai_security", "security", "finance", "startup", "github", "tech"}
+        # 全 8 分类都存在 (v1.9 加 ai_security; DEV-0183 移除 bid; 2026-09-26 加 paper)
+        assert set(counts.keys()) == {"ai", "ai_security", "security", "finance", "startup", "github", "tech", "paper"}
         assert counts["ai"] == 1
         assert counts["tech"] == 1
 
     def test_count_by_category_zeros_for_empty(self, repo):
         counts = repo.count_by_category()
-        # 即使没数据,7 分类都返回 0 (v1.9 加 ai_security; DEV-0183 移除 bid)
-        for cat in ["ai", "ai_security", "security", "finance", "startup", "github", "tech"]:
+        # 即使没数据,8 分类都返回 0 (v1.9 加 ai_security; 2026-09-26 加 paper)
+        for cat in ["ai", "ai_security", "security", "finance", "startup", "github", "tech", "paper"]:
             assert counts[cat] == 0
 
     def test_total(self, repo):
@@ -387,14 +387,14 @@ class TestFavoritesAPIRemove:
 
 class TestFavoritesAPICount:
     def test_count_all_six_present(self, client):
-        for cat in ["ai", "ai_security", "security", "finance", "startup", "github", "tech"]:
+        for cat in ["ai", "ai_security", "security", "finance", "startup", "github", "tech", "paper"]:
             client.post("/api/favorites", json=_make_fav(hid=f"h-{cat}", category=cat))
         resp = client.get("/api/favorites/count")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["total"] == 7
+        assert data["total"] == 8
         assert set(data["by_category"].keys()) == {
-            "ai", "ai_security", "security", "finance", "startup", "github", "tech",
+            "ai", "ai_security", "security", "finance", "startup", "github", "tech", "paper",
         }
 
     def test_count_empty(self, client):

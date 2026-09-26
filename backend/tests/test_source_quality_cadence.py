@@ -59,6 +59,15 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
     db.close_db()
 
 
+def _drop_paper_registry_seed() -> None:
+    """2026-09-26 论文抓取 (migration 123) 种子了 14 行 paper 源 (enabled=1);
+    本文件测试锁定自有 seed 行为, 清掉种子行保持口径纯粹
+    (test_source_census 对 migration 121 种子的同款先例)。"""
+    conn = get_connection()
+    conn.execute("DELETE FROM crawler_sources WHERE category='paper'")
+    conn.commit()
+
+
 def _insert_cs(
     sid: str,
     *,
@@ -253,6 +262,7 @@ class TestGetRecentQualityStats:
 # ---------------------------------------------------------------------------
 class TestGetSchedulableOverrides:
     def test_fast_multiplier_pulls_due_earlier(self, temp_db):
+        _drop_paper_registry_seed()
         now = datetime.now(timezone.utc)
         now_iso = _iso(now)
         # base=3600, 上次抓取 1801s 前: base 口径未到期
@@ -273,6 +283,7 @@ class TestGetSchedulableOverrides:
         assert [r["id"] for r in rows] == ["ai:fast"]
 
     def test_slow_multiplier_defers_due(self, temp_db):
+        _drop_paper_registry_seed()
         now = datetime.now(timezone.utc)
         now_iso = _iso(now)
         # base=1800, 上次抓取 2700s 前: base 口径已到期
@@ -293,6 +304,7 @@ class TestGetSchedulableOverrides:
         assert rows == []
 
     def test_override_miss_falls_back_to_base(self, temp_db):
+        _drop_paper_registry_seed()
         now = datetime.now(timezone.utc)
         now_iso = _iso(now)
         _insert_cs(
@@ -373,6 +385,7 @@ class _FakeCollection:
 
 class TestTickWiring:
     def test_tick_passes_quality_overrides_to_schedulable(self, temp_db, monkeypatch):
+        _drop_paper_registry_seed()
         now = datetime.now(timezone.utc)
         _insert_cs(
             "ai:fast",
@@ -567,6 +580,7 @@ class TestTickWiringDensity:
         self, temp_db, monkeypatch
     ):
         """kv 未配置关注域 → tick 仍拉 hit 信号为空, M_i 中性 (T4 零回归)。"""
+        _drop_paper_registry_seed()
         now = datetime.now(timezone.utc)
         _insert_cs(
             "ai:fast",

@@ -28,6 +28,7 @@ from typing import Any, ClassVar
 
 from backend.collectors.ai_collector import AICollector
 from backend.collectors.ai_security_collector import AISecurityCollector
+from backend.collectors.arxiv_paper_collector import ArxivPaperCollector  # 2026-09-26 论文抓取
 from backend.collectors.base import BaseCollector
 from backend.collectors.finance_collector import FinanceCollector
 from backend.collectors.gdelt_collector import GDELTCollector  # P2-6
@@ -98,6 +99,8 @@ class CollectionService:
                 TelegramCollector(),
                 OSSInsightCollector(),
             ],
+            # 2026-09-26 论文抓取: category 扩展, 无独立 gate/job
+            Category.PAPER: [ArxivPaperCollector()],
         }
         self.repo = HotspotRepository()
         self.trend = TrendRepository()

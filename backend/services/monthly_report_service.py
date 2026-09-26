@@ -22,11 +22,12 @@ CATEGORY_LABELS: dict[str, str] = {
     "startup": "创业",
     "github": "GitHub",
     "tech": "科技",
+    "paper": "论文",
 }
 
 CATEGORY_ORDER = [
     "ai", "security", "ai_security", "tech", "finance",
-    "startup", "github",
+    "startup", "github", "paper",
 ]
 
 
@@ -197,6 +198,7 @@ CATEGORY_SUMMARIES: dict[str, str] = {
     "finance": "金融领域关注市场动态、政策变化和行业趋势，重要经济数据和企业财报发布引发关注。",
     "startup": "创业领域融资事件和新兴项目活跃，多个赛道涌现创新商业模式和技术突破。",
     "github": "GitHub领域热门开源项目和新版本发布密集，社区活跃度保持高位。",
+    "paper": "论文领域 arXiv 预印本覆盖 AI 与安全交叉研究前沿，值得关注新方法与实证结论。",
 }
 
 

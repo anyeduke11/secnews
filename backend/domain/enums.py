@@ -36,6 +36,9 @@ class Category(str, Enum):
     GITHUB = "github"
     # Phase 25 P1: IT/科技 分类 (Solidot/IT之家/稀土掘金/酷安 等)
     TECH = "tech"
+    # 2026-09-26: 学术论文分类 (arXiv 预印本, ArxivPaperCollector) —
+    # 与既有 7 类目同级, 是 category 扩展而非扩展域 (无独立 router/job, 不加 gate)
+    PAPER = "paper"
 
     @classmethod
     def from_str(cls, s: str) -> Category:

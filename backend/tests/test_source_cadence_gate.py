@@ -196,6 +196,10 @@ class TestGetSchedulableCadence:
         from backend.repository.db import get_connection
 
         self.conn = get_connection()
+        # 2026-09-26 论文抓取 (migration 123) 种子了 14 行 paper 源
+        # (enabled=1); 本类锁定自有 seed 行为, 清掉种子行保持口径纯粹
+        # (test_source_census 对 migration 121 种子的同款先例)。
+        self.conn.execute("DELETE FROM crawler_sources WHERE category='paper'")
         from backend.repository.source_scheduler_repo import SourceSchedulerRepository
 
         self.repo = SourceSchedulerRepository()

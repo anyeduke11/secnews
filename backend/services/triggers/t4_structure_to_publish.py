@@ -131,6 +131,9 @@ class T4Trigger:
 
                 # Validate transition; raises on stale / illegal data.
                 can_transition(item["lifecycle"], LIFECYCLE_PUBLISH)
+                # 治理 T4: md 真源必须落终态 — write 先于 DB update, item 行
+                # 携带的是 kl:structure, 不修正则 md frontmatter 滞后一拍。
+                item["lifecycle"] = LIFECYCLE_PUBLISH
                 self._write_to_md(item)
                 self._update_lifecycle(item_id, LIFECYCLE_PUBLISH)
                 advanced += 1

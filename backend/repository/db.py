@@ -20,6 +20,7 @@ Design notes
 """
 from __future__ import annotations
 
+import re
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -349,6 +350,60 @@ def apply_migrations(conn: sqlite3.Connection) -> int:
 # ---------------------------------------------------------------------------
 # Init entry point
 # ---------------------------------------------------------------------------
+def _ensure_warm_knowledge_items(conn: sqlite3.Connection) -> None:
+    """warm 知识投影自愈 — 治理 T4 入口断供根因修复 (2026-09-26)。
+
+    根因链 (诊断证据链见 docs/superpowers/plans/2026-09-26-kl-pipeline-revival.md):
+    warm.db 于 2026-09-12/13 之间遗失 (test_wiki_stats_funnel_fallback docstring
+    已留痕), 重建后其他 warm 表随启动迁移恢复, 唯 ``knowledge_items`` 投影表
+    缺失 → 生产 ``knowledge_items_table()`` 解析为 ``warm.knowledge_items``,
+    此后 knowledge_repo.upsert_item 与 T1-T4 全部 SELECT 逐轮抛
+    ``no such table`` (各调用点 try/except 吞掉, 静默) → 知识入管断供 13 天
+    (wiki_events: agent_write / kl_transition 自 09-13 双双归零, 而采集侧
+    hotspots 每日数百条照常入账)。
+
+    迁移 SQL 只能用裸名建表 (018_knowledge.sql → 落 main, 即 main 里那张
+    0 行空壳的来历), 无法按 ATTACH 状态条件指向 warm — 故在 init_db 尾部
+    以代码级条件自愈: warm 已 ATTACH 且缺表时, 从 main.sqlite_master 拷贝
+    权威 DDL (历次迁移已在其上跑全, 含 body/entities 等后加列) 在 warm 重建。
+    幂等: 表已在 / warm 未 ATTACH / main 无 DDL 可拷 → no-op 或 warning。
+    """
+    attached = {r[1] for r in conn.execute("PRAGMA database_list").fetchall()}
+    if "warm" not in attached:
+        return
+    has_table = conn.execute(
+        "SELECT COUNT(*) FROM warm.sqlite_master "
+        "WHERE type = 'table' AND name = 'knowledge_items'"
+    ).fetchone()[0]
+    if has_table:
+        return
+    row = conn.execute(
+        "SELECT sql FROM main.sqlite_master "
+        "WHERE type = 'table' AND name = 'knowledge_items'"
+    ).fetchone()
+    if row is None or not row[0]:
+        logger.warning(
+            "warm.knowledge_items missing but main has no DDL to rebuild from",
+            extra={"trace_id": ""},
+        )
+        return
+    # 裸名 DDL 无法执行到 warm (SQLite 裸名恒解析 main, 会撞 main 已有表),
+    # 改写为 warm 限定名; 归一掉 IF NOT EXISTS (上文已确认 warm 无此表)。
+    ddl = re.sub(
+        r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?",
+        "CREATE TABLE warm.",
+        row[0],
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    conn.execute(ddl)
+    logger.warning(
+        "warm.knowledge_items was missing — rebuilt from main schema "
+        "(knowledge ingest had been silently failing; see governance T4)",
+        extra={"trace_id": ""},
+    )
+
+
 def init_db() -> int:
     """One-shot DB init: integrity check, apply migrations, log journal mode.
 
@@ -392,6 +447,10 @@ def init_db() -> int:
     except Exception as e:
         logger.exception("db migration error", extra={"trace_id": ""})
         raise InternalException(f"db migration error: {e}") from e
+
+    # 治理 T4: warm 知识投影自愈 (必须在 apply_migrations 之后 — 迁移先
+    # 把 main 的 knowledge_items 结构推到最新, 自愈拷贝的才是权威 DDL)。
+    _ensure_warm_knowledge_items(conn)
 
     # Confirm journal mode landed on WAL.
     try:

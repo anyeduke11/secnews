@@ -10,14 +10,14 @@ from typing import Any
 from backend.kl_pipeline.queue import STAGES
 from backend.wiki_fs.contract import get_lifecycle
 
-# 迁移 046 只在 DB 侧归一 lifecycle, wiki md frontmatter 从未被改写 ——
-# 实测仍有 175 个 pre-v1.7 值 (generate 124 / signal 48 / amplify:tagged 3)。
-# 旧实现把所有"不认识的值"计入 kl:raw, 心跳条因此把 175 报成待判读积压,
-# 而 DB 里真正的 kl:raw 只有 2 条: 数据漂移被藏成了一个假数字。
+# 迁移 046 只在 DB 侧归一 lifecycle, wiki md frontmatter 从未被改写。
+# 治理 T2 (2026-09-26) 已把 52 个 generate/signal md 迁移到 kl:publish,
+# 对应映射条目随之删除 (死配置清理, 治理 T3); 仅存 pre-v1.7 的
+# amplify:tagged 仍需归位 kl:refine。
+# 旧实现把所有"不认识的值"计入 kl:raw, 心跳条因此把积压报成待判读,
+# 而 DB 里真正的 kl:raw 只有个位数: 数据漂移被藏成了一个假数字。
 _LEGACY_TO_STAGE = {
-    "signal": "kl:raw",
     "amplify:tagged": "kl:refine",
-    "generate": "kl:structure",
 }
 
 # 值域外 / 读不出的项归到这里, 让漂移在 UI 上可见而不是污染 kl:raw。

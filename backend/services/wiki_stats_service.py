@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.kl_pipeline.obs.funnel import _LEGACY_TO_STAGE, UNKNOWN_STAGE
@@ -259,6 +260,78 @@ def invalidate_stats_cache() -> None:
 
 
 # ---------------------------------------------------------------------------
+# KL 吞吐 — wiki_events kl_transition 事件流聚合 (治理 T3 漏斗改吞吐视图)
+# ---------------------------------------------------------------------------
+_THROUGHPUT_WINDOW_DAYS = 7
+
+# kl_transition payload.stage 的阶段到达顺序 (STAGES 序), 用于转化率配对
+_CONVERSION_PAIRS = (
+    ("raw", "refine"),
+    ("refine", "link"),
+    ("link", "structure"),
+    ("structure", "publish"),
+)
+
+
+def kl_transition_throughput(
+    conn: Any = None, *, days: int = _THROUGHPUT_WINDOW_DAYS
+) -> dict[str, Any]:
+    """近 N 天管线吞吐 — wiki_events ``kl_transition`` 事件流聚合 (治理 T3)。
+
+    与 :func:`funnel_from_db` (存量快照) 的口径区别: 快照回答"现在各阶段
+    躺了多少条", 吞吐回答"最近流动了多少"。2026-09 实测 publish 存量
+    4179 条 vs 近 7 天流动 0 条 — 管线停摆 13 天, 快照却依然"看起来健康",
+    唯有流量口径能暴露停摆 (前端停摆黄条的数据面)。
+
+    Args:
+        conn: 可注入连接 (测试); 缺省 get_connection()。
+        days: 吞吐统计窗口 (默认 7 天); last_transition_at 不受窗口限制。
+
+    Returns:
+        ``{"throughput_7d": {stage: count}, "conversion": {prev_to_next: rate|None},
+        "last_transition_at": iso|None}``
+        conversion 前项到达量为 0 时该比率为 None (除零不编造);
+        wiki_events 查询失败 (表缺失等) → 归零结构, 不炸看板。
+    """
+    conn = conn or get_connection()
+    out: dict[str, Any] = {
+        "throughput_7d": dict.fromkeys(STAGES, 0),
+        "conversion": {},
+        "last_transition_at": None,
+    }
+    cutoff = (
+        datetime.now(timezone.utc) - timedelta(days=days)
+    ).isoformat()
+    try:
+        rows = conn.execute(
+            "SELECT json_extract(payload, '$.stage') AS stage, COUNT(*) AS c "
+            "FROM wiki_events "
+            "WHERE kind = 'kl_transition' AND ts >= ? "
+            "GROUP BY stage",
+            (cutoff,),
+        ).fetchall()
+        last = conn.execute(
+            "SELECT MAX(ts) FROM wiki_events WHERE kind = 'kl_transition'"
+        ).fetchone()
+    except Exception as e:
+        logger.warning(f"kl_transition_throughput query failed: {e}")
+        return out
+    for row in rows:
+        stage = (row["stage"] or "").strip()
+        if stage in out["throughput_7d"]:
+            out["throughput_7d"][stage] = int(row["c"])
+    out["last_transition_at"] = last[0] if last is not None else None
+    tp: dict[str, int] = out["throughput_7d"]
+    out["conversion"] = {
+        f"{prev}_to_{nxt}": (
+            round(tp[f"kl:{nxt}"] / tp[f"kl:{prev}"], 4) if tp[f"kl:{prev}"] else None
+        )
+        for prev, nxt in _CONVERSION_PAIRS
+    }
+    return out
+
+
+# ---------------------------------------------------------------------------
 # KL 观测只读查询 (Batch 2 D: api 层 SQL 下沉落点 —
 # kl_pipeline_api / kl_metrics_api / mcp_phase5_tools / kl_compounding_api)
 # ---------------------------------------------------------------------------
@@ -440,6 +513,7 @@ __all__ = [
     "funnel_from_md_cached",
     "invalidate_stats_cache",
     "kl_stage_counts",
+    "kl_transition_throughput",
     "knowledge_stats_from_db",
     "liveness_from_md_cached",
     "stage_distribution_from_db",

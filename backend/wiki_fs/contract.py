@@ -80,13 +80,26 @@ _FM_KEY_ORDER = [
 # 生命周期阶段 (与 kl_pipeline.queue.STAGES 一致)。
 LIFECYCLE_STAGES = ("kl:raw", "kl:refine", "kl:link", "kl:structure", "kl:publish")
 
+# 值域收敛读路径兜底 (治理 T2, 2026-09-26): 存量 md 已由
+# scripts/fix_lifecycle_values.py 迁为 "kl:publish" (generate / signal 均为
+# "已发布" 旧语义, owner 裁决; 与 domain.knowledge_models.LEGACY_TO_KL 的
+# generate→kl:publish 同判定)。此处兜底防外部工具再写旧值。
+# 注意: kl_pipeline.obs.funnel._LEGACY_TO_STAGE 里的 signal→kl:raw /
+# generate→kl:structure 是 DB 投影侧历史口径, 本兜底先行后其旧值条目自然失效。
+_LEGACY_LIFECYCLE_ALIASES = {
+    "generate": "kl:publish",
+    "signal": "kl:publish",
+}
+
 
 def get_lifecycle(fm: dict) -> str:
     """读取条目生命周期阶段 (SCHEMA.md 契约字段为 ``lifecycle``)。
 
-    缺失时默认 kl:raw; 兼容读取 Phase 0 开发期误写的 ``kl_stage``。
+    缺失时默认 kl:raw; 兼容读取 Phase 0 开发期误写的 ``kl_stage``;
+    旧版 SAG 值 (generate/signal) 读作 kl:publish (值域收敛 T2)。
     """
-    return fm.get("lifecycle") or fm.get("kl_stage") or "kl:raw"
+    value = fm.get("lifecycle") or fm.get("kl_stage") or "kl:raw"
+    return _LEGACY_LIFECYCLE_ALIASES.get(value, value)
 
 
 def serialize_frontmatter(fm: dict) -> str:

@@ -19,6 +19,7 @@ import sqlite3
 
 import pytest
 
+from backend.kl_pipeline.obs.funnel import UNKNOWN_STAGE
 from backend.services import wiki_stats_service
 from backend.services.wiki_stats_service import (
     funnel_from_db,
@@ -26,8 +27,6 @@ from backend.services.wiki_stats_service import (
     knowledge_stats_from_db,
     stage_distribution_from_db,
 )
-
-from backend.kl_pipeline.obs.funnel import UNKNOWN_STAGE
 
 
 class _FakeWikiFs:
@@ -53,8 +52,8 @@ def fake_fs(monkeypatch):
     """注入假 wiki_fs 生产单例 + 清空模块级缓存 (防跨测试污染)。"""
     wiki_stats_service._md_funnel_cache.clear()
     fs = _FakeWikiFs({
-        "a": "signal",            # → kl:raw
-        "b": "generate",          # → kl:structure
+        "a": "signal",            # → kl:publish (T2 值域收敛读路径兜底)
+        "b": "generate",          # → kl:publish (T2 值域收敛读路径兜底)
         "c": "kl:publish",
         "d": "kl:deduped",        # 终态单列, 不许混进 unknown
         "e": "kl:bogus",          # 值域外
@@ -84,9 +83,9 @@ def test_db_projection_missing_falls_back_to_md(fake_fs, tmp_path):
     funnel = funnel_from_db(_conn_without_knowledge_items(tmp_path))
     counts = _as_map(funnel)
 
-    assert counts["kl:raw"] == 1
-    assert counts["kl:structure"] == 1
-    assert counts["kl:publish"] == 1
+    assert counts["kl:raw"] == 0
+    assert counts["kl:structure"] == 0
+    assert counts["kl:publish"] == 3, "signal/generate 经 T2 兜底也读作 kl:publish"
     assert sum(counts.values()) == 6, "重新分桶不丢数据"
 
 
@@ -102,7 +101,7 @@ def test_stage_distribution_fallback_same_source(fake_fs, tmp_path):
     """stage_distribution (知识库 tab) 与漏斗同源同回退。"""
     dist = stage_distribution_from_db(_conn_without_knowledge_items(tmp_path))
 
-    assert dist["kl:publish"] == 1
+    assert dist["kl:publish"] == 3, "signal/generate 经 T2 兜底也读作 kl:publish"
     assert dist["kl:deduped"] == 1
 
 
@@ -137,7 +136,7 @@ def test_knowledge_stats_items_fallback_concepts_survive(fake_fs, tmp_path):
 
     assert ks["items"] == 6, "md 回退条目总数 (fake_fs 共 6 条)"
     assert ks["concepts"] == 2, "concepts 查询独立容错, 不随 items 缺失归零"
-    assert ks["stage_distribution"]["kl:publish"] == 1
+    assert ks["stage_distribution"]["kl:publish"] == 3
 
 
 def test_explicit_none_wiki_fs_disables_fallback(tmp_path):

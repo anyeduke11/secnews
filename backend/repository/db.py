@@ -408,6 +408,33 @@ def _ensure_warm_knowledge_items(conn: sqlite3.Connection) -> None:
             extra={"trace_id": ""},
         )
         return
+    # 终审 Important 修复 (2026-09-26): 建表 ≠ 建索引 — 063 的 3 个索引
+    # (ingested_at/lifecycle/domain) 不随 CREATE TABLE 拷贝, 缺失则 T1-T4
+    # 触发器与知识仪表盘热路径在 ~4k 行投影上退化为全表扫描。从
+    # main.sqlite_master 同拷全部具名索引 (跳过 sql IS NULL 的 sqlite 自动
+    # 索引), 归一 IF NOT EXISTS 保持幂等; 单个失败 warning 留痕继续
+    # (best-effort 同建表)。
+    idx_rows = conn.execute(
+        "SELECT sql FROM main.sqlite_master "
+        "WHERE type = 'index' AND tbl_name = 'knowledge_items' "
+        "AND sql IS NOT NULL"
+    ).fetchall()
+    for idx_row in idx_rows:
+        idx_ddl = re.sub(
+            r"CREATE\s+INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?",
+            "CREATE INDEX IF NOT EXISTS warm.",
+            idx_row[0],
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        try:
+            conn.execute(idx_ddl)
+        except sqlite3.Error as exc:
+            logger.warning(
+                f"warm.knowledge_items index self-heal failed ({exc}) "
+                f"— ddl: {idx_ddl[:120]}",
+                extra={"trace_id": ""},
+            )
     logger.warning(
         "warm.knowledge_items was missing — rebuilt from main schema "
         "(knowledge ingest had been silently failing; see governance T4)",

@@ -62,6 +62,42 @@ def test_selfheal_rebuilds_missing_warm_table(dual_db):
     assert row["lifecycle"] == "kl:raw"
 
 
+def test_selfheal_rebuilds_missing_warm_indexes(dual_db):
+    """自愈不只建表 — 063 的 3 个索引必须同拷到 warm。
+
+    2026-09-26 终审 Important: 只拷 CREATE TABLE 的话 ingested_at/lifecycle/
+    domain 索引缺失, T1-T4 触发器与知识仪表盘热路径在 ~4k 行投影上退化为
+    全表扫描。
+    """
+    main_db, warm_db = dual_db
+    conn = get_connection()
+    _bootstrap_main_schema(conn)
+
+    db_module.init_db()  # apply_migrations 在 main 建全索引 (含 063) → 自愈同拷
+
+    names = {
+        row[0]
+        for row in conn.execute(
+            "SELECT name FROM warm.sqlite_master "
+            "WHERE type = 'index' AND tbl_name = 'knowledge_items' "
+            "AND sql IS NOT NULL"
+        ).fetchall()
+    }
+    assert {"idx_ki_ingested", "idx_ki_lifecycle", "idx_ki_domain"} <= names, (
+        "自愈必须把 063 的 3 个索引一并重建到 warm (≥3)"
+    )
+
+    # 索引必须真的指向 warm 表 (PLAN 用不上等于白建) — 插一行验证可写可查
+    conn.execute(
+        "INSERT INTO warm.knowledge_items (id, title, source, lifecycle, ingested_at, updated_at) "
+        "VALUES ('ki-idx', 't', 'web', 'kl:raw', '2026-09-26T00:00:00+00:00', '2026-09-26T00:00:00+00:00')"
+    )
+    row = conn.execute(
+        "SELECT lifecycle FROM warm.knowledge_items WHERE lifecycle = 'kl:raw'"
+    ).fetchone()
+    assert row is not None
+
+
 def test_selfheal_preserves_existing_warm_data(dual_db):
     """warm 表健在 → 幂等 no-op, 已有数据原样保留 (不许重建清库)。"""
     main_db, warm_db = dual_db

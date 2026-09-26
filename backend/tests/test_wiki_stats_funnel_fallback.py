@@ -152,6 +152,51 @@ def test_explicit_none_wiki_fs_disables_fallback(tmp_path):
     assert dist == {}, "显式 None 保持原 {} 归零契约 (dashboard 测试依赖)"
 
 
+def _conn_with_empty_knowledge_items(tmp_path) -> sqlite3.Connection:
+    """投影表存在但 0 行 — 复刻 db.py 自愈建空壳后的库态。"""
+    conn = sqlite3.connect(str(tmp_path / "empty_projection.db"), isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    conn.execute("CREATE TABLE knowledge_items (lifecycle TEXT)")
+    return conn
+
+
+def test_empty_projection_falls_back_to_md(fake_fs, tmp_path):
+    """空投影 (自愈建空壳后 0 行) ≠ 真实存量 — 必须回退 md 口径。
+
+    2026-09-26 终审 Important: 自愈后查询成功返回空集不再抛异常, 静默返回
+    全 0 会把看板存量从 4179 断层成 0 (缺表走 except 分支反而显示真实数)。
+    """
+    conn = _conn_with_empty_knowledge_items(tmp_path)
+
+    counts = _as_map(funnel_from_db(conn))
+
+    assert counts["kl:publish"] == 3, "空投影必须回退 md, 不许报 0 断层"
+    assert counts["kl:deduped"] == 1
+
+    dist = stage_distribution_from_db(conn)
+    assert dist["kl:publish"] == 3, "知识库 tab 分布与漏斗同回退"
+
+    ks = knowledge_stats_from_db(conn)
+    assert ks["items"] == 6, "items 计数同样回退 md 总数, 不许断层为 0"
+
+
+def test_empty_projection_warns_suggesting_backfill(fake_fs, tmp_path):
+    """空集回退必须 warning 留痕并提示跑回填 — 静默降级无从发现投影未回填。"""
+    from backend.logging_config import logger as loguru_logger
+
+    conn = _conn_with_empty_knowledge_items(tmp_path)
+    messages: list[str] = []
+    handler_id = loguru_logger.add(
+        messages.append, level="WARNING", format="{message}"
+    )
+    try:
+        funnel_from_db(conn)
+    finally:
+        loguru_logger.remove(handler_id)
+
+    assert any("回退 md" in m and "回填" in m for m in messages)
+
+
 def test_ttl_cache_avoids_rescan(fake_fs):
     """30s 轮询 × 4200 文件全扫 = 卡顿根治成果倒退; TTL 内必须共享一次扫描。"""
     funnel_from_md_cached(fake_fs)

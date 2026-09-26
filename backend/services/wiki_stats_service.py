@@ -147,6 +147,16 @@ def funnel_from_db(conn: Any = None, *, wiki_fs: Any = _WIKI_UNSET) -> list[dict
             return [{"stage": s, "count": 0} for s in counts]
         return funnel_from_md_cached(None if wiki_fs is _WIKI_UNSET else wiki_fs)
 
+    if not rows:
+        # 终审 Important 修复 (2026-09-26): db.py 自愈建空 knowledge_items 后
+        # 查询成功返回 0 行不再抛异常 — 静默返回全 0 会把看板存量从 4179 断层
+        # 成 0 (缺表走上方 except 反而显示 md 真实数)。空集视为投影未回填,
+        # 与缺表同回退 md 口径 (降级展示, 回填后自动恢复 DB 口径)。
+        logger.warning("warm 投影空 (knowledge_items 0 行), 已回退 md 口径, 建议跑回填")
+        if wiki_fs is None:
+            return [{"stage": s, "count": 0} for s in counts]
+        return funnel_from_md_cached(None if wiki_fs is _WIKI_UNSET else wiki_fs)
+
     for row in rows:
         stage = (row["lifecycle"] or "").strip()
         if not stage:
@@ -180,6 +190,17 @@ def stage_distribution_from_db(
             f["stage"]: f["count"]
             for f in funnel_from_md_cached(None if wiki_fs is _WIKI_UNSET else wiki_fs)
         }
+    if not rows:
+        # 终审 Important 修复 (2026-09-26): 空投影同 funnel_from_db 回退 md
+        # (knowledge_stats 的 stage_distribution 依赖本函数, 不回退则知识库
+        # tab 分布在空表下断层为空 dict)。
+        logger.warning("warm 投影空 (knowledge_items 0 行), 已回退 md 口径, 建议跑回填")
+        if wiki_fs is None:
+            return dist
+        return {
+            f["stage"]: f["count"]
+            for f in funnel_from_md_cached(None if wiki_fs is _WIKI_UNSET else wiki_fs)
+        }
     for row in rows:
         stage = (row["lifecycle"] or "").strip() or "unknown"
         dist[stage] = dist.get(stage, 0) + row["c"]
@@ -205,12 +226,13 @@ def knowledge_stats_from_db(
         ).fetchone()[0]
     except Exception as e:
         logger.warning(f"knowledge_stats_from_db items query failed: {e}")
-        # 投影缺失回退 md 条目总数 (与漏斗回退共享 30s TTL 缓存, 零额外扫描)
-        if wiki_fs is not None:
-            funnel = funnel_from_md_cached(
-                None if wiki_fs is _WIKI_UNSET else wiki_fs
-            )
-            items = sum(f["count"] for f in funnel)
+        items = 0
+    if not items and wiki_fs is not None:
+        # 投影缺失或空表 (终审 Important 修复: 自愈建空壳后 COUNT=0 不抛异常)
+        # → 回退 md 条目总数 (与漏斗回退共享 30s TTL 缓存, 零额外扫描)。
+        logger.warning("warm 投影空 (knowledge_items 0 行), 已回退 md 口径, 建议跑回填")
+        funnel = funnel_from_md_cached(None if wiki_fs is _WIKI_UNSET else wiki_fs)
+        items = sum(f["count"] for f in funnel)
     try:
         concepts = conn.execute(
             "SELECT COUNT(*) FROM knowledge_concepts"
@@ -264,7 +286,10 @@ def invalidate_stats_cache() -> None:
 # ---------------------------------------------------------------------------
 _THROUGHPUT_WINDOW_DAYS = 7
 
-# kl_transition 生产写点 = T1-T4 触发器 + kl_queue drain, 语义均为"到达该阶段";
+# kl_transition 生产写点 = T1-T4 触发器 + kl_queue drain, 但两来源 payload.stage
+# 语义不同: engine drain 写**刚完成阶段**, trigger 写**到达阶段** — 各来源内
+# 自洽, 混合聚合是近似吞吐 (更精确需按 item 对齐前后沿, 当前 payload 无 item_id,
+# 接受近似)。
 # kl:raw 无任何写点 (kickoff 直接入队 kl:refine, 不写事件) — 保留恒 0 键会让
 # 前端 raw 行永久显示 0 流量 (停摆黄条误报帮凶), 吞吐值域 = STAGES 去 kl:raw。
 _THROUGHPUT_STAGES = STAGES[1:]
@@ -298,6 +323,7 @@ def kl_transition_throughput(
         ``{"throughput_7d": {stage: count}, "conversion": {prev_to_next: rate|None},
         "last_transition_at": iso|None}``
         throughput_7d 值域 = STAGES 去 kl:raw (kl:raw 无事件写点, 恒 0 键已移除);
+        last_transition_at 同排除 kl:deduped 判重心跳 (上游喂重复不算知识流动);
         conversion 前项到达量为 0 时该比率为 None (除零不编造);
         wiki_events 查询失败 (表缺失等) → 归零结构, 不炸看板。
     """
@@ -319,7 +345,11 @@ def kl_transition_throughput(
             (cutoff,),
         ).fetchall()
         last = conn.execute(
-            "SELECT MAX(ts) FROM wiki_events WHERE kind = 'kl_transition'"
+            "SELECT MAX(ts) FROM wiki_events WHERE kind = 'kl_transition' "
+            # 终审 Minor 修复: 排除 kl:deduped 心跳 — T1 判重落终态也写
+            # kl_transition, 上游持续喂重复 item 会不断刷新最后心跳,
+            # 停摆黄条把 "喂重复" 误判成 "知识在流动"。
+            "AND COALESCE(json_extract(payload, '$.stage'), '') != 'kl:deduped'"
         ).fetchone()
     except Exception as e:
         logger.warning(f"kl_transition_throughput query failed: {e}")

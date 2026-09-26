@@ -9,6 +9,8 @@ import json
 import re
 import string
 
+from backend.logging_config import logger
+
 # json.dumps 默认 ensure_ascii=True 的历史产物: 中文被写成字面 \uXXXX 存进 md。
 # 只认 "\u + 恰好 4 位十六进制", 因此 C:\users 这类真实反斜杠不会被误伤。
 _UNICODE_ESCAPE_RE = re.compile(r"\\u([0-9a-fA-F]{4})")
@@ -99,6 +101,15 @@ def get_lifecycle(fm: dict) -> str:
     旧版 SAG 值 (generate/signal) 读作 kl:publish (值域收敛 T2)。
     """
     value = fm.get("lifecycle") or fm.get("kl_stage") or "kl:raw"
+    if value in _LEGACY_LIFECYCLE_ALIASES:
+        # 终审 Minor 修复 (2026-09-26): 命中 alias 说明仍有写入方在写旧值 —
+        # warning 留痕防静默吞 (否则外部工具写坏值域只会被悄悄读成
+        # kl:publish, 无从溯源)。存量 md 已由 fix_lifecycle_values.py 迁净,
+        # 正常读路径不再命中, 无日志噪音。
+        logger.warning(
+            f"get_lifecycle: legacy lifecycle value {value!r} read as "
+            "'kl:publish' — 修正写入方, 勿再写 generate/signal"
+        )
     return _LEGACY_LIFECYCLE_ALIASES.get(value, value)
 
 

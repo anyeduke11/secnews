@@ -1,4 +1,17 @@
 
+## [DEV-0231] 自动入管规则引擎: 高价值资讯自动进入 KL 管线 (质量阈值 + 每日上限 + 域命中 + 游标防重扫)
+- **时间**: 2026-09-26
+- **类型**: 功能开发 (auto-intake 分支, 设计稿 §3 owner 裁决 B 方案)
+- **问题描述**: KL 管线入口此前依赖用户手动收藏 (promote), 高价值资讯 (quality_score ≥85) 若未人工关注即流失; 需要一条规则驱动的自动入管通道, 且不与收藏语义混淆、不产生入管风暴。
+- **关联文件**:
+  - 计划/设计: `docs/superpowers/plans/2026-09-26-auto-intake.md` (Task 1-3 全勾 + 实施记录) + `docs/superpowers/specs/2026-09-26-auto-intake-design.md` (§3 机制 / §6 非目标: 不回填历史)
+  - T1 评估服务 (eee96c9): `backend/services/auto_intake_service.py` (新 — run_auto_intake 六步: 开关→每日上限→候选查询 (游标+阈值+summary 非空)→域命中 (batch_classify 规则现算无 LLM)→promote→游标推进; 全程 try-except 不抛) + `backend/services/sag_service.py` (promote_favorite_to_knowledge 增 keyword-only 可选参 content/category/source, None 不写对应字段, 收藏调用方零破坏) + `backend/repository/hotspot_repo.py` (candidates_for_auto_intake) + `backend/repository/knowledge_repo.py` (count_by_source_since) + `backend/tests/test_auto_intake.py` (新)
+  - T2 挂载+API+前端 (1cb21ab): `backend/scheduler/jobs/collect.py` (collect_all_job 尾部 _auto_intake_tick, asyncio.to_thread + 异常兜底, 一行日志不阻塞采集) + `backend/api/auto_intake_api.py` (新 — GET/PATCH /api/settings/auto-intake, Pydantic ge/le 校验 min_quality_score 0-100 / daily_limit 1-100) + `backend/api/_registry.py` (注册) + `backend/services/settings_service.py` (namespace 前缀注册 `knowledge.`) + 前端 `settings/AutoIntakeCard.tsx` + test (collection 分区: 开关 + 阈值/上限数字输入 + 今日已入管展示) + `settings/SettingsPage.tsx` (挂载)
+  - review fix (1719fe9, Batch A 审查 Changes Required): PATCH 响应补 today_intaken 对齐前端契约 (保存后直接 setState, 与 GET 形状一致)
+- **实现思路**: 入管判据 = quality_score ≥ 阈值 (默认 85) 且 (可选) 命中关注域 (空画像 = 不过滤, interest 系统一贯语义) 且每日限量 (默认 20, 防风暴主闸); 收藏通道不变 — source='secnews' vs 'secnews_auto' 区分且收藏不占每日上限; 不新增 feature gate (开关即 kv `knowledge.auto_intake.enabled`); 游标 kv `knowledge.auto_intake.cursor` 推进到本轮 max(ingested_at) 含跳过条目 (不重扫), 首跑游标 = 当前时刻不回填历史; 每日计数 = 实时 COUNT 今日 secnews_auto (重启安全); 配置写入经 SettingsService 每键 audit_log (action=auto_intake.config.set)。**量级估算落账**: 近 7 天 hotspots 4989 条中 ≥85 分占 66%、域命中 93% — 两道过滤联手后余量仍大, 真正的限流核心是每日上限 (20) 而非阈值/域命中。
+- **测试验证**: 后端全量 `pytest backend/tests/ -q` **4863 passed / 9 skipped / 0 failed** (8m12s, 基线 4843 + 本分支新增 20); 前端 `tsc --noEmit` 0 错 / `vitest run` **87 文件 641 passed** (+AutoIntakeCard ×3); `generate_meta --check` OK (90 routers / 150 services, Batch A 已同步, 4/4 文档一致); ruff 触碰 10 文件 0 告警; `harness_analyze --check` 0 errors (5 warnings 均 pre-policy 豁免)。
+- **潜在风险 (parked)**: ① 个别测试 docstring 与断言对象存在笔误 (断言正确, 注释错字); ② LIMIT 截断 + 游标推进组合会静默放弃同窗低分溢出候选 — 设计一致 (游标语义 = 窗口推进不重扫), 若未来调低阈值期望回捞需手动清游标; ③ 域命中为规则现算 (batch_classify) 无 LLM 兜底, 冷门表述可能漏命中。
+
 ## [DEV-0230] KL 管线有效性治理: 死信落库 + 值域收敛 + 吞吐视图 + warm 自愈 + 入口复活 E2E
 - **时间**: 2026-09-26
 - **类型**: 管线治理 (kl-pipeline-revival 分支, 第一性原理诊断 + owner 全量治理裁决)

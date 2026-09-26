@@ -69,7 +69,12 @@ def _seed(conn) -> None:
 def test_census_uses_registry_as_denominator(temp_db):
     from backend.services.source_census_service import build_census
 
-    _seed(db.get_connection())
+    conn = db.get_connection()
+    _seed(conn)
+    # 治理 T1 (migration 121) 种子了 2 个 multimedia 源 (disabled 待代理);
+    # 本测试锁受控注册表分母, 清掉种子行保持口径纯粹。
+    conn.execute("DELETE FROM crawler_sources WHERE media_kind='multimedia'")
+    conn.commit()
     c = build_census()
 
     assert c["registry_total"] == 5

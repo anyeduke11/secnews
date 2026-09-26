@@ -115,6 +115,16 @@ class SourceSchedulerRepository:
         )
         return cur.rowcount > 0
 
+    def delete(self, source_id: str) -> bool:
+        """物理删除单条源注册行 (治理 T2: 仅限先写 source_cleanup_log 审计后调用)。
+
+        Returns:
+            True 表示至少删除了一行
+        """
+        conn = get_connection()
+        cur = conn.execute("DELETE FROM crawler_sources WHERE id = ?", (source_id,))
+        return cur.rowcount > 0
+
     def get_run_stats(self, source_id: str, since_hours: int = 24) -> dict:
         """查询源在最近 N 小时内的运行统计。
 

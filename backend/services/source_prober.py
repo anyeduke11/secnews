@@ -14,10 +14,12 @@ v0.7.x P0: SSRF 防护 — ``_head_status`` / ``_get_status`` 在出站前
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlparse
 
 from backend.logging_config import logger as _root_logger
 from backend.repository.db import get_connection
@@ -34,6 +36,8 @@ _UA = "hotspot-source-prober/3.0"
 RETIRE_DEAD_DAYS = 14
 # retired 源复探间隔 (低频, 防长期打死亡源); 借用 cooldown_until 存下次可复探时刻
 RETIRE_REPROBE_DAYS = 7
+# 同 host 相邻探测最小间隔 (arXiv 官方"单请求 ≥3s", 违规遭 Fastly 间歇性 400/406)
+_SAME_HOST_PROBE_INTERVAL = 3.1
 
 
 @dataclass
@@ -353,7 +357,17 @@ def probe_all_dead(*, timeout_s: float = DEFAULT_TIMEOUT_S) -> list[dict]:
     
     logger.info(f"probe_all_dead: probing {len(sources)} dead sources")
     results: list[dict] = []
+    # arXiv 等 API 站点约束"单请求 ≥3s" (违反被 Fastly 间歇性拒绝 400/406);
+    # 同 host 相邻探测强制 3.1s 间隔, 不同 host 不受影响 (2026-09-27 论文源
+    # 14 连发 HEAD 全拒 → 永久卡死 dead 的根因修复)。
+    last_probe_at: dict[str, float] = {}
     for source in sources:
+        probe_host = urlparse(_get_probe_url(source)).hostname or ""
+        prev_t = last_probe_at.get(probe_host)
+        if prev_t is not None:
+            wait = _SAME_HOST_PROBE_INTERVAL - (time.monotonic() - prev_t)
+            if wait > 0:
+                time.sleep(wait)
         try:
             result = probe_one(source["id"], timeout_s=timeout_s)
             results.append(result.to_dict())
@@ -367,6 +381,9 @@ def probe_all_dead(*, timeout_s: float = DEFAULT_TIMEOUT_S) -> list[dict]:
                 "error_msg": f"{type(e).__name__}: {str(e)[:200]}",
                 "new_status": None,
             })
+        finally:
+            if probe_host:
+                last_probe_at[probe_host] = time.monotonic()
     
     alive = sum(1 for r in results if r["status"] == "alive")
     dead = sum(1 for r in results if r["status"] == "dead")

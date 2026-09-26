@@ -329,6 +329,39 @@ class TestRetiredLowFrequency:
 
 
 # ===================================================================
+# T3 — 同 host 探测节拍 (2026-09-27 论文源限流根因修复)
+# ===================================================================
+
+
+class TestSameHostProbePacing:
+    def test_probe_all_dead_paces_same_host(self, temp_db, head_status, monkeypatch):
+        """同 host 相邻探测强制 ≥3.1s 节拍, 不同 host 不等待。
+
+        病灶: probe_all_dead 对 14 条 arXiv dead 源零节拍连发 HEAD,
+        违反 arXiv "单请求 ≥3s" 约束遭 Fastly 间歇性拒绝 (400/406),
+        源永久卡死 dead, paper 采集从未生效。"""
+        import backend.services.source_prober as prober_mod
+
+        sleeps: list[float] = []
+        monkeypatch.setattr(prober_mod.time, "sleep", sleeps.append)
+
+        _insert_source("px-1", url="https://api.arxiv.org/a/feed")
+        _insert_source("px-2", url="https://api.arxiv.org/b/feed")
+        _insert_source("py-1", url="https://other.example.org/c/feed")
+        head_status.set("px-1", 200, None)
+        head_status.set("px-2", 200, None)
+        head_status.set("py-1", 200, None)
+
+        from backend.services.source_prober import probe_all_dead
+
+        results = probe_all_dead()
+        assert {r["status"] for r in results} == {"alive"}
+        # 恰好一次节拍等待 (同 host 第 2/3... 跳), 且间隔值符合 arXiv 约束
+        assert len(sleeps) == 1, f"expected 1 pacing sleep, got {sleeps}"
+        assert sleeps[0] > 3.0
+
+
+# ===================================================================
 # T3 — 告警去重 (upsert_dedup)
 # ===================================================================
 

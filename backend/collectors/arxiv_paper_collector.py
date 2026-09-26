@@ -69,7 +69,7 @@ _ARXIV_EXPRS: dict[str, str] = {
 # entry 的 Atom feed — 3 领域轮转恰凑满 min_items_threshold, 垃圾条目会
 # 静默入 feed。提交时间排序正确参数为 submittedDate)。
 _ARXIV_API = (
-    "http://export.arxiv.org/api/query"
+    "https://export.arxiv.org/api/query"
     "?search_query={expr}&sortBy=submittedDate&sortOrder=descending"
     "&max_results=20"
 )
@@ -136,6 +136,28 @@ class ArxivPaperCollector(BaseCollector):
     _PACE_LOCKS: ClassVar[weakref.WeakKeyDictionary] = weakref.WeakKeyDictionary()
     _LAST_REQUEST_AT: ClassVar[float] = 0.0
     _PACE_INTERVAL = 3.0
+
+    # arXiv 拒绝 aiohttp 的 TLS/HTTP1.1 指纹 (2026-09-27 同时刻对照实测:
+    # 同 IP 同 URL, curl/urllib 恒 200, aiohttp 恒 406, 且惩罚窗口内
+    # 全部实验 406 — Fastly bot 判定按客户端指纹打分, 非频率问题)。
+    # 故取字节走 urllib 标准库通道, feedparser 解析与错误映射全复用基类。
+    async def _fetch_rss_bytes(self, rss_url: str) -> tuple[int, dict, bytes]:
+        import urllib.error
+        import urllib.request
+
+        def _get() -> tuple[int, dict, bytes]:
+            req = urllib.request.Request(
+                rss_url,
+                headers={"User-Agent": "hotspot-paper-collector/1.0"},
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    return int(resp.status), dict(resp.headers), resp.read()
+            except urllib.error.HTTPError as e:
+                # ≥4xx 转结构化返回, 下游按 rss_http_{status} 统一判死
+                return int(e.code), dict(e.headers or {}), b""
+
+        return await asyncio.to_thread(_get)
 
     async def fetch_source(
         self, source: dict

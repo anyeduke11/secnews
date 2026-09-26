@@ -78,14 +78,18 @@ def _make_collector():
 
 def _patch_rss_bytes(monkeypatch):
     """隔离网络: patch _fetch_rss_bytes (fetchers.py 声明的测试缝隙),
-    所有领域共用同一 fixture。"""
-    from backend.collectors import fetchers as fetchers_mod
+    所有领域共用同一 fixture。
+
+    patch 目标必须是 ArxivPaperCollector 本类 — 2026-09-27 起子类
+    override 了 _fetch_rss_bytes (urllib 通道, 绕 Fastly 对 aiohttp
+    指纹的 406), patch 父类 FetchersMixin 不再被 MRO 命中。"""
+    from backend.collectors.arxiv_paper_collector import ArxivPaperCollector
 
     async def fake_fetch_rss_bytes(self, rss_url: str):
         return 200, {"Content-Type": "application/atom+xml"}, _atom_bytes()
 
     monkeypatch.setattr(
-        fetchers_mod.FetchersMixin, "_fetch_rss_bytes", fake_fetch_rss_bytes
+        ArxivPaperCollector, "_fetch_rss_bytes", fake_fetch_rss_bytes
     )
 
 
@@ -151,7 +155,6 @@ def _collect_domains(collector, feed_by_source: dict[str, bytes]) -> set[str]:
     任务的 finally 清空会覆盖后一任务已设置的名称; 按 url 查表无共享
     状态且断言更强, 每个领域 URL 只命中自己的 fixture)。
     """
-    from backend.collectors import fetchers as fetchers_mod
     from backend.collectors.arxiv_paper_collector import (
         PAPER_SOURCES,
         ArxivPaperCollector,
@@ -171,7 +174,7 @@ def _collect_domains(collector, feed_by_source: dict[str, bytes]) -> set[str]:
     import unittest.mock as mock
 
     with mock.patch.object(
-        fetchers_mod.FetchersMixin, "_fetch_rss_bytes", fake_fetch_rss_bytes
+        ArxivPaperCollector, "_fetch_rss_bytes", fake_fetch_rss_bytes
     ):
         items = asyncio.run(collector.collect())
 
@@ -312,12 +315,13 @@ def test_registry_rotation_window_applies(temp_db):
 def test_paper_domain_queries_shape():
     """14 领域 query 形状: export.arxiv.org API + sortBy=submittedDate
     + max_results=20 (sortBy 合法值见 arXiv API 手册; DEV-0233 真实拉取
-    验证发现 `submitted` 非法 → Error entry feed, 精确断言防回退)。"""
+    验证发现 `submitted` 非法 → Error entry feed, 精确断言防回退)。
+    https 直连 (127: http 会 301 多一跳, 且低信誉链路更易触 Fastly 限流)。"""
     from backend.collectors.arxiv_paper_collector import PAPER_DOMAIN_QUERIES
 
     assert len(PAPER_DOMAIN_QUERIES) == 14
     for domain, url in PAPER_DOMAIN_QUERIES.items():
-        assert url.startswith("http://export.arxiv.org/api/query?search_query=")
+        assert url.startswith("https://export.arxiv.org/api/query?search_query=")
         assert "sortBy=submittedDate" in url
         assert "sortBy=submitted&" not in url
         assert "sortOrder=descending" in url

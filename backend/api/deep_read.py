@@ -108,10 +108,8 @@ async def fetch(entity_type: str, entity_id: str) -> DeepReadResponse:
     """读 deep_reads 表 (无 → 404, 不触发 LLM)。"""
     svc = DeepReadService()
     try:
-        # svc.fetch 是 async 方法: 直接 await。
-        # 此前用 asyncio.to_thread 包它, 拿到的是**从未被 await 的协程对象**,
-        # 下一行 item.to_dict() 直接 AttributeError → 本端点恒定 500,
-        # 存好的解读永远读不回来 (只有 POST 重新生成那条路能出数据)。
+        # svc.fetch 是 async 方法: 直接 await (此前 to_thread 包出未 await 协程,
+        # item.to_dict() AttributeError → 恒 500, 存好的解读读不回来)。
         item = await svc.fetch(entity_type, entity_id)
     except Exception as e:
         raise _err_to_http(e)

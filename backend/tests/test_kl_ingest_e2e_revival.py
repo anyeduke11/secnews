@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -153,6 +154,19 @@ class TestIngestToPublishE2E:
             (f"items/{item_id}.md",),
         ).fetchone()
         assert row is not None and row["agent"] == "trigger:t4"
+
+        # kl_transition 留痕 (治理 T4 review fix): 复活链 T1-T4 推进必须各写
+        # 一条 kl_transition (payload.stage=到达阶段) — 此前该事件只有 kl_queue
+        # drain 发出, 吞吐视图/停摆判定对生产链恒 0 (黄条永久误报)。
+        rows = get_connection().execute(
+            "SELECT payload FROM wiki_events WHERE kind = 'kl_transition' "
+            "AND wiki_path = ? ORDER BY id",
+            (f"items/{item_id}.md",),
+        ).fetchall()
+        stages = [json.loads(r["payload"])["stage"] for r in rows]
+        assert stages == ["kl:refine", "kl:link", "kl:structure", "kl:publish"], (
+            f"复活链 kl_transition 断链: {stages} — 吞吐/停摆判定将失去数据面"
+        )
 
 
 class TestWikiImportKickoff:

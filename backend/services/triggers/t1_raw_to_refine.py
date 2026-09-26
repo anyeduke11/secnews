@@ -60,6 +60,7 @@ from backend.services.simhash import (
     normalize_title,
     simhash,
 )
+from backend.services.triggers.events import log_stage_transition
 
 logger = logging.getLogger("hotspot.trigger.t1")
 
@@ -357,6 +358,10 @@ class T1Trigger:
             "WHERE id = ?",
             (new_stage, now_iso, item_id),
         )
+        # 治理 T4 review fix: 复活链与 kl_queue drain 同事件语义 —
+        # 不写 kl_transition 则吞吐/停摆判定对生产链恒 0 (黄条永久误报)。
+        # deduped 落终态也留痕 (吞吐值域收口会过滤, 不污染流量口径)。
+        log_stage_transition(TRIGGER_NAME, item_id, new_stage)
 
 
 __all__ = [

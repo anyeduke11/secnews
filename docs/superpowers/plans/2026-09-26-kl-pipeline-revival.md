@@ -30,6 +30,26 @@
 - [ ] 前端 FunnelBar 改吞吐主视图: 各阶段"近7天转化量"条形 + 转化率百分比; 存量作次级展示。PipelineView/SentinelShell 心跳条两处消费点适配。
 - [ ] 测试: stats 信封 + 前端渲染。
 
+### 偏差注记 (2026-09-26 review fix 落账)
+
+- **存量快照未改名 inventory**: 实现保留原字段名 `funnel` 向后兼容 (SentinelShell 心跳条 /
+  PipelineView 等既有消费点均读 `funnel`), 改名会牵动多消费端且无行为收益 —
+  以 `funnel_source` / `funnel_note` 字段显式标注存量口径, 语义区分由前端吞吐主视图承担。
+- **SentinelShell 心跳条未适配吞吐视图**: 心跳条只读快照字段 (`funnel` / `queue`),
+  新增 `throughput` 字段不影响其渲染 (兼容核验通过); 吞吐主视图仅落在 PipelineView
+  的 FunnelBar, 心跳条保持存量小格语义不变。
+
+## 治理 T4 review fix (2026-09-26, Changes Required 收口)
+
+- kl_transition 停摆信号接入复活链: T1-T4 触发器推进时补写 wiki_events
+  (`kind='kl_transition'`, payload.stage=到达阶段, `backend/services/triggers/events.py`),
+  与 kl_queue drain 同事件语义 — 吞吐/last_transition_at 从此覆盖生产链。
+- throughput_7d 值域移除 kl:raw (无任何事件写点, 恒 0 键只会造成停摆误报),
+  conversion 去 raw_to_refine 对; 前端 FLOWING fixture 同步生产可达形态。
+- api 行数门收口: kl_pipeline_api stats 组装下沉 `wiki_stats_service.pipeline_stats_snapshot`
+  (280→241), deep_read 分节渲染下沉 `deep_read_service.build_sections/extract_envelope_meta`
+  (203→151), 豁免清单数字同步收缩。
+
 ## Task 4: 入口复活 (owner 重点)
 
 - [ ] 审视 hotspot→knowledge 入管路径: 找到"新知识不再入管"的断点 (T1 触发链? kickoff job 停? agent_write 直灌旁路?)——先诊断再修。

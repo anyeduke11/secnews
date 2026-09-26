@@ -112,62 +112,23 @@ async def list_quarantine() -> dict:
     return {"files": _get_wiki_fs().list_quarantine()}
 
 
-def _pipeline_live_stats(pipeline: KLPipeline) -> tuple[dict, list[dict], list[dict]]:
-    """队列/错误/token 台账同步快照。
-
-    连接线程亲和: token 台账的 ``get_connection`` 在 wiki_stats_service
-    内执行, 本函数整体必须在 worker 线程内调用
-    (与 funnel_from_db 同一纪律, 见 v0.6.3 P0-1 卡顿根治), 不在事件循环上直跑。
-    """
-    from backend.services.wiki_stats_service import token_ledger_summary
-
-    return (
-        pipeline.queue.stats(),
-        pipeline.queue.errors(limit=10),
-        token_ledger_summary(),
-    )
-
-
 @router.get("/pipeline/stats")
 async def pipeline_stats() -> dict:
     """Funnel + queue + dead-letter + alive + token ledger stats.
 
-    口径 (v0.6.3 P0-1 卡顿根治): ``funnel`` 改读 **DB 投影**
-    ``warm.knowledge_items.lifecycle`` —— T1–T5 触发器读写的就是这张表,
-    这才是管线真实口径 (历史 md 口径 kl:raw=48 vs DB=2, 见 git blame)。
-    liveness (书签存活) 仍按 md frontmatter 统计 (``alive`` 字段尚无 DB
-    投影), 30s TTL 缓存 + to_thread, 不再阻塞事件循环。
+    口径 (v0.6.3 P0-1 卡顿根治): ``funnel`` 读 **DB 投影**
+    ``warm.knowledge_items.lifecycle`` (T1–T5 触发器读写的那张表, 管线
+    真实口径); 治理 T3 增 ``throughput`` 流量口径。组装在
+    ``wiki_stats_service.pipeline_stats_snapshot`` — api 层薄转发,
+    to_thread 保证连接线程亲和 (不在事件循环上直跑)。
     """
     import asyncio
 
-    from backend.services.wiki_stats_service import (
-        funnel_from_db,
-        kl_transition_throughput,
-        liveness_from_md_cached,
-    )
+    from backend.services.wiki_stats_service import pipeline_stats_snapshot
 
-    pipeline = _get_pipeline()
-    wiki_fs = _get_wiki_fs()
-    funnel = await asyncio.to_thread(funnel_from_db)
-    throughput = await asyncio.to_thread(kl_transition_throughput)
-    queue_stats, errors, ledger = await asyncio.to_thread(_pipeline_live_stats, pipeline)
-    alive = await asyncio.to_thread(liveness_from_md_cached, wiki_fs)
-    return {
-        "funnel": funnel,
-        "funnel_source": "db_knowledge_items_lifecycle",
-        "funnel_counts_items": sum(int(f.get("count") or 0) for f in funnel),
-        "funnel_note": "按 DB warm.knowledge_items.lifecycle 统计 (T1-T5 管线真实口径, 与 md 归档数字不同)",
-        # 治理 T3: 吞吐口径 (近 7d kl_transition 事件流 + 转化率 + 最后心跳) —
-        # 存量快照被 T4 直灌污染时只有流量能暴露停摆; funnel 为存量语义, 向后兼容保留。
-        "throughput": throughput,
-        "throughput_note": "throughput_7d=近7天各阶段 kl_transition 到达量 (流量口径); last_transition_at 供停摆判定",
-        "queue": queue_stats,
-        "queue_source": "kl_queue_table",
-        "queue_note": "待处理任务队列, 非全量条目数",
-        "errors": errors,
-        "alive": alive,
-        "ledger": ledger,
-    }
+    return await asyncio.to_thread(
+        pipeline_stats_snapshot, _get_pipeline(), _get_wiki_fs()
+    )
 
 
 @router.get("/liveness")

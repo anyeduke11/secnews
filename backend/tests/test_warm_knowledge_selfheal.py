@@ -1,6 +1,7 @@
 """_ensure_warm_knowledge_items — warm 知识投影自愈回归测试 (治理 T4)。
 
-意图锚定: 2026-09-12/13 warm.db 遗失重建后 ``warm.knowledge_items`` 缺失,
+意图锚定: 2026-09-18 warm.db 遗失 (migration 119 注释同口径) 重建后
+``warm.knowledge_items`` 缺失,
 所有知识写读静默抛 "no such table" → 知识入管断供 13 天。自愈必须保证
 "warm 文件在、表缺失" 的库下次启动即恢复, 不再依赖手工 DDL。
 """

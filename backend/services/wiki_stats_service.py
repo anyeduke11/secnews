@@ -264,9 +264,13 @@ def invalidate_stats_cache() -> None:
 # ---------------------------------------------------------------------------
 _THROUGHPUT_WINDOW_DAYS = 7
 
-# kl_transition payload.stage 的阶段到达顺序 (STAGES 序), 用于转化率配对
+# kl_transition 生产写点 = T1-T4 触发器 + kl_queue drain, 语义均为"到达该阶段";
+# kl:raw 无任何写点 (kickoff 直接入队 kl:refine, 不写事件) — 保留恒 0 键会让
+# 前端 raw 行永久显示 0 流量 (停摆黄条误报帮凶), 吞吐值域 = STAGES 去 kl:raw。
+_THROUGHPUT_STAGES = STAGES[1:]
+
+# kl_transition payload.stage 的到达配对 (进阶转化率), 首跳 kl:raw 无写点故无配对
 _CONVERSION_PAIRS = (
-    ("raw", "refine"),
     ("refine", "link"),
     ("link", "structure"),
     ("structure", "publish"),
@@ -283,6 +287,9 @@ def kl_transition_throughput(
     4179 条 vs 近 7 天流动 0 条 — 管线停摆 13 天, 快照却依然"看起来健康",
     唯有流量口径能暴露停摆 (前端停摆黄条的数据面)。
 
+    事件写点 (治理 T4 review fix 起齐全): T1-T4 触发器推进 (payload.stage=
+    到达阶段) + kl_queue drain — 生产复活链从此计入吞吐与 last_transition_at。
+
     Args:
         conn: 可注入连接 (测试); 缺省 get_connection()。
         days: 吞吐统计窗口 (默认 7 天); last_transition_at 不受窗口限制。
@@ -290,12 +297,13 @@ def kl_transition_throughput(
     Returns:
         ``{"throughput_7d": {stage: count}, "conversion": {prev_to_next: rate|None},
         "last_transition_at": iso|None}``
+        throughput_7d 值域 = STAGES 去 kl:raw (kl:raw 无事件写点, 恒 0 键已移除);
         conversion 前项到达量为 0 时该比率为 None (除零不编造);
         wiki_events 查询失败 (表缺失等) → 归零结构, 不炸看板。
     """
     conn = conn or get_connection()
     out: dict[str, Any] = {
-        "throughput_7d": dict.fromkeys(STAGES, 0),
+        "throughput_7d": dict.fromkeys(_THROUGHPUT_STAGES, 0),
         "conversion": {},
         "last_transition_at": None,
     }
@@ -329,6 +337,40 @@ def kl_transition_throughput(
         for prev, nxt in _CONVERSION_PAIRS
     }
     return out
+
+
+# ---------------------------------------------------------------------------
+# pipeline/stats 组装 (治理 T3 review fix: api 层只留薄转发, 组装下沉 service)
+# ---------------------------------------------------------------------------
+def pipeline_stats_snapshot(pipeline: Any, wiki_fs: Any) -> dict[str, Any]:
+    """GET /api/kl/pipeline/stats 的完整数据面 (漏斗 + 吞吐 + 队列 + 台账)。
+
+    连接线程亲和: funnel/throughput/queue/ledger 的 ``get_connection`` 均在
+    本函数内执行, 调用方必须在 worker 线程内调用 (端点侧 ``asyncio.to_thread``,
+    与 funnel_from_db 同纪律, 见 v0.6.3 P0-1 卡顿根治), 不在事件循环上直跑。
+    """
+    funnel = funnel_from_db()
+    throughput = kl_transition_throughput()
+    queue_stats = pipeline.queue.stats()
+    errors = pipeline.queue.errors(limit=10)
+    ledger = token_ledger_summary()
+    alive = liveness_from_md_cached(wiki_fs)
+    return {
+        "funnel": funnel,
+        "funnel_source": "db_knowledge_items_lifecycle",
+        "funnel_counts_items": sum(int(f.get("count") or 0) for f in funnel),
+        "funnel_note": "按 DB warm.knowledge_items.lifecycle 统计 (T1-T5 管线真实口径, 与 md 归档数字不同)",
+        # 治理 T3: 吞吐口径 (近 7d kl_transition 事件流 + 转化率 + 最后心跳) —
+        # 存量快照被 T4 直灌污染时只有流量能暴露停摆; funnel 为存量语义, 向后兼容保留。
+        "throughput": throughput,
+        "throughput_note": "throughput_7d=近7天各阶段 kl_transition 到达量 (流量口径); last_transition_at 供停摆判定",
+        "queue": queue_stats,
+        "queue_source": "kl_queue_table",
+        "queue_note": "待处理任务队列, 非全量条目数",
+        "errors": errors,
+        "alive": alive,
+        "ledger": ledger,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -516,6 +558,7 @@ __all__ = [
     "kl_transition_throughput",
     "knowledge_stats_from_db",
     "liveness_from_md_cached",
+    "pipeline_stats_snapshot",
     "stage_distribution_from_db",
     "token_ledger_summary",
 ]

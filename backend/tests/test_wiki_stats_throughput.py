@@ -8,9 +8,11 @@ publish 存量 4179 条 vs 近 7 天流动 0 条 — 管线已停摆 13 天, 快
 才能暴露"最近到底有没有知识在流动", 是停摆判定的数据面。
 
 契约:
-- throughput_7d: 近 7 天 kl_transition 到达量, 按 STAGES 值域收口 (窗口外不计)
-- conversion: 阶段间转化率 refine/raw, link/refine, structure/link,
-  publish/structure; 前项为 0 时除零 → None (不许编造 0% 或 100%)
+- throughput_7d: 近 7 天 kl_transition 到达量, 值域 = STAGES 去 kl:raw
+  (治理 T4 review fix: kl:raw 无事件写点 — kickoff 直接入队 refine 不写事件,
+  T1-T4 触发器写的是到达阶段 — 恒 0 键只会造成停摆误报, 已移除)
+- conversion: 阶段间转化率 link/refine, structure/link, publish/structure;
+  前项为 0 时除零 → None (不许编造 0% 或 100%)
 - last_transition_at: 最新 transition 时间 (停摆判定依据)
 - wiki_events 表缺失等查询失败 → 归零结构, 不炸看板 (与 funnel 回退同哲学)
 """
@@ -60,11 +62,14 @@ def test_throughput_counts_only_recent_window(events_conn):
 
     assert out["throughput_7d"]["kl:refine"] == 2
     assert out["throughput_7d"]["kl:publish"] == 1
-    assert out["throughput_7d"]["kl:raw"] == 0
+    # kl:raw 无事件写点 (kickoff 不写, T1-T4 写到达阶段) — 恒 0 键已移除,
+    # 保留只会让前端 raw 行永久显示 0 流量 (停摆黄条误报帮凶)。
+    assert "kl:raw" not in out["throughput_7d"]
 
 
 def test_conversion_rates_and_division_by_zero(events_conn):
     """转化率 = 后阶段到达量 / 前阶段到达量; 前项为 0 → None (不许编造)。"""
+    # 值域外的 kl:raw 事件 (历史遗留写法) 不进吞吐域, 也不该炸掉聚合
     _insert_transition(events_conn, "kl:raw", _now_iso(1))
     _insert_transition(events_conn, "kl:refine", _now_iso(1))
     _insert_transition(events_conn, "kl:refine", _now_iso(2))
@@ -73,12 +78,12 @@ def test_conversion_rates_and_division_by_zero(events_conn):
     out = kl_transition_throughput(events_conn)
 
     conv = out["conversion"]
-    assert conv["raw_to_refine"] == pytest.approx(2.0)  # refine 2 / raw 1
     assert conv["refine_to_link"] == pytest.approx(0.5)  # link 1 / refine 2
-    # link 有量 → structure 0 / link 1;  structure 前项非零
+    # link 有量 → structure 0 / link 1; structure 前项非零
     assert conv["link_to_structure"] == 0.0
     # structure 前项为 0 → 除零必须 None, 不能编 0% 或 100%
     assert conv["structure_to_publish"] is None
+    assert "raw_to_refine" not in conv
 
 
 def test_empty_pipeline_all_conversions_null(events_conn):

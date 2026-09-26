@@ -2,7 +2,8 @@
 
 为什么需要这个文件 (第一性原理: 漏斗必须说真话)
 ------------------------------------------------
-warm.db (923MB, knowledge_items 投影表所在地) 于 2026-09-12/13 之间遗失,
+warm.db (923MB, knowledge_items 投影表所在地) 于 2026-09-18 遗失
+(migration 119 注释同口径),
 仓库备份只剩 .sha256 校验文件。此后 ``/api/secnews/pipeline`` 的漏斗每 30s
 打一条 "no such table: knowledge_items" warning 并**静默返回全 0** ——
 UI 呈现的 "管线为空" 是假象, md 真源里明明有 ~4200 条带 lifecycle 的条目。

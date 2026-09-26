@@ -20,15 +20,18 @@ function daysAgoIso(n: number): string {
   return new Date(Date.now() - n * 86_400_000).toISOString();
 }
 
+// 生产可达形态 (治理 T4 review fix): kl_transition 无 kl:raw 写点
+// (kickoff 直接入队 refine 不写事件, T1-T4 写到达阶段) — fixture 同步后端
+// throughput_7d 值域 (STAGES 去 kl:raw), 不再编造 raw 行流量与 raw_to_refine。
 const FLOWING: StageThroughput = {
-  throughput_7d: { 'kl:raw': 8, 'kl:refine': 4, 'kl:link': 2, 'kl:structure': 1, 'kl:publish': 1 },
-  conversion: { raw_to_refine: 0.5, refine_to_link: 0.5, link_to_structure: 0.5, structure_to_publish: 1 },
+  throughput_7d: { 'kl:refine': 4, 'kl:link': 2, 'kl:structure': 1, 'kl:publish': 1 },
+  conversion: { refine_to_link: 0.5, link_to_structure: 0.5, structure_to_publish: 1 },
   last_transition_at: daysAgoIso(1),
 };
 
 const STALLED: StageThroughput = {
-  throughput_7d: { 'kl:raw': 0, 'kl:refine': 0, 'kl:link': 0, 'kl:structure': 0, 'kl:publish': 0 },
-  conversion: { raw_to_refine: null, refine_to_link: null, link_to_structure: null, structure_to_publish: null },
+  throughput_7d: { 'kl:refine': 0, 'kl:link': 0, 'kl:structure': 0, 'kl:publish': 0 },
+  conversion: { refine_to_link: null, link_to_structure: null, structure_to_publish: null },
   last_transition_at: daysAgoIso(13),
 };
 
@@ -37,8 +40,8 @@ describe('FunnelBar 吞吐主视图 (有 throughput 字段)', () => {
     render(<FunnelBar funnel={FUNNEL} throughput={FLOWING} />);
 
     expect(screen.getByText('管线漏斗')).toBeInTheDocument();
-    // 主数字 = 近 7 天流量 (raw=8), 不是存量 (raw=1)
-    expect(screen.getByText(/近7天 8/)).toBeInTheDocument();
+    // 主数字 = 近 7 天流量 (refine=4), 不是存量 (refine=0)
+    expect(screen.getByText(/近7天 4/)).toBeInTheDocument();
     // 存量仍在, 但以小字次要展示 (publish 存量 4179)
     expect(screen.getByText(/存量 4,179/)).toBeInTheDocument();
     // 停摆判定: 1 天前有心跳 → 不提示
@@ -48,8 +51,8 @@ describe('FunnelBar 吞吐主视图 (有 throughput 字段)', () => {
   it('显示阶段间转化率', () => {
     render(<FunnelBar funnel={FUNNEL} throughput={FLOWING} />);
 
-    // raw(8)→refine(4) / refine(4)→link(2) / link(2)→structure(1) 均 50%
-    expect(screen.getAllByText('50%').length).toBe(3);
+    // refine(4)→link(2) / link(2)→structure(1) 均 50%; raw 行无配对不显示
+    expect(screen.getAllByText('50%').length).toBe(2);
   });
 
   it('转化率除零 (前项 0) 显示 — 而非编造百分比', () => {

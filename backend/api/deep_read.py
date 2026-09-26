@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -17,7 +16,12 @@ from pydantic import BaseModel
 
 from backend.exceptions import HotspotException
 from backend.logging_config import logger
-from backend.services.deep_read_service import DeepReadError, DeepReadService
+from backend.services.deep_read_service import (
+    DeepReadError,
+    DeepReadService,
+    build_sections,
+    extract_envelope_meta,
+)
 
 router = APIRouter(prefix="/api/deep-read", tags=["deep-read"])
 
@@ -32,15 +36,6 @@ class DeepReadSectionItem(BaseModel):
     title: str
     tone: str = "mint"
     body: str = ""
-
-
-# 旧行 (v1 envelope 之前的扁平 4 键) 的标题兜底, 保证历史缓存仍渲染出小标题
-_LEGACY_SECTION_TITLES: dict[str, str] = {
-    "summary": "摘要",
-    "impact": "影响",
-    "relations": "关联",
-    "risks": "风险",
-}
 
 
 class DeepReadResponse(BaseModel):
@@ -62,54 +57,8 @@ class DeepReadResponse(BaseModel):
     updated_at: str
 
 
-def _build_sections(item_dict: dict[str, Any]) -> list[DeepReadSectionItem]:
-    """分节渲染源: 优先 v1 有序定义, 旧行回落扁平键 + 中文标题表。"""
-    defs = item_dict.get("section_defs") or []
-    if isinstance(defs, list) and defs:
-        out = []
-        for d in defs:
-            if not isinstance(d, dict) or not d.get("key"):
-                continue
-            out.append(
-                DeepReadSectionItem(
-                    key=str(d["key"]),
-                    title=str(d.get("title") or d["key"]),
-                    tone=str(d.get("tone") or "mint"),
-                    body=str(d.get("body") or ""),
-                )
-            )
-        if out:
-            return out
-
-    sections_raw = item_dict.get("sections") or {}
-    if not isinstance(sections_raw, dict):
-        return []
-    return [
-        DeepReadSectionItem(
-            key=str(k),
-            title=_LEGACY_SECTION_TITLES.get(str(k), str(k)),
-            body=str(v or ""),
-        )
-        for k, v in sections_raw.items()
-    ]
-
-
-def _extract_envelope_meta(item_dict: dict[str, Any]) -> tuple[str, str]:
-    """从 sections_json 提取 v3 envelope 元 (headline/framework); 旧报告返空串。"""
-    try:
-        data = json.loads(item_dict.get("sections_json") or "{}")
-    except (json.JSONDecodeError, TypeError):
-        return "", ""
-    if not isinstance(data, dict):
-        return "", ""
-    return (
-        str(data.get("headline") or "")[:80],
-        str(data.get("framework") or ""),
-    )
-
-
 def _to_response(item_dict: dict[str, Any]) -> DeepReadResponse:
-    headline, framework = _extract_envelope_meta(item_dict)
+    headline, framework = extract_envelope_meta(item_dict)
     return DeepReadResponse(
         entity_type=item_dict.get("entity_type", ""),
         entity_id=item_dict.get("entity_id", ""),
@@ -117,7 +66,7 @@ def _to_response(item_dict: dict[str, Any]) -> DeepReadResponse:
         category=str(item_dict.get("category") or ""),
         headline=headline,
         framework=framework,
-        sections=_build_sections(item_dict),
+        sections=[DeepReadSectionItem(**s) for s in build_sections(item_dict)],
         sections_json=item_dict.get("sections_json", "{}"),
         provider=str(item_dict.get("provider", "")),
         model=str(item_dict.get("model", "")),

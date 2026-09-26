@@ -354,8 +354,8 @@ def _ensure_warm_knowledge_items(conn: sqlite3.Connection) -> None:
     """warm 知识投影自愈 — 治理 T4 入口断供根因修复 (2026-09-26)。
 
     根因链 (诊断证据链见 docs/superpowers/plans/2026-09-26-kl-pipeline-revival.md):
-    warm.db 于 2026-09-12/13 之间遗失 (test_wiki_stats_funnel_fallback docstring
-    已留痕), 重建后其他 warm 表随启动迁移恢复, 唯 ``knowledge_items`` 投影表
+    warm.db 于 2026-09-18 遗失 (仅剩 0 字节空文件, migration 119 注释已留痕),
+    重建后其他 warm 表随启动迁移恢复, 唯 ``knowledge_items`` 投影表
     缺失 → 生产 ``knowledge_items_table()`` 解析为 ``warm.knowledge_items``,
     此后 knowledge_repo.upsert_item 与 T1-T4 全部 SELECT 逐轮抛
     ``no such table`` (各调用点 try/except 吞掉, 静默) → 知识入管断供 13 天
@@ -367,6 +367,9 @@ def _ensure_warm_knowledge_items(conn: sqlite3.Connection) -> None:
     以代码级条件自愈: warm 已 ATTACH 且缺表时, 从 main.sqlite_master 拷贝
     权威 DDL (历次迁移已在其上跑全, 含 body/entities 等后加列) 在 warm 重建。
     幂等: 表已在 / warm 未 ATTACH / main 无 DDL 可拷 → no-op 或 warning。
+    DDL 执行失败 → warning 留痕后继续 (best-effort 自愈, 不改 init_db 的
+    fail-fast 语义; warm 缺表有服务层容错链 + md 回退兜底), 不裸抛
+    sqlite3.Error — 遵守本模块 docstring 错误契约。
     """
     attached = {r[1] for r in conn.execute("PRAGMA database_list").fetchall()}
     if "warm" not in attached:
@@ -396,7 +399,15 @@ def _ensure_warm_knowledge_items(conn: sqlite3.Connection) -> None:
         count=1,
         flags=re.IGNORECASE,
     )
-    conn.execute(ddl)
+    try:
+        conn.execute(ddl)
+    except sqlite3.Error as exc:
+        logger.error(
+            f"warm.knowledge_items self-heal failed ({type(exc).__name__}: "
+            f"{exc}) — 知识入管将继续静默断供, 请人工重建 warm 投影",
+            extra={"trace_id": ""},
+        )
+        return
     logger.warning(
         "warm.knowledge_items was missing — rebuilt from main schema "
         "(knowledge ingest had been silently failing; see governance T4)",

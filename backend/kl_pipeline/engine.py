@@ -9,7 +9,7 @@ error tracking, and stage advancement.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, ClassVar
 
 from backend.kl_pipeline.queue import STAGES, KLQueue
 from backend.logging_config import logger
@@ -64,7 +64,19 @@ class KLPipeline:
         }
 
     def kickoff(self, item_id: str) -> None:
-        """Enqueue a new item for kl:refine with a short delay."""
+        """Enqueue a new item for kl:refine with a short delay.
+
+        入口存在性校验 (ghost-item 治理 T1): wiki_events 里
+        ``item not found: ghost-item`` ×138 的根因链 = 不存在的 item 反复入队
+        → drain 报 ValueError → 退避重试每轮再写一条 kl_error 事件。对读不出的
+        item 直接拒之门外, 队列只认 wiki 里真实存在的条目。
+        """
+        if self.wiki_fs is not None and self.wiki_fs.read_item(item_id) is None:
+            logger.warning(
+                "kl_pipeline kickoff skipped (item not found)",
+                extra={"item_id": item_id},
+            )
+            return
         next_run = datetime.now(timezone.utc) + timedelta(seconds=_KICKOFF_DELAY_SECONDS)
         added = self.queue.enqueue_unique(item_id, "kl:refine", next_run)
         if added:
@@ -109,14 +121,28 @@ class KLPipeline:
                 failed += 1
         return {"done": done, "failed": failed}
 
-    @staticmethod
-    def _to_dead_letter(item_id: str, stage: str, exc: BaseException) -> None:
-        """重试耗尽 → 落死信, 给人工处理留出口。失败不阻塞主循环。"""
+    # 死信归属触发器 (kl_dead_letters.trigger_name CHECK 约束只认 t1-t5);
+    # 阶段本身留在 payload 里精确归因。kl_dead_letter_retry_job / trigger_health
+    # 均按 trigger_name 归组, 映射到管线触发器与其统计口径一致。
+    _STAGE_TO_TRIGGER: ClassVar[dict[str, str]] = {
+        "kl:refine": "t1",
+        "kl:link": "t2",
+        "kl:structure": "t3",
+        "kl:publish": "t4",
+    }
+
+    @classmethod
+    def _to_dead_letter(cls, item_id: str, stage: str, exc: BaseException) -> None:
+        """重试耗尽 → 落死信, 给人工处理留出口。失败不阻塞主循环。
+
+        历史 bug: trigger_name 曾写 ``kl_pipeline:<stage>``, 被 044 迁移的
+        CHECK 约束拒收 → 死信从未真正落库 (只留下一行 warning)。
+        """
         try:
             from backend.repository.kl_dead_letter_repo import KLDeadLetterRepository
 
             KLDeadLetterRepository().add(
-                trigger_name=f"kl_pipeline:{stage}",
+                trigger_name=cls._STAGE_TO_TRIGGER.get(stage, "t1"),
                 item_id=item_id,
                 error_msg=f"{type(exc).__name__}: {exc}"[:500],
                 attempts=0,

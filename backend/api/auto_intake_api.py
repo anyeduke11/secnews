@@ -43,11 +43,15 @@ async def get_auto_intake() -> dict:
 
 @router.patch("/auto-intake")
 async def patch_auto_intake(body: AutoIntakePatchRequest) -> dict:
-    """更新自动入管配置 (部分更新; 每键写 audit_log 便于消费纠偏溯源)。"""
-    return set_auto_intake_config(
+    """更新自动入管配置 (部分更新; 每键写 audit_log 便于消费纠偏溯源)。
+
+    响应带 today_intaken: 前端保存后直接 setState, 契约与 GET 一致。
+    """
+    updated = set_auto_intake_config(
         enabled=body.enabled,
         min_quality_score=body.min_quality_score,
         daily_limit=body.daily_limit,
         require_domain_hit=body.require_domain_hit,
         actor=body.actor,
     )
+    return {**updated, "today_intaken": today_intaken_count()}

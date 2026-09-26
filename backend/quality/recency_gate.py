@@ -30,6 +30,9 @@
   + 标题年份段过滤); 已随标讯全线下线移除 (DEV-0183), 本门禁覆盖全部类目。
 - 本门禁作用于 **所有 category** (security / ai / tech / finance /
   startup / github / ai_security), 是「资讯不能早于本周一」的硬约束。
+- paper 例外 (2026-09-26 终审): arXiv 周末不公告、假期后论文大面积
+  早于本周一, 硬拒收会让论文静默不入库 → paper 类目与 archive 同构
+  软放行 (passed + ``recency_warning``), 诊断痕迹保留。
 
 行为
 ----
@@ -60,7 +63,9 @@ class RecencyGate(BaseGate):
     2. ``published_at < current_week_start()`` → ``historical_published``
        flag, 扣 100 分 (硬门禁拒收 hot 类别)
     3. archive 类别放行历史资讯, 标 ``recency_warning=true``
-    4. 否则通过
+    4. paper 类别放行历史论文 (arXiv 周末不公告/假期后越界), 同标
+       ``recency_warning=true`` (2026-09-26 终审)
+    5. 否则通过
     """
 
     name = "recency"
@@ -106,14 +111,17 @@ class RecencyGate(BaseGate):
                     getattr(item, "is_archive", False)
                     or any(t.lower() == "archive" for t in tags)
                 )
-                if is_archive:
+                # paper 类目同构放行 (终审 2026-09-26): 与 archive 一致
+                # 软放行, reason 保留越界天数便于诊断。
+                if is_archive or item.category.value == "paper":
+                    kind = "archive" if is_archive else "paper"
                     return GateResult(
                         gate_name=self.name,
                         passed=True,
                         score_deduction=0,
                         flags=["recency_warning"],
                         reason=(
-                            f"archive item {days}d before week_start, "
+                            f"{kind} item {days}d before week_start, "
                             f"kept with recency_warning"
                         ),
                     )

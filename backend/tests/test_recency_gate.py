@@ -11,6 +11,7 @@
 - published_at = tz-naive (被 model validator 拒绝前) → 兜底视为 UTC
 - 跨周末: Sat/Sun → 仍是「本周」, 所以 Sun 23:00 Shanghai 还属于本周
 - 跨时区: UTC published_at 早于 Shanghai 本周一 → 拒收
+- paper 类目软放行: 30 天前 published_at → passed + recency_warning
 - 所有 category (ai/tech/finance/security/bid/startup/github) 都走同一个门禁
 """
 from __future__ import annotations
@@ -195,12 +196,47 @@ class TestTimezone:
 
 
 # ---------------------------------------------------------------------------
+# paper 类目软放行 (2026-09-26 终审): arXiv 周末不公告/假期后越界
+# ---------------------------------------------------------------------------
+class TestPaperGrace:
+    def test_paper_30_days_ago_passes_with_warning(self):
+        """paper 条目 published_at 30 天前 → 软放行 + recency_warning。
+
+        为什么: arXiv 周末不公告、假期后论文大面积早于本周一, 硬拒收
+        会让论文静默不入库; 与 archive 同构放行并保留诊断 flag。
+        """
+        pub = datetime.now(timezone.utc) - timedelta(days=30)
+        item = _make_item(category=Category.PAPER, published_at=pub)
+        result = RecencyGate().check(item, _ctx())
+        assert result.passed is True
+        assert "recency_warning" in result.flags
+        assert result.score_deduction == 0
+        assert "paper" in (result.reason or "")
+
+    def test_paper_within_week_passes_without_warning(self):
+        """当周论文照常通过, 无 warning (放行不污染正常路径)。"""
+        item = _make_item(
+            category=Category.PAPER,
+            published_at=datetime.now(timezone.utc),
+        )
+        result = RecencyGate().check(item, _ctx())
+        assert result.passed is True
+        assert result.flags == []
+        assert result.score_deduction == 0
+
+
+# ---------------------------------------------------------------------------
 # 所有 category 都走同一个门禁
 # ---------------------------------------------------------------------------
 class TestAllCategories:
-    @pytest.mark.parametrize("cat", list(Category))
+    @pytest.mark.parametrize(
+        "cat", [c for c in Category if c is not Category.PAPER]
+    )
     def test_all_categories_affected(self, cat):
-        """RecencyGate 对所有 category 都生效, 不是 bid-only。"""
+        """RecencyGate 对所有 hot category 都生效, 不是 bid-only。
+
+        paper 例外已软放行 (TestPaperGrace), 不在本参数化内。
+        """
         # 历史 published_at
         old = datetime(2025, 1, 1, tzinfo=timezone.utc)
         item = _make_item(category=cat, published_at=old)

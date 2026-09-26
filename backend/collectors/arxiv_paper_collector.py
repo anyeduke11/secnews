@@ -12,13 +12,13 @@
 mod 14), 随后 cursor += 3。collector 是长生命周期实例
 (collection_service 持有), 实例属性 ``_domain_cursor`` 即可跨轮推进。
 
-**tags 落点说明**: HotspotItem 无 tags 字段 (hotspots.tags 列不在采集
-链路写入), 三要素映射到现有通道——
+**落点说明**: HotspotItem 无 tags 字段 (hotspots.tags 列不在采集链路
+写入), 语义映射到现有通道——
 
 - ``arxiv:<id>``  → ``HotspotItem.id`` (可读 ID 先例 ``hn:item:{id}``;
-  同论文跨轮恒同 ID, upsert latest-wins 幂等, 见 ``_paper_tags``)
-- ``领域:<key>``  → ``HotspotItem.source`` (source[\"name\"] = 领域键,
-  前端来源可点击筛选)
+  同论文跨轮恒同 ID, upsert latest-wins 幂等)
+- ``领域:<key>``  → ``HotspotItem.source`` (source["name"] = 领域键,
+  前端来源可点击筛选; 设计稿 §3.2 曾计划 tags 承载, 实际无消费点)
 - ``论文``        → ``category=PAPER`` 本身
 
 **网络**: export.arxiv.org 为国际源, 走代理配置 (crawler_sources 注册行
@@ -195,15 +195,8 @@ class ArxivPaperCollector(BaseCollector):
         return [s for s in loaded if s.get("name") in window]
 
     # ------------------------------------------------------------------
-    # tags 映射 + 标题清理
+    # 标题清理 + 稳定 item id
     # ------------------------------------------------------------------
-    @staticmethod
-    def _paper_tags(arxiv_id: str, domain_key: str) -> list[str]:
-        """单条论文的语义 tags (设计稿 §3.2)。落点见模块 docstring:
-        tags[0] → item.id, tags[1] 的领域键 → item.source, "论文" → category。
-        """
-        return [f"arxiv:{arxiv_id}", f"领域:{domain_key}", "论文"]
-
     def _build_items(
         self, raw_items: list[dict[str, Any]], source: dict
     ) -> list[HotspotItem]:
@@ -214,13 +207,12 @@ class ArxivPaperCollector(BaseCollector):
         - raw["id"] 命中时基类直接采用 (base.py `_build_items` 约定),
           提取失败回退基类 URL 指纹 ID
         """
-        domain = source.get("name", "")
         for raw in raw_items:
             title = (raw.get("title") or "").strip()
             raw["title"] = " ".join(title.split())
             arxiv_id = _arxiv_id_from_url(raw.get("url", ""))
             if arxiv_id:
-                raw["id"] = self._paper_tags(arxiv_id, domain)[0]
+                raw["id"] = f"arxiv:{arxiv_id}"
         return super()._build_items(raw_items, source)
 
 

@@ -4,7 +4,8 @@
 - arXiv Atom feed fixture 解析 (真实结构: entry/title/link/summary/published
   + 换行缩进标题清理 + arxiv id → item.id)
 - 轮转采样: 连续两次 collect 取的领域集合不同 (mock _fetch_rss_bytes 按领域返回)
-- tags 三要素: arxiv: 前缀 → item.id, 领域: 前缀键 → item.source, "论文" → category
+- id 落点: arxiv: 前缀 → item.id, 领域键 → item.source (设计稿 §3.2 的
+  tags 三要素载体最终简化为 arxiv:<id> 单 tag, 后两元素无消费点已删)
 - 注册点齐备: Category.PAPER / collectors dict / _CAT_KEYWORDS / 报表标签表 /
   crawler_sources 种子 14 行 (经 temp_db 真实跑 migration 123)
 
@@ -115,15 +116,10 @@ def test_atom_parse_title_cleanup_and_tags(tmp_path, monkeypatch):
 
 
 def test_paper_tags_prefixes():
-    """_paper_tags: arxiv: 与 领域: 前缀 + 论文尾标 (设计稿 §3.2)。"""
-    from backend.collectors.arxiv_paper_collector import ArxivPaperCollector
+    """arxiv:<id> 稳定 id 映射 (设计稿 §3.2 tags 载体简化后仅存的主 tag)。"""
+    from backend.collectors.arxiv_paper_collector import _arxiv_id_from_url
 
-    tags = ArxivPaperCollector._paper_tags("2609.01234v1", "威胁情报")
-    assert tags[0].startswith("arxiv:")
-    assert tags[0] == "arxiv:2609.01234v1"
-    assert tags[1].startswith("领域:")
-    assert tags[1] == "领域:威胁情报"
-    assert tags[-1] == "论文"
+    assert _arxiv_id_from_url("http://arxiv.org/abs/2609.01234v1") == "2609.01234v1"
 
 
 def test_non_abs_url_falls_back_to_url_fingerprint_id(tmp_path, monkeypatch):

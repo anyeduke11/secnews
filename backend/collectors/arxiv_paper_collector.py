@@ -27,10 +27,14 @@ network_zone='international', 与 YouTube 源同语义); 代理未配置则该�
 """
 from __future__ import annotations
 
-from typing import Any
+import asyncio
+import time
+import weakref
+from typing import Any, ClassVar
 from urllib.parse import quote
 
 from backend.collectors.base import BaseCollector
+from backend.domain.collection import SourceResult
 from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
 
@@ -60,9 +64,13 @@ _ARXIV_EXPRS: dict[str, str] = {
     "威胁情报": 'cat:cs.CR AND all:"threat intelligence"',
 }
 
+# sortBy 合法值: relevance / lastUpdatedDate / submittedDate (2026-09-26
+# 真实拉取验证: 误写 `submitted` 时 arXiv 不报错, 而是返回仅含 1 条 Error
+# entry 的 Atom feed — 3 领域轮转恰凑满 min_items_threshold, 垃圾条目会
+# 静默入 feed。提交时间排序正确参数为 submittedDate)。
 _ARXIV_API = (
     "http://export.arxiv.org/api/query"
-    "?search_query={expr}&sortBy=submitted&sortOrder=descending"
+    "?search_query={expr}&sortBy=submittedDate&sortOrder=descending"
     "&max_results=20"
 )
 
@@ -115,6 +123,37 @@ class ArxivPaperCollector(BaseCollector):
 
     # 每轮采样的领域数 (设计稿 §2: 每轮取 2-3 个领域, 取 3)
     _DOMAINS_PER_ROUND = 3
+
+    # ------------------------------------------------------------------
+    # arXiv 礼貌节拍 (2026-09-26 真实拉取验证发现)
+    # ------------------------------------------------------------------
+    # base.collect() 对本轮源 asyncio.gather 并发; 但 arXiv API 官方要求
+    # 请求间隔 ≥3s, 并发 3 域实测必触发限流 (HTTP 406, 且对无代理直连
+    # 同样生效)。按事件循环惰性建锁 (asyncio.Lock 绑定首次 acquire 的
+    # loop — 模块导入期创建的类级锁在跨 asyncio.run/多 loop 场景会抛
+    # "bound to a different event loop"), 串行化本 collector 的出网请求;
+    # 其他 collector 不经过此处, 共享 fetchers 基建零改动。
+    _PACE_LOCKS: ClassVar[weakref.WeakKeyDictionary] = weakref.WeakKeyDictionary()
+    _LAST_REQUEST_AT: ClassVar[float] = 0.0
+    _PACE_INTERVAL = 3.0
+
+    async def fetch_source(
+        self, source: dict
+    ) -> tuple[list[HotspotItem], SourceResult]:
+        """限速串行地抓单个 arXiv 领域源 (节拍见 _PACE_LOCKS 注释)。"""
+        lock = self._PACE_LOCKS.setdefault(
+            asyncio.get_running_loop(), asyncio.Lock()
+        )
+        async with lock:
+            wait = self._PACE_INTERVAL - (
+                time.monotonic() - ArxivPaperCollector._LAST_REQUEST_AT
+            )
+            if wait > 0:
+                await asyncio.sleep(wait)
+            try:
+                return await super().fetch_source(source)
+            finally:
+                ArxivPaperCollector._LAST_REQUEST_AT = time.monotonic()
 
     def __init__(self) -> None:
         super().__init__()

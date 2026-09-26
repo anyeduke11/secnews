@@ -148,29 +148,34 @@ def _collect_domains(collector, feed_by_source: dict[str, bytes]) -> set[str]:
     """跑一轮 collect, 返回本轮实际抓取的领域键集合 (按 source name 打标)。
 
     真实抓取窗口由 collect() 内部的 _load_sources_from_registry 推进,
-    这里不做任何手动游标操作。"""
+    这里不做任何手动游标操作。
+
+    fake 按 rss_url 精确映射 fixture (DEV-0233 收口: 节拍锁串行化后,
+    旧实现经实例属性 `_current_source_name` 传名存在跨任务竞态 — 前一
+    任务的 finally 清空会覆盖后一任务已设置的名称; 按 url 查表无共享
+    状态且断言更强, 每个领域 URL 只命中自己的 fixture)。
+    """
     from backend.collectors import fetchers as fetchers_mod
+    from backend.collectors.arxiv_paper_collector import (
+        PAPER_SOURCES,
+        ArxivPaperCollector,
+    )
+
+    # 节拍锁为真实出网限速设计 (3s/请求), mock 场景置 0 避免测试空睡
+    ArxivPaperCollector._PACE_INTERVAL = 0
+    feed_by_url = {
+        s["rss_url"]: feed_by_source[s["name"]] for s in PAPER_SOURCES
+    }
 
     async def fake_fetch_rss_bytes(self, rss_url: str):
-        name = getattr(self, "_current_source_name", "")
-        assert name in feed_by_source, f"unexpected source {name!r}"
-        return 200, {"Content-Type": "application/atom+xml"}, feed_by_source[name]
+        feed = feed_by_url.get(rss_url)
+        assert feed is not None, f"unexpected rss_url {rss_url[:80]!r}"
+        return 200, {"Content-Type": "application/atom+xml"}, feed
 
     import unittest.mock as mock
 
-    orig_fetch_source = type(collector).fetch_source
-
-    async def traced_fetch_source(self, source):
-        self._current_source_name = source.get("name", "")
-        try:
-            return await orig_fetch_source(self, source)
-        finally:
-            self._current_source_name = ""
-
     with mock.patch.object(
         fetchers_mod.FetchersMixin, "_fetch_rss_bytes", fake_fetch_rss_bytes
-    ), mock.patch.object(
-        type(collector), "fetch_source", traced_fetch_source
     ):
         items = asyncio.run(collector.collect())
 
@@ -309,13 +314,16 @@ def test_registry_rotation_window_applies(temp_db):
 
 
 def test_paper_domain_queries_shape():
-    """14 领域 query 形状: export.arxiv.org API + sortBy=submitted + max_results=20。"""
+    """14 领域 query 形状: export.arxiv.org API + sortBy=submittedDate
+    + max_results=20 (sortBy 合法值见 arXiv API 手册; DEV-0233 真实拉取
+    验证发现 `submitted` 非法 → Error entry feed, 精确断言防回退)。"""
     from backend.collectors.arxiv_paper_collector import PAPER_DOMAIN_QUERIES
 
     assert len(PAPER_DOMAIN_QUERIES) == 14
     for domain, url in PAPER_DOMAIN_QUERIES.items():
         assert url.startswith("http://export.arxiv.org/api/query?search_query=")
-        assert "sortBy=submitted" in url
+        assert "sortBy=submittedDate" in url
+        assert "sortBy=submitted&" not in url
         assert "sortOrder=descending" in url
         assert url.endswith("max_results=20")
     # 设计稿 §2 抽样: AI 多 cat OR / 漏洞治理 短语 AND / AI安全 对抗交叉

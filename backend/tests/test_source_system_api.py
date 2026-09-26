@@ -100,6 +100,7 @@ class TestDeleteSystemSource:
         ).fetchone()[0] == before
 
     def test_delete_audits_then_cascades_same_name_stats(self, client):
+        """级联删限定 (name, category): 其他类目同名统计行不得连带归零 (review fix)。"""
         _seed_all()
 
         resp = client.delete(
@@ -110,15 +111,20 @@ class TestDeleteSystemSource:
         assert resp.status_code == 200
         body = resp.json()
         assert body["status"] == "ok"
-        assert body["stats_rows_deleted"] == 2, "同名统计行跨类目级联删除"
+        assert body["stats_rows_deleted"] == 1, "只删同类目统计行"
+        assert body["category"] == "security"
 
         conn = get_connection()
         assert conn.execute(
             "SELECT COUNT(*) FROM crawler_sources WHERE id='security:待删源'"
         ).fetchone()[0] == 0
+        # security 类目行已级联删, ai 类目同名行保留 (另一类目仍在供给)
         assert conn.execute(
-            "SELECT COUNT(*) FROM source_stats WHERE source_name='待删源'"
+            "SELECT COUNT(*) FROM source_stats WHERE source_name='待删源' AND category='security'"
         ).fetchone()[0] == 0
+        assert conn.execute(
+            "SELECT COUNT(*) FROM source_stats WHERE source_name='待删源' AND category='ai'"
+        ).fetchone()[0] == 1, "跨类目同名行不受波及"
         assert conn.execute(
             "SELECT COUNT(*) FROM source_stats WHERE source_name='保留源'"
         ).fetchone()[0] == 1, "非同名行不受波及"

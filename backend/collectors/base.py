@@ -368,6 +368,8 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
         返回语义:
         - 表无本 category 记录 (未 seed / 非主分类如 ai_security) → None,
           调用方回退类常量 (渐进切流, 未注册分类不受影响)。
+          status='disabled' 的行 (待激活, 如 migration 121 多媒体待代理源)
+          不构成「已注册」— 仅 disabled 源的分类视为未接管, 仍回退常量。
         - 表有记录但 0 个 enabled (用户全禁用) → [] (不回退常量)。
         """
         try:
@@ -378,7 +380,7 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
                 (self.category.value,),
             ).fetchall()
             has_cat = conn.execute(
-                "SELECT 1 FROM crawler_sources WHERE category = ? LIMIT 1",
+                "SELECT 1 FROM crawler_sources WHERE category = ? AND (status IS NULL OR status != 'disabled') LIMIT 1",
                 (self.category.value,),
             ).fetchone()
         except Exception as e:

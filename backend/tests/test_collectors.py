@@ -23,6 +23,7 @@ import pytest
 
 from backend.collectors.ai_collector import AI_SOURCES, AICollector
 from backend.collectors.base import BaseCollector
+
 # DEV-0178: BidCollector 已随标讯剔除移除, 相关用例一并删除
 from backend.collectors.finance_collector import (
     FINANCE_SOURCES,
@@ -139,6 +140,47 @@ async def test_security_collector_returns_hotspot_items(monkeypatch):
     assert all(isinstance(it, HotspotItem) for it in items)
     assert all(it.category is Category.SECURITY for it in items)
     assert not any(it.is_fallback for it in items)
+
+
+def test_security_collector_disabled_only_registry_falls_back_to_constants():
+    """仅 disabled 待激活源的分类不构成注册表接管 — 仍回退类常量。
+
+    回归锚定 (数据源治理 T4 收口, 2026-09-26): migration 121 落库 YouTube
+    ×2 (category=security, enabled=0, status='disabled') 后, 新装库 has_cat
+    命中而 enabled 行为 0, _load_sources_from_registry 返回 [] 阻断常量
+    回退 → security/gdelt 采集死 (全量回归 2 failed 实锤)。修复 = has_cat
+    排除 status='disabled'。本测试锚定: 待激活源存在时回退常量 (None),
+    激活后注册表接管语义照常 (非 None 且含该源); 用户全禁用 → [] 契约
+    不受影响 (PATCH toggle 只改 enabled 不改 status, 行仍非 disabled)。
+    """
+    from backend.repository.db import get_connection
+
+    conn = get_connection()
+    conn.execute(
+        "INSERT OR IGNORE INTO crawler_sources"
+        " (id, category, name, kind, url, feed_url, enabled, status)"
+        " VALUES ('security:Anchor (YouTube)', 'security', 'Anchor (YouTube)',"
+        " 'rss', 'https://example.com/a', 'https://example.com/a', 0, 'disabled')"
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO crawler_sources"
+        " (id, category, name, kind, url, feed_url, enabled, status)"
+        " VALUES ('security:Beta (YouTube)', 'security', 'Beta (YouTube)',"
+        " 'rss', 'https://example.com/b', 'https://example.com/b', 0, 'disabled')"
+    )
+
+    c = SecurityCollector()
+    # 仅 disabled 待激活源 → 未接管, 回退类常量 (此前此处置返回 [] 即 bug)
+    assert c._load_sources_from_registry() is None
+
+    # 激活其一 → 注册表接管照常 (last_fetch_at 为空 = cadence 到期, 必进列表)
+    conn.execute(
+        "UPDATE crawler_sources SET enabled = 1, status = 'active'"
+        " WHERE id = 'security:Anchor (YouTube)'"
+    )
+    registry = c._load_sources_from_registry()
+    assert registry is not None
+    assert any(s["name"] == "Anchor (YouTube)" for s in registry)
 
 
 @pytest.mark.asyncio

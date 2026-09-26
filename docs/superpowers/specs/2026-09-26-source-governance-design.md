@@ -14,7 +14,7 @@
 
 ## 2. owner 裁决 (2026-09-26)
 
-1. 微信通道: **归档待替代** — 6 个(搜狗)源标 media_kind='wechat' + retired, 保留审计, 待自建 RSSHub 等替代通道再激活。
+1. 微信通道: **归档待替代** — (搜狗) 源标 media_kind='wechat' 归档。实测修正 (收口 2026-09-26): 初诊"6 源 retired"不成立 — 搜狗在注册层 crawler_sources 实测 0 行, 仅存在于统计层 source_stats 11 行, 归档落点 = stats 层 11 行只标介质不 retire (有历史产出, 属可复活候选) + 注册层 retired 语句作幂等防御保留, 保留审计, 待自建 RSSHub 等替代通道再激活。
 2. 多媒体: **建框架 + 首批 2-3 个安全向视频源** (media_kind='multimedia', 如 YouTube 安全频道公开 RSS / B 站 API)。
 3. 系统源: **支持彻底删除** (含审计记录); 自定义源已有 CRUD。
 

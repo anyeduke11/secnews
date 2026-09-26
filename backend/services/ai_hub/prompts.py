@@ -271,16 +271,20 @@ def _build_deep_read_prompt(
     category: str | None,
     entity_meta: dict[str, str],
     content: str,
+    framework: str | None = None,
 ) -> str:
-    """构建分类型深度解读 prompt (v3 框架自选)。
+    """构建分类型深度解读 prompt (v3 框架自选 / 用户指定)。
 
-    - LLM 从框架菜单按内容自选 1 个 (默认推荐 profile 声明的), 首键 ``framework``
-      声明所选; 解析端用 ``deep_read_sections(category, framework)`` 同源取节定义。
+    - ``framework`` 空/None/非法 → LLM 从框架菜单按内容自选 1 个 (默认推荐
+      profile 声明的), 首键 ``framework`` 声明所选; 解析端用
+      ``deep_read_sections(category, framework)`` 同源取节定义。
+    - ``framework`` 合法 → 用户显式指定: prompt 菜单只保留该框架, 强制选用。
     - ``headline``: 一句话解读标题 (≤40 字, 概括这条资讯的核心判断)。
     - 字数按语义: 要点速读 100~250 字完整总结, 其余节 60~150 字按语义需要。
     """
     profile = deep_read_profile_for(category)
     default_fw = tuple(f for f in profile.get("frameworks", ()) if f in _FRAMEWORKS)
+    pinned = framework if framework in _FRAMEWORKS else None
     schema = json.dumps(
         {s["key"]: "<本节内容, markdown>" for s in deep_read_sections(category)},
         ensure_ascii=False,
@@ -290,21 +294,34 @@ def _build_deep_read_prompt(
     meta_lines = "".join(
         f"[{k}] {v}\n" for k, v in entity_meta.items() if v and k != "entity_type"
     )
+    if pinned:
+        fw_rule = (
+            f"2. 首键 \"framework\": 已由用户指定为 \"{pinned}\", 原样返回该值。\n"
+            f"3. 次键 \"headline\": 一句话解读标题, ≤40 字, 给出核心判断而非复述标题。\n"
+            "4. 只返回该框架对应的节键 (加该分类专属节与头尾节), 每节 markdown"
+            " (可用列表/粗体), 不得返回其他框架的节键。\n"
+        )
+        menu = f"用户已指定框架: {pinned} — {_FRAMEWORKS[pinned]['lens'].split(' — ')[0]}"
+    else:
+        fw_rule = (
+            "2. 首键 \"framework\": 从下方框架菜单中选 1 个最契合本文内容的框架键"
+            f" (默认推荐: {'、'.join(default_fw) or 'what_why_how'}; 内容明显更适合其他框架时可改选)。\n"
+            "3. 次键 \"headline\": 一句话解读标题, ≤40 字, 给出核心判断而非复述标题。\n"
+            "4. 然后只返回所选框架对应的节键 (加该分类专属节与头尾节), 每节 markdown"
+            " (可用列表/粗体), 不得返回未选框架的节键。\n"
+        )
+        menu = f"框架菜单:\n{_framework_menu(default_fw)}"
     return (
         f"{profile['persona']}。请分析下面这条资讯, 生成结构化深度解读。\n\n"
         "严格要求:\n"
         "1. 必须返回合法 JSON, 不要套外层 ```json 围栏。\n"
-        "2. 首键 \"framework\": 从下方框架菜单中选 1 个最契合本文内容的框架键"
-        f" (默认推荐: {'、'.join(default_fw) or 'what_why_how'}; 内容明显更适合其他框架时可改选)。\n"
-        "3. 次键 \"headline\": 一句话解读标题, ≤40 字, 给出核心判断而非复述标题。\n"
-        "4. 然后只返回所选框架对应的节键 (加该分类专属节与头尾节), 每节 markdown"
-        " (可用列表/粗体), 不得返回未选框架的节键。\n"
+        f"{fw_rule}"
         "5. 字数按语义需要, 禁止注水与复述原文: key_takeaways 100~250 字完整总结;"
         " 其余节 60~150 字, 信息密度优先。\n"
         f"6. 证据约束: {profile['evidence']} {_EVIDENCE_RULE}\n"
         "7. next_actions 必须站在安全从业者视角给可落地动作 (检测/加固/评估/跟踪,"
         " 注明优先级), 不写泛泛的\"持续关注\"。\n\n"
-        f"框架菜单:\n{_framework_menu(default_fw)}\n\n"
+        f"{menu}\n\n"
         f"默认分节示例 (所选框架不同时节键相应替换):\n{schema}\n\n"
         f"来源元信息:\n{meta_lines or '(无)'}\n\n"
         f"待分析内容 (最多 {budget} 字符):\n{content[:budget]}"

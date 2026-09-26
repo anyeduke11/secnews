@@ -26,7 +26,7 @@ export interface UseDeepReadReturn {
   /** 错误信息 */
   error: string | null;
   /** 读取或生成深度解读: force=false 命中缓存则瞬时返回, 否则调 LLM 生成 */
-  regenerate: (entityType: string, entityId: string, force?: boolean) => Promise<void>;
+  regenerate: (entityType: string, entityId: string, force?: boolean, framework?: string) => Promise<void>;
   /** 清空当前状态 */
   clear: () => void;
 }
@@ -52,7 +52,7 @@ export function useDeepRead(): UseDeepReadReturn {
   }, []);
 
   const regenerate = useCallback(
-    async (entityType: string, entityId: string, force = true) => {
+    async (entityType: string, entityId: string, force = true, framework?: string) => {
       if (fetchAbortRef.current) fetchAbortRef.current.abort();
       const controller = new AbortController();
       fetchAbortRef.current = controller;
@@ -61,7 +61,7 @@ export function useDeepRead(): UseDeepReadReturn {
       setError(null);
       try {
         const item = await apiFetch<DeepReadResponse>(
-          `/api/deep-read/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}?force=${force ? '1' : '0'}`,
+          `/api/deep-read/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}?force=${force ? '1' : '0'}${framework ? `&framework=${encodeURIComponent(framework)}` : ''}`,
           {
             method: 'POST',
             signal: controller.signal,

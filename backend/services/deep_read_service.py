@@ -221,11 +221,14 @@ class DeepReadService:
         entity_type: str,
         entity_id: str,
         force: bool = False,
+        framework: str | None = None,
     ) -> DeepReadItem:
         """获取或生成 DeepRead。
 
         - force=False 且表里有 → 直接返回
         - 否则拉原文 → 按 category 选视角 → 调 LLM → 动态分节 → UPSERT
+        - framework 非空且合法 (v3) → prompt 菜单收敛到该框架, LLM 按指定框架生成;
+          空/None → 菜单全开, LLM 按内容自选
         """
         existing = self.repo.get(entity_type, entity_id)
         if existing is not None and not force:
@@ -236,7 +239,7 @@ class DeepReadService:
         # 视角由文章分类决定; 取不到分类回落通用视角而不是失败。
         category = metadata.get("category") or None
         content = body if body else "(原文为空, 仅依据 ID 与类型生成)"
-        prompt = _build_deep_read_prompt(category, metadata, content)
+        prompt = _build_deep_read_prompt(category, metadata, content, framework=framework)
 
         # 调 LLM (走 ai_hub.LLMService.generate, 失败抛 DeepReadError)
         # 通过模块属性访问 (而非 from-import) 以保持测试 mock 生效。

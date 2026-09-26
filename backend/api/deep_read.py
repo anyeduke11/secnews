@@ -179,16 +179,18 @@ async def run(
     entity_type: str,
     entity_id: str,
     force: bool = Query(False, description="force=true 时覆盖已有分析"),
+    framework: str = Query("", description="显式指定分析框架 (what_why_how/swot_lite/five_w); 空=LLM 按内容自选"),
 ) -> DeepReadResponse:
     """触发或复用 4 节 LLM 分析。
 
     - 表里有且 force=false → 直接返回 (cache 命中, 不调 LLM)
-    - 否则 → 拉原文 → LLM → 4 节 JSON → UPSERT
+    - 否则 → 拉原文 → LLM → 分节 JSON → UPSERT
+    - framework 非空且合法 → 跳过 LLM 自选, 按指定框架组装分节
     - LLM 失败 → 502, 表不污染
     """
     svc = DeepReadService()
     try:
-        item = await svc.run(entity_type, entity_id, force=force)
+        item = await svc.run(entity_type, entity_id, force=force, framework=framework or None)
     except DeepReadError as e:
         logger.warning("DeepRead failed: %s/%s — %s", entity_type, entity_id, e)
         raise _err_to_http(e)

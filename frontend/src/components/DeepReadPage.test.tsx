@@ -10,7 +10,7 @@
  * - 首次生成的等待文案必须说明会真调 AI 且耗时较长 (否则用户以为卡死)
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 import { DeepReadPage } from './DeepReadPage';
@@ -107,6 +107,39 @@ describe('DeepReadPage — 动态分节渲染', () => {
 
     await waitFor(() => expect(screen.getByText('新视角小节')).toBeInTheDocument());
     expect(screen.getByText('正文-新视角小节')).toBeInTheDocument();
+  });
+
+  it('选择框架即按所选框架重新生成 (?framework= 显式传参)', async () => {
+    const fn = await mockOnce(response({ headline: '测试标题', framework: 'what_why_how', sections: [] }));
+    renderPage();
+
+    // 首次进入的 GET/POST 加载完成后选择器可见
+    const select = await screen.findByTestId('framework-select');
+    // 模拟用户切到 SWOT → 立即触发带 framework 的 force 重新生成
+    fireEvent.change(select, { target: { value: 'swot_lite' } });
+
+    await waitFor(() => {
+      const calls = fn.mock.calls.map((c) => String(c[0]));
+      expect(calls.some((u) => u.includes('force=1') && u.includes('framework=swot_lite'))).toBe(true);
+    });
+  });
+
+  it('顶部重新生成按钮携带当前选择的框架', async () => {
+    const fn = await mockOnce(response({ headline: '测试标题', framework: 'five_w', sections: [] }));
+    renderPage();
+
+    const select = await screen.findByTestId('framework-select');
+    fireEvent.change(select, { target: { value: 'five_w' } });
+    await waitFor(() => {
+      expect(fn.mock.calls.some((c) => String(c[0]).includes('framework=five_w'))).toBe(true);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /重新生成/ }));
+    await waitFor(() => {
+      // 重新生成至少再次调用 (URL 含 five_w 的 force 请求 ≥2 次)
+      const fwCalls = fn.mock.calls.filter((c) => String(c[0]).includes('framework=five_w'));
+      expect(fwCalls.length).toBeGreaterThanOrEqual(2);
+    });
   });
 
   it('展示视角分类，让"按文章类型给不同解读"在界面上可见', async () => {

@@ -370,6 +370,22 @@ def test_profile_version_bumped_to_v3():
     assert DEEP_READ_PROFILE_VERSION == "v3"
 
 
+def test_build_prompt_pinned_framework():
+    """v3.1 用户显式指定框架: prompt 菜单收敛到该框架并强制选用;
+    非法框架值回落自动模式 (菜单全开) 而非报错。"""
+    from backend.services.ai_hub.prompts import _build_deep_read_prompt
+
+    p = _build_deep_read_prompt("security", {"title": "T"}, "正文", framework="swot_lite")
+    assert '已由用户指定为 "swot_lite"' in p, "pinned 模式必须声明用户指定"
+    assert "框架菜单" not in p, "pinned 模式不再开放全菜单"
+    assert "SWOT" in p
+
+    p_auto = _build_deep_read_prompt("security", {"title": "T"}, "正文")
+    assert "框架菜单" in p_auto, "自动模式保留全菜单"
+    p_ghost = _build_deep_read_prompt("security", {"title": "T"}, "正文", framework="ghost_fw")
+    assert "框架菜单" in p_ghost, "非法框架回落自动模式"
+
+
 def test_parse_sections_v3_framework_self_select():
     """v3 框架自选解析: LLM 返回 framework 键 → 节集合按所选框架组装;
     headline 透传; 非法 framework 回落 profile 默认 (v2 行为)。"""

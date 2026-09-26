@@ -234,6 +234,21 @@ class SourceStatsRepository:
                 },
             )
 
+    def delete_by_source_name(self, source_name: str) -> int:
+        """删除同名全部统计行 (治理 T2: 注册层源删除的级联清理)。
+
+        source_stats 按 (category, source_name) 键控, 同名跨类目重复行
+        正是 UI 矩阵"77 源假象"的来源 — 删注册源时按名全删。
+
+        Returns:
+            删除的行数
+        """
+        conn = get_connection()
+        cur = conn.execute(
+            "DELETE FROM source_stats WHERE source_name = ?", (source_name,)
+        )
+        return cur.rowcount
+
     def mark_dead(self, category: str, source_name: str) -> None:
         """手动标 dead（运维工具调用）。"""
         conn = get_connection()

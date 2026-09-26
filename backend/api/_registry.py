@@ -238,17 +238,15 @@ def register_all(app: FastAPI) -> None:
     # v1.0 T12: Action / Run / Artifact 端到端 (SK-03 inspection-materials + 验收)
     from backend.api import action_api
     app.include_router(action_api.router, tags=["v1-actions"])
-    from backend.api import run_api
+    from backend.api import artifact_api, run_api
     app.include_router(run_api.router, tags=["v1-runs"])
-    from backend.api import artifact_api
     app.include_router(artifact_api.router, tags=["v1-artifacts"])
     # v1.0 T13: Knowledge 端到端 (SK-04/05/06 知识发布/复用/复查)
     from backend.api import knowledge_api
     app.include_router(knowledge_api.router, tags=["v1-knowledge"])
     # v1.0 T16 收口: audit_log 查询 + LegacyMigrate API 暴露
-    from backend.api import observability_audit_api
+    from backend.api import legacy_migrate_api, observability_audit_api
     app.include_router(observability_audit_api.router, tags=["observability-audit"])
-    from backend.api import legacy_migrate_api
     app.include_router(legacy_migrate_api.router, tags=["legacy-migrate"])
     # v1.0 T18 旧 knowledge_items 数据迁移 API
     from backend.api import legacy_items_migrate_api
@@ -265,6 +263,8 @@ def register_all(app: FastAPI) -> None:
     app.include_router(event_types_api.router, tags=["event-technique"])
     from backend.api import cubox_import_api  # UI 收尾批 C2 (DEV-0195): cubox 导入兜底
     app.include_router(cubox_import_api.router, tags=["knowledge"])
+    from backend.api import auto_intake_api  # 2026-09-26: 自动入管配置 (settings 子路径)
+    app.include_router(auto_intake_api.router, tags=["settings"])
 
 
 __all__ = ["register_all"]

@@ -41,6 +41,27 @@ async def collect_all_job() -> None:
     await _jobs_pkg.export_rebuild_job()
     # ---- 复利驱动器①: 即时分类 (不等待 30min 周期) ----
     await _classify_new_items()
+    # ---- 自动入管规则引擎 (2026-09-26, 设计稿 §3.2; 内部全 try-except) ----
+    await _auto_intake_tick()
+
+
+async def _auto_intake_tick() -> None:
+    """采集尾部: 自动入管评估 (enabled=false 时零开销返回)。
+
+    run_auto_intake 全程不抛; 此处再兜一层异常隔离, 与 post-ingest 链
+    各 job 模式一致, 不阻塞采集主流程。
+    """
+    try:
+        from backend.services.auto_intake_service import run_auto_intake
+
+        result = await asyncio.to_thread(run_auto_intake)
+        _logger.info(
+            f"auto_intake: evaluated={result['evaluated']} "
+            f"intaken={result['intaken']} skipped={result['skipped_domain']} "
+            f"limit_reached={result['limit_reached']}"
+        )
+    except Exception as e:
+        _logger.error(f"_auto_intake_tick crashed: {e}")
 
 
 async def _classify_new_items() -> None:

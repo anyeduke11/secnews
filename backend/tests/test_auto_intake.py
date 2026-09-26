@@ -225,6 +225,57 @@ class TestRunAutoIntake:
 
 
 # ---------------------------------------------------------------------------
+# collect_all_job 尾部挂载 (Task 2): 日志一行 + 异常隔离不阻塞采集
+# ---------------------------------------------------------------------------
+class TestCollectJobMount:
+    @pytest.mark.asyncio
+    async def test_tick_logs_one_line(self, temp_db, monkeypatch):
+        """挂载点输出规定格式日志: auto_intake: evaluated=.. intaken=.. .."""
+        import backend.scheduler.jobs.collect as collect_mod
+        from backend.services import auto_intake_service
+
+        lines: list[str] = []
+
+        class _StubLogger:
+            def info(self, msg: str, *args, **kwargs) -> None:
+                lines.append(msg)
+
+            def error(self, msg: str, *args, **kwargs) -> None:
+                lines.append(msg)
+
+        monkeypatch.setattr(collect_mod, "_logger", _StubLogger())
+        monkeypatch.setattr(
+            auto_intake_service,
+            "run_auto_intake",
+            lambda: {"evaluated": 3, "intaken": 2, "skipped_domain": 1, "limit_reached": False},
+        )
+        await collect_mod._auto_intake_tick()
+        assert lines == [
+            "auto_intake: evaluated=3 intaken=2 skipped=1 limit_reached=False"
+        ]
+
+    @pytest.mark.asyncio
+    async def test_tick_swallows_crash(self, temp_db, monkeypatch):
+        """run_auto_intake 抛错也不阻塞采集主流程 (双层异常隔离)。"""
+        import backend.scheduler.jobs.collect as collect_mod
+        from backend.services import auto_intake_service
+
+        def _boom():
+            raise RuntimeError("boom")
+
+        class _StubLogger:
+            def info(self, msg: str, *args, **kwargs) -> None:
+                pass
+
+            def error(self, msg: str, *args, **kwargs) -> None:
+                pass
+
+        monkeypatch.setattr(collect_mod, "_logger", _StubLogger())
+        monkeypatch.setattr(auto_intake_service, "run_auto_intake", _boom)
+        await collect_mod._auto_intake_tick()  # 不抛即通过
+
+
+# ---------------------------------------------------------------------------
 # promote 扩展 (keyword-only, 收藏调用零变化)
 # ---------------------------------------------------------------------------
 class TestPromoteExtended:

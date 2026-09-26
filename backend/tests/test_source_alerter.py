@@ -27,6 +27,10 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
     monkeypatch.setattr(config, "db_path", test_db)
     db.close_db()
     db.init_db()
+    # 治理 T1 (migration 121) 种子了一条 source_archived_wechat 告警;
+    # 本文件假设空告警表起点, 清掉迁移种子保持受控输入。
+    get_connection().execute("DELETE FROM source_alerts")
+    get_connection().commit()
     yield test_db
     db.close_db()
 

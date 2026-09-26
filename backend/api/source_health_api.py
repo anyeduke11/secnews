@@ -57,6 +57,8 @@ def _build_health_payload(category: str | None) -> dict:
                 "total_items": int(r["total_items"] or 0),
                 "last_error": r["last_error"],
                 "status": r["status"],
+                # 治理 T3: 介质维度 (migration 121), 前端矩阵按它分组
+                "media_kind": r["media_kind"] or "web",
                 # false = 历史遗留行, 已不再被任何 collector 抓取 (不该计入分母)
                 "registered": _key(r) in reg_keys,
             }

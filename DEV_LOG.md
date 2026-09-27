@@ -1,4 +1,17 @@
 
+## [DEV-0235] 校对室刷屏根治: F4 预去重 known_urls 被 _MAX_LIMIT=200 钳制 7d 窗口失效 — 安全客/FreeBuf "拦截"实为去重噪声 (quality-hook)
+
+- **时间**: 2026-09-27
+- **类型**: Bug修复 (owner 报告 "安全客和freebuf被拦截" → 校对室 /quality?tab=rejection 大量拒绝样本; 立项调查推翻原假设后转 bug 根治)
+- **关联模块**: `backend:quality-hook`, `backend:hotspot-repo`
+- **关联文件**:
+  - 调查证据 (生产库直查 2026-09-27): 安全客/FreeBuf 源全链路通畅 (enabled=1/active/health=1.0, 当日在抓, 官网最新 8 篇逐一核对全部在库); 校对室拒收 24h 1595 条中被拒 URL 全部已入库 — "拦截"是去重噪声非内容丢失; 附带推翻安全客首页 JSON 块立项假设 (首页 li.item 20 条与 RSS 20 条几乎完全重合, 差集仅 1 条 08-18 软文; 多出的 23 id 为周榜/活动位旧内容), 该立项撤销
+  - 修复 (4c06892): `backend/repository/hotspot_repo.py` (+`list_urls_fetched_since` url-only 轻量查询, 无行数上限, fetched_at 维度全源去重) + `backend/collectors/quality_hook.py` (F4 预去重 known_urls 数据源切换: query_in_range(limit=2000) → list_urls_fetched_since; query_in_range 保留仅供 DuplicateGate 相似标题检测的 title 集合) + `backend/tests/test_list_urls_fetched_since.py` (新 4 用例: 窗口内外/去重语义/无行数上限核心锚/空参退化) + `backend/tests/test_quality_hook_filter.py` (_stub_db 补 list_urls_fetched_since 打桩)
+- **问题描述 (根因链)**: v085-review F4 门禁前 URL 预去重调 `query_in_range(limit=2000)` 拉滚动 7d 已知 URL, 但 repo 层 `query_in_range` 有 `_MAX_LIMIT=200` 硬钳制 → known_urls 实际只覆盖最近 ~200 行 (实测第 200 行 = 当天 13:00, 即几小时) → 7d 滚动窗口名存实亡 → RSS 每轮返回的全量 feed 旧文 (FreeBuf 20 条/安全客 20 条等) 几乎全部漏过预去重 → 每条付全量门禁 (2 次 to_thread) → 被 `content_hash_duplicate`/`strict_mode` 拒 → `quality_rejection_log` 每轮刷屏 (24h 1595 条, FreeBuf 849 + 安全客 305 占大头)。三层伤害: 校对室不可用级噪声 / 门禁算力每轮浪费 / 拒收统计失真。
+- **实现思路**: 预去重只需要 url 集合, 不需要完整 HotspotItem — 新增 url-only SELECT DISTINCT 轻量查询绕开 _MAX_LIMIT (该钳制保护的是完整行翻页查询, 语义不同不应共用); title 集合维持 200 行窗口 (DuplicateGate 相似标题检测本就只关心最近条目); 修复合 5 行逻辑 + 1 个新 repo 方法, 不动门禁判定链。
+- **测试验证**: 新增 4 用例全绿 (含核心锚: 250 行 > _MAX_LIMIT=200 全量返回); test_quality_hook_filter 12 passed (stub 同步更新); hotspot_repo/fetcher/collectors 域 42 passed; 后端全量 `pytest backend/tests/ --tb=short -q` **4930 passed / 9 skipped / 1 failed** (唯一失败 = test_check_temp_db_sizes, DEV-0233 已记录 pre-existing)。生产库实测新查询 16ms 返回 6039 唯一 URL (每轮采集一次, 成本可忽略), 预期 RSS 旧文全部命中预筛不再写 rejection。
+- **潜在风险 (parked)**: ① 7d 全源唯一 URL ~6000 行常驻内存 (集合 str, ~1MB 级), 可忽略; ② url-only 查询无 is_hidden/url_check_status 过滤 — 与旧 known_urls 口径有差异, 但预去重语义本应"抓过的 url 就不再试", 隐藏/断链条目同样不应重抓, 口径更正确; ③ 安全客 RSS 停更 09-24 起为站点行为, 若长期不恢复可考虑安全内参式 JSON API 通道 (另行立项); ④ 安全客首页 JSON 块解析立项已撤销 (覆盖收益≈0), spec 文件保留作调查记录。
+
 ## [DEV-0234] pi 升为 ai_hub 主力引擎: 实弹验收揪出裸模型名跨 provider 歧义 → models 留空走 pi 默认上游 (pi-primary-engine)
 - **时间**: 2026-09-27
 - **类型**: 功能开发 (pi-primary-engine 分支, owner 裁决 "pi 取代原来的 aihub，然后使用 pi 实现三期重构")

@@ -179,16 +179,20 @@ def test_ai_service_resolve_provider_three_levels():
         expected = route_model("evaluate", config=llm_service.config)[0]
         assert AIService._resolve_provider() == expected
 
-    # 3) router 抛异常时, 兜底 cfg.default_provider (sensenova)
+    # 3) router 抛异常时, 兜底 cfg.default_provider
     # 真实环境中 llm_service.config 是 property (无 setter), 不能直接 patch.object;
-    # 改用 patch 把 route_model 替换为抛异常, 验证兜底到 cfg.default_provider (yaml 是 sensenova)
+    # 改用 patch 把 route_model 替换为抛异常, 验证兜底到 cfg.default_provider。
+    # 2026-09-27 pi 主力化后 yaml default=pi, 断言锚定配置现值 (default 翻转时意图不变)。
     with patch.dict(os.environ, {}, clear=False):
         os.environ.pop("AI_PROVIDER", None)
+        from backend.services.ai_hub.gateway import llm_service as _svc
+
+        cfg_default = _svc.config.default_provider
         with patch(
             "backend.services.llm.model_router.route_model",
             side_effect=RuntimeError("router boom"),
         ):
-            assert AIService._resolve_provider() == "sensenova"
+            assert AIService._resolve_provider() == cfg_default
 
 
 __all__ = []

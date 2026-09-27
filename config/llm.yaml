@@ -6,12 +6,11 @@
 #   密钥只以环境变量名（api_key_env）声明，值不落仓库。
 
 enabled: true  # 总开关；false 时降级为外部 Agent 模式
-default_provider: sensenova  # 当前唯一持有凭据的云端 provider；AI_PROVIDER env 可覆盖
+default_provider: pi  # 2026-09-27 owner 裁决: pi 升主力 (AI_PROVIDER env 可覆盖临时切回)
 fallback_order:  # 失败时降级顺序（仅 LLMService 生成类 API 使用）
-  - ollama       # 优先本地（零成本; ollama 离线时自动落到下一项）
-  - sensenova    # v0.6.3 P0-3: 唯一持凭据 provider 加入生成类兜底链 —
-                 # 此前 [ollama,qwen,openai] 三者全不可用, score 恒 5.0 /
-                 # summarize 恒 prompt 回显 (审计发现: 配置面向理想环境而非实际环境)
+  - pi           # 主力: 子进程 pi -p --mode json (claude-sonnet-4-5, 认证自管 ~/.pi/agent/auth.json)
+  - ollama       # 兜底1: 本地零成本 (pi 子进程/auth 失效时首选; 离线时自动落下一项)
+  - sensenova    # 兜底2: 唯一持凭据云端 provider (v0.6.3 P0-3 原注释保留: 此前三者全不可用审计)
   - qwen         # 次选国产
   - openai       # 末选 openai
 

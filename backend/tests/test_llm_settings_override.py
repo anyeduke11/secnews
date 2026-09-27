@@ -72,20 +72,26 @@ def test_router_wins_when_env_and_settings_unset(temp_db):
 
 
 def test_default_fallback_when_router_raises(temp_db):
-    """env/settings.kv/router 全失败 → 兜底 cfg.default_provider (sensenova)。"""
+    """env/settings.kv/router 全失败 → 兜底 cfg.default_provider。
+
+    2026-09-27 pi 主力化后 yaml default=pi; 断言锚定配置现值而非硬编码
+    provider 名 (default 翻转时本测试意图不变: 兜底 == cfg.default_provider)。
+    """
     import os
 
+    from backend.config.llm_schema import load_llm_config
     from backend.repository.settings_repo import SettingsRepository
     from backend.services.ai_hub import AIService
 
     os.environ.pop("AI_PROVIDER", None)
     SettingsRepository().delete("llm.default_provider")
+    cfg_default = load_llm_config().default_provider
 
     with patch(
         "backend.services.llm.model_router.route_model",
         side_effect=RuntimeError("router boom"),
     ):
-        assert AIService._resolve_provider() == "sensenova"
+        assert AIService._resolve_provider() == cfg_default
         assert AIService._config_source() == "default"
 
 

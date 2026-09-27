@@ -137,6 +137,13 @@ def _db_item(url: str) -> HotspotItem:
 def _stub_db(monkeypatch, urls: list[str]) -> None:
     from backend.repository.hotspot_repo import HotspotRepository
 
+    # 2026-09-27 校对室刷屏根治: known_urls 改由 list_urls_fetched_since
+    # (url-only, 真 7d 窗口) 供给; query_in_range 仅剩 title 集合职责。
+    monkeypatch.setattr(
+        HotspotRepository,
+        "list_urls_fetched_since",
+        lambda self, since_iso: set(urls),
+    )
     monkeypatch.setattr(
         HotspotRepository,
         "query_in_range",

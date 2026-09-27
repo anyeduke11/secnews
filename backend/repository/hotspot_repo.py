@@ -692,6 +692,44 @@ class HotspotRepository:
             raise InternalException(f"count_unique_urls_in_range failed: {e}") from e
         return int(row["n"])
 
+    def list_urls_fetched_since(self, since_iso: str) -> set[str]:
+        """返回 ``fetched_at >= since_iso`` 的全源去重 URL 集合 (轻量, url-only)。
+
+        2026-09-27 (校对室刷屏根治): quality_hook F4 预去重专用 — 原实现走
+        ``query_in_range(limit=2000)``, 但 repo 层 ``_MAX_LIMIT=200`` 钳制使
+        known_urls 实际只覆盖最近几小时, 7d 滚动窗口名存实亡: RSS 每轮返回
+        的旧文全部漏过预去重 → 每条付全量门禁 → duplicate/strict 拒 →
+        quality_rejection_log 每轮刷上千条 (校对室噪声 + 门禁算力浪费)。
+        本方法只 SELECT url 一列、无行数上限, 与 F4 的集合语义直接对齐。
+
+        Note:
+            与 :meth:`list_recent_urls_by_source` 的区别: 那个按 source 维度
+            (wechat renderer 抓前预查询), 本方法全源 (quality_hook 批量预去重)。
+
+        Args:
+            since_iso: ISO 8601 起点 (调用方计算, 通常为 now-7d)。
+
+        Returns:
+            去重 URL 集合 (since_iso 为空时返回空集合, 调用方退化为不去重)。
+        """
+        if not since_iso:
+            return set()
+        conn = get_connection()
+        try:
+            rows = conn.execute(
+                "SELECT DISTINCT url FROM hotspots WHERE fetched_at >= ?",
+                (since_iso,),
+            ).fetchall()
+        except sqlite3.Error as e:
+            logger.error(
+                "list_urls_fetched_since failed",
+                extra={"trace_id": "", "since": since_iso, "error": str(e)},
+            )
+            raise InternalException(
+                f"list_urls_fetched_since failed: {e}"
+            ) from e
+        return {str(r["url"]) for r in rows if r["url"]}
+
     def list_recent_urls_by_source(
         self,
         source_name: str,

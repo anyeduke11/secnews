@@ -74,12 +74,21 @@ class QualityGatesMixin:
             from datetime import datetime, timedelta, timezone
             now_utc = datetime.now(timezone.utc)
             roll_start = now_utc - timedelta(days=7)
+            # 2026-09-27 校对室刷屏根治: 原走 query_in_range(limit=2000),
+            # 被 repo 层 _MAX_LIMIT=200 钳制 → known_urls 只覆盖最近几小时,
+            # 7d 滚动窗口名存实亡 → RSS 旧文每轮漏过预去重 → 全量门禁 →
+            # duplicate/strict 拒 → quality_rejection_log 每轮刷上千条
+            # (实测 24h 1595 条, FreeBuf/安全客占大头)。改用 url-only 轻量
+            # 查询, 真覆盖 7d; title 集合仍走原 200 行查询 (供 DuplicateGate
+            # 相似标题检测, 该场景本就只关心最近条目)。
+            existing_urls = hrepo.list_urls_fetched_since(
+                roll_start.isoformat()
+            )
             db_items, _ = hrepo.query_in_range(
                 start=roll_start,
                 end=now_utc,
                 limit=2000,
             )
-            existing_urls = {str(it.url) for it in db_items}
             existing_titles = [it.title for it in db_items]
         except Exception:
             pass

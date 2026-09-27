@@ -262,28 +262,43 @@ TAG_PRACTICE_MAP: dict[str, str] = {
 }
 
 # Title keyword → practice domain (secondary)。数组顺序即优先级, 具体 pattern 在前。
+# 英文分支 (2026-09-27): arXiv 论文源接入后英文标题占 paper 类目 100%
+# (实测 31/31 中文规则零命中), 补英文攻击/主题词系, 对齐 DEV-0179
+# "真实语料表述缺口" 修补先例。
 TITLE_PRACTICE_RULES: list[tuple[re.Pattern, str]] = [
     # AI 安全 (DEV-0179: 无偏人评发现缺口 — 真实语料常用攻击动词而非"AI安全"标签
     # 表述 Agent 攻击, 如 "Agent 再爆新攻击/智能体协作入侵/窃取 API 密钥", 补攻击动词系)
-    (re.compile(r"大模型安全|AI安全|AI 安全|模型安全|提示注入|[Pp]rompt\s*[Ii]njection|越狱|数据投毒|对抗样本|AI红队|Agent安全|智能体.{0,8}(入侵|攻击)|Agent.{0,8}(攻击|入侵)|窃取\s*(API\s*)?密钥"), "ai_security"),
+    (re.compile(r"大模型安全|AI安全|AI 安全|模型安全|提示注入|[Pp]rompt\s*[Ii]njection|越狱|数据投毒|对抗样本|AI红队|Agent安全|智能体.{0,8}(入侵|攻击)|Agent.{0,8}(攻击|入侵)|窃取\s*(API\s*)?密钥"
+                r"|(?i:adversarial|jailbreak|data poisoning|backdoor attack)"
+                r"|(?i:LLM.{0,40}(secur|attack|tamper|safety|jailbreak|poison))"
+                r"|(?i:AI (security|safety)|agentic (attack|security|threat))"), "ai_security"),
     # 密码安全 (DEV-0181: 从云与数据安全拆出; 标题层用具体词避免裸"加密"遮蔽漏洞类)
-    (re.compile(r"密码学|密码安全|国密|SM[2349]|商用密码|密钥管理|加密算法|密码破解|哈希碰撞|量子密钥"), "crypto_security"),
+    (re.compile(r"密码学|密码安全|国密|SM[2349]|商用密码|密钥管理|加密算法|密码破解|哈希碰撞|量子密钥"
+                r"|(?i:cryptograph|post.quantum|side.channel)"), "crypto_security"),
     # 漏洞挖掘
-    (re.compile(r"CVE-\d{4}|0day|0-day|漏洞|POC|EXP|提权|反序列化|栈溢出|堆溢出|命令注入|SQL注入|复现"), "vuln_research"),
+    (re.compile(r"CVE-\d{4}|0day|0-day|漏洞|POC|EXP|提权|反序列化|栈溢出|堆溢出|命令注入|SQL注入|复现"
+                r"|(?i:vulnerabilit|exploit|fuzz(ing|er)?|memory safety|use.after.free|zero.day)"), "vuln_research"),
     # 渗透攻防 (DEV-0181: 从 appsec 独立)
-    (re.compile(r"渗透测试|红队|蓝队|攻防演练|护网|CTF|靶场|Cobalt\s*Strike|Metasploit|内网渗透|横向移动|钓鱼攻击"), "pentest"),
+    (re.compile(r"渗透测试|红队|蓝队|攻防演练|护网|CTF|靶场|Cobalt\s*Strike|Metasploit|内网渗透|横向移动|钓鱼攻击"
+                r"|(?i:penetration test|pen.?test|red team|capture the flag)"), "pentest"),
     # 威胁狩猎
-    (re.compile(r"威胁狩猎|威胁情报|ATT&CK|APT|IOC|溯源|恶意样本|黑客组织|沙箱逃逸|TTP"), "threat_hunting"),
+    (re.compile(r"威胁狩猎|威胁情报|ATT&CK|APT|IOC|溯源|恶意样本|黑客组织|沙箱逃逸|TTP"
+                r"|(?i:threat (intelligence|hunting)|malware|botnet|indicators of compromise|honeypot)"), "threat_hunting"),
     # 应急响应
-    (re.compile(r"应急响应|事件响应|勒索|入侵事件|安全事件处置|取证|隔离处置"), "incident_response"),
+    (re.compile(r"应急响应|事件响应|勒索|入侵事件|安全事件处置|取证|隔离处置"
+                r"|(?i:incident response|ransomware|forensic)"), "incident_response"),
     # 应用安全
-    (re.compile(r"应用安全|代码审计|SDL|DevSecOps|Web安全|移动安全|APP安全|供应链安全|SSRF|XSS|CSRF"), "appsec"),
+    (re.compile(r"应用安全|代码审计|SDL|DevSecOps|Web安全|移动安全|APP安全|供应链安全|SSRF|XSS|CSRF"
+                r"|(?i:web security|application security|supply chain)"), "appsec"),
     # 数据安全 (DEV-0181: 独立; 密钥管理归密码安全)
-    (re.compile(r"数据安全|隐私计算|数据泄露|数据出境|数据分类分级|个人信息保护|数据合规治理"), "data_security"),
+    (re.compile(r"数据安全|隐私计算|数据泄露|数据出境|数据分类分级|个人信息保护|数据合规治理"
+                r"|(?i:data (privacy|security)|differential privacy|privacy.preserving|information flow|secret leakage|data leakage)"), "data_security"),
     # 网络安全 (防御运营/建设/云基础设施 — 泛化兜底)
-    (re.compile(r"网络安全|防火墙|DDoS|入侵检测|IDS|IPS|云安全|容器安全|K8s\s*安全|Kubernetes\s*安全|云原生安全|零信任|SOC|安全运营|安全建设|安全体系|安全架构|安全意识|安全规划|成熟度|安全团队|防护体系|安全治理"), "network_security"),
+    (re.compile(r"网络安全|防火墙|DDoS|入侵检测|IDS|IPS|云安全|容器安全|K8s\s*安全|Kubernetes\s*安全|云原生安全|零信任|SOC|安全运营|安全建设|安全体系|安全架构|安全意识|安全规划|成熟度|安全团队|防护体系|安全治理"
+                r"|(?i:network security|intrusion detection|attack surface|anomaly detection|cybersecurity|cyber.?defense)"), "network_security"),
     # 合规管理 (DEV-0179: +立法 — AI 立法监管动态是合规从业者的日常输入)
-    (re.compile(r"等保|关基|数安法|个保法|网络安全法|合规|监管|网信办|工信部|征求意见|安全测评|安全标准|立法"), "compliance"),
+    (re.compile(r"等保|关基|数安法|个保法|网络安全法|合规|监管|网信办|工信部|征求意见|安全测评|安全标准|立法"
+                r"|(?i:GDPR|NIS2|AI Act|regulat)"), "compliance"),
 ]
 
 

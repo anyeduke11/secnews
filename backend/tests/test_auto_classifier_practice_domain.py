@@ -117,6 +117,54 @@ class TestPracticeDomainNegatives:
         assert classify_practice_domain([], title="") is None
 
 
+class TestPracticeDomainEnglishTitles:
+    """英文标题命中 (2026-09-27): arXiv 论文源接入后 paper 类目英文标题
+    占 100%, 中文规则实测 31/31 零命中 — 自动入管域过滤会全跳。
+    英文分支用 scoped (?i:) 大小写不敏感 (不可整规则 IGNORECASE:
+    EXP/IDS/SOC 等缩写会误伤子串, 如 'expert' 命中 EXP)。"""
+
+    @pytest.mark.parametrize(
+        "title, expected",
+        [
+            # 每域 ≥1 条英文正例 (取材真实 arXiv 标题形态)
+            ("LLM Agents Can Easily Tamper With Their Own Traces", "ai_security"),
+            ("AERIAL: Adversarial Evaluation of Robustness", "ai_security"),
+            ("T-Backdoor: Exploiting Temporal Redundancy", "vuln_research"),
+            ("A Data-Driven Analysis of Infostealer Malware Victims", "threat_hunting"),
+            ("OllamaDrama: Deploying a Honeypot to Measure Abuse", "threat_hunting"),
+            ("Computational Cryptography from Pseudoentanglement", "crypto_security"),
+            ("PrivDrift: Auditing User-Secret Leakage Under Topic Drift", "data_security"),
+            ("Automated Abstraction Refinement for Information Flow", "data_security"),
+            ("BRFID: Byzantine-Robust Federated Intrusion Detection", "network_security"),
+            ("Toward Responsible AI-Augmented Cyber Defense", "network_security"),
+        ],
+    )
+    def test_english_title_hit(self, title: str, expected: str):
+        assert classify_practice_domain([], title=title) == expected
+
+    def test_sentence_case_matches(self):
+        """防回归锚点: 句首大写 Adversarial 必须命中 (此前小写 pattern
+        全量 0/31 的根因就是大小写敏感, (?i:) 修复后必须保持)。"""
+        assert classify_practice_domain([], title="Adversarial Robustness Study") == "ai_security"
+        assert classify_practice_domain([], title="Exploiting a Race Condition") == "vuln_research"
+
+    def test_abbreviations_not_broadened(self):
+        """scoped flag 不波及中文规则缩写: 'expert' 不得命中 EXP (vuln)。"""
+        assert classify_practice_domain([], title="Expert System for Threat Analysis") != "vuln_research"
+
+    @pytest.mark.parametrize(
+        "title",
+        [
+            # 非安全主题论文必须 None — 自动入管域过滤正确收敛的守护
+            ("RAPID: Robot Agentic Programming from Demonstrations"),
+            ("Coding Agents for Generalized Task and Motion Planning"),
+            ("A Living Benchmark for Information Retrieval"),
+        ],
+    )
+    def test_non_security_english_returns_none(self, title: str):
+        assert classify_practice_domain([], title=title) is None
+
+
 class TestTaxonomyIntegrity:
     def test_all_domains_have_labels(self):
         assert set(PRACTICE_DOMAINS) == set(PRACTICE_DOMAIN_LABELS.keys())

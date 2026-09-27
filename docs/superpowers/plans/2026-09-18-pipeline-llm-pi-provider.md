@@ -1,5 +1,7 @@
 # 采集管线 LLM 能力 pi 化 + 补齐 — Implementation Plan
 
+> **状态勘误 (2026-09-27 立项核查)**: 本计划已**全部落地实施** — pi_transport.py / llm_schema Literal / gateway pi 分支 / agents.yaml task_types / 三 gate 登记+开闸 (2026-09-19) / 四个测试文件 / migration 119 均核实存在。下方勾选未回填仅为台账滞后, 以本横幅与代码为准。后续演进见 `2026-09-27-pi-primary-engine.md` (pi 升主力)。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** pi 成为 ai_hub 第 5 种 provider type；采集管线补齐语义门禁 / 智能分类增援 / NER 实体抽取三项能力（全 feature gate 默认关）。

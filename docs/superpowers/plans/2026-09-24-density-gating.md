@@ -1,5 +1,8 @@
 # 采集密度门禁限制 — 实施计划 (2026-09-24)
 
+> **状态勘误 (2026-09-27 批量台账收口)**: 本计划已**完整交付** — 收口记录 [DEV-0229] (DEV_LOG.md), 交付内容: 采集密度门禁 — 三信号复合乘子 + 拒收聚合 + 域命中 + AI 推荐, 交付回归 16/16 勾选全绿。下方勾选状态以收口记录与代码为准。
+
+
 **Spec**: `docs/superpowers/specs/2026-09-24-density-gating-design.md` (owner 三裁决已录 §2)
 **Base**: main@70d5d5b · **Branch**: density-gating
 

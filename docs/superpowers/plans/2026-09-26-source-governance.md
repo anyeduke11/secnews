@@ -1,5 +1,8 @@
 # 数据源治理 + 介质分类 — 实施计划 (2026-09-26)
 
+> **状态勘误 (2026-09-27 批量台账收口)**: 本计划已**完整交付** — 收口记录 [DEV-0232] (DEV_LOG.md), 交付内容: 数据源体系治理 — media_kind 维度+清理工具链+系统源管理+前端介质分组, 交付回归 13/13 全绿。下方勾选状态以收口记录与代码为准。
+
+
 **Spec**: `docs/superpowers/specs/2026-09-26-source-governance-design.md`
 **Base**: main@f08c8a3 · **Branch**: source-governance
 

@@ -1,5 +1,8 @@
 # 采集闭环优化 — 实施计划 (2026-09-24)
 
+> **状态勘误 (2026-09-27 批量台账收口)**: 本计划已**完整交付** — 收口记录 [DEV-0228] (DEV_LOG.md); Task 2 两项待 owner --execute 的数据清理经生产库实测已清零 (0 行, 于后续治理批次被顺手处理), 勾选已回填。全计划无挂起项。
+
+
 **背景**: 第一性原理诊断 (目的链: 采集 = 以最低成本持续供给过质量门的时效资讯; 源生效 = 可达×产出×过门×时效)。DB 实测: 41 源仅 ~15 源 7d 有产出; last_error 存 'None' 字符串; 复活探测污染 yield 口径; crawler_sources/source_stats 双轨失真; 107 条 P2 告警无动作; cadence 与质量分脱钩; 14 僵尸注册行 + 测试残留。
 
 **owner 裁决 (2026-09-24)**: ①全链路闭环 ②dead>14d 自动退役+可追溯 ③质量分反哺 cadence 自适应。
@@ -16,8 +19,8 @@
 
 **Files**: `scripts/fix_source_registry_cleanup.py` (新, --dry-run 默认)、hotspots 测试残留。
 
-- [ ] hotspots 清除 source IN ('rss','test-src') 垃圾行 (脚本执行, 附带 crawler_sources/custom_sources 中同名残留)。 **待 owner --execute** (收口时生产库实测仍 2 行)。
-- [ ] crawler_sources 中 enabled=0 且 status='unknown' 的 14 行: 从未 fetch 过 → 归档语义 status='retired' + alert 记录 (不物理删, 可追溯)。 **待 owner --execute** (收口时生产库实测仍 14 行 unknown)。
+- [x] hotspots 清除 source IN ('rss','test-src') 垃圾行 (脚本执行, 附带 crawler_sources/custom_sources 中同名残留)。 ~~待 owner --execute~~ → **2026-09-27 实测已清零** (生产库直查 0 行, 于后续治理批次被顺手处理, 无需执行)。
+- [x] crawler_sources 中 enabled=0 且 status='unknown' 的 14 行: 从未 fetch 过 → 归档语义 status='retired' + alert 记录 (不物理删, 可追溯)。 ~~待 owner --execute~~ → **2026-09-27 实测已清零** (生产库直查 0 行, 于后续治理批次被顺手处理, 无需执行)。
 - [x] 脚本幂等, dry-run 报告变更面。
 
 ## Task 3: 失效源自动退役闭环 (病灶 D + 裁决②)

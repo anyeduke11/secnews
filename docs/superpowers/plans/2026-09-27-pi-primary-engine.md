@@ -1,5 +1,8 @@
 # pi 升为 ai_hub 主力引擎 — 实施计划 (2026-09-27)
 
+> **状态勘误 (2026-09-27 批量台账收口)**: 本计划已**完整交付** — 收口记录 [DEV-0234] (DEV_LOG.md), 交付内容: pi 升主力引擎 — 本会话交付, 收口横幅已含逐 Task 状态, 此处不另加。下方勾选状态以收口记录与代码为准。
+
+
 > **收口状态 (2026-09-27)**: Task 1-4 **全部完成** (勾选未逐项回填, 以本横幅与 DEV-0234 为准)。
 > - T1 主力化 `cd6f680`: llm.yaml pi 带头 + 配置锚 3 用例; 2 处硬编码 sensenova 断言改锚定 cfg 现值
 > - T2 chat 通道 `6621835`: serialize_messages_to_prompt + _call_provider_chat additive pi 分支; 过时 chat-unsupported 用例重写

@@ -1,5 +1,8 @@
 # 论文抓取 — 实施计划 (2026-09-26)
 
+> **状态勘误 (2026-09-27 批量台账收口)**: 本计划已**完整交付** — 收口记录 [DEV-0233] (DEV_LOG.md), 交付内容: 论文抓取能力 — arXiv 14 领域轮转采样 + sortBy 修复 + Fastly 节拍锁, 已收口。下方勾选状态以收口记录与代码为准。
+
+
 **Spec**: `docs/superpowers/specs/2026-09-26-paper-collector-design.md`
 **Base**: main 当前 HEAD · **Branch**: paper-collector
 

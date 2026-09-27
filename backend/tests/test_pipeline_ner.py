@@ -57,7 +57,15 @@ def test_write_entities_roundtrip():
 
 
 def test_enrich_noop_when_disabled(monkeypatch):
-    monkeypatch.delenv("HOTSPOT_FEATURE_GATES", raising=False)
+    """gate 关 → 不调 NER (即使打分成功)。
+
+    2026-09-27 pi 主力化: 测试机 pi 真通道可达, "delenv 依赖线上 LLM
+    失败早退"不再成立 — 显式置 pipeline_ner=false (覆盖 TOML 开闸值)
+    并打桩 score, 测试意图回归确定性。
+    """
+    monkeypatch.setenv(
+        "HOTSPOT_FEATURE_GATES", '{"extensions": {"pipeline_ner": false}}'
+    )
     reset_gates()
     called = {"n": 0}
 
@@ -65,8 +73,12 @@ def test_enrich_noop_when_disabled(monkeypatch):
         called["n"] += 1
         return ["x"]
 
+    async def fake_score(content, hotspot_id=""):
+        return 7.5  # 打分成功也不得触发 NER — gate 是唯一开关
+
     from backend.services.ai_hub.gateway import llm_service
     monkeypatch.setattr(llm_service, "extract_entities", fake_ents)
+    monkeypatch.setattr(llm_service, "score", fake_score)
     _insert_item("it_ner_3")
     trig = t1.T1Trigger()
     content = "标题 概念"

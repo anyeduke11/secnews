@@ -4,7 +4,7 @@
 > - T1 主力化 `cd6f680`: llm.yaml pi 带头 + 配置锚 3 用例; 2 处硬编码 sensenova 断言改锚定 cfg 现值
 > - T2 chat 通道 `6621835`: serialize_messages_to_prompt + _call_provider_chat additive pi 分支; 过时 chat-unsupported 用例重写
 > - T3 实弹 `c6da432`: 揪出裸模型名歧义 (pi 0.87.1) → models 留空走 pi 默认上游; score 首链 provider=pi ok=1 (14.1s) + chat 实弹 15.5s + fallback 三级降级实录
-> - T4 收口: PRD 注记 + DEV-0234 + generate_meta --check OK + 全量回归 (见 DEV_LOG 收口段)
+> - T4 收口: PRD 注记 + DEV-0234 + generate_meta --check OK + **全量 4926 passed / 1 failed (唯一失败 = DEV-0233 已记录的 pre-existing 环境性失败)**; 全量首跑另揪出 2 个真回归 (测试隐式依赖 LLM 不可达, pi 可达后破) → conftest autouse 三管线 gate 测试态显式 false + 2 用例确定性修复
 
 **Spec**: `docs/superpowers/specs/2026-09-27-pi-primary-engine-design.md`（owner 裁决 2026-09-27: "pi 取代原来的 aihub"）
 **Base**: main@b5f482a · **Branch**: pi-primary-engine

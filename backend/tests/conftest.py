@@ -332,10 +332,16 @@ def _feature_gates_all_on_for_tests() -> None:
     prev = os.environ.get("HOTSPOT_FEATURE_GATES")
     # P1.6: 测试环境也全开 codegarden_phase2b (M2/M3/M4) 保证既有功能测试在线
     # v0.6.3: 补 dsh — 动态 gate 读数 (per-request) 与注册期快照保持一致
+    # 2026-09-27 pi 主力化 (DEV-0234): 管线 LLM 三 gate 显式 false — 开闸是
+    # 生产配置决策 (TOML), 不属于测试默认态; 否则测试机 pi 真通道可达时,
+    # filter_items/t1 的 neutral 路径会打真 LLM (慢 + 不确定 + 隐式付费)。
+    # 需要语义层 ON 的用例 (test_semantic_filter_gate 等) 测试体内自行
+    # setenv 显式开 (fixture 先跑, 测试体后跑, 覆盖生效)。
     os.environ["HOTSPOT_FEATURE_GATES"] = (
         '{"extensions": {"codegarden": true, "codegarden_phase2b": true, '
         '"mcp": true, "sync": true, '
-        '"tech_stack": true, "security_graph": true, "dsh": true}}'
+        '"tech_stack": true, "security_graph": true, "dsh": true, '
+        '"semantic_filter": false, "ai_classify": false, "pipeline_ner": false}}'
     )
     reset_gates()
     yield

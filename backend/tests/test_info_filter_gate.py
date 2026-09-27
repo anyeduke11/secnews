@@ -93,7 +93,18 @@ def test_filter_source_allow_when_no_match(gate_db, monkeypatch):
 
 
 def test_filter_items_drops_deny_source(gate_db, monkeypatch):
-    """filter_items: 命中 deny 规则的源对应 item 丢弃."""
+    """filter_items: 命中 deny 规则的源对应 item 丢弃.
+
+    2026-09-27 pi 主力化: good_src(neutral) 在 semantic gate 开闸 + 线上
+    LLM 可达时会被真判别 (可能 reject) — 本测试验证的是规则层 deny 语义,
+    显式关 semantic_filter 隔离线上 LLM 依赖。
+    """
+    from backend.extensions import reset_gates
+
+    monkeypatch.setenv(
+        "HOTSPOT_FEATURE_GATES", '{"extensions": {"semantic_filter": false}}'
+    )
+    reset_gates()
     create_rule(gate_db, "deny", "source_name", "noise_src")
     monkeypatch.setattr(
         "backend.services.info_filter_gate._is_enabled", lambda: True
@@ -104,9 +115,12 @@ def test_filter_items_drops_deny_source(gate_db, monkeypatch):
         {"title": "b", "source": "good_src", "category": "tech"},
         {"title": "c", "source": "noise_src", "category": "tech"},
     ]
-    kept = filter_items(items)
-    assert len(kept) == 1
-    assert kept[0]["title"] == "b"
+    try:
+        kept = filter_items(items)
+        assert len(kept) == 1
+        assert kept[0]["title"] == "b"
+    finally:
+        reset_gates()
 
 
 def test_filter_items_handles_hotspot_item(gate_db, monkeypatch):

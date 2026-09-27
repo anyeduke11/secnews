@@ -1,4 +1,20 @@
 
+## [DEV-0234] pi 升为 ai_hub 主力引擎: 实弹验收揪出裸模型名跨 provider 歧义 → models 留空走 pi 默认上游 (pi-primary-engine)
+- **时间**: 2026-09-27
+- **类型**: 功能开发 (pi-primary-engine 分支, owner 裁决 "pi 取代原来的 aihub，然后使用 pi 实现三期重构")
+- **关联模块**: `backend:ai_hub`
+- **关联文件**:
+  - 计划/设计: `docs/superpowers/specs/2026-09-27-pi-primary-engine-design.md` (新 — 裁决解读 §2: 主力更替非清场, 既有链降兜底) + `docs/superpowers/plans/2026-09-27-pi-primary-engine.md` (新, Task 1-4) + `docs/superpowers/plans/2026-09-18-pipeline-llm-pi-provider.md` (头部台账勘误横幅: 09-18 方案 B 已全部落地, 勾选滞后)
+  - T1 主力化 (cd6f680): `config/llm.yaml` (default_provider sensenova→pi + fallback_order pi 带头, 既有四 provider 保留兜底) + `backend/tests/test_pi_primary_config.py` (新 3 项配置锚: pi 是 default / fallback 首位 / 既有 provider 未删, 防"改回 sensenova 无人知晓") + `backend/tests/test_llm_settings_override.py` / `test_s4_1_model_router.py` (2 处硬编码 `== "sensenova"` 断言改为锚定 `cfg.default_provider` 现值 — default 翻转时测试意图"兜底==cfg.default_provider"不变)
+  - T2 chat 通道 (6621835): `backend/services/ai_hub/pi_transport.py` (+`serialize_messages_to_prompt` 纯函数: 历史轮次 `[role]` 前缀平铺 + 末条为当前提问, 空 messages ValueError) + `backend/services/ai_hub/gateway.py` (`_call_provider_chat` additive pi 分支, asyncio.to_thread 包 subprocess, max_tokens/temperature 不下传) + `backend/tests/test_pi_transport.py` (过时的 `test_gateway_chat_unsupported_pi` 重写为未知 type 兜底锚 + 序列化 5 用例 + chat 分支 2 用例)
+  - T3 实弹修正 (c6da432): `config/llm.yaml` pi models 全改空串 — 不下传 `--model` 用 pi 默认上游
+  - T4 文档: `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` (2026-09-27 能力注记) + 本条
+- **问题描述**: 09-18 方案 B 已把 pi 管道全部铺好 (pi_transport/schema/gateway generate 分支/agents.yaml/三 gate), 但 `llm.yaml` 无任何路由指向 pi (default=sensenova, fallback 无 pi), chat 路径也无 pi 分支 — 管道通了水龙头没接。owner 裁决 pi 取代既有主力。
+- **实现思路**: ① 主力化走纯配置 (default_provider + fallback 链首), "取代"= 主力地位更替而非物理删除 — pi 子进程/auth 失效时 ollama 本地零成本兜底, 安全底线; ② chat 场景 pi 无多轮会话语义 → messages 序列化为单轮 prompt 纯函数, additive 分支失败上抛走既有 fallback 循环; ③ 红线纪律同方案 B: `_try_order`/`_resolve_provider`/场景重排零触碰。
+- **实弹验证 (真通道非 mock, 2026-09-27)**: ① score 任务首链命中 `provider=pi ok=1 latency=14.1s config_source=router` (llm_usage_log 实录); ② chat 分支多轮 messages 实弹 15.5s 语义正确回复; ③ fallback 链实测兜住 pi 瞬时失败 (summary: ollama 404 fail → pi "无有效输出" fail → sensenova ok, usage log 如实记录三级降级)。**实弹揪出致命配置缺陷**: 裸名 `claude-sonnet-4-5` 在 pi 0.87.1 跨 3 provider 歧义 (anthropic/opencode/radius) 且无已认证项 → rc=1 必败; 修正为 models 留空走 pi 默认上游 (实测 sensenova/deepseek-v4-flash, cost 0)。
+- **测试验证**: 定向 test_pi_transport 23 passed / test_pi_primary_config 3 passed / llm+gateway 域 208 passed; 全量回归见 DEV-0234 收口段; `generate_meta --check` OK (57/14/90/150 不变, 无新 service/router/job); `py_compile` 改动文件 0 错。
+- **潜在风险 (parked)**: ① pi 默认上游注入 ~29K 上下文 (available_skills 等), 单次 generate 起步成本高 (score 实测 14.1s) — t1 打分批量场景延迟上升, 需观察 pipeline 吞吐; ② pi 0.87.1 默认上游偶发"无有效输出" (瞬时), 依赖 fallback 兜底, 若频发需 pi 侧排查; ③ owner 日后 `pi auth` claude 等上游后, 可在 llm.yaml 写全限定 `provider/model` 名换回指定模型; ④ router tier 对 light 任务 (summary) 仍分流本地 ollama (S4-1 既有策略), 当前 ollama 未起 → 实际落到 pi→sensenova, 行为正确但绕一道; ⑤ 设置页三期重构 (docs/superpowers/plans/2026-09-22-settings-refactor.md, 0/56) 为下一批次, 本批次收口后原样开工。
+
 ## [DEV-0233] 论文抓取能力收口: arXiv 真实拉取验证揪出 sortBy 非法值 + Fastly 限流节拍锁 (paper-collector)
 - **时间**: 2026-09-26
 - **类型**: Bug修复 (真实验证发现的致命缺陷) + 功能收口

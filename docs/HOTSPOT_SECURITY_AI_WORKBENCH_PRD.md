@@ -120,6 +120,8 @@
 | **SK-06** knowledge-review-due | ✅ job | Daily 04:00 Shanghai；case blocker 机制 |
 
 > **2026-09-18 管线 LLM 能力补齐（方案 B，三 gate 默认关）**：pi 成为 ai_hub 第 5 种 provider type（`pi -p --mode json` 子进程，prompt 走 stdin，NDJSON 解析与 agent_bridge 共享 `ai_hub/pi_transport.py`，认证由 pi 自管）；新增三项采集管线能力 — 语义门禁（`info_filter_gate` 规则 neutral 时 LLM verdict-only 判别，gate `semantic_filter`，失败 fail-open 保留）、智能分类增援（`auto_classifier` 纯规则 miss 时 LLM 补 domain，gate `ai_classify`，domain 词表严格校验）、NER 实体抽取（t1 打分成功后实体落 `knowledge_items.entities`，gate `pipeline_ner`，迁移 119）。gate 关闭时行为与现状一致；ai_hub 红线不破（管线 LLM 单出口走 gateway）。Spec: `docs/superpowers/specs/2026-09-18-pipeline-llm-pi-provider-design.md`。
+>
+> **2026-09-27 pi 升主力引擎（owner 裁决"pi 取代原来的 aihub"）**：`llm.yaml` `default_provider: pi` + `fallback_order` pi 带头（ollama/sensenova/qwen/openai 降兜底不删除，pi 失效时无害兜底）；`_call_provider_chat` 补 pi additive 分支（messages 经 `serialize_messages_to_prompt` 序列化单轮 prompt，max_tokens/temperature 为 http 语义不下传）。既有 `_try_order`/`_resolve_provider`/场景重排零触碰（红线纪律同方案 B）；router tier 对 light 任务（如 summary）仍按既有策略分流，不因主力化改变。实弹修正：pi models 留空 = 不下传 `--model` 用 pi 默认上游（裸名 `claude-sonnet-4-5` 在 pi 0.87.1 跨 provider 歧义且无已认证项 → rc=1）。实弹验收：score 首链 `provider=pi ok=1`（14.1s）+ chat 分支 15.5s 真回复 + pi 瞬时失败由 fallback 兜住（usage log 如实记录）。Spec: `docs/superpowers/specs/2026-09-27-pi-primary-engine-design.md`。
 
 ### 2.5 MITRE ATT&CK 标签体系
 

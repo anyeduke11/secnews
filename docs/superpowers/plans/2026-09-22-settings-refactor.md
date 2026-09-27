@@ -1,5 +1,7 @@
 # 设置页结构化重构 · 三期实施计划 (Settings IA Refactor Plan)
 
+> **状态勘误 (2026-09-27 二次立项核查)**: 本计划已**完整交付并合入 main** — merge `116e2ad` (2026-09-23, 分支 settings-refactor), 收口记录 [DEV-0227] (DEV_LOG.md L110), 审计留痕 `docs/audit/PRD_ALIGNMENT_AUDIT_2026-09-23.md`。P1 (17→7 cat + 8 组件删除 + 3 redirect) / P2 (mcp_settings_api + settings_flags_api + settings_service + 89 routers/148 services 同步) / P3 (prefix 契约 + webhook.secret 迁 vault + sync bundle 白名单化) 全部落地, 交付回归 4715 passed / 0 failed。下方勾选 0/56 仅为台账滞后, 以本横幅为准。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 按 [设计稿](../specs/2026-09-22-settings-refactor-design.md) 把 `/settings` 从 17 cat 收敛为 7 cat / 5 组的纯配置心智页面，同步修复 4 个后端病灶并治理 settings 表 namespace。

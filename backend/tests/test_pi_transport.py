@@ -8,7 +8,11 @@ from pydantic import ValidationError
 from backend.config.agent_runner_schema import load_agents_config
 from backend.config.llm_schema import LLMConfig, ProviderConfig, ProviderModels
 from backend.services.ai_hub.gateway import LLMService
-from backend.services.ai_hub.pi_transport import parse_pi_jsonl_events, run_pi_print
+from backend.services.ai_hub.pi_transport import (
+    parse_pi_jsonl_events,
+    run_pi_print,
+    serialize_messages_to_prompt,
+)
 
 
 class TestParsePiJsonlEvents:
@@ -156,9 +160,73 @@ def test_gateway_call_provider_pi_error_propagates(monkeypatch):
         ))
 
 
-def test_gateway_chat_unsupported_pi():
-    """_call_provider_chat 不支持 pi → ValueError → fallback 链跳下一 provider (spec §3.2 明确不做)。"""
-    with pytest.raises(ValueError, match="Unsupported provider type for chat: pi"):
+def test_gateway_chat_unsupported_unknown_type():
+    """未知 type 仍 ValueError → fallback 链跳下一 provider (既有兜底语义)。"""
+    bad = ProviderConfig(type="ollama", models=ProviderModels(), base_url=None)
+    object.__setattr__(bad, "type", "bad_type")
+    with pytest.raises(ValueError, match="Unsupported provider type for chat: bad_type"):
+        asyncio.run(LLMService()._call_provider_chat(
+            bad, "", [{"role": "user", "content": "x"}],
+        ))
+
+
+class TestSerializeMessagesToPrompt:
+    """chat messages → pi 单轮 prompt 序列化 (2026-09-27 pi 主力化)。"""
+
+    def test_single_user_message(self):
+        msgs = [{"role": "user", "content": "你好"}]
+        assert serialize_messages_to_prompt(msgs) == "你好"
+
+    def test_multi_turn_history_then_question(self):
+        msgs = [
+            {"role": "user", "content": "什么是 CVE"},
+            {"role": "assistant", "content": "CVE 是漏洞编号体系"},
+            {"role": "user", "content": "举个例子"},
+        ]
+        out = serialize_messages_to_prompt(msgs)
+        assert "[user] 什么是 CVE" in out
+        assert "[assistant] CVE 是漏洞编号体系" in out
+        assert out.rstrip().endswith("举个例子")
+
+    def test_last_message_not_user_still_accepts(self):
+        """非 user 收尾 (如 tool 结果回填) 也接受, 按最后内容收尾。"""
+        msgs = [{"role": "user", "content": "q"}, {"role": "assistant", "content": "a"}]
+        assert serialize_messages_to_prompt(msgs).rstrip().endswith("a")
+
+    def test_empty_content_tolerated(self):
+        msgs = [{"role": "user", "content": ""}]
+        assert serialize_messages_to_prompt(msgs) == ""
+
+    def test_empty_messages_raises(self):
+        with pytest.raises(ValueError, match="空 messages"):
+            serialize_messages_to_prompt([])
+
+
+def test_gateway_chat_pi_branch(monkeypatch):
+    """chat pi 分支: 序列化 prompt 经 run_pi_print 下传 (2026-09-27 pi 主力化)。"""
+    calls = {}
+
+    def fake_run_pi_print(prompt, model, timeout_seconds):
+        calls.update(prompt=prompt, model=model, timeout_seconds=timeout_seconds)
+        return "pi chat 回答"
+
+    monkeypatch.setattr("backend.services.ai_hub.pi_transport.run_pi_print", fake_run_pi_print)
+    msgs = [{"role": "user", "content": "深度分析这个"}]
+    out = asyncio.run(LLMService()._call_provider_chat(
+        _pi_cfg(), "claude-sonnet-4-5", msgs,
+    ))
+    assert out == "pi chat 回答"
+    assert calls == {"prompt": "深度分析这个", "model": "claude-sonnet-4-5", "timeout_seconds": 15}
+
+
+def test_gateway_chat_pi_error_propagates(monkeypatch):
+    """pi chat 失败必须上抛 — 异常路径记健康窗口后抛给 fallback 循环。"""
+
+    def fake_fail(prompt, model, timeout_seconds):
+        raise RuntimeError("pi exit rc=1: auth expired")
+
+    monkeypatch.setattr("backend.services.ai_hub.pi_transport.run_pi_print", fake_fail)
+    with pytest.raises(RuntimeError, match="auth expired"):
         asyncio.run(LLMService()._call_provider_chat(
             _pi_cfg(), "", [{"role": "user", "content": "x"}],
         ))

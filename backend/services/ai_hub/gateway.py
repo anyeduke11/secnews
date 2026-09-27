@@ -703,6 +703,22 @@ class LLMService:
                 resp.raise_for_status()
                 data = resp.json()
             return data["content"][0]["text"]
+        if cfg.type == "pi":
+            # 2026-09-27 pi 主力化: chat 场景补 pi 通道 — messages 序列化为
+            # 单轮 prompt (pi_transport 纯函数), 子进程执行。max_tokens /
+            # temperature 为 http provider 语义, pi CLI 不下传; 失败上抛
+            # 走 fallback 下一 provider (健康窗口/熔断记账照常)。
+            from backend.services.ai_hub.pi_transport import (
+                run_pi_print,
+                serialize_messages_to_prompt,
+            )
+
+            return await asyncio.to_thread(
+                run_pi_print,
+                serialize_messages_to_prompt(messages),
+                model,
+                cfg.timeout_seconds,
+            )
         raise ValueError(f"Unsupported provider type for chat: {cfg.type}")
 
     async def _call_ollama(

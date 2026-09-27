@@ -76,4 +76,23 @@ def run_pi_print(prompt: str, model: str, timeout_seconds: int = 60) -> str:
     return result
 
 
-__all__ = ["parse_pi_jsonl_events", "run_pi_print"]
+def serialize_messages_to_prompt(messages: list[dict]) -> str:
+    """chat messages → pi 单轮 prompt (历史轮次文本化, 最后一条为当前提问)。
+
+    pi -p 为单发子进程, 无多轮会话语义; 历史以 ``[role]`` 前缀平铺,
+    最后一条消息作为收尾提问。空列表 → ValueError (异常路径交
+    gateway 健康窗口记账)。2026-09-27 pi 主力化 (chat 场景补通道)。
+    """
+    if not messages:
+        raise ValueError("空 messages, 无法序列化为 pi prompt")
+    lines: list[str] = []
+    for m in messages[:-1]:
+        role = str(m.get("role", "user"))
+        content = str(m.get("content", "") or "")
+        if content.strip():
+            lines.append(f"[{role}] {content}")
+    lines.append(str(messages[-1].get("content", "") or ""))
+    return "\n\n".join(lines)
+
+
+__all__ = ["parse_pi_jsonl_events", "run_pi_print", "serialize_messages_to_prompt"]

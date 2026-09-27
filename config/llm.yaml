@@ -46,15 +46,19 @@ providers:
   # 子进程通道 (pi -p --mode json, NDJSON 输出), 认证自管 ~/.pi/agent/auth.json,
   # 无需 base_url / api_key_env。上游 429 时 rc=0 但 stopReason=="error" → 计失败,
   # 由 fallback_order 兜底 (gateway _call_provider pi 分支)。
+  # 2026-09-27 pi 主力化 + 实弹修正: models 留空 = 不下传 --model, 用 pi 默认
+  # 上游。裸模型名 (claude-sonnet-4-5) 在 pi 0.87.1 跨 3 provider 歧义且无已
+  # 认证项 → rc=1; 裸调实测走 sensenova/deepseek-v4-flash (cost 0) 正常。
+  # owner 日后 pi auth 其他上游后, 可在此写全限定名 (如 provider/model)。
   pi:
     type: pi
     models:
-      score: "claude-sonnet-4-5"
-      tag: "claude-sonnet-4-5"
-      ner: "claude-sonnet-4-5"
-      summary: "claude-sonnet-4-5"
-      chunk_summary: "claude-sonnet-4-5"
-    timeout_seconds: 90   # 子进程含模型冷启动, 默认 30s 偏紧
+      score: ""
+      tag: ""
+      ner: ""
+      summary: ""
+      chunk_summary: ""
+    timeout_seconds: 90   # 子进程含冷启动 + pi 默认注入 ~29K 上下文 (实测)
     max_concurrent: 2     # 子进程型 provider, 并发宜低
 
   # v0.6.3 P0-3: 以下两个示例 provider (sensenova_prod / dots_ai) 已删除 —

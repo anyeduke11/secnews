@@ -1,4 +1,22 @@
 
+## [DEV-0238] 拒收日志人话化: 词典兜底+LLM 批量解释双层架构 + 拒收日志页迁设置运维区 (rejection-explain)
+
+- **时间**: 2026-10-01
+- **类型**: 功能开发 (rejection-explain, spec `docs/superpowers/specs/2026-10-01-rejection-explain-design.md`; 计划 `docs/superpowers/plans/2026-10-01-rejection-explain.md` 6 Task 全勾; owner 裁决 "原因转成用户可读的解释，日志放在设置里")
+- **关联模块**: `backend:rejection-explain`, `backend:collect`, `backend:ai-hub-prompts`, `frontend:settings`
+- **背景**: 校对室拒收样本 `quality_rejection_log.reason` 为机器 flag 串 (如 `content_hash_duplicate`), 用户不可读; 且拒收日志属运维数据, 留在 /quality 校对室 (审稿工作台) 语义错位
+- **关联文件**:
+  - T1 (d1bd7e7): `backend/repository/migrations/130_rejection_explain.sql` (`ALTER TABLE quality_rejection_log ADD COLUMN explain TEXT` — 可空, 历史行 NULL 即"待解释")
+  - T2 (aeaed58): `frontend/src/lib/rejectionReasons.ts` + 测试 5 用例 (兜底层: `REJECTION_FLAG_LABELS` 10 flag 全映射中文短语 / `parseRejectionFlags` 兼容 `"['a','b']"` 与 `"flags=['a']"` 两历史形态 / `flagLabel` 未知 flag 原样返回不炸)
+  - T3 (e4dc5e0): `backend/services/rejection_explain_service.py` (`run_rejection_explain(batch_limit=200)`: SELECT explain IS NULL 按 id DESC 取批 → 单次 `generate(task="rejection_explain")` → UPDATE ... WHERE id=? AND explain IS NULL 幂等回填, 截 200 字; 空积压零 LLM 调用; LLM 失败/解析垃圾保持 NULL 返回 0 下轮重试) + `ai_hub/prompts.py` (+`_REJECTION_EXPLAIN_PROMPT`/`build_rejection_explain_prompt`: 输入 id/title≤100/flags, 要求 ≤60 字中文 JSON 数组) + 测试 9 用例 (服务 7 + tick 2)
+  - T4 (a2a957c): `backend/scheduler/jobs/collect.py` post-ingest 尾部 `+await _rejection_explain_tick()` (第 3 个同款异常隔离 tick, 排 _pick_score_tick 后 — news_alert/pick_score/rejection_explain 三 tick 链成形)
+  - T5 (fd22877): `frontend/src/components/settings/RejectionLogCard.tsx` + 测试 (reason 列双层渲染: explain 非空首行 --text-primary + 词典 flag 小字恒显 --text-muted; LayerTable 实际签名 header/data/rowKey **与计划不符按实际适配** + 卡内简单翻页按钮) + `SettingsPage.tsx` ops 区 DshControlCard 后装配 (运维第 4 卡) + `QualityDashboardPage.tsx` TABS 收缩单「校对总览」+ `routes/index.tsx` `/quality/rejection` → `<Navigate to="/settings?cat=ops" replace />`; **删除**: `QualityRejectionPage.tsx` (263 行) + `QueryMergeRedirect` 组件定义 (零消费者); 计划外必要补齐 4 处: nav4_shell 守卫断言同步 / lazy-imports 清理 / 子标签测试用例 / st-raildesc 类名 (st-section-desc 在 st-card 下不生效)
+  - T6 (本条): 数字同步 152→153 services (ARCHITECTURE/AGENTS×2/CLAUDE/services AGENTS/scripts AGENTS 五处) + PRD §2.4 注记 + 本条
+- **实现思路**: 双层架构 — 词典层 (前端纯函数, 零 LLM 恒可用, 10 flag 全覆盖) 兜底 + LLM 层 (批量回填 explain, 结合标题语境给"为什么拒"的人话因果) 增强; LLM 层按 post-ingest tick 增量消化 (IS NULL 幂等 + LIMIT 200/轮 + 失败保持 NULL), 不做一次性全量回填 (避免长事务与一次性大 LLM 调用); 迁移仅加列零重建
+- **实弹验证 (真通道非 mock)**: `run_rejection_explain(batch_limit=50)` 两批各 `{'explained': 50}`, 人话质量良好 (如「该条目与已收录内容重复，分类不符，且标题与摘要信息对不上」— SecWiki 重复条目); 剩余 NULL 5959 行由后续 tick 每轮 200 自然消化 (~30 轮收敛, 非问题); generate_meta --check OK (57/14/90/153)
+- **测试验证**: 定向 test_rejection_explain_service 9 passed (空积压零调用/幂等/失败保 NULL/截断/解析容错); 后端全量 `pytest backend/tests/ --tb=short -q` **4985 passed / 9 skipped / 1 failed** (唯一失败 = test_check_temp_db_sizes, DEV-0233 已记录 pre-existing); 前端 `tsc --noEmit` 0 错 / `vitest run` **662 passed** (91 files, 较 DEV-0237 +7: 词典 5 + 设置卡 2)
+- **潜在风险 (parked)**: ① explain 回填依赖 pi 可用性 — 失败仅延迟不丢失 (NULL 即待办, 词典层恒可读); ② `WHERE explain IS NULL` 无索引走全表扫, 当前量级 (~6000 行) 可忽略, 若未来量级大可加 partial index `WHERE explain IS NULL`; ③ LayerTable 无分页 props, RejectionLogCard 卡内自实现翻页, 若组件库后续升级需同步; ④ reason 历史两形态 (裸列表串 / flags= 前缀) 解析已兼容, 若出现第三形态 flagLabel 原样透出不炸
+
 ## [DEV-0237] 精选功能落地: pick_score 多信号合成 + Top-N 落列 + 精选/深读/全量视图 — 四模式重定义 P2 收官 (four-modes P2)
 
 - **时间**: 2026-09-27

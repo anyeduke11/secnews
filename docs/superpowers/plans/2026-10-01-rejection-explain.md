@@ -24,7 +24,7 @@
 **Files:**
 - Create: `backend/repository/migrations/130_rejection_explain.sql`
 
-- [ ] **Step 1: 写迁移 SQL**
+- [x] **Step 1: 写迁移 SQL**
 
 ```sql
 -- 130_rejection_explain.sql
@@ -33,7 +33,7 @@
 ALTER TABLE quality_rejection_log ADD COLUMN explain TEXT;
 ```
 
-- [ ] **Step 2: 验证列存在**
+- [x] **Step 2: 验证列存在**
 
 Run: `.venv/bin/python3 -c "
 from backend.repository.db import close_db, init_db
@@ -45,7 +45,7 @@ print('OK:', cols)
 "`
 Expected: `OK: [... 'explain']`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/repository/migrations/130_rejection_explain.sql
@@ -60,7 +60,7 @@ git commit -m "feat(rejection): 迁移 130 — quality_rejection_log.explain 列
 - Create: `frontend/src/lib/rejectionReasons.ts`
 - Test: `frontend/src/lib/rejectionReasons.test.ts`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```ts
 /**
@@ -109,12 +109,12 @@ describe('rejectionReasons — 拒收词典', () => {
 });
 ```
 
-- [ ] **Step 2: 跑确认失败**
+- [x] **Step 2: 跑确认失败**
 
 Run: `cd frontend && npx vitest run src/lib/rejectionReasons.test.ts`
 Expected: FAIL — 模块不存在
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```ts
 /**
@@ -154,12 +154,12 @@ export function flagLabel(flag: string): string {
 }
 ```
 
-- [ ] **Step 4: 跑确认通过**
+- [x] **Step 4: 跑确认通过**
 
 Run: `cd frontend && npx vitest run src/lib/rejectionReasons.test.ts`
 Expected: 5 PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/src/lib/rejectionReasons.ts frontend/src/lib/rejectionReasons.test.ts
@@ -175,7 +175,7 @@ git commit -m "feat(rejection): 拒收 flag 词典映射 + reason 解析 (兜底
 - Create: `backend/services/rejection_explain_service.py`
 - Test: `backend/tests/test_rejection_explain_service.py`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 """rejection_explain_service — 拒收日志 LLM 批量解释 (spec §4)。
@@ -282,12 +282,12 @@ class TestRunRejectionExplain:
         assert "60" in prompt  # 字数上限要求
 ```
 
-- [ ] **Step 2: 跑确认失败**
+- [x] **Step 2: 跑确认失败**
 
 Run: `.venv/bin/python3 -m pytest backend/tests/test_rejection_explain_service.py -v`
 Expected: FAIL — ModuleNotFoundError
 
-- [ ] **Step 3: prompt 模板**
+- [x] **Step 3: prompt 模板**
 
 `backend/services/ai_hub/prompts.py` 模块级追加（风格对齐既有 `build_news_alert_review_prompt`）:
 
@@ -323,7 +323,7 @@ def build_rejection_explain_prompt(items: list[dict]) -> str:
 
 `__all__` 追加 `"build_rejection_explain_prompt"`。
 
-- [ ] **Step 4: 实现服务**
+- [x] **Step 4: 实现服务**
 
 ```python
 """拒收日志 LLM 批量解释服务 (2026-10-01 spec §4)。
@@ -402,12 +402,12 @@ def _call_and_parse(items: list[dict[str, Any]]) -> list[Any] | None:
 __all__ = ["run_rejection_explain"]
 ```
 
-- [ ] **Step 5: 跑确认通过**
+- [x] **Step 5: 跑确认通过**
 
 Run: `.venv/bin/python3 -m pytest backend/tests/test_rejection_explain_service.py -v`
 Expected: 7 PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/services/ai_hub/prompts.py backend/services/rejection_explain_service.py backend/tests/test_rejection_explain_service.py
@@ -422,7 +422,7 @@ git commit -m "feat(rejection): LLM 批量解释服务 — 单次调用回填 ex
 - Modify: `backend/scheduler/jobs/collect.py`（`_pick_score_tick()` 调用行后追加 + 文件尾部实现）
 - Test: `backend/tests/test_rejection_explain_service.py`（追加 tick 用例）
 
-- [ ] **Step 1: 追加失败测试**
+- [x] **Step 1: 追加失败测试**
 
 ```python
 # 追加到 backend/tests/test_rejection_explain_service.py
@@ -456,12 +456,12 @@ class TestExplainTick:
         assert called["n"] == 1
 ```
 
-- [ ] **Step 2: 跑确认失败**
+- [x] **Step 2: 跑确认失败**
 
 Run: `.venv/bin/python3 -m pytest backend/tests/test_rejection_explain_service.py -k tick -v`
 Expected: FAIL — ImportError
 
-- [ ] **Step 3: 实现挂点**
+- [x] **Step 3: 实现挂点**
 
 `collect.py` — `await _pick_score_tick()` 行后追加:
 
@@ -487,12 +487,12 @@ async def _rejection_explain_tick() -> None:
         _logger.error(f"_rejection_explain_tick crashed: {e}")
 ```
 
-- [ ] **Step 4: 跑确认通过 + 域回归**
+- [x] **Step 4: 跑确认通过 + 域回归**
 
 Run: `.venv/bin/python3 -m pytest backend/tests/test_rejection_explain_service.py backend/tests/test_news_alert_tick.py backend/tests/test_pick_service.py -q`
 Expected: 全 PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/scheduler/jobs/collect.py backend/tests/test_rejection_explain_service.py
@@ -513,7 +513,7 @@ git commit -m "feat(rejection): 采集尾部 _rejection_explain_tick 挂点 (第
 - Delete: `frontend/src/components/QualityRejectionPage.tsx`
 - Modify: `frontend/src/routes/ROUTE_REGISTRY.md`（同步行）
 
-- [ ] **Step 1: 写失败测试（RejectionLogCard）**
+- [x] **Step 1: 写失败测试（RejectionLogCard）**
 
 ```tsx
 /**
@@ -577,12 +577,12 @@ describe('RejectionLogCard — 拒收日志卡', () => {
 });
 ```
 
-- [ ] **Step 2: 跑确认失败**
+- [x] **Step 2: 跑确认失败**
 
 Run: `cd frontend && npx vitest run src/components/settings/RejectionLogCard.test.tsx`
 Expected: FAIL — 模块不存在
 
-- [ ] **Step 3: 实现 RejectionLogCard**
+- [x] **Step 3: 实现 RejectionLogCard**
 
 ```tsx
 /**
@@ -693,12 +693,12 @@ export function RejectionLogCard() {
 
 （注: `LayerTable` 的 props 以 `frontend/src/components/layout/LayerTable.tsx` 实际签名为准 — 实施时先读该文件, 若 props 名不同 (如 `onPage`) 以实际为准调整, **双层解释的渲染结构不变**。）
 
-- [ ] **Step 4: 跑确认通过**
+- [x] **Step 4: 跑确认通过**
 
 Run: `cd frontend && npx vitest run src/components/settings/RejectionLogCard.test.tsx`
 Expected: 3 PASS
 
-- [ ] **Step 5: SettingsPage 装配**
+- [x] **Step 5: SettingsPage 装配**
 
 `SettingsPage.tsx` `case 'ops'` 块内 `DshControlCard` 后追加:
 
@@ -708,7 +708,7 @@ Expected: 3 PASS
 
 import 区追加 `import { RejectionLogCard } from './RejectionLogCard';`。
 
-- [ ] **Step 6: /quality 收缩 + redirect + 删除**
+- [x] **Step 6: /quality 收缩 + redirect + 删除**
 
 (a) `QualityDashboardPage.tsx`:
 - `TABS` 删 `{ key: 'rejection', label: '拒绝样本' }` → 只剩 `[{ key: 'overview', label: '校对总览' }]`
@@ -730,12 +730,12 @@ import 区追加 `import { RejectionLogCard } from './RejectionLogCard';`。
 
 (e) `ROUTE_REGISTRY.md`: `/quality/rejection` 行的 redirect 目标同步为 `/settings?cat=ops`。
 
-- [ ] **Step 7: 全量前端回归**
+- [x] **Step 7: 全量前端回归**
 
 Run: `cd frontend && npx tsc --noEmit && npx vitest run`
 Expected: 0 错 / 0 失败（nav4_shell 守卫全绿 — 无路由删除仅 redirect 变更）
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add frontend/src/components/settings/RejectionLogCard.tsx frontend/src/components/settings/RejectionLogCard.test.tsx frontend/src/components/settings/SettingsPage.tsx frontend/src/components/quality/QualityDashboardPage.tsx frontend/src/components/quality/QualityDashboardPage.test.tsx frontend/src/routes/index.tsx frontend/src/routes/ROUTE_REGISTRY.md
@@ -747,17 +747,17 @@ git commit -m "feat(rejection): 拒收日志迁设置运维区 — 双层解释�
 
 ### Task 6: 收口 — 全量回归 + 实弹 + 文档同步
 
-- [ ] **Step 1: 后端全量**
+- [x] **Step 1: 后端全量**
 
 Run: `.venv/bin/python3 -m pytest backend/tests/ --tb=short -q`
 Expected: 0 failed（唯一允许: test_check_temp_db_sizes 既有环境性失败）
 
-- [ ] **Step 2: generate_meta 数字同步**
+- [x] **Step 2: generate_meta 数字同步**
 
 Run: `.venv/bin/python3 scripts/generate_meta.py --check`
 Expected: services 152→153 MISMATCH → 跑 `generate_meta.py` + 手改五处文档（ARCHITECTURE.md 三处 / AGENTS.md / CLAUDE.md 两处 / backend/services/AGENTS.md / scripts/AGENTS.md 的 `152 services` → `153 services`）→ 复检 OK
 
-- [ ] **Step 3: 实弹验证**
+- [x] **Step 3: 实弹验证**
 
 ```bash
 .venv/bin/python3 -c "
@@ -768,7 +768,7 @@ print(run_rejection_explain(batch_limit=50))
 
 Expected: `{'explained': N>0}`（生产库积压首批 50 行）; 二次调用返回递减（IS NULL 过滤幂等）。抽查 DB `SELECT item_title, explain FROM quality_rejection_log WHERE explain IS NOT NULL LIMIT 3` 人话质量。
 
-- [ ] **Step 4: DEV_LOG [DEV-0238] + PRD + Commit**
+- [x] **Step 4: DEV_LOG [DEV-0238] + PRD + Commit**
 
 DEV_LOG 按 DEV-0237 格式（关联 spec + 本计划 + 改动清单 + 实弹证据）; PRD §2.4 追加一句（拒收日志迁设置 + 人话解释双层）:
 

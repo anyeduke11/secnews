@@ -148,7 +148,12 @@ def parse_frontmatter(md_path: Path) -> dict | None:
             else:
                 # Try to coerce numeric scalars so downstream isinstance
                 # checks (int/float) work — e.g. mastery: 50 → int 50.
-                value = _coerce_scalar(value)
+                # id/slug 豁免: 纯数字 id 经 int()/float() 强转会扭曲
+                # (前导零丢失 00617→617 / 科学计数法溢出为 inf), 且上方
+                # strip('"') 先于强转、加引号也无法保全 — id/slug 是文件名
+                # 与主键契约, 必须永远保持字符串.
+                if key not in ("id", "slug"):
+                    value = _coerce_scalar(value)
             current_key = key
             if value != "":
                 fm[key] = value

@@ -1,4 +1,16 @@
 
+## [DEV-0240] wiki 投影 full_rebuild 兑现 + 纯数字 id YAML 强转扭曲根治 — warm 断层 95→4329 对齐 (wiki-full-rebuild)
+
+- **时间**: 2026-10-01
+- **类型**: Bug修复 + 数据修复 (知识体系批判性审查后续 — 审查发现 warm.knowledge_items 仅 95 行/4329 md (2.2%), 投影断层使 chunk/分类/概念/检索/SOUL 全部运行在 2.2% 世界)
+- **关联模块**: `backend:knowledge-sync`, `backend:chunk-service`, `llm-wiki-2.0`
+- **问题描述**: warm.db 2026-09-18 遗失后自愈出 95 行投影, 而 wiki-first 契约"md 真源、投影可全量重建"的 `full_sync_items_to_db()` 全仓仅 Cubox 导入一个调用方 — "可重建"从未兑现为"会重建"。手动跑首轮 rebuild 发现 4329→4299 差 30 行, 根因: `knowledge_sync.parse_frontmatter` 的 `_coerce_scalar` 对 `id` 也做 int()/float() 强转 — `id: 006170206605` 被转成 `6170206605` (前导零永久丢失)、`id: 03336e668704` 被按科学计数法解析; 且 L135 先 strip 引号再强转, **加引号也保不住**。扭曲 id 行与 md 文件失联 → chunk 生成永远 no_md_file、孤儿清理无法对账
+- **关联文件**: `backend/services/knowledge_sync.py` (parse_frontmatter: `id`/`slug` 两键豁免 `_coerce_scalar` — id/slug 是文件名与 DB 主键契约, 必须永远字符串; 其余字段 mastery 等照常强转) + `backend/tests/test_knowledge_truth_source.py` (+`TestNumericIdPreservedAsString` 4 用例: 前导零/科学计数法/带引号/其他字段仍强转)
+- **数据修复 (手动兑现契约, 未做 job 化)**: 备份 warm.db → `full_sync_items_to_db()`×2 + `full_sync_concepts_to_db()` → **items 4329=md 4329 双向差集 0/0** (lifecycle 4327 publish + 2 deduped 与 md 一致; 30 条幽灵强转行被孤儿清理自动清除), concepts 165=md 165; chunk 回填 4235 项 → +1943 chunks (总 2058 行/1823 items, FTS unicode61/cjk 双表 2058=2058 精确同步), 2505 项 too_short 跳过 (30 天归档空壳正文, 符合设计 — 坐实审查结论"归档冒充知识"), 1 项 no_md_file (`knowledge_VWUALY...md` 文件名带前缀的历史怪例); `update_map()` + soul regenerate → _MAP 4329/165、API funnel 全量口径; 中文 trigram 检索「勒索软件」端到端命中
+- **实现思路**: 豁免仅限 id/slug 两键 — 最小收紧, 所有 parse_frontmatter 消费方 (history_import/cubox/bookmark/federation/digest) 均把 id 当字符串用 (TEXT 主键体系), 无依赖强转行为
+- **测试验证**: test_knowledge_truth_source 15 passed (+4 新回归); 定向 313 passed (knowledge/wiki/history_import/cubox/bookmark/federation/kl_pipeline 全族, 0 失败)
+- **潜在风险 (parked)**: ① rebuild 仍是手动一次性操作 — 审查建议的"job/CLI 化 + 失同步自愈"未做, warm 再丢仍会断层 (备份在 /tmp/hotspot-warm.db.bak-190226, 重启后宜转持久位置); ② 2505 归档空壳无 chunk, 若未来 chunk 检索要覆盖归档需改归档模板写正文摘要; ③ `knowledge_VWUALY...md` 怪例未改名 (改名需同步 DB 行, 择机处理)
+
 ## [DEV-0239] 告警列表恒空根治: v1 路由 /api/alerts/{id} 抢先捕获 /api/alerts/v2 — 注册序对调 + 测试绕过翻转 (alert-route-order)
 
 - **时间**: 2026-10-01

@@ -122,6 +122,49 @@ class TestFullSyncOrphanCleanup:
         assert knowledge_repo.get_concept("c-orphan") is None
 
 
+class TestNumericIdPreservedAsString:
+    """回归: 纯数字 id 不得被数值强转 (2026-10-01 full_rebuild 实测 30/4329 行扭曲)。
+
+    WHY: id 是文件名与 DB 主键的契约 — `id: 006170206605` 被 int() 强转成
+    6170206605 (前导零丢失)、`id: 03336e668704` 被 float() 解析成科学计数法,
+    投影行与 md 文件失联 → chunk 生成永远 no_md_file、孤儿清理无法对账。
+    引号救不了: parse_frontmatter 先 strip 引号再强转。
+    """
+
+    def test_leading_zero_id_not_int_coerced(self, temp_env):
+        (temp_env["items"] / "006170206605.md").write_text(
+            '---\nid: 006170206605\ntitle: "Zero"\n---\n\nbody\n', encoding="utf-8"
+        )
+        assert full_sync_items_to_db() == 1
+        row = knowledge_repo.get_item("006170206605")
+        assert row is not None, "前导零 id 必须以原字符串入库"
+        assert knowledge_repo.get_item("6170206605") is None, "不得出现强转后的幽灵 id 行"
+
+    def test_scientific_notation_id_not_float_coerced(self, temp_env):
+        (temp_env["items"] / "03336e668704.md").write_text(
+            '---\nid: 03336e668704\ntitle: "Sci"\n---\n\nbody\n', encoding="utf-8"
+        )
+        assert full_sync_items_to_db() == 1
+        assert knowledge_repo.get_item("03336e668704") is not None
+
+    def test_quoted_numeric_id_also_preserved(self, temp_env):
+        (temp_env["items"] / "q1.md").write_text(
+            '---\nid: "00123"\ntitle: "Quoted"\n---\n\nbody\n', encoding="utf-8"
+        )
+        assert full_sync_items_to_db() == 1
+        assert knowledge_repo.get_item("00123") is not None
+        assert knowledge_repo.get_item("123") is None
+
+    def test_other_fields_still_coerced(self, temp_env):
+        """豁免仅限 id/slug — mastery 等数值字段照常强转。"""
+        (temp_env["items"] / "m1.md").write_text(
+            '---\nid: m1\nmastery: 50\n---\n\nbody\n', encoding="utf-8"
+        )
+        full_sync_items_to_db()
+        fm = knowledge_sync.parse_frontmatter(temp_env["items"] / "m1.md")
+        assert fm["mastery"] == 50 and isinstance(fm["mastery"], int)
+
+
 class TestTransitionMdFirst:
     def test_md_write_failure_aborts_transition(self, temp_env, monkeypatch):
         """P0.4: transition 只更新 DB, 不回写 md — md 写失败不影响 transition。

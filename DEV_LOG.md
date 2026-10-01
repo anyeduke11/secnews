@@ -1,4 +1,20 @@
 
+## [DEV-0237] 精选功能落地: pick_score 多信号合成 + Top-N 落列 + 精选/深读/全量视图 — 四模式重定义 P2 收官 (four-modes P2)
+
+- **时间**: 2026-09-27
+- **类型**: 功能开发 (four-modes-redefine P2, spec `docs/superpowers/specs/2026-09-27-four-modes-redefine-design.md` §3; 计划 `docs/superpowers/plans/2026-09-27-picked-feed-p2.md` 5 Task 全勾)
+- **关联模块**: `backend:pick`, `backend:hotspots-api`, `frontend:sentinel`
+- **关联文件**:
+  - T1 (60da827): `backend/repository/migrations/129_hotspot_pick_score.sql` (`ALTER TABLE hotspots ADD COLUMN pick_score REAL` 可空 — 未评估旧行 NULL, 视图 COALESCE 兜底)
+  - T2 (cefe39b): `backend/services/pick_service.py` (compute_pick_score 纯函数: quality_score + (interest_boost-1)×25 ∈[-5,+7.5] + 收藏源 ≥2 篇 +10 + 时效衰减 ≤24h 满权/24~168h 线性降至 0.6; refresh_pick_scores: 窗口 40min/首轮可 7d → Top-N 落列其余置 NULL; N=settings `quality.pick_top_n` 默认 30) + 测试 6 用例
+  - T3 (2fa9997): `hotspot_repo.py` +`list_picked_since` (pick_score DESC, NULL 不返回, 受 _MAX_LIMIT 钳制可接受 30<<200) + `collect.py` post-ingest 尾部 `+await _pick_score_tick()` (与 _news_alert_tick 同款异常隔离) + 测试 3+2 用例
+  - T4 (7e69ce3): `backend/api/hotspots.py` `GET /picked` (**注册序在 /{item_id} 之前** — 否则 "picked" 被吞成 item_id 404, 专门测试锁定) + `hotspot_service.list_picked` 薄包装 (api 层禁 import repository 硬规则) + 前端 `getPickedItems` + SentinelHomePage 精选视图 (pick_score DESC + .pick-badge 徽章, 空态诚实) + 深度视图 (summary≥200 或标题分析类词表过滤 + 空态) + `.pick-badge` CSS + 测试 +5 用例 (含路由序契约锁定)
+  - T5 (本条): 数字同步 151→152 services (六处文档) + PRD §2.4 四模式注记
+- **实现思路**: pick_score 纯规则合成 (spec §3.1 的 boost×10 修正为 (boost-1)×25 — interest_engine boost_map 实测 ∈[0.79,1.30], ×25 使关注域加权落在 [-5,+7.5] 合理区间); quality_score 基线用 COALESCE(quality_score, score, 60) 兜底; 收藏源聚合走 favorites JOIN 内存计算 (当前 9 条量小, 不加 repo 方法); Top-N 未入选行置 NULL = "本轮精选视图不显示", 无需布尔标记
+- **实弹验证**: 7d 回看 `refresh_pick_scores(lookback_hours=168, top_n=30)` → `{'evaluated': 1000, 'picked': 30}`; 重启后端后 `GET /api/hotspots/picked?days=7&limit=3` 返回 3 条按 pick_score DESC (榜首 pick_score=110 = quality 100 + boost 加成, AGI Hunt 收藏源); generate_meta --check OK (57/14/90/152)
+- **测试验证**: 定向 test_pick_service 7 passed / test_news_alert_tick 5 passed (含 pick_tick 2) / test_hotspots_api 14 passed (含 /picked 2 新用例: 排序+NULL 排除+钳制 / 参数 422) / api_layer_guard 2 passed (行数门); 后端全量 `pytest backend/tests/ --tb=short -q` **4962 passed / 9 skipped / 1 failed** (唯一失败 = test_check_temp_db_sizes, DEV-0233 已记录 pre-existing); 前端 `tsc --noEmit` 0 错 / `vitest run` **655 passed** (SentinelHomePage 既有 20 用例零回归 + 新增 5)
+- **潜在风险 (parked)**: ① 收藏源信号冷启动弱 (当前仅 FreeBuf 满足 ≥2), 随使用自然增强; ② pick_score 未参与 SSE 推送 (非时效敏感, 轮询粒度足够, spec 裁剪项已录); ③ /picked 端点与 /{item_id} 的路由序契约由测试锁定, 后续在 hotspots.py 加新静态段路由时须保持在 /{item_id} 之前; ④ 四模式重定义收官 — P1 告警 (DEV-0236) + P2 精选 (本条) 已全部落地, spec §4 全覆盖
+
 ## [DEV-0236] 资讯告警落地: 首页"告警"从假告警升级为 4 规则+pi 复核的真告警列表 — 词表筛+fail-open+采集尾部挂点 (four-modes P1)
 
 - **时间**: 2026-09-27

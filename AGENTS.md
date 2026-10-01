@@ -13,7 +13,7 @@
 
 ## 架构数字门禁
 
-架构数字由 `scripts/generate_meta.py` AST 反推维护 (57 jobs / 14 collectors / 90 routers / 151 services)。改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
+架构数字由 `scripts/generate_meta.py` AST 反推维护 (57 jobs / 14 collectors / 90 routers / 152 services)。改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py` (CI 有 `--check`)。
 
 ## 单一权威 PRD 维护纪律
 

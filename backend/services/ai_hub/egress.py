@@ -20,11 +20,20 @@ import os
 from urllib.parse import urlsplit
 
 # 已知合法 provider 主机。新增 provider 必须在这里显式登记。
+# DEV-0244: 模型池内置平台目录 (ai_hub/pool.py) 同步登记 — 探测与未来
+# 路由化接入共用此白名单。
 TRUSTED_LLM_HOSTS: frozenset[str] = frozenset({
-    "token.sensenova.cn",   # sensenova (config/llm.yaml)
+    "token.sensenova.cn",   # sensenova (config/llm.yaml + pool preset)
     "api.openai.com",       # openai
     "dashscope.aliyuncs.com",  # qwen (compatible-mode)
     "api.anthropic.com",    # anthropic (gateway 内硬编码)
+    "api.deepseek.com",     # pool preset: deepseek
+    "api.moonshot.cn",      # pool preset: moonshot Kimi
+    "open.bigmodel.cn",     # pool preset: zhipu GLM
+    "ark.cn-beijing.volces.com",  # pool preset: doubao 方舟
+    "api.minimax.chat",     # pool preset: minimax
+    "api.siliconflow.cn",   # pool preset: siliconflow
+    "api.hunyuan.cloud.tencent.com",  # pool preset: hunyuan
 })
 
 _ENV_EXTRA = "HOTSPOT_LLM_ALLOWED_HOSTS"

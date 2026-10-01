@@ -1,4 +1,16 @@
 
+## [DEV-0244] 模型池重构: pi 归位 Agent 通道 + 内置国产主流平台目录 (提供 key 即自动识别可用模型) (llm-model-pool)
+
+- **时间**: 2026-10-01
+- **类型**: 功能开发 (owner 裁决: "pi 是 Agent 不是模型, 模型池按国内主流平台接口信息内置, 用户提供 key 即可, 自动识别有哪些模型可用"; 触发点 = 设置页 "pi [?]" 红芯)
+- **关联模块**: `backend:ai-hub-pool`, `backend:llm-pool-api`, `backend:egress`, `frontend:models-settings`
+- **伴随修复 (LlmPoolCard 半残)**: 原 ModelsSettings.LlmPoolCard 读 `/api/llm/status` providers 的 `p.status`/`p.model`, 但后端发的是 `model_score/model_summary/configured` — 字段名永不相等 → 所有 provider 渲染 `name [?]` bad 芯 (含 pi)。该卡整体删除, 由 ModelPoolPanel 取代
+- **关联文件**: `backend/services/ai_hub/pool.py` (新增: `PLATFORM_PRESETS` 9 平台 — sensenova/deepseek/qwen/moonshot/zhipu/doubao/minimax/siliconflow/hunyuan, 全 OpenAI 兼容网关含 base_url+key_env+别名; `resolve_preset_key` env 主名→别名→保险箱 llm_secrets(provider=平台名) 与 AIService 同链; `probe_platform` GET /models 6s 超时, available 三态 True/None(平台无列表接口)/False(401/403); `pool_snapshot`; **pi 在 AGENT_CHANNELS 单列, 永不入 platforms**) + `egress.py` (TRUSTED_LLM_HOSTS +7 host — 附凭据出站门禁同链) + `backend/api/llm_pool_api.py` (GET /api/llm/pool[?probe=1&only=] + POST /api/llm/pool/detect; 密钥只经 POST /api/secrets 单通道, 本路由不收 key) + `_registry.py` (90→91 routers) + `frontend/.../ModelPoolPanel.tsx` (内置平台网格: 状态 chip 未配置/已配置·未知/可用 N 款/密钥无效, key 输入+保存并检测, 探测展示前 3 款模型样例; agent_channels 单列) + `ModelsSettings.tsx` (LlmPoolCard 删除) / 测试: `test_llm_pool.py` 12 用例 (presets 与 egress 白名单一致性绊线 / pi 不入池 / env 别名链 / secrets 兜底 / mock httpx 四态 / no_key 零出站) + `ModelPoolPanel.test.tsx` 2 + `ModelsSettings.test.tsx` 重写 2
+- **实现思路**: 池与路由分权 — pool.py 管"有哪些平台/key/可用模型", llm.yaml 管"哪个任务路由到哪个 provider/model" (yaml 不因目录扩大而膨胀); 平台接入流程 = 池内贴 key → 探测确认 → 需参与路由时再在 llm.yaml 加条目。探测附带凭据前过 check_credential_egress (C3), 新平台 host 在 egress.py 显式登记 (防 SSRF 凭据外泄门禁不因内置目录而绕过)
+- **实弹验证**: `GET /api/llm/pool` 9 平台+pi 单列零出站; `POST /api/llm/pool/detect {sensenova}` 真出站 **available=True, 9 款模型, 194ms** (env key); 浏览器 /settings?cat=models → 9 平台网格+pi Agent 单列+8 个未配置平台带 key 输入 → 「重新探测」后 sensenova 芯片变「可用 9 款模型」其余诚实「未配置」
+- **测试验证**: test_llm_pool 12 passed; settings 前端全族 51 passed; tsc 0 错 / build exit 0; generate_meta routers 90→91 经 `--fix` 一次写平 5 处文档 (DEV-0242 能力首次实战) + --check exit 0
+- **潜在风险 (parked)**: ① 探测只覆盖 OpenAI 兼容 /models — zhipu v4/ark v3 部分网关无此接口时回退「已配置·未知」(key 有效性不造假); ② 保险箱锁定时保存密钥会失败 (POST /api/secrets 需 master_key) — 面板仅提示去密钥管理解锁, 未内嵌主密钥输入 (避免双通道); ③ 内置平台与 llm.yaml providers 是两套语义 (池=目录, yaml=路由), 同名平台 (sensenova/qwen) key 同源 (env/保险箱) 但路由仍以 yaml 为准 — 未来 owner 若要"探测到的模型一键进路由"需再加 yaml 写回机制; ④ pi 的可用性 (auth.json/子进程探活) 未在本面板展示, 维持系统诊断口径
+
 ## [DEV-0243] LLM 检测假开关清退: quality.llm_enabled 无消费方 + GET 不回显致"每次重置"错觉 — 真实状态化 gate_detect_available (llm-detect-truthful)
 
 - **时间**: 2026-10-01

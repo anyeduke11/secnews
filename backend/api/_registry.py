@@ -182,6 +182,9 @@ def register_all(app: FastAPI) -> None:
     # Phase 16: Hybrid AI — LLM 状态 API
     from backend.api import llm_status
     app.include_router(llm_status.router, tags=["llm"])
+    # DEV-0244: LLM 模型池 (内置平台目录 + /models 探测; pi Agent 单列不在此)
+    from backend.api import llm_pool_api
+    app.include_router(llm_pool_api.router, tags=["llm-pool"])
     # v0.7.4-image: 图片生成 + 图理解 (复用 Batch ⑥ 凭据链, sensenova u1.5-lite)
     from backend.api import image
     app.include_router(image.router, tags=["image"])

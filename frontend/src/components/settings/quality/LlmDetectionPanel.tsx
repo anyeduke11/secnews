@@ -1,106 +1,97 @@
 /**
- * quality/LlmDetectionPanel — LLM AI 内容检测 (v4.4 + Batch ⑥ legacy 清退)
+ * quality/LlmDetectionPanel — LLM AI 内容检测 (DEV-0243 真实状态化)
  *
- * 数据源: GET /api/quality/rules → quality.llm_enabled / quality.llm_provider
- * 写入: PUT /api/quality/rules
+ * 历史: 此前面板有 quality.llm_enabled 假开关 (PUT /api/quality/rules 可写),
+ * 但 v4.4 起门禁统一走 AIService (pipeline.build_context 不再读 settings),
+ * 该键无任何消费方 — 且 GET /api/quality/rules 的 RULE_METADATA 不含此键,
+ * 保存后刷新即回显 false, 造成"每次都重置"的错觉。
  *
- * Batch ⑥ 改动: 不再写 'quality.llm_api_key' (legacy 清退);
- *                密钥改走 SecretsPanel 加密保险箱。
- *
- * 设计: st-rule 布局 + st-switch + 状态 chip; 主密钥路径已禁用, 提示跳 SecretsPanel
+ * 现状: 开关 = ai_service.available() (商汤 key 就绪或 ollama 在线),
+ * 经 GET /api/llm/status 的 gate_detect_available 暴露。
+ * 一次配置长期有效 = 密钥配进加密保险箱 (SecretsPanel) 或本地 ollama 常驻,
+ * 无需任何面板开关。
  */
-import { useState, useCallback } from 'react';
-import { apiFetch } from '../../../lib/api';
+import { useState } from 'react';
 
-export interface LlmDetectionPanelProps {
-  initialEnabled: boolean;
-  initialProvider: string;
-  providerOptions: string[];
+export interface LlmDetectionStatus {
+  gate_detect_available: boolean;
+  effective_provider: string | null;
+  key_source: string;
 }
 
-export function LlmDetectionPanel({
-  initialEnabled,
-  initialProvider,
-  providerOptions,
-}: LlmDetectionPanelProps) {
-  const [enabled, setEnabled] = useState(initialEnabled);
-  const [provider, setProvider] = useState(initialProvider);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
+export interface LlmDetectionPanelProps {
+  status: LlmDetectionStatus | null;
+  loading: boolean;
+}
 
-  const save = useCallback(async () => {
-    setSaving(true);
-    setMsg(null);
-    try {
-      const rules = {
-        'quality.llm_enabled': enabled,
-        'quality.llm_provider': provider,
-      };
-      const d = await apiFetch<{ status?: string; message?: string }>('/api/quality/rules', {
-        method: 'PUT',
-        body: JSON.stringify({ rules }),
-      });
-      if (d.status === 'ok') {
-        setMsg({ type: 'ok', text: 'LLM 检测配置已保存 (密钥请到下方加密保险箱配置)' });
-      } else {
-        setMsg({ type: 'error', text: d.message || '保存失败' });
-      }
-    } catch {
-      setMsg({ type: 'error', text: '保存失败' });
-    } finally {
-      setSaving(false);
-    }
-  }, [enabled, provider]);
+const KEY_SOURCE_LABELS: Record<string, string> = {
+  env: '环境变量',
+  secrets: '加密保险箱',
+  none: '未配置',
+};
+
+export function LlmDetectionPanel({ status, loading }: LlmDetectionPanelProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  const available = status?.gate_detect_available === true;
+  const provider = status?.effective_provider ?? null;
+  const keyLabel = KEY_SOURCE_LABELS[status?.key_source ?? ''] ?? status?.key_source ?? '未知';
 
   return (
     <section className="st-section" aria-label="LLM AI 内容检测" data-testid="llm-detection-panel">
       <h3>
         LLM AI 内容检测
-        <span className={enabled ? 'st-chip ok' : 'st-chip mute'} title={`enabled: ${enabled}`}>
-          <i aria-hidden />{enabled ? '开启' : '关闭'}
+        <span
+          className={loading ? 'st-chip mute' : available ? 'st-chip ok' : 'st-chip mute'}
+          title={loading ? '检测中' : `gate_detect_available: ${available}`}
+          data-testid="llm-detect-state"
+        >
+          <i aria-hidden />{loading ? '检测中' : available ? '检测中' : '未启用'}
         </span>
       </h3>
       <p className="st-section-desc">
-        启用后, 采集管线会用 LLM 对通过质量规则的热点做二次 AI 批量/软文识别。
-        {provider === 'sensenova'
-          ? '需配置 sensenova API Key — 改用下方加密保险箱 (SecretsPanel)。'
-          : '本地 Ollama 路径 — 需先启动 ollama 服务 (qwen2.5:7b)。'}
+        启用后, 采集管线会用 LLM 对通过质量规则的热点做二次 AI 批量/软文识别
+        (凭据就绪即自动启用, 无独立开关)。
       </p>
       <div className="st-section-body">
-        <div className="st-rule">
-          <div><p className="st-label">启用检测</p><p className="st-key">quality.llm_enabled</p></div>
-          <div className="st-ctrl">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={enabled}
-              onClick={() => setEnabled(v => !v)}
-              className="st-switch"
-              style={{ width: 32, height: 18 }}
-              data-testid="llm-enabled-switch"
-            />
+        {loading ? (
+          <p className="st-label">读取 LLM 状态中…</p>
+        ) : available ? (
+          <div className="st-rule">
+            <div>
+              <p className="st-label">检测已生效</p>
+              <p className="st-key">
+                provider: {provider ?? '—'} · 密钥来源: {keyLabel}
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="st-rule">
-          <div><p className="st-label">提供方</p><p className="st-key">quality.llm_provider</p></div>
-          <div className="st-ctrl">
-            <select
-              value={provider}
-              onChange={e => setProvider(e.target.value)}
-              className="st-select"
-              style={{ maxWidth: 220 }}
-              aria-label="LLM Provider"
-            >
-              {providerOptions.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
+        ) : (
+          <div className="st-rule">
+            <div>
+              <p className="st-label">检测未启用 — 完成任一项即长期生效</p>
+              <p className="st-key">
+                ① 商汤密钥配入下方加密保险箱 (SecretsPanel); 或 ② 本地启动 ollama (qwen2.5:7b)
+              </p>
+            </div>
           </div>
-        </div>
+        )}
         <div className="st-actionbar">
-          {msg && <span className={`st-ab-msg ${msg.type === 'ok' ? 'ok' : 'bad'}`}>{msg.text}</span>}
-          <button type="button" className="st-btn primary" onClick={save} disabled={saving}>
-            {saving ? '保存中...' : '应用 LLM 配置'}
+          <button
+            type="button"
+            className="st-btn"
+            onClick={() => setExpanded(v => !v)}
+            aria-expanded={expanded}
+          >
+            {expanded ? '收起说明' : '为什么没有开关?'}
           </button>
         </div>
+        {expanded && (
+          <p className="st-section-desc" data-testid="llm-detect-explain">
+            v4.4 起 AI 检测不再经设置页开关: 凭据统一走 ai_hub (env / 加密保险箱 / ollama),
+            凭据就绪即自动启用, 失败 fail-open 不误伤资讯。
+            旧版 quality.llm_enabled 开关无消费方, 已移除 (DEV-0243)。
+          </p>
+        )}
       </div>
     </section>
   );

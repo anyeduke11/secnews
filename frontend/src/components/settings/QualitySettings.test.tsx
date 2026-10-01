@@ -5,9 +5,10 @@
  * 对应用例 (ProviderPanel 切换 / SecretsPanel CRUD / ScenarioModelsPanel) 已删除,
  * 面板行为契约由 ModelsSettings 装配测试 + 面板未改动的既有实现兜底。
  *
- * 覆盖 (2 用例):
+ * 覆盖 (DEV-0243 改版):
  *  A. open 门控: open=false 不触发顶层状态拉取 (/api/quality/rules + /api/llm/status)
- *  B. LLM 检测 (LlmDetectionPanel): saveLlm 不再写 quality.llm_api_key 到 settings.kv (legacy 清退)
+ *  B. LLM 检测真实状态化: 无假开关/无 PUT; chip 反映 gate_detect_available;
+ *     未启用时给出长期生效指引
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -21,6 +22,7 @@ function mockStatusResp(
   effective = 'sensenova',
   source = 'default',
   keySource = 'none',
+  gateDetectAvailable = false,
 ) {
   return {
     ok: true,
@@ -29,6 +31,7 @@ function mockStatusResp(
       effective_provider: effective,
       config_source: source,
       key_source: keySource,
+      gate_detect_available: gateDetectAvailable,
       scenario: 'NORMAL',
     }),
   };
@@ -39,8 +42,7 @@ function mockQualityRules() {
     ok: true,
     json: () => Promise.resolve({
       rules: [
-        { key: 'quality.llm_enabled', value: false, default: false },
-        { key: 'quality.llm_provider', value: 'sensenova', default: 'sensenova' },
+        { key: 'quality.min_score', value: 30, default: 30 },
       ],
     }),
   };
@@ -79,48 +81,66 @@ describe('QualitySettings — open 门控', () => {
 });
 
 // ===================================================================
-// B. LLM 检测 (LlmDetectionPanel) — legacy 清退契约
+// B. LLM 检测真实状态化 (DEV-0243) — 假开关清退契约
 // ===================================================================
 
-describe('QualitySettings — LLM 检测 (LlmDetectionPanel)', () => {
-  it('saveLlm 不再写 quality.llm_api_key 到 settings.kv (legacy 清退)', async () => {
+describe('QualitySettings — LLM 检测真实状态 (DEV-0243)', () => {
+  it('凭据就绪 → chip 显示「检测中」; 无任何 PUT quality/rules 写入 (假开关已清退)', async () => {
+    let putCalled = false;
     mockFetch.mockImplementation((url: string, init?: RequestInit) => {
-      if (url === '/api/quality/rules' && init?.method === 'GET') {
-        return Promise.resolve(mockQualityRules());
-      }
       if (url === '/api/quality/rules' && init?.method === 'PUT') {
-        const body = JSON.parse(init.body as string);
-        (mockFetch as any).__lastPutBody = body;
+        putCalled = true;
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'ok' }) });
       }
-      if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({ sensenova: {} }));
+      if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
+      if (url === '/api/llm/status') {
+        return Promise.resolve(mockStatusResp({ sensenova: {} }, 'sensenova', 'env', 'env', true));
+      }
       return Promise.resolve({ ok: false });
     });
 
     render(<QualitySettings open={true} />);
-    // V2: LlmDetectionPanel 默认展开, 无需点击
     await waitFor(() => {
-      expect(screen.getByLabelText('LLM AI 内容检测')).toBeInTheDocument();
+      // 真实开关 = gate_detect_available=true → 状态 chip「检测中」
+      expect(screen.getByTestId('llm-detect-state')).toHaveTextContent('检测中');
+    });
+    // 假开关与保存按钮不复存在
+    expect(screen.queryByTestId('llm-enabled-switch')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '应用 LLM 配置' })).not.toBeInTheDocument();
+    // 面板自身不触发 PUT (挂载阶段)
+    expect(putCalled).toBe(false);
+  });
+
+  it('凭据缺失 → chip「未启用」+ 展示长期生效指引; 说明块可展开', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
+      if (url === '/api/llm/status') {
+        return Promise.resolve(mockStatusResp({}, 'sensenova', 'default', 'none', false));
+      }
+      return Promise.resolve({ ok: false });
     });
 
-    // 切换启用开关 → 改 provider → 保存
-    const enabledSwitch = screen.getByTestId('llm-enabled-switch');
-    fireEvent.click(enabledSwitch);
-    const providerSelect = screen.getByLabelText('LLM Provider') as HTMLSelectElement;
-    fireEvent.change(providerSelect, { target: { value: 'ollama' } });
-
-    const saveBtn = screen.getByRole('button', { name: '应用 LLM 配置' });
-    fireEvent.click(saveBtn);
-
+    render(<QualitySettings open={true} />);
     await waitFor(() => {
-      const body = (mockFetch as any).__lastPutBody;
-      expect(body).toBeTruthy();
-      expect(body.rules).not.toHaveProperty('quality.llm_api_key');
-      expect(body.rules).toHaveProperty('quality.llm_enabled');
-      expect(body.rules).toHaveProperty('quality.llm_provider');
+      expect(screen.getByTestId('llm-detect-state')).toHaveTextContent('未启用');
+    });
+    expect(screen.getByText(/完成任一项即长期生效/)).toBeInTheDocument();
+
+    // 展开说明 — 交代假开关清退原因
+    fireEvent.click(screen.getByRole('button', { name: '为什么没有开关?' }));
+    expect(screen.getByTestId('llm-detect-explain')).toHaveTextContent('DEV-0243');
+  });
+
+  it('status 拉取失败 → 面板不崩, chip 保持「未启用」诚实口径', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
+      return Promise.reject(new Error('backend down'));
     });
 
-    // 显式断言: 不应再有任何 placeholder="sk-..." 的输入框
-    expect(screen.queryByPlaceholderText(/^sk-/)).not.toBeInTheDocument();
+    render(<QualitySettings open={true} />);
+    await waitFor(() => {
+      expect(screen.getByTestId('llm-detect-state')).toHaveTextContent('未启用');
+    });
+    expect(screen.getByText(/完成任一项即长期生效/)).toBeInTheDocument();
   });
 });

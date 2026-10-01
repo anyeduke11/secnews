@@ -12,7 +12,7 @@
  */
 import { useState, useEffect } from 'react';
 import { getJSON } from '../../lib/api';
-import { LlmDetectionPanel } from './quality/LlmDetectionPanel';
+import { LlmDetectionPanel, type LlmDetectionStatus } from './quality/LlmDetectionPanel';
 import { QualityRulesPanel } from './quality/QualityRulesPanel';
 import type { QualityRule } from './quality/QualityRulesPanel';
 
@@ -20,49 +20,44 @@ interface QualitySettingsProps {
   open: boolean;
 }
 
-const FALLBACK_PROVIDERS = ['sensenova', 'ollama'];
-
 export function QualitySettings({ open }: QualitySettingsProps) {
-  const [providerOptions, setProviderOptions] = useState<string[]>(FALLBACK_PROVIDERS);
   const [rules, setRules] = useState<QualityRule[]>([]);
-  const [llmEnabled, setLlmEnabled] = useState(false);
-  const [llmProvider, setLlmProvider] = useState('sensenova');
+  const [llmStatus, setLlmStatus] = useState<LlmDetectionStatus | null>(null);
+  const [llmLoading, setLlmLoading] = useState(true);
 
-  // 拉 /api/quality/rules — 同时给 QualityRulesPanel + LlmDetectionPanel 喂初值
+  // 拉 /api/quality/rules — 喂 QualityRulesPanel (llm_enabled/provider 是死字段, 不再消费)
   useEffect(() => {
     if (!open) return;
     getJSON<{ rules?: QualityRule[] }>('/api/quality/rules')
       .then(data => {
-        const list = (data.rules || []) as QualityRule[];
-        setRules(list);
-        for (const r of list) {
-          if (r.key === 'quality.llm_enabled') setLlmEnabled(Boolean(r.value));
-          else if (r.key === 'quality.llm_provider') setLlmProvider(String(r.value));
-        }
+        setRules((data.rules || []) as QualityRule[]);
       })
       .catch(() => { /* 子组件自己 fallback */ });
   }, [open]);
 
-  // 拉 /api/llm/status — 给 LlmDetectionPanel 喂 providerOptions
+  // 拉 /api/llm/status — 检测真实开关 (gate_detect_available) + providerOptions 共享
   useEffect(() => {
     if (!open) return;
+    setLlmLoading(true);
     getJSON<{
-      providers?: Record<string, unknown>;
+      gate_detect_available?: boolean;
+      effective_provider?: string | null;
+      key_source?: string;
     }>('/api/llm/status')
       .then(data => {
-        const ps = data.providers ? Object.keys(data.providers) : [];
-        if (ps.length > 0) setProviderOptions(ps);
+        setLlmStatus({
+          gate_detect_available: data.gate_detect_available === true,
+          effective_provider: data.effective_provider ?? null,
+          key_source: data.key_source ?? 'none',
+        });
       })
-      .catch(() => { /* keep fallback */ });
+      .catch(() => { setLlmStatus(null); })
+      .finally(() => setLlmLoading(false));
   }, [open]);
 
   return (
     <div className="space-y-3" data-testid="quality-settings">
-      <LlmDetectionPanel
-        initialEnabled={llmEnabled}
-        initialProvider={llmProvider}
-        providerOptions={providerOptions}
-      />
+      <LlmDetectionPanel status={llmStatus} loading={llmLoading} />
       <QualityRulesPanel initialRules={rules} />
     </div>
   );

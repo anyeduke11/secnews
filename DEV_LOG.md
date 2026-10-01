@@ -1,4 +1,16 @@
 
+## [DEV-0243] LLM 检测假开关清退: quality.llm_enabled 无消费方 + GET 不回显致"每次重置"错觉 — 真实状态化 gate_detect_available (llm-detect-truthful)
+
+- **时间**: 2026-10-01
+- **类型**: Bug修复 (owner 报告 "llm-enabled-switch 启用后每次都重置, 需要一次配置长期有效")
+- **关联模块**: `backend:llm-status-api`, `frontend:settings-quality`
+- **根因 (双层, 均为代码自证)**: ① **回显断裂** — `api/quality.py` `_build_rules()` 只遍历 `RULE_METADATA` (7 键), 不含 `quality.llm_enabled`/`llm_provider` → GET /api/quality/rules 永不返回; PUT 却接受任意 `quality.*` 前缀 (写库成功) → 保存后刷新 UI 恒显示 false (`QualitySettings.tsx` useState(false) 初值), 用户再保存把 false 覆盖回库 — "每次都重置" ② **无消费方 (更根本)** — `quality/pipeline.py:82` 注释自证 v4.4 起 "LLM 凭据不再从 settings 注入…门禁不依赖 context" (`GateContext.llm_enabled` 恒 False); `ai_hub/service.py:98` 直言 `quality.llm_provider` 是 "QualityRules 死字段"; 真实开关 = `ai_service.available()` (商汤 key 就绪或 ollama 在线, fail-open)。**只修回显会造出第二个欺骗** (看似能保存, 管线仍不读) — 故选真实状态化而非补白名单
+- **关联文件**: `backend/api/llm_status.py` (+`gate_detect_available` 字段 = `ai_svc.available()`, 语义精确暴露检测真实开关) / `frontend/.../quality/LlmDetectionPanel.tsx` (重写: 删 role=switch 假开关 + provider select + 保存按钮 + PUT; 改为状态 chip「检测中/未启用」+ provider/key_source 展示 + 未启用时长期生效指引 + 可展开"为什么没有开关?"说明块) / `QualitySettings.tsx` (删 llmEnabled/llmProvider 死 state, 改喂 status; providerOptions 死代码清除) / `QualitySettings.test.tsx` (B 块重写 3 用例: 凭据就绪→「检测中」+断言无 PUT; 缺失→「未启用」+指引+说明块; status 拉取失败→不崩诚实口径)
+- **实现思路**: 用户意图 "一次配置长期有效" 的本质 = "配一次检测一直在" — 真实架构下配置即密钥 (SecretsPanel 加密保险箱 / env / ollama 常驻), 配好 available() 恒真, 检测长期生效且无需任何开关; 假开关清退是 v4.4 legacy 迁移的收尾 (Batch ⑥ 只清退了密钥字段, 漏了开关字段)
+- **实弹验证**: 后端 `/api/llm/status` 返回 `gate_detect_available=true, effective_provider=sensenova, key_source=env` (本机 env 有 key — **检测其实一直在生效**, 假开关从未影响真实行为); 浏览器端到端: /settings?cat=collection → chip「检测中」+ 「检测已生效 provider/key 来源」+ 假开关消失; 旧 `quality.llm_enabled=true` 残留行留在 settings 表 (无害, 无消费方)
+- **测试验证**: QualitySettings.test 4 passed (A 门控 1 + B 真实状态 3); 后端 test_hybrid_ai + test_ai_quality_gate 35 passed; tsc 0 错 / vite build exit 0; 后端已重启加载新字段
+- **潜在风险 (parked)**: ① settings 表残留 `quality.llm_enabled=false` 旧行 — 无消费方, 择机 cleanup; ② 若未来 owner 想要"手动关掉检测"的真开关, 正确做法是给 ai_quality_gate 加 gate 级配置 (经 ai_hub), 而非复活 settings 键; ③ `RULE_METADATA` 白名单制 vs PUT 前缀制的宽进严出不对称仍在 (任意 quality.* 可写但 GET 只回显白名单) — 其他面板均只用白名单键, 无同类受害者, 暂不动
+
 ## [DEV-0242] generate_meta 文档漂移根治: 声称"自动维护"但无写入能力 — +--fix 落实契约 + CLAUDE.md 纳管 (meta-fix)
 
 - **时间**: 2026-10-01

@@ -52,6 +52,12 @@ def get_llm_status():
     ai_svc = AIService()
     status["key_source"] = ai_svc._key_source(status["effective_provider"])
 
+    # DEV-0243: AI 内容检测 (ai_quality_gate) 的真实开关 — ai_service.available()
+    # (商汤 key 就绪或 ollama 在线)。此前设置页的 quality.llm_enabled 假开关
+    # 无任何消费方 (v4.4 起门禁统一走 AIService, fail-open), 现以真实可用性
+    # 取代之, 前端据此展示「检测中/未启用」。
+    status["gate_detect_available"] = ai_svc.available()
+
     # v0.6.3 P3-3 观测面: 此前 "AI 是否真在工作" 不可判读
     # (llm_usage_log 只记成功, 失败只进 logger)。诚实口径: 错误环随进程
     # 重启清零, success_rate 是"本进程窗口"而非全天。

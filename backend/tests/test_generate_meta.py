@@ -216,3 +216,85 @@ class TestRepoSelfCheck:
         data = json.loads(captured.out)
         rels = sorted(d["relpath"] for d in data)
         assert rels == [], f"docs/ 顶层出现未登记的 draft: {rels}"
+
+
+# ============================================================================
+# 6. --fix 数字写回 (DEV-0242: 文档声称"自动维护"但实现缺失的漂移根治)
+# ============================================================================
+
+ACTUAL = {"jobs": 58, "collectors": 14, "routers": 90, "services": 153}
+
+ARCH_SAMPLE = (
+    "# 架构\n"
+    "> jobs 57 头部散文 (非槽位, 不动)\n"
+    "│ scheduler/ 57 jobs │\n"
+    "13 个 BaseCollector\n"
+    "api/ 89 router\n"
+    "services/ 152 \n"
+)
+
+
+class TestFixDocNumbers:
+    def test_rewrites_stale_slots_keeps_prose(self, gm, tmp_path: Path, monkeypatch):
+        """漂移槽位写回反推值; 非槽位散文 (header `jobs 57`) 不被误改。"""
+        arch = tmp_path / "ARCHITECTURE.md"
+        arch.write_text(ARCH_SAMPLE, encoding="utf-8")
+        monkeypatch.setattr(gm, "ARCHITECTURE", arch)
+        changes = gm.fix_doc_numbers(ACTUAL)
+        text = arch.read_text(encoding="utf-8")
+        assert "scheduler/ 58 jobs" in text
+        assert "14 个 BaseCollector" in text
+        assert "api/ 90 router" in text
+        assert "services/ 153" in text
+        # 非槽位散文保持原样
+        assert "> jobs 57 头部散文" in text
+        assert any("jobs" in c for c in changes) and any("routers" in c for c in changes)
+        assert any("collectors" in c for c in changes) and any("services" in c for c in changes)
+
+    def test_idempotent_second_run_reports_nothing(self, gm, tmp_path: Path, monkeypatch):
+        """幂等: 第二次 fix 无变更 — subn 匹配数不得虚报为变更数。"""
+        arch = tmp_path / "ARCHITECTURE.md"
+        arch.write_text(ARCH_SAMPLE, encoding="utf-8")
+        monkeypatch.setattr(gm, "ARCHITECTURE", arch)
+        gm.fix_doc_numbers(ACTUAL)
+        assert gm.fix_doc_numbers(ACTUAL) == []
+
+    def test_missing_file_returns_error_no_crash(self, gm, tmp_path: Path, monkeypatch):
+        monkeypatch.setattr(gm, "ARCHITECTURE", tmp_path / "nope.md")
+        changes = gm.fix_doc_numbers(ACTUAL)
+        assert len(changes) == 1 and changes[0].startswith("ERROR")
+
+    def test_parse_and_fix_share_patterns(self, gm, tmp_path: Path, monkeypatch):
+        """check 与 fix 必须认同一组槽位: fix 后 parse 读到的就是反推值。"""
+        arch = tmp_path / "ARCHITECTURE.md"
+        arch.write_text(ARCH_SAMPLE, encoding="utf-8")
+        monkeypatch.setattr(gm, "ARCHITECTURE", arch)
+        gm.fix_doc_numbers(ACTUAL)
+        assert gm.parse_doc_numbers(arch.read_text(encoding="utf-8")) == ACTUAL
+
+
+class TestFixAgentsNumbers:
+    def test_rewrites_stale_kind_declarations(self, gm, tmp_path: Path, monkeypatch):
+        doc = tmp_path / "AGENTS.md"
+        doc.write_text(
+            "架构数字由 AST 反推维护 (57 jobs / 14 collectors / 90 routers / 153 services)。\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(gm, "AGENTS_DOC_SOURCES", (doc,))
+        monkeypatch.setattr(gm, "ROOT", tmp_path)
+        changes = gm.fix_agents_numbers(ACTUAL)
+        assert changes == ["AGENTS.md: N <kind> 声明 → 反推值"]
+        assert "58 jobs" in doc.read_text(encoding="utf-8")
+
+    def test_idempotent_and_correct_values_untouched(self, gm, tmp_path: Path, monkeypatch):
+        doc = tmp_path / "AGENTS.md"
+        doc.write_text("58 jobs / 14 collectors\n", encoding="utf-8")
+        monkeypatch.setattr(gm, "AGENTS_DOC_SOURCES", (doc,))
+        monkeypatch.setattr(gm, "ROOT", tmp_path)
+        assert gm.fix_agents_numbers(ACTUAL) == []
+        assert doc.read_text(encoding="utf-8") == "58 jobs / 14 collectors\n"
+
+    def test_claude_md_in_managed_sources(self, gm):
+        """CLAUDE.md 必须在受管集合内 — 镜像文档数字漂移曾绕过 check (DEV-0242)。"""
+        names = {p.name for p in gm.AGENTS_DOC_SOURCES}
+        assert "CLAUDE.md" in names

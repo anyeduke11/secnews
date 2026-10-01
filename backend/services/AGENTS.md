@@ -45,7 +45,7 @@ Python 3 服务编排层(153 services,`*_service.py` + `triggers/` 子目录)。
    但 review 会拦。
 3. **架构数字不要手改 `docs/ARCHITECTURE.md`** — 改完服务注册后必须:
    ```bash
-   python scripts/generate_meta.py            # 同步 docs/ARCHITECTURE.md
+   python scripts/generate_meta.py --fix      # 同步 docs/ARCHITECTURE.md + 各 AGENTS.md 数字声明
    python scripts/generate_meta.py --check    # CI 等价检查
    ```
 4. **Feature Gate 服务(`codegarden_*`/`mcp_*`/`tech_stack_*`/`security_graph_*`)**:

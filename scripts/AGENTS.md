@@ -35,7 +35,8 @@
   ```
   改了 `backend/scheduler/jobs.py`、`backend/collectors/*`、`backend/api/__init__.py`、
   `backend/services/*` 任一注册点后,只要新增/删除 `add_job`、`BaseCollector` 子类、
-  `include_router`、`*_service.py` 文件,CI 会 fail,必须重跑无 `--check` 让它更新数字。
+  `include_router`、`*_service.py` 文件,CI 会 fail,必须跑
+  `python scripts/generate_meta.py --fix` 写回数字 (幂等, 无漂移零写入)。
 - **审计脚本入口**:
   ```bash
   python scripts/audit_quality_gates.py        # 扫 DB,统计各大分类质量门禁覆盖

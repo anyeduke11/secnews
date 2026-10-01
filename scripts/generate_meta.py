@@ -16,13 +16,16 @@
 用法::
 
     python scripts/generate_meta.py                          # 架构数字 JSON 到 stdout
-    python scripts/generate_meta.py --check                  # 对比 docs/ARCHITECTURE.md, 不一致 exit 1
+    python scripts/generate_meta.py --fix                    # 反推值写回 ARCHITECTURE.md 槽位 + AGENTS.md 声明 (幂等)
+    python scripts/generate_meta.py --check                  # 只读校验, 不一致 exit 1
     python scripts/generate_meta.py --drafts-only            # 仅输出 draft 规划清单 (JSON)
     python scripts/generate_meta.py --classify <path>...     # 单路径分类, 输出 core|non-core
     git diff --name-only origin/main | python scripts/generate_meta.py --classify --batch
                                                              # 批量: 任一 core → exit 0 (core), 否则 exit 1 (non-core)
 
-docs/ARCHITECTURE.md 中的数字由本脚本反推维护, 禁止手改。
+docs/ARCHITECTURE.md 与各 AGENTS.md 中的架构数字由本脚本 AST 反推维护:
+`--fix` 是唯一合法写入方 (DEV-0242 前该能力缺失, 文档声称"自动维护"
+但实现只打印/校验 — 手改是当时唯一修复途径, 与"禁止手改"自相矛盾)。
 """
 
 from __future__ import annotations
@@ -61,8 +64,11 @@ CORE_INCLUDE = ROOT / "core.include"
 CORE_EXCLUDE = ROOT / "core.exclude"
 
 # AGENTS.md 数字/版本一致性校验 (v0.7+) 的受管文档集合。
+# CLAUDE.md 在列 (DEV-0242): 它是根 AGENTS.md 的镜像, 同样携带 `N <kind>`
+# 架构数字声明 — 此前未纳管导致 check 全绿而 CLAUDE.md 停留在旧值。
 AGENTS_DOC_SOURCES: tuple[Path, ...] = (
     ROOT / "AGENTS.md",
+    ROOT / "CLAUDE.md",
     ROOT / "backend" / "api" / "AGENTS.md",
     ROOT / "backend" / "services" / "AGENTS.md",
     ROOT / "scripts" / "AGENTS.md",
@@ -163,16 +169,68 @@ def collect() -> dict:
 
 def parse_doc_numbers(text: str) -> dict:
     """从 ARCHITECTURE.md 提取数字（与 collect() 的 key 对应）。"""
-    jobs = re.search(r"scheduler/\s*(\d+)\s*job", text)
-    collectors = re.search(r"(\d+)\s*个\s*BaseCollector", text)
-    routers = re.search(r"api/\s*(\d+)\s*router", text)
-    services = re.search(r"services/\s*(\d+)\s*", text)
-    return {
-        "jobs": int(jobs.group(1)) if jobs else None,
-        "collectors": int(collectors.group(1)) if collectors else None,
-        "routers": int(routers.group(1)) if routers else None,
-        "services": int(services.group(1)) if services else None,
-    }
+    out: dict[str, int | None] = {}
+    for key, pat in _ARCH_NUM_PATTERNS.items():
+        m = pat.search(text)
+        out[key] = int(m.group("num")) if m else None
+    return out
+
+
+# ARCHITECTURE.md 数字槽位 — parse_doc_numbers (check) 与 fix_doc_numbers (--fix)
+# 必须共用同一组模式: 否则会出现 "check 报的漂移 --fix 修不掉" 的二次漂移。
+# 命名组: pre/num/post — fix 只重写 num, 前后文原样保留。
+_ARCH_NUM_PATTERNS: dict[str, re.Pattern] = {
+    "jobs": re.compile(r"(?P<pre>scheduler/\s*)(?P<num>\d+)(?P<post>\s*job)"),
+    "collectors": re.compile(r"(?P<pre>)(?P<num>\d+)(?P<post>\s*个\s*BaseCollector)"),
+    "routers": re.compile(r"(?P<pre>api/\s*)(?P<num>\d+)(?P<post>\s*router)"),
+    "services": re.compile(r"(?P<pre>services/\s*)(?P<num>\d+)(?P<post>\s*)"),
+}
+
+
+def fix_doc_numbers(actual: dict) -> list[str]:
+    """把 docs/ARCHITECTURE.md 数字槽位写回 AST 反推值 (--fix)。
+
+    与 parse_doc_numbers 共用 _ARCH_NUM_PATTERNS, 幂等。返回变更描述列表
+    (空 = 已一致, 无写入)。变更按「文本实际变化」判定 — 值已正确的槽位
+    不虚报 (subn 的 n 是匹配数, 不能当变更数用)。
+    """
+    if not ARCHITECTURE.exists():
+        return [f"ERROR: {ARCHITECTURE} not found (skip)"]
+    text = ARCHITECTURE.read_text(encoding="utf-8")
+    changed: list[str] = []
+    new_text = text
+    for key, pat in _ARCH_NUM_PATTERNS.items():
+        val = str(actual[key])
+        candidate = pat.sub(lambda m: f"{m.group('pre')}{val}{m.group('post')}", new_text)
+        if candidate != new_text:
+            changed.append(f"docs/ARCHITECTURE.md: {key} → {val}")
+            new_text = candidate
+    if new_text != text:
+        ARCHITECTURE.write_text(new_text, encoding="utf-8")
+    return changed
+
+
+def fix_agents_numbers(actual: dict) -> list[str]:
+    """把各 AGENTS.md / CLAUDE.md 中 `N <kind>` 声明写回反推值 (--fix)。
+
+    与 check_agents_numbers 共用 _AGENTS_NUM 模式 — check 认定的每处声明,
+    --fix 都会写回; 幂等。返回变更描述列表 (空 = 已一致)。
+    """
+    changed: list[str] = []
+    for path in AGENTS_DOC_SOURCES:
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+
+        def _repl(m: re.Match) -> str:
+            val = str(actual[_KIND_KEY[m.group("kind")]])
+            return val + m.group(0)[len(m.group("num")):]
+
+        new_text = _AGENTS_NUM.sub(_repl, text)
+        if new_text != text:
+            path.write_text(new_text, encoding="utf-8")
+            changed.append(f"{path.relative_to(ROOT).as_posix()}: N <kind> 声明 → 反推值")
+    return changed
 
 
 # --------------------------------------------------------------------------- #
@@ -362,7 +420,8 @@ def check(actual: dict) -> int:
         for k, (a, d) in sorted(mismatches.items()):
             print(f"  {k}: {a} vs {d}", file=sys.stderr)
         print(
-            "请用脚本反推值更新 docs/ARCHITECTURE.md (此文件由 generate_meta.py 自动维护)。",
+            "修复方式: `python scripts/generate_meta.py --fix` "
+            "(按 AST 反推值写回数字槽位; 禁止手改)。",
             file=sys.stderr,
         )
         failed = True
@@ -375,8 +434,8 @@ def check(actual: dict) -> int:
         for rel, kind, doc_val, real in agents_bad:
             print(f"  {rel}: {kind} {doc_val} vs {real}", file=sys.stderr)
         print(
-            "  修复方式: 按反推值更正对应 AGENTS.md 中的 `N <kind>` 声明\n"
-            "  (数字唯一真源是本脚本的 AST 反推结果, 禁止手改反推值)。",
+            "  修复方式: `python scripts/generate_meta.py --fix` "
+            "(数字唯一真源是本脚本的 AST 反推结果, 禁止手改)。",
             file=sys.stderr,
         )
         failed = True
@@ -590,6 +649,12 @@ def main() -> int:
         help="对比 docs/ARCHITECTURE.md, 不一致时 exit 1",
     )
     parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="把 AST 反推值写回 docs/ARCHITECTURE.md 数字槽位 + 各 AGENTS.md "
+        "`N <kind>` 声明 (幂等; 无漂移时零写入)",
+    )
+    parser.add_argument(
         "--drafts-only",
         action="store_true",
         help="仅输出 draft 规划清单 (JSON) 到 stdout",
@@ -629,6 +694,14 @@ def main() -> int:
         return 0
 
     meta = collect()
+    if args.fix:
+        changes = fix_doc_numbers(meta) + fix_agents_numbers(meta)
+        if changes:
+            for c in changes:
+                print(f"FIXED: {c}")
+        else:
+            print("OK: 数字声明已与 AST 反推值一致, 无需写入")
+        return 0
     if args.check:
         return check(meta)
     print(json.dumps(meta, ensure_ascii=False))

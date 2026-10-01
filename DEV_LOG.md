@@ -1,4 +1,16 @@
 
+## [DEV-0242] generate_meta 文档漂移根治: 声称"自动维护"但无写入能力 — +--fix 落实契约 + CLAUDE.md 纳管 (meta-fix)
+
+- **时间**: 2026-10-01
+- **类型**: Bug修复 (工具契约漂移; DEV-0241 收尾时发现: `generate_meta.py` 模块 docstring 与 check 报错文案均声称 docs/ARCHITECTURE.md "由本脚本自动维护", 多份 AGENTS.md 指引"跑 `python scripts/generate_meta.py` 同步", 但实现只有 collect/print/check — **无任何写文件路径**, 手改是唯一修复途径, 与"禁止手改"门禁自相矛盾)
+- **关联模块**: `scripts:generate-meta`, `docs:agents-mirror`
+- **根因**: 契约 (写) 与实现 (只读) 分叉后无人对账 — 漂移窗口期恰好撞上 DEV-0241 加 job (57→58), 手改了 4 处声明才把 --check 修绿; 且 CLAUDE.md 作为根 AGENTS.md 镜像同样携带 `N <kind>` 数字声明却不在 AGENTS_DOC_SOURCES 受管集合内, 当时仍停留在 57 jobs, check 全绿也看不见
+- **关联文件**: `scripts/generate_meta.py` (+`--fix`: `fix_doc_numbers` 写回 ARCHITECTURE.md 数字槽位 / `fix_agents_numbers` 写回各受管文档 `N <kind>` 声明; **check 与 fix 共用 `_ARCH_NUM_PATTERNS` 同一组槽位模式** — parse_doc_numbers 重构为消费该表, 杜绝"check 报的修不掉"二次漂移; 变更按文本实际 diff 判定, 首版用 subn 的匹配数虚报变更数被幂等复跑抓出) + AGENTS_DOC_SOURCES +CLAUDE.md / `backend/tests/test_generate_meta.py` (+8 用例: 槽位写回+散文不误伤 / 幂等零虚报 / 缺文件容错 / parse-fix 同槽位 / CLAUDE.md 纳管绊线) / 三处操作指引改指 `--fix` (根 AGENTS.md 门禁段 / backend/services/AGENTS.md 命令块 / scripts/AGENTS.md "重跑无 --check"旧说法勘误)
+- **实现思路**: 裸调用保持"JSON 到 stdout" (脚本自身 usage 契约, 与 root AGENTS.md 旧指引冲突处按 Rule 7 裁决: 显式 `--fix` 优于无参隐式改文件); `--fix` 幂等零漂移时零写入; check 报错文案从"请手改/自动维护"统一改为指向 `--fix`; 版本一致性 (AGENTS.md 头部日期+版本号含人工语义) 与 draft 登记 (需人工加表格行) 保持手动, 不纳入 --fix
+- **实弹验证**: CLAUDE.md 57→58 由真实 --fix 完成 (首个活体样本); 人为制造 ARCHITECTURE.md 槽位漂移 → check exit 1 → --fix 写回 → check exit 0; 一致态复跑 "OK: 无需写入"; `--check` exit 0 / 0 MISMATCH
+- **测试验证**: test_generate_meta 25 passed (原 17 + 新 8); git diff 净效果仅预期 6 文件
+- **潜在风险 (parked)**: ① `--fix` 信任 AST 反推值为唯一真源 — 若反推逻辑本身错 (如 add_job 动态注册扫不到), fix 会把错误值写进 5 份文档且 check 全绿 (反推规则变更需同 commit 复核); ② ARCHITECTURE.md 头部散文行的 "jobs 58" 非槽位 (槽位只认 `scheduler/ N jobs`), 散文数字仍需手改 — 属文档写作问题非门禁漏洞, 未扩模式 (扩了会把散文里所有 `N jobs` 变成受管声明, 误伤面大); ③ README/hero.svg 内的旧架构数字 (57 jobs 等) 不在受管集合, 属营销物料低频漂移, 未纳管
+
 ## [DEV-0241] 知识体系 P0/P1 首批修复: kl:archived 归档终态 + 投影重建机制化 + 检索页接入 wiki 正文 (wiki-archived-and-rebuild)
 
 - **时间**: 2026-10-01

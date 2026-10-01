@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import base64
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from backend.cache import detail_cache, list_cache, static_cache
 from backend.domain.enums import Category, TimeRange
@@ -422,6 +422,16 @@ class HotspotService:
             "tag_ids": tag_ids,
             "fetched_at": datetime.now(timezone.utc).isoformat(),
         }
+
+    # ------------------------------------------------------------------
+    def list_picked(self, days: int = 2, limit: int = 30) -> list[dict]:
+        """精选视图 Top-N (2026-09-27 四模式 P2): pick_score DESC。
+
+        pick_score 由 pick_service 每轮采集尾部落列, NULL (未入选) 不返回。
+        api 层经本方法读 repo — api 严禁直接 import repository (硬规则)。
+        """
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        return _hrepo.list_picked_since(since, limit)
 
     # ------------------------------------------------------------------
     def count_by_category(self, time_range: TimeRange = TimeRange.D7) -> dict[str, int]:

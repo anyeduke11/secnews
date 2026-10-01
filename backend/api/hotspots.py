@@ -86,6 +86,20 @@ async def list_hotspots(
     )
 
 
+@router.get("/picked")
+async def list_picked_hotspots(
+    days: int = Query(2, ge=1, le=7, description="回溯天数"),
+    limit: int = Query(30, ge=1, le=50, description="Top-N 条数"),
+):
+    """精选资讯 Top-N (P2 2026-09-27): pick_score DESC, pick_service 每轮落列。
+
+    注意: 必须注册在 /{item_id} 之前, 否则 "picked" 会被吞成 item_id。
+    Phase 9 同款: 同步 DB 查询放 thread pool。
+    """
+    items = await asyncio.to_thread(_service.list_picked, days, limit)
+    return {"count": len(items), "items": items}
+
+
 @router.get("/{item_id}")
 async def get_hotspot(item_id: str):
     """单 item 详情。Phase 9 修复：同步 DB query 放 thread pool。"""

@@ -69,6 +69,15 @@ const HOTSPOT_FIXTURE: FixtureBody = {
 /** 游标分页专用: total > pageSize(100) → totalPages=2 且首屏带 next_cursor */
 const PAGING_FIXTURE: FixtureBody = { ...HOTSPOT_FIXTURE, total: 140, next_cursor: 'CURSOR_PAGE_1' };
 
+/** 精选视图 (P2 2026-09-27): GET /api/hotspots/picked 返回, pick_score DESC */
+const PICKED_FIXTURE = {
+  count: 2,
+  items: [
+    { id: 'pk1', title: '精选条目一', url: 'https://example.com/p1', source: 'FreeBuf', category: 'security', summary: '长文摘要', quality_score: 88, pick_score: 92.5, published_at: nowIso(), fetched_at: nowIso() },
+    { id: 'pk2', title: '精选条目二', url: 'https://example.com/p2', source: 'HN', category: 'tech', summary: '', quality_score: 80, pick_score: 85.1, published_at: nowIso(), fetched_at: nowIso() },
+  ],
+};
+
 const SOURCES_FIXTURE = {
   version: 'test',
   sources: [
@@ -86,6 +95,10 @@ function mockFetch(hotspotBody: FixtureBody = HOTSPOT_FIXTURE) {
   return vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = (init?.method ?? 'GET').toUpperCase();
+    if (url.startsWith('/api/hotspots/picked')) {
+      // 精选视图 (P2 2026-09-27): 分支必须先于 /api/hotspots 前缀匹配
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(PICKED_FIXTURE) } as Response);
+    }
     if (url.startsWith('/api/hotspots')) {
       // 第 2 页起返回不同条目, 用于验证 cursor 翻页真的换了数据集
       const hasCursor = url.includes('cursor=');
@@ -595,5 +608,119 @@ describe('SentinelHomePage — A1 sticky 层叠修整 (DEV-0188)', () => {
     expect(bars.length).toBe(2);
     // 第二条 (检索条) 的 sticky top 让出 bandnav 高度 + 第一条高度, 随收起态联动
     expect(bars[1].style.top).toBe('calc(var(--sn-bandnav-h) + 52px)');
+  });
+});
+
+describe('SentinelHomePage — 精选/深度视图 (P2 2026-09-27)', () => {
+  let fetchMock: ReturnType<typeof mockFetch>;
+  let originalEventSource: typeof EventSource;
+
+  beforeEach(() => {
+    fetchMock = mockFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    originalEventSource = globalThis.EventSource;
+    (globalThis as any).EventSource = MockEventSource;
+    try { localStorage.removeItem('hotspot-theme'); } catch {}
+    resetFavoritesStore();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    (globalThis as any).EventSource = originalEventSource;
+    resetFavoritesStore();
+    vi.restoreAllMocks();
+  });
+
+  it('四模式文案收尾: 全量/精选/深度/告警, 无 简报/扫描 残留', async () => {
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+    for (const label of ['全量', '精选', '深度', '告警']) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    }
+    // P1 文案语义化后的残留检查: 旧文案不得再出现
+    expect(screen.queryByRole('button', { name: /简报/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /扫描/ })).toBeNull();
+  });
+
+  it('精选视图: 切到精选 → 拉 /api/hotspots/picked, 渲染 pick_score 与精选徽章, 不混排常规快讯', async () => {
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: '精选' }));
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.some(c => String(c[0]).startsWith('/api/hotspots/picked'))).toBe(true);
+    });
+    // picked 数据渲染 (列表行复用 flash-item 结构)
+    expect(await screen.findByText('精选条目一')).toBeInTheDocument();
+    expect(screen.getByText('精选条目二')).toBeInTheDocument();
+    // pick_score 数值直读后端落列值
+    expect(screen.getByText('92.5')).toBeInTheDocument();
+    // 精选徽章: 每行一个 (模式按钮之外的 .pick-badge)
+    const badges = document.querySelectorAll('.pick-badge');
+    expect(badges.length).toBe(2);
+    // 常规 feed (头条 h1 / 快讯) 不与精选混排
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    expect(screen.queryByText('常规快讯条目')).toBeNull();
+  });
+
+  it('精选视图空态: picked 为空 → 暂无精选 — 下一轮采集后生成', async () => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith('/api/hotspots/picked')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ count: 0, items: [] }) } as Response);
+      }
+      if (url.startsWith('/api/hotspots')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(HOTSPOT_FIXTURE) } as Response);
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
+    }));
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: '精选' }));
+
+    // 诚实空态: 不回退假数据
+    expect(await screen.findByText('暂无精选')).toBeInTheDocument();
+    expect(screen.getByText(/下一轮采集后生成/)).toBeInTheDocument();
+  });
+
+  it('深度视图: title 命中深度词的条目入选, 其余不混入', async () => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith('/api/hotspots/picked')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ count: 0, items: [] }) } as Response);
+      }
+      if (url.startsWith('/api/hotspots')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({
+          ...HOTSPOT_FIXTURE,
+          items: [
+            ...HOTSPOT_FIXTURE.items,
+            { id: 'h9', title: '云原生安全建设深度指南', summary: '', source: 'FreeBuf', url: 'https://example.com/9', category: 'security', published_at: nowIso(), score: 70 },
+          ],
+        }) } as Response);
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
+    }));
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: '深度' }));
+
+    // 命中 /深度/ 的标题入选
+    expect(await screen.findByText('云原生安全建设深度指南')).toBeInTheDocument();
+    // 非长文候选 (短摘要 + 无深度词标题) 不混入
+    expect(screen.queryByText('常规快讯条目')).toBeNull();
+  });
+
+  it('深度视图空态: 无长文候选 → 当前无深读候选 — 在条目上收藏后归入深读', async () => {
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+
+    // 默认 fixture 无一条满足 summary≥200 或深度词
+    fireEvent.click(screen.getByRole('button', { name: '深度' }));
+
+    expect(await screen.findByText('当前无深读候选')).toBeInTheDocument();
+    expect(screen.getByText(/在条目上收藏后归入深读/)).toBeInTheDocument();
   });
 });

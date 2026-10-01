@@ -289,3 +289,50 @@ class TestPracticeDomainBoost:
         r = client.get("/api/hotspots")
         ids = [it["id"] for it in r.json()["items"]]
         assert ids == ["h-fin", "h-cmp", "h-vul"]
+
+
+# ===========================================================================
+# P2 2026-09-27 — GET /api/hotspots/picked (精选 Top-N)
+# ===========================================================================
+class TestPickedEndpoint:
+    def _seed_pick_scores(self):
+        """3 条带 pick_score (90/70/80) + 1 条 NULL (未入选)。"""
+        conn = db.get_connection()
+        ts = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+        for i, pscore in enumerate([90.0, 70.0, 80.0]):
+            conn.execute(
+                "INSERT OR IGNORE INTO hotspots (id, title, url, source,"
+                " category, published_at, quality_score, score, summary,"
+                " fetched_at, ingested_at, pick_score)"
+                " VALUES (?, ?, ?, 'src', 'security', ?, 80, 80, '', ?, ?, ?)",
+                (f"pk_{i}", f"t{i}", f"https://y.com/{i}", ts, ts, ts, pscore),
+            )
+        conn.execute(
+            "INSERT OR IGNORE INTO hotspots (id, title, url, source,"
+            " category, published_at, quality_score, score, summary,"
+            " fetched_at, ingested_at, pick_score)"
+            " VALUES ('pk_null', 't-null', 'https://y.com/n', 'src',"
+            " 'security', ?, 80, 80, '', ?, ?, NULL)",
+            (ts, ts, ts),
+        )
+
+    def test_picked_top_n_by_pick_score_desc_excludes_null(self, client, temp_db):
+        """pick_score DESC 排序 + Top-N 钳制 + NULL (未入选) 不返回。
+
+        路由顺序契约: /picked 注册在 /{item_id} 之前 — 否则该请求被
+        吞成详情查询 (404), 本用例即红。
+        """
+        self._seed_pick_scores()
+        r = client.get("/api/hotspots/picked", params={"days": 7, "limit": 2})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["count"] == 2
+        assert [it["pick_score"] for it in body["items"]] == [90.0, 80.0]
+        assert body["items"][0]["id"] == "pk_0"
+        assert all(it["id"] != "pk_null" for it in body["items"])
+
+    def test_picked_param_validation(self, client, temp_db):
+        """Query 约束: days ∈ [1,7], limit ∈ [1,50], 越界 → 422。"""
+        assert client.get("/api/hotspots/picked", params={"days": 8}).status_code == 422
+        assert client.get("/api/hotspots/picked", params={"limit": 51}).status_code == 422
+        assert client.get("/api/hotspots/picked", params={"days": 0}).status_code == 422

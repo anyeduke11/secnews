@@ -78,3 +78,23 @@ export function markAllAlertsRead(): Promise<unknown> {
 export function resolveAlert(id: number): Promise<unknown> {
   return apiFetch(`/api/alerts/v2/${id}/resolve`, { method: 'PUT' });
 }
+
+// ── 精选 (2026-09-27 四模式 P2, /api/hotspots/picked) ────────────────
+
+export interface PickedItem {
+  id: string;
+  title: string;
+  url: string;
+  source: string;
+  category: string;
+  summary: string;
+  quality_score: number | null;
+  pick_score: number;
+  published_at: string | null;
+  fetched_at: string;
+}
+
+/** GET /api/hotspots/picked — 精选 Top-N (pick_score DESC) */
+export function getPickedItems(days = 2, limit = 30): Promise<{ count: number; items: PickedItem[] }> {
+  return getJSON(`/api/hotspots/picked?days=${days}&limit=${limit}`);
+}

@@ -295,6 +295,9 @@
 .sentinel .flash-item a:hover .flash-title{color:var(--sn-mint)}
 .sentinel .flash-tags{display:inline-flex;gap:6px;margin-left:8px;vertical-align:1px}
 .sentinel .ftag{font-size:11px;padding:1px 7px;border-radius:3px;font-family:var(--sn-mono)}
+/* 精选徽章 + pick_score (P2 2026-09-27 四模式): 复用 mint 强调色与 mono 数字风格 */
+.sentinel .pick-badge{font-size:11px;padding:1px 7px;border-radius:3px;font-family:var(--sn-mono);background:var(--sn-mint-dim);color:var(--sn-mint);font-weight:600}
+.sentinel .pick-score{font-size:11px;font-family:var(--sn-mono);color:var(--sn-ink-3)}
 .sentinel .flash-side{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .sentinel .flash-src{font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3)}
 .sentinel .flash-item .agihunt-card-star{align-self:center}

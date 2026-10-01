@@ -3,8 +3,10 @@
  *
  * 信息架构: 三层工作流的资料层 — 采集与组织。
  * 壳 (appbar + 心跳条) 由 SentinelShell 提供, 本页聚焦:
- *  - 阅读模式四态 (简报/扫描/深度/告警) + 频道 chips
+ *  - 阅读模式四态 (全量/精选/深度/告警) + 频道 chips
  *  - 全文搜索 / 时间范围切换 / 游标分页 / 收藏加星 (报纸版能力移植)
+ *  - 精选视图 = /api/hotspots/picked 按 pick_score DESC Top-N (P2 2026-09-27);
+ *    深度视图 = 当前条目长文过滤 (summary≥200 或 title 命中深度词)
  *  - 头条叙事 + 次级重点 + 快讯流 (alert 模式渲染真告警列表 NewsAlertList, P1 2026-09-27)
  *  - 右栏: 源监控 / 质量门禁 24h / 今日行动
  *
@@ -28,7 +30,7 @@ import { useHotspotData } from '../../hooks/useHotspotData';
 import { useFavorites } from '../../hooks/useFavorites';
 import { CATEGORIES, HotspotItem, PRACTICE_DOMAIN_LABELS } from '../../types';
 import { getJSON, postJSON } from '../../lib/api';
-import { getNewsAlertUnread } from '../../api/secnews';
+import { getNewsAlertUnread, getPickedItems, PickedItem } from '../../api/secnews';
 import { PriorityDigestCard } from './PriorityDigestCard';
 import { NewsAlertList } from './NewsAlertList';
 import { SentinelShell, usePipe, usePipeReloadOnSse } from './SentinelShell';
@@ -246,6 +248,50 @@ function DeepReadChip({ id, label = '深读', itemTitle }: { id: string; label?:
   );
 }
 
+/** 快讯行: brief 快讯流与 deep 深度视图共用同一行结构 (P2 2026-09-27 抽取) */
+function FlashRow({ item, interestDomains, fav, onStar }: {
+  item: HotspotItem;
+  interestDomains: string[];
+  fav: boolean;
+  onStar: (item: HotspotItem) => void;
+}) {
+  const href = safeHref(item.url);
+  return (
+    <li className="flash-item">
+      <span className="flash-time num">{relTime(item.published_at)}</span>
+      <div className="flash-body">
+        {href ? (
+          <a href={href} target="_blank" rel="noopener noreferrer"><span className="flash-title">{item.title}</span></a>
+        ) : (
+          <span className="flash-title">{item.title}</span>
+        )}
+        <span className="flash-tags">
+          <span className="ftag" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span>
+          {item.practice_domain && (
+            <span
+              className="ftag"
+              title={interestDomains.includes(item.practice_domain) ? '命中你的兴趣方向, 已优先展示' : '实践域'}
+              style={interestDomains.includes(item.practice_domain)
+                ? { color: 'var(--sn-mint, #00e5a0)', border: '1px solid var(--sn-mint, #00e5a0)' }
+                : undefined}
+            >
+              {PRACTICE_DOMAIN_LABELS[item.practice_domain] || item.practice_domain}
+            </span>
+          )}
+          <DeepReadChip id={item.id} itemTitle={item.title} />
+        </span>
+      </div>
+      <div className="flash-side">
+        <span className="flash-src">{item.source}</span>
+        <span className="mini-heat" aria-hidden="true">
+          {heatCells(heatOf(item)).map((on, i) => <b key={i} className={on ? 'on' : undefined} />)}
+        </span>
+      </div>
+      <StarButton item={item} fav={fav} onToggle={onStar} />
+    </li>
+  );
+}
+
 export function SentinelHomePage() {
   const navigate = useNavigate();
 
@@ -317,6 +363,25 @@ export function SentinelHomePage() {
       .catch(() => { /* 接口不可达时保留现值 */ });
   }, []);
   useEffect(() => { reloadNewsUnread(); }, [reloadNewsUnread]);
+
+  // ── 精选视图 (P2 2026-09-27): 独立数据源 /api/hotspots/picked ──
+  // 切到 scan 模式时拉取; pick_refresh SSE 已裁剪 (计划 Self-Review #1):
+  // 精选列表 30min 采集粒度足够, 重进 scan 即重拉, 不新增事件类型。
+  const [picked, setPicked] = useState<PickedItem[] | null>(null);
+  useEffect(() => {
+    if (mode !== 'scan') return;
+    let alive = true;
+    getPickedItems()
+      .then(d => { if (alive) setPicked(d.items); })
+      .catch(() => { if (alive) setPicked([]); }); // 接口失败 → 诚实空态, 不阻塞页面
+    return () => { alive = false; };
+  }, [mode]);
+
+  // ── 深度视图 (P2): 当前条目长文过滤 (纯前端, spec §4) ──
+  const deepItems = useMemo(
+    () => items.filter(i => (i.summary?.length ?? 0) >= 200 || /分析|详解|深度|指南|research/.test(i.title)),
+    [items],
+  );
 
   // SSE: 只响应 collect_done (一轮采集只发一次)。其余事件 (埋点 / extract_done / alert /
   // job_done …) 与资料层无关, 不刷页面。三条动作沿用 cadence 修正批 (2026-09-10) 的窗口,
@@ -429,7 +494,54 @@ export function SentinelHomePage() {
       {/* ===== 主布局 ===== */}
       <div className="layout">
         <main className="maincol">
-          {loading ? (
+          {mode === 'scan' ? (
+            /* 精选视图 (P2 2026-09-27): 独立数据源, 自带加载/空态, 不混排常规快讯流 */
+            picked === null ? (
+              <div className="story-top" aria-busy="true">
+                <div className="skel-line w1" /><div className="skel-line w2" /><div className="skel-line w3" /><div className="skel-line w2" />
+              </div>
+            ) : picked.length === 0 ? (
+              <div className="empty-panel">
+                <div className="empty-ring" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5l2 4.5 4.5.7-3.2 3.2.7 4.8L10 13.6l-4 2.1.7-4.8L3.5 7.7 8 7l2-4.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
+                </div>
+                <h3>暂无精选</h3>
+                <p>下一轮采集后生成 — pick_score 由采集尾部落列。</p>
+              </div>
+            ) : (
+              <section aria-label="精选资讯">
+                <div className="flash-head">
+                  <h2>精选资讯</h2>
+                  <span className="flash-count num">{picked.length} ITEMS · PICK SCORE DESC</span>
+                </div>
+                <ul className="flash-list">
+                  {picked.map(item => {
+                    const href = safeHref(item.url);
+                    return (
+                      <li className="flash-item" key={item.id}>
+                        <span className="flash-time num">{relTime(item.published_at)}</span>
+                        <div className="flash-body">
+                          {href ? (
+                            <a href={href} target="_blank" rel="noopener noreferrer"><span className="flash-title">{item.title}</span></a>
+                          ) : (
+                            <span className="flash-title">{item.title}</span>
+                          )}
+                          <span className="flash-tags">
+                            <span className="pick-badge">精选</span>
+                            <span className="pick-score num" title="pick_score = 质量 + 关注域 + 收藏源 + 时效">{item.pick_score}</span>
+                            <span className="ftag" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span>
+                          </span>
+                        </div>
+                        <div className="flash-side">
+                          <span className="flash-src">{item.source}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )
+          ) : loading ? (
             <div className="story-top" aria-busy="true">
               <div className="skel-line w1" /><div className="skel-line w2" /><div className="skel-line w3" /><div className="skel-line w2" />
             </div>
@@ -457,6 +569,29 @@ export function SentinelHomePage() {
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2.5 7h8M7.5 3.5L11 7l-3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
             </div>
+          ) : mode === 'deep' ? (
+            /* 深度视图 (P2 2026-09-27): 长文候选过滤, 纯前端 */
+            deepItems.length === 0 ? (
+              <div className="empty-panel">
+                <div className="empty-ring" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 5v5l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5" /></svg>
+                </div>
+                <h3>当前无深读候选</h3>
+                <p>在条目上收藏后归入深读。</p>
+              </div>
+            ) : (
+              <section aria-label="深度阅读">
+                <div className="flash-head">
+                  <h2>深度阅读</h2>
+                  <span className="flash-count num">{deepItems.length} ITEMS · 长文候选</span>
+                </div>
+                <ul className="flash-list">
+                  {deepItems.map(item => (
+                    <FlashRow key={item.id} item={item} interestDomains={interestDomains} fav={isFavorite(item.id)} onStar={star} />
+                  ))}
+                </ul>
+              </section>
+            )
           ) : (
             <>
               {/* DEV-0177 T0.5 收敛: SK-01 今日重点情报 (实践域分区) */}
@@ -546,43 +681,9 @@ export function SentinelHomePage() {
                     </div>
                     <ul className="flash-list">
                       {/* 常规快讯 */}
-                      {flashes.map(item => {
-                        const href = safeHref(item.url);
-                        return (
-                          <li className="flash-item" key={item.id}>
-                            <span className="flash-time num">{relTime(item.published_at)}</span>
-                            <div className="flash-body">
-                              {href ? (
-                                <a href={href} target="_blank" rel="noopener noreferrer"><span className="flash-title">{item.title}</span></a>
-                              ) : (
-                                <span className="flash-title">{item.title}</span>
-                              )}
-                              <span className="flash-tags">
-                                <span className="ftag" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span>
-                                {item.practice_domain && (
-                                  <span
-                                    className="ftag"
-                                    title={interestDomains.includes(item.practice_domain) ? '命中你的兴趣方向, 已优先展示' : '实践域'}
-                                    style={interestDomains.includes(item.practice_domain)
-                                      ? { color: 'var(--sn-mint, #00e5a0)', border: '1px solid var(--sn-mint, #00e5a0)' }
-                                      : undefined}
-                                  >
-                                    {PRACTICE_DOMAIN_LABELS[item.practice_domain] || item.practice_domain}
-                                  </span>
-                                )}
-                                <DeepReadChip id={item.id} itemTitle={item.title} />
-                              </span>
-                            </div>
-                            <div className="flash-side">
-                              <span className="flash-src">{item.source}</span>
-                              <span className="mini-heat" aria-hidden="true">
-                                {heatCells(heatOf(item)).map((on, i) => <b key={i} className={on ? 'on' : undefined} />)}
-                              </span>
-                            </div>
-                            <StarButton item={item} fav={isFavorite(item.id)} onToggle={star} />
-                          </li>
-                        );
-                      })}
+                      {flashes.map(item => (
+                        <FlashRow key={item.id} item={item} interestDomains={interestDomains} fav={isFavorite(item.id)} onStar={star} />
+                      ))}
                     </ul>
 
                     {/* 游标分页控件 */}

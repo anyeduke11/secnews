@@ -277,9 +277,10 @@ def _load_hotspot(hotspot_id: str) -> dict | None:
 def list_alert_events(
     status: str | None = None,
     severity: str | None = None,
+    rule_type: str | None = None,
     limit: int = 50,
 ) -> list[dict]:
-    """列出告警事件, 支持 status/severity 筛选, created_at 倒序."""
+    """列出告警事件, 支持 status/severity/rule_type 筛选, created_at 倒序."""
     sql = "SELECT * FROM alert_events WHERE 1=1"
     params: list = []
     if status:
@@ -288,6 +289,9 @@ def list_alert_events(
     if severity:
         sql += " AND severity = ?"
         params.append(severity)
+    if rule_type:
+        sql += " AND rule_type = ?"
+        params.append(rule_type)
     sql += " ORDER BY created_at DESC LIMIT ?"
     params.append(limit)
 
@@ -295,11 +299,25 @@ def list_alert_events(
     return [dict(r) for r in rows]
 
 
-def unread_alert_count() -> int:
-    """未读告警数."""
-    row = get_connection().execute(
-        "SELECT COUNT(*) AS c FROM alert_events WHERE status = 'unread'"
-    ).fetchone()
+NEWS_ALERT_RULE_TYPES = (
+    "critical_vuln", "major_security_event",
+    "major_ai_security_event", "must_know_regulatory",
+)
+
+
+def unread_alert_count(rule_types: tuple[str, ...] | None = None) -> int:
+    """未读告警数. rule_types 给定时仅统计这些规则 (资讯告警与项目告警分离)."""
+    if rule_types:
+        marks = ",".join("?" for _ in rule_types)
+        row = get_connection().execute(
+            f"SELECT COUNT(*) AS c FROM alert_events "
+            f"WHERE status = 'unread' AND rule_type IN ({marks})",
+            rule_types,
+        ).fetchone()
+    else:
+        row = get_connection().execute(
+            "SELECT COUNT(*) AS c FROM alert_events WHERE status = 'unread'"
+        ).fetchone()
     return int(row["c"])
 
 

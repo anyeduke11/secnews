@@ -31,16 +31,23 @@ router = APIRouter(prefix="/api/alerts/v2", tags=["alerts-v2"])
 def list_alerts(
     status: str | None = Query(None),
     severity: str | None = Query(None),
+    rule_type: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
 ):
-    """List alert events, with optional status/severity filtering."""
-    items = list_alert_events(status=status, severity=severity, limit=limit)
+    """List alert events, with optional status/severity/rule_type filtering."""
+    items = list_alert_events(
+        status=status, severity=severity, rule_type=rule_type, limit=limit,
+    )
     return {"count": len(items), "items": items}
 
 
 @router.get("/unread-count")
-def unread_count():
-    """Get the count of unread alerts."""
+def unread_count(scope: str = Query("all")):
+    """未读告警数. scope=news → 仅资讯告警 4 规则 (首页徽标用)."""
+    from backend.services.alert_service import NEWS_ALERT_RULE_TYPES
+
+    if scope == "news":
+        return {"count": unread_alert_count(rule_types=NEWS_ALERT_RULE_TYPES)}
     return {"count": unread_alert_count()}
 
 

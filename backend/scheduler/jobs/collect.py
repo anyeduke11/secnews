@@ -43,6 +43,8 @@ async def collect_all_job() -> None:
     await _classify_new_items()
     # ---- 自动入管规则引擎 (2026-09-26, 设计稿 §3.2; 内部全 try-except) ----
     await _auto_intake_tick()
+    # ---- 资讯告警评估 (2026-09-27 四模式 P1; 内部全 try-except) ----
+    await _news_alert_tick()
 
 
 async def _auto_intake_tick() -> None:
@@ -597,3 +599,29 @@ async def v1_signal_intake_tick_job() -> None:
             )
     except Exception as e:
         _logger.error(f"v1_signal_intake_tick_job crashed: {e}")
+
+
+async def _news_alert_tick() -> None:
+    """采集尾部: 资讯告警评估 (spec 2026-09-27 four-modes §2.1)。
+
+    词表筛+pi 复核"需执行动作"资讯 → alert_events。run_news_alert_review
+    全程不抛; 此处再兜一层异常隔离, 与 post-ingest 链各 job 模式一致。
+    alerted>0 时在 async 侧直接 await publish_event 发 SSE news_alert
+    (发布端是 async 上下文, 无线程问题; 失败仅 log 不影响告警落库)。
+    """
+    try:
+        from backend.services.news_alert_service import run_news_alert_review
+
+        result = await asyncio.to_thread(run_news_alert_review)
+        if result.get("alerted"):
+            _logger.info(
+                f"news_alert: candidates={result['candidates']} "
+                f"alerted={result['alerted']}"
+            )
+            try:
+                from backend.core.events import publish_event
+                await publish_event("news_alert", {"count": result["alerted"]})
+            except Exception as e:
+                _logger.warning(f"news_alert sse publish failed: {e}")
+    except Exception as e:
+        _logger.error(f"_news_alert_tick crashed: {e}")

@@ -216,24 +216,7 @@ def run_news_alert_review(lookback_hours: int = 40) -> dict[str, int]:
         if new_id:
             alerted += 1
 
-    if alerted:
-        _publish_news_alert_sse(alerted)
     return {"candidates": len(candidates), "alerted": alerted}
-
-
-def _publish_news_alert_sse(alerted: int) -> None:
-    """SSE news_alert 事件 (与 publish_collect_done 同款: spawn 协程而非阻塞)。"""
-    try:
-        import asyncio
-
-        from backend.core.events import publish_event
-        import backend.services.collection_pipeline as _cp
-
-        _cp._spawn(asyncio.ensure_future(
-            publish_event("news_alert", {"count": alerted})
-        ))
-    except Exception:
-        pass  # SSE 失败不影响告警落库
 
 
 __all__ = ["match_rules"]

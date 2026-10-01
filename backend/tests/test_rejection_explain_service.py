@@ -100,3 +100,33 @@ class TestRunRejectionExplain:
         assert "Chrome 0day 爆出" in prompt
         assert "category_mismatch" in prompt
         assert "60" in prompt  # 字数上限要求
+
+
+class TestExplainTick:
+    def test_tick_isolates_crash(self, monkeypatch):
+        import asyncio
+
+        def boom(**kw):
+            raise RuntimeError("service crashed")
+        monkeypatch.setattr(
+            "backend.services.rejection_explain_service.run_rejection_explain",
+            boom,
+        )
+        from backend.scheduler.jobs.collect import _rejection_explain_tick
+        asyncio.run(_rejection_explain_tick())  # 不抛 = 通过
+
+    def test_tick_calls_service(self, monkeypatch):
+        import asyncio
+
+        called = {"n": 0}
+
+        def fake(**kw):
+            called["n"] += 1
+            return {"explained": 3}
+        monkeypatch.setattr(
+            "backend.services.rejection_explain_service.run_rejection_explain",
+            fake,
+        )
+        from backend.scheduler.jobs.collect import _rejection_explain_tick
+        asyncio.run(_rejection_explain_tick())
+        assert called["n"] == 1

@@ -47,6 +47,8 @@ async def collect_all_job() -> None:
     await _news_alert_tick()
     # ---- 精选评分 (2026-09-27 四模式 P2; 内部全 try-except) ----
     await _pick_score_tick()
+    # ---- 拒收日志解释 (2026-10-01 rejection-explain; 内部全 try-except) ----
+    await _rejection_explain_tick()
 
 
 async def _auto_intake_tick() -> None:
@@ -642,3 +644,17 @@ async def _pick_score_tick() -> None:
             )
     except Exception as e:
         _logger.error(f"_pick_score_tick crashed: {e}")
+
+
+async def _rejection_explain_tick() -> None:
+    """采集尾部: 拒收日志 LLM 解释回填 (spec 2026-10-01-rejection-explain §4.1)。"""
+    try:
+        from backend.services.rejection_explain_service import (
+            run_rejection_explain,
+        )
+
+        result = await asyncio.to_thread(run_rejection_explain)
+        if result.get("explained"):
+            _logger.info(f"rejection_explain: explained={result['explained']}")
+    except Exception as e:
+        _logger.error(f"_rejection_explain_tick crashed: {e}")

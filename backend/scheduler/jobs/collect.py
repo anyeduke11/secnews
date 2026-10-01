@@ -45,6 +45,8 @@ async def collect_all_job() -> None:
     await _auto_intake_tick()
     # ---- 资讯告警评估 (2026-09-27 四模式 P1; 内部全 try-except) ----
     await _news_alert_tick()
+    # ---- 精选评分 (2026-09-27 四模式 P2; 内部全 try-except) ----
+    await _pick_score_tick()
 
 
 async def _auto_intake_tick() -> None:
@@ -625,3 +627,18 @@ async def _news_alert_tick() -> None:
                 _logger.warning(f"news_alert sse publish failed: {e}")
     except Exception as e:
         _logger.error(f"_news_alert_tick crashed: {e}")
+
+
+async def _pick_score_tick() -> None:
+    """采集尾部: 精选评分 (spec 2026-09-27 four-modes §3)。"""
+    try:
+        from backend.services.pick_service import refresh_pick_scores
+
+        result = await asyncio.to_thread(refresh_pick_scores)
+        if result.get("evaluated"):
+            _logger.info(
+                f"pick_score: evaluated={result['evaluated']} "
+                f"picked={result['picked']}"
+            )
+    except Exception as e:
+        _logger.error(f"_pick_score_tick crashed: {e}")

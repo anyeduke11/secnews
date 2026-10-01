@@ -93,3 +93,25 @@ class TestRefreshPickScores:
         assert ps.refresh_pick_scores(lookback_hours=40, top_n=3) == {
             "evaluated": 0, "picked": 0,
         }
+
+
+class TestListPickedSince:
+    def test_returns_top_by_pick_score(self, temp_db):
+        from backend.repository.db import get_connection
+        from backend.repository.hotspot_repo import HotspotRepository
+        from datetime import datetime, timedelta, timezone
+        conn = get_connection()
+        now = datetime.now(timezone.utc)
+        ts = (now - timedelta(hours=1)).isoformat()
+        for i, pscore in enumerate([90.0, 70.0, 80.0]):
+            conn.execute(
+                "INSERT OR IGNORE INTO hotspots (id, title, url, source,"
+                " category, published_at, quality_score, score, summary,"
+                " fetched_at, ingested_at, pick_score)"
+                " VALUES (?, ?, ?, 'src', 'security', ?, 80, 80, '', ?, ?, ?)",
+                (f"pk_{i}", f"t{i}", f"https://y.com/{i}", ts, ts, ts, pscore),
+            )
+        since = (now - timedelta(days=7)).isoformat()
+        rows = HotspotRepository().list_picked_since(since, limit=2)
+        assert [r["pick_score"] for r in rows] == [90.0, 80.0]
+        assert rows[0]["id"] == "pk_0"

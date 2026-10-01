@@ -730,6 +730,25 @@ class HotspotRepository:
             ) from e
         return {str(r["url"]) for r in rows if r["url"]}
 
+    def list_picked_since(self, since_iso: str, limit: int = 30) -> list[dict]:
+        """精选视图: fetched_at >= since 的条目按 pick_score DESC (NULL 不返回)。
+
+        2026-09-27 四模式 P2 (spec §3): 精选 Top-N 由 pick_service 落列,
+        本查询只读列排序。有行数语义 → 受 _MAX_LIMIT 钳制可接受 (30 << 200)。
+        """
+        effective = max(1, min(limit, _MAX_LIMIT))
+        if not since_iso:
+            return []
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT id, title, url, source, category, summary, published_at,"
+            " quality_score, score, pick_score, fetched_at"
+            " FROM hotspots WHERE fetched_at >= ? AND pick_score IS NOT NULL"
+            " ORDER BY pick_score DESC LIMIT ?",
+            (since_iso, effective),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
     def list_recent_urls_by_source(
         self,
         source_name: str,

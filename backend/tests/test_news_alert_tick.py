@@ -48,3 +48,23 @@ class TestNewsAlertTick:
         monkeypatch.setattr("backend.core.events.publish_event", fake_publish)
         asyncio.run(_news_alert_tick())
         assert calls == [("news_alert", {"count": 1})]
+
+
+def test_pick_tick_isolates_crash(monkeypatch):
+    def boom(**kw):
+        raise RuntimeError("crash")
+    monkeypatch.setattr("backend.services.pick_service.refresh_pick_scores", boom)
+    from backend.scheduler.jobs.collect import _pick_score_tick
+    asyncio.run(_pick_score_tick())  # 不抛 = 通过
+
+
+def test_pick_tick_calls_service(monkeypatch):
+    called = {"n": 0}
+
+    def fake(**kw):
+        called["n"] += 1
+        return {"evaluated": 5, "picked": 3}
+    monkeypatch.setattr("backend.services.pick_service.refresh_pick_scores", fake)
+    from backend.scheduler.jobs.collect import _pick_score_tick
+    asyncio.run(_pick_score_tick())
+    assert called["n"] == 1

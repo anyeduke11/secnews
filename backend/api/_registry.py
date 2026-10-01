@@ -136,10 +136,13 @@ def register_all(app: FastAPI) -> None:
         app.include_router(annotations_api.router, tags=["annotation"])
     if config.feature_tech_stack and is_extension_enabled("tech_stack"):
         app.include_router(tech_stack.router, tags=["tech-stack"])
+    # Phase 12: 告警系统 v2 (不依赖 feature flag，随 app 启动)
+    # 注册序契约: v2 必须先于 v1 注册 — 否则 GET /api/alerts/v2 被 v1 的
+    # GET /api/alerts/{alert_id} 捕获 ("v2" 当 alert_id → 404), 首页告警列表恒空
+    # (2026-10-01 实弹揪出; 同款契约先例: hotspots.py /picked 先于 /{item_id})
+    app.include_router(alert_api_v2.router, tags=["alerts-v2"])
     if config.feature_alert:
         app.include_router(alerts.router, tags=["alert"])
-    # Phase 12: 告警系统 v2 (不依赖 feature flag，随 app 启动)
-    app.include_router(alert_api_v2.router, tags=["alerts-v2"])
     if config.feature_unified_search:
         app.include_router(search.router, tags=["search"])
     app.include_router(mode.router, tags=["mode"])

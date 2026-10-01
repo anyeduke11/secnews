@@ -1,4 +1,15 @@
 
+## [DEV-0239] 告警列表恒空根治: v1 路由 /api/alerts/{id} 抢先捕获 /api/alerts/v2 — 注册序对调 + 测试绕过翻转 (alert-route-order)
+
+- **时间**: 2026-10-01
+- **类型**: Bug修复 (owner 报告 "徽标 1 条未读但告警列表空")
+- **关联模块**: `backend:api-registry`, `backend:alert-api`, `frontend:sentinel` (前端零改动)
+- **问题描述**: 首页「告警」徽标显示 1 条未读 (真数据: Reddit 浏览器扩展读取 DOM 条目, major_ai_security_event/high/unread), 但 NewsAlertList 恒显示「当前无可执行告警」。根因: `_registry.py` 注册序 v1 (`alerts.py` prefix=/api/alerts, 含 `GET /{alert_id}`) 先于 v2 (`alert_api.py` prefix=/api/alerts/v2, `GET ""`), FastAPI 按注册序匹配 → `GET /api/alerts/v2` 被 v1 的 `/{alert_id}` 捕获, "v2" 当 alert_id → 404「告警不存在: v2」→ 前端 catch 兜底 setItems([]) 显示成空态 (误导性)。徽标正常是因 `/unread-count` 路径更深 v1 捕获不到。**测试侧长期掩盖**: test_alert_engine.py fixture 显式 `feature_alert=False` 关 v1 绕过冲突 (注释明知冲突), 导致测试全绿而生产带病
+- **关联文件**: `backend/api/_registry.py` (注册序对调: v2 先 v1 后, 附契约注释 — 同款先例 hotspots.py /picked 先于 /{item_id}, DEV-0237) + `backend/tests/test_alert_engine.py` (fixture 翻转 `feature_alert=True` 按生产配置共存, 既有 api_get/mark_read/read_all/unread_count 4 端点测试即成路由序回归锁)
+- **实现思路**: 最小修复 = 交换 2 行注册序, 不动任何路由定义; v1 `GET /api/alerts/{真实id}` 不受影响 (v2 无同级 GET /{id} 路由, 自然 fallthrough)
+- **测试验证**: test_alert_engine 13 passed (v1+v2 共存配置); 直查生产库 alert_events 确认 1 条未读真数据; curl 修复前 `GET /api/alerts/v2` → 404 告警不存在: v2 (复现), 修复后需重启后端生效
+- **潜在风险 (parked)**: ① 后端为常驻进程需手动重启才生效; ② 同款「fixture 绕过掩盖路由冲突」模式可能在其他测试存在 (本轮未普查, 若再现按本条先例翻转); ③ 前端 NewsAlertList 的 catch 空态与真空态不可区分 — 空态文案对 API 故障有误导, 可后续区分 (非本次范围)
+
 ## [DEV-0238] 拒收日志人话化: 词典兜底+LLM 批量解释双层架构 + 拒收日志页迁设置运维区 (rejection-explain)
 
 - **时间**: 2026-10-01

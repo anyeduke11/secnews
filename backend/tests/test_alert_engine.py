@@ -51,9 +51,11 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
 @pytest.fixture
 def client(temp_db, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(config, "feature_review", True)
-    # 旧 alerts API (v1, /api/alerts/{id}) 与 v2 路由冲突 (/api/alerts/v2),
-    # 因此关闭旧 API 以避免 /api/alerts/v2 被旧路由的 /api/alerts/{id} 捕获.
-    monkeypatch.setattr(config, "feature_alert", False)
+    # v1 (/api/alerts/{id}) 与 v2 (/api/alerts/v2) 按生产配置共存 —
+    # 注册序契约 (v2 先注册, 见 _registry.py) 保证 /api/alerts/v2 不被
+    # v1 的 /{alert_id} 捕获; 此处锁定该契约 (2026-10-01 前曾以关闭 v1 绕过,
+    # 导致测试全绿而生产告警列表恒空).
+    monkeypatch.setattr(config, "feature_alert", True)
     monkeypatch.setattr(config, "feature_recommendation", True)
     app = FastAPI()
     app.add_middleware(TraceIDMiddleware)

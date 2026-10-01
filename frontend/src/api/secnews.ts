@@ -12,7 +12,7 @@
  * 返回为宽松 dict, 组件层以各自 interface 断言 (与 sources.ts SourceHealthPayload 同策略)。
  */
 
-import { getJSON } from '../lib/api';
+import { apiFetch, getJSON } from '../lib/api';
 
 /** GET /api/secnews/pipeline — KL 管线观测 (漏斗/队列/死信/存活/台账) */
 export function getSecNewsPipeline<T = Record<string, unknown>>(): Promise<T> {
@@ -32,4 +32,49 @@ export function getObservabilitySummary<T = Record<string, unknown>>(): Promise<
 /** GET /api/observability/alerts/active — 活跃告警 (acked=0) */
 export function getActiveAlerts<T = Record<string, unknown>>(): Promise<T> {
   return getJSON<T>('/api/observability/alerts/active');
+}
+
+// ── 资讯告警 (2026-09-27 四模式 P1, /api/alerts/v2) ──────────────────
+
+export interface NewsAlertEvent {
+  id: number;
+  rule_type: string;
+  title: string;
+  description: string;
+  severity: 'critical' | 'high' | 'medium';
+  source: string | null;
+  source_url: string | null;
+  item_id: string | null;
+  status: string;
+  created_at: string;
+}
+
+export const ALERT_RULE_LABELS: Record<string, string> = {
+  critical_vuln: '漏洞',
+  major_security_event: '安全事件',
+  major_ai_security_event: 'AI 安全事件',
+  must_know_regulatory: '合规时限',
+};
+
+/** GET /api/alerts/v2?rule_type= — 资讯告警 4 规则域列表 (不含 CodeGarden 项目告警) */
+export function getNewsAlerts(ruleType?: string): Promise<{ count: number; items: NewsAlertEvent[] }> {
+  const qs = ruleType ? `?rule_type=${encodeURIComponent(ruleType)}&limit=100` : '?limit=100';
+  return getJSON(`/api/alerts/v2${qs}`);
+}
+
+/** GET /api/alerts/v2/unread-count?scope=news — 首页「告警」按钮未读徽标 */
+export function getNewsAlertUnread(): Promise<{ count: number }> {
+  return getJSON('/api/alerts/v2/unread-count?scope=news');
+}
+
+export function markAlertRead(id: number): Promise<unknown> {
+  return apiFetch(`/api/alerts/v2/${id}/read`, { method: 'PUT' });
+}
+
+export function markAllAlertsRead(): Promise<unknown> {
+  return apiFetch('/api/alerts/v2/read-all', { method: 'PUT' });
+}
+
+export function resolveAlert(id: number): Promise<unknown> {
+  return apiFetch(`/api/alerts/v2/${id}/resolve`, { method: 'PUT' });
 }

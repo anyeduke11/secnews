@@ -299,50 +299,37 @@
 .sentinel .flash-src{font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3)}
 .sentinel .flash-item .agihunt-card-star{align-self:center}
 
-/* 告警条目 */
-.sentinel .alert-item{
-  grid-column:1 / -1;
-  display:block;padding:13px 14px;margin:0 -14px;
-  border-radius:8px;background:var(--sn-red-dim);
-  cursor:pointer;
-}
-.sentinel .alert-bar{display:grid;grid-template-columns:88px minmax(0,1fr) auto;gap:16px;align-items:baseline}
-.sentinel .alert-badge{
-  display:inline-block;font-family:var(--sn-mono);font-size:11px;font-weight:700;
-  color:#fff;background:var(--sn-red);border-radius:3px;padding:1.5px 7px;
-  letter-spacing:.06em;vertical-align:2px;margin-right:8px;
-}
-.sentinel .alert-item .flash-title{color:#ffd7db}
-.sentinel .alert-item:hover{background:rgba(255,71,87,.16)}
-.sentinel .alert-chev{transition:transform .2s ease;color:var(--sn-ink-3)}
-.sentinel .alert-item.open .alert-chev{transform:rotate(90deg)}
-.sentinel .alert-detail{
-  display:none;margin-top:10px;
-  border:1px solid rgba(255,100,112,.35);
-  border-radius:8px;
-  background:linear-gradient(180deg, rgba(255,71,87,.12), rgba(255,71,87,.05));
-  padding:12px 14px;
-  font-size:13px;color:var(--sn-ink-2);line-height:1.7;
-  box-shadow:0 6px 18px rgba(0,0,0,.22);
-}
-.sentinel .alert-item.open + .alert-detail,
-.sentinel .alert-detail.show{display:flex;align-items:center;gap:14px;animation:alertDetailIn .18s ease}
-@keyframes alertDetailIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-.sentinel .alert-detail b{color:var(--sn-amber);font-weight:600}
-.sentinel .alert-summary{flex:1;min-width:0;color:var(--sn-ink)}
-.sentinel .alert-side{
-  display:flex;align-items:center;gap:12px;
-  flex-shrink:0;border-left:1px dashed rgba(255,100,112,.28);padding-left:14px;
-}
-.sentinel .alert-meta{
-  display:flex;align-items:center;gap:12px;
-  font-family:var(--sn-mono);font-size:11.5px;color:var(--sn-ink-3);white-space:nowrap;
-}
-.sentinel .alert-meta b{margin-right:5px;letter-spacing:.04em}
-.sentinel .alert-actions{display:flex;gap:8px}
-@media (max-width:1100px){
-  .sentinel .alert-detail.show{flex-wrap:wrap;align-items:flex-start}
-  .sentinel .alert-side{width:100%;border-left:0;padding-left:0;border-top:1px dashed rgba(255,100,112,.28);padding-top:10px}
+/* ===== 资讯告警列表 (2026-09-27 四模式 P1, NewsAlertList /api/alerts/v2) ===== */
+.sentinel .news-alert-list{padding-top:6px}
+.sentinel .na-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:10px;border-bottom:2px solid var(--sn-line-strong)}
+.sentinel .na-tabs{display:inline-flex;gap:2px;flex-wrap:wrap}
+.sentinel .na-tab{font-size:12.5px;padding:5px 12px;border-radius:6px;color:var(--sn-ink-2);transition:background .15s ease,color .15s ease}
+.sentinel .na-tab:hover{background:var(--sn-bg-hover);color:var(--sn-ink)}
+.sentinel .na-tab.active{background:var(--sn-red-dim);color:var(--sn-red);font-weight:600}
+.sentinel .na-ops{margin-left:auto;display:flex;gap:8px}
+.sentinel .na-empty{padding:44px 0;text-align:center;font-size:13px;color:var(--sn-ink-3)}
+.sentinel .na-items{list-style:none;padding:0;margin:0}
+.sentinel .na-item{padding:12px 14px;margin:10px 0;border:1px solid var(--sn-line);border-left-width:3px;border-radius:8px;background:var(--sn-bg-lift)}
+.sentinel .na-item.unread{background:var(--sn-bg-hover)}
+.sentinel .na-bar{display:flex;align-items:center;gap:10px;font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3)}
+.sentinel .na-sev{font-weight:700;letter-spacing:.06em}
+.sentinel .na-rule{padding:1px 7px;border-radius:3px;border:1px solid var(--sn-line);color:var(--sn-ink-2)}
+.sentinel .na-title{font-size:14.5px;font-weight:600;line-height:1.5;color:var(--sn-ink);margin-top:6px}
+.sentinel .na-desc{font-size:12.5px;line-height:1.6;color:var(--sn-ink-2);margin-top:4px}
+.sentinel .na-src{font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3);margin-top:4px}
+.sentinel .na-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+/* severity 色条 — 哨兵三色锁: red=critical, amber=high, 中性=medium (仓库无独立黄 token) */
+.sentinel .na-item.sev-critical{border-left-color:var(--sn-red)}
+.sentinel .na-item.sev-critical .na-sev{color:var(--sn-red)}
+.sentinel .na-item.sev-high{border-left-color:var(--sn-amber)}
+.sentinel .na-item.sev-high .na-sev{color:var(--sn-amber)}
+.sentinel .na-item.sev-medium{border-left-color:var(--sn-ink-3)}
+.sentinel .na-item.sev-medium .na-sev{color:var(--sn-ink-3)}
+/* 「告警」按钮内未读徽标 (SentinelHomePage) */
+.sentinel .alert-unread-badge{
+  display:inline-block;margin-left:7px;padding:0 6px;border-radius:8px;
+  font-family:var(--sn-mono);font-size:10px;line-height:15px;vertical-align:1px;
+  background:var(--sn-red);color:#fff;font-weight:700;
 }
 .sentinel .abtn{
   font-family:var(--sn-mono);font-size:11.5px;padding:4px 10px;border-radius:5px;
@@ -434,30 +421,18 @@
 .sentinel[data-mode="deep"] .standfirst{font-size:16px;line-height:1.85;max-width:56ch}
 .sentinel[data-mode="deep"] .flash-item{grid-template-columns:96px minmax(0,1fr) auto auto;padding:13px 8px}
 .sentinel[data-mode="deep"] .flash-title{font-size:15.5px;line-height:1.7}
-.sentinel[data-mode="alert"] .flash-item:not(.alert-wrap),
 .sentinel[data-mode="alert"] .sub-item{opacity:.32;filter:saturate(.4)}
-.sentinel[data-mode="alert"] .alert-item{outline:1px solid rgba(255,71,87,.5)}
 .sentinel[data-mode="alert"] .story-top{opacity:.5}
 
 /* ===== 主题: 晨间亮色 (色板已统一走全局 token, 此处只留结构差异) ===== */
 html[data-theme="light"] .sentinel .controlbar{background:var(--sn-bg)}
 html[data-theme="light"] .sentinel .readmore{border-color:rgba(4,120,92,.35)}
 html[data-theme="light"] .sentinel .empty-cta{border-color:rgba(4,120,92,.35)}
-html[data-theme="light"] .sentinel .alert-item .flash-title{color:var(--p0-title)}
-html[data-theme="light"] .sentinel .alert-detail{
-  background:linear-gradient(180deg, rgba(255,71,87,.07), rgba(255,71,87,.03));
-  box-shadow:0 4px 14px rgba(126,29,46,.12);
-}
 
-/* ===== 主题: 纸面版 (P2 修订注③: 控制栏/链接/CTA/告警标题覆写, 与暖米黄协调) ===== */
+/* ===== 主题: 纸面版 (P2 修订注③: 控制栏/链接/CTA 覆写, 与暖米黄协调) ===== */
 html[data-theme="paper"] .sentinel .controlbar{background:var(--sn-bg)}
 html[data-theme="paper"] .sentinel .readmore{border-color:rgba(45,36,26,.35)}
 html[data-theme="paper"] .sentinel .empty-cta{border-color:rgba(45,36,26,.35)}
-html[data-theme="paper"] .sentinel .alert-item .flash-title{color:#7e1d2e}
-html[data-theme="paper"] .sentinel .alert-detail{
-  background:linear-gradient(180deg, rgba(178,58,74,.07), rgba(178,58,74,.03));
-  box-shadow:0 4px 14px rgba(94,58,36,.14);
-}
 
 /* 主题按钮图标显隐 (P2: 扩展三态 — light/dark/paper) */
 .sentinel .tb-sun,.sentinel .tb-moon,.sentinel .tb-paper{display:none}

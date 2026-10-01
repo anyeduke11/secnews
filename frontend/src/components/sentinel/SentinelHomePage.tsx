@@ -5,7 +5,7 @@
  * 壳 (appbar + 心跳条) 由 SentinelShell 提供, 本页聚焦:
  *  - 阅读模式四态 (简报/扫描/深度/告警) + 频道 chips
  *  - 全文搜索 / 时间范围切换 / 游标分页 / 收藏加星 (报纸版能力移植)
- *  - 头条叙事 + 次级重点 + 快讯流 (+ 可展开高危告警)
+ *  - 头条叙事 + 次级重点 + 快讯流 (alert 模式渲染真告警列表 NewsAlertList, P1 2026-09-27)
  *  - 右栏: 源监控 / 质量门禁 24h / 今日行动
  *
  * 数据源 (全部真实 API):
@@ -28,7 +28,9 @@ import { useHotspotData } from '../../hooks/useHotspotData';
 import { useFavorites } from '../../hooks/useFavorites';
 import { CATEGORIES, HotspotItem, PRACTICE_DOMAIN_LABELS } from '../../types';
 import { getJSON, postJSON } from '../../lib/api';
+import { getNewsAlertUnread } from '../../api/secnews';
 import { PriorityDigestCard } from './PriorityDigestCard';
+import { NewsAlertList } from './NewsAlertList';
 import { SentinelShell, usePipe, usePipeReloadOnSse } from './SentinelShell';
 import { SentinelRail } from './SentinelRail';
 import { SignalPanel } from '../v1/panels/SignalPanel';
@@ -307,6 +309,15 @@ export function SentinelHomePage() {
     return () => { alive = false; };
   }, []);
 
+  // 告警未读徽标 (scope=news 4 规则域): 挂载拉一次 + SSE news_alert 刷新
+  const [newsUnread, setNewsUnread] = useState(0);
+  const reloadNewsUnread = useCallback(() => {
+    getNewsAlertUnread()
+      .then(d => setNewsUnread(d.count))
+      .catch(() => { /* 接口不可达时保留现值 */ });
+  }, []);
+  useEffect(() => { reloadNewsUnread(); }, [reloadNewsUnread]);
+
   // SSE: 只响应 collect_done (一轮采集只发一次)。其余事件 (埋点 / extract_done / alert /
   // job_done …) 与资料层无关, 不刷页面。三条动作沿用 cadence 修正批 (2026-09-10) 的窗口,
   // 经 src/hooks/realtime.ts 统一注册器路由, 全部只读重拉:
@@ -317,20 +328,13 @@ export function SentinelHomePage() {
     { types: SSE_EVENTS.COLLECT_DONE, handler: () => reloadPipe() },
     { types: SSE_EVENTS.COLLECT_DONE, handler: () => void loadSide(), throttleMs: SIDE_RELOAD_GATE_MS },
     { types: SSE_EVENTS.COLLECT_DONE, handler: () => void refetch(), debounceMs: 3000 },
+    { types: SSE_EVENTS.NEWS_ALERT, handler: reloadNewsUnread },
   ]);
 
-  // 告警条目: 快讯池 (头条/次级之后) 中安全类目评分最高的一条
-  const alertItem = useMemo(() => {
-    const pool = items.slice(3);
-    const sec = pool.filter(i => i.category === 'security' || i.category === 'ai_security');
-    if (sec.length === 0) return null;
-    return [...sec].sort((a, b) => (b.score ?? b.quality_score ?? 0) - (a.score ?? a.quality_score ?? 0))[0];
-  }, [items]);
-
-  const [lead, secondaries, flashes] = useMemo(() => {
-    const rest = items.filter(i => i.id !== alertItem?.id);
-    return [rest[0] ?? null, rest.slice(1, 3), rest.slice(3)];
-  }, [items, alertItem]);
+  const [lead, secondaries, flashes] = useMemo(
+    () => [items[0] ?? null, items.slice(1, 3), items.slice(3)],
+    [items],
+  );
 
   // 「今日收录」口径: 后端 time_range=24h 即"今日 00:00 起"; 换频道/放宽时间窗/搜索后
   // total 已不是当日语义, 改标「范围内 / 匹配」, 心跳条该格回退为 '…' 避免误导。
@@ -348,10 +352,12 @@ export function SentinelHomePage() {
       {/* ===== 阅读模式 & 频道条 ===== */}
       <div className="controlbar">
         <div className="modes" role="group" aria-label="阅读模式">
-          {([['brief', '简报'], ['scan', '扫描'], ['deep', '深度']] as const).map(([m, label]) => (
+          {([['brief', '全量'], ['scan', '精选'], ['deep', '深度']] as const).map(([m, label]) => (
             <button key={m} className="mode-btn" aria-pressed={mode === m} onClick={() => setMode(m)}>{label}</button>
           ))}
-          <button className="mode-btn mode-alert-on" aria-pressed={mode === 'alert'} onClick={() => setMode('alert')}>告警</button>
+          <button className="mode-btn mode-alert-on" aria-pressed={mode === 'alert'} onClick={() => setMode('alert')}>告警
+            {newsUnread > 0 && <span className="alert-unread-badge" aria-label={`${newsUnread} 条未读告警`}>{newsUnread}</span>}
+          </button>
         </div>
         <nav className="channels" aria-label="内容频道">
           {CHANNEL_DEFS.map(ch => {
@@ -524,133 +530,91 @@ export function SentinelHomePage() {
                 </section>
               )}
 
-              {/* 快讯流 */}
-              <section aria-label="实时快讯">
-                <div className="flash-head">
-                  <h2>实时快讯</h2>
-                  <span className="flash-count num">
-                    PAGE {page} · {items.length} ITEMS
-                    {latestIngestionCount ? ` · 最近一轮 +${latestIngestionCount}` : ''}
-                    {latestIngestionAt ? ` · ${relTime(latestIngestionAt)}` : ''}
-                  </span>
-                </div>
-                <ul className="flash-list">
-                  {/* 高危告警 (可展开) */}
-                  {alertItem && (
-                    <li className="flash-item alert-wrap">
-                      <div
-                        className={`alert-item${mode === 'alert' ? ' open' : ''}`}
-                        role="button"
-                        tabIndex={0}
-                        aria-expanded={mode === 'alert'}
-                        onClick={() => setMode(m => (m === 'alert' ? 'brief' : 'alert'))}
-                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMode(m => (m === 'alert' ? 'brief' : 'alert')); } }}
-                      >
-                        <div className="alert-bar">
-                          <span className="flash-time num">{relTime(alertItem.published_at)}</span>
-                          <div className="flash-body">
-                            <div className="flash-title">
-                              <span className="alert-badge">高危</span>
-                              {alertItem.title}
-                              <span className="alert-chev" aria-hidden="true" style={{ display: 'inline-flex', verticalAlign: -2, marginLeft: 6 }}>
-                                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M3.5 2l3.5 3.5L3.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              {/* 快讯流 / 告警视图 (2026-09-27 四模式 P1: alert 接真告警列表, 撤前端假告警) */}
+              <section aria-label={mode === 'alert' ? '资讯告警' : '实时快讯'}>
+                {mode === 'alert' ? (
+                  <NewsAlertList />
+                ) : (
+                  <>
+                    <div className="flash-head">
+                      <h2>实时快讯</h2>
+                      <span className="flash-count num">
+                        PAGE {page} · {items.length} ITEMS
+                        {latestIngestionCount ? ` · 最近一轮 +${latestIngestionCount}` : ''}
+                        {latestIngestionAt ? ` · ${relTime(latestIngestionAt)}` : ''}
+                      </span>
+                    </div>
+                    <ul className="flash-list">
+                      {/* 常规快讯 */}
+                      {flashes.map(item => {
+                        const href = safeHref(item.url);
+                        return (
+                          <li className="flash-item" key={item.id}>
+                            <span className="flash-time num">{relTime(item.published_at)}</span>
+                            <div className="flash-body">
+                              {href ? (
+                                <a href={href} target="_blank" rel="noopener noreferrer"><span className="flash-title">{item.title}</span></a>
+                              ) : (
+                                <span className="flash-title">{item.title}</span>
+                              )}
+                              <span className="flash-tags">
+                                <span className="ftag" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span>
+                                {item.practice_domain && (
+                                  <span
+                                    className="ftag"
+                                    title={interestDomains.includes(item.practice_domain) ? '命中你的兴趣方向, 已优先展示' : '实践域'}
+                                    style={interestDomains.includes(item.practice_domain)
+                                      ? { color: 'var(--sn-mint, #00e5a0)', border: '1px solid var(--sn-mint, #00e5a0)' }
+                                      : undefined}
+                                  >
+                                    {PRACTICE_DOMAIN_LABELS[item.practice_domain] || item.practice_domain}
+                                  </span>
+                                )}
+                                <DeepReadChip id={item.id} itemTitle={item.title} />
                               </span>
                             </div>
-                          </div>
-                          <div className="flash-side">
-                            <span className="flash-src">{alertItem.source}</span>
-                            <span className="heat-num">评分 {Math.round(alertItem.score ?? alertItem.quality_score ?? 0)}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className={`alert-detail${mode === 'alert' ? ' show' : ''}`} onClick={e => e.stopPropagation()}>
-                        <div className="alert-summary">{alertItem.summary || '详见原文。'}</div>
-                        <div className="alert-side">
-                          <div className="alert-meta">
-                            <span><b>分类</b>{labelOf(alertItem.category)}</span>
-                            <span><b>来源</b>{alertItem.source}</span>
-                            <span><b>评分</b>{Math.round(alertItem.score ?? alertItem.quality_score ?? 0)}</span>
-                          </div>
-                          <div className="alert-actions">
-                            <button className="abtn" onClick={() => navigate(`/deep/hotspot/${alertItem.id}`)}>进入深读</button>
-                            {safeHref(alertItem.url) && (
-                              <button className="abtn" onClick={() => window.open(safeHref(alertItem.url)!, '_blank', 'noopener')}>查看原文</button>
-                            )}
-                            <StarButton item={alertItem} fav={isFavorite(alertItem.id)} onToggle={star} />
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  )}
-
-                  {/* 常规快讯 */}
-                  {flashes.map(item => {
-                    const href = safeHref(item.url);
-                    return (
-                      <li className="flash-item" key={item.id}>
-                        <span className="flash-time num">{relTime(item.published_at)}</span>
-                        <div className="flash-body">
-                          {href ? (
-                            <a href={href} target="_blank" rel="noopener noreferrer"><span className="flash-title">{item.title}</span></a>
-                          ) : (
-                            <span className="flash-title">{item.title}</span>
-                          )}
-                          <span className="flash-tags">
-                            <span className="ftag" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span>
-                            {item.practice_domain && (
-                              <span
-                                className="ftag"
-                                title={interestDomains.includes(item.practice_domain) ? '命中你的兴趣方向, 已优先展示' : '实践域'}
-                                style={interestDomains.includes(item.practice_domain)
-                                  ? { color: 'var(--sn-mint, #00e5a0)', border: '1px solid var(--sn-mint, #00e5a0)' }
-                                  : undefined}
-                              >
-                                {PRACTICE_DOMAIN_LABELS[item.practice_domain] || item.practice_domain}
+                            <div className="flash-side">
+                              <span className="flash-src">{item.source}</span>
+                              <span className="mini-heat" aria-hidden="true">
+                                {heatCells(heatOf(item)).map((on, i) => <b key={i} className={on ? 'on' : undefined} />)}
                               </span>
-                            )}
-                            <DeepReadChip id={item.id} itemTitle={item.title} />
-                          </span>
-                        </div>
-                        <div className="flash-side">
-                          <span className="flash-src">{item.source}</span>
-                          <span className="mini-heat" aria-hidden="true">
-                            {heatCells(heatOf(item)).map((on, i) => <b key={i} className={on ? 'on' : undefined} />)}
-                          </span>
-                        </div>
-                        <StarButton item={item} fav={isFavorite(item.id)} onToggle={star} />
-                      </li>
-                    );
-                  })}
-                </ul>
+                            </div>
+                            <StarButton item={item} fav={isFavorite(item.id)} onToggle={star} />
+                          </li>
+                        );
+                      })}
+                    </ul>
 
-                {/* 游标分页控件 */}
-                <div
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', paddingTop: 18 }}
-                >
-                  <button
-                    type="button"
-                    className="pagination-btn"
-                    aria-label="上一页"
-                    disabled={page <= 1 || loadingPage}
-                    onClick={goPrev}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6" /></svg>
-                    <span>上一页</span>
-                  </button>
-                  <span className="page-indicator" aria-live="polite">
-                    第 <strong>{page}</strong> / {totalPages} 页 · 共 {total} 篇
-                  </span>
-                  <button
-                    type="button"
-                    className="pagination-btn"
-                    aria-label="下一页"
-                    disabled={!hasMore || loadingPage}
-                    onClick={goNext}
-                  >
-                    <span>下一页</span>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
-                  </button>
-                </div>
+                    {/* 游标分页控件 */}
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', paddingTop: 18 }}
+                    >
+                      <button
+                        type="button"
+                        className="pagination-btn"
+                        aria-label="上一页"
+                        disabled={page <= 1 || loadingPage}
+                        onClick={goPrev}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6" /></svg>
+                        <span>上一页</span>
+                      </button>
+                      <span className="page-indicator" aria-live="polite">
+                        第 <strong>{page}</strong> / {totalPages} 页 · 共 {total} 篇
+                      </span>
+                      <button
+                        type="button"
+                        className="pagination-btn"
+                        aria-label="下一页"
+                        disabled={!hasMore || loadingPage}
+                        onClick={goNext}
+                      >
+                        <span>下一页</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+                      </button>
+                    </div>
+                  </>
+                )}
               </section>
             </>
           )}

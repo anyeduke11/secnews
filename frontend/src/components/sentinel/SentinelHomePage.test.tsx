@@ -123,6 +123,16 @@ function mockFetch(hotspotBody: FixtureBody = HOTSPOT_FIXTURE) {
     if (url.startsWith('/api/sources/health')) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(SOURCES_FIXTURE) } as Response);
     }
+    if (url.startsWith('/api/alerts/v2/unread-count')) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ count: 0 }) } as Response);
+    }
+    if (url.startsWith('/api/alerts/v2')) {
+      // 资讯告警列表 (P1 2026-09-27): alert 模式 NewsAlertList 消费
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({
+        count: 1,
+        items: [{ id: 7, rule_type: 'critical_vuln', title: '测试告警: Chrome 0day 在野利用', description: '需排查', severity: 'critical', source: 'FreeBuf', source_url: 'https://f.com/1', item_id: 'h9', status: 'unread', created_at: '2026-09-27T10:00:00' }],
+      }) } as Response);
+    }
     if (url.startsWith('/api/quality/summary')) {
       // 真实结构: {summary: {gate: {pass, total, avg_deduction}}}
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ summary: {
@@ -178,8 +188,8 @@ describe('SentinelHomePage — 哨兵终端首页', () => {
     expect(screen.getByText('SecNews')).toBeInTheDocument();
     // PIPELINE LIVE 心跳
     expect(screen.getByText('PIPELINE LIVE')).toBeInTheDocument();
-    // 四态阅读模式
-    for (const label of ['简报', '扫描', '深度', '告警']) {
+    // 四态阅读模式 (P1 2026-09-27 文案: brief=全量 / scan=精选)
+    for (const label of ['全量', '精选', '深度', '告警']) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
     }
     // 频道 chips
@@ -205,17 +215,20 @@ describe('SentinelHomePage — 哨兵终端首页', () => {
     expect(screen.getByText(/PAGE 1 · 5 ITEMS/)).toBeInTheDocument();
   });
 
-  it('快讯池中安全类最高分条目渲染为可展开高危告警', async () => {
+  it('alert 模式渲染真告警列表 NewsAlertList (P1 2026-09-27, 撤假告警)', async () => {
     render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
 
     await waitFor(() => {
-      expect(screen.getByText('广泛使用的 PDF 解析库存在内存越界缺陷')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
     });
-    // 默认收起, 点击展开
-    const alertItem = screen.getByText('高危').closest('.alert-item')!;
-    expect(alertItem).not.toHaveClass('open');
-    fireEvent.click(alertItem);
-    expect(alertItem).toHaveClass('open');
+    fireEvent.click(screen.getByRole('button', { name: '告警' }));
+    // 真告警来自 /api/alerts/v2 (后端词表筛 + pi 复核落库), 不再是快讯池假条目
+    await waitFor(() => {
+      expect(screen.getByText('测试告警: Chrome 0day 在野利用')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('tab', { name: '漏洞' })).toBeInTheDocument();
+    // 前端假告警 (快讯池「高危」badge + 可展开 detail) 已物理撤除
+    expect(screen.queryByText('高危')).toBeNull();
   });
 
   it('频道切换 → 以对应 category 重新拉取', async () => {
@@ -235,7 +248,7 @@ describe('SentinelHomePage — 哨兵终端首页', () => {
     // jsdom 不计算 CSS, 断言 data-mode 属性契约 (sentinel.css 按该属性切换版面)
     const root = container.querySelector('.sentinel')!;
     expect(root).toHaveAttribute('data-mode', 'brief');
-    fireEvent.click(screen.getByRole('button', { name: '扫描' }));
+    fireEvent.click(screen.getByRole('button', { name: '精选' }));
     expect(root).toHaveAttribute('data-mode', 'scan');
     fireEvent.click(screen.getByRole('button', { name: '告警' }));
     expect(root).toHaveAttribute('data-mode', 'alert');

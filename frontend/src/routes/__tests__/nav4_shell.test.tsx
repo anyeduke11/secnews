@@ -191,11 +191,10 @@ describe("P2 纸面版 theme 入口接入", () => {
     expect(SHELL_TSX).toMatch(/theme === 'paper'/);
   });
 
-  it("paper 主题覆写 sentinel 控件色 token (controlbar/readmore/empty-cta/flash-title)", () => {
+  it("paper 主题覆写 sentinel 控件色 token (controlbar/readmore/empty-cta; 假告警 flash-title 覆写已随 P1 2026-09-27 撤假告警删除)", () => {
     expect(SENTINEL_CSS).toMatch(/html\[data-theme=['"]paper['"]\]\s+\.sentinel\s+\.controlbar/);
     expect(SENTINEL_CSS).toMatch(/html\[data-theme=['"]paper['"]\]\s+\.sentinel\s+\.readmore/);
     expect(SENTINEL_CSS).toMatch(/html\[data-theme=['"]paper['"]\]\s+\.sentinel\s+\.empty-cta/);
-    expect(SENTINEL_CSS).toMatch(/html\[data-theme=['"]paper['"]\]\s+\.sentinel\s+\.alert-item\s+\.flash-title/);
   });
 });
 

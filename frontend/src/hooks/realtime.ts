@@ -48,6 +48,8 @@ export const SSE_EVENTS = {
   JOB_DONE: 'job_done',
   /** 管线告警 */
   ALERT: 'alert',
+  /** 资讯告警落库 (2026-09-27 四模式 P1, payload {count}; 首页「告警」未读徽标刷新) */
+  NEWS_ALERT: 'news_alert',
   /** CodeGarden 任务完成 */
   TASK_DONE: 'task_done',
   /** v1 判断发布 (judgment_id / case_id / revision) */

@@ -6,8 +6,13 @@
 - R2 双信号门槛: 单信号 + quality_score < 75 → 不命中
 - config 从 alert_rule_definitions.config JSON 读, 词表可调
 """
+import pytest
 
-from backend.services.news_alert_service import match_rules, review_candidates
+from backend.services.news_alert_service import (
+    match_rules,
+    review_candidates,
+    run_news_alert_review,
+)
 
 
 CFG = {
@@ -116,3 +121,81 @@ class TestReviewCandidates:
         monkeypatch.setattr(llm_service, "generate", _gen)
         assert review_candidates([]) == []
         assert called["n"] == 0
+
+
+def _insert_hotspot(item_id, title, summary="", score=80.0, hours_ago=1):
+    """插桩 hotspot; source 按 item_id 唯一 — 避开 _trigger_alert 引擎级
+    (rule_type+source) 24h 去重, 使 max_per_run 用例只测编排层 cap。"""
+    from backend.repository.db import get_connection
+    from datetime import datetime, timedelta, timezone
+    ts = (datetime.now(timezone.utc) - timedelta(hours=hours_ago)).isoformat()
+    get_connection().execute(
+        "INSERT OR IGNORE INTO hotspots (id, title, url, source, category,"
+        " published_at, quality_score, score, summary, fetched_at, ingested_at)"
+        " VALUES (?, ?, ?, ?, 'security', ?, ?, ?, ?, ?, ?)",
+        (item_id, title, f"https://t.com/{item_id}", f"测试源-{item_id}",
+         ts, score, score, summary, ts, ts),
+    )
+
+
+@pytest.fixture
+def review_env(temp_db):
+    """temp_db + 4 规则行 + mock LLM 全确认。"""
+    from backend.repository.db import init_db, close_db
+    close_db(); init_db()
+    from backend.repository.db import get_connection
+    get_connection().executescript(open(
+        "backend/repository/migrations/128_news_alert_rules.sql", encoding="utf-8"
+    ).read())
+    yield
+    close_db(); init_db()
+
+
+class TestRunNewsAlertReview:
+    def test_end_to_end_inserts_alert_events(self, review_env, monkeypatch):
+        _insert_hotspot("h_a1", "Chrome 0day 在野利用", "需紧急排查", 85)
+        _mock_llm(monkeypatch, '[{"id": "h_a1", "execute": true, "reason": "需排查"}]')
+        result = run_news_alert_review(lookback_hours=40)
+        assert result["alerted"] == 1
+        from backend.repository.db import get_connection
+        row = get_connection().execute(
+            "SELECT * FROM alert_events WHERE item_id = 'h_a1'"
+        ).fetchone()
+        assert row is not None
+        assert row["rule_type"] == "critical_vuln"
+        assert row["severity"] == "critical"
+        assert "需排查" in row["description"]
+
+    def test_same_hotspot_not_realerted(self, review_env, monkeypatch):
+        _insert_hotspot("h_b1", "Chrome 0day 在野利用", "s", 85)
+        _mock_llm(monkeypatch, '[{"id": "h_b1", "execute": true, "reason": "r"}]')
+        run_news_alert_review(lookback_hours=40)
+        result2 = run_news_alert_review(lookback_hours=40)  # 同条目还在窗口内
+        assert result2["alerted"] == 0  # 去重闸
+
+    def test_max_per_run_cap(self, review_env, monkeypatch):
+        for i in range(7):
+            _insert_hotspot(f"h_c{i}", f"漏洞{i} 0day 在野利用", "s", 85)
+        _mock_llm(monkeypatch, '[' + ",".join(
+            f'{{"id": "h_c{i}", "execute": true, "reason": "r"}}' for i in range(7)
+        ) + ']')
+        result = run_news_alert_review(lookback_hours=40)
+        assert result["alerted"] == 5  # max_per_run
+
+    def test_no_candidates_zero_llm_calls(self, review_env, monkeypatch):
+        called = {"n": 0}
+
+        async def _gen(prompt, *, task="summary", **kw):
+            called["n"] += 1
+            return "[]"
+        from backend.services.ai_hub.gateway import llm_service
+        monkeypatch.setattr(llm_service, "generate", _gen)
+        result = run_news_alert_review(lookback_hours=40)
+        assert result == {"candidates": 0, "alerted": 0}
+        assert called["n"] == 0
+
+    def test_window_excludes_old_items(self, review_env, monkeypatch):
+        _insert_hotspot("h_d1", "Chrome 0day 在野利用", "s", 85, hours_ago=72)
+        _mock_llm(monkeypatch, "[]")
+        result = run_news_alert_review(lookback_hours=40)
+        assert result["candidates"] == 0  # 72h 前的条目不在窗口

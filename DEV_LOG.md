@@ -1,4 +1,23 @@
 
+## [DEV-0236] 资讯告警落地: 首页"告警"从假告警升级为 4 规则+pi 复核的真告警列表 — 词表筛+fail-open+采集尾部挂点 (four-modes P1)
+
+- **时间**: 2026-09-27
+- **类型**: 功能开发 (four-modes-redefine P1, spec `docs/superpowers/specs/2026-09-27-four-modes-redefine-design.md` §2; 计划 `docs/superpowers/plans/2026-09-27-news-alerts-p1.md` 7 Task 全勾)
+- **关联模块**: `backend:news-alert`, `backend:alert-api`, `frontend:sentinel`
+- **背景裁决**: owner 报告首页「告警」按钮后展开四模式语义重定义 (全量/精选/深度/告警), P1 先行落地告警; 原假告警 = 前端取 security 类评分最高一条展示, 无后端判定
+- **关联文件**:
+  - T1 (75962ac): `backend/repository/migrations/128_news_alert_rules.sql` (4 规则定义 INSERT + **计划外必要修复**: 048 迁移对 rule_type 的 CHECK 约束只允许 3 值, 4 条 INSERT 必失败 → 按 SQLite 官方重建流程扩 CHECK 至 7 值, PRAGMA foreign_keys OFF/ON 成对包裹 (126 先例), 与 009/041/047 同款)
+  - T2 (b5d0f0a): `backend/services/news_alert_service.py` (match_rules 纯函数: 4 规则词表筛, R2 双信号/高分门槛, R3 AI 语境双通道限定) + 测试 9 用例
+  - T3 (24379f3): `backend/services/ai_hub/prompts.py` (+`_NEWS_ALERT_REVIEW_PROMPT`/`build_news_alert_review_prompt`) + `review_candidates` (合并单次 pi 调用 task=news_alert_review; fail-open: LLM 挂/解析败 → 词表命中 ≥2 信号的候选放行, 单信号丢弃) + 4 用例
+  - T4 (1c83990): `run_news_alert_review` 编排 (40min 窗口/首轮 7d 回看 → 词表筛 → hotspot_id 去重闸 → 复核 → max_per_run=5 冷却 → `_trigger_alert` 落 alert_events 含其自带 24h source 去重) + 5 用例
+  - T5 (d35def5): `collect.py` post-ingest 尾部 `+await _news_alert_tick()` (与 _auto_intake_tick 同款异常隔离); **SSE 修正**: 原 `_publish_news_alert_sse` 在 to_thread 工作线程调 asyncio.ensure_future 必然无 running loop 静默失败 → 删除, 改 tick async 侧 `await publish_event("news_alert", {count})`; `alert_service.py` `NEWS_ALERT_RULE_TYPES` 常量 + `list_alert_events(rule_type)`/`unread_alert_count(rule_types)` 过滤; `alert_api.py` `?rule_type=` 透传 + `/unread-count?scope=news`; tick 测试 3 用例
+  - T6 (5d898c5): `frontend/src/components/sentinel/NewsAlertList.tsx` (4 tab: 漏洞/安全事件/AI 安全事件/合规时限 + severity 色条 critical红/high橙/medium中性灰 + reason 展示 + 已读/解决, 空"当前无可执行告警") + `secnews.ts` 5 个告警 API (mutation 用 `apiFetch PUT`, 全仓 11 处惯例) + SentinelHomePage 装配 (alert 模式渲染真列表 + 未读徽标 SSE NEWS_ALERT 刷新 + **假告警撤除 142 行** + 按钮文案 简报→全量/扫描→精选) + `realtime.ts` SSE_EVENTS.NEWS_ALERT + sentinel.css `.na-*`; 连带更新 SentinelHomePage.test/nav4_shell 守卫 paper 断言
+  - T7 (本条): 数字同步 150→151 services (ARCHITECTURE/AGENTS×4/CLAUDE/services AGENTS 五处) + PRD 待 P2 后统补四模式段
+- **实现思路**: 方案 A — 扩展告警体系思想但资讯域判定住独立服务 (alert_engine 既有 2 条 CVE 规则判定对象是 security_entities 域, 不混); 规则筛+LLM 复核与语义门禁 (semantic_filter, DEV-0228 前序) 同构 fail-open 模式; 判定问题收窄为"是否需读者执行动作" (action_hint: patch/investigate/monitor/respond), 纯知情类被 LLM 过滤
+- **实弹验证 (真通道非 mock)**: 7d 回看 `{'candidates': 4, 'alerted': 0}` — 词表筛命中 4 条 (AGI Hunt 源: 临床试验数据改革误中"关基"/Gemini 4 网络安全发布/沙箱剖析误中"零日"), pi 复核**全部正确拒绝** (均为评论/分析类非需执行动作); 手造真告警候选 (浏览器 0day 在野利用) LLM 确认并给出高质量 reason ("需立即排查浏览器版本并安装紧急补丁")。LLM 复核的假阳性过滤价值得到实锤。
+- **测试验证**: 定向 news_alert_service 18 passed / news_alert_tick 3 passed / alert 域 164 passed / hotspot+fetcher+collectors 42 passed; 后端全量 `pytest backend/tests/ --tb=short -q` **4951 passed / 9 skipped / 1 failed** (唯一失败 = test_check_temp_db_sizes, DEV-0233 已记录 pre-existing); 前端 `tsc --noEmit` 0 错 / `vitest run` **650 passed**; `generate_meta --check` OK (57/14/90/151); 迁移 128 幂等重放 + foreign_key_check 验证通过
+- **潜在风险 (parked)**: ① 词表 v1 偏严 (7d 仅 4 候选), 召回不足则迭代词表 (config 可调免发版); ② R2 "关基" 单词误中"关键基础设施评论"类 — LLM 复核已兜住, 若噪声多可在 config 加 black-list; ③ 迁移 128 表重建顺带修复了一条既有孤儿引用告警 (sync_states→sync_configs, 非本次引入, parked); ④ SSE news_alert 仅在前端已打开时即时刷新, 离线未读数靠下次打开拉取; ⑤ P2 精选功能独立计划 `2026-09-27-picked-feed-p2.md` 待开工
+
 ## [DEV-0235] 校对室刷屏根治: F4 预去重 known_urls 被 _MAX_LIMIT=200 钳制 7d 窗口失效 — 安全客/FreeBuf "拦截"实为去重噪声 (quality-hook)
 
 - **时间**: 2026-09-27

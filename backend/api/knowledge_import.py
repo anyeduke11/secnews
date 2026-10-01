@@ -62,6 +62,30 @@ async def regenerate_soul():
     return create_soul_task()
 
 
+@router.post("/projection/rebuild")
+async def rebuild_projection():
+    """手动触发 md→SQLite 投影全量重建 (wiki-first 契约, DEV-0241)。
+
+    与每日 04:10 ``wiki_projection_rebuild`` job 同一实现: items/concepts
+    全量 upsert + 孤儿行清理, 幂等。用于 warm 库丢失/断层后的手动恢复。
+    """
+    import time as _time
+
+    from backend.services.knowledge_sync import (
+        full_sync_concepts_to_db,
+        full_sync_items_to_db,
+    )
+
+    t0 = _time.time()
+    items = full_sync_items_to_db()
+    concepts = full_sync_concepts_to_db()
+    return {
+        "items": items,
+        "concepts": concepts,
+        "elapsed_ms": int((_time.time() - t0) * 1000),
+    }
+
+
 @router.get("/compile/preview")
 async def compile_preview():
     """Preview items that need recompilation (stale items)."""

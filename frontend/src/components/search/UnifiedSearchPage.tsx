@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
-import { ApiError, getJSON } from '../../lib/api';
+import { ApiError, getJSON, postJSON } from '../../lib/api';
 
 interface SearchItem {
   entity_type: string;
@@ -22,7 +22,19 @@ const SOURCE_LABELS: Record<string, string> = {
   hotspot: '热点',
   knowledge: '知识条目',
   wiki: 'Wiki (FTS)',
+  chunks: 'Wiki 正文',
+  wiki_chunk: 'Wiki 正文',
 };
+
+// 来源 chips 只渲染真实来源键 (wiki_chunk 是分组标签, 不是可选来源)
+const SOURCE_CHIP_KEYS = ['hotspot', 'knowledge', 'wiki', 'chunks'];
+
+interface ChunkResult {
+  item_id: string;
+  chunk_index: number;
+  snippet: string;
+  wiki_path?: string;
+}
 
 export function UnifiedSearchPage({ onBack }: { onBack?: () => void }) {
   const navigate = useNavigate();
@@ -43,13 +55,35 @@ export function UnifiedSearchPage({ onBack }: { onBack?: () => void }) {
     setError(null);
     setSearched(true);
     try {
-      const params = new URLSearchParams();
-      params.set('q', trimmed);
-      if (srcs.length > 0) params.set('sources', srcs.join(','));
-      params.set('limit', '50');
-      const d = await getJSON<{ result?: { items?: SearchItem[]; grouped?: Record<string, SearchItem[]> } }>(`/api/search?${params}`);
-      setItems(d.result?.items ?? []);
-      setGrouped(d.result?.grouped ?? {});
+      // 'chunks' = wiki 正文段落检索 (POST /api/wiki/search, FTS5 trigram);
+      // 其余来源走 /api/search。未选来源时两者都查。
+      const wantChunks = srcs.length === 0 || srcs.includes('chunks');
+      const apiSrcs = srcs.filter(s => s !== 'chunks');
+      const wantMain = srcs.length === 0 || apiSrcs.length > 0;
+
+      const [mainRes, chunkRes] = await Promise.all([
+        wantMain
+          ? getJSON<{ result?: { items?: SearchItem[]; grouped?: Record<string, SearchItem[]> } }>(`/api/search?q=${encodeURIComponent(trimmed)}${apiSrcs.length > 0 ? `&sources=${apiSrcs.join(',')}` : ''}&limit=50`)
+          : Promise.resolve(null),
+        wantChunks
+          ? postJSON<{ results: ChunkResult[] }>('/api/wiki/search', { q: trimmed, limit: 20 })
+          : Promise.resolve(null),
+      ]);
+
+      const mainGrouped = mainRes?.result?.grouped ?? {};
+      const mainItems = mainRes?.result?.items ?? [];
+      const chunkItems: SearchItem[] = (chunkRes?.results ?? []).map(c => ({
+        entity_type: 'wiki_chunk',
+        entity_id: `${c.item_id}#${c.chunk_index}`,
+        title: `${c.wiki_path ?? `items/${c.item_id}.md`}`,
+        summary: c.snippet,
+      }));
+      setGrouped(
+        chunkItems.length > 0
+          ? { ...mainGrouped, wiki_chunk: chunkItems }
+          : mainGrouped
+      );
+      setItems([...mainItems, ...chunkItems]);
     } catch (e) {
       setError(e instanceof ApiError
         ? `搜索失败 (${e.status})`
@@ -105,7 +139,7 @@ export function UnifiedSearchPage({ onBack }: { onBack?: () => void }) {
         </button>
       </div>
       <div className="flex items-center gap-1.5">
-        {Object.keys(SOURCE_LABELS).map(s => {
+        {SOURCE_CHIP_KEYS.map(s => {
           const active = sources.includes(s);
           return (
             <button key={s} onClick={() => toggleSource(s)}

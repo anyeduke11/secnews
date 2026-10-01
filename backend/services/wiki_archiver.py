@@ -117,6 +117,11 @@ def archive_item(
         log.debug(f"archive_item: {target} already exists, skip")
         return target
 
+    # DEV-0241: 归档终态语义 — md 强制写 kl:archived (覆盖行上历史值),
+    # 使"归档兜底物化"与"T4 发布门产出的真实知识"(kl:publish) 可区分。
+    # md 先写 (真相源), DB 行随后同步更新 (watcher 也会按 md 值对齐, 双保险)。
+    item = {**item, "lifecycle": "kl:archived"}
+
     # frontmatter 序列化为 YAML 子集 (scalar key: value + list)
     fm_lines = ["---"]
     for k, v in item.items():
@@ -171,6 +176,21 @@ def archive_item(
         )
     except Exception as e:
         log.debug(f"wiki_events log skipped for items/{item_id}.md: {e}")
+
+    # DB 行 lifecycle 对齐 kl:archived (与 md 同值; 失败不阻塞归档 —
+    # watcher 下次同步 md 时会按 md 值对齐)
+    try:
+        from datetime import datetime as _dt
+
+        from backend.repository.db import get_connection, knowledge_items_table
+
+        get_connection().execute(
+            f"UPDATE {knowledge_items_table()} SET lifecycle = 'kl:archived', "
+            f"updated_at = ? WHERE id = ?",
+            (_dt.now(tz=timezone.utc).isoformat(), item_id),
+        )
+    except Exception as e:
+        log.debug(f"DB lifecycle update skipped for {item_id}: {e}")
 
     return target
 

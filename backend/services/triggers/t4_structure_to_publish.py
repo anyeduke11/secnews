@@ -13,7 +13,7 @@ What T4 does
    :data:`STABLE_WINDOW_HOURS` (24) in the past — prevents publishing
    content that was just structured.
 4. .md write: call ``knowledge_sync.write_item_to_md()`` to persist
-   the item as ``knowledge/items/{id}.md``.
+   the item as ``llm-wiki-2.0/items/{id}.md`` (wiki 单根, DEV-0191 起).
 5. Update ``lifecycle = 'kl:publish'`` and bump ``updated_at``.
 
 Failure handling

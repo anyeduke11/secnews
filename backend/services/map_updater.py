@@ -1,10 +1,10 @@
-"""Map updater — regenerate _MAP.md after compilation.
+"""Map updater — regenerate ``llm-wiki-2.0/_MAP.md`` (DB 投影口径)。
 
-v0.6.3 P3-4: 旧 ``knowledge/_MAP.md`` 已被 ``wiki_stats_service`` + 前端
-``/api/knowledge/items`` 实时接口取代。``update_map()`` 仍可调用 (写至
-``llm-wiki-2.0/_MAP.md``, 旧根下线), 但 ``knowledge_watcher`` 不再自动
-触发, 仅供运维偶发手动导出。推荐直接删除本模块; 当前保留以避免破坏现有
-``import update_map`` 调用方 (迁移期内可能仍有 reviewer 脚本)。
+活跃链路 (DEV-0241 勘误: 旧"推荐直接删除本模块"注记不实, 本模块仍在服役):
+``map_rebuild_daily`` job (每日 02:00) + compile-done watcher 触发 + compiler
+创建编译任务后主动调用。``update_map()`` 从 warm.knowledge_items /
+knowledge_concepts 拉数据渲染统计头与 domain 分组索引, 写
+``llm-wiki-2.0/_MAP.md``; SOUL.md 的数字与它同源。
 """
 from __future__ import annotations
 

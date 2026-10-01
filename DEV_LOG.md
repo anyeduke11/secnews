@@ -1,4 +1,17 @@
 
+## [DEV-0241] 知识体系 P0/P1 首批修复: kl:archived 归档终态 + 投影重建机制化 + 检索页接入 wiki 正文 (wiki-archived-and-rebuild)
+
+- **时间**: 2026-10-01
+- **类型**: 功能开发 (知识体系批判性审查 P0/P1 首批; 审查结论: kl:publish 语义通胀 99.95% / 投影重建无机制 / chunk 检索前端零接线)
+- **关联模块**: `backend:kl-state-machine`, `backend:wiki-archiver`, `backend:wiki-stats`, `backend:scheduler`, `backend:knowledge-api`, `frontend:search`
+- **P0-1 归档终态 (kl:archived)**: `kl_state_machine.py` +`LIFECYCLE_ARCHIVED` (仿 kl:deduped 先例: TERMINAL_LIFECYCLES 成员 / 不进 ALL_STAGES / 无出边 / 双语 label); `wiki_archiver.archive_item` 强制 md 写 `lifecycle: "kl:archived"` (覆盖行上历史值) + DB 行同步 UPDATE (失败静默, watcher 按 md 对齐兜底); `wiki_stats_service.funnel_from_db` +`kl:archived` 单列 (否则落 unknown 把"归档存量"显示成"状态未知")。**语义动机**: 归档兜底物化 ≠ T4 发布门产出的真实知识 — 此前 archiver 沿用行上历史 lifecycle, 4,327/4,329 存量"已发布", 发布门/草稿准入/compiled 打勾全部失去区分度。**存量 parked**: `llm-wiki-2.0/sources/` 为空, bulk 迁移批次无可靠来源锚点, 4,327 条 kl:publish 存量不可区分 — 并入 R9 迁移待办
+- **P0-2 投影重建机制化**: `jobs/knowledge.py` +`wiki_projection_rebuild_job` (每日 04:10 Shanghai, archiver 03:50 后; md vs DB 计数差 WARN 留痕 → full_sync items+concepts 幂等重建 ~1.4s/4329 项) + `scheduler.py` 注册 (id=wiki_projection_rebuild, 57→58 jobs, generate_meta 已同步) + `POST /api/knowledge/projection/rebuild` 手动端点 (同实现, warm 断层恢复用)
+- **P1-11 文档漂移 4 处**: `favorites.py` 注释 signal→kl:raw (P1-3 单轨化实际值) / `t4_structure_to_publish.py` docstring knowledge/items→llm-wiki-2.0/items / `knowledge_watcher.py` 模块 docstring 旧根→llm-wiki-2.0 四目录实测 / `map_updater.py` "推荐直接删除"自弃注记→勘误为活跃链路 (02:00 job + watcher + compiler 三触发)
+- **前端 (能力对齐)**: `UnifiedSearchPage` +「Wiki 正文」来源 — 接入既有 `POST /api/wiki/search` (chunk FTS5 trigram, 2,058 chunks 此前前端零消费方); 未选来源默认双查合并, chunk 命中以 `wiki_chunk` 独立分组 (title=wiki_path, summary=正文片段 160 字); `SOURCE_CHIP_KEYS` 拆分 (wiki_chunk 是分组标签非可选来源 — 测试抓出双 chip bug); +colocated 测试 2 用例 (分组合并渲染 + chip 勾选)
+- **实弹验证**: 后端 health 200 / 58 jobs / funnel 含 `kl:archived=0` 单列 / rebuild 端点 `{"items":4329,"concepts":165,"elapsed_ms":1443}` / wiki search 命中; 浏览器端到端: /search 搜「勒索软件」→ 分组「热点·15 / 知识条目·2 / Wiki 正文·3」+ Petya 正文片段渲染
+- **测试验证**: 定向 test_kl_state_machine + test_wiki_archiver_retention + test_knowledge_truth_source + test_secnews_dashboard + test_knowledge_watcher **115 passed** (label 5→6 entries 断言更新 + archived 终态 2 用例 + archiver 强制 lifecycle 1 用例); scheduler 三件套 **33 passed** (jobs `__init__` 导出补登记); 前端 `tsc --noEmit` 0 错 / vitest 定向 2 passed (sentinel 族 109 passed 未见误伤) / `vite build` exit 0
+- **潜在风险 (parked)**: ① P0-3 双管线归一 (T1-T4 vs kl_queue drain) 未动 — 架构级, 需独立裁决; ② P0-4 复利回路 (auto_recall 扩 wiki FTS + T4→SM2 建卡) 未动 — 下轮; ③ P1-5 deep_reads 不落 md / P1-6 概念层无调度 / P1-7 检索三轨制 未动; ④ kl:archived 存量回填无锚点 (见上); ⑤ funnel 前端心跳条渲染 stage 列表来自 API 动态, kl:archived=0 会多一格空列 — 观察是否视觉噪声再定
+
 ## [DEV-0240] wiki 投影 full_rebuild 兑现 + 纯数字 id YAML 强转扭曲根治 — warm 断层 95→4329 对齐 (wiki-full-rebuild)
 
 - **时间**: 2026-10-01

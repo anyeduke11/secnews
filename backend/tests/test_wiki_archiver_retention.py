@@ -158,6 +158,27 @@ class TestArchiveItem:
         retention = json.loads((tmp_path / "retention.json").read_text())
         assert any(e["id"] == "abc123" for e in retention["entries"])
 
+    def test_archive_item_forces_kl_archived_lifecycle(self, tmp_path: Path):
+        """DEV-0241: 归档终态语义 — 行上历史 lifecycle 被 kl:archived 覆盖。
+
+        WHY: 归档兜底物化 ≠ T4 发布门产出的真实知识。若沿用行上历史值
+        (bulk 迁移多为 kl:publish), 99.9% 存量"已发布", 发布门/草稿准入/
+        compiled 打勾全部失去区分度。
+        """
+        from backend.services.wiki_archiver import archive_item
+
+        item = {
+            "id": "arch001",
+            "title": "Old News",
+            "source": "secnews",
+            "ingested_at": "2026-07-01T00:00:00Z",
+            "lifecycle": "kl:publish",
+        }
+        path = archive_item(item, wiki_root=tmp_path, body="stub")
+        text = path.read_text()
+        assert 'lifecycle: "kl:archived"' in text
+        assert "kl:publish" not in text
+
     def test_archive_item_is_idempotent(self, tmp_path: Path):
         """重复调用, 已存在则 skip (不覆盖, 不重写)。"""
         from backend.services.wiki_archiver import archive_item

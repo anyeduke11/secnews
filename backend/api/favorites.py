@@ -140,10 +140,10 @@ async def add_favorite(req: AddFavoriteRequest):
         logger.error(f"add favorite failed: {e}")
         raise HTTPException(status_code=500, detail={"message": f"添加失败: {e}"})
 
-    # v1.7 Phase 1: 收藏 → 知识提升 (SAG lifecycle='signal')
+    # v1.7 Phase 1: 收藏 → 知识提升 (SAG lifecycle='kl:raw', P1-3 单轨化)
     # 非关键, 失败不阻塞收藏流程 (与 v1.4 既有约定一致)。
-    # 通过 sag_service 统一管理 lifecycle, 同时写 SQLite + knowledge/items/{id}.md
-    # (验收 3: 收藏后在 knowledge/items/ 生成 .md 且 lifecycle=signal)。
+    # 通过 sag_service 统一管理 lifecycle, md 先写 (llm-wiki-2.0/items/{id}.md,
+    # 经 ai_write_back 单写路径) 再写 SQLite 投影。
     try:
         import logging
 

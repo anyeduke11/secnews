@@ -80,6 +80,7 @@ from backend.scheduler.jobs.knowledge import (
     knowledge_stub_backfill_job,
     scheduled_migrate_job,
     wiki_archiver_job,
+    wiki_projection_rebuild_job,
 )
 from backend.scheduler.jobs.digest import (
     consume_compile_tasks_job,
@@ -214,5 +215,6 @@ __all__.extend([
     "security_entity_concept_sync_job",
     "url_full_check_job",
     "wiki_archiver_job",
+    "wiki_projection_rebuild_job",
     "worker_queue_pump_job",  # v1.0 T09: 队列消费泵 (每 60s)
 ])

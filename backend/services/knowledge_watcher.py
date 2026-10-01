@@ -1,9 +1,13 @@
-"""Knowledge watchdog — watches knowledge/*.md files and syncs to SQLite.
+"""Knowledge watchdog — watches llm-wiki-2.0/*.md files and syncs to SQLite.
+
+监听根由 ``knowledge_sync.KNOWLEDGE_DIR = wiki_root()`` 解析 (v0.5 单根
+裁决后即 llm-wiki-2.0/, 旧 knowledge/ 根已下线不再读写):
 
 Watches:
-- ``knowledge/items/``      → :func:`full_sync_items_to_db`
-- ``knowledge/concepts/``   → :func:`full_sync_concepts_to_db`
-- ``knowledge/learning/``   → conflict detection + publish task status sync
+- ``items/``            → 单文件增量投影 sync_item_to_db (P1-4)
+- ``concepts/``         → 单文件增量投影 sync_concept_to_db
+- ``learning/``         → conflict detection + publish task status sync
+- ``content/drafts/``   → draft 正文投影 sync_draft_to_db
 
 Publish task status sync (spec 6.4):
 - When ``knowledge/learning/tasks/done/task-{id}.md`` is created, the watcher

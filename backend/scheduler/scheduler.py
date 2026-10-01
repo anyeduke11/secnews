@@ -367,6 +367,16 @@ class HotspotScheduler:
             name="wiki archiver 30d (daily 03:50 Shanghai)",
             replace_existing=True,
         )
+        # DEV-0241: job — wiki 投影全量重建 (每日 04:10 Asia/Shanghai)
+        # wiki-first 契约机制化: md→SQLite 全量 upsert + 孤儿清理, 防投影断层
+        self.scheduler.add_job(
+            jobs.wiki_projection_rebuild_job,
+            trigger=CronTrigger(hour=4, minute=10, timezone=SHANGHAI_TZ),
+            id="wiki_projection_rebuild",
+            name="wiki projection rebuild (daily 04:10 Shanghai)",
+            replace_existing=True,
+            misfire_grace_time=600,
+        )
         # v0.5 M3.5: job — retention_decay (每周日 05:30 Asia/Shanghai,
         # 紧跟 05:00 telemetry_window)
         self.scheduler.add_job(

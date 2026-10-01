@@ -39,7 +39,14 @@ LIFECYCLE_PUBLISH = "kl:publish"    # 已发布到 knowledge/{item_id}.md
 # ``advanced=0`` 成为无法与真故障区分的常态噪声。落终态后队列可收敛、决策可审计。
 # 刻意**不**加入 ALL_STAGES: 它不是管线位置, 加入会污染迁移校验与按阶段聚合查询。
 LIFECYCLE_DEDUPED = "kl:deduped"
-TERMINAL_LIFECYCLES: frozenset[str] = frozenset({LIFECYCLE_DEDUPED})
+# 终态 (非管线阶段): wiki_archiver 30 天兜底物化的资讯条目落到这里。
+# 语义动机 (DEV-0241): 归档 ≠ 已发布知识 — 此前 archiver 产物沿用行上历史
+# lifecycle (bulk 迁移多为 kl:publish), 导致 99.9% 存量"已发布", T4 发布门 /
+# content_draft 准入 / compiled 打勾全部失去区分度 (垃圾被门当知识放行)。
+# 新归档落 kl:archived 后, kl:publish 只表示"通过 T4 门的真实知识"。
+# 同样刻意不加入 ALL_STAGES, 且无出边 (归档不可被 sweep 拉回管线)。
+LIFECYCLE_ARCHIVED = "kl:archived"
+TERMINAL_LIFECYCLES: frozenset[str] = frozenset({LIFECYCLE_DEDUPED, LIFECYCLE_ARCHIVED})
 
 
 # All known 5-stage values (used for validation, e.g. when migrating from
@@ -159,8 +166,9 @@ def is_terminal(stage: str) -> bool:
 
     - ``kl:publish`` 是管线正向终点 (仍可经 T5 rollback 回到 ``kl:refine``)。
     - ``kl:deduped`` 是 T1 判重的出口终态, 无任何出边, 不该被再次推进。
+    - ``kl:archived`` 是 wiki_archiver 兜底物化的出口终态, 同样无出边。
     """
-    return stage in (LIFECYCLE_PUBLISH, LIFECYCLE_DEDUPED)
+    return stage in (LIFECYCLE_PUBLISH, LIFECYCLE_DEDUPED, LIFECYCLE_ARCHIVED)
 
 
 def predecessors(stage: str) -> frozenset[str]:
@@ -192,6 +200,7 @@ STAGE_LABELS: dict[str, str] = {
     LIFECYCLE_LINK:      "关联",
     LIFECYCLE_STRUCTURE: "结构化",
     LIFECYCLE_PUBLISH:   "已发布",
+    LIFECYCLE_ARCHIVED:  "已归档",
 }
 
 STAGE_LABELS_EN: dict[str, str] = {
@@ -200,6 +209,7 @@ STAGE_LABELS_EN: dict[str, str] = {
     LIFECYCLE_LINK:      "link",
     LIFECYCLE_STRUCTURE: "structure",
     LIFECYCLE_PUBLISH:   "publish",
+    LIFECYCLE_ARCHIVED:  "archived",
 }
 
 
@@ -215,6 +225,7 @@ __all__ = [
     "LEGACY_REFINE_LIKE",
     "LEGACY_STRUCTURE_LIKE",
     "LIFECYCLE_LINK",
+    "LIFECYCLE_ARCHIVED",
     "LIFECYCLE_PUBLISH",
     # Constants
     "LIFECYCLE_RAW",

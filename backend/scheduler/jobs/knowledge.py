@@ -252,6 +252,42 @@ async def knowledge_chunk_generation_job() -> None:
         _logger.error(f"knowledge_chunk_generation_job crashed: {e}")
 
 
+async def wiki_projection_rebuild_job() -> None:
+    """每日全量重建 md→SQLite 投影 (wiki-first 契约的机制化兑现, DEV-0241)。
+
+    背景: ``full_sync_items_to_db`` 全仓仅有 Cubox 导入一个调用方 — "投影可
+    重建"从未兑现为"会重建", warm.db 2026-09-18 遗失后断层 95/4329 直到
+    2026-10-01 手动 rebuild 才对齐。全量 upsert 幂等 (~3s/4329 项), 孤儿行
+    自动清理; 建档断层 (md vs DB 计数差) 以 WARN 留痕。
+    """
+    try:
+        from backend.repository.db import get_connection, knowledge_items_table
+        from backend.services.knowledge_sync import (
+            ITEMS_DIR,
+            full_sync_concepts_to_db,
+            full_sync_items_to_db,
+        )
+
+        conn = get_connection()
+        db_items = conn.execute(
+            f"SELECT COUNT(*) FROM {knowledge_items_table()}"
+        ).fetchone()[0]
+        md_items = len(list(ITEMS_DIR.glob("*.md")))
+        if md_items != db_items:
+            _logger.warning(
+                f"wiki projection drift detected: md={md_items} db={db_items} "
+                f"(delta={md_items - db_items}), rebuilding"
+            )
+        n_items = await asyncio.to_thread(full_sync_items_to_db)
+        n_concepts = await asyncio.to_thread(full_sync_concepts_to_db)
+        _logger.info(
+            f"wiki_projection_rebuild_job: md={md_items} db_before={db_items} "
+            f"synced_items={n_items} synced_concepts={n_concepts}"
+        )
+    except Exception as e:
+        _logger.error(f"wiki_projection_rebuild_job crashed: {e}")
+
+
 async def wiki_archiver_job() -> None:
     """每日扫描 SQLite 知识条目, 把 ingested_at < now-30d 且未收藏的条目
     原子写入 ``llm-wiki-2.0/items/{id}.md``, 同时建 sources/ 抓取快照 + retention 初始 entry。

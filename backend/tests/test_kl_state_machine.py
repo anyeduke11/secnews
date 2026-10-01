@@ -22,6 +22,7 @@ import pytest
 
 from backend.services.kl_state_machine import (
     ALL_STAGES,
+    LIFECYCLE_ARCHIVED,
     LIFECYCLE_DEDUPED,
     LIFECYCLE_LINK,
     LIFECYCLE_PUBLISH,
@@ -148,6 +149,12 @@ class TestIsTerminal:
         """判重出口终态: 不该被任何 trigger / sweep 再推进。"""
         assert is_terminal(LIFECYCLE_DEDUPED) is True
 
+    def test_archived_is_terminal(self):
+        """DEV-0241: 归档出口终态 — archiver 兜底物化的条目不可被拉回管线。"""
+        assert is_terminal(LIFECYCLE_ARCHIVED) is True
+        assert can_transition(LIFECYCLE_ARCHIVED, LIFECYCLE_REFINE) is False
+        assert can_transition(LIFECYCLE_STRUCTURE, LIFECYCLE_ARCHIVED) is False
+
     @pytest.mark.parametrize("stage", [
         LIFECYCLE_RAW, LIFECYCLE_REFINE, LIFECYCLE_LINK, LIFECYCLE_STRUCTURE,
     ])
@@ -220,13 +227,16 @@ class TestGraphHelpers:
 # ===========================================================================
 
 class TestLabels:
-    def test_chinese_labels_have_5_entries(self):
-        assert len(STAGE_LABELS) == 5
+    def test_chinese_labels_have_6_entries(self):
+        """5 管线阶段 + kl:archived 归档终态 (DEV-0241)。"""
+        assert len(STAGE_LABELS) == 6
         for s in ALL_STAGES:
             assert s in STAGE_LABELS
+        assert STAGE_LABELS["kl:archived"] == "已归档"
 
-    def test_english_labels_have_5_entries(self):
-        assert len(STAGE_LABELS_EN) == 5
+    def test_english_labels_have_6_entries(self):
+        assert len(STAGE_LABELS_EN) == 6
+        assert STAGE_LABELS_EN["kl:archived"] == "archived"
 
     def test_label_zh_default(self):
         assert label(LIFECYCLE_RAW) == "原始"

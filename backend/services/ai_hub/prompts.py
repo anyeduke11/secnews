@@ -878,6 +878,35 @@ def build_news_alert_review_prompt(candidates: list[dict]) -> str:
     return _NEWS_ALERT_REVIEW_PROMPT.format(candidates=_json.dumps(slim, ensure_ascii=False))
 
 
+# ── 拒收日志解释 (2026-10-01 rejection-explain, 常开无 gate) ─────────
+_REJECTION_EXPLAIN_PROMPT = """你是资讯质量门禁的解释员。以下条目被采集质量门禁拒收,
+请根据标题与拒收 flag, 为每条生成一句面向普通用户的中文解释 (≤60字),
+说清它为什么被拒 — 语气客观, 不评判读者, 不堆术语。
+
+拒收条目 (JSON):
+{items}
+
+flag 参考含义: content_hash_duplicate=内容重复 / category_mismatch=分类不匹配 /
+title_summary_inconsistent=标题摘要不一致 / empty_summary=摘要为空 /
+author_unknown=作者无法验证 / title_spam_words=标题营销词 / noise_title=噪音标题
+
+只输出 JSON 数组, 不要输出其他文字:
+[{{"id": 条目id, "explain": "一句中文解释"}}]"""
+
+
+def build_rejection_explain_prompt(items: list[dict]) -> str:
+    import json as _json
+
+    slim = [
+        {"id": it["id"], "title": (it.get("title") or "")[:100],
+         "flags": (it.get("reason") or "")[:120]}
+        for it in items
+    ]
+    return _REJECTION_EXPLAIN_PROMPT.format(
+        items=_json.dumps(slim, ensure_ascii=False)
+    )
+
+
 __all__ = [
     "COST_PER_1M_TOKENS",
     "CVE_IMPACT_BRIEF_SCHEMA_V1",
@@ -901,6 +930,7 @@ __all__ = [
     "build_interest_advisor_prompt",
     "build_knowledge_prompt",
     "build_news_alert_review_prompt",
+    "build_rejection_explain_prompt",
     "deep_read_framework_lens",
     "deep_read_profile_for",
     "deep_read_sections",

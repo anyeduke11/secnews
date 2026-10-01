@@ -335,11 +335,10 @@ describe("Phase 4 新增视图: 5 路由注册 + menuOf 归属 + 未实现登记
     }
   });
 
-  it("/quality/rejection 升格为子标签, 旧深链重定向 (A5: QueryMergeRedirect 合并透传)", () => {
+  it("/quality/rejection 旧深链重定向 设置→运维 (2026-10-01 拒收日志迁 /settings?cat=ops)", () => {
     const line = routeLine("/quality/rejection");
     expect(line).toBeTruthy();
-    expect(line).toContain("QueryMergeRedirect");
-    expect(line).toContain("tab: 'rejection'");
+    expect(line).toContain('to="/settings?cat=ops"');
     expect(line).not.toMatch(/QualityRejectionPage/);
   });
 

@@ -114,9 +114,7 @@ export const DeepReadView = React.lazy(() =>
   import('../components/DeepReadPage').then(m => ({ default: m.DeepReadPage }))
 );
 // P1.4: BriefModeView 已删除 — 官方每日简报 (digest) 合并进 /knowledge/briefing
-export const QualityRejectionPage = React.lazy(() =>
-  import('../components/QualityRejectionPage').then(m => ({ default: m.default }))
-);
+// 2026-10-01: QualityRejectionPage 已删除 — 拒收日志迁 设置→运维 (RejectionLogCard)
 
 // v4.3 报纸版式 (Editorial) 已于 v0.7.1 移除, /editorial 重定向到哨兵终端资料层首页
 

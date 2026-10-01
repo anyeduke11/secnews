@@ -37,6 +37,7 @@ import { SecretsStatusCard } from './SecretsStatusCard';
 import { DatabaseMaintenance } from './DatabaseMaintenance';
 import { ExportActionsCard } from './ExportActionsCard';
 import { DshControlCard } from '../secnews/settings/DshControlCard';
+import { RejectionLogCard } from './RejectionLogCard';
 import { SettingsDashboard } from './SettingsDashboard';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import './settings-shell.css';
@@ -102,6 +103,7 @@ export function SettingsPage() {
             <DatabaseMaintenance />
             <ExportActionsCard />
             <DshControlCard />
+            <RejectionLogCard />
           </div>
         );
     }

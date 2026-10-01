@@ -13,8 +13,8 @@
 |---|---|---|
 | `/` | SentinelHomePage | **情报流**（+ SignalPanel 受管信号区块） |
 | `/judge` | → `/` (QueryRedirect 透传 query) | 判断层拆解：判读台主体归资讯「质量」区 |
-| `/quality` | QualityDashboardPage | **校对室全貌**（门禁统计 + 信息过滤规则 + 拒绝样本子标签; Phase 4） |
-| `/quality/rejection` | → `/quality?tab=rejection` | 旧深链重定向（子标签兼容） |
+| `/quality` | QualityDashboardPage | **校对室全貌**（门禁统计 + 信息过滤规则; Phase 4） |
+| `/quality/rejection` | → `/settings?cat=ops` | 旧深链重定向（2026-10-01 拒收日志迁设置运维区） |
 | `/deep/:type/:id` | DeepReadPage | 深读（跨实体, AI 判读流） |
 | `/history` | HistoryPage | 浏览历史 |
 | `/secnews/feed` `/pipeline` `/analytics` | SecNewsFeed / PipelineView / AnalyticsView | P1 拆挂 PageLayout（SecNewsShell 退役） |

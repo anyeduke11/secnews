@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter, Routes, Route, useSearchParams } from 'react-router-dom';
+import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QualityDashboardPage } from './QualityDashboardPage';
-import { QueryMergeRedirect } from '../../routes';
 
 describe('QualityDashboardPage — 校对室 (/quality)', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -44,50 +43,30 @@ describe('QualityDashboardPage — 校对室 (/quality)', () => {
     expect(screen.getByText('黑名单样例')).toBeInTheDocument();
   });
 
-  it('子标签切换: 拒绝样本 tab 渲染 QualityRejectionPage 内容', async () => {
+  it('拒绝样本 tab 已收缩: 不再渲染「拒绝样本」入口 (2026-10-01 迁设置运维区)', () => {
     render(<MemoryRouter initialEntries={['/quality']}><QualityDashboardPage /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByText('90%')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('tab', { name: '拒绝样本' }));
-    // QualityRejectionPage 真实组件挂入 (其自身数据由其内部拉取, 无 mock 时为空态/错误态, 不影响 tab 断言)
-    await waitFor(() => expect(screen.getByRole('tab', { name: '拒绝样本' })).toHaveAttribute('aria-selected', 'true'));
+    expect(screen.getByRole('tab', { name: '校对总览' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: '拒绝样本' })).toBeNull();
   });
 });
 
-describe('A5: /quality/rejection → /quality?tab=rejection (query 合并透传, DEV-0188)', () => {
-  it('旧深链附加参数不丢弃', () => {
-    let seen = '';
+describe('A5: /quality/rejection → /settings?cat=ops (2026-10-01 迁设置运维区)', () => {
+  it('旧深链重定向到 设置→运维 (拒收日志卡所在区)', () => {
+    const loc: { current: { pathname: string; search: string } | null } = { current: null };
     function Probe() {
-      const sp = useSearchParams();
-      seen = sp[0].toString();
-      return null;
-    }
-    render(
-      <MemoryRouter initialEntries={['/quality/rejection?foo=1&tab=old']}>
-        <Routes>
-          <Route path="/quality/rejection" element={<QueryMergeRedirect to="/quality" merge={{ tab: 'rejection' }} />} />
-          <Route path="/quality" element={<Probe />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-    // tab 被覆盖为 rejection, 其余参数 (foo=1) 保留
-    expect(seen).toBe('foo=1&tab=rejection');
-  });
-
-  it('无附加参数 → 干净的 tab=rejection', () => {
-    let seen = '';
-    function Probe() {
-      const sp = useSearchParams();
-      seen = sp[0].toString();
+      const l = useLocation();
+      loc.current = { pathname: l.pathname, search: l.search };
       return null;
     }
     render(
       <MemoryRouter initialEntries={['/quality/rejection']}>
         <Routes>
-          <Route path="/quality/rejection" element={<QueryMergeRedirect to="/quality" merge={{ tab: 'rejection' }} />} />
-          <Route path="/quality" element={<Probe />} />
+          <Route path="/quality/rejection" element={<Navigate to="/settings?cat=ops" replace />} />
+          <Route path="/settings" element={<Probe />} />
         </Routes>
       </MemoryRouter>,
     );
-    expect(seen).toBe('tab=rejection');
+    expect(loc.current?.pathname).toBe('/settings');
+    expect(loc.current?.search).toContain('cat=ops');
   });
 });

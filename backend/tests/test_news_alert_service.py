@@ -7,7 +7,7 @@
 - config 从 alert_rule_definitions.config JSON 读, 词表可调
 """
 
-from backend.services.news_alert_service import match_rules
+from backend.services.news_alert_service import match_rules, review_candidates
 
 
 CFG = {
@@ -68,3 +68,51 @@ class TestMatchRules:
     def test_hit_carries_matched_signals(self):
         hits = match_rules("Chrome 0day 在野利用公开", "", 80, CFG)
         assert set(hits[0]["signals"]) == {"0day", "在野利用"}
+
+
+CANDS = [
+    {"id": "h1", "rule": "critical_vuln", "signals": ["0day", "在野利用"], "title": "Chrome 0day", "summary": "s"},
+    {"id": "h2", "rule": "major_security_event", "signals": ["数据泄露"], "title": "某厂商泄露", "summary": "s"},
+]
+
+
+def _mock_llm(monkeypatch, payload=None, fail=False):
+    import asyncio
+    from backend.services.ai_hub.gateway import llm_service
+
+    async def _gen(prompt, *, task="summary", **kw):
+        assert task == "news_alert_review"
+        if fail:
+            raise RuntimeError("pi down")
+        return payload
+    monkeypatch.setattr(llm_service, "generate", _gen)
+
+
+class TestReviewCandidates:
+    def test_llm_confirms(self, monkeypatch):
+        _mock_llm(monkeypatch, '[{"id": "h1", "execute": true, "reason": "在野利用需排查"}, {"id": "h2", "execute": false}]')
+        out = review_candidates(CANDS)
+        assert [o["id"] for o in out] == ["h1"]
+        assert out[0]["reason"] == "在野利用需排查"
+
+    def test_llm_fail_open_strong_signals_pass(self, monkeypatch):
+        """fail-open: LLM 挂 → strength ≥2 的候选直接放行, 单信号丢弃。"""
+        _mock_llm(monkeypatch, fail=True)
+        out = review_candidates(CANDS)
+        assert [o["id"] for o in out] == ["h1"]  # h1 strength=2, h2 strength=1
+
+    def test_llm_garbage_fail_open(self, monkeypatch):
+        _mock_llm(monkeypatch, "不是 JSON 的输出")
+        out = review_candidates(CANDS)
+        assert [o["id"] for o in out] == ["h1"]
+
+    def test_empty_candidates_skips_llm(self, monkeypatch):
+        called = {"n": 0}
+
+        async def _gen(prompt, *, task="summary", **kw):
+            called["n"] += 1
+            return "[]"
+        from backend.services.ai_hub.gateway import llm_service
+        monkeypatch.setattr(llm_service, "generate", _gen)
+        assert review_candidates([]) == []
+        assert called["n"] == 0

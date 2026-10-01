@@ -851,6 +851,33 @@ def build_interest_advisor_prompt(
     )
 
 
+# ── 资讯告警复核 (2026-09-27 四模式 P1, gate 无关 — 常开) ──────────
+_NEWS_ALERT_REVIEW_PROMPT = """你是安全资讯告警复核员。以下候选资讯已通过关键词初筛,
+请逐条判断:读者(安全从业者/AI 从业者)是否需要**执行某个动作**(打补丁/排查资产/
+修改配置/关注后续/参加响应), 而非纯知情。
+
+候选列表 (JSON):
+{candidates}
+
+判定标准:
+- execute=true: 有明确动作需求 — 如在野利用漏洞需排查版本、供应链投毒需查依赖、
+  监管通报有报送时限
+- execute=false: 纯知情/观点/行业动态, 无读者动作
+
+只输出 JSON 数组, 不要输出其他文字:
+[{{"id": "候选id", "execute": true 或 false, "reason": "一句话理由"}}"""
+
+
+def build_news_alert_review_prompt(candidates: list[dict]) -> str:
+    import json as _json
+    slim = [
+        {"id": c["id"], "rule": c["rule"], "title": c["title"][:100],
+         "summary": (c.get("summary") or "")[:200]}
+        for c in candidates
+    ]
+    return _NEWS_ALERT_REVIEW_PROMPT.format(candidates=_json.dumps(slim, ensure_ascii=False))
+
+
 __all__ = [
     "COST_PER_1M_TOKENS",
     "CVE_IMPACT_BRIEF_SCHEMA_V1",
@@ -873,6 +900,7 @@ __all__ = [
     "build_inspection_materials_prompt",
     "build_interest_advisor_prompt",
     "build_knowledge_prompt",
+    "build_news_alert_review_prompt",
     "deep_read_framework_lens",
     "deep_read_profile_for",
     "deep_read_sections",

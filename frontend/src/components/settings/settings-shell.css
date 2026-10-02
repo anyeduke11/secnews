@@ -302,6 +302,7 @@
 }
 .settings-shell .st-actionbar .st-ab-msg{margin-right:auto;font-family:var(--sn-mono);font-size:var(--sn-fs-mute)}
 .settings-shell .st-actionbar .st-ab-msg.ok{color:var(--sn-mint)}
+.settings-shell .st-actionbar .st-ab-msg.warn{color:var(--sn-amber)}
 .settings-shell .st-actionbar .st-ab-msg.bad{color:var(--sn-red)}
 
 /* ===== 进度条 (st-progress) ===== */

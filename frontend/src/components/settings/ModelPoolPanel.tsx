@@ -67,7 +67,7 @@ export function ModelPoolPanel() {
   const [probing, setProbing] = useState(false);
   const [keyDrafts, setKeyDrafts] = useState<Record<string, string>>({});
   const [vaultUnlocked, setVaultUnlocked] = useState<boolean | null>(null);
-  const [msg, setMsg] = useState<{ name: string; type: 'ok' | 'error'; text: string } | null>(null);
+  const [msg, setMsg] = useState<{ name: string; type: 'ok' | 'warn' | 'error'; text: string } | null>(null);
   const [routing, setRouting] = useState<CurrentRouting['routing']>({});
   const [routeOpen, setRouteOpen] = useState<Record<string, boolean>>({});
   const [routeDrafts, setRouteDrafts] = useState<Record<string, { tier: string; model: string }>>({});
@@ -149,7 +149,9 @@ export function ModelPoolPanel() {
         { override_key: overrideKey, provider: platform, model, force },
       );
       if (d.status === 'ok') {
-        setMsg({ name: platform, type: 'ok', text: d.message ?? '路由已写入' });
+        // force 写入 = 成功但未经验证 — 用 warn 色而非 ok, 避免"未经验证"淹没在成功色里
+        const isForce = (d.message ?? '').includes('已跳过在线探测');
+        setMsg({ name: platform, type: isForce ? 'warn' : 'ok', text: d.message ?? '路由已写入' });
         setRouteOpen(prev => ({ ...prev, [platform]: false }));
         loadRouting();
       } else {
@@ -299,7 +301,7 @@ export function ModelPoolPanel() {
       )}
 
       {msg && (
-        <p className={`st-ab-msg ${msg.type === 'ok' ? 'ok' : 'bad'}`} data-testid="pool-msg">
+        <p className={`st-ab-msg ${msg.type}`} data-testid="pool-msg">
           [{msg.name}] {msg.text}
           {/* 探测未通过类错误 → 提供 force 重试出口 (跳过在线探测直接写入; 无 key 仍会被后端拒绝) */}
           {msg.type === 'error' && msg.text.includes('密钥探测未通过') && routeDrafts[msg.name] && (

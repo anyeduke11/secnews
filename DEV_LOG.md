@@ -1,4 +1,13 @@
 
+## [DEV-0248] force 写入提示的可感知性: warn 色第三态 — "未经验证"不再淹没在成功绿里 (llm-force-warn-visual)
+
+- **时间**: 2026-10-02
+- **类型**: 功能开发 (DEV-0247 补全: 后端 message 已带 force 提示, 但前端把 force 写入渲染成绿色 ok — 警示文案淹没在成功色里, 可感知性为零)
+- **关联模块**: `frontend:settings-shell`, `frontend:model-pool`
+- **关联文件**: `settings-shell.css` (+`.st-ab-msg.warn{color:var(--sn-amber)}` — 复用既有 `--sn-amber`/`st-chip.warn` 同源色, 不引新 token) / `ModelPoolPanel.tsx` (msg type 扩 `'warn'`; writeRoute 成功分支判 `d.message` 含 "已跳过在线探测" → type='warn'; className 三态直映射替代旧 ok?ok:bad 二值) / `ModelPoolPanel.test.tsx` (+1 用例: force message → pool-msg 有 warn class 且无 ok class — "未经验证的写入不得渲染成绿色成功" 锁定)
+- **实弹验证**: tsc 0 错 / settings 族 52 passed (+1) / build exit 0; 浏览器实测时误触一次普通写入 (探测成功路径) — curl 确认真实 t1_score 未被污染 (pi/claude-sonnet-4-5 保持), git checkout 兜底恢复
+- **潜在风险 (parked)**: ① warn 判定靠 message 含 "已跳过在线探测" 字符串 — 后端改文案则降级回 ok 绿 (不炸, 与 DEV-0247 按钮同款字符串匹配弱点, 结构化 error_code/message_code 择机统一解决); ② st-ab-msg.warn 是全 shell 共用类, 其他卡片未来可用同款第三态 (当前唯一消费方 ModelPoolPanel)
+
 ## [DEV-0247] force 跳过探测的提示文案补全: 写入 message/拒绝 error/前端 force 重试按钮三处 (llm-route-force-copy)
 
 - **时间**: 2026-10-02

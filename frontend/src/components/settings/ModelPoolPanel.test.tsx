@@ -97,4 +97,35 @@ describe('ModelPoolPanel — 模型池 (DEV-0244)', () => {
     expect(body.provider).toBe('deepseek');
     expect(body.api_key).toBe('sk-test-123');
   });
+
+  it('force 写入成功 → 提示走 warn 色 (未经验证), 非 ok 绿', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      if (url === '/api/llm/pool/route') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            status: 'ok',
+            message: '已写入 t1_score → sensenova/m1; 热重载 ≤5s 生效; 已跳过在线探测 (force) — 模型可用性未经验证, 若调用失败请回到模型池探测或检查模型名',
+          }),
+        });
+      }
+      if (url === '/api/llm/pool') return Promise.resolve({ ok: true, json: () => Promise.resolve(POOL_FIXTURE) });
+      if (url === '/api/secrets/status') return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: true }) });
+      return Promise.resolve({ ok: false });
+    });
+    renderPanel();
+    // sensenova 已配置可用 → 写入路由按钮直接可见
+    const routeBtn = await screen.findByRole('button', { name: '写入路由 商汤日日新' });
+    fireEvent.click(routeBtn);
+    fireEvent.click(await screen.findByRole('button', { name: '确认写入 商汤日日新 路由' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pool-msg')).toHaveTextContent('已跳过在线探测 (force)');
+    });
+    // warn 态断言: 未经验证的写入不得渲染成绿色成功
+    expect(screen.getByTestId('pool-msg')).toHaveClass('warn');
+    expect(screen.getByTestId('pool-msg')).not.toHaveClass('ok');
+  });
 });

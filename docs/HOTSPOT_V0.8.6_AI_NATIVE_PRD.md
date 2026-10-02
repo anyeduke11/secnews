@@ -397,7 +397,7 @@ run record 即埋点：G1/G2 指标全部从 v1_runs/v1_proposals/command_log �
 
 ## 第10章 · 开发优先级与里程碑
 
-### Phase P0 — 止血与可见（1.5 周）
+### Phase P0 — 止血与可见（2 周，14 项）
 
 | # | 任务 | 治 | 验收 |
 |---|------|----|------|
@@ -411,6 +411,8 @@ run record 即埋点：G1/G2 指标全部从 v1_runs/v1_proposals/command_log �
 | P0-8 | E9/E10 修复；E11 廉价修法（CORE_ROUTERS 完整性断言） | R2/R5 | ruff F821=0；路由 1path1声明 |
 | P0-9 | F0-11/F0-12（SSRF+ssl、路径/权限位） | R6 | 用例阻断；CWD 切换同库 |
 | P0-10 | 日志降噪（例行成功→DEBUG） | R2 | 日增量降 ≥80% |
+| P0-11 | **E2/F4-1 egress 门禁全覆盖**：image_service 等 3 条裸凭据路径收编 gateway；AST 门禁禁止新增（§4.1 硬规则①落地） | R2/R6 | 带凭据出站路径 5/5 过 check_credential_egress；新增裸 httpx 带 key 调用 CI 红 |
+| P0-12 | **E13 门禁双错误策略统一**：`BaseGate._wrap_exception` 与 pipeline 收敛为同一语义（gate_error 显式，不冒充通过） | R2 | 构造 gate 异常用例：pipeline 与单 gate 断言结论一致（均非 passed） |
 
 ### Phase P1 — 主干 + 四轴（2.5 周）
 
@@ -422,6 +424,8 @@ run record 即埋点：G1/G2 指标全部从 v1_runs/v1_proposals/command_log �
 | P1-4 | 命令栏（M4） | 用例 B 验收 |
 | P1-5 | 拒绝可回放（item_id+raw_data+UI） | 任一拒收可看原文 |
 | P1-6 | sync 事务化 + signals 涓流归因报告 | 注入失败 base 不推进 |
+| P1-7 | **前端 fetch 竞态修复**（D5 裁决的"先修竞态"落地：24/65 个 fetch effect 竞态点加 aborted/dead 标记，不引状态库） | 竞态用例（快速切换路由/组件卸载）无脏状态写入 |
+| P1-8 | **warm.X 裸引用 CI 门禁**（F2-4 提前：grep 检查 + accessor 强制，§4.3 规则③落地） | 仓内 `warm.` 字面量 SQL 引用 = 0（accessor 除外白名单） |
 
 ### Phase P2 — 收敛冻结（1 周）
 
@@ -456,3 +460,4 @@ run record 即埋点：G1/G2 指标全部从 v1_runs/v1_proposals/command_log �
 |------|------|------|------|
 | 0.8.6-draft1 | 2026-10-02 | 初稿：换主干（证据账本）+ F0 止血 + AI Native 四轴；吸收审计方案与复审修正（E7 措辞/E8 分级/E19 提级/manifest 降级）；裁决 D3=保守冻结、D4=维持中文、D5=先修竞态、D6=长期单用户 | owner 指令"输出 0.8.6 改造 PRD + AI Native"（四轴全选） |
 | 0.8.6-draft2 | 2026-10-02 | 四维审查修订：**P0-①** T4 真门增加 T1 评分链路修复前置（ai_scores 基线 0 行，否则管线死锁于 kl:structure）；**P0-②** 补 D1/D2/D7 显式裁决记录；P1-③ 命令栏限四类固定意图模板（不做通用 NLU，防 R5 重演）；P1-④ v1_proposals.payload_json 加 64KB 上限；P2-⑤ M3/M4 优先级表述澄清（P0 设计轴 / P1 交付分波） | prd-iterative Phase 3 四维审查 |
+| 0.8.6-draft3 | 2026-10-02 | 覆盖核对修订：补 4 项"说了没排活"任务行（覆盖矩阵三类灰区消除）——P0-11 E2/F4-1 egress 全覆盖+AST 门禁、P0-12 E13 门禁错误策略统一、P1-7 前端 fetch 竞态修复（D5 落地）、P1-8 warm.X 裸引用 CI 门禁；P0 工期 1.5→2 周（14 项）。未覆盖 9 项维持不登记（owner 指示本轮只补 4 项） | 覆盖核对（owner 指令"先只补 4 项"） |

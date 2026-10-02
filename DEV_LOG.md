@@ -1,4 +1,15 @@
 
+## [DEV-0254] v0.8.6 P0-4 落地: 迁移器 duplicate column 逐语句容忍重放 — 审计 S2, 同文件后续语句不再静默丢失 (p04-s2-migration)
+
+- **时间**: 2026-10-02
+- **类型**: Bug修复 (v0.8.6 PRD P0-4; 审计 S2: `apply_migrations` 遇 "duplicate column" 时 executescript 整文件中止 → 记版本 + continue — 同文件**后续语句被静默丢弃且永久标记完成** (静默半应用), 未来任何"已存在列+后续语句"迁移 (如 131 在历史手工改库上) 必踩)
+- **关联模块**: `backend:repository-db`
+- **修复**: `db.py` duplicate column 分支从"记版本+continue"改为**逐语句容忍重放** `_replay_migration_tolerant()` + trigger 安全切分器 `_split_sql_statements()` (用 `sqlite3.complete_statement` 逐行累积 — 它理解 CREATE TRIGGER 的 BEGIN...END 体, 简单 split(';') 会撕碎 migrations 里 20+ 处 trigger; 纯注释片段丢弃)。重放语义: "duplicate column"/"already exists" (重放 executescript 已 auto-commit 的非幂等 DDL) 单条视为已满足 warning 跳过, **其余异常照常向上抛且版本不落账** (不冒充完成); 正常路径仍走 executescript 快路径 (零变更)
+- **实弹验证 (生产库副本, 不动常驻后端)**: ①全量已应用副本 no-op (返回 130, schema_version before==after) — 生产重启安全; ②S2 危害复现+修复证明: 删 079 记录 + 删其建的 idx_llm_usage_trace → 修复前该索引永久丢失, 修复后重放 12 条 (9 条 ALTER 跳过 + 3 条索引执行) **索引补回 (0→1)**, 版本重新落账
+- **测试验证**: 新增 test_migration_s2_tolerant_replay.py 7 passed (验收用例"已存在列+后续语句生效" + already-exists 部分提交容忍 + 其他错误仍 raise 且不落账 + 全新库快路径回归 + trigger 安全切分 + 注释尾丢弃 + 含 trigger 迁移端到端); 定向回归 81 passed (126 锚点/warm 索引/info_filter/c13 legacy/sync/p0_evidence/db_diet)
+- **测试构造教训**: 首版 4 用例失败 — "apply 全部再回滚"造不出历史半应用态 (SQLite 无法回滚已 auto-commit DDL, 且全新库上 002 直接成功执行不触发 duplicate); 正确构造 = **分阶段放迁移文件** (先 apply 001 → 手工补历史列 → 再放 002)
+- **潜在风险 (parked)**: ① 重放日志中首条 skip 的 stmt 字段显示文件头注释块 (注释附着首语句, 仅日志可读性, 不修); ② executescript **首条**即抛 "already exists" (非 duplicate column 前导) 仍走既有失败路径 raise — 原语义保持, 未扩大容忍面 (S2 范围裁决)
+
 ## [DEV-0253] v0.8.6 P0-3 落地: TokenAuthMiddleware 全入口覆盖 — 审计 S1, /mcp/sse (19 工具含写) 不再绕过 token (p03-s1-auth)
 
 - **时间**: 2026-10-02

@@ -225,6 +225,72 @@ def _count_committed_statements(conn: sqlite3.Connection, sql: str, version: str
     return 0
 
 
+# v0.8.6 P0-4 (审计 S2): 迁移逐语句重放时, 视为 "该条已满足" 的错误标记。
+# - "duplicate column"  : ALTER ADD COLUMN 目标列已存在 (历史库手工加过)
+# - "already exists"    : 重放时 executescript 已 auto-commit 的非幂等 DDL
+#                         (无 IF NOT EXISTS 的 CREATE TABLE/INDEX/TRIGGER)
+_ALREADY_SATISFIED_MARKERS = ("duplicate column", "already exists")
+
+
+def _split_sql_statements(sql: str) -> list[str]:
+    """把迁移 SQL 切成单条语句 (trigger 安全) — v0.8.6 P0-4 / 审计 S2。
+
+    用 ``sqlite3.complete_statement`` 逐行累积切分: 它理解 CREATE TRIGGER
+    的 ``BEGIN ... END`` 体 (体内 ``;`` 不会提前切断); 简单 ``split(';')``
+    会把 trigger 体撕碎 (migrations 里有 20+ 处 CREATE TRIGGER)。纯注释/
+    空白片段丢弃 (``conn.execute`` 不接受空查询)。
+    """
+    statements: list[str] = []
+    buf = ""
+    for line in sql.splitlines(keepends=True):
+        buf += line
+        if sqlite3.complete_statement(buf):
+            statements.append(buf)
+            buf = ""
+    if buf.strip():
+        statements.append(buf)
+
+    def _is_noise(s: str) -> bool:
+        return all(
+            not ln.strip() or ln.strip().startswith("--")
+            for ln in s.splitlines()
+        )
+
+    return [s for s in statements if not _is_noise(s)]
+
+
+def _replay_migration_tolerant(conn: sqlite3.Connection, sql: str, version: str) -> None:
+    """duplicate column 迁移的逐语句容忍重放 — v0.8.6 P0-4 / 审计 S2。
+
+    旧行为 (S2 缺陷): executescript 遇 duplicate column 整文件中止, 直接
+    记版本 + continue — 同文件**后续语句被静默丢弃且永久标记完成**。
+
+    新行为: 从头逐条重放 (此前 DDL 已 auto-commit 的部分靠幂等性 no-op):
+    - "duplicate column" / "already exists" → 该条视为已满足, warning 跳过
+    - 其余异常照常向上抛 (走既有失败路径, **不冒充完成**)
+    重放全部走完后, 由调用方记录版本。
+    """
+    statements = _split_sql_statements(sql)
+    skipped = 0
+    for stmt in statements:
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError as exc:
+            msg = str(exc).lower()
+            if any(marker in msg for marker in _ALREADY_SATISFIED_MARKERS):
+                skipped += 1
+                logger.warning(
+                    f"migration {version}: statement already satisfied — "
+                    f"skipped ({str(exc)[:160]}; stmt: {stmt.strip()[:160]})"
+                )
+                continue
+            raise
+    logger.warning(
+        f"migration {version}: duplicate-column tolerant replay done — "
+        f"{len(statements)} statements, {skipped} skipped as already-satisfied"
+    )
+
+
 def _warn_migration_numbering_gaps(files: list[Path]) -> None:
     """启动治理告警: 检测迁移编号断号 / 重复, 只 warning 不阻断。
 
@@ -271,6 +337,12 @@ def apply_migrations(conn: sqlite3.Connection) -> int:
     an explicit wrapper would only confuse error reporting. Scripts are
     expected to be idempotent (``IF NOT EXISTS`` etc.), which makes a
     partial-then-failed state self-healing on the next ``init_db()``.
+
+    v0.8.6 P0-4 (审计 S2): a "duplicate column" failure no longer marks
+    the whole file as applied — the runner replays the file statement by
+    statement (trigger-safe splitting), skipping only the already-
+    satisfied statements so that **subsequent statements still apply**;
+    any other error during replay propagates (never fakes completion).
 
     Returns the **current** schema version, defined as the maximum
     numeric prefix across (a) migrations already recorded in
@@ -321,14 +393,14 @@ def apply_migrations(conn: sqlite3.Connection) -> int:
         except Exception as exc:
             # 容错: SQLite 无 ALTER TABLE ... ADD COLUMN IF NOT EXISTS,
             # 列已存在时会抛 "duplicate column name"。历史库可能已手工加过
-            # 列 (如真实库 digests.last_read_at / knowledge_items.attention_score),
-            # 此时把该迁移视为已满足并记录版本, 而不是卡死启动。
+            # 列 (如真实库 digests.last_read_at / knowledge_items.attention_score)。
+            # v0.8.6 P0-4 (审计 S2): 旧行为 "记版本 + continue" 会把同文件
+            # 后续语句静默丢弃且永久标记完成 (半应用) — 改为逐语句容忍重放:
+            # duplicate column / already exists 的单条跳过, 后续语句必须生效;
+            # 重放中其他错误照常向上抛 (不冒充完成)。
             msg = str(exc).lower()
             if "duplicate column" in msg:
-                logger.warning(
-                    f"migration {version}: column already exists — treated as "
-                    f"applied ({exc})"
-                )
+                _replay_migration_tolerant(conn, sql, version)
                 conn.execute(
                     "INSERT INTO schema_version (version, executed_at) VALUES (?, ?)",
                     (version, _now_iso()),

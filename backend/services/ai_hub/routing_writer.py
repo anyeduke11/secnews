@@ -137,7 +137,8 @@ def _validate_key_usable(provider: str, model: str, *, force: bool) -> dict[str,
             "请先在模型池贴 key 或设置环境变量"
         )
     if force:
-        return {"source": src, "probed": False, "warning": "force=true 跳过在线探测"}
+        return {"source": src, "probed": False,
+                "warning": "已跳过在线探测 (force=true) — 模型可用性未经验证"}
     probe = probe_platform(preset)
     if probe["available"] is True:
         if model not in probe["models"]:
@@ -155,7 +156,8 @@ def _validate_key_usable(provider: str, model: str, *, force: bool) -> dict[str,
             "warning": "平台无 /models 列表接口, 已跳过在线验证 (key 已配置)",
         }
     raise RoutingWriteError(
-        f"{provider} 密钥探测未通过: {probe['error']} — 请修正 key 后重试, 或 force=true 跳过"
+        f"{provider} 密钥探测未通过: {probe['error']} — 请修正 key 后重试;"
+        " 确认模型名无误可带 force=true 重试 (跳过在线探测, 直接写入)"
     )
 
 
@@ -230,7 +232,11 @@ def write_task_override(
         + (" (新增 provider 块)" if provider_created else "")
         + "; 热重载 ≤5s 生效"
     )
-    if warn:
+    if force:
+        # force 语义提示: 本次写入未做在线探测, 可用性未经验证 (key 存在性已确认)。
+        # 不再拼 key_check.warning — force 的 warning 与这句同义, 重复两遍是噪声。
+        message += "; 已跳过在线探测 (force) — 模型可用性未经验证, 若调用失败请回到模型池探测或检查模型名"
+    elif warn:
         message += f"; 注意: {warn}"
     return {
         "status": "ok", "override_key": override_key,

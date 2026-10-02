@@ -166,8 +166,11 @@ class TestKeyValidation:
     def test_probe_401_rejected(self, yaml_file, monkeypatch):
         monkeypatch.setenv("SENSENOVA_API_KEY", "bad")
         self._patch_probe(monkeypatch, available=False, error="HTTP 401 (密钥无效或无权限)")
-        with pytest.raises(RoutingWriteError, match="密钥探测未通过"):
+        with pytest.raises(RoutingWriteError, match="密钥探测未通过") as ei:
             write_task_override("t1_score", "sensenova", "m", yaml_path=yaml_file)
+        # 拒绝文案必须指明 force 出口及其语义 (跳过探测直接写入)
+        assert "force=true 重试" in str(ei.value)
+        assert "跳过在线探测" in str(ei.value)
 
     def test_ok_when_model_in_probe_list(self, yaml_file, monkeypatch):
         monkeypatch.setenv("SENSENOVA_API_KEY", "k")
@@ -203,7 +206,10 @@ class TestKeyValidation:
         out = write_task_override("t1_score", "sensenova", "m", yaml_path=yaml_file, force=True)
         assert out["status"] == "ok"
         assert out["key_check"] == {"source": "env", "probed": False,
-                                    "warning": "force=true 跳过在线探测"}
+                                    "warning": "已跳过在线探测 (force=true) — 模型可用性未经验证"}
+        # force 语义提示必须进 message — 用户需知道本次写入未经验证
+        assert "已跳过在线探测 (force)" in out["message"]
+        assert "可用性未经验证" in out["message"]
 
     def test_yaml_only_provider_skips_check(self, yaml_file, monkeypatch):
         """ollama 等 yaml-only provider 无 key 概念 — 不在体检范围。"""

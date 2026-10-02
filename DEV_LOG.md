@@ -1,4 +1,14 @@
 
+## [DEV-0247] force 跳过探测的提示文案补全: 写入 message/拒绝 error/前端 force 重试按钮三处 (llm-route-force-copy)
+
+- **时间**: 2026-10-02
+- **类型**: 功能开发 (DEV-0246 收尾: force 语义此前只在 key_check.warning 里一句话, 用户感知不到"写入未经验证")
+- **关联模块**: `backend:ai-hub-routing-writer`, `frontend:model-pool`
+- **三处文案**: ① **force 写入成功 message** 追加 "; 已跳过在线探测 (force) — 模型可用性未经验证, 若调用失败请回到模型池探测或检查模型名" (且此场景不再拼 key_check.warning — 同义重复是噪声, 实弹发现后修); ② **探测拒绝 error** 文案从 "或 force=true 跳过" 展开为 "确认模型名无误可带 force=true 重试 (跳过在线探测, 直接写入)" — 说清 force 的语义与适用前提; ③ **前端**: 探测未通过类错误 (`msg.text` 含 "密钥探测未通过") 旁自动出现「确认模型无误? 跳过探测写入」按钮 → writeRoute(force=true) 重试; writeRoute +force 参数透传
+- **关联文件**: `routing_writer.py` (message 拼接 + warning 去重裁决 + force warning 措辞统一为 "已跳过在线探测 (force=true) — 模型可用性未经验证") / `ModelPoolPanel.tsx` (writeRoute 第 4 参 + msg 区块条件渲染 force 按钮 — 仅 "密钥探测未通过" 类错误出现, 无 key 类错误不出现因后端必拒) / `test_routing_writer.py` (test_force_skips 断言 message 含提示; test_probe_401_rejected 断言 error 含 force 出口与语义)
+- **实弹验证**: force 写入 message = "已写入 …; 热重载 ≤5s 生效; 已跳过在线探测 (force) — 模型可用性未经验证, 若调用失败请回到模型池探测或检查模型名" (单次出现无重复); git checkout 恢复现场; tsc 0 错 / build 0 / test_routing_writer 17 passed / settings 族 51 passed
+- **潜在风险 (parked)**: force 按钮的显示条件依赖 error 文案含 "密钥探测未通过" 字符串匹配 — 若后端改文案前端按钮消失 (降级为纯文本提示, 不炸); 更稳做法是后端返回结构化 error_code, 择机
+
 ## [DEV-0246] 路由写入 key 体检: 无 key 拒绝 + 有 key 在线探测 — 单点锚点写入前拦截必败配置 (llm-route-key-check)
 
 - **时间**: 2026-10-02

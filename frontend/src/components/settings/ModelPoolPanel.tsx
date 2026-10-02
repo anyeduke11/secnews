@@ -140,13 +140,13 @@ export function ModelPoolPanel() {
     }
   }, [keyDrafts]);
 
-  const writeRoute = useCallback(async (platform: string, overrideKey: string, model: string) => {
+  const writeRoute = useCallback(async (platform: string, overrideKey: string, model: string, force = false) => {
     setWriting(platform);
     setMsg(null);
     try {
       const d = await postJSON<{ status?: string; message?: string }>(
         '/api/llm/pool/route',
-        { override_key: overrideKey, provider: platform, model },
+        { override_key: overrideKey, provider: platform, model, force },
       );
       if (d.status === 'ok') {
         setMsg({ name: platform, type: 'ok', text: d.message ?? '路由已写入' });
@@ -301,6 +301,19 @@ export function ModelPoolPanel() {
       {msg && (
         <p className={`st-ab-msg ${msg.type === 'ok' ? 'ok' : 'bad'}`} data-testid="pool-msg">
           [{msg.name}] {msg.text}
+          {/* 探测未通过类错误 → 提供 force 重试出口 (跳过在线探测直接写入; 无 key 仍会被后端拒绝) */}
+          {msg.type === 'error' && msg.text.includes('密钥探测未通过') && routeDrafts[msg.name] && (
+            <button
+              type="button"
+              className="st-btn"
+              style={{ marginLeft: 8 }}
+              disabled={writing === msg.name}
+              onClick={() => writeRoute(msg.name, routeDrafts[msg.name]!.tier, routeDrafts[msg.name]!.model, true)}
+              aria-label={`跳过探测写入 ${msg.name}`}
+            >
+              确认模型无误? 跳过探测写入
+            </button>
+          )}
         </p>
       )}
       {vaultUnlocked === false && (

@@ -10,7 +10,7 @@ What T1 does
    (debounce against race with the collector).
 2. Simhash-dedup against the existing ``content_fingerprints`` table;
    duplicates are skipped but counted.
-3. Look up the latest ``ai_scores.score`` (fallback 5.0 when absent).
+3. Look up the latest ``ai_scores.score`` (0.0 when absent — P0-6: 诚实未评分).
 4. Update ``lifecycle = 'kl:refine'`` and bump ``updated_at``.
 
 Failure handling
@@ -68,7 +68,6 @@ logger = logging.getLogger("hotspot.trigger.t1")
 RAW_MIN_AGE_SECONDS = 300          # 5 min debounce
 DEDUP_HAMMING_THRESHOLD = 5        # < 5 → duplicate
 BATCH_SIZE = 50                     # max candidates per cycle
-DEFAULT_SCORE = 5.0                 # fallback when ai_scores is empty
 TRIGGER_NAME = "t1"
 FROM_STAGE = LIFECYCLE_RAW          # for state-machine self-validation
 TO_STAGE = LIFECYCLE_REFINE
@@ -262,7 +261,10 @@ class T1Trigger:
 
     @staticmethod
     def _get_latest_score(item_id: str) -> float:
-        """Read the most recent ``ai_scores.score`` for the item (fallback when LLM scoring is unavailable), else default."""
+        """Read the most recent ``ai_scores.score`` for the item.
+
+        P0-6 (E3): 无行/坏值 → 0.0 (诚实"未评分", 不编造 5.0)。
+        """
         conn = get_connection()
         row = conn.execute(
             "SELECT score FROM ai_scores "
@@ -271,14 +273,18 @@ class T1Trigger:
             (item_id,),
         ).fetchone()
         if row is None:
-            return DEFAULT_SCORE
+            return 0.0
         try:
             return float(row["score"])
         except (TypeError, ValueError):
-            return DEFAULT_SCORE
+            return 0.0
 
     def _score_with_llm(self, item: dict[str, Any]) -> float:
-        """Try LLM scoring first, fall back to DB score."""
+        """Try LLM scoring first, fall back to DB score.
+
+        P0-6 (E3): llm_service.score() 失败返回 None — None 时**不写**
+        ai_scores (不把失败记成 5.0 成功), 落 DB 已有评分。
+        """
         content = item.get("title", "") or ""
         if item.get("concepts"):
             try:
@@ -292,7 +298,7 @@ class T1Trigger:
             import asyncio
             try:
                 score = asyncio.run(llm_service.score(content, item.get("id", "")))
-                if score != DEFAULT_SCORE:
+                if score is not None:
                     # Write LLM score to ai_scores table for audit
                     self._write_llm_score(item.get("id", ""), score)
                     self.metrics.observe("t1_llm_score_ms", 0)
@@ -367,7 +373,6 @@ class T1Trigger:
 __all__ = [
     "BATCH_SIZE",
     "DEDUP_HAMMING_THRESHOLD",
-    "DEFAULT_SCORE",
     "FROM_STAGE",
     "RAW_MIN_AGE_SECONDS",
     "TO_STAGE",

@@ -16,8 +16,9 @@ import json
 import re
 from typing import Any
 
-# 默认评分兜底 (score 0-10)
-DEFAULT_SCORE = 5.0
+# v0.8.6 P0-6 (审计 E3): DEFAULT_SCORE(5.0) 假成功删除 — 模型拒绝/超时/
+# 响应无数字一律走失败路径 (ScoreParseError / gateway 返回 None), 不缓存
+# 不编造分数不记 ok=True。
 
 # 成本估算 (USD per 1M tokens) — 近似值
 COST_PER_1M_TOKENS: dict[str, float] = {
@@ -68,13 +69,21 @@ def _build_summary_prompt(text: str) -> str:
     )
 
 
+class ScoreParseError(ValueError):
+    """LLM 响应中解析不出评分 — v0.8.6 P0-6 (审计 E3)。
+
+    模型拒绝回答 / 超时截断 / 返回无数字文本均属此类; 调用方必须把它
+    当作**失败**处理 (换 provider 重试或显式 unknown), 不得回落默认分。
+    """
+
+
 def _parse_score(raw: str) -> float:
-    """从 LLM 响应中解析评分."""
-    match = re.search(r"(\d+(?:\.\d+)?)", raw.strip())
-    if match:
-        val = float(match.group(1))
-        return max(0.0, min(10.0, val))
-    return DEFAULT_SCORE
+    """从 LLM 响应中解析评分; 解析失败抛 :class:`ScoreParseError`。"""
+    match = re.search(r"(\d+(?:\.\d+)?)", (raw or "").strip())
+    if not match:
+        raise ScoreParseError(f"no numeric score in response: {raw[:120]!r}")
+    val = float(match.group(1))
+    return max(0.0, min(10.0, val))
 
 
 def _parse_entity_list(raw: str) -> list[str]:
@@ -913,9 +922,9 @@ __all__ = [
     "DAILY_PRIORITY_INTEL_SCHEMA_V1",
     "DEEP_READ_PROFILES",
     "DEEP_READ_PROFILE_VERSION",
-    "DEFAULT_SCORE",
     "INSPECTION_MATERIALS_SCHEMA_V1",
     "KNOWLEDGE_PUBLISH_SCHEMA_V1",
+    "ScoreParseError",
     "_build_deep_read_prompt",
     "_build_extract_entities_prompt",
     "_build_score_prompt",

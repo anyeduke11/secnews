@@ -49,6 +49,10 @@ class DSHTaskRouter:
                 score = loop.run_until_complete(llm_service.score(content))
             finally:
                 loop.close()
+            if score is None:
+                # P0-6 (E3): score 失败返回 None — 不得包装成 ok=True
+                return {"ok": False, "agent": "llm_direct",
+                        "error": "llm score unavailable (all providers failed)"}
             return {"ok": True, "agent": "llm_direct", "score": score}
         except Exception as e:
             log.error("LLM fallback failed: %s", e)

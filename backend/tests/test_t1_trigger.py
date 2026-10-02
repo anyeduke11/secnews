@@ -47,7 +47,6 @@ from backend.services.simhash import (
 from backend.services.triggers import T1Trigger
 from backend.services.triggers.t1_raw_to_refine import (
     DEDUP_HAMMING_THRESHOLD,
-    DEFAULT_SCORE,
 )
 
 # ---------------------------------------------------------------------------
@@ -269,13 +268,11 @@ def test_score_fallback_when_ai_scores_empty(temp_db, fresh_metrics):
     conn.commit()
 
     t1 = _trigger(fresh_metrics)
-    # The trigger still advances; we just verify DEFAULT_SCORE is used
-    # internally by checking the item was advanced (i.e. score lookup
-    # did not raise).
+    # The trigger still advances; we just verify the score lookup
+    # did not raise (P0-6: 无 ai_scores 行 → 0.0, 不再 DEFAULT_SCORE).
     report = t1.run_once()
     assert report["advanced"] == 1
-    # Indirect: insert a record and check DEFAULT_SCORE = 5.0 is callable
-    assert DEFAULT_SCORE == 5.0
+    assert t1._get_latest_score("no-score") == 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -495,7 +492,7 @@ def test_score_with_llm_fallback_to_db(temp_db, fresh_metrics, monkeypatch):
 # ---------------------------------------------------------------------------
 
 def test_score_with_llm_fallback_to_default(temp_db, fresh_metrics, monkeypatch):
-    """Verify that when both LLM and DB scores fail, DEFAULT_SCORE is used."""
+    """Verify that when both LLM and DB scores fail, 0.0 is used (P0-6: 诚实未评分)."""
     from unittest.mock import AsyncMock
 
     from backend.services.ai_hub import llm_service
@@ -504,7 +501,7 @@ def test_score_with_llm_fallback_to_default(temp_db, fresh_metrics, monkeypatch)
     _insert_knowledge_item(conn, "llm-default")
     conn.commit()
 
-    # No ai_scores row → _get_latest_score returns DEFAULT_SCORE
+    # No ai_scores row → _get_latest_score returns 0.0
     mock_score = AsyncMock(side_effect=ValueError("LLM unavailable"))
     monkeypatch.setattr(llm_service, "score", mock_score)
 
@@ -512,5 +509,31 @@ def test_score_with_llm_fallback_to_default(temp_db, fresh_metrics, monkeypatch)
     item = {"id": "llm-default", "title": "Test Article", "concepts": "[]"}
     result = t1._score_with_llm(item)
 
-    assert result == DEFAULT_SCORE
+    assert result == 0.0
+    mock_score.assert_called_once()
+
+
+def test_score_with_llm_none_not_written_to_ai_scores(temp_db, fresh_metrics, monkeypatch):
+    """P0-6 (E3) 验收: llm_service.score() 返回 None (全 provider 失败) —
+    不得写 ai_scores (不把失败记成假 5.0 成功), 落 DB 既有评分 0.0。"""
+    from unittest.mock import AsyncMock
+
+    from backend.services.ai_hub import llm_service
+
+    conn = get_connection()
+    _insert_knowledge_item(conn, "llm-none")
+    conn.commit()
+
+    mock_score = AsyncMock(return_value=None)
+    monkeypatch.setattr(llm_service, "score", mock_score)
+
+    t1 = _trigger(fresh_metrics)
+    item = {"id": "llm-none", "title": "Test Article", "concepts": "[]"}
+    result = t1._score_with_llm(item)
+
+    assert result == 0.0  # DB 无评分 → 0.0
+    n = conn.execute(
+        "SELECT COUNT(*) FROM ai_scores WHERE hotspot_id = 'llm-none'"
+    ).fetchone()[0]
+    assert n == 0, "LLM 失败 (None) 不得写 ai_scores (E3 假成功)"
     mock_score.assert_called_once()

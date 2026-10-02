@@ -1,4 +1,17 @@
 
+## [DEV-0256] v0.8.6 P0-6 落地: DEFAULT_SCORE 假成功删除 — 审计 E3, AI 失败=failed 不缓存不编造 (p06-e3-score)
+
+- **时间**: 2026-10-02
+- **类型**: Bug修复 (v0.8.6 PRD P0-6; 审计 E3: score 解析失败回落 DEFAULT_SCORE=5.0 并缓存、记 ok=True — 模型拒绝/超时被记成"评分 5.0 成功", 是 G2 三类静默失败中 gate-detect 1,006 次的构成; PRD 硬规则②"模型永不宣称成功")
+- **关联模块**: `backend:ai-hub`, `backend:triggers`
+- **修复① 解析失败=失败**: `prompts._parse_score` 无数字 → 抛新异常 `ScoreParseError` (不再返回 5.0); `gateway.score()` 捕获后: 记 `record_llm_call(ok=False, error="unparseable response")` + `record_llm_error` + **不写缓存** (修复前垃圾响应的 5.0 被缓存, 后续同内容直接假命中) + continue 换下一 provider
+- **修复② 失败显式 None**: `gateway.score()` 签名 `float | None` — 全 provider 失败/enabled=False → 返回 None (调用方必须显式处理); DEFAULT_SCORE 常量从 ai_hub 公开 API (prompts/gateway/__init__/tasks) 与 t1/t4 本地共 4 处全删
+- **调用方适配 (5 处)**: ①t1 `_score_with_llm`: `score is not None` 判真分 (原 `!= DEFAULT_SCORE` 脏判断), None 时**不写 ai_scores** (不把失败记成假 5.0 成功); ②t1/t4 `_get_latest_score`: 无行/坏值 → 0.0 (诚实未评分; t4 与原 5.0 同样 < MIN_SCORE=8.0 不通过, 行为等价语义不含糊); ③dsh task_router `_llm_fallback`: None → `ok=False, error="llm score unavailable"` (原包装成 ok=True); ④tasks `_parse_eval_json`: 模型没给 score 字段 → quality_score=None (前端 SentinelJudgePage `?? 0` 防御, None 安全); ⑤正常路径回归: 数字响应照常返回/缓存/ok=1
+- **测试验证**: 新增 test_p0_6_no_fake_score.py 8 用例 (验收: 超时→None+usage_log ok=0 / 垃圾响应→ok=0+**不缓存** / 正常路径不受伤 / ScoreParseError 常量级 / DEFAULT_SCORE 已从公开 API 删除 / eval 缺分→None); 既有测试适配 6 文件 (llm_service/t1/t4/hybrid_ai/failover/evaluate); 定向回归 668 passed (llm/trigger/hybrid/failover/score/dsh/semantic/eval 全域); ruff touched-files 全过
+- **兼修欠账**: test_llm_evaluate_scenario light 锚 — P0-1 (DEV-0251) 把 t1_score.model 置 "" 后该锚漏改 (stash 验证 HEAD 即红); 断言语义修正: yaml 空 model 时 resolve 合法回落 provider.models.score, 只断言非空不断言相等
+- **行为变化 (breaking)**: `llm_service.score()` 返回 None 的场景此前返回 5.0 — 外部脚本若有裸消费请显式判 None (仓内 5 处消费方已全部适配)
+- **潜在风险 (parked)**: ① evaluate 链 quality_score=None 是新值域, deep_read 报告若把 None 写库需检查 schema 可空 (llm_status 端点仅透传, 前端已防御); ② P1-2 修复时 T4 SCORE_FALLBACK 默认开 (无行=8.0 通过), 与本修复的 0.0 (fallback 关) 语义并存 — 双开关语义在 PRD P1-2 评分链路修复时统一
+
 ## [DEV-0255] v0.8.6 P0-5 落地: E4 misfire 全量声明 + run record 统一 + /api/ops/runs + 失败面板最小版 (p05-r2-runs)
 
 - **时间**: 2026-10-02

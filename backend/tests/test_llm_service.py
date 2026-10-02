@@ -36,8 +36,8 @@ from backend.repository import db as db_module
 from backend.repository.db import get_connection
 from backend.services.ai_hub import (
     COST_PER_1M_TOKENS,
-    DEFAULT_SCORE,
     LLMService,
+    ScoreParseError,
     _estimate_cost,
     _make_cache_key,
     llm_service,
@@ -192,14 +192,14 @@ class TestDisabled:
 
     @pytest.mark.asyncio
     async def test_disabled_score(self, temp_db, monkeypatch):
-        """score() returns 5.0 when LLM is disabled."""
+        """score() returns None when LLM is disabled (P0-6: 不再假 5.0)."""
         monkeypatch.setattr(
             "backend.services.ai_hub.gateway.load_llm_config",
             lambda _path=None: None,
         )
         svc = LLMService()
         result = await svc.score("some content", "h-001")
-        assert result == DEFAULT_SCORE
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_disabled_summarize(self, temp_db, monkeypatch):
@@ -346,13 +346,13 @@ class TestProviderFallback:
     async def test_all_providers_fail_score(
         self, temp_db, mock_config, monkeypatch
     ):
-        """score() returns DEFAULT_SCORE (5.0) when all providers fail."""
+        """score() returns None when all providers fail (P0-6/E3: 显式失败)."""
         svc = LLMService()
         async def _fail(*args, **kwargs):
             raise RuntimeError("API error")
         monkeypatch.setattr(svc, "_call_provider", _fail)
         result = await svc.score("anything")
-        assert result == DEFAULT_SCORE
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_all_providers_fail_summarize(
@@ -451,12 +451,14 @@ class TestParseScore:
         assert LLMService._parse_score("Score: 9.2/10") == 9.2
 
     def test_no_match(self):
-        """No number found → DEFAULT_SCORE."""
-        assert LLMService._parse_score("N/A") == DEFAULT_SCORE
+        """No number found → ScoreParseError (P0-6/E3: 不再假 5.0)."""
+        with pytest.raises(ScoreParseError):
+            LLMService._parse_score("N/A")
 
     def test_empty_string(self):
-        """Empty string → DEFAULT_SCORE."""
-        assert LLMService._parse_score("") == DEFAULT_SCORE
+        """Empty string → ScoreParseError (P0-6/E3)."""
+        with pytest.raises(ScoreParseError):
+            LLMService._parse_score("")
 
     def test_negative_number(self):
         """Negative signs are not captured by the regex; the absolute value is used."""

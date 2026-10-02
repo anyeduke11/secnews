@@ -157,7 +157,7 @@ class TestGatewayWiring:
         _trip(health, "b")
         result = asyncio.run(svc.score("content-4"))
         assert calls == []
-        assert result == 5.0  # DEFAULT_SCORE
+        assert result is None  # P0-6 (E3): 全 OPEN → 显式失败 None, 不再假 5.0
 
     def test_unhealthy_verdict_auto_trips_mid_stream(self, temp_db, monkeypatch, health):
         """连续失败达窗口判定 → breaker 自动 OPEN → 后续调用直接跳过。"""

@@ -63,11 +63,12 @@ FROM_STAGE = LIFECYCLE_STRUCTURE
 TO_STAGE = LIFECYCLE_PUBLISH
 STABLE_WINDOW_HOURS = 24
 MIN_SCORE = 8.0
-DEFAULT_SCORE = 5.0  # fallback when ai_scores is empty
 # P1-2: 无 AI 评分行时的发布策略 — LLM 未配置 (llm_secrets=0) 时 ai_scores
 # 恒为空, 原逻辑 DEFAULT_SCORE(5.0) < MIN_SCORE(8.0) 导致 kl:publish 永久为 0。
 # 修复: 无评分行时若启用 fallback, 视为通过 (SCORE_FALLBACK_VALUE), 让
 # "内容已稳定" 的条目可以发布; 有评分行时仍严格执行 MIN_SCORE 门槛。
+# v0.8.6 P0-6 (E3): DEFAULT_SCORE(5.0) 删除 — fallback 关闭时无行按 0.0
+# (诚实未评分, 与 5.0 同样 < MIN_SCORE 不通过, 语义不再含糊)。
 # 可用环境变量覆盖: HOTSPOT_KL_T4_SCORE_FALLBACK=0 关闭。
 import os as _os
 
@@ -184,7 +185,7 @@ class T4Trigger:
         P1-2: 无评分行时:
         - SCORE_FALLBACK_ENABLED=True → 返回 SCORE_FALLBACK_VALUE (视为通过),
           解除"LLM 未配置 → ai_scores 恒空 → kl:publish 死锁";
-        - 否则返回 DEFAULT_SCORE (维持原严格语义)。
+        - 否则返回 0.0 (P0-6: 诚实未评分; 与原 5.0 同样 < MIN_SCORE 不通过)。
         """
         conn = get_connection()
         row = conn.execute(
@@ -194,11 +195,11 @@ class T4Trigger:
             (item_id,),
         ).fetchone()
         if row is None:
-            return SCORE_FALLBACK_VALUE if SCORE_FALLBACK_ENABLED else DEFAULT_SCORE
+            return SCORE_FALLBACK_VALUE if SCORE_FALLBACK_ENABLED else 0.0
         try:
             return float(row["score"])
         except (TypeError, ValueError):
-            return SCORE_FALLBACK_VALUE if SCORE_FALLBACK_ENABLED else DEFAULT_SCORE
+            return SCORE_FALLBACK_VALUE if SCORE_FALLBACK_ENABLED else 0.0
 
     @staticmethod
     def _is_stable(item: dict[str, Any]) -> bool:
@@ -248,7 +249,6 @@ class T4Trigger:
 
 __all__ = [
     "BATCH_SIZE",
-    "DEFAULT_SCORE",
     "FROM_STAGE",
     "MIN_SCORE",
     "SCORE_FALLBACK_ENABLED",

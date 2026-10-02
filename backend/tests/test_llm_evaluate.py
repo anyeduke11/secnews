@@ -19,13 +19,16 @@ from backend.services.ai_hub import _parse_eval_json, evaluate_article
     ('{"score": 8.5,"verdict":"好","summary":"s","key_points":["a","b"]}', 8.5),
     ('模型输出：{"score": 7,"verdict":"ok","summary":"sum","key_points":["p1","p2","p3"]}', 7.0),
     ('"score": 6.2', 6.2),
-    ('no json at all', 5.0),
+    ('no json at all', None),  # P0-6 (E3): 解析不出分数 → None, 不编造 5.0
 ])
 def test_parse_eval_json(raw, expected_score):
     r = _parse_eval_json(raw, provider="test")
     assert isinstance(r, dict)
     assert "quality_score" in r
-    assert abs(r["quality_score"] - expected_score) < 1e-6
+    if expected_score is None:
+        assert r["quality_score"] is None
+    else:
+        assert abs(r["quality_score"] - expected_score) < 1e-6
 
 
 def test_parse_eval_json_extracts_key_points():

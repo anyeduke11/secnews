@@ -25,9 +25,9 @@ from __future__ import annotations
 
 # ── LLMService ──────────────────────────────────────────────────
 from .gateway import (
-    DEFAULT_SCORE,
     COST_PER_1M_TOKENS,
     LLMService,
+    ScoreParseError,
     llm_service,
     _estimate_cost,
     _make_cache_key,
@@ -66,7 +66,6 @@ from .image_service import (
 # ── 公开 API ────────────────────────────────────────────────────
 __all__ = [
     "COST_PER_1M_TOKENS",
-    "DEFAULT_SCORE",
     "SCENARIO_DEFAULT_MODEL",
     "SCENARIO_ENDPOINT",
     "SCENARIO_MAX_TOKENS",
@@ -76,6 +75,7 @@ __all__ = [
     "LLMService",
     "Scenario",
     "ScenarioRoute",
+    "ScoreParseError",
     "_est_tokens",
     "_parse_eval_json",
     "ai_service",

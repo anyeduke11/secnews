@@ -408,7 +408,7 @@ class TestT1Hybrid:
         assert score == 3.5
 
     def test_t1_score_with_llm_fallback_to_default(self, temp_db, fresh_metrics, monkeypatch):
-        """LLM 失败且无数据库评分时回退到 DEFAULT_SCORE (5.0)."""
+        """LLM 失败且无数据库评分时回退到 0.0 (P0-6: 诚实未评分)."""
         async def fake_score_fail(content: str, hotspot_id: str = "") -> float:
             raise RuntimeError("LLM unavailable")
         monkeypatch.setattr(llm_service, "score", fake_score_fail)
@@ -416,8 +416,7 @@ class TestT1Hybrid:
         t1 = T1Trigger(metrics=fresh_metrics)
         item = {"id": "test-3", "title": "No DB Score", "concepts": "[]", "tags": "[]"}
         score = t1._score_with_llm(item)
-        from backend.services.triggers.t1_raw_to_refine import DEFAULT_SCORE as T1_DEFAULT
-        assert score == T1_DEFAULT
+        assert score == 0.0
 
 
 class TestT3Hybrid:

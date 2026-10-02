@@ -17,8 +17,8 @@ import logging
 
 log = logging.getLogger("hotspot.ai_hub")
 
-# 默认评分兜底 (score 0-10 / confidence 用 0.5 见 ai_write_back.write_item 侧)
-DEFAULT_SCORE = 5.0
+# v0.8.6 P0-6 (审计 E3): DEFAULT_SCORE 兜底删除 — 模型没给分就是没给
+# (quality_score=None), 不编造 5.0。
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -45,14 +45,20 @@ def _eval_prompt(title: str, content: str) -> str:
 
 
 def _parse_eval_json(raw: str, *, provider: str) -> dict:
+    """容错解析 evaluate JSON。
+
+    P0-6 (E3): 模型未给 score 字段 → quality_score=None (诚实缺失,
+    不编造 5.0); 调用方按 None 处理 (展示"未评分")。
+    """
     import re
     try:
         start, end = raw.index("{"), raw.rindex("}")
         data = json.loads(raw[start:end + 1])
         if isinstance(data, dict):
+            raw_score = data.get("score")
             return {
                 "provider": provider,
-                "quality_score": float(data.get("score", DEFAULT_SCORE)),
+                "quality_score": float(raw_score) if raw_score is not None else None,
                 "verdict": str(data.get("verdict", "")),
                 "summary": str(data.get("summary", "")),
                 "key_points": [str(k) for k in data.get("key_points", [])],
@@ -60,7 +66,7 @@ def _parse_eval_json(raw: str, *, provider: str) -> dict:
     except (ValueError, json.JSONDecodeError):
         pass
     m = re.search(r"\"score\"\s*:\s*(\d+(?:\.\d+)?)", raw)
-    score = float(m.group(1)) if m else DEFAULT_SCORE
+    score = float(m.group(1)) if m else None
     return {
         "provider": provider,
         "quality_score": score,
@@ -152,7 +158,7 @@ async def evaluate_article(
     凭据 / 缓存 / 用量 / 限频统一由 ``ai_service`` 管理（env 优先，
     不再读 settings 表）。返回结构化结果：
 
-        { ok, provider, quality_score(0-10), verdict,
+        { ok, provider, quality_score(0-10; 模型未给分为 None — P0-6), verdict,
           key_points: [str], summary, error? }
 
     失败时 ok=False + error（不静默降级，便于测试定位）。
@@ -172,7 +178,6 @@ async def evaluate_article(
 
 
 __all__ = [
-    "DEFAULT_SCORE",
     "_cache_key",
     "_est_tokens",
     "_eval_prompt",

@@ -6,8 +6,9 @@ v0.7+ 拆分: 原 gateway.py (406 行) 拆为:
 - ``prompts.py``     (~110 行) — 无状态工具: prompt 构造 + LLM 响应解析 + 缓存 key
 - ``cache.py`` / ``usage.py`` — 数据面 (DB 投影)
 
-向后兼容: ``from backend.services.ai_hub import llm_service, LLMService, DEFAULT_SCORE,
+向后兼容: ``from backend.services.ai_hub import llm_service, LLMService,
 COST_PER_1M_TOKENS`` 仍可解析 (由 ``__init__.py`` re-export).
+v0.8.6 P0-6: ``DEFAULT_SCORE`` 已删除 (审计 E3 假成功), score() 失败返回 None.
 """
 from __future__ import annotations
 
@@ -26,7 +27,7 @@ from .cache import get_llm_cache, set_llm_cache
 from .egress import check_credential_egress
 from .prompts import (
     COST_PER_1M_TOKENS,  # noqa: F401  -- 由 __init__.py 从本模块再导出, 保 `from backend.services.ai_hub import COST_PER_1M_TOKENS`
-    DEFAULT_SCORE,
+    ScoreParseError,
     _build_extract_entities_prompt,
     _build_score_prompt,
     _build_summary_prompt,
@@ -238,14 +239,17 @@ class LLMService:
         except Exception as e:
             log.warning("provider health record failed (ignored): %s", e)
 
-    async def score(self, content: str, hotspot_id: str = "") -> float:
-        """T1 评分，返回 0~10.
+    async def score(self, content: str, hotspot_id: str = "") -> float | None:
+        """T1 评分，返回 0~10; **失败返回 None** (v0.8.6 P0-6 / 审计 E3)。
 
-        按 fallback_order 依次尝试 provider，全部失败时返回 DEFAULT_SCORE (5.0)。
+        - 解析失败 (模型拒绝/截断/无数字) → 该 provider 记 ok=False、
+          **不缓存**、换下一家重试 — 不再回落 5.0 假成功;
+        - 全部 provider 失败 / LLM 未启用 → 返回 None, 调用方必须显式
+          处理 (t1 落 DB 评分 / dsh 报 failed), 不得把 None 当分数用。
         S4-1: router 推荐的 provider 作为首位优先尝试, 失败后兜底链不变。
         """
         if not self.enabled:
-            return DEFAULT_SCORE
+            return None
 
         cache_key = _make_cache_key("score", content)
         cached = get_llm_cache(cache_key)
@@ -266,7 +270,25 @@ class LLMService:
                 prompt = _build_score_prompt(content)
                 raw = await self._call_provider(cfg, model, prompt,
                                                 provider_name=provider_name)
-                score = _parse_score(raw)
+                # P0-6 (E3): 响应解析不出分数 = 失败 — 不缓存不记 ok=True
+                try:
+                    score = _parse_score(raw)
+                except ScoreParseError as spe:
+                    log.warning(
+                        "Provider %s returned unparseable score response: %s",
+                        provider_name, spe,
+                    )
+                    record_llm_error("score", provider_name, f"unparseable: {spe}")
+                    record_llm_call(
+                        provider=provider_name, model=model, task="score",
+                        prompt=prompt, response=raw, ok=False,
+                        error=f"unparseable response: {spe}",
+                        latency_ms=(time.monotonic() - t0) * 1000,
+                        scene="t1_score",
+                        config_source=self._config_source_for("score", provider_name),
+                        key_source=_ai_key_source(provider_name),
+                    )
+                    continue
                 set_llm_cache(cache_key, str(score))
                 record_llm_call(
                     provider=provider_name, model=model, task="score",
@@ -290,8 +312,8 @@ class LLMService:
                 )
                 continue
 
-        log.info("All LLM providers failed, falling back to default score")
-        return DEFAULT_SCORE
+        log.warning("All LLM providers failed for score — returning None (explicit failure)")
+        return None
 
     async def summarize(self, chunks: list[str]) -> str:
         """T3 摘要，返回汇总文本.

@@ -33,7 +33,6 @@ from backend.services.kl_state_machine import (
 )
 from backend.services.retry_policy import RetryPolicy
 from backend.services.triggers.t4_structure_to_publish import (
-    DEFAULT_SCORE,
     MIN_SCORE,
     T4Trigger,
 )
@@ -485,8 +484,7 @@ def test_t4_score_fallback_disabled_skips(temp_db, fresh_metrics, monkeypatch):
     assert report["advanced"] == 0
     assert report["skipped_low_score"] == 1
 
-    # Verify the fallback constant values
-    assert DEFAULT_SCORE == 5.0
+    # Verify the gate constant (P0-6: 无行按 0.0, 同样 < MIN_SCORE 跳过)
     assert MIN_SCORE == 8.0
 
     # Lifecycle unchanged

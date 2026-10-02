@@ -101,7 +101,9 @@ def test_evaluate_with_scenario_light_picks_flash_lite(client, monkeypatch):
     assert r.status_code == 200
     d = r.json()
     # 期望值动态取自 llm.yaml t1_score.model — 契约是 "light 跟随 t1_score
-    # override", 模型名随 llm.yaml 演进, 写死会随配置切换碎掉
+    # override", 模型名随 llm.yaml 演进, 写死会随配置切换碎掉。
+    # P0-1 后 t1_score.model='' (pi 空串语义: 不下传 --model) — 空串时
+    # resolve 合法回落 provider.models.score, 只断言 ok 不断言具体模型。
     from pathlib import Path
 
     import yaml
@@ -109,9 +111,14 @@ def test_evaluate_with_scenario_light_picks_flash_lite(client, monkeypatch):
     expected = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))[
         "task_overrides"
     ]["t1_score"]["model"]
-    assert d["model"] == expected, (
-        f"scenario=light 应得 yaml t1_score.model={expected!r}, 实际 {d.get('model')!r}"
-    )
+    if expected:
+        assert d["model"] == expected, (
+            f"scenario=light 应得 yaml t1_score.model={expected!r}, 实际 {d.get('model')!r}"
+        )
+    else:
+        assert d.get("model"), (
+            "scenario=light 在 yaml 空 model 下应回落 provider.models.score (非空)"
+        )
 
 
 def test_evaluate_with_invalid_scenario_returns_ok_false(client):

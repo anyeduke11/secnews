@@ -1,4 +1,16 @@
 
+## [DEV-0249] v0.8.6 改造 PRD 起草: AI Native 证据工作台 (四轴全选) — prd-iterative 三阶段产出 (prd-v086)
+
+- **时间**: 2026-10-02
+- **类型**: 文档 (PRD 草案, 状态=评审中; 经 owner 定稿后按单一权威纪律回写 `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`)
+- **关联模块**: `docs:prd`, 全域
+- **产出**: `docs/HOTSPOT_V0.8.6_AI_NATIVE_PRD.md` (11 章完整 + 变更日志两轮)。定位 = 从"记录型平台"换主干为"AI Native 证据账本 + 可验证工作循环"; 吸收审计方案 (FIRST_PRINCIPLES_REDESIGN_2026-10-02) 六根因/F0 止血/S1-S3, 叠加我复审的三处修正 (E7 孤儿清理=改可审计非禁止 / E8 投影缺列分级 entities·compiled 真源 vs attention_score 派生 / manifest 降级为 E11 廉价修法)
+- **owner 裁决 (本会话)**: AI Native 四轴全选为 P0 主轴设计 — ①Agent 优先工作循环 (proposal→审批→Run→Artifact) ②模型驱动管线 (语义门禁主流量+档位路由) ③全界面 AI 副驾 (四卡全走提案通道) ④对话式命令栏 (固定四意图, 不做通用 NLU)。继承裁决: D1=(a) 主干优先, D2=(b) 含执行+产物, D3=保守冻结, D4=维持中文, D5=先修竞态, D6=长期单用户
+- **量化目标 (30 天)**: v1_runs 0→≥10 / v1_artifacts 0→≥5 / signals 13→≥120 / 三类静默失败 100% 显式 outcome
+- **四维审查 (prd-iterative Phase 3, 修入 draft2)**: **P0-① T4 真门死锁风险** — ai_scores 基线 0 行 (DEV-0240 审查发现), 无 fallback 直接上真门会使管线死锁 kl:structure → P1-2 加 T1 评分链路修复前置; **P0-②** D1/D2/D7 裁决补显式记录; P1-③ 命令栏限四类意图模板防演化为第二个 Skill* 平台 (R5 教训); P1-④ proposal payload 64KB 上限; P2-⑤ P0 设计轴 vs P1 交付分波表述澄清
+- **Phase 4**: 不触发 project-brain — 本仓库已有 PROJECT.md/DEV_LOG 纪律, 重复初始化有害
+- **潜在风险 (parked)**: E1 修复将使 deep_read 实际模型 flash-lite→v4-pro (成本↑, 已列 §11 风险表带 usage_log 前后对比缓解); 四轴全上对单人带宽的挤压靠分波交付缓解; 定稿前 D1/D2/D7 仍可被 owner 推翻
+
 ## [DEV-0248] force 写入提示的可感知性: warn 色第三态 — "未经验证"不再淹没在成功绿里 (llm-force-warn-visual)
 
 - **时间**: 2026-10-02

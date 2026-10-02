@@ -1,4 +1,16 @@
 
+## [DEV-0245] 模型一键写入 yaml 路由: routing_writer 定点编辑 task_overrides 三档锚点 + 热重载生效 (llm-route-write)
+
+- **时间**: 2026-10-02
+- **类型**: 功能开发 (DEV-0244 parked ③; owner: "模型一键写入 yaml 路由")
+- **关联模块**: `backend:ai-hub-routing-writer`, `backend:llm-pool-api`, `frontend:model-pool`
+- **语义**: 把模型池探测到的 (provider, model) 写进 `config/llm.yaml` `task_overrides` 三档锚点 — t1_score=STANDARD (score/ner/evaluate)、t3_summary=HEAVY (deep_read/report)、t3_chunk_summary=FLASH (summarize/refine)。**生效机制**: gateway v0.8.2 Y-A2 llm.yaml 5s TTL + mtime 热重载 — 写完 ≤5s 自动生效, 无需重启 (本次实测确认)
+- **关联文件**: `backend/services/ai_hub/routing_writer.py` (**定点文本编辑** 仿 update_md_frontmatter_field: 只改目标 override 块内 provider/model 两行, 全文件注释/顺序原样保留 — 不用 pyyaml round-trip 避免注释毁灭; **provider 块自动补建**: 平台在池 preset 但 yaml 无条目时追加最小 openai_compatible 块; **备份 `llm.yaml.bak-<ts>` + .tmp→os.replace 原子写**; `_NAME_RE` 白名单防 yaml 结构注入; record_audit(action="llm_routing.write") 留痕; 零凭据接触) + `llm_pool_api.py` (+GET /routing +POST /route, 文件 86 行 <150 上限) + `ModelPoolPanel.tsx` (available 平台「写入路由」展开行: 档位/模型 select + 确认; 未探测的 configured 平台手输模型名; 「当前路由」区块实时回显三档指向) / 测试: `test_routing_writer.py` 9 用例
+- **实现要点 (测试抓出 2 个真 bug)**: ① `_ensure_provider_block` 拼接**漏掉 text[insert_at:] 后半段** — provider 块插入会静默吞掉 providers 节之后全部内容 (task_overrides/rate_limits 全没), 若无 pyyaml 回读断言必上线 (test_new_platform 的 KeyError 拦下); ② model 行强加引号破坏幂等 — 同值再写 text!=original 导致 noop 永不触发 (改与原文件风格一致不加引号); 另裁决校验顺序 = 先改 override 块再补 provider 块 (结构漂移优先于 provider 缺失被报告); 裸调用不写文件 (usage 契约延续 DEV-0242 裁决)
+- **实弹验证 (真 yaml + git 恢复现场)**: 写 deepseek/deepseek-chat → FLASH 档 → `status=ok, provider_block_created=true, backup=llm.yaml.bak-084417`; git diff 确认**仅两处变化** (providers 节尾 deepseek 块 11 行 + t3_chunk_summary 两行), 全部注释原样; GET /routing 回读 provider=deepseek; `git checkout` 恢复后回读 ollama/qwen2.5:7b (热重载拾取恢复); 浏览器: /settings?cat=models 「当前路由」区块显示三档 (pi/claude-sonnet-4-5 · sensenova/deepseek-v4-pro · ollama/qwen2.5:7b) + sensenova 写入路由展开行 (3 档位/手输模型/空名禁确认)
+- **测试验证**: test_routing_writer 9 passed (定点编辑不误伤/备份/幂等 noop/补建不重复/yaml 注入拒绝/未知 provider 拒绝/结构漂移拒绝/缺文件/read_routing); settings 前端全族 51 passed; tsc 0 错 / build exit 0
+- **潜在风险 (parked)**: ① 写入不校验 key 是否可用 — 可把无 key 平台写进路由导致该档任务先失败 (t1/t3 override 是单点选择无 fallback 链!); 前端已缓解 (写入入口只给 configured 平台), 后端择机加 key 体检 WARN; ② 定点编辑依赖 yaml 缩进约定 (override 块 2 空格/字段 4 空格) — 结构漂移时报错拒绝而非静默写错, 人工修 yaml 后重试即可; ③ .bak 备份无清理机制 (每次写入新增一份), 择机加 keep-last-5; ④ 多实例并发写 yaml 无锁 — 单用户本地工作站可接受
+
 ## [DEV-0244] 模型池重构: pi 归位 Agent 通道 + 内置国产主流平台目录 (提供 key 即自动识别可用模型) (llm-model-pool)
 
 - **时间**: 2026-10-01

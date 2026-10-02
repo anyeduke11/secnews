@@ -9,7 +9,7 @@
  * pi 在 agent_channels 单列 — 本面板模型表格永不出现 pi。
  */
 import { useCallback, useEffect, useState } from 'react';
-import { apiFetch, getJSON } from '../../lib/api';
+import { apiFetch, getJSON, postJSON } from '../../lib/api';
 
 interface PoolPlatform {
   name: string;
@@ -51,12 +51,36 @@ function PlatformChip({ p }: { p: PoolPlatform }) {
   return <span className="st-chip warn"><i aria-hidden />已配置 · 未知</span>;
 }
 
+const TIER_OPTIONS: Array<{ key: string; label: string }> = [
+  { key: 't1_score', label: 'STANDARD 档 (评分/NER/评测)' },
+  { key: 't3_summary', label: 'HEAVY 档 (深度阅读/报告)' },
+  { key: 't3_chunk_summary', label: 'FLASH 档 (摘要/轻量高频)' },
+];
+
+interface CurrentRouting {
+  routing?: Record<string, { label: string; provider: string | null; model: string | null }>;
+  error?: string | null;
+}
+
 export function ModelPoolPanel() {
   const [snap, setSnap] = useState<PoolSnapshot | null>(null);
   const [probing, setProbing] = useState(false);
   const [keyDrafts, setKeyDrafts] = useState<Record<string, string>>({});
   const [vaultUnlocked, setVaultUnlocked] = useState<boolean | null>(null);
   const [msg, setMsg] = useState<{ name: string; type: 'ok' | 'error'; text: string } | null>(null);
+  const [routing, setRouting] = useState<CurrentRouting['routing']>({});
+  const [routeOpen, setRouteOpen] = useState<Record<string, boolean>>({});
+  const [routeDrafts, setRouteDrafts] = useState<Record<string, { tier: string; model: string }>>({});
+  const [writing, setWriting] = useState<string | null>(null);
+
+  const loadRouting = useCallback(async () => {
+    try {
+      const d = await getJSON<CurrentRouting>('/api/llm/pool/routing');
+      setRouting(d.routing ?? {});
+    } catch {
+      /* 路由展示失败不阻塞池面板 */
+    }
+  }, []);
 
   const load = useCallback(async (probe: boolean) => {
     setProbing(probe);
@@ -72,10 +96,11 @@ export function ModelPoolPanel() {
 
   useEffect(() => {
     load(false);
+    loadRouting();
     getJSON<SecretsStatus>('/api/secrets/status')
       .then((d: SecretsStatus) => setVaultUnlocked(Boolean(d?.unlocked)))
       .catch(() => setVaultUnlocked(null));
-  }, [load]);
+  }, [load, loadRouting]);
 
   const saveAndDetect = useCallback(async (p: PoolPlatform) => {
     const key = (keyDrafts[p.name] ?? '').trim();
@@ -114,6 +139,28 @@ export function ModelPoolPanel() {
       setMsg({ name: p.name, type: 'error', text: '探测失败 (网络/后端不可达)' });
     }
   }, [keyDrafts]);
+
+  const writeRoute = useCallback(async (platform: string, overrideKey: string, model: string) => {
+    setWriting(platform);
+    setMsg(null);
+    try {
+      const d = await postJSON<{ status?: string; message?: string }>(
+        '/api/llm/pool/route',
+        { override_key: overrideKey, provider: platform, model },
+      );
+      if (d.status === 'ok') {
+        setMsg({ name: platform, type: 'ok', text: d.message ?? '路由已写入' });
+        setRouteOpen(prev => ({ ...prev, [platform]: false }));
+        loadRouting();
+      } else {
+        setMsg({ name: platform, type: 'error', text: d.message ?? '写入失败' });
+      }
+    } catch (e) {
+      setMsg({ name: platform, type: 'error', text: e instanceof Error && e.message ? e.message : '写入失败 (网络错误)' });
+    } finally {
+      setWriting(null);
+    }
+  }, [loadRouting]);
 
   return (
     <div className="st-card" data-testid="model-pool-panel">
@@ -174,7 +221,78 @@ export function ModelPoolPanel() {
                     </button>
                   </div>
                 )}
+                {(p.available === true || p.configured) && (
+                  <button
+                    type="button"
+                    className="st-btn"
+                    onClick={() => {
+                      setRouteOpen(prev => ({ ...prev, [p.name]: !prev[p.name] }));
+                      setRouteDrafts(prev => ({
+                        ...prev,
+                        [p.name]: prev[p.name] ?? { tier: 't1_score', model: p.models[0] ?? '' },
+                      }));
+                    }}
+                    aria-expanded={Boolean(routeOpen[p.name])}
+                    aria-label={`写入路由 ${p.label}`}
+                  >
+                    写入路由
+                  </button>
+                )}
               </div>
+              {routeOpen[p.name] && (p.available === true || p.configured) && (
+                <div className="st-ctrlrow" style={{ width: '100%', marginTop: 6 }} data-testid={`route-${p.name}`}>
+                  <select
+                    className="st-select"
+                    style={{ maxWidth: 230 }}
+                    aria-label={`${p.label} 路由档位`}
+                    value={routeDrafts[p.name]?.tier ?? 't1_score'}
+                    onChange={e => setRouteDrafts(prev => ({
+                      ...prev,
+                      [p.name]: { ...(prev[p.name] ?? { model: p.models[0] ?? '' }), tier: e.target.value },
+                    }))}
+                  >
+                    {TIER_OPTIONS.map(t => (
+                      <option key={t.key} value={t.key}>{t.label}</option>
+                    ))}
+                  </select>
+                  {p.available === true && p.models.length > 0 ? (
+                    <select
+                      className="st-select"
+                      style={{ maxWidth: 230 }}
+                      aria-label={`${p.label} 路由模型`}
+                      value={routeDrafts[p.name]?.model ?? p.models[0]}
+                      onChange={e => setRouteDrafts(prev => ({
+                        ...prev,
+                        [p.name]: { ...(prev[p.name] ?? { tier: 't1_score' }), model: e.target.value },
+                      }))}
+                    >
+                      {p.models.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      className="st-input"
+                      style={{ maxWidth: 230 }}
+                      placeholder="模型名 (可先「重新探测」自动获取)"
+                      aria-label={`${p.label} 路由模型 (手输)`}
+                      value={routeDrafts[p.name]?.model ?? ''}
+                      onChange={e => setRouteDrafts(prev => ({
+                        ...prev,
+                        [p.name]: { ...(prev[p.name] ?? { tier: 't1_score' }), model: e.target.value },
+                      }))}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    className="st-btn primary"
+                    disabled={writing === p.name || !(routeDrafts[p.name]?.model ?? '').trim()}
+                    onClick={() => writeRoute(p.name, routeDrafts[p.name]?.tier ?? 't1_score', (routeDrafts[p.name]?.model ?? '').trim())}
+                    aria-label={`确认写入 ${p.label} 路由`}
+                  >
+                    {writing === p.name ? '写入中…' : '确认写入'}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -187,6 +305,25 @@ export function ModelPoolPanel() {
       )}
       {vaultUnlocked === false && (
         <p className="st-cellnote">保险箱处于锁定状态 — 保存密钥需先在密钥管理解锁 (或填写主密钥)。</p>
+      )}
+
+      {routing && Object.keys(routing).length > 0 && (
+        <>
+          <h3 style={{ marginTop: 12 }}>当前路由 (llm.yaml task_overrides)</h3>
+          <div className="st-rule-list" data-testid="current-routing">
+            {Object.entries(routing).map(([key, r]) => (
+              <div className="st-rule" key={key}>
+                <div>
+                  <p className="st-label">{r.label}</p>
+                  <p className="st-key">{key}</p>
+                </div>
+                <div className="st-ctrl">
+                  <span className="st-chip ok"><i aria-hidden />{r.provider ?? '—'} / {r.model ?? '—'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {snap && snap.agent_channels.length > 0 && (

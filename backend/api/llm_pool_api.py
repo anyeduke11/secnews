@@ -1,7 +1,9 @@
-"""LLM 模型池 API — 内置平台目录 + 密钥探测 (DEV-0244)。
+"""LLM 模型池 API — 内置平台目录 + 密钥探测 + 一键写入路由 (DEV-0244/0245)。
 
-- ``GET /api/llm/pool?probe=1[&only=<name>]``  平台池快照 (probe=1 逐平台探测 /models)
-- ``POST /api/llm/pool/detect``               单平台强制探测 {platform}
+- ``GET  /api/llm/pool``                       平台池快照 (probe=1 逐平台探测 /models)
+- ``POST /api/llm/pool/detect``                单平台强制探测 {platform}
+- ``GET  /api/llm/pool/routing``               当前三档路由 (task_overrides)
+- ``POST /api/llm/pool/route``                 一键写入 yaml 路由 {override_key, provider, model}
 
 密钥存放: POST /api/secrets (provider=<平台名>, 与 SecretsPanel 同一保险箱),
 本路由不直接收 key — 避免同值双通道与审计分叉。pi 是 Agent, 在
@@ -48,3 +50,38 @@ async def detect_platform(body: DetectRequest):
         }
     snap = pool_snapshot(probe=True, only=body.platform)
     return {"version": API_VERSION, "status": "ok", **snap}
+
+
+# ---------------------------------------------------------------------------
+# 一键写入 yaml 路由 (DEV-0245) — 池内模型 → task_overrides 三档锚点
+# ---------------------------------------------------------------------------
+class RouteWriteRequest(BaseModel):
+    override_key: str = Field(..., description="t1_score | t3_summary | t3_chunk_summary")
+    provider: str = Field(..., min_length=1, description="平台/provider name")
+    model: str = Field(..., min_length=1, max_length=120, description="模型名 (探测列表中的 id)")
+
+
+@router.get("/routing")
+async def get_routing():
+    """当前三档路由 (STANDARD/HEAVY/FLASH → provider/model)。"""
+    from backend.services.ai_hub.routing_writer import read_routing
+
+    return {"version": API_VERSION, **read_routing()}
+
+
+@router.post("/route")
+async def write_route(body: RouteWriteRequest):
+    """一键写入: task_overrides.<override_key> → (provider, model)。
+
+    provider 不在 llm.yaml 时自动从模型池 preset 追加最小 provider 块;
+    备份 + 原子写; gateway 热重载 ≤5s 生效。
+    """
+    from backend.services.ai_hub.routing_writer import RoutingWriteError, write_task_override
+
+    try:
+        result = write_task_override(
+            body.override_key, body.provider, body.model, actor="web",
+        )
+    except RoutingWriteError as e:
+        return {"version": API_VERSION, "status": "error", "message": str(e)}
+    return {"version": API_VERSION, **result}

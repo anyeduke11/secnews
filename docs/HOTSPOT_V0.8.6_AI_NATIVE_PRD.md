@@ -96,6 +96,22 @@ v0.8.5 之前的 24 天里，系统以 405 次提交建成了 485 端点/58 job/
 | 拒绝可回放（item_id + raw_data） | 移动端/局域网多端 | 前端统一 server-state 层（D5 裁决：先修竞态，TanStack 另议） |
 | warm 索引/原子写/misfire 声明 | 新采集源、新门禁、新 skill | 日志 293MB→归档策略细化 |
 
+#### 0.8.7 候选表（审计遗留项登记，来源：v0.8.6 PRD 覆盖核对 2026-10-02）
+
+> 以下 9 项来自 `FIRST_PRINCIPLES_REDESIGN_2026-10-02.md` 审计但**未纳入 0.8.6 范围**，在此显式登记为 0.8.7 候选——消除"既不在做也不在不做"的无删除纪律灰区。排序按严重度；0.8.7 立项时逐项复核优先级（届时基线可能已变）。
+
+| # | 候选项 | 审计出处 | 严重度 | 备注 |
+|---|--------|---------|--------|------|
+| C1 | except 分级治理（1,019 处宽泛 `except Exception`，133 处完全静默） | F4-4 / R2 | 高 | R2 根因的另一半；0.8.6 的 G2 只治 3 类代表；建议 0.8.7 首位 |
+| C2 | `_bulk_syncing` 无 try/finally（异常后事件桥永久静默死亡） | E6 / R2 | 中 | 改造量小，可与 C1 同批 |
+| C3 | 密钥分离：vault key ≠ sync bundle key + 轮换后旧包可解 | F4-5 / R6 | 中 | |
+| C4 | 供应链收紧：`npm ci`、action SHA 固定、`permissions:` 块、dev/optional 依赖入 pip-audit | F4-7 / R6 | 中 | |
+| C5 | WebDAV 备份远端推送明文（除密钥外全部明文） | R6-MEDIUM | 中 | 与 C3 同域 |
+| C6 | 备份恢复演练进 CI（`restore_from_backup` 无测试） | F4-3 / R6 | 中 | 0.8.6 §9.2 仅做最小版（启动失败提示） |
+| C7 | 双门禁系统合一（feature_gates.toml × config.feature_*） | R4 | 中 | 需先积累 manifest 廉价修法（P0-8）的运行经验 |
+| C8 | secnews 组件域收敛（26 组件/测试覆盖 19%，与 sentinel 重叠） | R5 | 低 | 与 Skill* 裁决（D3 保守）联动，待 D3 解冻 |
+| C9 | 重复 helper 收敛（`_now_iso` ×22 等 AST 体重复） | F3-5 / R5 | 低 | 机械工作，可穿插 |
+
 ### 3.2 模块总览
 
 ```mermaid
@@ -461,3 +477,4 @@ run record 即埋点：G1/G2 指标全部从 v1_runs/v1_proposals/command_log �
 | 0.8.6-draft1 | 2026-10-02 | 初稿：换主干（证据账本）+ F0 止血 + AI Native 四轴；吸收审计方案与复审修正（E7 措辞/E8 分级/E19 提级/manifest 降级）；裁决 D3=保守冻结、D4=维持中文、D5=先修竞态、D6=长期单用户 | owner 指令"输出 0.8.6 改造 PRD + AI Native"（四轴全选） |
 | 0.8.6-draft2 | 2026-10-02 | 四维审查修订：**P0-①** T4 真门增加 T1 评分链路修复前置（ai_scores 基线 0 行，否则管线死锁于 kl:structure）；**P0-②** 补 D1/D2/D7 显式裁决记录；P1-③ 命令栏限四类固定意图模板（不做通用 NLU，防 R5 重演）；P1-④ v1_proposals.payload_json 加 64KB 上限；P2-⑤ M3/M4 优先级表述澄清（P0 设计轴 / P1 交付分波） | prd-iterative Phase 3 四维审查 |
 | 0.8.6-draft3 | 2026-10-02 | 覆盖核对修订：补 4 项"说了没排活"任务行（覆盖矩阵三类灰区消除）——P0-11 E2/F4-1 egress 全覆盖+AST 门禁、P0-12 E13 门禁错误策略统一、P1-7 前端 fetch 竞态修复（D5 落地）、P1-8 warm.X 裸引用 CI 门禁；P0 工期 1.5→2 周（14 项）。未覆盖 9 项维持不登记（owner 指示本轮只补 4 项） | 覆盖核对（owner 指令"先只补 4 项"） |
+| 0.8.6-draft4 | 2026-10-02 | §3.1 新增 **0.8.7 候选表**：审计遗留 9 项显式登记（C1 except 分级治理[高] / C2 _bulk_syncing try-finally / C3 密钥分离 / C4 供应链收紧 / C5 WebDAV 明文 / C6 恢复演练 CI / C7 双门禁合一 / C8 secnews 收敛 / C9 helper 收敛），含审计出处+严重度+联动备注——覆盖矩阵"未覆盖"类清零，审计结论 100% 有归宿 | owner 指令"9 项加入 0.8.7 候选表" |

@@ -25,6 +25,7 @@ import X``、``jobs.X`` 与 ``patch("backend.scheduler.jobs.X")`` 行为与拆�
 """
 
 from backend.scheduler.jobs._runtime import (
+    ensure_instrumented,
     instrument_job,
     job_done_event,
     reset_service,

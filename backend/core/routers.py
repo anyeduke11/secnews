@@ -27,6 +27,8 @@ CORE_ROUTERS: frozenset[str] = frozenset({
     # 存量 bug 清扫 C4: 以下两模块在 _registry.py 无条件注册 (事实 core),
     # 但此前未登记白名单 → 防漂移覆盖不完整
     "wiki_tools", "observability_router",
+    # v0.8.6 P0-5: 统一 run record 查询 (基础设施, 无条件注册)
+    "ops_runs_api",
 })
 
 # 防漂移断言: core 与扩展模块不得重叠（程序员错误时立即暴露）

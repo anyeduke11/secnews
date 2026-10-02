@@ -109,6 +109,21 @@ def instrument_job(job_type: str):
 
         wrapper.__name__ = coro.__name__
         wrapper.__doc__ = coro.__doc__
+        # v0.8.6 P0-5: 标记已插桩 (scheduler 注册口 ensure_instrumented 据此幂等)
+        wrapper._instrument_job_type = job_type  # type: ignore[attr-defined]
         return wrapper
 
     return decorator
+
+
+def ensure_instrumented(func, job_id: str):
+    """v0.8.6 P0-5 (run record 统一): scheduler 注册口的统一包装。
+
+    58 个 job 仅 8 个有模块级 ``@instrument_job`` — 其余失败只进日志、
+    job_runs 无记录 (审计 R2 静默失败面)。HotspotScheduler.start() 对
+    每个 add_job 的 func 走本函数: 已插桩原样返回 (幂等, 不双重记录),
+    未插桩以 **scheduler job id** 为 job_type 补一层 instrument_job。
+    """
+    if getattr(func, "_instrument_job_type", None):
+        return func
+    return instrument_job(job_id)(func)

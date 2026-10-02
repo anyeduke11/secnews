@@ -32,6 +32,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
+from apscheduler.events import EVENT_JOB_MISSED
 from apscheduler.executors.asyncio import AsyncIOExecutor
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -61,6 +62,10 @@ def create_scheduler() -> AsyncIOScheduler:
     - AsyncIOExecutor: 单线程异步 (天然限制并发)
     - job_defaults.max_instances=1: 同一 job 不重叠
     - job_defaults.coalesce=True: 错过合并
+    - job_defaults.misfire_grace_time=900 — v0.8.6 P0-5 (审计 E4):
+      APScheduler 默认 grace 仅 1s, 58 个 job 曾只有 3 个显式覆盖,
+      错过即静默丢弃。全量统一 900s: 延迟 <15min 的 run 补跑,
+      超过的由 EVENT_MISSED listener 落 job_runs (status=missed)。
     """
     return AsyncIOScheduler(
         timezone="UTC",
@@ -70,6 +75,7 @@ def create_scheduler() -> AsyncIOScheduler:
         job_defaults={
             "max_instances": 1,
             "coalesce": True,
+            "misfire_grace_time": 900,
         },
     )
 
@@ -369,13 +375,13 @@ class HotspotScheduler:
         )
         # DEV-0241: job — wiki 投影全量重建 (每日 04:10 Asia/Shanghai)
         # wiki-first 契约机制化: md→SQLite 全量 upsert + 孤儿清理, 防投影断层
+        # (v0.8.6 P0-5: 原 misfire_grace_time=600 删除 — job_defaults 统一 900)
         self.scheduler.add_job(
             jobs.wiki_projection_rebuild_job,
             trigger=CronTrigger(hour=4, minute=10, timezone=SHANGHAI_TZ),
             id="wiki_projection_rebuild",
             name="wiki projection rebuild (daily 04:10 Shanghai)",
             replace_existing=True,
-            misfire_grace_time=600,
         )
         # v0.5 M3.5: job — retention_decay (每周日 05:30 Asia/Shanghai,
         # 紧跟 05:00 telemetry_window)
@@ -387,22 +393,22 @@ class HotspotScheduler:
             replace_existing=True,
         )
         # v0.4.3 复利驱动器②: SM-2 每日复习推送 (每天 08:00 Asia/Shanghai)
+        # (v0.8.6 P0-5: 原 misfire_grace_time=300 删除 — job_defaults 统一 900)
         self.scheduler.add_job(
             jobs.sm2_daily_push_job,
             trigger=CronTrigger(hour=8, minute=0, timezone=SHANGHAI_TZ),
             id="sm2_daily_push",
             name="SM-2 daily review push (08:00 Shanghai)",
             replace_existing=True,
-            misfire_grace_time=300,
         )
         # v0.4.3 复利驱动器③: 知识地图每日重建 (每天 02:00 Asia/Shanghai)
+        # (v0.8.6 P0-5: 原 misfire_grace_time=600 删除 — job_defaults 统一 900)
         self.scheduler.add_job(
             jobs.map_rebuild_daily_job,
             trigger=CronTrigger(hour=2, minute=0, timezone=SHANGHAI_TZ),
             id="map_rebuild_daily",
             name="knowledge map daily rebuild (02:00 Shanghai)",
             replace_existing=True,
-            misfire_grace_time=600,
         )
         # Phase 17: job — attention 聚合 (每 30 分钟)
         self.scheduler.add_job(
@@ -696,7 +702,15 @@ class HotspotScheduler:
         self._register_digest_jobs(_now_utc)
         self._register_maintenance_jobs(_now_utc)
 
+        # v0.8.6 P0-5 (run record 统一 / 审计 R2): 注册口统一补插桩 —
+        # 未挂 @instrument_job 的 job (58 个中曾占 50 个) 失败只进日志,
+        # job_runs 无记录。在 start 前统一换 func (modify_job 支持)。
+        self._ensure_run_records()
+
         self.scheduler.start()
+        # v0.8.6 P0-5 (审计 E4): 超过 grace (900s) 的错过 run 不再静默丢弃 —
+        # EVENT_MISSED → job_runs (status='missed'), 失败面板可查。
+        self.scheduler.add_listener(self._on_job_missed, EVENT_JOB_MISSED)
         self.logger.info(
             f"scheduler started, {len(self.scheduler.get_jobs())} jobs "
             f"(collect_all every {self._interval}s + post-ingest 链: "
@@ -706,6 +720,41 @@ class HotspotScheduler:
         set_scheduler(self)
         # 启动后立即异步触发一次 collect_all
         asyncio.get_event_loop().create_task(self._run_initial())
+
+    def _ensure_run_records(self) -> None:
+        """P0-5 run record 统一: 每个 job 的 func 走 ensure_instrumented。
+
+        幂等: 已有模块级 ``@instrument_job`` 的 job 原样跳过 (标记判别);
+        新包的 wrapper 以 scheduler job id 为 job_type, 与 /api/ops/runs
+        的 job_type 维度一致。
+        """
+        for job in self.scheduler.get_jobs():
+            self.scheduler.modify_job(
+                job.id, func=jobs.ensure_instrumented(job.func, str(job.id))
+            )
+
+    def _on_job_missed(self, event) -> None:
+        """EVENT_MISSED → job_runs (status='missed')。写入吞错不阻塞调度。"""
+        try:
+            from backend.observability_records import record_missed_job_run
+
+            scheduled = getattr(event, "scheduled_run_time", None)
+            record_missed_job_run(
+                job_type=str(getattr(event, "job_id", "?")),
+                job_id=f"missed-{getattr(event, 'job_id', '?')}-"
+                       f"{int(scheduled.timestamp()) if scheduled else 0}",
+                scheduled_run_time=(
+                    scheduled.isoformat() if scheduled
+                    else datetime.now(tz=timezone.utc).isoformat()
+                ),
+            )
+            self.logger.warning(
+                f"job missed (beyond grace, recorded): "
+                f"{getattr(event, 'job_id', '?')} @ "
+                f"{scheduled.isoformat() if scheduled else 'unknown'}"
+            )
+        except Exception as e:  # pragma: no cover - 防御性兜底
+            self.logger.warning(f"_on_job_missed record failed (ignored): {e}")
 
     async def _run_initial(self) -> None:
         """启动后延迟 5s 执行首次采集 + 跨端同步 catch-up 检查"""

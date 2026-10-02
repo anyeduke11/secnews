@@ -197,7 +197,7 @@ async def _force_full_backup_rotate() -> None:
         _logger.error(f"weekly_full_rotate crashed: {e}")
 
 
-@instrument_job("db_backup_daily")
+@instrument_job("daily_db_backup")  # v0.8.6 P0-5: 对齐 scheduler job id (原 "db_backup_daily" 与 id 错配)
 async def daily_db_backup_job() -> None:
     """P1: 每日 04:30 (Asia/Shanghai) 数据库自动备份。
 

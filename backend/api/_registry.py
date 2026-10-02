@@ -191,6 +191,9 @@ def register_all(app: FastAPI) -> None:
     # v0.7 Batch ③: 观测面 query API (无条件注册, 是基础设施)
     from backend.api import observability_router
     app.include_router(observability_router.router, tags=["observability"])
+    # v0.8.6 P0-5 (M5 最小版): 统一 run record 查询 — job 失败/错过 UI 可查
+    from backend.api import ops_runs_api
+    app.include_router(ops_runs_api.router, tags=["ops"])
     # SecNews 整合 Phase 0: KL 管线 + 安全看板 (按 feature_gates 注册)
     if is_extension_enabled("secnews"):
         from backend.api import feedback_api, kl_pipeline_api, secnews_dashboard_api

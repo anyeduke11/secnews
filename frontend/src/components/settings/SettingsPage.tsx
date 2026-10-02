@@ -38,6 +38,7 @@ import { DatabaseMaintenance } from './DatabaseMaintenance';
 import { ExportActionsCard } from './ExportActionsCard';
 import { DshControlCard } from '../secnews/settings/DshControlCard';
 import { RejectionLogCard } from './RejectionLogCard';
+import { OpsRunsPanel } from './OpsRunsPanel';
 import { SettingsDashboard } from './SettingsDashboard';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import './settings-shell.css';
@@ -100,6 +101,8 @@ export function SettingsPage() {
       case 'ops':
         return (
           <div className="space-y-2">
+            {/* v0.8.6 P0-5: 失败面板首卡 (失败优先, 任一 job 失败 24h 可查) */}
+            <OpsRunsPanel />
             <DatabaseMaintenance />
             <ExportActionsCard />
             <DshControlCard />

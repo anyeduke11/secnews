@@ -78,6 +78,29 @@ def finish_job_run(rowid: int, *, ok: bool, duration_ms: int,
         log.debug(f"finish_job_run failed: {e}")
 
 
+def record_missed_job_run(job_type: str, job_id: str,
+                          scheduled_run_time: str) -> int | None:
+    """INSERT job_runs (status='missed') — v0.8.6 P0-5 / 审计 E4。
+
+    APScheduler 错过 ``misfire_grace_time`` 的 run 此前被静默丢弃 (55/58
+    job 无补跑无记录)。本函数由 scheduler 的 EVENT_MISSED listener 调用,
+    把 "丢弃" 变成显式 outcome: started_at 记计划触发时间, error 说明原因。
+    job_runs.status 无 CHECK 约束, 'missed' 直接可写 (无需迁移)。
+    """
+    try:
+        cur = get_connection().execute(
+            "INSERT INTO job_runs "
+            "(job_id, job_type, trace_id, started_at, status, error) "
+            "VALUES (?, ?, NULL, ?, 'missed', ?)",
+            (job_id, job_type, scheduled_run_time,
+             "misfire: 超过 misfire_grace_time 被调度器丢弃 (E4)"),
+        )
+        return cur.lastrowid
+    except Exception as e:
+        log.debug(f"record_missed_job_run failed: {e}")
+        return None
+
+
 # ── agent_runs ───────────────────────────────────────────────────
 
 def start_agent_run(agent: str, protocol: str, task_kind: str | None = None,

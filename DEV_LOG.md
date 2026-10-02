@@ -1,4 +1,20 @@
 
+## [DEV-0255] v0.8.6 P0-5 落地: E4 misfire 全量声明 + run record 统一 + /api/ops/runs + 失败面板最小版 (p05-r2-runs)
+
+- **时间**: 2026-10-02
+- **类型**: 功能+Bug修复 (v0.8.6 PRD P0-5 / M5 最小版; 审计 E4+R2: APScheduler misfire_grace_time 默认 1s, 58 job 仅 3 显式覆盖 → 55 个错过即静默丢弃; 且仅 6 job 有 @instrument_job → 52 job 失败只进日志, job_runs 无记录)
+- **关联模块**: `backend:scheduler`, `backend:observability`, `backend:api-registry`, `frontend:settings`
+- **修复① E4 全量声明**: `create_scheduler()` job_defaults +`misfire_grace_time=900` (58 job 统一继承, PRD §8 "grace≥900s"); 删除 3 处低于 900 的 per-job 声明 (300/600/600) + AST 测试钉死 "add_job 不得再出现 per-job misfire 声明"。APScheduler 语义: undefined 选项 start 时才从 defaults 填充 (pending 阶段 hasattr=False, 测试须启动后断言)
+- **修复② 丢弃→记录**: EVENT_MISSED listener (`_on_job_missed`) → `record_missed_job_run()` 落 job_runs (status='missed', started_at=计划触发时间, error 注明 E4 原因); job_runs.status 无 CHECK 约束免迁移
+- **修复③ run record 统一**: `_runtime.ensure_instrumented()` + wrapper 标记 `_instrument_job_type`; scheduler `start()` 注册口统一补插桩 (`_ensure_run_records`, modify_job 换 func — REPL 验证 pre-start 可行) — 52 个未插桩 job 全覆盖, job_type=scheduler job id; 顺手对齐错配 `db_backup_daily`→`daily_db_backup` (装饰器与调度 id 不一致); SSE 噪声核verified: 前端 useSSE 已过滤 job_done 事件不触发刷新
+- **新增 /api/ops/runs** (`api/ops_runs_api.py`, core 白名单+注册): status/job_type/hours/limit 四参, 恒失败优先排序 (failed→missed→running→ok), summary 四态计数 + stale_running 僵尸检测 (running>2h = 进程崩溃残留); routers 91→92 (generate_meta --fix 同步 5 文档)
+- **前端失败面板**: `settings/OpsRunsPanel.tsx` 挂 /settings 运维区首卡 — summary 计数行 (st-chip 四态) + LayerTable (时间/任务/状态/耗时/原因) + 失败优先/全部过滤 + 手动刷新
+- **实弹验证 (生产库副本 :8001 + 调度器开启, 80s)**: ①此前从不落账的 6 个 60s tick job (kl_pipeline_heartbeat/catchup_watchdog/source_scheduler_tick/auto_extract_alert/worker_queue_pump/cg_event_process) 全部出现在 /api/ops/runs; ②失败优先排序正确 (failed→missed→ok 倒序); ③summary 计数正确
+- **测试验证**: 后端 test_ops_runs.py 13 passed (启动后 grace 继承 + AST 全量声明纪律 + ensure 幂等/穿透/换 func + misfire 落账 + 吞错 + API 4 用例); 定向回归 176 passed (ops/observability/feature_gates); 前端 settings 全域 56 passed (+OpsRunsPanel 4 用例); tsc/ruff/generate_meta --check 全过
+- **兼修欠账**: test_feature_gates job 计数断言 57→58 — DEV-0241 加 wiki_projection_rebuild 时漏改 (stash 验证 HEAD 上即红, 非本次引入)
+- **失误记录**: 曾误跑 `ruff --fix backend/` 全目录 (本地 ruff 版本新于 CI, 规则集不同) 触碰 25 个无关文件 — 已逐文件 git restore 回滚, 仅保留 P0-5 文件; 教训: fix 只对 touched files 跑
+- **潜在风险 (parked)**: ① job_runs 写入量 ~12k 行/天 (60s×6 job), TTL 30d ≈ 40 万行, idx_job_runs_status_at 支撑失败查询, 暂不收紧; ② :8000 生产实例未重启, /api/ops/runs 与新插桩待下次重启生效; ③ misfire listener 只记不补跑 (PRD "collect 错过补跑一次" 的补跑语义未做, 属 P1-1 Run 账本范畴)
+
 ## [DEV-0254] v0.8.6 P0-4 落地: 迁移器 duplicate column 逐语句容忍重放 — 审计 S2, 同文件后续语句不再静默丢失 (p04-s2-migration)
 
 - **时间**: 2026-10-02

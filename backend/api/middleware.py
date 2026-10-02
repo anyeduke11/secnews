@@ -18,9 +18,12 @@ v0.7 Observability Batch ③ (PRD §5.3): 在响应收尾调 record_api_call,
  写到 api_events 表 — 供 dashboard 查询与阈值扫. 失败 swallow, 永不阻塞响应.
 
 P0 安全项 (FIRST_PRINCIPLES_ANALYSIS_2026-09-11 §0.1): :class:`TokenAuthMiddleware`
-最小 token 鉴权 — env ``HOTSPOT_API_TOKEN`` 设置时对所有 ``/api/*`` 请求校验
+最小 token 鉴权 — env ``HOTSPOT_API_TOKEN`` 设置时对**全部入口**校验
 ``X-Hotspot-Token`` 头 (常量时间比较), 不匹配 401; env 未设置时完全关闭
-(默认关闭, 不破坏现有前端/测试)。豁免路径默认含 ``/api/health``。
+(默认关闭, 不破坏现有前端/测试)。豁免: ``/api/health`` + SPA 公共资产。
+v0.8.6 P0-3 (审计 S1/D7): 非 ``/api/`` 路径由"整类直通"收紧为公共资产
+白名单 — ``/mcp/sse`` (19 工具含写) / ``/docs`` / ``/openapi.json`` 在
+token 启用时一并 401, 消除"设了 token 仍锁不住写入口"的绕过面。
 """
 from __future__ import annotations
 
@@ -45,6 +48,14 @@ TRACE_HEADER = "X-Trace-Id"
 API_TOKEN_HEADER = "X-Hotspot-Token"
 API_TOKEN_ENV = "HOTSPOT_API_TOKEN"
 API_TOKEN_EXEMPT_PATHS = ["/api/health"]
+
+# v0.8.6 P0-3 (审计 S1 / D7 全入口覆盖): 非 /api/ 路径不再是"直通整类"。
+# 仅放行单用户 SPA 必需的公共资产; /mcp/sse (19 工具含写)、/docs、
+# /openapi.json 在 token 启用时一并校验 — 设了 token 就锁住全部入口。
+# 判定: 精确匹配 "/" 与 favicon; 其余按公共资产目录前缀 (静态资源经
+# FastAPI StaticFiles 挂载, 前缀集合固定)。
+_PUBLIC_PATH_PREFIXES = ("/assets/", "/static/")
+_PUBLIC_PATHS = frozenset({"/", "/favicon.ico", "/favicon.svg"})
 
 
 class TraceIDMiddleware(BaseHTTPMiddleware):
@@ -148,11 +159,16 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
 
 
 class TokenAuthMiddleware(BaseHTTPMiddleware):
-    """P0 最小 token 鉴权 — env 启用, ``/api/*`` 校验 ``X-Hotspot-Token``。
+    """P0 最小 token 鉴权 — env 启用, 全入口校验 ``X-Hotspot-Token``。
 
     - ``HOTSPOT_API_TOKEN`` 未设置/为空 → 完全关闭 (直通, 默认状态)
-    - 已设置: ``/api/*`` 必须带匹配 token 头, 否则 401; 豁免路径直通
-    - 非 ``/api/`` 前缀 (首页/docs/static) 不校验
+    - 已设置: **除公共资产外全部入口**须带匹配 token 头, 否则 401:
+      * ``/api/*`` — 既有行为
+      * ``/mcp/sse`` 等非 /api/ 端点 — v0.8.6 P0-3 (审计 S1: 此前
+        非 /api/ 整类直通, MCP 19 工具含写绕过唯一鉴权层)
+      * ``/docs`` / ``/openapi.json`` — 接口自描述同样属暴露面
+      * 公共资产放行: ``/`` (SPA 首页壳)、favicon、/assets/、/static/
+        (静态资源本身无敏感数据; 前端 fetch 统一走 /api/* 携 token)
     - env 每请求读取, 便于测试 monkeypatch 与运行期热切换
     """
 
@@ -167,12 +183,17 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
         self.header = header
         self.exempt_paths = set(exempt_paths if exempt_paths is not None else API_TOKEN_EXEMPT_PATHS)
 
+    @staticmethod
+    def _is_public(path: str) -> bool:
+        """单用户 SPA 必需的公共资产 (token 启用时仍放行)。"""
+        return path in _PUBLIC_PATHS or path.startswith(_PUBLIC_PATH_PREFIXES)
+
     async def dispatch(self, request: Request, call_next) -> Response:
         expected = os.getenv(API_TOKEN_ENV, "")
         if not expected:
             return await call_next(request)
         path = request.url.path
-        if path in self.exempt_paths or not path.startswith("/api/"):
+        if path in self.exempt_paths or self._is_public(path):
             return await call_next(request)
         supplied = request.headers.get(self.header, "")
         # encode 为 bytes 再比较: compare_digest 对非 ASCII str 抛 TypeError → 500

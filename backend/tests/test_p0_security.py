@@ -159,9 +159,10 @@ def test_token_required_when_env_set(monkeypatch: pytest.MonkeyPatch):
     # 正确 token → 200
     r = client.get("/api/ping", headers={"X-Hotspot-Token": "s3cret"})
     assert r.status_code == 200
-    # 豁免路径与非 /api/ 路径不受影响
+    # 豁免路径不受影响
     assert client.get("/api/health").status_code == 200
-    assert client.get("/other").status_code == 200
+    # v0.8.6 P0-3 (S1): 非 /api/ 不再整类直通 — 非公共资产同样 401
+    assert client.get("/other").status_code == 401
 
 
 def test_token_middleware_on_real_app(monkeypatch: pytest.MonkeyPatch, temp_db):
@@ -180,6 +181,76 @@ def test_token_middleware_on_real_app(monkeypatch: pytest.MonkeyPatch, temp_db):
         # 豁免 + 非 /api/ 直通
         assert client.get("/api/health").status_code == 200
         assert client.get("/").status_code == 200
+
+
+# ===========================================================================
+# v0.8.6 P0-3 (审计 S1): 非 /api/ 入口不再整类直通
+# ===========================================================================
+
+
+def _auth_app_v086() -> FastAPI:
+    """复刻 S1 暴露面的最小 app: /mcp/sse (写入口) + /docs + /openapi.json。"""
+    a = FastAPI()
+    a.add_middleware(TokenAuthMiddleware, exempt_paths=["/api/health"])
+
+    @a.get("/api/health")
+    def health():
+        return {"ok": True}
+
+    @a.get("/")
+    def index():
+        return {"spa": True}
+
+    @a.get("/mcp/sse")
+    def mcp_sse():
+        return {"tools": ["wiki_write", "update_knowledge_item"]}
+
+    return a
+
+
+class TestS1NonApiEntrypoints:
+    def test_mcp_sse_rejected_without_token(self, monkeypatch: pytest.MonkeyPatch):
+        """S1 核心: /mcp/sse 含写工具, 无 token 必须 401 (修复前直通)。"""
+        monkeypatch.setenv("HOTSPOT_API_TOKEN", "s3cret")
+        client = TestClient(_auth_app_v086())
+        assert client.get("/mcp/sse").status_code == 401
+        assert (
+            client.get("/mcp/sse", headers={"X-Hotspot-Token": "wrong"}).status_code == 401
+        )
+
+    def test_mcp_sse_passes_with_token(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv("HOTSPOT_API_TOKEN", "s3cret")
+        client = TestClient(_auth_app_v086())
+        r = client.get("/mcp/sse", headers={"X-Hotspot-Token": "s3cret"})
+        assert r.status_code == 200
+        assert "wiki_write" in r.json()["tools"]
+
+    def test_docs_and_openapi_rejected(self, monkeypatch: pytest.MonkeyPatch):
+        """接口自描述同属暴露面: /docs /openapi.json 无 token 401。"""
+        monkeypatch.setenv("HOTSPOT_API_TOKEN", "s3cret")
+        client = TestClient(_auth_app_v086())
+        assert client.get("/docs").status_code == 401
+        assert client.get("/openapi.json").status_code == 401
+        # 带 token 可访问
+        h = {"X-Hotspot-Token": "s3cret"}
+        assert client.get("/docs", headers=h).status_code == 200
+        assert client.get("/openapi.json", headers=h).status_code == 200
+
+    def test_spa_public_assets_still_pass(self, monkeypatch: pytest.MonkeyPatch):
+        """公共资产白名单: SPA 壳/favicon/静态目录 token 启用时仍放行。"""
+        monkeypatch.setenv("HOTSPOT_API_TOKEN", "s3cret")
+        client = TestClient(_auth_app_v086())
+        assert client.get("/").status_code == 200
+        assert client.get("/favicon.ico").status_code in (200, 404)  # 未挂文件时 404 但非 401
+        assert client.get("/assets/app.js").status_code in (200, 404)
+
+    def test_token_disabled_everything_passes(self, monkeypatch: pytest.MonkeyPatch):
+        """默认关闭语义不变: 未设 env 全直通 (单用户回环工作站常态)。"""
+        monkeypatch.delenv("HOTSPOT_API_TOKEN", raising=False)
+        client = TestClient(_auth_app_v086())
+        assert client.get("/api/health").status_code == 200
+        assert client.get("/mcp/sse").status_code == 200
+        assert client.get("/docs").status_code == 200
 
 
 # ===========================================================================

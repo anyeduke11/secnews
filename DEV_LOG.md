@@ -1,4 +1,15 @@
 
+## [DEV-0253] v0.8.6 P0-3 落地: TokenAuthMiddleware 全入口覆盖 — 审计 S1, /mcp/sse (19 工具含写) 不再绕过 token (p03-s1-auth)
+
+- **时间**: 2026-10-02
+- **类型**: 安全修复 (v0.8.6 PRD P0-3; 审计 S1: middleware.py 非 /api/ 整类直通 — `HOTSPOT_API_TOKEN` 启用时 `/mcp/sse` (19 工具含 wiki_write 等写操作) / `/docs` / `/openapi.json` 全部裸奔, "设了 token 仍锁不住写入口")
+- **关联模块**: `backend:api-middleware`
+- **修复**: 直通判据从 `not path.startswith("/api/")` 收紧为公共资产白名单 `_is_public()`: 精确 `/` `/favicon.ico` `/favicon.svg` + 前缀 `/assets/` `/static/` (单用户 SPA 壳与静态资源, 前端数据面统一走 /api/* 携 token); 其余全部入口 (含 /mcp/sse /docs /openapi.json) token 启用时一律校验。默认关闭语义不变 (env 未设全直通, 单用户回环常态)
+- **行为变化 (breaking for token 用户)**: 非 /api/ 非公共资产路径从直通变 401 — 属预期收紧, 旧测试 `test_token_required_when_env_set` 的 `/other` 200 断言同 commit 更新为 401
+- **实弹验证 (临时实例 :8001, HOTSPOT_API_TOKEN 已设, mcp server=on)**: 无 token `/mcp/sse` 401 / `/docs` 401 / `/openapi.json` 401 / `/api/dsh/control/status` 401; 豁免与公共资产放行 `/api/health` 200 / `/` 200 (favicon·assets 放行仅 404 非 401); 带 token 四路径全 200。验证后临时实例已停, :8000 常驻后端未动 (无 token 常态不受影响)
+- **测试验证**: test_p0_security.py 20 passed (+TestS1NonApiEntrypoints 5 用例: mcp 无 token 401 / 带 token 200 / docs+openapi 401 / SPA 公共资产放行 / 默认关闭全通); 定向回归 middleware+mcp 63 passed
+- **潜在风险 (parked)**: ① `/static/` 前缀目前后端未挂载 (预留 StaticFiles 前缀集合), 若未来挂非公共内容需复查白名单; ② mcp stdio 通道 (backend.mcp_stdio_main) 不经 HTTP 中间件, 不在本修复范围 — stdio 属本机进程调用面, 与 S1 (HTTP 绕过) 不同类
+
 ## [DEV-0252] v0.8.6 P0-2 落地: warm 投影索引自愈 — 审计 E19, 4,348 行表热路径 SCAN→SEARCH (p02-e19-index)
 
 - **时间**: 2026-10-02

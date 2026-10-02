@@ -1,4 +1,23 @@
 
+## [DEV-0251] v0.8.6 P0-1 落地: gateway._resolve_model 真实消费 task_overrides.model — 审计 E1 修复, deep_read 不再恒跑 flash-lite (p01-e1-fix)
+
+- **时间**: 2026-10-02
+- **类型**: Bug修复 (v0.8.6 PRD P0-1; 审计 E1 "router 返回 (provider,model), _try_order 只取 [0], _resolve_model 只读 cfg.models.*" — task_overrides.model 是纯装饰, deep_read 恒跑 models.summary=flash-lite 而非声明的 deepseek-v4-pro; **兼修 DEV-0245 欠账**: 一键写入路由的 model 半边此前不生效, 复审时自曝)
+- **关联模块**: `backend:ai-hub-gateway`, `config:llm.yaml`
+- **修复**: `gateway._resolve_model` 头部消费 `resolve_provider_for_task(task)` 返回的 (provider, model) — provider 命中当前尝试位且 model 非空 → 直接采用 override.model; 未命中 (fallback 位 / 空 model) 沿用既有 models.* 映射, 行为不变。fallback 位值与既有映射同源 (TIER_TO_MODEL_ATTR 同名属性), 无隐性变更
+- **pi 例外裁决 (yaml 配套)**: `t1_score.model` "claude-sonnet-4-5" → "" — 修复后 override.model 真实下传, 而裸模型名在 pi 0.87.1 跨 3 provider 歧义且无已认证项 → rc=1 (yaml 2026-09-27 注自证; 此前该值因 E1 bug 从未被消费, 是"死配置无害", 修复后变"活配置有毒", 必须同步清空); 空串 = 不下传 --model 走 pi 默认上游, owner pi auth 全限定名后再填
+- **实弹验证 (REPL, 真实 llm.yaml)**: `deep_read` routed=(sensenova, **deepseek-v4-pro**) 且 `_resolve_model('sensenova','deep_read')`=deepseek-v4-pro (修复前 flash-lite); `_resolve_model('pi','score')`='' (不下传 --model); fallback 位 `_resolve_model('sensenova','score')`=flash-lite (不变); 生产 llm_usage_log 近 3 条 pi/空model/rejection_explain 佐证空串语义已在产线; 后端已重启加载
+- **测试验证**: test_s4_1_model_router 10 passed (+TestResolveModelConsumesOverride 4 用例: override 命中位用 override.model / fallback 位沿用映射 / pi 空串语义 (显式五槽空串 — ProviderModels 无参默认非空会掩盖语义) / 真实 yaml deep_read 回归锚 (yaml 改档即 fail 强制同步认知)); 既有 returns_tuple 用例断言放宽 model 非空 → 类型检查 (空串合法语义); 定向回归 89 passed (model_router/deep_read/hybrid_ai/llm_pool/routing_writer)
+- **潜在风险 (parked)**: ① deep_read 实际模型 flash-lite→deepseek-v4-pro, 成本/延迟将上升 (PRD §11 已列, 观察一周 usage_log); ② E1 修复使 override.model 从声明变生效 — 全部 override 条目需复核一遍现实性 (本轮只复核了 t1_score/t3_summary, t3_chunk_summary=ollama/qwen2.5:7b 与 image_generation=sensenova-u1.5-lite 声明即现实, 无毒值); ③ llm.yaml.bak 备份链未生成 (本次手改 yaml 非走 routing_writer)
+
+## [DEV-0250] v0.8.6 PRD 定稿回写: 主 PRD v0.8.6-A 条目 + 九章版路线取代横幅 + 审计留痕 (prd-finalize)
+
+- **时间**: 2026-10-02
+- **类型**: 文档 (单一权威 PRD 维护纪律执行; owner 指令"回写主 PRD" = 定稿信号)
+- **冲突消解 (Rule 7)**: 主 PRD 既有 2026-09-15 九章版 v0.8.6 与 AI Native 版同号冲突 → 取 owner 2026-10-02 指令方向: 九章版 §8 路线 (F0-F5) **被取代**; 其第 1-7 章产品语义 (四类岗位事项/证据链/成果验收/知识复利) 保留为长期方向 (0.8.7+ 续作依据), 未竟项收编入 AI Native P0-P2 与 0.8.7 候选表
+- **关联文件**: `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` (九章版头部横幅 + 变更记录 v0.8.6-A 条目: 要点/目标/裁决/文档指针) / `docs/HOTSPOT_V0.8.6_AI_NATIVE_PRD.md` (状态 评审中→已定稿) / `docs/audit/PRD_ALIGNMENT_AUDIT_2026-10-02.md` (裁决链 5 步 + 回写落点核对表 + 遗留边界: 九章版 F1/F2/F4/F5 未竟验收属 0.8.7+ 产品深度, 有意取舍非遗漏)
+- **验证**: 回写落点 6/6 ✅ (对齐审计文件核对表); V0.8.5_PLAN 未触碰 (spec 权威不受影响, 正确)
+
 ## [DEV-0249] v0.8.6 改造 PRD 起草: AI Native 证据工作台 (四轴全选) — prd-iterative 三阶段产出 (prd-v086)
 
 - **时间**: 2026-10-02

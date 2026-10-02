@@ -842,7 +842,23 @@ class LLMService:
     # ── 辅助方法 ──────────────────────────────────────────────────
 
     def _resolve_model(self, provider_name: str, task: str) -> str:
-        """解析任务对应的模型名."""
+        """解析任务对应的模型名.
+
+        P0-1 (v0.8.6 / 审计 E1) 修复: task_overrides 的 model 在此真实生效。
+        此前 ``_try_order`` 只取 ``routed[0]`` (provider 半边), model 半边被
+        丢弃 → override.model 是纯装饰, deep_read 恒跑 ``models.summary``
+        (flash-lite) 而非 override 声明的 deepseek-v4-pro。现在 router 返回
+        的 (provider, model) 在 provider 命中当前尝试位且 model 非空时直接
+        采用; 未命中 (fallback 位 / override 为空) 沿用既有 models.* 映射,
+        行为不变。
+
+        pi 例外语义: yaml 中 pi 的 models 留空 = 不下传 --model (裸模型名
+        跨 provider 歧义且 rc=1, 见 llm.yaml 2026-09-27 注) — t1_score 的
+        model 同理保持空串, owner pi auth 全限定名后再填。
+        """
+        routed = self.resolve_provider_for_task(task)
+        if routed is not None and routed[0] == provider_name and routed[1]:
+            return routed[1]
         cfg = self._config.providers[provider_name]
         model_map = {
             "score": cfg.models.score,

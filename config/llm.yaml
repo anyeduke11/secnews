@@ -125,9 +125,13 @@ task_overrides:
   # 注意: AIService evaluate/gate_detect 同锚此 override, 一并 pi 首选。
   # max_tokens 50→512: 此档现承载 NER 实体 JSON / 语义 verdict JSON,
   # 50 tokens 必截断 (score 本身输出极短, 上调无副作用)。
+  # P0-1 (v0.8.6): model 保持空串 — gateway._resolve_model 现已真实消费
+  # override.model, 而裸模型名 (claude-sonnet-4-5) 在 pi 0.87.1 跨 3 provider
+  # 歧义且无已认证项 → rc=1 (见上方 2026-09-27 注)。owner pi auth 全限定名
+  # (provider/model) 后再填; 空串 = 不下传 --model, 走 pi 默认上游。
   t1_score:
     provider: pi
-    model: claude-sonnet-4-5
+    model: ""
     temperature: 0.0
     max_tokens: 512
   # HEAVY 档入口 (当前唯一生产调用方 = 深度阅读)。

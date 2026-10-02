@@ -110,7 +110,10 @@ def test_ai_hub_resolve_provider_for_task_returns_tuple():
     assert result is not None
     pname, model = result
     assert isinstance(pname, str) and pname != ""
-    assert isinstance(model, str) and model != ""
+    # P0-1: t1_score.model 允许空串 (pi 语义 = 不下传 --model);
+    # "非空 model" 的回归锚由 TestResolveModelConsumesOverride
+    # .test_real_yaml_deep_read_uses_declared_model 承担 (deep_read 档)
+    assert isinstance(model, str)
 
     # 关闭 enabled → resolve_provider_for_task 返回 None
     svc._config = None  # 模拟 enabled=False (LLMService.enabled = _config is not None and _config.enabled)
@@ -196,3 +199,103 @@ def test_ai_service_resolve_provider_three_levels():
 
 
 __all__ = []
+
+
+# ============================================================================
+# P0-1 (v0.8.6 / 审计 E1): _resolve_model 真实消费 task_overrides.model
+# ============================================================================
+# WHY: 此前 _try_order 只取 routed[0] (provider 半边), model 半边被丢弃 —
+# override.model 是纯装饰: deep_read 恒跑 models.summary (flash-lite) 而
+# 非 override 声明的 deepseek-v4-pro; DEV-0245 的"一键写入路由"写入的
+# model 字段因此不生效。以下用例锁定修复语义。
+
+
+class TestResolveModelConsumesOverride:
+    def test_override_model_used_when_provider_matches(self):
+        """override 命中位: _resolve_model 必须返回 override.model 而非 models.summary。
+
+        deep_read → HEAVY 档 → t3_summary override (openai/gpt-4o);
+        修复前返回 openai 的 models.summary=gpt-4o (恰好同值, 换模型即暴露),
+        此处用 openai models.summary=gpt-4o + override model=custom-x 分离两者。
+        """
+        from backend.services.ai_hub import LLMService
+
+        cfg = _make_cfg(
+            task_overrides={
+                "t3_summary": TaskOverride(
+                    provider="openai", model="custom-heavy-x",
+                    temperature=0.3, max_tokens=500,
+                ),
+            },
+        )
+        svc = LLMService()
+        svc._config = cfg
+        assert svc._resolve_model("openai", "deep_read") == "custom-heavy-x"
+
+    def test_fallback_position_keeps_models_mapping(self):
+        """非 override 命中位 (fallback 尝试): 沿用 models.* 映射, 行为不变。"""
+        from backend.services.ai_hub import LLMService
+
+        cfg = _make_cfg(
+            fallback_order=["ollama", "openai"],
+            task_overrides={
+                "t3_summary": TaskOverride(
+                    provider="openai", model="custom-heavy-x",
+                    temperature=0.3, max_tokens=500,
+                ),
+            },
+        )
+        svc = LLMService()
+        svc._config = cfg
+        # ollama 是 fallback 位 → 用自己的 models.summary
+        assert svc._resolve_model("ollama", "deep_read") == "qwen2.5:14b"
+
+    def test_empty_override_model_falls_back_to_mapping(self):
+        """override.model 为空串 (pi 语义: 不下传 --model) → 沿用映射 (pi 即空)。"""
+        from backend.services.ai_hub import LLMService
+        from backend.config.llm_schema import LLMConfig, ProviderConfig, ProviderModels
+
+        cfg = LLMConfig(
+            enabled=True,
+            default_provider="pi",
+            fallback_order=["pi", "ollama"],
+            providers={
+                # pi 与真实 llm.yaml 一致: 五槽显式空串 (schema 无参默认非空,
+                # 会掩盖 "空串 = 不下传 --model" 语义)
+                "pi": ProviderConfig(
+                    type="pi",
+                    models=ProviderModels(
+                        score="", tag="", ner="", summary="", chunk_summary="",
+                    ),
+                ),
+                "ollama": ProviderConfig(
+                    type="ollama", base_url="http://127.0.0.1:11434",
+                    models=ProviderModels(score="qwen2.5:7b", summary="qwen2.5:14b"),
+                ),
+            },
+            task_overrides={
+                "t1_score": TaskOverride(
+                    provider="pi", model="", temperature=0.0, max_tokens=512,
+                ),
+            },
+        )
+        svc = LLMService()
+        svc._config = cfg
+        # 空 model → 不采用 override → pi 的 models.score 为空 → "" (不下传 --model)
+        assert svc._resolve_model("pi", "score") == ""
+
+    def test_real_yaml_deep_read_uses_declared_model(self):
+        """真实 llm.yaml 回归锚: deep_read 在 t3_summary 声明位必须解析出声明模型。
+
+        锁定审计 E1 的验收语义: deep_read 实际模型 = override 声明值
+        (sensenova/deepseek-v4-pro), 不再恒跑 flash-lite。yaml 改档时此
+        断言跟随 fail, 强制同步认知。
+        """
+        from backend.services.ai_hub import LLMService
+
+        svc = LLMService()  # 加载真实 config/llm.yaml
+        routed = svc.resolve_provider_for_task("deep_read")
+        assert routed is not None
+        pname, model = routed
+        assert model, "t3_summary override 声明了 model, router 不应返回空"
+        assert svc._resolve_model(pname, "deep_read") == model

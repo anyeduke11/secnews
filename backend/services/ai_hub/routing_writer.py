@@ -115,6 +115,50 @@ def _rewrite_override_block(text: str, override_key: str, provider: str, model: 
     return text[:m.start("body")] + new_body + text[m.end("body"):]
 
 
+def _validate_key_usable(provider: str, model: str, *, force: bool) -> dict[str, Any]:
+    """写前 key 体检 (DEV-0246; 仅池内平台 — yaml-only provider 如 pi/ollama 不在此范围)。
+
+    - 无 key → RoutingWriteError: override 是单点选择, 无 key 写入使该档任务必败
+      (此项不可 force 绕过 — force 只跳过在线探测)
+    - 有 key → probe_platform 在线验证: available=False (401/403/网络) → raise;
+      True → 校验 model 在列表内 (不在 → warning, 部分网关列表不全);
+      None (平台无 /models 接口) → warning 放行
+    """
+    from .pool import PRESETS_BY_NAME, probe_platform, resolve_preset_key
+
+    preset = PRESETS_BY_NAME.get(provider)
+    if preset is None:
+        return {}
+    key, src = resolve_preset_key(provider)
+    if not key:
+        raise RoutingWriteError(
+            f"{provider} 无可用密钥 (env {preset.key_env} 未设置且加密保险箱无记录) — "
+            "override 是单点选择, 无 key 写入会使该档任务必败; "
+            "请先在模型池贴 key 或设置环境变量"
+        )
+    if force:
+        return {"source": src, "probed": False, "warning": "force=true 跳过在线探测"}
+    probe = probe_platform(preset)
+    if probe["available"] is True:
+        if model not in probe["models"]:
+            return {
+                "source": src, "probed": True,
+                "warning": (
+                    f"模型 {model} 不在平台 /models 列表 ({probe['model_count']} 款) "
+                    "— 可能仍有效 (部分网关列表不全)"
+                ),
+            }
+        return {"source": src, "probed": True, "warning": None}
+    if probe["available"] is None:
+        return {
+            "source": src, "probed": True,
+            "warning": "平台无 /models 列表接口, 已跳过在线验证 (key 已配置)",
+        }
+    raise RoutingWriteError(
+        f"{provider} 密钥探测未通过: {probe['error']} — 请修正 key 后重试, 或 force=true 跳过"
+    )
+
+
 def write_task_override(
     override_key: str,
     provider: str,
@@ -122,11 +166,14 @@ def write_task_override(
     *,
     actor: str = "web",
     yaml_path: Path | None = None,
+    force: bool = False,
 ) -> dict[str, Any]:
     """把 (provider, model) 写入 task_overrides.<override_key>; 返回写入报告。
 
     provider 不在 yaml providers 时自动从模型池 preset 追加最小块。
-    备份 ``llm.yaml.bak-<HHMMSS>`` 后原子替换; 热重载 ≤5s 生效。
+    真实写入前做 key 体检 (DEV-0246): 无 key 拒绝, 有 key 在线探测,
+    force=true 仅跳过探测。备份 ``llm.yaml.bak-<HHMMSS>`` 后原子替换;
+    热重载 ≤5s 生效。
     """
     if override_key not in TIER_OVERRIDE_KEYS:
         raise RoutingWriteError(
@@ -151,6 +198,9 @@ def write_task_override(
             "message": "路由已是指向该 (provider, model), 无需写入",
         }
 
+    # DEV-0246: 真实写入前的 key 体检 (noop 已提前返回, 不做无谓出站)
+    key_check = _validate_key_usable(provider, model, force=force)
+
     # 备份 + 原子写
     backup = path.with_name(f"{path.name}.bak-{time.strftime('%H%M%S')}")
     backup.write_text(original, encoding="utf-8")
@@ -174,16 +224,21 @@ def write_task_override(
         "llm routing updated: %s -> %s/%s (provider_block_created=%s, backup=%s)",
         override_key, provider, model, provider_created, backup.name,
     )
+    warn = key_check.get("warning")
+    message = (
+        f"已写入 {override_key} → {provider}/{model}"
+        + (" (新增 provider 块)" if provider_created else "")
+        + "; 热重载 ≤5s 生效"
+    )
+    if warn:
+        message += f"; 注意: {warn}"
     return {
         "status": "ok", "override_key": override_key,
         "provider": provider, "model": model,
         "provider_block_created": provider_created,
         "backup": backup.name,
-        "message": (
-            f"已写入 {override_key} → {provider}/{model}"
-            + (" (新增 provider 块)" if provider_created else "")
-            + "; 热重载 ≤5s 生效"
-        ),
+        "key_check": key_check,
+        "message": message,
     }
 
 

@@ -1,4 +1,16 @@
 
+## [DEV-0246] 路由写入 key 体检: 无 key 拒绝 + 有 key 在线探测 — 单点锚点写入前拦截必败配置 (llm-route-key-check)
+
+- **时间**: 2026-10-02
+- **类型**: 功能开发 (DEV-0245 parked ① 收口: "写入不校验 key 是否可用 — 可把无 key 平台写进路由导致该档任务先失败")
+- **关联模块**: `backend:ai-hub-routing-writer`, `backend:llm-pool-api`
+- **语义裁决 (三层)**: ① **无 key → 拒绝且不可 force 绕过** — t1/t3 override 是单点选择无 fallback 链, 无 key 写入 = 该档任务必败, force 只跳过在线探测不豁免 key 存在性; ② **有 key → probe_platform 在线探测** (`GET /models` 6s): 401/403/网络错误 → 拒绝 (附具体 error + "force=true 可跳过"); available=None (平台无列表接口) → 放行+warning 不造假; ③ **模型不在探测列表 → 放行+warning** (部分网关列表不全, 硬拒会误伤)。**范围**: 仅池内 9 平台 (PRESETS_BY_NAME); yaml-only provider (pi/ollama/openai/anthropic) 无 key 概念或走 env 自管, 不在体检范围。**noop 跳过校验** — 同值再写不出站
+- **关联文件**: `routing_writer.py` (+`_validate_key_usable`: resolve_preset_key 与 AIService 同链 env>保险箱; 结果 `key_check={source,probed,warning}` 入返回体, warning 追加进 message "注意:" 段) + `llm_pool_api.py` (RouteWriteRequest +`force: bool=False` 透传, docstring 更新) / `test_routing_writer.py` (+TestKeyValidation 8 用例: 无 key 不可 force/401 拒绝/列表内 ok 无警告/不在列表 warning/无列表接口 warning/force 零出站断言/yaml-only 跳过/noop 零出站; 既有 2 写入用例补 _patch_pool mock)
+- **实现要点**: key 体检插在 noop 判定**之后** (同值再写不做无谓出站 — noop 零出站有测试断言锁定); 校验顺序 = 结构漂移 → 未知 provider → key 体检 (层层递进, 最可能的错先报)
+- **实弹验证 (三场景)**: deepseek (无 key) → `error: "deepseek 无可用密钥 (env DEEPSEEK_API_KEY 未设置且加密保险箱无记录)…"`; 同请求 +force=true → **仍拒绝** (语义正确); sensenova (env key) → 真探测 available=true → 写入 ok, `key_check={source:env, probed:true, warning:null}`; git checkout 恢复后 FLASH 回 ollama/qwen2.5:7b
+- **测试验证**: test_routing_writer 17 passed (9 既有 + 8 新) / test_llm_pool 12 passed; 后端已重启加载
+- **潜在风险 (parked)**: ① 在线探测给写路径加了 ≤6s 出站依赖 — 平台抖动时写入被误拒 (可 force), 若困扰可加 GET 参数 probe=false; ② key 体检只证明 "/models 可达", 不证明 chat/completions 可用 (个别网关两接口权限分离) — 极端 case, 真实调用失败仍有 fallback_order 兜底 (仅 override 锚点无链, 与现状同风险); ③ `.bak` keep-last-N 清理仍未做 (DEV-0245 parked ③ 顺延)
+
 ## [DEV-0245] 模型一键写入 yaml 路由: routing_writer 定点编辑 task_overrides 三档锚点 + 热重载生效 (llm-route-write)
 
 - **时间**: 2026-10-02

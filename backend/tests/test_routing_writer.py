@@ -71,7 +71,19 @@ def yaml_file(tmp_path: Path) -> Path:
 
 
 class TestWriteTaskOverride:
-    def test_targeted_edit_only_touches_target_block(self, yaml_file: Path):
+    def _patch_pool(self, monkeypatch, *, env_var: str, models: list[str],
+                    available: bool | None = True, error: str | None = None):
+        """给池内平台 mock key (env) + 探测结果 — 写前 key 体检 (DEV-0246) 需要真实感数据。"""
+        monkeypatch.setenv(env_var, "test-key")
+        import backend.services.ai_hub.pool as pm
+        monkeypatch.setattr(pm, "probe_platform", lambda preset: {
+            "available": available, "models": models, "model_count": len(models),
+            "latency_ms": 1, "error": error,
+        })
+
+    def test_targeted_edit_only_touches_target_block(self, yaml_file: Path, monkeypatch):
+        self._patch_pool(monkeypatch, env_var="SENSENOVA_API_KEY",
+                         models=["sensenova-v4-pro", "sensenova-6.8-flash-lite"])
         out = write_task_override("t1_score", "sensenova", "sensenova-v4-pro", yaml_path=yaml_file)
         assert out["status"] == "ok"
         text = yaml_file.read_text(encoding="utf-8")
@@ -89,7 +101,9 @@ class TestWriteTaskOverride:
         assert len(backups) == 1
         assert backups[0].read_text(encoding="utf-8") == YAML_SAMPLE
 
-    def test_new_platform_appends_provider_block_once(self, yaml_file: Path):
+    def test_new_platform_appends_provider_block_once(self, yaml_file: Path, monkeypatch):
+        self._patch_pool(monkeypatch, env_var="DEEPSEEK_API_KEY",
+                         models=["deepseek-chat", "deepseek-reasoner"])
         write_task_override("t3_summary", "deepseek", "deepseek-chat", yaml_path=yaml_file)
         text1 = yaml_file.read_text(encoding="utf-8")
         assert text1.count("  deepseek:\n") == 1
@@ -133,7 +147,82 @@ class TestWriteTaskOverride:
             write_task_override("t1_score", "sensenova", "m", yaml_path=tmp_path / "nope.yaml")
 
 
-class TestReadRouting:
+class TestKeyValidation:
+    """DEV-0246 写前 key 体检 — 单点锚点无 key = 该档任务必败, 必须写前拦截。"""
+
+    def _patch_probe(self, monkeypatch, *, available, models=None, error=None):
+        import backend.services.ai_hub.pool as pm
+        monkeypatch.setattr(pm, "probe_platform", lambda preset: {
+            "available": available, "models": models or [], "model_count": len(models or []),
+            "latency_ms": 1, "error": error,
+        })
+
+    def test_no_key_rejected_regardless_of_force(self, yaml_file, monkeypatch):
+        """无 key 不可 force 绕过 — force 只跳过在线探测。"""
+        monkeypatch.delenv("SENSENOVA_API_KEY", raising=False)
+        with pytest.raises(RoutingWriteError, match="无可用密钥"):
+            write_task_override("t1_score", "sensenova", "m", yaml_path=yaml_file, force=True)
+
+    def test_probe_401_rejected(self, yaml_file, monkeypatch):
+        monkeypatch.setenv("SENSENOVA_API_KEY", "bad")
+        self._patch_probe(monkeypatch, available=False, error="HTTP 401 (密钥无效或无权限)")
+        with pytest.raises(RoutingWriteError, match="密钥探测未通过"):
+            write_task_override("t1_score", "sensenova", "m", yaml_path=yaml_file)
+
+    def test_ok_when_model_in_probe_list(self, yaml_file, monkeypatch):
+        monkeypatch.setenv("SENSENOVA_API_KEY", "k")
+        self._patch_probe(monkeypatch, available=True, models=["sensenova-v4-pro"])
+        out = write_task_override("t1_score", "sensenova", "sensenova-v4-pro", yaml_path=yaml_file)
+        assert out["status"] == "ok"
+        assert out["key_check"] == {"source": "env", "probed": True, "warning": None}
+
+    def test_model_not_in_list_warns_but_writes(self, yaml_file, monkeypatch):
+        """部分网关 /models 列表不全 — 模型不在列表是 warning 不是拒绝。"""
+        monkeypatch.setenv("SENSENOVA_API_KEY", "k")
+        self._patch_probe(monkeypatch, available=True, models=["other-model"])
+        out = write_task_override("t1_score", "sensenova", "sensenova-v4-pro", yaml_path=yaml_file)
+        assert out["status"] == "ok"
+        assert "不在平台 /models 列表" in out["key_check"]["warning"]
+        assert "注意:" in out["message"]
+
+    def test_no_models_endpoint_warns_but_writes(self, yaml_file, monkeypatch):
+        monkeypatch.setenv("SENSENOVA_API_KEY", "k")
+        self._patch_probe(monkeypatch, available=None, error="platform_no_models_endpoint")
+        out = write_task_override("t1_score", "sensenova", "m", yaml_path=yaml_file)
+        assert out["status"] == "ok"
+        assert "跳过在线验证" in out["key_check"]["warning"]
+
+    def test_force_skips_probe_entirely(self, yaml_file, monkeypatch):
+        monkeypatch.setenv("SENSENOVA_API_KEY", "k")
+        import backend.services.ai_hub.pool as pm
+
+        def _boom(preset):
+            raise AssertionError("force=true 不得出站探测")
+
+        monkeypatch.setattr(pm, "probe_platform", _boom)
+        out = write_task_override("t1_score", "sensenova", "m", yaml_path=yaml_file, force=True)
+        assert out["status"] == "ok"
+        assert out["key_check"] == {"source": "env", "probed": False,
+                                    "warning": "force=true 跳过在线探测"}
+
+    def test_yaml_only_provider_skips_check(self, yaml_file, monkeypatch):
+        """ollama 等 yaml-only provider 无 key 概念 — 不在体检范围。"""
+        out = write_task_override("t3_chunk_summary", "ollama", "qwen2.5:14b", yaml_path=yaml_file)
+        assert out["status"] == "ok"
+        assert out["key_check"] == {}
+
+    def test_noop_skips_validation(self, yaml_file, monkeypatch):
+        """同值再写是 noop — 不触发 key 体检 (无谓出站)。"""
+        monkeypatch.delenv("SENSENOVA_API_KEY", raising=False)
+        import backend.services.ai_hub.pool as pm
+
+        def _boom(*a, **kw):
+            raise AssertionError("noop 不得出站探测")
+
+        monkeypatch.setattr(pm, "probe_platform", _boom)
+        out = write_task_override("t3_summary", "sensenova", "deepseek-v4-pro", yaml_path=yaml_file)
+        assert out["status"] == "noop"
+
     def test_reads_three_tiers(self, yaml_file: Path, monkeypatch):
         import backend.services.ai_hub.routing_writer as rw
         monkeypatch.setattr(rw, "LLM_YAML", yaml_file)

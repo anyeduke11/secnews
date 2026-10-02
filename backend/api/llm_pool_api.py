@@ -59,6 +59,7 @@ class RouteWriteRequest(BaseModel):
     override_key: str = Field(..., description="t1_score | t3_summary | t3_chunk_summary")
     provider: str = Field(..., min_length=1, description="平台/provider name")
     model: str = Field(..., min_length=1, max_length=120, description="模型名 (探测列表中的 id)")
+    force: bool = Field(False, description="跳过写前在线探测 (无 key 仍拒绝)")
 
 
 @router.get("/routing")
@@ -73,14 +74,16 @@ async def get_routing():
 async def write_route(body: RouteWriteRequest):
     """一键写入: task_overrides.<override_key> → (provider, model)。
 
-    provider 不在 llm.yaml 时自动从模型池 preset 追加最小 provider 块;
-    备份 + 原子写; gateway 热重载 ≤5s 生效。
+    真实写入前做 key 体检: 无 key 拒绝; 有 key 在线探测, 401/403 拒绝
+    (force=true 跳过探测, 无 key 仍拒绝)。provider 不在 llm.yaml 时自动
+    从模型池 preset 追加最小 provider 块; 备份 + 原子写; 热重载 ≤5s 生效。
     """
     from backend.services.ai_hub.routing_writer import RoutingWriteError, write_task_override
 
     try:
         result = write_task_override(
-            body.override_key, body.provider, body.model, actor="web",
+            body.override_key, body.provider, body.model,
+            actor="web", force=body.force,
         )
     except RoutingWriteError as e:
         return {"version": API_VERSION, "status": "error", "message": str(e)}

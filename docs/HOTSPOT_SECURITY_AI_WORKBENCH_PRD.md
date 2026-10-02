@@ -451,10 +451,11 @@
 
 ---
 
-# v0.8.6 正式版产品需求文档
+# v0.8.6 正式版产品需求文档（2026-09-15 九章版 · 路线已被 AI Native 修订取代）
 
-> 发布日期：2026-09-15　|　状态：需求基线已确认，完整方案版
-> 本章为 v0.8.6 的正式产品定义；上文审计和历史快照用于追溯，不作为当前实现状态证明。
+> 发布日期：2026-09-15　|　状态：**产品语义基线保留，路线图（本段 §8 F0–F5）已被取代**
+> **2026-10-02 owner 裁决**：0.8.6 实现路线由《v0.8.6 AI Native 改造 PRD》取代（见下方「v0.8.6-A」摘要与 `docs/HOTSPOT_V0.8.6_AI_NATIVE_PRD.md`）。本段第 1–7 章的产品语义（四类岗位事项、证据链、成果验收、知识复利）作为长期产品方向保留，后续版本（0.8.7+）设计时继续有效；本段 §8 的 F0–F5 分期不再执行，其未竟项已被 AI Native 版的 P0–P2 与 0.8.7 候选表收编。
+> 本章为历史产品定义；上文审计和历史快照用于追溯，不作为当前实现状态证明。
 
 ## 第1章 产品概述与目标
 
@@ -618,3 +619,4 @@ React/Vite 前端通过 FastAPI 领域 API 访问 SQLite HOT/WARM/COLD 数据层
 - 2026-09-16 (DEV-0183, UI 重构 Phase 4)：新增 5 视图路由——资料库前厅 `/knowledge/khub`、编目室 `/knowledge/library`、通稿审核 `/action/events`（MP-2 真实端点全接入）、清样深读 `/reader/:id`（wiki 阅读 + 批注占位）、校对室 `/quality`（`/quality/rejection` 升格子标签并重定向兼容）。未实现后端缺口（hub-stats 聚合 / 编目清单 / 批注）双登记于代码 TODO 与 `docs/UNIMPLEMENTED.md` 台账，前端不展示伪造数据。
 - 2026-09-16 (DEV-0184, UI 重构 Phase 5)：无限画布 paradigm 接入两视图——共享 `InfiniteCanvas` 组件（拖拽平移 / ctrl+⌘ 滚轮光标锚定缩放 / 触控板横滚平移 / 双击重置 / 缩放控件 / 点阵网格，全 token 随主题翻转）；`/knowledge/canvas` 升级双模式（DOM 画布默认 + ECharts demo 降级保留），`/knowledge/graph` 增加画布模式开关（SVG 直排保留为默认降级）。纯前端，无新增路由与端点。
 - 2026-09-16 (DEV-0185, UI 重构收尾批方案设计)：五阶段全部遗留项成文 `docs/UI_REFACTOR_FOLLOWUP_PLAN_2026-09-16.md`（批次 A 快赢修整 / B 页面编辑化收尾 / C 后端缺口接线 / D 裁决项，约 5–7 工作日）。核查代码后修正 UNIMPLEMENTED 台账两处事实：编目室复用既有 `GET /api/knowledge/items`（不建新表）；批注复用既有 `annotations` 表（migration 027，仅缺薄 API，不写 wiki md）。真实后端缺口仅剩 hub-stats 聚合端点一项。
+- **2026-10-02 (v0.8.6-A · AI Native 修订，owner 定稿)**：0.8.6 实现路线由《[`docs/HOTSPOT_V0.8.6_AI_NATIVE_PRD.md`](HOTSPOT_V0.8.6_AI_NATIVE_PRD.md)》（draft4，11 章）取代本文件 2026-09-15 九章版之 §8 路线。要点：**换主干**（Run 证据账本：proposal→审批→Run→Artifact，Agent 产出提案、人负责审批）+ **F0 止血 14 项**（E1 档位 model 真生效/S1 鉴权全入口/S2 迁移器幂等/E19 warm 索引/E4 misfire/DEFAULT_SCORE 删除/E2 egress 全覆盖/E13 门禁策略统一等）+ **AI Native 四轴**（owner 全选：Agent 优先循环/模型驱动管线/全界面副驾/对话式命令栏）+ 0.8.7 候选表 9 项（C1 except 分级治理[高] 领衔）。量化目标 30 天：v1_runs 0→≥10、artifacts 0→≥5、signals 13→≥120、三类静默失败 100% 显式。裁决：D1 主干优先/D2 含执行+产物/D3 保守冻结/D4 维持中文/D5 先修竞态/D6 长期单用户/D7 全入口覆盖。输入=`docs/audit/FIRST_PRINCIPLES_REDESIGN_2026-10-02.md`（六根因/19 证据/S1-S3）+ 复审修正；留痕=`docs/audit/PRD_ALIGNMENT_AUDIT_2026-10-02.md`。

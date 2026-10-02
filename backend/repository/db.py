@@ -359,6 +359,48 @@ def apply_migrations(conn: sqlite3.Connection) -> int:
 # ---------------------------------------------------------------------------
 # Init entry point
 # ---------------------------------------------------------------------------
+def _ensure_warm_indexes(conn: sqlite3.Connection) -> None:
+    """warm 投影热路径索引自愈 — v0.8.6 P0-2 / 审计 E19 (2026-10-02)。
+
+    根因: migration 063 的三个裸名 ``CREATE INDEX`` 恒解析到 main 库 — 而
+    生产 ``knowledge_items`` 实际在 warm (4,348 行), main 上只有 119 自愈
+    留下的空壳表 → 索引全部建在 0 行表上, 生产每个管线 tick 对 warm 全表
+    扫描 (EXPLAIN QUERY PLAN 实测 SCAN + TEMP B-TREE)。main 上的同名索引
+    **保留不删**: 单库模式 (测试/无 warm 环境) 下 main.knowledge_items 是
+    真实表, 索引有效。
+
+    与 063 同 SQL, 加 warm 限定名 + IF NOT EXISTS 幂等; warm 未 ATTACH /
+    表缺失 → no-op; 失败 warning 不阻断 (与 _ensure_warm_knowledge_items
+    同 best-effort 契约)。
+    """
+    attached = {r[1] for r in conn.execute("PRAGMA database_list").fetchall()}
+    if "warm" not in attached:
+        return
+    has_table = conn.execute(
+        "SELECT COUNT(*) FROM warm.sqlite_master "
+        "WHERE type = 'table' AND name = 'knowledge_items'"
+    ).fetchone()[0]
+    if not has_table:
+        return
+    # SQLite 语法: schema 限定在**索引名**上 (`warm.idx ON knowledge_items`),
+    # 表名用裸名在 schema 内解析 — ON warm.table 反而 near "." 语法错。
+    for ddl in (
+        "CREATE INDEX IF NOT EXISTS warm.idx_ki_ingested"
+        " ON knowledge_items(ingested_at DESC)",
+        "CREATE INDEX IF NOT EXISTS warm.idx_ki_lifecycle"
+        " ON knowledge_items(lifecycle)",
+        "CREATE INDEX IF NOT EXISTS warm.idx_ki_domain"
+        " ON knowledge_items(domain)",
+    ):
+        try:
+            conn.execute(ddl)
+        except sqlite3.Error as exc:
+            logger.warning(
+                f"warm index self-heal failed: {exc}",
+                extra={"trace_id": ""},
+            )
+
+
 def _ensure_warm_knowledge_items(conn: sqlite3.Connection) -> None:
     """warm 知识投影自愈 — 治理 T4 入口断供根因修复 (2026-09-26)。
 
@@ -498,6 +540,8 @@ def init_db() -> int:
     # 治理 T4: warm 知识投影自愈 (必须在 apply_migrations 之后 — 迁移先
     # 把 main 的 knowledge_items 结构推到最新, 自愈拷贝的才是权威 DDL)。
     _ensure_warm_knowledge_items(conn)
+    # v0.8.6 P0-2 (E19): warm 投影索引自愈 (表自愈之后 — 空表上建索引无意义)。
+    _ensure_warm_indexes(conn)
 
     # Confirm journal mode landed on WAL.
     try:

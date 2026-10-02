@@ -1,4 +1,14 @@
 
+## [DEV-0252] v0.8.6 P0-2 落地: warm 投影索引自愈 — 审计 E19, 4,348 行表热路径 SCAN→SEARCH (p02-e19-index)
+
+- **时间**: 2026-10-02
+- **类型**: Bug修复 (v0.8.6 PRD P0-2; 审计 E19: migration 063 裸名 CREATE INDEX 恒解析 main — 生产 knowledge_items 实际在 warm (4,348 行), 索引全部建在 main 0 行空壳表上, kl 触发器/漏斗统计/投影重建 job 每轮全表扫描, EXPLAIN 实测 SCAN + TEMP B-TREE)
+- **修复**: `db.py` +`_ensure_warm_indexes()` (仿 `_ensure_warm_knowledge_items` 119 自愈先例): init_db 尾部 (表自愈之后) 对 ATTACH 的 warm 幂等补建 063 同款 3 索引; warm 未 ATTACH / 无表 → no-op; 失败 warning 不阻断。**main 同名索引保留不删** — 单库模式 (测试环境) 下 main.knowledge_items 是真实表, 其索引有效且被 test_db_diet 依赖
+- **SQLite 语法坑 (REPL 调试锁定)**: schema 限定在**索引名**上 (`CREATE INDEX warm.idx ON knowledge_items`) — `ON warm.table` 形态 near "." 语法错; 首版写反被测试拦下
+- **实弹验证 (生产 warm 库, 重启后 init_db 自愈)**: ①索引落地 `idx_ki_ingested/lifecycle/domain` 3/3; ②lifecycle 查询 (T1-T4 主热路径) `SCAN → SEARCH USING INDEX idx_ki_lifecycle`; ③ORDER BY ingested_at (list_items 主查询) `SCAN + TEMP B-TREE → SCAN USING INDEX idx_ki_ingested` — 沿索引序扫描, 排序 B-TREE 消失 (审计 E19 原文痛点的修复形态; SQLite 对纯 ORDER BY 的最优计划显示 SCAN USING INDEX, 非未修)
+- **测试验证**: 新增 test_warm_indexes.py 5 passed (SEARCH 断言 + 幂等 + 未 ATTACH no-op + 无表 no-op + main 索引保留); 后端已重启 health 200
+- **潜在风险 (parked)**: ① 自愈在启动期跑一次 — 运行中新出现的投影缺口要等下次重启; ② 索引选错库的根因 (裸名迁移 × ATTACH 环境差异) 未根治, 未来新迁移若给 warm 表加索引仍会踩 — 0.8.7 候选 C7 (迁移器健壮性) 或 schema 快照 (F2-3) 时一并治
+
 ## [DEV-0251] v0.8.6 P0-1 落地: gateway._resolve_model 真实消费 task_overrides.model — 审计 E1 修复, deep_read 不再恒跑 flash-lite (p01-e1-fix)
 
 - **时间**: 2026-10-02

@@ -61,6 +61,28 @@ def test_log_event_swallows_exceptions():
 
 
 # ---------------------------------------------------------------------------
+# 1b. log_event level 参数 (P0-10 日志降噪)
+# ---------------------------------------------------------------------------
+def test_log_event_level_debug_routes_to_debug():
+    """level="debug" 走 .debug 而非 .info — 例行事件不落生产 INFO 基线。"""
+    with patch("backend.observability.logger") as mock_logger:
+        log_event("collect_start", level="debug", collector="x")
+        bound = mock_logger.bind.return_value
+        bound.debug.assert_called_once()
+        bound.info.assert_not_called()
+
+
+def test_log_event_level_default_and_invalid_fallback_info():
+    """默认 info; 非法 level 回落 info (不放大也不静默)。"""
+    with patch("backend.observability.logger") as mock_logger:
+        log_event("api_response", status=200)
+        mock_logger.bind.return_value.info.assert_called_once()
+    with patch("backend.observability.logger") as mock_logger:
+        log_event("x", level="not-a-level")
+        mock_logger.bind.return_value.info.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
 # 2. set_start_time / uptime_s
 # ---------------------------------------------------------------------------
 def test_uptime_s_increases():

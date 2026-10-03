@@ -124,7 +124,7 @@ async def rebuild_trend_and_log(trend, logger) -> None:
     """重建 24h 趋势网格 (同步 sqlite3 操作, 放 thread pool)。"""
     try:
         trend_count = await asyncio.to_thread(trend.rebuild, 24)
-        logger.info(f"trend rebuilt: {trend_count} points")
+        logger.debug(f"trend rebuilt: {trend_count} points")  # P0-10: 例行成功
     except Exception as e:
         logger.error(f"trend rebuild failed: {e}")
 

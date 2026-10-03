@@ -64,6 +64,15 @@ describe("NAV4 §5: 四菜单 SentinelShell", () => {
 });
 
 describe("NAV4 §5: 旧路径重定向 (透传 query)", () => {
+  it("路由表 1 path 1 声明 (P0-8/E10 审计验收: 双声明时扁平 redirect 先匹配胜出, 后者永不可达)", () => {
+    // 提取全部 path="..." 声明 (含条件渲染块内的), 每 path 必须恰好出现一次
+    const paths = [...ROUTES_TSX.matchAll(/path="([^"]+)"/g)].map(m => m[1]);
+    const seen = new Map<string, number>();
+    for (const p of paths) seen.set(p, (seen.get(p) ?? 0) + 1);
+    const dupes = [...seen.entries()].filter(([, n]) => n > 1);
+    expect(dupes, `以下 path 声明了多次: ${dupes.map(([p, n]) => `${p}×${n}`).join(", ")}`).toEqual([]);
+  });
+
   it("/judge → / (QueryRedirect 透传 query)", () => {
     const line = routeLine("/judge");
     expect(line).toBeTruthy();

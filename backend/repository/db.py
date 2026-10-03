@@ -29,6 +29,7 @@ Design notes
 """
 from __future__ import annotations
 
+import os
 import re
 import sqlite3
 import threading
@@ -59,6 +60,22 @@ def _now_iso() -> str:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+def secure_db_file(path: Path | str) -> None:
+    """库文件权限收紧 0600 — v0.8.6 P0-9 / 审计 F0-12b (R6)。
+
+    hotspot.db 含 llm_secrets 密文与全量 wiki 正文投影, 默认 0644 等于
+    同机任意进程可读。SQLite 的 -wal/-shm 边车同样承载活数据, 一并
+    best-effort 收紧; 不存在/失败仅 debug 留痕 (权限收紧不阻断连接路径)。
+    """
+    p = Path(path)
+    for target in (p, p.with_name(p.name + "-wal"), p.with_name(p.name + "-shm")):
+        try:
+            if target.exists():
+                os.chmod(target, 0o600)
+        except OSError as exc:
+            logger.debug(f"chmod 0600 failed for {target}: {exc}")
+
+
 def get_connection() -> sqlite3.Connection:
     """Return the calling thread's SQLite connection, opening it on first use.
 
@@ -124,7 +141,12 @@ def get_connection() -> sqlite3.Connection:
             logger.warning(f"ATTACH {alias} ({p}) failed: {e}")
 
     _tls.conn = conn
-    logger.info(
+    # v0.8.6 P0-9 (F0-12b): 库文件权限收紧 — 每线程首连时执行 (幂等,
+    # 已 0600 的 chmod 是 no-op); warm/cold 未 ATTACH 时目标不存在即跳过。
+    for _p in (db_path, warm_path, cold_path):
+        if _p is not None:
+            secure_db_file(_p)
+    logger.debug(  # P0-10: 每线程首连的例行事件 → DEBUG
         "db connection opened",
         extra={"trace_id": "", "db_path": str(db_path), "attached": ",".join(attached) or "(none)"},
     )
@@ -149,6 +171,30 @@ def knowledge_items_table() -> str:
         r[1] for r in get_connection().execute("PRAGMA database_list").fetchall()
     }
     return "warm.knowledge_items" if "warm" in attached else "knowledge_items"
+
+
+def warm_table(name: str, conn: sqlite3.Connection | None = None) -> str:
+    """Qualified table name for a WARM-tier table — v0.8.6 P0-7 / 审计 E15。
+
+    与 ``knowledge_items_table`` 同一 accessor 哲学 (写路由应当被**声明**,
+    而非依赖 SQLite 裸名解析的环境探测): main 命中 → 裸名 (单库模式,
+    migration 在 main 建表); main 无而 warm 已 ATTACH → ``warm.<name>``
+    (migrate_temp_layers 迁移后的生产位置); warm 未 ATTACH → 裸名。
+
+    供 quality_check_logs / content_fingerprints 等跨 main/warm 两种落位
+    的表统一读写路由, 消除 "裸名 INSERT 到底落到哪个库" 的歧义 (E15
+    两处写库失败的修复配套)。conn 参数允许调用方注入已知连接 (如
+    collection_dedup 的测试 mock 场景), 避免与注入连接分叉。
+    """
+    c = conn or get_connection()
+    attached = {r[1] for r in c.execute("PRAGMA database_list").fetchall()}
+    if "warm" not in attached:
+        return name
+    in_main = c.execute(
+        "SELECT 1 FROM main.sqlite_master WHERE type = 'table' AND name = ?",
+        (name,),
+    ).fetchone()
+    return name if in_main else f"warm.{name}"
 
 
 def close_db() -> None:
@@ -565,6 +611,148 @@ def _ensure_warm_knowledge_items(conn: sqlite3.Connection) -> None:
     )
 
 
+# v0.8.6 P0-7 (审计 E15): 列级 REFERENCES 子句剥离正则 — warm 表的 FK
+# 指向 main 侧表 (跨库 FK SQLite 无法满足) 时整段移除, 覆盖
+# ``REFERENCES hotspots(id) [ON DELETE CASCADE]`` 等全部列级形态。
+_FK_COLUMN_RE = re.compile(
+    r"\s+REFERENCES\s+\"?\w+\"?\s*\([^)]*\)"
+    r"(?:\s+ON\s+(?:DELETE|UPDATE)\s+"
+    r"(?:CASCADE|SET\s+NULL|SET\s+DEFAULT|RESTRICT|NO\s+ACTION))*",
+    re.IGNORECASE,
+)
+
+
+def _fix_warm_dangling_fks(conn: sqlite3.Connection) -> None:
+    """warm 表悬空 FK 自愈 — v0.8.6 P0-7 / 审计 E15 (2026-10-02)。
+
+    根因: ``scripts/migrate_temp_layers.py`` 把 WARM 表 DDL **原样**拷入
+    warm.db, 列级 ``REFERENCES hotspots(id) ON DELETE CASCADE`` 这类指向
+    main 侧表的 FK 一并带入。SQLite 的 FK 只在子表所在 schema 内解析父表
+    (跨库 FK 不支持), 连接级 ``PRAGMA foreign_keys=ON`` 下父表缺失 →
+    每次 INSERT 抛 ``no such table: warm.hotspots`` (生产 439 次, 指纹
+    补写全军覆没, 跨轮去重静默失效)。该 FK 在 warm 内**永远不可能生效**
+    (ON DELETE CASCADE 同样无法跨库触发), 剥离无语义损失。
+
+    自愈动作 (每张命中表, 参照 112/126 迁移的 foreign_keys OFF 包裹惯例):
+    取出行 + 列 + 具名索引 DDL → DROP → 以剥离 REFERENCES 后的 DDL 重建 →
+    回灌数据 → 重建索引 → 校验 FK 清零。幂等: 无悬空 FK 即 no-op;
+    best-effort 契约同 ``_ensure_warm_knowledge_items`` (单表失败留痕继续,
+    不裸抛、不阻断 init_db)。
+    """
+    attached = {r[1] for r in conn.execute("PRAGMA database_list").fetchall()}
+    if "warm" not in attached:
+        return
+    warm_tables = {
+        r[0] for r in conn.execute(
+            "SELECT name FROM warm.sqlite_master "
+            "WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+        ).fetchall()
+    }
+    for table in sorted(warm_tables):
+        try:
+            fks = conn.execute(
+                f'PRAGMA warm.foreign_key_list("{table}")'
+            ).fetchall()
+        except sqlite3.Error:
+            continue
+        if not fks:
+            continue
+        missing = sorted({fk[2] for fk in fks if fk[2] not in warm_tables})
+        if not missing:
+            continue  # 父表都在 warm 内 — 正常 FK, 不动
+
+        row_ddl = conn.execute(
+            "SELECT sql FROM warm.sqlite_master "
+            "WHERE type = 'table' AND name = ?",
+            (table,),
+        ).fetchone()
+        if row_ddl is None or not row_ddl[0]:
+            continue
+        stripped = _FK_COLUMN_RE.sub("", row_ddl[0])
+        if "REFERENCES" in stripped.upper():
+            logger.warning(
+                f"warm.{table}: dangling FK -> {missing} but DDL carries an "
+                "unstrippable REFERENCES form — skip rebuild (P0-7/E15)",
+                extra={"trace_id": ""},
+            )
+            continue
+
+        # DROP 后 sqlite_master 即失 — 行/列/索引 DDL 先取
+        cols = [
+            r[1] for r in conn.execute(
+                f'PRAGMA warm.table_info("{table}")'
+            ).fetchall()
+        ]
+        rows = conn.execute(f'SELECT * FROM warm."{table}"').fetchall()
+        idx_ddls = [
+            r[0] for r in conn.execute(
+                "SELECT sql FROM warm.sqlite_master "
+                "WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL",
+                (table,),
+            ).fetchall()
+        ]
+
+        try:
+            conn.execute("PRAGMA foreign_keys=OFF")
+            # 前缀改写 (与 _ensure_warm_knowledge_items 同法): 正则只吞
+            # "CREATE TABLE [IF NOT EXISTS]", 原表名保留在后 → warm.<name>
+            new_ddl = re.sub(
+                r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?",
+                "CREATE TABLE warm.",
+                stripped,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+            conn.execute(f'DROP TABLE warm."{table}"')
+            conn.execute(new_ddl)
+            if rows and cols:
+                col_csv = ",".join(f'"{c}"' for c in cols)
+                placeholders = ",".join("?" for _ in cols)
+                conn.executemany(
+                    f'INSERT INTO warm."{table}" ({col_csv}) '
+                    f"VALUES ({placeholders})",
+                    rows,
+                )
+            # 索引随 DROP 而去: 同名重建 (warm 限定索引名, 表名裸名在
+            # schema 内解析 — 同 _ensure_warm_indexes 的已验证写法)
+            for idx_ddl in idx_ddls:
+                conn.execute(
+                    re.sub(
+                        r"CREATE\s+INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?",
+                        "CREATE INDEX IF NOT EXISTS warm.",
+                        idx_ddl,
+                        count=1,
+                        flags=re.IGNORECASE,
+                    )
+                )
+        except sqlite3.Error as exc:
+            logger.error(
+                f"warm.{table} dangling-FK rebuild failed "
+                f"({type(exc).__name__}: {exc}) — 表已重建但数据/索引可能"
+                f"不完整, 请人工核查 (原 FK 指向 {missing})",
+                extra={"trace_id": ""},
+            )
+        finally:
+            conn.execute("PRAGMA foreign_keys=ON")
+
+        leftover = conn.execute(
+            f'PRAGMA warm.foreign_key_list("{table}")'
+        ).fetchall()
+        if leftover:
+            logger.error(
+                f"warm.{table} still has {len(leftover)} FK(s) after "
+                "P0-7 rebuild — unexpected, please inspect",
+                extra={"trace_id": ""},
+            )
+        else:
+            logger.warning(
+                f"warm.{table}: rebuilt without cross-db-unenforceable FK "
+                f"(was -> {missing}; rows restored: {len(rows)}; "
+                "see audit E15 / P0-7)",
+                extra={"trace_id": ""},
+            )
+
+
 def init_db() -> int:
     """One-shot DB init: integrity check, apply migrations, log journal mode.
 
@@ -614,6 +802,9 @@ def init_db() -> int:
     _ensure_warm_knowledge_items(conn)
     # v0.8.6 P0-2 (E19): warm 投影索引自愈 (表自愈之后 — 空表上建索引无意义)。
     _ensure_warm_indexes(conn)
+    # v0.8.6 P0-7 (E15): warm 悬空 FK 自愈 (migrate_temp_layers 原样拷贝
+    # DDL 遗留的跨库 FK 使 warm 侧 INSERT 全数失败 — 指纹补写 439 次)。
+    _fix_warm_dangling_fks(conn)
 
     # Confirm journal mode landed on WAL.
     try:
@@ -636,4 +827,6 @@ __all__ = [
     "get_connection",
     "init_db",
     "knowledge_items_table",
+    "secure_db_file",
+    "warm_table",
 ]

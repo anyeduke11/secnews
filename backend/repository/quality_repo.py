@@ -16,7 +16,7 @@ from typing import Any
 from backend.domain.collection import GateResult
 from backend.exceptions import InternalException
 from backend.logging_config import logger
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, warm_table
 
 
 def _now_iso() -> str:
@@ -33,15 +33,21 @@ class QualityLogRepository:
         mode: str = "loose",
         checked_at: str | None = None,
     ) -> None:
-        """写一行 gate 结果。**失败不抛**（写 log 失败不能阻塞采集）。"""
+        """写一行 gate 结果。**失败不抛**（写 log 失败不能阻塞采集）。
+
+        P0-7 (审计 E15): 表名走 ``warm_table`` accessor — 生产表在 warm,
+        单库模式在 main, 裸名依赖 SQLite 环境探测的路由历史上有
+        "no such table" 静默失败窗口。
+        """
         conn = get_connection()
-        sql = (
-            "INSERT INTO quality_check_logs "
-            "(item_id, gate_name, passed, score_deduction, flags, "
-            "reason, error_msg, checked_at, mode) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        )
         try:
+            # 解析也在 try 内: 模拟/异常连接下同样不得抛 (does-not-throw 契约)
+            sql = (
+                f"INSERT INTO {warm_table('quality_check_logs', conn)} "
+                "(item_id, gate_name, passed, score_deduction, flags, "
+                "reason, error_msg, checked_at, mode) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            )
             conn.execute(
                 sql,
                 (
@@ -70,13 +76,14 @@ class QualityLogRepository:
     def list_for_item(self, item_id: str, limit: int = 50) -> list[dict]:
         """返回该 item 的最近 N 条检查记录。"""
         conn = get_connection()
+        table = warm_table("quality_check_logs", conn)
         try:
             rows = conn.execute(
-                "SELECT gate_name, passed, score_deduction, flags, reason, "
-                "error_msg, checked_at, mode "
-                "FROM quality_check_logs "
-                "WHERE item_id = ? "
-                "ORDER BY checked_at DESC LIMIT ?",
+                f"SELECT gate_name, passed, score_deduction, flags, reason, "
+                f"error_msg, checked_at, mode "
+                f"FROM {table} "
+                f"WHERE item_id = ? "
+                f"ORDER BY checked_at DESC LIMIT ?",
                 (item_id, limit),
             ).fetchall()
         except sqlite3.Error as e:
@@ -102,15 +109,16 @@ class QualityLogRepository:
     def summary_24h(self) -> dict[str, dict[str, Any]]:
         """24h 内每个 gate 的 pass/fail 统计 + 平均扣分。"""
         conn = get_connection()
+        table = warm_table("quality_check_logs", conn)
         try:
             rows = conn.execute(
-                "SELECT gate_name, "
-                "  SUM(passed) AS pass_n, "
-                "  COUNT(*) AS total_n, "
-                "  AVG(score_deduction) AS avg_deduction "
-                "FROM quality_check_logs "
-                "WHERE checked_at >= datetime('now', '-24 hours') "
-                "GROUP BY gate_name"
+                f"SELECT gate_name, "
+                f"  SUM(passed) AS pass_n, "
+                f"  COUNT(*) AS total_n, "
+                f"  AVG(score_deduction) AS avg_deduction "
+                f"FROM {table} "
+                f"WHERE checked_at >= datetime('now', '-24 hours') "
+                f"GROUP BY gate_name"
             ).fetchall()
         except sqlite3.Error as e:
             raise InternalException(f"summary_24h failed: {e}") from e
@@ -232,6 +240,7 @@ class SourceReputationRepository:
         Returns the number of distinct sources updated.
         """
         conn = get_connection()
+        qcl = warm_table("quality_check_logs", conn)
         # 质量型 gate 白名单（排除结构性/去重信号）
         quality_gates = (
             "title_summary", "category_match", "source_reputation",
@@ -244,7 +253,7 @@ class SourceReputationRepository:
                 f"SELECT h.source, "
                 f"  SUM(CASE WHEN q.passed = 1 THEN 1 ELSE 0 END) AS pass_n, "
                 f"  SUM(CASE WHEN q.passed = 0 THEN 1 ELSE 0 END) AS fail_n "
-                f"FROM quality_check_logs q "
+                f"FROM {qcl} q "
                 f"JOIN hotspots h ON h.id = q.item_id "
                 f"WHERE q.checked_at >= datetime('now', '-7 days') "
                 f"  AND q.gate_name IN ({placeholders}) "

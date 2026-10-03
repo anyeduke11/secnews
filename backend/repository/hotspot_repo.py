@@ -254,7 +254,7 @@ class HotspotRepository:
             )
             raise InternalException(f"upsert_many failed: {e}") from e
 
-        logger.info(
+        logger.debug(  # P0-10: 例行成功 → DEBUG (失败路径 error 不变)
             "upsert_many ok",
             extra={"trace_id": "", "count": len(items), "affected": total_affected},
         )

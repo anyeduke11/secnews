@@ -309,7 +309,7 @@ describe('SentinelGraphPage — 哨兵终端 · 知识图谱', () => {
     expect(document.querySelector('svg.kg-graphsvg')).toBeNull();
   });
 
-  it('graph 返回空集合 → 空态面板指向判读台', async () => {
+  it('graph 返回空集合 → 空态面板指向资讯首页', async () => {
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.startsWith('/api/knowledge/graph')) {
@@ -320,7 +320,7 @@ describe('SentinelGraphPage — 哨兵终端 · 知识图谱', () => {
 
     render(<MemoryRouter><SentinelGraphPage /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText('图谱暂无节点')).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: /返回判读台/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /返回资讯首页/ })).toBeInTheDocument();
   });
 });
 

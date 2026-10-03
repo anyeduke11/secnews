@@ -602,9 +602,9 @@ export function SentinelActionPage() {
                   <i aria-hidden="true" />
                   <span className="num">平均 EF {reviewStats ? Number(reviewStats.avg_easiness).toFixed(2) : '--'}</span>
                 </div>
-                <p className="ac-self">自评机制：记得牢，间隔拉长；模糊，近日再见；忘光，回判断层重读原文。</p>
-                <a className="ac-link" href="/judge" onClick={e => { e.preventDefault(); navigate('/judge'); }}>
-                  去判断层重读原文
+                <p className="ac-self">自评机制：记得牢，间隔拉长；模糊，近日再见；忘光，回资讯页重读原文。</p>
+                <a className="ac-link" href="/" onClick={e => { e.preventDefault(); navigate('/'); }}>
+                  去资讯页重读原文
                   <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2.5 7h8M7.5 3.5L11 7l-3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </a>
               </>

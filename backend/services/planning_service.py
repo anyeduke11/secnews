@@ -157,7 +157,7 @@ class PlanningService:
             counts["review"] += 1
 
         total = sum(counts.values())
-        logger.info(
+        logger.debug(  # P0-10: 每 tick 例行生成 → DEBUG (total>0 有区块可见)
             "planning actions generated",
             extra={"trace_id": "", "counts": str(counts), "total": total},
         )

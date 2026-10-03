@@ -18,6 +18,7 @@ import httpx
 
 from backend.logging_config import logger
 
+from .egress import check_credential_egress
 from .provider_health import get_provider_health
 from .scenarios import Scenario, resolve_scenario_model
 
@@ -77,7 +78,10 @@ class ImageGenerationService:
                 f"provider={provider} 凭据为空 (key_source={self._ai._key_source(provider)})"
             )
 
-        url = self._ai._base_url(provider) + route.endpoint
+        # C3: 凭据出站前过代码侧白名单 (base_url 来自 llm.yaml, E2)
+        base_url = self._ai._base_url(provider)
+        check_credential_egress(base_url)
+        url = base_url + route.endpoint
         payload = {
             "model": route.model,
             "prompt": prompt,
@@ -166,7 +170,10 @@ class ImageGenerationService:
                 f"provider={provider} 凭据为空 (key_source={self._ai._key_source(provider)})"
             )
 
-        url = self._ai._base_url(provider) + "/chat/completions"
+        # C3: 凭据出站前过代码侧白名单 (base_url 来自 llm.yaml, E2)
+        base_url = self._ai._base_url(provider)
+        check_credential_egress(base_url)
+        url = base_url + "/chat/completions"
         payload = {
             "model": route.model,
             "messages": [{

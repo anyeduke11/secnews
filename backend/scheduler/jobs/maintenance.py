@@ -59,7 +59,7 @@ async def trend_rebuild_job() -> None:
         hours = _trend_rebuild_hours()
         # Phase 9 修复：trend.rebuild 是同步 sqlite3 操作，放 thread pool 避免阻塞 event loop
         count = await asyncio.to_thread(trend.rebuild, hours)
-        _logger.info(f"trend_rebuild_job: {count} points ({hours}h window)")
+        _logger.debug(f"trend_rebuild_job: {count} points ({hours}h window)")  # P0-10: 例行
     except Exception as e:
         _logger.error(f"trend_rebuild_job crashed: {e}")
 
@@ -398,7 +398,10 @@ async def planning_action_check_job() -> None:
     try:
         service = PlanningService()
         report = await asyncio.to_thread(service.generate_actions)
-        logger.info(
+        # P0-10: 全零报告 (例行空转) → DEBUG; 有动作生成保持 info
+        _total = sum(v for v in report.values() if isinstance(v, int))
+        _log = logger.info if _total else logger.debug
+        _log(
             "planning_action_check_job: "
             + " ".join(f"{k}={v}" for k, v in report.items())
         )

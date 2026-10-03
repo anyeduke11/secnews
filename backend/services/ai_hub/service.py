@@ -18,6 +18,7 @@ import httpx
 
 from backend.logging_config import logger as _logger
 from backend.services.ai_hub.cache import get_ai_cache, set_ai_cache
+from backend.services.ai_hub.egress import check_credential_egress
 from backend.services.ai_hub.gateway import llm_service
 
 log = logging.getLogger("hotspot.ai_hub")
@@ -369,8 +370,11 @@ class AIService:
     # ------------------------------------------------------------------
     def _call_sensenova_eval(self, title: str, content: str, key: str, timeout: float) -> dict:
         from backend.services.ai_hub.tasks import _eval_prompt, _parse_eval_json
+        # C3: 凭据出站前过代码侧白名单 (base_url 可被同步包写入 llm.yaml, E2)
+        base_url = self._base_url("sensenova")
+        check_credential_egress(base_url)
         prompt = _eval_prompt(title, content)
-        url = self._base_url("sensenova") + "/chat/completions"
+        url = base_url + "/chat/completions"
         payload = {
             "model": self._eval_model("sensenova"),
             "messages": [{"role": "user", "content": prompt}],
@@ -402,8 +406,11 @@ class AIService:
 
     def _call_sensenova_detect(self, title: str, summary: str, key: str, timeout: float) -> float:
         from backend.services.ai_hub.tasks import _parse_score01
+        # C3: 凭据出站前过代码侧白名单 (base_url 可被同步包写入 llm.yaml, E2)
+        base_url = self._base_url("sensenova")
+        check_credential_egress(base_url)
         text = f"标题：{title}\n摘要：{summary}"
-        url = self._base_url("sensenova") + "/chat/completions"
+        url = base_url + "/chat/completions"
         payload = {
             "model": self._eval_model("sensenova"),
             "messages": [

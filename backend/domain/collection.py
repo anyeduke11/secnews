@@ -143,8 +143,9 @@ class GateResult(BaseModel):
     reason:
         Human-readable explanation. Logged / shown in /api/quality/logs.
     error_msg:
-        Set when the gate itself crashed. The check is treated as a
-        "skip" (no flag, no deduction) and surfaced in logs.
+        Set when the gate itself crashed. Fail-closed (E13/P0-12):
+        the result is then ``passed=False`` with a ``gate_crashed``
+        flag and a 15-point deduction — a crash is never a silent skip.
     """
 
     model_config = {"arbitrary_types_allowed": True}

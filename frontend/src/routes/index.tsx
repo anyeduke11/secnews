@@ -113,13 +113,10 @@ export function AppRoutes() {
       <Route path="/cases" element={<QueryRedirect to="/action" />} />
       <Route path="/judge/graph" element={<Navigate to="/knowledge/graph" replace />} />
 
-      {/* ===== v0.8.5 三层 Sentinel 全屏壳 (唯一壳, 无 AppNav; 心跳条由页内 SentinelShell 提供) ===== */}
+      {/* ===== v0.8.5 Sentinel 全屏壳 (唯一壳, 无 AppNav; 心跳条由页内 SentinelShell 提供) ===== */}
       <Route element={<SentinelLayout />}>
-        {/* 资料层: 有什么新的、可信的变化影响我 */}
+        {/* 资料层: 有什么新的、可信的变化影响我 (判读台主体已拆入本页质量区, NAV4 2026-09-13) */}
         <Route path="/" element={<Suspense fallback={<PageFallback />}><P.SentinelHomePage /></Suspense>} />
-        {/* 判断层: 这些证据能形成什么结论, 还缺什么 */}
-        <Route path="/judge" element={<Suspense fallback={<PageFallback />}><P.SentinelJudgePage /></Suspense>} />
-        <Route path="/judge/graph" element={<Suspense fallback={<PageFallback />}><P.SentinelGraphPage /></Suspense>} />
         {/* 行动层: 已接受的结论要如何执行、验收和沉淀 */}
         <Route path="/action" element={<Suspense fallback={<PageFallback />}><P.SentinelActionPage /></Suspense>} />
         {/* 判断层深链接: Case 详情 (URL 真相源, ?section= 定位; spec §5/§6.3) */}
@@ -129,11 +126,10 @@ export function AppRoutes() {
         )}
       </Route>
 
-      {/* ===== v0.8.5: 旧 v1 四入口重定向 (透传 query; /cases/:caseId 深链见下方 PageLayout 组) ===== */}
+      {/* ===== v0.8.5: 旧 v1 四入口重定向 (透传 query; /cases/:caseId 深链见下方 PageLayout 组) =====
+       * /cases → /action 已在上方 NAV4 组声明 (1 path 1 声明, P0-8/E10) */}
       <Route path="/workbench" element={<QueryRedirect to="/" />} />
       <Route path="/intel" element={<QueryRedirect to="/" />} />
-      {/* NAV4 (2026-09-13): /cases → /action (案件队列归行动菜单) */}
-      <Route path="/cases" element={<QueryRedirect to="/action" />} />
 
       {/* ===== 工具页组 (PageLayout: ToastProvider + AppNav 侧栏) ===== */}
       <Route element={<PageLayout />}>

@@ -241,14 +241,18 @@ class SourceSchedulerService:
             self._running.add(source_id)
             try:
                 async with sem:
-                    _logger.info(f"scheduler tick: running source {source_id} ({source.get('name', '')})")
+                    # P0-10: 例行 tick → DEBUG (crashed 仍 error)
+                    _logger.debug(f"scheduler tick: running source {source_id} ({source.get('name', '')})")
                     run_result = await self._collection_service.run_one_source(source_id)
-                    
+
                     # Apply health state machine
                     health_result = self.health_machine.apply_run_result(source_id, run_result)
-                    _logger.info(
+                    _status = run_result.get("status")
+                    # P0-10: success/partial 例行 → DEBUG; failed 保持 info (有信息量)
+                    _log_done = _logger.info if _status == "failed" else _logger.debug
+                    _log_done(
                         f"scheduler tick: source {source_id} done: "
-                        f"status={run_result.get('status')} "
+                        f"status={_status} "
                         f"fetched={run_result.get('fetched_count')} "
                         f"health={health_result.get('transition', 'none')} "
                         f"state={health_result.get('new_status', '?')}"

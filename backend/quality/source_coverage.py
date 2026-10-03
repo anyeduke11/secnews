@@ -306,7 +306,7 @@ def evaluate_source_coverage(
             },
         )
     else:
-        logger.info(
+        logger.debug(  # P0-10: 无告警的例行覆盖检查 → DEBUG
             "source coverage ok",
             extra={
                 "trace_id": "",

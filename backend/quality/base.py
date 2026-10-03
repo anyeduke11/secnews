@@ -4,8 +4,9 @@
 
 约定
 ----
-- ``check()`` **必须** 捕获所有内部异常并把错误信息写到
-  ``GateResult.error_msg``；不应向上抛。
+- ``check()`` 内部异常应通过 :meth:`BaseGate._wrap_exception` 转成
+  fail-closed 的 ``GateResult``（不冒充通过）；也可直接上抛, 由
+  pipeline 同构兜底 —— 两条路径结论必须一致 (E13/P0-12)。
 - 失败 = 扣分 + 打 flag；成功 = passed=True，零扣分。
 - 扣分上限由具体门禁决定（schema=100，content=30/项，其他 15-50）。
 """
@@ -68,17 +69,25 @@ class BaseGate(ABC):
     # 公共辅助：包装异常
     # ------------------------------------------------------------------
     def _wrap_exception(self, item: HotspotItem, exc: Exception) -> GateResult:
-        """把异常转成 ``GateResult(error_msg=...)``。
+        """把门禁内部异常转成 fail-closed 的 ``GateResult``。
 
-        门禁内部异常**不**扣分，仅把 ``error_msg`` 写到 log；
-        调用方决定是否升级。
+        E13/P0-12: 与 ``QualityGatePipeline._check_gate`` 的兜底结论**完全
+        一致** — 门禁崩溃不得冒充通过 (此前 passed=True/零扣分等于免检放行,
+        任何 gate 代码缺陷都会让该关静默全开)。统一语义:
+        ``passed=False`` + ``gate_crashed`` flag + 扣 15 分 + error_msg。
+        strict 模式因此拒绝; loose 模式打标扣分仍入库, 崩溃在质量面板可见。
+
+        本方法是两条异常路径 (gate 内自捕 / 上抛被 pipeline 捕获) 的**唯一
+        结果构造点**, 防止错误策略再次分叉。
         """
+        detail = f"{type(exc).__name__}: {str(exc)[:200]}"
         return GateResult(
             gate_name=self.name,
-            passed=True,  # 失败不归咎于 item
-            score_deduction=0,
-            flags=[],
-            error_msg=f"{type(exc).__name__}: {str(exc)[:200]}",
+            passed=False,
+            score_deduction=15,
+            flags=["gate_crashed"],
+            reason=f"gate crashed: {detail}",
+            error_msg=detail,
         )
 
 

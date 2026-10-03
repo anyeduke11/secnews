@@ -69,7 +69,8 @@ export function CaseDetailPage() {
               加载中…
             </div>
           )}
-          {case_ && <CaseDetail case_={case_} onBack={() => navigate('/judge')} />}
+          {/* NAV4: 案件队列归行动菜单 (/judge 判断层已退役, P0-8/E10) */}
+          {case_ && <CaseDetail case_={case_} onBack={() => navigate('/action')} />}
         </div>
       </main>
     </SentinelShell>

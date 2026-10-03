@@ -142,7 +142,9 @@ def assess_drift(limit: int = 500) -> dict:
         "skipped_no_project": skipped_no_project,
     }
 
-    logger.info(
+    # P0-10: 零新增例行评估 → DEBUG
+    _log = logger.info if matched_count else logger.debug
+    _log(
         f"drift assessment: {len(new_techs)} techs assessed, "
         f"{matched_count} new assessments, "
         f"{len(affected_projects_map)} affected projects, "

@@ -710,6 +710,8 @@ class LLMService:
             return data["choices"][0]["message"]["content"]
         if cfg.type == "anthropic":
             url = "https://api.anthropic.com/v1/messages"
+            # C3: 硬编码主机同样过白名单 (E2 — 100% 凭据出站点有门禁, 防常量漂移)
+            check_credential_egress(url)
             payload = {
                 "model": model, "max_tokens": max_tokens if max_tokens else 500,
                 "messages": messages,
@@ -842,6 +844,8 @@ class LLMService:
         """调用 Anthropic API."""
         api_key = self._get_api_key(cfg.api_key_env, provider_name)
         url = "https://api.anthropic.com/v1/messages"
+        # C3: 硬编码主机同样过白名单 (E2 — 100% 凭据出站点有门禁, 防常量漂移)
+        check_credential_egress(url)
         payload = {
             "model": model,
             # anthropic 要求显式 max_tokens, 默认沿用历史 500

@@ -76,11 +76,14 @@ def uptime_s() -> float:
     return time.time() - _START_TIME
 
 
-def log_event(event: str, **fields: Any) -> None:
+def log_event(event: str, level: str = "info", **fields: Any) -> None:
     """统一事件打点入口。
 
     Args:
         event: 事件名（kebab-case 推荐）
+        level: 日志级别 (debug/info/warning/error, 默认 info)。
+            v0.8.6 P0-10 日志降噪: 例行成功/心跳类事件传 ``level="debug"``
+            (生产 INFO 基线下不落盘), 有信息量的信号维持 info+。
         **fields: 任意 key=value 字段（必含 trace_id, level 由 logger 注入）
 
     v0.7 Batch 1 变更: 由 ``logger.info(event, extra=payload)`` 改为
@@ -100,7 +103,8 @@ def log_event(event: str, **fields: Any) -> None:
                 fields.setdefault("trace_id", "")
         fields.setdefault("event", event)
         # bind 把所有 key 平铺到 record["extra"]; message 段记 event 名
-        logger.bind(**fields).info(event)
+        method = level if level in ("debug", "info", "warning", "error") else "info"
+        getattr(logger.bind(**fields), method)(event)
     except Exception:
         # 日志失败永不阻塞业务
         pass

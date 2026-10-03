@@ -131,11 +131,12 @@ class QualityGatePipeline:
         context: GateContext,
         mode_str: str,
     ) -> GateResult:
-        """执行单个门禁, 异常 fail-closed (P2-5)。
+        """执行单个门禁, 异常 fail-closed (P2-5 / E13)。
 
-        门禁崩溃不再转 passed=True 免检 — 改为 passed=False + gate_crashed
-        flag + 扣 15 分, 让崩溃可见 (strict 模式因此拒绝, loose 模式打标),
-        避免"任一 gate 代码缺陷 → 该关全放行"。
+        门禁崩溃不再转 passed=True 免检 — 与 gate 内 ``_wrap_exception``
+        走**同一个** fail-closed 结果构造点 (passed=False + gate_crashed
+        flag + 扣 15 分), 让崩溃可见 (strict 拒绝, loose 打标), 避免
+        "任一 gate 代码缺陷 → 该关全放行", 也杜绝两条异常路径结论分叉。
         """
         try:
             return gate.check(item, context)
@@ -144,14 +145,7 @@ class QualityGatePipeline:
                 f"gate {gate.name} crashed (fail-closed)",
                 extra={"trace_id": "", "item_id": item.id, "error": str(e)},
             )
-            return GateResult(
-                gate_name=gate.name,
-                passed=False,
-                flags=["gate_crashed"],
-                score_deduction=15,
-                reason=f"gate crashed: {type(e).__name__}: {str(e)[:200]}",
-                error_msg=f"{type(e).__name__}: {str(e)[:200]}",
-            )
+            return gate._wrap_exception(item, e)
 
     def run_all(
         self,

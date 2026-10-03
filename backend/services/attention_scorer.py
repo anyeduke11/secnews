@@ -180,7 +180,7 @@ def batch_score() -> dict:
             return {"updated": 0, "errors": len(updates)}
 
     updated = len(updates)
-    logger.info(
+    logger.debug(  # P0-10: 例行成功 → DEBUG (errors>0 时下方另有明细)
         "batch_score completed",
         extra={"trace_id": "", "updated": updated, "errors": errors},
     )

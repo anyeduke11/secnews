@@ -189,7 +189,7 @@ class TrendRepository:
                 f"trend rebuild insert failed: {e}"
             ) from e
 
-        logger.info(
+        logger.debug(  # P0-10: 例行成功 → DEBUG
             "trend snapshots rebuilt",
             extra={
                 "trace_id": "",

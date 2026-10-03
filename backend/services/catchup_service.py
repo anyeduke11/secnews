@@ -356,6 +356,7 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
                                 )
                                 _clog.log_collect_event(
                                     "source_skipped",
+                                    level="debug",  # P0-10: 续传跳过属例行
                                     run_id=run_id,
                                     category=cat.value,
                                     source=name,
@@ -407,6 +408,7 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
             )
             _clog.log_collect_event(
                 "category_start",
+                level="debug",  # P0-10: 例行心跳
                 run_id=run_id,
                 category=cat.value,
                 n_sources=n_sources,
@@ -479,6 +481,7 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
                     sources_failed += cat_failed
                     _clog.log_collect_event(
                         "category_done",
+                        level="debug",  # P0-10: 例行心跳
                         run_id=run_id,
                         category=cat.value,
                         items=int(report.total),

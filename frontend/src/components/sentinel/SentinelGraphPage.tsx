@@ -439,7 +439,7 @@ export function SentinelGraphPage() {
           >
             画布模式
           </button>
-          <button type="button" className="kg-chip kg-chip-nav" onClick={() => navigate('/judge')}>回判读台</button>
+          <button type="button" className="kg-chip kg-chip-nav" onClick={() => navigate('/')}>回资讯首页</button>
         </div>
 
         <div className="kg-grid">
@@ -464,7 +464,7 @@ export function SentinelGraphPage() {
                 </div>
                 <h3>图谱暂无节点</h3>
                 <p>后端 /api/knowledge/graph 返回空集合。条目经编译产出概念后才会出现在这里。</p>
-                <button className="empty-cta" onClick={() => navigate('/judge')}>返回判读台</button>
+                <button className="empty-cta" onClick={() => navigate('/')}>返回资讯首页</button>
               </div>
             ) : (
               <>

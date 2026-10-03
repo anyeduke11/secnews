@@ -126,10 +126,15 @@ def sync_cve_to_security(limit: int = 500) -> dict:
         "total_processed": total_processed,
     }
 
-    logger.info(
+    # P0-10: 例行同步 (全零) → DEBUG; 有真实增量 (synced/updated>0) 或失败保持 info
+    _msg = (
         f"CVE sync: synced={synced} already_exists={already_exists} "
         f"updated={updated} failed={failed} total={total_processed}"
     )
+    if synced == 0 and updated == 0 and failed == 0:
+        logger.debug(_msg)
+    else:
+        logger.info(_msg)
     return report
 
 

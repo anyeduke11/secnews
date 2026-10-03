@@ -12,10 +12,13 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+# 仓库根 (backend/ 的上级) — .env 所在地, 相对路径的稳定锚点 (P0-9/F0-12a)
+_REPO_ROOT = BASE_DIR.parent
 
 # v0.6.3 P1-2: 显式加载仓库根 .env —— 此前仅 pydantic-settings 读 HOTSPOT_*
 # 前缀字段, 而 LLM provider 凭据 (SENSENOVA_API_KEY 等) 走 os.getenv,
@@ -124,6 +127,26 @@ class Settings(BaseSettings):
     llm_wiki_v2: bool = True
     # repo root (BASE_DIR = backend/, llm-wiki-2.0/ 在 repo 根目录与 knowledge/ 平级)
     llm_wiki_v2_path: Path = BASE_DIR.parent / "llm-wiki-2.0"
+
+    # v0.8.6 P0-9 / 审计 F0-12a (R6): 磁盘路径字段统一锚定到仓库根。
+    # 此前 env 提供的相对路径 (如 HOTSPOT_DB_PATH=data/hotspot.db) 按启动
+    # CWD 解析 — 换目录启动即打开全新空库, 却 ATTACH 真实 warm 库
+    # (磁盘上 0 字节 data/hotspot.db 为证, main/warm 读写分裂)。.env 就在
+    # 仓库根, 相对路径语义随之锚定: 任意 CWD 启动解析到同一文件。
+    @field_validator(
+        "log_dir", "db_path", "backup_dir", "data_dir",
+        "warm_db_path", "cold_db_path", "llm_wiki_v2_path",
+        mode="after",
+    )
+    @classmethod
+    def _anchor_to_repo_root(cls, v: Path) -> Path:
+        p = Path(v)
+        if not p.is_absolute():
+            p = _REPO_ROOT / p
+        # 注意: 不做 resolve() — 符号链接解析会改变路径表示 (macOS /var →
+        # /private/var), 破坏 conftest 按会话根字符串前缀做的 T01 隔离断言;
+        # 锚定仓库根已足以保证 CWD 无关。
+        return p
 
 
 # 全局单例

@@ -212,14 +212,19 @@ class CollectionRepository:
         simhash_signed: int,
         url_canonical: str,
         title_norm: str,
+        table: str = "content_fingerprints",
     ) -> int:
         """补写一条指纹 (UNIQUE(hotspot_id) 冲突时 OR IGNORE 忽略).
 
         返回 rowcount — 0 表示该 hotspot 指纹已存在 (幂等命中)。
         原 collection_dedup.write_fingerprints 循环内 INSERT OR IGNORE。
+
+        P0-7 (审计 E15): ``table`` 由宿主经 ``db.warm_table`` 解析后注入
+        (生产表在 warm, 单库在 main) — repo 不自行探测, 与注入连接保持
+        同一解析源。
         """
         cur = self._c().execute(
-            """INSERT OR IGNORE INTO content_fingerprints
+            f"""INSERT OR IGNORE INTO {table}
                (hotspot_id, simhash, url_canonical, title_norm)
                VALUES (?, ?, ?, ?)""",
             (hotspot_id, simhash_signed, url_canonical, title_norm),

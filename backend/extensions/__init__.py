@@ -95,6 +95,9 @@ EXTENSION_ROUTERS: dict[str, list[str]] = {
     "info_filter": [              # v0.8 P1 独立资讯筛选门禁
         "info_filter_api",        #   /api/info-filter/* (CRUD + preview + gate)
     ],
+    "trigger_gate": [             # P0-8 (E11 完整性): _registry.py 按
+        "trigger_webhook_api",    #   is_extension_enabled("trigger_gate") 注册
+    ],                            #   webhook /trigger/* (此前漏登记, features 端点漏报)
     "interest_engine": [          # DEV-0182 Workbench Focus: 兴趣引擎
         "interest_api",           #   /api/interest/* (信号 + 权重 + reset)
     ],
@@ -103,6 +106,10 @@ EXTENSION_ROUTERS: dict[str, list[str]] = {
     ],
     "skill_registry": [           # v0.8 Phase A A3: Skill 商店
         "skill_registry_api",     #   /api/skill-registry/* (列表/详情/启停/run 入队)
+        # P0-8 (E11 完整性): 同 gate 分支还有 2 个模块此前漏登记 —
+        # _registry.py skill_registry 分支共注册 3 个 router
+        "skill_registry_v1_api",  #   /api/skill-registry/v1/* (v1 路径, 须先注册)
+        "skill_registry_runs_api",  # /api/skill-registry/* 运行历史 + 反馈
     ],
     # security_graph 不占 router (security / kl_* 属 core 核心安全数据),
     # 只控制 mitre_sync / cve_sync_to_security 两个 job

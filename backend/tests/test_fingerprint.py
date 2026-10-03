@@ -57,7 +57,10 @@ def _make_mock_conn(
     def execute_side_effect(sql, *args):
         cursor = MagicMock()
         stripped = sql.strip()
-        if stripped.startswith("SELECT") and "simhash" in stripped:
+        if stripped.upper().startswith("PRAGMA DATABASE_LIST"):
+            # P0-7 warm_table accessor: 单库模式 (仅 main) → 裸表名
+            cursor.fetchall.return_value = [("0", "main", "/tmp/hotspot.db")]
+        elif stripped.startswith("SELECT") and "simhash" in stripped:
             cursor.fetchall.return_value = simhash_rows or []
         elif stripped.startswith("SELECT") and "url_canonical" in stripped:
             cursor.fetchall.return_value = url_rows or []

@@ -121,7 +121,7 @@ class CollectionService:
     async def _run_once_locked(self) -> CollectionReport:
         started_at = datetime.now(timezone.utc)
         start_ms = time.time()
-        self.logger.info("collection started")
+        self.logger.debug("collection started")  # P0-10: 例行心跳
 
         # Phase 8 Addendum 8.4: 注入 custom_sources (用户源优先, 追加不覆盖)
         inject_custom_sources(self.collectors, self.logger)

@@ -19,7 +19,11 @@ async def kl_trigger_t1_job() -> None:
     try:
         t1 = T1Trigger()
         report = await asyncio.to_thread(t1.run_once)
-        logger.info(
+        # P0-10: 空转 (candidates=0 且 failed=0) 是常态 → DEBUG;
+        # 有候选或有失败时保持 INFO (审计 R1: 空转 4793 次/日是日志噪声主力)
+        _idle = report["candidates"] == 0 and report["failed"] == 0
+        _log = _logger.debug if _idle else _logger.info
+        _log(
             f"kl_trigger_t1_job: candidates={report['candidates']} "
             f"advanced={report['advanced']} "
             f"skipped_duplicate={report['skipped_duplicate']} "
@@ -38,7 +42,9 @@ async def kl_trigger_t2_job() -> None:
     try:
         t2 = T2Trigger()
         report = await asyncio.to_thread(t2.run_once)
-        logger.info(
+        _idle = report["candidates"] == 0 and report["failed"] == 0  # P0-10
+        _log = _logger.debug if _idle else _logger.info
+        _log(
             f"kl_trigger_t2_job: candidates={report['candidates']} "
             f"advanced={report['advanced']} "
             f"low_link={report['low_link']} "
@@ -84,7 +90,9 @@ async def kl_trigger_t3_job() -> None:
     try:
         t3 = T3Trigger()
         report = await asyncio.to_thread(t3.run_once)
-        logger.info(
+        _idle = report["candidates"] == 0 and report["failed"] == 0  # P0-10
+        _log = _logger.debug if _idle else _logger.info
+        _log(
             f"kl_trigger_t3_job: candidates={report['candidates']} "
             f"advanced={report['advanced']} "
             f"low_link={report['low_link']} "
@@ -100,7 +108,9 @@ async def kl_trigger_t4_job() -> None:
     try:
         t4 = T4Trigger()
         report = await asyncio.to_thread(t4.run_once)
-        logger.info(
+        _idle = report["candidates"] == 0 and report["failed"] == 0  # P0-10
+        _log = _logger.debug if _idle else _logger.info
+        _log(
             f"kl_trigger_t4_job: candidates={report['candidates']} "
             f"advanced={report['advanced']} "
             f"skipped_low_score={report['skipped_low_score']} "

@@ -521,8 +521,9 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
 
         run_id = _uuid4().hex[:8]
         start = _time.time()
-        log_event(
+        log_event(  # P0-10: 例行心跳 → DEBUG
             "collect_start",
+            level="debug",
             collector=self.name,
             category=self.category.value,
             run_id=run_id,
@@ -534,8 +535,9 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
             # Phase 13: 不调 _fallback,直接返回空。避免合成假数据。
             duration_ms = int((_time.time() - start) * 1000)
             self.last_source_results = []
-            log_event(
+            log_event(  # P0-10: 例行心跳 → DEBUG
                 "collect_end",
+                level="debug",
                 collector=self.name,
                 category=self.category.value,
                 run_id=run_id,
@@ -614,8 +616,9 @@ class BaseCollector(FetchersMixin, ItemBuilderMixin, QualityGatesMixin, ABC):
         fallback_count = sum(1 for it in all_items if it.is_fallback)
         # Phase 9: 把收集到的 source_results 暴露给 CollectionService
         self.last_source_results = collected_source_results
-        log_event(
+        log_event(  # P0-10: 例行心跳 → DEBUG
             "collect_end",
+            level="debug",
             collector=self.name,
             category=self.category.value,
             run_id=run_id,

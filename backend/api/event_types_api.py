@@ -14,10 +14,10 @@ Endpoints
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from backend.exceptions import InvalidParamException, NotFoundException
+from backend.exceptions import ConflictException, InvalidParamException, NotFoundException
 from backend.repository.event_technique_repo import EventTechniqueCandidateRepo, EventTypeRepo
 from backend.services.attack_label_service import AttackLabelService
 from backend.services.event_technique_review_service import EventTechniqueReviewService

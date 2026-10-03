@@ -43,6 +43,19 @@ from pathlib import Path
 from backend.config import config
 from backend.logging_config import logger
 
+
+def _secure_artifact(path: Path) -> None:
+    """备份产物权限收紧 0600 — v0.8.6 P0-9 / 审计 F0-12b (R6)。
+
+    备份 .db / knowledge zip / 增量 .bin 与线上库同含 llm_secrets 密文
+    与全量正文, 落盘默认 0644 等于把库复制成全机可读。失败仅 warning
+    (权限不阻断备份链)。
+    """
+    try:
+        os.chmod(path, 0o600)
+    except OSError as e:
+        logger.warning(f"chmod 0600 failed for {path}: {e}")
+
 # P0-C: 1 → 3 (单份保留 = 任何一次写坏/删错即丢全部备份); 每族 (hot/warm/cold)
 # 独立计数, 7 天一次 full snapshot 轮转不变。
 BACKUP_RETENTION = 3
@@ -83,6 +96,7 @@ def _backup_knowledge(ts: str) -> Path | None:
                 if ".conflicts" in rel.parts or "__pycache__" in rel.parts or ".DS_Store" in f.name:
                     continue
                 zf.write(f, rel)
+        _secure_artifact(dst)  # P0-9/F0-12b: 全量正文 zip 0600
         logger.info(f"knowledge backup: {dst.name}")
         return dst
     except Exception as e:
@@ -148,7 +162,9 @@ def _sha256_file(path: Path) -> str:
 def _write_sha_sidecar(path: Path) -> str:
     """写旁车 .sha256 (格式 `sha  filename`, sha256sum 兼容), 返回 sha。"""
     sha = _sha256_file(path)
-    path.with_suffix(path.suffix + ".sha256").write_text(f"{sha}  {path.name}\n")
+    sidecar = path.with_suffix(path.suffix + ".sha256")
+    sidecar.write_text(f"{sha}  {path.name}\n")
+    _secure_artifact(sidecar)  # P0-9/F0-12b
     return sha
 
 
@@ -173,6 +189,7 @@ def _snapshot_db(src: Path, dst: Path) -> int:
         dst.unlink(missing_ok=True)
         logger.error(f"backup artifact is 0 bytes: {dst} (src={src})")
         raise RuntimeError(f"backup artifact is 0 bytes: {dst.name} (src={src})")
+    _secure_artifact(dst)  # P0-9/F0-12b: 快照与线上库同密级
     return size
 
 
@@ -200,6 +217,7 @@ def backup_side_dbs(ts: str, extra_entries: list[dict] | None = None) -> list[di
     manifest_path.write_text(
         json.dumps({"ts": ts, "dbs": entries}, ensure_ascii=False, indent=2)
     )
+    _secure_artifact(manifest_path)  # P0-9/F0-12b
 
     # 每族独立保留策略 (hot 全量走 backup_database 自己的清理, 不在此处)
     for kind in ("warm", "cold"):
@@ -234,6 +252,7 @@ def restore_from_backup(db_file: Path, knowledge_zip: Path | None = None) -> dic
         dst = Path(config.db_path)
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(db_file, dst)
+        _secure_artifact(dst)  # P0-9/F0-12b: 恢复后的线上库同密级
         result["db"] = True
         result["paths"]["db"] = str(dst)
     if knowledge_zip is not None and knowledge_zip.exists():
@@ -519,7 +538,9 @@ def backup_incremental(force_full: bool = False) -> dict:
     )
     sha = hashlib.sha256(payload).hexdigest()
     inc_path.write_bytes(payload)
+    _secure_artifact(inc_path)  # P0-9/F0-12b
     inc_path.with_suffix(inc_path.suffix + ".sha256").write_text(f"{sha}  {inc_path.name}\n")
+    _secure_artifact(inc_path.with_suffix(inc_path.suffix + ".sha256"))  # P0-9/F0-12b
 
     if not pages:
         # P0-C: 不再静默 "成功" — WAL 存在但没读到帧时告警留痕
@@ -540,6 +561,7 @@ def backup_incremental(force_full: bool = False) -> dict:
                 if ".conflicts" in f.parts or ".DS_Store" in f.name:
                     continue
                 zf.write(f, f.relative_to(KNOWLEDGE_DIR.parent))
+        _secure_artifact(zf_path)  # P0-9/F0-12b
         zf_size = zf_path.stat().st_size
     except Exception as e:
         logger.warning(f"knowledge incremental zip failed: {e}")

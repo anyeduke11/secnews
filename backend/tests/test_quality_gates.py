@@ -625,7 +625,7 @@ def test_url_check_status_priority_in_duplicate_gate():
 # BaseGate exception isolation
 # ===========================================================================
 def test_base_gate_wrap_exception_helper():
-    """_wrap_exception 应把异常转成 GateResult(error_msg=...)。"""
+    """E13/P0-12: _wrap_exception 必须 fail-closed, 不冒充通过。"""
 
     class StubGate(BaseGate):
         name = "stub"
@@ -636,10 +636,12 @@ def test_base_gate_wrap_exception_helper():
     g = StubGate()
     item = _make_item()
     r = g._wrap_exception(item, RuntimeError("boom"))
-    assert r.passed is True
+    assert r.passed is False
     assert r.error_msg is not None
     assert "boom" in r.error_msg
-    assert r.score_deduction == 0
+    assert r.score_deduction == 15
+    assert r.flags == ["gate_crashed"]
+    assert r.reason and "gate crashed" in r.reason
 
 
 def test_base_gate_is_abstract():

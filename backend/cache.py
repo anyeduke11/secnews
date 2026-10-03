@@ -77,8 +77,9 @@ class TTLCache:
             entry = self._store.get(key)
             if entry is None:
                 self.misses += 1
-                log_event(
+                log_event(  # P0-10: 例行缓存事件 → DEBUG
                     "cache_miss",
+                    level="debug",
                     cache_name=self.name,
                     key=key,
                     misses=self.misses,
@@ -90,8 +91,9 @@ class TTLCache:
                 # expired
                 del self._store[key]
                 self.misses += 1
-                log_event(
+                log_event(  # P0-10: 例行缓存事件 → DEBUG
                     "cache_miss",
+                    level="debug",
                     cache_name=self.name,
                     key=key,
                     reason="expired",
@@ -164,8 +166,9 @@ class TTLCache:
                 del self._store[k]
             self.invalidations += len(matched)
         if matched:
-            log_event(
+            log_event(  # P0-10: 例行缓存事件 → DEBUG
                 "cache_invalidate",
+                level="debug",
                 cache_name=self.name,
                 pattern=pattern,
                 n_invalidated=len(matched),

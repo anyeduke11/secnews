@@ -21,7 +21,7 @@ thread-local 语义依赖这一点。
 from collections import defaultdict
 
 from backend.repository.collection_repo import CollectionRepository
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, warm_table
 from backend.services.simhash import (
     canonicalize_url,
     hamming_distance,
@@ -70,10 +70,12 @@ def dedup_items(items: list, logger) -> list:
         return items
 
     conn = get_connection()
+    # P0-7 (E15): 表路由声明化 — 每批解析一次 (查询数不随条目数增长)
+    fp_table = warm_table("content_fingerprints", conn)
 
     # Load existing fingerprints
     existing_rows = conn.execute(
-        "SELECT hotspot_id, simhash FROM content_fingerprints"
+        f"SELECT hotspot_id, simhash FROM {fp_table}"
     ).fetchall()
     # Convert from signed 64-bit (SQLite) to unsigned 64-bit (Python)
     existing = [
@@ -100,7 +102,7 @@ def dedup_items(items: list, logger) -> list:
     existing_urls = {
         row[0]
         for row in conn.execute(
-            "SELECT url_canonical FROM content_fingerprints"
+            f"SELECT url_canonical FROM {fp_table}"
         ).fetchall()
     }
 
@@ -171,6 +173,8 @@ def write_fingerprints(items: list, logger) -> int:
     # collection_dedup 命名空间 patch get_connection, 注入保证写语句
     # 与 commit 落在同一连接 (含测试 mock)。
     repo = CollectionRepository(conn)
+    # P0-7 (E15): 表路由声明化 (生产 warm / 单库 main), 每批解析一次
+    fp_table = warm_table("content_fingerprints", conn)
     written = 0
     try:
         for item in items:
@@ -185,6 +189,7 @@ def write_fingerprints(items: list, logger) -> int:
                 _to_signed_64(fp),
                 url_canonical or "",
                 title_norm or "",
+                table=fp_table,
             )
         conn.commit()
     except Exception as e:

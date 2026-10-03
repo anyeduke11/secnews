@@ -160,7 +160,9 @@ class SourceAlerter:
                         f"type={a['type']} detail={a['detail']}"
                     )
 
-        logger.info(
+        # P0-10: 零告警例行检查 → DEBUG (有告警时上方逐条 warning 可见)
+        _log = logger.info if triggered else logger.debug
+        _log(
             f"source_alerter: checked {len(active_sources)} sources, "
             f"triggered {triggered} alerts "
             f"(P1={p1_count}, P2={p2_count})"

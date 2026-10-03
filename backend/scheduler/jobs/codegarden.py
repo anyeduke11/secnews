@@ -50,7 +50,9 @@ async def cg_service_scan_job() -> None:
         from backend.services.codegarden_service_service import CodegardenServiceService
         svc = CodegardenServiceService()
         result = await asyncio.to_thread(svc.scan_local_services)
-        _logger.info(
+        # P0-10: 无新建的例行扫描 → DEBUG
+        _log = _logger.info if result["created"] else _logger.debug
+        _log(
             f"cg_service_scan_job: scanned={result['scanned']} "
             f"created={result['created']} updated={result['updated']}"
         )
@@ -105,7 +107,9 @@ async def cg_drift_assess_job() -> None:
     try:
         from backend.services.codegarden_drift import assess_drift
         report = await asyncio.to_thread(assess_drift)
-        logger.info(
+        # P0-10: 零新增例行评估 → DEBUG
+        _log = logger.info if report["matched_count"] else logger.debug
+        _log(
             f"cg_drift_assess_job: {report['matched_count']} new assessments, "
             f"{len(report['new_techs'])} techs, "
             f"{len(report['affected_projects'])} projects"

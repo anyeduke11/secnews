@@ -75,8 +75,9 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
         route = request.scope.get("route")
         path_template = getattr(route, "path", request.url.path)
 
-        log_event(
+        log_event(  # P0-10: 访问日志属例行流量 → DEBUG (5xx 路径保持 info)
             "api_request",
+            level="debug",
             method=request.method,
             path=request.url.path,
             trace_id=trace_id,
@@ -127,8 +128,9 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
         duration_ms = (time.time() - start) * 1000
         response.headers[TRACE_HEADER] = trace_id
         response.headers["X-Duration-Ms"] = f"{duration_ms:.2f}"
-        log_event(
+        log_event(  # P0-10: 成功响应访问日志 → DEBUG (异常路径 status=500 保持 info)
             "api_response",
+            level="debug",
             method=request.method,
             path=request.url.path,
             status=response.status_code,

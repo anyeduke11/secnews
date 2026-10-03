@@ -258,8 +258,8 @@ class TestAllCategories:
 # 异常处理
 # ---------------------------------------------------------------------------
 class TestRobustness:
-    def test_exception_in_check_returns_passed_with_error(self):
-        """内部异常 → 不应 crash, 走 _wrap_exception。"""
+    def test_exception_in_check_returns_fail_closed_result(self):
+        """内部异常 → 不 crash, 走 _wrap_exception 且 fail-closed (E13/P0-12)。"""
         # 构造一个会出错的 item (eg 强制 type 错误)
         # 这里用 model_construct 构造一个 timezone 异常的 published_at
         item = HotspotItem.model_construct(
@@ -270,7 +270,8 @@ class TestRobustness:
             quality_score=100, quality_flags=[],
         )
         result = RecencyGate().check(item, _ctx())
-        # _wrap_exception 返回 passed=True + error_msg
+        # E13: 崩溃不冒充通过 — passed=False + gate_crashed + 扣 15 分
         assert result.error_msg is not None
-        assert result.passed is True
-        assert result.score_deduction == 0
+        assert result.passed is False
+        assert result.score_deduction == 15
+        assert "gate_crashed" in result.flags

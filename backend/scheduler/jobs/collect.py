@@ -374,7 +374,9 @@ async def source_scheduler_tick_job() -> None:
 
         result = await svc.tick()
         if result["scheduled"] > 0:
-            _logger.info(
+            # P0-10: 全成功 tick 例行 → DEBUG; 有失败保持 info (需人看见)
+            _log = _logger.info if result["failed"] > 0 else _logger.debug
+            _log(
                 f"source_scheduler_tick_job: scheduled={result['scheduled']} "
                 f"succeeded={result['succeeded']} failed={result['failed']} "
                 f"skipped={result['skipped']}"
@@ -567,7 +569,7 @@ async def alert_evaluator_job() -> None:
                 _logger.warning(f"alert_evaluator: hotspot {hid} failed: {e}")
 
         if evaluated:
-            _logger.info(f"alert_evaluator_job: evaluated {evaluated} hotspots")
+            _logger.debug(f"alert_evaluator_job: evaluated {evaluated} hotspots")  # P0-10: 60s 例行
     except Exception as e:
         _logger.error(f"alert_evaluator_job crashed: {e}")
 
@@ -594,12 +596,22 @@ async def v1_signal_intake_tick_job() -> None:
         from backend.services.v1_ingest_bridge import run_intake_tick
 
         summary = await run_intake_tick()
-        if summary["sources_run"] > 0 or summary["totals"]["materials_committed"] > 0:
+        t = summary["totals"]
+        _active = t["materials_committed"] > 0 or t["signals_committed"] > 0 or t["signals_denied"] > 0
+        if summary["sources_run"] > 0 and _active:
+            # P0-10: 空转 tick (run 但零提交) → DEBUG; 有真实产出入账
             _logger.info(
                 f"v1_signal_intake_tick: run={summary['sources_run']} "
-                f"materials+{summary['totals']['materials_committed']} "
-                f"signals+{summary['totals']['signals_committed']} "
-                f"denied={summary['totals']['signals_denied']}"
+                f"materials+{t['materials_committed']} "
+                f"signals+{t['signals_committed']} "
+                f"denied={t['signals_denied']}"
+            )
+        elif summary["sources_run"] > 0:
+            _logger.debug(
+                f"v1_signal_intake_tick: run={summary['sources_run']} "
+                f"materials+{t['materials_committed']} "
+                f"signals+{t['signals_committed']} "
+                f"denied={t['signals_denied']}"
             )
     except Exception as e:
         _logger.error(f"v1_signal_intake_tick_job crashed: {e}")
@@ -638,7 +650,7 @@ async def _pick_score_tick() -> None:
 
         result = await asyncio.to_thread(refresh_pick_scores)
         if result.get("evaluated"):
-            _logger.info(
+            _logger.debug(  # P0-10: 采集尾部例行评分 → DEBUG
                 f"pick_score: evaluated={result['evaluated']} "
                 f"picked={result['picked']}"
             )

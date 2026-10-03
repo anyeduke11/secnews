@@ -115,7 +115,8 @@ def _run_enrichment_sync() -> None:
                     except (ValueError, TypeError):
                         pass
             if backfilled:
-                _logger.info(f"security_enrichment_job: backfilled {backfilled} item_entities")
+                # P0-10: 例行回填 (每日同量) → DEBUG
+                _logger.debug(f"security_enrichment_job: backfilled {backfilled} item_entities")
         except Exception as e:
             _logger.warning(f"item_entities backfill failed: {e}")
 
@@ -237,7 +238,9 @@ def _run_enrichment_sync() -> None:
                 _logger.warning(f"security_enrichment_job item {eid} failed: {item_err}")
 
         conn.commit()
-        _logger.info(f"security_enrichment_job: processed {len(rows)} items, enriched {count}")
+        # P0-10: 零富化例行 → DEBUG
+        _log = _logger.info if count else _logger.debug
+        _log(f"security_enrichment_job: processed {len(rows)} items, enriched {count}")
     except Exception as e:
         _logger.error(f"security_enrichment_job crashed: {e}")
 
@@ -247,7 +250,13 @@ async def cve_sync_to_security_job() -> None:
     try:
         from backend.services.cve_knowledge_sync import sync_cve_to_security
         report = await asyncio.to_thread(sync_cve_to_security)
-        logger.info(
+        # P0-10: 全零同步 (例行幂等命中) → DEBUG
+        _log = (
+            logger.info
+            if (report["synced"] or report["updated"] or report["failed"])
+            else logger.debug
+        )
+        _log(
             f"cve_sync_to_security_job: synced={report['synced']} "
             f"updated={report['updated']} failed={report['failed']}"
         )
@@ -348,7 +357,13 @@ def _run_entity_concept_sync() -> None:
                 _logger.warning(f"concept link {name} failed: {e}")
 
         conn.commit()
-        _logger.info(
+        # P0-10: 全零同步 (例行幂等命中) → DEBUG
+        _log = (
+            _logger.info
+            if (synced or concept_created or concept_linked)
+            else _logger.debug
+        )
+        _log(
             f"security_entity_concept_sync_job: entities={len(rows)} "
             f"synced={synced} concept_created={concept_created} concept_linked={concept_linked}"
         )

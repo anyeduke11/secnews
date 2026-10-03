@@ -110,7 +110,7 @@ async def run_url_content_check(
         log_repo.write_log(item.id, result, mode=mode)
 
     await asyncio.gather(*[_check(it) for it in sampled], return_exceptions=True)
-    _quality_logger.info(
+    _quality_logger.debug(  # P0-10: 例行完成 → DEBUG (mismatch/failed 已逐条落库)
         "url content check done",
         extra={
             "trace_id": "",

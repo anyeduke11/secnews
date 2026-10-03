@@ -8,9 +8,8 @@ import React from 'react';
 export const SentinelHomePage = React.lazy(() =>
   import('../components/sentinel/SentinelHomePage').then(m => ({ default: m.SentinelHomePage }))
 );
-export const SentinelJudgePage = React.lazy(() =>
-  import('../components/sentinel/SentinelJudgePage').then(m => ({ default: m.SentinelJudgePage }))
-);
+// P0-8/E10: SentinelJudgePage 已物理删除 (NAV4 后 /judge 恒 redirect, 组件 563 行不可达;
+// 判读能力由 SentinelHomePage 质量区承接)
 export const SentinelGraphPage = React.lazy(() =>
   import('../components/sentinel/SentinelGraphPage').then(m => ({ default: m.SentinelGraphPage }))
 );

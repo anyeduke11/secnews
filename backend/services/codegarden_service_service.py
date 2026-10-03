@@ -270,7 +270,9 @@ class CodegardenServiceService:
             except Exception as e:
                 logger.warning(f"scan upsert failed for {svc.get('name')}: {e}")
 
-        logger.info(
+        # P0-10: 无新建的例行扫描 → DEBUG (失败路径 warning 不变)
+        _log = logger.info if created else logger.debug
+        _log(
             f"scan_local_services: cleaned={cleaned['deleted']} "
             f"lsof={len(lsof_svcs)} docker={len(docker_svcs)} "
             f"pm2={len(pm2_svcs)} → created={created} updated={updated}"

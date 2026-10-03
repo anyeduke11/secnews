@@ -79,7 +79,9 @@ async def knowledge_classify_job() -> None:
             except Exception as e:
                 errors += 1
                 _logger.warning(f"knowledge_classify item {item_id} failed: {e}")
-        _logger.info(
+        # P0-10: 例行扫描 (无更新无错误) → DEBUG
+        _log = _logger.info if (updated or errors) else _logger.debug
+        _log(
             f"knowledge_classify_job: scanned={len(rows)} updated={updated} errors={errors}"
         )
 
@@ -244,7 +246,9 @@ async def knowledge_chunk_generation_job() -> None:
                 created += result["created"]
             else:
                 skipped += 1
-        _logger.info(
+        # P0-10: 全跳过 (created=0) 例行 → DEBUG
+        _log = _logger.info if created else _logger.debug
+        _log(
             f"knowledge_chunk_generation_job: candidates={len(rows)} "
             f"created_chunks={created} skipped={skipped}"
         )
@@ -373,7 +377,7 @@ async def auto_extract_job() -> None:
             extracted += 1
 
         if extracted:
-            _logger.info(f"auto_extract_job: extracted {extracted} hotspots")
+            _logger.debug(f"auto_extract_job: extracted {extracted} hotspots")  # P0-10: 60s 例行
     except Exception as e:
         _logger.error(f"auto_extract_job crashed: {e}")
 

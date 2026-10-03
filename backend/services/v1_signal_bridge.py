@@ -106,12 +106,14 @@ def run_hotspot_signal_bridge(
     """
     summary: dict[str, Any] = {
         "candidates": 0, "mirrored": 0, "signals_committed": 0,
-        "signals_idempotent": 0, "denied": 0, "kl_stubs": 0, "error": None,
+        "signals_idempotent": 0, "denied": 0, "kl_stubs": 0,
+        "scored": 0, "score_skipped": 0, "error": None,
     }
     try:
         from backend.domain.knowledge_models import KnowledgeItem
         from backend.repository.db import get_connection
         from backend.repository.knowledge_repo import knowledge_repo
+        from backend.services.ai_write_back import write_score
         from backend.services.info_filter_service import list_rules
         from backend.services.v1_admission_service import AdmissionVerdict, V1AdmissionService
         from backend.services.v1_evidence_service import IdempotentReplay, V1EvidenceService
@@ -195,8 +197,9 @@ def run_hotspot_signal_bridge(
 
             # kl:raw stub — 喂 T1 评分链 (upsert 幂等)
             now = _now_iso()
+            kl_id = "kl-" + _sha(f"hotspot:{mat_id}")[:24]
             knowledge_repo.upsert_item(KnowledgeItem(
-                id="kl-" + _sha(f"hotspot:{mat_id}")[:24],
+                id=kl_id,
                 title=body["title"],
                 source="secnews",
                 source_url=body["url"],
@@ -206,6 +209,28 @@ def run_hotspot_signal_bridge(
                 updated_at=now,
             ))
             summary["kl_stubs"] += 1
+
+            # 桥内直接评分 (P1-2a 定稿裁决): 采集管线在采集时已写 content_fingerprints,
+            # T1 dedup 对 hotspot 派生 stub 恒拦 → T1 评分环节对主流供米永不触达。
+            # 评分与生命周期解耦: 桥对放行条目直接 gateway.score → ai_scores
+            # (失败/不可用 → None → 诚实不写, P0-6/E3 语义; T1 对漏网 kl:raw 仍会评,
+            #  _get_latest_score 取最新一行, 双写无冲突)。
+            try:
+                import asyncio as _asyncio
+
+                from backend.services.ai_hub.gateway import llm_service
+
+                score = _asyncio.run(llm_service.score(
+                    f"{body['title']} {body['summary']}".strip(), kl_id,
+                ))
+                if score is not None:
+                    write_score(kl_id, score, reason="v1-bridge", scorer="gateway.score")
+                    summary["scored"] += 1
+                else:
+                    summary["score_skipped"] += 1
+            except Exception as score_exc:  # 评分失败不阻断分流主链
+                summary["score_skipped"] += 1
+                logger.debug(f"v1_signal_bridge score skipped: {score_exc}")
     except Exception as e:  # 桥故障不反噬主采集流 (job 侧同款隔离)
         summary["error"] = f"{type(e).__name__}: {e}"
         logger.error(f"v1_signal_bridge crashed: {summary['error']}")

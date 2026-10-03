@@ -106,6 +106,56 @@ def test_bridge_window_excludes_stale(temp_db) -> None:
     assert summary["signals_committed"] == 0
 
 
+def test_bridge_scores_admitted_items_into_ai_scores(temp_db, monkeypatch) -> None:
+    """评分链契约 (P1-2a 定稿): 放行条目桥内直接 gateway.score → ai_scores 落行。
+
+    采集管线采集时已写 content_fingerprints → T1 dedup 对 hotspot 派生 stub 恒拦,
+    T1 评分环节永不触达主流供米 — 评分必须与生命周期解耦, 在桥内完成。
+    """
+    _seed_hotspot("h_4", url="https://x/4")
+
+    import asyncio
+
+    from backend.services.ai_hub import gateway as gw_mod
+
+    async def _fake_score(content: str, hotspot_id: str = "") -> float | None:
+        return 8.0
+
+    monkeypatch.setattr(gw_mod.llm_service, "score", _fake_score)
+    summary = run_hotspot_signal_bridge()
+    assert summary["scored"] >= 1
+    assert summary["score_skipped"] == 0
+
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT hotspot_id, score, scorer FROM ai_scores WHERE hotspot_id LIKE 'kl-%'"
+    ).fetchone()
+    assert row is not None
+    assert row[1] == 8.0 and row[2] == "gateway.score"
+    # ai_scores.hotspot_id 与 knowledge_items.id 对得上 (回溯链)
+    assert conn.execute(
+        "SELECT COUNT(*) FROM knowledge_items WHERE id = ?", (row[0],)
+    ).fetchone()[0] == 1
+    asyncio.get_event_loop  # noqa: B018 — asyncio import 供 monkeypatch 作用域一致性
+
+
+def test_bridge_score_unavailable_writes_nothing(temp_db, monkeypatch) -> None:
+    """P0-6/E3: 评分失败 → None → 诚实不写 (不落 5.0 假成功, 只计数)。"""
+    _seed_hotspot("h_5", url="https://x/5")
+
+    from backend.services.ai_hub import gateway as gw_mod
+
+    async def _fail_score(content: str, hotspot_id: str = "") -> float | None:
+        return None
+
+    monkeypatch.setattr(gw_mod.llm_service, "score", _fail_score)
+    summary = run_hotspot_signal_bridge()
+    assert summary["signals_committed"] >= 1  # 分流不受评分影响
+    assert summary["scored"] == 0 and summary["score_skipped"] >= 1
+    conn = get_connection()
+    assert conn.execute("SELECT COUNT(*) FROM ai_scores").fetchone()[0] == 0
+
+
 def test_migration_132_ai_scores_accepts_kl_ids(temp_db) -> None:
     """DEV-0268 根因锁: ai_scores 剥跨域 FK 后 kl-* id 可评分落行 (原 FK→hotspots 恒炸)。"""
     from backend.services.ai_write_back import write_score

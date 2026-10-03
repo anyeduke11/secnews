@@ -38,8 +38,14 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _fetch_candidates(window_hours: int, limit: int) -> list[dict[str, Any]]:
-    """近窗 hotspots 增量 — 已镜像条目靠 mat id 幂等跳过, 不设状态表。"""
+def _fetch_candidates(window_hours: int, limit: int) -> tuple[list[dict[str, Any]], int]:
+    """近窗 hotspots 增量 — 全窗拉取后 Python 侧过滤已镜像再截 limit。
+
+    修复 (DEV-0268 后记): 原 SQL LIMIT 先截断 + material 幂等跳过 → 桥永久
+    卡在头部同一批 (fetched_at DESC 不变, mirrored 全命中 → 100% 跳过, 尾部
+    候选永不轮转)。改为全窗拉取 (轻量 SELECT) → known 过滤 → 再截 limit。
+    Returns (candidates, mirrored_skipped)。
+    """
     from backend.repository.db import get_connection
 
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=window_hours)).isoformat()
@@ -48,10 +54,22 @@ def _fetch_candidates(window_hours: int, limit: int) -> list[dict[str, Any]]:
         "FROM hotspots "
         "WHERE is_hidden = 0 AND title != '' AND url != '' "
         "  AND COALESCE(fetched_at, published_at, ingested_at) >= ? "
-        "ORDER BY fetched_at DESC LIMIT ?",
-        (cutoff, limit),
+        "ORDER BY fetched_at DESC",
+        (cutoff,),
     ).fetchall()
-    return [dict(r) for r in rows]
+    hotspots = [dict(r) for r in rows]
+    if not hotspots:
+        return [], 0
+    # material id = sha(url|title) — 窗口内先算先滤, 未镜像的才进批
+    def _mat_id(h: dict[str, Any]) -> str:
+        return "mat" + _sha(f"{str(h.get('url') or '').strip()}|{str(h.get('title') or '').strip()}")[:24]
+
+    ids = [_mat_id(h) for h in hotspots]
+    marks = ",".join("?" for _ in ids)
+    known = {r[0] for r in get_connection().execute(
+        f"SELECT id FROM v1_materials WHERE id IN ({marks})", ids).fetchall()}
+    fresh = [h for h, mid in zip(hotspots, ids, strict=True) if mid not in known]
+    return fresh[:limit], len(known)
 
 
 def _material_body(hotspot: dict[str, Any]) -> dict[str, Any]:
@@ -99,21 +117,14 @@ def run_hotspot_signal_bridge(
         from backend.services.v1_evidence_service import IdempotentReplay, V1EvidenceService
 
         conn = get_connection()
-        hotspot_rows = _fetch_candidates(window_hours, limit)
-        summary["candidates"] = len(hotspot_rows)
-        if not hotspot_rows:
+        fresh, mirrored_skipped = _fetch_candidates(window_hours, limit)
+        summary["candidates"] = len(fresh)
+        summary["mirrored"] = mirrored_skipped
+        if not fresh:
             return summary
 
-        # 已镜像 → 跳过 (内容寻址 id 稳定; 免重复 admission + 信号重放)
-        bodies = [_material_body(h) for h in hotspot_rows]
-        ids = [b["id"] for b in bodies]
-        marks = ",".join("?" for _ in ids)
-        known = {r[0] for r in conn.execute(
-            f"SELECT id FROM v1_materials WHERE id IN ({marks})", ids).fetchall()}
-        summary["mirrored"] = len(known)
-        bodies = [b for b in bodies if b["id"] not in known]
-        if not bodies:
-            return summary
+        # 已镜像已在 _fetch_candidates 内过滤 — bodies 即本轮新增
+        bodies = [_material_body(h) for h in fresh]
 
         try:
             rules = list_rules(conn, enabled_only=True)

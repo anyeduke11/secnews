@@ -29,7 +29,9 @@
 - **落地** (按 DEV-0267 冻结设计): `services/v1_signal_bridge.py` — hotspots 24h 窗口(限 50/轮) → admission.evaluate(info_filter 门) → deny=quarantine / 放行 → v1_materials 镜像 + v1_signals(unverified) + knowledge_items stub(kl:raw 喂 T1); 三重幂等 (mat 内容寻址 / signal key / kl upsert); 挂 `v1_signal_intake_tick_job` 尾部 (零新 job)。
 - **生产实跑**: 50 候选 → **50 signals + 50 kl stubs** 落库 (规则空=neutral; deny 路径测试桩锁定)。T1 60s tick + 300s debounce → ~6 分钟后 ai_scores 首行 (T4 真门前置达成)。
 - **验证**: 新 4/4; 受影响面 375 passed (1 存量 agent_bridge 已复证); ruff 0; meta --fix **156 services** 同步; loguru %s 字面量日志 bug 修。
-- **遗留**: P1-2b T4 真门 (ai_scores>0 前置已备) / signals ≥120/30d 需多源扩容 (bridge 已按多源就绪, 现仅主采集流); 24h 后复核信号增速。
+- **两处追加修复** (commit 6002c72 / 0eb0045 / 30ee05e): ① 桥候选翻页 (SQL LIMIT 先截断+幂等跳过=永卡头部 50 条 → 全窗拉取后过滤再截, 1249 条候选正常轮转); ② **migration 132** ai_scores 剥跨域 FK (生产铁证: score ok=1 而 ai_scores 零行+write_score failed warning — hotspot_id REFERENCES hotspots(id) 对 kl-* 每插必炸被吞, 155+ 次历史评分全丢); ③ **评分改道进桥** (采集管线采集时写 content_fingerprints → T1 dedup 对 hotspot 派生 stub 恒拦 100%, T1 评分环节永不触达 → 桥内 gateway.score 直接评, 失败 None 诚实不写)。
+- **验收达成**: ai_scores **47 行 / 均分 2.77 / 0-8.5 分布** (T4 真门前置 ✓); signals 1397 (≥120/30d 必达); 全链闭环 hotspot→admission→material/signal→kl stub→score。桥 30min/轮 (挂 intake tick), 24h 窗口排空后进入增量稳态。
+- **遗留**: P1-2b T4 真门 (前置已达成) / P1-2c semantic_filter+ai_classify 主流量化细化 / 24h 后复核信号增速与评分延迟 (桥 30min 一轮)。
 
 ### 2026-10-03 v0.8.6 P1-1 收官: 旧 judgments/generate 退役 410 + P1-2a 立案 — DEV-0267
 

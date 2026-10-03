@@ -117,3 +117,14 @@ def reject_proposal(proposal_id: str, body: RejectBody) -> dict[str, Any]:
 
 
 __all__ = ["router"]
+
+
+@router.post("/runs/{run_id}/retry")
+def retry_run(run_id: str) -> dict[str, Any]:
+    """P1-1 收尾: failed Run 原地重试 (账本 proposal Run 产物化失败场景)。
+
+    人的批准双签已成立; 重试仅复位该 Run 并重走 md 产物化 + sha256 登记,
+    重试再失败 Run 保持 failed 且原异常上抛 (500)。非 failed / 非账本
+    Run / 提案非 approved → 409/400。
+    """
+    return _svc().retry_run(run_id)

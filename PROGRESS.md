@@ -17,6 +17,13 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-03 v0.8.6 P1-1 收尾: failed Run 原地重试端点 — DEV-0266
+
+- **范围**: `run_repo.py` / `run_ledger_service.py` / `run_ledger_api.py` 三文件小改, 零迁移零新 router (93/155 不变)。`update_status/update_outcome` 传 None 不清列 → repo 新增 `reset_for_retry` 显式复位 (status→running, outcome/error/reason/result_excerpt/artifact_ids/finished_at 清空); service `retry_run` 三重守卫 (仅 status=failed + action_id 锚 `proposal:<id>` + 提案 approved) 后复位并重走产物化; API `POST /api/proposals/runs/{run_id}/retry` (404/409/400)。
+- **裁决**: ① 同 Run 行复位而非新建行 — 回溯链 JOIN 走 proposals.run_id, 新行断链且违反切片1 幂等不变量, 失败史留应用日志 (outbox 归因随 G1 失败面板); ② 无 reviewed_by — 双签在批准时已成立, 重试属执行侧动作。
+- **验证**: test_run_ledger 33/33 (§9 +4); 受影响面 458 passed, 2 失败 (agent_bridge/agent_runner_schema) stash 复证 HEAD 同样失败 = 存量环境性非回归; ruff 4 文件 0; `generate_meta --check` OK; 需生产重启后端点才在线。
+- **遗留**: P1-1 仅剩旧 /api/v1/judgments/generate 收编 (dsh 绕审批直落, 另开工单); 前端重试按钮随 G1 失败面板。
+
 ### 2026-10-03 v0.8.6 P1-1 切片3 审批收件箱前端 + Case 页 AI 起草接线（用例 A UI 闭环）— DEV-0265
 
 - **范围**: 纯前端, 闭合切片2 遗留两条: ① `/action` 审批收件箱区块; ② Case 页"AI 起草研判"按钮接线。零后端变更、零新路由 (NAV4 硬规则: 新能力只能以四菜单区块进入)。
@@ -25,7 +32,7 @@
 - **CaseDetail.tsx**: 判断区按钮文案改「AI 起草研判」, handler 改调 draftJudgment (移除旧 generateJudgment import; 无证据前置警告保留; CVE 必填前置删除——后端只要求绑定证据); 返回 status=failed 走 error toast 并指引到 /action 收件箱, draft 成功 toast 指引收件箱。**Rule 7 裁决**: 旧 `POST /api/v1/judgments/generate`（dsh 直落 draft 绕过审批）前端按钮退役, api/v1.ts 包装与后端端点保留运行, 收编另开工单（Rule 3 不超范围）。
 - **测试**: ApprovalInbox.test.tsx 6 用例（字段+橙标、批准二次确认且成功重拉、修订非法 JSON 拦截/合法带 payload、驳回必填≤200、failed 有/无 case 锚点重试、拉取失败 unavailable）; SentinelActionPage.test.tsx fetch mock 补 `/api/proposals` 空队列分支（新区块挂载导致 19 处渲染崩溃的修复; 本页测试不涉收件箱交互）。
 - **验证**: `npx tsc --noEmit` 0 错; `npx vitest run` **663/663**（94 文件, 新增 6）; `npx vite build --logLevel error` 0 错。无需 generate_meta（纯前端无 service/router 增减, 数字仍 93/155）; 无需生产重启（后端零变更）。
-- **遗留**: failed Run 重试端点（approved proposal + run failed 场景, 凭 run_id 定位）; 旧 /api/v1/judgments/generate 端点收编; 用例 A 验收③ v1_runs 月增 ≥10 待全链路运营观察; P1-1 三切片代码全部交付, 改动未 git commit。
+- **遗留**: failed Run 重试端点（approved proposal + run failed 场景, 凭 run_id 定位）; 旧 /api/v1/judgments/generate 端点收编; 用例 A 验收③ v1_runs 月增 ≥10 待全链路运营观察。P1-1 三切片已按批提交（`f3c4940` P0-7~P0-12 / `ccf6f8e` 切片1+2 / `caa7bd9` 切片3 / `ee3acb1` 文档）并生产重启生效（migration 131 落库, /api/proposals 在线）。
 
 ### 2026-10-03 v0.8.6 P1-1 切片2 AI 起草研判接线 + 研判产物 sha256 登记（用例 A 后端闭环）— DEV-0264
 

@@ -426,3 +426,87 @@ def test_api_draft_judgment_success_and_artifact_chain(
         "GROUP BY r.id", (run_id,),
     ).fetchone()
     assert tuple(row) == ("succeeded", "done", 1)
+
+
+# ── 9. failed Run 原地重试 (DEV-0266, P1-1 收尾) ─────────────────────
+def test_retry_run_recovers_after_transient_artifact_failure(svc):
+    """产物化失败 Run 凭 run_id 重试: 复位→重产物化→succeeded/done, 失败痕迹清零。"""
+    svc._artifact_service = _ExplodingArtifacts()
+    _bind_case_evidence("case_G", {"id": "mat_7", "url": "https://src.example.com/g/7"})
+    p = svc.draft_judgment("case_G", drafter=_good_drafter)
+    with pytest.raises(RuntimeError, match="disk failure"):
+        svc.approve_proposal(p["id"], reviewed_by="owner")
+
+    anchor = f"proposal:{p['id']}"
+    run = svc.runs.find_by_idem(anchor, anchor)
+    assert run["status"] == "failed" and run["outcome"] == "failed"
+    assert "disk failure" in (run["error"] or "")
+
+    class _OkArtifacts:
+        def create(self, **kwargs):
+            return {"id": "art_retry_ok", "status": "pending"}
+
+    svc._artifact_service = _OkArtifacts()
+    retried = svc.retry_run(run["id"])
+    assert retried["status"] == "succeeded" and retried["outcome"] == "done"
+    assert retried["error"] is None  # 复位后账本行不留旧失败原因
+    assert retried["artifact_ids"] == ["art_retry_ok"]
+    # 同一 Run 行 + proposal.run_id 回指不变 → 回溯链与"一提案一 Run"保持
+    p2 = svc.get_proposal(p["id"])
+    assert p2["run_id"] == run["id"] and p2["status"] == "approved"
+
+
+def test_retry_run_guards_failed_state_and_ledger_domain(svc):
+    from backend.exceptions import NotFoundException
+
+    _bind_case_evidence("case_H", {"id": "mat_8", "url": "https://x/8"})
+    p = svc.draft_judgment("case_H", drafter=_good_drafter)
+    approved = svc.approve_proposal(p["id"], reviewed_by="owner")
+    # 非 failed 态拒绝重试 (409 语义)
+    with pytest.raises(ProposalConflictError, match="only failed run"):
+        svc.retry_run(approved["run_id"])
+    # 非账本 Run (action_id 非 proposal: 锚点) 拒绝 (400 语义)
+    svc.runs.insert({
+        "id": "run_RAW", "action_id": "action_RAW", "protocol": "direct",
+        "trigger_source": "user", "idempotency_key": "k_raw", "status": "failed",
+        "created_at": "2026-10-03T00:00:00+00:00",
+        "updated_at": "2026-10-03T00:00:00+00:00",
+    })
+    with pytest.raises(ProposalValidationError, match="not a ledger proposal run"):
+        svc.retry_run("run_RAW")
+    # 未知 run (404 语义)
+    with pytest.raises(NotFoundException, match="run not found"):
+        svc.retry_run("run_NOPE")
+
+
+def test_retry_run_conflicts_when_proposal_not_approved(svc):
+    """failed Run 锚到非 approved 提案 (手工构造边界) → 409 语义。"""
+    p = svc.create_proposal(
+        source="agent", kind="judgment_draft",
+        payload={"claim": "x"}, case_id="case_Z",
+    )
+    svc.runs.insert({
+        "id": "run_ORPHAN", "action_id": f"proposal:{p['id']}",
+        "protocol": "direct", "trigger_source": "user",
+        "idempotency_key": f"proposal:{p['id']}", "status": "failed",
+        "created_at": "2026-10-03T00:00:00+00:00",
+        "updated_at": "2026-10-03T00:00:00+00:00",
+    })
+    with pytest.raises(ProposalConflictError, match="not approved"):
+        svc.retry_run("run_ORPHAN")
+
+
+def test_api_retry_run_maps_409_and_404(e2e_api_client, monkeypatch):
+    """HTTP 契约: succeeded Run 重试 → 409; 未知 run → 404 (成功路径由 service 层覆盖)。"""
+    import backend.services.run_ledger_service as mod
+    monkeypatch.setattr(mod, "ai_draft_judgment", _good_drafter)
+    _bind_case_evidence("case_I", {"id": "mat_9", "url": "https://x/9"})
+    client = e2e_api_client
+    pid = client.post(
+        "/api/proposals/draft-judgment", json={"case_id": "case_I"},
+    ).json()["id"]
+    r = client.post(f"/api/proposals/{pid}/approve", json={"reviewed_by": "owner"})
+    assert r.status_code == 200
+    run_id = r.json()["run_id"]
+    assert client.post(f"/api/proposals/runs/{run_id}/retry").status_code == 409
+    assert client.post("/api/proposals/runs/run_NOPE/retry").status_code == 404

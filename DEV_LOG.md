@@ -1,4 +1,16 @@
 
+## [DEV-0266] v0.8.6 P1-1 收尾: failed Run 原地重试端点 — 产物化失败可凭 run_id 重跑 (p1-1-retry-run)
+
+- **时间**: 2026-10-03
+- **类型**: 功能 (v0.8.6 PRD P1-1 遗留收尾; 用例 A 异常流的执行侧闭环)
+- **关联模块**: `backend:run-ledger`, `backend:v1-run-repo`, `docs:prd`
+- **修改**: `repository/run_repo.py` (+`reset_for_retry` — `update_status/update_outcome` 传 None 不清列, 复位语义需显式 UPDATE: status→running + outcome/error/reason/result_excerpt/artifact_ids/finished_at 清空 + revision+1), `services/run_ledger_service.py` (+`retry_run`: 三重守卫 — 仅 status=failed 且 action_id 锚 `proposal:<id>` 且底层提案 approved; 复位后重走 `_materialize_judgment_artifact`, 再失败仍 failed/failed 原异常上抛), `api/run_ledger_api.py` (POST /api/proposals/runs/{run_id}/retry; 404/409/400 语义 + 路由清单头注释)
+- **设计裁决**: ① 重试=同 Run 行复位而非新建 — artifact→run→proposal 回溯 JOIN 走 proposals.run_id, 新行断链且违反切片1 "一提案一 Run" 幂等不变量; 失败史留应用日志 (归因列/outbox 告警随 G1 失败面板批次) ② 不设 reviewed_by — 人的双签在批准时已成立, 重试属执行侧动作
+- **测试**: `test_run_ledger.py` §9 +4 (瞬态产物化失败→重试成功+error 清零+run_id 回指不变 / 非 failed·非账本·未知 run 三守卫 / 提案非 approved 冲突 / HTTP 409+404 映射); 文件 33/33; 受影响面 458 passed (run/artifact/proposal/judgment/core_routers); 2 失败 (agent_bridge/agent_runner_schema) stash 复证 HEAD 同样失败 = 存量环境性, 非本批回归
+- **验证**: ruff 触碰 4 文件 0 错; `generate_meta --check` OK (93 routers / 155 services 不变); py_compile 过
+- **遗留**: P1-1 仅剩旧 /api/v1/judgments/generate 收编 (dsh 绕审批直落, 另开工单); 审批收件箱前端 failed Run 重试按钮随 G1 失败面板批次
+- **下一可用号**: DEV-0267
+
 ## [DEV-0265] v0.8.6 P1-1 切片3: 审批收件箱前端 + Case 页 AI 起草接线 — 用例 A UI 闭环 (p1-1-slice3-inbox-ui)
 
 - **时间**: 2026-10-03

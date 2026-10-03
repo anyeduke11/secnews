@@ -157,6 +157,24 @@ class RunRepository:
         self._c().commit()
         return cur.rowcount
 
+    def reset_for_retry(self, run_id: str, *, started_at: str) -> int:
+        """P1-1 failed Run 原地重试: 清终态与失败痕迹, 回到 running。
+
+        仅限调用方守卫后的账本 proposal Run (status='failed') — 失败史留应用
+        日志, 账本行保持"一提案一 Run"不变量与 artifact 命名稳定。
+        update_status/update_outcome 传 None 不清列, 复位语义需要显式 UPDATE。
+        """
+        cur = self._c().execute(
+            "UPDATE v1_runs SET status = 'running', outcome = NULL, error = NULL, "
+            "reason = NULL, result_excerpt = NULL, artifact_ids_json = '[]', "
+            "finished_at = NULL, duration_ms = NULL, started_at = ?, "
+            "revision = revision + 1, updated_at = datetime('now', 'localtime') "
+            "WHERE id = ?",
+            (started_at, run_id),
+        )
+        self._c().commit()
+        return cur.rowcount
+
     def _row_to_dict(self, row: sqlite3.Row) -> dict[str, Any]:
         d = dict(row)
         for k in ("inputs", "steps", "artifact_ids", "allowed_actions", "plan"):

@@ -279,6 +279,38 @@ class RunLedgerService:
         assert result is not None
         return result
 
+    def retry_run(self, run_id: str) -> dict[str, Any]:
+        """P1-1 收尾: failed Run 原地重试 (产物化失败场景, 凭 run_id 定位)。
+
+        仅账本域 Run (action_id=proposal:<id>) 且 status=failed 且底层提案
+        approved 可重试 — 人的双签已成立, 重试只重走 md 产物化 + sha256 登记。
+        同一 Run 行复位 (outcome/error 清空) 后重跑: 保持"一提案一 Run"不变量、
+        proposal.run_id 回指与 artifact 文件名稳定; 失败史留应用日志 (G1 失败
+        面板批次再接 outbox 告警)。重试再失败 → failed/failed + 原异常上抛。
+        """
+        run = self.runs.get(run_id)
+        if run is None:
+            raise NotFoundException("run not found")
+        if run["status"] != "failed":
+            raise ProposalConflictError(
+                f"only failed run can be retried (current={run['status']})"
+            )
+        anchor = run.get("action_id") or ""
+        if not anchor.startswith("proposal:"):
+            raise ProposalValidationError("run is not a ledger proposal run")
+        proposal = self._get_or_raise(anchor.split(":", 1)[1])
+        if proposal["status"] != "approved":
+            raise ProposalConflictError(
+                f"underlying proposal not approved (current={proposal['status']})"
+            )
+        self.runs.reset_for_retry(run_id, started_at=_utcnow_iso())
+        self._materialize_judgment_artifact(
+            run_id=run_id, proposal=proposal, payload=proposal["payload"],
+        )
+        result = self.runs.get(run_id)
+        assert result is not None
+        return result
+
     # ── 研判产物物化 (切片 2) ────────────────────────────────────────
     def _artifact_svc(self) -> Any:
         if self._artifact_service is None:

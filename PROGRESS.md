@@ -24,6 +24,13 @@
 - **验证**: test_run_ledger 33/33 (§9 +4); 受影响面 458 passed, 2 失败 (agent_bridge/agent_runner_schema) stash 复证 HEAD 同样失败 = 存量环境性非回归; ruff 4 文件 0; `generate_meta --check` OK; 需生产重启后端点才在线。
 - **遗留**: P1-1 仅剩旧 /api/v1/judgments/generate 收编 (dsh 绕审批直落, 另开工单); 前端重试按钮随 G1 失败面板。
 
+### 2026-10-03 v0.8.6 P1-2a: v1_signal_bridge 主流桥落地 (T1 供米) — DEV-0268
+
+- **落地** (按 DEV-0267 冻结设计): `services/v1_signal_bridge.py` — hotspots 24h 窗口(限 50/轮) → admission.evaluate(info_filter 门) → deny=quarantine / 放行 → v1_materials 镜像 + v1_signals(unverified) + knowledge_items stub(kl:raw 喂 T1); 三重幂等 (mat 内容寻址 / signal key / kl upsert); 挂 `v1_signal_intake_tick_job` 尾部 (零新 job)。
+- **生产实跑**: 50 候选 → **50 signals + 50 kl stubs** 落库 (规则空=neutral; deny 路径测试桩锁定)。T1 60s tick + 300s debounce → ~6 分钟后 ai_scores 首行 (T4 真门前置达成)。
+- **验证**: 新 4/4; 受影响面 375 passed (1 存量 agent_bridge 已复证); ruff 0; meta --fix **156 services** 同步; loguru %s 字面量日志 bug 修。
+- **遗留**: P1-2b T4 真门 (ai_scores>0 前置已备) / signals ≥120/30d 需多源扩容 (bridge 已按多源就绪, 现仅主采集流); 24h 后复核信号增速。
+
 ### 2026-10-03 v0.8.6 P1-1 收官: 旧 judgments/generate 退役 410 + P1-2a 立案 — DEV-0267
 
 - **收编** (DEV-0267): `POST /api/v1/judgments/generate` → **410 E_RETIRED** + 指引 `/api/proposals/draft-judgment` (路由保留语义退役, parity/契约面不变; dsh 直落 draft 与"人主律"冲突故整体作废)。`judgment_api.py` 删直落分支; 测试改退役断言 + 造数走 service 桩 dsh; 前端 v1.ts 删包装 (无 UI 调用方); 金走查 S13 锁退役契约 (200=FAIL 回退 / 404=FAIL 缺路由)。`create_with_dsh` service 保留 (SK-02/pi 域)。验证: 8/8 + 受影响面 159 passed + tsc 0 + ruff 0 + meta OK; 生产需重启。

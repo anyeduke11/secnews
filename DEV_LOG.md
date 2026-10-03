@@ -1,4 +1,16 @@
 
+## [DEV-0268] v0.8.6 P1-2a: v1_signal_bridge 主流桥落地 — hotspots→signals/kl:raw, T1 评分链复活的供米侧 (p1-2a-signal-bridge)
+
+- **时间**: 2026-10-03
+- **类型**: 功能 (v0.8.6 PRD P1-2 第一刀; 按 DEV-0267 冻结设计实施)
+- **关联模块**: `backend:v1-signal-bridge`, `backend:scheduler-collect`, `docs:prd`
+- **新建**: `services/v1_signal_bridge.py` (`run_hotspot_signal_bridge`: hotspots 24h 窗口限 50/轮 → `V1AdmissionService.evaluate` (info_filter 语义门, deny→quarantine 不产信号) → allow/neutral → v1_materials 镜像 (mat+sha256(url|title) 内容寻址, 与 V1IngestBridge 同构幂等) + v1_signals(unverified) + knowledge_items stub (kl:raw 喂 T1 评分); 每源 subject ensure; IdempotentReplay 三重幂等), `tests/test_v1_signal_bridge.py` (4: 主路径落库断言/重复轮幂等/deny 零痕迹(桩 evaluate)/窗口外不回扫)
+- **修改**: `scheduler/jobs/collect.py::v1_signal_intake_tick_job` 尾部挂桥 (asyncio.to_thread, 异常隔离只 log — 零新 job 零注册面, 58 jobs 不变)
+- **生产实跑**: 50 候选 → 50 signals + 50 kl stubs (info_filter 规则空=neutral 放行; deny 路径由测试桩锁定); material/signals/knowledge_items 三表落库验证过
+- **验证**: 新 4/4; 受影响面 375 passed (signal/intake/bridge/admission/info_filter/collect; 1 failed=存量 agent_bridge 上轮 stash 已复证); ruff 0; generate_meta **156 services** (155→+1, --fix 已同步 5 文档); 日志修 loguru %s→f-string (打字面量 bug)
+- **链路预期**: T1 60s tick + RAW_MIN_AGE 300s debounce → 桥产出 ~6 分钟后 ai_scores 首行; T4 真门前置 (ai_scores 非 0) 达成后接 P1-2b (T4 真门)
+- **下一可用号**: DEV-0269
+
 ## [DEV-0267] v0.8.6 P1-1 收官: 旧 /api/v1/judgments/generate 退役 410 — 起草唯一入口收编审批箱 (p1-1-retire-generate)
 
 - **时间**: 2026-10-03

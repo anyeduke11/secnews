@@ -616,6 +616,17 @@ async def v1_signal_intake_tick_job() -> None:
     except Exception as e:
         _logger.error(f"v1_signal_intake_tick_job crashed: {e}")
 
+    # v0.8.6 P1-2a: hotspots 主流 → v1_signals 桥 (语义门准入 → material/signal/kl:raw stub,
+    # 喂活 T1 评分链; 设计冻结见 DEV-0267)。失败只 log 不抛, 与上方 intake 同隔离模式。
+    try:
+        from backend.services.v1_signal_bridge import run_hotspot_signal_bridge
+
+        await asyncio.to_thread(
+            run_hotspot_signal_bridge,
+        )
+    except Exception as e:
+        _logger.error(f"v1_signal_bridge crashed: {e}")
+
 
 async def _news_alert_tick() -> None:
     """采集尾部: 资讯告警评估 (spec 2026-09-27 four-modes §2.1)。

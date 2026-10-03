@@ -104,3 +104,19 @@ def test_bridge_window_excludes_stale(temp_db) -> None:
     summary = run_hotspot_signal_bridge(window_hours=24)
     assert summary["candidates"] == 0
     assert summary["signals_committed"] == 0
+
+
+def test_migration_132_ai_scores_accepts_kl_ids(temp_db) -> None:
+    """DEV-0268 根因锁: ai_scores 剥跨域 FK 后 kl-* id 可评分落行 (原 FK→hotspots 恒炸)。"""
+    from backend.services.ai_write_back import write_score
+
+    conn = get_connection()
+    assert conn.execute(
+        "PRAGMA foreign_key_list(ai_scores)"
+    ).fetchall() == []  # 无跨域 FK
+    row_id = write_score("kl-nonexistent", 7.5, reason="t1 llm", scorer="llm_service")
+    assert row_id is not None  # 原 FK 下恒 None (IntegrityError 被吞)
+    row = conn.execute(
+        "SELECT hotspot_id, score, scorer FROM ai_scores WHERE id = ?", (row_id,)
+    ).fetchone()
+    assert row[0] == "kl-nonexistent" and row[1] == 7.5

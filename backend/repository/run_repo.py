@@ -24,8 +24,9 @@ class RunRepository:
             " idempotency_key, status, inputs_json, steps_json, "
             " budget_tokens, budget_seconds, started_at, finished_at, duration_ms, "
             " result_excerpt, error, artifact_ids_json, "
-            " revision, created_at, updated_at, allowed_actions_json, reason) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " revision, created_at, updated_at, allowed_actions_json, reason, "
+            " plan_json, policy_version, outcome) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 r["id"], r["action_id"], r.get("attempt", 1), r.get("skill_id"),
                 r["protocol"], r["trigger_source"], r["idempotency_key"],
@@ -40,6 +41,8 @@ class RunRepository:
                 r.get("created_at"), r.get("updated_at"),
                 json.dumps(r.get("allowed_actions", [])),
                 r.get("reason"),
+                json.dumps(r.get("plan", {}), ensure_ascii=False),
+                r.get("policy_version"), r.get("outcome"),
             ),
         )
         self._c().commit()
@@ -123,15 +126,46 @@ class RunRepository:
         self._c().commit()
         return cur.rowcount
 
+    def update_outcome(
+        self, run_id: str, outcome: str, *,
+        reason: str | None = None, policy_version: str | None = None,
+        finished_at: str | None = None, duration_ms: int | None = None,
+    ) -> int:
+        """P1-1/M1: 账本 outcome 终判 (done|failed|cancelled|timeout|needs_human)。
+
+        与 v1.0 七态 status 并存: outcome 是"账本语义结论", 供失败面板/G1 聚合。
+        """
+        sets = ["outcome = ?", "revision = revision + 1",
+                "updated_at = datetime('now', 'localtime')"]
+        params: list[Any] = [outcome]
+        if reason is not None:
+            sets.append("reason = ?")
+            params.append(reason)
+        if policy_version is not None:
+            sets.append("policy_version = ?")
+            params.append(policy_version)
+        if finished_at is not None:
+            sets.append("finished_at = ?")
+            params.append(finished_at)
+        if duration_ms is not None:
+            sets.append("duration_ms = ?")
+            params.append(duration_ms)
+        params.append(run_id)
+        cur = self._c().execute(
+            f"UPDATE v1_runs SET {', '.join(sets)} WHERE id = ?", params,
+        )
+        self._c().commit()
+        return cur.rowcount
+
     def _row_to_dict(self, row: sqlite3.Row) -> dict[str, Any]:
         d = dict(row)
-        for k in ("inputs", "steps", "artifact_ids", "allowed_actions"):
+        for k in ("inputs", "steps", "artifact_ids", "allowed_actions", "plan"):
             json_key = f"{k}_json"
             if json_key in d and d[json_key] is not None:
                 try:
                     d[k] = json.loads(d[json_key])
                 except (json.JSONDecodeError, TypeError):
-                    d[k] = [] if k != "inputs" else {}
+                    d[k] = {} if k in ("inputs", "plan") else []
             else:
-                d[k] = [] if k != "inputs" else {}
+                d[k] = {} if k in ("inputs", "plan") else []
         return d

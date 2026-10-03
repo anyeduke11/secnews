@@ -1,4 +1,52 @@
 
+## [DEV-0265] v0.8.6 P1-1 切片3: 审批收件箱前端 + Case 页 AI 起草接线 — 用例 A UI 闭环 (p1-1-slice3-inbox-ui)
+
+- **时间**: 2026-10-03
+- **类型**: 功能 (v0.8.6 PRD P1-1 用例 A 前端闭环; 纯前端, 零后端变更/零新路由)
+- **关联模块**: `frontend:action-page`, `frontend:v1-case`, `docs:prd`
+- **新建**: `src/api/proposals.ts` (Proposal 类型对齐 proposal_repo 行字典 + list/draft/approve/reject 四薄包装), `src/components/action/ApprovalInbox.tsx` (页内 section 区块挂 SentinelActionPage, PANEL_SHELL 同款令牌; draft/failed 双队列; 批准两步内联确认; 受控 JSON 修订 (非法拦截); 驳回必填≤200 字数计数; 写操作橙标; failed error_msg+重试起草 (重调 draft-judgment 生新提案, 无 case 锚点禁用); 单卡 busy/错误隔离; unavailable 不伪装), `src/components/action/ApprovalInbox.test.tsx` (6)
+- **修改**: `src/components/sentinel/SentinelActionPage.tsx` (+import +`<ApprovalInbox/>` 于 ExecOverviewPanel 前), `src/components/v1/CaseDetail.tsx` (判断区按钮改「AI 起草研判」接 draftJudgment; 移除旧 generateJudgment 前端调用与 CVE 必填前置; failed 状态 error toast 指引收件箱), `src/components/sentinel/SentinelActionPage.test.tsx` (fetch mock 补 /api/proposals 空队列)
+- **spec 联动 (PRD 回写)**: 用例 A 增切片3 实现裁决条 (区块挂载位置/交互契约/重试语义/旧按钮退役边界); §10 P1-1 行标注三切片均交付
+- **Rule 7 边界**: 旧 POST /api/v1/judgments/generate (dsh 绕审批直落 draft) 前端按钮退役, api/v1.ts 包装+后端端点保留, 收编另开工单
+- **测试**: tsc 0 错; vitest 663/663 (94 文件, +6); vite build 0 错; 无 generate_meta 需求 (93 routers/155 services 不变); 无需生产重启
+- **遗留**: failed Run 重试端点; 旧 judgment generate 端点收编; 用例 A 验收③ v1_runs 月增≥10 运营观察
+- **下一可用号**: DEV-0266
+
+## [DEV-0264] v0.8.6 P1-1 切片2: AI 起草研判接线 + 研判产物 sha256 登记 — 用例 A 后端闭环 (p1-1-slice2-draft-artifact)
+
+- **时间**: 2026-10-03
+- **类型**: 功能 (v0.8.6 PRD P1-1 用例 A 主流程 + 异常流后端闭环; 切片1 账本基座之上)
+- **关联模块**: `backend:run-ledger`, `backend:ai-hub`, `backend:v1-evidence`, `backend:v1-artifact`, `docs:prd`
+- **新建**: `services/judgment_drafter.py` (ai_hub task=report 命中 HEAVY/t3_summary, asyncio.run 同步桥; JSON fence 容错解析; claim/confidence 必填枚举, 不合法即显式错误不编造; md 渲染内嵌 Source url 与 sha256 溯源; prompt 版本 judgment-draft@v1), `tests/test_judgment_drafter.py` (8)
+- **修改**: `run_ledger_service.py` (draft_judgment 空证据 400/drafter 失败落 failed proposal 无污染; judgment_draft 批准改 running→md 落盘 data/run_artifacts/<run_id>.md→ArtifactService R08 sha256 读盘比对→succeeded/done 回挂 artifact_ids; 落盘/哈希失败 status=failed+outcome=failed 原异常上抛; 构造注入 evidence_repo/artifact_service), `api/run_ledger_api.py` (POST /api/proposals/draft-judgment), `tests/test_run_ledger.py` (§8 +8; 切片1 两条改 kind=report)
+- **spec 联动 (PRD 回写)**: 用例 A 增实现裁决条 — evidence_receipts 引用落为 v1_materials id (receipt 表是提交流水, material.url 才是回溯锚点); HEAVY task=report 零配置; 产物化 running→done; 失败 HTTP 200 status=failed
+- **测试**: 37/37 新集; 受影响面 103 passed (artifact/c05/c08/judgment/ops_runs/ledger/drafter); ruff 0; generate_meta --fix 同步 93 routers/155 services (无新 router, +1 service)
+- **边界留痕**: outbox 告警仅 logger.error 承接待 G1; failed Run 重试端点未做; 旧 /api/v1/judgments/generate (dsh 绕审批直落 draft) 未收编另开工单; UI 回溯在切片3 ApprovalInbox
+- **下一可用号**: DEV-0265
+
+## [DEV-0263] v0.8.6 P1-1 切片1: Run 账本后端基座 — migration 131 + v1_proposals + 提案审批→双签 Run (p1-1-slice1-ledger)
+
+- **时间**: 2026-10-02
+- **类型**: 功能 (v0.8.6 PRD P1-1 / M1 轴① 用例 A; P0 批次 12 项全部收口后 P1 第一项, 分三切片交付, 本批=后端账本基座)
+- **关联模块**: `backend:repository-db`, `backend:run-ledger`, `backend:api-registry`, `docs:prd`
+- **数据层**: migration `131_run_ledger.sql` — v1_runs ALTER ADD plan_json/policy_version/outcome (+idx_outcome, 生产库副本预演 OK, 历史行 outcome 留空不回填伪结论); v1_proposals 新表 (payload_json DDL CHECK ≤65536, 枚举沿用 101 约定不上 CHECK 走 service); command_log 新表 (P1-4 才写, 本批仅建表)
+- **代码**: `repository/proposal_repo.py` 新建; `run_repo.py` 插入点加 3 可选列 (v1.0 既有调用零改动) + `update_outcome()`; `services/run_ledger_service.py` 新建 (提案枚举校验/64KB/draft→approved 双签 Run 冻结 APP_VERSION=policy_version/reject reason 必填≤200/record_failed_proposal 空 payload 无污染/finish_run 五态终判); `api/run_ledger_api.py` 6 端点; 无条件 CORE 注册 + core/routers 白名单
+- **spec 联动 (PRD 回写)**: §8.1 v1_proposals status 初版四态漏列用例 A② 要求的 failed → 加 failed+error_msg/reject_reason/reviewed_at/run_id/case_id 并在 §8.1 标注补齐原因; outcome NOT NULL CHECK vs 存量表 ALTER+全库"不上 CHECK"约定冲突, 取后者 (可空+service 强制), 裁决留痕 PROGRESS
+- **测试**: test_run_ledger.py 21 passed (迁移/历史行/枚举/64KB service+DDL 双闸/审批 done Run+双签+policy 冻结/人修订覆盖/二次冲突/驳回规则/failed 显式无污染/needs_human 终判/HTTP 200/400/404); 受影响面 736 passed; ruff 0; generate_meta --fix 同步 93 routers/154 services
+- **编号治理**: 发现 P0-7~P0-12 前序会话在 PROGRESS 误标 DEV-0247~0252 (与本档既有条目撞号) → 顺延 0257~0262 (见下占位), 本批=0263, 下一可用号 0264
+- **切片边界**: AI 起草接线 + evidence_receipts + artifact sha256 登记/哈希校验失败 (切片2), /action 审批收件箱前端 (切片3), pi needs_human 执行体 (后续 action/command 通道; finish_run 入口已备)
+
+## [DEV-0257..0262] v0.8.6 P0-7~P0-12 止血批次 (编号占位 — 明细见 PROGRESS.md 当前活跃段)
+
+- **时间**: 2026-10-02
+- **说明**: 六批止血完成时仅落 PROGRESS 未追写本档, 且 PROGRESS 初标编号 (0247~0252) 与本档撞号; 2026-10-02 DEV-0263 时核对顺延。明细与测试证据以 PROGRESS.md 各条为准:
+- DEV-0257 = P0-7 warm 两处写库失败修复 (审计 E15, warm_table accessor + 悬空 FK 自愈)
+- DEV-0258 = P0-8 E9/E10 修复 + E11 CORE_ROUTERS 三向完整性断言
+- DEV-0259 = P0-9 正文抓取 SSRF+ssl 加固 / DB CWD 锚定 / 0600 权限位 (F0-11/F0-12)
+- DEV-0260 = P0-10 日志降噪 27 处 (基线重放降幅 82.1%, ≥80% 验收)
+- DEV-0261 = P0-11 egress 凭据出站门禁 6 站点收编 + AST 零豁免门禁 (E2/F4-1)
+- DEV-0262 = P0-12 BaseGate._wrap_exception 与 pipeline 统一 fail-closed (E13)
+
 ## [DEV-0256] v0.8.6 P0-6 落地: DEFAULT_SCORE 假成功删除 — 审计 E3, AI 失败=failed 不缓存不编造 (p06-e3-score)
 
 - **时间**: 2026-10-02

@@ -172,6 +172,8 @@ graph TD
 - **异常流程**：LLM 超时/拒绝 → proposal 落 outcome=failed（**不回落默认值、不缓存**），收件箱显示失败原因与重试按钮；执行体 pi 不可用 → Run=needs_human，收件箱转人工；产物哈希校验失败 → Run=failed + 告警事件。
 - **涉及数据**：v1_proposals（新）、v1_runs（扩）、v1_artifacts、v1_evidence_receipts、llm_usage_log。
 - **验收标准**：①任一 Artifact 可从 UI 一路回溯到 Source 原文；②构造 LLM 超时用例，断言 proposal.outcome=failed 且无默认值污染；③v1_runs 月增 ≥10。
+- **实现裁决（2026-10-03 P1-1 切片2，DEV-0264）**：① "evidence_receipts 引用"落为 `evidence_ids_json` = Case 绑定的 v1_materials id 列表（经 v1_case_materials；material.url 即 Source 原文，构成 Artifact→Run→Proposal→Case→Material.url 回溯链）；② HEAVY 档以 `task="report"` 命中 model_router t3_summary（config/llm.yaml: sensenova deepseek-v4-pro），零配置改动；prompt 版本冻结为 `judgment-draft@v1`；③ 批准 judgment_draft 时 Run 先 `running`，md 落盘 `data/run_artifacts/<run_id>.md` 并经 ArtifactService R08 读盘 sha256 比对登记成功后才 `succeeded/done`；落盘/哈希失败 → status=failed+outcome=failed（告警 outbox 留待 G1 批次）；④ 起草端点 `POST /api/proposals/draft-judgment`，模型失败回 HTTP 200 + status=failed（收件箱可重试），无绑定证据 400。failed Run 重试端点未做。
+- **实现裁决（2026-10-03 P1-1 切片3，DEV-0265，UI 落地）**：① 收件箱区块 `frontend/src/components/action/ApprovalInbox.tsx` 以页内 `<section>`（PANEL_SHELL 同款令牌）挂入 `/action`（`SentinelActionPage`，位于 ExecOverviewPanel 之前），**不新增路由/一级入口**（NAV4 四菜单纪律）；并行拉 `?status=draft` 与 `?status=failed`，拉取失败显 unavailable 不伪装空态；提案卡字段对齐 §7 = 类型/发起方/证据数/case/prompt 版本/正文预览，judgment_draft 与 knowledge_draft 挂「写操作」橙标。② 批准两步内联确认（按钮文案明示「将生成双签 Run」），修订=受控展开 JSON 原文，非法 JSON 客户端拦截不发请求；驳回原因必填、>200 客户端先挡（后端 400 兜底）。③ failed 卡显示 error_msg；重试=对原 case_id 再调 draft-judgment 生成**新提案**（无专用重试端点；无 case 锚点的失败提案按钮禁用）。④ Case 页按钮 `AI 起草研判` 改接 `/api/proposals/draft-judgment`（无证据前置警告；status=failed 走错误 toast 并指引到收件箱）；旧 `POST /api/v1/judgments/generate`（dsh 绕过审批）前端按钮退役、端点保留，收编另开工单。验收①UI 回溯链的收件箱端到此闭环（Artifact 详情侧回溯入口属既有 Case 页能力，本批未新增）。
 
 #### 用例 B：对话式命令栏（M4，轴④）
 
@@ -362,7 +364,7 @@ SentinelShell (四菜单 + 管道心跳条)
 | cost_tokens / duration_ms | INTEGER | 可空 | |
 | started_at / ended_at | TEXT | NOT NULL / 可空 | |
 
-**v1_proposals（新）**：id / source(agent|command|copilot) / kind(judgment_draft|case_suggestion|knowledge_draft|report) / payload_json（CHECK length ≤ 65536，防大对象入库）/ evidence_ids_json / prompt_version / status(draft|approved|rejected|expired) / reviewed_by / created_at。
+**v1_proposals（新）**：id / case_id（judgment_draft 归属，可空）/ source(agent|command|copilot) / kind(judgment_draft|case_suggestion|knowledge_draft|report) / payload_json（CHECK length ≤ 65536，防大对象入库）/ evidence_ids_json / prompt_version / status(draft|approved|rejected|expired|**failed**) / error_msg（failed 时 LLM 超时/拒绝原因，对应用例 A② 收件箱失败可重试；§8.1 初版四态漏列，2026-10-02 P1-1 切片1 补齐）/ reject_reason（人驳回，必填 ≤200）/ reviewed_by / reviewed_at / run_id（批准后关联 v1_runs）/ created_at。
 
 **command_log（新）**：id / input_text / intent / action_ref / run_id / outcome / created_at。
 
@@ -434,7 +436,7 @@ run record 即埋点：G1/G2 指标全部从 v1_runs/v1_proposals/command_log �
 
 | # | 任务 | 验收 |
 |---|------|------|
-| P1-1 | migration 131 + Run 账本服务 + 审批收件箱（M1） | 用例 A 验收 |
+| P1-1 | migration 131 + Run 账本服务 + 审批收件箱（M1）〔切片1 DEV-0263 后端账本 / 切片2 DEV-0264 起草+产物闭环 / 切片3 DEV-0265 收件箱 UI 均已交付；余 failed Run 重试端点 + 旧 judgment generate 端点收编〕 | 用例 A 验收 |
 | P1-2 | E1 后语义管线主流量化（semantic_filter/ai_classify 進 Signal 主路径）+ **T1 评分链路修复（ai_scores 产出 >0，现基线 0 行）先行** + T4 真门 | signals ≥120/30d；T4 真门前置：ai_scores 非 0，否则管线将死锁于 kl:structure（审查一发现） |
 | P1-3 | 副驾四卡（M3，全部走 proposal 通道） | 四卡各产出 ≥1 artifact |
 | P1-4 | 命令栏（M4） | 用例 B 验收 |

@@ -131,20 +131,6 @@ export interface EvidenceMaterial {
   summary?: string;
 }
 
-export interface GenerateJudgmentBody {
-  case_id: string;
-  cve_id: string;
-  subject_name: string;
-  evidence_materials: EvidenceMaterial[];
-  submitted_by?: string;
-}
-
-export interface GenerateJudgmentResponse {
-  version: string;
-  item: Judgment;
-  idempotent_replay: boolean;
-}
-
 export interface ListJudgmentsQuery {
   case_id: string;
   status?: 'draft' | 'published' | 'superseded' | 'retracted';
@@ -176,10 +162,6 @@ export function listJudgments(q: ListJudgmentsQuery): Promise<ApiList<Judgment>>
 
 export function getJudgment(id: string): Promise<ApiVersioned<Judgment>> {
   return getJSON<ApiVersioned<Judgment>>(`/api/v1/judgments/${encodeURIComponent(id)}`);
-}
-
-export function generateJudgment(body: GenerateJudgmentBody): Promise<GenerateJudgmentResponse> {
-  return postJSON<GenerateJudgmentResponse>('/api/v1/judgments/generate', body);
 }
 
 export function publishJudgment(

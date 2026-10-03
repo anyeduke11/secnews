@@ -1,4 +1,15 @@
 
+## [DEV-0267] v0.8.6 P1-1 收官: 旧 /api/v1/judgments/generate 退役 410 — 起草唯一入口收编审批箱 (p1-1-retire-generate)
+
+- **时间**: 2026-10-03
+- **类型**: 收编/退役 (v0.8.6 PRD P1-1 最后一项; 路由保留语义退役, 非删除 — parity/契约面不变)
+- **关联模块**: `backend:judgment-api`, `frontend:v1-api`, `scripts:golden-walkthrough`, `docs:prd`
+- **修改**: `api/judgment_api.py` (POST /generate → 410 E_RETIRED + 指引 /api/proposals/draft-judgment; 删 GenerateJudgmentRequest model 与直落 _generate; list/get/publish 三端点原样), `tests/test_judgment_api.py` (退役断言 1 + 造数改 `_seed_draft` 直调 service 桩 dsh), `frontend/src/api/v1.ts` (删 generateJudgment/两 interface, 无 UI 调用方), `scripts/t085_golden_walkthrough.py` (S13 改退役契约锁: 410=ok / 200=FAIL 收编回退 / 404=FAIL 路由缺失)
+- **裁决**: 410 语义退役而非改道 — "generate→直落 draft" 契约整体作废, 改道会让 URL 名不副实; `create_with_dsh` service 保留 (SK-02 skill target 与 pi 域引用, 收编仅 HTTP 面)
+- **验证**: test_judgment_api 8/8; 受影响面 159 passed (judgment/dsh/skill_registry/parity); tsc 0 错; ruff 3 文件 0; generate_meta --check OK (93/155 不变); 生产需重启生效
+- **P1-2a 立案 (T1 评分链修复先行) 侦查定稿**: 生产 ai_scores=0 行根因链 = ① knowledge_items 全表 0 行, kl:raw 无米 → T1 永不评分 (评分链代码完好: gateway.score 155 次 ok 全部成功, t1._write_llm_score→write_score 就绪); ② v1_signals 停在 13 条 (09-30) — 唯一 intake 源 SecWiki feed 停更 (手动点火实测: outcome=success 但 feed 仅 3 条旧 entry 已知跳过), 单源撑不起 ≥120/30d; ③ info_filter/admission/fk/连接分裂全部排除 (admission_log neutral 13 条齐, ai_scores 无 FK 炸点)。**设计定稿**: 新桥 `v1_signal_bridge` — hotspots 增量 (24h 窗口, 轮限 50) → V1AdmissionService.evaluate (info_filter 语义门, gate 已开) → allow/neutral → v1_materials 镜像 (mat+sha256(link|title), 与 V1IngestBridge 同构幂等) + v1_signal(unverified) + knowledge_items stub (kl:raw 喂 T1) → ai_scores>0; 挂载进现有 v1_signal_intake_tick (零新 job 零注册面变更)。**编码+测试下轮交付** (本轮预算见底, 侦查/设计已冻结)
+- **下一可用号**: DEV-0268
+
 ## [DEV-0266] v0.8.6 P1-1 收尾: failed Run 原地重试端点 — 产物化失败可凭 run_id 重跑 (p1-1-retry-run)
 
 - **时间**: 2026-10-03

@@ -178,26 +178,21 @@ class Walker:
         # S9-S12: 变异链 — 发现既有可操作 fixture, 无则 DEGRADED (评审数据缺失)
         self._mutation_chain()
 
-        # S13: judgment generate (依赖 dsh/ai_hub — DEGRADED 合法, spec §9)
-        # P2 修复 (流程验证): 区分「守卫生效」与「出稿不可测」, 404/422 属契约破坏记 FAIL
-        s = self.add("S13", "POST /api/v1/judgments/generate — 真实出稿链路")
+        # S13: judgment generate — v0.8.6 P1-1 收编后退役 (410)。
+        # 起草改走 POST /api/proposals/draft-judgment (审批收件箱); 本步锁退役契约。
+        s = self.add("S13", "POST /api/v1/judgments/generate — 退役契约 (410)")
         code, body = self._req("POST", "/api/v1/judgments/generate", {
             "case_id": case_id, "cve_id": "CVE-2026-00000",
             "subject_name": FIXTURE_PREFIX, "evidence_materials": [],
         })
-        if code in (200, 201):
-            j = body.get("item") or body.get("judgment") or {}
-            s.ok(f"{code}, judgment={j.get('id')} status={j.get('status')}")
-        elif code in (400, 409) and "evidence" in str(body.get("detail", "")).lower():
-            # 空 fixture 被证据校验拒绝 = 守卫生效 (应 4xx 得 4xx, 契约正确);
-            # 成功路径未行使 — 依赖证据 fixture + dsh 出稿, 归 D2 (spec §9 不主张)
-            s.degraded(f"{code} 守卫生效 (应4xx得4xx): {str(body.get('detail'))[:100]} | 成功路径未行使 — 依赖证据 fixture+dsh (D2)")
+        if code == 410 and "draft-judgment" in str(body.get("detail", {})):
+            s.ok("410 退役契约生效 (指引 draft-judgment)")
         elif code == 404:
-            s.fail(f"路由缺失 (404) — 契约破坏: {str(body)[:120]}")
-        elif code == 422:
-            s.fail(f"schema 漂移 (422) — 契约破坏: {str(body)[:160]}")
+            s.fail(f"路由缺失 (404) — 应 410 而非删路由: {str(body)[:120]}")
+        elif code in (200, 201):
+            s.fail(f"绕审批直落复活?! {code} — P1-1 收编被回退: {str(body)[:140]}")
         else:
-            s.degraded(f"{code} (证据: {str(body.get('detail') or body)[:140]})")
+            s.degraded(f"{code} (期望 410; 证据: {str(body.get('detail') or body)[:140]})")
 
         # S14: 知识列表 + 采用链发现
         s = self.add("S14", "GET /api/v1/knowledge?limit=50 — 知识目录")

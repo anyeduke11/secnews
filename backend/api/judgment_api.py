@@ -2,7 +2,9 @@
 
 路由清单 (前缀 /api/v1/judgments)
 --------
-- ``POST /api/v1/judgments/generate``  dsh 调 cve-impact-brief, 落 draft
+- ``POST /api/v1/judgments/generate``  **已退役 (v0.8.6 P1-1 收编, 410)** —
+  dsh 绕审批直落 draft 违反"人主律"; 起草唯一入口 =
+  ``POST /api/proposals/draft-judgment`` (审批收件箱, DEV-0264)
 - ``GET  /api/v1/judgments``            列表 (query: case_id 必填 + status/claim_type/limit/offset)
 - ``GET  /api/v1/judgments/{id}``       详情
 - ``POST /api/v1/judgments/{id}/publish``  publish draft → published (CAS expected_revision)
@@ -36,23 +38,20 @@ router = APIRouter(prefix="/api/v1/judgments", tags=["v1-judgments"])
 # ---------------------------------------------------------------------------
 # Request / Response 模型
 # ---------------------------------------------------------------------------
-class GenerateJudgmentRequest(BaseModel):
-    """POST /api/v1/judgments/generate — dsh 调 cve-impact-brief 落 draft."""
-
-    case_id: str = Field(min_length=1, max_length=26)
-    cve_id: str = Field(min_length=1, max_length=64, description="例 CVE-2026-31337")
-    subject_name: str = Field(min_length=1, max_length=200)
-    evidence_materials: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="[{id, title, content_hash, summary?}, ...]",
-    )
-    submitted_by: str = Field(default="user")
-
-
 class PublishJudgmentRequest(BaseModel):
     """POST /api/v1/judgments/{id}/publish — body 必须含 expected_revision."""
 
     expected_revision: int = Field(ge=1)
+
+
+_RETIRED_GENERATE_DETAIL = {
+    "code": "E_RETIRED",
+    "message": (
+        "POST /judgments/generate retired in v0.8.6 P1-1 (审批收编): "
+        "dsh 直落 draft 绕过人审与'人主律'冲突; "
+        "起草请走 POST /api/proposals/draft-judgment, 产物经 /action 审批收件箱"
+    ),
+}
 
 
 # ---------------------------------------------------------------------------
@@ -93,25 +92,10 @@ def _list_response(items: list[dict[str, Any]], total: int | None = None) -> dic
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
-def _generate(req: GenerateJudgmentRequest) -> dict[str, Any]:
-    svc = JudgmentService()
-    try:
-        result = svc.create_with_dsh(
-            case_id=req.case_id,
-            cve_id=req.cve_id,
-            subject_name=req.subject_name,
-            evidence_materials=req.evidence_materials,
-            submitted_by=req.submitted_by,
-        )
-    except JudgmentValidationError as e:
-        raise HTTPException(status_code=400, detail={"code": "E_VALIDATION", "message": str(e)})
-    except JudgmentConflictError as e:
-        raise HTTPException(status_code=409, detail={"code": "E_CONFLICT", "message": str(e)})
-    return {
-        "version": API_VERSION,
-        "item": _judgment_to_dict(result["judgment"]),
-        "idempotent_replay": result["idempotent_replay"],
-    }
+@router.post("/generate", response_model=None)
+async def generate_judgment() -> dict[str, Any]:
+    """v0.8.6 P1-1 收编: 已退役 (410) — 起草走 /api/proposals/draft-judgment。"""
+    raise HTTPException(status_code=410, detail=dict(_RETIRED_GENERATE_DETAIL))
 
 
 def _list(
@@ -153,9 +137,6 @@ def _publish(judgment_id: str, req: PublishJudgmentRequest) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # 路由注册 (走 asyncio.to_thread 同步 DB)
 # ---------------------------------------------------------------------------
-@router.post("/generate", response_model=None)
-async def generate_judgment(req: GenerateJudgmentRequest) -> dict[str, Any]:
-    return await asyncio.to_thread(_generate, req)
 
 
 @router.get("", response_model=None)

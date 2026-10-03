@@ -24,6 +24,12 @@
 - **验证**: test_run_ledger 33/33 (§9 +4); 受影响面 458 passed, 2 失败 (agent_bridge/agent_runner_schema) stash 复证 HEAD 同样失败 = 存量环境性非回归; ruff 4 文件 0; `generate_meta --check` OK; 需生产重启后端点才在线。
 - **遗留**: P1-1 仅剩旧 /api/v1/judgments/generate 收编 (dsh 绕审批直落, 另开工单); 前端重试按钮随 G1 失败面板。
 
+### 2026-10-03 v0.8.6 P1-1 收官: 旧 judgments/generate 退役 410 + P1-2a 立案 — DEV-0267
+
+- **收编** (DEV-0267): `POST /api/v1/judgments/generate` → **410 E_RETIRED** + 指引 `/api/proposals/draft-judgment` (路由保留语义退役, parity/契约面不变; dsh 直落 draft 与"人主律"冲突故整体作废)。`judgment_api.py` 删直落分支; 测试改退役断言 + 造数走 service 桩 dsh; 前端 v1.ts 删包装 (无 UI 调用方); 金走查 S13 锁退役契约 (200=FAIL 回退 / 404=FAIL 缺路由)。`create_with_dsh` service 保留 (SK-02/pi 域)。验证: 8/8 + 受影响面 159 passed + tsc 0 + ruff 0 + meta OK; 生产需重启。
+- **P1-2a 立案** (T1 评分链先行, 侦查定稿): ai_scores=0 根因 = knowledge_items 0 行 (kl:raw 无米, 评分链代码完好 — gateway.score 155 次 ok) + 唯一 intake 源 SecWiki feed 停更 (signals 停在 13 条, 单源撑不起 ≥120/30d)。**设计**: `v1_signal_bridge` — hotspots 24h 增量 → admission.evaluate (info_filter 门) → materials 镜像 + signal(unverified) + kl:raw stub → T1 评分; 挂现有 intake tick 零新 job。编码+测试下轮 (DEV-0268)。
+- **遗留**: P1-1 全清 ✅; P1-2a 编码 / 审批收件箱 failed Run 重试按钮随 G1 失败面板。
+
 ### 2026-10-03 v0.8.6 P1-1 切片3 审批收件箱前端 + Case 页 AI 起草接线（用例 A UI 闭环）— DEV-0265
 
 - **范围**: 纯前端, 闭合切片2 遗留两条: ① `/action` 审批收件箱区块; ② Case 页"AI 起草研判"按钮接线。零后端变更、零新路由 (NAV4 硬规则: 新能力只能以四菜单区块进入)。

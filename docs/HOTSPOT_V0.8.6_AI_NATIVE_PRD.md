@@ -436,7 +436,7 @@ run record 即埋点：G1/G2 指标全部从 v1_runs/v1_proposals/command_log �
 
 | # | 任务 | 验收 |
 |---|------|------|
-| P1-1 | migration 131 + Run 账本服务 + 审批收件箱（M1）〔切片1 DEV-0263 后端账本 / 切片2 DEV-0264 起草+产物闭环 / 切片3 DEV-0265 收件箱 UI / failed Run 重试端点 DEV-0266 均已交付；余旧 judgment generate 端点收编〕 | 用例 A 验收 |
+| P1-1 | migration 131 + Run 账本服务 + 审批收件箱（M1）〔切片1 DEV-0263 后端账本 / 切片2 DEV-0264 起草+产物闭环 / 切片3 DEV-0265 收件箱 UI / failed Run 重试端点 DEV-0266 / 旧 generate 端点退役 410 DEV-0267 均已交付〕 | 用例 A 验收 |
 | P1-2 | E1 后语义管线主流量化（semantic_filter/ai_classify 進 Signal 主路径）+ **T1 评分链路修复（ai_scores 产出 >0，现基线 0 行）先行** + T4 真门 | signals ≥120/30d；T4 真门前置：ai_scores 非 0，否则管线将死锁于 kl:structure（审查一发现） |
 | P1-3 | 副驾四卡（M3，全部走 proposal 通道） | 四卡各产出 ≥1 artifact |
 | P1-4 | 命令栏（M4） | 用例 B 验收 |

@@ -45,25 +45,31 @@ def _seed_material(material_id: str = "MAT-API", content_hash: str = "a" * 64) -
     conn.commit()
 
 
-def test_generate_creates_draft(client, temp_db) -> None:
-    _seed_material()
+def _seed_draft(case_id: str, cve_id: str = "CVE-2026-0001") -> dict:
+    """v0.8.6 P1-1 收编后 generate 端点已 410 — 造数直调 service (夹具已桩 _call_dsh)。"""
+    from backend.services.judgment_service import JudgmentService
+
+    result = JudgmentService().create_with_dsh(
+        case_id=case_id, cve_id=cve_id, subject_name="某网关",
+        evidence_materials=[{"id": "MAT-API", "content_hash": "a" * 64}],
+    )
+    return result["judgment"]
+
+
+def test_generate_retired_410(client, temp_db) -> None:
+    """v0.8.6 P1-1 收编: generate 退役 410 + 指引 /api/proposals/draft-judgment。"""
     r = client.post("/api/v1/judgments/generate", json={
         "case_id": "C" * 26, "cve_id": "CVE-2026-0001", "subject_name": "某网关",
         "evidence_materials": [{"id": "MAT-API", "title": "T", "content_hash": "a" * 64}],
     })
-    assert r.status_code == 200, r.text
-    body = r.json()
-    assert body["item"]["status"] == "draft"
-    assert body["item"]["claim_type"] == "finding"
-    assert body["idempotent_replay"] is False
+    assert r.status_code == 410, r.text
+    assert r.json()["detail"]["code"] == "E_RETIRED"
+    assert "draft-judgment" in r.json()["detail"]["message"]
 
 
 def test_list_judgments_by_case(client, temp_db) -> None:
     _seed_material()
-    client.post("/api/v1/judgments/generate", json={
-        "case_id": "C" * 26, "cve_id": "CVE-2026-0002", "subject_name": "X",
-        "evidence_materials": [{"id": "MAT-API", "content_hash": "a" * 64}],
-    })
+    _seed_draft("C" * 26)
     r = client.get(f"/api/v1/judgments?case_id={'C' * 26}")
     assert r.status_code == 200
     body = r.json()
@@ -72,10 +78,7 @@ def test_list_judgments_by_case(client, temp_db) -> None:
 
 def test_get_judgment_by_id(client, temp_db) -> None:
     _seed_material()
-    j = client.post("/api/v1/judgments/generate", json={
-        "case_id": "C" * 26, "cve_id": "CVE-2026-0003", "subject_name": "X",
-        "evidence_materials": [{"id": "MAT-API", "content_hash": "a" * 64}],
-    }).json()["item"]
+    j = _seed_draft("C" * 26)
     r = client.get(f"/api/v1/judgments/{j['id']}")
     assert r.status_code == 200
     assert r.json()["item"]["id"] == j["id"]
@@ -89,10 +92,7 @@ def test_get_judgment_404(client) -> None:
 
 def test_publish_draft_to_published(client, temp_db) -> None:
     _seed_material()
-    j = client.post("/api/v1/judgments/generate", json={
-        "case_id": "C" * 26, "cve_id": "CVE-2026-0004", "subject_name": "X",
-        "evidence_materials": [{"id": "MAT-API", "content_hash": "a" * 64}],
-    }).json()["item"]
+    j = _seed_draft("C" * 26)
     r = client.post(f"/api/v1/judgments/{j['id']}/publish", json={"expected_revision": 1})
     assert r.status_code == 200, r.text
     assert r.json()["item"]["status"] == "published"
@@ -101,10 +101,7 @@ def test_publish_draft_to_published(client, temp_db) -> None:
 
 def test_publish_revision_mismatch_409(client, temp_db) -> None:
     _seed_material()
-    j = client.post("/api/v1/judgments/generate", json={
-        "case_id": "C" * 26, "cve_id": "CVE-2026-0005", "subject_name": "X",
-        "evidence_materials": [{"id": "MAT-API", "content_hash": "a" * 64}],
-    }).json()["item"]
+    j = _seed_draft("C" * 26)
     r = client.post(f"/api/v1/judgments/{j['id']}/publish", json={"expected_revision": 999})
     assert r.status_code == 409
     assert r.json()["detail"]["code"] == "E_CONFLICT"

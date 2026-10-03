@@ -16,10 +16,11 @@ import {
   listKnowledge, getKnowledgeReuse,
   getCaseAggregate,
   approveAction, startAction, cancelAction, verifyArtifact, acceptArtifact, rejectArtifact, closeCase,
-  generateJudgment, generateAction, publishJudgment,
+  generateAction, publishJudgment,
   adoptKnowledge,
   type ReuseReceipt, type CaseEvidenceMaterial, type KnowledgeRecallCandidate,
 } from '../../api/v1';
+import { draftJudgment } from '../../api/proposals';
 import { renderInlineMarkdown } from '../../lib/markdown';
 import { useSSEAggregateInvalidate } from './useSSEAggregateInvalidate';
 import { useToast } from '../Toast';
@@ -235,28 +236,23 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
     [display],
   );
 
+  // v0.8.6 P1-1/M1: 「AI 起草研判」走提案审批流 — HEAVY 档草案落 v1_proposals(draft),
+  // 人在 /action 审批收件箱批准后才双签 Run + 产物; 模型失败回 failed 提案可重试。
   const handleGenerateJudgment = async () => {
     if (liveEvidence.length === 0) {
-      toast.show({ type: 'warning', message: '暂无证据材料 — 请先从资料层信号立项携带证据 (SK-02 输入端)' });
-      return;
-    }
-    if (!cveId) {
-      toast.show({ type: 'error', message: 'case 标题/描述未解析出 CVE 编号 — SK-02 为 cve-impact-brief 能力' });
+      toast.show({ type: 'warning', message: '暂无证据材料 — 请先从资料层信号立项携带证据 (M1: 研判必须带证据引用)' });
       return;
     }
     setGenerating('judgment');
     try {
-      await generateJudgment({
-        case_id: display.id,
-        cve_id: cveId,
-        subject_name: (liveEvidence[0]?.title || display.title).slice(0, 200),
-        evidence_materials: liveEvidence.map(m => ({ id: m.id, title: m.title ?? '', content_hash: m.content_hash, summary: m.summary ?? undefined })),
-        submitted_by: 'user',
-      });
-      toast.show({ type: 'success', message: '判断草稿已生成 — 人工审阅后发布' });
-      await refetchChain(true);
+      const proposal = await draftJudgment(display.id);
+      if (proposal.status === 'failed') {
+        toast.show({ type: 'error', message: `AI 起草失败: ${proposal.error_msg || '模型未返回'} — 可在「行动」菜单审批收件箱重试` });
+      } else {
+        toast.show({ type: 'success', message: '研判草案已送入「行动」菜单审批收件箱 — 人工批准后生成产物' });
+      }
     } catch (e) {
-      toast.show({ type: 'error', message: `生成失败 (真实出稿依赖 dsh/ai_hub): ${e instanceof Error ? e.message : String(e)}` });
+      toast.show({ type: 'error', message: `起草失败: ${e instanceof Error ? e.message : String(e)}` });
     } finally {
       setGenerating(null);
     }
@@ -548,17 +544,17 @@ export function CaseDetail({ case_, onBack }: { case_: Case; onBack: () => void 
           <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
             判断 (Judgment) {judgmentsLoading && <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>加载中…</span>}
           </h3>
-          {/* D2: SK-02 真实出稿 — 证据来自 D1.2 立项绑定, 依赖 dsh/ai_hub, 失败如实报错 */}
+          {/* v0.8.6 M1: AI 起草研判 → 提案送审 (/action 收件箱); 证据来自 D1.2 立项绑定 */}
           <button
             type="button"
             onClick={handleGenerateJudgment}
             disabled={generating !== null || liveEvidence.length === 0}
-            title={liveEvidence.length === 0 ? '需先携带证据材料 (从信号立项)' : `SK-02 cve-impact-brief ${cveId || '(未解析到 CVE 编号)'}`}
+            title={liveEvidence.length === 0 ? '需先携带证据材料 (从信号立项)' : 'HEAVY 档生成研判草案, 送行动菜单审批收件箱'}
             className="text-xs px-3 py-1.5 rounded font-medium focus-ring disabled:opacity-50"
             style={{ background: 'var(--color-info)', color: 'var(--text-on-info, #fff)' }}
             data-testid="generate-judgment-btn"
           >
-            {generating === 'judgment' ? '生成中…' : '生成判断 (SK-02)'}
+            {generating === 'judgment' ? '起草中…' : 'AI 起草研判'}
           </button>
         </div>
         {judgments.length === 0 ? (

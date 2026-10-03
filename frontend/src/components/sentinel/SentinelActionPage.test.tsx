@@ -168,6 +168,13 @@ function makeFetch(opts: {
     if (url.startsWith('/api/secnews/stats')) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(SECNEWS_STATS) } as Response);
     }
+    // v0.8.6 M1 审批收件箱区块 (本页测试不涉其交互, 返回空队列)
+    if (url.startsWith('/api/proposals')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ items: [], total: 0, filter: { status: null, kind: null } }),
+      } as Response);
+    }
     // SentinelShell 心跳条
     if (url.startsWith('/api/sources/health')) {
       return Promise.resolve({

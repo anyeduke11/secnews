@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch, getJSON, postJSON } from '../../lib/api';
 import { SentinelShell } from './SentinelShell';
+import { ApprovalInbox } from '../action/ApprovalInbox';
 import { ExecOverviewPanel } from '../v1/panels/ExecOverviewPanel';
 import { ReviewOverlay, type RvView } from './review/ReviewOverlay';
 import './sentinel.css';
@@ -814,6 +815,9 @@ export function SentinelActionPage() {
           <span>判读待办 {actions.length} 待推进</span>
           <span>本周达标 {rhythm.hit} / 7 天</span>
         </p>
+
+        {/* v0.8.6 M1 能力区块: AI 提案审批收件箱 (用例 A; Case 页起草 → 此处人审 → 双签 Run) */}
+        <ApprovalInbox />
 
         {/* v0.8.5 能力区块: 执行与验收总览 (SK-03/04, 待批准/运行中/待验收; → /cases/:id?section=actions) */}
         <ExecOverviewPanel />

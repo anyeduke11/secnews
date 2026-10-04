@@ -541,6 +541,7 @@ __all__ = [
     "classify_domain",
     "classify_item",
     "classify_item_with_ai",
+    "classify_items_with_ai",
     "classify_practice_domain",
     "classify_type",
 ]
@@ -621,3 +622,65 @@ def classify_item_with_ai(
     except Exception:
         pass  # 兜底: 任何失败返回纯规则结果
     return result
+
+
+# ═══════════════════════════════════════════════════════════════
+# 主流量批分类 (v0.8.6 P1-2c, gate ai_classify — 默认开)
+# PRD 风险表 "LLM 成本失控 (语义管线主流量化后调用量↑)" 的双闸 =
+# feature gate + 批级预算封顶; usage_log 由 gateway 全量记账。
+# ═══════════════════════════════════════════════════════════════
+
+AI_CLASSIFY_BUDGET_PER_BATCH = 20
+
+
+def classify_items_with_ai(
+    items: list[dict],
+    *,
+    max_llm_calls: int = AI_CLASSIFY_BUDGET_PER_BATCH,
+) -> tuple[list[dict], int]:
+    """batch_classify 的主流量 gate 化版本 (P1-2c): 规则优先 + 预算内 LLM 增援。
+
+    与 batch_classify 同合并契约 (原 dict 就地补 domain/type/difficulty/
+    practice_domain/topic), 另返回 llm_used 供调用方留痕观测。预算语义:
+    - gate ai_classify 关 → 等价 batch_classify, 零 LLM;
+    - 规则命中 domain → 零 LLM 不占预算 (绝大多数条目);
+    - 规则 miss 且预算未尽 → classify_item_with_ai 增援 (LLM 失败兜底纯规则);
+    - 预算用尽 → 剩余 miss 条目诚实保留 domain=None 不编造
+      (PRD P0-6 精神; 采集批 5min 窗口有限, 积压由 llm_used 留痕可观测)。
+    """
+    results: list[dict] = []
+    llm_used = 0
+    gate_on = _ai_classify_enabled()
+    for item in items:
+        tags = item.get("tags", [])
+        if isinstance(tags, str):
+            import json
+            try:
+                tags = json.loads(tags)
+            except (json.JSONDecodeError, TypeError):
+                tags = []
+        tags = [t for t in tags if t]  # remove empty strings
+
+        title = item.get("title", "")
+        url = item.get("source_url", "")
+        classification = classify_item(tags=tags, title=title, source_url=url)
+        if (
+            gate_on
+            and classification.get("domain") is None
+            and llm_used < max_llm_calls
+        ):
+            llm_used += 1
+            # gate 已确认开; 内部重跑一次纯规则 (廉价) 换单一增援路径
+            classification = classify_item_with_ai(
+                tags=tags, title=title, source_url=url,
+            )
+
+        item["domain"] = classification["domain"]
+        item["type"] = classification["type"]
+        item["difficulty"] = classification["difficulty"]
+        item["practice_domain"] = classification["practice_domain"]
+        if classification["domain"] and not item.get("topic"):
+            item["topic"] = classification["domain"]
+        results.append(item)
+
+    return results, llm_used

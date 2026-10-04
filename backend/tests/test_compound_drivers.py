@@ -182,17 +182,22 @@ class TestMapRebuildDaily:
 
 class TestDriverExceptionIsolation:
     def test_classify_crash_does_not_raise(self, temp_db, monkeypatch):
-        """异常隔离: batch_classify 崩溃 → _classify_new_items 捕获不抛出."""
+        """异常隔离: classify_items_with_ai 崩溃 → _classify_new_items 捕获不抛出.
+
+        P1-2c: _classify_new_items 主分类入口由 batch_classify 换为
+        classify_items_with_ai (规则优先 + gate 化 LLM 增援), 本测试随之
+        锁新入口的崩溃隔离。
+        """
         from backend.repository.db import get_connection
         from backend.services import auto_classifier
 
         conn = get_connection()
         _insert_item(conn, "driver-x1", "GPT-5 架构深度解析", '["AI编程","技术原理"]')
 
-        def boom(items):
+        def boom(items, **kw):
             raise RuntimeError("classifier down")
 
-        monkeypatch.setattr(auto_classifier, "batch_classify", boom)
+        monkeypatch.setattr(auto_classifier, "classify_items_with_ai", boom)
         result = asyncio.run(_classify_new_items())
         assert result is None
 

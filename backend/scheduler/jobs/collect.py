@@ -80,9 +80,9 @@ async def _classify_new_items() -> None:
     try:
         from backend.repository.db import get_connection, knowledge_items_table
         from backend.repository.knowledge_repo import knowledge_repo
-        from backend.services.auto_classifier import batch_classify
+        from backend.services.auto_classifier import classify_items_with_ai
 
-        def _run() -> int:
+        def _run() -> tuple[int, int]:
             conn = get_connection()
             rows = conn.execute(
                 "SELECT id, title, tags, source_url, domain, type, difficulty "
@@ -92,9 +92,12 @@ async def _classify_new_items() -> None:
                 "ORDER BY ingested_at ASC LIMIT 50"
             ).fetchall()
             if not rows:
-                return 0
+                return 0, 0
             items = [dict(r) for r in rows]
-            classified = batch_classify(items)
+            # P1-2c 主流量化: 纯规则优先, gate ai_classify 开且 domain miss
+            # 时预算内 LLM 增援 (桥 kl stub tags=[] 是 miss 大户 → AI 分类
+            # 补 domain); 预算用尽诚实保留 None, llm_used 留痕。
+            classified, llm_used = classify_items_with_ai(items)
             updated = 0
             for d in classified:
                 item_id = d.get("id")
@@ -114,11 +117,14 @@ async def _classify_new_items() -> None:
                 # P0.4: 只更新 DB, 不回写 md (分类是中间状态)
                 knowledge_repo.upsert_item(db_item)
                 updated += 1
-            return updated
+            return updated, llm_used
 
-        count = await asyncio.to_thread(_run)
-        if count:
-            _logger.info(f"_classify_new_items: {count} items classified")
+        count, llm_used = await asyncio.to_thread(_run)
+        if count or llm_used:
+            _logger.info(
+                f"_classify_new_items: {count} items classified "
+                f"(llm_used={llm_used})"
+            )
     except Exception as e:
         _logger.error(f"_classify_new_items crashed: {e}")
 

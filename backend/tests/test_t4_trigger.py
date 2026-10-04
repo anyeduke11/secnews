@@ -13,7 +13,8 @@ Phase 12 — covers the ``kl:structure`` → ``kl:publish`` trigger.
 - T4.7  No candidates returns empty result
 - T4.8  Failure path: exception goes to dead letter queue
 - T4.9  Metrics counters correctly incremented
-- T4.10 Score fallback: no ai_scores row → DEFAULT_SCORE (5.0) → skipped
+- T4.10 P1-2b 真门: no ai_scores row → skip (no fallback)
+- T4.11 P1-2b 饿死防护: unscored items do not starve scored ones
 """
 from __future__ import annotations
 
@@ -438,39 +439,19 @@ def test_t4_metrics_incremented(temp_db, fresh_metrics, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# T4.10 — score fallback: no ai_scores row
-#   P1-2 前: DEFAULT_SCORE(5.0) < MIN_SCORE(8.0) → 永远跳过 (LLM 未配置时
-#   ai_scores 恒空 → kl:publish 死锁)。
-#   P1-2 后: SCORE_FALLBACK_ENABLED=True (默认) → 无评分行视为通过;
-#   SCORE_FALLBACK_ENABLED=False → 维持原严格跳过语义。
+# T4.10 — score gate is REAL (P1-2b 真门): no ai_scores row → skip
+#   历史: P1-2 修复期 SCORE_FALLBACK (无行=通过) 与 P0-6 "诚实 0.0" 双语义
+#   并存 (DEV_LOG parked)。DEV-0268 评分链复活 (ai_scores>0) 达成真门前置
+#   后, P1-2b (DEV-0269) 按 parked 裁决移除 fallback — 发布必须有真实
+#   LLM 评分, 无评分不放行 (系统不替模型宣称成功)。
 # ---------------------------------------------------------------------------
 
-def test_t4_score_fallback_enabled_advances(temp_db, fresh_metrics, monkeypatch):
-    """SCORE_FALLBACK_ENABLED=True: 无评分行也发布 (解除死锁)."""
-    conn = get_connection()
-    _insert_knowledge_item(conn, "no-score-item")
-    conn.commit()
+def test_t4_unscored_item_is_not_published(temp_db, fresh_metrics, monkeypatch):
+    """真门主断言: 无评分行 → skipped_low_score, lifecycle 不变。
 
-    monkeypatch.setattr(T4Trigger, "_write_to_md", lambda self, item: None)
-
-    t4 = _trigger(fresh_metrics)
-    report = t4.run_once()
-
-    assert report["candidates"] == 1
-    assert report["advanced"] == 1
-    assert report["skipped_low_score"] == 0
-
-    row = conn.execute(
-        "SELECT lifecycle FROM knowledge_items WHERE id = ?", ("no-score-item",)
-    ).fetchone()
-    assert row["lifecycle"] == LIFECYCLE_PUBLISH
-
-
-def test_t4_score_fallback_disabled_skips(temp_db, fresh_metrics, monkeypatch):
-    """SCORE_FALLBACK_ENABLED=False: 无评分行维持原严格语义 (跳过)."""
-    import backend.services.triggers.t4_structure_to_publish as t4mod
-    monkeypatch.setattr(t4mod, "SCORE_FALLBACK_ENABLED", False)
-
+    WHY: fallback 语义下系统会替模型放行未评分内容 (伪通过); 真门锁定
+    "无真实评分 = 0.0 < 8.0 = 不发布", 无行/坏值同路径。
+    """
     conn = get_connection()
     _insert_knowledge_item(conn, "no-score-item")
     conn.commit()
@@ -484,11 +465,48 @@ def test_t4_score_fallback_disabled_skips(temp_db, fresh_metrics, monkeypatch):
     assert report["advanced"] == 0
     assert report["skipped_low_score"] == 1
 
-    # Verify the gate constant (P0-6: 无行按 0.0, 同样 < MIN_SCORE 跳过)
     assert MIN_SCORE == 8.0
 
-    # Lifecycle unchanged
     row = conn.execute(
         "SELECT lifecycle FROM knowledge_items WHERE id = ?", ("no-score-item",)
     ).fetchone()
     assert row["lifecycle"] == LIFECYCLE_STRUCTURE
+
+
+# NOTE (P1-2b): score 坏值分支 (float() ValueError → 0.0) 为防御性代码,
+# ai_scores DDL 的 NOT NULL + CHECK(score>=0 AND score<=10) 双闸已使
+# 坏值不可入库 — 不构造不可达路径的伪测试, 守卫由 schema 承担。
+
+
+# ---------------------------------------------------------------------------
+# T4.11 — unscored items do not starve scored ones (P1-2b 饿死防护)
+#   真门下无分条目恒 skip 且不入死信; 若按裸 ingested_at ASC 排队, 老无分
+#   条目占满 BATCH_SIZE 窗口 → 有分条目永不进候选。候选查询必须"有分殿前、
+#   无分殿后"。
+# ---------------------------------------------------------------------------
+
+def test_t4_unscored_items_do_not_starve_scored_ones(
+    temp_db, fresh_metrics, monkeypatch,
+):
+    conn = get_connection()
+    # 老无分条目 55 条 (> BATCH_SIZE=50): ingested_at 最早, 裸 ASC 排序下
+    # 将独占整个候选窗口。
+    for i in range(55):
+        _insert_knowledge_item(conn, f"old-unscored-{i:02d}")
+    # 新有分条目 (ingested_at 更晚): 真门下应可发布 — 即使无分老条目更多。
+    _insert_knowledge_item(conn, "new-scored", updated_hours_ago=48)
+    _insert_ai_score(conn, "new-scored", 9.0)
+    conn.commit()
+
+    monkeypatch.setattr(T4Trigger, "_write_to_md", lambda self, item: None)
+
+    t4 = _trigger(fresh_metrics)
+    report = t4.run_once()
+
+    # 殿后排序: 有分的 new-scored 必须在 50 窗口内并被发布
+    assert report["advanced"] == 1
+    assert report["skipped_low_score"] == 49  # 50 窗口内其余全为无分殿后条目
+    row = conn.execute(
+        "SELECT lifecycle FROM knowledge_items WHERE id = ?", ("new-scored",)
+    ).fetchone()
+    assert row["lifecycle"] == LIFECYCLE_PUBLISH

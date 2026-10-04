@@ -137,6 +137,14 @@ class TestIngestToPublishE2E:
         assert t3.run_once()["advanced"] == 1
         assert _lifecycle_of(item_id) == "kl:structure"
 
+        # P1-2b 真门: T4 发布必须有真实评分 (无行=0.0 恒跳过, SCORE_FALLBACK
+        # 已废除) — e2e 链路在 T4 前给条目造 ≥8.0 分, 走真门放行路径。
+        get_connection().execute(
+            "INSERT INTO ai_scores (hotspot_id, score, reason, scorer, scored_at) "
+            "VALUES (?, 9.0, 'e2e', 'test', ?)",
+            (item_id, datetime.now(timezone.utc).isoformat()),
+        )
+        get_connection().commit()
         _backdate_updated(item_id)  # 满足 T4 24h 稳定窗口
         assert t4.run_once()["advanced"] == 1
         assert _lifecycle_of(item_id) == "kl:publish"

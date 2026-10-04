@@ -187,10 +187,14 @@ class TestWriteScore:
         monkeypatch.setattr(ai_write_back, "get_connection", _boom)
         assert ai_write_back.write_score("h-3", 1.0) is None
 
-    def test_fk_violation_degrades_to_none(self, temp_env):
-        """真实 FK 违规 (hotspot 不存在) → 降级返 None, 不抛错。
+    def test_no_cross_domain_fk_after_migration132(self, temp_env):
+        """migration 132 剥 ai_scores 跨域 FK 后, 非 hotspot id (kl-*) 可直接写。
 
-        audit P2: patch 修正后原"巧合通过"用例转真实, 该降级路径需直接覆盖
-        (依赖 migration 043 的 ai_scores.hotspot_id FK + foreign_keys=ON)。
+        WHY (P1-2b 顺手清, DEV-0225 假设过期模式): 旧断言锁"FK 违规降级
+        None" — 依赖 migration 043 的 hotspot_id FK; 但 T1 评分对象是
+        kl-* id, 该 FK 使 155+ 次历史评分全炸 (DEV-0268 根因), 132 已剥除。
+        新契约 = 任意 id 可写 (返回 lastrowid); 若此断言再失败, 说明跨域
+        FK 回潮, T1 评分链将重新断供。异常降级路径由上一条
+        patch get_connection 用例独立覆盖, 不依赖 FK。
         """
-        assert ai_write_back.write_score("h-no-such-hotspot", 1.0) is None
+        assert ai_write_back.write_score("kl-no-such-hotspot", 1.0) is not None

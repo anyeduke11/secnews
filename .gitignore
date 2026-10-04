@@ -155,3 +155,5 @@ backend/data/mitre/enterprise-attack.meta.json
 
 # feature_gates TOML 原位替换的编辑器备份 (set_toml_gate 副产物)
 backend/config/*.bak
+# llm.yaml 原位替换的编辑器备份 (时间戳后缀, 2026-10-04)
+config/*.bak-*

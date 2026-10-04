@@ -17,6 +17,20 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-04 v0.8.6 P2-2: E8 真源缺列补齐 — entities 进 frontmatter（裁决落地）— DEV-0278
+
+- **裁决落地 (两分法)**: ① `entities` 语义真源列进 md frontmatter（write_item_to_md 补 entities 行；DB dict 无键时继承文件已有值——既有 16 列消费点回写不重置真源）；② `attention_score` 派生缓存可丢，刻意不入 frontmatter（重投影由 attention_scorer 1800s job 重算）；③ compiled 已随 v1.7 lifecycle property 自然闭环；④ body = md 正文本体。
+- **取证修正**: 审计 E8 "compiled 缺列" 半已被 v1.7 (035 迁移 + 只读 property) 自然解决；entities 真缺口 = frontmatter 无此列 + 重投影不回写。
+- **实现**: `knowledge_sync.py` frontmatter 补 entities（继承语义）+ sync_item_to_db 读 fm.entities 经新 `knowledge_repo.set_entities` 写回（upsert 签名零改动，6 消费点不受影响）；`knowledge_repo.py` +set_entities/get_entities + upsert_item docstring 缺列清单成文（两分法裁决语义入码）。
+- **测试**: test_e8_projections 5 用例（frontmatter 落值 / 消费点回写不重置 / attention_score 缺席 / **md→SQLite roundtrip 重建** / 脏值不炸）；受影响面 **805 passed** 0 失败；ruff 0；meta/warm 门禁 OK。需生产重启生效（存量 md 由下次 write 路径补齐）。
+
+### 2026-10-04 v0.8.6 P2-0 观测窗口启动（T0 基线完成，t24 待触发）— DEV-0279 (占位)
+
+- 后台观测 agent T0 基线快照完成（/tmp/p20_snapshot_t0.json，t0_at=2026-10-04 09:42 CST），全程只读。**T+24h (≥2026-10-05 08:42) 需再次调观测 agent 出对比纪要**，纪要全文届时落账（本条占位，正式编号纪要时占用）。
+- **T0 关键读数**: kl:publish 4362（24h 直落 +15）/ T4 27 非空转轮 advanced=0 + skipped_low_score=937 / llm_used max=12 mean=5.34 触顶 0 / 转化率 7d 0.3190（略超带 0.30，deny 规则配置后再评估）/ **G2② no such table = 0 ✓** / **G2③ missed=0 且非静默 ✓** / ai_scores 24h +1312 / gate-detect failed=12（P2-1 修复前基线）。
+- **口径发现**: "T4 cycle:" 走 std logging 未桥 loguru → 生产日志不可见，观测改用 job 层 "kl_trigger_t4_job:" 口径；warm updated_at 有 10-04 04:10 全量回填污染 → 24h 增量改用 ingested_at 口径。
+- **范围外发现（留观）**: legacy_migrate_resume job 每 30min failed（`TypeError: 'dict' object can't be awaited`，63 条 failed 全部与之吻合）→ 建议列 P2-1 后顺手修或开工单。
+
 ### 2026-10-04 v0.8.6 P2 收敛冻结阶段规划定稿 — DEV-0277
 
 - **规划文档**: `docs/PLAN_P2_FREEZE_2026-10-04.md` — 里程碑 = **G2 清零确认** (三类静默失败 100% 落显式 outcome); 任务表 P2-0~P2-6, 5 日排期, 冻结纪律 (不加新能力/Skill* 零投入/只修不改)。

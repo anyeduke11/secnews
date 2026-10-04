@@ -35,6 +35,21 @@ class KnowledgeRepo:
     # ── Knowledge Items ──────────────────────────────────────────
 
     def upsert_item(self, item: KnowledgeItem) -> None:
+        """Upsert 知识条目投影 (16/26 列)。
+
+        P2-2/E8 缺列清单成文 (裁决 2026-10-04, 两分法):
+        - **语义真源列**: entities (T1 NER 抽取, 119 迁移) — 已进 md
+          frontmatter (write_item_to_md), md→SQLite 重投影经
+          :meth:`set_entities` 写回, 不在本 upsert 签名内 (6 个既有
+          消费点零改动);
+        - **派生缓存列 (可丢, 重算即得)**: attention_score (attention_scorer
+          1800s job), body (md 正文本体, 无需投影), compiled (v1.7 起
+          lifecycle 派生的只读兼容 property, 非真实列消费);
+        - 其余 16 列 = 本方法覆盖的完整语义面。
+
+        换言之: 投影现可从 md 完整重建 (审计 E8 闭环) —
+        16 upsert 列 + frontmatter entities + 派生缓存三类, 无遗漏。
+        """
         conn = get_connection()
         conn.execute(
             f"""
@@ -256,6 +271,33 @@ class KnowledgeRepo:
     def delete_item(self, item_id: str) -> None:
         conn = get_connection()
         conn.execute(f"DELETE FROM {knowledge_items_table()} WHERE id = ?", (item_id,))
+
+    def set_entities(self, item_id: str, entities: list[str]) -> None:
+        """P2-2/E8: entities 语义真源列的投影写回 (md frontmatter → SQLite)。
+
+        md→SQLite 重投影路径专用 (sync_item_to_db 消费); 与 T1 触发器的
+        write_entities (SQLite→方向抽取落库) 分向, 二者都以 frontmatter
+        为准对齐。
+        """
+        conn = get_connection()
+        conn.execute(
+            f"UPDATE {knowledge_items_table()} SET entities = ? WHERE id = ?",
+            (json.dumps(entities, ensure_ascii=False), item_id),
+        )
+
+    def get_entities(self, item_id: str) -> list[str]:
+        conn = get_connection()
+        row = conn.execute(
+            f"SELECT entities FROM {knowledge_items_table()} WHERE id = ?",
+            (item_id,),
+        ).fetchone()
+        if row is None or not row["entities"]:
+            return []
+        try:
+            data = json.loads(row["entities"])
+            return data if isinstance(data, list) else []
+        except (json.JSONDecodeError, TypeError):
+            return []
 
     def list_item_ids(self) -> list[str]:
         """全部 item id (供 full_sync 孤儿行对账)."""

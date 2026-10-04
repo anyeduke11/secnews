@@ -210,6 +210,11 @@ def sync_item_to_db(md_path: Path) -> str | None:
         updated_at=now_iso(),
     )
     knowledge_repo.upsert_item(item)
+    # P2-2/E8: entities 语义真源列重投影 — upsert 不覆盖 (消费点零改动),
+    # md frontmatter 为准单独写回 (审计 "投影必须可从 md 重建" 闭环)。
+    fm_entities = fm.get("entities")
+    if isinstance(fm_entities, list):
+        knowledge_repo.set_entities(item_id, [str(x) for x in fm_entities])
     log.debug(f"synced item to db: {item.id}")
     _log_wiki_event("sync_item", f"items/{md_path.name}", "knowledge_items", item.id)
     return item.id
@@ -271,6 +276,17 @@ def write_item_to_md(item: dict, content: str | None = None) -> None:
     related_items = item.get("related_items") or existing_fm.get("related_items") or []
     sources = item.get("sources") or existing_fm.get("sources")
     sources_line = f"sources: {json.dumps(sources, ensure_ascii=False)}\n" if sources else ""
+    # P2-2/E8 (裁决 2026-10-04): entities 是语义真源列 (T1 NER 抽取, 119 迁移),
+    # 进 frontmatter — 投影可从 md 重建; attention_score 为派生缓存可丢
+    # (attention_scorer 1800s job 重算), 刻意不入 frontmatter。
+    entities = item.get("entities")
+    if entities is None:
+        entities = existing_fm.get("entities")
+    try:
+        entities_list = json.loads(entities) if isinstance(entities, str) else (entities or [])
+    except (json.JSONDecodeError, TypeError):
+        entities_list = []
+    entities_line = f"entities: {json.dumps(entities_list, ensure_ascii=False)}\n"
 
     frontmatter = f"""---
 id: "{item.get('id', item_id)}"
@@ -287,6 +303,7 @@ type: {item.get('type') or 'null'}
 difficulty: {item.get('difficulty') or 'null'}
 tags: {json.dumps(item.get('tags', []), ensure_ascii=False)}
 concepts: {json.dumps(item.get('concepts', []), ensure_ascii=False)}
+entities: {json.dumps(entities_list, ensure_ascii=False)}
 mastery: {item.get('mastery', 0)}
 last_reviewed: {last_reviewed or 'null'}
 review_count: {review_count}

@@ -1,4 +1,16 @@
 
+## [DEV-0278] v0.8.6 P2-2: E8 真源缺列补齐 — entities 进 frontmatter + 派生缓存两分法 (p2-2-e8-projection)
+
+- **时间**: 2026-10-04
+- **类型**: 功能/修复 (v0.8.6 P2-2; 审计 E8 "投影不可从 md 完整重建" 闭环; owner 裁决 = 推荐方案)
+- **关联模块**: `backend:knowledge-sync`, `backend:knowledge-repo`, `docs:prd`
+- **owner 裁决落地 (两分法)**: ① entities (T1 NER 抽取, 119 迁移) = 语义真源列 → **进 md frontmatter**; ② attention_score = 派生缓存可丢 (attention_scorer 1800s 重算) → 刻意不入 frontmatter; ③ compiled = v1.7 起 lifecycle 派生只读 property, 审计该半自然闭环; ④ body = md 正文本体无需投影
+- **取证修正**: 审计 E8 "upsert 只写 16/26 列" 的 compiled 部分已被 v1.7 (035 迁移 + property) 自然解决; entities 写入点 = T1 write_entities (非 upsert 缺失), 真缺口是 frontmatter 无此列 + 重投影不回写
+- **修改**: `knowledge_sync.py` (write_item_to_md frontmatter +entities 行, DB dict 无键时继承文件已有值不重置; sync_item_to_db 读 fm.entities 经 repo.set_entities 重投影写回 — upsert 签名零改动, 6 消费点不受影响), `knowledge_repo.py` (+set_entities/get_entities 重投影对; upsert_item docstring 补缺列清单成文 = 两分法裁决语义)
+- **测试**: test_e8_projections 5 用例 (frontmatter 落 entities / 既有消费点回写不重置已有值 / attention_score 刻意缺席 / md→SQLite roundtrip 重建 / 脏值不炸同步); 受影响面 805 passed (knowledge/sync/wiki/oneway/compiler/ner/e8) 0 失败
+- **验证**: ruff 0; generate_meta --check OK (95/158 无增减); warm 门禁 OK; 需生产重启生效 (新产出的 md 才带 entities; 存量 md 由下次 write 路径补齐)
+- **下一可用号**: DEV-0280 (DEV-0279 预留给 P2-0 观测纪要落账)
+
 ## [DEV-0277] v0.8.6 P2 收敛冻结阶段规划定稿 (p2-freeze-plan)
 
 - **时间**: 2026-10-04

@@ -450,6 +450,7 @@ run record 即埋点：G1/G2 指标全部从 v1_runs/v1_proposals/command_log �
 
 冻结不加（Skill* 家族不投入）；死代码删除仅限审计点名且验证无引用者（SentinelJudgePage 删除需同步 3 处链接）；E8 真源缺列补齐（entities/compiled 进 frontmatter）；[假设] 竞品参照复盘一次。
 〔**DEV-0277 规划定稿 (2026-10-04)**: `docs/PLAN_P2_FREEZE_2026-10-04.md` — 任务表 P2-0 观测窗口复核 / P2-1 gate-detect 显式 outcome (G2① 清零最后一块) / P2-2 E8 补列 (owner 裁决点: entities/compiled 进 frontmatter, attention_score 标注派生缓存可丢) / P2-3 死代码尾巴 (SentinelJudgePage 主体已随 DEV-0258 提前删除, 余 css+文档行) / P2-4 SK-04 直写端点收编 / P2-5 (可选) P1-7 第二批 / P2-6 竞品复盘 (owner 点名才启动); 冻结纪律: 不加新能力 / Skill* 零投入 / 只修不改; 明确不做: pi 执行体(单独立项)/TanStack/raw_items.content/accessor 双库歧义〕
+〔**DEV-0278 P2-2 已交付 (2026-10-04, owner 裁决落地)**: entities 进 frontmatter (write_item_to_md, DB dict 无键时继承文件已有值不重置) + sync_item_to_db 重投影经 repo.set_entities 写回 (upsert 签名零改动); attention_score 派生缓存刻意不入 frontmatter; compiled 半已被 v1.7 lifecycle property 自然闭环 (审计该半修正); md→SQLite roundtrip 测试锁定; P2-0 观测窗口 T0 基线完成 (t24 待 10-05 08:42 后触发, G2②③ T0 即归零 ✓, gate-detect 基线 12 次/24h)〕
 
 **里程碑**：P0 完成 = "系统能诚实说出失败 + 写入口默认锁住"；P1 完成 = G1/G3 达成；P2 完成 = G2 清零确认。
 

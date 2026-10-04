@@ -217,9 +217,11 @@ describe('SentinelGardenPage — 哨兵终端 · 05 CodeGarden', () => {
     await waitFor(() => expect(screen.getByText('6 PROJECTS')).toBeInTheDocument());
 
     // 壳层自带主题按钮 + 版面条收起按钮 (A7, DEV-0188, 只写 localStorage); 设置齿轮已删
-    // (与四菜单「设置」项重复, UI 收敛); 本页自身不得新增任何可操作按钮
-    expect(container.querySelectorAll('.scr-codegarden button')).toHaveLength(0);
-    expect(container.querySelectorAll('button')).toHaveLength(2);
+    // (与四菜单「设置」项重复, UI 收敛); 本页自身不得新增任何可操作按钮。
+    // P1-4: 壳新增常驻命令栏 (.cmdbar), 属全局壳组件非本页写操作, 排除后计数。
+    const pageButtons = [...container.querySelectorAll('button')]
+      .filter(el => !el.closest('.cmdbar'));
+    expect(pageButtons).toHaveLength(2);
     expect(container.querySelectorAll('[role="button"]')).toHaveLength(0);
 
     const interactiveText = [...container.querySelectorAll('button, a, [role="button"]')]

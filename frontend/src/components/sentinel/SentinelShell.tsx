@@ -20,6 +20,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useFeatureFlags, type FeatureFlags } from '../../hooks/useFeatureFlags';
 import { listHotspots } from '../../api/hotspots';
+import { CommandBar } from './CommandBar';
 import { getSourceHealth, type SourceHealthPayload } from '../../api/sources';
 import { getJSON } from '../../lib/api';
 import './sentinel.css';
@@ -309,6 +310,9 @@ export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
               </a>
             ))}
           </nav>
+
+          {/* v0.8.6 P1-4 / M4: 命令栏常驻 masthead (PRD 用例 B; 零新路由) */}
+          <CommandBar />
 
           <div className="mh-meta">
             <button type="button" className="iconbtn" onClick={cycleTheme} aria-label={theme === 'dark' ? '切换到晨间亮色' : theme === 'paper' ? '切换到夜航暗色' : '切换到纸面版'}>

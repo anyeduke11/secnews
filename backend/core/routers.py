@@ -53,6 +53,7 @@ CORE_ROUTERS: frozenset[str] = frozenset({
     # v1.0 端到端 API (T08-T18/C13/MP-2 等, 无 gate 限制; P0-8 补登记)
     "case_api", "judgment_api", "action_api", "run_api", "artifact_api",
     "run_ledger_api",  # v0.8.6 P1-1: proposal 审批 + Run 账本
+    "command_bar_api",  # v0.8.6 P1-4: M4 命令栏
     "knowledge_api",
     "observability_audit_api",
     "legacy_migrate_api", "legacy_items_migrate_api", "legacy_migrate_v1_api",

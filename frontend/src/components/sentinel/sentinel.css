@@ -88,6 +88,35 @@
 .sentinel .nv.active::after{transform:scaleX(1);background:var(--sn-accent)}
 .sentinel .nv + .nv::after,
 .sentinel .nv + .nv:hover::after{left:20px}
+
+/* ===== 命令栏 cmdbar (v0.8.6 P1-4 / M4) — masthead 常驻, 排版式细输入 ===== */
+.sentinel .cmdbar{
+  position:relative;display:flex;align-items:center;gap:6px;
+  margin-left:18px;padding-left:18px;border-left:1px solid var(--sn-line);
+  min-width:0;flex:1;max-width:360px;
+}
+.sentinel .cmdbar-input{
+  flex:1;min-width:0;padding:6px 10px;border-radius:6px;
+  border:1px solid var(--sn-line);background:transparent;
+  font-family:var(--sn-mono);font-size:12px;color:var(--sn-ink);
+  outline:none;transition:border-color .15s ease;
+}
+.sentinel .cmdbar-input::placeholder{color:var(--sn-ink-3)}
+.sentinel .cmdbar-input:focus{border-color:var(--sn-accent)}
+.sentinel .cmdbar-go{
+  padding:6px 10px;border-radius:6px;font-family:var(--sn-mono);font-size:12px;
+  border:1px solid var(--sn-line);color:var(--sn-ink-2);
+  transition:background .15s ease,color .15s ease;
+}
+.sentinel .cmdbar-go:hover:not(:disabled){background:var(--sn-bg-hover);color:var(--sn-ink)}
+.sentinel .cmdbar-go:disabled{opacity:.4}
+.sentinel .cmd-result{
+  position:absolute;top:calc(100% + 8px);left:18px;right:0;z-index:30;
+  max-width:420px;padding:10px 12px;border-radius:8px;
+  border:1px solid var(--sn-line);background:var(--sn-bg);
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+  display:flex;flex-direction:column;gap:4px;
+}
 .sentinel .mh-meta{
   margin-left:auto;display:flex;align-items:center;gap:14px;align-self:center;
   border-left:1px solid var(--sn-line);padding-left:16px;

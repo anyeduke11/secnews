@@ -253,6 +253,9 @@ def register_all(app: FastAPI) -> None:
     # v0.8.6 P1-1 / M1: 提案审批循环 + Run 账本 (无条件 core)
     from backend.api import run_ledger_api
     app.include_router(run_ledger_api.router, tags=["run-ledger"])
+    # v0.8.6 P1-4 / M4: 对话式命令栏 (无条件 core)
+    from backend.api import command_bar_api
+    app.include_router(command_bar_api.router, tags=["command-bar"])
     # v1.0 T13: Knowledge 端到端 (SK-04/05/06 知识发布/复用/复查)
     from backend.api import knowledge_api
     app.include_router(knowledge_api.router, tags=["v1-knowledge"])

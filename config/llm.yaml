@@ -130,8 +130,8 @@ task_overrides:
   # 歧义且无已认证项 → rc=1 (见上方 2026-09-27 注)。owner pi auth 全限定名
   # (provider/model) 后再填; 空串 = 不下传 --model, 走 pi 默认上游。
   t1_score:
-    provider: pi
-    model: ""
+    provider: sensenova
+    model: deepseek-v4.1-flash
     temperature: 0.0
     max_tokens: 512
   # HEAVY 档入口 (当前唯一生产调用方 = 深度阅读)。
@@ -141,14 +141,14 @@ task_overrides:
   # 改动 → deep_read 路由自动生效, 零代码改动。
   t3_summary:
     provider: sensenova
-    model: deepseek-v4-pro
+    model: deepseek-v4.1-flash
     temperature: 0.3
     max_tokens: 1600
   # FLASH 档 (summarize/chunk_summary): ollama 优先, 离线时经
   # fallback_order 落到 sensenova (LLMService 有降级链, 与 t1_score 不同)
   t3_chunk_summary:
-    provider: ollama
-    model: qwen2.5:7b
+    provider: sensenova
+    model: sensenova-6.8-flash-lite
     temperature: 0.0
     max_tokens: 100
     batch_size: 10

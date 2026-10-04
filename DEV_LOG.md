@@ -1,4 +1,110 @@
 
+## [DEV-0276] v0.8.6 P1-8: warm.X 裸引用 CI 门禁 — accessor 强制收口 (p1-8-warm-refs-gate)
+
+- **时间**: 2026-10-04
+- **类型**: 工程门禁 (v0.8.6 PRD P1-8; F2-4 提前, §4.3 规则③落地; 验收 = 仓内 warm. 字面量 SQL 引用 = 0)
+- **关联模块**: `backend:repository-db`, `backend:health-query`, `scripts:ci-gates`, `docs:prd`
+- **新建**: `scripts/check_warm_refs.py` (正则抓 FROM/JOIN/INTO/UPDATE + warm.<ident>, backend/+scripts/ 全扫; 白名单三层: db.py 治理本体/tests 意图/一次性运维脚本直连 warm.db; docstring ast 精确抹除, ast 失败保守报错; --format json), `backend/tests/test_check_warm_refs.py` (5: 基线 0 违规/四形态抓取/白名单内容冻结/governor 文件含 accessor 定义防漂移)
+- **存量清零**: health_query_service 3 处 collection_runs + legacy_migrate_v1 migrate_warm 1 处 knowledge_items → warm_table()/knowledge_items_table() accessor; 收益实锤 = health fixture 暴露裸名跨库劫持 (main 残留旧版表无 duration_ms, 裸名打 main 非 warm, E15 同款歧义) → fixture 修为模拟生产态 (main DROP)
+- **修改**: `.github/workflows/ci.yml` (+step warm.X bare SQL reference check, backend job 与 docstring/graph_schema 同层), `backend/tests/test_health_query_service.py` (fixture 模拟已迁移态)
+- **门禁首跑战果**: 捉 6 处 → 甄别 (1 docstring 误报 / 2 scripts 合法豁免 / 规则迭代后 0)
+- **测试**: 受影响面 707 passed (warm/health/legacy/rejection/ledger/sync/command) 0 失败; ruff 触碰 5 文件 0; generate_meta --check OK; harness_analyze --check 0
+- **Rule 12 留痕**: test_check_temp_db_sizes::test_hot_violation_when_over_limit 存量环境性失败 (生产 hot.db 尺寸超阈值) stash 复证 HEAD 同样失败, 非本批
+- **遗留**: accessor "main 优先"双库同表歧义 (fixture 暴露) 属存储治理工单; 一次性脚本白名单新增须过"直连 warm.db"准则
+- **下一可用号**: DEV-0277
+
+## [DEV-0275] v0.8.6 P1-7: 前端 fetch 竞态修复 — 24 风险文件统一卸载守卫 (p1-7-fetch-race-guard)
+
+- **时间**: 2026-10-03
+- **类型**: 可靠性 (v0.8.6 PRD P1-7; D5 裁决 (c) "维持现状只修竞态" 落地, 不引状态库)
+- **关联模块**: `frontend:hooks`, `frontend:secnews-feed`, `frontend:knowledge`, `frontend:settings`
+- **取证**: 粗筛 44 文件 fetch effect 无卸载防护; 本批取页面/面板级 24 文件 (路由切换即卸载, 与审计 E12 "24/65" 对齐), settings 弹窗类 20 文件列第二批
+- **新建**: `hooks/useAbortGuard.ts` (卸载 cleanup 置 current=true 的稳定 ref) + test (3 契约用例)
+- **修改**: 24 文件统一模式 — await 后 setState 前插 `if (dead.current) return;` (catch 同/finally 条件化/useCallback deps 补 dead), 合计 113 处守卫点: FeedView(参照) InboxScanner WikiBrowser ThresholdEditor TokenLedger InfoFilterCard KnowledgeHubPage AttentionHeatmap KnowledgeCompoundingDashboard KnowledgePlanningPanel ReviewMode EventsReviewPage EventTypeReviewPage SecurityEntityDetail PriorityDigestCard SentinelGraphPage MaintPage ContentCalendar ContentDraftList LearningPanel PublishHistory MasteryGauge FederationStatus OpsRunsPanel; `OpsRunsPanel.test.tsx` +1 卸载竞态用例 (deferred fetch→卸载→resolve→零 console.error)
+- **Rule 7 边界**: 只锁卸载面 (PRD 验收口径); 依赖变更序竞态 (requestId 方案) 与弹窗类 20 文件列后续批; hooks 层 9 个已有 AbortController 不动
+- **测试**: tsc 0 错; vitest 683/683 (99 文件, +4); build 0 错; 纯前端零后端变更
+- **遗留**: 依赖变更序竞态 (requestId); 弹窗类第二批; TanStack Query 评估留 D5 长期项
+- **下一可用号**: DEV-0276
+
+## [DEV-0274] v0.8.6 P1-6: sync apply_bundle 事务化 + signals 消流归因报告 (p1-6-sync-tx-trickle-report)
+
+- **时间**: 2026-10-03
+- **类型**: Bug修复/可靠性 (v0.8.6 PRD P1-6; 审计 F1-6 R6 + F1-5 R1)
+- **关联模块**: `backend:sync-bundle`, `backend:repository-db`, `backend:v1-signals`, `docs:prd`
+- **F1-6 事务化**: `repository/db.py` +`deferred_commit()` (_CommitDeferringProxy 顶替 _tls.conn: 吞 execute 层 BEGIN/COMMIT/ROLLBACK 语句 + commit()/rollback() 方法两种事务风格, 外层 BEGIN IMMEDIATE/COMMIT, 异常整体 ROLLBACK; 条件还原防污染); `sync_bundle.apply_bundle` 包裹为单事务 — 注入中途失败数据未半写 (F1-6 验收①), pull 顺序契约 apply 抛出→sync_states upsert 永不执行 = base 不推进 (验收②)
+- **踩坑留痕**: ① repo 90+ 处显式 execute("BEGIN")/("COMMIT") 需 execute 层拦截 (仅吞方法不够); ② v1_7 fixture _get_conn 直返 shared_conn 绕过 _tls → repos 真连接 BEGIN 炸并滚掉外层事务 → fixture 改读 _tls.conn 同源; ③ restore 条件式 (仅当 _tls.conn is proxy)
+- **顺手修存量 bug (Phase 46 遗留)**: sync_bundle 给 add_or_get 传已废弃 urgent kwarg → TypeError 每条必抛被 except 吞 — todos 跨端同步自 Phase 46 起静默全废; 改传 important/deadline
+- **F1-5 消流归因 (量化, 生产实测)**: 成因 = 唯一 intake 源 SecWiki feed 停更 (13 条/涓流 ~1 条/天) + hotspots 主流 (7d 9857) 无通道进 v1 链 (转化 0.041%); 修复 = DEV-0268 v1_signal_bridge + DEV-0270 ai_classify; 效果 = signals 近 7d **2107** vs 前 7d **1**, 转化率 **21.4%** (~500 倍), kl stubs 2104 供米 T1; 目标转化率带 15-30% (deny 规则配置后收窄), 持续观测口径 = signals/hotspots 7d 比率; signals ≥120/30d 超额达成 (2117)
+- **测试**: 新建 test_sync_transaction.py 6 用例 (成功全表提交/midway 注入整体回滚 (注入点=FavoriteRepository.add — todos 循环有 except 不可作注入点)/base 不推进/嵌套复用/内层异常回滚); v1_7 fixture 同源修正; 受影响面 542 passed (sync/webdav/merge/bundle/favorite/todo) 0 失败
+- **验证**: ruff 触碰 4 文件 0; generate_meta --check OK (58/14/95/158 无增减); 需生产重启生效
+- **遗留**: executescript 代理未拦 (sync 路径无消费方); deferred_commit 其他批量写场景按需接入
+- **下一可用号**: DEV-0275
+
+## [DEV-0273] v0.8.6 P1-5: 质量门禁拒收回放 — item_id+raw_data+UI (p1-5-rejection-replay)
+
+- **时间**: 2026-10-03
+- **类型**: 功能 (v0.8.6 PRD P1-5; 审计 F1-3, 验收 = 任一拒收可看原文与原因)
+- **关联模块**: `backend:quality-pipeline`, `backend:quality-repo`, `frontend:observability`, `docs:prd`
+- **取证**: 拒收 = strict 门禁拒绝 (hard fail / score<min), 此前散落 per-gate passed=0 行 + 应用日志, 无法区分真拒绝; 原文源 = raw_items (migration 055, 采集全量落 title/url/summary)
+- **新建**: `api/quality_api.py` (GET /api/quality/rejections, 95 routers, CORE), `tests/test_quality_rejection_replay.py` (9), `frontend/src/components/secnews/observability/RejectionReplay.tsx`+test (3)
+- **修改**: `quality/pipeline.py` (两处 strict raise 前写拒收标记行 gate_name='pipeline': passed=0/score_deduction=100-final/flags/reason; loose 不落), `quality_repo.py` (+list_rejections: 标记行 LEFT JOIN raw_items, warm_table accessor, raw 缺失=None 诚实), `ObservabilityTab.tsx` (+RejectionReplay 区块, 零新路由), `api/secnews.ts` (+getQualityRejections)
+- **Rule 7 裁决**: 拒收语义取 strict 真拒绝 (标记行), 非"所有 passed=0"(soft 扣分条目仍入库非拒收); raw_items.content 现为空, 回放原文=title+url+summary (拒收判定依据面); 历史拒收 (上线前) 无标记不可回放
+- **测试**: 后端广面 548 passed (quality/pipeline/router/collect/rejection) 0 失败; 前端 tsc 0 + vitest 679/679 + build 0; ruff 触碰 4 文件 0; generate_meta --fix 95 routers
+- **遗留**: raw_items.content 正文留存增强; 拒收按 gate 趋势聚合属观测优化
+- **下一可用号**: DEV-0274
+
+## [DEV-0272] v0.8.6 P1-4: 对话式命令栏 — 四类固定意图 + 全命令 run record — M4 轴④ (p1-4-command-bar)
+
+- **时间**: 2026-10-03
+- **类型**: 功能 (v0.8.6 PRD P1-4 用例 B; 验收三条 ① 查询带来源链接 ② 建案生 proposal ③ 每条命令可查)
+- **关联模块**: `backend:command-bar`, `backend:run-ledger`, `frontend:sentinel-shell`, `docs:prd`
+- **新建**: `repository/command_repo.py` (command_log R2 单写者, migration 131 建表至此有 writer; cmd_<26ULID/insert/list), `services/command_bar_service.py` (meta 157→158: parse_intent 纯函数本地规则 — 查询(时间窗默认14d)/建案/出报告/执行/unknown+可选动作清单, 确定性 regex 不猜 (R5); run_command 恒不抛, error fail-loud), `api/command_bar_api.py` (POST/GET /api/commands, 无条件 CORE 注册), `tests/test_command_bar.py` (13), `frontend/src/components/sentinel/CommandBar.tsx`+test (5), `frontend/src/api/commands.ts`
+- **修改**: `api/_registry.py` + `core/routers.py` (CORE 白名单, 94 routers), `SentinelShell.tsx` (+CommandBar 于 masthead, 零新路由), `sentinel.css` (+cmdbar 样式), `SentinelGardenPage.test.tsx` (只读契约 button 计数排除壳级 .cmdbar)
+- **意图路由**: 查询 → v1_signals JOIN v1_materials LIKE 带 Source url (验收①); 建案/出报告 → create_proposal(source='command') 进审批流 (验收②, 广播 proposals:changed); 执行类 → 诚实 unsupported (pi 执行体后续批次, 不伪装); unknown → 显式可选动作 (不猜)
+- **spec 联动 (PRD 回写)**: 用例 B 验收③ "每条命令在 /api/ops/runs 可查" → 查询口 = GET /api/commands (command_log; /api/ops/runs 是 job_runs 专用); L180 "每次执行写 run record" 由 command_log 行承载 (input/intent/action_ref/outcome), 行动类批准后另有 v1_runs; 执行类 unsupported 注记
+- **测试**: 后端广面 571 passed (command/run/proposal/ledger/router/registry) 0 失败; 前端 tsc 0 + vitest 676/676 + build 0; ruff 触碰 4 文件 0; generate_meta --fix 94 routers / 158 services
+- **遗留**: LIKE 检索 (FTS5 属优化); 执行类实义待 pi 执行体; 意图词表扩充须同步测试矩阵
+- **下一可用号**: DEV-0273
+
+## [DEV-0271] v0.8.6 P1-3: 副驾四卡走提案通道 + 四 kind 批准全产物化 — M3 轴③ (p1-3-copilot-cards)
+
+- **时间**: 2026-10-03
+- **类型**: 功能 (v0.8.6 PRD P1-3 M3; 验收 = 四卡各产出 ≥1 artifact)
+- **关联模块**: `backend:copilot-drafter`, `backend:run-ledger`, `frontend:action-page`, `docs:prd`
+- **四卡↔kind 映射**: 情报流研判建议→judgment_draft (复用 /draft-judgment, draft_judgment 加 source 参数); 知识自动摘要→knowledge_draft; 案件证据召回→case_suggestion; SK-04 复盘草案→report (后三者走新链)
+- **新建**: `services/copilot_drafter.py` (meta 156→157: 三 kind 起草 task="summary" STANDARD 档 (成本对策 FLASH 档); payload 必填/数组契约 + 容错解析; render_copilot_markdown 证据 url 内嵌), `tests/test_copilot_drafter.py` (14), `frontend/src/components/action/CopilotCards.tsx`+test (6)
+- **修改**: `run_ledger_service.py` (+copilot_draft: case kind 必须绑证据/失败→failed 提案 case 锚留痕; **materialize-all**: 批准全 kind running→md 落盘→sha256→succeeded/done, 切片1 "采纳即 done" 占位退役, 旧 33 测试零改动兼容), `api/run_ledger_api.py` (+POST /copilot-draft), `ApprovalInbox.tsx` (监听 proposals:changed 自刷新 + 重试 kind 感知: judgment→draft-judgment/副驾 kind→copilot-draft; knowledge_draft 无锚禁用), `SentinelActionPage.tsx` (+CopilotCards 于收件箱上方, 零新路由), `api/proposals.ts` (+copilotDraft)
+- **Rule 7 边界**: SK-04 create_with_dsh 直写端点保留 (registry/pi 域引用), M3D 只接通卡→草案→审批路径, 直写收编另开工单; artifact kind 恒 report/md, title 前缀区分类别
+- **测试**: 后端广面 499 passed (run/proposal/artifact/ledger/copilot/judgment/router) 0 失败; 前端 tsc 0 + vitest 671/671 + build 0; ruff 触碰 4 文件 0; generate_meta --fix 157 services
+- **遗留**: 收件箱锚点手输 ID (选择器属 UX 增强); knowledge_draft 失败无重试锚点; P1-4 命令栏 (M4) 下一批
+- **下一可用号**: DEV-0272
+
+## [DEV-0270] v0.8.6 P1-2c: ai_classify 主流量化 — 零消费点收编 + 批级预算 (p1-2c-ai-classify-main-traffic)
+
+- **时间**: 2026-10-03
+- **类型**: 功能 (v0.8.6 PRD P1-2 收尾; semantic_filter/ai_classify 進主流量 的最后一刀)
+- **关联模块**: `backend:auto-classifier`, `backend:collect-jobs`, `docs:prd`
+- **取证定性**: classify_item_with_ai (方案 B, 2026-09-18) 零生产消费点 — gate 默认开但主流量从不触发; 主流量分类点 = collect.py::_classify_new_items (5min 窗口 batch_classify 纯规则; 桥 kl stub tags=[] 是 miss 大户)。semantic_filter 已在采集主路径 (item_builder Layer 2, 09-19 开闸) — 桥内再加 verdict = 同文本双判零增益, 不做 (Rule 7 留痕)
+- **改动**: auto_classifier.py +classify_items_with_ai (items, max_llm_calls=20) -> (results, llm_used) — batch_classify 的 gate 化版本: 规则优先零 LLM / miss+预算内 LLM 增援 / 预算尽诚实 domain=None (P0-6); 成本双闸 = gate + 批级预算 20 (PRD 风险表对策, usage_log gateway 记账); collect.py::_classify_new_items 换用 + log llm_used; batch_classify 纯函数契约与其余 6 消费点不动
+- **测试**: test_ai_classify +4 (预算封顶恰好 1 调用+未增援诚实 None / 规则命中不占预算 / gate 关零 LLM / 合并契约同形); test_compound_drivers crash 测试 patch 目标随主入口更替
+- **验证**: 受影响面 480 passed (classify/collector/intake/info_filter/ai_hub/collect/bridge/kl) 0 失败; ruff 触碰 4 文件 0; generate_meta --check OK (58/14/93/156); py_compile 过; 需生产重启
+- **生产预期**: kl stub domain 补全走 AI 增援 (最坏 20 LLM/5min 预算封顶), interest_engine/域统计受益; llm_used 日志观测水位
+- **遗留**: 24h 观测 llm_used 水位 (常顶预算再调 AI_CLASSIFY_BUDGET_PER_BATCH); pipeline_ner 不在 P1-2 范围
+- **下一可用号**: DEV-0271
+
+## [DEV-0269] v0.8.6 P1-2b: T4 真门 — SCORE_FALLBACK 双语义移除 + 候选殿后防饿死 (p1-2b-t4-real-gate)
+
+- **时间**: 2026-10-03
+- **类型**: 功能 (v0.8.6 PRD P1-2 T4 真门; DEV-0268 评分链复活达成前置后的 parked 统一)
+- **关联模块**: `backend:kl-trigger-t4`, `backend:ai-hub-scores`, `docs:prd`
+- **假门根除**: t4_structure_to_publish.py 删 SCORE_FALLBACK_ENABLED/VALUE + HOTSPOT_KL_T4_SCORE_FALLBACK env（无 ai_scores 行曾按 8.0 视为通过 → 未评分内容直发 kl:publish, 系统替模型宣称成功）— 真门语义 = 无行 0.0 < MIN_SCORE(8.0) 恒跳过, 发布必须有真实 LLM 评分 (P0-6 精神); DEV_LOG DEV-0257 parked "双开关语义统一" 到此收账
+- **饿死防护**: _fetch_candidates 改 ORDER BY (EXISTS ai_scores) DESC, ingested_at ASC (有分殿前/无分殿后) — 生产滞留池 271 条中 143 无分, 真门下恒 skip 不入死信, 裸 ASC 下老无分条目将占满 50 窗口饿死有分条目 (换原因的死锁); 实现踩坑留痕: ai_scores 自有 id 列遮蔽裸 `id` 引用, 必须外层别名 k.id (T4.11 测试抓到)
+- **测试**: test_t4_trigger T4.10 重写真门断言 + T4.11 饿死防护 (55 无分 vs 1 有分 → 有分者必发布) + 删假门放行用例; 坏值分支 = 防御性死代码 (ai_scores NOT NULL + CHECK(0≤score≤10)) 留 NOTE 不伪造; test_kl_ingest_e2e_revival T4 前造 9.0 分 (原依赖假门, stash 复证); 顺手清 test_ai_hub 存量失败 (migration 132 剥 FK 假设过期 → 改锁无 FK 任意 id 可写, 防 FK 回潮再炸 T1)
+- **验证**: T4 11/11; 受影响面 566 passed (trigger/score/bridge/kl/knowledge_sync/ai_hub) 0 失败; ruff 触碰 4 文件 0; generate_meta --check OK (58/14/93/156 不变); 需生产重启生效
+- **生产预期**: kl:publish 增速上分门槛 (现 16 条 ≥8.0 待发); 143 无分滞留 kl:structure 属预期语义, 评分链覆盖后解锁; HOTSPOT_KL_T4_SCORE_FALLBACK env 失效
+- **遗留**: P1-2c semantic_filter/ai_classify 主流量化; 24h 观测 kl:publish 增速与 skipped_low_score 积压
+- **下一可用号**: DEV-0270
+
 ## [DEV-0268] v0.8.6 P1-2a: v1_signal_bridge 主流桥落地 — hotspots→signals/kl:raw, T1 评分链复活的供米侧 (p1-2a-signal-bridge)
 
 - **时间**: 2026-10-03

@@ -182,6 +182,7 @@ graph TD
 - **异常流程**：意图不可识别 → 显式回复"未理解，可选动作：…"（不猜）；行动类未获批 → run=cancelled；LLM 解析失败 → failed，附原始输出。
 - **涉及数据**：command_log（新表：input/intent/action/outcome/timestamp）、复用 M1 链。
 - **验收标准**：①"查过去两周 X 的高置信信号"返回结果带来源链接；②"为 X 建案"生成 proposal 而非直接建案；③每条命令在 /api/ops/runs 可查。
+- **实现裁决（2026-10-03 P1-4，DEV-0272，已交付）**：① 命令栏常驻 masthead（四菜单右侧），零新路由；意图路由 = `parse_intent` 纯函数本地规则（确定性 regex），查询类 v1_signals JOIN v1_materials LIKE 检索带 Source url（验收①），建案/出报告 → `create_proposal(source='command')` 进审批流（验收②）；② 验收③ 回写：命令 run record 落 command_log（本条"涉及数据"本就指定），查询口 = **GET /api/commands**（/api/ops/runs 是 job_runs 专用口，不混入）；行动类经人批准后另产生 v1_runs（proposal.run_id 关联）；③ 执行类意图：识别到但 pi 执行体未接入（P1-1 后续批次）→ 诚实返回 outcome=unsupported + 指引可用动作，不伪装 proposal（P0-6 纪律）；④ 意图不可识别 → intent=unknown + 可选动作清单（不猜）。
 
 #### 用例 C：E1 档位 model 真生效（M0，兼修 DEV-0245 欠账）
 
@@ -437,13 +438,13 @@ run record 即埋点：G1/G2 指标全部从 v1_runs/v1_proposals/command_log �
 | # | 任务 | 验收 |
 |---|------|------|
 | P1-1 | migration 131 + Run 账本服务 + 审批收件箱（M1）〔切片1 DEV-0263 后端账本 / 切片2 DEV-0264 起草+产物闭环 / 切片3 DEV-0265 收件箱 UI / failed Run 重试端点 DEV-0266 / 旧 generate 端点退役 410 DEV-0267 均已交付〕 | 用例 A 验收 |
-| P1-2 | E1 后语义管线主流量化（semantic_filter/ai_classify 進 Signal 主路径）+ **T1 评分链路修复（ai_scores 产出 >0，现基线 0 行）先行** + T4 真门 | signals ≥120/30d；T4 真门前置：ai_scores 非 0，否则管线将死锁于 kl:structure（审查一发现） |
-| P1-3 | 副驾四卡（M3，全部走 proposal 通道） | 四卡各产出 ≥1 artifact |
-| P1-4 | 命令栏（M4） | 用例 B 验收 |
-| P1-5 | 拒绝可回放（item_id+raw_data+UI） | 任一拒收可看原文 |
-| P1-6 | sync 事务化 + signals 涓流归因报告 | 注入失败 base 不推进 |
-| P1-7 | **前端 fetch 竞态修复**（D5 裁决的"先修竞态"落地：24/65 个 fetch effect 竞态点加 aborted/dead 标记，不引状态库） | 竞态用例（快速切换路由/组件卸载）无脏状态写入 |
-| P1-8 | **warm.X 裸引用 CI 门禁**（F2-4 提前：grep 检查 + accessor 强制，§4.3 规则③落地） | 仓内 `warm.` 字面量 SQL 引用 = 0（accessor 除外白名单） |
+| P1-2 | E1 后语义管线主流量化（semantic_filter/ai_classify 進 Signal 主路径）+ **T1 评分链路修复（ai_scores 产出 >0，现基线 0 行）先行** + T4 真门〔T1 修复 DEV-0268 已交付（v1_signal_bridge，ai_scores 421 行/1d）；**T4 真门 DEV-0269 已交付**（SCORE_FALLBACK 双语义移除，无分不放行 + 有分殿后防饿死）；**ai_classify 主流量化 DEV-0270 已交付**（classify_items_with_ai 接采集尾部分类，批级预算 20 防成本失控；semantic_filter 已在 item_builder 主路径，桥内不双判）；**P1-2 全部交付**〕 | signals ≥120/30d（实产 1397 ✓）；T4 真门前置：ai_scores 非 0（达成 ✓），否则管线将死锁于 kl:structure（审查一发现） |
+| P1-3 | 副驾四卡（M3，全部走 proposal 通道）〔**DEV-0271 已交付**：四卡挂 /action（CopilotCards 区块，零新路由）——研判建议→draft-judgment / 知识摘要·证据召回·SK-04 复盘→copilot-draft（STANDARD 档）；批准全 kind 产物化（md+sha256），验收"四卡各产出 ≥1 artifact" 由参数化测试锁定；SK-04 直写端点收编另开工单〕 | 四卡各产出 ≥1 artifact ✓ |
+| P1-4 | 命令栏（M4）〔**DEV-0272 已交付**：常驻 masthead 零新路由；四类固定意图本地规则路由（查询带 Source url / 建案·出报告生 proposal / 执行类 unsupported 待 pi / unknown 显式可选动作）；全命令 run record 落 command_log，查询口 GET /api/commands（验收③ 原文 /api/ops/runs 为 job_runs 专用，已回写用例 B）〕 | 用例 B 验收 ✓ |
+| P1-5 | 拒绝可回放（item_id+raw_data+UI）〔**DEV-0273 已交付**：pipeline strict 拒绝写 gate_name='pipeline' 标记行（区别于 soft 扣分行）；GET /api/quality/rejections 标记行 JOIN raw_items 原文；RejectionReplay 区块挂 ObservabilityTab（零新路由），raw 缺失诚实"未留存"〕 | 任一拒收可看原文 ✓ |
+| P1-6 | sync 事务化 + signals 涓流归因报告〔**DEV-0274 已交付**：apply_bundle 经 deferred_commit 单事务原子注入（中途失败整体回滚数据未半写；pull 顺序契约 base 不推进，F1-6 ✓）；顺手修 todos 同步 urgent kwarg 存量静默全废 bug；涓流归因量化 = 唯一源停更 + 主流无桥（转化 0.041%）→ DEV-0268 桥修复后近 7d 2107 条 / 转化率 21.4%（目标带 15-30%），signals ≥120/30d 超额（2117）〕 | 注入失败 base 不推进 ✓ |
+| P1-7 | **前端 fetch 竞态修复**（D5 裁决的"先修竞态"落地：24/65 个 fetch effect 竞态点加 aborted/dead 标记，不引状态库）〔**DEV-0275 已交付**：useAbortGuard hook + 24 个页面/面板级风险文件统一卸载守卫（113 处守卫点）；竞态用例锁定卸载后零脏写入；依赖变更序竞态（requestId）与弹窗类 20 文件列后续批〕 | 竞态用例（快速切换路由/组件卸载）无脏状态写入 ✓ |
+| P1-8 | **warm.X 裸引用 CI 门禁**（F2-4 提前：grep 检查 + accessor 强制，§4.3 规则③落地）〔**DEV-0276 已交付**：scripts/check_warm_refs.py（白名单三层 = db.py 治理本体/tests 意图/一次性脚本直连 warm.db；docstring ast 抹除）+ CI backend job step；存量 4 处服务层裸引用清零（health 3 + legacy_migrate 1），首跑捉 6 处迭代后 = 0；门禁自身 5 测试含白名单冻结〕 | 仓内 `warm.` 字面量 SQL 引用 = 0 ✓ |
 
 ### Phase P2 — 收敛冻结（1 周）
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getJSON } from '../../lib/api';
+import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { SecurityEntity } from '../../hooks/useSecurityGraph';
 
 interface DetailProps {
@@ -10,6 +11,7 @@ interface DetailProps {
 export function SecurityEntityDetail({ entity, onClose }: DetailProps) {
   const [related, setRelated] = useState<any[]>([]);
   const [_loading, setLoading] = useState(false);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   useEffect(() => {
     setLoading(true);
@@ -18,10 +20,11 @@ export function SecurityEntityDetail({ entity, onClose }: DetailProps) {
       `/api/security/entities/${encodeURIComponent(entity.id)}/related?depth=1`,
     )
       .then(d => {
+        if (dead.current) return;
         setRelated(d.nodes || []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => { if (!dead.current) setLoading(false); });
   }, [entity.id]);
 
   const severityColor = (severity?: string) => {

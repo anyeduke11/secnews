@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { PublishHistoryItem } from '../types';
 import { getJSON } from '../lib/api';
+import { useAbortGuard } from '../hooks/useAbortGuard';
 
 interface PublishHistoryProps {
   draft_id: number | null;
@@ -24,20 +25,23 @@ export function PublishHistory({ draft_id, onClose }: PublishHistoryProps) {
   const [history, setHistory] = useState<PublishHistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const loadHistory = useCallback((id: number) => {
     setLoading(true);
     setError(null);
     getJSON<{ history?: PublishHistoryItem[] }>(`/api/content/drafts/${id}/publish-history`)
       .then(data => {
+        if (dead.current) return;
         setHistory(data.history || []);
         setLoading(false);
       })
       .catch(e => {
+        if (dead.current) return;
         setError(e?.message || String(e));
         setLoading(false);
       });
-  }, []);
+  }, [dead]);
 
   useEffect(() => {
     if (draft_id != null) {

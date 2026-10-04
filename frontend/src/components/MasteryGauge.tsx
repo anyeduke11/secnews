@@ -2,19 +2,23 @@ import { useState, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { ConceptProgress } from '../types';
 import { getJSON } from '../lib/api';
+import { useAbortGuard } from '../hooks/useAbortGuard';
 
 export function MasteryGauge() {
   const [progress, setProgress] = useState<ConceptProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   useEffect(() => {
     getJSON<{ progress?: ConceptProgress[] }>('/api/knowledge/progress')
       .then(data => {
+        if (dead.current) return;
         setProgress(data.progress || []);
         setLoading(false);
       })
       .catch(e => {
+        if (dead.current) return;
         setError(e?.message || String(e));
         setLoading(false);
       });

@@ -13,6 +13,7 @@ import { Icon } from '../Icon';
 import { getJSON } from '../../lib/api';
 import { STAGE_LABELS, STAGE_COLORS } from './LifecycleProgress';
 import { useThemeColors } from '../../hooks/useThemeColors';
+import { useAbortGuard } from '../../hooks/useAbortGuard';
 
 /* ── Data types ──────────────────────────────────────────────── */
 
@@ -68,6 +69,7 @@ export function KnowledgeCompoundingDashboard() {
   const [data, setData] = useState<CompoundingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const themeColors = useThemeColors([
     'text-muted',
@@ -86,13 +88,15 @@ export function KnowledgeCompoundingDashboard() {
     try {
       // 非 2xx 由 apiFetch 抛错 (message 经 getApiErrorMessage 兜底)
       const json = await getJSON<CompoundingData>('/api/kl/compounding');
+      if (dead.current) return;
       setData(json);
     } catch (e: any) {
+      if (dead.current) return;
       setError(e.message || '获取复利数据失败');
     } finally {
-      setLoading(false);
+      if (!dead.current) setLoading(false);
     }
-  }, []);
+  }, [dead]);
 
   useEffect(() => {
     fetchData();

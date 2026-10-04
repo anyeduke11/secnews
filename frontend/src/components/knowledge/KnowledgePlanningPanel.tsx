@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '../Icon';
 import { apiFetch, getJSON } from '../../lib/api';
+import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { STAGE_COLORS, STAGE_LABELS } from './LifecycleProgress';
 
 // ---------------------------------------------------------------------------
@@ -107,6 +108,7 @@ export function KnowledgePlanningPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingIds, setUpdatingIds] = useState<Set<number>>(new Set());
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchActions = useCallback(async () => {
@@ -114,15 +116,17 @@ export function KnowledgePlanningPanel() {
     setError(null);
     try {
       const data = await getJSON<PlanningAction[]>(`${PLANNING_ACTIONS_URL}?status=pending`);
+      if (dead.current) return;
       // API 已按 priority DESC 排序，但本地再确保一次
       data.sort((a, b) => b.priority - a.priority);
       setActions(data);
     } catch (e) {
+      if (dead.current) return;
       setError(e instanceof Error ? e.message : '加载规划动作失败');
     } finally {
-      setLoading(false);
+      if (!dead.current) setLoading(false);
     }
-  }, []);
+  }, [dead]);
 
   useEffect(() => {
     fetchActions();
@@ -136,18 +140,21 @@ export function KnowledgePlanningPanel() {
         method: 'PUT',
         body: JSON.stringify({ status }),
       });
+      if (dead.current) return;
       // 从列表中移除
       setActions(prev => prev.filter(a => a.id !== id));
     } catch (e) {
       console.error('状态更新失败:', e);
     } finally {
-      setUpdatingIds(prev => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
+      if (!dead.current) {
+        setUpdatingIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
     }
-  }, []);
+  }, [dead]);
 
   // ── Render helpers ─────────────────────────────────────────────────────────
   const renderStageLabel = (stage: string | null) => {

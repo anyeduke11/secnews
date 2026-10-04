@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getJSON, postJSON } from '../../../lib/api';
 import { useI18n } from '../../../contexts/I18nContext';
+import { useAbortGuard } from '../../../hooks/useAbortGuard';
 
 // 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
 const INBOX_LIST_URL = '/api/kl/inbox/list';
@@ -26,6 +27,7 @@ export function InboxScanner({ onScanned }: { onScanned?: () => void }) {
   const [quarantine, setQuarantine] = useState<FileEntry[]>([]);
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState<{ moved: number; quarantined: number } | null>(null);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const refresh = useCallback(async () => {
     try {
@@ -34,10 +36,11 @@ export function InboxScanner({ onScanned }: { onScanned?: () => void }) {
         getJSON<{ files?: FileEntry[] }>(INBOX_LIST_URL),
         getJSON<{ files?: FileEntry[] }>(QUARANTINE_LIST_URL),
       ]);
+      if (dead.current) return;
       if (inRes.status === 'fulfilled') setInbox(inRes.value.files ?? []);
       if (qRes.status === 'fulfilled') setQuarantine(qRes.value.files ?? []);
     } catch { /* silent */ }
-  }, []);
+  }, [dead]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -46,12 +49,13 @@ export function InboxScanner({ onScanned }: { onScanned?: () => void }) {
     setResult(null);
     try {
       const data = await postJSON<{ moved: number; quarantined: number; quarantine_files?: FileEntry[] }>(INBOX_SCAN_URL, undefined);
+      if (dead.current) return;
       setResult(data);
       setQuarantine(data.quarantine_files ?? []);
       setInbox([]);
       onScanned?.();
     } catch { /* silent */ } finally {
-      setScanning(false);
+      if (!dead.current) setScanning(false);
     }
   };
 

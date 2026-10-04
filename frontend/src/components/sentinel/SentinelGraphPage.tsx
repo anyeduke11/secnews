@@ -23,6 +23,7 @@ import { useRealtimeInvalidation } from '../../hooks/realtime';
 import { listHotspots } from '../../api/hotspots';
 import { getJSON } from '../../lib/api';
 import { getKnowledgeConceptDetail, getKnowledgeGraph, KnowledgeApiError } from '../../api/knowledge';
+import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { SentinelShell, usePipeReloadOnSse } from './SentinelShell';
 import { InfiniteCanvas } from '../shared/editorial/InfiniteCanvas';
 import './sentinel.css';
@@ -227,6 +228,7 @@ export function SentinelGraphPage() {
   const [error, setError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const detailReq = useRef(0);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const reloadPipe = usePipeReloadOnSse();
 
@@ -244,17 +246,19 @@ export function SentinelGraphPage() {
       ]);
       const nodes: GraphNode[] = Array.isArray(g?.nodes) ? g.nodes : [];
       const edges: GraphEdge[] = Array.isArray(g?.edges) ? g.edges : [];
+      if (dead.current) return;
       setGraph({ nodes, edges });
       const map = new Map<string, ConceptMeta>();
       for (const row of (c.concepts ?? [])) map.set(row.slug, row);
       setMetaBySlug(map);
       setIngested(h && typeof h.total === 'number' ? h.total : null);
     } catch (e) {
+      if (dead.current) return;
       setError(e instanceof Error ? e.message : '图谱数据加载失败');
     } finally {
-      setLoading(false);
+      if (!dead.current) setLoading(false);
     }
-  }, []);
+  }, [dead]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -273,8 +277,10 @@ export function SentinelGraphPage() {
     const token = ++detailReq.current;
     try {
       const data = await getKnowledgeConceptDetail(node.id);
+      if (dead.current) return;
       if (token === detailReq.current) setDetail(data as unknown as ConceptDetail);
     } catch (e) {
+      if (dead.current) return;
       if (token === detailReq.current) {
         // apiFetch 统一封装后 404 需经 KnowledgeApiError.status 判别 (原实现读 r.status)
         if (e instanceof KnowledgeApiError && e.status === 404) {
@@ -284,7 +290,7 @@ export function SentinelGraphPage() {
         }
       }
     }
-  }, []);
+  }, [dead]);
 
   const degrees = useMemo(() => {
     const map = new Map<string, number>();

@@ -9,6 +9,7 @@ import { SecNewsHeader } from '../layout/SecNewsHeader';
 import { InboxScanner } from './InboxScanner';
 import { WikiItemBrowser } from './WikiItemBrowser';
 import { useI18n } from '../../../contexts/I18nContext';
+import { useAbortGuard } from '../../../hooks/useAbortGuard';
 
 interface KnowledgeStats {
   items: number;
@@ -21,21 +22,24 @@ export function WikiBrowser() {
   const [stats, setStats] = useState<KnowledgeStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await getJSON<KnowledgeStats>('/api/secnews/knowledge');
+      if (dead.current) return;
       setStats(data);
     } catch (e) {
+      if (dead.current) return;
       setError(e instanceof ApiError
         ? `${t('kb.stats_load_failed')} (${e.status})`
         : t('kb.stats_load_failed_network'));
     } finally {
-      setLoading(false);
+      if (!dead.current) setLoading(false);
     }
-  }, [t]);
+  }, [t, dead]);
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
 

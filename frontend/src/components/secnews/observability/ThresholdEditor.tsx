@@ -6,6 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { getJSON, apiFetch } from '../../../lib/api';
+import { useAbortGuard } from '../../../hooks/useAbortGuard';
 
 // 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
 const THRESHOLDS_URL = '/api/observability/thresholds';
@@ -52,15 +53,17 @@ export function ThresholdEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   useEffect(() => {
     // 非 2xx 由 apiFetch 抛错 → 与原 `r.ok ? json : null` 同为静默不设 rules
     getJSON<ThresholdsResp>(THRESHOLDS_URL)
       .then((d) => {
+        if (dead.current) return;
         setRules(d.thresholds);
       })
       .catch(() => {})
-        .finally(() => setLoading(false));
+        .finally(() => { if (!dead.current) setLoading(false); });
   }, []);
 
   const updateSpec = (cat: keyof Thresholds, metric: string, field: keyof MetricSpec, value: string) => {
@@ -91,11 +94,13 @@ export function ThresholdEditor() {
         method: 'PUT',
         body: JSON.stringify({ thresholds: rules }),
       });
+      if (dead.current) return;
       setMessage('已保存');
     } catch (e) {
+      if (dead.current) return;
       setMessage(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
-      setSaving(false);
+      if (!dead.current) setSaving(false);
     }
   };
 

@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LayerTable, type LayerTableColumn } from '../layout/LayerTable';
 import { getJSON } from '../../lib/api';
+import { useAbortGuard } from '../../hooks/useAbortGuard';
 
 interface RunRow {
   id: number;
@@ -56,17 +57,20 @@ function fmtDuration(ms: number | null): string {
 export function OpsRunsPanel() {
   const [data, setData] = useState<OpsRunsResponse | null>(null);
   const [filter, setFilter] = useState<FilterKey>('failed,missed');
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const reload = useCallback(async (f: FilterKey) => {
     try {
       const d = await getJSON<OpsRunsResponse>(
         `/api/ops/runs?hours=24&limit=50&status=${encodeURIComponent(f)}`,
       );
+      if (dead.current) return;
       setData(d);
     } catch {
+      if (dead.current) return;
       setData(null);
     }
-  }, []);
+  }, [dead]);
 
   useEffect(() => { void reload(filter); }, [filter, reload]);
 

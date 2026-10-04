@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../../contexts/I18nContext';
 import { PRACTICE_DOMAIN_LABELS } from '../../types';
 import { apiFetch } from '../../lib/api';
+import { useAbortGuard } from '../../hooks/useAbortGuard';
 
 interface PriorityItem {
   title?: string;
@@ -30,15 +31,16 @@ export function PriorityDigestCard() {
   const [data, setData] = useState<PriorityResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const load = useCallback((force = false) => {
     setLoading(true);
     setError(false);
     apiFetch<PriorityResponse>(`/api/digests/priority${force ? '?force=true' : ''}`)
-      .then(setData)
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }, []);
+      .then((d) => { if (dead.current) return; setData(d); })
+      .catch(() => { if (dead.current) return; setError(true); })
+      .finally(() => { if (!dead.current) setLoading(false); });
+  }, [dead]);
 
   useEffect(() => { load(); }, [load]);
 

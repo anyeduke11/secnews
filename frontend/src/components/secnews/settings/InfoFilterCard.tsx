@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../../../contexts/I18nContext';
 import { ApiError, getJSON, postJSON, apiFetch } from '../../../lib/api';
+import { useAbortGuard } from '../../../hooks/useAbortGuard';
 
 // 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
 const GATE_URL = '/api/info-filter/gate';
@@ -60,6 +61,7 @@ export function InfoFilterCard() {
   const [previewCat, setPreviewCat] = useState('tech');
   const [previewName, setPreviewName] = useState('华尔街见闻');
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -69,6 +71,7 @@ export function InfoFilterCard() {
       try {
         gate = await getJSON<GateStatus>(GATE_URL);
       } catch (e) {
+        if (dead.current) return;
         // 404 = feature gate 关闭 (原 r.status === 404 分支)
         if (e instanceof ApiError && e.status === 404) {
           setGateOff(true);
@@ -77,6 +80,7 @@ export function InfoFilterCard() {
         setError(e instanceof ApiError ? t('info_filter.gate_load_failed') : t('info_filter.network_error'));
         return;
       }
+      if (dead.current) return;
       if (!gate.is_enabled) {
         setGateOff(true);
         return;
@@ -84,14 +88,16 @@ export function InfoFilterCard() {
       setGateOff(false);
       try {
         const d = await getJSON<{ rules?: FilterRule[] }>(RULES_URL);
+        if (dead.current) return;
         setRules(d.rules || []);
       } catch {
+        if (dead.current) return;
         setError(t('info_filter.rules_load_failed'));
       }
     } finally {
-      setLoading(false);
+      if (!dead.current) setLoading(false);
     }
-  }, [t]);
+  }, [t, dead]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -109,11 +115,13 @@ export function InfoFilterCard() {
         match_value: newMatchValue.trim(),
         note: newNote,
       });
+      if (dead.current) return;
       setOpMsg({ kind: 'ok', text: t('info_filter.created') });
       setNewMatchValue('');
       setNewNote('');
       await refresh();
     } catch (e) {
+      if (dead.current) return;
       setOpMsg({
         kind: 'err',
         text: e instanceof ApiError
@@ -131,6 +139,7 @@ export function InfoFilterCard() {
       });
       await refresh();
     } catch {
+      if (dead.current) return;
       setOpMsg({ kind: 'err', text: t('info_filter.network_error') });
     }
   };
@@ -139,9 +148,11 @@ export function InfoFilterCard() {
     if (!window.confirm(t('info_filter.delete_confirm'))) return;
     try {
       await apiFetch(`${RULES_URL}/${id}`, { method: 'DELETE' });
+      if (dead.current) return;
       setOpMsg({ kind: 'ok', text: t('info_filter.deleted') });
       await refresh();
     } catch {
+      if (dead.current) return;
       setOpMsg({ kind: 'err', text: t('info_filter.network_error') });
     }
   };
@@ -153,8 +164,10 @@ export function InfoFilterCard() {
         category: previewCat.trim(),
         source_name: previewName.trim(),
       });
+      if (dead.current) return;
       setPreviewResult(d);
     } catch {
+      if (dead.current) return;
       setOpMsg({ kind: 'err', text: t('info_filter.network_error') });
     }
   };

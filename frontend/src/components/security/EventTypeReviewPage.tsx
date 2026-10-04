@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { getJSON, postJSON } from '../../lib/api';
+import { useAbortGuard } from '../../hooks/useAbortGuard';
 
 interface CandidateRow {
   id: string;
@@ -55,23 +56,27 @@ export function EventTypeReviewPage() {
   const [editStage, setEditStage] = useState<Record<string, string>>({});
   const [editNote, setEditNote] = useState<Record<string, string>>({});
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const loadEventTypes = useCallback(async () => {
     try {
       const data = await getJSON<{ items: EventTypeRow[] }>(`${BASE}/event-types`);
+      if (dead.current) return;
       setEventTypes(data.items);
       setSelected((prev) => prev ?? data.items.find((t) => t.candidate_stats.pending > 0)?.id ?? data.items[0]?.id ?? null);
     } catch (e) {
+      if (dead.current) return;
       setError(String(e));
     }
-  }, []);
+  }, [dead]);
 
   const loadCandidates = useCallback(async (etId: string) => {
     const data = await getJSON<{ items: CandidateRow[] }>(
       `${BASE}/candidates?event_type_id=${encodeURIComponent(etId)}&owner_status=pending`,
     );
+    if (dead.current) return;
     setCandidates(data.items);
-  }, []);
+  }, [dead]);
 
   useEffect(() => {
     void loadEventTypes();
@@ -120,12 +125,13 @@ export function EventTypeReviewPage() {
         await loadCandidates(cand.event_type_id);
         await loadEventTypes();
       } catch (e) {
+        if (dead.current) return;
         setError(String(e));
       } finally {
-        setBusyId(null);
+        if (!dead.current) setBusyId(null);
       }
     },
-    [editNote, editStage, rejectReason, loadCandidates, loadEventTypes],
+    [editNote, editStage, rejectReason, loadCandidates, loadEventTypes, dead],
   );
 
   const batchApprove = useCallback(async () => {
@@ -141,11 +147,12 @@ export function EventTypeReviewPage() {
       await loadCandidates(selected);
       await loadEventTypes();
     } catch (e) {
+      if (dead.current) return;
       setError(String(e));
     } finally {
-      setBusyId(null);
+      if (!dead.current) setBusyId(null);
     }
-  }, [selected, loadCandidates, loadEventTypes]);
+  }, [selected, loadCandidates, loadEventTypes, dead]);
 
   return (
     <div className="mx-auto max-w-6xl p-4" data-testid="event-type-review-page">

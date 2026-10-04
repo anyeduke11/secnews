@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { LearningPlan } from '../types';
 import { getJSON, postJSON } from '../lib/api';
+import { useAbortGuard } from '../hooks/useAbortGuard';
 import { EmptyState } from './EmptyState';
 
 export function LearningPanel() {
@@ -18,20 +19,23 @@ export function LearningPanel() {
   const genTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const genPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [taskState, setTaskState] = useState<Record<string, boolean>>({});
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const loadPlans = useCallback(() => {
     setLoading(true);
     setError(null);
     getJSON<{ plans?: LearningPlan[] }>('/api/knowledge/plans?status=active')
       .then(data => {
+        if (dead.current) return;
         setPlans(data.plans || []);
         setLoading(false);
       })
       .catch(e => {
+        if (dead.current) return;
         setError(e?.message || String(e));
         setLoading(false);
       });
-  }, []);
+  }, [dead]);
 
   useEffect(() => {
     loadPlans();
@@ -58,6 +62,7 @@ export function LearningPanel() {
       { domains: [] },
     )
       .then(data => {
+        if (dead.current) { stopGen(); return; }
         const taskId = data?.task_id ?? data?.task?.id;
         if (!taskId) {
           stopGen();
@@ -90,6 +95,7 @@ export function LearningPanel() {
           polls++;
           getJSON<{ status?: string; error_message?: string }>(`/api/knowledge/tasks/${taskId}`)
             .then(task => {
+              if (dead.current) { stopGen(); return; }
               const status = task?.status;
               if (status === 'done') {
                 stopGen();
@@ -116,6 +122,7 @@ export function LearningPanel() {
       })
       .catch(e => {
         stopGen();
+        if (dead.current) return;
         setError(e?.message || String(e));
         setGenerating(false);
       });

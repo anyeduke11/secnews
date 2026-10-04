@@ -10,6 +10,7 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../Icon';
 import { listAttentionEvents } from '../../api/knowledge';
+import { useAbortGuard } from '../../hooks/useAbortGuard';
 
 // ── 类型 ────────────────────────────────────────────────────
 
@@ -91,6 +92,7 @@ export function AttentionHeatmap({ compact = false }: AttentionHeatmapProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const DAYS = compact ? 14 : 30;
   const cellSize = compact ? CELL_SIZE_COMPACT : CELL_SIZE;
@@ -107,6 +109,7 @@ export function AttentionHeatmap({ compact = false }: AttentionHeatmapProps) {
     // 非 2xx 由 apiFetch 抛错 → 降级展示空网格 (与原 `HTTP ${status}` 抛错同路径)
     listAttentionEvents<AttentionEventsResponse>(30)
       .then(json => {
+        if (dead.current) return;
         const points: AttentionDataPoint[] = Array.isArray(json)
           ? json
           : (json.events || json.data || []);
@@ -114,6 +117,7 @@ export function AttentionHeatmap({ compact = false }: AttentionHeatmapProps) {
         setLoading(false);
       })
       .catch(e => {
+        if (dead.current) return;
         // 端点可能不存在，降级展示空网格
         setError(e?.message || String(e));
         setLoading(false);

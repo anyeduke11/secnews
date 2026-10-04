@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '../Icon';
 import { getJSON, postJSON } from '../../lib/api';
 import { getKnowledgeItem } from '../../api/knowledge';
+import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { OnboardingHint } from '../layout/OnboardingHint';
 
 // ── 类型定义 ──────────────────────────────────────────────────
@@ -89,6 +90,7 @@ export function ReviewMode() {
   // 统计
   const [grades, setGrades] = useState<number[]>([]);
   const [completed, setCompleted] = useState(false);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   // ── 获取到期复习队列 ──
 
@@ -102,6 +104,7 @@ export function ReviewMode() {
 
     try {
       const dueData = await getJSON<DueResponse>('/api/reviews/due?limit=50');
+      if (dead.current) return;
       const items = dueData.items || [];
       setReviews(items);
 
@@ -126,13 +129,15 @@ export function ReviewMode() {
           detailMap.set(result.value.id, result.value);
         }
       });
+      if (dead.current) return;
       setDetails(detailMap);
     } catch (e) {
+      if (dead.current) return;
       setError(e instanceof Error ? e.message : '加载失败');
     } finally {
-      setLoading(false);
+      if (!dead.current) setLoading(false);
     }
-  }, []);
+  }, [dead]);
 
   useEffect(() => {
     fetchDueReviews();
@@ -151,6 +156,7 @@ export function ReviewMode() {
         `/api/reviews/${encodeURIComponent(review.entity_type)}/${encodeURIComponent(review.entity_id)}/grade`,
         { grade },
       );
+      if (dead.current) return;
       if (data.status !== 'ok') throw new Error('评分提交失败');
 
       // 记录评分
@@ -164,11 +170,12 @@ export function ReviewMode() {
         setCurrentIndex(prev => prev + 1);
       }
     } catch (e) {
+      if (dead.current) return;
       setError(e instanceof Error ? e.message : '评分提交失败');
     } finally {
-      setSubmitting(false);
+      if (!dead.current) setSubmitting(false);
     }
-  }, [currentIndex, reviews, submitting]);
+  }, [currentIndex, reviews, submitting, dead]);
 
   // ── 当前卡片数据 ──
 

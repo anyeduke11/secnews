@@ -79,4 +79,29 @@ describe('OpsRunsPanel — 任务失败面板', () => {
     render(<MemoryRouter><OpsRunsPanel /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText(/24h 内无失败/)).toBeInTheDocument());
   });
+
+  it('P1-7 竞态: 卸载后慢响应返回 → 无脏状态写入 (不抛/无更新告警)', async () => {
+    // WHY (PRD 验收 "快速切换路由/组件卸载无脏状态写入"):
+    // fetch 在组件卸载后才 resolve — 守卫 (useAbortGuard) 必须拦住
+    // setData/setLoading, 不得触发 React 状态更新告警或异常。
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let resolveFetch!: (v: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(res => {
+      resolveFetch = res;
+    }) as unknown as Promise<Response>));
+
+    const { unmount } = render(<MemoryRouter><OpsRunsPanel /></MemoryRouter>);
+    // fetch 已发出但未返回 → 模拟路由快速切换卸载
+    unmount();
+    // 慢响应此刻才到达
+    resolveFetch({
+      ok: true,
+      json: () => Promise.resolve(RESP),
+    } as Response);
+    await new Promise(r => setTimeout(r, 0)); // 冲刷微任务
+
+    // 守卫生效: 无 "state update on an unmounted component" 类告警/异常
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
 });

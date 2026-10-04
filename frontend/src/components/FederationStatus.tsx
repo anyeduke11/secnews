@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react';
 import type { FederationStatus as FederationStatusData } from '../types';
 import { getJSON } from '../lib/api';
+import { useAbortGuard } from '../hooks/useAbortGuard';
 
 export function FederationStatus() {
   const [status, setStatus] = useState<FederationStatusData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   useEffect(() => {
     getJSON<FederationStatusData>('/api/knowledge/federation')
       .then(data => {
+        if (dead.current) return;
         setStatus(data);
         setLoading(false);
       })
       .catch(e => {
+        if (dead.current) return;
         setError(e?.message || String(e));
         setLoading(false);
       });

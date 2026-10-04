@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getJSON, postJSON } from '../lib/api';
 import { useI18n } from '../contexts/I18nContext';
+import { useAbortGuard } from '../hooks/useAbortGuard';
 
 interface HealthResp {
   db_size_mb?: number;
@@ -62,6 +63,7 @@ export function MaintPage() {
   const [cleanupInfo, setCleanupInfo] = useState<CleanupResp | null>(null);
   const [cleanupConfirm, setCleanupConfirm] = useState(false);
   const [cutoffDays, setCutoffDays] = useState(30);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const fetchHealth = useCallback(async () => {
     try {
@@ -69,12 +71,13 @@ export function MaintPage() {
         getJSON<HealthResp>('/api/maintenance/health'),
         getJSON<DirtyReportResp>('/api/maintenance/dirty-report'),
       ]);
+      if (dead.current) return;
       setHealth(h);
       setDirty(d);
     } catch {
       // 不抛错 — 静默显示空
     }
-  }, []);
+  }, [dead]);
 
   useEffect(() => {
     fetchHealth();
@@ -84,36 +87,42 @@ export function MaintPage() {
     setBackup('running');
     try {
       const r = await postJSON<BackupVerifyResp>('/api/maintenance/backup-verify', {});
+      if (dead.current) return;
       setBackupInfo(r);
       setBackup(r.ok ? 'ok' : 'error');
     } catch {
+      if (dead.current) return;
       setBackup('error');
     }
-  }, []);
+  }, [dead]);
 
   const runVacuum = useCallback(async () => {
     setVacuum('running');
     try {
       const r = await postJSON<VacuumResp>('/api/maintenance/vacuum', {});
+      if (dead.current) return;
       setVacuumInfo(r);
       setVacuum(r.ok ? 'ok' : 'error');
     } catch {
+      if (dead.current) return;
       setVacuum('error');
     }
-  }, []);
+  }, [dead]);
 
   const runCleanup = useCallback(async () => {
     setCleanup('running');
     setCleanupConfirm(false);
     try {
       const r = await postJSON<CleanupResp>('/api/maintenance/cleanup', { cutoff_days: cutoffDays });
+      if (dead.current) return;
       setCleanupInfo(r);
       setCleanup('ok');
       fetchHealth();
     } catch {
+      if (dead.current) return;
       setCleanup('error');
     }
-  }, [cutoffDays, fetchHealth]);
+  }, [cutoffDays, fetchHealth, dead]);
 
   const statusBadge = (s: ToolStatus): { bg: string; fg: string; text: string } => {
     switch (s) {

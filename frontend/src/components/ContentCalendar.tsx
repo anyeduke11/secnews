@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ContentCalendarEntry } from '../types';
 import { apiFetch, getJSON, postJSON } from '../lib/api';
+import { useAbortGuard } from '../hooks/useAbortGuard';
 
 const CALENDAR_URL = '/api/content/calendar';
 
@@ -24,20 +25,23 @@ export function ContentCalendar() {
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [form, setForm] = useState({ topic: '', type: '文章', platform: '微信' });
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const loadEntries = useCallback(() => {
     setLoading(true);
     setError(null);
     getJSON<{ entries?: ContentCalendarEntry[] }>(`${CALENDAR_URL}?month=${fmtMonth(month)}`)
       .then(data => {
+        if (dead.current) return;
         setEntries(data.entries || []);
         setLoading(false);
       })
       .catch(e => {
+        if (dead.current) return;
         setError(e?.message || String(e));
         setLoading(false);
       });
-  }, [month]);
+  }, [month, dead]);
 
   useEffect(() => {
     loadEntries();
@@ -52,19 +56,27 @@ export function ContentCalendar() {
       platform: form.platform,
     })
       .then(() => {
+        if (dead.current) return;
         setForm({ topic: '', type: '文章', platform: '微信' });
         setSelectedDate(null);
         loadEntries();
       })
-      .catch(e => setError(e?.message || String(e)));
+      .catch(e => {
+        if (dead.current) return;
+        setError(e?.message || String(e));
+      });
   };
 
   const handleDelete = (id: number) => {
     apiFetch<void>(`/api/content/calendar/${id}`, { method: 'DELETE' })
       .then(() => {
+        if (dead.current) return;
         loadEntries();
       })
-      .catch(e => setError(e?.message || String(e)));
+      .catch(e => {
+        if (dead.current) return;
+        setError(e?.message || String(e));
+      });
   };
 
   const prevMonth = () => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1));

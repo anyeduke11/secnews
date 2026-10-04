@@ -5,6 +5,7 @@
  */
 import { useState, useEffect } from 'react';
 import { getKlPipelineStats } from '../../../api/secnews';
+import { useAbortGuard } from '../../../hooks/useAbortGuard';
 import { SecNewsHeader } from '../layout/SecNewsHeader';
 
 interface LedgerRow {
@@ -19,17 +20,20 @@ interface LedgerRow {
 export function TokenLedger() {
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const data = await getKlPipelineStats<{ ledger?: LedgerRow[] }>();
+      if (dead.current) return;
       setLedger(data.ledger ?? []);
     } catch {
+      if (dead.current) return;
       // 原: 非 ok 静默保持 / 网络失败清空 — apiFetch 合并两路, 统一清空
       setLedger([]);
     } finally {
-      setLoading(false);
+      if (!dead.current) setLoading(false);
     }
   };
 

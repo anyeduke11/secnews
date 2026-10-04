@@ -13,6 +13,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getJSON, postJSON } from '../../lib/api';
+import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { Stamp } from '../shared/editorial/Stamp';
 import { EmptyState } from '../EmptyState';
 import '../shared/editorial/pages.css';
@@ -54,6 +55,7 @@ export function EventsReviewPage() {
   // A2 (DEV-0188): 批量通过两段式确认 — 首次点击仅武装 (5s 无操作自动退出), 二次点击才发请求
   const [batchArmed, setBatchArmed] = useState(false);
   const armTimer = useRef<number | null>(null);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const disarmBatch = useCallback(() => {
     if (armTimer.current !== null) {
@@ -69,12 +71,14 @@ export function EventsReviewPage() {
     setTypesError(null);
     try {
       const data = await getJSON<{ items?: EventTypeRow[] }>('/api/event-technique/event-types');
+      if (dead.current) return;
       setTypes(data.items ?? []);
     } catch (e) {
+      if (dead.current) return;
       setTypes([]);
       setTypesError(e instanceof Error ? e.message : String(e));
     }
-  }, []);
+  }, [dead]);
 
   useEffect(() => { void loadTypes(); }, [loadTypes]);
 
@@ -85,14 +89,16 @@ export function EventsReviewPage() {
       const data = await getJSON<{ items?: CandidateRow[] }>(
         `/api/event-technique/candidates?event_type_id=${encodeURIComponent(eventTypeId)}&owner_status=pending`,
       );
+      if (dead.current) return;
       setCandidates(data.items ?? []);
     } catch (e) {
+      if (dead.current) return;
       setCandidates([]);
       setCandsError(e instanceof Error ? e.message : String(e));
     } finally {
-      setCandsLoading(false);
+      if (!dead.current) setCandsLoading(false);
     }
-  }, []);
+  }, [dead]);
 
   function selectType(id: string) {
     setSelected(id);
@@ -121,13 +127,15 @@ export function EventsReviewPage() {
     setNotice(null);
     try {
       await postJSON(`/api/event-technique/candidates/${encodeURIComponent(candidateId)}/approve`, {});
+      if (dead.current) return;
       setCandidates(list => list.filter(c => c.candidate_id !== candidateId));
       setNotice({ kind: 'ok', text: `已通过 ${candidateId}` });
       void loadTypes();
     } catch (e) {
+      if (dead.current) return;
       setNotice({ kind: 'err', text: `通过失败: ${e instanceof Error ? e.message : String(e)}` });
     } finally {
-      setBusyId(null);
+      if (!dead.current) setBusyId(null);
     }
   }
 
@@ -137,15 +145,17 @@ export function EventsReviewPage() {
     setNotice(null);
     try {
       await postJSON(`/api/event-technique/candidates/${encodeURIComponent(candidateId)}/reject`, { reason: rejectReason.trim() });
+      if (dead.current) return;
       setCandidates(list => list.filter(c => c.candidate_id !== candidateId));
       setRejectId(null);
       setRejectReason('');
       setNotice({ kind: 'ok', text: `已驳回 ${candidateId}` });
       void loadTypes();
     } catch (e) {
+      if (dead.current) return;
       setNotice({ kind: 'err', text: `驳回失败: ${e instanceof Error ? e.message : String(e)}` });
     } finally {
-      setBusyId(null);
+      if (!dead.current) setBusyId(null);
     }
   }
 
@@ -158,13 +168,15 @@ export function EventsReviewPage() {
         `/api/event-technique/event-types/${encodeURIComponent(selected)}/batch-approve`,
         { min_confidence: 0.7 },
       );
+      if (dead.current) return;
       setNotice({ kind: 'ok', text: `批量通过 ${r.approved ?? 0}/${r.total ?? 0} 条` });
       void loadCandidates(selected);
       void loadTypes();
     } catch (e) {
+      if (dead.current) return;
       setNotice({ kind: 'err', text: `批量通过失败: ${e instanceof Error ? e.message : String(e)}` });
     } finally {
-      setBatching(false);
+      if (!dead.current) setBatching(false);
     }
   }
 

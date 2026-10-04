@@ -12,6 +12,7 @@ import { DigestCard } from './DigestCard';
 import { FeedCard } from './FeedCard';
 import { FeedFilters } from './FeedFilters';
 import { useI18n } from '../../../contexts/I18nContext';
+import { useAbortGuard } from '../../../hooks/useAbortGuard';
 
 interface FeedItem {
   id: string;
@@ -31,6 +32,7 @@ export function FeedView() {
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState('');
   const [keyword, setKeyword] = useState('');
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const fetchFeed = useCallback(async () => {
     setLoading(true);
@@ -41,16 +43,18 @@ export function FeedView() {
       if (keyword) params.set('keyword', keyword);
       params.set('limit', '30');
       const data = await getJSON<{ items?: FeedItem[]; total?: number }>(`/api/secnews/feed?${params}`);
+      if (dead.current) return;
       setItems(data.items ?? []);
       setTotal(data.total ?? 0);
     } catch (e) {
+      if (dead.current) return;
       setError(e instanceof ApiError
         ? t('feed.load_failed_status', { status: e.status })
         : t('feed.load_failed_network'));
     } finally {
-      setLoading(false);
+      if (!dead.current) setLoading(false);
     }
-  }, [category, keyword, t]);
+  }, [category, keyword, t, dead]);
 
   useEffect(() => { fetchFeed(); }, [fetchFeed]);
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ContentDraft } from '../types';
 import { apiFetch, getJSON, postJSON } from '../lib/api';
+import { useAbortGuard } from '../hooks/useAbortGuard';
 import { PublishDialog } from './PublishDialog';
 import { PublishHistory } from './PublishHistory';
 
@@ -16,20 +17,23 @@ export function ContentDraftList() {
   const [publishDraftId, setPublishDraftId] = useState<number | null>(null);
   const [publishDraftTitle, setPublishDraftTitle] = useState('');
   const [historyDraftId, setHistoryDraftId] = useState<number | null>(null);
+  const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const loadDrafts = useCallback(() => {
     setLoading(true);
     setError(null);
     getJSON<{ drafts?: ContentDraft[] }>('/api/content/drafts')
       .then(data => {
+        if (dead.current) return;
         setDrafts(data.drafts || []);
         setLoading(false);
       })
       .catch(e => {
+        if (dead.current) return;
         setError(e?.message || String(e));
         setLoading(false);
       });
-  }, []);
+  }, [dead]);
 
   useEffect(() => {
     loadDrafts();
@@ -44,10 +48,12 @@ export function ContentDraftList() {
     setLoadingContent(true);
     getJSON<{ content?: string }>(`/api/content/drafts/${id}`)
       .then(data => {
+        if (dead.current) return;
         setExpandedContent(data.content || '');
         setLoadingContent(false);
       })
       .catch(e => {
+        if (dead.current) return;
         setExpandedContent(`加载失败: ${e?.message || String(e)}`);
         setLoadingContent(false);
       });
@@ -57,20 +63,28 @@ export function ContentDraftList() {
     if (!form.title.trim()) return;
     postJSON('/api/content/drafts', { title: form.title.trim(), content: form.content })
       .then(() => {
+        if (dead.current) return;
         setForm({ title: '', content: '' });
         setShowForm(false);
         loadDrafts();
       })
-      .catch(e => setError(e?.message || String(e)));
+      .catch(e => {
+        if (dead.current) return;
+        setError(e?.message || String(e));
+      });
   };
 
   const handleDelete = (id: number) => {
     apiFetch<void>(`/api/content/drafts/${id}`, { method: 'DELETE' })
       .then(() => {
+        if (dead.current) return;
         if (expandedId === id) setExpandedId(null);
         loadDrafts();
       })
-      .catch(e => setError(e?.message || String(e)));
+      .catch(e => {
+        if (dead.current) return;
+        setError(e?.message || String(e));
+      });
   };
 
   return (

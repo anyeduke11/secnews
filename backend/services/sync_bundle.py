@@ -685,11 +685,23 @@ def _apply_deletions(records: dict) -> dict:
 
 
 def apply_bundle(bundle: dict, *, master_key: str | None = None) -> dict:
-    """Write bundle records back to all tables.
+    """Write bundle records back to all tables — **单事务原子注入** (P1-6/F1-6)。
 
     ``master_key`` is needed for decrypting secrets (Q5 decision).
     Returns per-table stats: {favorites: {...}, todos: {...}, ...}.
+
+    P1-6 (审计 F1-6): 全部表写入包在 ``deferred_commit()`` 单事务内 —
+    任一表中途失败整体 ROLLBACK (数据未半写); 调用方 (pull) 在成功返回
+    后才推进 merge base (sync_states), 注入失败 base 不推进。
     """
+    from backend.repository.db import deferred_commit
+
+    with deferred_commit():
+        return _apply_bundle_impl(bundle, master_key=master_key)
+
+
+def _apply_bundle_impl(bundle: dict, *, master_key: str | None = None) -> dict:
+    """apply_bundle 的实际注入体 (deferred_commit 事务内执行, 勿直接调用)。"""
     from backend.repository.db import get_connection
 
     validate_bundle(bundle)
@@ -796,11 +808,15 @@ def apply_bundle(bundle: dict, *, master_key: str | None = None) -> dict:
     todo_stats = {"inserted": 0, "skipped": 0}
     for t in records.get("todos", []):
         try:
+            # P1-6 顺手修 (Phase 46 遗留): add_or_get 已不接受 urgent
+            # (紧急由 deadline 派生) — 旧调用传 urgent kwarg 每条必
+            # TypeError 被吞成 skipped, todos 跨端同步从未生效过。
             tr.add_or_get(
                 source_type=t.get("source_type", "manual"),
                 source_id=t.get("source_id"), title=t.get("title", ""),
                 url=t.get("url"), source=t.get("source"), category=t.get("category"),
-                urgent=int(t.get("urgent", 0) or 0), important=int(t.get("important", 0) or 0),
+                important=int(t.get("important", 0) or 0),
+                deadline=t.get("deadline"),
                 note=t.get("note"),
             )
             todo_stats["inserted"] += 1

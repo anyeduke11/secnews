@@ -62,8 +62,13 @@ def db(tmp_path, monkeypatch) -> Iterator[None]:
     shared_conn.execute("PRAGMA busy_timeout=30000")
 
     def _get_conn():
-        return shared_conn
+        # P1-6: 统一经 _tls 通道 — deferred_commit 事务期间 _tls.conn 是
+        # 吞事务语句的代理, repos 必须同源拿代理而非裸 shared_conn,
+        # 否则 repo 的显式 BEGIN 会炸 "within a transaction" 并滚掉外层事务。
+        tls_conn = getattr(db_mod._tls, "conn", None)
+        return tls_conn if tls_conn is not None else shared_conn
 
+    monkeypatch.setattr(db_mod._tls, "conn", shared_conn)
     monkeypatch.setattr(db_mod, "get_connection", _get_conn)
     for name in list(repo_pkg.__dict__.keys()):
         m = getattr(repo_pkg, name)

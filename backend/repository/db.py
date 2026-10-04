@@ -33,6 +33,7 @@ import os
 import re
 import sqlite3
 import threading
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -47,6 +48,109 @@ _tls = threading.local()
 
 # Migrations live next to this file, under ``migrations/``.
 MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
+
+
+# ---------------------------------------------------------------------------
+# Deferred-commit 事务化 (v0.8.6 P1-6 / 审计 F1-6)
+# ---------------------------------------------------------------------------
+class _CommitDeferringProxy:
+    """``deferred_commit()`` 期间顶替 ``_tls.conn`` 的连接代理。
+
+    仓库层大量使用显式 SQL 事务语句 (``execute("BEGIN")/("COMMIT")``,
+    90+ 处) 与 ``commit()/rollback()`` 方法两种风格 — 代理对两者统一
+    吞掉事务控制, 其余透传真实连接。isolation_level=None 的 autocommit
+    连接上, 内层不再能提交/开新事务, 原子性由外层 BEGIN/COMMIT 保证。
+    """
+
+    _TX_CTRL = ("begin", "commit", "rollback", "end", "savepoint", "release")
+
+    def __init__(self, real: sqlite3.Connection) -> None:
+        self._real = real
+
+    def _is_tx_ctrl(self, sql: object) -> bool:
+        return str(sql).lstrip().lower().startswith(self._TX_CTRL)
+
+    def commit(self) -> None:
+        return None
+
+    def rollback(self) -> None:
+        return None
+
+    def execute(self, sql, *args, **kw):
+        if self._is_tx_ctrl(sql):
+            # 事务控制语句吞掉 (外层单事务语义); 返回哑 cursor 兼容取值方
+            return self._real.execute("SELECT 1")
+        return self._real.execute(sql, *args, **kw)
+
+    def executemany(self, sql, *args, **kw):
+        if self._is_tx_ctrl(sql):
+            return self._real.execute("SELECT 1")
+        return self._real.executemany(sql, *args, **kw)
+
+    def __getattr__(self, name: str):
+        return getattr(self._real, name)
+
+
+@contextmanager
+def _null_cm(conn: sqlite3.Connection):
+    yield conn
+
+
+@contextmanager
+def _deferred_commit_ctx(conn: sqlite3.Connection):
+    _tls.deferred = True
+    proxy = _CommitDeferringProxy(conn)
+    prev = getattr(_tls, "conn", None)
+    _tls.conn = proxy
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        yield proxy
+        conn.execute("COMMIT")
+    except BaseException:
+        try:
+            conn.execute("ROLLBACK")
+        except Exception:
+            logger.warning("deferred_commit ROLLBACK failed")
+        raise
+    finally:
+        # 条件还原: 事务期间 _tls.conn 可能被外部 (测试 patch/其他组件) 覆写,
+        # 仅当仍指向本 proxy 时才还原, 避免把旧连接写回他人状态。
+        if getattr(_tls, "conn", None) is proxy:
+            _tls.conn = prev
+        _tls.deferred = False
+
+
+def deferred_commit():
+    """多表注入单事务 — 全成功才提交, 任一异常整体 ROLLBACK (数据未半写)。
+
+    供 ``sync_bundle.apply_bundle`` (审计 F1-6: 注入失败 base 不推进且
+    数据未半写) 等批量写场景使用。嵌套调用复用外层事务 (不做 SAVEPOINT
+    嵌套 — 当前唯一消费方是平铺的多表写入, 无嵌套回滚需求)。
+
+    连接一律经 ``get_connection()`` 获取 (全名查找, 测试 patch 时与
+    repo 侧同源); ``_tls.conn`` 的残留 proxy / 已关闭连接自动自愈。
+    """
+    if getattr(_tls, "deferred", False):
+        # 嵌套: 复用外层事务 (proxy 在则吞 commit, 否则透传)
+        cur = getattr(_tls, "conn", None)
+        if isinstance(cur, _CommitDeferringProxy):
+            return _null_cm(cur)
+        return _null_cm(get_connection())
+    conn = get_connection()
+    if isinstance(conn, _CommitDeferringProxy):
+        conn = conn._real
+    if _is_closed(conn):
+        close_db()
+        conn = get_connection()
+    return _deferred_commit_ctx(conn)
+
+
+def _is_closed(conn: sqlite3.Connection) -> bool:
+    try:
+        conn.execute("SELECT 1")
+        return False
+    except sqlite3.ProgrammingError:
+        return True
 
 
 # ---------------------------------------------------------------------------

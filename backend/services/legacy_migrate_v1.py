@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.logging_config import logger
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, knowledge_items_table
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SEED_PATH = REPO_ROOT / "dev_data" / "seed.json"
@@ -273,10 +273,12 @@ class LegacyMigrateServiceV1:
             return result
 
         try:
+            # P1-8: warm 裸引用清零 — knowledge_items 走 accessor (§4.3 规则③)
+            ki_table = knowledge_items_table()
             rows = conn.execute(
                 "SELECT id, title, source, source_url, domain, topic, type, "
                 "tags, concepts, compiled, ingested_at, updated_at, lifecycle "
-                "FROM warm.knowledge_items "
+                f"FROM {ki_table} "
                 "WHERE (lifecycle IS NULL OR lifecycle != 'kl:deduped') "
                 "ORDER BY ingested_at ASC, id ASC LIMIT ? OFFSET ?",
                 (limit, offset),

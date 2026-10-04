@@ -113,6 +113,9 @@ jobs:
       - name: Docstring mandatory check (v0.7 Batch ⑧ D7)
         run: python scripts/check_docstrings.py
 
+      - name: warm.X bare SQL reference check (v0.8.6 P1-8, F2-4 提前)
+        run: python scripts/check_warm_refs.py
+
       - name: llm-wiki-2.0 graph schema check (M3.5 Task13)
         run: python scripts/check_graph_schema.py
 

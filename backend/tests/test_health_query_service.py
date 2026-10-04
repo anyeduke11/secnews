@@ -31,7 +31,6 @@ CREATE TABLE IF NOT EXISTS collection_runs (
 );
 """
 
-
 def _insert_run(category: str, started_at: str, status: str, duration_ms: int,
                 fallback_count: int = 0) -> None:
     db.get_connection().execute(
@@ -56,6 +55,13 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
     monkeypatch.setattr(config, "warm_db_path", warm_db)
     db.close_db()
     db.init_db()
+    # P1-8: 模拟生产态 — migrate_temp_layers 迁移后 main 已无 collection_runs
+    # (warm 域流水), accessor (main 命中→裸名) 才会解析到 warm 表。init_db 的
+    # 001 迁移会在 main 重建旧版表 (无 duration_ms), 不删则裸名劫持打错库 —
+    # 这正是 P1-8 门禁要杜绝的歧义场景。
+    conn = db.get_connection()
+    conn.execute("DROP TABLE IF EXISTS collection_runs")
+    conn.commit()
     yield test_db
     db.close_db()
 

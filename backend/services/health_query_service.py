@@ -20,7 +20,7 @@ from typing import Any
 
 from backend.config import config
 from backend.logging_config import logger
-from backend.repository.db import get_connection
+from backend.repository.db import get_connection, warm_table
 
 
 def db_size_mb() -> float:
@@ -129,8 +129,10 @@ def collectors_last_run() -> dict[str, Any]:
     """
     try:
         conn = get_connection()
+        # P1-8: warm 裸引用清零 — 表名走 warm_table accessor (§4.3 规则③)
+        cr_table = warm_table("collection_runs", conn)
         row = conn.execute(
-            "SELECT started_at, item_count FROM warm.collection_runs "
+            f"SELECT started_at, item_count FROM {cr_table} "
             "ORDER BY started_at DESC LIMIT 1"
         ).fetchone()
         # Phase 8: 暴露 watchdog 最近恢复时间戳
@@ -178,12 +180,13 @@ def collect_stats_24h() -> dict[str, Any]:
     avg_collect_duration_ms = 0
     try:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        cr_table = warm_table("collection_runs", get_connection())
         row = get_connection().execute(
             "SELECT COUNT(*) AS n, "
             "SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS ok, "
             "AVG(duration_ms) AS avg_dur, "
             "MAX(fallback_count) AS max_fallback "
-            "FROM warm.collection_runs WHERE started_at >= ?",
+            f"FROM {cr_table} WHERE started_at >= ?",
             (cutoff,),
         ).fetchone()
         if row and row["n"]:
@@ -202,8 +205,9 @@ def collect_stats_24h() -> dict[str, Any]:
 def last_fallback_at() -> str | None:
     """/api/stats: 最近一次 fallback_count > 0 的 run 时间。"""
     try:
+        cr_table = warm_table("collection_runs", get_connection())
         row = get_connection().execute(
-            "SELECT started_at FROM warm.collection_runs "
+            f"SELECT started_at FROM {cr_table} "
             "WHERE fallback_count > 0 "
             "ORDER BY started_at DESC LIMIT 1"
         ).fetchone()

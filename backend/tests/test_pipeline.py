@@ -102,16 +102,18 @@ def _make_pipeline(
 # ---------------------------------------------------------------------------
 # 注册
 # ---------------------------------------------------------------------------
-def test_pipeline_default_gates_11():
-    """默认注册的同步门禁应有 11 个 (v4.4 ai_quality; DEV-0183 移除 bid_recency)。"""
+def test_pipeline_default_gates_14():
+    """默认注册的同步门禁应有 14 个 (v0.8.6 P2 +3 自定义规则 gate; DEV-0183 移除 bid_recency)。"""
     cfg = QualityConfig()
     p = QualityGatePipeline(cfg, log_repo=_NoopLogRepo())
-    assert len(p.gates) == 11  # DEV-0183: bid_recency 门随标讯下线移除
+    assert len(p.gates) == 14  # DEV-0183: bid_recency 门随标讯下线移除
     names = {g.name for g in p.gates}
     assert names == {
         "schema", "recency", "content", "noise", "category_match", "title_summary",
         "source_reputation", "AuthorVerification", "FinalUrl", "duplicate",
         "ai_quality",
+        # v0.8.6 P2 两层质量规则
+        "expert_reject", "expert_flag", "semantic_rules",
     }
 
 

@@ -17,6 +17,12 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-04 v0.8.6 质量规则两层模型: 专家规则 + AI 语义规则（owner 点名立项）— DEV-0280
+
+- **设计**: 质量设置 = 11 内置 gate + 两层自定义规则。专家规则 (确定性 matcher ×5, reject/flag, scope 可选, 零 LLM); AI 语义规则 (NL 文本 → LLM 聚合单次判别, 默认开, fail-open 可见, 预算 max_per_batch=10)。用户四裁决: 一刀切全做 / 默认开 / fail-open 可见 / dry-run 本期就要。
+- **实现**: migration 133 + quality_custom_rules_repo + custom_rules_gate 三 gate (expert_reject hard / expert_flag soft / semantic_rules soft) + quality_rules_api 6 端点 (CRUD/gates/dry-run, CORE 注册) + pipeline 接入 (DEFAULT_GATES 14 + run_all gate_enabled 过滤, quality.gate.<name>.enabled 5s TTL) + 前端 CustomRulesPanel (CRUD + 14 gate 开关 + dry-run); 命中写 quality_check_logs 自动进 P1-5 拒收回放。
+- **测试**: 后端 test_quality_custom_rules 31 用例 (抓到 HttpUrl matcher / pydantic setattr 两个真 bug 并修); 受影响面 75+35 passed; ruff/meta OK (routers 95→96 已同步); 前端 tsc/vitest 690 (+7)/build 全绿; 生产重启 gates 端点 200 验证。
+
 ### 2026-10-04 v0.8.6 P2-2: E8 真源缺列补齐 — entities 进 frontmatter（裁决落地）— DEV-0278
 
 - **裁决落地 (两分法)**: ① `entities` 语义真源列进 md frontmatter（write_item_to_md 补 entities 行；DB dict 无键时继承文件已有值——既有 16 列消费点回写不重置真源）；② `attention_score` 派生缓存可丢，刻意不入 frontmatter（重投影由 attention_scorer 1800s job 重算）；③ compiled 已随 v1.7 lifecycle property 自然闭环；④ body = md 正文本体。

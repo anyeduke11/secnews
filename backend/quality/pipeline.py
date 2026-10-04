@@ -1,4 +1,4 @@
-"""QualityGatePipeline — 顺序跑 9 个同步门禁 + 累加扣分。
+"""QualityGatePipeline — 顺序跑 14 个同步门禁 + 累加扣分。
 
 URL Content gate 不在此处同步跑（由 scheduler job 抽样异步跑）。
 
@@ -23,6 +23,12 @@ from backend.quality.base import BaseGate, GateContext
 from backend.quality.category_match_gate import CategoryMatchGate
 from backend.quality.config import QualityConfig, QualityMode
 from backend.quality.content_quality_gate import ContentQualityGate
+from backend.quality.custom_rules_gate import (  # v0.8.6 P2 两层质量规则
+    ExpertFlagGate,
+    ExpertRejectGate,
+    SemanticRulesGate,
+    gate_enabled,
+)
 from backend.quality.duplicate_gate import DuplicateGate
 from backend.quality.final_url_gate import FinalUrlGate
 from backend.quality.noise_content_gate import NoiseContentGate
@@ -88,7 +94,7 @@ def build_context(
 
 
 class QualityGatePipeline:
-    """编排 9 个同步门禁的流水线。"""
+    """编排 14 个同步门禁的流水线。"""
 
     DEFAULT_GATES: tuple[type[BaseGate], ...] = (
         SchemaGate,
@@ -106,6 +112,9 @@ class QualityGatePipeline:
         AuthorVerificationGate,
         FinalUrlGate,  # Phase 9.2 新增 - 下钻 tag/landing 页到真实文章 URL
         DuplicateGate,
+        ExpertRejectGate,   # v0.8.6 P2 - 自定义专家规则 reject 层 (hard)
+        ExpertFlagGate,     # v0.8.6 P2 - 自定义专家规则 flag 层 (soft)
+        SemanticRulesGate,  # v0.8.6 P2 - AI 语义规则聚合 LLM 判别 (soft)
         # DEV-0183: BidRecencyGate (Phase 20 标讯时效门) 已随标讯全线下线移除
     )
 
@@ -170,9 +179,12 @@ class QualityGatePipeline:
         all_flags: list[str] = []
         gate_results: list[GateResult] = []
 
+        # v0.8.6 P2: gate 级开关过滤 (quality.gate.<name>.enabled, 5s TTL)
+        enabled_gates = [g for g in self.gates if gate_enabled(g.name)]
+
         # 1. 先跑 Hard gates
-        hard_gates = [g for g in self.gates if g.gate_type == "hard"]
-        soft_gates = [g for g in self.gates if g.gate_type == "soft"]
+        hard_gates = [g for g in enabled_gates if g.gate_type == "hard"]
+        soft_gates = [g for g in enabled_gates if g.gate_type == "soft"]
 
         for gate in hard_gates:
             result = self._check_gate(gate, item, context, mode_str)

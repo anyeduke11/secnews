@@ -259,6 +259,9 @@ def register_all(app: FastAPI) -> None:
     # v0.8.6 P1-5: 质量门禁拒收回放 (无条件 core)
     from backend.api import quality_api
     app.include_router(quality_api.router, tags=["quality"])
+    # v0.8.6 P2: 两层质量规则管理面 (无条件 core)
+    from backend.api import quality_rules_api
+    app.include_router(quality_rules_api.router, tags=["quality"])
     # v1.0 T13: Knowledge 端到端 (SK-04/05/06 知识发布/复用/复查)
     from backend.api import knowledge_api
     app.include_router(knowledge_api.router, tags=["v1-knowledge"])

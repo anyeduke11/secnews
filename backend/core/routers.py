@@ -55,6 +55,7 @@ CORE_ROUTERS: frozenset[str] = frozenset({
     "run_ledger_api",  # v0.8.6 P1-1: proposal 审批 + Run 账本
     "command_bar_api",  # v0.8.6 P1-4: M4 命令栏
     "quality_api",  # v0.8.6 P1-5: 拒收回放
+    "quality_rules_api",  # v0.8.6 P2: 两层质量规则管理面
     "knowledge_api",
     "observability_audit_api",
     "legacy_migrate_api", "legacy_items_migrate_api", "legacy_migrate_v1_api",

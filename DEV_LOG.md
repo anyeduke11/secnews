@@ -1,4 +1,17 @@
 
+## [DEV-0280] v0.8.6 质量规则两层模型 — 专家规则 + AI 语义规则 (owner 点名立项, quality-rules-two-layer)
+
+- **时间**: 2026-10-04
+- **类型**: 功能开发 (owner 在 /settings 质量设置区块点名立项; P2 冻结期 owner 例外通道, 四裁决: 一刀切全做 / 语义默认开 / fail-open 可见 / dry-run 本期就要)
+- **关联模块**: `backend:quality-pipeline`, `backend:quality-gates`, `backend:api-quality`, `frontend:settings`, `docs:prd`
+- **设计 (两层模型)**: 专家规则 = 确定性 matcher 零 LLM (title_contains / source_in / category_equals / url_matches / summary_len_lt, action=reject|flag, scope_category 可选); AI 语义规则 = NL 文本经 LLM 聚合单次判别 (task="semantic_filter", JSON {"violated":[编号]}), **fail-open 可见** (LLM 失败 → flag semantic_rules_unavailable 零扣分) + **预算双闸** (quality.semantic_rules.enabled 默认开 + max_per_batch 默认 10, GateContext.__dict__ 计数, 超限 flag semantic_rules_budget_exhausted 零扣分)
+- **新建**: migration 133_quality_custom_rules.sql (单表两用 rule_kind=expert|semantic, main 库配置域) / `quality_custom_rules_repo.py` (CRUD, deduction 夹取 0-100, update 白名单) / `quality/custom_rules_gate.py` (三 gate: ExpertRejectGate hard / ExpertFlagGate soft 命中聚合 / SemanticRulesGate soft 聚合 LLM; +gate_enabled() 5s TTL) / `api/quality_rules_api.py` (6 端点: CRUD + GET gates + POST dry-run; dry-run 专家抽样 20 确定性, 语义 cap 5) / 前端 `quality/CustomRulesPanel.tsx` (规则 CRUD + 14 gate 开关 + dry-run 结果渲染)
+- **接入**: pipeline.py DEFAULT_GATES 11→14 + run_all 入口 gate_enabled 过滤 (quality.gate.<name>.enabled); RULE_METADATA +2 (semantic_rules.enabled/max_per_batch, 通用质量设置列表自动出现); CORE 注册双文件 (_registry + core/routers 白名单); 命中写 quality_check_logs → P1-5 拒收回放自动覆盖
+- **测试**: test_quality_custom_rules 31 用例 (repo CRUD/matcher 参数化表/三 gate 行为含 LLM mock/fail-open/预算/gate 开关/run_all 过滤/API 全套/dry-run 语义按内容区分 mock); **测试抓到 2 个真 bug**: ① url matcher 收 HttpUrl 非 str → str() 修正; ② pydantic 严格模式拒 setattr → __dict__ 注入 (url_title_pairs 先例); 受影响面 pipeline+api 75 passed + completeness 35 passed
+- **验证**: ruff 0; generate_meta --check OK (routers 95→96, AGENTS.md ×3 已 --fix 同步); tsc 0 错; vitest 690 passed (99 文件, +7 用例); vite build OK; 生产重启后 /api/quality/custom-rules/gates 200 返回 14 gate
+- **语义规则全局开关/预算**在通用"质量设置"列表维护 (不重复造 UI); gate 开关写 PUT /api/quality/rules 的 quality.gate.* 通道 (只校验 quality. 前缀), 5s TTL 生效
+- **下一可用号**: DEV-0281 (DEV-0279 仍预留给 P2-0 观测纪要)
+
 ## [DEV-0278] v0.8.6 P2-2: E8 真源缺列补齐 — entities 进 frontmatter + 派生缓存两分法 (p2-2-e8-projection)
 
 - **时间**: 2026-10-04

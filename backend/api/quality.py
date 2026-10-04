@@ -80,6 +80,13 @@ RULE_METADATA: dict[str, tuple[str, Any, str, bool]] = {
     "quality.reputation_interval_seconds": (
         "number", 21600, "源信誉重建间隔（秒）", True,
     ),
+    # v0.8.6 P2 两层质量规则 — AI 语义规则全局开关与预算
+    "quality.semantic_rules.enabled": (
+        "boolean", True, "AI 语义规则（NL 规则经 LLM 聚合判别）总开关", True,
+    ),
+    "quality.semantic_rules.max_per_batch": (
+        "number", 10, "单批次语义规则 LLM 判别预算（条）", True,
+    ),
 }
 # quality.category_keywords.* 不在 RULE_METADATA，运行时从 category 构造
 
@@ -93,7 +100,7 @@ def _build_rules() -> dict:
     defaults_map = default_category_keywords()  # dict[cat, list[str]]
     out: list[dict[str, Any]] = []
 
-    # 1) 7 个标量规则
+    # 1) 9 个标量规则
     for key, (rtype, default, desc, editable) in RULE_METADATA.items():
         value = current.get(key, default)
         # type 强一致（防止 settings 表里被存成字符串）

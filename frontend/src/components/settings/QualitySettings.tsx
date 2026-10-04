@@ -12,6 +12,7 @@
  */
 import { useState, useEffect } from 'react';
 import { getJSON } from '../../lib/api';
+import { CustomRulesPanel } from './quality/CustomRulesPanel';
 import { LlmDetectionPanel, type LlmDetectionStatus } from './quality/LlmDetectionPanel';
 import { QualityRulesPanel } from './quality/QualityRulesPanel';
 import type { QualityRule } from './quality/QualityRulesPanel';
@@ -59,6 +60,7 @@ export function QualitySettings({ open }: QualitySettingsProps) {
     <div className="space-y-3" data-testid="quality-settings">
       <LlmDetectionPanel status={llmStatus} loading={llmLoading} />
       <QualityRulesPanel initialRules={rules} />
+      <CustomRulesPanel open={open} />
     </div>
   );
 }

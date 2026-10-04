@@ -17,6 +17,14 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-04 v0.8.6 P2 收敛冻结阶段规划定稿 — DEV-0277
+
+- **规划文档**: `docs/PLAN_P2_FREEZE_2026-10-04.md` — 里程碑 = **G2 清零确认** (三类静默失败 100% 落显式 outcome); 任务表 P2-0~P2-6, 5 日排期, 冻结纪律 (不加新能力/Skill* 零投入/只修不改)。
+- **取证修正**: ① SentinelJudgePage 已在 DEV-0258 提前物理删除, PRD P2 该项缩为尾巴清理 (sentinel-judge.css + code-wiki 文档行, 半天); ② G2 三类中 ②写库失败 ③misfire 已断根 (P0-7/P0-5), **①gate-detect 显式 outcome 是清零最后一块** (P0-6/P0-12 未覆盖 LLM 调用失败路径) → P2-1; ③ E8 需 owner 裁决点: entities/compiled 进 frontmatter (推荐) vs 标注派生缓存, attention_score 推荐标注可丢。
+- **任务表**: P2-0 观测窗口 (24h 三项复核 + G2②③归零确认, 开场) / P2-1 gate-detect 显式 outcome (红线: 不动 gateway._try_order) / P2-2 E8 补列 / P2-3 死代码尾巴 / P2-4 SK-04 直写端点收编 / P2-5 (可选) P1-7 第二批 / P2-6 竞品复盘 ([假设] 项, owner 点名才启动)。
+- **明确不做 (冻结)**: pi 执行体 (单独立项, finish_run 入口已备) / TanStack (D5 长期) / raw_items.content / accessor 双库歧义 (存储治理工单) / i18n / 多用户。
+- **验收汇总**: G2 三类 24h 生产证据 + E8 重投影断言 + JudgePage 引用归零 + SK-04 走提案 + 冻结零违反 + 观测纪要落账。
+
 ### 2026-10-03 v0.8.6 P1-8: warm.X 裸引用 CI 门禁 — accessor 强制收口（F2-4 提前）— DEV-0276
 
 - **取证定性**: 仓内 `warm.<table>` SQL 字面量真裸引用 **4 处**（`health_query_service.py` 3 处 collection_runs + `legacy_migrate_v1.py` 1 处 knowledge_items）；其余为 accessor 本体（db.py self-heal/悬空 FK 重建 = warm 域治理合法消费方）、注释/docstring、测试（断言 warm 表真实存在是测试意图）、一次性运维脚本（直连 warm.db 文件非 ATTACH 路径）。

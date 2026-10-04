@@ -1,4 +1,16 @@
 
+## [DEV-0277] v0.8.6 P2 收敛冻结阶段规划定稿 (p2-freeze-plan)
+
+- **时间**: 2026-10-04
+- **类型**: 规划 (v0.8.6 PRD §10 Phase P2, 工期 1 周; 里程碑 = G2 清零确认)
+- **关联模块**: `docs:prd`, `docs:plan`, `backend:ai-hub-gate-detect`, `backend:knowledge-sync`
+- **新建**: `docs/PLAN_P2_FREEZE_2026-10-04.md` (任务分解 P2-0~P2-6 / 冻结纪律 / 不做清单 / 验收汇总 / 5 日排期)
+- **取证修正 (规划输入)**: ① SentinelJudgePage 已在 DEV-0258 (E10) 物理删除, PRD P2 该项仅剩尾巴 (sentinel-judge.css 死文件 + code-wiki 文档行) → 缩为 P2-3 半天; ② G2 三类中 ②写库失败 439 (P0-7 断根) ③misfire (P0-5) 已修, **①gate-detect 显式 outcome 是清零最后一块** (P0-6/P0-12 修 score 面与 gate 崩溃, LLM 调用失败仍返回 None fail-open) → P2-1; ③ E8 = upsert 16/26 列 + md frontmatter 缺 entities/compiled → P2-2 (owner 裁决点: 进 frontmatter vs 标注派生缓存, 推荐 entities/compiled 进 + attention_score 标注可丢)
+- **任务表**: P2-0 生产观测窗口 (T4 增速/llm_used/转化率带 + G2②③归零确认) / P2-1 gate-detect 显式 outcome / P2-2 E8 补列 / P2-3 死代码尾巴 / P2-4 SK-04 直写端点收编 / P2-5 (可选) P1-7 第二批 / P2-6 竞品复盘 ([假设] 项, owner 未点名则挂起)
+- **冻结纪律**: 不加新能力 / Skill* 零投入 / 只修不改 (G2 收口+E8 补列+存量尾巴); 明确不做: pi 执行体 (单独立项) / TanStack / raw_items.content / accessor 双库歧义
+- **验收汇总**: G2 三类 100% 显式 outcome (24h 生产证据) + E8 重投影断言 + JudgePage 引用归零 + SK-04 走提案 + 冻结零违反 + 观测纪要
+- **下一可用号**: DEV-0278
+
 ## [DEV-0276] v0.8.6 P1-8: warm.X 裸引用 CI 门禁 — accessor 强制收口 (p1-8-warm-refs-gate)
 
 - **时间**: 2026-10-04

@@ -203,6 +203,18 @@ class QualityGatePipeline:
                         "reason": result.reason,
                     },
                 )
+                # P1-5 拒收回放 (审计 F1-3): 写 pipeline 拒绝标记行 —
+                # 收件可回放的查询锚 (gate_name='pipeline'), 与 raw_items
+                # JOIN 构成 "任一拒收可看原文与原因"。写失败不阻塞 (同 log 契约)。
+                self.log_repo.write_log(
+                    item.id,
+                    GateResult(
+                        gate_name="pipeline", passed=False,
+                        score_deduction=100 - final_score,
+                        flags=all_flags, reason=reason,
+                    ),
+                    mode=mode_str, checked_at=_now().isoformat(),
+                )
                 raise QualityGateFailed(
                     item_id=item.id,
                     score=final_score,
@@ -253,6 +265,16 @@ class QualityGatePipeline:
                     "score": final_score,
                     "flags": all_flags,
                 },
+            )
+            # P1-5 拒收回放 (审计 F1-3): score 不足拒绝同样落标记行
+            self.log_repo.write_log(
+                item.id,
+                GateResult(
+                    gate_name="pipeline", passed=False,
+                    score_deduction=100 - final_score,
+                    flags=all_flags, reason=reason,
+                ),
+                mode=mode_str, checked_at=_now().isoformat(),
             )
             raise QualityGateFailed(
                 item_id=item.id, score=final_score, flags=all_flags

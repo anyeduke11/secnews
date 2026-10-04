@@ -34,6 +34,37 @@ export function getActiveAlerts<T = Record<string, unknown>>(): Promise<T> {
   return getJSON<T>('/api/observability/alerts/active');
 }
 
+// ── 质量门禁拒收回放 (v0.8.6 P1-5, 审计 F1-3) ────────────────────────
+
+export interface QualityRejectionRaw {
+  title: string | null;
+  url: string | null;
+  summary: string | null;
+  source_id: string | null;
+  published_at: string | null;
+}
+
+export interface QualityRejection {
+  item_id: string;
+  gate_name: string;
+  score_deduction: number;
+  flags: string[];
+  reason: string | null;
+  error_msg: string | null;
+  checked_at: string;
+  mode: string;
+  /** raw_items 原文; 缺失 = null (诚实"未留存", 不伪造)。 */
+  raw: QualityRejectionRaw | null;
+}
+
+/** GET /api/quality/rejections — strict 拒收标记行 + 原文回放 */
+export function getQualityRejections(
+  hours = 168,
+  limit = 50,
+): Promise<{ items: QualityRejection[]; total: number; window_hours: number }> {
+  return getJSON(`/api/quality/rejections?hours=${hours}&limit=${limit}`);
+}
+
 // ── 资讯告警 (2026-09-27 四模式 P1, /api/alerts/v2) ──────────────────
 
 export interface NewsAlertEvent {

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.domain.collection import GateResult
@@ -72,6 +72,62 @@ class QualityLogRepository:
                     "error": str(e),
                 },
             )
+
+    def list_rejections(
+        self, *, hours: int = 168, limit: int = 50,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """P1-5 拒收回放 (审计 F1-3): 拒收标记行 LEFT JOIN raw_items 原文。
+
+        gate_name='pipeline' AND passed=0 = strict 模式真实拒收 (hard gate
+        fail 或 final_score < min_score, 由 pipeline 在 raise 前写标记)。
+        LEFT JOIN: raw_items 缺失时 raw 为 None — UI 诚实显示"原文未留存",
+        不伪造。两表均走 warm_table accessor (生产在 warm, 单库模式 main)。
+        """
+        conn = get_connection()
+        qcl = warm_table("quality_check_logs", conn)
+        raw = warm_table("raw_items", conn)
+        cutoff = (
+            datetime.now(timezone.utc) - timedelta(hours=hours)
+        ).isoformat()
+        where = "l.gate_name = 'pipeline' AND l.passed = 0 AND l.checked_at >= ?"
+        try:
+            total = conn.execute(
+                f"SELECT COUNT(*) FROM {qcl} l WHERE {where}", (cutoff,),
+            ).fetchone()[0]
+            rows = conn.execute(
+                f"SELECT l.item_id, l.gate_name, l.score_deduction, l.flags, "
+                f"l.reason, l.error_msg, l.checked_at, l.mode, "
+                f"r.title AS raw_title, r.url AS raw_url, "
+                f"r.summary AS raw_summary, r.source_id AS raw_source_id, "
+                f"r.published_at AS raw_published_at "
+                f"FROM {qcl} l LEFT JOIN {raw} r ON r.item_id = l.item_id "
+                f"WHERE {where} ORDER BY l.checked_at DESC LIMIT ?",
+                (cutoff, limit),
+            ).fetchall()
+        except sqlite3.Error as e:
+            raise InternalException(f"list_rejections failed: {e}") from e
+        items: list[dict[str, Any]] = []
+        for r in rows:
+            flags_raw = r["flags"]
+            has_raw = r["raw_title"] is not None or r["raw_url"] is not None
+            items.append({
+                "item_id": r["item_id"],
+                "gate_name": r["gate_name"],
+                "score_deduction": r["score_deduction"],
+                "flags": json.loads(flags_raw) if flags_raw else [],
+                "reason": r["reason"],
+                "error_msg": r["error_msg"],
+                "checked_at": r["checked_at"],
+                "mode": r["mode"],
+                "raw": {
+                    "title": r["raw_title"],
+                    "url": r["raw_url"],
+                    "summary": r["raw_summary"],
+                    "source_id": r["raw_source_id"],
+                    "published_at": r["raw_published_at"],
+                } if has_raw else None,
+            })
+        return items, total
 
     def list_for_item(self, item_id: str, limit: int = 50) -> list[dict]:
         """返回该 item 的最近 N 条检查记录。"""

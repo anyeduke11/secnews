@@ -11,6 +11,7 @@ import { ApprovalInbox } from './ApprovalInbox';
 vi.mock('../../api/proposals', () => ({
   listProposals: vi.fn(),
   draftJudgment: vi.fn(),
+  copilotDraft: vi.fn(),
   approveProposal: vi.fn(),
   rejectProposal: vi.fn(),
 }));
@@ -18,6 +19,7 @@ vi.mock('../../api/proposals', () => ({
 import {
   listProposals,
   draftJudgment,
+  copilotDraft,
   approveProposal,
   rejectProposal,
   type Proposal,
@@ -25,6 +27,7 @@ import {
 
 const mockList = vi.mocked(listProposals);
 const mockDraft = vi.mocked(draftJudgment);
+const mockCopilot = vi.mocked(copilotDraft);
 const mockApprove = vi.mocked(approveProposal);
 const mockReject = vi.mocked(rejectProposal);
 
@@ -213,6 +216,41 @@ describe('ApprovalInbox', () => {
     expect(buttons[1].disabled).toBe(true);
     fireEvent.click(buttons[0]);
     await waitFor(() => expect(mockDraft).toHaveBeenCalledWith('case_1'));
+  });
+
+  it('P1-3 kind 感知重试: 副驾 kind 失败提案 → copilotDraft 同 kind + case 锚', async () => {
+    mockCopilot.mockResolvedValue(draftProposal({ id: 'prop_D3', kind: 'report' }));
+    mockList.mockImplementation((params) => {
+      if (params?.status === 'failed') {
+        return Promise.resolve({
+          items: [failedProposal({ kind: 'report' })],
+          total: 1,
+          filter: { status: 'failed', kind: null },
+        });
+      }
+      return Promise.resolve({ items: [], total: 0, filter: { status: 'draft', kind: null } });
+    });
+    render(<ApprovalInbox />);
+    await waitFor(() => expect(screen.getByTestId('retry-btn')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('retry-btn'));
+    await waitFor(() => expect(mockCopilot).toHaveBeenCalledWith(
+      'report', { case_id: 'case_1' },
+    ));
+    expect(mockDraft).not.toHaveBeenCalled();
+  });
+
+  it('P1-3 起草事件 (proposals:changed) → 收件箱自刷新', async () => {
+    // 首轮拉取 2 次 (draft+failed), 事件后再拉 2 次
+    mockList.mockImplementation((params) => {
+      if (params?.status === 'failed') {
+        return Promise.resolve({ items: [], total: 0, filter: { status: 'failed', kind: null } });
+      }
+      return Promise.resolve({ items: [], total: 0, filter: { status: 'draft', kind: null } });
+    });
+    render(<ApprovalInbox />);
+    await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2));
+    window.dispatchEvent(new Event('proposals:changed'));
+    await waitFor(() => expect(mockList).toHaveBeenCalledTimes(4));
   });
 
   it('收件箱拉取失败 → 显 unavailable, 不伪装空态', async () => {

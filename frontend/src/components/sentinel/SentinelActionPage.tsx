@@ -26,6 +26,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiFetch, getJSON, postJSON } from '../../lib/api';
 import { SentinelShell } from './SentinelShell';
 import { ApprovalInbox } from '../action/ApprovalInbox';
+import { CopilotCards } from '../action/CopilotCards';
 import { ExecOverviewPanel } from '../v1/panels/ExecOverviewPanel';
 import { ReviewOverlay, type RvView } from './review/ReviewOverlay';
 import './sentinel.css';
@@ -815,6 +816,9 @@ export function SentinelActionPage() {
           <span>判读待办 {actions.length} 待推进</span>
           <span>本周达标 {rhythm.hit} / 7 天</span>
         </p>
+
+        {/* v0.8.6 M3 副驾四卡 (P1-3): 起草入口 → 下方审批收件箱人审 → 双签 Run + 产物 */}
+        <CopilotCards />
 
         {/* v0.8.6 M1 能力区块: AI 提案审批收件箱 (用例 A; Case 页起草 → 此处人审 → 双签 Run) */}
         <ApprovalInbox />

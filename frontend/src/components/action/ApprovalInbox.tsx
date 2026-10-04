@@ -12,13 +12,18 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   approveProposal,
+  copilotDraft,
   draftJudgment,
   listProposals,
   rejectProposal,
+  type CopilotDraftKind,
   type Proposal,
   type ProposalKind,
 } from '../../api/proposals';
 import { PANEL_SHELL } from '../v1/panels/panelShell';
+
+/** CopilotCards 起草成功后广播; 收件箱监听自刷新 (同页区块解耦)。 */
+const PROPOSALS_CHANGED_EVENT = 'proposals:changed';
 
 /** 后端 MAX_REJECT_REASON_CHARS, 前端先挡一道 (后端 400 兜底)。 */
 const MAX_REJECT_REASON = 200;
@@ -315,13 +320,24 @@ export function ApprovalInbox() {
 
   useEffect(() => { void load(); }, [load]);
 
-  /** 失败提案重试 = 用原 case 重新 AI 起草 (后端生成一条新提案, 成功 draft/失败 failed)。 */
+  // CopilotCards 起草成功 → 收件箱自刷新 (跨区块解耦, 不经父组件)
+  useEffect(() => {
+    const onChange = () => { void load(); };
+    window.addEventListener(PROPOSALS_CHANGED_EVENT, onChange);
+    return () => window.removeEventListener(PROPOSALS_CHANGED_EVENT, onChange);
+  }, [load]);
+
+  /** 失败提案重试 (kind 感知): judgment → draft-judgment;
+   * case 锚定的副驾 kind → copilot-draft 同 kind;
+   * knowledge_draft 无重试锚点 (case_id 为空) → 按钮禁用。 */
   const retry = useCallback(async (p: Proposal) => {
     if (!p.case_id) return;
     setRetrying(p.id);
     setNotice(null);
     try {
-      const fresh = await draftJudgment(p.case_id);
+      const fresh = p.kind === 'judgment_draft'
+        ? await draftJudgment(p.case_id)
+        : await copilotDraft(p.kind as CopilotDraftKind, { case_id: p.case_id });
       setNotice(fresh.status === 'failed'
         ? `案件 ${p.case_id} 重新起草仍失败: ${fresh.error_msg ?? '模型未返回'}`
         : `案件 ${p.case_id} 已重新起草, 新提案进入待审队列`);

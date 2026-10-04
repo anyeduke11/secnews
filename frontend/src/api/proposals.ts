@@ -52,12 +52,23 @@ export function listProposals(params: {
   return getJSON<ProposalListResponse>(`/api/proposals${suffix ? `?${suffix}` : ''}`);
 }
 
-/**
- * POST /api/proposals/draft-judgment — Case 页 AI 起草研判。
- * 成功回 draft 提案; 模型超时/拒绝回 **同 200 + status=failed** (由调用方区分)。
- */
+/** POST /api/proposals/draft-judgment — Case 页 AI 起草研判。
+ * 成功回 draft 提案; 模型超时/拒绝回 **同 200 + status=failed** (由调用方区分)。 */
 export function draftJudgment(caseId: string): Promise<Proposal> {
   return postJSON<Proposal>('/api/proposals/draft-judgment', { case_id: caseId });
+}
+
+/** 副驾三卡起草 kind (M3; judgment 走 draftJudgment 专用端点)。 */
+export type CopilotDraftKind = 'case_suggestion' | 'knowledge_draft' | 'report';
+
+/** POST /api/proposals/copilot-draft — 副驾卡起草 (P1-3 M3)。
+ * case_suggestion/report 需 case_id; knowledge_draft 需 knowledge_id。
+ * 失败语义同 draftJudgment: HTTP 200 + status=failed。 */
+export function copilotDraft(
+  kind: CopilotDraftKind,
+  ctx: { case_id?: string; knowledge_id?: string },
+): Promise<Proposal> {
+  return postJSON<Proposal>('/api/proposals/copilot-draft', { kind, ...ctx });
 }
 
 /** POST /api/proposals/{id}/approve — 人批准; editedPayload 非空 = 修订后批准。 */

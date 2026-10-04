@@ -26,6 +26,12 @@ from backend.logging_config import logger
 from backend.repository.proposal_repo import ProposalRepository
 from backend.repository.run_repo import RunRepository
 from backend.repository.v1_evidence_repo import V1EvidenceRepository
+from backend.services.copilot_drafter import (
+    COPILOT_DRAFT_KINDS,
+    COPILOT_DRAFT_PROMPT_VERSION,
+    ai_copilot_draft,
+    render_copilot_markdown,
+)
 from backend.services.judgment_drafter import (
     JUDGMENT_DRAFT_PROMPT_VERSION,
     ai_draft_judgment,
@@ -40,6 +46,12 @@ PROPOSAL_STATUSES = {"draft", "approved", "rejected", "expired", "failed"}
 LEDGER_OUTCOMES = {"done", "failed", "cancelled", "timeout", "needs_human"}
 MAX_PAYLOAD_CHARS = 65536  # §8.1 CHECK(length(payload_json) <= 65536)
 MAX_REJECT_REASON_CHARS = 200  # §6: 驳回原因必填 ≤200
+# P1-3: 非研判 kind 的产物标题前缀 (artifact kind 恒 report/md, title 区分)
+_ARTIFACT_TITLES = {
+    "case_suggestion": "建案建议产物",
+    "knowledge_draft": "知识摘要产物",
+    "report": "复盘草案产物",
+}
 
 _ULID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
 
@@ -130,6 +142,7 @@ class RunLedgerService:
 
     def draft_judgment(
         self, case_id: str, *,
+        source: str = "agent",
         drafter: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """用例 A①: Case 页"AI 起草研判"。证据 → HEAVY 草案 → proposal(draft)。
@@ -138,6 +151,7 @@ class RunLedgerService:
         HEAVY 档)。无绑定证据直接 400 — 研判必须带证据引用, 不允许凭空起草。
         drafter 抛错/返回空壳 → record_failed_proposal (用例 A②),
         返回的提案 status=failed, 供收件箱展示原因与重试。
+        source: agent (Case 页入口) | copilot (M3A 副驾研判建议卡, P1-3)。
         """
         if not case_id or not str(case_id).strip():
             raise ProposalValidationError("case_id is required")
@@ -157,14 +171,79 @@ class RunLedgerService:
                 case_id, type(e).__name__, e,
             )
             return self.record_failed_proposal(
-                source="agent", kind="judgment_draft",
+                source=source, kind="judgment_draft",
                 error=f"{type(e).__name__}: {e}",
                 case_id=case_id, prompt_version=JUDGMENT_DRAFT_PROMPT_VERSION,
             )
         return self.create_proposal(
-            source="agent", kind="judgment_draft", payload=payload,
+            source=source, kind="judgment_draft", payload=payload,
             evidence_ids=evidence_ids, case_id=case_id,
             prompt_version=JUDGMENT_DRAFT_PROMPT_VERSION,
+        )
+
+    def copilot_draft(
+        self, kind: str, *,
+        case_id: str | None = None, knowledge_id: str | None = None,
+        drafter: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """P1-3 M3 副驾三卡起草: 上下文 → STANDARD 草案 → proposal(draft, copilot)。
+
+        - case_suggestion (证据召回卡) / report (SK-04 复盘草案卡): 锚 case,
+          必须有绑定证据 (与 judgment 同纪律: 不允许凭空起草);
+        - knowledge_draft (知识摘要卡): 锚 knowledge item (kl-* stub)。
+        模型失败 → failed 提案 (case 锚定时 case_id 留痕供收件箱重试,
+        knowledge 锚暂无重试锚点 — error_msg 内含条目标识)。
+        """
+        if kind not in COPILOT_DRAFT_KINDS:
+            raise ProposalValidationError(
+                f"invalid copilot kind: {kind!r}; allowed={sorted(COPILOT_DRAFT_KINDS)}"
+            )
+        drafter = drafter or ai_copilot_draft
+        if kind == "knowledge_draft":
+            if not knowledge_id or not str(knowledge_id).strip():
+                raise ProposalValidationError("knowledge_id is required")
+            from backend.repository.knowledge_repo import knowledge_repo
+            item = knowledge_repo.get_item(knowledge_id)
+            if item is None:
+                raise ProposalValidationError(
+                    f"knowledge item {knowledge_id} not found"
+                )
+            context: dict[str, Any] = {
+                "kind": kind, "knowledge_id": knowledge_id,
+                "item": {"id": knowledge_id,
+                         "title": getattr(item, "title", "") or "",
+                         "topic": getattr(item, "topic", "") or ""},
+            }
+            anchor_case = None
+            evidence_ids: list[str] = []
+        else:
+            if not case_id or not str(case_id).strip():
+                raise ProposalValidationError("case_id is required")
+            evidence = self.evidence.case_evidence_materials(case_id)
+            if not evidence:
+                raise ProposalValidationError(
+                    f"case {case_id} has no bound evidence materials; "
+                    "copilot draft requires evidence references"
+                )
+            context = {"kind": kind, "case_id": case_id, "evidence": evidence}
+            anchor_case = case_id
+            evidence_ids = [str(m["id"]) for m in evidence]
+        try:
+            payload = drafter(context)
+        except Exception as e:
+            logger.warning(
+                "copilot draft failed kind=%s case=%s: %s: %s",
+                kind, anchor_case, type(e).__name__, e,
+            )
+            return self.record_failed_proposal(
+                source="copilot", kind=kind,
+                error=f"{type(e).__name__}: {e}",
+                case_id=anchor_case, prompt_version=COPILOT_DRAFT_PROMPT_VERSION,
+            )
+        return self.create_proposal(
+            source="copilot", kind=kind, payload=payload,
+            evidence_ids=evidence_ids, case_id=anchor_case,
+            prompt_version=COPILOT_DRAFT_PROMPT_VERSION,
         )
 
     # ── 查询 ─────────────────────────────────────────────────────────
@@ -205,10 +284,12 @@ class RunLedgerService:
         _serialize_payload(final_payload)
         now = _utcnow_iso()
         run_id = _ulid("run_")
-        # judgment_draft 的"执行"= 研判产物落盘 + sha256 登记: 先 running,
-        # 产物登记成功才 succeeded/done; 落盘或哈希失败 → failed/failed
-        # (用例 A 异常流; 禁止成功但无产物)。其余 kind 采纳即 done (切片1)。
-        materialize = proposal["kind"] == "judgment_draft"
+        # P1-3 (DEV-0271): 四 kind 全产物化 — 批准的"执行"= md 产物落盘 +
+        # sha256 登记: 先 running, 产物登记成功才 succeeded/done; 落盘或哈希
+        # 失败 → failed/failed (用例 A 异常流; 禁止成功但无产物)。
+        # 验收 "副驾四卡各产出 ≥1 artifact" 依赖全 kind 走此路径 (切片1 的
+        # "其余 kind 采纳即 done" 占位语义由此退役)。
+        materialize = True
         initial_status = "running" if materialize else "succeeded"
         initial_outcome = None if materialize else "done"
         # v1_runs.action_id NOT NULL: 账本 Run 无 v1_actions 归属, 用
@@ -235,7 +316,7 @@ class RunLedgerService:
             reviewed_by=reviewed_by, reviewed_at=now, run_id=run_id,
         )
         if materialize:
-            self._materialize_judgment_artifact(
+            self._materialize_artifact(
                 run_id=run_id, proposal=proposal, payload=final_payload,
             )
         return self._get_or_raise(proposal_id)
@@ -304,50 +385,67 @@ class RunLedgerService:
                 f"underlying proposal not approved (current={proposal['status']})"
             )
         self.runs.reset_for_retry(run_id, started_at=_utcnow_iso())
-        self._materialize_judgment_artifact(
+        self._materialize_artifact(
             run_id=run_id, proposal=proposal, payload=proposal["payload"],
         )
         result = self.runs.get(run_id)
         assert result is not None
         return result
 
-    # ── 研判产物物化 (切片 2) ────────────────────────────────────────
+    # ── 提案产物物化 (切片 2 judgment / P1-3 全 kind) ────────────────
     def _artifact_svc(self) -> Any:
         if self._artifact_service is None:
             from backend.services.artifact_service import ArtifactService
             self._artifact_service = ArtifactService()
         return self._artifact_service
 
-    def _materialize_judgment_artifact(
+    def _materialize_artifact(
         self, *, run_id: str, proposal: dict[str, Any], payload: dict[str, Any],
     ) -> None:
-        """批准研判 → md 落盘 + Artifact(sha256 R08 读盘比对) → Run succeeded/done。
+        """批准 → md 落盘 + Artifact(sha256 R08 读盘比对) → Run succeeded/done。
 
-        任何失败 (渲染/落盘/哈希不一致): Run status=failed + outcome=failed,
-        proposal 保持 approved (人的采纳决定成立, 执行失败可凭 run_id 重试),
-        错误 logger.error 留痕 (G1 告警面板批次再接 outbox)。原异常上抛 API。
+        judgment_draft 走研判渲染 (证据 Source url 内嵌); 其余三 kind 走
+        copilot 通用渲染。任何失败 (渲染/落盘/哈希不一致): Run status=failed +
+        outcome=failed, proposal 保持 approved (人的采纳决定成立, 执行失败可凭
+        run_id 重试), 错误 logger.error 留痕 (G1 告警面板批次再接 outbox)。
+        原异常上抛 API。
         """
         from backend.config import config
 
+        kind = proposal["kind"]
         case_id = proposal.get("case_id") or ""
         now = _utcnow_iso()
+        # case 锚定提案带证据 (回溯链); knowledge 锚定提案无 case 证据
+        evidence = (
+            self.evidence.case_evidence_materials(case_id) if case_id else []
+        )
         try:
-            evidence = self.evidence.case_evidence_materials(case_id)
-            markdown = render_judgment_markdown(
-                case_id=case_id, payload=payload,
-                evidence=evidence, proposal_id=proposal["id"],
-            )
+            if kind == "judgment_draft":
+                markdown = render_judgment_markdown(
+                    case_id=case_id, payload=payload,
+                    evidence=evidence, proposal_id=proposal["id"],
+                )
+                title = f"研判产物 {case_id}".strip()
+            else:
+                markdown = render_copilot_markdown(
+                    kind=kind, anchor_id=case_id or None, payload=payload,
+                    evidence=evidence, proposal_id=proposal["id"],
+                )
+                title = (
+                    f"{_ARTIFACT_TITLES[kind]} "
+                    f"{case_id or payload.get('title', '')}"
+                ).strip()[:200]
             out_dir = Path(config.data_dir) / "run_artifacts"
             out_dir.mkdir(parents=True, exist_ok=True)
             content_ref = out_dir / f"{run_id}.md"
             content_ref.write_text(markdown, encoding="utf-8")
             artifact = self._artifact_svc().create(
                 run_id=run_id, kind="report", format="md",
-                title=f"研判产物 {case_id}".strip(),
+                title=title,
                 content=markdown, content_ref=str(content_ref),
             )
         except Exception as e:
-            reason = f"judgment artifact materialization failed: {type(e).__name__}: {e}"
+            reason = f"proposal artifact materialization failed: {type(e).__name__}: {e}"
             logger.error("run %s → failed: %s", run_id, reason)
             self.runs.update_status(
                 run_id, "failed", finished_at=_utcnow_iso(), error=str(e)[:500],
@@ -356,7 +454,7 @@ class RunLedgerService:
             raise
         self.runs.update_status(
             run_id, "succeeded", finished_at=now,
-            result_excerpt=payload.get("claim", "")[:500],
+            result_excerpt=str(payload.get("claim") or payload.get("summary") or payload.get("title") or "")[:500],
             artifact_ids=[artifact["id"]],
         )
         self.runs.update_outcome(run_id, "done")

@@ -2,6 +2,7 @@
 
 - POST   /api/proposals          创建 draft 提案 (AI/命令/副驾)
 - POST   /api/proposals/draft-judgment  Case 页 AI 起草研判 (HEAVY; 失败落 failed 提案)
+- POST   /api/proposals/copilot-draft   副驾三卡起草 (M3: case_suggestion/knowledge_draft/report)
 - POST   /api/proposals/failed   记录 AI 起草失败 (用例 A②, 收件箱可重试)
 - GET    /api/proposals          收件箱列表 (?status=&kind=&limit=&offset=)
 - GET    /api/proposals/{id}     提案详情
@@ -73,6 +74,22 @@ def draft_judgment(body: DraftJudgmentBody) -> dict[str, Any]:
     status 字段区分), 无绑定证据→400。同步工作 (内含 asyncio.run 桥) 由
     FastAPI 线程池执行。"""
     return _svc().draft_judgment(body.case_id)
+
+
+class CopilotDraftBody(BaseModel):
+    """P1-3 M3 副驾三卡起草 (judgment 走 /draft-judgment, 不在此列)。"""
+    kind: str  # case_suggestion | knowledge_draft | report
+    case_id: str | None = None        # case_suggestion / report 必填
+    knowledge_id: str | None = None   # knowledge_draft 必填
+
+
+@router.post("/copilot-draft")
+def copilot_draft(body: CopilotDraftBody) -> dict[str, Any]:
+    """副驾卡起草: 成功→draft 提案 (source=copilot); 模型失败→failed 提案
+    (HTTP 200, status 字段区分); 参数缺失/上下文不存在→400。"""
+    return _svc().copilot_draft(
+        body.kind, case_id=body.case_id, knowledge_id=body.knowledge_id,
+    )
 
 
 @router.post("/failed")

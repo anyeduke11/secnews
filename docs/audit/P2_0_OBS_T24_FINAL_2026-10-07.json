@@ -1,0 +1,125 @@
+{
+  "meta": {
+    "snapshot": "t24_final",
+    "collected_at_local": "2026-10-07T16:45:42+08:00",
+    "t0_at": "2026-10-04T09:42:42+08:00",
+    "window_hours": 79.1,
+    "window_note": "logs=['backend/logs/app.log']; DB windows anchored t0_utc=2026-10-04 01:42:42",
+    "clearance_window_note": "P2-1③ 判定窗 = full-code restart 2026-10-04T20:59:51+08:00 → now (全部代码生效)",
+    "timezone": "Asia/Shanghai",
+    "window_hours_effective": 79.1
+  },
+  "A_warm_lifecycle": {
+    "value": {
+      "kl:deduped": 226,
+      "kl:publish": 4373,
+      "kl:raw": 5,
+      "kl:structure": 7
+    },
+    "t0_reference": {
+      "kl:publish": 4362,
+      "kl:deduped": 392,
+      "kl:raw": 18
+    }
+  },
+  "A_publish_window_new": {
+    "publish": 7,
+    "deduped_plus_raw": 180,
+    "window_hours": 79.1,
+    "t0_24h_reference_publish": 15
+  },
+  "C_signals_ratio": {
+    "rolling_7d": {
+      "signals": 3283,
+      "hotspots": 6923,
+      "ratio": 0.4742
+    },
+    "anchored_since_t0": {
+      "signals": 478,
+      "hotspots": 696,
+      "ratio": 0.6868
+    },
+    "t0_reference_7d": 0.319,
+    "target_band": [
+      0.15,
+      0.3
+    ]
+  },
+  "F_ai_scores_window": {
+    "new_rows": 960,
+    "kl_domain": 960,
+    "window_hours": 79.1,
+    "t0_24h_reference": 1312
+  },
+  "H_gate_detect_usage_log": {
+    "since_full_restart": {
+      "fail": 446,
+      "ok": 253
+    },
+    "fails_by_scene_24h": {
+      "chat": 8,
+      "gate_detect": 398,
+      "generate": 31,
+      "t1_entities": 3,
+      "t1_score": 203
+    }
+  },
+  "E_ops_summary": {
+    "ok": 2789,
+    "failed": 18,
+    "missed": 0,
+    "running": 0,
+    "stale_running": 2
+  },
+  "E_misfire_rows": 0,
+  "J_legacy_failed_since_t0": {
+    "knowledge_review_due": 1,
+    "legacy_migrate_resume": 57,
+    "legacy_promote_due": 28
+  },
+  "J_legacy_sample": [
+    [
+      "legacy_migrate_resume",
+      "TypeError: 'dict' object can't be awaited"
+    ],
+    [
+      "legacy_promote_due",
+      "TypeError: 'dict' object can't be awaited"
+    ]
+  ],
+  "I_rail2_admission_deny_score": 471,
+  "A_t4_window": {
+    "cycles": 9,
+    "candidates": 52,
+    "advanced": 0,
+    "skipped_low_score": 52,
+    "skipped_unstable": 0,
+    "failed": 0
+  },
+  "B_llm_used_window": {
+    "samples": 55,
+    "max": 14,
+    "mean": 3.67,
+    "hit_cap20": 0,
+    "rate_per_hour": 0.7
+  },
+  "D_no_such_table_warm": 0,
+  "H_gate_detect_log": {
+    "warn_total_window": 0,
+    "warn_since_full_restart": 0,
+    "breakdown": {}
+  },
+  "I_bridge_window": {
+    "rounds": 30,
+    "candidates": 1129,
+    "mirrored": 15907,
+    "signals": 200,
+    "denied_rule": 439,
+    "denied_score": 470,
+    "kl_stubs": 220
+  },
+  "G_restarts_in_window": [],
+  "_scan": {
+    "lines_in_window": 4420
+  }
+}

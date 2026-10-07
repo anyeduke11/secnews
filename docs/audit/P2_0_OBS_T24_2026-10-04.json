@@ -1,0 +1,182 @@
+{
+  "meta": {
+    "snapshot": "t24_early",
+    "owner_decision": "owner 裁决 2026-10-04 14:23 提前执行并计为正式; 窗口偏差见 window_hours",
+    "collected_at_local": "2026-10-04T14:26:58+08:00",
+    "t0_at": "2026-10-04T09:42:42+08:00",
+    "window": [
+      "2026-10-04 09:42:42+08:00",
+      "2026-10-04 14:26:58+08:00"
+    ],
+    "window_hours": 4.74,
+    "window_note": "日志窗口 = record.time.timestamp >= t0_epoch; DB 窗口 = UTC 列 >= t0_utc (2026-10-04 01:42:42)",
+    "log_file_scanned": "backend/logs/app.log",
+    "main_db": "backend/hotspot.db (sqlite3 file:...?mode=ro)",
+    "warm_db": "backend/hotspot-warm.db (sqlite3 file:...?mode=ro)",
+    "timezone": "Asia/Shanghai (UTC+8, 无DST)"
+  },
+  "A_warm_lifecycle_counts": {
+    "value": {
+      "kl:deduped": 586,
+      "kl:publish": 4362,
+      "kl:raw": 10
+    },
+    "collected_at": "2026-10-04T14:26+08:00",
+    "source": "sqlite3 ro: SELECT lifecycle, COUNT(*) FROM knowledge_items GROUP BY lifecycle (warm.db)",
+    "t0_reference": {
+      "kl:publish": 4362,
+      "kl:deduped": 392,
+      "kl:raw": 18,
+      "kl:structure": 0,
+      "kl:refine": 0,
+      "kl:link": 0
+    }
+  },
+  "A_publish_window_new_by_ingested_at": {
+    "value": {
+      "publish": 0,
+      "deduped": 306,
+      "raw": 10
+    },
+    "t0_24h_reference": {
+      "publish": 15,
+      "deduped": 400,
+      "raw": 5
+    },
+    "window_hours": 4.74,
+    "source": "sqlite3 ro warm: ingested_at >= '2026-10-04 01:42:42' (UTC anchored)"
+  },
+  "A_publish_updated_at_check": {
+    "value": {
+      "min_utc": "2026-10-03T20:10:00.030472+00:00",
+      "max_utc": "2026-10-03T20:40:09.009310+00:00"
+    },
+    "note": "回填污染复查: max_utc 若仍为 2026-10-03T20:40:09 未再回填"
+  },
+  "F_ai_scores_window": {
+    "value": {
+      "new_rows": 301,
+      "kl_domain": 301
+    },
+    "t0_24h_reference": {
+      "new_rows": 1312,
+      "kl_domain": 1312
+    },
+    "source": "sqlite3 ro main: ai_scores scored_at >= '2026-10-04 01:42:42'"
+  },
+  "C_signals_ratio": {
+    "value": {
+      "signals_7d": 2992,
+      "hotspots_7d": 8770,
+      "ratio_7d": 0.3412,
+      "signals_8_14d": 2,
+      "hotspots_8_14d": 5872,
+      "ratio_8_14d": 0.0003
+    },
+    "t0_reference": {
+      "ratio_7d": 0.319,
+      "ratio_8_14d": 0.0004
+    },
+    "note": "rolling 窗口与 T0 同口径 (非锚定); 目标带 0.15-0.30"
+  },
+  "E_ops_misfire": {
+    "source": "curl /api/ops/runs?status=all&limit=200",
+    "value": {
+      "summary": {
+        "ok": 12500,
+        "failed": 65,
+        "missed": 0,
+        "running": 1,
+        "stale_running": 1
+      },
+      "status_dist_limit200": {
+        "failed": 65,
+        "running": 1,
+        "ok": 134
+      },
+      "legacy_migrate_recent": [],
+      "legacy_migrate_failed_in_limit200": 0
+    },
+    "t0_reference": {
+      "summary_missed": 0,
+      "dist": {
+        "ok": 136,
+        "failed": 63,
+        "running": 1
+      },
+      "legacy_failed_all": 63
+    }
+  },
+  "B_llm_used_window": {
+    "value": {
+      "samples": 10,
+      "max": 3,
+      "mean": 3.0,
+      "hit_cap20": 0,
+      "distribution": {
+        "3": 10
+      }
+    },
+    "t0_24h_reference": {
+      "samples": 29,
+      "max": 12,
+      "mean": 5.34,
+      "hit_cap20": 0
+    },
+    "source": "log scan window, regex _classify_new_items (预算 AI_CLASSIFY_BUDGET_PER_BATCH=20/5min)"
+  },
+  "A_t4_window_job_summary": {
+    "value": {
+      "cycles": 0,
+      "candidates": 0,
+      "advanced": 0,
+      "skipped_low_score": 0,
+      "skipped_unstable": 0,
+      "failed": 0
+    },
+    "t0_24h_reference": {
+      "cycles_logged_info": 27,
+      "candidates": 1318,
+      "advanced": 0,
+      "skipped_low_score": 937,
+      "skipped_unstable": 381,
+      "failed": 0
+    },
+    "source": "log scan window, regex kl_trigger_t4_job (非空转轮 INFO)"
+  },
+  "D_no_such_table_warm_window": {
+    "value": 0,
+    "t0_24h_reference": 0,
+    "source": "log scan window 计数 'no such table: warm' (G2③/P0-7)"
+  },
+  "F_gate_detect_failed_window": {
+    "value": {
+      "total": 0,
+      "breakdown": {}
+    },
+    "t0_24h_reference": 12,
+    "source": "log scan window, 'gate-detect failed' (P2-1 修复前, 只记录不判定)"
+  },
+  "E_misfire_log_window": {
+    "value": {
+      "hits": 0,
+      "samples": []
+    },
+    "t0_24h_reference": 0
+  },
+  "G_restart_markers_window": {
+    "value": {
+      "count": 0,
+      "timestamps": []
+    },
+    "note": "混杂因子: DEV-0278/0280 生效以重启为界; 无重启=代码未在生产生效"
+  },
+  "H_legacy_migrate_typeerror_window": {
+    "value": 0,
+    "t0_note": "每 30min failed 1 次, 留观项"
+  },
+  "_scan_meta": {
+    "lines_in_window": 779,
+    "json_parse_errors_skipped": 0
+  }
+}

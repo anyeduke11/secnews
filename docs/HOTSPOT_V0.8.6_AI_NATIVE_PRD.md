@@ -37,11 +37,12 @@ v0.8.5 之前的 24 天里，系统以 405 次提交建成了 485 端点/58 job/
 ### 1.5 竞品与差异化
 
 [假设] 本产品为单人内部工具，以下竞品为设计参照而非直接对位（owner 未指定竞品）：
+〔**DEV-0285 P2-6 复盘已执行 (2026-10-04, owner 裁决「深挖+快扫」)**: 四行假设无一被推翻; Gemini 行表述更新 (Assisted workflows → agentic SOC, 嵌入式分布原则不变); 可借鉴点全部已在 P0-P2 落地或有对应物; 差异化四点维持 (本地 AI 池获 DefectDojo Sensei 行业背书); 可行动发现 4 项入工单池 (MCP server 导出 / pi 双模编排参照 / KPI 口径对标 / 本行措辞更新); 纪要 = `docs/COMPETITIVE_REVIEW_P2_6_2026-10-04.md`〕
 
 | 竞品 | 类型 | 核心功能与设计要点 | 可借鉴 | 差异化点 |
 |------|------|------------------|--------|---------|
 | Microsoft Security Copilot | 商业 | 自然语言安全问答 + Agent 工作流（微调查/脚本分析），权限与审计内建 | 对话式入口即审计对象：每轮交互落 session 记录 | 我们以本地 SQLite 账本替代云端 session，单机可审计 |
-| Google Gemini for Security | 商业 | 模型按任务分层（Gemini Flash/Pro 分档），能力以 Assisted workflows 嵌入既有界面 | 分档路由 + 界面内嵌辅助（对应 M2/M3 两轴） | 我们模型池开放国产 9 平台自选，不被单一厂商锁定 |
+| Google Gemini for Security | 商业 | 模型按任务分层（Gemini Flash/Pro 分档），能力以 Assisted workflows 嵌入既有界面〔DEV-0285 校准: 2026 已演进为 agentic SOC agents (Triage/Hunting/Detection Engineering), 嵌入式工位入口原则不变 + MCP server GA〕 | 分档路由 + 界面内嵌辅助（对应 M2/M3 两轴） | 我们模型池开放国产 9 平台自选，不被单一厂商锁定 |
 | OpenBAS (Filigran) | 开源 | 攻防仿真平台：Action→Injector→Result 全程原子化执行记录 | Run 账本设计（outcome 枚举、防"成功但无产物"） | 我们面向单人研判工作流而非团队仿真 |
 | DefectDojo | 开源 | 漏洞管理：Finding 带证据引用 + 复测/覆盖生命周期 | 证据回执（evidence receipt）一等公民 | 我们从资讯侧切入，覆盖采集→研判全链 |
 
@@ -451,6 +452,13 @@ run record 即埋点：G1/G2 指标全部从 v1_runs/v1_proposals/command_log �
 冻结不加（Skill* 家族不投入）；死代码删除仅限审计点名且验证无引用者（SentinelJudgePage 删除需同步 3 处链接）；E8 真源缺列补齐（entities/compiled 进 frontmatter）；[假设] 竞品参照复盘一次。
 〔**DEV-0277 规划定稿 (2026-10-04)**: `docs/PLAN_P2_FREEZE_2026-10-04.md` — 任务表 P2-0 观测窗口复核 / P2-1 gate-detect 显式 outcome (G2① 清零最后一块) / P2-2 E8 补列 (owner 裁决点: entities/compiled 进 frontmatter, attention_score 标注派生缓存可丢) / P2-3 死代码尾巴 (SentinelJudgePage 主体已随 DEV-0258 提前删除, 余 css+文档行) / P2-4 SK-04 直写端点收编 / P2-5 (可选) P1-7 第二批 / P2-6 竞品复盘 (owner 点名才启动); 冻结纪律: 不加新能力 / Skill* 零投入 / 只修不改; 明确不做: pi 执行体(单独立项)/TanStack/raw_items.content/accessor 双库歧义〕
 〔**DEV-0278 P2-2 已交付 (2026-10-04, owner 裁决落地)**: entities 进 frontmatter (write_item_to_md, DB dict 无键时继承文件已有值不重置) + sync_item_to_db 重投影经 repo.set_entities 写回 (upsert 签名零改动); attention_score 派生缓存刻意不入 frontmatter; compiled 半已被 v1.7 lifecycle property 自然闭环 (审计该半修正); md→SQLite roundtrip 测试锁定; P2-0 观测窗口 T0 基线完成 (t24 待 10-05 08:42 后触发, G2②③ T0 即归零 ✓, gate-detect 基线 12 次/24h)〕
+〔**DEV-0279 P2-0 观测纪要已执行 (2026-10-04, owner 裁决提前, 窗口 4.7h 非 24h)**: ✓5/✗2 — G2②③ 窗口归零确认; #1 publish 增量 0 → 立案足窗复核 (正式 t24 ≥10-05 08:42 可复跑加固); #4 转化率 0.3412 超带走高 → 转 P2 内修复任务 (deny 规则配置, 当前 0 条); 留观 +legacy_promote_due 同 TypeError; 快照归档 docs/audit/P2_0_OBS_*.json; 纪要全文见 PROGRESS DEV-0279〕
+〔**DEV-0281 P2-0 #4 双轨处置 (2026-10-04, owner 裁决)**: 机制修正 — deny 规则任一层都压不住稳态转化率带 (桥全量转化 + 采集/桥同表分子分母同降; 15-30% 带系 P1-6 瞬态读数); 轨① info_filter deny AGI Hunt (id=7, 84% 信号集中度去噪, 不影响带) 已配置; 轨② 桥内 admission 评分门槛立项 (score 先行重排, 阈值与 kl:raw 策略 owner 裁决, P2-1 后评审) — 带收窄唯一代码杠杆〕
+〔**DEV-0282 P2-1 已交付 (2026-10-04)**: gate_detect 四路径全记账 (provider_unavailable/rate_limited/异常→ok=0, 成功→ok=1, scene='gate_detect'), fail-open 返回 None 语义零变更 (P0-12 裁决), ai_hub 红线未触; success_stats_24h +fails_by_scene_24h 经 /api/llm/status 透出; TDD +5 用例含 llm_usage_log 实落行 integration; 受影响面 193 passed; 顺手修 DEV-0280 遗漏的 test_full_11_gate_pipeline_count (11→14); 生产 24h 清零确认为 P2-0 后置观测项, 需重启生效〕
+〔**DEV-0283 P2-3+P2-4 已交付 (2026-10-04)**: P2-3 sentinel-judge.css 删除 + code-wiki 三处过时行更正 + 引用归零 (tsc/build 绿); P2-4 SK-04 收编 — create_with_dsh 改 dsh 生成+校验保留 → copilot_draft('report') 提案 (人审后生效), 不再直写 knowledge; /api/v1/knowledge/generate item → proposal; registry target 不变; 受影响面 367 passed〕
+〔**DEV-0286 t24 终版 + P2 最终验收达成 (2026-10-07)**: 窗口 [10-04 09:42, 10-07 16:44] 79.1h (含 10-05/06 休眠全零, 有效 ~20h) — 8 项判定 ✓6 + #4 处置结案 (带不可达定案, KPI 口径挂 P3) + P2-1③ **清零确认达标**: gate-detect 失败 446/446 全显式 outcome (全 rate_limited, 日志 0 未记账), 不变量「失败必可见」成立; 附发现: gate 限频预算打满 (398 fail/24h ≈ 全部调用), gate 检测能力受限属后续调参项; 轨②实测拒率 ~70% (denied_score 470 与 admission_log 471 互证); 快照归档 docs/audit/P2_0_OBS_T24_FINAL_2026-10-07.json — **Phase P2 收敛冻结至此全部完成 (G2 清零确认达成), G1/G2/G3 + M1-M4 全链收口**〕
+〔**DEV-0285 P2-6 已交付 (2026-10-04, owner 裁决「深挖+快扫」)**: 竞品复盘纪要 `docs/COMPETITIVE_REVIEW_P2_6_2026-10-04.md` — §1.5 四行 [假设] 无一推翻, Gemini 行措辞已校准 (agentic SOC); 可借鉴点全部已有对应物; 差异化维持 (本地 AI 池获 Sensei 背书); 工单池 +4 (MCP server 导出 / pi 双模参照 / KPI 口径对标 / 措辞更新✓) — **P2 全任务收口**, 余 P2-1③ 24h 清零确认后置观测〕
+〔**DEV-0284 P2 轨②已交付 (2026-10-04, owner 三裁决)**: 桥内评分门槛落地 — score-first 重排 (gateway.score 前置于信号产出), X=2.5 (7d 中位 2.5, pass 52% → 比率 ~0.18 带内), 低分 → quarantine 留痕不产信号/kl:raw, score=None fail-open (P0-6/E3); 测试隔离修复 (autouse mock score=None 防真实 pi 泄入); 442 passed; 生产已重启; 注意: 带与有意义质量门槛不可兼得系结构性发现 (7d 评分中位 2.5), KPI 口径复核转 P2-6/口径裁决项〕
 〔**DEV-0280 质量规则两层模型已交付 (2026-10-04, owner 点名立项, 冻结期 owner 例外)**: 质量设置扩展为 11 内置 gate + 专家规则 (5 matcher, reject/flag, 零 LLM) + AI 语义规则 (NL → 聚合 LLM 判别; 默认开 / fail-open 可见 / 预算 max_per_batch=10 双闸 / dry-run cap 5); quality_custom_rules 单表两用 (migration 133) + 三 gate 入 DEFAULT_GATES (11→14) + quality_rules_api 6 端点 (CORE); gate 级开关 quality.gate.<name>.enabled (5s TTL, run_all 入口过滤); 命中留痕自动进 P1-5 拒收回放; 前端 CustomRulesPanel (CRUD + gate 开关 + dry-run)〕
 
 **里程碑**：P0 完成 = "系统能诚实说出失败 + 写入口默认锁住"；P1 完成 = G1/G3 达成；P2 完成 = G2 清零确认。

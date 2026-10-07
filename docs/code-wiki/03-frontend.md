@@ -54,8 +54,8 @@ index.html
 |------|-------------|------|
 | `/editorial` | → `/` (Navigate) | 报纸版退役重定向 (v0.7.1) |
 | **`/`** | **SentinelHomePage** | **哨兵终端首页 (唯一根 + `*` fallback)** |
-| `/judge` | SentinelJudgePage | 哨兵·判断层 (独立全屏) |
-| `/judge/graph` | SentinelGraphPage | 哨兵·图谱 (独立全屏) |
+| `/judge` | → `/` (QueryRedirect 透传 query) | NAV4 判断层拆解: SentinelJudgePage 已删 (DEV-0258), 判读台主体归资讯「质量」区 |
+| `/judge/graph` | → `/knowledge/graph` (Navigate) | NAV4 图谱迁知识菜单 (SentinelGraphPage 现挂 `/knowledge/graph`) |
 | `/action` | SentinelActionPage | 哨兵·行动层 (独立全屏) |
 | `/garden` | SentinelGardenPage | 哨兵·花园 (CodeGarden 入口, 独立全屏) |
 | `/sentinel/settings` | → `/settings?cat=sentinel` (Navigate) | v0.7.x SettingsHub: 已并入统一设置, 永久 redirect |
@@ -128,8 +128,8 @@ postJSON<T>(path, body, options)  // POST 语法糖
 ```
 components/
 ├── sentinel/        # ★ v0.7.1 唯一首页族: SentinelShell + SentinelRail
-│                    #   + Home/Judge/Graph/Action/Garden/Settings 页
-│                    #   (独立全屏, 不套 PageLayout; 各自 .css)
+│                    #   + Home/Graph/Action/Garden 页 (NAV4: Judge 已删,
+│                    #   Settings 并入 /settings; 四菜单壳, 工具页挂 PageLayout)
 ├── secnews/         # SecNews 工作台:
 │   ├── feed/        #   FeedView + FeedFilters + FeedCard + DigestCard
 │   ├── pipeline/    #   PipelineView + FunnelBar + QueueCard + AliveCard + TokenLedger
@@ -189,6 +189,6 @@ components/
 | e2e 冒烟 | Playwright | `frontend/e2e/smoke.spec.ts` |
 | 路由契约 | ROUTE_REGISTRY.md | 新路由登记 (真源 = index.tsx) |
 
-哨兵域页面均有 colocated 测试 (SentinelHomePage/JudgePage/ActionPage/GardenPage/
-GraphPage/SettingsPage .test.tsx); 观测面板 2 个测试文件 (ObservabilityDashboard +
+哨兵域页面均有 colocated 测试 (SentinelHomePage/ActionPage/GardenPage/
+GraphPage .test.tsx; JudgePage 已随 DEV-0258 物理删除); 观测面板 2 个测试文件 (ObservabilityDashboard +
 Batch4); MasterKeyPromptModal / UnlockModal 有独立测试。

@@ -45,6 +45,36 @@ P1 八项全部交付 (DEV-0263~0276, commit 16179e2..428492d)。交接清单:
 
 **验收**: 纪要落账, 未达标项转 P2 内修复任务。
 
+#### P2-0 t24 对比验收标准 (2026-10-04 定稿, t24 ≥ 2026-10-05 08:42 CST 执行)
+
+**前置闸 (取证纪律)**:
+
+- 采集时刻 ≥ t0_at + 24h (t0_at = 2026-10-04 09:42 CST); 实际窗口拉长须注明时长
+- **窗口锚定**: 全部增量查询与日志扫描锚定 `[t0_at, 采集时刻]`, 禁用 T0 的 `datetime('now','-24 hours')` 相对口径 (D4 采集会漏计窗口中段)
+- 只读 (sqlite3 mode=ro + 日志纯扫描); 快照落 `/tmp/p20_snapshot_t24.json` (同 T0 schema), T0/T24 建议一并归档 (/tmp 易失)
+- 口径沿用 T0: ①发布增量用 `ingested_at` (updated_at 被 04:10 全量回填污染); ②T4 用 job 层 `kl_trigger_t4_job:` (代码内 `T4 cycle:` 未桥 loguru 不可见); ③DB 窗口纯 UTC 比较
+
+**逐项判定表** (T0 基线 → t24 通过线):
+
+| # | 指标 | T0 基线 | t24 通过线 |
+|---|---|---|---|
+| 1 | kl:publish 增量 | +15 (直落不经 T4) | >0 (有分条目持续发布); skipped_low_score 积压可见不阻塞 |
+| 2 | T4 非空转轮 | 27 轮, advanced=0, failed=0 | failed=0; advanced 允许 0 (直落为主), 轮次/积压数记录 |
+| 3 | llm_used 水位 | max=12, mean=5.34, 触顶20=0 | 触顶20=0; 常顶 20 → 只记录"建议调 AI_CLASSIFY_BUDGET_PER_BATCH", 不调码 |
+| 4 | signals 转化率 7d | 0.3190 (超带 +1.9pp) | 落 15-30% 带; 或 DEV-0280 专家 reject 规则配置后回落趋势可见; 仍超带 → 转 P2 内修复任务 |
+| 5 | G2③ `no such table: warm` | 0 | =0 (断根确认) |
+| 6 | G2② misfire | missed=0 且显式 | 任何 misfire 须在 job_runs 有显式 missed 行 (非静默) 即达标 |
+| 7 | G2① gate-detect failed | 12 (修复前基线) | **只记录不判定** — P2-1 排期在窗口后, 清零确认属 P2-1 自身 24h 后置验收 |
+| 8 | ai_scores 增量 | +1312 (全 kl_domain) | >0 且 kl 供给链未断; 骤降≈0 须解释 |
+
+**混杂因子声明** (本窗口非纯观测窗, 纪要必须记录): 窗口内交付 DEV-0278 (E8 entities, 需生产重启生效) 与 DEV-0280 (质量规则, DEFAULT_GATES 11→14, 语义规则 LLM 预算 10) — 纪要记录重启时刻 + 变更清单 + 对读数影响; 重启停机对 #1/#2 按实际运行时长归一化注记; 语义规则 LLM 消费不计入 #3 口径, 单独注记。
+
+**留观延续**: legacy_migrate_resume 每 30min failed (`TypeError: 'dict' object can't be awaited`) — t24 更新累计 failed 数与修复状态。
+
+**交付与落账**: 纪要 = T0 vs t24 逐项 delta 表 (✓/✗/仅记录) + 混杂因子声明 + 未达标项处置 (转 P2 内修复任务, 给编号) + 留观更新; 替换 PROGRESS DEV-0279 占位 (正式编号纪要), PRD §10 P2 注记行同步状态。
+
+**P2-0 总验收**: #1/#2/#3/#5/#6 达标 + #4 达标或已立案 + #8 无异常 + 纪要落账 = 通过; #7 不参与判定。
+
 ### P2-1 G2① gate-detect 显式 outcome (半天~1 天) — G2 清零最后一块
 
 **现状**: `ai_service.gate_detect` 超时/拒绝 → 返回 None → AIQualityGate fail-open 放行 (审计 1,006 次/日的路径)。P0-6 修了 score 缓存污染, P0-12 修了 gate 崩溃 fail-closed, 但 **LLM 调用失败的显式 outcome 仍未落**。

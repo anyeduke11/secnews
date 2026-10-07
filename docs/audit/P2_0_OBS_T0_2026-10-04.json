@@ -1,0 +1,92 @@
+{
+  "meta": {
+    "snapshot": "t0",
+    "collected_at_local": "2026-10-04T09:42:42+08:00",
+    "collected_window_note": "日志 24h 窗口 = text 时间戳 >= 2026-10-03 09:42:42 (local)；DB 7d/24h 窗口 = 纯 UTC datetime(col) >= datetime('now','-N days/hours')",
+    "log_file_scanned": "backend/logs/app.log (滚动起点 2026-10-02 18:38 local, 按时间戳过滤)",
+    "main_db": "backend/hotspot.db (sqlite3 file:...?mode=ro)",
+    "warm_db": "backend/hotspot-warm.db (sqlite3 file:...?mode=ro)",
+    "timezone": "Asia/Shanghai (UTC+8, 无DST)"
+  },
+  "A_warm_lifecycle_counts": {
+    "value": {"kl:publish": 4362, "kl:deduped": 392, "kl:raw": 18, "kl:structure": 0, "kl:refine": 0, "kl:link": 0},
+    "collected_at": "2026-10-04T09:45+08:00",
+    "source": "sqlite3 ro: SELECT lifecycle, COUNT(*) FROM knowledge_items GROUP BY lifecycle (warm.db)"
+  },
+  "A_t4_24h_job_summary": {
+    "value": {
+      "cycles_logged_info": 27,
+      "candidates": 1318,
+      "advanced": 0,
+      "skipped_low_score": 937,
+      "skipped_unstable": 381,
+      "failed": 0
+    },
+    "collected_at": "2026-10-04T09:44+08:00",
+    "source": "python 扫 backend/logs/app.log 24h 窗口, 正则 kl_trigger_t4_job: candidates=N advanced=N skipped_low_score=N skipped_unstable=N failed=N (仅非空转轮打 INFO, 空转轮 DEBUG 静默不计)",
+    "caliber_note": "代码内 'T4 cycle:' (t4_structure_to_publish.py:155) 走 std logging.getLogger('hotspot.trigger.t4'), 未桥接 loguru, 生产 app.log 恒不可见 (全部历史日志 0 命中); T4 观测口径改用 job 层 'kl_trigger_t4_job:' 关键字"
+  },
+  "A_publish_24h_new_by_ingested_at": {
+    "value": 15,
+    "collected_at": "2026-10-04T09:46+08:00",
+    "source": "sqlite3 ro warm: SELECT COUNT(*) FROM knowledge_items WHERE lifecycle='kl:publish' AND ingested_at >= datetime('now','-24 hours')",
+    "note": "24h 新增且直接以 kl:publish 落库 15 条 (不经 T4, advanced=0); 同期 kl:deduped=400, kl:raw=5"
+  },
+  "A_publish_updated_at_backfill_artifact": {
+    "value": {"rows": 4362, "updated_at_min_utc": "2026-10-03T20:10:00+00:00", "updated_at_max_utc": "2026-10-03T20:40:09+00:00"},
+    "collected_at": "2026-10-04T09:46+08:00",
+    "source": "sqlite3 ro warm: SELECT MIN(updated_at), MAX(updated_at) FROM knowledge_items WHERE lifecycle='kl:publish'",
+    "note": "全表 kl:publish 的 updated_at 集中于 local 2026-10-04 04:10~04:40 (30min 窗口) → 'updated_at 24h 增量' 被一次全量回填/迁移污染, 弃用该口径, 改用 ingested_at 口径"
+  },
+  "B_llm_used_24h": {
+    "value": {
+      "samples": 29,
+      "max": 12,
+      "mean": 5.34,
+      "hit_cap20": 0,
+      "distribution": {"1": 1, "2": 7, "3": 1, "4": 3, "7": 15, "8": 1, "12": 1}
+    },
+    "collected_at": "2026-10-04T09:44+08:00",
+    "source": "python 扫 app.log 24h, 正则 _classify_new_items: N items classified (llm_used=N); 预算 AI_CLASSIFY_BUDGET_PER_BATCH=20/5min"
+  },
+  "C_signals_ratio": {
+    "value": {
+      "signals_7d": 2808,
+      "hotspots_7d": 8801,
+      "ratio_7d": 0.3190,
+      "signals_8_14d": 2,
+      "hotspots_8_14d": 5689,
+      "ratio_8_14d": 0.0004
+    },
+    "collected_at": "2026-10-04T09:49+08:00",
+    "source": "sqlite3 ro main: v1_signals(datetime(created_at)) / hotspots(datetime(ingested_at)), 纯 UTC 窗口比较",
+    "note": "v1_signals 为新启用表, 8-14d 前窗基线≈0 (2/5689), 与修复前 0.041% 同量级; 7d 比率 0.3190 略超目标带上限 0.30"
+  },
+  "D_no_such_table_warm_24h": {
+    "value": 0,
+    "collected_at": "2026-10-04T09:44+08:00",
+    "source": "python 扫 app.log 24h 计数 'no such table: warm' (G2②/P0-7 断根确认)"
+  },
+  "E_ops_misfire": {
+    "value": {
+      "summary_missed": 0,
+      "runs_missed_rows": 0,
+      "misfire_log_hits_24h": 0,
+      "ops_status_dist_limit200": {"ok": 136, "failed": 63, "running": 1},
+      "ops_summary_all_time": {"ok": 12431, "failed": 63, "missed": 0, "running": 1, "stale_running": 1}
+    },
+    "collected_at": "2026-10-04T09:50+08:00",
+    "source": "curl /api/ops/runs?status=all&limit=200 + python 解析 summary/status 分布; 日志 24h 独立证据 grep 'was missed by'|'misfire' = 0",
+    "note": "无 misfire 发生且 API summary.missed 字段显式为 0 (非静默) → 达标; 附带: legacy_migrate_resume job 每 30min failed 1 次 (TypeError: 'dict' object can't be awaited), 全部 63 次 failed 记录与此吻合, 不在本期采集判定范围, 留观"
+  },
+  "F_ai_scores_24h": {
+    "value": {"new_rows": 1312, "kl_domain": 1312, "non_kl": 0},
+    "collected_at": "2026-10-04T09:49+08:00",
+    "source": "sqlite3 ro main: SELECT COUNT(*) FROM ai_scores WHERE datetime(scored_at) >= datetime('now','-24 hours') (+hotspot_id LIKE 'kl-%' 拆分)"
+  },
+  "F_gate_detect_failed_24h": {
+    "value": 12,
+    "collected_at": "2026-10-04T09:44+08:00",
+    "source": "python 扫 app.log 24h 计数 'gate-detect failed'; 样本均为 sensenova: ReadTimeout: The read operation timed out (P2-1 修复前基线, 只记录不修)"
+  }
+}

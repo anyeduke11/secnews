@@ -1,4 +1,96 @@
 
+## [DEV-0286] v0.8.6 t24 终版观测 + P2-1③ 清零确认 → P2 阶段收口 (t24-final-p2-close)
+
+- **时间**: 2026-10-07
+- **类型**: 观测/验收 (P2-0 正式 t24 + P2-1③ 后置清零确认; P2 最终验收)
+- **关联模块**: `backend:ops`, `backend:v1-signals`, `docs:prd`
+- **窗口**: [10-04 09:42, 10-07 16:44] 79.1h; **10-05/10-06 休眠全零活动** (三源互证), 有效 ~20h; pid 98027 跨休眠存活; 归档 `docs/audit/P2_0_OBS_T24_FINAL_2026-10-07.json`
+- **判定**: ✓6 (publish +7 / T4 failed=0 / llm_used 触顶 0 / G2③ 0 / G2② missed=0 显式 / ai_scores +960 全 kl) + 1 处置结案 (#4 转化率 0.4742 超带=分母坍缩非回归, 带不可达已定案, KPI 口径挂 P3) + 1 清零确认达标 (#7)
+- **P2-1③ 清零确认 (G2① 收口)**: full-code 重启以来 gate-detect 失败 **446/446 全部显式 outcome** (全部 rate_limited; 日志 WARNING 未记账 = 0; /api/llm/status fails_by_scene_24h 可聚合) — 不变量「失败必可见」成立; 异常路径 (T0 基线 ReadTimeout 12/24h) 窗口内 0 发生, 可见性由 DEV-0282 测试锁定。**注意: gate-detect 失败量 398/24h ≈ 全部调用被限频** — gate 限频预算在当前量级下打满, gate 实际检测能力受限 (fail-open 放行 + 可见), 预算调参属后续优化项
+- **轨②首读数**: 桥 30 轮 candidates 1129 → signals 200 / denied_rule 439 / denied_score 470 / kl_stubs 220; admission_log 471 与日志 470 互证; 实测拒率 ~70% (高于模拟 48% — AGI Hunt 移除后剩余源评分分布更低)
+- **流入坍缩归因**: inflow 64/h → 8.8/h (AGI Hunt deny 砍 42/h 主源 + 休眠 2 天); publish 速率 2.1/d (vs T0 15/d) 同因, 供给链未断
+- **留观**: legacy 双 job 57+28 (TypeError 债务工单); ops summary failed=18 (limit200 视图口径) vs 行级 86; stale_running=2
+- **P2 最终验收: 达成** (6 项全闭环) — G1/G2/G3 三目标 + 四轴 M1-M4 至此全链收口
+- **下一可用号**: DEV-0287
+
+## [DEV-0285] v0.8.6 P2-6: 竞品参照复盘 (p2-6-competitive-review)
+
+- **时间**: 2026-10-04
+- **类型**: 研判/复盘 (P2-6 [假设] 项收口; owner 裁决范围「深挖+快扫」: Gemini for Security 单点深挖 + 其余三家快扫)
+- **关联模块**: `docs:prd`, `docs:review`
+- **产出**: `docs/COMPETITIVE_REVIEW_P2_6_2026-10-04.md` (复盘纪要, 含 Sources 14 条)
+- **核心结论**: ①PRD §1.5 四行 [假设] **无一被推翻** — Gemini 行表述过时 (Assisted workflows → 2026 agentic SOC: Triage agent 年处理 500 万告警 / Hunting + Detection Engineering agents / agentic automation / MCP server GA; 嵌入式工位入口原则不变且被加倍下注); ②四行「可借鉴点」全部已在 P0-P2 落地或有对应物 (session 审计→command_log+run ledger / 分档路由→scenarios / 界面内嵌→M3 区块 / outcome 枚举→run ledger / 证据回执→receipts); ③差异化四点全部维持, **本地 AI 池获 DefectDojo Sensei 行业级背书** (自包含 AI 不依赖第三方 LLM 成敏感场景公认卖点); ④OpenBAS 已更名 OpenAEV 并升维 (Attack Chaining 自主攻击链 + operator/agent-led 双模编排)
+- **行业共性模式 7 项对照**: 5 同构 ✓ (agent 审计实体 / Inbox 治理 / 嵌入式入口 / 证据链产物 / 分档路由) + 2 差距 (MCP server 导出 / pi 双模编排) → 均入工单池不违反冻结
+- **可行动发现 (工单池, 4 项)**: ①MCP server 导出 run/proposal 只读查询 (mcp gate 管道现成, P3 候选); ②pi 执行体设计参照 OpenAEV operator/agent-led 双模 + 条件链语义; ③KPI 口径对标 — 头部量「分诊时延」(30min→60s) 非流量比率, 为 DEV-0284 转化率带结构性发现的对标佐证, 建议 P3 切换; ④PRD §1.5 Gemini 行措辞更新 (已同步)
+- **明确不做**: agent 治理控制面 (单机账本即审计) / BAS (非射程) / 多 agent 互操协议 (发现①覆盖最小需求)
+- **P2-6 验收**: 纪要落 docs/ ✓ — **P2 全部任务 (P2-0~P2-6) 至此收口**, 余 P2-1③ 24h 生产清零确认 (后置观测)
+- **下一可用号**: DEV-0286
+
+## [DEV-0284] v0.8.6 P2 轨②: 桥内评分门槛落地 (p2-rail2-bridge-score-gate)
+
+- **时间**: 2026-10-04
+- **类型**: 功能/质量门 (DEV-0281 轨②实施; owner 三裁决; 冻结期例外通道)
+- **关联模块**: `backend:v1-signals`, `backend:v1-admission`, `backend:ai-hub-score`
+- **裁决包 (数据驱动)**: 7d 桥评分 n=1449 中位 2.5 均值 3.12 — **15-30% 带与有意义质量门槛不可兼得** (带内阈值区间 X∈[1.0,3.0] 本质是噪声底线); owner 三裁决: **X=2.5** (pass 52% → 转化率 ~0.18 带内中档) / **低分不产 kl:raw stub** (quarantine 留痕即可, 避免 T4 永不推进死库存) / **score=None fail-open 产信号** (LLM 失败 ≠ 低质量, P0-6/E3 语义, 单独计数)
+- **实现 (`v1_signal_bridge.py`)**: 桥循环重排 **score-first** — 规则放行 → `gateway.score` (ai_scores 落行不变, P1-2a 评分/生命周期解耦契约保持) → `score < MIN_BRIDGE_SCORE(2.5)` → quarantine 留痕 (`AdmissionResult verdict=DENY reason='score_below_threshold: X < 2.5'` 可回放) 不产信号/stub; score=None → fail-open 照常产信号+stub; 等号放行 (>=); summary +`denied_by_score` 计数; INFO 日志带 denied_score 字段 (P0-10 条件扩展: 纯门槛拒轮也可见)
+- **测试**: +2 (low_score 2.0 → 零信号零 stub + quarantine reason 锁定 / boundary 2.5 等号放行); **测试隔离修复**: autouse 夹具默认 mock score=None — 重排后无 mock 用例曾泄入本机真实 pi provider 非确定评分 (idempotent 用例随活 LLM 摇摆, 红绿过程抓到); 受影响面 **442 passed** (v1/signal/bridge/admission/trigger/t4); ruff 0; meta 无增减
+- **验证**: 生产已重启生效 (pid 98027); 复测口径: 下一采集轮 bridge 日志 `denied_score≈half of candidates` + 7d 比率向 ~0.18 收敛 (AGI Hunt deny + 评分门槛双效应叠加, 归因以 denied_score 计数为准)
+- **下一可用号**: DEV-0285
+
+## [DEV-0283] v0.8.6 P2-3 + P2-4: 死代码尾巴 + SK-04 直写端点收编 (p2-3-p24-closure)
+
+- **时间**: 2026-10-04
+- **类型**: 死代码清理 + 写路径收编 (v0.8.6 P2-3/P2-4; 审计点名项)
+- **关联模块**: `frontend:sentinel`, `backend:knowledge-service`, `backend:api-knowledge`, `backend:copilot`, `docs:code-wiki`
+- **P2-3 (尾巴三件)**: ① `sentinel-judge.css` 物理删除 (唯一自引用, 零消费); ② `docs/code-wiki/03-frontend.md` 三处过时行更正 (路由表 /judge 行 → 重定向现状 + DEV-0258 注 / 组件树 Judge 行 / colocated 测试清单; Gortex 自动产物手工更正, gortex MCP 本仓未接线); ③ `realtime.ts` 迁移历史注释标注已删。功能引用归零 (grep 命中仅 `.mimosa` 工具会话缓存); tsc + vite build 绿
+- **P2-4 (SK-04 收编, 判定 generate 同模式)**: `KnowledgeService.create_with_dsh` 编排改 **dsh 生成 + 校验链保留 → `RunLedgerService.copilot_draft(kind='report')` STANDARD 提案** (人审后生效, P1-3 四 kind approval 产物化承接); **不再直写 knowledge draft** (`_insert_draft` 降为内部/测试通道); registry target 引用不变 (v1_skills.py:91); payload 携带完整草案 + source 锚 (case/judgment/action/subject/cve)
+- **HTTP 面同步**: `POST /api/v1/knowledge/generate` (SK-04 真实 HTTP 面) response `item` 从 knowledge dict → proposal dict (kind=report/status=draft/source=copilot); 模块 docstring + GenerateKnowledgeRequest docstring 同步
+- **纪律发现 (如实记录)**: copilot report 卡纪律要求 case 绑定证据 (`case_evidence_materials` 非空) — SK-04 真实流 (case 上下文) 天然满足; 测试夹具补 `v1_case_materials` 绑定
+- **测试适配 (3 文件)**: `test_knowledge_service.py` (夹具 `_make_draft` 改 `_insert_draft` 直种与触发路径解耦 + `test_create_with_dsh_creates_proposal_not_knowledge` 替换直写断言: proposal draft + knowledge 行 = 0); `test_knowledge_api.py` (generate 用例改提案断言 + 5 个生命周期/复用用例改 `_seed_knowledge_row` 直种); `test_c12_knowledge_adoption.py` (`_create_knowledge` 直种)。**TDD 红绿过程抓到 18 处直写假设** (12 api + 6 c12) 逐一适配
+- **验证**: 受影响面 **367 passed** 0 失败; ruff 0; meta 58/14/96/158 无增减; 全量 5259 passed / 7 failed **逐一归因全部先于本批** (非 DEV-0283 引入): gate_count 漂移 ×3 (DEV-0280 遗漏, 三处均已顺手修绿) / llm yaml 断言 ×2 (e620b20 未同步) / ops_runs_api 直连 SQL (P0-5) / _registry 291>271 (DEV-0280 增长) / temp_db 尺寸断言 — 后 5 项 = 先在债务工单不动 (Rule 3)
+- **下一可用号**: DEV-0284
+
+## [DEV-0282] v0.8.6 P2-1: G2① gate-detect 显式 outcome (p2-1-gate-detect-outcome)
+
+- **时间**: 2026-10-04
+- **类型**: 修复/可靠性 (v0.8.6 P2-1; G2 清零最后一块; 审计 ~1,006 次/日 fail-open 静默基线)
+- **关联模块**: `backend:ai-hub`, `backend:quality`, `backend:api-llm-status`, `docs:prd`
+- **现状取证**: `gate_detect` 三类 None 路径 (provider 不可用 / 限频 / 调用异常) 中仅异常路径打分散 WARNING, **全部无记账** (对比 `evaluate` 失败走 `_record ok=False` 契约); `_call_*_detect` 成败双无落表
+- **修改 (最小面)**: ① `service.py gate_detect` 四路径全记账 — provider_unavailable / rate_limited / 异常 (`{type}: {msg}` + latency) → `ok=0`, 成功 → `ok=1` (prompt/response 估 token, 与 evaluate 双记契约一致防成功率分母失真); scene='gate_detect' + config/key_source/trace 全带; **返回值语义零变更** (失败仍 None fail-open, P0-12 裁决不动), WARNING 保留。② `usage.py success_stats_24h` +`fails_by_scene_24h` (scene 级失败 GROUP BY, /api/llm/status observability 透出 = G2① 清零确认查询面)
+- **红线**: `gateway._try_order` / `service._resolve_provider` 未触碰 (AGENTS.md ai_hub 红线) ✓
+- **测试**: TDD 红→绿, `test_ai_quality_gate.py` +5 (timeout→ok=0+error 透传 / rate_limited / provider_unavailable / success 双记 / **integration: 超时→llm_usage_log 实落 ok=0 行 + fails_by_scene 可聚**); 顺手修 `test_quality_gates_edge_cases.py::test_full_11_gate_pipeline_count` **DEV-0280 遗漏** (DEFAULT_GATES 11→14 后该用例未同步, 断言 11 实际 14) → 更名 + 14 + 三 gate 名单
+- **验证**: 受影响面 **193 passed** 0 失败; ruff 0; generate_meta --check OK (58/14/96/158 无增减); 需生产重启生效 (生效后 24h 后置观测: gate-detect 失败 100% 有显式 outcome, 对照 T0 基线 12 次/24h)
+- **验收对照 (计划 §2 P2-1)**: ①超时用例 → llm_usage_log outcome≠ok 行 ✓ ②失败计数可查 ✓ (/api/llm/status.fails_by_scene_24h) ③生产 24h 清零确认 → 后置
+- **下一可用号**: DEV-0283
+
+## [DEV-0281] v0.8.6 P2-0 #4 双轨处置: info_filter deny AGI Hunt + 桥内评分门槛立项 (p2-0-signal-deny-threshold)
+
+- **时间**: 2026-10-04
+- **类型**: owner 裁决配置 + 立项 (P2-0 观测 #4 修复任务; 冻结期 owner 例外通道同 DEV-0280)
+- **关联模块**: `backend:info-filter`, `backend:v1-signals`, `docs:prd`
+- **机制取证 (推翻立案原措辞)**: 桥对入库 hotspots 全量转化 (窗口 202/202=100%, admission_log 3010 条全 neutral 0 deny); info_filter deny 同时作用于采集 Layer 1/2 (base.py:513/item_builder.py:168) 与桥内 admission (同表) → 分子分母同降, **任一层 deny 规则都压不住 15-30% 稳态带**; P1-6 定带 21.4% 为窗口未填满瞬态读数; 稳态比率 ≈ 桥吞吐/流入 ≈ 0.67 (43/h vs 64/h)
+- **信源集中度**: AGI Hunt 7d = 7136/8770 hotspots (81%) / 2509/2992 signals (84%), 单聚合源主导证据链
+- **owner 双轨裁决**: 轨① deny AGI Hunt 去噪 (即配) + 轨② 桥内 admission 评分门槛 (代码立项)
+- **轨①实现**: POST /api/info-filter/rules → **id=7** deny source_name='AGI Hunt' (note 留裁决留痕); preview 验证 AGI Hunt=deny / HackerNews=neutral; 桥每轮 fresh 读规则 (无 cache) 下一 tick 生效, Layer 1/2 经 5s TTL cache + invalidate_cache 即时生效; 存量 24h 窗未镜像 22 条预计下一 tick denied=22
+- **边界 (诚实声明)**: 轨①改变信号流质量结构, **不影响转化率带** (分子分母同比例); 带收窄唯一杠杆 = 轨②或口径裁决
+- **轨②立项设计点**: 桥当前次序 signal → kl stub → score (v1_signal_bridge.py), 门槛化须重排 "score 先行" (gateway.score < X → quarantine 不产信号); kl:raw stub 是否保留 (喂 T1 评分链 vs 降噪一致性) + 阈值 X 为 owner 裁决点; 排期建议 P2-1 后
+- **附带发现**: info_filter_rules 存量测试残留 (id=1 deny 'A' enabled / id=2 'B' / id=4 'A' / id=6 'noise'; 无实源命中无害, id=3 华尔街见闻为真实 deny) — owner 点名后已清理 (DELETE API ×4, 先防御验证 hotspots/crawler_sources 双零引用; 清理后仅剩 id=3/id=7 两条真实规则, AGI Hunt preview=deny 复验生效)
+- **复测点**: ①下一采集轮 bridge denied>0 + collector AGI Hunt skip; ②signals/hotspots 7d 比率随 AGI Hunt 滚出分子回落 (预期显著下行, 但非带达标); ③轨②评审后实施再测带
+- **下一可用号**: DEV-0282
+
+## [DEV-0279] v0.8.6 P2-0 观测纪要: T0 vs t24 对比 (p2-0-observation-minutes)
+
+- **时间**: 2026-10-04
+- **类型**: 观测/验收 (P2-0 收口; owner 裁决「提前执行并计为正式」, 时间闸 ≥10-05 08:42 未过, 窗口仅 4.7h)
+- **关联模块**: `docs:prd`, `docs:plan`, `backend:ops` (纯只读观测, 零代码变更)
+- **窗口**: [09:42:42, 14:23] CST = 4.7h; 混杂因子 = 10:04:02 生产重启 (DEV-0278/0280 上线 → T0 旧代码 / t24 新代码) + `quality_custom_rules` 0 条配置 (expert/semantic 三 gate 全 passed ×213 零影响)
+- **判定**: ✓5 (T4 failed=0, 12 轮全 ok 全空闲 / llm_used 触顶20=0 / G2③ no-such-table=0 / G2② missed=0 显式 / ai_scores +301 供给正常) / ✗2 已立案 (publish 增量 0 → 足窗复核; 转化率 7d 0.3412 超带走高 → P2 内修复任务: deny 规则配置+复测) / 记录1 (gate-detect failed=0, T0 基线 12/24h, 只记录不判定)
+- **P2-0 总验收**: 通过 (带立案条件); 判定标准 = `docs/PLAN_P2_FREEZE_2026-10-04.md` §2 P2-0 t24 子节
+- **留观**: legacy_migrate_resume 窗口 +12 与 **legacy_promote_due +5** (同 `TypeError: 'dict' object can't be awaited`, 后者 T0 未记录) → 修复工单覆盖两 job; ops summary failed=65 与行级 started_at 计数口径不一致
+- **口径发现**: 本项目日志无 uvicorn 重启标记 → 用 `logging initialized` / elapsed<120s 判定; quality_check_logs 在 warm.db (`passed` 0/1 非 status, `mode='strict'`); job_runs 列 `job_type` (非 job_name), heartbeat/t1 高频 job 不逐行落表
+- **归档**: `docs/audit/P2_0_OBS_T0_2026-10-04.json` + `docs/audit/P2_0_OBS_T24_2026-10-04.json` (/tmp 原件易失); 纪要全文见 PROGRESS DEV-0279
+- **下一可用号**: DEV-0281
+
 ## [DEV-0280] v0.8.6 质量规则两层模型 — 专家规则 + AI 语义规则 (owner 点名立项, quality-rules-two-layer)
 
 - **时间**: 2026-10-04

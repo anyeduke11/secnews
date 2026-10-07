@@ -17,6 +17,51 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-07 v0.8.6 t24 终版观测 + P2-1③ 清零确认 → P2 收口 — DEV-0286
+
+- **窗口**: [10-04 09:42:42, 10-07 16:44] = 79.1h 名义窗，**10-05/10-06 机器休眠全零活动**（hotspots/job_runs/signals 三源互证），有效运行 ~20h（10-04 3h + 10-07 16.7h）；pid 98027 跨休眠存活。快照归档 `docs/audit/P2_0_OBS_T24_FINAL_2026-10-07.json`。
+- **8 项判定（✓6 / 1 处置结案 / 1 达标注 rates）**: ①publish 增量 +7 >0 ✓（速率 2.1/d vs T0 15/d，归因流入坍缩：AGI Hunt deny 砍最大源 + 休眠 2 天）；②T4 failed=0 ✓（9 轮 52 候选全 low-score，advanced=0 直落为主一致）；③llm_used 触顶20=0 ✓（55 样本 max=14）；④转化率 rolling 7d=0.4742 超带——**非回归**：分母被 AGI Hunt deny 砍塌（inflow 64/h→8.8/h）而分子残留 deny 前信号，15-30% 带结构性不可达已定案（DEV-0281/0284 + P2-6 行业对标），处置完毕、KPI 口径裁决挂 P3 工单池 → 结案；⑤G2③ no-such-table=0 ✓；⑥G2② missed=0 显式 ✓；⑦**P2-1③ 清零确认达标**——full-code 重启（10-04 20:59）以来 gate-detect 失败 **446/446 全部显式 outcome**（全部 rate_limited 路径，llm_usage_log 可查可聚合），日志 WARNING 未记账=0，不变量「失败必可见」成立；注：T0 基线的异常路径（ReadTimeout）窗口内 0 发生，其可见性由 DEV-0282 测试锁定；⑧ai_scores +960（全 kl）✓。
+- **轨②首读数**: 桥 30 轮：candidates 1129 → signals 200 / denied_rule 439 / **denied_score 470** / kl_stubs 220；admission_log `score_below_threshold` 471 与日志 470 互证 ✓；实测门槛拒率 ~70%（高于模拟 48%——AGI Hunt 移除后剩余信源评分分布更低），信号质量换档生效。
+- **留观延续**: legacy 双 job 57+28 failed（同 TypeError，已知债务工单）；ops summary failed=18（limit200 视图）vs 行级全窗 86——口径差异已知；stale_running=2。
+- **P2 最终验收：达成。** 6 项全闭环——G2 三类显式 outcome（①446/446 ②③0 且显式）、E8 补列 ✓、JudgePage 归零 ✓、SK-04 提案化 ✓、冻结纪律零违反 ✓、观测纪要（T0/t24 早期/t24 终版三份）落账 ✓。
+
+### 2026-10-04 v0.8.6 P2-6: 竞品参照复盘（深挖+快扫）— DEV-0285
+
+- **范围（owner 裁决）**: Gemini for Security 单点深挖（Assisted workflows 嵌入式能力分布）+ Copilot/OpenAEV/DefectDojo 快扫。产出 `docs/COMPETITIVE_REVIEW_P2_6_2026-10-04.md`（含 14 条 Sources）。
+- **核心结论**: PRD §1.5 四行 [假设] 无一被推翻；Gemini 行表述过时（2026 已演进为 agentic SOC——Triage agent 年处理 500 万告警、Hunting/Detection Engineering agents、agentic automation、MCP server GA——但「嵌入式工位入口」原则不变且被加倍下注）；四行可借鉴点全部已在 P0-P2 落地或有对应物；差异化四点维持，**本地 AI 池获 DefectDojo Sensei 行业级背书**（自包含 AI 成敏感场景公认卖点）；OpenBAS 已更名 OpenAEV（Attack Chaining + operator/agent-led 双模编排）。
+- **行业 7 模式对照**: 5 同构（agent 审计实体 / Inbox 治理 / 嵌入式入口 / 证据链产物 / 分档路由）+ 2 差距（MCP server 导出 / pi 双模编排）。
+- **工单池 +4**（不违反冻结）: ①MCP server 导出 run/proposal 只读查询（P3 候选）；②pi 执行体参照 OpenAEV 双模编排 + 条件链；③KPI 口径对标——头部量「分诊时延」非流量比率（DEV-0284 结构性发现的对标佐证）；④PRD §1.5 Gemini 行措辞更新（已同步）。
+- **P2 状态**: P2-0~P2-6 全部收口；余 P2-1③ 生产 24h 清零确认（≥10-05 08:42 与正式 t24 合并观测）。
+
+### 2026-10-04 v0.8.6 P2 轨②: 桥内评分门槛落地（owner 三裁决）— DEV-0284
+
+- **裁决包**: 7d 桥评分 n=1449 中位 2.5 — 带与有意义质量门槛不可兼得（带内阈值区间本质是噪声底线）；owner 裁决 **X=2.5**（pass 52% → 比率 ~0.18 带内中档）/ 低分**不产 kl:raw stub**（quarantine 留痕，避免 T4 死库存）/ **score=None fail-open**（LLM 失败 ≠ 低质量）。
+- **实现**: `v1_signal_bridge` 循环重排 **score-first**——规则放行 → gateway.score（ai_scores 落行不变）→ score < 2.5 → quarantine 留痕（`score_below_threshold` 可回放）不产信号/stub；等号放行；日志 +`denied_score` 字段。
+- **测试**: +2（低分拒绝 / 等号边界）；**隔离修复**：autouse 默认 mock score=None——重排后无 mock 用例曾泄入本机真实 pi provider 非确定评分；受影响面 **442 passed**；ruff 0；meta 无增减；生产已重启生效（pid 98027）。
+- **复测**: 下一采集轮 bridge 日志 denied_score 计数 + 7d 比率向 ~0.18 收敛（与 AGI Hunt deny 双效应叠加，以 denied_score 归因）。
+
+### 2026-10-04 v0.8.6 P2-3 + P2-4: 死代码尾巴 + SK-04 直写端点收编 — DEV-0283
+
+- **P2-3**: `sentinel-judge.css` 删除（零消费）；`docs/code-wiki/03-frontend.md` 三处过时行更正（/judge 路由行 / 组件树 / 测试清单，手工更正 gortex 自动产物）；`realtime.ts` 历史注释标注。功能引用归零（grep 余量仅 `.mimosa` 工具缓存）；tsc + build 绿。
+- **P2-4（SK-04 收编，判定 generate 同模式）**: `KnowledgeService.create_with_dsh` 改 **dsh 生成 + 校验保留 → `copilot_draft(kind='report')` STANDARD 提案**（人审后生效，P1-3 approval 产物化承接），不再直写 knowledge draft；registry target 不变；HTTP 面 `POST /api/v1/knowledge/generate` response `item` → proposal dict。
+- **测试**: 3 文件适配（夹具改 `_insert_draft` 直种与触发路径解耦；generate 用例改提案断言：proposal draft + knowledge 行 0）；TDD 红绿抓到 18 处直写假设（12 api + 6 c12）；受影响面 **367 passed**；ruff 0；meta 无增减。
+- **全量回归 (二次确认)**: 5259 passed / 7 failed——**逐一归因全部先于本批**，非 DEV-0283 引入：①gate_count 11→14 漂移 ×3（DEV-0280 遗漏，`test_quality_gates_edge_cases`/`test_final_url_gate`/`test_author_verification_gate`——3 处均已顺手修绿）；②llm yaml 模型断言 ×2（commit e620b20 t1/t3 切 flash 档未同步 `test_llm_evaluate_scenario`/`test_llm_yaml_image`）；③`test_api_layer_has_no_direct_sql`（P0-5 批 ops_runs_api.py 直连 SQL ×4 处）；④`test_api_layer_line_limit`（DEV-0280 注册增长致 _registry.py 291>271 豁免上限）；⑤`test_check_temp_db_sizes`（warm 尺寸环境断言）。后 5 项 = 先在债务工单（属 P0-5/DEV-0280/e620b20 批次收尾），不动（Rule 3）。
+
+### 2026-10-04 v0.8.6 P2-1: G2① gate-detect 显式 outcome（G2 清零最后一块）— DEV-0282
+
+- **现状**: gate_detect 三类 None 路径（provider 不可用 / 限频 / 调用异常）全部无记账（对比 evaluate 失败走 `_record ok=False` 契约），审计 ~1,006 次/日静默 WARNING。
+- **实现（最小面）**: ①`gate_detect` 四路径全记账（provider_unavailable / rate_limited / 异常→ok=0，成功→ok=1 与 evaluate 双记契约一致），scene='gate_detect' 全字段带齐；**fail-open 返回 None 语义零变更**（P0-12 裁决），ai_hub 红线未触。②`success_stats_24h` +`fails_by_scene_24h`，经 `/api/llm/status` observability 透出 = 清零确认查询面。
+- **顺手修**: `test_full_11_gate_pipeline_count`（DEV-0280 遗漏：DEFAULT_GATES 11→14 未同步该用例）→ 更名 + 14 + 三 gate 名单。
+- **测试**: TDD 红→绿 +5（timeout / rate_limited / provider_unavailable / success 双记 / integration 超时→llm_usage_log 实落 ok=0 行 + fails_by_scene 可聚）；受影响面 **193 passed**；ruff 0；meta 无增减。
+- **验收**: ①超时→llm_usage_log outcome≠ok 行 ✓ ②计数可查 ✓ ③生产 24h 清零确认 → 后置（对照 T0 基线 12 次/24h）。**需生产重启生效**。
+
+### 2026-10-04 v0.8.6 P2-0 #4 双轨处置: deny AGI Hunt 去噪 + 桥内评分门槛立项 — DEV-0281
+
+- **机制取证**: deny 规则压不住转化率带——桥对入库 hotspots 全量转化（窗口 202/202=100%，admission 3010 条全 neutral），且 info_filter 同表同时控制采集 Layer 1/2 与桥内 admission，分子分母同降；P1-6 的 21.4% 是窗口未填满瞬态读数，稳态 ≈ 桥吞吐/流入 ≈ 0.67。AGI Hunt 单源占 7d hotspots 81% / signals 84%。
+- **owner 双轨裁决**: ①即配 `info_filter` deny source_name='AGI Hunt'（规则 **id=7**，经 API 创建+preview 验证，桥下一 tick 生效）；②桥内 admission 评分门槛立项（代码变更，次序须重排 score 先行，阈值 X 与 kl:raw stub 保留与否为 owner 裁决点，建议 P2-1 后评审）。
+- **边界**: 轨①只改信号流质量结构，**不影响 15-30% 带**（分子分母同降）；带收窄唯一杠杆 = 轨②或口径裁决。
+- **复测点**: 下一采集轮 bridge denied≈22（存量未镜像）+ AGI Hunt 采集跳过；7d 比率随 AGI Hunt 滚出分子回落（非带达标）。附：info_filter_rules 测试残留（id=1/2/4/6）owner 点名后已清理（双零引用验证 → DELETE API，表内仅剩 2 条真实规则）。
+
 ### 2026-10-04 v0.8.6 质量规则两层模型: 专家规则 + AI 语义规则（owner 点名立项）— DEV-0280
 
 - **设计**: 质量设置 = 11 内置 gate + 两层自定义规则。专家规则 (确定性 matcher ×5, reject/flag, scope 可选, 零 LLM); AI 语义规则 (NL 文本 → LLM 聚合单次判别, 默认开, fail-open 可见, 预算 max_per_batch=10)。用户四裁决: 一刀切全做 / 默认开 / fail-open 可见 / dry-run 本期就要。
@@ -30,12 +75,15 @@
 - **实现**: `knowledge_sync.py` frontmatter 补 entities（继承语义）+ sync_item_to_db 读 fm.entities 经新 `knowledge_repo.set_entities` 写回（upsert 签名零改动，6 消费点不受影响）；`knowledge_repo.py` +set_entities/get_entities + upsert_item docstring 缺列清单成文（两分法裁决语义入码）。
 - **测试**: test_e8_projections 5 用例（frontmatter 落值 / 消费点回写不重置 / attention_score 缺席 / **md→SQLite roundtrip 重建** / 脏值不炸）；受影响面 **805 passed** 0 失败；ruff 0；meta/warm 门禁 OK。需生产重启生效（存量 md 由下次 write 路径补齐）。
 
-### 2026-10-04 v0.8.6 P2-0 观测窗口启动（T0 基线完成，t24 待触发）— DEV-0279 (占位)
+### 2026-10-04 v0.8.6 P2-0 观测纪要: T0 vs t24 对比（owner 裁决提前执行）— DEV-0279
 
-- 后台观测 agent T0 基线快照完成（/tmp/p20_snapshot_t0.json，t0_at=2026-10-04 09:42 CST），全程只读。**T+24h (≥2026-10-05 08:42) 需再次调观测 agent 出对比纪要**，纪要全文届时落账（本条占位，正式编号纪要时占用）。
-- **T0 关键读数**: kl:publish 4362（24h 直落 +15）/ T4 27 非空转轮 advanced=0 + skipped_low_score=937 / llm_used max=12 mean=5.34 触顶 0 / 转化率 7d 0.3190（略超带 0.30，deny 规则配置后再评估）/ **G2② no such table = 0 ✓** / **G2③ missed=0 且非静默 ✓** / ai_scores 24h +1312 / gate-detect failed=12（P2-1 修复前基线）。
-- **口径发现**: "T4 cycle:" 走 std logging 未桥 loguru → 生产日志不可见，观测改用 job 层 "kl_trigger_t4_job:" 口径；warm updated_at 有 10-04 04:10 全量回填污染 → 24h 增量改用 ingested_at 口径。
-- **范围外发现（留观）**: legacy_migrate_resume job 每 30min failed（`TypeError: 'dict' object can't be awaited`，63 条 failed 全部与之吻合）→ 建议列 P2-1 后顺手修或开工单。
+- **窗口偏差声明**: owner 14:23 裁决「现在跑并计为正式」，时间闸（≥10-05 08:42）未过即执行。窗口 [09:42:42, 14:23] = **4.7h 非 24h**，证据强度受限；验收标准见 `PLAN_P2_FREEZE_2026-10-04.md` §2 P2-0 t24 子节（正式 t24 可低成本复跑加固）。全程只读；快照归档 `docs/audit/P2_0_OBS_{T0,T24}_2026-10-04.json`。
+- **混杂因子**: ①窗口内 **10:04:02 生产重启一次**（DEV-0278 entities + DEV-0280 质量规则上线 → T0 读数为旧代码、t24 为新代码）；②`quality_custom_rules` = **0 条配置**，expert/semantic 三 gate 全 passed（×213）未改变任何结果；③语义规则 LLM 不在 `_classify_new_items` 口径内。
+- **判定（✓5 / ✗2 已立案 / 记录1）**: ①publish 增量 **0**（T0 +15/24h，通过线 >0）→ ✗ 立案**足窗复核**（4.7h 泊松 λ≈3 下 P(0)≈5%；窗口内 pipeline strict ×112 / title_summary ×286 均既有门禁行为，非新回归证据）；②T4 failed=0 ✓（job_runs 12 轮全 ok，日志 0 非空转 INFO，advanced=0 与直落模型一致）；③llm_used 触顶20=0 ✓（10 样本 max=3 mean=3.0；重启后分布恒 3 vs T0 1-12 变异，记录不判定）；④转化率 7d **0.3412**（T0 0.3190，超带且走高）→ ✗ 转 **P2 内修复任务**（expert_reject/semantic deny 规则配置 + 复测；当前 0 规则）；⑤G2③ 写库失败 no-such-table=0 ✓；⑥G2② misfire missed=0 显式 ✓；⑦gate-detect failed=0（T0 基线 12/24h，只记录不判定，sensenova ReadTimeout 未复现）；⑧ai_scores 窗口 +301（T0 速率折算 ≈257，全 kl_domain，供给正常）✓。
+- **P2-0 总验收**: 按判定标准 = **通过（带立案条件）**——✓5 项 + ✗2 项均已立案（足窗复核 / deny 规则配置）；⑦不参与判定。
+- **留观更新**: legacy_migrate_resume 窗口 +12 failed（同 TypeError）；**legacy_promote_due +5 failed（同 `TypeError: 'dict' object can't be awaited`，T0 未记录，新增）** → 修复工单须覆盖两 job；ops summary failed=65 与行级 started_at 计数口径不一致，留观。
+- **口径发现（承 T0）**: 本项目日志无 uvicorn 重启标记，重启判定用 `logging initialized`（backend.logging_config）或 elapsed<120s；quality_check_logs 在 warm.db（`passed` 0/1 非 status，`mode='strict'`）；job_runs 列名 `job_type`（非 job_name），heartbeat/t1 高频 job 不逐行落表（200 行窗分布与窗口实际行数不符）。
+- **T0 关键读数（存档）**: kl:publish 4362（24h 直落 +15）/ T4 27 非空转轮 advanced=0 + skipped_low_score=937 / llm_used max=12 mean=5.34 触顶 0 / 转化率 7d 0.3190 / G2②③ 即归零 ✓ / ai_scores 24h +1312 / gate-detect failed=12（P2-1 前基线）；"T4 cycle:" 未桥 loguru 改用 job 层 `kl_trigger_t4_job:` 口径；warm updated_at 04:10 全量回填污染 → 增量改 ingested_at 口径。
 
 ### 2026-10-04 v0.8.6 P2 收敛冻结阶段规划定稿 — DEV-0277
 

@@ -1,4 +1,63 @@
 
+## [DEV-0292] v0.8.7 P3-F: 语义过滤异步化 post-ingest 化 (p3-f-semantic-async)
+
+- **时间**: 2026-10-07
+- **类型**: 架构修正 (语义 LLM 判别移出采集热路径; PLAN_P3 F 工单)
+- **关联模块**: `backend:info-filter`, `backend:scheduler-collect`, `backend:ai-hub-tasks`
+- **现状取证**: semantic_verdict 同步入口被采集 loop 线程调用 (collect→fetch_source→_build_items→filter_items→本函数) → DEV-0287 D2 修复后诚实跳过 (恒 fail-open) → semantic_filter gate「存在但采集路径判别量恒 0」死路
+- **热路径摘除**: `info_filter_gate.filter_items` 内联 semantic_verdict 块物理删除, Layer 2 回归纯规则 (三层门禁语义不变); 留 P3-F 注记防回流
+- **post-ingest 化**: 新 `post_ingest_semantic_filter(window_hours=24, limit=50)` — 近窗未判别 hotspots (is_hidden=0 + quality_flags NOT LIKE semantic_checked) → semantic_verdict 真调 (tick 尾 `asyncio.to_thread` 无 running loop); **reject → is_hidden=1 + flags += [semantic_checked, semantic_reject]** (隐藏打标不删除, 可回溯); allow → 仅 semantic_checked; **fail-open 不打标** → 下轮重试, 滚出 24h 窗自然停 (LLM 失败已落 llm_usage_log, D2 契约)
+- **挂载**: `v1_signal_intake_tick_job` 尾部、hotspot bridge **之前** (语义拒绝条目先隐藏 → 不再进 v1 准入链); 零新 job / 零注册面变更
+- **D2 兜底保留**: tasks.py loop 检测一字未动 — 若未来判别又回流 loop 线程依旧诚实可见 (防回归双保险)
+- **obs 面**: summary candidates/judged/rejected/errors + INFO 日志 (P0-10 条件: 有判别量才响); 24h 观测口 = llm_usage_log scene='semantic_filter' ok=1 计数 + 日志 rejected 计数
+- **测试**: `test_semantic_filter_gate.py` TestFilterItemsSemanticLayer 迁移 → **TestPostIngestSemanticFilter 4 用例** (gate off 零候选零 LLM / reject 隐藏+双 flag+重复轮幂等 / allow 只打标不隐藏 / fail-open 不打标下轮重试) + **热路径零 LLM 回归守卫** (gates 全开下 filter_items 零调用); 语义族 **26 passed**; collect/info_filter_gate py_compile OK
+- **验收 (PLAN_P3 F)**: 24h 窗 semantic_filter 判别量>0 (真调 LLM) + 采集时延无劣化 → **后置观测窗** (重启后启动)
+- **下一可用号**: DEV-0293
+
+## [DEV-0291] v0.8.7 P3-B: MCP server 只读导出 v1 执行域 4 工具 (p3-b-mcp-readonly)
+
+- **时间**: 2026-10-07
+- **类型**: 功能 (P2-6 工单池①; MCP gate 管道现成, 零新 transport)
+- **关联模块**: `backend:api-mcp`, `backend:mcp-stdio`, `backend:tests-mcp`
+- **新增 4 只读工具** (外部 agent 只读观测, 不产提案 — 人主律边界): `list_proposals` (GET /api/proposals 提案账本) / `list_runs` (GET /api/v1/runs action_id 必填 run 账本) / `list_artifacts` (GET /api/v1/artifacts run_id 必填 产物对账面) / `list_cases` (GET /api/v1/cases 案件队列)
+- **mcp_types.py**: +4 InputModel (镜像端点查询参数, ge/le 对齐) + MCP_TOOLS 条目 ×4 (category=read) — **19→23 (16 读 + 7 写)**; mcp_config.py MCP_TOOL_OPERATION_IDS +4 (operation_id 推导规律 `{fn}_{path 斜杠转下划线}_{method}`, 花括号段转 `_`); docstring/描述/stdio 注记计数同步 (mcp.py / mcp_stdio_main.py)
+- **防漂移守卫 (新 ×2)**: `test_operation_ids_resolve_in_openapi` — register_routers 真实 app OpenAPI 全 23 条 operation_id 可解析 (**fastapi-mcp include_operations 对不存在 id 静默丢弃工具**, 函数改名即断链且无告警, 本测试 fail-loud); `test_new_read_tools_bound_to_real_routes` — 4 工具 fastapi_path+method 与 OpenAPI 1:1
+- **测试**: 计数锁同步 (test_mcp_server ×3: seed 幂等/status/tools_count + test_mcp_sse ×1); MCP 族回归 **93 passed**; gate 关零暴露由既有双锁覆盖 (feature_gates 静态路由遍历 mcp=false → /api/mcp/* 404; is_mcp_enabled off → build_mcp_server=None 不挂 SSE)
+- **行数纪律连锁 (全量回归抓到, 豁免清单只许收缩)**: ①mcp_config.py 197>193 → operation_id 清单拆出 `mcp_operations.py` (46 行, 含防漂移推导规律文档), 头部 re-export 保持 import 面零变更; ②mcp_types.py 418>342 → input 模型拆出 `mcp_tool_inputs.py` (137 行, Phase7~v0.6 17 模型) + `mcp_tool_inputs_v1.py` (46 行, P3-B v1 域 4 模型), mcp_types 266 行保留 MCP_TOOLS 注册表 + import 面 (仅 MCP_TOOLS 被外部引用, 拆分低风险); 修复后 api 守卫绿 (266≤342 / 新文件 ≤150)
+- **下一可用号**: DEV-0292
+
+## [DEV-0290] v0.8.7 P3-D + P3-E: gate 限频预算调参 + HOT db 阈值校准 (p3-d-gate-budget-p3-e-hot-db)
+
+- **时间**: 2026-10-07
+- **类型**: 调参 + 数据治理阈值校准 (PLAN_P3 D/E 工单; 均数据驱动)
+- **关联模块**: `backend:config`, `backend:ai-hub`, `scripts:check-temp-db`, `backend:tests`
+- **D (gate 限频预算)**: 6/60s 系商汤免费时代常量, 付费 flash-lite 后量级失配 — DEV-0286 取证 gate-detect 失败 398/24h ≈ 全部 rate_limited (检测能力被限频打满)。**修法**: config 新增 `gate_rate_max=20` / `gate_rate_window_s=60` (env `HOTSPOT_GATE_RATE_MAX` 可调); service.py `GATE_RATE_MAX` 6→20 + 新 `_gate_budget()` 读 config 真值 (异常兜底回类常量); `gate_rate_allowed()` 消费 budget 值。**踩坑**: 测试自身曾只调 allowed() 不 mark() → deque 恒空恒 True — 改 allow+mark 交替后真验证
+- **测试**: `test_ai_quality_gate.py` +1 `test_gate_rate_budget_config_driven` (config 值驱动限额生效); 16 passed
+- **E (HOT db 阈值校准 80→300MB)**: dbstat 取证 137MB = 52MB 主数据 (35.5k 条) + FTS 索引, freelist=0 **零膨胀** — 巡检脚本原 80MB 阈值已低于真实数据体积, 清理=删产品数据 (误报源)。`check_temp_db_sizes.py` LIMITS_MB 80→300 + 注释留据 (盘 50Gi free); test 断言同步
+- **下一可用号**: DEV-0291
+
+## [DEV-0289] v0.8.7 P3-C: KPI 口径切换 — 分诊时延 + artifact 产出率 (p3-c-kpi-revision)
+
+- **时间**: 2026-10-07
+- **类型**: 观测能力 (PLAN_P3 C 工单; DEV-0284/DEV-0286 结构性发现落地: 15-30% 转化率带与质量门槛不可兼得, 口径切换有据)
+- **关联模块**: `backend:kpi`, `backend:api-ops`, `backend:core-routers`, `docs:prd`
+- **新增 `kpi_service.py`** (KpiService 三方法): ①`triage_latency(days=30)` — v1_cases.related_signal_ids 首信号 occurred_at → case.created_at, P50/P90, 无信号 case **诚实跳过** (样本数显式返回); ②`artifact_yield(days=7)` — done 且 artifact_ids 非空 / done 总数 (run 账本「成功必有产物」对账面); ③`signals_ratio` 降级参考值 + note (带表述退场注记)
+- **HTTP 面**: 新 `kpi_api.py` `GET /api/ops/kpi?latency_days=30&yield_days=7` (prefix=/api/ops); _registry_core 挂载 + CORE_ROUTERS 登记
+- **PRD 同步**: `HOTSPOT_V0.8.6_AI_NATIVE_PRD.md` §1.4 成功指标改写 — 转化率带退场注记 + 新主指标两行 (分诊时延 / artifact 产出率)
+- **测试**: 新 `test_kpi_api.py` **5 passed**; fixture 踩坑留痕: v1_subjects 需 first_seen/last_seen NOT NULL、v1_runs 需 trigger_source/idempotency_key (NOT NULL 静默吞)、UNIQUE(action_id, attempt) 须递增、两 case 共用信号会污染时延样本 (信号 id 从 case_id 派生)
+- **验收 (PLAN_P3 C)**: 新 KPI 可查 ✓; PRD 成功指标改写 ✓
+- **下一可用号**: DEV-0290
+
+## [DEV-0288] v0.8.7 P3 规划定稿: 工单池清偿 + 观测能力落地 (p3-plan)
+
+- **时间**: 2026-10-07
+- **类型**: 规划 (P3 立项; owner 裁决范围 C→D→E→B→F, pi 执行体单独立项不进 P3; 版本 v0.8.7)
+- **关联模块**: `docs:prd`, `docs:plan`
+- **规划文档**: `docs/PLAN_P3_2026-10-07.md` — C KPI 口径切换 (半天) / D gate 限频预算调参 (半天) / E HOT db 数据治理 (半天) / B MCP server 只读导出 (1 天) / F 语义过滤异步化 post-ingest 化 (1 天); 排期 5 日 (D4 起 24h 观测窗)
+- **P2 交接**: 6 项工单池全部入列 (含 DEV-0287 新发现 F); pi 执行体 → v0.9 专项 (OpenAEV 双模参照, 竞品复盘纪要为设计输入); P1-7 第二批带宽富余可选
+- **验收汇总**: 新 KPI 可查+PRD 改写 / rate_limited <20% / 巡检 OK 或阈值有据 / MCP 4 工具 gate 关零暴露 / semantic 判别量>0 且采集无劣化
+- **下一可用号**: DEV-0289
+
 ## [DEV-0287] v0.8.6 债务工单清偿: D1-D5 五项 + 环境项归档 (debt-sweep-d1-d5)
 
 - **时间**: 2026-10-07

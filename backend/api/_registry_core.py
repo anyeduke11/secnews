@@ -63,6 +63,9 @@ def register_core(app: FastAPI) -> None:
     # DEV-0287 (D5): quality 拒绝统计/信源信誉查询面 (原 quality.py 内, 拆分挂载)
     from backend.api import quality_rejection_api
     app.include_router(quality_rejection_api.router, tags=["quality"])
+    # DEV-0289 (P3-C): 新口径 KPI 观测 (分诊时延 + artifact 产出率)
+    from backend.api import kpi_api
+    app.include_router(kpi_api.router, tags=["ops"])
     app.include_router(sources.router, tags=["sources"])
     app.include_router(favorites.router, tags=["favorites"])
     app.include_router(history.router, tags=["history"])

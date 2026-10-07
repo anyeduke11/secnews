@@ -201,6 +201,34 @@ def test_gate_detect_rate_limited_records_outcome(monkeypatch):
     assert record_calls == [("gate_detect", False, "rate_limited")]
 
 
+def test_gate_rate_budget_config_driven(monkeypatch):
+    """P3-D: 限频预算从 config 读真值 (env HOTSPOT_GATE_RATE_MAX 可调)。
+
+    旧常量 6/60s 在采集爆发期全限频 (t24: 398 rate_limited/24h, gate 空转) —
+    契约: config.gate_rate_max 调大 → 窗口内允许更多调用; 调回小值仍限。
+    """
+    import time as _time
+
+    from backend.config import config
+    from backend.services.ai_hub import AIService
+
+    svc = AIService()
+    svc._gate_calls.clear()
+    monkeypatch.setattr(config, "gate_rate_max", 3)
+    monkeypatch.setattr(config, "gate_rate_window_s", 60)
+    marks = []
+    for _ in range(5):
+        marks.append(svc.gate_rate_allowed())
+        svc.gate_rate_mark()  # 真实流: allowed 通过即 mark (gate_detect 同序)
+    assert marks == [True, True, True, False, False], "前 3 次放行, 超预算拒绝"
+
+    # 调大预算 → 同窗口立即恢复放行 (config 真值, 无需重启)
+    monkeypatch.setattr(config, "gate_rate_max", 10)
+    assert svc.gate_rate_allowed() is True
+    # 类常量仅兜底, 不参与判定 (占位引用避免 lint 误报)
+    assert AIService.GATE_RATE_MAX >= 1 and _time.monotonic() > 0
+
+
 def test_gate_detect_provider_unavailable_records_outcome(monkeypatch):
     """provider 不可用 → _record ok=False error='provider_unavailable'
     (AI 全静默时最危险的隐形失败, 此前完全不可见)。"""

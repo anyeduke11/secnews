@@ -17,6 +17,17 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-07 v0.8.7 P3 全部交付（C/D/E/B/F 五工单 + 收尾）— DEV-0289~0292
+
+- **C KPI 口径切换**: 新 `kpi_service.py`（triage_latency P50/P90 诚实跳过无信号 case / artifact_yield「done 必有产物」对账面 / signals_ratio 降级参考）+ `GET /api/ops/kpi`；PRD §1.4 成功指标改写（转化率带退场）。test_kpi_api 5 passed（fixture 三连坑留痕）。
+- **D gate 限频预算**: 6/60s 免费时代常量 → config `gate_rate_max=20`（env `HOTSPOT_GATE_RATE_MAX` 可调）；依据 DEV-0286 gate-detect 398 fail/24h 全 rate_limited。16 passed（测试 allow+mark 交替坑留痕）。
+- **E HOT db 阈值校准**: 80→300MB —— dbstat 取证 137MB 全有效（52MB 主数据 + FTS，freelist 0 零膨胀），80MB 已低于真实体积属误报。
+- **B MCP 只读导出**: +4 read 工具 `list_proposals/list_runs/list_artifacts/list_cases`（19→23，16 读+7 写）；operation_id 防漂移守卫（真实 app OpenAPI 全量可解析——fastapi-mcp 对漂移 id 静默丢弃，fail-loud）；gate 关零暴露双锁不变；MCP 族 93 passed。
+- **F 语义过滤 post-ingest 化**: filter_items 热路径摘除 LLM（D2 后恒 fail-open 死路）→ 新 `post_ingest_semantic_filter` 挂 tick 尾 bridge 前（reject → is_hidden=1 + flag 可回溯；fail-open 不打标下轮重试；幂等 NOT LIKE）；D2 loop 检测保留兜底。语义族 26 passed。
+- **收尾**: DEV_LOG DEV-0289~0292 四条落账；PRD §10 注记链 +1；meta --check OK（routers 99→100 / services 158→159，kpi_api 新注册）。
+- **后置观测窗（重启后启动）**: D 24h rate_limited 占比 <20%；F 24h semantic 判别量>0 且采集时延无劣化；P3 验收纪要待观测窗收口。
+- **悬置**: pi 执行体 v0.9 专项；P1-7 第二批竞态（可选）。
+
 ### 2026-10-07 v0.8.6 债务工单清偿 D1-D5（5 代码项清零 + 1 环境归档）— DEV-0287
 
 - **D1 legacy 双 job TypeError（根因闭环）**: 全仓同步 def job 仅 3 个——P0-5 `ensure_instrumented` 对同步函数补 async wrapper 后 `await coro()` 对 dict 必抛；+thin async adapter 修复（loop 线程直呼，SQLite 语义不变；踩坑：闭包自递归 → `_orig` 捕获）。+2 测试。

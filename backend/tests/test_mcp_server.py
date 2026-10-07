@@ -46,10 +46,11 @@ def test_seed_idempotent(temp_db):
     inserted_second = mcp_tool_registry_seed()
     # 第二次应返回 0 (无新增)
     assert inserted_second == 0
-    # 表中应有 19 个 tool (Phase 15 基础 9 + v0.5 §18 wiki_* 4 + wiki_write + Phase 5 kl/dsh 5)
+    # 表中应有 23 个 tool (Phase 15 基础 9 + v0.5 §18 wiki_* 4 + wiki_write
+    # + Phase 5 kl/dsh 5 + v0.8.7 P3-B v1 执行域只读 4)
     conn = db.get_connection()
     rows = conn.execute("SELECT COUNT(*) AS n FROM mcp_tool_registry").fetchone()
-    assert int(rows["n"]) == 19
+    assert int(rows["n"]) == 23
 
 
 def test_mcp_status_endpoint(temp_db):
@@ -71,7 +72,7 @@ def test_mcp_status_endpoint(temp_db):
     assert "enabled" in data
     assert "transport" in data
     assert "tools_count" in data
-    assert data["tools_count"] == 19
+    assert data["tools_count"] == 23
 
 
 def test_mcp_tools_endpoint(temp_db):
@@ -91,13 +92,61 @@ def test_mcp_tools_endpoint(temp_db):
     assert res.status_code == 200
     data = res.json()
     tools = data.get("tools", [])
-    assert len(tools) == 19
+    assert len(tools) == 23
 
     categories = [t["category"] for t in tools]
-    # Phase 5 commit 3 新增 5 tool: 3 read (kl_status/dsh_analyze/dsh_session) + 2 write (kl_enqueue/kl_retry)
-    # 旧 9 read + 5 write = 14; 新 12 read + 7 write = 19
-    assert categories.count("read") == 12
+    # v0.8.7 P3-B 新增 4 read (list_proposals/list_runs/list_artifacts/list_cases)
+    # 旧 12 read + 7 write = 19; 新 16 read + 7 write = 23
+    assert categories.count("read") == 16
     assert categories.count("write") == 7
+
+
+def test_operation_ids_resolve_in_openapi():
+    """MCP_TOOL_OPERATION_IDS 每条必须在真实 app OpenAPI 中可解析。
+
+    fastapi-mcp include_operations 对不存在的 operation_id 静默丢弃工具
+    (路由函数改名/路径迁移即触发), 本测试防该类静默漂移。
+    """
+    from fastapi import FastAPI
+
+    from backend.api import register_routers
+    from backend.api.mcp_config import MCP_TOOL_OPERATION_IDS
+
+    app = FastAPI()
+    register_routers(app)
+    spec = app.openapi()
+    live_ops = {
+        op["operationId"]
+        for path_item in spec["paths"].values()
+        for op in path_item.values()
+        if isinstance(op, dict) and "operationId" in op
+    }
+    missing = [oid for oid in MCP_TOOL_OPERATION_IDS if oid not in live_ops]
+    assert missing == [], (
+        f"MCP_TOOL_OPERATION_IDS 含不可解析条目 (工具会被静默丢弃): {missing}"
+    )
+
+
+def test_new_read_tools_bound_to_real_routes():
+    """P3-B 4 个只读工具的 fastapi_path+method 与真实路由 1:1 对应。"""
+    from fastapi import FastAPI
+
+    from backend.api import register_routers
+    from backend.api.mcp_types import MCP_TOOLS
+
+    app = FastAPI()
+    register_routers(app)
+    spec = app.openapi()
+
+    by_name = {t["name"]: t for t in MCP_TOOLS}
+    for name in ("list_proposals", "list_runs", "list_artifacts", "list_cases"):
+        tool = by_name[name]
+        assert tool["category"] == "read"
+        path_item = spec["paths"].get(tool["fastapi_path"])
+        assert path_item is not None, f"{name}: {tool['fastapi_path']} 不在 OpenAPI"
+        assert tool["method"].lower() in path_item, (
+            f"{name}: {tool['method']} 未绑定到 {tool['fastapi_path']}"
+        )
 
 
 def test_toggle_mcp_enabled(temp_db):

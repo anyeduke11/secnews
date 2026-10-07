@@ -41,9 +41,11 @@ class AIService:
     收敛前的硬编码一致，保证无配置环境行为不变。
     """
 
-    # 采集热路径限频：默认 60s 内最多 6 次（商汤免费 rpm 有限）。
+    # 采集热路径限频: 预算迁移 config (v0.8.7 P3-D, DEV-0290) —
+    # 旧常量 6/60s (商汤免费 rpm 时代) 在采集爆发期全限频 (t24: 398/24h),
+    # 现 gate 走付费 flash-lite → 默认 20/60s, env HOTSPOT_GATE_RATE_MAX/WINDOW_S 可调。
     GATE_RATE_WINDOW_S = 60
-    GATE_RATE_MAX = 6
+    GATE_RATE_MAX = 20
 
     # 无 llm.yaml 或 provider 未声明时的历史兜底值
     FALLBACK_BASE_URLS: ClassVar[dict[str, str]] = {
@@ -248,12 +250,22 @@ class AIService:
     # ------------------------------------------------------------------
     # 限频（供采集热路径门禁用）
     # ------------------------------------------------------------------
+    def _gate_budget(self) -> tuple[int, int]:
+        """限频预算 (max, window_s) — config 真值优先, 类常量兜底 (P3-D)。"""
+        try:
+            from backend.config import config
+
+            return int(config.gate_rate_max), int(config.gate_rate_window_s)
+        except Exception:
+            return self.GATE_RATE_MAX, self.GATE_RATE_WINDOW_S
+
     def gate_rate_allowed(self) -> bool:
+        max_calls, window_s = self._gate_budget()
         now = time.monotonic()
         while self._gate_calls and \
-                now - self._gate_calls[0] > self.GATE_RATE_WINDOW_S:
+                now - self._gate_calls[0] > window_s:
             self._gate_calls.popleft()
-        return len(self._gate_calls) < self.GATE_RATE_MAX
+        return len(self._gate_calls) < max_calls
 
     def gate_rate_mark(self) -> None:
         self._gate_calls.append(time.monotonic())

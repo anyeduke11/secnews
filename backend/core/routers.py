@@ -48,6 +48,7 @@ CORE_ROUTERS: frozenset[str] = frozenset({
     "wiki_tools", "observability_router",
     # v0.8.6 P0-5: 统一 run record 查询 (基础设施, 无条件注册)
     "ops_runs_api",
+    "kpi_api",  # DEV-0289 P3-C: 新口径 KPI (分诊时延 + artifact 产出率)
     # ungated 基础设施 (gate 管理面自身不受 gate 限制; P0-8 补登记)
     "mcp_settings_api", "settings_flags_api",
     # v1.0 端到端 API (T08-T18/C13/MP-2 等, 无 gate 限制; P0-8 补登记)

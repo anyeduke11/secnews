@@ -67,6 +67,13 @@ class Settings(BaseSettings):
     # 抓取超时目前在 fetchers.py 内按路径各自设置, 待统一 BackendSession 接线后启用
     collect_timeout_seconds: int = 60
     collect_single_source_timeout: int = 30
+    # v0.8.7 P3-D (DEV-0290): gate_detect 限频预算可调。
+    # 旧值 6/60s 系「商汤免费 rpm」时代常量; 现 gate 走付费 sensenova key
+    # (flash-lite, max_tokens=8), 采集爆发期 (catchup/夜间批) 单小时 300+ 调用
+    # 全被限频 → gate 检测能力空转 (t24 观测 398 rate_limited/24h)。
+    # 默认 20/60s = 1200/h 上限, env HOTSPOT_GATE_RATE_MAX 可调; ollama 不受限频。
+    gate_rate_max: int = 20
+    gate_rate_window_s: int = 60
     # v1.8: 启动时自动追抓「本周一 → 现在」(真实全网抓取);
     # 测试环境必须关闭 (conftest autouse fixture), env HOTSPOT_CATCHUP_ON_STARTUP 可覆盖
     catchup_on_startup: bool = True

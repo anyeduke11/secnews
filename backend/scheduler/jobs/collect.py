@@ -622,6 +622,16 @@ async def v1_signal_intake_tick_job() -> None:
     except Exception as e:
         _logger.error(f"v1_signal_intake_tick_job crashed: {e}")
 
+    # v0.8.7 P3-F: post-ingest 语义补偿判别 — 置于 bridge 之前, 语义拒绝
+    # 条目 is_hidden=1 即不再进 v1 准入链 (热路径摘除后的异步补偿面)。
+    # 失败只 log 不抛, 与上下隔离模式一致。
+    try:
+        from backend.services.info_filter_gate import post_ingest_semantic_filter
+
+        await asyncio.to_thread(post_ingest_semantic_filter)
+    except Exception as e:
+        _logger.error(f"post_ingest_semantic_filter crashed: {e}")
+
     # v0.8.6 P1-2a: hotspots 主流 → v1_signals 桥 (语义门准入 → material/signal/kl:raw stub,
     # 喂活 T1 评分链; 设计冻结见 DEV-0267)。失败只 log 不抛, 与上方 intake 同隔离模式。
     try:

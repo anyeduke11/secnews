@@ -35,8 +35,9 @@ def test_limits_keys_present() -> None:
     """report.limits_mb 含 HOT/WARM/COLD 三键."""
     report = _run_json()
     assert set(report["limits_mb"].keys()) == {"HOT", "WARM", "COLD"}
-    # 与 v0.5 M2 终验口径一致
-    assert report["limits_mb"]["HOT"] == 80
+    # DEV-0290 (P3-E) 阈值校准: HOT 80→300 (主数据+FTS 零膨胀, 与 WARM 对齐;
+    # 校准依据见 scripts/check_temp_db_sizes.py LIMITS_MB 注释)
+    assert report["limits_mb"]["HOT"] == 300
     assert report["limits_mb"]["WARM"] == 300
     assert report["limits_mb"]["COLD"] == 200
 

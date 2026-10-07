@@ -29,7 +29,10 @@ v0.8.5 之前的 24 天里，系统以 405 次提交建成了 485 端点/58 job/
 
 ### 1.4 成功指标
 
-- 主干转化率：hotspots→signals ≥ 0.5%（现 0.041%，绝对值 ≥120 条/30 天）
+〔**DEV-0289 P3-C 口径切换 (2026-10-07)**: 原主干转化率口径「hotspots→signals 0.5%/15-30% 带」**退场** — 带与信号质量门槛结构性不可兼得 (DEV-0281/0284 实证: 桥全量转化下分母侧任何门槛都同比例降分子分母; 7d 评分中位 2.5 → 有意义的质量门槛必然压穿带), 且行业头部量「分诊时延」非流量比率 (P2-6 Gemini Triage 30min→60s 对标)。新主指标: ①**signal→case 分诊时延** (P50/P90, GET /api/ops/kpi); ②**artifact 产出率** (done 且产物≥1 / done, 目标 →1.0); signals/hotspots 比率降级为参考值仍可查 (不再设门)〕
+
+- 主干时延：signal→case 分诊时延 P50 持续可观测（GET /api/ops/kpi，窗口 30d；基线随数据积累建立）
+- 产物产出率：run status=done 且 artifact≥1 占比 → 1.0（「禁止成功但无产物」的正面量纲）
 - 信号→Case→Run→Artifact 全链在 UI 内可追溯（任一 Artifact 能回溯到原始 Source）
 - 静默失败数（生产日志中"失败但无 outcome 记录"的消息类）：降为 0 类
 - `/api/ops/runs` 任一 job 失败 24h 内可在 UI 查到原因
@@ -456,6 +459,8 @@ run record 即埋点：G1/G2 指标全部从 v1_runs/v1_proposals/command_log �
 〔**DEV-0281 P2-0 #4 双轨处置 (2026-10-04, owner 裁决)**: 机制修正 — deny 规则任一层都压不住稳态转化率带 (桥全量转化 + 采集/桥同表分子分母同降; 15-30% 带系 P1-6 瞬态读数); 轨① info_filter deny AGI Hunt (id=7, 84% 信号集中度去噪, 不影响带) 已配置; 轨② 桥内 admission 评分门槛立项 (score 先行重排, 阈值与 kl:raw 策略 owner 裁决, P2-1 后评审) — 带收窄唯一代码杠杆〕
 〔**DEV-0282 P2-1 已交付 (2026-10-04)**: gate_detect 四路径全记账 (provider_unavailable/rate_limited/异常→ok=0, 成功→ok=1, scene='gate_detect'), fail-open 返回 None 语义零变更 (P0-12 裁决), ai_hub 红线未触; success_stats_24h +fails_by_scene_24h 经 /api/llm/status 透出; TDD +5 用例含 llm_usage_log 实落行 integration; 受影响面 193 passed; 顺手修 DEV-0280 遗漏的 test_full_11_gate_pipeline_count (11→14); 生产 24h 清零确认为 P2-0 后置观测项, 需重启生效〕
 〔**DEV-0283 P2-3+P2-4 已交付 (2026-10-04)**: P2-3 sentinel-judge.css 删除 + code-wiki 三处过时行更正 + 引用归零 (tsc/build 绿); P2-4 SK-04 收编 — create_with_dsh 改 dsh 生成+校验保留 → copilot_draft('report') 提案 (人审后生效), 不再直写 knowledge; /api/v1/knowledge/generate item → proposal; registry target 不变; 受影响面 367 passed〕
+〔**DEV-0288 P3 立项 (2026-10-07, v0.8.7)**: 规划 `docs/PLAN_P3_2026-10-07.md` — C KPI 口径切换 / D gate 限频调参 / E HOT db 治理 / B MCP server 只读导出 / F 语义过滤异步化; pi 执行体单独立项 (v0.9 专项); 范围裁决 owner C→D→E→B→F〕
+〔**DEV-0289~0292 P3 全部交付 (2026-10-07)**: ①C KPI 口径切换 — KpiService (分诊时延 P50/P90 + artifact 产出率) 经 `GET /api/ops/kpi`, PRD §1.4 已改写 (转化率带退场); ②D gate 限频预算 config 化 (gate_rate_max 6→20, env 可调, 依据 DEV-0286 398 fail/24h 全 rate_limited); ③E HOT db 阈值校准 80→300MB (dbstat 取证 137MB 全有效零膨胀); ④B MCP 只读导出 ×4 (list_proposals/runs/artifacts/cases, 19→23 工具, operation_id 防漂移守卫 fail-loud, gate 关零暴露双锁不变); ⑤F 语义过滤 post-ingest 化 (热路径摘除 + tick 尾补偿判别, reject → is_hidden+flag 可回溯, D2 兜底保留, 24h 判别量>0 观测窗后置); routers 99→100 / services 158→159〕
 〔**DEV-0286 t24 终版 + P2 最终验收达成 (2026-10-07)**: 窗口 [10-04 09:42, 10-07 16:44] 79.1h (含 10-05/06 休眠全零, 有效 ~20h) — 8 项判定 ✓6 + #4 处置结案 (带不可达定案, KPI 口径挂 P3) + P2-1③ **清零确认达标**: gate-detect 失败 446/446 全显式 outcome (全 rate_limited, 日志 0 未记账), 不变量「失败必可见」成立; 附发现: gate 限频预算打满 (398 fail/24h ≈ 全部调用), gate 检测能力受限属后续调参项; 轨②实测拒率 ~70% (denied_score 470 与 admission_log 471 互证); 快照归档 docs/audit/P2_0_OBS_T24_FINAL_2026-10-07.json — **Phase P2 收敛冻结至此全部完成 (G2 清零确认达成), G1/G2/G3 + M1-M4 全链收口**〕
 〔**DEV-0285 P2-6 已交付 (2026-10-04, owner 裁决「深挖+快扫」)**: 竞品复盘纪要 `docs/COMPETITIVE_REVIEW_P2_6_2026-10-04.md` — §1.5 四行 [假设] 无一推翻, Gemini 行措辞已校准 (agentic SOC); 可借鉴点全部已有对应物; 差异化维持 (本地 AI 池获 Sensei 背书); 工单池 +4 (MCP server 导出 / pi 双模参照 / KPI 口径对标 / 措辞更新✓) — **P2 全任务收口**, 余 P2-1③ 24h 清零确认后置观测〕
 〔**DEV-0284 P2 轨②已交付 (2026-10-04, owner 三裁决)**: 桥内评分门槛落地 — score-first 重排 (gateway.score 前置于信号产出), X=2.5 (7d 中位 2.5, pass 52% → 比率 ~0.18 带内), 低分 → quarantine 留痕不产信号/kl:raw, score=None fail-open (P0-6/E3); 测试隔离修复 (autouse mock score=None 防真实 pi 泄入); 442 passed; 生产已重启; 注意: 带与有意义质量门槛不可兼得系结构性发现 (7d 评分中位 2.5), KPI 口径复核转 P2-6/口径裁决项〕

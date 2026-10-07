@@ -3,6 +3,8 @@
 与 info_filter_service (CRUD + evaluate) 配对, 本模块提供:
 - 进程内规则 cache (5s TTL): 避免每次 collect 查 DB
 - 三个 hook 入口: filter_source / filter_items / filter_prompt_chunks
+- post-ingest 补偿判别: post_ingest_semantic_filter (v0.8.7 P3-F —
+  语义 LLM 判别已移出采集热路径, 落库后 tick 尾异步补偿; D2 检测保留兜底)
 
 三段防御:
 1. **filter_source**: collect() 入口 (base.py:_load_sources_from_registry 之后)
@@ -153,23 +155,9 @@ def filter_items(items: list[Any]) -> list[Any]:
         if verdict == "deny":
             dropped += 1
             continue
-        # 2026-09-18 方案 B: 语义门禁层 — 仅规则 neutral 时 LLM 判别
-        # (gate semantic_filter, 默认关; 失败 fail-open 保留)。
-        if verdict == "neutral" and _semantic_enabled():
-            text = _item_text(it)
-            if text:
-                try:
-                    from backend.services.ai_hub.tasks import semantic_verdict
-                    sv = semantic_verdict(text)
-                    if sv.get("verdict") == "reject":
-                        dropped += 1
-                        logger.info(
-                            f"info_filter: semantic reject item "
-                            f"{name!r} reason={sv.get('reason', '')!r}"
-                        )
-                        continue
-                except Exception as e:  # fail-open
-                    logger.warning(f"info_filter: semantic layer error (fail-open): {e}")
+        # v0.8.7 P3-F: 语义 LLM 判别已移出采集热路径 (post-ingest 化, 见
+        # post_ingest_semantic_filter)。此前在本函数内联调 semantic_verdict,
+        # 而本函数运行于采集 loop 线程 → D2 检测恒 fail-open (判别量恒 0)。
         kept.append(it)
     if dropped:
         logger.info(f"info_filter: dropped {dropped} items at Layer 2")
@@ -213,9 +201,102 @@ def filter_prompt_chunks(chunks: list[dict]) -> list[dict]:
     return kept
 
 
+def post_ingest_semantic_filter(
+    window_hours: int = 24, limit: int = 50,
+) -> dict[str, Any]:
+    """post-ingest 语义补偿判别 (v0.8.7 P3-F, PLAN_P3 F 方案)。
+
+    采集落库后由 tick job 尾部异步补偿判别 (asyncio.to_thread → 无 running
+    loop → semantic_verdict 真调 LLM); deny → is_hidden=1 + flag 打标,
+    **不阻塞采集、不删除** (可回溯)。D2 loop 检测保留作兜底防线 (防回归:
+    若未来又有人把 LLM 判别放回 loop 线程, 依旧诚实可见)。
+
+    幂等: 已判别条目打 ``semantic_checked`` flag, 候选查询 NOT LIKE 跳过;
+    fail-open (LLM 失败/解析失败) **不打标** → 下一 tick 重试, 滚出窗口自然停。
+
+    Returns:
+        {"candidates", "judged", "rejected", "errors", "skipped_reason"}
+    """
+    summary: dict[str, Any] = {
+        "candidates": 0, "judged": 0, "rejected": 0, "errors": 0,
+        "skipped_reason": None,
+    }
+    if not _is_enabled():
+        summary["skipped_reason"] = "info_filter_gate_off"
+        return summary
+    if not _semantic_enabled():
+        summary["skipped_reason"] = "semantic_filter_gate_off"
+        return summary
+
+    import json as _json
+    from datetime import datetime, timedelta, timezone
+
+    from backend.repository.db import get_connection
+    from backend.services.ai_hub.tasks import semantic_verdict
+
+    conn = get_connection()
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=window_hours)).isoformat()
+    rows = conn.execute(
+        "SELECT id, title, summary, source, quality_flags FROM hotspots "
+        "WHERE is_hidden = 0 AND title != '' "
+        "  AND COALESCE(fetched_at, published_at, ingested_at) >= ? "
+        "  AND quality_flags NOT LIKE '%semantic_checked%' "
+        "ORDER BY fetched_at DESC LIMIT ?",
+        (cutoff, limit),
+    ).fetchall()
+    summary["candidates"] = len(rows)
+
+    for r in rows:
+        text = _item_text({"title": r["title"], "summary": r["summary"]})
+        if not text.strip():
+            continue
+        sv = semantic_verdict(text)
+        reason = str(sv.get("reason", ""))
+        fail_open = reason.endswith("fail_open") or reason.startswith("parse_failed")
+        if fail_open:
+            # 不打标 → 下轮重试 (出窗即停); 失败已落 llm_usage_log (D2 契约)
+            summary["errors"] += 1
+            continue
+        summary["judged"] += 1
+        try:
+            flags = _json.loads(r["quality_flags"] or "[]")
+        except Exception:
+            flags = []
+        if not isinstance(flags, list):
+            flags = []
+        flags.append("semantic_checked")
+        if sv.get("verdict") == "reject":
+            flags.append("semantic_reject")
+            conn.execute(
+                "UPDATE hotspots SET is_hidden = 1, quality_flags = ? WHERE id = ?",
+                (_json.dumps(flags, ensure_ascii=False), r["id"]),
+            )
+            summary["rejected"] += 1
+            logger.info(
+                f"info_filter: post-ingest semantic reject hotspot {r['id']} "
+                f"source={r['source']!r} reason={reason!r} (hidden, 可回溯)"
+            )
+        else:
+            conn.execute(
+                "UPDATE hotspots SET quality_flags = ? WHERE id = ?",
+                (_json.dumps(flags, ensure_ascii=False), r["id"]),
+            )
+    conn.commit()
+
+    if summary["judged"] or summary["rejected"] or summary["errors"]:
+        # P0-10: 有判别量才 INFO (obs 面: 判别量/拒绝量 24h 观测口)
+        logger.info(
+            f"info_filter: post-ingest semantic filter candidates="
+            f"{summary['candidates']} judged={summary['judged']} "
+            f"rejected={summary['rejected']} fail_open={summary['errors']}"
+        )
+    return summary
+
+
 __all__ = [
     "filter_items",
     "filter_prompt_chunks",
     "filter_source",
     "invalidate_cache",
+    "post_ingest_semantic_filter",
 ]

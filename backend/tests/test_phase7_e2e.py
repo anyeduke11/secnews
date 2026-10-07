@@ -53,26 +53,27 @@ def _insert_hotspot(hid, title="测试"):
 
 
 def test_mcp_status_lists_9_tools(client, temp_db):
-    """E2E: /api/mcp/status 报告 19 tools (基础 9 + wiki 4 + wiki_write + Phase 5 kl/dsh 5)."""
+    """E2E: /api/mcp/status 报告 23 tools (基础 9 + wiki 4 + wiki_write + kl/dsh 5 + P3-B 只读 4)."""
     res = client.get("/api/mcp/status")
     assert res.status_code == 200
     data = res.json()
-    assert data["tools_count"] == 19
+    assert data["tools_count"] == 23
     assert data["enabled"] is True
 
 
 def test_mcp_tools_list_9_entries(client, temp_db):
-    """E2E: /api/mcp/tools 列出全部 tool 元数据 (基础 9 + wiki 4 + wiki_write + Phase 5 kl/dsh 5)."""
+    """E2E: /api/mcp/tools 列出全部 tool 元数据 (基础 9 + wiki 4 + wiki_write + kl/dsh 5 + P3-B 只读 4)."""
     res = client.get("/api/mcp/tools")
     assert res.status_code == 200
     data = res.json()
-    assert len(data.get("tools", [])) == 19
+    assert len(data.get("tools", [])) == 23
 
-    # 验证 12 读 + 7 写 (v0.5 §18: wiki_* 读 4 + wiki_write 写 1; v0.6 Phase 5: kl/dsh 3 读 + 2 写)
+    # 验证 16 读 + 7 写 (v0.5 §18: wiki_* 读 4 + wiki_write 写 1; v0.6 Phase 5: kl/dsh 3 读 + 2 写;
+    # v0.8.7 P3-B: v1 执行域只读 4)
     by_category = {}
     for t in data["tools"]:
         by_category.setdefault(t["category"], []).append(t["name"])
-    assert len(by_category.get("read", [])) == 12
+    assert len(by_category.get("read", [])) == 16
     assert len(by_category.get("write", [])) == 7
 
     # 关键 tool 名称存在

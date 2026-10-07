@@ -7,12 +7,12 @@
 - 双 transport:
   - stdio (默认, 本地单进程, AI Agent 启动)
   - SSE / StreamableHTTP (HTTP, 跨网络/调试用)
-- 启动时 idempotent seeding MCP_TOOLS 全部 tool 元数据到 mcp_tool_registry 表 (当前 19)
+- 启动时 idempotent seeding MCP_TOOLS 全部 tool 元数据到 mcp_tool_registry 表 (当前 23)
 - feature.mcp_server (默认 True) 控制是否挂载 MCP
 
 关键决策
 ---------
-1. **范围**: 全量 MCP_TOOLS (当前 19, 12 读 + 7 写), 1:1 对应 FastAPI 路由
+1. **范围**: 全量 MCP_TOOLS (当前 23, 16 读 + 7 写), 1:1 对应 FastAPI 路由
 2. **绑定地址**: 默认 127.0.0.1:8000 (避免远程攻击), 改 0.0.0.0 需 warning log
 3. **tool 元数据**: 启动 seeding 到 mcp_tool_registry, 不跨端同步
 4. **降级**: 关闭 feature.mcp_server 时 SSE 端点 404, stdio 入口 print 警告并退出
@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
+from backend.api.mcp_operations import MCP_TOOL_OPERATION_IDS
 from backend.logging_config import logger
 
 # ----------------------------------------------------------------------------
@@ -38,35 +39,12 @@ def is_sse_mounted() -> bool:
 
 
 # ----------------------------------------------------------------------------
-# 9 个 MCP tool 对应的 FastAPI operation_id
+# 23 个 MCP tool 对应的 FastAPI operation_id
 # ----------------------------------------------------------------------------
-# 与 spec §4 + 当前 main.py 实际路由一致 (OpenAPI schema 已生成)
-MCP_TOOL_OPERATION_IDS = [
-    # 读 (5)
-    "list_hotspots_api_hotspots_get",                              # search_hotspots
-    "get_hotspot_api_hotspots__item_id__get",                      # get_hotspot
-    "list_favorites_api_favorites_get",                            # list_favorites
-    "list_items_api_knowledge_items_get",                          # search_knowledge
-    "get_personal_profile_api_profile_get",                        # get_personal_profile (mcp_adapters.py)
-    # 写 (4)
-    "add_favorite_by_hotspot_api_favorites_by_hotspot_post",       # add_favorite (MCP 入口, 内部查 hotspot + 写 created_via='mcp')
-    "remove_favorite_api_favorites__hotspot_id__delete",           # remove_favorite
-    "create_annotation_endpoint_api_annotations_post",             # add_annotation
-    "update_item_api_knowledge_items__item_id__patch",            # update_knowledge_item
-    # v0.5 §18.4: wiki_* 工具族 (llm-wiki-2.0 消费面)
-    "wiki_search_api_wiki_search_post",                            # wiki_search
-    "wiki_read_api_wiki_read_get",                                 # wiki_read
-    "wiki_graph_api_wiki_graph_get",                               # wiki_graph
-    "db_trace_api_wiki_trace_post",                                # db_trace
-    # v0.5 §18.2 强约束 1: agent 持久产物唯一写路径
-    "wiki_write_api_wiki_write_post",                              # wiki_write
-    # v0.6 Phase 5 commit 3: 5 个 MCP tool 扩展 (KL 推进 + DSH 分析)
-    "kl_enqueue_api_mcp_kl_enqueue_post",                          # kl_enqueue
-    "kl_status_api_mcp_kl_status_get",                             # kl_status
-    "kl_retry_api_mcp_kl_retry_post",                              # kl_retry
-    "dsh_analyze_api_mcp_dsh_analyze_post",                        # dsh_analyze
-    "dsh_session_api_mcp_dsh_session__session_id__get",            # dsh_session
-]
+# v0.8.7 P3-B 拆出至 mcp_operations.py (本文件行数豁免只许收缩);
+# 头部 re-export 保持既有 import 面
+# (from backend.api.mcp_config import MCP_TOOL_OPERATION_IDS) 不变。
+# 防漂移守卫: test_mcp_server.test_operation_ids_resolve_in_openapi。
 
 
 def is_mcp_enabled() -> bool:
@@ -100,7 +78,7 @@ def build_mcp_server(app):
         name="hotspot",
         description=(
             "Hotspot Knowledge MCP Server — 让 AI Agent 通过标准 MCP 协议"
-            " 读写本地知识库 (MCP_TOOLS, 当前 19 个)"
+            " 读写本地知识库 (MCP_TOOLS, 当前 23 个)"
         ),
         include_operations=MCP_TOOL_OPERATION_IDS,
     )

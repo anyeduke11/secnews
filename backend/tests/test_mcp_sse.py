@@ -77,9 +77,9 @@ def test_sse_config_endpoint(client, temp_db):
 
 
 def test_sse_tools_count(client, temp_db):
-    """/api/mcp/tools 返回 19 tool (基础 9 + wiki 4 + wiki_write + Phase 5 kl/dsh 5), transport 标识正确."""
+    """/api/mcp/tools 返回 23 tool (基础 9 + wiki 4 + wiki_write + kl/dsh 5 + P3-B 只读 4), transport 标识正确."""
     res = client.get("/api/mcp/tools")
     assert res.status_code == 200
     data = res.json()
-    assert data["count"] == 19
-    assert len(data["tools"]) == 19
+    assert data["count"] == 23
+    assert len(data["tools"]) == 23

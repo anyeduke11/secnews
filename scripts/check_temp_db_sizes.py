@@ -28,8 +28,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 BACKEND = REPO_ROOT / "backend"
 
 # M2 终验阈值 (与 PROGRESS.md §基线档案 / DB 体积行 一致)
+# DEV-0290 (P3-E) 阈值校准: HOT 80→300MB —
+#   ①80MB 系 v0.5 M2 时代基线, 库内容以 hotspots 本体+FTS 为主 (实测 137MB 中
+#   52MB = 35.5k 条主数据 + 全文索引, freelist 0 = 零膨胀, 增长全为有效数据);
+#   ②hotspots 是产品核心语料, 清理=删产品, retention 只适用于观测类表
+#   (api_events/audit_log/job_runs, 量级 MB 级非瓶颈);
+#   ③单机盘 50Gi free, 300MB 占比可忽略; 与 WARM 300MB 对齐同量级口径。
 LIMITS_MB = {
-    "HOT": 80,
+    "HOT": 300,
     "WARM": 300,
     "COLD": 200,  # 加密后体积, 当前未启用
 }

@@ -39,7 +39,13 @@ def _seed_material(material_id: str = "MAT-K1", content_hash: str = "k" * 64) ->
     conn.commit()
 
 
+def _parsed() -> dict:
+    return json.loads(_dsh_response())
+
+
 def _make_draft() -> str:
+    """状态机/复用/复查夹具 — P2-4 收编后 create_with_dsh 不再直写,
+    本夹具改走 _insert_draft 直种 (与 SK-04 触发路径解耦)。"""
     _seed_material()
     # 同步 seed v1_actions + v1_judgments + v1_cases (refs 需 INNER JOIN 命中)
     from backend.repository.db import get_connection
@@ -59,11 +65,10 @@ def _make_draft() -> str:
         ("A" * 26, "C" * 26, "J" * 26, "h" * 64, now, now),
     )
     conn.commit()
-    svc = KnowledgeService(dsh_caller=lambda _p: _dsh_response())
-    out = svc.create_with_dsh(
-        case_id="C" * 26, judgment_id="J" * 26, action_id="A" * 26,
-        subject_name="网关", cve_id="CVE-2026-31337", kind="playbook",
-        evidence_materials=[],
+    svc = KnowledgeService()
+    out = svc._insert_draft(
+        case_id="C" * 26, kind="playbook", parsed=_parsed(),
+        submitted_by="test", source_judgment_id="J" * 26, source_action_id="A" * 26,
     )
     return out["knowledge"]["id"]
 
@@ -118,18 +123,42 @@ def test_evidence_material_not_found_raises(temp_db) -> None:
 
 
 # ---------------------------------------------------------------------------
-# create_with_dsh (1 测试)
+# create_with_dsh (1 测试) — P2-4 收编: 提案化而非直写
 # ---------------------------------------------------------------------------
-def test_create_with_dsh_draft_inserts(temp_db) -> None:
-    kid = _make_draft()
-    svc = KnowledgeService()
-    k = svc.get(kid)
-    assert k["status"] == "draft"
-    assert k["kind"] == "playbook"
-    assert k["title"] == "FastGate 7.2.0 升级 playbook"
-    assert k["revision"] == 1
-    assert k["content_hash"]  # sha256 已算
-    assert "publish" in k["allowed_actions"]
+def test_create_with_dsh_creates_proposal_not_knowledge(temp_db) -> None:
+    """P2-4 (SK-04 收编): 触发路径 dsh 生成 + 校验后落 copilot_draft('report')
+    提案 (人审后生效), **不再直写 knowledge draft** — 判定 generate 同模式。"""
+    _seed_material()
+    conn = get_connection()
+    # case + 证据绑定 (copilot 纪律: report 卡必须锚 case 绑定证据)
+    conn.execute(
+        "INSERT OR IGNORE INTO v1_cases (id, title, question, revision, created_at, updated_at, tags_json) "
+        "VALUES (?, 'T', 'Q', 1, datetime('now'), datetime('now'), '[]')",
+        ("C" * 26,),
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO v1_case_materials (case_id, material_id, signal_id, created_at) "
+        "VALUES (?, 'MAT-K1', NULL, datetime('now'))",
+        ("C" * 26,),
+    )
+    conn.commit()
+    svc = KnowledgeService(dsh_caller=lambda _p: _dsh_response())
+    out = svc.create_with_dsh(
+        case_id="C" * 26, judgment_id="J" * 26, action_id="A" * 26,
+        subject_name="网关", cve_id="CVE-2026-31337", kind="playbook",
+        evidence_materials=[],
+    )
+    p = out["proposal"]
+    assert p["kind"] == "report" and p["status"] == "draft"
+    assert p["source"] == "copilot" and p["case_id"] == "C" * 26
+    payload_json = json.dumps(p["payload"], ensure_ascii=False)
+    assert "FastGate 7.2.0 升级 playbook" in payload_json
+    assert "CVE-2026-31337" in payload_json
+    # 不直写 knowledge (SK-04 触发路径零 knowledge 行)
+    n = conn.execute(
+        "SELECT COUNT(*) FROM v1_knowledge WHERE title LIKE 'FastGate%'"
+    ).fetchone()[0]
+    assert n == 0
 
 
 # ---------------------------------------------------------------------------

@@ -76,7 +76,7 @@ class KnowledgeService(
         self._dsh_caller = dsh_caller
 
     # ------------------------------------------------------------------
-    # create_with_dsh (T13 SK-04 主路径) — 编排: AI 生成 → 校验 → 落库
+    # create_with_dsh (T13 SK-04 主路径) — 编排: AI 生成 → 校验 → 提案
     # ------------------------------------------------------------------
     def create_with_dsh(
         self,
@@ -90,11 +90,16 @@ class KnowledgeService(
         evidence_materials: list[dict[str, Any]],
         submitted_by: str = "user",
     ) -> dict[str, Any]:
-        """通过 dsh (或 mock) 生成 knowledge 经验, 落库成 draft.
+        """通过 dsh (或 mock) 生成 knowledge 经验, **落 copilot 提案** (P2-4 收编).
+
+        v0.8.6 P2-4: SK-04 触发路径不再直写 knowledge draft — dsh 生成 +
+        校验链保留, 产物经 ``RunLedgerService.copilot_draft(kind='report')``
+        落 STANDARD 提案 (人审后生效, 判定 generate 同模式);
+        直写通道 :meth:`_insert_draft` 仅供状态机测试/内部使用。
 
         Returns
         -------
-        {"knowledge": <dict>, "idempotent_replay": bool}
+        {"proposal": <dict>, "idempotent_replay": False}
         """
         parsed = self._generate_parsed_draft(
             case_id=case_id, judgment_id=judgment_id, action_id=action_id,
@@ -110,11 +115,25 @@ class KnowledgeService(
         )
         # evidence hash 校验
         self._validate_evidence_hashes(parsed["evidence_refs"])
-        # 落库
-        return self._insert_draft(
-            case_id=case_id, kind=kind, parsed=parsed, submitted_by=submitted_by,
-            source_judgment_id=judgment_id, source_action_id=action_id,
+        # P2-4: 提案化 (人审后生效) — 提案 approval 走 P1-3 四 kind 产物化
+        from backend.services.run_ledger_service import RunLedgerService
+
+        payload: dict[str, Any] = {
+            "title": parsed["title"],
+            "body": parsed["body"],
+            "knowledge_kind": kind,
+            "prerequisites": parsed["prerequisites"],
+            "counter_examples": parsed["counter_examples"],
+            "evidence_refs": parsed["evidence_refs"],
+            "review_at": parsed["review_at"],
+            "source": {"case_id": case_id, "judgment_id": judgment_id,
+                       "action_id": action_id, "subject_name": subject_name,
+                       "cve_id": cve_id},
+        }
+        proposal = RunLedgerService().copilot_draft(
+            "report", case_id=case_id, drafter=lambda _ctx: payload,
         )
+        return {"proposal": proposal, "idempotent_replay": False}
 
     def _write_wiki(self, wiki_path: str, k: dict[str, Any], now: str) -> None:
         """wiki 不可变写 (T11/T12 同款路径, T13 knowledge 专属).

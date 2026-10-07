@@ -46,11 +46,12 @@ def _seed(material_id: str = "MAT-R1", content_hash: str = "r" * 64) -> str:
         ("A" * 26, "C" * 26, "J" * 26, "h" * 64, now, now),
     )
     conn.commit()
-    svc = KnowledgeService(dsh_caller=lambda _p: _dsh_response())
-    return svc.create_with_dsh(
-        case_id="C" * 26, judgment_id="J" * 26, action_id="A" * 26,
-        subject_name="X", cve_id="CVE-X", kind="playbook",
-        evidence_materials=[],
+    # P2-4 收编后 create_with_dsh 落提案不直写 — 本夹具直种 draft (SK-05 契约
+    # 只关心既有 knowledge 行的 reuse 统计, 与触发路径解耦)
+    svc = KnowledgeService()
+    return svc._insert_draft(
+        case_id="C" * 26, kind="playbook", parsed=json.loads(_dsh_response()),
+        submitted_by="test", source_judgment_id="J" * 26, source_action_id="A" * 26,
     )["knowledge"]["id"]
 
 

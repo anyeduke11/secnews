@@ -56,8 +56,44 @@ def _seed_material_and_judgment_action():
     conn.commit()
 
 
-def test_generate_creates_draft(client) -> None:
+def _seed_case_evidence_binding() -> None:
+    """P2-4: generate 落 copilot 提案 — report 卡纪律要求 case 绑定证据。"""
+    conn = get_connection()
+    conn.execute(
+        "INSERT OR IGNORE INTO v1_cases (id, title, question, revision, created_at, updated_at, tags_json) "
+        "VALUES (?, 'T', 'Q', 1, datetime('now'), datetime('now'), '[]')",
+        ("C" * 26,),
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO v1_case_materials (case_id, material_id, signal_id, created_at) "
+        "VALUES (?, 'MAT-API', NULL, datetime('now'))",
+        ("C" * 26,),
+    )
+    conn.commit()
+
+
+def _seed_knowledge_row() -> str:
+    """P2-4 后 generate 不再产 knowledge 行 — 生命周期/复用测试直种 draft。"""
+    from backend.services.knowledge_service import KnowledgeService
+
     _seed_material_and_judgment_action()
+    svc = KnowledgeService()
+    parsed = {
+        "title": "K1", "body": "x",
+        "prerequisites": ["p"], "counter_examples": [],
+        "evidence_refs": [{"material_id": "MAT-API", "hash": "a" * 64, "quote": "ok"}],
+        "review_at": "2026-12-01T00:00:00+00:00",
+    }
+    return svc._insert_draft(
+        case_id="C" * 26, kind="playbook", parsed=parsed,
+        submitted_by="test", source_judgment_id="J" * 26, source_action_id="A" * 26,
+    )["knowledge"]["id"]
+
+
+def test_generate_creates_proposal_not_knowledge(client) -> None:
+    """P2-4 (SK-04 收编): /generate → copilot 提案 (report/draft), 零 knowledge 直写。"""
+    _seed_material_and_judgment_action()
+    _seed_case_evidence_binding()
     r = client.post("/api/v1/knowledge/generate", json={
         "case_id": "C" * 26, "judgment_id": "J" * 26, "action_id": "A" * 26,
         "subject_name": "网关", "cve_id": "CVE-X", "kind": "playbook",
@@ -65,31 +101,27 @@ def test_generate_creates_draft(client) -> None:
     })
     assert r.status_code == 200, r.text
     body = r.json()
+    assert body["item"]["kind"] == "report"
     assert body["item"]["status"] == "draft"
-    assert body["item"]["kind"] == "playbook"
+    assert body["item"]["source"] == "copilot"
+    assert "CVE-X" in json.dumps(body["item"]["payload"], ensure_ascii=False)
     assert body["idempotent_replay"] is False
+    n = get_connection().execute("SELECT COUNT(*) FROM v1_knowledge").fetchone()[0]
+    assert n == 0
 
 
 def test_list_returns_knowledge_for_case(client) -> None:
-    _seed_material_and_judgment_action()
-    client.post("/api/v1/knowledge/generate", json={
-        "case_id": "C" * 26, "judgment_id": "J" * 26, "action_id": "A" * 26,
-        "subject_name": "X", "cve_id": "CVE-X", "kind": "playbook", "evidence_materials": [],
-    })
+    _seed_knowledge_row()
     r = client.get("/api/v1/knowledge?case_id=" + "C" * 26)
     assert r.status_code == 200
     assert r.json()["total"] >= 1
 
 
 def test_get_knowledge_by_id(client) -> None:
-    _seed_material_and_judgment_action()
-    j = client.post("/api/v1/knowledge/generate", json={
-        "case_id": "C" * 26, "judgment_id": "J" * 26, "action_id": "A" * 26,
-        "subject_name": "X", "cve_id": "CVE-X", "kind": "playbook", "evidence_materials": [],
-    }).json()["item"]
-    r = client.get(f"/api/v1/knowledge/{j['id']}")
+    kid = _seed_knowledge_row()
+    r = client.get(f"/api/v1/knowledge/{kid}")
     assert r.status_code == 200
-    assert r.json()["item"]["id"] == j["id"]
+    assert r.json()["item"]["id"] == kid
 
 
 def test_get_knowledge_404(client) -> None:
@@ -100,12 +132,8 @@ def test_get_knowledge_404(client) -> None:
 
 def test_reuse_receipt_endpoint(client) -> None:
     """GET /api/v1/knowledge/{id}/reuse 返 C12 R16 收口: total=0 (无 adoptions)."""
-    _seed_material_and_judgment_action()
-    j = client.post("/api/v1/knowledge/generate", json={
-        "case_id": "C" * 26, "judgment_id": "J" * 26, "action_id": "A" * 26,
-        "subject_name": "X", "cve_id": "CVE-X", "kind": "playbook", "evidence_materials": [],
-    }).json()["item"]
-    r = client.get(f"/api/v1/knowledge/{j['id']}/reuse")
+    kid = _seed_knowledge_row()
+    r = client.get(f"/api/v1/knowledge/{kid}/reuse")
     assert r.status_code == 200
     receipt = r.json()["receipt"]
     # C12 R16.5 收口: 新知识 derived_from 不计 reuse, total=0
@@ -118,25 +146,17 @@ def test_reuse_receipt_endpoint(client) -> None:
 
 
 def test_publish_draft_to_published(client) -> None:
-    _seed_material_and_judgment_action()
-    j = client.post("/api/v1/knowledge/generate", json={
-        "case_id": "C" * 26, "judgment_id": "J" * 26, "action_id": "A" * 26,
-        "subject_name": "X", "cve_id": "CVE-X", "kind": "playbook", "evidence_materials": [],
-    }).json()["item"]
-    r = client.post(f"/api/v1/knowledge/{j['id']}/publish", json={"expected_revision": 1})
+    kid = _seed_knowledge_row()
+    r = client.post(f"/api/v1/knowledge/{kid}/publish", json={"expected_revision": 1})
     assert r.status_code == 200
     assert r.json()["item"]["status"] == "published"
     # R10 fix: wiki_path 用 env 根 + items/knowledge_{id}.md (非字面 knowledge/)
-    assert r.json()["item"]["wiki_path"] == f"items/knowledge_{j['id']}.md"
+    assert r.json()["item"]["wiki_path"] == f"items/knowledge_{kid}.md"
 
 
 def test_publish_cas_revision_mismatch_409(client) -> None:
-    _seed_material_and_judgment_action()
-    j = client.post("/api/v1/knowledge/generate", json={
-        "case_id": "C" * 26, "judgment_id": "J" * 26, "action_id": "A" * 26,
-        "subject_name": "X", "cve_id": "CVE-X", "kind": "playbook", "evidence_materials": [],
-    }).json()["item"]
-    r = client.post(f"/api/v1/knowledge/{j['id']}/publish", json={"expected_revision": 999})
+    kid = _seed_knowledge_row()
+    r = client.post(f"/api/v1/knowledge/{kid}/publish", json={"expected_revision": 999})
     assert r.status_code == 409
 
 

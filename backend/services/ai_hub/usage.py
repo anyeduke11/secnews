@@ -91,6 +91,16 @@ def success_stats_24h() -> dict:
         fail_n = sum(int(r["n"]) for r in rows if int(r["ok"]) == 0)
         tokens_24h = sum(int(r["tokens"]) for r in rows)
         total = ok_n + fail_n
+        # v0.8.6 P2-1 (G2①): scene 级失败计数 — gate_detect 静默失败的
+        # 聚合查询面 (对照审计 ~1,006 次/日基线的清零确认口径)
+        fails_by_scene = {
+            r["scene"]: int(r["n"])
+            for r in get_connection().execute(
+                "SELECT scene, COUNT(*) AS n FROM llm_usage_log "
+                "WHERE occurred_at >= ? AND ok = 0 GROUP BY scene",
+                (cutoff,),
+            ).fetchall()
+        }
         # 进程内错误数仍暴露 (热路径告警), 但不计入 24h 成功率分母
         errors_in_process = len(_ERROR_RING)
         # latency p50 — 只算 ok=1 的成功路径
@@ -109,12 +119,14 @@ def success_stats_24h() -> dict:
             "ok_calls_24h": ok_n,
             "fail_calls_24h": fail_n,
             "tokens_24h": tokens_24h,
+            "fails_by_scene_24h": fails_by_scene,
             "errors_in_process": errors_in_process,
             "success_rate": round(ok_n / total, 3) if total else None,
             "latency_p50_ms": latency_p50_ms,
         }
     except Exception:
         return {"ok_calls_24h": 0, "fail_calls_24h": 0, "tokens_24h": 0,
+                "fails_by_scene_24h": {},
                 "errors_in_process": len(_ERROR_RING), "success_rate": None,
                 "latency_p50_ms": None}
 

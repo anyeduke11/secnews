@@ -144,6 +144,124 @@ def test_gate_detect_network_fail_degrades(monkeypatch):
     assert r is None
 
 
+# ── v0.8.6 P2-1 (G2①): gate_detect 显式 outcome ────────────────────
+# 审计基线: sensenova ReadTimeout ~1,006 次/日只进分散 WARNING, llm_usage_log
+# 零痕迹 → G2① 静默失败。契约: 三类 None 路径 (异常/限频/provider 不可用) 与
+# 成功路径全部经 _record 落 llm_usage_log; 返回值语义不变 (失败仍 None fail-open)。
+
+
+def _patch_gate_happy_config(monkeypatch):
+    """公共底座: provider=sensenova 可用 + 密钥就绪 (失败注入由各用例自定)。"""
+    from backend.services.ai_hub import AIService
+
+    monkeypatch.setattr(AIService, "_resolve_provider", staticmethod(lambda: "sensenova"))
+    monkeypatch.setattr(AIService, "available", lambda self, p=None: True)
+    monkeypatch.setattr(AIService, "_resolve_api_key", lambda self, provider=None: "fake-key")
+
+
+def test_gate_detect_timeout_records_failure_outcome(monkeypatch):
+    """超时用例 → _record ok=False + error 透传, fail-open 返回 None 不变。"""
+    from backend.services.ai_hub import AIService
+
+    svc = AIService()
+    _patch_gate_happy_config(monkeypatch)
+    monkeypatch.setattr(
+        AIService, "_call_sensenova_detect",
+        lambda *a, **k: (_ for _ in ()).throw(TimeoutError("The read operation timed out")),
+    )
+    record_calls: list[tuple] = []
+    monkeypatch.setattr(
+        AIService, "_record",
+        lambda self, provider, model, task, *, ok, error=None, **_:
+            record_calls.append((provider, task, ok, error)),
+    )
+    r = svc.gate_detect("标题", "摘要")
+    assert r is None, "fail-open 语义必须保持 (P0-12 裁决)"
+    assert len(record_calls) == 1, f"期望恰好 1 次失败记账, 实得 {record_calls}"
+    provider, task, ok, error = record_calls[0]
+    assert provider == "sensenova" and task == "gate_detect"
+    assert ok is False and "TimeoutError" in (error or "")
+
+
+def test_gate_detect_rate_limited_records_outcome(monkeypatch):
+    """限频拒绝 → _record ok=False error='rate_limited' (预算水位可见)。"""
+    from backend.services.ai_hub import AIService
+
+    svc = AIService()
+    _patch_gate_happy_config(monkeypatch)
+    monkeypatch.setattr(AIService, "gate_rate_allowed", lambda self: False)
+    record_calls: list[tuple] = []
+    monkeypatch.setattr(
+        AIService, "_record",
+        lambda self, provider, model, task, *, ok, error=None, **_:
+            record_calls.append((task, ok, error)),
+    )
+    r = svc.gate_detect("标题", "摘要")
+    assert r is None
+    assert record_calls == [("gate_detect", False, "rate_limited")]
+
+
+def test_gate_detect_provider_unavailable_records_outcome(monkeypatch):
+    """provider 不可用 → _record ok=False error='provider_unavailable'
+    (AI 全静默时最危险的隐形失败, 此前完全不可见)。"""
+    from backend.services.ai_hub import AIService
+
+    svc = AIService()
+    monkeypatch.setattr(AIService, "_resolve_provider", staticmethod(lambda: "sensenova"))
+    monkeypatch.setattr(AIService, "available", lambda self, p=None: False)
+    record_calls: list[tuple] = []
+    monkeypatch.setattr(
+        AIService, "_record",
+        lambda self, provider, model, task, *, ok, error=None, **_:
+            record_calls.append((task, ok, error)),
+    )
+    r = svc.gate_detect("标题", "摘要")
+    assert r is None
+    assert record_calls == [("gate_detect", False, "provider_unavailable")]
+
+
+def test_gate_detect_success_records_usage(monkeypatch):
+    """成功路径同批记账 (与 evaluate 成败双记契约一致) — 否则
+    success_stats 成功率分母失真 (只有失败行会拖低全局成功率)。"""
+    from backend.services.ai_hub import AIService
+
+    svc = AIService()
+    _patch_gate_happy_config(monkeypatch)
+    monkeypatch.setattr(AIService, "_call_sensenova_detect", lambda *a, **k: 0.9)
+    record_calls: list[tuple] = []
+    monkeypatch.setattr(
+        AIService, "_record",
+        lambda self, provider, model, task, *, ok, **_:
+            record_calls.append((task, ok)),
+    )
+    r = svc.gate_detect("标题", "摘要")
+    assert abs(r - 0.9) < 1e-6
+    assert record_calls == [("gate_detect", True)]
+
+
+def test_gate_detect_failure_lands_in_llm_usage_log(temp_db, monkeypatch):
+    """P2-1 验收真值: 超时 → llm_usage_log 实落 ok=0 行 (scene=gate_detect),
+    且 success_stats.fails_by_scene_24h 可聚合 (G2① 清零确认的查询面)。"""
+    from backend.repository.db import get_connection
+    from backend.services.ai_hub import AIService
+    from backend.services.ai_hub.usage import success_stats_24h
+
+    svc = AIService()
+    _patch_gate_happy_config(monkeypatch)
+    monkeypatch.setattr(
+        AIService, "_call_sensenova_detect",
+        lambda *a, **k: (_ for _ in ()).throw(TimeoutError("The read operation timed out")),
+    )
+    assert svc.gate_detect("标题", "摘要") is None
+    row = get_connection().execute(
+        "SELECT ok, error, scene FROM llm_usage_log WHERE scene = 'gate_detect'"
+    ).fetchone()
+    assert row is not None, "llm_usage_log 必须有 gate_detect 行 (outcome≠ok)"
+    assert row["ok"] == 0 and "TimeoutError" in (row["error"] or "")
+    stats = success_stats_24h()
+    assert stats["fails_by_scene_24h"].get("gate_detect") == 1
+
+
 def test_llm_off_by_default_in_context(ctx):
     """默认 GateContext.llm_enabled=False → check 不走 LLM。"""
     from backend.quality.ai_quality_gate import AIQualityGate

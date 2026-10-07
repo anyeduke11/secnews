@@ -441,16 +441,18 @@ def test_full_9_gate_pipeline_ai_item():
     assert result.final_score == 100
 
 
-def test_full_11_gate_pipeline_count():
-    """完整 pipeline 注册了 11 个门禁 (v4.4 ai_quality; DEV-0183 移除 bid_recency)。"""
+def test_full_gate_pipeline_count():
+    """完整 pipeline 注册了 14 个门禁 (v4.4 ai_quality; DEV-0183 移除 bid_recency;
+    DEV-0280 三 gate 入列 expert_reject/expert_flag/semantic_rules)。"""
     cfg = QualityConfig()
     pipe = QualityGatePipeline(cfg, log_repo=_NoopLogRepo())
-    assert len(pipe.gates) == 11
+    assert len(pipe.gates) == 14
     names = {g.name for g in pipe.gates}
     assert names == {
         "schema", "recency", "content", "noise", "category_match", "title_summary",
         "source_reputation", "AuthorVerification", "FinalUrl", "duplicate",
         "ai_quality",
+        "expert_reject", "expert_flag", "semantic_rules",
     }
 
 

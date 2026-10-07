@@ -125,11 +125,12 @@ def fixture_case_with_judgment(temp_db):
 def _create_knowledge(
     svc: KnowledgeService, case_id: str, jid: str, aid: str,
 ) -> str:
-    """通过 mock dsh 走 create_with_dsh, 返 knowledge id."""
-    res = svc.create_with_dsh(
-        case_id=case_id, judgment_id=jid, action_id=aid,
-        subject_name="C12 R16", cve_id="CVE-2026-31337", kind="playbook",
-        evidence_materials=[], submitted_by="test_user",
+    """直种 knowledge draft (P2-4 收编后 create_with_dsh 落提案不直写;
+    C12 契约只关心既有 knowledge 行的采用/失效行为, 与触发路径解耦)。"""
+    parsed = json.loads(_dsh_response())
+    res = svc._insert_draft(
+        case_id=case_id, kind="playbook", parsed=parsed,
+        submitted_by="test_user", source_judgment_id=jid, source_action_id=aid,
     )
     return res["knowledge"]["id"]
 

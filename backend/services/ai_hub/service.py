@@ -321,23 +321,53 @@ class AIService:
         provider: str | None = None, api_key: str | None = None,
         timeout: float = 8.0,
     ) -> float | None:
-        """门禁专用 AI 概率（0..1），带限频；超限/失败返回 None（fail-open）。"""
+        """门禁专用 AI 概率（0..1），带限频；超限/失败返回 None（fail-open）。
+
+        v0.8.6 P2-1 (G2①): 三类 None 路径 (provider 不可用 / 限频 / 调用异常)
+        与成功路径全部经 _record 落 llm_usage_log 显式 outcome (ok + error 语义),
+        维持 fail-open 放行不变 (P0-12 裁决) 但失败可见可数 —— 对照审计
+        ~1,006 次/日静默 WARNING 基线; 场景聚合查 /api/llm/status
+        observability.success_stats.fails_by_scene_24h。
+        """
+        t0 = time.monotonic()
         p = provider or self._resolve_provider()
         if not self.available(p):
+            self._record(p, self._eval_model(p), "gate_detect", ok=False,
+                         error="provider_unavailable", scene="gate_detect",
+                         config_source=self._config_source(),
+                         key_source=self._key_source(p))
             return None
         # 商汤付费：限频；ollama 本地免费不限。
         if p != "ollama" and not self.gate_rate_allowed():
+            self._record(p, self._eval_model(p), "gate_detect", ok=False,
+                         error="rate_limited", scene="gate_detect",
+                         config_source=self._config_source(),
+                         key_source=self._key_source(p))
             return None
         key = api_key if api_key is not None else self._resolve_api_key(p)
         try:
             if p == "ollama":
                 self.gate_rate_mark()
-                return self._call_ollama_detect(title, summary, timeout)
-            self.gate_rate_mark()
-            return self._call_sensenova_detect(title, summary, key, timeout)
+                score = self._call_ollama_detect(title, summary, timeout)
+            else:
+                self.gate_rate_mark()
+                score = self._call_sensenova_detect(title, summary, key, timeout)
         except Exception as e:
+            self._record(p, self._eval_model(p), "gate_detect", ok=False,
+                         error=f"{type(e).__name__}: {e}",
+                         latency_ms=(time.monotonic() - t0) * 1000,
+                         scene="gate_detect",
+                         config_source=self._config_source(),
+                         key_source=self._key_source(p))
             _logger.warning("ai gate-detect failed ({}): {}: {}", p, type(e).__name__, e)
             return None
+        self._record(p, self._eval_model(p), "gate_detect", ok=True,
+                     prompt=f"{title}\n{summary}", response=str(score),
+                     latency_ms=(time.monotonic() - t0) * 1000,
+                     scene="gate_detect",
+                     config_source=self._config_source(),
+                     key_source=self._key_source(p))
+        return score
 
     async def generate_text(
         self,

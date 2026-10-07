@@ -380,8 +380,8 @@ class TestPipelineIntegration:
         assert FinalUrlGate in gclasses
 
     def test_gate_count_is_9(self):
-        """P1: 移除 URLValidityGate; DEV-0183 移除 bid_recency 后同步门禁 11 个。"""
-        assert len(QualityGatePipeline.DEFAULT_GATES) == 11
+        """P1: 移除 URLValidityGate; DEV-0183 移除 bid_recency; DEV-0280 三 gate 入列后 14 个。"""
+        assert len(QualityGatePipeline.DEFAULT_GATES) == 14
 
     def test_gate_order_after_author_verification(self):
         """FinalUrlGate 应在 AuthorVerificationGate 之后、DuplicateGate 之前"""

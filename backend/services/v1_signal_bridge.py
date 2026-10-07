@@ -9,6 +9,8 @@
     hotspots (24h 窗口) → V1AdmissionService.evaluate (info_filter 语义门, gate 默认开)
       → deny    → quarantine (admission_log 留痕, 不产信号)
       → allow/neutral
+          → gateway.score 评分前置 (DEV-0284 轨②: score < MIN_BRIDGE_SCORE=2.5
+            → quarantine 留痕不产信号/stub; None=LLM 失败 fail-open 放行)
           → v1_materials 镜像 (mat+sha256(url|title), 与 V1IngestBridge 同构幂等)
           → v1_signals (unverified)
           → knowledge_items stub (lifecycle=kl:raw) → T1 评分 → ai_scores
@@ -28,6 +30,11 @@ from backend.logging_config import logger
 _BRIDGE_NAME = "hotspot-bridge"
 _WINDOW_HOURS = 24
 _BATCH_LIMIT = 50
+# DEV-0284 轨② (owner 三裁决 2026-10-04): 评分门槛 X=2.5 (0-10 刻度) —
+# 显式低分 → deny + quarantine 留痕, 不产信号/kl:raw stub;
+# score=None (LLM 失败) ≠ 低质量 → fail-open 产信号 (P0-6/E3 诚实语义)。
+# 依据: 7d 桥评分 n=1449 中位 2.5, X=2.5 pass 52% → 转化率 ~0.18 (带内)。
+MIN_BRIDGE_SCORE = 2.5
 
 
 def _sha(text: str) -> str:
@@ -107,7 +114,8 @@ def run_hotspot_signal_bridge(
     summary: dict[str, Any] = {
         "candidates": 0, "mirrored": 0, "signals_committed": 0,
         "signals_idempotent": 0, "denied": 0, "kl_stubs": 0,
-        "scored": 0, "score_skipped": 0, "error": None,
+        "scored": 0, "score_skipped": 0, "denied_by_score": 0,
+        "error": None,
     }
     try:
         from backend.domain.knowledge_models import KnowledgeItem
@@ -115,7 +123,11 @@ def run_hotspot_signal_bridge(
         from backend.repository.knowledge_repo import knowledge_repo
         from backend.services.ai_write_back import write_score
         from backend.services.info_filter_service import list_rules
-        from backend.services.v1_admission_service import AdmissionVerdict, V1AdmissionService
+        from backend.services.v1_admission_service import (
+            AdmissionResult,
+            AdmissionVerdict,
+            V1AdmissionService,
+        )
         from backend.services.v1_evidence_service import IdempotentReplay, V1EvidenceService
 
         conn = get_connection()
@@ -142,6 +154,45 @@ def run_hotspot_signal_bridge(
             admission.quarantine(result, body)  # 全量 verdict 落 admission_log
             if result.verdict is AdmissionVerdict.DENY:
                 summary["denied"] += 1
+                continue
+
+            mat_id = body["id"]
+            kl_id = "kl-" + _sha(f"hotspot:{mat_id}")[:24]
+
+            # ── 轨② score-first (DEV-0284): 评分前置于信号产出 ──────────
+            # ai_scores 是门槛输入, 也是 T4 真门依据 — 桥内评分与生命周期
+            # 解耦的契约不变 (P1-2a), 只是次序提前。
+            try:
+                import asyncio as _asyncio
+
+                from backend.services.ai_hub.gateway import llm_service
+
+                score = _asyncio.run(llm_service.score(
+                    f"{body['title']} {body['summary']}".strip(), kl_id,
+                ))
+                if score is not None:
+                    write_score(kl_id, score, reason="v1-bridge", scorer="gateway.score")
+                    summary["scored"] += 1
+                else:
+                    summary["score_skipped"] += 1
+            except Exception as score_exc:  # 评分失败不阻断分流主链
+                score = None
+                summary["score_skipped"] += 1
+                logger.debug(f"v1_signal_bridge score skipped: {score_exc}")
+
+            # 评分门槛 (X=2.5): 显式低分 → deny + quarantine 留痕, 不产信号/stub。
+            # score=None 走不到这里 (fail-open, LLM 失败 ≠ 低质量)。
+            if score is not None and score < MIN_BRIDGE_SCORE:
+                summary["denied_by_score"] += 1
+                admission.quarantine(
+                    AdmissionResult(
+                        verdict=AdmissionVerdict.DENY,
+                        material_id=mat_id,
+                        matched_rule=None,
+                        reason=f"score_below_threshold: {score:.1f} < {MIN_BRIDGE_SCORE}",
+                    ),
+                    body,
+                )
                 continue
 
             # 每源一个 subject (body 不含时间戳 → IdempotentReplay 幂等, 同 bridge)
@@ -195,9 +246,8 @@ def run_hotspot_signal_bridge(
             except IdempotentReplay:
                 summary["signals_idempotent"] += 1
 
-            # kl:raw stub — 喂 T1 评分链 (upsert 幂等)
+            # kl:raw stub — 喂 T1 评分链 (upsert 幂等); 低分已被上部门槛拦下
             now = _now_iso()
-            kl_id = "kl-" + _sha(f"hotspot:{mat_id}")[:24]
             knowledge_repo.upsert_item(KnowledgeItem(
                 id=kl_id,
                 title=body["title"],
@@ -209,39 +259,18 @@ def run_hotspot_signal_bridge(
                 updated_at=now,
             ))
             summary["kl_stubs"] += 1
-
-            # 桥内直接评分 (P1-2a 定稿裁决): 采集管线在采集时已写 content_fingerprints,
-            # T1 dedup 对 hotspot 派生 stub 恒拦 → T1 评分环节对主流供米永不触达。
-            # 评分与生命周期解耦: 桥对放行条目直接 gateway.score → ai_scores
-            # (失败/不可用 → None → 诚实不写, P0-6/E3 语义; T1 对漏网 kl:raw 仍会评,
-            #  _get_latest_score 取最新一行, 双写无冲突)。
-            try:
-                import asyncio as _asyncio
-
-                from backend.services.ai_hub.gateway import llm_service
-
-                score = _asyncio.run(llm_service.score(
-                    f"{body['title']} {body['summary']}".strip(), kl_id,
-                ))
-                if score is not None:
-                    write_score(kl_id, score, reason="v1-bridge", scorer="gateway.score")
-                    summary["scored"] += 1
-                else:
-                    summary["score_skipped"] += 1
-            except Exception as score_exc:  # 评分失败不阻断分流主链
-                summary["score_skipped"] += 1
-                logger.debug(f"v1_signal_bridge score skipped: {score_exc}")
     except Exception as e:  # 桥故障不反噬主采集流 (job 侧同款隔离)
         summary["error"] = f"{type(e).__name__}: {e}"
         logger.error(f"v1_signal_bridge crashed: {summary['error']}")
         return summary
 
-    # P0-10 纪律: 空转 → 不在 INFO 噪声; 有产出 → INFO 可见 (loguru 风格 f-string, 同 bridge)
-    if summary["signals_committed"] or summary["kl_stubs"]:
+    # P0-10 纪律: 空转 → 不在 INFO 噪声; 有产出 (含评分门槛拒) → INFO 可见
+    if summary["signals_committed"] or summary["kl_stubs"] or summary["denied_by_score"]:
         logger.info(
             f"v1_signal_bridge: candidates={summary['candidates']} "
             f"mirrored={summary['mirrored']} signals+={summary['signals_committed']} "
-            f"denied={summary['denied']} kl_stubs={summary['kl_stubs']}"
+            f"denied={summary['denied']} denied_score={summary['denied_by_score']} "
+            f"kl_stubs={summary['kl_stubs']}"
         )
     return summary
 

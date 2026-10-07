@@ -3,7 +3,7 @@
 拆自 ``backend/api/knowledge_api.py`` (R3 行数收缩): handler 逻辑逐字搬移,
 prefix 由本 router 自带 (惰性展开惯例), URL/method 逐字不变。
 
-- ``POST /api/v1/knowledge/generate``        dsh 调 knowledge_publish 落 draft
+- ``POST /api/v1/knowledge/generate``        dsh 调 knowledge_publish → copilot 提案 (P2-4 收编, 人审后生效)
 - ``POST /api/v1/knowledge/{id}/publish``    draft → published (CAS expected_revision)
 - ``POST /api/v1/knowledge/{id}/deprecate``  published → deprecated (必填 reason + 可选替代)
 - ``POST /api/v1/knowledge/{id}/retract``    published|deprecated → retracted (必填 reason)
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/api/v1/knowledge", tags=["v1-knowledge"])
 
 
 class GenerateKnowledgeRequest(BaseModel):
-    """POST /api/v1/knowledge/generate — dsh 调 knowledge_publish 落 draft."""
+    """POST /api/v1/knowledge/generate — dsh 调 knowledge_publish → copilot 提案 (P2-4)."""
 
     case_id: str = Field(min_length=1, max_length=26)
     judgment_id: str = Field(min_length=1, max_length=26)
@@ -71,7 +71,8 @@ def _generate(req: GenerateKnowledgeRequest) -> dict[str, Any]:
         raise HTTPException(status_code=409, detail={"code": "E_CONFLICT", "message": str(e)})
     return {
         "version": API_VERSION,
-        "item": _knowledge_to_dict(result["knowledge"]),
+        # P2-4 收编: create_with_dsh 落 copilot 提案 (人审后生效), item = proposal dict
+        "item": result["proposal"],
         "idempotent_replay": result["idempotent_replay"],
     }
 

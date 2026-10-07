@@ -7,8 +7,24 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from backend.repository.db import get_connection
 from backend.services.v1_signal_bridge import run_hotspot_signal_bridge
+
+
+@pytest.fixture(autouse=True)
+def _default_score_unavailable(monkeypatch):
+    """DEV-0284 score-first 后桥流程依赖 score 值 — 未显式 mock 的用例默认
+    score=None (fail-open 语义), 防本机真实 pi/sensenova provider 泄入测试流
+    (LLM 输出非确定, 曾致 idempotent 用例随活 LLM 评分摇摆)。"""
+
+    from backend.services.ai_hub import gateway as gw_mod
+
+    async def _none(content: str, hotspot_id: str = "") -> float | None:
+        return None
+
+    monkeypatch.setattr(gw_mod.llm_service, "score", _none)
 
 
 def _seed_hotspot(
@@ -154,6 +170,52 @@ def test_bridge_score_unavailable_writes_nothing(temp_db, monkeypatch) -> None:
     assert summary["scored"] == 0 and summary["score_skipped"] >= 1
     conn = get_connection()
     assert conn.execute("SELECT COUNT(*) FROM ai_scores").fetchone()[0] == 0
+
+
+def test_bridge_low_score_denied_by_score(temp_db, monkeypatch) -> None:
+    """DEV-0284 轨②: score < X=2.5 → quarantine 留痕, 不产信号/stub (owner 三裁决)。
+
+    评分前置于信号产出; 低分条目只落 admission_log (deny + score 理由),
+    kl:raw 不建 (避免 T4 永不推进的死库存)。
+    """
+    _seed_hotspot("h_low", url="https://x/low")
+
+    from backend.services.ai_hub import gateway as gw_mod
+
+    async def _low_score(content: str, hotspot_id: str = "") -> float | None:
+        return 2.0
+
+    monkeypatch.setattr(gw_mod.llm_service, "score", _low_score)
+    summary = run_hotspot_signal_bridge()
+    assert summary["denied_by_score"] == 1
+    assert summary["signals_committed"] == 0 and summary["kl_stubs"] == 0
+    # score 已落 (评分先于门槛判定, ai_scores 是门槛的输入)
+    assert summary["scored"] == 1
+
+    conn = get_connection()
+    assert conn.execute("SELECT COUNT(*) FROM v1_signals").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM knowledge_items").fetchone()[0] == 0
+    # quarantine 留痕带 score 理由 (可回放)
+    q = conn.execute(
+        "SELECT verdict, reason FROM admission_log ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert q is not None and q[0] == "deny"
+    assert "score_below_threshold" in (q[1] or "")
+
+
+def test_bridge_score_equal_threshold_passes(temp_db, monkeypatch) -> None:
+    """边界: score == X → 放行 (>= 语义, 不吃等号)。"""
+    _seed_hotspot("h_eq", url="https://x/eq")
+
+    from backend.services.ai_hub import gateway as gw_mod
+
+    async def _eq_score(content: str, hotspot_id: str = "") -> float | None:
+        return 2.5
+
+    monkeypatch.setattr(gw_mod.llm_service, "score", _eq_score)
+    summary = run_hotspot_signal_bridge()
+    assert summary["denied_by_score"] == 0
+    assert summary["signals_committed"] == 1 and summary["kl_stubs"] == 1
 
 
 def test_migration_132_ai_scores_accepts_kl_ids(temp_db) -> None:

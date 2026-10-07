@@ -101,6 +101,54 @@ def record_missed_job_run(job_type: str, job_id: str,
         return None
 
 
+# 失败优先排序权重 (failed 最先) — 查询面与写面同文件 (job_runs 单表单一 owner)
+_ORDER_RANK = (
+    "CASE status WHEN 'failed' THEN 0 WHEN 'missed' THEN 1 "
+    "WHEN 'running' THEN 2 ELSE 3 END"
+)
+
+
+def query_job_runs(*, cutoff_iso: str, statuses: list[str] | None = None,
+                   job_type: str | None = None, limit: int = 50) -> list[dict]:
+    """SELECT job_runs 窗口查询 (失败优先排序) — v0.8.6 P0-5 查询面。
+
+    DEV-0287 (债务工单 D4): 自 /api/ops/runs 下沉 — api 层禁直连 SQL (R3);
+    原 API 内 SQL 就地注释「不值得下沉」被 R3 守卫测试判违例, 归属反转。
+    statuses=None 或含 'all' 时不加 status 过滤 (summary 语义)。
+    """
+    where = "started_at >= ?"
+    params: list = [cutoff_iso]
+    if statuses:
+        where += f" AND status IN ({','.join('?' * len(statuses))})"
+        params.extend(statuses)
+    if job_type:
+        where += " AND job_type = ?"
+        params.append(job_type)
+    rows = get_connection().execute(
+        f"SELECT id, job_id, job_type, status, started_at, finished_at, "
+        f"duration_ms, error, trace_id FROM job_runs WHERE {where} "
+        f"ORDER BY {_ORDER_RANK}, started_at DESC LIMIT ?",
+        (*params, int(limit)),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def summarize_job_runs(*, cutoff_iso: str, stale_cutoff_iso: str) -> dict:
+    """job_runs 窗口 summary (全状态计数 + stale_running 僵尸计数)。"""
+    summary = dict.fromkeys(("ok", "failed", "missed", "running"), 0)
+    for r in get_connection().execute(
+        "SELECT status, COUNT(*) FROM job_runs WHERE started_at >= ? GROUP BY status",
+        (cutoff_iso,),
+    ).fetchall():
+        if r[0] in summary:
+            summary[r[0]] = r[1]
+    summary["stale_running"] = get_connection().execute(
+        "SELECT COUNT(*) FROM job_runs WHERE status='running' AND started_at < ?",
+        (stale_cutoff_iso,),
+    ).fetchone()[0]
+    return summary
+
+
 # ── agent_runs ───────────────────────────────────────────────────
 
 def start_agent_run(agent: str, protocol: str, task_kind: str | None = None,
@@ -241,9 +289,12 @@ def record_api_call(*, trace_id: str, method: str, path_template: str,
 __all__ = [
     "finish_agent_run",
     "finish_job_run",
+    "query_job_runs",
     "record_api_call",
     "record_audit",
+    "record_missed_job_run",
     "record_process_event",
     "start_agent_run",
     "start_job_run",
+    "summarize_job_runs",
 ]

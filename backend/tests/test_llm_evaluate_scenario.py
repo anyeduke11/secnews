@@ -54,7 +54,7 @@ def test_evaluate_without_scenario_uses_legacy_path(client):
 
 
 def test_evaluate_with_scenario_deep_picks_deepseek(client, monkeypatch):
-    """scenario=deep → model 走 yaml t3_summary = deepseek-v4-pro."""
+    """scenario=deep → model 走 yaml t3_summary (e620b20: deepseek-v4.1-flash)."""
     fake = {
         "ok": True,
         "provider": "sensenova",
@@ -76,8 +76,8 @@ def test_evaluate_with_scenario_deep_picks_deepseek(client, monkeypatch):
     assert r.status_code == 200
     d = r.json()
     assert d["ok"] is True
-    assert d["model"] == "deepseek-v4-pro", (
-        f"scenario=deep 应得 deepseek-v4-pro, 实际 {d.get('model')!r}"
+    assert d["model"] == "deepseek-v4.1-flash", (
+        f"scenario=deep 应得 yaml t3_summary.model, 实际 {d.get('model')!r}"
     )
     assert d["provider"] == "sensenova"
 

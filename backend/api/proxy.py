@@ -15,19 +15,18 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from backend.logging_config import logger
-from backend.version import APP_VERSION as API_VERSION
-
 # cadence 修正批 T5: load/save 以模块属性方式调用 (_pc.*), 让 test_api 的
 # ``patch.object(proxy_config, "save_proxy_settings", wraps=...)`` 文件保护真正生效 —
 # 按值导入曾导致该保护失灵, 测试的 PUT 会把真实 proxy_config.json 写回 off。
 from backend import proxy_config as _pc
+from backend.logging_config import logger
 from backend.proxy_config import (
     BUILTIN_NO_PROXY,
     BUILTIN_PROXY_URL,
     VALID_MODES,
     ProxySettings,
 )
+from backend.version import APP_VERSION as API_VERSION
 
 router = APIRouter(prefix="/api/proxy", tags=["proxy"])
 

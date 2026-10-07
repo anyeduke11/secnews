@@ -43,9 +43,14 @@ SCHEDULER = ROOT / "backend" / "scheduler" / "scheduler.py"
 API_INIT = ROOT / "backend" / "api" / "__init__.py"
 # P0-2 (v0.6.2): register_routers 已拆为薄壳, 实际注册在 _registry.register_all
 # 此处显式登记多文件以保持数字稳定, 禁止仅扫描单文件绕过 CI。
+# DEV-0287 (D5): _registry.py 再拆三半区 (core/flags/extensions), 注册调用分散,
+# 全部登记 (注册点文件清单如实更新, 非绕过)。
 API_ROUTER_SOURCES: tuple[Path, ...] = (
     API_INIT,
     ROOT / "backend" / "api" / "_registry.py",
+    ROOT / "backend" / "api" / "_registry_core.py",
+    ROOT / "backend" / "api" / "_registry_flags.py",
+    ROOT / "backend" / "api" / "_registry_extensions.py",
 )
 COLLECTORS = ROOT / "backend" / "collectors"
 SERVICES = ROOT / "backend" / "services"

@@ -123,8 +123,38 @@ def semantic_verdict(content: str) -> dict:
 
     走 gateway.generate 通用漏斗 (task="semantic_filter"); 全链失败
     generate 返回 "" → _parse_verdict_json fail-open allow。
+
+    DEV-0287 (债务工单 D2): 本函数被采集 loop 线程调用 (collect →
+    fetch_source → _build_items → filter_items → 本函数)。此前在运行中的
+    event loop 上 asyncio.run 必抛 RuntimeError → 被下方 except 吞 →
+    静默 fail-open (uvicorn 启动即日志刷 'coroutine never awaited')。
+    修复: loop 线程检测 → 跳过 LLM 调用 + 落 llm_usage_log 显式 outcome
+    (ok=0, error='event_loop_thread') + WARNING — 与 P2-1「失败必可见」
+    同契约; 非 loop 线程 (脚本/任务队列) asyncio.run 语义不变。
     """
     import asyncio
+
+    from .usage import record_llm_call
+
+    try:
+        asyncio.get_running_loop()
+        in_loop = True
+    except RuntimeError:
+        in_loop = False
+    if in_loop:
+        record_llm_call(
+            provider="n/a", model="n/a", task="semantic_filter",
+            ok=False, error="event_loop_thread: sync semantic_verdict called "
+            "on running loop (采集路径无 LLM 判别, fail-open)",
+            scene="semantic_filter",
+        )
+        from .usage import record_llm_error
+        record_llm_error("semantic_filter", "n/a", "event_loop_thread")
+        log.warning(
+            "semantic_verdict called on event-loop thread — LLM 判别跳过 "
+            "(fail-open allow, 已落 llm_usage_log); 采集路径语义过滤不可用"
+        )
+        return {"verdict": "allow", "reason": "event_loop_thread_fail_open"}
 
     from .gateway import llm_service
 

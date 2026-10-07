@@ -56,7 +56,10 @@ CORE_ROUTERS: frozenset[str] = frozenset({
     "command_bar_api",  # v0.8.6 P1-4: M4 命令栏
     "quality_api",  # v0.8.6 P1-5: 拒收回放
     "quality_rules_api",  # v0.8.6 P2: 两层质量规则管理面
+    "quality_rejection_api",  # DEV-0287 D5: 拒绝统计/信源信誉查询 (quality.py 拆出)
+    "quality_rules_dry_run_api",  # DEV-0287 D5: dry-run 预览 (quality_rules_api 拆出)
     "knowledge_api",
+    "knowledge_classify_api",  # DEV-0287 D5: 分类查询面 (knowledge_import 拆出)
     "observability_audit_api",
     "legacy_migrate_api", "legacy_items_migrate_api", "legacy_migrate_v1_api",
     "v1_signals_api",

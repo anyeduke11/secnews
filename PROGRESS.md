@@ -17,6 +17,17 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-07 v0.8.6 债务工单清偿 D1-D5（5 代码项清零 + 1 环境归档）— DEV-0287
+
+- **D1 legacy 双 job TypeError（根因闭环）**: 全仓同步 def job 仅 3 个——P0-5 `ensure_instrumented` 对同步函数补 async wrapper 后 `await coro()` 对 dict 必抛；+thin async adapter 修复（loop 线程直呼，SQLite 语义不变；踩坑：闭包自递归 → `_orig` 捕获）。+2 测试。
+- **D2 协程警告**: semantic_verdict loop 线程检测 → 跳过 LLM + 落 llm_usage_log 显式 outcome（P2-1 同契约），非 loop 线程语义不变。+2 测试。
+- **D3 llm yaml 断言 ×2**: 断言同步 e620b20 现值；yaml_image 改读「provider+model 非空」真值契约防再漂移。
+- **D4 ops_runs_api SQL 下沉**: query_job_runs/summarize_job_runs 入 observability_records（写读同文件）；api 层归零。
+- **D5 registry 拆分连锁**: _registry.py → 编排壳 + 三半区（core/flags/extensions 全 ≤150）+ middleware/quality/knowledge_import/quality_rules_api 四个漂移文件连锁拆分（quality_rejection_api / token_auth_middleware / knowledge_classify_api / quality_rules_dry_run_api，URL 零变更）；generate_meta 源清单登记；core_routers_completeness AST 扫描面同步；CORE_ROUTERS +3；routers 真值 96→99（3 聚合 router）。**踩坑**: --fix 曾写 0（半区未登记 AST 失明）→ 文档回滚 + 登记 source 后回写。
+- **环境归档**: HOT db 130MB>80MB 体积巡检 = 数据治理工单（vacuum/retention），非代码缺陷不强修。
+- **验证**: 全量 **5271 passed / 1 failed（仅环境项）**；ruff 0；meta OK。需生产重启生效（D1/D2/D4 运行时行为）。
+- **生产验证（重启 18:47 后 30min 窗）**: legacy_migrate_resume 3 连 ok + legacy_promote_due 1 ok，**4/4 零 failed**（历史 failed 24 条全部停在 kill 前最后时间戳 18:43）；D2 即刻可见——重启首采 25 条 `semantic_verdict event_loop_thread` 诚实 WARNING（曾经的静默失败）；4 个拆分端点 200（ops_runs/rejection-stats/classify-stats/dry-run）。
+
 ### 2026-10-07 v0.8.6 t24 终版观测 + P2-1③ 清零确认 → P2 收口 — DEV-0286
 
 - **窗口**: [10-04 09:42:42, 10-07 16:44] = 79.1h 名义窗，**10-05/10-06 机器休眠全零活动**（hotspots/job_runs/signals 三源互证），有效运行 ~20h（10-04 3h + 10-07 16.7h）；pid 98027 跨休眠存活。快照归档 `docs/audit/P2_0_OBS_T24_FINAL_2026-10-07.json`。

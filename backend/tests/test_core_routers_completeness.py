@@ -27,6 +27,13 @@ from backend.core.routers import CONDITIONAL_ROUTERS, CORE_ROUTERS
 from backend.extensions import EXTENSION_ROUTERS
 
 _REGISTRY = Path(__file__).resolve().parents[1] / "api" / "_registry.py"
+# DEV-0287 (D5): _registry.py 拆三半区 (core/flags/extensions) — 扫描面同步,
+# 三半区的 register_* 函数体分类并集 == 原 register_all 语义。
+_REGISTRY_PARTS = (
+    _REGISTRY.parent / "_registry_core.py",
+    _REGISTRY.parent / "_registry_flags.py",
+    _REGISTRY.parent / "_registry_extensions.py",
+)
 
 
 def _alias_map(tree: ast.AST) -> dict[str, str]:
@@ -60,12 +67,34 @@ def _module_of(expr: ast.expr, aliases: dict[str, str]) -> str | None:
 
 
 def _classify_registry() -> tuple[set[str], set[str], set[str]]:
-    """返回 (无条件集, feature 条件集, extension 条件集)。"""
-    tree = ast.parse(_REGISTRY.read_text(encoding="utf-8"))
+    """返回 (无条件集, feature 条件集, extension 条件集)。
+
+    DEV-0287 (D5): 扫描面 = _registry.py 的 register_all + 三半区
+    (_registry_core/_registry_flags/_registry_extensions) 的 register_*
+    — 各文件分类并集 (注册语义按文件切分, 调用顺序不影响集合判定)。
+    """
+    unconditional: set[str] = set()
+    by_flag: set[str] = set()
+    by_extension: set[str] = set()
+    for path in (_REGISTRY, *_REGISTRY_PARTS):
+        if not path.exists():
+            continue
+        u, f, e = _classify_registry_file(path)
+        unconditional |= u
+        by_flag |= f
+        by_extension |= e
+    return unconditional, by_flag, by_extension
+
+
+def _classify_registry_file(
+    path: Path,
+) -> tuple[set[str], set[str], set[str]]:
+    """单文件 AST 分类 (原 _classify_registry 实现体)。"""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
     aliases = _alias_map(tree)
     fn = next(
         n for n in ast.walk(tree)
-        if isinstance(n, ast.FunctionDef) and n.name == "register_all"
+        if isinstance(n, ast.FunctionDef) and n.name.startswith("register")
     )
 
     unconditional: set[str] = set()

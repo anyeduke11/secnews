@@ -123,7 +123,22 @@ def ensure_instrumented(func, job_id: str):
     job_runs 无记录 (审计 R2 静默失败面)。HotspotScheduler.start() 对
     每个 add_job 的 func 走本函数: 已插桩原样返回 (幂等, 不双重记录),
     未插桩以 **scheduler job id** 为 job_type 补一层 instrument_job。
+
+    DEV-0287 (债务工单 D1) 修复: 同步 def job (knowledge_review_due /
+    legacy_promote_due / legacy_migrate_resume) 此前被 async wrapper 直接
+    ``await coro()`` → `'dict' object can't be awaited'` (每 30/60min 必炸,
+    生产 job_runs failed 200+ 条)。同步 func 先包 thin async adapter
+    (仍在 loop 线程执行, SQLite 单线程语义不变), 再交给 instrument_job。
     """
     if getattr(func, "_instrument_job_type", None):
         return func
+    if not asyncio.iscoroutinefunction(func):
+        _orig = func  # 闭包捕获原函数 — func 变量会被重绑, 直接引用会自递归
+
+        async def _sync_runner(*args, **kwargs):
+            # 同步 job 仍在 loop 线程直呼 (SQLite 单线程语义不变, 与旧调度一致)
+            return _orig(*args, **kwargs)
+
+        _sync_runner.__name__ = getattr(func, "__name__", job_id)
+        func = _sync_runner
     return instrument_job(job_id)(func)

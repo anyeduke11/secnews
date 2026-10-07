@@ -19,7 +19,6 @@ LINE_LIMIT = 150
 # 新文件禁止加入; knowledge_api/case_api/sources/secrets 均已于 Batch 3 R3 拆分, 本清单相应收缩。
 # 收缩到 0 后本守卫的行数检查转为无条件生效。
 _LINE_EXEMPTIONS: dict[str, int] = {
-    "_registry.py": 271,
     "action_api.py": 236,
     "alerts.py": 156,
     "artifact_api.py": 198,

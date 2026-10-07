@@ -1,4 +1,18 @@
 
+## [DEV-0287] v0.8.6 债务工单清偿: D1-D5 五项 + 环境项归档 (debt-sweep-d1-d5)
+
+- **时间**: 2026-10-07
+- **类型**: 债务清理 (t24 收口后工单池 6 项; 5 代码 + 1 环境归档)
+- **关联模块**: `backend:scheduler`, `backend:ai-hub`, `backend:observability`, `backend:api`, `backend:core-routers`, `scripts:meta`
+- **D1 legacy 双 job TypeError (根因终于闭环)**: 全仓同步 def job 仅 3 个 (knowledge_review_due / legacy_promote_due / legacy_migrate_resume) — P0-5 `ensure_instrumented` 对同步函数补 async wrapper 后 `await coro()` 对 dict 必抛 `'dict' object can't be awaited`; 生产 failed 200+ 条与三源全吻合 (knowledge_review_due 每日 04:00 一发)。**修法**: ensure_instrumented 对非 coroutine func 先包 thin async adapter (仍 loop 线程直呼, SQLite 单线程语义不变); 踩坑留痕: 闭包引用重绑定变量致自递归 (RecursionError) → `_orig = func` 捕获; adapter 必须本身 async (普通 def 返回 dict 仍炸)。+2 测试 (awaitable / 异常落 failed 行)
+- **D2 ai_hub/tasks.py 协程警告**: semantic_verdict 被采集 loop 线程调用 (collect→fetch_source→_build_items→filter_items), asyncio.run 必抛被吞 → 静默 fail-open + 'coroutine never awaited' 噪声。**修法**: get_running_loop 检测 → loop 线程跳过 LLM + 落 llm_usage_log ok=0 (event_loop_thread) + 错误环 + WARNING (P2-1 同契约「失败必可见」); 非 loop 线程 asyncio.run 语义不变。+2 测试 (loop 可见 / 非 loop 正常)
+- **D3 llm yaml 断言 ×2**: e620b20 有意切 flash 档未同步测试 — test_llm_evaluate_scenario 断言改现值; test_llm_yaml_image 改「provider+model 非空」读真值契约 (不再钉死型号防再漂移)
+- **D4 ops_runs_api 直连 SQL**: SQL 下沉 observability_records.query_job_runs / summarize_job_runs (job_runs 写读同文件单一 owner); api 层归零 — 原「不值得下沉」注释被 R3 守卫判违例, 归属反转入码
+- **D5 _registry.py 291>271 拆分 (牵出连环保卫)**: ①registry 拆三半区 core(98)/flags(147)/extensions(111) + 编排壳 (全部 ≤150, 豁免条目删除单调收缩); ②**middleware.py 224>202** (P0-3 TokenAuth 并入未同步) → 拆 token_auth_middleware.py + re-export; ③**quality.py 306>300** → 拆 quality_rejection_api.py (source-reputation/rejection-log/rejection-stats); ④**knowledge_import 170>150** → 拆 knowledge_classify_api.py; ⑤**quality_rules_api 170>150** (DEV-0280 新文件即超) → 拆 quality_rules_dry_run_api.py (DryRunRequest 契约逐字保留); ⑥generate_meta API_ROUTER_SOURCES 登记三半区 (注册点清单如实更新); ⑦**test_core_routers_completeness AST 扫描面同步** (_classify_registry 改多文件并集); ⑧CORE_ROUTERS +3 聚合模块登记。**踩坑**: --fix 曾把 routers 写 0 (半区未登记 AST 失明) → 文档立即 checkout 回滚 + 登记 source 后真值 99 (96+3 聚合 router, URL 零变更但 AST 口径)
+- **环境项归档**: test_check_temp_db_sizes HOT db 130MB>80MB 阈值 — 真实环境体积巡检非代码缺陷 → 数据治理工单 (maintenance vacuum / retention), 不强修
+- **验证**: 全量 **5271 passed / 1 failed (仅环境体积项)** — D1-D5 全清零; ruff 触碰文件 0; meta --check OK (99 routers 真值回写)
+- **下一可用号**: DEV-0288
+
 ## [DEV-0286] v0.8.6 t24 终版观测 + P2-1③ 清零确认 → P2 阶段收口 (t24-final-p2-close)
 
 - **时间**: 2026-10-07

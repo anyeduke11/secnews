@@ -32,14 +32,16 @@ def test_image_generation_task_override_resolves():
     assert img.n == 1
 
 
-def test_t3_summary_override_upgraded_to_deepseek_v4_pro():
-    """S1: t3_summary.model 由 flash-lite 升 deepseek-v4-pro (yaml-only, deep_read 自动升级)."""
+def test_t3_summary_override_present():
+    """t3_summary task_override 存在且 provider=model 就绪 (e620b20: model 切 deepseek-v4.1-flash 档).
+
+    原断言硬编码 deepseek-v4-pro — e620b20 有意切 flash 档降成本后未同步, 断言改为
+    读 yaml 真值契约: provider=sensenova + model 非空 (不再钉死具体型号, 防下次路由调整再漂移)。
+    """
     cfg = load_llm_config()
     assert cfg is not None
     assert cfg.task_overrides is not None
     t3 = cfg.task_overrides.get("t3_summary")
     assert t3 is not None
     assert t3.provider == "sensenova"
-    assert t3.model == "deepseek-v4-pro", (
-        f"t3_summary.model 应为 deepseek-v4-pro, 实际 {t3.model!r}"
-    )
+    assert t3.model, f"t3_summary.model 应非空, 实际 {t3.model!r}"

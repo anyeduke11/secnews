@@ -92,6 +92,46 @@ def test_ensure_instrumented_wraps_plain_func() -> None:
     assert getattr(wrapped, "_instrument_job_type", None) == "sm2_daily_push"
 
 
+def test_ensure_instrumented_sync_job_awaitable(temp_db) -> None:
+    """DEV-0287 (D1): 同步 def job 被包装后必须可 await 且返回值正确。
+
+    回归根因: sync def 直接进 async wrapper → `await coro()` 对 dict 抛
+    `'dict' object can't be awaited` — legacy 双 job + knowledge_review_due
+    生产 failed 200+ 条 (每 30/60min 必炸)。
+    """
+    import asyncio
+
+    def _sync_job() -> dict:
+        return {"ok": 1}
+
+    wrapped = jobs_mod.ensure_instrumented(_sync_job, "legacy_promote_due")
+    assert asyncio.iscoroutinefunction(wrapped)
+    result = asyncio.run(wrapped())
+    assert result == {"ok": 1}
+
+
+def test_ensure_instrumented_sync_job_exception_recorded(temp_db) -> None:
+    """同步 job 抛错 → wrapper 正常落 job_runs failed (而非误报 awaited 错)。"""
+    import asyncio
+
+    def _boom() -> dict:
+        raise ValueError("sync boom")
+
+    wrapped = jobs_mod.ensure_instrumented(_boom, "legacy_migrate_resume")
+    try:
+        asyncio.run(wrapped())
+        raised = False
+    except ValueError as e:
+        raised = True
+        assert str(e) == "sync boom"
+    assert raised
+    row = get_connection().execute(
+        "SELECT status, error FROM job_runs WHERE job_type='legacy_migrate_resume' "
+        "ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert row is not None and row[0] == "failed" and "sync boom" in row[1]
+
+
 def test_ensure_instrumented_idempotent() -> None:
     """已插桩的 job 不双重包装 (双重包装 = 一次执行写两行 job_runs)。"""
     once = jobs_mod.ensure_instrumented(_plain_job, "collect_all")

@@ -1,4 +1,17 @@
 
+## [DEV-0301] uvloop SIGTERM 停机盲区根因修复 — 排空超时有界化 (sigterm-shutdown-bound)
+
+- **时间**: 2026-10-08
+- **类型**: 根因修复 (owner 点名; 推翻 DEV-0297 错误假设, 诚实更正)
+- **关联模块**: `run.py`, `backend:main`, `ops:process`
+- **假设更正 (Rule 12)**: DEV-0297 记录的「uvloop 不接管默认信号处理」**系误判** — 取证 (端口立释) 证明 SIGTERM **已**正确触发 uvicorn shutdown; uvicorn 经 loop.add_signal_handler 安装处理器, uvloop 完全支持
+- **真根因**: `timeout_graceful_shutdown` 默认 `None` → `Server.shutdown()` 的连接排空 `asyncio.wait_for(tasks, timeout=None)` **无限等待** — `/mcp/sse`、`/api/events` SSE 长连接对 `connection.shutdown()` 永不完成 (流式响应无边界), 主线程停在排空阶段, lifespan 关闭链 (drain/scheduler.stop/wal checkpoint) 永远走不到; 08:18 调度器冻结同源于进程长期滞留半关闭态
+- **修复**: 两个入口 (`run.py` + `backend/main.py.__main__`) uvicorn.run 加 `timeout_graceful_shutdown=HOTSPOT_SHUTDOWN_TIMEOUT (默认 15s)` — 到期 uvicorn cancel 残余任务后继续走 lifespan 关闭链; 与 lifespan 内 drain (HOTSPOT_GRACEFUL_TIMEOUT 默认 30s) 分段有界, 总停机 ≤45s 可预期
+- **实弹验证 (SIGTERM 单发)**: **2 秒干净退出** (修复前 30s+ 不退需 SIGKILL); 生产 pid 16372 重启后心跳 ok / health 200
+- **运维纪律回滚**: SIGTERM→10s→SIGKILL 的 SIGKILL 兜底保留作保险, 但常规路径恢复纯 SIGTERM 可靠停机; DEV-0297 「停机顺序」条目以本条为准
+- **验证**: py_compile OK; 实弹计时退出 ✓; health/调度器心跳 ok
+- **下一可用号**: DEV-0302
+
 ## [DEV-0300] CVE 空壳治理 + NVD 回源 + 奇安信式漏洞模板 (cve-enrich-template)
 
 - **时间**: 2026-10-08

@@ -376,6 +376,8 @@ if __name__ == "__main__":  # pragma: no cover
         host=resolve_bind_host(host),
         port=int(os.getenv("HOTSPOT_PORT") or os.getenv("PORT", str(config.port))),
         reload=False,
+        # DEV-0301: 与 run.py 同款有界停机 (SSE 长连接不设界会无限排空)。
+        timeout_graceful_shutdown=float(os.getenv("HOTSPOT_SHUTDOWN_TIMEOUT", "15")),
     )
 
 

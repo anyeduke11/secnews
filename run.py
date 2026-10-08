@@ -42,6 +42,11 @@ def main() -> None:
     refuse_if_locked(port=port)
 
     workers = int(os.getenv("WORKERS", "1"))
+    # DEV-0301 根因修复: SIGTERM「盲区」真因 = timeout_graceful_shutdown
+    # 默认 None → 连接排空无限等待 (SSE /mcp/sse、/api/events 长连接永不
+    # 完成)。加有界超时: 到期 uvicorn cancel 残余任务后继续 lifespan 关闭。
+    # 与 lifespan 内 drain (HOTSPOT_GRACEFUL_TIMEOUT, 默认 30s) 分段有界。
+    shutdown_timeout = float(os.getenv("HOTSPOT_SHUTDOWN_TIMEOUT", "15"))
     uvicorn.run(
         "backend.main:app",
         host=host,
@@ -49,6 +54,7 @@ def main() -> None:
         workers=workers,
         reload=False,
         log_level="info",
+        timeout_graceful_shutdown=shutdown_timeout,
     )
 
 

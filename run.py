@@ -56,15 +56,29 @@ def main() -> None:
     from backend.utils.sigterm_sentinel import arm_sigterm_sentinel
 
     arm_sigterm_sentinel()
-    uvicorn.run(
-        "backend.main:app",
-        host=host,
-        port=port,
-        workers=workers,
-        reload=False,
-        log_level="info",
-        timeout_graceful_shutdown=shutdown_timeout,
-    )
+    # DEV-0303 R2: 退出尾闸 — uvicorn.run 返回 (或异常) 后立即硬退出,
+    # 跳过解释器 join 非守护线程阶段 (STIX 图谱点火等后台线程可挂死退出)。
+    exit_code = 0
+    try:
+        uvicorn.run(
+            "backend.main:app",
+            host=host,
+            port=port,
+            workers=workers,
+            reload=False,
+            log_level="info",
+            timeout_graceful_shutdown=shutdown_timeout,
+        )
+    except BaseException:
+        import traceback
+
+        traceback.print_exc()
+        exit_code = 1
+        raise
+    finally:
+        from backend.utils.shutdown import guaranteed_exit
+
+        guaranteed_exit(exit_code)
 
 
 if __name__ == "__main__":

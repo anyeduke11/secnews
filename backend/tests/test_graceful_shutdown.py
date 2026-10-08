@@ -165,3 +165,25 @@ class TestWalCheckpoint:
 
         monkeypatch.setattr(shutdown_mod.repo_db, "get_connection", lambda: _BrokenConn())
         assert wal_checkpoint() is False
+
+
+# ---------------------------------------------------------------------------
+# DEV-0303 R2: guaranteed_exit 解释器退出尾闸
+# ---------------------------------------------------------------------------
+class TestGuaranteedExit:
+    def test_hard_exits_with_given_code(self, monkeypatch):
+        """os._exit 以传入码执行 — 跳过 atexit/join 是行为前提, 不可直接测。"""
+        calls: list[int] = []
+        monkeypatch.setattr("os._exit", lambda code: calls.append(code))
+        shutdown_mod.guaranteed_exit(3)
+        assert calls == [3]
+
+    def test_survives_logger_failure(self, monkeypatch):
+        """loguru 完整性刷洗失败也不阻断硬退出 (关闭路径永不抛)。"""
+        calls: list[int] = []
+        monkeypatch.setattr("os._exit", lambda code: calls.append(code))
+        monkeypatch.setattr(
+            shutdown_mod._logger, "complete", lambda: (_ for _ in ()).throw(RuntimeError("sink gone"))
+        )
+        shutdown_mod.guaranteed_exit(0)
+        assert calls == [0]

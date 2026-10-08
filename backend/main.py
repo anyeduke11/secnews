@@ -388,16 +388,27 @@ if __name__ == "__main__":  # pragma: no cover
 
     from backend.config import config, resolve_bind_host
     host = os.getenv("HOTSPOT_HOST") or os.getenv("HOST", config.host)
-    uvicorn.run(
-        "backend.main:app",
-        # P0-B: 复用 run.py 的回环守卫 (backend.config.resolve_bind_host),
-        # 修复此前 __main__ 分支绕过守卫直接绑 config.host 的问题。
-        host=resolve_bind_host(host),
-        port=int(os.getenv("HOTSPOT_PORT") or os.getenv("PORT", str(config.port))),
-        reload=False,
-        # DEV-0301: 与 run.py 同款有界停机 (SSE 长连接不设界会无限排空)。
-        timeout_graceful_shutdown=float(os.getenv("HOTSPOT_SHUTDOWN_TIMEOUT", "15")),
-    )
+    # DEV-0303 R2: 与 run.py 同款退出尾闸 — 硬退出跳过 join 非守护线程阶段。
+    _exit_code = 0
+    try:
+        uvicorn.run(
+            "backend.main:app",
+            # P0-B: 复用 run.py 的回环守卫 (backend.config.resolve_bind_host),
+            # 修复此前 __main__ 分支绕过守卫直接绑 config.host 的问题。
+            host=resolve_bind_host(host),
+            port=int(os.getenv("HOTSPOT_PORT") or os.getenv("PORT", str(config.port))),
+            reload=False,
+            # DEV-0301: 与 run.py 同款有界停机 (SSE 长连接不设界会无限排空)。
+            timeout_graceful_shutdown=float(os.getenv("HOTSPOT_SHUTDOWN_TIMEOUT", "15")),
+        )
+    except BaseException:
+        import traceback
+        traceback.print_exc()
+        _exit_code = 1
+        raise
+    finally:
+        from backend.utils.shutdown import guaranteed_exit
+        guaranteed_exit(_exit_code)
 
 
 def _check_skill_run_version_compatibility() -> None:

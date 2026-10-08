@@ -104,3 +104,44 @@ def test_sse_stream_shape_unchanged():
         await gen.aclose()
 
     asyncio.run(scenario())
+
+
+# ---------------------------------------------------------------------------
+# DEV-0303 R2 — 哨兵包装吞掉 uvicorn 信号重放 (保住 run.py 尾闸)
+# ---------------------------------------------------------------------------
+def test_sentinel_wrapper_clears_captured_signals(monkeypatch):
+    """handle_exit 包装: 原流程执行 + request_shutdown 置位 + _captured_signals 清空。
+
+    不清空 → uvicorn capture_signals 退出时恢复默认 handler 后 re-raise
+    SIGTERM → 进程信号死, run.py 的 finally/guaranteed_exit 永不执行。
+    """
+    from types import SimpleNamespace
+
+    from backend.utils.sigterm_sentinel import arm_sigterm_sentinel
+
+    calls: list[str] = []
+
+    def fake_original(self, sig, frame):
+        calls.append("original")
+        self.should_exit = True
+
+    monkeypatch.setattr(
+        "uvicorn.server.Server.handle_exit", fake_original, raising=False
+    )
+    from uvicorn.server import Server
+
+    monkeypatch.setattr(
+        Server, "_sigterm_sentinel_armed", False, raising=False
+    )  # 复位类级幂等标志, 保用例自洽
+    arm_sigterm_sentinel()
+
+    import signal as _signal
+
+    dummy = SimpleNamespace(_captured_signals=[_signal.SIGTERM], should_exit=False)
+
+    Server.handle_exit(dummy, _signal.SIGTERM, None)  # type: ignore[arg-type]
+
+    assert calls == ["original"]
+    assert dummy.should_exit is True
+    assert dummy._captured_signals == [], "信号重放必须被吞掉, 否则尾闸永不执行"
+    assert core_events.is_shutdown_requested()

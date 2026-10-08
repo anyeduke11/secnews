@@ -1,4 +1,21 @@
 
+## [DEV-0303] 停机链 R2/R4/R5/R7 收口 — 退出尾闸 + 孤儿自动收割 + 重启 SOP (shutdown-r2-r4-r5-r7)
+
+- **时间**: 2026-10-09
+- **类型**: 可靠性加固 (owner 立案 R2/R4/R5/R7 四项; 接续 DEV-0301/0302)
+- **关联模块**: `backend:shutdown`, `backend:instance-lock`, `backend:sigterm-sentinel`, `run.py`, `backend:main`, `scripts:restart-backend`, `docs:runbook`
+- **R7 查证结案 (无代码修复)**: 主调度器 `AsyncIOScheduler`+`AsyncIOExecutor` — job 跑在 event loop 上, **无线程** ✓; `PlaybookScheduler` (BackgroundScheduler, job 池 Python 3.9+ 非守护) **生产未挂载** (X-B3 无消费点治理, 仅测试直连) — 休眠代码; 若未来接线须先补 lifespan stop + daemon 池, 否则长 job 会挂住解释器退出
+- **R2 真实实例取证**: `main.py:271` 图谱点火 `run_in_executor(None)` 把 STIX bundle 下载 (分钟级, 注释自证) 丢进 asyncio 默认线程池 (非守护) — 停机窗口撞上 → 解释器 `threading._shutdown` join 非守护线程 → 挂死退出
+- **R2 关键发现 (推翻尾闸第一版, 实弹三轮)**: uvicorn `capture_signals` 退出时恢复默认 handler 后 **`signal.raise_signal` 重放**捕获信号 (`server.py` L335-336) → 进程直接信号死, `uvicorn.run` 不返回, run.py `finally` 尾闸**永不执行** — 实测: ①旧进程 TERM 停机 0s 但 guaranteed_exit 日志缺失 + exit -15; ②哨兵进程 0.53s 退出尾闸日志仍缺 → 锁定重放; **修复: 哨兵包装在原 handler 后清空 `_captured_signals` 吞重放**
+- **R2 尾闸**: `shutdown.guaranteed_exit(code)` — loguru complete 刷洗 + `os._exit`; `run.py` 与 `backend.main.__main__` try/finally 挂载 (异常路径 traceback + exit 1 保 fail-loud); 跳过 atexit/join 阶段, 进程退出时间有确定上界
+- **R4 孤儿自动收割**: `instance_lock.reap_conflict_group` — `ps -axo pid=,user=,pgid=,command=` 枚举组成员, 安全裁决 (≥1 成员命中后端签名 backend.main/uvicorn/run.py + 全员同用户) → TERM 6s → 逃逸 KILL 3s; 裁决不过 (pgid 复用陌生组 / 异主进程 / ps 枚举失败) 维持拒绝 exit 2 — 宁拒勿错杀; `refuse_if_locked` 收割成功自动重取锁放行 → **单命令重启** (`python run.py` 自愈残留)
+- **R5 SOP 脚本**: `scripts/restart_backend.sh` — 定位 listener 所在 pgid → TERM 整组 (同组保护防脚本自杀) → 有界等端口释放 (默认 20s, `HOTSPOT_STOP_WAIT` 可调) → 超时逃逸 KILL → `exec run.py` 前台启动; 全程计时; RUNBOOK「紧急止血」段改脚本为标准动作 (手工四步降为兜底)
+- **实弹终验 (第三轮)**: 带 catchup 采集在跑时 TERM → `guaranteed_exit: hard exit (code=0)` 落日志 + drain 内省收尾后放行 + wal truncated → **2.63s 干净退出, 脚本 exit 0** (对照: DEV-0301 前无限排空 17s+, SIGTERM 盲区需 SIGKILL)
+- **测试**: test_sse_shutdown +1 (哨兵吞重放契约: 原流程执行/should_exit/_captured_signals 清空/哨兵置位四断言), test_instance_lock +10 (ps 解析/签名匹配/四拒绝路径/TERM 成功/KILL 逃逸/收割放行/裁决不过 exit2), test_graceful_shutdown +2 (os._exit 退出码/loguru 失败不阻断); 三文件 **39 passed**; ruff 0
+- **遗留**: R5「≥45s」实测已消 (典型 0.5-2.6s; 理论上界 uvicorn 15s + drain 30s 分段有界); 启动 catchup 压满 event loop 时 health 探活偶发 >8s 超时 (HTTP 000 瞬时, 稳态 200 — 观察项, 与本批无关)
+- **生产**: pid 67544 已载全部修复 (health 200, 58 jobs 在册)
+- **下一可用号**: DEV-0304
+
 ## [DEV-0302] 停机链 R1+R3 修复 — SSE 停机哨兵前置 + watchdog 优雅停机 (shutdown-r1-r3)
 
 - **时间**: 2026-10-08

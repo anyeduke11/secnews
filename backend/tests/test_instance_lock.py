@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import getpass
 import os
 
 import pytest
@@ -83,3 +84,128 @@ def test_refuse_passes_when_all_clear(tmp_path):
     lock = tmp_path / "hotspot.lock"
     il.refuse_if_locked(lock_path=lock, port=0)  # port 0 不可 connect → 未持有
     assert lock.exists()
+
+
+# ---------------------------------------------------------------------------
+# DEV-0303 R4: 冲突进程组安全自动收割
+# ---------------------------------------------------------------------------
+_CURRENT_USER = getpass.getuser()
+
+
+def _ps_rows(rows: list[str], monkeypatch):
+    """mock ps 输出 (pid user pgid command)。"""
+
+    class _Out:
+        stdout = "\n".join(rows)
+
+    monkeypatch.setattr(il.subprocess, "run", lambda *a, **k: _Out())
+
+
+def test_group_members_parses_ps_output(monkeypatch):
+    _ps_rows(
+        [
+            "  101  duke   4242  /usr/local/bin/python run.py",
+            "  102  duke   4242  dsh --serve",
+            "   77  duke      1  launchd",
+        ],
+        monkeypatch,
+    )
+    members = il._group_members(4242)
+    assert [(p, u) for p, u, _ in members] == [(101, "duke"), (102, "duke")]
+    assert "run.py" in members[0][2]
+
+
+def test_looks_backend_signature():
+    assert il._looks_backend(".venv/bin/python -m uvicorn backend.main:app")
+    assert il._looks_backend("python run.py")
+    assert not il._looks_backend("/bin/picom --daemon")  # 陌生进程不算
+    assert not il._looks_backend("vim notes.txt")
+
+
+def test_reap_dead_group_is_noop(monkeypatch):
+    monkeypatch.setattr(il, "_pgid_alive", lambda pgid: False)
+    assert il.reap_conflict_group(999) == (True, "group already dead")
+
+
+def test_reap_refuses_without_backend_signature(monkeypatch):
+    """组内全是陌生进程 → 不动手 (防 pgid 复用错杀)。"""
+    monkeypatch.setattr(il, "_pgid_alive", lambda pgid: True)
+    monkeypatch.setattr(il, "_group_members", lambda pgid: [(100, _CURRENT_USER, "vim notes.txt")])
+    ok, reason = il.reap_conflict_group(4242)
+    assert ok is False
+    assert "signature" in reason
+
+
+def test_reap_refuses_foreign_user(monkeypatch):
+    """组内有异主进程 → 不动手 (宁拒勿错杀)。"""
+    monkeypatch.setattr(il, "_pgid_alive", lambda pgid: True)
+    monkeypatch.setattr(
+        il,
+        "_group_members",
+        lambda pgid: [(100, _CURRENT_USER, "python run.py"), (101, "root", "dsh --serve")],
+    )
+    ok, reason = il.reap_conflict_group(4242)
+    assert ok is False
+    assert "foreign users" in reason and "root" in reason
+
+
+def test_reap_refuses_unenumerable_alive_group(monkeypatch):
+    """killpg 探活存活但 ps 枚举为空 → 不动手。"""
+    monkeypatch.setattr(il, "_pgid_alive", lambda pgid: True)
+    monkeypatch.setattr(il, "_group_members", lambda pgid: [])
+    ok, reason = il.reap_conflict_group(4242)
+    assert ok is False
+    assert "not enumerable" in reason
+
+
+def test_reap_term_success(monkeypatch):
+    """TERM 后组灭 → 收割成功, 只发 TERM。"""
+    signals: list[int] = []
+    alive_iters = iter([True, False])  # 首次探活: 活; TERM 后轮询: 灭
+    monkeypatch.setattr(il, "_pgid_alive", lambda pgid: next(alive_iters))
+    monkeypatch.setattr(il.os, "killpg", lambda pgid, sig: signals.append(sig))
+    monkeypatch.setattr(il.time, "sleep", lambda s: None)
+    monkeypatch.setattr(
+        il, "_group_members", lambda pgid: [(100, _CURRENT_USER, "python run.py")]
+    )
+    ok, detail = il.reap_conflict_group(4242)
+    assert ok is True and "SIGTERM" in detail
+    assert signals == [il.signal.SIGTERM]
+
+
+def test_reap_escalates_to_kill(monkeypatch):
+    """TERM 超时 → 逃逸 SIGKILL。"""
+    signals: list[int] = []
+    monkeypatch.setattr(il, "_pgid_alive", lambda pgid: True)  # 一直活着
+    monkeypatch.setattr(il.os, "killpg", lambda pgid, sig: signals.append(sig))
+    monkeypatch.setattr(il, "_group_members", lambda pgid: [(100, _CURRENT_USER, "python run.py")])
+    ok, detail = il.reap_conflict_group(4242, term_wait=0.2, kill_wait=0.2)
+    assert ok is False and "SIGKILL" in detail
+    assert signals == [il.signal.SIGTERM, il.signal.SIGKILL]
+
+
+def test_refuse_if_locked_autoreaps_then_proceeds(tmp_path, monkeypatch):
+    """锁冲突 → 自动收割成功 → 重新取锁放行 (单命令重启语义)。"""
+    results = iter([111, None])  # 首次 acquire: 冲突; 收割后 acquire: 通过
+    monkeypatch.setattr(il, "acquire_instance_lock", lambda lock_path=None: next(results))
+    reap_calls: list[int] = []
+    monkeypatch.setattr(
+        il,
+        "reap_conflict_group",
+        lambda pgid, **kw: reap_calls.append(pgid) or (True, "reaped after SIGTERM"),
+    )
+    monkeypatch.setattr(il, "_port_held", lambda port, host="127.0.0.1": False)
+    il.refuse_if_locked(lock_path=tmp_path / "hotspot.lock", port=0)  # 不抛
+    assert reap_calls == [111]
+
+
+def test_refuse_if_locked_reap_refusal_exits(tmp_path, monkeypatch):
+    """收割裁决不过 → 维持拒绝 (exit 2) 并保留清理指引。"""
+    results = iter([111])
+    monkeypatch.setattr(il, "acquire_instance_lock", lambda lock_path=None: next(results))
+    monkeypatch.setattr(
+        il, "reap_conflict_group", lambda pgid, **kw: (False, "no hotspot backend signature")
+    )
+    with pytest.raises(SystemExit) as ei:
+        il.refuse_if_locked(lock_path=tmp_path / "hotspot.lock", port=0)
+    assert ei.value.code == 2

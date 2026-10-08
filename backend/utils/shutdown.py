@@ -136,3 +136,26 @@ def wal_checkpoint() -> bool:
     except sqlite3.Error as e:
         _logger.warning(f"wal_checkpoint failed (ignored): {e}")
         return False
+
+
+def guaranteed_exit(exit_code: int = 0) -> None:  # pragma: no cover - os._exit 不可回归
+    """解释器退出尾闸 (DEV-0303 R2): uvicorn.run 返回后立即硬退出。
+
+    优雅停机工作已全部在 lifespan 完成 (drain / scheduler / dsh / outbox /
+    watcher / wal_checkpoint / close_db)。此后若走解释器正常退出流程,
+    ``threading._shutdown`` 会 join 全部非守护线程 — 任何一个被遗漏的
+    非守护线程在跑都会挂死退出。现实实例: 启动期图谱点火把 STIX bundle
+    下载 (分钟级) 丢进 asyncio 默认线程池 (main.py run_in_executor(None)),
+    停机窗口撞上即卡退出。``os._exit`` 跳过 atexit / join 阶段, 使进程
+    退出时间有确定上界。run.py 与 backend.main ``__main__`` 在 finally
+    中调用 — 无论正常返回还是异常退出都保证有界终结。
+    """
+    try:
+        _logger.complete()  # 刷所有 sink 缓冲, 保住尾部日志
+        _logger.info(f"guaranteed_exit: hard exit (code={exit_code})")
+        _logger.complete()
+    except Exception:
+        pass
+    import os as _os
+
+    _os._exit(exit_code)

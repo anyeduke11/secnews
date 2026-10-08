@@ -61,7 +61,7 @@ curl http://127.0.0.1:8000/api/health | jq '.components.scheduler'
 
 | 症状 | 排查 |
 |------|------|
-| 端口 8000 占用 | `lsof -i :8000` → 找 PID → `kill <pid>` |
+| 端口 8000 占用 | `scripts/restart_backend.sh --stop-only`（TERM 整组→有界等→逃逸 KILL, R5 SOP）；手工兜底 `lsof -i :8000` → 找 PID → `kill <pid>` |
 | 端口 8898 占用 | `lsof -i :8898` → 8898 是受保护端口（CodeGarden 资源中枢），禁止释放 |
 | 启动后端报错 | 检查 `.venv` 是否激活，`pip install -r backend/requirements.txt` |
 | 前端启动报错 | `cd frontend && npm install` 重新安装依赖 |
@@ -129,14 +129,29 @@ curl -X POST http://127.0.0.1:8000/api/catchup/abort \
 
 如果 22h+ 假死、watchdog 也没救回来：
 
+**标准动作（DEV-0303 R5 SOP 脚本, 推荐）**：
+
+```bash
+scripts/restart_backend.sh
+# TERM 整组 → 有界等端口释放 (默认 20s) → 超时逃逸 KILL → 前台启动
+# 只停不起: scripts/restart_backend.sh --stop-only
+# 自定义等待: HOTSPOT_STOP_WAIT=30 scripts/restart_backend.sh
+```
+
+停机现在是有界且快的（DEV-0301/0302/0303）：SSE 停机哨兵让长连接 1s 内终结、
+退出尾闸保证进程必死不挂、残留进程组由启动闸自动收割（R4）。
+典型停机 ~2s, 上界 ~20s（HOTSPOT_STOP_WAIT 可调）。
+
+**手工兜底**（脚本不可用时）：
+
 ```bash
 # 1) 找后端 PID
 ps aux | grep "uvicorn\|python run.py" | grep -v grep
 
-# 2) 杀进程
-kill <pid>
+# 2) 杀进程 (优先整组, 含 uvicorn 子进程/dsh 等同组子进程)
+kill <pid>          # 或: kill -TERM -- -<pgid>
 
-# 3) 重启 (冷启动重置 asyncio.Lock 残影)
+# 3) 重启 (冷启动重置 asyncio.Lock 残影; 残留进程组会被启动闸自动收割)
 python run.py
 
 # 4) 冷启动后会立即跑一次 collect_all (collect_all_job 启动触发),

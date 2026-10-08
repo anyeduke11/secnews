@@ -1,4 +1,15 @@
 
+## [DEV-0293] P3 生产重启 + 双实例僵尸事故处置 + 观测窗重锚 (p3-restart-incident)
+
+- **时间**: 2026-10-08
+- **类型**: 运维/事故处置 (P3 交付生效重启; 双实例污染 + 调度器冻结事件; 观测窗重锚)
+- **关联模块**: `ops:process`, `backend:info-filter`, `backend:scheduler`, `docs:ledger`
+- **时间线 (本地)**: ①07:41:42 SIGTERM 旧实例 96139 — socket 关闭 (lsof 判"已停") 但其 app 子进程 96140 存活 → **双实例共写 DB 2h+** (旧代码 filter_items 的 D2 记账持续产生 event_loop_thread ok=0 行 203+; 30min tick 双跑: 00:11 新 + 00:17 旧)。②新实例 79254 (07:41) F 功能真跑: post-ingest 判别 checked 37 / reject 3 (HackerNews 软文拒收带 reason 可回溯), semantic_filter **ok=1 记账 37 行** (按 task 维度; 按 scene 查为 0 是口径陷阱 — gateway 路径记 task, D2 失败路径才记 scene)。③**08:18:52-08:19:21 两实例调度器 30s 内相继冻结** (79254 末日志 08:18:54 collect warning 无异常无 traceback; 僵尸末 DB 行 08:19:21), API 线程仍存活, 冻结根因事后不可考 (无 py-spy 现场; 与 post-ingest LLM 循环时间重叠, 列为观察项非定论)。④~09:50 kill -9 僵尸; 79254 已消亡 (冻结后静默退出)。⑤**09:55:28 pid 9602 启动** (外部启动, 推定 owner 手动), 同 commit 34f1bba; 调度器 09:58 起 30s 级 job 恢复 ✓; catchup 78 源跑通。
+- **教训 (流程)**: 重启验证不能只看 `lsof 端口释放` — 必须 `ps` 确认进程树全清 (run.py 父子进程); SIGTERM 对 uvicorn 父进程不保证子进程退出。观测窗数据以 llm_usage_log task 维度为准。
+- **观测窗重锚**: **t0 = 2026-10-08 09:55:28 (pid 9602)**, D (rate_limited<20%) 与 F (判别量>0 且采集无劣化) 24h 窗 → 10-09 09:55 后复核; 07:41-09:55 时段数据标注污染不作观测样本。
+- **观察项 (非验收)**: 9602 能否平安度过首个完整 post-ingest tick (~10:25); 若调度器再次冻结, 立即 py-spy 现场采样定位 (怀疑方向: tick 内串行 LLM 循环 × asyncio.run 频繁建环, 未证实)。3 条 stale running 行 (含 tick-1791418312) 留给 watchdog 老化, 不手工改。
+- **下一可用号**: DEV-0294
+
 ## [DEV-0292] v0.8.7 P3-F: 语义过滤异步化 post-ingest 化 (p3-f-semantic-async)
 
 - **时间**: 2026-10-07

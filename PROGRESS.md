@@ -17,6 +17,13 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-08 P3 生产重启 + 双实例僵尸事故 + 观测窗重锚 — DEV-0293
+
+- **事故**: 07:41 重启 SIGTERM 只杀了持 socket 的父进程, app 子进程 96140 存活 → **双实例共写 2h+**（旧代码 D2 记账 203+ event_loop_thread 行 / tick 双跑）；08:18:52-08:19:21 **两实例调度器相继冻结**（无 traceback，根因事后不可考，与 post-ingest LLM 循环时间重叠列观察项）；09:50 kill -9 清僵尸；09:55:28 pid 9602 启动（外部/推定 owner），调度器恢复 ✓。
+- **F 生效实证（污染窗内）**: post-ingest 判别 checked 37 / reject 3（HackerNews 软文拒收带 reason 可回溯）；semantic_filter ok=1 记账 37 行——**按 task 维度查**（按 scene 查为 0 是口径陷阱）。
+- **观测窗重锚**: **t0 = 2026-10-08 09:55:28 (pid 9602)**；D (rate_limited<20%) / F (判别量>0 且采集无劣化) 24h → 10-09 09:55 后复核；07:41-09:55 数据标注污染不作样本。
+- **观察项**: 9602 过首个完整 post-ingest tick（~10:25）；再冻结即 py-spy 现场采样。教训：重启验证必须 `ps` 确认进程树全清，不能只看端口释放。
+
 ### 2026-10-07 v0.8.7 P3 全部交付（C/D/E/B/F 五工单 + 收尾）— DEV-0289~0292
 
 - **C KPI 口径切换**: 新 `kpi_service.py`（triage_latency P50/P90 诚实跳过无信号 case / artifact_yield「done 必有产物」对账面 / signals_ratio 降级参考）+ `GET /api/ops/kpi`；PRD §1.4 成功指标改写（转化率带退场）。test_kpi_api 5 passed（fixture 三连坑留痕）。

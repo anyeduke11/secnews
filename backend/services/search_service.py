@@ -22,6 +22,24 @@ from __future__ import annotations
 
 from backend.repository.db import get_connection, knowledge_items_table
 
+
+def _is_cve_shell_row(title: str, summary: str) -> bool:
+    """CVE 空壳行判定 (DEV-0300): title+summary 只是编号登记无实质内容。
+
+    此类条目对检索者零价值 (深读也只会拒绝), 从 knowledge 面滤除 —
+    不占结果位、不引导点击空壳。
+    """
+    import re
+
+    combined = f"{title} {summary}".strip()
+    if not re.search(r"CVE-\d{4}-\d{4,}", combined, re.IGNORECASE):
+        return False
+    residue = re.sub(
+        r"[\s\-—–_,.。:：;；()（）\[\]【】\\/&+#|]|CVE|编号|漏洞", "",
+        combined, flags=re.IGNORECASE,
+    )
+    return len(residue) < 40
+
 # 限制单次返回上限，防止全表扫描型查询拖垮响应时间。
 _MAX_LIMIT = 100
 _DEFAULT_LIMIT = 20
@@ -104,11 +122,21 @@ def unified_search(
             if rows is None:
                 # FTS 索引缺失/语法故障 → LIKE 兜底
                 rows = _like_search_entity(entity, query, effective_limit)
-            elif not rows:
-                # FTS 零命中 → LIKE 兜底自愈: 覆盖索引滞后 (contentless 表靠
-                # 异步 job 回填, 冷启动/测试直接插行无 FTS) 与 unicode61 分词
-                # 对 CJK 无空格切分的盲区 — LIKE 全表扫保真, 宁多查勿假阴性。
-                rows = _like_search_entity(entity, query, effective_limit)
+            else:
+                if entity == "knowledge":
+                    # DEV-0300: 断链行滤除 — wiki_items_fts.rowid 与现行
+                    # knowledge_items.rowid 可能断链 (migration 124 重建过表,
+                    # FTS 未同步重建) → LEFT JOIN 回查全 NULL = 垃圾行。
+                    rows = [r for r in rows if r["entity_id"]]
+                if not rows:
+                    # FTS 零命中 (或断链行全滤) → LIKE 兜底自愈: 覆盖索引滞后
+                    # (contentless 表靠异步 job 回填) 与 unicode61 对 CJK 无空格
+                    # 切分的盲区 — 宁多查勿假阴性。
+                    rows = _like_search_entity(entity, query, effective_limit)
+            if entity == "knowledge":
+                # DEV-0300: CVE 空壳行滤除 (页可能因此短于 limit — 空壳本
+                # 就不该占位; 不做多取补页以控查询成本)
+                rows = [r for r in rows if not _is_cve_shell_row(r["title"], r["summary"] or "")]
             items.extend(rows or [])
 
     items.sort(key=lambda x: x.get("ingested_at") or "", reverse=True)

@@ -159,6 +159,27 @@ _FRAMEWORKS: dict[str, dict[str, Any]] = {
 }
 
 DEEP_READ_PROFILES: dict[str, dict[str, Any]] = {
+    # CVE 漏洞条目 (DEV-0300): NVD 回源事实 + 奇安信 TI 漏洞通告同构分节
+    "cve": {
+        "persona": (
+            "你是一名漏洞情报分析师, 按 CERT 风险通告的规范把 NVD 结构化事实"
+            "整理成中文漏洞总结 — 只陈述事实里有的内容, 影响版本/CVSS/状态"
+            "逐项核对, 不外推事实之外的影响面或时间线"
+        ),
+        "frameworks": ("what_why_how",),
+        "extra_sections": (
+            {"key": "cve_info", "title": "漏洞信息", "tone": "amber"},
+            {"key": "threat_assessment", "title": "威胁评估", "tone": "red"},
+            {"key": "remediation", "title": "处置建议", "tone": "mint"},
+        ),
+        "budget": 8000,
+        "evidence": (
+            "CVSS 分数/向量、厂商与受影响产品、公开与更新时间必须与事实原文"
+            "逐字一致; 处置建议只写事实中可推导的动作 (升级方向/参考链接),"
+            "无补丁信息时明说「NVD 未收录补丁信息」。英文描述须译为中文但"
+            "不得增删事实。利用条件写进 why_matters, 缓解动作写进 how_react。"
+        ),
+    },
     "security": {
         "persona": "你是一名安全应急响应工程师（蓝队值班），需要在几分钟内判断这条情报要不要现在就动手",
         "frameworks": ("what_why_how",),

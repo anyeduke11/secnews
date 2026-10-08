@@ -257,10 +257,31 @@ def _fetch_source(entity_type: str, entity_id: str) -> tuple[str, dict[str, str]
         item = KnowledgeRepo().get_item(entity_id)
         if item is None:
             raise DeepReadError(f"knowledge item not found: {entity_id}")
+        topic = str(getattr(item, "topic", "") or "")
         metadata["title"] = str(getattr(item, "title", "") or entity_id)
+        # DEV-0300: CVE 空壳条目 (topic 只有编号) → NVD 回源拼结构化简报,
+        # category=cve 走漏洞通告 profile; 回源失败诚实拒绝 (不喂空壳幻觉)。
+        from backend.services.cve_enrich_service import (
+            compose_cve_brief,
+            extract_cve_id,
+            fetch_cve_facts,
+            is_cve_shell,
+        )
+
+        if is_cve_shell(topic):
+            cve_id = extract_cve_id(topic)
+            facts = fetch_cve_facts(cve_id) if cve_id else None
+            if not facts:
+                raise DeepReadError(
+                    f"CVE 空壳条目且 NVD 回源失败 ({cve_id}): 本地无事实, "
+                    "拒绝以空原文生成深读 (防幻觉浪费算力)"
+                )
+            metadata["category"] = "cve"
+            metadata["cve_id"] = cve_id or ""
+            metadata["title"] = f"{cve_id} 漏洞情报 (NVD 回源)"
+            return compose_cve_brief(facts), metadata
         metadata["category"] = str(getattr(item, "domain", "") or "")
-        body = str(getattr(item, "topic", "") or "")
-        return body, metadata
+        return topic, metadata
 
     if entity_type == "wiki":
         # DEV-0299: 原文真源 = llm-wiki-2.0/items/{id}.md 正文 (wiki-first 哲学;

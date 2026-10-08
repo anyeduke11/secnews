@@ -1,4 +1,18 @@
 
+## [DEV-0300] CVE 空壳治理 + NVD 回源 + 奇安信式漏洞模板 (cve-enrich-template)
+
+- **时间**: 2026-10-08
+- **类型**: 功能+缺陷修复 (owner 立案: 空壳 CVE 不应入检索面浪费算力; 深读新增 CVE 漏洞模板, 参照 ti.qianxin.com 风险通告结构)
+- **关联模块**: `backend:cve-enrich`, `backend:deep-read`, `backend:search`, `backend:ai-hub-prompts`
+- **第一性原理定案**: CVE 条目 = 编号 (寻址) + 结构化漏洞事实 (内容); 编号零信息量 — 本地 security_entities 31 个 cve 全是「自动同步」占位描述, 空壳条目被检索到 → 深读空原文 → LLM 幻觉/拒绝 (headline「原文为空, 仅凭 CVE 编号无法核实任何漏洞事实」即实证), 浪费算力且输出无据
+- **新增 `cve_enrich_service.py`**: ①`is_cve_shell` 空壳判定 (剥编号后实质字符 <40); ②`fetch_cve_facts` NVD 2.0 免 key 回源 (描述/CVSS 3.1 优先/CPE 厂商产品/参考链接/状态), security_entities 缓存 30d; ③`compose_cve_brief` 事实 → 中文结构化简报 (骨架对齐奇安信 TI: 漏洞描述/威胁评估/受影响产品/参考链接), 英文原样保留不机翻
+- **深读接线**: knowledge 分支空壳检测 → NVD 回源 → `compose_cve_brief` + **category=cve 走新漏洞通告 profile** (persona 漏洞情报分析师 / 节=要点速读+what_why_how+漏洞信息+威胁评估+处置建议+我的动作+存疑, 10 节内框架完整性预算达标); **回源失败诚实 DeepReadError** (拒绝空壳幻觉)
+- **检索面治理 ×2**: ①CVE 空壳行滤除 (knowledge 面); ②**断链行滤除** — 实弹暴露 wiki_items_fts.rowid 与 migration 124 重建后的 knowledge_items.rowid 断链 (LEFT JOIN 回查全 NULL 垃圾行), 滤除后落 LIKE 兜底
+- **测试**: 新 `test_cve_enrich.py` **11 用例** (空壳判定/NVD 解析+缓存命中不出站/简报结构/深读分支路由/回源失败拒绝/检索过滤); 踩坑: SQL datetime('now') naive UTC 与 aware datetime 相减抛 TypeError 被吞 → 缓存永失效, 显式补 tzinfo
+- **实弹**: ①`/api/search?q=CVE-2026&sources=knowledge` 空壳+断链行消失, 返回有实质内容的攻击链解析 ✓; ②NVD 真实出站 CVE-2026-21589 全事实落缓存 + 2319 字结构化简报 ✓ (该编号 Awaiting Analysis 故 CVSS 空 — 如实呈现即「不外推」纪律); ③深读全链依赖 LLM provider 可用 (pi 本地子进程间歇, 与本批无关), provider 在线即出 cve 模板报告
+- **验证**: 受影响面 72 passed; 生产 pid 43964 已载
+- **下一可用号**: DEV-0301
+
 ## [DEV-0299] wiki 深读空原文缺陷修复 — 原文真源切 llm-wiki-2.0 (wiki-deepread-empty-body)
 
 - **时间**: 2026-10-08

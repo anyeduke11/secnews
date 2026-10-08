@@ -259,7 +259,7 @@
   font-size:clamp(24px,2.6vw,32px);font-weight:800;line-height:1.3;
   letter-spacing:-.01em;max-width:22em;margin-bottom:14px;
 }
-.sentinel .standfirst{color:var(--sn-ink-2);max-width:62ch;font-size:15px}
+.sentinel .standfirst{color:var(--sn-ink-2);max-width:62ch;font-size:15px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .sentinel .standfirst + .standfirst{margin-top:8px}
 .sentinel .head-foot{display:flex;align-items:center;gap:22px;margin-top:20px;flex-wrap:wrap}
 .sentinel .heatbox{display:flex;align-items:center;gap:10px}
@@ -450,7 +450,7 @@
 .sentinel[data-mode="scan"] .story-top{padding-bottom:16px}
 .sentinel[data-mode="scan"] .headline{font-size:clamp(20px,2vw,25px)}
 .sentinel[data-mode="deep"] .headline{font-weight:700;letter-spacing:0;font-size:clamp(26px,2.8vw,36px);max-width:19em}
-.sentinel[data-mode="deep"] .standfirst{font-size:16px;line-height:1.85;max-width:56ch}
+.sentinel[data-mode="deep"] .standfirst{font-size:16px;line-height:1.85;max-width:56ch;-webkit-line-clamp:unset}
 .sentinel[data-mode="deep"] .flash-item{grid-template-columns:96px minmax(0,1fr) auto auto;padding:13px 8px}
 .sentinel[data-mode="deep"] .flash-title{font-size:15.5px;line-height:1.7}
 .sentinel[data-mode="alert"] .sub-item{opacity:.32;filter:saturate(.4)}

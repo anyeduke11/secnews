@@ -28,7 +28,7 @@ import { useNavigate } from 'react-router-dom';
 import { SSE_EVENTS, useRealtimeInvalidation } from '../../hooks/realtime';
 import { useHotspotData } from '../../hooks/useHotspotData';
 import { useFavorites } from '../../hooks/useFavorites';
-import { CATEGORIES, HotspotItem, PRACTICE_DOMAIN_LABELS } from '../../types';
+import { CATEGORIES, HotspotItem, PRACTICE_DOMAIN_LABELS, plainSummary } from '../../types';
 import { getJSON, postJSON } from '../../lib/api';
 import { getNewsAlertUnread, getPickedItems, PickedItem } from '../../api/secnews';
 import { PriorityDigestCard } from './PriorityDigestCard';
@@ -609,7 +609,7 @@ export function SentinelHomePage() {
                   <h1 className="headline">
                     <a href={safeHref(lead.url)!} target="_blank" rel="noopener noreferrer">{lead.title}</a>
                   </h1>
-                  {lead.summary && <p className="standfirst">{lead.summary}</p>}
+                  {(() => { const s = plainSummary(lead.summary); return s ? <p className="standfirst">{s}</p> : null; })()}
                   <div className="head-foot">
                     <div className="heatbox" aria-label={`当前热度 ${heatOf(lead)} / 5`}>
                       <span className="heat-cells" aria-hidden="true">

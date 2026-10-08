@@ -13,6 +13,7 @@ import {
   runCommand,
   type CommandResult,
 } from '../../api/commands';
+import { plainSummary } from '../../types';
 
 /** 命令栏生成提案后广播 (ApprovalInbox 监听自刷新; CopilotCards 同模式)。 */
 const PROPOSALS_CHANGED_EVENT = 'proposals:changed';
@@ -64,7 +65,7 @@ function ResultCard({ r, onClose }: { r: CommandResult; onClose: () => void }) {
                 {hit.occurred_at.slice(0, 10)}
               </span>
               <p className="line-clamp-2" style={{ color: 'var(--sn-ink-3, var(--text-muted))' }}>
-                {hit.summary.slice(0, 120)}
+                {plainSummary(hit.summary, 120)}
               </p>
             </li>
           ))}

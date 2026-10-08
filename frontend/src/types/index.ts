@@ -889,3 +889,40 @@ export interface DeepReadResponse {
   created_at: string;
   updated_at: string;
 }
+
+/**
+ * RSS 原始摘要 → 可读纯文本 (standfirst/命令栏等纯文本展示位共用)。
+ *
+ * 源数据常带 HTML 残留 (如 `<p>IT之家 10 月 8 日消息，…</p>`), 直接插值
+ * 会把标签当字面文本展示。清洗管线:
+ *   ①剥标签(空格衔接防粘连) ②解码常见实体 ③去「XX N 月 N 日消息，」
+ *   式源抬头(日期与 meta 行时间重复) ④折叠空白 ⑤句界截断(默认 260 字)。
+ * 纯文本输出 — 展示位一律插值渲染, 不引入 dangerouslySetInnerHTML。
+ */
+export function plainSummary(raw: string | null | undefined, maxLen = 260): string {
+  if (!raw) return '';
+  let text = raw
+    // ① 标签 → 空格 (块级标签换成段界空格, 行内标签亦安全)
+    .replace(/<[^>]*>/g, ' ');
+  // ② 常见命名实体 + 数字/十六进制实体 (无需 DOM, 展示层够用)
+  const ENTITIES: Record<string, string> = {
+    amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+    hellip: '…', mdash: '—', ndash: '–',
+    lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”',
+  };
+  text = text
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+    .replace(/&([a-zA-Z]+);/g, (m, name: string) => ENTITIES[name] ?? m);
+  // ③ 源抬头: 「IT之家 10 月 8 日消息，」式前缀 (源名 2-12 字 + N月N日消息)
+  text = text.replace(/^\s*[^\s，,。;；]{2,12}\s*\d{1,2}\s*月\s*\d{1,2}\s*日消息[，,：:\s]*/, '');
+  // ④ 折叠空白 + 标点邻接空格清理 (剥标签残留: 「风险 ，」「， OpenAI」式空隙)
+  text = text.replace(/\s+/g, ' ').trim()
+    .replace(/\s+([，。！？；：、）】》」』…,;:!?)\]}])/g, '$1')
+    .replace(/([，。！？；：、（【《「『…])\s+/g, '$1');
+  if (text.length <= maxLen) return text;
+  // ⑤ 句界截断: 窗口内最后一个句末标点; 找不到则硬截 + 省略号
+  const windowText = text.slice(0, maxLen);
+  const m = windowText.match(/.*[。！？!?.；;]/s);
+  return m ? m[0].trim() : `${windowText.trim()}……`;
+}

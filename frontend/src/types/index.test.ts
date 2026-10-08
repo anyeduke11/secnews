@@ -4,6 +4,7 @@ import {
   getCategoryLabel,
   formatRelativeTime,
   getQualityColor,
+  plainSummary,
 } from '../types';
 
 describe('getCategoryColor', () => {
@@ -84,5 +85,42 @@ describe('getQualityColor', () => {
   it('returns fallback for null/undefined', () => {
     expect(getQualityColor(null)).toBe('#7A6F5C');
     expect(getQualityColor(undefined)).toBe('#7A6F5C');
+  });
+});
+
+describe('plainSummary', () => {
+  it('strips HTML tags and source-dated prefix (真实 RSS 残留样本)', () => {
+    const raw = '<p>IT之家 10 月 8 日消息，据《商业内幕》今天（8 日）凌晨报道，<strong>OpenAI 一边反复警告风险</strong>，一边全速推进。</p>';
+    expect(plainSummary(raw)).toBe(
+      '据《商业内幕》今天（8 日）凌晨报道，OpenAI 一边反复警告风险，一边全速推进。',
+    );
+  });
+
+  it('decodes common named and numeric entities', () => {
+    expect(plainSummary('A &amp; B &#39;quoted&#39; C&#x4e2d;')).toBe("A & B 'quoted' C中");
+  });
+
+  it('keeps plain text untouched', () => {
+    expect(plainSummary('已经是干净的摘要。')).toBe('已经是干净的摘要。');
+  });
+
+  it('returns empty for null/undefined/blank', () => {
+    expect(plainSummary(null)).toBe('');
+    expect(plainSummary(undefined)).toBe('');
+    expect(plainSummary('<p>  </p>')).toBe('');
+  });
+
+  it('truncates at last sentence boundary within limit', () => {
+    const long = '第一句。'.repeat(100); // 400 字, 100 个句号
+    const out = plainSummary(long, 260);
+    expect(out.length).toBeLessThanOrEqual(260);
+    expect(out.endsWith('。')).toBe(true);
+    expect(out).not.toContain('……');
+  });
+
+  it('hard-truncates with ellipsis when no sentence boundary', () => {
+    const out = plainSummary('无标点'.repeat(200), 50);
+    expect(out.length).toBeLessThanOrEqual(52); // 50 + 省略号
+    expect(out.endsWith('……')).toBe(true);
   });
 });

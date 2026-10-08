@@ -17,10 +17,15 @@ import json
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
 
-from backend.core.events import subscribe, unsubscribe
+from backend.core.events import is_shutdown_requested, subscribe, unsubscribe
 from backend.logging_config import logger
 
 router = APIRouter(prefix="/api", tags=["events"])
+
+# DEV-0302 R1: keepalive 间隔 30s→5s — 排空阶段 (timeout_graceful_shutdown,
+# 默认 15s) 依赖流 generator 在 yield 点响应取消; 30s 间隔会让 SSE 吃满
+# 排空预算, 5s 保证停机时秒级终结。
+_KEEPALIVE_INTERVAL_S = 5
 
 
 @router.get("/events")
@@ -32,7 +37,7 @@ async def sse_events(
 
     - 进程内事件实时推送 (core.events.publish_event 调度的)
     - 启动时 (C11 R18): 先用 last_id 重放 outbox 历史, 再进入 live 模式
-    - 自动超时: 30 秒无事件时发送 keepalive
+    - 自动超时: 5 秒无事件时发送 keepalive (DEV-0302 R1: 30s→5s, 停机排空友好)
     """
     queue = subscribe()
 
@@ -59,11 +64,20 @@ async def sse_events(
                     logger.warning(f"SSE replay failed (last_id={last_id}): {e}")
 
             while True:
+                # DEV-0302 R1: 停机哨兵置位 → 流自行终结 (uvicorn 排空秒级走完)
+                if is_shutdown_requested():
+                    yield 'event: server_shutdown\ndata: {"type": "server_shutdown"}\n\n'
+                    return
                 try:
-                    data = await asyncio.wait_for(queue.get(), timeout=30)
+                    data = await asyncio.wait_for(
+                        queue.get(), timeout=_KEEPALIVE_INTERVAL_S,
+                    )
                     # 解析出 id (如果有) 加 SSE id 字段
                     try:
                         obj = json.loads(data)
+                        if obj.get("type") == "server_shutdown":
+                            yield 'event: server_shutdown\ndata: {"type": "server_shutdown"}\n\n'
+                            return
                         eid = obj.get("id")
                         if eid is not None:
                             yield f"id: {eid}\ndata: {data}\n\n"

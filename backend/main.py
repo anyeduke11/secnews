@@ -272,6 +272,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     yield
 
+    # DEV-0302 R1: 停机首步 — 置 SSE 停机哨兵并唤醒订阅者, /api/events 流
+    # 在 ≤5s 内自行终结, uvicorn 排空阶段秒级走完 (修复前 30s keepalive
+    # 间隔让 SSE 吃满 15s 排空预算, 每次停机都走 cancel 路径)。
+    # 置位于排空之前是关键: uvicorn cancel 任务在排空超时后才发生。
+    try:
+        from backend.core.events import request_shutdown
+        request_shutdown()
+    except Exception as e:
+        log.warning(f"request_shutdown error (ignored): {e}")
+
     # v0.8.1 Day 0 (PRD F5/D-b): drain 必须在 sched.stop() 之前 —
     # AsyncIOScheduler.shutdown() 会 cancel pending futures (协作式打断
     # 在跑 job), 先等自然收尾 (有界, HOTSPOT_GRACEFUL_TIMEOUT 默认 30s)。
@@ -307,6 +317,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await get_dispatcher().stop()
     except Exception as e:
         log.warning(f"outbox dispatcher stop error: {e}")
+    # DEV-0302 R3: knowledge watchdog (watchdog Observer 线程) 优雅停机 —
+    # 此前只 start 不 stop, 停机瞬间的文件事件丢批次且 Observer 线程靠
+    # 进程退出兜底。与 start_watcher (L191) 对称挂载。
+    try:
+        from backend.services.knowledge_watcher import stop_watcher
+        if stop_watcher():
+            log.info("knowledge watchdog stopped (lifespan shutdown)")
+    except Exception as e:
+        log.warning(f"knowledge watchdog stop error (ignored): {e}")
     # Phase 8: 清理 app.state.scheduler
     try:
         app.state.scheduler = None

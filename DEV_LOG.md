@@ -1,4 +1,18 @@
 
+## [DEV-0302] 停机链 R1+R3 修复 — SSE 停机哨兵前置 + watchdog 优雅停机 (shutdown-r1-r3)
+
+- **时间**: 2026-10-08
+- **类型**: 可靠性加固 (风险分析 R1/R3 两项; owner 立案; R2/R4/R5/R7 未立案)
+- **关联模块**: `backend:core-events`, `backend:api-events`, `backend:sigterm-sentinel`, `backend:main`, `run.py`
+- **R1 (SSE 吃满排空预算)**: keepalive 30s→5s (`_KEEPALIVE_INTERVAL_S`); core/events 加停机哨兵 (`request_shutdown` 唤醒全部订阅者 + `is_shutdown_requested`); /api/events 流轮询点检查哨兵 → yield `event: server_shutdown` 终结帧后 return — **客户端 (前端 EventSource) 收到命名事件后断流, 3s 自动重连语义不变, 前端零改**
+- **R1 时序踩坑 (两轮实弹)**: ①哨兵置位挂 lifespan shutdown → 排空在 lifespan **之前**, 17s 仍吃满 (帧 0 收到); ②signal.signal 主线程前置 → 被 uvicorn `capture_signals` 的 `signal.signal(sig, handle_exit)` 覆盖 (取证 0.50 源码), 死路; **终案: 包装 `Server.handle_exit`** — 原 handler 前先置位哨兵 (微秒级先于排空), 原停机流程逐字保持; uvicorn 未装时静默跳过 (排空 15s 兜底不变)
+- **R1 实弹 (决定性)**: 挂真实 SSE 客户端 kill -TERM → **1 秒退出 + 客户端收到 2 帧 server_shutdown** (修复前 17s / 0 帧)
+- **R3 (watchdog 无停机挂载)**: lifespan 关闭链补 `stop_watcher()` (Observer 线程优雅停, 与 L191 start_watcher 对称); 停机瞬间文件事件不再丢批次
+- **测试**: 新 `test_sse_shutdown.py` **4 passed** (哨兵终结流 + 唤醒订阅者 + keepalive 间隔契约 + 正常帧格式回归); events/sse/lifecycle/watcher 族 213 passed; ruff 0
+- **遗留**: R2 (非守护线程池拖退出) / R4 (SIGKILL 孤儿) / R5 (停机 SOP ≥45s) / R7 (APScheduler 线程属性查证) 未立案, 见 DEV_LOG 风险分析
+- **生产**: pid 36178 哨兵已武装 ("sigterm sentinel armed" 启动日志可查)
+- **下一可用号**: DEV-0303
+
 ## [DEV-0301] uvloop SIGTERM 停机盲区根因修复 — 排空超时有界化 (sigterm-shutdown-bound)
 
 - **时间**: 2026-10-08

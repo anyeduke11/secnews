@@ -70,4 +70,31 @@ def unsubscribe(queue: asyncio.Queue) -> None:
         _subscribers.remove(queue)
 
 
-__all__ = ["publish_event", "subscribe", "unsubscribe"]
+# DEV-0302 R1: 停机哨兵 — lifespan shutdown 首步置位, SSE 流的
+# queue.get 等待循环在下一个轮询点 (≤KEEPALIVE_INTERVAL_S) 自行终结,
+# 让 uvicorn 排空阶段 (timeout_graceful_shutdown) 在秒级走完而非吃满。
+_shutdown_requested = False
+
+
+def request_shutdown() -> None:
+    """置停机哨兵并唤醒所有 SSE 订阅者 (lifespan shutdown 首步调用)。"""
+    global _shutdown_requested
+    _shutdown_requested = True
+    for q in list(_subscribers):
+        try:
+            q.put_nowait('{"type": "server_shutdown"}')
+        except asyncio.QueueFull:
+            pass
+
+
+def is_shutdown_requested() -> bool:
+    return _shutdown_requested
+
+
+__all__ = [
+    "is_shutdown_requested",
+    "publish_event",
+    "request_shutdown",
+    "subscribe",
+    "unsubscribe",
+]

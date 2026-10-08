@@ -47,6 +47,15 @@ def main() -> None:
     # 完成)。加有界超时: 到期 uvicorn cancel 残余任务后继续 lifespan 关闭。
     # 与 lifespan 内 drain (HOTSPOT_GRACEFUL_TIMEOUT, 默认 30s) 分段有界。
     shutdown_timeout = float(os.getenv("HOTSPOT_SHUTDOWN_TIMEOUT", "15"))
+    # DEV-0302 R1: 信号前置哨兵 — uvicorn 的排空阶段发生在 lifespan shutdown
+    # 之前, 应用层想「排空前终结 SSE」必须在 uvicorn handler 之外并行置位。
+    # daemon 线程用 signal.signal 注册 (主线程 signal 通道已被 uvicorn 的
+    # loop.add_signal_handler 使用, 两者互不干扰: 线程内注册只影响本线程
+    # 视角的 handler 表, 而 Python 只允许主线程 signal.signal — 这里在
+    # 主线程 uvicorn.run 之前抢先注册, uvicorn 的 loop handler 仍会执行)。
+    from backend.utils.sigterm_sentinel import arm_sigterm_sentinel
+
+    arm_sigterm_sentinel()
     uvicorn.run(
         "backend.main:app",
         host=host,

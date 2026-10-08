@@ -222,7 +222,10 @@ def extract_envelope_meta(item_dict: dict[str, Any]) -> tuple[str, str]:
 def _fetch_source(entity_type: str, entity_id: str) -> tuple[str, dict[str, str]]:
     """按 entity_type 拉原文 (Markdown 优先)。失败抛 ``DeepReadError``。
 
-    支持的 entity_type: hotspot / wiki (v0.6 当前已落库实体)。
+    支持的 entity_type: hotspot / wiki / knowledge (DEV-0298)。
+    - ``wiki``: entity_id 是 wiki 文件 path (v0.6 语义, 自动补 .md)
+    - ``knowledge``: entity_id 是 knowledge_items.id (P4-1 统一检索锚点;
+      同一行在 wiki 面叫 path, 在检索面叫 id — 本分支桥接两套语义)
     cve / news 留待 v0.7+ 接入 (无 cves_repo)。
     """
     from backend.repository.hotspot_repo import HotspotRepository
@@ -249,6 +252,16 @@ def _fetch_source(entity_type: str, entity_id: str) -> tuple[str, dict[str, str]
         )
         return body, metadata
 
+    if entity_type == "knowledge":
+        # P4-1 锚点: knowledge_items.id 直查 (get_item 按主键, 不做 .md 补全)
+        item = KnowledgeRepo().get_item(entity_id)
+        if item is None:
+            raise DeepReadError(f"knowledge item not found: {entity_id}")
+        metadata["title"] = str(getattr(item, "title", "") or entity_id)
+        metadata["category"] = str(getattr(item, "domain", "") or "")
+        body = str(getattr(item, "topic", "") or "")
+        return body, metadata
+
     if entity_type == "wiki":
         # knowledge_repo.get_item 按 id 查;若传 path,加 .md 后缀作为 item_id
         path = entity_id if entity_id.endswith(".md") else f"{entity_id}.md"
@@ -260,7 +273,7 @@ def _fetch_source(entity_type: str, entity_id: str) -> tuple[str, dict[str, str]
         return body, metadata
 
     raise DeepReadError(
-        f"unsupported entity_type: {entity_type} (supported: hotspot/wiki)"
+        f"unsupported entity_type: {entity_type} (supported: hotspot/wiki/knowledge)"
     )
 
 

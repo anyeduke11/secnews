@@ -1,5 +1,15 @@
 
-## [DEV-0297] P4 检索重构生产重启 + SIGTERM 停机缺陷取证 (p4-restart-sigterm-finding)
+## [DEV-0298] 深读 knowledge 分支补齐 — P4-1 锚点桥接 (deep-read-knowledge-branch)
+
+- **时间**: 2026-10-08
+- **类型**: 缺陷修复 (owner 实测 `/search` 点 knowledge 结果 → 深读页报 'unsupported entity_type: knowledge (supported: hotspot/wiki)')
+- **关联模块**: `backend:deep-read`, `frontend:search`
+- **第一性原理定案**: 深读的输入原语 = 「一段原文 + 元信息」而非实体类型; P4-1 造了检索锚点 (`/deep/knowledge/:id`) 但 `_fetch_source` 只认 hotspot/wiki — **门后没有路**; 根因 = 类型词表三面分裂 (检索面叫 knowledge / 深读面叫 wiki / wiki 分支 id 语义又是文件 path)
+- **修复**: `_fetch_source` +`knowledge` 分支 — KnowledgeRepo.get_item 按 id 直查 (title/topic/domain 元信息, topic 为 LLM 原文源); unsupported 提示串更新; 前端锚点零改 (wiki 面 entity_id 经 FTS LEFT JOIN 回查也是 knowledge_items.id, `/deep/knowledge/:id` 统一正确)
+- **测试**: +2 (LLM mock 全链生成 + id 不存在 → DeepReadError 非 unsupported); 深读族 **23 passed**
+- **实弹验证**: `POST /api/deep-read/knowledge/{真实id}` 真调 LLM 生成 what_why_how 框架报告 (Realtek CVE 武器化分析) ✓; 生产 pid 98061 已载 (本次随重启生效)
+- **遗留注记**: wiki 分支 body 取 `item.content` 但 get_item SELECT 无 content 列 (恒空串) — wiki 深读可能一直拿空原文, 待查证后另立工单
+- **下一可用号**: DEV-0299
 
 - **时间**: 2026-10-08
 - **类型**: 运维重启 + 缺陷取证 (DEV-0296 生效重启; 发现 uvloop SIGTERM 盲区)

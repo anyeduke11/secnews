@@ -40,6 +40,17 @@ def _stub_wiki():
     )
 
 
+def _stub_knowledge():
+    """KnowledgeRepo().get_item 返回值 stub (P4-1 knowledge 分支)。"""
+    from types import SimpleNamespace
+    return SimpleNamespace(
+        id="ki-001",
+        title="Sample knowledge",
+        topic="Sample knowledge topic text.",
+        domain="security",
+    )
+
+
 def _seed_one_item(repo, entity_type: str, entity_id: str) -> None:
     """直接 upsert 一条 deep_reads 记录 (不调 LLM)。"""
     sections = {
@@ -140,6 +151,55 @@ def test_run_force_overrides_existing(temp_db):
     assert item.provider == "openai"
     assert item.model == "gpt-4o-mini"
     mock_llm.generate.assert_called_once()
+
+
+# ── 2b. knowledge 分支 (DEV-0298: P4-1 检索锚点桥接) ─────────
+
+
+def test_run_knowledge_entity_type_supported(temp_db):
+    """entity_type=knowledge (knowledge_items.id) → 正常拉原文 + LLM 生成。
+
+    旧版仅支持 hotspot/wiki — P4-1 统一检索给 knowledge 结果生成
+    /deep/knowledge/:id 锚点后, 此分支缺失导致 'unsupported entity_type'。
+    """
+    from backend.services.ai_hub.prompts import deep_read_sections
+    from backend.services.deep_read_service import DeepReadService
+
+    defs = deep_read_sections("security")
+    new_json = json.dumps(
+        {d["key"]: f"知识解读-{d['title']}" for d in defs}, ensure_ascii=False,
+    )
+
+    with patch(
+        "backend.services.deep_read_service._ai_hub_mod.llm_service"
+    ) as mock_llm:
+        mock_llm.generate = AsyncMock(return_value=new_json)
+        mock_llm.resolve_provider_for_task.return_value = ("openai", "gpt-4o-mini")
+        mock_llm._est_tokens = lambda x: 42
+
+        with patch(
+            "backend.repository.knowledge_repo.KnowledgeRepo.get_item",
+            return_value=_stub_knowledge(),
+        ):
+            svc = DeepReadService()
+            import asyncio
+            item = asyncio.run(svc.run("knowledge", "ki-001", force=True))
+
+    assert item.sections[defs[0]["key"]] == f"知识解读-{defs[0]['title']}"
+    assert item.entity_type == "knowledge"
+    mock_llm.generate.assert_called_once()
+
+
+def test_fetch_source_knowledge_not_found_raises():
+    """knowledge id 不存在 → DeepReadError (非 unsupported)。"""
+    import pytest as _pytest
+
+    from backend.repository.knowledge_repo import KnowledgeRepo
+    from backend.services.deep_read_service import DeepReadError, _fetch_source
+
+    with patch.object(KnowledgeRepo, "get_item", return_value=None):
+        with _pytest.raises(DeepReadError, match="knowledge item not found"):
+            _fetch_source("knowledge", "missing-id")
 
 
 # ── 3. LLM 返回空 → 抛 DeepReadError + 不写表 ────────────────

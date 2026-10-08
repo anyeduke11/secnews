@@ -1,3 +1,9 @@
+# 已废止（superseded）
+
+> **本文档已被取代**：权威产品文档 = [`docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`](../HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md)；0.8.6 版本族详细文档 = [`docs/HOTSPOT_V0.8.6_AI_NATIVE_PRD.md`](../HOTSPOT_V0.8.6_AI_NATIVE_PRD.md)。本文仅作历史设计留痕，**不作为当前事实源**（取代依据见权威 PRD 头部「取代」名单 + `docs/audit/PRD_ALIGNMENT_AUDIT_2026-10-02.md`）。
+
+---
+
 # CodeGarden 转型设计 — 安全实践域（已批准 · 含全量识别修订）
 
 - 日期：2026-09-13（v2 修订）

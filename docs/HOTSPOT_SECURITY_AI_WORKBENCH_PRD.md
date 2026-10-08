@@ -336,14 +336,14 @@
 
 | 指标 | 数值 | 说明 |
 |---|---|---|
-| **Routers** | 86 | 含 7 个 v1 前缀模块 |
-| **Services** | 146 | 12 包 + v1 域服务 |
-| **Migrations** | 119 | v1.0: 096-108；后续: 109-119 |
-| **Jobs** | 57 | APScheduler |
+| **Routers** | 100 | AST 反推 (generate_meta --check 维护, 2026-10-08); 含聚合 router |
+| **Services** | 159 | 13 包 + v1 域服务 (2026-10-08) |
+| **Migrations** | 133 | 缺号 066-069 为历史编号空洞 (informational, 勿改名) |
+| **Jobs** | 58 | APScheduler (2026-10-08) |
 | **Collectors** | 14 | SSRF 防护走 url_safety; 14 号为 arXiv 论文单源 (category=paper, 2026-09-26) |
 | **Feature Gates** | 16 | 开 15 / 关 1 (mcp；管线 LLM 三 gate semantic_filter / ai_classify / pipeline_ner 2026-09-19 开闸, env HOTSPOT_FEATURE_GATES 可应急回关) |
-| **Tests** | 历史 4,598 | PROGRESS 记录 9 skipped；本轮定向 51 passed，不代替全量 |
-| **MCP Tools** | 19 | 12 读 + 7 写 |
+| **Tests** | 5,281 passed | 全量 pytest (2026-10-08, 9 skipped); 数字随提交滚动, 以最近 DEV_LOG 为准 |
+| **MCP Tools** | 23 | 16 读 + 7 写 (v0.8.7 P3-B +4 只读: list_proposals/runs/artifacts/cases) |
 
 ### 6.2 前端
 
@@ -619,4 +619,5 @@ React/Vite 前端通过 FastAPI 领域 API 访问 SQLite HOT/WARM/COLD 数据层
 - 2026-09-16 (DEV-0183, UI 重构 Phase 4)：新增 5 视图路由——资料库前厅 `/knowledge/khub`、编目室 `/knowledge/library`、通稿审核 `/action/events`（MP-2 真实端点全接入）、清样深读 `/reader/:id`（wiki 阅读 + 批注占位）、校对室 `/quality`（`/quality/rejection` 升格子标签并重定向兼容）。未实现后端缺口（hub-stats 聚合 / 编目清单 / 批注）双登记于代码 TODO 与 `docs/UNIMPLEMENTED.md` 台账，前端不展示伪造数据。
 - 2026-09-16 (DEV-0184, UI 重构 Phase 5)：无限画布 paradigm 接入两视图——共享 `InfiniteCanvas` 组件（拖拽平移 / ctrl+⌘ 滚轮光标锚定缩放 / 触控板横滚平移 / 双击重置 / 缩放控件 / 点阵网格，全 token 随主题翻转）；`/knowledge/canvas` 升级双模式（DOM 画布默认 + ECharts demo 降级保留），`/knowledge/graph` 增加画布模式开关（SVG 直排保留为默认降级）。纯前端，无新增路由与端点。
 - 2026-09-16 (DEV-0185, UI 重构收尾批方案设计)：五阶段全部遗留项成文 `docs/UI_REFACTOR_FOLLOWUP_PLAN_2026-09-16.md`（批次 A 快赢修整 / B 页面编辑化收尾 / C 后端缺口接线 / D 裁决项，约 5–7 工作日）。核查代码后修正 UNIMPLEMENTED 台账两处事实：编目室复用既有 `GET /api/knowledge/items`（不建新表）；批注复用既有 `annotations` 表（migration 027，仅缺薄 API，不写 wiki md）。真实后端缺口仅剩 hub-stats 聚合端点一项。
+- **2026-10-08 (v0.8.7 · P2 收口 + P3 交付回流，KPI 口径裁决)**：①**P2 收口 (DEV-0286)**：G1/G2/G3 + M1-M4 全链闭环——gate-detect 失败 446/446 全显式 outcome（「失败必可见」成立）、E8 补列、JudgePage 归零、SK-04 提案化（人主律落地）、t24 正式观测达标。**结构性发现定案**：信号转化率 15-30% 带与有意义质量门槛不可兼得（7d 桥评分中位 2.5 + 行业对标），带表述退场。②**v0.8.7 P3 五工单交付 (DEV-0289~0292)**：**C KPI 口径切换**——主指标改「分诊时延 (signal→case P50/P90) + artifact 产出率 (done 且有产物)」，signals/hotspots 比率降级为参考值，经 `GET /api/ops/kpi` 可查（本文件及《AI Native PRD》§1.4 已同步改写）；**D** gate 限频预算 config 化（6→20/60s）；**E** HOT db 巡检阈值校准 300MB（137MB 全有效零膨胀取证）；**B** MCP 只读导出 ×4（19→23，外部 agent 只读观测，人主律边界——不产提案）；**F** 语义过滤 post-ingest 化（采集热路径零 LLM，tick 尾补偿判别，reject → 隐藏+flag 可回溯）。③**量化目标修订**：v0.8.6-A 之「signals 13→≥120」流量目标随口径切换降级为参考（signals 实测已 3392/7d 远超原目标，质量问题非流量问题）；30 天主指标待观测窗（t0=2026-10-08 12:03）后按分诊时延/artifact 产出率重设基线。④**运维加固 (DEV-0293/0294)**：单实例守卫（pgid 锁+端口探活双检，run.py 启动闸）；拓扑定案 dev 即生产（8000 后端 + 8898 vite dev）。详见 `docs/PLAN_P3_2026-10-07.md` + DEV_LOG。
 - **2026-10-02 (v0.8.6-A · AI Native 修订，owner 定稿)**：0.8.6 实现路线由《[`docs/HOTSPOT_V0.8.6_AI_NATIVE_PRD.md`](HOTSPOT_V0.8.6_AI_NATIVE_PRD.md)》（draft4，11 章）取代本文件 2026-09-15 九章版之 §8 路线。要点：**换主干**（Run 证据账本：proposal→审批→Run→Artifact，Agent 产出提案、人负责审批）+ **F0 止血 14 项**（E1 档位 model 真生效/S1 鉴权全入口/S2 迁移器幂等/E19 warm 索引/E4 misfire/DEFAULT_SCORE 删除/E2 egress 全覆盖/E13 门禁策略统一等）+ **AI Native 四轴**（owner 全选：Agent 优先循环/模型驱动管线/全界面副驾/对话式命令栏）+ 0.8.7 候选表 9 项（C1 except 分级治理[高] 领衔）。量化目标 30 天：v1_runs 0→≥10、artifacts 0→≥5、signals 13→≥120、三类静默失败 100% 显式。裁决：D1 主干优先/D2 含执行+产物/D3 保守冻结/D4 维持中文/D5 先修竞态/D6 长期单用户/D7 全入口覆盖。输入=`docs/audit/FIRST_PRINCIPLES_REDESIGN_2026-10-02.md`（六根因/19 证据/S1-S3）+ 复审修正；留痕=`docs/audit/PRD_ALIGNMENT_AUDIT_2026-10-02.md`。

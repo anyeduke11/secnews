@@ -17,6 +17,12 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-08 统一检索 P4 重构（四项结构性修复）— DEV-0296
+
+- **背景**: 批判性审查定案四项——结果死胡同（无 url）/ 多词整串 LIKE 假阴性 / CVE 编号被 FTS5 解析为 NOT / 双引擎倒挂（35k hotspots 走 LIKE）。
+- **修复**: ①结果可点（hotspot→原文，knowledge/wiki→深读锚点）；②查询预处理（分词→FTS5 短语包裹 AND，CVE 短语化，LIKE 兜底同分词）；③**FTS5 主引擎零新基建**（hotspots_fts 001_init 已有，接入即可；LIKE 零命中自愈兜底——覆盖索引回填滞后 + CJK 分词盲区）；④CommandBar 查询 merge 统一面（信号面 + hotspots/knowledge，同证据 url/title 去重）。
+- **验证**: 全量后端 5300 passed；新 test_search_p4 12 用例锁定四契约；重启生效。
+
 ### 2026-10-08 dev即生产拓扑检查 + run.py 单实例守卫 — DEV-0294
 
 - **拓扑定案 (owner 裁决 dev 即生产)**: 生产 = `python run.py` (8000 回环) + `npm run dev` (8898 vite strictPort 反代), 手动双命令, 无看护器; dsh 3210 未运行属正常 (按需启停)。

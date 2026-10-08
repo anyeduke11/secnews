@@ -1,4 +1,19 @@
 
+## [DEV-0296] 统一检索 P4 重构 — 四项结构性修复 (search-p4-revamp)
+
+- **时间**: 2026-10-08
+- **类型**: 检索重构 (批判性审查四项结构性问题全修; owner 立案 1-4)
+- **关联模块**: `backend:search-service`, `backend:command-bar`, `frontend:search`, `frontend:commandbar`
+- **审查结论 (第一性原理)**: 检索的原语需求 = 「全部证据面按相关度找回 + 一步回原文」; 旧实现「能返回行但不构成找回闭环」——四项: 结果死胡同 (无 url 不可点) / 多词整串 LIKE 假阴性 / CVE 编号被 FTS5 `-` 解析为 NOT (安全从业者最高频查询反向命中) / 双引擎能力倒挂 (35k hotspots 走最弱 LIKE, wiki 走 FTS5)
+- **P4-1 结果可点**: unified_search 投影 +`url`; 前端 itemHref() — hotspot→原文新开, knowledge/wiki/chunk→/deep/knowledge/:id 深读锚点; wiki 面补 fts_snippet 展示; title 空时回退 entity_id
+- **P4-2 查询预处理** (`build_fts_query`): 空格分词→每词 FTS5 短语包裹 (隐式 AND)——「勒索软件 金融机构」两词任一位置命中即出 (旧整串 LIKE 必 0); CVE-2026-1234 整体短语化 (- 不再被解析为 NOT); 内嵌引号翻倍 (FTS5 escaping); LIKE 兜底同分词 AND 对齐
+- **P4-3 FTS5 主引擎 (零新基建)**: 审查取证发现 **hotspots_fts 001_init 即存在** (触发器同步 + unicode61) — 旧审查「需建索引」修正为「接入即可」; search_service 重写: hotspots_fts + wiki_items_fts MATCH (rank 相关度排序) 主引擎, LIKE 降兜底; **零命中也落兜底自愈** (覆盖 contentless 索引异步回填滞后 + unicode61 对 CJK 无空格切分盲区 — 宁多查勿假阴性); FTS 语法噪声不再空结果 (落兜底)
+- **P4-4 入口收敛 (第一步)**: CommandBar 查询意图 = v1_signals 信号面 (保留, 小而精直查) + unified_search 统一面 (hotspots/knowledge) merge; 同证据去重 (url/title); 统一面 confidence 字段承载来源面标识, 前端渲染「热点/知识」chip + url 可点
+- **实现注记**: wiki LIKE 兜底不设 (wiki FTS 故障属索引损坏, 不静默换弱引擎); knowledge FTS 表 = wiki_items_fts (073 建, 即 knowledge_items 的索引) — 命名历史遗留, 注释留据
+- **测试**: 新 `test_search_p4.py` **12 用例** (四项契约锁定: url 锚点/多词 AND 包含+排除/CVE 命中/语法噪声不 500/通配符字面/rank 相关度优先/merge+去重); 存量 search/api/command **57 passed** 全绿 (Phase 3 契约兼容); **踩坑留痕**: LIKE 兜底两分支 LIMIT 参数漏 append (「3 bindings 2 supplied」) — 兜底路径此前无独立测试覆盖, P4 用例补齐
+- **验证**: 全量后端 **5300 passed / 0 failed**; ruff 0; 前端 search+cmdbar 7 passed + tsc 0 错; 重启生效 (后端服务层变更)
+- **下一可用号**: DEV-0297
+
 ## [DEV-0295] /knowledge/canvas 画布 demo 页退役 — 重定向 graph (p3-canvas-demo-retire)
 
 - **时间**: 2026-10-08

@@ -108,12 +108,15 @@ def _cutoff_iso(window_days: int) -> str:
 def _query_signals(
     keyword: str, window_days: int, limit: int = MAX_QUERY_RESULTS,
 ) -> list[dict[str, Any]]:
-    """v1_signals 关键词检索 (LIKE, 单机规模够用) + Source url 回溯列。
+    """信号池检索 (P4-4 入口收敛): 语义主体改走 search_service.unified_search
+    (FTS5 主引擎 + LIKE 兜底, hotspots+knowledge 同面), 旧 v1_signals LIKE
+    保留为前置面 (信号池小而精, 直查保留) + merge 去重。
 
-    PRD 验收①: "查过去两周 X 的高置信信号"返回结果带来源链接 —
-    JOIN v1_materials 拿 url 即回溯锚点。
+    PRD 验收①: 结果带来源链接 (url 回溯锚点); knowledge 命中 url='' (前端
+    走深读锚点)。
     """
     from backend.repository.db import get_connection
+    from backend.services.search_service import unified_search
 
     like = f"%{keyword}%"
     rows = get_connection().execute(
@@ -123,12 +126,38 @@ def _query_signals(
         "ORDER BY s.occurred_at DESC LIMIT ?",
         (_cutoff_iso(window_days), like, like, limit),
     ).fetchall()
-    return [
+    signal_items = [
         {"signal_id": r["id"], "summary": r["summary"], "url": r["url"],
          "title": r["title"], "occurred_at": r["occurred_at"],
          "confidence": r["confidence"]}
         for r in rows
     ]
+
+    # P4-4: 统一检索面补充 (hotspots/knowledge FTS5) — 时间窗下相关面全查,
+    # 多词查询行为与 /search 一致 (分词 AND); 失败不阻断信号结果 (兜底静默)。
+    extra: list[dict[str, Any]] = []
+    try:
+        unified = unified_search(keyword, sources=["hotspot", "knowledge"],
+                                 limit=limit)
+        known_urls = {it["url"] for it in signal_items if it.get("url")}
+        seen_titles = {it["title"] for it in signal_items}
+        for it in unified["items"]:
+            if it.get("url") and it["url"] in known_urls:
+                continue
+            if it["title"] in seen_titles:
+                continue
+            seen_titles.add(it["title"])
+            extra.append({
+                "signal_id": f"unified:{it['entity_type']}:{it['entity_id']}",
+                "summary": it.get("summary") or "",
+                "url": it.get("url") or "",
+                "title": it["title"],
+                "occurred_at": it.get("ingested_at") or "",
+                "confidence": it["entity_type"],  # 来源面标识 (hotspot/knowledge)
+            })
+    except Exception as e:  # 统一面故障不阻断信号主结果
+        logger.warning(f"command query unified fallback skipped: {e}")
+    return signal_items + extra
 
 
 class CommandBarService:

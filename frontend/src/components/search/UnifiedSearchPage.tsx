@@ -16,6 +16,8 @@ interface SearchItem {
   summary?: string;
   category?: string;
   ingested_at?: string;
+  url?: string;
+  fts_snippet?: string;
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -25,6 +27,16 @@ const SOURCE_LABELS: Record<string, string> = {
   chunks: 'Wiki 正文',
   wiki_chunk: 'Wiki 正文',
 };
+
+/** P4-1: 结果 → 证据锚点 (检索闭环最后一环)。
+ *  hotspot 命中带原文 url → 新开原文; knowledge/wiki → 深读视图。 */
+function itemHref(it: SearchItem): string | null {
+  if (it.entity_type === 'hotspot') return it.url || null;
+  if (it.entity_type === 'knowledge') return `/deep/knowledge/${it.entity_id}`;
+  if (it.entity_type === 'wiki') return `/deep/knowledge/${it.entity_id}`;
+  if (it.entity_type === 'wiki_chunk') return `/deep/knowledge/${it.entity_id.split('#')[0]}`;
+  return null;
+}
 
 // 来源 chips 只渲染真实来源键 (wiki_chunk 是分组标签, 不是可选来源)
 const SOURCE_CHIP_KEYS = ['hotspot', 'knowledge', 'wiki', 'chunks'];
@@ -181,27 +193,39 @@ export function UnifiedSearchPage({ onBack }: { onBack?: () => void }) {
             {SOURCE_LABELS[type] ?? type} · {list.length}
           </h3>
           <ul className="divide-y" style={{ borderColor: 'var(--border-light)' }}>
-            {list.map(item => (
-              <li key={`${item.entity_type}-${item.entity_id}`} className="py-1.5">
-                <div className="flex items-center gap-2 text-[11px]">
-                  <span className="flex-1 truncate font-medium" style={{ color: 'var(--text-primary)' }}>{item.title}</span>
-                  {item.category && (
-                    <span className="text-[10px] font-mono px-1 rounded shrink-0"
-                      style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
-                      {item.category}
-                    </span>
+            {list.map(item => {
+              const href = itemHref(item);
+              const titleEl = (
+                <span className="flex-1 truncate font-medium" style={{ color: href ? 'var(--color-info)' : 'var(--text-primary)' }}>{item.title || item.entity_id}</span>
+              );
+              return (
+                <li key={`${item.entity_type}-${item.entity_id}`} className="py-1.5">
+                  <div className="flex items-center gap-2 text-[11px]">
+                    {href ? (
+                      href.startsWith('http')
+                        ? <a href={href} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 truncate hover:underline">{titleEl}</a>
+                        : <a href={href} className="flex-1 min-w-0 truncate hover:underline" title="打开深度阅读">{titleEl}</a>
+                    ) : titleEl}
+                    {item.category && (
+                      <span className="text-[10px] font-mono px-1 rounded shrink-0"
+                        style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+                        {item.category}
+                      </span>
+                    )}
+                    {item.ingested_at && (
+                      <span className="text-[10px] font-mono shrink-0" style={{ color: 'var(--text-muted)' }}>
+                        {String(item.ingested_at).slice(0, 10)}
+                      </span>
+                    )}
+                  </div>
+                  {(item.summary || item.fts_snippet) && (
+                    <p className="text-[10px] line-clamp-2 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                      {item.summary || item.fts_snippet}
+                    </p>
                   )}
-                  {item.ingested_at && (
-                    <span className="text-[10px] font-mono shrink-0" style={{ color: 'var(--text-muted)' }}>
-                      {String(item.ingested_at).slice(0, 10)}
-                    </span>
-                  )}
-                </div>
-                {item.summary && (
-                  <p className="text-[10px] line-clamp-2 mt-0.5" style={{ color: 'var(--text-muted)' }}>{item.summary}</p>
-                )}
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         </section>
       ))}

@@ -52,18 +52,25 @@ function ResultCard({ r, onClose }: { r: CommandResult; onClose: () => void }) {
         <ul className="max-h-64 overflow-y-auto flex flex-col gap-1">
           {r.results!.map(hit => (
             <li key={hit.signal_id} className="text-xs leading-snug">
-              <a
-                href={hit.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline-offset-2 hover:underline"
-                style={{ color: 'var(--color-info)' }}
-              >
-                {hit.title || hit.url}
-              </a>
-              <span className="num ml-1" style={{ color: 'var(--sn-ink-3, var(--text-muted))' }}>
-                {hit.occurred_at.slice(0, 10)}
-              </span>
+              {hit.url ? (
+                <a href={hit.url} target="_blank" rel="noopener noreferrer"
+                  className="underline-offset-2 hover:underline"
+                  style={{ color: 'var(--color-info)' }}>
+                  {hit.title || hit.url}
+                </a>
+              ) : (
+                <span style={{ color: 'var(--text-primary)' }}>{hit.title || hit.summary.slice(0, 40)}</span>
+              )}
+              {hit.confidence === 'hotspot' || hit.confidence === 'knowledge' ? (
+                <span className="ml-1 text-[10px] font-mono px-1 rounded"
+                  style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
+                  {hit.confidence === 'hotspot' ? '热点' : '知识'}
+                </span>
+              ) : (
+                <span className="num ml-1" style={{ color: 'var(--sn-ink-3, var(--text-muted))' }}>
+                  {hit.occurred_at.slice(0, 10)}
+                </span>
+              )}
               <p className="line-clamp-2" style={{ color: 'var(--sn-ink-3, var(--text-muted))' }}>
                 {plainSummary(hit.summary, 120)}
               </p>

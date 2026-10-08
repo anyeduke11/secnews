@@ -1,4 +1,15 @@
 
+## [DEV-0297] P4 检索重构生产重启 + SIGTERM 停机缺陷取证 (p4-restart-sigterm-finding)
+
+- **时间**: 2026-10-08
+- **类型**: 运维重启 + 缺陷取证 (DEV-0296 生效重启; 发现 uvloop SIGTERM 盲区)
+- **关联模块**: `ops:process`, `backend:search`, `run.py`
+- **时间线**: ①14:13:53 SIGTERM 47657 → 端口立释但进程存活 30s+ 不退; ②`sample` 采样定案: 主线程仍在 uvloop 事件循环 (uv__io_poll + idle 回调) 空转 — **SIGTERM 未触发 uvicorn 优雅关闭** (uvloop 不接管默认信号处理, 与 07:41 僵尸同根因; 守卫锁 + 端口双检使该形态不再静默); ③14:14:41 kill -9 升级 (端口已释, WAL 模式无完整性风险) → 进程树全清; ④14:15:29 **pid 93435 启动** (58 jobs, catchup 82 源), 调度器心跳 ok
+- **P4 实弹验证**: `GET /api/search?q=CVE-2026` 命中真实 CVE 复盘条目且带原文 url (FreeBuf) — 旧引擎此查询被 `-` 解析为 NOT 必假阴性; 守卫带锁二次启动拒绝 ✓ (锁文件 backend/hotspot.lock 随 db_path 同目录)
+- **运维纪律修订**: 停机顺序 = SIGTERM → 等待 10s → 仍活即 SIGKILL (uvloop 盲区下 SIGTERM 不可依赖, 端口已释时 SIGKILL 安全); 后续可修 (uvicorn install_signal_handlers / loop.add_signal_handler), 列观察项非本批
+- **观测窗**: D/F 两项观测不受影响 (仍是 12:03 t0 语义; 本次重启数据连续, t0 顺延至 14:15:29 亦可)
+- **下一可用号**: DEV-0298
+
 ## [DEV-0296] 统一检索 P4 重构 — 四项结构性修复 (search-p4-revamp)
 
 - **时间**: 2026-10-08

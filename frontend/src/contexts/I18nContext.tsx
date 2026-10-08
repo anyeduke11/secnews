@@ -404,9 +404,6 @@ const messages_zhCN: Messages = {
   'maint.status.running': '执行中…',
   'maint.status.ok': '完成',
   'maint.status.error': '失败',
-  'canvas.title': '无限画布',
-  'canvas.subtitle': '知识库附加视图 — 拖拽 / 缩放 / 平移',
-  'canvas.demoNote': 'Demo 演示 — 真实知识图谱请见 /knowledge/graph',
 };
 
 const messages_enUS: Messages = {
@@ -781,9 +778,6 @@ const messages_enUS: Messages = {
   'maint.status.running': 'Running…',
   'maint.status.ok': 'OK',
   'maint.status.error': 'Error',
-  'canvas.title': 'Infinite Canvas',
-  'canvas.subtitle': 'Knowledge base attached view — drag / zoom / pan',
-  'canvas.demoNote': 'Demo — for real graph see /knowledge/graph',
 };
 
 const MESSAGES: Record<Locale, Messages> = {

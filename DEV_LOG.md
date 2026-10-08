@@ -1,4 +1,16 @@
 
+## [DEV-0295] /knowledge/canvas 画布 demo 页退役 — 重定向 graph (p3-canvas-demo-retire)
+
+- **时间**: 2026-10-08
+- **类型**: 死代码清理 (owner 裁决「删除页 + 入口重定向」; canvas 页系 DEV-0178 临时占位视图, NAV4+P3 落账时已标临时)
+- **关联模块**: `frontend:routes`, `frontend:sentinel`, `frontend:i18n`, `frontend:shared-editorial`
+- **裁决依据**: 页面为 8 节点静态 mock (采集→…→回放, 坐标硬编码零数据绑定), 自带「Demo 演示 — 真实知识图谱请见 /knowledge/graph」自我承认冗余; 真实图谱页 `/knowledge/graph` 已接入同一 InfiniteCanvas 画布模式 (DEV-0184) — 无限画布能力已在真实数据可用
+- **删除**: KnowledgeCanvasPage.tsx + .test.tsx 物理删除; 路由改 `QueryRedirect → /knowledge/graph`; lazy-imports 导出删; SentinelShell 知识菜单「画布」项删; i18n canvas.* ×6 (中英) 删; ROUTE_REGISTRY.md 登记 redirect
+- **保留**: InfiniteCanvas 共享组件 (graph 画布模式唯一真实消费方) + echarts 依赖 (KnowledgeGraph/MasteryGauge 在用)
+- **守卫改写**: nav4_shell.test 退役断言 ×2 (文件不存在 + 菜单无画布项 + 路由为 QueryRedirect) — 防回潮
+- **验证**: 全量前端 **691 passed / 0 failed**; tsc 0 错; vite build OK; ROUTES 53→52 (demo 页出清)
+- **下一可用号**: DEV-0296
+
 ## [DEV-0294] dev即生产拓扑检查 + run.py 单实例守卫 (instance-lock)
 
 - **时间**: 2026-10-08

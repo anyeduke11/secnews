@@ -164,7 +164,6 @@ const BANDNAV_DEFS: Record<SentinelLayer, BandItem[]> = {
     { label: '前厅', to: '/knowledge/khub' },
     { label: '编目室', to: '/knowledge/library' },
     { label: '图谱', to: '/knowledge/graph' },
-    { label: '画布', to: '/knowledge/canvas' },
     { label: '复习', to: '/knowledge/review' },
     { label: '检索', to: '/search' },
     { label: '技能商店', to: '/skill-store' },

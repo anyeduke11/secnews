@@ -179,8 +179,8 @@ export function AppRoutes() {
         </Route>
         {/* NAV4 (2026-09-13): 图谱从 /judge/graph 迁入知识菜单 */}
         <Route path="/knowledge/graph" element={<Suspense fallback={<PageFallback />}><P.SentinelGraphPage /></Suspense>} />
-        {/* NAV4 P3 (2026-09-13, DEV-0178): 无限画布 demo (ECharts roam + draggable) — 知识菜单附加视图 */}
-        <Route path="/knowledge/canvas" element={<Suspense fallback={<PageFallback />}><P.KnowledgeCanvasPage /></Suspense>} />
+        {/* DEV-0295 (2026-10-08): 无限画布 demo 页退役 (静态 mock 与 graph 真实数据+画布模式重叠) — 重定向; InfiniteCanvas 组件保留 (graph 画布模式在用) */}
+        <Route path="/knowledge/canvas" element={<QueryRedirect to="/knowledge/graph" />} />
         {/* Phase 4 (DEV-0183): 资料库前厅 + 编目室 (知识菜单附加视图; 未实现端点见 docs/UNIMPLEMENTED.md) */}
         <Route path="/knowledge/khub" element={<Suspense fallback={<PageFallback />}><P.KnowledgeHubPage /></Suspense>} />
         <Route path="/knowledge/library" element={<Suspense fallback={<PageFallback />}><P.KnowledgeLibraryPage /></Suspense>} />

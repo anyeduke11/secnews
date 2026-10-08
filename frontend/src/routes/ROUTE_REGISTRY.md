@@ -24,8 +24,8 @@
 | 路径 | 组件 | 说明 |
 |---|---|---|
 | `/knowledge` (+ 9 子路由) | KnowledgePage 嵌套 | **知识库主页**（import/process/compile/compound/imported/v1/deep-read/review/heatmap） |
-| `/knowledge/graph` | SentinelGraphPage | 知识图谱（自 `/judge/graph` 迁入） |
-| `/knowledge/canvas` | KnowledgeCanvasPage | P3 知识画布（ECharts roam demo） |
+| `/knowledge/graph` | SentinelGraphPage | 知识图谱（自 `/judge/graph` 迁入; 内置画布模式开关） |
+| `/knowledge/canvas` | → `/knowledge/graph` (redirect) | 画布 demo 页已退役 (DEV-0295: 静态 mock 与 graph 真实数据+画布模式重叠) |
 | `/knowledge/khub` | KnowledgeHubPage | 资料库前厅（派生统计 + 六域入口; Phase 4, hub-stats 未实现见 UNIMPLEMENTED.md） |
 | `/knowledge/library` | KnowledgeLibraryPage | 编目室（占位 + 链路自检; Phase 4, 清单端点未实现见 UNIMPLEMENTED.md） |
 | `/reader/:id` | DeepReaderPage | 清样深读（wiki 条目纯阅读流; 批注未实现见 UNIMPLEMENTED.md） |

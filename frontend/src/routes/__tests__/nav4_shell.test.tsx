@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = process.cwd();
@@ -213,9 +213,14 @@ describe("NAV4 P3 (2026-09-13): 临时页面 /maint /knowledge/canvas 注册与�
     expect(line).toBeTruthy();
   });
 
-  it("/knowledge/canvas 路由声明存在 (知识菜单附加视图)", () => {
+  it("DEV-0295: /knowledge/canvas 已退役 — 重定向 /knowledge/graph (demo 页删除, InfiniteCanvas 组件保留)", () => {
     const line = ROUTES_TSX.split("\n").find(l => l.includes('path="/knowledge/canvas"'));
-    expect(line).toBeTruthy();
+    expect(line).toContain('QueryRedirect');
+    expect(line).toContain('/knowledge/graph');
+    // 页面组件物理删除
+    expect(existsSync(join(ROOT, "src/components/KnowledgeCanvasPage.tsx"))).toBe(false);
+    // 菜单不再有「画布」入口
+    expect(SHELL_TSX).not.toMatch(/label:\s*['"]画布['"]/);
   });
 
   it("menuOf() 识别 /maint → settings", () => {
@@ -228,13 +233,6 @@ describe("NAV4 P3 (2026-09-13): 临时页面 /maint /knowledge/canvas 注册与�
     expect(maint).toMatch(/\/api\/maintenance\/backup-verify/);
     expect(maint).toMatch(/\/api\/maintenance\/vacuum/);
     expect(maint).toMatch(/\/api\/maintenance\/cleanup/);
-  });
-
-  it("KnowledgeCanvasPage 用 ECharts roam + draggable (纯前端 demo)", () => {
-    const canvas = readFileSync(join(ROOT, "src/components/KnowledgeCanvasPage.tsx"), "utf-8");
-    expect(canvas).toMatch(/roam:\s*true/);
-    expect(canvas).toMatch(/draggable:\s*true/);
-    expect(canvas).toMatch(/DEMO_NODES|DEMO_EDGES/);
   });
 });
 
@@ -410,12 +408,10 @@ describe("Phase 4 新增视图: 5 路由注册 + menuOf 归属 + 未实现登记
 });
 
 describe("Phase 5 无限画布: graph/kcanvas 双模式 (DEV-0184)", () => {
-  it("KnowledgeCanvasPage 双模式: 画布模式默认 + ECharts 印厂 demo 降级保留 (roam/draggable 源串不丢)", () => {
-    const canvas = readFileSync(join(ROOT, "src/components/KnowledgeCanvasPage.tsx"), "utf-8");
-    expect(canvas).toMatch(/from ['"][./]*shared\/editorial\/InfiniteCanvas['"]/);
-    expect(canvas).toMatch(/useState<['"]dom['"] \| ['"]echarts['"]>\(['"]dom['"]\)/);
-    expect(canvas).toMatch(/roam:\s*true/);
-    expect(canvas).toMatch(/draggable:\s*true/);
+  it("DEV-0295: KnowledgeCanvasPage 已退役 — canvas 双模式断言随之移除, graph 画布模式为唯一承载", () => {
+    // 页面删除后 InfiniteCanvas 只剩真实数据消费方 (graph)
+    const graph = readFileSync(join(ROOT, "src/components/sentinel/SentinelGraphPage.tsx"), "utf-8");
+    expect(graph).toMatch(/from ['"][./]*shared\/editorial\/InfiniteCanvas['"]/);
   });
 
   it("SentinelGraphPage 画布模式开关: SVG 直排保留为默认 (降级路径)", () => {

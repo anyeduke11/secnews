@@ -163,14 +163,11 @@ export const OAuthCallbackPage = React.lazy(() =>
   import('./oauth-callback').then(m => ({ default: m.OAuthCallbackPage }))
 );
 
-// NAV4 P3 (2026-09-13, DEV-0178): 临时页面 — /maint /knowledge/canvas
+// NAV4 P3 (2026-09-13, DEV-0178): 临时页面 — /maint
 // /maint: 维护诊断 (走 /api/maintenance/* 已注册端点)
-// /knowledge/canvas: 无限画布 demo (纯前端 ECharts roam)
+// (DEV-0295: /knowledge/canvas 画布 demo 页已退役重定向 /knowledge/graph, 导出删除)
 export const MaintPage = React.lazy(() =>
   import('../components/MaintPage').then(m => ({ default: m.MaintPage }))
-);
-export const KnowledgeCanvasPage = React.lazy(() =>
-  import('../components/KnowledgeCanvasPage').then(m => ({ default: m.KnowledgeCanvasPage }))
 );
 
 // Phase 4 (DEV-0183): 新增视图 5 件套 — 有壳有占位, 未实现端点见 docs/UNIMPLEMENTED.md

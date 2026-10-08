@@ -8,7 +8,8 @@
  *  - 缩放区间 0.05–8, transform-origin 0 0
  * 节点拖拽: children 内的元素标记 data-canvas-node (避免与空白平移抢事件),
  *  经 useCanvasCoords() 把 client 坐标换算为世界坐标后自行 setState
- *  (参考 KnowledgeCanvasPage 的节点拖拽), 本组件只管视口。
+ *  (消费方: SentinelGraphPage 画布模式; 原 demo 页 /knowledge/canvas 已于 DEV-0295 退役),
+ *  本组件只管视口。
  * 主题: 全部走全局 token — dark 主题即方案B 的深色画布, paper 主题为暖纸画布。
  */
 import {

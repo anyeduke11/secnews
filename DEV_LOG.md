@@ -11,6 +11,8 @@
 - **遗留注记**: wiki 分支 body 取 `item.content` 但 get_item SELECT 无 content 列 (恒空串) — wiki 深读可能一直拿空原文, 待查证后另立工单
 - **下一可用号**: DEV-0299
 
+## [DEV-0297] P4 检索重构生产重启 + SIGTERM 停机缺陷取证 (p4-restart-sigterm-finding)
+
 - **时间**: 2026-10-08
 - **类型**: 运维重启 + 缺陷取证 (DEV-0296 生效重启; 发现 uvloop SIGTERM 盲区)
 - **关联模块**: `ops:process`, `backend:search`, `run.py`

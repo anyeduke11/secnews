@@ -25,6 +25,7 @@ import os
 import uvicorn
 
 from backend.config import config, resolve_bind_host
+from backend.utils.instance_lock import refuse_if_locked
 
 
 def main() -> None:
@@ -35,6 +36,10 @@ def main() -> None:
     # P0-B: 回环守卫抽到 backend.config.resolve_bind_host, 与
     # backend.main.__main__ 共用同一实现 (勿在此复制逻辑)。
     host = resolve_bind_host(host)
+
+    # dev即生产 单实例闸 (DEV-0293 教训): 同进程组残留 (含 uvicorn 子进程)
+    # 即拒绝启动 — 端口检查测不出不持 socket 的僵尸调度器。
+    refuse_if_locked(port=port)
 
     workers = int(os.getenv("WORKERS", "1"))
     uvicorn.run(

@@ -1,4 +1,17 @@
 
+## [DEV-0294] dev即生产拓扑检查 + run.py 单实例守卫 (instance-lock)
+
+- **时间**: 2026-10-08
+- **类型**: 运维检查 + 防线加固 (owner 裁决「不区分 dev/生产, dev 即生产」; DEV-0293 事故直接对策)
+- **关联模块**: `ops:process`, `backend:utils`, `run.py`, `backend:tests`
+- **拓扑检查结论 (dev即生产)**: 生产 = `python run.py` (8000, 回环) + `npm run dev` (8898, vite strictPort + /api 反代) 两条手动命令, **无 launchd/cron/看护**; dsh 3210 未运行属正常 (受管子进程按需启停, 降级链兜底); vite build 仅 CI 质检不做部署面。发现环境残留 `HOTSPOT_HOST=0.0.0.0` 被 resolve_bind_host 回环守卫正确钳制 (双保险有效)
+- **管理缺口**: run.py 无单实例闸 — 双实例事故根因 (端口检查测不出不持 socket 的僵尸调度器子进程)。「dev即生产」使单实例成硬不变量 → 补闸
+- **实现 (`backend/utils/instance_lock.py`, 95 行)**: 双检互补 — ①**pgid 进程组锁** (`backend/data/hotspot.lock` 记录启动进程组, killpg signal=0 存活探测): 抓父进程死后同组存活的 uvicorn 子进程; 陈旧锁 (进程组全灭/损坏) 自动覆写, SIGKILL 残留由存活探测兜底无需退出钩子; ②**端口探活** (connect 0.5s): 抓守卫部署前的无锁在跑实例。冲突 → 指引 `kill -TERM -- -PGID` 整组清理 + exit 2; `HOTSPOT_IGNORE_LOCK=1` 知情逃生口
+- **实战验证**: 9602 在跑时启动 run.py → 端口探活拒绝 exit=2, 全程仍单实例 ✓ (锁文件残留指向已死 pgid, 下次启动按陈旧处理)
+- **测试**: `test_instance_lock.py` **7 passed** (fresh 获取 / 活组冲突不覆写 / 陈旧+损坏覆写 / 逃生口不读写 / 端口探活拒无锁实例 / 全清放行)
+- **生效说明**: 守卫对**下次重启起**的每次 `run.py` 生效 (本次 9602 为部署前启动无锁, 端口探活已覆盖其存续期); 观测窗 t0=09:55:28 不受影响 (守卫不触运行面)
+- **下一可用号**: DEV-0295
+
 ## [DEV-0293] P3 生产重启 + 双实例僵尸事故处置 + 观测窗重锚 (p3-restart-incident)
 
 - **时间**: 2026-10-08

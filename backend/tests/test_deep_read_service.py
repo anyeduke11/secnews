@@ -202,6 +202,56 @@ def test_fetch_source_knowledge_not_found_raises():
             _fetch_source("knowledge", "missing-id")
 
 
+# ── 2c. wiki 分支真源修复 (DEV-0299: 空原文缺陷) ─────────────
+
+
+def test_fetch_source_wiki_reads_md_body(temp_db, tmp_path, monkeypatch):
+    """wiki 分支原文 = llm-wiki-2.0/items/{id}.md body (非 DB 空 content 列)。
+
+    旧实现 getattr(item,'content') 恒空串 → wiki 深读一直拿空原文调 LLM。
+    """
+    from backend.services.deep_read_service import _fetch_source
+
+    items_dir = tmp_path / "items"
+    items_dir.mkdir()
+    (items_dir / "wiki-abc.md").write_text(
+        "---\ntitle: WIKI 标题\ndomain: security\n---\n\n这是 wiki 正文本体，含足够长的分析内容。",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HOTSPOT_WIKI_ROOT", str(tmp_path))
+
+    body, meta = _fetch_source("wiki", "wiki-abc")
+    assert "wiki 正文本体" in body
+    assert meta["title"] == "WIKI 标题"
+    assert meta["category"] == "security"
+
+
+def test_fetch_source_wiki_empty_body_raises(temp_db, tmp_path, monkeypatch):
+    """md 无正文 → 显式 DeepReadError (不把空原文喂 LLM)。"""
+    import pytest as _pytest
+
+    from backend.services.deep_read_service import DeepReadError, _fetch_source
+
+    items_dir = tmp_path / "items"
+    items_dir.mkdir()
+    (items_dir / "wiki-empty.md").write_text("---\ntitle: 空壳\n---\n\n", encoding="utf-8")
+    monkeypatch.setenv("HOTSPOT_WIKI_ROOT", str(tmp_path))
+
+    with _pytest.raises(DeepReadError, match="empty body"):
+        _fetch_source("wiki", "wiki-empty")
+
+
+def test_fetch_source_wiki_missing_raises(temp_db, tmp_path, monkeypatch):
+    """md 不存在 → DeepReadError (wiki item not found)。"""
+    import pytest as _pytest
+
+    from backend.services.deep_read_service import DeepReadError, _fetch_source
+
+    monkeypatch.setenv("HOTSPOT_WIKI_ROOT", str(tmp_path))
+    with _pytest.raises(DeepReadError, match="wiki item not found"):
+        _fetch_source("wiki", "no-such-wiki-id")
+
+
 # ── 3. LLM 返回空 → 抛 DeepReadError + 不写表 ────────────────
 
 

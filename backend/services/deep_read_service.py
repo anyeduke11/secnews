@@ -263,13 +263,22 @@ def _fetch_source(entity_type: str, entity_id: str) -> tuple[str, dict[str, str]
         return body, metadata
 
     if entity_type == "wiki":
-        # knowledge_repo.get_item 按 id 查;若传 path,加 .md 后缀作为 item_id
-        path = entity_id if entity_id.endswith(".md") else f"{entity_id}.md"
-        item = KnowledgeRepo().get_item(path)
-        if item is None:
-            raise DeepReadError(f"wiki item not found: {path}")
-        metadata["title"] = str(getattr(item, "title", "") or path)
-        body = str(getattr(item, "content", "") or "")
+        # DEV-0299: 原文真源 = llm-wiki-2.0/items/{id}.md 正文 (wiki-first 哲学;
+        # knowledge_items 表无 content 列, 旧实现 getattr(item,'content') 恒空串
+        # → wiki 深读一直拿空原文调 LLM)。entity_id 是 knowledge_items.id =
+        # wiki 文件 stem (两侧 1:1 对账), 经 WikiFs 读 md 真身 + frontmatter。
+        from backend.wiki_fs.root import resolve_wiki_root
+        from backend.wiki_fs.store import WikiFs
+
+        doc = WikiFs(resolve_wiki_root()).read_item(entity_id)
+        if doc is None:
+            raise DeepReadError(f"wiki item not found: {entity_id}")
+        fm = doc.get("fm") or {}
+        metadata["title"] = str(fm.get("title") or entity_id)
+        metadata["category"] = str(fm.get("domain") or fm.get("category") or "")
+        body = str(doc.get("body") or "")
+        if not body.strip():
+            raise DeepReadError(f"wiki item has empty body: {entity_id}")
         return body, metadata
 
     raise DeepReadError(

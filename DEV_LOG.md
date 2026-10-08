@@ -1,4 +1,15 @@
 
+## [DEV-0299] wiki 深读空原文缺陷修复 — 原文真源切 llm-wiki-2.0 (wiki-deepread-empty-body)
+
+- **时间**: 2026-10-08
+- **类型**: 缺陷修复 (DEV-0298 遗留注记查证属实, owner 点名先处理)
+- **关联模块**: `backend:deep-read`, `backend:wiki-fs`
+- **取证定案**: wiki 分支旧实现 `KnowledgeRepo.get_item(path).content` — knowledge_items 表 **SELECT 无 content 列且表本身无此列** → getattr 恒空串 → **wiki 深读自上线以来一直拿空原文调 LLM** (LLM 拿「标题 + 空正文」幻觉生成, 报告看似完整实则无据); 违反 wiki-first 哲学 (llm-wiki-2.0 md 是唯一真源)
+- **修复**: wiki 分支改 `WikiFs(resolve_wiki_root()).read_item(entity_id)` 读 md 真身 (frontmatter title/domain 进元信息, body 为 LLM 原文); **空 body 显式 DeepReadError** (不把空原文喂 LLM 幻觉); entity_id = knowledge_items.id = wiki 文件 stem (两侧 1:1 对账语义不变)
+- **测试**: +3 (md body 真源读取 / 空 body 显式报错 / md 缺失报 not found); 深读族 **26 passed**; ruff 0
+- **实弹验证**: `POST /api/deep-read/wiki/00096d6e284f` 真调 LLM 生成 Realtek Cling 僵尸网络完整报告 (旧分支此 id 只会拿空串) ✓; 生产 pid 10148 已载
+- **下一可用号**: DEV-0300
+
 ## [DEV-0298] 深读 knowledge 分支补齐 — P4-1 锚点桥接 (deep-read-knowledge-branch)
 
 - **时间**: 2026-10-08

@@ -93,14 +93,13 @@ def _apply_persisted_feature_flags() -> None:
         log.warning(f"persisted feature flags restore failed (ignored): {e}")
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """启动: log → db → cache + export → scheduler; 关闭: scheduler → cache → db。
+async def _run_startup(app: FastAPI) -> None:
+    """启动半程: log → db → cache + export → scheduler → watchdog → catchup。
 
-    Phase 8: scheduler 写入 app.state.scheduler（替代模块 singleton），
-    保证 /api/health 跨请求读到的总是当前 lifespan 的实例。
-    T17 E2E-10: 启动时校验 in-flight skill_runs.version 与 BUILTIN 当前 version,
-    不一致仅 warning (T19 全量收口前容忍 in-flight 旧版本).
+    可 raise 的裸调用 (init_db / version-check strict / warmup / sched.start)
+    中断即启动失败 — 由 lifespan 包装器 (DEV-0309 R15) 捕获并尽力驱动
+    关闭链。T17 E2E-10: 启动时校验 in-flight skill_runs.version 与 BUILTIN
+    当前 version, 不一致仅 warning (T19 全量收口前容忍 in-flight 旧版本)。
     """
     boot_start = time.time()
     set_start_time(boot_start)
@@ -270,8 +269,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     asyncio.get_running_loop().run_in_executor(None, _graph_ignition)
 
-    yield
 
+async def _run_shutdown_chain(app: FastAPI) -> None:
+    """关闭链 (原 lifespan 后半程) — 正常停机与启动失败路径共用 (DEV-0309 R15)。
+
+    uvicorn 在 lifespan startup 抛错时不会驱动 shutdown 半程
+    (server.py ``if self.started`` / on.py ``error_occurred`` 早退), 启动
+    失败路径的残留清理此前完全依赖进程退出兜底。本链逐步隔离且**幂等**
+    (未启动子系统 = no-op / 属性缺失被 try 吞), 半程失败也可安全整链调用。
+    """
     # DEV-0302 R1: 停机首步 — 置 SSE 停机哨兵并唤醒订阅者, /api/events 流
     # 在 ≤5s 内自行终结, uvicorn 排空阶段秒级走完 (修复前 30s keepalive
     # 间隔让 SSE 吃满 15s 排空预算, 每次停机都走 cancel 路径)。
@@ -286,9 +292,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # AsyncIOScheduler.shutdown() 会 cancel pending futures (协作式打断
     # 在跑 job), 先等自然收尾 (有界, HOTSPOT_GRACEFUL_TIMEOUT 默认 30s)。
     # 统计日志由 drain_in_flight 内部走 loguru 输出。
+    # DEV-0309 R15: sched 经 app.state 读取 (失败路径无局部变量)。
     try:
         from backend.utils.shutdown import drain_in_flight
-        await drain_in_flight(sched)
+        await drain_in_flight(getattr(app.state, "scheduler", None))
     except Exception as e:
         log.warning(f"graceful drain error (ignored): {e}")
     # gateway 方案 §3.1: crawl4ai/Playwright 单例优雅停机 — 进程 shutdown
@@ -342,8 +349,40 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         wal_checkpoint()
     except Exception as e:
         log.warning(f"wal checkpoint error (ignored): {e}")
-    cache_invalidate("*")
-    close_db()
+    # DEV-0309 R15: 末两步补 try — 失败路径可能在 init_db 之前/中途挂,
+    # close_db 对未初始化连接须容忍 (正常路径行为不变)。
+    try:
+        cache_invalidate("*")
+    except Exception as e:
+        log.warning(f"cache_invalidate error (ignored): {e}")
+    try:
+        close_db()
+    except Exception as e:
+        log.warning(f"close_db error (ignored): {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """启动/关闭装配 — 关闭链在启动失败路径同样尽力执行 (DEV-0309 R15)。
+
+    Phase 8: scheduler 写入 app.state.scheduler（替代模块 singleton），
+    保证 /api/health 跨请求读到的总是当前 lifespan 的实例。
+    """
+    try:
+        await _run_startup(app)
+    except BaseException:
+        # uvicorn 此路不走 shutdown 半程 → 残留 (dsh 子进程/watchdog/未折叠
+        # WAL/已 start 的调度器) 原靠进程退出 + 下次启动收割兜底; 这里驱动
+        # 同款关闭链 (幂等), 让"启动失败也体面"。原异常必须传播
+        # (STARTUP_FAILURE / run.py traceback / rc=1 语义不变, fail-loud)。
+        log.error("lifespan startup failed — running best-effort shutdown chain (R15)")
+        try:
+            await _run_shutdown_chain(app)
+        except Exception as e:  # pragma: no cover - 链逐步已隔离, 双保险
+            log.warning(f"startup-failure teardown error (ignored): {e}")
+        raise
+    yield
+    await _run_shutdown_chain(app)
 
 
 app = FastAPI(

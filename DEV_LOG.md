@@ -1,4 +1,17 @@
 
+## [DEV-0309] 启动失败路径关闭链 — R15 收口 (startup-failure-teardown)
+
+- **时间**: 2026-10-10
+- **类型**: 可靠性加固 (owner 推翻「留档」建议点名实修; R15 曾判定修复期望值为负, 见 DEV-0307 后的留档分析)
+- **关联模块**: `backend:main`, `backend:tests`
+- **根因 (源码可证)**: uvicorn 在 lifespan startup 抛错时不走 shutdown 半程 — `server.py` L103-106 `lifespan.startup()` 失败即 `sys.exit(STARTUP_FAILURE)` (先于 `if self.started: await self.shutdown`), `lifespan/on.py` L65-66 `error_occurred` 时 `shutdown()` 早退。启动失败路径的关闭链 (request_shutdown/drain/stop_dsh/stop_watcher/outbox/WAL/close_db) 一行不执行, 残留原全靠进程退出 + 下次启动收割兜底
+- **实现**: lifespan 体拆为 `_run_startup(app)` + `_run_shutdown_chain(app)` + 包装器 — startup 抛错时**先尽力执行同款关闭链再传播原异常** (STARTUP_FAILURE/run.py traceback/rc=1 fail-loud 语义不变); 链逐步隔离且幂等 (未启动子系统 no-op / `app.state.scheduler` 属性缺失被 try 吞 / drain 改经 app.state 读取摆脱局部变量); 末两步 `cache_invalidate`/`close_db` 补 try (init_db 之前挂时链须容忍未初始化连接, 正常路径行为不变)
+- **实弹 (三轮)**: ①env 注入 `HOTSPOT_DB_PATH=/usr/local/...` 意外命中 **instance_lock 前置闸** → rc=1 + traceback ✓ (lifespan 之前路径的 fail-loud 独立验证; 顺带暴露 mkdir 裸奔为既有代码行为, 非本次引入, 未扩面修); ②探针首版给同步调用点注 async 函数 → 协程未 await 异常没抛 → 歪打正着完成**真实链全链路运行** (scheduler stop / wal truncated 日志齐全); ③修正为同步注入 init_db raise → `startup failed — running best-effort shutdown chain` 落日志 + 原异常传播 + **真实链半程失败安全跑通不抛** ✓
+- **测试**: 新 `test_startup_failure_teardown.py` ×4 (失败驱链 / 链自身抛不覆盖原异常 / 裸 app 整链+双调用容忍 / 正常路径链恰一次); 全量回归 **5366 passed / 9 skipped** (5362+4); ruff 0
+- **边界声明**: 本修复覆盖「启动失败也在信号/收割/尾闸之外走完清理」; 结构性风险面未变 (当前 lifespan 内可 raise 的裸调用全在有副作用组件之前, 见 R15 留档分析①) — 修复的是**未来回归保护**: 此后在 dsh/watchdog 之后新增裸调用不再退化为裸跑
+- **生产**: 重启装载 (正常路径行为等价, 非必须但按惯例装载保持一致)
+- **下一可用号**: DEV-0310 (R1-R17 全部闭环或留档完毕, 停机链专项收束)
+
 ## [DEV-0308] LLM/慢批循环停机协作让出 — R14 收口 (shutdown-cooperative-yield)
 
 - **时间**: 2026-10-09
@@ -10,12 +23,12 @@
 - **测试**: 新 `test_shutdown_yield.py` ×6 (探针联动 / classify 即时+中途让出 / semantic 零 LLM 烧出+不打标自愈 / intake 游标冻结); 三服务既有 134 用例回归全过; 全量 **5362 passed / 9 skipped**; ruff 0
 - **真环境冒烟 (决定性)**: 直连生产库置哨兵调三批 — classify 0/3 即让 / **semantic 真实 candidates=50 → shutdown_yield, judged=0 零 LLM** (证明省算力效果真实存在) / intake evaluated=0 正常 (游标无新候选); 全程零写库 (让出发生在打标/游标之前) ✓
 - **生产**: 已重启装载 (health ok, 停机 0s, 哨兵日志在位)
-- **下一可用号**: DEV-0309 (R15 启动失败清理维持留档)
+- **下一可用号**: DEV-0309 (R15 → 后被 owner 点名实修, DEV-0309 收口)
 
 ## [DEV-0307] 停机链 R13/R16/R17 打包 — deadline 派生预算 + 哨兵 import 兜底 + SSE 重放线程化 (shutdown-r13-r16-r17)
 
 - **时间**: 2026-10-09
-- **类型**: 可靠性加固 (owner 立案打包; 第四轮复查 R13/R16/R17; R14 LLM 截肢/R15 启动失败清理留档未立案; **R14 → DEV-0308 已收口**)
+- **类型**: 可靠性加固 (owner 立案打包; 第四轮复查 R13/R16/R17; R14 LLM 截肢/R15 启动失败清理留档未立案; **R14 → DEV-0308 已收口**; **R15 → DEV-0309 已收口**)
 - **关联模块**: `backend:shutdown`, `backend:main`, `backend:api-events`, `backend:tests`
 - **R13 (deadline 预算挤兑穿底)**: 固定 60s < 关闭链子超时之和 (排空15+drain30+crawl4ai5+dsh15≈65s) → 慢环节时 deadline 抢杀优雅收尾。修: `get_shutdown_budget` 未显式设 env 时改**派生和** = `HOTSPOT_SHUTDOWN_TIMEOUT` + `HOTSPOT_GRACEFUL_TIMEOUT` + 关闭链固定 30s (默认 75s, 与子超时联动); drain 无法内省盲等吃满 30s → 封顶 `UNINTROSPECTED_DRAIN_CAP_S=10s` (看不见在跑什么, 盲等无信息量)
 - **R16 (WORKERS>1/直起入口无哨兵)**: run.py 的 arm 只覆盖父进程; worker 重新 import `backend.main` 时无 SSE 终结/无 deadline/信号重放复活。修: `backend.main` **模块级兜底 arm** (幂等 never-fail) — 消灭入口差异, 顺带简化 `__main__` 分支 (删重复调用); 备用入口 `uvicorn backend.main:app` 直起同样有兜底

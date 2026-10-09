@@ -133,6 +133,23 @@ async def drain_in_flight(scheduler: Any, timeout: float | None = None) -> dict:
     return stats
 
 
+def shutdown_yield_requested() -> bool:
+    """停机协作让出探针 (DEV-0308 R14) — LLM/慢批循环条目边界自检。
+
+    worker 线程读 core/events 模块级 bool (GIL 单读原子)。批循环在信号后
+    继续烧 LLM 调用只会: ①拉长 executor join 逼近 deadline 硬切, ②白耗
+    算力。让出后各批的自愈语义: semantic (下 tick 重扫窗口) / classify
+    (当批尾部 domain 留 NULL, 诚实日志) / intake (游标截断修正保证不吞)。
+    探针自身永不抛 (读不到哨兵 = 未停机, fail-open)。
+    """
+    try:
+        from backend.core.events import is_shutdown_requested
+
+        return is_shutdown_requested()
+    except Exception:
+        return False
+
+
 def wal_checkpoint() -> bool:
     """主连接 ``PRAGMA wal_checkpoint(TRUNCATE)``; 失败不抛 (关闭路径容忍)。
 
@@ -279,5 +296,6 @@ __all__ = [
     "get_graceful_timeout",
     "get_shutdown_budget",
     "guaranteed_exit",
+    "shutdown_yield_requested",
     "wal_checkpoint",
 ]

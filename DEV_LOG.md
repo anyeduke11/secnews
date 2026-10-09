@@ -1,8 +1,21 @@
 
+## [DEV-0308] LLM/慢批循环停机协作让出 — R14 收口 (shutdown-cooperative-yield)
+
+- **时间**: 2026-10-09
+- **类型**: 可靠性加固 (owner 立案; DEV-0307 留档 R14; R15 维持留档)
+- **关联模块**: `backend:shutdown`, `backend:auto-classifier`, `backend:info-filter-gate`, `backend:auto-intake`, `backend:tests`, `backend:conftest`
+- **问题**: collect tick 链的三大批循环 (classify ≤50 条 ×≤20 LLM / semantic ≤50 LLM 判别 / intake 逐条 promote) 全跑 `asyncio.to_thread` worker 线程 — 哨兵置位后主线程 executor join 干等, 批继续烧 LLM 调用: ①白耗算力, ②拉长 join 逼近 deadline 硬切, ③intake 若被切在步骤 5 中段, **步骤 6 无条件推进游标会静默吞掉未处理候选** (取证实锤, 真脏语义)
+- **实现**: `utils/shutdown.shutdown_yield_requested()` 共享探针 (读 core/events 哨兵, never-fail) + 三批循环条目边界检查让出, 各按数据语义定让出策略: ①classify — break + warning (被让出条目 domain 留 NULL, 诚实日志); ②semantic — break + `skipped_reason="shutdown_yield"` 入 summary (不打 checked 标 → 下 tick 24h 窗口重扫**零丢失**); ③intake — break + **游标冻结** (候选按 quality_score DESC 处理而游标是 ingested_at 下界, 两者无关 → 任何"推进到部分水位"都可能吞低时间戳未处理项, 冻结让下轮重查, promote url 幂等去重天然安全)
+- **测试陷阱 (全量首跑 10 failed, 诚实记录)**: R14 使生产路径行为依赖进程级哨兵 flag → 前序测试泄漏的置位状态劫持后续 semantic 批测试 (单跑 11 passed、全量 10 failed — 与 provider_health 残留同模式老病)。修: conftest 加 `_reset_shutdown_sentinel_flag` autouse (每测前后复位「未停机」, 与 gates/provider_health 隔离先例同构) — 正确解不在单一肇事文件而在**flag 级 per-test 隔离**
+- **测试**: 新 `test_shutdown_yield.py` ×6 (探针联动 / classify 即时+中途让出 / semantic 零 LLM 烧出+不打标自愈 / intake 游标冻结); 三服务既有 134 用例回归全过; 全量 **5362 passed / 9 skipped**; ruff 0
+- **真环境冒烟 (决定性)**: 直连生产库置哨兵调三批 — classify 0/3 即让 / **semantic 真实 candidates=50 → shutdown_yield, judged=0 零 LLM** (证明省算力效果真实存在) / intake evaluated=0 正常 (游标无新候选); 全程零写库 (让出发生在打标/游标之前) ✓
+- **生产**: 已重启装载 (health ok, 停机 0s, 哨兵日志在位)
+- **下一可用号**: DEV-0309 (R15 启动失败清理维持留档)
+
 ## [DEV-0307] 停机链 R13/R16/R17 打包 — deadline 派生预算 + 哨兵 import 兜底 + SSE 重放线程化 (shutdown-r13-r16-r17)
 
 - **时间**: 2026-10-09
-- **类型**: 可靠性加固 (owner 立案打包; 第四轮复查 R13/R16/R17; R14 LLM 截肢/R15 启动失败清理留档未立案)
+- **类型**: 可靠性加固 (owner 立案打包; 第四轮复查 R13/R16/R17; R14 LLM 截肢/R15 启动失败清理留档未立案; **R14 → DEV-0308 已收口**)
 - **关联模块**: `backend:shutdown`, `backend:main`, `backend:api-events`, `backend:tests`
 - **R13 (deadline 预算挤兑穿底)**: 固定 60s < 关闭链子超时之和 (排空15+drain30+crawl4ai5+dsh15≈65s) → 慢环节时 deadline 抢杀优雅收尾。修: `get_shutdown_budget` 未显式设 env 时改**派生和** = `HOTSPOT_SHUTDOWN_TIMEOUT` + `HOTSPOT_GRACEFUL_TIMEOUT` + 关闭链固定 30s (默认 75s, 与子超时联动); drain 无法内省盲等吃满 30s → 封顶 `UNINTROSPECTED_DRAIN_CAP_S=10s` (看不见在跑什么, 盲等无信息量)
 - **R16 (WORKERS>1/直起入口无哨兵)**: run.py 的 arm 只覆盖父进程; worker 重新 import `backend.main` 时无 SSE 终结/无 deadline/信号重放复活。修: `backend.main` **模块级兜底 arm** (幂等 never-fail) — 消灭入口差异, 顺带简化 `__main__` 分支 (删重复调用); 备用入口 `uvicorn backend.main:app` 直起同样有兜底

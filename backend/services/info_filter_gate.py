@@ -233,6 +233,7 @@ def post_ingest_semantic_filter(
 
     from backend.repository.db import get_connection
     from backend.services.ai_hub.tasks import semantic_verdict
+    from backend.utils.shutdown import shutdown_yield_requested
 
     conn = get_connection()
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=window_hours)).isoformat()
@@ -246,7 +247,16 @@ def post_ingest_semantic_filter(
     ).fetchall()
     summary["candidates"] = len(rows)
 
-    for r in rows:
+    for idx, r in enumerate(rows):
+        # DEV-0308 R14: 停机协作让出 — 未判别条目不打 semantic_checked,
+        # 下一 tick 窗口重扫自愈 (24h 窗口内零丢失)。
+        if shutdown_yield_requested():
+            summary["skipped_reason"] = "shutdown_yield"
+            logger.warning(
+                f"post_ingest_semantic_filter: shutdown yield at "
+                f"{idx}/{len(rows)} (judged={summary['judged']}) — 余下条目下轮重判"
+            )
+            break
         text = _item_text({"title": r["title"], "summary": r["summary"]})
         if not text.strip():
             continue

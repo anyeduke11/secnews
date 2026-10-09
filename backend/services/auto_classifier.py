@@ -651,7 +651,20 @@ def classify_items_with_ai(
     results: list[dict] = []
     llm_used = 0
     gate_on = _ai_classify_enabled()
-    for item in items:
+    # DEV-0308 R14: lazy import 哨兵探针 (本模块是纯函数测试大户, 不新增顶层依赖)
+    from backend.logging_config import logger as _vis_log
+    from backend.utils.shutdown import shutdown_yield_requested
+
+    for idx, item in enumerate(items):
+        # 停机协作让出 — 哨兵置位后不再烧 LLM 调用 (批循环跑在 worker 线程,
+        # 主线程 executor join 等它; 让出缩短停机 + 省算力)。
+        # 被让出条目 domain 留 NULL, 诚实日志 (影响面 = 当批尾部 LLM 增援条目)。
+        if shutdown_yield_requested():
+            _vis_log.warning(
+                f"classify_items_with_ai: shutdown yield at {idx}/{len(items)} "
+                f"(llm_used={llm_used}) — 余下条目本轮不分类"
+            )
+            break
         tags = item.get("tags", [])
         if isinstance(tags, str):
             import json

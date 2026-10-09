@@ -150,8 +150,22 @@ def run_auto_intake() -> dict[str, object]:
                 hits = {p["id"]: p.get("practice_domain") for p in probes}
         # 步骤 5: 逐条入管 (md 先写; url 幂等; 单条失败不中断本轮)
         from backend.services.sag_service import promote_favorite_to_knowledge
+        from backend.utils.shutdown import shutdown_yield_requested
 
+        yielded = False
         for cand in candidates:
+            # DEV-0308 R14: 停机协作让出。候选按 quality_score DESC 处理而
+            # 游标是 ingested_at 下界 (两者无关), 任何"推进到部分水位"的截断
+            # 都可能吞掉低时间戳的未处理项 → 让出时游标整体冻结: 下轮重查
+            # 本批, 已入管条目靠 promote url 幂等去重, domain-skip 重判廉价。
+            if shutdown_yield_requested():
+                yielded = True
+                log.warning(
+                    f"auto_intake: shutdown yield at "
+                    f"{result['intaken']}+{result['skipped_domain']}"
+                    f"/{len(candidates)} — 游标冻结, 余下条目下轮重评"
+                )
+                break
             if want and hits.get(cand["id"]) not in want:
                 result["skipped_domain"] += 1
                 continue
@@ -169,10 +183,12 @@ def run_auto_intake() -> dict[str, object]:
         # 步骤 6: 游标推进到本轮 max(ingested_at) (含跳过条目 — 不重扫)。
         # min(..., now) 钳制: 脏数据未来时间戳会把游标顶到未来, 合法新条目
         # 在追上之前被静默跳过 — 钳到当前时刻封顶。
-        now_iso = datetime.now(timezone.utc).isoformat()
-        SettingsRepository().set(
-            CURSOR_KEY, min(max(c["ingested_at"] for c in candidates), now_iso)
-        )
+        # DEV-0308 R14: 让出轮次冻结游标 (见步骤 5 注释), 正常轮次语义不变。
+        if not yielded:
+            now_iso = datetime.now(timezone.utc).isoformat()
+            SettingsRepository().set(
+                CURSOR_KEY, min(max(c["ingested_at"] for c in candidates), now_iso)
+            )
     except Exception as e:
         log.error(f"run_auto_intake crashed: {e}")
     return result

@@ -207,6 +207,20 @@ def _reset_provider_health_singleton():
 
 
 @pytest.fixture(autouse=True)
+def _reset_shutdown_sentinel_flag():
+    """DEV-0308 R14: core/events 停机哨兵是进程级 flag, 生产代码行为现已依赖
+    它 (post_ingest_semantic_filter / classify / intake 批循环条目边界让出) →
+    必须 per-test 隔离: 前序测试 (request_shutdown / lifespan 关闭链) 置位
+    会让后续生产路径测试被「已停机」劫持 (全量跑 semantic ×10 失败根因,
+    与 provider_health 残留同模式)。每测前后复位为「未停机」。"""
+    from backend.core import events as _core_events
+
+    _core_events._shutdown_requested = False
+    yield
+    _core_events._shutdown_requested = False
+
+
+@pytest.fixture(autouse=True)
 def _protect_hotspot_env() -> Iterator[None]:
     """阻断 crawl4ai load_dotenv() 对 os.environ 的跨测试污染.
 

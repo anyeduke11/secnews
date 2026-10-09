@@ -352,6 +352,20 @@ app = FastAPI(
     description="多域热点聚合仪表盘 — Phase 4 API 层",
     lifespan=lifespan,
 )
+
+# DEV-0307 R16: 停机哨兵 import 期兜底武装 — run.py 的 arm 只覆盖父进程,
+# WORKERS>1 派生 worker / `uvicorn backend.main:app` 直起等入口重新 import
+# 本模块时无哨兵 (SSE 不终结、无 deadline、信号重放复活)。arm 幂等且
+# never-fail (uvicorn 缺失时内部跳过)。
+try:
+    from backend.utils.sigterm_sentinel import arm_sigterm_sentinel as _arm_sentinel
+
+    _arm_sentinel()
+except Exception as _e:  # pragma: no cover - 兜底武装失败不阻断 import
+    import logging as _logging
+
+    _logging.getLogger("hotspot").warning(f"sigterm sentinel import-arm failed: {_e}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -393,9 +407,8 @@ if __name__ == "__main__":  # pragma: no cover
     from backend.config import config, resolve_bind_host
     host = os.getenv("HOTSPOT_HOST") or os.getenv("HOST", config.host)
     # DEV-0305: 与 run.py 同款哨兵武装 (SSE 前置终结 + 停机总监时器),
-    # 堵住备用入口无兜底的空窗。
-    from backend.utils.sigterm_sentinel import arm_sigterm_sentinel
-    arm_sigterm_sentinel()
+    # 堵住备用入口无兜底的空窗。DEV-0307 R16 后模块级 arm 已覆盖 (本块
+    # 执行同样跑模块级代码), 无需重复调用。
     # DEV-0303 R2: 与 run.py 同款退出尾闸 — 硬退出跳过 join 非守护线程阶段。
     _exit_code = 0
     try:

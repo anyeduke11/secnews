@@ -47,7 +47,11 @@ async def sse_events(
             if last_id > 0:
                 try:
                     from backend.repository.outbox_repo import OutboxRepo
-                    replay = OutboxRepo().list_since(last_id, limit=200)
+                    # DEV-0307 R17: 同步 SQL 挪 worker 线程 (DEV-0304 同款,
+                    # loop 上撞 WAL 写锁会 busy_timeout=5s 冻住 event loop)
+                    replay = await asyncio.to_thread(
+                        OutboxRepo().list_since, last_id, limit=200
+                    )
                     for row in replay:
                         payload = json.dumps(
                             {

@@ -210,18 +210,47 @@ def _reset_deadline_timer():
 
 
 class TestShutdownBudget:
-    def test_default_60s(self, monkeypatch):
-        monkeypatch.delenv("HOTSPOT_SHUTDOWN_HARD_TIMEOUT", raising=False)
-        assert shutdown_mod.get_shutdown_budget() == 60.0
+    """DEV-0307 R13: 预算 = 派生和 (排空 + drain + 关闭链固定 30s)。"""
 
-    def test_env_override(self, monkeypatch):
+    def test_default_is_derived_sum_75(self, monkeypatch):
+        monkeypatch.delenv("HOTSPOT_SHUTDOWN_HARD_TIMEOUT", raising=False)
+        monkeypatch.delenv("HOTSPOT_SHUTDOWN_TIMEOUT", raising=False)
+        monkeypatch.delenv("HOTSPOT_GRACEFUL_TIMEOUT", raising=False)
+        assert shutdown_mod.get_shutdown_budget() == 15.0 + 30.0 + 30.0
+
+    def test_derived_follows_sub_timeouts(self, monkeypatch):
+        """deadline 与子超时联动, 子超时调大不会挤兑穿底 (R13 根因)。"""
+        monkeypatch.delenv("HOTSPOT_SHUTDOWN_HARD_TIMEOUT", raising=False)
+        monkeypatch.setenv("HOTSPOT_SHUTDOWN_TIMEOUT", "5")
+        assert shutdown_mod.get_shutdown_budget() == 5.0 + 30.0 + 30.0
+        monkeypatch.setenv("HOTSPOT_GRACEFUL_TIMEOUT", "10")
+        assert shutdown_mod.get_shutdown_budget() == 5.0 + 10.0 + 30.0
+
+    def test_env_override_still_wins(self, monkeypatch):
         monkeypatch.setenv("HOTSPOT_SHUTDOWN_HARD_TIMEOUT", "90")
         assert shutdown_mod.get_shutdown_budget() == 90.0
 
-    def test_invalid_or_nonpositive_falls_back(self, monkeypatch):
+    def test_invalid_or_nonpositive_falls_back_to_derived(self, monkeypatch):
+        monkeypatch.delenv("HOTSPOT_SHUTDOWN_TIMEOUT", raising=False)
+        monkeypatch.delenv("HOTSPOT_GRACEFUL_TIMEOUT", raising=False)
         for bad in ("abc", "-5", "0"):
             monkeypatch.setenv("HOTSPOT_SHUTDOWN_HARD_TIMEOUT", bad)
-            assert shutdown_mod.get_shutdown_budget() == 60.0
+            assert shutdown_mod.get_shutdown_budget() == 75.0
+
+
+class TestDrainUnintrospectedCap:
+    """DEV-0307 R13: 无法内省 → 盲等封顶 (不再吃满整个 drain 预算)。"""
+
+    def test_blind_wait_capped_not_full_timeout(self, monkeypatch):
+        class _NoIntrospect:
+            scheduler = None  # 无 _executors → seen_executor=False
+
+        monkeypatch.setattr(shutdown_mod, "UNINTROSPECTED_DRAIN_CAP_S", 0.05)
+        stats = asyncio.run(drain_in_flight(_NoIntrospect(), timeout=30.0))
+        assert stats["introspected"] is False
+        assert stats["waited_s"] < 1.0, (
+            f"盲等必须封顶 (cap=0.05), 实测 {stats['waited_s']}s — 吃满 30s 即挤兑 deadline"
+        )
 
 
 class TestArmShutdownDeadline:

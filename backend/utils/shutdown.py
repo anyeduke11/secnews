@@ -34,6 +34,22 @@ from backend.repository import db as repo_db
 
 DEFAULT_GRACE_SECONDS = 30.0
 
+# DEV-0307 R13: 无法内省 pending futures 时的盲等上限 — 看不见在跑什么,
+# 盲等满 30s 既无信息量又挤兑停机总预算, 10s 后照常走关闭链。
+UNINTROSPECTED_DRAIN_CAP_S = 10.0
+
+
+def _env_float(name: str, default: float) -> float:
+    """读 env 浮点值; 非法回退 default (停机路径永不抛)。"""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        _logger.warning("{}={} 非法, 回退 {}s", name, raw, default)
+        return default
+
 
 def get_graceful_timeout() -> float:
     """读 ``HOTSPOT_GRACEFUL_TIMEOUT``; 非法/负值安全回退。"""
@@ -106,7 +122,9 @@ async def drain_in_flight(scheduler: Any, timeout: float | None = None) -> dict:
         elif seen_executor:
             pass  # 内省成功且无在跑 job — 无需等待
         else:
-            await asyncio.sleep(timeout)  # 无法内省, 固定等待兜底
+            # DEV-0307 R13: 无法内省 (APScheduler 私有结构变更等) → 盲等
+            # 封顶 10s 兜底, 不再吃满整个 drain 预算挤兑停机 deadline
+            await asyncio.sleep(min(timeout, UNINTROSPECTED_DRAIN_CAP_S))
     except Exception as e:  # pragma: no cover - 防御性
         _logger.warning(f"drain wait failed (ignored): {e}")
     stats["waited_s"] = round(time.monotonic() - t0, 3)
@@ -164,36 +182,56 @@ def guaranteed_exit(exit_code: int = 0) -> None:  # pragma: no cover - os._exit 
 
 # ---------------------------------------------------------------------------
 # DEV-0305 R8+R9: 停机总监时器 (deadline watchdog)
+# DEV-0307 R13: 预算改「派生和」— 固定 60s 会被关闭链各子超时之和挤兑穿底
+# (排空+drain 已占 45s, 撞 crawl4ai/dsh 慢环节时优雅收尾被 deadline 抢杀)。
 # ---------------------------------------------------------------------------
-DEFAULT_SHUTDOWN_BUDGET_S = 60.0
+
+# 关闭链非 env 化环节预算: crawl4ai close 5s + dsh stop 15s (wait 10 +
+# kill + wait 5) + outbox/watcher/WAL/close_db 等杂项余量 10s。
+_CLOSE_CHAIN_FIXED_BUDGET_S = 30.0
+# 派生值解析异常时的最终兜底
+_FALLBACK_SHUTDOWN_BUDGET_S = 75.0
 
 _deadline_lock = threading.Lock()
 _deadline_timer: threading.Timer | None = None
 
 
-def get_shutdown_budget() -> float:
-    """读 ``HOTSPOT_SHUTDOWN_HARD_TIMEOUT``; 非法/非正值回退默认 60s。
+def derived_shutdown_budget() -> float:
+    """停机总预算 = 排空 + drain + 关闭链固定环节 (与子超时联动)。
 
-    预算依据: uvicorn 排空 15s (HOTSPOT_SHUTDOWN_TIMEOUT) + lifespan drain
-    30s (HOTSPOT_GRACEFUL_TIMEOUT) + 关闭链其余环节 ~10s + 余量。
+    env 显式 HOTSPOT_SHUTDOWN_HARD_TIMEOUT 优先 (见 get_shutdown_budget);
+    本函数保证 deadline 永远 ≥ 正常关闭链之和, 不再抢杀优雅收尾。
+    """
+    try:
+        drain = max(0.0, _env_float("HOTSPOT_SHUTDOWN_TIMEOUT", 15.0))
+        graceful = get_graceful_timeout()
+        return drain + graceful + _CLOSE_CHAIN_FIXED_BUDGET_S
+    except Exception:  # pragma: no cover - 防御性
+        return _FALLBACK_SHUTDOWN_BUDGET_S
+
+
+def get_shutdown_budget() -> float:
+    """读 ``HOTSPOT_SHUTDOWN_HARD_TIMEOUT``; 未设 → 派生和 (DEV-0307 R13)。
+
+    派生构成: uvicorn 排空 (HOTSPOT_SHUTDOWN_TIMEOUT, 默认 15s) + lifespan
+    drain (HOTSPOT_GRACEFUL_TIMEOUT, 默认 30s) + 关闭链固定环节 30s
+    (crawl4ai 5 + dsh 15 + 杂项余量 10)。默认派生 = 75s。
     """
     raw = os.getenv("HOTSPOT_SHUTDOWN_HARD_TIMEOUT")
     if raw is None:
-        return DEFAULT_SHUTDOWN_BUDGET_S
+        return derived_shutdown_budget()
     try:
         val = float(raw)
     except ValueError:
         _logger.warning(
-            "HOTSPOT_SHUTDOWN_HARD_TIMEOUT={} 非法, 回退 {}s",
-            raw, DEFAULT_SHUTDOWN_BUDGET_S,
+            "HOTSPOT_SHUTDOWN_HARD_TIMEOUT={} 非法, 回退派生和", raw
         )
-        return DEFAULT_SHUTDOWN_BUDGET_S
+        return derived_shutdown_budget()
     if val <= 0:
         _logger.warning(
-            "HOTSPOT_SHUTDOWN_HARD_TIMEOUT={} 非正, 回退 {}s",
-            raw, DEFAULT_SHUTDOWN_BUDGET_S,
+            "HOTSPOT_SHUTDOWN_HARD_TIMEOUT={} 非正, 回退派生和", raw
         )
-        return DEFAULT_SHUTDOWN_BUDGET_S
+        return derived_shutdown_budget()
     return val
 
 

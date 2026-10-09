@@ -165,3 +165,48 @@ def test_sentinel_wrapper_clears_captured_signals(monkeypatch):
     Server.handle_exit(dummy, _signal.SIGTERM, None)  # type: ignore[arg-type]
     assert dummy.force_exit is True
     assert dummy._captured_signals == []  # 重放仍被吞
+
+
+# ---------------------------------------------------------------------------
+# DEV-0307 R16 — backend.main import 期兜底武装 (worker/直起入口覆盖)
+# ---------------------------------------------------------------------------
+def test_backend_main_import_arms_sentinel():
+    """import backend.main 即武装哨兵 — WORKERS>1 worker 重新 import 本模块
+    /`uvicorn backend.main:app` 直起等入口不再有无哨兵空窗 (R16)。"""
+    from uvicorn.server import Server
+
+    import backend.main  # noqa: F401  (模块级 arm 已在 import 时执行)
+
+    assert getattr(Server, "_sigterm_sentinel_armed", False) is True
+
+
+# ---------------------------------------------------------------------------
+# DEV-0307 R17 — SSE outbox 重放 SQL 必须离开 event loop (DEV-0304 同款)
+# ---------------------------------------------------------------------------
+def test_sse_replay_runs_off_event_loop(monkeypatch):
+    """GET /api/events?last_id=N 首帧重放的 list_since 落 worker 线程 —
+    loop 上撞 WAL 写锁会被 busy_timeout=5s 冻住 (health 超时同根)。"""
+    import threading
+
+    from backend.api.events import sse_events
+
+    threads: list[str] = []
+
+    def _spy_list_since(self, last_id, *, limit=100):
+        threads.append(threading.current_thread().name)
+        return [{"id": 6, "event_type": "collect_done", "payload": {}, "occurred_at": "t"}]
+
+    monkeypatch.setattr(
+        "backend.repository.outbox_repo.OutboxRepo.list_since", _spy_list_since
+    )
+
+    async def scenario():
+        resp = await sse_events(request=None, last_id=5)
+        gen = resp.body_iterator
+        frame = await asyncio.wait_for(gen.__anext__(), timeout=3)
+        assert "id: 6" in frame and "collect_done" in frame  # 重放帧行为回归
+        await gen.aclose()
+
+    asyncio.run(scenario())
+    assert threads and threads[0] != "MainThread", \
+        f"重放 SQL 必须离开 loop 线程, got {threads}"

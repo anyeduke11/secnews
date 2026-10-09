@@ -1,4 +1,18 @@
 
+## [DEV-0307] 停机链 R13/R16/R17 打包 — deadline 派生预算 + 哨兵 import 兜底 + SSE 重放线程化 (shutdown-r13-r16-r17)
+
+- **时间**: 2026-10-09
+- **类型**: 可靠性加固 (owner 立案打包; 第四轮复查 R13/R16/R17; R14 LLM 截肢/R15 启动失败清理留档未立案)
+- **关联模块**: `backend:shutdown`, `backend:main`, `backend:api-events`, `backend:tests`
+- **R13 (deadline 预算挤兑穿底)**: 固定 60s < 关闭链子超时之和 (排空15+drain30+crawl4ai5+dsh15≈65s) → 慢环节时 deadline 抢杀优雅收尾。修: `get_shutdown_budget` 未显式设 env 时改**派生和** = `HOTSPOT_SHUTDOWN_TIMEOUT` + `HOTSPOT_GRACEFUL_TIMEOUT` + 关闭链固定 30s (默认 75s, 与子超时联动); drain 无法内省盲等吃满 30s → 封顶 `UNINTROSPECTED_DRAIN_CAP_S=10s` (看不见在跑什么, 盲等无信息量)
+- **R16 (WORKERS>1/直起入口无哨兵)**: run.py 的 arm 只覆盖父进程; worker 重新 import `backend.main` 时无 SSE 终结/无 deadline/信号重放复活。修: `backend.main` **模块级兜底 arm** (幂等 never-fail) — 消灭入口差异, 顺带简化 `__main__` 分支 (删重复调用); 备用入口 `uvicorn backend.main:app` 直起同样有兜底
+- **R17 (SSE 重放裸 SQL, DEV-0304 同类漏网)**: `/api/events?last_id=N` 首帧 `OutboxRepo().list_since` 在 loop 上同步执行 (≤200 行), 撞 WAL 写锁 busy 5s 冻 loop。修: 包 `asyncio.to_thread` (一行)
+- **测试**: budget 组重写 4 (派生 75/联动/显式优先/非法回退派生) + `TestDrainUnintrospectedCap` (盲等封顶断言) + R16 import 武装契约 + R17 线程落位契约 (重放帧行为同步回归); 三文件 53 passed; ruff 0
+- **实弹 (最有价值样本 = R8 join 场景自然发生)**: 重启 21s 后 TERM (图谱点火 STIX 下载在跑) → 哨兵 75s deadline 武装 ✓ → 排空+drain+lifespan **1 秒走完** (SSE 终结生效) → `Finished server process` → **主线程卡 executor join ~70s** (STIX 读超时 60s + cache 解析 upsert) → t+71s `guaranteed_exit: hard exit(code=0)` — 派生 75s 预算容纳自然退出 (修复前 60s 固定预算会抢在尾闸前 11s 硬杀; join 上限 75s 病态场景仍由 deadline 斩断, 分层正确)。R17 实况: `GET /api/events?last_id=1` 返回真实重放帧 `id: 2 / event: v1_action_started` ✓
+- **诚实记录**: ①实弹脚本轮询窗 20s << 实际退出 71s, 首轮误报 STILL_ALIVE — 复核时间线后确认非风险而是 R8 本尊直接观测; ②上一轮全量回归 terminal 被回收结果丢失, 无法确认完成状态 → 重跑 (Rule 12 fail-loud)
+- **生产**: 已重启装载 (health ok; 日志两处 armed = sigterm sentinel ×1 [模块级与 run.py 双 arm 幂等只记一次] + mcp sse sentinel ×1)
+- **下一可用号**: DEV-0308
+
 ## [DEV-0306] 停机链 R10/R11/R12 收口 — MCP SSE 接哨兵 + 锁产权收割 + 二次 TERM 加速 (shutdown-r10-r11-r12)
 
 - **时间**: 2026-10-09

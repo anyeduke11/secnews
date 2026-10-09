@@ -1,4 +1,18 @@
 
+## [DEV-0305] 停机总监时器 — R8+R9 兜底 (executor join / 无界 await 穿透) (shutdown-deadline)
+
+- **时间**: 2026-10-09
+- **类型**: 可靠性加固 (owner 立案; 风险复查 R8/R9; R10-R12 未立案留档)
+- **关联模块**: `backend:shutdown`, `backend:sigterm-sentinel`, `backend:main`, `backend:run-entry`
+- **R8 根因 (实验证实)**: `guaranteed_exit` 尾闸依赖 `uvicorn.run` 返回, 但内部 `asyncio.run` 关闭阶段 `loop.shutdown_default_executor()` 会 **join 正在执行中的 to_thread/run_in_executor 同步任务** (cancel 无效) — 最小实验 6s 任务 → run() 6s 后才返回; 现实实例 = 图谱点火 STIX (HEAD 15s + GET 60s 合计 75s 级) → 停机窗口撞上, 尾闸入口被堵死, SIGTERM 假死
+- **R9 根因**: lifespan 关闭链无总时限 — `await close_client()` (crawl4ai multiprocessing channel + 浏览器 join) 无超时, 撞僵尸浏览器无限挂 (停机日志 8 个 leaked `/mp-*` semaphore 即其 multiprocessing 子资源痕迹); outbox `await self._task` 同理可挂
+- **修复 (同根同治)**: `arm_shutdown_deadline()` — 信号时刻 (哨兵 handle_exit 内) 武装 daemon `threading.Timer`, 预算 `HOTSPOT_SHUTDOWN_HARD_TIMEOUT` 默认 60s (15 排空 + 30 drain + ~10 关闭链 + 余量), 耗尽从 Timer 线程 `guaranteed_exit(0)` 硬退 — **唯一穿透一切挂点的兜底** (与 R1 前置哨兵同架构); 幂等: 二次 TERM 不重置预算; R9 局部另加 `wait_for(close_client(), 5)`; 备用入口 `main.__main__` 补装同款哨兵 (此前无兜底的空窗)
+- **实弹 (R8 复刻, 一次性脚本已删)**: 真 uvicorn serve + `to_thread(sleep 30)` 在跑 + SIGTERM (预算 4s) → serve 正常走完 → 主线程 executor join 挂死 → **t+4.0s deadline exceeded → guaranteed_exit(code=0)**, 总 5.07s, 无 SURVIVED 分支; 生产重启上一进程停机 1s
+- **测试**: test_graceful_shutdown +6 (预算解析×3 / daemon Timer 武装契约 / 幂等 / 回调硬退) + autouse 复位防 Timer 泄漏; test_sse_shutdown 哨兵集成用例扩断言 (deadline 随信号武装); 两文件 28 passed; 全量回归 **5341 passed / 9 skipped**; ruff 0
+- **遗留**: R10 (MCP SSE 不吃哨兵, 白吃排空) / R11 (孤儿收割签名盲区: 组内只剩 dsh/pi 时拒收割) / R12 (二次 TERM 不加速, uvicorn 仅 SIGINT force) 未立案
+- **生产**: 新 pid 已载 (sentinel armed 日志可查, health ok)
+- **下一可用号**: DEV-0306
+
 ## [DEV-0304] catchup 同步 SQL 全面线程化 — 启动窗口 health 超时治本 (catchup-off-loop)
 
 - **时间**: 2026-10-09

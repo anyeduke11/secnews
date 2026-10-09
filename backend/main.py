@@ -294,9 +294,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # gateway 方案 §3.1: crawl4ai/Playwright 单例优雅停机 — 进程 shutdown
     # 时关闭常驻 Chromium, 否则浏览器变僵尸进程 (第 1 步实施缺口)。
     # crawl4ai 未安装时 close_client 内部 no-op, 不影响无依赖环境。
+    # DEV-0305 R9: close_client 走 multiprocessing channel + 浏览器 join,
+    # 撞僵尸浏览器可无限挂 → wait_for 5s 有界 (挂则弃, 交由尾闸/总监时器兜底)。
     try:
         from backend.utils.crawl4ai_client import close_client
-        await close_client()
+        await asyncio.wait_for(close_client(), timeout=5)
+    except TimeoutError:
+        log.warning("crawl4ai close_client timed out (5s) — abandoning (zombie browser possible)")
     except Exception as e:
         log.warning(f"crawl4ai close_client error: {e}")
     try:
@@ -388,6 +392,10 @@ if __name__ == "__main__":  # pragma: no cover
 
     from backend.config import config, resolve_bind_host
     host = os.getenv("HOTSPOT_HOST") or os.getenv("HOST", config.host)
+    # DEV-0305: 与 run.py 同款哨兵武装 (SSE 前置终结 + 停机总监时器),
+    # 堵住备用入口无兜底的空窗。
+    from backend.utils.sigterm_sentinel import arm_sigterm_sentinel
+    arm_sigterm_sentinel()
     # DEV-0303 R2: 与 run.py 同款退出尾闸 — 硬退出跳过 join 非守护线程阶段。
     _exit_code = 0
     try:

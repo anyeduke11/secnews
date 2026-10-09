@@ -135,6 +135,16 @@ def test_sentinel_wrapper_clears_captured_signals(monkeypatch):
     )  # 复位类级幂等标志, 保用例自洽
     arm_sigterm_sentinel()
 
+    # DEV-0305: 哨兵须武装停机总监时器 (record 替身, 防真 60s Timer 泄漏)
+    armed: list[bool] = []
+    import backend.utils.shutdown as shutdown_mod
+
+    monkeypatch.setattr(
+        shutdown_mod,
+        "arm_shutdown_deadline",
+        lambda: armed.append(True),
+    )
+
     import signal as _signal
 
     dummy = SimpleNamespace(_captured_signals=[_signal.SIGTERM], should_exit=False)
@@ -145,3 +155,4 @@ def test_sentinel_wrapper_clears_captured_signals(monkeypatch):
     assert dummy.should_exit is True
     assert dummy._captured_signals == [], "信号重放必须被吞掉, 否则尾闸永不执行"
     assert core_events.is_shutdown_requested()
+    assert armed == [True], "停机总监时器必须随信号武装 (R8/R9 兜底)"

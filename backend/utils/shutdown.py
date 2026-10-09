@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sqlite3
+import threading
 import time
 from typing import Any
 
@@ -159,3 +160,86 @@ def guaranteed_exit(exit_code: int = 0) -> None:  # pragma: no cover - os._exit 
     import os as _os
 
     _os._exit(exit_code)
+
+
+# ---------------------------------------------------------------------------
+# DEV-0305 R8+R9: 停机总监时器 (deadline watchdog)
+# ---------------------------------------------------------------------------
+DEFAULT_SHUTDOWN_BUDGET_S = 60.0
+
+_deadline_lock = threading.Lock()
+_deadline_timer: threading.Timer | None = None
+
+
+def get_shutdown_budget() -> float:
+    """读 ``HOTSPOT_SHUTDOWN_HARD_TIMEOUT``; 非法/非正值回退默认 60s。
+
+    预算依据: uvicorn 排空 15s (HOTSPOT_SHUTDOWN_TIMEOUT) + lifespan drain
+    30s (HOTSPOT_GRACEFUL_TIMEOUT) + 关闭链其余环节 ~10s + 余量。
+    """
+    raw = os.getenv("HOTSPOT_SHUTDOWN_HARD_TIMEOUT")
+    if raw is None:
+        return DEFAULT_SHUTDOWN_BUDGET_S
+    try:
+        val = float(raw)
+    except ValueError:
+        _logger.warning(
+            "HOTSPOT_SHUTDOWN_HARD_TIMEOUT={} 非法, 回退 {}s",
+            raw, DEFAULT_SHUTDOWN_BUDGET_S,
+        )
+        return DEFAULT_SHUTDOWN_BUDGET_S
+    if val <= 0:
+        _logger.warning(
+            "HOTSPOT_SHUTDOWN_HARD_TIMEOUT={} 非正, 回退 {}s",
+            raw, DEFAULT_SHUTDOWN_BUDGET_S,
+        )
+        return DEFAULT_SHUTDOWN_BUDGET_S
+    return val
+
+
+def _deadline_exceeded() -> None:
+    """预算耗尽回调: 无论主线程卡在哪 (executor join / 无超时 await), 硬退。"""
+    try:
+        _logger.warning(
+            "shutdown deadline exceeded — guaranteed_exit from watchdog "
+            "(主线程疑卡在 executor join / close_client 等无界 await, 见 DEV-0305 R8/R9)"
+        )
+    except Exception:
+        pass
+    guaranteed_exit(0)
+
+
+def arm_shutdown_deadline() -> None:
+    """信号到达时武装停机总监时器 (daemon Timer, 预算耗尽 os._exit)。
+
+    R8+R9 同根治理: ``guaranteed_exit`` 挂在 ``uvicorn.run`` 返回之后的
+    finally — 但 (a) Runner.close 的 ``shutdown_default_executor`` 会 join
+    正在执行的 to_thread/run_in_executor 同步任务 (实验: 6s 任务 → run()
+    6s 后才返回; 图谱点火 STIX 75s 级), (b) lifespan 关闭链无总时限, 任一
+    无超时 await (如 crawl4ai close_client 撞僵尸浏览器) 都让 run 永不
+    返回 → 尾闸入口本身被堵死。定时器从信号时刻起算, 覆盖停机全链, 是
+    唯一能穿透一切挂点的兜底 (与 R1 前置哨兵同架构: 不信任下游, 先到先防)。
+
+    幂等: 重复信号只武装一次 (预算从第一次 TERM 起算, 二次 TERM 不重置)。
+    """
+    global _deadline_timer
+    with _deadline_lock:
+        if _deadline_timer is not None:
+            return
+        budget = get_shutdown_budget()
+        _deadline_timer = threading.Timer(budget, _deadline_exceeded)
+        _deadline_timer.daemon = True
+        _deadline_timer.name = "shutdown-deadline"
+        _deadline_timer.start()
+    _logger.info(f"shutdown deadline armed: hard exit if not down in {budget:.0f}s")
+
+
+__all__ = [
+    "DEFAULT_GRACE_SECONDS",
+    "arm_shutdown_deadline",
+    "drain_in_flight",
+    "get_graceful_timeout",
+    "get_shutdown_budget",
+    "guaranteed_exit",
+    "wal_checkpoint",
+]

@@ -54,6 +54,15 @@ def arm_sigterm_sentinel() -> None:
             logger.info(f"sigterm sentinel: signal {sig} → SSE shutdown flag set (pre-drain)")
         except Exception as e:  # 哨兵失败不影响停机链
             logger.warning(f"sigterm sentinel error (ignored): {e}")
+        # DEV-0305 R8+R9: 停机总监时器 — 信号时刻起算预算, 耗尽硬退。
+        # guaranteed_exit 依赖 uvicorn.run 返回, 但 executor join (R8) 或
+        # 关闭链无超时 await (R9) 可堵死该入口; 定时器是唯一穿透一切挂点
+        # 的兜底。幂等: 二次 TERM 不重置预算。
+        try:
+            from backend.utils.shutdown import arm_shutdown_deadline
+            arm_shutdown_deadline()
+        except Exception as e:
+            logger.warning(f"shutdown deadline arm error (ignored): {e}")
         original(self, sig, frame)
         # DEV-0303 R2: 吞掉 capture_signals 退出时的信号重放 (见模块 docstring)。
         # 重复 TERM → handle_exit 再次进入 → 每次都清, force_exit 语义不受影响。

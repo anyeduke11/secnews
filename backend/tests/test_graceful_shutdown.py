@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
+import threading
+
+import pytest
 
 from backend.utils import shutdown as shutdown_mod
 from backend.utils.shutdown import (
@@ -186,4 +189,85 @@ class TestGuaranteedExit:
             shutdown_mod._logger, "complete", lambda: (_ for _ in ()).throw(RuntimeError("sink gone"))
         )
         shutdown_mod.guaranteed_exit(0)
+        assert calls == [0]
+
+
+# ---------------------------------------------------------------------------
+# DEV-0305 R8+R9: 停机总监时器
+# ---------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def _reset_deadline_timer():
+    """每用例前后复位总监时器 — 防真 Timer 泄漏跨用例触发 os._exit。"""
+    def _reset():
+        t = shutdown_mod._deadline_timer
+        if t is not None:
+            t.cancel()
+        shutdown_mod._deadline_timer = None
+
+    _reset()
+    yield
+    _reset()
+
+
+class TestShutdownBudget:
+    def test_default_60s(self, monkeypatch):
+        monkeypatch.delenv("HOTSPOT_SHUTDOWN_HARD_TIMEOUT", raising=False)
+        assert shutdown_mod.get_shutdown_budget() == 60.0
+
+    def test_env_override(self, monkeypatch):
+        monkeypatch.setenv("HOTSPOT_SHUTDOWN_HARD_TIMEOUT", "90")
+        assert shutdown_mod.get_shutdown_budget() == 90.0
+
+    def test_invalid_or_nonpositive_falls_back(self, monkeypatch):
+        for bad in ("abc", "-5", "0"):
+            monkeypatch.setenv("HOTSPOT_SHUTDOWN_HARD_TIMEOUT", bad)
+            assert shutdown_mod.get_shutdown_budget() == 60.0
+
+
+class TestArmShutdownDeadline:
+    def test_arms_daemon_timer_with_budget(self, monkeypatch):
+        timers: list[threading.Timer] = []
+        real_timer = threading.Timer
+
+        def _spy_timer(interval, fn, *a, **kw):
+            t = real_timer(interval, fn, *a, **kw)
+            timers.append(t)
+            return t
+
+        monkeypatch.setattr(threading, "Timer", _spy_timer)
+        monkeypatch.setenv("HOTSPOT_SHUTDOWN_HARD_TIMEOUT", "7")
+        shutdown_mod.arm_shutdown_deadline()
+        assert len(timers) == 1
+        t = timers[0]
+        assert t.interval == 7.0
+        assert t.daemon is True
+        assert t.function is shutdown_mod._deadline_exceeded
+        t.cancel()
+
+    def test_idempotent_second_arm_noop(self, monkeypatch):
+        """二次 TERM 不重置预算 (幂等)。"""
+        starts: list[int] = []
+        real_timer = threading.Timer
+
+        def _spy_timer(interval, fn, *a, **kw):
+            t = real_timer(interval, fn, *a, **kw)
+            orig_start = t.start
+
+            def _start():
+                starts.append(1)
+                orig_start()
+
+            t.start = _start
+            return t
+
+        monkeypatch.setattr(threading, "Timer", _spy_timer)
+        shutdown_mod.arm_shutdown_deadline()
+        shutdown_mod.arm_shutdown_deadline()
+        assert starts == [1]
+
+    def test_deadline_exceeded_hard_exits_zero(self, monkeypatch):
+        """预算耗尽回调 → guaranteed_exit(0) (穿透 executor join / 无界 await)。"""
+        calls: list[int] = []
+        monkeypatch.setattr("os._exit", lambda code: calls.append(code))
+        shutdown_mod._deadline_exceeded()
         assert calls == [0]

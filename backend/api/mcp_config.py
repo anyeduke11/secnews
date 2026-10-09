@@ -101,6 +101,13 @@ def mount_sse_endpoint(app, mcp) -> None:
         else:  # 旧版 fastapi-mcp API 兜底
             mcp.mount_sse_endpoint(path="/mcp/sse")
         _sse_mounted = True
+        # DEV-0306 R10: MCP SSE 接入停机哨兵 — 否则有客户端在连时每次停机
+        # 白吃满 15s 排空预算 (connect_sse 的读循环不吃哨兵)。
+        try:
+            from backend.utils.mcp_sse_shutdown import arm_mcp_sse_sentinel
+            arm_mcp_sse_sentinel()
+        except Exception as e:
+            logger.warning(f"arm_mcp_sse_sentinel failed (ignored): {e}")
         logger.info("MCP SSE endpoint mounted at /mcp/sse")
     except Exception as e:
         _sse_mounted = False

@@ -147,7 +147,9 @@ def test_sentinel_wrapper_clears_captured_signals(monkeypatch):
 
     import signal as _signal
 
-    dummy = SimpleNamespace(_captured_signals=[_signal.SIGTERM], should_exit=False)
+    dummy = SimpleNamespace(
+        _captured_signals=[_signal.SIGTERM], should_exit=False, force_exit=False
+    )
 
     Server.handle_exit(dummy, _signal.SIGTERM, None)  # type: ignore[arg-type]
 
@@ -156,3 +158,10 @@ def test_sentinel_wrapper_clears_captured_signals(monkeypatch):
     assert dummy._captured_signals == [], "信号重放必须被吞掉, 否则尾闸永不执行"
     assert core_events.is_shutdown_requested()
     assert armed == [True], "停机总监时器必须随信号武装 (R8/R9 兜底)"
+    assert dummy.force_exit is False  # 首过信号不加速
+
+    # DEV-0306 R12: 二次 TERM → force_exit (跳过剩余排空等待, 催停有效化)
+    dummy._captured_signals.append(_signal.SIGTERM)
+    Server.handle_exit(dummy, _signal.SIGTERM, None)  # type: ignore[arg-type]
+    assert dummy.force_exit is True
+    assert dummy._captured_signals == []  # 重放仍被吞

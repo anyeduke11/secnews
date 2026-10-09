@@ -122,13 +122,20 @@ def _looks_backend(command: str) -> bool:
 
 
 def reap_conflict_group(
-    pgid: int, *, term_wait: float = 6.0, kill_wait: float = 3.0
+    pgid: int,
+    *,
+    lock_pgid: int | None = None,
+    term_wait: float = 6.0,
+    kill_wait: float = 3.0,
 ) -> tuple[bool, str]:
     """安全收割冲突进程组: TERM → 有界等待 → 逃逸 KILL。
 
     安全裁决 (任一不过 → 不动手):
-    - 组内至少一个成员命中后端签名 (防 pgid 复用错杀无关组);
-    - 组内成员全部属于当前用户。
+    - 组内全部成员属于当前用户;
+    - 组内至少一个成员命中后端签名 (防 pgid 复用错杀无关组), **或**
+      pgid == lock_pgid (DEV-0306 R11: 锁文件产权 — 该组正是上一次
+      hotspot 实例登记的进程组, 父进程被 SIGKILL 后组内只剩 dsh/pi/
+      Chromium 等无签名孤儿时仍可自愈)。
 
     Returns:
         (True, detail)  — 组已灭 (收割成功或竞态自灭);
@@ -140,14 +147,15 @@ def reap_conflict_group(
     if not members:
         # ps 枚举不到但 killpg 探活存活: 宁拒勿错杀
         return False, "group alive but members not enumerable via ps"
-    if not any(_looks_backend(cmd) for _, _, cmd in members):
-        return False, "no hotspot backend signature in group"
     import getpass
 
     current = {getpass.getuser(), str(os.getuid())}
     strangers = sorted({u for _, u, _ in members} - current)
     if strangers:
         return False, f"foreign users in group: {', '.join(strangers)}"
+    has_signature = any(_looks_backend(cmd) for _, _, cmd in members)
+    if not has_signature and pgid != lock_pgid:
+        return False, "no hotspot backend signature in group"
 
     try:
         os.killpg(pgid, signal.SIGTERM)
@@ -196,7 +204,8 @@ def refuse_if_locked(lock_path: Path | None = None, port: int = 8000) -> None:
     """
     conflict = acquire_instance_lock(lock_path)
     if conflict is not None:
-        reaped, detail = reap_conflict_group(conflict)
+        # conflict 即锁文件登记的 pgid — 产权凭证, R11 无签名自家组分支据此放行
+        reaped, detail = reap_conflict_group(conflict, lock_pgid=conflict)
         if not reaped:
             print(
                 f"[instance-lock] 已有实例在运行 (进程组 {conflict}, 目标端口 {port}), "

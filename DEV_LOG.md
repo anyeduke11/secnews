@@ -1,4 +1,17 @@
 
+## [DEV-0306] 停机链 R10/R11/R12 收口 — MCP SSE 接哨兵 + 锁产权收割 + 二次 TERM 加速 (shutdown-r10-r11-r12)
+
+- **时间**: 2026-10-09
+- **类型**: 可靠性加固 (owner 立案; 接续 DEV-0305 风险清单; 停机链 R1-R12 全部闭环)
+- **关联模块**: `backend:mcp-sse-shutdown`, `backend:api-mcp-config`, `backend:instance-lock`, `backend:sigterm-sentinel`, `backend:tests`
+- **R10 (MCP SSE 不吃哨兵)**: 包装 `mcp.server.sse.SseServerTransport.connect_sse` (基类 patch 自动覆盖 fastapi-mcp 子类) — 每连接派生 closer 任务订阅 core/events, 收到 `server_shutdown` 广播 → `aclose()` transport 全部 `_read_stream_writers` → 库读循环自然终结。武装点挂 `mount_sse_endpoint` 成功路径 (never-fail)。**实弹抓到形态 500 事故**: 首版包装写成协程函数, 但 fastapi-mcp 以 `async with connect_sse(...) as (reader, writer)` 消费 (server.py L197) → GET /mcp/sse 生产 500; 修复为 `@asynccontextmanager` 保形态 + 新用例 `test_arm_preserves_async_context_manager_shape` 锁死契约防回潮 (教训: 包装第三方方法前必须取证消费方式, 不能按签名猜)
+- **R11 (孤儿收割签名盲区)**: `reap_conflict_group` 加 `lock_pgid` 产权分支 — 锁文件登记的 pgid 匹配 + 全员同用户 → 无后端签名也放行 (父进程被 SIGKILL 后组内只剩 dsh/pi/Chromium 孤儿的自愈场景); 异主用户裁决仍先于产权 (防错杀不 Relax); `refuse_if_locked` 把 conflict 值作为产权凭证传入
+- **R12 (二次 TERM 不加速)**: 哨兵包装扩展 uvicorn 原生语义 — 原生仅二次 SIGINT 触发 `force_exit`, 现任何二次信号 (TERM) 即置 `force_exit=True` 跳过两段连接排空等待 (消费点 server.py L306/313 取证); 操作员"再 kill 一次"从安慰剂变真加速。注: force_exit 救不了 R8 executor join (uvicorn 已退场), 该场景由 DEV-0305 总监时器兜底 — 实弹恰好抓到 30s STIX 读超时场景: lifespan 秒级走完 → executor join 30s → `guaranteed_exit(code=0)` (deadline 60s 未触发, 尾闸先到)
+- **测试**: 新 `test_mcp_sse_shutdown.py` ×7 (writer 全关/never-fail/广播唤醒/预置位即断/普通事件不误伤/幂等/**CM 形态契约**) + `test_instance_lock.py` +4 (无签名自家组放行/锁不匹配拒/异主拒/产权接线) + 哨兵用例扩 R12 断言; 全量回归 **5352 passed / 9 skipped** (注: 500 事故首版未被既有测试捕获 — mcp 族无真实 GET /mcp/sse 流测试, CM 形态用例为本次补上的机械防线); ruff 0
+- **实弹终验**: ①修复后 GET /mcp/sse → 200 + endpoint 事件挂流 ✓; ②挂 MCP SSE 流 + 双 TERM (点火窗口过后) → **停机 1.02s** (修复前 MCP 客户端在连白吃 15s 排空) ✓; ③点火进行中 TERM → 30s executor join 后 guaranteed_exit 落日志 (deadline 兜底就位) ✓
+- **生产**: pid 已载 (health ok, `mcp sse sentinel armed` 日志 ✓)
+- **下一可用号**: DEV-0307
+
 ## [DEV-0305] 停机总监时器 — R8+R9 兜底 (executor join / 无界 await 穿透) (shutdown-deadline)
 
 - **时间**: 2026-10-09
@@ -9,9 +22,9 @@
 - **修复 (同根同治)**: `arm_shutdown_deadline()` — 信号时刻 (哨兵 handle_exit 内) 武装 daemon `threading.Timer`, 预算 `HOTSPOT_SHUTDOWN_HARD_TIMEOUT` 默认 60s (15 排空 + 30 drain + ~10 关闭链 + 余量), 耗尽从 Timer 线程 `guaranteed_exit(0)` 硬退 — **唯一穿透一切挂点的兜底** (与 R1 前置哨兵同架构); 幂等: 二次 TERM 不重置预算; R9 局部另加 `wait_for(close_client(), 5)`; 备用入口 `main.__main__` 补装同款哨兵 (此前无兜底的空窗)
 - **实弹 (R8 复刻, 一次性脚本已删)**: 真 uvicorn serve + `to_thread(sleep 30)` 在跑 + SIGTERM (预算 4s) → serve 正常走完 → 主线程 executor join 挂死 → **t+4.0s deadline exceeded → guaranteed_exit(code=0)**, 总 5.07s, 无 SURVIVED 分支; 生产重启上一进程停机 1s
 - **测试**: test_graceful_shutdown +6 (预算解析×3 / daemon Timer 武装契约 / 幂等 / 回调硬退) + autouse 复位防 Timer 泄漏; test_sse_shutdown 哨兵集成用例扩断言 (deadline 随信号武装); 两文件 28 passed; 全量回归 **5341 passed / 9 skipped**; ruff 0
-- **遗留**: R10 (MCP SSE 不吃哨兵, 白吃排空) / R11 (孤儿收割签名盲区: 组内只剩 dsh/pi 时拒收割) / R12 (二次 TERM 不加速, uvicorn 仅 SIGINT force) 未立案
+- **遗留**: R10 (MCP SSE 不吃哨兵, 白吃排空) / R11 (孤儿收割签名盲区: 组内只剩 dsh/pi 时拒收割) / R12 (二次 TERM 不加速, uvicorn 仅 SIGINT force) — **→ DEV-0306 全部收口**
 - **生产**: 新 pid 已载 (sentinel armed 日志可查, health ok)
-- **下一可用号**: DEV-0306
+- **下一可用号**: DEV-0307 (0306 已被 MCP SSE/产权/催停收口占用)
 
 ## [DEV-0304] catchup 同步 SQL 全面线程化 — 启动窗口 health 超时治本 (catchup-off-loop)
 

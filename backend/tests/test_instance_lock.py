@@ -209,3 +209,60 @@ def test_refuse_if_locked_reap_refusal_exits(tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as ei:
         il.refuse_if_locked(lock_path=tmp_path / "hotspot.lock", port=0)
     assert ei.value.code == 2
+
+
+# ---------------------------------------------------------------------------
+# DEV-0306 R11: 锁产权 — 无后端签名的自家孤儿组也可收割
+# ---------------------------------------------------------------------------
+def test_reap_allows_unsigned_own_group_via_lock_ownership(monkeypatch):
+    """父进程已被 SIGKILL, 组内只剩 dsh/pi 等无签名孤儿: 锁文件 pgid 匹配 +
+    全员同用户 → 视为自家组放行收割 (防孤儿残留拒绝启动死锁)。"""
+    signals: list[int] = []
+    alive_iters = iter([True, False])
+    monkeypatch.setattr(il, "_pgid_alive", lambda pgid: next(alive_iters))
+    monkeypatch.setattr(il.os, "killpg", lambda pgid, sig: signals.append(sig))
+    monkeypatch.setattr(il.time, "sleep", lambda s: None)
+    monkeypatch.setattr(
+        il, "_group_members",
+        lambda pgid: [(100, _CURRENT_USER, "node dsh/dev.mjs"),
+                      (101, _CURRENT_USER, "chromium --headless")],
+    )
+    ok, detail = il.reap_conflict_group(4242, lock_pgid=4242)
+    assert ok is True and "SIGTERM" in detail
+    assert signals == [il.signal.SIGTERM]
+
+
+def test_reap_unsigned_group_without_ownership_still_refused(monkeypatch):
+    """无签名 + 锁不匹配 (pgid 复用给无关组) → 依旧拒绝 (防错杀不 Relax)。"""
+    monkeypatch.setattr(il, "_pgid_alive", lambda pgid: True)
+    monkeypatch.setattr(
+        il, "_group_members", lambda pgid: [(100, _CURRENT_USER, "node some_app.js")],
+    )
+    ok, reason = il.reap_conflict_group(4242, lock_pgid=9999)
+    assert ok is False and "signature" in reason
+
+
+def test_reap_own_group_foreign_user_still_refused(monkeypatch):
+    """锁匹配但组内出现异主进程 → 用户裁决先于产权, 拒绝。"""
+    monkeypatch.setattr(il, "_pgid_alive", lambda pgid: True)
+    monkeypatch.setattr(
+        il, "_group_members",
+        lambda pgid: [(100, "root", "node dsh/dev.mjs")],
+    )
+    ok, reason = il.reap_conflict_group(4242, lock_pgid=4242)
+    assert ok is False and "foreign users" in reason
+
+
+def test_refuse_if_locked_passes_lock_pgid_ownership(tmp_path, monkeypatch):
+    """refuse_if_locked 把锁文件 pgid 作为产权凭证传给收割 (R11 接线)。"""
+    captured: dict = {}
+
+    def _fake_reap(pgid, **kw):
+        captured.update(kw, pgid=pgid)
+        return False, "stub refuse"
+
+    monkeypatch.setattr(il, "acquire_instance_lock", lambda lock_path=None: 777)
+    monkeypatch.setattr(il, "reap_conflict_group", _fake_reap)
+    with pytest.raises(SystemExit):
+        il.refuse_if_locked(lock_path=tmp_path / "hotspot.lock", port=0)
+    assert captured == {"pgid": 777, "lock_pgid": 777}

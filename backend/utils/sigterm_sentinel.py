@@ -48,6 +48,18 @@ def arm_sigterm_sentinel() -> None:
     original = Server.handle_exit
 
     def handle_exit_with_sentinel(self: Server, sig: int, frame: Any) -> None:
+        # DEV-0306 R12: 二次 TERM 加速 — uvicorn 原生只有二次 SIGINT 才
+        # force_exit (server.py handle_exit), 重复 TERM 幂等无效, 操作员
+        # "等急了再 kill 一次" 是安慰剂。这里把 force_exit 语义扩展到
+        # 任何二次信号 (二次 TERM 到达即跳过两段连接排空等待循环;
+        # SIGKILL 不进 handler, 由系统直接终结)。
+        if getattr(self, "should_exit", False):
+            if not getattr(self, "force_exit", False):
+                self.force_exit = True  # type: ignore[attr-defined]
+                logger.info(
+                    f"sigterm sentinel: repeat signal {sig} → force_exit "
+                    "(skip remaining drain waits)"
+                )
         try:
             from backend.core.events import request_shutdown
             request_shutdown()

@@ -140,8 +140,9 @@ async def enqueue_catchup(
         # 占位 (执行函数会重置)
         _current_manual_run = -1  # 临时, 真实 id 会在 _execute 中填入
 
-    # 创建 row
-    run = _repo.create(
+    # 创建 row (DEV-0304: 同步 SQL 挪 worker 线程, 勿冻 event loop)
+    run = await asyncio.to_thread(
+        _repo.create,
         mode=mode,
         since_window=since,
         until_window=until,
@@ -173,7 +174,7 @@ async def abort_current() -> int | None:
     if _current_manual_run is None:
         return None
     run_id = _current_manual_run
-    if _repo.abort(run_id):
+    if await asyncio.to_thread(_repo.abort, run_id):
         logger.info(f"abort_current: run_id={run_id} marked aborted")
         _current_manual_run = None
         return run_id
@@ -216,6 +217,139 @@ def _get_dead_source_names(cutoff_hours: int = 24) -> dict[str, set[str]]:
         return {}
 
 
+def _premark_resumed_sources(
+    run_id: int, svc, target_cats: list, cutoff_iso: str, force: bool
+) -> int:
+    """24h 续传预标 (DEV-0304: 整段同步 SQL 挪 worker 线程执行)。
+
+    同一 (cat, source) 最近 24h 已 done → checkpoint 预写 skipped。
+    返回 skipped 源数。
+    """
+    skipped = 0
+    if force:
+        return skipped
+    for cat in target_cats:
+        if cat not in svc.collectors:
+            continue
+        for c in svc.collectors[cat]:
+            for src in c.sources:
+                name = src.get("name", "")
+                if not name:
+                    continue
+                recent = _ckpt_repo.list_recent_done(
+                    cat.value, name, since_iso=cutoff_iso, limit=1
+                )
+                if not recent:
+                    continue
+                try:
+                    _ckpt_repo.mark_skipped(
+                        run_id, cat.value, name,
+                        reason="resumed from prior run",
+                    )
+                    _clog.log_collect_event(
+                        "source_skipped",
+                        level="debug",  # P0-10: 续传跳过属例行
+                        run_id=run_id,
+                        category=cat.value,
+                        source=name,
+                        checkpoint_status="skipped",
+                        previous_finished_at=recent[0].finished_at,
+                    )
+                    skipped += 1
+                except Exception as e:
+                    logger.warning(
+                        f"checkpoint mark_skipped failed: {cat.value}/{name}: {e}"
+                    )
+    return skipped
+
+
+def _persist_category_checkpoints(
+    run_id: int, cat_value: str, source_results: list, *,
+    report_total: int,
+    cat_duration_ms: int,
+    items_ingested: int,
+    sources_succeeded_base: int,
+) -> tuple[int, int]:
+    """单分类 per-source checkpoint 落库 (DEV-0304: 整段挪 worker 线程)。
+
+    每源: 跳过续传 pre-mark skipped 行; 按结果 mark_failed / mark_done +
+    结构化事件; 收尾 category_done 事件 + progress 增量写 (P0-1, 前端轮询
+    可见)。返回 (cat_succeeded, cat_failed)。
+    """
+    cat_succeeded = 0
+    cat_failed = 0
+    for sr in source_results:
+        name = sr.source_name
+        if not name:
+            continue
+        # 续传 pre-mark 跳过的源: 不要再覆盖
+        existing = _ckpt_repo.get(run_id, cat_value, name)
+        if existing and existing.status == "skipped":
+            continue
+        count = int(sr.item_count or 0)
+        err = sr.error_msg
+        if err:
+            cat_failed += 1
+            try:
+                err_str = str(err) if not isinstance(err, BaseException) else f"{type(err).__name__}: {err}"
+                _ckpt_repo.mark_failed(
+                    run_id, cat_value, name, err_str,
+                )
+            except Exception as e:
+                logger.warning(
+                    f"checkpoint mark_failed failed: {e}"
+                )
+            _clog.log_collect_event(
+                "source_failed",
+                run_id=run_id,
+                category=cat_value,
+                source=name,
+                error=str(err)[:200],
+                duration_ms=int(sr.duration_ms or 0),
+            )
+        else:
+            cat_succeeded += 1
+            try:
+                _ckpt_repo.mark_done(
+                    run_id, cat_value, name, count
+                )
+            except Exception as e:
+                logger.warning(
+                    f"checkpoint mark_done failed: {e}"
+                )
+            _clog.log_collect_event(
+                "source_done",
+                run_id=run_id,
+                category=cat_value,
+                source=name,
+                items=count,
+                duration_ms=int(sr.duration_ms or 0),
+            )
+    _clog.log_collect_event(
+        "category_done",
+        level="debug",  # P0-10: 例行心跳
+        run_id=run_id,
+        category=cat_value,
+        items=report_total,
+        duration_ms=cat_duration_ms,
+        sources_succeeded=cat_succeeded,
+        sources_failed=cat_failed,
+    )
+    # P0-1: 每 cat 完成立即推送 progress, 让前端轮询能
+    # 看到 sources_succeeded / items_ingested 增量
+    try:
+        _repo.update_progress(
+            run_id,
+            items_ingested=items_ingested,
+            sources_succeeded=sources_succeeded_base + cat_succeeded,
+        )
+    except Exception as e:
+        logger.warning(
+            f"update_progress (per-cat) failed: {e}"
+        )
+    return cat_succeeded, cat_failed
+
+
 async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -> None:
     """C 任务: 实际追抓主流程.
 
@@ -240,7 +374,7 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
     global _current_manual_run
     from backend.domain.enums import Category
 
-    run = _repo.get(run_id)
+    run = await asyncio.to_thread(_repo.get, run_id)
     if run is None:
         logger.error(f"_execute_catchup_run: run_id={run_id} not found")
         if mode == "manual":
@@ -266,8 +400,9 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
     )
 
     try:
-        # 1. 选源: 跳过 dead >= 24h
-        dead_map = _get_dead_source_names(cutoff_hours=24)
+        # 1. 选源: 跳过 dead >= 24h (DEV-0304: 同步读挪 worker 线程;
+        #     调用点保留在本模块, 测试对 _get_dead_source_names 的 patch 有效)
+        dead_map = await asyncio.to_thread(_get_dead_source_names, cutoff_hours=24)
         total_dead_skipped = sum(len(v) for v in dead_map.values())
 
         # 2. 决定跑哪些 category
@@ -277,7 +412,8 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
                 target_cats = [Category(c) for c in run.categories]
             except ValueError as e:
                 logger.error(f"invalid categories in run {run_id}: {e}")
-                _repo.finish(
+                await asyncio.to_thread(
+                    _repo.finish,
                     run_id, status="failed", items_ingested=0, items_skipped=0,
                     sources_attempted=0, sources_succeeded=0,
                     error_msg=f"invalid categories: {e}",
@@ -334,46 +470,19 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
                 datetime.now(timezone.utc)
                 - timedelta(hours=_RESUMPTION_WINDOW_HOURS)
             ).isoformat()
-            for cat in target_cats:
-                if cat not in svc.collectors:
-                    continue
-                for c in svc.collectors[cat]:
-                    for src in c.sources:
-                        name = src.get("name", "")
-                        if not name:
-                            continue
-                        # P0-3: force=True 时直接跳过续传查询
-                        if force:
-                            continue
-                        recent = _ckpt_repo.list_recent_done(
-                            cat.value, name, since_iso=cutoff_iso, limit=1
-                        )
-                        if recent:
-                            try:
-                                _ckpt_repo.mark_skipped(
-                                    run_id, cat.value, name,
-                                    reason="resumed from prior run",
-                                )
-                                _clog.log_collect_event(
-                                    "source_skipped",
-                                    level="debug",  # P0-10: 续传跳过属例行
-                                    run_id=run_id,
-                                    category=cat.value,
-                                    source=name,
-                                    checkpoint_status="skipped",
-                                    previous_finished_at=recent[0].finished_at,
-                                )
-                                sources_skipped += 1
-                            except Exception as e:
-                                logger.warning(
-                                    f"checkpoint mark_skipped failed: {cat.value}/{name}: {e}"
-                                )
+            # DEV-0304: 每源 SELECT+INSERT 整段挪 worker 线程 — 此前 70 源
+            # 连发裸 SQL 在 loop 上, 撞 WAL 写锁时 busy_timeout=5s 冻结 loop
+            sources_skipped += await asyncio.to_thread(
+                _premark_resumed_sources,
+                run_id, svc, target_cats, cutoff_iso, force,
+            )
         except Exception as e:
             logger.warning(f"resumption check failed: {e}")
 
         # 真正需要执行的 source 数 (= attempted - skipped)
         effective_attempted = max(0, sources_attempted - sources_skipped)
-        _repo.update_progress(
+        await asyncio.to_thread(
+            _repo.update_progress,
             run_id,
             sources_attempted=sources_attempted,
             items_skipped=sources_skipped,
@@ -428,79 +537,18 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
                         for c in svc.collectors[cat]
                         for sr in (getattr(c, "last_source_results", []) or [])
                     ]
-                    cat_succeeded = 0
-                    cat_failed = 0
-                    for sr in source_results:
-                        name = sr.source_name
-                        if not name:
-                            continue
-                        # 续传 pre-mark 跳过的源: 不要再覆盖
-                        existing = _ckpt_repo.get(run_id, cat.value, name)
-                        if existing and existing.status == "skipped":
-                            continue
-                        count = int(sr.item_count or 0)
-                        err = sr.error_msg
-                        if err:
-                            cat_failed += 1
-                            try:
-                                err_str = str(err) if not isinstance(err, BaseException) else f"{type(err).__name__}: {err}"
-                                _ckpt_repo.mark_failed(
-                                    run_id, cat.value, name, err_str,
-                                )
-                            except Exception as e:
-                                logger.warning(
-                                    f"checkpoint mark_failed failed: {e}"
-                                )
-                            _clog.log_collect_event(
-                                "source_failed",
-                                run_id=run_id,
-                                category=cat.value,
-                                source=name,
-                                error=str(err)[:200],
-                                duration_ms=int(sr.duration_ms or 0),
-                            )
-                        else:
-                            cat_succeeded += 1
-                            try:
-                                _ckpt_repo.mark_done(
-                                    run_id, cat.value, name, count
-                                )
-                            except Exception as e:
-                                logger.warning(
-                                    f"checkpoint mark_done failed: {e}"
-                                )
-                            _clog.log_collect_event(
-                                "source_done",
-                                run_id=run_id,
-                                category=cat.value,
-                                source=name,
-                                items=count,
-                                duration_ms=int(sr.duration_ms or 0),
-                            )
+                    # DEV-0304: 整段同步 SQL (每源 get+mark + progress 写) 挪
+                    # worker 线程, 不再在 loop 上连发
+                    cat_succeeded, cat_failed = await asyncio.to_thread(
+                        _persist_category_checkpoints,
+                        run_id, cat.value, source_results,
+                        report_total=int(report.total),
+                        cat_duration_ms=cat_duration_ms,
+                        items_ingested=items_ingested,
+                        sources_succeeded_base=sources_succeeded,
+                    )
                     sources_succeeded += cat_succeeded
                     sources_failed += cat_failed
-                    _clog.log_collect_event(
-                        "category_done",
-                        level="debug",  # P0-10: 例行心跳
-                        run_id=run_id,
-                        category=cat.value,
-                        items=int(report.total),
-                        duration_ms=cat_duration_ms,
-                        sources_succeeded=cat_succeeded,
-                        sources_failed=cat_failed,
-                    )
-                    # P0-1: 每 cat 完成立即推送 progress, 让前端轮询能
-                    # 看到 sources_succeeded / items_ingested 增量
-                    try:
-                        _repo.update_progress(
-                            run_id,
-                            items_ingested=items_ingested,
-                            sources_succeeded=sources_succeeded,
-                        )
-                    except Exception as e:
-                        logger.warning(
-                            f"update_progress (per-cat) failed: {e}"
-                        )
                 except Exception as e:
                     logger.warning(
                         f"checkpoint write failed for cat={cat.value}: {e}"
@@ -519,7 +567,8 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
                 )
 
         # 6. 增量写 progress
-        _repo.update_progress(
+        await asyncio.to_thread(
+            _repo.update_progress,
             run_id,
             items_ingested=items_ingested,
             sources_succeeded=sources_succeeded,
@@ -536,7 +585,10 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
         validation_errors = 0
         validation_warnings = 0
         try:
-            vreport = validate_and_persist(run_id, since_iso, until_iso)
+            # DEV-0304: 大量 SELECT + INSERT collect_validations, 挪 worker 线程
+            vreport = await asyncio.to_thread(
+                validate_and_persist, run_id, since_iso, until_iso
+            )
             validation_errors = sum(
                 1 for i in vreport.issues if i.severity == "error"
             )
@@ -561,7 +613,8 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
         else:
             status = "success"
             err = None
-        _repo.finish(
+        await asyncio.to_thread(
+            _repo.finish,
             run_id,
             status=status,
             items_ingested=items_ingested,
@@ -592,7 +645,8 @@ async def _execute_catchup_run(run_id: int, *, mode: str, force: bool = False) -
     except Exception as e:
         logger.error(f"_execute_catchup_run: run_id={run_id} crashed: {e}")
         try:
-            _repo.finish(
+            await asyncio.to_thread(
+                _repo.finish,
                 run_id,
                 status="failed",
                 items_ingested=items_ingested,

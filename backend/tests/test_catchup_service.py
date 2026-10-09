@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -499,3 +501,58 @@ async def test_crash_marks_failed_with_error_msg(temp_db):
         assert loaded.status in ("failed", "running")
         if loaded.status == "failed":
             assert loaded.error_msg is not None
+
+
+# ---------------------------------------------------------------------------
+# DEV-0304 — 同步 SQL 不得跑在 event loop 线程 (治本契约)
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_enqueue_create_runs_off_event_loop(temp_db):
+    """enqueue_catchup 的 _repo.create 挪 worker 线程 — 撞 WAL 写锁时
+    busy_timeout=5s 冻结的是线程而非 loop (启动窗口 health 超时根因)。"""
+    threads_seen: list[str] = []
+
+    def _fake_create(**kwargs):
+        threads_seen.append(threading.current_thread().name)
+        return SimpleNamespace(id=123)
+
+    with patch.object(catchup_service._repo, "create", side_effect=_fake_create), \
+         patch.object(catchup_service, "_execute_catchup_run", new=AsyncMock()):
+        run_id = await catchup_service.enqueue_catchup(
+            mode="auto",
+            since="2026-07-24T00:00:00+00:00",
+            until=None,
+            categories=None,
+            max_per_source=20,
+        )
+    assert run_id == 123
+    assert threads_seen and threads_seen[0] != "MainThread", \
+        f"create 必须离开 loop 线程执行, got {threads_seen}"
+
+
+@pytest.mark.asyncio
+async def test_abort_and_dead_probe_run_off_event_loop(temp_db):
+    """abort_current 的 _repo.abort 与主流程的 _get_dead_source_names 同样
+    落 worker 线程。"""
+    threads_seen: list[str] = []
+
+    catchup_service._current_manual_run = 7
+    with patch.object(
+        catchup_service._repo, "abort",
+        side_effect=lambda rid: threads_seen.append(threading.current_thread().name) or True,
+    ):
+        assert await catchup_service.abort_current() == 7
+    assert threads_seen[0] != "MainThread"
+
+    # 主流程第一步: run 不存在 → to_thread(_repo.get) 后直接 return
+    get_threads: list[str] = []
+    real_get = catchup_service._repo.get
+
+    def _spy_get(rid):
+        get_threads.append(threading.current_thread().name)
+        return real_get(rid)
+
+    with patch.object(catchup_service._repo, "get", side_effect=_spy_get):
+        await catchup_service._execute_catchup_run(999999, mode="auto")
+    assert get_threads and get_threads[0] != "MainThread", \
+        f"_repo.get 必须离开 loop 线程执行, got {get_threads}"

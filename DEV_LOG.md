@@ -1,4 +1,18 @@
 
+## [DEV-0304] catchup 同步 SQL 全面线程化 — 启动窗口 health 超时治本 (catchup-off-loop)
+
+- **时间**: 2026-10-09
+- **类型**: 性能/可靠性治本 (owner 点名按治本方案修复; DEV-0303 遗留观察项结案)
+- **关联模块**: `backend:catchup-service`, `backend:tests`
+- **根因 (DEV-0303 结案段)**: `_execute_catchup_run`/`enqueue_catchup`/`abort_current` 在 event loop 协程上直调同步 SQLite (checkpoint 每源 SELECT+INSERT ×70、progress/finish/create/abort、validate_and_persist 大量读写、_get_dead_source_names), 撞 WAL 单写者锁时 `busy_timeout=5000` 把 **loop 线程冻在 C 调用** (单语句最长 5s) → 启动窗口 health 偶发 000; GIL 假说已实验证伪 (py3.14 step 等待释放 GIL)
+- **修复**: 全部阻塞调用挪 `asyncio.to_thread` — ①单点: create/abort/get/update_progress×2/finish×3/validate_and_persist; ②两大热段提取 sync helper 整段线程化: `_premark_resumed_sources` (续传预标, 70 源连发) + `_persist_category_checkpoints` (per-source done/failed + category_done + progress 增量, 返回 (succeeded, failed)); clog/observability 纯 loguru 保留原位
+- **patch 兼容设计**: to_thread **参数位运行时求值** — `to_thread(_repo.create, ...)` / `to_thread(_get_dead_source_names, ...)` 拿到的是 patch 后对象且在 worker 线程直调返回 (MagicMock 无协程顾虑), 现有 30+ catchup/watchdog/phase9 测试零修改全过
+- **测试**: 新 2 用例「线程落位契约」(test_enqueue_create_runs_off_event_loop / test_abort_and_dead_probe_run_off_event_loop — side_effect 记 current_thread ≠ MainThread, 编码"为什么"防回潮); catchup 族 **57 passed**; 全量回归 **5335 passed / 9 skipped**; ruff 0
+- **实弹 (重启触发 startup catchup run 280, 90 笔连打)**: catchup 全生命周期 (enqueue→premark 88 源→collect→validate→finish) 窗口 **78/78 全 200, 中位 2-4ms, 零超时**; 头 12 笔 000=旧进程 TERM 后新进程绑端口前的重启真空 (0.0002s refused, 非 loop 冻结); 首笔 2.59s = lifespan 暖机抖动 (热态复测 1.5-4ms)。注: 本次 catchup 因凌晨网络源全失败 fast-complete (items=0), 写锁竞争强度弱于日间; 但 premark/validate/finish 核心线程化路径已全覆盖, 且线程落位由单测硬锁
+- **踩坑 (诚实记录)**: 两处 SearchReplace 子串误命中 (`return skipped` 匹配进 force 分支 / old_str 截断 C3.12 尾部) — 均当场发现并修复, 编译+全量回归兜底
+- **生产**: pid 20079 已载 (health 热态 2-4ms, 58 jobs 在册)
+- **下一可用号**: DEV-0305
+
 ## [DEV-0303] 停机链 R2/R4/R5/R7 收口 — 退出尾闸 + 孤儿自动收割 + 重启 SOP (shutdown-r2-r4-r5-r7)
 
 - **时间**: 2026-10-09
@@ -12,7 +26,7 @@
 - **R5 SOP 脚本**: `scripts/restart_backend.sh` — 定位 listener 所在 pgid → TERM 整组 (同组保护防脚本自杀) → 有界等端口释放 (默认 20s, `HOTSPOT_STOP_WAIT` 可调) → 超时逃逸 KILL → `exec run.py` 前台启动; 全程计时; RUNBOOK「紧急止血」段改脚本为标准动作 (手工四步降为兜底)
 - **实弹终验 (第三轮)**: 带 catchup 采集在跑时 TERM → `guaranteed_exit: hard exit (code=0)` 落日志 + drain 内省收尾后放行 + wal truncated → **2.63s 干净退出, 脚本 exit 0** (对照: DEV-0301 前无限排空 17s+, SIGTERM 盲区需 SIGKILL)
 - **测试**: test_sse_shutdown +1 (哨兵吞重放契约: 原流程执行/should_exit/_captured_signals 清空/哨兵置位四断言), test_instance_lock +10 (ps 解析/签名匹配/四拒绝路径/TERM 成功/KILL 逃逸/收割放行/裁决不过 exit2), test_graceful_shutdown +2 (os._exit 退出码/loguru 失败不阻断); 三文件 **39 passed**; ruff 0
-- **遗留**: R5「≥45s」实测已消 (典型 0.5-2.6s; 理论上界 uvicorn 15s + drain 30s 分段有界); 启动 catchup 压满 event loop 时 health 探活偶发 >8s 超时 (HTTP 000 瞬时, 稳态 200 — 观察项, 与本批无关)
+- **遗留**: R5「≥45s」实测已消 (典型 0.5-2.6s; 理论上界 uvicorn 15s + drain 30s 分段有界); 启动 catchup 窗口 health 探活偶发超时 — 取证结案: 直接因 = `_execute_catchup_run` 在 loop 上直调同步 SQL (`_ckpt_repo.mark_*/list_recent_done`、`_repo.update_progress` 等 8+ 处未 `to_thread`), 撞 WAL 单写者锁竞争时 `busy_timeout=5000` 把 loop 线程冻在 C 调用里 (单语句最长 5s, 串行 70 源连发); 启动窗口写方峰值 (图谱点火 STIX 5000+ 行 + upsert_many 批量 + post-ingest + FTS drift rebuild) 使锁竞争概率最大; **GIL 饿死假说实验证伪** (py3.14 `sqlite3_step` 等待释放 GIL, 竞争下 loop tick 仍 25ms); health 自身已 `to_thread` (Phase 9) 是受害者非肇事者; 修复方向 = catchup checkpoint 批量化/`to_thread` 或 loop 侧 busy_timeout 降 500ms 快断 (→ **DEV-0304 已治本结案**)
 - **生产**: pid 67544 已载全部修复 (health 200, 58 jobs 在册)
 - **下一可用号**: DEV-0304
 

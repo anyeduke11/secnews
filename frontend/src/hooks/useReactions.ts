@@ -9,8 +9,9 @@
  * 边界:
  *   - available=false (初始化失败, 如 interest_engine gate 关闭 404) →
  *     调用方隐藏按钮, 不渲染死键;
- *   - no_domain 条目 (202 语义): 后端丢弃记录但 UI 保留切换 (静默容忍,
- *     刷新回读自然纠正)。
+ *   - no_domain 条目 (DEV-0314 起): 服务器返回 accepted_no_domain 时
+ *     如实回滚乐观态并返回 discarded=true (调用方提示"未参与推荐"),
+ *     不再保留虚假高亮。
  *
  * 后端契约 (backend/api/interest_api.py, DEV-0311):
  *   GET    /api/interest/reactions?days=90   → { items: {id: 'like'|'dislike'}, count }
@@ -93,9 +94,10 @@ export function refreshReactions(): Promise<void> {
 
 /**
  * 赞/踩操作: 同键 = 取消 (删信号), 异键 = 切换/首设 (POST, 后端互斥)。
- * 乐观更新立即翻转本地状态, 请求失败自动回滚并写入 error (不向调用方抛错)。
+ * 乐观更新立即翻转本地状态; 请求失败自动回滚并写入 error (不向调用方抛错);
+ * DEV-0314: 服务器丢弃 (accepted_no_domain) 同样回滚, 返回 true 供上层提示。
  */
-export function reactToItem(item: HotspotItem, type: ReactionType): Promise<void> {
+export function reactToItem(item: HotspotItem, type: ReactionType): Promise<boolean> {
   const current = state.map.get(item.id);
   const isCancel = current === type;
 
@@ -111,9 +113,20 @@ export function reactToItem(item: HotspotItem, type: ReactionType): Promise<void
     try {
       if (isCancel) {
         await deleteReaction(item.id);
-      } else {
-        await postReaction(item.id, type);
+        return false;
       }
+      const resp = await postReaction(item.id, type);
+      if (resp?.status === 'accepted_no_domain') {
+        // 服务器真实丢弃: 非安全内容不入权重 — 如实回滚, 不装成功 (DEV-0314)
+        updateState(prev => {
+          const map = new Map(prev.map);
+          if (current === undefined) map.delete(item.id);
+          else map.set(item.id, current);
+          return { ...prev, map };
+        });
+        return true;
+      }
+      return false;
     } catch (e) {
       // 失败回滚 (恢复操作前状态: 无态度 / like / dislike)
       updateState(prev => {
@@ -122,6 +135,7 @@ export function reactToItem(item: HotspotItem, type: ReactionType): Promise<void
         else map.set(item.id, current);
         return { ...prev, map, error: (e as Error).message || '赞踩操作失败' };
       });
+      return false;
     }
   })();
 }
@@ -135,7 +149,8 @@ export function resetReactionsStore(): void {
 
 export interface UseReactionsReturn {
   reactionOf: (id: string) => ReactionType | undefined;
-  react: (item: HotspotItem, type: ReactionType) => Promise<void>;
+  /** 返回 true = 服务器丢弃 (accepted_no_domain, 未入库); 失败/取消/成功均 false */
+  react: (item: HotspotItem, type: ReactionType) => Promise<boolean>;
   available: boolean;
   loading: boolean;
   error: string | null;

@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { PageLayout, SentinelLayout } from '../components/PageLayout';
+import { ToastProvider } from '../components/Toast';
 import { useFavorites } from '../hooks/useFavorites';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useGoBack } from '../hooks/useGoBack';
@@ -115,8 +116,10 @@ export function AppRoutes() {
 
       {/* ===== v0.8.5 Sentinel 全屏壳 (唯一壳, 无 AppNav; 心跳条由页内 SentinelShell 提供) ===== */}
       <Route element={<SentinelLayout />}>
-        {/* 资料层: 有什么新的、可信的变化影响我 (判读台主体已拆入本页质量区, NAV4 2026-09-13) */}
-        <Route path="/" element={<Suspense fallback={<PageFallback />}><P.SentinelHomePage /></Suspense>} />
+        {/* 资料层: 有什么新的、可信的变化影响我 (判读台主体已拆入本页质量区, NAV4 2026-09-13)
+         * DEV-0314: 单独包 ToastProvider — 首页此前无 Provider (SignalPanel 的 toast 静默失效);
+         * 仅包 "/" 自身, 不动 SentinelLayout 组其他页 */}
+        <Route path="/" element={<ToastProvider><Suspense fallback={<PageFallback />}><P.SentinelHomePage /></Suspense></ToastProvider>} />
         {/* 行动层: 已接受的结论要如何执行、验收和沉淀 */}
         <Route path="/action" element={<Suspense fallback={<PageFallback />}><P.SentinelActionPage /></Suspense>} />
         {/* 判断层深链接: Case 详情 (URL 真相源, ?section= 定位; spec §5/§6.3) */}

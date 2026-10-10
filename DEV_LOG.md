@@ -1,4 +1,17 @@
 
+## [DEV-0314] reaction 诚实回滚 + 首页行为埋点接线 + 非安全偏好通道设计留档 (reaction-honesty-tracking)
+
+- **时间**: 2026-10-10
+- **类型**: 增强 (owner 实机验证后点名"全部"; 纯前端批, 后端 0 改动)
+- **背景 (实机取证)**: 用户截图 4 个可见点击仅 1 条入库 (3 条落 no_domain 被静默丢弃, UI 却保持高亮); 全库行为信号仅 6 条 like — `trackInterest` 只接在旧 HotspotCard (仅 HistoryPage 用), **首页无 view/dwell 埋点, favorite (权重 3.0) 通道全闲置**。
+- **P1 诚实回滚**: `postReaction` 透传响应体; `reactToItem` 遇 `accepted_no_domain` 如实回滚乐观态并返回 discarded=true; 首页 `doReact` 弹 toast「该条目未参与推荐：非安全领域内容或未归类」。展示基建: `ToastProvider` 单独包 "/" 路由 (顺带修复 SignalPanel 的 toast 在首页静默失效 — 此前无 Provider); `useToast` 无 Provider 告警模块级去重 (**450→1**, 测试日志减噪; Toast 测试兼容已验)。
+- **P2 埋点接线**: 三卡片标题链接 onClick → `view` (与旧 HotspotCard 点击语义一致; 头条/次级/两处 flash 行全接); 收藏 `star()` 仅"收藏"方向 → `favorite` 信号 (取消无对应信号型); 全部走 trackInterest (beacon 优先/fetch 兜底; 服务端 30min 去重自然兜底重复)。
+- **P3 设计留档 (未实现)**: 非安全内容偏好通道三案 — **A** 类目/源级噪音抑制 (旁路信号 + feed 排序第二轴, 需防"踩到频道空"→只降不删); **B** Settings 显式类目偏好开关 (零统计推断, 推荐先落); **C** 维持现状 + 用户认知对齐。推荐 B 先行, A 待产品口径 (降权幅度/类目粒度)。
+- **测试**: 前端 +3 (hook 丢弃回滚 / 页面丢弃 toast+回滚 E2E / view+favorite 接线断言); 全量 **701 passed / 99 文件** (698+3); tsc 0; vite build OK。
+- **实弹 (浏览器, 生产)**: 硬刷新后**幻影高亮即清** (Cloudflare 灰 / Anthropic 绿 = 回读真相, 证伪"9 赞 4 踩为持久化"的旧会话误读); tech 卡「MPC-HC 发布」点踩 → toast 原文可见 + 按钮自动回灰不残留 ✓; 零新增控制台错误。
+- **环境处置**: vite dev server 期间死亡 (页面 ERR_CONNECTION_REFUSED 的根因, 非本批代码) → 已重启 (8898 + 代理 200); 后端 26223 全程健康。
+- **下一可用号**: DEV-0315
+
 ## [DEV-0313] interest no_domain 补归因 — 三层归因 tags→标题→category 兜底 (attr-fallback)
 
 - **时间**: 2026-10-10

@@ -34,12 +34,19 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
+// DEV-0314: 无 Provider 兜底告警每模块只打一次 — 每渲染一条的刷屏会淹没
+// 测试/开发日志 (首页接入后单文件渲染即 28 条)。返回值与逻辑其余不变。
+let warnedOutsideProvider = false;
+
 export function useToast(): ToastContextValue {
   const ctx = useContext(ToastContext);
   if (!ctx) {
     // 兜底：在没有 Provider 时不抛错，避免阻塞
-    // eslint-disable-next-line no-console
-    console.warn('[useToast] outside ToastProvider, no-op');
+    if (!warnedOutsideProvider) {
+      warnedOutsideProvider = true;
+      // eslint-disable-next-line no-console
+      console.warn('[useToast] outside ToastProvider, no-op');
+    }
     return {
       show: () => '',
       dismiss: () => {},

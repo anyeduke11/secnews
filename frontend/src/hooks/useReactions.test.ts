@@ -101,7 +101,7 @@ describe('useReactions', () => {
     await waitFor(() => expect(result.current.available).toBe(true));
     expect(result.current.reactionOf('x')).toBeUndefined();
 
-    let flip!: Promise<void>;
+    let flip!: Promise<boolean>;
     act(() => { flip = result.current.react(makeItem('x'), 'like'); });
     // 请求未返回, 本地已高亮 (乐观更新)
     expect(result.current.reactionOf('x')).toBe('like');
@@ -190,5 +190,31 @@ describe('useReactions', () => {
 
     expect(result.current.available).toBe(false);
     expect(result.current.error).toBe('Feature disabled');
+  });
+
+  it('服务器丢弃 (accepted_no_domain) 如实回滚: 撤销高亮, 返回 true, 不污染 error (DEV-0314)', async () => {
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      const method = init?.method || 'GET';
+      const u = String(url);
+      if (method === 'GET' && u.startsWith('/api/interest/reactions')) {
+        return Promise.resolve(jsonResponse({ items: { x: 'like' }, count: 1 }));
+      }
+      if (method === 'POST' && u === '/api/interest/signals') {
+        return Promise.resolve(jsonResponse({ status: 'accepted_no_domain', domain: null }));
+      }
+      return Promise.reject(new Error(`未预期的请求: ${method} ${u}`));
+    });
+
+    const { result } = renderHook(() => useReactions());
+    await waitFor(() => expect(result.current.reactionOf('x')).toBe('like'));
+
+    let discarded: boolean | undefined;
+    await act(async () => { discarded = await result.current.react(makeItem('x'), 'dislike'); });
+
+    expect(discarded).toBe(true);
+    // 回滚到操作前态度 (like) — 不保留虚假 dislike 高亮
+    expect(result.current.reactionOf('x')).toBe('like');
+    // 语义性丢弃不是错误
+    expect(result.current.error).toBeNull();
   });
 });

@@ -174,6 +174,7 @@ function mockFetch(hotspotBody: FixtureBody = HOTSPOT_FIXTURE) {
 import { SentinelHomePage } from './SentinelHomePage';
 import { resetFavoritesStore } from '../../hooks/useFavorites';
 import { resetReactionsStore } from '../../hooks/useReactions';
+import { ToastProvider } from '../Toast';
 
 const hotspotCalls = (fetchMock: ReturnType<typeof mockFetch>) =>
   fetchMock.mock.calls.map(c => String(c[0])).filter(u => u.startsWith('/api/hotspots'));
@@ -509,6 +510,63 @@ describe('SentinelHomePage — 哨兵终端首页', () => {
     fireEvent.click(cancelBtn);
     await waitFor(() => expect(callsWith(fetchMock, '/api/interest/reactions/h1', 'DELETE')).toHaveLength(1));
     await screen.findByRole('button', { name: '点赞：企业自建大模型网关曝出未授权访问风险' });
+  });
+
+  it('赞/踩丢弃如实提示 (DEV-0314): 未归域条目不装成功 — 回滚高亮 + toast', async () => {
+    // 所有 signals 写入统一返回 accepted_no_domain (伺服"未归域丢弃"语义)
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === '/api/interest/signals' && (init?.method ?? 'GET').toUpperCase() === 'POST') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'accepted_no_domain', domain: null }) } as Response);
+      }
+      return fetchMock(input, init);
+    }));
+
+    render(<MemoryRouter><ToastProvider><SentinelHomePage /></ToastProvider></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+
+    // 常规快讯条目 (未归域) 点踩 → 服务器丢弃 → 按钮回滚到未按下态
+    const dislikeBtn = await screen.findByRole('button', { name: '点踩：常规快讯条目' });
+    fireEvent.click(dislikeBtn);
+    await waitFor(() => expect(screen.getByRole('button', { name: '点踩：常规快讯条目' })).toHaveAttribute('aria-pressed', 'false'));
+    // 如实提示可见 (不装成功)
+    expect(await screen.findByText(/未参与推荐/)).toBeInTheDocument();
+  });
+
+  it('行为埋点接线 (DEV-0314): 点击标题记 view; 点星标记 favorite (beacon 不可用时 fetch 兜底)', async () => {
+    const origBeacon = navigator.sendBeacon;
+    Object.defineProperty(navigator, 'sendBeacon', { value: undefined, configurable: true });
+    try {
+      render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+      await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+
+      // 头条标题链接点击 → view 信号 (h1)
+      fireEvent.click(screen.getByRole('link', { name: '企业自建大模型网关曝出未授权访问风险' }));
+      await waitFor(() => {
+        const posts = (fetchMock.mock.calls as FetchCall[]).filter(
+          c => c[0] === '/api/interest/signals' && String(c[1]?.body ?? '').includes('"signal_type":"view"'),
+        );
+        expect(posts).toHaveLength(1);
+      });
+      const viewPost = (fetchMock.mock.calls as FetchCall[]).find(
+        c => c[0] === '/api/interest/signals' && String(c[1]?.body ?? '').includes('"signal_type":"view"'),
+      );
+      expect(JSON.parse(String(viewPost![1]!.body))).toEqual({ item_id: 'h1', signal_type: 'view' });
+
+      // 快讯星标 → favorite 信号 (h5, 收藏方向)
+      fireEvent.click(screen.getByRole('button', { name: '收藏：常规快讯条目' }));
+      await waitFor(() => {
+        const posts = (fetchMock.mock.calls as FetchCall[]).filter(
+          c => c[0] === '/api/interest/signals' && String(c[1]?.body ?? '').includes('"signal_type":"favorite"'),
+        );
+        expect(posts).toHaveLength(1);
+      });
+      const favPost = (fetchMock.mock.calls as FetchCall[]).find(
+        c => c[0] === '/api/interest/signals' && String(c[1]?.body ?? '').includes('"signal_type":"favorite"'),
+      );
+      expect(JSON.parse(String(favPost![1]!.body))).toEqual({ item_id: 'h5', signal_type: 'favorite' });
+    } finally {
+      Object.defineProperty(navigator, 'sendBeacon', { value: origBeacon, configurable: true });
+    }
   });
 });
 

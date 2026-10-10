@@ -31,10 +31,12 @@ import { useFavorites } from '../../hooks/useFavorites';
 import { useReactions, type ReactionType } from '../../hooks/useReactions';
 import { CATEGORIES, HotspotItem, PRACTICE_DOMAIN_LABELS, plainSummary } from '../../types';
 import { getJSON, postJSON } from '../../lib/api';
+import { trackInterest } from '../../lib/interest';
 import { getNewsAlertUnread, getPickedItems, PickedItem } from '../../api/secnews';
 import { PriorityDigestCard } from './PriorityDigestCard';
 import { NewsAlertList } from './NewsAlertList';
 import { ReactionButtons } from './ReactionButtons';
+import { useToast } from '../Toast';
 import { SentinelShell, usePipe, usePipeReloadOnSse } from './SentinelShell';
 import { SentinelRail } from './SentinelRail';
 import { SignalPanel } from '../v1/panels/SignalPanel';
@@ -266,7 +268,7 @@ function FlashRow({ item, interestDomains, fav, onStar, reaction, onReact, showR
       <span className="flash-time num">{relTime(item.published_at)}</span>
       <div className="flash-body">
         {href ? (
-          <a href={href} target="_blank" rel="noopener noreferrer"><span className="flash-title">{item.title}</span></a>
+          <a href={href} target="_blank" rel="noopener noreferrer" onClick={() => trackInterest(item.id, 'view')}><span className="flash-title">{item.title}</span></a>
         ) : (
           <span className="flash-title">{item.title}</span>
         )}
@@ -415,8 +417,17 @@ export function SentinelHomePage() {
   const scopeLabel = keyword ? '匹配' : isTodayScope ? '今日收录' : '范围内';
   const ingestedForHeader = isTodayScope ? total : null;
 
-  const star = useCallback((item: HotspotItem) => { void toggleFavorite(item); }, [toggleFavorite]);
-  const doReact = useCallback((item: HotspotItem, type: ReactionType) => { void reactItem(item, type); }, [reactItem]);
+  const star = useCallback((item: HotspotItem) => {
+    // DEV-0314: 收藏动作入兴趣信号 (favorite 权重 3.0 此前完全闲置); 取消收藏无对应信号型
+    if (!isFavorite(item.id)) trackInterest(item.id, 'favorite');
+    void toggleFavorite(item);
+  }, [toggleFavorite, isFavorite]);
+  const toast = useToast();
+  const doReact = useCallback(async (item: HotspotItem, type: ReactionType) => {
+    // DEV-0314: 回滚已由 store 完成; 此处对"服务器丢弃"如实提示, 不装成功
+    const discarded = await reactItem(item, type);
+    if (discarded) toast.show({ type: 'info', message: '该条目未参与推荐：非安全领域内容或未归类' });
+  }, [reactItem, toast]);
 
   const goPrev = useCallback(() => setPage(page - 1), [page, setPage]);
   const goNext = useCallback(() => setPage(page + 1), [page, setPage]);
@@ -531,7 +542,7 @@ export function SentinelHomePage() {
                         <span className="flash-time num">{relTime(item.published_at)}</span>
                         <div className="flash-body">
                           {href ? (
-                            <a href={href} target="_blank" rel="noopener noreferrer"><span className="flash-title">{item.title}</span></a>
+                            <a href={href} target="_blank" rel="noopener noreferrer" onClick={() => trackInterest(item.id, 'view')}><span className="flash-title">{item.title}</span></a>
                           ) : (
                             <span className="flash-title">{item.title}</span>
                           )}
@@ -616,7 +627,7 @@ export function SentinelHomePage() {
                     <span className="time num">评分 {Math.round(lead.score ?? lead.quality_score ?? 0)}</span>
                   </div>
                   <h1 className="headline">
-                    <a href={safeHref(lead.url)!} target="_blank" rel="noopener noreferrer">{lead.title}</a>
+                    <a href={safeHref(lead.url)!} target="_blank" rel="noopener noreferrer" onClick={() => trackInterest(lead.id, 'view')}>{lead.title}</a>
                   </h1>
                   {(() => { const s = plainSummary(lead.summary); return s ? <p className="standfirst">{s}</p> : null; })()}
                   <div className="head-foot">
@@ -644,7 +655,7 @@ export function SentinelHomePage() {
                       <span className="sub-index num">{String(idx + 2).padStart(2, '0')}</span>
                       <div className="sub-body">
                         {safeHref(item.url) ? (
-                          <a href={safeHref(item.url)!} target="_blank" rel="noopener noreferrer"><div className="sub-title">{item.title}</div></a>
+                          <a href={safeHref(item.url)!} target="_blank" rel="noopener noreferrer" onClick={() => trackInterest(item.id, 'view')}><div className="sub-title">{item.title}</div></a>
                         ) : (
                           <div className="sub-title">{item.title}</div>
                         )}

@@ -1,4 +1,16 @@
 
+## [DEV-0310] instance_lock mkdir fail-open 一致性 — 锁链路声明与行为对齐 (lock-mkdir-failopen)
+
+- **时间**: 2026-10-10
+- **类型**: 小修 (owner 点名; DEV-0309 实弹①顺带暴露的既有漂移, 经专项分析立案)
+- **关联模块**: `backend:instance-lock`, `backend:tests`
+- **问题**: `acquire_instance_lock` 的 `path.parent.mkdir()` 裸奔, 而紧邻的 `write_text` 有 `except OSError → pass` 并注释声明 fail-open — 「目录能建文件写不进」被容忍, 「目录都建不了」却裸 traceback crash (触发面: DB 路径无权限/同名文件阻塞/只读挂载/ENOSPC; `HOTSPOT_IGNORE_LOCK=1` 与正常路径不受影响)。伤害是工程性非数据性: ①后来人按注释假设「守卫永不阻断启动」会被咬; ②与 refuse_if_locked 精心指引的拒绝体验不一致 (裸 traceback 看不出是锁目录问题)
+- **取舍 (维持 fail-open 不收紧)**: 锁是尽力型双检 (pgid 抓僵尸调度器, 端口探活抓无锁实例); mkdir 失败改硬拒绝会让增强守卫在「DB 路径怪异但服务本可跑」场景反噬主服务。修复 = 把 mkdir 纳入同一 fail-open: `except OSError` → stderr 降级提示 (锁检跳过/端口检仍执行/指逃生口) + `return None`; 模块 docstring 同步声明「锁链路 (建目录/读/写) 全程 fail-open」
+- **测试**: +2 (`test_mkdir_blocked_fails_open` 同名文件阻塞注入 — 比 chmod 稳的 POSIX 通用 root 安全方式, 断言放行+提示; `test_refuse_if_locked_degrades_to_port_probe` 降级后端口检仍拒双实例 — fail-open ≠ 放弃守护); 文件 23 passed; 全量回归 **5368 passed / 9 skipped** (5366+2); ruff 0
+- **实弹 (端到端链条天然贯通三个 DEV)**: 重跑 DEV-0309 同款注入 (`HOTSPOT_DB_PATH=/usr/local/...`) → `[instance-lock] 锁目录不可建...降级` → 继续启动 → **init_db 给出指向真实根因的 DB PermissionError** (比此前锁层崩溃更诚实) → `lifespan startup failed — running best-effort chain (R15)` (DEV-0309 行为) → rc=1 fail-loud ✓
+- **生产**: 无需重启 — 本代码只在启动闸执行, 运行中进程不经过; 下次重启自然装载 (pid 当前在线不受影响)
+- **下一可用号**: DEV-0311
+
 ## [DEV-0309] 启动失败路径关闭链 — R15 收口 (startup-failure-teardown)
 
 - **时间**: 2026-10-10

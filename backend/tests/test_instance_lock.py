@@ -56,6 +56,38 @@ def test_corrupt_lock_treated_stale(tmp_path, monkeypatch):
     assert il.acquire_instance_lock(lock) is None
 
 
+# ---------------------------------------------------------------------------
+# DEV-0310 — mkdir fail-open 一致性 (锁目录不可建: 降级不阻断启动)
+# ---------------------------------------------------------------------------
+def test_mkdir_blocked_fails_open(tmp_path, monkeypatch, capsys):
+    """锁父路径被同名文件阻塞 (比 chmod 稳的 POSIX 通用失败注入, root 安全):
+    acquire 不抛 → 返回 None 放行 + stderr 降级提示 (与 write_text 容忍同取舍,
+    声明与行为一致: 锁链路任何 OSError 都不阻断启动)。"""
+    blocker = tmp_path / "blocker"
+    blocker.write_text("not a dir")
+    lock = blocker / "hotspot.lock"  # parent = blocker 是文件 → mkdir FileExistsError
+    _fake_pgid(monkeypatch, 4242)
+    assert il.acquire_instance_lock(lock) is None
+    err = capsys.readouterr().err
+    assert "锁目录不可建" in err and "端口探活仍执行" in err
+
+
+def test_refuse_if_locked_degrades_to_port_probe(tmp_path):
+    """锁检降级后端口探活仍守住单实例 (fail-open ≠ 放弃守护)。"""
+    import socket
+    from contextlib import closing
+
+    blocker = tmp_path / "blocker"
+    blocker.write_text("x")
+    with closing(socket.socket()) as holder:
+        holder.bind(("127.0.0.1", 0))
+        holder.listen(1)
+        port = holder.getsockname()[1]
+        with pytest.raises(SystemExit) as ei:
+            il.refuse_if_locked(lock_path=blocker / "hotspot.lock", port=port)
+        assert ei.value.code == 2  # 端口持有者照样拒启动
+
+
 def test_escape_valve(monkeypatch, tmp_path):
     """HOTSPOT_IGNORE_LOCK=1 → 不读不写锁, 直接放行 (知情逃生口)。"""
     monkeypatch.setenv("HOTSPOT_IGNORE_LOCK", "1")

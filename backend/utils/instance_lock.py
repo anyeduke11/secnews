@@ -7,7 +7,9 @@
 机制: 锁文件记录启动进程组 (pgid)。启动时若锁内 pgid 的进程组仍有
 存活成员 (含同组子进程) → 拒绝启动并给出清理命令; 进程组全灭 →
 视为陈旧锁直接覆写。SIGKILL 场景锁文件残留由存活探测兜底, 无需
-退出钩子。``HOTSPOT_IGNORE_LOCK=1`` 为知情逃生口。
+退出钩子。锁文件链路 (建目录/读/写) 全程 fail-open: 任何 OSError
+降级为「pgid 锁检跳过」, 端口探活闸仍执行。``HOTSPOT_IGNORE_LOCK=1``
+为知情逃生口。
 
 DEV-0303 R4: 冲突进程组**安全自动收割** — 父进程被 SIGKILL 后 dsh/pi
 等子进程成孤儿, pgid 探活能发现但此前只给手工指引。现在冲突时枚举
@@ -59,7 +61,18 @@ def acquire_instance_lock(lock_path: Path | None = None) -> int | None:
         return None
 
     path = lock_path or default_lock_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
+    # DEV-0310: fail-open 承诺覆盖建目录 — 此前 mkdir 裸奔, 与下方
+    # write_text 的 OSError 容忍漂移 (DB 路径不可用时 pgid 锁检降级,
+    # 端口探活闸仍生效; init_db 随后会给出更明确的 DB 错误)。
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        print(
+            f"[instance-lock] 锁目录不可建 ({e}) — pgid 锁检降级跳过, "
+            f"端口探活仍执行 (HOTSPOT_IGNORE_LOCK=1 可显式跳过双检)",
+            file=sys.stderr,
+        )
+        return None
 
     if path.exists():
         try:

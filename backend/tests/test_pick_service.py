@@ -8,8 +8,6 @@
 - favored source: favorites 中该 source 出现 ≥2 次
 """
 import sqlite3
-
-import pytest
 from datetime import datetime, timedelta, timezone
 
 from backend.services import pick_service as ps
@@ -311,9 +309,10 @@ class TestLoadHelpersDegradation:
 
 class TestListPickedSince:
     def test_returns_top_by_pick_score(self, temp_db):
+        from datetime import datetime, timedelta, timezone
+
         from backend.repository.db import get_connection
         from backend.repository.hotspot_repo import HotspotRepository
-        from datetime import datetime, timedelta, timezone
         conn = get_connection()
         now = datetime.now(timezone.utc)
         ts = (now - timedelta(hours=1)).isoformat()

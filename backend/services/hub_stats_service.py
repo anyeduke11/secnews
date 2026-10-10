@@ -33,7 +33,7 @@ def _safe(label: str, fn: Any) -> Any:
     """逐源容错: 单源异常置 None (前端显示 …), 不拖垮聚合响应。"""
     try:
         return fn()
-    except Exception as e:  # noqa: BLE001 — 聚合器对单源故障免疫
+    except Exception as e:  # 聚合器对单源故障免疫 (仅告警不中断)
         logger.warning(f"hub_stats source '{label}' failed: {e}")
         return None
 

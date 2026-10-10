@@ -15,8 +15,6 @@
 """
 from __future__ import annotations
 
-import json
-
 from backend.repository.db import get_connection
 from backend.repository.event_technique_repo import EventTypeRepo
 

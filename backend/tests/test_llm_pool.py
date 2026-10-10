@@ -11,8 +11,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from backend.services.ai_hub import pool as pool_mod
 from backend.services.ai_hub.egress import TRUSTED_LLM_HOSTS
 from backend.services.ai_hub.pool import (

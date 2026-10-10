@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import re
 import time
-import urllib.request
 from urllib.parse import urlparse
 
 # ---------------------------------------------------------------------------

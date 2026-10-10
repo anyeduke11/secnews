@@ -17,6 +17,13 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-10 预存漂移清零 + interest 三层归因 — DEV-0312/0313
+
+- **漂移清除 (DEV-0312)**: ruff `backend/ scripts/` 46 错 + 1 警告清零（43 自动 + 5 手工）——**HEAD 即红**（CI ruff 步在 7c54571 本就失败，worktree 对照取证）；架构数字 services 159→160 五文档同步（DEV-0300 `cve_enrich_service.py` 漏同步存量），`generate_meta --check` 三项绿。
+- **三层归因 (DEV-0313)**: `_attribute_domain` 重写 tags→标题→category 兜底——近 300 条实测覆盖 8%→15%（security 裸条 20/20 全救）；tags 档修正旧空参漂移；非安全类目仍 no_domain（语义保持）；summary 档经误报取证判不采纳（留档）。
+- **台账修正**: DEV-0311 interest 族笔误 54→39 / +11→+10（5378=5368+10 自洽）。
+- **验证**: 全量后端 5382 passed（5378+4）；ruff 0 / meta 5/5；实弹净零通过；生产已装载（pid 26223）。
+
 ### 2026-10-10 资讯赞/踩 → 推荐优化 v1（reaction 状态型信号）— DEV-0311
 
 - **能力**: 资讯卡片（头条/次级/快讯三挂载点）新增赞/踩按钮——点击写兴趣引擎（like +2.0 / dislike −1.5），互斥切换 + 可取消（同键取消 `DELETE /api/interest/reactions/{id}`，异键切换 POST signals 后端删旧行）；`GET /api/interest/reactions?days=90` 回读；回读失败隐藏按钮组（fail-safe 不渲染死键）。

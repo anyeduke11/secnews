@@ -31,7 +31,7 @@ def test_shape_and_empty_db_zeros(client) -> None:
     r = client.get("/api/knowledge/hub-stats")
     assert r.status_code == 200
     body = r.json()
-    assert EXPECTED_KEYS <= set(body.keys())
+    assert set(body.keys()) >= EXPECTED_KEYS
     assert body["wiki_items"] == 0
     assert body["wiki_chunks"] == 0
     assert body["review_total"] == 0

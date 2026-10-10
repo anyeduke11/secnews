@@ -25,6 +25,7 @@ from typing import Any, ClassVar
 
 from backend.logging_config import logger
 from backend.repository.hotspot_repo import (
+    interest_attribution_hint,
     interest_delete_reactions,
     interest_has_recent_signal,
     interest_insert_signal,
@@ -48,6 +49,15 @@ SIGNAL_WEIGHTS: dict[str, float] = {
 
 # DEV-0311: reaction 族 (状态型信号, 互斥切换 + 可取消; 其它为累计型)
 REACTION_TYPES: tuple[str, str] = ("like", "dislike")
+
+# DEV-0313: 归因 category 粗兜底 — 只认安全类目 (非安全类目保持 None, 不入权重)。
+# security→network_security 用其「防御运营/泛化兜底」语义 (与 auto_classifier
+# 标题规则的兜底取向一致); ai_security→ai_security 直映射。实测近 300 条样本:
+# 无关键词的 security 类目裸条 20 条全数被救 (8%→15% 覆盖)。
+CATEGORY_DOMAIN_FALLBACK: dict[str, str] = {
+    "security": "network_security",
+    "ai_security": "ai_security",
+}
 
 HALF_LIFE_DAYS = 14.0        # 行为分半衰期
 E_SELECTED = 1.0             # 显式勾选分
@@ -198,19 +208,23 @@ class InterestEngineService:
         return interest_reactions_since(cutoff, REACTION_TYPES)
 
     def _attribute_domain(self, item_id: str) -> str | None:
-        """写入时域归因: 查 hotspots 标题 → classify_practice_domain。"""
+        """写入时域归因 (DEV-0313 三层): tags → 标题关键词 → category 粗兜底。
+
+        旧实现传空 tags 且只认标题 — 未含关键词的 security 类目裸条全数落
+        no_domain (实测近 300 条 20 条), 显式 reaction 因此静默丢弃。
+        tags/标题经 classify_practice_domain (与 density T1/T3 同口径);
+        仍无则 category 兜底; 非安全类目如实返 None (非安全内容不入权重)。
+        """
         from backend.services.auto_classifier import classify_practice_domain
 
-        try:
-            from backend.repository.hotspot_repo import HotspotRepository
-
-            row = HotspotRepository().get_by_id(item_id)
-        except Exception:
+        hint = interest_attribution_hint(item_id)
+        if hint is None:
             return None
-        if row is None:
-            return None
-        title = getattr(row, "title", "") or ""
-        return classify_practice_domain([], title=title)
+        title, tags, category = hint
+        domain = classify_practice_domain(tags, title=title)
+        if domain is None:
+            domain = CATEGORY_DOMAIN_FALLBACK.get(category)
+        return domain
 
     # ── 聚合 ────────────────────────────────────────────────────
     def aggregate(self, *, force: bool = False) -> dict[str, dict[str, Any]]:

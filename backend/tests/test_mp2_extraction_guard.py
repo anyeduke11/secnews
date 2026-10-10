@@ -18,7 +18,6 @@ from backend.repository.db import get_connection
 from backend.repository.event_technique_repo import (
     EventTechniqueCandidateRepo,
     EventTypeRepo,
-    IncidentReportRepo,
 )
 from backend.services.attack_loader import load_attack_data
 from backend.services.event_technique_extract_service import (

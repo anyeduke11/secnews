@@ -27,6 +27,7 @@ import httpx
 
 from backend.logging_config import logger
 
+
 # 内置平台目录 — 全部 OpenAI 兼容网关。新增平台: 加条目 + egress.py 登记 host。
 @dataclass(frozen=True)
 class PlatformPreset:
@@ -176,10 +177,10 @@ def pool_snapshot(*, probe: bool = False, only: str | None = None) -> dict[str, 
 
 
 __all__ = [
+    "AGENT_CHANNELS",
     "PLATFORM_PRESETS",
     "PRESETS_BY_NAME",
-    "AGENT_CHANNELS",
-    "resolve_preset_key",
-    "probe_platform",
     "pool_snapshot",
+    "probe_platform",
+    "resolve_preset_key",
 ]

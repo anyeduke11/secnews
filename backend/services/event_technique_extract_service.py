@@ -23,12 +23,10 @@ LLM 调用
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import re
 import unicodedata
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from backend.exceptions import InternalException, NotFoundException
@@ -38,6 +36,8 @@ from backend.repository.event_technique_repo import (
     EventTechniqueCandidateRepo,
     EventTypeRepo,
     IncidentReportRepo,
+)
+from backend.repository.event_technique_repo import (
     new_ulid as _new_ulid,
 )
 
@@ -486,10 +486,10 @@ def _build_llm_prompt(
 
 
 __all__ = [
-    "EventTechniqueExtractService",
     "CONFIDENCE_THRESHOLD",
     "EVIDENCE_QUOTE_MAX_LEN",
     "MOCK_LLM_MODEL",
-    "_normalize_text",
+    "EventTechniqueExtractService",
     "_new_ulid",
+    "_normalize_text",
 ]

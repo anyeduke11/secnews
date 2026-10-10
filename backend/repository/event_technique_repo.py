@@ -38,7 +38,7 @@ def _compute_checksum(report_md: str) -> str:
 def new_ulid(prefix: str = "id") -> str:
     """跨 repo/service 共享的 id 生成器 (timestamp ms + sha256 rand, 32 hex chars)."""
     ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
-    rand = hashlib.sha256(f"{prefix}{ts}{datetime.now(timezone.utc).timestamp()}".encode("utf-8")).hexdigest()[:16]
+    rand = hashlib.sha256(f"{prefix}{ts}{datetime.now(timezone.utc).timestamp()}".encode()).hexdigest()[:16]
     return f"{prefix}_{ts}{rand}"
 
 
@@ -68,7 +68,7 @@ class IncidentReportRepo:
             return str(existing["id"])
         # ULID 简化版 (32 hex chars = 16 random bytes + timestamp ms hex)
         ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
-        rand = hashlib.sha256(f"{source_url}{ts}".encode("utf-8")).hexdigest()[:16]
+        rand = hashlib.sha256(f"{source_url}{ts}".encode()).hexdigest()[:16]
         rid = f"ir_{ts}{rand}"
         try:
             conn.execute(
@@ -437,10 +437,10 @@ class Mp2AuditRepo:
 
 
 __all__ = [
-    "IncidentReportRepo",
     "EventTechniqueCandidateRepo",
     "EventTechniqueMapRepo",
     "EventTypeRepo",
+    "IncidentReportRepo",
     "Mp2AuditRepo",
     "_compute_checksum",
     "_now_iso",

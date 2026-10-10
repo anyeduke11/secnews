@@ -6,13 +6,11 @@
 - LLM 挂/解析失败 → explain 保持 NULL (下轮重试), 返回 {"explained": 0}
 - 只更新解析结果中 id 匹配且 explain 非空的行 (防毒化)
 """
-import pytest
 
 from backend.services import rejection_explain_service as res
 
 
 def _mock_llm(monkeypatch, payload=None, fail=False):
-    import asyncio
     from backend.services.ai_hub.gateway import llm_service
 
     async def _gen(prompt, *, task="summary", **kw):

@@ -14,7 +14,6 @@ from backend.services.news_alert_service import (
     run_news_alert_review,
 )
 
-
 CFG = {
     "critical_vuln": {"max_per_run": 5, "keywords": ["在野利用", "0day", "PoC", "紧急补丁"]},
     "major_security_event": {
@@ -82,7 +81,6 @@ CANDS = [
 
 
 def _mock_llm(monkeypatch, payload=None, fail=False):
-    import asyncio
     from backend.services.ai_hub.gateway import llm_service
 
     async def _gen(prompt, *, task="summary", **kw):
@@ -126,8 +124,9 @@ class TestReviewCandidates:
 def _insert_hotspot(item_id, title, summary="", score=80.0, hours_ago=1):
     """插桩 hotspot; source 按 item_id 唯一 — 避开 _trigger_alert 引擎级
     (rule_type+source) 24h 去重, 使 max_per_run 用例只测编排层 cap。"""
-    from backend.repository.db import get_connection
     from datetime import datetime, timedelta, timezone
+
+    from backend.repository.db import get_connection
     ts = (datetime.now(timezone.utc) - timedelta(hours=hours_ago)).isoformat()
     get_connection().execute(
         "INSERT OR IGNORE INTO hotspots (id, title, url, source, category,"
@@ -141,14 +140,16 @@ def _insert_hotspot(item_id, title, summary="", score=80.0, hours_ago=1):
 @pytest.fixture
 def review_env(temp_db):
     """temp_db + 4 规则行 + mock LLM 全确认。"""
-    from backend.repository.db import init_db, close_db
-    close_db(); init_db()
+    from backend.repository.db import close_db, init_db
+    close_db()
+    init_db()
     from backend.repository.db import get_connection
     get_connection().executescript(open(
         "backend/repository/migrations/128_news_alert_rules.sql", encoding="utf-8"
     ).read())
     yield
-    close_db(); init_db()
+    close_db()
+    init_db()
 
 
 class TestRunNewsAlertReview:

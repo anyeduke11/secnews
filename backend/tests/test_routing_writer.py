@@ -133,7 +133,7 @@ class TestWriteTaskOverride:
             write_task_override("t1_score", "sensenova", "m\n    hacked: true", yaml_path=yaml_file)
 
     def test_unknown_provider_without_preset_rejected(self, yaml_file: Path):
-        with pytest.raises(RoutingWriteError, match="不在 llm.yaml providers"):
+        with pytest.raises(RoutingWriteError, match=r"不在 llm\.yaml providers"):
             write_task_override("t1_score", "skynet", "m", yaml_path=yaml_file)
 
     def test_structural_drift_rejected(self, tmp_path: Path):

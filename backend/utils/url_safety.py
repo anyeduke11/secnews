@@ -385,7 +385,7 @@ __all__ = [
     "pre_resolve_ip",
     "safe_aiohttp_connector",
     "safe_aiohttp_get",
-    "safe_urlopen",
     "safe_urllib_request",
+    "safe_urlopen",
     "validate_url",
 ]

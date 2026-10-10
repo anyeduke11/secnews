@@ -71,7 +71,7 @@ def collect(conn: sqlite3.Connection, days: int) -> list[dict]:
         }
     runs_table = _runs_table(conn)
     if runs_table:
-        # noqa: 表名来自固定白名单 (_runs_table), 无用户输入
+        # 表名来自固定白名单 (_runs_table), 无用户输入
         rows = conn.execute(
             f"SELECT source_id, category, COUNT(*) AS runs, COALESCE(SUM(fetched_count),0) AS fetched, COALESCE(SUM(accepted_count),0) AS accepted, COALESCE(SUM(status='failed'),0) AS failed_runs, MAX(CASE WHEN accepted_count > 0 THEN started_at END) AS last_success_at FROM {runs_table} WHERE started_at >= datetime('now', ?) GROUP BY source_id, category",  # noqa: E501,S608
             (f"-{int(days)} days",),

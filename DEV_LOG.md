@@ -1,4 +1,27 @@
 
+## [DEV-0313] interest no_domain 补归因 — 三层归因 tags→标题→category 兜底 (attr-fallback)
+
+- **时间**: 2026-10-10
+- **类型**: 增强 (owner 点名; DEV-0311 实弹暴露的归因缺口闭环)
+- **关联文件**: `backend/services/interest_engine_service.py` (_attribute_domain 三层重写 + CATEGORY_DOMAIN_FALLBACK)、`backend/repository/hotspot_repo.py` (+interest_attribution_hint 单查, _hotspot_tags 同口径)、`backend/tests/test_interest_engine.py` (+TestAttribution ×4)
+- **缺口 (数据取证)**: 旧 `_attribute_domain` 传**空 tags** + 只认标题 — 裸条 (无关键词) 全数落 no_domain, 显式 reaction 静默丢弃。近 300 条实测: title-only 命中 8%; tags 档增益 0 (近期热点 tags 空, 但空参漂移必须修 — 与 density T1/T3 口径不一致); **summary 档判不采纳** (IPS 显示屏→IPS 规则 / HTTP→TTP 子串 / ML 复现歧义 — 误报率高, 留档); **category 兜底可救 20/300 且样例全为真安全内容** (pipeline 类目标注可靠)。
+- **实现**: 三层 = ①hotspot.tags + title 经 classify_practice_domain (与 density 同口径) → ②`CATEGORY_DOMAIN_FALLBACK` {security→network_security (泛化兜底语义), ai_security→ai_security} → ③非安全类目如实 None (语义保持: 非安全内容不入权重)。覆盖 8%→15% (+20/300); 归因域仅用于权重/排序, 不改 hotspot 行与标签展示口径。
+- **测试**: TestAttribution ×4 (tags 优先于标题的漂移守卫 / security 兜底 / ai_security 直映射 / tech 仍 no_domain 不蔓延); interest 族 43 passed (39+4); 全量回归 **5382 passed / 9 skipped** (5378+4, 0 failed)。
+- **实弹 (生产进程 26223)**: 真实 security 裸条 (「打满补丁的 Windows … MiniPlasma」, 此前会 no_domain) → POST like → `{ok, network_security}` ✓ → 回读 → DELETE 净零; tech 裸条 (汽车发布) → accepted_no_domain 语义保持 ✓。
+- **装载 (含一次外部实例撞入)**: 重启窗口内出现一次性外部拉起的 run.py (pid 20302, pgid 20266, PPID 1; launchd/cron/自重启代码均排除, 60s 无复活 — 疑 owner 侧或他会话手动重启), 已精确终结; 新实例启动时单实例闸自动收割 20266 组残留 (`reaped after SIGTERM`) 后带锁启动 (pid 26223, 独立进程组)。
+- **下一可用号**: DEV-0314
+
+## [DEV-0312] 预存漂移清零 — ruff 46 错归零 + 架构数字 services 160 同步 (drift-cleanup)
+
+- **时间**: 2026-10-10
+- **类型**: 清理批 (owner 点名; DEV-0311 交付时经 worktree 对照取证为 HEAD 预存, 本批单据闭环)
+- **范围①** **ruff 清零** (`ruff check backend/ scripts/`, **HEAD 即红**: 7c54571 对照 46 错 + 1 警告): 自动安全修 43 (F401×14 死导入 / I001×14 导入排序 / RUF100×5 失效 noqa / RUF022×7 `__all__` 排序 / UP012×2 / SIM300×1) + 手工 5 (E702×2 分号拆分 / RUF043×1 正则转义 / kl_state_machine `__all__` 1 / scripts 无效 noqa 指令→注释)。两处 noqa 移除前转普通注释保留意图 (hub_stats_service 「单源故障免疫」/ run_orchestrator 「有意 is not None」)。**本批后 CI ruff 步恢复绿**。
+- **范围②** **架构数字同步**: `generate_meta.py --fix` 写回 5 文档 (AGENTS.md / CLAUDE.md / backend/services/AGENTS.md / scripts/AGENTS.md / docs/ARCHITECTURE.md) — services 159→160 (DEV-0300 新增 `cve_enrich_service.py` 未随提交同步的存量漂移)。
+- **范围③** **台账修正**: DEV-0311 条目 interest 族数字笔误修正 (54→39 / +11→+10; 全量 5378=5368+10 自洽)。
+- **验证**: ruff All checks passed (警告同步清零); 受影响 10 测试文件 106 passed; 13 改动模块导入冒烟 + py_compile OK; meta --check 三项全绿 (58/14/100/160)。
+- **诚实记录**: F401 逐个复核副作用面 — `final_url_resolver` 的 `urllib.request` 确为死导入 (实际抓取走 url_safety.safe_urlopen); 全批无 eval/字符串动态引用面。
+- **下一可用号**: DEV-0313
+
 ## [DEV-0311] 资讯赞/踩 → 推荐优化 v1 — reaction 状态型信号 (feed-reaction-v1)
 
 - **时间**: 2026-10-10
@@ -9,7 +32,7 @@
   - 前端: `frontend/src/hooks/useReactions.ts` (新建, 模块级单例 store 对标 useFavorites; available=false fail-safe 隐藏按钮)、`frontend/src/components/sentinel/ReactionButtons.tsx` (新建)、`SentinelHomePage.tsx` (三挂载点: 头条 head-foot / 次级 sub-meta / 快讯 FlashRow)、`frontend/src/lib/interest.ts` (+postReaction/deleteReaction/fetchReactions)
   - 文档: PRD 变更记录 +1 (2026-10-10 条目)
 - **设计要点**: reaction 与 view/dwell 分族 — **状态型信号** (最态为准: 互斥切换 + 可取消) vs 累计型 (可叠加)。互斥在 dedup 之后、insert 之前删旧行 — 切换不叠加 (like→dislike 净 +0.5 的坑) 且同 type 重复仍幂等。兼容铁律: 无信号 → 全域乘子恒定 → 排序退化原序 (既有排序断言保持)。域归因失败 (no_domain/202) UI 保留乐观态、刷新自然纠正 (如实语义)。
-- **测试**: 后端 interest 族 54 passed (+11: 幂等/互斥/取消/回读 map/双向归一数值/取消恢复/API 三态); **全量后端 5378 passed / 9 skipped**; 前端 **698 passed / 99 文件** (+7: hook 6 契约 + 首页集成 1), tsc 0 / vite build OK。
+- **测试**: 后端 interest 族 39 passed (+10: 幂等/互斥/取消/回读 map/双向归一数值/取消恢复/API 三态; 数字经 DEV-0312 批对账修正, 原记 54/+11 有误); **全量后端 5378 passed / 9 skipped**; 前端 **698 passed / 99 文件** (+7: hook 6 契约 + 首页集成 1), tsc 0 / vite build OK。
 - **实弹 (生产进程 16679)**: 真实条目 (CJK id `tech_IT之家_*`, 走 encodeURIComponent 编码路径) 全链: 赞 recorded → 回读 like → 互斥切 dislike → DELETE 取消 → 回读空; weights 200; **净零写入** (计数回基线 0) ✓。顺带取证: 真实 tech 源条目多无实践域归因 (accepted_no_domain) — 首次尝试 3 条皆跳过属源特性非缺陷。
 - **重启装载 (含事先排雷)**: 旧实例 pid 1917 与 vite/pi 共享 pgid 1887, 而锁文件记录 1887 — 直接启动会触发 R11 产权分支 killpg 整组 (**会杀前端 dev server**)。处置: 精确 TERM run.py → 8s 优雅退出 (停机链生效) → 确认树全清 (仅剩前端栈) → 清陈旧锁 → `os.setsid` 独立进程组启动 (新 pgid=16679, 锁=16679), 前端零波及。**遗留提示**: `scripts/restart_backend.sh` 整组 TERM 在「owner 单终端双拉起」拓扑下有同款误伤面 (脚本设计目标是独立组的 agent 实例; 未扩面修, 登记观察)。
 - **诚实记录**: ①全量 pytest 管道 `| tail` 缓冲致中途零进度可见 (总耗时 12m02s), 期间以 tmp 活动 + sample 证实存活非死锁 — 后续回归直写文件; ②ruff `backend/ scripts/` 46 错与 meta services 159 vs 160 漂移均 **HEAD 预存** (worktree 对照取证), 本批净新增 0, 未扩面修 (Rule 3)。

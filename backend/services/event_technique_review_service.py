@@ -16,9 +16,7 @@
 """
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
-from typing import Any
 
 from backend.exceptions import ConflictException, InvalidParamException, NotFoundException
 from backend.logging_config import logger

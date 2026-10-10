@@ -59,7 +59,7 @@ def create_run_for_action_start(
         RunService.create_or_replay 的原形状: ``{"run": <dict>, "replayed": bool}``。
         异常类型与三层幂等判定完全由 RunService 决定, 本函数不捕获不改写。
     """
-    svc = run_service if run_service is not None else RunService()  # noqa: E711 — 有意用 is not None 而非真值判断, 允许测试注入 falsy mock
+    svc = run_service if run_service is not None else RunService()  # 有意用 is not None 而非真值判断 (允许测试注入 falsy mock)
     return svc.create_or_replay(
         action_id=action_id, idempotency_key=idempotency_key, attempt=1,
         protocol=protocol, trigger_source=trigger_source, skill_id=skill_id,

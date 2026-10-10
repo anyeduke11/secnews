@@ -273,6 +273,6 @@ def read_routing() -> dict[str, Any]:
 __all__ = [
     "TIER_OVERRIDE_KEYS",
     "RoutingWriteError",
-    "write_task_override",
     "read_routing",
+    "write_task_override",
 ]

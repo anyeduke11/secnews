@@ -24,7 +24,6 @@ from backend.exceptions import InvalidParamException, NotFoundException
 from backend.logging_config import logger
 from backend.repository.event_technique_repo import IncidentReportRepo
 
-
 # 报告原文最小长度 (避免空摘要入库)
 MIN_REPORT_BODY_LEN = 50
 
@@ -224,4 +223,4 @@ def _split_frontmatter(content: str) -> tuple[dict[str, str], str]:
     return front, body
 
 
-__all__ = ["IncidentReportService", "MIN_REPORT_BODY_LEN", "_normalize_text"]
+__all__ = ["MIN_REPORT_BODY_LEN", "IncidentReportService", "_normalize_text"]

@@ -14,7 +14,6 @@ from backend.collectors.ai_collector import AI_SOURCES
 from backend.collectors.ai_security_collector import AI_SECURITY_SOURCES
 
 # DEV-0178: 标讯 BID_SOURCES 已随工作台聚焦裁决移除
-
 # 金融
 from backend.collectors.finance_collector import FINANCE_SOURCES
 

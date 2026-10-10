@@ -4,7 +4,6 @@
 契约 (user_skills 先例): gate 化须随消费点同时登记 — 不登记则 TOML/env
 同名 key 被 _load_gates 过滤, is_extension_enabled 恒 False (fail-closed)。
 """
-import os
 
 import pytest
 

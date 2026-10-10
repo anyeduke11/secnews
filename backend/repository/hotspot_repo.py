@@ -1094,6 +1094,8 @@ _SQL_INTEREST_REACTIONS_SINCE = (
     "SELECT item_id, signal_type FROM interest_signals "
     "WHERE created_at >= ? AND signal_type IN (?, ?)"
 )
+# DEV-0313 (no_domain 补归因): 归因原料单查 (title/tags/category)
+_SQL_INTEREST_ATTR_HINT = "SELECT title, tags, category FROM hotspots WHERE id = ?"
 
 
 def interest_has_recent_signal(item_id: str, signal_type: str, cutoff_iso: str) -> bool:
@@ -1145,6 +1147,23 @@ def interest_reactions_since(cutoff_iso: str, reaction_types: tuple[str, str]) -
     except Exception as e:
         logger.warning(f"interest_reactions_since failed: {e}")
         return {}
+
+
+def interest_attribution_hint(item_id: str) -> tuple[str, list[str], str] | None:
+    """兴趣归因原料 (title, tags, category) — 单查, DEV-0313 三层归因第一跳。
+
+    表缺失/条目不存在返 None (调用方按 no_domain 处理)。tags 解析用
+    ``_hotspot_tags`` (与 density T1/T3 同口径)。
+    """
+    try:
+        conn = get_connection()
+        row = conn.execute(_SQL_INTEREST_ATTR_HINT, (item_id,)).fetchone()
+    except Exception as e:
+        logger.warning(f"interest_attribution_hint failed: {e}")
+        return None
+    if row is None:
+        return None
+    return (row["title"] or "", _hotspot_tags(row["tags"]), row["category"] or "")
 
 
 def interest_signals_since(cutoff_iso: str) -> list[dict]:

@@ -55,7 +55,11 @@ def _reset_agg_cache():
     InterestEngineService.invalidate_cache()
 
 
-def _seed_ai_item(item_id: str = "h-ai-1", title: str = "大模型提示注入攻防实战") -> None:
+def _seed_ai_item(
+    item_id: str = "h-ai-1",
+    title: str = "大模型提示注入攻防实战",
+    category: Category = Category.AI,
+) -> None:
     from datetime import datetime, timedelta, timezone
 
     now = datetime.now(timezone.utc)
@@ -65,13 +69,25 @@ def _seed_ai_item(item_id: str = "h-ai-1", title: str = "大模型提示注入�
             title=title,
             source="test",
             url=f"https://example.com/{item_id}",
-            category=Category.AI,
+            category=category,
             published_at=now - timedelta(hours=1),
             fetched_at=now,
             ingested_at=now,
             quality_flags=[],
         )
     ])
+
+
+def _set_hotspot_tags(item_id: str, tags: list[str]) -> None:
+    """直写 tags 列 (HotspotItem 模型无 tags 字段, DEV-0313 归因测试专用)。"""
+    import json
+
+    from backend.repository.db import get_connection
+
+    get_connection().execute(
+        "UPDATE hotspots SET tags = ? WHERE id = ?",
+        (json.dumps(tags, ensure_ascii=False), item_id),
+    )
 
 
 class TestRecordSignal:
@@ -95,6 +111,38 @@ class TestRecordSignal:
 
     def test_invalid_type(self, temp_db):
         assert InterestEngineService().record_signal("x", "hack")["status"] == "invalid_type"
+
+
+class TestAttribution:
+    """DEV-0313 三层归因 (tags → 标题关键词 → category 粗兜底) — no_domain 补归因契约。"""
+
+    def test_tags_beat_title(self, temp_db):
+        """tags 优先于标题关键词 (与 density T1/T3 同口径) — 旧实现传空 tags 的漂移守卫。"""
+        _seed_ai_item("h-attr-tags", "大模型提示注入攻防实战")  # 标题独立可判 ai_security
+        _set_hotspot_tags("h-attr-tags", ["合规"])
+        result = InterestEngineService().record_signal("h-attr-tags", "view")
+        assert result == {"status": "recorded", "domain": "compliance"}
+
+    def test_security_category_fallback(self, temp_db):
+        """无关键词的 security 类目条目 → network_security 泛化桶 (此前静默 no_domain)。"""
+        _seed_ai_item(
+            "h-attr-sec",
+            "打满补丁的 Windows 也能拿到 SYSTEM：MiniPlasma 与 cldflt.sys",
+            Category.SECURITY,
+        )
+        result = InterestEngineService().record_signal("h-attr-sec", "like")
+        assert result == {"status": "recorded", "domain": "network_security"}
+
+    def test_ai_security_category_fallback(self, temp_db):
+        _seed_ai_item("h-attr-aisec", "某厂商发布新推理芯片与端侧模型", Category.AI_SECURITY)
+        result = InterestEngineService().record_signal("h-attr-aisec", "like")
+        assert result == {"status": "recorded", "domain": "ai_security"}
+
+    def test_non_security_category_keeps_no_domain(self, temp_db):
+        """非安全类目补归因不蔓延: tech 裸条仍 no_domain (非安全内容不入权重)。"""
+        _seed_ai_item("h-attr-tech", "荣耀 WIN 2 手机外观首曝：横向矩阵 Deco", Category.TECH)
+        result = InterestEngineService().record_signal("h-attr-tech", "like")
+        assert result["status"] == "no_domain"
 
 
 class TestAggregate:
@@ -288,14 +336,14 @@ class TestReactionAPI:
 # ---------------------------------------------------------------------------
 # R2 (DEV-0183): 漂移检测 / 摘要 composite / repo 审计函数
 # ---------------------------------------------------------------------------
-from backend.domain.enums import Category as _Cat  # noqa: E402
-from backend.repository.hotspot_repo import (  # noqa: E402
+from backend.domain.enums import Category as _Cat
+from backend.repository.hotspot_repo import (
     interest_audit_recent_titles,
     interest_audit_signal_stats,
     interest_audit_stored_weights,
     interest_audit_w30_weight_sum,
 )
-from backend.services.digest_service import _sort_by_composite  # noqa: E402
+from backend.services.digest_service import _sort_by_composite
 
 
 def _seed_domains_with_signals() -> InterestEngineService:

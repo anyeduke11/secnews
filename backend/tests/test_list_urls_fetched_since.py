@@ -10,13 +10,13 @@ _MAX_LIMIT=200 钳制 → known_urls 只覆盖最近几小时 → RSS 旧文每�
 - since_iso 为空 → 空集合 (调用方退化为不去重)
 - 窗口外 URL 不返回
 """
-import sqlite3
+
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from backend.repository.db import get_connection
-from backend.repository.hotspot_repo import HotspotRepository, _MAX_LIMIT
-from datetime import datetime, timedelta, timezone
+from backend.repository.hotspot_repo import _MAX_LIMIT, HotspotRepository
 
 
 def _insert(url: str, fetched_at_iso: str, title: str = "t") -> None:

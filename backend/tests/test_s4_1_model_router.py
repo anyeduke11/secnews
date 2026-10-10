@@ -252,8 +252,8 @@ class TestResolveModelConsumesOverride:
 
     def test_empty_override_model_falls_back_to_mapping(self):
         """override.model 为空串 (pi 语义: 不下传 --model) → 沿用映射 (pi 即空)。"""
-        from backend.services.ai_hub import LLMService
         from backend.config.llm_schema import LLMConfig, ProviderConfig, ProviderModels
+        from backend.services.ai_hub import LLMService
 
         cfg = LLMConfig(
             enabled=True,

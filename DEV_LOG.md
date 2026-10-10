@@ -1,4 +1,20 @@
 
+## [DEV-0311] 资讯赞/踩 → 推荐优化 v1 — reaction 状态型信号 (feed-reaction-v1)
+
+- **时间**: 2026-10-10
+- **类型**: 功能开发 (owner 浏览器标记三卡片点名; 三裁决: D1 单管道扩兴趣引擎 / D2 双向归一+clamp / D3 互斥切换+可取消)
+- **关联模块**: `backend:interest-engine`, `backend:interest-api`, `backend:hotspot-repo`, `frontend:sentinel-home`, `frontend:use-reactions`
+- **关联文件**:
+  - 后端: `backend/services/interest_engine_service.py` (like +2.0 / dislike −1.5 / REACTION_TYPES / record_signal 互斥删旧 / clear_reaction / reactions_map / w30 证据量 abs / 双向归一 / 乘子 clamp [0.45,1.30])、`backend/api/interest_api.py` (+`DELETE /reactions/{item_id}`、+`GET /reactions?days=`, to_thread)、`backend/repository/hotspot_repo.py` (+interest_delete_reactions / interest_reactions_since)
+  - 前端: `frontend/src/hooks/useReactions.ts` (新建, 模块级单例 store 对标 useFavorites; available=false fail-safe 隐藏按钮)、`frontend/src/components/sentinel/ReactionButtons.tsx` (新建)、`SentinelHomePage.tsx` (三挂载点: 头条 head-foot / 次级 sub-meta / 快讯 FlashRow)、`frontend/src/lib/interest.ts` (+postReaction/deleteReaction/fetchReactions)
+  - 文档: PRD 变更记录 +1 (2026-10-10 条目)
+- **设计要点**: reaction 与 view/dwell 分族 — **状态型信号** (最态为准: 互斥切换 + 可取消) vs 累计型 (可叠加)。互斥在 dedup 之后、insert 之前删旧行 — 切换不叠加 (like→dislike 净 +0.5 的坑) 且同 type 重复仍幂等。兼容铁律: 无信号 → 全域乘子恒定 → 排序退化原序 (既有排序断言保持)。域归因失败 (no_domain/202) UI 保留乐观态、刷新自然纠正 (如实语义)。
+- **测试**: 后端 interest 族 54 passed (+11: 幂等/互斥/取消/回读 map/双向归一数值/取消恢复/API 三态); **全量后端 5378 passed / 9 skipped**; 前端 **698 passed / 99 文件** (+7: hook 6 契约 + 首页集成 1), tsc 0 / vite build OK。
+- **实弹 (生产进程 16679)**: 真实条目 (CJK id `tech_IT之家_*`, 走 encodeURIComponent 编码路径) 全链: 赞 recorded → 回读 like → 互斥切 dislike → DELETE 取消 → 回读空; weights 200; **净零写入** (计数回基线 0) ✓。顺带取证: 真实 tech 源条目多无实践域归因 (accepted_no_domain) — 首次尝试 3 条皆跳过属源特性非缺陷。
+- **重启装载 (含事先排雷)**: 旧实例 pid 1917 与 vite/pi 共享 pgid 1887, 而锁文件记录 1887 — 直接启动会触发 R11 产权分支 killpg 整组 (**会杀前端 dev server**)。处置: 精确 TERM run.py → 8s 优雅退出 (停机链生效) → 确认树全清 (仅剩前端栈) → 清陈旧锁 → `os.setsid` 独立进程组启动 (新 pgid=16679, 锁=16679), 前端零波及。**遗留提示**: `scripts/restart_backend.sh` 整组 TERM 在「owner 单终端双拉起」拓扑下有同款误伤面 (脚本设计目标是独立组的 agent 实例; 未扩面修, 登记观察)。
+- **诚实记录**: ①全量 pytest 管道 `| tail` 缓冲致中途零进度可见 (总耗时 12m02s), 期间以 tmp 活动 + sample 证实存活非死锁 — 后续回归直写文件; ②ruff `backend/ scripts/` 46 错与 meta services 159 vs 160 漂移均 **HEAD 预存** (worktree 对照取证), 本批净新增 0, 未扩面修 (Rule 3)。
+- **下一可用号**: DEV-0312
+
 ## [DEV-0310] instance_lock mkdir fail-open 一致性 — 锁链路声明与行为对齐 (lock-mkdir-failopen)
 
 - **时间**: 2026-10-10

@@ -3,6 +3,8 @@
 端点
 ----
 - ``POST /api/interest/signals``  记录行为信号 (item_id + signal_type; 域归因服务端做)
+- ``DELETE /api/interest/reactions/{item_id}``  取消单 item 赞/踩 (DEV-0311, 删信号行)
+- ``GET  /api/interest/reactions``  最近窗口 reaction 状态表 {item_id: like|dislike} (UI 回读)
 - ``GET  /api/interest/weights``  10 域三层分 + 近 30d 事件数 (权重条数据源)
 - ``POST /api/interest/reset``    清行为信号 (显式勾选保留) + audit_log
 - ``GET  /api/interest/domains/recommendations``  关注域 AI 推荐 (density T3;
@@ -11,11 +13,13 @@
 """
 from __future__ import annotations
 
-from fastapi import APIRouter
+import asyncio
+
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from backend.logging_config import logger
-from backend.services.interest_engine_service import InterestEngineService
+from backend.services.interest_engine_service import SIGNAL_TTL_DAYS, InterestEngineService
 
 router = APIRouter(prefix="/api/interest", tags=["interest"])
 _service = InterestEngineService()
@@ -25,7 +29,9 @@ _AUDIT_ACTION = "workbench.interest_reset"
 
 class InterestSignalRequest(BaseModel):
     item_id: str = Field(..., min_length=1, max_length=200, description="hotspot id")
-    signal_type: str = Field(..., description="view|read|dwell|deep_read|favorite")
+    signal_type: str = Field(
+        ..., description="view|read|dwell|deep_read|favorite|like|dislike (reaction 走互斥/可取消语义)"
+    )
 
 
 class InterestResetRequest(BaseModel):
@@ -44,6 +50,29 @@ async def record_signal(req: InterestSignalRequest) -> dict:
 
         raise InvalidParamException(f"interest signal rejected: {status}")
     return {"status": "ok", "domain": result.get("domain")}
+
+
+@router.delete("/reactions/{item_id}")
+async def clear_reaction(item_id: str) -> dict:
+    """取消单 item 赞/踩 (DEV-0311 状态型 reaction)。删除信号行, 无新插入。
+
+    to_thread: 同步 SQL 不进 event loop (DEV-0304/R17 同类教训)。
+    """
+    result = await asyncio.to_thread(_service.clear_reaction, item_id)
+    if result.get("status") == "invalid_item":
+        from backend.exceptions import InvalidParamException
+
+        raise InvalidParamException("interest reaction rejected: invalid_item")
+    return result
+
+
+@router.get("/reactions")
+async def list_reactions(
+    days: int = Query(SIGNAL_TTL_DAYS, ge=1, le=365, description="回读窗口 (默认 90 天, 与信号 TTL 对齐)"),
+) -> dict:
+    """reaction 状态表 {item_id: 'like'|'dislike'} (前端初始化回读, DEV-0311)。"""
+    items = await asyncio.to_thread(_service.reactions_map, days=days)
+    return {"items": items, "count": len(items)}
 
 
 @router.get("/weights")

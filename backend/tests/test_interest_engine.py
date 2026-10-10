@@ -171,7 +171,118 @@ class TestInterestAPI:
 
 
 def test_weights_table_covers_all_domains():
-    assert set(SIGNAL_WEIGHTS) == {"view", "read", "dwell", "deep_read", "favorite"}
+    # DEV-0311: reaction 扩展后白名单 7 型 (like/dislike 进表)
+    assert set(SIGNAL_WEIGHTS) == {
+        "view", "read", "dwell", "deep_read", "favorite", "like", "dislike",
+    }
+
+
+# ---------------------------------------------------------------------------
+# DEV-0311 — reaction (赞/踩): 互斥切换 / 可取消 / 负向归一双向 / 回读
+# ---------------------------------------------------------------------------
+class TestReaction:
+    def test_like_recorded_and_dedup_idempotent(self, temp_db):
+        """同 type 30min 内重复 = 幂等 (deduped), 表内仍 1 行 (UI 双击防噪)。"""
+        _seed_ai_item()
+        svc = InterestEngineService()
+        assert svc.record_signal("h-ai-1", "like")["status"] == "recorded"
+        assert svc.record_signal("h-ai-1", "like")["status"] == "deduped"
+        from backend.repository.db import get_connection
+        rows = get_connection().execute(
+            "SELECT signal_type FROM interest_signals WHERE item_id = 'h-ai-1'"
+        ).fetchall()
+        assert [r["signal_type"] for r in rows] == ["like"]
+
+    def test_switch_mutual_exclusion(self, temp_db):
+        """like → dislike 切换: 删旧写新, 表内只余 dislike (不叠加净 +0.5)。"""
+        _seed_ai_item()
+        svc = InterestEngineService()
+        svc.record_signal("h-ai-1", "like")
+        assert svc.record_signal("h-ai-1", "dislike")["status"] == "recorded"
+        from backend.repository.db import get_connection
+        rows = get_connection().execute(
+            "SELECT signal_type, weight FROM interest_signals WHERE item_id = 'h-ai-1'"
+        ).fetchall()
+        assert [(r["signal_type"], r["weight"]) for r in rows] == [("dislike", -1.5)]
+
+    def test_clear_reaction_deletes(self, temp_db):
+        _seed_ai_item()
+        svc = InterestEngineService()
+        svc.record_signal("h-ai-1", "like")
+        assert svc.clear_reaction("h-ai-1") == {"status": "ok", "deleted": 1}
+        assert svc.clear_reaction("h-ai-1") == {"status": "ok", "deleted": 0}
+
+    def test_clear_then_like_again_not_blocked(self, temp_db):
+        """取消后重新点赞: 行已删 → dedup 自然放行 (不误判 30min 内重复)。"""
+        _seed_ai_item()
+        svc = InterestEngineService()
+        svc.record_signal("h-ai-1", "like")
+        svc.clear_reaction("h-ai-1")
+        assert svc.record_signal("h-ai-1", "like")["status"] == "recorded"
+
+    def test_reactions_map_readback(self, temp_db):
+        _seed_ai_item("h-ai-1", "大模型提示注入攻防实战")
+        _seed_ai_item("h-th-1", "威胁狩猎方法论入门")
+        svc = InterestEngineService()
+        svc.record_signal("h-ai-1", "like")
+        svc.record_signal("h-th-1", "dislike")
+        assert svc.reactions_map() == {"h-ai-1": "like", "h-th-1": "dislike"}
+
+    def test_like_raises_dislike_lowers_multiplier(self, temp_db):
+        """混合域双向归一: like 域 b_norm=+1 抬乘子; dislike 域 b_norm=-1 压乘子。
+
+        数值: like=+2.0, dislike=-1.5, 未勾选 e=0.15;
+        pos_max=2.0/neg_max=1.5, w30=|2.0|+|-1.5|=3.5 → β_eff=0.4·3.5/30≈0.0467
+        S(ai)≈0.09+0.0467=0.1367 → m≈0.782; S(th)≈0.09-0.0467=0.0433 → m≈0.726
+        """
+        _seed_ai_item("h-ai-1", "大模型提示注入攻防实战")
+        _seed_ai_item("h-th-1", "威胁狩猎方法论入门")
+        svc = InterestEngineService()
+        svc.record_signal("h-ai-1", "like")
+        svc.record_signal("h-th-1", "dislike")
+        agg = svc.aggregate()
+        assert agg["ai_security"]["behavioral_score"] == pytest.approx(1.0, abs=0.01)
+        assert agg["threat_hunting"]["behavioral_score"] == pytest.approx(-1.0, abs=0.01)
+        boost = svc.get_boost_map()
+        baseline = 0.7 + 0.6 * (0.15 * 0.6)  # 无信号基线 m=0.754
+        assert boost["ai_security"] > baseline
+        assert boost["threat_hunting"] < baseline
+        assert boost["compliance"] == pytest.approx(baseline, abs=0.001)
+        assert boost["ai_security"] == pytest.approx(0.7 + 0.6 * (0.09 + 0.4 * 3.5 / 30), abs=0.01)
+
+    def test_clear_reaction_restores_multiplier(self, temp_db):
+        """取消后乘子回落 (invalidate_cache 生效)。"""
+        _seed_ai_item()
+        svc = InterestEngineService()
+        svc.record_signal("h-ai-1", "dislike")
+        boosted = svc.get_boost_map()
+        svc.clear_reaction("h-ai-1")
+        after = svc.get_boost_map()
+        assert after["ai_security"] > boosted["ai_security"], "撤踩后降权应消失"
+
+
+class TestReactionAPI:
+    def test_post_like_and_switch_via_api(self, client, temp_db):
+        _seed_ai_item("h-api-1", "威胁狩猎方法论入门")
+        r1 = client.post("/api/interest/signals", json={"item_id": "h-api-1", "signal_type": "like"})
+        assert r1.status_code == 200 and r1.json() == {"status": "ok", "domain": "threat_hunting"}
+        r2 = client.post("/api/interest/signals", json={"item_id": "h-api-1", "signal_type": "dislike"})
+        assert r2.status_code == 200
+
+    def test_delete_reaction_endpoint(self, client, temp_db):
+        _seed_ai_item("h-api-1", "威胁狩猎方法论入门")
+        client.post("/api/interest/signals", json={"item_id": "h-api-1", "signal_type": "like"})
+        r = client.delete("/api/interest/reactions/h-api-1")
+        assert r.status_code == 200
+        assert r.json() == {"status": "ok", "deleted": 1}
+
+    def test_get_reactions_endpoint_shape(self, client, temp_db):
+        _seed_ai_item("h-api-1", "威胁狩猎方法论入门")
+        client.post("/api/interest/signals", json={"item_id": "h-api-1", "signal_type": "dislike"})
+        r = client.get("/api/interest/reactions")
+        assert r.status_code == 200
+        body = r.json()
+        assert body == {"items": {"h-api-1": "dislike"}, "count": 1}
 
 
 # ---------------------------------------------------------------------------

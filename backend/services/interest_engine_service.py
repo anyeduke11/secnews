@@ -25,22 +25,29 @@ from typing import Any, ClassVar
 
 from backend.logging_config import logger
 from backend.repository.hotspot_repo import (
+    interest_delete_reactions,
     interest_has_recent_signal,
     interest_insert_signal,
     interest_purge_expired,
+    interest_reactions_since,
     interest_reset_all,
     interest_signals_since,
     interest_upsert_weights,
 )
 
-# ── PRD §1 权重表 (数据校准 2026-09-12) ────────────────────────
+# ── PRD §1 权重表 (数据校准 2026-09-12; DEV-0311 扩 reaction) ─
 SIGNAL_WEIGHTS: dict[str, float] = {
     "view": 0.5,        # 锚定 (零存量)
     "read": 1.0,        # 锚定
     "dwell": 1.5,       # 锚定 (仅 >30s 上报)
     "deep_read": 2.0,   # 数据: 3.0 × 9/14 ≈ 1.93
     "favorite": 3.0,    # 锚定
+    "like": 2.0,        # DEV-0311: 显式正反馈 (与 deep_read 同档; T3 框架后续重校)
+    "dislike": -1.5,    # DEV-0311: 显式负反馈 (温和起步 — 域级误伤 + 14d 半衰自然恢复)
 }
+
+# DEV-0311: reaction 族 (状态型信号, 互斥切换 + 可取消; 其它为累计型)
+REACTION_TYPES: tuple[str, str] = ("like", "dislike")
 
 HALF_LIFE_DAYS = 14.0        # 行为分半衰期
 E_SELECTED = 1.0             # 显式勾选分
@@ -48,8 +55,10 @@ E_UNSELECTED = 0.15          # 温和发现: 未勾不给 0
 ALPHA = 0.6                  # 显式权重
 BETA_MAX = 0.4               # 行为权重上限 (逐步收敛)
 EVIDENCE_C = 30.0            # 满 β 证据常数 (30 天信号权重和; 两周后重校)
-MULT_BASE = 0.7              # 排序乘子 = MULT_BASE + MULT_SPAN·S
+MULT_BASE = 0.7      # 排序乘子 = MULT_BASE + MULT_SPAN·S
 MULT_SPAN = 0.6
+MULT_MIN = 0.45      # DEV-0311: 防御性下界 (reaction 负向极端时截断, 现状数据不可达)
+MULT_MAX = 1.30      # 上界 (现状自然上界即 1.30; clamp 防未来常数演进逸出)
 DEDUP_WINDOW_MIN = 30        # 同 item+type 去重窗口 (分钟)
 SIGNAL_TTL_DAYS = 90         # signals 保留期 (maintenance job 清理)
 _AGG_TTL_S = 300.0           # 聚合缓存 TTL
@@ -157,6 +166,12 @@ class InterestEngineService:
         if interest_has_recent_signal(item_id, signal_type, cutoff):
             return {"status": "deduped", "domain": domain}
 
+        # DEV-0311: reaction 互斥 — 写新态度前删同 item 旧 reaction。
+        # dedup 先行: 同 type 30min 内重复 = 幂等; 切换 (like↔dislike) 因删旧
+        # 不触发 dedup, 保证"态度以最新为准"且不叠加 (防 like→dislike 净 +0.5)。
+        if signal_type in REACTION_TYPES:
+            interest_delete_reactions(item_id, REACTION_TYPES)
+
         try:
             interest_insert_signal(item_id, domain, signal_type, SIGNAL_WEIGHTS[signal_type], _now_iso())
         except Exception as e:
@@ -164,6 +179,23 @@ class InterestEngineService:
             return {"status": "error"}
         self.invalidate_cache()
         return {"status": "recorded", "domain": domain}
+
+    def clear_reaction(self, item_id: str) -> dict[str, Any]:
+        """取消单 item 赞/踩 (删除 reaction 行, DEV-0311)。
+
+        取消 = 移除信号 (无新插入); 返回 {status: ok|invalid_item, deleted}。
+        """
+        if not item_id:
+            return {"status": "invalid_item", "deleted": 0}
+        deleted = interest_delete_reactions(item_id, REACTION_TYPES)
+        if deleted:
+            self.invalidate_cache()
+        return {"status": "ok", "deleted": deleted}
+
+    def reactions_map(self, days: int = SIGNAL_TTL_DAYS) -> dict[str, str]:
+        """最近 ``days`` 天内 {item_id: 'like'|'dislike'} 状态表 (UI 回读)。"""
+        cutoff = _utc_iso_minus(days=days)
+        return interest_reactions_since(cutoff, REACTION_TYPES)
 
     def _attribute_domain(self, item_id: str) -> str | None:
         """写入时域归因: 查 hotspots 标题 → classify_practice_domain。"""
@@ -213,11 +245,15 @@ class InterestEngineService:
                 raw[d] += w * math.exp(-math.log(2) * age_days / HALF_LIFE_DAYS)
                 if ts >= cutoff30:
                     events30[d] += 1
-                    w30_total += w
+                    w30_total += abs(w)  # DEV-0311: 证据量用绝对值 (负权重抵减会拖慢 β 收敛)
                 if last_at[d] is None or ts > last_at[d]:
                     last_at[d] = ts
 
-        max_b = max(raw.values()) if raw else 0.0
+        # DEV-0311: 双向归一 — 正/负向各自除以本侧最大绝对值 → b ∈ [-1, 1]。
+        # 兼容铁律: 无信号 (raw 全 0) → pos_max=neg_max=0 → b_norm=0 → 全域 s
+        # 同值, 排序退化原序 (= 现状, 既有测试恒定断言由此保持)。
+        pos_max = max((v for v in raw.values() if v > 0), default=0.0)
+        neg_max = max((-v for v in raw.values() if v < 0), default=0.0)
         beta_eff = BETA_MAX * min(1.0, w30_total / EVIDENCE_C)
 
         explicit = self._load_explicit()
@@ -225,7 +261,10 @@ class InterestEngineService:
         rows: list[tuple] = []
         for d in PRACTICE_DOMAINS:
             e = E_SELECTED if d in explicit else E_UNSELECTED
-            b_norm = (raw[d] / max_b) if max_b > 0 else 0.0
+            v = raw[d]
+            b_pos = (v / pos_max) if (pos_max > 0 and v > 0) else 0.0
+            b_neg = ((-v) / neg_max) if (neg_max > 0 and v < 0) else 0.0
+            b_norm = b_pos - b_neg
             s = ALPHA * e + beta_eff * b_norm
             result[d] = {
                 "explicit_selected": 1 if d in explicit else 0,
@@ -279,13 +318,17 @@ class InterestEngineService:
         }
 
     def get_boost_map(self, *, force: bool = False) -> dict[str, float]:
-        """排序乘子表 {domain: m}, m = 0.7 + 0.6·S ∈ [0.79, 1.30]。
+        """排序乘子表 {domain: m}, m = clamp(0.7 + 0.6·S, [0.45, 1.30])。
 
+        DEV-0311: S 现可为负 (dislike 域 b_norm < 0), 乘子下探→降权; clamp
+        为防御性边界 (按现常数 S∈[-0.31,1.0] → m∈[0.51,1.30], 现数据不可达界)。
         无勾选且无信号时全部域 S 相同 → 乘子恒定, 排序退化为原序 (= 现状)。
         """
         agg = self.aggregate(force=force)
         return {
-            d: round(MULT_BASE + MULT_SPAN * v["blended_score"], 4)
+            d: round(
+                min(MULT_MAX, max(MULT_MIN, MULT_BASE + MULT_SPAN * v["blended_score"])), 4
+            )
             for d, v in agg.items()
         }
 

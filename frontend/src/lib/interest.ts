@@ -1,9 +1,12 @@
 /**
- * lib/interest — 兴趣引擎行为埋点 (DEV-0182, Workbench Focus R1)
+ * lib/interest — 兴趣引擎行为埋点 + reaction 客户端 (DEV-0182 / DEV-0311)
  *
  * 统一 trackInterest(): sendBeacon 优先 (关页不丢), fetch keepalive 兜底。
  * 域归因在服务端写入时完成, 前端只传 item_id + signal_type。
  * 失败静默 — 埋点绝不阻塞用户交互。
+ *
+ * DEV-0311 reaction (赞/踩): 显式动作, 走 apiFetch 等待响应 (非 beacon —
+ * 需即时一致性, 失败供上层回滚); 互斥/取消语义由后端保证。
  */
 import { apiFetch } from './api';
 
@@ -34,4 +37,31 @@ export function trackInterest(
   } catch {
     // 埋点失败静默 — 不影响用户交互
   }
+}
+
+// ── DEV-0311: reaction (赞/踩) 客户端 ──────────────────────────
+
+export type ReactionType = 'like' | 'dislike';
+
+/** 提交赞/踩 (后端互斥: 写新态度自动删旧)。 */
+export async function postReaction(itemId: string, type: ReactionType): Promise<void> {
+  await apiFetch('/api/interest/signals', {
+    method: 'POST',
+    body: JSON.stringify({ item_id: itemId, signal_type: type }),
+  });
+}
+
+/** 取消赞/踩 (删信号行, 恢复无态度)。 */
+export async function deleteReaction(itemId: string): Promise<void> {
+  await apiFetch(`/api/interest/reactions/${encodeURIComponent(itemId)}`, {
+    method: 'DELETE',
+  });
+}
+
+/** 回读 reaction 状态表 {item_id: 'like'|'dislike'} (默认 90 天窗口)。 */
+export async function fetchReactions(days = 90): Promise<Record<string, ReactionType>> {
+  const data = await apiFetch<{ items: Record<string, ReactionType>; count: number }>(
+    `/api/interest/reactions?days=${days}`,
+  );
+  return data.items || {};
 }

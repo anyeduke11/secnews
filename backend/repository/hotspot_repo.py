@@ -1086,6 +1086,14 @@ _SQL_INTEREST_UPSERT_WEIGHTS = (
     "last_event_at = excluded.last_event_at, "
     "updated_at = excluded.updated_at"
 )
+# DEV-0311 (赞踩 reaction): 状态型信号 — 互斥切换/取消共用单条 SQL
+_SQL_INTEREST_DELETE_REACTIONS = (
+    "DELETE FROM interest_signals WHERE item_id = ? AND signal_type IN (?, ?)"
+)
+_SQL_INTEREST_REACTIONS_SINCE = (
+    "SELECT item_id, signal_type FROM interest_signals "
+    "WHERE created_at >= ? AND signal_type IN (?, ?)"
+)
 
 
 def interest_has_recent_signal(item_id: str, signal_type: str, cutoff_iso: str) -> bool:
@@ -1107,6 +1115,36 @@ def interest_insert_signal(item_id: str, domain: str, signal_type: str, weight: 
     except Exception as e:
         logger.warning(f"interest_insert_signal failed: {e}")
         raise
+
+
+def interest_delete_reactions(item_id: str, reaction_types: tuple[str, str]) -> int:
+    """删除单 item 的 reaction 信号 (DEV-0311 互斥切换/取消共用)。返回删除行数。"""
+    try:
+        conn = get_connection()
+        cur = conn.execute(
+            _SQL_INTEREST_DELETE_REACTIONS, (item_id, reaction_types[0], reaction_types[1])
+        )
+        return cur.rowcount or 0
+    except Exception as e:
+        logger.warning(f"interest_delete_reactions failed: {e}")
+        return 0
+
+
+def interest_reactions_since(cutoff_iso: str, reaction_types: tuple[str, str]) -> dict[str, str]:
+    """窗口内 reaction 状态 map {item_id: signal_type}; 表缺失/失败返 {}。
+
+    互斥语义保证同 item 至多一行 (最新态度); 若历史脏数据出现多行,
+    后者覆盖前者 (dict 语义, 读方 UI 场景可接受)。
+    """
+    try:
+        conn = get_connection()
+        rows = conn.execute(
+            _SQL_INTEREST_REACTIONS_SINCE, (cutoff_iso, reaction_types[0], reaction_types[1])
+        ).fetchall()
+        return {r["item_id"]: r["signal_type"] for r in rows}
+    except Exception as e:
+        logger.warning(f"interest_reactions_since failed: {e}")
+        return {}
 
 
 def interest_signals_since(cutoff_iso: str) -> list[dict]:

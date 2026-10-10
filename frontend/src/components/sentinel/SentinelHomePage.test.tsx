@@ -117,6 +117,17 @@ function mockFetch(hotspotBody: FixtureBody = HOTSPOT_FIXTURE) {
       // GET /api/favorites?limit=1000 — 初始为空收藏
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ total: 0, items: [] }) } as Response);
     }
+    if (url === '/api/interest/signals' && method === 'POST') {
+      // DEV-0311 reaction 写入 (赞/踩); view 等埋点走 sendBeacon, 不落此处
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'ok' }) } as Response);
+    }
+    if (url.startsWith('/api/interest/reactions') && method === 'DELETE') {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'ok', deleted: 1 }) } as Response);
+    }
+    if (url.startsWith('/api/interest/reactions')) {
+      // GET /api/interest/reactions?days=90 — 初始无态度 (回读成功 → available=true, 按钮组可见)
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: {}, count: 0 }) } as Response);
+    }
     if (url.startsWith('/api/kl/pipeline/stats')) {
       // 真实返回口径 (实测 2026-08-29): funnel + queue 三态
       return Promise.resolve({ ok: true, json: () => Promise.resolve({
@@ -162,6 +173,7 @@ function mockFetch(hotspotBody: FixtureBody = HOTSPOT_FIXTURE) {
 
 import { SentinelHomePage } from './SentinelHomePage';
 import { resetFavoritesStore } from '../../hooks/useFavorites';
+import { resetReactionsStore } from '../../hooks/useReactions';
 
 const hotspotCalls = (fetchMock: ReturnType<typeof mockFetch>) =>
   fetchMock.mock.calls.map(c => String(c[0])).filter(u => u.startsWith('/api/hotspots'));
@@ -183,8 +195,9 @@ describe('SentinelHomePage — 哨兵终端首页', () => {
     originalEventSource = globalThis.EventSource;
     (globalThis as any).EventSource = MockEventSource;
     try { localStorage.removeItem('hotspot-theme'); } catch {}
-    // useFavorites 是模块级单例 store — 每个用例前重置, 避免跨用例串状态
+    // useFavorites / useReactions 是模块级单例 store — 每个用例前重置, 避免跨用例串状态
     resetFavoritesStore();
+    resetReactionsStore();
   });
 
   afterEach(() => {
@@ -465,6 +478,38 @@ describe('SentinelHomePage — 哨兵终端首页', () => {
     await waitFor(() => expect(screen.getByText('DEEP_ROUTE_MARKER')).toBeInTheDocument());
     expect(chips.length).toBeGreaterThanOrEqual(3);
   });
+
+  it('赞/踩链路 (DEV-0311): 点赞 → POST signals 记录并高亮; 再点取消 → DELETE 信号行', async () => {
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+
+    // reaction 按钮可用性由回读成功决定 (available=true 才挂载), 先等按钮出现
+    const likeBtn = await screen.findByRole('button', { name: '点赞：企业自建大模型网关曝出未授权访问风险' });
+
+    // 点赞 → 写入信号 (POST /api/interest/signals, signal_type=like)
+    fireEvent.click(likeBtn);
+    await waitFor(() => {
+      const likePosts = (fetchMock.mock.calls as FetchCall[]).filter(
+        c => c[0] === '/api/interest/signals'
+          && (c[1]?.method ?? 'GET').toUpperCase() === 'POST'
+          && String(c[1]?.body ?? '').includes('"signal_type":"like"'),
+      );
+      expect(likePosts).toHaveLength(1);
+    });
+    const likePost = (fetchMock.mock.calls as FetchCall[]).find(
+      c => c[0] === '/api/interest/signals' && String(c[1]?.body ?? '').includes('"signal_type":"like"'),
+    );
+    expect(JSON.parse(String(likePost![1]!.body))).toEqual({ item_id: 'h1', signal_type: 'like' });
+
+    // 乐观高亮: 同按钮语义翻转为「取消点赞」(aria-pressed=true)
+    const cancelBtn = await screen.findByRole('button', { name: '取消点赞：企业自建大模型网关曝出未授权访问风险' });
+    expect(cancelBtn).toHaveAttribute('aria-pressed', 'true');
+
+    // 再点 = 取消 (状态型信号可撤销): DELETE 该条目信号行, 按钮回落无态度
+    fireEvent.click(cancelBtn);
+    await waitFor(() => expect(callsWith(fetchMock, '/api/interest/reactions/h1', 'DELETE')).toHaveLength(1));
+    await screen.findByRole('button', { name: '点赞：企业自建大模型网关曝出未授权访问风险' });
+  });
 });
 
 /**
@@ -520,6 +565,7 @@ describe('SentinelHomePage — SSE 刷新节奏契约 (cadence 修正批)', () =
     (globalThis as any).EventSource = TrackingEventSource;
     try { localStorage.removeItem('hotspot-theme'); } catch {}
     resetFavoritesStore();
+    resetReactionsStore();
   });
 
   afterEach(() => {
@@ -622,6 +668,7 @@ describe('SentinelHomePage — 精选/深度视图 (P2 2026-09-27)', () => {
     (globalThis as any).EventSource = MockEventSource;
     try { localStorage.removeItem('hotspot-theme'); } catch {}
     resetFavoritesStore();
+    resetReactionsStore();
   });
 
   afterEach(() => {

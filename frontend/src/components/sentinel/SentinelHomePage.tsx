@@ -28,11 +28,13 @@ import { useNavigate } from 'react-router-dom';
 import { SSE_EVENTS, useRealtimeInvalidation } from '../../hooks/realtime';
 import { useHotspotData } from '../../hooks/useHotspotData';
 import { useFavorites } from '../../hooks/useFavorites';
+import { useReactions, type ReactionType } from '../../hooks/useReactions';
 import { CATEGORIES, HotspotItem, PRACTICE_DOMAIN_LABELS, plainSummary } from '../../types';
 import { getJSON, postJSON } from '../../lib/api';
 import { getNewsAlertUnread, getPickedItems, PickedItem } from '../../api/secnews';
 import { PriorityDigestCard } from './PriorityDigestCard';
 import { NewsAlertList } from './NewsAlertList';
+import { ReactionButtons } from './ReactionButtons';
 import { SentinelShell, usePipe, usePipeReloadOnSse } from './SentinelShell';
 import { SentinelRail } from './SentinelRail';
 import { SignalPanel } from '../v1/panels/SignalPanel';
@@ -249,11 +251,14 @@ function DeepReadChip({ id, label = '深读', itemTitle }: { id: string; label?:
 }
 
 /** 快讯行: brief 快讯流与 deep 深度视图共用同一行结构 (P2 2026-09-27 抽取) */
-function FlashRow({ item, interestDomains, fav, onStar }: {
+function FlashRow({ item, interestDomains, fav, onStar, reaction, onReact, showReactions }: {
   item: HotspotItem;
   interestDomains: string[];
   fav: boolean;
   onStar: (item: HotspotItem) => void;
+  reaction?: ReactionType;
+  onReact: (item: HotspotItem, type: ReactionType) => void;
+  showReactions: boolean;
 }) {
   const href = safeHref(item.url);
   return (
@@ -287,6 +292,7 @@ function FlashRow({ item, interestDomains, fav, onStar }: {
           {heatCells(heatOf(item)).map((on, i) => <b key={i} className={on ? 'on' : undefined} />)}
         </span>
       </div>
+      {showReactions && <ReactionButtons item={item} current={reaction} onReact={onReact} />}
       <StarButton item={item} fav={fav} onToggle={onStar} />
     </li>
   );
@@ -318,6 +324,8 @@ export function SentinelHomePage() {
 
   // ── 收藏: 模块级单例 store, 乐观更新 + 失败回滚 ──
   const { count: favoriteCount, isFavorite, toggleFavorite } = useFavorites();
+  // DEV-0311: 赞/踩 (available=false 时隐藏按钮组, 不渲染死键)
+  const { reactionOf, react: reactItem, available: reactionsAvailable } = useReactions();
 
   useEffect(() => {
     if (keywordInput === keyword) return;
@@ -408,6 +416,7 @@ export function SentinelHomePage() {
   const ingestedForHeader = isTodayScope ? total : null;
 
   const star = useCallback((item: HotspotItem) => { void toggleFavorite(item); }, [toggleFavorite]);
+  const doReact = useCallback((item: HotspotItem, type: ReactionType) => { void reactItem(item, type); }, [reactItem]);
 
   const goPrev = useCallback(() => setPage(page - 1), [page, setPage]);
   const goNext = useCallback(() => setPage(page + 1), [page, setPage]);
@@ -587,7 +596,7 @@ export function SentinelHomePage() {
                 </div>
                 <ul className="flash-list">
                   {deepItems.map(item => (
-                    <FlashRow key={item.id} item={item} interestDomains={interestDomains} fav={isFavorite(item.id)} onStar={star} />
+                    <FlashRow key={item.id} item={item} interestDomains={interestDomains} fav={isFavorite(item.id)} onStar={star} reaction={reactionOf(item.id)} onReact={doReact} showReactions={reactionsAvailable} />
                   ))}
                 </ul>
               </section>
@@ -617,6 +626,7 @@ export function SentinelHomePage() {
                       </span>
                       <span className="heat-num">{heatOf(lead)}/5</span>
                     </div>
+                    {reactionsAvailable && <ReactionButtons item={lead} current={reactionOf(lead.id)} onReact={doReact} />}
                     <StarButton item={lead} fav={isFavorite(lead.id)} onToggle={star} />
                     <button className="readmore" onClick={() => navigate(`/deep/hotspot/${lead.id}`)}>
                       进入深度阅读
@@ -657,6 +667,7 @@ export function SentinelHomePage() {
                             </span>
                           )}
                           <DeepReadChip id={item.id} itemTitle={item.title} />
+                          {reactionsAvailable && <ReactionButtons item={item} current={reactionOf(item.id)} onReact={doReact} />}
                           <StarButton item={item} fav={isFavorite(item.id)} onToggle={star} />
                         </div>
                       </div>
@@ -682,7 +693,7 @@ export function SentinelHomePage() {
                     <ul className="flash-list">
                       {/* 常规快讯 */}
                       {flashes.map(item => (
-                        <FlashRow key={item.id} item={item} interestDomains={interestDomains} fav={isFavorite(item.id)} onStar={star} />
+                        <FlashRow key={item.id} item={item} interestDomains={interestDomains} fav={isFavorite(item.id)} onStar={star} reaction={reactionOf(item.id)} onReact={doReact} showReactions={reactionsAvailable} />
                       ))}
                     </ul>
 

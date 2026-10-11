@@ -1,4 +1,19 @@
 
+## [DEV-0321] 清理类 job 告警全覆盖 — 实弹当轮抓获 db_diet 路径静默空转 (cleanup-alerts-full-coverage)
+
+- **时间**: 2026-10-11
+- **类型**: 增强 (P1 可观测; owner: 「请扩展告警覆盖到其他清理类 job」; 承接 DEV-0319)
+- **范围取证 (Rule 8 先读后写)**: 清理类 job 四入口逐一核对静默盲区 — `telemetry_window_job` (DEV-0319 已收口); `db_diet_job` stdout envelope **从未解析** (只数行数, rc=1/2 与逐表 skip 全静默); `interest_signals_purge` 吞异常不抛且无 instrument (连 job_runs 都不落, 最彻底静默); `observability_ttl_job` raise→job_runs failed 但 `job.failure_rate_pct` 阈值规则**声明未实现** (`evaluate()` 仅 api) → 告警链缺口确认
+- **实现** (`backend/scheduler/jobs/maintenance.py`):
+  - `_fire_alert()` 通用发射器 (自 DEV-0319 `_alert_telemetry_skips` 抽出, telemetry 路径重导实现行为逐字不变; observability_alerts + cooldown + SSE breach + dispatcher, 自身失败只 log)
+  - `db_diet_job`: 解析 --json envelope → 逐表非合法 skip `db_diet.skip` (全表=critical) / rc>=1+表级硬错误 `db_diet.failed` (rc>=2=critical) / envelope 不可解析=**失明 critical** (预览失明无法证明台账健康, 与 DEV-0318 同族不容忍) / 子进程炸=告警后照旧 raise
+  - `interest_signals_purge.failure` warn (链语义保持不抛); `observability_ttl.failure` warn (照旧 raise 走 instrument)
+  - **合法豁免扩展** `no_retention_days`: 实弹取证生产全台账 dry-run 含数十项 `retention_days:null` 声明表 (favorites/alert_rules 等由 backup_service 管, db_diet 自身计 skipped) — 不豁免即周日刷屏, 告警可信度归零
+- **⚡ 实弹当轮抓获真 bug**: 进程内跑真 `db_diet_job` → rc=2, envelope 空 → 告警 (设计行为) 顺藤摸瓜: `repo_root = parents[2]` 是 v0.6 自 `backend/scheduler/jobs.py` 拆分进 `jobs/maintenance.py` 的遗留 (层级+1) → script 指向不存在的 `backend/scripts/db_diet.py` → **weekly_maintenance 链末尾的 db_diet 自拆分日起同样静默空转** (rc=2 只 log info, 第三起 DEV-0318 同族事故, 由刚上线的告警当轮捕获)。修正 parents[3] + 路径回归守卫测试; 修复后生产 rc=0 / 1068 行真实 envelope / 零误报告警。path-bug 触发的失明告警与 fabricate 测试行均已清理 (不留 stale 证据)
+- **测试**: 新 `test_cleanup_job_alerts.py` ×10 — 路径守卫 / 健康零告警 / no_retention_days 豁免 / 漂移 skip warn / 全表 skip critical / envelope 失明 critical / rc=1 partial warn / 子进程炸告警+raise / purge 吞异常落告警不抛 / ttl 缺表告警+raise (触发方式选 DROP 表而非 patch get_connection — 后者连告警写入一起炸)。相关面 **402 passed** / ruff 0 / meta 5/5; telemetry 原 3 告警测试重导后不破 (回归 = 重构行为不变实证)
+- **实弹闭环**: 常态不误报 (db_diet rc=0 真 envelope / ttl 真跑 → 清理族告警 **0**); 该报会报 (fabricate db_diet.skip → 入表 + `active` 端点可见 → 清)
+- **下一可用号**: DEV-0322
+
 ## [DEV-0320] /maint 索引卡前置状态显示 — 重建前先看索引健康 (index-health-probe)
 
 - **时间**: 2026-10-11

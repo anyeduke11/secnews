@@ -88,43 +88,54 @@ async def export_rebuild_job() -> None:
         _logger.error(f"export_rebuild_job crashed: {e}")
 
 
+_LEGITIMATE_SKIP_REASONS = frozenset({"no_retention_days"})
+
+
 def _skip_is_legitimate(reason: str) -> bool:
-    """table_not_found 且 warm.db 尚未建立 = 单库起步合法状态, 不告警。
+    """单库起步 / 台账合法声明的 skip 不告警。
 
     DEV-0318 事故教训: skip 完全静默让 db_diet 跨 schema 误判空转六周且
-    status ok。但 warm 文件不存在时表物理上确实无处可寻 (v0.5 分层迁移
-    之前的老库形态), 此时 skip 不应刷屏 — 区分「合法缺席」与「契约漂移」
-    的判据就是 warm 库文件本身。
+    status ok。两类情形除外, 不构成漂移:
+    - ``table_not_found`` 且 warm.db 文件不存在 — v0.5 分层迁移前的老库
+      形态, 表物理上确实无处可寻; 判据 = warm 库文件本身
+    - ``no_retention_days`` — retention.json 台账上 ``retention_days:
+      null`` 的表 (favorites/alert_rules/sync_configs 等由 backup_service
+      等外部系统管理), db_diet envelope 自身也计 skipped 而非 failed;
+      实弹取证 2026-10-11: 生产全台账 dry-run 有数十项此类声明, 不豁免
+      即每周刷屏
     """
-    if reason != "table_not_found":
-        return False
-    from backend.config import config
+    if reason in _LEGITIMATE_SKIP_REASONS:
+        return True
+    if reason == "table_not_found":
+        from backend.config import config
 
-    warm = getattr(config, "warm_db_path", None)
-    return not (warm and Path(warm).exists())
+        warm = getattr(config, "warm_db_path", None)
+        return not (warm and Path(warm).exists())
+    return False
 
 
-async def _alert_telemetry_skips(
-    skipped: list[dict], result: dict, level: str
+async def _fire_alert(
+    *,
+    metric: str,
+    level: str,
+    value: float,
+    detail: dict,
+    source: str,
+    threshold: float = 0.0,
+    window_minutes: int = 10080,
+    cooldown: timedelta = timedelta(days=1),
 ) -> None:
-    """skip 可见化 (DEV-0319): observability_alerts + SSE + dispatcher。
+    """清理 job 告警统一发射 (DEV-0321 自 DEV-0319 _alert_telemetry_skips 抽出)。
 
-    沿用 v0.7 Batch ④ threshold_check 告警基建与 cooldown 防刷屏模式;
-    本函数任何失败只 log — 告警自身绝不拖垮周日清理链。
+    observability_alerts (cooldown 同 (metric, level) 防刷屏) + SSE breach
+    (前端横幅/StatusBar) + alert_dispatcher 外部投递。本函数任何失败只
+    log — 告警自身绝不拖垮被告警的清理链。
     """
     from datetime import datetime
 
     from backend.repository.db import get_connection
 
     now = datetime.now(timezone.utc)
-    tables = [r.get("table") for r in skipped]
-    reasons = {str(r.get("table")): str(r.get("skipped_reason")) for r in skipped}
-    detail = {
-        "job": "telemetry_window",
-        "tables": tables,
-        "reasons": reasons,
-        "all_skipped": level == "critical",
-    }
     alert_id = None
     try:
         conn = get_connection()
@@ -132,7 +143,7 @@ async def _alert_telemetry_skips(
             "SELECT cooldown_until FROM observability_alerts "
             "WHERE metric = ? AND level = ? AND acked = 0 "
             "ORDER BY fired_at DESC LIMIT 1",
-            ("telemetry_window.skip", level),
+            (metric, level),
         ).fetchone()
         if not (existing and existing["cooldown_until"] > now.isoformat()):
             conn.execute(
@@ -141,17 +152,17 @@ async def _alert_telemetry_skips(
                 "fired_at, cooldown_until, acked) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
                 (
-                    level, "telemetry_window.skip", float(len(skipped)), 0.0,
-                    10080, json.dumps(detail, ensure_ascii=False),
+                    level, metric, value, threshold,
+                    window_minutes, json.dumps(detail, ensure_ascii=False),
                     now.isoformat(),
-                    (now + timedelta(days=1)).isoformat(),
+                    (now + cooldown).isoformat(),
                 ),
             )
             alert_id = conn.execute(
                 "SELECT last_insert_rowid() AS id"
             ).fetchone()["id"]
     except Exception as e:
-        _logger.error(f"telemetry_window skip-alert write failed: {e}")
+        _logger.error(f"{metric} alert write failed: {e}")
 
     if alert_id is not None:
         try:
@@ -160,31 +171,49 @@ async def _alert_telemetry_skips(
             await publish_event("observability.breach", {
                 "alert_id": alert_id,
                 "level": level,
-                "metric": "telemetry_window.skip",
-                "value": len(skipped),
-                "threshold": 0,
+                "metric": metric,
+                "value": value,
+                "threshold": threshold,
             })
         except Exception as e:
-            _logger.debug(f"publish_event telemetry skip failed: {e}")
+            _logger.debug(f"publish_event {metric} failed: {e}")
         try:
             from backend.services.alert_channels import AlertPayload
             from backend.services.alert_dispatcher import dispatch
 
             await dispatch(
                 AlertPayload(
-                    metric="telemetry_window.skip",
+                    metric=metric,
                     level=level,
-                    value=float(len(skipped)),
-                    threshold=0.0,
-                    window_minutes=10080,
+                    value=value,
+                    threshold=threshold,
+                    window_minutes=window_minutes,
                     detail=detail,
                     fired_at=now.isoformat(),
-                    source="telemetry_window",
+                    source=source,
                 ),
                 alert_id=alert_id,
             )
         except Exception as e:
-            _logger.debug(f"dispatch telemetry skip failed: {e}")
+            _logger.debug(f"dispatch {metric} failed: {e}")
+
+
+async def _alert_telemetry_skips(
+    skipped: list[dict], result: dict, level: str
+) -> None:
+    """skip 可见化 (DEV-0319): observability_alerts + SSE + dispatcher。"""
+    await _fire_alert(
+        metric="telemetry_window.skip",
+        level=level,
+        value=float(len(skipped)),
+        detail={
+            "job": "telemetry_window",
+            "tables": [r.get("table") for r in skipped],
+            "reasons": {str(r.get("table")): str(r.get("skipped_reason")) for r in skipped},
+            "all_skipped": level == "critical",
+        },
+        source="telemetry_window",
+    )
 
 
 @instrument_job("telemetry_window")
@@ -238,8 +267,17 @@ async def db_diet_job() -> None:
     复制进 services 层造成双份维护), dry_run 模式默认开, 失败只 log.error。
 
     v0.5 M2-Task5: 包了 @instrument_job 装饰器, 完成后自动推 job_done SSE。
+
+    DEV-0321 fail-loud: --json envelope 不再只数行数 — 逐表 skip / 表级
+    失败 / envelope 不可解析 (rc 异常或 JSON 坏) 三类盲区进告警链。
+    envelope 不可解析按 critical: 预览失明 = 无法证明清理台账健康, 与
+    DEV-0318 静默空转同族, 不静默容忍。
     """
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = Path(__file__).resolve().parents[3]
+    # DEV-0321 路径修正: v0.6 拆分自 backend/scheduler/jobs.py (parents[2])
+    # 进 jobs/maintenance.py 后层级 +1, 旧常量使 script 指向 backend/scripts/
+    # (不存在) → 子进程 rc=2, 此前只 log info 静默至今; envelope 告警上线
+    # 当轮即捕获。
     script = repo_root / "scripts" / "db_diet.py"
     env = {**os.environ, "PYTHONPATH": str(repo_root)}
     try:
@@ -252,19 +290,87 @@ async def db_diet_job() -> None:
             env=env,
             timeout=60,
         )
-        _logger.info(
-            f"db_diet_job (dry-run): rc={proc.returncode} "
-            f"stdout_lines={len(proc.stdout.splitlines())}"
-        )
     except Exception as e:
         _logger.error(f"db_diet_job crashed: {e}")
+        await _fire_alert(
+            metric="db_diet.failed", level="critical", value=1.0,
+            detail={"job": "db_diet", "error": f"{type(e).__name__}: {e}"},
+            source="db_diet",
+        )
         raise  # 让 instrument_job 捕获并记 ok=False
+
+    _logger.info(
+        f"db_diet_job (dry-run): rc={proc.returncode} "
+        f"stdout_lines={len(proc.stdout.splitlines())}"
+    )
+
+    envelope: dict | None = None
+    try:
+        envelope = json.loads(proc.stdout)
+    except Exception:
+        envelope = None
+    if envelope is None or not isinstance(envelope.get("data"), dict):
+        # envelope 不可解析 (EXIT_FATAL 也可能带 envelope; 解析不了就如实报失明)
+        await _fire_alert(
+            metric="db_diet.failed", level="critical", value=1.0,
+            detail={
+                "job": "db_diet", "error": "envelope_unparseable",
+                "rc": proc.returncode, "stderr": proc.stderr[-300:],
+            },
+            source="db_diet",
+        )
+        return
+
+    results = envelope["data"].get("results", [])
+    skipped = [
+        r for r in results
+        if r.get("skipped_reason") and not _skip_is_legitimate(r["skipped_reason"])
+    ]
+    failed = [r for r in results if not r.get("ok") and not r.get("skipped_reason")]
+    if skipped:
+        level = "critical" if results and len(skipped) == len(results) else "warn"
+        _logger.error(
+            f"db_diet_job: {level} skip detected — "
+            f"{[r.get('table') for r in skipped]} "
+            f"reasons={[r.get('skipped_reason') for r in skipped]}"
+        )
+        await _fire_alert(
+            metric="db_diet.skip", level=level, value=float(len(skipped)),
+            detail={
+                "job": "db_diet",
+                "tables": [r.get("table") for r in skipped],
+                "reasons": {str(r.get("table")): str(r.get("skipped_reason")) for r in skipped},
+                "all_skipped": level == "critical",
+            },
+            source="db_diet",
+        )
+    if failed or proc.returncode >= 1:
+        # rc=1 EXIT_PARTIAL: 表级硬错误或 fatal; envelope.failed 为权威清单
+        level = "critical" if proc.returncode >= 2 else "warn"
+        _logger.error(
+            f"db_diet_job: {level} partial failure rc={proc.returncode} "
+            f"failed={[r.get('table') for r in failed]}"
+        )
+        await _fire_alert(
+            metric="db_diet.failed", level=level, value=float(len(failed) or 1),
+            detail={
+                "job": "db_diet", "rc": proc.returncode,
+                "failed_tables": [
+                    {"table": r.get("table"), "reason": r.get("skipped_reason")}
+                    for r in failed
+                ],
+                "error": envelope["data"].get("error", ""),
+            },
+            source="db_diet",
+        )
 
 
 async def interest_signals_purge() -> None:
     """R2 (DEV-0183): interest_signals 90 天清理 (Interest PRD §3 挂 maintenance)。
 
-    行为信号属可弃数据 (显式勾选在 settings.kv), 清理失败不影响维护链。
+    行为信号属可弃数据 (显式勾选在 settings.kv), 清理失败不影响维护链 —
+    不抛。但 DEV-0321 起失败必须可见: 本 job 无 instrument, purge 静默死
+    等于信号表永不清理且无任何痕迹 (与 DEV-0318 空转同族), 补告警。
     """
     try:
         from backend.services.interest_engine_service import InterestEngineService
@@ -274,6 +380,12 @@ async def interest_signals_purge() -> None:
             _logger.info(f"interest_signals_purge: removed {n} expired signals")
     except Exception as e:
         _logger.error(f"interest_signals_purge crashed: {e}")
+        await _fire_alert(
+            metric="interest_signals_purge.failure", level="warn", value=1.0,
+            detail={"job": "interest_signals_purge",
+                    "error": f"{type(e).__name__}: {e}"},
+            source="interest_signals_purge",
+        )
 
 
 async def weekly_maintenance_job() -> None:
@@ -617,6 +729,15 @@ async def observability_ttl_job() -> None:
         )
     except Exception as e:
         _logger.error(f"observability_ttl_job crashed: {e}")
+        # DEV-0321: TTL 停摆 = 观测表无限累积。instrument 会记 job_runs
+        # failed, 但 job.failure_rate_pct 阈值规则尚未被 evaluate 实现 —
+        # 直接进告警链补这个缺口, 再照旧 raise。
+        await _fire_alert(
+            metric="observability_ttl.failure", level="warn", value=1.0,
+            detail={"job": "observability_ttl",
+                    "error": f"{type(e).__name__}: {e}"},
+            source="observability_ttl",
+        )
         raise  # 让 instrument_job 落 ok=False
 
 

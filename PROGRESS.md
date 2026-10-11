@@ -17,6 +17,13 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-11 清理类 job 告警全覆盖 — 当轮抓获 db_diet 路径空转 — DEV-0321
+
+- **范围**: 四清理入口盲区核对 — db_diet envelope 从未解析 / interest purge 吞异常零痕迹 / ttl 有 job_runs 但 `job.failure_rate_pct` 阈值声明未实现 → 全部补告警 (telemetry 已 DEV-0319 收口)。
+- **实现**: 抽通用 `_fire_alert` (telemetry 重导行为不变) + db_diet 四类 (skip/partial/失明/崩溃, 失明与全表=critical) + purge/ttl `.failure` warn; 合法豁免扩 `no_retention_days` (生产取证数十项台账声明, 防周日刷屏)。
+- **⚡ 战果**: 告警上线首轮实弹即抓获第三起同族静默空转 — v0.6 拆分遗留 `parents[2]` 路径使 weekly 链 db_diet 自拆分起 rc=2 空转, 修正+路径守卫测试, 修复后 rc=0 / 1068 行 envelope / 零误报。
+- **验证**: 新测试 ×10 + telemetry 回归不破; 相关面 402 passed / ruff 0 / meta 5/5; fabricate 告警 active 端点可见 (测后清理)。
+
 ### 2026-10-11 /maint 索引卡前置状态显示 — 重建前先看索引健康 — DEV-0320
 
 - **需求**: owner 选中索引卡「索引重建需先知道索引健康, 状态先显示 (准确无误)」。

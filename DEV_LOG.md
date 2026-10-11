@@ -1,4 +1,20 @@
 
+## [DEV-0317] /maint 健康卡契约漂移修复 — 监控 fail-loud (maint-health-contract)
+
+- **时间**: 2026-10-11
+- **类型**: Bug修复 (P1, 用户可见; owner 浏览器选中健康卡点名 + 第一性原理分析要求)
+- **症状**: 健康卡四项 (数据库大小/表数/碎片率/可清理行) 恒显「—」约两个月 (DEV-0178 2026-09-13 建页至今)
+- **第一性原理分析 (症状→直接原因→系统根因)**:
+  - 监控的本质 = 把真实状态如实呈现。取证: 后端数据完全健康 (`/api/maintenance/health` 200, size_mb=173.39/fragmentation_pct=0.3), 前端 fetch 也成功 (渲染了 `<dl>` 而非"加载中") — 断点在**呈现层契约**
+  - 直接原因: DEV-0178 建页时前端类型**凭想象** (`db_size_mb/table_count/fragmentation/cleanup_candidates`), 与 `maintenance_service` 真实响应 (`size_mb / freelist_pages / fragmentation_pct(已是%值) / 嵌套 quality_check_logs`) 四字段全不匹配 → 全 undefined
+  - 为何静默两个月 (系统根因三件套): ① **三层容错叠加吞错误** — optional 类型 `?:` + `?? '—'` 兜底 + `catch {}` 静默, 把契约错误伪装成正常视觉态 (监控页应 fail-loud, 静默兜底是埋点哲学用错了地方); ② **页面零测试** — MaintPage 无任何 test 文件, CI 无从把关; ③ **实现侧自评 PASS** — "页面能打开"被当成"功能能用", 从未对照真实 API 核对数字 (AGENTS.md "实现与验证分离"教训再证)
+  - 附带发现: ① 旧版碎片率逻辑 `(fragmentation*100)` 即使字段名对上也会把 0.3% 错报 30% (单位语义双错); ② `t('maint.title')` 键在 i18n 从未定义 (同页第二处想象漂移, 标题显示原始 key); ③ 后端 health 根本没有 table_count — "表数"行是想象产物
+- **修复**: 前端适配后端权威契约 — `size_mb` 直读 / "表数"行改「空闲页」`freelist_pages` (vacuum 决策的真实信号; 表数固定无信息量) / `fragmentation_pct` 直读去 ×100 / 可清理行 = `quality_check_logs.older_than_7_days` (与 cleanup 按钮 cutoff_days 语义一致); fetch 失败 → 显式错误态 (role=alert「加载失败: 维护接口不可达」), 不再与数据缺失共用「—」; 补 `maint.title` 双语 + 删死键 `maint.health.tables`
+- **测试**: 新建 `MaintPage.test.tsx` ×3 — **mock 一律采用 curl 实测响应形状** (契约再漂移即 CI 红): 四项数字呈现 (173.4 MB/137/0.3%/531515 + 无「—」) / 接口失败显式错误态 / 刷新更新数字。前端全量 **713 passed / 101 文件** (710+3); tsc 0
+- **实弹 (浏览器实测生产)**: /maint 健康卡呈现真实数字 — 数据库大小 173.4 MB · 空闲页 142 · 碎片率 0.3% · 可清理行 531515, `hasDash=false` ✓; 标题「维护诊断」✓
+- **顺带观察 (不扩面, 如实报告)**: 可清理行 531515 = quality_check_logs 7d 外存量 (总 582564) — 清理 job 的保留窗口径值得后续核查 (数据治理问题, 非本卡职责)
+- **下一可用号**: DEV-0318
+
 ## [DEV-0316] 内容偏好 AI 自动化 — 统计自动学习 + LLM 建议采纳 + 手动折叠 (content-pref-auto)
 
 - **时间**: 2026-10-11

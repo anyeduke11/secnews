@@ -5,6 +5,11 @@
  * 后端 10 端点已存在 (backend/api/maintenance.py), 本页是它们的
  * 顶层直达入口 (与 /settings?cat=maintenance 共存).
  *
+ * DEV-0317 契约修正: 健康卡字段类型按 maintenance_service 真实响应重写
+ * (旧版凭想象写 db_size_mb/table_count/fragmentation/cleanup_candidates,
+ * 全部对不上 → 恒显「—」且无测试, 静默两个月)。监控呈现 fail-loud:
+ * 接口失败显式报错, 不再与"数据缺失"共用「—」。
+ *
  * 设计契约:
  * - 错误不抛 — 显示状态徽章, 不阻塞 SSE 心跳条
  * - 健康卡为只读仪表 (拉取后展示, 不触发操作)
@@ -16,19 +21,22 @@ import { getJSON, postJSON } from '../lib/api';
 import { useI18n } from '../contexts/I18nContext';
 import { useAbortGuard } from '../hooks/useAbortGuard';
 
+/** 后端权威形状 = maintenance_service.db_health() (fragmentation_pct 已是百分数)。 */
 interface HealthResp {
-  db_size_mb?: number;
-  table_count?: number;
+  size_mb?: number;
   page_count?: number;
-  fragmentation?: number;
-  status?: 'ok' | 'warn' | 'fail';
+  freelist_pages?: number;
+  fragmentation_pct?: number;
+  journal_mode?: string;
 }
 
+/** 后端权威形状 = maintenance_service.dirty_data_report() (嵌套)。 */
 interface DirtyReportResp {
-  cleanup_candidates?: number;
-  log_count?: number;
-  stale_rows?: number;
-  last_check?: string;
+  quality_check_logs?: { total?: number; older_than_7_days?: number };
+  duplicate_hotspots?: number;
+  duplicate_knowledge_items?: number;
+  orphan_raw_items?: number;
+  invalid_urls?: number;
 }
 
 interface BackupVerifyResp {
@@ -55,6 +63,7 @@ export function MaintPage() {
   const { t } = useI18n();
   const [health, setHealth] = useState<HealthResp | null>(null);
   const [dirty, setDirty] = useState<DirtyReportResp | null>(null);
+  const [healthError, setHealthError] = useState(false); // DEV-0317: 监控 fail-loud
   const [backup, setBackup] = useState<ToolStatus>('idle');
   const [backupInfo, setBackupInfo] = useState<BackupVerifyResp | null>(null);
   const [vacuum, setVacuum] = useState<ToolStatus>('idle');
@@ -74,8 +83,11 @@ export function MaintPage() {
       if (dead.current) return;
       setHealth(h);
       setDirty(d);
+      setHealthError(false);
     } catch {
-      // 不抛错 — 静默显示空
+      // DEV-0317: 不再静默显示「—」— 监控页把"接口失败"如实呈现为错误态
+      if (dead.current) return;
+      setHealthError(true);
     }
   }, [dead]);
 
@@ -164,32 +176,36 @@ export function MaintPage() {
               {t('maint.refresh')}
             </button>
           </div>
-          {health ? (
+          {healthError && !health ? (
+            <p className="text-xs font-mono" role="alert" style={{ color: 'var(--color-error)' }}>
+              {t('maint.health.error')}
+            </p>
+          ) : health ? (
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <dt style={{ color: 'var(--ink-3)' }}>{t('maint.health.dbSize')}</dt>
                 <dd className="font-mono" style={{ color: 'var(--ink)' }}>
-                  {health.db_size_mb?.toFixed(1) ?? '—'} MB
+                  {health.size_mb?.toFixed(1) ?? '—'} MB
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt style={{ color: 'var(--ink-3)' }}>{t('maint.health.tables')}</dt>
+                <dt style={{ color: 'var(--ink-3)' }}>{t('maint.health.freePages')}</dt>
                 <dd className="font-mono" style={{ color: 'var(--ink)' }}>
-                  {health.table_count ?? '—'}
+                  {health.freelist_pages ?? '—'}
                 </dd>
               </div>
               <div className="flex justify-between">
                 <dt style={{ color: 'var(--ink-3)' }}>{t('maint.health.fragmentation')}</dt>
                 <dd className="font-mono" style={{ color: 'var(--ink)' }}>
-                  {health.fragmentation != null ? `${(health.fragmentation * 100).toFixed(1)}%` : '—'}
+                  {health.fragmentation_pct != null ? `${health.fragmentation_pct.toFixed(1)}%` : '—'}
                 </dd>
               </div>
               {dirty && (
                 <div className="pt-2 mt-2" style={{ borderTop: '1px solid var(--border-color)' }}>
                   <div className="flex justify-between">
                     <dt style={{ color: 'var(--ink-3)' }}>{t('maint.health.cleanupCandidates')}</dt>
-                    <dd className="font-mono" style={{ color: dirty.cleanup_candidates && dirty.cleanup_candidates > 100 ? 'var(--color-warning)' : 'var(--ink)' }}>
-                      {dirty.cleanup_candidates ?? '—'}
+                    <dd className="font-mono" style={{ color: (dirty.quality_check_logs?.older_than_7_days ?? 0) > 100 ? 'var(--color-warning)' : 'var(--ink)' }}>
+                      {dirty.quality_check_logs?.older_than_7_days ?? '—'}
                     </dd>
                   </div>
                 </div>

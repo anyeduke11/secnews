@@ -288,3 +288,99 @@ def test_job_alerts_warn_on_partial_skip(temp_db, monkeypatch):
     assert len(rows) == 1
     assert rows[0]["level"] == "warn"
     assert json.loads(rows[0]["detail"])["all_skipped"] is False
+
+
+# ---------------------------------------------------------------------------
+# 残档哨兵 (DEV-0324): 清理 ok=True 后窗口外残档必须 = 0, 否则"名义成功
+# 实际空转" (DEV-0318 事故 53.8 万行正是此指纹, skip/failed 告警均不覆盖)
+# ---------------------------------------------------------------------------
+def _ok_result() -> dict:
+    return {
+        "tables": 3, "rows_deleted": 10, "rows_archived": 5, "failed": 0,
+        "results": [
+            {"table": "crawler_runs", "ok": True, "deleted": 6},
+            {"table": "raw_items", "ok": True, "deleted": 4},
+            {"table": "quality_check_logs", "ok": True, "archived": 5},
+        ],
+    }
+
+
+def _alerts_of(conn, metric: str):
+    return conn.execute(
+        "SELECT level, value, detail FROM observability_alerts "
+        "WHERE metric = ? ORDER BY id",
+        (metric,),
+    ).fetchall()
+
+
+def test_qcl_out_of_window_rows_helper(temp_db):
+    """helper 计数 = 台账 retention (21d) 外行数, cutoff 与归档执行同源。"""
+    conn = db.get_connection()
+    conn.executemany(
+        "INSERT INTO quality_check_logs (item_id, gate_name, passed, checked_at) "
+        "VALUES (?, ?, ?, ?)",
+        [("i-old-1", "g", 1, _iso(30)), ("i-old-2", "g", 1, _iso(25)),
+         ("i-new", "g", 1, _iso(2))],
+    )
+    assert ms.qcl_out_of_window_rows() == 2
+
+
+def test_job_backlog_critical_on_large_residual(temp_db, monkeypatch):
+    """qcl ok 后残档 ≥1 万 → telemetry_window.backlog critical (事故量级指纹)。"""
+    from backend.scheduler import jobs as jobs_mod
+
+    monkeypatch.setattr(ms, "run_telemetry_window", lambda dry_run: _ok_result())
+    monkeypatch.setattr(ms, "qcl_out_of_window_rows", lambda: 538002)
+
+    asyncio.run(jobs_mod.telemetry_window_job())
+
+    rows = _alerts_of(db.get_connection(), "telemetry_window.backlog")
+    assert len(rows) == 1 and rows[0]["level"] == "critical"
+    assert rows[0]["value"] == 538002.0
+
+
+def test_job_backlog_warn_on_small_residual(temp_db, monkeypatch):
+    """少量残档 (>0 且 <1 万) → warn (不变量破但不成灾)。"""
+    from backend.scheduler import jobs as jobs_mod
+
+    monkeypatch.setattr(ms, "run_telemetry_window", lambda dry_run: _ok_result())
+    monkeypatch.setattr(ms, "qcl_out_of_window_rows", lambda: 120)
+
+    asyncio.run(jobs_mod.telemetry_window_job())
+
+    rows = _alerts_of(db.get_connection(), "telemetry_window.backlog")
+    assert len(rows) == 1 and rows[0]["level"] == "warn"
+
+
+def test_job_no_backlog_alert_when_clean(temp_db, monkeypatch):
+    """健康路径: 清理成功且残档 = 0 → 零告警 (防刷屏前提)。"""
+    from backend.scheduler import jobs as jobs_mod
+
+    monkeypatch.setattr(ms, "run_telemetry_window", lambda dry_run: _ok_result())
+    monkeypatch.setattr(ms, "qcl_out_of_window_rows", lambda: 0)
+
+    asyncio.run(jobs_mod.telemetry_window_job())
+
+    assert _alerts_of(db.get_connection(), "telemetry_window.backlog") == []
+    assert _alerts_of(db.get_connection(), "telemetry_window.skip") == []
+
+
+def test_job_no_backlog_check_when_qcl_skipped(temp_db, monkeypatch):
+    """qcl 本轮 skip → 残档不变量无意义, 不得调用计数 (防与 skip 告警重复开火)。
+
+    qcl_out_of_window_rows patch 成必炸函数: 被调用即 AssertionError。
+    """
+    from backend.scheduler import jobs as jobs_mod
+
+    monkeypatch.setattr(
+        ms, "run_telemetry_window",
+        lambda dry_run: _skip_result([("quality_check_logs", "table_not_found")]),
+    )
+
+    def _boom():
+        raise AssertionError("backlog check must not run when qcl skipped")
+
+    monkeypatch.setattr(ms, "qcl_out_of_window_rows", _boom)
+
+    # warm 不存在 (conftest 隔离) → table_not_found 合法豁免, 不抛不告警
+    asyncio.run(jobs_mod.telemetry_window_job())

@@ -17,6 +17,12 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-12 清理 job 告警第三形态 — ok=True 却零效果的残档哨兵 — DEV-0324
+
+- **洞察**: 清理静默三形态 — skip (DEV-0319) / job 崩溃 (DEV-0321) / **ok=True 却零效果**。前两类都不覆盖第三类: 清理返回 ok=True 且 to_archive=0 时无 skip 无 failed 静默通过 (DEV-0318 的 53.8 万行积压正是此指纹) → 用「审计不变量」收口。
+- **实现**: `qcl_out_of_window_rows()` (与归档同 isoformat cutoff 口径) + `telemetry_window_job` 残档哨兵 (仅 qcl 本轮 ok 时检查, >1 万行 critical / 少量 warn, 发 `telemetry_window.backlog`)。
+- **验证**: 测试 +5 (含 skip 时哨兵不被调用的负向断言); telemetry 26 / 相关面 286 passed / ruff 0 / meta 5/5。实弹: 常态真 job 零误报 (deleted=508 archived=0 → 0 告警); 反向 fabricate critical 538002 入表 id=349 且 active 端点可见, 测后清理回基线 (无 stale 残留)。
+
 ### 2026-10-11 备份卡滚动保留 — 1 full + 3 增量 roll-forward 合成 — DEV-0323
 
 - **模型**: 备份记录如实展示 + 不变量「1 最新 full + ≤3 增量档」— 超量用 full+最旧档**页重放合成**新 full 再删旧 base (页级 last-write-wins 语义保证摘头不断恢复点); 顺带清旧 full/残档/超额+孤儿 knowledge zip; daily 自动触发 + 手动「整理备份」按钮。

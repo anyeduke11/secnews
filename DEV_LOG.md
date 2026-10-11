@@ -1,4 +1,17 @@
 
+## [DEV-0324] 清理 job 告警第三形态 — ok=True 却零效果的残档不变量哨兵 (cleanup-residual-sentinel)
+
+- **时间**: 2026-10-12
+- **类型**: 增强 (P1 可观测; owner 第三次: 「请为刚才的清理功能补充 job 层告警」; 承接 DEV-0319/0321)
+- **洞察 (Rule 8 先读后写)**: 清理静默有**三形态** — ①skip 静默 (DEV-0319 收口) ②job 崩溃无痕迹 (DEV-0321 收口) ③**ok=True 却零实际效果**。前两类告警**都不覆盖**第三类: 清理入口返回 ok=True / to_archive=0 时 job 无 skip 无 failed 静默通过 — DEV-0318 事故 53.8 万行积压正是此指纹 (如 cutoff 与存储格式漂移时, archive_quality_logs 匹配 0 行仍 ok)。这是**审计不变量**而非事件告警, 与前两类互补非重复。
+- **实现**:
+  - `maintenance_service.qcl_out_of_window_rows()`: 窗口外 qcl 残档计数 — cutoff 与 `archive_quality_logs` **完全同源** (Python UTC isoformat, 台账 retention 天数), 无二套口径漂移
+  - `telemetry_window_job`: skip 告警之后加残档哨兵 — 仅当 qcl 本轮 `ok=True` 时检查残档 (>1 万行=critical / 少量=warn) 发 `telemetry_window.backlog`; 不与 skip 告警重复开火 (skip 时无 ok 分支)
+  - 顺带修 docstring 遗留 DEV-0322 旧口径「>7d」→ 三档档宽表述
+- **测试**: `test_telemetry_window.py` +5 — helper 计数 (=21d 外行数) / 538002→critical / 120→warn / 残档 0 零告警 / **qcl skip 时哨兵不被调用** (patch 成必炸函数验证); telemetry 26 passed, 相关面 286 passed 1 skipped; ruff 0; meta 5/5
+- **实弹**: ①常态零误报 — 进程内跑真 `telemetry_window_job` (tables=3 deleted=508 archived=0) → `telemetry_window alerts after real job: 0` ②反向会报 — fabricate `_fire_alert(telemetry_window.backlog, critical, 538002)` → 入表 id=349 且 `GET /api/observability/alerts/active` 可见 (detail/cooldown 如实), 测后删除回基线 total=270 (无 stale 残留), 无关告警未触碰
+- **下一可用号**: DEV-0325
+
 ## [DEV-0323] 备份卡滚动保留模型 — 1 full + 3 增量 roll-forward 合成 (backup-rolling-retention)
 
 - **时间**: 2026-10-11

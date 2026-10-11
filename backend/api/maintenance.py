@@ -32,6 +32,20 @@ async def maintenance_dirty_report():
     return dirty_data_report()
 
 
+@router.get("/index-health")
+async def maintenance_index_health(
+    mode: str = Query("full", pattern="^(quick|full)$",
+                     description="full=integrity_check (含索引内容一致性); quick=仅 B-tree 结构"),
+):
+    """DEV-0320: 索引健康探测 (逐 schema: 索引计数/integrity 检查/ANALYZE 统计覆盖)。
+
+    默认 full — 实测三库合计 ~1s, 是"索引是否真的健康"的权威答案;
+    integrity_check 属读侧长查询, to_thread 防阻塞事件循环。
+    """
+    from backend.services.maintenance_service import index_health
+    return await asyncio.to_thread(index_health, mode)
+
+
 @router.post("/vacuum")
 async def maintenance_vacuum():
     """VACUUM + REINDEX + ANALYZE. Frees unused pages, rebuilds indexes."""

@@ -76,3 +76,32 @@ def test_real_run_archives_old_rows(client, temp_db):
     assert body["rows_archived"] == 2
     assert body["rows_remaining_after"] == 1
     assert _counts(temp_db) == (1, 2)
+
+
+# ---------------------------------------------------------------------------
+# DEV-0320: GET /index-health 契约 (前端索引状态块依赖此形状)
+# ---------------------------------------------------------------------------
+def test_index_health_shape_and_ok(client):
+    """响应必须含 mode/schemas[]/totals — 前端按实测形状渲染, 漂移即 CI 红。"""
+    r = client.get("/api/maintenance/index-health")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["mode"] == "full"  # 默认深度检查
+    assert body["schemas"], "temp_db 全 schema 下 main 必有索引"
+    for s in body["schemas"]:
+        for k in ("schema", "file", "user_indexes", "auto_indexes",
+                  "tables_with_indexes", "stat1_covered", "check",
+                  "check_errors", "check_ms"):
+            assert k in s, f"schema 条目缺字段 {k}"
+        assert s["check"] == "ok", f"新建库不应有 integrity 问题: {s}"
+        # 统计覆盖分子 ≤ 分母 (口径一致性守卫)
+        assert s["stat1_covered"] <= s["tables_with_indexes"]
+    totals = body["totals"]
+    assert totals["schemas_total"] == len(body["schemas"])
+    assert totals["user_indexes"] == sum(s["user_indexes"] for s in body["schemas"])
+
+
+def test_index_health_rejects_unknown_mode(client):
+    """mode 白名单 (quick|full), 脏参数 422 而非静默兜底。"""
+    r = client.get("/api/maintenance/index-health?mode=lucky")
+    assert r.status_code == 422

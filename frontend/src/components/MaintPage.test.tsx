@@ -225,6 +225,112 @@ describe('MaintPage 索引卡 (DEV-0318 契约)', () => {
   });
 });
 
+describe('MaintPage 索引状态块 (DEV-0320 契约)', () => {
+  /** 真实响应形状 = 进程内 index_health("full") 实测 (2026-10-11 生产三库)。 */
+  const INDEX_HEALTH_FIXTURE = {
+    mode: 'full',
+    checked_at: '2026-10-11T10:07:00.121888+00:00',
+    schemas: [
+      {
+        schema: 'main', file: 'hotspot.db',
+        user_indexes: 259, auto_indexes: 81,
+        tables_with_indexes: 119, stat1_covered: 73,
+        check: 'ok', check_errors: [], check_ms: 222,
+      },
+      {
+        schema: 'warm', file: 'hotspot-warm.db',
+        user_indexes: 41, auto_indexes: 11,
+        tables_with_indexes: 23, stat1_covered: 18,
+        check: 'ok', check_errors: [], check_ms: 43,
+      },
+      {
+        schema: 'cold', file: 'hotspot-cold.db',
+        user_indexes: 2, auto_indexes: 1,
+        tables_with_indexes: 2, stat1_covered: 1,
+        check: 'ok', check_errors: [], check_ms: 80,
+      },
+    ],
+    totals: { user_indexes: 302, auto_indexes: 93, schemas_ok: 3, schemas_total: 3 },
+  };
+
+  function mockIndexHealth(fixture: unknown) {
+    mockFetch.mockImplementation((url: string) => {
+      if (String(url).startsWith('/api/maintenance/index-health')) {
+        return Promise.resolve(jsonResponse(fixture));
+      }
+      if (String(url).startsWith('/api/maintenance/health')) {
+        return Promise.resolve(jsonResponse(HEALTH_FIXTURE));
+      }
+      if (String(url).startsWith('/api/maintenance/dirty-report')) {
+        return Promise.resolve(jsonResponse(DIRTY_FIXTURE));
+      }
+      return Promise.resolve(jsonResponse({}));
+    });
+  }
+
+  it('逐 schema 呈现真实索引状态: 计数 / integrity / ANALYZE 统计覆盖', async () => {
+    mockIndexHealth(INDEX_HEALTH_FIXTURE);
+    renderPage();
+
+    const status = await screen.findByTestId('maint-index-status');
+    const mainRow = await screen.findByTestId('maint-index-row-main');
+    expect(mainRow).toHaveTextContent('main (hotspot.db)');
+    expect(mainRow).toHaveTextContent('索引 259+81'); // user+auto 分列
+    expect(mainRow).toHaveTextContent('ok 222ms');
+    expect(mainRow).toHaveTextContent('统计 73');
+    expect(status).toHaveTextContent('warm');
+    expect(status).toHaveTextContent('统计 18');
+    expect(status).toHaveTextContent('cold');
+    // footer: mode 标签如实 + 汇总
+    expect(status).toHaveTextContent('深度检查 (integrity)');
+    expect(status).toHaveTextContent('3/3 库正常');
+  });
+
+  it('integrity 非 ok → check_errors 首条如实可见 (fail-loud, 不粉饰)', async () => {
+    mockIndexHealth({
+      ...INDEX_HEALTH_FIXTURE,
+      schemas: [
+        {
+          schema: 'main', file: 'hotspot.db',
+          user_indexes: 259, auto_indexes: 81,
+          tables_with_indexes: 119, stat1_covered: 73,
+          check: '2 issues',
+          check_errors: ['Cell 5 missing for rowid 88 in index idx_hotspots_score'],
+          check_ms: 301,
+        },
+      ],
+      totals: { user_indexes: 259, auto_indexes: 81, schemas_ok: 0, schemas_total: 1 },
+    });
+    renderPage();
+
+    const status = await screen.findByTestId('maint-index-status');
+    expect(status).toHaveTextContent('2 issues');
+    expect(status).toHaveTextContent('idx_hotspots_score');
+    expect(status).toHaveTextContent('0/1 库正常');
+  });
+
+  it('index-health 接口失败 → 索引状态显式错误态, 健康卡不受影响 (失败态隔离)', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (String(url).startsWith('/api/maintenance/index-health')) {
+        return Promise.reject(new Error('boom'));
+      }
+      if (String(url).startsWith('/api/maintenance/health')) {
+        return Promise.resolve(jsonResponse(HEALTH_FIXTURE));
+      }
+      return Promise.resolve(jsonResponse(DIRTY_FIXTURE));
+    });
+    renderPage();
+
+    const status = await screen.findByTestId('maint-index-status');
+    await waitFor(() => {
+      expect(status.querySelector('[role="alert"]')).not.toBeNull();
+      expect(status).toHaveTextContent('索引状态加载失败');
+    });
+    // 健康卡照常呈现 (两路并行互不拖累)
+    expect(await screen.findByTestId('maint-card-health')).toHaveTextContent('173.4 MB');
+  });
+});
+
 // ── helpers (组件内文本读取) ─────────────────────────────────
 function card_text(): string {
   return document.querySelector('[data-testid="maint-card-health"]')?.textContent ?? '';

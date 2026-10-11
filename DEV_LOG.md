@@ -1,4 +1,20 @@
 
+## [DEV-0320] /maint 索引卡前置状态显示 — 重建前先看索引健康 (index-health-probe)
+
+- **时间**: 2026-10-11
+- **类型**: 功能开发 (P2; owner 浏览器选中索引卡: 「索引重建需要先知道索引健康情况, 将索引状态先显示出来 (要求准确无误)」)
+- **设计原则 (准确无误 = 只展示 SQLite 能权威回答的信号, 零想象指标)**:
+  1. **索引计数**: 用户索引 + 系统 autoindex 分列 (autoindex 由 UNIQUE/PK 派生不可独立 REINDEX, 混在一起会误导)
+  2. **integrity 检查**: 默认 full 模式 (`PRAGMA <schema>.integrity_check(100)`, 含索引内容一致性; 实测三库合计 ~1s 可接受), 非 ok 行如实带出错误清单前 10 条
+  3. **ANALYZE planner 统计**: `stat1_covered` **绝对数**展示 — 取证发现 SQLite 3.32+ 对 <44 行小表与纯 autoindex 表有意跳过统计 (实测 `ANALYZE main.custom_sources` 仍 0 行 stat), 若组「73/119 覆盖率」分母会把正常行为渲染成"46 表欠 stats"假异常 → 弃比率, 展示层不用 tables_with_indexes
+  - 逐 schema 探测 (main/warm/cold, 经 database_list 遍历 — 承接 DEV-0318 跨 schema 教训, 绝不只看 main)
+- **关联文件**: `backend/services/maintenance_service.py` (+`index_health(mode)`; 顶部补 sqlite3/datetime import)、`backend/api/maintenance.py` (+`GET /index-health`, 默认 mode=full, `asyncio.to_thread` — integrity_check 是读侧长查询)、`frontend/MaintPage.tsx` (索引卡描述下方加 `maint-index-status` 状态块: 逐库行 + 非 ok 首错可见 + footer 模式标签/汇总; `fetchHealth` 两路并行且失败态独立; **vacuum 成功后自动刷新状态 = 重建前后闭环**)、i18n +9 key × 双语
+- **纪律**: 索引状态加载失败 → 显式 role=alert (独立于健康卡, fail-loud 延续 DEV-0317); mode 白名单脏参数 422 不静默兜底
+- **测试**: 后端 `test_maintenance_api.py` +2 (形状契约锁实测 JSON + 分子≤分母口径守卫 + 422); 前端 `MaintPage.test.tsx` +3 (逐库真实行/非 ok 错误首条可见/失败态隔离) — mock 一律进程内实测形状。相关面后端 286 passed / 前端全量 **716 passed** (713+3) / tsc 0 / ruff 0 / meta 5/5
+- **实弹 (生产)**: 重启后端 → curl 端点 200 真实数据 (main 259+81 ok / warm 41+11 ok / cold 2+1 ok, 统计 73/18/1) → 浏览器实拍 /maint 索引卡逐库状态行呈现完整 → 点「执行」3.1s 后状态块自动复检 (main integrity 重查 417ms, 缓存转热) 且健康卡同步更新 **freelist 699→0 / 碎片 1.6%→0.0% / 175.6→163.3MB** (顺带收掉 DEV-0318 遗留观察「VACUUM 未跑」)
+- **过程自律**: 首次 SearchReplace 误改 `db_health` size_mb 公式, git diff 发现后立即回滚 (Rule 3 手术刀纪律, diff 留痕验证)
+- **下一可用号**: DEV-0321
+
 ## [DEV-0319] telemetry_window job 层告警 — skip 不再静默 (cleanup-skip-alert)
 
 - **时间**: 2026-10-11

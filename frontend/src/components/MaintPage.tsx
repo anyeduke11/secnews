@@ -52,6 +52,34 @@ interface VacuumResp {
   total_seconds?: number;
 }
 
+/** 后端权威形状 = GET /api/maintenance/index-health (DEV-0320, 进程内实测:
+ * check=ok|\"N issues\"|probe_failed:*; user/auto 索引分列;
+ * stat1_covered 为绝对数展示 — 小表/纯 autoindex 表 ANALYZE 有意跳过,
+ * 覆盖率分母会制造"欠 stats"假异常, 前端不用 tables_with_indexes 组成比率)。 */
+interface IndexHealthSchema {
+  schema: string;
+  file: string;
+  user_indexes: number;
+  auto_indexes: number;
+  tables_with_indexes: number;
+  stat1_covered: number;
+  check: string;
+  check_errors: string[];
+  check_ms: number;
+}
+
+interface IndexHealthResp {
+  mode?: string;
+  checked_at?: string;
+  schemas?: IndexHealthSchema[];
+  totals?: {
+    user_indexes: number;
+    auto_indexes: number;
+    schemas_ok: number;
+    schemas_total: number;
+  };
+}
+
 /** 后端权威形状 = cleanup_quality_logs() (薄包装 archive_quality_logs;
  * DEV-0318: 旧 /cleanup + {deleted} 全对不上 → 按钮永远空跑)。 */
 interface CleanupResp {
@@ -73,6 +101,8 @@ export function MaintPage() {
   const [backupInfo, setBackupInfo] = useState<BackupVerifyResp | null>(null);
   const [vacuum, setVacuum] = useState<ToolStatus>('idle');
   const [vacuumInfo, setVacuumInfo] = useState<VacuumResp | null>(null);
+  const [indexHealth, setIndexHealth] = useState<IndexHealthResp | null>(null);
+  const [indexHealthError, setIndexHealthError] = useState(false); // DEV-0320: fail-loud
   const [cleanup, setCleanup] = useState<ToolStatus>('idle');
   const [cleanupInfo, setCleanupInfo] = useState<CleanupResp | null>(null);
   const [cleanupConfirm, setCleanupConfirm] = useState(false);
@@ -80,20 +110,35 @@ export function MaintPage() {
   const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const fetchHealth = useCallback(async () => {
-    try {
-      const [h, d] = await Promise.all([
-        getJSON<HealthResp>('/api/maintenance/health'),
-        getJSON<DirtyReportResp>('/api/maintenance/dirty-report'),
-      ]);
-      if (dead.current) return;
-      setHealth(h);
-      setDirty(d);
-      setHealthError(false);
-    } catch {
-      // DEV-0317: 不再静默显示「—」— 监控页把"接口失败"如实呈现为错误态
-      if (dead.current) return;
-      setHealthError(true);
-    }
+    // 两路并行、失败态互不影响 (DEV-0320: 索引探测 ~1s, 不拖健康卡)
+    const healthP = (async () => {
+      try {
+        const [h, d] = await Promise.all([
+          getJSON<HealthResp>('/api/maintenance/health'),
+          getJSON<DirtyReportResp>('/api/maintenance/dirty-report'),
+        ]);
+        if (dead.current) return;
+        setHealth(h);
+        setDirty(d);
+        setHealthError(false);
+      } catch {
+        // DEV-0317: 不再静默显示「—」— 监控页把"接口失败"如实呈现为错误态
+        if (dead.current) return;
+        setHealthError(true);
+      }
+    })();
+    const indexP = (async () => {
+      try {
+        const ih = await getJSON<IndexHealthResp>('/api/maintenance/index-health');
+        if (dead.current) return;
+        setIndexHealth(ih);
+        setIndexHealthError(false);
+      } catch {
+        if (dead.current) return;
+        setIndexHealthError(true);
+      }
+    })();
+    await Promise.all([healthP, indexP]);
   }, [dead]);
 
   useEffect(() => {
@@ -120,11 +165,12 @@ export function MaintPage() {
       if (dead.current) return;
       setVacuumInfo(r);
       setVacuum(r.status === 'ok' ? 'ok' : 'error');
+      if (r.status === 'ok') fetchHealth(); // DEV-0320: 重建后索引状态/统计覆盖闭环刷新
     } catch {
       if (dead.current) return;
       setVacuum('error');
     }
-  }, [dead]);
+  }, [dead, fetchHealth]);
 
   const runCleanup = useCallback(async () => {
     setCleanup('running');
@@ -290,6 +336,57 @@ export function MaintPage() {
           <p className="text-xs mb-4" style={{ color: 'var(--ink-3)' }}>
             {t('maint.vacuum.desc')}
           </p>
+          {/* DEV-0320: 重建前先看到索引真实状态 (curl 实测契约, fail-loud) */}
+          <div className="mb-4 rounded p-3" style={{ background: 'var(--bg-elevated)' }} data-testid="maint-index-status">
+            {indexHealthError && !indexHealth ? (
+              <p className="text-xs font-mono" role="alert" style={{ color: 'var(--color-error)' }}>
+                {t('maint.vacuum.indexError')}
+              </p>
+            ) : indexHealth?.schemas ? (
+              <div className="space-y-1.5">
+                <div className="text-xs font-mono mb-2" style={{ color: 'var(--ink-3)' }}>
+                  {t('maint.vacuum.indexTitle')}
+                </div>
+                {indexHealth.schemas.map((s) => {
+                  const ok = s.check === 'ok';
+                  return (
+                    <div key={s.schema} data-testid={`maint-index-row-${s.schema}`} className="text-xs font-mono flex items-baseline justify-between gap-2">
+                      <span className="shrink-0" style={{ color: 'var(--ink-2)' }}>
+                        {s.schema}
+                        {s.file && <span style={{ color: 'var(--ink-3)' }}> ({s.file})</span>}
+                      </span>
+                      <span className="text-right" style={{ color: ok ? 'var(--ink-2)' : 'var(--color-warning)' }}>
+                        {t('maint.vacuum.idx')} {s.user_indexes}
+                        <span style={{ color: 'var(--ink-3)' }}>+{s.auto_indexes}</span>
+                        {' · '}
+                        {s.check}
+                        {` ${s.check_ms}ms`}
+                        {' · '}
+                        {t('maint.vacuum.stats')} {s.stat1_covered}
+                      </span>
+                    </div>
+                  );
+                })}
+                {indexHealth.schemas.some((s) => s.check !== 'ok' && s.check_errors.length > 0) && (
+                  <p className="text-xs font-mono" style={{ color: 'var(--color-warning)', wordBreak: 'break-all' }}>
+                    {indexHealth.schemas
+                      .filter((s) => s.check !== 'ok' && s.check_errors.length > 0)
+                      .map((s) => `${s.schema}: ${s.check_errors[0]}`)
+                      .join(' | ')}
+                  </p>
+                )}
+                <div className="text-xs font-mono pt-1.5" style={{ borderTop: '1px solid var(--border-color)', color: 'var(--ink-3)' }}>
+                  {indexHealth.mode === 'full' ? t('maint.vacuum.modeFull') : t('maint.vacuum.modeQuick')}
+                  {' · '}
+                  {indexHealth.totals?.schemas_ok}/{indexHealth.totals?.schemas_total} {t('maint.vacuum.schemasOk')}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>
+                {t('maint.vacuum.checking')}
+              </p>
+            )}
+          </div>
           <button
             type="button"
             onClick={runVacuum}

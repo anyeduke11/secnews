@@ -19,7 +19,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sqlite3
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from backend.repository.db import get_connection, knowledge_items_table
@@ -93,6 +95,93 @@ def run_vacuum() -> dict:
 # ---------------------------------------------------------------------------
 # Data cleanup
 # ---------------------------------------------------------------------------
+
+def index_health(mode: str = "quick") -> dict:
+    """索引健康探测 (DEV-0320): 逐 schema 如实返回可证实的索引状态。
+
+    只采集 SQLite 能权威回答的三类信号, 不编造指标:
+    - 索引计数: 用户索引 vs 系统 autoindex (sqlite_autoindex% 由 UNIQUE/PK
+      约束派生, 不可独立 REINDEX, 分开展示避免误导)
+    - 结构检查: ``PRAGMA <schema>.quick_check`` (默认, B-tree 页结构校验,
+      毫秒~秒级) 或 ``integrity_check`` (mode="full", 含索引内容一致性,
+      大库秒~分级) — 返回非 "ok" 行即问题清单, 如实带出
+    - ANALYZE planner 统计: ``stat1_covered`` = 已进入 sqlite_stat1 的
+      被索引表数。**不作覆盖率分母展示** — SQLite 3.32+ 起 ANALYZE 对
+      <44 行小表与纯 autoindex 表有意不产统计 (实测 custom_sources 显式
+      ANALYZE 仍 0 行), 分母口径会产生"46 表欠 stats"的误导性异常暗示
+
+    每 schema 独立 try/except: 单库探测失败如实记入该 schema 的
+    ``check`` 字段 (fail-loud), 不让监控自身成为新的静默源。
+    """
+    if mode not in ("quick", "full"):
+        raise ValueError(f"invalid mode: {mode}")
+
+    conn = get_connection()
+    schemas: list[dict] = []
+    for row in conn.execute("PRAGMA database_list").fetchall():
+        schema, file_path = row[1], row[2]
+        if schema == "temp":
+            continue  # 会话级临时对象, 非持久索引载体
+        entry: dict = {
+            "schema": schema,
+            "file": Path(file_path).name if file_path else "",
+            "user_indexes": 0,
+            "auto_indexes": 0,
+            "tables_with_indexes": 0,
+            "stat1_covered": 0,
+            "check": "error",
+            "check_errors": [],
+            "check_ms": 0,
+        }
+        try:
+            entry["user_indexes"] = conn.execute(
+                f"SELECT COUNT(*) FROM \"{schema}\".sqlite_master "
+                "WHERE type='index' AND name NOT LIKE 'sqlite_auto%'"
+            ).fetchone()[0]
+            entry["auto_indexes"] = conn.execute(
+                f"SELECT COUNT(*) FROM \"{schema}\".sqlite_master "
+                "WHERE type='index' AND name LIKE 'sqlite_auto%'"
+            ).fetchone()[0]
+            # planner 统计 (绝对数; 分母 tables_with_indexes 保留供数据侧,
+            # 展示层不组成比率 — 小表/纯 autoindex 表 ANALYZE 有意跳过)
+            entry["tables_with_indexes"] = conn.execute(
+                f"SELECT COUNT(DISTINCT tbl_name) FROM \"{schema}\".sqlite_master "
+                "WHERE type='index' AND tbl_name NOT LIKE 'sqlite_%'"
+            ).fetchone()[0]
+            try:
+                entry["stat1_covered"] = conn.execute(
+                    f"SELECT COUNT(DISTINCT tbl) FROM \"{schema}\".sqlite_stat1 "
+                    f"WHERE tbl IN (SELECT DISTINCT tbl_name "
+                    f"FROM \"{schema}\".sqlite_master "
+                    "WHERE type='index' AND tbl_name NOT LIKE 'sqlite_%')"
+                ).fetchone()[0]
+            except sqlite3.Error:
+                entry["stat1_covered"] = 0  # ANALYZE 从未跑过 → stat1 表不存在
+            t0 = time.perf_counter()
+            pragma = "integrity_check(100)" if mode == "full" else "quick_check"
+            rows = conn.execute(f"PRAGMA \"{schema}\".{pragma}").fetchall()
+            entry["check_ms"] = int((time.perf_counter() - t0) * 1000)
+            msgs = [str(r[0]) for r in rows]
+            if len(msgs) == 1 and msgs[0] == "ok":
+                entry["check"] = "ok"
+            else:
+                entry["check"] = f"{len(msgs)} issues"
+                entry["check_errors"] = msgs[:10]
+        except Exception as e:
+            entry["check"] = f"probe_failed: {type(e).__name__}: {e}"
+        schemas.append(entry)
+
+    return {
+        "mode": mode,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "schemas": schemas,
+        "totals": {
+            "user_indexes": sum(s["user_indexes"] for s in schemas),
+            "auto_indexes": sum(s["auto_indexes"] for s in schemas),
+            "schemas_ok": sum(1 for s in schemas if s["check"] == "ok"),
+            "schemas_total": len(schemas),
+        },
+    }
 
 def cleanup_history(
     days: int = DEFAULT_HISTORY_DAYS,

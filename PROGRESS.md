@@ -17,6 +17,13 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-11 /maint 索引卡前置状态显示 — 重建前先看索引健康 — DEV-0320
+
+- **需求**: owner 选中索引卡「索引重建需先知道索引健康, 状态先显示 (准确无误)」。
+- **口径 (零想象指标)**: 逐 schema (main/warm/cold) 三信号 = 用户+auto 索引分列计数 / integrity_check 深度检查 (实测 ~1s, 默认 full) / ANALYZE 统计**绝对数** — 取证发现 SQLite 3.32+ 对小表与纯 autoindex 表有意跳过统计, 故弃"覆盖率"防假异常。
+- **实现**: `GET /api/maintenance/index-health` (to_thread + mode 白名单 422) + 索引卡状态块 (失败态独立 fail-loud; vacuum 后自动复检 = 重建前后闭环)。
+- **验证**: 后端 +2 / 前端 +3 (mock 用进程内实测形状); 前端全量 716 / 相关面 286 passed / ruff/meta/tsc 0。生产实弹: 三库状态逐行呈现 + 真实点「执行」→ 复检 ok + **freelist 699→0 / 碎片归零 / 175.6→163.3MB** (顺带收掉 DEV-0318 的 VACUUM 遗留)。
+
 ### 2026-10-11 telemetry_window job 层告警 — skip 不再静默 — DEV-0319
 
 - **动机**: DEV-0318 遗留 — skip 不计 failed 的静默哲学仍在, 再漂移仍会空转无感。

@@ -1,4 +1,16 @@
 
+## [DEV-0319] telemetry_window job 层告警 — skip 不再静默 (cleanup-skip-alert)
+
+- **时间**: 2026-10-11
+- **类型**: 增强 (P1 可观测; owner: 「请为刚才的清理功能补充 job 层告警」; 承接 DEV-0318 遗留观察)
+- **动机**: DEV-0318 事故中 `table_not_found` skip 完全静默 + skipped 不计 failed → 每周 job 空转六周而 status 恒 ok。根因已修, 但「skip 即异常」这一信号仍未进入告警链 — 再漂移 (新表加进台账但物理缺失 / pragma 失败) 依旧只能靠人工取证
+- **方案 (复用 v0.7 Batch ④ 告警基建, 零新表零新端点)**: `telemetry_window_job` 非零 skip → 写 `observability_alerts` (metric=`telemetry_window.skip`, 全表 skip=**critical** / 部分=**warn**, detail 含表清单+原因) + SSE `observability.breach` (前端横幅/StatusBar 既有读取链) + `alert_dispatcher` 外部投递; cooldown 1 天防手动重跑刷屏 (job 本身周频, 天然有界)。告警写失败只 log — **告警自身绝不拖垮周日清理链**; 语义保持: skip 不抛 (既有 `test_job_swallows_skips` 契约不破), failed>0 照旧 raise
+- **合法豁免**: `table_not_found` 且 warm.db 文件未建立 = v0.5 分层前的单库起步合法态 → 不告警 (区分「合法缺席」与「契约漂移」的判据 = warm 库文件本身, 与测试头部旧注释语义对齐并升级)
+- **关联文件**: `backend/scheduler/jobs/maintenance.py` (+`_skip_is_legitimate` / +`_alert_telemetry_skips` / job 内 skip 检测段)
+- **测试**: `test_telemetry_window.py` +3 — 漂移 skip critical 落表 (含 cooldown 重复触发不刷屏) / warm 缺席零告警 / 部分 skip warn + detail.all_skipped; 更新头部旧语义注释。相关面 **331 passed** (telemetry/alert/observability/scheduler) / ruff 0 / meta 5/5
+- **实弹 (生产)**: 重启后端装载 (pid 12225) → ① 常态不误报: 进程内跑真 job, deleted=91 archived=491 (清理真实工作) 且 **0 告警**; ② 漂移会报: 进程内 fabricate skip → alert id=334 (critical, detail 完整) → `GET /api/observability/alerts/active` 端点可见 (前端横幅数据源实锤) → 测后清理测试行 (剩 0, 既有 id=333 api.p95 告警未触碰)
+- **下一可用号**: DEV-0320
+
 ## [DEV-0318] 清理功能验证 — 三层根因: 每周清理 job 已空转六周 (db-cleanup-live-fire)
 
 - **时间**: 2026-10-11

@@ -17,6 +17,12 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-11 telemetry_window job 层告警 — skip 不再静默 — DEV-0319
+
+- **动机**: DEV-0318 遗留 — skip 不计 failed 的静默哲学仍在, 再漂移仍会空转无感。
+- **实现**: 复用 v0.7 告警基建 (零新表/新端点) — 非零 skip 写 `observability_alerts` (全表 critical / 部分 warn) + SSE breach + dispatcher; cooldown 1 天防刷屏; 告警失败只 log 不拖垮周日链; `table_not_found` 且 warm 未建 = 单库起步合法态豁免。
+- **验证**: +3 测试 (critical 落表+cooldown / 合法零告警 / 部分 warn); 相关面 331 passed / ruff 0 / meta 5/5; 生产实弹 = 常态真删 (deleted=91 archived=491) 零误报, fabricate 漂移 → 告警入表且 active 端点可见 (测后清理)。
+
 ### 2026-10-11 清理功能验证 — 每周 job 空转六周的三层根因修复 — DEV-0318
 
 - **取证**: 清理从未真实执行 — qcl 7d 外积压 538,002 行, COLD archive 表 0 行, job_runs 每周 12-16ms「ok」空转指纹; /maint 清理按钮 curl 实锤永远 dry-run。

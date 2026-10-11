@@ -88,6 +88,105 @@ async def export_rebuild_job() -> None:
         _logger.error(f"export_rebuild_job crashed: {e}")
 
 
+def _skip_is_legitimate(reason: str) -> bool:
+    """table_not_found 且 warm.db 尚未建立 = 单库起步合法状态, 不告警。
+
+    DEV-0318 事故教训: skip 完全静默让 db_diet 跨 schema 误判空转六周且
+    status ok。但 warm 文件不存在时表物理上确实无处可寻 (v0.5 分层迁移
+    之前的老库形态), 此时 skip 不应刷屏 — 区分「合法缺席」与「契约漂移」
+    的判据就是 warm 库文件本身。
+    """
+    if reason != "table_not_found":
+        return False
+    from backend.config import config
+
+    warm = getattr(config, "warm_db_path", None)
+    return not (warm and Path(warm).exists())
+
+
+async def _alert_telemetry_skips(
+    skipped: list[dict], result: dict, level: str
+) -> None:
+    """skip 可见化 (DEV-0319): observability_alerts + SSE + dispatcher。
+
+    沿用 v0.7 Batch ④ threshold_check 告警基建与 cooldown 防刷屏模式;
+    本函数任何失败只 log — 告警自身绝不拖垮周日清理链。
+    """
+    from datetime import datetime
+
+    from backend.repository.db import get_connection
+
+    now = datetime.now(timezone.utc)
+    tables = [r.get("table") for r in skipped]
+    reasons = {str(r.get("table")): str(r.get("skipped_reason")) for r in skipped}
+    detail = {
+        "job": "telemetry_window",
+        "tables": tables,
+        "reasons": reasons,
+        "all_skipped": level == "critical",
+    }
+    alert_id = None
+    try:
+        conn = get_connection()
+        existing = conn.execute(
+            "SELECT cooldown_until FROM observability_alerts "
+            "WHERE metric = ? AND level = ? AND acked = 0 "
+            "ORDER BY fired_at DESC LIMIT 1",
+            ("telemetry_window.skip", level),
+        ).fetchone()
+        if not (existing and existing["cooldown_until"] > now.isoformat()):
+            conn.execute(
+                "INSERT INTO observability_alerts "
+                "(level, metric, value, threshold, window_minutes, detail, "
+                "fired_at, cooldown_until, acked) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
+                (
+                    level, "telemetry_window.skip", float(len(skipped)), 0.0,
+                    10080, json.dumps(detail, ensure_ascii=False),
+                    now.isoformat(),
+                    (now + timedelta(days=1)).isoformat(),
+                ),
+            )
+            alert_id = conn.execute(
+                "SELECT last_insert_rowid() AS id"
+            ).fetchone()["id"]
+    except Exception as e:
+        _logger.error(f"telemetry_window skip-alert write failed: {e}")
+
+    if alert_id is not None:
+        try:
+            from backend.core.events import publish_event
+
+            await publish_event("observability.breach", {
+                "alert_id": alert_id,
+                "level": level,
+                "metric": "telemetry_window.skip",
+                "value": len(skipped),
+                "threshold": 0,
+            })
+        except Exception as e:
+            _logger.debug(f"publish_event telemetry skip failed: {e}")
+        try:
+            from backend.services.alert_channels import AlertPayload
+            from backend.services.alert_dispatcher import dispatch
+
+            await dispatch(
+                AlertPayload(
+                    metric="telemetry_window.skip",
+                    level=level,
+                    value=float(len(skipped)),
+                    threshold=0.0,
+                    window_minutes=10080,
+                    detail=detail,
+                    fired_at=now.isoformat(),
+                    source="telemetry_window",
+                ),
+                alert_id=alert_id,
+            )
+        except Exception as e:
+            _logger.debug(f"dispatch telemetry skip failed: {e}")
+
+
 @instrument_job("telemetry_window")
 async def telemetry_window_job() -> None:
     """v0.5 SPEC §18: 7 天遥测窗口 — WARM 层遥测表滚动清理。
@@ -99,10 +198,27 @@ async def telemetry_window_job() -> None:
 
     每周日 05:00 Asia/Shanghai 注册 (与原 quality_logs_cleanup 同时段,
     避免与 04:00 soul / 04:30 backup / 周日链冲突)。
+
+    DEV-0319 fail-loud: skip 不再静默 — 事故中 table_not_found 误判使
+    本 job 空转六周而 status 恒 ok。非合法 skip → observability 告警
+    (全表 skip=critical, 部分=warn), 但不抛 — 周日链不被打断。
     """
     from backend.services.maintenance_service import run_telemetry_window
 
     result = await asyncio.to_thread(run_telemetry_window, False)
+    skipped = [
+        r for r in result["results"]
+        if r.get("skipped_reason") and not _skip_is_legitimate(r["skipped_reason"])
+    ]
+    if skipped:
+        all_skipped = len(skipped) == len(result["results"])
+        level = "critical" if all_skipped else "warn"
+        _logger.error(
+            f"telemetry_window_job: {level} skip detected — "
+            f"{[r.get('table') for r in skipped]} "
+            f"reasons={[r.get('skipped_reason') for r in skipped]}"
+        )
+        await _alert_telemetry_skips(skipped, result, level)
     if result.get("failed"):
         raise RuntimeError(
             f"telemetry window partial failure: "

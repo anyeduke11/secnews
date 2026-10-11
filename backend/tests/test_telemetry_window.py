@@ -7,11 +7,13 @@
 - 窗口内 (< 7d) 数据必须保留, 这是"遥测窗口"的业务承诺
 - dry_run 只读不动数据
 - job 层: 有硬错误时抛异常让 instrument_job 记 ok=False;
-  table_not_found 属 skip 不告警 (warm.db 尚未建库的合法状态)
+  table_not_found 属 skip 不抛 (周日链不被打断) — 但 DEV-0319 起非合法
+  skip 必须可见化到 observability_alerts (事故: 静默 skip 空转六周)
 """
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -198,3 +200,88 @@ def test_job_swallows_skips(monkeypatch):
 
     # 不抛即通过 (skip 类失败被容忍)
     asyncio.run(jobs_mod.telemetry_window_job())
+
+
+# ---------------------------------------------------------------------------
+# job 层告警 (DEV-0319 fail-loud)
+# ---------------------------------------------------------------------------
+def _skip_result(tables: list[tuple[str, str]]) -> dict:
+    return {
+        "tables": len(tables), "rows_deleted": 0, "rows_archived": 0, "failed": 0,
+        "results": [
+            {"table": t, "ok": False, "skipped_reason": r} for t, r in tables
+        ],
+    }
+
+
+def _alerts(conn):
+    return conn.execute(
+        "SELECT level, detail FROM observability_alerts "
+        "WHERE metric = 'telemetry_window.skip' ORDER BY id"
+    ).fetchall()
+
+
+def test_job_alerts_critical_on_drift_skip(temp_db, monkeypatch, tmp_path):
+    """warm 已建立 + table_not_found = 契约漂移 (DEV-0318 事故指纹) →
+    critical 告警落 observability_alerts, job 不抛 (链不被打断)。"""
+    from backend.scheduler import jobs as jobs_mod
+
+    warm = tmp_path / "hotspot-warm.db"
+    warm.touch()  # 单库起步豁免失效 → skip 必须可见
+    monkeypatch.setattr(config, "warm_db_path", warm)
+    monkeypatch.setattr(
+        ms, "run_telemetry_window",
+        lambda dry_run: _skip_result([("quality_check_logs", "table_not_found"),
+                                      ("crawler_runs", "table_not_found")]),
+    )
+
+    asyncio.run(jobs_mod.telemetry_window_job())  # 不抛
+
+    rows = _alerts(db.get_connection())
+    assert len(rows) == 1
+    assert rows[0]["level"] == "critical"  # 全表 skip
+    detail = json.loads(rows[0]["detail"])
+    assert set(detail["tables"]) == {"quality_check_logs", "crawler_runs"}
+
+    # cooldown: 重复触发 (同 metric+level 未 ack 且在冷却期) 不刷屏
+    asyncio.run(jobs_mod.telemetry_window_job())
+    assert len(_alerts(db.get_connection())) == 1
+
+
+def test_job_no_alert_when_warm_absent(temp_db, monkeypatch, tmp_path):
+    """warm.db 尚未建立 → table_not_found 是单库起步合法态, 不告警。"""
+    from backend.scheduler import jobs as jobs_mod
+
+    monkeypatch.setattr(config, "warm_db_path", tmp_path / "nonexistent-warm.db")
+    monkeypatch.setattr(
+        ms, "run_telemetry_window",
+        lambda dry_run: _skip_result([("quality_check_logs", "table_not_found")]),
+    )
+
+    asyncio.run(jobs_mod.telemetry_window_job())
+
+    assert _alerts(db.get_connection()) == []
+
+
+def test_job_alerts_warn_on_partial_skip(temp_db, monkeypatch):
+    """部分表 skip (非 table_not_found 类, 与 warm 存在性无关) → warn。"""
+    from backend.scheduler import jobs as jobs_mod
+
+    monkeypatch.setattr(
+        ms, "run_telemetry_window",
+        lambda dry_run: {
+            "tables": 2, "rows_deleted": 5, "rows_archived": 0, "failed": 0,
+            "results": [
+                {"table": "crawler_runs", "ok": True, "deleted": 5},
+                {"table": "raw_items", "ok": False,
+                 "skipped_reason": "pragma_failed: disk I/O error"},
+            ],
+        },
+    )
+
+    asyncio.run(jobs_mod.telemetry_window_job())  # skip 不抛
+
+    rows = _alerts(db.get_connection())
+    assert len(rows) == 1
+    assert rows[0]["level"] == "warn"
+    assert json.loads(rows[0]["detail"])["all_skipped"] is False

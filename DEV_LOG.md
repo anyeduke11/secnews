@@ -1,4 +1,23 @@
 
+## [DEV-0318] 清理功能验证 — 三层根因: 每周清理 job 已空转六周 (db-cleanup-live-fire)
+
+- **时间**: 2026-10-11
+- **类型**: Bug修复 (P0 数据治理; 触发 = owner「请帮我验证清理功能是否生效」)
+- **取证结论**: 清理**从未真实执行过** — quality_check_logs 7d 窗口外积压 538,002 行 (总 583,659), COLD `quality_check_logs_archive` 0 行, `job_runs` 历史每周日 telemetry_window 全 12-16ms「ok」= 空转指纹
+- **三层根因 (想象契约模式第三次复现)**:
+  1. **前端 /maint 清理卡**: `POST /cleanup` + body `{cutoff_days}` — 后端只认 query 参数 `days/dry_run` 且 `dry_run` 默认 true → 按钮全参数被忽略、永远 dry-run 空跑; `CleanupResp.deleted` 想象为 number, 真实 `deleted` 是 dict (curl 实锤)
+  2. **真根因 (后端 db_diet)**: `cleanup_table` 存在性检查 `sqlite_master` **只覆盖 main schema** — v0.5 migrate_temp_layers 后 qcl/crawler_runs/raw_items 物理在 `hotspot-warm.db`; 裸名 SELECT 可自动回退 attached schema 但 sqlite_master 不可 → 三表全误判 `table_not_found` → 每周 job skip 全部表; skipped 不计 failed + job 不 raise → status ok 掩盖空转两个月+
+  3. **端点阻塞**: maintenance 写操作端点 (vacuum/cleanup/cleanup-quality-logs/cleanup-duplicates) 在 `async def` 内直接同步跑长事务 → 真实清 53 万行会冻结事件循环
+- **修复**:
+  - `scripts/db_diet.py`: 存在性检查改为遍历 `PRAGMA database_list` 全部 schema (main 优先, 与裸名解析序一致); CLI 直连补 `_attach_layers()` (warm/cold 按 config 存在即 ATTACH — 与 job 路径 `get_connection()` 自动 ATTACH 的同族盲区)
+  - `backend/api/maintenance.py`: 四写操作端点全部 `asyncio.to_thread` 包裹
+  - `frontend/MaintPage.tsx`: 清理卡改调 `/cleanup-quality-logs?days=N&dry_run=false` (与 /settings DatabaseMaintenance 同形态); `CleanupResp`/`VacuumResp` 改 curl 实测形状 (顺带修 vacuum 同族漂移: 真实 `status/total_seconds`, 旧 `ok` 永 undefined → 成功也显示失败徽章); `cutoffDays` 默认 30→7 对齐健康卡口径; cta「预览」→「执行清理」(真实删除须诚实标签); 渲染改「已归档/主表剩余」; i18n 删死键 `maint.cleanup.deleted`/`maint.vacuum.reindexed`
+- **测试**: ① `test_db_diet.py` +1 跨 schema 回归 (tmp warm ATTACH 场景, 回退旧逻辑必失败); ② `test_maintenance_api.py` 新建 ×2 (query 参数契约 + dry_run 预览不动库 / 真实执行归档两态); ③ `MaintPage.test.tsx` +3 (清理 URL/旧端点回归守卫/默认 7/vacuum status=ok) — mock 一律 curl 实测形状
+- **实弹 (生产)**: 重启后端装载修复 → `run_telemetry_window(dry_run=True)` 三表 ok (修复前恒 table_not_found) → `POST /cleanup-quality-logs?days=7&dry_run=false` **归档 538,002 行, 主表 583,659→45,657, 2.6s 不阻塞** → COLD archive 表 0→538,002 → `dirty-report.older_than_7_days` 531,515→0 → telemetry_window 真实执行 crawler_runs −15,059 / raw_items −2,072 (周日 job 同路径, failed=0) → 幂等复跑仅 2 新过期行; 浏览器实拍: 健康卡「可清理行 0」、清理按钮 network 实锤 `?days=7&dry_run=false`、徽章完成「已归档: 0 / 主表剩余: 45657」
+- **回归**: 后端相关面 105 passed (maintenance/diet/telemetry/cleanup/vacuum/archive) / 前端全量 **713 passed** / tsc 0 / ruff 0 / 生产服务重启后 health 200
+- **遗留观察**: VACUUM 未跑 (freelist 699 页 / 碎片 1.6%, 量级可忽略, 周日维护窗口自然回收); telemetry job「skipped 不告警」的静默哲学仍在 — 本轮以根因修复+回归测试兜住, 若再漂移需考虑 job 层告警
+- **下一可用号**: DEV-0319
+
 ## [DEV-0317] /maint 健康卡契约漂移修复 — 监控 fail-loud (maint-health-contract)
 
 - **时间**: 2026-10-11

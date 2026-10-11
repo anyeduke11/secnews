@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, Query
@@ -35,7 +36,8 @@ async def maintenance_dirty_report():
 async def maintenance_vacuum():
     """VACUUM + REINDEX + ANALYZE. Frees unused pages, rebuilds indexes."""
     from backend.services.maintenance_service import run_vacuum
-    return run_vacuum()
+    # DEV-0318: VACUUM 是长事务, async 端点内同步执行会冻结事件循环
+    return await asyncio.to_thread(run_vacuum)
 
 
 @router.post("/backup-verify")
@@ -63,10 +65,11 @@ async def maintenance_cleanup(
     Dry-run by default — use ``?dry_run=false`` to actually delete.
     """
     from backend.services.maintenance_service import cleanup_history
-    result = cleanup_history(days=days, dry_run=dry_run)
+    # DEV-0318: 清理+VACUUM 为长事务, 移出事件线程避免冻结事件循环
+    result = await asyncio.to_thread(cleanup_history, days=days, dry_run=dry_run)
     if not dry_run:
         from backend.services.maintenance_service import run_vacuum
-        vac = run_vacuum()
+        vac = await asyncio.to_thread(run_vacuum)
         result["vacuum"] = vac
     return result
 
@@ -85,7 +88,8 @@ async def maintenance_cleanup_quality_logs(
 ):
     """Purge old quality_check_logs entries (main DB bloat culprit ~3M rows)."""
     from backend.services.maintenance_service import cleanup_quality_logs
-    return cleanup_quality_logs(days=days, dry_run=dry_run)
+    # DEV-0318: 53 万行归档 DELETE 是长事务, 必须移出事件线程
+    return await asyncio.to_thread(cleanup_quality_logs, days=days, dry_run=dry_run)
 
 
 @router.get("/duplicates")
@@ -113,8 +117,9 @@ async def maintenance_cleanup_duplicates(
         cleanup_duplicate_hotspots,
         cleanup_duplicate_knowledge_items,
     )
-    hotspots = cleanup_duplicate_hotspots(dry_run=dry_run)
-    ki = cleanup_duplicate_knowledge_items(dry_run=dry_run)
+    # DEV-0318: 去重 DELETE 为长事务, 移出事件线程
+    hotspots = await asyncio.to_thread(cleanup_duplicate_hotspots, dry_run=dry_run)
+    ki = await asyncio.to_thread(cleanup_duplicate_knowledge_items, dry_run=dry_run)
     return {
         "hotspots": hotspots,
         "knowledge_items": ki,

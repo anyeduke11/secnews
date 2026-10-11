@@ -330,7 +330,48 @@ def test_table_filter(mini_db: Path):
 
 
 # ---------------------------------------------------------------------------
-# 8. 备份副本演练
+# 8. DEV-0318 回归: 表物理位于已 ATTACH 的 warm schema
+# ---------------------------------------------------------------------------
+def test_cleanup_table_cross_schema_warm(tmp_path: Path):
+    """存在性检查必须扫全部已 ATTACH schema, 不能只看 main。
+
+    旧实现 ``sqlite_master`` 只覆盖 main → WARM-only 表 (crawler_runs/
+    raw_items/quality_check_logs, v0.5 migrate_temp_layers 后物理在
+    hotspot-warm.db) 误判 table_not_found, telemetry_window job 每周空转
+    且 status ok, 53 万行积压实证 2026-10-11。本测试若回退旧逻辑必失败。
+    """
+    from scripts.db_diet import cleanup_table
+
+    warm_path = tmp_path / "warm.db"
+    wconn = sqlite3.connect(str(warm_path))
+    wconn.execute(
+        "CREATE TABLE crawler_runs (id INTEGER PRIMARY KEY, started_at TEXT, status TEXT)"
+    )
+    wconn.execute(
+        "INSERT INTO crawler_runs VALUES (1, '2020-01-01T00:00:00', 'success')"
+    )
+    wconn.commit()
+    wconn.close()
+
+    conn = sqlite3.connect(str(tmp_path / "main.db"))
+    conn.execute(f"ATTACH DATABASE '{warm_path}' AS warm")
+    spec = {
+        "table": "crawler_runs",
+        "ts_column": "started_at",
+        "action": "truncate",
+        "retention_days": 7,
+    }
+    r = cleanup_table(conn, spec, dry_run=False)
+    assert r["ok"] is True, f"WARM 表不得判 table_not_found, 实测 {r}"
+    assert r["deleted"] == 1
+    conn.commit()
+    n = conn.execute("SELECT COUNT(*) FROM warm.crawler_runs").fetchone()[0]
+    assert n == 0, f"老行应被真实删除, 剩 {n}"
+    conn.close()
+
+
+# ---------------------------------------------------------------------------
+# 9. 备份副本演练
 # ---------------------------------------------------------------------------
 def test_backup_snapshot(tmp_path: Path, mini_db: Path):
     """--backup 应在副本上跑干跑, 不影响实库。"""

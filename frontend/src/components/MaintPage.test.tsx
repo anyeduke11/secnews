@@ -1,10 +1,12 @@
 /**
- * MaintPage 健康卡测试 — DEV-0317 契约锁定。
+ * MaintPage 契约测试 — DEV-0317 健康卡 + DEV-0318 清理/索引卡。
  *
- * 测试意图 (Rule 9): 健康卡的职责是把 DB 真实状态如实呈现。DEV-0178 建页时
- * 前端类型凭想象 (db_size_mb/table_count/fragmentation/cleanup_candidates),
- * 与 maintenance_service 真实响应全部对不上 → 恒显「—」静默两个月, 且页面
- * 零测试。本文件 mock 一律采用 **curl 实测响应形状** — 契约再漂移即 CI 红。
+ * 测试意图 (Rule 9): 维护页的职责是把 DB 真实状态如实呈现、清理操作真实生效。
+ * DEV-0178 建页时前端类型凭想象 (db_size_mb/table_count/fragmentation,
+ * POST /cleanup + body{cutoff_days}, VacuumResp.ok), 与 maintenance_service
+ * 真实响应全部对不上 → 健康卡恒显「—」静默两个月、清理按钮永远空跑 (dry_run
+ * 默认 true + 参数全被忽略)。本文件 mock 一律采用 **curl 实测响应形状** —
+ * 契约再漂移即 CI 红。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
@@ -43,6 +45,28 @@ const DIRTY_FIXTURE = {
   invalid_urls: 0,
 };
 
+/** 真实响应形状 = maintenance_service.run_vacuum() (status/total_seconds)。 */
+const VACUUM_FIXTURE = {
+  status: 'ok',
+  vacuum_seconds: 1.234,
+  reindex_seconds: 0.567,
+  analyze_seconds: 0.1,
+  total_seconds: 1.901,
+  health: HEALTH_FIXTURE,
+};
+
+/** 真实响应形状 = maintenance_service.cleanup_quality_logs() (归档语义, 非 deleted 标量)。 */
+const CLEANUP_FIXTURE = {
+  dry_run: false,
+  retention_days: 7,
+  cutoff: '2026-10-04T12:00:00+00:00',
+  total_rows_before: 583410,
+  rows_to_delete: 531515,
+  rows_archived: 531515,
+  rows_remaining_after: 51895,
+  monthly_breakdown: {},
+};
+
 function mockHealthApi() {
   mockFetch.mockImplementation((url: string) => {
     if (String(url).startsWith('/api/maintenance/health')) {
@@ -53,6 +77,13 @@ function mockHealthApi() {
     }
     return Promise.resolve(jsonResponse({}));
   });
+}
+
+/** 找出某 URL 前缀的全部 fetch 调用参数。 */
+function fetchCallsTo(prefix: string): string[] {
+  return mockFetch.mock.calls
+    .map((c) => String(c[0]))
+    .filter((u) => u.startsWith(prefix));
 }
 
 function renderPage() {
@@ -117,6 +148,80 @@ describe('MaintPage 健康卡 (DEV-0317 契约)', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: '刷新' }));
     await waitFor(() => expect(card_text()).toContain('250.5 MB'));
+  });
+});
+
+describe('MaintPage 清理卡 (DEV-0318 契约)', () => {
+  /** 走完整流程: 点「执行清理」→ 出现二次确认 → 点「确认删除」。 */
+  async function confirmCleanup() {
+    fireEvent.click(await screen.findByRole('button', { name: '执行清理' }));
+    fireEvent.click(await screen.findByRole('button', { name: '确认删除' }));
+  }
+
+  it('确认后调 cleanup-quality-logs?days=7&dry_run=false (query 参数, 真实删除)', async () => {
+    mockHealthApi();
+    mockFetch.mockImplementation((url: string) => {
+      if (String(url).startsWith('/api/maintenance/cleanup-quality-logs')) {
+        return Promise.resolve(jsonResponse(CLEANUP_FIXTURE));
+      }
+      if (String(url).startsWith('/api/maintenance/health')) {
+        return Promise.resolve(jsonResponse(HEALTH_FIXTURE));
+      }
+      return Promise.resolve(jsonResponse(DIRTY_FIXTURE));
+    });
+    renderPage();
+
+    await confirmCleanup();
+
+    const calls = fetchCallsTo('/api/maintenance/cleanup-quality-logs');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain('days=7');
+    expect(calls[0]).toContain('dry_run=false');
+    // 旧想象契约回归守卫: 不得再打 POST /cleanup (body cutoff_days 会被后端忽略)
+    expect(fetchCallsTo('/api/maintenance/cleanup?').length).toBe(0);
+    expect(
+      mockFetch.mock.calls.some(
+        (c) => String(c[0]) === '/api/maintenance/cleanup' || String(c[0]).startsWith('/api/maintenance/cleanup?'),
+      ),
+    ).toBe(false);
+
+    // 归档语义渲染: 已归档/主表剩余 (旧 {deleted:number} 形状下这两行永不出现)
+    const card = await screen.findByTestId('maint-card-cleanup');
+    await waitFor(() => {
+      expect(card).toHaveTextContent('已归档: 531515');
+      expect(card).toHaveTextContent('主表剩余: 51895');
+    });
+  });
+
+  it('保留天数输入框默认 7, 与健康卡「可清理行」(older_than_7_days) 同口径', async () => {
+    mockHealthApi();
+    renderPage();
+    const input = await screen.findByTestId('maint-cleanup-days');
+    expect(input).toHaveValue(7);
+  });
+});
+
+describe('MaintPage 索引卡 (DEV-0318 契约)', () => {
+  it('run_vacuum 真实响应 status=ok → 完成徽章 + 耗时秒数 (旧 ok/duration_ms 字段永不存在)', async () => {
+    mockHealthApi();
+    mockFetch.mockImplementation((url: string) => {
+      if (String(url).startsWith('/api/maintenance/vacuum')) {
+        return Promise.resolve(jsonResponse(VACUUM_FIXTURE));
+      }
+      if (String(url).startsWith('/api/maintenance/health')) {
+        return Promise.resolve(jsonResponse(HEALTH_FIXTURE));
+      }
+      return Promise.resolve(jsonResponse(DIRTY_FIXTURE));
+    });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: '执行' }));
+
+    const card = await screen.findByTestId('maint-card-vacuum');
+    await waitFor(() => {
+      expect(card).toHaveTextContent('耗时: 1.901s');
+      expect(card).toHaveTextContent('完成');
+    });
   });
 });
 

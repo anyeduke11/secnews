@@ -124,6 +124,29 @@ def vacuum_into(src: Path, dst: Path) -> dict[str, Any]:
     }
 
 
+def _attach_layers(conn: sqlite3.Connection) -> None:
+    """DEV-0318: CLI 直连 main 时补齐 warm/cold ATTACH。
+
+    生产 job 路径 (run_telemetry_window) 经 get_connection() 自动 ATTACH;
+    本 CLI 的裸 sqlite3.connect 没有 —— 不补齐则 WARM 表 (crawler_runs/
+    raw_items) 在存在性检查与裸名 DELETE 中均不可达 (与主根因同族盲区)。
+    与 backend/repository/db.py 的 alias 命名保持一致; 文件不存在即跳过
+    (mini_db 测试场景 --db-path 会把 warm/cold 指向不存在路径)。
+    """
+    try:
+        from backend.config import config as _cfg
+    except Exception:
+        return
+    for alias in ("warm", "cold"):
+        p = getattr(_cfg, f"{alias}_db_path", None)
+        if not p or not Path(p).exists():
+            continue
+        try:
+            conn.execute(f"ATTACH DATABASE ? AS {alias}", (str(p),))
+        except sqlite3.Error:
+            pass
+
+
 # ---------------------------------------------------------------------------
 # 表清理调度器
 # ---------------------------------------------------------------------------
@@ -149,12 +172,24 @@ def cleanup_table(
         "skipped_reason": None,
     }
 
-    # 校验: 表存在
+    # 校验: 表存在 — 必须扫**全部已 ATTACH schema**。
+    # DEV-0318 根因修复: v0.5 migrate_temp_layers 后 WARM 表物理位于
+    # hotspot-warm.db; SQLite 裸名 SELECT 可自动回退到 attached schema,
+    # 但 ``sqlite_master`` 只覆盖 main → 旧检查把 qcl/crawler_runs/raw_items
+    # 误判 table_not_found, 每周 telemetry_window job 全 skip 且 status ok,
+    # 清理从未真实执行 (53 万行积压实证 2026-10-11)。
+    # PRAGMA database_list 顺序 main→temp→attach 与裸名解析优先级一致:
+    # main 有则命中 main (优先 break), main 无而 warm 有 → 存在。
     try:
-        exists = conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
-            (table,),
-        ).fetchone()
+        exists = False
+        for row in conn.execute("PRAGMA database_list").fetchall():
+            schema = row[1]
+            if conn.execute(
+                f"SELECT 1 FROM \"{schema}\".sqlite_master WHERE type='table' AND name=?",
+                (table,),
+            ).fetchone():
+                exists = True
+                break
     except Exception as e:
         result["skipped_reason"] = f"pragma_failed: {e}"
         return result
@@ -361,6 +396,7 @@ def run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         if not args.execute:
             try:
                 dry_conn = sqlite3.connect(str(backup_path))
+                _attach_layers(dry_conn)
                 dry_results = [
                     cleanup_table(dry_conn, spec, dry_run=True)
                     for spec in retention
@@ -380,6 +416,7 @@ def run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
             backup_result = {"safety_backup": safety}
 
     conn = sqlite3.connect(str(DB_PATH))
+    _attach_layers(conn)
     try:
         results = []
         for spec in retention:

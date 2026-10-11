@@ -46,15 +46,20 @@ interface BackupVerifyResp {
   message?: string;
 }
 
+/** 后端权威形状 = maintenance_service.run_vacuum() (DEV-0318: 旧 ok/duration_ms/reindexed 为想象契约)。 */
 interface VacuumResp {
-  ok?: boolean;
-  duration_ms?: number;
-  reindexed?: number;
+  status?: string;
+  total_seconds?: number;
 }
 
+/** 后端权威形状 = cleanup_quality_logs() (薄包装 archive_quality_logs;
+ * DEV-0318: 旧 /cleanup + {deleted} 全对不上 → 按钮永远空跑)。 */
 interface CleanupResp {
-  deleted?: number;
-  cutoff_days?: number;
+  dry_run?: boolean;
+  retention_days?: number;
+  rows_to_delete?: number;
+  rows_archived?: number;
+  rows_remaining_after?: number;
 }
 
 type ToolStatus = 'idle' | 'running' | 'ok' | 'error';
@@ -71,7 +76,7 @@ export function MaintPage() {
   const [cleanup, setCleanup] = useState<ToolStatus>('idle');
   const [cleanupInfo, setCleanupInfo] = useState<CleanupResp | null>(null);
   const [cleanupConfirm, setCleanupConfirm] = useState(false);
-  const [cutoffDays, setCutoffDays] = useState(30);
+  const [cutoffDays, setCutoffDays] = useState(7); // DEV-0318: 对齐健康卡 older_than_7_days 与 retention.json 口径
   const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const fetchHealth = useCallback(async () => {
@@ -114,7 +119,7 @@ export function MaintPage() {
       const r = await postJSON<VacuumResp>('/api/maintenance/vacuum', {});
       if (dead.current) return;
       setVacuumInfo(r);
-      setVacuum(r.ok ? 'ok' : 'error');
+      setVacuum(r.status === 'ok' ? 'ok' : 'error');
     } catch {
       if (dead.current) return;
       setVacuum('error');
@@ -125,7 +130,13 @@ export function MaintPage() {
     setCleanup('running');
     setCleanupConfirm(false);
     try {
-      const r = await postJSON<CleanupResp>('/api/maintenance/cleanup', { cutoff_days: cutoffDays });
+      // DEV-0318: 旧调用 POST /cleanup + body{cutoff_days} 参数被后端全忽略、
+      // dry_run 默认 true → 永不真实删除。改调 qcl 归档端点 (与 /settings 版
+      // DatabaseMaintenance 一致), query 参数 + dry_run=false。
+      const r = await postJSON<CleanupResp>(
+        `/api/maintenance/cleanup-quality-logs?days=${cutoffDays}&dry_run=false`,
+        undefined,
+      );
       if (dead.current) return;
       setCleanupInfo(r);
       setCleanup('ok');
@@ -290,11 +301,8 @@ export function MaintPage() {
           </button>
           {vacuumInfo && (
             <div className="mt-3 text-xs font-mono" style={{ color: 'var(--ink-2)' }}>
-              {vacuumInfo.duration_ms != null && (
-                <div>{t('maint.vacuum.duration')}: {vacuumInfo.duration_ms}ms</div>
-              )}
-              {vacuumInfo.reindexed != null && (
-                <div>{t('maint.vacuum.reindexed')}: {vacuumInfo.reindexed}</div>
+              {vacuumInfo.total_seconds != null && (
+                <div>{t('maint.vacuum.duration')}: {vacuumInfo.total_seconds}s</div>
               )}
             </div>
           )}
@@ -326,6 +334,7 @@ export function MaintPage() {
             </label>
             <input
               type="number"
+              data-testid="maint-cleanup-days"
               min={7}
               max={365}
               value={cutoffDays}
@@ -371,8 +380,11 @@ export function MaintPage() {
           )}
           {cleanupInfo && (
             <div className="mt-3 text-xs font-mono" style={{ color: 'var(--ink-2)' }}>
-              {cleanupInfo.deleted != null && (
-                <div>{t('maint.cleanup.deleted')}: {cleanupInfo.deleted}</div>
+              {cleanupInfo.rows_archived != null && (
+                <div>{t('maint.cleanup.archived')}: {cleanupInfo.rows_archived}</div>
+              )}
+              {cleanupInfo.rows_remaining_after != null && (
+                <div>{t('maint.cleanup.remaining')}: {cleanupInfo.rows_remaining_after}</div>
               )}
             </div>
           )}

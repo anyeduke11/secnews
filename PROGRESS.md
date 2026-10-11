@@ -17,6 +17,13 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-11 清理功能验证 — 每周 job 空转六周的三层根因修复 — DEV-0318
+
+- **取证**: 清理从未真实执行 — qcl 7d 外积压 538,002 行, COLD archive 表 0 行, job_runs 每周 12-16ms「ok」空转指纹; /maint 清理按钮 curl 实锤永远 dry-run。
+- **三层根因**: ①前端想象契约 (POST /cleanup + body 参数全被忽略); ②**真根因** = `db_diet` 存在性检查 `sqlite_master` 只覆盖 main, WARM 物理表全误判 table_not_found → 每周 telemetry_window 全 skip; ③maintenance 写端点 async 内同步长事务 (真清会冻结事件循环)。
+- **修复**: 跨 schema 存在性检查 + CLI `_attach_layers` + 四端点 `asyncio.to_thread` + 清理卡改调 `/cleanup-quality-logs?days=N&dry_run=false` (默认 7 对齐健康卡; 顺带修 vacuum 卡同族漂移)。
+- **验证**: 后端相关面 105 / 前端 713 全绿 + 新契约测试 ×6 锁真实形状; **生产实弹** = 真实归档 538,002 行 (2.6s), 主表降至 45,657, 健康卡「可清理行」531,515→0 闭环, telemetry 真实 truncate 17,131 行, 浏览器按钮 network 实锤。
+
 ### 2026-10-11 /maint 健康卡契约漂移修复 — 监控 fail-loud — DEV-0317
 
 - **症状**: 健康卡四项恒显「—」约两个月 (DEV-0178 建页起)。

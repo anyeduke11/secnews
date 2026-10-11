@@ -81,9 +81,12 @@ def test_load_telemetry_specs_returns_three_tables():
     specs = ms.load_telemetry_specs()
     names = {s["table"] for s in specs}
     assert names == {"quality_check_logs", "crawler_runs", "raw_items"}
-    # 窗口语义: 全部声明为 7 天
-    assert all(s["retention_days"] == 7 for s in specs), (
-        "SPEC §18.2: WARM 遥测层保留 7 天"
+    # 窗口语义: truncate 两件 7d (SPEC §18.2); qcl 三档模型 21d = 3档×7
+    # (DEV-0322 — weekly 每次恰滚出最旧一档; 档宽/档数变更须同步 retention.json)
+    by_name = {s["table"]: s["retention_days"] for s in specs}
+    assert by_name["crawler_runs"] == 7 and by_name["raw_items"] == 7
+    assert by_name["quality_check_logs"] == 21, (
+        "DEV-0322: qcl 保留窗口 = 3 档 × 档宽 7 = 21 天"
     )
 
 

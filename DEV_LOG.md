@@ -1,4 +1,20 @@
 
+## [DEV-0322] 清理卡三档滚动模型 — 近三档大小展示 + 每次归档最旧一档 (qcl-tier-rolling)
+
+- **时间**: 2026-10-11
+- **类型**: 功能重构 (owner 浏览器选中清理卡+档宽输入: 「展示近三个质量日志档大小, 每次清理归档滚出窗口的最旧一档; 每 7 天一档, 默认保留 3 档」)
+- **关键裁决 (Rule 7, 冲突不平均)**: 用户模型「保留 3 档 = 21 天」与台账 qcl 7d 窗口直接冲突 — 只改 UI 则周日 job 每周把档2/档3 归档清零, 分档展示自欺。**retention.json qcl retention_days 7→21 (= 3档×档宽7)** 作唯一事实源; 由此 weekly job (周日一次) 每次恰滚出最旧一档 = 「每 7 天清理最久一档」的自动化本尊, 前端展示/手动清理/周日 job 三方同源
+- **实现**:
+  - 台账: qcl 21 (notes 声明三档模型); `DEFAULT_QUALITY_LOG_DAYS` 7→21 + `DEFAULT_QUALITY_LOG_TIERS=3` + `_qcl_retention_days()` (台账读取兜底常量)
+  - `maintenance_service.quality_log_tiers(tier_days=None, tiers=3)`: 档1(0–7d)/档2/档3 + **超窗口档 (in_window=false)**; 逐档行数 + 估算体积 (avg_row_bytes = 文本列 SUM(LENGTH) + 数值列 ~10B/行, 口径文档化); **cutoff 与 archive_quality_logs 同一 Python UTC isoformat — 「超窗口行 = 此刻点清理真实归档量」恒等** (顺带修旧 dirty-report SQL `datetime('now')` 空格格式与 T 格式存储的字符序偏差)
+  - API: +`GET /quality-log-tiers?days=&tiers=` (to_thread); `POST /cleanup-quality-logs` days 缺省 → 台账 retention (不再硬编码 7)
+  - `dirty_data_report`: `older_than_7_days` → **`older_than_retention`** + `retention_days` 字段 (名实相符; 消费方 MaintPage/DatabaseMaintenance 同步改名)
+  - MaintPage 清理卡: 分档状态块 (逐档「档 N · 7–14 天 · 行数 · ~体积」+ 超窗口行 warning 色 + footer 窗口/台账/总体积; 失败态独立 fail-loud); 档宽输入实时驱动 (fetchHealth 三路并行含 tiers); 按钮 `days=${档宽×3}`; 文案「确认删除→确认归档」(执行语义=归档); desc/label 三档模型化
+- **测试**: 后端 +4 (分档行数 [3,2,1,4] 精确切档 / 缺省读台账 / 端点默认=ledger 21 / **dirty「可清理行」≡ tiers「超窗口档」同源恒等** — 展示执行两套数字正是 DEV-0318 教训形态); telemetry 台账断言解耦 (原 all==7 强耦合改按表名分断: truncate 两件 7d + qcl 21d); 前端 +2 重写 1 (分档逐行渲染 fixture=进程内实测形状 / 失败隔离 / days=21 URL 断言)。相关面后端 131 passed / 前端全量 **718** / tsc 0 / ruff 0 / meta 5/5
+- **实弹 (生产)**: 重启装载 → curl tiers (档1 45005 行 ~4.3MB / 档2 656 / 档3 0 / 超窗口 0, 三数字互证) → 浏览器实拍四行分档+footer → 改档宽 10 → 实时变「窗口 30 · 台账保留 21」(如实显示偏差) → 恢复 7 实点「确认归档」network 实锤 `?days=21&dry_run=false` → 执行后分档块自动刷新 (已归档 0 ≡ 超窗口 0, 稳态无误伤)
+- **过程自律**: ①dirty_report 改造时一度误加 `from datetime import time` 遮蔽模块级 `import time` (run_vacuum 在用), diff 自查即回滚; ②首次 tiers 设计含「73/119 覆盖率」分母, 取证 SQLite 3.32+ 有意跳过小表/autoindex 统计后弃比率 (DEV-0320 同纪律)
+- **下一可用号**: DEV-0323
+
 ## [DEV-0321] 清理类 job 告警全覆盖 — 实弹当轮抓获 db_diet 路径静默空转 (cleanup-alerts-full-coverage)
 
 - **时间**: 2026-10-11

@@ -17,6 +17,12 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-11 清理卡三档滚动模型 — 近三档大小 + 每次归档最旧一档 — DEV-0322
+
+- **裁决**: 用户「保留 3 档×档宽 7」与台账 7d 窗口冲突 → 只改 UI 即自欺 (周日 job 会清空档2/档3)。**retention.json qcl 7→21 三方同源** (展示/手动/周日 job), weekly 每次恰滚出一档。
+- **实现**: `quality_log_tiers` 分档统计 (逐档行数+估算体积, 超窗口档与归档执行同 isoformat cutoff 恒等) + `GET /quality-log-tiers` + 清理卡分档块 (档宽输入实时驱动, 按钮 days=档宽×3, 「确认归档」正名) + dirty-report 口径字段改名 `older_than_retention`。
+- **验证**: 后端 +4 (含「可清理行≡超窗口档」同源恒等守卫) / 前端 +2 重写 1; 全量 718 / 相关面 131 passed / tsc/ruff/meta 0。生产实弹: curl 三数字互证 + 浏览器实拍四行 + 档宽改 10 实时变窗口 30 + 实点按钮 network 实锤 days=21 (稳态归档 0 无误伤)。
+
 ### 2026-10-11 清理类 job 告警全覆盖 — 当轮抓获 db_diet 路径空转 — DEV-0321
 
 - **范围**: 四清理入口盲区核对 — db_diet envelope 从未解析 / interest purge 吞异常零痕迹 / ttl 有 job_runs 但 `job.failure_rate_pct` 阈值声明未实现 → 全部补告警 (telemetry 已 DEV-0319 收口)。

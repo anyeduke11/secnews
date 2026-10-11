@@ -21,7 +21,7 @@ import logging
 import os
 import sqlite3
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from backend.repository.db import get_connection, knowledge_items_table
@@ -30,7 +30,10 @@ log = logging.getLogger("hotspot.maintenance")
 
 # 默认清理阈值
 DEFAULT_HISTORY_DAYS = 90
-DEFAULT_QUALITY_LOG_DAYS = 7
+# DEV-0322 三档模型: 保留窗口 = 3 档 × 档宽 7 天 (档宽唯一事实源 =
+# retention.json qcl retention_days / 3; 本常数为无台账消费处的兜底)
+DEFAULT_QUALITY_LOG_DAYS = 21
+DEFAULT_QUALITY_LOG_TIERS = 3
 
 
 # ---------------------------------------------------------------------------
@@ -392,6 +395,95 @@ def archive_quality_logs(
     }
 
 
+def _qcl_retention_days() -> int:
+    """qcl 保留窗口唯一事实源 = retention.json 台账 (缺声明兜底常量)。"""
+    try:
+        for s in load_telemetry_specs():
+            if s.get("table") == "quality_check_logs":
+                rd = s.get("retention_days")
+                if isinstance(rd, int) and rd >= 1:
+                    return rd
+    except Exception as e:
+        log.warning(f"_qcl_retention_days: ledger read failed: {e}")
+    return DEFAULT_QUALITY_LOG_DAYS
+
+
+def quality_log_tiers(
+    tier_days: int | None = None,
+    tiers: int = DEFAULT_QUALITY_LOG_TIERS,
+) -> dict:
+    """DEV-0322 三档模型: quality_check_logs 按档宽分档统计行数与估算体积。
+
+    口径与 ``archive_quality_logs`` 完全同源 (Python UTC isoformat cutoff,
+    字符串前缀比较), 因此 ``bands`` 最后一档 (in_window=False) 的 rows
+    **就是此刻点"清理"会归档掉的量** — 展示与执行不可能是两套数字。
+
+    - tier_days 缺省读台账 (retention.json qcl retention_days / tiers)
+    - 体积为估算: avg_row_bytes = (全表文本列 SUM(LENGTH) + 数值列按
+      ~10B/行) / 总行数; 逐档 est_bytes = rows × avg_row_bytes
+    """
+    from datetime import datetime, timedelta, timezone
+
+    conn = get_connection()
+    retention = _qcl_retention_days()
+    if tier_days is None:
+        tier_days = max(1, retention // tiers)
+
+    now = datetime.now(timezone.utc)
+    qcl = "quality_check_logs"
+
+    total_rows = conn.execute(f"SELECT COUNT(*) FROM {qcl}").fetchone()[0]
+    text_bytes = conn.execute(
+        f"SELECT COALESCE(SUM(LENGTH(COALESCE(item_id, '')) "
+        f"+ LENGTH(COALESCE(gate_name, '')) + LENGTH(COALESCE(flags, '')) "
+        f"+ LENGTH(COALESCE(reason, '')) + LENGTH(COALESCE(error_msg, '')) "
+        f"+ LENGTH(COALESCE(checked_at, '')) + LENGTH(COALESCE(mode, ''))), 0) "
+        f"FROM {qcl}"
+    ).fetchone()[0]
+    # id/passed/score_deduction 三个数值列粗估 10B/行 (est 口径, 文档化)
+    avg_row_bytes = round((text_bytes + total_rows * 10) / total_rows) if total_rows else 0
+
+    def _iso(dt):
+        return dt.isoformat()
+
+    bands: list[dict] = []
+    for i in range(tiers):
+        lo = _iso(now - timedelta(days=(i + 1) * tier_days))
+        hi = _iso(now - timedelta(days=i * tier_days)) if i else None
+        sql = f"SELECT COUNT(*) FROM {qcl} WHERE checked_at >= ?"
+        args: list = [lo]
+        if hi:
+            sql += " AND checked_at < ?"
+            args.append(hi)
+        rows = conn.execute(sql, args).fetchone()[0]
+        bands.append({
+            "index": i + 1, "in_window": True,
+            "from_days": (i + 1) * tier_days, "to_days": i * tier_days,
+            "rows": rows, "est_bytes": rows * avg_row_bytes,
+        })
+    cutoff = _iso(now - timedelta(days=tier_days * tiers))
+    out_rows = conn.execute(
+        f"SELECT COUNT(*) FROM {qcl} WHERE checked_at < ?", (cutoff,)
+    ).fetchone()[0]
+    bands.append({
+        "index": tiers + 1, "in_window": False,
+        "from_days": None, "to_days": tier_days * tiers,
+        "rows": out_rows, "est_bytes": out_rows * avg_row_bytes,
+    })
+
+    return {
+        "tier_days": tier_days,
+        "tiers": tiers,
+        "window_days": tier_days * tiers,
+        "ledger_retention_days": retention,
+        "checked_at": now.isoformat(),
+        "total_rows": total_rows,
+        "avg_row_bytes": avg_row_bytes,
+        "total_est_bytes": total_rows * avg_row_bytes,
+        "bands": bands,
+    }
+
+
 def cleanup_quality_logs(
     days: int = DEFAULT_QUALITY_LOG_DAYS,
     dry_run: bool = True,
@@ -644,11 +736,16 @@ def dirty_data_report() -> dict:
     ki = knowledge_items_table()
     ri = "raw_items"
 
-    # quality_check_logs
+    # quality_check_logs — DEV-0322: 口径从台账 retention 动态读取
+    # (旧 SQL 硬编码 '-7 days' 且 datetime('now') 空格格式与 T 格式存储
+    # 存在字符序偏差); 现在与 archive_quality_logs 同一 isoformat cutoff,
+    # "可清理行"与"点清理真实归档量"恒等
+    qcl_retention = _qcl_retention_days()
+    qcl_cutoff = (datetime.now(timezone.utc)
+                  - timedelta(days=qcl_retention)).isoformat()
     qcl_total = conn.execute(f"SELECT COUNT(*) FROM {qcl}").fetchone()[0]
     qcl_old = conn.execute(
-        f"SELECT COUNT(*) FROM {qcl} WHERE checked_at < "
-        "(SELECT datetime('now', '-7 days'))"
+        f"SELECT COUNT(*) FROM {qcl} WHERE checked_at < ?", (qcl_cutoff,)
     ).fetchone()[0]
 
     # Duplicate hotspots
@@ -676,7 +773,9 @@ def dirty_data_report() -> dict:
     return {
         "quality_check_logs": {
             "total": qcl_total,
-            "older_than_7_days": qcl_old,
+            # DEV-0322: 口径 = 台账 retention (21d=3档), 与归档执行同源
+            "older_than_retention": qcl_old,
+            "retention_days": qcl_retention,
         },
         "duplicate_hotspots": dup_hotspots,
         "duplicate_knowledge_items": dup_ki,
@@ -695,6 +794,10 @@ __all__ = [
     "detect_duplicate_knowledge_items",
     "detect_orphan_items",
     "dirty_data_report",
+    "index_health",
+    "load_telemetry_specs",
+    "quality_log_tiers",
+    "run_telemetry_window",
     "run_vacuum",
     "table_stats",
 ]

@@ -132,7 +132,7 @@ export function DatabaseMaintenance() {
   // 派生语义三色: 数据体积 / 碎片 / 脏数据
   const sizeMB = dbHealth?.size_mb ?? 0;
   const fragPct = dbHealth?.fragmentation_pct ?? 0;
-  const cleanableLogs = dirtyReport?.quality_check_logs?.older_than_7_days ?? 0;
+  const cleanableLogs = dirtyReport?.quality_check_logs?.older_than_retention ?? 0;
   const invalidUrls = dirtyReport?.invalid_urls ?? 0;
 
   const sizeTone: 'mint' | 'amber' | 'red' = sizeMB > 200 ? 'red' : sizeMB > 80 ? 'amber' : 'mint';

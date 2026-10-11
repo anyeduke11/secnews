@@ -36,9 +36,10 @@ const HEALTH_FIXTURE = {
   db_path: 'backend/hotspot.db',
 };
 
-/** 真实响应形状 = curl GET /api/maintenance/dirty-report (嵌套结构)。 */
+/** 真实响应形状 = curl GET /api/maintenance/dirty-report (嵌套结构;
+ * DEV-0322: 口径字段改名 older_than_retention = 台账 retention 21d)。 */
 const DIRTY_FIXTURE = {
-  quality_check_logs: { total: 582564, older_than_7_days: 531515 },
+  quality_check_logs: { total: 582564, older_than_retention: 531515, retention_days: 21 },
   duplicate_hotspots: 2087,
   duplicate_knowledge_items: 75,
   orphan_raw_items: 58,
@@ -118,7 +119,7 @@ describe('MaintPage 健康卡 (DEV-0317 契约)', () => {
     expect(card).toHaveTextContent('137');
     // 碎片率 = fragmentation_pct 直读 (已是百分数; 旧版 ×100 会把 0.3% 错报 30%)
     expect(card).toHaveTextContent('0.3%');
-    // 可清理行 = quality_check_logs.older_than_7_days (嵌套真实形状)
+    // 可清理行 = quality_check_logs.older_than_retention (DEV-0322 台账口径)
     expect(card).toHaveTextContent('531515');
     // 「—」占位不得出现在有数据的行
     expect(card.textContent).not.toContain('—');
@@ -151,14 +152,14 @@ describe('MaintPage 健康卡 (DEV-0317 契约)', () => {
   });
 });
 
-describe('MaintPage 清理卡 (DEV-0318 契约)', () => {
-  /** 走完整流程: 点「执行清理」→ 出现二次确认 → 点「确认删除」。 */
+describe('MaintPage 清理卡 (DEV-0318/0322 契约)', () => {
+  /** 走完整流程: 点「执行清理」→ 出现二次确认 → 点「确认归档」。 */
   async function confirmCleanup() {
     fireEvent.click(await screen.findByRole('button', { name: '执行清理' }));
-    fireEvent.click(await screen.findByRole('button', { name: '确认删除' }));
+    fireEvent.click(await screen.findByRole('button', { name: '确认归档' }));
   }
 
-  it('确认后调 cleanup-quality-logs?days=7&dry_run=false (query 参数, 真实删除)', async () => {
+  it('确认后调 cleanup-quality-logs?days=21&dry_run=false (档宽7×3档, query 真实归档)', async () => {
     mockHealthApi();
     mockFetch.mockImplementation((url: string) => {
       if (String(url).startsWith('/api/maintenance/cleanup-quality-logs')) {
@@ -175,7 +176,8 @@ describe('MaintPage 清理卡 (DEV-0318 契约)', () => {
 
     const calls = fetchCallsTo('/api/maintenance/cleanup-quality-logs');
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toContain('days=7');
+    // DEV-0322 三档模型: 保留窗口 = 档宽(输入 7) × 3 档 = 21
+    expect(calls[0]).toContain('days=21');
     expect(calls[0]).toContain('dry_run=false');
     // 旧想象契约回归守卫: 不得再打 POST /cleanup (body cutoff_days 会被后端忽略)
     expect(fetchCallsTo('/api/maintenance/cleanup?').length).toBe(0);
@@ -193,11 +195,87 @@ describe('MaintPage 清理卡 (DEV-0318 契约)', () => {
     });
   });
 
-  it('保留天数输入框默认 7, 与健康卡「可清理行」(older_than_7_days) 同口径', async () => {
+  it('档宽输入默认 7 (= 台账 21/3), 清理窗口恒为档宽×3', async () => {
     mockHealthApi();
     renderPage();
     const input = await screen.findByTestId('maint-cleanup-days');
     expect(input).toHaveValue(7);
+  });
+});
+
+describe('MaintPage 清理卡分档块 (DEV-0322 契约)', () => {
+  /** 真实响应形状 = 进程内 GET /quality-log-tiers?days=7 实测 (2026-10-11)。 */
+  const TIERS_FIXTURE = {
+    tier_days: 7,
+    tiers: 3,
+    window_days: 21,
+    ledger_retention_days: 21,
+    checked_at: '2026-10-11T10:53:29.182943+00:00',
+    total_rows: 45661,
+    avg_row_bytes: 100,
+    total_est_bytes: 4566100,
+    bands: [
+      { index: 1, in_window: true, from_days: 7, to_days: 0, rows: 45045, est_bytes: 4504500 },
+      { index: 2, in_window: true, from_days: 14, to_days: 7, rows: 616, est_bytes: 61600 },
+      { index: 3, in_window: true, from_days: 21, to_days: 14, rows: 0, est_bytes: 0 },
+      { index: 4, in_window: false, from_days: null, to_days: 21, rows: 0, est_bytes: 0 },
+    ],
+  };
+
+  it('近三档 + 超窗口档逐行呈现 (行数 · 估算体积, 口径与清理执行同源)', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (String(url).startsWith('/api/maintenance/quality-log-tiers')) {
+        return Promise.resolve(jsonResponse({
+          ...TIERS_FIXTURE,
+          bands: TIERS_FIXTURE.bands.map((b, i) =>
+            i === 3 ? { ...b, rows: 1234, est_bytes: 123400 } : b),
+        }));
+      }
+      if (String(url).startsWith('/api/maintenance/health')) {
+        return Promise.resolve(jsonResponse(HEALTH_FIXTURE));
+      }
+      return Promise.resolve(jsonResponse(DIRTY_FIXTURE));
+    });
+    renderPage();
+
+    const b1 = await screen.findByTestId('maint-tier-row-1');
+    expect(b1).toHaveTextContent('档 1 · 0–7 天');
+    expect(b1).toHaveTextContent('45045 行 · ~4.3 MB');
+    const b2 = await screen.findByTestId('maint-tier-row-2');
+    expect(b2).toHaveTextContent('档 2 · 7–14 天');
+    expect(b2).toHaveTextContent('616 行');
+    const b3 = await screen.findByTestId('maint-tier-row-3');
+    expect(b3).toHaveTextContent('档 3 · 14–21 天');
+    expect(b3).toHaveTextContent('0 行 · ~0 KB');
+    // 超窗口行 (将归档) + footer 窗口/台账
+    const out = await screen.findByTestId('maint-tier-row-4');
+    expect(out).toHaveTextContent('超窗口 >21 天');
+    expect(out).toHaveTextContent('1234 行');
+    const status = await screen.findByTestId('maint-tier-status');
+    expect(status).toHaveTextContent('窗口: 21 天');
+    expect(status).toHaveTextContent('台账保留: 21 天');
+    // tiers 请求带档宽参数 (days=7)
+    expect(fetchCallsTo('/api/maintenance/quality-log-tiers?days=7').length).toBeGreaterThan(0);
+  });
+
+  it('分档接口失败 → 显式错误态, 不影响其他卡 (失败态隔离)', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (String(url).startsWith('/api/maintenance/quality-log-tiers')) {
+        return Promise.reject(new Error('boom'));
+      }
+      if (String(url).startsWith('/api/maintenance/health')) {
+        return Promise.resolve(jsonResponse(HEALTH_FIXTURE));
+      }
+      return Promise.resolve(jsonResponse(DIRTY_FIXTURE));
+    });
+    renderPage();
+
+    const status = await screen.findByTestId('maint-tier-status');
+    await waitFor(() => {
+      expect(status.querySelector('[role="alert"]')).not.toBeNull();
+      expect(status).toHaveTextContent('分档状态加载失败');
+    });
+    expect(await screen.findByTestId('maint-card-health')).toHaveTextContent('173.4 MB');
   });
 });
 

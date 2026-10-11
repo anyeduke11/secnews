@@ -798,12 +798,12 @@
       "temp": "WARM",
       "ts_column": "checked_at",
       "ts_format": "iso",
-      "retention_days": 7,
+      "retention_days": 21,
       "action": "archive_db_table",
       "source": "telemetry",
       "target": "quality_check_logs_archive",
       "scheduled_in": "telemetry_window",
-      "notes": "P0.1: 主膨胀源, archive_quality_logs() 已实现; T6.4 后表在 warm.db; v0.5 §18 归入遥测窗口 job"
+      "notes": "P0.1: 主膨胀源, archive_quality_logs() 已实现; T6.4 后表在 warm.db; DEV-0322 三档模型: 21 = 3 档 × 档宽 7 (weekly 周日跑一次 → 每次恰滚出最旧一档归档)"
     },
     {
       "table": "quality_check_logs_archive",

@@ -105,3 +105,62 @@ def test_index_health_rejects_unknown_mode(client):
     """mode 白名单 (quick|full), 脏参数 422 而非静默兜底。"""
     r = client.get("/api/maintenance/index-health?mode=lucky")
     assert r.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# DEV-0322: 三档模型 (quality_log_tiers / 台账默认 / 可清理行同源)
+# ---------------------------------------------------------------------------
+def test_quality_log_tiers_bands(client, temp_db):
+    """分档行数正确: 档1(0-7d)/档2(7-14d)/档3(14-21d)/超窗口(>21d)。"""
+    _seed_qcl(temp_db, rows=3, days_ago=2)   # 档1
+    _seed_qcl(temp_db, rows=2, days_ago=9)   # 档2
+    _seed_qcl(temp_db, rows=1, days_ago=16)  # 档3
+    _seed_qcl(temp_db, rows=4, days_ago=30)  # 超窗口
+
+    r = client.get("/api/maintenance/quality-log-tiers?days=7")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["tier_days"] == 7 and body["tiers"] == 3
+    assert body["window_days"] == 21
+    assert body["ledger_retention_days"] == 21
+    assert body["total_rows"] == 10
+    bands = body["bands"]
+    assert [b["rows"] for b in bands] == [3, 2, 1, 4]
+    assert [b["in_window"] for b in bands] == [True, True, True, False]
+    out = bands[3]
+    assert out["from_days"] is None and out["to_days"] == 21
+    assert out["est_bytes"] == 4 * body["avg_row_bytes"] > 0
+
+
+def test_quality_log_tiers_default_reads_ledger(client, temp_db):
+    """不传 days → 档宽 = 台账 retention/tiers = 7 (单一事实源)。"""
+    r = client.get("/api/maintenance/quality-log-tiers")
+    assert r.status_code == 200
+    assert r.json()["tier_days"] == 7
+    assert r.json()["window_days"] == 21
+
+
+def test_cleanup_endpoint_default_days_is_ledger(client, temp_db):
+    """cleanup-quality-logs 不带 days → 保留窗口 = 台账 21 (3档×7),
+    与 /maint 清理卡 days=档宽×3 同口径。"""
+    _seed_qcl(temp_db, rows=2, days_ago=16)  # 档3 内 → 21d 窗口不动
+    _seed_qcl(temp_db, rows=1, days_ago=30)  # 超窗口
+
+    r = client.post("/api/maintenance/cleanup-quality-logs?dry_run=true")
+    body = r.json()
+    assert body["retention_days"] == 21
+    assert body["rows_to_delete"] == 1
+
+
+def test_dirty_report_cleanable_equals_out_window_band(client, temp_db):
+    """「可清理行」(dirty-report) 与「超窗口档」(tiers) 必须同源恒等 —
+    展示与执行两套数字正是 DEV-0318 想象契约的教训形态。"""
+    _seed_qcl(temp_db, rows=5, days_ago=30)
+    _seed_qcl(temp_db, rows=3, days_ago=1)
+
+    d = client.get("/api/maintenance/dirty-report").json()["quality_check_logs"]
+    t = client.get("/api/maintenance/quality-log-tiers?days=7").json()
+    assert d["older_than_retention"] == 5
+    assert d["retention_days"] == 21
+    out_band = next(b for b in t["bands"] if not b["in_window"])
+    assert d["older_than_retention"] == out_band["rows"]

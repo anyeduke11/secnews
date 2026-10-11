@@ -30,13 +30,37 @@ interface HealthResp {
   journal_mode?: string;
 }
 
-/** 后端权威形状 = maintenance_service.dirty_data_report() (嵌套)。 */
+/** 后端权威形状 = maintenance_service.dirty_data_report() (嵌套;
+ * DEV-0322: older_than_7_days → older_than_retention, 口径改台账动态
+ * retention 且与 archive_quality_logs 同 isoformat cutoff)。 */
 interface DirtyReportResp {
-  quality_check_logs?: { total?: number; older_than_7_days?: number };
+  quality_check_logs?: { total?: number; older_than_retention?: number; retention_days?: number };
   duplicate_hotspots?: number;
   duplicate_knowledge_items?: number;
   orphan_raw_items?: number;
   invalid_urls?: number;
+}
+
+/** 后端权威形状 = GET /quality-log-tiers (DEV-0322 进程内实测:
+ * bands 末档 in_window=false 的 rows = 此刻点"清理"将真实归档的量)。 */
+interface TierBand {
+  index: number;
+  in_window: boolean;
+  from_days: number | null;
+  to_days: number;
+  rows: number;
+  est_bytes: number;
+}
+
+interface TiersResp {
+  tier_days?: number;
+  tiers?: number;
+  window_days?: number;
+  ledger_retention_days?: number;
+  total_rows?: number;
+  avg_row_bytes?: number;
+  total_est_bytes?: number;
+  bands?: TierBand[];
 }
 
 interface BackupVerifyResp {
@@ -92,6 +116,13 @@ interface CleanupResp {
 
 type ToolStatus = 'idle' | 'running' | 'ok' | 'error';
 
+function fmtBytes(n: number): string {
+  // avg 宽度估算展示 (后端口径: 文本列 SUM(LENGTH) + 数值列 ~10B/行)
+  if (n <= 0) return '0 KB';
+  if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
 export function MaintPage() {
   const { t } = useI18n();
   const [health, setHealth] = useState<HealthResp | null>(null);
@@ -105,12 +136,14 @@ export function MaintPage() {
   const [indexHealthError, setIndexHealthError] = useState(false); // DEV-0320: fail-loud
   const [cleanup, setCleanup] = useState<ToolStatus>('idle');
   const [cleanupInfo, setCleanupInfo] = useState<CleanupResp | null>(null);
+  const [tiers, setTiers] = useState<TiersResp | null>(null);
+  const [tiersError, setTiersError] = useState(false); // DEV-0322: fail-loud
   const [cleanupConfirm, setCleanupConfirm] = useState(false);
-  const [cutoffDays, setCutoffDays] = useState(7); // DEV-0318: 对齐健康卡 older_than_7_days 与 retention.json 口径
+  const [cutoffDays, setCutoffDays] = useState(7); // DEV-0322: 档宽 (台账 21=3档×7), 窗口=档宽×3
   const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const fetchHealth = useCallback(async () => {
-    // 两路并行、失败态互不影响 (DEV-0320: 索引探测 ~1s, 不拖健康卡)
+    // 三路并行、失败态互不影响 (DEV-0320/0322: 索引探测与分档统计各自 ~1s)
     const healthP = (async () => {
       try {
         const [h, d] = await Promise.all([
@@ -138,8 +171,19 @@ export function MaintPage() {
         setIndexHealthError(true);
       }
     })();
-    await Promise.all([healthP, indexP]);
-  }, [dead]);
+    const tiersP = (async () => {
+      try {
+        const tr = await getJSON<TiersResp>(`/api/maintenance/quality-log-tiers?days=${cutoffDays}`);
+        if (dead.current) return;
+        setTiers(tr);
+        setTiersError(false);
+      } catch {
+        if (dead.current) return;
+        setTiersError(true);
+      }
+    })();
+    await Promise.all([healthP, indexP, tiersP]);
+  }, [dead, cutoffDays]);
 
   useEffect(() => {
     fetchHealth();
@@ -179,8 +223,10 @@ export function MaintPage() {
       // DEV-0318: 旧调用 POST /cleanup + body{cutoff_days} 参数被后端全忽略、
       // dry_run 默认 true → 永不真实删除。改调 qcl 归档端点 (与 /settings 版
       // DatabaseMaintenance 一致), query 参数 + dry_run=false。
+      // DEV-0322 三档模型: 保留窗口 = 档宽(cutoffDays) × 3 档; 每次清理
+      // 归档滚出窗口的最旧一档 (与分档展示"超窗口"行同一 cutoff 口径)。
       const r = await postJSON<CleanupResp>(
-        `/api/maintenance/cleanup-quality-logs?days=${cutoffDays}&dry_run=false`,
+        `/api/maintenance/cleanup-quality-logs?days=${cutoffDays * 3}&dry_run=false`,
         undefined,
       );
       if (dead.current) return;
@@ -261,8 +307,8 @@ export function MaintPage() {
                 <div className="pt-2 mt-2" style={{ borderTop: '1px solid var(--border-color)' }}>
                   <div className="flex justify-between">
                     <dt style={{ color: 'var(--ink-3)' }}>{t('maint.health.cleanupCandidates')}</dt>
-                    <dd className="font-mono" style={{ color: (dirty.quality_check_logs?.older_than_7_days ?? 0) > 100 ? 'var(--color-warning)' : 'var(--ink)' }}>
-                      {dirty.quality_check_logs?.older_than_7_days ?? '—'}
+                    <dd className="font-mono" style={{ color: (dirty.quality_check_logs?.older_than_retention ?? 0) > 100 ? 'var(--color-warning)' : 'var(--ink)' }}>
+                      {dirty.quality_check_logs?.older_than_retention ?? '—'}
                     </dd>
                   </div>
                 </div>
@@ -425,6 +471,50 @@ export function MaintPage() {
           <p className="text-xs mb-4" style={{ color: 'var(--ink-3)' }}>
             {t('maint.cleanup.desc')}
           </p>
+          {/* DEV-0322: 近三档 + 超窗口档真实统计 (口径与清理执行同源,
+              超窗口行 = 此刻点清理将真实归档的量; 失败态独立 fail-loud) */}
+          <div className="mb-4 rounded p-3" style={{ background: 'var(--bg-elevated)' }} data-testid="maint-tier-status">
+            {tiersError && !tiers ? (
+              <p className="text-xs font-mono" role="alert" style={{ color: 'var(--color-error)' }}>
+                {t('maint.cleanup.tierError')}
+              </p>
+            ) : tiers?.bands ? (
+              <div className="space-y-1.5">
+                <div className="text-xs font-mono mb-2" style={{ color: 'var(--ink-3)' }}>
+                  {t('maint.cleanup.tierTitle')}
+                </div>
+                {tiers.bands.map((b) => {
+                  const out = !b.in_window;
+                  return (
+                    <div
+                      key={b.index}
+                      data-testid={`maint-tier-row-${b.index}`}
+                      className="text-xs font-mono flex items-baseline justify-between gap-2"
+                    >
+                      <span className="shrink-0" style={{ color: out && b.rows > 0 ? 'var(--color-warning)' : 'var(--ink-2)' }}>
+                        {out
+                          ? `${t('maint.cleanup.tierOut')} >${b.to_days}${t('maint.cleanup.daysUnit')}`
+                          : `${t('maint.cleanup.tier')} ${b.index} · ${b.to_days}–${b.from_days}${t('maint.cleanup.daysUnit')}`}
+                      </span>
+                      <span className="text-right" style={{ color: 'var(--ink-2)' }}>
+                        {b.rows}{t('maint.cleanup.rowsUnit')} · ~{fmtBytes(b.est_bytes)}
+                      </span>
+                    </div>
+                  );
+                })}
+                <div className="text-xs font-mono pt-1.5" style={{ borderTop: '1px solid var(--border-color)', color: 'var(--ink-3)' }}>
+                  {t('maint.cleanup.windowLabel')}: {tiers.window_days}{t('maint.cleanup.daysUnit')}
+                  {' · '}
+                  {t('maint.cleanup.ledgerLabel')}: {tiers.ledger_retention_days}{t('maint.cleanup.daysUnit')}
+                  {' · ~'}{fmtBytes(tiers.total_est_bytes ?? 0)}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>
+                {t('maint.cleanup.tierChecking')}
+              </p>
+            )}
+          </div>
           <div className="flex items-center gap-3 mb-3">
             <label className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>
               {t('maint.cleanup.cutoffDays')}

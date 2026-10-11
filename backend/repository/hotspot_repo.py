@@ -1189,6 +1189,35 @@ def distinct_sources_since(since_iso: str, limit: int = 200) -> list[dict]:
         return []
 
 
+# DEV-0316: 内容偏好自动推导 — 按类目/来源 JOIN hotspots 聚合带符号信号净分。
+# axis 白名单 (防注入, 同 _runs_table 先例); 净分 = Σ weight (dislike 负权重天然拉低)。
+_INTEREST_AXIS_COL: dict[str, str] = {"category": "h.category", "source": "h.source"}
+_SQL_INTEREST_STATS_BY_AXIS = (
+    "SELECT {col} AS key, SUM(s.weight) AS net, COUNT(*) AS events "
+    "FROM interest_signals s JOIN hotspots h ON h.id = s.item_id "
+    "WHERE s.created_at >= ? AND {col} IS NOT NULL AND {col} != '' "
+    "GROUP BY {col}"
+)
+
+
+def interest_signal_stats_by_axis(axis: str, since_iso: str) -> dict[str, dict]:
+    """按 axis (category|source) 聚合信号净分 → {key: {net, events}}; 表缺失/失败返 {}。
+
+    净分含正负 (like/favorite/view 正, dislike 负), 供上层判 more/less。
+    30d 窗口即时间约束 (与兴趣引擎半衰同族, 粗粒度可解释)。
+    """
+    col = _INTEREST_AXIS_COL.get(axis)
+    if col is None:
+        raise ValueError(f"invalid axis: {axis!r} (expect category|source)")
+    try:
+        conn = get_connection()
+        rows = conn.execute(_SQL_INTEREST_STATS_BY_AXIS.format(col=col), (since_iso,)).fetchall()
+        return {r["key"]: {"net": float(r["net"] or 0.0), "events": int(r["events"] or 0)} for r in rows}
+    except Exception as e:
+        logger.warning(f"interest_signal_stats_by_axis({axis}) failed: {e}")
+        return {}
+
+
 def interest_signals_since(cutoff_iso: str) -> list[dict]:
     """拉窗口内信号; 表缺失返 []。"""
     try:

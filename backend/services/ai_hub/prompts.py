@@ -881,6 +881,53 @@ def build_interest_advisor_prompt(
     )
 
 
+def build_content_pref_advisor_prompt(
+    *,
+    category_behavior: list[dict[str, Any]],
+    source_behavior: list[dict[str, Any]],
+    current_effective: dict[str, Any],
+    category_labels: dict[str, str],
+) -> str:
+    """内容偏好 AI 优化建议 prompt (DEV-0316) — 输入全为聚合统计, 无原始 URL/标题。
+
+    让模型据"各类目/来源行为净分 (正=偏好/负=反感)"给出对类目/来源的三级
+    建议 (more/less)。枚举由调用方注入 (category_labels), 解析侧再做枚举校验。
+    """
+    cat_lines = "\n".join(
+        f"- {e['category']} ({category_labels.get(e['category'], e['category'])}): "
+        f"净分 {e['net']} (近 30 天 {e['events']} 次交互)"
+        for e in category_behavior
+    ) or "(近 30 天无类目行为信号)"
+    src_lines = "\n".join(
+        f"- {e['source']}: 净分 {e['net']} (近 30 天 {e['events']} 次交互)"
+        for e in source_behavior
+    ) or "(近 30 天无来源行为信号)"
+    eff = current_effective or {}
+    eff_block = (
+        f"类目: {eff.get('categories') or {}} · 来源: {eff.get('sources') or {}}"
+    )
+    return (
+        "你是安全资讯工作流的推荐调优顾问。基于以下聚合统计, 对**内容类目**与"
+        "**信息源**给出排序偏好建议: 读者明显偏好/反感的, 建议 more/less; 无强信号的不提。\n\n"
+        "## 合法类目枚举 (categories 只能取以下键)\n\n"
+        + "\n".join(f"- {k}: {v}" for k, v in category_labels.items())
+        + "\n\n## 近 7 天各类目入库分布\n\n"
+        + cat_lines
+        + "\n\n## 近 30 天各来源行为净分 (正=偏好信号, 负=反感信号)\n\n"
+        + src_lines
+        + "\n\n## 当前生效偏好 (自动+手动合并)\n\n"
+        + eff_block
+        + "\n\n## 输出要求 (严格 JSON, 不包 prose)\n\n"
+        '```json\n{"categories": {"<合法类目键>": "more|less"}, '
+        '"sources": {"<来源名>": "more|less"}, '
+        '"reasons": {"<键>": "<一句话理由>"}}\n```\n\n'
+        "## 纪律\n"
+        "1. categories 键必须在合法类目枚举内; sources 键用给定的来源名原文\n"
+        "2. 每轴最多 5 项, 只提强信号 (净分明显偏正/偏负或占比异常), 弱信号不提\n"
+        "3. reasons 为每个建议键各一句话 (≤60 字); 不编造枚举外的键\n"
+    )
+
+
 # ── 资讯告警复核 (2026-09-27 四模式 P1, gate 无关 — 常开) ──────────
 _NEWS_ALERT_REVIEW_PROMPT = """你是安全资讯告警复核员。以下候选资讯已通过关键词初筛,
 请逐条判断:读者(安全从业者/AI 从业者)是否需要**执行某个动作**(打补丁/排查资产/
@@ -954,6 +1001,7 @@ __all__ = [
     "_make_cache_key",
     "_parse_entity_list",
     "_parse_score",
+    "build_content_pref_advisor_prompt",
     "build_cve_impact_brief_prompt",
     "build_daily_priority_intel_prompt",
     "build_inspection_materials_prompt",

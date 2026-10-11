@@ -1,4 +1,17 @@
 
+## [DEV-0316] 内容偏好 AI 自动化 — 统计自动学习 + LLM 建议采纳 + 手动折叠 (content-pref-auto)
+
+- **时间**: 2026-10-11
+- **类型**: 增强 (owner: 「设置有点复杂了, 能否让 AI 自动调整和优化」; 裁决 = 统计自动 + LLM 建议两者都要, 手动卡折叠为高级选项)
+- **关联文件**:
+  - 后端: `repository/hotspot_repo.py` (+interest_signal_stats_by_axis — 按类目/来源 JOIN hotspots 聚合带符号净分, axis 白名单防注入)、`services/hotspot_service.py` (+derive_auto_content_preferences/_level_from_stats/effective_content_preferences/invalidate_auto_content_preferences, 5min TTL; feed 第二轴改用**生效层**=自动∪手动覆盖)、`api/hotspots.py` (切 effective)、`api/content_preferences_api.py` (GET 三口径 preferences/auto_preferences/effective_preferences; PATCH 与 /reset 清自动缓存)、`services/content_pref_advisor.py` (新, LLM 建议: 组装净分→generate→枚举/level 校验→24h 缓存, 失败降级不抛)、`api/interest_api.py` (+GET /content-prefs/recommendations)、`ai_hub/prompts.py` (+build_content_pref_advisor_prompt)
+  - 前端: `ContentPreferencesCard.tsx` 重构三层 (①自动学习 chips 只读展示 ②AI 建议+采纳 ③高级手动默认折叠, 自动项在手动行内标「自动」角标)、i18n +12 key × 双语
+- **模型 (三层, 优先级 手动 > LLM采纳 > 统计自动)**: 自动推导阈值 = 近 30d 净分 (Σ带符号权重) ≥+3 → more / ≤−1.5 → less, 证据下限 3 次交互 (防单次误触); 降权门槛低于升权 (抑噪优先)。手动 key 级覆盖自动; 设回「默认」= 交还自动。advisor 复用 task=interest_advisor 路由 (**红线: 不动 ai_hub 调用链, 不新增 task 接线**)。
+- **兼容性**: 无信号无手动 → 自动={} → 排序 = 现状 (既有断言保持); LLM 不可用 → 建议区空态不阻塞卡片。
+- **测试**: 后端 +13 (test_content_pref_auto.py: 轴聚合/阈值/证据下限/手动覆盖合并/**零配置信号驱动 feed 重排** (核心卖点)/API 三口径/缓存失效/parse/校验/降级/缓存命中); 前端重写 6 (三层结构/折叠默认/采纳 PATCH 载荷/失败回滚/搜索)。踩坑: ①测试标题无安全关键词 → no_domain 信号被丢弃 (DEV-0313 语义), 种子必须带关键词; ②jsdom navigator.language=en-US → I18n 默认英文, 断言中文文案的测试须先 localStorage 设 zh-CN。
+- **验证**: **全量后端 5414 passed / 9 skipped** (5401+13); 前端全量 **707 passed / 100 文件**; tsc 0 / vite build OK; ruff 0; meta 5/5 (services 160→161, --fix 五文档)。
+- **下一可用号**: DEV-0317
+
 ## [DEV-0315] 内容偏好 (类目/来源) 第二轴 — A+B 整合归拢设置 (content-preferences)
 
 - **时间**: 2026-10-11

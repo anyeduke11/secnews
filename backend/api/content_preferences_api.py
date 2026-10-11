@@ -53,18 +53,39 @@ def _clean_content_prefs(table: dict[str, str] | None, allowed: set[str] | None)
 
 @router.get("/content-preferences")
 async def get_content_preferences() -> dict:
-    """读取内容偏好 + 可得来源清单 (近 30 天实际入库的来源, 按量降序)。"""
+    """读内容偏好 (DEV-0316 三口径) + 可得来源清单 (近 30 天实际入库, 按量降序)。
+
+    - ``preferences`` = 手动/采纳 (用户显式设的, 喂手动卡)
+    - ``auto_preferences`` = 统计自动推导 (系统学到的, 只读展示)
+    - ``effective_preferences`` = 自动 ∪ 手动覆盖 (feed 实际生效)
+    """
     from backend.domain.enums import Category
     from backend.repository.hotspot_repo import distinct_sources_since
-    from backend.services.hotspot_service import load_content_preferences
+    from backend.services.hotspot_service import (
+        derive_auto_content_preferences,
+        effective_content_preferences,
+        load_content_preferences,
+    )
 
-    prefs = await asyncio.to_thread(load_content_preferences)
+    explicit, auto, effective = await asyncio.gather(
+        asyncio.to_thread(load_content_preferences),
+        asyncio.to_thread(derive_auto_content_preferences),
+        asyncio.to_thread(effective_content_preferences),
+    )
     since = (datetime.now(timezone.utc) - timedelta(days=_CONTENT_PREF_SOURCE_DAYS)).isoformat()
     sources = await asyncio.to_thread(distinct_sources_since, since, _CONTENT_PREF_SOURCE_LIMIT)
     return {
         "preferences": {
-            "categories": prefs.get("categories", {}),
-            "sources": prefs.get("sources", {}),
+            "categories": explicit.get("categories", {}),
+            "sources": explicit.get("sources", {}),
+        },
+        "auto_preferences": {
+            "categories": auto.get("categories", {}),
+            "sources": auto.get("sources", {}),
+        },
+        "effective_preferences": {
+            "categories": effective.get("categories", {}),
+            "sources": effective.get("sources", {}),
         },
         "valid_categories": [c.value for c in Category],
         "available_sources": sources,
@@ -119,5 +140,9 @@ async def set_content_preferences(body: ContentPreferencesRequest):
         action="feed.content_prefs.set",
         detail={"from": old, "to": payload},
     )
+    # DEV-0316: 手动覆盖变了 → 清自动缓存, effective 即时反映"手动优先于自动"
+    from backend.services.hotspot_service import invalidate_auto_content_preferences
+
+    invalidate_auto_content_preferences()
     logger.info("content preferences set: {} -> {} (actor={})", old, payload, body.actor)
     return {"status": "ok", "preferences": payload}

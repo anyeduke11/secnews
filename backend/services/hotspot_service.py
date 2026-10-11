@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import base64
 import json
+import time
 from datetime import datetime, timedelta, timezone
 
 from backend.cache import detail_cache, list_cache, static_cache
@@ -18,7 +19,10 @@ from backend.domain.enums import Category, TimeRange
 from backend.domain.models import HotspotItem
 from backend.exceptions import InvalidParamException, NotFoundException
 from backend.logging_config import logger
-from backend.repository.hotspot_repo import HotspotRepository
+from backend.repository.hotspot_repo import (
+    HotspotRepository,
+    interest_signal_stats_by_axis,
+)
 from backend.version import APP_VERSION as API_VERSION
 
 _hrepo = HotspotRepository()
@@ -80,6 +84,76 @@ def content_preference_signature(prefs: dict | None) -> str:
         table = prefs.get(axis) or {}
         parts.append(f"{axis}:" + ",".join(f"{k}={table[k]}" for k in sorted(table)))
     return "|".join(parts)
+
+
+# ── DEV-0316: 内容偏好自动推导 (统计兜底, 免手动配置) ──────────────
+# 从已有行为信号 (like/dislike/view/favorite…) 按类目/来源聚合净分, 达阈值自动
+# 生成偏好喂给 feed 排序 —— 与兴趣引擎"点赞即学习"同族, 用户零配置就有效果。
+# 手动偏好 (interest.content_preferences) 与 LLM 采纳项**覆盖**自动推导 (手动优先)。
+AUTO_PREF_WINDOW_DAYS = 30
+AUTO_PREF_MIN_EVENTS = 3     # 证据下限: 交互不足不自动设 (防单次误触)
+AUTO_PREF_MORE_NET = 3.0     # 净分 ≥ +3 (≈2 赞 或 6 view) → more
+AUTO_PREF_LESS_NET = -1.5    # 净分 ≤ -1.5 (≈1 踩) → less (降权门槛低于升权: 抑噪优先)
+_AUTO_PREF_TTL_S = 300.0     # 5min TTL (与兴趣引擎聚合同频, feed 每请求不重算)
+_auto_pref_cache: dict[str, object] = {"ts": 0.0, "data": {}}
+
+
+def _level_from_stats(stats: dict[str, dict]) -> dict[str, str]:
+    """净分表 → 三级偏好 (仅达证据下限且净分越阈的 key; normal 不输出)。"""
+    out: dict[str, str] = {}
+    for key, s in stats.items():
+        if not key or s["events"] < AUTO_PREF_MIN_EVENTS:
+            continue
+        net = s["net"]
+        if net >= AUTO_PREF_MORE_NET:
+            out[key] = "more"
+        elif net <= AUTO_PREF_LESS_NET:
+            out[key] = "less"
+    return out
+
+
+def derive_auto_content_preferences(*, force: bool = False) -> dict[str, dict[str, str]]:
+    """从行为信号自动推导 {categories:{key:level}, sources:{key:level}} (5min TTL)。
+
+    失败 (DB/聚合异常) 降级 {} —— 自动层缺席不影响手动偏好与既有排序。
+    """
+    now = time.monotonic()
+    if not force and _auto_pref_cache["data"] and (now - float(_auto_pref_cache["ts"])) < _AUTO_PREF_TTL_S:
+        return _auto_pref_cache["data"]  # type: ignore[return-value]
+    since = (datetime.now(timezone.utc) - timedelta(days=AUTO_PREF_WINDOW_DAYS)).isoformat()
+    result: dict[str, dict[str, str]] = {}
+    cats = _level_from_stats(interest_signal_stats_by_axis("category", since))
+    srcs = _level_from_stats(interest_signal_stats_by_axis("source", since))
+    if cats:
+        result["categories"] = cats
+    if srcs:
+        result["sources"] = srcs
+    _auto_pref_cache["ts"] = now
+    _auto_pref_cache["data"] = result
+    return result
+
+
+def invalidate_auto_content_preferences() -> None:
+    """清自动偏好缓存 (偏好写入 / 信号变更后调用, 下次读重算)。"""
+    _auto_pref_cache["ts"] = 0.0
+    _auto_pref_cache["data"] = {}
+
+
+def effective_content_preferences() -> dict[str, dict[str, str]]:
+    """feed 实际生效的偏好 = 自动推导 ∪ 手动覆盖 (手动逐 key 优先)。
+
+    合并语义: 手动设了的 key 以手动为准 (含"手动把自动降权的项改回 more");
+    手动未碰的 key 沿用自动。两表皆空 → {} (排序退化原序)。
+    """
+    auto = derive_auto_content_preferences()
+    explicit = load_content_preferences()
+    merged: dict[str, dict[str, str]] = {}
+    for axis in ("categories", "sources"):
+        table = dict(auto.get(axis) or {})
+        table.update(explicit.get(axis) or {})
+        if table:
+            merged[axis] = table
+    return merged
 
 
 def _rank_items(

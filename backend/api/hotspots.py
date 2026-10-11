@@ -31,10 +31,10 @@ def _load_interest_domains() -> list[str]:
 
 
 def _load_content_preferences() -> dict:
-    """DEV-0315: 读内容偏好 (类目/来源) 第二轴 — 失败降级 {} (= 排序现状)。"""
-    from backend.services.hotspot_service import load_content_preferences
+    """DEV-0315/0316: 读**生效**内容偏好 (自动推导 ∪ 手动覆盖) 第二轴 — 失败降级 {}。"""
+    from backend.services.hotspot_service import effective_content_preferences
 
-    return load_content_preferences()
+    return effective_content_preferences()
 
 
 @router.get("")

@@ -91,6 +91,10 @@ async def get_weights() -> dict:
 async def reset_weights(req: InterestResetRequest) -> dict:
     """清行为信号 + 行为分归零 (显式勾选保留) + audit_log。"""
     deleted = _service.reset()
+    # DEV-0316: 信号清空 → 自动推导的内容偏好随之失效 (下次读重算 = {})
+    from backend.services.hotspot_service import invalidate_auto_content_preferences
+
+    invalidate_auto_content_preferences()
     try:
         from backend.observability_records import record_audit
 
@@ -115,3 +119,13 @@ async def get_domain_recommendations(force: int = 0) -> dict:
     from backend.services.interest_domain_advisor import get_recommendations
 
     return await get_recommendations(force=bool(force))
+
+
+@router.get("/content-prefs/recommendations")
+async def get_content_pref_recommendations(force: int = 0) -> dict:
+    """内容偏好 AI 优化建议 (DEV-0316) — 只读展示, 采纳走
+    ``PATCH /api/settings/content-preferences`` (与域推荐同范式, 不自动生效)。
+    """
+    from backend.services.content_pref_advisor import get_suggestions
+
+    return await get_suggestions(force=bool(force))

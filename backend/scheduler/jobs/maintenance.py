@@ -450,6 +450,17 @@ async def daily_db_backup_job() -> None:
                 f"{result.get('pages', 0)} pages, {result.get('size', 0)} bytes, "
                 f"kept={result.get('incremental_kept', 0)} removed={result.get('incremental_removed', 0)}"
             )
+            # DEV-0323: roll-forward 合成失败 → 备份冗余不变量破 (下次
+            # daily 会重试), warn 可见化; 增量本体成功, job 不因此标败
+            comp = result.get("compaction") or {}
+            if comp and not comp.get("ok", True):
+                _logger.error(f"daily_db_backup_job: compact failed: {comp.get('error')}")
+                await _fire_alert(
+                    metric="backup_compact.failure", level="warn", value=1.0,
+                    detail={"job": "daily_db_backup",
+                            "error": comp.get("error"), "chain_active": comp.get("chain_active")},
+                    source="backup_compact",
+                )
     except Exception as e:
         _logger.error(f"daily_db_backup_job crashed: {e}")
         raise  # 让 instrument_job 标记 ok=False

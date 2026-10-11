@@ -332,9 +332,10 @@ def test_side_dbs_backup_manifest_and_retention(db_env) -> None:
     assert len(entries) == 2
     assert {e["kind"] for e in entries} == {"warm", "cold"}
     backups = Path(config.backup_dir)
-    # 每族只留 BACKUP_RETENTION=3 份
-    assert len(list(backups.glob("hotspot-warm-*.db"))) == backup_service.BACKUP_RETENTION
-    assert len(list(backups.glob("hotspot-cold-*.db"))) == backup_service.BACKUP_RETENTION
+    # 每族只留 SIDE_DB_RETENTION=3 份 (DEV-0323: HOT 独立 BACKUP_RETENTION=1,
+    # 侧库档数拆出独立常量)
+    assert len(list(backups.glob("hotspot-warm-*.db"))) == backup_service.SIDE_DB_RETENTION
+    assert len(list(backups.glob("hotspot-cold-*.db"))) == backup_service.SIDE_DB_RETENTION
     # sha256 旁车可复算
     for e in entries:
         assert hashlib.sha256(Path(e["path"]).read_bytes()).hexdigest() == e["sha256"]

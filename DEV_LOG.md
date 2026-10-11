@@ -1,4 +1,22 @@
 
+## [DEV-0323] 备份卡滚动保留模型 — 1 full + 3 增量 roll-forward 合成 (backup-rolling-retention)
+
+- **时间**: 2026-10-11
+- **类型**: 功能开发 (P1; owner 浏览器选中备份卡: 「展示备份记录; 仅保留一个最新全量, 增量只保留 3 个, 每次清理前用全量+最旧一档增量合成第二个全量, 然后去掉最旧全量; 保证备份有效且不冗余」)
+- **技术前提取证 (Rule 8)**: 增量 .bin = **页级 last-write-wins 重放** (apply_incremental_chain seek 写页) → 从链头摘档重放不破坏「恢复到最新点」正确性 = 用户模型的数学基础; 原状: HOT full 留 3 份 (~400M 冗余) + 链硬编码 7 档 + **knowledge-inc zip 零保留策略 (生产 34 份)**; checker 链过滤语义 = mtime ≥ full 的 bin
+- **实现** (`backup_service.py`):
+  - 常量: `BACKUP_RETENTION 3→1` (HOT 不变量) + 新增 `SIDE_DB_RETENTION=3` (warm/cold 未点名不动) + `INCREMENTAL_KEEP=3` + `KNOWLEDGE_INC_KEEP=3`
+  - `compact_backup_chain(keep)`: active 链 > keep → absorb 最旧超额档 = **full 副本 apply absorb → 新 full** (mtime 钉 absorb 末档保 checker 过滤语义; sha/manifest/checkpoint_seq=0 如实/knowledge 配对), apply 失败**零删除**返回 ok=False; 顺带删超额旧 full (含 paired zip/sha/manifest 配套) + 早于 full 残档 + 超额 knowledge-inc + **孤儿 paired zip** (生产实测发现 08-29 主体丢失 zip 残留)
+  - `backup_incremental` 尾部旧「>7 直删」→ compact 调用 (合成严格强于截断: 不丢覆盖范围); `daily_db_backup_job` compact 失败 → `backup_compact.failure` warn 告警 (DEV-0321 基建)
+  - `backup_inventory()`: 逐 full (size/age) + 链档 (pages 从 bin header 解析) + side dbs + zip 计数 + 总占用 + policy 不变量 + INTEGRITY_OK marker
+  - API: `GET /maintenance/backups` + `POST /maintenance/backups/compact?keep_incrementals=` (to_thread)
+  - **⚡ verify 冒充 bug (第四起想象契约同族)**: `backup_verify_service._latest_backup` 旧 glob `hotspot-*.db` 命中 mtime 更新的 **warm 库**当「最新 full」→ 对缺 hotspots 表的库假报 ok=True; 修复为 `[0-9]*` 收紧 (对齐 checker 的 P0-C 修复) + 回归守卫测试
+  - 前端 MaintPage 备份卡: 盘点状态块 (最新/超额 full 逐行 · 链 N/3 档 pages · 知识包/侧库/总占用/链校验 marker; 失败态独立 fail-loud, fetchHealth 四路并行) + 「整理备份」按钮 (结果摘要 + 盘点自动刷新) + **校验结果改真实契约** `{ok, backup_path, integrity_check, errors, duration_ms, knowledge_zip}` (旧 `{latest_backup, age_hours, message}` 三字段后端从不返回 = 恒空)
+- **实弹重大发现 (生产 backups/)**: compact 前跑 checker → **full_plus_chain_integrity = `database disk image is malformed`** (11/12 FAIL, INTEGRITY_OK marker 已 692h≈29 天) — 存量链本身早坏 (WAL 环复用/覆写致 04:00 full 与 04:30 档页不连续, 结构性脆弱), 此前无人可见。处置: `backup_incremental(force_full=True)` 重建健康基线 (checker 11/11 PASS) → 再造两真实档 (822/905 页) → `POST /compact?keep_incrementals=1` **真实合成**: absorb 822 页档 → 新 full 取代 base, 剩余 905 页档 checker 复验 `applied_pages=905 integrity ok` 13/13 PASS = roll-forward 语义在真实 WAL 页上闭环; 稳态不变量达成: 1 full (172.8M) + 1 链 + 3 knowledge-inc, 释放 2 旧 full (218M) + 31 zip + 1 孤儿 zip; 浏览器实拍备份卡逐行呈现 (最新全量 0h 前 · 增量链 1/3 · 链校验通过 0h)
+- **测试**: 新 `test_backup_compact.py` ×7 — **核心断言=合成后新 full+剩余链仍恢复出全部代数据** (rows 9000 gen0 被 absorb 仍可达, Rule 9), 链内超额收口 / 幂等 no-op / 坏档 (mtime 落 active 集首) 失败零删除 / 旧 full+残档+zip 清理 / 无 full 诚实失败 / inventory 形状 / verify 目标=HOT 回归守卫; API 契约 +2 (shape / 无 full ok=False)。测试当轮抓出 2 实现 bug: ①stale 清理后对已删列表 stat() 的 ENOENT; ②**同秒合成 new_full 覆写 base 自身 → _drop_full 删同名 → full 归零** (ts 秒粒度顺秒避让修复)。相关面 54 passed / 前端全量 **721** (718+3) / ruff 0 / meta 5/5
+- **遗留如实**: 周日轮转后新链首档与 full 的 WAL 连续性是否仍可能坏 — 由 backup_verify_job (周一 02:00) + weekly checker + apply 预校验三重闸兜住 (坏档永远进不了合成 full), 若 checker 再报 malformed 属告警链可见而非静默
+- **下一可用号**: DEV-0324
+
 ## [DEV-0322] 清理卡三档滚动模型 — 近三档大小展示 + 每次归档最旧一档 (qcl-tier-rolling)
 
 - **时间**: 2026-10-11

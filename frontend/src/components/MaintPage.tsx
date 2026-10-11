@@ -63,11 +63,43 @@ interface TiersResp {
   bands?: TierBand[];
 }
 
+/** 后端权威形状 = backup_verify_service.verify_latest_backup() (DEV-0323 实测:
+ * 旧 {latest_backup, age_hours, message} 为想象契约 — 三个字段后端从不返回,
+ * 校验成功也恒显示空结果)。 */
 interface BackupVerifyResp {
   ok?: boolean;
-  latest_backup?: string;
-  age_hours?: number;
-  message?: string;
+  checked_at?: string;
+  backup_path?: string;
+  errors?: string[];
+  duration_ms?: number;
+  integrity_check?: string;
+  knowledge_zip?: { present: boolean; ok: boolean };
+}
+
+/** 后端权威形状 = GET /api/maintenance/backups (backup_inventory, DEV-0323
+ * 进程内实测: fulls 倒序 / chain.files 含 pages / policy 不变量声明)。 */
+interface BackupInventoryResp {
+  checked_at?: string;
+  policy?: { full_keep?: number; incremental_keep?: number; side_db_keep?: number; invariant?: string };
+  fulls?: { name: string; size_mb: number; age_hours: number }[];
+  chain?: { count: number; files: { name: string; size_kb: number; pages: number; age_hours: number }[] };
+  side_dbs?: { warm: number; cold: number };
+  knowledge?: { full_zip_count: number; inc_zip_count: number };
+  last_integrity_marker?: { name: string; age_hours: number } | null;
+  totals?: { bytes: number; mb: number };
+}
+
+/** 后端权威形状 = POST /api/maintenance/backups/compact (compact_backup_chain)。 */
+interface CompactResp {
+  ok?: boolean;
+  compacted?: boolean;
+  error?: string | null;
+  new_full?: string | null;
+  absorbed_bins?: string[];
+  removed_fulls?: string[];
+  removed_stale_bins?: string[];
+  removed_knowledge_inc?: number;
+  chain_active?: number;
 }
 
 /** 后端权威形状 = maintenance_service.run_vacuum() (DEV-0318: 旧 ok/duration_ms/reindexed 为想象契约)。 */
@@ -130,6 +162,9 @@ export function MaintPage() {
   const [healthError, setHealthError] = useState(false); // DEV-0317: 监控 fail-loud
   const [backup, setBackup] = useState<ToolStatus>('idle');
   const [backupInfo, setBackupInfo] = useState<BackupVerifyResp | null>(null);
+  const [backupInv, setBackupInv] = useState<BackupInventoryResp | null>(null);
+  const [backupInvError, setBackupInvError] = useState(false); // DEV-0323: fail-loud
+  const [compactInfo, setCompactInfo] = useState<CompactResp | null>(null);
   const [vacuum, setVacuum] = useState<ToolStatus>('idle');
   const [vacuumInfo, setVacuumInfo] = useState<VacuumResp | null>(null);
   const [indexHealth, setIndexHealth] = useState<IndexHealthResp | null>(null);
@@ -182,7 +217,19 @@ export function MaintPage() {
         setTiersError(true);
       }
     })();
-    await Promise.all([healthP, indexP, tiersP]);
+    // DEV-0323: 备份盘点 (纯 stat 毫秒级, stat 密集仍让出主线程走 fetch)
+    const backupP = (async () => {
+      try {
+        const bi = await getJSON<BackupInventoryResp>('/api/maintenance/backups');
+        if (dead.current) return;
+        setBackupInv(bi);
+        setBackupInvError(false);
+      } catch {
+        if (dead.current) return;
+        setBackupInvError(true);
+      }
+    })();
+    await Promise.all([healthP, indexP, tiersP, backupP]);
   }, [dead, cutoffDays]);
 
   useEffect(() => {
@@ -196,6 +243,22 @@ export function MaintPage() {
       if (dead.current) return;
       setBackupInfo(r);
       setBackup(r.ok ? 'ok' : 'error');
+    } catch {
+      if (dead.current) return;
+      setBackup('error');
+    }
+  }, [dead]);
+
+  const runBackupCompact = useCallback(async () => {
+    setBackup('running');
+    try {
+      const r = await postJSON<CompactResp>('/api/maintenance/backups/compact', {});
+      if (dead.current) return;
+      setCompactInfo(r);
+      setBackup(r.ok ? 'ok' : 'error');
+      // 整理结果直接影响盘点数字 → 刷新状态块
+      const bi = await getJSON<BackupInventoryResp>('/api/maintenance/backups');
+      if (!dead.current) setBackupInv(bi);
     } catch {
       if (dead.current) return;
       setBackup('error');
@@ -341,25 +404,102 @@ export function MaintPage() {
           <p className="text-xs mb-4" style={{ color: 'var(--ink-3)' }}>
             {t('maint.backup.desc')}
           </p>
-          <button
-            type="button"
-            onClick={runBackupVerify}
-            disabled={backup === 'running'}
-            className="text-sm px-4 py-2 rounded font-mono disabled:opacity-50"
-            style={{ background: 'var(--mint)', color: 'var(--text-on-success, #fff)' }}
-          >
-            {backup === 'running' ? t('maint.status.running') : t('maint.backup.cta')}
-          </button>
-          {backupInfo && (
-            <div className="mt-3 text-xs font-mono" style={{ color: 'var(--ink-2)' }}>
-              {backupInfo.latest_backup && (
-                <div>{t('maint.backup.latest')}: {backupInfo.latest_backup}</div>
-              )}
-              {backupInfo.age_hours != null && (
-                <div>{t('maint.backup.age')}: {backupInfo.age_hours.toFixed(1)}h</div>
-              )}
+          {/* DEV-0323: 备份现状 (滚动保留不变量 1 full + ≤3 增量档, 真实盘点) */}
+          <div className="mb-4 rounded p-3" style={{ background: 'var(--bg-elevated)' }} data-testid="maint-backup-status">
+            {backupInvError && !backupInv ? (
+              <p className="text-xs font-mono" role="alert" style={{ color: 'var(--color-error)' }}>
+                {t('maint.backup.inventoryError')}
+              </p>
+            ) : backupInv?.fulls ? (
+              <div className="space-y-1.5">
+                {backupInv.fulls.map((f, i) => (
+                  <div key={f.name} data-testid={`maint-backup-full-${i}`} className="text-xs font-mono flex items-baseline justify-between gap-2">
+                    <span className="shrink-0" style={{ color: 'var(--ink-2)' }}>
+                      {i === 0 ? t('maint.backup.fullLatest') : t('maint.backup.fullOld')}
+                      {' · '}{f.name}
+                    </span>
+                    <span style={{ color: i === 0 ? 'var(--ink-2)' : 'var(--color-warning)' }}>
+                      {f.size_mb} MB · {f.age_hours}{t('maint.backup.hoursUnit')}
+                    </span>
+                  </div>
+                ))}
+                <div data-testid="maint-backup-chain" className="text-xs font-mono flex items-baseline justify-between gap-2">
+                  <span style={{ color: 'var(--ink-2)' }}>
+                    {t('maint.backup.chain')} {backupInv.chain?.count ?? 0}/{backupInv.policy?.incremental_keep ?? 3}
+                    {t('maint.backup.tiersUnit')}
+                  </span>
+                  {(backupInv.chain?.files.length ?? 0) > 0 && (
+                    <span className="text-right" style={{ color: 'var(--ink-3)' }}>
+                      ~{Math.round((backupInv.chain?.files[0]?.size_kb ?? 0))} KB · {backupInv.chain?.files[0]?.pages ?? 0} {t('maint.backup.pages')}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs font-mono flex items-baseline justify-between gap-2">
+                  <span style={{ color: 'var(--ink-2)' }}>
+                    {t('maint.backup.knowledge')} {backupInv.knowledge?.inc_zip_count ?? 0}
+                    {' · '}{t('maint.backup.sideDbs')} {(backupInv.side_dbs?.warm ?? 0) + (backupInv.side_dbs?.cold ?? 0)}
+                  </span>
+                  <span style={{ color: 'var(--ink-3)' }}>{t('maint.backup.total')} ~{((backupInv.totals?.mb ?? 0) / 1024).toFixed(2)} GB</span>
+                </div>
+                {backupInv.last_integrity_marker && (
+                  <div className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>
+                    {t('maint.backup.marker')}: {Math.round(backupInv.last_integrity_marker.age_hours)}{t('maint.backup.hoursUnit')}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>
+                {t('maint.backup.inventoryLoading')}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              type="button"
+              onClick={runBackupVerify}
+              disabled={backup === 'running'}
+              className="text-sm px-4 py-2 rounded font-mono disabled:opacity-50"
+              style={{ background: 'var(--mint)', color: 'var(--text-on-success, #fff)' }}
+            >
+              {backup === 'running' ? t('maint.status.running') : t('maint.backup.cta')}
+            </button>
+            <button
+              type="button"
+              onClick={runBackupCompact}
+              disabled={backup === 'running'}
+              className="text-sm px-3 py-2 rounded font-mono disabled:opacity-50"
+              style={{ background: 'var(--bg-elevated)', color: 'var(--ink)' }}
+              data-testid="maint-backup-compact"
+            >
+              {t('maint.backup.compact')}
+            </button>
+          </div>
+          {compactInfo && (
+            <div data-testid="maint-backup-compact-result" className="mb-2 text-xs font-mono" style={{ color: compactInfo.ok ? 'var(--ink-2)' : 'var(--color-error)' }}>
+              {compactInfo.ok
+                ? (compactInfo.compacted
+                  ? `${t('maint.backup.compactedResult')} ${compactInfo.absorbed_bins?.length ?? 0} · ${t('maint.backup.removedFulls')} ${compactInfo.removed_fulls?.length ?? 0} · ${t('maint.backup.removedZips')} ${compactInfo.removed_knowledge_inc ?? 0}`
+                  : `${t('maint.backup.noCompact')} (chain ${compactInfo.chain_active ?? 0})`)
+                : `${t('maint.backup.compactFailed')}: ${compactInfo.error ?? ''}`}
             </div>
           )}
+          {backupInfo && (
+            <div className="mt-1 text-xs font-mono" data-testid="maint-backup-verify-result" style={{ color: backupInfo.ok ? 'var(--ink-2)' : 'var(--color-error)' }}>
+              {backupInfo.ok ? (
+                <>
+                  <div style={{ wordBreak: 'break-all' }}>{backupInfo.backup_path}</div>
+                  <div>
+                    {t('maint.backup.integrity')}: {backupInfo.integrity_check ?? '?'} · {backupInfo.duration_ms}ms
+                    {backupInfo.knowledge_zip ? ` · ${t('maint.backup.zip')}: ${backupInfo.knowledge_zip.ok ? 'ok' : 'bad'}` : ''}
+                  </div>
+                </>
+              ) : (
+                <div style={{ wordBreak: 'break-all' }}>
+                  {(backupInfo.errors ?? []).slice(0, 2).join(' | ')}
+                </div>
+              )}
+            </div>
+           )}
         </section>
 
         {/* 索引重建 */}

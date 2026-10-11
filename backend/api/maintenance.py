@@ -126,6 +126,28 @@ async def maintenance_cleanup_quality_logs(
     return await asyncio.to_thread(cleanup_quality_logs, days=days, dry_run=dry_run)
 
 
+@router.get("/backups")
+async def maintenance_backups_inventory():
+    """DEV-0323: 备份现状盘点 (1 full + ≤3 增量不变量 / 链档 / zip / 占用)。
+
+    纯 stat + 少量 header 读, 毫秒级同步即可。
+    """
+    from backend.services.backup_service import backup_inventory
+    return backup_inventory()
+
+
+@router.post("/backups/compact")
+async def maintenance_backups_compact(
+    keep_incrementals: int = Query(3, ge=1, le=6, description="增量链保留档数 (默认 3)"),
+):
+    """DEV-0323: 手动触发滚动保留整理 (roll-forward 合成 + 旧 full/残档/超额 zip 清理)。
+
+    apply 链到大库 full 副本 + 新 full 落盘是秒~分级长 IO, to_thread。
+    """
+    from backend.services.backup_service import compact_backup_chain
+    return await asyncio.to_thread(compact_backup_chain, keep_incrementals)
+
+
 @router.get("/duplicates")
 async def maintenance_duplicates():
     """Detect duplicate hotspots by URL and duplicate knowledge items by title."""

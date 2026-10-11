@@ -409,6 +409,137 @@ describe('MaintPage 索引状态块 (DEV-0320 契约)', () => {
   });
 });
 
+describe('MaintPage 备份卡 (DEV-0323 契约)', () => {
+  /** 真实响应形状 = 进程内 backup_inventory() 实测 (2026-10-11 生产:
+   * 3 full + 1 链档 + 34 知识包 + 1452MB)。 */
+  const BACKUP_INV_FIXTURE = {
+    checked_at: '2026-10-11T12:33:18.465560+00:00',
+    policy: { full_keep: 1, incremental_keep: 3, side_db_keep: 3, invariant: '1 full + ≤3 增量档; 超出自动 roll-forward 合成' },
+    fulls: [
+      { name: 'hotspot-20261010_200000.db', size_mb: 177.4, age_hours: 16.6 },
+      { name: 'hotspot-20261003_200000.db', size_mb: 122.2, age_hours: 184.6 },
+      { name: 'hotspot-20260926_200000.db', size_mb: 105.6, age_hours: 352.6 },
+    ],
+    chain: {
+      count: 1,
+      files: [{ name: 'wal-20261010_203000-0000.bin', size_kb: 1161.1, pages: 290, age_hours: 16.1 }],
+    },
+    side_dbs: { warm: 3, cold: 3 },
+    knowledge: { full_zip_count: 4, inc_zip_count: 34 },
+    last_integrity_marker: { name: 'INTEGRITY_OK.1789228453', age_hours: 692.7 },
+    totals: { bytes: 1452113115, mb: 1452.1 },
+  };
+
+  /** 真实响应形状 = verify_latest_backup() (旧 {latest_backup, age_hours} 想象契约永不渲染)。 */
+  const VERIFY_FIXTURE = {
+    ok: true,
+    checked_at: '2026-10-11T12:40:00+00:00',
+    backup_path: 'backend/backups/hotspot-20261010_200000.db',
+    errors: [],
+    duration_ms: 8123,
+    integrity_check: 'ok',
+    knowledge_zip: { present: true, ok: true },
+  };
+
+  function mockBackupApi(inv: unknown) {
+    mockFetch.mockImplementation((url: string) => {
+      if (String(url).startsWith('/api/maintenance/backups')) {
+        return Promise.resolve(jsonResponse(inv));
+      }
+      if (String(url).startsWith('/api/maintenance/backup-verify')) {
+        return Promise.resolve(jsonResponse(VERIFY_FIXTURE));
+      }
+      if (String(url).startsWith('/api/maintenance/health')) {
+        return Promise.resolve(jsonResponse(HEALTH_FIXTURE));
+      }
+      return Promise.resolve(jsonResponse(DIRTY_FIXTURE));
+    });
+  }
+
+  it('状态块逐行呈现真实盘点: 最新/超额 full · 链档 · 知识包 · 总占用 (旧想象字段恒空回归守卫)', async () => {
+    mockBackupApi(BACKUP_INV_FIXTURE);
+    renderPage();
+
+    const card = await screen.findByTestId('maint-card-backup');
+    const latest = await screen.findByTestId('maint-backup-full-0');
+    expect(latest).toHaveTextContent('最新全量 · hotspot-20261010_200000.db');
+    expect(latest).toHaveTextContent('177.4 MB · 16.6h 前');
+    const old1 = await screen.findByTestId('maint-backup-full-2');
+    expect(old1).toHaveTextContent('待清理全量');
+    const chain = await screen.findByTestId('maint-backup-chain');
+    expect(chain).toHaveTextContent('增量链 1/3 档');
+    expect(chain).toHaveTextContent('290 页');
+    expect(card).toHaveTextContent('知识包 34');
+    expect(card).toHaveTextContent('1.42 GB');
+    // 校验按钮结果按真实字段渲染 (旧契约 latest_backup/age_hours 永 undefined)
+    fireEvent.click(await screen.findByRole('button', { name: '运行校验' }));
+    const vr = await screen.findByTestId('maint-backup-verify-result');
+    await waitFor(() => {
+      expect(vr).toHaveTextContent('hotspot-20261010_200000.db');
+      expect(vr).toHaveTextContent('完整性: ok · 8123ms');
+    });
+  });
+
+  it('整理按钮 POST /backups/compact → 渲染合成摘要 → 盘点刷新', async () => {
+    const compactResp = {
+      ok: true, compacted: true, error: null,
+      new_full: 'hotspot-20261011_124000.db',
+      absorbed_bins: ['wal-a.bin'], removed_fulls: ['hotspot-old.db'],
+      removed_stale_bins: [], removed_knowledge_inc: 31, chain_active: 3,
+    };
+    mockBackupApi(BACKUP_INV_FIXTURE);
+    mockFetch.mockImplementation((url: string) => {
+      if (String(url).startsWith('/api/maintenance/backups/compact')) {
+        return Promise.resolve(jsonResponse(compactResp));
+      }
+      if (String(url).startsWith('/api/maintenance/backups')) {
+        return Promise.resolve(jsonResponse({
+          ...BACKUP_INV_FIXTURE,
+          fulls: [BACKUP_INV_FIXTURE.fulls[0]],
+          knowledge: { full_zip_count: 1, inc_zip_count: 3 },
+        }));
+      }
+      if (String(url).startsWith('/api/maintenance/health')) {
+        return Promise.resolve(jsonResponse(HEALTH_FIXTURE));
+      }
+      return Promise.resolve(jsonResponse(DIRTY_FIXTURE));
+    });
+    renderPage();
+
+    fireEvent.click(await screen.findByTestId('maint-backup-compact'));
+
+    const cr = await screen.findByTestId('maint-backup-compact-result');
+    await waitFor(() => {
+      expect(cr).toHaveTextContent('已合成档数 1 · 删全量数 1 · 删知识包 31');
+    });
+    // 整理后盘点刷新: 只剩 1 full → 超额行消失, 知识包 3
+    await waitFor(() => {
+      expect(screen.queryByTestId('maint-backup-full-1')).toBeNull();
+      expect(screen.getByTestId('maint-card-backup')).toHaveTextContent('知识包 3');
+    });
+  });
+
+  it('盘点接口失败 → 显式错误态, 不阻塞校验按钮 (失败态隔离)', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (String(url).startsWith('/api/maintenance/backups')) {
+        return Promise.reject(new Error('boom'));
+      }
+      if (String(url).startsWith('/api/maintenance/health')) {
+        return Promise.resolve(jsonResponse(HEALTH_FIXTURE));
+      }
+      return Promise.resolve(jsonResponse(DIRTY_FIXTURE));
+    });
+    renderPage();
+
+    const status = await screen.findByTestId('maint-backup-status');
+    await waitFor(() => {
+      expect(status.querySelector('[role="alert"]')).not.toBeNull();
+      expect(status).toHaveTextContent('备份盘点加载失败');
+    });
+    expect(await screen.findByTestId('maint-card-health')).toHaveTextContent('173.4 MB');
+  });
+});
+
 // ── helpers (组件内文本读取) ─────────────────────────────────
 function card_text(): string {
   return document.querySelector('[data-testid="maint-card-health"]')?.textContent ?? '';

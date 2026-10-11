@@ -35,16 +35,18 @@ AUDIT_TABLE = "audit_log"
 
 
 def _latest_backup() -> Path | None:
-    """最新 full 备份 (排除 diet 残留); 无备份返回 None。"""
+    """最新 HOT full 备份; 无备份返回 None。
+
+    DEV-0323 glob 修复: 旧 `hotspot-*.db` 会命中 hotspot-warm-*/cold-*
+    (每日增量路径里侧库 mtime 更新 → "最新 full"实际是 WARM 库, verify
+    对着缺 hotspots 表的库假报 ok=True — 与 check_backup_chain 的
+    `[0-9]` 收紧修复同族); 排除 diet 残留由 [0-9] 前缀天然覆盖。
+    """
     backups_dir: Path = config.backup_dir
     if not backups_dir.exists():
         return None
     candidates = sorted(
-        [
-            f
-            for f in backups_dir.glob("hotspot-*.db")
-            if not f.name.startswith("hotspot-diet-")
-        ],
+        backups_dir.glob("hotspot-[0-9]*.db"),
         key=lambda p: p.stat().st_mtime,
     )
     return candidates[-1] if candidates else None

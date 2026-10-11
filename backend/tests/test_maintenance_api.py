@@ -164,3 +164,30 @@ def test_dirty_report_cleanable_equals_out_window_band(client, temp_db):
     assert d["retention_days"] == 21
     out_band = next(b for b in t["bands"] if not b["in_window"])
     assert d["older_than_retention"] == out_band["rows"]
+
+
+# ---------------------------------------------------------------------------
+# DEV-0323: GET /backups + POST /backups/compact 契约 (备份卡展示依赖)
+# ---------------------------------------------------------------------------
+def test_backups_inventory_shape(client):
+    """隔离环境 (backup_dir 无产物) 也必须返回完整 shape — 前端按字段渲染。"""
+    r = client.get("/api/maintenance/backups")
+    assert r.status_code == 200
+    body = r.json()
+    for k in ("checked_at", "policy", "fulls", "chain", "side_dbs",
+              "knowledge", "totals"):
+        assert k in body
+    assert body["policy"]["full_keep"] == 1
+    assert body["policy"]["incremental_keep"] == 3
+    assert isinstance(body["fulls"], list)
+    assert "count" in body["chain"] and "files" in body["chain"]
+
+
+def test_compact_endpoint_reports_honestly_without_full(client):
+    """无 full 可合成 → 200 + ok=False + error 如实 (不假报成功)。"""
+    r = client.post("/api/maintenance/backups/compact")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is False
+    assert "no HOT full" in (body["error"] or "")
+    assert body["compacted"] is False

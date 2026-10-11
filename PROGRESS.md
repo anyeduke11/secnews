@@ -17,6 +17,12 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
+### 2026-10-11 备份卡滚动保留 — 1 full + 3 增量 roll-forward 合成 — DEV-0323
+
+- **模型**: 备份记录如实展示 + 不变量「1 最新 full + ≤3 增量档」— 超量用 full+最旧档**页重放合成**新 full 再删旧 base (页级 last-write-wins 语义保证摘头不断恢复点); 顺带清旧 full/残档/超额+孤儿 knowledge zip; daily 自动触发 + 手动「整理备份」按钮。
+- **⚡ 实弹重大发现**: 生产存量链 checker 已 `malformed` 29 天无人见 (verify 旧 glob 还把 warm 库冒充 full 假报 ok — 第四起想象契约同族) → force_full 重建基线, 真实两档合成 checker 13/13 PASS (905 页复验) 闭环; 释放 218M+31 zip。
+- **验证**: compact 测试 ×7 (核心=合成后全部代数据仍可恢复) + API 契约 ×2 + 前端 ×3; 测试当轮抓出 stale-stat ENOENT 与同秒覆写 full 归零两个实现 bug 均已修。相关面 54 / 前端 721 全绿 / ruff/meta 0。
+
 ### 2026-10-11 清理卡三档滚动模型 — 近三档大小 + 每次归档最旧一档 — DEV-0322
 
 - **裁决**: 用户「保留 3 档×档宽 7」与台账 7d 窗口冲突 → 只改 UI 即自欺 (周日 job 会清空档2/档3)。**retention.json qcl 7→21 三方同源** (展示/手动/周日 job), weekly 每次恰滚出一档。

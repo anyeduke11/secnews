@@ -37,7 +37,7 @@ import sqlite3
 import struct
 import time
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from backend.config import config
@@ -58,7 +58,11 @@ def _secure_artifact(path: Path) -> None:
 
 # P0-C: 1 → 3 (单份保留 = 任何一次写坏/删错即丢全部备份); 每族 (hot/warm/cold)
 # 独立计数, 7 天一次 full snapshot 轮转不变。
-BACKUP_RETENTION = 3
+# DEV-0323 滚动保留模型: HOT 只留最新 1 份 full — 冗余消除由
+# compact_backup_chain() 的 roll-forward 合成保证 (full + 最旧增量合成
+# 新 full 后删旧 full, 恢复点不丢), warm/cold 侧库无增量机制仍各留 3 份。
+BACKUP_RETENTION = 1              # HOT full 保留份数 (不变量: 1)
+SIDE_DB_RETENTION = 3             # WARM/COLD 侧库各自保留份数
 BACKUP_PREFIX = "hotspot-"
 MANIFEST_PREFIX = "backup-manifest-"
 MANIFEST_KEEP = 14                # manifest JSON 保留份数 (约两周)
@@ -68,6 +72,8 @@ INCREMENTAL_PAGE_SIZE = 4096      # SQLite 默认 page size
 INCREMENTAL_DIR = "incremental"   # backups/{INCREMENTAL_DIR}/ 存增量
 MAX_INCREMENTAL_PAGES = 8192      # 32MB 上限 (足够容下一次完整日采集)
 INCREMENTAL_CHAIN_PREFIX = "wal-" # wal-{ts}-{seq}.bin 命名
+INCREMENTAL_KEEP = 3              # DEV-0323: 增量链保留档数 (超出 → roll-forward 合成)
+KNOWLEDGE_INC_KEEP = 3            # knowledge-inc-*.zip 与增量链同档数
 # 增量 .bin 格式 (P0-C v2, 自描述):
 #   header: magic b"WIB1" (4B) + page_size (4B big-endian)
 #   record: page_no (4B big-endian, 1-based) + page data (page_size 字节)
@@ -219,13 +225,14 @@ def backup_side_dbs(ts: str, extra_entries: list[dict] | None = None) -> list[di
     )
     _secure_artifact(manifest_path)  # P0-9/F0-12b
 
-    # 每族独立保留策略 (hot 全量走 backup_database 自己的清理, 不在此处)
+    # 每族独立保留策略 (hot 全量走 backup_database 自己的清理, 不在此处;
+    # DEV-0323: 侧库档数拆独立常量 SIDE_DB_RETENTION)
     for kind in ("warm", "cold"):
         family = sorted(
             backups_dir.glob(f"{BACKUP_PREFIX}{kind}-*.db"),
             key=lambda p: p.stat().st_mtime,
         )
-        for stale in family[:-BACKUP_RETENTION] if len(family) > BACKUP_RETENTION else []:
+        for stale in family[:-SIDE_DB_RETENTION] if len(family) > SIDE_DB_RETENTION else []:
             try:
                 stale.unlink(missing_ok=True)
                 stale.with_suffix(stale.suffix + ".sha256").unlink(missing_ok=True)
@@ -567,20 +574,22 @@ def backup_incremental(force_full: bool = False) -> dict:
         logger.warning(f"knowledge incremental zip failed: {e}")
         zf_size = 0
 
+    # DEV-0323 滚动保留不变量: 1 full + INCREMENTAL_KEEP 档。超出不再直接
+    # 删最旧档 (旧 >7 截断会丢覆盖范围且留 3 份 full 冗余), 改走
+    # roll-forward 合成 + 旧 full/残档/超额 knowledge-inc zip 清理。
     size = inc_path.stat().st_size
     logger.info(
         f"incremental backup: {inc_path.name} ({size} bytes, "
         f"{len(pages)} pages, sha={sha[:8]}, knowledge={zf_size} bytes, "
         f"side_dbs={len(side_entries)})"
     )
-    # 保留策略: incremental 链最多保留 7 份 (.bin 计数, 配对删 .sha256)
-    all_inc = sorted(inc_dir.glob(f"{INCREMENTAL_CHAIN_PREFIX}*.bin"))
-    removed = 0
-    if len(all_inc) > 7:
-        for f in all_inc[:-7]:
-            f.unlink(missing_ok=True)
-            f.with_suffix(f.suffix + ".sha256").unlink(missing_ok=True)
-            removed += 1
+    before = len(list(inc_dir.glob(f"{INCREMENTAL_CHAIN_PREFIX}*.bin")))
+    compaction = compact_backup_chain(INCREMENTAL_KEEP)
+    if not compaction["ok"]:
+        # 合成失败 = 链/盘有异常, 但本次增量备份已成功 → 不 raise, 留痕
+        # (daily job 层据此告警; 下次 daily 会重试同一不变量)
+        logger.error(f"backup compact failed after incremental: {compaction['error']}")
+    removed = before - compaction["chain_active"]
 
     return {
         "mode": "incremental",
@@ -590,9 +599,245 @@ def backup_incremental(force_full: bool = False) -> dict:
         "sha256": sha,
         "checkpoint_seq": current_seq,
         "knowledge_size": zf_size,
-        "incremental_kept": len(all_inc) - removed,
-        "incremental_removed": removed,
+        "incremental_kept": compaction["chain_active"],
+        "incremental_removed": max(0, removed),
+        "compaction": compaction,
         "side_dbs": side_entries,
+    }
+
+
+def compact_backup_chain(keep_incrementals: int = INCREMENTAL_KEEP) -> dict:
+    """DEV-0323 滚动保留不变量执行器: **1 个最新 full + ≤keep 档增量**。
+
+    超出时对最旧档做 roll-forward 合成 (用户模型「每次清理前用全量+最旧
+    增量合成第二个全量, 然后去掉最旧的全量」):
+
+    1. 链文件数 > keep → absorb = 最旧的超额档; 把 full 副本上逐页重放
+       absorb (apply_incremental_chain, 预校验 sha/magic + integrity_check,
+       失败零接触) 得新 full — 覆盖状态前进到 absorb 末档时刻
+    2. 新 full mtime 钉在 absorb 末档的 mtime — 保住 check_backup_chain
+       「只认 mtime ≥ full 的 bin」的链过滤语义 (剩余档恰好晚于新 full)
+    3. 删 absorb 链档 (已并入新 full, 留着才是冗余) + 旧 full 及其
+       zip/sha/manifest 配套, 剩余链 = 最新 keep 档
+    4. 页重放是 last-write-wins, absorb 被跳过不破坏恢复正确性;
+       合成失败 (坏链) 一切原样保留并返回 ok=False (fail-loud,
+       绝不在未验证的新 full 存在时删旧 base)
+
+    顺带清理 (同"不冗余"不变量):
+    - 超出的旧 full (mtime 排序保留最新 BACKUP_RETENTION 份; 无链依赖 —
+      full 轮转本就连链一起清空, 旧 full 的全部支撑链已失效)
+    - mtime 早于保留 full 的残档 (stale chain, checker 本来就排除)
+    - knowledge-inc-*.zip 超出 KNOWLEDGE_INC_KEEP 份
+
+    Returns 摘要 envelope (compacted/ok/absorbed/new_full/removed_*/chain_active)。
+    """
+    backups_dir: Path = config.backup_dir
+    inc_dir = backups_dir / INCREMENTAL_DIR
+    result: dict = {
+        "ok": True, "compacted": False, "error": None,
+        "new_full": None, "absorbed_bins": [],
+        "removed_fulls": [], "removed_stale_bins": [],
+        "removed_knowledge_inc": 0, "chain_active": 0,
+    }
+    fulls = sorted(
+        backups_dir.glob(f"{BACKUP_PREFIX}[0-9]*.db"),
+        key=lambda p: p.stat().st_mtime,
+    )
+    if not fulls:
+        result["ok"] = False
+        result["error"] = "no HOT full backup found (nothing to compact against)"
+        logger.error(f"backup compact: {result['error']}")
+        return result
+
+    keep_full = fulls[-1]
+    all_bins = sorted(
+        inc_dir.glob(f"{INCREMENTAL_CHAIN_PREFIX}*.bin"),
+        key=lambda p: p.stat().st_mtime,
+    ) if inc_dir.exists() else []
+    full_mtime = keep_full.stat().st_mtime
+    # 活跃链 = mtime >= 保留 full (与 check_backup_chain 过滤语义一致);
+    # 早于 full 的残档对最新恢复点无效 (checker 排除 / restore 重放会回退页)
+    active = [b for b in all_bins if b.stat().st_mtime >= full_mtime]
+
+    # ── roll-forward 合成 (仅超额时) ──────────────────────────────
+    if len(active) > keep_incrementals:
+        absorb = active[: len(active) - keep_incrementals]
+        tmp = keep_full.with_name(f".compact-{int(time.time() * 1000)}-{os.getpid()}")
+        shutil.copy2(keep_full, tmp)
+        applied = apply_incremental_chain(tmp, absorb)
+        if not applied.get("ok"):
+            tmp.unlink(missing_ok=True)
+            result["ok"] = False
+            result["error"] = f"apply chain failed: {applied.get('error', 'unknown')}"
+            logger.error(f"backup compact FAILED, nothing deleted: {result['error']}")
+            return result
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        new_full = backups_dir / f"{BACKUP_PREFIX}{ts}.db"
+        # ts 秒粒度: 合成与 backup_database/上次合成同秒时文件名会撞上
+        # 正被 os.replace 覆写/读取的 base 或既有 full (CI 测试实测抓出:
+        # replace 同名覆写 base → _drop_full 删同名 → full 归零) → 顺秒避让
+        while new_full.exists() or (
+            backups_dir / f"{MANIFEST_PREFIX}{ts}.json"
+        ).exists():
+            ts = (datetime.strptime(ts, "%Y%m%d_%H%M%S")
+                  + timedelta(seconds=1)).strftime("%Y%m%d_%H%M%S")
+            new_full = backups_dir / f"{BACKUP_PREFIX}{ts}.db"
+        os.replace(tmp, new_full)
+        # mtime 钉到 absorb 末档 → 剩余 active 档的 mtime 必然 >= 新 full
+        # (checker/verify 的链过滤与"最新 full"排序语义都不破)
+        last_absorbed_mtime = absorb[-1].stat().st_mtime
+        os.utime(new_full, (last_absorbed_mtime, last_absorbed_mtime))
+        sha = _write_sha_sidecar(new_full)
+        # 配对 knowledge zip: 最新 knowledge-inc (每日全量 md) 复制为新 full 伴生
+        kinc = sorted(
+            backups_dir.glob("knowledge-inc-*.zip"),
+            key=lambda p: p.stat().st_mtime,
+        )
+        paired = keep_full.with_suffix(".knowledge.zip")  # 兜底: 旧 full 伴生 zip
+        src_zip = kinc[-1] if kinc else (paired if paired.exists() else None)
+        if src_zip is not None:
+            shutil.copy2(src_zip, new_full.with_suffix(".knowledge.zip"))
+        # manifest (checkpoint_seq=0: 合成 full 的覆盖 seq 无逐档记录可考,
+        # 写 0 让 checker 的 seq 信息级对账如实跳过, 不编造数字)
+        (backups_dir / f"{MANIFEST_PREFIX}{ts}.json").write_text(json.dumps(
+            {"ts": ts, "dbs": [{
+                "kind": "hot", "path": str(new_full),
+                "size": new_full.stat().st_size, "sha256": sha,
+                "checkpoint_seq": 0,
+                "compact_of": {"base": keep_full.name,
+                               "absorbed": [b.name for b in absorb]},
+            }]},
+            ensure_ascii=False, indent=2))
+        _secure_artifact(new_full)
+        for b in absorb:
+            b.unlink(missing_ok=True)
+            b.with_suffix(b.suffix + ".sha256").unlink(missing_ok=True)
+        active = active[len(absorb):]
+        # 旧 full (合成基) 被新 full 取代 → 删, 连带 zip/sha/manifest 配套
+        _drop_full(keep_full, result["removed_fulls"])
+        keep_full = new_full
+        full_mtime = last_absorbed_mtime
+        result["compacted"] = True
+        result["new_full"] = new_full.name
+        result["absorbed_bins"] = [b.name for b in absorb]
+
+    # ── 超出保留的旧 full 清理 (不变量: 1 份) ─────────────────────
+    fulls = sorted(
+        backups_dir.glob(f"{BACKUP_PREFIX}[0-9]*.db"),
+        key=lambda p: p.stat().st_mtime,
+    )
+    for old in fulls[:-BACKUP_RETENTION] if len(fulls) > BACKUP_RETENTION else []:
+        _drop_full(old, result["removed_fulls"])
+
+    # ── 残档/知识 zip 清理 ────────────────────────────────────────
+    all_bins = sorted(
+        inc_dir.glob(f"{INCREMENTAL_CHAIN_PREFIX}*.bin"),
+        key=lambda p: p.stat().st_mtime,
+    ) if inc_dir.exists() else []
+    survivors = 0  # 残档在同一循环里判存 (删后不可再 stat 引用旧列表)
+    for b in all_bins:
+        if b.stat().st_mtime < full_mtime:
+            b.unlink(missing_ok=True)
+            b.with_suffix(b.suffix + ".sha256").unlink(missing_ok=True)
+            result["removed_stale_bins"].append(b.name)
+        else:
+            survivors += 1
+    kincs = sorted(
+        backups_dir.glob("knowledge-inc-*.zip"),
+        key=lambda p: p.stat().st_mtime,
+    )
+    for z in kincs[:-KNOWLEDGE_INC_KEEP] if len(kincs) > KNOWLEDGE_INC_KEEP else []:
+        z.unlink(missing_ok=True)
+        result["removed_knowledge_inc"] += 1
+
+    # 孤儿 paired zip: hotspot-{ts}.knowledge.zip 但对应 full 主体已不存在
+    # (旧轮转清理先于配对删除逻辑 / 手删主体 都会留下孤儿)
+    removed_orphans = 0
+    for kz in backups_dir.glob(f"{BACKUP_PREFIX}*.knowledge.zip"):
+        ts = kz.name.removeprefix(BACKUP_PREFIX).removesuffix(".knowledge.zip")
+        if not (backups_dir / f"{BACKUP_PREFIX}{ts}.db").exists():
+            kz.unlink(missing_ok=True)
+            removed_orphans += 1
+    result["removed_knowledge_inc"] += removed_orphans
+
+    result["chain_active"] = survivors
+    logger.info(
+        f"backup compact: compacted={result['compacted']} "
+        f"absorbed={len(result['absorbed_bins'])} "
+        f"removed_fulls={len(result['removed_fulls'])} "
+        f"stale_bins={len(result['removed_stale_bins'])} "
+        f"knowledge_inc_removed={result['removed_knowledge_inc']} "
+        f"chain_active={result['chain_active']}"
+    )
+    return result
+
+
+def _drop_full(full: Path, removed: list[str]) -> None:
+    """删除 full 及其配套 (.knowledge.zip / .sha256 / manifest)。"""
+    full.unlink(missing_ok=True)
+    full.with_suffix(".knowledge.zip").unlink(missing_ok=True)
+    full.with_suffix(full.suffix + ".sha256").unlink(missing_ok=True)
+    ts = full.stem.removeprefix(f"{BACKUP_PREFIX}")
+    (full.parent / f"{MANIFEST_PREFIX}{ts}.json").unlink(missing_ok=True)
+    removed.append(full.name)
+
+
+def backup_inventory() -> dict:
+    """DEV-0323: 备份现状盘点 (备份卡状态展示的后端权威形状, 纯读)。"""
+    backups_dir: Path = config.backup_dir
+    inc_dir = backups_dir / INCREMENTAL_DIR
+    now = datetime.now(timezone.utc)
+
+    def _age(path: Path) -> float:
+        mtime_utc = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+        return round((now - mtime_utc).total_seconds() / 3600, 1)
+
+    fulls = [
+        {"name": p.name, "size_mb": round(p.stat().st_size / 1e6, 1),
+         "age_hours": _age(p)}
+        for p in sorted(backups_dir.glob(f"{BACKUP_PREFIX}[0-9]*.db"),
+                        key=lambda p: p.stat().st_mtime, reverse=True)
+    ]
+    chain_files: list[dict] = []
+    if inc_dir.exists():
+        for p in sorted(inc_dir.glob(f"{INCREMENTAL_CHAIN_PREFIX}*.bin"),
+                        key=lambda p: p.stat().st_mtime, reverse=True):
+            size = p.stat().st_size
+            pages = 0
+            try:
+                with open(p, "rb") as f:
+                    head = f.read(8)
+                if head[:4] == INCREMENTAL_BIN_MAGIC and len(head) == 8:
+                    ps = int.from_bytes(head[4:8], "big")
+                    if ps:
+                        pages = (size - 8) // (4 + ps)
+            except OSError:
+                pass
+            chain_files.append({"name": p.name, "size_kb": round(size / 1024, 1),
+                                "pages": pages, "age_hours": _age(p)})
+    k_zips = list(backups_dir.glob(f"{BACKUP_PREFIX}*.knowledge.zip"))
+    k_incs = list(backups_dir.glob("knowledge-inc-*.zip"))
+    total = sum(p.stat().st_size for p in backups_dir.rglob("*") if p.is_file())
+    marker = None
+    markers = sorted(backups_dir.glob("INTEGRITY_OK.*"),
+                     key=lambda p: p.stat().st_mtime)
+    if markers:
+        marker = {"name": markers[-1].name, "age_hours": _age(markers[-1])}
+    return {
+        "checked_at": now.isoformat(),
+        "policy": {"full_keep": BACKUP_RETENTION,
+                   "incremental_keep": INCREMENTAL_KEEP,
+                   "side_db_keep": SIDE_DB_RETENTION,
+                   "invariant": "1 full + ≤3 增量档; 超出自动 roll-forward 合成"},
+        "fulls": fulls,
+        "chain": {"count": len(chain_files), "files": chain_files},
+        "side_dbs": {
+            "warm": len(list(backups_dir.glob(f"{BACKUP_PREFIX}warm-*.db"))),
+            "cold": len(list(backups_dir.glob(f"{BACKUP_PREFIX}cold-*.db"))),
+        },
+        "knowledge": {"full_zip_count": len(k_zips), "inc_zip_count": len(k_incs)},
+        "last_integrity_marker": marker,
+        "totals": {"bytes": total, "mb": round(total / 1e6, 1)},
     }
 
 
@@ -788,11 +1033,15 @@ __all__ = [
     "BACKUP_RETENTION",
     "INCREMENTAL_BIN_MAGIC",
     "INCREMENTAL_DIR",
+    "INCREMENTAL_KEEP",
     "MAX_INCREMENTAL_PAGES",
+    "SIDE_DB_RETENTION",
     "apply_incremental_chain",
     "backup_database",
     "backup_incremental",
+    "backup_inventory",
     "backup_side_dbs",
+    "compact_backup_chain",
     "parse_incremental_bin",
     "restore_from_backup",
     "restore_from_incremental_chain",

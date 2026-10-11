@@ -30,6 +30,13 @@ def _load_interest_domains() -> list[str]:
         return []
 
 
+def _load_content_preferences() -> dict:
+    """DEV-0315: 读内容偏好 (类目/来源) 第二轴 — 失败降级 {} (= 排序现状)。"""
+    from backend.services.hotspot_service import load_content_preferences
+
+    return load_content_preferences()
+
+
 @router.get("")
 async def list_hotspots(
     category: str = Query("all", description="分类筛选，all 或具体值"),
@@ -72,6 +79,8 @@ async def list_hotspots(
     except Exception as e:
         logger.warning(f"interest boost map unavailable, fallback to explicit profile: {e}")
         boost_map = None
+    # DEV-0315: 内容偏好 (类目/来源) 第二轴 — 与画像同线程池读取, 失败降级 {}
+    content_prefs = await asyncio.to_thread(_load_content_preferences)
     return await asyncio.to_thread(
         _service.list_hotspots,
         category=category,
@@ -83,6 +92,7 @@ async def list_hotspots(
         exclude_category=exclude_category or None,
         boost_practice_domains=boost or None,
         practice_multiplier=boost_map,
+        content_preferences=content_prefs or None,
     )
 
 

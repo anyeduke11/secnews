@@ -21,6 +21,7 @@ def register_core(app: FastAPI) -> None:
         codegarden_ops,  # v1.5+: CodeGarden 运维层 — 服务网格/资源中枢/联动引擎 (原 phase2b)
         compliance,  # v0.6 Phase 4 S4-4: 合规矩阵 (等保 2.0 + GDPR + ISO 27001)
         content,  # v1.4: 内容创作 (calendar/drafts/templates)
+        content_preferences_api,  # DEV-0315: 内容偏好 (类目/来源) 第二轴 (自 settings.py 拆出)
         cve_analytics,  # v0.6 Phase 4 S4-3: CVE 热力图 + ATT&CK 映射
         deep_read,  # v0.6 Phase 4 S4-2: DeepRead 4 节深度分析
         events,  # v1.3.0 Phase 6: SSE 实时推送
@@ -75,6 +76,7 @@ def register_core(app: FastAPI) -> None:
     app.include_router(secrets.router, tags=["secrets"])
     app.include_router(security.router, tags=["security"])
     app.include_router(settings.router, tags=["settings"])
+    app.include_router(content_preferences_api.router, tags=["settings"])
     app.include_router(mcp_settings_api.router, tags=["mcp-settings"])  # ungated: extensions.mcp=false 仍可达
     app.include_router(settings_flags_api.router, tags=["feature-gates"])  # ungated: gate 管理面自身不受 gate 限制
     if is_extension_enabled("sync"):

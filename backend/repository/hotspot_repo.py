@@ -1166,6 +1166,29 @@ def interest_attribution_hint(item_id: str) -> tuple[str, list[str], str] | None
     return (row["title"] or "", _hotspot_tags(row["tags"]), row["category"] or "")
 
 
+# DEV-0315: 内容偏好 UI 的可得来源清单 (近期真实入库的来源 + 条数)
+_SQL_DISTINCT_SOURCES = (
+    "SELECT source, COUNT(*) AS n FROM hotspots "
+    "WHERE ingested_at >= ? AND source IS NOT NULL AND source != '' "
+    "GROUP BY source ORDER BY n DESC, source ASC LIMIT ?"
+)
+
+
+def distinct_sources_since(since_iso: str, limit: int = 200) -> list[dict]:
+    """窗口内实际入库的来源 + 条数 (按量降序, 上限 ``limit``); 表缺失/失败返 []。
+
+    只列"近期真实出现在 feed 里"的来源 — 比列全部注册源 (含 dead/孤儿) 更贴合
+    用户所见, 也让偏好 UI 的清单有界。
+    """
+    try:
+        conn = get_connection()
+        rows = conn.execute(_SQL_DISTINCT_SOURCES, (since_iso, int(limit))).fetchall()
+        return [{"source": r["source"], "count": int(r["n"])} for r in rows]
+    except Exception as e:
+        logger.warning(f"distinct_sources_since failed: {e}")
+        return []
+
+
 def interest_signals_since(cutoff_iso: str) -> list[dict]:
     """拉窗口内信号; 表缺失返 []。"""
     try:

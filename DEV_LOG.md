@@ -1,4 +1,24 @@
 
+## [DEV-0315] 内容偏好 (类目/来源) 第二轴 — A+B 整合归拢设置 (content-preferences)
+
+- **时间**: 2026-10-11
+- **类型**: 功能开发 (owner: 「将 A 和 B 整合在一起, 归拢到设置功能」; 粒度裁决 = 类目 + 全部来源, 即时生效)
+- **A/B 原案回顾**: A = 类目/源级噪音抑制 (旁路信号 + feed 排序第二轴); B = 设置里显式类目偏好开关。整合后 = **设置内一张卡, 显式三级偏好 (加强/默认/减弱), 落到 feed 排序第二轴** — 零统计推断 (B 的诚实), 有实际排序力 (A 的效力)。
+- **关联文件**:
+  - 后端: `services/hotspot_service.py` (`CONTENT_PREF_KEY`/`PREF_LEVELS`/`PREF_MULT`/`load_content_preferences`/`_norm_content_preferences`/`content_preference_signature`/`_rank_items` + 复合排序接入两条路径)、`repository/hotspot_repo.py` (+`distinct_sources_since`)、`api/content_preferences_api.py` (新, `GET/PATCH /api/settings/content-preferences`)、`api/_registry_core.py` + `core/routers.py` (登记)、`api/hotspots.py` (加载下传)
+  - 前端: `components/settings/ContentPreferencesCard.tsx` (新建)、`settings/SettingsPage.tsx` (general 区, 紧邻「我的方向」)、`contexts/I18nContext.tsx` (+14 key × 双语)
+  - 测试: `backend/tests/test_settings_content_preferences.py` (新, 19)、`frontend/.../ContentPreferencesCard.test.tsx` (新, 6)
+- **模型**: 与实践域 (interest.practice_domains, 10 个安全方向) **正交** — 实践域答"这条安全内容属于哪个方向", 内容偏好答"这类/这家内容我多要或少要"。三级因子 `PREF_MULT = {more:1.15, normal:1.0, less:0.78}`, 键 = 实践域乘子 × 类目因子 × 来源因子; 存储 `interest.content_preferences` (复用已登记前缀, 不动 namespace 契约); normal 不落库。来源清单来自近 30 天实际入库 (有界、贴合所见), 类目校验用 Category 枚举防 typo, 来源名不硬校验 (源会增删)。
+- **关键修正 (实弹 + 守卫抓出的两处缺陷, 诚实记录)**:
+  - **①页内重排→切片前重排**: 首版只在**已切片的页内**重排 → 生产实弹计数 5→5 未变 (而断言写成 `<=` 成了**假通过**)。根因: balanced 首页先按配额切片入页, 页内重排改不了"选哪些条"。修: `_rank_items` 抽为共享函数, balanced 在**切片前**排序 (非 balanced 在 dedupe 后排序), 内联 `_composite` 删除。
+  - **②仅偏好存在时才切片前重排 + 游标锚定最早条目**: 首版对**所有**请求切片前重排 (引擎乘子默认非空) → 破坏了 DEV-0176 的时序切片语义, 并使 `test_hotspots_cursor_pagination` 翻页丢条。修: (a) 切片前重排**仅当用户显式设了偏好** (无偏好 = 既有语义零变更); (b) `next_cursor` 改锚定页内**最早**条目 (非 balanced 路径等价, balanced+偏好路径保证下一页严格更旧 → 不重复)。
+  - **③settings.py 超 R3 行数守卫**: 合并进 `settings.py` 后 393 行 > 该文件豁免上限 291 (清单只许收缩) → 按守卫要求拆出 `backend/api/content_preferences_api.py` (URL 不变, 前端/测试零改动), 登记 `_registry_core.py` + `CORE_ROUTERS`; routers 100→101 (meta --fix 五文档)。
+- **测试**: 后端 +19 (API 6 / 归一 3 / 非 balanced 排序 6 / **balanced 选页 4** — 锁死"参与选页"语义, 含"AI 应全部沉底"强断言); 前端 +6 (渲染/双轴 PATCH 载荷/normal 移除/失败回滚/搜索过滤); **全量后端 5401 passed / 9 skipped** (5382+19); 前端全量 **707 passed / 100 文件**; tsc 0 / build OK; ruff 0 / meta 5/5 (routers 100→101, `--fix` 五文档)。
+- **实弹 (生产 pid 68681)**: 动态对基线主导类目施法 (避免地板效应) — **30d 富池 `ai=less` → top20 计数 15→0** (强效: 候选池大于页大小时被挤出页); 24h 稀疏池 `ai=more` 平均位次 11.67→**7.00** (调序生效); 未知类目 400; 清空恢复 ✓; UI 实机 (浏览器): 卡片渲染 + 保存后刷新持久 ✓。
+- **已知语义边界 (如实报告)**: 偏好**只升降不删**。当候选池 ≈ 页大小 (如 24h 稀疏窗) 时表现为"沉页尾"而非"出页"; 候选池远大于页时 (7d/30d) 才会整类挤出首页。用户已确认此语义 (「只降不删, 不会踩空频道」)。
+- **沿途教训**: ①`list_cache` 模块级共享, 同 key 跨测试命中脏页 → 新测试文件须 autouse 清缓存 (同 `test_hotspots_api` 先例), 本次因此暴露并修正; ②测量技巧 — 对**已沉底**类目施加 less 无可测空间 (地板效应), 须动态选当前主导类目; ③断言用严格 `<`/`>` 而非 `<=`/`>=`, 否则真故障会假通过。
+- **下一可用号**: DEV-0316
+
 ## [DEV-0314] reaction 诚实回滚 + 首页行为埋点接线 + 非安全偏好通道设计留档 (reaction-honesty-tracking)
 
 - **时间**: 2026-10-10

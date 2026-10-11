@@ -39,6 +39,7 @@ CORE_ROUTERS: frozenset[str] = frozenset({
     "attention_events_api",
     # 系统
     "settings", "cache", "events", "favorites", "history", "security",
+    "content_preferences_api",  # DEV-0315: 内容偏好 (自 settings.py 拆出, R3 行数守卫)
     "alert_api",  # Phase 12 告警 v2 (无条件; v1 alerts 在 CONDITIONAL)
     "llm_status",
     "llm_pool_api",  # DEV-0244: LLM 模型池 (P0-8 补登记)

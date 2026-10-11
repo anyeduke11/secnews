@@ -22,6 +22,7 @@ import type { SectionKey } from './sections';
 import { ModeSwitcher } from './ModeSwitcher';
 import { GeneralSettings } from './GeneralSettings';
 import { PracticeDomainsCard } from './PracticeDomainsCard';
+import { ContentPreferencesCard } from './ContentPreferencesCard';
 import { FeatureGatesCard } from './FeatureGatesCard';
 import { ModelsSettings } from './ModelsSettings';
 import { CollectionScheduleInfo } from './CollectionScheduleInfo';
@@ -70,6 +71,8 @@ export function SettingsPage() {
             <ModeSwitcher />
             <GeneralSettings theme={theme} onThemeChange={setThemeMode} />
             <PracticeDomainsCard />
+            {/* DEV-0315: A(噪音抑制)+B(显式开关) 整合 — 内容偏好 (类目/来源) 第二轴 */}
+            <ContentPreferencesCard />
             <FeatureGatesCard />
           </div>
         );

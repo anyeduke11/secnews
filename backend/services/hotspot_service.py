@@ -24,6 +24,100 @@ from backend.version import APP_VERSION as API_VERSION
 _hrepo = HotspotRepository()
 
 # ---------------------------------------------------------------------------
+# DEV-0315: 内容偏好 (类目 / 来源) — feed 排序第二轴 (A+B 整合, 显式、只升降不删)
+#
+# 与「实践域」(interest.practice_domains, 10 个安全方向) 是**两根正交的轴**:
+#   实践域答「这条安全内容属于哪个方向」; 内容偏好答「这类/这家内容我多要或少要」。
+# 语义: 显式声明 (非统计推断), 只改排序不影响可见性 (条目永远可达)。
+# 兼容: 无配置 (两表皆空) → 因子恒 1.0 → 排序与既有版本完全一致。
+# ---------------------------------------------------------------------------
+CONTENT_PREF_KEY = "interest.content_preferences"
+PREF_LEVELS: tuple[str, str, str] = ("more", "normal", "less")
+# 三级因子: 类目与来源共用同一幅度表 (来源粒度更细时可再拆, 当前保持简单可预期)
+PREF_MULT: dict[str, float] = {"more": 1.15, "normal": 1.0, "less": 0.78}
+
+
+def load_content_preferences() -> dict:
+    """读 ``interest.content_preferences`` (settings.kv)。
+
+    形状 ``{"categories": {cat: level}, "sources": {source: level}}``。
+    只保留合法 level (more/normal/less) 的条目; 空/损坏/读取失败 → {} (排序=现状)。
+    同步 sqlite 读 — 调用方须放 thread pool (与 ``_load_interest_domains`` 同约定)。
+    """
+    try:
+        from backend.repository.settings_repo import SettingsRepository
+
+        raw = SettingsRepository().get(CONTENT_PREF_KEY, {})
+    except Exception as e:
+        logger.warning(f"interest.content_preferences read failed, prefs disabled: {e}")
+        return {}
+    return _norm_content_preferences(raw)
+
+
+def _norm_content_preferences(raw: dict | None) -> dict[str, dict[str, str]]:
+    """归一化偏好 (PATCH 写入前 + 读取后统一口径): 去 normal / 非法 level / 空或非法 key / 空轴。"""
+    out: dict[str, dict[str, str]] = {}
+    if not isinstance(raw, dict):
+        return out
+    for axis in ("categories", "sources"):
+        table = raw.get(axis)
+        if isinstance(table, dict):
+            clean = {
+                k: v for k, v in table.items()
+                if isinstance(k, str) and k.strip() and v in PREF_LEVELS and v != "normal"
+            }
+            if clean:
+                out[axis] = clean
+    return out
+
+
+def content_preference_signature(prefs: dict | None) -> str:
+    """偏好指纹 (缓存键片段): 轴内按 key 排序拼接, 保证同配置同 key。"""
+    if not prefs:
+        return ""
+    parts: list[str] = []
+    for axis in ("categories", "sources"):
+        table = prefs.get(axis) or {}
+        parts.append(f"{axis}:" + ",".join(f"{k}={table[k]}" for k in sorted(table)))
+    return "|".join(parts)
+
+
+def _rank_items(
+    items: list,
+    *,
+    practice_multiplier: dict[str, float] | None,
+    boost_set: set[str],
+    cat_prefs: dict[str, str],
+    src_prefs: dict[str, str],
+) -> list:
+    """三因子复合**稳定降序**重排 (DEV-0176/0182/0315)。
+
+    键 = 实践域乘子 × 内容偏好(类目) × 内容偏好(来源), 见 PREF_MULT。
+    无任何因子 (三者皆空) → 原序返回 (兼容: 排序退化现状)。
+    同键保持原相对次序 (Python stable sort) —— 这是「只升不删」的实现基础。
+
+    注意: 必须在**切片/分页之前**调用才能影响"选哪条" (否则只是页内重排)。
+    """
+    if not (practice_multiplier or boost_set or cat_prefs or src_prefs):
+        return items
+    from backend.services.auto_classifier import classify_practice_domain
+
+    def key(it) -> float:
+        pd = classify_practice_domain([], title=getattr(it, "title", "") or "")
+        if practice_multiplier:
+            m = practice_multiplier.get(pd or "", 1.0)
+        else:
+            m = PREF_MULT["more"] if pd in boost_set else 1.0
+        cat = getattr(it, "category", None)
+        cat = getattr(cat, "value", cat) or ""
+        m *= PREF_MULT.get(cat_prefs.get(cat, "normal"), 1.0)
+        m *= PREF_MULT.get(src_prefs.get(getattr(it, "source", "") or "", "normal"), 1.0)
+        return m
+
+    return sorted(items, key=key, reverse=True)
+
+
+# ---------------------------------------------------------------------------
 # url_check_status 优先级 (Phase 45): verified=0 (winner, key 最小), pending=2 (loser)
 # 与 backend/quality/duplicate_gate.py:_URL_CHECK_RANK 保持一致。
 # 用 ``min`` 选 winner (Python sorted 升序 → key 最小者胜)。
@@ -105,6 +199,7 @@ class HotspotService:
         exclude_category: str | None = None,  # DEV-0175: 工作台聚焦裁决 (前端默认排除 bid)
         boost_practice_domains: list[str] | None = None,  # DEV-0176 T0.4: 兴趣域加权 (降权不删)
         practice_multiplier: dict[str, float] | None = None,  # DEV-0182: 兴趣引擎连续乘子 (优先于 boost)
+        content_preferences: dict | None = None,  # DEV-0315: 内容偏好 (类目/来源) 第二轴因子
     ) -> dict:
         """列表查询。
 
@@ -140,12 +235,14 @@ class HotspotService:
             ",".join(f"{d}:{m}" for d, m in sorted(practice_multiplier.items()))
             if practice_multiplier else ""
         )
+        pref_key = content_preference_signature(content_preferences)
         cache_key = (
             f"hotspots:list:{category}:{tr.value}"
             f":{cursor or ''}:{limit}:{keyword}:{source or ''}"
             f":{exclude_category or ''}"
             f":{','.join(sorted(boost_practice_domains)) if boost_practice_domains else ''}"
             f":{mult_key}"
+            f":{pref_key}"
             f":{'bal' if balanced else 'raw'}"
         )
         if cache_key in list_cache:
@@ -154,9 +251,19 @@ class HotspotService:
         # 把 base64 服务层 cursor 转成 repo 内部 cursor (``<unix_ts>_<id>``)
         repo_cursor = self._to_repo_cursor(cursor)
 
+        # DEV-0315: 排序三因子 (实践域 × 内容偏好类目 × 内容偏好来源) 在**查询前**备好 —
+        # balanced 路径须在切片前用它排序候选池, 否则偏好只作用于页内重排 (≈无效果)。
+        boost_set = {d for d in (boost_practice_domains or []) if d}
+        cat_prefs = (content_preferences or {}).get("categories") or {}
+        src_prefs = (content_preferences or {}).get("sources") or {}
+
         cat_enum = None if category == "all" else Category(category)
         if balanced:
-            items, next_cursor_raw = self._query_balanced(tr, limit, exclude_category)
+            items, next_cursor_raw = self._query_balanced(
+                tr, limit, exclude_category,
+                practice_multiplier=practice_multiplier,
+                boost_set=boost_set, cat_prefs=cat_prefs, src_prefs=src_prefs,
+            )
         else:
             items, next_cursor_raw = _hrepo.query(
                 category=cat_enum,
@@ -171,43 +278,27 @@ class HotspotService:
         # Phase 9 修复:同 url 多条 → 保留 winner
         items = self._dedupe_by_url(items)
 
-        # next_cursor 基于过滤后的最后一条
-        # (DEV-0176 T0.4: cursor 必须取 **加权重排前** 的原始时序最后一条,
-        #  否则兴趣域置顶会破坏翻页游标的时序连续性)
-        next_cursor = (
-            encode_cursor(items[-1]) if (next_cursor_raw and items) else None
-        )
+        # next_cursor 锚定页内**最早**条目 (时序基准)
+        # (DEV-0176 T0.4 / DEV-0315: 必须取加权重排前的原始时序位置, 否则置顶会
+        #  破坏翻页游标的时序连续性。取"最早一条"而非"末条": 非 balanced 路径两者
+        #  等价 (页本身时序有序); balanced+偏好路径下页内已被重排, 取最早可保证
+        #  下一页严格更旧 → 不重复展示已见条目。)
+        oldest = min(items, key=lambda it: it.ingested_at or it.published_at) if items else None
+        next_cursor = encode_cursor(oldest) if (next_cursor_raw and oldest) else None
 
-        # DEV-0176 T0.4: 实践域即时打标 + 兴趣域置顶 (降权不删)
-        # 打标为纯函数 (title 正则), 页内 ≤200 条成本可忽略; 不落库、零 schema 变更。
-        # 加权 = 稳定分区: 命中兴趣域的条目排到本页前面, 相对时序保持不变;
-        # 未命中的条目仍在结果里, 仅排后 —— 搜索/翻页永远可达。
-        # DEV-0182: practice_multiplier (兴趣引擎 S(d) 连续乘子) 优先于显式二值
-        # boost — 页内按 (m·presence desc, 原序) 稳定重排; 表为空时退回显式 boost。
-        boost_set = {d for d in (boost_practice_domains or []) if d}
+        # DEV-0176 T0.4 + DEV-0182 + DEV-0315: 三因子复合稳定重排 (只升降不删)。
+        # 非 balanced 路径在此重排 (balanced 已在候选池切片前排过 — 此处为稳定幂等重排)。
+        items = _rank_items(
+            items,
+            practice_multiplier=practice_multiplier,
+            boost_set=boost_set, cat_prefs=cat_prefs, src_prefs=src_prefs,
+        )
         item_dicts = [item.model_dump(mode="json") for item in items]
         if item_dicts:
             from backend.services.auto_classifier import classify_practice_domain
 
-            practice_of: list[str | None] = []
             for d in item_dicts:
-                pd = classify_practice_domain([], title=d.get("title") or "")
-                d["practice_domain"] = pd
-                practice_of.append(pd)
-
-            if practice_multiplier:
-                paired = list(zip(item_dicts, practice_of, strict=True))
-
-                def _mult(pd: str | None) -> float:
-                    return practice_multiplier.get(pd or "", 1.0)
-
-                paired.sort(key=lambda p: _mult(p[1]), reverse=True)  # 稳定: 同乘子保持时序
-                item_dicts = [p[0] for p in paired]
-            elif boost_set:
-                paired = list(zip(item_dicts, practice_of, strict=True))
-                hit = [p for p in paired if p[1] in boost_set]
-                miss = [p for p in paired if p[1] not in boost_set]
-                item_dicts = [p[0] for p in hit + miss]
+                d["practice_domain"] = classify_practice_domain([], title=d.get("title") or "")
 
         # Phase 40: StatsPanel/TopNav 跟随当前 time_range (与 Grid 口径一致)
         cat_counts = self.count_by_category(tr)
@@ -245,7 +336,13 @@ class HotspotService:
         return result
 
     @staticmethod
-    def _query_balanced(tr, limit: int, exclude_category: str | None = None) -> tuple[list[HotspotItem], bool]:
+    def _query_balanced(
+        tr, limit: int, exclude_category: str | None = None,
+        *, practice_multiplier: dict[str, float] | None = None,
+        boost_set: set[str] | None = None,
+        cat_prefs: dict[str, str] | None = None,
+        src_prefs: dict[str, str] | None = None,
+    ) -> tuple[list[HotspotItem], bool]:
         """分类均衡查询: 6 分类各取 N 条, 混合按 ingested_at DESC 排, **先 dedupe 再 take**。
 
         解决 security 排前挤掉其他 5 分类的问题。
@@ -297,6 +394,17 @@ class HotspotService:
         )
         # Phase 42 关键修复: 先 dedupe 再 take limit, 保证分页数据量稳定
         merged = HotspotService._dedupe_by_url(merged)
+        # DEV-0315: 仅当用户**显式设了内容偏好**才在切片前重排候选池 ——
+        # 这样"降权类目被挤出首页"才有真实效果; 无偏好时保持 DEV-0176 原语义
+        # (时序切片 + 页内重排), 翻页游标连续性不受影响 (既有契约不变)。
+        if cat_prefs or src_prefs:
+            merged = _rank_items(
+                merged,
+                practice_multiplier=practice_multiplier,
+                boost_set=boost_set or set(),
+                cat_prefs=cat_prefs or {},
+                src_prefs=src_prefs or {},
+            )
         sliced = merged[:limit]
         has_more = len(merged) >= limit  # 候选 ≥ limit → 可能有下一页
         return sliced, has_more

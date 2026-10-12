@@ -17,7 +17,13 @@
 
 ## 当前活跃段 (2026-09-03 起)
 
-### 2026-10-12 清理 job 告警第三形态 — ok=True 却零效果的残档哨兵 — DEV-0324
+### 2026-10-12 删除 DEV-0324 残档哨兵 — 第一性原理对抗性审查判定顶冗余 — DEV-0325
+
+- **审查**: 残档哨兵成立前提 = 「清理成功标志 ok」与「实际效果 (窗口外残档=0)」是两个独立信号; 取证后前提不成立 (谓词同源 / ok 非度量 / 事务自证), 结构上 `ok=True ∧ residual>0` 不可达。
+- **消融 (4 全 PASS)**: E0 健康跑零告警; E1 复刻 DEV-0318 (`ok=False` + 4 万积压) → 哨兵**静默**, 发现者=skip 告警; E1' 同数据仅 ok 翻 True → 告警开火 (**判别器是 ok 标志**); E2 哨兵计数 ≡ archive rows_to_archive (**共享谓词无独立 oracle**)。
+- **结论**: 零边际检测力 + cutoff 第 3 副本 (低内聚) + job→service 跨层 import (高耦合) → 删除; 覆盖力不降 (真实事故由 DEV-0319 skip 告警覆盖)。见 DEV_LOG DEV-0325。
+
+### 2026-10-12 清理 job 告警第三形态 — ok=True 却零效果的残档哨兵 — DEV-0324（已由 DEV-0325 删除）
 
 - **洞察**: 清理静默三形态 — skip (DEV-0319) / job 崩溃 (DEV-0321) / **ok=True 却零效果**。前两类都不覆盖第三类: 清理返回 ok=True 且 to_archive=0 时无 skip 无 failed 静默通过 (DEV-0318 的 53.8 万行积压正是此指纹) → 用「审计不变量」收口。
 - **实现**: `qcl_out_of_window_rows()` (与归档同 isoformat cutoff 口径) + `telemetry_window_job` 残档哨兵 (仅 qcl 本轮 ok 时检查, >1 万行 critical / 少量 warn, 发 `telemetry_window.backlog`)。

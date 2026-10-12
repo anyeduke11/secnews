@@ -408,22 +408,6 @@ def _qcl_retention_days() -> int:
     return DEFAULT_QUALITY_LOG_DAYS
 
 
-def qcl_out_of_window_rows() -> int:
-    """DEV-0324: 窗口外 qcl 残档数 — 真实清理执行后的不变量 = 0。
-
-    cutoff 与 ``archive_quality_logs`` 完全同源 (Python UTC isoformat,
-    台账 retention 天数)。清理报 ok=True 后本值 >0 = "名义成功实际空转"
-    的直接证据 (DEV-0318 事故 53.8 万行积压正是此指纹, skip/failed 告警
-    均不覆盖), 供 job 层 backlog 哨兵消费。
-    """
-    cutoff = (datetime.now(timezone.utc)
-              - timedelta(days=_qcl_retention_days())).isoformat()
-    return get_connection().execute(
-        "SELECT COUNT(*) FROM quality_check_logs WHERE checked_at < ?",
-        (cutoff,),
-    ).fetchone()[0]
-
-
 def quality_log_tiers(
     tier_days: int | None = None,
     tiers: int = DEFAULT_QUALITY_LOG_TIERS,
@@ -812,7 +796,6 @@ __all__ = [
     "dirty_data_report",
     "index_health",
     "load_telemetry_specs",
-    "qcl_out_of_window_rows",
     "quality_log_tiers",
     "run_telemetry_window",
     "run_vacuum",

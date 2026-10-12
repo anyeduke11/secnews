@@ -232,12 +232,6 @@ async def telemetry_window_job() -> None:
     DEV-0319 fail-loud: skip 不再静默 — 事故中 table_not_found 误判使
     本 job 空转六周而 status 恒 ok。非合法 skip → observability 告警
     (全表 skip=critical, 部分=warn), 但不抛 — 周日链不被打断。
-
-    DEV-0324 残档不变量: skip/failed 之外还有第三种静默 — 清理报
-    ``ok=True`` 却零实际效果 (事故 53.8 万行积压正是此指纹, 如 cutoff
-    与存储格式漂移时 to_archive=0 仍 ok)。qcl 真实成功执行后窗口外
-    残档必须 = 0, 否则告警 (>1 万行=critical, 少量=warn)。仅 qcl 本轮
-    成功时检查, 不与 skip 告警重复开火。
     """
     from backend.services.maintenance_service import run_telemetry_window
 
@@ -255,28 +249,6 @@ async def telemetry_window_job() -> None:
             f"reasons={[r.get('skipped_reason') for r in skipped]}"
         )
         await _alert_telemetry_skips(skipped, result, level)
-    # DEV-0324: 残档哨兵 (qcl 本轮真实成功才有"清完应为 0"的不变量可言)
-    if any(r.get("table") == "quality_check_logs" and r.get("ok")
-           for r in result["results"]):
-        from backend.services.maintenance_service import qcl_out_of_window_rows
-
-        residual = await asyncio.to_thread(qcl_out_of_window_rows)
-        if residual > 0:
-            level = "critical" if residual >= 10000 else "warn"
-            _logger.error(
-                f"telemetry_window_job: {level} backlog after cleanup — "
-                f"{residual} qcl rows still out of window"
-            )
-            await _fire_alert(
-                metric="telemetry_window.backlog", level=level,
-                value=float(residual),
-                detail={
-                    "job": "telemetry_window",
-                    "residual_rows": residual,
-                    "note": "清理 ok=True 后窗口外残档 >0 (名义成功实际空转指纹)",
-                },
-                source="telemetry_window",
-            )
     if result.get("failed"):
         raise RuntimeError(
             f"telemetry window partial failure: "

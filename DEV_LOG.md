@@ -1,4 +1,22 @@
 
+## [DEV-0325] 删除 DEV-0324 残档哨兵 — 第一性原理对抗性审查判定顶冗余 (cleanup-residual-sentinel-removed)
+
+- **时间**: 2026-10-12
+- **类型**: 删除/回退 (P1 可观测; owner: 「从第一性原理重新分析, 对当前方案做对抗性审查; 核心机制必须通过消融实验验证; 方案遵循奥卡姆剃刀, 代码保持高内聚、低耦合」)
+- **第一性原理**: 残档哨兵成立的前提是「清理成功标志 (ok)」与「清理实际效果 (窗口外残档=0)」是**两个独立信号**。取证后该前提**不成立** — ①谓词同源: `qcl_out_of_window_rows` / `archive_quality_logs` / `db_diet._cutoff_iso` 用逐字相同的 `now(utc)-timedelta(days=retention)` 公式; ②ok 非度量: `db_diet.cleanup_table` 的 `result["ok"]=True` 仅标记 "archive 被调用过"; ③事务自证: `SELECT(P)→INSERT→DELETE(P)→COMMIT` 同事务同谓词, 健康路径 `ok=True ∧ residual>0` 结构上不可达。
+- **对抗性审查 (三攻击全实证)**:
+  - ①**误配事故指纹 (决定性)**: DEV-0324 docstring 称哨兵覆盖 DEV-0318 的 53.8 万行积压, 但该事故真实机制是 `table_not_found` **skip (ok=False)**, 哨兵 guard 强制 `qcl ok=True` → 对自述要覆盖的事故零响应; 该事故真实发现者是 DEV-0319 的 skip 告警。
+  - ②**相关性盲区**: 哨兵 cutoff 与被执行操作逐字同源, 谓词漂移时清理报 `to_archive=0` (ok=True 空转) 且哨兵同算 `residual=0` → 双方同步静默, 恰无法检测其 docstring 举例的 "cutoff/存储格式漂移"。
+  - ③**近乎不可达/冗余**: 唯一可达触发类是 "执行被短路但 ok=True", 无真实事故先例。
+- **消融实验 (4 全 PASS, 移除/翻转机制看是否失效)**: E0 真实健康跑 → `ok=True residual=0 backlog_alerts=0` (不变量由代码结构保证); E1 真实 4 万积压 + qcl `ok=False` (复刻 DEV-0318) → `REAL residual=40000, backlog_alerts=0`, `skip_alerts=1 critical` (**哨兵对事故静默, 发现者=skip 告警**); E1' **同一数据**仅 ok 翻 True → `backlog_alerts=1 critical` (**判别器是 ok 标志而非积压**); E2 `sentinel=137 ≡ archive rows_to_archive=137`, ledger_days=21 (**共享谓词, 无独立 oracle**)。
+- **删除范围 (手术刀式, Rule 3)**:
+  - `backend/scheduler/jobs/maintenance.py`: 移除 `telemetry_window_job` 残档哨兵块 + docstring DEV-0324 段 (skip 告警 DEV-0319 与 `_fire_alert` DEV-0321 原样保留)
+  - `backend/services/maintenance_service.py`: 移除 `qcl_out_of_window_rows()` 及 `__all__` 条目 (`_qcl_retention_days` 仍被 api/maintenance.py 与 tier/report 消费, 保留)
+  - `backend/tests/test_telemetry_window.py`: 移除 §残档哨兵 段 (helper `_ok_result`/`_alerts_of` + 5 用例, 含把 `qcl_out_of_window_rows` patch 成必炸的负向断言)
+- **覆盖力不降论证**: 哨兵声称覆盖的第三形态 "ok=True 却零效果" 由清理事务的 SELECT/DELETE 同谓词结构保证不可达; 真实事故 (DEV-0318) 已由 DEV-0319 skip 告警覆盖 (E1 实证)。删除消除第 3 处 cutoff 副本 (低内聚) 与 job→service 跨层 import (高耦合)。
+- **验证**: `test_telemetry_window.py` 16→11 passed; ruff 0 (三文件); py_compile OK。
+- **下一可用号**: DEV-0326
+
 ## [DEV-0324] 清理 job 告警第三形态 — ok=True 却零效果的残档不变量哨兵 (cleanup-residual-sentinel)
 
 - **时间**: 2026-10-12

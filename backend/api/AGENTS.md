@@ -51,7 +51,7 @@ FastAPI 路由层(101 routers,`include_router` 注册入口),**唯一对外 HTTP
    守卫后才 `app.include_router(xxx.router)`;否则关闭后仍 200,违反设计意图。
 6. **Pydantic model 就近**: 路由专属的 `BaseModel` 必须定义在该路由文件顶部,
    不要放 `backend/types/` 全局目录(已废用)。
-7. **`core/` 43 个 core router 白名单**: 任何新 router 不允许与
+7. **`core/` 69 个 core router 白名单**: 任何新 router 不允许与
    `backend/core/routers.py` 内已声明路径前缀重叠,否则启动时断言失败。
 
 ## 命名约定互斥速查

@@ -54,6 +54,7 @@ API_ROUTER_SOURCES: tuple[Path, ...] = (
 )
 COLLECTORS = ROOT / "backend" / "collectors"
 SERVICES = ROOT / "backend" / "services"
+CORE_ROUTERS_PY = ROOT / "backend" / "core" / "routers.py"
 ARCHITECTURE = ROOT / "docs" / "ARCHITECTURE.md"
 DOCS_DIR = ROOT / "docs"
 
@@ -71,22 +72,33 @@ CORE_EXCLUDE = ROOT / "core.exclude"
 # AGENTS.md 数字/版本一致性校验 (v0.7+) 的受管文档集合。
 # CLAUDE.md 在列 (DEV-0242): 它是根 AGENTS.md 的镜像, 同样携带 `N <kind>`
 # 架构数字声明 — 此前未纳管导致 check 全绿而 CLAUDE.md 停留在旧值。
+# README.md / PROJECT.md 在列: 同为携带 `N <kind>` 的 living doc, 未纳管时
+# 对其改动失明 (对抗性审查 E1 消融实证 — 改未纳管文件 check 仍 PASS)。
+# 注意: AGENTS.md 必须保持 index 0 — check_agents_version() 只读 [0]。
 AGENTS_DOC_SOURCES: tuple[Path, ...] = (
     ROOT / "AGENTS.md",
     ROOT / "CLAUDE.md",
     ROOT / "backend" / "api" / "AGENTS.md",
     ROOT / "backend" / "services" / "AGENTS.md",
     ROOT / "scripts" / "AGENTS.md",
+    ROOT / "README.md",
+    ROOT / "PROJECT.md",
 )
 # `N routers` / `N services` / `N jobs` / `N collectors` (可带 "个")。
+# 另有两处措辞按真值归一 (对抗性审查 R2 发现 — 此前逃逸正则, 手改才漂移):
+#   - `N include_router`      → routers        (CLAUDE.md 架构树用词)
+#   - `N [个] core router(s)` → core_routers   (backend/api/AGENTS.md; 独立量≠routers)
 _AGENTS_NUM = re.compile(
-    r"(?P<num>\d+)\s*(?:个\s*)?(?P<kind>routers?|services?|jobs?|collectors?)\b"
+    r"(?P<num>\d+)\s*(?:个\s*)?"
+    r"(?P<kind>core\s+routers?|routers?|services?|jobs?|collectors?|include_routers?)\b"
 )
 _KIND_KEY = {
     "router": "routers", "routers": "routers",
     "service": "services", "services": "services",
     "job": "jobs", "jobs": "jobs",
     "collector": "collectors", "collectors": "collectors",
+    "include_router": "routers", "include_routers": "routers",
+    "core router": "core_routers", "core routers": "core_routers",
 }
 VERSION_PY = ROOT / "backend" / "version.py"
 _AGENTS_VERSION = re.compile(
@@ -163,12 +175,45 @@ def count_services() -> int:
     return len(list(SERVICES.glob("*.py"))) - 1  # 减去 __init__.py
 
 
+def count_core_routers() -> int:
+    """AST 反推 backend/core/routers.py 的 CORE_ROUTERS 白名单项数。
+
+    CORE_ROUTERS 是 `frozenset({...})` 字面量; 数其 set 元素个数。这是
+    一个独立量, 与 count_routers() (全部 include_router 调用数) 不等 —
+    前者是 core 白名单项数 (供 backend/api/AGENTS.md `N 个 core router` 声明),
+    后者是注册调用总数。CORE_ROUTERS 缺失时返回 0 (会让 check 立刻 MISMATCH,
+    失败不静默)。
+    """
+    if not CORE_ROUTERS_PY.exists():
+        return 0
+    tree = ast.parse(CORE_ROUTERS_PY.read_text(encoding="utf-8"))
+    for node in tree.body:
+        targets: tuple = ()
+        if isinstance(node, ast.Assign):
+            targets = tuple(node.targets)
+        elif isinstance(node, ast.AnnAssign):
+            targets = (node.target,)
+        if not any(isinstance(t, ast.Name) and t.id == "CORE_ROUTERS" for t in targets):
+            continue
+        value = node.value
+        if (
+            isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Name)
+            and value.func.id == "frozenset"
+            and value.args
+            and isinstance(value.args[0], ast.Set)
+        ):
+            return len(value.args[0].elts)
+    return 0
+
+
 def collect() -> dict:
     return {
         "jobs": count_jobs(),
         "collectors": count_collectors(),
         "routers": count_routers(),
         "services": count_services(),
+        "core_routers": count_core_routers(),
     }
 
 
@@ -399,9 +444,13 @@ def check(actual: dict) -> int:
     arch_text = ARCHITECTURE.read_text(encoding="utf-8")
 
     # 1) 架构数字 vs 文档声明
+    # doc.get(k): actual 可能含 ARCHITECTURE.md 未设槽位的量 (如 core_routers,
+    # 仅由 AGENTS.md 声明纳管) — 无槽位即跳过, 不参与本节比对。
     doc = parse_doc_numbers(arch_text)
     mismatches = {
-        k: (actual[k], doc[k]) for k in actual if doc[k] is not None and doc[k] != actual[k]
+        k: (actual[k], doc.get(k))
+        for k in actual
+        if doc.get(k) is not None and doc.get(k) != actual[k]
     }
 
     # 2) draft 文档登记校验

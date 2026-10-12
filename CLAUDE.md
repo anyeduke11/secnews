@@ -50,7 +50,7 @@ cd frontend && npx tsc --noEmit           # 类型检查
 
 ```
 backend/
-├── api/            # REST routers (87 include_router, core 白名单 + 扩展按 feature_gates 条件注册)
+├── api/            # REST routers (101 include_router, core 白名单 + 扩展按 feature_gates 条件注册)
 │   ├── __init__.py # register_routers() aggregates all (lazy imports)
 │   ├── codegarden.py, codegarden_ops.py  # 项目管理 + 运维层 (服务/资源/事件) endpoints
 │   ├── knowledge_chunks_api.py  # v0.3.0 Phase 17: 知识库 chunk 级 API + FTS5

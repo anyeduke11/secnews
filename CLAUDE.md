@@ -40,7 +40,7 @@ cd frontend && npx tsc --noEmit           # 类型检查
 
 | # | Subsystem | 入口 | 说明 |
 |---|-----------|------|------|
-| 01 | **SecNews 热点聚合** | `/` | 14 采集器 · 13 质量门禁 · 趋势/搜索/导出 · 信号面板 |
+| 01 | **SecNews 热点聚合** | `/` | 14 采集器 · 14 质量门禁 · 趋势/搜索/导出 · 信号面板 |
 | 02 | **Knowledge LLM-Wiki** | `/knowledge` | `llm-wiki-2.0/` md 真源 · kl_pipeline 五阶段 · FTS5 · 案件队列 |
 | 03 | **CodeGarden** | `/codegarden` | 项目生命周期 + 服务网格 + 资源中枢 + 联动引擎 |
 | 04 | **Security Graph** | `/knowledge/process` | MITRE ATT&CK · NVD CVE · 等保 / 关基 / 数安法 |
@@ -72,14 +72,14 @@ backend/
 │   ├── aihot_parser.py, jin10_parser.py, clsd_parser.py  # 具体解析器
 ├── domain/         # Pydantic models (HotspotItem, KnowledgeItem, etc.)
 │   └── security_models.py  # SecurityEntity / SecurityEdge / SecurityTerm
-├── quality/        # 11+ quality gates (flat layout, pipeline architecture) — 13 道已并入 Pipeline v0.6 收缩
+├── quality/        # 14 quality gates (flat layout, pipeline architecture)
 │   ├── base.py     # GateContext + BaseGate(ABC)
 │   ├── pipeline.py # QualityGatePipeline
 │   ├── scorer.py, config.py, jobs.py, publisher_registry.py, source_coverage.py
-│   └── *_gate.py   # author_verification, bid_recency, category_match, content_quality, duplicate, final_url, noise_content, recency, schema, source_reputation, title_summary, url_content, url_validity
-├── repository/     # SQLite DAO layer (52 repos, one per table)
+│   └── *_gate.py   # ai_quality, author_verification, category_match, content_quality, custom_rules, duplicate, final_url, noise_content, recency, schema, source_reputation, title_summary, url_content, url_validity
+├── repository/     # SQLite DAO layer (57 repos, one per table)
 │   ├── db.py       # init_db, get_connection (thread-local, autocommit)
-│   ├── migrations/ # 116 SQL migration files (001-119)
+│   ├── migrations/ # 130 SQL migration files (001-133)
 │   ├── security_repo.py  # Security Knowledge Graph + Terminology
 │   └── knowledge_repo.py
 ├── scheduler/      # APScheduler jobs (sync, collection, trends, security)

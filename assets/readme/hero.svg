@@ -2,7 +2,7 @@
      width="1200" height="360" viewBox="0 0 1200 360"
      role="img" aria-labelledby="hero-title hero-desc">
   <title id="hero-title">SecNews — 单人本地 AI 与安全工作站</title>
-  <desc id="hero-desc">左侧品牌与价值主张；右侧 Sentinel 终端窗口展示四菜单壳（资讯 / 知识 / 行动 / 设置）、管道心跳条与架构数字（86 routers · 146 services · 57 jobs · 13 collectors）。</desc>
+  <desc id="hero-desc">左侧品牌与价值主张；右侧 Sentinel 终端窗口展示四菜单壳（资讯 / 知识 / 行动 / 设置）、管道心跳条与架构数字（101 routers · 161 services · 58 jobs · 14 collectors）。</desc>
 
   <defs>
     <linearGradient id="primaryGrad" x1="0" y1="0" x2="1" y2="0">
@@ -81,7 +81,7 @@
     <!-- 管道心跳条 -->
     <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5">
       <rect x="664" y="154" width="7" height="7" rx="1.5" fill="#2DD4A7"/>
-      <text x="678" y="162" fill="#5A6178">PIPELINE · 13 COLLECTORS · ALL GATES GREEN</text>
+      <text x="678" y="162" fill="#5A6178">PIPELINE · 14 COLLECTORS · ALL GATES GREEN</text>
       <g fill="#00B4D8">
         <rect x="1010" y="155" width="4" height="6" rx="1" opacity="0.9"/>
         <rect x="1018" y="152" width="4" height="9" rx="1" opacity="0.65"/>
@@ -112,7 +112,7 @@
     <!-- 底部状态行 -->
     <line x1="640" y1="282" x2="1144" y2="282" stroke="#1C1E2E" stroke-width="1"/>
     <text x="664" y="303" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="12.5" fill="#5A6178">86 ROUTERS · 146 SERVICES · 57 JOBS</text>
+          font-size="12.5" fill="#5A6178">101 ROUTERS · 161 SERVICES · 58 JOBS</text>
     <text x="1120" y="303" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
           font-size="12.5" fill="#2DD4A7" text-anchor="end">● healthy</text>
   </g>

@@ -7,6 +7,7 @@
 
 | 文档 | 职责 |
 |---|---|
+| `HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` | **唯一权威产品文档**：能力/分期/路由/API/验收条件（设计变更先改此文件，再改其他文档） |
 | `v0.8.5/V0.8.5_PLAN.md` | **唯一权威 spec**：路由表 §5 / 接口消费表 §6 / 一致性门 §10 |
 | `v0.8.5/ACCEPTANCE.md` | v0.8.5 验收矩阵（真实证据） |
 | `ARCHITECTURE.md` | 现状架构导览（数字经 `generate_meta.py --check` 门禁） |

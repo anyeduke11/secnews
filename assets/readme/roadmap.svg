@@ -131,7 +131,7 @@
   <!-- 底部脚注 -->
   <text x="56" y="220" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
         font-size="10" fill="#3A3F4E" letter-spacing="1">
-    10 tags shipped  ·  118 migrations  ·  86 routers  ·  146 services  ·  57 jobs
+    10 tags shipped  ·  130 migrations  ·  101 routers  ·  161 services  ·  58 jobs
   </text>
   <text x="1144" y="220" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
         font-size="10" fill="#3A3F4E" letter-spacing="1">

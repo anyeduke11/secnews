@@ -1,6 +1,6 @@
-"""Quality gate mapping — dsh-SecNews 8 道 ↔ Hotspot 13 道对照表。
+"""Quality gate mapping — dsh-SecNews 8 道 ↔ Hotspot 14 道对照表。
 
-S2-1 合并结论：Hotspot 13 道同步门禁已完整覆盖 dsh-SecNews 全部 8 道检查，
+S2-1 合并结论：Hotspot 14 道同步门禁已完整覆盖 dsh-SecNews 全部 8 道检查，
 无缺口。本模块提供：
 1. GATE_COVERAGE — 对照表（审计与文档用）
 2. run_refine_gates() — kl_pipeline refine 阶段的质量校验入口

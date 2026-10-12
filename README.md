@@ -40,7 +40,7 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 
 | 能力 | 说明 |
 |------|------|
-| **热点聚合** | 13 采集器 · 13 质量门禁 · 7 大领域覆盖 |
+| **热点聚合** | 14 采集器 · 14 质量门禁 · 7 大领域覆盖 |
 | **知识沉淀** | md 真源 · kl_pipeline 5 阶段 · FTS5 检索 · 注意力评分 |
 | **项目管理** | CodeGarden 项目生命周期 + 服务网格 + 资源中枢 |
 | **安全图谱** | MITRE ATT&CK · NVD CVE · 等保 / 关基 / 数安法 |
@@ -53,7 +53,7 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 
 | 菜单 | 路由 | 解决什么 |
 |------|------|----------|
-| **资讯** | `/` | 13 采集器 · 13 质量门禁 · Pipeline 流水线 · 趋势 / 搜索 / 导出 · 信号面板 |
+| **资讯** | `/` | 14 采集器 · 14 质量门禁 · Pipeline 流水线 · 趋势 / 搜索 / 导出 · 信号面板 |
 | **知识** | `/knowledge` | LLM-Wiki 2.0 · md 真源 · kl_pipeline 5 阶段 · FTS5 · 案件队列 · 画布 |
 | **行动** | `/action` | 执行总览 · CodeGarden 联动 · 项目 · 服务 · 资源 · 事件 |
 | **设置** | `/settings` | dsh 受管子进程 / pi agent / 同步策略 / MCP / 观测 |
@@ -67,7 +67,7 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 ## 架构
 
 <p align="center">
-  <img src="./assets/readme/architecture.svg" width="100%" alt="NAV4 四菜单壳 + 三层架构: 浏览器 / AI Agent 在最上, FastAPI 单进程在中间 (86 routers / 146 services / 57 jobs / 13 collectors / 19 MCP 工具), SQLite + llm-wiki-2.0 md 真源在底层">
+  <img src="./assets/readme/architecture.svg" width="100%" alt="NAV4 四菜单壳 + 三层架构: 浏览器 / AI Agent 在最上, FastAPI 单进程在中间 (101 routers / 161 services / 58 jobs / 14 collectors / 19 MCP 工具), SQLite + llm-wiki-2.0 md 真源在底层">
 </p>
 
 ## MCP Server — 19 个工具
@@ -107,10 +107,10 @@ stdio 配置（粘到你的 AI Agent 配置）：
 |------|------|------|
 | Web 框架 | FastAPI | async + OpenAPI 生态成熟 |
 | 主存储 | **SQLite WAL** + `llm-wiki-2.0/` | 零部署 · FTS5 · git 友好 · LLM 可直读 · md 文件是 source of truth |
-| 调度 | APScheduler · **57 jobs** | 单进程内调度，无外部 MQ；含 8 个扩展 job 按 gate 过滤 |
-| 采集器 | **13 个** BaseCollector | 7 大领域覆盖，stdin/stdout 标准化 |
-| 路由器 | **86 个** FastAPI include_router | core 白名单 + 扩展域按 feature_gates 条件注册（13 gate） |
-| 业务服务 | **146 个** services 包 | 含 ai_hub / kl_pipeline / dsh / wiki_fs / model_router / agent_bridge / skills 等 |
+| 调度 | APScheduler · **58 jobs** | 单进程内调度，无外部 MQ；含 8 个扩展 job 按 gate 过滤 |
+| 采集器 | **14 个** BaseCollector | 7 大领域覆盖，stdin/stdout 标准化 |
+| 路由器 | **101 个** FastAPI include_router | core 白名单 + 扩展域按 feature_gates 条件注册（16 gate） |
+| 业务服务 | **161 个** services 包 | 含 ai_hub / kl_pipeline / dsh / wiki_fs / model_router / agent_bridge / skills 等 |
 | MCP | fastapi-mcp | OpenAPI → MCP 自动转换 · 19 个工具 |
 | 前端 | React 18 + Vite 5 + TypeScript | 300+ 组件 · 类型安全 · 热重载 |
 | 图表 | echarts + recharts | 看板风格 |

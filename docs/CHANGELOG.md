@@ -6,7 +6,7 @@
 
 ### PII 卫生清理 (三层处理模型)
 - **功能路径**: 硬编码机器本机绝对路径 → `__file__` 派生 (`Path(__file__).resolve().parents[N]`), 覆盖 `scripts/` 下功能性脚本
-- **文档/注释**: 纯文本路径 → 通用占位 (`/path/to/hotspot` · `/home/user/`); 个人标识 `owner` → `owner` (大小写敏感, 不误伤第三方 handle)
+- **文档/注释**: 纯文本路径 → 通用占位 (`/path/to/hotspot` · `/home/user/`); standalone 个人标识别名 → `owner` (不误伤第三方含该词根的 handle)
 - **测试夹具**: 断言 + 夹具中性化 (`backend/tests/test_codegarden_scanner.py` · `test_instance_lock.py` · 前端 colocated test)
 - **force-add 产物**: `frontend/test-results/.last-run.json` 取消跟踪; `.gitignore` `knowledge/` → `/knowledge/` (根锚定, 防误命中 `frontend/src/components/**/knowledge/`)
 
@@ -17,7 +17,7 @@
 - `frontend/package.json` version 0.8.5 → 0.8.7 (对齐后端)
 
 ### 验证
-- 后端 5468 passed · 前端 722 passed · `generate_meta.py --check` 过 (59 jobs / 19 collectors / 101 routers / 161 services) · `git grep '/home/user'` 归零
+- 后端 5468 passed · 前端 722 passed · `generate_meta.py --check` 过 (59 jobs / 19 collectors / 101 routers / 161 services) · 本机路径 grep 归零
 
 ## v0.8.6 (2026-10-14) — AI Native 证据工作台: 换主干 (tag v0.8.6)
 

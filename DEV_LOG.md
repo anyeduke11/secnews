@@ -5,9 +5,9 @@
 - **类型**: 卫生清理 + 版本收口 (非功能变更; owner: 提交至 github.com/anyeduke11/secnews 前「提交前进行敏感信息清理」+ 独立 agent 复查后 AskUserQuestion 选定「全面清理（含本机路径）」; 版本决策: 用户答「调整为 v0.8.7」—— v0.8.6 tag/Release 仍指向含 PII 的旧 commit, 不动历史, 改发新版本承载干净 commit)
 - **范围 (三层处理, Rule 3 手术刀式)**:
   - **① 功能性硬编码路径 → `__file__` 派生** (换机可跑): `scripts/migrate_archive_to_warm.py` / `tokenize_colors.py` / `tokenize_colors_v2.py` / `p1_4_mutation_test.py` / `phase1j_task1007_cleanup_pending.py` / `spike_sensenova_p1_p7.py`。
-  - **② 纯文档/注释文本 → 通用占位**: `/path/to/hotspot` → `/path/to/hotspot`, `/home/user` → `/home/user` (37 文件 178 处)。
+  - **② 纯文档/注释文本 → 通用占位**: 本机绝对路径 (用户主目录前缀) → `/path/to/hotspot` · `/home/user` (37 文件 178 处)。
   - **③ 测试夹具/断言中性化**: `test_codegarden_scanner.py` / `test_instance_lock.py` (ps 夹具 `duke`→`worker`) / `SentinelGardenPage.test.tsx` / `MCPSettingsCard.test.tsx` (连同断言一起改, 保持守卫语义)。
-- **个人标识清理**: `docs/ADMIN_MANUAL.md` 个人邮箱 → `<your-email@example.com>`; archived `migration-report.json` 邮箱残留 → `<redacted-email>`; standalone `owner` 别名 → `owner` (5 文件 9 处, 与 AGENTS.md「owner 裁决」约定一致); 第三方公共 handle `AnyeDuke/*` `secnewsbydukez/*` 保留 (公开仓库标题, 非本机 PII)。
+- **个人标识清理**: `docs/ADMIN_MANUAL.md` 个人邮箱 → `<your-email@example.com>`; archived `migration-report.json` 邮箱残留 → `<redacted-email>`; standalone 个人标识别名 → `owner` (5 文件 9 处, 与 AGENTS.md「owner 裁决」约定一致); 第三方公共 handle `AnyeDuke/*` `secnewsbydukez/*` 保留 (公开仓库标题, 非本机 PII)。
 - **force-add 产物**: `git rm --cached frontend/test-results/.last-run.json` (测试产物, 本已在 `.gitignore` 覆盖); `.gitignore` 修正 `knowledge/` → `/knowledge/` (前导 `/` 锚定仓库根, 否则误命中 `frontend/src/components/**/knowledge/` 前端组件)。
 - **未触碰**: 无 router/service/job 变更 (架构数字 101/161/59 不变); 无 PRD 语义变更 (唯一 PRD 仅 1 处路径 scrub, 按纪律留痕本条)。
 - **版本/文档/资产全链对齐 (v0.8.6 → v0.8.7)**: 单一真源 `backend/version.py::APP_VERSION` + v0.8.7 段落; 门控 `AGENTS.md` 头部 (版本门校验对象) + `CLAUDE.md` + `PROJECT.md`; `README.md` 中英双语版本表 + roadmap alt; `assets/readme/{hero,roadmap,architecture}.svg`; `docs/CHANGELOG.md` v0.8.7 条目; `frontend/package.json` + `package-lock.json` 0.8.5/0.7.0 → 0.8.7 (对齐后端)。历史 tag `v0.8.6` 与 `docs/HOTSPOT_V0.8.6_AI_NATIVE_PRD.md` 版本族文档名保留不改 (历史记录)。
